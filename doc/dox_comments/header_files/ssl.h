@@ -38856,3 +38856,508 @@ int wolfSSL_X509_set_ex_data(WOLFSSL_X509 *x509, int idx, void *data);
 int wolfSSL_X509_set_ex_data_with_cleanup(
     WOLFSSL_X509 *x509, int idx, void *data,
     wolfSSL_ex_data_cleanup_routine_t cleanup_routine);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets session ticket extension callback.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl WOLFSSL object
+    \param cb Callback function
+    \param ctx Context pointer
+
+    _Example_
+    \code
+    int ret = wolfSSL_set_session_ticket_ext_cb(ssl, ticketCb, ctx);
+    \endcode
+
+    \sa wolfSSL_set_SessionTicket_cb
+*/
+int wolfSSL_set_session_ticket_ext_cb(WOLFSSL* ssl, TicketParseCb cb,
+                                       void *ctx);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets TLS secret callback.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl WOLFSSL object
+    \param cb Callback function
+    \param ctx Context pointer
+
+    _Example_
+    \code
+    int ret = wolfSSL_set_secret_cb(ssl, secretCb, ctx);
+    \endcode
+
+    \sa wolfSSL_set_tls13_secret_cb
+*/
+int wolfSSL_set_secret_cb(WOLFSSL* ssl, TlsSecretCb cb, void* ctx);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets TLS 1.3 secret callback.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl WOLFSSL object
+    \param cb Callback function
+    \param ctx Context pointer
+
+    _Example_
+    \code
+    int ret = wolfSSL_set_tls13_secret_cb(ssl, tls13SecretCb, ctx);
+    \endcode
+
+    \sa wolfSSL_set_secret_cb
+*/
+int wolfSSL_set_tls13_secret_cb(WOLFSSL* ssl, Tls13SecretCb cb, void* ctx);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets cipher list from bytes for context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx WOLFSSL_CTX object
+    \param list Cipher list bytes
+    \param listSz List size
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_set_cipher_list_bytes(ctx, cipherBytes,
+                                                  sizeof(cipherBytes));
+    \endcode
+
+    \sa wolfSSL_set_cipher_list_bytes
+*/
+int wolfSSL_CTX_set_cipher_list_bytes(WOLFSSL_CTX* ctx, const byte* list,
+                                       const int listSz);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets cipher list from bytes for SSL object.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl WOLFSSL object
+    \param list Cipher list bytes
+    \param listSz List size
+
+    _Example_
+    \code
+    int ret = wolfSSL_set_cipher_list_bytes(ssl, cipherBytes,
+                                              sizeof(cipherBytes));
+    \endcode
+
+    \sa wolfSSL_CTX_set_cipher_list_bytes
+*/
+int wolfSSL_set_cipher_list_bytes(WOLFSSL* ssl, const byte* list,
+                                   const int listSz);
+
+/*!
+    \ingroup Setup
+
+    \brief Exports keying material for external use.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl WOLFSSL object
+    \param out Output buffer
+    \param outLen Output length
+    \param label Label string
+    \param labelLen Label length
+    \param context Context data
+    \param contextLen Context length
+    \param use_context Use context flag
+
+    _Example_
+    \code
+    unsigned char out[64];
+    int ret = wolfSSL_export_keying_material(ssl, out, sizeof(out),
+                                              "EXTRACTOR-dtls_srtp", 19,
+                                              NULL, 0, 0);
+    \endcode
+
+    \sa wolfSSL_export_dtls_srtp_keying_material
+*/
+int wolfSSL_export_keying_material(WOLFSSL *ssl, unsigned char *out,
+                                    size_t outLen, const char *label,
+                                    size_t labelLen,
+                                    const unsigned char *context,
+                                    size_t contextLen, int use_context);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets accept filter callback for context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx WOLFSSL_CTX object
+    \param AcceptFilter Filter callback
+    \param AcceptFilter_arg Filter argument
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_set_AcceptFilter(ctx, acceptFilterCb, arg);
+    \endcode
+
+    \sa wolfSSL_set_AcceptFilter
+*/
+int wolfSSL_CTX_set_AcceptFilter(WOLFSSL_CTX *ctx,
+                                  NetworkFilterCallback_t AcceptFilter,
+                                  void *AcceptFilter_arg);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets accept filter callback for SSL object.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl WOLFSSL object
+    \param AcceptFilter Filter callback
+    \param AcceptFilter_arg Filter argument
+
+    _Example_
+    \code
+    int ret = wolfSSL_set_AcceptFilter(ssl, acceptFilterCb, arg);
+    \endcode
+
+    \sa wolfSSL_CTX_set_AcceptFilter
+*/
+int wolfSSL_set_AcceptFilter(WOLFSSL *ssl,
+                              NetworkFilterCallback_t AcceptFilter,
+                              void *AcceptFilter_arg);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets connect filter callback for context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx WOLFSSL_CTX object
+    \param ConnectFilter Filter callback
+    \param ConnectFilter_arg Filter argument
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_set_ConnectFilter(ctx, connectFilterCb, arg);
+    \endcode
+
+    \sa wolfSSL_set_ConnectFilter
+*/
+int wolfSSL_CTX_set_ConnectFilter(WOLFSSL_CTX *ctx,
+                                   NetworkFilterCallback_t ConnectFilter,
+                                   void *ConnectFilter_arg);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets connect filter callback for SSL object.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl WOLFSSL object
+    \param ConnectFilter Filter callback
+    \param ConnectFilter_arg Filter argument
+
+    _Example_
+    \code
+    int ret = wolfSSL_set_ConnectFilter(ssl, connectFilterCb, arg);
+    \endcode
+
+    \sa wolfSSL_CTX_set_ConnectFilter
+*/
+int wolfSSL_set_ConnectFilter(WOLFSSL *ssl,
+                               NetworkFilterCallback_t ConnectFilter,
+                               void *ConnectFilter_arg);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets SRTP profiles for context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx WOLFSSL_CTX object
+    \param profile_str Colon-separated profile list
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_set_tlsext_use_srtp(ctx,
+                                                "SRTP_AES128_CM_SHA1_80");
+    \endcode
+
+    \sa wolfSSL_set_tlsext_use_srtp
+*/
+int wolfSSL_CTX_set_tlsext_use_srtp(WOLFSSL_CTX* ctx,
+                                     const char* profile_str);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets SRTP profiles for SSL object.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl WOLFSSL object
+    \param profile_str Colon-separated profile list
+
+    _Example_
+    \code
+    int ret = wolfSSL_set_tlsext_use_srtp(ssl, "SRTP_AES128_CM_SHA1_80");
+    \endcode
+
+    \sa wolfSSL_CTX_set_tlsext_use_srtp
+*/
+int wolfSSL_set_tlsext_use_srtp(WOLFSSL* ssl, const char* profile_str);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets selected SRTP profile.
+
+    \return WOLFSSL_SRTP_PROTECTION_PROFILE* Profile
+    \return NULL if none selected
+
+    \param ssl WOLFSSL object
+
+    _Example_
+    \code
+    const WOLFSSL_SRTP_PROTECTION_PROFILE* profile =
+        wolfSSL_get_selected_srtp_profile(ssl);
+    \endcode
+
+    \sa wolfSSL_set_tlsext_use_srtp
+*/
+const WOLFSSL_SRTP_PROTECTION_PROFILE*
+    wolfSSL_get_selected_srtp_profile(WOLFSSL* ssl);
+
+/*!
+    \ingroup Setup
+
+    \brief Exports DTLS SRTP keying material.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl WOLFSSL object
+    \param out Output buffer
+    \param olen Output length
+
+    _Example_
+    \code
+    unsigned char keyMaterial[256];
+    size_t olen = sizeof(keyMaterial);
+    int ret = wolfSSL_export_dtls_srtp_keying_material(ssl, keyMaterial,
+                                                         &olen);
+    \endcode
+
+    \sa wolfSSL_export_keying_material
+*/
+int wolfSSL_export_dtls_srtp_keying_material(WOLFSSL* ssl,
+                                              unsigned char* out,
+                                              size_t* olen);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets multicast member ID for context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx WOLFSSL_CTX object
+    \param id Member ID
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_mcast_set_member_id(ctx, 1);
+    \endcode
+
+    \sa wolfSSL_mcast_peer_add
+*/
+int wolfSSL_CTX_mcast_set_member_id(WOLFSSL_CTX* ctx, unsigned short id);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets multicast secret.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl WOLFSSL object
+    \param epoch Epoch
+    \param preMasterSecret Pre-master secret
+    \param preMasterSz Pre-master secret size
+    \param clientRandom Client random
+    \param serverRandom Server random
+    \param suite Cipher suite
+
+    _Example_
+    \code
+    int ret = wolfSSL_set_secret(ssl, epoch, preMaster, preMasterSz,
+                                  clientRand, serverRand, suite);
+    \endcode
+
+    \sa wolfSSL_mcast_read
+*/
+int wolfSSL_set_secret(WOLFSSL* ssl, unsigned short epoch,
+                       const unsigned char* preMasterSecret,
+                       unsigned int preMasterSz,
+                       const unsigned char* clientRandom,
+                       const unsigned char* serverRandom,
+                       const unsigned char* suite);
+
+/*!
+    \ingroup IO
+
+    \brief Reads multicast data.
+
+    \return int Bytes read
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl WOLFSSL object
+    \param id Peer ID output
+    \param data Data buffer
+    \param sz Buffer size
+
+    _Example_
+    \code
+    unsigned short peerId;
+    char data[1024];
+    int ret = wolfSSL_mcast_read(ssl, &peerId, data, sizeof(data));
+    \endcode
+
+    \sa wolfSSL_mcast_peer_add
+*/
+int wolfSSL_mcast_read(WOLFSSL* ssl, unsigned short* id, void* data,
+                       int sz);
+
+/*!
+    \ingroup Setup
+
+    \brief Adds multicast peer.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl WOLFSSL object
+    \param peerId Peer ID
+    \param sub Subscription flag
+
+    _Example_
+    \code
+    int ret = wolfSSL_mcast_peer_add(ssl, peerId, 1);
+    \endcode
+
+    \sa wolfSSL_mcast_peer_known
+*/
+int wolfSSL_mcast_peer_add(WOLFSSL* ssl, unsigned short peerId, int sub);
+
+/*!
+    \ingroup Setup
+
+    \brief Checks if multicast peer is known.
+
+    \return WOLFSSL_SUCCESS if known
+    \return WOLFSSL_FAILURE if unknown
+
+    \param ssl WOLFSSL object
+    \param peerId Peer ID
+
+    _Example_
+    \code
+    int known = wolfSSL_mcast_peer_known(ssl, peerId);
+    \endcode
+
+    \sa wolfSSL_mcast_peer_add
+*/
+int wolfSSL_mcast_peer_known(WOLFSSL* ssl, unsigned short peerId);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets maximum multicast peers.
+
+    \return int Max peers
+
+    _Example_
+    \code
+    int maxPeers = wolfSSL_mcast_get_max_peers();
+    \endcode
+
+    \sa wolfSSL_mcast_peer_add
+*/
+int wolfSSL_mcast_get_max_peers(void);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets multicast highwater callback for context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx WOLFSSL_CTX object
+    \param maxSeq Maximum sequence
+    \param first First threshold
+    \param second Second threshold
+    \param cb Callback function
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_mcast_set_highwater_cb(ctx, maxSeq, first,
+                                                   second, highwaterCb);
+    \endcode
+
+    \sa wolfSSL_mcast_set_highwater_ctx
+*/
+int wolfSSL_CTX_mcast_set_highwater_cb(WOLFSSL_CTX* ctx,
+                                        unsigned int maxSeq,
+                                        unsigned int first,
+                                        unsigned int second,
+                                        CallbackMcastHighwater cb);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets multicast highwater context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl WOLFSSL object
+    \param ctx Context pointer
+
+    _Example_
+    \code
+    int ret = wolfSSL_mcast_set_highwater_ctx(ssl, ctx);
+    \endcode
+
+    \sa wolfSSL_CTX_mcast_set_highwater_cb
+*/
+int wolfSSL_mcast_set_highwater_ctx(WOLFSSL* ssl, void* ctx);
