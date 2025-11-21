@@ -21,7 +21,7 @@ pull_to_vagrant.sh - synchronize to a vm without using git
 certs/
  renewcerts.sh - renews test certs and crls
  crl/
-  gencrls.sh   - generates crls, used by renewcerts.sh
+  gencrls.sh   - generates CRL's, used by renewcerts.sh
  ocsp/
   renewcerts.sh - renews ocsp certs
   ocspd0.sh - ocsp responder for root-ca-cert.pem
@@ -33,7 +33,7 @@ certs/
 scripts/
  external.test - example client test against our website, part of tests
  google.test   - example client test against google, part of tests
- resume.test   - example sessoin resume test, part of tests
+ resume.test   - example session resume test, part of tests
  ocsp-stapling.test - example client test against globalsign, part of tests
  ocsp-stapling1_tls13multi.text - example client test against example server, part of tests
  ocsp-stapling2.test - example client test against example server, part of tests
