@@ -35335,3 +35335,526 @@ void wolfSSL_THREADID_set_numeric(void* id, unsigned long val);
     \sa wolfSSL_THREADID_set_numeric
 */
 void wolfSSL_THREADID_current(WOLFSSL_CRYPTO_THREADID* id);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets thread ID hash.
+
+    \return unsigned long Hash value
+
+    \param id Thread ID
+
+    _Example_
+    \code
+    unsigned long hash = wolfSSL_THREADID_hash(&tid);
+    \endcode
+
+    \sa wolfSSL_THREADID_current
+*/
+unsigned long wolfSSL_THREADID_hash(const WOLFSSL_CRYPTO_THREADID* id);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets X509 object type.
+
+    \return WOLFSSL_X509_LOOKUP_TYPE Type
+
+    \param obj X509 object
+
+    _Example_
+    \code
+    WOLFSSL_X509_LOOKUP_TYPE type = wolfSSL_X509_OBJECT_get_type(obj);
+    \endcode
+
+    \sa wolfSSL_X509_OBJECT_new
+*/
+WOLFSSL_X509_LOOKUP_TYPE wolfSSL_X509_OBJECT_get_type(
+                                        const WOLFSSL_X509_OBJECT* obj);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Creates new X509 object.
+
+    \return WOLFSSL_X509_OBJECT* Object
+    \return NULL on failure
+
+    _Example_
+    \code
+    WOLFSSL_X509_OBJECT* obj = wolfSSL_X509_OBJECT_new();
+    \endcode
+
+    \sa wolfSSL_X509_OBJECT_free
+*/
+WOLFSSL_X509_OBJECT* wolfSSL_X509_OBJECT_new(void);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Frees X509 object.
+
+    \return none
+
+    \param obj X509 object
+
+    _Example_
+    \code
+    wolfSSL_X509_OBJECT_free(obj);
+    \endcode
+
+    \sa wolfSSL_X509_OBJECT_new
+*/
+void wolfSSL_X509_OBJECT_free(WOLFSSL_X509_OBJECT *obj);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets context curves list.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx Context
+    \param names Curve names
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_set1_curves_list(ctx, "P-256:P-384");
+    \endcode
+
+    \sa wolfSSL_set1_curves_list
+*/
+int wolfSSL_CTX_set1_curves_list(WOLFSSL_CTX* ctx, const char* names);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets curves list.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl WOLFSSL object
+    \param names Curve names
+
+    _Example_
+    \code
+    int ret = wolfSSL_set1_curves_list(ssl, "P-256:P-384");
+    \endcode
+
+    \sa wolfSSL_CTX_set1_curves_list
+*/
+int wolfSSL_set1_curves_list(WOLFSSL* ssl, const char* names);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets verify mode.
+
+    \return int Verify mode
+
+    \param ssl WOLFSSL object
+
+    _Example_
+    \code
+    int mode = wolfSSL_get_verify_mode(ssl);
+    \endcode
+
+    \sa wolfSSL_CTX_get_verify_mode
+*/
+int wolfSSL_get_verify_mode(const WOLFSSL* ssl);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets context verify mode.
+
+    \return int Verify mode
+
+    \param ctx Context
+
+    _Example_
+    \code
+    int mode = wolfSSL_CTX_get_verify_mode(ctx);
+    \endcode
+
+    \sa wolfSSL_get_verify_mode
+*/
+int wolfSSL_CTX_get_verify_mode(const WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets Java object.
+
+    \return void* Java object
+    \return NULL on failure
+
+    \param ssl WOLFSSL object
+
+    _Example_
+    \code
+    void* jobj = wolfSSL_get_jobject(ssl);
+    \endcode
+
+    \sa wolfSSL_set_jobject
+*/
+void* wolfSSL_get_jobject(WOLFSSL* ssl);
+
+/*!
+    \ingroup Setup
+
+    \brief Polls async operation.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl WOLFSSL object
+    \param flags Event flags
+
+    _Example_
+    \code
+    int ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
+    \endcode
+
+    \sa wolfSSL_CTX_AsyncPoll
+*/
+int wolfSSL_AsyncPoll(WOLFSSL* ssl, WOLF_EVENT_FLAG flags);
+
+/*!
+    \ingroup Setup
+
+    \brief Polls context async operations.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx Context
+    \param events Events array
+    \param maxEvents Max events
+    \param flags Event flags
+    \param eventCount Event count pointer
+
+    _Example_
+    \code
+    WOLF_EVENT* events[10];
+    int count;
+    int ret = wolfSSL_CTX_AsyncPoll(ctx, events, 10,
+                                     WOLF_POLL_FLAG_CHECK_HW, &count);
+    \endcode
+
+    \sa wolfSSL_AsyncPoll
+*/
+int wolfSSL_CTX_AsyncPoll(WOLFSSL_CTX* ctx, WOLF_EVENT** events,
+                          int maxEvents, WOLF_EVENT_FLAG flags,
+                          int* eventCount);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets keylog callback.
+
+    \return none
+
+    \param ctx Context
+    \param cb Callback function
+
+    _Example_
+    \code
+    wolfSSL_CTX_set_keylog_callback(ctx, myKeylogCallback);
+    \endcode
+
+    \sa wolfSSL_CTX_get_keylog_callback
+*/
+void wolfSSL_CTX_set_keylog_callback(WOLFSSL_CTX* ctx,
+                                      wolfSSL_CTX_keylog_cb_func cb);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets keylog callback.
+
+    \return wolfSSL_CTX_keylog_cb_func Callback function
+
+    \param ctx Context
+
+    _Example_
+    \code
+    wolfSSL_CTX_keylog_cb_func cb = wolfSSL_CTX_get_keylog_callback(ctx);
+    \endcode
+
+    \sa wolfSSL_CTX_set_keylog_callback
+*/
+wolfSSL_CTX_keylog_cb_func wolfSSL_CTX_get_keylog_callback(
+                                                    const WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets message callback.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx Context
+    \param cb Callback function
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_set_msg_callback(ctx, myMsgCallback);
+    \endcode
+
+    \sa wolfSSL_CTX_set_msg_callback_arg
+*/
+int wolfSSL_CTX_set_msg_callback(WOLFSSL_CTX *ctx, SSL_Msg_Cb cb);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets message callback argument.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx Context
+    \param arg Argument
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_set_msg_callback_arg(ctx, myArg);
+    \endcode
+
+    \sa wolfSSL_CTX_set_msg_callback
+*/
+int wolfSSL_CTX_set_msg_callback_arg(WOLFSSL_CTX *ctx, void* arg);
+
+/*!
+    \ingroup Debug
+
+    \brief Peeks error with line and data.
+
+    \return unsigned long Error code
+
+    \param file File pointer
+    \param line Line pointer
+    \param data Data pointer
+    \param flags Flags pointer
+
+    _Example_
+    \code
+    const char* file;
+    int line;
+    const char* data;
+    int flags;
+    unsigned long err = wolfSSL_ERR_peek_error_line_data(&file, &line,
+                                                          &data, &flags);
+    \endcode
+
+    \sa wolfSSL_ERR_peek_error
+*/
+unsigned long wolfSSL_ERR_peek_error_line_data(const char **file,
+                                                int *line,
+                                                const char **data,
+                                                int *flags);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets context ALPN protocols.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx Context
+    \param protos Protocols
+    \param protos_len Protocols length
+
+    _Example_
+    \code
+    unsigned char protos[] = "\x08http/1.1";
+    int ret = wolfSSL_CTX_set_alpn_protos(ctx, protos, sizeof(protos)-1);
+    \endcode
+
+    \sa wolfSSL_set_alpn_protos
+*/
+int wolfSSL_CTX_set_alpn_protos(WOLFSSL_CTX *ctx,
+                                 const unsigned char *protos,
+                                 unsigned int protos_len);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets ALPN protocols.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl WOLFSSL object
+    \param protos Protocols
+    \param protos_len Protocols length
+
+    _Example_
+    \code
+    unsigned char protos[] = "\x08http/1.1";
+    int ret = wolfSSL_set_alpn_protos(ssl, protos, sizeof(protos)-1);
+    \endcode
+
+    \sa wolfSSL_CTX_set_alpn_protos
+*/
+int wolfSSL_set_alpn_protos(WOLFSSL* ssl, const unsigned char* protos,
+                            unsigned int protos_len);
+
+/*!
+    \ingroup Setup
+
+    \brief Cleanses memory.
+
+    \return none
+
+    \param ptr Pointer
+    \param len Length
+
+    _Example_
+    \code
+    wolfSSL_OPENSSL_cleanse(buffer, sizeof(buffer));
+    \endcode
+
+    \sa XMEMSET
+*/
+void wolfSSL_OPENSSL_cleanse(void *ptr, size_t len);
+
+/*!
+    \ingroup Debug
+
+    \brief Loads BIO error strings.
+
+    \return none
+
+    _Example_
+    \code
+    wolfSSL_ERR_load_BIO_strings();
+    \endcode
+
+    \sa wolfSSL_ERR_load_crypto_strings
+*/
+void wolfSSL_ERR_load_BIO_strings(void);
+
+/*!
+    \ingroup Diffie-Hellman
+
+    \brief Gets DH parameters.
+
+    \return none
+
+    \param dh DH object
+    \param p Prime pointer
+    \param q Q pointer
+    \param g Generator pointer
+
+    _Example_
+    \code
+    const WOLFSSL_BIGNUM *p, *q, *g;
+    wolfSSL_DH_get0_pqg(dh, &p, &q, &g);
+    \endcode
+
+    \sa wolfSSL_DH_get0_key
+*/
+void wolfSSL_DH_get0_pqg(const WOLFSSL_DH* dh, const WOLFSSL_BIGNUM** p,
+                         const WOLFSSL_BIGNUM** q,
+                         const WOLFSSL_BIGNUM** g);
+
+/*!
+    \ingroup Diffie-Hellman
+
+    \brief Gets DH keys.
+
+    \return none
+
+    \param dh DH object
+    \param pub_key Public key pointer
+    \param priv_key Private key pointer
+
+    _Example_
+    \code
+    const WOLFSSL_BIGNUM *pub, *priv;
+    wolfSSL_DH_get0_key(dh, &pub, &priv);
+    \endcode
+
+    \sa wolfSSL_DH_set0_key
+*/
+void wolfSSL_DH_get0_key(const WOLFSSL_DH *dh,
+                         const WOLFSSL_BIGNUM **pub_key,
+                         const WOLFSSL_BIGNUM **priv_key);
+
+/*!
+    \ingroup Diffie-Hellman
+
+    \brief Sets DH keys.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param dh DH object
+    \param pub_key Public key
+    \param priv_key Private key
+
+    _Example_
+    \code
+    int ret = wolfSSL_DH_set0_key(dh, pub, priv);
+    \endcode
+
+    \sa wolfSSL_DH_get0_key
+*/
+int wolfSSL_DH_set0_key(WOLFSSL_DH *dh, WOLFSSL_BIGNUM *pub_key,
+                        WOLFSSL_BIGNUM *priv_key);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets OCSP produced date.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl WOLFSSL object
+    \param producedDate Produced date buffer
+    \param producedDate_space Buffer size
+    \param producedDateFormat Format pointer
+
+    _Example_
+    \code
+    byte date[32];
+    int format;
+    int ret = wolfSSL_get_ocsp_producedDate(ssl, date, sizeof(date),
+                                             &format);
+    \endcode
+
+    \sa wolfSSL_get_ocsp_producedDate_tm
+*/
+int wolfSSL_get_ocsp_producedDate(WOLFSSL *ssl, byte *producedDate,
+                                   size_t producedDate_space,
+                                   int *producedDateFormat);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets OCSP produced date as tm.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl WOLFSSL object
+    \param produced_tm Time structure pointer
+
+    _Example_
+    \code
+    struct tm produced;
+    int ret = wolfSSL_get_ocsp_producedDate_tm(ssl, &produced);
+    \endcode
+
+    \sa wolfSSL_get_ocsp_producedDate
+*/
+int wolfSSL_get_ocsp_producedDate_tm(WOLFSSL *ssl,
+                                      struct tm *produced_tm);
