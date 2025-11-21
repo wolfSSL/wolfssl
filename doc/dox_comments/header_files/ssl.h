@@ -24177,3 +24177,517 @@ long wolfSSL_CTX_sess_misses(WOLFSSL_CTX* ctx);
     \sa wolfSSL_CTX_sess_hits
 */
 long wolfSSL_CTX_sess_timeouts(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets number of sessions in cache.
+
+    \return long Number of sessions
+
+    \param ctx SSL context
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    long num = wolfSSL_CTX_sess_number(ctx);
+    printf("Sessions: %ld\n", num);
+    \endcode
+
+    \sa wolfSSL_CTX_sess_hits
+*/
+long wolfSSL_CTX_sess_number(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup openSSL
+
+    \brief Sets session cache size.
+
+    \return long Previous cache size
+
+    \param ctx SSL context
+    \param sz New cache size
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    long prev = wolfSSL_CTX_sess_set_cache_size(ctx, 1000);
+    \endcode
+
+    \sa wolfSSL_CTX_sess_get_cache_size
+*/
+long wolfSSL_CTX_sess_set_cache_size(WOLFSSL_CTX* ctx, long sz);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets session cache size.
+
+    \return long Cache size
+
+    \param ctx SSL context
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    long size = wolfSSL_CTX_sess_get_cache_size(ctx);
+    printf("Cache size: %ld\n", size);
+    \endcode
+
+    \sa wolfSSL_CTX_sess_set_cache_size
+*/
+long wolfSSL_CTX_sess_get_cache_size(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets session cache mode.
+
+    \return long Cache mode flags
+
+    \param ctx SSL context
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    long mode = wolfSSL_CTX_get_session_cache_mode(ctx);
+    \endcode
+
+    \sa wolfSSL_CTX_set_session_cache_mode
+*/
+long wolfSSL_CTX_get_session_cache_mode(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets read-ahead mode.
+
+    \return int Read-ahead setting
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    int ahead = wolfSSL_get_read_ahead(ssl);
+    if (ahead) {
+        printf("Read-ahead enabled\n");
+    }
+    \endcode
+
+    \sa wolfSSL_set_read_ahead
+*/
+int wolfSSL_get_read_ahead(const WOLFSSL* ssl);
+
+/*!
+    \ingroup openSSL
+
+    \brief Sets read-ahead mode.
+
+    \return int Previous read-ahead setting
+
+    \param ssl SSL object
+    \param v Read-ahead value
+
+    _Example_
+    \code
+    int ret = wolfSSL_set_read_ahead(ssl, 1);
+    \endcode
+
+    \sa wolfSSL_get_read_ahead
+*/
+int wolfSSL_set_read_ahead(WOLFSSL* ssl, int v);
+
+/*!
+    \ingroup openSSL
+
+    \brief Adds client CA to context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx SSL context
+    \param x509 CA certificate
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    WOLFSSL_X509* ca = wolfSSL_X509_load_certificate_file("ca.pem",
+                                                            format);
+    int ret = wolfSSL_CTX_add_client_CA(ctx, ca);
+    \endcode
+
+    \sa wolfSSL_add_client_CA
+*/
+int wolfSSL_CTX_add_client_CA(WOLFSSL_CTX* ctx, WOLFSSL_X509* x509);
+
+/*!
+    \ingroup openSSL
+
+    \brief Adds client CA to SSL object.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl SSL object
+    \param x509 CA certificate
+
+    _Example_
+    \code
+    WOLFSSL_X509* ca = wolfSSL_X509_load_certificate_file("ca.pem",
+                                                            format);
+    int ret = wolfSSL_add_client_CA(ssl, ca);
+    \endcode
+
+    \sa wolfSSL_CTX_add_client_CA
+*/
+int wolfSSL_add_client_CA(WOLFSSL* ssl, WOLFSSL_X509* x509);
+
+/*!
+    \ingroup openSSL
+
+    \brief Adds certificate to CA list in context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx SSL context
+    \param x509 Certificate to add
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    WOLFSSL_X509* cert = wolfSSL_X509_load_certificate_file("cert.pem",
+                                                              format);
+    int ret = wolfSSL_CTX_add1_to_CA_list(ctx, cert);
+    \endcode
+
+    \sa wolfSSL_add1_to_CA_list
+*/
+int wolfSSL_CTX_add1_to_CA_list(WOLFSSL_CTX* ctx, WOLFSSL_X509* x509);
+
+/*!
+    \ingroup openSSL
+
+    \brief Adds certificate to CA list in SSL object.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl SSL object
+    \param x509 Certificate to add
+
+    _Example_
+    \code
+    WOLFSSL_X509* cert = wolfSSL_X509_load_certificate_file("cert.pem",
+                                                              format);
+    int ret = wolfSSL_add1_to_CA_list(ssl, cert);
+    \endcode
+
+    \sa wolfSSL_CTX_add1_to_CA_list
+*/
+int wolfSSL_add1_to_CA_list(WOLFSSL* ssl, WOLFSSL_X509* x509);
+
+/*!
+    \ingroup openSSL
+
+    \brief Sets SRP password in context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx SSL context
+    \param password SRP password
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    int ret = wolfSSL_CTX_set_srp_password(ctx, "mypassword");
+    \endcode
+
+    \sa wolfSSL_CTX_set_srp_username
+*/
+int wolfSSL_CTX_set_srp_password(WOLFSSL_CTX* ctx, char* password);
+
+/*!
+    \ingroup openSSL
+
+    \brief Sets SRP username in context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx SSL context
+    \param username SRP username
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    int ret = wolfSSL_CTX_set_srp_username(ctx, "myuser");
+    \endcode
+
+    \sa wolfSSL_CTX_set_srp_password
+*/
+int wolfSSL_CTX_set_srp_username(WOLFSSL_CTX* ctx, char* username);
+
+/*!
+    \ingroup openSSL
+
+    \brief Sets SRP strength in context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx SSL context
+    \param strength SRP strength
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    int ret = wolfSSL_CTX_set_srp_strength(ctx, 2048);
+    \endcode
+
+    \sa wolfSSL_CTX_set_srp_username
+*/
+int wolfSSL_CTX_set_srp_strength(WOLFSSL_CTX* ctx, int strength);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets SRP username from SSL object.
+
+    \return char* SRP username
+    \return NULL if not set
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    char* user = wolfSSL_get_srp_username(ssl);
+    if (user != NULL) {
+        printf("SRP user: %s\n", user);
+    }
+    \endcode
+
+    \sa wolfSSL_CTX_set_srp_username
+*/
+char* wolfSSL_get_srp_username(WOLFSSL* ssl);
+
+/*!
+    \ingroup openSSL
+
+    \brief Clears SSL options.
+
+    \return long Updated options
+
+    \param s SSL object
+    \param op Options to clear
+
+    _Example_
+    \code
+    long opts = wolfSSL_clear_options(ssl, SSL_OP_NO_TLSv1);
+    \endcode
+
+    \sa wolfSSL_set_options
+*/
+long wolfSSL_clear_options(WOLFSSL* s, long op);
+
+/*!
+    \ingroup openSSL
+
+    \brief Sets temporary DH parameters.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param s SSL object
+    \param dh DH parameters
+
+    _Example_
+    \code
+    WOLFSSL_DH* dh = wolfSSL_DH_new();
+    long ret = wolfSSL_set_tmp_dh(ssl, dh);
+    \endcode
+
+    \sa wolfSSL_CTX_SetTmpDH
+*/
+long wolfSSL_set_tmp_dh(WOLFSSL* s, WOLFSSL_DH* dh);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets TLS extension status type.
+
+    \return long Status type
+
+    \param s SSL object
+
+    _Example_
+    \code
+    long type = wolfSSL_get_tlsext_status_type(ssl);
+    \endcode
+
+    \sa wolfSSL_set_tlsext_status_type
+*/
+long wolfSSL_get_tlsext_status_type(WOLFSSL* s);
+
+/*!
+    \ingroup openSSL
+
+    \brief Sets TLS extension status extensions.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param s SSL object
+    \param arg Extension data
+
+    _Example_
+    \code
+    long ret = wolfSSL_set_tlsext_status_exts(ssl, exts);
+    \endcode
+
+    \sa wolfSSL_get_tlsext_status_exts
+*/
+long wolfSSL_set_tlsext_status_exts(WOLFSSL* s, void* arg);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets TLS extension status IDs.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param s SSL object
+    \param arg ID data
+
+    _Example_
+    \code
+    long ret = wolfSSL_get_tlsext_status_ids(ssl, &ids);
+    \endcode
+
+    \sa wolfSSL_set_tlsext_status_ids
+*/
+long wolfSSL_get_tlsext_status_ids(WOLFSSL* s, void* arg);
+
+/*!
+    \ingroup openSSL
+
+    \brief Sets TLS extension status IDs.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param s SSL object
+    \param arg ID data
+
+    _Example_
+    \code
+    long ret = wolfSSL_set_tlsext_status_ids(ssl, ids);
+    \endcode
+
+    \sa wolfSSL_get_tlsext_status_ids
+*/
+long wolfSSL_set_tlsext_status_ids(WOLFSSL* s, void* arg);
+
+/*!
+    \ingroup openSSL
+
+    \brief Sets maximum fragment length.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param s SSL object
+    \param mode Fragment length mode
+
+    _Example_
+    \code
+    int ret = wolfSSL_set_tlsext_max_fragment_length(ssl,
+                                                       TLSEXT_max_fragment_length_512);
+    \endcode
+
+    \sa wolfSSL_CTX_set_tlsext_max_fragment_length
+*/
+int wolfSSL_set_tlsext_max_fragment_length(WOLFSSL* s, unsigned char mode);
+
+/*!
+    \ingroup openSSL
+
+    \brief Sets maximum fragment length in context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param c SSL context
+    \param mode Fragment length mode
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_set_tlsext_max_fragment_length(ctx,
+                                                           TLSEXT_max_fragment_length_1024);
+    \endcode
+
+    \sa wolfSSL_set_tlsext_max_fragment_length
+*/
+int wolfSSL_CTX_set_tlsext_max_fragment_length(WOLFSSL_CTX* c,
+                                                 unsigned char mode);
+
+/*!
+    \ingroup openSSL
+
+    \brief Unloads configuration modules.
+
+    \return none
+
+    \param all Unload all flag
+
+    _Example_
+    \code
+    wolfSSL_CONF_modules_unload(1);
+    \endcode
+
+    \sa wolfSSL_CONF_modules_load
+*/
+void wolfSSL_CONF_modules_unload(int all);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets default config file path.
+
+    \return char* Config file path
+    \return NULL on failure
+
+    _Example_
+    \code
+    char* path = wolfSSL_CONF_get1_default_config_file();
+    if (path != NULL) {
+        printf("Config: %s\n", path);
+        XFREE(path, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+    \endcode
+
+    \sa wolfSSL_CONF_modules_load
+*/
+char* wolfSSL_CONF_get1_default_config_file(void);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets TLS extension status extensions.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param s SSL object
+    \param arg Extension data
+
+    _Example_
+    \code
+    long ret = wolfSSL_get_tlsext_status_exts(ssl, &exts);
+    \endcode
+
+    \sa wolfSSL_set_tlsext_status_exts
+*/
+long wolfSSL_get_tlsext_status_exts(WOLFSSL* s, void* arg);
