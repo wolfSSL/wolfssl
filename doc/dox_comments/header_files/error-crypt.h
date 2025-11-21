@@ -47,3 +47,27 @@ void wc_ErrorString(int err, char* buff);
     \sa wc_ErrorString
 */
 const char* wc_GetErrorString(int error);
+
+/*!
+    \ingroup Error
+    \brief This function renders a backtrace to stderr when backtrace
+    support is enabled. This is useful for debugging and error reporting
+    to show the call stack at the point where an error occurred. This
+    function requires WOLFSSL_BACKTRACE to be defined during compilation.
+
+    \return none No returns.
+
+    _Example_
+    \code
+    int ret = wc_some_function();
+    
+    if (ret != 0) {
+        // error occurred, print backtrace for debugging
+        wc_backtrace_render();
+    }
+    \endcode
+
+    \sa wc_ErrorString
+    \sa wc_GetErrorString
+*/
+void wc_backtrace_render(void);
