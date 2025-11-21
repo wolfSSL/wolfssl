@@ -1806,6 +1806,103 @@ int wc_CertPemToDer(const unsigned char* pem, int pemSz,
 int wc_PemCertToDer_ex(const char* fileName, DerBuffer** der);
 
 /*!
+    \ingroup ASN
+    \brief Adds PKCS padding to buffer for RSA encryption.
+
+    \return Padded size on success
+    \return 0 on error
+
+    \param buf Buffer to pad
+    \param sz Current size of data in buffer
+    \param blockSz Block size for padding
+
+    _Example_
+    \code
+    byte buffer[256];
+    word32 dataSz = 100;
+    word32 paddedSz = wc_PkcsPad(buffer, dataSz, 256);
+    \endcode
+
+    \sa wc_RsaPublicEncrypt
+*/
+word32 wc_PkcsPad(byte* buf, word32 sz, word32 blockSz);
+
+/*!
+    \ingroup RSA
+    \brief Decodes RSA public key and extracts modulus and exponent.
+
+    \return 0 on success
+    \return negative on error
+
+    \param input DER encoded RSA public key buffer
+    \param inOutIdx Pointer to index in buffer
+    \param inSz Size of input buffer
+    \param n Pointer to modulus pointer
+    \param nSz Pointer to modulus size
+    \param e Pointer to exponent pointer
+    \param eSz Pointer to exponent size
+
+    _Example_
+    \code
+    const byte* n;
+    const byte* e;
+    word32 nSz, eSz, idx = 0;
+    int ret = wc_RsaPublicKeyDecode_ex(derBuf, &idx, derSz,
+                                       &n, &nSz, &e, &eSz);
+    \endcode
+
+    \sa wc_RsaPublicKeyDecode
+*/
+int wc_RsaPublicKeyDecode_ex(const byte* input, word32* inOutIdx,
+                              word32 inSz, const byte** n, word32* nSz,
+                              const byte** e, word32* eSz);
+
+/*!
+    \ingroup RSA
+    \brief Calculates DER encoded RSA public key size.
+
+    \return Size on success
+    \return negative on error
+
+    \param key RSA key structure
+    \param with_header Include sequence header if non-zero
+
+    _Example_
+    \code
+    RsaKey key;
+    int derSz = wc_RsaPublicKeyDerSize(&key, 1);
+    \endcode
+
+    \sa wc_RsaKeyToDer
+*/
+int wc_RsaPublicKeyDerSize(RsaKey* key, int with_header);
+
+/*!
+    \ingroup RSA
+    \brief Validates DER encoded RSA private key format.
+
+    \return 0 on success
+    \return negative on error
+
+    \param input DER encoded RSA private key buffer
+    \param inOutIdx Pointer to index in buffer
+    \param keySz Pointer to store key size
+    \param inSz Size of input buffer
+
+    _Example_
+    \code
+    word32 idx = 0;
+    int keySz;
+    int ret = wc_RsaPrivateKeyValidate(derBuf, &idx, &keySz,
+                                       derSz);
+    \endcode
+
+    \sa wc_RsaPrivateKeyDecode
+*/
+int wc_RsaPrivateKeyValidate(const byte* input, word32* inOutIdx,
+                              int* keySz, word32 inSz);
+
+/*!
     \ingroup CertsKeys
 
     \brief This function gets the public key in DER format from a populated
