@@ -1362,6 +1362,7 @@ impl ECC {
     /// }
     /// ```
     #[cfg(ecc_import)]
+    #[allow(clippy::too_many_arguments)]
     pub fn export_ex(&mut self, qx: &mut [u8], qx_len: &mut u32,
             qy: &mut [u8], qy_len: &mut u32, d: &mut [u8], d_len: &mut u32,
             hex: bool) -> Result<(), i32> {

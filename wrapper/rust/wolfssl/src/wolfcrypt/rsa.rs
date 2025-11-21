@@ -215,11 +215,10 @@ impl RSA {
             return Err(rc);
         }
         let mut wc_rsakey = unsafe { wc_rsakey.assume_init() };
-        let der_ptr = der.as_ptr() as *const u8;
         let der_size = der.len() as u32;
         let mut idx: u32 = 0;
         let rc = unsafe {
-            sys::wc_RsaPrivateKeyDecode(der_ptr, &mut idx, &mut wc_rsakey, der_size)
+            sys::wc_RsaPrivateKeyDecode(der.as_ptr(), &mut idx, &mut wc_rsakey, der_size)
         };
         if rc != 0 {
             unsafe { sys::wc_FreeRsaKey(&mut wc_rsakey); }
@@ -325,11 +324,10 @@ impl RSA {
             return Err(rc);
         }
         let mut wc_rsakey = unsafe { wc_rsakey.assume_init() };
-        let der_ptr = der.as_ptr() as *const u8;
         let der_size = der.len() as u32;
         let mut idx: u32 = 0;
         let rc = unsafe {
-            sys::wc_RsaPublicKeyDecode(der_ptr, &mut idx, &mut wc_rsakey, der_size)
+            sys::wc_RsaPublicKeyDecode(der.as_ptr(), &mut idx, &mut wc_rsakey, der_size)
         };
         if rc != 0 {
             unsafe { sys::wc_FreeRsaKey(&mut wc_rsakey); }
@@ -496,25 +494,25 @@ impl RSA {
     ///     &mut d, &mut d_size, &mut p, &mut p_size, &mut q, &mut q_size).expect("Error with export_key()");
     /// }
     /// ```
+    #[allow(clippy::too_many_arguments)]
     pub fn export_key(&mut self,
             e: &mut [u8], e_size: &mut u32,
             n: &mut [u8], n_size: &mut u32,
             d: &mut [u8], d_size: &mut u32,
             p: &mut [u8], p_size: &mut u32,
             q: &mut [u8], q_size: &mut u32) -> Result<(), i32> {
-        let e_ptr = e.as_ptr() as *mut u8;
         *e_size = e.len() as u32;
-        let n_ptr = n.as_ptr() as *mut u8;
         *n_size = n.len() as u32;
-        let d_ptr = d.as_ptr() as *mut u8;
         *d_size = d.len() as u32;
-        let p_ptr = p.as_ptr() as *mut u8;
         *p_size = p.len() as u32;
-        let q_ptr = q.as_ptr() as *mut u8;
         *q_size = q.len() as u32;
         let rc = unsafe {
-            sys::wc_RsaExportKey(&mut self.wc_rsakey, e_ptr, e_size,
-                n_ptr, n_size, d_ptr, d_size, p_ptr, p_size, q_ptr, q_size)
+            sys::wc_RsaExportKey(&self.wc_rsakey,
+                e.as_mut_ptr(), e_size,
+                n.as_mut_ptr(), n_size,
+                d.as_mut_ptr(), d_size,
+                p.as_mut_ptr(), p_size,
+                q.as_mut_ptr(), q_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -556,13 +554,11 @@ impl RSA {
     pub fn export_public_key(&mut self,
             e: &mut [u8], e_size: &mut u32,
             n: &mut [u8], n_size: &mut u32) -> Result<(), i32> {
-        let e_ptr = e.as_ptr() as *mut u8;
         *e_size = e.len() as u32;
-        let n_ptr = n.as_ptr() as *mut u8;
         *n_size = n.len() as u32;
         let rc = unsafe {
-            sys::wc_RsaFlattenPublicKey(&mut self.wc_rsakey, e_ptr, e_size,
-                n_ptr, n_size)
+            sys::wc_RsaFlattenPublicKey(&self.wc_rsakey,
+                e.as_mut_ptr(), e_size, n.as_mut_ptr(), n_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -670,13 +666,12 @@ impl RSA {
     /// assert_eq!(plain_out[0..dec_len], *plain);
     /// ```
     pub fn public_encrypt(&mut self, din: &[u8], dout: &mut [u8], rng: &mut RNG) -> Result<usize, i32> {
-        let din_ptr = din.as_ptr() as *const u8;
         let din_size = din.len() as u32;
-        let dout_ptr = dout.as_ptr() as *mut u8;
         let dout_size = dout.len() as u32;
         let rc = unsafe {
-            sys::wc_RsaPublicEncrypt(din_ptr, din_size, dout_ptr, dout_size,
-                &mut self.wc_rsakey, &mut rng.wc_rng)
+            sys::wc_RsaPublicEncrypt(din.as_ptr(), din_size,
+                dout.as_mut_ptr(), dout_size, &mut self.wc_rsakey,
+                &mut rng.wc_rng)
         };
         if rc < 0 {
             return Err(rc);
@@ -725,13 +720,11 @@ impl RSA {
     /// assert_eq!(plain_out[0..dec_len], *plain);
     /// ```
     pub fn private_decrypt(&mut self, din: &[u8], dout: &mut [u8]) -> Result<usize, i32> {
-        let din_ptr = din.as_ptr() as *const u8;
         let din_size = din.len() as u32;
-        let dout_ptr = dout.as_ptr() as *mut u8;
         let dout_size = dout.len() as u32;
         let rc = unsafe {
-            sys::wc_RsaPrivateDecrypt(din_ptr, din_size, dout_ptr, dout_size,
-                &mut self.wc_rsakey)
+            sys::wc_RsaPrivateDecrypt(din.as_ptr(), din_size,
+                dout.as_mut_ptr(), dout_size, &mut self.wc_rsakey)
         };
         if rc < 0 {
             return Err(rc);
@@ -789,12 +782,10 @@ impl RSA {
     /// rsa.pss_verify_check(signature, &mut verify_out, msg, RSA::HASH_TYPE_SHA256, RSA::MGF1SHA256).expect("Error with pss_verify_check()");
     /// ```
     pub fn pss_sign(&mut self, din: &[u8], dout: &mut [u8], hash_algo: u32, mgf: i32, rng: &mut RNG) -> Result<usize, i32> {
-        let din_ptr = din.as_ptr() as *const u8;
         let din_size = din.len() as u32;
-        let dout_ptr = dout.as_ptr() as *mut u8;
         let dout_size = dout.len() as u32;
         let rc = unsafe {
-            sys::wc_RsaPSS_Sign(din_ptr, din_size, dout_ptr, dout_size,
+            sys::wc_RsaPSS_Sign(din.as_ptr(), din_size, dout.as_mut_ptr(), dout_size,
                 hash_algo, mgf, &mut self.wc_rsakey, &mut rng.wc_rng)
         };
         if rc < 0 {
@@ -850,13 +841,11 @@ impl RSA {
     /// rsa.pss_verify_check(signature, &mut verify_out, msg, RSA::HASH_TYPE_SHA256, RSA::MGF1SHA256).expect("Error with pss_verify_check()");
     /// ```
     pub fn pss_check_padding(&mut self, din: &[u8], sig: &[u8], hash_algo: u32) -> Result<(), i32> {
-        let din_ptr = din.as_ptr() as *const u8;
         let din_size = din.len() as u32;
-        let sig_ptr = sig.as_ptr() as *const u8;
         let sig_size = sig.len() as u32;
         let rc = unsafe {
-            sys::wc_RsaPSS_CheckPadding(din_ptr, din_size, sig_ptr, sig_size,
-                hash_algo)
+            sys::wc_RsaPSS_CheckPadding(din.as_ptr(), din_size,
+                sig.as_ptr(), sig_size, hash_algo)
         };
         if rc != 0 {
             return Err(rc);
@@ -914,12 +903,11 @@ impl RSA {
     /// rsa.pss_verify_check(signature, &mut verify_out, msg, RSA::HASH_TYPE_SHA256, RSA::MGF1SHA256).expect("Error with pss_verify_check()");
     /// ```
     pub fn pss_verify(&mut self, din: &[u8], dout: &mut [u8], hash_algo: u32, mgf: i32) -> Result<usize, i32> {
-        let din_ptr = din.as_ptr() as *const u8;
         let din_size = din.len() as u32;
-        let dout_ptr = dout.as_ptr() as *mut u8;
         let dout_size = dout.len() as u32;
         let rc = unsafe {
-            sys::wc_RsaPSS_Verify(din_ptr, din_size, dout_ptr, dout_size,
+            sys::wc_RsaPSS_Verify(din.as_ptr(), din_size,
+                dout.as_mut_ptr(), dout_size,
                 hash_algo, mgf, &mut self.wc_rsakey)
         };
         if rc < 0 {
@@ -982,15 +970,13 @@ impl RSA {
     /// rsa.pss_verify_check(signature, &mut verify_out, msg, RSA::HASH_TYPE_SHA256, RSA::MGF1SHA256).expect("Error with pss_verify_check()");
     /// ```
     pub fn pss_verify_check(&mut self, din: &[u8], dout: &mut [u8], digest: &[u8], hash_algo: u32, mgf: i32) -> Result<usize, i32> {
-        let din_ptr = din.as_ptr() as *const u8;
         let din_size = din.len() as u32;
-        let dout_ptr = dout.as_ptr() as *mut u8;
         let dout_size = dout.len() as u32;
-        let digest_ptr = digest.as_ptr() as *const u8;
         let digest_size = digest.len() as u32;
         let rc = unsafe {
-            sys::wc_RsaPSS_VerifyCheck(din_ptr, din_size, dout_ptr, dout_size,
-                digest_ptr, digest_size, hash_algo, mgf, &mut self.wc_rsakey)
+            sys::wc_RsaPSS_VerifyCheck(din.as_ptr(), din_size,
+                dout.as_mut_ptr(), dout_size, digest.as_ptr(), digest_size,
+                hash_algo, mgf, &mut self.wc_rsakey)
         };
         if rc < 0 {
             return Err(rc);
@@ -1047,12 +1033,11 @@ impl RSA {
     /// ```
     #[cfg(rsa_direct)]
     pub fn rsa_direct(&mut self, din: &[u8], dout: &mut [u8], typ: i32, rng: &mut RNG) -> Result<usize, i32> {
-        let din_ptr = din.as_ptr() as *const u8;
         let din_size = din.len() as u32;
-        let dout_ptr = dout.as_ptr() as *mut u8;
         let mut dout_size = dout.len() as u32;
         let rc = unsafe {
-            sys::wc_RsaDirect(din_ptr, din_size, dout_ptr, &mut dout_size,
+            sys::wc_RsaDirect(din.as_ptr(), din_size,
+                dout.as_mut_ptr(), &mut dout_size,
                 &mut self.wc_rsakey, typ, &mut rng.wc_rng)
         };
         if rc < 0 {
@@ -1093,7 +1078,6 @@ impl RSA {
     /// let mut enc: [u8; 512] = [0; 512];
     /// let enc_len = rsa.public_encrypt(plain, &mut enc, &mut rng).expect("Error with public_encrypt()");
     /// assert!(enc_len > 0 && enc_len <= 512);
-
     /// let key_path = "../../../certs/client-key.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
     /// let mut rsa = RSA::new_from_der(&der).expect("Error with new_from_der()");
@@ -1156,12 +1140,11 @@ impl RSA {
     /// assert!(verify_out_size > 0 && verify_out_size <= 512);
     /// ```
     pub fn ssl_sign(&mut self, din: &[u8], dout: &mut [u8], rng: &mut RNG) -> Result<usize, i32> {
-        let din_ptr = din.as_ptr() as *const u8;
         let din_size = din.len() as u32;
-        let dout_ptr = dout.as_ptr() as *mut u8;
         let dout_size = dout.len() as u32;
         let rc = unsafe {
-            sys::wc_RsaSSL_Sign(din_ptr, din_size, dout_ptr, dout_size,
+            sys::wc_RsaSSL_Sign(din.as_ptr(), din_size,
+                dout.as_mut_ptr(), dout_size,
                 &mut self.wc_rsakey, &mut rng.wc_rng)
         };
         if rc < 0 {
@@ -1214,13 +1197,11 @@ impl RSA {
     /// assert!(verify_out_size > 0 && verify_out_size <= 512);
     /// ```
     pub fn ssl_verify(&mut self, din: &[u8], dout: &mut [u8]) -> Result<usize, i32> {
-        let din_ptr = din.as_ptr() as *const u8;
         let din_size = din.len() as u32;
-        let dout_ptr = dout.as_ptr() as *mut u8;
         let dout_size = dout.len() as u32;
         let rc = unsafe {
-            sys::wc_RsaSSL_Verify(din_ptr, din_size, dout_ptr, dout_size,
-                &mut self.wc_rsakey)
+            sys::wc_RsaSSL_Verify(din.as_ptr(), din_size,
+                dout.as_mut_ptr(), dout_size, &mut self.wc_rsakey)
         };
         if rc < 0 {
             return Err(rc);

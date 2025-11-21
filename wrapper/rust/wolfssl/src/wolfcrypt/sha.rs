@@ -2098,7 +2098,7 @@ impl SHAKE128 {
         if dout_size % (Self::SQUEEZE_BLOCK_SIZE as u32) != 0 {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
-        let n_blocks = (dout_size / (Self::SQUEEZE_BLOCK_SIZE as u32)) as u32;
+        let n_blocks = dout_size / (Self::SQUEEZE_BLOCK_SIZE as u32);
         let rc = unsafe {
             sys::wc_Shake128_SqueezeBlocks(&mut self.wc_shake, dout.as_mut_ptr(), n_blocks)
         };
@@ -2368,7 +2368,7 @@ impl SHAKE256 {
         if dout_size % (Self::SQUEEZE_BLOCK_SIZE as u32) != 0 {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
-        let n_blocks = (dout_size / (Self::SQUEEZE_BLOCK_SIZE as u32)) as u32;
+        let n_blocks = dout_size / (Self::SQUEEZE_BLOCK_SIZE as u32);
         let rc = unsafe {
             sys::wc_Shake256_SqueezeBlocks(&mut self.wc_shake, dout.as_mut_ptr(), n_blocks)
         };
