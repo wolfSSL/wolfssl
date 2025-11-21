@@ -1427,6 +1427,31 @@ int wc_PemPubKeyToDer(const char* fileName,
 
 /*!
     \ingroup ASN
+    \brief Loads PEM public key from file to DER buffer.
+
+    \return 0 on success
+    \return negative on error
+
+    \param fileName Path to PEM file
+    \param der Pointer to DerBuffer pointer to allocate
+
+    _Example_
+    \code
+    DerBuffer* der = NULL;
+    int ret = wc_PemPubKeyToDer_ex("pubkey.pem", &der);
+    if (ret == 0) {
+        // Use der->buffer and der->length
+        wc_FreeDer(&der);
+    }
+    \endcode
+
+    \sa wc_PemPubKeyToDer
+    \sa wc_FreeDer
+*/
+int wc_PemPubKeyToDer_ex(const char* fileName, DerBuffer** der);
+
+/*!
+    \ingroup ASN
 
     \brief Convert a PEM encoded public key to DER.  Returns the number of
     bytes written to the buffer or a negative value for an error.
@@ -1649,6 +1674,31 @@ int wc_KeyPemToDer(const unsigned char* pem, int pemSz,
 */
 int wc_CertPemToDer(const unsigned char* pem, int pemSz,
                     unsigned char* buff, int buffSz, int type);
+
+/*!
+    \ingroup ASN
+    \brief Loads PEM certificate from file to DER buffer.
+
+    \return 0 on success
+    \return negative on error
+
+    \param fileName Path to PEM certificate file
+    \param der Pointer to DerBuffer pointer to allocate
+
+    _Example_
+    \code
+    DerBuffer* der = NULL;
+    int ret = wc_PemCertToDer_ex("cert.pem", &der);
+    if (ret == 0) {
+        // Use der->buffer and der->length
+        wc_FreeDer(&der);
+    }
+    \endcode
+
+    \sa wc_CertPemToDer
+    \sa wc_FreeDer
+*/
+int wc_PemCertToDer_ex(const char* fileName, DerBuffer** der);
 
 /*!
     \ingroup CertsKeys
