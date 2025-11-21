@@ -37778,3 +37778,542 @@ int wolfSSL_dtls13_allow_ch_frag(WOLFSSL *ssl, int enabled);
     \sa wolfSSL_dtls13_allow_ch_frag
 */
 int wolfSSL_dtls13_no_hrr_on_resume(WOLFSSL *ssl, int enabled);
+
+/*!
+    \ingroup Setup
+
+    \brief Generates ECH configuration for context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx WOLFSSL_CTX object
+    \param publicName Public name
+    \param kemId KEM algorithm ID
+    \param kdfId KDF algorithm ID
+    \param aeadId AEAD algorithm ID
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_GenerateEchConfig(ctx, "example.com", 0x20,
+                                             0x01, 0x01);
+    \endcode
+
+    \sa wolfSSL_CTX_SetEchConfigs
+*/
+int wolfSSL_CTX_GenerateEchConfig(WOLFSSL_CTX* ctx, const char* publicName,
+                                   word16 kemId, word16 kdfId,
+                                   word16 aeadId);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets ECH configs from base64 for context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx WOLFSSL_CTX object
+    \param echConfigs64 Base64 encoded ECH configs
+    \param echConfigs64Len Length of base64 configs
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_SetEchConfigsBase64(ctx, base64Configs, len);
+    \endcode
+
+    \sa wolfSSL_CTX_SetEchConfigs
+*/
+int wolfSSL_CTX_SetEchConfigsBase64(WOLFSSL_CTX* ctx,
+                                     const char* echConfigs64,
+                                     word32 echConfigs64Len);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets ECH configs for context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx WOLFSSL_CTX object
+    \param echConfigs ECH configs buffer
+    \param echConfigsLen Length of configs
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_SetEchConfigs(ctx, configs, configsLen);
+    \endcode
+
+    \sa wolfSSL_CTX_GenerateEchConfig
+*/
+int wolfSSL_CTX_SetEchConfigs(WOLFSSL_CTX* ctx, const byte* echConfigs,
+                               word32 echConfigsLen);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets ECH configs from context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx WOLFSSL_CTX object
+    \param output Output buffer
+    \param outputLen Output buffer length
+
+    _Example_
+    \code
+    byte output[256];
+    word32 outputLen = sizeof(output);
+    int ret = wolfSSL_CTX_GetEchConfigs(ctx, output, &outputLen);
+    \endcode
+
+    \sa wolfSSL_CTX_SetEchConfigs
+*/
+int wolfSSL_CTX_GetEchConfigs(WOLFSSL_CTX* ctx, byte* output,
+                               word32* outputLen);
+
+/*!
+    \ingroup Setup
+
+    \brief Enables or disables ECH for context.
+
+    \return none
+
+    \param ctx WOLFSSL_CTX object
+    \param enable Enable flag
+
+    _Example_
+    \code
+    wolfSSL_CTX_SetEchEnable(ctx, 1);
+    \endcode
+
+    \sa wolfSSL_SetEchEnable
+*/
+void wolfSSL_CTX_SetEchEnable(WOLFSSL_CTX* ctx, byte enable);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets ECH configs from base64 for SSL object.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl WOLFSSL object
+    \param echConfigs64 Base64 encoded ECH configs
+    \param echConfigs64Len Length of base64 configs
+
+    _Example_
+    \code
+    int ret = wolfSSL_SetEchConfigsBase64(ssl, base64Configs, len);
+    \endcode
+
+    \sa wolfSSL_SetEchConfigs
+*/
+int wolfSSL_SetEchConfigsBase64(WOLFSSL* ssl, char* echConfigs64,
+                                 word32 echConfigs64Len);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets ECH configs for SSL object.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl WOLFSSL object
+    \param echConfigs ECH configs buffer
+    \param echConfigsLen Length of configs
+
+    _Example_
+    \code
+    int ret = wolfSSL_SetEchConfigs(ssl, configs, configsLen);
+    \endcode
+
+    \sa wolfSSL_CTX_SetEchConfigs
+*/
+int wolfSSL_SetEchConfigs(WOLFSSL* ssl, const byte* echConfigs,
+                           word32 echConfigsLen);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets ECH configs from SSL object.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl WOLFSSL object
+    \param echConfigs Output buffer
+    \param echConfigsLen Output buffer length
+
+    _Example_
+    \code
+    byte configs[256];
+    word32 configsLen = sizeof(configs);
+    int ret = wolfSSL_GetEchConfigs(ssl, configs, &configsLen);
+    \endcode
+
+    \sa wolfSSL_SetEchConfigs
+*/
+int wolfSSL_GetEchConfigs(WOLFSSL* ssl, byte* echConfigs,
+                           word32* echConfigsLen);
+
+/*!
+    \ingroup Setup
+
+    \brief Enables or disables ECH for SSL object.
+
+    \return none
+
+    \param ssl WOLFSSL object
+    \param enable Enable flag
+
+    _Example_
+    \code
+    wolfSSL_SetEchEnable(ssl, 1);
+    \endcode
+
+    \sa wolfSSL_CTX_SetEchEnable
+*/
+void wolfSSL_SetEchEnable(WOLFSSL* ssl, byte enable);
+
+/*!
+    \ingroup Setup
+
+    \brief Exports DTLS state only without keys.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl WOLFSSL object
+    \param buf Export buffer
+    \param sz Buffer size
+
+    _Example_
+    \code
+    unsigned char buf[4096];
+    unsigned int sz = sizeof(buf);
+    int ret = wolfSSL_dtls_export_state_only(ssl, buf, &sz);
+    \endcode
+
+    \sa wolfSSL_dtls_export
+*/
+int wolfSSL_dtls_export_state_only(WOLFSSL* ssl, unsigned char* buf,
+                                    unsigned int* sz);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Uses alternative private key file for context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx WOLFSSL_CTX object
+    \param file File path
+    \param format File format
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_use_AltPrivateKey_file(ctx, "alt_key.pem",
+                                                   WOLFSSL_FILETYPE_PEM);
+    \endcode
+
+    \sa wolfSSL_CTX_use_PrivateKey_file
+*/
+int wolfSSL_CTX_use_AltPrivateKey_file(WOLFSSL_CTX* ctx, const char* file,
+                                        int format);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets certificate verification depth for context.
+
+    \return none
+
+    \param ctx WOLFSSL_CTX object
+    \param depth Maximum verification depth
+
+    _Example_
+    \code
+    wolfSSL_CTX_set_verify_depth(ctx, 5);
+    \endcode
+
+    \sa wolfSSL_CTX_set_verify
+*/
+void wolfSSL_CTX_set_verify_depth(WOLFSSL_CTX *ctx, int depth);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Loads CA certificates with compatibility mode.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx WOLFSSL_CTX object
+    \param file CA file path
+    \param path CA directory path
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_load_verify_locations_compat(ctx, "ca.pem",
+                                                         "/etc/ssl/certs");
+    \endcode
+
+    \sa wolfSSL_CTX_load_verify_locations
+*/
+int wolfSSL_CTX_load_verify_locations_compat(WOLFSSL_CTX* ctx,
+                                               const char* file,
+                                               const char* path);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Trusts peer certificate from file.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl WOLFSSL object
+    \param file Certificate file path
+    \param type File type
+
+    _Example_
+    \code
+    int ret = wolfSSL_trust_peer_cert(ssl, "peer.pem",
+                                       WOLFSSL_FILETYPE_PEM);
+    \endcode
+
+    \sa wolfSSL_CTX_trust_peer_cert
+*/
+int wolfSSL_trust_peer_cert(WOLFSSL* ssl, const char* file, int type);
+
+/*!
+    \ingroup Setup
+
+    \brief Enables or disables ECDH auto mode.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl WOLFSSL object
+    \param onoff Enable flag
+
+    _Example_
+    \code
+    int ret = wolfSSL_set_ecdh_auto(ssl, 1);
+    \endcode
+
+    \sa wolfSSL_CTX_set_ecdh_auto
+*/
+int wolfSSL_set_ecdh_auto(WOLFSSL* ssl, int onoff);
+
+/*!
+    \ingroup Setup
+
+    \brief Enables or disables ECDH auto mode for context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx WOLFSSL_CTX object
+    \param onoff Enable flag
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_set_ecdh_auto(ctx, 1);
+    \endcode
+
+    \sa wolfSSL_set_ecdh_auto
+*/
+int wolfSSL_CTX_set_ecdh_auto(WOLFSSL_CTX* ctx, int onoff);
+
+/*!
+    \ingroup Setup
+
+    \brief Enables or disables DH auto mode for context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx WOLFSSL_CTX object
+    \param onoff Enable flag
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_set_dh_auto(ctx, 1);
+    \endcode
+
+    \sa wolfSSL_CTX_set_ecdh_auto
+*/
+int wolfSSL_CTX_set_dh_auto(WOLFSSL_CTX* ctx, int onoff);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets signature algorithm NID.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl WOLFSSL object
+    \param nid Output NID
+
+    _Example_
+    \code
+    int nid;
+    int ret = wolfSSL_get_signature_nid(ssl, &nid);
+    \endcode
+
+    \sa wolfSSL_get_signature_type_nid
+*/
+int wolfSSL_get_signature_nid(WOLFSSL* ssl, int* nid);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets signature type NID.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl WOLFSSL object
+    \param nid Output NID
+
+    _Example_
+    \code
+    int nid;
+    int ret = wolfSSL_get_signature_type_nid(ssl, &nid);
+    \endcode
+
+    \sa wolfSSL_get_signature_nid
+*/
+int wolfSSL_get_signature_type_nid(const WOLFSSL* ssl, int* nid);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets peer signature algorithm NID.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl WOLFSSL object
+    \param nid Output NID
+
+    _Example_
+    \code
+    int nid;
+    int ret = wolfSSL_get_peer_signature_nid(ssl, &nid);
+    \endcode
+
+    \sa wolfSSL_get_peer_signature_type_nid
+*/
+int wolfSSL_get_peer_signature_nid(WOLFSSL* ssl, int* nid);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets peer signature type NID.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl WOLFSSL object
+    \param nid Output NID
+
+    _Example_
+    \code
+    int nid;
+    int ret = wolfSSL_get_peer_signature_type_nid(ssl, &nid);
+    \endcode
+
+    \sa wolfSSL_get_peer_signature_nid
+*/
+int wolfSSL_get_peer_signature_type_nid(const WOLFSSL* ssl, int* nid);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets signature algorithms list for context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx WOLFSSL_CTX object
+    \param list Colon-separated signature algorithms
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_set1_sigalgs_list(ctx,
+                                             "RSA+SHA256:ECDSA+SHA256");
+    \endcode
+
+    \sa wolfSSL_set1_sigalgs_list
+*/
+int wolfSSL_CTX_set1_sigalgs_list(WOLFSSL_CTX* ctx, const char* list);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets signature algorithms list for SSL object.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl WOLFSSL object
+    \param list Colon-separated signature algorithms
+
+    _Example_
+    \code
+    int ret = wolfSSL_set1_sigalgs_list(ssl,
+                                         "RSA+SHA256:ECDSA+SHA256");
+    \endcode
+
+    \sa wolfSSL_CTX_set1_sigalgs_list
+*/
+int wolfSSL_set1_sigalgs_list(WOLFSSL* ssl, const char* list);
+
+/*!
+    \ingroup Setup
+
+    \brief Enables mutual authentication for context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx WOLFSSL_CTX object
+    \param req Requirement flag
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_mutual_auth(ctx, 1);
+    \endcode
+
+    \sa wolfSSL_mutual_auth
+*/
+int wolfSSL_CTX_mutual_auth(WOLFSSL_CTX* ctx, int req);
+
+/*!
+    \ingroup Setup
+
+    \brief Enables mutual authentication for SSL object.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl WOLFSSL object
+    \param req Requirement flag
+
+    _Example_
+    \code
+    int ret = wolfSSL_mutual_auth(ssl, 1);
+    \endcode
+
+    \sa wolfSSL_CTX_mutual_auth
+*/
+int wolfSSL_mutual_auth(WOLFSSL* ssl, int req);
