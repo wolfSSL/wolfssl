@@ -306,6 +306,65 @@ int wc_GetCertDates(Cert* cert, struct tm* before, struct tm* after);
 
 /*!
     \ingroup ASN
+    \brief Extracts date information from certificate date field.
+
+    \return 0 on success
+    \return BAD_FUNC_ARG if parameters invalid
+    \return ASN_PARSE_E if date parsing fails
+
+    \param certDate Certificate date buffer
+    \param certDateSz Size of certificate date buffer
+    \param date Pointer to extracted date data
+    \param format Pointer to date format byte
+    \param length Pointer to date length
+
+    _Example_
+    \code
+    const byte* certDate;
+    const byte* date;
+    byte format;
+    int length;
+    int ret = wc_GetDateInfo(certDate, certDateSz, &date,
+                             &format, &length);
+    \endcode
+
+    \sa wc_GetCertDates
+    \sa wc_GetDateAsCalendarTime
+*/
+int wc_GetDateInfo(const byte* certDate, int certDateSz,
+                   const byte** date, byte* format, int* length);
+
+/*!
+    \ingroup ASN
+    \brief Converts certificate date to calendar time structure.
+
+    \return 0 on success
+    \return BAD_FUNC_ARG if parameters invalid
+    \return ASN_TIME_E if time conversion fails
+
+    \param date Date buffer
+    \param length Length of date buffer
+    \param format Date format (ASN_UTC_TIME or ASN_GENERALIZED_TIME)
+    \param timearg Pointer to tm structure to fill
+
+    _Example_
+    \code
+    const byte* date;
+    int length;
+    byte format;
+    struct tm timeInfo;
+    int ret = wc_GetDateAsCalendarTime(date, length, format,
+                                       &timeInfo);
+    \endcode
+
+    \sa wc_GetDateInfo
+    \sa wc_GetCertDates
+*/
+int wc_GetDateAsCalendarTime(const byte* date, int length,
+                              byte format, struct tm* timearg);
+
+/*!
+    \ingroup ASN
 
     \brief This function makes a certificate signing request using the input
     certificate and writes the output to derBuffer. It takes in either an
