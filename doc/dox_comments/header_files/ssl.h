@@ -1836,6 +1836,55 @@ WOLFSSL_CTX* wolfSSL_CTX_new(WOLFSSL_METHOD*);
 /*!
     \ingroup Setup
 
+    \brief Creates new SSL context with custom heap.
+
+    \return WOLFSSL_CTX* Pointer to newly created context
+    \return NULL on failure
+
+    \param method WOLFSSL_METHOD to use for context
+    \param heap Custom heap hint for memory allocation
+
+    _Example_
+    \code
+    WOLFSSL_METHOD* method = wolfTLSv1_2_client_method();
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new_ex(method, NULL);
+    if (ctx == NULL) {
+        // context creation failed
+    }
+    \endcode
+
+    \sa wolfSSL_CTX_new
+    \sa wolfSSL_CTX_free
+*/
+WOLFSSL_CTX* wolfSSL_CTX_new_ex(WOLFSSL_METHOD* method, void* heap);
+
+/*!
+    \ingroup Setup
+
+    \brief Increments reference count for SSL context.
+
+    \return SSL_SUCCESS on success
+    \return SSL_FAILURE on failure
+
+    \param ctx WOLFSSL_CTX to increment reference count
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    int ret = wolfSSL_CTX_up_ref(ctx);
+    if (ret != SSL_SUCCESS) {
+        // failed to increment reference count
+    }
+    \endcode
+
+    \sa wolfSSL_CTX_new
+    \sa wolfSSL_CTX_free
+*/
+int wolfSSL_CTX_up_ref(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup Setup
+
     \brief This function creates a new SSL session, taking an already
     created SSL context as input.
 
