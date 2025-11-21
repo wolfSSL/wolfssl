@@ -2111,6 +2111,108 @@ int  wolfSSL_set_fd(WOLFSSL* ssl, int fd);
 /*!
     \ingroup Setup
 
+    \brief Sets the write file descriptor for SSL connection.
+
+    \return SSL_SUCCESS on success
+    \return BAD_FUNC_ARG on failure
+
+    \param ssl WOLFSSL object to set write fd for
+    \param fd File descriptor for writing
+
+    _Example_
+    \code
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    int write_fd = socket(AF_INET, SOCK_STREAM, 0);
+    int ret = wolfSSL_set_write_fd(ssl, write_fd);
+    if (ret != SSL_SUCCESS) {
+        // failed to set write fd
+    }
+    \endcode
+
+    \sa wolfSSL_set_fd
+    \sa wolfSSL_set_read_fd
+*/
+int wolfSSL_set_write_fd(WOLFSSL* ssl, int fd);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets the read file descriptor for SSL connection.
+
+    \return SSL_SUCCESS on success
+    \return BAD_FUNC_ARG on failure
+
+    \param ssl WOLFSSL object to set read fd for
+    \param fd File descriptor for reading
+
+    _Example_
+    \code
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    int read_fd = socket(AF_INET, SOCK_STREAM, 0);
+    int ret = wolfSSL_set_read_fd(ssl, read_fd);
+    if (ret != SSL_SUCCESS) {
+        // failed to set read fd
+    }
+    \endcode
+
+    \sa wolfSSL_set_fd
+    \sa wolfSSL_set_write_fd
+*/
+int wolfSSL_set_read_fd(WOLFSSL* ssl, int fd);
+
+/*!
+    \ingroup Setup
+
+    \brief Checks if SSL session is configured as server.
+
+    \return 1 if ssl is server
+    \return 0 if ssl is client or NULL
+
+    \param ssl WOLFSSL object to check
+
+    _Example_
+    \code
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    if (wolfSSL_is_server(ssl)) {
+        // handle server-side logic
+    } else {
+        // handle client-side logic
+    }
+    \endcode
+
+    \sa wolfSSL_new
+    \sa wolfSSL_accept
+    \sa wolfSSL_connect
+*/
+int wolfSSL_is_server(WOLFSSL* ssl);
+
+/*!
+    \ingroup Setup
+
+    \brief Creates a duplicate SSL session for writing.
+
+    \return WOLFSSL* Pointer to duplicated SSL object
+    \return NULL on failure
+
+    \param ssl WOLFSSL object to duplicate
+
+    _Example_
+    \code
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    WOLFSSL* write_dup = wolfSSL_write_dup(ssl);
+    if (write_dup == NULL) {
+        // failed to create write duplicate
+    }
+    \endcode
+
+    \sa wolfSSL_new
+    \sa wolfSSL_free
+*/
+WOLFSSL* wolfSSL_write_dup(WOLFSSL* ssl);
+
+/*!
+    \ingroup Setup
+
     \brief This function assigns a file descriptor (fd) as the
     input/output facility for the SSL connection. Typically this will be
     a socket file descriptor. This is a DTLS specific API because it marks that
