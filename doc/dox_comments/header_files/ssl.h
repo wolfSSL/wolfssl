@@ -25211,3 +25211,522 @@ WOLFSSL_CIPHER* wolfSSL_get_current_cipher(WOLFSSL* ssl);
 */
 char* wolfSSL_CIPHER_description(const WOLFSSL_CIPHER* cipher, char* in,
                                    int len);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets cipher name.
+
+    \return const char* Cipher name
+
+    \param cipher Cipher to get name from
+
+    _Example_
+    \code
+    WOLFSSL_CIPHER* cipher = wolfSSL_get_current_cipher(ssl);
+    const char* name = wolfSSL_CIPHER_get_name(cipher);
+    printf("Cipher: %s\n", name);
+    \endcode
+
+    \sa wolfSSL_get_current_cipher
+*/
+const char* wolfSSL_CIPHER_get_name(const WOLFSSL_CIPHER* cipher);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets cipher version.
+
+    \return const char* Version string
+
+    \param cipher Cipher to get version from
+
+    _Example_
+    \code
+    WOLFSSL_CIPHER* cipher = wolfSSL_get_current_cipher(ssl);
+    const char* version = wolfSSL_CIPHER_get_version(cipher);
+    printf("Version: %s\n", version);
+    \endcode
+
+    \sa wolfSSL_CIPHER_get_name
+*/
+const char* wolfSSL_CIPHER_get_version(const WOLFSSL_CIPHER* cipher);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets cipher ID.
+
+    \return word32 Cipher ID
+
+    \param cipher Cipher to get ID from
+
+    _Example_
+    \code
+    WOLFSSL_CIPHER* cipher = wolfSSL_get_current_cipher(ssl);
+    word32 id = wolfSSL_CIPHER_get_id(cipher);
+    printf("Cipher ID: 0x%08X\n", id);
+    \endcode
+
+    \sa wolfSSL_CIPHER_get_name
+*/
+word32 wolfSSL_CIPHER_get_id(const WOLFSSL_CIPHER* cipher);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets cipher authentication NID.
+
+    \return int Authentication NID
+
+    \param cipher Cipher to get auth NID from
+
+    _Example_
+    \code
+    WOLFSSL_CIPHER* cipher = wolfSSL_get_current_cipher(ssl);
+    int nid = wolfSSL_CIPHER_get_auth_nid(cipher);
+    \endcode
+
+    \sa wolfSSL_CIPHER_get_cipher_nid
+*/
+int wolfSSL_CIPHER_get_auth_nid(const WOLFSSL_CIPHER* cipher);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets cipher algorithm NID.
+
+    \return int Cipher NID
+
+    \param cipher Cipher to get NID from
+
+    _Example_
+    \code
+    WOLFSSL_CIPHER* cipher = wolfSSL_get_current_cipher(ssl);
+    int nid = wolfSSL_CIPHER_get_cipher_nid(cipher);
+    \endcode
+
+    \sa wolfSSL_CIPHER_get_auth_nid
+*/
+int wolfSSL_CIPHER_get_cipher_nid(const WOLFSSL_CIPHER* cipher);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets cipher digest NID.
+
+    \return int Digest NID
+
+    \param cipher Cipher to get digest NID from
+
+    _Example_
+    \code
+    WOLFSSL_CIPHER* cipher = wolfSSL_get_current_cipher(ssl);
+    int nid = wolfSSL_CIPHER_get_digest_nid(cipher);
+    \endcode
+
+    \sa wolfSSL_CIPHER_get_cipher_nid
+*/
+int wolfSSL_CIPHER_get_digest_nid(const WOLFSSL_CIPHER* cipher);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets cipher key exchange NID.
+
+    \return int Key exchange NID
+
+    \param cipher Cipher to get kx NID from
+
+    _Example_
+    \code
+    WOLFSSL_CIPHER* cipher = wolfSSL_get_current_cipher(ssl);
+    int nid = wolfSSL_CIPHER_get_kx_nid(cipher);
+    \endcode
+
+    \sa wolfSSL_CIPHER_get_cipher_nid
+*/
+int wolfSSL_CIPHER_get_kx_nid(const WOLFSSL_CIPHER* cipher);
+
+/*!
+    \ingroup openSSL
+
+    \brief Checks if cipher is AEAD.
+
+    \return 1 if AEAD
+    \return 0 if not AEAD
+
+    \param cipher Cipher to check
+
+    _Example_
+    \code
+    WOLFSSL_CIPHER* cipher = wolfSSL_get_current_cipher(ssl);
+    int isAead = wolfSSL_CIPHER_is_aead(cipher);
+    if (isAead) {
+        printf("Cipher is AEAD\n");
+    }
+    \endcode
+
+    \sa wolfSSL_CIPHER_get_name
+*/
+int wolfSSL_CIPHER_is_aead(const WOLFSSL_CIPHER* cipher);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets cipher by value.
+
+    \return const WOLFSSL_CIPHER* Cipher object
+    \return NULL if not found
+
+    \param value Cipher suite value
+
+    _Example_
+    \code
+    const WOLFSSL_CIPHER* cipher = wolfSSL_get_cipher_by_value(0x1301);
+    if (cipher != NULL) {
+        const char* name = wolfSSL_CIPHER_get_name(cipher);
+        printf("Cipher: %s\n", name);
+    }
+    \endcode
+
+    \sa wolfSSL_get_current_cipher
+*/
+const WOLFSSL_CIPHER* wolfSSL_get_cipher_by_value(word16 value);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets cipher name from session.
+
+    \return const char* Cipher name
+    \return NULL if not set
+
+    \param session SSL session
+
+    _Example_
+    \code
+    WOLFSSL_SESSION* session = wolfSSL_get_session(ssl);
+    const char* name = wolfSSL_SESSION_CIPHER_get_name(session);
+    if (name != NULL) {
+        printf("Session cipher: %s\n", name);
+    }
+    \endcode
+
+    \sa wolfSSL_get_cipher
+*/
+const char* wolfSSL_SESSION_CIPHER_get_name(const WOLFSSL_SESSION* session);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets cipher name string.
+
+    \return const char* Cipher name
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    const char* cipher = wolfSSL_get_cipher(ssl);
+    printf("Cipher: %s\n", cipher);
+    \endcode
+
+    \sa wolfSSL_get_current_cipher
+*/
+const char* wolfSSL_get_cipher(WOLFSSL* ssl);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets session with reference count increment.
+
+    \return WOLFSSL_SESSION* Session object
+    \return NULL if not available
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    WOLFSSL_SESSION* session = wolfSSL_get1_session(ssl);
+    if (session != NULL) {
+        wolfSSL_SESSION_free(session);
+    }
+    \endcode
+
+    \sa wolfSSL_get_session
+*/
+WOLFSSL_SESSION* wolfSSL_get1_session(WOLFSSL* ssl);
+
+/*!
+    \ingroup openSSL
+
+    \brief Checks if session is setup.
+
+    \return 1 if setup
+    \return 0 if not setup
+
+    \param session SSL session
+
+    _Example_
+    \code
+    WOLFSSL_SESSION* session = wolfSSL_get_session(ssl);
+    int setup = wolfSSL_SessionIsSetup(session);
+    if (setup) {
+        printf("Session is setup\n");
+    }
+    \endcode
+
+    \sa wolfSSL_get_session
+*/
+int wolfSSL_SessionIsSetup(WOLFSSL_SESSION* session);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Creates new X509_STORE_CTX.
+
+    \return WOLFSSL_X509_STORE_CTX* New context
+    \return NULL on failure
+
+    _Example_
+    \code
+    WOLFSSL_X509_STORE_CTX* ctx = wolfSSL_X509_STORE_CTX_new();
+    if (ctx != NULL) {
+        wolfSSL_X509_STORE_CTX_free(ctx);
+    }
+    \endcode
+
+    \sa wolfSSL_X509_STORE_CTX_free
+*/
+WOLFSSL_X509_STORE_CTX* wolfSSL_X509_STORE_CTX_new(void);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Creates new X509_STORE_CTX with heap.
+
+    \return WOLFSSL_X509_STORE_CTX* New context
+    \return NULL on failure
+
+    \param heap Heap hint
+
+    _Example_
+    \code
+    WOLFSSL_X509_STORE_CTX* ctx = wolfSSL_X509_STORE_CTX_new_ex(myHeap);
+    if (ctx != NULL) {
+        wolfSSL_X509_STORE_CTX_free(ctx);
+    }
+    \endcode
+
+    \sa wolfSSL_X509_STORE_CTX_new
+*/
+WOLFSSL_X509_STORE_CTX* wolfSSL_X509_STORE_CTX_new_ex(void* heap);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Frees X509_STORE_CTX.
+
+    \return none
+
+    \param ctx X509_STORE_CTX to free
+
+    _Example_
+    \code
+    WOLFSSL_X509_STORE_CTX* ctx = wolfSSL_X509_STORE_CTX_new();
+    wolfSSL_X509_STORE_CTX_free(ctx);
+    \endcode
+
+    \sa wolfSSL_X509_STORE_CTX_new
+*/
+void wolfSSL_X509_STORE_CTX_free(WOLFSSL_X509_STORE_CTX* ctx);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Converts X509_NAME to one-line string.
+
+    \return char* Name string
+    \return NULL on failure
+
+    \param name X509_NAME to convert
+    \param in Buffer for string
+    \param sz Buffer size
+
+    _Example_
+    \code
+    WOLFSSL_X509* x509 = wolfSSL_get_peer_certificate(ssl);
+    WOLFSSL_X509_NAME* name = wolfSSL_X509_get_subject_name(x509);
+    char buf[256];
+    char* str = wolfSSL_X509_NAME_oneline(name, buf, sizeof(buf));
+    if (str != NULL) {
+        printf("Subject: %s\n", str);
+    }
+    \endcode
+
+    \sa wolfSSL_X509_get_subject_name
+*/
+char* wolfSSL_X509_NAME_oneline(WOLFSSL_X509_NAME* name, char* in, int sz);
+
+/*!
+    \ingroup openSSL
+
+    \brief Dumps errors to file pointer.
+
+    \return none
+
+    \param fp File pointer
+
+    _Example_
+    \code
+    wolfSSL_ERR_dump_errors_fp(stderr);
+    \endcode
+
+    \sa wolfSSL_ERR_print_errors_fp
+*/
+void wolfSSL_ERR_dump_errors_fp(XFILE fp);
+
+/*!
+    \ingroup openSSL
+
+    \brief Sets PSK use session callback.
+
+    \return none
+
+    \param ssl SSL object
+    \param cb Callback function
+
+    _Example_
+    \code
+    wolfSSL_set_psk_use_session_callback(ssl, myPskUseSessionCallback);
+    \endcode
+
+    \sa wolfSSL_set_psk_client_callback
+*/
+void wolfSSL_set_psk_use_session_callback(WOLFSSL* ssl,
+                                            wc_psk_use_session_cb_func cb);
+
+/*!
+    \ingroup openSSL
+
+    \brief Sets PSK client cipher suite callback in context.
+
+    \return none
+
+    \param ctx SSL context
+    \param cb Callback function
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    wolfSSL_CTX_set_psk_client_cs_callback(ctx, myPskClientCsCallback);
+    \endcode
+
+    \sa wolfSSL_set_psk_client_cs_callback
+*/
+void wolfSSL_CTX_set_psk_client_cs_callback(WOLFSSL_CTX* ctx,
+                                              wc_psk_client_cs_callback cb);
+
+/*!
+    \ingroup openSSL
+
+    \brief Sets PSK client cipher suite callback.
+
+    \return none
+
+    \param ssl SSL object
+    \param cb Callback function
+
+    _Example_
+    \code
+    wolfSSL_set_psk_client_cs_callback(ssl, myPskClientCsCallback);
+    \endcode
+
+    \sa wolfSSL_CTX_set_psk_client_cs_callback
+*/
+void wolfSSL_set_psk_client_cs_callback(WOLFSSL* ssl,
+                                          wc_psk_client_cs_callback cb);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets PSK identity hint.
+
+    \return const char* Identity hint
+    \return NULL if not set
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    const char* hint = wolfSSL_get_psk_identity_hint(ssl);
+    if (hint != NULL) {
+        printf("PSK hint: %s\n", hint);
+    }
+    \endcode
+
+    \sa wolfSSL_get_psk_identity
+*/
+const char* wolfSSL_get_psk_identity_hint(const WOLFSSL* ssl);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets PSK identity.
+
+    \return const char* Identity
+    \return NULL if not set
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    const char* identity = wolfSSL_get_psk_identity(ssl);
+    if (identity != NULL) {
+        printf("PSK identity: %s\n", identity);
+    }
+    \endcode
+
+    \sa wolfSSL_get_psk_identity_hint
+*/
+const char* wolfSSL_get_psk_identity(const WOLFSSL* ssl);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets PSK callback context.
+
+    \return void* Callback context
+    \return NULL if not set
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    void* ctx = wolfSSL_get_psk_callback_ctx(ssl);
+    \endcode
+
+    \sa wolfSSL_CTX_get_psk_callback_ctx
+*/
+void* wolfSSL_get_psk_callback_ctx(WOLFSSL* ssl);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets PSK callback context from context.
+
+    \return void* Callback context
+    \return NULL if not set
+
+    \param ctx SSL context
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    void* cbCtx = wolfSSL_CTX_get_psk_callback_ctx(ctx);
+    \endcode
+
+    \sa wolfSSL_get_psk_callback_ctx
+*/
+void* wolfSSL_CTX_get_psk_callback_ctx(WOLFSSL_CTX* ctx);
