@@ -1469,6 +1469,67 @@ int wolfSSL_CTX_use_certificate_chain_file(WOLFSSL_CTX *ctx,
                                                      const char *file);
 
 /*!
+    \ingroup CertsKeys
+
+    \brief Loads certificate chain file with specified format.
+
+    \return SSL_SUCCESS on success
+    \return SSL_FAILURE on failure
+
+    \param ctx WOLFSSL_CTX to load certificate chain into
+    \param file Path to certificate chain file
+    \param format Format of certificate file (SSL_FILETYPE_PEM or
+    SSL_FILETYPE_ASN1)
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    int ret = wolfSSL_CTX_use_certificate_chain_file_format(ctx,
+                                                             "chain.der",
+                                                             SSL_FILETYPE_ASN1);
+    if (ret != SSL_SUCCESS) {
+        // error loading certificate chain
+    }
+    \endcode
+
+    \sa wolfSSL_CTX_use_certificate_chain_file
+    \sa wolfSSL_use_certificate_chain_file_format
+*/
+int wolfSSL_CTX_use_certificate_chain_file_format(WOLFSSL_CTX* ctx,
+                                                    const char* file,
+                                                    int format);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Loads certificate chain file with specified format for SSL object.
+
+    \return SSL_SUCCESS on success
+    \return SSL_FAILURE on failure
+
+    \param ssl WOLFSSL object to load certificate chain into
+    \param file Path to certificate chain file
+    \param format Format of certificate file (SSL_FILETYPE_PEM or
+    SSL_FILETYPE_ASN1)
+
+    _Example_
+    \code
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    int ret = wolfSSL_use_certificate_chain_file_format(ssl, "chain.pem",
+                                                          SSL_FILETYPE_PEM);
+    if (ret != SSL_SUCCESS) {
+        // error loading certificate chain
+    }
+    \endcode
+
+    \sa wolfSSL_use_certificate_chain_file
+    \sa wolfSSL_CTX_use_certificate_chain_file_format
+*/
+int wolfSSL_use_certificate_chain_file_format(WOLFSSL* ssl,
+                                                const char* file,
+                                                int format);
+
+/*!
     \ingroup openSSL
 
     \brief This function loads the private RSA key used in the SSL connection
