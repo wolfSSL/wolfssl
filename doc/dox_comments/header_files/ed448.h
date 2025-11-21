@@ -964,3 +964,251 @@ int wc_ed448_pub_size(ed448_key* key);
 */
 
 int wc_ed448_sig_size(ed448_key* key);
+
+/*!
+    \ingroup openSSL
+    \brief Generates Ed448 key pair.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param priv Private key buffer
+    \param privSz Private key size pointer (in/out)
+    \param pub Public key buffer
+    \param pubSz Public key size pointer (in/out)
+
+    _Example_
+    \code
+    unsigned char priv[ED448_KEY_SIZE];
+    unsigned char pub[ED448_PUB_KEY_SIZE];
+    unsigned int privSz = sizeof(priv);
+    unsigned int pubSz = sizeof(pub);
+    int ret = wolfSSL_ED448_generate_key(priv, &privSz, pub,
+                                         &pubSz);
+    \endcode
+
+    \sa wc_ed448_make_key
+*/
+int wolfSSL_ED448_generate_key(unsigned char *priv,
+    unsigned int *privSz, unsigned char *pub, unsigned int *pubSz);
+
+/*!
+    \ingroup openSSL
+    \brief Signs message with Ed448 private key.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param msg Message to sign
+    \param msgSz Message size
+    \param priv Private key buffer
+    \param privSz Private key size
+    \param sig Signature output buffer
+    \param sigSz Signature size pointer (in/out)
+
+    _Example_
+    \code
+    unsigned char msg[] = "message";
+    unsigned char priv[ED448_KEY_SIZE];
+    unsigned char sig[ED448_SIG_SIZE];
+    unsigned int sigSz = sizeof(sig);
+    int ret = wolfSSL_ED448_sign(msg, sizeof(msg), priv,
+                                 sizeof(priv), sig, &sigSz);
+    \endcode
+
+    \sa wolfSSL_ED448_verify
+*/
+int wolfSSL_ED448_sign(const unsigned char *msg, unsigned int msgSz,
+    const unsigned char *priv, unsigned int privSz,
+    unsigned char *sig, unsigned int *sigSz);
+
+/*!
+    \ingroup openSSL
+    \brief Verifies Ed448 signature.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param msg Message that was signed
+    \param msgSz Message size
+    \param pub Public key buffer
+    \param pubSz Public key size
+    \param sig Signature buffer
+    \param sigSz Signature size
+
+    _Example_
+    \code
+    unsigned char msg[] = "message";
+    unsigned char pub[ED448_PUB_KEY_SIZE];
+    unsigned char sig[ED448_SIG_SIZE];
+    int ret = wolfSSL_ED448_verify(msg, sizeof(msg), pub,
+                                   sizeof(pub), sig, sizeof(sig));
+    \endcode
+
+    \sa wolfSSL_ED448_sign
+*/
+int wolfSSL_ED448_verify(const unsigned char *msg, unsigned int msgSz,
+    const unsigned char *pub, unsigned int pubSz,
+    const unsigned char *sig, unsigned int sigSz);
+
+/*!
+    \ingroup ED448
+    \brief Signs message with extended parameters.
+
+    \return 0 on success
+    \return negative on failure
+
+    \param in Input message
+    \param inLen Input message length
+    \param out Output signature buffer
+    \param outLen Output signature length pointer
+    \param key Ed448 key
+    \param type Signature type
+    \param context Context buffer
+    \param contextLen Context length
+
+    _Example_
+    \code
+    byte msg[] = "message";
+    byte sig[ED448_SIG_SIZE];
+    word32 sigLen = sizeof(sig);
+    int ret = wc_ed448_sign_msg_ex(msg, sizeof(msg), sig, &sigLen,
+                                   &key, Ed448, NULL, 0);
+    \endcode
+
+    \sa wc_ed448_sign_msg
+*/
+int wc_ed448_sign_msg_ex(const byte* in, word32 inLen, byte* out,
+    word32 *outLen, ed448_key* key, byte type, const byte* context,
+    byte contextLen);
+
+/*!
+    \ingroup ED448
+    \brief Verifies signature with extended parameters.
+
+    \return 0 on success
+    \return negative on failure
+
+    \param sig Signature buffer
+    \param sigLen Signature length
+    \param msg Message buffer
+    \param msgLen Message length
+    \param res Verification result pointer
+    \param key Ed448 key
+    \param type Signature type
+    \param context Context buffer
+    \param contextLen Context length
+
+    _Example_
+    \code
+    byte msg[] = "message";
+    byte sig[ED448_SIG_SIZE];
+    int res;
+    int ret = wc_ed448_verify_msg_ex(sig, sizeof(sig), msg,
+                                     sizeof(msg), &res, &key,
+                                     Ed448, NULL, 0);
+    \endcode
+
+    \sa wc_ed448_verify_msg
+*/
+int wc_ed448_verify_msg_ex(const byte* sig, word32 sigLen,
+    const byte* msg, word32 msgLen, int* res, ed448_key* key,
+    byte type, const byte* context, byte contextLen);
+
+/*!
+    \ingroup ED448
+    \brief Initializes streaming verification.
+
+    \return 0 on success
+    \return negative on failure
+
+    \param sig Signature buffer
+    \param sigLen Signature length
+    \param key Ed448 key
+    \param type Signature type
+    \param context Context buffer
+    \param contextLen Context length
+
+    _Example_
+    \code
+    byte sig[ED448_SIG_SIZE];
+    int ret = wc_ed448_verify_msg_init(sig, sizeof(sig), &key,
+                                       Ed448, NULL, 0);
+    \endcode
+
+    \sa wc_ed448_verify_msg_update
+    \sa wc_ed448_verify_msg_final
+*/
+int wc_ed448_verify_msg_init(const byte* sig, word32 sigLen,
+    ed448_key* key, byte type, const byte* context, byte contextLen);
+
+/*!
+    \ingroup ED448
+    \brief Updates streaming verification with message segment.
+
+    \return 0 on success
+    \return negative on failure
+
+    \param msgSegment Message segment buffer
+    \param msgSegmentLen Message segment length
+    \param key Ed448 key
+
+    _Example_
+    \code
+    byte msgPart[] = "part";
+    int ret = wc_ed448_verify_msg_update(msgPart, sizeof(msgPart),
+                                         &key);
+    \endcode
+
+    \sa wc_ed448_verify_msg_init
+    \sa wc_ed448_verify_msg_final
+*/
+int wc_ed448_verify_msg_update(const byte* msgSegment,
+    word32 msgSegmentLen, ed448_key* key);
+
+/*!
+    \ingroup ED448
+    \brief Finalizes streaming verification.
+
+    \return 0 on success
+    \return negative on failure
+
+    \param sig Signature buffer
+    \param sigLen Signature length
+    \param res Verification result pointer
+    \param key Ed448 key
+
+    _Example_
+    \code
+    byte sig[ED448_SIG_SIZE];
+    int res;
+    int ret = wc_ed448_verify_msg_final(sig, sizeof(sig), &res,
+                                        &key);
+    \endcode
+
+    \sa wc_ed448_verify_msg_init
+    \sa wc_ed448_verify_msg_update
+*/
+int wc_ed448_verify_msg_final(const byte* sig, word32 sigLen,
+    int* res, ed448_key* key);
+
+/*!
+    \ingroup ED448
+    \brief Initializes Ed448 key with extended parameters.
+
+    \return 0 on success
+    \return negative on failure
+
+    \param key Ed448 key structure
+    \param heap Heap hint for memory allocation
+    \param devId Device ID for hardware acceleration
+
+    _Example_
+    \code
+    ed448_key key;
+    int ret = wc_ed448_init_ex(&key, NULL, INVALID_DEVID);
+    \endcode
+
+    \sa wc_ed448_init
+*/
+int wc_ed448_init_ex(ed448_key* key, void *heap, int devId);
