@@ -19684,3 +19684,532 @@ long wolfSSL_BIO_get_ssl(WOLFSSL_BIO* bio, WOLFSSL** ssl);
     \sa wolfSSL_get_wbio
 */
 void wolfSSL_set_bio(WOLFSSL* ssl, WOLFSSL_BIO* rd, WOLFSSL_BIO* wr);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets read BIO for SSL connection.
+
+    \return none
+
+    \param ssl SSL object to set BIO for
+    \param rd Read BIO
+
+    _Example_
+    \code
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    WOLFSSL_BIO* rbio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
+    wolfSSL_set_rbio(ssl, rbio);
+    \endcode
+
+    \sa wolfSSL_set_bio
+    \sa wolfSSL_set_wbio
+*/
+void wolfSSL_set_rbio(WOLFSSL* ssl, WOLFSSL_BIO* rd);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets write BIO for SSL connection.
+
+    \return none
+
+    \param ssl SSL object to set BIO for
+    \param wr Write BIO
+
+    _Example_
+    \code
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    WOLFSSL_BIO* wbio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
+    wolfSSL_set_wbio(ssl, wbio);
+    \endcode
+
+    \sa wolfSSL_set_bio
+    \sa wolfSSL_set_rbio
+*/
+void wolfSSL_set_wbio(WOLFSSL* ssl, WOLFSSL_BIO* wr);
+
+/*!
+    \ingroup BIO
+
+    \brief Gets BIO method type.
+
+    \return int BIO type
+    \return 0 on failure
+
+    \param b BIO to get type from
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
+    int type = wolfSSL_BIO_method_type(bio);
+    if (type == BIO_TYPE_MEM) {
+        printf("Memory BIO\n");
+    }
+    \endcode
+
+    \sa wolfSSL_BIO_new
+*/
+int wolfSSL_BIO_method_type(const WOLFSSL_BIO* b);
+
+/*!
+    \ingroup BIO
+
+    \brief Sets connection hostname for BIO.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param b BIO to set hostname for
+    \param name Hostname to connect to
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new(wolfSSL_BIO_s_connect());
+    long ret = wolfSSL_BIO_set_conn_hostname(bio, "example.com:443");
+    \endcode
+
+    \sa wolfSSL_BIO_set_conn_port
+    \sa wolfSSL_BIO_do_connect
+*/
+long wolfSSL_BIO_set_conn_hostname(WOLFSSL_BIO* b, char* name);
+
+/*!
+    \ingroup BIO
+
+    \brief Sets connection port for BIO.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param b BIO to set port for
+    \param port Port to connect to
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new(wolfSSL_BIO_s_connect());
+    long ret = wolfSSL_BIO_set_conn_port(bio, "443");
+    \endcode
+
+    \sa wolfSSL_BIO_set_conn_hostname
+*/
+long wolfSSL_BIO_set_conn_port(WOLFSSL_BIO* b, char* port);
+
+/*!
+    \ingroup BIO
+
+    \brief Initiates connection for BIO.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param b BIO to connect
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new(wolfSSL_BIO_s_connect());
+    wolfSSL_BIO_set_conn_hostname(bio, "example.com:443");
+    long ret = wolfSSL_BIO_do_connect(bio);
+    \endcode
+
+    \sa wolfSSL_BIO_set_conn_hostname
+*/
+long wolfSSL_BIO_do_connect(WOLFSSL_BIO* b);
+
+/*!
+    \ingroup BIO
+
+    \brief Accepts connection for BIO.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param b BIO to accept on
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new_accept("8080");
+    int ret = wolfSSL_BIO_do_accept(bio);
+    \endcode
+
+    \sa wolfSSL_BIO_do_connect
+*/
+int wolfSSL_BIO_do_accept(WOLFSSL_BIO* b);
+
+/*!
+    \ingroup BIO
+
+    \brief Creates new SSL BIO.
+
+    \return WOLFSSL_BIO* Pointer to new BIO
+    \return NULL on failure
+
+    \param ctx SSL context to use
+    \param client 1 for client mode, 0 for server mode
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new_ssl(ctx, 1);
+    \endcode
+
+    \sa wolfSSL_BIO_new_ssl_connect
+*/
+WOLFSSL_BIO* wolfSSL_BIO_new_ssl(WOLFSSL_CTX* ctx, int client);
+
+/*!
+    \ingroup BIO
+
+    \brief Creates new SSL connect BIO.
+
+    \return WOLFSSL_BIO* Pointer to new BIO
+    \return NULL on failure
+
+    \param ctx SSL context to use
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new_ssl_connect(ctx);
+    \endcode
+
+    \sa wolfSSL_BIO_new_ssl
+*/
+WOLFSSL_BIO* wolfSSL_BIO_new_ssl_connect(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup BIO
+
+    \brief Performs SSL handshake on BIO.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param b BIO to perform handshake on
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new_ssl_connect(ctx);
+    wolfSSL_BIO_set_conn_hostname(bio, "example.com:443");
+    long ret = wolfSSL_BIO_do_handshake(bio);
+    \endcode
+
+    \sa wolfSSL_BIO_new_ssl_connect
+*/
+long wolfSSL_BIO_do_handshake(WOLFSSL_BIO* b);
+
+/*!
+    \ingroup BIO
+
+    \brief Shuts down SSL connection on BIO.
+
+    \return none
+
+    \param b BIO to shutdown
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new_ssl_connect(ctx);
+    wolfSSL_BIO_ssl_shutdown(bio);
+    \endcode
+
+    \sa wolfSSL_BIO_do_handshake
+*/
+void wolfSSL_BIO_ssl_shutdown(WOLFSSL_BIO* b);
+
+/*!
+    \ingroup BIO
+
+    \brief Performs control operation on BIO.
+
+    \return long Result of control operation
+    \return negative value on failure
+
+    \param bp BIO to control
+    \param cmd Control command
+    \param larg Long argument
+    \param parg Pointer argument
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
+    long ret = wolfSSL_BIO_ctrl(bio, BIO_CTRL_FLUSH, 0, NULL);
+    \endcode
+
+    \sa wolfSSL_BIO_int_ctrl
+*/
+long wolfSSL_BIO_ctrl(WOLFSSL_BIO* bp, int cmd, long larg, void* parg);
+
+/*!
+    \ingroup BIO
+
+    \brief Performs integer control operation on BIO.
+
+    \return long Result of control operation
+    \return negative value on failure
+
+    \param bp BIO to control
+    \param cmd Control command
+    \param larg Long argument
+    \param iarg Integer argument
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
+    long ret = wolfSSL_BIO_int_ctrl(bio, BIO_C_SET_BUF_MEM_EOF_RETURN,
+                                     0, -1);
+    \endcode
+
+    \sa wolfSSL_BIO_ctrl
+*/
+long wolfSSL_BIO_int_ctrl(WOLFSSL_BIO* bp, int cmd, long larg, int iarg);
+
+/*!
+    \ingroup BIO
+
+    \brief Increments BIO reference count.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param b BIO to increment reference count for
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
+    int ret = wolfSSL_BIO_up_ref(bio);
+    \endcode
+
+    \sa wolfSSL_BIO_free
+*/
+int wolfSSL_BIO_up_ref(WOLFSSL_BIO* b);
+
+/*!
+    \ingroup BIO
+
+    \brief Gets number of bytes read from BIO.
+
+    \return word64 Number of bytes read
+
+    \param bio BIO to query
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
+    word64 read = wolfSSL_BIO_number_read(bio);
+    printf("Read %llu bytes\n", read);
+    \endcode
+
+    \sa wolfSSL_BIO_number_written
+*/
+word64 wolfSSL_BIO_number_read(WOLFSSL_BIO* bio);
+
+/*!
+    \ingroup BIO
+
+    \brief Gets number of bytes written to BIO.
+
+    \return word64 Number of bytes written
+
+    \param bio BIO to query
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
+    word64 written = wolfSSL_BIO_number_written(bio);
+    printf("Written %llu bytes\n", written);
+    \endcode
+
+    \sa wolfSSL_BIO_number_read
+*/
+word64 wolfSSL_BIO_number_written(WOLFSSL_BIO* bio);
+
+/*!
+    \ingroup BIO
+
+    \brief Gets current position in BIO.
+
+    \return int Current position
+    \return negative value on failure
+
+    \param bio BIO to query
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
+    int pos = wolfSSL_BIO_tell(bio);
+    printf("Position: %d\n", pos);
+    \endcode
+
+    \sa wolfSSL_BIO_read
+*/
+int wolfSSL_BIO_tell(WOLFSSL_BIO* bio);
+
+/*!
+    \ingroup BIO
+
+    \brief Sets memory buffer for BIO.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param bio BIO to set buffer for
+    \param bufMem Buffer to set
+    \param closeFlag Close flag
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
+    WOLFSSL_BUF_MEM* mem = wolfSSL_BUF_MEM_new();
+    int ret = wolfSSL_BIO_set_mem_buf(bio, mem, BIO_CLOSE);
+    \endcode
+
+    \sa wolfSSL_BIO_new_mem_buf
+*/
+int wolfSSL_BIO_set_mem_buf(WOLFSSL_BIO* bio, WOLFSSL_BUF_MEM* bufMem,
+                              int closeFlag);
+
+/*!
+    \ingroup BIO
+
+    \brief Gets length of data in BIO.
+
+    \return int Length of data
+    \return 0 if no data
+
+    \param bio BIO to query
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
+    wolfSSL_BIO_write(bio, "data", 4);
+    int len = wolfSSL_BIO_get_len(bio);
+    printf("Length: %d\n", len);
+    \endcode
+
+    \sa wolfSSL_BIO_pending
+*/
+int wolfSSL_BIO_get_len(WOLFSSL_BIO* bio);
+
+/*!
+    \ingroup BIO
+
+    \brief Frees BIO_ADDR structure.
+
+    \return none
+
+    \param addr BIO_ADDR to free
+
+    _Example_
+    \code
+    WOLFSSL_BIO_ADDR* addr = wolfSSL_BIO_ADDR_new();
+    wolfSSL_BIO_ADDR_free(addr);
+    \endcode
+
+    \sa wolfSSL_BIO_ADDR_clear
+*/
+void wolfSSL_BIO_ADDR_free(WOLFSSL_BIO_ADDR* addr);
+
+/*!
+    \ingroup BIO
+
+    \brief Clears BIO_ADDR structure.
+
+    \return none
+
+    \param addr BIO_ADDR to clear
+
+    _Example_
+    \code
+    WOLFSSL_BIO_ADDR* addr = wolfSSL_BIO_ADDR_new();
+    wolfSSL_BIO_ADDR_clear(addr);
+    \endcode
+
+    \sa wolfSSL_BIO_ADDR_free
+*/
+void wolfSSL_BIO_ADDR_clear(WOLFSSL_BIO_ADDR* addr);
+
+/*!
+    \ingroup openSSL
+
+    \brief Seeds random number generator from screen (Windows only).
+
+    \return none
+
+    _Example_
+    \code
+    wolfSSL_RAND_screen();
+    \endcode
+
+    \sa wolfSSL_RAND_seed
+*/
+void wolfSSL_RAND_screen(void);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets default random file name.
+
+    \return const char* File name
+    \return NULL on failure
+
+    \param fname Buffer to store file name
+    \param len Length of buffer
+
+    _Example_
+    \code
+    char fname[256];
+    const char* name = wolfSSL_RAND_file_name(fname, sizeof(fname));
+    if (name != NULL) {
+        printf("RAND file: %s\n", name);
+    }
+    \endcode
+
+    \sa wolfSSL_RAND_load_file
+*/
+const char* wolfSSL_RAND_file_name(char* fname, unsigned long len);
+
+/*!
+    \ingroup openSSL
+
+    \brief Writes random seed to file.
+
+    \return int Number of bytes written on success
+    \return negative value on failure
+
+    \param fname File name to write to
+
+    _Example_
+    \code
+    int ret = wolfSSL_RAND_write_file("rand.dat");
+    if (ret > 0) {
+        printf("Wrote %d bytes\n", ret);
+    }
+    \endcode
+
+    \sa wolfSSL_RAND_load_file
+*/
+int wolfSSL_RAND_write_file(const char* fname);
+
+/*!
+    \ingroup openSSL
+
+    \brief Loads random seed from file.
+
+    \return int Number of bytes read on success
+    \return negative value on failure
+
+    \param fname File name to read from
+    \param len Maximum bytes to read (-1 for all)
+
+    _Example_
+    \code
+    int ret = wolfSSL_RAND_load_file("rand.dat", -1);
+    if (ret > 0) {
+        printf("Loaded %d bytes\n", ret);
+    }
+    \endcode
+
+    \sa wolfSSL_RAND_write_file
+*/
+int wolfSSL_RAND_load_file(const char* fname, long len);
