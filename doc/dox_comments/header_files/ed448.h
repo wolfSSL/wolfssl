@@ -124,8 +124,9 @@ int wc_ed448_make_key(WC_RNG* rng, int keysize, ed448_key* key);
     \sa wc_ed448_verify_msg
 */
 
-int wc_ed448_sign_msg(const byte* in, word32 inlen, byte* out,
-                        word32 *outlen, ed448_key* key);
+int wc_ed448_sign_msg(const byte* in, word32 inLen, byte* out,
+                        word32 *outLen, ed448_key* key,
+                        const byte* context, byte contextLen);
 
 /*!
     \ingroup ED448
@@ -685,7 +686,7 @@ int wc_ed448_import_private_key_ex(const byte* priv, word32 privSz,
     \sa wc_ed448_export_private_only
 */
 
-int wc_ed448_export_public(ed448_key* key, byte* out, word32* outLen);
+int wc_ed448_export_public(const ed448_key* key, byte* out, word32* outLen);
 
 /*!
     \ingroup ED448
@@ -725,7 +726,8 @@ int wc_ed448_export_public(ed448_key* key, byte* out, word32* outLen);
     \sa wc_ed448_import_private_key_ex
 */
 
-int wc_ed448_export_private_only(ed448_key* key, byte* out, word32* outLen);
+int wc_ed448_export_private_only(const ed448_key* key, byte* out,
+                                 word32* outLen);
 
 /*!
     \ingroup ED448
@@ -768,7 +770,7 @@ int wc_ed448_export_private_only(ed448_key* key, byte* out, word32* outLen);
     \sa wc_ed448_export_private_only
 */
 
-int wc_ed448_export_private(ed448_key* key, byte* out, word32* outLen);
+int wc_ed448_export_private(const ed448_key* key, byte* out, word32* outLen);
 
 /*!
     \ingroup ED448
@@ -815,7 +817,7 @@ int wc_ed448_export_private(ed448_key* key, byte* out, word32* outLen);
     \sa wc_ed448_export_public
 */
 
-int wc_ed448_export_key(ed448_key* key,
+int wc_ed448_export_key(const ed448_key* key,
                           byte* priv, word32 *privSz,
                           byte* pub, word32 *pubSz);
 
@@ -879,7 +881,7 @@ int wc_ed448_check_key(ed448_key* key);
     \sa wc_ed448_make_key
 */
 
-int wc_ed448_size(ed448_key* key);
+int wc_ed448_size(const ed448_key* key);
 
 /*!
     \ingroup ED448
@@ -908,7 +910,7 @@ int wc_ed448_size(ed448_key* key);
     \sa wc_ed448_pub_size
 */
 
-int wc_ed448_priv_size(ed448_key* key);
+int wc_ed448_priv_size(const ed448_key* key);
 
 /*!
     \ingroup ED448
@@ -935,7 +937,7 @@ int wc_ed448_priv_size(ed448_key* key);
     \sa wc_ed448_priv_size
 */
 
-int wc_ed448_pub_size(ed448_key* key);
+int wc_ed448_pub_size(const ed448_key* key);
 
 /*!
     \ingroup ED448
@@ -963,4 +965,4 @@ int wc_ed448_pub_size(ed448_key* key);
     \sa wc_ed448_sign_msg
 */
 
-int wc_ed448_sig_size(ed448_key* key);
+int wc_ed448_sig_size(const ed448_key* key);

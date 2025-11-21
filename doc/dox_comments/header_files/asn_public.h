@@ -19,7 +19,7 @@
     \sa wc_MakeCert
     \sa wc_MakeCertReq
 */
-int wc_InitCert(Cert*);
+int wc_InitCert(Cert* cert);
 
 /*!
      \ingroup ASN
@@ -2524,4 +2524,3 @@ int wc_Asn1_SetFile(Asn1* asn1, XFILE file);
  */
 int wc_Asn1_PrintAll(Asn1* asn1, Asn1PrintOptions* opts, unsigned char* data,
     word32 len);
-
