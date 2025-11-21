@@ -35858,3 +35858,522 @@ int wolfSSL_get_ocsp_producedDate(WOLFSSL *ssl, byte *producedDate,
 */
 int wolfSSL_get_ocsp_producedDate_tm(WOLFSSL *ssl,
                                       struct tm *produced_tm);
+
+/*!
+    \ingroup Setup
+
+    \brief Loads OpenSSL config.
+
+    \return none
+
+    \param config_name Config name
+
+    _Example_
+    \code
+    wolfSSL_OPENSSL_config("default");
+    \endcode
+
+    \sa wolfSSL_OPENSSL_init_ssl
+*/
+void wolfSSL_OPENSSL_config(char *config_name);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets OCSP URL.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl WOLFSSL object
+    \param url URL
+
+    _Example_
+    \code
+    int ret = wolfSSL_set_ocsp_url(ssl, "http://ocsp.example.com");
+    \endcode
+
+    \sa wolfSSL_CertManagerSetOCSPOverrideURL
+*/
+int wolfSSL_set_ocsp_url(WOLFSSL* ssl, char* url);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets context timeout.
+
+    \return long Timeout in seconds
+
+    \param ctx Context
+
+    _Example_
+    \code
+    long timeout = wolfSSL_SSL_CTX_get_timeout(ctx);
+    \endcode
+
+    \sa wolfSSL_get_timeout
+*/
+long wolfSSL_SSL_CTX_get_timeout(const WOLFSSL_CTX *ctx);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets session timeout.
+
+    \return long Timeout in seconds
+
+    \param ssl WOLFSSL object
+
+    _Example_
+    \code
+    long timeout = wolfSSL_get_timeout(ssl);
+    \endcode
+
+    \sa wolfSSL_SSL_CTX_get_timeout
+*/
+long wolfSSL_get_timeout(WOLFSSL* ssl);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Computes X509 name digest.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param data X509 name
+    \param type Digest type
+    \param md Digest buffer
+    \param len Length pointer
+
+    _Example_
+    \code
+    unsigned char md[32];
+    unsigned int len;
+    int ret = wolfSSL_X509_NAME_digest(name, wolfSSL_EVP_sha256(),
+                                        md, &len);
+    \endcode
+
+    \sa wolfSSL_X509_digest
+*/
+int wolfSSL_X509_NAME_digest(const WOLFSSL_X509_NAME *data,
+                              const WOLFSSL_EVP_MD *type,
+                              unsigned char *md, unsigned int *len);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets temporary ECDH key.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx Context
+    \param ecdh EC key
+
+    _Example_
+    \code
+    int ret = wolfSSL_SSL_CTX_set_tmp_ecdh(ctx, ecKey);
+    \endcode
+
+    \sa wolfSSL_CTX_SetTmpDH
+*/
+int wolfSSL_SSL_CTX_set_tmp_ecdh(WOLFSSL_CTX *ctx, WOLFSSL_EC_KEY *ecdh);
+
+/*!
+    \ingroup IO
+
+    \brief Performs SSL handshake.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param s WOLFSSL object
+
+    _Example_
+    \code
+    int ret = wolfSSL_SSL_do_handshake(ssl);
+    \endcode
+
+    \sa wolfSSL_connect
+*/
+int wolfSSL_SSL_do_handshake(WOLFSSL *s);
+
+/*!
+    \ingroup Setup
+
+    \brief Initializes OpenSSL.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param opts Options
+    \param settings Settings
+
+    _Example_
+    \code
+    int ret = wolfSSL_OPENSSL_init_ssl(0, NULL);
+    \endcode
+
+    \sa wolfSSL_Init
+*/
+int wolfSSL_OPENSSL_init_ssl(word64 opts,
+                              const WOLFSSL_INIT_SETTINGS *settings);
+
+/*!
+    \ingroup Setup
+
+    \brief Creates new init settings.
+
+    \return WOLFSSL_INIT_SETTINGS* Settings
+    \return NULL on failure
+
+    _Example_
+    \code
+    WOLFSSL_INIT_SETTINGS* init = wolfSSL_OPENSSL_INIT_new();
+    \endcode
+
+    \sa wolfSSL_OPENSSL_INIT_free
+*/
+WOLFSSL_INIT_SETTINGS* wolfSSL_OPENSSL_INIT_new(void);
+
+/*!
+    \ingroup Setup
+
+    \brief Frees init settings.
+
+    \return none
+
+    \param init Settings
+
+    _Example_
+    \code
+    wolfSSL_OPENSSL_INIT_free(init);
+    \endcode
+
+    \sa wolfSSL_OPENSSL_INIT_new
+*/
+void wolfSSL_OPENSSL_INIT_free(WOLFSSL_INIT_SETTINGS* init);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets init config app name.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param init Settings
+    \param appname App name
+
+    _Example_
+    \code
+    int ret = wolfSSL_OPENSSL_INIT_set_config_appname(init, "myapp");
+    \endcode
+
+    \sa wolfSSL_OPENSSL_INIT_new
+*/
+int wolfSSL_OPENSSL_INIT_set_config_appname(WOLFSSL_INIT_SETTINGS* init,
+                                             char* appname);
+
+/*!
+    \ingroup Setup
+
+    \brief Checks if in init state.
+
+    \return int Non-zero if in init
+
+    \param ssl WOLFSSL object
+
+    _Example_
+    \code
+    int inInit = wolfSSL_SSL_in_init(ssl);
+    \endcode
+
+    \sa wolfSSL_SSL_in_before
+*/
+int wolfSSL_SSL_in_init(const WOLFSSL* ssl);
+
+/*!
+    \ingroup Setup
+
+    \brief Checks if in before state.
+
+    \return int Non-zero if in before
+
+    \param ssl WOLFSSL object
+
+    _Example_
+    \code
+    int inBefore = wolfSSL_SSL_in_before(ssl);
+    \endcode
+
+    \sa wolfSSL_SSL_in_init
+*/
+int wolfSSL_SSL_in_before(const WOLFSSL* ssl);
+
+/*!
+    \ingroup Setup
+
+    \brief Checks if in connect init.
+
+    \return int Non-zero if in connect init
+
+    \param ssl WOLFSSL object
+
+    _Example_
+    \code
+    int inConnectInit = wolfSSL_SSL_in_connect_init(ssl);
+    \endcode
+
+    \sa wolfSSL_SSL_in_init
+*/
+int wolfSSL_SSL_in_connect_init(WOLFSSL* ssl);
+
+/*!
+    \ingroup Setup
+
+    \brief Removes session from context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx Context
+    \param c Session
+
+    _Example_
+    \code
+    int ret = wolfSSL_SSL_CTX_remove_session(ctx, session);
+    \endcode
+
+    \sa wolfSSL_flush_sessions
+*/
+int wolfSSL_SSL_CTX_remove_session(WOLFSSL_CTX* ctx, WOLFSSL_SESSION *c);
+
+/*!
+    \ingroup ASN
+
+    \brief Converts ASN1 integer to ASCII.
+
+    \return int Bytes written
+    \return negative on failure
+
+    \param bp BIO object
+    \param a ASN1 integer
+
+    _Example_
+    \code
+    int ret = wolfSSL_i2a_ASN1_INTEGER(bio, asn1Int);
+    \endcode
+
+    \sa wolfSSL_ASN1_INTEGER_to_BN
+*/
+int wolfSSL_i2a_ASN1_INTEGER(WOLFSSL_BIO *bp,
+                              const WOLFSSL_ASN1_INTEGER *a);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets ticket key callback.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx Context
+    \param cb Callback function
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_set_tlsext_ticket_key_cb(ctx, myTicketCb);
+    \endcode
+
+    \sa wolfSSL_CTX_set_TicketEncCb
+*/
+int wolfSSL_CTX_set_tlsext_ticket_key_cb(WOLFSSL_CTX* ctx,
+                                          ticketCompatCb cb);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets issuer certificate.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param issuer Issuer pointer
+    \param ctx Store context
+    \param x Certificate
+
+    _Example_
+    \code
+    WOLFSSL_X509* issuer;
+    int ret = wolfSSL_X509_STORE_CTX_get1_issuer(&issuer, storeCtx, cert);
+    \endcode
+
+    \sa wolfSSL_X509_check_issued
+*/
+int wolfSSL_X509_STORE_CTX_get1_issuer(WOLFSSL_X509 **issuer,
+                                        WOLFSSL_X509_STORE_CTX *ctx,
+                                        WOLFSSL_X509 *x);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Checks if certificate is issued by issuer.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param issuer Issuer certificate
+    \param subject Subject certificate
+
+    _Example_
+    \code
+    int ret = wolfSSL_X509_check_issued(issuer, subject);
+    \endcode
+
+    \sa wolfSSL_X509_STORE_CTX_get1_issuer
+*/
+int wolfSSL_X509_check_issued(WOLFSSL_X509 *issuer,
+                               WOLFSSL_X509 *subject);
+
+/*!
+    \ingroup Setup
+
+    \brief Frees wolfSSL string.
+
+    \return none
+
+    \param s String
+
+    _Example_
+    \code
+    wolfSSL_WOLFSSL_STRING_free(str);
+    \endcode
+
+    \sa wolfSSL_sk_WOLFSSL_STRING_free
+*/
+void wolfSSL_WOLFSSL_STRING_free(WOLFSSL_STRING s);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Writes X509 to BIO in PEM format.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param bio BIO object
+    \param cert Certificate
+
+    _Example_
+    \code
+    int ret = PEM_write_bio_WOLFSSL_X509(bio, cert);
+    \endcode
+
+    \sa wolfSSL_PEM_write_bio_X509
+*/
+int PEM_write_bio_WOLFSSL_X509(WOLFSSL_BIO *bio, WOLFSSL_X509 *cert);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets ticket keys.
+
+    \return long Bytes copied
+    \return negative on failure
+
+    \param ctx Context
+    \param keys Keys buffer
+    \param keylen Buffer length
+
+    _Example_
+    \code
+    unsigned char keys[48];
+    long ret = wolfSSL_CTX_get_tlsext_ticket_keys(ctx, keys,
+                                                    sizeof(keys));
+    \endcode
+
+    \sa wolfSSL_CTX_set_tlsext_ticket_keys
+*/
+long wolfSSL_CTX_get_tlsext_ticket_keys(WOLFSSL_CTX *ctx,
+                                         unsigned char *keys, int keylen);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets ticket keys.
+
+    \return long Bytes set
+    \return negative on failure
+
+    \param ctx Context
+    \param keys_vp Keys
+    \param keylen Key length
+
+    _Example_
+    \code
+    unsigned char keys[48];
+    long ret = wolfSSL_CTX_set_tlsext_ticket_keys(ctx, keys,
+                                                    sizeof(keys));
+    \endcode
+
+    \sa wolfSSL_CTX_get_tlsext_ticket_keys
+*/
+long wolfSSL_CTX_set_tlsext_ticket_keys(WOLFSSL_CTX *ctx,
+                                         const void *keys_vp, int keylen);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets selected ALPN protocol.
+
+    \return none
+
+    \param ssl WOLFSSL object
+    \param data Data pointer
+    \param len Length pointer
+
+    _Example_
+    \code
+    const unsigned char* proto;
+    unsigned int len;
+    wolfSSL_get0_alpn_selected(ssl, &proto, &len);
+    \endcode
+
+    \sa wolfSSL_ALPN_GetProtocol
+*/
+void wolfSSL_get0_alpn_selected(const WOLFSSL *ssl,
+                                 const unsigned char **data,
+                                 unsigned int *len);
+
+/*!
+    \ingroup Setup
+
+    \brief Selects next protocol.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param out Output pointer
+    \param outlen Output length pointer
+    \param in Input
+    \param inlen Input length
+    \param client Client protocols
+    \param client_len Client length
+
+    _Example_
+    \code
+    unsigned char* selected;
+    unsigned char selectedLen;
+    int ret = wolfSSL_select_next_proto(&selected, &selectedLen,
+                                         server, serverLen,
+                                         client, clientLen);
+    \endcode
+
+    \sa wolfSSL_get0_alpn_selected
+*/
+int wolfSSL_select_next_proto(unsigned char **out, unsigned char *outlen,
+                               const unsigned char *in, unsigned int inlen,
+                               const unsigned char *client,
+                               unsigned int client_len);
