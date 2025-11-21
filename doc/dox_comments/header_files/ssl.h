@@ -25730,3 +25730,508 @@ void* wolfSSL_get_psk_callback_ctx(WOLFSSL* ssl);
     \sa wolfSSL_get_psk_callback_ctx
 */
 void* wolfSSL_CTX_get_psk_callback_ctx(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets cipher name by hash.
+
+    \return const char* Cipher name
+    \return NULL if not found
+
+    \param ssl SSL object
+    \param hash Hash string
+
+    _Example_
+    \code
+    const char* name = wolfSSL_get_cipher_name_by_hash(ssl, "SHA256");
+    if (name != NULL) {
+        printf("Cipher: %s\n", name);
+    }
+    \endcode
+
+    \sa wolfSSL_get_cipher
+*/
+const char* wolfSSL_get_cipher_name_by_hash(WOLFSSL* ssl,
+                                              const char* hash);
+
+/*!
+    \ingroup openSSL
+
+    \brief Puts error on error queue.
+
+    \return none
+
+    \param lib Library code
+    \param fun Function code
+    \param err Error code
+    \param file Source file
+    \param line Line number
+
+    _Example_
+    \code
+    wolfSSL_ERR_put_error(0, 0, -1, __FILE__, __LINE__);
+    \endcode
+
+    \sa wolfSSL_ERR_get_error
+*/
+void wolfSSL_ERR_put_error(int lib, int fun, int err, const char* file,
+                             int line);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets error with file and line.
+
+    \return unsigned long Error code
+    \return 0 if no error
+
+    \param file Pointer to store file name
+    \param line Pointer to store line number
+
+    _Example_
+    \code
+    const char* file;
+    int line;
+    unsigned long err = wolfSSL_ERR_get_error_line(&file, &line);
+    if (err != 0) {
+        printf("Error at %s:%d\n", file, line);
+    }
+    \endcode
+
+    \sa wolfSSL_ERR_get_error
+*/
+unsigned long wolfSSL_ERR_get_error_line(const char** file, int* line);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets error with file, line, and data.
+
+    \return unsigned long Error code
+    \return 0 if no error
+
+    \param file Pointer to store file name
+    \param line Pointer to store line number
+    \param data Pointer to store error data
+    \param flags Pointer to store flags
+
+    _Example_
+    \code
+    const char* file;
+    const char* data;
+    int line, flags;
+    unsigned long err = wolfSSL_ERR_get_error_line_data(&file, &line,
+                                                         &data, &flags);
+    \endcode
+
+    \sa wolfSSL_ERR_get_error_line
+*/
+unsigned long wolfSSL_ERR_get_error_line_data(const char** file, int* line,
+                                                const char** data, int* flags);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets error from queue.
+
+    \return unsigned long Error code
+    \return 0 if no error
+
+    _Example_
+    \code
+    unsigned long err = wolfSSL_ERR_get_error();
+    if (err != 0) {
+        printf("Error: %lu\n", err);
+    }
+    \endcode
+
+    \sa wolfSSL_ERR_peek_error
+*/
+unsigned long wolfSSL_ERR_get_error(void);
+
+/*!
+    \ingroup openSSL
+
+    \brief Clears error queue.
+
+    \return none
+
+    _Example_
+    \code
+    wolfSSL_ERR_clear_error();
+    \endcode
+
+    \sa wolfSSL_ERR_get_error
+*/
+void wolfSSL_ERR_clear_error(void);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets RAND status.
+
+    \return 1 if RAND is seeded
+    \return 0 if not seeded
+
+    _Example_
+    \code
+    int status = wolfSSL_RAND_status();
+    if (status) {
+        printf("RAND is seeded\n");
+    }
+    \endcode
+
+    \sa wolfSSL_RAND_bytes
+*/
+int wolfSSL_RAND_status(void);
+
+/*!
+    \ingroup openSSL
+
+    \brief Generates pseudo-random bytes.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param buf Buffer for random bytes
+    \param num Number of bytes to generate
+
+    _Example_
+    \code
+    unsigned char buf[32];
+    int ret = wolfSSL_RAND_pseudo_bytes(buf, sizeof(buf));
+    \endcode
+
+    \sa wolfSSL_RAND_bytes
+*/
+int wolfSSL_RAND_pseudo_bytes(unsigned char* buf, int num);
+
+/*!
+    \ingroup openSSL
+
+    \brief Generates random bytes.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param buf Buffer for random bytes
+    \param num Number of bytes to generate
+
+    _Example_
+    \code
+    unsigned char buf[32];
+    int ret = wolfSSL_RAND_bytes(buf, sizeof(buf));
+    if (ret == WOLFSSL_SUCCESS) {
+        printf("Generated %d random bytes\n", sizeof(buf));
+    }
+    \endcode
+
+    \sa wolfSSL_RAND_pseudo_bytes
+*/
+int wolfSSL_RAND_bytes(unsigned char* buf, int num);
+
+/*!
+    \ingroup openSSL
+
+    \brief Sets SSL context options.
+
+    \return long Updated options
+
+    \param ctx SSL context
+    \param opt Options to set
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    long opts = wolfSSL_CTX_set_options(ctx, SSL_OP_NO_SSLv3);
+    \endcode
+
+    \sa wolfSSL_CTX_get_options
+*/
+long wolfSSL_CTX_set_options(WOLFSSL_CTX* ctx, long opt);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets SSL context options.
+
+    \return long Current options
+
+    \param ctx SSL context
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    long opts = wolfSSL_CTX_get_options(ctx);
+    printf("Options: 0x%lx\n", opts);
+    \endcode
+
+    \sa wolfSSL_CTX_set_options
+*/
+long wolfSSL_CTX_get_options(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup openSSL
+
+    \brief Checks if private key matches certificate.
+
+    \return WOLFSSL_SUCCESS if match
+    \return WOLFSSL_FAILURE if no match
+
+    \param ctx SSL context
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    int ret = wolfSSL_CTX_check_private_key(ctx);
+    if (ret == WOLFSSL_SUCCESS) {
+        printf("Private key matches certificate\n");
+    }
+    \endcode
+
+    \sa wolfSSL_CTX_use_PrivateKey_file
+*/
+int wolfSSL_CTX_check_private_key(const WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup openSSL
+
+    \brief Frees error strings.
+
+    \return none
+
+    _Example_
+    \code
+    wolfSSL_ERR_free_strings();
+    \endcode
+
+    \sa wolfSSL_ERR_load_error_strings
+*/
+void wolfSSL_ERR_free_strings(void);
+
+/*!
+    \ingroup openSSL
+
+    \brief Removes error state for thread.
+
+    \return none
+
+    \param id Thread ID
+
+    _Example_
+    \code
+    wolfSSL_ERR_remove_state(0);
+    \endcode
+
+    \sa wolfSSL_ERR_clear_error
+*/
+void wolfSSL_ERR_remove_state(unsigned long id);
+
+/*!
+    \ingroup openSSL
+
+    \brief Clears SSL object for reuse.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    int ret = wolfSSL_clear(ssl);
+    if (ret == WOLFSSL_SUCCESS) {
+        printf("SSL cleared\n");
+    }
+    \endcode
+
+    \sa wolfSSL_free
+*/
+int wolfSSL_clear(WOLFSSL* ssl);
+
+/*!
+    \ingroup openSSL
+
+    \brief Cleans up all ex_data.
+
+    \return none
+
+    _Example_
+    \code
+    wolfSSL_cleanup_all_ex_data();
+    \endcode
+
+    \sa wolfSSL_set_ex_data
+*/
+void wolfSSL_cleanup_all_ex_data(void);
+
+/*!
+    \ingroup openSSL
+
+    \brief Sets SSL context mode.
+
+    \return long Updated mode
+
+    \param ctx SSL context
+    \param mode Mode to set
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    long mode = wolfSSL_CTX_set_mode(ctx, SSL_MODE_RELEASE_BUFFERS);
+    \endcode
+
+    \sa wolfSSL_CTX_get_mode
+*/
+long wolfSSL_CTX_set_mode(WOLFSSL_CTX* ctx, long mode);
+
+/*!
+    \ingroup openSSL
+
+    \brief Clears SSL context mode.
+
+    \return long Updated mode
+
+    \param ctx SSL context
+    \param mode Mode to clear
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    long mode = wolfSSL_CTX_clear_mode(ctx, SSL_MODE_RELEASE_BUFFERS);
+    \endcode
+
+    \sa wolfSSL_CTX_set_mode
+*/
+long wolfSSL_CTX_clear_mode(WOLFSSL_CTX* ctx, long mode);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets SSL context mode.
+
+    \return long Current mode
+
+    \param ctx SSL context
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    long mode = wolfSSL_CTX_get_mode(ctx);
+    printf("Mode: 0x%lx\n", mode);
+    \endcode
+
+    \sa wolfSSL_CTX_set_mode
+*/
+long wolfSSL_CTX_get_mode(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup openSSL
+
+    \brief Sets default read-ahead in context.
+
+    \return none
+
+    \param ctx SSL context
+    \param m Read-ahead value
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    wolfSSL_CTX_set_default_read_ahead(ctx, 1);
+    \endcode
+
+    \sa wolfSSL_set_read_ahead
+*/
+void wolfSSL_CTX_set_default_read_ahead(WOLFSSL_CTX* ctx, int m);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets SSL mode.
+
+    \return long Current mode
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    long mode = wolfSSL_SSL_get_mode(ssl);
+    printf("Mode: 0x%lx\n", mode);
+    \endcode
+
+    \sa wolfSSL_CTX_get_mode
+*/
+long wolfSSL_SSL_get_mode(WOLFSSL* ssl);
+
+/*!
+    \ingroup openSSL
+
+    \brief Sets default verify paths.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx SSL context
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    int ret = wolfSSL_CTX_set_default_verify_paths(ctx);
+    \endcode
+
+    \sa wolfSSL_CTX_load_verify_locations
+*/
+int wolfSSL_CTX_set_default_verify_paths(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets default cert file environment variable.
+
+    \return const char* Environment variable name
+
+    _Example_
+    \code
+    const char* env = wolfSSL_X509_get_default_cert_file_env();
+    printf("Cert file env: %s\n", env);
+    \endcode
+
+    \sa wolfSSL_X509_get_default_cert_file
+*/
+const char* wolfSSL_X509_get_default_cert_file_env(void);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets default cert file path.
+
+    \return const char* Default cert file path
+
+    _Example_
+    \code
+    const char* path = wolfSSL_X509_get_default_cert_file();
+    printf("Default cert file: %s\n", path);
+    \endcode
+
+    \sa wolfSSL_X509_get_default_cert_file_env
+*/
+const char* wolfSSL_X509_get_default_cert_file(void);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets default cert dir environment variable.
+
+    \return const char* Environment variable name
+
+    _Example_
+    \code
+    const char* env = wolfSSL_X509_get_default_cert_dir_env();
+    printf("Cert dir env: %s\n", env);
+    \endcode
+
+    \sa wolfSSL_X509_get_default_cert_dir
+*/
+const char* wolfSSL_X509_get_default_cert_dir_env(void);
