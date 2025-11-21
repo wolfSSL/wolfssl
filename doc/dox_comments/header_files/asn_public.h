@@ -1926,6 +1926,145 @@ int wc_GetPubKeyDerFromCert(struct DecodedCert* cert,
                                         byte* derKey, word32* derKeySz);
 
 /*!
+    \ingroup DSA
+    \brief Decodes DSA parameters from DER format.
+
+    \return 0 on success
+    \return negative on error
+
+    \param input DER encoded DSA parameters buffer
+    \param inOutIdx Pointer to index in buffer
+    \param key DSA key structure to store parameters
+    \param inSz Size of input buffer
+
+    _Example_
+    \code
+    DsaKey key;
+    word32 idx = 0;
+    int ret = wc_DsaParamsDecode(derBuf, &idx, &key, derSz);
+    \endcode
+
+    \sa wc_DsaKeyToParamsDer
+*/
+int wc_DsaParamsDecode(const byte* input, word32* inOutIdx,
+                       DsaKey* key, word32 inSz);
+
+/*!
+    \ingroup DSA
+    \brief Encodes DSA parameters to DER format.
+
+    \return Size on success
+    \return negative on error
+
+    \param key DSA key structure with parameters
+    \param output Buffer for DER encoded parameters
+    \param inLen Size of output buffer
+
+    _Example_
+    \code
+    DsaKey key;
+    byte der[1024];
+    int derSz = wc_DsaKeyToParamsDer(&key, der, sizeof(der));
+    \endcode
+
+    \sa wc_DsaParamsDecode
+*/
+int wc_DsaKeyToParamsDer(DsaKey* key, byte* output, word32 inLen);
+
+/*!
+    \ingroup DSA
+    \brief Encodes DSA parameters to DER with size output.
+
+    \return 0 on success
+    \return negative on error
+
+    \param key DSA key structure with parameters
+    \param output Buffer for DER encoded parameters
+    \param inLen Pointer to buffer size (in/out)
+
+    _Example_
+    \code
+    DsaKey key;
+    byte der[1024];
+    word32 derSz = sizeof(der);
+    int ret = wc_DsaKeyToParamsDer_ex(&key, der, &derSz);
+    \endcode
+
+    \sa wc_DsaKeyToParamsDer
+*/
+int wc_DsaKeyToParamsDer_ex(DsaKey* key, byte* output,
+                             word32* inLen);
+
+/*!
+    \ingroup DH
+    \brief Encodes DH parameters to DER format.
+
+    \return 0 on success
+    \return negative on error
+
+    \param key DH key structure with parameters
+    \param out Buffer for DER encoded parameters
+    \param outSz Pointer to buffer size (in/out)
+
+    _Example_
+    \code
+    DhKey key;
+    byte der[1024];
+    word32 derSz = sizeof(der);
+    int ret = wc_DhParamsToDer(&key, der, &derSz);
+    \endcode
+
+    \sa wc_DhKeyToDer
+*/
+int wc_DhParamsToDer(DhKey* key, byte* out, word32* outSz);
+
+/*!
+    \ingroup DH
+    \brief Encodes DH public key to DER format.
+
+    \return 0 on success
+    \return negative on error
+
+    \param key DH key structure with public key
+    \param out Buffer for DER encoded public key
+    \param outSz Pointer to buffer size (in/out)
+
+    _Example_
+    \code
+    DhKey key;
+    byte der[1024];
+    word32 derSz = sizeof(der);
+    int ret = wc_DhPubKeyToDer(&key, der, &derSz);
+    \endcode
+
+    \sa wc_DhKeyToDer
+*/
+int wc_DhPubKeyToDer(DhKey* key, byte* out, word32* outSz);
+
+/*!
+    \ingroup DH
+    \brief Encodes DH private key to DER format.
+
+    \return 0 on success
+    \return negative on error
+
+    \param key DH key structure with private key
+    \param out Buffer for DER encoded private key
+    \param outSz Pointer to buffer size (in/out)
+
+    _Example_
+    \code
+    DhKey key;
+    byte der[1024];
+    word32 derSz = sizeof(der);
+    int ret = wc_DhPrivKeyToDer(&key, der, &derSz);
+    \endcode
+
+    \sa wc_DhKeyToDer
+*/
+int wc_DhPrivKeyToDer(DhKey* key, byte* out, word32* outSz);
+
+/*!
     \ingroup ASN
 
     \brief This function reads in an ECC private key from the input buffer,
