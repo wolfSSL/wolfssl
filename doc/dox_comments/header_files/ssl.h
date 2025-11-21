@@ -28250,3 +28250,590 @@ void wolfSSL_PKCS12_PBE_add(void);
 */
 WOLFSSL_X509_PKCS12* wolfSSL_d2i_PKCS12_fp(XFILE fp,
                                             WOLFSSL_X509_PKCS12** pkcs12);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Verifies PKCS12 MAC.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param pkcs12 PKCS12 structure
+    \param psw Password
+    \param pswLen Password length
+
+    _Example_
+    \code
+    int ret = wolfSSL_PKCS12_verify_mac(p12, "password", 8);
+    if (ret == WOLFSSL_SUCCESS) {
+        printf("MAC verified\n");
+    }
+    \endcode
+
+    \sa wolfSSL_PKCS12_parse
+*/
+int wolfSSL_PKCS12_verify_mac(WC_PKCS12 *pkcs12, const char *psw,
+                               int pswLen);
+
+/*!
+    \ingroup Setup
+
+    \brief Enables DH key test.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl SSL object
+    \param enable Enable flag
+
+    _Example_
+    \code
+    int ret = wolfSSL_SetEnableDhKeyTest(ssl, 1);
+    \endcode
+
+    \sa wolfSSL_SetTmpEC_DHE_Sz
+*/
+int wolfSSL_SetEnableDhKeyTest(WOLFSSL* ssl, int enable);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets temporary EC DHE size.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl SSL object
+    \param sz Key size
+
+    _Example_
+    \code
+    int ret = wolfSSL_SetTmpEC_DHE_Sz(ssl, 256);
+    \endcode
+
+    \sa wolfSSL_CTX_SetTmpEC_DHE_Sz
+*/
+int wolfSSL_SetTmpEC_DHE_Sz(WOLFSSL* ssl, word16 sz);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets temporary EC DHE size in context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx SSL context
+    \param sz Key size
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_SetTmpEC_DHE_Sz(ctx, 256);
+    \endcode
+
+    \sa wolfSSL_SetTmpEC_DHE_Sz
+*/
+int wolfSSL_CTX_SetTmpEC_DHE_Sz(WOLFSSL_CTX* ctx, word16 sz);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets keyblock size.
+
+    \return int Keyblock size
+    \return negative on error
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    int size = wolfSSL_get_keyblock_size(ssl);
+    printf("Keyblock size: %d\n", size);
+    \endcode
+
+    \sa wolfSSL_get_keys
+*/
+int wolfSSL_get_keyblock_size(WOLFSSL* ssl);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets session keys.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl SSL object
+    \param ms Pointer to store master secret
+    \param msLen Pointer to store master secret length
+    \param sr Pointer to store server random
+    \param srLen Pointer to store server random length
+    \param cr Pointer to store client random
+    \param crLen Pointer to store client random length
+
+    _Example_
+    \code
+    unsigned char *ms, *sr, *cr;
+    unsigned int msLen, srLen, crLen;
+    int ret = wolfSSL_get_keys(ssl, &ms, &msLen, &sr, &srLen,
+                                &cr, &crLen);
+    \endcode
+
+    \sa wolfSSL_get_keyblock_size
+*/
+int wolfSSL_get_keys(WOLFSSL* ssl, unsigned char** ms, unsigned int* msLen,
+                      unsigned char** sr, unsigned int* srLen,
+                      unsigned char** cr, unsigned int* crLen);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Unloads trust peers.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    int ret = wolfSSL_Unload_trust_peers(ssl);
+    \endcode
+
+    \sa wolfSSL_CTX_trust_peer_buffer
+*/
+int wolfSSL_Unload_trust_peers(WOLFSSL* ssl);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Uses private key by ID in context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx SSL context
+    \param id Key ID
+    \param sz ID size
+    \param devId Device ID
+    \param keySz Key size
+
+    _Example_
+    \code
+    unsigned char id[] = {0x01, 0x02, 0x03};
+    int ret = wolfSSL_CTX_use_PrivateKey_id(ctx, id, sizeof(id), 0, 2048);
+    \endcode
+
+    \sa wolfSSL_CTX_use_PrivateKey_Id
+*/
+int wolfSSL_CTX_use_PrivateKey_id(WOLFSSL_CTX* ctx,
+                                   const unsigned char* id, long sz,
+                                   int devId, long keySz);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Uses private key by ID in context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx SSL context
+    \param id Key ID
+    \param sz ID size
+    \param devId Device ID
+
+    _Example_
+    \code
+    unsigned char id[] = {0x01, 0x02, 0x03};
+    int ret = wolfSSL_CTX_use_PrivateKey_Id(ctx, id, sizeof(id), 0);
+    \endcode
+
+    \sa wolfSSL_CTX_use_PrivateKey_id
+*/
+int wolfSSL_CTX_use_PrivateKey_Id(WOLFSSL_CTX* ctx,
+                                   const unsigned char* id, long sz,
+                                   int devId);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Uses private key by label in context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx SSL context
+    \param label Key label
+    \param devId Device ID
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_use_PrivateKey_Label(ctx, "mykey", 0);
+    \endcode
+
+    \sa wolfSSL_CTX_use_PrivateKey_Id
+*/
+int wolfSSL_CTX_use_PrivateKey_Label(WOLFSSL_CTX* ctx, const char* label,
+                                      int devId);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Uses certificate chain from buffer with format.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx SSL context
+    \param in Certificate chain buffer
+    \param sz Buffer size
+    \param format Buffer format
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_use_certificate_chain_buffer_format(ctx, buf, sz,
+                                                            SSL_FILETYPE_PEM);
+    \endcode
+
+    \sa wolfSSL_CTX_use_certificate_chain_buffer
+*/
+int wolfSSL_CTX_use_certificate_chain_buffer_format(WOLFSSL_CTX* ctx,
+                                                      const unsigned char* in,
+                                                      long sz, int format);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Uses certificate by label in context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx SSL context
+    \param label Certificate label
+    \param devId Device ID
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_use_certificate_label(ctx, "mycert", 0);
+    \endcode
+
+    \sa wolfSSL_CTX_use_certificate_id
+*/
+int wolfSSL_CTX_use_certificate_label(WOLFSSL_CTX* ctx, const char *label,
+                                       int devId);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Uses certificate by ID in context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx SSL context
+    \param id Certificate ID
+    \param idLen ID length
+    \param devId Device ID
+
+    _Example_
+    \code
+    unsigned char id[] = {0x01, 0x02, 0x03};
+    int ret = wolfSSL_CTX_use_certificate_id(ctx, id, sizeof(id), 0);
+    \endcode
+
+    \sa wolfSSL_CTX_use_certificate_label
+*/
+int wolfSSL_CTX_use_certificate_id(WOLFSSL_CTX* ctx,
+                                    const unsigned char *id, int idLen,
+                                    int devId);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Uses alternate private key from buffer in context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx SSL context
+    \param in Private key buffer
+    \param sz Buffer size
+    \param format Buffer format
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_use_AltPrivateKey_buffer(ctx, buf, sz,
+                                                     SSL_FILETYPE_PEM);
+    \endcode
+
+    \sa wolfSSL_CTX_use_PrivateKey_buffer
+*/
+int wolfSSL_CTX_use_AltPrivateKey_buffer(WOLFSSL_CTX* ctx,
+                                          const unsigned char* in, long sz,
+                                          int format);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Uses alternate private key by ID in context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx SSL context
+    \param id Key ID
+    \param sz ID size
+    \param devId Device ID
+    \param keySz Key size
+
+    _Example_
+    \code
+    unsigned char id[] = {0x01, 0x02, 0x03};
+    int ret = wolfSSL_CTX_use_AltPrivateKey_id(ctx, id, sizeof(id), 0, 2048);
+    \endcode
+
+    \sa wolfSSL_CTX_use_AltPrivateKey_Id
+*/
+int wolfSSL_CTX_use_AltPrivateKey_id(WOLFSSL_CTX* ctx,
+                                      const unsigned char* id, long sz,
+                                      int devId, long keySz);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Uses alternate private key by ID in context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx SSL context
+    \param id Key ID
+    \param sz ID size
+    \param devId Device ID
+
+    _Example_
+    \code
+    unsigned char id[] = {0x01, 0x02, 0x03};
+    int ret = wolfSSL_CTX_use_AltPrivateKey_Id(ctx, id, sizeof(id), 0);
+    \endcode
+
+    \sa wolfSSL_CTX_use_AltPrivateKey_id
+*/
+int wolfSSL_CTX_use_AltPrivateKey_Id(WOLFSSL_CTX* ctx,
+                                      const unsigned char* id, long sz,
+                                      int devId);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Uses alternate private key by label in context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx SSL context
+    \param label Key label
+    \param devId Device ID
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_use_AltPrivateKey_Label(ctx, "myaltkey", 0);
+    \endcode
+
+    \sa wolfSSL_CTX_use_AltPrivateKey_Id
+*/
+int wolfSSL_CTX_use_AltPrivateKey_Label(WOLFSSL_CTX* ctx, const char* label,
+                                         int devId);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Uses private key by ID.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl SSL object
+    \param id Key ID
+    \param sz ID size
+    \param devId Device ID
+    \param keySz Key size
+
+    _Example_
+    \code
+    unsigned char id[] = {0x01, 0x02, 0x03};
+    int ret = wolfSSL_use_PrivateKey_id(ssl, id, sizeof(id), 0, 2048);
+    \endcode
+
+    \sa wolfSSL_use_PrivateKey_Id
+*/
+int wolfSSL_use_PrivateKey_id(WOLFSSL* ssl, const unsigned char* id, long sz,
+                               int devId, long keySz);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Uses private key by ID.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl SSL object
+    \param id Key ID
+    \param sz ID size
+    \param devId Device ID
+
+    _Example_
+    \code
+    unsigned char id[] = {0x01, 0x02, 0x03};
+    int ret = wolfSSL_use_PrivateKey_Id(ssl, id, sizeof(id), 0);
+    \endcode
+
+    \sa wolfSSL_use_PrivateKey_id
+*/
+int wolfSSL_use_PrivateKey_Id(WOLFSSL* ssl, const unsigned char* id, long sz,
+                               int devId);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Uses private key by label.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl SSL object
+    \param label Key label
+    \param devId Device ID
+
+    _Example_
+    \code
+    int ret = wolfSSL_use_PrivateKey_Label(ssl, "mykey", 0);
+    \endcode
+
+    \sa wolfSSL_use_PrivateKey_Id
+*/
+int wolfSSL_use_PrivateKey_Label(WOLFSSL* ssl, const char* label, int devId);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Uses certificate chain from buffer with format.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl SSL object
+    \param in Certificate chain buffer
+    \param sz Buffer size
+    \param format Buffer format
+
+    _Example_
+    \code
+    int ret = wolfSSL_use_certificate_chain_buffer_format(ssl, buf, sz,
+                                                           SSL_FILETYPE_PEM);
+    \endcode
+
+    \sa wolfSSL_use_certificate_chain_buffer
+*/
+int wolfSSL_use_certificate_chain_buffer_format(WOLFSSL* ssl,
+                                                  const unsigned char* in,
+                                                  long sz, int format);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Uses alternate private key from buffer.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl SSL object
+    \param in Private key buffer
+    \param sz Buffer size
+    \param format Buffer format
+
+    _Example_
+    \code
+    int ret = wolfSSL_use_AltPrivateKey_buffer(ssl, buf, sz,
+                                                SSL_FILETYPE_PEM);
+    \endcode
+
+    \sa wolfSSL_use_PrivateKey_buffer
+*/
+int wolfSSL_use_AltPrivateKey_buffer(WOLFSSL* ssl, const unsigned char* in,
+                                      long sz, int format);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Uses alternate private key by ID.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl SSL object
+    \param id Key ID
+    \param sz ID size
+    \param devId Device ID
+    \param keySz Key size
+
+    _Example_
+    \code
+    unsigned char id[] = {0x01, 0x02, 0x03};
+    int ret = wolfSSL_use_AltPrivateKey_id(ssl, id, sizeof(id), 0, 2048);
+    \endcode
+
+    \sa wolfSSL_use_AltPrivateKey_Id
+*/
+int wolfSSL_use_AltPrivateKey_id(WOLFSSL* ssl, const unsigned char* id,
+                                  long sz, int devId, long keySz);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Uses alternate private key by ID.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl SSL object
+    \param id Key ID
+    \param sz ID size
+    \param devId Device ID
+
+    _Example_
+    \code
+    unsigned char id[] = {0x01, 0x02, 0x03};
+    int ret = wolfSSL_use_AltPrivateKey_Id(ssl, id, sizeof(id), 0);
+    \endcode
+
+    \sa wolfSSL_use_AltPrivateKey_id
+*/
+int wolfSSL_use_AltPrivateKey_Id(WOLFSSL* ssl, const unsigned char* id,
+                                  long sz, int devId);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Uses alternate private key by label.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl SSL object
+    \param label Key label
+    \param devId Device ID
+
+    _Example_
+    \code
+    int ret = wolfSSL_use_AltPrivateKey_Label(ssl, "myaltkey", 0);
+    \endcode
+
+    \sa wolfSSL_use_AltPrivateKey_Id
+*/
+int wolfSSL_use_AltPrivateKey_Label(WOLFSSL* ssl, const char* label,
+                                     int devId);
