@@ -816,3 +816,683 @@ const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_192_cbc(void);
     \sa wolfSSL_EVP_aes_256_ecb
 */
 const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_cbc(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_CIPHER structure for AES-128-CFB1.
+
+    \return Pointer to EVP_CIPHER structure for AES-128-CFB1
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_CIPHER* cipher = wolfSSL_EVP_aes_128_cfb1();
+    \endcode
+
+    \sa wolfSSL_EVP_aes_128_cfb8
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_cfb1(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_CIPHER structure for AES-192-CFB1.
+
+    \return Pointer to EVP_CIPHER structure for AES-192-CFB1
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_CIPHER* cipher = wolfSSL_EVP_aes_192_cfb1();
+    \endcode
+
+    \sa wolfSSL_EVP_aes_192_cfb8
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_192_cfb1(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_CIPHER structure for AES-256-CFB1.
+
+    \return Pointer to EVP_CIPHER structure for AES-256-CFB1
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_CIPHER* cipher = wolfSSL_EVP_aes_256_cfb1();
+    \endcode
+
+    \sa wolfSSL_EVP_aes_256_cfb8
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_cfb1(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_CIPHER structure for AES-128-CFB8.
+
+    \return Pointer to EVP_CIPHER structure for AES-128-CFB8
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_CIPHER* cipher = wolfSSL_EVP_aes_128_cfb8();
+    \endcode
+
+    \sa wolfSSL_EVP_aes_128_cfb128
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_cfb8(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_CIPHER structure for AES-192-CFB8.
+
+    \return Pointer to EVP_CIPHER structure for AES-192-CFB8
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_CIPHER* cipher = wolfSSL_EVP_aes_192_cfb8();
+    \endcode
+
+    \sa wolfSSL_EVP_aes_192_cfb128
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_192_cfb8(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_CIPHER structure for AES-256-CFB8.
+
+    \return Pointer to EVP_CIPHER structure for AES-256-CFB8
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_CIPHER* cipher = wolfSSL_EVP_aes_256_cfb8();
+    \endcode
+
+    \sa wolfSSL_EVP_aes_256_cfb128
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_cfb8(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_CIPHER structure for AES-128-CFB128.
+
+    \return Pointer to EVP_CIPHER structure for AES-128-CFB128
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_CIPHER* cipher = wolfSSL_EVP_aes_128_cfb128();
+    \endcode
+
+    \sa wolfSSL_EVP_aes_128_cbc
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_cfb128(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_CIPHER structure for AES-192-CFB128.
+
+    \return Pointer to EVP_CIPHER structure for AES-192-CFB128
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_CIPHER* cipher = wolfSSL_EVP_aes_192_cfb128();
+    \endcode
+
+    \sa wolfSSL_EVP_aes_192_cbc
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_192_cfb128(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_CIPHER structure for AES-256-CFB128.
+
+    \return Pointer to EVP_CIPHER structure for AES-256-CFB128
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_CIPHER* cipher = wolfSSL_EVP_aes_256_cfb128();
+    \endcode
+
+    \sa wolfSSL_EVP_aes_256_cbc
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_cfb128(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_CIPHER structure for AES-128-OFB.
+
+    \return Pointer to EVP_CIPHER structure for AES-128-OFB
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_CIPHER* cipher = wolfSSL_EVP_aes_128_ofb();
+    \endcode
+
+    \sa wolfSSL_EVP_aes_128_cbc
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_ofb(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_CIPHER structure for AES-192-OFB.
+
+    \return Pointer to EVP_CIPHER structure for AES-192-OFB
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_CIPHER* cipher = wolfSSL_EVP_aes_192_ofb();
+    \endcode
+
+    \sa wolfSSL_EVP_aes_192_cbc
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_192_ofb(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_CIPHER structure for AES-256-OFB.
+
+    \return Pointer to EVP_CIPHER structure for AES-256-OFB
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_CIPHER* cipher = wolfSSL_EVP_aes_256_ofb();
+    \endcode
+
+    \sa wolfSSL_EVP_aes_256_cbc
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_ofb(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_CIPHER structure for AES-128-XTS.
+
+    \return Pointer to EVP_CIPHER structure for AES-128-XTS
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_CIPHER* cipher = wolfSSL_EVP_aes_128_xts();
+    \endcode
+
+    \sa wolfSSL_EVP_aes_256_xts
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_xts(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_CIPHER structure for AES-256-XTS.
+
+    \return Pointer to EVP_CIPHER structure for AES-256-XTS
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_CIPHER* cipher = wolfSSL_EVP_aes_256_xts();
+    \endcode
+
+    \sa wolfSSL_EVP_aes_128_xts
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_xts(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_CIPHER structure for AES-128-GCM.
+
+    \return Pointer to EVP_CIPHER structure for AES-128-GCM
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_CIPHER* cipher = wolfSSL_EVP_aes_128_gcm();
+    \endcode
+
+    \sa wolfSSL_EVP_aes_256_gcm
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_gcm(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_CIPHER structure for AES-192-GCM.
+
+    \return Pointer to EVP_CIPHER structure for AES-192-GCM
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_CIPHER* cipher = wolfSSL_EVP_aes_192_gcm();
+    \endcode
+
+    \sa wolfSSL_EVP_aes_256_gcm
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_192_gcm(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_CIPHER structure for AES-256-GCM.
+
+    \return Pointer to EVP_CIPHER structure for AES-256-GCM
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_CIPHER* cipher = wolfSSL_EVP_aes_256_gcm();
+    \endcode
+
+    \sa wolfSSL_EVP_aes_128_gcm
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_gcm(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_CIPHER structure for AES-128-CCM.
+
+    \return Pointer to EVP_CIPHER structure for AES-128-CCM
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_CIPHER* cipher = wolfSSL_EVP_aes_128_ccm();
+    \endcode
+
+    \sa wolfSSL_EVP_aes_256_ccm
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_ccm(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_CIPHER structure for AES-192-CCM.
+
+    \return Pointer to EVP_CIPHER structure for AES-192-CCM
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_CIPHER* cipher = wolfSSL_EVP_aes_192_ccm();
+    \endcode
+
+    \sa wolfSSL_EVP_aes_256_ccm
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_192_ccm(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_CIPHER structure for AES-256-CCM.
+
+    \return Pointer to EVP_CIPHER structure for AES-256-CCM
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_CIPHER* cipher = wolfSSL_EVP_aes_256_ccm();
+    \endcode
+
+    \sa wolfSSL_EVP_aes_128_ccm
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_ccm(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_CIPHER structure for AES-128-CTR.
+
+    \return Pointer to EVP_CIPHER structure for AES-128-CTR
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_CIPHER* cipher = wolfSSL_EVP_aes_128_ctr();
+    \endcode
+
+    \sa wolfSSL_EVP_aes_256_ctr
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_ctr(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_CIPHER structure for AES-192-CTR.
+
+    \return Pointer to EVP_CIPHER structure for AES-192-CTR
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_CIPHER* cipher = wolfSSL_EVP_aes_192_ctr();
+    \endcode
+
+    \sa wolfSSL_EVP_aes_256_ctr
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_192_ctr(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_CIPHER structure for AES-256-CTR.
+
+    \return Pointer to EVP_CIPHER structure for AES-256-CTR
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_CIPHER* cipher = wolfSSL_EVP_aes_256_ctr();
+    \endcode
+
+    \sa wolfSSL_EVP_aes_128_ctr
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_ctr(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_CIPHER structure for ARIA-128-GCM.
+
+    \return Pointer to EVP_CIPHER structure for ARIA-128-GCM
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_CIPHER* cipher = wolfSSL_EVP_aria_128_gcm();
+    \endcode
+
+    \sa wolfSSL_EVP_aria_256_gcm
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aria_128_gcm(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_CIPHER structure for ARIA-192-GCM.
+
+    \return Pointer to EVP_CIPHER structure for ARIA-192-GCM
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_CIPHER* cipher = wolfSSL_EVP_aria_192_gcm();
+    \endcode
+
+    \sa wolfSSL_EVP_aria_256_gcm
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aria_192_gcm(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_CIPHER structure for ARIA-256-GCM.
+
+    \return Pointer to EVP_CIPHER structure for ARIA-256-GCM
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_CIPHER* cipher = wolfSSL_EVP_aria_256_gcm();
+    \endcode
+
+    \sa wolfSSL_EVP_aria_128_gcm
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aria_256_gcm(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_CIPHER structure for DES-ECB.
+
+    \return Pointer to EVP_CIPHER structure for DES-ECB
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_CIPHER* cipher = wolfSSL_EVP_des_ecb();
+    \endcode
+
+    \sa wolfSSL_EVP_des_cbc
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_des_ecb(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_CIPHER structure for DES-EDE3-ECB.
+
+    \return Pointer to EVP_CIPHER structure for DES-EDE3-ECB
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_CIPHER* cipher = wolfSSL_EVP_des_ede3_ecb();
+    \endcode
+
+    \sa wolfSSL_EVP_des_ede3_cbc
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_des_ede3_ecb(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_CIPHER structure for DES-CBC.
+
+    \return Pointer to EVP_CIPHER structure for DES-CBC
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_CIPHER* cipher = wolfSSL_EVP_des_cbc();
+    \endcode
+
+    \sa wolfSSL_EVP_des_ecb
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_des_cbc(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_CIPHER structure for DES-EDE3-CBC.
+
+    \return Pointer to EVP_CIPHER structure for DES-EDE3-CBC
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_CIPHER* cipher = wolfSSL_EVP_des_ede3_cbc();
+    \endcode
+
+    \sa wolfSSL_EVP_des_ede3_ecb
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_des_ede3_cbc(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_CIPHER structure for RC4.
+
+    \return Pointer to EVP_CIPHER structure for RC4
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_CIPHER* cipher = wolfSSL_EVP_rc4();
+    \endcode
+
+    \sa wolfSSL_EVP_aes_128_cbc
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_rc4(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_CIPHER structure for null cipher.
+
+    \return Pointer to EVP_CIPHER structure for null cipher
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_CIPHER* cipher = wolfSSL_EVP_enc_null();
+    \endcode
+
+    \sa wolfSSL_EVP_aes_128_cbc
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_enc_null(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_CIPHER structure for RC2-CBC.
+
+    \return Pointer to EVP_CIPHER structure for RC2-CBC
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_CIPHER* cipher = wolfSSL_EVP_rc2_cbc();
+    \endcode
+
+    \sa wolfSSL_EVP_rc4
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_rc2_cbc(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_CIPHER structure for ChaCha20-Poly1305.
+
+    \return Pointer to EVP_CIPHER structure for ChaCha20-Poly1305
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_CIPHER* cipher = wolfSSL_EVP_chacha20_poly1305();
+    \endcode
+
+    \sa wolfSSL_EVP_chacha20
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_chacha20_poly1305(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_CIPHER structure for ChaCha20.
+
+    \return Pointer to EVP_CIPHER structure for ChaCha20
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_CIPHER* cipher = wolfSSL_EVP_chacha20();
+    \endcode
+
+    \sa wolfSSL_EVP_chacha20_poly1305
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_chacha20(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_CIPHER structure for SM4-ECB.
+
+    \return Pointer to EVP_CIPHER structure for SM4-ECB
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_CIPHER* cipher = wolfSSL_EVP_sm4_ecb();
+    \endcode
+
+    \sa wolfSSL_EVP_sm4_cbc
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_sm4_ecb(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_CIPHER structure for SM4-CBC.
+
+    \return Pointer to EVP_CIPHER structure for SM4-CBC
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_CIPHER* cipher = wolfSSL_EVP_sm4_cbc();
+    \endcode
+
+    \sa wolfSSL_EVP_sm4_ecb
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_sm4_cbc(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_CIPHER structure for SM4-CTR.
+
+    \return Pointer to EVP_CIPHER structure for SM4-CTR
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_CIPHER* cipher = wolfSSL_EVP_sm4_ctr();
+    \endcode
+
+    \sa wolfSSL_EVP_sm4_cbc
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_sm4_ctr(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_CIPHER structure for SM4-GCM.
+
+    \return Pointer to EVP_CIPHER structure for SM4-GCM
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_CIPHER* cipher = wolfSSL_EVP_sm4_gcm();
+    \endcode
+
+    \sa wolfSSL_EVP_sm4_ccm
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_sm4_gcm(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_CIPHER structure for SM4-CCM.
+
+    \return Pointer to EVP_CIPHER structure for SM4-CCM
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_CIPHER* cipher = wolfSSL_EVP_sm4_ccm();
+    \endcode
+
+    \sa wolfSSL_EVP_sm4_gcm
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_sm4_ccm(void);
