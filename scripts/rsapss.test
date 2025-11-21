@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+
+# rsapss.test
+
+if ! ./examples/client/client -V | grep -q 4; then
+    echo "skipping because TLS 1.3 not enabled in this build"
+    exit 0
+fi
+if ! grep -q -- -DWC_RSA_PSS config.log 2>/dev/null; then
+    echo "skipping because WC_RSA_PSS not enabled in this build"
+    exit 0
+fi
+if ! grep -q -- '-DHAVE_ECC\>' config.log 2>/dev/null; then
+    echo "skipping because HAVE_ECC not enabled in this build"
+    exit 0
+fi
+if grep -q -- '-DNO_CODING' config.log 2>/dev/null; then
+    echo "skipping because NO_CODING is defined in this build"
+    exit 0
+fi
+
+CERT_DIR="$PWD/$(dirname "$0")/../certs"
+if [ "$OPENSSL" = "" ]; then
+    OPENSSL=openssl
+fi
+
+# if we can, isolate the network namespace to eliminate port collisions.
+if [[ -n "$NETWORK_UNSHARE_HELPER" ]]; then
+     if [[ -z "$NETWORK_UNSHARE_HELPER_CALLED" ]]; then
+         export NETWORK_UNSHARE_HELPER_CALLED=yes
+         exec "$NETWORK_UNSHARE_HELPER" "$0" "$@" || exit $?
+     fi
+elif [ "${AM_BWRAPPED-}" != "yes" ]; then
+    bwrap_path="$(command -v bwrap)"
+    if [ -n "$bwrap_path" ]; then
+        export AM_BWRAPPED=yes
+        exec "$bwrap_path" --unshare-net --dev-bind / / "$0" "$@"
+    fi
+    unset AM_BWRAPPED
+fi
+
+# need a unique port since may run the same time as testsuite
+generate_port() {
+    #-------------------------------------------------------------------------#
+    # Generate a random port number
+    #-------------------------------------------------------------------------#
+
+    if [[ "$OSTYPE" == "linux"* ]]; then
+        port=$(($(od -An -N2 /dev/urandom) % (65535-49512) + 49512))
+    elif [[ "$OSTYPE" == "darwin"* ]]; then
+        port=$(($(od -An -N2 /dev/random) % (65535-49512) + 49512))
+    else
+        echo "skipping due to unsupported OS"
+        exit 0
+    fi
+}
+
+WOLFSSL_SERVER=./examples/server/server
+
+start_wolfssl_server() {
+    generate_port
+    server_port=$port
+    $WOLFSSL_SERVER -p $server_port -v 4 -c $CERT_DIR/rsapss/server-rsapss.pem -k $CERT_DIR/rsapss/server-rsapss-priv.pem -A $CERT_DIR/rsapss/root-rsapss.pem -d &
+}
+
+#
+# Run OpenSSL client against wolfSSL server
+#
+do_openssl_client() {
+    echo "test connection" | $OPENSSL s_client -connect 127.0.0.1:$server_port -cert $CERT_DIR/rsapss/client-rsapss.pem -key $CERT_DIR/rsapss/client-rsapss-priv.pem -CAfile $CERT_DIR/rsapss/root-rsapss.pem > rsapss.test.log
+    result=$?
+    cat rsapss.test.log
+    if [ $result != 0 ]
+    then
+        echo "$OPENSSL s_client command failed"
+        exit 1
+    fi
+    grep -q "Peer signature type:.*rsa_pss_rsae_sha256" rsapss.test.log
+    result=$?
+    rm -f rsapss.test.log
+    if [ $result == 0 ]
+    then
+        echo "Test failed: Peer signature type identified as rsa_pss_rsae_sha256"
+        exit 1
+    fi
+}
+
+start_wolfssl_server
+sleep 1
+do_openssl_client
+echo -e "\nSuccess!\n\n"
+exit 0
