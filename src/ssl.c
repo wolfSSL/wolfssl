@@ -20799,9 +20799,11 @@ int wolfSSL_CIPHER_get_bits(const WOLFSSL_CIPHER *c, int *alg_bits)
     WOLFSSL_ENTER("wolfSSL_CIPHER_get_bits");
 
     #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
-    (void)alg_bits;
-    if (c!= NULL)
+    if (c != NULL) {
         ret = c->bits;
+        if (alg_bits != NULL)
+            *alg_bits = c->bits;
+    }
     #else
     if (c != NULL && c->ssl != NULL) {
         ret = 8 * c->ssl->specs.key_size;
