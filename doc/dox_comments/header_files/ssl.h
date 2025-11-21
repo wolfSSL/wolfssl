@@ -18042,3 +18042,564 @@ void wolfSSL_EXTENDED_KEY_USAGE_free(WOLFSSL_STACK* sk);
     \sa wolfSSL_DIST_POINT_free
 */
 WOLFSSL_DIST_POINT* wolfSSL_DIST_POINT_new(void);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Frees DIST_POINT structure.
+
+    \return none
+
+    \param dp DIST_POINT to free
+
+    _Example_
+    \code
+    WOLFSSL_DIST_POINT* dp = wolfSSL_DIST_POINT_new();
+    wolfSSL_DIST_POINT_free(dp);
+    \endcode
+
+    \sa wolfSSL_DIST_POINT_new
+*/
+void wolfSSL_DIST_POINT_free(WOLFSSL_DIST_POINT* dp);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Pushes DIST_POINT onto stack.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param sk Stack to push onto
+    \param dp DIST_POINT to push
+
+    _Example_
+    \code
+    WOLFSSL_STACK* sk = wolfSSL_sk_new_null();
+    WOLFSSL_DIST_POINT* dp = wolfSSL_DIST_POINT_new();
+    int ret = wolfSSL_sk_DIST_POINT_push(sk, dp);
+    \endcode
+
+    \sa wolfSSL_sk_DIST_POINT_value
+*/
+int wolfSSL_sk_DIST_POINT_push(WOLFSSL_DIST_POINTS* sk,
+                                 WOLFSSL_DIST_POINT* dp);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets DIST_POINT from stack at index.
+
+    \return WOLFSSL_DIST_POINT* Pointer to DIST_POINT
+    \return NULL if index is invalid
+
+    \param sk Stack to get from
+    \param i Index of element to retrieve
+
+    _Example_
+    \code
+    WOLFSSL_STACK* sk = wolfSSL_sk_new_null();
+    WOLFSSL_DIST_POINT* dp = wolfSSL_sk_DIST_POINT_value(sk, 0);
+    \endcode
+
+    \sa wolfSSL_sk_DIST_POINT_push
+    \sa wolfSSL_sk_DIST_POINT_num
+*/
+WOLFSSL_DIST_POINT* wolfSSL_sk_DIST_POINT_value(WOLFSSL_STACK* sk, int i);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets number of DIST_POINTs in stack.
+
+    \return int Number of elements
+    \return 0 if stack is NULL
+
+    \param sk Stack to query
+
+    _Example_
+    \code
+    WOLFSSL_STACK* sk = wolfSSL_sk_new_null();
+    int count = wolfSSL_sk_DIST_POINT_num(sk);
+    \endcode
+
+    \sa wolfSSL_sk_DIST_POINT_value
+*/
+int wolfSSL_sk_DIST_POINT_num(WOLFSSL_STACK* sk);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Frees DIST_POINT stack.
+
+    \return none
+
+    \param sk Stack to free
+
+    _Example_
+    \code
+    WOLFSSL_STACK* sk = wolfSSL_sk_new_null();
+    wolfSSL_sk_DIST_POINT_free(sk);
+    \endcode
+
+    \sa wolfSSL_sk_DIST_POINT_push
+*/
+void wolfSSL_sk_DIST_POINT_free(WOLFSSL_STACK* sk);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Frees DIST_POINTS structure.
+
+    \return none
+
+    \param dp DIST_POINTS to free
+
+    _Example_
+    \code
+    WOLFSSL_DIST_POINTS* dp = wolfSSL_X509_get_ext_d2i(x509,
+                                                         NID_crl_dist_points,
+                                                         NULL, NULL);
+    wolfSSL_DIST_POINTS_free(dp);
+    \endcode
+
+    \sa wolfSSL_sk_DIST_POINT_free
+*/
+void wolfSSL_DIST_POINTS_free(WOLFSSL_DIST_POINTS* dp);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets number of ACCESS_DESCRIPTIONs in stack.
+
+    \return int Number of elements
+    \return 0 if stack is NULL
+
+    \param sk Stack to query
+
+    _Example_
+    \code
+    WOLFSSL_STACK* sk = wolfSSL_X509_get_ext_d2i(x509,
+                                                   NID_info_access,
+                                                   NULL, NULL);
+    int count = wolfSSL_sk_ACCESS_DESCRIPTION_num(sk);
+    \endcode
+
+    \sa wolfSSL_sk_ACCESS_DESCRIPTION_value
+*/
+int wolfSSL_sk_ACCESS_DESCRIPTION_num(WOLFSSL_STACK* sk);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets ACCESS_DESCRIPTION from stack at index.
+
+    \return WOLFSSL_ACCESS_DESCRIPTION* Pointer to ACCESS_DESCRIPTION
+    \return NULL if index is invalid
+
+    \param sk Stack to get from
+    \param idx Index of element to retrieve
+
+    _Example_
+    \code
+    WOLFSSL_STACK* sk = wolfSSL_X509_get_ext_d2i(x509,
+                                                   NID_info_access,
+                                                   NULL, NULL);
+    WOLFSSL_ACCESS_DESCRIPTION* ad =
+        wolfSSL_sk_ACCESS_DESCRIPTION_value(sk, 0);
+    \endcode
+
+    \sa wolfSSL_sk_ACCESS_DESCRIPTION_num
+*/
+WOLFSSL_ACCESS_DESCRIPTION* wolfSSL_sk_ACCESS_DESCRIPTION_value(
+    WOLFSSL_STACK* sk, int idx);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Frees ACCESS_DESCRIPTION stack.
+
+    \return none
+
+    \param sk Stack to free
+
+    _Example_
+    \code
+    WOLFSSL_STACK* sk = wolfSSL_X509_get_ext_d2i(x509,
+                                                   NID_info_access,
+                                                   NULL, NULL);
+    wolfSSL_sk_ACCESS_DESCRIPTION_free(sk);
+    \endcode
+
+    \sa wolfSSL_ACCESS_DESCRIPTION_free
+*/
+void wolfSSL_sk_ACCESS_DESCRIPTION_free(WOLFSSL_STACK* sk);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Frees ACCESS_DESCRIPTION structure.
+
+    \return none
+
+    \param a ACCESS_DESCRIPTION to free
+
+    _Example_
+    \code
+    WOLFSSL_ACCESS_DESCRIPTION* ad =
+        wolfSSL_sk_ACCESS_DESCRIPTION_value(sk, 0);
+    wolfSSL_ACCESS_DESCRIPTION_free(ad);
+    \endcode
+
+    \sa wolfSSL_sk_ACCESS_DESCRIPTION_free
+*/
+void wolfSSL_ACCESS_DESCRIPTION_free(WOLFSSL_ACCESS_DESCRIPTION* a);
+
+/*!
+    \ingroup ASN
+
+    \brief Creates new ASN1_OBJECT structure.
+
+    \return WOLFSSL_ASN1_OBJECT* Pointer to new structure
+    \return NULL on failure
+
+    _Example_
+    \code
+    WOLFSSL_ASN1_OBJECT* obj = wolfSSL_ASN1_OBJECT_new();
+    if (obj != NULL) {
+        wolfSSL_ASN1_OBJECT_free(obj);
+    }
+    \endcode
+
+    \sa wolfSSL_ASN1_OBJECT_free
+    \sa wolfSSL_ASN1_OBJECT_dup
+*/
+WOLFSSL_ASN1_OBJECT* wolfSSL_ASN1_OBJECT_new(void);
+
+/*!
+    \ingroup ASN
+
+    \brief Duplicates ASN1_OBJECT structure.
+
+    \return WOLFSSL_ASN1_OBJECT* Pointer to duplicated structure
+    \return NULL on failure
+
+    \param obj ASN1_OBJECT to duplicate
+
+    _Example_
+    \code
+    WOLFSSL_ASN1_OBJECT* obj = wolfSSL_ASN1_OBJECT_new();
+    WOLFSSL_ASN1_OBJECT* dup = wolfSSL_ASN1_OBJECT_dup(obj);
+    if (dup != NULL) {
+        wolfSSL_ASN1_OBJECT_free(dup);
+    }
+    wolfSSL_ASN1_OBJECT_free(obj);
+    \endcode
+
+    \sa wolfSSL_ASN1_OBJECT_new
+*/
+WOLFSSL_ASN1_OBJECT* wolfSSL_ASN1_OBJECT_dup(WOLFSSL_ASN1_OBJECT* obj);
+
+/*!
+    \ingroup ASN
+
+    \brief Frees ASN1_OBJECT structure.
+
+    \return none
+
+    \param obj ASN1_OBJECT to free
+
+    _Example_
+    \code
+    WOLFSSL_ASN1_OBJECT* obj = wolfSSL_ASN1_OBJECT_new();
+    wolfSSL_ASN1_OBJECT_free(obj);
+    \endcode
+
+    \sa wolfSSL_ASN1_OBJECT_new
+*/
+void wolfSSL_ASN1_OBJECT_free(WOLFSSL_ASN1_OBJECT* obj);
+
+/*!
+    \ingroup ASN
+
+    \brief Creates new ASN1_OBJECT stack.
+
+    \return WOLFSSL_STACK* Pointer to new stack
+    \return NULL on failure
+
+    _Example_
+    \code
+    WOLFSSL_STACK* sk = wolfSSL_sk_new_asn1_obj();
+    if (sk != NULL) {
+        wolfSSL_sk_free(sk);
+    }
+    \endcode
+
+    \sa wolfSSL_sk_free
+*/
+WOLFSSL_STACK* wolfSSL_sk_new_asn1_obj(void);
+
+/*!
+    \ingroup ASN
+
+    \brief Converts ASN1_STRING to UTF8.
+
+    \return int Length of UTF8 string on success
+    \return negative value on failure
+
+    \param out Pointer to store UTF8 string (allocated by function)
+    \param in ASN1_STRING to convert
+
+    _Example_
+    \code
+    WOLFSSL_ASN1_STRING* str = wolfSSL_X509_NAME_ENTRY_get_data(entry);
+    unsigned char* utf8 = NULL;
+    int len = wolfSSL_ASN1_STRING_to_UTF8(&utf8, str);
+    if (len > 0) {
+        printf("UTF8: %s\n", utf8);
+        OPENSSL_free(utf8);
+    }
+    \endcode
+
+    \sa wolfSSL_ASN1_STRING_data
+*/
+int wolfSSL_ASN1_STRING_to_UTF8(unsigned char** out,
+                                 WOLFSSL_ASN1_STRING* in);
+
+/*!
+    \ingroup ASN
+
+    \brief Converts UNIVERSALSTRING to string.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param s ASN1_STRING to convert
+
+    _Example_
+    \code
+    WOLFSSL_ASN1_STRING* str = wolfSSL_ASN1_STRING_new();
+    int ret = wolfSSL_ASN1_UNIVERSALSTRING_to_string(str);
+    \endcode
+
+    \sa wolfSSL_ASN1_STRING_to_UTF8
+*/
+int wolfSSL_ASN1_UNIVERSALSTRING_to_string(WOLFSSL_ASN1_STRING* s);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Increments RSA reference count.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param rsa RSA structure to increment reference count for
+
+    _Example_
+    \code
+    WOLFSSL_RSA* rsa = wolfSSL_RSA_new();
+    int ret = wolfSSL_RSA_up_ref(rsa);
+    if (ret == WOLFSSL_SUCCESS) {
+        // reference count incremented
+    }
+    \endcode
+
+    \sa wolfSSL_RSA_free
+*/
+int wolfSSL_RSA_up_ref(WOLFSSL_RSA* rsa);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Increments X509 reference count.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param x509 X509 structure to increment reference count for
+
+    _Example_
+    \code
+    WOLFSSL_X509* x509 = wolfSSL_X509_load_certificate_file(file,
+                                                              format);
+    int ret = wolfSSL_X509_up_ref(x509);
+    if (ret == WOLFSSL_SUCCESS) {
+        // reference count incremented
+    }
+    \endcode
+
+    \sa wolfSSL_X509_free
+*/
+int wolfSSL_X509_up_ref(WOLFSSL_X509* x509);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Increments EVP_PKEY reference count.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param pkey EVP_PKEY structure to increment reference count for
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY* pkey = wolfSSL_EVP_PKEY_new();
+    int ret = wolfSSL_EVP_PKEY_up_ref(pkey);
+    if (ret == WOLFSSL_SUCCESS) {
+        // reference count incremented
+    }
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_free
+*/
+int wolfSSL_EVP_PKEY_up_ref(WOLFSSL_EVP_PKEY* pkey);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Parses OCSP URL into components.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param url URL to parse
+    \param host Pointer to store host (allocated by function)
+    \param port Pointer to store port (allocated by function)
+    \param path Pointer to store path (allocated by function)
+    \param ssl Pointer to store SSL flag
+
+    _Example_
+    \code
+    const char* url = "http://ocsp.example.com:80/status";
+    char* host = NULL;
+    char* port = NULL;
+    char* path = NULL;
+    int ssl_flag;
+    int ret = wolfSSL_OCSP_parse_url(url, &host, &port, &path,
+                                      &ssl_flag);
+    if (ret == WOLFSSL_SUCCESS) {
+        printf("Host: %s, Port: %s, Path: %s\n", host, port, path);
+        XFREE(host, NULL, DYNAMIC_TYPE_OPENSSL);
+        XFREE(port, NULL, DYNAMIC_TYPE_OPENSSL);
+        XFREE(path, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+    \endcode
+
+    \sa wolfSSL_OCSP_cert_to_id
+*/
+int wolfSSL_OCSP_parse_url(const char* url, char** host, char** port,
+                             char** path, int* ssl);
+
+/*!
+    \ingroup BIO
+
+    \brief Creates new BIO with specified method.
+
+    \return WOLFSSL_BIO* Pointer to new BIO
+    \return NULL on failure
+
+    \param method BIO method to use
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
+    if (bio != NULL) {
+        wolfSSL_BIO_free(bio);
+    }
+    \endcode
+
+    \sa wolfSSL_BIO_free
+    \sa wolfSSL_BIO_s_mem
+*/
+WOLFSSL_BIO* wolfSSL_BIO_new(const WOLFSSL_BIO_METHOD* method);
+
+/*!
+    \ingroup BIO
+
+    \brief Frees BIO structure.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param bio BIO to free
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
+    int ret = wolfSSL_BIO_free(bio);
+    \endcode
+
+    \sa wolfSSL_BIO_new
+    \sa wolfSSL_BIO_free_all
+*/
+int wolfSSL_BIO_free(WOLFSSL_BIO* bio);
+
+/*!
+    \ingroup BIO
+
+    \brief Frees BIO structure (void return).
+
+    \return none
+
+    \param bio BIO to free
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
+    wolfSSL_BIO_vfree(bio);
+    \endcode
+
+    \sa wolfSSL_BIO_free
+*/
+void wolfSSL_BIO_vfree(WOLFSSL_BIO* bio);
+
+/*!
+    \ingroup BIO
+
+    \brief Frees BIO chain.
+
+    \return none
+
+    \param bio BIO chain to free
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio1 = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
+    WOLFSSL_BIO* bio2 = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
+    wolfSSL_BIO_push(bio1, bio2);
+    wolfSSL_BIO_free_all(bio1);
+    \endcode
+
+    \sa wolfSSL_BIO_free
+    \sa wolfSSL_BIO_push
+*/
+void wolfSSL_BIO_free_all(WOLFSSL_BIO* bio);
+
+/*!
+    \ingroup BIO
+
+    \brief Reads a line from BIO.
+
+    \return int Number of bytes read on success
+    \return negative value on failure
+
+    \param bio BIO to read from
+    \param buf Buffer to store data
+    \param sz Size of buffer
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new(wolfSSL_BIO_s_file());
+    char buffer[256];
+    int ret = wolfSSL_BIO_gets(bio, buffer, sizeof(buffer));
+    if (ret > 0) {
+        printf("Read: %s\n", buffer);
+    }
+    \endcode
+
+    \sa wolfSSL_BIO_read
+    \sa wolfSSL_BIO_write
+*/
+int wolfSSL_BIO_gets(WOLFSSL_BIO* bio, char* buf, int sz);
