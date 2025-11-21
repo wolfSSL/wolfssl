@@ -27281,3 +27281,537 @@ WOLFSSL_X509* wolfSSL_X509_REQ_load_certificate_buffer(
     \sa wolfSSL_SESSION_get_time
 */
 const unsigned char* wolfSSL_get_sessionID(const WOLFSSL_SESSION* s);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets subject common name from certificate.
+
+    \return char* Subject common name
+    \return NULL if not available
+
+    \param x509 Certificate to query
+
+    _Example_
+    \code
+    char* cn = wolfSSL_X509_get_subjectCN(cert);
+    if (cn != NULL) {
+        printf("Subject CN: %s\n", cn);
+    }
+    \endcode
+
+    \sa wolfSSL_X509_get_subject_name
+*/
+char* wolfSSL_X509_get_subjectCN(WOLFSSL_X509* x509);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets DER encoding of certificate.
+
+    \return const unsigned char* DER buffer
+    \return NULL if not available
+
+    \param x509 Certificate to query
+    \param outSz Pointer to store size
+
+    _Example_
+    \code
+    int sz;
+    const unsigned char* der = wolfSSL_X509_get_der(cert, &sz);
+    \endcode
+
+    \sa wolfSSL_X509_get_tbs
+*/
+const unsigned char* wolfSSL_X509_get_der(WOLFSSL_X509* x509, int* outSz);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets TBS (To Be Signed) portion of certificate.
+
+    \return const unsigned char* TBS buffer
+    \return NULL if not available
+
+    \param x509 Certificate to query
+    \param outSz Pointer to store size
+
+    _Example_
+    \code
+    int sz;
+    const unsigned char* tbs = wolfSSL_X509_get_tbs(cert, &sz);
+    \endcode
+
+    \sa wolfSSL_X509_get_der
+*/
+const unsigned char* wolfSSL_X509_get_tbs(WOLFSSL_X509* x509, int* outSz);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets notBefore date from certificate.
+
+    \return const byte* notBefore date
+    \return NULL if not available
+
+    \param x509 Certificate to query
+
+    _Example_
+    \code
+    const byte* notBefore = wolfSSL_X509_notBefore(cert);
+    \endcode
+
+    \sa wolfSSL_X509_notAfter
+*/
+const byte* wolfSSL_X509_notBefore(WOLFSSL_X509* x509);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets notAfter date from certificate.
+
+    \return const byte* notAfter date
+    \return NULL if not available
+
+    \param x509 Certificate to query
+
+    _Example_
+    \code
+    const byte* notAfter = wolfSSL_X509_notAfter(cert);
+    \endcode
+
+    \sa wolfSSL_X509_notBefore
+*/
+const byte* wolfSSL_X509_notAfter(WOLFSSL_X509* x509);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Compares peer certificate to file.
+
+    \return WOLFSSL_SUCCESS if match
+    \return WOLFSSL_FAILURE if no match
+
+    \param ssl SSL object
+    \param fname Certificate file name
+
+    _Example_
+    \code
+    int ret = wolfSSL_cmp_peer_cert_to_file(ssl, "peer.pem");
+    if (ret == WOLFSSL_SUCCESS) {
+        printf("Peer certificate matches file\n");
+    }
+    \endcode
+
+    \sa wolfSSL_get_peer_certificate
+*/
+int wolfSSL_cmp_peer_cert_to_file(WOLFSSL* ssl, const char* fname);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets next alternate name from certificate.
+
+    \return char* Alternate name
+    \return NULL if no more names
+
+    \param cert Certificate to query
+
+    _Example_
+    \code
+    char* altname;
+    while ((altname = wolfSSL_X509_get_next_altname(cert)) != NULL) {
+        printf("Alt name: %s\n", altname);
+    }
+    \endcode
+
+    \sa wolfSSL_X509_add_altname
+*/
+char* wolfSSL_X509_get_next_altname(WOLFSSL_X509* cert);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Adds alternate name to certificate with size.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param x509 Certificate to modify
+    \param name Alternate name
+    \param nameSz Name size
+    \param type Name type
+
+    _Example_
+    \code
+    int ret = wolfSSL_X509_add_altname_ex(cert, "example.com", 11,
+                                           ASN_DNS_TYPE);
+    \endcode
+
+    \sa wolfSSL_X509_add_altname
+*/
+int wolfSSL_X509_add_altname_ex(WOLFSSL_X509* x509, const char* name,
+                                 word32 nameSz, int type);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Adds alternate name to certificate.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param x509 Certificate to modify
+    \param name Alternate name
+    \param type Name type
+
+    _Example_
+    \code
+    int ret = wolfSSL_X509_add_altname(cert, "example.com", ASN_DNS_TYPE);
+    \endcode
+
+    \sa wolfSSL_X509_add_altname_ex
+*/
+int wolfSSL_X509_add_altname(WOLFSSL_X509* x509, const char* name, int type);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Decodes X509 certificate from DER.
+
+    \return WOLFSSL_X509* Decoded certificate
+    \return NULL on failure
+
+    \param x509 Pointer to certificate pointer
+    \param in Pointer to DER buffer pointer
+    \param len Buffer length
+
+    _Example_
+    \code
+    const unsigned char* p = der_buf;
+    WOLFSSL_X509* cert = wolfSSL_d2i_X509(NULL, &p, len);
+    \endcode
+
+    \sa wolfSSL_i2d_X509
+*/
+WOLFSSL_X509* wolfSSL_d2i_X509(WOLFSSL_X509** x509,
+                                const unsigned char** in, int len);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Decodes X509 certificate from DER buffer.
+
+    \return WOLFSSL_X509* Decoded certificate
+    \return NULL on failure
+
+    \param x509 Pointer to certificate pointer
+    \param in DER buffer
+    \param len Buffer length
+
+    _Example_
+    \code
+    WOLFSSL_X509* cert = wolfSSL_X509_d2i(NULL, der_buf, len);
+    \endcode
+
+    \sa wolfSSL_d2i_X509
+*/
+WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509,
+                                const unsigned char* in, int len);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Decodes X509 certificate from DER with heap.
+
+    \return WOLFSSL_X509* Decoded certificate
+    \return NULL on failure
+
+    \param x509 Pointer to certificate pointer
+    \param in DER buffer
+    \param len Buffer length
+    \param heap Heap hint
+
+    _Example_
+    \code
+    WOLFSSL_X509* cert = wolfSSL_X509_d2i_ex(NULL, der_buf, len, NULL);
+    \endcode
+
+    \sa wolfSSL_X509_d2i
+*/
+WOLFSSL_X509* wolfSSL_X509_d2i_ex(WOLFSSL_X509** x509,
+                                   const unsigned char* in, int len,
+                                   void* heap);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Decodes X509 certificate request from DER.
+
+    \return WOLFSSL_X509* Decoded certificate request
+    \return NULL on failure
+
+    \param x509 Pointer to certificate pointer
+    \param in DER buffer
+    \param len Buffer length
+
+    _Example_
+    \code
+    WOLFSSL_X509* req = wolfSSL_X509_REQ_d2i(NULL, der_buf, len);
+    \endcode
+
+    \sa wolfSSL_X509_d2i
+*/
+WOLFSSL_X509* wolfSSL_X509_REQ_d2i(WOLFSSL_X509** x509,
+                                    const unsigned char* in, int len);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Decodes X509 request info from DER.
+
+    \return WOLFSSL_X509* Decoded request info
+    \return NULL on failure
+
+    \param req Pointer to request pointer
+    \param in Pointer to DER buffer pointer
+    \param len Buffer length
+
+    _Example_
+    \code
+    const unsigned char* p = der_buf;
+    WOLFSSL_X509* req = wolfSSL_d2i_X509_REQ_INFO(NULL, &p, len);
+    \endcode
+
+    \sa wolfSSL_X509_REQ_d2i
+*/
+WOLFSSL_X509* wolfSSL_d2i_X509_REQ_INFO(WOLFSSL_X509** req,
+                                         const unsigned char** in, int len);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Encodes X509 certificate to DER.
+
+    \return int Number of bytes written
+    \return negative on error
+
+    \param x509 Certificate to encode
+    \param out Pointer to buffer pointer
+
+    _Example_
+    \code
+    unsigned char* buf = NULL;
+    int len = wolfSSL_i2d_X509(cert, &buf);
+    if (len > 0) {
+        XFREE(buf, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+    \endcode
+
+    \sa wolfSSL_d2i_X509
+*/
+int wolfSSL_i2d_X509(WOLFSSL_X509* x509, unsigned char** out);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets CRL version.
+
+    \return int Version number
+    \return negative on error
+
+    \param crl CRL to query
+
+    _Example_
+    \code
+    int version = wolfSSL_X509_CRL_version(crl);
+    printf("CRL version: %d\n", version);
+    \endcode
+
+    \sa wolfSSL_X509_CRL_get_issuer_name
+*/
+int wolfSSL_X509_CRL_version(WOLFSSL_X509_CRL *crl);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets CRL signature type.
+
+    \return int Signature type
+    \return negative on error
+
+    \param crl CRL to query
+
+    _Example_
+    \code
+    int type = wolfSSL_X509_CRL_get_signature_type(crl);
+    \endcode
+
+    \sa wolfSSL_X509_CRL_get_signature_nid
+*/
+int wolfSSL_X509_CRL_get_signature_type(WOLFSSL_X509_CRL* crl);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets CRL signature NID.
+
+    \return int Signature NID
+    \return negative on error
+
+    \param crl CRL to query
+
+    _Example_
+    \code
+    int nid = wolfSSL_X509_CRL_get_signature_nid(crl);
+    \endcode
+
+    \sa wolfSSL_X509_CRL_get_signature_type
+*/
+int wolfSSL_X509_CRL_get_signature_nid(const WOLFSSL_X509_CRL* crl);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets CRL signature.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param crl CRL to query
+    \param buf Buffer for signature
+    \param bufSz Pointer to buffer size
+
+    _Example_
+    \code
+    unsigned char buf[512];
+    int bufSz = sizeof(buf);
+    int ret = wolfSSL_X509_CRL_get_signature(crl, buf, &bufSz);
+    \endcode
+
+    \sa wolfSSL_X509_CRL_get_signature_nid
+*/
+int wolfSSL_X509_CRL_get_signature(WOLFSSL_X509_CRL* crl,
+                                     unsigned char* buf, int* bufSz);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Prints CRL to BIO.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param bio BIO to write to
+    \param crl CRL to print
+
+    _Example_
+    \code
+    int ret = wolfSSL_X509_CRL_print(bio, crl);
+    \endcode
+
+    \sa wolfSSL_X509_CRL_version
+*/
+int wolfSSL_X509_CRL_print(WOLFSSL_BIO* bio, WOLFSSL_X509_CRL* crl);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets CRL issuer name.
+
+    \return WOLFSSL_X509_NAME* Issuer name
+    \return NULL if not available
+
+    \param crl CRL to query
+
+    _Example_
+    \code
+    WOLFSSL_X509_NAME* issuer = wolfSSL_X509_CRL_get_issuer_name(crl);
+    \endcode
+
+    \sa wolfSSL_X509_CRL_version
+*/
+WOLFSSL_X509_NAME* wolfSSL_X509_CRL_get_issuer_name(WOLFSSL_X509_CRL *crl);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets serial number from revoked certificate.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param rev Revoked certificate
+    \param in Buffer for serial number
+    \param inOutSz Pointer to buffer size
+
+    _Example_
+    \code
+    byte buf[32];
+    int sz = sizeof(buf);
+    int ret = wolfSSL_X509_REVOKED_get_serial_number(rev, buf, &sz);
+    \endcode
+
+    \sa wolfSSL_X509_CRL_get_REVOKED
+*/
+int wolfSSL_X509_REVOKED_get_serial_number(RevokedCert* rev, byte* in,
+                                             int* inOutSz);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Duplicates CRL.
+
+    \return WOLFSSL_X509_CRL* Duplicated CRL
+    \return NULL on failure
+
+    \param crl CRL to duplicate
+
+    _Example_
+    \code
+    WOLFSSL_X509_CRL* dup = wolfSSL_X509_CRL_dup(crl);
+    if (dup != NULL) {
+        wolfSSL_X509_CRL_free(dup);
+    }
+    \endcode
+
+    \sa wolfSSL_X509_CRL_free
+*/
+WOLFSSL_X509_CRL* wolfSSL_X509_CRL_dup(const WOLFSSL_X509_CRL* crl);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Frees CRL.
+
+    \return none
+
+    \param crl CRL to free
+
+    _Example_
+    \code
+    wolfSSL_X509_CRL_free(crl);
+    \endcode
+
+    \sa wolfSSL_X509_CRL_dup
+*/
+void wolfSSL_X509_CRL_free(WOLFSSL_X509_CRL *crl);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Creates new X509 attribute certificate with heap.
+
+    \return WOLFSSL_X509_ACERT* New attribute certificate
+    \return NULL on failure
+
+    \param heap Heap hint for allocation
+
+    _Example_
+    \code
+    WOLFSSL_X509_ACERT* acert = wolfSSL_X509_ACERT_new_ex(NULL);
+    \endcode
+
+    \sa wolfSSL_X509_new_ex
+*/
+WOLFSSL_X509_ACERT * wolfSSL_X509_ACERT_new_ex(void * heap);
