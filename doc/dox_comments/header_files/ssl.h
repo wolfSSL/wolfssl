@@ -26776,3 +26776,508 @@ WOLFSSL_X509* wolfSSL_SESSION_get0_peer(WOLFSSL_SESSION* session);
     \sa wolfSSL_CTX_new
 */
 int wolfSSL_crypto_policy_enable(const char * policy);
+
+/*!
+    \ingroup openSSL
+
+    \brief Enables crypto policy from buffer.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param buf Policy buffer to enable
+
+    _Example_
+    \code
+    const char* policy = "level=2\nciphers=TLS13-AES128-GCM-SHA256";
+    int ret = wolfSSL_crypto_policy_enable_buffer(policy);
+    \endcode
+
+    \sa wolfSSL_crypto_policy_enable
+*/
+int wolfSSL_crypto_policy_enable_buffer(const char * buf);
+
+/*!
+    \ingroup openSSL
+
+    \brief Disables crypto policy.
+
+    \return none
+
+    _Example_
+    \code
+    wolfSSL_crypto_policy_disable();
+    \endcode
+
+    \sa wolfSSL_crypto_policy_enable
+*/
+void wolfSSL_crypto_policy_disable(void);
+
+/*!
+    \ingroup openSSL
+
+    \brief Checks if crypto policy is enabled.
+
+    \return 1 if enabled
+    \return 0 if disabled
+
+    _Example_
+    \code
+    int enabled = wolfSSL_crypto_policy_is_enabled();
+    if (enabled) {
+        printf("Crypto policy is enabled\n");
+    }
+    \endcode
+
+    \sa wolfSSL_crypto_policy_enable
+*/
+int wolfSSL_crypto_policy_is_enabled(void);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets allowed ciphers from policy.
+
+    \return const char* Cipher list
+    \return NULL if not set
+
+    _Example_
+    \code
+    const char* ciphers = wolfSSL_crypto_policy_get_ciphers();
+    if (ciphers != NULL) {
+        printf("Allowed ciphers: %s\n", ciphers);
+    }
+    \endcode
+
+    \sa wolfSSL_crypto_policy_get_level
+*/
+const char * wolfSSL_crypto_policy_get_ciphers(void);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets crypto policy level.
+
+    \return int Policy level
+
+    _Example_
+    \code
+    int level = wolfSSL_crypto_policy_get_level();
+    printf("Policy level: %d\n", level);
+    \endcode
+
+    \sa wolfSSL_crypto_policy_get_ciphers
+*/
+int wolfSSL_crypto_policy_get_level(void);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets security level.
+
+    \return int Security level
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    int level = wolfSSL_get_security_level(ssl);
+    printf("Security level: %d\n", level);
+    \endcode
+
+    \sa wolfSSL_set_security_level
+*/
+int wolfSSL_get_security_level(const WOLFSSL * ssl);
+
+/*!
+    \ingroup openSSL
+
+    \brief Sets security level.
+
+    \return none
+
+    \param ssl SSL object
+    \param level Security level to set
+
+    _Example_
+    \code
+    wolfSSL_set_security_level(ssl, 2);
+    \endcode
+
+    \sa wolfSSL_get_security_level
+*/
+void wolfSSL_set_security_level(WOLFSSL * ssl, int level);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets library version string.
+
+    \return const char* Version string
+
+    _Example_
+    \code
+    const char* version = wolfSSL_lib_version();
+    printf("wolfSSL version: %s\n", version);
+    \endcode
+
+    \sa wolfSSL_OpenSSL_version
+*/
+const char* wolfSSL_lib_version(void);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets OpenSSL version string.
+
+    \return const char* Version string
+
+    \param a Version type
+
+    _Example_
+    \code
+    const char* version = wolfSSL_OpenSSL_version(0);
+    printf("OpenSSL version: %s\n", version);
+    \endcode
+
+    \sa wolfSSL_lib_version
+*/
+const char* wolfSSL_OpenSSL_version(int a);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets peer certificate chain.
+
+    \return WOLFSSL_X509_CHAIN* Certificate chain
+    \return NULL if not available
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    WOLFSSL_X509_CHAIN* chain = wolfSSL_get_peer_chain(ssl);
+    \endcode
+
+    \sa wolfSSL_get_peer_certificate
+*/
+WOLFSSL_X509_CHAIN* wolfSSL_get_peer_chain(WOLFSSL* ssl);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Checks if peer has alternate cert chain.
+
+    \return 1 if has alternate chain
+    \return 0 if no alternate chain
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    int has_alt = wolfSSL_is_peer_alt_cert_chain(ssl);
+    if (has_alt) {
+        printf("Peer has alternate cert chain\n");
+    }
+    \endcode
+
+    \sa wolfSSL_get_peer_alt_chain
+*/
+int wolfSSL_is_peer_alt_cert_chain(const WOLFSSL* ssl);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets peer alternate certificate chain.
+
+    \return WOLFSSL_X509_CHAIN* Alternate certificate chain
+    \return NULL if not available
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    WOLFSSL_X509_CHAIN* chain = wolfSSL_get_peer_alt_chain(ssl);
+    \endcode
+
+    \sa wolfSSL_is_peer_alt_cert_chain
+*/
+WOLFSSL_X509_CHAIN* wolfSSL_get_peer_alt_chain(WOLFSSL* ssl);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets certificate from chain by index.
+
+    \return unsigned char* Certificate buffer
+    \return NULL if not found
+
+    \param chain Certificate chain
+    \param idx Certificate index
+
+    _Example_
+    \code
+    WOLFSSL_X509_CHAIN* chain = wolfSSL_get_peer_chain(ssl);
+    unsigned char* cert = wolfSSL_get_chain_cert(chain, 0);
+    \endcode
+
+    \sa wolfSSL_get_chain_X509
+*/
+unsigned char* wolfSSL_get_chain_cert(WOLFSSL_X509_CHAIN* chain, int idx);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets X509 certificate from chain by index.
+
+    \return WOLFSSL_X509* Certificate
+    \return NULL if not found
+
+    \param chain Certificate chain
+    \param idx Certificate index
+
+    _Example_
+    \code
+    WOLFSSL_X509_CHAIN* chain = wolfSSL_get_peer_chain(ssl);
+    WOLFSSL_X509* cert = wolfSSL_get_chain_X509(chain, 0);
+    \endcode
+
+    \sa wolfSSL_get_chain_cert
+*/
+WOLFSSL_X509* wolfSSL_get_chain_X509(WOLFSSL_X509_CHAIN* chain, int idx);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Creates new X509 certificate.
+
+    \return WOLFSSL_X509* New certificate
+    \return NULL on failure
+
+    _Example_
+    \code
+    WOLFSSL_X509* cert = wolfSSL_X509_new();
+    if (cert != NULL) {
+        wolfSSL_X509_free(cert);
+    }
+    \endcode
+
+    \sa wolfSSL_X509_free
+*/
+WOLFSSL_X509* wolfSSL_X509_new(void);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Creates new X509 certificate with heap.
+
+    \return WOLFSSL_X509* New certificate
+    \return NULL on failure
+
+    \param heap Heap hint for allocation
+
+    _Example_
+    \code
+    WOLFSSL_X509* cert = wolfSSL_X509_new_ex(NULL);
+    if (cert != NULL) {
+        wolfSSL_X509_free(cert);
+    }
+    \endcode
+
+    \sa wolfSSL_X509_new
+*/
+WOLFSSL_X509* wolfSSL_X509_new_ex(void* heap);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Duplicates X509 certificate.
+
+    \return WOLFSSL_X509* Duplicated certificate
+    \return NULL on failure
+
+    \param x Certificate to duplicate
+
+    _Example_
+    \code
+    WOLFSSL_X509* dup = wolfSSL_X509_dup(cert);
+    if (dup != NULL) {
+        wolfSSL_X509_free(dup);
+    }
+    \endcode
+
+    \sa wolfSSL_X509_new
+*/
+WOLFSSL_X509* wolfSSL_X509_dup(WOLFSSL_X509* x);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets issuer name from certificate.
+
+    \return WOLFSSL_X509_NAME* Issuer name
+    \return NULL if not available
+
+    \param cert Certificate to query
+
+    _Example_
+    \code
+    WOLFSSL_X509_NAME* issuer = wolfSSL_X509_get_issuer_name(cert);
+    \endcode
+
+    \sa wolfSSL_X509_get_subject_name
+*/
+WOLFSSL_X509_NAME* wolfSSL_X509_get_issuer_name(WOLFSSL_X509* cert);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets subject name from certificate.
+
+    \return WOLFSSL_X509_NAME* Subject name
+    \return NULL if not available
+
+    \param cert Certificate to query
+
+    _Example_
+    \code
+    WOLFSSL_X509_NAME* subject = wolfSSL_X509_get_subject_name(cert);
+    \endcode
+
+    \sa wolfSSL_X509_get_issuer_name
+*/
+WOLFSSL_X509_NAME* wolfSSL_X509_get_subject_name(WOLFSSL_X509* cert);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets public key buffer from certificate.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param x509 Certificate to query
+    \param buf Buffer for public key
+    \param bufSz Pointer to buffer size
+
+    _Example_
+    \code
+    unsigned char buf[2048];
+    int bufSz = sizeof(buf);
+    int ret = wolfSSL_X509_get_pubkey_buffer(cert, buf, &bufSz);
+    \endcode
+
+    \sa wolfSSL_X509_get_pubkey_type
+*/
+int wolfSSL_X509_get_pubkey_buffer(WOLFSSL_X509* x509, unsigned char* buf,
+                                     int* bufSz);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets public key type from certificate.
+
+    \return int Key type (RSA, ECC, etc.)
+    \return WOLFSSL_FAILURE on failure
+
+    \param x509 Certificate to query
+
+    _Example_
+    \code
+    int type = wolfSSL_X509_get_pubkey_type(cert);
+    if (type == RSAk) {
+        printf("RSA key\n");
+    }
+    \endcode
+
+    \sa wolfSSL_X509_get_pubkey_buffer
+*/
+int wolfSSL_X509_get_pubkey_type(WOLFSSL_X509* x509);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Loads certificate from file.
+
+    \return WOLFSSL_X509* Loaded certificate
+    \return NULL on failure
+
+    \param fname File name
+    \param format File format (PEM or DER)
+
+    _Example_
+    \code
+    WOLFSSL_X509* cert = wolfSSL_X509_load_certificate_file("cert.pem",
+                                                             SSL_FILETYPE_PEM);
+    \endcode
+
+    \sa wolfSSL_X509_load_certificate_buffer
+*/
+WOLFSSL_X509* wolfSSL_X509_load_certificate_file(const char* fname,
+                                                  int format);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Loads certificate from buffer.
+
+    \return WOLFSSL_X509* Loaded certificate
+    \return NULL on failure
+
+    \param buf Certificate buffer
+    \param sz Buffer size
+    \param format Buffer format (PEM or DER)
+
+    _Example_
+    \code
+    WOLFSSL_X509* cert = wolfSSL_X509_load_certificate_buffer(buf, sz,
+                                                            SSL_FILETYPE_PEM);
+    \endcode
+
+    \sa wolfSSL_X509_load_certificate_file
+*/
+WOLFSSL_X509* wolfSSL_X509_load_certificate_buffer(const unsigned char* buf,
+                                                     int sz, int format);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Loads certificate request from buffer.
+
+    \return WOLFSSL_X509* Loaded certificate request
+    \return NULL on failure
+
+    \param buf Certificate request buffer
+    \param sz Buffer size
+    \param format Buffer format (PEM or DER)
+
+    _Example_
+    \code
+    WOLFSSL_X509* req = wolfSSL_X509_REQ_load_certificate_buffer(buf, sz,
+                                                            SSL_FILETYPE_PEM);
+    \endcode
+
+    \sa wolfSSL_X509_load_certificate_buffer
+*/
+WOLFSSL_X509* wolfSSL_X509_REQ_load_certificate_buffer(
+                                                  const unsigned char* buf,
+                                                  int sz, int format);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets session ID.
+
+    \return const unsigned char* Session ID
+    \return NULL if not available
+
+    \param s Session to query
+
+    _Example_
+    \code
+    const unsigned char* id = wolfSSL_get_sessionID(session);
+    \endcode
+
+    \sa wolfSSL_SESSION_get_time
+*/
+const unsigned char* wolfSSL_get_sessionID(const WOLFSSL_SESSION* s);
