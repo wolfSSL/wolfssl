@@ -23670,3 +23670,510 @@ int wolfSSL_X509_STORE_set_ex_data(WOLFSSL_X509_STORE* store, int idx,
 */
 int wolfSSL_X509_STORE_set_ex_data_with_cleanup(WOLFSSL_X509_STORE* store,
     int idx, void* data, wolfSSL_ex_data_cleanup_routine_t cleanup_routine);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets verification depth in X509_STORE_CTX.
+
+    \return none
+
+    \param ctx X509_STORE_CTX to modify
+    \param depth Maximum verification depth
+
+    _Example_
+    \code
+    WOLFSSL_X509_STORE_CTX* ctx = wolfSSL_X509_STORE_CTX_new();
+    wolfSSL_X509_STORE_CTX_set_depth(ctx, 5);
+    \endcode
+
+    \sa wolfSSL_X509_STORE_CTX_get_error_depth
+*/
+void wolfSSL_X509_STORE_CTX_set_depth(WOLFSSL_X509_STORE_CTX* ctx,
+                                        int depth);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets current issuer from X509_STORE_CTX.
+
+    \return WOLFSSL_X509* Pointer to current issuer
+    \return NULL if not found
+
+    \param ctx X509_STORE_CTX to get issuer from
+
+    _Example_
+    \code
+    WOLFSSL_X509_STORE_CTX* ctx = wolfSSL_X509_STORE_CTX_new();
+    WOLFSSL_X509* issuer = wolfSSL_X509_STORE_CTX_get0_current_issuer(ctx);
+    \endcode
+
+    \sa wolfSSL_X509_STORE_CTX_get0_cert
+*/
+WOLFSSL_X509* wolfSSL_X509_STORE_CTX_get0_current_issuer(
+    WOLFSSL_X509_STORE_CTX* ctx);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets X509_STORE from X509_STORE_CTX.
+
+    \return WOLFSSL_X509_STORE* Pointer to store
+    \return NULL if not found
+
+    \param ctx X509_STORE_CTX to get store from
+
+    _Example_
+    \code
+    WOLFSSL_X509_STORE_CTX* ctx = wolfSSL_X509_STORE_CTX_new();
+    WOLFSSL_X509_STORE* store = wolfSSL_X509_STORE_CTX_get0_store(ctx);
+    \endcode
+
+    \sa wolfSSL_X509_STORE_CTX_get0_cert
+*/
+WOLFSSL_X509_STORE* wolfSSL_X509_STORE_CTX_get0_store(
+    WOLFSSL_X509_STORE_CTX* ctx);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets certificate from X509_STORE_CTX.
+
+    \return WOLFSSL_X509* Pointer to certificate
+    \return NULL if not found
+
+    \param ctx X509_STORE_CTX to get certificate from
+
+    _Example_
+    \code
+    WOLFSSL_X509_STORE_CTX* ctx = wolfSSL_X509_STORE_CTX_new();
+    WOLFSSL_X509* cert = wolfSSL_X509_STORE_CTX_get0_cert(ctx);
+    \endcode
+
+    \sa wolfSSL_X509_STORE_CTX_get0_store
+*/
+WOLFSSL_X509* wolfSSL_X509_STORE_CTX_get0_cert(WOLFSSL_X509_STORE_CTX* ctx);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets ex_data index for X509_STORE_CTX.
+
+    \return int Ex_data index
+
+    _Example_
+    \code
+    int idx = wolfSSL_get_ex_data_X509_STORE_CTX_idx();
+    \endcode
+
+    \sa wolfSSL_X509_STORE_CTX_get_ex_data
+*/
+int wolfSSL_get_ex_data_X509_STORE_CTX_idx(void);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets error in X509_STORE_CTX.
+
+    \return none
+
+    \param ctx X509_STORE_CTX to set error in
+    \param er Error code
+
+    _Example_
+    \code
+    WOLFSSL_X509_STORE_CTX* ctx = wolfSSL_X509_STORE_CTX_new();
+    wolfSSL_X509_STORE_CTX_set_error(ctx, X509_V_ERR_CERT_HAS_EXPIRED);
+    \endcode
+
+    \sa wolfSSL_X509_STORE_CTX_get_error
+*/
+void wolfSSL_X509_STORE_CTX_set_error(WOLFSSL_X509_STORE_CTX* ctx, int er);
+
+/*!
+    \ingroup openSSL
+
+    \brief Peeks at error without removing from queue.
+
+    \return unsigned long Error code
+    \return 0 if no error
+
+    _Example_
+    \code
+    unsigned long err = wolfSSL_ERR_peek_error();
+    if (err != 0) {
+        printf("Error: %lu\n", err);
+    }
+    \endcode
+
+    \sa wolfSSL_ERR_get_error
+*/
+unsigned long wolfSSL_ERR_peek_error(void);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets reason code from error.
+
+    \return int Reason code
+
+    \param err Error code
+
+    _Example_
+    \code
+    unsigned long err = wolfSSL_ERR_get_error();
+    int reason = wolfSSL_GET_REASON(err);
+    \endcode
+
+    \sa wolfSSL_ERR_get_error
+*/
+int wolfSSL_GET_REASON(int err);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets long alert type string.
+
+    \return const char* Alert type string
+
+    \param alertID Alert identifier
+
+    _Example_
+    \code
+    const char* type = wolfSSL_alert_type_string_long(alertID);
+    printf("Alert type: %s\n", type);
+    \endcode
+
+    \sa wolfSSL_alert_desc_string_long
+*/
+const char* wolfSSL_alert_type_string_long(int alertID);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets long alert description string.
+
+    \return const char* Alert description string
+
+    \param alertID Alert identifier
+
+    _Example_
+    \code
+    const char* desc = wolfSSL_alert_desc_string_long(alertID);
+    printf("Alert: %s\n", desc);
+    \endcode
+
+    \sa wolfSSL_alert_type_string_long
+*/
+const char* wolfSSL_alert_desc_string_long(int alertID);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets long state string.
+
+    \return const char* State string
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    const char* state = wolfSSL_state_string_long(ssl);
+    printf("State: %s\n", state);
+    \endcode
+
+    \sa wolfSSL_state_string
+*/
+const char* wolfSSL_state_string_long(const WOLFSSL* ssl);
+
+/*!
+    \ingroup openSSL
+
+    \brief Encodes RSA public key to DER.
+
+    \return int Length of DER encoding
+    \return negative value on failure
+
+    \param r RSA key to encode
+    \param pp Pointer to store DER buffer
+
+    _Example_
+    \code
+    WOLFSSL_RSA* rsa = wolfSSL_RSA_new();
+    unsigned char* der = NULL;
+    int derLen = wolfSSL_i2d_RSAPublicKey(rsa, &der);
+    if (derLen > 0) {
+        XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+    \endcode
+
+    \sa wolfSSL_i2d_RSAPrivateKey
+*/
+int wolfSSL_i2d_RSAPublicKey(WOLFSSL_RSA* r, unsigned char** pp);
+
+/*!
+    \ingroup openSSL
+
+    \brief Encodes RSA private key to DER.
+
+    \return int Length of DER encoding
+    \return negative value on failure
+
+    \param r RSA key to encode
+    \param pp Pointer to store DER buffer
+
+    _Example_
+    \code
+    WOLFSSL_RSA* rsa = wolfSSL_RSA_new();
+    unsigned char* der = NULL;
+    int derLen = wolfSSL_i2d_RSAPrivateKey(rsa, &der);
+    if (derLen > 0) {
+        XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+    \endcode
+
+    \sa wolfSSL_i2d_RSAPublicKey
+*/
+int wolfSSL_i2d_RSAPrivateKey(WOLFSSL_RSA* r, unsigned char** pp);
+
+/*!
+    \ingroup openSSL
+
+    \brief Default PEM password callback.
+
+    \return int Length of password
+
+    \param name Buffer for password
+    \param num Maximum password length
+    \param w Read/write flag
+    \param key User data
+
+    _Example_
+    \code
+    char passwd[128];
+    int len = wolfSSL_PEM_def_callback(passwd, sizeof(passwd), 0, NULL);
+    \endcode
+
+    \sa wolfSSL_CTX_set_default_passwd_cb
+*/
+int wolfSSL_PEM_def_callback(char* name, int num, int w, void* key);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets session accept count.
+
+    \return long Number of accepts
+
+    \param ctx SSL context
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    long accepts = wolfSSL_CTX_sess_accept(ctx);
+    printf("Accepts: %ld\n", accepts);
+    \endcode
+
+    \sa wolfSSL_CTX_sess_connect
+*/
+long wolfSSL_CTX_sess_accept(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets session connect count.
+
+    \return long Number of connects
+
+    \param ctx SSL context
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    long connects = wolfSSL_CTX_sess_connect(ctx);
+    printf("Connects: %ld\n", connects);
+    \endcode
+
+    \sa wolfSSL_CTX_sess_accept
+*/
+long wolfSSL_CTX_sess_connect(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets successful accept count.
+
+    \return long Number of successful accepts
+
+    \param ctx SSL context
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    long good = wolfSSL_CTX_sess_accept_good(ctx);
+    printf("Good accepts: %ld\n", good);
+    \endcode
+
+    \sa wolfSSL_CTX_sess_accept
+*/
+long wolfSSL_CTX_sess_accept_good(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets successful connect count.
+
+    \return long Number of successful connects
+
+    \param ctx SSL context
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    long good = wolfSSL_CTX_sess_connect_good(ctx);
+    printf("Good connects: %ld\n", good);
+    \endcode
+
+    \sa wolfSSL_CTX_sess_connect
+*/
+long wolfSSL_CTX_sess_connect_good(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets accept renegotiation count.
+
+    \return long Number of accept renegotiations
+
+    \param ctx SSL context
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    long reneg = wolfSSL_CTX_sess_accept_renegotiate(ctx);
+    printf("Accept renegotiations: %ld\n", reneg);
+    \endcode
+
+    \sa wolfSSL_CTX_sess_connect_renegotiate
+*/
+long wolfSSL_CTX_sess_accept_renegotiate(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets connect renegotiation count.
+
+    \return long Number of connect renegotiations
+
+    \param ctx SSL context
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    long reneg = wolfSSL_CTX_sess_connect_renegotiate(ctx);
+    printf("Connect renegotiations: %ld\n", reneg);
+    \endcode
+
+    \sa wolfSSL_CTX_sess_accept_renegotiate
+*/
+long wolfSSL_CTX_sess_connect_renegotiate(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets session cache hit count.
+
+    \return long Number of cache hits
+
+    \param ctx SSL context
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    long hits = wolfSSL_CTX_sess_hits(ctx);
+    printf("Cache hits: %ld\n", hits);
+    \endcode
+
+    \sa wolfSSL_CTX_sess_misses
+*/
+long wolfSSL_CTX_sess_hits(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets session callback hit count.
+
+    \return long Number of callback hits
+
+    \param ctx SSL context
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    long cb_hits = wolfSSL_CTX_sess_cb_hits(ctx);
+    printf("Callback hits: %ld\n", cb_hits);
+    \endcode
+
+    \sa wolfSSL_CTX_sess_hits
+*/
+long wolfSSL_CTX_sess_cb_hits(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets session cache full count.
+
+    \return long Number of times cache was full
+
+    \param ctx SSL context
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    long full = wolfSSL_CTX_sess_cache_full(ctx);
+    printf("Cache full: %ld\n", full);
+    \endcode
+
+    \sa wolfSSL_CTX_sess_hits
+*/
+long wolfSSL_CTX_sess_cache_full(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets session cache miss count.
+
+    \return long Number of cache misses
+
+    \param ctx SSL context
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    long misses = wolfSSL_CTX_sess_misses(ctx);
+    printf("Cache misses: %ld\n", misses);
+    \endcode
+
+    \sa wolfSSL_CTX_sess_hits
+*/
+long wolfSSL_CTX_sess_misses(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets session timeout count.
+
+    \return long Number of session timeouts
+
+    \param ctx SSL context
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    long timeouts = wolfSSL_CTX_sess_timeouts(ctx);
+    printf("Timeouts: %ld\n", timeouts);
+    \endcode
+
+    \sa wolfSSL_CTX_sess_hits
+*/
+long wolfSSL_CTX_sess_timeouts(WOLFSSL_CTX* ctx);
