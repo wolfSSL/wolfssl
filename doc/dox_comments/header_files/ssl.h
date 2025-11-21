@@ -34364,3 +34364,468 @@ int wolfSSL_CRYPTO_set_mem_functions(wolfSSL_OSSL_Malloc_cb  m,
     \sa ConstantCompare
 */
 int wolfSSL_CRYPTO_memcmp(const void *a, const void *b, size_t size);
+
+/*!
+    \ingroup Diffie-Hellman
+
+    \brief Gets 768-bit DH prime.
+
+    \return WOLFSSL_BIGNUM* Prime number
+    \return NULL on failure
+
+    \param bn BIGNUM
+
+    _Example_
+    \code
+    WOLFSSL_BIGNUM* prime = wolfSSL_DH_768_prime(NULL);
+    \endcode
+
+    \sa wolfSSL_DH_1024_prime
+*/
+WOLFSSL_BIGNUM* wolfSSL_DH_768_prime(WOLFSSL_BIGNUM* bn);
+
+/*!
+    \ingroup Diffie-Hellman
+
+    \brief Gets 1024-bit DH prime.
+
+    \return WOLFSSL_BIGNUM* Prime number
+    \return NULL on failure
+
+    \param bn BIGNUM
+
+    _Example_
+    \code
+    WOLFSSL_BIGNUM* prime = wolfSSL_DH_1024_prime(NULL);
+    \endcode
+
+    \sa wolfSSL_DH_2048_prime
+*/
+WOLFSSL_BIGNUM* wolfSSL_DH_1024_prime(WOLFSSL_BIGNUM* bn);
+
+/*!
+    \ingroup Diffie-Hellman
+
+    \brief Gets 1536-bit DH prime.
+
+    \return WOLFSSL_BIGNUM* Prime number
+    \return NULL on failure
+
+    \param bn BIGNUM
+
+    _Example_
+    \code
+    WOLFSSL_BIGNUM* prime = wolfSSL_DH_1536_prime(NULL);
+    \endcode
+
+    \sa wolfSSL_DH_2048_prime
+*/
+WOLFSSL_BIGNUM* wolfSSL_DH_1536_prime(WOLFSSL_BIGNUM* bn);
+
+/*!
+    \ingroup Diffie-Hellman
+
+    \brief Gets 2048-bit DH prime.
+
+    \return WOLFSSL_BIGNUM* Prime number
+    \return NULL on failure
+
+    \param bn BIGNUM
+
+    _Example_
+    \code
+    WOLFSSL_BIGNUM* prime = wolfSSL_DH_2048_prime(NULL);
+    \endcode
+
+    \sa wolfSSL_DH_3072_prime
+*/
+WOLFSSL_BIGNUM* wolfSSL_DH_2048_prime(WOLFSSL_BIGNUM* bn);
+
+/*!
+    \ingroup Diffie-Hellman
+
+    \brief Gets 3072-bit DH prime.
+
+    \return WOLFSSL_BIGNUM* Prime number
+    \return NULL on failure
+
+    \param bn BIGNUM
+
+    _Example_
+    \code
+    WOLFSSL_BIGNUM* prime = wolfSSL_DH_3072_prime(NULL);
+    \endcode
+
+    \sa wolfSSL_DH_4096_prime
+*/
+WOLFSSL_BIGNUM* wolfSSL_DH_3072_prime(WOLFSSL_BIGNUM* bn);
+
+/*!
+    \ingroup Diffie-Hellman
+
+    \brief Gets 4096-bit DH prime.
+
+    \return WOLFSSL_BIGNUM* Prime number
+    \return NULL on failure
+
+    \param bn BIGNUM
+
+    _Example_
+    \code
+    WOLFSSL_BIGNUM* prime = wolfSSL_DH_4096_prime(NULL);
+    \endcode
+
+    \sa wolfSSL_DH_6144_prime
+*/
+WOLFSSL_BIGNUM* wolfSSL_DH_4096_prime(WOLFSSL_BIGNUM* bn);
+
+/*!
+    \ingroup Diffie-Hellman
+
+    \brief Gets 6144-bit DH prime.
+
+    \return WOLFSSL_BIGNUM* Prime number
+    \return NULL on failure
+
+    \param bn BIGNUM
+
+    _Example_
+    \code
+    WOLFSSL_BIGNUM* prime = wolfSSL_DH_6144_prime(NULL);
+    \endcode
+
+    \sa wolfSSL_DH_8192_prime
+*/
+WOLFSSL_BIGNUM* wolfSSL_DH_6144_prime(WOLFSSL_BIGNUM* bn);
+
+/*!
+    \ingroup Diffie-Hellman
+
+    \brief Gets 8192-bit DH prime.
+
+    \return WOLFSSL_BIGNUM* Prime number
+    \return NULL on failure
+
+    \param bn BIGNUM
+
+    _Example_
+    \code
+    WOLFSSL_BIGNUM* prime = wolfSSL_DH_8192_prime(NULL);
+    \endcode
+
+    \sa wolfSSL_DH_4096_prime
+*/
+WOLFSSL_BIGNUM* wolfSSL_DH_8192_prime(WOLFSSL_BIGNUM* bn);
+
+/*!
+    \ingroup Debug
+
+    \brief Loads error strings.
+
+    \return WOLFSSL_SUCCESS on success
+
+    _Example_
+    \code
+    int ret = wolfSSL_ERR_load_ERR_strings();
+    \endcode
+
+    \sa wolfSSL_ERR_load_crypto_strings
+*/
+int wolfSSL_ERR_load_ERR_strings(void);
+
+/*!
+    \ingroup Debug
+
+    \brief Loads crypto error strings.
+
+    \return none
+
+    _Example_
+    \code
+    wolfSSL_ERR_load_crypto_strings();
+    \endcode
+
+    \sa wolfSSL_ERR_load_ERR_strings
+*/
+void wolfSSL_ERR_load_crypto_strings(void);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets FIPS mode.
+
+    \return int FIPS mode
+
+    _Example_
+    \code
+    int mode = wolfSSL_FIPS_mode();
+    \endcode
+
+    \sa wolfSSL_FIPS_mode_set
+*/
+int wolfSSL_FIPS_mode(void);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets FIPS mode.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param r FIPS mode
+
+    _Example_
+    \code
+    int ret = wolfSSL_FIPS_mode_set(1);
+    \endcode
+
+    \sa wolfSSL_FIPS_mode
+*/
+int wolfSSL_FIPS_mode_set(int r);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets RAND method.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param methods RAND methods
+
+    _Example_
+    \code
+    int ret = wolfSSL_RAND_set_rand_method(&myMethods);
+    \endcode
+
+    \sa wolfSSL_RAND_bytes
+*/
+int wolfSSL_RAND_set_rand_method(const WOLFSSL_RAND_METHOD *methods);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets cipher bits.
+
+    \return int Cipher bits
+
+    \param c Cipher
+    \param alg_bits Algorithm bits pointer
+
+    _Example_
+    \code
+    int alg_bits;
+    int bits = wolfSSL_CIPHER_get_bits(cipher, &alg_bits);
+    \endcode
+
+    \sa wolfSSL_get_cipher
+*/
+int wolfSSL_CIPHER_get_bits(const WOLFSSL_CIPHER *c, int *alg_bits);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Creates new X509 stack.
+
+    \return WOLFSSL_STACK* Stack
+    \return NULL on failure
+
+    _Example_
+    \code
+    WOLFSSL_STACK* sk = wolfSSL_sk_X509_new_null();
+    \endcode
+
+    \sa wolfSSL_sk_X509_push
+*/
+WOLFSSL_STACK* wolfSSL_sk_X509_new_null(void);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Creates new X509 object stack.
+
+    \return WOLFSSL_STACK* Stack
+    \return NULL on failure
+
+    _Example_
+    \code
+    WOLFSSL_STACK* sk = wolfSSL_sk_X509_OBJECT_new();
+    \endcode
+
+    \sa wolfSSL_sk_X509_OBJECT_free
+*/
+WOLFSSL_STACK* wolfSSL_sk_X509_OBJECT_new(void);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Frees X509 object stack.
+
+    \return none
+
+    \param s Stack
+
+    _Example_
+    \code
+    wolfSSL_sk_X509_OBJECT_free(sk);
+    \endcode
+
+    \sa wolfSSL_sk_X509_OBJECT_new
+*/
+void wolfSSL_sk_X509_OBJECT_free(WOLFSSL_STACK* s);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Pushes X509 object to stack.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param sk Stack
+    \param obj X509 object
+
+    _Example_
+    \code
+    int ret = wolfSSL_sk_X509_OBJECT_push(sk, obj);
+    \endcode
+
+    \sa wolfSSL_sk_X509_OBJECT_new
+*/
+int wolfSSL_sk_X509_OBJECT_push(WOLFSSL_STACK* sk,
+                                 WOLFSSL_X509_OBJECT* obj);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Frees X509 info.
+
+    \return none
+
+    \param info X509 info
+
+    _Example_
+    \code
+    wolfSSL_X509_INFO_free(info);
+    \endcode
+
+    \sa wolfSSL_sk_X509_INFO_new_null
+*/
+void wolfSSL_X509_INFO_free(WOLFSSL_X509_INFO* info);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Creates new X509 info stack.
+
+    \return WOLFSSL_STACK* Stack
+    \return NULL on failure
+
+    _Example_
+    \code
+    WOLFSSL_STACK* sk = wolfSSL_sk_X509_INFO_new_null();
+    \endcode
+
+    \sa wolfSSL_X509_INFO_free
+*/
+WOLFSSL_STACK* wolfSSL_sk_X509_INFO_new_null(void);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Prints X509 name to BIO.
+
+    \return int Bytes written
+    \return negative on failure
+
+    \param bio BIO object
+    \param name X509 name
+    \param indent Indent
+    \param flags Flags
+
+    _Example_
+    \code
+    int ret = wolfSSL_X509_NAME_print_ex(bio, name, 0, 0);
+    \endcode
+
+    \sa wolfSSL_X509_NAME_print_ex_fp
+*/
+int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
+                                int indent, unsigned long flags);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Prints X509 name to file.
+
+    \return int Bytes written
+    \return negative on failure
+
+    \param fp File pointer
+    \param name X509 name
+    \param indent Indent
+    \param flags Flags
+
+    _Example_
+    \code
+    int ret = wolfSSL_X509_NAME_print_ex_fp(fp, name, 0, 0);
+    \endcode
+
+    \sa wolfSSL_X509_NAME_print_ex
+*/
+int wolfSSL_X509_NAME_print_ex_fp(XFILE fp, WOLFSSL_X509_NAME* name,
+                                   int indent, unsigned long flags);
+
+/*!
+    \ingroup Setup
+
+    \brief Frees CONF_VALUE stack.
+
+    \return none
+
+    \param sk Stack
+
+    _Example_
+    \code
+    wolfSSL_sk_CONF_VALUE_free(sk);
+    \endcode
+
+    \sa wolfSSL_sk_CONF_VALUE_num
+*/
+void wolfSSL_sk_CONF_VALUE_free(struct WOLFSSL_STACK *sk);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets CONF_VALUE stack count.
+
+    \return int Count
+
+    \param sk Stack
+
+    _Example_
+    \code
+    int count = wolfSSL_sk_CONF_VALUE_num(sk);
+    \endcode
+
+    \sa wolfSSL_sk_CONF_VALUE_free
+*/
+int wolfSSL_sk_CONF_VALUE_num(const WOLFSSL_STACK *sk);
+
+/*!
+    \ingroup ASN
+
+    \brief Creates new ASN1 bit string.
+
+    \return WOLFSSL_ASN1_BIT_STRING* Bit string
+    \return NULL on failure
+
+    _Example_
+    \code
+    WOLFSSL_ASN1_BIT_STRING* bs = wolfSSL_ASN1_BIT_STRING_new();
+    \endcode
+
+    \sa wolfSSL_ASN1_BIT_STRING_free
+*/
+WOLFSSL_ASN1_BIT_STRING* wolfSSL_ASN1_BIT_STRING_new(void);
