@@ -36377,3 +36377,546 @@ int wolfSSL_select_next_proto(unsigned char **out, unsigned char *outlen,
                                const unsigned char *in, unsigned int inlen,
                                const unsigned char *client,
                                unsigned int client_len);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets next proto negotiated.
+
+    \return none
+
+    \param s WOLFSSL object
+    \param data Data pointer
+    \param len Length pointer
+
+    _Example_
+    \code
+    const unsigned char* proto;
+    unsigned int len;
+    wolfSSL_get0_next_proto_negotiated(ssl, &proto, &len);
+    \endcode
+
+    \sa wolfSSL_select_next_proto
+*/
+void wolfSSL_get0_next_proto_negotiated(const WOLFSSL *s,
+                                         const unsigned char **data,
+                                         unsigned *len);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Checks X509 host name.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param x Certificate
+    \param chk Host name
+    \param chklen Host name length
+    \param flags Flags
+    \param peername Peer name pointer
+
+    _Example_
+    \code
+    int ret = wolfSSL_X509_check_host(cert, "example.com", 0, 0, NULL);
+    \endcode
+
+    \sa wolfSSL_X509_check_ip_asc
+*/
+int wolfSSL_X509_check_host(WOLFSSL_X509 *x, const char *chk,
+                             size_t chklen, unsigned int flags,
+                             char **peername);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Checks X509 IP address.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param x Certificate
+    \param ipasc IP address
+    \param flags Flags
+
+    _Example_
+    \code
+    int ret = wolfSSL_X509_check_ip_asc(cert, "192.168.1.1", 0);
+    \endcode
+
+    \sa wolfSSL_X509_check_host
+*/
+int wolfSSL_X509_check_ip_asc(WOLFSSL_X509 *x, const char *ipasc,
+                               unsigned int flags);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Checks X509 email.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param x Certificate
+    \param chk Email
+    \param chkLen Email length
+    \param flags Flags
+
+    _Example_
+    \code
+    int ret = wolfSSL_X509_check_email(cert, "user@example.com", 0, 0);
+    \endcode
+
+    \sa wolfSSL_X509_check_host
+*/
+int wolfSSL_X509_check_email(WOLFSSL_X509 *x, const char *chk,
+                              size_t chkLen, unsigned int flags);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets session ID.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param s Session
+    \param sid Session ID
+    \param sid_len Session ID length
+
+    _Example_
+    \code
+    unsigned char sid[32];
+    int ret = wolfSSL_SESSION_set1_id(session, sid, sizeof(sid));
+    \endcode
+
+    \sa wolfSSL_SESSION_get_id
+*/
+int wolfSSL_SESSION_set1_id(WOLFSSL_SESSION *s, const unsigned char *sid,
+                             unsigned int sid_len);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets session ID context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param s Session
+    \param sid_ctx Session ID context
+    \param sid_ctx_len Context length
+
+    _Example_
+    \code
+    unsigned char ctx[32];
+    int ret = wolfSSL_SESSION_set1_id_context(session, ctx, sizeof(ctx));
+    \endcode
+
+    \sa wolfSSL_SESSION_set1_id
+*/
+int wolfSSL_SESSION_set1_id_context(WOLFSSL_SESSION *s,
+                                     const unsigned char *sid_ctx,
+                                     unsigned int sid_ctx_len);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Creates new X509 algorithm.
+
+    \return WOLFSSL_X509_ALGOR* Algorithm
+    \return NULL on failure
+
+    _Example_
+    \code
+    WOLFSSL_X509_ALGOR* alg = wolfSSL_X509_ALGOR_new();
+    \endcode
+
+    \sa wolfSSL_X509_ALGOR_free
+*/
+WOLFSSL_X509_ALGOR* wolfSSL_X509_ALGOR_new(void);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Frees X509 algorithm.
+
+    \return none
+
+    \param alg Algorithm
+
+    _Example_
+    \code
+    wolfSSL_X509_ALGOR_free(alg);
+    \endcode
+
+    \sa wolfSSL_X509_ALGOR_new
+*/
+void wolfSSL_X509_ALGOR_free(WOLFSSL_X509_ALGOR *alg);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets TBS signature algorithm.
+
+    \return const WOLFSSL_X509_ALGOR* Algorithm
+    \return NULL on failure
+
+    \param x Certificate
+
+    _Example_
+    \code
+    const WOLFSSL_X509_ALGOR* alg = wolfSSL_X509_get0_tbs_sigalg(cert);
+    \endcode
+
+    \sa wolfSSL_X509_ALGOR_get0
+*/
+const WOLFSSL_X509_ALGOR* wolfSSL_X509_get0_tbs_sigalg(
+                                                    const WOLFSSL_X509 *x);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets algorithm parameters.
+
+    \return none
+
+    \param paobj Object pointer
+    \param pptype Type pointer
+    \param ppval Value pointer
+    \param algor Algorithm
+
+    _Example_
+    \code
+    const WOLFSSL_ASN1_OBJECT* obj;
+    int type;
+    const void* val;
+    wolfSSL_X509_ALGOR_get0(&obj, &type, &val, alg);
+    \endcode
+
+    \sa wolfSSL_X509_ALGOR_set0
+*/
+void wolfSSL_X509_ALGOR_get0(const WOLFSSL_ASN1_OBJECT **paobj,
+                              int *pptype, const void **ppval,
+                              const WOLFSSL_X509_ALGOR *algor);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets algorithm parameters.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param algor Algorithm
+    \param aobj Object
+    \param ptype Type
+    \param pval Value
+
+    _Example_
+    \code
+    int ret = wolfSSL_X509_ALGOR_set0(alg, obj, V_ASN1_NULL, NULL);
+    \endcode
+
+    \sa wolfSSL_X509_ALGOR_get0
+*/
+int wolfSSL_X509_ALGOR_set0(WOLFSSL_X509_ALGOR *algor,
+                             WOLFSSL_ASN1_OBJECT *aobj, int ptype,
+                             void *pval);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Converts X509 algorithm to DER.
+
+    \return int Bytes written
+    \return negative on failure
+
+    \param alg Algorithm
+    \param pp Output buffer pointer
+
+    _Example_
+    \code
+    unsigned char* der = NULL;
+    int len = wolfSSL_i2d_X509_ALGOR(alg, &der);
+    \endcode
+
+    \sa wolfSSL_d2i_X509_ALGOR
+*/
+int wolfSSL_i2d_X509_ALGOR(const WOLFSSL_X509_ALGOR* alg,
+                            unsigned char** pp);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Converts DER to X509 algorithm.
+
+    \return WOLFSSL_X509_ALGOR* Algorithm
+    \return NULL on failure
+
+    \param out Output algorithm pointer
+    \param src DER buffer pointer
+    \param len DER length
+
+    _Example_
+    \code
+    const byte* der = buffer;
+    WOLFSSL_X509_ALGOR* alg = wolfSSL_d2i_X509_ALGOR(NULL, &der, len);
+    \endcode
+
+    \sa wolfSSL_i2d_X509_ALGOR
+*/
+WOLFSSL_X509_ALGOR* wolfSSL_d2i_X509_ALGOR(WOLFSSL_X509_ALGOR** out,
+                                            const byte** src, long len);
+
+/*!
+    \ingroup ASN
+
+    \brief Creates new ASN1 type.
+
+    \return WOLFSSL_ASN1_TYPE* Type
+    \return NULL on failure
+
+    _Example_
+    \code
+    WOLFSSL_ASN1_TYPE* type = wolfSSL_ASN1_TYPE_new();
+    \endcode
+
+    \sa wolfSSL_ASN1_TYPE_free
+*/
+WOLFSSL_ASN1_TYPE* wolfSSL_ASN1_TYPE_new(void);
+
+/*!
+    \ingroup ASN
+
+    \brief Frees ASN1 type.
+
+    \return none
+
+    \param at Type
+
+    _Example_
+    \code
+    wolfSSL_ASN1_TYPE_free(type);
+    \endcode
+
+    \sa wolfSSL_ASN1_TYPE_new
+*/
+void wolfSSL_ASN1_TYPE_free(WOLFSSL_ASN1_TYPE* at);
+
+/*!
+    \ingroup ASN
+
+    \brief Converts ASN1 type to DER.
+
+    \return int Bytes written
+    \return negative on failure
+
+    \param at Type
+    \param pp Output buffer pointer
+
+    _Example_
+    \code
+    unsigned char* der = NULL;
+    int len = wolfSSL_i2d_ASN1_TYPE(type, &der);
+    \endcode
+
+    \sa wolfSSL_ASN1_TYPE_new
+*/
+int wolfSSL_i2d_ASN1_TYPE(WOLFSSL_ASN1_TYPE* at, unsigned char** pp);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Frees X509 public key.
+
+    \return none
+
+    \param x Public key
+
+    _Example_
+    \code
+    wolfSSL_X509_PUBKEY_free(pubkey);
+    \endcode
+
+    \sa wolfSSL_X509_PUBKEY_get
+*/
+void wolfSSL_X509_PUBKEY_free(WOLFSSL_X509_PUBKEY *x);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets public key parameters.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ppkalg Algorithm pointer
+    \param pk Key pointer
+    \param ppklen Key length pointer
+    \param pa Algorithm pointer
+    \param pub Public key
+
+    _Example_
+    \code
+    WOLFSSL_ASN1_OBJECT* alg;
+    const unsigned char* key;
+    int keyLen;
+    WOLFSSL_X509_ALGOR* algObj;
+    int ret = wolfSSL_X509_PUBKEY_get0_param(&alg, &key, &keyLen,
+                                              &algObj, pubkey);
+    \endcode
+
+    \sa wolfSSL_X509_PUBKEY_get
+*/
+int wolfSSL_X509_PUBKEY_get0_param(WOLFSSL_ASN1_OBJECT **ppkalg,
+                                    const unsigned char **pk, int *ppklen,
+                                    WOLFSSL_X509_ALGOR **pa,
+                                    WOLFSSL_X509_PUBKEY *pub);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets EVP public key.
+
+    \return WOLFSSL_EVP_PKEY* Public key
+    \return NULL on failure
+
+    \param key X509 public key
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY* pkey = wolfSSL_X509_PUBKEY_get(pubkey);
+    \endcode
+
+    \sa wolfSSL_X509_PUBKEY_set
+*/
+WOLFSSL_EVP_PKEY* wolfSSL_X509_PUBKEY_get(WOLFSSL_X509_PUBKEY* key);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets X509 public key.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param x Public key pointer
+    \param key EVP public key
+
+    _Example_
+    \code
+    WOLFSSL_X509_PUBKEY* pubkey = NULL;
+    int ret = wolfSSL_X509_PUBKEY_set(&pubkey, evpKey);
+    \endcode
+
+    \sa wolfSSL_X509_PUBKEY_get
+*/
+int wolfSSL_X509_PUBKEY_set(WOLFSSL_X509_PUBKEY **x,
+                             WOLFSSL_EVP_PKEY *key);
+
+/*!
+    \ingroup ASN
+
+    \brief Converts ASN1 object to text.
+
+    \return int Bytes written
+    \return negative on failure
+
+    \param buf Buffer
+    \param buf_len Buffer length
+    \param a Object
+
+    _Example_
+    \code
+    char buf[256];
+    int ret = wolfSSL_i2t_ASN1_OBJECT(buf, sizeof(buf), obj);
+    \endcode
+
+    \sa wolfSSL_i2a_ASN1_OBJECT
+*/
+int wolfSSL_i2t_ASN1_OBJECT(char *buf, int buf_len,
+                             WOLFSSL_ASN1_OBJECT *a);
+
+/*!
+    \ingroup ASN
+
+    \brief Converts ASN1 object to ASCII.
+
+    \return int Bytes written
+    \return negative on failure
+
+    \param bp BIO object
+    \param a Object
+
+    _Example_
+    \code
+    int ret = wolfSSL_i2a_ASN1_OBJECT(bio, obj);
+    \endcode
+
+    \sa wolfSSL_i2t_ASN1_OBJECT
+*/
+int wolfSSL_i2a_ASN1_OBJECT(WOLFSSL_BIO *bp, WOLFSSL_ASN1_OBJECT *a);
+
+/*!
+    \ingroup ASN
+
+    \brief Converts ASN1 object to DER.
+
+    \return int Bytes written
+    \return negative on failure
+
+    \param a Object
+    \param pp Output buffer pointer
+
+    _Example_
+    \code
+    unsigned char* der = NULL;
+    int len = wolfSSL_i2d_ASN1_OBJECT(obj, &der);
+    \endcode
+
+    \sa wolfSSL_d2i_ASN1_OBJECT
+*/
+int wolfSSL_i2d_ASN1_OBJECT(WOLFSSL_ASN1_OBJECT *a, unsigned char **pp);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Loads X509 store locations.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param str Store
+    \param file File path
+    \param dir Directory path
+
+    _Example_
+    \code
+    int ret = wolfSSL_X509_STORE_load_locations(store, "ca-cert.pem",
+                                                 NULL);
+    \endcode
+
+    \sa wolfSSL_X509_STORE_set_default_paths
+*/
+int wolfSSL_X509_STORE_load_locations(WOLFSSL_X509_STORE *str,
+                                       const char *file, const char *dir);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets X509 store default paths.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param str Store
+
+    _Example_
+    \code
+    int ret = wolfSSL_X509_STORE_set_default_paths(store);
+    \endcode
+
+    \sa wolfSSL_X509_STORE_load_locations
+*/
+int wolfSSL_X509_STORE_set_default_paths(WOLFSSL_X509_STORE *str);
