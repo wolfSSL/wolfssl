@@ -31796,3 +31796,501 @@ void* wolfSSL_CTX_get_TicketEncCtx(WOLFSSL_CTX* ctx);
     \sa wolfSSL_CTX_set_num_tickets
 */
 size_t wolfSSL_CTX_get_num_tickets(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets number of tickets.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx SSL context
+    \param mxTickets Maximum tickets
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_set_num_tickets(ctx, 2);
+    \endcode
+
+    \sa wolfSSL_CTX_get_num_tickets
+*/
+int wolfSSL_CTX_set_num_tickets(WOLFSSL_CTX* ctx, size_t mxTickets);
+
+/*!
+    \ingroup Setup
+
+    \brief Disables extended master secret.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    int ret = wolfSSL_DisableExtendedMasterSecret(ssl);
+    \endcode
+
+    \sa wolfSSL_CTX_DisableExtendedMasterSecret
+*/
+int wolfSSL_DisableExtendedMasterSecret(WOLFSSL* ssl);
+
+/*!
+    \ingroup Setup
+
+    \brief Disables extended master secret in context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx SSL context
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_DisableExtendedMasterSecret(ctx);
+    \endcode
+
+    \sa wolfSSL_DisableExtendedMasterSecret
+*/
+int wolfSSL_CTX_DisableExtendedMasterSecret(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup Setup
+
+    \brief Makes TLS extended master secret.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ms Master secret buffer
+    \param msLen Master secret length
+    \param pms Pre-master secret
+    \param pmsLen Pre-master secret length
+    \param sHash Session hash
+    \param sHashLen Session hash length
+    \param tls1_2 TLS 1.2 flag
+    \param hash_type Hash type
+
+    _Example_
+    \code
+    int ret = wolfSSL_MakeTlsExtendedMasterSecret(ms, msLen, pms, pmsLen,
+                                                   sHash, sHashLen, 1, 0);
+    \endcode
+
+    \sa wolfSSL_MakeTlsMasterSecret
+*/
+int wolfSSL_MakeTlsExtendedMasterSecret(unsigned char* ms, word32 msLen,
+                                         const unsigned char* pms,
+                                         word32 pmsLen,
+                                         const unsigned char* sHash,
+                                         word32 sHashLen, int tls1_2,
+                                         int hash_type);
+
+/*!
+    \ingroup Setup
+
+    \brief Placeholder for wolfSCEP support.
+
+    \return none
+
+    _Example_
+    \code
+    wolfSSL_wolfSCEP();
+    \endcode
+
+    \sa wolfSSL_cert_service
+*/
+void wolfSSL_wolfSCEP(void);
+
+/*!
+    \ingroup Setup
+
+    \brief Placeholder for certificate service support.
+
+    \return none
+
+    _Example_
+    \code
+    wolfSSL_cert_service();
+    \endcode
+
+    \sa wolfSSL_wolfSCEP
+*/
+void wolfSSL_cert_service(void);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets index by object in X509 name.
+
+    \return int Index
+    \return -1 if not found
+
+    \param name X509 name
+    \param obj ASN1 object
+    \param idx Starting index
+
+    _Example_
+    \code
+    int idx = wolfSSL_X509_NAME_get_index_by_OBJ(name, obj, -1);
+    \endcode
+
+    \sa wolfSSL_X509_NAME_get_entry
+*/
+int wolfSSL_X509_NAME_get_index_by_OBJ(WOLFSSL_X509_NAME *name,
+                                        const WOLFSSL_ASN1_OBJECT *obj,
+                                        int idx);
+
+/*!
+    \ingroup openSSL
+
+    \brief Converts NID to short name.
+
+    \return const char* Short name
+    \return NULL if not found
+
+    \param n NID
+
+    _Example_
+    \code
+    const char* sn = wolfSSL_OBJ_nid2sn(NID_commonName);
+    \endcode
+
+    \sa wolfSSL_OBJ_nid2ln
+*/
+const char* wolfSSL_OBJ_nid2sn(int n);
+
+/*!
+    \ingroup openSSL
+
+    \brief Converts object to NID.
+
+    \return int NID
+    \return NID_undef if not found
+
+    \param o ASN1 object
+
+    _Example_
+    \code
+    int nid = wolfSSL_OBJ_obj2nid(obj);
+    \endcode
+
+    \sa wolfSSL_OBJ_nid2obj
+*/
+int wolfSSL_OBJ_obj2nid(const WOLFSSL_ASN1_OBJECT *o);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets object type.
+
+    \return int Object type
+    \return 0 if not found
+
+    \param o ASN1 object
+
+    _Example_
+    \code
+    int type = wolfSSL_OBJ_get_type(obj);
+    \endcode
+
+    \sa wolfSSL_OBJ_obj2nid
+*/
+int wolfSSL_OBJ_get_type(const WOLFSSL_ASN1_OBJECT *o);
+
+/*!
+    \ingroup openSSL
+
+    \brief Converts short name to NID.
+
+    \return int NID
+    \return NID_undef if not found
+
+    \param sn Short name
+
+    _Example_
+    \code
+    int nid = wolfSSL_OBJ_sn2nid("CN");
+    \endcode
+
+    \sa wolfSSL_OBJ_nid2sn
+*/
+int wolfSSL_OBJ_sn2nid(const char *sn);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets object length.
+
+    \return size_t Object length
+
+    \param o ASN1 object
+
+    _Example_
+    \code
+    size_t len = wolfSSL_OBJ_length(obj);
+    \endcode
+
+    \sa wolfSSL_OBJ_get0_data
+*/
+size_t wolfSSL_OBJ_length(const WOLFSSL_ASN1_OBJECT* o);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets object data.
+
+    \return const unsigned char* Object data
+    \return NULL if not available
+
+    \param o ASN1 object
+
+    _Example_
+    \code
+    const unsigned char* data = wolfSSL_OBJ_get0_data(obj);
+    \endcode
+
+    \sa wolfSSL_OBJ_length
+*/
+const unsigned char* wolfSSL_OBJ_get0_data(const WOLFSSL_ASN1_OBJECT* o);
+
+/*!
+    \ingroup openSSL
+
+    \brief Converts NID to long name.
+
+    \return const char* Long name
+    \return NULL if not found
+
+    \param n NID
+
+    _Example_
+    \code
+    const char* ln = wolfSSL_OBJ_nid2ln(NID_commonName);
+    \endcode
+
+    \sa wolfSSL_OBJ_nid2sn
+*/
+const char* wolfSSL_OBJ_nid2ln(int n);
+
+/*!
+    \ingroup openSSL
+
+    \brief Converts long name to NID.
+
+    \return int NID
+    \return NID_undef if not found
+
+    \param ln Long name
+
+    _Example_
+    \code
+    int nid = wolfSSL_OBJ_ln2nid("commonName");
+    \endcode
+
+    \sa wolfSSL_OBJ_nid2ln
+*/
+int wolfSSL_OBJ_ln2nid(const char *ln);
+
+/*!
+    \ingroup openSSL
+
+    \brief Compares two objects.
+
+    \return 0 if equal
+    \return non-zero if different
+
+    \param a First object
+    \param b Second object
+
+    _Example_
+    \code
+    int cmp = wolfSSL_OBJ_cmp(obj1, obj2);
+    \endcode
+
+    \sa wolfSSL_OBJ_obj2nid
+*/
+int wolfSSL_OBJ_cmp(const WOLFSSL_ASN1_OBJECT* a,
+                     const WOLFSSL_ASN1_OBJECT* b);
+
+/*!
+    \ingroup openSSL
+
+    \brief Converts text to NID.
+
+    \return int NID
+    \return NID_undef if not found
+
+    \param sn Text name
+
+    _Example_
+    \code
+    int nid = wolfSSL_OBJ_txt2nid("CN");
+    \endcode
+
+    \sa wolfSSL_OBJ_txt2obj
+*/
+int wolfSSL_OBJ_txt2nid(const char *sn);
+
+/*!
+    \ingroup openSSL
+
+    \brief Converts text to object.
+
+    \return WOLFSSL_ASN1_OBJECT* Object
+    \return NULL on failure
+
+    \param s Text string
+    \param no_name No name flag
+
+    _Example_
+    \code
+    WOLFSSL_ASN1_OBJECT* obj = wolfSSL_OBJ_txt2obj("CN", 0);
+    \endcode
+
+    \sa wolfSSL_OBJ_txt2nid
+*/
+WOLFSSL_ASN1_OBJECT* wolfSSL_OBJ_txt2obj(const char* s, int no_name);
+
+/*!
+    \ingroup openSSL
+
+    \brief Converts NID to object.
+
+    \return WOLFSSL_ASN1_OBJECT* Object
+    \return NULL on failure
+
+    \param n NID
+
+    _Example_
+    \code
+    WOLFSSL_ASN1_OBJECT* obj = wolfSSL_OBJ_nid2obj(NID_commonName);
+    \endcode
+
+    \sa wolfSSL_OBJ_obj2nid
+*/
+WOLFSSL_ASN1_OBJECT* wolfSSL_OBJ_nid2obj(int n);
+
+/*!
+    \ingroup openSSL
+
+    \brief Converts object to text.
+
+    \return int Length written
+    \return -1 on failure
+
+    \param buf Output buffer
+    \param buf_len Buffer length
+    \param a ASN1 object
+    \param no_name No name flag
+
+    _Example_
+    \code
+    char buf[256];
+    int len = wolfSSL_OBJ_obj2txt(buf, sizeof(buf), obj, 0);
+    \endcode
+
+    \sa wolfSSL_OBJ_txt2obj
+*/
+int wolfSSL_OBJ_obj2txt(char *buf, int buf_len,
+                         const WOLFSSL_ASN1_OBJECT *a, int no_name);
+
+/*!
+    \ingroup openSSL
+
+    \brief Cleans up object table.
+
+    \return none
+
+    _Example_
+    \code
+    wolfSSL_OBJ_cleanup();
+    \endcode
+
+    \sa wolfSSL_OBJ_create
+*/
+void wolfSSL_OBJ_cleanup(void);
+
+/*!
+    \ingroup openSSL
+
+    \brief Creates new object.
+
+    \return int NID
+    \return NID_undef on failure
+
+    \param oid OID string
+    \param sn Short name
+    \param ln Long name
+
+    _Example_
+    \code
+    int nid = wolfSSL_OBJ_create("1.2.3.4", "myObj", "My Object");
+    \endcode
+
+    \sa wolfSSL_OBJ_cleanup
+*/
+int wolfSSL_OBJ_create(const char *oid, const char *sn, const char *ln);
+
+/*!
+    \ingroup Debug
+
+    \brief Peeks last error line.
+
+    \return unsigned long Error code
+
+    \param file File pointer
+    \param line Line pointer
+
+    _Example_
+    \code
+    const char* file;
+    int line;
+    unsigned long err = wolfSSL_ERR_peek_last_error_line(&file, &line);
+    \endcode
+
+    \sa wolfSSL_ERR_get_error
+*/
+unsigned long wolfSSL_ERR_peek_last_error_line(const char **file, int *line);
+
+/*!
+    \ingroup Setup
+
+    \brief Controls context settings.
+
+    \return long Result value
+
+    \param ctx SSL context
+    \param cmd Command
+    \param opt Option
+    \param pt Pointer
+
+    _Example_
+    \code
+    long ret = wolfSSL_CTX_ctrl(ctx, SSL_CTRL_MODE, SSL_MODE_AUTO_RETRY,
+                                 NULL);
+    \endcode
+
+    \sa wolfSSL_ctrl
+*/
+long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Clears extra chain certificates.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx SSL context
+
+    _Example_
+    \code
+    long ret = wolfSSL_CTX_clear_extra_chain_certs(ctx);
+    \endcode
+
+    \sa wolfSSL_CTX_add_extra_chain_cert
+*/
+long wolfSSL_CTX_clear_extra_chain_certs(WOLFSSL_CTX* ctx);
