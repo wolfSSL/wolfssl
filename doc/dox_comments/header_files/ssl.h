@@ -36920,3 +36920,531 @@ int wolfSSL_X509_STORE_load_locations(WOLFSSL_X509_STORE *str,
     \sa wolfSSL_X509_STORE_load_locations
 */
 int wolfSSL_X509_STORE_set_default_paths(WOLFSSL_X509_STORE *str);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Adds CRL to X509 store.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx Store
+    \param x CRL
+
+    _Example_
+    \code
+    int ret = wolfSSL_X509_STORE_add_crl(store, crl);
+    \endcode
+
+    \sa wolfSSL_X509_STORE_add_cert
+*/
+int wolfSSL_X509_STORE_add_crl(WOLFSSL_X509_STORE *ctx,
+                                WOLFSSL_X509_CRL *x);
+
+/*!
+    \ingroup Setup
+
+    \brief Zeros SSL compression stack.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param st Stack
+
+    _Example_
+    \code
+    int ret = wolfSSL_sk_SSL_COMP_zero(stack);
+    \endcode
+
+    \sa wolfSSL_sk_SSL_CIPHER_value
+*/
+int wolfSSL_sk_SSL_COMP_zero(WOLFSSL_STACK* st);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets SSL cipher from stack.
+
+    \return WOLFSSL_CIPHER* Cipher
+    \return NULL on failure
+
+    \param sk Stack
+    \param i Index
+
+    _Example_
+    \code
+    WOLFSSL_CIPHER* cipher = wolfSSL_sk_SSL_CIPHER_value(stack, 0);
+    \endcode
+
+    \sa wolfSSL_get_cipher
+*/
+WOLFSSL_CIPHER* wolfSSL_sk_SSL_CIPHER_value(WOLFSSL_STACK* sk, int i);
+
+/*!
+    \ingroup Debug
+
+    \brief Loads SSL error strings.
+
+    \return none
+
+    _Example_
+    \code
+    wolfSSL_ERR_load_SSL_strings();
+    \endcode
+
+    \sa wolfSSL_ERR_load_crypto_strings
+*/
+void wolfSSL_ERR_load_SSL_strings(void);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Dumps EC point.
+
+    \return none
+
+    \param msg Message
+    \param p EC point
+
+    _Example_
+    \code
+    wolfSSL_EC_POINT_dump("Point:", ecPoint);
+    \endcode
+
+    \sa wolfSSL_EC_POINT_new
+*/
+void wolfSSL_EC_POINT_dump(const char *msg, const WOLFSSL_EC_POINT *p);
+
+/*!
+    \ingroup ASN
+
+    \brief Prints ASN1 string with flags.
+
+    \return int Bytes written
+    \return negative on failure
+
+    \param out BIO object
+    \param str String
+    \param flags Flags
+
+    _Example_
+    \code
+    int ret = wolfSSL_ASN1_STRING_print_ex(bio, str, 0);
+    \endcode
+
+    \sa wolfSSL_ASN1_STRING_print
+*/
+int wolfSSL_ASN1_STRING_print_ex(WOLFSSL_BIO *out,
+                                  WOLFSSL_ASN1_STRING *str,
+                                  unsigned long flags);
+
+/*!
+    \ingroup ASN
+
+    \brief Prints ASN1 string.
+
+    \return int Bytes written
+    \return negative on failure
+
+    \param out BIO object
+    \param str String
+
+    _Example_
+    \code
+    int ret = wolfSSL_ASN1_STRING_print(bio, str);
+    \endcode
+
+    \sa wolfSSL_ASN1_STRING_print_ex
+*/
+int wolfSSL_ASN1_STRING_print(WOLFSSL_BIO *out, WOLFSSL_ASN1_STRING *str);
+
+/*!
+    \ingroup ASN
+
+    \brief Gets ASN1 time length.
+
+    \return int Length
+
+    \param t Time
+
+    _Example_
+    \code
+    int len = wolfSSL_ASN1_TIME_get_length(time);
+    \endcode
+
+    \sa wolfSSL_ASN1_TIME_get_data
+*/
+int wolfSSL_ASN1_TIME_get_length(const WOLFSSL_ASN1_TIME *t);
+
+/*!
+    \ingroup ASN
+
+    \brief Gets ASN1 time data.
+
+    \return unsigned char* Data
+    \return NULL on failure
+
+    \param t Time
+
+    _Example_
+    \code
+    unsigned char* data = wolfSSL_ASN1_TIME_get_data(time);
+    \endcode
+
+    \sa wolfSSL_ASN1_TIME_get_length
+*/
+unsigned char* wolfSSL_ASN1_TIME_get_data(const WOLFSSL_ASN1_TIME *t);
+
+/*!
+    \ingroup ASN
+
+    \brief Sets ASN1 UTC time.
+
+    \return WOLFSSL_ASN1_TIME* Time
+    \return NULL on failure
+
+    \param s Time
+    \param t Time value
+
+    _Example_
+    \code
+    WOLFSSL_ASN1_TIME* time = wolfSSL_ASN1_UTCTIME_set(NULL, t);
+    \endcode
+
+    \sa wolfSSL_ASN1_TIME_get_data
+*/
+WOLFSSL_ASN1_TIME* wolfSSL_ASN1_UTCTIME_set(WOLFSSL_ASN1_TIME *s,
+                                             time_t t);
+
+/*!
+    \ingroup ASN
+
+    \brief Converts ASN1 integer to contents.
+
+    \return int Bytes written
+    \return negative on failure
+
+    \param a Integer
+    \param pp Output buffer pointer
+
+    _Example_
+    \code
+    unsigned char* buf = NULL;
+    int len = wolfSSL_i2c_ASN1_INTEGER(asn1Int, &buf);
+    \endcode
+
+    \sa wolfSSL_a2i_ASN1_INTEGER
+*/
+int wolfSSL_i2c_ASN1_INTEGER(WOLFSSL_ASN1_INTEGER *a,
+                              unsigned char **pp);
+
+/*!
+    \ingroup ASN
+
+    \brief Converts ASCII to ASN1 integer.
+
+    \return int Bytes read
+    \return negative on failure
+
+    \param bio BIO object
+    \param asn1 Integer
+    \param buf Buffer
+    \param size Buffer size
+
+    _Example_
+    \code
+    int ret = wolfSSL_a2i_ASN1_INTEGER(bio, asn1Int, buf, sizeof(buf));
+    \endcode
+
+    \sa wolfSSL_i2c_ASN1_INTEGER
+*/
+int wolfSSL_a2i_ASN1_INTEGER(WOLFSSL_BIO *bio, WOLFSSL_ASN1_INTEGER *asn1,
+                              char *buf, int size);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets CA count in store.
+
+    \return int Count
+
+    \param store Store
+
+    _Example_
+    \code
+    int count = wolfSSL_X509_CA_num(store);
+    \endcode
+
+    \sa wolfSSL_X509_STORE_add_cert
+*/
+int wolfSSL_X509_CA_num(WOLFSSL_X509_STORE *store);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets X509 version.
+
+    \return long Version
+
+    \param x Certificate
+
+    _Example_
+    \code
+    long ver = wolfSSL_X509_get_version(cert);
+    \endcode
+
+    \sa wolfSSL_X509_set_version
+*/
+long wolfSSL_X509_get_version(const WOLFSSL_X509 *x);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets X509 signature NID.
+
+    \return int NID
+    \return negative on failure
+
+    \param x Certificate
+
+    _Example_
+    \code
+    int nid = wolfSSL_X509_get_signature_nid(cert);
+    \endcode
+
+    \sa wolfSSL_X509_get_signature_type
+*/
+int wolfSSL_X509_get_signature_nid(const WOLFSSL_X509* x);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Writes PKCS8 private key to BIO.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param bio BIO object
+    \param pkey Private key
+    \param enc Cipher
+    \param passwd Password
+    \param passwdSz Password size
+    \param cb Callback
+    \param ctx Context
+
+    _Example_
+    \code
+    int ret = wolfSSL_PEM_write_bio_PKCS8PrivateKey(bio, pkey, NULL,
+                                                      NULL, 0, NULL, NULL);
+    \endcode
+
+    \sa wolfSSL_PEM_write_PKCS8PrivateKey
+*/
+int wolfSSL_PEM_write_bio_PKCS8PrivateKey(WOLFSSL_BIO* bio,
+                                           WOLFSSL_EVP_PKEY* pkey,
+                                           const WOLFSSL_EVP_CIPHER* enc,
+                                           char* passwd, int passwdSz,
+                                           wc_pem_password_cb* cb, void* ctx);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Writes PKCS8 private key info to BIO.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param bio BIO object
+    \param keyInfo Key info
+
+    _Example_
+    \code
+    int ret = wolfSSL_PEM_write_bio_PKCS8_PRIV_KEY_INFO(bio, keyInfo);
+    \endcode
+
+    \sa wolfSSL_PEM_write_bio_PKCS8PrivateKey
+*/
+int wolfSSL_PEM_write_bio_PKCS8_PRIV_KEY_INFO(WOLFSSL_BIO* bio,
+                                                WOLFSSL_PKCS8_PRIV_KEY_INFO*
+                                                keyInfo);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Writes PKCS8 private key to file.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param fp File pointer
+    \param pkey Private key
+    \param enc Cipher
+    \param passwd Password
+    \param passwdSz Password size
+    \param cb Callback
+    \param ctx Context
+
+    _Example_
+    \code
+    int ret = wolfSSL_PEM_write_PKCS8PrivateKey(fp, pkey, NULL,
+                                                  NULL, 0, NULL, NULL);
+    \endcode
+
+    \sa wolfSSL_PEM_write_bio_PKCS8PrivateKey
+*/
+int wolfSSL_PEM_write_PKCS8PrivateKey(XFILE fp, WOLFSSL_EVP_PKEY* pkey,
+                                       const WOLFSSL_EVP_CIPHER* enc,
+                                       char* passwd, int passwdSz,
+                                       wc_pem_password_cb* cb, void* ctx);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Reads PKCS8 private key from BIO.
+
+    \return WOLFSSL_EVP_PKEY* Private key
+    \return NULL on failure
+
+    \param bio BIO object
+    \param pkey Private key pointer
+    \param cb Callback
+    \param u User data
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY* pkey = wolfSSL_d2i_PKCS8PrivateKey_bio(bio, NULL,
+                                                               NULL, NULL);
+    \endcode
+
+    \sa wolfSSL_PEM_write_bio_PKCS8PrivateKey
+*/
+WOLFSSL_EVP_PKEY* wolfSSL_d2i_PKCS8PrivateKey_bio(WOLFSSL_BIO* bio,
+                                                    WOLFSSL_EVP_PKEY** pkey,
+                                                    wc_pem_password_cb* cb,
+                                                    void* u);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Reads auto-detected private key.
+
+    \return WOLFSSL_EVP_PKEY* Private key
+    \return NULL on failure
+
+    \param pkey Private key pointer
+    \param data Data pointer
+    \param length Data length
+
+    _Example_
+    \code
+    const unsigned char* der = buffer;
+    WOLFSSL_EVP_PKEY* pkey = wolfSSL_d2i_AutoPrivateKey(NULL, &der, len);
+    \endcode
+
+    \sa wolfSSL_d2i_PrivateKey
+*/
+WOLFSSL_EVP_PKEY* wolfSSL_d2i_AutoPrivateKey(WOLFSSL_EVP_PKEY** pkey,
+                                              const unsigned char** data,
+                                              long length);
+
+/*!
+    \ingroup IO
+
+    \brief Gets finished message.
+
+    \return size_t Bytes copied
+
+    \param ssl WOLFSSL object
+    \param buf Buffer
+    \param count Buffer size
+
+    _Example_
+    \code
+    unsigned char buf[64];
+    size_t len = wolfSSL_get_finished(ssl, buf, sizeof(buf));
+    \endcode
+
+    \sa wolfSSL_get_peer_finished
+*/
+size_t wolfSSL_get_finished(const WOLFSSL *ssl, void *buf, size_t count);
+
+/*!
+    \ingroup IO
+
+    \brief Gets peer finished message.
+
+    \return size_t Bytes copied
+
+    \param ssl WOLFSSL object
+    \param buf Buffer
+    \param count Buffer size
+
+    _Example_
+    \code
+    unsigned char buf[64];
+    size_t len = wolfSSL_get_peer_finished(ssl, buf, sizeof(buf));
+    \endcode
+
+    \sa wolfSSL_get_finished
+*/
+size_t wolfSSL_get_peer_finished(const WOLFSSL *ssl, void *buf,
+                                  size_t count);
+
+/*!
+    \ingroup Setup
+
+    \brief Checks if private key is set.
+
+    \return WOLFSSL_SUCCESS if set
+    \return WOLFSSL_FAILURE if not set
+
+    \param ssl WOLFSSL object
+
+    _Example_
+    \code
+    int isSet = wolfSSL_IsPrivatePkSet(ssl);
+    \endcode
+
+    \sa wolfSSL_CTX_IsPrivatePkSet
+*/
+int wolfSSL_IsPrivatePkSet(WOLFSSL* ssl);
+
+/*!
+    \ingroup Setup
+
+    \brief Checks if context private key is set.
+
+    \return WOLFSSL_SUCCESS if set
+    \return WOLFSSL_FAILURE if not set
+
+    \param ctx Context
+
+    _Example_
+    \code
+    int isSet = wolfSSL_CTX_IsPrivatePkSet(ctx);
+    \endcode
+
+    \sa wolfSSL_IsPrivatePkSet
+*/
+int wolfSSL_CTX_IsPrivatePkSet(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup Setup
+
+    \brief Allows encrypt-then-MAC.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx Context
+    \param set Enable flag
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_AllowEncryptThenMac(ctx, 1);
+    \endcode
+
+    \sa wolfSSL_AllowEncryptThenMac
+*/
+int wolfSSL_CTX_AllowEncryptThenMac(WOLFSSL_CTX* ctx, int set);
