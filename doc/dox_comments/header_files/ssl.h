@@ -32854,3 +32854,505 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_get_ext(const WOLFSSL_X509* x,
 int wolfSSL_X509_get_ext_by_OBJ(const WOLFSSL_X509 *x,
                                  const WOLFSSL_ASN1_OBJECT *obj,
                                  int lastpos);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets X509 in object.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param a X509 object
+    \param obj X509 certificate
+
+    _Example_
+    \code
+    int ret = wolfSSL_X509_OBJECT_set1_X509(obj, x509);
+    \endcode
+
+    \sa wolfSSL_X509_OBJECT_set1_X509_CRL
+*/
+int wolfSSL_X509_OBJECT_set1_X509(WOLFSSL_X509_OBJECT *a,
+                                   WOLFSSL_X509 *obj);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets X509 CRL in object.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param a X509 object
+    \param obj X509 CRL
+
+    _Example_
+    \code
+    int ret = wolfSSL_X509_OBJECT_set1_X509_CRL(obj, crl);
+    \endcode
+
+    \sa wolfSSL_X509_OBJECT_set1_X509
+*/
+int wolfSSL_X509_OBJECT_set1_X509_CRL(WOLFSSL_X509_OBJECT *a,
+                                       WOLFSSL_X509_CRL *obj);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets extension in X509.
+
+    \return WOLFSSL_X509_EXTENSION* Extension
+    \return NULL on failure
+
+    \param x X509 certificate
+    \param loc Location
+
+    _Example_
+    \code
+    WOLFSSL_X509_EXTENSION* ext = wolfSSL_X509_set_ext(x509, 0);
+    \endcode
+
+    \sa wolfSSL_X509_get_ext
+*/
+WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x, int loc);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets extension critical flag.
+
+    \return 1 if critical
+    \return 0 if not critical
+
+    \param ex Extension
+
+    _Example_
+    \code
+    int crit = wolfSSL_X509_EXTENSION_get_critical(ext);
+    \endcode
+
+    \sa wolfSSL_X509_EXTENSION_set_critical
+*/
+int wolfSSL_X509_EXTENSION_get_critical(const WOLFSSL_X509_EXTENSION* ex);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Creates new X509 extension.
+
+    \return WOLFSSL_X509_EXTENSION* Extension
+    \return NULL on failure
+
+    _Example_
+    \code
+    WOLFSSL_X509_EXTENSION* ext = wolfSSL_X509_EXTENSION_new();
+    \endcode
+
+    \sa wolfSSL_X509_EXTENSION_free
+*/
+WOLFSSL_X509_EXTENSION* wolfSSL_X509_EXTENSION_new(void);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Creates extension by object.
+
+    \return WOLFSSL_X509_EXTENSION* Extension
+    \return NULL on failure
+
+    \param ex Extension pointer
+    \param obj ASN1 object
+    \param crit Critical flag
+    \param data ASN1 string data
+
+    _Example_
+    \code
+    WOLFSSL_X509_EXTENSION* ext;
+    ext = wolfSSL_X509_EXTENSION_create_by_OBJ(NULL, obj, 0, data);
+    \endcode
+
+    \sa wolfSSL_X509_EXTENSION_new
+*/
+WOLFSSL_X509_EXTENSION* wolfSSL_X509_EXTENSION_create_by_OBJ(
+                                        WOLFSSL_X509_EXTENSION* ex,
+                                        WOLFSSL_ASN1_OBJECT *obj, int crit,
+                                        WOLFSSL_ASN1_STRING *data);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Duplicates X509 extension.
+
+    \return WOLFSSL_X509_EXTENSION* Duplicated extension
+    \return NULL on failure
+
+    \param src Source extension
+
+    _Example_
+    \code
+    WOLFSSL_X509_EXTENSION* dup = wolfSSL_X509_EXTENSION_dup(ext);
+    \endcode
+
+    \sa wolfSSL_X509_EXTENSION_new
+*/
+WOLFSSL_X509_EXTENSION* wolfSSL_X509_EXTENSION_dup(
+                                        WOLFSSL_X509_EXTENSION* src);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Pushes extension to stack.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param sk Stack
+    \param ext Extension
+
+    _Example_
+    \code
+    int ret = wolfSSL_sk_X509_EXTENSION_push(sk, ext);
+    \endcode
+
+    \sa wolfSSL_sk_new_x509_ext
+*/
+int wolfSSL_sk_X509_EXTENSION_push(WOLFSSL_STACK* sk,
+                                    WOLFSSL_X509_EXTENSION* ext);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Frees X509 extension.
+
+    \return none
+
+    \param ext_to_free Extension to free
+
+    _Example_
+    \code
+    wolfSSL_X509_EXTENSION_free(ext);
+    \endcode
+
+    \sa wolfSSL_X509_EXTENSION_new
+*/
+void wolfSSL_X509_EXTENSION_free(WOLFSSL_X509_EXTENSION* ext_to_free);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Creates new X509 extension stack.
+
+    \return WOLFSSL_STACK* Stack
+    \return NULL on failure
+
+    _Example_
+    \code
+    WOLFSSL_STACK* sk = wolfSSL_sk_new_x509_ext();
+    \endcode
+
+    \sa wolfSSL_sk_X509_EXTENSION_push
+*/
+WOLFSSL_STACK* wolfSSL_sk_new_x509_ext(void);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets extension object.
+
+    \return WOLFSSL_ASN1_OBJECT* Object
+    \return NULL on failure
+
+    \param ext Extension
+
+    _Example_
+    \code
+    WOLFSSL_ASN1_OBJECT* obj = wolfSSL_X509_EXTENSION_get_object(ext);
+    \endcode
+
+    \sa wolfSSL_X509_EXTENSION_set_object
+*/
+WOLFSSL_ASN1_OBJECT* wolfSSL_X509_EXTENSION_get_object(
+                                        WOLFSSL_X509_EXTENSION* ext);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets extension object.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ext Extension
+    \param obj ASN1 object
+
+    _Example_
+    \code
+    int ret = wolfSSL_X509_EXTENSION_set_object(ext, obj);
+    \endcode
+
+    \sa wolfSSL_X509_EXTENSION_get_object
+*/
+int wolfSSL_X509_EXTENSION_set_object(WOLFSSL_X509_EXTENSION* ext,
+                                       const WOLFSSL_ASN1_OBJECT* obj);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets extension data.
+
+    \return WOLFSSL_ASN1_STRING* Data
+    \return NULL on failure
+
+    \param ext Extension
+
+    _Example_
+    \code
+    WOLFSSL_ASN1_STRING* data = wolfSSL_X509_EXTENSION_get_data(ext);
+    \endcode
+
+    \sa wolfSSL_X509_EXTENSION_set_data
+*/
+WOLFSSL_ASN1_STRING* wolfSSL_X509_EXTENSION_get_data(
+                                        WOLFSSL_X509_EXTENSION* ext);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets extension data.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ext Extension
+    \param data ASN1 string data
+
+    _Example_
+    \code
+    int ret = wolfSSL_X509_EXTENSION_set_data(ext, data);
+    \endcode
+
+    \sa wolfSSL_X509_EXTENSION_get_data
+*/
+int wolfSSL_X509_EXTENSION_set_data(WOLFSSL_X509_EXTENSION* ext,
+                                     WOLFSSL_ASN1_STRING* data);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Writes X509 to BIO in DER format.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param bio BIO object
+    \param x509 X509 certificate
+
+    _Example_
+    \code
+    int ret = wolfSSL_i2d_X509_bio(bio, x509);
+    \endcode
+
+    \sa wolfSSL_d2i_X509_bio
+*/
+int wolfSSL_i2d_X509_bio(WOLFSSL_BIO* bio, WOLFSSL_X509* x509);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Writes X509 request to BIO in DER format.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param bio BIO object
+    \param x509 X509 request
+
+    _Example_
+    \code
+    int ret = wolfSSL_i2d_X509_REQ_bio(bio, req);
+    \endcode
+
+    \sa wolfSSL_d2i_X509_REQ_bio
+*/
+int wolfSSL_i2d_X509_REQ_bio(WOLFSSL_BIO* bio, WOLFSSL_X509* x509);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Reads X509 from file in DER format.
+
+    \return WOLFSSL_X509* Certificate
+    \return NULL on failure
+
+    \param fp File pointer
+    \param x509 X509 pointer
+
+    _Example_
+    \code
+    WOLFSSL_X509* cert = wolfSSL_d2i_X509_fp(fp, NULL);
+    \endcode
+
+    \sa wolfSSL_d2i_X509_bio
+*/
+WOLFSSL_X509* wolfSSL_d2i_X509_fp(XFILE fp, WOLFSSL_X509** x509);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets certificates from store context.
+
+    \return WOLFSSL_STACK* Certificate stack
+    \return NULL on failure
+
+    \param s Store context
+
+    _Example_
+    \code
+    WOLFSSL_STACK* certs = wolfSSL_X509_STORE_GetCerts(ctx);
+    \endcode
+
+    \sa wolfSSL_X509_STORE_CTX_get_chain
+*/
+WOLFSSL_STACK* wolfSSL_X509_STORE_GetCerts(WOLFSSL_X509_STORE_CTX* s);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Reads X509 from BIO in DER format.
+
+    \return WOLFSSL_X509* Certificate
+    \return NULL on failure
+
+    \param bio BIO object
+    \param x509 X509 pointer
+
+    _Example_
+    \code
+    WOLFSSL_X509* cert = wolfSSL_d2i_X509_bio(bio, NULL);
+    \endcode
+
+    \sa wolfSSL_i2d_X509_bio
+*/
+WOLFSSL_X509* wolfSSL_d2i_X509_bio(WOLFSSL_BIO* bio, WOLFSSL_X509** x509);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Reads X509 request from BIO in DER format.
+
+    \return WOLFSSL_X509* Request
+    \return NULL on failure
+
+    \param bio BIO object
+    \param x509 X509 pointer
+
+    _Example_
+    \code
+    WOLFSSL_X509* req = wolfSSL_d2i_X509_REQ_bio(bio, NULL);
+    \endcode
+
+    \sa wolfSSL_i2d_X509_REQ_bio
+*/
+WOLFSSL_X509* wolfSSL_d2i_X509_REQ_bio(WOLFSSL_BIO* bio,
+                                        WOLFSSL_X509** x509);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Reads X509 request from file in DER format.
+
+    \return WOLFSSL_X509* Request
+    \return NULL on failure
+
+    \param fp File pointer
+    \param req X509 pointer
+
+    _Example_
+    \code
+    WOLFSSL_X509* req = wolfSSL_d2i_X509_REQ_fp(fp, NULL);
+    \endcode
+
+    \sa wolfSSL_d2i_X509_fp
+*/
+WOLFSSL_X509* wolfSSL_d2i_X509_REQ_fp(XFILE fp, WOLFSSL_X509 **req);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets verify certificate store in context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx SSL context
+    \param str X509 store
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_set1_verify_cert_store(ctx, store);
+    \endcode
+
+    \sa wolfSSL_set1_verify_cert_store
+*/
+int wolfSSL_CTX_set1_verify_cert_store(WOLFSSL_CTX* ctx,
+                                        WOLFSSL_X509_STORE* str);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets verify certificate store without incrementing reference.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl SSL object
+    \param str X509 store
+
+    _Example_
+    \code
+    int ret = wolfSSL_set0_verify_cert_store(ssl, store);
+    \endcode
+
+    \sa wolfSSL_set1_verify_cert_store
+*/
+int wolfSSL_set0_verify_cert_store(WOLFSSL *ssl, WOLFSSL_X509_STORE* str);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets verify certificate store.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl SSL object
+    \param str X509 store
+
+    _Example_
+    \code
+    int ret = wolfSSL_set1_verify_cert_store(ssl, store);
+    \endcode
+
+    \sa wolfSSL_CTX_set1_verify_cert_store
+*/
+int wolfSSL_set1_verify_cert_store(WOLFSSL *ssl, WOLFSSL_X509_STORE* str);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets certificate store from context.
+
+    \return WOLFSSL_X509_STORE* Store
+    \return NULL on failure
+
+    \param ctx SSL context
+
+    _Example_
+    \code
+    WOLFSSL_X509_STORE* store = wolfSSL_CTX_get_cert_store(ctx);
+    \endcode
+
+    \sa wolfSSL_CTX_set_cert_store
+*/
+WOLFSSL_X509_STORE* wolfSSL_CTX_get_cert_store(const WOLFSSL_CTX* ctx);
