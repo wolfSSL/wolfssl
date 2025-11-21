@@ -29323,3 +29323,488 @@ const unsigned char* wolfSSL_GetServerWriteKey(WOLFSSL* ssl);
     \sa wolfSSL_GetClientWriteIV
 */
 const unsigned char* wolfSSL_GetServerWriteIV(WOLFSSL* ssl);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets peer sequence number.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl SSL object
+    \param seq Pointer to store sequence number
+
+    _Example_
+    \code
+    word64 seq;
+    int ret = wolfSSL_GetPeerSequenceNumber(ssl, &seq);
+    \endcode
+
+    \sa wolfSSL_GetSequenceNumber
+*/
+int wolfSSL_GetPeerSequenceNumber(WOLFSSL* ssl, word64* seq);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets sequence number.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl SSL object
+    \param seq Pointer to store sequence number
+
+    _Example_
+    \code
+    word64 seq;
+    int ret = wolfSSL_GetSequenceNumber(ssl, &seq);
+    \endcode
+
+    \sa wolfSSL_GetPeerSequenceNumber
+*/
+int wolfSSL_GetSequenceNumber(WOLFSSL* ssl, word64* seq);
+
+/*!
+    \ingroup Callbacks
+
+    \brief Sets ECC key generation callback in context.
+
+    \return none
+
+    \param ctx SSL context
+    \param cb Callback function
+
+    _Example_
+    \code
+    wolfSSL_CTX_SetEccKeyGenCb(ctx, myEccKeyGenCallback);
+    \endcode
+
+    \sa wolfSSL_SetEccKeyGenCtx
+*/
+void wolfSSL_CTX_SetEccKeyGenCb(WOLFSSL_CTX* ctx, CallbackEccKeyGen cb);
+
+/*!
+    \ingroup Callbacks
+
+    \brief Sets ECC key generation context.
+
+    \return none
+
+    \param ssl SSL object
+    \param ctx Context pointer
+
+    _Example_
+    \code
+    wolfSSL_SetEccKeyGenCtx(ssl, myContext);
+    \endcode
+
+    \sa wolfSSL_GetEccKeyGenCtx
+*/
+void wolfSSL_SetEccKeyGenCtx(WOLFSSL* ssl, void *ctx);
+
+/*!
+    \ingroup Callbacks
+
+    \brief Gets ECC key generation context.
+
+    \return void* Context pointer
+    \return NULL if not set
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    void* ctx = wolfSSL_GetEccKeyGenCtx(ssl);
+    \endcode
+
+    \sa wolfSSL_SetEccKeyGenCtx
+*/
+void* wolfSSL_GetEccKeyGenCtx(WOLFSSL* ssl);
+
+/*!
+    \ingroup Callbacks
+
+    \brief Gets ECC sign context.
+
+    \return void* Context pointer
+    \return NULL if not set
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    void* ctx = wolfSSL_GetEccSignCtx(ssl);
+    \endcode
+
+    \sa wolfSSL_CTX_GetEccSignCtx
+*/
+void* wolfSSL_GetEccSignCtx(WOLFSSL* ssl);
+
+/*!
+    \ingroup Callbacks
+
+    \brief Gets ECC sign context from context.
+
+    \return void* Context pointer
+    \return NULL if not set
+
+    \param ctx SSL context
+
+    _Example_
+    \code
+    void* ctx = wolfSSL_CTX_GetEccSignCtx(ctx);
+    \endcode
+
+    \sa wolfSSL_GetEccSignCtx
+*/
+void* wolfSSL_CTX_GetEccSignCtx(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup Callbacks
+
+    \brief Gets ECC verify context.
+
+    \return void* Context pointer
+    \return NULL if not set
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    void* ctx = wolfSSL_GetEccVerifyCtx(ssl);
+    \endcode
+
+    \sa wolfSSL_GetEccSignCtx
+*/
+void* wolfSSL_GetEccVerifyCtx(WOLFSSL* ssl);
+
+/*!
+    \ingroup Callbacks
+
+    \brief Sets ECC shared secret callback in context.
+
+    \return none
+
+    \param ctx SSL context
+    \param cb Callback function
+
+    _Example_
+    \code
+    wolfSSL_CTX_SetEccSharedSecretCb(ctx, myEccSharedSecretCallback);
+    \endcode
+
+    \sa wolfSSL_SetEccSharedSecretCtx
+*/
+void wolfSSL_CTX_SetEccSharedSecretCb(WOLFSSL_CTX* ctx,
+                                       CallbackEccSharedSecret cb);
+
+/*!
+    \ingroup Callbacks
+
+    \brief Sets ECC shared secret context.
+
+    \return none
+
+    \param ssl SSL object
+    \param ctx Context pointer
+
+    _Example_
+    \code
+    wolfSSL_SetEccSharedSecretCtx(ssl, myContext);
+    \endcode
+
+    \sa wolfSSL_GetEccSharedSecretCtx
+*/
+void wolfSSL_SetEccSharedSecretCtx(WOLFSSL* ssl, void *ctx);
+
+/*!
+    \ingroup Callbacks
+
+    \brief Gets ECC shared secret context.
+
+    \return void* Context pointer
+    \return NULL if not set
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    void* ctx = wolfSSL_GetEccSharedSecretCtx(ssl);
+    \endcode
+
+    \sa wolfSSL_SetEccSharedSecretCtx
+*/
+void* wolfSSL_GetEccSharedSecretCtx(WOLFSSL* ssl);
+
+/*!
+    \ingroup Callbacks
+
+    \brief Sets HKDF extract callback in context.
+
+    \return none
+
+    \param ctx SSL context
+    \param cb Callback function
+
+    _Example_
+    \code
+    wolfSSL_CTX_SetHKDFExtractCb(ctx, myHKDFExtractCallback);
+    \endcode
+
+    \sa wolfSSL_SetHKDFExtractCtx
+*/
+void wolfSSL_CTX_SetHKDFExtractCb(WOLFSSL_CTX* ctx,
+                                   CallbackHKDFExtract cb);
+
+/*!
+    \ingroup Callbacks
+
+    \brief Gets HKDF extract context.
+
+    \return void* Context pointer
+    \return NULL if not set
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    void* ctx = wolfSSL_GetHKDFExtractCtx(ssl);
+    \endcode
+
+    \sa wolfSSL_SetHKDFExtractCtx
+*/
+void* wolfSSL_GetHKDFExtractCtx(WOLFSSL* ssl);
+
+/*!
+    \ingroup Callbacks
+
+    \brief Sets HKDF extract context.
+
+    \return none
+
+    \param ssl SSL object
+    \param ctx Context pointer
+
+    _Example_
+    \code
+    wolfSSL_SetHKDFExtractCtx(ssl, myContext);
+    \endcode
+
+    \sa wolfSSL_GetHKDFExtractCtx
+*/
+void wolfSSL_SetHKDFExtractCtx(WOLFSSL* ssl, void *ctx);
+
+/*!
+    \ingroup Callbacks
+
+    \brief Sets DH generate key pair callback in context.
+
+    \return none
+
+    \param ctx SSL context
+    \param cb Callback function
+
+    _Example_
+    \code
+    wolfSSL_CTX_SetDhGenerateKeyPair(ctx, myDhGenerateKeyPairCallback);
+    \endcode
+
+    \sa wolfSSL_CTX_SetDhAgreeCb
+*/
+void wolfSSL_CTX_SetDhGenerateKeyPair(WOLFSSL_CTX* ctx,
+                                       CallbackDhGenerateKeyPair cb);
+
+/*!
+    \ingroup Callbacks
+
+    \brief Sets DH agree callback in context.
+
+    \return none
+
+    \param ctx SSL context
+    \param cb Callback function
+
+    _Example_
+    \code
+    wolfSSL_CTX_SetDhAgreeCb(ctx, myDhAgreeCallback);
+    \endcode
+
+    \sa wolfSSL_SetDhAgreeCtx
+*/
+void wolfSSL_CTX_SetDhAgreeCb(WOLFSSL_CTX* ctx, CallbackDhAgree cb);
+
+/*!
+    \ingroup Callbacks
+
+    \brief Sets DH agree context.
+
+    \return none
+
+    \param ssl SSL object
+    \param ctx Context pointer
+
+    _Example_
+    \code
+    wolfSSL_SetDhAgreeCtx(ssl, myContext);
+    \endcode
+
+    \sa wolfSSL_GetDhAgreeCtx
+*/
+void wolfSSL_SetDhAgreeCtx(WOLFSSL* ssl, void *ctx);
+
+/*!
+    \ingroup Callbacks
+
+    \brief Gets DH agree context.
+
+    \return void* Context pointer
+    \return NULL if not set
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    void* ctx = wolfSSL_GetDhAgreeCtx(ssl);
+    \endcode
+
+    \sa wolfSSL_SetDhAgreeCtx
+*/
+void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl);
+
+/*!
+    \ingroup Callbacks
+
+    \brief Sets Ed25519 sign callback in context.
+
+    \return none
+
+    \param ctx SSL context
+    \param cb Callback function
+
+    _Example_
+    \code
+    wolfSSL_CTX_SetEd25519SignCb(ctx, myEd25519SignCallback);
+    \endcode
+
+    \sa wolfSSL_SetEd25519SignCtx
+*/
+void wolfSSL_CTX_SetEd25519SignCb(WOLFSSL_CTX* ctx,
+                                   CallbackEd25519Sign cb);
+
+/*!
+    \ingroup Callbacks
+
+    \brief Sets Ed25519 sign context.
+
+    \return none
+
+    \param ssl SSL object
+    \param ctx Context pointer
+
+    _Example_
+    \code
+    wolfSSL_SetEd25519SignCtx(ssl, myContext);
+    \endcode
+
+    \sa wolfSSL_GetEd25519SignCtx
+*/
+void wolfSSL_SetEd25519SignCtx(WOLFSSL* ssl, void *ctx);
+
+/*!
+    \ingroup Callbacks
+
+    \brief Gets Ed25519 sign context.
+
+    \return void* Context pointer
+    \return NULL if not set
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    void* ctx = wolfSSL_GetEd25519SignCtx(ssl);
+    \endcode
+
+    \sa wolfSSL_SetEd25519SignCtx
+*/
+void* wolfSSL_GetEd25519SignCtx(WOLFSSL* ssl);
+
+/*!
+    \ingroup Callbacks
+
+    \brief Sets Ed25519 verify callback in context.
+
+    \return none
+
+    \param ctx SSL context
+    \param cb Callback function
+
+    _Example_
+    \code
+    wolfSSL_CTX_SetEd25519VerifyCb(ctx, myEd25519VerifyCallback);
+    \endcode
+
+    \sa wolfSSL_SetEd25519VerifyCtx
+*/
+void wolfSSL_CTX_SetEd25519VerifyCb(WOLFSSL_CTX* ctx,
+                                     CallbackEd25519Verify cb);
+
+/*!
+    \ingroup Callbacks
+
+    \brief Sets Ed25519 verify context.
+
+    \return none
+
+    \param ssl SSL object
+    \param ctx Context pointer
+
+    _Example_
+    \code
+    wolfSSL_SetEd25519VerifyCtx(ssl, myContext);
+    \endcode
+
+    \sa wolfSSL_GetEd25519VerifyCtx
+*/
+void wolfSSL_SetEd25519VerifyCtx(WOLFSSL* ssl, void *ctx);
+
+/*!
+    \ingroup Callbacks
+
+    \brief Gets Ed25519 verify context.
+
+    \return void* Context pointer
+    \return NULL if not set
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    void* ctx = wolfSSL_GetEd25519VerifyCtx(ssl);
+    \endcode
+
+    \sa wolfSSL_SetEd25519VerifyCtx
+*/
+void* wolfSSL_GetEd25519VerifyCtx(WOLFSSL* ssl);
+
+/*!
+    \ingroup Callbacks
+
+    \brief Sets X25519 key generation callback in context.
+
+    \return none
+
+    \param ctx SSL context
+    \param cb Callback function
+
+    _Example_
+    \code
+    wolfSSL_CTX_SetX25519KeyGenCb(ctx, myX25519KeyGenCallback);
+    \endcode
+
+    \sa wolfSSL_SetX25519KeyGenCtx
+*/
+void wolfSSL_CTX_SetX25519KeyGenCb(WOLFSSL_CTX* ctx,
+                                    CallbackX25519KeyGen cb);
