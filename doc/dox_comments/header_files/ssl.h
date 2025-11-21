@@ -21329,3 +21329,570 @@ int wolfSSL_X509_set_notBefore(WOLFSSL_X509* x509,
 */
 int wolfSSL_X509_set1_notBefore(WOLFSSL_X509* x509,
                                   const WOLFSSL_ASN1_TIME* t);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets notBefore time from certificate.
+
+    \return WOLFSSL_ASN1_TIME* Pointer to notBefore time
+    \return NULL on failure
+
+    \param x509 Certificate to get time from
+
+    _Example_
+    \code
+    WOLFSSL_X509* x509 = wolfSSL_X509_load_certificate_file(file,
+                                                              format);
+    WOLFSSL_ASN1_TIME* before = wolfSSL_X509_get_notBefore(x509);
+    if (before != NULL) {
+        printf("Certificate valid from: %s\n", before->data);
+    }
+    \endcode
+
+    \sa wolfSSL_X509_get_notAfter
+*/
+WOLFSSL_ASN1_TIME* wolfSSL_X509_get_notBefore(const WOLFSSL_X509* x509);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets notAfter time from certificate.
+
+    \return WOLFSSL_ASN1_TIME* Pointer to notAfter time
+    \return NULL on failure
+
+    \param x509 Certificate to get time from
+
+    _Example_
+    \code
+    WOLFSSL_X509* x509 = wolfSSL_X509_load_certificate_file(file,
+                                                              format);
+    WOLFSSL_ASN1_TIME* after = wolfSSL_X509_get_notAfter(x509);
+    if (after != NULL) {
+        printf("Certificate valid until: %s\n", after->data);
+    }
+    \endcode
+
+    \sa wolfSSL_X509_get_notBefore
+*/
+WOLFSSL_ASN1_TIME* wolfSSL_X509_get_notAfter(const WOLFSSL_X509* x509);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets serial number for certificate.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param x509 Certificate to modify
+    \param s Serial number to set
+
+    _Example_
+    \code
+    WOLFSSL_X509* cert = wolfSSL_X509_new();
+    WOLFSSL_ASN1_INTEGER* serial = wolfSSL_ASN1_INTEGER_new();
+    wolfSSL_ASN1_INTEGER_set(serial, 12345);
+    int ret = wolfSSL_X509_set_serialNumber(cert, serial);
+    \endcode
+
+    \sa wolfSSL_X509_get_serialNumber
+*/
+int wolfSSL_X509_set_serialNumber(WOLFSSL_X509* x509,
+                                    WOLFSSL_ASN1_INTEGER* s);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets version for certificate.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param x509 Certificate to modify
+    \param v Version number (0=v1, 1=v2, 2=v3)
+
+    _Example_
+    \code
+    WOLFSSL_X509* cert = wolfSSL_X509_new();
+    int ret = wolfSSL_X509_set_version(cert, 2);
+    \endcode
+
+    \sa wolfSSL_X509_get_version
+*/
+int wolfSSL_X509_set_version(WOLFSSL_X509* x509, long v);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Signs X509 certificate with private key.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param x509 Certificate to sign
+    \param pkey Private key to sign with
+    \param md Message digest algorithm
+
+    _Example_
+    \code
+    WOLFSSL_X509* cert = wolfSSL_X509_new();
+    WOLFSSL_EVP_PKEY* pkey = wolfSSL_EVP_PKEY_new();
+    const WOLFSSL_EVP_MD* md = wolfSSL_EVP_sha256();
+    int ret = wolfSSL_X509_sign(cert, pkey, md);
+    \endcode
+
+    \sa wolfSSL_X509_sign_ctx
+*/
+int wolfSSL_X509_sign(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey,
+                       const WOLFSSL_EVP_MD* md);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Signs X509 certificate using digest context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param x509 Certificate to sign
+    \param ctx Digest context with key and algorithm
+
+    _Example_
+    \code
+    WOLFSSL_X509* cert = wolfSSL_X509_new();
+    WOLFSSL_EVP_MD_CTX* ctx = wolfSSL_EVP_MD_CTX_new();
+    int ret = wolfSSL_X509_sign_ctx(cert, ctx);
+    \endcode
+
+    \sa wolfSSL_X509_sign
+*/
+int wolfSSL_X509_sign_ctx(WOLFSSL_X509* x509, WOLFSSL_EVP_MD_CTX* ctx);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets entry count in X509_NAME.
+
+    \return int Number of entries
+
+    \param name X509_NAME to count entries in
+
+    _Example_
+    \code
+    WOLFSSL_X509_NAME* name = wolfSSL_X509_get_subject_name(x509);
+    int count = wolfSSL_X509_NAME_entry_count(name);
+    printf("Name has %d entries\n", count);
+    \endcode
+
+    \sa wolfSSL_X509_NAME_get_entry
+*/
+int wolfSSL_X509_NAME_entry_count(WOLFSSL_X509_NAME* name);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets size of X509_NAME.
+
+    \return int Size in bytes
+
+    \param name X509_NAME to get size of
+
+    _Example_
+    \code
+    WOLFSSL_X509_NAME* name = wolfSSL_X509_get_subject_name(x509);
+    int sz = wolfSSL_X509_NAME_get_sz(name);
+    printf("Name size: %d bytes\n", sz);
+    \endcode
+
+    \sa wolfSSL_X509_NAME_entry_count
+*/
+int wolfSSL_X509_NAME_get_sz(WOLFSSL_X509_NAME* name);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets index of entry by NID in X509_NAME.
+
+    \return int Index of entry
+    \return negative value if not found
+
+    \param name X509_NAME to search
+    \param nid NID to search for
+    \param pos Starting position for search
+
+    _Example_
+    \code
+    WOLFSSL_X509_NAME* name = wolfSSL_X509_get_subject_name(x509);
+    int idx = wolfSSL_X509_NAME_get_index_by_NID(name, NID_commonName,
+                                                   -1);
+    if (idx >= 0) {
+        WOLFSSL_X509_NAME_ENTRY* entry;
+        entry = wolfSSL_X509_NAME_get_entry(name, idx);
+    }
+    \endcode
+
+    \sa wolfSSL_X509_NAME_get_entry
+*/
+int wolfSSL_X509_NAME_get_index_by_NID(WOLFSSL_X509_NAME* name, int nid,
+                                         int pos);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets data from X509_NAME_ENTRY.
+
+    \return WOLFSSL_ASN1_STRING* Pointer to entry data
+    \return NULL on failure
+
+    \param in X509_NAME_ENTRY to get data from
+
+    _Example_
+    \code
+    WOLFSSL_X509_NAME* name = wolfSSL_X509_get_subject_name(x509);
+    WOLFSSL_X509_NAME_ENTRY* entry = wolfSSL_X509_NAME_get_entry(name,
+                                                                   0);
+    WOLFSSL_ASN1_STRING* data = wolfSSL_X509_NAME_ENTRY_get_data(entry);
+    if (data != NULL) {
+        printf("Entry data: %s\n", data->data);
+    }
+    \endcode
+
+    \sa wolfSSL_X509_NAME_get_entry
+*/
+WOLFSSL_ASN1_STRING* wolfSSL_X509_NAME_ENTRY_get_data(
+    WOLFSSL_X509_NAME_ENTRY* in);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Creates new ASN1_STRING.
+
+    \return WOLFSSL_ASN1_STRING* Pointer to new string
+    \return NULL on failure
+
+    _Example_
+    \code
+    WOLFSSL_ASN1_STRING* str = wolfSSL_ASN1_STRING_new();
+    if (str != NULL) {
+        wolfSSL_ASN1_STRING_set(str, "test", 4);
+        wolfSSL_ASN1_STRING_free(str);
+    }
+    \endcode
+
+    \sa wolfSSL_ASN1_STRING_free
+*/
+WOLFSSL_ASN1_STRING* wolfSSL_ASN1_STRING_new(void);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Duplicates ASN1_STRING.
+
+    \return WOLFSSL_ASN1_STRING* Pointer to duplicated string
+    \return NULL on failure
+
+    \param asn1 ASN1_STRING to duplicate
+
+    _Example_
+    \code
+    WOLFSSL_ASN1_STRING* orig = wolfSSL_ASN1_STRING_new();
+    WOLFSSL_ASN1_STRING* dup = wolfSSL_ASN1_STRING_dup(orig);
+    if (dup != NULL) {
+        wolfSSL_ASN1_STRING_free(dup);
+    }
+    \endcode
+
+    \sa wolfSSL_ASN1_STRING_new
+*/
+WOLFSSL_ASN1_STRING* wolfSSL_ASN1_STRING_dup(WOLFSSL_ASN1_STRING* asn1);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Creates new ASN1_STRING with type.
+
+    \return WOLFSSL_ASN1_STRING* Pointer to new string
+    \return NULL on failure
+
+    \param type ASN1 type
+
+    _Example_
+    \code
+    WOLFSSL_ASN1_STRING* str = wolfSSL_ASN1_STRING_type_new(V_ASN1_IA5STRING);
+    if (str != NULL) {
+        wolfSSL_ASN1_STRING_set(str, "test", 4);
+        wolfSSL_ASN1_STRING_free(str);
+    }
+    \endcode
+
+    \sa wolfSSL_ASN1_STRING_new
+*/
+WOLFSSL_ASN1_STRING* wolfSSL_ASN1_STRING_type_new(int type);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets type of ASN1_STRING.
+
+    \return int ASN1 type
+
+    \param asn1 ASN1_STRING to get type from
+
+    _Example_
+    \code
+    WOLFSSL_ASN1_STRING* str = wolfSSL_ASN1_STRING_new();
+    int type = wolfSSL_ASN1_STRING_type(str);
+    printf("ASN1 type: %d\n", type);
+    \endcode
+
+    \sa wolfSSL_ASN1_STRING_type_new
+*/
+int wolfSSL_ASN1_STRING_type(const WOLFSSL_ASN1_STRING* asn1);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Decodes DISPLAYTEXT from DER.
+
+    \return WOLFSSL_ASN1_STRING* Pointer to decoded string
+    \return NULL on failure
+
+    \param asn Pointer to store result
+    \param in Pointer to DER data
+    \param len Length of DER data
+
+    _Example_
+    \code
+    const unsigned char* der = buffer;
+    WOLFSSL_ASN1_STRING* str = wolfSSL_d2i_DISPLAYTEXT(NULL, &der, len);
+    if (str != NULL) {
+        printf("Display text: %s\n", str->data);
+        wolfSSL_ASN1_STRING_free(str);
+    }
+    \endcode
+
+    \sa wolfSSL_ASN1_STRING_new
+*/
+WOLFSSL_ASN1_STRING* wolfSSL_d2i_DISPLAYTEXT(WOLFSSL_ASN1_STRING** asn,
+    const unsigned char** in, long len);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Compares two ASN1_STRINGs.
+
+    \return 0 if equal
+    \return non-zero if different
+
+    \param a First string
+    \param b Second string
+
+    _Example_
+    \code
+    WOLFSSL_ASN1_STRING* str1 = wolfSSL_ASN1_STRING_new();
+    WOLFSSL_ASN1_STRING* str2 = wolfSSL_ASN1_STRING_new();
+    int cmp = wolfSSL_ASN1_STRING_cmp(str1, str2);
+    if (cmp == 0) {
+        printf("Strings are equal\n");
+    }
+    \endcode
+
+    \sa wolfSSL_ASN1_STRING_new
+*/
+int wolfSSL_ASN1_STRING_cmp(const WOLFSSL_ASN1_STRING* a,
+                              const WOLFSSL_ASN1_STRING* b);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Frees ASN1_STRING.
+
+    \return none
+
+    \param asn1 ASN1_STRING to free
+
+    _Example_
+    \code
+    WOLFSSL_ASN1_STRING* str = wolfSSL_ASN1_STRING_new();
+    wolfSSL_ASN1_STRING_free(str);
+    \endcode
+
+    \sa wolfSSL_ASN1_STRING_new
+*/
+void wolfSSL_ASN1_STRING_free(WOLFSSL_ASN1_STRING* asn1);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets data in ASN1_STRING.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param asn1 ASN1_STRING to set data in
+    \param data Data to set
+    \param dataSz Size of data
+
+    _Example_
+    \code
+    WOLFSSL_ASN1_STRING* str = wolfSSL_ASN1_STRING_new();
+    int ret = wolfSSL_ASN1_STRING_set(str, "test", 4);
+    \endcode
+
+    \sa wolfSSL_ASN1_STRING_data
+*/
+int wolfSSL_ASN1_STRING_set(WOLFSSL_ASN1_STRING* asn1, const void* data,
+                              int dataSz);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets data pointer from ASN1_STRING.
+
+    \return unsigned char* Pointer to data
+
+    \param asn ASN1_STRING to get data from
+
+    _Example_
+    \code
+    WOLFSSL_ASN1_STRING* str = wolfSSL_ASN1_STRING_new();
+    unsigned char* data = wolfSSL_ASN1_STRING_data(str);
+    \endcode
+
+    \sa wolfSSL_ASN1_STRING_get0_data
+*/
+unsigned char* wolfSSL_ASN1_STRING_data(WOLFSSL_ASN1_STRING* asn);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets const data pointer from ASN1_STRING.
+
+    \return const unsigned char* Pointer to data
+
+    \param asn ASN1_STRING to get data from
+
+    _Example_
+    \code
+    WOLFSSL_ASN1_STRING* str = wolfSSL_ASN1_STRING_new();
+    const unsigned char* data = wolfSSL_ASN1_STRING_get0_data(str);
+    \endcode
+
+    \sa wolfSSL_ASN1_STRING_data
+*/
+const unsigned char* wolfSSL_ASN1_STRING_get0_data(
+    const WOLFSSL_ASN1_STRING* asn);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets length of ASN1_STRING.
+
+    \return int Length in bytes
+
+    \param asn ASN1_STRING to get length from
+
+    _Example_
+    \code
+    WOLFSSL_ASN1_STRING* str = wolfSSL_ASN1_STRING_new();
+    int len = wolfSSL_ASN1_STRING_length(str);
+    printf("String length: %d\n", len);
+    \endcode
+
+    \sa wolfSSL_ASN1_STRING_data
+*/
+int wolfSSL_ASN1_STRING_length(const WOLFSSL_ASN1_STRING* asn);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Copies ASN1_STRING.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param dst Destination string
+    \param src Source string
+
+    _Example_
+    \code
+    WOLFSSL_ASN1_STRING* src = wolfSSL_ASN1_STRING_new();
+    WOLFSSL_ASN1_STRING* dst = wolfSSL_ASN1_STRING_new();
+    int ret = wolfSSL_ASN1_STRING_copy(dst, src);
+    \endcode
+
+    \sa wolfSSL_ASN1_STRING_dup
+*/
+int wolfSSL_ASN1_STRING_copy(WOLFSSL_ASN1_STRING* dst,
+                               const WOLFSSL_ASN1_STRING* src);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Verifies certificate chain.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx X509_STORE_CTX with certificate and store
+
+    _Example_
+    \code
+    WOLFSSL_X509_STORE_CTX* ctx = wolfSSL_X509_STORE_CTX_new();
+    wolfSSL_X509_STORE_CTX_init(ctx, store, cert, NULL);
+    int ret = wolfSSL_X509_verify_cert(ctx);
+    if (ret == WOLFSSL_SUCCESS) {
+        printf("Certificate verified\n");
+    }
+    \endcode
+
+    \sa wolfSSL_X509_STORE_CTX_init
+*/
+int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets error string for verification error.
+
+    \return const char* Error string
+
+    \param err Error code
+
+    _Example_
+    \code
+    long err = wolfSSL_X509_STORE_CTX_get_error(ctx);
+    const char* errStr = wolfSSL_X509_verify_cert_error_string(err);
+    printf("Verification error: %s\n", errStr);
+    \endcode
+
+    \sa wolfSSL_X509_verify_cert
+*/
+const char* wolfSSL_X509_verify_cert_error_string(long err);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Adds directory to X509_LOOKUP.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param lookup X509_LOOKUP to add directory to
+    \param dir Directory path
+    \param type File type
+
+    _Example_
+    \code
+    WOLFSSL_X509_LOOKUP* lookup = wolfSSL_X509_STORE_add_lookup(store,
+                                        wolfSSL_X509_LOOKUP_file());
+    int ret = wolfSSL_X509_LOOKUP_add_dir(lookup, "/etc/ssl/certs",
+                                           WOLFSSL_FILETYPE_PEM);
+    \endcode
+
+    \sa wolfSSL_X509_STORE_add_lookup
+*/
+int wolfSSL_X509_LOOKUP_add_dir(WOLFSSL_X509_LOOKUP* lookup,
+                                  const char* dir, long type);
