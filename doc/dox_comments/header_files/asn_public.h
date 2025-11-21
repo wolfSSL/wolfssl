@@ -2614,6 +2614,127 @@ int wc_Curve25519KeyToDer(curve25519_key* key, byte* output, word32 inLen,
                           int withAlg);
 
 /*!
+    \ingroup Ed25519
+    \brief Decodes Ed25519 private key from DER format.
+
+    \return 0 on success
+    \return negative on error
+
+    \param input DER encoded Ed25519 private key buffer
+    \param inOutIdx Pointer to index in buffer
+    \param key Ed25519 key structure to store key
+    \param inSz Size of input buffer
+
+    _Example_
+    \code
+    ed25519_key key;
+    word32 idx = 0;
+    int ret = wc_Ed25519PrivateKeyDecode(derBuf, &idx, &key,
+                                         derSz);
+    \endcode
+
+    \sa wc_Ed25519PrivateKeyToDer
+*/
+int wc_Ed25519PrivateKeyDecode(const byte* input, word32* inOutIdx,
+                                ed25519_key* key, word32 inSz);
+
+/*!
+    \ingroup Ed25519
+    \brief Decodes Ed25519 public key from DER format.
+
+    \return 0 on success
+    \return negative on error
+
+    \param input DER encoded Ed25519 public key buffer
+    \param inOutIdx Pointer to index in buffer
+    \param key Ed25519 key structure to store key
+    \param inSz Size of input buffer
+
+    _Example_
+    \code
+    ed25519_key key;
+    word32 idx = 0;
+    int ret = wc_Ed25519PublicKeyDecode(derBuf, &idx, &key,
+                                        derSz);
+    \endcode
+
+    \sa wc_Ed25519PublicKeyToDer
+*/
+int wc_Ed25519PublicKeyDecode(const byte* input, word32* inOutIdx,
+                               ed25519_key* key, word32 inSz);
+
+/*!
+    \ingroup Ed25519
+    \brief Encodes Ed25519 key to DER format.
+
+    \return Size on success
+    \return negative on error
+
+    \param key Ed25519 key structure
+    \param output Buffer for DER encoded key
+    \param inLen Size of output buffer
+
+    _Example_
+    \code
+    ed25519_key key;
+    byte der[1024];
+    int derSz = wc_Ed25519KeyToDer(&key, der, sizeof(der));
+    \endcode
+
+    \sa wc_Ed25519PrivateKeyToDer
+*/
+int wc_Ed25519KeyToDer(const ed25519_key* key, byte* output,
+                       word32 inLen);
+
+/*!
+    \ingroup Ed25519
+    \brief Encodes Ed25519 private key to DER format.
+
+    \return Size on success
+    \return negative on error
+
+    \param key Ed25519 key structure with private key
+    \param output Buffer for DER encoded private key
+    \param inLen Size of output buffer
+
+    _Example_
+    \code
+    ed25519_key key;
+    byte der[1024];
+    int derSz = wc_Ed25519PrivateKeyToDer(&key, der,
+                                          sizeof(der));
+    \endcode
+
+    \sa wc_Ed25519PrivateKeyDecode
+*/
+int wc_Ed25519PrivateKeyToDer(const ed25519_key* key, byte* output,
+                               word32 inLen);
+
+/*!
+    \ingroup Ed25519
+    \brief Encodes Ed25519 public key to DER format.
+
+    \return Size on success
+    \return negative on error
+
+    \param key Ed25519 key structure with public key
+    \param output Buffer for DER encoded public key
+    \param inLen Size of output buffer
+
+    _Example_
+    \code
+    ed25519_key key;
+    byte der[1024];
+    int derSz = wc_Ed25519PublicKeyToDer(&key, der,
+                                         sizeof(der));
+    \endcode
+
+    \sa wc_Ed25519PublicKeyDecode
+*/
+int wc_Ed25519PublicKeyToDer(const ed25519_key* key, byte* output,
+                              int inLen);
+
+/*!
     \ingroup ASN
 
     \brief This function encodes a digital signature into the output buffer,
