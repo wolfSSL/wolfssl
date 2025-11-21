@@ -24,7 +24,7 @@
     \sa wc_ShaUpdate
     \sa wc_ShaFinal
 */
-int wc_InitSha(wc_Sha*);
+int wc_InitSha(wc_Sha* sha);
 
 /*!
     \ingroup SHA
@@ -112,7 +112,7 @@ int wc_ShaFinal(wc_Sha* sha, byte* hash);
     \sa wc_ShaUpdate
     \sa wc_ShaFinal
 */
-void wc_ShaFree(wc_Sha*);
+void wc_ShaFree(wc_Sha* sha);
 
 /*!
     \ingroup SHA

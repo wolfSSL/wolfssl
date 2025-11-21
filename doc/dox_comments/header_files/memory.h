@@ -47,6 +47,8 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type);
     \param ptr pointer to the memory to be freed.
     \param heap heap hint to use for memory. Can be NULL
     \param type dynamic type (see DYNAMIC_TYPE_ list in types.h)
+    \param func name of calling function (for allocation tracking)
+    \param line source line number of call site
 
     _Example_
     \code
@@ -65,7 +67,8 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type);
     \sa XFREE
     \sa XREALLOC
 */
-void  wolfSSL_Free(void *ptr, void* heap, int type);
+void  wolfSSL_Free(void *ptr, void* heap, int type, const char* func,
+                   unsigned int line);
 
 /*!
     \ingroup Memory
@@ -148,9 +151,8 @@ void* wolfSSL_Realloc(void *ptr, size_t size, void* heap, int type);
 
     \sa none
 */
-int wolfSSL_SetAllocators(wolfSSL_Malloc_cb,
-                                      wolfSSL_Free_cb,
-                                      wolfSSL_Realloc_cb);
+int wolfSSL_SetAllocators(wolfSSL_Malloc_cb mf, wolfSSL_Free_cb ff,
+                                      wolfSSL_Realloc_cb rf);
 
 /*!
     \ingroup Memory
@@ -380,7 +382,7 @@ int wolfSSL_is_static_memory(WOLFSSL* ssl, WOLFSSL_MEM_CONN_STATS* mem_stats);
     \return If successful, 0 will be returned.
     \return All unsuccessful return values will be less than 0.
 
-    \param hint WOLFSSL_HEAP_HINT structure to use
+    \param pHint WOLFSSL_HEAP_HINT structure to use
     \param buf memory to use for all operations.
     \param sz size of memory buffer being passed in.
     \param flag type of memory.
@@ -410,8 +412,8 @@ int wolfSSL_is_static_memory(WOLFSSL* ssl, WOLFSSL_MEM_CONN_STATS* mem_stats);
 
     \sa none
 */
-int wc_LoadStaticMemory(WOLFSSL_HEAP_HINT* hint, unsigned char* buf, unsigned int sz,
-                int flag, int max);
+int wc_LoadStaticMemory(WOLFSSL_HEAP_HINT** pHint, unsigned char* buf,
+                unsigned int sz, int flag, int max);
 
 /*!
     \ingroup Memory
@@ -424,13 +426,14 @@ int wc_LoadStaticMemory(WOLFSSL_HEAP_HINT* hint, unsigned char* buf, unsigned in
     \return If successful, 0 will be returned.
     \return All unsuccessful return values will be less than 0.
 
-    \param hint WOLFSSL_HEAP_HINT structure to use
+    \param pHint WOLFSSL_HEAP_HINT handle to initialize
+    \param listSz number of entries in the size and distribution lists
+    \param sizeList array of bucket sizes to use
+    \param distList distribution list matching sizeList
     \param buf memory to use for all operations.
     \param sz size of memory buffer being passed in.
     \param flag type of memory.
     \param max max concurrent operations (handshakes, IO).
-    \param bucket_sizes array of bucket sizes to use
-    \param bucket_count number of bucket sizes in the array
 
     _Example_
     \code
@@ -439,14 +442,16 @@ int wc_LoadStaticMemory(WOLFSSL_HEAP_HINT* hint, unsigned char* buf, unsigned in
     unsigned char memory[MAX];
     int memorySz = MAX;
     int flag = WOLFMEM_GENERAL | WOLFMEM_TRACK_STATS;
-    word16 bucket_sizes[] = {64, 128, 256, 512, 1024};
-    int bucket_count = 5;
+    const word32 sizeList[] = {64, 128, 256, 512, 1024};
+    const word32 distList[] = {1, 1, 1, 1, 1};
+    unsigned int listSz = (unsigned int)(sizeof(sizeList)/
+                                         sizeof(sizeList[0]));
     ...
 
     // load in memory for use with custom bucket sizes
 
-    ret = wc_LoadStaticMemory_ex(&hint, memory, memorySz, flag, 0,
-                                 bucket_sizes, bucket_count);
+    ret = wc_LoadStaticMemory_ex(&hint, listSz, sizeList, distList,
+                                 memory, memorySz, flag, 0);
     if (ret != SSL_SUCCESS) {
         // handle error case
     }
@@ -460,8 +465,9 @@ int wc_LoadStaticMemory(WOLFSSL_HEAP_HINT* hint, unsigned char* buf, unsigned in
     \sa wc_LoadStaticMemory
     \sa wc_UnloadStaticMemory
 */
-int wc_LoadStaticMemory_ex(WOLFSSL_HEAP_HINT* hint, unsigned char* buf, unsigned int sz,
-                int flag, int max, word16* bucket_sizes, int bucket_count);
+int wc_LoadStaticMemory_ex(WOLFSSL_HEAP_HINT** pHint, unsigned int listSz,
+                const word32 *sizeList, const word32 *distList,
+                unsigned char* buf, unsigned int sz, int flag, int max);
 
 /*!
     \ingroup Memory
@@ -560,7 +566,7 @@ WOLFSSL_HEAP_HINT* wolfSSL_GetGlobalHeapHint(void);
 
     \sa none
 */
-int wolfSSL_SetDebugMemoryCb(wolfSSL_DebugMemoryCb cb);
+void wolfSSL_SetDebugMemoryCb(DebugMemoryCb cb);
 
 /*!
     \ingroup Memory
@@ -591,16 +597,13 @@ int wolfSSL_SetDebugMemoryCb(wolfSSL_DebugMemoryCb cb);
     ...
 
     // cleanup when done
-    ret = wc_UnloadStaticMemory(&hint);
-    if (ret != 0) {
-        // handle error case
-    }
+    wc_UnloadStaticMemory(&hint);
     \endcode
 
     \sa wc_LoadStaticMemory
     \sa wc_LoadStaticMemory_ex
 */
-int wc_UnloadStaticMemory(WOLFSSL_HEAP_HINT* hint);
+void wc_UnloadStaticMemory(WOLFSSL_HEAP_HINT* heap);
 
 /*!
     \ingroup Memory
@@ -636,4 +639,3 @@ int wc_UnloadStaticMemory(WOLFSSL_HEAP_HINT* hint);
 int wolfSSL_StaticBufferSz_ex(unsigned int listSz,
             const word32 *sizeList, const word32 *distList,
             byte* buffer, word32 sz, int flag);
-
