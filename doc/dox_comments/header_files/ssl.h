@@ -33851,3 +33851,516 @@ void wolfSSL_set_verify_depth(WOLFSSL *ssl, int depth);
     \sa wolfSSL_get_app_data
 */
 int wolfSSL_set_app_data(WOLFSSL *ssl, void *arg);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets object from name entry.
+
+    \return WOLFSSL_ASN1_OBJECT* Object
+    \return NULL on failure
+
+    \param ne Name entry
+
+    _Example_
+    \code
+    WOLFSSL_ASN1_OBJECT* obj = wolfSSL_X509_NAME_ENTRY_get_object(entry);
+    \endcode
+
+    \sa wolfSSL_X509_NAME_ENTRY_get_data
+*/
+WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
+                                        WOLFSSL_X509_NAME_ENTRY *ne);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Checks if private key matches certificate.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param x509 X509 certificate
+    \param pkey EVP_PKEY
+
+    _Example_
+    \code
+    int ret = wolfSSL_X509_check_private_key(x509, pkey);
+    \endcode
+
+    \sa wolfSSL_CTX_use_PrivateKey
+*/
+int wolfSSL_X509_check_private_key(WOLFSSL_X509* x509,
+                                    WOLFSSL_EVP_PKEY* pkey);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Checks if certificate is CA.
+
+    \return 1 if CA
+    \return 0 if not CA
+
+    \param x509 X509 certificate
+
+    _Example_
+    \code
+    int ret = wolfSSL_X509_check_ca(x509);
+    \endcode
+
+    \sa wolfSSL_X509_check_private_key
+*/
+int wolfSSL_X509_check_ca(WOLFSSL_X509 *x509);
+
+/*!
+    \ingroup IO
+
+    \brief Creates new BIO from file.
+
+    \return WOLFSSL_BIO* BIO object
+    \return NULL on failure
+
+    \param filename Filename
+    \param mode File mode
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new_file("cert.pem", "r");
+    \endcode
+
+    \sa wolfSSL_BIO_new_fp
+*/
+WOLFSSL_BIO* wolfSSL_BIO_new_file(const char *filename, const char *mode);
+
+/*!
+    \ingroup IO
+
+    \brief Creates new BIO from file pointer.
+
+    \return WOLFSSL_BIO* BIO object
+    \return NULL on failure
+
+    \param fp File pointer
+    \param c Close flag
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new_fp(fp, BIO_NOCLOSE);
+    \endcode
+
+    \sa wolfSSL_BIO_new_file
+*/
+WOLFSSL_BIO* wolfSSL_BIO_new_fp(XFILE fp, int c);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Writes X509 request to BIO in PEM format.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param bp BIO object
+    \param x X509 request
+
+    _Example_
+    \code
+    int ret = wolfSSL_PEM_write_bio_X509_REQ(bio, req);
+    \endcode
+
+    \sa wolfSSL_PEM_write_bio_X509
+*/
+int wolfSSL_PEM_write_bio_X509_REQ(WOLFSSL_BIO *bp, WOLFSSL_X509 *x);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Writes X509 to BIO in PEM format with auxiliary.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param bp BIO object
+    \param x X509 certificate
+
+    _Example_
+    \code
+    int ret = wolfSSL_PEM_write_bio_X509_AUX(bio, x509);
+    \endcode
+
+    \sa wolfSSL_PEM_write_bio_X509
+*/
+int wolfSSL_PEM_write_bio_X509_AUX(WOLFSSL_BIO *bp, WOLFSSL_X509 *x);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Writes X509 to BIO in PEM format.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param bp BIO object
+    \param x X509 certificate
+
+    _Example_
+    \code
+    int ret = wolfSSL_PEM_write_bio_X509(bio, x509);
+    \endcode
+
+    \sa wolfSSL_PEM_read_bio_X509
+*/
+int wolfSSL_PEM_write_bio_X509(WOLFSSL_BIO *bp, WOLFSSL_X509 *x);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Converts X509 request to DER format.
+
+    \return int Length written
+    \return negative on failure
+
+    \param req X509 request
+    \param out Output buffer pointer
+
+    _Example_
+    \code
+    unsigned char* out = NULL;
+    int len = wolfSSL_i2d_X509_REQ(req, &out);
+    \endcode
+
+    \sa wolfSSL_d2i_X509_REQ
+*/
+int wolfSSL_i2d_X509_REQ(WOLFSSL_X509* req, unsigned char** out);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Creates new X509 request.
+
+    \return WOLFSSL_X509* Request
+    \return NULL on failure
+
+    _Example_
+    \code
+    WOLFSSL_X509* req = wolfSSL_X509_REQ_new();
+    \endcode
+
+    \sa wolfSSL_X509_REQ_free
+*/
+WOLFSSL_X509* wolfSSL_X509_REQ_new(void);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Frees X509 request.
+
+    \return none
+
+    \param req X509 request
+
+    _Example_
+    \code
+    wolfSSL_X509_REQ_free(req);
+    \endcode
+
+    \sa wolfSSL_X509_REQ_new
+*/
+void wolfSSL_X509_REQ_free(WOLFSSL_X509* req);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets X509 request version.
+
+    \return long Version number
+
+    \param req X509 request
+
+    _Example_
+    \code
+    long version = wolfSSL_X509_REQ_get_version(req);
+    \endcode
+
+    \sa wolfSSL_X509_REQ_set_version
+*/
+long wolfSSL_X509_REQ_get_version(const WOLFSSL_X509 *req);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets X509 request version.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param x X509 request
+    \param version Version number
+
+    _Example_
+    \code
+    int ret = wolfSSL_X509_REQ_set_version(req, 0);
+    \endcode
+
+    \sa wolfSSL_X509_REQ_get_version
+*/
+int wolfSSL_X509_REQ_set_version(WOLFSSL_X509 *x, long version);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Signs X509 request.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param req X509 request
+    \param pkey EVP_PKEY
+    \param md EVP_MD
+
+    _Example_
+    \code
+    int ret = wolfSSL_X509_REQ_sign(req, pkey, wolfSSL_EVP_sha256());
+    \endcode
+
+    \sa wolfSSL_X509_REQ_sign_ctx
+*/
+int wolfSSL_X509_REQ_sign(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey,
+                           const WOLFSSL_EVP_MD *md);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Signs X509 request with context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param req X509 request
+    \param md_ctx EVP_MD_CTX
+
+    _Example_
+    \code
+    int ret = wolfSSL_X509_REQ_sign_ctx(req, md_ctx);
+    \endcode
+
+    \sa wolfSSL_X509_REQ_sign
+*/
+int wolfSSL_X509_REQ_sign_ctx(WOLFSSL_X509 *req,
+                               WOLFSSL_EVP_MD_CTX* md_ctx);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets subject name in X509 request.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param req X509 request
+    \param name X509 name
+
+    _Example_
+    \code
+    int ret = wolfSSL_X509_REQ_set_subject_name(req, name);
+    \endcode
+
+    \sa wolfSSL_X509_REQ_get_subject_name
+*/
+int wolfSSL_X509_REQ_set_subject_name(WOLFSSL_X509 *req,
+                                       WOLFSSL_X509_NAME *name);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets public key in X509 request.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param req X509 request
+    \param pkey EVP_PKEY
+
+    _Example_
+    \code
+    int ret = wolfSSL_X509_REQ_set_pubkey(req, pkey);
+    \endcode
+
+    \sa wolfSSL_X509_REQ_get_pubkey
+*/
+int wolfSSL_X509_REQ_set_pubkey(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Adds attribute to X509 request by NID.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param req X509 request
+    \param nid NID
+    \param type Value type
+    \param bytes Value bytes
+    \param len Value length
+
+    _Example_
+    \code
+    int ret = wolfSSL_X509_REQ_add1_attr_by_NID(req, NID_pkcs9_emailAddress,
+                                                  MBSTRING_UTF8,
+                                                  (unsigned char*)"test@test.com",
+                                                  13);
+    \endcode
+
+    \sa wolfSSL_X509_REQ_add1_attr_by_txt
+*/
+int wolfSSL_X509_REQ_add1_attr_by_NID(WOLFSSL_X509 *req, int nid, int type,
+                                       const unsigned char *bytes, int len);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Adds attribute to X509 request by text.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param req X509 request
+    \param attrname Attribute name
+    \param type Value type
+    \param bytes Value bytes
+    \param len Value length
+
+    _Example_
+    \code
+    int ret = wolfSSL_X509_REQ_add1_attr_by_txt(req, "emailAddress",
+                                                  MBSTRING_UTF8,
+                                                  (unsigned char*)"test@test.com",
+                                                  13);
+    \endcode
+
+    \sa wolfSSL_X509_REQ_add1_attr_by_NID
+*/
+int wolfSSL_X509_REQ_add1_attr_by_txt(WOLFSSL_X509 *req,
+                                       const char *attrname, int type,
+                                       const unsigned char *bytes, int len);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets attribute count from X509 request.
+
+    \return int Attribute count
+
+    \param req X509 request
+
+    _Example_
+    \code
+    int count = wolfSSL_X509_REQ_get_attr_count(req);
+    \endcode
+
+    \sa wolfSSL_X509_REQ_get_attr_by_NID
+*/
+int wolfSSL_X509_REQ_get_attr_count(const WOLFSSL_X509 *req);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets attribute by NID from X509 request.
+
+    \return int Attribute index
+    \return -1 if not found
+
+    \param req X509 request
+    \param nid NID
+    \param lastpos Last position
+
+    _Example_
+    \code
+    int idx = wolfSSL_X509_REQ_get_attr_by_NID(req, NID_pkcs9_emailAddress,
+                                                 -1);
+    \endcode
+
+    \sa wolfSSL_X509_REQ_get_attr_count
+*/
+int wolfSSL_X509_REQ_get_attr_by_NID(const WOLFSSL_X509 *req, int nid,
+                                      int lastpos);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Creates new X509 attribute.
+
+    \return WOLFSSL_X509_ATTRIBUTE* Attribute
+    \return NULL on failure
+
+    _Example_
+    \code
+    WOLFSSL_X509_ATTRIBUTE* attr = wolfSSL_X509_ATTRIBUTE_new();
+    \endcode
+
+    \sa wolfSSL_X509_ATTRIBUTE_free
+*/
+WOLFSSL_X509_ATTRIBUTE* wolfSSL_X509_ATTRIBUTE_new(void);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Frees X509 attribute.
+
+    \return none
+
+    \param attr Attribute
+
+    _Example_
+    \code
+    wolfSSL_X509_ATTRIBUTE_free(attr);
+    \endcode
+
+    \sa wolfSSL_X509_ATTRIBUTE_new
+*/
+void wolfSSL_X509_ATTRIBUTE_free(WOLFSSL_X509_ATTRIBUTE* attr);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets memory functions.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param m Malloc callback
+    \param r Realloc callback
+    \param f Free callback
+
+    _Example_
+    \code
+    int ret = wolfSSL_CRYPTO_set_mem_functions(myMalloc, myRealloc, myFree);
+    \endcode
+
+    \sa wolfSSL_SetAllocators
+*/
+int wolfSSL_CRYPTO_set_mem_functions(wolfSSL_OSSL_Malloc_cb  m,
+                                      wolfSSL_OSSL_Realloc_cb r,
+                                      wolfSSL_OSSL_Free_cb    f);
+
+/*!
+    \ingroup Setup
+
+    \brief Constant time memory comparison.
+
+    \return 0 if equal
+    \return non-zero if different
+
+    \param a First buffer
+    \param b Second buffer
+    \param size Size
+
+    _Example_
+    \code
+    int ret = wolfSSL_CRYPTO_memcmp(buf1, buf2, 32);
+    \endcode
+
+    \sa ConstantCompare
+*/
+int wolfSSL_CRYPTO_memcmp(const void *a, const void *b, size_t size);
