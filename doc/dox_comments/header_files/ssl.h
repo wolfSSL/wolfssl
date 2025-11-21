@@ -27815,3 +27815,438 @@ void wolfSSL_X509_CRL_free(WOLFSSL_X509_CRL *crl);
     \sa wolfSSL_X509_new_ex
 */
 WOLFSSL_X509_ACERT * wolfSSL_X509_ACERT_new_ex(void * heap);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Creates new X509 attribute certificate.
+
+    \return WOLFSSL_X509_ACERT* New attribute certificate
+    \return NULL on failure
+
+    _Example_
+    \code
+    WOLFSSL_X509_ACERT* acert = wolfSSL_X509_ACERT_new();
+    \endcode
+
+    \sa wolfSSL_X509_ACERT_free
+*/
+WOLFSSL_X509_ACERT * wolfSSL_X509_ACERT_new(void);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Initializes X509 attribute certificate.
+
+    \return none
+
+    \param x509 Attribute certificate to initialize
+    \param dynamic Dynamic allocation flag
+    \param heap Heap hint
+
+    _Example_
+    \code
+    WOLFSSL_X509_ACERT acert;
+    wolfSSL_X509_ACERT_init(&acert, 0, NULL);
+    \endcode
+
+    \sa wolfSSL_X509_ACERT_new
+*/
+void wolfSSL_X509_ACERT_init(WOLFSSL_X509_ACERT * x509, int dynamic,
+                              void * heap);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Frees X509 attribute certificate.
+
+    \return none
+
+    \param x509 Attribute certificate to free
+
+    _Example_
+    \code
+    wolfSSL_X509_ACERT_free(acert);
+    \endcode
+
+    \sa wolfSSL_X509_ACERT_new
+*/
+void wolfSSL_X509_ACERT_free(WOLFSSL_X509_ACERT* x509);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Signs X509 attribute certificate.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param x509 Attribute certificate to sign
+    \param pkey Private key
+    \param md Message digest
+
+    _Example_
+    \code
+    int ret = wolfSSL_X509_ACERT_sign(acert, pkey, md);
+    \endcode
+
+    \sa wolfSSL_X509_ACERT_verify
+*/
+int wolfSSL_X509_ACERT_sign(WOLFSSL_X509_ACERT * x509,
+                             WOLFSSL_EVP_PKEY * pkey,
+                             const WOLFSSL_EVP_MD * md);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Verifies X509 attribute certificate signature.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param x509 Attribute certificate to verify
+    \param pkey Public key
+
+    _Example_
+    \code
+    int ret = wolfSSL_X509_ACERT_verify(acert, pkey);
+    \endcode
+
+    \sa wolfSSL_X509_ACERT_sign
+*/
+int wolfSSL_X509_ACERT_verify(WOLFSSL_X509_ACERT* x509,
+                               WOLFSSL_EVP_PKEY* pkey);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets signature NID from attribute certificate.
+
+    \return int Signature NID
+    \return negative on error
+
+    \param x Attribute certificate
+
+    _Example_
+    \code
+    int nid = wolfSSL_X509_ACERT_get_signature_nid(acert);
+    \endcode
+
+    \sa wolfSSL_X509_ACERT_get_signature
+*/
+int wolfSSL_X509_ACERT_get_signature_nid(const WOLFSSL_X509_ACERT* x);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Prints attribute certificate to BIO.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param bio BIO to write to
+    \param x509_acert Attribute certificate to print
+
+    _Example_
+    \code
+    int ret = wolfSSL_X509_ACERT_print(bio, acert);
+    \endcode
+
+    \sa wolfSSL_X509_ACERT_get_version
+*/
+int wolfSSL_X509_ACERT_print(WOLFSSL_BIO* bio,
+                              WOLFSSL_X509_ACERT* x509_acert);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Reads attribute certificate from BIO.
+
+    \return WOLFSSL_X509_ACERT* Attribute certificate
+    \return NULL on failure
+
+    \param bp BIO to read from
+    \param x Pointer to attribute certificate pointer
+    \param cb Password callback
+    \param u User data
+
+    _Example_
+    \code
+    WOLFSSL_X509_ACERT* acert = wolfSSL_PEM_read_bio_X509_ACERT(bio,
+                                                                  NULL,
+                                                                  NULL,
+                                                                  NULL);
+    \endcode
+
+    \sa wolfSSL_X509_ACERT_print
+*/
+WOLFSSL_X509_ACERT * wolfSSL_PEM_read_bio_X509_ACERT(WOLFSSL_BIO *bp,
+                                                      WOLFSSL_X509_ACERT **x,
+                                                      wc_pem_password_cb *cb,
+                                                      void *u);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets version from attribute certificate.
+
+    \return long Version number
+
+    \param x Attribute certificate
+
+    _Example_
+    \code
+    long version = wolfSSL_X509_ACERT_get_version(acert);
+    \endcode
+
+    \sa wolfSSL_X509_ACERT_version
+*/
+long wolfSSL_X509_ACERT_get_version(const WOLFSSL_X509_ACERT *x);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets attribute buffer from attribute certificate.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param x509 Attribute certificate
+    \param rawAttr Pointer to store attribute buffer
+    \param rawAttrLen Pointer to store attribute length
+
+    _Example_
+    \code
+    const byte* attr;
+    word32 attrLen;
+    int ret = wolfSSL_X509_ACERT_get_attr_buf(acert, &attr, &attrLen);
+    \endcode
+
+    \sa wolfSSL_X509_ACERT_get_serial_number
+*/
+int wolfSSL_X509_ACERT_get_attr_buf(const WOLFSSL_X509_ACERT* x509,
+                                     const byte ** rawAttr,
+                                     word32 * rawAttrLen);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets serial number from attribute certificate.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param x509 Attribute certificate
+    \param in Buffer for serial number
+    \param inOutSz Pointer to buffer size
+
+    _Example_
+    \code
+    unsigned char buf[32];
+    int sz = sizeof(buf);
+    int ret = wolfSSL_X509_ACERT_get_serial_number(acert, buf, &sz);
+    \endcode
+
+    \sa wolfSSL_X509_ACERT_version
+*/
+int wolfSSL_X509_ACERT_get_serial_number(WOLFSSL_X509_ACERT* x509,
+                                          unsigned char* in, int * inOutSz);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets version from attribute certificate.
+
+    \return int Version number
+    \return negative on error
+
+    \param x509 Attribute certificate
+
+    _Example_
+    \code
+    int version = wolfSSL_X509_ACERT_version(acert);
+    \endcode
+
+    \sa wolfSSL_X509_ACERT_get_version
+*/
+int wolfSSL_X509_ACERT_version(WOLFSSL_X509_ACERT* x509);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets signature from attribute certificate.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param x509 Attribute certificate
+    \param buf Buffer for signature
+    \param bufSz Pointer to buffer size
+
+    _Example_
+    \code
+    unsigned char buf[512];
+    int bufSz = sizeof(buf);
+    int ret = wolfSSL_X509_ACERT_get_signature(acert, buf, &bufSz);
+    \endcode
+
+    \sa wolfSSL_X509_ACERT_get_signature_nid
+*/
+int wolfSSL_X509_ACERT_get_signature(WOLFSSL_X509_ACERT* x509,
+                                      unsigned char* buf, int* bufSz);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Loads attribute certificate from buffer with heap.
+
+    \return WOLFSSL_X509_ACERT* Loaded attribute certificate
+    \return NULL on failure
+
+    \param buf Certificate buffer
+    \param sz Buffer size
+    \param format Buffer format
+    \param heap Heap hint
+
+    _Example_
+    \code
+    WOLFSSL_X509_ACERT* acert =
+        wolfSSL_X509_ACERT_load_certificate_buffer_ex(buf, sz,
+                                                       SSL_FILETYPE_PEM,
+                                                       NULL);
+    \endcode
+
+    \sa wolfSSL_X509_ACERT_load_certificate_buffer
+*/
+WOLFSSL_X509_ACERT * wolfSSL_X509_ACERT_load_certificate_buffer_ex(
+                                                  const unsigned char* buf,
+                                                  int sz, int format,
+                                                  void * heap);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Loads attribute certificate from buffer.
+
+    \return WOLFSSL_X509_ACERT* Loaded attribute certificate
+    \return NULL on failure
+
+    \param buf Certificate buffer
+    \param sz Buffer size
+    \param format Buffer format
+
+    _Example_
+    \code
+    WOLFSSL_X509_ACERT* acert =
+        wolfSSL_X509_ACERT_load_certificate_buffer(buf, sz,
+                                                    SSL_FILETYPE_PEM);
+    \endcode
+
+    \sa wolfSSL_X509_ACERT_load_certificate_buffer_ex
+*/
+WOLFSSL_X509_ACERT * wolfSSL_X509_ACERT_load_certificate_buffer(
+                                                  const unsigned char* buf,
+                                                  int sz, int format);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets serial number from revoked certificate.
+
+    \return const WOLFSSL_ASN1_INTEGER* Serial number
+    \return NULL if not available
+
+    \param rev Revoked certificate
+
+    _Example_
+    \code
+    const WOLFSSL_ASN1_INTEGER* serial =
+        wolfSSL_X509_REVOKED_get0_serial_number(rev);
+    \endcode
+
+    \sa wolfSSL_X509_REVOKED_get0_revocation_date
+*/
+const WOLFSSL_ASN1_INTEGER* wolfSSL_X509_REVOKED_get0_serial_number(
+                                                const WOLFSSL_X509_REVOKED *rev);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets revocation date from revoked certificate.
+
+    \return const WOLFSSL_ASN1_TIME* Revocation date
+    \return NULL if not available
+
+    \param rev Revoked certificate
+
+    _Example_
+    \code
+    const WOLFSSL_ASN1_TIME* date =
+        wolfSSL_X509_REVOKED_get0_revocation_date(rev);
+    \endcode
+
+    \sa wolfSSL_X509_REVOKED_get0_serial_number
+*/
+const WOLFSSL_ASN1_TIME* wolfSSL_X509_REVOKED_get0_revocation_date(
+                                                const WOLFSSL_X509_REVOKED *rev);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Decodes X509 certificate from file.
+
+    \return WOLFSSL_X509* Decoded certificate
+    \return NULL on failure
+
+    \param x509 Pointer to certificate pointer
+    \param file File to read from
+
+    _Example_
+    \code
+    XFILE fp = XFOPEN("cert.der", "rb");
+    WOLFSSL_X509* cert = wolfSSL_X509_d2i_fp(NULL, fp);
+    XFCLOSE(fp);
+    \endcode
+
+    \sa wolfSSL_X509_d2i
+*/
+WOLFSSL_X509* wolfSSL_X509_d2i_fp(WOLFSSL_X509** x509, XFILE file);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Adds PKCS12 PBE algorithms.
+
+    \return none
+
+    _Example_
+    \code
+    wolfSSL_PKCS12_PBE_add();
+    \endcode
+
+    \sa wolfSSL_d2i_PKCS12_fp
+*/
+void wolfSSL_PKCS12_PBE_add(void);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Decodes PKCS12 from file.
+
+    \return WOLFSSL_X509_PKCS12* Decoded PKCS12
+    \return NULL on failure
+
+    \param fp File to read from
+    \param pkcs12 Pointer to PKCS12 pointer
+
+    _Example_
+    \code
+    XFILE fp = XFOPEN("cert.p12", "rb");
+    WOLFSSL_X509_PKCS12* p12 = wolfSSL_d2i_PKCS12_fp(fp, NULL);
+    XFCLOSE(fp);
+    \endcode
+
+    \sa wolfSSL_PKCS12_parse
+*/
+WOLFSSL_X509_PKCS12* wolfSSL_d2i_PKCS12_fp(XFILE fp,
+                                            WOLFSSL_X509_PKCS12** pkcs12);
