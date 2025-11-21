@@ -16926,3 +16926,482 @@ int wolfSSL_CTX_set_post_handshake_auth(WOLFSSL_CTX* ctx, int val);
     \sa wolfSSL_verify_client_post_handshake
 */
 int wolfSSL_set_post_handshake_auth(WOLFSSL* ssl, int val);
+
+/*!
+    \ingroup DTLS
+
+    \brief Gets the current DTLS timeout value.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl WOLFSSL object for DTLS connection
+    \param timeleft Pointer to store timeout value
+
+    _Example_
+    \code
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    WOLFSSL_TIMEVAL timeout;
+    int ret = wolfSSL_DTLSv1_get_timeout(ssl, &timeout);
+    if (ret == WOLFSSL_SUCCESS) {
+        // use timeout value
+    }
+    \endcode
+
+    \sa wolfSSL_DTLSv1_set_initial_timeout_duration
+    \sa wolfSSL_DTLSv1_handle_timeout
+*/
+int wolfSSL_DTLSv1_get_timeout(WOLFSSL* ssl, WOLFSSL_TIMEVAL* timeleft);
+
+/*!
+    \ingroup DTLS
+
+    \brief Sets the initial DTLS timeout duration.
+
+    \return none
+
+    \param ssl WOLFSSL object for DTLS connection
+    \param duration_ms Timeout duration in milliseconds
+
+    _Example_
+    \code
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    wolfSSL_DTLSv1_set_initial_timeout_duration(ssl, 1000);
+    \endcode
+
+    \sa wolfSSL_DTLSv1_get_timeout
+    \sa wolfSSL_DTLSv1_handle_timeout
+*/
+void wolfSSL_DTLSv1_set_initial_timeout_duration(WOLFSSL* ssl,
+                                                   word32 duration_ms);
+
+/*!
+    \ingroup DTLS
+
+    \brief Handles DTLS timeout and retransmits if needed.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl WOLFSSL object for DTLS connection
+
+    _Example_
+    \code
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    int ret = wolfSSL_DTLSv1_handle_timeout(ssl);
+    if (ret != WOLFSSL_SUCCESS) {
+        // timeout handling failed
+    }
+    \endcode
+
+    \sa wolfSSL_DTLSv1_get_timeout
+    \sa wolfSSL_DTLSv1_set_initial_timeout_duration
+*/
+int wolfSSL_DTLSv1_handle_timeout(WOLFSSL* ssl);
+
+/*!
+    \ingroup DTLS
+
+    \brief Creates a peer address structure for DTLS.
+
+    \return void* Pointer to peer address structure
+    \return NULL on failure
+
+    \param port Port number
+    \param ip IP address string
+
+    _Example_
+    \code
+    void* peer = wolfSSL_dtls_create_peer(11111, "192.168.1.1");
+    if (peer != NULL) {
+        // use peer address
+        wolfSSL_dtls_free_peer(peer);
+    }
+    \endcode
+
+    \sa wolfSSL_dtls_free_peer
+    \sa wolfSSL_dtls_set_peer
+*/
+void* wolfSSL_dtls_create_peer(int port, char* ip);
+
+/*!
+    \ingroup DTLS
+
+    \brief Frees a peer address structure.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param addr Peer address structure to free
+
+    _Example_
+    \code
+    void* peer = wolfSSL_dtls_create_peer(11111, "192.168.1.1");
+    int ret = wolfSSL_dtls_free_peer(peer);
+    \endcode
+
+    \sa wolfSSL_dtls_create_peer
+*/
+int wolfSSL_dtls_free_peer(void* addr);
+
+/*!
+    \ingroup DTLS
+
+    \brief Checks if connection is stateful.
+
+    \return 1 if stateful
+    \return 0 if stateless
+
+    \param ssl WOLFSSL object to check
+
+    _Example_
+    \code
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    if (wolfSSL_is_stateful(ssl)) {
+        // connection is stateful
+    }
+    \endcode
+
+    \sa wolfSSL_dtls_set_peer
+*/
+byte wolfSSL_is_stateful(WOLFSSL* ssl);
+
+/*!
+    \ingroup DTLS
+
+    \brief Enables SCTP mode for DTLS context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx WOLFSSL_CTX object to configure
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    int ret = wolfSSL_CTX_dtls_set_sctp(ctx);
+    if (ret != WOLFSSL_SUCCESS) {
+        // failed to enable SCTP
+    }
+    \endcode
+
+    \sa wolfSSL_dtls_set_sctp
+*/
+int wolfSSL_CTX_dtls_set_sctp(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup DTLS
+
+    \brief Enables SCTP mode for DTLS session.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl WOLFSSL object to configure
+
+    _Example_
+    \code
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    int ret = wolfSSL_dtls_set_sctp(ssl);
+    if (ret != WOLFSSL_SUCCESS) {
+        // failed to enable SCTP
+    }
+    \endcode
+
+    \sa wolfSSL_CTX_dtls_set_sctp
+*/
+int wolfSSL_dtls_set_sctp(WOLFSSL* ssl);
+
+/*!
+    \ingroup DTLS
+
+    \brief Sets MTU size for DTLS context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx WOLFSSL_CTX object to configure
+    \param mtu Maximum transmission unit size
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    int ret = wolfSSL_CTX_dtls_set_mtu(ctx, 1400);
+    if (ret != WOLFSSL_SUCCESS) {
+        // failed to set MTU
+    }
+    \endcode
+
+    \sa wolfSSL_dtls_set_mtu
+*/
+int wolfSSL_CTX_dtls_set_mtu(WOLFSSL_CTX* ctx, unsigned short mtu);
+
+/*!
+    \ingroup DTLS
+
+    \brief Sets MTU size for DTLS session.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl WOLFSSL object to configure
+    \param mtu Maximum transmission unit size
+
+    _Example_
+    \code
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    int ret = wolfSSL_dtls_set_mtu(ssl, 1400);
+    if (ret != WOLFSSL_SUCCESS) {
+        // failed to set MTU
+    }
+    \endcode
+
+    \sa wolfSSL_CTX_dtls_set_mtu
+    \sa wolfSSL_set_mtu_compat
+*/
+int wolfSSL_dtls_set_mtu(WOLFSSL* ssl, unsigned short mtu);
+
+/*!
+    \ingroup DTLS
+
+    \brief Sets MTU size with compatibility mode.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl WOLFSSL object to configure
+    \param mtu Maximum transmission unit size
+
+    _Example_
+    \code
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    int ret = wolfSSL_set_mtu_compat(ssl, 1400);
+    if (ret != WOLFSSL_SUCCESS) {
+        // failed to set MTU
+    }
+    \endcode
+
+    \sa wolfSSL_dtls_set_mtu
+*/
+int wolfSSL_set_mtu_compat(WOLFSSL* ssl, unsigned short mtu);
+
+/*!
+    \ingroup DTLS
+
+    \brief Gets DTLS packet drop statistics.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl WOLFSSL object to query
+    \param macDropCount Pointer to store MAC drop count
+    \param replayDropCount Pointer to store replay drop count
+
+    _Example_
+    \code
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    unsigned int macDrops, replayDrops;
+    int ret = wolfSSL_dtls_get_drop_stats(ssl, &macDrops,
+                                           &replayDrops);
+    if (ret == WOLFSSL_SUCCESS) {
+        printf("MAC drops: %u, Replay drops: %u\n", macDrops,
+               replayDrops);
+    }
+    \endcode
+
+    \sa wolfSSL_dtls_set_mtu
+*/
+int wolfSSL_dtls_get_drop_stats(WOLFSSL* ssl, unsigned int* macDropCount,
+                                  unsigned int* replayDropCount);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets error code from library component.
+
+    \return int Library component code
+
+    \param err Error code
+
+    _Example_
+    \code
+    unsigned long err = wolfSSL_ERR_get_error();
+    int lib = wolfSSL_ERR_GET_LIB(err);
+    \endcode
+
+    \sa wolfSSL_ERR_GET_REASON
+    \sa wolfSSL_ERR_get_error
+*/
+int wolfSSL_ERR_GET_LIB(unsigned long err);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets error reason code.
+
+    \return int Error reason code
+
+    \param err Error code
+
+    _Example_
+    \code
+    unsigned long err = wolfSSL_ERR_get_error();
+    int reason = wolfSSL_ERR_GET_REASON(err);
+    \endcode
+
+    \sa wolfSSL_ERR_GET_LIB
+    \sa wolfSSL_ERR_get_error
+*/
+int wolfSSL_ERR_GET_REASON(unsigned long err);
+
+/*!
+    \ingroup Setup
+
+    \brief Converts error code to string.
+
+    \return char* Error string
+    \return NULL on failure
+
+    \param errNumber Error code
+    \param data Buffer to store error string (can be NULL)
+
+    _Example_
+    \code
+    unsigned long err = wolfSSL_ERR_get_error();
+    char buffer[80];
+    char* errStr = wolfSSL_ERR_error_string(err, buffer);
+    printf("Error: %s\n", errStr);
+    \endcode
+
+    \sa wolfSSL_ERR_reason_error_string
+    \sa wolfSSL_ERR_error_string_n
+*/
+char* wolfSSL_ERR_error_string(unsigned long errNumber, char* data);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets error reason string.
+
+    \return const char* Error reason string
+    \return NULL on failure
+
+    \param e Error code
+
+    _Example_
+    \code
+    unsigned long err = wolfSSL_ERR_get_error();
+    const char* reason = wolfSSL_ERR_reason_error_string(err);
+    printf("Reason: %s\n", reason);
+    \endcode
+
+    \sa wolfSSL_ERR_error_string
+    \sa wolfSSL_ERR_func_error_string
+*/
+const char* wolfSSL_ERR_reason_error_string(unsigned long e);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets error function string.
+
+    \return const char* Error function string
+    \return NULL on failure
+
+    \param e Error code
+
+    _Example_
+    \code
+    unsigned long err = wolfSSL_ERR_get_error();
+    const char* func = wolfSSL_ERR_func_error_string(err);
+    printf("Function: %s\n", func);
+    \endcode
+
+    \sa wolfSSL_ERR_error_string
+    \sa wolfSSL_ERR_reason_error_string
+*/
+const char* wolfSSL_ERR_func_error_string(unsigned long e);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets error library string.
+
+    \return const char* Error library string
+    \return NULL on failure
+
+    \param e Error code
+
+    _Example_
+    \code
+    unsigned long err = wolfSSL_ERR_get_error();
+    const char* lib = wolfSSL_ERR_lib_error_string(err);
+    printf("Library: %s\n", lib);
+    \endcode
+
+    \sa wolfSSL_ERR_error_string
+    \sa wolfSSL_ERR_reason_error_string
+*/
+const char* wolfSSL_ERR_lib_error_string(unsigned long e);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets error from X509 store context.
+
+    \return int Error code
+
+    \param ctx X509 store context
+
+    _Example_
+    \code
+    WOLFSSL_X509_STORE_CTX* ctx;
+    int err = wolfSSL_X509_STORE_CTX_get_error(ctx);
+    printf("Verification error: %d\n", err);
+    \endcode
+
+    \sa wolfSSL_X509_STORE_CTX_get_error_depth
+*/
+int wolfSSL_X509_STORE_CTX_get_error(WOLFSSL_X509_STORE_CTX* ctx);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets error depth from X509 store context.
+
+    \return int Error depth
+
+    \param ctx X509 store context
+
+    _Example_
+    \code
+    WOLFSSL_X509_STORE_CTX* ctx;
+    int depth = wolfSSL_X509_STORE_CTX_get_error_depth(ctx);
+    printf("Error at depth: %d\n", depth);
+    \endcode
+
+    \sa wolfSSL_X509_STORE_CTX_get_error
+*/
+int wolfSSL_X509_STORE_CTX_get_error_depth(WOLFSSL_X509_STORE_CTX* ctx);
+
+/*!
+    \ingroup Setup
+
+    \brief Prints errors to BIO.
+
+    \return none
+
+    \param bio BIO to write errors to
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new(wolfSSL_BIO_s_file());
+    wolfSSL_BIO_set_fp(bio, stderr, BIO_NOCLOSE);
+    wolfSSL_ERR_print_errors(bio);
+    wolfSSL_BIO_free(bio);
+    \endcode
+
+    \sa wolfSSL_ERR_print_errors_cb
+    \sa wolfSSL_ERR_error_string
+*/
+void wolfSSL_ERR_print_errors(WOLFSSL_BIO* bio);
