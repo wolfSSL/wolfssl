@@ -31,17 +31,19 @@ Usage() {
     cat <<usageText
 Usage: $0 [flavor] [keep] [nomakecheck] [nodoconfigure] [noautogen]
 Flavor is one of:
-    linuxv2 (FIPSv2, use for Win10)
-    fipsv2-OE-ready (ready FIPSv2)
+    linuxv2             (FIPSv2, use for Win10)
+    fipsv2-OE-ready     (ready FIPSv2)
     solaris
     netbsd-selftest
     marvell-linux-selftest
-    linuxv5 (current FIPS 140-3)
-    fips-ready (ready FIPS 140-3)
-    fips-dev (dev FIPS 140-3)
+    linuxv5             (current FIPS 140-3 [v5.2.1])
+    linuxv5-RC12        (current FIPS 140-3 [v5.2.0.1])
+    fips-ready          (ready FIPS 140-3)
+    fips-dev            (dev FIPS 140-3)
     wolfrand
     wolfentropy
-    v6.0.0
+    v6.0.0              (pending FIPS 140-3 [v6.0.0])
+
 keep: (default off) retains the temp dir $TEST_DIR for inspection.
 nomakecheck: (default off) don't run make check
 nodoconfigure: (default off) don't run configure
@@ -670,10 +672,12 @@ if [ "$DOCONFIGURE" = "yes" ]; then
     fi
 
     if [ -s wolfcrypt/src/fips_test.c ]; then
-        NEWHASH=$(./wolfcrypt/test/testwolfcrypt | sed -n 's/hash = \(.*\)/\1/p')
+        OUT=$(./wolfcrypt/test/testwolfcrypt | sed -n 's/hash = \(.*\)/\1/p')
+        NEWHASH="${OUT:0:64}"
         if [ -n "$NEWHASH" ]; then
             cp wolfcrypt/src/fips_test.c wolfcrypt/src/fips_test.c.bak
-            sed "s/^\".*\";/\"${NEWHASH}\";/" wolfcrypt/src/fips_test.c.bak >wolfcrypt/src/fips_test.c
+            sed "s/^\".*\";/\"${NEWHASH}\";/" wolfcrypt/src/fips_test.c.bak > \
+                                                    wolfcrypt/src/fips_test.c
             make clean
         fi
     fi
