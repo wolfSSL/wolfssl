@@ -20735,3 +20735,597 @@ int wolfSSL_X509_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
     \sa wolfSSL_X509_print
 */
 int wolfSSL_X509_print_fp(XFILE fp, WOLFSSL_X509* x509);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Prints X509 signature to BIO.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param bp BIO to write to
+    \param sigalg Signature algorithm
+    \param sig Signature data
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
+    const WOLFSSL_X509_ALGOR* alg = NULL;
+    const WOLFSSL_ASN1_BIT_STRING* sig = NULL;
+    wolfSSL_X509_get0_signature(&sig, &alg, x509);
+    int ret = wolfSSL_X509_signature_print(bio, alg, sig);
+    \endcode
+
+    \sa wolfSSL_X509_get0_signature
+*/
+int wolfSSL_X509_signature_print(WOLFSSL_BIO* bp,
+    const WOLFSSL_X509_ALGOR* sigalg, const WOLFSSL_ASN1_STRING* sig);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets signature from X509 certificate.
+
+    \return none
+
+    \param psig Pointer to store signature
+    \param palg Pointer to store algorithm
+    \param x509 Certificate to get signature from
+
+    _Example_
+    \code
+    const WOLFSSL_ASN1_BIT_STRING* sig = NULL;
+    const WOLFSSL_X509_ALGOR* alg = NULL;
+    wolfSSL_X509_get0_signature(&sig, &alg, x509);
+    \endcode
+
+    \sa wolfSSL_X509_signature_print
+*/
+void wolfSSL_X509_get0_signature(const WOLFSSL_ASN1_BIT_STRING** psig,
+    const WOLFSSL_X509_ALGOR** palg, const WOLFSSL_X509* x509);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Prints X509 certificate to BIO.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param bio BIO to write to
+    \param x509 Certificate to print
+
+    _Example_
+    \code
+    WOLFSSL_X509* x509 = wolfSSL_X509_load_certificate_file(file,
+                                                              format);
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
+    int ret = wolfSSL_X509_print(bio, x509);
+    \endcode
+
+    \sa wolfSSL_X509_print_fp
+*/
+int wolfSSL_X509_print(WOLFSSL_BIO* bio, WOLFSSL_X509* x509);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Prints X509 request to BIO.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param bio BIO to write to
+    \param x509 Request to print
+
+    _Example_
+    \code
+    WOLFSSL_X509* req = wolfSSL_X509_REQ_new();
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
+    int ret = wolfSSL_X509_REQ_print(bio, req);
+    \endcode
+
+    \sa wolfSSL_X509_print
+*/
+int wolfSSL_X509_REQ_print(WOLFSSL_BIO* bio, WOLFSSL_X509* x509);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Computes hash of X509_NAME.
+
+    \return unsigned long Hash value
+
+    \param name X509_NAME to hash
+
+    _Example_
+    \code
+    WOLFSSL_X509_NAME* name = wolfSSL_X509_get_subject_name(x509);
+    unsigned long hash = wolfSSL_X509_NAME_hash(name);
+    printf("Name hash: %lu\n", hash);
+    \endcode
+
+    \sa wolfSSL_X509_issuer_name_hash
+*/
+unsigned long wolfSSL_X509_NAME_hash(WOLFSSL_X509_NAME* name);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets X509_NAME as one-line string.
+
+    \return char* Pointer to name string
+    \return NULL on failure
+
+    \param name X509_NAME to convert
+    \param in Buffer to store string (NULL to allocate)
+    \param sz Size of buffer
+
+    _Example_
+    \code
+    WOLFSSL_X509_NAME* name = wolfSSL_X509_get_subject_name(x509);
+    char* str = wolfSSL_X509_get_name_oneline(name, NULL, 0);
+    if (str != NULL) {
+        printf("Name: %s\n", str);
+        XFREE(str, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+    \endcode
+
+    \sa wolfSSL_X509_NAME_oneline
+*/
+char* wolfSSL_X509_get_name_oneline(WOLFSSL_X509_NAME* name, char* in,
+                                      int sz);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Computes hash of issuer name.
+
+    \return unsigned long Hash value
+
+    \param x509 Certificate to get issuer from
+
+    _Example_
+    \code
+    WOLFSSL_X509* x509 = wolfSSL_X509_load_certificate_file(file,
+                                                              format);
+    unsigned long hash = wolfSSL_X509_issuer_name_hash(x509);
+    printf("Issuer hash: %lu\n", hash);
+    \endcode
+
+    \sa wolfSSL_X509_subject_name_hash
+*/
+unsigned long wolfSSL_X509_issuer_name_hash(const WOLFSSL_X509* x509);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Computes hash of subject name.
+
+    \return unsigned long Hash value
+
+    \param x509 Certificate to get subject from
+
+    _Example_
+    \code
+    WOLFSSL_X509* x509 = wolfSSL_X509_load_certificate_file(file,
+                                                              format);
+    unsigned long hash = wolfSSL_X509_subject_name_hash(x509);
+    printf("Subject hash: %lu\n", hash);
+    \endcode
+
+    \sa wolfSSL_X509_issuer_name_hash
+*/
+unsigned long wolfSSL_X509_subject_name_hash(const WOLFSSL_X509* x509);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Checks if extension is set by NID.
+
+    \return 1 if extension is set
+    \return 0 if extension is not set
+
+    \param x509 Certificate to check
+    \param nid NID of extension
+
+    _Example_
+    \code
+    WOLFSSL_X509* x509 = wolfSSL_X509_load_certificate_file(file,
+                                                              format);
+    if (wolfSSL_X509_ext_isSet_by_NID(x509, NID_basic_constraints)) {
+        printf("Basic constraints extension is set\n");
+    }
+    \endcode
+
+    \sa wolfSSL_X509_ext_get_critical_by_NID
+*/
+int wolfSSL_X509_ext_isSet_by_NID(WOLFSSL_X509* x509, int nid);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets critical flag for extension by NID.
+
+    \return 1 if extension is critical
+    \return 0 if extension is not critical
+    \return negative value on error
+
+    \param x509 Certificate to check
+    \param nid NID of extension
+
+    _Example_
+    \code
+    WOLFSSL_X509* x509 = wolfSSL_X509_load_certificate_file(file,
+                                                              format);
+    int crit = wolfSSL_X509_ext_get_critical_by_NID(x509,
+                                                      NID_key_usage);
+    if (crit == 1) {
+        printf("Key usage extension is critical\n");
+    }
+    \endcode
+
+    \sa wolfSSL_X509_ext_isSet_by_NID
+*/
+int wolfSSL_X509_ext_get_critical_by_NID(WOLFSSL_X509* x509, int nid);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets critical flag for extension.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ex Extension to modify
+    \param crit Critical flag value
+
+    _Example_
+    \code
+    WOLFSSL_X509_EXTENSION* ext = wolfSSL_X509_EXTENSION_new();
+    int ret = wolfSSL_X509_EXTENSION_set_critical(ext, 1);
+    \endcode
+
+    \sa wolfSSL_X509_ext_get_critical_by_NID
+*/
+int wolfSSL_X509_EXTENSION_set_critical(WOLFSSL_X509_EXTENSION* ex,
+                                          int crit);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Checks if pathLength is set.
+
+    \return 1 if pathLength is set
+    \return 0 if pathLength is not set
+
+    \param x509 Certificate to check
+
+    _Example_
+    \code
+    WOLFSSL_X509* x509 = wolfSSL_X509_load_certificate_file(file,
+                                                              format);
+    if (wolfSSL_X509_get_isSet_pathLength(x509)) {
+        unsigned int len = wolfSSL_X509_get_pathLength(x509);
+        printf("Path length: %u\n", len);
+    }
+    \endcode
+
+    \sa wolfSSL_X509_get_pathLength
+*/
+int wolfSSL_X509_get_isSet_pathLength(WOLFSSL_X509* x509);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets pathLength from certificate.
+
+    \return unsigned int Path length value
+
+    \param x509 Certificate to get pathLength from
+
+    _Example_
+    \code
+    WOLFSSL_X509* x509 = wolfSSL_X509_load_certificate_file(file,
+                                                              format);
+    if (wolfSSL_X509_get_isSet_pathLength(x509)) {
+        unsigned int len = wolfSSL_X509_get_pathLength(x509);
+        printf("Path length: %u\n", len);
+    }
+    \endcode
+
+    \sa wolfSSL_X509_get_isSet_pathLength
+*/
+unsigned int wolfSSL_X509_get_pathLength(WOLFSSL_X509* x509);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets key usage from certificate.
+
+    \return unsigned int Key usage value
+
+    \param x509 Certificate to get key usage from
+
+    _Example_
+    \code
+    WOLFSSL_X509* x509 = wolfSSL_X509_load_certificate_file(file,
+                                                              format);
+    unsigned int usage = wolfSSL_X509_get_keyUsage(x509);
+    if (usage & KEYUSE_DIGITAL_SIG) {
+        printf("Digital signature allowed\n");
+    }
+    \endcode
+
+    \sa wolfSSL_X509_get_extended_key_usage
+*/
+unsigned int wolfSSL_X509_get_keyUsage(WOLFSSL_X509* x509);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets authority key identifier.
+
+    \return unsigned char* Pointer to key ID
+    \return NULL on failure
+
+    \param x509 Certificate to get key ID from
+    \param dst Buffer to store key ID
+    \param dstLen Pointer to buffer size (updated with actual size)
+
+    _Example_
+    \code
+    WOLFSSL_X509* x509 = wolfSSL_X509_load_certificate_file(file,
+                                                              format);
+    unsigned char buf[256];
+    int len = sizeof(buf);
+    unsigned char* keyid = wolfSSL_X509_get_authorityKeyID(x509, buf,
+                                                             &len);
+    if (keyid != NULL) {
+        printf("Authority key ID length: %d\n", len);
+    }
+    \endcode
+
+    \sa wolfSSL_X509_get_subjectKeyID
+*/
+unsigned char* wolfSSL_X509_get_authorityKeyID(WOLFSSL_X509* x509,
+    unsigned char* dst, int* dstLen);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets subject key identifier.
+
+    \return unsigned char* Pointer to key ID
+    \return NULL on failure
+
+    \param x509 Certificate to get key ID from
+    \param dst Buffer to store key ID
+    \param dstLen Pointer to buffer size (updated with actual size)
+
+    _Example_
+    \code
+    WOLFSSL_X509* x509 = wolfSSL_X509_load_certificate_file(file,
+                                                              format);
+    unsigned char buf[256];
+    int len = sizeof(buf);
+    unsigned char* keyid = wolfSSL_X509_get_subjectKeyID(x509, buf,
+                                                           &len);
+    if (keyid != NULL) {
+        printf("Subject key ID length: %d\n", len);
+    }
+    \endcode
+
+    \sa wolfSSL_X509_get_authorityKeyID
+*/
+unsigned char* wolfSSL_X509_get_subjectKeyID(WOLFSSL_X509* x509,
+    unsigned char* dst, int* dstLen);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Verifies X509 certificate signature.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param x509 Certificate to verify
+    \param pkey Public key to verify with
+
+    _Example_
+    \code
+    WOLFSSL_X509* x509 = wolfSSL_X509_load_certificate_file(file,
+                                                              format);
+    WOLFSSL_EVP_PKEY* pkey = wolfSSL_X509_get_pubkey(x509);
+    int ret = wolfSSL_X509_verify(x509, pkey);
+    if (ret == WOLFSSL_SUCCESS) {
+        printf("Certificate signature verified\n");
+    }
+    \endcode
+
+    \sa wolfSSL_X509_REQ_verify
+*/
+int wolfSSL_X509_verify(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Verifies X509 request signature.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param x509 Request to verify
+    \param pkey Public key to verify with
+
+    _Example_
+    \code
+    WOLFSSL_X509* req = wolfSSL_X509_REQ_new();
+    WOLFSSL_EVP_PKEY* pkey = wolfSSL_EVP_PKEY_new();
+    int ret = wolfSSL_X509_REQ_verify(req, pkey);
+    \endcode
+
+    \sa wolfSSL_X509_verify
+*/
+int wolfSSL_X509_REQ_verify(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets subject name for certificate.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param cert Certificate to modify
+    \param name Subject name to set
+
+    _Example_
+    \code
+    WOLFSSL_X509* cert = wolfSSL_X509_new();
+    WOLFSSL_X509_NAME* name = wolfSSL_X509_NAME_new();
+    int ret = wolfSSL_X509_set_subject_name(cert, name);
+    \endcode
+
+    \sa wolfSSL_X509_set_issuer_name
+*/
+int wolfSSL_X509_set_subject_name(WOLFSSL_X509* cert,
+                                    WOLFSSL_X509_NAME* name);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets issuer name for certificate.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param cert Certificate to modify
+    \param name Issuer name to set
+
+    _Example_
+    \code
+    WOLFSSL_X509* cert = wolfSSL_X509_new();
+    WOLFSSL_X509_NAME* name = wolfSSL_X509_NAME_new();
+    int ret = wolfSSL_X509_set_issuer_name(cert, name);
+    \endcode
+
+    \sa wolfSSL_X509_set_subject_name
+*/
+int wolfSSL_X509_set_issuer_name(WOLFSSL_X509* cert,
+                                   WOLFSSL_X509_NAME* name);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets public key for certificate.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param cert Certificate to modify
+    \param pkey Public key to set
+
+    _Example_
+    \code
+    WOLFSSL_X509* cert = wolfSSL_X509_new();
+    WOLFSSL_EVP_PKEY* pkey = wolfSSL_EVP_PKEY_new();
+    int ret = wolfSSL_X509_set_pubkey(cert, pkey);
+    \endcode
+
+    \sa wolfSSL_X509_get_pubkey
+*/
+int wolfSSL_X509_set_pubkey(WOLFSSL_X509* cert, WOLFSSL_EVP_PKEY* pkey);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets notAfter time for certificate.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param x509 Certificate to modify
+    \param t Time to set
+
+    _Example_
+    \code
+    WOLFSSL_X509* cert = wolfSSL_X509_new();
+    WOLFSSL_ASN1_TIME* time = wolfSSL_ASN1_TIME_new();
+    int ret = wolfSSL_X509_set_notAfter(cert, time);
+    \endcode
+
+    \sa wolfSSL_X509_set_notBefore
+*/
+int wolfSSL_X509_set_notAfter(WOLFSSL_X509* x509,
+                                const WOLFSSL_ASN1_TIME* t);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets notAfter time for certificate (version 1).
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param x509 Certificate to modify
+    \param t Time to set
+
+    _Example_
+    \code
+    WOLFSSL_X509* cert = wolfSSL_X509_new();
+    WOLFSSL_ASN1_TIME* time = wolfSSL_ASN1_TIME_new();
+    int ret = wolfSSL_X509_set1_notAfter(cert, time);
+    \endcode
+
+    \sa wolfSSL_X509_set_notAfter
+*/
+int wolfSSL_X509_set1_notAfter(WOLFSSL_X509* x509,
+                                 const WOLFSSL_ASN1_TIME* t);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets notBefore time for certificate.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param x509 Certificate to modify
+    \param t Time to set
+
+    _Example_
+    \code
+    WOLFSSL_X509* cert = wolfSSL_X509_new();
+    WOLFSSL_ASN1_TIME* time = wolfSSL_ASN1_TIME_new();
+    int ret = wolfSSL_X509_set_notBefore(cert, time);
+    \endcode
+
+    \sa wolfSSL_X509_set_notAfter
+*/
+int wolfSSL_X509_set_notBefore(WOLFSSL_X509* x509,
+                                 const WOLFSSL_ASN1_TIME* t);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets notBefore time for certificate (version 1).
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param x509 Certificate to modify
+    \param t Time to set
+
+    _Example_
+    \code
+    WOLFSSL_X509* cert = wolfSSL_X509_new();
+    WOLFSSL_ASN1_TIME* time = wolfSSL_ASN1_TIME_new();
+    int ret = wolfSSL_X509_set1_notBefore(cert, time);
+    \endcode
+
+    \sa wolfSSL_X509_set_notBefore
+*/
+int wolfSSL_X509_set1_notBefore(WOLFSSL_X509* x509,
+                                  const WOLFSSL_ASN1_TIME* t);
