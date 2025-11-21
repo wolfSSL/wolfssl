@@ -38317,3 +38317,542 @@ int wolfSSL_CTX_mutual_auth(WOLFSSL_CTX* ctx, int req);
     \sa wolfSSL_CTX_mutual_auth
 */
 int wolfSSL_mutual_auth(WOLFSSL* ssl, int req);
+
+/*!
+    \ingroup Setup
+
+    \brief Restricts context to DHE-PSK only.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx WOLFSSL_CTX object
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_only_dhe_psk(ctx);
+    \endcode
+
+    \sa wolfSSL_only_dhe_psk
+*/
+int wolfSSL_CTX_only_dhe_psk(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup Setup
+
+    \brief Restricts SSL object to DHE-PSK only.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl WOLFSSL object
+
+    _Example_
+    \code
+    int ret = wolfSSL_only_dhe_psk(ssl);
+    \endcode
+
+    \sa wolfSSL_CTX_only_dhe_psk
+*/
+int wolfSSL_only_dhe_psk(WOLFSSL* ssl);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets max early data size for context.
+
+    \return int Max early data size
+
+    \param ctx WOLFSSL_CTX object
+
+    _Example_
+    \code
+    int maxSize = wolfSSL_CTX_get_max_early_data(ctx);
+    \endcode
+
+    \sa wolfSSL_get_max_early_data
+*/
+int wolfSSL_CTX_get_max_early_data(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets max early data size for SSL object.
+
+    \return int Max early data size
+
+    \param ssl WOLFSSL object
+
+    _Example_
+    \code
+    int maxSize = wolfSSL_get_max_early_data(ssl);
+    \endcode
+
+    \sa wolfSSL_CTX_get_max_early_data
+*/
+int wolfSSL_get_max_early_data(WOLFSSL* ssl);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets early data status.
+
+    \return int Early data status
+
+    \param ssl WOLFSSL object
+
+    _Example_
+    \code
+    int status = wolfSSL_get_early_data_status(ssl);
+    \endcode
+
+    \sa wolfSSL_write_early_data
+*/
+int wolfSSL_get_early_data_status(const WOLFSSL* ssl);
+
+/*!
+    \ingroup IO
+
+    \brief Sends user canceled alert.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl WOLFSSL object
+
+    _Example_
+    \code
+    int ret = wolfSSL_SendUserCanceled(ssl);
+    \endcode
+
+    \sa wolfSSL_shutdown
+*/
+int wolfSSL_SendUserCanceled(WOLFSSL* ssl);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets quiet shutdown mode for context.
+
+    \return none
+
+    \param ctx WOLFSSL_CTX object
+    \param mode Quiet mode flag
+
+    _Example_
+    \code
+    wolfSSL_CTX_set_quiet_shutdown(ctx, 1);
+    \endcode
+
+    \sa wolfSSL_set_quiet_shutdown
+*/
+void wolfSSL_CTX_set_quiet_shutdown(WOLFSSL_CTX* ctx, int mode);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets quiet shutdown mode for SSL object.
+
+    \return none
+
+    \param ssl WOLFSSL object
+    \param mode Quiet mode flag
+
+    _Example_
+    \code
+    wolfSSL_set_quiet_shutdown(ssl, 1);
+    \endcode
+
+    \sa wolfSSL_CTX_set_quiet_shutdown
+*/
+void wolfSSL_set_quiet_shutdown(WOLFSSL* ssl, int mode);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets session timeout.
+
+    \return long Previous timeout value
+
+    \param ses Session object
+    \param t Timeout in seconds
+
+    _Example_
+    \code
+    long oldTimeout = wolfSSL_SSL_SESSION_set_timeout(session, 3600);
+    \endcode
+
+    \sa wolfSSL_SESSION_set_time
+*/
+long wolfSSL_SSL_SESSION_set_timeout(WOLFSSL_SESSION* ses, long t);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets session creation time.
+
+    \return long Previous time value
+
+    \param ses Session object
+    \param t Time value
+
+    _Example_
+    \code
+    long oldTime = wolfSSL_SESSION_set_time(session, time(NULL));
+    \endcode
+
+    \sa wolfSSL_SSL_SESSION_set_timeout
+*/
+long wolfSSL_SESSION_set_time(WOLFSSL_SESSION *ses, long t);
+
+/*!
+    \ingroup Setup
+
+    \brief Flushes expired sessions from context cache.
+
+    \return none
+
+    \param ctx WOLFSSL_CTX object
+    \param tm Time threshold
+
+    _Example_
+    \code
+    wolfSSL_CTX_flush_sessions(ctx, time(NULL));
+    \endcode
+
+    \sa wolfSSL_get_session
+*/
+void wolfSSL_CTX_flush_sessions(WOLFSSL_CTX* ctx, long tm);
+
+/*!
+    \ingroup IO
+
+    \brief Creates BIO pair for bidirectional communication.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param bio1_p First BIO pointer
+    \param writebuf1 Write buffer size for first BIO
+    \param bio2_p Second BIO pointer
+    \param writebuf2 Write buffer size for second BIO
+
+    _Example_
+    \code
+    WOLFSSL_BIO *bio1, *bio2;
+    int ret = wolfSSL_BIO_new_bio_pair(&bio1, 8192, &bio2, 8192);
+    \endcode
+
+    \sa wolfSSL_BIO_new
+*/
+int wolfSSL_BIO_new_bio_pair(WOLFSSL_BIO** bio1_p, size_t writebuf1,
+                               WOLFSSL_BIO** bio2_p, size_t writebuf2);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Adds PKCS1 PSS padding with MGF1.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param rsa RSA key
+    \param em Encoded message output
+    \param mHash Message hash
+    \param hashAlg Hash algorithm
+    \param mgf1Hash MGF1 hash algorithm
+    \param saltLen Salt length
+
+    _Example_
+    \code
+    int ret = wolfSSL_RSA_padding_add_PKCS1_PSS_mgf1(rsa, em, mHash,
+                                                       hashAlg, mgf1Hash,
+                                                       saltLen);
+    \endcode
+
+    \sa wolfSSL_RSA_padding_add_PKCS1_PSS
+*/
+int wolfSSL_RSA_padding_add_PKCS1_PSS_mgf1(WOLFSSL_RSA *rsa,
+                                            unsigned char *em,
+                                            const unsigned char *mHash,
+                                            const WOLFSSL_EVP_MD *hashAlg,
+                                            const WOLFSSL_EVP_MD *mgf1Hash,
+                                            int saltLen);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Adds PKCS1 PSS padding.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param rsa RSA key
+    \param EM Encoded message output
+    \param mHash Message hash
+    \param hashAlg Hash algorithm
+    \param saltLen Salt length
+
+    _Example_
+    \code
+    int ret = wolfSSL_RSA_padding_add_PKCS1_PSS(rsa, EM, mHash, hashAlg,
+                                                  saltLen);
+    \endcode
+
+    \sa wolfSSL_RSA_padding_add_PKCS1_PSS_mgf1
+*/
+int wolfSSL_RSA_padding_add_PKCS1_PSS(WOLFSSL_RSA *rsa, unsigned char *EM,
+                                       const unsigned char *mHash,
+                                       const WOLFSSL_EVP_MD *hashAlg,
+                                       int saltLen);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Verifies PKCS1 PSS signature with MGF1.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param rsa RSA key
+    \param mHash Message hash
+    \param hashAlg Hash algorithm
+    \param mgf1Hash MGF1 hash algorithm
+    \param em Encoded message
+    \param saltLen Salt length
+
+    _Example_
+    \code
+    int ret = wolfSSL_RSA_verify_PKCS1_PSS_mgf1(rsa, mHash, hashAlg,
+                                                  mgf1Hash, em, saltLen);
+    \endcode
+
+    \sa wolfSSL_RSA_verify_PKCS1_PSS
+*/
+int wolfSSL_RSA_verify_PKCS1_PSS_mgf1(WOLFSSL_RSA *rsa,
+                                       const unsigned char *mHash,
+                                       const WOLFSSL_EVP_MD *hashAlg,
+                                       const WOLFSSL_EVP_MD *mgf1Hash,
+                                       const unsigned char *em,
+                                       int saltLen);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Verifies PKCS1 PSS signature.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param rsa RSA key
+    \param mHash Message hash
+    \param hashAlg Hash algorithm
+    \param EM Encoded message
+    \param saltLen Salt length
+
+    _Example_
+    \code
+    int ret = wolfSSL_RSA_verify_PKCS1_PSS(rsa, mHash, hashAlg, EM,
+                                            saltLen);
+    \endcode
+
+    \sa wolfSSL_RSA_verify_PKCS1_PSS_mgf1
+*/
+int wolfSSL_RSA_verify_PKCS1_PSS(WOLFSSL_RSA *rsa,
+                                  const unsigned char *mHash,
+                                  const WOLFSSL_EVP_MD *hashAlg,
+                                  const unsigned char *EM, int saltLen);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Reads RSA private key from BIO.
+
+    \return WOLFSSL_RSA* RSA key
+    \return NULL on failure
+
+    \param bio BIO object
+    \param out Output RSA key pointer
+
+    _Example_
+    \code
+    WOLFSSL_RSA* rsa = wolfSSL_d2i_RSAPrivateKey_bio(bio, NULL);
+    \endcode
+
+    \sa wolfSSL_d2i_PrivateKey_bio
+*/
+WOLFSSL_RSA* wolfSSL_d2i_RSAPrivateKey_bio(WOLFSSL_BIO* bio,
+                                            WOLFSSL_RSA** out);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Uses ASN1 certificate for context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx WOLFSSL_CTX object
+    \param derSz DER buffer size
+    \param der DER encoded certificate
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_use_certificate_ASN1(ctx, derSz, der);
+    \endcode
+
+    \sa wolfSSL_use_certificate_ASN1
+*/
+int wolfSSL_CTX_use_certificate_ASN1(WOLFSSL_CTX* ctx, int derSz,
+                                      const unsigned char* der);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Reads private key from BIO.
+
+    \return WOLFSSL_EVP_PKEY* Private key
+    \return NULL on failure
+
+    \param bio BIO object
+    \param pkey Output key pointer
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY* pkey = wolfSSL_d2i_PrivateKey_bio(bio, NULL);
+    \endcode
+
+    \sa wolfSSL_d2i_RSAPrivateKey_bio
+*/
+WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey_bio(WOLFSSL_BIO* bio,
+                                              WOLFSSL_EVP_PKEY** pkey);
+
+/*!
+    \ingroup Setup
+
+    \brief Cleans up all external data.
+
+    \return none
+
+    _Example_
+    \code
+    wolfSSL_CRYPTO_cleanup_all_ex_data();
+    \endcode
+
+    \sa wolfSSL_CRYPTO_get_ex_data
+*/
+void wolfSSL_CRYPTO_cleanup_all_ex_data(void);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets external data from CRYPTO_EX_DATA.
+
+    \return void* Data pointer
+    \return NULL if not found
+
+    \param ex_data External data structure
+    \param idx Index
+
+    _Example_
+    \code
+    void* data = wolfSSL_CRYPTO_get_ex_data(ex_data, idx);
+    \endcode
+
+    \sa wolfSSL_CRYPTO_set_ex_data
+*/
+void* wolfSSL_CRYPTO_get_ex_data(const WOLFSSL_CRYPTO_EX_DATA* ex_data,
+                                  int idx);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets external data in CRYPTO_EX_DATA.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ex_data External data structure
+    \param idx Index
+    \param data Data pointer
+
+    _Example_
+    \code
+    int ret = wolfSSL_CRYPTO_set_ex_data(ex_data, idx, data);
+    \endcode
+
+    \sa wolfSSL_CRYPTO_get_ex_data
+*/
+int wolfSSL_CRYPTO_set_ex_data(WOLFSSL_CRYPTO_EX_DATA* ex_data, int idx,
+                                void *data);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets external data with cleanup routine.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ex_data External data structure
+    \param idx Index
+    \param data Data pointer
+    \param cleanup_routine Cleanup function
+
+    _Example_
+    \code
+    int ret = wolfSSL_CRYPTO_set_ex_data_with_cleanup(ex_data, idx, data,
+                                                        cleanup_fn);
+    \endcode
+
+    \sa wolfSSL_CRYPTO_set_ex_data
+*/
+int wolfSSL_CRYPTO_set_ex_data_with_cleanup(
+    WOLFSSL_CRYPTO_EX_DATA* ex_data, int idx, void *data,
+    wolfSSL_ex_data_cleanup_routine_t cleanup_routine);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets external data for X509 certificate.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param x509 X509 certificate
+    \param idx Index
+    \param data Data pointer
+
+    _Example_
+    \code
+    int ret = wolfSSL_X509_set_ex_data(x509, idx, data);
+    \endcode
+
+    \sa wolfSSL_X509_get_ex_data
+*/
+int wolfSSL_X509_set_ex_data(WOLFSSL_X509 *x509, int idx, void *data);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets external data for X509 with cleanup.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param x509 X509 certificate
+    \param idx Index
+    \param data Data pointer
+    \param cleanup_routine Cleanup function
+
+    _Example_
+    \code
+    int ret = wolfSSL_X509_set_ex_data_with_cleanup(x509, idx, data,
+                                                      cleanup_fn);
+    \endcode
+
+    \sa wolfSSL_X509_set_ex_data
+*/
+int wolfSSL_X509_set_ex_data_with_cleanup(
+    WOLFSSL_X509 *x509, int idx, void *data,
+    wolfSSL_ex_data_cleanup_routine_t cleanup_routine);
