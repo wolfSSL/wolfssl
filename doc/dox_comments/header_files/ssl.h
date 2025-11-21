@@ -48,6 +48,76 @@ WOLFSSL_METHOD *wolfSSLv23_method(void);
 /*!
     \ingroup Setup
 
+    \brief Returns WOLFSSL_METHOD for SSLv23 client with version flexibility.
+
+    \return WOLFSSL_METHOD* Pointer to newly created method structure
+    \return NULL on memory allocation failure
+
+    \param none No parameters
+
+    _Example_
+    \code
+    WOLFSSL_METHOD* method = wolfSSLv23_client_method();
+    if (method == NULL) {
+        // handle error
+    }
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    \endcode
+
+    \sa wolfSSLv23_server_method
+    \sa wolfSSLv23_method
+*/
+WOLFSSL_METHOD* wolfSSLv23_client_method(void);
+
+/*!
+    \ingroup Setup
+
+    \brief Returns WOLFSSL_METHOD for SSLv2 client (deprecated).
+
+    \return WOLFSSL_METHOD* Pointer to newly created method structure
+    \return NULL on memory allocation failure
+
+    \param none No parameters
+
+    _Example_
+    \code
+    WOLFSSL_METHOD* method = wolfSSLv2_client_method();
+    if (method == NULL) {
+        // handle error
+    }
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    \endcode
+
+    \sa wolfSSLv2_server_method
+*/
+WOLFSSL_METHOD* wolfSSLv2_client_method(void);
+
+/*!
+    \ingroup Setup
+
+    \brief Returns WOLFSSL_METHOD for SSLv2 server (deprecated).
+
+    \return WOLFSSL_METHOD* Pointer to newly created method structure
+    \return NULL on memory allocation failure
+
+    \param none No parameters
+
+    _Example_
+    \code
+    WOLFSSL_METHOD* method = wolfSSLv2_server_method();
+    if (method == NULL) {
+        // handle error
+    }
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    \endcode
+
+    \sa wolfSSLv2_client_method
+*/
+WOLFSSL_METHOD* wolfSSLv2_server_method(void);
+
+/*!
+    \ingroup Setup
+
     \brief The wolfSSLv3_server_method() function is used to indicate
     that the application is a server and will only support the SSL 3.0
     protocol.  This function allocates memory for and initializes a new
