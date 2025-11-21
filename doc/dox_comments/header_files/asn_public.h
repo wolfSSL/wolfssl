@@ -54,6 +54,31 @@ int wc_InitCert(Cert*);
 Cert* wc_CertNew(void* heap);
 
 /*!
+    \ingroup ASN
+    \brief Initializes certificate with heap hint and device ID.
+
+    \return 0 on success
+    \return BAD_FUNC_ARG if cert is NULL
+
+    \param cert Cert structure to initialize
+    \param heap Heap hint for memory allocation
+    \param devId Device ID for hardware acceleration
+
+    _Example_
+    \code
+    Cert myCert;
+    int ret = wc_InitCert_ex(&myCert, NULL, INVALID_DEVID);
+    if (ret != 0) {
+        // error initializing cert
+    }
+    \endcode
+
+    \sa wc_InitCert
+    \sa wc_MakeCert_ex
+*/
+int wc_InitCert_ex(Cert* cert, void* heap, int devId);
+
+/*!
      \ingroup ASN
 
      \brief This function frees the memory allocated for a cert structure
@@ -126,6 +151,158 @@ void  wc_CertFree(Cert* cert);
 */
 int  wc_MakeCert(Cert* cert, byte* derBuffer, word32 derSz, RsaKey* rsaKey,
                              ecc_key* eccKey, WC_RNG* rng);
+
+/*!
+    \ingroup ASN
+    \brief Makes certificate with generic key type support.
+
+    \return Size of certificate on success
+    \return MEMORY_E if memory allocation fails
+    \return BUFFER_E if buffer too small
+    \return Other error codes on failure
+
+    \param cert Initialized cert structure
+    \param derBuffer Buffer for generated certificate
+    \param derSz Size of derBuffer
+    \param keyType Key type (RSA_TYPE, ECC_TYPE, ED25519_TYPE, etc.)
+    \param key Pointer to key structure
+    \param rng Random number generator
+
+    _Example_
+    \code
+    Cert myCert;
+    wc_InitCert(&myCert);
+    byte derCert[4096];
+    RsaKey key;
+    WC_RNG rng;
+    int certSz = wc_MakeCert_ex(&myCert, derCert, sizeof(derCert),
+                                RSA_TYPE, &key, &rng);
+    \endcode
+
+    \sa wc_MakeCert
+    \sa wc_SignCert_ex
+*/
+int wc_MakeCert_ex(Cert* cert, byte* derBuffer, word32 derSz,
+                  int keyType, void* key, WC_RNG* rng);
+
+/*!
+    \ingroup ASN
+    \brief Makes certificate request with generic key type support.
+
+    \return Size of certificate request on success
+    \return MEMORY_E if memory allocation fails
+    \return BUFFER_E if buffer too small
+    \return Other error codes on failure
+
+    \param cert Initialized cert structure
+    \param derBuffer Buffer for generated certificate request
+    \param derSz Size of derBuffer
+    \param keyType Key type (RSA_TYPE, ECC_TYPE, ED25519_TYPE, etc.)
+    \param key Pointer to key structure
+
+    _Example_
+    \code
+    Cert myCert;
+    wc_InitCert(&myCert);
+    byte derCert[4096];
+    EccKey key;
+    int certSz = wc_MakeCertReq_ex(&myCert, derCert, sizeof(derCert),
+                                   ECC_TYPE, &key);
+    \endcode
+
+    \sa wc_MakeCertReq
+    \sa wc_SignCert_ex
+*/
+int wc_MakeCertReq_ex(Cert* cert, byte* derBuffer, word32 derSz,
+                     int keyType, void* key);
+
+/*!
+    \ingroup ASN
+    \brief Signs certificate with generic key type support.
+
+    \return New size of certificate with signature on success
+    \return MEMORY_E if memory allocation fails
+    \return BUFFER_E if buffer too small
+    \return Other error codes on failure
+
+    \param requestSz Size of certificate body to sign
+    \param sType Signature type
+    \param buf Buffer containing certificate to sign
+    \param buffSz Total size of buffer
+    \param keyType Key type (RSA_TYPE, ECC_TYPE, ED25519_TYPE, etc.)
+    \param key Pointer to key structure
+    \param rng Random number generator
+
+    _Example_
+    \code
+    Cert myCert;
+    byte derCert[4096];
+    RsaKey key;
+    WC_RNG rng;
+    int certSz = wc_SignCert_ex(myCert.bodySz, myCert.sigType,
+                                derCert, sizeof(derCert), RSA_TYPE,
+                                &key, &rng);
+    \endcode
+
+    \sa wc_SignCert
+    \sa wc_MakeCert_ex
+*/
+int wc_SignCert_ex(int requestSz, int sType, byte* buf, word32 buffSz,
+                  int keyType, void* key, WC_RNG* rng);
+
+/*!
+    \ingroup ASN
+    \brief Makes signature with bit string encoding.
+
+    \return Size of signature on success
+    \return Negative on error
+
+    \param sig Output buffer for signature
+    \param sigSz Size of signature buffer
+    \param sType Signature type
+    \param buf Data to sign
+    \param bufSz Size of data
+    \param keyType Key type (RSA_TYPE, ECC_TYPE, ED25519_TYPE, etc.)
+    \param key Pointer to key structure
+    \param rng Random number generator
+
+    _Example_
+    \code
+    byte sig[512], data[256];
+    RsaKey key;
+    WC_RNG rng;
+    int sigSz = wc_MakeSigWithBitStr(sig, sizeof(sig), CTC_SHA256wRSA,
+                                     data, sizeof(data), RSA_TYPE,
+                                     &key, &rng);
+    \endcode
+
+    \sa wc_SignCert_ex
+*/
+int wc_MakeSigWithBitStr(byte *sig, int sigSz, int sType, byte* buf,
+                         word32 bufSz, int keyType, void* key,
+                         WC_RNG* rng);
+
+/*!
+    \ingroup ASN
+    \brief Gets certificate validity dates.
+
+    \return 0 on success
+    \return BAD_FUNC_ARG if parameters invalid
+
+    \param cert Certificate structure
+    \param before Output for notBefore date
+    \param after Output for notAfter date
+
+    _Example_
+    \code
+    Cert myCert;
+    struct tm beforeDate, afterDate;
+    int ret = wc_GetCertDates(&myCert, &beforeDate, &afterDate);
+    \endcode
+
+    \sa wc_InitCert
+*/
+int wc_GetCertDates(Cert* cert, struct tm* before, struct tm* after);
 
 /*!
     \ingroup ASN
