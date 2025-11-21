@@ -17405,3 +17405,640 @@ int wolfSSL_X509_STORE_CTX_get_error_depth(WOLFSSL_X509_STORE_CTX* ctx);
     \sa wolfSSL_ERR_error_string
 */
 void wolfSSL_ERR_print_errors(WOLFSSL_BIO* bio);
+
+/*!
+    \ingroup openSSL
+
+    \brief Creates a new stack node.
+
+    \return WOLFSSL_STACK* Pointer to new stack node
+    \return NULL on failure
+
+    \param heap Heap hint for memory allocation
+
+    _Example_
+    \code
+    WOLFSSL_STACK* node = wolfSSL_sk_new_node(NULL);
+    if (node != NULL) {
+        // use the node
+        wolfSSL_sk_free_node(node);
+    }
+    \endcode
+
+    \sa wolfSSL_sk_free_node
+    \sa wolfSSL_sk_push_node
+*/
+WOLFSSL_STACK* wolfSSL_sk_new_node(void* heap);
+
+/*!
+    \ingroup openSSL
+
+    \brief Frees a stack node.
+
+    \return none
+
+    \param in Stack node to free
+
+    _Example_
+    \code
+    WOLFSSL_STACK* node = wolfSSL_sk_new_node(NULL);
+    wolfSSL_sk_free_node(node);
+    \endcode
+
+    \sa wolfSSL_sk_new_node
+*/
+void wolfSSL_sk_free_node(WOLFSSL_STACK* in);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets a node from stack at index.
+
+    \return WOLFSSL_STACK* Pointer to stack node
+    \return NULL if index is invalid
+
+    \param sk Stack to get node from
+    \param idx Index of node to retrieve
+
+    _Example_
+    \code
+    WOLFSSL_STACK* sk = wolfSSL_sk_new_null();
+    WOLFSSL_STACK* node = wolfSSL_sk_get_node(sk, 0);
+    \endcode
+
+    \sa wolfSSL_sk_new_node
+    \sa wolfSSL_sk_push_node
+*/
+WOLFSSL_STACK* wolfSSL_sk_get_node(WOLFSSL_STACK* sk, int idx);
+
+/*!
+    \ingroup openSSL
+
+    \brief Pushes a node onto stack.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param stack Pointer to stack pointer
+    \param in Node to push
+
+    _Example_
+    \code
+    WOLFSSL_STACK* sk = NULL;
+    WOLFSSL_STACK* node = wolfSSL_sk_new_node(NULL);
+    int ret = wolfSSL_sk_push_node(&sk, node);
+    \endcode
+
+    \sa wolfSSL_sk_new_node
+    \sa wolfSSL_sk_get_node
+*/
+int wolfSSL_sk_push_node(WOLFSSL_STACK** stack, WOLFSSL_STACK* in);
+
+/*!
+    \ingroup openSSL
+
+    \brief Frees a stack and all its elements.
+
+    \return none
+
+    \param sk Stack to free
+
+    _Example_
+    \code
+    WOLFSSL_STACK* sk = wolfSSL_sk_new_null();
+    wolfSSL_sk_free(sk);
+    \endcode
+
+    \sa wolfSSL_sk_new_null
+    \sa wolfSSL_sk_pop_free
+*/
+void wolfSSL_sk_free(WOLFSSL_STACK* sk);
+
+/*!
+    \ingroup openSSL
+
+    \brief Duplicates a stack.
+
+    \return WOLFSSL_STACK* Pointer to duplicated stack
+    \return NULL on failure
+
+    \param sk Stack to duplicate
+
+    _Example_
+    \code
+    WOLFSSL_STACK* sk = wolfSSL_sk_new_null();
+    WOLFSSL_STACK* dup = wolfSSL_sk_dup(sk);
+    if (dup != NULL) {
+        wolfSSL_sk_free(dup);
+    }
+    wolfSSL_sk_free(sk);
+    \endcode
+
+    \sa wolfSSL_shallow_sk_dup
+    \sa wolfSSL_sk_new_null
+*/
+WOLFSSL_STACK* wolfSSL_sk_dup(WOLFSSL_STACK* sk);
+
+/*!
+    \ingroup openSSL
+
+    \brief Creates shallow duplicate of stack.
+
+    \return WOLFSSL_STACK* Pointer to duplicated stack
+    \return NULL on failure
+
+    \param sk Stack to duplicate
+
+    _Example_
+    \code
+    WOLFSSL_STACK* sk = wolfSSL_sk_new_null();
+    WOLFSSL_STACK* dup = wolfSSL_shallow_sk_dup(sk);
+    if (dup != NULL) {
+        wolfSSL_sk_free(dup);
+    }
+    wolfSSL_sk_free(sk);
+    \endcode
+
+    \sa wolfSSL_sk_dup
+*/
+WOLFSSL_STACK* wolfSSL_shallow_sk_dup(WOLFSSL_STACK* sk);
+
+/*!
+    \ingroup openSSL
+
+    \brief Pushes data onto stack.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param st Stack to push onto
+    \param data Data to push
+
+    _Example_
+    \code
+    WOLFSSL_STACK* sk = wolfSSL_sk_new_null();
+    void* data = malloc(100);
+    int ret = wolfSSL_sk_push(sk, data);
+    \endcode
+
+    \sa wolfSSL_sk_pop
+    \sa wolfSSL_sk_insert
+*/
+int wolfSSL_sk_push(WOLFSSL_STACK* st, const void* data);
+
+/*!
+    \ingroup openSSL
+
+    \brief Inserts data into stack at index.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param sk Stack to insert into
+    \param data Data to insert
+    \param idx Index to insert at
+
+    _Example_
+    \code
+    WOLFSSL_STACK* sk = wolfSSL_sk_new_null();
+    void* data = malloc(100);
+    int ret = wolfSSL_sk_insert(sk, data, 0);
+    \endcode
+
+    \sa wolfSSL_sk_push
+*/
+int wolfSSL_sk_insert(WOLFSSL_STACK* sk, const void* data, int idx);
+
+/*!
+    \ingroup openSSL
+
+    \brief Pops data from stack.
+
+    \return void* Pointer to popped data
+    \return NULL if stack is empty
+
+    \param sk Stack to pop from
+
+    _Example_
+    \code
+    WOLFSSL_STACK* sk = wolfSSL_sk_new_null();
+    wolfSSL_sk_push(sk, data);
+    void* popped = wolfSSL_sk_pop(sk);
+    \endcode
+
+    \sa wolfSSL_sk_push
+*/
+void* wolfSSL_sk_pop(WOLFSSL_STACK* sk);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets number of elements in stack.
+
+    \return int Number of elements
+    \return 0 if stack is NULL
+
+    \param sk Stack to query
+
+    _Example_
+    \code
+    WOLFSSL_STACK* sk = wolfSSL_sk_new_null();
+    int count = wolfSSL_sk_num(sk);
+    printf("Stack has %d elements\n", count);
+    \endcode
+
+    \sa wolfSSL_sk_value
+*/
+int wolfSSL_sk_num(const WOLFSSL_STACK* sk);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets value from stack at index.
+
+    \return void* Pointer to value
+    \return NULL if index is invalid
+
+    \param sk Stack to get value from
+    \param i Index of value to retrieve
+
+    _Example_
+    \code
+    WOLFSSL_STACK* sk = wolfSSL_sk_new_null();
+    void* val = wolfSSL_sk_value(sk, 0);
+    \endcode
+
+    \sa wolfSSL_sk_num
+*/
+void* wolfSSL_sk_value(const WOLFSSL_STACK* sk, int i);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Creates new X509 CRL stack.
+
+    \return WOLFSSL_STACK* Pointer to new stack
+    \return NULL on failure
+
+    _Example_
+    \code
+    WOLFSSL_STACK* crl_stack = wolfSSL_sk_X509_CRL_new();
+    if (crl_stack != NULL) {
+        // use the stack
+        wolfSSL_sk_free(crl_stack);
+    }
+    \endcode
+
+    \sa wolfSSL_sk_new_null
+*/
+WOLFSSL_STACK* wolfSSL_sk_X509_CRL_new(void);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Creates new GENERAL_NAME structure.
+
+    \return WOLFSSL_GENERAL_NAME* Pointer to new structure
+    \return NULL on failure
+
+    _Example_
+    \code
+    WOLFSSL_GENERAL_NAME* gn = wolfSSL_GENERAL_NAME_new();
+    if (gn != NULL) {
+        wolfSSL_GENERAL_NAME_free(gn);
+    }
+    \endcode
+
+    \sa wolfSSL_GENERAL_NAME_free
+    \sa wolfSSL_GENERAL_NAME_dup
+*/
+WOLFSSL_GENERAL_NAME* wolfSSL_GENERAL_NAME_new(void);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Frees GENERAL_NAME structure.
+
+    \return none
+
+    \param gn GENERAL_NAME to free
+
+    _Example_
+    \code
+    WOLFSSL_GENERAL_NAME* gn = wolfSSL_GENERAL_NAME_new();
+    wolfSSL_GENERAL_NAME_free(gn);
+    \endcode
+
+    \sa wolfSSL_GENERAL_NAME_new
+*/
+void wolfSSL_GENERAL_NAME_free(WOLFSSL_GENERAL_NAME* gn);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Duplicates GENERAL_NAME structure.
+
+    \return WOLFSSL_GENERAL_NAME* Pointer to duplicated structure
+    \return NULL on failure
+
+    \param gn GENERAL_NAME to duplicate
+
+    _Example_
+    \code
+    WOLFSSL_GENERAL_NAME* gn = wolfSSL_GENERAL_NAME_new();
+    WOLFSSL_GENERAL_NAME* dup = wolfSSL_GENERAL_NAME_dup(gn);
+    if (dup != NULL) {
+        wolfSSL_GENERAL_NAME_free(dup);
+    }
+    wolfSSL_GENERAL_NAME_free(gn);
+    \endcode
+
+    \sa wolfSSL_GENERAL_NAME_new
+    \sa wolfSSL_GENERAL_NAMES_dup
+*/
+WOLFSSL_GENERAL_NAME* wolfSSL_GENERAL_NAME_dup(WOLFSSL_GENERAL_NAME* gn);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets type for GENERAL_NAME.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param name GENERAL_NAME to set type for
+    \param typ Type value to set
+
+    _Example_
+    \code
+    WOLFSSL_GENERAL_NAME* gn = wolfSSL_GENERAL_NAME_new();
+    int ret = wolfSSL_GENERAL_NAME_set_type(gn, GEN_DNS);
+    \endcode
+
+    \sa wolfSSL_GENERAL_NAME_new
+*/
+int wolfSSL_GENERAL_NAME_set_type(WOLFSSL_GENERAL_NAME* name, int typ);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Duplicates GENERAL_NAMES structure.
+
+    \return WOLFSSL_GENERAL_NAMES* Pointer to duplicated structure
+    \return NULL on failure
+
+    \param gns GENERAL_NAMES to duplicate
+
+    _Example_
+    \code
+    WOLFSSL_GENERAL_NAMES* gns = wolfSSL_sk_GENERAL_NAME_new(NULL);
+    WOLFSSL_GENERAL_NAMES* dup = wolfSSL_GENERAL_NAMES_dup(gns);
+    if (dup != NULL) {
+        wolfSSL_GENERAL_NAMES_free(dup);
+    }
+    wolfSSL_GENERAL_NAMES_free(gns);
+    \endcode
+
+    \sa wolfSSL_GENERAL_NAME_dup
+*/
+WOLFSSL_GENERAL_NAMES* wolfSSL_GENERAL_NAMES_dup(
+    WOLFSSL_GENERAL_NAMES* gns);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets othername for GENERAL_NAME.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param gen GENERAL_NAME to set othername for
+    \param oid OID for othername
+    \param value Value for othername
+
+    _Example_
+    \code
+    WOLFSSL_GENERAL_NAME* gn = wolfSSL_GENERAL_NAME_new();
+    WOLFSSL_ASN1_OBJECT* oid = wolfSSL_OBJ_txt2obj("1.2.3.4", 1);
+    WOLFSSL_ASN1_TYPE* val = wolfSSL_ASN1_TYPE_new();
+    int ret = wolfSSL_GENERAL_NAME_set0_othername(gn, oid, val);
+    \endcode
+
+    \sa wolfSSL_GENERAL_NAME_set0_value
+*/
+int wolfSSL_GENERAL_NAME_set0_othername(WOLFSSL_GENERAL_NAME* gen,
+                                          WOLFSSL_ASN1_OBJECT* oid,
+                                          WOLFSSL_ASN1_TYPE* value);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets value for GENERAL_NAME.
+
+    \return none
+
+    \param a GENERAL_NAME to set value for
+    \param type Type of value
+    \param value Value to set
+
+    _Example_
+    \code
+    WOLFSSL_GENERAL_NAME* gn = wolfSSL_GENERAL_NAME_new();
+    WOLFSSL_ASN1_STRING* str = wolfSSL_ASN1_STRING_new();
+    wolfSSL_GENERAL_NAME_set0_value(gn, GEN_DNS, str);
+    \endcode
+
+    \sa wolfSSL_GENERAL_NAME_set0_othername
+*/
+void wolfSSL_GENERAL_NAME_set0_value(WOLFSSL_GENERAL_NAME* a, int type,
+                                      void* value);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Creates new GENERAL_NAME stack.
+
+    \return WOLFSSL_STACK* Pointer to new stack
+    \return NULL on failure
+
+    \param cmpFunc Comparison function (can be NULL)
+
+    _Example_
+    \code
+    WOLFSSL_STACK* gn_stack = wolfSSL_sk_GENERAL_NAME_new(NULL);
+    if (gn_stack != NULL) {
+        wolfSSL_sk_GENERAL_NAME_free(gn_stack);
+    }
+    \endcode
+
+    \sa wolfSSL_sk_GENERAL_NAME_free
+*/
+WOLFSSL_STACK* wolfSSL_sk_GENERAL_NAME_new(void* cmpFunc);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Pushes GENERAL_NAME onto stack.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param sk Stack to push onto
+    \param gn GENERAL_NAME to push
+
+    _Example_
+    \code
+    WOLFSSL_STACK* sk = wolfSSL_sk_GENERAL_NAME_new(NULL);
+    WOLFSSL_GENERAL_NAME* gn = wolfSSL_GENERAL_NAME_new();
+    int ret = wolfSSL_sk_GENERAL_NAME_push(sk, gn);
+    \endcode
+
+    \sa wolfSSL_sk_GENERAL_NAME_value
+*/
+int wolfSSL_sk_GENERAL_NAME_push(WOLFSSL_GENERAL_NAMES* sk,
+                                   WOLFSSL_GENERAL_NAME* gn);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets GENERAL_NAME from stack at index.
+
+    \return WOLFSSL_GENERAL_NAME* Pointer to GENERAL_NAME
+    \return NULL if index is invalid
+
+    \param sk Stack to get from
+    \param i Index of element to retrieve
+
+    _Example_
+    \code
+    WOLFSSL_STACK* sk = wolfSSL_sk_GENERAL_NAME_new(NULL);
+    WOLFSSL_GENERAL_NAME* gn = wolfSSL_sk_GENERAL_NAME_value(sk, 0);
+    \endcode
+
+    \sa wolfSSL_sk_GENERAL_NAME_push
+    \sa wolfSSL_sk_GENERAL_NAME_num
+*/
+WOLFSSL_GENERAL_NAME* wolfSSL_sk_GENERAL_NAME_value(WOLFSSL_STACK* sk,
+                                                      int i);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets number of GENERAL_NAMEs in stack.
+
+    \return int Number of elements
+    \return 0 if stack is NULL
+
+    \param sk Stack to query
+
+    _Example_
+    \code
+    WOLFSSL_STACK* sk = wolfSSL_sk_GENERAL_NAME_new(NULL);
+    int count = wolfSSL_sk_GENERAL_NAME_num(sk);
+    \endcode
+
+    \sa wolfSSL_sk_GENERAL_NAME_value
+*/
+int wolfSSL_sk_GENERAL_NAME_num(WOLFSSL_STACK* sk);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Frees GENERAL_NAME stack.
+
+    \return none
+
+    \param sk Stack to free
+
+    _Example_
+    \code
+    WOLFSSL_STACK* sk = wolfSSL_sk_GENERAL_NAME_new(NULL);
+    wolfSSL_sk_GENERAL_NAME_free(sk);
+    \endcode
+
+    \sa wolfSSL_sk_GENERAL_NAME_new
+*/
+void wolfSSL_sk_GENERAL_NAME_free(WOLFSSL_STACK* sk);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Frees GENERAL_NAMES structure.
+
+    \return none
+
+    \param name GENERAL_NAMES to free
+
+    _Example_
+    \code
+    WOLFSSL_GENERAL_NAMES* gns = wolfSSL_sk_GENERAL_NAME_new(NULL);
+    wolfSSL_GENERAL_NAMES_free(gns);
+    \endcode
+
+    \sa wolfSSL_sk_GENERAL_NAME_free
+*/
+void wolfSSL_GENERAL_NAMES_free(WOLFSSL_GENERAL_NAMES* name);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Prints GENERAL_NAME to BIO.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param out BIO to write to
+    \param name GENERAL_NAME to print
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new(wolfSSL_BIO_s_file());
+    WOLFSSL_GENERAL_NAME* gn = wolfSSL_GENERAL_NAME_new();
+    int ret = wolfSSL_GENERAL_NAME_print(bio, gn);
+    \endcode
+
+    \sa wolfSSL_GENERAL_NAME_new
+*/
+int wolfSSL_GENERAL_NAME_print(WOLFSSL_BIO* out,
+                                 WOLFSSL_GENERAL_NAME* name);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Frees EXTENDED_KEY_USAGE stack.
+
+    \return none
+
+    \param sk Stack to free
+
+    _Example_
+    \code
+    WOLFSSL_STACK* eku = wolfSSL_X509_get_ext_d2i(x509,
+                                                    NID_ext_key_usage,
+                                                    NULL, NULL);
+    wolfSSL_EXTENDED_KEY_USAGE_free(eku);
+    \endcode
+
+    \sa wolfSSL_X509_get_ext_d2i
+*/
+void wolfSSL_EXTENDED_KEY_USAGE_free(WOLFSSL_STACK* sk);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Creates new DIST_POINT structure.
+
+    \return WOLFSSL_DIST_POINT* Pointer to new structure
+    \return NULL on failure
+
+    _Example_
+    \code
+    WOLFSSL_DIST_POINT* dp = wolfSSL_DIST_POINT_new();
+    if (dp != NULL) {
+        // use the distribution point
+    }
+    \endcode
+
+    \sa wolfSSL_DIST_POINT_free
+*/
+WOLFSSL_DIST_POINT* wolfSSL_DIST_POINT_new(void);
