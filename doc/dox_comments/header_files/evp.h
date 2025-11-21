@@ -2829,3 +2829,1113 @@ const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_get_cipherbynid(int id);
     \sa wolfSSL_EVP_MD_type
 */
 const WOLFSSL_EVP_MD* wolfSSL_EVP_get_digestbynid(int id);
+
+/*!
+    \ingroup openSSL
+    \brief Assigns RSA key to EVP_PKEY structure.
+
+    \return SSL_SUCCESS on success
+    \return SSL_FAILURE on failure
+
+    \param pkey EVP_PKEY structure
+    \param key RSA key to assign
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY* pkey = wolfSSL_EVP_PKEY_new();
+    WOLFSSL_RSA* rsa = wolfSSL_RSA_new();
+    wolfSSL_EVP_PKEY_assign_RSA(pkey, rsa);
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_assign_EC_KEY
+    \sa wolfSSL_EVP_PKEY_get0_RSA
+*/
+int wolfSSL_EVP_PKEY_assign_RSA(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_RSA* key);
+
+/*!
+    \ingroup openSSL
+    \brief Assigns EC key to EVP_PKEY structure.
+
+    \return SSL_SUCCESS on success
+    \return SSL_FAILURE on failure
+
+    \param pkey EVP_PKEY structure
+    \param key EC_KEY to assign
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY* pkey = wolfSSL_EVP_PKEY_new();
+    WOLFSSL_EC_KEY* ec = wolfSSL_EC_KEY_new();
+    wolfSSL_EVP_PKEY_assign_EC_KEY(pkey, ec);
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_assign_RSA
+    \sa wolfSSL_EVP_PKEY_get0_EC_KEY
+*/
+int wolfSSL_EVP_PKEY_assign_EC_KEY(WOLFSSL_EVP_PKEY* pkey,
+                                    WOLFSSL_EC_KEY* key);
+
+/*!
+    \ingroup openSSL
+    \brief Assigns DSA key to EVP_PKEY structure.
+
+    \return SSL_SUCCESS on success
+    \return SSL_FAILURE on failure
+
+    \param pkey EVP_PKEY structure
+    \param key DSA key to assign
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY* pkey = wolfSSL_EVP_PKEY_new();
+    WOLFSSL_DSA* dsa = wolfSSL_DSA_new();
+    wolfSSL_EVP_PKEY_assign_DSA(pkey, dsa);
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_assign_RSA
+    \sa wolfSSL_EVP_PKEY_get0_DSA
+*/
+int wolfSSL_EVP_PKEY_assign_DSA(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_DSA* key);
+
+/*!
+    \ingroup openSSL
+    \brief Assigns DH key to EVP_PKEY structure.
+
+    \return SSL_SUCCESS on success
+    \return SSL_FAILURE on failure
+
+    \param pkey EVP_PKEY structure
+    \param key DH key to assign
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY* pkey = wolfSSL_EVP_PKEY_new();
+    WOLFSSL_DH* dh = wolfSSL_DH_new();
+    wolfSSL_EVP_PKEY_assign_DH(pkey, dh);
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_assign_RSA
+    \sa wolfSSL_EVP_PKEY_get0_DH
+*/
+int wolfSSL_EVP_PKEY_assign_DH(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_DH* key);
+
+/*!
+    \ingroup openSSL
+    \brief Gets RSA key from EVP_PKEY (no reference count increment).
+
+    \return Pointer to RSA key
+    \return NULL if pkey is NULL or not RSA
+
+    \param pkey EVP_PKEY structure
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY* pkey = wolfSSL_EVP_PKEY_new();
+    WOLFSSL_RSA* rsa = wolfSSL_EVP_PKEY_get0_RSA(pkey);
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_get1_RSA
+    \sa wolfSSL_EVP_PKEY_assign_RSA
+*/
+WOLFSSL_RSA* wolfSSL_EVP_PKEY_get0_RSA(WOLFSSL_EVP_PKEY *pkey);
+
+/*!
+    \ingroup openSSL
+    \brief Gets DSA key from EVP_PKEY (no reference count increment).
+
+    \return Pointer to DSA key
+    \return NULL if pkey is NULL or not DSA
+
+    \param pkey EVP_PKEY structure
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY* pkey = wolfSSL_EVP_PKEY_new();
+    WOLFSSL_DSA* dsa = wolfSSL_EVP_PKEY_get0_DSA(pkey);
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_get1_DSA
+    \sa wolfSSL_EVP_PKEY_assign_DSA
+*/
+WOLFSSL_DSA* wolfSSL_EVP_PKEY_get0_DSA(WOLFSSL_EVP_PKEY *pkey);
+
+/*!
+    \ingroup openSSL
+    \brief Gets RSA key from EVP_PKEY (increments reference count).
+
+    \return Pointer to RSA key
+    \return NULL if pkey is NULL or not RSA
+
+    \param key EVP_PKEY structure
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY* pkey = wolfSSL_EVP_PKEY_new();
+    WOLFSSL_RSA* rsa = wolfSSL_EVP_PKEY_get1_RSA(pkey);
+    wolfSSL_RSA_free(rsa);
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_get0_RSA
+    \sa wolfSSL_EVP_PKEY_set1_RSA
+*/
+WOLFSSL_RSA* wolfSSL_EVP_PKEY_get1_RSA(WOLFSSL_EVP_PKEY* key);
+
+/*!
+    \ingroup openSSL
+    \brief Gets DSA key from EVP_PKEY (increments reference count).
+
+    \return Pointer to DSA key
+    \return NULL if pkey is NULL or not DSA
+
+    \param key EVP_PKEY structure
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY* pkey = wolfSSL_EVP_PKEY_new();
+    WOLFSSL_DSA* dsa = wolfSSL_EVP_PKEY_get1_DSA(pkey);
+    wolfSSL_DSA_free(dsa);
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_get0_DSA
+    \sa wolfSSL_EVP_PKEY_set1_DSA
+*/
+WOLFSSL_DSA* wolfSSL_EVP_PKEY_get1_DSA(WOLFSSL_EVP_PKEY* key);
+
+/*!
+    \ingroup openSSL
+    \brief Gets DH key from EVP_PKEY (no reference count increment).
+
+    \return Pointer to DH key
+    \return NULL if key is NULL or not DH
+
+    \param key EVP_PKEY structure
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY* pkey = wolfSSL_EVP_PKEY_new();
+    WOLFSSL_DH* dh = wolfSSL_EVP_PKEY_get0_DH(pkey);
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_get1_DH
+    \sa wolfSSL_EVP_PKEY_assign_DH
+*/
+WOLFSSL_DH* wolfSSL_EVP_PKEY_get0_DH(WOLFSSL_EVP_PKEY* key);
+
+/*!
+    \ingroup openSSL
+    \brief Gets DH key from EVP_PKEY (increments reference count).
+
+    \return Pointer to DH key
+    \return NULL if key is NULL or not DH
+
+    \param key EVP_PKEY structure
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY* pkey = wolfSSL_EVP_PKEY_new();
+    WOLFSSL_DH* dh = wolfSSL_EVP_PKEY_get1_DH(pkey);
+    wolfSSL_DH_free(dh);
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_get0_DH
+    \sa wolfSSL_EVP_PKEY_set1_DH
+*/
+WOLFSSL_DH* wolfSSL_EVP_PKEY_get1_DH(WOLFSSL_EVP_PKEY* key);
+
+/*!
+    \ingroup openSSL
+    \brief Sets RSA key in EVP_PKEY (increments reference count).
+
+    \return SSL_SUCCESS on success
+    \return SSL_FAILURE on failure
+
+    \param pkey EVP_PKEY structure
+    \param key RSA key to set
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY* pkey = wolfSSL_EVP_PKEY_new();
+    WOLFSSL_RSA* rsa = wolfSSL_RSA_new();
+    wolfSSL_EVP_PKEY_set1_RSA(pkey, rsa);
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_get1_RSA
+    \sa wolfSSL_EVP_PKEY_assign_RSA
+*/
+int wolfSSL_EVP_PKEY_set1_RSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_RSA *key);
+
+/*!
+    \ingroup openSSL
+    \brief Sets DSA key in EVP_PKEY (increments reference count).
+
+    \return SSL_SUCCESS on success
+    \return SSL_FAILURE on failure
+
+    \param pkey EVP_PKEY structure
+    \param key DSA key to set
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY* pkey = wolfSSL_EVP_PKEY_new();
+    WOLFSSL_DSA* dsa = wolfSSL_DSA_new();
+    wolfSSL_EVP_PKEY_set1_DSA(pkey, dsa);
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_get1_DSA
+    \sa wolfSSL_EVP_PKEY_assign_DSA
+*/
+int wolfSSL_EVP_PKEY_set1_DSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DSA *key);
+
+/*!
+    \ingroup openSSL
+    \brief Sets DH key in EVP_PKEY (increments reference count).
+
+    \return SSL_SUCCESS on success
+    \return SSL_FAILURE on failure
+
+    \param pkey EVP_PKEY structure
+    \param key DH key to set
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY* pkey = wolfSSL_EVP_PKEY_new();
+    WOLFSSL_DH* dh = wolfSSL_DH_new();
+    wolfSSL_EVP_PKEY_set1_DH(pkey, dh);
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_get1_DH
+    \sa wolfSSL_EVP_PKEY_assign_DH
+*/
+int wolfSSL_EVP_PKEY_set1_DH(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DH *key);
+
+/*!
+    \ingroup openSSL
+    \brief Sets EC key in EVP_PKEY (increments reference count).
+
+    \return SSL_SUCCESS on success
+    \return SSL_FAILURE on failure
+
+    \param pkey EVP_PKEY structure
+    \param key EC_KEY to set
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY* pkey = wolfSSL_EVP_PKEY_new();
+    WOLFSSL_EC_KEY* ec = wolfSSL_EC_KEY_new();
+    wolfSSL_EVP_PKEY_set1_EC_KEY(pkey, ec);
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_get1_EC_KEY
+    \sa wolfSSL_EVP_PKEY_assign_EC_KEY
+*/
+int wolfSSL_EVP_PKEY_set1_EC_KEY(WOLFSSL_EVP_PKEY *pkey,
+                                  WOLFSSL_EC_KEY *key);
+
+/*!
+    \ingroup openSSL
+    \brief Assigns key of specified type to EVP_PKEY.
+
+    \return SSL_SUCCESS on success
+    \return SSL_FAILURE on failure
+
+    \param pkey EVP_PKEY structure
+    \param type Key type (EVP_PKEY_RSA, EVP_PKEY_EC, etc.)
+    \param key Key pointer
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY* pkey = wolfSSL_EVP_PKEY_new();
+    WOLFSSL_RSA* rsa = wolfSSL_RSA_new();
+    wolfSSL_EVP_PKEY_assign(pkey, EVP_PKEY_RSA, rsa);
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_assign_RSA
+    \sa wolfSSL_EVP_PKEY_assign_EC_KEY
+*/
+int wolfSSL_EVP_PKEY_assign(WOLFSSL_EVP_PKEY *pkey, int type, void *key);
+
+/*!
+    \ingroup openSSL
+    \brief Gets HMAC key from EVP_PKEY.
+
+    \return Pointer to HMAC key
+    \return NULL if pkey is NULL or not HMAC
+
+    \param pkey EVP_PKEY structure
+    \param len Pointer to receive key length
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY* pkey = wolfSSL_EVP_PKEY_new_mac_key(EVP_PKEY_HMAC,
+                                                           NULL, key, keyLen);
+    size_t len;
+    const unsigned char* hmac = wolfSSL_EVP_PKEY_get0_hmac(pkey, &len);
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_new_mac_key
+*/
+const unsigned char* wolfSSL_EVP_PKEY_get0_hmac(const WOLFSSL_EVP_PKEY* pkey,
+                                                 size_t* len);
+
+/*!
+    \ingroup openSSL
+    \brief Initializes EVP_PKEY_CTX for signing operation.
+
+    \return SSL_SUCCESS on success
+    \return SSL_FAILURE on failure
+
+    \param ctx EVP_PKEY_CTX structure
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY_CTX* ctx = wolfSSL_EVP_PKEY_CTX_new(pkey, NULL);
+    wolfSSL_EVP_PKEY_sign_init(ctx);
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_sign
+    \sa wolfSSL_EVP_PKEY_CTX_new
+*/
+int wolfSSL_EVP_PKEY_sign_init(WOLFSSL_EVP_PKEY_CTX *ctx);
+
+/*!
+    \ingroup openSSL
+    \brief Signs data using EVP_PKEY_CTX.
+
+    \return SSL_SUCCESS on success
+    \return SSL_FAILURE on failure
+
+    \param ctx EVP_PKEY_CTX structure
+    \param sig Output buffer for signature
+    \param siglen Pointer to signature length
+    \param tbs Data to be signed
+    \param tbslen Data length
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY_CTX* ctx = wolfSSL_EVP_PKEY_CTX_new(pkey, NULL);
+    unsigned char sig[256];
+    size_t siglen = sizeof(sig);
+    wolfSSL_EVP_PKEY_sign_init(ctx);
+    wolfSSL_EVP_PKEY_sign(ctx, sig, &siglen, data, dataLen);
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_sign_init
+    \sa wolfSSL_EVP_PKEY_verify
+*/
+int wolfSSL_EVP_PKEY_sign(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *sig,
+                           size_t *siglen, const unsigned char *tbs,
+                           size_t tbslen);
+
+/*!
+    \ingroup openSSL
+    \brief Initializes EVP_PKEY_CTX for verification operation.
+
+    \return SSL_SUCCESS on success
+    \return SSL_FAILURE on failure
+
+    \param ctx EVP_PKEY_CTX structure
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY_CTX* ctx = wolfSSL_EVP_PKEY_CTX_new(pkey, NULL);
+    wolfSSL_EVP_PKEY_verify_init(ctx);
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_verify
+    \sa wolfSSL_EVP_PKEY_CTX_new
+*/
+int wolfSSL_EVP_PKEY_verify_init(WOLFSSL_EVP_PKEY_CTX *ctx);
+
+/*!
+    \ingroup openSSL
+    \brief Verifies signature using EVP_PKEY_CTX.
+
+    \return SSL_SUCCESS on success
+    \return SSL_FAILURE on failure
+
+    \param ctx EVP_PKEY_CTX structure
+    \param sig Signature to verify
+    \param siglen Signature length
+    \param tbs Data that was signed
+    \param tbslen Data length
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY_CTX* ctx = wolfSSL_EVP_PKEY_CTX_new(pkey, NULL);
+    wolfSSL_EVP_PKEY_verify_init(ctx);
+    int ret = wolfSSL_EVP_PKEY_verify(ctx, sig, siglen, data, dataLen);
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_verify_init
+    \sa wolfSSL_EVP_PKEY_sign
+*/
+int wolfSSL_EVP_PKEY_verify(WOLFSSL_EVP_PKEY_CTX *ctx,
+                             const unsigned char *sig, size_t siglen,
+                             const unsigned char *tbs, size_t tbslen);
+
+/*!
+    \ingroup openSSL
+    \brief Initializes EVP_PKEY_CTX for parameter generation.
+
+    \return SSL_SUCCESS on success
+    \return SSL_FAILURE on failure
+
+    \param ctx EVP_PKEY_CTX structure
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY_CTX* ctx = wolfSSL_EVP_PKEY_CTX_new_id(EVP_PKEY_EC,
+                                                             NULL);
+    wolfSSL_EVP_PKEY_paramgen_init(ctx);
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_paramgen
+    \sa wolfSSL_EVP_PKEY_CTX_new_id
+*/
+int wolfSSL_EVP_PKEY_paramgen_init(WOLFSSL_EVP_PKEY_CTX *ctx);
+
+/*!
+    \ingroup openSSL
+    \brief Sets EC curve NID for parameter generation.
+
+    \return SSL_SUCCESS on success
+    \return SSL_FAILURE on failure
+
+    \param ctx EVP_PKEY_CTX structure
+    \param nid Curve NID
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY_CTX* ctx = wolfSSL_EVP_PKEY_CTX_new_id(EVP_PKEY_EC,
+                                                             NULL);
+    wolfSSL_EVP_PKEY_paramgen_init(ctx);
+    wolfSSL_EVP_PKEY_CTX_set_ec_paramgen_curve_nid(ctx, NID_X9_62_prime256v1);
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_paramgen
+*/
+int wolfSSL_EVP_PKEY_CTX_set_ec_paramgen_curve_nid(WOLFSSL_EVP_PKEY_CTX *ctx,
+                                                     int nid);
+
+/*!
+    \ingroup openSSL
+    \brief Generates parameters for EVP_PKEY.
+
+    \return SSL_SUCCESS on success
+    \return SSL_FAILURE on failure
+
+    \param ctx EVP_PKEY_CTX structure
+    \param pkey Pointer to receive generated EVP_PKEY
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY_CTX* ctx = wolfSSL_EVP_PKEY_CTX_new_id(EVP_PKEY_EC,
+                                                             NULL);
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+    wolfSSL_EVP_PKEY_paramgen_init(ctx);
+    wolfSSL_EVP_PKEY_CTX_set_ec_paramgen_curve_nid(ctx, NID_X9_62_prime256v1);
+    wolfSSL_EVP_PKEY_paramgen(ctx, &pkey);
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_paramgen_init
+    \sa wolfSSL_EVP_PKEY_keygen
+*/
+int wolfSSL_EVP_PKEY_paramgen(WOLFSSL_EVP_PKEY_CTX* ctx,
+                               WOLFSSL_EVP_PKEY** pkey);
+
+/*!
+    \ingroup openSSL
+    \brief Sets EC parameter encoding flag.
+
+    \return SSL_SUCCESS on success
+    \return SSL_FAILURE on failure
+
+    \param ctx EVP_PKEY_CTX structure
+    \param flag Encoding flag
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY_CTX* ctx = wolfSSL_EVP_PKEY_CTX_new_id(EVP_PKEY_EC,
+                                                             NULL);
+    wolfSSL_EVP_PKEY_CTX_set_ec_param_enc(ctx, OPENSSL_EC_NAMED_CURVE);
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_paramgen
+*/
+int wolfSSL_EVP_PKEY_CTX_set_ec_param_enc(WOLFSSL_EVP_PKEY_CTX *ctx,
+                                           int flag);
+
+/*!
+    \ingroup openSSL
+    \brief Initializes EVP_PKEY_CTX for key generation.
+
+    \return SSL_SUCCESS on success
+    \return SSL_FAILURE on failure
+
+    \param ctx EVP_PKEY_CTX structure
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY_CTX* ctx = wolfSSL_EVP_PKEY_CTX_new_id(EVP_PKEY_RSA,
+                                                             NULL);
+    wolfSSL_EVP_PKEY_keygen_init(ctx);
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_keygen
+    \sa wolfSSL_EVP_PKEY_CTX_new_id
+*/
+int wolfSSL_EVP_PKEY_keygen_init(WOLFSSL_EVP_PKEY_CTX *ctx);
+
+/*!
+    \ingroup openSSL
+    \brief Generates key pair for EVP_PKEY.
+
+    \return SSL_SUCCESS on success
+    \return SSL_FAILURE on failure
+
+    \param ctx EVP_PKEY_CTX structure
+    \param ppkey Pointer to receive generated EVP_PKEY
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY_CTX* ctx = wolfSSL_EVP_PKEY_CTX_new_id(EVP_PKEY_RSA,
+                                                             NULL);
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+    wolfSSL_EVP_PKEY_keygen_init(ctx);
+    wolfSSL_EVP_PKEY_CTX_set_rsa_keygen_bits(ctx, 2048);
+    wolfSSL_EVP_PKEY_keygen(ctx, &pkey);
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_keygen_init
+    \sa wolfSSL_EVP_PKEY_paramgen
+*/
+int wolfSSL_EVP_PKEY_keygen(WOLFSSL_EVP_PKEY_CTX *ctx,
+                             WOLFSSL_EVP_PKEY **ppkey);
+
+/*!
+    \ingroup openSSL
+    \brief Returns key size in bits.
+
+    \return Key size in bits
+    \return 0 if pkey is NULL
+
+    \param pkey EVP_PKEY structure
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY* pkey = wolfSSL_EVP_PKEY_new();
+    int bits = wolfSSL_EVP_PKEY_bits(pkey);
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_size
+    \sa wolfSSL_EVP_PKEY_type
+*/
+int wolfSSL_EVP_PKEY_bits(const WOLFSSL_EVP_PKEY *pkey);
+
+/*!
+    \ingroup openSSL
+    \brief Checks if EVP_PKEY is of specified type.
+
+    \return 1 if pkey matches type
+    \return 0 otherwise
+
+    \param pkey EVP_PKEY structure
+    \param name Type name string
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY* pkey = wolfSSL_EVP_PKEY_new();
+    if (wolfSSL_EVP_PKEY_is_a(pkey, "RSA")) {
+        // pkey is RSA
+    }
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_type
+    \sa wolfSSL_EVP_PKEY_base_id
+*/
+int wolfSSL_EVP_PKEY_is_a(const WOLFSSL_EVP_PKEY *pkey, const char *name);
+
+/*!
+    \ingroup openSSL
+    \brief Frees EVP_PKEY_CTX structure.
+
+    \return none No returns
+
+    \param ctx EVP_PKEY_CTX structure to free
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY_CTX* ctx = wolfSSL_EVP_PKEY_CTX_new(pkey, NULL);
+    wolfSSL_EVP_PKEY_CTX_free(ctx);
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_CTX_new
+*/
+void wolfSSL_EVP_PKEY_CTX_free(WOLFSSL_EVP_PKEY_CTX *ctx);
+
+/*!
+    \ingroup openSSL
+    \brief Sets RSA padding mode.
+
+    \return SSL_SUCCESS on success
+    \return SSL_FAILURE on failure
+
+    \param ctx EVP_PKEY_CTX structure
+    \param padding Padding mode
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY_CTX* ctx = wolfSSL_EVP_PKEY_CTX_new(pkey, NULL);
+    wolfSSL_EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_PADDING);
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_sign
+    \sa wolfSSL_EVP_PKEY_verify
+*/
+int wolfSSL_EVP_PKEY_CTX_set_rsa_padding(WOLFSSL_EVP_PKEY_CTX *ctx,
+                                          int padding);
+
+/*!
+    \ingroup openSSL
+    \brief Sets signature message digest.
+
+    \return SSL_SUCCESS on success
+    \return SSL_FAILURE on failure
+
+    \param ctx EVP_PKEY_CTX structure
+    \param md Message digest type
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY_CTX* ctx = wolfSSL_EVP_PKEY_CTX_new(pkey, NULL);
+    wolfSSL_EVP_PKEY_sign_init(ctx);
+    wolfSSL_EVP_PKEY_CTX_set_signature_md(ctx, wolfSSL_EVP_sha256());
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_sign
+*/
+int wolfSSL_EVP_PKEY_CTX_set_signature_md(WOLFSSL_EVP_PKEY_CTX *ctx,
+                                           const WOLFSSL_EVP_MD* md);
+
+/*!
+    \ingroup openSSL
+    \brief Sets RSA key generation bit length.
+
+    \return SSL_SUCCESS on success
+    \return SSL_FAILURE on failure
+
+    \param ctx EVP_PKEY_CTX structure
+    \param bits Key size in bits
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY_CTX* ctx = wolfSSL_EVP_PKEY_CTX_new_id(EVP_PKEY_RSA,
+                                                             NULL);
+    wolfSSL_EVP_PKEY_keygen_init(ctx);
+    wolfSSL_EVP_PKEY_CTX_set_rsa_keygen_bits(ctx, 2048);
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_keygen
+*/
+int wolfSSL_EVP_PKEY_CTX_set_rsa_keygen_bits(WOLFSSL_EVP_PKEY_CTX *ctx,
+                                              int bits);
+
+/*!
+    \ingroup openSSL
+    \brief Sets RSA PSS salt length.
+
+    \return SSL_SUCCESS on success
+    \return SSL_FAILURE on failure
+
+    \param ctx EVP_PKEY_CTX structure
+    \param saltlen Salt length in bytes
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY_CTX* ctx = wolfSSL_EVP_PKEY_CTX_new(pkey, NULL);
+    wolfSSL_EVP_PKEY_sign_init(ctx);
+    wolfSSL_EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_PSS_PADDING);
+    wolfSSL_EVP_PKEY_CTX_set_rsa_pss_saltlen(ctx, 32);
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_sign
+*/
+int wolfSSL_EVP_PKEY_CTX_set_rsa_pss_saltlen(WOLFSSL_EVP_PKEY_CTX *ctx,
+                                              int saltlen);
+
+/*!
+    \ingroup openSSL
+    \brief Sets RSA MGF1 message digest.
+
+    \return SSL_SUCCESS on success
+    \return SSL_FAILURE on failure
+
+    \param ctx EVP_PKEY_CTX structure
+    \param md Message digest for MGF1
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY_CTX* ctx = wolfSSL_EVP_PKEY_CTX_new(pkey, NULL);
+    wolfSSL_EVP_PKEY_sign_init(ctx);
+    wolfSSL_EVP_PKEY_CTX_set_rsa_mgf1_md(ctx, wolfSSL_EVP_sha256());
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_sign
+*/
+int wolfSSL_EVP_PKEY_CTX_set_rsa_mgf1_md(WOLFSSL_EVP_PKEY_CTX *ctx,
+                                          const WOLFSSL_EVP_MD *md);
+
+/*!
+    \ingroup openSSL
+    \brief Sets RSA OAEP message digest.
+
+    \return SSL_SUCCESS on success
+    \return SSL_FAILURE on failure
+
+    \param ctx EVP_PKEY_CTX structure
+    \param md Message digest for OAEP
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY_CTX* ctx = wolfSSL_EVP_PKEY_CTX_new(pkey, NULL);
+    wolfSSL_EVP_PKEY_encrypt_init(ctx);
+    wolfSSL_EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_OAEP_PADDING);
+    wolfSSL_EVP_PKEY_CTX_set_rsa_oaep_md(ctx, wolfSSL_EVP_sha256());
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_encrypt
+*/
+int wolfSSL_EVP_PKEY_CTX_set_rsa_oaep_md(WOLFSSL_EVP_PKEY_CTX *ctx,
+                                          const WOLFSSL_EVP_MD *md);
+
+/*!
+    \ingroup openSSL
+    \brief Initializes EVP_PKEY_CTX for key derivation.
+
+    \return SSL_SUCCESS on success
+    \return SSL_FAILURE on failure
+
+    \param ctx EVP_PKEY_CTX structure
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY_CTX* ctx = wolfSSL_EVP_PKEY_CTX_new(pkey, NULL);
+    wolfSSL_EVP_PKEY_derive_init(ctx);
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_derive
+    \sa wolfSSL_EVP_PKEY_derive_set_peer
+*/
+int wolfSSL_EVP_PKEY_derive_init(WOLFSSL_EVP_PKEY_CTX *ctx);
+
+/*!
+    \ingroup openSSL
+    \brief Sets peer key for key derivation.
+
+    \return SSL_SUCCESS on success
+    \return SSL_FAILURE on failure
+
+    \param ctx EVP_PKEY_CTX structure
+    \param peer Peer's public key
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY_CTX* ctx = wolfSSL_EVP_PKEY_CTX_new(pkey, NULL);
+    wolfSSL_EVP_PKEY_derive_init(ctx);
+    wolfSSL_EVP_PKEY_derive_set_peer(ctx, peerKey);
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_derive_init
+    \sa wolfSSL_EVP_PKEY_derive
+*/
+int wolfSSL_EVP_PKEY_derive_set_peer(WOLFSSL_EVP_PKEY_CTX *ctx,
+                                      WOLFSSL_EVP_PKEY *peer);
+
+/*!
+    \ingroup openSSL
+    \brief Derives shared secret.
+
+    \return SSL_SUCCESS on success
+    \return SSL_FAILURE on failure
+
+    \param ctx EVP_PKEY_CTX structure
+    \param key Output buffer for shared secret
+    \param keylen Pointer to key length
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY_CTX* ctx = wolfSSL_EVP_PKEY_CTX_new(pkey, NULL);
+    unsigned char secret[64];
+    size_t secretLen = sizeof(secret);
+    wolfSSL_EVP_PKEY_derive_init(ctx);
+    wolfSSL_EVP_PKEY_derive_set_peer(ctx, peerKey);
+    wolfSSL_EVP_PKEY_derive(ctx, secret, &secretLen);
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_derive_init
+    \sa wolfSSL_EVP_PKEY_derive_set_peer
+*/
+int wolfSSL_EVP_PKEY_derive(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *key,
+                             size_t *keylen);
+
+/*!
+    \ingroup openSSL
+    \brief Controls EVP_PKEY_CTX with string parameters.
+
+    \return SSL_SUCCESS on success
+    \return SSL_FAILURE on failure
+
+    \param ctx EVP_PKEY_CTX structure
+    \param name Control name
+    \param value Control value
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY_CTX* ctx = wolfSSL_EVP_PKEY_CTX_new(pkey, NULL);
+    wolfSSL_EVP_PKEY_CTX_ctrl_str(ctx, "rsa_padding_mode", "pss");
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_CTX_set_rsa_padding
+*/
+int wolfSSL_EVP_PKEY_CTX_ctrl_str(WOLFSSL_EVP_PKEY_CTX *ctx,
+                                   const char *name, const char *value);
+
+/*!
+    \ingroup openSSL
+    \brief Decrypts data using EVP_PKEY_CTX.
+
+    \return SSL_SUCCESS on success
+    \return SSL_FAILURE on failure
+
+    \param ctx EVP_PKEY_CTX structure
+    \param out Output buffer for decrypted data
+    \param outlen Pointer to output length
+    \param in Input encrypted data
+    \param inlen Input data length
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY_CTX* ctx = wolfSSL_EVP_PKEY_CTX_new(pkey, NULL);
+    unsigned char out[256];
+    size_t outlen = sizeof(out);
+    wolfSSL_EVP_PKEY_decrypt_init(ctx);
+    wolfSSL_EVP_PKEY_decrypt(ctx, out, &outlen, encrypted, encLen);
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_decrypt_init
+    \sa wolfSSL_EVP_PKEY_encrypt
+*/
+int wolfSSL_EVP_PKEY_decrypt(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *out,
+                              size_t *outlen, const unsigned char *in,
+                              size_t inlen);
+
+/*!
+    \ingroup openSSL
+    \brief Initializes EVP_PKEY_CTX for decryption operation.
+
+    \return SSL_SUCCESS on success
+    \return SSL_FAILURE on failure
+
+    \param ctx EVP_PKEY_CTX structure
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY_CTX* ctx = wolfSSL_EVP_PKEY_CTX_new(pkey, NULL);
+    wolfSSL_EVP_PKEY_decrypt_init(ctx);
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_decrypt
+    \sa wolfSSL_EVP_PKEY_CTX_new
+*/
+int wolfSSL_EVP_PKEY_decrypt_init(WOLFSSL_EVP_PKEY_CTX *ctx);
+
+/*!
+    \ingroup openSSL
+    \brief Encrypts data using EVP_PKEY_CTX.
+
+    \return SSL_SUCCESS on success
+    \return SSL_FAILURE on failure
+
+    \param ctx EVP_PKEY_CTX structure
+    \param out Output buffer for encrypted data
+    \param outlen Pointer to output length
+    \param in Input plaintext data
+    \param inlen Input data length
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY_CTX* ctx = wolfSSL_EVP_PKEY_CTX_new(pkey, NULL);
+    unsigned char out[256];
+    size_t outlen = sizeof(out);
+    wolfSSL_EVP_PKEY_encrypt_init(ctx);
+    wolfSSL_EVP_PKEY_encrypt(ctx, out, &outlen, plaintext, plainLen);
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_encrypt_init
+    \sa wolfSSL_EVP_PKEY_decrypt
+*/
+int wolfSSL_EVP_PKEY_encrypt(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *out,
+                              size_t *outlen, const unsigned char *in,
+                              size_t inlen);
+
+/*!
+    \ingroup openSSL
+    \brief Initializes EVP_PKEY_CTX for encryption operation.
+
+    \return SSL_SUCCESS on success
+    \return SSL_FAILURE on failure
+
+    \param ctx EVP_PKEY_CTX structure
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY_CTX* ctx = wolfSSL_EVP_PKEY_CTX_new(pkey, NULL);
+    wolfSSL_EVP_PKEY_encrypt_init(ctx);
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_encrypt
+    \sa wolfSSL_EVP_PKEY_CTX_new
+*/
+int wolfSSL_EVP_PKEY_encrypt_init(WOLFSSL_EVP_PKEY_CTX *ctx);
+
+/*!
+    \ingroup openSSL
+    \brief Creates new EVP_PKEY with custom heap.
+
+    \return Pointer to new EVP_PKEY structure
+    \return NULL on failure
+
+    \param heap Custom heap pointer
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY* pkey = wolfSSL_EVP_PKEY_new_ex(NULL);
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_new
+    \sa wolfSSL_EVP_PKEY_free
+*/
+WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_ex(void* heap);
+
+/*!
+    \ingroup openSSL
+    \brief Frees EVP_PKEY structure.
+
+    \return none No returns
+
+    \param key EVP_PKEY structure to free
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY* pkey = wolfSSL_EVP_PKEY_new();
+    wolfSSL_EVP_PKEY_free(pkey);
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_new
+*/
+void wolfSSL_EVP_PKEY_free(WOLFSSL_EVP_PKEY* key);
+
+/*!
+    \ingroup openSSL
+    \brief Returns maximum signature size in bytes.
+
+    \return Maximum signature size
+    \return 0 if pkey is NULL
+
+    \param pkey EVP_PKEY structure
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY* pkey = wolfSSL_EVP_PKEY_new();
+    int size = wolfSSL_EVP_PKEY_size(pkey);
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_bits
+*/
+int wolfSSL_EVP_PKEY_size(WOLFSSL_EVP_PKEY *pkey);
+
+/*!
+    \ingroup openSSL
+    \brief Copies parameters from one EVP_PKEY to another.
+
+    \return SSL_SUCCESS on success
+    \return SSL_FAILURE on failure
+
+    \param to Destination EVP_PKEY
+    \param from Source EVP_PKEY
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY* to = wolfSSL_EVP_PKEY_new();
+    WOLFSSL_EVP_PKEY* from = wolfSSL_EVP_PKEY_new();
+    wolfSSL_EVP_PKEY_copy_parameters(to, from);
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_missing_parameters
+*/
+int wolfSSL_EVP_PKEY_copy_parameters(WOLFSSL_EVP_PKEY *to,
+                                      const WOLFSSL_EVP_PKEY *from);
+
+/*!
+    \ingroup openSSL
+    \brief Checks if EVP_PKEY has missing parameters.
+
+    \return 0 if parameters are present
+    \return 1 if parameters are missing
+
+    \param pkey EVP_PKEY structure
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY* pkey = wolfSSL_EVP_PKEY_new();
+    if (wolfSSL_EVP_PKEY_missing_parameters(pkey)) {
+        // parameters missing
+    }
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_copy_parameters
+*/
+int wolfSSL_EVP_PKEY_missing_parameters(WOLFSSL_EVP_PKEY *pkey);
+
+/*!
+    \ingroup openSSL
+    \brief Compares two EVP_PKEY structures.
+
+    \return 1 if keys match
+    \return 0 if keys don't match
+
+    \param a First EVP_PKEY
+    \param b Second EVP_PKEY
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY* pkey1 = wolfSSL_EVP_PKEY_new();
+    WOLFSSL_EVP_PKEY* pkey2 = wolfSSL_EVP_PKEY_new();
+    if (wolfSSL_EVP_PKEY_cmp(pkey1, pkey2) == 1) {
+        // keys match
+    }
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_type
+*/
+int wolfSSL_EVP_PKEY_cmp(const WOLFSSL_EVP_PKEY *a,
+                          const WOLFSSL_EVP_PKEY *b);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_PKEY type.
+
+    \return EVP_PKEY type constant
+    \return NID_undef on error
+
+    \param type Type value
+
+    _Example_
+    \code
+    int type = wolfSSL_EVP_PKEY_type(EVP_PKEY_RSA);
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_base_id
+    \sa wolfSSL_EVP_PKEY_id
+*/
+int wolfSSL_EVP_PKEY_type(int type);
