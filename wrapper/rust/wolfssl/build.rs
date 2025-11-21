@@ -165,6 +165,9 @@ fn scan_cfg() -> Result<()> {
     check_cfg(&binding, "wc_SSH_KDF", "kdf_ssh");
     check_cfg(&binding, "wc_Tls13_HKDF_Extract_ex", "kdf_tls13");
 
+    /* random */
+    check_cfg(&binding, "wc_RNG_DRBG_Reseed", "random_hashdrbg");
+
     /* rsa */
     check_cfg(&binding, "wc_InitRsaKey", "rsa");
     check_cfg(&binding, "wc_RsaDirect", "rsa_direct");
