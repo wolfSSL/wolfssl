@@ -1285,6 +1285,58 @@ int wc_SetKeyUsage(Cert *cert, const char *value);
 
 /*!
     \ingroup ASN
+    \brief Sets extended key usage using comma-delimited string.
+
+    \return 0 on success
+    \return BAD_FUNC_ARG if parameters invalid
+    \return MEMORY_E if memory allocation fails
+
+    \param cert Certificate structure
+    \param value Comma-delimited string of extended key usage values
+
+    _Example_
+    \code
+    Cert myCert;
+    wc_InitCert(&myCert);
+    int ret = wc_SetExtKeyUsage(&myCert,
+                                "serverAuth,clientAuth");
+    \endcode
+
+    \sa wc_SetKeyUsage
+    \sa wc_SetExtKeyUsageOID
+*/
+int wc_SetExtKeyUsage(Cert *cert, const char *value);
+
+/*!
+    \ingroup ASN
+    \brief Sets extended key usage using OID string.
+
+    \return 0 on success
+    \return BAD_FUNC_ARG if parameters invalid
+    \return MEMORY_E if memory allocation fails
+
+    \param cert Certificate structure
+    \param oid OID string
+    \param sz Length of OID string
+    \param idx Index for multiple OIDs
+    \param heap Heap hint for memory allocation
+
+    _Example_
+    \code
+    Cert myCert;
+    wc_InitCert(&myCert);
+    const char* oid = "1.3.6.1.5.5.7.3.1";
+    int ret = wc_SetExtKeyUsageOID(&myCert, oid, strlen(oid),
+                                   0, NULL);
+    \endcode
+
+    \sa wc_SetExtKeyUsage
+*/
+int wc_SetExtKeyUsageOID(Cert *cert, const char *oid, word32 sz,
+                         byte idx, void* heap);
+
+/*!
+    \ingroup ASN
 
     \brief Loads a PEM key from a file and converts to a DER encoded buffer.
 
