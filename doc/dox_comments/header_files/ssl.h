@@ -30768,3 +30768,538 @@ void wolfSSL_SetVerifyMacCtx(WOLFSSL* ssl, void *ctx);
     \sa wolfSSL_SetVerifyMacCtx
 */
 void* wolfSSL_GetVerifyMacCtx(WOLFSSL* ssl);
+
+/*!
+    \ingroup Callbacks
+
+    \brief Sets HKDF expand label callback in context.
+
+    \return none
+
+    \param ctx SSL context
+    \param cb Callback function
+
+    _Example_
+    \code
+    wolfSSL_CTX_SetHKDFExpandLabelCb(ctx, myHKDFExpandLabelCallback);
+    \endcode
+
+    \sa wolfSSL_CTX_SetHKDFExtractCb
+*/
+void wolfSSL_CTX_SetHKDFExpandLabelCb(WOLFSSL_CTX* ctx,
+                                       CallbackHKDFExpandLabel cb);
+
+/*!
+    \ingroup Callbacks
+
+    \brief Sets process server signature key exchange callback in context.
+
+    \return none
+
+    \param ctx SSL context
+    \param cb Callback function
+
+    _Example_
+    \code
+    wolfSSL_CTX_SetProcessServerSigKexCb(ctx, myProcessServerSigKexCallback);
+    \endcode
+
+    \sa wolfSSL_CTX_SetPerformTlsRecordProcessingCb
+*/
+void wolfSSL_CTX_SetProcessServerSigKexCb(WOLFSSL_CTX* ctx,
+                                           CallbackProcessServerSigKex cb);
+
+/*!
+    \ingroup Callbacks
+
+    \brief Sets perform TLS record processing callback in context.
+
+    \return none
+
+    \param ctx SSL context
+    \param cb Callback function
+
+    _Example_
+    \code
+    wolfSSL_CTX_SetPerformTlsRecordProcessingCb(ctx, myCallback);
+    \endcode
+
+    \sa wolfSSL_CTX_SetProcessServerSigKexCb
+*/
+void wolfSSL_CTX_SetPerformTlsRecordProcessingCb(WOLFSSL_CTX* ctx,
+                                        CallbackPerformTlsRecordProcessing cb);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets certificate manager from context.
+
+    \return WOLFSSL_CERT_MANAGER* Certificate manager
+    \return NULL if not available
+
+    \param ctx SSL context
+
+    _Example_
+    \code
+    WOLFSSL_CERT_MANAGER* cm = wolfSSL_CTX_GetCertManager(ctx);
+    \endcode
+
+    \sa wolfSSL_CertManagerNew
+*/
+WOLFSSL_CERT_MANAGER* wolfSSL_CTX_GetCertManager(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Creates new certificate manager with heap.
+
+    \return WOLFSSL_CERT_MANAGER* New certificate manager
+    \return NULL on failure
+
+    \param heap Heap hint
+
+    _Example_
+    \code
+    WOLFSSL_CERT_MANAGER* cm = wolfSSL_CertManagerNew_ex(NULL);
+    \endcode
+
+    \sa wolfSSL_CertManagerNew
+*/
+WOLFSSL_CERT_MANAGER* wolfSSL_CertManagerNew_ex(void* heap);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Creates new certificate manager.
+
+    \return WOLFSSL_CERT_MANAGER* New certificate manager
+    \return NULL on failure
+
+    _Example_
+    \code
+    WOLFSSL_CERT_MANAGER* cm = wolfSSL_CertManagerNew();
+    \endcode
+
+    \sa wolfSSL_CertManagerNew_ex
+*/
+WOLFSSL_CERT_MANAGER* wolfSSL_CertManagerNew(void);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Increments certificate manager reference count.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param cm Certificate manager
+
+    _Example_
+    \code
+    int ret = wolfSSL_CertManager_up_ref(cm);
+    \endcode
+
+    \sa wolfSSL_CertManagerNew
+*/
+int wolfSSL_CertManager_up_ref(WOLFSSL_CERT_MANAGER* cm);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets unknown extension callback.
+
+    \return none
+
+    \param cm Certificate manager
+    \param cb Callback function
+
+    _Example_
+    \code
+    wolfSSL_CertManagerSetUnknownExtCallback(cm, myUnknownExtCallback);
+    \endcode
+
+    \sa wolfSSL_CertManagerNew
+*/
+void wolfSSL_CertManagerSetUnknownExtCallback(WOLFSSL_CERT_MANAGER* cm,
+                                                wc_UnknownExtCallback cb);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Loads CA buffer with type.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param cm Certificate manager
+    \param buff Buffer containing CA
+    \param sz Buffer size
+    \param format Buffer format
+    \param userChain User chain flag
+    \param flags Load flags
+    \param type Certificate type
+
+    _Example_
+    \code
+    int ret = wolfSSL_CertManagerLoadCABufferType(cm, buf, sz,
+                                        SSL_FILETYPE_PEM, 0, 0, 0);
+    \endcode
+
+    \sa wolfSSL_CertManagerLoadCABuffer
+*/
+int wolfSSL_CertManagerLoadCABufferType(WOLFSSL_CERT_MANAGER* cm,
+                                         const unsigned char* buff, long sz,
+                                         int format, int userChain,
+                                         word32 flags, int type);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Loads CA buffer with extended options.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param cm Certificate manager
+    \param buff Buffer containing CA
+    \param sz Buffer size
+    \param format Buffer format
+    \param userChain User chain flag
+    \param flags Load flags
+
+    _Example_
+    \code
+    int ret = wolfSSL_CertManagerLoadCABuffer_ex(cm, buf, sz,
+                                        SSL_FILETYPE_PEM, 0, 0);
+    \endcode
+
+    \sa wolfSSL_CertManagerLoadCABuffer
+*/
+int wolfSSL_CertManagerLoadCABuffer_ex(WOLFSSL_CERT_MANAGER* cm,
+                                        const unsigned char* buff, long sz,
+                                        int format, int userChain,
+                                        word32 flags);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Unloads certificates of specific type.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param cm Certificate manager
+    \param type Certificate type
+
+    _Example_
+    \code
+    int ret = wolfSSL_CertManagerUnloadTypeCerts(cm, 0);
+    \endcode
+
+    \sa wolfSSL_CertManagerLoadCABuffer
+*/
+int wolfSSL_CertManagerUnloadTypeCerts(WOLFSSL_CERT_MANAGER* cm, byte type);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Loads CRL from file.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param cm Certificate manager
+    \param file CRL file path
+    \param type CRL type
+
+    _Example_
+    \code
+    int ret = wolfSSL_CertManagerLoadCRLFile(cm, "crl.pem",
+                                              SSL_FILETYPE_PEM);
+    \endcode
+
+    \sa wolfSSL_CertManagerLoadCRL
+*/
+int wolfSSL_CertManagerLoadCRLFile(WOLFSSL_CERT_MANAGER* cm,
+                                    const char* file, int type);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets CRL error callback.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param cm Certificate manager
+    \param cb Callback function
+    \param ctx Context pointer
+
+    _Example_
+    \code
+    int ret = wolfSSL_CertManagerSetCRL_ErrorCb(cm, myCrlErrorCb, ctx);
+    \endcode
+
+    \sa wolfSSL_CertManagerSetCRL_Cb
+*/
+int wolfSSL_CertManagerSetCRL_ErrorCb(WOLFSSL_CERT_MANAGER* cm,
+                                       crlErrorCb cb, void* ctx);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets CRL I/O callback.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param cm Certificate manager
+    \param cb Callback function
+
+    _Example_
+    \code
+    int ret = wolfSSL_CertManagerSetCRL_IOCb(cm, myCrlIOCb);
+    \endcode
+
+    \sa wolfSSL_CertManagerSetCRL_Cb
+*/
+int wolfSSL_CertManagerSetCRL_IOCb(WOLFSSL_CERT_MANAGER* cm, CbCrlIO cb);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets CRL info from buffer.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param cm Certificate manager
+    \param info CRL info structure
+    \param buff CRL buffer
+    \param sz Buffer size
+    \param type CRL type
+
+    _Example_
+    \code
+    CrlInfo info;
+    int ret = wolfSSL_CertManagerGetCRLInfo(cm, &info, buf, sz,
+                                             SSL_FILETYPE_PEM);
+    \endcode
+
+    \sa wolfSSL_CertManagerLoadCRL
+*/
+int wolfSSL_CertManagerGetCRLInfo(WOLFSSL_CERT_MANAGER* cm, CrlInfo* info,
+                                   const byte* buff, long sz, int type);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Checks OCSP response.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param cm Certificate manager
+    \param response OCSP response
+    \param responseSz Response size
+    \param responseBuffer Response buffer info
+    \param status Certificate status
+    \param entry OCSP entry
+    \param ocspRequest OCSP request
+
+    _Example_
+    \code
+    int ret = wolfSSL_CertManagerCheckOCSPResponse(cm, resp, respSz,
+                                                    &buf, &status,
+                                                    &entry, &req);
+    \endcode
+
+    \sa wolfSSL_CertManagerCheckOCSP
+*/
+int wolfSSL_CertManagerCheckOCSPResponse(WOLFSSL_CERT_MANAGER* cm,
+                                          unsigned char *response,
+                                          int responseSz,
+                                          WOLFSSL_BUFFER_INFO *responseBuffer,
+                                          CertStatus *status,
+                                          OcspEntry *entry,
+                                          OcspRequest *ocspRequest);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Disables OCSP stapling.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param cm Certificate manager
+
+    _Example_
+    \code
+    int ret = wolfSSL_CertManagerDisableOCSPStapling(cm);
+    \endcode
+
+    \sa wolfSSL_CertManagerEnableOCSPStapling
+*/
+int wolfSSL_CertManagerDisableOCSPStapling(WOLFSSL_CERT_MANAGER* cm);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Enables OCSP must staple.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param cm Certificate manager
+
+    _Example_
+    \code
+    int ret = wolfSSL_CertManagerEnableOCSPMustStaple(cm);
+    \endcode
+
+    \sa wolfSSL_CertManagerDisableOCSPMustStaple
+*/
+int wolfSSL_CertManagerEnableOCSPMustStaple(WOLFSSL_CERT_MANAGER* cm);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Disables OCSP must staple.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param cm Certificate manager
+
+    _Example_
+    \code
+    int ret = wolfSSL_CertManagerDisableOCSPMustStaple(cm);
+    \endcode
+
+    \sa wolfSSL_CertManagerEnableOCSPMustStaple
+*/
+int wolfSSL_CertManagerDisableOCSPMustStaple(WOLFSSL_CERT_MANAGER* cm);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets certificates from certificate manager.
+
+    \return WOLFSSL_STACK* Stack of certificates
+    \return NULL on failure
+
+    \param cm Certificate manager
+
+    _Example_
+    \code
+    WOLFSSL_STACK* certs = wolfSSL_CertManagerGetCerts(cm);
+    \endcode
+
+    \sa wolfSSL_CertManagerNew
+*/
+WOLFSSL_STACK* wolfSSL_CertManagerGetCerts(WOLFSSL_CERT_MANAGER* cm);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Loads CRL from file.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl SSL object
+    \param file CRL file path
+    \param type CRL type
+
+    _Example_
+    \code
+    int ret = wolfSSL_LoadCRLFile(ssl, "crl.pem", SSL_FILETYPE_PEM);
+    \endcode
+
+    \sa wolfSSL_LoadCRLBuffer
+*/
+int wolfSSL_LoadCRLFile(WOLFSSL* ssl, const char* file, int type);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Loads CRL from buffer.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl SSL object
+    \param buff CRL buffer
+    \param sz Buffer size
+    \param type CRL type
+
+    _Example_
+    \code
+    int ret = wolfSSL_LoadCRLBuffer(ssl, buf, sz, SSL_FILETYPE_PEM);
+    \endcode
+
+    \sa wolfSSL_LoadCRLFile
+*/
+int wolfSSL_LoadCRLBuffer(WOLFSSL* ssl, const unsigned char* buff, long sz,
+                           int type);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets CRL error callback.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl SSL object
+    \param cb Callback function
+    \param ctx Context pointer
+
+    _Example_
+    \code
+    int ret = wolfSSL_SetCRL_ErrorCb(ssl, myCrlErrorCb, ctx);
+    \endcode
+
+    \sa wolfSSL_SetCRL_IOCb
+*/
+int wolfSSL_SetCRL_ErrorCb(WOLFSSL* ssl, crlErrorCb cb, void* ctx);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets CRL I/O callback.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl SSL object
+    \param cb Callback function
+
+    _Example_
+    \code
+    int ret = wolfSSL_SetCRL_IOCb(ssl, myCrlIOCb);
+    \endcode
+
+    \sa wolfSSL_SetCRL_ErrorCb
+*/
+int wolfSSL_SetCRL_IOCb(WOLFSSL* ssl, CbCrlIO cb);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Enables OCSP stapling.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    int ret = wolfSSL_EnableOCSPStapling(ssl);
+    \endcode
+
+    \sa wolfSSL_UseOCSPStapling
+*/
+int wolfSSL_EnableOCSPStapling(WOLFSSL* ssl);
