@@ -2378,6 +2378,192 @@ const char* wolfSSL_get_cipher_name(WOLFSSL* ssl);
 /*!
     \ingroup IO
 
+    \brief Gets cipher name at priority level for specific SSL session.
+
+    \return string Cipher name on success
+    \return NULL on failure or invalid priority
+
+    \param ssl WOLFSSL object to get cipher from
+    \param priority Priority level of cipher to retrieve
+
+    _Example_
+    \code
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    char* cipher = wolfSSL_get_cipher_list_ex(ssl, 0);
+    if (cipher != NULL) {
+        printf("First cipher: %s\n", cipher);
+    }
+    \endcode
+
+    \sa wolfSSL_get_cipher_list
+    \sa wolfSSL_get_cipher_name
+*/
+char* wolfSSL_get_cipher_list_ex(WOLFSSL* ssl, int priority);
+
+/*!
+    \ingroup IO
+
+    \brief Gets list of IANA cipher names.
+
+    \return SSL_SUCCESS on success
+    \return BAD_FUNC_ARG if buf is NULL or len <= 0
+    \return BUFFER_E if buffer too small
+
+    \param buf Buffer to store cipher names
+    \param len Length of buffer
+
+    _Example_
+    \code
+    char ciphers[4096];
+    int ret = wolfSSL_get_ciphers_iana(ciphers, sizeof(ciphers));
+    if (ret == SSL_SUCCESS) {
+        printf("IANA ciphers: %s\n", ciphers);
+    }
+    \endcode
+
+    \sa wolfSSL_get_ciphers
+    \sa wolfSSL_get_cipher_list
+*/
+int wolfSSL_get_ciphers_iana(char* buf, int len);
+
+/*!
+    \ingroup IO
+
+    \brief Gets cipher name from cipher suite bytes.
+
+    \return string Cipher name on success
+    \return NULL on failure
+
+    \param cipherSuite0 First byte of cipher suite
+    \param cipherSuite Second byte of cipher suite
+
+    _Example_
+    \code
+    const char* name = wolfSSL_get_cipher_name_from_suite(0x00, 0x2F);
+    if (name != NULL) {
+        printf("Cipher: %s\n", name);
+    }
+    \endcode
+
+    \sa wolfSSL_get_cipher_name
+    \sa wolfSSL_get_cipher_name_iana_from_suite
+*/
+const char* wolfSSL_get_cipher_name_from_suite(unsigned char cipherSuite0,
+                                                 unsigned char cipherSuite);
+
+/*!
+    \ingroup IO
+
+    \brief Gets IANA cipher name from cipher suite bytes.
+
+    \return string IANA cipher name on success
+    \return NULL on failure
+
+    \param cipherSuite0 First byte of cipher suite
+    \param cipherSuite Second byte of cipher suite
+
+    _Example_
+    \code
+    const char* name = wolfSSL_get_cipher_name_iana_from_suite(0x13, 0x01);
+    if (name != NULL) {
+        printf("IANA cipher: %s\n", name);
+    }
+    \endcode
+
+    \sa wolfSSL_get_cipher_name_from_suite
+    \sa wolfSSL_get_ciphers_iana
+*/
+const char* wolfSSL_get_cipher_name_iana_from_suite(
+    unsigned char cipherSuite0, unsigned char cipherSuite);
+
+/*!
+    \ingroup IO
+
+    \brief Gets cipher suite bytes from cipher name.
+
+    \return SSL_SUCCESS on success
+    \return BAD_FUNC_ARG on invalid arguments
+    \return SSL_FAILURE if cipher not found
+
+    \param name Cipher name to look up
+    \param cipherSuite0 Pointer to store first byte
+    \param cipherSuite Pointer to store second byte
+    \param flags Pointer to store cipher flags
+
+    _Example_
+    \code
+    unsigned char suite0, suite;
+    int flags;
+    int ret = wolfSSL_get_cipher_suite_from_name("AES128-SHA", &suite0,
+                                                   &suite, &flags);
+    if (ret == SSL_SUCCESS) {
+        printf("Suite: 0x%02X 0x%02X\n", suite0, suite);
+    }
+    \endcode
+
+    \sa wolfSSL_get_cipher_name_from_suite
+*/
+int wolfSSL_get_cipher_suite_from_name(const char* name,
+                                        unsigned char* cipherSuite0,
+                                        unsigned char* cipherSuite,
+                                        int* flags);
+
+/*!
+    \ingroup IO
+
+    \brief Gets shared ciphers between client and server.
+
+    \return string Colon-separated list of shared ciphers
+    \return NULL on failure
+
+    \param ssl WOLFSSL object
+    \param buf Buffer to store cipher list
+    \param len Length of buffer
+
+    _Example_
+    \code
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    char shared[1024];
+    const char* ciphers = wolfSSL_get_shared_ciphers(ssl, shared,
+                                                       sizeof(shared));
+    if (ciphers != NULL) {
+        printf("Shared ciphers: %s\n", ciphers);
+    }
+    \endcode
+
+    \sa wolfSSL_get_ciphers
+    \sa wolfSSL_get_cipher_list
+*/
+const char* wolfSSL_get_shared_ciphers(WOLFSSL* ssl, char* buf, int len);
+
+/*!
+    \ingroup IO
+
+    \brief Gets the curve name used in the connection.
+
+    \return string Curve name on success
+    \return NULL if no curve used or on failure
+
+    \param ssl WOLFSSL object to get curve from
+
+    _Example_
+    \code
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    // after handshake
+    const char* curve = wolfSSL_get_curve_name(ssl);
+    if (curve != NULL) {
+        printf("Curve: %s\n", curve);
+    }
+    \endcode
+
+    \sa wolfSSL_get_cipher_name
+    \sa wolfSSL_UseSupportedCurve
+*/
+const char* wolfSSL_get_curve_name(WOLFSSL* ssl);
+
+/*!
+    \ingroup IO
+
     \brief This function returns the read file descriptor (fd) used as the
     input facility for the SSL connection.  Typically this
     will be a socket file descriptor.
