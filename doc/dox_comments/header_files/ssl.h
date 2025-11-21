@@ -32294,3 +32294,563 @@ long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt);
     \sa wolfSSL_CTX_add_extra_chain_cert
 */
 long wolfSSL_CTX_clear_extra_chain_certs(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Clears certificates from SSL object.
+
+    \return none
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    wolfSSL_certs_clear(ssl);
+    \endcode
+
+    \sa wolfSSL_CTX_clear_extra_chain_certs
+*/
+void wolfSSL_certs_clear(WOLFSSL* ssl);
+
+/*!
+    \ingroup openSSL
+
+    \brief Creates X509 name entry by NID.
+
+    \return WOLFSSL_X509_NAME_ENTRY* Entry
+    \return NULL on failure
+
+    \param out Output entry pointer
+    \param nid NID
+    \param type Value type
+    \param data Value data
+    \param dataSz Data size
+
+    _Example_
+    \code
+    WOLFSSL_X509_NAME_ENTRY* entry;
+    entry = wolfSSL_X509_NAME_ENTRY_create_by_NID(&entry, NID_commonName,
+                                                    MBSTRING_UTF8,
+                                                    (unsigned char*)"Test",
+                                                    4);
+    \endcode
+
+    \sa wolfSSL_X509_NAME_ENTRY_create_by_txt
+*/
+WOLFSSL_X509_NAME_ENTRY* wolfSSL_X509_NAME_ENTRY_create_by_NID(
+                                        WOLFSSL_X509_NAME_ENTRY** out,
+                                        int nid, int type,
+                                        const unsigned char* data,
+                                        int dataSz);
+
+/*!
+    \ingroup openSSL
+
+    \brief Creates X509 name entry by text.
+
+    \return WOLFSSL_X509_NAME_ENTRY* Entry
+    \return NULL on failure
+
+    \param neIn Input entry pointer
+    \param txt Field name
+    \param format Value format
+    \param data Value data
+    \param dataSz Data size
+
+    _Example_
+    \code
+    WOLFSSL_X509_NAME_ENTRY* entry;
+    entry = wolfSSL_X509_NAME_ENTRY_create_by_txt(&entry, "CN",
+                                                    MBSTRING_UTF8,
+                                                    (unsigned char*)"Test",
+                                                    4);
+    \endcode
+
+    \sa wolfSSL_X509_NAME_ENTRY_create_by_NID
+*/
+WOLFSSL_X509_NAME_ENTRY* wolfSSL_X509_NAME_ENTRY_create_by_txt(
+                                        WOLFSSL_X509_NAME_ENTRY **neIn,
+                                        const char *txt, int format,
+                                        const unsigned char *data,
+                                        int dataSz);
+
+/*!
+    \ingroup openSSL
+
+    \brief Adds entry to X509 name.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param name X509 name
+    \param entry Name entry
+    \param idx Index
+    \param set Set
+
+    _Example_
+    \code
+    int ret = wolfSSL_X509_NAME_add_entry(name, entry, -1, 0);
+    \endcode
+
+    \sa wolfSSL_X509_NAME_ENTRY_create_by_NID
+*/
+int wolfSSL_X509_NAME_add_entry(WOLFSSL_X509_NAME* name,
+                                 WOLFSSL_X509_NAME_ENTRY* entry,
+                                 int idx, int set);
+
+/*!
+    \ingroup openSSL
+
+    \brief Adds entry to X509 name by text.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param name X509 name
+    \param field Field name
+    \param type Value type
+    \param bytes Value bytes
+    \param len Value length
+    \param loc Location
+    \param set Set
+
+    _Example_
+    \code
+    int ret = wolfSSL_X509_NAME_add_entry_by_txt(name, "CN",
+                                                   MBSTRING_UTF8,
+                                                   (unsigned char*)"Test",
+                                                   4, -1, 0);
+    \endcode
+
+    \sa wolfSSL_X509_NAME_add_entry
+*/
+int wolfSSL_X509_NAME_add_entry_by_txt(WOLFSSL_X509_NAME *name,
+                                        const char *field, int type,
+                                        const unsigned char *bytes,
+                                        int len, int loc, int set);
+
+/*!
+    \ingroup openSSL
+
+    \brief Adds entry to X509 name by NID.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param name X509 name
+    \param nid NID
+    \param type Value type
+    \param bytes Value bytes
+    \param len Value length
+    \param loc Location
+    \param set Set
+
+    _Example_
+    \code
+    int ret = wolfSSL_X509_NAME_add_entry_by_NID(name, NID_commonName,
+                                                   MBSTRING_UTF8,
+                                                   (unsigned char*)"Test",
+                                                   4, -1, 0);
+    \endcode
+
+    \sa wolfSSL_X509_NAME_add_entry_by_txt
+*/
+int wolfSSL_X509_NAME_add_entry_by_NID(WOLFSSL_X509_NAME *name, int nid,
+                                        int type,
+                                        const unsigned char *bytes,
+                                        int len, int loc, int set);
+
+/*!
+    \ingroup openSSL
+
+    \brief Compares two X509 names.
+
+    \return 0 if equal
+    \return non-zero if different
+
+    \param x First name
+    \param y Second name
+
+    _Example_
+    \code
+    int cmp = wolfSSL_X509_NAME_cmp(name1, name2);
+    \endcode
+
+    \sa wolfSSL_X509_cmp
+*/
+int wolfSSL_X509_NAME_cmp(const WOLFSSL_X509_NAME* x,
+                          const WOLFSSL_X509_NAME* y);
+
+/*!
+    \ingroup openSSL
+
+    \brief Creates new X509 name.
+
+    \return WOLFSSL_X509_NAME* Name
+    \return NULL on failure
+
+    _Example_
+    \code
+    WOLFSSL_X509_NAME* name = wolfSSL_X509_NAME_new();
+    \endcode
+
+    \sa wolfSSL_X509_NAME_new_ex
+*/
+WOLFSSL_X509_NAME* wolfSSL_X509_NAME_new(void);
+
+/*!
+    \ingroup openSSL
+
+    \brief Creates new X509 name with heap.
+
+    \return WOLFSSL_X509_NAME* Name
+    \return NULL on failure
+
+    \param heap Heap hint
+
+    _Example_
+    \code
+    WOLFSSL_X509_NAME* name = wolfSSL_X509_NAME_new_ex(NULL);
+    \endcode
+
+    \sa wolfSSL_X509_NAME_new
+*/
+WOLFSSL_X509_NAME* wolfSSL_X509_NAME_new_ex(void *heap);
+
+/*!
+    \ingroup openSSL
+
+    \brief Duplicates X509 name.
+
+    \return WOLFSSL_X509_NAME* Duplicated name
+    \return NULL on failure
+
+    \param name Name to duplicate
+
+    _Example_
+    \code
+    WOLFSSL_X509_NAME* dup = wolfSSL_X509_NAME_dup(name);
+    \endcode
+
+    \sa wolfSSL_X509_NAME_copy
+*/
+WOLFSSL_X509_NAME* wolfSSL_X509_NAME_dup(WOLFSSL_X509_NAME* name);
+
+/*!
+    \ingroup openSSL
+
+    \brief Copies X509 name.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param from Source name
+    \param to Destination name
+
+    _Example_
+    \code
+    int ret = wolfSSL_X509_NAME_copy(from, to);
+    \endcode
+
+    \sa wolfSSL_X509_NAME_dup
+*/
+int wolfSSL_X509_NAME_copy(WOLFSSL_X509_NAME* from, WOLFSSL_X509_NAME* to);
+
+/*!
+    \ingroup Setup
+
+    \brief Controls SSL settings.
+
+    \return long Result value
+
+    \param ssl SSL object
+    \param cmd Command
+    \param opt Option
+    \param pt Pointer
+
+    _Example_
+    \code
+    long ret = wolfSSL_ctrl(ssl, SSL_CTRL_MODE, SSL_MODE_AUTO_RETRY, NULL);
+    \endcode
+
+    \sa wolfSSL_CTX_ctrl
+*/
+long wolfSSL_ctrl(WOLFSSL* ssl, int cmd, long opt, void* pt);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets extension data by NID.
+
+    \return void* Extension data
+    \return NULL if not found
+
+    \param x509 X509 certificate
+    \param nid NID
+    \param c Critical flag pointer
+    \param idx Index pointer
+
+    _Example_
+    \code
+    void* data = wolfSSL_X509_get_ext_d2i(x509, NID_subject_alt_name,
+                                           NULL, NULL);
+    \endcode
+
+    \sa wolfSSL_X509_get_ext
+*/
+void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid,
+                                int* c, int* idx);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets extension flags.
+
+    \return unsigned int Extension flags
+
+    \param x509 X509 certificate
+
+    _Example_
+    \code
+    unsigned int flags = wolfSSL_X509_get_extension_flags(x509);
+    \endcode
+
+    \sa wolfSSL_X509_get_key_usage
+*/
+unsigned int wolfSSL_X509_get_extension_flags(WOLFSSL_X509* x509);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets key usage.
+
+    \return unsigned int Key usage flags
+
+    \param x509 X509 certificate
+
+    _Example_
+    \code
+    unsigned int usage = wolfSSL_X509_get_key_usage(x509);
+    \endcode
+
+    \sa wolfSSL_X509_get_extended_key_usage
+*/
+unsigned int wolfSSL_X509_get_key_usage(WOLFSSL_X509* x509);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets extended key usage.
+
+    \return unsigned int Extended key usage flags
+
+    \param x509 X509 certificate
+
+    _Example_
+    \code
+    unsigned int usage = wolfSSL_X509_get_extended_key_usage(x509);
+    \endcode
+
+    \sa wolfSSL_X509_get_key_usage
+*/
+unsigned int wolfSSL_X509_get_extended_key_usage(WOLFSSL_X509* x509);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets extension count.
+
+    \return int Extension count
+
+    \param passedCert X509 certificate
+
+    _Example_
+    \code
+    int count = wolfSSL_X509_get_ext_count(x509);
+    \endcode
+
+    \sa wolfSSL_X509_get_ext
+*/
+int wolfSSL_X509_get_ext_count(const WOLFSSL_X509* passedCert);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Adds extension to X509.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param x X509 certificate
+    \param ex Extension
+    \param loc Location
+
+    _Example_
+    \code
+    int ret = wolfSSL_X509_add_ext(x509, ext, -1);
+    \endcode
+
+    \sa wolfSSL_X509_get_ext
+*/
+int wolfSSL_X509_add_ext(WOLFSSL_X509 *x, WOLFSSL_X509_EXTENSION *ex,
+                         int loc);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets X509V3 context.
+
+    \return none
+
+    \param ctx Context
+    \param issuer Issuer certificate
+    \param subject Subject certificate
+    \param req Request
+    \param crl CRL
+    \param flag Flags
+
+    _Example_
+    \code
+    wolfSSL_X509V3_set_ctx(&ctx, issuer, subject, NULL, NULL, 0);
+    \endcode
+
+    \sa wolfSSL_X509V3_set_ctx_nodb
+*/
+void wolfSSL_X509V3_set_ctx(WOLFSSL_X509V3_CTX* ctx,
+                             WOLFSSL_X509* issuer, WOLFSSL_X509* subject,
+                             WOLFSSL_X509* req, WOLFSSL_X509_CRL* crl,
+                             int flag);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets X509V3 context no database.
+
+    \return none
+
+    \param ctx Context
+
+    _Example_
+    \code
+    wolfSSL_X509V3_set_ctx_nodb(&ctx);
+    \endcode
+
+    \sa wolfSSL_X509V3_set_ctx
+*/
+void wolfSSL_X509V3_set_ctx_nodb(WOLFSSL_X509V3_CTX* ctx);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets public key digest.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param x509 X509 certificate
+    \param digest Digest type
+    \param buf Output buffer
+    \param len Length pointer
+
+    _Example_
+    \code
+    unsigned char buf[EVP_MAX_MD_SIZE];
+    unsigned int len;
+    int ret = wolfSSL_X509_pubkey_digest(x509, wolfSSL_EVP_sha256(),
+                                          buf, &len);
+    \endcode
+
+    \sa wolfSSL_X509_digest
+*/
+int wolfSSL_X509_pubkey_digest(const WOLFSSL_X509 *x509,
+                                const WOLFSSL_EVP_MD *digest,
+                                unsigned char* buf, unsigned int* len);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Uses private key ASN1 in context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param pri Key type
+    \param ctx SSL context
+    \param der DER buffer
+    \param derSz DER size
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_use_PrivateKey_ASN1(EVP_PKEY_RSA, ctx, der,
+                                               derSz);
+    \endcode
+
+    \sa wolfSSL_use_PrivateKey_ASN1
+*/
+int wolfSSL_CTX_use_PrivateKey_ASN1(int pri, WOLFSSL_CTX* ctx,
+                                     unsigned char* der, long derSz);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Compares two X509 certificates.
+
+    \return 0 if equal
+    \return non-zero if different
+
+    \param a First certificate
+    \param b Second certificate
+
+    _Example_
+    \code
+    int cmp = wolfSSL_X509_cmp(cert1, cert2);
+    \endcode
+
+    \sa wolfSSL_X509_NAME_cmp
+*/
+int wolfSSL_X509_cmp(const WOLFSSL_X509* a, const WOLFSSL_X509* b);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets extension by location.
+
+    \return WOLFSSL_X509_EXTENSION* Extension
+    \return NULL if not found
+
+    \param x X509 certificate
+    \param loc Location
+
+    _Example_
+    \code
+    WOLFSSL_X509_EXTENSION* ext = wolfSSL_X509_get_ext(x509, 0);
+    \endcode
+
+    \sa wolfSSL_X509_get_ext_count
+*/
+WOLFSSL_X509_EXTENSION* wolfSSL_X509_get_ext(const WOLFSSL_X509* x,
+                                              int loc);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets extension by object.
+
+    \return int Extension index
+    \return -1 if not found
+
+    \param x X509 certificate
+    \param obj ASN1 object
+    \param lastpos Last position
+
+    _Example_
+    \code
+    int idx = wolfSSL_X509_get_ext_by_OBJ(x509, obj, -1);
+    \endcode
+
+    \sa wolfSSL_X509_get_ext
+*/
+int wolfSSL_X509_get_ext_by_OBJ(const WOLFSSL_X509 *x,
+                                 const WOLFSSL_ASN1_OBJECT *obj,
+                                 int lastpos);
