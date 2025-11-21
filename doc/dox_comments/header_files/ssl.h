@@ -24691,3 +24691,523 @@ char* wolfSSL_CONF_get1_default_config_file(void);
     \sa wolfSSL_set_tlsext_status_exts
 */
 long wolfSSL_get_tlsext_status_exts(WOLFSSL* s, void* arg);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets application data from SSL object.
+
+    \return void* Application data pointer
+    \return NULL if not set
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    void* data = wolfSSL_get_app_data(ssl);
+    if (data != NULL) {
+        MyAppData* appData = (MyAppData*)data;
+    }
+    \endcode
+
+    \sa wolfSSL_set_app_data
+*/
+void* wolfSSL_get_app_data(const WOLFSSL* ssl);
+
+/*!
+    \ingroup openSSL
+
+    \brief Sets password callback user data.
+
+    \return none
+
+    \param ctx SSL context
+    \param userdata User data pointer
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    wolfSSL_CTX_set_default_passwd_cb_userdata(ctx, myData);
+    \endcode
+
+    \sa wolfSSL_CTX_set_default_passwd_cb
+*/
+void wolfSSL_CTX_set_default_passwd_cb_userdata(WOLFSSL_CTX* ctx,
+                                                  void* userdata);
+
+/*!
+    \ingroup openSSL
+
+    \brief Sets password callback function.
+
+    \return none
+
+    \param ctx SSL context
+    \param cb Password callback function
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    wolfSSL_CTX_set_default_passwd_cb(ctx, myPasswordCallback);
+    \endcode
+
+    \sa wolfSSL_CTX_get_default_passwd_cb
+*/
+void wolfSSL_CTX_set_default_passwd_cb(WOLFSSL_CTX* ctx,
+                                         wc_pem_password_cb* cb);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets password callback function.
+
+    \return wc_pem_password_cb* Password callback
+    \return NULL if not set
+
+    \param ctx SSL context
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    wc_pem_password_cb* cb = wolfSSL_CTX_get_default_passwd_cb(ctx);
+    \endcode
+
+    \sa wolfSSL_CTX_set_default_passwd_cb
+*/
+wc_pem_password_cb* wolfSSL_CTX_get_default_passwd_cb(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup openSSL
+
+    \brief Checks if renegotiation is pending.
+
+    \return 1 if pending
+    \return 0 if not pending
+
+    \param s SSL object
+
+    _Example_
+    \code
+    int pending = wolfSSL_SSL_renegotiate_pending(ssl);
+    if (pending) {
+        printf("Renegotiation pending\n");
+    }
+    \endcode
+
+    \sa wolfSSL_Rehandshake
+*/
+int wolfSSL_SSL_renegotiate_pending(WOLFSSL* s);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets total renegotiation count.
+
+    \return long Number of renegotiations
+
+    \param s SSL object
+
+    _Example_
+    \code
+    long total = wolfSSL_total_renegotiations(ssl);
+    printf("Total renegotiations: %ld\n", total);
+    \endcode
+
+    \sa wolfSSL_num_renegotiations
+*/
+long wolfSSL_total_renegotiations(WOLFSSL* s);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets current renegotiation count.
+
+    \return long Number of renegotiations
+
+    \param s SSL object
+
+    _Example_
+    \code
+    long num = wolfSSL_num_renegotiations(ssl);
+    printf("Renegotiations: %ld\n", num);
+    \endcode
+
+    \sa wolfSSL_total_renegotiations
+*/
+long wolfSSL_num_renegotiations(WOLFSSL* s);
+
+/*!
+    \ingroup openSSL
+
+    \brief Clears renegotiation count.
+
+    \return long Previous count
+
+    \param s SSL object
+
+    _Example_
+    \code
+    long prev = wolfSSL_clear_num_renegotiations(ssl);
+    \endcode
+
+    \sa wolfSSL_num_renegotiations
+*/
+long wolfSSL_clear_num_renegotiations(WOLFSSL* s);
+
+/*!
+    \ingroup openSSL
+
+    \brief Sets read file descriptor.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl SSL object
+    \param rfd Read file descriptor
+
+    _Example_
+    \code
+    int ret = wolfSSL_set_rfd(ssl, sockfd);
+    \endcode
+
+    \sa wolfSSL_set_wfd
+*/
+int wolfSSL_set_rfd(WOLFSSL* ssl, int rfd);
+
+/*!
+    \ingroup openSSL
+
+    \brief Sets write file descriptor.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl SSL object
+    \param wfd Write file descriptor
+
+    _Example_
+    \code
+    int ret = wolfSSL_set_wfd(ssl, sockfd);
+    \endcode
+
+    \sa wolfSSL_set_rfd
+*/
+int wolfSSL_set_wfd(WOLFSSL* ssl, int wfd);
+
+/*!
+    \ingroup openSSL
+
+    \brief Sets shutdown mode.
+
+    \return none
+
+    \param ssl SSL object
+    \param opt Shutdown options
+
+    _Example_
+    \code
+    wolfSSL_set_shutdown(ssl, SSL_SENT_SHUTDOWN);
+    \endcode
+
+    \sa wolfSSL_get_shutdown
+*/
+void wolfSSL_set_shutdown(WOLFSSL* ssl, int opt);
+
+/*!
+    \ingroup openSSL
+
+    \brief Sets session ID context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl SSL object
+    \param id Session ID context
+    \param len Length of context
+
+    _Example_
+    \code
+    unsigned char id[] = "myapp";
+    int ret = wolfSSL_set_session_id_context(ssl, id, sizeof(id));
+    \endcode
+
+    \sa wolfSSL_CTX_set_session_id_context
+*/
+int wolfSSL_set_session_id_context(WOLFSSL* ssl, const unsigned char* id,
+                                     unsigned int len);
+
+/*!
+    \ingroup openSSL
+
+    \brief Sets SSL to connect state.
+
+    \return none
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    wolfSSL_set_connect_state(ssl);
+    int ret = wolfSSL_connect(ssl);
+    \endcode
+
+    \sa wolfSSL_set_accept_state
+*/
+void wolfSSL_set_connect_state(WOLFSSL* ssl);
+
+/*!
+    \ingroup openSSL
+
+    \brief Sets SSL to accept state.
+
+    \return none
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    wolfSSL_set_accept_state(ssl);
+    int ret = wolfSSL_accept(ssl);
+    \endcode
+
+    \sa wolfSSL_set_connect_state
+*/
+void wolfSSL_set_accept_state(WOLFSSL* ssl);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets maximum fragment length from session.
+
+    \return unsigned char Fragment length
+
+    \param session SSL session
+
+    _Example_
+    \code
+    WOLFSSL_SESSION* session = wolfSSL_get_session(ssl);
+    unsigned char mfl = wolfSSL_SESSION_get_max_fragment_length(session);
+    \endcode
+
+    \sa wolfSSL_set_tlsext_max_fragment_length
+*/
+unsigned char wolfSSL_SESSION_get_max_fragment_length(
+    WOLFSSL_SESSION* session);
+
+/*!
+    \ingroup openSSL
+
+    \brief Increments session reference count.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param session SSL session
+
+    _Example_
+    \code
+    WOLFSSL_SESSION* session = wolfSSL_get_session(ssl);
+    int ret = wolfSSL_SESSION_up_ref(session);
+    \endcode
+
+    \sa wolfSSL_SESSION_free
+*/
+int wolfSSL_SESSION_up_ref(WOLFSSL_SESSION* session);
+
+/*!
+    \ingroup openSSL
+
+    \brief Duplicates SSL session.
+
+    \return WOLFSSL_SESSION* Duplicated session
+    \return NULL on failure
+
+    \param session SSL session to duplicate
+
+    _Example_
+    \code
+    WOLFSSL_SESSION* orig = wolfSSL_get_session(ssl);
+    WOLFSSL_SESSION* dup = wolfSSL_SESSION_dup(orig);
+    if (dup != NULL) {
+        wolfSSL_SESSION_free(dup);
+    }
+    \endcode
+
+    \sa wolfSSL_SESSION_new
+*/
+WOLFSSL_SESSION* wolfSSL_SESSION_dup(WOLFSSL_SESSION* session);
+
+/*!
+    \ingroup openSSL
+
+    \brief Creates new SSL session.
+
+    \return WOLFSSL_SESSION* New session
+    \return NULL on failure
+
+    _Example_
+    \code
+    WOLFSSL_SESSION* session = wolfSSL_SESSION_new();
+    if (session != NULL) {
+        wolfSSL_SESSION_free(session);
+    }
+    \endcode
+
+    \sa wolfSSL_SESSION_free
+*/
+WOLFSSL_SESSION* wolfSSL_SESSION_new(void);
+
+/*!
+    \ingroup openSSL
+
+    \brief Creates new SSL session with heap.
+
+    \return WOLFSSL_SESSION* New session
+    \return NULL on failure
+
+    \param heap Heap hint
+
+    _Example_
+    \code
+    WOLFSSL_SESSION* session = wolfSSL_SESSION_new_ex(myHeap);
+    if (session != NULL) {
+        wolfSSL_SESSION_free(session);
+    }
+    \endcode
+
+    \sa wolfSSL_SESSION_new
+*/
+WOLFSSL_SESSION* wolfSSL_SESSION_new_ex(void* heap);
+
+/*!
+    \ingroup openSSL
+
+    \brief Frees SSL session.
+
+    \return none
+
+    \param session SSL session to free
+
+    _Example_
+    \code
+    WOLFSSL_SESSION* session = wolfSSL_SESSION_new();
+    wolfSSL_SESSION_free(session);
+    \endcode
+
+    \sa wolfSSL_SESSION_new
+*/
+void wolfSSL_SESSION_free(WOLFSSL_SESSION* session);
+
+/*!
+    \ingroup openSSL
+
+    \brief Adds session to context cache.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx SSL context
+    \param session Session to add
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    WOLFSSL_SESSION* session = wolfSSL_SESSION_new();
+    int ret = wolfSSL_CTX_add_session(ctx, session);
+    \endcode
+
+    \sa wolfSSL_CTX_remove_session
+*/
+int wolfSSL_CTX_add_session(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* session);
+
+/*!
+    \ingroup openSSL
+
+    \brief Sets cipher in session.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param session SSL session
+    \param cipher Cipher to set
+
+    _Example_
+    \code
+    WOLFSSL_SESSION* session = wolfSSL_SESSION_new();
+    WOLFSSL_CIPHER* cipher = wolfSSL_get_current_cipher(ssl);
+    int ret = wolfSSL_SESSION_set_cipher(session, cipher);
+    \endcode
+
+    \sa wolfSSL_get_current_cipher
+*/
+int wolfSSL_SESSION_set_cipher(WOLFSSL_SESSION* session,
+                                 const WOLFSSL_CIPHER* cipher);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets protocol version string.
+
+    \return const char* Version string
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    const char* version = wolfSSL_get_version(ssl);
+    printf("Version: %s\n", version);
+    \endcode
+
+    \sa wolfSSL_version
+*/
+const char* wolfSSL_get_version(const WOLFSSL* ssl);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets current cipher.
+
+    \return WOLFSSL_CIPHER* Current cipher
+    \return NULL if not set
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    WOLFSSL_CIPHER* cipher = wolfSSL_get_current_cipher(ssl);
+    if (cipher != NULL) {
+        const char* name = wolfSSL_CIPHER_get_name(cipher);
+        printf("Cipher: %s\n", name);
+    }
+    \endcode
+
+    \sa wolfSSL_CIPHER_get_name
+*/
+WOLFSSL_CIPHER* wolfSSL_get_current_cipher(WOLFSSL* ssl);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets cipher description.
+
+    \return char* Description string
+    \return NULL on failure
+
+    \param cipher Cipher to describe
+    \param in Buffer for description
+    \param len Buffer length
+
+    _Example_
+    \code
+    WOLFSSL_CIPHER* cipher = wolfSSL_get_current_cipher(ssl);
+    char desc[256];
+    char* ret = wolfSSL_CIPHER_description(cipher, desc, sizeof(desc));
+    if (ret != NULL) {
+        printf("Description: %s\n", desc);
+    }
+    \endcode
+
+    \sa wolfSSL_get_current_cipher
+*/
+char* wolfSSL_CIPHER_description(const WOLFSSL_CIPHER* cipher, char* in,
+                                   int len);
