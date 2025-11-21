@@ -20213,3 +20213,525 @@ int wolfSSL_RAND_write_file(const char* fname);
     \sa wolfSSL_RAND_write_file
 */
 int wolfSSL_RAND_load_file(const char* fname, long len);
+
+/*!
+    \ingroup openSSL
+
+    \brief Seeds random number generator from EGD socket.
+
+    \return int Number of bytes read on success
+    \return negative value on failure
+
+    \param nm EGD socket path
+
+    _Example_
+    \code
+    int ret = wolfSSL_RAND_egd("/var/run/egd-pool");
+    if (ret > 0) {
+        printf("Seeded %d bytes from EGD\n", ret);
+    }
+    \endcode
+
+    \sa wolfSSL_RAND_seed
+*/
+int wolfSSL_RAND_egd(const char* nm);
+
+/*!
+    \ingroup openSSL
+
+    \brief Seeds random number generator.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param seed Seed data
+    \param len Length of seed data
+
+    _Example_
+    \code
+    unsigned char seed[32];
+    // fill seed with random data
+    int ret = wolfSSL_RAND_seed(seed, sizeof(seed));
+    \endcode
+
+    \sa wolfSSL_RAND_add
+*/
+int wolfSSL_RAND_seed(const void* seed, int len);
+
+/*!
+    \ingroup openSSL
+
+    \brief Cleans up random number generator.
+
+    \return none
+
+    _Example_
+    \code
+    wolfSSL_RAND_Cleanup();
+    \endcode
+
+    \sa wolfSSL_RAND_seed
+*/
+void wolfSSL_RAND_Cleanup(void);
+
+/*!
+    \ingroup openSSL
+
+    \brief Adds entropy to random number generator.
+
+    \return none
+
+    \param add Entropy data to add
+    \param len Length of entropy data
+    \param entropy Entropy estimate (unused)
+
+    _Example_
+    \code
+    unsigned char entropy_data[32];
+    // fill entropy_data
+    wolfSSL_RAND_add(entropy_data, sizeof(entropy_data), 32.0);
+    \endcode
+
+    \sa wolfSSL_RAND_seed
+*/
+void wolfSSL_RAND_add(const void* add, int len, double entropy);
+
+/*!
+    \ingroup openSSL
+
+    \brief Polls for entropy.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    _Example_
+    \code
+    int ret = wolfSSL_RAND_poll();
+    if (ret == WOLFSSL_SUCCESS) {
+        printf("Successfully polled for entropy\n");
+    }
+    \endcode
+
+    \sa wolfSSL_RAND_seed
+*/
+int wolfSSL_RAND_poll(void);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets zlib compression method.
+
+    \return WOLFSSL_COMP_METHOD* Pointer to compression method
+    \return NULL if not supported
+
+    _Example_
+    \code
+    WOLFSSL_COMP_METHOD* method = wolfSSL_COMP_zlib();
+    \endcode
+
+    \sa wolfSSL_COMP_rle
+*/
+WOLFSSL_COMP_METHOD* wolfSSL_COMP_zlib(void);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets RLE compression method.
+
+    \return WOLFSSL_COMP_METHOD* Pointer to compression method
+    \return NULL if not supported
+
+    _Example_
+    \code
+    WOLFSSL_COMP_METHOD* method = wolfSSL_COMP_rle();
+    \endcode
+
+    \sa wolfSSL_COMP_zlib
+*/
+WOLFSSL_COMP_METHOD* wolfSSL_COMP_rle(void);
+
+/*!
+    \ingroup openSSL
+
+    \brief Adds compression method.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param method Compression method ID
+    \param data Compression method data
+
+    _Example_
+    \code
+    int ret = wolfSSL_COMP_add_compression_method(1, NULL);
+    \endcode
+
+    \sa wolfSSL_COMP_zlib
+*/
+int wolfSSL_COMP_add_compression_method(int method, void* data);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets current compression method.
+
+    \return const WOLFSSL_COMP_METHOD* Pointer to compression method
+    \return NULL if no compression
+
+    \param ssl SSL object to query
+
+    _Example_
+    \code
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    const WOLFSSL_COMP_METHOD* comp = 
+        wolfSSL_get_current_compression(ssl);
+    \endcode
+
+    \sa wolfSSL_get_current_expansion
+*/
+const WOLFSSL_COMP_METHOD* wolfSSL_get_current_compression(
+    const WOLFSSL* ssl);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets current expansion method.
+
+    \return const WOLFSSL_COMP_METHOD* Pointer to expansion method
+    \return NULL if no expansion
+
+    \param ssl SSL object to query
+
+    _Example_
+    \code
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    const WOLFSSL_COMP_METHOD* exp = 
+        wolfSSL_get_current_expansion(ssl);
+    \endcode
+
+    \sa wolfSSL_get_current_compression
+*/
+const WOLFSSL_COMP_METHOD* wolfSSL_get_current_expansion(
+    const WOLFSSL* ssl);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets current thread ID.
+
+    \return unsigned long Thread ID
+
+    _Example_
+    \code
+    unsigned long tid = wolfSSL_thread_id();
+    printf("Thread ID: %lu\n", tid);
+    \endcode
+
+    \sa wolfSSL_set_locking_callback
+*/
+unsigned long wolfSSL_thread_id(void);
+
+/*!
+    \ingroup openSSL
+
+    \brief Sets locking callback for thread safety.
+
+    \return none
+
+    \param f Locking callback function
+
+    _Example_
+    \code
+    wolfSSL_set_locking_callback(my_locking_callback);
+    \endcode
+
+    \sa wolfSSL_get_locking_callback
+*/
+void wolfSSL_set_locking_callback(mutex_cb* f);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets locking callback.
+
+    \return mutex_cb* Locking callback function
+    \return NULL if not set
+
+    _Example_
+    \code
+    mutex_cb* cb = wolfSSL_get_locking_callback();
+    \endcode
+
+    \sa wolfSSL_set_locking_callback
+*/
+mutex_cb* wolfSSL_get_locking_callback(void);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets number of locks.
+
+    \return int Number of locks
+
+    _Example_
+    \code
+    int num = wolfSSL_num_locks();
+    printf("Number of locks: %d\n", num);
+    \endcode
+
+    \sa wolfSSL_set_locking_callback
+*/
+int wolfSSL_num_locks(void);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets current certificate from store context.
+
+    \return WOLFSSL_X509* Pointer to current certificate
+    \return NULL if no current certificate
+
+    \param ctx Store context to query
+
+    _Example_
+    \code
+    WOLFSSL_X509_STORE_CTX* ctx = wolfSSL_X509_STORE_CTX_new();
+    WOLFSSL_X509* cert = wolfSSL_X509_STORE_CTX_get_current_cert(ctx);
+    \endcode
+
+    \sa wolfSSL_X509_STORE_CTX_get_error
+*/
+WOLFSSL_X509* wolfSSL_X509_STORE_CTX_get_current_cert(
+    WOLFSSL_X509_STORE_CTX* ctx);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets verify callback for store context.
+
+    \return none
+
+    \param ctx Store context to set callback for
+    \param verify_cb Verify callback function
+
+    _Example_
+    \code
+    WOLFSSL_X509_STORE_CTX* ctx = wolfSSL_X509_STORE_CTX_new();
+    wolfSSL_X509_STORE_CTX_set_verify_cb(ctx, my_verify_cb);
+    \endcode
+
+    \sa wolfSSL_X509_STORE_set_verify_cb
+*/
+void wolfSSL_X509_STORE_CTX_set_verify_cb(WOLFSSL_X509_STORE_CTX* ctx,
+    WOLFSSL_X509_STORE_CTX_verify_cb verify_cb);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets verify callback for store.
+
+    \return none
+
+    \param st Store to set callback for
+    \param verify_cb Verify callback function
+
+    _Example_
+    \code
+    WOLFSSL_X509_STORE* store = wolfSSL_X509_STORE_new();
+    wolfSSL_X509_STORE_set_verify_cb(store, my_verify_cb);
+    \endcode
+
+    \sa wolfSSL_X509_STORE_CTX_set_verify_cb
+*/
+void wolfSSL_X509_STORE_set_verify_cb(WOLFSSL_X509_STORE* st,
+    WOLFSSL_X509_STORE_CTX_verify_cb verify_cb);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets get CRL callback for store.
+
+    \return none
+
+    \param st Store to set callback for
+    \param get_cb Get CRL callback function
+
+    _Example_
+    \code
+    WOLFSSL_X509_STORE* store = wolfSSL_X509_STORE_new();
+    wolfSSL_X509_STORE_set_get_crl(store, my_get_crl_cb);
+    \endcode
+
+    \sa wolfSSL_X509_STORE_set_check_crl
+*/
+void wolfSSL_X509_STORE_set_get_crl(WOLFSSL_X509_STORE* st,
+    WOLFSSL_X509_STORE_CTX_get_crl_cb get_cb);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets check CRL callback for store.
+
+    \return none
+
+    \param st Store to set callback for
+    \param check_crl Check CRL callback function
+
+    _Example_
+    \code
+    WOLFSSL_X509_STORE* store = wolfSSL_X509_STORE_new();
+    wolfSSL_X509_STORE_set_check_crl(store, my_check_crl_cb);
+    \endcode
+
+    \sa wolfSSL_X509_STORE_set_get_crl
+*/
+void wolfSSL_X509_STORE_set_check_crl(WOLFSSL_X509_STORE* st,
+    WOLFSSL_X509_STORE_CTX_check_crl_cb check_crl);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Converts X509_NAME to DER format.
+
+    \return int Length of DER encoding on success
+    \return negative value on failure
+
+    \param n X509_NAME to convert
+    \param out Pointer to store DER data (allocated by function)
+
+    _Example_
+    \code
+    WOLFSSL_X509_NAME* name = wolfSSL_X509_get_subject_name(x509);
+    unsigned char* der = NULL;
+    int len = wolfSSL_i2d_X509_NAME(name, &der);
+    if (len > 0) {
+        XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+    \endcode
+
+    \sa wolfSSL_d2i_X509_NAME
+*/
+int wolfSSL_i2d_X509_NAME(WOLFSSL_X509_NAME* n, unsigned char** out);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Converts X509_NAME to canonical DER format.
+
+    \return int Length of DER encoding on success
+    \return negative value on failure
+
+    \param name X509_NAME to convert
+    \param out Pointer to store DER data (allocated by function)
+
+    _Example_
+    \code
+    WOLFSSL_X509_NAME* name = wolfSSL_X509_get_subject_name(x509);
+    unsigned char* der = NULL;
+    int len = wolfSSL_i2d_X509_NAME_canon(name, &der);
+    if (len > 0) {
+        XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+    \endcode
+
+    \sa wolfSSL_i2d_X509_NAME
+*/
+int wolfSSL_i2d_X509_NAME_canon(WOLFSSL_X509_NAME* name,
+                                  unsigned char** out);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Prints RSA key to file.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param fp File pointer to write to
+    \param rsa RSA key to print
+    \param indent Indentation level
+
+    _Example_
+    \code
+    WOLFSSL_RSA* rsa = wolfSSL_RSA_new();
+    FILE* fp = fopen("rsa_key.txt", "w");
+    int ret = wolfSSL_RSA_print_fp(fp, rsa, 0);
+    fclose(fp);
+    \endcode
+
+    \sa wolfSSL_RSA_print
+*/
+int wolfSSL_RSA_print_fp(XFILE fp, WOLFSSL_RSA* rsa, int indent);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Prints RSA key to BIO.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param bio BIO to write to
+    \param rsa RSA key to print
+    \param offset Offset for indentation
+
+    _Example_
+    \code
+    WOLFSSL_RSA* rsa = wolfSSL_RSA_new();
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
+    int ret = wolfSSL_RSA_print(bio, rsa, 0);
+    \endcode
+
+    \sa wolfSSL_RSA_print_fp
+*/
+int wolfSSL_RSA_print(WOLFSSL_BIO* bio, WOLFSSL_RSA* rsa, int offset);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Prints X509 certificate to BIO with flags.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param bio BIO to write to
+    \param x509 Certificate to print
+    \param nmflags Name flags
+    \param cflag Certificate flags
+
+    _Example_
+    \code
+    WOLFSSL_X509* x509 = wolfSSL_X509_load_certificate_file(file,
+                                                              format);
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
+    int ret = wolfSSL_X509_print_ex(bio, x509, 0, 0);
+    \endcode
+
+    \sa wolfSSL_X509_print
+*/
+int wolfSSL_X509_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
+                           unsigned long nmflags, unsigned long cflag);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Prints X509 certificate to file.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param fp File pointer to write to
+    \param x509 Certificate to print
+
+    _Example_
+    \code
+    WOLFSSL_X509* x509 = wolfSSL_X509_load_certificate_file(file,
+                                                              format);
+    FILE* fp = fopen("cert.txt", "w");
+    int ret = wolfSSL_X509_print_fp(fp, x509);
+    fclose(fp);
+    \endcode
+
+    \sa wolfSSL_X509_print
+*/
+int wolfSSL_X509_print_fp(XFILE fp, WOLFSSL_X509* x509);
