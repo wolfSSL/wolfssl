@@ -21896,3 +21896,583 @@ const char* wolfSSL_X509_verify_cert_error_string(long err);
 */
 int wolfSSL_X509_LOOKUP_add_dir(WOLFSSL_X509_LOOKUP* lookup,
                                   const char* dir, long type);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Loads certificate file into X509_LOOKUP.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param lookup X509_LOOKUP to load file into
+    \param file Certificate file path
+    \param type File type
+
+    _Example_
+    \code
+    WOLFSSL_X509_LOOKUP* lookup = wolfSSL_X509_STORE_add_lookup(store,
+                                        wolfSSL_X509_LOOKUP_file());
+    int ret = wolfSSL_X509_LOOKUP_load_file(lookup, "cert.pem",
+                                              WOLFSSL_FILETYPE_PEM);
+    \endcode
+
+    \sa wolfSSL_X509_LOOKUP_add_dir
+*/
+int wolfSSL_X509_LOOKUP_load_file(WOLFSSL_X509_LOOKUP* lookup,
+                                    const char* file, long type);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets hash directory lookup method.
+
+    \return WOLFSSL_X509_LOOKUP_METHOD* Pointer to lookup method
+
+    _Example_
+    \code
+    WOLFSSL_X509_LOOKUP_METHOD* method = wolfSSL_X509_LOOKUP_hash_dir();
+    WOLFSSL_X509_LOOKUP* lookup = wolfSSL_X509_STORE_add_lookup(store,
+                                                                  method);
+    \endcode
+
+    \sa wolfSSL_X509_LOOKUP_file
+*/
+WOLFSSL_X509_LOOKUP_METHOD* wolfSSL_X509_LOOKUP_hash_dir(void);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets file lookup method.
+
+    \return WOLFSSL_X509_LOOKUP_METHOD* Pointer to lookup method
+
+    _Example_
+    \code
+    WOLFSSL_X509_LOOKUP_METHOD* method = wolfSSL_X509_LOOKUP_file();
+    WOLFSSL_X509_LOOKUP* lookup = wolfSSL_X509_STORE_add_lookup(store,
+                                                                  method);
+    \endcode
+
+    \sa wolfSSL_X509_LOOKUP_hash_dir
+*/
+WOLFSSL_X509_LOOKUP_METHOD* wolfSSL_X509_LOOKUP_file(void);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Controls X509_LOOKUP behavior.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx X509_LOOKUP to control
+    \param cmd Command to execute
+    \param argc String argument
+    \param argl Long argument
+    \param ret Return value pointer
+
+    _Example_
+    \code
+    WOLFSSL_X509_LOOKUP* lookup = wolfSSL_X509_STORE_add_lookup(store,
+                                        wolfSSL_X509_LOOKUP_file());
+    int ret = wolfSSL_X509_LOOKUP_ctrl(lookup, X509_L_FILE_LOAD,
+                                        "cert.pem", 0, NULL);
+    \endcode
+
+    \sa wolfSSL_X509_LOOKUP_load_file
+*/
+int wolfSSL_X509_LOOKUP_ctrl(WOLFSSL_X509_LOOKUP* ctx, int cmd,
+                               const char* argc, long argl, char** ret);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Adds lookup method to X509_STORE.
+
+    \return WOLFSSL_X509_LOOKUP* Pointer to new lookup
+    \return NULL on failure
+
+    \param store X509_STORE to add lookup to
+    \param m Lookup method
+
+    _Example_
+    \code
+    WOLFSSL_X509_STORE* store = wolfSSL_X509_STORE_new();
+    WOLFSSL_X509_LOOKUP* lookup = wolfSSL_X509_STORE_add_lookup(store,
+                                        wolfSSL_X509_LOOKUP_file());
+    \endcode
+
+    \sa wolfSSL_X509_LOOKUP_file
+*/
+WOLFSSL_X509_LOOKUP* wolfSSL_X509_STORE_add_lookup(
+    WOLFSSL_X509_STORE* store, WOLFSSL_X509_LOOKUP_METHOD* m);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Creates new X509_STORE.
+
+    \return WOLFSSL_X509_STORE* Pointer to new store
+    \return NULL on failure
+
+    _Example_
+    \code
+    WOLFSSL_X509_STORE* store = wolfSSL_X509_STORE_new();
+    if (store != NULL) {
+        wolfSSL_X509_STORE_free(store);
+    }
+    \endcode
+
+    \sa wolfSSL_X509_STORE_free
+*/
+WOLFSSL_X509_STORE* wolfSSL_X509_STORE_new(void);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Frees X509_STORE.
+
+    \return none
+
+    \param store X509_STORE to free
+
+    _Example_
+    \code
+    WOLFSSL_X509_STORE* store = wolfSSL_X509_STORE_new();
+    wolfSSL_X509_STORE_free(store);
+    \endcode
+
+    \sa wolfSSL_X509_STORE_new
+*/
+void wolfSSL_X509_STORE_free(WOLFSSL_X509_STORE* store);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Increments reference count for X509_STORE.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param store X509_STORE to increment reference count
+
+    _Example_
+    \code
+    WOLFSSL_X509_STORE* store = wolfSSL_X509_STORE_new();
+    int ret = wolfSSL_X509_STORE_up_ref(store);
+    \endcode
+
+    \sa wolfSSL_X509_STORE_free
+*/
+int wolfSSL_X509_STORE_up_ref(WOLFSSL_X509_STORE* store);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets verification parameters for X509_STORE.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx X509_STORE to set parameters for
+    \param param Verification parameters
+
+    _Example_
+    \code
+    WOLFSSL_X509_STORE* store = wolfSSL_X509_STORE_new();
+    WOLFSSL_X509_VERIFY_PARAM* param = wolfSSL_X509_VERIFY_PARAM_new();
+    int ret = wolfSSL_X509_STORE_set1_param(store, param);
+    \endcode
+
+    \sa wolfSSL_X509_VERIFY_PARAM_new
+*/
+int wolfSSL_X509_STORE_set1_param(WOLFSSL_X509_STORE* ctx,
+                                    WOLFSSL_X509_VERIFY_PARAM* param);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets certificate chain from store context.
+
+    \return WOLFSSL_STACK* Pointer to certificate chain
+    \return NULL on failure
+
+    \param ctx X509_STORE_CTX to get chain from
+
+    _Example_
+    \code
+    WOLFSSL_X509_STORE_CTX* ctx = wolfSSL_X509_STORE_CTX_new();
+    WOLFSSL_STACK* chain = wolfSSL_X509_STORE_CTX_get_chain(ctx);
+    \endcode
+
+    \sa wolfSSL_X509_STORE_CTX_get1_chain
+*/
+WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get_chain(
+    WOLFSSL_X509_STORE_CTX* ctx);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets copy of certificate chain from store context.
+
+    \return WOLFSSL_STACK* Pointer to certificate chain copy
+    \return NULL on failure
+
+    \param ctx X509_STORE_CTX to get chain from
+
+    _Example_
+    \code
+    WOLFSSL_X509_STORE_CTX* ctx = wolfSSL_X509_STORE_CTX_new();
+    WOLFSSL_STACK* chain = wolfSSL_X509_STORE_CTX_get1_chain(ctx);
+    if (chain != NULL) {
+        wolfSSL_sk_X509_pop_free(chain, NULL);
+    }
+    \endcode
+
+    \sa wolfSSL_X509_STORE_CTX_get_chain
+*/
+WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get1_chain(
+    WOLFSSL_X509_STORE_CTX* ctx);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets certificate from store by subject name.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx X509_STORE_CTX to search
+    \param idx Index type
+    \param name Subject name to search for
+    \param obj Object to store result
+
+    _Example_
+    \code
+    WOLFSSL_X509_STORE_CTX* ctx = wolfSSL_X509_STORE_CTX_new();
+    WOLFSSL_X509_NAME* name = wolfSSL_X509_NAME_new();
+    WOLFSSL_X509_OBJECT obj;
+    int ret = wolfSSL_X509_STORE_get_by_subject(ctx, 0, name, &obj);
+    \endcode
+
+    \sa wolfSSL_X509_STORE_CTX_init
+*/
+int wolfSSL_X509_STORE_get_by_subject(WOLFSSL_X509_STORE_CTX* ctx,
+    int idx, WOLFSSL_X509_NAME* name, WOLFSSL_X509_OBJECT* obj);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Cleans up X509_STORE_CTX.
+
+    \return none
+
+    \param ctx X509_STORE_CTX to clean up
+
+    _Example_
+    \code
+    WOLFSSL_X509_STORE_CTX* ctx = wolfSSL_X509_STORE_CTX_new();
+    wolfSSL_X509_STORE_CTX_init(ctx, store, cert, NULL);
+    wolfSSL_X509_verify_cert(ctx);
+    wolfSSL_X509_STORE_CTX_cleanup(ctx);
+    \endcode
+
+    \sa wolfSSL_X509_STORE_CTX_init
+*/
+void wolfSSL_X509_STORE_CTX_cleanup(WOLFSSL_X509_STORE_CTX* ctx);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets lastUpdate time from CRL.
+
+    \return WOLFSSL_ASN1_TIME* Pointer to lastUpdate time
+    \return NULL on failure
+
+    \param crl CRL to get time from
+
+    _Example_
+    \code
+    WOLFSSL_X509_CRL* crl = wolfSSL_d2i_X509_CRL(NULL, &der, len);
+    WOLFSSL_ASN1_TIME* last = wolfSSL_X509_CRL_get_lastUpdate(crl);
+    if (last != NULL) {
+        printf("CRL last update: %s\n", last->data);
+    }
+    \endcode
+
+    \sa wolfSSL_X509_CRL_get_nextUpdate
+*/
+WOLFSSL_ASN1_TIME* wolfSSL_X509_CRL_get_lastUpdate(WOLFSSL_X509_CRL* crl);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets nextUpdate time from CRL.
+
+    \return WOLFSSL_ASN1_TIME* Pointer to nextUpdate time
+    \return NULL on failure
+
+    \param crl CRL to get time from
+
+    _Example_
+    \code
+    WOLFSSL_X509_CRL* crl = wolfSSL_d2i_X509_CRL(NULL, &der, len);
+    WOLFSSL_ASN1_TIME* next = wolfSSL_X509_CRL_get_nextUpdate(crl);
+    if (next != NULL) {
+        printf("CRL next update: %s\n", next->data);
+    }
+    \endcode
+
+    \sa wolfSSL_X509_CRL_get_lastUpdate
+*/
+WOLFSSL_ASN1_TIME* wolfSSL_X509_CRL_get_nextUpdate(WOLFSSL_X509_CRL* crl);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets public key from certificate.
+
+    \return WOLFSSL_EVP_PKEY* Pointer to public key
+    \return NULL on failure
+
+    \param x509 Certificate to get public key from
+
+    _Example_
+    \code
+    WOLFSSL_X509* x509 = wolfSSL_X509_load_certificate_file(file,
+                                                              format);
+    WOLFSSL_EVP_PKEY* pkey = wolfSSL_X509_get_pubkey(x509);
+    if (pkey != NULL) {
+        wolfSSL_EVP_PKEY_free(pkey);
+    }
+    \endcode
+
+    \sa wolfSSL_X509_set_pubkey
+*/
+WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Verifies CRL signature.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param crl CRL to verify
+    \param pkey Public key to verify with
+
+    _Example_
+    \code
+    WOLFSSL_X509_CRL* crl = wolfSSL_d2i_X509_CRL(NULL, &der, len);
+    WOLFSSL_EVP_PKEY* pkey = wolfSSL_X509_get_pubkey(issuer);
+    int ret = wolfSSL_X509_CRL_verify(crl, pkey);
+    \endcode
+
+    \sa wolfSSL_X509_verify
+*/
+int wolfSSL_X509_CRL_verify(WOLFSSL_X509_CRL* crl, WOLFSSL_EVP_PKEY* pkey);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Frees contents of X509_OBJECT.
+
+    \return none
+
+    \param obj X509_OBJECT to free contents
+
+    _Example_
+    \code
+    WOLFSSL_X509_OBJECT obj;
+    wolfSSL_X509_STORE_get_by_subject(ctx, 0, name, &obj);
+    wolfSSL_X509_OBJECT_free_contents(&obj);
+    \endcode
+
+    \sa wolfSSL_X509_STORE_get_by_subject
+*/
+void wolfSSL_X509_OBJECT_free_contents(WOLFSSL_X509_OBJECT* obj);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Decodes PKCS8 private key from BIO.
+
+    \return WOLFSSL_PKCS8_PRIV_KEY_INFO* Pointer to private key info
+    \return NULL on failure
+
+    \param bio BIO to read from
+    \param pkey Pointer to store result
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new_file("key.p8", "rb");
+    WOLFSSL_PKCS8_PRIV_KEY_INFO* p8 = wolfSSL_d2i_PKCS8_PKEY_bio(bio,
+                                                                   NULL);
+    if (p8 != NULL) {
+        wolfSSL_PKCS8_PRIV_KEY_INFO_free(p8);
+    }
+    \endcode
+
+    \sa wolfSSL_d2i_PKCS8_PKEY
+*/
+WOLFSSL_PKCS8_PRIV_KEY_INFO* wolfSSL_d2i_PKCS8_PKEY_bio(WOLFSSL_BIO* bio,
+    WOLFSSL_PKCS8_PRIV_KEY_INFO** pkey);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Decodes PKCS8 private key from buffer.
+
+    \return WOLFSSL_PKCS8_PRIV_KEY_INFO* Pointer to private key info
+    \return NULL on failure
+
+    \param pkey Pointer to store result
+    \param keyBuf Pointer to key buffer
+    \param keyLen Length of key buffer
+
+    _Example_
+    \code
+    const unsigned char* buf = keyData;
+    WOLFSSL_PKCS8_PRIV_KEY_INFO* p8 = wolfSSL_d2i_PKCS8_PKEY(NULL, &buf,
+                                                               keyLen);
+    if (p8 != NULL) {
+        wolfSSL_PKCS8_PRIV_KEY_INFO_free(p8);
+    }
+    \endcode
+
+    \sa wolfSSL_d2i_PKCS8_PKEY_bio
+*/
+WOLFSSL_PKCS8_PRIV_KEY_INFO* wolfSSL_d2i_PKCS8_PKEY(
+    WOLFSSL_PKCS8_PRIV_KEY_INFO** pkey, const unsigned char** keyBuf,
+    long keyLen);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Encodes PKCS8 private key to DER.
+
+    \return int Length of DER encoding
+    \return negative value on failure
+
+    \param key Private key info to encode
+    \param pp Pointer to store DER buffer
+
+    _Example_
+    \code
+    WOLFSSL_PKCS8_PRIV_KEY_INFO* p8 = wolfSSL_d2i_PKCS8_PKEY(NULL, &buf,
+                                                               len);
+    unsigned char* der = NULL;
+    int derLen = wolfSSL_i2d_PKCS8_PKEY(p8, &der);
+    if (derLen > 0) {
+        XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+    \endcode
+
+    \sa wolfSSL_d2i_PKCS8_PKEY
+*/
+int wolfSSL_i2d_PKCS8_PKEY(WOLFSSL_PKCS8_PRIV_KEY_INFO* key,
+                            unsigned char** pp);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Decodes public key from BIO.
+
+    \return WOLFSSL_EVP_PKEY* Pointer to public key
+    \return NULL on failure
+
+    \param bio BIO to read from
+    \param out Pointer to store result
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new_file("pubkey.der", "rb");
+    WOLFSSL_EVP_PKEY* pkey = wolfSSL_d2i_PUBKEY_bio(bio, NULL);
+    if (pkey != NULL) {
+        wolfSSL_EVP_PKEY_free(pkey);
+    }
+    \endcode
+
+    \sa wolfSSL_d2i_PUBKEY
+*/
+WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY_bio(WOLFSSL_BIO* bio,
+                                          WOLFSSL_EVP_PKEY** out);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Decodes public key from buffer.
+
+    \return WOLFSSL_EVP_PKEY* Pointer to public key
+    \return NULL on failure
+
+    \param key Pointer to store result
+    \param in Pointer to key buffer
+    \param inSz Length of key buffer
+
+    _Example_
+    \code
+    const unsigned char* buf = keyData;
+    WOLFSSL_EVP_PKEY* pkey = wolfSSL_d2i_PUBKEY(NULL, &buf, keyLen);
+    if (pkey != NULL) {
+        wolfSSL_EVP_PKEY_free(pkey);
+    }
+    \endcode
+
+    \sa wolfSSL_d2i_PUBKEY_bio
+*/
+WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** key,
+                                      const unsigned char** in, long inSz);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Encodes public key to DER.
+
+    \return int Length of DER encoding
+    \return negative value on failure
+
+    \param key Public key to encode
+    \param der Pointer to store DER buffer
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY* pkey = wolfSSL_d2i_PUBKEY(NULL, &buf, len);
+    unsigned char* der = NULL;
+    int derLen = wolfSSL_i2d_PUBKEY(pkey, &der);
+    if (derLen > 0) {
+        XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+    \endcode
+
+    \sa wolfSSL_d2i_PUBKEY
+*/
+int wolfSSL_i2d_PUBKEY(const WOLFSSL_EVP_PKEY* key, unsigned char** der);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Encodes X509_PUBKEY to DER.
+
+    \return int Length of DER encoding
+    \return negative value on failure
+
+    \param x509_PubKey X509_PUBKEY to encode
+    \param der Pointer to store DER buffer
+
+    _Example_
+    \code
+    WOLFSSL_X509_PUBKEY* pubkey = wolfSSL_X509_get_X509_PUBKEY(x509);
+    unsigned char* der = NULL;
+    int derLen = wolfSSL_i2d_X509_PUBKEY(pubkey, &der);
+    if (derLen > 0) {
+        XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+    \endcode
+
+    \sa wolfSSL_X509_get_X509_PUBKEY
+*/
+int wolfSSL_i2d_X509_PUBKEY(WOLFSSL_X509_PUBKEY* x509_PubKey,
+                             unsigned char** der);
