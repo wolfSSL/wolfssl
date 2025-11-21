@@ -1980,6 +1980,105 @@ WOLFSSL* wolfSSL_new(WOLFSSL_CTX*);
 /*!
     \ingroup Setup
 
+    \brief Gets the WOLFSSL_CTX associated with an SSL session.
+
+    \return WOLFSSL_CTX* Pointer to the context
+    \return NULL if ssl is NULL
+
+    \param ssl WOLFSSL object to get context from
+
+    _Example_
+    \code
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    WOLFSSL_CTX* ctx_ptr = wolfSSL_get_SSL_CTX(ssl);
+    if (ctx_ptr == NULL) {
+        // error getting context
+    }
+    \endcode
+
+    \sa wolfSSL_new
+    \sa wolfSSL_CTX_new
+*/
+WOLFSSL_CTX* wolfSSL_get_SSL_CTX(const WOLFSSL* ssl);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets X509 verification parameters for context.
+
+    \return WOLFSSL_X509_VERIFY_PARAM* Pointer to verification parameters
+    \return NULL on failure
+
+    \param ctx WOLFSSL_CTX to get parameters from
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    WOLFSSL_X509_VERIFY_PARAM* param = wolfSSL_CTX_get0_param(ctx);
+    if (param != NULL) {
+        // configure verification parameters
+    }
+    \endcode
+
+    \sa wolfSSL_get0_param
+    \sa wolfSSL_CTX_set1_param
+*/
+WOLFSSL_X509_VERIFY_PARAM* wolfSSL_CTX_get0_param(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets X509 verification parameters for SSL session.
+
+    \return WOLFSSL_X509_VERIFY_PARAM* Pointer to verification parameters
+    \return NULL on failure
+
+    \param ssl WOLFSSL object to get parameters from
+
+    _Example_
+    \code
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    WOLFSSL_X509_VERIFY_PARAM* param = wolfSSL_get0_param(ssl);
+    if (param != NULL) {
+        // configure verification parameters
+    }
+    \endcode
+
+    \sa wolfSSL_CTX_get0_param
+    \sa wolfSSL_CTX_set1_param
+*/
+WOLFSSL_X509_VERIFY_PARAM* wolfSSL_get0_param(WOLFSSL* ssl);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets X509 verification parameters for context.
+
+    \return SSL_SUCCESS on success
+    \return SSL_FAILURE on failure
+
+    \param ctx WOLFSSL_CTX to set parameters for
+    \param vpm Verification parameters to copy
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    WOLFSSL_X509_VERIFY_PARAM* param = wolfSSL_X509_VERIFY_PARAM_new();
+    int ret = wolfSSL_CTX_set1_param(ctx, param);
+    if (ret != SSL_SUCCESS) {
+        // failed to set parameters
+    }
+    \endcode
+
+    \sa wolfSSL_CTX_get0_param
+    \sa wolfSSL_get0_param
+*/
+int wolfSSL_CTX_set1_param(WOLFSSL_CTX* ctx,
+                            WOLFSSL_X509_VERIFY_PARAM* vpm);
+
+/*!
+    \ingroup Setup
+
     \brief This function assigns a file descriptor (fd) as the
     input/output facility for the SSL connection. Typically this will be
     a socket file descriptor.
