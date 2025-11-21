@@ -31,3 +31,47 @@ pub mod prf;
 pub mod random;
 pub mod rsa;
 pub mod sha;
+
+use crate::sys;
+
+/// Initialize resources used by wolfCrypt.
+///
+/// # Returns
+///
+/// Returns either Ok(()) on success or Err(e) containing the wolfSSL
+/// library error code value.
+///
+/// # Example
+///
+/// ```rust
+/// use wolfssl::wolfcrypt::*;
+/// wolfcrypt_init().expect("Error with wolfcrypt_init()");
+/// ```
+pub fn wolfcrypt_init() -> Result<(), i32> {
+    let rc = unsafe { sys::wolfCrypt_Init() };
+    if rc != 0 {
+        return Err(rc);
+    }
+    Ok(())
+}
+
+/// Clean up resources used by wolfCrypt.
+///
+/// # Returns
+///
+/// Returns either Ok(()) on success or Err(e) containing the wolfSSL
+/// library error code value.
+///
+/// # Example
+///
+/// ```rust
+/// use wolfssl::wolfcrypt::*;
+/// wolfcrypt_cleanup().expect("Error with wolfcrypt_cleanup()");
+/// ```
+pub fn wolfcrypt_cleanup() -> Result<(), i32> {
+    let rc = unsafe { sys::wolfCrypt_Cleanup() };
+    if rc != 0 {
+        return Err(rc);
+    }
+    Ok(())
+}
