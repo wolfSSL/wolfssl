@@ -28837,3 +28837,489 @@ int wolfSSL_use_AltPrivateKey_Id(WOLFSSL* ssl, const unsigned char* id,
 */
 int wolfSSL_use_AltPrivateKey_Label(WOLFSSL* ssl, const char* label,
                                      int devId);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets certificate from SSL object.
+
+    \return WOLFSSL_X509* Certificate
+    \return NULL if not available
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    WOLFSSL_X509* cert = wolfSSL_get_certificate(ssl);
+    if (cert != NULL) {
+        printf("Certificate found\n");
+    }
+    \endcode
+
+    \sa wolfSSL_CTX_get0_certificate
+*/
+WOLFSSL_X509* wolfSSL_get_certificate(WOLFSSL* ssl);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets certificate from context.
+
+    \return WOLFSSL_X509* Certificate
+    \return NULL if not available
+
+    \param ctx SSL context
+
+    _Example_
+    \code
+    WOLFSSL_X509* cert = wolfSSL_CTX_get0_certificate(ctx);
+    \endcode
+
+    \sa wolfSSL_get_certificate
+*/
+WOLFSSL_X509* wolfSSL_CTX_get0_certificate(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets RNG from SSL object.
+
+    \return WC_RNG* Random number generator
+    \return NULL if not available
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    WC_RNG* rng = wolfSSL_GetRNG(ssl);
+    \endcode
+
+    \sa wolfSSL_CTX_new
+*/
+WC_RNG* wolfSSL_GetRNG(WOLFSSL* ssl);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets WOLFSSL object size.
+
+    \return int Object size in bytes
+
+    _Example_
+    \code
+    int size = wolfSSL_GetObjectSize();
+    printf("WOLFSSL object size: %d bytes\n", size);
+    \endcode
+
+    \sa wolfSSL_CTX_GetObjectSize
+*/
+int wolfSSL_GetObjectSize(void);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets WOLFSSL_CTX object size.
+
+    \return int Object size in bytes
+
+    _Example_
+    \code
+    int size = wolfSSL_CTX_GetObjectSize();
+    printf("WOLFSSL_CTX object size: %d bytes\n", size);
+    \endcode
+
+    \sa wolfSSL_GetObjectSize
+*/
+int wolfSSL_CTX_GetObjectSize(void);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets WOLFSSL_METHOD object size.
+
+    \return int Object size in bytes
+
+    _Example_
+    \code
+    int size = wolfSSL_METHOD_GetObjectSize();
+    printf("WOLFSSL_METHOD object size: %d bytes\n", size);
+    \endcode
+
+    \sa wolfSSL_GetObjectSize
+*/
+int wolfSSL_METHOD_GetObjectSize(void);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets protocol version.
+
+    \return int Protocol version constant
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    int version = wolfSSL_GetVersion(ssl);
+    printf("Protocol version: %d\n", version);
+    \endcode
+
+    \sa wolfSSL_get_version
+*/
+int wolfSSL_GetVersion(const WOLFSSL* ssl);
+
+/*!
+    \ingroup Callbacks
+
+    \brief Gets MAC encrypt context.
+
+    \return void* Context pointer
+    \return NULL if not set
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    void* ctx = wolfSSL_GetMacEncryptCtx(ssl);
+    \endcode
+
+    \sa wolfSSL_SetEncryptMacCtx
+*/
+void* wolfSSL_GetMacEncryptCtx(WOLFSSL* ssl);
+
+/*!
+    \ingroup Callbacks
+
+    \brief Gets decrypt verify context.
+
+    \return void* Context pointer
+    \return NULL if not set
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    void* ctx = wolfSSL_GetDecryptVerifyCtx(ssl);
+    \endcode
+
+    \sa wolfSSL_SetVerifyDecryptCtx
+*/
+void* wolfSSL_GetDecryptVerifyCtx(WOLFSSL* ssl);
+
+/*!
+    \ingroup Callbacks
+
+    \brief Sets encrypt MAC callback in context.
+
+    \return none
+
+    \param ctx SSL context
+    \param cb Callback function
+
+    _Example_
+    \code
+    wolfSSL_CTX_SetEncryptMacCb(ctx, myEncryptMacCallback);
+    \endcode
+
+    \sa wolfSSL_SetEncryptMacCtx
+*/
+void wolfSSL_CTX_SetEncryptMacCb(WOLFSSL_CTX* ctx, CallbackEncryptMac cb);
+
+/*!
+    \ingroup Callbacks
+
+    \brief Sets encrypt MAC context.
+
+    \return none
+
+    \param ssl SSL object
+    \param ctx Context pointer
+
+    _Example_
+    \code
+    wolfSSL_SetEncryptMacCtx(ssl, myContext);
+    \endcode
+
+    \sa wolfSSL_GetEncryptMacCtx
+*/
+void wolfSSL_SetEncryptMacCtx(WOLFSSL* ssl, void *ctx);
+
+/*!
+    \ingroup Callbacks
+
+    \brief Gets encrypt MAC context.
+
+    \return void* Context pointer
+    \return NULL if not set
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    void* ctx = wolfSSL_GetEncryptMacCtx(ssl);
+    \endcode
+
+    \sa wolfSSL_SetEncryptMacCtx
+*/
+void* wolfSSL_GetEncryptMacCtx(WOLFSSL* ssl);
+
+/*!
+    \ingroup Callbacks
+
+    \brief Checks if async encrypt is ready.
+
+    \return 1 if ready
+    \return 0 if not ready
+
+    \param ssl SSL object
+    \param idx Index
+
+    _Example_
+    \code
+    if (wolfSSL_AsyncEncryptReady(ssl, 0)) {
+        printf("Async encrypt ready\n");
+    }
+    \endcode
+
+    \sa wolfSSL_AsyncEncrypt
+*/
+int wolfSSL_AsyncEncryptReady(WOLFSSL* ssl, int idx);
+
+/*!
+    \ingroup Callbacks
+
+    \brief Stops async encrypt.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl SSL object
+    \param idx Index
+
+    _Example_
+    \code
+    int ret = wolfSSL_AsyncEncryptStop(ssl, 0);
+    \endcode
+
+    \sa wolfSSL_AsyncEncrypt
+*/
+int wolfSSL_AsyncEncryptStop(WOLFSSL* ssl, int idx);
+
+/*!
+    \ingroup Callbacks
+
+    \brief Performs async encrypt.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl SSL object
+    \param idx Index
+
+    _Example_
+    \code
+    int ret = wolfSSL_AsyncEncrypt(ssl, 0);
+    \endcode
+
+    \sa wolfSSL_AsyncEncryptReady
+*/
+int wolfSSL_AsyncEncrypt(WOLFSSL* ssl, int idx);
+
+/*!
+    \ingroup Callbacks
+
+    \brief Sets async encrypt signal.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl SSL object
+    \param idx Index
+    \param signal Thread signal
+    \param ctx Context pointer
+
+    _Example_
+    \code
+    int ret = wolfSSL_AsyncEncryptSetSignal(ssl, 0, signal, ctx);
+    \endcode
+
+    \sa wolfSSL_AsyncEncrypt
+*/
+int wolfSSL_AsyncEncryptSetSignal(WOLFSSL* ssl, int idx,
+                                   WOLFSSL_THREAD_SIGNAL signal, void* ctx);
+
+/*!
+    \ingroup Callbacks
+
+    \brief Sets verify decrypt callback in context.
+
+    \return none
+
+    \param ctx SSL context
+    \param cb Callback function
+
+    _Example_
+    \code
+    wolfSSL_CTX_SetVerifyDecryptCb(ctx, myVerifyDecryptCallback);
+    \endcode
+
+    \sa wolfSSL_SetVerifyDecryptCtx
+*/
+void wolfSSL_CTX_SetVerifyDecryptCb(WOLFSSL_CTX* ctx,
+                                     CallbackVerifyDecrypt cb);
+
+/*!
+    \ingroup Callbacks
+
+    \brief Sets verify decrypt context.
+
+    \return none
+
+    \param ssl SSL object
+    \param ctx Context pointer
+
+    _Example_
+    \code
+    wolfSSL_SetVerifyDecryptCtx(ssl, myContext);
+    \endcode
+
+    \sa wolfSSL_GetVerifyDecryptCtx
+*/
+void wolfSSL_SetVerifyDecryptCtx(WOLFSSL* ssl, void *ctx);
+
+/*!
+    \ingroup Callbacks
+
+    \brief Gets verify decrypt context.
+
+    \return void* Context pointer
+    \return NULL if not set
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    void* ctx = wolfSSL_GetVerifyDecryptCtx(ssl);
+    \endcode
+
+    \sa wolfSSL_SetVerifyDecryptCtx
+*/
+void* wolfSSL_GetVerifyDecryptCtx(WOLFSSL* ssl);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets MAC secret.
+
+    \return const unsigned char* MAC secret
+    \return NULL if not available
+
+    \param ssl SSL object
+    \param verify Verify flag
+
+    _Example_
+    \code
+    const unsigned char* secret = wolfSSL_GetMacSecret(ssl, 0);
+    \endcode
+
+    \sa wolfSSL_GetDtlsMacSecret
+*/
+const unsigned char* wolfSSL_GetMacSecret(WOLFSSL* ssl, int verify);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets DTLS MAC secret.
+
+    \return const unsigned char* MAC secret
+    \return NULL if not available
+
+    \param ssl SSL object
+    \param verify Verify flag
+    \param epochOrder Epoch order
+
+    _Example_
+    \code
+    const unsigned char* secret = wolfSSL_GetDtlsMacSecret(ssl, 0, 0);
+    \endcode
+
+    \sa wolfSSL_GetMacSecret
+*/
+const unsigned char* wolfSSL_GetDtlsMacSecret(WOLFSSL* ssl, int verify,
+                                               int epochOrder);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets client write key.
+
+    \return const unsigned char* Client write key
+    \return NULL if not available
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    const unsigned char* key = wolfSSL_GetClientWriteKey(ssl);
+    \endcode
+
+    \sa wolfSSL_GetServerWriteKey
+*/
+const unsigned char* wolfSSL_GetClientWriteKey(WOLFSSL* ssl);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets client write IV.
+
+    \return const unsigned char* Client write IV
+    \return NULL if not available
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    const unsigned char* iv = wolfSSL_GetClientWriteIV(ssl);
+    \endcode
+
+    \sa wolfSSL_GetServerWriteIV
+*/
+const unsigned char* wolfSSL_GetClientWriteIV(WOLFSSL* ssl);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets server write key.
+
+    \return const unsigned char* Server write key
+    \return NULL if not available
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    const unsigned char* key = wolfSSL_GetServerWriteKey(ssl);
+    \endcode
+
+    \sa wolfSSL_GetClientWriteKey
+*/
+const unsigned char* wolfSSL_GetServerWriteKey(WOLFSSL* ssl);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets server write IV.
+
+    \return const unsigned char* Server write IV
+    \return NULL if not available
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    const unsigned char* iv = wolfSSL_GetServerWriteIV(ssl);
+    \endcode
+
+    \sa wolfSSL_GetClientWriteIV
+*/
+const unsigned char* wolfSSL_GetServerWriteIV(WOLFSSL* ssl);
