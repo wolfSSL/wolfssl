@@ -175,7 +175,7 @@ int BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
     byte handshake_hash[HSHASH_SZ];
 #else
     byte* handshake_hash = NULL;
-    handshake_hash = XMALLOC(HSHASH_SZ, ssl->heap, DYNAMIC_TYPE_DIGEST);
+    handshake_hash = (byte*)XMALLOC(HSHASH_SZ, ssl->heap, DYNAMIC_TYPE_DIGEST);
     if (handshake_hash == NULL)
         return MEMORY_E;
 #endif
@@ -404,7 +404,7 @@ static int _DeriveTlsKeys(byte* key_dig, word32 key_dig_len,
     int ret;
 #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
     byte* seed = NULL;
-    seed = XMALLOC(SEED_LEN, heap, DYNAMIC_TYPE_SEED);
+    seed = (byte*)XMALLOC(SEED_LEN, heap, DYNAMIC_TYPE_SEED);
     if (seed == NULL)
         return MEMORY_E;
 #else
@@ -504,7 +504,7 @@ static int _MakeTlsMasterSecret(byte* ms, word32 msLen,
     byte seed[SEED_LEN];
 #else
     byte* seed = NULL;
-    seed = XMALLOC(SEED_LEN, heap, DYNAMIC_TYPE_SEED);
+    seed = (byte*)XMALLOC(SEED_LEN, heap, DYNAMIC_TYPE_SEED);
     if (seed == NULL)
         return MEMORY_E;
 #endif
