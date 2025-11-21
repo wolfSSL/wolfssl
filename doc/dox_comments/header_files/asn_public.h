@@ -3999,3 +3999,23 @@ int wc_Asn1_SetFile(Asn1* asn1, XFILE file);
 int wc_Asn1_PrintAll(Asn1* asn1, Asn1PrintOptions* opts, unsigned char* data,
     word32 len);
 
+/*!
+    \ingroup ASN
+    \brief Sets OID to name callback for ASN.1 parsing.
+
+    \return 0 on success
+    \return negative on error
+
+    \param asn1 ASN.1 structure
+    \param nameCb Callback function to convert OID to name
+
+    _Example_
+    \code
+    Asn1 asn1;
+    int ret = wc_Asn1_SetOidToNameCb(&asn1, myOidToNameCb);
+    \endcode
+
+    \sa wc_Asn1_PrintAll
+*/
+int wc_Asn1_SetOidToNameCb(Asn1* asn1, Asn1OidToNameCb nameCb);
+
