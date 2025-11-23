@@ -24,8 +24,8 @@
 #include <esp_log.h>
 
 /* wolfSSL */
-/* The wolfSSL user_settings.h file is automatically included by the settings.h
- * file and should never be explicitly included in any other source files.
+/* The wolfSSL user_settings.h is automatically included by settings.h file.
+ * Never explicitly include wolfSSL user_settings.h in any source file.
  * The settings.h should also be listed above wolfssl library include files. */
 #if defined(WOLFSSL_USER_SETTINGS)
     #include <wolfssl/wolfcrypt/settings.h>
@@ -152,6 +152,12 @@ void my_atmel_free(int slotId)
 #endif /* CUSTOM_SLOT_ALLOCATION                                       */
 #endif /* WOLFSSL_ESPWROOM32SE && HAVE_PK_CALLBACK && WOLFSSL_ATECC508A */
 
+/* check BENCH_ARGV in sdkconfig to determine need to set WOLFSSL_BENCH_ARGV */
+#ifdef CONFIG_BENCH_ARGV
+    #define WOLFSSL_BENCH_ARGV CONFIG_BENCH_ARGV
+    #define WOLFSSL_BENCH_ARGV_MAX_ARGUMENTS 22 /* arbitrary number max args */
+#endif
+
 /* the following are needed by benchmark.c with args */
 #ifdef WOLFSSL_BENCH_ARGV
 char* __argv[WOLFSSL_BENCH_ARGV_MAX_ARGUMENTS];
@@ -227,7 +233,9 @@ void app_main(void)
         .stop_bits = UART_STOP_BITS_1,
     };
     int stack_start = 0;
-    word32 loops = 0;
+    int heap_start = 0;
+    int heap_current = 0;
+    int loops = 0;
     esp_err_t ret = 0;
 
     stack_start = esp_sdk_stack_pointer();
@@ -247,19 +255,55 @@ void app_main(void)
     ESP_LOGI(TAG, "---------------------- BEGIN MAIN ----------------------");
     ESP_LOGI(TAG, "--------------------------------------------------------");
     ESP_LOGI(TAG, "--------------------------------------------------------");
+    ESP_LOGI(TAG, "app_main CONFIG_BENCH_ARGV = %s", WOLFSSL_BENCH_ARGV);
     ESP_LOGI(TAG, "Stack Start: 0x%x", stack_start);
-
+#ifdef HAVE_WOLFCRYPT_WARMUP
+    /* Unless disabled, we'll try to allocate known, long-term heap items early
+     * in an attempt to avoid later allocations that may cause fragmentation. */
+    ESP_ERROR_CHECK(esp_sdk_wolfssl_warmup());
+#endif
+#ifdef DEBUG_WOLFSSL
+    /* Turn debugging on and off as needed: */
+    wolfSSL_Debugging_ON();
+    wolfSSL_Debugging_OFF();
+#endif
 #ifdef WOLFSSL_ESP_NO_WATCHDOG
     ESP_LOGW(TAG, "Found WOLFSSL_ESP_NO_WATCHDOG, disabling...");
     esp_DisableWatchdog();
 #endif
 
-#if defined(HAVE_VERSION_EXTENDED_INFO) && defined(WOLFSSL_HAS_METRICS)
+#ifdef ESP_TASK_MAIN_STACK
+     ESP_LOGI(TAG, "ESP_TASK_MAIN_STACK: %d", ESP_TASK_MAIN_STACK);
+#endif
+#ifdef TASK_EXTRA_STACK_SIZE
+     ESP_LOGI(TAG, "TASK_EXTRA_STACK_SIZE: %d", TASK_EXTRA_STACK_SIZE);
+#endif
+
+#ifdef INCLUDE_uxTaskGetStackHighWaterMark
+    ESP_LOGI(TAG, "CONFIG_ESP_MAIN_TASK_STACK_SIZE = %d bytes (%d words)",
+                   CONFIG_ESP_MAIN_TASK_STACK_SIZE,
+                   (int)(CONFIG_ESP_MAIN_TASK_STACK_SIZE / sizeof(void*)));
+
+    /* Returns the high water mark of the stack associated with xTask. That is,
+     * the minimum free stack space there has been (in bytes not words, unlike
+     * vanilla FreeRTOS) since the task started. The smaller the returned
+     * number the closer the task has come to overflowing its stack.
+     * see Espressif esp32/api-reference/system/freertos_idf.html
+     */
+    stack_start = uxTaskGetStackHighWaterMark(NULL);
+    ESP_LOGI(TAG, "Stack Start HWM: %d bytes", stack_start);
+#endif
+
+#if defined(HAVE_VERSION_EXTENDED_INFO)
     esp_ShowExtendedSystemInfo();
 #endif
 
     /* all platforms: stack high water mark check */
-    ESP_LOGI(TAG, "app_main CONFIG_BENCH_ARGV = %s", WOLFSSL_BENCH_ARGV);
+    ESP_LOGI(TAG, "Stack HWM: %d\n", uxTaskGetStackHighWaterMark(NULL));
+
+#if defined (WOLFSSL_USE_TIME_HELPER)
+    set_time();
+#endif
 
 /* when using atecc608a on esp32-wroom-32se */
 #if defined(WOLFSSL_ESPWROOM32SE) && defined(HAVE_PK_CALLBACKS) \
