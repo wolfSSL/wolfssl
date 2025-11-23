@@ -1957,7 +1957,7 @@ struct Signer {
 #endif /* !IGNORE_NAME_CONSTRAINTS */
     byte    subjectNameHash[SIGNER_DIGEST_SIZE];
                                      /* sha hash of names in certificate */
-    #if defined(HAVE_OCSP) || defined(HAVE_CRL)
+    #if defined(HAVE_OCSP) || defined(HAVE_CRL) || defined(WOLFSSL_AKID_NAME)
         byte    issuerNameHash[SIGNER_DIGEST_SIZE];
                                      /* sha hash of issuer names in certificate.
                                       * Used in OCSP to check for authorized
