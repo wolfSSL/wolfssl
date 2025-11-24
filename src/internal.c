@@ -140,6 +140,8 @@
 
 
 #define ERROR_OUT(err, eLabel) { ret = (int)(err); goto eLabel; }
+#define CHECK_RET(ret, exp, eLabel) do { if (((ret) = (exp)) != 0) goto eLabel;\
+                                       } while(0)
 
 #ifdef _MSC_VER
     /* disable for while(0) cases at the .c level for now */
@@ -30863,6 +30865,46 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
 #endif /* !NO_WOLFSSL_CLIENT [...etc] || !NO_WOLFSSL_SERVER [...etc] */
 #endif /* !NO_TLS && !WOLFSSL_NO_TLS12 */
 
+/* used in server and client */
+#if !defined(WOLFSSL_NO_TLS12) && \
+    (!defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS) && \
+      (!defined(NO_DH) && (!defined(NO_PSK) || !defined(NO_RSA) \
+       || defined(HAVE_ANON) && !defined(WOLFSSL_NO_TLS12))) \
+     || !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && !defined(NO_DH))
+static int DhSetKey(WOLFSSL* ssl)
+{
+    int ret;
+
+    #if !defined(WOLFSSL_OLD_PRIME_CHECK) && \
+        !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    if (ssl->options.dhDoKeyTest &&
+        !ssl->options.dhKeyTested)
+    {
+        ret = wc_DhSetCheckKey(ssl->buffers.serverDH_Key,
+                               ssl->buffers.serverDH_P.buffer,
+                               ssl->buffers.serverDH_P.length,
+                               ssl->buffers.serverDH_G.buffer,
+                               ssl->buffers.serverDH_G.length,
+                               NULL, 0, 0, ssl->rng);
+        if (ret != 0)
+            return ret;
+        ssl->options.dhKeyTested = 1;
+    }
+    else
+    #endif
+    {
+        ret = wc_DhSetKey(ssl->buffers.serverDH_Key,
+                          ssl->buffers.serverDH_P.buffer,
+                          ssl->buffers.serverDH_P.length,
+                          ssl->buffers.serverDH_G.buffer,
+                          ssl->buffers.serverDH_G.length);
+        if (ret != 0)
+            return ret;
+    }
+    return 0;
+}
+#endif /* !NO_DH */
+
 /* client only parts */
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
 
@@ -33341,7 +33383,7 @@ static void MakePSKPreMasterSecret(Arrays* arrays, byte use_psk_key)
 }
 #endif /*!NO_PSK*/
 
-#if (defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448))
+#if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
 static int EcMakeKey(WOLFSSL* ssl)
 {
     int ret = 0;
@@ -33372,7 +33414,7 @@ static int EcMakeKey(WOLFSSL* ssl)
                             ssl->peerX25519Key);
         return ret;
     }
-#endif
+#endif /* HAVE_CURVE25519 */
 #ifdef HAVE_CURVE448
     if (ssl->peerX448KeyPresent) {
         /* Check client ECC public key */
@@ -33395,7 +33437,7 @@ static int EcMakeKey(WOLFSSL* ssl)
                           ssl->peerX448Key);
         return ret;
     }
-#endif
+#endif /* HAVE_CURVE448 */
 #ifdef HAVE_ECC
     if (kea == ecc_diffie_hellman_kea && ssl->specs.static_ecdh) {
         /* Note: EccDsa is really fixed Ecc key here */
@@ -33419,7 +33461,7 @@ static int EcMakeKey(WOLFSSL* ssl)
     if (ssl->ctx->EccSharedSecretCb != NULL) {
         return 0;
     }
-#endif /* HAVE_PK_CALLBACKS*/
+#endif
     /* create ephemeral private key */
     ssl->hsType = DYNAMIC_TYPE_ECC;
     ret = AllocKey(ssl, (int)(ssl->hsType), &ssl->hsKey);
@@ -33427,10 +33469,10 @@ static int EcMakeKey(WOLFSSL* ssl)
         return ret;
     }
     ret = EccMakeKey(ssl, (ecc_key*)ssl->hsKey, ssl->peerEccKey);
-#endif /*HAVE_ECC*/
+#endif /* HAVE_ECC */
     return ret;
 }
-#endif /*defined(HAVE_ECC)||defined(HAVE_CURVE25519)||defined(HAVE_CURVE448)*/
+#endif /* HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448 */
 
 /* handle generation client_key_exchange (16) */
 int SendClientKeyExchange(WOLFSSL* ssl)
@@ -33638,12 +33680,9 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                         ERROR_OUT(MEMORY_E, exit_scke);
                     }
 
-                    ret = AllocKey(ssl, DYNAMIC_TYPE_DH,
-                                            (void**)&ssl->buffers.serverDH_Key);
-                    if (ret != 0) {
-                        goto exit_scke;
-                    }
-
+                    CHECK_RET(ret, AllocKey(ssl, DYNAMIC_TYPE_DH,
+                                       (void**)&ssl->buffers.serverDH_Key),
+                              exit_scke);
 #if defined(HAVE_FFDHE) && !defined(HAVE_PUBLIC_FFDHE)
                     if (ssl->namedGroup) {
                         ret = wc_DhSetNamedKey(ssl->buffers.serverDH_Key,
@@ -33656,35 +33695,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                     }
                     else
 #endif
-                    #if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
-                        !defined(WOLFSSL_OLD_PRIME_CHECK)
-                    if (ssl->options.dhDoKeyTest &&
-                        !ssl->options.dhKeyTested)
-                    {
-                        ret = wc_DhSetCheckKey(ssl->buffers.serverDH_Key,
-                            ssl->buffers.serverDH_P.buffer,
-                            ssl->buffers.serverDH_P.length,
-                            ssl->buffers.serverDH_G.buffer,
-                            ssl->buffers.serverDH_G.length,
-                            NULL, 0, 0, ssl->rng);
-                        if (ret != 0) {
-                            goto exit_scke;
-                        }
-                        ssl->options.dhKeyTested = 1;
-                    }
-                    else
-                    #endif
-                    {
-                        ret = wc_DhSetKey(ssl->buffers.serverDH_Key,
-                            ssl->buffers.serverDH_P.buffer,
-                            ssl->buffers.serverDH_P.length,
-                            ssl->buffers.serverDH_G.buffer,
-                            ssl->buffers.serverDH_G.length);
-                        if (ret != 0) {
-                            goto exit_scke;
-                        }
-                    }
-
+                    CHECK_RET(ret, DhSetKey(ssl), exit_scke);
                     /* for DH, encSecret is Yc, agree is pre-master */
                     ret = DhGenKeyPair(ssl, ssl->buffers.serverDH_Key,
                         ssl->buffers.sig.buffer, (word32*)&ssl->buffers.sig.length,
@@ -33758,41 +33769,10 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                     args->length = args->encSz - esSz - OPAQUE16_LEN;
                     args->encSz = esSz + OPAQUE16_LEN;
 
-                    ret = AllocKey(ssl, DYNAMIC_TYPE_DH,
-                                            (void**)&ssl->buffers.serverDH_Key);
-                    if (ret != 0) {
-                        goto exit_scke;
-                    }
-
-                    #if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
-                        !defined(WOLFSSL_OLD_PRIME_CHECK)
-                    if (ssl->options.dhDoKeyTest &&
-                        !ssl->options.dhKeyTested)
-                    {
-                        ret = wc_DhSetCheckKey(ssl->buffers.serverDH_Key,
-                            ssl->buffers.serverDH_P.buffer,
-                            ssl->buffers.serverDH_P.length,
-                            ssl->buffers.serverDH_G.buffer,
-                            ssl->buffers.serverDH_G.length,
-                            NULL, 0, 0, ssl->rng);
-                        if (ret != 0) {
-                            goto exit_scke;
-                        }
-                        ssl->options.dhKeyTested = 1;
-                    }
-                    else
-                    #endif
-                    {
-                        ret = wc_DhSetKey(ssl->buffers.serverDH_Key,
-                            ssl->buffers.serverDH_P.buffer,
-                            ssl->buffers.serverDH_P.length,
-                            ssl->buffers.serverDH_G.buffer,
-                            ssl->buffers.serverDH_G.length);
-                        if (ret != 0) {
-                            goto exit_scke;
-                        }
-                    }
-
+                    CHECK_RET(ret, AllocKey(ssl, DYNAMIC_TYPE_DH,
+                                       (void**)&ssl->buffers.serverDH_Key),
+                              exit_scke);
+                    CHECK_RET(ret, DhSetKey(ssl), exit_scke);
                     /* for DH, encSecret is Yc, agree is pre-master */
                     ret = DhGenKeyPair(ssl, ssl->buffers.serverDH_Key,
                             ssl->buffers.sig.buffer,
@@ -35544,6 +35524,303 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
     }
 
+#if (defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)) \
+    || !defined(NO_PSK) \
+    || (!defined(NO_DH) && (!defined(NO_RSA) || \
+                        (defined(HAVE_ANON) && !defined(WOLFSSL_NO_TLS12))))
+    static void SetSendSzWithDtlsExtra(WOLFSSL* ssl, SskeArgs* args)
+    {
+        args->sendSz = args->length + HANDSHAKE_HEADER_SZ +
+                                            RECORD_HEADER_SZ;
+    #ifdef WOLFSSL_DTLS
+        if (ssl->options.dtls) {
+            args->sendSz += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
+            args->idx    += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
+        }
+    #endif
+        if (IsEncryptionOn(ssl, 1)) {
+            args->sendSz += MAX_MSG_EXTRA;
+        }
+    }
+    static int AllocArgsInput(WOLFSSL* ssl, SskeArgs* args)
+    {   /* Use tmp buffer */
+        args->input = (byte*)XMALLOC(args->sendSz, ssl->heap,
+                                     DYNAMIC_TYPE_IN_BUFFER);
+        if (args->input == NULL)
+            return MEMORY_E;
+        args->output = args->input;
+        return 0;
+    }
+#endif /* HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448 || !NO_PSK */
+
+#ifndef NO_PSK
+    static int LengthPlusServerHint(WOLFSSL* ssl, SskeArgs* args,
+        word32* hintLen)
+    {   /* include size part */
+        *hintLen = (word32)XSTRLEN(ssl->arrays->server_hint);
+        if (*hintLen > MAX_PSK_ID_LEN)
+            return SERVER_HINT_ERROR;
+        args->length += HINT_LEN_SZ + *hintLen;
+        return 0;
+    }
+    static void AddServerHint(WOLFSSL* ssl, SskeArgs* args, word32 hintLen)
+    {   /* key data */
+        c16toa((word16)hintLen, args->output + args->idx);
+        args->idx += HINT_LEN_SZ;
+        XMEMCPY(args->output + args->idx, ssl->arrays->server_hint, hintLen);
+        args->idx += hintLen;
+    }
+#endif /* !NO_PSK */
+
+#if ((defined(HAVE_ECC) || defined(HAVE_CURVE25519) || \
+                defined(HAVE_CURVE448)) && !defined(NO_PSK))\
+  || \
+    (defined(HAVE_ECC) || \
+        ((defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)) && \
+         (defined(HAVE_ED25519) || defined(HAVE_ED448) || \
+         !defined(NO_RSA))))
+    static int ExportEccTempKey(WOLFSSL* ssl, SskeArgs* args)
+    {
+        int ret = 0;
+        /* curve type, named curve, length(1) */
+        args->idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
+        args->length = ENUM_LEN + CURVE_LEN + ENUM_LEN;
+
+        /* Export temp ECC key and add to length */
+        args->exportSz = MAX_EXPORT_ECC_SZ;
+        args->exportBuf = (byte*)XMALLOC(MAX_EXPORT_ECC_SZ,
+                                         ssl->heap, DYNAMIC_TYPE_DER);
+        if (args->exportBuf == NULL)
+            return MEMORY_E;
+    #ifdef HAVE_CURVE25519
+        if (ssl->ecdhCurveOID == ECC_X25519_OID) {
+            if (wc_curve25519_export_public_ex(
+                    (curve25519_key*)ssl->eccTempKey,
+                    args->exportBuf, &args->exportSz,
+                    EC25519_LITTLE_ENDIAN) != 0) {
+                ret = ECC_EXPORT_ERROR;
+            }
+        }
+        else
+    #endif
+    #ifdef HAVE_CURVE448
+        if (ssl->ecdhCurveOID == ECC_X448_OID) {
+            if (wc_curve448_export_public_ex(
+                    (curve448_key*)ssl->eccTempKey,
+                    args->exportBuf, &args->exportSz,
+                    EC448_LITTLE_ENDIAN) != 0) {
+                ret = ECC_EXPORT_ERROR;
+            }
+        }
+        else
+    #endif
+        {
+    #if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)
+            PRIVATE_KEY_UNLOCK();
+            ret = wc_ecc_export_x963(ssl->eccTempKey,
+                       args->exportBuf, &args->exportSz);
+            PRIVATE_KEY_LOCK();
+            if (ret != 0) {
+                ret = ECC_EXPORT_ERROR;
+            }
+    #endif
+        }
+        args->length += args->exportSz;
+        return ret;
+    }
+
+    static int AddCurveId(WOLFSSL* ssl, SskeArgs* args)
+    {   /* record and message headers will be added later, when we're sure
+           of the sig length */
+        /* ECC key exchange data */
+        args->output[args->idx++] = named_curve;
+        args->output[args->idx++] = 0x00;          /* leading zero */
+    #ifdef HAVE_CURVE25519
+        if (ssl->ecdhCurveOID == ECC_X25519_OID)
+            args->output[args->idx++] = WOLFSSL_ECC_X25519;
+        else
+    #endif
+    #ifdef HAVE_CURVE448
+        if (ssl->ecdhCurveOID == ECC_X448_OID)
+            args->output[args->idx++] = WOLFSSL_ECC_X448;
+        else
+    #endif
+        {
+    #ifdef HAVE_ECC
+            args->output[args->idx++] = SetCurveId(ssl->eccTempKey);
+    #endif
+        }
+        args->output[args->idx++] = (byte)args->exportSz;
+        XMEMCPY(args->output + args->idx, args->exportBuf, args->exportSz);
+        return 0;
+    }
+    #endif /*HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448)
+         && (!NO_PSK || HAVE_ED25519 || HAVE_ED448 || !NO_RSA)*/
+
+    #if   (    !defined(NO_RSA) \
+           &&  (defined(HAVE_ECC) || \
+                    ((defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)) && \
+                     (defined(HAVE_ED25519) || defined(HAVE_ED448) || \
+                      !defined(NO_RSA)))) ) \
+       || (    !defined(NO_RSA) \
+           && (!defined(NO_DH) && (!defined(NO_RSA) || \
+                        (defined(HAVE_ANON) && !defined(WOLFSSL_NO_TLS12)))) )
+    static int ReEncodeSig(WOLFSSL* ssl)
+    {    /* For TLS 1.2 re-encode signature */
+        if (IsAtLeastTLSv1_2(ssl)) {
+            byte* encodedSig = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ, ssl->heap,
+                                              DYNAMIC_TYPE_DIGEST);
+            if (encodedSig == NULL)
+                return MEMORY_E;
+            ssl->buffers.digest.length =
+                wc_EncodeSignature(encodedSig, ssl->buffers.digest.buffer,
+                                   ssl->buffers.digest.length,
+                                   TypeHash(ssl->options.hashAlgo));
+            /* Replace sig buffer with new one */
+            if (!ssl->options.dontFreeDigest)
+                XFREE(ssl->buffers.digest.buffer,
+                      ssl->heap, DYNAMIC_TYPE_DIGEST);
+            ssl->options.dontFreeDigest = 0;
+            ssl->buffers.digest.buffer = encodedSig;
+        }
+        return 0;
+    }
+    #endif
+
+    #if defined(HAVE_ECC) || \
+        ((defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)) && \
+         (defined(HAVE_ED25519) || defined(HAVE_ED448) || !defined(NO_RSA)))
+    static int SetKeyTypeAndDecodePrivateKey(WOLFSSL* ssl, SskeArgs* args)
+    {
+        int ret;
+        word32 keySz = 0;
+
+        switch(ssl->options.sigAlgo) {
+        #ifndef NO_RSA
+        #ifdef WC_RSA_PSS
+            case rsa_pss_sa_algo:
+        #endif
+            case rsa_sa_algo:
+            {
+                ssl->buffers.keyType = rsa_sa_algo;
+                ret = DecodePrivateKey(ssl, &keySz);
+                args->tmpSigSz = (word32)keySz;
+                break;
+            }
+        #endif /* !NO_RSA */
+        #ifdef HAVE_ECC
+        #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+            case sm2_sa_algo:
+        #endif
+            case ecc_dsa_sa_algo:
+            {
+                ssl->buffers.keyType = ssl->options.sigAlgo;
+                ret = DecodePrivateKey(ssl, &keySz);
+                /* worst case estimate */
+                args->tmpSigSz = keySz;
+                break;
+            }
+        #endif
+        #ifdef HAVE_ED25519
+            case ed25519_sa_algo:
+            {
+                ssl->buffers.keyType = ed25519_sa_algo;
+                ret = DecodePrivateKey(ssl, &keySz);
+                /* worst case estimate */
+                args->tmpSigSz = ED25519_SIG_SIZE;
+                break;
+            }
+        #endif /* HAVE_ED25519 */
+        #ifdef HAVE_ED448
+            case ed448_sa_algo:
+            {
+                ssl->buffers.keyType = ed448_sa_algo;
+                ret = DecodePrivateKey(ssl, &keySz);
+                /* worst case estimate */
+                args->tmpSigSz = ED448_SIG_SIZE;
+                break;
+            }
+        #endif /* HAVE_ED448 */
+            default:
+                ret = ALGO_ID_E;  /* unsupported type */
+        } /* switch(ssl->specs.sig_algo) */
+        return ret;
+    }
+    #endif /* HAVE_ECC || (HAVE_CURVE25519 || HAVE_CURVE448) &&
+               (HAVE_ED25519 || HAVE_ED448 || !NO_RSA) */
+
+    #if !defined(NO_DH)\
+         && (!defined(NO_PSK) || !defined(NO_RSA) || \
+                             (defined(HAVE_ANON) && !defined(WOLFSSL_NO_TLS12)))
+    static int SKE_DhPubLength(WOLFSSL* ssl)
+    {
+        return LENGTH_SZ * 3 + /* p, g, pub */
+                 ssl->buffers.serverDH_P.length +
+                 ssl->buffers.serverDH_G.length +
+                 ssl->buffers.serverDH_Pub.length;
+    }
+
+    static int SKE_AddDhPub(Buffers* buffers, byte* output, int idx)
+    {   /* add p, g, pub */
+        c16toa((word16)buffers->serverDH_P.length, output + idx);
+        idx += LENGTH_SZ;
+        XMEMCPY(output + idx, buffers->serverDH_P.buffer,
+                              buffers->serverDH_P.length);
+        idx += buffers->serverDH_P.length;
+        /*  g */
+        c16toa((word16)buffers->serverDH_G.length, output + idx);
+        idx += LENGTH_SZ;
+        XMEMCPY(output + idx, buffers->serverDH_G.buffer,
+                              buffers->serverDH_G.length);
+        idx += buffers->serverDH_G.length;
+        /*  pub */
+        c16toa((word16)buffers->serverDH_Pub.length, output + idx);
+        idx += LENGTH_SZ;
+        XMEMCPY(output + idx, buffers->serverDH_Pub.buffer,
+                              buffers->serverDH_Pub.length);
+        idx += buffers->serverDH_Pub.length;
+        return idx;
+    }
+    #endif
+
+    /*
+     * this #if mess is a case for relaxing the requirement that
+     * static functions that are defined must always be used.
+     *
+     * as it is, we have to be careful to only define the function
+     * when it is used, which is the || of all the cases below
+     *
+     */
+#if (!defined(NO_DH) && (!defined(NO_RSA) || \
+     (defined(HAVE_ANON) && !defined(WOLFSSL_NO_TLS12)))) || \
+    defined(HAVE_ECC) || \
+    ((defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)) && \
+     (defined(HAVE_ED25519) || defined(HAVE_ED448) || !defined(NO_RSA)))
+    static int EncodeSigAlgAndGetHashType(WOLFSSL* ssl, SskeArgs* args,
+                                          enum wc_HashType* hashType)
+    {   /* Determine hash type */
+        if (IsAtLeastTLSv1_2(ssl)) {
+            EncodeSigAlg(ssl->options.hashAlgo,
+                         ssl->options.sigAlgo,
+                         &args->output[args->idx]);
+            args->idx += 2;
+            *hashType = HashAlgoToType(ssl->options.hashAlgo);
+            if (*hashType == WC_HASH_TYPE_NONE)
+                return ALGO_ID_E;
+        } else {
+            /* only using sha and md5 for rsa */
+        #ifndef NO_OLD_TLS
+            *hashType = WC_HASH_TYPE_SHA;
+            if (ssl->options.sigAlgo == rsa_sa_algo)
+                *hashType = WC_HASH_TYPE_MD5_SHA;
+        #else
+            return ALGO_ID_E;
+        #endif
+        }
+        return 0;
+    }
+#endif
+
     /* handle generation of server_key_exchange (12) */
     int SendServerKeyExchange(WOLFSSL* ssl)
     {
@@ -35771,44 +36048,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
                         ssl->options.dhKeySz =
                                 (word16)ssl->buffers.serverDH_P.length;
-
-                        ret = AllocKey(ssl, DYNAMIC_TYPE_DH,
-                                            (void**)&ssl->buffers.serverDH_Key);
-                        if (ret != 0) {
-                            goto exit_sske;
-                        }
-
-                        #if !defined(WOLFSSL_OLD_PRIME_CHECK) && \
-                            !defined(HAVE_FIPS) && \
-                            !defined(HAVE_SELFTEST)
-                        if (ssl->options.dhDoKeyTest &&
-                            !ssl->options.dhKeyTested)
-                        {
-                            ret = wc_DhSetCheckKey(
-                                ssl->buffers.serverDH_Key,
-                                ssl->buffers.serverDH_P.buffer,
-                                ssl->buffers.serverDH_P.length,
-                                ssl->buffers.serverDH_G.buffer,
-                                ssl->buffers.serverDH_G.length,
-                                NULL, 0, 0, ssl->rng);
-                            if (ret != 0) {
-                                goto exit_sske;
-                            }
-                            ssl->options.dhKeyTested = 1;
-                        }
-                        else
-                        #endif
-                        {
-                            ret = wc_DhSetKey(ssl->buffers.serverDH_Key,
-                                ssl->buffers.serverDH_P.buffer,
-                                ssl->buffers.serverDH_P.length,
-                                ssl->buffers.serverDH_G.buffer,
-                                ssl->buffers.serverDH_G.length);
-                            if (ret != 0) {
-                                goto exit_sske;
-                            }
-                        }
-
+                        CHECK_RET(ret, AllocKey(ssl, DYNAMIC_TYPE_DH,
+                                           (void**)&ssl->buffers.serverDH_Key),
+                                  exit_sske);
+                        CHECK_RET(ret, DhSetKey(ssl), exit_sske);
                 #ifdef HAVE_SECURE_RENEGOTIATION
                         /* Check that the DH public key buffer is large
                          * enough to hold the key. This may occur on a
@@ -35953,51 +36196,20 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 #ifndef NO_PSK
                     case psk_kea:
                     {
-                        args->idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
+                        word32 hintLen;
 
+                        args->idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
                         if (ssl->arrays->server_hint[0] == 0) {
                             ERROR_OUT(0, exit_sske); /* don't send */
                         }
-
-                        /* include size part */
-                        args->length = (word32)XSTRLEN(ssl->arrays->server_hint);
-                        if (args->length > MAX_PSK_ID_LEN) {
-                            ERROR_OUT(SERVER_HINT_ERROR, exit_sske);
-                        }
-
-                        args->length += HINT_LEN_SZ;
-                        args->sendSz = args->length + HANDSHAKE_HEADER_SZ +
-                                                            RECORD_HEADER_SZ;
-
-                    #ifdef WOLFSSL_DTLS
-                        if (ssl->options.dtls) {
-                            args->sendSz += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
-                            args->idx    += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
-                        }
-                    #endif
-
-                        if (IsEncryptionOn(ssl, 1)) {
-                            args->sendSz += MAX_MSG_EXTRA;
-                        }
-
-                        /* Use tmp buffer */
-                        args->input = (byte*)XMALLOC(args->sendSz,
-                                ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
-                        if (args->input == NULL)
-                            ERROR_OUT(MEMORY_E, exit_sske);
-                        args->output = args->input;
-
+                        CHECK_RET(ret,
+                                  LengthPlusServerHint(ssl, args, &hintLen),
+                                  exit_sske);
+                        SetSendSzWithDtlsExtra(ssl, args);
+                        CHECK_RET(ret, AllocArgsInput(ssl, args), exit_sske);
                         AddHeaders(args->output, args->length,
                                                     server_key_exchange, ssl);
-
-                        /* key data */
-                        c16toa((word16)(args->length - HINT_LEN_SZ),
-                                                      args->output + args->idx);
-
-                        args->idx += HINT_LEN_SZ;
-                        XMEMCPY(args->output + args->idx,
-                                ssl->arrays->server_hint,
-                                args->length - HINT_LEN_SZ);
+                        AddServerHint(ssl, args, hintLen);
                         break;
                     }
                 #endif /* !NO_PSK */
@@ -36007,75 +36219,17 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         word32 hintLen;
 
                         args->idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
-                        args->length = LENGTH_SZ * 3 + /* p, g, pub */
-                                 ssl->buffers.serverDH_P.length +
-                                 ssl->buffers.serverDH_G.length +
-                                 ssl->buffers.serverDH_Pub.length;
-
-                        /* include size part */
-                        hintLen = (word32)XSTRLEN(ssl->arrays->server_hint);
-                        if (hintLen > MAX_PSK_ID_LEN) {
-                            ERROR_OUT(SERVER_HINT_ERROR, exit_sske);
-                        }
-                        args->length += hintLen + HINT_LEN_SZ;
-                        args->sendSz = args->length + HANDSHAKE_HEADER_SZ +
-                                                            RECORD_HEADER_SZ;
-
-                    #ifdef WOLFSSL_DTLS
-                        if (ssl->options.dtls) {
-                            args->sendSz += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
-                            args->idx    += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
-                        }
-                    #endif
-
-                        if (IsEncryptionOn(ssl, 1)) {
-                            args->sendSz += MAX_MSG_EXTRA;
-                        }
-
-                        /* Use tmp buffer */
-                        args->input = (byte*)XMALLOC(args->sendSz,
-                                ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
-                        if (args->input == NULL)
-                            ERROR_OUT(MEMORY_E, exit_sske);
-                        args->output = args->input;
-
+                        args->length = SKE_DhPubLength(ssl);
+                        CHECK_RET(ret,
+                                  LengthPlusServerHint(ssl, args, &hintLen),
+                                  exit_sske);
+                        SetSendSzWithDtlsExtra(ssl, args);
+                        CHECK_RET(ret, AllocArgsInput(ssl, args), exit_sske);
                         AddHeaders(args->output, args->length,
                                                     server_key_exchange, ssl);
-
-                        /* key data */
-                        c16toa((word16)hintLen, args->output + args->idx);
-                        args->idx += HINT_LEN_SZ;
-                        XMEMCPY(args->output + args->idx,
-                                            ssl->arrays->server_hint, hintLen);
-                        args->idx += hintLen;
-
-                        /* add p, g, pub */
-                        c16toa((word16)ssl->buffers.serverDH_P.length,
-                            args->output + args->idx);
-                        args->idx += LENGTH_SZ;
-                        XMEMCPY(args->output + args->idx,
-                                ssl->buffers.serverDH_P.buffer,
-                                ssl->buffers.serverDH_P.length);
-                        args->idx += ssl->buffers.serverDH_P.length;
-
-                        /*  g */
-                        c16toa((word16)ssl->buffers.serverDH_G.length,
-                            args->output + args->idx);
-                        args->idx += LENGTH_SZ;
-                        XMEMCPY(args->output + args->idx,
-                                ssl->buffers.serverDH_G.buffer,
-                                ssl->buffers.serverDH_G.length);
-                        args->idx += ssl->buffers.serverDH_G.length;
-
-                        /*  pub */
-                        c16toa((word16)ssl->buffers.serverDH_Pub.length,
-                            args->output + args->idx);
-                        args->idx += LENGTH_SZ;
-                        XMEMCPY(args->output + args->idx,
-                                ssl->buffers.serverDH_Pub.buffer,
-                                ssl->buffers.serverDH_Pub.length);
-                        /* No need to update idx, since sizes are already set */
-                        /* args->idx += ssl->buffers.serverDH_Pub.length; */
+                        AddServerHint(ssl, args, hintLen);
+                        args->idx = SKE_AddDhPub(&ssl->buffers, args->output,
+                                                 args->idx);
                         break;
                     }
                 #endif /* !defined(NO_DH) && !defined(NO_PSK) */
@@ -36083,106 +36237,16 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                      defined(HAVE_CURVE448)) && !defined(NO_PSK)
                     case ecdhe_psk_kea:
                     {
-                        word32 hintLen;
+                        word32 hintLen = 0;
 
-                        /* curve type, named curve, length(1) */
-                        args->idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
-                        args->length = ENUM_LEN + CURVE_LEN + ENUM_LEN;
-
-                        args->exportSz = MAX_EXPORT_ECC_SZ;
-                        args->exportBuf = (byte*)XMALLOC(MAX_EXPORT_ECC_SZ,
-                                            ssl->heap, DYNAMIC_TYPE_DER);
-                        if (args->exportBuf == NULL) {
-                            ERROR_OUT(MEMORY_E, exit_sske);
-                        }
-                    #ifdef HAVE_CURVE25519
-                        if (ssl->ecdhCurveOID == ECC_X25519_OID) {
-                            if (wc_curve25519_export_public_ex(
-                                    (curve25519_key*)ssl->eccTempKey,
-                                    args->exportBuf, &args->exportSz,
-                                    EC25519_LITTLE_ENDIAN) != 0) {
-                                ERROR_OUT(ECC_EXPORT_ERROR, exit_sske);
-                            }
-                        }
-                        else
-                    #endif
-                    #ifdef HAVE_CURVE448
-                        if (ssl->ecdhCurveOID == ECC_X448_OID) {
-                            if (wc_curve448_export_public_ex(
-                                    (curve448_key*)ssl->eccTempKey,
-                                    args->exportBuf, &args->exportSz,
-                                    EC448_LITTLE_ENDIAN) != 0) {
-                                ERROR_OUT(ECC_EXPORT_ERROR, exit_sske);
-                            }
-                        }
-                        else
-                    #endif
-                        {
-                            PRIVATE_KEY_UNLOCK();
-                            ret = wc_ecc_export_x963(ssl->eccTempKey,
-                                       args->exportBuf, &args->exportSz);
-                            PRIVATE_KEY_LOCK();
-                            if (ret != 0) {
-                                ERROR_OUT(ECC_EXPORT_ERROR, exit_sske);
-                            }
-                        }
-                        args->length += args->exportSz;
-
-                        /* include size part */
-                        hintLen = (word32)XSTRLEN(ssl->arrays->server_hint);
-                        if (hintLen > MAX_PSK_ID_LEN) {
-                            ERROR_OUT(SERVER_HINT_ERROR, exit_sske);
-                        }
-                        args->length += hintLen + HINT_LEN_SZ;
-                        args->sendSz = args->length + HANDSHAKE_HEADER_SZ + RECORD_HEADER_SZ;
-
-                    #ifdef WOLFSSL_DTLS
-                        if (ssl->options.dtls) {
-                            args->sendSz += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
-                            args->idx    += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
-                        }
-                    #endif
-
-                        if (IsEncryptionOn(ssl, 1)) {
-                            args->sendSz += MAX_MSG_EXTRA;
-                        }
-
-                        /* Use tmp buffer */
-                        args->input = (byte*)XMALLOC(args->sendSz,
-                                ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
-                        if (args->input == NULL)
-                            ERROR_OUT(MEMORY_E, exit_sske);
-                        args->output = args->input;
-
-                        /* key data */
-                        c16toa((word16)hintLen, args->output + args->idx);
-                        args->idx += HINT_LEN_SZ;
-                        XMEMCPY(args->output + args->idx,
-                                            ssl->arrays->server_hint, hintLen);
-                        args->idx += hintLen;
-
-                        /* ECC key exchange data */
-                        args->output[args->idx++] = named_curve;
-                        args->output[args->idx++] = 0x00;          /* leading zero */
-                    #ifdef HAVE_CURVE25519
-                        if (ssl->ecdhCurveOID == ECC_X25519_OID)
-                            args->output[args->idx++] = WOLFSSL_ECC_X25519;
-                        else
-                    #endif
-                    #ifdef HAVE_CURVE448
-                        if (ssl->ecdhCurveOID == ECC_X448_OID)
-                            args->output[args->idx++] = WOLFSSL_ECC_X448;
-                        else
-                    #endif
-                        {
-                    #ifdef HAVE_ECC
-                            args->output[args->idx++] =
-                                                    SetCurveId(ssl->eccTempKey);
-                    #endif
-                        }
-                        args->output[args->idx++] = (byte)args->exportSz;
-                        XMEMCPY(args->output + args->idx, args->exportBuf,
-                                                                args->exportSz);
+                        CHECK_RET(ret, ExportEccTempKey(ssl, args), exit_sske);
+                        CHECK_RET(ret,
+                                  LengthPlusServerHint(ssl, args, &hintLen),
+                                  exit_sske);
+                        SetSendSzWithDtlsExtra(ssl, args);
+                        CHECK_RET(ret, AllocArgsInput(ssl, args), exit_sske);
+                        AddServerHint(ssl, args, hintLen);
+                        CHECK_RET(ret, AddCurveId(ssl, args), exit_sske);
                         break;
                     }
                 #endif /* (HAVE_ECC || CURVE25519 || CURVE448) && !NO_PSK */
@@ -36195,54 +36259,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         enum wc_HashType hashType;
                         word32 preSigSz, preSigIdx;
 
-                        /* curve type, named curve, length(1) */
-                        args->idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
-                        args->length = ENUM_LEN + CURVE_LEN + ENUM_LEN;
-
-                        /* Export temp ECC key and add to length */
-                        args->exportSz = MAX_EXPORT_ECC_SZ;
-                        args->exportBuf = (byte*)XMALLOC(MAX_EXPORT_ECC_SZ,
-                                            ssl->heap, DYNAMIC_TYPE_DER);
-                        if (args->exportBuf == NULL) {
-                            ERROR_OUT(MEMORY_E, exit_sske);
-                        }
-                    #ifdef HAVE_CURVE25519
-                        if (ssl->ecdhCurveOID == ECC_X25519_OID) {
-                            if (wc_curve25519_export_public_ex(
-                                        (curve25519_key*)ssl->eccTempKey,
-                                        args->exportBuf, &args->exportSz,
-                                        EC25519_LITTLE_ENDIAN) != 0) {
-                                ERROR_OUT(ECC_EXPORT_ERROR, exit_sske);
-                            }
-                        }
-                        else
-                    #endif
-                    #ifdef HAVE_CURVE448
-                        if (ssl->ecdhCurveOID == ECC_X448_OID) {
-                            if (wc_curve448_export_public_ex(
-                                        (curve448_key*)ssl->eccTempKey,
-                                        args->exportBuf, &args->exportSz,
-                                        EC448_LITTLE_ENDIAN) != 0) {
-                                ERROR_OUT(ECC_EXPORT_ERROR, exit_sske);
-                            }
-                        }
-                        else
-                    #endif
-                        {
-                    #if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)
-                            PRIVATE_KEY_UNLOCK();
-                            ret = wc_ecc_export_x963(ssl->eccTempKey,
-                                    args->exportBuf, &args->exportSz);
-                            PRIVATE_KEY_LOCK();
-                            if (ret != 0) {
-                                ERROR_OUT(ECC_EXPORT_ERROR, exit_sske);
-                            }
-                    #endif
-                        }
-                        args->length += args->exportSz;
-
+                        CHECK_RET(ret, ExportEccTempKey(ssl, args), exit_sske);
                         preSigSz  = args->length;
-                        preSigIdx = args->idx;
 
                         if (ssl->buffers.key == NULL) {
                         #ifdef HAVE_PK_CALLBACKS
@@ -36257,78 +36275,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                 ERROR_OUT(NO_PRIVATE_KEY, exit_sske);
                         }
                         else {
-                            switch(ssl->options.sigAlgo) {
-                        #ifndef NO_RSA
-                        #ifdef WC_RSA_PSS
-                            case rsa_pss_sa_algo:
-                        #endif
-                            case rsa_sa_algo:
-                            {
-                                word32 keySz;
-
-                                ssl->buffers.keyType = rsa_sa_algo;
-                                ret = DecodePrivateKey(ssl, &keySz);
-                                if (ret != 0) {
-                                    goto exit_sske;
-                                }
-
-                                args->tmpSigSz = (word32)keySz;
-                                break;
-                            }
-                        #endif /* !NO_RSA */
-                        #ifdef HAVE_ECC
-                        #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
-                            case sm2_sa_algo:
-                        #endif
-                            case ecc_dsa_sa_algo:
-                            {
-                                word32 keySz;
-
-                                ssl->buffers.keyType = ssl->options.sigAlgo;
-                                ret = DecodePrivateKey(ssl, &keySz);
-                                if (ret != 0) {
-                                    goto exit_sske;
-                                }
-                                /* worst case estimate */
-                                args->tmpSigSz = keySz;
-                                break;
-                            }
-                        #endif
-                        #ifdef HAVE_ED25519
-                            case ed25519_sa_algo:
-                            {
-                                word32 keySz;
-
-                                ssl->buffers.keyType = ed25519_sa_algo;
-                                ret = DecodePrivateKey(ssl, &keySz);
-                                if (ret != 0) {
-                                    goto exit_sske;
-                                }
-
-                                /* worst case estimate */
-                                args->tmpSigSz = ED25519_SIG_SIZE;
-                                break;
-                            }
-                        #endif /* HAVE_ED25519 */
-                        #ifdef HAVE_ED448
-                            case ed448_sa_algo:
-                            {
-                                word32 keySz;
-
-                                ssl->buffers.keyType = ed448_sa_algo;
-                                ret = DecodePrivateKey(ssl, &keySz);
-                                if (ret != 0) {
-                                    goto exit_sske;
-                                }
-
-                                /* worst case estimate */
-                                args->tmpSigSz = ED448_SIG_SIZE;
-                                break;
-                            }
-                        #endif /* HAVE_ED448 */
-                            default:
-                                ERROR_OUT(ALGO_ID_E, exit_sske);  /* unsupported type */
-                            } /* switch(ssl->specs.sig_algo) */
+                            CHECK_RET(ret,
+                                      SetKeyTypeAndDecodePrivateKey(ssl, args),
+                                      exit_sske);
                         }
 
                         /* sig length */
@@ -36339,78 +36288,18 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             args->length += HASH_SIG_SIZE;
                         }
 
-                        args->sendSz = args->length + HANDSHAKE_HEADER_SZ + RECORD_HEADER_SZ;
-
-                    #ifdef WOLFSSL_DTLS
-                        if (ssl->options.dtls) {
-                            args->sendSz += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
-                            args->idx    += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
-                            preSigIdx = args->idx;
-                        }
-                    #endif
-                        if (IsEncryptionOn(ssl, 1)) {
-                            args->sendSz += MAX_MSG_EXTRA;
-                        }
-
-                        /* Use tmp buffer */
-                        args->input = (byte*)XMALLOC(args->sendSz,
-                                ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
-                        if (args->input == NULL)
-                            ERROR_OUT(MEMORY_E, exit_sske);
-                        args->output = args->input;
-
-                        /* record and message headers will be added below, when we're sure
-                           of the sig length */
-
-                        /* key exchange data */
-                        args->output[args->idx++] = named_curve;
-                        args->output[args->idx++] = 0x00;          /* leading zero */
-                    #ifdef HAVE_CURVE25519
-                        if (ssl->ecdhCurveOID == ECC_X25519_OID)
-                            args->output[args->idx++] = WOLFSSL_ECC_X25519;
-                        else
-                    #endif
-                    #ifdef HAVE_CURVE448
-                        if (ssl->ecdhCurveOID == ECC_X448_OID)
-                            args->output[args->idx++] = WOLFSSL_ECC_X448;
-                        else
-                    #endif
-                        {
-                    #ifdef HAVE_ECC
-                            args->output[args->idx++] =
-                                                    SetCurveId(ssl->eccTempKey);
-                    #endif
-                        }
-                        args->output[args->idx++] = (byte)args->exportSz;
-                        XMEMCPY(args->output + args->idx, args->exportBuf, args->exportSz);
+                        SetSendSzWithDtlsExtra(ssl, args);
+                        preSigIdx = args->idx;
+                        CHECK_RET(ret, AllocArgsInput(ssl, args), exit_sske);
+                        CHECK_RET(ret, AddCurveId(ssl, args), exit_sske);
                         args->idx += args->exportSz;
 
-                        /* Determine hash type */
-                        if (IsAtLeastTLSv1_2(ssl)) {
-                            EncodeSigAlg(ssl->options.hashAlgo,
-                                         ssl->options.sigAlgo,
-                                         &args->output[args->idx]);
-                            args->idx += 2;
-
-                            hashType = HashAlgoToType(ssl->options.hashAlgo);
-                            if (hashType == WC_HASH_TYPE_NONE) {
-                                ERROR_OUT(ALGO_ID_E, exit_sske);
-                            }
-
-                        } else {
-                            /* only using sha and md5 for rsa */
-                        #ifndef NO_OLD_TLS
-                            hashType = WC_HASH_TYPE_SHA;
-                            if (ssl->options.sigAlgo == rsa_sa_algo) {
-                                hashType = WC_HASH_TYPE_MD5_SHA;
-                            }
-                        #else
-                            ERROR_OUT(ALGO_ID_E, exit_sske);
-                        #endif
-                        }
-
-                        /* Signature length will be written later, when we're sure what it is */
-
+                        CHECK_RET(ret,
+                                  EncodeSigAlgAndGetHashType(ssl, args,
+                                                             &hashType),
+                                  exit_sske);
+                        /* Signature length will be written later,
+                         * when we're sure what it is */
                     #ifdef HAVE_FUZZER
                         if (ssl->fuzzerCb) {
                             ssl->fuzzerCb(ssl, args->output + preSigIdx,
@@ -36418,13 +36307,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         }
                     #endif
 
-                        ret = HashSkeData(ssl, hashType,
-                            args->output + preSigIdx, preSigSz,
-                            ssl->options.sigAlgo);
-                        if (ret != 0) {
-                            goto exit_sske;
-                        }
-
+                        CHECK_RET(ret, HashSkeData(ssl, hashType,
+                                              args->output + preSigIdx,
+                                              preSigSz, ssl->options.sigAlgo),
+                                  exit_sske);
                         args->sigSz = args->tmpSigSz;
 
                         /* Sign hash to create signature */
@@ -36433,30 +36319,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         #ifndef NO_RSA
                             case rsa_sa_algo:
                             {
-                                /* For TLS 1.2 re-encode signature */
-                                if (IsAtLeastTLSv1_2(ssl)) {
-                                    byte* encodedSig = (byte*)XMALLOC(
-                                                  MAX_ENCODED_SIG_SZ, ssl->heap,
-                                                           DYNAMIC_TYPE_DIGEST);
-                                    if (encodedSig == NULL) {
-                                        ERROR_OUT(MEMORY_E, exit_sske);
-                                    }
-
-                                    ssl->buffers.digest.length =
-                                        wc_EncodeSignature(encodedSig,
-                                            ssl->buffers.digest.buffer,
-                                            ssl->buffers.digest.length,
-                                            TypeHash(ssl->options.hashAlgo));
-
-                                    /* Replace sig buffer with new one */
-                                    if (!ssl->options.dontFreeDigest) {
-                                        XFREE(ssl->buffers.digest.buffer,
-                                            ssl->heap, DYNAMIC_TYPE_DIGEST);
-                                    }
-                                    ssl->options.dontFreeDigest = 0;
-                                    ssl->buffers.digest.buffer = encodedSig;
-                                }
-
+                                CHECK_RET(ret, ReEncodeSig(ssl), exit_sske);
                                 /* write sig size here */
                                 c16toa((word16)args->sigSz,
                                     args->output + args->idx);
@@ -36507,12 +36370,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         word32 preSigSz, preSigIdx;
 
                         args->idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
-                        args->length = LENGTH_SZ * 3;  /* p, g, pub */
-                        args->length += ssl->buffers.serverDH_P.length +
-                                        ssl->buffers.serverDH_G.length +
-                                        ssl->buffers.serverDH_Pub.length;
-
-                        preSigIdx = args->idx;
+                        args->length = SKE_DhPubLength(ssl);
                         preSigSz  = args->length;
 
                         if (!ssl->options.usingAnon_cipher) {
@@ -36552,57 +36410,13 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             }
                         }
 
-                        args->sendSz = args->length + HANDSHAKE_HEADER_SZ +
-                                                            RECORD_HEADER_SZ;
-
-                    #ifdef WOLFSSL_DTLS
-                        if (ssl->options.dtls) {
-                            args->sendSz += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
-                            args->idx    += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
-                            preSigIdx = args->idx;
-                        }
-                    #endif
-
-                        if (IsEncryptionOn(ssl, 1)) {
-                            args->sendSz += MAX_MSG_EXTRA;
-                        }
-
-                        /* Use tmp buffer */
-                        args->input = (byte*)XMALLOC(args->sendSz,
-                                ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
-                        if (args->input == NULL)
-                            ERROR_OUT(MEMORY_E, exit_sske);
-                        args->output = args->input;
-
+                        SetSendSzWithDtlsExtra(ssl, args);
+                        preSigIdx = args->idx;
+                        CHECK_RET(ret, AllocArgsInput(ssl, args), exit_sske);
                         AddHeaders(args->output, args->length,
                                                     server_key_exchange, ssl);
-
-                        /* add p, g, pub */
-                        c16toa((word16)ssl->buffers.serverDH_P.length,
-                                                    args->output + args->idx);
-                        args->idx += LENGTH_SZ;
-                        XMEMCPY(args->output + args->idx,
-                                              ssl->buffers.serverDH_P.buffer,
-                                              ssl->buffers.serverDH_P.length);
-                        args->idx += ssl->buffers.serverDH_P.length;
-
-                        /*  g */
-                        c16toa((word16)ssl->buffers.serverDH_G.length,
-                                                    args->output + args->idx);
-                        args->idx += LENGTH_SZ;
-                        XMEMCPY(args->output + args->idx,
-                                              ssl->buffers.serverDH_G.buffer,
-                                              ssl->buffers.serverDH_G.length);
-                        args->idx += ssl->buffers.serverDH_G.length;
-
-                        /*  pub */
-                        c16toa((word16)ssl->buffers.serverDH_Pub.length,
-                                                    args->output + args->idx);
-                        args->idx += LENGTH_SZ;
-                        XMEMCPY(args->output + args->idx,
-                                              ssl->buffers.serverDH_Pub.buffer,
-                                              ssl->buffers.serverDH_Pub.length);
-                        args->idx += ssl->buffers.serverDH_Pub.length;
+                        args->idx = SKE_AddDhPub(&ssl->buffers, args->output,
+                                                 args->idx);
 
                     #ifdef HAVE_FUZZER
                         if (ssl->fuzzerCb) {
@@ -36615,77 +36429,25 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             break;
                         }
 
-                        /* Determine hash type */
-                        if (IsAtLeastTLSv1_2(ssl)) {
-                            EncodeSigAlg(ssl->options.hashAlgo,
-                                         ssl->options.sigAlgo,
-                                         &args->output[args->idx]);
-                            args->idx += 2;
-
-                            hashType = HashAlgoToType(ssl->options.hashAlgo);
-                            if (hashType == WC_HASH_TYPE_NONE) {
-                                ERROR_OUT(ALGO_ID_E, exit_sske);
-                            }
-                        } else {
-                            /* only using sha and md5 for rsa */
-                        #ifndef NO_OLD_TLS
-                            hashType = WC_HASH_TYPE_SHA;
-                            if (ssl->options.sigAlgo == rsa_sa_algo) {
-                                hashType = WC_HASH_TYPE_MD5_SHA;
-                            }
-                        #else
-                            ERROR_OUT(ALGO_ID_E, exit_sske);
-                        #endif
-                        }
-
+                        CHECK_RET(ret,
+                                  EncodeSigAlgAndGetHashType(ssl, args,
+                                                             &hashType),
+                                  exit_sske);
                         /* signature size */
-                        c16toa((word16)args->tmpSigSz, args->output + args->idx);
+                        c16toa((word16)args->tmpSigSz,
+                               args->output + args->idx);
                         args->idx += LENGTH_SZ;
-
-                        ret = HashSkeData(ssl, hashType,
-                            args->output + preSigIdx, preSigSz,
-                            ssl->options.sigAlgo);
-                        if (ret != 0) {
-                            goto exit_sske;
-                        }
-
+                        CHECK_RET(ret, HashSkeData(ssl, hashType,
+                                              args->output + preSigIdx,
+                                              preSigSz, ssl->options.sigAlgo),
+                                  exit_sske);
                         args->sigSz = args->tmpSigSz;
 
-                        /* Sign hash to create signature */
-                        switch (ssl->options.sigAlgo)
-                        {
                         #ifndef NO_RSA
-                            case rsa_sa_algo:
-                            {
-                                /* For TLS 1.2 re-encode signature */
-                                if (IsAtLeastTLSv1_2(ssl)) {
-                                    byte* encodedSig = (byte*)XMALLOC(
-                                                  MAX_ENCODED_SIG_SZ, ssl->heap,
-                                                           DYNAMIC_TYPE_DIGEST);
-                                    if (encodedSig == NULL) {
-                                        ERROR_OUT(MEMORY_E, exit_sske);
-                                    }
-
-                                    ssl->buffers.digest.length =
-                                        wc_EncodeSignature(encodedSig,
-                                            ssl->buffers.digest.buffer,
-                                            ssl->buffers.digest.length,
-                                            TypeHash(ssl->options.hashAlgo));
-
-                                    /* Replace sig buffer with new one */
-                                    if (!ssl->options.dontFreeDigest) {
-                                        XFREE(ssl->buffers.digest.buffer,
-                                            ssl->heap, DYNAMIC_TYPE_DIGEST);
-                                    }
-                                    ssl->options.dontFreeDigest = 0;
-                                    ssl->buffers.digest.buffer = encodedSig;
-                                }
-                                break;
-                            }
+                        /* Sign hash to create signature */
+                        if (ssl->options.sigAlgo == rsa_sa_algo)
+                            ret = ReEncodeSig(ssl);
                         #endif /* NO_RSA */
-                            default:
-                                break;
-                        } /* switch (ssl->options.sigAlgo) */
                         break;
                     }
                 #endif /* !defined(NO_DH) && !defined(NO_RSA) */
@@ -40852,6 +40614,28 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
         (void)args;
     }
 
+    #if (defined(HAVE_ECC) || defined(HAVE_CURVE25519) || \
+                     defined(HAVE_CURVE448)) && !defined(NO_PSK) \
+        || !defined(NO_DH) && !defined(NO_PSK)
+    static int ReadPSKHint(WOLFSSL* ssl, DckeArgs* args,
+                           byte* input, word32 size)
+    {
+        word16 clientSz;
+        /* Read in the PSK hint */
+        if ((args->idx - args->begin) + OPAQUE16_LEN > size)
+            return BUFFER_ERROR;
+        ato16(input + args->idx, &clientSz);
+        args->idx += OPAQUE16_LEN;
+        if (clientSz > MAX_PSK_ID_LEN)
+            return CLIENT_ID_ERROR;
+        if ((args->idx - args->begin) + clientSz > size)
+            return BUFFER_ERROR;
+        XMEMCPY(ssl->arrays->client_identity, input + args->idx, clientSz);
+        args->idx += clientSz;
+        ssl->arrays->client_identity[clientSz] = '\0'; /* null term */
+        return 0;
+    }
+    #endif
     #if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || \
                              defined(HAVE_CURVE448)
     static int ImportPeerECCKey(WOLFSSL* ssl, byte* input, DckeArgs* args,
@@ -41382,25 +41166,8 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                     {
                         word16 clientSz;
 
-                        /* Read in the PSK hint */
-                        if ((args->idx - args->begin) + OPAQUE16_LEN > size) {
-                            ERROR_OUT(BUFFER_ERROR, exit_dcke);
-                        }
-
-                        ato16(input + args->idx, &clientSz);
-                        args->idx += OPAQUE16_LEN;
-                        if (clientSz > MAX_PSK_ID_LEN) {
-                            ERROR_OUT(CLIENT_ID_ERROR, exit_dcke);
-                        }
-
-                        if ((args->idx - args->begin) + clientSz > size) {
-                            ERROR_OUT(BUFFER_ERROR, exit_dcke);
-                        }
-
-                        XMEMCPY(ssl->arrays->client_identity, input + args->idx,
-                                                                    clientSz);
-                        args->idx += clientSz;
-                        ssl->arrays->client_identity[clientSz] = '\0'; /* null term */
+                        CHECK_RET(ret, ReadPSKHint(ssl, args, input, size),
+                                  exit_dcke);
 
                         /* Read in the DHE business */
                         if ((args->idx - args->begin) + OPAQUE16_LEN > size) {
@@ -41435,28 +41202,10 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                                      defined(HAVE_CURVE448)) && !defined(NO_PSK)
                     case ecdhe_psk_kea:
                     {
-                        word16 clientSz;
                         byte haveCb;
 
-                        /* Read in the PSK hint */
-                        if ((args->idx - args->begin) + OPAQUE16_LEN > size) {
-                            ERROR_OUT(BUFFER_ERROR, exit_dcke);
-                        }
-
-                        ato16(input + args->idx, &clientSz);
-                        args->idx += OPAQUE16_LEN;
-                        if (clientSz > MAX_PSK_ID_LEN) {
-                            ERROR_OUT(CLIENT_ID_ERROR, exit_dcke);
-                        }
-                        if ((args->idx - args->begin) + clientSz > size) {
-                            ERROR_OUT(BUFFER_ERROR, exit_dcke);
-                        }
-
-                        XMEMCPY(ssl->arrays->client_identity,
-                                                   input + args->idx, clientSz);
-                        args->idx += clientSz;
-                        ssl->arrays->client_identity[clientSz] = '\0'; /* null term */
-
+                        CHECK_RET(ret, ReadPSKHint(ssl, args, input, size),
+                                  exit_dcke);
                         if ((ret = ImportPeerECCKey(ssl, input, args, size,
                                                     NULL, &haveCb)))
                             ERROR_OUT(ret, exit_dcke);
