@@ -1681,9 +1681,6 @@ int wc_MlKemKey_DecodePrivateKey(MlKemKey* key, const unsigned char* in,
     }
 
     if (ret == 0) {
-        byte computedHash[WC_ML_KEM_SYM_SZ];
-        XMEMSET(computedHash, 0, WC_ML_KEM_SYM_SZ);
-
         /* Decode private key that is vector of polynomials.
          * Alg 18 Step 1: dk_PKE <- dk[0 : 384k]
          * Alg 15 Step 5: s_hat <- ByteDecode_12(dk_PKE) */
@@ -1693,23 +1690,23 @@ int wc_MlKemKey_DecodePrivateKey(MlKemKey* key, const unsigned char* in,
         /* Decode the public key that is after the private key. */
         mlkemkey_decode_public(key->pub, key->pubSeed, p, k);
         /* Compute the hash of the public key. */
-        MLKEM_HASH_H(&key->hash, p, pubLen, computedHash);
+        ret = MLKEM_HASH_H(&key->hash, p, pubLen, key->h);
         p += pubLen;
+    }
+
+    if (ret == 0) {
+        /* Compare computed public key hash with stored hash */
+        if (XMEMCMP(key->h, p, WC_ML_KEM_SYM_SZ) != 0)
+            ret = MLKEM_PUB_HASH_E;
 
         /* Copy the hash of the encoded public key that is after public key. */
         XMEMCPY(key->h, p, sizeof(key->h));
         p += WC_ML_KEM_SYM_SZ;
-
         /* Copy the z (randomizer) that is after hash. */
         XMEMCPY(key->z, p, sizeof(key->z));
 
         /* Set flags */
         key->flags |= MLKEM_FLAG_H_SET | MLKEM_FLAG_BOTH_SET;
-
-        /* Compare computed public key hash with stored hash */
-        if (XMEMCMP(key->h, computedHash, WC_ML_KEM_SYM_SZ) != 0)
-            ret = MLKEM_PUB_HASH_E;
-
     }
 
     return ret;
