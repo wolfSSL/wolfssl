@@ -9592,10 +9592,6 @@ fi
 if test "$ENABLED_ASYNCCRYPT" = "yes"
 then
     AC_MSG_NOTICE([Enabling asynchronous support])
-    if ! test -f ${srcdir}/wolfcrypt/src/async.c || ! test -f ${srcdir}/wolfssl/wolfcrypt/async.h
-    then
-        AC_MSG_ERROR([--enable-asynccrypt requested, but WOLFSSL_ASYNC_CRYPT source files are missing.])
-    fi
 
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASYNC_CRYPT -DHAVE_WOLF_EVENT -DHAVE_WOLF_BIGINT -DWOLFSSL_NO_HASH_RAW"
 
@@ -11689,11 +11685,6 @@ fi # $silent != yes
 ################################################################################
 # Show warnings at bottom so they are noticed
 ################################################################################
-
-if test "$ENABLED_ASYNCCRYPT" = "yes" && ! test -s $srcdir/wolfcrypt/src/async.c
-then
-    AC_MSG_WARN([Make sure real async files are loaded. See async-check.sh or the wolfssl/wolfAsyncCrypt GitHub repo.])
-fi
 
 # MinGW static vs shared library
 # Reference URL from libtool for MinGW is located at
