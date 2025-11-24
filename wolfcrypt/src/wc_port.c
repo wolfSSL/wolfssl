@@ -27,7 +27,7 @@
 
 #include <wolfssl/wolfcrypt/cpuid.h>
 #ifdef HAVE_ENTROPY_MEMUSE
-    #include <wolfssl/wolfcrypt/random.h>
+    #include <wolfssl/wolfcrypt/wolfentropy.h>
 #endif
 #ifdef HAVE_ECC
     #include <wolfssl/wolfcrypt/ecc.h>

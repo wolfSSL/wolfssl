@@ -961,6 +961,9 @@ struct wc_swallow_the_semicolon
 
 #ifdef LINUXKM_LKCAPI_REGISTER_HASH_DRBG
 
+#ifdef HAVE_ENTROPY_MEMUSE
+    #include <wolfssl/wolfcrypt/wolfentropy.h>
+#endif
 #include <wolfssl/wolfcrypt/random.h>
 
 struct wc_linuxkm_drbg_ctx {
