@@ -7459,8 +7459,35 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
 #endif /* WOLFSSL_AESGCM_STREAM */
 
 #ifdef WOLFSSL_ARMASM
-#define GCM_GMULT_LEN(gcm, x, a, len) \
-    GCM_gmult_len(x, (const byte**)((gcm)->M0), a, len)
+static void GCM_gmult_len(byte* x, const byte* h, const unsigned char* a,
+    unsigned long len)
+{
+    byte Z[AES_BLOCK_SIZE];
+    byte V[AES_BLOCK_SIZE];
+    int i;
+    int j;
+
+    while (len >= AES_BLOCK_SIZE) {
+        xorbuf(x, a, AES_BLOCK_SIZE);
+        XMEMSET(Z, 0, AES_BLOCK_SIZE);
+        XMEMCPY(V, x, AES_BLOCK_SIZE);
+        for (i = 0; i < AES_BLOCK_SIZE; i++) {
+            byte y = h[i];
+            for (j = 0; j < 8; j++) {
+                if (y & 0x80) {
+                    xorbuf(Z, V, AES_BLOCK_SIZE);
+                }
+                RIGHTSHIFTX(V);
+                y = y << 1;
+            }
+        }
+        XMEMCPY(x, Z, AES_BLOCK_SIZE);
+        len -= AES_BLOCK_SIZE;
+        a += AES_BLOCK_SIZE;
+    }
+}
+
+#define GCM_GMULT_LEN(gcm, x, a, len)   GCM_gmult_len(x, (gcm)->H, a, len)
 #endif
 
 #elif defined(GCM_TABLE)
