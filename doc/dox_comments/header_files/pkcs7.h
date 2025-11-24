@@ -60,13 +60,13 @@ typedef int (*CallbackAESKeyWrapUnwrap)(const byte* key, word32 keySz,
 
     \param pkcs7 pointer to the PKCS7 structure in which to
     store the decoded cert
-    \param cert pointer to a buffer containing a DER formatted ASN.1
+    \param der pointer to a buffer containing a DER formatted ASN.1
     certificate with which to initialize the PKCS7 structure
-    \param certSz size of the certificate buffer
+    \param derSz size of the certificate buffer
 
     _Example_
     \code
-    PKCS7 pkcs7;
+    wc_PKCS7 pkcs7;
     byte derBuff[] = { }; // initialize with DER-encoded certificate
     if ( wc_PKCS7_InitWithCert(&pkcs7, derBuff, sizeof(derBuff)) != 0 ) {
     	// error parsing certificate into pkcs7 format
@@ -75,7 +75,7 @@ typedef int (*CallbackAESKeyWrapUnwrap)(const byte* key, word32 keySz,
 
     \sa wc_PKCS7_Free
 */
-int  wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz);
+int  wc_PKCS7_InitWithCert(wc_PKCS7* pkcs7, byte* der, word32 derSz);
 
 /*!
     \ingroup PKCS7
@@ -96,7 +96,7 @@ int  wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz);
 
     \sa wc_PKCS7_InitWithCert
 */
-void wc_PKCS7_Free(PKCS7* pkcs7);
+void wc_PKCS7_Free(wc_PKCS7* pkcs7);
 
 /*!
     \ingroup PKCS7
@@ -139,7 +139,7 @@ void wc_PKCS7_Free(PKCS7* pkcs7);
 
     \sa wc_PKCS7_InitWithCert
 */
-int  wc_PKCS7_EncodeData(PKCS7* pkcs7, byte* output,
+int  wc_PKCS7_EncodeData(wc_PKCS7* pkcs7, byte* output,
                                        word32 outputSz);
 
 /*!
@@ -217,7 +217,7 @@ int  wc_PKCS7_EncodeData(PKCS7* pkcs7, byte* output,
     \sa wc_PKCS7_InitWithCert
     \sa wc_PKCS7_VerifySignedData
 */
-int  wc_PKCS7_EncodeSignedData(PKCS7* pkcs7,
+int  wc_PKCS7_EncodeSignedData(wc_PKCS7* pkcs7,
                                        byte* output, word32 outputSz);
 
 /*!
@@ -317,7 +317,7 @@ int  wc_PKCS7_EncodeSignedData(PKCS7* pkcs7,
     \sa wc_PKCS7_InitWithCert
     \sa wc_PKCS7_VerifySignedData_ex
 */
-int wc_PKCS7_EncodeSignedData_ex(PKCS7* pkcs7, const byte* hashBuf,
+int wc_PKCS7_EncodeSignedData_ex(wc_PKCS7* pkcs7, const byte* hashBuf,
     word32 hashSz, byte* outputHead, word32* outputHeadSz, byte* outputFoot,
     word32* outputFootSz);
 
@@ -394,7 +394,7 @@ int wc_PKCS7_EncodeSignedData_ex(PKCS7* pkcs7, const byte* hashBuf,
     \sa wc_PKCS7_InitWithCert
     \sa wc_PKCS7_EncodeSignedData
 */
-int  wc_PKCS7_VerifySignedData(PKCS7* pkcs7,
+int  wc_PKCS7_VerifySignedData(wc_PKCS7* pkcs7,
                                        byte* pkiMsg, word32 pkiMsgSz);
 
 
@@ -493,7 +493,7 @@ int  wc_PKCS7_VerifySignedData(PKCS7* pkcs7,
     \sa wc_PKCS7_InitWithCert
     \sa wc_PKCS7_EncodeSignedData_ex
 */
-int wc_PKCS7_VerifySignedData_ex(PKCS7* pkcs7, const byte* hashBuf,
+int wc_PKCS7_VerifySignedData_ex(wc_PKCS7* pkcs7, const byte* hashBuf,
     word32 hashSz, byte* pkiMsgHead, word32 pkiMsgHeadSz, byte* pkiMsgFoot,
     word32 pkiMsgFootSz);
 
@@ -565,7 +565,7 @@ int wc_PKCS7_SetAESKeyWrapUnwrapCb(wc_PKCS7* pkcs7,
     \sa wc_PKCS7_InitWithCert
     \sa wc_PKCS7_DecodeEnvelopedData
 */
-int  wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7,
+int  wc_PKCS7_EncodeEnvelopedData(wc_PKCS7* pkcs7,
                                           byte* output, word32 outputSz);
 
 /*!
@@ -651,7 +651,7 @@ int  wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7,
     \sa wc_PKCS7_InitWithCert
     \sa wc_PKCS7_EncodeEnvelopedData
 */
-int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
+int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* pkiMsg,
         word32 pkiMsgSz, byte* output, word32 outputSz);
 
 /*!
@@ -725,7 +725,7 @@ int wc_PKCS7_GetEnvelopedDataKariRid(const byte * in, word32 inSz,
 
     \sa wc_PKCS7_InitWithCert
 */
-int wc_PKCS7_DecodeEncryptedData(PKCS7* pkcs7, byte* pkiMsg,
+int wc_PKCS7_DecodeEncryptedData(wc_PKCS7* pkcs7, byte* pkiMsg,
         word32 pkiMsgSz, byte* output, word32 outputSz);
 
 /*!

@@ -1021,7 +1021,7 @@ int  wc_AesInit(Aes* aes, void* heap, int devId);
 
     \sa wc_AesInit
 */
-int  wc_AesFree(Aes* aes);
+void wc_AesFree(Aes* aes);
 
 /*!
     \ingroup AES

@@ -98,6 +98,7 @@ int wc_Hash(enum wc_HashType hash_type,
     \param data the data to hash
     \param len the length of data
     \param hash Byte array to hold hash value.
+    \param hashLen Number of bytes to write to hash.
 
     _Example_
     \code
@@ -365,7 +366,8 @@ int wc_Sha3_512Hash(const byte* data, word32 len, byte* hash);
     \sa wc_Shake128_Update
     \sa wc_Shake128_Final
 */
-int wc_Shake128Hash(const byte* data, word32 len, byte* hash);
+int wc_Shake128Hash(const byte* data, word32 len, byte* hash,
+                    word32 hashLen);
 
 /*!
     \ingroup SHA
@@ -380,6 +382,7 @@ int wc_Shake128Hash(const byte* data, word32 len, byte* hash);
     \param data the data to hash
     \param len the length of data
     \param hash Byte array to hold hash value.
+    \param hashLen Number of bytes to write to hash.
 
     _Example_
     \code
@@ -390,7 +393,7 @@ int wc_Shake128Hash(const byte* data, word32 len, byte* hash);
     \sa wc_Shake256_Update
     \sa wc_Shake256_Final
 */
-int wc_Shake256Hash(const byte* data, word32 len, byte* hash);
-
+int wc_Shake256Hash(const byte* data, word32 len, byte* hash,
+                    word32 hashLen);
 
 

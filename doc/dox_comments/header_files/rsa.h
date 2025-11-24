@@ -522,7 +522,7 @@ int  wc_RsaPSS_Sign(const byte* in, word32 inLen, byte* out,
     \sa wc_RsaPSS_CheckPadding
     \sa wc_RsaSetRNG
 */
-int  wc_RsaPSS_Verify(byte* in, word32 inLen, byte* out,
+int  wc_RsaPSS_Verify(const byte* in, word32 inLen, byte* out,
                                   word32 outLen, enum wc_HashType hash, int mgf,
                                   RsaKey* key);
 
@@ -651,7 +651,7 @@ int  wc_RsaPSS_VerifyInline(byte* in, word32 inLen, byte** out,
     \sa wc_RsaSetRNG
 */
 
-int  wc_RsaPSS_VerifyCheck(byte* in, word32 inLen,
+int  wc_RsaPSS_VerifyCheck(const byte* in, word32 inLen,
                                byte* out, word32 outLen,
                                const byte* digest, word32 digestLen,
                                enum wc_HashType hash, int mgf,
@@ -927,7 +927,7 @@ int  wc_RsaPSS_VerifyCheckInline_ex(byte* in, word32 inLen, byte** out,
     \sa wc_RsaPSS_CheckPadding_ex
     \sa wc_RsaSetRNG
 */
-int  wc_RsaPSS_CheckPadding(const byte* in, word32 inLen, byte* sig,
+int  wc_RsaPSS_CheckPadding(const byte* in, word32 inLen, const byte* sig,
                                         word32 sigSz,
                                         enum wc_HashType hashType);
 /*!
@@ -992,7 +992,7 @@ int  wc_RsaPSS_CheckPadding(const byte* in, word32 inLen, byte* sig,
     \sa wc_RsaPSS_VerifyCheckInline_ex
     \sa wc_RsaPSS_CheckPadding
 */
-int  wc_RsaPSS_CheckPadding_ex(const byte* in, word32 inLen, byte* sig,
+int  wc_RsaPSS_CheckPadding_ex(const byte* in, word32 inLen, const byte* sig,
                 word32 sigSz, enum wc_HashType hashType, int saltLen, int bits);
 /*!
     \ingroup RSA
@@ -1012,7 +1012,7 @@ int  wc_RsaPSS_CheckPadding_ex(const byte* in, word32 inLen, byte* sig,
     \sa wc_InitRsaKey_ex
     \sa wc_MakeRsaKey
 */
-int  wc_RsaEncryptSize(RsaKey* key);
+int  wc_RsaEncryptSize(const RsaKey* key);
 
 /*!
     \ingroup RSA
@@ -1389,7 +1389,7 @@ int  wc_RsaPrivateDecryptInline_ex(byte* in, word32 inLen,
     \sa wc_InitRsaKey_ex
     \sa wc_MakeRsaKey
 */
-int  wc_RsaFlattenPublicKey(RsaKey* key, byte* e, word32* eSz, byte* n,
+int  wc_RsaFlattenPublicKey(const RsaKey* key, byte* e, word32* eSz, byte* n,
                             word32* nSz);
 
 /*!
