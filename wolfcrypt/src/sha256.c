@@ -1728,7 +1728,7 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
                 2 * sizeof(word32));
         }
     #endif
-    #if defined(WOLFSSL_ARMASM)
+    #if defined(WOLFSSL_ARMASM) && !defined(FREESCALE_MMCAU_SHA)
         ByteReverseWords( &sha256->buffer[WC_SHA256_PAD_SIZE / sizeof(word32)],
             &sha256->buffer[WC_SHA256_PAD_SIZE / sizeof(word32)],
             2 * sizeof(word32));
