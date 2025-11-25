@@ -28,10 +28,6 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
-#ifdef WOLFSSL_ASYNC_CRYPT
-    #define WOLFSSL_SMALL_STACK
-#endif
-
 #include <wolfssl/wolfcrypt/rsa.h>
 #include <wolfssl/wolfcrypt/types.h>
 #include <tests/api/api.h>
