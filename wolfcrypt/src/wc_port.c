@@ -1359,7 +1359,7 @@ int wolfSSL_Atomic_Uint_CompareExchange(
 }
 
 int wolfSSL_Atomic_Ptr_CompareExchange(
-    void **c, void **expected_ptr, void *new_ptr)
+    void * volatile *c, void **expected_ptr, void *new_ptr)
 {
     uintptr_t exp = (uintptr_t)*expected_ptr;
     int ret = atomic_fcmpset_ptr((uintptr_t *)c, &exp, (uintptr_t)new_ptr);
@@ -1456,7 +1456,7 @@ int wolfSSL_Atomic_Uint_CompareExchange(
 }
 
 int wolfSSL_Atomic_Ptr_CompareExchange(
-    void **c, void **expected_ptr, void *new_ptr)
+    void * volatile *c, void **expected_ptr, void *new_ptr)
 {
     /* use gcc-built-in __atomic_compare_exchange_n(), not
      * atomic_compare_exchange_strong_explicit(), to sidestep _Atomic type
@@ -1551,7 +1551,7 @@ int wolfSSL_Atomic_Uint_CompareExchange(
 }
 
 int wolfSSL_Atomic_Ptr_CompareExchange(
-    void **c, void **expected_ptr, void *new_ptr)
+    void * volatile *c, void **expected_ptr, void *new_ptr)
 {
     return __atomic_compare_exchange_n(
         c, expected_ptr, new_ptr, 0 /* weak */,
@@ -1651,7 +1651,7 @@ int wolfSSL_Atomic_Uint_CompareExchange(
 }
 
 int wolfSSL_Atomic_Ptr_CompareExchange(
-    void ** c, void **expected_ptr, void *new_ptr)
+    void * volatile * c, void **expected_ptr, void *new_ptr)
 {
 #ifdef _WIN64
     LONG64 actual_ptr = InterlockedCompareExchange64(
