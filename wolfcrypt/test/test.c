@@ -43,10 +43,6 @@
     #define WOLFSSL_DEBUG_TRACE_ERROR_CODES_ALWAYS
 #endif
 
-#ifdef WOLFSSL_ASYNC_CRYPT
-    #define WOLFSSL_SMALL_STACK
-#endif
-
 #if !defined(NO_CRYPT_TEST) || defined(WC_TEST_EXPORT_SUBTESTS)
 
 #include <wolfssl/version.h>
