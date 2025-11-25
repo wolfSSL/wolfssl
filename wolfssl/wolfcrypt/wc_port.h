@@ -552,7 +552,7 @@
     #define WOLFSSL_ATOMIC_STORE(x, val) (x) = (val)
 #endif /* WOLFSSL_NO_ATOMICS */
 
-/* WOLFSSL_ATOMIC_COERCE_INT() needs to accept either a regular int or an
+/* WOLFSSL_ATOMIC_COERCE_INT() needs to accept either a regular int or a
  * wolfSSL_Atomic_Int as its argument, and evaluate to a regular int.
  * Allows a user-supplied override definition with type introspection.
  */
@@ -593,7 +593,7 @@
     WOLFSSL_API int wolfSSL_Atomic_Uint_CompareExchange(
         wolfSSL_Atomic_Uint* c, unsigned int *expected_i, unsigned int new_i);
     WOLFSSL_API int wolfSSL_Atomic_Ptr_CompareExchange(
-        void** c, void **expected_ptr, void *new_ptr);
+        void* volatile * c, void **expected_ptr, void *new_ptr);
 #else
     /* Code using these fallback implementations in non-SINGLE_THREADED builds
      * needs to arrange its own explicit fallback to int for wolfSSL_Atomic_Int
@@ -632,14 +632,14 @@
         }
     }
     static WC_INLINE int wolfSSL_Atomic_Ptr_CompareExchange(
-        void **c, void *expected_ptr, void *new_ptr)
+        void * volatile *c, void *expected_ptr, void *new_ptr)
     {
-        if (*(char **)c == *(char **)expected_ptr) {
-            *(char **)c = (char *)new_ptr;
+        if (*(char * volatile *)c == *(char **)expected_ptr) {
+            *(char * volatile *)c = (char *)new_ptr;
             return 1;
         }
         else {
-            *(char **)expected_ptr = *(char **)c;
+            *(char * volatile *)expected_ptr = *(char **)c;
             return 0;
         }
     }

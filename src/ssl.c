@@ -7633,7 +7633,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_CTX_get0_privatekey(const WOLFSSL_CTX* ctx)
 #ifdef WOLFSSL_ATOMIC_OPS
             WOLFSSL_EVP_PKEY *current_pkey = NULL;
             if (! wolfSSL_Atomic_Ptr_CompareExchange(
-                    (void **)&ctx->privateKeyPKey,
+                    (void * volatile *)&ctx->privateKeyPKey,
                     (void **)&current_pkey, res))
             {
                 wolfSSL_EVP_PKEY_free(res);

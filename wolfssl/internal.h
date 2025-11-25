@@ -3806,7 +3806,10 @@ struct WOLFSSL_CTX {
     int         altPrivateKeyDevId;
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
 #ifdef OPENSSL_ALL
-    WOLFSSL_EVP_PKEY* privateKeyPKey;
+    /* note it is the privateKeyPKey pointer that is volatile, not the object it
+     * points to:
+     */
+    WOLFSSL_EVP_PKEY* volatile privateKeyPKey;
 #endif
     WOLFSSL_CERT_MANAGER* cm;      /* our cert manager, ctx owns SSL will use */
 #endif
