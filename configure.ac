@@ -2047,6 +2047,17 @@ AS_IF([ test "x$ENABLED_SINGLETHREADED" = "xno" ],[
 
 AS_IF([ test "x$ENABLED_SINGLETHREADED" = "xyes" ],[ AM_CFLAGS="$AM_CFLAGS -DSINGLE_THREADED" ])
 
+# BARE METAL
+AC_ARG_ENABLE([baremetal],
+    [AS_HELP_STRING([--enable-baremetal],[Enable wolfSSL bare metal build (default: disabled)])],
+    [ ENABLED_BAREMETAL=$enableval ],
+    [ ENABLED_BAREMETAL=no ])
+
+if test "$ENABLED_BAREMETAL" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_BAREMETAL"
+fi
+
 # Enable rwlock
 AC_ARG_ENABLE([rwlock],
     [AS_HELP_STRING([--enable-rwlock],[Enable use of rwlock (default: disabled)])],
@@ -11138,6 +11149,8 @@ AM_CONDITIONAL([BUILD_MAXQ10XX],[test "x$ENABLED_MAXQ10XX" = "xyes"])
 AM_CONDITIONAL([BUILD_ARIA],[test "x$ENABLED_ARIA" = "xyes"])
 AM_CONDITIONAL([BUILD_XILINX],[test "x$ENABLED_XILINX" = "xyes"])
 AM_CONDITIONAL([BUILD_AUTOSAR],[test "x$ENABLED_AUTOSAR" = "xyes"])
+AM_CONDITIONAL([BUILD_BAREMETAL],[test "x$ENABLED_BAREMETAL" = "xyes"])
+
 
 if test "$ENABLED_REPRODUCIBLE_BUILD" != "yes" &&
    (test "$ax_enable_debug" = "yes" ||
