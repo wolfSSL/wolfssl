@@ -7907,7 +7907,7 @@ static WC_INLINE void EncodeSigAlg(const WOLFSSL * ssl, byte hashAlgo, byte hsTy
             /* If the private key uses the RSA-PSS OID, and the peer supports
              * the rsa_pss_pss_* signature algorithm in use, then report
              * rsa_pss_pss_* rather than rsa_pss_rsae_*. */
-            if (ssl->ctx->useRsaPss &&
+            if (ssl->useRsaPss &&
                 ((ssl->pssAlgo & (1U << hashAlgo)) != 0U) &&
                 (sha256_mac <= hashAlgo) && (hashAlgo <= sha512_mac))
             {

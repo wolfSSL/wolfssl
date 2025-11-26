@@ -6983,6 +6983,9 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #endif
 #ifndef NO_RSA
     ssl->options.minRsaKeySz = ctx->minRsaKeySz;
+  #ifdef WC_RSA_PSS
+    ssl->useRsaPss = ctx->useRsaPss;
+  #endif
 #endif
 #ifdef HAVE_ECC
     ssl->options.minEccKeySz = ctx->minEccKeySz;
