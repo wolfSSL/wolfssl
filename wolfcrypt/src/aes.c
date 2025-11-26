@@ -500,72 +500,6 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
         }
         #endif
 
-#elif defined(FREESCALE_MMCAU)
-    /* Freescale mmCAU hardware AES support for Direct, CBC, CCM, GCM modes
-     * through the CAU/mmCAU library. Documentation located in
-     * ColdFire/ColdFire+ CAU and Kinetis mmCAU Software Library User
-     * Guide (See note in README). */
-    #ifdef FREESCALE_MMCAU_CLASSIC
-        /* MMCAU 1.4 library used with non-KSDK / classic MQX builds */
-        #include "cau_api.h"
-    #else
-        #include "fsl_mmcau.h"
-    #endif
-
-    static WARN_UNUSED_RESULT int wc_AesEncrypt(
-        Aes* aes, const byte* inBlock, byte* outBlock)
-    {
-#ifdef WC_DEBUG_CIPHER_LIFECYCLE
-        {
-            int ret = wc_debug_CipherLifecycleCheck(aes->CipherLifecycleTag, 0);
-            if (ret < 0)
-                return ret;
-        }
-#endif
-
-        if (wolfSSL_CryptHwMutexLock() == 0) {
-        #ifdef FREESCALE_MMCAU_CLASSIC
-            if ((wc_ptr_t)outBlock % WOLFSSL_MMCAU_ALIGNMENT) {
-                WOLFSSL_MSG("Bad cau_aes_encrypt alignment");
-                return BAD_ALIGN_E;
-            }
-            cau_aes_encrypt(inBlock, (byte*)aes->key, aes->rounds, outBlock);
-        #else
-            MMCAU_AES_EncryptEcb(inBlock, (byte*)aes->key, aes->rounds,
-                                 outBlock);
-        #endif
-            wolfSSL_CryptHwMutexUnLock();
-        }
-        return 0;
-    }
-    #ifdef HAVE_AES_DECRYPT
-    static WARN_UNUSED_RESULT int wc_AesDecrypt(
-        Aes* aes, const byte* inBlock, byte* outBlock)
-    {
-#ifdef WC_DEBUG_CIPHER_LIFECYCLE
-        {
-            int ret = wc_debug_CipherLifecycleCheck(aes->CipherLifecycleTag, 0);
-            if (ret < 0)
-                return ret;
-        }
-#endif
-        if (wolfSSL_CryptHwMutexLock() == 0) {
-        #ifdef FREESCALE_MMCAU_CLASSIC
-            if ((wc_ptr_t)outBlock % WOLFSSL_MMCAU_ALIGNMENT) {
-                WOLFSSL_MSG("Bad cau_aes_decrypt alignment");
-                return BAD_ALIGN_E;
-            }
-            cau_aes_decrypt(inBlock, (byte*)aes->key, aes->rounds, outBlock);
-        #else
-            MMCAU_AES_DecryptEcb(inBlock, (byte*)aes->key, aes->rounds,
-                                 outBlock);
-        #endif
-            wolfSSL_CryptHwMutexUnLock();
-        }
-        return 0;
-    }
-    #endif /* HAVE_AES_DECRYPT */
-
 #elif defined(WOLFSSL_PIC32MZ_CRYPT)
 
     #include <wolfssl/wolfcrypt/port/pic32/pic32mz-crypt.h>
@@ -920,6 +854,72 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
 }
 #endif
 #endif
+
+#elif defined(FREESCALE_MMCAU)
+    /* Freescale mmCAU hardware AES support for Direct, CBC, CCM, GCM modes
+     * through the CAU/mmCAU library. Documentation located in
+     * ColdFire/ColdFire+ CAU and Kinetis mmCAU Software Library User
+     * Guide (See note in README). */
+    #ifdef FREESCALE_MMCAU_CLASSIC
+        /* MMCAU 1.4 library used with non-KSDK / classic MQX builds */
+        #include "cau_api.h"
+    #else
+        #include "fsl_mmcau.h"
+    #endif
+
+    static WARN_UNUSED_RESULT int wc_AesEncrypt(
+        Aes* aes, const byte* inBlock, byte* outBlock)
+    {
+#ifdef WC_DEBUG_CIPHER_LIFECYCLE
+        {
+            int ret = wc_debug_CipherLifecycleCheck(aes->CipherLifecycleTag, 0);
+            if (ret < 0)
+                return ret;
+        }
+#endif
+
+        if (wolfSSL_CryptHwMutexLock() == 0) {
+        #ifdef FREESCALE_MMCAU_CLASSIC
+            if ((wc_ptr_t)outBlock % WOLFSSL_MMCAU_ALIGNMENT) {
+                WOLFSSL_MSG("Bad cau_aes_encrypt alignment");
+                return BAD_ALIGN_E;
+            }
+            cau_aes_encrypt(inBlock, (byte*)aes->key, aes->rounds, outBlock);
+        #else
+            MMCAU_AES_EncryptEcb(inBlock, (byte*)aes->key, aes->rounds,
+                                 outBlock);
+        #endif
+            wolfSSL_CryptHwMutexUnLock();
+        }
+        return 0;
+    }
+    #ifdef HAVE_AES_DECRYPT
+    static WARN_UNUSED_RESULT int wc_AesDecrypt(
+        Aes* aes, const byte* inBlock, byte* outBlock)
+    {
+#ifdef WC_DEBUG_CIPHER_LIFECYCLE
+        {
+            int ret = wc_debug_CipherLifecycleCheck(aes->CipherLifecycleTag, 0);
+            if (ret < 0)
+                return ret;
+        }
+#endif
+        if (wolfSSL_CryptHwMutexLock() == 0) {
+        #ifdef FREESCALE_MMCAU_CLASSIC
+            if ((wc_ptr_t)outBlock % WOLFSSL_MMCAU_ALIGNMENT) {
+                WOLFSSL_MSG("Bad cau_aes_decrypt alignment");
+                return BAD_ALIGN_E;
+            }
+            cau_aes_decrypt(inBlock, (byte*)aes->key, aes->rounds, outBlock);
+        #else
+            MMCAU_AES_DecryptEcb(inBlock, (byte*)aes->key, aes->rounds,
+                                 outBlock);
+        #endif
+            wolfSSL_CryptHwMutexUnLock();
+        }
+        return 0;
+    }
+    #endif /* HAVE_AES_DECRYPT */
 
 #elif (defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_AES) \
         && !defined(WOLFSSL_QNX_CAAM)) || \
@@ -4062,97 +4062,6 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
     {
         return wc_AesSetKey(aes, userKey, keylen, iv, dir);
     }
-#elif defined(FREESCALE_MMCAU)
-    int wc_AesSetKeyLocal(Aes* aes, const byte* userKey, word32 keylen,
-        const byte* iv, int dir, int checkKeyLen)
-    {
-        int ret;
-        byte* rk;
-        byte* tmpKey = (byte*)userKey;
-        int tmpKeyDynamic = 0;
-        word32 alignOffset = 0;
-
-        (void)dir;
-
-        if (aes == NULL)
-            return BAD_FUNC_ARG;
-
-#ifdef WC_DEBUG_CIPHER_LIFECYCLE
-        {
-            int ret = wc_debug_CipherLifecycleCheck(aes->CipherLifecycleTag, 0);
-            if (ret < 0)
-                return ret;
-        }
-#endif
-
-        if (checkKeyLen) {
-            if (!((keylen == 16) || (keylen == 24) || (keylen == 32)))
-                return BAD_FUNC_ARG;
-        }
-
-        rk = (byte*)aes->key;
-        if (rk == NULL)
-            return BAD_FUNC_ARG;
-
-    #if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
-        defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS) || \
-        defined(WOLFSSL_AES_CTS)
-        aes->left = 0;
-    #endif
-
-        aes->rounds = keylen/4 + 6;
-
-    #ifdef FREESCALE_MMCAU_CLASSIC
-        if ((wc_ptr_t)userKey % WOLFSSL_MMCAU_ALIGNMENT) {
-        #ifndef NO_WOLFSSL_ALLOC_ALIGN
-            byte* tmp = (byte*)XMALLOC(keylen + WOLFSSL_MMCAU_ALIGNMENT,
-                                       aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            if (tmp == NULL) {
-                return MEMORY_E;
-            }
-            alignOffset = WOLFSSL_MMCAU_ALIGNMENT -
-                          ((wc_ptr_t)tmp % WOLFSSL_MMCAU_ALIGNMENT);
-            tmpKey = tmp + alignOffset;
-            XMEMCPY(tmpKey, userKey, keylen);
-            tmpKeyDynamic = 1;
-        #else
-            WOLFSSL_MSG("Bad cau_aes_set_key alignment");
-            return BAD_ALIGN_E;
-        #endif
-        }
-    #endif
-
-        ret = wolfSSL_CryptHwMutexLock();
-        if(ret == 0) {
-        #ifdef FREESCALE_MMCAU_CLASSIC
-            cau_aes_set_key(tmpKey, keylen*8, rk);
-        #else
-            MMCAU_AES_SetKey(tmpKey, keylen, rk);
-        #endif
-            wolfSSL_CryptHwMutexUnLock();
-
-            ret = wc_AesSetIV(aes, iv);
-        }
-
-        if (tmpKeyDynamic == 1) {
-            XFREE(tmpKey - alignOffset, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        }
-
-        return ret;
-    }
-
-    int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
-        const byte* iv, int dir)
-    {
-        return wc_AesSetKeyLocal(aes, userKey, keylen, iv, dir, 1);
-    }
-
-    int wc_AesSetKeyDirect(Aes* aes, const byte* userKey, word32 keylen,
-                        const byte* iv, int dir)
-    {
-        return wc_AesSetKey(aes, userKey, keylen, iv, dir);
-    }
-
 #elif defined(WOLFSSL_NRF51_AES)
     int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
         const byte* iv, int dir)
@@ -4428,6 +4337,96 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
         return AesSetKey(aes, userKey, keylen, iv, dir);
     }
     #endif /* WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
+#elif defined(FREESCALE_MMCAU)
+    int wc_AesSetKeyLocal(Aes* aes, const byte* userKey, word32 keylen,
+        const byte* iv, int dir, int checkKeyLen)
+    {
+        int ret;
+        byte* rk;
+        byte* tmpKey = (byte*)userKey;
+        int tmpKeyDynamic = 0;
+        word32 alignOffset = 0;
+
+        (void)dir;
+
+        if (aes == NULL)
+            return BAD_FUNC_ARG;
+
+#ifdef WC_DEBUG_CIPHER_LIFECYCLE
+        {
+            int ret = wc_debug_CipherLifecycleCheck(aes->CipherLifecycleTag, 0);
+            if (ret < 0)
+                return ret;
+        }
+#endif
+
+        if (checkKeyLen) {
+            if (!((keylen == 16) || (keylen == 24) || (keylen == 32)))
+                return BAD_FUNC_ARG;
+        }
+
+        rk = (byte*)aes->key;
+        if (rk == NULL)
+            return BAD_FUNC_ARG;
+
+    #if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
+        defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS) || \
+        defined(WOLFSSL_AES_CTS)
+        aes->left = 0;
+    #endif
+
+        aes->rounds = keylen/4 + 6;
+
+    #ifdef FREESCALE_MMCAU_CLASSIC
+        if ((wc_ptr_t)userKey % WOLFSSL_MMCAU_ALIGNMENT) {
+        #ifndef NO_WOLFSSL_ALLOC_ALIGN
+            byte* tmp = (byte*)XMALLOC(keylen + WOLFSSL_MMCAU_ALIGNMENT,
+                                       aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            if (tmp == NULL) {
+                return MEMORY_E;
+            }
+            alignOffset = WOLFSSL_MMCAU_ALIGNMENT -
+                          ((wc_ptr_t)tmp % WOLFSSL_MMCAU_ALIGNMENT);
+            tmpKey = tmp + alignOffset;
+            XMEMCPY(tmpKey, userKey, keylen);
+            tmpKeyDynamic = 1;
+        #else
+            WOLFSSL_MSG("Bad cau_aes_set_key alignment");
+            return BAD_ALIGN_E;
+        #endif
+        }
+    #endif
+
+        ret = wolfSSL_CryptHwMutexLock();
+        if(ret == 0) {
+        #ifdef FREESCALE_MMCAU_CLASSIC
+            cau_aes_set_key(tmpKey, keylen*8, rk);
+        #else
+            MMCAU_AES_SetKey(tmpKey, keylen, rk);
+        #endif
+            wolfSSL_CryptHwMutexUnLock();
+
+            ret = wc_AesSetIV(aes, iv);
+        }
+
+        if (tmpKeyDynamic == 1) {
+            XFREE(tmpKey - alignOffset, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        }
+
+        return ret;
+    }
+
+    int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
+        const byte* iv, int dir)
+    {
+        return wc_AesSetKeyLocal(aes, userKey, keylen, iv, dir, 1);
+    }
+
+    int wc_AesSetKeyDirect(Aes* aes, const byte* userKey, word32 keylen,
+                        const byte* iv, int dir)
+    {
+        return wc_AesSetKey(aes, userKey, keylen, iv, dir);
+    }
 
 #elif defined(WOLFSSL_PSOC6_CRYPTO)
 
@@ -7511,9 +7510,9 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
     while (0)
 #endif /* WOLFSSL_AESGCM_STREAM */
 
-#ifdef WOLFSSL_ARMASM
-static void GCM_gmult_len(byte* x, const byte* h, const unsigned char* a,
-    unsigned long len)
+#if defined(WOLFSSL_ARMASM) && !defined(__aarch64__)
+static void GCM_gmult_len_armasm_C(
+    byte* x, const byte* h, const unsigned char* a, unsigned long len)
 {
     byte Z[AES_BLOCK_SIZE];
     byte V[AES_BLOCK_SIZE];
@@ -7540,8 +7539,9 @@ static void GCM_gmult_len(byte* x, const byte* h, const unsigned char* a,
     }
 }
 
-#define GCM_GMULT_LEN(gcm, x, a, len)   GCM_gmult_len(x, (gcm)->H, a, len)
-#endif
+#define GCM_GMULT_LEN(gcm, x, a, len) \
+    GCM_gmult_len_armasm_C(x, (gcm)->H, a, len)
+#endif /* WOLFSSL_ARMASM && !__aarch64__ */
 
 #elif defined(GCM_TABLE)
 
