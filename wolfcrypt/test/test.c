@@ -3051,9 +3051,19 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         args.argc = argc;
         args.argv = argv;
 #endif
+
+#if defined(HAVE_FIPS) && defined(HAVE_ENTROPY_MEMUSE) && \
+    !defined(WOLFSSL_KERNEL_MODE)
+        /* wolfEntropy's Entropy_Init() calls wc_InitSha3_256(), which
+         * ultimately fails if the FIPS integrity hash is wrong.
+         */
+        wolfCrypt_SetCb_fips(myFipsCb);
+#endif
+
         if ((ret = wolfCrypt_Init()) != 0) {
             printf("wolfCrypt_Init failed %d\n", (int)ret);
-            err_sys("Error with wolfCrypt_Init!\n", WC_TEST_RET_ENC_EC(ret));
+            args.return_code = WC_TEST_RET_ENC_EC(ret);
+            err_sys("Error with wolfCrypt_Init!\n", args.return_code);
         }
 
 #ifdef HAVE_WC_INTROSPECTION
@@ -3070,13 +3080,16 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 
         if ((ret = wolfCrypt_Cleanup()) != 0) {
             printf("wolfCrypt_Cleanup failed %d\n", (int)ret);
-            err_sys("Error with wolfCrypt_Cleanup!\n", WC_TEST_RET_ENC_EC(ret));
+            args.return_code = WC_TEST_RET_ENC_EC(ret);
+            err_sys("Error with wolfCrypt_Cleanup!\n", args.return_code);
         }
 
 #ifdef HAVE_WNR
-        if ((ret = wc_FreeNetRandom()) < 0)
+        if ((ret = wc_FreeNetRandom()) < 0) {
+            args.return_code = WC_TEST_RET_ENC_EC(ret);
             err_sys("Failed to free netRandom context",
-                    WC_TEST_RET_ENC_EC(ret));
+                    args.return_code);
+        }
 #endif /* HAVE_WNR */
 #ifdef DOLPHIN_EMULATOR
         /* Returning from main panics the emulator. Just hang

@@ -19,8 +19,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#ifndef __PIE__
-    #error pie_redirect_table.c must be compiled -fPIE.
+#if !defined(WC_CONTAINERIZE_THIS)
+    #error pie_redirect_table.c must be compiled -DWC_CONTAINERIZE_THIS.
+#endif
+
+#if !defined(__PIE__) && !defined(WC_NO_PIE_FLAG)
+    #error pie_redirect_table.c must be compiled -fPIE or -DWC_NO_PIE_FLAG.
 #endif
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>

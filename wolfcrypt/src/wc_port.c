@@ -4976,7 +4976,7 @@ char* wolfSSL_strnstr(const char* s1, const char* s2, unsigned int n)
 #endif /* not SINGLE_THREADED */
 
 #if defined(WOLFSSL_LINUXKM) && defined(CONFIG_ARM64) && \
-    defined(WC_PIE_RELOC_TABLES)
+    defined(WC_SYM_RELOC_TABLES)
 noinstr void my__alt_cb_patch_nops(struct alt_instr *alt, __le32 *origptr,
                                    __le32 *updptr, int nr_inst)
 {

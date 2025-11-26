@@ -92,7 +92,7 @@ static int libwolfssl_cleanup(void) {
 extern char verifyCore[WC_SHA256_DIGEST_SIZE*2 + 1];
 #endif
 
-#ifdef WC_PIE_RELOC_TABLES
+#ifdef WC_SYM_RELOC_TABLES
 
 #ifdef DEBUG_LINUXKM_PIE_SUPPORT
 
@@ -116,17 +116,17 @@ static int total_text_r = 0, total_rodata_r = 0, total_rwdata_r = 0,
 
 #endif /* DEBUG_LINUXKM_PIE_SUPPORT */
 
-#ifdef WC_PIE_RELOC_TABLES
+#ifdef WC_SYM_RELOC_TABLES
 extern struct wolfssl_linuxkm_pie_redirect_table wolfssl_linuxkm_pie_redirect_table;
 static int set_up_wolfssl_linuxkm_pie_redirect_table(void);
-#endif /* WC_PIE_RELOC_TABLES */
+#endif /* WC_SYM_RELOC_TABLES */
 
 #ifdef HAVE_FIPS
 extern const unsigned int wolfCrypt_FIPS_ro_start[];
 extern const unsigned int wolfCrypt_FIPS_ro_end[];
 #endif
 
-#endif /* WC_PIE_RELOC_TABLES */
+#endif /* WC_SYM_RELOC_TABLES */
 
 #ifdef HAVE_FIPS
 static void lkmFipsCb(int ok, int err, const char* hash)
@@ -301,8 +301,17 @@ void wc_linuxkm_relax_long_loop(void) {
     #endif
 }
 
-/* backported wc_GenerateSeed_IntelRD() for FIPS v5. */
-#ifdef WC_LINUXKM_RDSEED_IN_GLUE_LAYER
+#if defined(WC_LINUXKM_WOLFENTROPY_IN_GLUE_LAYER)
+
+int wc_linuxkm_GenerateSeed_wolfEntropy(OS_Seed* os, byte* output, word32 sz)
+{
+    (void)os;
+    return wc_Entropy_Get(MAX_ENTROPY_BITS, output, sz);
+}
+
+#elif defined(WC_LINUXKM_RDSEED_IN_GLUE_LAYER)
+
+/* backported wc_GenerateSeed_IntelRD() for FIPS v5, before breakout of wolfentropy.c. */
 
 #include <wolfssl/wolfcrypt/cpuid.h>
 #include <wolfssl/wolfcrypt/random.h>
@@ -497,13 +506,13 @@ static int wolfssl_init(void)
 
 #endif /* HAVE_FIPS */
 
-#ifdef WC_PIE_RELOC_TABLES
+#ifdef WC_SYM_RELOC_TABLES
     ret = set_up_wolfssl_linuxkm_pie_redirect_table();
     if (ret < 0)
         return ret;
 #endif
 
-#if defined(HAVE_FIPS) && defined(WC_PIE_RELOC_TABLES)
+#if defined(HAVE_FIPS) && defined(WC_SYM_RELOC_TABLES)
     if (((uintptr_t)__wc_text_start > (uintptr_t)wolfCrypt_FIPS_first) ||
         ((uintptr_t)__wc_text_end < (uintptr_t)wolfCrypt_FIPS_last) ||
         ((uintptr_t)__wc_rodata_start > (uintptr_t)wolfCrypt_FIPS_ro_start) ||
@@ -514,7 +523,7 @@ static int wolfssl_init(void)
     }
 #endif
 
-#if defined(WC_PIE_RELOC_TABLES) && defined(DEBUG_LINUXKM_PIE_SUPPORT)
+#if defined(WC_SYM_RELOC_TABLES) && defined(DEBUG_LINUXKM_PIE_SUPPORT)
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 4, 0)
     /* see linux commit ac3b432839 */
@@ -599,7 +608,7 @@ static int wolfssl_init(void)
                 total_text_r, total_rodata_r, total_rwdata_r, total_bss_r, total_other_r);
     }
 
-#endif /* WC_PIE_RELOC_TABLES && DEBUG_LINUXKM_PIE_SUPPORT */
+#endif /* WC_SYM_RELOC_TABLES && DEBUG_LINUXKM_PIE_SUPPORT */
 
 #ifdef HAVE_FIPS
     ret = wolfCrypt_SetCb_fips(lkmFipsCb);
@@ -608,7 +617,7 @@ static int wolfssl_init(void)
         return -ECANCELED;
     }
 
-#if defined(WC_PIE_RELOC_TABLES) && defined(DEBUG_LINUXKM_PIE_SUPPORT)
+#if defined(WC_SYM_RELOC_TABLES) && defined(DEBUG_LINUXKM_PIE_SUPPORT)
     total_text_r = total_rodata_r = total_rwdata_r = total_bss_r =
         total_other_r = 0;
 #endif
@@ -620,7 +629,7 @@ static int wolfssl_init(void)
     else
         pr_err("ERROR: WC_SIG_IGNORE_BEGIN() failed.\n");
 
-#if defined(WC_PIE_RELOC_TABLES) && defined(DEBUG_LINUXKM_PIE_SUPPORT)
+#if defined(WC_SYM_RELOC_TABLES) && defined(DEBUG_LINUXKM_PIE_SUPPORT)
     pr_info("FIPS-bounded relocation normalizations: text=%d, rodata=%d, rwdata=%d, bss=%d, other=%d\n",
             total_text_r, total_rodata_r, total_rwdata_r, total_bss_r, total_other_r);
 #endif
@@ -865,7 +874,7 @@ MODULE_AUTHOR("https://www.wolfssl.com/");
 MODULE_DESCRIPTION("libwolfssl cryptographic and protocol facilities");
 MODULE_VERSION(LIBWOLFSSL_VERSION_STRING);
 
-#ifdef WC_PIE_RELOC_TABLES
+#ifdef WC_SYM_RELOC_TABLES
 
 #define WC_TEXT_TAG (0x0 << 29)
 #define WC_RODATA_TAG (0x1U << 29)
@@ -1508,7 +1517,7 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
     return 0;
 }
 
-#endif /* WC_PIE_RELOC_TABLES */
+#endif /* WC_SYM_RELOC_TABLES */
 
 #if defined(HAVE_FIPS) && defined(WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE)
 
@@ -1643,7 +1652,7 @@ static int updateFipsHash(void)
         goto out;
     }
 
-#if defined(WOLFSSL_LINUXKM) && defined(WC_PIE_RELOC_TABLES)
+#if defined(WOLFSSL_LINUXKM) && defined(WC_SYM_RELOC_TABLES)
     {
         ssize_t cur_reloc_index = -1;
         const byte *text_p = (const byte *)first;

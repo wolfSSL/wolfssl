@@ -106,7 +106,13 @@ ccflags-y = $(WOLFSSL_CFLAGS) $(WOLFSSL_CFLAGS_NO_VECTOR_INSNS)
 ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
     # note, we need -fno-stack-protector to avoid references to
     # "__stack_chk_fail" from the wolfCrypt container.
-    PIE_FLAGS := -fPIE -fno-stack-protector -fno-toplevel-reorder
+    PIE_FLAGS := -DWC_CONTAINERIZE_THIS -fno-stack-protector -fno-toplevel-reorder
+    # some targets can't handle -fpie.  E.g. ARM32 on kernel <=5.10 has no handling for R_ARM_REL32.
+    ifdef NO_PIE_FLAG
+        PIE_FLAGS += -DWC_NO_PIE_FLAG
+    else
+        PIE_FLAGS += -fPIE
+    endif
     # the kernel sanitizers generate external references to
     # __ubsan_handle_out_of_bounds(), __ubsan_handle_shift_out_of_bounds(), etc.
     KASAN_SANITIZE := n
