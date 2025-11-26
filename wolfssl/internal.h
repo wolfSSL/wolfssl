@@ -3914,6 +3914,9 @@ struct WOLFSSL_CTX {
 #endif
 #ifndef NO_RSA
     short       minRsaKeySz;      /* minimum RSA key size */
+#ifdef WC_RSA_PSS
+    word8       useRsaPss;        /* cert supports RSA-PSS */
+#endif
 #endif
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
     short       minEccKeySz;      /* minimum ECC key size */
@@ -5944,6 +5947,9 @@ struct WOLFSSL {
     byte*           peerSceTsipEncRsaKeyIndex;
 #endif
     byte            peerRsaKeyPresent;
+#ifdef WC_RSA_PSS
+    word8           useRsaPss;           /* cert supports RSA-PSS */
+#endif
 #endif
 #if defined(WOLFSSL_TLS13) || defined(HAVE_FFDHE)
     word16          namedGroup;
