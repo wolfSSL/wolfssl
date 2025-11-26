@@ -3778,7 +3778,7 @@ extern void uITRON4_free(void *p) ;
         #define WOLFSSL_SP_DIV_WORD_HALF
     #endif
 
-    #ifdef WC_PIE_RELOC_TABLES
+    #ifdef WC_SYM_RELOC_TABLES
         #ifndef WC_NO_INTERNAL_FUNCTION_POINTERS
             #define WC_NO_INTERNAL_FUNCTION_POINTERS
         #endif
@@ -3935,6 +3935,12 @@ extern void uITRON4_free(void *p) ;
 
     #undef  WOLFSSL_HAVE_MAX
     #define WOLFSSL_HAVE_MAX
+#endif
+
+#if defined(WC_SYM_RELOC_TABLES) && defined(HAVE_FIPS) && \
+    !defined(WC_PIE_RELOC_TABLES)
+    /* backward compat */
+    #define WC_PIE_RELOC_TABLES
 #endif
 
 /* Place any other flags or defines here */

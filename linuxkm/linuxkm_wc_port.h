@@ -178,12 +178,21 @@
         #endif
     #endif
 
-    #if defined(HAVE_HASHDRBG) && defined(HAVE_FIPS) && FIPS_VERSION3_LT(6, 0, 0) && \
+    #if defined(HAVE_HASHDRBG) && defined(HAVE_FIPS) && \
+            defined(HAVE_ENTROPY_MEMUSE) && \
+            !defined(WC_LINUXKM_WOLFENTROPY_IN_GLUE_LAYER)
+        #define WC_LINUXKM_WOLFENTROPY_IN_GLUE_LAYER
+    #elif defined(HAVE_HASHDRBG) && defined(HAVE_FIPS) && \
             (defined(HAVE_INTEL_RDSEED) || defined(HAVE_AMD_RDSEED)) && \
+            !defined(HAVE_ENTROPY_MEMUSE) && \
             !defined(WC_LINUXKM_RDSEED_IN_GLUE_LAYER)
         #define WC_LINUXKM_RDSEED_IN_GLUE_LAYER
     #endif
-    #ifdef WC_LINUXKM_RDSEED_IN_GLUE_LAYER
+    #if defined(WC_LINUXKM_WOLFENTROPY_IN_GLUE_LAYER)
+        struct OS_Seed;
+        extern int wc_linuxkm_GenerateSeed_wolfEntropy(struct OS_Seed* os, unsigned char* output, unsigned int sz);
+        #define WC_GENERATE_SEED_DEFAULT wc_linuxkm_GenerateSeed_wolfEntropy
+    #elif defined(WC_LINUXKM_RDSEED_IN_GLUE_LAYER)
         struct OS_Seed;
         extern int wc_linuxkm_GenerateSeed_IntelRD(struct OS_Seed* os, unsigned char* output, unsigned int sz);
         #define WC_GENERATE_SEED_DEFAULT wc_linuxkm_GenerateSeed_IntelRD
@@ -208,7 +217,7 @@
         #endif
     #endif
 
-    #if defined(CONFIG_MIPS) && defined(WC_PIE_RELOC_TABLES)
+    #if defined(CONFIG_MIPS) && defined(WC_SYM_RELOC_TABLES)
         /* __ZBOOT__ disables some unhelpful macros around the mem*() funcs in
          * legacy arch/mips/include/asm/string.h
          */
@@ -255,7 +264,7 @@
 
     #if defined(CONFIG_FORTIFY_SOURCE) && \
         !defined(WC_FORCE_LINUXKM_FORTIFY_SOURCE) && \
-        (defined(WC_PIE_RELOC_TABLES) || \
+        (defined(WC_SYM_RELOC_TABLES) || \
          (LINUX_VERSION_CODE < KERNEL_VERSION(5, 18, 0)))
         /* fortify-source causes all sorts of awkward problems for the PIE
          * build, up to and including stubborn external references and multiple
@@ -272,7 +281,7 @@
         #error WC_FORCE_LINUXKM_FORTIFY_SOURCE without CONFIG_FORTIFY_SOURCE.
     #endif
 
-    #if defined(__PIE__) && defined(CONFIG_ARM64)
+    #if defined(WC_CONTAINERIZE_THIS) && defined(CONFIG_ARM64)
         #define alt_cb_patch_nops my__alt_cb_patch_nops
         #define queued_spin_lock_slowpath my__queued_spin_lock_slowpath
     #endif
@@ -281,7 +290,7 @@
     #include <linux/ctype.h>
 
     #if defined(CONFIG_FORTIFY_SOURCE) || defined(DEBUG_LINUXKM_FORTIFY_OVERLAY)
-        #ifdef __PIE__
+        #ifdef WC_CONTAINERIZE_THIS
             /* the inline definitions in fortify-string.h use non-inline
              * fortify_panic().
              */
@@ -412,7 +421,7 @@
 
     #endif /* !CONFIG_FORTIFY_SOURCE */
 
-    #ifndef __PIE__
+    #ifndef WC_CONTAINERIZE_THIS
         #include <linux/init.h>
         #include <linux/module.h>
         #include <linux/delay.h>
@@ -426,7 +435,7 @@
          * mm.h.  however, mm.h brings in static, but not inline, pmd_to_page(),
          * with direct references to global vmem variables.
          */
-        #ifdef __PIE__
+        #ifdef WC_CONTAINERIZE_THIS
             #include <linux/mm_types.h>
             #if USE_SPLIT_PMD_PTLOCKS
             static __always_inline struct page *pmd_to_page(pmd_t *pmd);
@@ -435,7 +444,7 @@
         #include <linux/mm.h>
     #endif
 
-#ifndef __PIE__
+#ifndef WC_CONTAINERIZE_THIS
     #include <linux/kthread.h>
     #include <linux/net.h>
 #endif
@@ -450,7 +459,7 @@
     #endif
     #include <linux/random.h>
 
-    #if !defined(__PIE__) && defined(CONFIG_HAVE_KPROBES)
+    #if !defined(WC_CONTAINERIZE_THIS) && defined(CONFIG_HAVE_KPROBES)
         #include <linux/kprobes.h>
     #endif
 
@@ -483,7 +492,7 @@
             #define LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
         #endif
 
-        #ifndef __PIE__
+        #ifndef WC_CONTAINERIZE_THIS
             #include <linux/crypto.h>
             #include <linux/scatterlist.h>
             #include <crypto/scatterwalk.h>
@@ -513,7 +522,7 @@
                 }
             #endif
             #define WC_LKM_REFCOUNT_TO_INT(refcount) wc_lkm_refcount_to_int(&(refcount))
-        #endif /* !__PIE__ */
+        #endif /* !WC_CONTAINERIZE_THIS */
     #endif /* LINUXKM_LKCAPI_REGISTER */
 
     /* benchmarks.c uses floating point math, so needs a working
@@ -730,11 +739,11 @@
 
     #endif /* !WOLFCRYPT_ONLY && !NO_CERTS */
 
-    #if defined(__PIE__) && !defined(WC_PIE_RELOC_TABLES)
-        #error "compiling -fPIE requires PIE relocation tables."
+    #if defined(WC_CONTAINERIZE_THIS) && !defined(WC_SYM_RELOC_TABLES)
+        #error "compiling -DWC_CONTAINERIZE_THIS requires relocation tables."
     #endif
 
-    #ifdef WC_PIE_RELOC_TABLES
+    #ifdef WC_SYM_RELOC_TABLES
 
     #ifndef WOLFSSL_TEXT_SEGMENT_CANONICALIZER
         #define WOLFSSL_TEXT_SEGMENT_CANONICALIZER(text_in, text_in_len, text_out, cur_index_p) \
@@ -759,6 +768,7 @@
         __wc_rwdata_end[],
         __wc_bss_start[],
         __wc_bss_end[];
+
     extern const unsigned int wc_linuxkm_pie_reloc_tab[];
     extern const unsigned long wc_linuxkm_pie_reloc_tab_length;
     extern ssize_t wc_linuxkm_normalize_relocations(
@@ -1013,7 +1023,7 @@
         #endif
 
         #ifdef CONFIG_ARM64
-        #ifdef __PIE__
+        #ifdef WC_CONTAINERIZE_THIS
             /* alt_cb_patch_nops and queued_spin_lock_slowpath are defined early
              * to allow shimming in system headers, but now we need the native
              * ones.
@@ -1088,7 +1098,7 @@
         #error no WC_PIE_INDIRECT_SYM method defined.
     #endif
 
-    #ifdef __PIE__
+    #ifdef WC_CONTAINERIZE_THIS
 
     #define wc_linuxkm_normalize_relocations \
         WC_PIE_INDIRECT_SYM(wc_linuxkm_normalize_relocations)
@@ -1237,8 +1247,8 @@
     #endif
 
     /* per linux/ctype.h, tolower() and toupper() are macros bound to static inlines
-     * that use macros that bring in the _ctype global.  for __PIE__, this needs to
-     * be masked out.
+     * that use macros that bring in the _ctype global.  for WC_CONTAINERIZE_THIS,
+     * this needs to be masked out.
      */
     #undef tolower
     #undef toupper
@@ -1296,9 +1306,9 @@
     #define wc_linuxkm_check_for_intr_signals WC_PIE_INDIRECT_SYM(wc_linuxkm_check_for_intr_signals)
     #define wc_linuxkm_relax_long_loop WC_PIE_INDIRECT_SYM(wc_linuxkm_relax_long_loop)
 
-    #endif /* __PIE__ */
+    #endif /* WC_CONTAINERIZE_THIS */
 
-    #endif /* WC_PIE_RELOC_TABLES */
+    #endif /* WC_SYM_RELOC_TABLES */
 
     /* remove this multifariously conflicting macro, picked up from
      * Linux arch/<arch>/include/asm/current.h.
@@ -1456,8 +1466,8 @@
             return 0;
         }
 
-        #ifdef __PIE__
-        /* wc_lkm_LockMutex() can't be used inline in __PIE__ objects, due to
+        #ifdef WC_CONTAINERIZE_THIS
+        /* wc_lkm_LockMutex() can't be used inline in WC_CONTAINERIZE_THIS objects, due to
          * direct access to pv_ops.
          */
         static __must_check __always_inline int wc_LockMutex(wolfSSL_Mutex *m)
@@ -1465,14 +1475,14 @@
             return WC_PIE_INDIRECT_SYM(wc_lkm_LockMutex)(m);
         }
 
-        #else /* !__PIE__ */
+        #else /* !WC_CONTAINERIZE_THIS */
 
         static __must_check __always_inline int wc_LockMutex(wolfSSL_Mutex *m)
         {
             return wc_lkm_LockMutex(m);
         }
 
-        #endif /* !__PIE__ */
+        #endif /* !WC_CONTAINERIZE_THIS */
 
         static __always_inline int wc_UnLockMutex(wolfSSL_Mutex* m)
         {

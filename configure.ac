@@ -704,14 +704,19 @@ AC_ARG_ENABLE([benchmark],
 
 # Remainder of Linux kernel module options, continued from earlier:
 
+ENABLED_LINUXKM_PIE=$ENABLED_FIPS
+
 AC_ARG_ENABLE([linuxkm-pie],
     [AS_HELP_STRING([--enable-linuxkm-pie],[Enable relocatable object build of Linux kernel module (default: disabled)])],
-    [ENABLED_LINUXKM_PIE=$enableval],
-    [ENABLED_LINUXKM_PIE=$ENABLED_FIPS]
-    )
+    [ENABLED_LINUXKM_PIE=$enableval])
+
+AC_ARG_ENABLE([kernel-reloc-tables],
+    [AS_HELP_STRING([--enable-kernel-reloc-tables],[Enable containerized object build of wolfCrypt module in kernel build (default: disabled)])],
+    [ENABLED_LINUXKM_PIE=$enableval])
+
 if test "$ENABLED_LINUXKM" = "yes" && test "$ENABLED_LINUXKM_PIE" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWC_PIE_RELOC_TABLES"
+    AM_CFLAGS="$AM_CFLAGS -DWC_SYM_RELOC_TABLES"
 fi
 AC_SUBST([ENABLED_LINUXKM_PIE])
 
@@ -5820,8 +5825,7 @@ AC_ARG_ENABLE([pwdbased],
 if test "$KERNEL_MODE_DEFAULTS" = "yes" && \
    test "$ENABLED_AMDRDSEED" != "yes" && \
    test "$ENABLED_INTELRDRAND" != "yes" && \
-   test "$ENABLED_INTELRDSEED" != "yes" && \
-   (test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -ge 6)
+   test "$ENABLED_INTELRDSEED" != "yes"
 then
     ENABLED_ENTROPY_MEMUSE_DEFAULT=yes
 else

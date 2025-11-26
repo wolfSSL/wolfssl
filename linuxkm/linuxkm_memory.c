@@ -21,7 +21,7 @@
 
 /* included by wolfcrypt/src/memory.c */
 
-#if defined(__PIE__) && defined(CONFIG_FORTIFY_SOURCE)
+#if defined(WC_SYM_RELOC_TABLES) && defined(CONFIG_FORTIFY_SOURCE)
 /* needed because FORTIFY_SOURCE inline implementations call fortify_panic(). */
 void __my_fortify_panic(const char *name) {
     pr_emerg("__my_fortify_panic in %s\n", name);
