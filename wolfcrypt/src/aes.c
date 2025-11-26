@@ -5886,7 +5886,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     }
     #endif /* HAVE_AES_DECRYPT */
 
-#elif defined(FREESCALE_MMCAU)
+#elif defined(FREESCALE_MMCAU) && !defined(WOLFSSL_ARMASM)
     int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     {
         int offset = 0;
