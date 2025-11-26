@@ -30,22 +30,20 @@ wolfSSL `WC_RNG` object. It ensures proper initialization and deallocation.
 ```rust
 use wolfssl::wolfcrypt::random::RNG;
 
-fn main() {
-    // Create a RNG instance.
-    let mut rng = RNG::new().expect("Failed to create RNG");
+// Create a RNG instance.
+let mut rng = RNG::new().expect("Failed to create RNG");
 
-    // Generate a single random byte value.
-    let byte = rng.generate_byte().expect("Failed to generate a single byte");
+// Generate a single random byte value.
+let byte = rng.generate_byte().expect("Failed to generate a single byte");
 
-    // Generate a random block.
-    let mut buffer = [0u32; 8];
-    rng.generate_block(&mut buffer).expect("Failed to generate a block");
-}
+// Generate a random block.
+let mut buffer = [0u32; 8];
+rng.generate_block(&mut buffer).expect("Failed to generate a block");
 ```
 */
 
 use crate::sys;
-use std::mem::{size_of, MaybeUninit};
+use std::mem::{size_of_val, MaybeUninit};
 
 /// A cryptographically secure random number generator based on the wolfSSL
 /// library.
@@ -138,7 +136,7 @@ impl RNG {
     /// library return code on failure.
     pub fn new_with_nonce_ex<T>(nonce: &mut [T], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let ptr = nonce.as_mut_ptr() as *mut u8;
-        let size: u32 = (nonce.len() * size_of::<T>()) as u32;
+        let size: u32 = size_of_val(nonce) as u32;
         let mut rng: MaybeUninit<RNG> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
@@ -320,7 +318,7 @@ impl RNG {
     /// library return code on failure.
     pub fn generate_block<T>(&mut self, buf: &mut [T]) -> Result<(), i32> {
         let ptr = buf.as_mut_ptr() as *mut u8;
-        let size: u32 = (buf.len() * size_of::<T>()) as u32;
+        let size: u32 = size_of_val(buf) as u32;
         let rc = unsafe { sys::wc_RNG_GenerateBlock(&mut self.wc_rng, ptr, size) };
         if rc == 0 {
             Ok(())

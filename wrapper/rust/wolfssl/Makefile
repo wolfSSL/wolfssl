@@ -1,6 +1,7 @@
 .PHONY: all
 all:
 	cargo build
+	cargo clippy
 	cargo doc
 
 .PHONY: test

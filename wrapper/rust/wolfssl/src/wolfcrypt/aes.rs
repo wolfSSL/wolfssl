@@ -26,7 +26,7 @@ Encryption Standard (AES) functionality.
 #![cfg(aes)]
 
 use crate::sys;
-use std::mem::{size_of, MaybeUninit};
+use std::mem::{size_of_val, MaybeUninit};
 
 /// AES Cipher Block Chaining (CBC) mode.
 ///
@@ -90,14 +90,13 @@ impl CBC {
     }
 
     fn init(&mut self, key: &[u8], iv: &[u8], dir: i32) -> Result<(), i32> {
-        let key_ptr = key.as_ptr() as *const u8;
         let key_size = key.len() as u32;
-        let iv_ptr = iv.as_ptr() as *const u8;
         if iv.len() as u32 != sys::WC_AES_BLOCK_SIZE {
             return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
         let rc = unsafe {
-            sys::wc_AesSetKey(&mut self.ws_aes, key_ptr, key_size, iv_ptr, dir)
+            sys::wc_AesSetKey(&mut self.ws_aes, key.as_ptr(), key_size,
+                iv.as_ptr(), dir)
         };
         if rc != 0 {
             return Err(rc);
@@ -112,16 +111,16 @@ impl CBC {
     /// # Parameters
     ///
     /// * `key`: A slice containing the encryption key to use. The key must be
-    /// 16, 24, or 32 bytes in length.
+    ///   16, 24, or 32 bytes in length.
     /// * `iv`: A slice containing the initialization vector (IV) to use. The
-    /// IV must be 16 bytes in length.
+    ///   IV must be 16 bytes in length.
     ///
     /// # Returns
     ///
     /// A Result which is Ok(()) on success or an Err containing the wolfSSL
     /// library return code on failure.
     pub fn init_encrypt(&mut self, key: &[u8], iv: &[u8]) -> Result<(), i32> {
-        return self.init(key, iv, sys::AES_ENCRYPTION as i32);
+        self.init(key, iv, sys::AES_ENCRYPTION as i32)
     }
 
     /// Initialize a CBC instance for decryption.
@@ -131,16 +130,16 @@ impl CBC {
     /// # Parameters
     ///
     /// * `key`: A slice containing the decryption key to use. The key must be
-    /// 16, 24, or 32 bytes in length.
+    ///   16, 24, or 32 bytes in length.
     /// * `iv`: A slice containing the initialization vector (IV) to use. The
-    /// IV must be 16 bytes in length.
+    ///   IV must be 16 bytes in length.
     ///
     /// # Returns
     ///
     /// A Result which is Ok(()) on success or an Err containing the wolfSSL
     /// library return code on failure.
     pub fn init_decrypt(&mut self, key: &[u8], iv: &[u8]) -> Result<(), i32> {
-        return self.init(key, iv, sys::AES_DECRYPTION as i32);
+        self.init(key, iv, sys::AES_DECRYPTION as i32)
     }
 
     /// Encrypt data.
@@ -150,9 +149,9 @@ impl CBC {
     /// # Parameters
     ///
     /// * `din`: Data to encrypt. The size of the data must be a multiple of
-    /// 16 bytes.
+    ///   16 bytes.
     /// * `dout`: Buffer in which to store the encrypted data. The size of
-    /// the buffer must match that of the `din` buffer.
+    ///   the buffer must match that of the `din` buffer.
     ///
     /// # Returns
     ///
@@ -160,9 +159,9 @@ impl CBC {
     /// library return code on failure.
     pub fn encrypt<I,O>(&mut self, din: &[I], dout: &mut [O]) -> Result<(), i32> {
         let in_ptr = din.as_ptr() as *const u8;
-        let in_size = (din.len() * size_of::<I>()) as u32;
-        let out_ptr = dout.as_ptr() as *mut u8;
-        let out_size = (dout.len() * size_of::<O>()) as u32;
+        let in_size = size_of_val(din) as u32;
+        let out_ptr = dout.as_mut_ptr() as *mut u8;
+        let out_size = size_of_val(dout) as u32;
         if in_size != out_size {
             return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
@@ -182,9 +181,9 @@ impl CBC {
     /// # Parameters
     ///
     /// * `din`: Data to decrypt. The size of the data must be a multiple of
-    /// 16 bytes.
+    ///   16 bytes.
     /// * `dout`: Buffer in which to store the decrypted data. The size of
-    /// the data must match that of the `din` slice.
+    ///   the data must match that of the `din` slice.
     ///
     /// # Returns
     ///
@@ -192,9 +191,9 @@ impl CBC {
     /// library return code on failure.
     pub fn decrypt<I,O>(&mut self, din: &[I], dout: &mut [O]) -> Result<(), i32> {
         let in_ptr = din.as_ptr() as *const u8;
-        let in_size = (din.len() * size_of::<I>()) as u32;
-        let out_ptr = dout.as_ptr() as *mut u8;
-        let out_size = (dout.len() * size_of::<O>()) as u32;
+        let in_size = size_of_val(din) as u32;
+        let out_ptr = dout.as_mut_ptr() as *mut u8;
+        let out_size = size_of_val(dout) as u32;
         if in_size != out_size {
             return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
@@ -301,17 +300,16 @@ impl CCM {
     /// # Parameters
     ///
     /// * `key`: A slice containing the encryption key to use. The key must be
-    /// 16, 24, or 32 bytes in length.
+    ///   16, 24, or 32 bytes in length.
     ///
     /// # Returns
     ///
     /// A Result which is Ok(()) on success or an Err containing the wolfSSL
     /// library return code on failure.
     pub fn init(&mut self, key: &[u8]) -> Result<(), i32> {
-        let key_ptr = key.as_ptr() as *const u8;
         let key_size = key.len() as u32;
         let rc = unsafe {
-            sys::wc_AesCcmSetKey(&mut self.ws_aes, key_ptr, key_size)
+            sys::wc_AesCcmSetKey(&mut self.ws_aes, key.as_ptr(), key_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -327,7 +325,7 @@ impl CCM {
     ///
     /// * `din`: Data to encrypt.
     /// * `dout`: Buffer in which to store the encrypted data. The size of
-    /// the buffer must match that of the `din` buffer.
+    ///   the buffer must match that of the `din` buffer.
     /// * `nonce`: Nonce (number used once).
     /// * `auth`: Authentication data input.
     /// * `auth_tag`: Buffer in which to store the authentication tag.
@@ -338,23 +336,21 @@ impl CCM {
     /// library return code on failure.
     pub fn encrypt<I,O,N,A>(&mut self, din: &[I], dout: &mut [O], nonce: &[N], auth: &[A], auth_tag: &mut [A]) -> Result<(), i32> {
         let in_ptr = din.as_ptr() as *const u8;
-        let in_size = (din.len() * size_of::<I>()) as u32;
-        let out_ptr = dout.as_ptr() as *mut u8;
-        let out_size = (dout.len() * size_of::<O>()) as u32;
+        let in_size = size_of_val(din) as u32;
+        let out_ptr = dout.as_mut_ptr() as *mut u8;
+        let out_size = size_of_val(dout) as u32;
         let nonce_ptr = nonce.as_ptr() as *const u8;
-        let nonce_size = (nonce.len() * size_of::<O>()) as u32;
+        let nonce_size = size_of_val(nonce) as u32;
         let auth_ptr = auth.as_ptr() as *const u8;
-        let auth_size = (auth.len() * size_of::<O>()) as u32;
-        let auth_tag_ptr = auth_tag.as_ptr() as *mut u8;
-        let auth_tag_size = (auth_tag.len() * size_of::<O>()) as u32;
+        let auth_size = size_of_val(auth) as u32;
+        let auth_tag_ptr = auth_tag.as_mut_ptr() as *mut u8;
+        let auth_tag_size = size_of_val(auth_tag) as u32;
         if in_size != out_size {
             return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
         let rc = unsafe {
-            sys::wc_AesCcmEncrypt(&mut self.ws_aes, out_ptr,
-                in_ptr, in_size,
-                nonce_ptr, nonce_size,
-                auth_tag_ptr, auth_tag_size,
+            sys::wc_AesCcmEncrypt(&mut self.ws_aes, out_ptr, in_ptr, in_size,
+                nonce_ptr, nonce_size, auth_tag_ptr, auth_tag_size,
                 auth_ptr, auth_size)
         };
         if rc != 0 {
@@ -371,7 +367,7 @@ impl CCM {
     ///
     /// * `din`: Data to decrypt.
     /// * `dout`: Buffer in which to store the decrypted data. The size of
-    /// the buffer must match that of the `din` buffer.
+    ///   the buffer must match that of the `din` buffer.
     /// * `nonce`: Nonce (number used once).
     /// * `auth`: Authentication data input.
     /// * `auth_tag`: Authentication tag input to verify.
@@ -382,23 +378,21 @@ impl CCM {
     /// library return code on failure.
     pub fn decrypt<I,O,N,A>(&mut self, din: &[I], dout: &mut [O], nonce: &[N], auth: &[A], auth_tag: &[A]) -> Result<(), i32> {
         let in_ptr = din.as_ptr() as *const u8;
-        let in_size = (din.len() * size_of::<I>()) as u32;
-        let out_ptr = dout.as_ptr() as *mut u8;
-        let out_size = (dout.len() * size_of::<O>()) as u32;
+        let in_size = size_of_val(din) as u32;
+        let out_ptr = dout.as_mut_ptr() as *mut u8;
+        let out_size = size_of_val(dout) as u32;
         let nonce_ptr = nonce.as_ptr() as *const u8;
-        let nonce_size = (nonce.len() * size_of::<O>()) as u32;
+        let nonce_size = size_of_val(nonce) as u32;
         let auth_ptr = auth.as_ptr() as *const u8;
-        let auth_size = (auth.len() * size_of::<O>()) as u32;
+        let auth_size = size_of_val(auth) as u32;
         let auth_tag_ptr = auth_tag.as_ptr() as *const u8;
-        let auth_tag_size = (auth_tag.len() * size_of::<O>()) as u32;
+        let auth_tag_size = size_of_val(auth_tag) as u32;
         if in_size != out_size {
             return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
         let rc = unsafe {
-            sys::wc_AesCcmDecrypt(&mut self.ws_aes, out_ptr,
-                in_ptr, in_size,
-                nonce_ptr, nonce_size,
-                auth_tag_ptr, auth_tag_size,
+            sys::wc_AesCcmDecrypt(&mut self.ws_aes, out_ptr, in_ptr, in_size,
+                nonce_ptr, nonce_size, auth_tag_ptr, auth_tag_size,
                 auth_ptr, auth_size)
         };
         if rc != 0 {
@@ -502,24 +496,22 @@ impl CFB {
     /// # Parameters
     ///
     /// * `key`: A slice containing the encryption key to use. The key must be
-    /// 16, 24, or 32 bytes in length.
+    ///   16, 24, or 32 bytes in length.
     /// * `iv`: A slice containing the initialization vector (IV) to use. The
-    /// IV must be 16 bytes in length.
+    ///   IV must be 16 bytes in length.
     ///
     /// # Returns
     ///
     /// A Result which is Ok(()) on success or an Err containing the wolfSSL
     /// library return code on failure.
     pub fn init(&mut self, key: &[u8], iv: &[u8]) -> Result<(), i32> {
-        let key_ptr = key.as_ptr() as *const u8;
         let key_size = key.len() as u32;
-        let iv_ptr = iv.as_ptr() as *const u8;
         if iv.len() as u32 != sys::WC_AES_BLOCK_SIZE {
             return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
         let rc = unsafe {
-            sys::wc_AesSetKey(&mut self.ws_aes, key_ptr, key_size,
-                iv_ptr, sys::AES_ENCRYPTION as i32)
+            sys::wc_AesSetKey(&mut self.ws_aes, key.as_ptr(), key_size,
+                iv.as_ptr(), sys::AES_ENCRYPTION as i32)
         };
         if rc != 0 {
             return Err(rc);
@@ -535,7 +527,7 @@ impl CFB {
     ///
     /// * `din`: Data to encrypt.
     /// * `dout`: Buffer in which to store the encrypted data. The size of
-    /// the buffer must match that of the `din` buffer.
+    ///   the buffer must match that of the `din` buffer.
     ///
     /// # Returns
     ///
@@ -543,9 +535,9 @@ impl CFB {
     /// library return code on failure.
     pub fn encrypt<I,O>(&mut self, din: &[I], dout: &mut [O]) -> Result<(), i32> {
         let in_ptr = din.as_ptr() as *const u8;
-        let in_size = (din.len() * size_of::<I>()) as u32;
-        let out_ptr = dout.as_ptr() as *mut u8;
-        let out_size = (dout.len() * size_of::<O>()) as u32;
+        let in_size = size_of_val(din) as u32;
+        let out_ptr = dout.as_mut_ptr() as *mut u8;
+        let out_size = size_of_val(dout) as u32;
         if in_size != out_size {
             return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
@@ -566,7 +558,7 @@ impl CFB {
     ///
     /// * `din`: Data to encrypt.
     /// * `dout`: Buffer in which to store the encrypted data. The size of
-    /// the buffer must match that of the `din` buffer.
+    ///   the buffer must match that of the `din` buffer.
     ///
     /// # Returns
     ///
@@ -574,9 +566,9 @@ impl CFB {
     /// library return code on failure.
     pub fn encrypt1<I,O>(&mut self, din: &[I], dout: &mut [O]) -> Result<(), i32> {
         let in_ptr = din.as_ptr() as *const u8;
-        let in_size = (din.len() * size_of::<I>()) as u32;
-        let out_ptr = dout.as_ptr() as *mut u8;
-        let out_size = (dout.len() * size_of::<O>()) as u32;
+        let in_size = size_of_val(din) as u32;
+        let out_ptr = dout.as_mut_ptr() as *mut u8;
+        let out_size = size_of_val(dout) as u32;
         if in_size != out_size {
             return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
@@ -597,7 +589,7 @@ impl CFB {
     ///
     /// * `din`: Data to encrypt.
     /// * `dout`: Buffer in which to store the encrypted data. The size of
-    /// the buffer must match that of the `din` buffer.
+    ///   the buffer must match that of the `din` buffer.
     ///
     /// # Returns
     ///
@@ -605,9 +597,9 @@ impl CFB {
     /// library return code on failure.
     pub fn encrypt8<I,O>(&mut self, din: &[I], dout: &mut [O]) -> Result<(), i32> {
         let in_ptr = din.as_ptr() as *const u8;
-        let in_size = (din.len() * size_of::<I>()) as u32;
-        let out_ptr = dout.as_ptr() as *mut u8;
-        let out_size = (dout.len() * size_of::<O>()) as u32;
+        let in_size = size_of_val(din) as u32;
+        let out_ptr = dout.as_mut_ptr() as *mut u8;
+        let out_size = size_of_val(dout) as u32;
         if in_size != out_size {
             return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
@@ -628,7 +620,7 @@ impl CFB {
     ///
     /// * `din`: Data to decrypt.
     /// * `dout`: Buffer in which to store the decrypted data. The size of
-    /// the buffer must match that of the `din` buffer.
+    ///   the buffer must match that of the `din` buffer.
     ///
     /// # Returns
     ///
@@ -637,9 +629,9 @@ impl CFB {
     #[cfg(aes_decrypt)]
     pub fn decrypt<I,O>(&mut self, din: &[I], dout: &mut [O]) -> Result<(), i32> {
         let in_ptr = din.as_ptr() as *const u8;
-        let in_size = (din.len() * size_of::<I>()) as u32;
-        let out_ptr = dout.as_ptr() as *mut u8;
-        let out_size = (dout.len() * size_of::<O>()) as u32;
+        let in_size = size_of_val(din) as u32;
+        let out_ptr = dout.as_mut_ptr() as *mut u8;
+        let out_size = size_of_val(dout) as u32;
         if in_size != out_size {
             return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
@@ -660,7 +652,7 @@ impl CFB {
     ///
     /// * `din`: Data to decrypt.
     /// * `dout`: Buffer in which to store the decrypted data. The size of
-    /// the buffer must match that of the `din` buffer.
+    ///   the buffer must match that of the `din` buffer.
     ///
     /// # Returns
     ///
@@ -669,9 +661,9 @@ impl CFB {
     #[cfg(aes_decrypt)]
     pub fn decrypt1<I,O>(&mut self, din: &[I], dout: &mut [O]) -> Result<(), i32> {
         let in_ptr = din.as_ptr() as *const u8;
-        let in_size = (din.len() * size_of::<I>()) as u32;
-        let out_ptr = dout.as_ptr() as *mut u8;
-        let out_size = (dout.len() * size_of::<O>()) as u32;
+        let in_size = size_of_val(din) as u32;
+        let out_ptr = dout.as_mut_ptr() as *mut u8;
+        let out_size = size_of_val(dout) as u32;
         if in_size != out_size {
             return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
@@ -692,7 +684,7 @@ impl CFB {
     ///
     /// * `din`: Data to decrypt.
     /// * `dout`: Buffer in which to store the decrypted data. The size of
-    /// the buffer must match that of the `din` buffer.
+    ///   the buffer must match that of the `din` buffer.
     ///
     /// # Returns
     ///
@@ -701,9 +693,9 @@ impl CFB {
     #[cfg(aes_decrypt)]
     pub fn decrypt8<I,O>(&mut self, din: &[I], dout: &mut [O]) -> Result<(), i32> {
         let in_ptr = din.as_ptr() as *const u8;
-        let in_size = (din.len() * size_of::<I>()) as u32;
-        let out_ptr = dout.as_ptr() as *mut u8;
-        let out_size = (dout.len() * size_of::<O>()) as u32;
+        let in_size = size_of_val(din) as u32;
+        let out_ptr = dout.as_mut_ptr() as *mut u8;
+        let out_size = size_of_val(dout) as u32;
         if in_size != out_size {
             return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
@@ -810,24 +802,22 @@ impl CTR {
     /// # Parameters
     ///
     /// * `key`: A slice containing the encryption key to use. The key must be
-    /// 16, 24, or 32 bytes in length.
+    ///   16, 24, or 32 bytes in length.
     /// * `iv`: A slice containing the initialization vector (IV) to use. The
-    /// IV must be 16 bytes in length.
+    ///   IV must be 16 bytes in length.
     ///
     /// # Returns
     ///
     /// A Result which is Ok(()) on success or an Err containing the wolfSSL
     /// library return code on failure.
     pub fn init(&mut self, key: &[u8], iv: &[u8]) -> Result<(), i32> {
-        let key_ptr = key.as_ptr() as *const u8;
         let key_size = key.len() as u32;
-        let iv_ptr = iv.as_ptr() as *const u8;
         if iv.len() as u32 != sys::WC_AES_BLOCK_SIZE {
             return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
         let rc = unsafe {
-            sys::wc_AesSetKeyDirect(&mut self.ws_aes, key_ptr, key_size,
-                iv_ptr, sys::AES_ENCRYPTION as i32)
+            sys::wc_AesSetKeyDirect(&mut self.ws_aes, key.as_ptr(), key_size,
+                iv.as_ptr(), sys::AES_ENCRYPTION as i32)
         };
         if rc != 0 {
             return Err(rc);
@@ -837,9 +827,9 @@ impl CTR {
 
     fn encrypt_decrypt<I,O>(&mut self, din: &[I], dout: &mut [O]) -> Result<(), i32> {
         let in_ptr = din.as_ptr() as *const u8;
-        let in_size = (din.len() * size_of::<I>()) as u32;
-        let out_ptr = dout.as_ptr() as *mut u8;
-        let out_size = (dout.len() * size_of::<O>()) as u32;
+        let in_size = size_of_val(din) as u32;
+        let out_ptr = dout.as_mut_ptr() as *mut u8;
+        let out_size = size_of_val(dout) as u32;
         if in_size != out_size {
             return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
@@ -860,14 +850,14 @@ impl CTR {
     ///
     /// * `din`: Data to encrypt.
     /// * `dout`: Buffer in which to store the encrypted data. The size of
-    /// the buffer must match that of the `din` buffer.
+    ///   the buffer must match that of the `din` buffer.
     ///
     /// # Returns
     ///
     /// A Result which is Ok(()) on success or an Err containing the wolfSSL
     /// library return code on failure.
     pub fn encrypt<I,O>(&mut self, din: &[I], dout: &mut [O]) -> Result<(), i32> {
-        return self.encrypt_decrypt(din, dout);
+        self.encrypt_decrypt(din, dout)
     }
 
     /// Decrypt data.
@@ -878,14 +868,14 @@ impl CTR {
     ///
     /// * `din`: Data to decrypt.
     /// * `dout`: Buffer in which to store the decrypted data. The size of
-    /// the buffer must match that of the `din` buffer.
+    ///   the buffer must match that of the `din` buffer.
     ///
     /// # Returns
     ///
     /// A Result which is Ok(()) on success or an Err containing the wolfSSL
     /// library return code on failure.
     pub fn decrypt<I,O>(&mut self, din: &[I], dout: &mut [O]) -> Result<(), i32> {
-        return self.encrypt_decrypt(din, dout);
+        self.encrypt_decrypt(din, dout)
     }
 }
 #[cfg(aes_ctr)]
@@ -949,9 +939,9 @@ impl EAX {
     ///
     /// * `din`: Data to encrypt.
     /// * `dout`: Buffer in which to store the encrypted data. The size of
-    /// the buffer must match that of the `din` buffer.
+    ///   the buffer must match that of the `din` buffer.
     /// * `key`: Encryption key to use. The key size must be 16, 24, or 32
-    /// bytes.
+    ///   bytes.
     /// * `nonce`: Nonce (number used once).
     /// * `auth`: Authentication data input.
     /// * `auth_tag`: Buffer in which to store the authentication tag.
@@ -962,26 +952,21 @@ impl EAX {
     /// library return code on failure.
     pub fn encrypt<I,O>(din: &[I], dout: &mut [O], key: &[u8], nonce: &[u8],
             auth: &[u8], auth_tag: &mut [u8]) -> Result<(), i32> {
-        let key_ptr = key.as_ptr() as *const u8;
-        let key_size = key.len() as u32;
-        let nonce_ptr = nonce.as_ptr() as *const u8;
-        let nonce_size = nonce.len() as u32;
-        let auth_ptr = auth.as_ptr() as *const u8;
-        let auth_size = auth.len() as u32;
-        let auth_tag_ptr = auth_tag.as_ptr() as *mut u8;
-        let auth_tag_size = auth_tag.len() as u32;
         let in_ptr = din.as_ptr() as *const u8;
-        let in_size = din.len() as u32;
-        let out_ptr = dout.as_ptr() as *mut u8;
-        let out_size = dout.len() as u32;
+        let in_size = size_of_val(din) as u32;
+        let out_ptr = dout.as_mut_ptr() as *mut u8;
+        let out_size = size_of_val(dout) as u32;
+        let key_size = key.len() as u32;
+        let nonce_size = nonce.len() as u32;
+        let auth_size = auth.len() as u32;
+        let auth_tag_size = auth_tag.len() as u32;
         if in_size != out_size {
             return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
         let rc = unsafe {
-            sys::wc_AesEaxEncryptAuth(key_ptr, key_size, out_ptr,
-                in_ptr, in_size, nonce_ptr, nonce_size,
-                auth_tag_ptr, auth_tag_size,
-                auth_ptr, auth_size)
+            sys::wc_AesEaxEncryptAuth(key.as_ptr(), key_size, out_ptr,
+                in_ptr, in_size, nonce.as_ptr(), nonce_size,
+                auth_tag.as_mut_ptr(), auth_tag_size, auth.as_ptr(), auth_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -995,9 +980,9 @@ impl EAX {
     ///
     /// * `din`: Data to decrypt.
     /// * `dout`: Buffer in which to store the decrypted data. The size of
-    /// the buffer must match that of the `din` buffer.
+    ///   the buffer must match that of the `din` buffer.
     /// * `key`: Decryption key to use. The key size must be 16, 24, or 32
-    /// bytes.
+    ///   bytes.
     /// * `nonce`: Nonce (number used once).
     /// * `auth`: Authentication data input.
     /// * `auth_tag`: Authentication tag input to verify.
@@ -1008,26 +993,21 @@ impl EAX {
     /// library return code on failure.
     pub fn decrypt<I,O>(din: &[I], dout: &mut [O], key: &[u8], nonce: &[u8],
             auth: &[u8], auth_tag: &[u8]) -> Result<(), i32> {
-        let key_ptr = key.as_ptr() as *const u8;
-        let key_size = key.len() as u32;
-        let nonce_ptr = nonce.as_ptr() as *const u8;
-        let nonce_size = nonce.len() as u32;
-        let auth_ptr = auth.as_ptr() as *const u8;
-        let auth_size = auth.len() as u32;
-        let auth_tag_ptr = auth_tag.as_ptr() as *const u8;
-        let auth_tag_size = auth_tag.len() as u32;
         let in_ptr = din.as_ptr() as *const u8;
-        let in_size = din.len() as u32;
-        let out_ptr = dout.as_ptr() as *mut u8;
-        let out_size = dout.len() as u32;
+        let in_size = size_of_val(din) as u32;
+        let out_ptr = dout.as_mut_ptr() as *mut u8;
+        let out_size = size_of_val(dout) as u32;
+        let key_size = key.len() as u32;
+        let nonce_size = nonce.len() as u32;
+        let auth_size = auth.len() as u32;
+        let auth_tag_size = auth_tag.len() as u32;
         if in_size != out_size {
             return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
         let rc = unsafe {
-            sys::wc_AesEaxDecryptAuth(key_ptr, key_size, out_ptr,
-                in_ptr, in_size, nonce_ptr, nonce_size,
-                auth_tag_ptr, auth_tag_size,
-                auth_ptr, auth_size)
+            sys::wc_AesEaxDecryptAuth(key.as_ptr(), key_size, out_ptr,
+                in_ptr, in_size, nonce.as_ptr(), nonce_size,
+                auth_tag.as_ptr(), auth_tag_size, auth.as_ptr(), auth_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -1097,10 +1077,9 @@ impl ECB {
     }
 
     fn init(&mut self, key: &[u8], dir: i32) -> Result<(), i32> {
-        let key_ptr = key.as_ptr() as *const u8;
         let key_size = key.len() as u32;
         let rc = unsafe {
-            sys::wc_AesSetKey(&mut self.ws_aes, key_ptr, key_size,
+            sys::wc_AesSetKey(&mut self.ws_aes, key.as_ptr(), key_size,
                 core::ptr::null(), dir)
         };
         if rc != 0 {
@@ -1116,14 +1095,14 @@ impl ECB {
     /// # Parameters
     ///
     /// * `key`: A slice containing the encryption key to use. The key must be
-    /// 16, 24, or 32 bytes in length.
+    ///   16, 24, or 32 bytes in length.
     ///
     /// # Returns
     ///
     /// A Result which is Ok(()) on success or an Err containing the wolfSSL
     /// library return code on failure.
     pub fn init_encrypt(&mut self, key: &[u8]) -> Result<(), i32> {
-        return self.init(key, sys::AES_ENCRYPTION as i32);
+        self.init(key, sys::AES_ENCRYPTION as i32)
     }
 
     /// Initialize a ECB instance for decryption.
@@ -1133,14 +1112,14 @@ impl ECB {
     /// # Parameters
     ///
     /// * `key`: A slice containing the decryption key to use. The key must be
-    /// 16, 24, or 32 bytes in length.
+    ///   16, 24, or 32 bytes in length.
     ///
     /// # Returns
     ///
     /// A Result which is Ok(()) on success or an Err containing the wolfSSL
     /// library return code on failure.
     pub fn init_decrypt(&mut self, key: &[u8]) -> Result<(), i32> {
-        return self.init(key, sys::AES_DECRYPTION as i32);
+        self.init(key, sys::AES_DECRYPTION as i32)
     }
 
     /// Encrypt data.
@@ -1150,9 +1129,9 @@ impl ECB {
     /// # Parameters
     ///
     /// * `din`: Data to encrypt. The size of the data must be a multiple of
-    /// 16 bytes.
+    ///   16 bytes.
     /// * `dout`: Buffer in which to store the encrypted data. The size of
-    /// the buffer must match that of the `din` buffer.
+    ///   the buffer must match that of the `din` buffer.
     ///
     /// # Returns
     ///
@@ -1160,9 +1139,9 @@ impl ECB {
     /// library return code on failure.
     pub fn encrypt<I,O>(&mut self, din: &[I], dout: &mut [O]) -> Result<(), i32> {
         let in_ptr = din.as_ptr() as *const u8;
-        let in_size = (din.len() * size_of::<I>()) as u32;
-        let out_ptr = dout.as_ptr() as *mut u8;
-        let out_size = (dout.len() * size_of::<O>()) as u32;
+        let in_size = size_of_val(din) as u32;
+        let out_ptr = dout.as_mut_ptr() as *mut u8;
+        let out_size = size_of_val(dout) as u32;
         if in_size != out_size {
             return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
@@ -1182,9 +1161,9 @@ impl ECB {
     /// # Parameters
     ///
     /// * `din`: Data to decrypt. The size of the data must be a multiple of
-    /// 16 bytes.
+    ///   16 bytes.
     /// * `dout`: Buffer in which to store the decrypted data. The size of
-    /// the buffer must match that of the `din` buffer.
+    ///   the buffer must match that of the `din` buffer.
     ///
     /// # Returns
     ///
@@ -1192,9 +1171,9 @@ impl ECB {
     /// library return code on failure.
     pub fn decrypt<I,O>(&mut self, din: &[I], dout: &mut [O]) -> Result<(), i32> {
         let in_ptr = din.as_ptr() as *const u8;
-        let in_size = (din.len() * size_of::<I>()) as u32;
-        let out_ptr = dout.as_ptr() as *mut u8;
-        let out_size = (dout.len() * size_of::<O>()) as u32;
+        let in_size = size_of_val(din) as u32;
+        let out_ptr = dout.as_mut_ptr() as *mut u8;
+        let out_size = size_of_val(dout) as u32;
         if in_size != out_size {
             return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
@@ -1305,17 +1284,16 @@ impl GCM {
     /// # Parameters
     ///
     /// * `key`: A slice containing the encryption key to use. The key must be
-    /// 16, 24, or 32 bytes in length.
+    ///   16, 24, or 32 bytes in length.
     ///
     /// # Returns
     ///
     /// A Result which is Ok(()) on success or an Err containing the wolfSSL
     /// library return code on failure.
     pub fn init(&mut self, key: &[u8]) -> Result<(), i32> {
-        let key_ptr = key.as_ptr() as *const u8;
         let key_size = key.len() as u32;
         let rc = unsafe {
-            sys::wc_AesGcmSetKey(&mut self.ws_aes, key_ptr, key_size)
+            sys::wc_AesGcmSetKey(&mut self.ws_aes, key.as_ptr(), key_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -1331,7 +1309,7 @@ impl GCM {
     ///
     /// * `din`: Data to encrypt.
     /// * `dout`: Buffer in which to store the encrypted data. The size of
-    /// the buffer must match that of the `din` buffer.
+    ///   the buffer must match that of the `din` buffer.
     /// * `iv`: Initialization vector to use for the encryption operation.
     /// * `auth`: Authentication data input.
     /// * `auth_tag`: Buffer in which to store the authentication tag.
@@ -1343,24 +1321,19 @@ impl GCM {
     pub fn encrypt<I,O>(&mut self, din: &[I], dout: &mut [O], iv: &[u8],
             auth: &[u8], auth_tag: &mut [u8]) -> Result<(), i32> {
         let in_ptr = din.as_ptr() as *const u8;
-        let in_size = (din.len() * size_of::<I>()) as u32;
-        let out_ptr = dout.as_ptr() as *mut u8;
-        let out_size = (dout.len() * size_of::<O>()) as u32;
-        let iv_ptr = iv.as_ptr() as *const u8;
+        let in_size = size_of_val(din) as u32;
+        let out_ptr = dout.as_mut_ptr() as *mut u8;
+        let out_size = size_of_val(dout) as u32;
         let iv_size = iv.len() as u32;
-        let auth_ptr = auth.as_ptr() as *const u8;
         let auth_size = auth.len() as u32;
-        let auth_tag_ptr = auth_tag.as_ptr() as *mut u8;
         let auth_tag_size = auth_tag.len() as u32;
         if in_size != out_size {
             return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
         let rc = unsafe {
-            sys::wc_AesGcmEncrypt(&mut self.ws_aes, out_ptr,
-                in_ptr, in_size,
-                iv_ptr, iv_size,
-                auth_tag_ptr, auth_tag_size,
-                auth_ptr, auth_size)
+            sys::wc_AesGcmEncrypt(&mut self.ws_aes, out_ptr, in_ptr, in_size,
+                iv.as_ptr(), iv_size, auth_tag.as_mut_ptr(), auth_tag_size,
+                auth.as_ptr(), auth_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -1376,7 +1349,7 @@ impl GCM {
     ///
     /// * `din`: Data to decrypt.
     /// * `dout`: Buffer in which to store the decrypted data. The size of
-    /// the buffer must match that of the `din` buffer.
+    ///   the buffer must match that of the `din` buffer.
     /// * `iv`: Initialization vector to use for the decryption operation.
     /// * `auth`: Authentication data input.
     /// * `auth_tag`: Authentication tag input to verify.
@@ -1388,24 +1361,19 @@ impl GCM {
     pub fn decrypt<I,O>(&mut self, din: &[I], dout: &mut [O], iv: &[u8],
             auth: &[u8], auth_tag: &[u8]) -> Result<(), i32> {
         let in_ptr = din.as_ptr() as *const u8;
-        let in_size = (din.len() * size_of::<I>()) as u32;
-        let out_ptr = dout.as_ptr() as *mut u8;
-        let out_size = (dout.len() * size_of::<O>()) as u32;
-        let iv_ptr = iv.as_ptr() as *const u8;
+        let in_size = size_of_val(din) as u32;
+        let out_ptr = dout.as_mut_ptr() as *mut u8;
+        let out_size = size_of_val(dout) as u32;
         let iv_size = iv.len() as u32;
-        let auth_ptr = auth.as_ptr() as *const u8;
         let auth_size = auth.len() as u32;
-        let auth_tag_ptr = auth_tag.as_ptr() as *const u8;
         let auth_tag_size = auth_tag.len() as u32;
         if in_size != out_size {
             return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
         let rc = unsafe {
-            sys::wc_AesGcmDecrypt(&mut self.ws_aes, out_ptr,
-                in_ptr, in_size,
-                iv_ptr, iv_size,
-                auth_tag_ptr, auth_tag_size,
-                auth_ptr, auth_size)
+            sys::wc_AesGcmDecrypt(&mut self.ws_aes, out_ptr, in_ptr, in_size,
+                iv.as_ptr(), iv_size, auth_tag.as_ptr(), auth_tag_size,
+                auth.as_ptr(), auth_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -1540,7 +1508,7 @@ impl GCMStream {
     /// # Parameters
     ///
     /// * `key`: A slice containing the encryption key to use. The key must be
-    /// 16, 24, or 32 bytes in length.
+    ///   16, 24, or 32 bytes in length.
     /// * `iv`: A slice containing the initialization vector (IV) to use.
     ///
     /// # Returns
@@ -1548,12 +1516,11 @@ impl GCMStream {
     /// A Result which is Ok(()) on success or an Err containing the wolfSSL
     /// library return code on failure.
     pub fn init(&mut self, key: &[u8], iv: &[u8]) -> Result<(), i32> {
-        let key_ptr = key.as_ptr() as *const u8;
         let key_size = key.len() as u32;
-        let iv_ptr = iv.as_ptr() as *const u8;
         let iv_size = iv.len() as u32;
         let rc = unsafe {
-            sys::wc_AesGcmInit(&mut self.ws_aes, key_ptr, key_size, iv_ptr, iv_size)
+            sys::wc_AesGcmInit(&mut self.ws_aes, key.as_ptr(), key_size,
+                iv.as_ptr(), iv_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -1575,7 +1542,7 @@ impl GCMStream {
     ///
     /// * `din`: Data to encrypt.
     /// * `dout`: Buffer in which to store the encrypted data. The size of
-    /// the buffer must match that of the `din` buffer.
+    ///   the buffer must match that of the `din` buffer.
     /// * `auth`: Authentication data input.
     ///
     /// # Returns
@@ -1585,18 +1552,16 @@ impl GCMStream {
     pub fn encrypt_update<I,O>(&mut self, din: &[I], dout: &mut [O],
             auth: &[u8]) -> Result<(), i32> {
         let in_ptr = din.as_ptr() as *const u8;
-        let in_size = (din.len() * size_of::<I>()) as u32;
-        let out_ptr = dout.as_ptr() as *mut u8;
-        let out_size = (dout.len() * size_of::<O>()) as u32;
-        let auth_ptr = auth.as_ptr() as *const u8;
+        let in_size = size_of_val(din) as u32;
+        let out_ptr = dout.as_mut_ptr() as *mut u8;
+        let out_size = size_of_val(dout) as u32;
         let auth_size = auth.len() as u32;
         if in_size != out_size {
             return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
         let rc = unsafe {
             sys::wc_AesGcmEncryptUpdate(&mut self.ws_aes, out_ptr,
-                in_ptr, in_size,
-                auth_ptr, auth_size)
+                in_ptr, in_size, auth.as_ptr(), auth_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -1620,10 +1585,10 @@ impl GCMStream {
     /// A Result which is Ok(()) on success or an Err containing the wolfSSL
     /// library return code on failure.
     pub fn encrypt_final(&mut self, auth_tag: &mut [u8]) -> Result<(), i32> {
-        let auth_tag_ptr = auth_tag.as_ptr() as *mut u8;
         let auth_tag_size = auth_tag.len() as u32;
         let rc = unsafe {
-            sys::wc_AesGcmEncryptFinal(&mut self.ws_aes, auth_tag_ptr, auth_tag_size)
+            sys::wc_AesGcmEncryptFinal(&mut self.ws_aes,
+                auth_tag.as_mut_ptr(), auth_tag_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -1645,7 +1610,7 @@ impl GCMStream {
     ///
     /// * `din`: Data to encrypt.
     /// * `dout`: Buffer in which to store the decrypted data. The size of
-    /// the buffer must match that of the `din` buffer.
+    ///   the buffer must match that of the `din` buffer.
     /// * `auth`: Authentication data input.
     ///
     /// # Returns
@@ -1655,18 +1620,16 @@ impl GCMStream {
     pub fn decrypt_update<I,O>(&mut self, din: &[I], dout: &mut [O],
             auth: &[u8]) -> Result<(), i32> {
         let in_ptr = din.as_ptr() as *const u8;
-        let in_size = (din.len() * size_of::<I>()) as u32;
-        let out_ptr = dout.as_ptr() as *mut u8;
-        let out_size = (dout.len() * size_of::<O>()) as u32;
-        let auth_ptr = auth.as_ptr() as *const u8;
+        let in_size = size_of_val(din) as u32;
+        let out_ptr = dout.as_mut_ptr() as *mut u8;
+        let out_size = size_of_val(dout) as u32;
         let auth_size = auth.len() as u32;
         if in_size != out_size {
             return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
         let rc = unsafe {
             sys::wc_AesGcmDecryptUpdate(&mut self.ws_aes, out_ptr,
-                in_ptr, in_size,
-                auth_ptr, auth_size)
+                in_ptr, in_size, auth.as_ptr(), auth_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -1690,10 +1653,10 @@ impl GCMStream {
     /// A Result which is Ok(()) on success or an Err containing the wolfSSL
     /// library return code on failure.
     pub fn decrypt_final(&mut self, auth_tag: &[u8]) -> Result<(), i32> {
-        let auth_tag_ptr = auth_tag.as_ptr() as *const u8;
         let auth_tag_size = auth_tag.len() as u32;
         let rc = unsafe {
-            sys::wc_AesGcmDecryptFinal(&mut self.ws_aes, auth_tag_ptr, auth_tag_size)
+            sys::wc_AesGcmDecryptFinal(&mut self.ws_aes,
+                auth_tag.as_ptr(), auth_tag_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -1796,24 +1759,22 @@ impl OFB {
     /// # Parameters
     ///
     /// * `key`: A slice containing the encryption key to use. The key must be
-    /// 16, 24, or 32 bytes in length.
+    ///   16, 24, or 32 bytes in length.
     /// * `iv`: A slice containing the initialization vector (IV) to use. The
-    /// IV must be 16 bytes in length.
+    ///   IV must be 16 bytes in length.
     ///
     /// # Returns
     ///
     /// A Result which is Ok(()) on success or an Err containing the wolfSSL
     /// library return code on failure.
     pub fn init(&mut self, key: &[u8], iv: &[u8]) -> Result<(), i32> {
-        let key_ptr = key.as_ptr() as *const u8;
         let key_size = key.len() as u32;
-        let iv_ptr = iv.as_ptr() as *const u8;
         if iv.len() as u32 != sys::WC_AES_BLOCK_SIZE {
             return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
         let rc = unsafe {
-            sys::wc_AesSetKey(&mut self.ws_aes, key_ptr, key_size, iv_ptr,
-                sys::AES_ENCRYPTION as i32)
+            sys::wc_AesSetKey(&mut self.ws_aes, key.as_ptr(),
+                key_size, iv.as_ptr(), sys::AES_ENCRYPTION as i32)
         };
         if rc != 0 {
             return Err(rc);
@@ -1829,7 +1790,7 @@ impl OFB {
     ///
     /// * `din`: Data to encrypt.
     /// * `dout`: Buffer in which to store the encrypted data. The size of
-    /// the buffer must match that of the `din` buffer.
+    ///   the buffer must match that of the `din` buffer.
     ///
     /// # Returns
     ///
@@ -1837,9 +1798,9 @@ impl OFB {
     /// library return code on failure.
     pub fn encrypt<I,O>(&mut self, din: &[I], dout: &mut [O]) -> Result<(), i32> {
         let in_ptr = din.as_ptr() as *const u8;
-        let in_size = (din.len() * size_of::<I>()) as u32;
-        let out_ptr = dout.as_ptr() as *mut u8;
-        let out_size = (dout.len() * size_of::<O>()) as u32;
+        let in_size = size_of_val(din) as u32;
+        let out_ptr = dout.as_mut_ptr() as *mut u8;
+        let out_size = size_of_val(dout) as u32;
         if in_size != out_size {
             return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
@@ -1860,7 +1821,7 @@ impl OFB {
     ///
     /// * `din`: Data to decrypt.
     /// * `dout`: Buffer in which to store the decrypted data. The size of
-    /// the buffer must match that of the `din` buffer.
+    ///   the buffer must match that of the `din` buffer.
     ///
     /// # Returns
     ///
@@ -1869,9 +1830,9 @@ impl OFB {
     #[cfg(aes_decrypt)]
     pub fn decrypt<I,O>(&mut self, din: &[I], dout: &mut [O]) -> Result<(), i32> {
         let in_ptr = din.as_ptr() as *const u8;
-        let in_size = (din.len() * size_of::<I>()) as u32;
-        let out_ptr = dout.as_ptr() as *mut u8;
-        let out_size = (dout.len() * size_of::<O>()) as u32;
+        let in_size = size_of_val(din) as u32;
+        let out_ptr = dout.as_mut_ptr() as *mut u8;
+        let out_size = size_of_val(dout) as u32;
         if in_size != out_size {
             return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
@@ -1986,11 +1947,10 @@ impl XTS {
     }
 
     fn init(&mut self, key: &[u8], dir: i32) -> Result<(), i32> {
-        let key_ptr = key.as_ptr() as *const u8;
         let key_size = key.len() as u32;
         let rc = unsafe {
-            sys::wc_AesXtsSetKeyNoInit(&mut self.ws_xtsaes, key_ptr, key_size,
-                dir)
+            sys::wc_AesXtsSetKeyNoInit(&mut self.ws_xtsaes,
+                key.as_ptr(), key_size, dir)
         };
         if rc != 0 {
             return Err(rc);
@@ -2005,14 +1965,14 @@ impl XTS {
     /// # Parameters
     ///
     /// * `key`: A slice containing the encryption key to use. The key must be
-    /// 16, 24, or 32 bytes in length.
+    ///   16, 24, or 32 bytes in length.
     ///
     /// # Returns
     ///
     /// A Result which is Ok(()) on success or an Err containing the wolfSSL
     /// library return code on failure.
     pub fn init_encrypt(&mut self, key: &[u8]) -> Result<(), i32> {
-        return self.init(key, sys::AES_ENCRYPTION as i32);
+        self.init(key, sys::AES_ENCRYPTION as i32)
     }
 
     /// Initialize a XTS instance for decryption.
@@ -2022,14 +1982,14 @@ impl XTS {
     /// # Parameters
     ///
     /// * `key`: A slice containing the decryption key to use. The key must be
-    /// 16, 24, or 32 bytes in length.
+    ///   16, 24, or 32 bytes in length.
     ///
     /// # Returns
     ///
     /// A Result which is Ok(()) on success or an Err containing the wolfSSL
     /// library return code on failure.
     pub fn init_decrypt(&mut self, key: &[u8]) -> Result<(), i32> {
-        return self.init(key, sys::AES_DECRYPTION as i32);
+        self.init(key, sys::AES_DECRYPTION as i32)
     }
 
     /// Encrypt data.
@@ -2040,7 +2000,7 @@ impl XTS {
     ///
     /// * `din`: Data to encrypt.
     /// * `dout`: Buffer in which to store the encrypted data. The size of
-    /// the buffer must match that of the `din` buffer.
+    ///   the buffer must match that of the `din` buffer.
     /// * `tweak`: Tweak value to use for the encryption operation.
     ///
     /// # Returns
@@ -2049,18 +2009,16 @@ impl XTS {
     /// library return code on failure.
     pub fn encrypt<I,O>(&mut self, din: &[I], dout: &mut [O], tweak: &[u8]) -> Result<(), i32> {
         let in_ptr = din.as_ptr() as *const u8;
-        let in_size = (din.len() * size_of::<I>()) as u32;
-        let out_ptr = dout.as_ptr() as *mut u8;
-        let out_size = (dout.len() * size_of::<O>()) as u32;
-        let tweak_ptr = tweak.as_ptr() as *const u8;
+        let in_size = size_of_val(din) as u32;
+        let out_ptr = dout.as_mut_ptr() as *mut u8;
+        let out_size = size_of_val(dout) as u32;
         let tweak_size = tweak.len() as u32;
         if in_size != out_size {
             return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
         let rc = unsafe {
             sys::wc_AesXtsEncrypt(&mut self.ws_xtsaes, out_ptr,
-                in_ptr, in_size,
-                tweak_ptr, tweak_size)
+                in_ptr, in_size, tweak.as_ptr(), tweak_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -2080,9 +2038,9 @@ impl XTS {
     ///
     /// * `din`: Data to encrypt.
     /// * `dout`: Buffer in which to store the encrypted data. The size of
-    /// the buffer must match that of the `din` buffer.
+    ///   the buffer must match that of the `din` buffer.
     /// * `sector`: Sector number to use for encryption operation. This value
-    /// is expanded into a tweak value.
+    ///   is expanded into a tweak value.
     ///
     /// # Returns
     ///
@@ -2090,9 +2048,9 @@ impl XTS {
     /// library return code on failure.
     pub fn encrypt_sector<I,O>(&mut self, din: &[I], dout: &mut [O], sector: u64) -> Result<(), i32> {
         let in_ptr = din.as_ptr() as *const u8;
-        let in_size = (din.len() * size_of::<I>()) as u32;
-        let out_ptr = dout.as_ptr() as *mut u8;
-        let out_size = (dout.len() * size_of::<O>()) as u32;
+        let in_size = size_of_val(din) as u32;
+        let out_ptr = dout.as_mut_ptr() as *mut u8;
+        let out_size = size_of_val(dout) as u32;
         if in_size != out_size {
             return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
@@ -2117,11 +2075,11 @@ impl XTS {
     ///
     /// * `din`: Data to encrypt.
     /// * `dout`: Buffer in which to store the encrypted data. The size of
-    /// the buffer must match that of the `din` buffer.
+    ///   the buffer must match that of the `din` buffer.
     /// * `sector`: Sector number to use for encryption operation. This value
-    /// is expanded into a tweak value.
+    ///   is expanded into a tweak value.
     /// * `sector_size`: Sector size. The `sector` value is internally
-    /// incremented every `sector_size` bytes.
+    ///   incremented every `sector_size` bytes.
     ///
     /// # Returns
     ///
@@ -2130,15 +2088,15 @@ impl XTS {
     pub fn encrypt_consecutive_sectors<I,O>(&mut self, din: &[I], dout: &mut [O],
             sector: u64, sector_size: u32) -> Result<(), i32> {
         let in_ptr = din.as_ptr() as *const u8;
-        let in_size = (din.len() * size_of::<I>()) as u32;
-        let out_ptr = dout.as_ptr() as *mut u8;
-        let out_size = (dout.len() * size_of::<O>()) as u32;
+        let in_size = size_of_val(din) as u32;
+        let out_ptr = dout.as_mut_ptr() as *mut u8;
+        let out_size = size_of_val(dout) as u32;
         if in_size != out_size {
             return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
         let rc = unsafe {
-            sys::wc_AesXtsEncryptConsecutiveSectors(&mut self.ws_xtsaes, out_ptr,
-                in_ptr, in_size, sector, sector_size)
+            sys::wc_AesXtsEncryptConsecutiveSectors(&mut self.ws_xtsaes,
+                out_ptr, in_ptr, in_size, sector, sector_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -2154,7 +2112,7 @@ impl XTS {
     ///
     /// * `din`: Data to decrypt.
     /// * `dout`: Buffer in which to store the decrypted data. The size of
-    /// the buffer must match that of the `din` buffer.
+    ///   the buffer must match that of the `din` buffer.
     /// * `tweak`: Tweak value to use for the decryption operation.
     ///
     /// # Returns
@@ -2163,18 +2121,16 @@ impl XTS {
     /// library return code on failure.
     pub fn decrypt<I,O>(&mut self, din: &[I], dout: &mut [O], tweak: &[u8]) -> Result<(), i32> {
         let in_ptr = din.as_ptr() as *const u8;
-        let in_size = (din.len() * size_of::<I>()) as u32;
-        let out_ptr = dout.as_ptr() as *mut u8;
-        let out_size = (dout.len() * size_of::<O>()) as u32;
-        let tweak_ptr = tweak.as_ptr() as *const u8;
+        let in_size = size_of_val(din) as u32;
+        let out_ptr = dout.as_mut_ptr() as *mut u8;
+        let out_size = size_of_val(dout) as u32;
         let tweak_size = tweak.len() as u32;
         if in_size != out_size {
             return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
         let rc = unsafe {
             sys::wc_AesXtsDecrypt(&mut self.ws_xtsaes, out_ptr,
-                in_ptr, in_size,
-                tweak_ptr, tweak_size)
+                in_ptr, in_size, tweak.as_ptr(), tweak_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -2194,9 +2150,9 @@ impl XTS {
     ///
     /// * `din`: Data to decrypt.
     /// * `dout`: Buffer in which to store the decrypted data. The size of
-    /// the buffer must match that of the `din` buffer.
+    ///   the buffer must match that of the `din` buffer.
     /// * `sector`: Sector number to use for decryption operation. This value
-    /// is expanded into a tweak value.
+    ///   is expanded into a tweak value.
     ///
     /// # Returns
     ///
@@ -2204,9 +2160,9 @@ impl XTS {
     /// library return code on failure.
     pub fn decrypt_sector<I,O>(&mut self, din: &[I], dout: &mut [O], sector: u64) -> Result<(), i32> {
         let in_ptr = din.as_ptr() as *const u8;
-        let in_size = (din.len() * size_of::<I>()) as u32;
-        let out_ptr = dout.as_ptr() as *mut u8;
-        let out_size = (dout.len() * size_of::<O>()) as u32;
+        let in_size = size_of_val(din) as u32;
+        let out_ptr = dout.as_mut_ptr() as *mut u8;
+        let out_size = size_of_val(dout) as u32;
         if in_size != out_size {
             return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
@@ -2231,11 +2187,11 @@ impl XTS {
     ///
     /// * `din`: Data to decrypt.
     /// * `dout`: Buffer in which to store the decrypted data. The size of
-    /// the buffer must match that of the `din` buffer.
+    ///   the buffer must match that of the `din` buffer.
     /// * `sector`: Sector number to use for decryption operation. This value
-    /// is expanded into a tweak value.
+    ///   is expanded into a tweak value.
     /// * `sector_size`: Sector size. The `sector` value is internally
-    /// incremented every `sector_size` bytes.
+    ///   incremented every `sector_size` bytes.
     ///
     /// # Returns
     ///
@@ -2244,15 +2200,15 @@ impl XTS {
     pub fn decrypt_consecutive_sectors<I,O>(&mut self, din: &[I], dout: &mut [O],
             sector: u64, sector_size: u32) -> Result<(), i32> {
         let in_ptr = din.as_ptr() as *const u8;
-        let in_size = (din.len() * size_of::<I>()) as u32;
-        let out_ptr = dout.as_ptr() as *mut u8;
-        let out_size = (dout.len() * size_of::<O>()) as u32;
+        let in_size = size_of_val(din) as u32;
+        let out_ptr = dout.as_mut_ptr() as *mut u8;
+        let out_size = size_of_val(dout) as u32;
         if in_size != out_size {
             return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
         let rc = unsafe {
-            sys::wc_AesXtsDecryptConsecutiveSectors(&mut self.ws_xtsaes, out_ptr,
-                in_ptr, in_size, sector, sector_size)
+            sys::wc_AesXtsDecryptConsecutiveSectors(&mut self.ws_xtsaes,
+                out_ptr, in_ptr, in_size, sector, sector_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -2361,7 +2317,7 @@ impl XTSStream {
     /// # Parameters
     ///
     /// * `key`: A slice containing the encryption key to use. The key must be
-    /// 16, 24, or 32 bytes in length.
+    ///   16, 24, or 32 bytes in length.
     /// * `tweak`: Tweak value to use for the encryption operation.
     ///
     /// # Returns
@@ -2369,20 +2325,18 @@ impl XTSStream {
     /// A Result which is Ok(()) on success or an Err containing the wolfSSL
     /// library return code on failure.
     pub fn init_encrypt(&mut self, key: &[u8], tweak: &[u8]) -> Result<(), i32> {
-        let key_ptr = key.as_ptr() as *const u8;
         let key_size = key.len() as u32;
         let rc = unsafe {
-            sys::wc_AesXtsSetKeyNoInit(&mut self.ws_xtsaes, key_ptr, key_size,
-                sys::AES_ENCRYPTION as i32)
+            sys::wc_AesXtsSetKeyNoInit(&mut self.ws_xtsaes,
+                key.as_ptr(), key_size, sys::AES_ENCRYPTION as i32)
         };
         if rc != 0 {
             return Err(rc);
         }
-        let tweak_ptr = tweak.as_ptr() as *const u8;
         let tweak_size = tweak.len() as u32;
         let rc = unsafe {
-            sys::wc_AesXtsEncryptInit(&mut self.ws_xtsaes, tweak_ptr, tweak_size,
-                &mut self.ws_xtsaesstreamdata)
+            sys::wc_AesXtsEncryptInit(&mut self.ws_xtsaes,
+                tweak.as_ptr(), tweak_size, &mut self.ws_xtsaesstreamdata)
         };
         if rc != 0 {
             return Err(rc);
@@ -2397,7 +2351,7 @@ impl XTSStream {
     /// # Parameters
     ///
     /// * `key`: A slice containing the decryption key to use. The key must be
-    /// 16, 24, or 32 bytes in length.
+    ///   16, 24, or 32 bytes in length.
     /// * `tweak`: Tweak value to use for the decryption operation.
     ///
     /// # Returns
@@ -2405,20 +2359,18 @@ impl XTSStream {
     /// A Result which is Ok(()) on success or an Err containing the wolfSSL
     /// library return code on failure.
     pub fn init_decrypt(&mut self, key: &[u8], tweak: &[u8]) -> Result<(), i32> {
-        let key_ptr = key.as_ptr() as *const u8;
         let key_size = key.len() as u32;
         let rc = unsafe {
-            sys::wc_AesXtsSetKeyNoInit(&mut self.ws_xtsaes, key_ptr, key_size,
-                sys::AES_DECRYPTION as i32)
+            sys::wc_AesXtsSetKeyNoInit(&mut self.ws_xtsaes,
+                key.as_ptr(), key_size, sys::AES_DECRYPTION as i32)
         };
         if rc != 0 {
             return Err(rc);
         }
-        let tweak_ptr = tweak.as_ptr() as *const u8;
         let tweak_size = tweak.len() as u32;
         let rc = unsafe {
-            sys::wc_AesXtsDecryptInit(&mut self.ws_xtsaes, tweak_ptr, tweak_size,
-                &mut self.ws_xtsaesstreamdata)
+            sys::wc_AesXtsDecryptInit(&mut self.ws_xtsaes,
+                tweak.as_ptr(), tweak_size, &mut self.ws_xtsaesstreamdata)
         };
         if rc != 0 {
             return Err(rc);
@@ -2435,10 +2387,10 @@ impl XTSStream {
     /// # Parameters
     ///
     /// * `din`: Data to encrypt. The size of the data must be a multiple of
-    /// 16 bytes. A final chunk of data that is not a multiple of 16 bytes can
-    /// be passed in to `encrypt_final()`.
+    ///   16 bytes. A final chunk of data that is not a multiple of 16 bytes
+    ///   can be passed in to `encrypt_final()`.
     /// * `dout`: Buffer in which to store the encrypted data. The size of
-    /// the buffer must match that of the `din` buffer.
+    ///   the buffer must match that of the `din` buffer.
     ///
     /// # Returns
     ///
@@ -2446,9 +2398,9 @@ impl XTSStream {
     /// library return code on failure.
     pub fn encrypt_update<I,O>(&mut self, din: &[I], dout: &mut [O]) -> Result<(), i32> {
         let in_ptr = din.as_ptr() as *const u8;
-        let in_size = (din.len() * size_of::<I>()) as u32;
+        let in_size = size_of_val(din) as u32;
         let out_ptr = dout.as_ptr() as *mut u8;
-        let out_size = (dout.len() * size_of::<O>()) as u32;
+        let out_size = size_of_val(dout) as u32;
         if in_size != out_size {
             return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
@@ -2471,9 +2423,9 @@ impl XTSStream {
     /// # Parameters
     ///
     /// * `din`: Data to encrypt. The size of the data must be 0 or at least
-    /// 16 bytes. It does not need to be a multiple of 16 bytes.
+    ///   16 bytes. It does not need to be a multiple of 16 bytes.
     /// * `dout`: Buffer in which to store the encrypted data. The size of
-    /// the buffer must match that of the `din` buffer.
+    ///   the buffer must match that of the `din` buffer.
     ///
     /// # Returns
     ///
@@ -2481,9 +2433,9 @@ impl XTSStream {
     /// library return code on failure.
     pub fn encrypt_final<I,O>(&mut self, din: &[I], dout: &mut [O]) -> Result<(), i32> {
         let in_ptr = din.as_ptr() as *const u8;
-        let in_size = (din.len() * size_of::<I>()) as u32;
+        let in_size = size_of_val(din) as u32;
         let out_ptr = dout.as_ptr() as *mut u8;
-        let out_size = (dout.len() * size_of::<O>()) as u32;
+        let out_size = size_of_val(dout) as u32;
         if in_size != out_size {
             return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
@@ -2506,10 +2458,10 @@ impl XTSStream {
     /// # Parameters
     ///
     /// * `din`: Data to decrypt. The size of the data must be a multiple of
-    /// 16 bytes. A final chunk of data that is not a multiple of 16 bytes can
-    /// be passed in to `decrypt_final()`.
+    ///   16 bytes. A final chunk of data that is not a multiple of 16 bytes
+    ///   can be passed in to `decrypt_final()`.
     /// * `dout`: Buffer in which to store the decrypted data. The size of
-    /// the buffer must match that of the `din` buffer.
+    ///   the buffer must match that of the `din` buffer.
     ///
     /// # Returns
     ///
@@ -2517,9 +2469,9 @@ impl XTSStream {
     /// library return code on failure.
     pub fn decrypt_update<I,O>(&mut self, din: &[I], dout: &mut [O]) -> Result<(), i32> {
         let in_ptr = din.as_ptr() as *const u8;
-        let in_size = (din.len() * size_of::<I>()) as u32;
+        let in_size = size_of_val(din) as u32;
         let out_ptr = dout.as_ptr() as *mut u8;
-        let out_size = (dout.len() * size_of::<O>()) as u32;
+        let out_size = size_of_val(dout) as u32;
         if in_size != out_size {
             return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
@@ -2542,9 +2494,9 @@ impl XTSStream {
     /// # Parameters
     ///
     /// * `din`: Data to decrypt. The size of the data must be 0 or at least
-    /// 16 bytes. It does not need to be a multiple of 16 bytes.
+    ///   16 bytes. It does not need to be a multiple of 16 bytes.
     /// * `dout`: Buffer in which to store the decrypted data. The size of
-    /// the buffer must match that of the `din` buffer.
+    ///   the buffer must match that of the `din` buffer.
     ///
     /// # Returns
     ///
@@ -2552,9 +2504,9 @@ impl XTSStream {
     /// library return code on failure.
     pub fn decrypt_final<I,O>(&mut self, din: &[I], dout: &mut [O]) -> Result<(), i32> {
         let in_ptr = din.as_ptr() as *const u8;
-        let in_size = (din.len() * size_of::<I>()) as u32;
+        let in_size = size_of_val(din) as u32;
         let out_ptr = dout.as_ptr() as *mut u8;
-        let out_size = (dout.len() * size_of::<O>()) as u32;
+        let out_size = size_of_val(dout) as u32;
         if in_size != out_size {
             return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }

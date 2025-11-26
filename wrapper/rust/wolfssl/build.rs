@@ -55,15 +55,12 @@ fn generate_bindings() -> Result<()> {
         .clang_arg(format!("-I{}", wolfssl_base_dir()?))
         .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         .generate()
-        .map_err(|_| io::Error::new(io::ErrorKind::Other, "Failed to generate bindings"))?;
+        .map_err(|_| io::Error::other("Failed to generate bindings"))?;
 
     bindings
         .write_to_file(bindings_path())
         .map_err(|e| {
-            io::Error::new(
-                io::ErrorKind::Other,
-                format!("Couldn't write bindings: {}", e),
-            )
+            io::Error::other(format!("Couldn't write bindings: {}", e))
         })
 }
 

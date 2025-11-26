@@ -339,11 +339,9 @@ pub fn tls13_hkdf_extract_ex(typ: i32, salt: Option<&[u8]>, key: Option<&mut [u8
     let mut ikm_buf = [0u8; sys::WC_MAX_DIGEST_SIZE as usize];
     let mut ikm_ptr = ikm_buf.as_mut_ptr();
     let mut ikm_size = 0u32;
-    if let Some(key) = key {
-        if key.len() > 0 {
-            ikm_ptr = key.as_mut_ptr();
-            ikm_size = key.len() as u32;
-        }
+    if let Some(key) = key && !key.is_empty() {
+        ikm_ptr = key.as_mut_ptr();
+        ikm_size = key.len() as u32;
     }
     if out.len() != HMAC::get_hmac_size_by_type(typ)? {
         return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
@@ -473,6 +471,7 @@ pub fn tls13_hkdf_expand_label(typ: i32, key: &[u8], protocol: &[u8], label: &[u
 /// }
 /// ```
 #[cfg(kdf_tls13)]
+#[allow(clippy::too_many_arguments)]
 pub fn tls13_hkdf_expand_label_ex(typ: i32, key: &[u8], protocol: &[u8], label: &[u8], info: &[u8], out: &mut [u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
     let key_size = key.len() as u32;
     let protocol_size = protocol.len() as u32;
