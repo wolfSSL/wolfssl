@@ -1454,7 +1454,12 @@
 
         static __always_inline int wc_InitMutex(wolfSSL_Mutex* m)
         {
+        /* Tegra vendor kernels do not support assignment of __SPIN_LOCK_UNLOCKED() */
+        # ifndef CONFIG_ARCH_TEGRA
             m->lock = __SPIN_LOCK_UNLOCKED(m);
+        # else
+            spin_lock_init(&m->lock);
+        #endif
             m->irq_flags = 0;
 
             return 0;
