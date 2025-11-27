@@ -656,6 +656,9 @@ const char* wc_GetErrorString(int error)
     case INTERRUPTED_E:
         return "Process interrupted";
 
+    case MLKEM_PUB_HASH_E:
+        return "ML-KEM priv key's stored hash doesn't match encoded pub key";
+
     case MAX_CODE_E:
     case WC_SPAN1_MIN_CODE_E:
     case MIN_CODE_E:

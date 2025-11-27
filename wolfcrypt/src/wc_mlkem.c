@@ -1689,7 +1689,15 @@ int wc_MlKemKey_DecodePrivateKey(MlKemKey* key, const unsigned char* in,
 
         /* Decode the public key that is after the private key. */
         mlkemkey_decode_public(key->pub, key->pubSeed, p, k);
+        /* Compute the hash of the public key. */
+        ret = MLKEM_HASH_H(&key->hash, p, pubLen, key->h);
         p += pubLen;
+    }
+
+    if (ret == 0) {
+        /* Compare computed public key hash with stored hash */
+        if (XMEMCMP(key->h, p, WC_ML_KEM_SYM_SZ) != 0)
+            ret = MLKEM_PUB_HASH_E;
 
         /* Copy the hash of the encoded public key that is after public key. */
         XMEMCPY(key->h, p, sizeof(key->h));
