@@ -602,6 +602,11 @@ WOLFSSL_API  int wolfIO_RecvFrom(SOCKET_T sd, WOLFSSL_BIO_ADDR *addr, char *buf,
                                 } while(0)
     #endif
     #define StartTCP() WC_DO_NOTHING
+#elif defined(FREESCALE_MQX)
+    #ifndef CloseSocket
+        #define CloseSocket(s) closesocket(s)
+    #endif
+    #define StartTCP() WC_DO_NOTHING
 #else
     #ifndef CloseSocket
         #define CloseSocket(s) close(s)
@@ -987,6 +992,8 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
         #else
             #define XINET_PTON(a,b,c)   InetPton((a),(PCWSTR)(b),(c))
         #endif
+    #elif defined(FREESCALE_MQX)
+        #define XINET_PTON(a,b,c,d) inet_pton((a),(b),(c),(d))
     #else
         #define XINET_PTON(a,b,c)   inet_pton((a),(b),(c))
     #endif

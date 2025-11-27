@@ -56,14 +56,22 @@
     /* default */
     #define XINET_NTOA inet_ntoa
     #define XINET_ATON inet_aton
+#ifdef FREESCALE_MQX
+    #define XINET_PTON(a,b,c,d) inet_pton((a),(b),(c),(d))
+#else
     #define XINET_PTON(a,b,c) inet_pton((a),(b),(c))
+#endif
     #define XINET_NTOP inet_ntop
     #define XINET_ADDR inet_addr
     #define XHTONS htons
     #define XNTOHS ntohs
     #define XHTONL htonl
     #define XNTOHL ntohl
+#ifdef FREESCALE_MQX
+    #define XINADDR_NONE INADDR_BROADCAST
+#else
     #define XINADDR_NONE INADDR_NONE
+#endif
 #endif
 
 #if !defined(WOLFCRYPT_ONLY) && !defined(NO_FILESYSTEM)
@@ -76,7 +84,7 @@
     #ifdef TCP_PROTOCOL
         #undef TCP_PROTOCOL
     #endif
-#else
+#elif !defined(FREESCALE_MQX)
     #ifndef _WIN32
         #include <arpa/inet.h>
     #else
@@ -1817,6 +1825,9 @@ static int SetNamedPrivateKey(const char* name, const char* address, int port,
     #ifdef FUSION_RTOS
         if (XINET_PTON(AF_INET6, address, serverIp.ip6,
                        sizeof(serverIp.ip4)) == 1)
+    #elif defined(FREESCALE_MQX)
+        if (XINET_PTON(AF_INET6, address, serverIp.ip6,
+                       sizeof(serverIp.ip6)) == RTCS_OK)
     #else
         if (XINET_PTON(AF_INET6, address, serverIp.ip6) == 1)
     #endif
@@ -7672,6 +7683,9 @@ int ssl_RemoveSession(const char* clientIp, int clientPort,
     #ifdef FUSION_RTOS
         if (XINET_PTON(AF_INET6, clientIp, clientAddr.ip6,
                        sizeof(clientAddr.ip4)) == 1)
+    #elif defined(FREESCALE_MQX)
+        if (XINET_PTON(AF_INET6, clientIp, clientAddr.ip6,
+                       sizeof(clientAddr.ip6)) == RTCS_OK)
     #else
         if (XINET_PTON(AF_INET6, clientIp, clientAddr.ip6) == 1)
     #endif
@@ -7691,6 +7705,9 @@ int ssl_RemoveSession(const char* clientIp, int clientPort,
     #ifdef FUSION_RTOS
         if (XINET_PTON(AF_INET6, serverIp, serverAddr.ip6,
                        sizeof(serverAddr.ip4)) == 1)
+    #elif defined(FREESCALE_MQX)
+        if (XINET_PTON(AF_INET6, clientIp, clientAddr.ip6,
+                       sizeof(clientAddr.ip6)) == RTCS_OK)
     #else
         if (XINET_PTON(AF_INET6, serverIp, serverAddr.ip6) == 1)
     #endif

@@ -935,6 +935,7 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XSEEK_END               IO_SEEK_END
     #define XBADFILE                NULL
     #define XFGETS                  fgets
+    #define XFPRINTF                fprintf
 
 #elif defined(WOLFSSL_DEOS)
     #define NO_FILESYSTEM
