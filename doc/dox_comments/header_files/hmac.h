@@ -608,3 +608,510 @@ int wc_Tls13_HKDF_Expand_Label_Alloc(
     const byte* label, word32 labelLen,
     const byte* info, word32 infoLen,
     int digest, void* heap);
+
+/*!
+    \ingroup HMAC
+    \brief One-shot HMAC computation for OpenSSL compatibility.
+
+    \return Pointer to md buffer on success
+    \return NULL on failure
+
+    \param evp_md Message digest type
+    \param key HMAC key
+    \param key_len Key length
+    \param d Data to authenticate
+    \param n Data length
+    \param md Output buffer (can be NULL to use internal buffer)
+    \param md_len Output length (can be NULL)
+
+    _Example_
+    \code
+    byte key[16], data[64], mac[32];
+    unsigned int macLen;
+    
+    unsigned char* ret = wolfSSL_HMAC(wolfSSL_EVP_sha256(), key,
+                                      sizeof(key), data, sizeof(data),
+                                      mac, &macLen);
+    \endcode
+
+    \sa wolfSSL_HMAC_Init
+*/
+unsigned char* wolfSSL_HMAC(const WOLFSSL_EVP_MD* evp_md,
+                           const void* key, int key_len,
+                           const unsigned char* d, size_t n,
+                           unsigned char* md, unsigned int* md_len);
+
+/*!
+    \ingroup HMAC
+    \brief Allocates and initializes WOLFSSL_HMAC_CTX for OpenSSL
+    compatibility.
+
+    \return Pointer to WOLFSSL_HMAC_CTX on success
+    \return NULL on failure
+
+    _Example_
+    \code
+    WOLFSSL_HMAC_CTX* ctx = wolfSSL_HMAC_CTX_new();
+    if (ctx == NULL) {
+        // error
+    }
+    wolfSSL_HMAC_CTX_free(ctx);
+    \endcode
+
+    \sa wolfSSL_HMAC_CTX_free
+*/
+WOLFSSL_HMAC_CTX* wolfSSL_HMAC_CTX_new(void);
+
+/*!
+    \ingroup HMAC
+    \brief Initializes WOLFSSL_HMAC_CTX for OpenSSL compatibility.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx Pointer to WOLFSSL_HMAC_CTX
+
+    _Example_
+    \code
+    WOLFSSL_HMAC_CTX ctx;
+    int ret = wolfSSL_HMAC_CTX_Init(&ctx);
+    \endcode
+
+    \sa wolfSSL_HMAC_CTX_new
+*/
+int wolfSSL_HMAC_CTX_Init(WOLFSSL_HMAC_CTX* ctx);
+
+/*!
+    \ingroup HMAC
+    \brief Copies HMAC context for OpenSSL compatibility.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param des Destination context
+    \param src Source context
+
+    _Example_
+    \code
+    WOLFSSL_HMAC_CTX src, des;
+    wolfSSL_HMAC_Init(&src, key, keyLen, md);
+    int ret = wolfSSL_HMAC_CTX_copy(&des, &src);
+    \endcode
+
+    \sa wolfSSL_HMAC_CTX_Init
+*/
+int wolfSSL_HMAC_CTX_copy(WOLFSSL_HMAC_CTX* des,
+                         WOLFSSL_HMAC_CTX* src);
+
+/*!
+    \ingroup HMAC
+    \brief Initializes HMAC with key and type for OpenSSL compatibility.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx Pointer to WOLFSSL_HMAC_CTX
+    \param key HMAC key
+    \param keylen Key length
+    \param type Message digest type
+
+    _Example_
+    \code
+    WOLFSSL_HMAC_CTX* ctx = wolfSSL_HMAC_CTX_new();
+    byte key[16];
+    int ret = wolfSSL_HMAC_Init(ctx, key, sizeof(key),
+                                wolfSSL_EVP_sha256());
+    \endcode
+
+    \sa wolfSSL_HMAC_Init_ex
+*/
+int wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key,
+                     int keylen, const WOLFSSL_EVP_MD* type);
+
+/*!
+    \ingroup HMAC
+    \brief Extended HMAC initialization for OpenSSL compatibility.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx Pointer to WOLFSSL_HMAC_CTX
+    \param key HMAC key
+    \param keylen Key length
+    \param type Message digest type
+    \param e Engine (unused, for compatibility)
+
+    _Example_
+    \code
+    WOLFSSL_HMAC_CTX* ctx = wolfSSL_HMAC_CTX_new();
+    byte key[16];
+    int ret = wolfSSL_HMAC_Init_ex(ctx, key, sizeof(key),
+                                   wolfSSL_EVP_sha256(), NULL);
+    \endcode
+
+    \sa wolfSSL_HMAC_Init
+*/
+int wolfSSL_HMAC_Init_ex(WOLFSSL_HMAC_CTX* ctx, const void* key,
+                        int keylen, const WOLFSSL_EVP_MD* type,
+                        WOLFSSL_ENGINE* e);
+
+/*!
+    \ingroup HMAC
+    \brief Updates HMAC with data for OpenSSL compatibility.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx Pointer to WOLFSSL_HMAC_CTX
+    \param data Input data
+    \param len Data length
+
+    _Example_
+    \code
+    WOLFSSL_HMAC_CTX* ctx;
+    byte data[64];
+    wolfSSL_HMAC_Init_ex(ctx, key, keyLen, md, NULL);
+    int ret = wolfSSL_HMAC_Update(ctx, data, sizeof(data));
+    \endcode
+
+    \sa wolfSSL_HMAC_Init_ex
+    \sa wolfSSL_HMAC_Final
+*/
+int wolfSSL_HMAC_Update(WOLFSSL_HMAC_CTX* ctx,
+                       const unsigned char* data, int len);
+
+/*!
+    \ingroup HMAC
+    \brief Finalizes HMAC computation for OpenSSL compatibility.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx Pointer to WOLFSSL_HMAC_CTX
+    \param hash Output buffer
+    \param len Output length
+
+    _Example_
+    \code
+    WOLFSSL_HMAC_CTX* ctx;
+    byte mac[32];
+    unsigned int macLen;
+    wolfSSL_HMAC_Init_ex(ctx, key, keyLen, md, NULL);
+    wolfSSL_HMAC_Update(ctx, data, dataLen);
+    int ret = wolfSSL_HMAC_Final(ctx, mac, &macLen);
+    \endcode
+
+    \sa wolfSSL_HMAC_Update
+*/
+int wolfSSL_HMAC_Final(WOLFSSL_HMAC_CTX* ctx, unsigned char* hash,
+                      unsigned int* len);
+
+/*!
+    \ingroup HMAC
+    \brief Cleans up HMAC context for OpenSSL compatibility.
+
+    \return WOLFSSL_SUCCESS on success
+
+    \param ctx Pointer to WOLFSSL_HMAC_CTX
+
+    _Example_
+    \code
+    WOLFSSL_HMAC_CTX* ctx;
+    // use ctx
+    int ret = wolfSSL_HMAC_cleanup(ctx);
+    \endcode
+
+    \sa wolfSSL_HMAC_CTX_cleanup
+*/
+int wolfSSL_HMAC_cleanup(WOLFSSL_HMAC_CTX* ctx);
+
+/*!
+    \ingroup HMAC
+    \brief Cleans up HMAC context for OpenSSL compatibility.
+
+    \param ctx Pointer to WOLFSSL_HMAC_CTX
+
+    _Example_
+    \code
+    WOLFSSL_HMAC_CTX ctx;
+    // use ctx
+    wolfSSL_HMAC_CTX_cleanup(&ctx);
+    \endcode
+
+    \sa wolfSSL_HMAC_cleanup
+*/
+void wolfSSL_HMAC_CTX_cleanup(WOLFSSL_HMAC_CTX* ctx);
+
+/*!
+    \ingroup HMAC
+    \brief Frees WOLFSSL_HMAC_CTX for OpenSSL compatibility.
+
+    \param ctx Pointer to WOLFSSL_HMAC_CTX
+
+    _Example_
+    \code
+    WOLFSSL_HMAC_CTX* ctx = wolfSSL_HMAC_CTX_new();
+    // use ctx
+    wolfSSL_HMAC_CTX_free(ctx);
+    \endcode
+
+    \sa wolfSSL_HMAC_CTX_new
+*/
+void wolfSSL_HMAC_CTX_free(WOLFSSL_HMAC_CTX* ctx);
+
+/*!
+    \ingroup HMAC
+    \brief Returns HMAC output size for OpenSSL compatibility.
+
+    \return HMAC size in bytes
+    \return 0 on error
+
+    \param ctx Pointer to WOLFSSL_HMAC_CTX
+
+    _Example_
+    \code
+    WOLFSSL_HMAC_CTX* ctx;
+    wolfSSL_HMAC_Init_ex(ctx, key, keyLen, md, NULL);
+    size_t sz = wolfSSL_HMAC_size(ctx);
+    \endcode
+
+    \sa wolfSSL_HMAC_Init_ex
+*/
+size_t wolfSSL_HMAC_size(const WOLFSSL_HMAC_CTX *ctx);
+
+/*!
+    \ingroup HMAC
+    \brief Extended HMAC key setup with allow flag.
+
+    \return 0 on success
+    \return BAD_FUNC_ARG if parameters invalid
+
+    \param hmac Pointer to Hmac structure
+    \param type Hash type (WC_SHA256, etc.)
+    \param key HMAC key
+    \param length Key length
+    \param allowFlag Allow zero-length keys if non-zero
+
+    _Example_
+    \code
+    Hmac hmac;
+    byte key[16];
+    int ret = wc_HmacSetKey_ex(&hmac, WC_SHA256, key, sizeof(key),
+                               0);
+    \endcode
+
+    \sa wc_HmacSetKey
+*/
+int wc_HmacSetKey_ex(Hmac* hmac, int type, const byte* key,
+                    word32 length, int allowFlag);
+
+/*!
+    \ingroup HMAC
+    \brief Software-only HMAC key setup.
+
+    \return 0 on success
+    \return BAD_FUNC_ARG if parameters invalid
+
+    \param hmac Pointer to Hmac structure
+    \param type Hash type
+    \param key HMAC key
+    \param keySz Key length
+
+    _Example_
+    \code
+    Hmac hmac;
+    byte key[16];
+    int ret = wc_HmacSetKey_Software(&hmac, WC_SHA256, key,
+                                     sizeof(key));
+    \endcode
+
+    \sa wc_HmacSetKey
+*/
+int wc_HmacSetKey_Software(Hmac* hmac, int type, const byte* key,
+                          word32 keySz);
+
+/*!
+    \ingroup HMAC
+    \brief Software-only HMAC update.
+
+    \return 0 on success
+    \return BAD_FUNC_ARG if parameters invalid
+
+    \param hmac Pointer to Hmac structure
+    \param in Input data
+    \param sz Data length
+
+    _Example_
+    \code
+    Hmac hmac;
+    byte data[64];
+    int ret = wc_HmacUpdate_Software(&hmac, data, sizeof(data));
+    \endcode
+
+    \sa wc_HmacUpdate
+*/
+int wc_HmacUpdate_Software(Hmac* hmac, const byte* in, word32 sz);
+
+/*!
+    \ingroup HMAC
+    \brief Software-only HMAC finalization.
+
+    \return 0 on success
+    \return BAD_FUNC_ARG if parameters invalid
+
+    \param hmac Pointer to Hmac structure
+    \param out Output buffer
+
+    _Example_
+    \code
+    Hmac hmac;
+    byte mac[WC_SHA256_DIGEST_SIZE];
+    int ret = wc_HmacFinal_Software(&hmac, mac);
+    \endcode
+
+    \sa wc_HmacFinal
+*/
+int wc_HmacFinal_Software(Hmac* hmac, byte* out);
+
+/*!
+    \ingroup HMAC
+    \brief Returns HMAC output size for given hash type.
+
+    \return HMAC size in bytes
+    \return BAD_FUNC_ARG if type invalid
+
+    \param type Hash type (WC_SHA256, etc.)
+
+    _Example_
+    \code
+    int sz = wc_HmacSizeByType(WC_SHA256);
+    \endcode
+
+    \sa wc_HmacSetKey
+*/
+int wc_HmacSizeByType(int type);
+
+/*!
+    \ingroup HMAC
+    \brief Initializes Hmac structure with heap and device ID.
+
+    \return 0 on success
+    \return BAD_FUNC_ARG if hmac is NULL
+
+    \param hmac Pointer to Hmac structure
+    \param heap Heap hint (can be NULL)
+    \param devId Device ID (INVALID_DEVID for software)
+
+    _Example_
+    \code
+    Hmac hmac;
+    int ret = wc_HmacInit(&hmac, NULL, INVALID_DEVID);
+    wc_HmacFree(&hmac);
+    \endcode
+
+    \sa wc_HmacFree
+*/
+int wc_HmacInit(Hmac* hmac, void* heap, int devId);
+
+/*!
+    \ingroup HMAC
+    \brief Initializes Hmac with ID for hardware.
+
+    \return 0 on success
+    \return BAD_FUNC_ARG if parameters invalid
+
+    \param hmac Pointer to Hmac structure
+    \param id ID buffer
+    \param len ID length
+    \param heap Heap hint (can be NULL)
+    \param devId Device ID
+
+    _Example_
+    \code
+    Hmac hmac;
+    byte id[16];
+    int ret = wc_HmacInit_Id(&hmac, id, sizeof(id), NULL,
+                             INVALID_DEVID);
+    \endcode
+
+    \sa wc_HmacInit
+*/
+int wc_HmacInit_Id(Hmac* hmac, byte* id, int len, void* heap,
+                  int devId);
+
+/*!
+    \ingroup HMAC
+    \brief Initializes Hmac with label for hardware.
+
+    \return 0 on success
+    \return BAD_FUNC_ARG if parameters invalid
+
+    \param hmac Pointer to Hmac structure
+    \param label Label string
+    \param heap Heap hint (can be NULL)
+    \param devId Device ID
+
+    _Example_
+    \code
+    Hmac hmac;
+    int ret = wc_HmacInit_Label(&hmac, "myhmac", NULL,
+                                INVALID_DEVID);
+    \endcode
+
+    \sa wc_HmacInit
+*/
+int wc_HmacInit_Label(Hmac* hmac, const char* label, void* heap,
+                     int devId);
+
+/*!
+    \ingroup HMAC
+    \brief Frees Hmac structure resources.
+
+    \param hmac Pointer to Hmac structure
+
+    _Example_
+    \code
+    Hmac hmac;
+    wc_HmacInit(&hmac, NULL, INVALID_DEVID);
+    // use hmac
+    wc_HmacFree(&hmac);
+    \endcode
+
+    \sa wc_HmacInit
+*/
+void wc_HmacFree(Hmac* hmac);
+
+/*!
+    \ingroup HMAC
+    \brief HKDF with extended parameters including heap and device ID.
+
+    \return 0 on success
+    \return BAD_FUNC_ARG if parameters invalid
+
+    \param type Hash type
+    \param inKey Input key
+    \param inKeySz Input key size
+    \param salt Salt (can be NULL)
+    \param saltSz Salt size
+    \param info Info (can be NULL)
+    \param infoSz Info size
+    \param out Output buffer
+    \param outSz Output size
+    \param heap Heap hint (can be NULL)
+    \param devId Device ID (INVALID_DEVID for software)
+
+    _Example_
+    \code
+    byte key[32], salt[16], out[64];
+    int ret = wc_HKDF_ex(WC_SHA256, key, sizeof(key), salt,
+                         sizeof(salt), NULL, 0, out, sizeof(out),
+                         NULL, INVALID_DEVID);
+    \endcode
+
+    \sa wc_HKDF
+*/
+int wc_HKDF_ex(int type, const byte* inKey, word32 inKeySz,
+              const byte* salt, word32 saltSz,
+              const byte* info, word32 infoSz,
+              byte* out, word32 outSz,
+              void* heap, int devId);

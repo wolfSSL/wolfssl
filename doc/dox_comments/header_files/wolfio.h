@@ -666,3 +666,801 @@ WOLFSSL_API void wolfSSL_SetRecvFrom(WOLFSSL* ssl, WolfSSLRecvFrom recvFrom);
     \sa wolfSSL_SSLSetIOSend
 */
 WOLFSSL_API void wolfSSL_SetSendTo(WOLFSSL* ssl, WolfSSLSento sendTo);
+
+/*!
+    \ingroup IO
+    \brief Waits for socket to be ready for I/O with timeout.
+
+    \return 0 on success
+    \return negative on error
+
+    \param sockfd Socket file descriptor
+    \param to_sec Timeout in seconds
+
+    _Example_
+    \code
+    SOCKET_T sockfd;
+    int ret = wolfIO_Select(sockfd, 5);
+    \endcode
+
+    \sa wolfIO_TcpConnect
+*/
+int wolfIO_Select(SOCKET_T sockfd, int to_sec);
+
+/*!
+    \ingroup IO
+    \brief Connects to TCP server with timeout.
+
+    \return 0 on success
+    \return negative on error
+
+    \param sockfd Pointer to socket file descriptor
+    \param ip IP address string
+    \param port Port number
+    \param to_sec Timeout in seconds
+
+    _Example_
+    \code
+    SOCKET_T sockfd;
+    int ret = wolfIO_TcpConnect(&sockfd, "127.0.0.1", 443, 5);
+    \endcode
+
+    \sa wolfIO_TcpBind
+*/
+int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip,
+                      unsigned short port, int to_sec);
+
+/*!
+    \ingroup IO
+    \brief Accepts TCP connection.
+
+    \return Socket descriptor on success
+    \return negative on error
+
+    \param sockfd Socket file descriptor
+    \param peer_addr Peer address structure
+    \param peer_len Peer address length
+
+    _Example_
+    \code
+    SOCKET_T sockfd;
+    SOCKADDR peer;
+    XSOCKLENT len = sizeof(peer);
+    int ret = wolfIO_TcpAccept(sockfd, &peer, &len);
+    \endcode
+
+    \sa wolfIO_TcpBind
+*/
+int wolfIO_TcpAccept(SOCKET_T sockfd, SOCKADDR* peer_addr,
+                     XSOCKLENT* peer_len);
+
+/*!
+    \ingroup IO
+    \brief Binds TCP socket to port.
+
+    \return 0 on success
+    \return negative on error
+
+    \param sockfd Pointer to socket file descriptor
+    \param port Port number
+
+    _Example_
+    \code
+    SOCKET_T sockfd;
+    int ret = wolfIO_TcpBind(&sockfd, 443);
+    \endcode
+
+    \sa wolfIO_TcpAccept
+*/
+int wolfIO_TcpBind(SOCKET_T* sockfd, word16 port);
+
+/*!
+    \ingroup IO
+    \brief Sends data on socket.
+
+    \return Number of bytes sent on success
+    \return negative on error
+
+    \param sd Socket descriptor
+    \param buf Buffer to send
+    \param sz Buffer size
+    \param wrFlags Write flags
+
+    _Example_
+    \code
+    SOCKET_T sd;
+    char buf[100];
+    int ret = wolfIO_Send(sd, buf, sizeof(buf), 0);
+    \endcode
+
+    \sa wolfIO_Recv
+*/
+int wolfIO_Send(SOCKET_T sd, char *buf, int sz, int wrFlags);
+
+/*!
+    \ingroup IO
+    \brief Receives data from socket.
+
+    \return Number of bytes received on success
+    \return negative on error
+
+    \param sd Socket descriptor
+    \param buf Buffer to receive into
+    \param sz Buffer size
+    \param rdFlags Read flags
+
+    _Example_
+    \code
+    SOCKET_T sd;
+    char buf[100];
+    int ret = wolfIO_Recv(sd, buf, sizeof(buf), 0);
+    \endcode
+
+    \sa wolfIO_Send
+*/
+int wolfIO_Recv(SOCKET_T sd, char *buf, int sz, int rdFlags);
+
+/*!
+    \ingroup IO
+    \brief Sends datagram to address.
+
+    \return Number of bytes sent on success
+    \return negative on error
+
+    \param sd Socket descriptor
+    \param addr Destination address
+    \param buf Buffer to send
+    \param sz Buffer size
+    \param wrFlags Write flags
+
+    _Example_
+    \code
+    SOCKET_T sd;
+    WOLFSSL_BIO_ADDR addr;
+    char buf[100];
+    int ret = wolfIO_SendTo(sd, &addr, buf, sizeof(buf), 0);
+    \endcode
+
+    \sa wolfIO_RecvFrom
+*/
+int wolfIO_SendTo(SOCKET_T sd, WOLFSSL_BIO_ADDR *addr, char *buf, int sz,
+                  int wrFlags);
+
+/*!
+    \ingroup IO
+    \brief Receives datagram from address.
+
+    \return Number of bytes received on success
+    \return negative on error
+
+    \param sd Socket descriptor
+    \param addr Source address
+    \param buf Buffer to receive into
+    \param sz Buffer size
+    \param rdFlags Read flags
+
+    _Example_
+    \code
+    SOCKET_T sd;
+    WOLFSSL_BIO_ADDR addr;
+    char buf[100];
+    int ret = wolfIO_RecvFrom(sd, &addr, buf, sizeof(buf), 0);
+    \endcode
+
+    \sa wolfIO_SendTo
+*/
+int wolfIO_RecvFrom(SOCKET_T sd, WOLFSSL_BIO_ADDR *addr, char *buf, int sz,
+                    int rdFlags);
+
+/*!
+    \ingroup IO
+    \brief BIO send callback.
+
+    \return Number of bytes sent on success
+    \return negative on error
+
+    \param ssl SSL object
+    \param buf Buffer to send
+    \param sz Buffer size
+    \param ctx Context pointer
+
+    _Example_
+    \code
+    WOLFSSL* ssl;
+    char buf[100];
+    int ret = wolfSSL_BioSend(ssl, buf, sizeof(buf), NULL);
+    \endcode
+
+    \sa wolfSSL_BioReceive
+*/
+int wolfSSL_BioSend(WOLFSSL* ssl, char *buf, int sz, void *ctx);
+
+/*!
+    \ingroup IO
+    \brief BIO receive callback.
+
+    \return Number of bytes received on success
+    \return negative on error
+
+    \param ssl SSL object
+    \param buf Buffer to receive into
+    \param sz Buffer size
+    \param ctx Context pointer
+
+    _Example_
+    \code
+    WOLFSSL* ssl;
+    char buf[100];
+    int ret = wolfSSL_BioReceive(ssl, buf, sizeof(buf), NULL);
+    \endcode
+
+    \sa wolfSSL_BioSend
+*/
+int wolfSSL_BioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
+
+/*!
+    \ingroup IO
+    \brief Receives multicast datagram.
+
+    \return Number of bytes received on success
+    \return negative on error
+
+    \param ssl SSL object
+    \param buf Buffer to receive into
+    \param sz Buffer size
+    \param ctx Context pointer
+
+    _Example_
+    \code
+    WOLFSSL* ssl;
+    char buf[100];
+    int ret = EmbedReceiveFromMcast(ssl, buf, sizeof(buf), NULL);
+    \endcode
+
+    \sa EmbedReceiveFrom
+*/
+int EmbedReceiveFromMcast(WOLFSSL *ssl, char *buf, int sz, void *ctx);
+
+/*!
+    \ingroup IO
+    \brief Builds HTTP OCSP request.
+
+    \return Request size on success
+    \return negative on error
+
+    \param domainName Domain name
+    \param path URL path
+    \param ocspReqSz OCSP request size
+    \param buf Output buffer
+    \param bufSize Buffer size
+
+    _Example_
+    \code
+    char buf[1024];
+    int ret = wolfIO_HttpBuildRequestOcsp("example.com", "/ocsp", 100,
+                                          (unsigned char*)buf, sizeof(buf));
+    \endcode
+
+    \sa wolfIO_HttpProcessResponseOcsp
+*/
+int wolfIO_HttpBuildRequestOcsp(const char* domainName, const char* path,
+                                 int ocspReqSz, unsigned char* buf,
+                                 int bufSize);
+
+/*!
+    \ingroup IO
+    \brief Processes HTTP OCSP response with generic I/O.
+
+    \return 0 on success
+    \return negative on error
+
+    \param ioCb I/O callback
+    \param ioCbCtx I/O callback context
+    \param respBuf Response buffer pointer
+    \param httpBuf HTTP buffer
+    \param httpBufSz HTTP buffer size
+    \param heap Heap hint
+
+    _Example_
+    \code
+    unsigned char* resp = NULL;
+    unsigned char httpBuf[1024];
+    int ret = wolfIO_HttpProcessResponseOcspGenericIO(myIoCb, ctx, &resp,
+                                                      httpBuf,
+                                                      sizeof(httpBuf), NULL);
+    \endcode
+
+    \sa wolfIO_HttpProcessResponseOcsp
+*/
+int wolfIO_HttpProcessResponseOcspGenericIO(WolfSSLGenericIORecvCb ioCb,
+                                            void* ioCbCtx,
+                                            unsigned char** respBuf,
+                                            unsigned char* httpBuf,
+                                            int httpBufSz, void* heap);
+
+/*!
+    \ingroup IO
+    \brief Processes HTTP OCSP response.
+
+    \return 0 on success
+    \return negative on error
+
+    \param sfd Socket file descriptor
+    \param respBuf Response buffer pointer
+    \param httpBuf HTTP buffer
+    \param httpBufSz HTTP buffer size
+    \param heap Heap hint
+
+    _Example_
+    \code
+    int sfd;
+    unsigned char* resp = NULL;
+    unsigned char httpBuf[1024];
+    int ret = wolfIO_HttpProcessResponseOcsp(sfd, &resp, httpBuf,
+                                             sizeof(httpBuf), NULL);
+    \endcode
+
+    \sa wolfIO_HttpBuildRequestOcsp
+*/
+int wolfIO_HttpProcessResponseOcsp(int sfd, unsigned char** respBuf,
+                                   unsigned char* httpBuf, int httpBufSz,
+                                   void* heap);
+
+/*!
+    \ingroup IO
+    \brief OCSP lookup callback.
+
+    \return 0 on success
+    \return negative on error
+
+    \param ctx Context pointer
+    \param url URL string
+    \param urlSz URL size
+    \param ocspReqBuf OCSP request buffer
+    \param ocspReqSz OCSP request size
+    \param ocspRespBuf OCSP response buffer pointer
+
+    _Example_
+    \code
+    byte* resp = NULL;
+    byte req[100];
+    int ret = EmbedOcspLookup(NULL, "http://example.com/ocsp", 25, req,
+                              sizeof(req), &resp);
+    \endcode
+
+    \sa EmbedOcspRespFree
+*/
+int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
+                    byte* ocspReqBuf, int ocspReqSz, byte** ocspRespBuf);
+
+/*!
+    \ingroup IO
+    \brief Builds HTTP CRL request.
+
+    \return Request size on success
+    \return negative on error
+
+    \param url URL string
+    \param urlSz URL size
+    \param domainName Domain name
+    \param buf Output buffer
+    \param bufSize Buffer size
+
+    _Example_
+    \code
+    char buf[1024];
+    int ret = wolfIO_HttpBuildRequestCrl("http://example.com/crl", 22,
+                                         "example.com",
+                                         (unsigned char*)buf, sizeof(buf));
+    \endcode
+
+    \sa wolfIO_HttpProcessResponseCrl
+*/
+int wolfIO_HttpBuildRequestCrl(const char* url, int urlSz,
+                                const char* domainName, unsigned char* buf,
+                                int bufSize);
+
+/*!
+    \ingroup IO
+    \brief Processes HTTP CRL response.
+
+    \return 0 on success
+    \return negative on error
+
+    \param crl CRL object
+    \param sfd Socket file descriptor
+    \param httpBuf HTTP buffer
+    \param httpBufSz HTTP buffer size
+
+    _Example_
+    \code
+    WOLFSSL_CRL crl;
+    int sfd;
+    unsigned char httpBuf[1024];
+    int ret = wolfIO_HttpProcessResponseCrl(&crl, sfd, httpBuf,
+                                            sizeof(httpBuf));
+    \endcode
+
+    \sa wolfIO_HttpBuildRequestCrl
+*/
+int wolfIO_HttpProcessResponseCrl(WOLFSSL_CRL* crl, int sfd,
+                                  unsigned char* httpBuf, int httpBufSz);
+
+/*!
+    \ingroup IO
+    \brief CRL lookup callback.
+
+    \return 0 on success
+    \return negative on error
+
+    \param crl CRL object
+    \param url URL string
+    \param urlSz URL size
+
+    _Example_
+    \code
+    WOLFSSL_CRL crl;
+    int ret = EmbedCrlLookup(&crl, "http://example.com/crl", 22);
+    \endcode
+
+    \sa wolfIO_HttpBuildRequestCrl
+*/
+int EmbedCrlLookup(WOLFSSL_CRL* crl, const char* url, int urlSz);
+
+/*!
+    \ingroup IO
+    \brief Decodes URL into components.
+
+    \return 0 on success
+    \return negative on error
+
+    \param url URL string
+    \param urlSz URL size
+    \param outName Output domain name
+    \param outPath Output path
+    \param outPort Output port
+
+    _Example_
+    \code
+    char name[256], path[256];
+    unsigned short port;
+    int ret = wolfIO_DecodeUrl("http://example.com:443/path", 28, name,
+                               path, &port);
+    \endcode
+
+    \sa wolfIO_HttpBuildRequest
+*/
+int wolfIO_DecodeUrl(const char* url, int urlSz, char* outName,
+                     char* outPath, unsigned short* outPort);
+
+/*!
+    \ingroup IO
+    \brief Builds generic HTTP request.
+
+    \return Request size on success
+    \return negative on error
+
+    \param reqType Request type (GET, POST, etc.)
+    \param domainName Domain name
+    \param path URL path
+    \param pathLen Path length
+    \param reqSz Request body size
+    \param contentType Content type
+    \param buf Output buffer
+    \param bufSize Buffer size
+
+    _Example_
+    \code
+    char buf[1024];
+    int ret = wolfIO_HttpBuildRequest("POST", "example.com", "/api", 4,
+                                      100, "application/json",
+                                      (unsigned char*)buf, sizeof(buf));
+    \endcode
+
+    \sa wolfIO_HttpProcessResponse
+*/
+int wolfIO_HttpBuildRequest(const char* reqType, const char* domainName,
+                             const char* path, int pathLen, int reqSz,
+                             const char* contentType, unsigned char* buf,
+                             int bufSize);
+
+/*!
+    \ingroup IO
+    \brief Processes HTTP response with generic I/O.
+
+    \return 0 on success
+    \return negative on error
+
+    \param ioCb I/O callback
+    \param ioCbCtx I/O callback context
+    \param appStrList Application string list
+    \param respBuf Response buffer pointer
+    \param httpBuf HTTP buffer
+    \param httpBufSz HTTP buffer size
+    \param dynType Dynamic type
+    \param heap Heap hint
+
+    _Example_
+    \code
+    unsigned char* resp = NULL;
+    unsigned char httpBuf[1024];
+    const char* appStrs[] = {"200 OK", NULL};
+    int ret = wolfIO_HttpProcessResponseGenericIO(myIoCb, ctx, appStrs,
+                                                  &resp, httpBuf,
+                                                  sizeof(httpBuf), 0, NULL);
+    \endcode
+
+    \sa wolfIO_HttpProcessResponse
+*/
+int wolfIO_HttpProcessResponseGenericIO(WolfSSLGenericIORecvCb ioCb,
+                                        void* ioCbCtx,
+                                        const char** appStrList,
+                                        unsigned char** respBuf,
+                                        unsigned char* httpBuf,
+                                        int httpBufSz, int dynType,
+                                        void* heap);
+
+/*!
+    \ingroup IO
+    \brief Processes HTTP response.
+
+    \return 0 on success
+    \return negative on error
+
+    \param sfd Socket file descriptor
+    \param appStrList Application string list
+    \param respBuf Response buffer pointer
+    \param httpBuf HTTP buffer
+    \param httpBufSz HTTP buffer size
+    \param dynType Dynamic type
+    \param heap Heap hint
+
+    _Example_
+    \code
+    int sfd;
+    unsigned char* resp = NULL;
+    unsigned char httpBuf[1024];
+    const char* appStrs[] = {"200 OK", NULL};
+    int ret = wolfIO_HttpProcessResponse(sfd, appStrs, &resp, httpBuf,
+                                         sizeof(httpBuf), 0, NULL);
+    \endcode
+
+    \sa wolfIO_HttpBuildRequest
+*/
+int wolfIO_HttpProcessResponse(int sfd, const char** appStrList,
+                               unsigned char** respBuf,
+                               unsigned char* httpBuf, int httpBufSz,
+                               int dynType, void* heap);
+
+/*!
+    \ingroup IO
+    \brief Sets I/O send callback for context.
+
+    \return none No returns
+
+    \param ctx SSL context
+    \param CBIOSend Send callback
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx;
+    wolfSSL_CTX_SetIOSend(ctx, mySendCallback);
+    \endcode
+
+    \sa wolfSSL_SSLSetIOSend
+*/
+void wolfSSL_CTX_SetIOSend(WOLFSSL_CTX *ctx, CallbackIOSend CBIOSend);
+
+/*!
+    \ingroup IO
+    \brief Sets I/O receive callback for SSL object.
+
+    \return none No returns
+
+    \param ssl SSL object
+    \param CBIORecv Receive callback
+
+    _Example_
+    \code
+    WOLFSSL* ssl;
+    wolfSSL_SSLSetIORecv(ssl, myRecvCallback);
+    \endcode
+
+    \sa wolfSSL_CTX_SetIORecv
+*/
+void wolfSSL_SSLSetIORecv(WOLFSSL *ssl, CallbackIORecv CBIORecv);
+
+/*!
+    \ingroup IO
+    \brief Sets I/O send callback for SSL object.
+
+    \return none No returns
+
+    \param ssl SSL object
+    \param CBIOSend Send callback
+
+    _Example_
+    \code
+    WOLFSSL* ssl;
+    wolfSSL_SSLSetIOSend(ssl, mySendCallback);
+    \endcode
+
+    \sa wolfSSL_CTX_SetIOSend
+*/
+void wolfSSL_SSLSetIOSend(WOLFSSL *ssl, CallbackIOSend CBIOSend);
+
+/*!
+    \ingroup IO
+    \brief Sets I/O for Mynewt platform.
+
+    \return none No returns
+
+    \param ssl SSL object
+    \param mnSocket Mynewt socket
+    \param mnSockAddrIn Mynewt socket address
+
+    _Example_
+    \code
+    WOLFSSL* ssl;
+    struct mn_socket sock;
+    struct mn_sockaddr_in addr;
+    wolfSSL_SetIO_Mynewt(ssl, &sock, &addr);
+    \endcode
+
+    \sa wolfSSL_SetIO_LwIP
+*/
+void wolfSSL_SetIO_Mynewt(WOLFSSL* ssl, struct mn_socket* mnSocket,
+                          struct mn_sockaddr_in* mnSockAddrIn);
+
+/*!
+    \ingroup IO
+    \brief Sets I/O for LwIP platform.
+
+    \return 0 on success
+    \return negative on error
+
+    \param ssl SSL object
+    \param pcb Protocol control block
+    \param recv Receive callback
+    \param sent Sent callback
+    \param arg Argument pointer
+
+    _Example_
+    \code
+    WOLFSSL* ssl;
+    struct tcp_pcb* pcb;
+    int ret = wolfSSL_SetIO_LwIP(ssl, pcb, myRecv, mySent, NULL);
+    \endcode
+
+    \sa wolfSSL_SetIO_Mynewt
+*/
+int wolfSSL_SetIO_LwIP(WOLFSSL* ssl, void *pcb, tcp_recv_fn recv,
+                       tcp_sent_fn sent, void *arg);
+
+/*!
+    \ingroup IO
+    \brief Sets cookie context for DTLS.
+
+    \return none No returns
+
+    \param ssl SSL object
+    \param ctx Cookie context
+
+    _Example_
+    \code
+    WOLFSSL* ssl;
+    void* ctx;
+    wolfSSL_SetCookieCtx(ssl, ctx);
+    \endcode
+
+    \sa wolfSSL_GetCookieCtx
+*/
+void wolfSSL_SetCookieCtx(WOLFSSL* ssl, void *ctx);
+
+/*!
+    \ingroup IO
+    \brief Gets cookie context for DTLS.
+
+    \return Cookie context pointer
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    WOLFSSL* ssl;
+    void* ctx = wolfSSL_GetCookieCtx(ssl);
+    \endcode
+
+    \sa wolfSSL_SetCookieCtx
+*/
+void* wolfSSL_GetCookieCtx(WOLFSSL* ssl);
+
+/*!
+    \ingroup IO
+    \brief Sets get peer callback for context.
+
+    \return none No returns
+
+    \param ctx SSL context
+    \param cb Get peer callback
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx;
+    wolfSSL_CTX_SetIOGetPeer(ctx, myGetPeerCallback);
+    \endcode
+
+    \sa wolfSSL_CTX_SetIOSetPeer
+*/
+void wolfSSL_CTX_SetIOGetPeer(WOLFSSL_CTX* ctx, CallbackGetPeer cb);
+
+/*!
+    \ingroup IO
+    \brief Sets set peer callback for context.
+
+    \return none No returns
+
+    \param ctx SSL context
+    \param cb Set peer callback
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx;
+    wolfSSL_CTX_SetIOSetPeer(ctx, mySetPeerCallback);
+    \endcode
+
+    \sa wolfSSL_CTX_SetIOGetPeer
+*/
+void wolfSSL_CTX_SetIOSetPeer(WOLFSSL_CTX* ctx, CallbackSetPeer cb);
+
+/*!
+    \ingroup IO
+    \brief Gets peer information.
+
+    \return 0 on success
+    \return negative on error
+
+    \param ssl SSL object
+    \param ip IP address buffer
+    \param ipSz IP address buffer size pointer
+    \param port Port number pointer
+    \param fam Address family pointer
+
+    _Example_
+    \code
+    WOLFSSL* ssl;
+    char ip[46];
+    int ipSz = sizeof(ip);
+    unsigned short port;
+    int fam;
+    int ret = EmbedGetPeer(ssl, ip, &ipSz, &port, &fam);
+    \endcode
+
+    \sa EmbedSetPeer
+*/
+int EmbedGetPeer(WOLFSSL* ssl, char* ip, int* ipSz, unsigned short* port,
+                 int* fam);
+
+/*!
+    \ingroup IO
+    \brief Sets peer information.
+
+    \return 0 on success
+    \return negative on error
+
+    \param ssl SSL object
+    \param ip IP address string
+    \param ipSz IP address string size
+    \param port Port number
+    \param fam Address family
+
+    _Example_
+    \code
+    WOLFSSL* ssl;
+    int ret = EmbedSetPeer(ssl, "127.0.0.1", 9, 443, AF_INET);
+    \endcode
+
+    \sa EmbedGetPeer
+*/
+int EmbedSetPeer(WOLFSSL* ssl, char* ip, int ipSz, unsigned short port,
+                 int fam);

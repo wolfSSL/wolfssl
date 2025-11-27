@@ -1247,4 +1247,301 @@ int wc_Shake256_GetHash(wc_Shake* shake, byte* hash);
 */
 int wc_Shake256_Copy(wc_Shake* shake, wc_Shake* dst);
 
+/*!
+    \ingroup SHA
+    \brief Initializes SHA3-224 context (OpenSSL compatibility).
+
+    \return 1 on success
+    \return 0 on error
+
+    \param sha SHA3-224 context
+
+    _Example_
+    \code
+    WOLFSSL_SHA3_224_CTX sha;
+    int ret = wolfSSL_SHA3_224_Init(&sha);
+    \endcode
+
+    \sa wolfSSL_SHA3_224_Update
+*/
+int wolfSSL_SHA3_224_Init(WOLFSSL_SHA3_224_CTX* sha);
+
+/*!
+    \ingroup SHA
+    \brief Updates SHA3-224 hash (OpenSSL compatibility).
+
+    \return 1 on success
+    \return 0 on error
+
+    \param sha SHA3-224 context
+    \param input Input data
+    \param sz Input size
+
+    _Example_
+    \code
+    WOLFSSL_SHA3_224_CTX sha;
+    byte data[100];
+    int ret = wolfSSL_SHA3_224_Update(&sha, data, sizeof(data));
+    \endcode
+
+    \sa wolfSSL_SHA3_224_Init
+*/
+int wolfSSL_SHA3_224_Update(WOLFSSL_SHA3_224_CTX* sha, const void* input,
+                             unsigned long sz);
+
+/*!
+    \ingroup SHA
+    \brief Finalizes SHA3-224 hash (OpenSSL compatibility).
+
+    \return 1 on success
+    \return 0 on error
+
+    \param output Output hash buffer
+    \param sha SHA3-224 context
+
+    _Example_
+    \code
+    WOLFSSL_SHA3_224_CTX sha;
+    byte hash[28];
+    int ret = wolfSSL_SHA3_224_Final(hash, &sha);
+    \endcode
+
+    \sa wolfSSL_SHA3_224_Update
+*/
+int wolfSSL_SHA3_224_Final(unsigned char* output,
+                            WOLFSSL_SHA3_224_CTX* sha);
+
+/*!
+    \ingroup SHA
+    \brief Initializes SHA3-256 context (OpenSSL compatibility).
+
+    \return 1 on success
+    \return 0 on error
+
+    \param sha SHA3-256 context
+
+    _Example_
+    \code
+    WOLFSSL_SHA3_256_CTX sha;
+    int ret = wolfSSL_SHA3_256_Init(&sha);
+    \endcode
+
+    \sa wolfSSL_SHA3_256_Update
+*/
+int wolfSSL_SHA3_256_Init(WOLFSSL_SHA3_256_CTX* sha);
+
+/*!
+    \ingroup SHA
+    \brief Updates SHA3-256 hash (OpenSSL compatibility).
+
+    \return 1 on success
+    \return 0 on error
+
+    \param sha SHA3-256 context
+    \param input Input data
+    \param sz Input size
+
+    _Example_
+    \code
+    WOLFSSL_SHA3_256_CTX sha;
+    byte data[100];
+    int ret = wolfSSL_SHA3_256_Update(&sha, data, sizeof(data));
+    \endcode
+
+    \sa wolfSSL_SHA3_256_Init
+*/
+int wolfSSL_SHA3_256_Update(WOLFSSL_SHA3_256_CTX* sha, const void* input,
+                             unsigned long sz);
+
+/*!
+    \ingroup SHA
+    \brief Finalizes SHA3-256 hash (OpenSSL compatibility).
+
+    \return 1 on success
+    \return 0 on error
+
+    \param output Output hash buffer
+    \param sha SHA3-256 context
+
+    _Example_
+    \code
+    WOLFSSL_SHA3_256_CTX sha;
+    byte hash[32];
+    int ret = wolfSSL_SHA3_256_Final(hash, &sha);
+    \endcode
+
+    \sa wolfSSL_SHA3_256_Update
+*/
+int wolfSSL_SHA3_256_Final(unsigned char* output,
+                            WOLFSSL_SHA3_256_CTX* sha);
+
+/*!
+    \ingroup SHA
+    \brief Initializes SHA3-384 context (OpenSSL compatibility).
+
+    \return 1 on success
+    \return 0 on error
+
+    \param sha SHA3-384 context
+
+    _Example_
+    \code
+    WOLFSSL_SHA3_384_CTX sha;
+    int ret = wolfSSL_SHA3_384_Init(&sha);
+    \endcode
+
+    \sa wolfSSL_SHA3_384_Update
+*/
+int wolfSSL_SHA3_384_Init(WOLFSSL_SHA3_384_CTX* sha);
+
+/*!
+    \ingroup SHA
+    \brief Updates SHA3-384 hash (OpenSSL compatibility).
+
+    \return 1 on success
+    \return 0 on error
+
+    \param sha SHA3-384 context
+    \param input Input data
+    \param sz Input size
+
+    _Example_
+    \code
+    WOLFSSL_SHA3_384_CTX sha;
+    byte data[100];
+    int ret = wolfSSL_SHA3_384_Update(&sha, data, sizeof(data));
+    \endcode
+
+    \sa wolfSSL_SHA3_384_Init
+*/
+int wolfSSL_SHA3_384_Update(WOLFSSL_SHA3_384_CTX* sha, const void* input,
+                             unsigned long sz);
+
+/*!
+    \ingroup SHA
+    \brief Finalizes SHA3-384 hash (OpenSSL compatibility).
+
+    \return 1 on success
+    \return 0 on error
+
+    \param output Output hash buffer
+    \param sha SHA3-384 context
+
+    _Example_
+    \code
+    WOLFSSL_SHA3_384_CTX sha;
+    byte hash[48];
+    int ret = wolfSSL_SHA3_384_Final(hash, &sha);
+    \endcode
+
+    \sa wolfSSL_SHA3_384_Update
+*/
+int wolfSSL_SHA3_384_Final(unsigned char* output,
+                            WOLFSSL_SHA3_384_CTX* sha);
+
+/*!
+    \ingroup SHA
+    \brief Initializes SHA3-512 context (OpenSSL compatibility).
+
+    \return 1 on success
+    \return 0 on error
+
+    \param sha SHA3-512 context
+
+    _Example_
+    \code
+    WOLFSSL_SHA3_512_CTX sha;
+    int ret = wolfSSL_SHA3_512_Init(&sha);
+    \endcode
+
+    \sa wolfSSL_SHA3_512_Update
+*/
+int wolfSSL_SHA3_512_Init(WOLFSSL_SHA3_512_CTX* sha);
+
+/*!
+    \ingroup SHA
+    \brief Updates SHA3-512 hash (OpenSSL compatibility).
+
+    \return 1 on success
+    \return 0 on error
+
+    \param sha SHA3-512 context
+    \param input Input data
+    \param sz Input size
+
+    _Example_
+    \code
+    WOLFSSL_SHA3_512_CTX sha;
+    byte data[100];
+    int ret = wolfSSL_SHA3_512_Update(&sha, data, sizeof(data));
+    \endcode
+
+    \sa wolfSSL_SHA3_512_Init
+*/
+int wolfSSL_SHA3_512_Update(WOLFSSL_SHA3_512_CTX* sha, const void* input,
+                             unsigned long sz);
+
+/*!
+    \ingroup SHA
+    \brief Finalizes SHA3-512 hash (OpenSSL compatibility).
+
+    \return 1 on success
+    \return 0 on error
+
+    \param output Output hash buffer
+    \param sha SHA3-512 context
+
+    _Example_
+    \code
+    WOLFSSL_SHA3_512_CTX sha;
+    byte hash[64];
+    int ret = wolfSSL_SHA3_512_Final(hash, &sha);
+    \endcode
+
+    \sa wolfSSL_SHA3_512_Update
+*/
+int wolfSSL_SHA3_512_Final(unsigned char* output,
+                            WOLFSSL_SHA3_512_CTX* sha);
+
+/*!
+    \ingroup SHA
+    \brief Sets SHA3 flags.
+
+    \return 0 on success
+    \return negative on error
+
+    \param sha3 SHA3 structure
+    \param flags Flags to set
+
+    _Example_
+    \code
+    wc_Sha3 sha;
+    int ret = wc_Sha3_SetFlags(&sha, WC_HASH_FLAG_WILLCOPY);
+    \endcode
+
+    \sa wc_InitSha3_224
+*/
+int wc_Sha3_SetFlags(wc_Sha3* sha3, word32 flags);
+
+/*!
+    \ingroup SHA
+    \brief Gets SHA3 flags.
+
+    \return 0 on success
+    \return negative on error
+
+    \param sha3 SHA3 structure
+    \param flags Pointer to store flags
+
+    _Example_
+    \code
+    wc_Sha3 sha;
+    word32 flags;
+    int ret = wc_Sha3_GetFlags(&sha, &flags);
+    \endcode
+
+    \sa wc_Sha3_SetFlags
+*/
+int wc_Sha3_GetFlags(wc_Sha3* sha3, word32* flags);
+
 

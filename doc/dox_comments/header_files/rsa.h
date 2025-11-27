@@ -1612,3 +1612,1428 @@ int wc_RsaSetNonBlock(RsaKey* key, RsaNb* nb);
 */
 int wc_RsaSetNonBlockTime(RsaKey* key, word32 maxBlockUs,
     word32 cpuMHz);
+
+/*!
+    \ingroup openSSL
+    \brief Creates new RSA structure with heap and device ID.
+
+    \return WOLFSSL_RSA pointer on success
+    \return NULL on failure
+
+    \param heap Heap hint for memory allocation
+    \param devId Device ID for hardware acceleration
+
+    _Example_
+    \code
+    WOLFSSL_RSA* rsa = wolfSSL_RSA_new_ex(NULL, INVALID_DEVID);
+    if (rsa != NULL) {
+        // use rsa
+        wolfSSL_RSA_free(rsa);
+    }
+    \endcode
+
+    \sa wolfSSL_RSA_new
+*/
+WOLFSSL_RSA* wolfSSL_RSA_new_ex(void* heap, int devId);
+
+/*!
+    \ingroup openSSL
+    \brief Creates new RSA structure.
+
+    \return WOLFSSL_RSA pointer on success
+    \return NULL on failure
+
+    _Example_
+    \code
+    WOLFSSL_RSA* rsa = wolfSSL_RSA_new();
+    if (rsa != NULL) {
+        // use rsa
+        wolfSSL_RSA_free(rsa);
+    }
+    \endcode
+
+    \sa wolfSSL_RSA_free
+*/
+WOLFSSL_RSA* wolfSSL_RSA_new(void);
+
+/*!
+    \ingroup openSSL
+    \brief Frees RSA structure.
+
+    \return none No returns
+
+    \param rsa RSA structure to free
+
+    _Example_
+    \code
+    WOLFSSL_RSA* rsa = wolfSSL_RSA_new();
+    // use rsa
+    wolfSSL_RSA_free(rsa);
+    \endcode
+
+    \sa wolfSSL_RSA_new
+*/
+void wolfSSL_RSA_free(WOLFSSL_RSA* rsa);
+
+/*!
+    \ingroup openSSL
+    \brief Generates RSA key pair.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param rsa RSA structure
+    \param bits Key size in bits
+    \param bn Public exponent BIGNUM
+    \param cb Callback (can be NULL)
+
+    _Example_
+    \code
+    WOLFSSL_RSA* rsa = wolfSSL_RSA_new();
+    WOLFSSL_BIGNUM* e = wolfSSL_BN_new();
+    wolfSSL_BN_set_word(e, 65537);
+    int ret = wolfSSL_RSA_generate_key_ex(rsa, 2048, e, NULL);
+    \endcode
+
+    \sa wolfSSL_RSA_new
+*/
+int wolfSSL_RSA_generate_key_ex(WOLFSSL_RSA* rsa, int bits,
+    WOLFSSL_BIGNUM* bn, void* cb);
+
+/*!
+    \ingroup openSSL
+    \brief Enables RSA blinding.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param rsa RSA structure
+    \param bn BIGNUM context (can be NULL)
+
+    _Example_
+    \code
+    WOLFSSL_RSA* rsa;
+    int ret = wolfSSL_RSA_blinding_on(rsa, NULL);
+    \endcode
+
+    \sa wolfSSL_RSA_new
+*/
+int wolfSSL_RSA_blinding_on(WOLFSSL_RSA* rsa, WOLFSSL_BN_CTX* bn);
+
+/*!
+    \ingroup openSSL
+    \brief Checks RSA key validity.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param rsa RSA structure to check
+
+    _Example_
+    \code
+    WOLFSSL_RSA* rsa;
+    int ret = wolfSSL_RSA_check_key(rsa);
+    \endcode
+
+    \sa wolfSSL_RSA_generate_key_ex
+*/
+int wolfSSL_RSA_check_key(const WOLFSSL_RSA* rsa);
+
+/*!
+    \ingroup openSSL
+    \brief Encrypts data with RSA public key.
+
+    \return Size of encrypted data on success
+    \return negative on failure
+
+    \param len Input data length
+    \param fr Input data buffer
+    \param to Output buffer
+    \param rsa RSA structure
+    \param padding Padding type
+
+    _Example_
+    \code
+    WOLFSSL_RSA* rsa;
+    unsigned char in[32], out[256];
+    int ret = wolfSSL_RSA_public_encrypt(32, in, out, rsa,
+                                         RSA_PKCS1_PADDING);
+    \endcode
+
+    \sa wolfSSL_RSA_private_decrypt
+*/
+int wolfSSL_RSA_public_encrypt(int len, const unsigned char* fr,
+    unsigned char* to, WOLFSSL_RSA* rsa, int padding);
+
+/*!
+    \ingroup openSSL
+    \brief Decrypts data with RSA private key.
+
+    \return Size of decrypted data on success
+    \return negative on failure
+
+    \param len Input data length
+    \param fr Input data buffer
+    \param to Output buffer
+    \param rsa RSA structure
+    \param padding Padding type
+
+    _Example_
+    \code
+    WOLFSSL_RSA* rsa;
+    unsigned char in[256], out[256];
+    int ret = wolfSSL_RSA_private_decrypt(256, in, out, rsa,
+                                          RSA_PKCS1_PADDING);
+    \endcode
+
+    \sa wolfSSL_RSA_public_encrypt
+*/
+int wolfSSL_RSA_private_decrypt(int len, const unsigned char* fr,
+    unsigned char* to, WOLFSSL_RSA* rsa, int padding);
+
+/*!
+    \ingroup openSSL
+    \brief Signs data with RSA private key.
+
+    \return Size of signature on success
+    \return negative on failure
+
+    \param len Input data length
+    \param in Input data buffer
+    \param out Output signature buffer
+    \param rsa RSA structure
+    \param padding Padding type
+
+    _Example_
+    \code
+    WOLFSSL_RSA* rsa;
+    unsigned char in[32], sig[256];
+    int ret = wolfSSL_RSA_private_encrypt(32, in, sig, rsa,
+                                          RSA_PKCS1_PADDING);
+    \endcode
+
+    \sa wolfSSL_RSA_public_decrypt
+*/
+int wolfSSL_RSA_private_encrypt(int len, const unsigned char* in,
+    unsigned char* out, WOLFSSL_RSA* rsa, int padding);
+
+/*!
+    \ingroup openSSL
+    \brief Returns RSA key size in bytes.
+
+    \return Key size in bytes on success
+    \return 0 on failure
+
+    \param rsa RSA structure
+
+    _Example_
+    \code
+    WOLFSSL_RSA* rsa;
+    int size = wolfSSL_RSA_size(rsa);
+    \endcode
+
+    \sa wolfSSL_RSA_bits
+*/
+int wolfSSL_RSA_size(const WOLFSSL_RSA* rsa);
+
+/*!
+    \ingroup openSSL
+    \brief Returns RSA key size in bits.
+
+    \return Key size in bits on success
+    \return 0 on failure
+
+    \param rsa RSA structure
+
+    _Example_
+    \code
+    WOLFSSL_RSA* rsa;
+    int bits = wolfSSL_RSA_bits(rsa);
+    \endcode
+
+    \sa wolfSSL_RSA_size
+*/
+int wolfSSL_RSA_bits(const WOLFSSL_RSA* rsa);
+
+/*!
+    \ingroup openSSL
+    \brief Signs message digest.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param type Hash algorithm NID
+    \param m Message digest
+    \param mLen Digest length
+    \param sigRet Signature buffer
+    \param sigLen Signature length pointer
+    \param rsa RSA structure
+
+    _Example_
+    \code
+    WOLFSSL_RSA* rsa;
+    unsigned char hash[32], sig[256];
+    unsigned int sigLen = sizeof(sig);
+    int ret = wolfSSL_RSA_sign(NID_sha256, hash, 32, sig,
+                               &sigLen, rsa);
+    \endcode
+
+    \sa wolfSSL_RSA_verify
+*/
+int wolfSSL_RSA_sign(int type, const unsigned char* m,
+    unsigned int mLen, unsigned char* sigRet,
+    unsigned int* sigLen, WOLFSSL_RSA* rsa);
+
+/*!
+    \ingroup openSSL
+    \brief Signs hash with extended options.
+
+    \return Size of signature on success
+    \return negative on failure
+
+    \param hashAlg Hash algorithm type
+    \param hash Hash value
+    \param hLen Hash length
+    \param sigRet Signature buffer
+    \param sigLen Signature length pointer
+    \param rsa RSA structure
+    \param flag Additional flags
+
+    _Example_
+    \code
+    WOLFSSL_RSA* rsa;
+    unsigned char hash[32], sig[256];
+    unsigned int sigLen = sizeof(sig);
+    int ret = wolfSSL_RSA_sign_ex(NID_sha256, hash, 32, sig,
+                                  &sigLen, rsa, 0);
+    \endcode
+
+    \sa wolfSSL_RSA_sign
+*/
+int wolfSSL_RSA_sign_ex(int hashAlg, const unsigned char* hash,
+    unsigned int hLen, unsigned char* sigRet,
+    unsigned int* sigLen, WOLFSSL_RSA* rsa, int flag);
+
+/*!
+    \ingroup openSSL
+    \brief Verifies RSA signature.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param hashAlg Hash algorithm NID
+    \param hash Hash value
+    \param hLen Hash length
+    \param sig Signature buffer
+    \param sigLen Signature length
+    \param rsa RSA structure
+
+    _Example_
+    \code
+    WOLFSSL_RSA* rsa;
+    unsigned char hash[32], sig[256];
+    int ret = wolfSSL_RSA_verify(NID_sha256, hash, 32, sig, 256,
+                                 rsa);
+    \endcode
+
+    \sa wolfSSL_RSA_sign
+*/
+int wolfSSL_RSA_verify(int hashAlg, const unsigned char* hash,
+    unsigned int hLen, const unsigned char* sig,
+    unsigned int sigLen, WOLFSSL_RSA* rsa);
+
+/*!
+    \ingroup openSSL
+    \brief Verifies RSA signature with padding.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param hashAlg Hash algorithm NID
+    \param hash Hash value
+    \param hLen Hash length
+    \param sig Signature buffer
+    \param sigLen Signature length
+    \param rsa RSA structure
+    \param padding Padding type
+
+    _Example_
+    \code
+    WOLFSSL_RSA* rsa;
+    unsigned char hash[32], sig[256];
+    int ret = wolfSSL_RSA_verify_ex(NID_sha256, hash, 32, sig,
+                                    256, rsa, RSA_PKCS1_PADDING);
+    \endcode
+
+    \sa wolfSSL_RSA_verify
+*/
+int wolfSSL_RSA_verify_ex(int hashAlg, const unsigned char* hash,
+    unsigned int hLen, const unsigned char* sig,
+    unsigned int sigLen, WOLFSSL_RSA* rsa, int padding);
+
+/*!
+    \ingroup openSSL
+    \brief Decrypts with RSA public key.
+
+    \return Size of decrypted data on success
+    \return negative on failure
+
+    \param flen Input length
+    \param from Input buffer
+    \param to Output buffer
+    \param rsa RSA structure
+    \param padding Padding type
+
+    _Example_
+    \code
+    WOLFSSL_RSA* rsa;
+    unsigned char in[256], out[256];
+    int ret = wolfSSL_RSA_public_decrypt(256, in, out, rsa,
+                                         RSA_PKCS1_PADDING);
+    \endcode
+
+    \sa wolfSSL_RSA_private_encrypt
+*/
+int wolfSSL_RSA_public_decrypt(int flen, const unsigned char* from,
+    unsigned char* to, WOLFSSL_RSA* rsa, int padding);
+
+/*!
+    \ingroup openSSL
+    \brief Generates additional RSA parameters.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param rsa RSA structure
+
+    _Example_
+    \code
+    WOLFSSL_RSA* rsa;
+    int ret = wolfSSL_RSA_GenAdd(rsa);
+    \endcode
+
+    \sa wolfSSL_RSA_generate_key_ex
+*/
+int wolfSSL_RSA_GenAdd(WOLFSSL_RSA* rsa);
+
+/*!
+    \ingroup openSSL
+    \brief Loads RSA key from DER buffer.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param rsa RSA structure
+    \param derBuf DER buffer
+    \param derSz DER buffer size
+
+    _Example_
+    \code
+    WOLFSSL_RSA* rsa = wolfSSL_RSA_new();
+    unsigned char der[1024];
+    int ret = wolfSSL_RSA_LoadDer(rsa, der, sizeof(der));
+    \endcode
+
+    \sa wolfSSL_RSA_LoadDer_ex
+*/
+int wolfSSL_RSA_LoadDer(WOLFSSL_RSA* rsa,
+    const unsigned char* derBuf, int derSz);
+
+/*!
+    \ingroup openSSL
+    \brief Loads RSA key from DER with options.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param rsa RSA structure
+    \param derBuf DER buffer
+    \param derSz DER buffer size
+    \param opt Load options
+
+    _Example_
+    \code
+    WOLFSSL_RSA* rsa = wolfSSL_RSA_new();
+    unsigned char der[1024];
+    int ret = wolfSSL_RSA_LoadDer_ex(rsa, der, sizeof(der), 0);
+    \endcode
+
+    \sa wolfSSL_RSA_LoadDer
+*/
+int wolfSSL_RSA_LoadDer_ex(WOLFSSL_RSA* rsa,
+    const unsigned char* derBuf, int derSz, int opt);
+
+/*!
+    \ingroup openSSL
+    \brief Frees RSA method structure.
+
+    \return none No returns
+
+    \param meth RSA method to free
+
+    _Example_
+    \code
+    WOLFSSL_RSA_METHOD* meth;
+    wolfSSL_RSA_meth_free(meth);
+    \endcode
+
+    \sa wolfSSL_RSA_set_method
+*/
+void wolfSSL_RSA_meth_free(WOLFSSL_RSA_METHOD *meth);
+
+/*!
+    \ingroup openSSL
+    \brief Sets RSA method function pointer.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param rsa RSA method structure
+    \param p Function pointer
+
+    _Example_
+    \code
+    WOLFSSL_RSA_METHOD* meth;
+    int ret = wolfSSL_RSA_meth_set(meth, funcPtr);
+    \endcode
+
+    \sa wolfSSL_RSA_set_method
+*/
+int wolfSSL_RSA_meth_set(WOLFSSL_RSA_METHOD *rsa, void* p);
+
+/*!
+    \ingroup openSSL
+    \brief Sets RSA method.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param rsa RSA structure
+    \param meth RSA method
+
+    _Example_
+    \code
+    WOLFSSL_RSA* rsa;
+    WOLFSSL_RSA_METHOD* meth;
+    int ret = wolfSSL_RSA_set_method(rsa, meth);
+    \endcode
+
+    \sa wolfSSL_RSA_get_method
+*/
+int wolfSSL_RSA_set_method(WOLFSSL_RSA *rsa,
+    WOLFSSL_RSA_METHOD *meth);
+
+/*!
+    \ingroup openSSL
+    \brief Gets RSA method.
+
+    \return WOLFSSL_RSA_METHOD pointer on success
+    \return NULL on failure
+
+    \param rsa RSA structure
+
+    _Example_
+    \code
+    WOLFSSL_RSA* rsa;
+    const WOLFSSL_RSA_METHOD* meth = wolfSSL_RSA_get_method(rsa);
+    \endcode
+
+    \sa wolfSSL_RSA_set_method
+*/
+const WOLFSSL_RSA_METHOD* wolfSSL_RSA_get_method(
+    const WOLFSSL_RSA *rsa);
+
+/*!
+    \ingroup openSSL
+    \brief Gets default RSA method.
+
+    \return WOLFSSL_RSA_METHOD pointer
+
+    _Example_
+    \code
+    const WOLFSSL_RSA_METHOD* meth =
+        wolfSSL_RSA_get_default_method();
+    \endcode
+
+    \sa wolfSSL_RSA_get_method
+*/
+const WOLFSSL_RSA_METHOD* wolfSSL_RSA_get_default_method(void);
+
+/*!
+    \ingroup openSSL
+    \brief Gets CRT parameters from RSA key.
+
+    \return none No returns
+
+    \param r RSA structure
+    \param dmp1 dmp1 parameter pointer
+    \param dmq1 dmq1 parameter pointer
+    \param iqmp iqmp parameter pointer
+
+    _Example_
+    \code
+    WOLFSSL_RSA* rsa;
+    const WOLFSSL_BIGNUM *dmp1, *dmq1, *iqmp;
+    wolfSSL_RSA_get0_crt_params(rsa, &dmp1, &dmq1, &iqmp);
+    \endcode
+
+    \sa wolfSSL_RSA_set0_crt_params
+*/
+void wolfSSL_RSA_get0_crt_params(const WOLFSSL_RSA *r,
+    const WOLFSSL_BIGNUM **dmp1, const WOLFSSL_BIGNUM **dmq1,
+    const WOLFSSL_BIGNUM **iqmp);
+
+/*!
+    \ingroup openSSL
+    \brief Sets CRT parameters in RSA key.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param r RSA structure
+    \param dmp1 dmp1 parameter
+    \param dmq1 dmq1 parameter
+    \param iqmp iqmp parameter
+
+    _Example_
+    \code
+    WOLFSSL_RSA* rsa;
+    WOLFSSL_BIGNUM *dmp1, *dmq1, *iqmp;
+    int ret = wolfSSL_RSA_set0_crt_params(rsa, dmp1, dmq1, iqmp);
+    \endcode
+
+    \sa wolfSSL_RSA_get0_crt_params
+*/
+int wolfSSL_RSA_set0_crt_params(WOLFSSL_RSA *r,
+    WOLFSSL_BIGNUM *dmp1, WOLFSSL_BIGNUM *dmq1,
+    WOLFSSL_BIGNUM *iqmp);
+
+/*!
+    \ingroup openSSL
+    \brief Gets prime factors from RSA key.
+
+    \return none No returns
+
+    \param r RSA structure
+    \param p Prime p pointer
+    \param q Prime q pointer
+
+    _Example_
+    \code
+    WOLFSSL_RSA* rsa;
+    const WOLFSSL_BIGNUM *p, *q;
+    wolfSSL_RSA_get0_factors(rsa, &p, &q);
+    \endcode
+
+    \sa wolfSSL_RSA_set0_factors
+*/
+void wolfSSL_RSA_get0_factors(const WOLFSSL_RSA *r,
+    const WOLFSSL_BIGNUM **p, const WOLFSSL_BIGNUM **q);
+
+/*!
+    \ingroup openSSL
+    \brief Sets prime factors in RSA key.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param r RSA structure
+    \param p Prime p
+    \param q Prime q
+
+    _Example_
+    \code
+    WOLFSSL_RSA* rsa;
+    WOLFSSL_BIGNUM *p, *q;
+    int ret = wolfSSL_RSA_set0_factors(rsa, p, q);
+    \endcode
+
+    \sa wolfSSL_RSA_get0_factors
+*/
+int wolfSSL_RSA_set0_factors(WOLFSSL_RSA *r, WOLFSSL_BIGNUM *p,
+    WOLFSSL_BIGNUM *q);
+
+/*!
+    \ingroup openSSL
+    \brief Gets RSA key components.
+
+    \return none No returns
+
+    \param r RSA structure
+    \param n Modulus pointer
+    \param e Public exponent pointer
+    \param d Private exponent pointer
+
+    _Example_
+    \code
+    WOLFSSL_RSA* rsa;
+    const WOLFSSL_BIGNUM *n, *e, *d;
+    wolfSSL_RSA_get0_key(rsa, &n, &e, &d);
+    \endcode
+
+    \sa wolfSSL_RSA_set0_key
+*/
+void wolfSSL_RSA_get0_key(const WOLFSSL_RSA *r,
+    const WOLFSSL_BIGNUM **n, const WOLFSSL_BIGNUM **e,
+    const WOLFSSL_BIGNUM **d);
+
+/*!
+    \ingroup openSSL
+    \brief Sets RSA key components.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param r RSA structure
+    \param n Modulus
+    \param e Public exponent
+    \param d Private exponent
+
+    _Example_
+    \code
+    WOLFSSL_RSA* rsa;
+    WOLFSSL_BIGNUM *n, *e, *d;
+    int ret = wolfSSL_RSA_set0_key(rsa, n, e, d);
+    \endcode
+
+    \sa wolfSSL_RSA_get0_key
+*/
+int wolfSSL_RSA_set0_key(WOLFSSL_RSA *r, WOLFSSL_BIGNUM *n,
+    WOLFSSL_BIGNUM *e, WOLFSSL_BIGNUM *d);
+
+/*!
+    \ingroup openSSL
+    \brief Gets RSA flags.
+
+    \return Flags value
+
+    \param r RSA structure
+
+    _Example_
+    \code
+    WOLFSSL_RSA* rsa;
+    int flags = wolfSSL_RSA_flags(rsa);
+    \endcode
+
+    \sa wolfSSL_RSA_set_flags
+*/
+int wolfSSL_RSA_flags(const WOLFSSL_RSA *r);
+
+/*!
+    \ingroup openSSL
+    \brief Sets RSA flags.
+
+    \return none No returns
+
+    \param r RSA structure
+    \param flags Flags to set
+
+    _Example_
+    \code
+    WOLFSSL_RSA* rsa;
+    wolfSSL_RSA_set_flags(rsa, RSA_FLAG_CACHE_PUBLIC);
+    \endcode
+
+    \sa wolfSSL_RSA_flags
+*/
+void wolfSSL_RSA_set_flags(WOLFSSL_RSA *r, int flags);
+
+/*!
+    \ingroup openSSL
+    \brief Clears RSA flags.
+
+    \return none No returns
+
+    \param r RSA structure
+    \param flags Flags to clear
+
+    _Example_
+    \code
+    WOLFSSL_RSA* rsa;
+    wolfSSL_RSA_clear_flags(rsa, RSA_FLAG_CACHE_PUBLIC);
+    \endcode
+
+    \sa wolfSSL_RSA_set_flags
+*/
+void wolfSSL_RSA_clear_flags(WOLFSSL_RSA *r, int flags);
+
+/*!
+    \ingroup openSSL
+    \brief Tests RSA flags.
+
+    \return Flag test result
+
+    \param r RSA structure
+    \param flags Flags to test
+
+    _Example_
+    \code
+    WOLFSSL_RSA* rsa;
+    int result = wolfSSL_RSA_test_flags(rsa,
+                                        RSA_FLAG_CACHE_PUBLIC);
+    \endcode
+
+    \sa wolfSSL_RSA_flags
+*/
+int wolfSSL_RSA_test_flags(const WOLFSSL_RSA *r, int flags);
+
+/*!
+    \ingroup openSSL
+    \brief Duplicates RSA public key.
+
+    \return WOLFSSL_RSA pointer on success
+    \return NULL on failure
+
+    \param rsa RSA structure to duplicate
+
+    _Example_
+    \code
+    WOLFSSL_RSA* rsa;
+    WOLFSSL_RSA* dup = wolfSSL_RSAPublicKey_dup(rsa);
+    \endcode
+
+    \sa wolfSSL_RSA_new
+*/
+WOLFSSL_RSA* wolfSSL_RSAPublicKey_dup(WOLFSSL_RSA *rsa);
+
+/*!
+    \ingroup openSSL
+    \brief Gets extra data from RSA structure.
+
+    \return Data pointer on success
+    \return NULL on failure
+
+    \param rsa RSA structure
+    \param idx Index
+
+    _Example_
+    \code
+    WOLFSSL_RSA* rsa;
+    void* data = wolfSSL_RSA_get_ex_data(rsa, 0);
+    \endcode
+
+    \sa wolfSSL_RSA_set_ex_data
+*/
+void* wolfSSL_RSA_get_ex_data(const WOLFSSL_RSA *rsa, int idx);
+
+/*!
+    \ingroup openSSL
+    \brief Sets extra data in RSA structure.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param rsa RSA structure
+    \param idx Index
+    \param data Data pointer
+
+    _Example_
+    \code
+    WOLFSSL_RSA* rsa;
+    void* data;
+    int ret = wolfSSL_RSA_set_ex_data(rsa, 0, data);
+    \endcode
+
+    \sa wolfSSL_RSA_get_ex_data
+*/
+int wolfSSL_RSA_set_ex_data(WOLFSSL_RSA *rsa, int idx, void *data);
+
+/*!
+    \ingroup openSSL
+    \brief Sets extra data with cleanup routine.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param rsa RSA structure
+    \param idx Index
+    \param data Data pointer
+    \param cleanup_routine Cleanup function
+
+    _Example_
+    \code
+    WOLFSSL_RSA* rsa;
+    void* data;
+    int ret = wolfSSL_RSA_set_ex_data_with_cleanup(rsa, 0, data,
+                                                   cleanup_fn);
+    \endcode
+
+    \sa wolfSSL_RSA_set_ex_data
+*/
+int wolfSSL_RSA_set_ex_data_with_cleanup(WOLFSSL_RSA *rsa, int idx,
+    void *data,
+    wolfSSL_ex_data_cleanup_routine_t cleanup_routine);
+
+/*!
+    \ingroup RSA
+    \brief Initializes RSA key with heap and device ID.
+
+    \return 0 on success
+    \return negative on error
+
+    \param key RSA key structure
+    \param heap Heap hint
+    \param devId Device ID
+
+    _Example_
+    \code
+    RsaKey key;
+    int ret = wc_InitRsaKey_ex(&key, NULL, INVALID_DEVID);
+    \endcode
+
+    \sa wc_InitRsaKey
+*/
+int wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId);
+
+/*!
+    \ingroup RSA
+    \brief Allocates and initializes new RSA key.
+
+    \return RsaKey pointer on success
+    \return NULL on failure
+
+    \param heap Heap hint
+    \param devId Device ID
+    \param result_code Result code pointer
+
+    _Example_
+    \code
+    int result;
+    RsaKey* key = wc_NewRsaKey(NULL, INVALID_DEVID, &result);
+    \endcode
+
+    \sa wc_DeleteRsaKey
+*/
+RsaKey* wc_NewRsaKey(void* heap, int devId, int *result_code);
+
+/*!
+    \ingroup RSA
+    \brief Deletes and frees RSA key.
+
+    \return 0 on success
+    \return negative on error
+
+    \param key RSA key to delete
+    \param key_p Pointer to key pointer
+
+    _Example_
+    \code
+    RsaKey* key;
+    int ret = wc_DeleteRsaKey(key, &key);
+    \endcode
+
+    \sa wc_NewRsaKey
+*/
+int wc_DeleteRsaKey(RsaKey* key, RsaKey** key_p);
+
+/*!
+    \ingroup RSA
+    \brief Initializes RSA key with label.
+
+    \return 0 on success
+    \return negative on error
+
+    \param key RSA key structure
+    \param label Label string
+    \param heap Heap hint
+    \param devId Device ID
+
+    _Example_
+    \code
+    RsaKey key;
+    int ret = wc_InitRsaKey_Label(&key, "mykey", NULL,
+                                  INVALID_DEVID);
+    \endcode
+
+    \sa wc_InitRsaKey_ex
+*/
+int wc_InitRsaKey_Label(RsaKey* key, const char* label, void* heap,
+    int devId);
+
+/*!
+    \ingroup RSA
+    \brief Checks RSA key validity.
+
+    \return 0 on success
+    \return negative on error
+
+    \param key RSA key to check
+
+    _Example_
+    \code
+    RsaKey key;
+    int ret = wc_CheckRsaKey(&key);
+    \endcode
+
+    \sa wc_MakeRsaKey
+*/
+int wc_CheckRsaKey(RsaKey* key);
+
+/*!
+    \ingroup RSA
+    \brief Uses key ID for hardware RSA.
+
+    \return 0 on success
+    \return negative on error
+
+    \param key RSA key
+    \param keyId Key identifier
+    \param flags Flags
+
+    _Example_
+    \code
+    RsaKey key;
+    int ret = wc_RsaUseKeyId(&key, 1, 0);
+    \endcode
+
+    \sa wc_RsaGetKeyId
+*/
+int wc_RsaUseKeyId(RsaKey* key, word32 keyId, word32 flags);
+
+/*!
+    \ingroup RSA
+    \brief Gets key ID from hardware RSA key.
+
+    \return 0 on success
+    \return negative on error
+
+    \param key RSA key
+    \param keyId Key identifier pointer
+
+    _Example_
+    \code
+    RsaKey key;
+    word32 keyId;
+    int ret = wc_RsaGetKeyId(&key, &keyId);
+    \endcode
+
+    \sa wc_RsaUseKeyId
+*/
+int wc_RsaGetKeyId(RsaKey* key, word32* keyId);
+
+/*!
+    \ingroup RSA
+    \brief Performs RSA operation.
+
+    \return 0 on success
+    \return negative on error
+
+    \param in Input buffer
+    \param inLen Input length
+    \param out Output buffer
+    \param outLen Output length pointer
+    \param type Operation type
+    \param key RSA key
+    \param rng Random number generator
+
+    _Example_
+    \code
+    RsaKey key;
+    WC_RNG rng;
+    byte in[256], out[256];
+    word32 outLen = sizeof(out);
+    int ret = wc_RsaFunction(in, 256, out, &outLen,
+                             RSA_PUBLIC_ENCRYPT, &key, &rng);
+    \endcode
+
+    \sa wc_RsaPublicEncrypt
+*/
+int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
+    word32* outLen, int type, RsaKey* key, WC_RNG* rng);
+
+/*!
+    \ingroup RSA
+    \brief Signs with RSA-PSS extended options.
+
+    \return Size of signature on success
+    \return negative on error
+
+    \param in Input buffer
+    \param inLen Input length
+    \param out Output buffer
+    \param outLen Output buffer size
+    \param hash Hash type
+    \param mgf MGF type
+    \param saltLen Salt length
+    \param key RSA key
+    \param rng Random number generator
+
+    _Example_
+    \code
+    RsaKey key;
+    WC_RNG rng;
+    byte in[32], sig[256];
+    int ret = wc_RsaPSS_Sign_ex(in, 32, sig, sizeof(sig),
+                                WC_HASH_TYPE_SHA256,
+                                WC_MGF1SHA256, 32, &key, &rng);
+    \endcode
+
+    \sa wc_RsaPSS_Sign
+*/
+int wc_RsaPSS_Sign_ex(const byte* in, word32 inLen, byte* out,
+    word32 outLen, enum wc_HashType hash, int mgf, int saltLen,
+    RsaKey* key, WC_RNG* rng);
+
+/*!
+    \ingroup RSA
+    \brief Verifies RSA signature with padding type.
+
+    \return Size of decrypted data on success
+    \return negative on error
+
+    \param in Input signature
+    \param inLen Signature length
+    \param out Output buffer
+    \param outLen Output buffer size
+    \param key RSA key
+    \param pad_type Padding type
+
+    _Example_
+    \code
+    RsaKey key;
+    byte sig[256], out[256];
+    int ret = wc_RsaSSL_Verify_ex(sig, 256, out, sizeof(out),
+                                  &key, RSA_PKCS1_PADDING);
+    \endcode
+
+    \sa wc_RsaSSL_Verify
+*/
+int wc_RsaSSL_Verify_ex(const byte* in, word32 inLen, byte* out,
+    word32 outLen, RsaKey* key, int pad_type);
+
+/*!
+    \ingroup RSA
+    \brief Verifies RSA signature with hash type.
+
+    \return Size of decrypted data on success
+    \return negative on error
+
+    \param in Input signature
+    \param inLen Signature length
+    \param out Output buffer
+    \param outLen Output buffer size
+    \param key RSA key
+    \param pad_type Padding type
+    \param hash Hash type
+
+    _Example_
+    \code
+    RsaKey key;
+    byte sig[256], out[256];
+    int ret = wc_RsaSSL_Verify_ex2(sig, 256, out, sizeof(out),
+                                   &key, RSA_PKCS1_PADDING,
+                                   WC_HASH_TYPE_SHA256);
+    \endcode
+
+    \sa wc_RsaSSL_Verify_ex
+*/
+int wc_RsaSSL_Verify_ex2(const byte* in, word32 inLen, byte* out,
+    word32 outLen, RsaKey* key, int pad_type,
+    enum wc_HashType hash);
+
+/*!
+    \ingroup RSA
+    \brief Verifies RSA-PSS inline with extended options.
+
+    \return Size of verified data on success
+    \return negative on error
+
+    \param in Input/output buffer
+    \param inLen Input length
+    \param out Output pointer
+    \param hash Hash type
+    \param mgf MGF type
+    \param saltLen Salt length
+    \param key RSA key
+
+    _Example_
+    \code
+    RsaKey key;
+    byte sig[256];
+    byte* out;
+    int ret = wc_RsaPSS_VerifyInline_ex(sig, 256, &out,
+                                        WC_HASH_TYPE_SHA256,
+                                        WC_MGF1SHA256, 32, &key);
+    \endcode
+
+    \sa wc_RsaPSS_VerifyInline
+*/
+int wc_RsaPSS_VerifyInline_ex(byte* in, word32 inLen, byte** out,
+    enum wc_HashType hash, int mgf, int saltLen, RsaKey* key);
+
+/*!
+    \ingroup RSA
+    \brief Verifies RSA-PSS with extended options.
+
+    \return Size of verified data on success
+    \return negative on error
+
+    \param in Input signature
+    \param inLen Signature length
+    \param out Output buffer
+    \param outLen Output buffer size
+    \param hash Hash type
+    \param mgf MGF type
+    \param saltLen Salt length
+    \param key RSA key
+
+    _Example_
+    \code
+    RsaKey key;
+    byte sig[256], out[256];
+    int ret = wc_RsaPSS_Verify_ex(sig, 256, out, sizeof(out),
+                                  WC_HASH_TYPE_SHA256,
+                                  WC_MGF1SHA256, 32, &key);
+    \endcode
+
+    \sa wc_RsaPSS_Verify
+*/
+int wc_RsaPSS_Verify_ex(const byte* in, word32 inLen, byte* out,
+    word32 outLen, enum wc_HashType hash, int mgf, int saltLen,
+    RsaKey* key);
+
+/*!
+    \ingroup RSA
+    \brief Checks RSA-PSS padding with extended options.
+
+    \return 0 on success
+    \return negative on error
+
+    \param in Padded data
+    \param inLen Padded data length
+    \param sig Signature
+    \param sigSz Signature size
+    \param hashType Hash type
+    \param saltLen Salt length
+    \param bits Key size in bits
+    \param heap Heap hint
+
+    _Example_
+    \code
+    byte padded[256], sig[256];
+    int ret = wc_RsaPSS_CheckPadding_ex2(padded, 256, sig, 256,
+                                         WC_HASH_TYPE_SHA256, 32,
+                                         2048, NULL);
+    \endcode
+
+    \sa wc_RsaPSS_CheckPadding_ex
+*/
+int wc_RsaPSS_CheckPadding_ex2(const byte* in, word32 inLen,
+    const byte* sig, word32 sigSz, enum wc_HashType hashType,
+    int saltLen, int bits, void* heap);
+
+/*!
+    \ingroup RSA
+    \brief Exports RSA key components.
+
+    \return 0 on success
+    \return negative on error
+
+    \param key RSA key
+    \param e Public exponent buffer
+    \param eSz Public exponent size pointer
+    \param n Modulus buffer
+    \param nSz Modulus size pointer
+    \param d Private exponent buffer
+    \param dSz Private exponent size pointer
+    \param p Prime p buffer
+    \param pSz Prime p size pointer
+    \param q Prime q buffer
+    \param qSz Prime q size pointer
+
+    _Example_
+    \code
+    RsaKey key;
+    byte e[3], n[256], d[256], p[128], q[128];
+    word32 eSz = 3, nSz = 256, dSz = 256, pSz = 128, qSz = 128;
+    int ret = wc_RsaExportKey(&key, e, &eSz, n, &nSz, d, &dSz,
+                              p, &pSz, q, &qSz);
+    \endcode
+
+    \sa wc_RsaFlattenPublicKey
+*/
+int wc_RsaExportKey(const RsaKey* key, byte* e, word32* eSz,
+    byte* n, word32* nSz, byte* d, word32* dSz, byte* p,
+    word32* pSz, byte* q, word32* qSz);
+
+/*!
+    \ingroup RSA
+    \brief Checks probable prime with extended options.
+
+    \return 0 on success
+    \return negative on error
+
+    \param p Prime p buffer
+    \param pSz Prime p size
+    \param q Prime q buffer
+    \param qSz Prime q size
+    \param e Public exponent buffer
+    \param eSz Public exponent size
+    \param nlen Modulus length
+    \param isPrime Prime result pointer
+    \param rng Random number generator
+
+    _Example_
+    \code
+    byte p[128], q[128], e[3];
+    int isPrime;
+    WC_RNG rng;
+    int ret = wc_CheckProbablePrime_ex(p, 128, q, 128, e, 3,
+                                      2048, &isPrime, &rng);
+    \endcode
+
+    \sa wc_CheckProbablePrime
+*/
+int wc_CheckProbablePrime_ex(const byte* p, word32 pSz,
+    const byte* q, word32 qSz, const byte* e, word32 eSz,
+    int nlen, int* isPrime, WC_RNG* rng);
+
+/*!
+    \ingroup RSA
+    \brief Checks probable prime.
+
+    \return 0 on success
+    \return negative on error
+
+    \param p Prime p buffer
+    \param pSz Prime p size
+    \param q Prime q buffer
+    \param qSz Prime q size
+    \param e Public exponent buffer
+    \param eSz Public exponent size
+    \param nlen Modulus length
+    \param isPrime Prime result pointer
+
+    _Example_
+    \code
+    byte p[128], q[128], e[3];
+    int isPrime;
+    int ret = wc_CheckProbablePrime(p, 128, q, 128, e, 3, 2048,
+                                   &isPrime);
+    \endcode
+
+    \sa wc_CheckProbablePrime_ex
+*/
+int wc_CheckProbablePrime(const byte* p, word32 pSz,
+    const byte* q, word32 qSz, const byte* e, word32 eSz,
+    int nlen, int* isPrime);
+
+/*!
+    \ingroup RSA
+    \brief Pads data with extended options.
+
+    \return 0 on success
+    \return negative on error
+
+    \param input Input data
+    \param inputLen Input length
+    \param pkcsBlock Output padded block
+    \param pkcsBlockLen Padded block size
+    \param padValue Pad value
+    \param rng Random number generator
+    \param padType Padding type
+    \param hType Hash type
+    \param mgf MGF type
+    \param optLabel Optional label
+    \param labelLen Label length
+    \param saltLen Salt length
+    \param bits Key size in bits
+    \param heap Heap hint
+
+    _Example_
+    \code
+    byte in[32], padded[256];
+    WC_RNG rng;
+    int ret = wc_RsaPad_ex(in, 32, padded, 256, 0x00, &rng,
+                          RSA_BLOCK_TYPE_1,
+                          WC_HASH_TYPE_SHA256, WC_MGF1SHA256,
+                          NULL, 0, 32, 2048, NULL);
+    \endcode
+
+    \sa wc_RsaUnPad_ex
+*/
+int wc_RsaPad_ex(const byte* input, word32 inputLen,
+    byte* pkcsBlock, word32 pkcsBlockLen, byte padValue,
+    WC_RNG* rng, int padType, enum wc_HashType hType, int mgf,
+    byte* optLabel, word32 labelLen, int saltLen, int bits,
+    void* heap);
+
+/*!
+    \ingroup RSA
+    \brief Unpads data with extended options.
+
+    \return Size of unpadded data on success
+    \return negative on error
+
+    \param pkcsBlock Padded block
+    \param pkcsBlockLen Padded block length
+    \param out Output pointer
+    \param padValue Pad value
+    \param padType Padding type
+    \param hType Hash type
+    \param mgf MGF type
+    \param optLabel Optional label
+    \param labelLen Label length
+    \param saltLen Salt length
+    \param bits Key size in bits
+    \param heap Heap hint
+
+    _Example_
+    \code
+    byte padded[256];
+    byte* out;
+    int ret = wc_RsaUnPad_ex(padded, 256, &out, 0x00,
+                             RSA_BLOCK_TYPE_1,
+                             WC_HASH_TYPE_SHA256, WC_MGF1SHA256,
+                             NULL, 0, 32, 2048, NULL);
+    \endcode
+
+    \sa wc_RsaPad_ex
+*/
+int wc_RsaUnPad_ex(byte* pkcsBlock, word32 pkcsBlockLen,
+    byte** out, byte padValue, int padType,
+    enum wc_HashType hType, int mgf, byte* optLabel,
+    word32 labelLen, int saltLen, int bits, void* heap);
+
+/*!
+    \ingroup RSA
+    \brief Decodes raw RSA private key.
+
+    \return 0 on success
+    \return negative on error
+
+    \param n Modulus buffer
+    \param nSz Modulus size
+    \param e Public exponent buffer
+    \param eSz Public exponent size
+    \param d Private exponent buffer
+    \param dSz Private exponent size
+    \param u Coefficient buffer
+    \param uSz Coefficient size
+    \param p Prime p buffer
+    \param pSz Prime p size
+    \param q Prime q buffer
+    \param qSz Prime q size
+    \param dP dP buffer
+    \param dPSz dP size
+    \param dQ dQ buffer
+    \param dQSz dQ size
+    \param key RSA key
+
+    _Example_
+    \code
+    RsaKey key;
+    byte n[256], e[3], d[256], u[256], p[128], q[128];
+    byte dP[128], dQ[128];
+    int ret = wc_RsaPrivateKeyDecodeRaw(n, 256, e, 3, d, 256,
+                                       u, 256, p, 128, q, 128,
+                                       dP, 128, dQ, 128, &key);
+    \endcode
+
+    \sa wc_RsaPrivateKeyDecode
+*/
+int wc_RsaPrivateKeyDecodeRaw(const byte* n, word32 nSz,
+    const byte* e, word32 eSz, const byte* d, word32 dSz,
+    const byte* u, word32 uSz, const byte* p, word32 pSz,
+    const byte* q, word32 qSz, const byte* dP, word32 dPSz,
+    const byte* dQ, word32 dQSz, RsaKey* key);

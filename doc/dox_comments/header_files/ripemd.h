@@ -101,3 +101,63 @@ int wc_RipeMdUpdate(RipeMd* ripemd, const byte* data, word32 len);
     \sa none
 */
 int wc_RipeMdFinal(RipeMd* ripemd, byte* hash);
+
+/*!
+    \ingroup openSSL
+    \brief Initializes RIPEMD context.
+
+    \return none No returns
+
+    \param ctx RIPEMD context to initialize
+
+    _Example_
+    \code
+    WOLFSSL_RIPEMD_CTX ctx;
+    wolfSSL_RIPEMD_Init(&ctx);
+    \endcode
+
+    \sa wolfSSL_RIPEMD_Update
+*/
+void wolfSSL_RIPEMD_Init(WOLFSSL_RIPEMD_CTX* ctx);
+
+/*!
+    \ingroup openSSL
+    \brief Updates RIPEMD hash with data.
+
+    \return none No returns
+
+    \param ctx RIPEMD context
+    \param data Input data
+    \param len Input size
+
+    _Example_
+    \code
+    WOLFSSL_RIPEMD_CTX ctx;
+    unsigned char data[100];
+    wolfSSL_RIPEMD_Update(&ctx, data, sizeof(data));
+    \endcode
+
+    \sa wolfSSL_RIPEMD_Init
+*/
+void wolfSSL_RIPEMD_Update(WOLFSSL_RIPEMD_CTX* ctx, const void* data,
+    unsigned long len);
+
+/*!
+    \ingroup openSSL
+    \brief Finalizes RIPEMD hash.
+
+    \return none No returns
+
+    \param hash Output hash buffer
+    \param ctx RIPEMD context
+
+    _Example_
+    \code
+    WOLFSSL_RIPEMD_CTX ctx;
+    unsigned char hash[RIPEMD_DIGEST_SIZE];
+    wolfSSL_RIPEMD_Final(hash, &ctx);
+    \endcode
+
+    \sa wolfSSL_RIPEMD_Update
+*/
+void wolfSSL_RIPEMD_Final(unsigned char* hash, WOLFSSL_RIPEMD_CTX* ctx);
