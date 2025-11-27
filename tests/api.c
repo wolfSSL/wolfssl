@@ -33815,10 +33815,10 @@ static int test_wolfSSL_d2i_and_i2d_PublicKey(void)
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && !defined(NO_RSA)
     EVP_PKEY* pkey = NULL;
-    const unsigned char* p;
+    const unsigned char* p = NULL;
     unsigned char *der = NULL;
     unsigned char *tmp = NULL;
-    int derLen;
+    int derLen = 0;
 
     p = client_keypub_der_2048;
     /* Check that key can be successfully decoded. */
@@ -34143,9 +34143,9 @@ static int test_wolfSSL_d2i_OCSP_CERTID(void)
 {
     EXPECT_DECLS;
 #if (defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY)) && defined(HAVE_OCSP)
-    WOLFSSL_OCSP_CERTID* certIdGood;
-    WOLFSSL_OCSP_CERTID* certIdBad;
-    const unsigned char* rawCertIdPtr;
+    WOLFSSL_OCSP_CERTID* certIdGood = NULL;
+    WOLFSSL_OCSP_CERTID* certIdBad = NULL;
+    const unsigned char* rawCertIdPtr = NULL;
 
     const unsigned char rawCertId[] = {
         0x30, 0x49, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x0e, 0x03, 0x02, 0x1a, 0x05,
@@ -42550,8 +42550,8 @@ static THREAD_RETURN WOLFSSL_THREAD SSL_read_test_client_thread(void* args)
     char msg[] = "hello wolfssl server!";
     int  len   = (int) XSTRLEN(msg);
     char input[1024];
-    int  idx;
-    int  ret, err;
+    int  idx = 0;
+    int  ret = 0, err = 0;
 
     if (!args)
         WOLFSSL_RETURN_FROM_THREAD(0);
