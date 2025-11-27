@@ -1853,8 +1853,7 @@ extern void uITRON4_free(void *p) ;
         #else
             #define XFREE(p, h, t)      {void* xp = (p); (void)(h); (void)(t); if ((xp)) _mem_free((xp));}
         #endif
-
-        /* Note: MQX has no realloc, using fastmath above */
+        #define XREALLOC(p, n, h, t) ((void)(h), (void)(t), (void *)_mem_realloc((p), (n)))
     #endif
     #ifdef USE_FAST_MATH
         /* Undef first to avoid re-definition if user_settings.h defines */
