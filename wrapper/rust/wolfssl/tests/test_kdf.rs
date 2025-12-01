@@ -1,5 +1,7 @@
+#[cfg(any(kdf_pbkdf2, kdf_tls13))]
 use wolfssl::wolfcrypt::hmac::HMAC;
 use wolfssl::wolfcrypt::kdf::*;
+#[cfg(kdf_tls13)]
 use wolfssl::wolfcrypt::sha::SHA256;
 
 #[test]

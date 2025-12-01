@@ -71,7 +71,7 @@ fn test_rsa_encrypt_decrypt() {
 }
 
 #[test]
-#[cfg(sha256)]
+#[cfg(all(sha256, rsa_pss))]
 fn test_rsa_pss() {
     let mut rng = RNG::new().expect("Error creating RNG");
 

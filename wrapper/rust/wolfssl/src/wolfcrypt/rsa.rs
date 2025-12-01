@@ -754,6 +754,8 @@ impl RSA {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(rsa_pss)]
+    /// {
     /// use std::fs;
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::rsa::RSA;
@@ -780,7 +782,9 @@ impl RSA {
     ///
     /// let mut verify_out: [u8; 512] = [0; 512];
     /// rsa.pss_verify_check(signature, &mut verify_out, msg, RSA::HASH_TYPE_SHA256, RSA::MGF1SHA256).expect("Error with pss_verify_check()");
+    /// }
     /// ```
+    #[cfg(rsa_pss)]
     pub fn pss_sign(&mut self, din: &[u8], dout: &mut [u8], hash_algo: u32, mgf: i32, rng: &mut RNG) -> Result<usize, i32> {
         let din_size = din.len() as u32;
         let dout_size = dout.len() as u32;
@@ -813,6 +817,8 @@ impl RSA {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(rsa_pss)]
+    /// {
     /// use std::fs;
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::rsa::RSA;
@@ -839,7 +845,9 @@ impl RSA {
     ///
     /// let mut verify_out: [u8; 512] = [0; 512];
     /// rsa.pss_verify_check(signature, &mut verify_out, msg, RSA::HASH_TYPE_SHA256, RSA::MGF1SHA256).expect("Error with pss_verify_check()");
+    /// }
     /// ```
+    #[cfg(rsa_pss)]
     pub fn pss_check_padding(&mut self, din: &[u8], sig: &[u8], hash_algo: u32) -> Result<(), i32> {
         let din_size = din.len() as u32;
         let sig_size = sig.len() as u32;
@@ -875,6 +883,8 @@ impl RSA {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(rsa_pss)]
+    /// {
     /// use std::fs;
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::rsa::RSA;
@@ -901,7 +911,9 @@ impl RSA {
     ///
     /// let mut verify_out: [u8; 512] = [0; 512];
     /// rsa.pss_verify_check(signature, &mut verify_out, msg, RSA::HASH_TYPE_SHA256, RSA::MGF1SHA256).expect("Error with pss_verify_check()");
+    /// }
     /// ```
+    #[cfg(rsa_pss)]
     pub fn pss_verify(&mut self, din: &[u8], dout: &mut [u8], hash_algo: u32, mgf: i32) -> Result<usize, i32> {
         let din_size = din.len() as u32;
         let dout_size = dout.len() as u32;
@@ -942,6 +954,8 @@ impl RSA {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(rsa_pss)]
+    /// {
     /// use std::fs;
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::rsa::RSA;
@@ -968,7 +982,9 @@ impl RSA {
     ///
     /// let mut verify_out: [u8; 512] = [0; 512];
     /// rsa.pss_verify_check(signature, &mut verify_out, msg, RSA::HASH_TYPE_SHA256, RSA::MGF1SHA256).expect("Error with pss_verify_check()");
+    /// }
     /// ```
+    #[cfg(rsa_pss)]
     pub fn pss_verify_check(&mut self, din: &[u8], dout: &mut [u8], digest: &[u8], hash_algo: u32, mgf: i32) -> Result<usize, i32> {
         let din_size = din.len() as u32;
         let dout_size = dout.len() as u32;

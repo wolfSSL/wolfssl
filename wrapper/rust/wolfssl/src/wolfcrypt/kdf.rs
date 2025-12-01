@@ -24,6 +24,7 @@ Function (KDF) functionality.
 */
 
 use crate::sys;
+#[cfg(kdf_tls13)]
 use crate::wolfcrypt::hmac::HMAC;
 
 #[cfg(kdf_srtp)]

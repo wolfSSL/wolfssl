@@ -1,3 +1,5 @@
+#![cfg(hkdf)]
+
 use wolfssl::wolfcrypt::hkdf::*;
 use wolfssl::wolfcrypt::hmac::HMAC;
 use wolfssl::wolfcrypt::sha::SHA256;
