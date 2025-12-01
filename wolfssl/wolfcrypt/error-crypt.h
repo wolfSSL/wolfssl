@@ -307,9 +307,11 @@ enum wolfCrypt_ErrorCodes {
     WC_ACCEL_INHIBIT_E  = -1002, /* Crypto acceleration is currently inhibited */
     BAD_INDEX_E         = -1003, /* Bad index */
     INTERRUPTED_E       = -1004, /* Process interrupted */
+    MLKEM_PUB_HASH_E    = -1005, /* Encoded public key in decapsulation key does
+                                  * not match stored hash*/
 
-    WC_SPAN2_LAST_E     = -1004, /* Update to indicate last used error code */
-    WC_LAST_E           = -1004, /* the last code used either here or in
+    WC_SPAN2_LAST_E     = -1005, /* Update to indicate last used error code */
+    WC_LAST_E           = -1005, /* the last code used either here or in
                                   * error-ssl.h */
 
     WC_SPAN2_MIN_CODE_E = -1999, /* Last usable code in span 2 */
