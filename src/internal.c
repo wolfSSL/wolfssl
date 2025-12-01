@@ -11165,8 +11165,7 @@ static WC_INLINE int GrowAnOutputBuffer(WOLFSSL* ssl,
         return MEMORY_E;
 
 #if WOLFSSL_GENERAL_ALIGNMENT > 0
-    if (align)
-        tmp += align - hdrSz;
+    tmp += align - hdrSz;
 #endif
 
 #ifdef WOLFSSL_STATIC_MEMORY
@@ -11186,11 +11185,10 @@ static WC_INLINE int GrowAnOutputBuffer(WOLFSSL* ssl,
     }
 
 #if WOLFSSL_GENERAL_ALIGNMENT > 0
-    if (align)
-        outputBuffer->offset = align - hdrSz;
-    else
+    outputBuffer->offset = align - hdrSz;
+#else
+    outputBuffer->offset = 0;
 #endif
-        outputBuffer->offset = 0;
 
     outputBuffer->buffer = tmp;
     outputBuffer->dynamicFlag = 1;
@@ -11246,8 +11244,7 @@ static WC_INLINE int GrowOutputBuffer(WOLFSSL* ssl, int size)
         return MEMORY_E;
 
 #if WOLFSSL_GENERAL_ALIGNMENT > 0
-    if (align)
-        tmp += align - hdrSz;
+    tmp += align - hdrSz;
 #endif
 
 #ifdef WOLFSSL_STATIC_MEMORY
@@ -11272,11 +11269,10 @@ static WC_INLINE int GrowOutputBuffer(WOLFSSL* ssl, int size)
     ssl->buffers.outputBuffer.dynamicFlag = 1;
 
 #if WOLFSSL_GENERAL_ALIGNMENT > 0
-    if (align)
-        ssl->buffers.outputBuffer.offset = align - hdrSz;
-    else
+    ssl->buffers.outputBuffer.offset = align - hdrSz;
+#else
+    ssl->buffers.outputBuffer.offset = 0;
 #endif
-        ssl->buffers.outputBuffer.offset = 0;
 
     ssl->buffers.outputBuffer.buffer = tmp;
     ssl->buffers.outputBuffer.bufferSize = newSz;
