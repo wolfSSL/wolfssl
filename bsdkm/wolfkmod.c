@@ -52,17 +52,17 @@ static int wolfkmod_init(void)
     ret = wolfCrypt_Init();
     if (ret != 0) {
         printf("error: wolfCrypt_Init failed: %s\n", wc_GetErrorString(ret));
-        return -ECANCELED;
+        return (ECANCELED);
     }
     #else
     ret = wolfSSL_Init();
     if (ret != WOLFSSL_SUCCESS) {
         printf("error: wolfSSL_Init failed: %s\n", wc_GetErrorString(ret));
-        return -ECANCELED;
+        return (ECANCELED);
     }
     #endif
 
-    return ret;
+    return (0);
 }
 
 static int wolfkmod_cleanup(void)
@@ -73,25 +73,21 @@ static int wolfkmod_cleanup(void)
     ret = wolfCrypt_Cleanup();
     if (ret != 0) {
         printf("error: wolfCrypt_Cleanup failed: %s\n", wc_GetErrorString(ret));
-    }
-    else {
-        #if defined(WOLFSSL_BSDKM_VERBOSE_DEBUG)
-        printf("info: wolfCrypt " LIBWOLFSSL_VERSION_STRING " cleanup complete.\n");
-        #endif /* WOLFSSL_BSDKM_VERBOSE_DEBUG */
+        return (ECANCELED);
     }
     #else
     ret = wolfSSL_Cleanup();
     if (ret != WOLFSSL_SUCCESS) {
         printf("error: wolfSSL_Cleanup failed: %s\n", wc_GetErrorString(ret));
+        return (ECANCELED);
     }
-    else {
-        #if defined(WOLFSSL_BSDKM_VERBOSE_DEBUG)
-        printf("info: wolfSSL " LIBWOLFSSL_VERSION_STRING " cleanup complete.\n");
-        #endif /* WOLFSSL_BSDKM_VERBOSE_DEBUG */
-    }
-    #endif
+    #endif /* WOLFCRYPT_ONLY */
 
-    return ret;
+    #if defined(WOLFSSL_BSDKM_VERBOSE_DEBUG)
+    printf("info: libwolfssl " LIBWOLFSSL_VERSION_STRING " cleanup complete.\n");
+    #endif /* WOLFSSL_BSDKM_VERBOSE_DEBUG */
+
+    return (0);
 }
 
 static int wolfkmod_load(void)
@@ -100,7 +96,7 @@ static int wolfkmod_load(void)
 
     ret = wolfkmod_init();
     if (ret != 0) {
-        return -ECANCELED;
+        return (ECANCELED);
     }
 
     #ifndef NO_CRYPT_TEST
@@ -108,13 +104,11 @@ static int wolfkmod_load(void)
     if (ret != 0) {
         printf("error: wolfcrypt test failed with return code: %d\n", ret);
         (void)wolfkmod_cleanup();
-        return -ECANCELED;
+        return (ECANCELED);
     }
-    else {
-        #if defined(WOLFSSL_BSDKM_VERBOSE_DEBUG)
-        printf("wolfCrypt self-test passed.\n");
-        #endif /* WOLFSSL_BSDKM_VERBOSE_DEBUG */
-    }
+    #if defined(WOLFSSL_BSDKM_VERBOSE_DEBUG)
+    printf("info: wolfCrypt self-test passed.\n");
+    #endif /* WOLFSSL_BSDKM_VERBOSE_DEBUG */
     #endif /* NO_CRYPT_TEST */
 
     /**
@@ -122,11 +116,9 @@ static int wolfkmod_load(void)
      * and related.
      * */
 
-    if (ret == 0) {
-        printf("info: libwolfssl loaded\n");
-    }
+    printf("info: libwolfssl loaded\n");
 
-    return ret;
+    return (0);
 }
 
 static int wolfkmod_unload(void)
@@ -144,7 +136,7 @@ static int wolfkmod_unload(void)
         printf("info: libwolfssl unloaded\n");
     }
 
-    return ret;
+    return (ret);
 }
 
 /* see /usr/include/sys/module.h for more info. */
@@ -172,7 +164,7 @@ wolfkmod_event(struct module * m, int what, void * arg)
     (void)m;
     (void)arg;
 
-    return ret;
+    return (ret);
 }
 
 static moduledata_t libwolfmod = {
