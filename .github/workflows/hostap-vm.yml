@@ -232,6 +232,7 @@ jobs:
         working-directory: hostap/tests/hwsim/auth_serv
         run: |
           ./update.sh
+          ./sha512-generate.sh
           # Force regeneration of rsa3072-ca.key to get rsa3072-generate.sh to
           # correctly update all the certs
           rm rsa3072-ca.key
@@ -330,6 +331,10 @@ jobs:
             fi
             rm -r /tmp/hwsim-test-logs
           done < $GITHUB_WORKSPACE/wolfssl/.github/workflows/hostap-files/configs/${{ matrix.config.hostap_ref }}/tests
+
+      - name: show errors
+        if: ${{ failure() && steps.testing.outcome == 'failure' }}
+        run: grep -riP 'fail|error' /tmp/hwsim-test-logs/latest
 
       # The logs are quite big. It hasn't been useful so far so let's not waste
       # precious gh space.
