@@ -2832,6 +2832,16 @@ static int IntelQaSymHashCache(WC_ASYNC_DEV* dev, byte* out, const byte* in,
         ret = 0; /* success */
         goto exit;
     }
+    else if (out != NULL && dev->qat.op.hash.tmpIn == NULL) {
+        /* QAT requires an input buffer even for an empty hash */
+        dev->qat.op.hash.tmpInSz = 0;
+        dev->qat.op.hash.tmpInBufSz = 16; /* use minimum alignment (16 bytes) */
+        dev->qat.op.hash.tmpIn = (byte*)XMALLOC(dev->qat.op.hash.tmpInBufSz,
+            dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
+        if (dev->qat.op.hash.tmpIn == NULL) {
+            ret = MEMORY_E; goto exit;
+        }
+    }
 
     /* handle output processing */
     packetType = CPA_CY_SYM_PACKET_TYPE_FULL;
