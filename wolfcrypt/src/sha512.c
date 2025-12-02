@@ -22,7 +22,7 @@
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #if (defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)) && \
-    !defined(WOLFSSL_PSOC6_CRYPTO) && !defined(WOLFSSL_RISCV_ASM)
+    !defined(WOLFSSL_RISCV_ASM)
 
 /* determine if we are using Espressif SHA hardware acceleration */
 #undef WOLFSSL_USE_ESP32_CRYPT_HASH_HW
@@ -2214,6 +2214,7 @@ int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst)
             return ret;
         /* fall-through when unavailable */
     }
+    ret = 0; /* Reset ret to 0 to avoid returning the callback error code */
 #endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_COPY */
 
     XMEMCPY(dst, src, sizeof(wc_Sha512));
@@ -2642,6 +2643,7 @@ int wc_Sha384Copy(wc_Sha384* src, wc_Sha384* dst)
             return ret;
         /* fall-through when unavailable */
     }
+    ret = 0; /* Reset ret to 0 to avoid returning the callback error code */
 #endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_COPY */
 
     XMEMCPY(dst, src, sizeof(wc_Sha384));

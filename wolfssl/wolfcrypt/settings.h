@@ -442,6 +442,8 @@
     (WOLFSSL_FIPS_VERSION_CODE >= WOLFSSL_MAKE_FIPS_VERSION3(major,minor,patch))
 #define FIPS_VERSION3_GT(major,minor,patch) \
     (WOLFSSL_FIPS_VERSION_CODE > WOLFSSL_MAKE_FIPS_VERSION3(major,minor,patch))
+#define FIPS_VERSION3_NE(major,minor,patch) \
+    (WOLFSSL_FIPS_VERSION_CODE != WOLFSSL_MAKE_FIPS_VERSION3(major,minor,patch))
 /*------------------------------------------------------------*/
 
 
@@ -3776,7 +3778,7 @@ extern void uITRON4_free(void *p) ;
         #define WOLFSSL_SP_DIV_WORD_HALF
     #endif
 
-    #ifdef HAVE_LINUXKM_PIE_SUPPORT
+    #ifdef WC_SYM_RELOC_TABLES
         #ifndef WC_NO_INTERNAL_FUNCTION_POINTERS
             #define WC_NO_INTERNAL_FUNCTION_POINTERS
         #endif
@@ -3828,6 +3830,117 @@ extern void uITRON4_free(void *p) ;
             #define WC_RESEED_INTERVAL (((word64)1UL)<<48UL)
         #endif
     #endif
+    #if defined(__aarch64__) && !defined(WOLFSSL_AARCH64_PRIVILEGE_MODE)
+        #define WOLFSSL_AARCH64_PRIVILEGE_MODE
+    #endif
+#endif
+
+/* FreeBSD Kernel Module */
+#ifdef WOLFSSL_BSDKM
+    #define WOLFSSL_KERNEL_MODE
+    #define WC_TEST_EXPORT_SUBTESTS
+    #ifdef WOLFSSL_BSDKM_VERBOSE_DEBUG
+        #define WOLFSSL_KERNEL_VERBOSE_DEBUG
+    #endif
+    #ifdef HAVE_CONFIG_H
+        #include <config.h>
+        #undef HAVE_CONFIG_H
+    #endif
+    #ifndef NO_ASN_TIME
+        #define NO_ASN_TIME
+    #endif
+    #ifndef NO_DEV_RANDOM
+        #define NO_DEV_RANDOM
+    #endif
+    #ifndef NO_WRITEV
+        #define NO_WRITEV
+    #endif
+    #ifndef NO_FILESYSTEM
+        #define NO_FILESYSTEM
+    #endif
+    #ifndef NO_STDIO_FILESYSTEM
+        #define NO_STDIO_FILESYSTEM
+    #endif
+    #ifndef WOLFSSL_NO_SOCK
+        #define WOLFSSL_NO_SOCK
+    #endif
+    #ifndef WOLFSSL_DH_CONST
+        #define WOLFSSL_DH_CONST
+    #endif
+    #ifndef WOLFSSL_USER_IO
+        #define WOLFSSL_USER_IO
+    #endif
+    #ifndef USE_WOLF_STRTOK
+        #define USE_WOLF_STRTOK
+    #endif
+    #ifndef WOLFSSL_OLD_PRIME_CHECK
+        #define WOLFSSL_OLD_PRIME_CHECK
+    #endif
+    #ifndef WOLFSSL_TEST_SUBROUTINE
+        #ifndef NO_CRYPT_TEST
+            #define WOLFSSL_TEST_SUBROUTINE
+        #else
+            #define WOLFSSL_TEST_SUBROUTINE static
+        #endif
+    #endif
+    /* bsdkm uses kernel headers, included in bsdkm_wc_port.h. */
+    #undef HAVE_PTHREAD
+    #undef HAVE_STRINGS_H
+    #undef HAVE_LIMITS_H
+    #define NO_STRING_H
+    #define NO_LIMITS_H
+    #define NO_STDLIB_H
+    #define NO_STDINT_H
+    #define NO_CTYPE_H
+    #undef HAVE_ERRNO_H
+    #undef HAVE_THREAD_LS
+    #undef HAVE_ATEXIT
+    #undef WOLFSSL_HAVE_ASSERT_H
+    #define WOLFSSL_NO_ASSERT_H
+    #ifndef WOLFSSL_NO_GETPID
+        #define WOLFSSL_NO_GETPID
+    #endif /* WOLFSSL_NO_GETPID */
+    #ifndef SIZEOF_LONG
+        #define SIZEOF_LONG 8
+    #endif
+    #ifndef SIZEOF_LONG_LONG
+        #define SIZEOF_LONG_LONG 8
+    #endif
+    #ifndef WOLFSSL_SP_DIV_64
+        #define WOLFSSL_SP_DIV_64
+    #endif
+    #ifndef WOLFSSL_SP_DIV_WORD_HALF
+        #define WOLFSSL_SP_DIV_WORD_HALF
+    #endif
+
+    #ifndef NO_OLD_WC_NAMES
+        #define NO_OLD_WC_NAMES
+    #endif
+    #ifndef NO_OLD_SHA_NAMES
+        #define NO_OLD_SHA_NAMES
+    #endif
+    #ifndef NO_OLD_MD5_NAME
+        #define NO_OLD_MD5_NAME
+    #endif
+    #ifndef OPENSSL_COEXIST
+        #define OPENSSL_COEXIST
+    #endif
+    #ifndef NO_OLD_SSL_NAMES
+        #define NO_OLD_SSL_NAMES
+    #endif
+
+    /* FreeBSD kernel defines its own min, max functions in sys/libkern.h */
+    #undef  WOLFSSL_HAVE_MIN
+    #define WOLFSSL_HAVE_MIN
+
+    #undef  WOLFSSL_HAVE_MAX
+    #define WOLFSSL_HAVE_MAX
+#endif
+
+#if defined(WC_SYM_RELOC_TABLES) && defined(HAVE_FIPS) && \
+    !defined(WC_PIE_RELOC_TABLES)
+    /* backward compat */
+    #define WC_PIE_RELOC_TABLES
 #endif
 
 /* Place any other flags or defines here */

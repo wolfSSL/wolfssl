@@ -912,7 +912,7 @@ int test_wolfSSL_ASN1_get_object(void)
 
     /* SEQUENCE */
     ExpectIntEQ(ASN1_get_object(&derBuf, &asnLen, &tag, &cls, len) & 0x80, 0);
-    ExpectIntEQ(asnLen, 862);
+    ExpectIntEQ(asnLen, 861);
     ExpectIntEQ(tag, 0x10);
     ExpectIntEQ(cls, 0);
 
@@ -2127,7 +2127,7 @@ int test_wolfSSL_ASN1_TIME_print(void)
 
     ExpectIntEQ(ASN1_TIME_print(bio, notBefore), 1);
     ExpectIntEQ(BIO_read(bio, buf, sizeof(buf)), 24);
-    ExpectIntEQ(XMEMCMP(buf, "Dec 18 21:25:29 2024 GMT", sizeof(buf) - 1), 0);
+    ExpectIntEQ(XMEMCMP(buf, "Nov 13 20:41:10 2025 GMT", sizeof(buf) - 1), 0);
 
     /* Test BIO_write fails. */
     ExpectIntEQ(BIO_set_write_buf_size(fixed, 1), 1);

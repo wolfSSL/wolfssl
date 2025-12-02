@@ -26,6 +26,7 @@
 
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/ssl.h>
+#include <wolfssl/wolfio.h>
 #ifdef HAVE_CRL
     #include <wolfssl/crl.h>
 #endif
@@ -2182,7 +2183,11 @@ WOLFSSL_LOCAL int  CreateDevPrivateKey(void** pkey, byte* data, word32 length,
 #ifdef WOLFSSL_BLIND_PRIVATE_KEY
 WOLFSSL_LOCAL int wolfssl_priv_der_blind(WC_RNG* rng, DerBuffer* key,
     DerBuffer** mask);
-WOLFSSL_LOCAL void wolfssl_priv_der_unblind(DerBuffer* key, DerBuffer* mask);
+WOLFSSL_LOCAL void wolfssl_priv_der_blind_toggle(DerBuffer* key,
+    const DerBuffer* mask);
+WOLFSSL_LOCAL WARN_UNUSED_RESULT DerBuffer *wolfssl_priv_der_unblind(
+    const DerBuffer* key, const DerBuffer* mask);
+WOLFSSL_LOCAL void wolfssl_priv_der_unblind_free(DerBuffer* key);
 #endif
 WOLFSSL_LOCAL int  DecodePrivateKey(WOLFSSL *ssl, word32* length);
 #ifdef WOLFSSL_DUAL_ALG_CERTS
@@ -2210,7 +2215,7 @@ WOLFSSL_LOCAL int  MatchDomainName(const char* pattern, int len,
 #if !defined(NO_CERTS) && !defined(NO_ASN)
 WOLFSSL_LOCAL int  CheckForAltNames(DecodedCert* dCert, const char* domain,
                                     word32 domainLen, int* checkCN,
-                                    unsigned int flags);
+                                    unsigned int flags, byte isIP);
 WOLFSSL_LOCAL int  CheckIPAddr(DecodedCert* dCert, const char* ipasc);
 WOLFSSL_LOCAL void CopyDecodedName(WOLFSSL_X509_NAME* name, DecodedCert* dCert, int nameType);
 #endif
@@ -2730,6 +2735,7 @@ struct WOLFSSL_SOCKADDR {
     void*        sa; /* pointer to the sockaddr_in or sockaddr_in6 */
 };
 
+#ifdef WOLFSSL_DTLS
 typedef struct WOLFSSL_DTLS_CTX {
 #ifdef WOLFSSL_RW_THREADED
     /* Protect peer access after the handshake */
@@ -2743,6 +2749,8 @@ typedef struct WOLFSSL_DTLS_CTX {
 #endif
     int rfd;
     int wfd;
+    WolfSSLRecvFrom recvfrom;
+    WolfSSLSento sendto;
     byte userSet:1;
     byte connected:1; /* When set indicates rfd and wfd sockets are
                        * connected (connect() and bind() both called).
@@ -2752,6 +2760,7 @@ typedef struct WOLFSSL_DTLS_CTX {
     byte processingPendingRecord:1;
 #endif
 } WOLFSSL_DTLS_CTX;
+#endif
 
 
 typedef struct WOLFSSL_DTLS_PEERSEQ {
@@ -3797,7 +3806,10 @@ struct WOLFSSL_CTX {
     int         altPrivateKeyDevId;
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
 #ifdef OPENSSL_ALL
-    WOLFSSL_EVP_PKEY* privateKeyPKey;
+    /* note it is the privateKeyPKey pointer that is volatile, not the object it
+     * points to:
+     */
+    WOLFSSL_EVP_PKEY* volatile privateKeyPKey;
 #endif
     WOLFSSL_CERT_MANAGER* cm;      /* our cert manager, ctx owns SSL will use */
 #endif
@@ -3902,6 +3914,9 @@ struct WOLFSSL_CTX {
 #endif
 #ifndef NO_RSA
     short       minRsaKeySz;      /* minimum RSA key size */
+#ifdef WC_RSA_PSS
+    word8       useRsaPss;        /* cert supports RSA-PSS */
+#endif
 #endif
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
     short       minEccKeySz;      /* minimum ECC key size */
@@ -4540,7 +4555,7 @@ WOLFSSL_LOCAL int wolfSSL_quic_add_transport_extensions(WOLFSSL *ssl, int msg_ty
 #endif /* WOLFSSL_QUIC */
 
 /** Session Ticket - RFC 5077 (session 3.2) */
-#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+#if defined(WOLFSSL_TLS13) && (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK))
 /* Ticket nonce - for deriving PSK.
    Length allowed to be: 1..255. Only support
  * TLS13_TICKET_NONCE_STATIC_SZ length bytes.
@@ -4555,7 +4570,6 @@ typedef struct TicketNonce {
     byte data[MAX_TICKET_NONCE_STATIC_SZ];
 #endif /* WOLFSSL_TICKET_NONCE_MALLOC  && FIPS_VERSION_GE(5,3) */
 } TicketNonce;
-
 #endif
 
 /* wolfSSL session type */
@@ -5086,6 +5100,7 @@ struct Options {
 #endif
     word16            hrrSentKeyShare:1;  /* HRR sent with key share */
 #endif
+    word16            returnOnGoodCh:1;
     word16            disableRead:1;
 
 #ifdef WOLFSSL_EARLY_DATA
@@ -5932,6 +5947,9 @@ struct WOLFSSL {
     byte*           peerSceTsipEncRsaKeyIndex;
 #endif
     byte            peerRsaKeyPresent;
+#ifdef WC_RSA_PSS
+    word8           useRsaPss;           /* cert supports RSA-PSS */
+#endif
 #endif
 #if defined(WOLFSSL_TLS13) || defined(HAVE_FFDHE)
     word16          namedGroup;
@@ -6388,7 +6406,8 @@ WOLFSSL_TEST_VIS   void wolfSSL_ResourceFree(WOLFSSL* ssl);   /* Micrium uses */
 
     #ifndef NO_ASN
     WOLFSSL_LOCAL int CheckHostName(DecodedCert* dCert, const char *domainName,
-                                    size_t domainNameLen, unsigned int flags);
+                                    size_t domainNameLen, unsigned int flags,
+                                    byte isIP);
     #endif
 #endif
 

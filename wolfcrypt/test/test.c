@@ -43,10 +43,6 @@
     #define WOLFSSL_DEBUG_TRACE_ERROR_CODES_ALWAYS
 #endif
 
-#ifdef WOLFSSL_ASYNC_CRYPT
-    #define WOLFSSL_SMALL_STACK
-#endif
-
 #if !defined(NO_CRYPT_TEST) || defined(WC_TEST_EXPORT_SUBTESTS)
 
 #include <wolfssl/version.h>
@@ -302,7 +298,7 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
     #ifdef XPRINTF
         #undef  printf
         #define printf XPRINTF
-    #elif !defined(printf)
+    #elif !defined(printf) && !defined(NO_STDIO_FILESYSTEM)
         /* arrange for printf() to flush after every message -- this assures
          * redirected output (to a log file) records progress right up to the
          * moment of a crash/abort(); otherwise anything queued in stdout would
@@ -3055,30 +3051,45 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         args.argc = argc;
         args.argv = argv;
 #endif
+
+#if defined(HAVE_FIPS) && defined(HAVE_ENTROPY_MEMUSE) && \
+    !defined(WOLFSSL_KERNEL_MODE)
+        /* wolfEntropy's Entropy_Init() calls wc_InitSha3_256(), which
+         * ultimately fails if the FIPS integrity hash is wrong.
+         */
+        wolfCrypt_SetCb_fips(myFipsCb);
+#endif
+
         if ((ret = wolfCrypt_Init()) != 0) {
             printf("wolfCrypt_Init failed %d\n", (int)ret);
-            err_sys("Error with wolfCrypt_Init!\n", WC_TEST_RET_ENC_EC(ret));
+            args.return_code = WC_TEST_RET_ENC_EC(ret);
+            err_sys("Error with wolfCrypt_Init!\n", args.return_code);
         }
 
 #ifdef HAVE_WC_INTROSPECTION
         printf("Math: %s\n", wc_GetMathInfo());
 #endif
 
+        if (ret == 0) {
 #ifdef HAVE_STACK_SIZE
-        StackSizeCheck(&args, wolfcrypt_test);
+            StackSizeCheck(&args, wolfcrypt_test);
 #else
-        wolfcrypt_test(&args);
+            wolfcrypt_test(&args);
 #endif
+        }
 
         if ((ret = wolfCrypt_Cleanup()) != 0) {
             printf("wolfCrypt_Cleanup failed %d\n", (int)ret);
-            err_sys("Error with wolfCrypt_Cleanup!\n", WC_TEST_RET_ENC_EC(ret));
+            args.return_code = WC_TEST_RET_ENC_EC(ret);
+            err_sys("Error with wolfCrypt_Cleanup!\n", args.return_code);
         }
 
 #ifdef HAVE_WNR
-        if ((ret = wc_FreeNetRandom()) < 0)
+        if ((ret = wc_FreeNetRandom()) < 0) {
+            args.return_code = WC_TEST_RET_ENC_EC(ret);
             err_sys("Failed to free netRandom context",
-                    WC_TEST_RET_ENC_EC(ret));
+                    args.return_code);
+        }
 #endif /* HAVE_WNR */
 #ifdef DOLPHIN_EMULATOR
         /* Returning from main panics the emulator. Just hang
@@ -5885,7 +5896,7 @@ static wc_test_ret_t sha3_384_test(void)
     a.inLen  = XSTRLEN(a.input);
     a.outLen = WC_SHA3_384_DIGEST_SIZE;
 
-#if defined(WOLFSSL_AFALG_XILINX_SHA3) || defined(WOLFSSL_XILINX_CRYPT) && !defined(WOLFSSL_XILINX_CRYPT_VERSAL)
+#ifndef NO_INTM_HASH_TEST
     /* NIST test vector with a length that is a multiple of 4 */
     b.input  = "\x7d\x80\xb1\x60\xc4\xb5\x36\xa3\xbe\xb7\x99\x80\x59\x93\x44"
                "\x04\x7c\x5f\x82\xa1\xdf\xc3\xee\xd4";
@@ -5912,7 +5923,7 @@ static wc_test_ret_t sha3_384_test(void)
     c.inLen  = XSTRLEN(c.input);
     c.outLen = WC_SHA3_384_DIGEST_SIZE;
 
-#if defined(WOLFSSL_XILINX_CRYPT) && !defined(WOLFSSL_XILINX_CRYPT_VERSAL)
+#ifndef NO_INTM_HASH_TEST
     test_sha[0] = b; /* hardware acc. pre-Versal can not handle "" string */
 #else
     test_sha[0] = a;
@@ -10437,9 +10448,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t des3_test(void)
 }
 #endif /* NO_DES3 */
 
-static const int fiducial1 = WC_TEST_RET_LN; /* source code reference point --
-                                              * see print_fiducials() below.
-                                              */
+ /* source code reference point -- see print_fiducials() below. */
+static WC_MAYBE_UNUSED const int fiducial1 = WC_TEST_RET_LN;
 
 #ifndef NO_AES
 
@@ -15230,7 +15240,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_cbc_test(void)
     #ifdef HAVE_RENESAS_SYNC
         const byte *key = (byte*)guser_PKCbInfo.wrapped_key_aes128;
     #else
-        /* padded to 16-byye */
+        /* padded to 16-bytes */
         WOLFSSL_SMALL_STACK_STATIC const byte key[] = "0123456789abcdef   ";
     #endif
         /* padded to 16-bytes */
@@ -16418,7 +16428,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aesgcm_test(void)
         0xb8, 0x56, 0x8f, 0xc3, 0xd3, 0x76, 0xa6, 0xd9
     };
 #endif /* WOLFSSL_AES_192 */
-#ifdef WOLFSSL_AES_128
+#if defined(WOLFSSL_AES_128) && !defined(WOLFSSL_AFALG_XILINX_AES)
     /* The following is an interesting test case from the example
      * FIPS test vectors for AES-GCM. IVlen = 1 byte
      * k3 and p3 below, are also part of this. */
@@ -16449,7 +16459,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aesgcm_test(void)
     int ivlen;
 #endif
 #endif
-#ifdef WOLFSSL_AES_128
+#if defined(WOLFSSL_AES_128) && !defined(WOLFSSL_AFALG_XILINX_AES)
 #ifdef HAVE_RENESAS_SYNC
     const byte *k3 =
         (byte*)guser_PKCbInfo.wrapped_key_aes128;
@@ -16490,7 +16500,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aesgcm_test(void)
 
     int  alen = 0;
     int  plen = 0;
-#ifdef ENABLE_NON_12BYTE_IV_TEST
+#if defined(ENABLE_NON_12BYTE_IV_TEST) && defined(WOLFSSL_AES_128)
     int  tlen = 0;
 #endif
 #if defined(WOLFSSL_XILINX_CRYPT_VERSAL)
@@ -16547,7 +16557,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aesgcm_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 #endif
 
-#ifdef WOLFSSL_AES_128
+#if defined(WOLFSSL_AES_128) && !defined(WOLFSSL_AFALG_XILINX_AES)
     ret = wc_AesGcmSetKey(enc, k3, (word32)k3Sz);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -16916,12 +16926,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aesgcm_test(void)
                 ERROR_OUT(WC_TEST_RET_ENC_NC, out);
         }
     #endif
+    #ifdef HAVE_AES_DECRYPT
         ret = wc_AesGcmDecrypt(enc, resultP, resultC, sizeof(c3),
                       iv3, sizeof(iv3), resultT, tlen, a3, sizeof(a3));
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
         if (XMEMCMP(p3, resultP, sizeof(p3)))
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    #endif
     }
 
     /* Large buffer test */
@@ -20128,6 +20140,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t memory_test(void)
             return WC_TEST_RET_ENC_NC;
         if (WOLFSSL_ATOMIC_LOAD(a_uint) != 7)
             return WC_TEST_RET_ENC_NC;
+
+        {
+            void * volatile a_ptr = NULL;
+            void * ptr_expected = NULL;
+            static const char s[] = "";
+            if (! wolfSSL_Atomic_Ptr_CompareExchange(&a_ptr,
+                                                     &ptr_expected,
+                                                     (void *)&s))
+                return WC_TEST_RET_ENC_NC;
+            if (a_ptr != s)
+                return WC_TEST_RET_ENC_NC;
+        }
     }
 
     return ret;
@@ -30096,9 +30120,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t tls13_kdf_test(void)
 
 #endif /* WOLFSSL_TLS13 && !NO_HMAC */
 
-static const int fiducial2 = WC_TEST_RET_LN; /* source code reference point --
-                                              * see print_fiducials() below.
-                                              */
+ /* source code reference point -- see print_fiducials() below. */
+static WC_MAYBE_UNUSED const int fiducial2 = WC_TEST_RET_LN;
 
 #if defined(HAVE_ECC) && defined(HAVE_X963_KDF)
 
@@ -31114,7 +31137,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t srtpkdf_test(void)
 #define HAVE_ECC_DETERMINISTIC_K
 #define ECC_DIGEST_SIZE     WC_SHA256_DIGEST_SIZE
 #else
-#define ECC_DIGEST_SIZE     MAX_ECC_BYTES
+#define ECC_DIGEST_SIZE     WC_MAX_DIGEST_SIZE
 #endif
 #define ECC_SIG_SIZE        ECC_MAX_SIG_SIZE
 
@@ -49876,9 +49899,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test_verify_only(void)
 #endif
 #endif /* if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_SMALL_STACK) */
 
-static const int fiducial3 = WC_TEST_RET_LN; /* source code reference point --
-                                              * see print_fiducials() below.
-                                              */
+ /* source code reference point -- see print_fiducials() below. */
+static WC_MAYBE_UNUSED const int fiducial3 = WC_TEST_RET_LN;
 
 #ifdef WOLFCRYPT_HAVE_ECCSI
 static wc_test_ret_t eccsi_api_test(WC_RNG* rng, EccsiKey* key, mp_int* ssk,
@@ -62827,7 +62849,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_siv_test(void)
 
 #undef ERROR_OUT
 
-static const int fiducial4 = WC_TEST_RET_LN;
+static WC_MAYBE_UNUSED const int fiducial4 = WC_TEST_RET_LN;
 
 /* print the fiducial line numbers assigned above, allowing confirmation of
  * source code version match when in doubt.

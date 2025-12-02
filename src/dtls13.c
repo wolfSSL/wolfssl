@@ -1898,11 +1898,11 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
 
     ret = DoTls13HandShakeMsgType(ssl, input, &idx, handshakeType,
         messageLength, size);
+    *processedSize = idx;
     if (ret != 0)
         return ret;
 
     Dtls13MsgWasProcessed(ssl, (enum HandShakeType)handshakeType);
-    *processedSize = idx;
 
     /* check if we have buffered some message */
     if (Dtls13NextMessageComplete(ssl))

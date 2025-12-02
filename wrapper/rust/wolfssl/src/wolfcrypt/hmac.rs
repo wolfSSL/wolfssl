@@ -21,33 +21,29 @@
 /*!
 This module provides a Rust wrapper for the wolfCrypt library's HMAC
 functionality.
-
-It leverages the `wolfssl-sys` crate for low-level FFI bindings, encapsulating
-the raw C functions in a memory-safe and easy-to-use Rust API.
 */
 
-use wolfssl_sys as ws;
-
+use crate::sys;
 use std::mem::MaybeUninit;
 
 /// Rust wrapper for wolfSSL `Hmac` object.
 pub struct HMAC {
-    wc_hmac: ws::Hmac,
+    wc_hmac: sys::Hmac,
 }
 
 impl HMAC {
-    pub const TYPE_MD5: i32 = ws::wc_HashType_WC_HASH_TYPE_MD5 as i32;
-    pub const TYPE_SHA: i32 = ws::wc_HashType_WC_HASH_TYPE_SHA as i32;
-    pub const TYPE_SHA256: i32 = ws::wc_HashType_WC_HASH_TYPE_SHA256 as i32;
-    pub const TYPE_SHA512: i32 = ws::wc_HashType_WC_HASH_TYPE_SHA512 as i32;
-    pub const TYPE_SHA512_224: i32 = ws::wc_HashType_WC_HASH_TYPE_SHA512_224 as i32;
-    pub const TYPE_SHA512_256: i32 = ws::wc_HashType_WC_HASH_TYPE_SHA512_256 as i32;
-    pub const TYPE_SHA384: i32 = ws::wc_HashType_WC_HASH_TYPE_SHA384 as i32;
-    pub const TYPE_SHA224: i32 = ws::wc_HashType_WC_HASH_TYPE_SHA224 as i32;
-    pub const TYPE_SHA3_224: i32 = ws::wc_HashType_WC_HASH_TYPE_SHA3_224 as i32;
-    pub const TYPE_SHA3_256: i32 = ws::wc_HashType_WC_HASH_TYPE_SHA3_256 as i32;
-    pub const TYPE_SHA3_384: i32 = ws::wc_HashType_WC_HASH_TYPE_SHA3_384 as i32;
-    pub const TYPE_SHA3_512: i32 = ws::wc_HashType_WC_HASH_TYPE_SHA3_512 as i32;
+    pub const TYPE_MD5: i32 = sys::wc_HashType_WC_HASH_TYPE_MD5 as i32;
+    pub const TYPE_SHA: i32 = sys::wc_HashType_WC_HASH_TYPE_SHA as i32;
+    pub const TYPE_SHA256: i32 = sys::wc_HashType_WC_HASH_TYPE_SHA256 as i32;
+    pub const TYPE_SHA512: i32 = sys::wc_HashType_WC_HASH_TYPE_SHA512 as i32;
+    pub const TYPE_SHA512_224: i32 = sys::wc_HashType_WC_HASH_TYPE_SHA512_224 as i32;
+    pub const TYPE_SHA512_256: i32 = sys::wc_HashType_WC_HASH_TYPE_SHA512_256 as i32;
+    pub const TYPE_SHA384: i32 = sys::wc_HashType_WC_HASH_TYPE_SHA384 as i32;
+    pub const TYPE_SHA224: i32 = sys::wc_HashType_WC_HASH_TYPE_SHA224 as i32;
+    pub const TYPE_SHA3_224: i32 = sys::wc_HashType_WC_HASH_TYPE_SHA3_224 as i32;
+    pub const TYPE_SHA3_256: i32 = sys::wc_HashType_WC_HASH_TYPE_SHA3_256 as i32;
+    pub const TYPE_SHA3_384: i32 = sys::wc_HashType_WC_HASH_TYPE_SHA3_384 as i32;
+    pub const TYPE_SHA3_512: i32 = sys::wc_HashType_WC_HASH_TYPE_SHA3_512 as i32;
 
     /// Get HMAC hash size by type.
     ///
@@ -60,7 +56,7 @@ impl HMAC {
     /// Returns either Ok(size) containing the HMAC hash size or Err(e)
     /// containing the wolfSSL library error code value.
     pub fn get_hmac_size_by_type(typ: i32) -> Result<usize, i32> {
-        let rc = unsafe { ws::wc_HmacSizeByType(typ) };
+        let rc = unsafe { sys::wc_HmacSizeByType(typ) };
         if rc < 0 {
             return Err(rc);
         }
@@ -87,10 +83,44 @@ impl HMAC {
     /// let mut hmac = HMAC::new(HMAC::TYPE_SHA256, &key).expect("Error with new()");
     /// ```
     pub fn new(typ: i32, key: &[u8]) -> Result<Self, i32> {
+        Self::new_ex(typ, key, None, None)
+    }
+
+    /// Create a new HMAC object with the given hash type and encryption key
+    /// with optional heap and device ID.
+    ///
+    /// # Parameters
+    ///
+    /// * `typ`: Hash type, one of `HMAC::TYPE_*`.
+    /// * `key`: Encryption key.
+    /// * `heap`: Optional heap hint.
+    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
+    ///
+    /// # Returns
+    ///
+    /// Returns either Ok(hmac) containing the HMAC struct instance or Err(e)
+    /// containing the wolfSSL library error code value.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use wolfssl::wolfcrypt::hmac::HMAC;
+    /// let key = [0x42u8; 16];
+    /// let mut hmac = HMAC::new_ex(HMAC::TYPE_SHA256, &key, None, None).expect("Error with new_ex()");
+    /// ```
+    pub fn new_ex(typ: i32, key: &[u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let key_size = key.len() as u32;
-        let mut wc_hmac: MaybeUninit<ws::Hmac> = MaybeUninit::uninit();
+        let mut wc_hmac: MaybeUninit<sys::Hmac> = MaybeUninit::uninit();
+        let heap = match heap {
+            Some(heap) => heap,
+            None => core::ptr::null_mut(),
+        };
+        let dev_id = match dev_id {
+            Some(dev_id) => dev_id,
+            None => sys::INVALID_DEVID,
+        };
         let rc = unsafe {
-            ws::wc_HmacInit(wc_hmac.as_mut_ptr(), core::ptr::null_mut(), ws::INVALID_DEVID)
+            sys::wc_HmacInit(wc_hmac.as_mut_ptr(), heap, dev_id)
         };
         if rc != 0 {
             return Err(rc);
@@ -98,7 +128,7 @@ impl HMAC {
         let wc_hmac = unsafe { wc_hmac.assume_init() };
         let mut hmac = HMAC { wc_hmac };
         let rc = unsafe {
-            ws::wc_HmacSetKey(&mut hmac.wc_hmac, typ, key.as_ptr(), key_size)
+            sys::wc_HmacSetKey(&mut hmac.wc_hmac, typ, key.as_ptr(), key_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -127,10 +157,44 @@ impl HMAC {
     /// let mut hmac = HMAC::new_allow_short_key(HMAC::TYPE_SHA256, &key).expect("Error with new_allow_short_key()");
     /// ```
     pub fn new_allow_short_key(typ: i32, key: &[u8]) -> Result<Self, i32> {
+        Self::new_allow_short_key_ex(typ, key, None, None)
+    }
+
+    /// Create a new HMAC object with the given hash type and encryption key,
+    /// allowing for short encryption keys (< 112 bits) to be used.
+    ///
+    /// # Parameters
+    ///
+    /// * `typ`: Hash type, one of `HMAC::TYPE_*`.
+    /// * `key`: Encryption key.
+    /// * `heap`: Optional heap hint.
+    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
+    ///
+    /// # Returns
+    ///
+    /// Returns either Ok(hmac) containing the HMAC struct instance or Err(e)
+    /// containing the wolfSSL library error code value.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use wolfssl::wolfcrypt::hmac::HMAC;
+    /// let key = [0x42u8; 3];
+    /// let mut hmac = HMAC::new_allow_short_key_ex(HMAC::TYPE_SHA256, &key, None, None).expect("Error with new_allow_short_key_ex()");
+    /// ```
+    pub fn new_allow_short_key_ex(typ: i32, key: &[u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let key_size = key.len() as u32;
-        let mut wc_hmac: MaybeUninit<ws::Hmac> = MaybeUninit::uninit();
+        let mut wc_hmac: MaybeUninit<sys::Hmac> = MaybeUninit::uninit();
+        let heap = match heap {
+            Some(heap) => heap,
+            None => core::ptr::null_mut(),
+        };
+        let dev_id = match dev_id {
+            Some(dev_id) => dev_id,
+            None => sys::INVALID_DEVID,
+        };
         let rc = unsafe {
-            ws::wc_HmacInit(wc_hmac.as_mut_ptr(), core::ptr::null_mut(), ws::INVALID_DEVID)
+            sys::wc_HmacInit(wc_hmac.as_mut_ptr(), heap, dev_id)
         };
         if rc != 0 {
             return Err(rc);
@@ -138,7 +202,7 @@ impl HMAC {
         let wc_hmac = unsafe { wc_hmac.assume_init() };
         let mut hmac = HMAC { wc_hmac };
         let rc = unsafe {
-            ws::wc_HmacSetKey_ex(&mut hmac.wc_hmac, typ, key.as_ptr(), key_size, 1)
+            sys::wc_HmacSetKey_ex(&mut hmac.wc_hmac, typ, key.as_ptr(), key_size, 1)
         };
         if rc != 0 {
             return Err(rc);
@@ -171,7 +235,7 @@ impl HMAC {
     pub fn update(&mut self, data: &[u8]) -> Result<(), i32> {
         let data_size = data.len() as u32;
         let rc = unsafe {
-            ws::wc_HmacUpdate(&mut self.wc_hmac, data.as_ptr(), data_size)
+            sys::wc_HmacUpdate(&mut self.wc_hmac, data.as_ptr(), data_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -206,16 +270,16 @@ impl HMAC {
         // Check the output buffer size since wc_HmacFinal() does not accept
         // a length parameter.
         let typ = self.wc_hmac.macType as i32;
-        let rc = unsafe { ws::wc_HmacSizeByType(typ) };
+        let rc = unsafe { sys::wc_HmacSizeByType(typ) };
         if rc < 0 {
             return Err(rc);
         }
         let expected_size = rc as usize;
         if hash.len() != expected_size {
-            return Err(ws::wolfCrypt_ErrorCodes_BUFFER_E);
+            return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
         let rc = unsafe {
-            ws::wc_HmacFinal(&mut self.wc_hmac, hash.as_mut_ptr())
+            sys::wc_HmacFinal(&mut self.wc_hmac, hash.as_mut_ptr())
         };
         if rc != 0 {
             return Err(rc);
@@ -243,7 +307,7 @@ impl HMAC {
     /// ```
     pub fn get_hmac_size(&self) -> Result<usize, i32> {
         let typ = self.wc_hmac.macType as u32 as i32;
-        let rc = unsafe { ws::wc_HmacSizeByType(typ) };
+        let rc = unsafe { sys::wc_HmacSizeByType(typ) };
         if rc < 0 {
             return Err(rc);
         }
@@ -261,6 +325,6 @@ impl Drop for HMAC {
     /// HMAC struct instance goes out of scope, automatically cleaning up
     /// resources and preventing memory leaks.
     fn drop(&mut self) {
-        unsafe { ws::wc_HmacFree(&mut self.wc_hmac); }
+        unsafe { sys::wc_HmacFree(&mut self.wc_hmac); }
     }
 }

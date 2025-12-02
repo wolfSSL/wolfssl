@@ -105,6 +105,42 @@
 
 #ifdef WOLFSSL_WC_MLKEM
 
+#ifdef DEBUG_MLKEM
+void print_polys(const char* name, const sword16* a, int d1, int d2);
+void print_polys(const char* name, const sword16* a, int d1, int d2)
+{
+    int i;
+    int j;
+    int k;
+
+    fprintf(stderr, "%s: %d %d\n", name, d1, d2);
+    for (i = 0; i < d1; i++) {
+        for (j = 0; j < d2; j++) {
+            for (k = 0; k < 256; k++) {
+                fprintf(stderr, "%9d,", a[(i*d2*256) + (j*256) + k]);
+                if ((k % 8) == 7) fprintf(stderr, "\n");
+            }
+            fprintf(stderr, "\n");
+        }
+    }
+}
+#endif
+
+#ifdef DEBUG_MLKEM
+void print_data(const char* name, const byte* d, int len);
+void print_data(const char* name, const byte* d, int len)
+{
+    int i;
+
+    fprintf(stderr, "%s\n", name);
+    for (i = 0; i < len; i++) {
+        fprintf(stderr, "0x%02x,", d[i]);
+        if ((i % 16) == 15) fprintf(stderr, "\n");
+    }
+    fprintf(stderr, "\n");
+}
+#endif
+
 /******************************************************************************/
 
 /* Use SHA3-256 to generate 32-bytes of hash. */
@@ -1653,7 +1689,15 @@ int wc_MlKemKey_DecodePrivateKey(MlKemKey* key, const unsigned char* in,
 
         /* Decode the public key that is after the private key. */
         mlkemkey_decode_public(key->pub, key->pubSeed, p, k);
+        /* Compute the hash of the public key. */
+        ret = MLKEM_HASH_H(&key->hash, p, pubLen, key->h);
         p += pubLen;
+    }
+
+    if (ret == 0) {
+        /* Compare computed public key hash with stored hash */
+        if (XMEMCMP(key->h, p, WC_ML_KEM_SYM_SZ) != 0)
+            ret = MLKEM_PUB_HASH_E;
 
         /* Copy the hash of the encoded public key that is after public key. */
         XMEMCPY(key->h, p, sizeof(key->h));

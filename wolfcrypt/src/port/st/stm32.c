@@ -1034,7 +1034,7 @@ int stm32_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
     if (hashlen > STM32_MAX_ECC_SIZE) {
         return ECC_BAD_ARG_E;
     }
-    else if (hashlen > size) {
+    else if ((int)hashlen > size) {
         /* in the case that hashlen is larger than key size place hash at
          * beginning of buffer */
         XMEMCPY(Hashbin, hash, size);
@@ -1141,7 +1141,7 @@ int stm32_ecc_sign_hash_ex(const byte* hash, word32 hashlen, WC_RNG* rng,
     if (hashlen > STM32_MAX_ECC_SIZE) {
         return ECC_BAD_ARG_E;
     }
-    else if (hashlen > size) {
+    else if ((int)hashlen > size) {
         /* in the case that hashlen is larger than key size place hash at
          * beginning of buffer */
         XMEMCPY(Hashbin, hash, size);

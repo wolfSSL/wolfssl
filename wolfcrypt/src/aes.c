@@ -93,6 +93,11 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #include <wolfcrypt/src/port/ti/ti-aes.c>
 #else
 
+
+#if defined(WOLFSSL_PSOC6_CRYPTO)
+    #include <wolfssl/wolfcrypt/port/cypress/psoc6_crypto.h>
+#endif /* WOLFSSL_PSOC6_CRYPTO */
+
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -495,72 +500,6 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
         }
         #endif
 
-#elif defined(FREESCALE_MMCAU)
-    /* Freescale mmCAU hardware AES support for Direct, CBC, CCM, GCM modes
-     * through the CAU/mmCAU library. Documentation located in
-     * ColdFire/ColdFire+ CAU and Kinetis mmCAU Software Library User
-     * Guide (See note in README). */
-    #ifdef FREESCALE_MMCAU_CLASSIC
-        /* MMCAU 1.4 library used with non-KSDK / classic MQX builds */
-        #include "cau_api.h"
-    #else
-        #include "fsl_mmcau.h"
-    #endif
-
-    static WARN_UNUSED_RESULT int wc_AesEncrypt(
-        Aes* aes, const byte* inBlock, byte* outBlock)
-    {
-#ifdef WC_DEBUG_CIPHER_LIFECYCLE
-        {
-            int ret = wc_debug_CipherLifecycleCheck(aes->CipherLifecycleTag, 0);
-            if (ret < 0)
-                return ret;
-        }
-#endif
-
-        if (wolfSSL_CryptHwMutexLock() == 0) {
-        #ifdef FREESCALE_MMCAU_CLASSIC
-            if ((wc_ptr_t)outBlock % WOLFSSL_MMCAU_ALIGNMENT) {
-                WOLFSSL_MSG("Bad cau_aes_encrypt alignment");
-                return BAD_ALIGN_E;
-            }
-            cau_aes_encrypt(inBlock, (byte*)aes->key, aes->rounds, outBlock);
-        #else
-            MMCAU_AES_EncryptEcb(inBlock, (byte*)aes->key, aes->rounds,
-                                 outBlock);
-        #endif
-            wolfSSL_CryptHwMutexUnLock();
-        }
-        return 0;
-    }
-    #ifdef HAVE_AES_DECRYPT
-    static WARN_UNUSED_RESULT int wc_AesDecrypt(
-        Aes* aes, const byte* inBlock, byte* outBlock)
-    {
-#ifdef WC_DEBUG_CIPHER_LIFECYCLE
-        {
-            int ret = wc_debug_CipherLifecycleCheck(aes->CipherLifecycleTag, 0);
-            if (ret < 0)
-                return ret;
-        }
-#endif
-        if (wolfSSL_CryptHwMutexLock() == 0) {
-        #ifdef FREESCALE_MMCAU_CLASSIC
-            if ((wc_ptr_t)outBlock % WOLFSSL_MMCAU_ALIGNMENT) {
-                WOLFSSL_MSG("Bad cau_aes_decrypt alignment");
-                return BAD_ALIGN_E;
-            }
-            cau_aes_decrypt(inBlock, (byte*)aes->key, aes->rounds, outBlock);
-        #else
-            MMCAU_AES_DecryptEcb(inBlock, (byte*)aes->key, aes->rounds,
-                                 outBlock);
-        #endif
-            wolfSSL_CryptHwMutexUnLock();
-        }
-        return 0;
-    }
-    #endif /* HAVE_AES_DECRYPT */
-
 #elif defined(WOLFSSL_PIC32MZ_CRYPT)
 
     #include <wolfssl/wolfcrypt/port/pic32/pic32mz-crypt.h>
@@ -916,6 +855,72 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
 #endif
 #endif
 
+#elif defined(FREESCALE_MMCAU)
+    /* Freescale mmCAU hardware AES support for Direct, CBC, CCM, GCM modes
+     * through the CAU/mmCAU library. Documentation located in
+     * ColdFire/ColdFire+ CAU and Kinetis mmCAU Software Library User
+     * Guide (See note in README). */
+    #ifdef FREESCALE_MMCAU_CLASSIC
+        /* MMCAU 1.4 library used with non-KSDK / classic MQX builds */
+        #include "cau_api.h"
+    #else
+        #include "fsl_mmcau.h"
+    #endif
+
+    static WARN_UNUSED_RESULT int wc_AesEncrypt(
+        Aes* aes, const byte* inBlock, byte* outBlock)
+    {
+#ifdef WC_DEBUG_CIPHER_LIFECYCLE
+        {
+            int ret = wc_debug_CipherLifecycleCheck(aes->CipherLifecycleTag, 0);
+            if (ret < 0)
+                return ret;
+        }
+#endif
+
+        if (wolfSSL_CryptHwMutexLock() == 0) {
+        #ifdef FREESCALE_MMCAU_CLASSIC
+            if ((wc_ptr_t)outBlock % WOLFSSL_MMCAU_ALIGNMENT) {
+                WOLFSSL_MSG("Bad cau_aes_encrypt alignment");
+                return BAD_ALIGN_E;
+            }
+            cau_aes_encrypt(inBlock, (byte*)aes->key, aes->rounds, outBlock);
+        #else
+            MMCAU_AES_EncryptEcb(inBlock, (byte*)aes->key, aes->rounds,
+                                 outBlock);
+        #endif
+            wolfSSL_CryptHwMutexUnLock();
+        }
+        return 0;
+    }
+    #ifdef HAVE_AES_DECRYPT
+    static WARN_UNUSED_RESULT int wc_AesDecrypt(
+        Aes* aes, const byte* inBlock, byte* outBlock)
+    {
+#ifdef WC_DEBUG_CIPHER_LIFECYCLE
+        {
+            int ret = wc_debug_CipherLifecycleCheck(aes->CipherLifecycleTag, 0);
+            if (ret < 0)
+                return ret;
+        }
+#endif
+        if (wolfSSL_CryptHwMutexLock() == 0) {
+        #ifdef FREESCALE_MMCAU_CLASSIC
+            if ((wc_ptr_t)outBlock % WOLFSSL_MMCAU_ALIGNMENT) {
+                WOLFSSL_MSG("Bad cau_aes_decrypt alignment");
+                return BAD_ALIGN_E;
+            }
+            cau_aes_decrypt(inBlock, (byte*)aes->key, aes->rounds, outBlock);
+        #else
+            MMCAU_AES_DecryptEcb(inBlock, (byte*)aes->key, aes->rounds,
+                                 outBlock);
+        #endif
+            wolfSSL_CryptHwMutexUnLock();
+        }
+        return 0;
+    }
+    #endif /* HAVE_AES_DECRYPT */
+
 #elif (defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_AES) \
         && !defined(WOLFSSL_QNX_CAAM)) || \
       ((defined(WOLFSSL_AFALG) || defined(WOLFSSL_DEVCRYPTO_AES)) && \
@@ -1118,6 +1123,24 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
 /* implemented in wolfcrypt/src/port/silabs/silabs_aes.c */
 
+#elif defined(WOLFSSL_PSOC6_CRYPTO)
+
+    #if (defined(HAVE_AESGCM) || defined(WOLFSSL_AES_DIRECT))
+        static WARN_UNUSED_RESULT int wc_AesEncrypt(
+            Aes* aes, const byte* inBlock, byte* outBlock)
+        {
+            return wc_Psoc6_Aes_Encrypt(aes, inBlock, outBlock);
+        }
+    #endif
+
+    #if defined(HAVE_AES_DECRYPT) && defined(WOLFSSL_AES_DIRECT)
+        static WARN_UNUSED_RESULT int wc_AesDecrypt(
+            Aes* aes, const byte* inBlock, byte* outBlock)
+        {
+            return wc_Psoc6_Aes_Decrypt(aes, inBlock, outBlock);
+        }
+
+    #endif
 #else
 
     /* using wolfCrypt software implementation */
@@ -4039,97 +4062,6 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
     {
         return wc_AesSetKey(aes, userKey, keylen, iv, dir);
     }
-#elif defined(FREESCALE_MMCAU)
-    int wc_AesSetKeyLocal(Aes* aes, const byte* userKey, word32 keylen,
-        const byte* iv, int dir, int checkKeyLen)
-    {
-        int ret;
-        byte* rk;
-        byte* tmpKey = (byte*)userKey;
-        int tmpKeyDynamic = 0;
-        word32 alignOffset = 0;
-
-        (void)dir;
-
-        if (aes == NULL)
-            return BAD_FUNC_ARG;
-
-#ifdef WC_DEBUG_CIPHER_LIFECYCLE
-        {
-            int ret = wc_debug_CipherLifecycleCheck(aes->CipherLifecycleTag, 0);
-            if (ret < 0)
-                return ret;
-        }
-#endif
-
-        if (checkKeyLen) {
-            if (!((keylen == 16) || (keylen == 24) || (keylen == 32)))
-                return BAD_FUNC_ARG;
-        }
-
-        rk = (byte*)aes->key;
-        if (rk == NULL)
-            return BAD_FUNC_ARG;
-
-    #if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
-        defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS) || \
-        defined(WOLFSSL_AES_CTS)
-        aes->left = 0;
-    #endif
-
-        aes->rounds = keylen/4 + 6;
-
-    #ifdef FREESCALE_MMCAU_CLASSIC
-        if ((wc_ptr_t)userKey % WOLFSSL_MMCAU_ALIGNMENT) {
-        #ifndef NO_WOLFSSL_ALLOC_ALIGN
-            byte* tmp = (byte*)XMALLOC(keylen + WOLFSSL_MMCAU_ALIGNMENT,
-                                       aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            if (tmp == NULL) {
-                return MEMORY_E;
-            }
-            alignOffset = WOLFSSL_MMCAU_ALIGNMENT -
-                          ((wc_ptr_t)tmp % WOLFSSL_MMCAU_ALIGNMENT);
-            tmpKey = tmp + alignOffset;
-            XMEMCPY(tmpKey, userKey, keylen);
-            tmpKeyDynamic = 1;
-        #else
-            WOLFSSL_MSG("Bad cau_aes_set_key alignment");
-            return BAD_ALIGN_E;
-        #endif
-        }
-    #endif
-
-        ret = wolfSSL_CryptHwMutexLock();
-        if(ret == 0) {
-        #ifdef FREESCALE_MMCAU_CLASSIC
-            cau_aes_set_key(tmpKey, keylen*8, rk);
-        #else
-            MMCAU_AES_SetKey(tmpKey, keylen, rk);
-        #endif
-            wolfSSL_CryptHwMutexUnLock();
-
-            ret = wc_AesSetIV(aes, iv);
-        }
-
-        if (tmpKeyDynamic == 1) {
-            XFREE(tmpKey - alignOffset, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        }
-
-        return ret;
-    }
-
-    int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
-        const byte* iv, int dir)
-    {
-        return wc_AesSetKeyLocal(aes, userKey, keylen, iv, dir, 1);
-    }
-
-    int wc_AesSetKeyDirect(Aes* aes, const byte* userKey, word32 keylen,
-                        const byte* iv, int dir)
-    {
-        return wc_AesSetKey(aes, userKey, keylen, iv, dir);
-    }
-
 #elif defined(WOLFSSL_NRF51_AES)
     int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
         const byte* iv, int dir)
@@ -4405,6 +4337,112 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
         return AesSetKey(aes, userKey, keylen, iv, dir);
     }
     #endif /* WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
+#elif defined(FREESCALE_MMCAU)
+    int wc_AesSetKeyLocal(Aes* aes, const byte* userKey, word32 keylen,
+        const byte* iv, int dir, int checkKeyLen)
+    {
+        int ret;
+        byte* rk;
+        byte* tmpKey = (byte*)userKey;
+        int tmpKeyDynamic = 0;
+        word32 alignOffset = 0;
+
+        (void)dir;
+
+        if (aes == NULL)
+            return BAD_FUNC_ARG;
+
+#ifdef WC_DEBUG_CIPHER_LIFECYCLE
+        {
+            int ret = wc_debug_CipherLifecycleCheck(aes->CipherLifecycleTag, 0);
+            if (ret < 0)
+                return ret;
+        }
+#endif
+
+        if (checkKeyLen) {
+            if (!((keylen == 16) || (keylen == 24) || (keylen == 32)))
+                return BAD_FUNC_ARG;
+        }
+
+        rk = (byte*)aes->key;
+        if (rk == NULL)
+            return BAD_FUNC_ARG;
+
+    #if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
+        defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS) || \
+        defined(WOLFSSL_AES_CTS)
+        aes->left = 0;
+    #endif
+
+        aes->rounds = keylen/4 + 6;
+
+    #ifdef FREESCALE_MMCAU_CLASSIC
+        if ((wc_ptr_t)userKey % WOLFSSL_MMCAU_ALIGNMENT) {
+        #ifndef NO_WOLFSSL_ALLOC_ALIGN
+            byte* tmp = (byte*)XMALLOC(keylen + WOLFSSL_MMCAU_ALIGNMENT,
+                                       aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            if (tmp == NULL) {
+                return MEMORY_E;
+            }
+            alignOffset = WOLFSSL_MMCAU_ALIGNMENT -
+                          ((wc_ptr_t)tmp % WOLFSSL_MMCAU_ALIGNMENT);
+            tmpKey = tmp + alignOffset;
+            XMEMCPY(tmpKey, userKey, keylen);
+            tmpKeyDynamic = 1;
+        #else
+            WOLFSSL_MSG("Bad cau_aes_set_key alignment");
+            return BAD_ALIGN_E;
+        #endif
+        }
+    #endif
+
+        ret = wolfSSL_CryptHwMutexLock();
+        if(ret == 0) {
+        #ifdef FREESCALE_MMCAU_CLASSIC
+            cau_aes_set_key(tmpKey, keylen*8, rk);
+        #else
+            MMCAU_AES_SetKey(tmpKey, keylen, rk);
+        #endif
+            wolfSSL_CryptHwMutexUnLock();
+
+            ret = wc_AesSetIV(aes, iv);
+        }
+
+        if (tmpKeyDynamic == 1) {
+            XFREE(tmpKey - alignOffset, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        }
+
+        return ret;
+    }
+
+    int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
+        const byte* iv, int dir)
+    {
+        return wc_AesSetKeyLocal(aes, userKey, keylen, iv, dir, 1);
+    }
+
+    int wc_AesSetKeyDirect(Aes* aes, const byte* userKey, word32 keylen,
+                        const byte* iv, int dir)
+    {
+        return wc_AesSetKey(aes, userKey, keylen, iv, dir);
+    }
+
+#elif defined(WOLFSSL_PSOC6_CRYPTO)
+
+    int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
+        const byte* iv, int dir)
+    {
+        return wc_Psoc6_Aes_SetKey(aes, userKey, keylen, iv, dir);
+    }
+
+    #if defined(WOLFSSL_AES_DIRECT)
+        int wc_AesSetKeyDirect(Aes* aes, const byte* userKey, word32 keylen,
+                            const byte* iv, int dir)
+        {
+            return wc_AesSetKey(aes, userKey, keylen, iv, dir);
+        }
+    #endif /* WOLFSSL_AES_DIRECT */
 #else
     #define NEED_SOFTWARE_AES_SETKEY
 #endif
@@ -4777,18 +4815,17 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
         }
     #endif
 
+    #if defined(AES_MAX_KEY_SIZE) && AES_MAX_KEY_SIZE < 256
         if (checkKeyLen) {
-            if (keylen != 16 && keylen != 24 && keylen != 32) {
-                return BAD_FUNC_ARG;
-            }
-        #if defined(AES_MAX_KEY_SIZE) && AES_MAX_KEY_SIZE < 256
             /* Check key length only when AES_MAX_KEY_SIZE doesn't allow
              * all key sizes. Otherwise this condition is never true. */
             if (keylen > (AES_MAX_KEY_SIZE / 8)) {
                 return BAD_FUNC_ARG;
             }
-        #endif
         }
+    #else
+        (void) checkKeyLen;
+    #endif
 
     #if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
         defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS) || \
@@ -6109,6 +6146,20 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 #elif defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_AES)
     /* implemented in wolfcrypt/src/port/psa/psa_aes.c */
 
+#elif defined(WOLFSSL_PSOC6_CRYPTO)
+
+    int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+    {
+        return wc_Psoc6_Aes_CbcEncrypt(aes, out, in, sz);
+    }
+
+    #if defined(HAVE_AES_DECRYPT)
+    int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+    {
+        return wc_Psoc6_Aes_CbcDecrypt(aes, out, in, sz);
+    }
+    #endif /* HAVE_AES_DECRYPT */
+
 #else
     /* Reminder: Some HW implementations may also define this as needed.
      * (e.g. for unsupported key length fallback)  */
@@ -7238,7 +7289,7 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     }
     else
 #endif
-#if !defined(FREESCALE_LTC_AES_GCM)
+#if !defined(FREESCALE_LTC_AES_GCM) && !defined(WOLFSSL_PSOC6_CRYPTO)
     if (ret == 0) {
         VECTOR_REGISTERS_PUSH;
         /* AES-NI code generates its own H value, but generate it here too, to
@@ -7276,7 +7327,7 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
         }
 #endif /* GCM_TABLE || GCM_TABLE_4BIT */
     }
-#endif /* FREESCALE_LTC_AES_GCM */
+#endif /* !FREESCALE_LTC_AES_GCM && !WOLFSSL_PSOC6_CRYPTO */
 #endif
 
 #if defined(WOLFSSL_XILINX_CRYPT) || defined(WOLFSSL_AFALG_XILINX_AES)
@@ -7459,10 +7510,38 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
     while (0)
 #endif /* WOLFSSL_AESGCM_STREAM */
 
-#ifdef WOLFSSL_ARMASM
+#if defined(WOLFSSL_ARMASM) && !defined(__aarch64__)
+static void GCM_gmult_len_armasm_C(
+    byte* x, const byte* h, const unsigned char* a, unsigned long len)
+{
+    byte Z[AES_BLOCK_SIZE];
+    byte V[AES_BLOCK_SIZE];
+    int i;
+    int j;
+
+    while (len >= AES_BLOCK_SIZE) {
+        xorbuf(x, a, AES_BLOCK_SIZE);
+        XMEMSET(Z, 0, AES_BLOCK_SIZE);
+        XMEMCPY(V, x, AES_BLOCK_SIZE);
+        for (i = 0; i < AES_BLOCK_SIZE; i++) {
+            byte y = h[i];
+            for (j = 0; j < 8; j++) {
+                if (y & 0x80) {
+                    xorbuf(Z, V, AES_BLOCK_SIZE);
+                }
+                RIGHTSHIFTX(V);
+                y = y << 1;
+            }
+        }
+        XMEMCPY(x, Z, AES_BLOCK_SIZE);
+        len -= AES_BLOCK_SIZE;
+        a += AES_BLOCK_SIZE;
+    }
+}
+
 #define GCM_GMULT_LEN(gcm, x, a, len) \
-    GCM_gmult_len(x, (const byte**)((gcm)->M0), a, len)
-#endif
+    GCM_gmult_len_armasm_C(x, (gcm)->H, a, len)
+#endif /* WOLFSSL_ARMASM && !__aarch64__ */
 
 #elif defined(GCM_TABLE)
 
@@ -9381,6 +9460,11 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         authTag, authTagSz, authIn, authInSz);
 #endif /* STM32_CRYPTO_AES_GCM */
 
+#if defined(WOLFSSL_PSOC6_CRYPTO)
+    return wc_Psoc6_Aes_GcmEncrypt(aes, out, in, sz, iv, ivSz, authTag,
+                                   authTagSz, authIn, authInSz);
+#endif /* WOLFSSL_PSOC6_CRYPTO */
+
     VECTOR_REGISTERS_PUSH;
 
 #if !defined(__aarch64__) && defined(WOLFSSL_ARMASM)
@@ -10060,6 +10144,11 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         aes, out, in, sz, iv, ivSz,
         authTag, authTagSz, authIn, authInSz);
 #endif /* STM32_CRYPTO_AES_GCM */
+
+#if defined(WOLFSSL_PSOC6_CRYPTO)
+    return wc_Psoc6_Aes_GcmDecrypt(aes, out, in, sz, iv, ivSz, authTag,
+                                   authTagSz, authIn, authInSz);
+#endif /* WOLFSSL_PSOC6_CRYPTO */
 
     VECTOR_REGISTERS_PUSH;
 
@@ -13101,6 +13190,30 @@ int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     return AES_ECB_decrypt(aes, in, out, sz);
 }
 
+#elif defined(WOLFSSL_PSOC6_CRYPTO)
+
+int wc_AesEcbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+{
+    if ((in == NULL) || (out == NULL) || (aes == NULL))
+        return BAD_FUNC_ARG;
+
+    return wc_Psoc6_Aes_EcbEncrypt(aes, out, in, sz);
+}
+
+#define _AesEcbEncrypt(aes, out, in, sz) wc_AesEcbEncrypt(aes, out, in, sz)
+
+#ifdef HAVE_AES_DECRYPT
+int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+{
+    if ((in == NULL) || (out == NULL) || (aes == NULL))
+        return BAD_FUNC_ARG;
+
+    return wc_Psoc6_Aes_EcbDecrypt(aes, out, in, sz);
+}
+
+#define _AesEcbDecrypt(aes, out, in, sz) wc_AesEcbDecrypt(aes, out, in, sz)
+#endif /* HAVE_AES_DECRYPT */
+
 #else
 
 /* Software AES - ECB */
@@ -13265,6 +13378,22 @@ int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 #endif /* HAVE_AES_ECB */
 
 #if defined(WOLFSSL_AES_CFB)
+
+#if defined(WOLFSSL_PSOC6_CRYPTO)
+
+int wc_AesCfbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+{
+    return wc_Psoc6_Aes_CfbEncrypt(aes, out, in, sz);
+}
+
+#ifdef HAVE_AES_DECRYPT
+int wc_AesCfbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+{
+    return wc_Psoc6_Aes_CfbDecrypt(aes, out, in, sz);
+}
+#endif /* HAVE_AES_DECRYPT */
+
+#else
 /* Feedback AES mode
  *
  * aes structure holding key to use for encryption
@@ -13457,6 +13586,7 @@ int wc_AesCfbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     return AesCfbDecrypt_C(aes, out, in, sz, AES_CFB_MODE);
 }
 #endif /* HAVE_AES_DECRYPT */
+#endif /* WOLFSSL_PSOC6_CRYPTO */
 
 #ifndef WOLFSSL_NO_AES_CFB_1_8
 /* shift the whole WC_AES_BLOCK_SIZE array left by 8 or 1 bits */

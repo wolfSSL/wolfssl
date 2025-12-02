@@ -175,7 +175,7 @@ int BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
     byte handshake_hash[HSHASH_SZ];
 #else
     byte* handshake_hash = NULL;
-    handshake_hash = XMALLOC(HSHASH_SZ, ssl->heap, DYNAMIC_TYPE_DIGEST);
+    handshake_hash = (byte*)XMALLOC(HSHASH_SZ, ssl->heap, DYNAMIC_TYPE_DIGEST);
     if (handshake_hash == NULL)
         return MEMORY_E;
 #endif
@@ -404,7 +404,7 @@ static int _DeriveTlsKeys(byte* key_dig, word32 key_dig_len,
     int ret;
 #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
     byte* seed = NULL;
-    seed = XMALLOC(SEED_LEN, heap, DYNAMIC_TYPE_SEED);
+    seed = (byte*)XMALLOC(SEED_LEN, heap, DYNAMIC_TYPE_SEED);
     if (seed == NULL)
         return MEMORY_E;
 #else
@@ -504,7 +504,7 @@ static int _MakeTlsMasterSecret(byte* ms, word32 msLen,
     byte seed[SEED_LEN];
 #else
     byte* seed = NULL;
-    seed = XMALLOC(SEED_LEN, heap, DYNAMIC_TYPE_SEED);
+    seed = (byte*)XMALLOC(SEED_LEN, heap, DYNAMIC_TYPE_SEED);
     if (seed == NULL)
         return MEMORY_E;
 #endif
@@ -7594,7 +7594,7 @@ static int TLSX_SignatureAlgorithms_Parse(WOLFSSL *ssl, const byte* input,
     }
     XMEMCPY(suites->hashSigAlgo, input, suites->hashSigAlgoSz);
 
-    return TLSX_SignatureAlgorithms_MapPss(ssl, input, len);
+    return TLSX_SignatureAlgorithms_MapPss(ssl, input, suites->hashSigAlgoSz);
 }
 
 /* Sets a new SignatureAlgorithms extension into the extension list.
@@ -9830,7 +9830,7 @@ static int TLSX_KeyShareEntry_Parse(const WOLFSSL* ssl, const byte* input,
         return BUFFER_ERROR;
 
     if (seenGroups != NULL) {
-        if (*seenGroupsCnt == MAX_KEYSHARE_NAMED_GROUPS) {
+        if (*seenGroupsCnt >= MAX_KEYSHARE_NAMED_GROUPS) {
             return BAD_KEY_SHARE_DATA;
         }
         for (i = 0; i < *seenGroupsCnt; i++) {

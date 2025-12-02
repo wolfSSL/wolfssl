@@ -248,7 +248,12 @@ WOLFSSL_API int  wc_FreeRng(WC_RNG* rng);
 /* some older compilers do not like macro function in expression */
 #define wc_RNG_GenerateBlock(rng, b, s) NOT_COMPILED_IN
 #else
-#define wc_RNG_GenerateBlock(rng, b, s) ({(void)rng; (void)b; (void)s; NOT_COMPILED_IN;})
+#ifdef _MSC_VER
+#define wc_RNG_GenerateBlock(rng, b, s) (int)(NOT_COMPILED_IN)
+#else
+#define wc_RNG_GenerateBlock(rng, b, s) \
+        ({(void)rng; (void)b; (void)s; NOT_COMPILED_IN;})
+#endif
 #endif
 #define wc_RNG_GenerateByte(rng, b) NOT_COMPILED_IN
 #define wc_FreeRng(rng) (void)NOT_COMPILED_IN
@@ -273,19 +278,6 @@ WOLFSSL_API int  wc_FreeRng(WC_RNG* rng);
                                         byte* output, word32 outputSz,
                                         void* heap, int devId);
 #endif /* HAVE_HASHDRBG */
-
-#ifdef HAVE_ENTROPY_MEMUSE
-/* Maximum entropy bits that can be produced. */
-#define MAX_ENTROPY_BITS    256
-
-/* For generating data for assessment. */
-WOLFSSL_API int wc_Entropy_GetRawEntropy(unsigned char* raw, int cnt);
-WOLFSSL_API int wc_Entropy_Get(int bits, unsigned char* entropy, word32 len);
-WOLFSSL_API int wc_Entropy_OnDemandTest(void);
-
-WOLFSSL_LOCAL int Entropy_Init(void);
-WOLFSSL_LOCAL void Entropy_Final(void);
-#endif
 
 #ifdef __cplusplus
     } /* extern "C" */

@@ -1,3 +1,76 @@
+# wolfSSL Release 5.8.4 (Nov. 20, 2025)
+
+Release 5.8.4 has been developed according to wolfSSL's development and QA
+process (see link below) and successfully passed the quality criteria.
+https://www.wolfssl.com/about/wolfssl-software-development-process-quality-assurance
+
+NOTE: * --enable-heapmath is deprecated
+            * MD5 is now disabled by default
+
+PR stands for Pull Request, and PR <NUMBER> references a GitHub pull request number where the code change was added.
+
+## Vulnerabilities
+* [Low CVE-2025-12888] Vulnerability in X25519 constant-time cryptographic implementations due to timing side channels introduced by compiler optimizations and CPU architecture limitations, specifically with the Xtensa-based ESP32 chips. If targeting Xtensa it is recommended to use the low memory implementations of X25519, which is now turned on as the default for Xtensa. Thanks to Adrian Cinal for the report. Fixed in PR 9275.
+
+
+* [Med. CVE-2025-11936] Potential DoS vulnerability due to a memory leak through multiple KeyShareEntry with the same group in malicious TLS 1.3 ClientHello messages. This affects users who are running wolfSSL on the server side with TLS 1.3. Thanks to Jaehun Lee and Kyungmin Bae, Pohang University of Science and Technology (POSTECH) for the report. Fixed in PR 9117.
+
+* [Low CVE-2025-11935] PSK with PFS (Perfect Forward Secrecy) downgrades to PSK without PFS during TLS 1.3 handshake. If the client sends a ClientHello that has a key share extension and the server responds with a ServerHello that does not have a key share extension the connection would previously continue on without using PFS. Thanks to Jaehun Lee from Pohang University of Science and Technology (POSTECH) for the report. Fixed in PR 9112.
+
+* [Low CVE-2025-11934] Signature Algorithm downgrade from ECDSA P521 to P256 during TLS 1.3 handshake. When a client sends ECDSA P521 as the supported signature algorithm the server previously could respond as ECDSA P256 being the accepted signature algorithm and the connection would continue with using ECDSA P256. Thanks to Jaehun Lee from Pohang University of Science and Technology (POSTECH) for the report. Fixed in PR 9113.
+
+
+* [Low CVE-2025-11933] DoS Vulnerability in wolfSSL TLS 1.3 CKS extension parsing. Previously duplicate CKS extensions were not rejected leading to a potential memory leak when processing a ClientHello. Thanks to Jaehun Lee from Pohang University of Science and Technology (POSTECH) for the report. Fixed in PR 9132.
+
+
+* [Low CVE-2025-11931] Integer Underflow Leads to Out-of-Bounds Access in XChaCha20-Poly1305 Decrypt. This issue is hit specifically with a call to the function wc_XChaCha20Poly1305_Decrypt() which is not used with TLS connections, only from direct calls from an application. Thanks to Luigino Camastra from Aisle Research for the report. Fixed in PR 9223.
+
+* [Low CVE-2025-11932] Timing Side-Channel in PSK Binder Verification. The server previously verified the TLS 1.3 PSK binder using a non-constant time method which could potentially leak information about the PSK binder. Thanks to Luigino Camastra from Aisle Research for the report. Fixed in PR 9223.
+
+* [Low CVE-2025-12889] With TLS 1.2 connections a client can use any digest, specifically a weaker digest, rather than those in the CertificateRequest. Thanks to Jaehun Lee from Pohang University of Science and Technology (POSTECH) for the report. Fixed in PR 9395
+
+## New Features
+* New ML-KEM / ML-DSA APIs and seed/import PKCS8 support; added _new/_delete APIs for ML-KEM/ML-DSA. (PR 9039, 9000, 9049)
+* Initial wolfCrypt FreeBSD kernel module support (PR 9392)
+* Expanded PKCS7/CMS capabilities: decode SymmetricKeyPackage / OneSymmetricKey, add wc_PKCS7_GetEnvelopedDataKariRid, and allow PKCS7 builds with AES keywrap unset. (PR 9018, 9029, 9032)
+* Add custom AES key wrap/unwrap callbacks and crypto callback copy/free operations. (PR 9002, 9309)
+* Add support for certificate_authorities extension in ClientHello and certificate manager CA-type selection/unloading. (PR 9209, 9046)
+* Large expansion of Rust wrapper modules: random, aes, rsa, ecc, dh, sha, hmac, cmac, ed25519/ed448, pbkdf2/PKCS#12, kdf/prf, SRTP KDFs, and conditional compilation options. (PR 9191, 9212, 9273, 9306, 9320, 9328, 9368, 9389, 9357, 9433)
+* Rust: support optional heap and dev_id parameters and enable conditional compilation based on C build options. (PR 9407, 9433)
+* STM32 fixes (benchmarking and platform fixes) and PSoC6 hardware acceleration additions. (PR 9228, 9256, 9185)
+* STM32U5 added support for SAES and DHUK. (PR 9087)
+* Add --enable-curl=tiny option for a smaller build when used with cURL. (PR 9174)
+
+## Improvements / Optimizations
+* Regression test fixes and expansion: TLS 1.3/1.2 tests, ARDUINO examples, libssh2 tests, hostap workflows, and nightly test improvements. (PR 9096, 9141, 9091, 9122, 9388)
+* Improved test ordering and CI test stability (random tests run order changes, FIPS test fixes). (PR 9204, 9257)
+* Docs and readme fixes, docstring updates, AsconAEAD comment placement, and example certificate renewals. (PR 9131, 9293, 9262, 9429)
+* Updated GPL exception lists (GPLv2 and GPLv3 exception updates: add Fetchmail and OpenVPN). (PR 9398, 9413)
+* Introduced WOLFSSL_DEBUG_CERTS and additional debug/logging refinements. (PR 8902, 9055)
+* Expanded crypto-callback support (SHA family, HKDF, SHA-224, sha512_family digest selection) and improved crypto-only build cases. (PR 9070, 9252, 9271, 9100, 9194)
+* AES & HW offload improvements including AES-CTR support in PKCS11 driver and AES ECB offload sizing fix. (PR 9277, 9364)
+* ESP32: PSRAM allocator support and SHA HW fixes for ESP-IDF v6/v5. (PR 8987, 9225, 9264)
+* Renesas FSP / RA examples updated and security-module TLS context improvements. (PR 9047, 9010, 9158, 9150)
+* Broad configure/CMake/Autotools workflow improvements (Apple options tracking, Watcom pinning, Debian packaging, ESP-IDF pinning). (PR 9037, 9167, 9161, 9264)
+* New assembly introspection / performance helpers for RISC-V and PPC32; benchmarking enhancements (cycle counts). (PR 9101, 9317)
+* Update to SGX build for using assembly optimizations. (PR 8463, 9138)
+* Testing with Fil-C compiler version to 0.674 (PR 9396)
+* Refactors and compressing of small stack code (PR 9153)
+
+## Bug Fixes
+* Removed the test feature using popen when defining the macro WOLFSSL_USE_POPEN_HOST and not having HAVE_GETADDRINFO defined, along with having the macro HAVE_HTTP_CLIENT set. There was the potential for vulnerable behavior with the use of popen when the API wolfSSL_BIO_new_connect() was called with this specific build. This exact build configuration is only intended for testing with QEMU and is not enabled with any autoconf/cmake flags. Thanks to linraymond2006 for the report. (PR 9038)
+* Fix for C# wrapper Ed25519 potential crash and heap overwrite with raw public key import when using the API Ed25519ImportPublic.This was a broken API with the C# wrapper that would crash on use. Thanks to Luigino Camastra from Aisle Research for the bug report. (PR 9291)
+* Coverity, cppcheck, MISRA, clang-tidy, ZeroPath and other static-analysis driven fixes across the codebase. (PR 9006, 9078, 9068, 9265, 9324)
+* TLS 1.2/DTLS improvements: client message order checks, DTLS cookie/exchange and replay protections, better DTLS early-data handling. (PR 9387, 9253, 9205, 9367)
+* Improved X.509 & cert handling: allow larger pathLen in Basic Constraints, restore inner server name for ECH, retrying cert candidate chains. (PR 8890, 9234, 8692)
+* Sniffer robustness: fix infinite recursion, better handling of OOO appData and partial overlaps, and improved retransmission detection. (PR 9051, 9106, 9140, 9094)
+* Numerous linuxkm (kernel-mode) fixes, relocation/PIE normalization, and FIPS-related build tweaks across many iterations. (PR 9025, 9035, 9067, 9111, 9121)
+* ML-KEM/Kyber and ML-DSA fixes for out-of-bounds and seed-import correctness; multiple ML-related safety fixes. (PR 9142, 9105, 9439)
+* Avoid uninitialized-variable and GCC warnings; several fixes for undefined-shift/overflow issues. (PR 9020, 9372, 9195)
+* Memory & leak fixes in X509 verification and various struct sizing fixes for WOLFSSL_NO_MALLOC usage. (PR 9258, 9036)
+* Fixed RSA / signing / verify-only warnings allowing WOLFSSL_NO_CT_OPS when WOLFSSL_RSA_VERIFY_ONLY is used and API cleanups for using const. (PR 9031, 9263)
+
+
 # wolfSSL Release 5.8.2 (July 17, 2025)
 
 Release 5.8.2 has been developed according to wolfSSL's development and QA

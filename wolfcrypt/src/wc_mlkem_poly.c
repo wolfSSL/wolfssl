@@ -3184,8 +3184,9 @@ int mlkem_derive_secret(wc_Shake* shake256, const byte* z, const byte* ct,
 
 #ifdef USE_INTEL_SPEEDUP
     XMEMCPY(shake256->t, z, WC_ML_KEM_SYM_SZ);
-    XMEMCPY(shake256->t, ct, WC_SHA3_256_COUNT * 8 - WC_ML_KEM_SYM_SZ);
-    shake256->i = WC_ML_KEM_SYM_SZ;
+    XMEMCPY(shake256->t + WC_ML_KEM_SYM_SZ, ct,
+        WC_SHA3_256_COUNT * 8 - WC_ML_KEM_SYM_SZ);
+    shake256->i = WC_ML_KEM_SYM_SZ + WC_SHA3_256_COUNT * 8 - WC_ML_KEM_SYM_SZ;
     ct += WC_SHA3_256_COUNT * 8 - WC_ML_KEM_SYM_SZ;
     ctSz -= WC_SHA3_256_COUNT * 8 - WC_ML_KEM_SYM_SZ;
     ret = wc_Shake256_Update(shake256, ct, ctSz);
@@ -3193,7 +3194,10 @@ int mlkem_derive_secret(wc_Shake* shake256, const byte* z, const byte* ct,
         ret = wc_Shake256_Final(shake256, ss, WC_ML_KEM_SS_SZ);
     }
 #else
-    ret = wc_Shake256_Update(shake256, z, WC_ML_KEM_SYM_SZ);
+    ret = wc_InitShake256(shake256, NULL, INVALID_DEVID);
+    if (ret == 0) {
+        ret = wc_Shake256_Update(shake256, z, WC_ML_KEM_SYM_SZ);
+    }
     if (ret == 0) {
         ret = wc_Shake256_Update(shake256, ct, ctSz);
     }
@@ -4775,7 +4779,7 @@ static MLKEM_NOINLINE void mlkem_csubq_c(sword16* p)
     for (i = 0; i < MLKEM_N; ++i) {
         sword16 t = p[i] - MLKEM_Q;
         /* When top bit set, -ve number - need to add q back. */
-        p[i] = ((t >> 15) & MLKEM_Q) + t;
+        p[i] = (sword16)((word16)(-((word16)t >> 15)) & MLKEM_Q) + t;
     }
 }
 
@@ -6021,11 +6025,11 @@ static void mlkem_to_bytes_c(byte* b, sword16* p, int k)
     int i;
     int j;
 
-    /* Reduce each coefficient to mod q. */
-    mlkem_csubq_c(p);
-    /* All values are now positive. */
-
     for (j = 0; j < k; j++) {
+        /* Reduce each coefficient to mod q. */
+        mlkem_csubq_c(p);
+        /* All values are now positive. */
+
         for (i = 0; i < MLKEM_N / 2; i++) {
             word16 t0 = p[2 * i];
             word16 t1 = p[2 * i + 1];

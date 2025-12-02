@@ -1169,6 +1169,7 @@ int wc_ShaCopy(wc_Sha* src, wc_Sha* dst)
             return ret;
         /* fall-through when unavailable */
     }
+    ret = 0; /* Reset ret to 0 to avoid returning the callback error code */
 #endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_COPY */
 
     XMEMCPY(dst, src, sizeof(wc_Sha));

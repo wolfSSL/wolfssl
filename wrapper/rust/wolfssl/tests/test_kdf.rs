@@ -3,6 +3,48 @@ use wolfssl::wolfcrypt::kdf::*;
 use wolfssl::wolfcrypt::sha::SHA256;
 
 #[test]
+#[cfg(kdf_pbkdf2)]
+fn test_pbkdf2() {
+    let password = b"passwordpassword";
+    let salt = [0x78u8, 0x57, 0x8E, 0x5a, 0x5d, 0x63, 0xcb, 0x06];
+    let iterations = 2048;
+    let expected_key = [
+        0x43u8, 0x6d, 0xb5, 0xe8, 0xd0, 0xfb, 0x3f, 0x35, 0x42, 0x48, 0x39, 0xbc,
+        0x2d, 0xd4, 0xf9, 0x37, 0xd4, 0x95, 0x16, 0xa7, 0x2a, 0x9a, 0x21, 0xd1
+    ];
+
+    let mut keyout = [0u8; 24];
+    pbkdf2(password, &salt, iterations, HMAC::TYPE_SHA256, &mut keyout).expect("Error with pbkdf2()");
+    assert_eq!(keyout, expected_key);
+
+    let mut keyout = [0u8; 24];
+    pbkdf2_ex(password, &salt, iterations, HMAC::TYPE_SHA256, None, None, &mut keyout).expect("Error with pbkdf2_ex()");
+    assert_eq!(keyout, expected_key);
+}
+
+#[test]
+#[cfg(kdf_pbkdf2)]
+fn test_pkcs12_pbkdf() {
+    let password = [0x00u8, 0x73, 0x00, 0x6d, 0x00, 0x65, 0x00, 0x67, 0x00, 0x00];
+    let salt = [0x0au8, 0x58, 0xCF, 0x64, 0x53, 0x0d, 0x82, 0x3f];
+    let expected_key = [
+        0x27u8, 0xE9, 0x0D, 0x7E, 0xD5, 0xA1, 0xC4, 0x11,
+        0xBA, 0x87, 0x8B, 0xC0, 0x90, 0xF5, 0xCE, 0xBE,
+        0x5E, 0x9D, 0x5F, 0xE3, 0xD6, 0x2B, 0x73, 0xAA
+    ];
+    let iterations = 1;
+
+    let mut keyout = [0u8; 24];
+    pkcs12_pbkdf(&password, &salt, iterations, HMAC::TYPE_SHA256, 1, &mut keyout).expect("Error with pkcs12_pbkdf()");
+    assert_eq!(keyout, expected_key);
+
+    let mut keyout = [0u8; 24];
+    pkcs12_pbkdf_ex(&password, &salt, iterations, HMAC::TYPE_SHA256, 1, None, &mut keyout).expect("Error with pkcs12_pbkdf_ex()");
+    assert_eq!(keyout, expected_key);
+}
+
+#[test]
+#[cfg(kdf_tls13)]
 fn test_tls13_hkdf_extract_expand() {
     let hash_hello1 = [
         0x63u8, 0x83, 0x58, 0xab, 0x36, 0xcd, 0x0c, 0xf3,
@@ -19,6 +61,7 @@ fn test_tls13_hkdf_extract_expand() {
     let mut secret = [0u8; SHA256::DIGEST_SIZE];
 
     tls13_hkdf_extract(HMAC::TYPE_SHA256, None, None, &mut secret).expect("Error with tls13_hkdf_extract()");
+    tls13_hkdf_extract_ex(HMAC::TYPE_SHA256, None, None, &mut secret, None, None).expect("Error with tls13_hkdf_extract_ex()");
 
     let protocol_label = b"tls13 ";
     let ce_traffic_label = b"c e traffic";
@@ -27,11 +70,15 @@ fn test_tls13_hkdf_extract_expand() {
     tls13_hkdf_expand_label(HMAC::TYPE_SHA256, &secret,
         protocol_label, ce_traffic_label,
         &hash_hello1, &mut expand_out).expect("Error with tls13_hkdf_expand_label()");
+    tls13_hkdf_expand_label_ex(HMAC::TYPE_SHA256, &secret,
+        protocol_label, ce_traffic_label,
+        &hash_hello1, &mut expand_out, None, None).expect("Error with tls13_hkdf_expand_label_ex()");
 
     assert_eq!(expand_out, client_early_traffic_secret);
 }
 
 #[test]
+#[cfg(kdf_ssh)]
 fn test_ssh_kdf() {
     let ssh_kdf_set3_k = [
         0x6Au8, 0xC3, 0x82, 0xEA, 0xAC, 0xA0, 0x93, 0xE1,
@@ -93,6 +140,7 @@ fn test_ssh_kdf() {
 }
 
 #[test]
+#[cfg(kdf_srtp)]
 fn test_srtp_kdf() {
     let key = [
         0xc4u8, 0x80, 0x9f, 0x6d, 0x36, 0x98, 0x88, 0x72,
@@ -140,6 +188,7 @@ fn test_srtp_kdf() {
 }
 
 #[test]
+#[cfg(kdf_srtp)]
 fn test_srtcp_kdf() {
     let key = [
         0xc4u8, 0x80, 0x9f, 0x6d, 0x36, 0x98, 0x88, 0x72,
@@ -187,6 +236,7 @@ fn test_srtcp_kdf() {
 }
 
 #[test]
+#[cfg(kdf_srtp)]
 fn test_srtp_kdr_to_idx() {
     assert_eq!(srtp_kdr_to_index(0), -1);
     assert_eq!(srtp_kdr_to_index(1), 0);

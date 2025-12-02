@@ -24,6 +24,8 @@
 
 int test_dtls12_basic_connection_id(void);
 int test_dtls13_basic_connection_id(void);
+int test_dtls13_hrr_want_write(void);
+int test_dtls13_every_write_want_write(void);
 int test_wolfSSL_dtls_cid_parse(void);
 int test_wolfSSL_dtls_set_pending_peer(void);
 int test_dtls13_epochs(void);
@@ -43,10 +45,14 @@ int test_dtls_replay(void);
 int test_dtls_srtp(void);
 int test_dtls_timeout(void);
 int test_dtls_certreq_order(void);
+int test_dtls_memio_wolfio(void);
+int test_dtls_memio_wolfio_stateless(void);
 
 #define TEST_DTLS_DECLS                                                        \
         TEST_DECL_GROUP("dtls", test_dtls12_basic_connection_id),              \
         TEST_DECL_GROUP("dtls", test_dtls13_basic_connection_id),              \
+        TEST_DECL_GROUP("dtls", test_dtls13_hrr_want_write),                   \
+        TEST_DECL_GROUP("dtls", test_dtls13_every_write_want_write),           \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_cid_parse),                  \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_set_pending_peer),           \
         TEST_DECL_GROUP("dtls", test_dtls13_epochs),                           \
@@ -65,5 +71,7 @@ int test_dtls_certreq_order(void);
         TEST_DECL_GROUP("dtls", test_dtls_replay),                             \
         TEST_DECL_GROUP("dtls", test_dtls_srtp),                               \
         TEST_DECL_GROUP("dtls", test_dtls_certreq_order),                      \
-        TEST_DECL_GROUP("dtls", test_dtls_timeout)
+        TEST_DECL_GROUP("dtls", test_dtls_timeout),                            \
+        TEST_DECL_GROUP("dtls", test_dtls_memio_wolfio),                       \
+        TEST_DECL_GROUP("dtls", test_dtls_memio_wolfio_stateless)
 #endif /* TESTS_API_DTLS_H */

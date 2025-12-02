@@ -1,9 +1,24 @@
+The wolfSSL, Inc. software (“wolfSSL Software”) to which this text is appended
+is made available under the GNU General Public License version 3 (“GPLv3”) with
+the following exception:  When this wolfSSL Software is combined with the
+software listed below (“Exception Software”), licensee may elect to license
+this wolfSSL Software under the GNU General Public License version 2 (“GPLv2”)
+instead of GPLv3.
 
-wolfSSL (formerly known as CyaSSL) and wolfCrypt are either licensed for use
-under the GPLv3 (or at your option any later version) or a standard commercial
-license. For our users who cannot use wolfSSL under GPLv3
-(or any later version), a commercial license to wolfSSL and wolfCrypt is
-available.
+Exception Software:
+
+MariaDB Server
+
+MariaDB Client Libraries
+
+OpenVPN-NL
+
+Fetchmail
+
+OpenVPN
+
+For our users who cannot use wolfSSL under GPLv3, a commercial license to
+wolfSSL and wolfCrypt is available.
 
 Please contact wolfSSL Inc. directly at:
 

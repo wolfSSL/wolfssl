@@ -155,7 +155,7 @@ int wc_PBKDF2(byte* output, const byte* passwd, int pLen,
     byte pass[] = { }; // initialize with password
     byte salt[] = { }; // initialize with salt
 
-    ret = wc_PKCS512_PBKDF(key, pass, sizeof(pass), salt, sizeof(salt), 2048,
+    ret = wc_PKCS12_PBKDF(key, pass, sizeof(pass), salt, sizeof(salt), 2048,
     sizeof(key), WC_SHA512, 1);
     if ( ret != 0 ) {
     	// error deriving key from password

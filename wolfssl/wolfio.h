@@ -143,7 +143,10 @@
         #include <externs.h>
         #include <errno.h>
     #elif defined(WOLFSSL_LINUXKM)
-        /* the requisite linux/net.h is included in wc_port.h, with incompatible warnings masked out. */
+        /* the requisite linux/net.h is included in wc_port.h,
+         * with incompatible warnings masked out. */
+    #elif defined(WOLFSSL_BSDKM)
+        /* definitions are in bsdkm/bsdkm_wc_port.h */
     #elif defined(WOLFSSL_ATMEL)
         #include "socket/include/socket.h"
     #elif defined(INTIME_RTOS)
@@ -624,6 +627,15 @@ WOLFSSL_LOCAL int BioReceiveInternal(WOLFSSL_BIO* biord, WOLFSSL_BIO* biowr,
                                      char* buf, int sz);
 #endif
 WOLFSSL_LOCAL int SslBioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
+
+#ifdef WOLFSSL_DTLS
+    typedef ssize_t (*WolfSSLRecvFrom)(int sockfd, void* buf, size_t len, int flags,
+                            void* src_addr, void* addrlen);
+    typedef ssize_t (*WolfSSLSento)(int sockfd, const void* buf, size_t len, int flags,
+                          const void* dest_addr, word32 addrlen);
+    WOLFSSL_API void wolfSSL_SetRecvFrom(WOLFSSL* ssl, WolfSSLRecvFrom recvFrom);
+    WOLFSSL_API void wolfSSL_SetSendTo(WOLFSSL* ssl, WolfSSLSento sendTo);
+#endif
 #if defined(USE_WOLFSSL_IO)
     /* default IO callbacks */
 
@@ -948,7 +960,7 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
 
 #ifndef XINET_NTOP
     #if defined(__WATCOMC__)
-        #if defined(__OS2__) || defined(__NT__) && \
+        #if (defined(__OS2__) || defined(__NT__)) && \
                 (NTDDI_VERSION >= NTDDI_VISTA)
             #define XINET_NTOP(a,b,c,d) inet_ntop((a),(b),(c),(d))
         #else
@@ -963,7 +975,7 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
 #endif
 #ifndef XINET_PTON
     #if defined(__WATCOMC__)
-        #if defined(__OS2__) || defined(__NT__) && \
+        #if (defined(__OS2__) || defined(__NT__)) && \
                 (NTDDI_VERSION >= NTDDI_VISTA)
             #define XINET_PTON(a,b,c)   inet_pton((a),(b),(c))
         #else

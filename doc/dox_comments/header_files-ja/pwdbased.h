@@ -113,8 +113,8 @@ int wc_PBKDF2(byte* output, const byte* passwd, int pLen,
     byte pass[] = { }; // パスワードで初期化
     byte salt[] = { }; // ソルトで初期化
 
-    ret = wc_PKCS512_PBKDF(key, pass, sizeof(pass), salt, sizeof(salt), 2048,
-    sizeof(key), WC_SHA512, 1);
+    ret = wc_PKCS12_PBKDF(key, pass, sizeof(pass), salt, sizeof(salt), 2048,
+    sizeof(key), SHA512, 1);
     if ( ret != 0 ) {
     	// パスワードからの鍵導出エラー
     }

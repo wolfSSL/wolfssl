@@ -38,7 +38,7 @@ name: Arduino CI Build (1 of 4) wolfssl
 #
 # To test locally:
 # cd [your WOLFSSL_ROOT], e.g. cd /mnt/c/workspace/wolfssl-$USER
-# [optional checkout]     e.g. git checkout tags/v5.8.2-stable
+# [optional checkout]     e.g. git checkout tags/v5.8.4-stable
 # pushd ./IDE/ARDUINO
 # export ARDUINO_ROOT="$HOME/Arduino/libraries"
 # ./wolfssl-arduino.sh INSTALL
@@ -50,6 +50,7 @@ on:
   push:
     branches: [ '**', 'master', 'main', 'release/**' ]
     paths:
+      # Specific to this Arduino CI Build (1 of 4)
       - '.github/workflows/arduino.yml'
       - 'IDE/ARDUINO/**'
       - 'src/**'
@@ -66,16 +67,60 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # Same branch push cancels other jobs. Other PR branches untouched
+
+  group: ${{ github.workflow }}-${{ github.ref_name }}
   cancel-in-progress: true
+
 # END OF COMMON SECTION
 
 jobs:
   build:
     if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        fqbn:
+          # When editing this list, be sure to also edit file: board_list.txt
+          #   The compile-all-examples.sh optionally takes a FQBN parameter to
+          #   optionally compile all examples ONLY for the respective fully qualified board name.
+          # See https://github.com/wolfSSL/wolfssl-examples/blob/master/Arduino/sketches/board_list.txt
+
+          - arduino:avr:ethernet
+          - arduino:avr:leonardoeth
+          - arduino:avr:mega
+          - arduino:avr:nano
+          - arduino:avr:uno
+          - arduino:avr:yun
+          - arduino:samd:mkrwifi1010
+          - arduino:samd:mkr1000
+          - arduino:samd:mkrfox1200
+          - arduino:mbed_edge:edge_control
+          - arduino:mbed_nano:nanorp2040connect
+          - arduino:mbed_portenta:envie_m7
+          - arduino:mbed_portenta:portenta_x8
+          - arduino:renesas_uno:unor4wifi
+          - arduino:sam:arduino_due_x
+          - arduino:samd:arduino_zero_native
+          - arduino:samd:tian
+          - esp32:esp32:esp32
+          - esp32:esp32:esp32s2
+          - esp32:esp32:esp32s3
+          - esp32:esp32:esp32c3
+          - esp32:esp32:esp32c6
+          - esp32:esp32:esp32h2
+          - esp8266:esp8266:generic
+          - teensy:avr:teensy40
+
+          # Not yet supported, not in standard library
+          # - esp32:esp32:nano_nora
+
+          # End strategy matrix
     env:
       REPO_OWNER: ${{ github.repository_owner }}
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -84,7 +129,7 @@ jobs:
         run: |
           # Script to fetch and run install.sh from arduino/arduino-cli
 
-          # The install script will test to see if the recently installed apps in in the path
+          # The install script will test to see if the recently installed apps in the path
           # So set it up in advance:
           mkdir -p "${PWD}/bin"
           echo "${PWD}/bin" >> $GITHUB_PATH
@@ -95,7 +140,7 @@ jobs:
           # Ensures that BINDIR exists before the installer runs
           mkdir -p "$ROOT_BIN"
 
-          # Save as a lobal environment variable
+          # Save as a global environment variable
           echo "$ROOT_BIN" >> "$GITHUB_PATH"
 
           # Download and run install script from Arduino:
@@ -126,34 +171,53 @@ jobs:
             echo "Alternative install script not needed."
           fi
 
-      - name: Confirm Arduino CLI install
+      - name: Confirm Arduino CLI Install
         run: arduino-cli version
+
+      - name: Derive CORE_ID (vendor:arch from FQBN)
+        run: |
+          CORE_ID="$(echo '${{ matrix.fqbn }}' | cut -d: -f1-2)"
+          echo "CORE_ID=$CORE_ID" >> "$GITHUB_ENV"
 
       - name: Setup Arduino CLI
         run: |
           arduino-cli config init
-          arduino-cli core update-index
+
+          # wait 10 minutes for big downloads (or use 0 for no limit)
+          arduino-cli config set network.connection_timeout 600s
+
           arduino-cli config add board_manager.additional_urls https://www.pjrc.com/teensy/package_teensy_index.json
-          arduino-cli core update-index
           arduino-cli config add board_manager.additional_urls https://arduino.esp8266.com/stable/package_esp8266com_index.json
           arduino-cli core update-index
-          arduino-cli core install esp32:esp32            # ESP32
-          arduino-cli core install arduino:avr            # Arduino Uno, Mega, Nano
-          arduino-cli core install arduino:sam            # Arduino Due
-          arduino-cli core install arduino:samd           # Arduino Zero
-          arduino-cli core install teensy:avr             # PJRC Teensy
-          arduino-cli core install esp8266:esp8266        # ESP8266
-          arduino-cli core install arduino:mbed_nano      # nanorp2040connect
-          arduino-cli core install arduino:mbed_portenta  # portenta_h7_m7
-          arduino-cli core install arduino:mbed_edge
+
+          echo "CORE_ID: $CORE_ID"
+          arduino-cli core install "$CORE_ID"
+
+          # The above is instead of:
+          # arduino-cli core install esp32:esp32            # ESP32
+          # arduino-cli core install arduino:avr            # Arduino Uno, Mega, Nano
+          # arduino-cli core install arduino:sam            # Arduino Due
+          # arduino-cli core install arduino:samd           # Arduino Zero
+          # arduino-cli core install teensy:avr             # PJRC Teensy
+          # arduino-cli core install esp8266:esp8266        # ESP8266
+          # arduino-cli core install arduino:mbed_nano      # nanorp2040connect
+          # arduino-cli core install arduino:mbed_portenta  # portenta_h7_m7
+          # arduino-cli core install arduino:mbed_edge
+          # arduino-cli core install arduino:renesas_uno
+
+          # For reference:
+
+          # mbed nano not yet tested
           # sudo "/home/$USER/.arduino15/packages/arduino/hardware/mbed_nano/4.2.4/post_install.sh"
-          arduino-cli core install arduino:renesas_uno
+
+          # Always install networking (not part of FQBN matrix)
+          # The first one also creates directory: /home/runner/Arduino/libraries
           arduino-cli lib install "ArduinoJson"           # Example dependency
           arduino-cli lib install "WiFiNINA"              # ARDUINO_SAMD_NANO_33_IOT
           arduino-cli lib install "Ethernet"              # Install Ethernet library
           arduino-cli lib install "Bridge"                # Pseudo-network for things like arduino:samd:tian
 
-      - name: Set job environment variables
+      - name: Set Job Environment Variables
         run: |
           # Script to assign some common environment variables after everything is installed
 
@@ -177,6 +241,26 @@ jobs:
 
           # WOLFSSL_EXAMPLES_ROOT is the repo root, not example location
           echo "WOLFSSL_EXAMPLES_ROOT = $WOLFSSL_EXAMPLES_ROOT"
+
+      - name: Cache Arduino Packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.arduino15
+            ~/.cache/arduino
+            ~/.arduino15/staging
+
+            # Arduino libraries
+            # Specific to Arduino CI Build (2 of 4) Arduinbo Release wolfSSL for Local Examples
+            # Include all libraries, as the latest Arduino-wolfSSL will only change upon release.
+            ~/Arduino/libraries
+            # Ensure wolfssl is not cached, we're always using the latest. See separate cache.
+            !~/Arduino/libraries/wolfssl
+          key: arduino-${{ runner.os }}-${{ env.CORE_ID }}-${{ hashFiles('Arduino/sketches/board_list.txt') }}
+
+          restore-keys: |
+               arduino-${{ runner.os }}-${{ env.CORE_ID }}-
+               arduino-${{ runner.os }}-
 
       - name: Get wolfssl-examples
         run: |
@@ -210,6 +294,9 @@ jobs:
       - name: Install wolfSSL Arduino library
         run: |
           # Run the local wolfssl-arduino.sh install script to install wolfssl Arduino library.
+
+          echo "Installing wolfSSL Arduino library (no cache hit)."
+          rm -rf "$ARDUINO_ROOT/wolfssl"
 
           # Methods of installing Arduino library:
           #   1) arduino-cli lib install "wolfSSL"
@@ -253,7 +340,8 @@ jobs:
 
           # Fetch script and board list into WOLFSSL_EXAMPLES_DIRECTORY
           echo "Fetching board_list.txt from REPO_OWNER=$REPO_OWNER"
-          curl -L "https://raw.githubusercontent.com/$REPO_OWNER/wolfssl-examples/master/Arduino/sketches/board_list.txt"          -o "$WOLFSSL_EXAMPLES_DIRECTORY/$THIS_BOARD_LIST"
+          curl -L "https://raw.githubusercontent.com/$REPO_OWNER/wolfssl-examples/master/Arduino/sketches/board_list.txt"  \
+               -o "$WOLFSSL_EXAMPLES_DIRECTORY/$THIS_BOARD_LIST"
 
           # Check if the first line is "404: Not Found" - which would indicate the curl path above is bad.
           FILE="$WOLFSSL_EXAMPLES_DIRECTORY/board_list.txt"
@@ -272,7 +360,8 @@ jobs:
 
           # Fetch the compile script from repo: https://github.com/[$USER]/wolfssl-examples/
           echo "Fetching compile-all-examples.sh from REPO_OWNER=$REPO_OWNER"
-          curl -L "https://raw.githubusercontent.com/$REPO_OWNER/wolfssl-examples/master/Arduino/sketches/compile-all-examples.sh" -o "$WOLFSSL_EXAMPLES_DIRECTORY/compile-all-examples.sh"
+          curl -L "https://raw.githubusercontent.com/$REPO_OWNER/wolfssl-examples/master/Arduino/sketches/compile-all-examples.sh"  \
+               -o "$WOLFSSL_EXAMPLES_DIRECTORY/compile-all-examples.sh"
 
           # Check if the first line is "404: Not Found" - which would indicate the curl path above is bad.
           FILE="$WOLFSSL_EXAMPLES_DIRECTORY/compile-all-examples.sh"
@@ -318,8 +407,12 @@ jobs:
 
           echo "Change directory to Arduino examples..."
           pushd "$WOLFSSL_EXAMPLES_DIRECTORY"
+            chmod +x ./compile-all-examples.sh
+
+            # The script expects all the examples to be in the current directory.
+            # Along with ./board_list.txt from examples repo
             echo "Current directory:           $PWD"
             echo "Calling ./compile-all-examples.sh"
-            bash ./compile-all-examples.sh
+            bash ./compile-all-examples.sh  ./board_list.txt "${{ matrix.fqbn }}"
           popd
           # End Compile Arduino Sketches for Various Boards

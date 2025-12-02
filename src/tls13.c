@@ -7867,8 +7867,9 @@ static int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx,
  * hsType   The signature type.
  * output    The buffer to encode into.
  */
-static WC_INLINE void EncodeSigAlg(byte hashAlgo, byte hsType, byte* output)
+static WC_INLINE void EncodeSigAlg(const WOLFSSL * ssl, byte hashAlgo, byte hsType, byte* output)
 {
+    (void)ssl;
     switch (hsType) {
 #ifdef HAVE_ECC
         case ecc_dsa_sa_algo:
@@ -7899,10 +7900,24 @@ static WC_INLINE void EncodeSigAlg(byte hashAlgo, byte hsType, byte* output)
             break;
 #endif
 #ifndef NO_RSA
-        /* PSS signatures: 0x080[4-6] */
+        /* PSS signatures: 0x080[4-6] or 0x080[9-B] */
         case rsa_pss_sa_algo:
             output[0] = rsa_pss_sa_algo;
-            output[1] = hashAlgo;
+#ifdef WC_RSA_PSS
+            /* If the private key uses the RSA-PSS OID, and the peer supports
+             * the rsa_pss_pss_* signature algorithm in use, then report
+             * rsa_pss_pss_* rather than rsa_pss_rsae_*. */
+            if (ssl->useRsaPss &&
+                ((ssl->pssAlgo & (1U << hashAlgo)) != 0U) &&
+                (sha256_mac <= hashAlgo) && (hashAlgo <= sha512_mac))
+            {
+                output[1] = PSS_RSAE_TO_PSS_PSS(hashAlgo);
+            }
+            else
+#endif
+            {
+                output[1] = hashAlgo;
+            }
             break;
 #endif
 #ifdef HAVE_FALCON
@@ -9131,7 +9146,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
     WOLFSSL_ENTER("SendTls13CertificateVerify");
 
 #ifdef WOLFSSL_BLIND_PRIVATE_KEY
-    wolfssl_priv_der_unblind(ssl->buffers.key, ssl->buffers.keyMask);
+    wolfssl_priv_der_blind_toggle(ssl->buffers.key, ssl->buffers.keyMask);
 #endif
 
     ssl->options.buildingMsg = 1;
@@ -9187,7 +9202,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
         {
             if (ssl->options.sendVerify == SEND_BLANK_CERT) {
             #ifdef WOLFSSL_BLIND_PRIVATE_KEY
-                wolfssl_priv_der_unblind(ssl->buffers.key,
+                wolfssl_priv_der_blind_toggle(ssl->buffers.key,
                     ssl->buffers.keyMask);
             #endif
                 return 0;  /* sent blank cert, can't verify */
@@ -9361,7 +9376,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
             }
             else
         #endif /* WOLFSSL_DUAL_ALG_CERTS */
-                EncodeSigAlg(ssl->options.hashAlgo, args->sigAlgo,
+                EncodeSigAlg(ssl, ssl->options.hashAlgo, args->sigAlgo,
                              args->verify);
 
             if (args->sigData == NULL) {
@@ -9882,7 +9897,7 @@ exit_scv:
             &ssl->buffers.keyMask);
     }
     else {
-        wolfssl_priv_der_unblind(ssl->buffers.key, ssl->buffers.keyMask);
+        wolfssl_priv_der_blind_toggle(ssl->buffers.key, ssl->buffers.keyMask);
     }
 #endif
 
@@ -10215,18 +10230,6 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 ERROR_OUT(BUFFER_ERROR, exit_dcv);
             }
 
-            validSigAlgo = 0;
-            for (i = 0; i < suites->hashSigAlgoSz; i += 2) {
-                 if ((suites->hashSigAlgo[i + 0] == input[args->idx + 0]) &&
-                         (suites->hashSigAlgo[i + 1] == input[args->idx + 1])) {
-                     validSigAlgo = 1;
-                     break;
-                 }
-            }
-            if (!validSigAlgo) {
-                ERROR_OUT(INVALID_PARAMETER, exit_dcv);
-            }
-
 #ifdef WOLFSSL_DUAL_ALG_CERTS
             if (ssl->peerSigSpec == NULL) {
                 /* The peer did not respond. We didn't send CKS or they don't
@@ -10243,6 +10246,18 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 *ssl->sigSpec == WOLFSSL_CKS_SIGSPEC_NATIVE ||
                 *ssl->sigSpec == WOLFSSL_CKS_SIGSPEC_ALTERNATIVE) {
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
+                validSigAlgo = 0;
+                for (i = 0; i < suites->hashSigAlgoSz; i += 2) {
+                     if ((suites->hashSigAlgo[i + 0] == input[args->idx + 0]) &&
+                             (suites->hashSigAlgo[i + 1] == input[args->idx + 1])) {
+                         validSigAlgo = 1;
+                         break;
+                     }
+                }
+                if (!validSigAlgo) {
+                    ERROR_OUT(INVALID_PARAMETER, exit_dcv);
+                }
+
                 ret = DecodeTls13SigAlg(input + args->idx,
                         &ssl->options.peerHashAlgo, &ssl->options.peerSigAlgo);
 #ifdef WOLFSSL_DUAL_ALG_CERTS
@@ -10558,6 +10573,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
         case TLS_ASYNC_DO:
         {
             sig = input + args->idx;
+            (void)sig;
         #ifdef WOLFSSL_DUAL_ALG_CERTS
             if (ssl->sigSpec != NULL &&
                 *ssl->sigSpec == WOLFSSL_CKS_SIGSPEC_BOTH) {
@@ -14596,6 +14612,12 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
             FALL_THROUGH;
 
         case TLS13_ACCEPT_SECOND_REPLY_DONE :
+            if (ssl->options.returnOnGoodCh) {
+                /* Higher level in stack wants us to return. Simulate a
+                 * WANT_WRITE to accomplish this. */
+                ssl->error = WANT_WRITE;
+                return WOLFSSL_FATAL_ERROR;
+            }
 
             if ((ssl->error = SendTls13ServerHello(ssl, server_hello)) != 0) {
                 WOLFSSL_ERROR(ssl->error);

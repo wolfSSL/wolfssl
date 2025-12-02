@@ -7361,9 +7361,9 @@ static int check_cert_key_dev(word32 keyOID, byte* privKey, word32 privSz,
  *
  * Returns WOLFSSL_SUCCESS on good private key
  *         WOLFSSL_FAILURE if mismatched */
-static int check_cert_key(DerBuffer* cert, DerBuffer* key, DerBuffer* altKey,
-    void* heap, int devId, int isKeyLabel, int isKeyId, int altDevId,
-    int isAltKeyLabel, int isAltKeyId)
+static int check_cert_key(const DerBuffer* cert, const DerBuffer* key,
+    const DerBuffer* altKey, void* heap, int devId, int isKeyLabel, int isKeyId,
+    int altDevId, int isAltKeyLabel, int isAltKeyId)
 {
     WC_DECLARE_VAR(der, DecodedCert, 1, 0);
     word32 size;
@@ -7498,7 +7498,18 @@ static int check_cert_key(DerBuffer* cert, DerBuffer* key, DerBuffer* altKey,
  *         WOLFSSL_FAILURE if mismatched. */
 int wolfSSL_CTX_check_private_key(const WOLFSSL_CTX* ctx)
 {
-    int res;
+    int res = WOLFSSL_SUCCESS;
+#ifdef WOLFSSL_BLIND_PRIVATE_KEY
+    DerBuffer *privateKey;
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+    DerBuffer *altPrivateKey;
+#endif
+#else
+    const DerBuffer *privateKey;
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+    const DerBuffer *altPrivateKey;
+#endif
+#endif
 
     if (ctx == NULL) {
         return WOLFSSL_FAILURE;
@@ -7506,42 +7517,42 @@ int wolfSSL_CTX_check_private_key(const WOLFSSL_CTX* ctx)
 
 #ifdef WOLFSSL_DUAL_ALG_CERTS
 #ifdef WOLFSSL_BLIND_PRIVATE_KEY
-    wolfssl_priv_der_unblind(ctx->privateKey, ctx->privateKeyMask);
-    wolfssl_priv_der_unblind(ctx->altPrivateKey, ctx->altPrivateKeyMask);
-#endif
-    res = check_cert_key(ctx->certificate, ctx->privateKey, ctx->altPrivateKey,
-            ctx->heap, ctx->privateKeyDevId, ctx->privateKeyLabel,
-            ctx->privateKeyId, ctx->altPrivateKeyDevId, ctx->altPrivateKeyLabel,
-            ctx->altPrivateKeyId) != 0;
-#ifdef WOLFSSL_BLIND_PRIVATE_KEY
-    {
-        int ret;
-        ret = wolfssl_priv_der_blind(NULL, ctx->privateKey,
-            (DerBuffer**)&ctx->privateKeyMask);
-        if (ret == 0) {
-            ret = wolfssl_priv_der_blind(NULL, ctx->altPrivateKey,
-                (DerBuffer**)&ctx->altPrivateKeyMask);
-        }
-        if (ret != 0) {
-            res = WOLFSSL_FAILURE;
-        }
+    privateKey = wolfssl_priv_der_unblind(ctx->privateKey, ctx->privateKeyMask);
+    altPrivateKey = wolfssl_priv_der_unblind(ctx->altPrivateKey,
+                                             ctx->altPrivateKeyMask);
+    if ((privateKey == NULL) || (altPrivateKey == NULL)) {
+        res = WOLFSSL_FAILURE;
     }
+#else
+    privateKey = ctx->privateKey;
+    altPrivateKey = ctx->altPrivateKey;
+#endif
+    if (res == WOLFSSL_SUCCESS) {
+        res = check_cert_key(ctx->certificate, privateKey, altPrivateKey,
+                             ctx->heap, ctx->privateKeyDevId, ctx->privateKeyLabel,
+                             ctx->privateKeyId, ctx->altPrivateKeyDevId,
+                             ctx->altPrivateKeyLabel, ctx->altPrivateKeyId) != 0;
+    }
+#ifdef WOLFSSL_BLIND_PRIVATE_KEY
+    wolfssl_priv_der_unblind_free(privateKey);
+    wolfssl_priv_der_unblind_free(altPrivateKey);
 #endif
 #else
 #ifdef WOLFSSL_BLIND_PRIVATE_KEY
-    wolfssl_priv_der_unblind(ctx->privateKey, ctx->privateKeyMask);
-#endif
-    res = check_cert_key(ctx->certificate, ctx->privateKey, NULL, ctx->heap,
-            ctx->privateKeyDevId, ctx->privateKeyLabel, ctx->privateKeyId,
-            INVALID_DEVID, 0, 0);
-#ifdef WOLFSSL_BLIND_PRIVATE_KEY
-    {
-        int ret = wolfssl_priv_der_blind(NULL, ctx->privateKey,
-            (DerBuffer**)&ctx->privateKeyMask);
-        if (ret != 0) {
-            res = WOLFSSL_FAILURE;
-        }
+    privateKey = wolfssl_priv_der_unblind(ctx->privateKey, ctx->privateKeyMask);
+    if (privateKey == NULL) {
+        res = WOLFSSL_FAILURE;
     }
+#else
+    privateKey = ctx->privateKey;
+#endif
+    if (res == WOLFSSL_SUCCESS) {
+        res = check_cert_key(ctx->certificate, privateKey, NULL, ctx->heap,
+                             ctx->privateKeyDevId, ctx->privateKeyLabel,
+                             ctx->privateKeyId, INVALID_DEVID, 0, 0);
+    }
+#ifdef WOLFSSL_BLIND_PRIVATE_KEY
+    wolfssl_priv_der_unblind_free(privateKey);
 #endif
 #endif
 
@@ -7558,6 +7569,10 @@ int wolfSSL_CTX_check_private_key(const WOLFSSL_CTX* ctx)
 /**
  * Return the private key of the WOLFSSL_CTX struct
  * @return WOLFSSL_EVP_PKEY* The caller doesn *NOT*` free the returned object.
+ *
+ * Note, even though the supplied ctx pointer is designated const, on success
+ * ctx->privateKeyPKey is changed by this call.  The change is done safely using
+ * a hardware-synchronized store.
  */
 WOLFSSL_EVP_PKEY* wolfSSL_CTX_get0_privatekey(const WOLFSSL_CTX* ctx)
 {
@@ -7596,21 +7611,38 @@ WOLFSSL_EVP_PKEY* wolfSSL_CTX_get0_privatekey(const WOLFSSL_CTX* ctx)
             return NULL;
     }
 
-    key = ctx->privateKey->buffer;
-
     if (ctx->privateKeyPKey != NULL) {
         res = ctx->privateKeyPKey;
     }
     else {
     #ifdef WOLFSSL_BLIND_PRIVATE_KEY
-        wolfssl_priv_der_unblind(ctx->privateKey, ctx->privateKeyMask);
+        DerBuffer *unblinded_privateKey =
+            wolfssl_priv_der_unblind(ctx->privateKey, ctx->privateKeyMask);
+        if (unblinded_privateKey == NULL)
+            return NULL;
+        key = unblinded_privateKey->buffer;
+    #else
+        key = ctx->privateKey->buffer;
     #endif
-        res = wolfSSL_d2i_PrivateKey(type,
-                (WOLFSSL_EVP_PKEY**)&ctx->privateKeyPKey, &key,
+        res = wolfSSL_d2i_PrivateKey(type, NULL, &key,
                 (long)ctx->privateKey->length);
     #ifdef WOLFSSL_BLIND_PRIVATE_KEY
-        wolfssl_priv_der_unblind(ctx->privateKey, ctx->privateKeyMask);
+        wolfssl_priv_der_unblind_free(unblinded_privateKey);
     #endif
+        if (res) {
+#ifdef WOLFSSL_ATOMIC_OPS
+            WOLFSSL_EVP_PKEY *current_pkey = NULL;
+            if (! wolfSSL_Atomic_Ptr_CompareExchange(
+                    (void * volatile *)&ctx->privateKeyPKey,
+                    (void **)&current_pkey, res))
+            {
+                wolfSSL_EVP_PKEY_free(res);
+                res = current_pkey;
+            }
+#else
+            ((WOLFSSL_CTX *)ctx)->privateKeyPKey = res;
+#endif
+        }
     }
 
     return res;
@@ -8861,7 +8893,7 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
 #endif
 #else
 #ifdef WOLFSSL_BLIND_PRIVATE_KEY
-    wolfssl_priv_der_unblind(ssl->buffers.key, ssl->buffers.keyMask);
+    wolfssl_priv_der_blind_toggle(ssl->buffers.key, ssl->buffers.keyMask);
 #endif
     res = check_cert_key(ssl->buffers.certificate, ssl->buffers.key, NULL,
         ssl->heap, ssl->buffers.keyDevId, ssl->buffers.keyLabel,
@@ -11012,6 +11044,12 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             FALL_THROUGH;
 
         case ACCEPT_FIRST_REPLY_DONE :
+            if (ssl->options.returnOnGoodCh) {
+                /* Higher level in stack wants us to return. Simulate a
+                 * WANT_WRITE to accomplish this. */
+                ssl->error = WANT_WRITE;
+                return WOLFSSL_FATAL_ERROR;
+            }
             if ( (ssl->error = SendServerHello(ssl)) != 0) {
             #ifdef WOLFSSL_CHECK_ALERT_ON_ERR
                 ProcessReplyEx(ssl, 1); /* See if an alert was sent. */
@@ -11312,7 +11350,9 @@ int wolfDTLS_accept_stateless(WOLFSSL* ssl)
     if (wolfDTLS_SetChGoodCb(ssl, chGoodDisableReadCB, &cb) != WOLFSSL_SUCCESS)
         return WOLFSSL_FATAL_ERROR;
 
+    ssl->options.returnOnGoodCh = 1;
     ret = wolfSSL_accept(ssl);
+    ssl->options.returnOnGoodCh = 0;
     /* restore user options */
     ssl->options.disableRead = disableRead;
     (void)wolfDTLS_SetChGoodCb(ssl, cb.userCb, cb.userCtx);
@@ -11320,7 +11360,9 @@ int wolfDTLS_accept_stateless(WOLFSSL* ssl)
         WOLFSSL_MSG("should not happen. maybe the user called "
                     "wolfDTLS_accept_stateless instead of wolfSSL_accept");
     }
-    else if (ssl->error == WC_NO_ERR_TRACE(WANT_READ)) {
+    else if (ssl->error == WC_NO_ERR_TRACE(WANT_READ) ||
+             ssl->error == WC_NO_ERR_TRACE(WANT_WRITE)) {
+        ssl->error = 0;
         if (ssl->options.dtlsStateful)
             ret = WOLFSSL_SUCCESS;
         else
@@ -20948,7 +20990,7 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
             return NULL;
         }
         /* Blind the private key for the SSL with new random mask. */
-        wolfssl_priv_der_unblind(ssl->buffers.key, ctx->privateKeyMask);
+        wolfssl_priv_der_blind_toggle(ssl->buffers.key, ctx->privateKeyMask);
         ret = wolfssl_priv_der_blind(ssl->rng, ssl->buffers.key,
             &ssl->buffers.keyMask);
         if (ret != 0) {

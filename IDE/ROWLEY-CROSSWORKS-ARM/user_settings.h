@@ -18,6 +18,9 @@ extern "C" {
 #undef  SINGLE_THREADED
 #define SINGLE_THREADED
 
+#undef WOLFSSL_NO_SOCK
+#define WOLFSSL_NO_SOCK
+
 #undef  WOLFSSL_SMALL_STACK
 //#define WOLFSSL_SMALL_STACK
 

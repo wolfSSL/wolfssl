@@ -671,7 +671,6 @@ static WC_INLINE int wc_lmots_q_expand(byte* q, word8 n, word8 w, word8 ls,
             /* For each byte of the hash. */
             for (i = 0; i < n; i++) {
                 /* Get coefficients. */
-                qe[0] = (q[i] >> 4)      ;
                 qe[0] = (q[i] >> 6)      ;
                 qe[1] = (q[i] >> 4) & 0x3;
                 qe[2] = (q[i] >> 2) & 0x3;
@@ -697,7 +696,6 @@ static WC_INLINE int wc_lmots_q_expand(byte* q, word8 n, word8 w, word8 ls,
             /* For each byte of the hash. */
             for (i = 0; i < n; i++) {
                 /* Get coefficients. */
-                qe[0] = (q[i] >> 4)      ;
                 qe[0] = (q[i] >> 7)      ;
                 qe[1] = (q[i] >> 6) & 0x1;
                 qe[2] = (q[i] >> 5) & 0x1;
@@ -719,15 +717,21 @@ static WC_INLINE int wc_lmots_q_expand(byte* q, word8 n, word8 w, word8 ls,
                 qe += 8;
             }
             /* Put coefficients of checksum on the end. */
-            qe[0] = (word8)((sum >>  8)      );
-            qe[1] = (word8)((sum >>  7) & 0x1);
-            qe[2] = (word8)((sum >>  6) & 0x1);
-            qe[3] = (word8)((sum >>  5) & 0x1);
-            qe[4] = (word8)((sum >>  4) & 0x1);
-            qe[5] = (word8)((sum >>  3) & 0x1);
-            qe[6] = (word8)((sum >>  2) & 0x1);
-            qe[7] = (word8)((sum >>  1) & 0x1);
-            qe[8] = (word8)((sum      ) & 0x1);
+#ifdef WOLFSSL_LMS_SHA256_192
+            if (ls == 7)
+#endif
+            {
+                qe[0] = (word8)((sum >>  8)      );
+                qe++;
+            }
+            qe[0] = (word8)((sum >>  7) & 0x1);
+            qe[1] = (word8)((sum >>  6) & 0x1);
+            qe[2] = (word8)((sum >>  5) & 0x1);
+            qe[3] = (word8)((sum >>  4) & 0x1);
+            qe[4] = (word8)((sum >>  3) & 0x1);
+            qe[5] = (word8)((sum >>  2) & 0x1);
+            qe[6] = (word8)((sum >>  1) & 0x1);
+            qe[7] = (word8)((sum      ) & 0x1);
             break;
         default:
             ret = BAD_FUNC_ARG;
@@ -763,7 +767,7 @@ static WC_INLINE int wc_lmots_q_expand(byte* q, word8 n, word8 w, word8 ls,
         }
         /* Shift sum up as required to pack it on the end of hash. */
         sum <<= ls;
-        /* For each width buts of checksum. */
+        /* For each width bit of checksum. */
         for (j = 16 - w; j >= ls; j--) {
             /* Get coefficient. */
             *(qe++) = sum >> (16 - w);
@@ -2661,7 +2665,7 @@ static int wc_hss_expand_private_key(LmsState* state, byte* priv,
     word32 q32;
     byte* priv_q;
     byte* priv_seed_i;
-    int i;
+    word32 i;
 
     /* Get the 64-bit q value from the raw private key. */
     ato64(priv_raw, &q);
@@ -2685,7 +2689,7 @@ static int wc_hss_expand_private_key(LmsState* state, byte* priv,
     }
 
     /* Compute SEED and I for rest of levels. */
-    for (i = 1; (ret == 0) && (i < params->levels); i++) {
+    for (i = 1U; (ret == 0) && (i < params->levels); i++) {
         /* Don't skip calculating SEED and I. */
         int skip = 0;
 
@@ -2752,11 +2756,12 @@ static int wc_lms_next_subtree_init(LmsState* state, LmsPrivState* privState,
     priv += LMS_I_LEN;
 
     ato32(curr, &pq);
-    pq = (pq + 1) & (((word32)1 << params->height) - 1);
+    pq = (pq + 1U) & ((((word32)1U) << params->height) - (word32)1U);
     c32toa(pq, priv_q);
 
     privState->stack.offset = 0;
-    privState->leaf.idx = (word32)-((word32)1 << params->cacheBits);
+    /* No unary minus on unsigned; avoids MSVC C4146 and passes clang-tidy */
+    privState->leaf.idx = (word32)(0U - ((word32)1U << params->cacheBits));
     privState->leaf.offset = 0;
 
     /* Derive SEED and I for next tree. */
@@ -2789,7 +2794,7 @@ static int wc_hss_next_subtree_inc(LmsState* state, HssPrivKey* priv_key,
     w64wrapper p64 = q64;
     byte tmp_priv[LMS_PRIV_LEN(LMS_MAX_NODE_LEN)];
     int use_tmp = 0;
-    int lastQMax = 0;
+    word32 lastQMax = 0;
     w64wrapper p64_hi;
     w64wrapper q64_hi;
 
@@ -2807,7 +2812,7 @@ static int wc_hss_next_subtree_inc(LmsState* state, HssPrivKey* priv_key,
         cp64_hi = w64ShiftRight(p64, (params->levels - i - 1) * params->height);
         cq64_hi = w64ShiftRight(q64, (params->levels - i - 1) * params->height);
         /* Get the q for the child. */
-        ato32(curr + LMS_PRIV_LEN(params->hash_len), &qc);
+        ato32(curr + LMS_PRIV_LEN(params->hash_len), (unsigned int*)&qc);
 
         /* Compare index of parent node with previous value. */
         if (w64LT(p64_hi, q64_hi)) {
@@ -2842,7 +2847,7 @@ static int wc_hss_next_subtree_inc(LmsState* state, HssPrivKey* priv_key,
             XMEMCPY(tmp_priv, curr + LMS_PRIV_LEN(params->hash_len), LMS_Q_LEN);
         }
 
-        lastQMax = (qc == ((word32)1 << params->height) - 1);
+        lastQMax = (qc == (((word32)1U << params->height) - (word32)1U));
         curr += LMS_PRIV_LEN(params->hash_len);
         priv += LMS_PRIV_LEN(params->hash_len);
         p64_hi = cp64_hi;
@@ -3178,6 +3183,11 @@ int wc_hss_reload_key(LmsState* state, const byte* priv_raw,
     int ret = 0;
 
     (void)pub_root;
+
+    /* Defend against undefined shifts; LmsParams* params = state->params */
+    if ((state->params->cacheBits >= 32U) || (state->params->height >= 32U)) {
+        return BAD_FUNC_ARG;
+    }
 
     wc_hss_priv_data_load(state->params, priv_key, priv_data);
 #ifndef WOLFSSL_WC_LMS_SMALL

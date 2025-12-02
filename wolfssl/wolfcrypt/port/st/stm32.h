@@ -30,6 +30,8 @@
 
 #ifdef STM32_HASH
 
+#include <stdint.h> /* for uint32_t */
+
 #define WOLFSSL_NO_HASH_RAW
 
 #ifdef HASH_DIGEST

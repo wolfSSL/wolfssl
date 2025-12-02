@@ -1,6 +1,9 @@
+#![cfg(cmac)]
+
 use wolfssl::wolfcrypt::cmac::CMAC;
 
 #[test]
+#[cfg(aes)]
 fn test_cmac() {
     let key = [
         0x2bu8, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6,
@@ -24,5 +27,12 @@ fn test_cmac() {
     CMAC::generate(&key, &message, &mut generate_out).expect("Error with generate()");
     assert_eq!(generate_out, finalize_out);
     let valid = CMAC::verify(&key, &message, &generate_out).expect("Error with verify()");
+    assert!(valid);
+
+    let mut cmac = CMAC::new(&key).expect("Error with new()");
+    let mut generate_out = [0u8; 16];
+    cmac.generate_ex(&key, &message, &mut generate_out, None, None).expect("Error with generate_ex()");
+    assert_eq!(generate_out, finalize_out);
+    let valid = cmac.verify_ex(&key, &message, &generate_out, None, None).expect("Error with verify_ex()");
     assert!(valid);
 }

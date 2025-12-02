@@ -27,7 +27,7 @@
 
 #include <wolfssl/wolfcrypt/cpuid.h>
 #ifdef HAVE_ENTROPY_MEMUSE
-    #include <wolfssl/wolfcrypt/random.h>
+    #include <wolfssl/wolfcrypt/wolfentropy.h>
 #endif
 #ifdef HAVE_ECC
     #include <wolfssl/wolfcrypt/ecc.h>
@@ -1271,12 +1271,17 @@ char* wc_strdup_ex(const char *src, int memType) {
 }
 #endif
 
-#if defined(WOLFSSL_ATOMIC_OPS) && !defined(SINGLE_THREADED)
+#ifdef WOLFSSL_ATOMIC_OPS
 
-#ifdef HAVE_C___ATOMIC
-/* Atomic ops using standard C lib */
-#ifdef __cplusplus
-/* C++ using direct calls to compiler built-in functions */
+#if defined(WOLFSSL_USER_DEFINED_ATOMICS)
+
+#elif defined(SINGLE_THREADED)
+
+#elif defined(WOLFSSL_BSDKM)
+/* Note: using compiler built-ins like __atomic_fetch_add will technically
+ * build in FreeBSD kernel, but are not commonly used in FreeBSD kernel and
+ * might not be safe or portable.
+ * */
 void wolfSSL_Atomic_Int_Init(wolfSSL_Atomic_Int* c, int i)
 {
     *c = i;
@@ -1289,75 +1294,81 @@ void wolfSSL_Atomic_Uint_Init(wolfSSL_Atomic_Uint* c, unsigned int i)
 
 int wolfSSL_Atomic_Int_FetchAdd(wolfSSL_Atomic_Int* c, int i)
 {
-    return __atomic_fetch_add(c, i, __ATOMIC_RELAXED);
+    return atomic_fetchadd_int(c, i);
 }
 
 int wolfSSL_Atomic_Int_FetchSub(wolfSSL_Atomic_Int* c, int i)
 {
-    return __atomic_fetch_sub(c, i, __ATOMIC_RELAXED);
+    return atomic_fetchadd_int(c, -i);
 }
 
 int wolfSSL_Atomic_Int_AddFetch(wolfSSL_Atomic_Int* c, int i)
 {
-    return __atomic_add_fetch(c, i, __ATOMIC_RELAXED);
+    int val = atomic_fetchadd_int(c, i);
+    return val + i;
 }
 
 int wolfSSL_Atomic_Int_SubFetch(wolfSSL_Atomic_Int* c, int i)
 {
-    return __atomic_sub_fetch(c, i, __ATOMIC_RELAXED);
-}
-
-int wolfSSL_Atomic_Int_CompareExchange(wolfSSL_Atomic_Int* c, int *expected_i,
-                                       int new_i)
-{
-    /* For the success path, use full synchronization with barriers --
-     * "Sequentially-consistent ordering" -- so that all threads see the same
-     * "single total modification order of all atomic operations" -- but on
-     * failure we just need to be sure we acquire the value that changed out
-     * from under us.
-     */
-    return __atomic_compare_exchange_n(c, expected_i, new_i, 0 /* weak */,
-                                       __ATOMIC_SEQ_CST, __ATOMIC_ACQUIRE);
+    int val = atomic_fetchadd_int(c, -i);
+    return val - i;
 }
 
 unsigned int wolfSSL_Atomic_Uint_FetchAdd(wolfSSL_Atomic_Uint* c,
                                           unsigned int i)
 {
-    return __atomic_fetch_add(c, i, __ATOMIC_RELAXED);
+    return atomic_fetchadd_int(c, i);
 }
 
 unsigned int wolfSSL_Atomic_Uint_FetchSub(wolfSSL_Atomic_Uint* c,
                                           unsigned int i)
 {
-    return __atomic_fetch_sub(c, i, __ATOMIC_RELAXED);
+    return atomic_fetchadd_int(c, -i);
 }
 
 unsigned int wolfSSL_Atomic_Uint_AddFetch(wolfSSL_Atomic_Uint* c,
                                           unsigned int i)
 {
-    return __atomic_add_fetch(c, i, __ATOMIC_RELAXED);
+    unsigned int val = atomic_fetchadd_int(c, i);
+    return val + i;
 }
 
 unsigned int wolfSSL_Atomic_Uint_SubFetch(wolfSSL_Atomic_Uint* c,
                                           unsigned int i)
 {
-    return __atomic_sub_fetch(c, i, __ATOMIC_RELAXED);
+    unsigned int val = atomic_fetchadd_int(c, -i);
+    return val - i;
+}
+
+int wolfSSL_Atomic_Int_CompareExchange(wolfSSL_Atomic_Int* c, int *expected_i,
+                                       int new_i)
+{
+    u_int exp = (u_int) *expected_i;
+    int ret = atomic_fcmpset_int(c, &exp, new_i);
+    *expected_i = (int)exp;
+    return ret;
 }
 
 int wolfSSL_Atomic_Uint_CompareExchange(
     wolfSSL_Atomic_Uint* c, unsigned int *expected_i, unsigned int new_i)
 {
-    /* For the success path, use full synchronization with barriers --
-     * "Sequentially-consistent ordering" -- so that all threads see the same
-     * "single total modification order of all atomic operations" -- but on
-     * failure we just need to be sure we acquire the value that changed out
-     * from under us.
-     */
-    return __atomic_compare_exchange_n(
-        c, expected_i, new_i, 0 /* weak */, __ATOMIC_SEQ_CST, __ATOMIC_ACQUIRE);
+    u_int exp = (u_int)*expected_i;
+    int ret = atomic_fcmpset_int(c, &exp, new_i);
+    *expected_i = (unsigned int)exp;
+    return ret;
 }
 
-#else
+int wolfSSL_Atomic_Ptr_CompareExchange(
+    void * volatile *c, void **expected_ptr, void *new_ptr)
+{
+    uintptr_t exp = (uintptr_t)*expected_ptr;
+    int ret = atomic_fcmpset_ptr((uintptr_t *)c, &exp, (uintptr_t)new_ptr);
+    *expected_ptr = (void *)exp;
+    return ret;
+}
+
+#elif defined(HAVE_C___ATOMIC) && defined(WOLFSSL_HAVE_ATOMIC_H) && \
+        !defined(__cplusplus)
 
 /* Default C Implementation */
 void wolfSSL_Atomic_Int_Init(wolfSSL_Atomic_Int* c, int i)
@@ -1444,9 +1455,110 @@ int wolfSSL_Atomic_Uint_CompareExchange(
         c, expected_i, new_i, memory_order_seq_cst, memory_order_acquire);
 }
 
-#endif /* __cplusplus */
+int wolfSSL_Atomic_Ptr_CompareExchange(
+    void * volatile *c, void **expected_ptr, void *new_ptr)
+{
+    /* use gcc-built-in __atomic_compare_exchange_n(), not
+     * atomic_compare_exchange_strong_explicit(), to sidestep _Atomic type
+     * requirements.
+     */
+    return __atomic_compare_exchange_n(
+        c, expected_ptr, new_ptr, 0 /* weak */,
+        __ATOMIC_SEQ_CST, __ATOMIC_ACQUIRE);
+}
 
-#elif defined(_MSC_VER)
+#elif defined(__GNUC__) && defined(__ATOMIC_RELAXED)
+/* direct calls using gcc-style compiler built-ins */
+
+void wolfSSL_Atomic_Int_Init(wolfSSL_Atomic_Int* c, int i)
+{
+    *c = i;
+}
+
+void wolfSSL_Atomic_Uint_Init(wolfSSL_Atomic_Uint* c, unsigned int i)
+{
+    *c = i;
+}
+
+int wolfSSL_Atomic_Int_FetchAdd(wolfSSL_Atomic_Int* c, int i)
+{
+    return __atomic_fetch_add(c, i, __ATOMIC_RELAXED);
+}
+
+int wolfSSL_Atomic_Int_FetchSub(wolfSSL_Atomic_Int* c, int i)
+{
+    return __atomic_fetch_sub(c, i, __ATOMIC_RELAXED);
+}
+
+int wolfSSL_Atomic_Int_AddFetch(wolfSSL_Atomic_Int* c, int i)
+{
+    return __atomic_add_fetch(c, i, __ATOMIC_RELAXED);
+}
+
+int wolfSSL_Atomic_Int_SubFetch(wolfSSL_Atomic_Int* c, int i)
+{
+    return __atomic_sub_fetch(c, i, __ATOMIC_RELAXED);
+}
+
+int wolfSSL_Atomic_Int_CompareExchange(wolfSSL_Atomic_Int* c, int *expected_i,
+                                       int new_i)
+{
+    /* For the success path, use full synchronization with barriers --
+     * "Sequentially-consistent ordering" -- so that all threads see the same
+     * "single total modification order of all atomic operations" -- but on
+     * failure we just need to be sure we acquire the value that changed out
+     * from under us.
+     */
+    return __atomic_compare_exchange_n(c, expected_i, new_i, 0 /* weak */,
+                                       __ATOMIC_SEQ_CST, __ATOMIC_ACQUIRE);
+}
+
+unsigned int wolfSSL_Atomic_Uint_FetchAdd(wolfSSL_Atomic_Uint* c,
+                                          unsigned int i)
+{
+    return __atomic_fetch_add(c, i, __ATOMIC_RELAXED);
+}
+
+unsigned int wolfSSL_Atomic_Uint_FetchSub(wolfSSL_Atomic_Uint* c,
+                                          unsigned int i)
+{
+    return __atomic_fetch_sub(c, i, __ATOMIC_RELAXED);
+}
+
+unsigned int wolfSSL_Atomic_Uint_AddFetch(wolfSSL_Atomic_Uint* c,
+                                          unsigned int i)
+{
+    return __atomic_add_fetch(c, i, __ATOMIC_RELAXED);
+}
+
+unsigned int wolfSSL_Atomic_Uint_SubFetch(wolfSSL_Atomic_Uint* c,
+                                          unsigned int i)
+{
+    return __atomic_sub_fetch(c, i, __ATOMIC_RELAXED);
+}
+
+int wolfSSL_Atomic_Uint_CompareExchange(
+    wolfSSL_Atomic_Uint* c, unsigned int *expected_i, unsigned int new_i)
+{
+    /* For the success path, use full synchronization with barriers --
+     * "Sequentially-consistent ordering" -- so that all threads see the same
+     * "single total modification order of all atomic operations" -- but on
+     * failure we just need to be sure we acquire the value that changed out
+     * from under us.
+     */
+    return __atomic_compare_exchange_n(
+        c, expected_i, new_i, 0 /* weak */, __ATOMIC_SEQ_CST, __ATOMIC_ACQUIRE);
+}
+
+int wolfSSL_Atomic_Ptr_CompareExchange(
+    void * volatile *c, void **expected_ptr, void *new_ptr)
+{
+    return __atomic_compare_exchange_n(
+        c, expected_ptr, new_ptr, 0 /* weak */,
+        __ATOMIC_SEQ_CST, __ATOMIC_ACQUIRE);
+}
+
+#elif defined(_MSC_VER) && !defined(WOLFSSL_NOT_WINDOWS_API)
 
 void wolfSSL_Atomic_Int_Init(wolfSSL_Atomic_Int* c, int i)
 {
@@ -1527,8 +1639,8 @@ unsigned int wolfSSL_Atomic_Uint_SubFetch(wolfSSL_Atomic_Uint* c,
 int wolfSSL_Atomic_Uint_CompareExchange(
     wolfSSL_Atomic_Uint* c, unsigned int *expected_i, unsigned int new_i)
 {
-    long actual_i = InterlockedCompareExchange
-        ((wolfSSL_Atomic_Int *)c, (long)new_i, (long)*expected_i);
+    long actual_i = InterlockedCompareExchange(
+        (wolfSSL_Atomic_Int *)c, (long)new_i, (long)*expected_i);
     if (actual_i == (long)*expected_i) {
         return 1;
     }
@@ -1536,6 +1648,32 @@ int wolfSSL_Atomic_Uint_CompareExchange(
         *expected_i = (unsigned int)actual_i;
         return 0;
     }
+}
+
+int wolfSSL_Atomic_Ptr_CompareExchange(
+    void * volatile * c, void **expected_ptr, void *new_ptr)
+{
+#ifdef _WIN64
+    LONG64 actual_ptr = InterlockedCompareExchange64(
+        (LONG64 *)c, (LONG64)new_ptr, (LONG64)*expected_ptr);
+    if (actual_ptr == (LONG64)*expected_ptr) {
+        return 1;
+    }
+    else {
+        *expected_ptr = (void *)actual_ptr;
+        return 0;
+    }
+#else /* !_WIN64 */
+    LONG actual_ptr = InterlockedCompareExchange(
+        (LONG *)c, (LONG)new_ptr, (LONG)*expected_ptr);
+    if (actual_ptr == (LONG)*expected_ptr) {
+        return 1;
+    }
+    else {
+        *expected_ptr = (void *)actual_ptr;
+        return 0;
+    }
+#endif /* !_WIN64 */
 }
 
 #endif
@@ -1880,7 +2018,12 @@ int wolfSSL_HwPkMutexUnLock(void)
         return compat_mutex_cb;
     }
 #endif /* defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) */
-#ifdef SINGLE_THREADED
+
+#if defined(WC_MUTEX_OPS_INLINE)
+
+    /* defined in headers */
+
+#elif defined(SINGLE_THREADED)
 
     int wc_InitMutex(wolfSSL_Mutex* m)
     {
@@ -2423,10 +2566,6 @@ int wolfSSL_HwPkMutexUnLock(void)
         else
             return BAD_MUTEX_E;
     }
-#elif defined(WOLFSSL_LINUXKM)
-
-    /* defined as inlines in linuxkm/linuxkm_wc_port.h */
-
 #elif defined(WOLFSSL_VXWORKS)
 
     int wc_InitMutex(wolfSSL_Mutex* m)
@@ -3472,7 +3611,8 @@ int wolfSSL_HwPkMutexUnLock(void)
     #warning No mutex handling defined
 
 #endif
-#if !defined(WOLFSSL_USE_RWLOCK) || defined(SINGLE_THREADED)
+#if !defined(WOLFSSL_USE_RWLOCK) || defined(SINGLE_THREADED) || \
+    (defined(WC_MUTEX_OPS_INLINE) && !defined(WC_RWLOCK_OPS_INLINE))
     int wc_InitRwLock(wolfSSL_RwLock* m)
     {
         return wc_InitMutex(m);
@@ -4836,17 +4976,17 @@ char* wolfSSL_strnstr(const char* s1, const char* s2, unsigned int n)
 #endif /* not SINGLE_THREADED */
 
 #if defined(WOLFSSL_LINUXKM) && defined(CONFIG_ARM64) && \
-    defined(USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE)
+    defined(WC_SYM_RELOC_TABLES)
 noinstr void my__alt_cb_patch_nops(struct alt_instr *alt, __le32 *origptr,
                                    __le32 *updptr, int nr_inst)
 {
-    return WC_LKM_INDIRECT_SYM(alt_cb_patch_nops)
+    return WC_PIE_INDIRECT_SYM(alt_cb_patch_nops)
         (alt, origptr, updptr, nr_inst);
 }
 
 void my__queued_spin_lock_slowpath(struct qspinlock *lock, u32 val)
 {
-    return WC_LKM_INDIRECT_SYM(queued_spin_lock_slowpath)
+    return WC_PIE_INDIRECT_SYM(queued_spin_lock_slowpath)
         (lock, val);
 }
 #endif

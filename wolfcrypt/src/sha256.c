@@ -1728,7 +1728,7 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
                 2 * sizeof(word32));
         }
     #endif
-    #if defined(WOLFSSL_ARMASM)
+    #if defined(WOLFSSL_ARMASM) && !defined(FREESCALE_MMCAU_SHA)
         ByteReverseWords( &sha256->buffer[WC_SHA256_PAD_SIZE / sizeof(word32)],
             &sha256->buffer[WC_SHA256_PAD_SIZE / sizeof(word32)],
             2 * sizeof(word32));
@@ -2569,6 +2569,7 @@ int wc_Sha224_Grow(wc_Sha224* sha224, const byte* in, int inSz)
                 return ret;
             /* fall-through when unavailable */
         }
+        ret = 0; /* Reset ret to 0 to avoid returning the callback error code */
 #endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_COPY */
 
         XMEMCPY(dst, src, sizeof(wc_Sha224));
@@ -2709,6 +2710,7 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
             return ret;
         /* fall-through when unavailable */
     }
+    ret = 0; /* Reset ret to 0 to avoid returning the callback error code */
 #endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_COPY */
 
     XMEMCPY(dst, src, sizeof(wc_Sha256));

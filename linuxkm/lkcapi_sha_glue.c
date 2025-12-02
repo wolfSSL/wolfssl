@@ -961,6 +961,9 @@ struct wc_swallow_the_semicolon
 
 #ifdef LINUXKM_LKCAPI_REGISTER_HASH_DRBG
 
+#ifdef HAVE_ENTROPY_MEMUSE
+    #include <wolfssl/wolfcrypt/wolfentropy.h>
+#endif
 #include <wolfssl/wolfcrypt/random.h>
 
 struct wc_linuxkm_drbg_ctx {
@@ -1198,7 +1201,7 @@ static int wc_linuxkm_drbg_seed(struct crypto_rng *tfm,
 {
     struct wc_linuxkm_drbg_ctx *ctx = (struct wc_linuxkm_drbg_ctx *)crypto_rng_ctx(tfm);
     u8 *seed_copy = NULL;
-    int ret;
+    int ret = 0;
     int n;
 
     if ((tfm->base.__crt_alg->cra_init != wc_linuxkm_drbg_init_tfm) ||

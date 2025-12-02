@@ -307,7 +307,7 @@ void ge448_to_bytes(byte *s, const ge448_p2 *h)
     fe448_mul(s, h->Y, recip);
     fe448_norm(x);
     fe448_norm(s);
-    s[56] = (x[0] & 1) << 7;
+    s[56] = (byte)(x[0] & 1) << 7;
 }
 
 /* Compress the point to y-ordinate and negative bit.
@@ -324,7 +324,7 @@ int ge448_compress_key(byte* out, const byte* xIn, const byte* yIn)
     fe448_copy(out, yIn);
     fe448_norm(x);
     fe448_norm(out);
-    out[56] = (x[0] & 1) << 7;
+    out[56] = (byte)(x[0] & 1) << 7;
 
     return 0;
 }
@@ -11034,8 +11034,10 @@ int ge448_scalarmult_base(ge448_p2* r, const byte* a)
         ge448_madd(r, r, t);
     }
 
-    WC_FREE_VAR_EX(t, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    WC_FREE_VAR_EX(e, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(t, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(e, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return 0;
 }
