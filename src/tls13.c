@@ -15066,7 +15066,10 @@ int wolfSSL_read_early_data(WOLFSSL* ssl, void* data, int sz, int* outSz)
         return SIDE_ERROR;
 
     if (ssl->options.handShakeState == NULL_STATE) {
-        if (ssl->error != WC_NO_ERR_TRACE(WC_PENDING_E))
+        /* the server flight can return WANT_WRITE and we re-enter here after
+         * setting ssl->earlyData = process_early_data, set earlyData to
+         * expecting_early_data just once */
+        if (ssl->earlyData < expecting_early_data)
             ssl->earlyData = expecting_early_data;
         /* this used to be: ret = wolfSSL_accept_TLSv13(ssl);
          * However, wolfSSL_accept_TLSv13() expects a certificate to
@@ -15098,6 +15101,20 @@ int wolfSSL_read_early_data(WOLFSSL* ssl, void* data, int sz, int* outSz)
 #endif /* WOLFSSL_DTLS13 */
         }
     }
+#ifdef WOLFSSL_DTLS13
+    else if (ssl->buffers.outputBuffer.length > 0 &&
+        ssl->options.dtls && ssl->dtls13SendingAckOrRtx) {
+        ret = SendBuffered(ssl);
+        if (ret == 0) {
+            ssl->dtls13SendingAckOrRtx = 0;
+        }
+        else {
+            ssl->error = ret;
+            WOLFSSL_ERROR(ssl->error);
+            return WOLFSSL_FATAL_ERROR;
+        }
+    }
+#endif /* WOLFSSL_DTLS13 */
     else
         ret = 0;
 #else
