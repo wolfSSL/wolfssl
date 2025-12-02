@@ -21,6 +21,7 @@
 
 with Ada.Unchecked_Conversion;
 with Interfaces.C.Strings;
+with WolfSSL;
 
 package body WolfSSL is
 
@@ -739,4 +740,153 @@ package body WolfSSL is
       return Natural (Get_WolfSSL_Max_Error_Size);
    end Max_Error_Size;
 
+   function Ada_RSA_Public_Key_Decode (Input : Byte_Array;
+                                       Index : in out Integer;
+                                       Key   : RSA_Key_Index;
+                                       Size  : Integer) return int with
+     Convention    => C,
+     External_Name => "ada_RsaPublicKeyDecode",
+     Import        => True;
+
+   procedure Rsa_Public_Key_Decode (Input : Byte_Array;
+                                    Index : in out Integer;
+                                    Key   : RSA_Key_Index;
+                                    Size  : Integer;
+                                    Result : out Subprogram_Result) is
+      R : constant int := Ada_RSA_Public_Key_Decode (Input, Index, Key, Size);
+   begin
+      Result := Subprogram_Result (R);
+   end Rsa_Public_Key_Decode;
+
+   function Init_SHA256 (SHA256 : not null Sha256_Type) return int with
+     Convention    => C,
+     External_Name => "wc_InitSha256",
+     Import        => True;
+
+   function SHA256_Update (SHA256 : not null Sha256_Type;
+                           Byte   : Byte_Array;
+                           Length : int) return int with
+     Convention    => C,
+     External_Name => "wc_Sha256Update",
+     Import        => True;
+
+   function SHA256_Final (SHA256 : not null Sha256_Type;
+                          Hash   : out Byte_Array) return int with
+     Convention    => C,
+     External_Name => "wc_Sha256Final",
+     Import        => True;
+
+   function Is_Valid (SHA256 : SHA256_Type) return Boolean is
+   begin
+      return SHA256 /= null;
+   end Is_Valid;
+
+   function Ada_New_SHA256 (Index : SHA256_Index)
+                            return SHA256_Type with
+     Convention    => C,
+     External_Name => "ada_new_sha256",
+     Import        => True;
+
+   procedure Create_SHA256 (Index  : SHA256_Index;
+                            SHA256 : in out SHA256_Type;
+                            Result : out Integer) is
+       R : int;
+   begin
+      SHA256 := Ada_New_SHA256 (Index);
+      R := Init_SHA256 (SHA256);
+      Result := Integer (R);
+   end Create_SHA256;
+
+   procedure Update_SHA256 (SHA256 : in out SHA256_Type;
+                            Byte   : Byte_Array;
+                            Result : out Integer) is
+       R : int;
+   begin
+      R := SHA256_Update (SHA256, Byte, Byte'Length);
+      Result := Integer (R);
+   end Update_SHA256;
+
+   procedure Finalize_SHA256 (SHA256 : in out SHA256_Type;
+                              Hash   : out SHA256_As_String;
+                              Result : out Integer) is
+      subtype Unsigned_8 is Interfaces.Unsigned_8;
+
+      use type Unsigned_8;
+
+      R : int;
+      H : Byte_Array (1 .. 32) := (others => '#');
+      Hex_Chars : constant array (Unsigned_8 range 0 .. 15) of Character :=
+        "0123456789ABCDEF";
+      I : Integer;
+      C : Integer;
+   begin
+      R := SHA256_Final (SHA256, H);
+      Result := Integer (R);
+      for Index in Positive range 1 .. 32 loop
+         I := 2 * (Index - 1) + 1;
+         C := Interfaces.C.char'Pos (H (size_t (Index)));
+         Hash (I+0) := Hex_Chars ((Unsigned_8 (C) and 16#F0#) / 16);
+         Hash (I+1) := Hex_Chars (Unsigned_8 (C) and 16#0F#);
+      end loop;
+   end Finalize_SHA256;
+
+   type Opaque_AES is limited null record;
+   type AES_Type is access Opaque_AES with Convention => C;
+
+   function AES_Init (AES : not null AES_Type;
+                      Heap : access Byte_Type;
+                      Device : int) return int with
+     Convention    => C,
+     External_Name => "wc_AesInit",
+     Import        => True;
+
+   function AES_Set_Key (AES : not null AES_Type;
+                         Key : Byte_Array;
+                         Length : int;
+                         IV : Byte_Array;
+                         Dir : int) return int with
+     Convention    => C,
+     External_Name => "wc_AesSetKey",
+     Import        => True;
+
+   function AES_Set_IV (AES : not null AES_Type;
+                         IV : Byte_Array) return int with
+     Convention    => C,
+     External_Name => "wc_AesSetIV",
+     Import        => True;
+
+   function AES_Set_Cbc_Encrypt (AES : not null AES_Type;
+                                 Output : out Byte_Array;
+                                 Input : Byte_Array;
+                                 Size : int) return int with
+     Convention    => C,
+     External_Name => "wc_AesCbcEncrypt",
+     Import        => True;
+
+   function AES_Set_Cbc_Decrypt (AES : not null AES_Type;
+                                 Output : out Byte_Array;
+                                 Input : Byte_Array;
+                                 Size : int) return int with
+     Convention    => C,
+     External_Name => "wc_AesCbcDecrypt",
+     Import        => True;
+
+   function AES_Free (AES : not null AES_Type) return int with
+     Convention    => C,
+     External_Name => "wc_AesFree",
+     Import        => True;
+
+   function Get_WolfSSL_RSA_Instances return int with
+     Convention    => C,
+     External_Name => "get_wolfssl_rsa_instances",
+     Import        => True;
+
+   function Get_WolfSSL_SHA256_Instances return int with
+     Convention    => C,
+     External_Name => "get_wolfssl_sha256_instances",
+     Import        => True;
+
+begin
+   pragma Assert (RSA_INSTANCES = Get_WolfSSL_RSA_Instances);
+   pragma Assert (SHA256_INSTANCES = Get_WolfSSL_SHA256_Instances);
 end WolfSSL;
