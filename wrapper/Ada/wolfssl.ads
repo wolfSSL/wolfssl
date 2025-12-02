@@ -484,6 +484,49 @@ package WolfSSL with SPARK_Mode is
    --  Returns the value of the defined MAX_ERROR_SZ integer
    --  in wolfssl/wolfcrypt/error.h.
 
+   RSA_INSTANCES : constant := 2;
+   
+   type RSA_Key_Index is range 0 .. RSA_INSTANCES - 1;
+   
+   procedure Rsa_Public_Key_Decode (Input : Byte_Array;
+                                    Index : in out Integer;
+                                    Key   : RSA_Key_Index;
+                                    Size  : Integer;
+                                    Result : out Subprogram_Result);
+   --  This function parses a DER-formatted RSA public key,
+   --  extracts the public key and stores it in the RsaKey structure
+   --  specified by the Key input argument. It also sets the distance
+   --  parsed in Index.
+
+   SHA256_INSTANCES : constant := 2;
+   
+   type SHA256_Index is range 0 .. SHA256_INSTANCES - 1;
+   
+   type SHA256_Type is limited private;
+
+   function Is_Valid (SHA256 : SHA256_Type) return Boolean;
+   --  Indicates if the SHA256 has successfully been initialized.
+
+   procedure Create_SHA256 (Index  : SHA256_Index;
+                            SHA256 : in out SHA256_Type;
+                            Result : out Integer) with
+     Pre => not Is_Valid (SHA256);
+   --  If successful Is_Valid (SSHA256) = True, and Result = 0.
+   
+   procedure Update_SHA256 (SHA256 : in out SHA256_Type;
+                            Byte   : Byte_Array;
+                            Result : out Integer) with
+     Pre => Is_Valid (SHA256);
+   --  If successful Result = 0.
+
+   subtype SHA256_As_String is String (1 .. 64);   
+   
+   procedure Finalize_SHA256 (SHA256 : in out SHA256_Type;
+                              Hash   : out SHA256_As_String;
+                              Result : out Integer) with
+     Pre => Is_Valid (SHA256);
+   --  If successful Result = 0.
+   
 private
    pragma SPARK_Mode (Off);
 
@@ -629,4 +672,7 @@ private
    Error_Want_Write : constant Error_Code :=
       Error_Code (Get_WolfSSL_Error_Want_Write);
 
+   type Opaque_Sha256 is limited null record;  
+   type SHA256_Type is access Opaque_Sha256 with Convention => C;   
+   
 end WolfSSL;
