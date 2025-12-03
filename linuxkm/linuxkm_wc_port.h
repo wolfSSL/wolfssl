@@ -127,6 +127,14 @@
         #define WOLFSSL_NO_FLOAT_FMT
     #endif
 
+    #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0)) || \
+        (defined(RHEL_MAJOR) && \
+         ((RHEL_MAJOR > 9) || ((RHEL_MAJOR == 9) && (RHEL_MINOR >= 5))))
+        #define WOLFSSL_DEBUG_PRINTF_FN _printk
+    #else
+        #define WOLFSSL_DEBUG_PRINTF_FN printk
+    #endif
+
 #ifndef WOLFSSL_LINUXKM_USE_MUTEXES
     struct wolfSSL_Mutex;
     extern int wc_lkm_LockMutex(struct wolfSSL_Mutex* m);
