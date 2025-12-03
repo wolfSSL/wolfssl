@@ -376,8 +376,7 @@ int wolfSSL_is_static_memory(WOLFSSL* ssl, WOLFSSL_MEM_CONN_STATS* mem_stats);
         buffers to themselves for their lifetime.
     WOLFMEM_TRACK_STATS - each SSL keeps track of memory stats while running
 
-    \return If successful, 0 will be returned.
-    \return All unsuccessful return values will be less than 0.
+    \return none This function does not return a value.
 
     \param pHint WOLFSSL_HEAP_HINT structure to use
     \param buf memory to use for all operations.
@@ -420,8 +419,7 @@ int wc_LoadStaticMemory(WOLFSSL_HEAP_HINT** pHint, unsigned char* buf,
     into functions. This extended version allows for custom bucket sizes and distributions
     instead of using the default predefined sizes.
 
-    \return If successful, 0 will be returned.
-    \return All unsuccessful return values will be less than 0.
+    \return none This function does not return a value.
 
     \param pHint WOLFSSL_HEAP_HINT handle to initialize
     \param listSz number of entries in the size and distribution lists
