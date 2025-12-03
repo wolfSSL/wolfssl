@@ -99,6 +99,9 @@ int wc_ed448_make_key(WC_RNG* rng, int keysize, ed448_key* key);
     bytes written to out upon successfully generating a message signature.
     \param [in] key Pointer to a private ed448_key with which to generate the
     signature.
+    \param [in] context Pointer to the buffer containing the context for which
+    message is being signed.
+    \param [in] contextLen Length of the context buffer.
 
     _Example_
     \code

@@ -115,7 +115,7 @@ int EmbedSend(WOLFSSL* ssl, char* buf, int sz, void* ctx);
     \sa wolfSSL_SSLSetIORecv
     \sa wolfSSL_dtls_get_current_timeout
 */
-int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx);
+int EmbedReceiveFrom(WOLFSSL* ssl, char* buf, int sz, void* ctx);
 
 /*!
     \brief This function is the send embedded callback.
@@ -189,8 +189,8 @@ int EmbedSendTo(WOLFSSL* ssl, char* buf, int sz, void* ctx);
 
     \sa wolfSSL_CTX_SetGenCookie
 */
-int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf,
-                                    int sz, void *ctx);
+int EmbedGenerateCookie(WOLFSSL* ssl, byte* buf,
+                                    int sz, void* ctx);
 
 /*!
     \brief This function frees the response buffer.

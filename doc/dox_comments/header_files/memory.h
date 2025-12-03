@@ -47,8 +47,6 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type);
     \param ptr pointer to the memory to be freed.
     \param heap heap hint to use for memory. Can be NULL
     \param type dynamic type (see DYNAMIC_TYPE_ list in types.h)
-    \param func name of calling function (for allocation tracking)
-    \param line source line number of call site
 
     _Example_
     \code
@@ -56,7 +54,7 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type);
     // process data as desired
     ...
     if(tenInts) {
-    	wolfSSL_Free(tenInts);
+        wolfSSL_Free(tenInts, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
     \endcode
 
@@ -67,8 +65,7 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type);
     \sa XFREE
     \sa XREALLOC
 */
-void  wolfSSL_Free(void *ptr, void* heap, int type, const char* func,
-                   unsigned int line);
+void  wolfSSL_Free(void *ptr, void* heap, int type);
 
 /*!
     \ingroup Memory

@@ -24,7 +24,7 @@
 
     \sa wc_FreeNetRandom
 */
-int  wc_InitNetRandom(const char*, wnr_hmac_key, int);
+int  wc_InitNetRandom(const char* configFile, wnr_hmac_key hmac_cb, int timeout);
 
 /*!
     \ingroup Random
