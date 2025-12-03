@@ -128,4 +128,3 @@ int wc_SignEccsiHash(EccsiKey* key, WC_RNG* rng,
 int wc_VerifyEccsiHash(EccsiKey* key, enum wc_HashType hashType,
         const byte* msg, word32 msgSz, const byte* sig, word32 sigSz,
         int* verified);
-

@@ -140,4 +140,3 @@ int wc_SetSakkeRsk(SakkeKey* key, const ecc_point* rsk, byte* table,
 int wc_DeriveSakkeSSV(SakkeKey* key, enum wc_HashType hashType,
         byte* ssv, word16 ssvSz, const byte* auth,
         word16 authSz);
-
