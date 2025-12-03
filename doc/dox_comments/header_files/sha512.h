@@ -24,7 +24,7 @@
     \sa wc_Sha512Update
     \sa wc_Sha512Final
 */
-int wc_InitSha512(wc_Sha512*);
+int wc_InitSha512(wc_Sha512* sha);
 
 /*!
     \ingroup SHA
@@ -116,7 +116,7 @@ int wc_Sha512Final(wc_Sha512* sha512, byte* hash);
     \sa wc_Sha384Update
     \sa wc_Sha384Final
 */
-int wc_InitSha384(wc_Sha384*);
+int wc_InitSha384(wc_Sha384* sha);
 
 /*!
     \ingroup SHA
