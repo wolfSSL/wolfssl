@@ -15061,8 +15061,18 @@ unsigned int wolfSSL_SESSION_get_max_early_data(const WOLFSSL_SESSION *s);
            - wolfSSL_SESSION_get_ex_new_index
            - wolfSSL_X509_get_ex_new_index
 
-    \param [in] All input parameters are ignored. The callback functions are not
-                supported with wolfSSL.
+    \param [in] class_index Identifier for the object class the external data
+                 index applies to. Ignored by wolfSSL.
+    \param [in] argl Optional long argument passed through for compatibility.
+                 Ignored by wolfSSL.
+    \param [in] argp Optional pointer argument passed through for compatibility.
+                 Ignored by wolfSSL.
+    \param [in] new_func Pointer to an external data constructor callback.
+                 Ignored by wolfSSL.
+    \param [in] dup_func Pointer to an external data duplicate callback.
+                 Ignored by wolfSSL.
+    \param [in] free_func Pointer to an external data destructor callback.
+                 Ignored by wolfSSL.
 
     \return The new index value to be used with the external data API for this
             object class.
@@ -15829,11 +15839,12 @@ void wolfSSL_CTX_set_cert_cb(WOLFSSL_CTX* ctx,
     ciphersuites and signature algorithms.
 
     \param [in] ssl The WOLFSSL object to extract the lists from.
-    \param [out] optional suites Raw and unfiltered list of client ciphersuites
-    \param [out] optional suiteSz Size of suites in bytes
-    \param [out] optional hashSigAlgo Raw and unfiltered list of client
-                          signature algorithms
-    \param [out] optional hashSigAlgoSz Size of hashSigAlgo in bytes
+    \param [out] suites Raw and unfiltered list of client ciphersuites.
+                        May be NULL if no suites are available.
+    \param [out] suiteSz Size of suites in bytes.
+    \param [out] hashSigAlgo Raw and unfiltered list of client signature
+                        algorithms. May be NULL if not provided.
+    \param [out] hashSigAlgoSz Size of hashSigAlgo in bytes.
     \return WOLFSSL_SUCCESS when suites available
     \return WOLFSSL_FAILURE when suites not available
 

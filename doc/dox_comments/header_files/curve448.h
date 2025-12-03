@@ -533,7 +533,7 @@ int wc_curve448_import_public_ex(const byte* in, word32 inLen,
     \return BAD_FUNC_ARG Returned if any of the input parameters are NULL.
 
     \param [in] pub Pointer to the buffer containing the public key to check.
-    \param [in] pubLen Length of the public key to check.
+    \param [in] pubSz Length of the public key to check.
     \param [in] endian EC448_BIG_ENDIAN or EC448_LITTLE_ENDIAN to set which
     form to use.
 

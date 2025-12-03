@@ -1203,19 +1203,19 @@ int wc_AesSivDecrypt(const byte* key, word32 keySz, const byte* assoc,
     \return other negative error values returned if AES or CMAC operations
     fail.
 
-    \param key buffer containing the key to use
-    \param keySz length of the key buffer in bytes
+    \param [in] key buffer containing the key to use
+    \param [in] keySz length of the key buffer in bytes
     \param[out] out buffer to hold the ciphertext. Should be the same length as
     the plaintext buffer
-    \param in plaintext buffer to encrypt
-    \param inSz length of plaintext buffer
-    \param nonce the cryptographic nonce to use for EAX operations
-    \param nonceSz length of nonce buffer in bytes
+    \param [in] in plaintext buffer to encrypt
+    \param [in] inSz length of plaintext buffer
+    \param [in] nonce the cryptographic nonce to use for EAX operations
+    \param [in] nonceSz length of nonce buffer in bytes
     \param[out] authTag pointer to the buffer in which to store the
     authentication tag
-    \param authTagSz length of the desired authentication tag
-    \param authIn pointer to the buffer containing input data to authenticate
-    \param authInSz length of the input authentication data
+    \param [in] authTagSz length of the desired authentication tag
+    \param [in] authIn pointer to the buffer containing input data to authenticate
+    \param [in] authInSz length of the input authentication data
 
     _Example_
     \code
@@ -1266,19 +1266,19 @@ WOLFSSL_API int  wc_AesEaxEncryptAuth(const byte* key, word32 keySz, byte* out,
     \return other negative error values returned if AES or CMAC operations
     fail.
 
-    \param key byte buffer containing the key to use
-    \param keySz length of the key buffer in bytes
+    \param [in] key byte buffer containing the key to use
+    \param [in] keySz length of the key buffer in bytes
     \param[out] out buffer to hold the plaintext. Should be the same length as
     the input ciphertext buffer
-    \param in ciphertext buffer to decrypt
-    \param inSz length of ciphertext buffer
-    \param nonce the cryptographic nonce to use for EAX operations
-    \param nonceSz length of nonce buffer in bytes
-    \param authTag buffer that holds the authentication tag to check the
+    \param [in] in ciphertext buffer to decrypt
+    \param [in] inSz length of ciphertext buffer
+    \param [in] nonce the cryptographic nonce to use for EAX operations
+    \param [in] nonceSz length of nonce buffer in bytes
+    \param [in] authTag buffer that holds the authentication tag to check the
     authenticity of the data against
-    \param authTagSz Length of the input authentication tag
-    \param authIn pointer to the buffer containing input data to authenticate
-    \param authInSz length of the input authentication data
+    \param [in] authTagSz Length of the input authentication tag
+    \param [in] authIn pointer to the buffer containing input data to authenticate
+    \param [in] authInSz length of the input authentication data
 
     _Example_
     \code
@@ -1390,13 +1390,13 @@ WOLFSSL_API int  wc_AesEaxInit(AesEax* eax,
     \return 0 on success
     \return error code on failure
 
-    \param eax AES EAX structure holding the context of the AEAD operation
+    \param [in] eax AES EAX structure holding the context of the AEAD operation
     \param[out] out output buffer holding the ciphertext
-    \param in input buffer holding the plaintext to encrypt
-    \param inSz size in bytes of the input data buffer
-    \param authIn (optional) input data to add to the authentication stream
+    \param [in] in input buffer holding the plaintext to encrypt
+    \param [in] inSz size in bytes of the input data buffer
+    \param [in] authIn (optional) input data to add to the authentication stream
     This argument should be NULL if not used
-    \param authInSz size in bytes of the input authentication data
+    \param [in] authInSz size in bytes of the input authentication data
 
     _Example_
     \code
@@ -1455,13 +1455,13 @@ WOLFSSL_API int  wc_AesEaxEncryptUpdate(AesEax* eax, byte* out,
     \return 0 on success
     \return error code on failure
 
-    \param eax AES EAX structure holding the context of the AEAD operation
+    \param [in] eax AES EAX structure holding the context of the AEAD operation
     \param[out] out output buffer holding the decrypted plaintext
-    \param in input buffer holding the ciphertext
-    \param inSz size in bytes of the input data buffer
-    \param authIn (optional) input data to add to the authentication stream
+    \param [in] in input buffer holding the ciphertext
+    \param [in] inSz size in bytes of the input data buffer
+    \param [in] authIn (optional) input data to add to the authentication stream
     This argument should be NULL if not used
-    \param authInSz size in bytes of the input authentication data
+    \param [in] authInSz size in bytes of the input authentication data
 
 
     _Example_
@@ -1742,13 +1742,13 @@ WOLFSSL_API int wc_AesEaxFree(AesEax* eax);
     \return BAD_FUNC_ARG if input arguments are invalid.
     \return other negative error codes for encryption failures.
 
-    \param key pointer to the AES key used for encryption.
-    \param keySz size of the AES key in bytes (16, 24, or 32 bytes).
+    \param [in] key pointer to the AES key used for encryption.
+    \param [in] keySz size of the AES key in bytes (16, 24, or 32 bytes).
     \param[out] out buffer to hold the encrypted ciphertext. Must be at least
     the size of the input.
-    \param in pointer to the plaintext input data to encrypt.
-    \param inSz size of the plaintext input data in bytes.
-    \param iv pointer to the initialization vector (IV) used for encryption.
+    \param [in] in pointer to the plaintext input data to encrypt.
+    \param [in] inSz size of the plaintext input data in bytes.
+    \param [in] iv pointer to the initialization vector (IV) used for encryption.
     Must be 16 bytes.
 
     _Example_
@@ -1780,13 +1780,13 @@ int wc_AesCtsEncrypt(const byte* key, word32 keySz, byte* out,
     \return BAD_FUNC_ARG if input arguments are invalid.
     \return other negative error codes for encryption failures.
 
-    \param key pointer to the AES key used for encryption.
-    \param keySz size of the AES key in bytes (16, 24, or 32 bytes).
+    \param [in] key pointer to the AES key used for encryption.
+    \param [in] keySz size of the AES key in bytes (16, 24, or 32 bytes).
     \param[out] out buffer to hold the encrypted ciphertext. Must be at least
                  the same size as the input plaintext.
-    \param in pointer to the plaintext input data to encrypt.
-    \param inSz size of the plaintext input data in bytes.
-    \param iv pointer to the initialization vector (IV) used for encryption.
+    \param [in] in pointer to the plaintext input data to encrypt.
+    \param [in] inSz size of the plaintext input data in bytes.
+    \param [in] iv pointer to the initialization vector (IV) used for encryption.
              Must be 16 bytes.
     _Example_
     \code
@@ -1813,13 +1813,13 @@ int wc_AesCtsEncrypt(const byte* key, word32 keySz, byte* out,
     \return 0 on successful decryption.
     \return BAD_FUNC_ARG if input arguments are invalid.
     \return other negative error codes for decryption failures.
-    \param key pointer to the AES key used for decryption.
-    \param keySz size of the AES key in bytes (16, 24, or 32 bytes).
+    \param [in] key pointer to the AES key used for decryption.
+    \param [in] keySz size of the AES key in bytes (16, 24, or 32 bytes).
     \param[out] out buffer to hold the decrypted plaintext. Must be at least
                  the same size as the input ciphertext.
-    \param in pointer to the ciphertext input data to decrypt.
-    \param inSz size of the ciphertext input data in bytes.
-    \param iv pointer to the initialization vector (IV) used for decryption.
+    \param [in] in pointer to the ciphertext input data to decrypt.
+    \param [in] inSz size of the ciphertext input data in bytes.
+    \param [in] iv pointer to the initialization vector (IV) used for decryption.
              Must be 16 bytes.
     _Example_
     \code
@@ -1845,14 +1845,14 @@ int wc_AesCtsDecrypt(const byte* key, word32 keySz, byte* out,
            It processes a chunk of plaintext and stores intermediate data.
     \return 0 on successful processing.
     \return BAD_FUNC_ARG if input arguments are invalid.
-    \param aes pointer to the Aes structure holding the context of the operation.
+    \param [in] aes pointer to the Aes structure holding the context of the operation.
     \param[out] out buffer to hold the encrypted ciphertext. Must be large enough
                  to store the output from this update step.
     \param[out] outSz size in bytes of the output data written to the \c out buffer.
-                     On input, it should contain the maximum number of bytes that can
-                     be written to the \c out buffer.
-    \param in pointer to the plaintext input data to encrypt.
-    \param inSz size of the plaintext input data in bytes.
+                    On input, it should contain the maximum number of bytes that can
+                    be written to the \c out buffer.
+    \param [in] in pointer to the plaintext input data to encrypt.
+    \param [in] inSz size of the plaintext input data in bytes.
     _Example_
     \code
         Aes aes;
@@ -1880,7 +1880,7 @@ int wc_AesCtsEncryptUpdate(Aes* aes, byte* out, word32* outSz,
            It processes any remaining plaintext and completes the encryption.
     \return 0 on successful encryption completion.
     \return BAD_FUNC_ARG if input arguments are invalid.
-    \param aes pointer to the Aes structure holding the context of the operation.
+    \param [in] aes pointer to the Aes structure holding the context of the operation.
     \param[out] out buffer to hold the final encrypted ciphertext. Must be large
                  enough to store any remaining ciphertext from this final step.
     \param[out] outSz size in bytes of the output data written to the \c out buffer.
@@ -1913,14 +1913,14 @@ int wc_AesCtsEncryptFinal(Aes* aes, byte* out, word32* outSz);
            It processes a chunk of ciphertext and stores intermediate data.
     \return 0 on successful processing.
     \return BAD_FUNC_ARG if input arguments are invalid.
-    \param aes pointer to the Aes structure holding the context of the operation.
+    \param [in] aes pointer to the Aes structure holding the context of the operation.
     \param[out] out buffer to hold the decrypted plaintext. Must be large enough
                  to store the output from this update step.
     \param[out] outSz size in bytes of the output data written to the \c out buffer.
                      On input, it should contain the maximum number of bytes that can
                      be written to the \c out buffer.
-    \param in pointer to the ciphertext input data to decrypt.
-    \param inSz size of the ciphertext input data in bytes.
+    \param [in] in pointer to the ciphertext input data to decrypt.
+    \param [in] inSz size of the ciphertext input data in bytes.
     _Example_
     \code
         Aes aes;
@@ -1948,7 +1948,7 @@ int wc_AesCtsDecryptUpdate(Aes* aes, byte* out, word32* outSz,
            It processes any remaining ciphertext and completes the decryption.
     \return 0 on successful decryption completion.
     \return BAD_FUNC_ARG if input arguments are invalid.
-    \param aes pointer to the Aes structure holding the context of the operation.
+    \param [in] aes pointer to the Aes structure holding the context of the operation.
     \param[out] out buffer to hold the final decrypted plaintext. Must be large
                  enough to store any remaining plaintext from this final step.
     \param[out] outSz size in bytes of the output data written to the \c out buffer.

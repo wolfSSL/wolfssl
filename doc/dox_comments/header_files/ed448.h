@@ -12,10 +12,8 @@
     during function execution.
 
     \param [in] key Pointer to the ed448_key for which to generate a key.
-    \param [out] out Pointer to the buffer in which to store the public key.
-    \param [in,out] outLen Pointer to a word32 object with the size available
-    in out. Set with the number of bytes written to out after successfully
-    exporting the public key.
+    \param [out] pubKey Pointer to the buffer in which to store the public key.
+    \param [in] pubKeySz Size of the pubKey buffer in bytes.
 
     _Example_
     \code
@@ -93,9 +91,9 @@ int wc_ed448_make_key(WC_RNG* rng, int keysize, ed448_key* key);
     function execution.
 
     \param [in] in Pointer to the buffer containing the message to sign.
-    \param [in] inlen Length of the message to sign.
+    \param [in] inLen Length of the message to sign.
     \param [out] out Buffer in which to store the generated signature.
-    \param [in,out] outlen Maximum length of the output buffer. Will store the
+    \param [in,out] outLen Maximum length of the output buffer. Will store the
     bytes written to out upon successfully generating a message signature.
     \param [in] key Pointer to a private ed448_key with which to generate the
     signature.
@@ -149,7 +147,7 @@ int wc_ed448_sign_msg(const byte* in, word32 inLen, byte* out,
     to sign.
     \param [in] hashLen Length of the hash of the message to sign.
     \param [out] out Buffer in which to store the generated signature.
-    \param [in,out] outlen Maximum length of the output buffer. Will store the
+    \param [in,out] outLen Maximum length of the output buffer. Will store the
     bytes written to out upon successfully generating a message signature.
     \param [in] key Pointer to a private ed448_key with which to generate the
     signature.
@@ -202,9 +200,9 @@ int wc_ed448ph_sign_hash(const byte* hash, word32 hashLen, byte* out,
     function execution.
 
     \param [in] in Pointer to the buffer containing the message to sign.
-    \param [in] inlen Length of the message to sign.
+    \param [in] inLen Length of the message to sign.
     \param [out] out Buffer in which to store the generated signature.
-    \param [in,out] outlen Maximum length of the output buffer. Will store the
+    \param [in,out] outLen Maximum length of the output buffer. Will store the
     bytes written to out upon successfully generating a message signature.
     \param [in] key Pointer to a private ed448_key with which to generate the
     signature.
@@ -261,6 +259,8 @@ int wc_ed448ph_sign_msg(const byte* in, word32 inLen, byte* out,
     \param [in] siglen Length of the signature to verify.
     \param [in] msg Pointer to the buffer containing the message to verify.
     \param [in] msgLen Length of the message to verify.
+    \param [out] res Pointer to an int that will be set to 1 for a valid
+    signature or 0 for an invalid signature after verification completes.
     \param [in] key Pointer to a public Ed448 key with which to verify the
     signature.
     \param [in] context Pointer to the buffer containing the context for which
@@ -314,7 +314,9 @@ int wc_ed448_verify_msg(const byte* sig, word32 siglen, const byte* msg,
     \param [in] siglen Length of the signature to verify.
     \param [in] hash Pointer to the buffer containing the hash of the message
     to verify.
-    \param [in] hashLen Length of the hash to verify.
+    \param [in] hashlen Length of the hash to verify.
+    \param [out] res Pointer to an int that will be set to 1 for a valid
+    signature or 0 for an invalid signature after verification completes.
     \param [in] key Pointer to a public Ed448 key with which to verify the
     signature.
     \param [in] context Pointer to the buffer containing the context for which
@@ -368,6 +370,8 @@ int wc_ed448ph_verify_hash(const byte* sig, word32 siglen, const byte* hash,
     \param [in] siglen Length of the signature to verify.
     \param [in] msg Pointer to the buffer containing the message to verify.
     \param [in] msgLen Length of the message to verify.
+    \param [out] res Pointer to an int that will be set to 1 for a valid
+    signature or 0 for an invalid signature after verification completes.
     \param [in] key Pointer to a public Ed448 key with which to verify the
     signature.
     \param [in] context Pointer to the buffer containing the context for which
