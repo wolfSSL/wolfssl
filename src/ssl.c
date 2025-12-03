@@ -5760,7 +5760,7 @@ Signer* GetCAByAKID(void* vp, const byte* issuer, word32 issuerSz,
     for (row = 0; row < CA_TABLE_SIZE && ret == NULL; row++) {
         for (signers = cm->caTable[row]; signers != NULL;
                 signers = signers->next) {
-            if (XMEMCMP(signers->subjectNameHash, nameHash, SIGNER_DIGEST_SIZE)
+            if (XMEMCMP(signers->issuerNameHash, nameHash, SIGNER_DIGEST_SIZE)
                     == 0 && XMEMCMP(signers->serialHash, serialHash,
                                     SIGNER_DIGEST_SIZE) == 0) {
                 ret = signers;
