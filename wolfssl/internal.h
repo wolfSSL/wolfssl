@@ -6698,7 +6698,7 @@ WOLFSSL_LOCAL WC_RNG* WOLFSSL_RSA_GetRNG(WOLFSSL_RSA *rsa, WC_RNG **tmpRNG,
         WOLFSSL_LOCAL Signer* GetCA(void* vp, byte* hash);
     #endif
     #if defined(WOLFSSL_AKID_NAME) && !defined(GetCAByAKID)
-        WOLFSSL_LOCAL Signer* GetCAByAKID(void* vp, const byte* issuer,
+        WOLFSSL_TEST_VIS Signer* GetCAByAKID(void* vp, const byte* issuer,
                 word32 issuerSz, const byte* serial, word32 serialSz);
     #endif
     #if defined(HAVE_OCSP) && !defined(GetCAByKeyHash)

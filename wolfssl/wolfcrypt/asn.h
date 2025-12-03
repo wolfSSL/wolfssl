@@ -2060,7 +2060,7 @@ typedef enum MimeStatus
 #endif /* HAVE_SMIME */
 
 WOLFSSL_LOCAL int HashIdAlg(word32 oidSum);
-WOLFSSL_LOCAL int CalcHashId(const byte* data, word32 len, byte* hash);
+WOLFSSL_TEST_VIS int CalcHashId(const byte* data, word32 len, byte* hash);
 WOLFSSL_LOCAL int CalcHashId_ex(const byte* data, word32 len, byte* hash,
     int hashAlg);
 WOLFSSL_LOCAL int GetHashId(const byte* id, int length, byte* hash,
