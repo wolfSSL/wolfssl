@@ -6694,6 +6694,10 @@ WOLFSSL_LOCAL WC_RNG* WOLFSSL_RSA_GetRNG(WOLFSSL_RSA *rsa, WC_RNG **tmpRNG,
                                                              DecodedCert* cert);
     #endif
 
+    #ifdef WOLFSSL_API_PREFIX_MAP
+        #define GetCAByAKID wolfSSL_GetCAByAKID
+    #endif
+
     #ifndef GetCA
         WOLFSSL_LOCAL Signer* GetCA(void* vp, byte* hash);
     #endif
