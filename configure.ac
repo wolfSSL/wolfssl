@@ -3179,7 +3179,7 @@ then
     ENABLED_AESGCM=no
 fi
 
-if test "$ENABLED_AESGCM" = "yes" && test "$ac_cv_c_bigendian" != "yes"
+if test "$ENABLED_AESGCM" = "yes"
 then
     ENABLED_AESGCM="4bit"
 fi
