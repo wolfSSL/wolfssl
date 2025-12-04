@@ -785,15 +785,18 @@ int test_wc_RsaPublicEncryptDecrypt(void)
     WC_DECLARE_VAR(in, byte, TEST_STRING_SZ, NULL);
     WC_DECLARE_VAR(plain, byte, TEST_STRING_SZ, NULL);
     WC_DECLARE_VAR(cipher, byte, TEST_RSA_BYTES, NULL);
+    WC_DECLARE_VAR(shortPlain, byte, TEST_STRING_SZ - 4, NULL);
 
     WC_ALLOC_VAR(in, byte, TEST_STRING_SZ, NULL);
     WC_ALLOC_VAR(plain, byte, TEST_STRING_SZ, NULL);
     WC_ALLOC_VAR(cipher, byte, TEST_RSA_BYTES, NULL);
+    WC_ALLOC_VAR(shortPlain, byte, TEST_STRING_SZ - 4, NULL);
 
 #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
     ExpectNotNull(in);
     ExpectNotNull(plain);
     ExpectNotNull(cipher);
+    ExpectNotNull(shortPlain);
 #endif
     ExpectNotNull(XMEMCPY(in, inStr, inLen));
 
@@ -820,6 +823,11 @@ int test_wc_RsaPublicEncryptDecrypt(void)
     ExpectIntEQ(XMEMCMP(plain, inStr, plainLen), 0);
     /* Pass bad args - tested in another testing function.*/
 
+    /* Test for when plain length is less than required. */
+    ExpectIntEQ(wc_RsaPrivateDecrypt(cipher, cipherLenResult, shortPlain,
+        TEST_STRING_SZ - 4, &key), RSA_BUFFER_E);
+
+    WC_FREE_VAR(shortPlain, NULL);
     WC_FREE_VAR(in, NULL);
     WC_FREE_VAR(plain, NULL);
     WC_FREE_VAR(cipher, NULL);
