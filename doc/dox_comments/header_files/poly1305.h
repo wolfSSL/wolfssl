@@ -137,3 +137,71 @@ int wc_Poly1305Final(Poly1305* poly1305, byte* tag);
 */
 int wc_Poly1305_MAC(Poly1305* ctx, const byte* additional, word32 addSz,
                     const byte* input, word32 sz, byte* tag, word32 tagSz);
+
+/*!
+    \ingroup Poly1305
+    \brief Adds padding to Poly1305 context.
+
+    \return 0 on success
+    \return BAD_FUNC_ARG if ctx is NULL
+
+    \param ctx Poly1305 context
+    \param lenToPad Length to pad
+
+    _Example_
+    \code
+    Poly1305 ctx;
+    byte key[32];
+    wc_Poly1305SetKey(&ctx, key, sizeof(key));
+    int ret = wc_Poly1305_Pad(&ctx, 10);
+    \endcode
+
+    \sa wc_Poly1305_MAC
+*/
+int wc_Poly1305_Pad(Poly1305* ctx, word32 lenToPad);
+
+/*!
+    \ingroup Poly1305
+    \brief Encodes AAD and data sizes for Poly1305.
+
+    \return 0 on success
+    \return BAD_FUNC_ARG if ctx is NULL
+
+    \param ctx Poly1305 context
+    \param aadSz Additional authenticated data size
+    \param dataSz Data size
+
+    _Example_
+    \code
+    Poly1305 ctx;
+    byte key[32];
+    wc_Poly1305SetKey(&ctx, key, sizeof(key));
+    int ret = wc_Poly1305_EncodeSizes(&ctx, 16, 100);
+    \endcode
+
+    \sa wc_Poly1305_MAC
+*/
+int wc_Poly1305_EncodeSizes(Poly1305* ctx, word32 aadSz, word32 dataSz);
+
+/*!
+    \ingroup Poly1305
+    \brief Encodes AAD and data sizes for Poly1305 using 64-bit values.
+
+    \return 0 on success
+    \return BAD_FUNC_ARG if ctx is NULL
+
+    \param ctx Poly1305 context
+    \param aadSz Additional authenticated data size
+    \param dataSz Data size
+
+    _Example_
+    \code
+    Poly1305 ctx;
+    byte key[32];
+    wc_Poly1305SetKey(&ctx, key, sizeof(key));
+    int ret = wc_Poly1305_EncodeSizes64(&ctx, 16, 100);
+    \endcode
+
+    \sa wc_Poly1305_EncodeSizes
+*/
+int wc_Poly1305_EncodeSizes64(Poly1305* ctx, word64 aadSz, word64 dataSz);

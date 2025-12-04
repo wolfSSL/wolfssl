@@ -142,3 +142,124 @@ void wc_ShaFree(wc_Sha* sha);
     \sa wc_InitSha
 */
 int wc_ShaGetHash(wc_Sha* sha, byte* hash);
+/*!
+    \ingroup SHA
+    \brief Initializes SHA with heap and device ID.
+
+    \return 0 on success
+    \return negative on error
+
+    \param sha SHA structure
+    \param heap Heap hint
+    \param devId Device ID
+
+    _Example_
+    \code
+    wc_Sha sha;
+    int ret = wc_InitSha_ex(&sha, NULL, INVALID_DEVID);
+    \endcode
+
+    \sa wc_InitSha
+*/
+int wc_InitSha_ex(wc_Sha* sha, void* heap, int devId);
+
+/*!
+    \ingroup SHA
+    \brief Gets raw hash without finalizing.
+
+    \return 0 on success
+    \return negative on error
+
+    \param sha SHA structure
+    \param hash Output hash buffer
+
+    _Example_
+    \code
+    wc_Sha sha;
+    byte hash[WC_SHA_DIGEST_SIZE];
+    int ret = wc_ShaFinalRaw(&sha, hash);
+    \endcode
+
+    \sa wc_ShaFinal
+*/
+int wc_ShaFinalRaw(wc_Sha* sha, byte* hash);
+
+/*!
+    \ingroup SHA
+    \brief Copies SHA context.
+
+    \return 0 on success
+    \return negative on error
+
+    \param src Source SHA structure
+    \param dst Destination SHA structure
+
+    _Example_
+    \code
+    wc_Sha src, dst;
+    int ret = wc_ShaCopy(&src, &dst);
+    \endcode
+
+    \sa wc_InitSha
+*/
+int wc_ShaCopy(wc_Sha* src, wc_Sha* dst);
+
+/*!
+    \ingroup SHA
+    \brief Transforms SHA block.
+
+    \return 0 on success
+    \return negative on error
+
+    \param sha SHA structure
+    \param data Block data
+
+    _Example_
+    \code
+    wc_Sha sha;
+    unsigned char block[WC_SHA_BLOCK_SIZE];
+    int ret = wc_ShaTransform(&sha, block);
+    \endcode
+
+    \sa wc_ShaUpdate
+*/
+int wc_ShaTransform(wc_Sha* sha, const unsigned char* data);
+
+/*!
+    \ingroup SHA
+    \brief Sets SHA size.
+
+    \return none No returns
+
+    \param sha SHA structure
+    \param len Size to set
+
+    _Example_
+    \code
+    wc_Sha sha;
+    wc_ShaSizeSet(&sha, 1000);
+    \endcode
+
+    \sa wc_ShaUpdate
+*/
+void wc_ShaSizeSet(wc_Sha* sha, word32 len);
+
+/*!
+    \ingroup SHA
+    \brief Sets SHA flags.
+
+    \return 0 on success
+    \return negative on error
+
+    \param sha SHA structure
+    \param flags Flags to set
+
+    _Example_
+    \code
+    wc_Sha sha;
+    int ret = wc_ShaSetFlags(&sha, WC_HASH_FLAG_WILLCOPY);
+    \endcode
+
+    \sa wc_InitSha
+*/
+int wc_ShaSetFlags(wc_Sha* sha, word32 flags);

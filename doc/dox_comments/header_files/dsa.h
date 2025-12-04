@@ -340,3 +340,223 @@ int wc_MakeDsaKey(WC_RNG *rng, DsaKey *dsa);
     \sa wc_InitDsaKey
 */
 int wc_MakeDsaParameters(WC_RNG *rng, int modulus_size, DsaKey *dsa);
+/*!
+    \ingroup DSA
+    \brief Initializes DSA key with heap hint.
+
+    \return 0 on success
+    \return negative on failure
+
+    \param key DSA key structure
+    \param h Heap hint for memory allocation
+
+    _Example_
+    \code
+    DsaKey key;
+    int ret = wc_InitDsaKey_h(&key, NULL);
+    \endcode
+
+    \sa wc_InitDsaKey
+*/
+int wc_InitDsaKey_h(DsaKey* key, void* h);
+
+/*!
+    \ingroup DSA
+    \brief Signs digest with extended parameters.
+
+    \return 0 on success
+    \return negative on failure
+
+    \param digest Digest to sign
+    \param digestSz Digest size
+    \param out Output signature buffer
+    \param key DSA key
+    \param rng Random number generator
+
+    _Example_
+    \code
+    byte digest[WC_SHA_DIGEST_SIZE];
+    byte sig[40];
+    WC_RNG rng;
+    int ret = wc_DsaSign_ex(digest, sizeof(digest), sig, &key,
+                            &rng);
+    \endcode
+
+    \sa wc_DsaSign
+*/
+int wc_DsaSign_ex(const byte* digest, word32 digestSz, byte* out,
+    DsaKey* key, WC_RNG* rng);
+
+/*!
+    \ingroup DSA
+    \brief Verifies signature with extended parameters.
+
+    \return 0 on success
+    \return negative on failure
+
+    \param digest Digest
+    \param digestSz Digest size
+    \param sig Signature buffer
+    \param key DSA key
+    \param answer Verification result
+
+    _Example_
+    \code
+    byte digest[WC_SHA_DIGEST_SIZE];
+    byte sig[40];
+    int answer;
+    int ret = wc_DsaVerify_ex(digest, sizeof(digest), sig, &key,
+                              &answer);
+    \endcode
+
+    \sa wc_DsaVerify
+*/
+int wc_DsaVerify_ex(const byte* digest, word32 digestSz,
+    const byte* sig, DsaKey* key, int* answer);
+
+/*!
+    \ingroup DSA
+    \brief Sets DSA public key in output buffer.
+
+    \return Size on success
+    \return negative on failure
+
+    \param output Output buffer
+    \param key DSA key
+    \param outLen Output buffer length
+    \param with_header Include header flag
+
+    _Example_
+    \code
+    byte output[256];
+    int ret = wc_SetDsaPublicKey(output, &key, sizeof(output), 1);
+    \endcode
+
+    \sa wc_DsaKeyToPublicDer
+*/
+int wc_SetDsaPublicKey(byte* output, DsaKey* key, int outLen,
+    int with_header);
+
+/*!
+    \ingroup DSA
+    \brief Converts DSA key to public DER format.
+
+    \return Size on success
+    \return negative on failure
+
+    \param key DSA key
+    \param output Output buffer
+    \param inLen Output buffer length
+
+    _Example_
+    \code
+    byte output[256];
+    int ret = wc_DsaKeyToPublicDer(&key, output, sizeof(output));
+    \endcode
+
+    \sa wc_SetDsaPublicKey
+*/
+int wc_DsaKeyToPublicDer(DsaKey* key, byte* output, word32 inLen);
+
+/*!
+    \ingroup DSA
+    \brief Imports DSA parameters from raw format.
+
+    \return 0 on success
+    \return negative on failure
+
+    \param dsa DSA key structure
+    \param p P parameter string
+    \param q Q parameter string
+    \param g G parameter string
+
+    _Example_
+    \code
+    DsaKey dsa;
+    int ret = wc_DsaImportParamsRaw(&dsa, pStr, qStr, gStr);
+    \endcode
+
+    \sa wc_DsaImportParamsRawCheck
+*/
+int wc_DsaImportParamsRaw(DsaKey* dsa, const char* p, const char* q,
+    const char* g);
+
+/*!
+    \ingroup DSA
+    \brief Imports DSA parameters from raw format with validation.
+
+    \return 0 on success
+    \return negative on failure
+
+    \param dsa DSA key structure
+    \param p P parameter string
+    \param q Q parameter string
+    \param g G parameter string
+    \param trusted Trust flag
+    \param rng Random number generator
+
+    _Example_
+    \code
+    DsaKey dsa;
+    WC_RNG rng;
+    int ret = wc_DsaImportParamsRawCheck(&dsa, pStr, qStr, gStr, 1,
+                                         &rng);
+    \endcode
+
+    \sa wc_DsaImportParamsRaw
+*/
+int wc_DsaImportParamsRawCheck(DsaKey* dsa, const char* p,
+    const char* q, const char* g, int trusted, WC_RNG* rng);
+
+/*!
+    \ingroup DSA
+    \brief Exports DSA parameters to raw format.
+
+    \return 0 on success
+    \return negative on failure
+
+    \param dsa DSA key structure
+    \param p P parameter buffer
+    \param pSz P parameter size (in/out)
+    \param q Q parameter buffer
+    \param qSz Q parameter size (in/out)
+    \param g G parameter buffer
+    \param gSz G parameter size (in/out)
+
+    _Example_
+    \code
+    byte p[256], q[32], g[256];
+    word32 pSz = sizeof(p), qSz = sizeof(q), gSz = sizeof(g);
+    int ret = wc_DsaExportParamsRaw(&dsa, p, &pSz, q, &qSz, g,
+                                    &gSz);
+    \endcode
+
+    \sa wc_DsaImportParamsRaw
+*/
+int wc_DsaExportParamsRaw(DsaKey* dsa, byte* p, word32* pSz, byte* q,
+    word32* qSz, byte* g, word32* gSz);
+
+/*!
+    \ingroup DSA
+    \brief Exports DSA key to raw format.
+
+    \return 0 on success
+    \return negative on failure
+
+    \param dsa DSA key structure
+    \param x Private key buffer
+    \param xSz Private key size (in/out)
+    \param y Public key buffer
+    \param ySz Public key size (in/out)
+
+    _Example_
+    \code
+    byte x[32], y[256];
+    word32 xSz = sizeof(x), ySz = sizeof(y);
+    int ret = wc_DsaExportKeyRaw(&dsa, x, &xSz, y, &ySz);
+    \endcode
+
+    \sa wc_DsaImportParamsRaw
+*/
+int wc_DsaExportKeyRaw(DsaKey* dsa, byte* x, word32* xSz, byte* y,
+    word32* ySz);

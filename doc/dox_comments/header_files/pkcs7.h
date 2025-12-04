@@ -877,3 +877,1329 @@ int wc_PKCS7_DecodeOneSymmetricKeyAttribute(const byte * osk,
 */
 int wc_PKCS7_DecodeOneSymmetricKeyKey(const byte * osk,
         word32 oskSz, const byte ** key, word32 * keySz);
+
+/*!
+    \ingroup PKCS7
+    \brief Creates new PKCS7 structure.
+
+    \return Pointer to new PKCS7 structure on success
+    \return NULL on error
+
+    \param none No parameters
+
+    _Example_
+    \code
+    PKCS7* pkcs7 = wolfSSL_PKCS7_new();
+    if (pkcs7 != NULL) {
+        // use pkcs7
+        wolfSSL_PKCS7_free(pkcs7);
+    }
+    \endcode
+
+    \sa wolfSSL_PKCS7_free
+*/
+PKCS7* wolfSSL_PKCS7_new(void);
+
+/*!
+    \ingroup PKCS7
+    \brief Creates new PKCS7_SIGNED structure.
+
+    \return Pointer to new PKCS7_SIGNED structure on success
+    \return NULL on error
+
+    \param none No parameters
+
+    _Example_
+    \code
+    PKCS7_SIGNED* p7 = wolfSSL_PKCS7_SIGNED_new();
+    if (p7 != NULL) {
+        // use p7
+        wolfSSL_PKCS7_SIGNED_free(p7);
+    }
+    \endcode
+
+    \sa wolfSSL_PKCS7_SIGNED_free
+*/
+PKCS7_SIGNED* wolfSSL_PKCS7_SIGNED_new(void);
+
+/*!
+    \ingroup PKCS7
+    \brief Frees PKCS7 structure.
+
+    \return none No returns
+
+    \param p7 PKCS7 structure to free
+
+    _Example_
+    \code
+    PKCS7* pkcs7 = wolfSSL_PKCS7_new();
+    wolfSSL_PKCS7_free(pkcs7);
+    \endcode
+
+    \sa wolfSSL_PKCS7_new
+*/
+void wolfSSL_PKCS7_free(PKCS7* p7);
+
+/*!
+    \ingroup PKCS7
+    \brief Frees PKCS7_SIGNED structure.
+
+    \return none No returns
+
+    \param p7 PKCS7_SIGNED structure to free
+
+    _Example_
+    \code
+    PKCS7_SIGNED* p7 = wolfSSL_PKCS7_SIGNED_new();
+    wolfSSL_PKCS7_SIGNED_free(p7);
+    \endcode
+
+    \sa wolfSSL_PKCS7_SIGNED_new
+*/
+void wolfSSL_PKCS7_SIGNED_free(PKCS7_SIGNED* p7);
+
+/*!
+    \ingroup PKCS7
+    \brief Decodes DER-encoded PKCS7 structure.
+
+    \return Pointer to decoded PKCS7 structure on success
+    \return NULL on error
+
+    \param p7 Pointer to PKCS7 pointer (can be NULL)
+    \param in Pointer to DER-encoded data
+    \param len Length of DER data
+
+    _Example_
+    \code
+    PKCS7* p7 = NULL;
+    const unsigned char* der = ...; // DER data
+    p7 = wolfSSL_d2i_PKCS7(&p7, &der, derLen);
+    \endcode
+
+    \sa wolfSSL_i2d_PKCS7
+*/
+PKCS7* wolfSSL_d2i_PKCS7(PKCS7** p7, const unsigned char** in, int len);
+
+/*!
+    \ingroup PKCS7
+    \brief Decodes PKCS7 from BIO.
+
+    \return Pointer to decoded PKCS7 structure on success
+    \return NULL on error
+
+    \param bio BIO to read from
+    \param p7 Pointer to PKCS7 pointer (can be NULL)
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new_file("pkcs7.der", "rb");
+    PKCS7* p7 = wolfSSL_d2i_PKCS7_bio(bio, NULL);
+    \endcode
+
+    \sa wolfSSL_i2d_PKCS7_bio
+*/
+PKCS7* wolfSSL_d2i_PKCS7_bio(WOLFSSL_BIO* bio, PKCS7** p7);
+
+/*!
+    \ingroup PKCS7
+    \brief Encodes PKCS7 to BIO.
+
+    \return Length written on success
+    \return negative on error
+
+    \param bio BIO to write to
+    \param p7 PKCS7 structure to encode
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
+    int ret = wolfSSL_i2d_PKCS7_bio(bio, p7);
+    \endcode
+
+    \sa wolfSSL_d2i_PKCS7_bio
+*/
+int wolfSSL_i2d_PKCS7_bio(WOLFSSL_BIO *bio, PKCS7 *p7);
+
+/*!
+    \ingroup PKCS7
+    \brief Encodes PKCS7 to DER.
+
+    \return Length written on success
+    \return negative on error
+
+    \param p7 PKCS7 structure to encode
+    \param out Pointer to output buffer pointer
+
+    _Example_
+    \code
+    unsigned char* der = NULL;
+    int len = wolfSSL_i2d_PKCS7(p7, &der);
+    \endcode
+
+    \sa wolfSSL_d2i_PKCS7
+*/
+int wolfSSL_i2d_PKCS7(PKCS7 *p7, unsigned char **out);
+
+/*!
+    \ingroup PKCS7
+    \brief Creates signed PKCS7 message.
+
+    \return Pointer to signed PKCS7 structure on success
+    \return NULL on error
+
+    \param signer Signer certificate
+    \param pkey Private key
+    \param certs Additional certificates
+    \param in Input data BIO
+    \param flags Operation flags
+
+    _Example_
+    \code
+    PKCS7* p7 = wolfSSL_PKCS7_sign(cert, pkey, NULL, bio, 0);
+    \endcode
+
+    \sa wolfSSL_PKCS7_verify
+*/
+PKCS7* wolfSSL_PKCS7_sign(WOLFSSL_X509* signer, WOLFSSL_EVP_PKEY* pkey,
+                          WOLFSSL_STACK* certs, WOLFSSL_BIO* in, int flags);
+
+/*!
+    \ingroup PKCS7
+    \brief Verifies signed PKCS7 message.
+
+    \return 1 on success
+    \return 0 or negative on error
+
+    \param p7 PKCS7 structure to verify
+    \param certs Certificate stack
+    \param store Certificate store
+    \param in Input data BIO
+    \param out Output BIO
+    \param flags Operation flags
+
+    _Example_
+    \code
+    int ret = wolfSSL_PKCS7_verify(p7, NULL, store, NULL, out, 0);
+    \endcode
+
+    \sa wolfSSL_PKCS7_sign
+*/
+int wolfSSL_PKCS7_verify(PKCS7* p7, WOLFSSL_STACK* certs,
+                         WOLFSSL_X509_STORE* store, WOLFSSL_BIO* in,
+                         WOLFSSL_BIO* out, int flags);
+
+/*!
+    \ingroup PKCS7
+    \brief Finalizes PKCS7 structure with data.
+
+    \return 1 on success
+    \return 0 or negative on error
+
+    \param pkcs7 PKCS7 structure
+    \param in Input data BIO
+    \param flags Operation flags
+
+    _Example_
+    \code
+    int ret = wolfSSL_PKCS7_final(pkcs7, bio, 0);
+    \endcode
+
+    \sa wolfSSL_PKCS7_sign
+*/
+int wolfSSL_PKCS7_final(PKCS7* pkcs7, WOLFSSL_BIO* in, int flags);
+
+/*!
+    \ingroup PKCS7
+    \brief Encodes certificates into PKCS7.
+
+    \return 1 on success
+    \return 0 or negative on error
+
+    \param p7 PKCS7 structure
+    \param certs Certificate stack
+    \param out Output BIO
+
+    _Example_
+    \code
+    int ret = wolfSSL_PKCS7_encode_certs(p7, certs, bio);
+    \endcode
+
+    \sa wolfSSL_PKCS7_to_stack
+*/
+int wolfSSL_PKCS7_encode_certs(PKCS7* p7, WOLFSSL_STACK* certs,
+                               WOLFSSL_BIO* out);
+
+/*!
+    \ingroup PKCS7
+    \brief Converts PKCS7 certificates to stack.
+
+    \return Pointer to certificate stack on success
+    \return NULL on error
+
+    \param pkcs7 PKCS7 structure
+
+    _Example_
+    \code
+    WOLFSSL_STACK* certs = wolfSSL_PKCS7_to_stack(pkcs7);
+    \endcode
+
+    \sa wolfSSL_PKCS7_encode_certs
+*/
+WOLFSSL_STACK* wolfSSL_PKCS7_to_stack(PKCS7* pkcs7);
+
+/*!
+    \ingroup PKCS7
+    \brief Gets signer certificates from PKCS7.
+
+    \return Pointer to signer certificate stack on success
+    \return NULL on error
+
+    \param p7 PKCS7 structure
+    \param certs Certificate stack
+    \param flags Operation flags
+
+    _Example_
+    \code
+    WOLFSSL_STACK* signers = wolfSSL_PKCS7_get0_signers(p7, NULL, 0);
+    \endcode
+
+    \sa wolfSSL_PKCS7_verify
+*/
+WOLFSSL_STACK* wolfSSL_PKCS7_get0_signers(PKCS7* p7, WOLFSSL_STACK* certs,
+                                          int flags);
+
+/*!
+    \ingroup PKCS7
+    \brief Writes PKCS7 to BIO in PEM format.
+
+    \return 1 on success
+    \return 0 or negative on error
+
+    \param bio Output BIO
+    \param p7 PKCS7 structure
+
+    _Example_
+    \code
+    int ret = wolfSSL_PEM_write_bio_PKCS7(bio, p7);
+    \endcode
+
+    \sa wolfSSL_SMIME_write_PKCS7
+*/
+int wolfSSL_PEM_write_bio_PKCS7(WOLFSSL_BIO* bio, PKCS7* p7);
+
+/*!
+    \ingroup PKCS7
+    \brief Reads S/MIME PKCS7 from BIO.
+
+    \return Pointer to PKCS7 structure on success
+    \return NULL on error
+
+    \param in Input BIO
+    \param bcont Pointer to content BIO pointer
+
+    _Example_
+    \code
+    WOLFSSL_BIO* cont = NULL;
+    PKCS7* p7 = wolfSSL_SMIME_read_PKCS7(bio, &cont);
+    \endcode
+
+    \sa wolfSSL_SMIME_write_PKCS7
+*/
+PKCS7* wolfSSL_SMIME_read_PKCS7(WOLFSSL_BIO* in, WOLFSSL_BIO** bcont);
+
+/*!
+    \ingroup PKCS7
+    \brief Writes PKCS7 to BIO in S/MIME format.
+
+    \return 1 on success
+    \return 0 or negative on error
+
+    \param out Output BIO
+    \param pkcs7 PKCS7 structure
+    \param in Input data BIO
+    \param flags Operation flags
+
+    _Example_
+    \code
+    int ret = wolfSSL_SMIME_write_PKCS7(out, pkcs7, in, 0);
+    \endcode
+
+    \sa wolfSSL_SMIME_read_PKCS7
+*/
+int wolfSSL_SMIME_write_PKCS7(WOLFSSL_BIO* out, PKCS7* pkcs7,
+                              WOLFSSL_BIO* in, int flags);
+
+/*!
+    \ingroup PKCS7
+    \brief Creates new wc_PKCS7 structure.
+
+    \return Pointer to new wc_PKCS7 structure on success
+    \return NULL on error
+
+    \param heap Heap hint
+    \param devId Device ID
+
+    _Example_
+    \code
+    wc_PKCS7* pkcs7 = wc_PKCS7_New(NULL, INVALID_DEVID);
+    \endcode
+
+    \sa wc_PKCS7_Init
+*/
+wc_PKCS7* wc_PKCS7_New(void* heap, int devId);
+
+/*!
+    \ingroup PKCS7
+    \brief Sets unknown extension callback.
+
+    \return none No returns
+
+    \param pkcs7 PKCS7 structure
+    \param cb Callback function
+
+    _Example_
+    \code
+    wc_PKCS7_SetUnknownExtCallback(pkcs7, myCallback);
+    \endcode
+
+    \sa wc_PKCS7_Init
+*/
+void wc_PKCS7_SetUnknownExtCallback(wc_PKCS7* pkcs7,
+                                    wc_UnknownExtCallback cb);
+
+/*!
+    \ingroup PKCS7
+    \brief Initializes wc_PKCS7 structure.
+
+    \return 0 on success
+    \return negative on error
+
+    \param pkcs7 PKCS7 structure
+    \param heap Heap hint
+    \param devId Device ID
+
+    _Example_
+    \code
+    wc_PKCS7 pkcs7;
+    int ret = wc_PKCS7_Init(&pkcs7, NULL, INVALID_DEVID);
+    \endcode
+
+    \sa wc_PKCS7_New
+*/
+int wc_PKCS7_Init(wc_PKCS7* pkcs7, void* heap, int devId);
+
+/*!
+    \ingroup PKCS7
+    \brief Adds certificate to PKCS7.
+
+    \return 0 on success
+    \return negative on error
+
+    \param pkcs7 PKCS7 structure
+    \param der DER-encoded certificate
+    \param derSz Certificate size
+
+    _Example_
+    \code
+    int ret = wc_PKCS7_AddCertificate(&pkcs7, cert, certSz);
+    \endcode
+
+    \sa wc_PKCS7_Init
+*/
+int wc_PKCS7_AddCertificate(wc_PKCS7* pkcs7, byte* der, word32 derSz);
+
+/*!
+    \ingroup PKCS7
+    \brief Gets attribute value from PKCS7.
+
+    \return 0 on success
+    \return negative on error
+
+    \param pkcs7 PKCS7 structure
+    \param oid Attribute OID
+    \param oidSz OID size
+    \param out Output buffer
+    \param outSz Output buffer size pointer
+
+    _Example_
+    \code
+    byte value[256];
+    word32 valueSz = sizeof(value);
+    int ret = wc_PKCS7_GetAttributeValue(&pkcs7, oid, oidSz, value,
+                                         &valueSz);
+    \endcode
+
+    \sa wc_PKCS7_Init
+*/
+int wc_PKCS7_GetAttributeValue(wc_PKCS7* pkcs7, const byte* oid,
+                                word32 oidSz, byte* out, word32* outSz);
+
+/*!
+    \ingroup PKCS7
+    \brief Sets signer identifier type.
+
+    \return 0 on success
+    \return negative on error
+
+    \param pkcs7 PKCS7 structure
+    \param type Identifier type
+
+    _Example_
+    \code
+    int ret = wc_PKCS7_SetSignerIdentifierType(&pkcs7, CMS_SKID);
+    \endcode
+
+    \sa wc_PKCS7_Init
+*/
+int wc_PKCS7_SetSignerIdentifierType(wc_PKCS7* pkcs7, int type);
+
+/*!
+    \ingroup PKCS7
+    \brief Sets content type.
+
+    \return 0 on success
+    \return negative on error
+
+    \param pkcs7 PKCS7 structure
+    \param contentType Content type OID
+    \param sz OID size
+
+    _Example_
+    \code
+    int ret = wc_PKCS7_SetContentType(&pkcs7, DATA, sizeof(DATA));
+    \endcode
+
+    \sa wc_PKCS7_Init
+*/
+int wc_PKCS7_SetContentType(wc_PKCS7* pkcs7, byte* contentType, word32 sz);
+
+/*!
+    \ingroup PKCS7
+    \brief Gets padding size for block cipher.
+
+    \return Padding size
+
+    \param inputSz Input size
+    \param blockSz Block size
+
+    _Example_
+    \code
+    int padSz = wc_PKCS7_GetPadSize(dataSz, AES_BLOCK_SIZE);
+    \endcode
+
+    \sa wc_PKCS7_PadData
+*/
+int wc_PKCS7_GetPadSize(word32 inputSz, word32 blockSz);
+
+/*!
+    \ingroup PKCS7
+    \brief Pads data for block cipher.
+
+    \return 0 on success
+    \return negative on error
+
+    \param in Input data
+    \param inSz Input size
+    \param out Output buffer
+    \param outSz Output buffer size
+    \param blockSz Block size
+
+    _Example_
+    \code
+    int ret = wc_PKCS7_PadData(data, dataSz, padded, paddedSz,
+                               AES_BLOCK_SIZE);
+    \endcode
+
+    \sa wc_PKCS7_GetPadSize
+*/
+int wc_PKCS7_PadData(byte* in, word32 inSz, byte* out, word32 outSz,
+                     word32 blockSz);
+
+/*!
+    \ingroup PKCS7
+    \brief Sets custom subject key identifier.
+
+    \return 0 on success
+    \return negative on error
+
+    \param pkcs7 PKCS7 structure
+    \param in SKID data
+    \param inSz SKID size
+
+    _Example_
+    \code
+    int ret = wc_PKCS7_SetCustomSKID(&pkcs7, skid, skidSz);
+    \endcode
+
+    \sa wc_PKCS7_Init
+*/
+int wc_PKCS7_SetCustomSKID(wc_PKCS7* pkcs7, const byte* in, word16 inSz);
+
+/*!
+    \ingroup PKCS7
+    \brief Sets detached signature flag.
+
+    \return 0 on success
+    \return negative on error
+
+    \param pkcs7 PKCS7 structure
+    \param flag Detached flag (1=detached, 0=attached)
+
+    _Example_
+    \code
+    int ret = wc_PKCS7_SetDetached(&pkcs7, 1);
+    \endcode
+
+    \sa wc_PKCS7_Init
+*/
+int wc_PKCS7_SetDetached(wc_PKCS7* pkcs7, word16 flag);
+
+/*!
+    \ingroup PKCS7
+    \brief Disables default signed attributes.
+
+    \return 0 on success
+    \return negative on error
+
+    \param pkcs7 PKCS7 structure
+
+    _Example_
+    \code
+    int ret = wc_PKCS7_NoDefaultSignedAttribs(&pkcs7);
+    \endcode
+
+    \sa wc_PKCS7_SetDefaultSignedAttribs
+*/
+int wc_PKCS7_NoDefaultSignedAttribs(wc_PKCS7* pkcs7);
+
+/*!
+    \ingroup PKCS7
+    \brief Sets default signed attributes flag.
+
+    \return 0 on success
+    \return negative on error
+
+    \param pkcs7 PKCS7 structure
+    \param flag Default attributes flag
+
+    _Example_
+    \code
+    int ret = wc_PKCS7_SetDefaultSignedAttribs(&pkcs7, 1);
+    \endcode
+
+    \sa wc_PKCS7_NoDefaultSignedAttribs
+*/
+int wc_PKCS7_SetDefaultSignedAttribs(wc_PKCS7* pkcs7, word16 flag);
+
+/*!
+    \ingroup PKCS7
+    \brief Allows degenerate PKCS7 (no signers).
+
+    \return none No returns
+
+    \param pkcs7 PKCS7 structure
+    \param flag Allow degenerate flag
+
+    _Example_
+    \code
+    wc_PKCS7_AllowDegenerate(&pkcs7, 1);
+    \endcode
+
+    \sa wc_PKCS7_Init
+*/
+void wc_PKCS7_AllowDegenerate(wc_PKCS7* pkcs7, word16 flag);
+
+/*!
+    \ingroup PKCS7
+    \brief Gets signer subject identifier.
+
+    \return 0 on success
+    \return negative on error
+
+    \param pkcs7 PKCS7 structure
+    \param out Output buffer
+    \param outSz Output buffer size pointer
+
+    _Example_
+    \code
+    byte sid[256];
+    word32 sidSz = sizeof(sid);
+    int ret = wc_PKCS7_GetSignerSID(&pkcs7, sid, &sidSz);
+    \endcode
+
+    \sa wc_PKCS7_Init
+*/
+int wc_PKCS7_GetSignerSID(wc_PKCS7* pkcs7, byte* out, word32* outSz);
+
+/*!
+    \ingroup PKCS7
+    \brief Encodes signed FirmwarePackageData.
+
+    \return Size of encoded data on success
+    \return negative on error
+
+    \param pkcs7 PKCS7 structure
+    \param privateKey Private key
+    \param privateKeySz Private key size
+    \param signOID Signature algorithm OID
+    \param hashOID Hash algorithm OID
+    \param content Content data
+    \param contentSz Content size
+    \param signedAttribs Signed attributes
+    \param signedAttribsSz Signed attributes count
+    \param output Output buffer
+    \param outputSz Output buffer size
+
+    _Example_
+    \code
+    int ret = wc_PKCS7_EncodeSignedFPD(&pkcs7, key, keySz, RSAk, SHAh,
+                                       data, dataSz, NULL, 0, out, outSz);
+    \endcode
+
+    \sa wc_PKCS7_EncodeSignedData
+*/
+int wc_PKCS7_EncodeSignedFPD(wc_PKCS7* pkcs7, byte* privateKey,
+                             word32 privateKeySz, int signOID, int hashOID,
+                             byte* content, word32 contentSz,
+                             PKCS7Attrib* signedAttribs,
+                             word32 signedAttribsSz, byte* output,
+                             word32 outputSz);
+
+/*!
+    \ingroup PKCS7
+    \brief Encodes signed encrypted FirmwarePackageData.
+
+    \return Size of encoded data on success
+    \return negative on error
+
+    \param pkcs7 PKCS7 structure
+    \param encryptKey Encryption key
+    \param encryptKeySz Encryption key size
+    \param privateKey Private key
+    \param privateKeySz Private key size
+    \param encryptOID Encryption algorithm OID
+    \param signOID Signature algorithm OID
+    \param hashOID Hash algorithm OID
+    \param content Content data
+    \param contentSz Content size
+    \param unprotectedAttribs Unprotected attributes
+    \param unprotectedAttribsSz Unprotected attributes count
+    \param signedAttribs Signed attributes
+    \param signedAttribsSz Signed attributes count
+    \param output Output buffer
+    \param outputSz Output buffer size
+
+    _Example_
+    \code
+    int ret = wc_PKCS7_EncodeSignedEncryptedFPD(&pkcs7, encKey, encKeySz,
+                                                key, keySz, AES256CBCb,
+                                                RSAk, SHAh, data, dataSz,
+                                                NULL, 0, NULL, 0, out,
+                                                outSz);
+    \endcode
+
+    \sa wc_PKCS7_EncodeSignedFPD
+*/
+int wc_PKCS7_EncodeSignedEncryptedFPD(wc_PKCS7* pkcs7, byte* encryptKey,
+                                     word32 encryptKeySz, byte* privateKey,
+                                     word32 privateKeySz, int encryptOID,
+                                     int signOID, int hashOID, byte* content,
+                                     word32 contentSz,
+                                     PKCS7Attrib* unprotectedAttribs,
+                                     word32 unprotectedAttribsSz,
+                                     PKCS7Attrib* signedAttribs,
+                                     word32 signedAttribsSz, byte* output,
+                                     word32 outputSz);
+
+/*!
+    \ingroup PKCS7
+    \brief Encodes signed compressed FirmwarePackageData.
+
+    \return Size of encoded data on success
+    \return negative on error
+
+    \param pkcs7 PKCS7 structure
+    \param privateKey Private key
+    \param privateKeySz Private key size
+    \param signOID Signature algorithm OID
+    \param hashOID Hash algorithm OID
+    \param content Content data
+    \param contentSz Content size
+    \param signedAttribs Signed attributes
+    \param signedAttribsSz Signed attributes count
+    \param output Output buffer
+    \param outputSz Output buffer size
+
+    _Example_
+    \code
+    int ret = wc_PKCS7_EncodeSignedCompressedFPD(&pkcs7, key, keySz, RSAk,
+                                                 SHAh, data, dataSz, NULL,
+                                                 0, out, outSz);
+    \endcode
+
+    \sa wc_PKCS7_EncodeSignedFPD
+*/
+int wc_PKCS7_EncodeSignedCompressedFPD(wc_PKCS7* pkcs7, byte* privateKey,
+                                      word32 privateKeySz, int signOID,
+                                      int hashOID, byte* content,
+                                      word32 contentSz,
+                                      PKCS7Attrib* signedAttribs,
+                                      word32 signedAttribsSz, byte* output,
+                                      word32 outputSz);
+
+/*!
+    \ingroup PKCS7
+    \brief Encodes signed encrypted compressed FirmwarePackageData.
+
+    \return Size of encoded data on success
+    \return negative on error
+
+    \param pkcs7 PKCS7 structure
+    \param encryptKey Encryption key
+    \param encryptKeySz Encryption key size
+    \param privateKey Private key
+    \param privateKeySz Private key size
+    \param encryptOID Encryption algorithm OID
+    \param signOID Signature algorithm OID
+    \param hashOID Hash algorithm OID
+    \param content Content data
+    \param contentSz Content size
+    \param unprotectedAttribs Unprotected attributes
+    \param unprotectedAttribsSz Unprotected attributes count
+    \param signedAttribs Signed attributes
+    \param signedAttribsSz Signed attributes count
+    \param output Output buffer
+    \param outputSz Output buffer size
+
+    _Example_
+    \code
+    int ret = wc_PKCS7_EncodeSignedEncryptedCompressedFPD(&pkcs7, encKey,
+                                                          encKeySz, key,
+                                                          keySz, AES256CBCb,
+                                                          RSAk, SHAh, data,
+                                                          dataSz, NULL, 0,
+                                                          NULL, 0, out,
+                                                          outSz);
+    \endcode
+
+    \sa wc_PKCS7_EncodeSignedCompressedFPD
+*/
+int wc_PKCS7_EncodeSignedEncryptedCompressedFPD(wc_PKCS7* pkcs7,
+                                               byte* encryptKey,
+                                               word32 encryptKeySz,
+                                               byte* privateKey,
+                                               word32 privateKeySz,
+                                               int encryptOID, int signOID,
+                                               int hashOID, byte* content,
+                                               word32 contentSz,
+                                               PKCS7Attrib* unprotectedAttribs,
+                                               word32 unprotectedAttribsSz,
+                                               PKCS7Attrib* signedAttribs,
+                                               word32 signedAttribsSz,
+                                               byte* output, word32 outputSz);
+
+/*!
+    \ingroup PKCS7
+    \brief Adds KTRI recipient.
+
+    \return 0 on success
+    \return negative on error
+
+    \param pkcs7 PKCS7 structure
+    \param cert Recipient certificate
+    \param certSz Certificate size
+    \param options Options flags
+
+    _Example_
+    \code
+    int ret = wc_PKCS7_AddRecipient_KTRI(&pkcs7, cert, certSz, 0);
+    \endcode
+
+    \sa wc_PKCS7_AddRecipient_KARI
+*/
+int wc_PKCS7_AddRecipient_KTRI(wc_PKCS7* pkcs7, const byte* cert,
+                               word32 certSz, int options);
+
+/*!
+    \ingroup PKCS7
+    \brief Adds KARI recipient.
+
+    \return 0 on success
+    \return negative on error
+
+    \param pkcs7 PKCS7 structure
+    \param cert Recipient certificate
+    \param certSz Certificate size
+    \param keyWrapOID Key wrap algorithm OID
+    \param keyAgreeOID Key agreement algorithm OID
+    \param ukm User keying material
+    \param ukmSz UKM size
+    \param options Options flags
+
+    _Example_
+    \code
+    int ret = wc_PKCS7_AddRecipient_KARI(&pkcs7, cert, certSz, AES256_WRAP,
+                                         dhSinglePass_stdDH_sha256kdf_scheme,
+                                         NULL, 0, 0);
+    \endcode
+
+    \sa wc_PKCS7_AddRecipient_KTRI
+*/
+int wc_PKCS7_AddRecipient_KARI(wc_PKCS7* pkcs7, const byte* cert,
+                               word32 certSz, int keyWrapOID,
+                               int keyAgreeOID, byte* ukm, word32 ukmSz,
+                               int options);
+
+/*!
+    \ingroup PKCS7
+    \brief Sets encryption key.
+
+    \return 0 on success
+    \return negative on error
+
+    \param pkcs7 PKCS7 structure
+    \param key Encryption key
+    \param keySz Key size
+
+    _Example_
+    \code
+    int ret = wc_PKCS7_SetKey(&pkcs7, key, keySz);
+    \endcode
+
+    \sa wc_PKCS7_Init
+*/
+int wc_PKCS7_SetKey(wc_PKCS7* pkcs7, byte* key, word32 keySz);
+
+/*!
+    \ingroup PKCS7
+    \brief Adds KEKRI recipient.
+
+    \return 0 on success
+    \return negative on error
+
+    \param pkcs7 PKCS7 structure
+    \param keyWrapOID Key wrap algorithm OID
+    \param kek Key encryption key
+    \param kekSz KEK size
+    \param keyID Key identifier
+    \param keyIdSz Key ID size
+    \param timePtr Time pointer
+    \param otherOID Other OID
+    \param otherOIDSz Other OID size
+    \param other Other data
+    \param otherSz Other data size
+    \param options Options flags
+
+    _Example_
+    \code
+    int ret = wc_PKCS7_AddRecipient_KEKRI(&pkcs7, AES256_WRAP, kek, kekSz,
+                                          keyId, keyIdSz, NULL, NULL, 0,
+                                          NULL, 0, 0);
+    \endcode
+
+    \sa wc_PKCS7_AddRecipient_KTRI
+*/
+int wc_PKCS7_AddRecipient_KEKRI(wc_PKCS7* pkcs7, int keyWrapOID, byte* kek,
+                                word32 kekSz, byte* keyID, word32 keyIdSz,
+                                void* timePtr, byte* otherOID,
+                                word32 otherOIDSz, byte* other,
+                                word32 otherSz, int options);
+
+/*!
+    \ingroup PKCS7
+    \brief Sets password for PWRI.
+
+    \return 0 on success
+    \return negative on error
+
+    \param pkcs7 PKCS7 structure
+    \param passwd Password
+    \param pLen Password length
+
+    _Example_
+    \code
+    int ret = wc_PKCS7_SetPassword(&pkcs7, password, passwordLen);
+    \endcode
+
+    \sa wc_PKCS7_AddRecipient_PWRI
+*/
+int wc_PKCS7_SetPassword(wc_PKCS7* pkcs7, byte* passwd, word32 pLen);
+
+/*!
+    \ingroup PKCS7
+    \brief Adds PWRI recipient.
+
+    \return 0 on success
+    \return negative on error
+
+    \param pkcs7 PKCS7 structure
+    \param passwd Password
+    \param pLen Password length
+    \param salt Salt
+    \param saltSz Salt size
+    \param kdfOID KDF algorithm OID
+    \param prfOID PRF algorithm OID
+    \param iterations Iteration count
+    \param kekEncryptOID KEK encryption algorithm OID
+    \param options Options flags
+
+    _Example_
+    \code
+    int ret = wc_PKCS7_AddRecipient_PWRI(&pkcs7, password, passwordLen,
+                                         salt, saltSz, PBKDF2_OID, HMACh,
+                                         10000, AES256CBCb, 0);
+    \endcode
+
+    \sa wc_PKCS7_SetPassword
+*/
+int wc_PKCS7_AddRecipient_PWRI(wc_PKCS7* pkcs7, byte* passwd, word32 pLen,
+                               byte* salt, word32 saltSz, int kdfOID,
+                               int prfOID, int iterations,
+                               int kekEncryptOID, int options);
+
+/*!
+    \ingroup PKCS7
+    \brief Sets originator encryption context.
+
+    \return 0 on success
+    \return negative on error
+
+    \param pkcs7 PKCS7 structure
+    \param ctx Context pointer
+
+    _Example_
+    \code
+    int ret = wc_PKCS7_SetOriEncryptCtx(&pkcs7, myContext);
+    \endcode
+
+    \sa wc_PKCS7_SetOriDecryptCtx
+*/
+int wc_PKCS7_SetOriEncryptCtx(wc_PKCS7* pkcs7, void* ctx);
+
+/*!
+    \ingroup PKCS7
+    \brief Sets originator decryption context.
+
+    \return 0 on success
+    \return negative on error
+
+    \param pkcs7 PKCS7 structure
+    \param ctx Context pointer
+
+    _Example_
+    \code
+    int ret = wc_PKCS7_SetOriDecryptCtx(&pkcs7, myContext);
+    \endcode
+
+    \sa wc_PKCS7_SetOriEncryptCtx
+*/
+int wc_PKCS7_SetOriDecryptCtx(wc_PKCS7* pkcs7, void* ctx);
+
+/*!
+    \ingroup PKCS7
+    \brief Sets originator decryption callback.
+
+    \return 0 on success
+    \return negative on error
+
+    \param pkcs7 PKCS7 structure
+    \param cb Callback function
+
+    _Example_
+    \code
+    int ret = wc_PKCS7_SetOriDecryptCb(&pkcs7, myDecryptCallback);
+    \endcode
+
+    \sa wc_PKCS7_SetOriDecryptCtx
+*/
+int wc_PKCS7_SetOriDecryptCb(wc_PKCS7* pkcs7, CallbackOriDecrypt cb);
+
+/*!
+    \ingroup PKCS7
+    \brief Adds ORI recipient.
+
+    \return 0 on success
+    \return negative on error
+
+    \param pkcs7 PKCS7 structure
+    \param cb Originator encryption callback
+    \param options Options flags
+
+    _Example_
+    \code
+    int ret = wc_PKCS7_AddRecipient_ORI(&pkcs7, myEncryptCallback, 0);
+    \endcode
+
+    \sa wc_PKCS7_SetOriDecryptCb
+*/
+int wc_PKCS7_AddRecipient_ORI(wc_PKCS7* pkcs7, CallbackOriEncrypt cb,
+                              int options);
+
+/*!
+    \ingroup PKCS7
+    \brief Sets CEK wrap callback.
+
+    \return 0 on success
+    \return negative on error
+
+    \param pkcs7 PKCS7 structure
+    \param wrapCEKCb Wrap CEK callback
+
+    _Example_
+    \code
+    int ret = wc_PKCS7_SetWrapCEKCb(&pkcs7, myWrapCEKCallback);
+    \endcode
+
+    \sa wc_PKCS7_Init
+*/
+int wc_PKCS7_SetWrapCEKCb(wc_PKCS7* pkcs7, CallbackWrapCEK wrapCEKCb);
+
+/*!
+    \ingroup PKCS7
+    \brief Sets RSA sign raw digest callback.
+
+    \return 0 on success
+    \return negative on error
+
+    \param pkcs7 PKCS7 structure
+    \param cb Callback function
+
+    _Example_
+    \code
+    int ret = wc_PKCS7_SetRsaSignRawDigestCb(&pkcs7, mySignCallback);
+    \endcode
+
+    \sa wc_PKCS7_Init
+*/
+int wc_PKCS7_SetRsaSignRawDigestCb(wc_PKCS7* pkcs7,
+                                   CallbackRsaSignRawDigest cb);
+
+/*!
+    \ingroup PKCS7
+    \brief Encodes authenticated enveloped data.
+
+    \return Size of encoded data on success
+    \return negative on error
+
+    \param pkcs7 PKCS7 structure
+    \param output Output buffer
+    \param outputSz Output buffer size
+
+    _Example_
+    \code
+    int ret = wc_PKCS7_EncodeAuthEnvelopedData(&pkcs7, out, outSz);
+    \endcode
+
+    \sa wc_PKCS7_DecodeAuthEnvelopedData
+*/
+int wc_PKCS7_EncodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* output,
+                                     word32 outputSz);
+
+/*!
+    \ingroup PKCS7
+    \brief Decodes authenticated enveloped data.
+
+    \return Size of decoded data on success
+    \return negative on error
+
+    \param pkcs7 PKCS7 structure
+    \param pkiMsg Input message
+    \param pkiMsgSz Input message size
+    \param output Output buffer
+    \param outputSz Output buffer size
+
+    _Example_
+    \code
+    int ret = wc_PKCS7_DecodeAuthEnvelopedData(&pkcs7, msg, msgSz, out,
+                                               outSz);
+    \endcode
+
+    \sa wc_PKCS7_EncodeAuthEnvelopedData
+*/
+int wc_PKCS7_DecodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* pkiMsg,
+                                     word32 pkiMsgSz, byte* output,
+                                     word32 outputSz);
+
+/*!
+    \ingroup PKCS7
+    \brief Encodes encrypted data.
+
+    \return Size of encoded data on success
+    \return negative on error
+
+    \param pkcs7 PKCS7 structure
+    \param output Output buffer
+    \param outputSz Output buffer size
+
+    _Example_
+    \code
+    int ret = wc_PKCS7_EncodeEncryptedData(&pkcs7, out, outSz);
+    \endcode
+
+    \sa wc_PKCS7_DecodeEncryptedData
+*/
+int wc_PKCS7_EncodeEncryptedData(wc_PKCS7* pkcs7, byte* output,
+                                 word32 outputSz);
+
+/*!
+    \ingroup PKCS7
+    \brief Sets decode encrypted callback.
+
+    \return 0 on success
+    \return negative on error
+
+    \param pkcs7 PKCS7 structure
+    \param decryptionCb Decryption callback
+
+    _Example_
+    \code
+    int ret = wc_PKCS7_SetDecodeEncryptedCb(&pkcs7, myDecryptCallback);
+    \endcode
+
+    \sa wc_PKCS7_SetDecodeEncryptedCtx
+*/
+int wc_PKCS7_SetDecodeEncryptedCb(wc_PKCS7* pkcs7,
+                                  CallbackDecryptContent decryptionCb);
+
+/*!
+    \ingroup PKCS7
+    \brief Sets decode encrypted context.
+
+    \return 0 on success
+    \return negative on error
+
+    \param pkcs7 PKCS7 structure
+    \param ctx Context pointer
+
+    _Example_
+    \code
+    int ret = wc_PKCS7_SetDecodeEncryptedCtx(&pkcs7, myContext);
+    \endcode
+
+    \sa wc_PKCS7_SetDecodeEncryptedCb
+*/
+int wc_PKCS7_SetDecodeEncryptedCtx(wc_PKCS7* pkcs7, void* ctx);
+
+/*!
+    \ingroup PKCS7
+    \brief Sets stream mode for PKCS7.
+
+    \return 0 on success
+    \return negative on error
+
+    \param pkcs7 PKCS7 structure
+    \param flag Stream mode flag
+    \param getContentCb Get content callback
+    \param streamOutCb Stream output callback
+    \param ctx Context pointer
+
+    _Example_
+    \code
+    int ret = wc_PKCS7_SetStreamMode(&pkcs7, 1, getContent, streamOut,
+                                     ctx);
+    \endcode
+
+    \sa wc_PKCS7_GetStreamMode
+*/
+int wc_PKCS7_SetStreamMode(wc_PKCS7* pkcs7, byte flag,
+                           CallbackGetContent getContentCb,
+                           CallbackStreamOut streamOutCb, void* ctx);
+
+/*!
+    \ingroup PKCS7
+    \brief Gets stream mode setting.
+
+    \return Stream mode flag
+
+    \param pkcs7 PKCS7 structure
+
+    _Example_
+    \code
+    int mode = wc_PKCS7_GetStreamMode(&pkcs7);
+    \endcode
+
+    \sa wc_PKCS7_SetStreamMode
+*/
+int wc_PKCS7_GetStreamMode(wc_PKCS7* pkcs7);
+
+/*!
+    \ingroup PKCS7
+    \brief Sets no certificates flag.
+
+    \return 0 on success
+    \return negative on error
+
+    \param pkcs7 PKCS7 structure
+    \param flag No certificates flag
+
+    _Example_
+    \code
+    int ret = wc_PKCS7_SetNoCerts(&pkcs7, 1);
+    \endcode
+
+    \sa wc_PKCS7_GetNoCerts
+*/
+int wc_PKCS7_SetNoCerts(wc_PKCS7* pkcs7, byte flag);
+
+/*!
+    \ingroup PKCS7
+    \brief Gets no certificates flag.
+
+    \return No certificates flag
+
+    \param pkcs7 PKCS7 structure
+
+    _Example_
+    \code
+    int noCerts = wc_PKCS7_GetNoCerts(&pkcs7);
+    \endcode
+
+    \sa wc_PKCS7_SetNoCerts
+*/
+int wc_PKCS7_GetNoCerts(wc_PKCS7* pkcs7);
+
+/*!
+    \ingroup PKCS7
+    \brief Encodes compressed data.
+
+    \return Size of encoded data on success
+    \return negative on error
+
+    \param pkcs7 PKCS7 structure
+    \param output Output buffer
+    \param outputSz Output buffer size
+
+    _Example_
+    \code
+    int ret = wc_PKCS7_EncodeCompressedData(&pkcs7, out, outSz);
+    \endcode
+
+    \sa wc_PKCS7_DecodeCompressedData
+*/
+int wc_PKCS7_EncodeCompressedData(wc_PKCS7* pkcs7, byte* output,
+                                  word32 outputSz);
+
+/*!
+    \ingroup PKCS7
+    \brief Decodes compressed data.
+
+    \return Size of decoded data on success
+    \return negative on error
+
+    \param pkcs7 PKCS7 structure
+    \param pkiMsg Input message
+    \param pkiMsgSz Input message size
+    \param output Output buffer
+    \param outputSz Output buffer size
+
+    _Example_
+    \code
+    int ret = wc_PKCS7_DecodeCompressedData(&pkcs7, msg, msgSz, out,
+                                            outSz);
+    \endcode
+
+    \sa wc_PKCS7_EncodeCompressedData
+*/
+int wc_PKCS7_DecodeCompressedData(wc_PKCS7* pkcs7, byte* pkiMsg,
+                                  word32 pkiMsgSz, byte* output,
+                                  word32 outputSz);
