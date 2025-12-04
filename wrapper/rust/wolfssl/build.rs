@@ -163,6 +163,9 @@ fn scan_cfg() -> Result<()> {
     /* hkdf */
     check_cfg(&binding, "wc_HKDF_Extract_ex", "hkdf");
 
+    /* hmac */
+    check_cfg(&binding, "wc_HmacSetKey", "hmac");
+
     /* kdf */
     check_cfg(&binding, "wc_PBKDF2", "kdf_pbkdf2");
     check_cfg(&binding, "wc_PKCS12_PBKDF_ex", "kdf_pkcs12");
@@ -170,8 +173,12 @@ fn scan_cfg() -> Result<()> {
     check_cfg(&binding, "wc_SSH_KDF", "kdf_ssh");
     check_cfg(&binding, "wc_Tls13_HKDF_Extract_ex", "kdf_tls13");
 
+    /* prf */
+    check_cfg(&binding, "wc_PRF", "prf");
+
     /* random */
     check_cfg(&binding, "wc_RNG_DRBG_Reseed", "random_hashdrbg");
+    check_cfg(&binding, "wc_InitRng", "random");
 
     /* rsa */
     check_cfg(&binding, "wc_InitRsaKey", "rsa");
@@ -181,7 +188,9 @@ fn scan_cfg() -> Result<()> {
 
     /* sha */
     check_cfg(&binding, "wc_InitSha", "sha");
+    check_cfg(&binding, "wc_InitSha224", "sha224");
     check_cfg(&binding, "wc_InitSha256", "sha256");
+    check_cfg(&binding, "wc_InitSha384", "sha384");
     check_cfg(&binding, "wc_InitSha512", "sha512");
     check_cfg(&binding, "wc_InitSha3_224", "sha3");
     check_cfg(&binding, "wc_InitShake128", "shake128");

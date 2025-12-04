@@ -23,6 +23,8 @@ This module provides a Rust wrapper for the wolfCrypt library's HMAC
 functionality.
 */
 
+#![cfg(hmac)]
+
 use crate::sys;
 use std::mem::MaybeUninit;
 

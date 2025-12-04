@@ -229,7 +229,7 @@ struct wc_Sha512 {
 
 #endif /* HAVE_FIPS */
 
-#if defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)
+#if defined(WOLFSSL_SHA512)
 
 #ifdef WOLFSSL_ARMASM
 #if !defined(WOLFSSL_ARMASM_NO_NEON)

@@ -29,6 +29,7 @@ wolfSSL `DhKey` object. It ensures proper initialization and deallocation.
 #![cfg(dh)]
 
 use crate::sys;
+#[cfg(random)]
 use crate::wolfcrypt::random::RNG;
 use std::mem::{MaybeUninit};
 
@@ -73,7 +74,7 @@ impl DH {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(dh_ffdhe_2048)]
+    /// #[cfg(all(dh_ffdhe_2048, random))]
     /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
@@ -125,7 +126,7 @@ impl DH {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(dh_ffdhe_2048)]
+    /// #[cfg(all(dh_ffdhe_2048, random))]
     /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
@@ -177,7 +178,7 @@ impl DH {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(dh_keygen)]
+    /// #[cfg(all(dh_keygen, random))]
     /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
@@ -185,7 +186,7 @@ impl DH {
     /// let mut dh = DH::generate(&mut rng, 2048).expect("Error with generate()");
     /// }
     /// ```
-    #[cfg(dh_keygen)]
+    #[cfg(all(dh_keygen, random))]
     pub fn generate(rng: &mut RNG, modulus_size: i32) -> Result<Self, i32> {
         Self::generate_ex(rng, modulus_size, None, None)
     }
@@ -208,7 +209,7 @@ impl DH {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(dh_keygen)]
+    /// #[cfg(all(dh_keygen, random))]
     /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
@@ -216,7 +217,7 @@ impl DH {
     /// let mut dh = DH::generate_ex(&mut rng, 2048, None, None).expect("Error with generate_ex()");
     /// }
     /// ```
-    #[cfg(dh_keygen)]
+    #[cfg(all(dh_keygen, random))]
     pub fn generate_ex(rng: &mut RNG, modulus_size: i32, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_dhkey: MaybeUninit<sys::DhKey> = MaybeUninit::uninit();
         let heap = match heap {
@@ -255,7 +256,7 @@ impl DH {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(dh_ffdhe_2048)]
+    /// #[cfg(all(dh_ffdhe_2048, random))]
     /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
@@ -279,7 +280,7 @@ impl DH {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(dh_ffdhe_2048)]
+    /// #[cfg(all(dh_ffdhe_2048, random))]
     /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
@@ -309,7 +310,7 @@ impl DH {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(dh_ffdhe_2048)]
+    /// #[cfg(all(dh_ffdhe_2048, random))]
     /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
@@ -337,7 +338,7 @@ impl DH {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(dh_ffdhe_2048)]
+    /// #[cfg(all(dh_ffdhe_2048, random))]
     /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
@@ -382,6 +383,8 @@ impl DH {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
     /// let p = [
@@ -453,6 +456,7 @@ impl DH {
     ///     0x05, 0x45, 0x15, 0xf8, 0xa2, 0x4e, 0xf3, 0x0b
     /// ];
     /// let dh = DH::new_from_pg(&p, &g).expect("Error with new_from_pg()");
+    /// }
     /// ```
     pub fn new_from_pg(p: &[u8], g: &[u8]) -> Result<Self, i32> {
         Self::new_from_pg_ex(p, g, None, None)
@@ -476,6 +480,8 @@ impl DH {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
     /// let p = [
@@ -547,6 +553,7 @@ impl DH {
     ///     0x05, 0x45, 0x15, 0xf8, 0xa2, 0x4e, 0xf3, 0x0b
     /// ];
     /// let dh = DH::new_from_pg_ex(&p, &g, None, None).expect("Error with new_from_pg_ex()");
+    /// }
     /// ```
     pub fn new_from_pg_ex(p: &[u8], g: &[u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let p_size = p.len() as u32;
@@ -591,6 +598,8 @@ impl DH {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
     /// let p = [
@@ -668,6 +677,7 @@ impl DH {
     ///     0x40, 0x52, 0xed, 0x41
     /// ];
     /// let dh = DH::new_from_pgq(&p, &g, &q).expect("Error with new_from_pgq()");
+    /// }
     /// ```
     pub fn new_from_pgq(p: &[u8], g: &[u8], q: &[u8]) -> Result<Self, i32> {
         Self::new_from_pgq_ex(p, g, q, None, None)
@@ -692,6 +702,8 @@ impl DH {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
     /// let p = [
@@ -769,6 +781,7 @@ impl DH {
     ///     0x40, 0x52, 0xed, 0x41
     /// ];
     /// let dh = DH::new_from_pgq_ex(&p, &g, &q, None, None).expect("Error with new_from_pgq_ex()");
+    /// }
     /// ```
     pub fn new_from_pgq_ex(p: &[u8], g: &[u8], q: &[u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let p_size = p.len() as u32;
@@ -818,6 +831,8 @@ impl DH {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
     /// let p = [
@@ -896,7 +911,9 @@ impl DH {
     /// ];
     /// let mut rng = RNG::new().expect("Failed to create RNG");
     /// let dh = DH::new_from_pgq_with_check(&p, &g, &q, 0, &mut rng).expect("Error with new_from_pgq_with_check()");
+    /// }
     /// ```
+    #[cfg(random)]
     pub fn new_from_pgq_with_check(p: &[u8], g: &[u8], q: &[u8], trusted: i32, rng: &mut RNG) -> Result<Self, i32> {
         Self::new_from_pgq_with_check_ex(p, g, q, trusted, rng, None, None)
     }
@@ -923,6 +940,8 @@ impl DH {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
     /// let p = [
@@ -1001,7 +1020,9 @@ impl DH {
     /// ];
     /// let mut rng = RNG::new().expect("Failed to create RNG");
     /// let dh = DH::new_from_pgq_with_check_ex(&p, &g, &q, 0, &mut rng, None, None).expect("Error with new_from_pgq_with_check_ex()");
+    /// }
     /// ```
+    #[cfg(random)]
     pub fn new_from_pgq_with_check_ex(p: &[u8], g: &[u8], q: &[u8], trusted: i32, rng: &mut RNG, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let p_size = p.len() as u32;
         let g_size = g.len() as u32;
@@ -1046,7 +1067,7 @@ impl DH {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(dh_ffdhe_2048)]
+    /// #[cfg(all(dh_ffdhe_2048, random))]
     /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
@@ -1092,7 +1113,7 @@ impl DH {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(dh_ffdhe_2048)]
+    /// #[cfg(all(dh_ffdhe_2048, random))]
     /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
@@ -1138,6 +1159,8 @@ impl DH {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
     /// let p = [
@@ -1223,6 +1246,7 @@ impl DH {
     /// dh.generate_key_pair(&mut rng, &mut private, &mut private_size, &mut public, &mut public_size).expect("Error with generate_key_pair()");
     /// let private = &private[0..(private_size as usize)];
     /// dh.check_priv_key_ex(private, Some(&q)).expect("Error with check_priv_key_ex()");
+    /// }
     /// ```
     pub fn check_priv_key_ex(&mut self, private: &[u8], prime: Option<&[u8]>) -> Result<(), i32> {
         let private_size = private.len() as u32;
@@ -1259,7 +1283,7 @@ impl DH {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(dh_ffdhe_2048)]
+    /// #[cfg(all(dh_ffdhe_2048, random))]
     /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
@@ -1302,6 +1326,8 @@ impl DH {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
     /// let p = [
@@ -1394,6 +1420,7 @@ impl DH {
     /// dh.generate_key_pair(&mut rng, &mut private, &mut private_size, &mut public, &mut public_size).expect("Error with generate_key_pair()");
     /// let public = &public[0..(public_size as usize)];
     /// dh.check_pub_key_ex(public, &q0).expect("Error with check_pub_key_ex()");
+    /// }
     /// ```
     pub fn check_pub_key_ex(&mut self, public: &[u8], prime: &[u8]) -> Result<(), i32> {
         let public_size = public.len() as u32;
@@ -1461,7 +1488,7 @@ impl DH {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(dh_ffdhe_2048)]
+    /// #[cfg(all(dh_ffdhe_2048, random))]
     /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
@@ -1474,6 +1501,7 @@ impl DH {
     /// dh.generate_key_pair(&mut rng, &mut private, &mut private_size, &mut public, &mut public_size).expect("Error with generate_key_pair()");
     /// }
     /// ```
+    #[cfg(random)]
     pub fn generate_key_pair(&mut self, rng: &mut RNG,
             private: &mut [u8], private_size: &mut u32,
             public: &mut [u8], public_size: &mut u32) -> Result<(), i32> {
@@ -1506,7 +1534,7 @@ impl DH {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(dh_ffdhe_2048)]
+    /// #[cfg(all(dh_ffdhe_2048, random))]
     /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;

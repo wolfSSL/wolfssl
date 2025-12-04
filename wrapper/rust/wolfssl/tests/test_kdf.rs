@@ -1,11 +1,13 @@
-#[cfg(any(kdf_pbkdf2, kdf_tls13))]
+#![cfg(any(kdf_srtp, all(hmac, any(kdf_pbkdf2, kdf_ssh, kdf_tls13))))]
+
+#[cfg(all(hmac, any(kdf_pbkdf2, kdf_tls13)))]
 use wolfssl::wolfcrypt::hmac::HMAC;
 use wolfssl::wolfcrypt::kdf::*;
-#[cfg(kdf_tls13)]
+#[cfg(all(hmac, kdf_tls13))]
 use wolfssl::wolfcrypt::sha::SHA256;
 
 #[test]
-#[cfg(kdf_pbkdf2)]
+#[cfg(all(hmac, kdf_pbkdf2))]
 fn test_pbkdf2() {
     let password = b"passwordpassword";
     let salt = [0x78u8, 0x57, 0x8E, 0x5a, 0x5d, 0x63, 0xcb, 0x06];
@@ -25,7 +27,7 @@ fn test_pbkdf2() {
 }
 
 #[test]
-#[cfg(kdf_pbkdf2)]
+#[cfg(all(hmac, kdf_pbkdf2))]
 fn test_pkcs12_pbkdf() {
     let password = [0x00u8, 0x73, 0x00, 0x6d, 0x00, 0x65, 0x00, 0x67, 0x00, 0x00];
     let salt = [0x0au8, 0x58, 0xCF, 0x64, 0x53, 0x0d, 0x82, 0x3f];
@@ -46,7 +48,7 @@ fn test_pkcs12_pbkdf() {
 }
 
 #[test]
-#[cfg(kdf_tls13)]
+#[cfg(all(hmac, kdf_tls13))]
 fn test_tls13_hkdf_extract_expand() {
     let hash_hello1 = [
         0x63u8, 0x83, 0x58, 0xab, 0x36, 0xcd, 0x0c, 0xf3,
@@ -80,7 +82,7 @@ fn test_tls13_hkdf_extract_expand() {
 }
 
 #[test]
-#[cfg(kdf_ssh)]
+#[cfg(all(hmac, kdf_ssh))]
 fn test_ssh_kdf() {
     let ssh_kdf_set3_k = [
         0x6Au8, 0xC3, 0x82, 0xEA, 0xAC, 0xA0, 0x93, 0xE1,

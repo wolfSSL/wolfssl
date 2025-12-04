@@ -1,7 +1,10 @@
 #![cfg(rsa)]
 
+#[cfg(any(all(sha256, random, rsa_pss), random, rsa_direct))]
 use std::fs;
+#[cfg(random)]
 use wolfssl::wolfcrypt::random::RNG;
+#[cfg(any(random, rsa_direct, rsa_keygen))]
 use wolfssl::wolfcrypt::rsa::*;
 
 #[test]
@@ -49,6 +52,7 @@ fn test_rsa_generate() {
 }
 
 #[test]
+#[cfg(random)]
 fn test_rsa_encrypt_decrypt() {
     let mut rng = RNG::new().expect("Error creating RNG");
     let key_path = "../../../certs/client-keyPub.der";
@@ -71,7 +75,7 @@ fn test_rsa_encrypt_decrypt() {
 }
 
 #[test]
-#[cfg(all(sha256, rsa_pss))]
+#[cfg(all(sha256, random, rsa_pss))]
 fn test_rsa_pss() {
     let mut rng = RNG::new().expect("Error creating RNG");
 
@@ -118,6 +122,7 @@ fn test_rsa_direct() {
 }
 
 #[test]
+#[cfg(random)]
 fn test_rsa_ssl() {
     let mut rng = RNG::new().expect("Error creating RNG");
 
