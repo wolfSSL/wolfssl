@@ -743,6 +743,9 @@
                 struct Signer* GetCAByKeyHash(void* vp, const unsigned char* keyHash);
             #endif /* HAVE_OCSP */
             #ifdef WOLFSSL_AKID_NAME
+                #ifdef WOLFSSL_API_PREFIX_MAP
+                    #define GetCAByAKID wolfSSL_GetCAByAKID
+                #endif
                 struct Signer* GetCAByAKID(void* vp, const unsigned char* issuer,
                                            unsigned int issuerSz,
                                            const unsigned char* serial,
@@ -1286,7 +1289,11 @@
             #endif /* HAVE_OCSP */
         #endif /* NO_SKID */
         #ifdef WOLFSSL_AKID_NAME
-            #define GetCAByAKID WC_PIE_INDIRECT_SYM(GetCAByAKID)
+            #ifdef WOLFSSL_API_PREFIX_MAP
+                #define wolfSSL_GetCAByAKID WC_PIE_INDIRECT_SYM(wolfSSL_GetCAByAKID)
+            #else
+                #define GetCAByAKID WC_PIE_INDIRECT_SYM(GetCAByAKID)
+            #endif
         #endif
 
         #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
