@@ -264,6 +264,7 @@
     _Pragma("GCC diagnostic ignored \"-Wswitch-enum\"");
     _Pragma("GCC diagnostic ignored \"-Wcast-function-type\""); /* needed for kernel 4.14.336 */
     _Pragma("GCC diagnostic ignored \"-Wformat-nonliteral\""); /* needed for kernel 4.9.282 */
+    _Pragma("GCC diagnostic ignored \"-Wattributes\"");
 
     #include <linux/kconfig.h>
 
