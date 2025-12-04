@@ -842,10 +842,10 @@ impl ECC {
             return Err(rc);
         }
         let mut wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
-        let qx_ptr = qx.as_ptr() as *const i8;
-        let qy_ptr = qy.as_ptr() as *const i8;
-        let d_ptr = d.as_ptr() as *const i8;
-        let curve_name_ptr = curve_name.as_ptr() as *const i8;
+        let qx_ptr = qx.as_ptr() as *const core::ffi::c_char;
+        let qy_ptr = qy.as_ptr() as *const core::ffi::c_char;
+        let d_ptr = d.as_ptr() as *const core::ffi::c_char;
+        let curve_name_ptr = curve_name.as_ptr() as *const core::ffi::c_char;
         let rc = unsafe {
             sys::wc_ecc_import_raw(&mut wc_ecc_key, qx_ptr, qy_ptr, d_ptr,
                 curve_name_ptr)
@@ -902,9 +902,9 @@ impl ECC {
             return Err(rc);
         }
         let mut wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
-        let qx_ptr = qx.as_ptr() as *const i8;
-        let qy_ptr = qy.as_ptr() as *const i8;
-        let d_ptr = d.as_ptr() as *const i8;
+        let qx_ptr = qx.as_ptr() as *const core::ffi::c_char;
+        let qy_ptr = qy.as_ptr() as *const core::ffi::c_char;
+        let d_ptr = d.as_ptr() as *const core::ffi::c_char;
         let rc = unsafe {
             sys::wc_ecc_import_raw_ex(&mut wc_ecc_key, qx_ptr, qy_ptr, d_ptr,
                 curve_id)
@@ -1160,8 +1160,8 @@ impl ECC {
     /// ```
     pub fn rs_hex_to_sig(r: &[u8], s: &[u8], dout: &mut [u8]) -> Result<usize, i32> {
         let mut dout_size = dout.len() as u32;
-        let r_ptr = r.as_ptr() as *const i8;
-        let s_ptr = s.as_ptr() as *const i8;
+        let r_ptr = r.as_ptr() as *const core::ffi::c_char;
+        let s_ptr = s.as_ptr() as *const core::ffi::c_char;
         let rc = unsafe {
             sys::wc_ecc_rs_to_sig(r_ptr, s_ptr, dout.as_mut_ptr(),
                 &mut dout_size)
