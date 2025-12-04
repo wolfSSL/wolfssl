@@ -116,9 +116,23 @@
         #endif
     #endif
 
+    #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 1, 0)
+        /* added by 6bab69c650 */
+        #define static_assert(expr, ...) __static_assert(expr, ##__VA_ARGS__, #expr)
+        #define __static_assert(expr, msg, ...) _Static_assert(expr, msg)
+    #endif
+
     /* kernel printf doesn't implement fp. */
     #ifndef WOLFSSL_NO_FLOAT_FMT
         #define WOLFSSL_NO_FLOAT_FMT
+    #endif
+
+    #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0)) || \
+        (defined(RHEL_MAJOR) && \
+         ((RHEL_MAJOR > 9) || ((RHEL_MAJOR == 9) && (RHEL_MINOR >= 5))))
+        #define WOLFSSL_DEBUG_PRINTF_FN _printk
+    #else
+        #define WOLFSSL_DEBUG_PRINTF_FN printk
     #endif
 
 #ifndef WOLFSSL_LINUXKM_USE_MUTEXES
@@ -250,6 +264,7 @@
     _Pragma("GCC diagnostic ignored \"-Wswitch-enum\"");
     _Pragma("GCC diagnostic ignored \"-Wcast-function-type\""); /* needed for kernel 4.14.336 */
     _Pragma("GCC diagnostic ignored \"-Wformat-nonliteral\""); /* needed for kernel 4.9.282 */
+    _Pragma("GCC diagnostic ignored \"-Wattributes\"");
 
     #include <linux/kconfig.h>
 
@@ -544,9 +559,16 @@
 
         #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
             #include <asm/i387.h>
+            #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0)
+                /* added by a62b01cd6c */
+                #include <asm-generic/simd.h>
+            #endif
         #else
             #include <asm/simd.h>
-            #include <crypto/internal/simd.h>
+            #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
+                /* added by 266d051601 */
+                #include <crypto/internal/simd.h>
+            #endif
         #endif
         #ifndef CAN_SAVE_VECTOR_REGISTERS
             #ifdef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
@@ -721,6 +743,9 @@
                 struct Signer* GetCAByKeyHash(void* vp, const unsigned char* keyHash);
             #endif /* HAVE_OCSP */
             #ifdef WOLFSSL_AKID_NAME
+                #ifdef WOLFSSL_API_PREFIX_MAP
+                    #define GetCAByAKID wolfSSL_GetCAByAKID
+                #endif
                 struct Signer* GetCAByAKID(void* vp, const unsigned char* issuer,
                                            unsigned int issuerSz,
                                            const unsigned char* serial,
@@ -1264,7 +1289,11 @@
             #endif /* HAVE_OCSP */
         #endif /* NO_SKID */
         #ifdef WOLFSSL_AKID_NAME
-            #define GetCAByAKID WC_PIE_INDIRECT_SYM(GetCAByAKID)
+            #ifdef WOLFSSL_API_PREFIX_MAP
+                #define wolfSSL_GetCAByAKID WC_PIE_INDIRECT_SYM(wolfSSL_GetCAByAKID)
+            #else
+                #define GetCAByAKID WC_PIE_INDIRECT_SYM(GetCAByAKID)
+            #endif
         #endif
 
         #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)

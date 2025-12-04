@@ -2084,6 +2084,13 @@ typedef enum MimeStatus
     #define SetAlgoID wc_SetAlgoID
     #define SetAsymKeyDer wc_SetAsymKeyDer
     #define CalcHashId wc_CalcHashId
+    #if defined(WOLFSSL_AKID_NAME) && !defined(GetCAByAKID)
+        /* GetCAByAKID() has two implementations, a full implementation in
+         * src/ssl.c, and a dummy implementation in wolfcrypt/src/asn.c for
+         * WOLFCRYPT_ONLY builds.
+         */
+        #define GetCAByAKID wolfSSL_GetCAByAKID
+    #endif
 #endif /* WOLFSSL_API_PREFIX_MAP */
 
 WOLFSSL_LOCAL int HashIdAlg(word32 oidSum);

@@ -505,7 +505,7 @@ WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
  * For custom debugging output, define your own WOLFSSL_DEBUG_PRINTF_FN
  */
 #ifdef WOLFSSL_DEBUG_PRINTF_FN
-    /* user-supplied definition */
+    /* user- or port-supplied definition */
 #elif defined(ARDUINO)
     /* ARDUINO only has print and sprintf, no printf. */
 #elif defined(__WATCOMC__)
@@ -548,8 +548,6 @@ WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
     #define WOLFSSL_DEBUG_PRINTF_FIRST_ARGS ANDROID_LOG_VERBOSE, "[wolfSSL]",
 #elif defined(WOLFSSL_XILINX)
     #define WOLFSSL_DEBUG_PRINTF_FN xil_printf
-#elif defined(WOLFSSL_LINUXKM)
-    #define WOLFSSL_DEBUG_PRINTF_FN printk
 #elif defined(WOLFSSL_RENESAS_RA6M4)
     #define WOLFSSL_DEBUG_PRINTF_FN myprintf
 #elif defined(NO_STDIO_FILESYSTEM)

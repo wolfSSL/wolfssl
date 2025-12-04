@@ -1167,24 +1167,42 @@ retry:
         }
     }
 
-    ret = wc_RNG_GenerateBlock(&drbg->rng, dst, dlen);
-
-    if (unlikely(ret == WC_NO_ERR_TRACE(RNG_FAILURE_E)) && (! retried)) {
-        retried = 1;
-        wc_FreeRng(&drbg->rng);
-        ret = wc_InitRng(&drbg->rng);
-        if (ret == 0) {
-            pr_warn("WARNING: reinitialized DRBG #%d after RNG_FAILURE_E.", raw_smp_processor_id());
-            goto retry;
+    for (;;) {
+        #define RNG_MAX_BLOCK_LEN_ROUNDED (RNG_MAX_BLOCK_LEN & ~0xfU)
+        if (dlen > RNG_MAX_BLOCK_LEN_ROUNDED) {
+            ret = wc_RNG_GenerateBlock(&drbg->rng, dst, RNG_MAX_BLOCK_LEN_ROUNDED);
+            if (ret == 0) {
+                dlen -= RNG_MAX_BLOCK_LEN_ROUNDED;
+                dst += RNG_MAX_BLOCK_LEN_ROUNDED;
+            }
         }
+        #undef RNG_MAX_BLOCK_LEN_ROUNDED
         else {
-            pr_warn_once("ERROR: reinitialization of DRBG #%d after RNG_FAILURE_E failed with ret %d.", raw_smp_processor_id(), ret);
-            ret = -EINVAL;
+            ret = wc_RNG_GenerateBlock(&drbg->rng, dst, dlen);
+            dlen -= dlen;
         }
-    }
-    else if (ret != 0) {
-        pr_warn_once("WARNING: wc_RNG_GenerateBlock returned %d\n",ret);
-        ret = -EINVAL;
+
+        if (unlikely(ret == WC_NO_ERR_TRACE(RNG_FAILURE_E)) && (! retried)) {
+            retried = 1;
+            wc_FreeRng(&drbg->rng);
+            ret = wc_InitRng(&drbg->rng);
+            if (ret == 0) {
+                pr_warn("WARNING: reinitialized DRBG #%d after RNG_FAILURE_E.", raw_smp_processor_id());
+                goto retry;
+            }
+            else {
+                pr_warn_once("ERROR: reinitialization of DRBG #%d after RNG_FAILURE_E failed with ret %d.", raw_smp_processor_id(), ret);
+                ret = -EINVAL;
+            }
+        }
+        else if (ret != 0) {
+            pr_warn_once("WARNING: wc_RNG_GenerateBlock returned %d\n",ret);
+            ret = -EINVAL;
+            break;
+        }
+
+        if (! dlen)
+            break;
     }
 
 out:
