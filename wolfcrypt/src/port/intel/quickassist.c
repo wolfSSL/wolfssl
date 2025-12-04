@@ -473,11 +473,11 @@ int IntelQaHardwareStart(const char* process_name, int limitDevAccess)
     }
 
 #if defined(HAVE_ECC) && defined(HAVE_ECC_DHE)
-    g_qatEcdhY = XMALLOC(MAX_ECC_BYTES, NULL, DYNAMIC_TYPE_ASYNC_NUMA);
+    g_qatEcdhY = (Cpa8U*)XMALLOC(MAX_ECC_BYTES, NULL, DYNAMIC_TYPE_ASYNC_NUMA);
     if (g_qatEcdhY == NULL) {
         ret = MEMORY_E; goto error;
     }
-    g_qatEcdhCofactor1 = XMALLOC(MAX_ECC_BYTES, NULL, DYNAMIC_TYPE_ASYNC_NUMA);
+    g_qatEcdhCofactor1 = (Cpa8U*)XMALLOC(MAX_ECC_BYTES, NULL, DYNAMIC_TYPE_ASYNC_NUMA);
     if (g_qatEcdhCofactor1 == NULL) {
         ret = MEMORY_E; goto error;
     }
@@ -731,7 +731,7 @@ int IntelQaDevCopy(WC_ASYNC_DEV* src, WC_ASYNC_DEV* dst)
     if (isHash) {
         /* need to duplicate tmpIn */
         if (src->qat.op.hash.tmpIn) {
-            dst->qat.op.hash.tmpIn = XMALLOC(src->qat.op.hash.tmpInBufSz,
+            dst->qat.op.hash.tmpIn = (byte*)XMALLOC(src->qat.op.hash.tmpInBufSz,
                 src->heap, DYNAMIC_TYPE_ASYNC_NUMA);
             if (dst->qat.op.hash.tmpIn == NULL) {
                 return MEMORY_E;
@@ -1431,7 +1431,7 @@ int IntelQaRsaKeyGen(WC_ASYNC_DEV* dev, RsaKey* key, int keyBits, long e,
                                 privateKey,
                                 publicKey);
     } while (IntelQaHandleCpaStatus(dev, status, &ret, 0,
-        callback, &retryCount));
+        (void*)callback, &retryCount));
 
 exit:
 
@@ -1562,11 +1562,11 @@ int IntelQaRsaPrivate(WC_ASYNC_DEV* dev,
     }
 
     opData->inputData.dataLenInBytes = inLen;
-    opData->inputData.pData = XREALLOC((byte*)in, inLen, dev->heap,
+    opData->inputData.pData = (Cpa8U*)XREALLOC((byte*)in, inLen, dev->heap,
         DYNAMIC_TYPE_ASYNC_NUMA);
 
     outBuf->dataLenInBytes = *outLen;
-    outBuf->pData = XREALLOC(out, *outLen, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
+    outBuf->pData = (Cpa8U*)XREALLOC(out, *outLen, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
 
     /* check allocations */
     if (opData->inputData.pData == NULL || outBuf->pData == NULL) {
@@ -1592,8 +1592,8 @@ int IntelQaRsaPrivate(WC_ASYNC_DEV* dev,
                                 dev,
                                 opData,
                                 outBuf);
-    } while (IntelQaHandleCpaStatus(dev, status, &ret, QAT_RSA_ASYNC, callback,
-        &retryCount));
+    } while (IntelQaHandleCpaStatus(dev, status, &ret, QAT_RSA_ASYNC,
+        (void*)callback, &retryCount));
 
     if (ret == WC_PENDING_E)
         return ret;
@@ -1667,11 +1667,11 @@ int IntelQaRsaCrtPrivate(WC_ASYNC_DEV* dev,
         *outLen = inLen;
 
     opData->inputData.dataLenInBytes = inLen;
-    opData->inputData.pData = XREALLOC((byte*)in, inLen, dev->heap,
+    opData->inputData.pData = (Cpa8U*)XREALLOC((byte*)in, inLen, dev->heap,
         DYNAMIC_TYPE_ASYNC_NUMA);
 
     outBuf->dataLenInBytes = *outLen;
-    outBuf->pData = XREALLOC(out, *outLen, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
+    outBuf->pData = (Cpa8U*)XREALLOC(out, *outLen, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
 
     /* check allocations */
     if (opData->inputData.pData == NULL || outBuf->pData == NULL) {
@@ -1697,8 +1697,8 @@ int IntelQaRsaCrtPrivate(WC_ASYNC_DEV* dev,
                                 dev,
                                 opData,
                                 outBuf);
-    } while (IntelQaHandleCpaStatus(dev, status, &ret, QAT_RSA_ASYNC, callback,
-        &retryCount));
+    } while (IntelQaHandleCpaStatus(dev, status, &ret, QAT_RSA_ASYNC,
+        (void*)callback, &retryCount));
 
     if (ret == WC_PENDING_E)
         return ret;
@@ -1823,11 +1823,11 @@ int IntelQaRsaPublic(WC_ASYNC_DEV* dev,
     *outLen = n->len;
 
     opData->inputData.dataLenInBytes = inLen;
-    opData->inputData.pData = XREALLOC((byte*)in, inLen, dev->heap,
+    opData->inputData.pData = (Cpa8U*)XREALLOC((byte*)in, inLen, dev->heap,
         DYNAMIC_TYPE_ASYNC_NUMA);
 
     outBuf->dataLenInBytes = *outLen;
-    outBuf->pData = XREALLOC(out, *outLen, dev->heap,
+    outBuf->pData = (Cpa8U*)XREALLOC(out, *outLen, dev->heap,
         DYNAMIC_TYPE_ASYNC_NUMA64);
 
     /* check allocations */
@@ -1850,8 +1850,8 @@ int IntelQaRsaPublic(WC_ASYNC_DEV* dev,
                                 dev,
                                 opData,
                                 outBuf);
-    } while (IntelQaHandleCpaStatus(dev, status, &ret, QAT_RSA_ASYNC, callback,
-        &retryCount));
+    } while (IntelQaHandleCpaStatus(dev, status, &ret, QAT_RSA_ASYNC,
+        (void*)callback, &retryCount));
 
     if (ret == WC_PENDING_E)
         return ret;
@@ -1963,11 +1963,12 @@ int IntelQaRsaExptMod(WC_ASYNC_DEV* dev,
     }
 
     opData->base.dataLenInBytes = inLen;
-    opData->base.pData = XREALLOC((byte*)in, inLen, dev->heap,
+    opData->base.pData = (Cpa8U*)XREALLOC((byte*)in, inLen, dev->heap,
         DYNAMIC_TYPE_ASYNC_NUMA);
 
     target->dataLenInBytes = *outLen;
-    target->pData = XREALLOC(out, *outLen, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
+    target->pData = (Cpa8U*)XREALLOC(out, *outLen, dev->heap,
+        DYNAMIC_TYPE_ASYNC_NUMA);
 
     /* check allocations */
     if (opData->base.pData == NULL || target->pData == NULL) {
@@ -1987,7 +1988,7 @@ int IntelQaRsaExptMod(WC_ASYNC_DEV* dev,
                                opData,
                                target);
     } while (IntelQaHandleCpaStatus(dev, status, &ret, QAT_EXPTMOD_ASYNC,
-        callback, &retryCount));
+        (void*)callback, &retryCount));
 
     if (ret == WC_PENDING_E)
         return ret;
@@ -2336,9 +2337,10 @@ static int IntelQaSymCipher(WC_ASYNC_DEV* dev, byte* out, const byte* in,
     opData = &ctx->opData;
     bufferList = &dev->qat.op.cipher.bufferList;
     flatBuffer = &dev->qat.op.cipher.flatBuffer;
-    metaBuf = XMALLOC(metaSize, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
-    dataBuf = XREALLOC((byte*)in, dataLen, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
-    ivBuf = XREALLOC((byte*)iv, AES_BLOCK_SIZE, dev->heap,
+    metaBuf = (Cpa8U*)XMALLOC(metaSize, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
+    dataBuf = (Cpa8U*)XREALLOC((byte*)in, dataLen, dev->heap,
+        DYNAMIC_TYPE_ASYNC_NUMA);
+    ivBuf = (Cpa8U*)XREALLOC((byte*)iv, AES_BLOCK_SIZE, dev->heap,
         DYNAMIC_TYPE_ASYNC_NUMA);
 
     /* check allocations */
@@ -2354,7 +2356,7 @@ static int IntelQaSymCipher(WC_ASYNC_DEV* dev, byte* out, const byte* in,
                 (authInSzAligned % AES_BLOCK_SIZE);
         }
 
-        authInBuf = XREALLOC((byte*)authIn, authInSzAligned, dev->heap,
+        authInBuf = (Cpa8U*)XREALLOC((byte*)authIn, authInSzAligned, dev->heap,
             DYNAMIC_TYPE_ASYNC_NUMA);
         if (authInBuf == NULL) {
             ret = MEMORY_E; goto exit;
@@ -2459,7 +2461,7 @@ static int IntelQaSymCipher(WC_ASYNC_DEV* dev, byte* out, const byte* in,
                                    bufferList,
                                    NULL);
     } while (IntelQaHandleCpaStatus(dev, status, &ret, QAT_CIPHER_ASYNC,
-        callback, &retryCount));
+        (void*)callback, &retryCount));
 
     if (ret == WC_PENDING_E)
         return ret;
@@ -2832,6 +2834,16 @@ static int IntelQaSymHashCache(WC_ASYNC_DEV* dev, byte* out, const byte* in,
         ret = 0; /* success */
         goto exit;
     }
+    else if (out != NULL && dev->qat.op.hash.tmpIn == NULL) {
+        /* QAT requires an input buffer even for an empty hash */
+        dev->qat.op.hash.tmpInSz = 0;
+        dev->qat.op.hash.tmpInBufSz = 16; /* use minimum alignment (16 bytes) */
+        dev->qat.op.hash.tmpIn = (byte*)XMALLOC(dev->qat.op.hash.tmpInBufSz,
+            dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
+        if (dev->qat.op.hash.tmpIn == NULL) {
+            ret = MEMORY_E; goto exit;
+        }
+    }
 
     /* handle output processing */
     packetType = CPA_CY_SYM_PACKET_TYPE_FULL;
@@ -2846,7 +2858,8 @@ static int IntelQaSymHashCache(WC_ASYNC_DEV* dev, byte* out, const byte* in,
     /* allocate buffer list */
     bufferListSize = sizeof(CpaBufferList) +
         (bufferCount * sizeof(CpaFlatBuffer)) + metaSize;
-    srcList = XMALLOC(bufferListSize, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
+    srcList = (CpaBufferList*)XMALLOC(bufferListSize, dev->heap,
+        DYNAMIC_TYPE_ASYNC_NUMA);
     if (srcList == NULL) {
         ret = MEMORY_E; goto exit;
     }
@@ -2869,7 +2882,8 @@ static int IntelQaSymHashCache(WC_ASYNC_DEV* dev, byte* out, const byte* in,
     /* build output */
     if (out) {
         /* use blockSize for alloc, but we are only returning digestSize */
-        digestBuf = XMALLOC(blockSize, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
+        digestBuf = (Cpa8U*)XMALLOC(blockSize, dev->heap,
+            DYNAMIC_TYPE_ASYNC_NUMA);
         if (digestBuf == NULL) {
             ret = MEMORY_E; goto exit;
         }
@@ -2914,8 +2928,8 @@ static int IntelQaSymHashCache(WC_ASYNC_DEV* dev, byte* out, const byte* in,
                                    srcList,
                                    srcList,
                                    NULL);
-    } while (IntelQaHandleCpaStatus(dev, status, &ret, QAT_HASH_ASYNC, callback,
-        &retryCount));
+    } while (IntelQaHandleCpaStatus(dev, status, &ret, QAT_HASH_ASYNC,
+        (void*)callback, &retryCount));
 
     if (ret == WC_PENDING_E)
         return ret;
@@ -3438,7 +3452,7 @@ int IntelQaSymSha3(WC_ASYNC_DEV* dev, byte* out, const byte* in, word32 sz)
         int ret;
         CpaCySymHashAlgorithm hashAlgorithm;
 
-        ret = IntelQaHmacGetType(macType, &hashAlgorithm);
+        ret = IntelQaHmacGetType(macType, (word32*)&hashAlgorithm);
         if (ret != 0)
             return ret;
 
@@ -3615,7 +3629,7 @@ int IntelQaEccPointMul(WC_ASYNC_DEV* dev, WC_BIGINT* k,
             pXk,
             pYk);
     } while (IntelQaHandleCpaStatus(dev, status, &ret, QAT_ECMUL_ASYNC,
-        callback, &retryCount));
+        (void*)callback, &retryCount));
 
     if (ret == WC_PENDING_E)
         return ret;
@@ -3777,7 +3791,7 @@ int IntelQaEcdh(WC_ASYNC_DEV* dev, WC_BIGINT* k, WC_BIGINT* xG,
     (void)cofactor;
 
     pXk->dataLenInBytes = q->len; /* bytes key size / 8 (aligned) */
-    pXk->pData = XREALLOC(out, pXk->dataLenInBytes, dev->heap,
+    pXk->pData = (Cpa8U*)XREALLOC(out, pXk->dataLenInBytes, dev->heap,
         DYNAMIC_TYPE_ASYNC_NUMA);
     pYk->dataLenInBytes = q->len;
     pYk->pData = g_qatEcdhY;
@@ -3797,7 +3811,7 @@ int IntelQaEcdh(WC_ASYNC_DEV* dev, WC_BIGINT* k, WC_BIGINT* xG,
             pXk,
             pYk);
     } while (IntelQaHandleCpaStatus(dev, status, &ret, QAT_ECDHE_ASYNC,
-        callback, &retryCount));
+        (void*)callback, &retryCount));
 
     if (ret == WC_PENDING_E)
         return ret;
@@ -3935,9 +3949,9 @@ int IntelQaEcdsaSign(WC_ASYNC_DEV* dev,
 
     pR->dataLenInBytes = n->len; /* bytes key size / 8 (aligned) */
     pS->dataLenInBytes = n->len;
-    pR->pData = XREALLOC(r->buf, pR->dataLenInBytes, dev->heap,
+    pR->pData = (Cpa8U*)XREALLOC(r->buf, pR->dataLenInBytes, dev->heap,
         DYNAMIC_TYPE_ASYNC_NUMA);
-    pS->pData = XREALLOC(s->buf, pS->dataLenInBytes, dev->heap,
+    pS->pData = (Cpa8U*)XREALLOC(s->buf, pS->dataLenInBytes, dev->heap,
         DYNAMIC_TYPE_ASYNC_NUMA);
 
     if (pR->pData == NULL || pS->pData == NULL) {
@@ -3959,7 +3973,7 @@ int IntelQaEcdsaSign(WC_ASYNC_DEV* dev,
             pR,
             pS);
     } while (IntelQaHandleCpaStatus(dev, status, &ret, QAT_ECDSA_ASYNC,
-        callback, &retryCount));
+        (void*)callback, &retryCount));
 
     if (ret == WC_PENDING_E)
         return ret;
@@ -4084,7 +4098,7 @@ int IntelQaEcdsaVerify(WC_ASYNC_DEV* dev, WC_BIGINT* m,
             opData,
             verifyStatus);
     } while (IntelQaHandleCpaStatus(dev, status, &ret, QAT_ECDSA_ASYNC,
-        callback, &retryCount));
+        (void*)callback, &retryCount));
 
     if (ret == WC_PENDING_E)
         return ret;
@@ -4205,7 +4219,8 @@ int IntelQaDhKeyGen(WC_ASYNC_DEV* dev, WC_BIGINT* p, WC_BIGINT* g,
         ret = BAD_FUNC_ARG; goto exit;
     }
     pOut->dataLenInBytes = p->len;
-    pOut->pData = XREALLOC(pub, p->len, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
+    pOut->pData = (Cpa8U*)XREALLOC(pub, p->len, dev->heap,
+        DYNAMIC_TYPE_ASYNC_NUMA);
     if (pOut->pData == NULL) {
         ret = MEMORY_E; goto exit;
     }
@@ -4223,8 +4238,8 @@ int IntelQaDhKeyGen(WC_ASYNC_DEV* dev, WC_BIGINT* p, WC_BIGINT* g,
             dev,
             opData,
             pOut);
-    } while (IntelQaHandleCpaStatus(dev, status, &ret, QAT_DH_ASYNC, callback,
-        &retryCount));
+    } while (IntelQaHandleCpaStatus(dev, status, &ret, QAT_DH_ASYNC,
+        (void*)callback, &retryCount));
 
     if (ret == WC_PENDING_E)
         return ret;
@@ -4356,13 +4371,14 @@ int IntelQaDhAgree(WC_ASYNC_DEV* dev, WC_BIGINT* p,
     }
 
     opData->remoteOctetStringPV.dataLenInBytes = pubSz;
-    opData->remoteOctetStringPV.pData = XREALLOC((byte*)otherPub, pubSz,
+    opData->remoteOctetStringPV.pData = (Cpa8U*)XREALLOC((byte*)otherPub, pubSz,
         dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
     opData->privateValueX.dataLenInBytes = privSz;
-    opData->privateValueX.pData = XREALLOC((byte*)priv, privSz, dev->heap,
-        DYNAMIC_TYPE_ASYNC_NUMA);
+    opData->privateValueX.pData = (Cpa8U*)XREALLOC((byte*)priv, privSz,
+        dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
     pOut->dataLenInBytes = p->len;
-    pOut->pData = XREALLOC(agree, p->len, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
+    pOut->pData = (Cpa8U*)XREALLOC(agree, p->len, dev->heap,
+        DYNAMIC_TYPE_ASYNC_NUMA);
 
     if (opData->remoteOctetStringPV.pData == NULL ||
         opData->privateValueX.pData == NULL || pOut->pData == NULL) {
@@ -4381,8 +4397,8 @@ int IntelQaDhAgree(WC_ASYNC_DEV* dev, WC_BIGINT* p,
             dev,
             opData,
             pOut);
-    } while (IntelQaHandleCpaStatus(dev, status, &ret, QAT_DH_ASYNC, callback,
-        &retryCount));
+    } while (IntelQaHandleCpaStatus(dev, status, &ret, QAT_DH_ASYNC,
+        (void*)callback, &retryCount));
 
     if (ret == WC_PENDING_E)
         return ret;
