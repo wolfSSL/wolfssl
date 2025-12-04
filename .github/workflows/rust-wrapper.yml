@@ -16,7 +16,7 @@ jobs:
   build_wolfssl:
     name: Build wolfSSL Rust Wrapper
     if: github.repository_owner == 'wolfssl'
-    runs-on: ubuntu-24.04
+    runs-on: ${{ matrix.os }}
     # This should be a safe limit for the tests to run.
     timeout-minutes: 10
     steps:
@@ -33,6 +33,7 @@ jobs:
       run: make -C wrapper/rust test
     strategy:
       matrix:
+        os: [ ubuntu-24.04, ubuntu-24.04-arm ]
         config: [
           # Add new configs here
           '',
