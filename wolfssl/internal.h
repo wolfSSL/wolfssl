@@ -7240,6 +7240,10 @@ WOLFSSL_LOCAL int pkcs8_encrypt(WOLFSSL_EVP_PKEY* pkey,
         word32* keySz);
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
+#if defined(WOLFSSL_CHECK_ALERT_ON_ERR)
+WOLFSSL_LOCAL void wolfSSL_maybeCheckAlertOnErr(WOLFSSL* ssl, int err);
+#endif
+
 #ifdef __cplusplus
     }  /* extern "C" */
 #endif

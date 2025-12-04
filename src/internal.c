@@ -22292,17 +22292,6 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
         return ssl->error;
     }
 
-    /* If checking alert on error (allowSocketErr == 1) do not try and
-     * process alerts for async or ocsp non blocking */
-#if defined(WOLFSSL_CHECK_ALERT_ON_ERR) && \
-    (defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_NONBLOCK_OCSP))
-    if (allowSocketErr == 1 && \
-        (ssl->error == WC_NO_ERR_TRACE(WC_PENDING_E) ||
-         ssl->error == WC_NO_ERR_TRACE(OCSP_WANT_READ))) {
-        return ssl->error;
-    }
-#endif
-
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_ASYNC_CRYPT)
     /* process any pending DTLS messages - this flow can happen with async */
     if (ssl->dtls_rx_msg_list != NULL) {
@@ -42523,6 +42512,34 @@ int wolfSSL_TestAppleNativeCertValidation_AppendCA(WOLFSSL_CTX* ctx,
 #endif /* WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION */
 
 #endif /* defined(__APPLE__) && defined(WOLFSSL_SYS_CA_CERTS) */
+
+#if defined(WOLFSSL_CHECK_ALERT_ON_ERR)
+/* Do not try to process error for async, non blocking io, and app_read */
+void wolfSSL_maybeCheckAlertOnErr(WOLFSSL* ssl, int err)
+{
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+        return;
+    }
+#endif
+#if defined(WOLFSSL_NONBLOCK_OCSP)
+    if (err == WC_NO_ERR_TRACE(OCSP_WANT_READ)) {
+        return;
+    }
+#endif
+#if defined(WOLFSSL_EARLY_DATA)
+    if (err == WC_NO_ERR_TRACE(APP_DATA_READY)) {
+        return;
+    }
+#endif
+    if (err == WC_NO_ERR_TRACE(WANT_WRITE) ||
+            err == WC_NO_ERR_TRACE(WANT_READ)) {
+        return;
+    }
+    /* check if an alert was sent */
+    ProcessReplyEx(ssl, 1);
+}
+#endif /* WOLFSSL_CHECK_ALERT_ON_ERR */
 
 #undef ERROR_OUT
 
