@@ -110,7 +110,7 @@ L_SHA256_transform_len_k:
 Transform_Sha256_Len_base:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
 	SUB	sp, sp, #0xc0
-	ADR	r3, L_SHA256_transform_len_k
+	ADR	r12, L_SHA256_transform_len_k
 	/* Copy digest to add in at end */
 	LDRD	r4, r5, [r0]
 	LDRD	r6, r7, [r0, #8]
@@ -166,9 +166,10 @@ L_SHA256_transform_len_begin:
 	LDR	r11, [r0, #4]
 	LDR	r4, [r0, #8]
 	EOR	r11, r11, r4
-	MOV	r12, #0x3
+#ifndef WOLFSSL_ARMASM_SHA256_SMALL
+	MOV	r3, #0x3
 	/* Start of 16 rounds */
-L_SHA256_transform_len_start:
+L_SHA256_transform_len_start_fast:
 	/* Round 0 */
 	LDR	r5, [r0, #16]
 	LDR	r6, [r0, #20]
@@ -183,7 +184,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r4
 	ADD	r9, r9, r6
 	LDR	r5, [sp]
-	LDR	r6, [r3]
+	LDR	r6, [r12]
 	ADD	r9, r9, r5
 	ADD	r9, r9, r6
 	LDR	r5, [r0]
@@ -230,7 +231,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r4
 	ADD	r9, r9, r6
 	LDR	r5, [sp, #4]
-	LDR	r6, [r3, #4]
+	LDR	r6, [r12, #4]
 	ADD	r9, r9, r5
 	ADD	r9, r9, r6
 	LDR	r5, [r0, #28]
@@ -277,7 +278,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r4
 	ADD	r9, r9, r6
 	LDR	r5, [sp, #8]
-	LDR	r6, [r3, #8]
+	LDR	r6, [r12, #8]
 	ADD	r9, r9, r5
 	ADD	r9, r9, r6
 	LDR	r5, [r0, #24]
@@ -324,7 +325,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r4
 	ADD	r9, r9, r6
 	LDR	r5, [sp, #12]
-	LDR	r6, [r3, #12]
+	LDR	r6, [r12, #12]
 	ADD	r9, r9, r5
 	ADD	r9, r9, r6
 	LDR	r5, [r0, #20]
@@ -371,7 +372,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r4
 	ADD	r9, r9, r6
 	LDR	r5, [sp, #16]
-	LDR	r6, [r3, #16]
+	LDR	r6, [r12, #16]
 	ADD	r9, r9, r5
 	ADD	r9, r9, r6
 	LDR	r5, [r0, #16]
@@ -418,7 +419,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r4
 	ADD	r9, r9, r6
 	LDR	r5, [sp, #20]
-	LDR	r6, [r3, #20]
+	LDR	r6, [r12, #20]
 	ADD	r9, r9, r5
 	ADD	r9, r9, r6
 	LDR	r5, [r0, #12]
@@ -465,7 +466,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r4
 	ADD	r9, r9, r6
 	LDR	r5, [sp, #24]
-	LDR	r6, [r3, #24]
+	LDR	r6, [r12, #24]
 	ADD	r9, r9, r5
 	ADD	r9, r9, r6
 	LDR	r5, [r0, #8]
@@ -512,7 +513,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r4
 	ADD	r9, r9, r6
 	LDR	r5, [sp, #28]
-	LDR	r6, [r3, #28]
+	LDR	r6, [r12, #28]
 	ADD	r9, r9, r5
 	ADD	r9, r9, r6
 	LDR	r5, [r0, #4]
@@ -559,7 +560,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r4
 	ADD	r9, r9, r6
 	LDR	r5, [sp, #32]
-	LDR	r6, [r3, #32]
+	LDR	r6, [r12, #32]
 	ADD	r9, r9, r5
 	ADD	r9, r9, r6
 	LDR	r5, [r0]
@@ -606,7 +607,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r4
 	ADD	r9, r9, r6
 	LDR	r5, [sp, #36]
-	LDR	r6, [r3, #36]
+	LDR	r6, [r12, #36]
 	ADD	r9, r9, r5
 	ADD	r9, r9, r6
 	LDR	r5, [r0, #28]
@@ -653,7 +654,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r4
 	ADD	r9, r9, r6
 	LDR	r5, [sp, #40]
-	LDR	r6, [r3, #40]
+	LDR	r6, [r12, #40]
 	ADD	r9, r9, r5
 	ADD	r9, r9, r6
 	LDR	r5, [r0, #24]
@@ -700,7 +701,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r4
 	ADD	r9, r9, r6
 	LDR	r5, [sp, #44]
-	LDR	r6, [r3, #44]
+	LDR	r6, [r12, #44]
 	ADD	r9, r9, r5
 	ADD	r9, r9, r6
 	LDR	r5, [r0, #20]
@@ -747,7 +748,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r4
 	ADD	r9, r9, r6
 	LDR	r5, [sp, #48]
-	LDR	r6, [r3, #48]
+	LDR	r6, [r12, #48]
 	ADD	r9, r9, r5
 	ADD	r9, r9, r6
 	LDR	r5, [r0, #16]
@@ -794,7 +795,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r4
 	ADD	r9, r9, r6
 	LDR	r5, [sp, #52]
-	LDR	r6, [r3, #52]
+	LDR	r6, [r12, #52]
 	ADD	r9, r9, r5
 	ADD	r9, r9, r6
 	LDR	r5, [r0, #12]
@@ -841,7 +842,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r4
 	ADD	r9, r9, r6
 	LDR	r5, [sp, #56]
-	LDR	r6, [r3, #56]
+	LDR	r6, [r12, #56]
 	ADD	r9, r9, r5
 	ADD	r9, r9, r6
 	LDR	r5, [r0, #8]
@@ -888,7 +889,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r4
 	ADD	r9, r9, r6
 	LDR	r5, [sp, #60]
-	LDR	r6, [r3, #60]
+	LDR	r6, [r12, #60]
 	ADD	r9, r9, r5
 	ADD	r9, r9, r6
 	LDR	r5, [r0, #4]
@@ -921,12 +922,12 @@ L_SHA256_transform_len_start:
 	ADD	r4, r4, r5
 	ADD	r9, r9, r4
 	STR	r9, [sp, #60]
-	ADD	r3, r3, #0x40
-	SUBS	r12, r12, #0x1
+	ADD	r12, r12, #0x40
+	SUBS	r3, r3, #0x1
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-	BNE	L_SHA256_transform_len_start
+	BNE	L_SHA256_transform_len_start_fast
 #else
-	BNE.W	L_SHA256_transform_len_start
+	BNE.W	L_SHA256_transform_len_start_fast
 #endif
 	/* Round 0 */
 	LDR	r5, [r0, #16]
@@ -942,7 +943,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r4
 	ADD	r9, r9, r6
 	LDR	r5, [sp]
-	LDR	r6, [r3]
+	LDR	r6, [r12]
 	ADD	r9, r9, r5
 	ADD	r9, r9, r6
 	LDR	r5, [r0]
@@ -974,7 +975,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r4
 	ADD	r9, r9, r6
 	LDR	r5, [sp, #4]
-	LDR	r6, [r3, #4]
+	LDR	r6, [r12, #4]
 	ADD	r9, r9, r5
 	ADD	r9, r9, r6
 	LDR	r5, [r0, #28]
@@ -1006,7 +1007,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r4
 	ADD	r9, r9, r6
 	LDR	r5, [sp, #8]
-	LDR	r6, [r3, #8]
+	LDR	r6, [r12, #8]
 	ADD	r9, r9, r5
 	ADD	r9, r9, r6
 	LDR	r5, [r0, #24]
@@ -1038,7 +1039,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r4
 	ADD	r9, r9, r6
 	LDR	r5, [sp, #12]
-	LDR	r6, [r3, #12]
+	LDR	r6, [r12, #12]
 	ADD	r9, r9, r5
 	ADD	r9, r9, r6
 	LDR	r5, [r0, #20]
@@ -1070,7 +1071,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r4
 	ADD	r9, r9, r6
 	LDR	r5, [sp, #16]
-	LDR	r6, [r3, #16]
+	LDR	r6, [r12, #16]
 	ADD	r9, r9, r5
 	ADD	r9, r9, r6
 	LDR	r5, [r0, #16]
@@ -1102,7 +1103,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r4
 	ADD	r9, r9, r6
 	LDR	r5, [sp, #20]
-	LDR	r6, [r3, #20]
+	LDR	r6, [r12, #20]
 	ADD	r9, r9, r5
 	ADD	r9, r9, r6
 	LDR	r5, [r0, #12]
@@ -1134,7 +1135,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r4
 	ADD	r9, r9, r6
 	LDR	r5, [sp, #24]
-	LDR	r6, [r3, #24]
+	LDR	r6, [r12, #24]
 	ADD	r9, r9, r5
 	ADD	r9, r9, r6
 	LDR	r5, [r0, #8]
@@ -1166,7 +1167,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r4
 	ADD	r9, r9, r6
 	LDR	r5, [sp, #28]
-	LDR	r6, [r3, #28]
+	LDR	r6, [r12, #28]
 	ADD	r9, r9, r5
 	ADD	r9, r9, r6
 	LDR	r5, [r0, #4]
@@ -1198,7 +1199,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r4
 	ADD	r9, r9, r6
 	LDR	r5, [sp, #32]
-	LDR	r6, [r3, #32]
+	LDR	r6, [r12, #32]
 	ADD	r9, r9, r5
 	ADD	r9, r9, r6
 	LDR	r5, [r0]
@@ -1230,7 +1231,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r4
 	ADD	r9, r9, r6
 	LDR	r5, [sp, #36]
-	LDR	r6, [r3, #36]
+	LDR	r6, [r12, #36]
 	ADD	r9, r9, r5
 	ADD	r9, r9, r6
 	LDR	r5, [r0, #28]
@@ -1262,7 +1263,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r4
 	ADD	r9, r9, r6
 	LDR	r5, [sp, #40]
-	LDR	r6, [r3, #40]
+	LDR	r6, [r12, #40]
 	ADD	r9, r9, r5
 	ADD	r9, r9, r6
 	LDR	r5, [r0, #24]
@@ -1294,7 +1295,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r4
 	ADD	r9, r9, r6
 	LDR	r5, [sp, #44]
-	LDR	r6, [r3, #44]
+	LDR	r6, [r12, #44]
 	ADD	r9, r9, r5
 	ADD	r9, r9, r6
 	LDR	r5, [r0, #20]
@@ -1326,7 +1327,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r4
 	ADD	r9, r9, r6
 	LDR	r5, [sp, #48]
-	LDR	r6, [r3, #48]
+	LDR	r6, [r12, #48]
 	ADD	r9, r9, r5
 	ADD	r9, r9, r6
 	LDR	r5, [r0, #16]
@@ -1358,7 +1359,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r4
 	ADD	r9, r9, r6
 	LDR	r5, [sp, #52]
-	LDR	r6, [r3, #52]
+	LDR	r6, [r12, #52]
 	ADD	r9, r9, r5
 	ADD	r9, r9, r6
 	LDR	r5, [r0, #12]
@@ -1390,7 +1391,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r4
 	ADD	r9, r9, r6
 	LDR	r5, [sp, #56]
-	LDR	r6, [r3, #56]
+	LDR	r6, [r12, #56]
 	ADD	r9, r9, r5
 	ADD	r9, r9, r6
 	LDR	r5, [r0, #8]
@@ -1422,7 +1423,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r4
 	ADD	r9, r9, r6
 	LDR	r5, [sp, #60]
-	LDR	r6, [r3, #60]
+	LDR	r6, [r12, #60]
 	ADD	r9, r9, r5
 	ADD	r9, r9, r6
 	LDR	r5, [r0, #4]
@@ -1440,6 +1441,883 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r10
 	STR	r8, [r0, #16]
 	STR	r9, [r0]
+#else
+	MOV	r3, #0x4
+	/* Start of 16 rounds */
+L_SHA256_transform_len_start_small:
+	SUB	r3, r3, #0x1
+	/* Round 0 */
+	LDR	r5, [r0, #16]
+	LDR	r6, [r0, #20]
+	LDR	r7, [r0, #24]
+	LDR	r9, [r0, #28]
+	ROR	r4, r5, #6
+	EOR	r6, r6, r7
+	EOR	r4, r4, r5, ROR #11
+	AND	r6, r6, r5
+	EOR	r4, r4, r5, ROR #25
+	EOR	r6, r6, r7
+	ADD	r9, r9, r4
+	ADD	r9, r9, r6
+	LDR	r5, [sp]
+	LDR	r6, [r12]
+	ADD	r9, r9, r5
+	ADD	r9, r9, r6
+	LDR	r5, [r0]
+	LDR	r6, [r0, #4]
+	LDR	r7, [r0, #8]
+	LDR	r8, [r0, #12]
+	ROR	r4, r5, #2
+	EOR	r10, r5, r6
+	EOR	r4, r4, r5, ROR #13
+	AND	r11, r11, r10
+	EOR	r4, r4, r5, ROR #22
+	EOR	r11, r11, r6
+	ADD	r8, r8, r9
+	ADD	r9, r9, r4
+	ADD	r9, r9, r11
+	STR	r8, [r0, #12]
+	STR	r9, [r0, #28]
+	CMP	r3, #0x0
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BEQ	L_SHA256_transform_len_blk_end_0
+#else
+	BEQ.N	L_SHA256_transform_len_blk_end_0
+#endif
+	/* Calc new W[0] */
+	LDR	r6, [sp, #56]
+	LDR	r7, [sp, #36]
+	LDR	r8, [sp, #4]
+	LDR	r9, [sp]
+	ROR	r4, r6, #17
+	ROR	r5, r8, #7
+	EOR	r4, r4, r6, ROR #19
+	EOR	r5, r5, r8, ROR #18
+	EOR	r4, r4, r6, LSR #10
+	EOR	r5, r5, r8, LSR #3
+	ADD	r9, r9, r7
+	ADD	r4, r4, r5
+	ADD	r9, r9, r4
+	STR	r9, [sp]
+L_SHA256_transform_len_blk_end_0:
+	/* Round 1 */
+	LDR	r5, [r0, #12]
+	LDR	r6, [r0, #16]
+	LDR	r7, [r0, #20]
+	LDR	r9, [r0, #24]
+	ROR	r4, r5, #6
+	EOR	r6, r6, r7
+	EOR	r4, r4, r5, ROR #11
+	AND	r6, r6, r5
+	EOR	r4, r4, r5, ROR #25
+	EOR	r6, r6, r7
+	ADD	r9, r9, r4
+	ADD	r9, r9, r6
+	LDR	r5, [sp, #4]
+	LDR	r6, [r12, #4]
+	ADD	r9, r9, r5
+	ADD	r9, r9, r6
+	LDR	r5, [r0, #28]
+	LDR	r6, [r0]
+	LDR	r7, [r0, #4]
+	LDR	r8, [r0, #8]
+	ROR	r4, r5, #2
+	EOR	r11, r5, r6
+	EOR	r4, r4, r5, ROR #13
+	AND	r10, r10, r11
+	EOR	r4, r4, r5, ROR #22
+	EOR	r10, r10, r6
+	ADD	r8, r8, r9
+	ADD	r9, r9, r4
+	ADD	r9, r9, r10
+	STR	r8, [r0, #8]
+	STR	r9, [r0, #24]
+	CMP	r3, #0x0
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BEQ	L_SHA256_transform_len_blk_end_1
+#else
+	BEQ.N	L_SHA256_transform_len_blk_end_1
+#endif
+	/* Calc new W[1] */
+	LDR	r6, [sp, #60]
+	LDR	r7, [sp, #40]
+	LDR	r8, [sp, #8]
+	LDR	r9, [sp, #4]
+	ROR	r4, r6, #17
+	ROR	r5, r8, #7
+	EOR	r4, r4, r6, ROR #19
+	EOR	r5, r5, r8, ROR #18
+	EOR	r4, r4, r6, LSR #10
+	EOR	r5, r5, r8, LSR #3
+	ADD	r9, r9, r7
+	ADD	r4, r4, r5
+	ADD	r9, r9, r4
+	STR	r9, [sp, #4]
+L_SHA256_transform_len_blk_end_1:
+	/* Round 2 */
+	LDR	r5, [r0, #8]
+	LDR	r6, [r0, #12]
+	LDR	r7, [r0, #16]
+	LDR	r9, [r0, #20]
+	ROR	r4, r5, #6
+	EOR	r6, r6, r7
+	EOR	r4, r4, r5, ROR #11
+	AND	r6, r6, r5
+	EOR	r4, r4, r5, ROR #25
+	EOR	r6, r6, r7
+	ADD	r9, r9, r4
+	ADD	r9, r9, r6
+	LDR	r5, [sp, #8]
+	LDR	r6, [r12, #8]
+	ADD	r9, r9, r5
+	ADD	r9, r9, r6
+	LDR	r5, [r0, #24]
+	LDR	r6, [r0, #28]
+	LDR	r7, [r0]
+	LDR	r8, [r0, #4]
+	ROR	r4, r5, #2
+	EOR	r10, r5, r6
+	EOR	r4, r4, r5, ROR #13
+	AND	r11, r11, r10
+	EOR	r4, r4, r5, ROR #22
+	EOR	r11, r11, r6
+	ADD	r8, r8, r9
+	ADD	r9, r9, r4
+	ADD	r9, r9, r11
+	STR	r8, [r0, #4]
+	STR	r9, [r0, #20]
+	CMP	r3, #0x0
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BEQ	L_SHA256_transform_len_blk_end_2
+#else
+	BEQ.N	L_SHA256_transform_len_blk_end_2
+#endif
+	/* Calc new W[2] */
+	LDR	r6, [sp]
+	LDR	r7, [sp, #44]
+	LDR	r8, [sp, #12]
+	LDR	r9, [sp, #8]
+	ROR	r4, r6, #17
+	ROR	r5, r8, #7
+	EOR	r4, r4, r6, ROR #19
+	EOR	r5, r5, r8, ROR #18
+	EOR	r4, r4, r6, LSR #10
+	EOR	r5, r5, r8, LSR #3
+	ADD	r9, r9, r7
+	ADD	r4, r4, r5
+	ADD	r9, r9, r4
+	STR	r9, [sp, #8]
+L_SHA256_transform_len_blk_end_2:
+	/* Round 3 */
+	LDR	r5, [r0, #4]
+	LDR	r6, [r0, #8]
+	LDR	r7, [r0, #12]
+	LDR	r9, [r0, #16]
+	ROR	r4, r5, #6
+	EOR	r6, r6, r7
+	EOR	r4, r4, r5, ROR #11
+	AND	r6, r6, r5
+	EOR	r4, r4, r5, ROR #25
+	EOR	r6, r6, r7
+	ADD	r9, r9, r4
+	ADD	r9, r9, r6
+	LDR	r5, [sp, #12]
+	LDR	r6, [r12, #12]
+	ADD	r9, r9, r5
+	ADD	r9, r9, r6
+	LDR	r5, [r0, #20]
+	LDR	r6, [r0, #24]
+	LDR	r7, [r0, #28]
+	LDR	r8, [r0]
+	ROR	r4, r5, #2
+	EOR	r11, r5, r6
+	EOR	r4, r4, r5, ROR #13
+	AND	r10, r10, r11
+	EOR	r4, r4, r5, ROR #22
+	EOR	r10, r10, r6
+	ADD	r8, r8, r9
+	ADD	r9, r9, r4
+	ADD	r9, r9, r10
+	STR	r8, [r0]
+	STR	r9, [r0, #16]
+	CMP	r3, #0x0
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BEQ	L_SHA256_transform_len_blk_end_3
+#else
+	BEQ.N	L_SHA256_transform_len_blk_end_3
+#endif
+	/* Calc new W[3] */
+	LDR	r6, [sp, #4]
+	LDR	r7, [sp, #48]
+	LDR	r8, [sp, #16]
+	LDR	r9, [sp, #12]
+	ROR	r4, r6, #17
+	ROR	r5, r8, #7
+	EOR	r4, r4, r6, ROR #19
+	EOR	r5, r5, r8, ROR #18
+	EOR	r4, r4, r6, LSR #10
+	EOR	r5, r5, r8, LSR #3
+	ADD	r9, r9, r7
+	ADD	r4, r4, r5
+	ADD	r9, r9, r4
+	STR	r9, [sp, #12]
+L_SHA256_transform_len_blk_end_3:
+	/* Round 4 */
+	LDR	r5, [r0]
+	LDR	r6, [r0, #4]
+	LDR	r7, [r0, #8]
+	LDR	r9, [r0, #12]
+	ROR	r4, r5, #6
+	EOR	r6, r6, r7
+	EOR	r4, r4, r5, ROR #11
+	AND	r6, r6, r5
+	EOR	r4, r4, r5, ROR #25
+	EOR	r6, r6, r7
+	ADD	r9, r9, r4
+	ADD	r9, r9, r6
+	LDR	r5, [sp, #16]
+	LDR	r6, [r12, #16]
+	ADD	r9, r9, r5
+	ADD	r9, r9, r6
+	LDR	r5, [r0, #16]
+	LDR	r6, [r0, #20]
+	LDR	r7, [r0, #24]
+	LDR	r8, [r0, #28]
+	ROR	r4, r5, #2
+	EOR	r10, r5, r6
+	EOR	r4, r4, r5, ROR #13
+	AND	r11, r11, r10
+	EOR	r4, r4, r5, ROR #22
+	EOR	r11, r11, r6
+	ADD	r8, r8, r9
+	ADD	r9, r9, r4
+	ADD	r9, r9, r11
+	STR	r8, [r0, #28]
+	STR	r9, [r0, #12]
+	CMP	r3, #0x0
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BEQ	L_SHA256_transform_len_blk_end_4
+#else
+	BEQ.N	L_SHA256_transform_len_blk_end_4
+#endif
+	/* Calc new W[4] */
+	LDR	r6, [sp, #8]
+	LDR	r7, [sp, #52]
+	LDR	r8, [sp, #20]
+	LDR	r9, [sp, #16]
+	ROR	r4, r6, #17
+	ROR	r5, r8, #7
+	EOR	r4, r4, r6, ROR #19
+	EOR	r5, r5, r8, ROR #18
+	EOR	r4, r4, r6, LSR #10
+	EOR	r5, r5, r8, LSR #3
+	ADD	r9, r9, r7
+	ADD	r4, r4, r5
+	ADD	r9, r9, r4
+	STR	r9, [sp, #16]
+L_SHA256_transform_len_blk_end_4:
+	/* Round 5 */
+	LDR	r5, [r0, #28]
+	LDR	r6, [r0]
+	LDR	r7, [r0, #4]
+	LDR	r9, [r0, #8]
+	ROR	r4, r5, #6
+	EOR	r6, r6, r7
+	EOR	r4, r4, r5, ROR #11
+	AND	r6, r6, r5
+	EOR	r4, r4, r5, ROR #25
+	EOR	r6, r6, r7
+	ADD	r9, r9, r4
+	ADD	r9, r9, r6
+	LDR	r5, [sp, #20]
+	LDR	r6, [r12, #20]
+	ADD	r9, r9, r5
+	ADD	r9, r9, r6
+	LDR	r5, [r0, #12]
+	LDR	r6, [r0, #16]
+	LDR	r7, [r0, #20]
+	LDR	r8, [r0, #24]
+	ROR	r4, r5, #2
+	EOR	r11, r5, r6
+	EOR	r4, r4, r5, ROR #13
+	AND	r10, r10, r11
+	EOR	r4, r4, r5, ROR #22
+	EOR	r10, r10, r6
+	ADD	r8, r8, r9
+	ADD	r9, r9, r4
+	ADD	r9, r9, r10
+	STR	r8, [r0, #24]
+	STR	r9, [r0, #8]
+	CMP	r3, #0x0
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BEQ	L_SHA256_transform_len_blk_end_5
+#else
+	BEQ.N	L_SHA256_transform_len_blk_end_5
+#endif
+	/* Calc new W[5] */
+	LDR	r6, [sp, #12]
+	LDR	r7, [sp, #56]
+	LDR	r8, [sp, #24]
+	LDR	r9, [sp, #20]
+	ROR	r4, r6, #17
+	ROR	r5, r8, #7
+	EOR	r4, r4, r6, ROR #19
+	EOR	r5, r5, r8, ROR #18
+	EOR	r4, r4, r6, LSR #10
+	EOR	r5, r5, r8, LSR #3
+	ADD	r9, r9, r7
+	ADD	r4, r4, r5
+	ADD	r9, r9, r4
+	STR	r9, [sp, #20]
+L_SHA256_transform_len_blk_end_5:
+	/* Round 6 */
+	LDR	r5, [r0, #24]
+	LDR	r6, [r0, #28]
+	LDR	r7, [r0]
+	LDR	r9, [r0, #4]
+	ROR	r4, r5, #6
+	EOR	r6, r6, r7
+	EOR	r4, r4, r5, ROR #11
+	AND	r6, r6, r5
+	EOR	r4, r4, r5, ROR #25
+	EOR	r6, r6, r7
+	ADD	r9, r9, r4
+	ADD	r9, r9, r6
+	LDR	r5, [sp, #24]
+	LDR	r6, [r12, #24]
+	ADD	r9, r9, r5
+	ADD	r9, r9, r6
+	LDR	r5, [r0, #8]
+	LDR	r6, [r0, #12]
+	LDR	r7, [r0, #16]
+	LDR	r8, [r0, #20]
+	ROR	r4, r5, #2
+	EOR	r10, r5, r6
+	EOR	r4, r4, r5, ROR #13
+	AND	r11, r11, r10
+	EOR	r4, r4, r5, ROR #22
+	EOR	r11, r11, r6
+	ADD	r8, r8, r9
+	ADD	r9, r9, r4
+	ADD	r9, r9, r11
+	STR	r8, [r0, #20]
+	STR	r9, [r0, #4]
+	CMP	r3, #0x0
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BEQ	L_SHA256_transform_len_blk_end_6
+#else
+	BEQ.N	L_SHA256_transform_len_blk_end_6
+#endif
+	/* Calc new W[6] */
+	LDR	r6, [sp, #16]
+	LDR	r7, [sp, #60]
+	LDR	r8, [sp, #28]
+	LDR	r9, [sp, #24]
+	ROR	r4, r6, #17
+	ROR	r5, r8, #7
+	EOR	r4, r4, r6, ROR #19
+	EOR	r5, r5, r8, ROR #18
+	EOR	r4, r4, r6, LSR #10
+	EOR	r5, r5, r8, LSR #3
+	ADD	r9, r9, r7
+	ADD	r4, r4, r5
+	ADD	r9, r9, r4
+	STR	r9, [sp, #24]
+L_SHA256_transform_len_blk_end_6:
+	/* Round 7 */
+	LDR	r5, [r0, #20]
+	LDR	r6, [r0, #24]
+	LDR	r7, [r0, #28]
+	LDR	r9, [r0]
+	ROR	r4, r5, #6
+	EOR	r6, r6, r7
+	EOR	r4, r4, r5, ROR #11
+	AND	r6, r6, r5
+	EOR	r4, r4, r5, ROR #25
+	EOR	r6, r6, r7
+	ADD	r9, r9, r4
+	ADD	r9, r9, r6
+	LDR	r5, [sp, #28]
+	LDR	r6, [r12, #28]
+	ADD	r9, r9, r5
+	ADD	r9, r9, r6
+	LDR	r5, [r0, #4]
+	LDR	r6, [r0, #8]
+	LDR	r7, [r0, #12]
+	LDR	r8, [r0, #16]
+	ROR	r4, r5, #2
+	EOR	r11, r5, r6
+	EOR	r4, r4, r5, ROR #13
+	AND	r10, r10, r11
+	EOR	r4, r4, r5, ROR #22
+	EOR	r10, r10, r6
+	ADD	r8, r8, r9
+	ADD	r9, r9, r4
+	ADD	r9, r9, r10
+	STR	r8, [r0, #16]
+	STR	r9, [r0]
+	CMP	r3, #0x0
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BEQ	L_SHA256_transform_len_blk_end_7
+#else
+	BEQ.N	L_SHA256_transform_len_blk_end_7
+#endif
+	/* Calc new W[7] */
+	LDR	r6, [sp, #20]
+	LDR	r7, [sp]
+	LDR	r8, [sp, #32]
+	LDR	r9, [sp, #28]
+	ROR	r4, r6, #17
+	ROR	r5, r8, #7
+	EOR	r4, r4, r6, ROR #19
+	EOR	r5, r5, r8, ROR #18
+	EOR	r4, r4, r6, LSR #10
+	EOR	r5, r5, r8, LSR #3
+	ADD	r9, r9, r7
+	ADD	r4, r4, r5
+	ADD	r9, r9, r4
+	STR	r9, [sp, #28]
+L_SHA256_transform_len_blk_end_7:
+	/* Round 8 */
+	LDR	r5, [r0, #16]
+	LDR	r6, [r0, #20]
+	LDR	r7, [r0, #24]
+	LDR	r9, [r0, #28]
+	ROR	r4, r5, #6
+	EOR	r6, r6, r7
+	EOR	r4, r4, r5, ROR #11
+	AND	r6, r6, r5
+	EOR	r4, r4, r5, ROR #25
+	EOR	r6, r6, r7
+	ADD	r9, r9, r4
+	ADD	r9, r9, r6
+	LDR	r5, [sp, #32]
+	LDR	r6, [r12, #32]
+	ADD	r9, r9, r5
+	ADD	r9, r9, r6
+	LDR	r5, [r0]
+	LDR	r6, [r0, #4]
+	LDR	r7, [r0, #8]
+	LDR	r8, [r0, #12]
+	ROR	r4, r5, #2
+	EOR	r10, r5, r6
+	EOR	r4, r4, r5, ROR #13
+	AND	r11, r11, r10
+	EOR	r4, r4, r5, ROR #22
+	EOR	r11, r11, r6
+	ADD	r8, r8, r9
+	ADD	r9, r9, r4
+	ADD	r9, r9, r11
+	STR	r8, [r0, #12]
+	STR	r9, [r0, #28]
+	CMP	r3, #0x0
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BEQ	L_SHA256_transform_len_blk_end_8
+#else
+	BEQ.N	L_SHA256_transform_len_blk_end_8
+#endif
+	/* Calc new W[8] */
+	LDR	r6, [sp, #24]
+	LDR	r7, [sp, #4]
+	LDR	r8, [sp, #36]
+	LDR	r9, [sp, #32]
+	ROR	r4, r6, #17
+	ROR	r5, r8, #7
+	EOR	r4, r4, r6, ROR #19
+	EOR	r5, r5, r8, ROR #18
+	EOR	r4, r4, r6, LSR #10
+	EOR	r5, r5, r8, LSR #3
+	ADD	r9, r9, r7
+	ADD	r4, r4, r5
+	ADD	r9, r9, r4
+	STR	r9, [sp, #32]
+L_SHA256_transform_len_blk_end_8:
+	/* Round 9 */
+	LDR	r5, [r0, #12]
+	LDR	r6, [r0, #16]
+	LDR	r7, [r0, #20]
+	LDR	r9, [r0, #24]
+	ROR	r4, r5, #6
+	EOR	r6, r6, r7
+	EOR	r4, r4, r5, ROR #11
+	AND	r6, r6, r5
+	EOR	r4, r4, r5, ROR #25
+	EOR	r6, r6, r7
+	ADD	r9, r9, r4
+	ADD	r9, r9, r6
+	LDR	r5, [sp, #36]
+	LDR	r6, [r12, #36]
+	ADD	r9, r9, r5
+	ADD	r9, r9, r6
+	LDR	r5, [r0, #28]
+	LDR	r6, [r0]
+	LDR	r7, [r0, #4]
+	LDR	r8, [r0, #8]
+	ROR	r4, r5, #2
+	EOR	r11, r5, r6
+	EOR	r4, r4, r5, ROR #13
+	AND	r10, r10, r11
+	EOR	r4, r4, r5, ROR #22
+	EOR	r10, r10, r6
+	ADD	r8, r8, r9
+	ADD	r9, r9, r4
+	ADD	r9, r9, r10
+	STR	r8, [r0, #8]
+	STR	r9, [r0, #24]
+	CMP	r3, #0x0
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BEQ	L_SHA256_transform_len_blk_end_9
+#else
+	BEQ.N	L_SHA256_transform_len_blk_end_9
+#endif
+	/* Calc new W[9] */
+	LDR	r6, [sp, #28]
+	LDR	r7, [sp, #8]
+	LDR	r8, [sp, #40]
+	LDR	r9, [sp, #36]
+	ROR	r4, r6, #17
+	ROR	r5, r8, #7
+	EOR	r4, r4, r6, ROR #19
+	EOR	r5, r5, r8, ROR #18
+	EOR	r4, r4, r6, LSR #10
+	EOR	r5, r5, r8, LSR #3
+	ADD	r9, r9, r7
+	ADD	r4, r4, r5
+	ADD	r9, r9, r4
+	STR	r9, [sp, #36]
+L_SHA256_transform_len_blk_end_9:
+	/* Round 10 */
+	LDR	r5, [r0, #8]
+	LDR	r6, [r0, #12]
+	LDR	r7, [r0, #16]
+	LDR	r9, [r0, #20]
+	ROR	r4, r5, #6
+	EOR	r6, r6, r7
+	EOR	r4, r4, r5, ROR #11
+	AND	r6, r6, r5
+	EOR	r4, r4, r5, ROR #25
+	EOR	r6, r6, r7
+	ADD	r9, r9, r4
+	ADD	r9, r9, r6
+	LDR	r5, [sp, #40]
+	LDR	r6, [r12, #40]
+	ADD	r9, r9, r5
+	ADD	r9, r9, r6
+	LDR	r5, [r0, #24]
+	LDR	r6, [r0, #28]
+	LDR	r7, [r0]
+	LDR	r8, [r0, #4]
+	ROR	r4, r5, #2
+	EOR	r10, r5, r6
+	EOR	r4, r4, r5, ROR #13
+	AND	r11, r11, r10
+	EOR	r4, r4, r5, ROR #22
+	EOR	r11, r11, r6
+	ADD	r8, r8, r9
+	ADD	r9, r9, r4
+	ADD	r9, r9, r11
+	STR	r8, [r0, #4]
+	STR	r9, [r0, #20]
+	CMP	r3, #0x0
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BEQ	L_SHA256_transform_len_blk_end_10
+#else
+	BEQ.N	L_SHA256_transform_len_blk_end_10
+#endif
+	/* Calc new W[10] */
+	LDR	r6, [sp, #32]
+	LDR	r7, [sp, #12]
+	LDR	r8, [sp, #44]
+	LDR	r9, [sp, #40]
+	ROR	r4, r6, #17
+	ROR	r5, r8, #7
+	EOR	r4, r4, r6, ROR #19
+	EOR	r5, r5, r8, ROR #18
+	EOR	r4, r4, r6, LSR #10
+	EOR	r5, r5, r8, LSR #3
+	ADD	r9, r9, r7
+	ADD	r4, r4, r5
+	ADD	r9, r9, r4
+	STR	r9, [sp, #40]
+L_SHA256_transform_len_blk_end_10:
+	/* Round 11 */
+	LDR	r5, [r0, #4]
+	LDR	r6, [r0, #8]
+	LDR	r7, [r0, #12]
+	LDR	r9, [r0, #16]
+	ROR	r4, r5, #6
+	EOR	r6, r6, r7
+	EOR	r4, r4, r5, ROR #11
+	AND	r6, r6, r5
+	EOR	r4, r4, r5, ROR #25
+	EOR	r6, r6, r7
+	ADD	r9, r9, r4
+	ADD	r9, r9, r6
+	LDR	r5, [sp, #44]
+	LDR	r6, [r12, #44]
+	ADD	r9, r9, r5
+	ADD	r9, r9, r6
+	LDR	r5, [r0, #20]
+	LDR	r6, [r0, #24]
+	LDR	r7, [r0, #28]
+	LDR	r8, [r0]
+	ROR	r4, r5, #2
+	EOR	r11, r5, r6
+	EOR	r4, r4, r5, ROR #13
+	AND	r10, r10, r11
+	EOR	r4, r4, r5, ROR #22
+	EOR	r10, r10, r6
+	ADD	r8, r8, r9
+	ADD	r9, r9, r4
+	ADD	r9, r9, r10
+	STR	r8, [r0]
+	STR	r9, [r0, #16]
+	CMP	r3, #0x0
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BEQ	L_SHA256_transform_len_blk_end_11
+#else
+	BEQ.N	L_SHA256_transform_len_blk_end_11
+#endif
+	/* Calc new W[11] */
+	LDR	r6, [sp, #36]
+	LDR	r7, [sp, #16]
+	LDR	r8, [sp, #48]
+	LDR	r9, [sp, #44]
+	ROR	r4, r6, #17
+	ROR	r5, r8, #7
+	EOR	r4, r4, r6, ROR #19
+	EOR	r5, r5, r8, ROR #18
+	EOR	r4, r4, r6, LSR #10
+	EOR	r5, r5, r8, LSR #3
+	ADD	r9, r9, r7
+	ADD	r4, r4, r5
+	ADD	r9, r9, r4
+	STR	r9, [sp, #44]
+L_SHA256_transform_len_blk_end_11:
+	/* Round 12 */
+	LDR	r5, [r0]
+	LDR	r6, [r0, #4]
+	LDR	r7, [r0, #8]
+	LDR	r9, [r0, #12]
+	ROR	r4, r5, #6
+	EOR	r6, r6, r7
+	EOR	r4, r4, r5, ROR #11
+	AND	r6, r6, r5
+	EOR	r4, r4, r5, ROR #25
+	EOR	r6, r6, r7
+	ADD	r9, r9, r4
+	ADD	r9, r9, r6
+	LDR	r5, [sp, #48]
+	LDR	r6, [r12, #48]
+	ADD	r9, r9, r5
+	ADD	r9, r9, r6
+	LDR	r5, [r0, #16]
+	LDR	r6, [r0, #20]
+	LDR	r7, [r0, #24]
+	LDR	r8, [r0, #28]
+	ROR	r4, r5, #2
+	EOR	r10, r5, r6
+	EOR	r4, r4, r5, ROR #13
+	AND	r11, r11, r10
+	EOR	r4, r4, r5, ROR #22
+	EOR	r11, r11, r6
+	ADD	r8, r8, r9
+	ADD	r9, r9, r4
+	ADD	r9, r9, r11
+	STR	r8, [r0, #28]
+	STR	r9, [r0, #12]
+	CMP	r3, #0x0
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BEQ	L_SHA256_transform_len_blk_end_12
+#else
+	BEQ.N	L_SHA256_transform_len_blk_end_12
+#endif
+	/* Calc new W[12] */
+	LDR	r6, [sp, #40]
+	LDR	r7, [sp, #20]
+	LDR	r8, [sp, #52]
+	LDR	r9, [sp, #48]
+	ROR	r4, r6, #17
+	ROR	r5, r8, #7
+	EOR	r4, r4, r6, ROR #19
+	EOR	r5, r5, r8, ROR #18
+	EOR	r4, r4, r6, LSR #10
+	EOR	r5, r5, r8, LSR #3
+	ADD	r9, r9, r7
+	ADD	r4, r4, r5
+	ADD	r9, r9, r4
+	STR	r9, [sp, #48]
+L_SHA256_transform_len_blk_end_12:
+	/* Round 13 */
+	LDR	r5, [r0, #28]
+	LDR	r6, [r0]
+	LDR	r7, [r0, #4]
+	LDR	r9, [r0, #8]
+	ROR	r4, r5, #6
+	EOR	r6, r6, r7
+	EOR	r4, r4, r5, ROR #11
+	AND	r6, r6, r5
+	EOR	r4, r4, r5, ROR #25
+	EOR	r6, r6, r7
+	ADD	r9, r9, r4
+	ADD	r9, r9, r6
+	LDR	r5, [sp, #52]
+	LDR	r6, [r12, #52]
+	ADD	r9, r9, r5
+	ADD	r9, r9, r6
+	LDR	r5, [r0, #12]
+	LDR	r6, [r0, #16]
+	LDR	r7, [r0, #20]
+	LDR	r8, [r0, #24]
+	ROR	r4, r5, #2
+	EOR	r11, r5, r6
+	EOR	r4, r4, r5, ROR #13
+	AND	r10, r10, r11
+	EOR	r4, r4, r5, ROR #22
+	EOR	r10, r10, r6
+	ADD	r8, r8, r9
+	ADD	r9, r9, r4
+	ADD	r9, r9, r10
+	STR	r8, [r0, #24]
+	STR	r9, [r0, #8]
+	CMP	r3, #0x0
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BEQ	L_SHA256_transform_len_blk_end_13
+#else
+	BEQ.N	L_SHA256_transform_len_blk_end_13
+#endif
+	/* Calc new W[13] */
+	LDR	r6, [sp, #44]
+	LDR	r7, [sp, #24]
+	LDR	r8, [sp, #56]
+	LDR	r9, [sp, #52]
+	ROR	r4, r6, #17
+	ROR	r5, r8, #7
+	EOR	r4, r4, r6, ROR #19
+	EOR	r5, r5, r8, ROR #18
+	EOR	r4, r4, r6, LSR #10
+	EOR	r5, r5, r8, LSR #3
+	ADD	r9, r9, r7
+	ADD	r4, r4, r5
+	ADD	r9, r9, r4
+	STR	r9, [sp, #52]
+L_SHA256_transform_len_blk_end_13:
+	/* Round 14 */
+	LDR	r5, [r0, #24]
+	LDR	r6, [r0, #28]
+	LDR	r7, [r0]
+	LDR	r9, [r0, #4]
+	ROR	r4, r5, #6
+	EOR	r6, r6, r7
+	EOR	r4, r4, r5, ROR #11
+	AND	r6, r6, r5
+	EOR	r4, r4, r5, ROR #25
+	EOR	r6, r6, r7
+	ADD	r9, r9, r4
+	ADD	r9, r9, r6
+	LDR	r5, [sp, #56]
+	LDR	r6, [r12, #56]
+	ADD	r9, r9, r5
+	ADD	r9, r9, r6
+	LDR	r5, [r0, #8]
+	LDR	r6, [r0, #12]
+	LDR	r7, [r0, #16]
+	LDR	r8, [r0, #20]
+	ROR	r4, r5, #2
+	EOR	r10, r5, r6
+	EOR	r4, r4, r5, ROR #13
+	AND	r11, r11, r10
+	EOR	r4, r4, r5, ROR #22
+	EOR	r11, r11, r6
+	ADD	r8, r8, r9
+	ADD	r9, r9, r4
+	ADD	r9, r9, r11
+	STR	r8, [r0, #20]
+	STR	r9, [r0, #4]
+	CMP	r3, #0x0
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BEQ	L_SHA256_transform_len_blk_end_14
+#else
+	BEQ.N	L_SHA256_transform_len_blk_end_14
+#endif
+	/* Calc new W[14] */
+	LDR	r6, [sp, #48]
+	LDR	r7, [sp, #28]
+	LDR	r8, [sp, #60]
+	LDR	r9, [sp, #56]
+	ROR	r4, r6, #17
+	ROR	r5, r8, #7
+	EOR	r4, r4, r6, ROR #19
+	EOR	r5, r5, r8, ROR #18
+	EOR	r4, r4, r6, LSR #10
+	EOR	r5, r5, r8, LSR #3
+	ADD	r9, r9, r7
+	ADD	r4, r4, r5
+	ADD	r9, r9, r4
+	STR	r9, [sp, #56]
+L_SHA256_transform_len_blk_end_14:
+	/* Round 15 */
+	LDR	r5, [r0, #20]
+	LDR	r6, [r0, #24]
+	LDR	r7, [r0, #28]
+	LDR	r9, [r0]
+	ROR	r4, r5, #6
+	EOR	r6, r6, r7
+	EOR	r4, r4, r5, ROR #11
+	AND	r6, r6, r5
+	EOR	r4, r4, r5, ROR #25
+	EOR	r6, r6, r7
+	ADD	r9, r9, r4
+	ADD	r9, r9, r6
+	LDR	r5, [sp, #60]
+	LDR	r6, [r12, #60]
+	ADD	r9, r9, r5
+	ADD	r9, r9, r6
+	LDR	r5, [r0, #4]
+	LDR	r6, [r0, #8]
+	LDR	r7, [r0, #12]
+	LDR	r8, [r0, #16]
+	ROR	r4, r5, #2
+	EOR	r11, r5, r6
+	EOR	r4, r4, r5, ROR #13
+	AND	r10, r10, r11
+	EOR	r4, r4, r5, ROR #22
+	EOR	r10, r10, r6
+	ADD	r8, r8, r9
+	ADD	r9, r9, r4
+	ADD	r9, r9, r10
+	STR	r8, [r0, #16]
+	STR	r9, [r0]
+	CMP	r3, #0x0
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BEQ	L_SHA256_transform_len_blk_end_15
+#else
+	BEQ.N	L_SHA256_transform_len_blk_end_15
+#endif
+	/* Calc new W[15] */
+	LDR	r6, [sp, #52]
+	LDR	r7, [sp, #32]
+	LDR	r8, [sp]
+	LDR	r9, [sp, #60]
+	ROR	r4, r6, #17
+	ROR	r5, r8, #7
+	EOR	r4, r4, r6, ROR #19
+	EOR	r5, r5, r8, ROR #18
+	EOR	r4, r4, r6, LSR #10
+	EOR	r5, r5, r8, LSR #3
+	ADD	r9, r9, r7
+	ADD	r4, r4, r5
+	ADD	r9, r9, r4
+	STR	r9, [sp, #60]
+L_SHA256_transform_len_blk_end_15:
+	CMP	r3, #0x0
+	ADD	r12, r12, #0x40
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BNE	L_SHA256_transform_len_start_small
+#else
+	BNE.W	L_SHA256_transform_len_start_small
+#endif
+#endif /* !WOLFSSL_ARMASM_SHA256_SMALL */
 	/* Add in digest from start */
 	LDRD	r4, r5, [r0]
 	LDRD	r6, r7, [r0, #8]
@@ -1466,7 +2344,11 @@ L_SHA256_transform_len_start:
 	STRD	r4, r5, [sp, #80]
 	STRD	r6, r7, [sp, #88]
 	SUBS	r2, r2, #0x40
-	SUB	r3, r3, #0xc0
+#ifndef WOLFSSL_ARMASM_SHA256_SMALL
+	SUB	r12, r12, #0xc0
+#else
+	SUB	r12, r12, #0x100
+#endif /* !WOLFSSL_ARMASM_SHA256_SMALL */
 	ADD	r1, r1, #0x40
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_SHA256_transform_len_begin
@@ -1475,7 +2357,7 @@ L_SHA256_transform_len_start:
 #endif
 	ADD	sp, sp, #0xc0
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-	/* Cycle Count = 1874 */
+	/* Cycle Count = 2954 */
 	.size	Transform_Sha256_Len_base,.-Transform_Sha256_Len_base
 #endif /* WOLFSSL_ARMASM_NO_NEON */
 #endif /* !NO_SHA256 */
