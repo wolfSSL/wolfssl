@@ -1957,7 +1957,7 @@ struct Signer {
 #endif /* !IGNORE_NAME_CONSTRAINTS */
     byte    subjectNameHash[SIGNER_DIGEST_SIZE];
                                      /* sha hash of names in certificate */
-    #if defined(HAVE_OCSP) || defined(HAVE_CRL)
+    #if defined(HAVE_OCSP) || defined(HAVE_CRL) || defined(WOLFSSL_AKID_NAME)
         byte    issuerNameHash[SIGNER_DIGEST_SIZE];
                                      /* sha hash of issuer names in certificate.
                                       * Used in OCSP to check for authorized
@@ -2059,21 +2059,6 @@ typedef enum MimeStatus
 } MimeStatus;
 #endif /* HAVE_SMIME */
 
-WOLFSSL_LOCAL int HashIdAlg(word32 oidSum);
-WOLFSSL_LOCAL int CalcHashId(const byte* data, word32 len, byte* hash);
-WOLFSSL_LOCAL int CalcHashId_ex(const byte* data, word32 len, byte* hash,
-    int hashAlg);
-WOLFSSL_LOCAL int GetHashId(const byte* id, int length, byte* hash,
-    int hashAlg);
-WOLFSSL_LOCAL int GetName(DecodedCert* cert, int nameType, int maxIdx);
-
-#ifdef ASN_BER_TO_DER
-WOLFSSL_API int wc_BerToDer(const byte* ber, word32 berSz, byte* der,
-                                word32* derSz);
-#endif
-WOLFSSL_LOCAL int StreamOctetString(const byte* inBuf, word32 inBufSz,
-    byte* out, word32* outSz, word32* idx);
-
 #ifdef WOLFSSL_API_PREFIX_MAP
     #define FreeAltNames wc_FreeAltNames
     #define AltNameNew wc_AltNameNew
@@ -2098,7 +2083,23 @@ WOLFSSL_LOCAL int StreamOctetString(const byte* inBuf, word32 inBufSz,
     #define GetASNTag wc_GetASNTag
     #define SetAlgoID wc_SetAlgoID
     #define SetAsymKeyDer wc_SetAsymKeyDer
+    #define CalcHashId wc_CalcHashId
 #endif /* WOLFSSL_API_PREFIX_MAP */
+
+WOLFSSL_LOCAL int HashIdAlg(word32 oidSum);
+WOLFSSL_TEST_VIS int CalcHashId(const byte* data, word32 len, byte* hash);
+WOLFSSL_LOCAL int CalcHashId_ex(const byte* data, word32 len, byte* hash,
+    int hashAlg);
+WOLFSSL_LOCAL int GetHashId(const byte* id, int length, byte* hash,
+    int hashAlg);
+WOLFSSL_LOCAL int GetName(DecodedCert* cert, int nameType, int maxIdx);
+
+#ifdef ASN_BER_TO_DER
+WOLFSSL_API int wc_BerToDer(const byte* ber, word32 berSz, byte* der,
+                                word32* derSz);
+#endif
+WOLFSSL_LOCAL int StreamOctetString(const byte* inBuf, word32 inBufSz,
+    byte* out, word32* outSz, word32* idx);
 
 WOLFSSL_ASN_API void FreeAltNames(DNS_entry* altNames, void* heap);
 WOLFSSL_ASN_API DNS_entry* AltNameNew(void* heap);

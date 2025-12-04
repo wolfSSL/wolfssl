@@ -23,8 +23,10 @@
 #define WOLFCRYPT_TEST_X509_H
 
 int test_x509_rfc2818_verification_callback(void);
+int test_x509_GetCAByAKID(void);
 
 #define TEST_X509_DECLS                                                        \
-    TEST_DECL_GROUP("x509", test_x509_rfc2818_verification_callback)
+    TEST_DECL_GROUP("x509", test_x509_rfc2818_verification_callback),          \
+    TEST_DECL_GROUP("x509", test_x509_GetCAByAKID)
 
 #endif /* WOLFCRYPT_TEST_X509_H */

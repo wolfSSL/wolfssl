@@ -201,7 +201,7 @@ int wc_ed25519ctx_sign_msg(const byte* in, word32 inlen, byte* out,
     to sign.
     \param [in] hashLen Length of the hash of the message to sign.
     \param [out] out Buffer in which to store the generated signature.
-    \param [in,out] outlen Maximum length of the output buffer. Will store the
+    \param [in,out] outLen Maximum length of the output buffer. Will store the
     bytes written to out upon successfully generating a message signature.
     \param [in] key Pointer to a private ed25519_key with which to generate the
     signature.

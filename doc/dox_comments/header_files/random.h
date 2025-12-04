@@ -95,7 +95,7 @@ int  wc_FreeNetRandom(void);
     \sa wc_FreeRng
     \sa wc_RNG_HealthTest
 */
-int  wc_InitRng(WC_RNG*);
+int  wc_InitRng(WC_RNG* rng);
 
 /*!
     \ingroup Random
@@ -241,7 +241,7 @@ int  wc_RNG_GenerateByte(WC_RNG* rng, byte* b);
     \sa wc_RNG_GenerateByte,
     \sa wc_RNG_HealthTest
 */
-int  wc_FreeRng(WC_RNG*);
+int  wc_FreeRng(WC_RNG* rng);
 
 /*!
     \ingroup Random

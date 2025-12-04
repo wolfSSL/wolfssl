@@ -23,7 +23,7 @@
     \sa wc_RipeMdUpdate
     \sa wc_RipeMdFinal
 */
-int wc_InitRipeMd(RipeMd*);
+int wc_InitRipeMd(RipeMd* ripemd);
 
 /*!
     \ingroup RIPEMD

@@ -5760,7 +5760,7 @@ Signer* GetCAByAKID(void* vp, const byte* issuer, word32 issuerSz,
     for (row = 0; row < CA_TABLE_SIZE && ret == NULL; row++) {
         for (signers = cm->caTable[row]; signers != NULL;
                 signers = signers->next) {
-            if (XMEMCMP(signers->subjectNameHash, nameHash, SIGNER_DIGEST_SIZE)
+            if (XMEMCMP(signers->issuerNameHash, nameHash, SIGNER_DIGEST_SIZE)
                     == 0 && XMEMCMP(signers->serialHash, serialHash,
                                     SIGNER_DIGEST_SIZE) == 0) {
                 ret = signers;
@@ -21390,7 +21390,11 @@ WOLFSSL_ASN1_STRING* wolfSSL_a2i_IPADDRESS(const char* ipa)
     }
 
     buf[WOLFSSL_IP6_ADDR_LEN] = '\0';
+#ifdef FREESCALE_MQX
+    if (XINET_PTON(af, ipa, (void*)buf, sizeof(buf)) != RTCS_OK) {
+#else
     if (XINET_PTON(af, ipa, (void*)buf) != 1) {
+#endif
         WOLFSSL_MSG("Error parsing IP address");
         return NULL;
     }
