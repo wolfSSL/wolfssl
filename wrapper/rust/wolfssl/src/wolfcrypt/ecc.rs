@@ -29,6 +29,7 @@ wolfSSL `ecc_key` object. It ensures proper initialization and deallocation.
 #![cfg(ecc)]
 
 use crate::sys;
+#[cfg(random)]
 use crate::wolfcrypt::random::RNG;
 use std::mem::{MaybeUninit};
 
@@ -55,7 +56,7 @@ impl ECCPoint {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ecc_import)]
+    /// #[cfg(all(ecc_import, random))]
     /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ecc::{ECC,ECCPoint};
@@ -113,7 +114,7 @@ impl ECCPoint {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(ecc_import, ecc_export, ecc_comp_key))]
+    /// #[cfg(all(ecc_import, ecc_export, ecc_comp_key, random))]
     /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ecc::{ECC,ECCPoint};
@@ -168,7 +169,7 @@ impl ECCPoint {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ecc_export)]
+    /// #[cfg(all(ecc_export, random))]
     /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ecc::{ECC,ECCPoint};
@@ -215,7 +216,7 @@ impl ECCPoint {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(ecc_export, ecc_comp_key))]
+    /// #[cfg(all(ecc_export, ecc_comp_key, random))]
     /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ecc::{ECC,ECCPoint};
@@ -251,12 +252,15 @@ impl ECCPoint {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ecc::ECC;
     /// let mut rng = RNG::new().expect("Failed to create RNG");
     /// let mut ecc = ECC::generate(32, &mut rng, None, None).expect("Error with generate()");
     /// let mut ecc_point = ecc.make_pub_to_point(Some(&mut rng), None).expect("Error with make_pub_to_point()");
     /// ecc_point.forcezero();
+    /// }
     /// ```
     pub fn forcezero(&mut self) {
         unsafe { sys::wc_ecc_forcezero_point(self.wc_ecc_point) };
@@ -350,12 +354,16 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ecc::ECC;
     /// let mut rng = RNG::new().expect("Failed to create RNG");
     /// let mut ecc = ECC::generate(32, &mut rng, None, None).expect("Error with generate()");
     /// ecc.check().expect("Error with check()");
+    /// }
     /// ```
+    #[cfg(random)]
     pub fn generate(size: i32, rng: &mut RNG, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
         let heap = match heap {
@@ -401,6 +409,8 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ecc::ECC;
     /// let mut rng = RNG::new().expect("Failed to create RNG");
@@ -408,7 +418,9 @@ impl ECC {
     /// let curve_size = ECC::get_curve_size_from_id(curve_id).expect("Error with get_curve_size_from_id()");
     /// let mut ecc = ECC::generate_ex(curve_size, &mut rng, curve_id, None, None).expect("Error with generate_ex()");
     /// ecc.check().expect("Error with check()");
+    /// }
     /// ```
+    #[cfg(random)]
     pub fn generate_ex(size: i32, rng: &mut RNG, curve_id: i32, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
         let heap = match heap {
@@ -455,6 +467,8 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ecc::ECC;
     /// let mut rng = RNG::new().expect("Failed to create RNG");
@@ -462,7 +476,9 @@ impl ECC {
     /// let curve_size = ECC::get_curve_size_from_id(curve_id).expect("Error with get_curve_size_from_id()");
     /// let mut ecc = ECC::generate_ex2(curve_size, &mut rng, curve_id, ECC::FLAG_COFACTOR, None, None).expect("Error with generate_ex2()");
     /// ecc.check().expect("Error with check()");
+    /// }
     /// ```
+    #[cfg(random)]
     pub fn generate_ex2(size: i32, rng: &mut RNG, curve_id: i32, flags: i32, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
         let heap = match heap {
@@ -503,6 +519,8 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ecc::ECC;
     /// let mut rng = RNG::new().expect("Failed to create RNG");
@@ -510,6 +528,7 @@ impl ECC {
     /// let curve_size = ECC::get_curve_size_from_id(curve_id).expect("Error with get_curve_size_from_id()");
     /// let mut ecc = ECC::generate_ex(curve_size, &mut rng, curve_id, None, None).expect("Error with generate()");
     /// ecc.check().expect("Error with check()");
+    /// }
     /// ```
     pub fn get_curve_size_from_id(curve_id: i32) -> Result<i32, i32> {
         let rc = unsafe { sys::wc_ecc_get_curve_size_from_id(curve_id) };
@@ -535,6 +554,8 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ecc::ECC;
     /// use std::fs;
@@ -542,6 +563,7 @@ impl ECC {
     /// let key_path = "../../../certs/ecc-client-key.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
     /// let mut ecc = ECC::import_der(&der, None, None).expect("Error with import_der()");
+    /// }
     /// ```
     pub fn import_der(der: &[u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
@@ -586,6 +608,8 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ecc::ECC;
     /// use std::fs;
@@ -601,6 +625,7 @@ impl ECC {
     /// let key_path = "../../../certs/ecc-client-keyPub.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
     /// let mut ecc = ECC::import_public_der(&der, None, None).expect("Error with import_public_der()");
+    /// }
     /// ```
     pub fn import_public_der(der: &[u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
@@ -650,7 +675,7 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ecc_import)]
+    /// #[cfg(all(ecc_import, random))]
     /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ecc::ECC;
@@ -721,7 +746,7 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ecc_import)]
+    /// #[cfg(all(ecc_import, random))]
     /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ecc::ECC;
@@ -794,7 +819,6 @@ impl ECC {
     /// ```rust
     /// #[cfg(ecc_import)]
     /// {
-    /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ecc::ECC;
     /// let qx = b"7a4e287890a1a47ad3457e52f2f76a83ce46cbc947616d0cbaa82323818a793d\0";
     /// let qy = b"eec4084f5b29ebf29c44cce3b3059610922f8b30ea6e8811742ac7238fe87308\0";
@@ -855,7 +879,6 @@ impl ECC {
     /// ```rust
     /// #[cfg(ecc_import)]
     /// {
-    /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ecc::ECC;
     /// let qx = b"7a4e287890a1a47ad3457e52f2f76a83ce46cbc947616d0cbaa82323818a793d\0";
     /// let qy = b"eec4084f5b29ebf29c44cce3b3059610922f8b30ea6e8811742ac7238fe87308\0";
@@ -913,7 +936,7 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ecc_import)]
+    /// #[cfg(all(ecc_import, random))]
     /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ecc::ECC;
@@ -977,7 +1000,7 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ecc_import)]
+    /// #[cfg(all(ecc_import, random))]
     /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ecc::ECC;
@@ -1039,7 +1062,7 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ecc_import)]
+    /// #[cfg(all(ecc_import, random))]
     /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ecc::ECC;
@@ -1100,6 +1123,8 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use std::fs;
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ecc::ECC;
@@ -1131,6 +1156,7 @@ impl ECC {
     /// let mut sig_out = [0u8; 128];
     /// let sig_out_size = ECC::rs_hex_to_sig(&r_hex_string[0..r_hex_string.len()].as_bytes(), &s_hex_string[0..s_hex_string.len()].as_bytes(), &mut sig_out).expect("Error with rs_hex_to_sig()");
     /// assert_eq!(*signature, *&sig_out[0..sig_out_size]);
+    /// }
     /// ```
     pub fn rs_hex_to_sig(r: &[u8], s: &[u8], dout: &mut [u8]) -> Result<usize, i32> {
         let mut dout_size = dout.len() as u32;
@@ -1163,6 +1189,8 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use std::fs;
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ecc::ECC;
@@ -1184,6 +1212,7 @@ impl ECC {
     /// let mut sig_out = [0u8; 128];
     /// let sig_out_size = ECC::rs_bin_to_sig(r, s, &mut sig_out).expect("Error with rs_bin_to_sig()");
     /// assert_eq!(*signature, *&sig_out[0..sig_out_size]);
+    /// }
     /// ```
     pub fn rs_bin_to_sig(r: &[u8], s: &[u8], dout: &mut [u8]) -> Result<usize, i32> {
         let r_size = r.len() as u32;
@@ -1212,6 +1241,8 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use std::fs;
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ecc::ECC;
@@ -1233,6 +1264,7 @@ impl ECC {
     /// let mut sig_out = [0u8; 128];
     /// let sig_out_size = ECC::rs_bin_to_sig(r, s, &mut sig_out).expect("Error with rs_bin_to_sig()");
     /// assert_eq!(*signature, *&sig_out[0..sig_out_size]);
+    /// }
     /// ```
     pub fn sig_to_rs(sig: &[u8], r: &mut [u8], r_size: &mut u32, s: &mut [u8], s_size: &mut u32) -> Result<(), i32> {
         let sig_len = sig.len() as u32;
@@ -1258,11 +1290,14 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ecc::ECC;
     /// let mut rng = RNG::new().expect("Failed to create RNG");
     /// let mut ecc = ECC::generate(32, &mut rng, None, None).expect("Error with generate()");
     /// ecc.check().expect("Error with check()");
+    /// }
     /// ```
     pub fn check(&mut self) -> Result<(), i32> {
         let rc = unsafe { sys::wc_ecc_check_key(&mut self.wc_ecc_key) };
@@ -1291,7 +1326,7 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ecc_import)]
+    /// #[cfg(all(ecc_import, random))]
     /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ecc::ECC;
@@ -1346,7 +1381,7 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ecc_import)]
+    /// #[cfg(all(ecc_import, random))]
     /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ecc::ECC;
@@ -1402,7 +1437,7 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ecc_export)]
+    /// #[cfg(all(ecc_export, random))]
     /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ecc::ECC;
@@ -1443,7 +1478,7 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ecc_export)]
+    /// #[cfg(all(ecc_export, random))]
     /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ecc::ECC;
@@ -1486,7 +1521,7 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ecc_export)]
+    /// #[cfg(all(ecc_export, random))]
     /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ecc::ECC;
@@ -1522,7 +1557,7 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(ecc_export, ecc_comp_key))]
+    /// #[cfg(all(ecc_export, ecc_comp_key, random))]
     /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ecc::ECC;
@@ -1559,6 +1594,8 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use std::fs;
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ecc::ECC;
@@ -1567,7 +1604,9 @@ impl ECC {
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
     /// let mut ecc = ECC::import_der(&der, None, None).expect("Error with import_der()");
     /// ecc.make_pub(Some(&mut rng)).expect("Error with make_pub()");
+    /// }
     /// ```
+    #[cfg(random)]
     pub fn make_pub(&mut self, rng: Option<&mut RNG>) -> Result<(), i32> {
         let rng_ptr = match rng {
             Some(rng) => &mut rng.wc_rng,
@@ -1598,6 +1637,8 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use std::fs;
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ecc::ECC;
@@ -1606,7 +1647,9 @@ impl ECC {
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
     /// let mut ecc = ECC::import_der(&der, None, None).expect("Error with import_der()");
     /// ecc.make_pub_to_point(Some(&mut rng), None).expect("Error with make_pub_to_point()");
+    /// }
     /// ```
+    #[cfg(random)]
     pub fn make_pub_to_point(&mut self, rng: Option<&mut RNG>, heap: Option<*mut std::os::raw::c_void>) -> Result<ECCPoint, i32> {
         let rng_ptr = match rng {
             Some(rng) => &mut rng.wc_rng,
@@ -1649,12 +1692,16 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ecc::ECC;
     /// let mut rng = RNG::new().expect("Failed to create RNG");
     /// let mut ecc = ECC::generate(32, &mut rng, None, None).expect("Error with generate()");
     /// ecc.set_rng(&mut rng).expect("Error with set_rng()");
+    /// }
     /// ```
+    #[cfg(random)]
     pub fn set_rng(&mut self, rng: &mut RNG) -> Result<(), i32> {
         let rc = unsafe {
             sys::wc_ecc_set_rng(&mut self.wc_ecc_key, &mut rng.wc_rng)
@@ -1681,7 +1728,7 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ecc_dh)]
+    /// #[cfg(all(ecc_dh, random))]
     /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ecc::ECC;
@@ -1730,7 +1777,7 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ecc_dh)]
+    /// #[cfg(all(ecc_dh, random))]
     /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ecc::ECC;
@@ -1779,7 +1826,7 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ecc_sign)]
+    /// #[cfg(all(ecc_sign, random))]
     /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ecc::ECC;
@@ -1793,7 +1840,7 @@ impl ECC {
     /// assert_eq!(valid, true);
     /// }
     /// ```
-    #[cfg(ecc_sign)]
+    #[cfg(all(ecc_sign, random))]
     pub fn sign_hash(&mut self, din: &[u8], dout: &mut [u8], rng: &mut RNG) -> Result<usize, i32> {
         let din_size = din.len() as u32;
         let mut dout_size = dout.len() as u32;
@@ -1822,7 +1869,7 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ecc_verify)]
+    /// #[cfg(all(ecc_verify, random))]
     /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ecc::ECC;

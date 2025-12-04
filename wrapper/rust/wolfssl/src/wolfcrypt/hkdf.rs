@@ -23,6 +23,8 @@ This module provides a Rust wrapper for the wolfCrypt library's HMAC Key
 Derivation Function (HKDF) functionality.
 */
 
+#![cfg(hkdf)]
+
 use crate::sys;
 use crate::wolfcrypt::hmac::HMAC;
 

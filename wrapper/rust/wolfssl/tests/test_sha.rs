@@ -27,7 +27,7 @@ fn test_sha() {
 }
 
 #[test]
-#[cfg(sha256)]
+#[cfg(sha224)]
 fn test_sha224() {
     let mut sha = SHA224::new().expect("Error with new()");
     fn test1(sha: &mut SHA224, input: &[u8], expected_hash: &[u8]) {
@@ -73,7 +73,7 @@ fn test_sha256() {
 }
 
 #[test]
-#[cfg(sha512)]
+#[cfg(sha384)]
 fn test_sha384() {
     let mut sha = SHA384::new().expect("Error with new()");
     fn test1(sha: &mut SHA384, input: &[u8], expected_hash: &[u8]) {

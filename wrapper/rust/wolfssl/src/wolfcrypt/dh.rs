@@ -29,6 +29,7 @@ wolfSSL `DhKey` object. It ensures proper initialization and deallocation.
 #![cfg(dh)]
 
 use crate::sys;
+#[cfg(random)]
 use crate::wolfcrypt::random::RNG;
 use std::mem::{MaybeUninit};
 
@@ -38,14 +39,19 @@ pub struct DH {
 
 impl DH {
     /// ffdhe2048 named parameter group.
+    #[cfg(dh_ffdhe_2048)]
     pub const FFDHE_2048: i32 = sys::WC_FFDHE_2048 as i32;
     /// ffdhe3072 named parameter group.
+    #[cfg(dh_ffdhe_3072)]
     pub const FFDHE_3072: i32 = sys::WC_FFDHE_3072 as i32;
     /// ffdhe4096 named parameter group.
+    #[cfg(dh_ffdhe_4096)]
     pub const FFDHE_4096: i32 = sys::WC_FFDHE_4096 as i32;
     /// ffdhe6144 named parameter group.
+    #[cfg(dh_ffdhe_6144)]
     pub const FFDHE_6144: i32 = sys::WC_FFDHE_6144 as i32;
     /// ffdhe8192 named parameter group.
+    #[cfg(dh_ffdhe_8192)]
     pub const FFDHE_8192: i32 = sys::WC_FFDHE_8192 as i32;
 
     /// Perform quick validity check of public key value against prime.
@@ -68,6 +74,8 @@ impl DH {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(all(dh_ffdhe_2048, random))]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
     /// let mut rng = RNG::new().expect("Failed to create RNG");
@@ -87,6 +95,7 @@ impl DH {
     /// dh.export_params_raw(&mut p, &mut p_size, &mut q, &mut q_size, &mut g, &mut g_size).expect("Error with export_params_raw()");
     /// let p = &p[0..(p_size as usize)];
     /// DH::check_pub_value(p, public).expect("Error with check_pub_value()");
+    /// }
     /// ```
     pub fn check_pub_value(prime: &[u8], public: &[u8]) -> Result<(), i32> {
         let prime_size = prime.len() as u32;
@@ -117,6 +126,8 @@ impl DH {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(all(dh_ffdhe_2048, random))]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
     /// let mut dh = DH::new_named(DH::FFDHE_2048).expect("Error with new_named()");
@@ -130,6 +141,7 @@ impl DH {
     /// let p = &p[0..(p_size as usize)];
     /// let g = &g[0..(g_size as usize)];
     /// assert!(DH::compare_named_key(DH::FFDHE_2048, p, g, None));
+    /// }
     /// ```
     pub fn compare_named_key(name: i32, p: &[u8], g: &[u8], q: Option<&[u8]>) -> bool {
         let p_size = p.len() as u32;
@@ -166,7 +178,7 @@ impl DH {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(dh_keygen)]
+    /// #[cfg(all(dh_keygen, random))]
     /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
@@ -174,7 +186,7 @@ impl DH {
     /// let mut dh = DH::generate(&mut rng, 2048).expect("Error with generate()");
     /// }
     /// ```
-    #[cfg(dh_keygen)]
+    #[cfg(all(dh_keygen, random))]
     pub fn generate(rng: &mut RNG, modulus_size: i32) -> Result<Self, i32> {
         Self::generate_ex(rng, modulus_size, None, None)
     }
@@ -197,7 +209,7 @@ impl DH {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(dh_keygen)]
+    /// #[cfg(all(dh_keygen, random))]
     /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
@@ -205,7 +217,7 @@ impl DH {
     /// let mut dh = DH::generate_ex(&mut rng, 2048, None, None).expect("Error with generate_ex()");
     /// }
     /// ```
-    #[cfg(dh_keygen)]
+    #[cfg(all(dh_keygen, random))]
     pub fn generate_ex(rng: &mut RNG, modulus_size: i32, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_dhkey: MaybeUninit<sys::DhKey> = MaybeUninit::uninit();
         let heap = match heap {
@@ -244,10 +256,13 @@ impl DH {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(all(dh_ffdhe_2048, random))]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
     /// let min_key_size = DH::get_min_key_size_for_named_parameters(DH::FFDHE_2048);
     /// assert_eq!(min_key_size, 29);
+    /// }
     /// ```
     pub fn get_min_key_size_for_named_parameters(name: i32) -> u32 {
         unsafe { sys::wc_DhGetNamedKeyMinSize(name) }
@@ -265,12 +280,15 @@ impl DH {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(all(dh_ffdhe_2048, random))]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
     /// let mut p_size = 0u32;
     /// let mut g_size = 0u32;
     /// let mut q_size = 0u32;
     /// DH::get_named_parameter_sizes(DH::FFDHE_2048, &mut p_size, &mut g_size, &mut q_size);
+    /// }
     /// ```
     pub fn get_named_parameter_sizes(name: i32, p_size: &mut u32, g_size: &mut u32, q_size: &mut u32) {
         unsafe {
@@ -292,9 +310,12 @@ impl DH {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(all(dh_ffdhe_2048, random))]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
     /// let mut dh = DH::new_named(DH::FFDHE_2048).expect("Error with new_named()");
+    /// }
     /// ```
     pub fn new_named(name: i32) -> Result<Self, i32> {
         Self::new_named_ex(name, None, None)
@@ -317,9 +338,12 @@ impl DH {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(all(dh_ffdhe_2048, random))]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
     /// let mut dh = DH::new_named_ex(DH::FFDHE_2048, None, None).expect("Error with new_named_ex()");
+    /// }
     /// ```
     pub fn new_named_ex(name: i32, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_dhkey: MaybeUninit<sys::DhKey> = MaybeUninit::uninit();
@@ -359,6 +383,8 @@ impl DH {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
     /// let p = [
@@ -430,6 +456,7 @@ impl DH {
     ///     0x05, 0x45, 0x15, 0xf8, 0xa2, 0x4e, 0xf3, 0x0b
     /// ];
     /// let dh = DH::new_from_pg(&p, &g).expect("Error with new_from_pg()");
+    /// }
     /// ```
     pub fn new_from_pg(p: &[u8], g: &[u8]) -> Result<Self, i32> {
         Self::new_from_pg_ex(p, g, None, None)
@@ -453,6 +480,8 @@ impl DH {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
     /// let p = [
@@ -524,6 +553,7 @@ impl DH {
     ///     0x05, 0x45, 0x15, 0xf8, 0xa2, 0x4e, 0xf3, 0x0b
     /// ];
     /// let dh = DH::new_from_pg_ex(&p, &g, None, None).expect("Error with new_from_pg_ex()");
+    /// }
     /// ```
     pub fn new_from_pg_ex(p: &[u8], g: &[u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let p_size = p.len() as u32;
@@ -568,6 +598,8 @@ impl DH {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
     /// let p = [
@@ -645,6 +677,7 @@ impl DH {
     ///     0x40, 0x52, 0xed, 0x41
     /// ];
     /// let dh = DH::new_from_pgq(&p, &g, &q).expect("Error with new_from_pgq()");
+    /// }
     /// ```
     pub fn new_from_pgq(p: &[u8], g: &[u8], q: &[u8]) -> Result<Self, i32> {
         Self::new_from_pgq_ex(p, g, q, None, None)
@@ -669,6 +702,8 @@ impl DH {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
     /// let p = [
@@ -746,6 +781,7 @@ impl DH {
     ///     0x40, 0x52, 0xed, 0x41
     /// ];
     /// let dh = DH::new_from_pgq_ex(&p, &g, &q, None, None).expect("Error with new_from_pgq_ex()");
+    /// }
     /// ```
     pub fn new_from_pgq_ex(p: &[u8], g: &[u8], q: &[u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let p_size = p.len() as u32;
@@ -795,6 +831,8 @@ impl DH {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
     /// let p = [
@@ -873,7 +911,9 @@ impl DH {
     /// ];
     /// let mut rng = RNG::new().expect("Failed to create RNG");
     /// let dh = DH::new_from_pgq_with_check(&p, &g, &q, 0, &mut rng).expect("Error with new_from_pgq_with_check()");
+    /// }
     /// ```
+    #[cfg(random)]
     pub fn new_from_pgq_with_check(p: &[u8], g: &[u8], q: &[u8], trusted: i32, rng: &mut RNG) -> Result<Self, i32> {
         Self::new_from_pgq_with_check_ex(p, g, q, trusted, rng, None, None)
     }
@@ -900,6 +940,8 @@ impl DH {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
     /// let p = [
@@ -978,7 +1020,9 @@ impl DH {
     /// ];
     /// let mut rng = RNG::new().expect("Failed to create RNG");
     /// let dh = DH::new_from_pgq_with_check_ex(&p, &g, &q, 0, &mut rng, None, None).expect("Error with new_from_pgq_with_check_ex()");
+    /// }
     /// ```
+    #[cfg(random)]
     pub fn new_from_pgq_with_check_ex(p: &[u8], g: &[u8], q: &[u8], trusted: i32, rng: &mut RNG, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let p_size = p.len() as u32;
         let g_size = g.len() as u32;
@@ -1023,6 +1067,8 @@ impl DH {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(all(dh_ffdhe_2048, random))]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
     /// let mut rng = RNG::new().expect("Error with RNG::new()");
@@ -1035,6 +1081,7 @@ impl DH {
     /// let private = &private[0..(private_size as usize)];
     /// let public = &public[0..(public_size as usize)];
     /// dh.check_key_pair(public, private).expect("Error with check_key_pair()");
+    /// }
     /// ```
     pub fn check_key_pair(&mut self, public: &[u8], private: &[u8]) -> Result<(), i32> {
         let public_size = public.len() as u32;
@@ -1066,6 +1113,8 @@ impl DH {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(all(dh_ffdhe_2048, random))]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
     /// let mut rng = RNG::new().expect("Error with RNG::new()");
@@ -1077,6 +1126,7 @@ impl DH {
     /// dh.generate_key_pair(&mut rng, &mut private, &mut private_size, &mut public, &mut public_size).expect("Error with generate_key_pair()");
     /// let private = &private[0..(private_size as usize)];
     /// dh.check_priv_key(private).expect("Error with check_priv_key()");
+    /// }
     /// ```
     pub fn check_priv_key(&mut self, private: &[u8]) -> Result<(), i32> {
         let private_size = private.len() as u32;
@@ -1109,6 +1159,8 @@ impl DH {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
     /// let p = [
@@ -1194,6 +1246,7 @@ impl DH {
     /// dh.generate_key_pair(&mut rng, &mut private, &mut private_size, &mut public, &mut public_size).expect("Error with generate_key_pair()");
     /// let private = &private[0..(private_size as usize)];
     /// dh.check_priv_key_ex(private, Some(&q)).expect("Error with check_priv_key_ex()");
+    /// }
     /// ```
     pub fn check_priv_key_ex(&mut self, private: &[u8], prime: Option<&[u8]>) -> Result<(), i32> {
         let private_size = private.len() as u32;
@@ -1230,6 +1283,8 @@ impl DH {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(all(dh_ffdhe_2048, random))]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
     /// let mut rng = RNG::new().expect("Error with RNG::new()");
@@ -1241,6 +1296,7 @@ impl DH {
     /// dh.generate_key_pair(&mut rng, &mut private, &mut private_size, &mut public, &mut public_size).expect("Error with generate_key_pair()");
     /// let public = &public[0..(public_size as usize)];
     /// dh.check_pub_key(public).expect("Error with check_pub_key()");
+    /// }
     /// ```
     pub fn check_pub_key(&mut self, public: &[u8]) -> Result<(), i32> {
         let public_size = public.len() as u32;
@@ -1270,6 +1326,8 @@ impl DH {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
     /// let p = [
@@ -1362,6 +1420,7 @@ impl DH {
     /// dh.generate_key_pair(&mut rng, &mut private, &mut private_size, &mut public, &mut public_size).expect("Error with generate_key_pair()");
     /// let public = &public[0..(public_size as usize)];
     /// dh.check_pub_key_ex(public, &q0).expect("Error with check_pub_key_ex()");
+    /// }
     /// ```
     pub fn check_pub_key_ex(&mut self, public: &[u8], prime: &[u8]) -> Result<(), i32> {
         let public_size = public.len() as u32;
@@ -1429,6 +1488,8 @@ impl DH {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(all(dh_ffdhe_2048, random))]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
     /// let mut rng = RNG::new().expect("Failed to create RNG");
@@ -1438,7 +1499,9 @@ impl DH {
     /// let mut public = [0u8; 256];
     /// let mut public_size = 0u32;
     /// dh.generate_key_pair(&mut rng, &mut private, &mut private_size, &mut public, &mut public_size).expect("Error with generate_key_pair()");
+    /// }
     /// ```
+    #[cfg(random)]
     pub fn generate_key_pair(&mut self, rng: &mut RNG,
             private: &mut [u8], private_size: &mut u32,
             public: &mut [u8], public_size: &mut u32) -> Result<(), i32> {
@@ -1471,6 +1534,8 @@ impl DH {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(all(dh_ffdhe_2048, random))]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
     /// let mut rng = RNG::new().expect("Error with RNG::new()");
@@ -1488,6 +1553,7 @@ impl DH {
     /// let mut ss0 = [0u8; 256];
     /// let ss0_size = dh.shared_secret(&mut ss0, &private0, &public1).expect("Error with shared_secret()");
     /// let ss0 = &ss0[0..ss0_size];
+    /// }
     /// ```
     pub fn shared_secret(&mut self, dout: &mut [u8], private: &[u8], other_pub: &[u8]) -> Result<usize, i32> {
         let mut dout_size = dout.len() as u32;

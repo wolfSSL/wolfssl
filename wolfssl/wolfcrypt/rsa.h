@@ -330,6 +330,7 @@ WOLFSSL_API int  wc_RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out,
                                   word32 outLen, RsaKey* key);
 WOLFSSL_API int  wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out,
                             word32 outLen, RsaKey* key, WC_RNG* rng);
+#ifdef WC_RSA_PSS
 WOLFSSL_API int  wc_RsaPSS_Sign(const byte* in, word32 inLen, byte* out,
                                 word32 outLen, enum wc_HashType hash, int mgf,
                                 RsaKey* key, WC_RNG* rng);
@@ -337,6 +338,7 @@ WOLFSSL_API int  wc_RsaPSS_Sign_ex(const byte* in, word32 inLen, byte* out,
                                    word32 outLen, enum wc_HashType hash,
                                    int mgf, int saltLen, RsaKey* key,
                                    WC_RNG* rng);
+#endif
 WOLFSSL_API int  wc_RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out,
                                     RsaKey* key);
 WOLFSSL_API int  wc_RsaSSL_Verify(const byte* in, word32 inLen, byte* out,
@@ -346,6 +348,7 @@ WOLFSSL_API int  wc_RsaSSL_Verify_ex(const byte* in, word32 inLen, byte* out,
 WOLFSSL_API int  wc_RsaSSL_Verify_ex2(const byte* in, word32 inLen, byte* out,
                               word32 outLen, RsaKey* key, int pad_type,
                               enum wc_HashType hash);
+#ifdef WC_RSA_PSS
 WOLFSSL_API int  wc_RsaPSS_VerifyInline(byte* in, word32 inLen, byte** out,
                                         enum wc_HashType hash, int mgf,
                                         RsaKey* key);
@@ -378,6 +381,7 @@ WOLFSSL_API int  wc_RsaPSS_VerifyCheck(const byte* in, word32 inLen,
                                const byte* digest, word32 digestLen,
                                enum wc_HashType hash, int mgf,
                                RsaKey* key);
+#endif
 
 WOLFSSL_API int  wc_RsaEncryptSize(const RsaKey* key);
 

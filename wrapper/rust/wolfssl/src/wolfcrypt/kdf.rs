@@ -24,6 +24,7 @@ Function (KDF) functionality.
 */
 
 use crate::sys;
+#[cfg(all(hmac, kdf_tls13))]
 use crate::wolfcrypt::hmac::HMAC;
 
 #[cfg(kdf_srtp)]
@@ -63,7 +64,7 @@ pub const SRTP_LABEL_HDR_SALT: u8 = sys::WC_SRTP_LABEL_HDR_SALT as u8;
 /// # Example
 ///
 /// ```rust
-/// #[cfg(kdf_pbkdf2)]
+/// #[cfg(all(hmac, kdf_pbkdf2))]
 /// {
 /// use wolfssl::wolfcrypt::kdf::pbkdf2;
 /// use wolfssl::wolfcrypt::hmac::HMAC;
@@ -107,7 +108,7 @@ pub fn pbkdf2(password: &[u8], salt: &[u8], iterations: i32, typ: i32, out: &mut
 /// # Example
 ///
 /// ```rust
-/// #[cfg(kdf_pbkdf2)]
+/// #[cfg(all(hmac, kdf_pbkdf2))]
 /// {
 /// use wolfssl::wolfcrypt::kdf::pbkdf2_ex;
 /// use wolfssl::wolfcrypt::hmac::HMAC;
@@ -175,7 +176,7 @@ pub fn pbkdf2_ex(password: &[u8], salt: &[u8], iterations: i32, typ: i32, heap: 
 /// # Example
 ///
 /// ```rust
-/// #[cfg(kdf_pkcs12)]
+/// #[cfg(all(hmac, kdf_pkcs12))]
 /// {
 /// use wolfssl::wolfcrypt::kdf::pkcs12_pbkdf;
 /// use wolfssl::wolfcrypt::hmac::HMAC;
@@ -228,7 +229,7 @@ pub fn pkcs12_pbkdf(password: &[u8], salt: &[u8], iterations: i32, typ: i32, id:
 /// # Example
 ///
 /// ```rust
-/// #[cfg(kdf_pkcs12)]
+/// #[cfg(all(hmac, kdf_pkcs12))]
 /// {
 /// use wolfssl::wolfcrypt::kdf::pkcs12_pbkdf_ex;
 /// use wolfssl::wolfcrypt::hmac::HMAC;
@@ -283,7 +284,7 @@ pub fn pkcs12_pbkdf_ex(password: &[u8], salt: &[u8], iterations: i32, typ: i32, 
 /// # Example
 ///
 /// ```rust
-/// #[cfg(kdf_tls13)]
+/// #[cfg(all(hmac, kdf_tls13))]
 /// {
 /// use wolfssl::wolfcrypt::hmac::HMAC;
 /// use wolfssl::wolfcrypt::kdf::*;
@@ -292,7 +293,7 @@ pub fn pkcs12_pbkdf_ex(password: &[u8], salt: &[u8], iterations: i32, typ: i32, 
 /// tls13_hkdf_extract(HMAC::TYPE_SHA256, None, None, &mut secret).expect("Error with tls13_hkdf_extract()");
 /// }
 /// ```
-#[cfg(kdf_tls13)]
+#[cfg(all(hmac, kdf_tls13))]
 pub fn tls13_hkdf_extract(typ: i32, salt: Option<&[u8]>, key: Option<&mut [u8]>, out: &mut [u8]) -> Result<(), i32> {
     tls13_hkdf_extract_ex(typ, salt, key, out, None, None)
 }
@@ -319,7 +320,7 @@ pub fn tls13_hkdf_extract(typ: i32, salt: Option<&[u8]>, key: Option<&mut [u8]>,
 /// # Example
 ///
 /// ```rust
-/// #[cfg(kdf_tls13)]
+/// #[cfg(all(hmac, kdf_tls13))]
 /// {
 /// use wolfssl::wolfcrypt::hmac::HMAC;
 /// use wolfssl::wolfcrypt::kdf::*;
@@ -328,7 +329,7 @@ pub fn tls13_hkdf_extract(typ: i32, salt: Option<&[u8]>, key: Option<&mut [u8]>,
 /// tls13_hkdf_extract_ex(HMAC::TYPE_SHA256, None, None, &mut secret, None, None).expect("Error with tls13_hkdf_extract_ex()");
 /// }
 /// ```
-#[cfg(kdf_tls13)]
+#[cfg(all(hmac, kdf_tls13))]
 pub fn tls13_hkdf_extract_ex(typ: i32, salt: Option<&[u8]>, key: Option<&mut [u8]>, out: &mut [u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
     let mut salt_ptr = core::ptr::null();
     let mut salt_size = 0u32;
@@ -387,7 +388,7 @@ pub fn tls13_hkdf_extract_ex(typ: i32, salt: Option<&[u8]>, key: Option<&mut [u8
 /// # Example
 ///
 /// ```rust
-/// #[cfg(kdf_tls13)]
+/// #[cfg(all(hmac, kdf_tls13))]
 /// {
 /// use wolfssl::wolfcrypt::hmac::HMAC;
 /// use wolfssl::wolfcrypt::kdf::*;
@@ -413,7 +414,7 @@ pub fn tls13_hkdf_extract_ex(typ: i32, salt: Option<&[u8]>, key: Option<&mut [u8
 ///     &hash_hello1, &mut expand_out).expect("Error with tls13_hkdf_expand_label()");
 /// }
 /// ```
-#[cfg(kdf_tls13)]
+#[cfg(all(hmac, kdf_tls13))]
 pub fn tls13_hkdf_expand_label(typ: i32, key: &[u8], protocol: &[u8], label: &[u8], info: &[u8], out: &mut [u8]) -> Result<(), i32> {
     tls13_hkdf_expand_label_ex(typ, key, protocol, label, info, out, None, None)
 }
@@ -444,7 +445,7 @@ pub fn tls13_hkdf_expand_label(typ: i32, key: &[u8], protocol: &[u8], label: &[u
 /// # Example
 ///
 /// ```rust
-/// #[cfg(kdf_tls13)]
+/// #[cfg(all(hmac, kdf_tls13))]
 /// {
 /// use wolfssl::wolfcrypt::hmac::HMAC;
 /// use wolfssl::wolfcrypt::kdf::*;
@@ -470,7 +471,7 @@ pub fn tls13_hkdf_expand_label(typ: i32, key: &[u8], protocol: &[u8], label: &[u
 ///     &hash_hello1, &mut expand_out, None, None).expect("Error with tls13_hkdf_expand_label_ex()");
 /// }
 /// ```
-#[cfg(kdf_tls13)]
+#[cfg(all(hmac, kdf_tls13))]
 #[allow(clippy::too_many_arguments)]
 pub fn tls13_hkdf_expand_label_ex(typ: i32, key: &[u8], protocol: &[u8], label: &[u8], info: &[u8], out: &mut [u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
     let key_size = key.len() as u32;

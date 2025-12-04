@@ -28,6 +28,8 @@ wolfSSL `RsaKey` object. It ensures proper initialization and deallocation.
 # Examples
 
 ```rust
+#[cfg(random)]
+{
 use std::fs;
 use wolfssl::wolfcrypt::random::RNG;
 use wolfssl::wolfcrypt::rsa::RSA;
@@ -50,12 +52,14 @@ let mut plain_out: [u8; 512] = [0; 512];
 let dec_len = rsa.private_decrypt(&enc[0..enc_len], &mut plain_out).expect("Error with private_decrypt()");
 assert!(dec_len as usize == plain.len());
 assert_eq!(plain_out[0..dec_len], *plain);
+}
 ```
 */
 
 #![cfg(rsa)]
 
 use crate::sys;
+#[cfg(random)]
 use crate::wolfcrypt::random::RNG;
 use std::mem::{MaybeUninit};
 
@@ -133,6 +137,8 @@ impl RSA {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use std::fs;
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::rsa::RSA;
@@ -155,6 +161,7 @@ impl RSA {
     /// let dec_len = rsa.private_decrypt(&enc[0..enc_len], &mut plain_out).expect("Error with private_decrypt()");
     /// assert!(dec_len as usize == plain.len());
     /// assert_eq!(plain_out[0..dec_len], *plain);
+    /// }
     /// ```
     pub fn new_from_der(der: &[u8]) -> Result<Self, i32> {
         Self::new_from_der_ex(der, None, None)
@@ -177,6 +184,8 @@ impl RSA {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use std::fs;
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::rsa::RSA;
@@ -199,6 +208,7 @@ impl RSA {
     /// let dec_len = rsa.private_decrypt(&enc[0..enc_len], &mut plain_out).expect("Error with private_decrypt()");
     /// assert!(dec_len as usize == plain.len());
     /// assert_eq!(plain_out[0..dec_len], *plain);
+    /// }
     /// ```
     pub fn new_from_der_ex(der: &[u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_rsakey: MaybeUninit<sys::RsaKey> = MaybeUninit::uninit();
@@ -242,6 +252,8 @@ impl RSA {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use std::fs;
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::rsa::RSA;
@@ -264,6 +276,7 @@ impl RSA {
     /// let dec_len = rsa.private_decrypt(&enc[0..enc_len], &mut plain_out).expect("Error with private_decrypt()");
     /// assert!(dec_len as usize == plain.len());
     /// assert_eq!(plain_out[0..dec_len], *plain);
+    /// }
     /// ```
     pub fn new_public_from_der(der: &[u8]) -> Result<Self, i32> {
         Self::new_public_from_der_ex(der, None, None)
@@ -286,6 +299,8 @@ impl RSA {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use std::fs;
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::rsa::RSA;
@@ -308,6 +323,7 @@ impl RSA {
     /// let dec_len = rsa.private_decrypt(&enc[0..enc_len], &mut plain_out).expect("Error with private_decrypt()");
     /// assert!(dec_len as usize == plain.len());
     /// assert_eq!(plain_out[0..dec_len], *plain);
+    /// }
     /// ```
     pub fn new_public_from_der_ex(der: &[u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_rsakey: MaybeUninit<sys::RsaKey> = MaybeUninit::uninit();
@@ -376,7 +392,7 @@ impl RSA {
     /// assert_eq!(encrypt_size, 256);
     /// }
     /// ```
-    #[cfg(rsa_keygen)]
+    #[cfg(all(random, rsa_keygen))]
     pub fn generate(size: i32, e: i64, rng: &mut RNG) -> Result<Self, i32> {
         Self::generate_ex(size, e, rng, None, None)
     }
@@ -423,7 +439,7 @@ impl RSA {
     /// assert_eq!(encrypt_size, 256);
     /// }
     /// ```
-    #[cfg(rsa_keygen)]
+    #[cfg(all(random, rsa_keygen))]
     pub fn generate_ex(size: i32, e: i64, rng: &mut RNG, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_rsakey: MaybeUninit<sys::RsaKey> = MaybeUninit::uninit();
         let heap = match heap {
@@ -642,6 +658,8 @@ impl RSA {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use std::fs;
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::rsa::RSA;
@@ -664,7 +682,9 @@ impl RSA {
     /// let dec_len = rsa.private_decrypt(&enc[0..enc_len], &mut plain_out).expect("Error with private_decrypt()");
     /// assert!(dec_len as usize == plain.len());
     /// assert_eq!(plain_out[0..dec_len], *plain);
+    /// }
     /// ```
+    #[cfg(random)]
     pub fn public_encrypt(&mut self, din: &[u8], dout: &mut [u8], rng: &mut RNG) -> Result<usize, i32> {
         let din_size = din.len() as u32;
         let dout_size = dout.len() as u32;
@@ -696,6 +716,8 @@ impl RSA {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use std::fs;
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::rsa::RSA;
@@ -718,6 +740,7 @@ impl RSA {
     /// let dec_len = rsa.private_decrypt(&enc[0..enc_len], &mut plain_out).expect("Error with private_decrypt()");
     /// assert!(dec_len as usize == plain.len());
     /// assert_eq!(plain_out[0..dec_len], *plain);
+    /// }
     /// ```
     pub fn private_decrypt(&mut self, din: &[u8], dout: &mut [u8]) -> Result<usize, i32> {
         let din_size = din.len() as u32;
@@ -754,6 +777,8 @@ impl RSA {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(all(random, rsa_pss))]
+    /// {
     /// use std::fs;
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::rsa::RSA;
@@ -780,7 +805,9 @@ impl RSA {
     ///
     /// let mut verify_out: [u8; 512] = [0; 512];
     /// rsa.pss_verify_check(signature, &mut verify_out, msg, RSA::HASH_TYPE_SHA256, RSA::MGF1SHA256).expect("Error with pss_verify_check()");
+    /// }
     /// ```
+    #[cfg(all(random, rsa_pss))]
     pub fn pss_sign(&mut self, din: &[u8], dout: &mut [u8], hash_algo: u32, mgf: i32, rng: &mut RNG) -> Result<usize, i32> {
         let din_size = din.len() as u32;
         let dout_size = dout.len() as u32;
@@ -813,6 +840,8 @@ impl RSA {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(all(random, rsa_pss))]
+    /// {
     /// use std::fs;
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::rsa::RSA;
@@ -839,7 +868,9 @@ impl RSA {
     ///
     /// let mut verify_out: [u8; 512] = [0; 512];
     /// rsa.pss_verify_check(signature, &mut verify_out, msg, RSA::HASH_TYPE_SHA256, RSA::MGF1SHA256).expect("Error with pss_verify_check()");
+    /// }
     /// ```
+    #[cfg(rsa_pss)]
     pub fn pss_check_padding(&mut self, din: &[u8], sig: &[u8], hash_algo: u32) -> Result<(), i32> {
         let din_size = din.len() as u32;
         let sig_size = sig.len() as u32;
@@ -875,6 +906,8 @@ impl RSA {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(all(random, rsa_pss))]
+    /// {
     /// use std::fs;
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::rsa::RSA;
@@ -901,7 +934,9 @@ impl RSA {
     ///
     /// let mut verify_out: [u8; 512] = [0; 512];
     /// rsa.pss_verify_check(signature, &mut verify_out, msg, RSA::HASH_TYPE_SHA256, RSA::MGF1SHA256).expect("Error with pss_verify_check()");
+    /// }
     /// ```
+    #[cfg(rsa_pss)]
     pub fn pss_verify(&mut self, din: &[u8], dout: &mut [u8], hash_algo: u32, mgf: i32) -> Result<usize, i32> {
         let din_size = din.len() as u32;
         let dout_size = dout.len() as u32;
@@ -942,6 +977,8 @@ impl RSA {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(all(random, rsa_pss))]
+    /// {
     /// use std::fs;
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::rsa::RSA;
@@ -968,7 +1005,9 @@ impl RSA {
     ///
     /// let mut verify_out: [u8; 512] = [0; 512];
     /// rsa.pss_verify_check(signature, &mut verify_out, msg, RSA::HASH_TYPE_SHA256, RSA::MGF1SHA256).expect("Error with pss_verify_check()");
+    /// }
     /// ```
+    #[cfg(rsa_pss)]
     pub fn pss_verify_check(&mut self, din: &[u8], dout: &mut [u8], digest: &[u8], hash_algo: u32, mgf: i32) -> Result<usize, i32> {
         let din_size = din.len() as u32;
         let dout_size = dout.len() as u32;
@@ -1065,6 +1104,8 @@ impl RSA {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use std::fs;
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::rsa::RSA;
@@ -1086,7 +1127,9 @@ impl RSA {
     /// let dec_len = rsa.private_decrypt(&enc[0..enc_len], &mut plain_out).expect("Error with private_decrypt()");
     /// assert!(dec_len as usize == plain.len());
     /// assert_eq!(plain_out[0..dec_len], *plain);
+    /// }
     /// ```
+    #[cfg(random)]
     pub fn set_rng(&mut self, rng: &mut RNG) -> Result<(), i32> {
         let rc = unsafe {
             sys::wc_RsaSetRNG(&mut self.wc_rsakey, &mut rng.wc_rng)
@@ -1116,6 +1159,8 @@ impl RSA {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use std::fs;
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::rsa::RSA;
@@ -1138,7 +1183,9 @@ impl RSA {
     /// let mut verify_out: [u8; 512] = [0; 512];
     /// let verify_out_size = rsa.ssl_verify(signature, &mut verify_out).expect("Error with ssl_verify()");
     /// assert!(verify_out_size > 0 && verify_out_size <= 512);
+    /// }
     /// ```
+    #[cfg(random)]
     pub fn ssl_sign(&mut self, din: &[u8], dout: &mut [u8], rng: &mut RNG) -> Result<usize, i32> {
         let din_size = din.len() as u32;
         let dout_size = dout.len() as u32;
@@ -1173,6 +1220,8 @@ impl RSA {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use std::fs;
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::rsa::RSA;
@@ -1195,6 +1244,7 @@ impl RSA {
     /// let mut verify_out: [u8; 512] = [0; 512];
     /// let verify_out_size = rsa.ssl_verify(signature, &mut verify_out).expect("Error with ssl_verify()");
     /// assert!(verify_out_size > 0 && verify_out_size <= 512);
+    /// }
     /// ```
     pub fn ssl_verify(&mut self, din: &[u8], dout: &mut [u8]) -> Result<usize, i32> {
         let din_size = din.len() as u32;
