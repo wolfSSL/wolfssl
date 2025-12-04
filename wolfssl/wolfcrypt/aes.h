@@ -47,7 +47,7 @@ typedef struct Gcm {
     /* key-based fast multiplication table. */
     ALIGN16 byte M0[256][16];
 #elif defined(GCM_TABLE_4BIT)
-    #if defined(BIG_ENDIAN_ORDER) || defined(WC_16BIT_CPU)
+    #if defined(WC_16BIT_CPU)
         ALIGN16 byte M0[16][16];
     #else
         ALIGN16 byte M0[32][16];

@@ -7118,7 +7118,7 @@ void GenerateM0(Gcm* gcm)
 
 #elif defined(GCM_TABLE_4BIT)
 
-#if !defined(BIG_ENDIAN_ORDER) && !defined(WC_16BIT_CPU)
+#if !defined(WC_16BIT_CPU)
 static WC_INLINE void Shift4_M0(byte *r8, byte *z8)
 {
     int i;
@@ -7130,7 +7130,7 @@ static WC_INLINE void Shift4_M0(byte *r8, byte *z8)
 
 void GenerateM0(Gcm* gcm)
 {
-#if !defined(BIG_ENDIAN_ORDER) && !defined(WC_16BIT_CPU)
+#if !defined(WC_16BIT_CPU)
     int i;
 #endif
     byte (*m)[WC_AES_BLOCK_SIZE] = gcm->M0;
@@ -7188,7 +7188,7 @@ void GenerateM0(Gcm* gcm)
     }
 #endif
 
-#if !defined(BIG_ENDIAN_ORDER) && !defined(WC_16BIT_CPU)
+#if !defined(WC_16BIT_CPU)
     for (i = 0; i < 16; i++) {
         Shift4_M0(m[16+i], m[i]);
     }
@@ -7830,12 +7830,24 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
  *
  * Second half is same values rotated by 4-bits.
  */
-#if defined(BIG_ENDIAN_ORDER) || defined(WC_16BIT_CPU)
+#if defined(WC_16BIT_CPU)
 static const byte R[16][2] = {
     {0x00, 0x00}, {0x1c, 0x20}, {0x38, 0x40}, {0x24, 0x60},
     {0x70, 0x80}, {0x6c, 0xa0}, {0x48, 0xc0}, {0x54, 0xe0},
     {0xe1, 0x00}, {0xfd, 0x20}, {0xd9, 0x40}, {0xc5, 0x60},
     {0x91, 0x80}, {0x8d, 0xa0}, {0xa9, 0xc0}, {0xb5, 0xe0},
+};
+#elif defined(BIG_ENDIAN_ORDER)
+static const word16 R[32] = {
+          0x0000,       0x1c20,       0x3840,       0x2460,
+          0x7080,       0x6ca0,       0x48c0,       0x54e0,
+          0xe100,       0xfd20,       0xd940,       0xc560,
+          0x9180,       0x8da0,       0xa9c0,       0xb5e0,
+
+          0x0000,       0x01c2,       0x0384,       0x0246,
+          0x0708,       0x06ca,       0x048c,       0x054e,
+          0x0e10,       0x0fd2,       0x0d94,       0x0c56,
+          0x0918,       0x08da,       0x0a9c,       0x0b5e,
 };
 #else
 static const word16 R[32] = {
@@ -7861,7 +7873,7 @@ static const word16 R[32] = {
  * m: 4-bit table
  *    [0..15] * H
  */
-#if defined(BIG_ENDIAN_ORDER) || defined(WC_16BIT_CPU)
+#if defined(WC_16BIT_CPU)
 static void GMULT(byte *x, byte m[16][WC_AES_BLOCK_SIZE])
 {
     int i, j, n;
@@ -7891,6 +7903,71 @@ static void GMULT(byte *x, byte m[16][WC_AES_BLOCK_SIZE])
     }
 
     XMEMCPY(x, Z, WC_AES_BLOCK_SIZE);
+}
+#elif defined(WC_32BIT_CPU) && defined(BIG_ENDIAN_ORDER)
+static WC_INLINE void GMULT(byte *x, byte m[32][WC_AES_BLOCK_SIZE])
+{
+    int i;
+    word32 z8[4] = {0, 0, 0, 0};
+    byte a;
+    word32* x8 = (word32*)x;
+    word32* m8;
+    byte xi;
+
+    for (i = 15; i > 0; i--) {
+        xi = x[i];
+
+        /* XOR in (msn * H) */
+        m8 = (word32*)m[xi & 0xf];
+        z8[0] ^= m8[0]; z8[1] ^= m8[1]; z8[2] ^= m8[2]; z8[3] ^= m8[3];
+
+        /* Cache top byte for remainder calculations - lost in rotate. */
+        a = (byte)(z8[3] & 0xff);
+
+        /* Rotate Z by 8-bits */
+        z8[3] = (z8[2] << 24) | (z8[3] >> 8);
+        z8[2] = (z8[1] << 24) | (z8[2] >> 8);
+        z8[1] = (z8[0] << 24) | (z8[1] >> 8);
+        z8[0] >>= 8;
+
+        /* XOR in (msn * remainder) [pre-rotated by 4 bits] */
+        z8[0] ^= ((word32)R[16 + (a & 0xf)]) << 16;
+
+        xi >>= 4;
+        /* XOR in next significant nibble (XORed with H) * remainder */
+        m8 = (word32*)m[xi];
+        a ^= (byte)(m8[3] >> 12) & 0xf;
+        a ^= (byte)((m8[3] << 4) & 0xf0);
+        z8[0] ^= ((word32)R[a >> 4]) << 16;
+
+        /* XOR in (next significant nibble * H) [pre-rotated by 4 bits] */
+        m8 = (word32*)m[16 + xi];
+        z8[0] ^= m8[0]; z8[1] ^= m8[1];
+        z8[2] ^= m8[2]; z8[3] ^= m8[3];
+    }
+
+    xi = x[0];
+
+    /* XOR in most significant nibble * H */
+    m8 = (word32*)m[xi & 0xf];
+    z8[0] ^= m8[0]; z8[1] ^= m8[1]; z8[2] ^= m8[2]; z8[3] ^= m8[3];
+
+    /* Cache top byte for remainder calculations - lost in rotate. */
+    a = (byte)(z8[3] & 0x0f);
+
+    z8[3] = (z8[2] << 28) | (z8[3] >> 4);
+    z8[2] = (z8[1] << 28) | (z8[2] >> 4);
+    z8[1] = (z8[0] << 28) | (z8[1] >> 4);
+    z8[0] >>= 4;
+
+    /* XOR in most significant nibble * remainder */
+    z8[0] ^= ((word32)R[a]) << 16;
+    /* XOR in next significant nibble * H */
+    m8 = (word32*)m[xi >> 4];
+    z8[0] ^= m8[0]; z8[1] ^= m8[1]; z8[2] ^= m8[2]; z8[3] ^= m8[3];
+
+    /* Write back result. */
+    x8[0] = z8[0]; x8[1] = z8[1]; x8[2] = z8[2]; x8[3] = z8[3];
 }
 #elif defined(WC_32BIT_CPU)
 static WC_INLINE void GMULT(byte *x, byte m[32][WC_AES_BLOCK_SIZE])
@@ -7965,6 +8042,70 @@ static WC_INLINE void GMULT(byte *x, byte m[32][WC_AES_BLOCK_SIZE])
 
     /* Write back result. */
     x8[0] = z8[0]; x8[1] = z8[1]; x8[2] = z8[2]; x8[3] = z8[3];
+}
+#elif defined(WC_64BIT_CPU) && defined(BIG_ENDIAN_ORDER)
+static WC_INLINE void GMULT(byte *x, byte m[32][WC_AES_BLOCK_SIZE])
+{
+    int i;
+    word64 z8[2] = {0, 0};
+    byte a;
+    word64* x8 = (word64*)x;
+    word64* m8;
+    byte xi;
+
+    for (i = 15; i > 0; i--) {
+        xi = x[i];
+
+        /* XOR in (msn * H) */
+        m8 = (word64*)m[xi & 0xf];
+        z8[0] ^= m8[0];
+        z8[1] ^= m8[1];
+
+        /* Cache top byte for remainder calculations - lost in rotate. */
+        a = (byte)(z8[1] & 0xff);
+
+        /* Rotate Z by 8-bits */
+        z8[1] = (z8[0] << 56) | (z8[1] >> 8);
+        z8[0] >>= 8;
+
+        /* XOR in (next significant nibble * H) [pre-rotated by 4 bits] */
+        m8 = (word64*)m[16 + (xi >> 4)];
+        z8[0] ^= m8[0];
+        z8[1] ^= m8[1];
+
+        /* XOR in (msn * remainder) [pre-rotated by 4 bits] */
+        z8[0] ^= ((word64)R[16 + (a & 0xf)]) << 48;
+        /* XOR in next significant nibble (XORed with H) * remainder */
+        m8 = (word64*)m[xi >> 4];
+        a ^= (byte)(m8[1] >> 12) & 0xf;
+        a ^= (byte)((m8[1] << 4) & 0xf0);
+        z8[0] ^= ((word64)R[a >> 4]) << 48;
+    }
+
+    xi = x[0];
+
+    /* XOR in most significant nibble * H */
+    m8 = (word64*)m[xi & 0xf];
+    z8[0] ^= m8[0];
+    z8[1] ^= m8[1];
+
+    /* Cache top byte for remainder calculations - lost in rotate. */
+    a = (byte)(z8[1] & 0x0f);
+
+    /* Rotate z by 4-bits */
+    z8[1] = (z8[0] << 60) | (z8[1] >> 4);
+    z8[0] >>= 4;
+
+    /* XOR in next significant nibble * H */
+    m8 = (word64*)m[xi >> 4];
+    z8[0] ^= m8[0];
+    z8[1] ^= m8[1];
+    /* XOR in most significant nibble * remainder */
+    z8[0] ^= ((word64)R[a]) << 48;
+
+    /* Write back result. */
+    x8[0] = z8[0];
+    x8[1] = z8[1];
 }
 #else
 static WC_INLINE void GMULT(byte *x, byte m[32][WC_AES_BLOCK_SIZE])
