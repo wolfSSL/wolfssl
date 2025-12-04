@@ -12040,6 +12040,7 @@ void bench_ecc(int useDeviceID, int curveId)
     int ret = 0, i, times, count, pending = 0;
     int deviceID;
     int  keySize;
+    int  dgstSize;
     char name[BENCH_ECC_NAME_SZ];
     WC_DECLARE_ARRAY(genKey, ecc_key, BENCH_MAX_PENDING,
                      sizeof(ecc_key), HEAP_HINT);
@@ -12068,7 +12069,7 @@ void bench_ecc(int useDeviceID, int curveId)
     WC_DECLARE_ARRAY(sig, byte,
                      BENCH_MAX_PENDING, ECC_MAX_SIG_SIZE, HEAP_HINT);
     WC_DECLARE_ARRAY(digest, byte,
-                     BENCH_MAX_PENDING, MAX_ECC_BYTES, HEAP_HINT);
+                     BENCH_MAX_PENDING, WC_MAX_DIGEST_SIZE, HEAP_HINT);
 #endif
 
     bench_stats_prepare();
@@ -12099,6 +12100,29 @@ void bench_ecc(int useDeviceID, int curveId)
     deviceID = useDeviceID ? devId : INVALID_DEVID;
 
     keySize = wc_ecc_get_curve_size_from_id(curveId);
+    if (keySize < 28) {
+        /* SHA-1 */
+        dgstSize = 20;
+    }
+    else if (keySize < 32) {
+        /* SHA-224/SHA512-224/SHA3-224 */
+        dgstSize = 28;
+    }
+    else if (keySize < 48) {
+        /* SHA-256/SHA512-256/SHA3-256 */
+        dgstSize = 32;
+    }
+    else if (keySize < 64) {
+        /* SHA-384/SHA3-384 */
+        dgstSize = 48;
+    }
+    else {
+        /* SHA-512/SHA3-512 */
+        dgstSize = 64;
+    }
+    if (dgstSize > WC_MAX_DIGEST_SIZE) {
+        dgstSize = WC_MAX_DIGEST_SIZE;
+    }
 
     /* init keys */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
@@ -12187,7 +12211,7 @@ exit_ecdhe:
 
     /* Init digest to sign */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
-        for (count = 0; count < keySize; count++) {
+        for (count = 0; count < dgstSize; count++) {
             digest[i][count] = (byte)count;
         }
     }
@@ -12207,7 +12231,7 @@ exit_ecdhe:
                         x[i] = ECC_MAX_SIG_SIZE;
                     }
 
-                    ret = wc_ecc_sign_hash(digest[i], (word32)keySize, sig[i],
+                    ret = wc_ecc_sign_hash(digest[i], (word32)dgstSize, sig[i],
                                            &x[i], GLOBAL_RNG, genKey[i]);
 
                     if (!bench_async_handle(&ret,
@@ -12259,7 +12283,7 @@ exit_ecdsa_sign:
                     }
 
                     ret = wc_ecc_verify_hash(sig[i], x[i], digest[i],
-                                             (word32)keySize, &verify[i],
+                                             (word32)dgstSize, &verify[i],
                                              genKey[i]);
 
                     if (!bench_async_handle(&ret,
