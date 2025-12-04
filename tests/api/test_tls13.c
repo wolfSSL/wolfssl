@@ -2074,7 +2074,7 @@ static int test_tls13_early_data_write_until_write_ok(WOLFSSL* ssl,
 }
 struct test_tls13_wwrite_ctx {
     int want_write;
-    struct test_memio_ctx *text_ctx;
+    struct test_memio_ctx *test_ctx;
 };
 static int test_tls13_mock_wantwrite_cb(WOLFSSL* ssl, char* data, int sz,
     void* ctx)
@@ -2084,7 +2084,7 @@ static int test_tls13_mock_wantwrite_cb(WOLFSSL* ssl, char* data, int sz,
     if (wwctx->want_write) {
         return WOLFSSL_CBIO_ERR_WANT_WRITE;
     }
-    return test_memio_write_cb(ssl, data, sz, wwctx->text_ctx);
+    return test_memio_write_cb(ssl, data, sz, wwctx->test_ctx);
 }
 #endif /* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES && WOLFSSL_EARLY_DATA */
 int test_tls13_early_data(void)
@@ -2181,8 +2181,8 @@ int test_tls13_early_data(void)
         if (everyWriteWantWrite) {
             XMEMSET(&wwrite_ctx_c, 0, sizeof(wwrite_ctx_c));
             XMEMSET(&wwrite_ctx_s, 0, sizeof(wwrite_ctx_s));
-            wwrite_ctx_c.text_ctx = &test_ctx;
-            wwrite_ctx_s.text_ctx = &test_ctx;
+            wwrite_ctx_c.test_ctx = &test_ctx;
+            wwrite_ctx_s.test_ctx = &test_ctx;
             wolfSSL_SetIOWriteCtx(ssl_c, &wwrite_ctx_c);
             wolfSSL_SSLSetIOSend(ssl_c, test_tls13_mock_wantwrite_cb);
             wolfSSL_SetIOWriteCtx(ssl_s, &wwrite_ctx_s);
