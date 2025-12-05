@@ -145,7 +145,8 @@ ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
     endif
     ccflags-y += $(PIE_SUPPORT_FLAGS)
     $(WOLFCRYPT_PIE_FILES): ccflags-y += $(PIE_FLAGS)
-    $(WOLFCRYPT_PIE_FILES): ccflags-remove-y += -pg
+    $(WOLFCRYPT_PIE_FILES): ccflags-remove-y += -pg \
+        $(call cc-option,-ftrivial-auto-var-init=zero)
     ifdef FORCE_GLOBAL_OBJTOOL_OFF
         undefine CONFIG_OBJTOOL
     endif

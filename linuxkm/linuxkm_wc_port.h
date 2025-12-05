@@ -24,6 +24,27 @@
 #ifndef LINUXKM_WC_PORT_H
 #define LINUXKM_WC_PORT_H
 
+    /*
+         * CRITICAL: Disable ARM64 LSE atomics for out-of-tree modules.
+         *
+         * When CONFIG_ARM64_LSE_ATOMICS is enabled, the kernel uses static keys
+         * (jump labels) in system_uses_lse_atomics() to choose between LSE and
+         * LL/SC atomic implementations at runtime. These static keys generate
+         * asm goto statements that reference .jump_table section symbols which
+         * cannot be resolved in out-of-tree modules, causing:
+         *   "error: impossible constraint in 'asm'"
+         *
+         * By undefining CONFIG_ARM64_LSE_ATOMICS here (before any kernel headers
+         * that use atomics are included), we force use of the LL/SC fallback path
+         * which works correctly in out-of-tree modules.
+         *
+         * This must appear BEFORE #include <linux/version.h> because that header
+         * may transitively include headers that use atomics.
+         */
+    #ifdef CONFIG_ARM64_LSE_ATOMICS
+    #undef CONFIG_ARM64_LSE_ATOMICS
+    #endif
+
     #include <linux/version.h>
 
     #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 16, 0)
@@ -941,7 +962,15 @@
 
         #endif /* WOLFSSL_USE_SAVE_VECTOR_REGISTERS */
 
-        typeof(__mutex_init) *__mutex_init;
+        #ifndef CONFIG_PREEMPT_RT
+            typeof(__mutex_init) *__mutex_init;
+        #else
+            typeof(__rt_mutex_init) *__rt_mutex_init;
+            typeof(rt_mutex_base_init) *rt_mutex_base_init;
+            typeof(rt_spin_lock) *rt_spin_lock;
+            typeof(rt_spin_unlock) *rt_spin_unlock;
+        #endif
+
         #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
             typeof(mutex_lock_nested) *mutex_lock_nested;
         #else
@@ -1048,6 +1077,7 @@
         #endif
 
         #ifdef CONFIG_ARM64
+        #ifndef CONFIG_ARCH_TEGRA
         #ifdef WC_CONTAINERIZE_THIS
             /* alt_cb_patch_nops and queued_spin_lock_slowpath are defined early
              * to allow shimming in system headers, but now we need the native
@@ -1060,6 +1090,7 @@
         #else
             typeof(alt_cb_patch_nops) *alt_cb_patch_nops;
             typeof(queued_spin_lock_slowpath) *queued_spin_lock_slowpath;
+        #endif
         #endif
         #endif
 
@@ -1260,7 +1291,17 @@
         #error WOLFSSL_USE_SAVE_VECTOR_REGISTERS is set for an unimplemented architecture.
     #endif /* WOLFSSL_USE_SAVE_VECTOR_REGISTERS */
 
-    #define __mutex_init WC_PIE_INDIRECT_SYM(__mutex_init)
+    #ifndef CONFIG_PREEMPT_RT
+        #define __mutex_init WC_PIE_INDIRECT_SYM(__mutex_init)
+    #else
+        /* On RT kernels, __mutex_init is a macro pointing to __rt_mutex_init */
+        #undef __mutex_init
+        #define __rt_mutex_init WC_PIE_INDIRECT_SYM(__rt_mutex_init)
+        #define __mutex_init(mutex, name, key) __rt_mutex_init(mutex, name, key)
+        #define rt_mutex_base_init WC_PIE_INDIRECT_SYM(rt_mutex_base_init)
+        #define rt_spin_lock WC_PIE_INDIRECT_SYM(rt_spin_lock)
+        #define rt_spin_unlock WC_PIE_INDIRECT_SYM(rt_spin_unlock)
+    #endif
     #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
         #define mutex_lock_nested WC_PIE_INDIRECT_SYM(mutex_lock_nested)
     #else
@@ -1327,8 +1368,31 @@
 
     /* this is defined in linux/spinlock.h as an inline that calls the unshimmed
      * raw_spin_unlock_irqrestore().  use a macro here to supersede it.
+     * Note: On PREEMPT_RT kernels, spinlock_t doesn't have rlock member,
+     * so we skip this redefinition and use the kernel's native implementation.
      */
-    #define spin_unlock_irqrestore(lock, flags) raw_spin_unlock_irqrestore(&((lock)->rlock), flags)
+    #ifndef CONFIG_PREEMPT_RT
+        #define spin_unlock_irqrestore(lock, flags) raw_spin_unlock_irqrestore(&((lock)->rlock), flags)
+    #else
+        /* Undo internal wolfSSL PIE macro rewriting */
+        #ifdef rt_spin_unlock
+        #undef rt_spin_unlock
+        #endif
+        #ifdef rt_spin_lock
+        #undef rt_spin_lock
+        #endif
+        static inline int wolfssl_spin_unlock_irqrestore_rt(spinlock_t *lock,
+                                                             unsigned long flags)
+        {
+            (void)flags; /* rt_spin_unlock ignores flags */
+            WC_PIE_INDIRECT_SYM(rt_spin_unlock)(lock);
+            return 0;
+        }
+
+        #undef spin_unlock_irqrestore
+        #define spin_unlock_irqrestore(lock, flags) \
+        wolfssl_spin_unlock_irqrestore_rt((lock), (flags))
+    #endif
 
     #define wc_linuxkm_sig_ignore_begin WC_PIE_INDIRECT_SYM(wc_linuxkm_sig_ignore_begin);
     #define wc_linuxkm_sig_ignore_end WC_PIE_INDIRECT_SYM(wc_linuxkm_sig_ignore_end);

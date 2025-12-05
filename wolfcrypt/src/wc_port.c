@@ -4977,6 +4977,7 @@ char* wolfSSL_strnstr(const char* s1, const char* s2, unsigned int n)
 
 #if defined(WOLFSSL_LINUXKM) && defined(CONFIG_ARM64) && \
     defined(WC_SYM_RELOC_TABLES)
+#ifndef CONFIG_ARCH_TEGRA
 noinstr void my__alt_cb_patch_nops(struct alt_instr *alt, __le32 *origptr,
                                    __le32 *updptr, int nr_inst)
 {
@@ -4989,4 +4990,5 @@ void my__queued_spin_lock_slowpath(struct qspinlock *lock, u32 val)
     return WC_PIE_INDIRECT_SYM(queued_spin_lock_slowpath)
         (lock, val);
 }
+#endif
 #endif
