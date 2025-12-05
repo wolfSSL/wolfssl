@@ -1,7 +1,12 @@
 /*!
     \ingroup MD4
-    \brief  この関数はMD4を初期化します。これはWC_MD4HASHによって自動的に呼び出されます。
-    \return 0  初期化に成功したときに返されます
+
+    \brief この関数はmd4を初期化します。これはwc_Md4Hashによって自動的に呼び出されます。
+
+    \return 0 初期化に成功した場合に返されます
+
+    \param md4 暗号化に使用するmd4構造体へのポインタ
+
     _Example_
     \code
     md4 md4[1];
@@ -13,6 +18,7 @@
        wc_Md4Final(md4, hash);
     }
     \endcode
+
     \sa wc_Md4Hash
     \sa wc_Md4Update
     \sa wc_Md4Final
@@ -21,14 +27,19 @@ void wc_InitMd4(Md4*);
 
 /*!
     \ingroup MD4
-    \brief  長さLENの提供されたバイト配列を絶えずハッシュするように呼び出すことができます。
-    \return 0  データをダイジェストに正常に追加すると返されます。
-    \param md4  暗号化に使用するMD4構造へのポインタ
-    \param data  ハッシュするデータ
+
+    \brief 長さlenの提供されたバイト配列を継続的にハッシュするために呼び出すことができます。
+
+    \return 0 ダイジェストへのデータ追加に成功した場合に返されます。
+
+    \param md4 暗号化に使用するmd4構造体へのポインタ
+    \param data ハッシュ化されるデータ
+    \param len ハッシュ化されるデータの長さ
+
     _Example_
     \code
     md4 md4[1];
-    byte data[] = { }; // Data to be hashed
+    byte data[] = { }; // ハッシュ化されるデータ
     word32 len = sizeof(data);
 
     if ((ret = wc_InitMd4(md4)) != 0) {
@@ -39,6 +50,7 @@ void wc_InitMd4(Md4*);
        wc_Md4Final(md4, hash);
     }
     \endcode
+
     \sa wc_Md4Hash
     \sa wc_Md4Final
     \sa wc_InitMd4
@@ -47,9 +59,14 @@ void wc_Md4Update(Md4* md4, const byte* data, word32 len);
 
 /*!
     \ingroup MD4
-    \brief  データのハッシュを確定します。結果はハッシュに入れられます。
-    \return 0  ファイナライズに成功したときに返されます。
-    \param md4  暗号化に使用するMD4構造へのポインタ
+
+    \brief データのハッシュ化を完了します。結果はhashに格納されます。
+
+    \return 0 完了に成功した場合に返されます。
+
+    \param md4 暗号化に使用するmd4構造体へのポインタ
+    \param hash ハッシュ値を保持するバイト配列。
+
     _Example_
     \code
     md4 md4[1];
@@ -61,6 +78,7 @@ void wc_Md4Update(Md4* md4, const byte* data, word32 len);
         wc_Md4Final(md4, hash);
     }
     \endcode
+
     \sa wc_Md4Hash
     \sa wc_Md4Final
     \sa wc_InitMd4

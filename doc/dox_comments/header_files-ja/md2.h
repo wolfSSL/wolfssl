@@ -1,7 +1,12 @@
 /*!
     \ingroup MD2
-    \brief  この関数はMD2を初期化します。これはWC_MD2HASHによって自動的に呼び出されます。
-    \return 0  初期化に成功したときに返されます
+
+    \brief この関数はmd2を初期化します。これはwc_Md2Hashによって自動的に呼び出されます。
+
+    \return 0 初期化に成功した場合に返されます
+
+    \param md2 暗号化に使用するmd2構造体へのポインタ
+
     _Example_
     \code
     md2 md2[1];
@@ -13,6 +18,7 @@
        wc_Md2Final(md2, hash);
     }
     \endcode
+
     \sa wc_Md2Hash
     \sa wc_Md2Update
     \sa wc_Md2Final
@@ -21,14 +27,19 @@ void wc_InitMd2(Md2*);
 
 /*!
     \ingroup MD2
-    \brief  長さLENの提供されたバイト配列を絶えずハッシュするように呼び出すことができます。
-    \return 0  データをダイジェストに正常に追加すると返されます。
-    \param md2  暗号化に使用するMD2構造へのポインタ
-    \param data  ハッシュするデータ
+
+    \brief 長さlenの提供されたバイト配列を継続的にハッシュするために呼び出すことができます。
+
+    \return 0 ダイジェストへのデータ追加に成功した場合に返されます。
+
+    \param md2 暗号化に使用するmd2構造体へのポインタ
+    \param data ハッシュ化されるデータ
+    \param len ハッシュ化されるデータの長さ
+
     _Example_
     \code
     md2 md2[1];
-    byte data[] = { }; // Data to be hashed
+    byte data[] = { }; // ハッシュ化されるデータ
     word32 len = sizeof(data);
 
     if ((ret = wc_InitMd2(md2)) != 0) {
@@ -39,6 +50,7 @@ void wc_InitMd2(Md2*);
        wc_Md2Final(md2, hash);
     }
     \endcode
+
     \sa wc_Md2Hash
     \sa wc_Md2Final
     \sa wc_InitMd2
@@ -47,13 +59,18 @@ void wc_Md2Update(Md2* md2, const byte* data, word32 len);
 
 /*!
     \ingroup MD2
-    \brief  データのハッシュを確定します。結果はハッシュに入れられます。
-    \return 0  ファイナライズに成功したときに返されます。
-    \param md2  暗号化に使用するMD2構造へのポインタ
+
+    \brief データのハッシュ化を完了します。結果はhashに格納されます。
+
+    \return 0 完了に成功した場合に返されます。
+
+    \param md2 暗号化に使用するmd2構造体へのポインタ
+    \param hash ハッシュ値を保持するバイト配列。
+
     _Example_
     \code
     md2 md2[1];
-    byte data[] = { }; // Data to be hashed
+    byte data[] = { }; // ハッシュ化されるデータ
     word32 len = sizeof(data);
 
     if ((ret = wc_InitMd2(md2)) != 0) {
@@ -64,6 +81,7 @@ void wc_Md2Update(Md2* md2, const byte* data, word32 len);
        wc_Md2Final(md2, hash);
     }
     \endcode
+
     \sa wc_Md2Hash
     \sa wc_Md2Final
     \sa wc_InitMd2
@@ -72,15 +90,21 @@ void wc_Md2Final(Md2* md2, byte* hash);
 
 /*!
     \ingroup MD2
-    \brief  利便性機能は、すべてのハッシュを処理し、その結果をハッシュに入れます。
-    \return 0  データを正常にハッシュしたときに返されます。
-    \return Memory_E  メモリエラー、メモリを割り当てることができません。これは、小さなスタックオプションが有効になっているだけです。
-    \param data  ハッシュへのデータ
-    \param len  データの長さ
+
+    \brief 便利な関数で、すべてのハッシュ化を処理し、結果をhashに格納します。
+
+    \return 0 データのハッシュ化に成功した場合に返されます。
+    \return Memory_E メモリエラー、メモリを割り当てることができません。これはスモールスタックオプションが有効な場合にのみ発生します。
+
+    \param data ハッシュ化するデータ
+    \param len データの長さ
+    \param hash ハッシュ値を保持するバイト配列。
+
     _Example_
     \code
     none
     \endcode
+
     \sa wc_Md2Hash
     \sa wc_Md2Final
     \sa wc_InitMd2

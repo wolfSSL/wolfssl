@@ -1,13 +1,21 @@
 /*!
     \ingroup ASN
-    \brief  この関数はCert構造体をデフォルトの値で初期化します。デフォルトのオプション：version = 3（0x2）、sigtype = sha_with_rsa、issuer =空白、dayValid = 500、selfsigned = 1（true）発行者としての件名=空白
-    \return 成功した場合0を返します。
+
+    \brief この関数は、デフォルトのオプションでデフォルトの証明書を初期化します：
+    version = 3（0x2）、serial = 0、sigType = SHA_WITH_RSA、issuer = 空白、
+    daysValid = 500、selfSigned = 1（true）発行者としてsubjectを使用、
+    subject = 空白
+
+    \return none 返り値なし。
+
+    \param cert 初期化する未初期化のcert構造体へのポインタ
 
     _Example_
     \code
     Cert myCert;
     wc_InitCert(&myCert);
     \endcode
+
     \sa wc_MakeCert
     \sa wc_MakeCertReq
 */
@@ -16,14 +24,12 @@ int wc_InitCert(Cert*);
 /*!
      \ingroup ASN
 
-     \brief この関数は証明書操作の為に新たなCert構造体を割り当てます。
-     割り当てたCert構造体はこの関数内で初期化されるので、wc_InitCert()を呼び出す必要はありません。
-     アプリケーションがこのCert構造体の使用を終了する際にはwc_CertFree()を呼び出す必要があります。
+     \brief この関数は、証明書操作中に使用するための新しいCert構造体を割り当てます。アプリケーションが構造体自体を割り当てる必要はありません。Cert構造体もこの関数によって初期化されるため、wc_InitCert()を呼び出す必要がなくなります。アプリケーションが割り当てられたCert構造体の使用を終了したら、wc_CertFree()を呼び出す必要があります。
 
-     \return 処理が成功した際には新に割り当てられたCert構造体へのポインタを返します。
-     \return メモリ確保に失敗した場合にはNULLを返します。
+     \return pointer 成功した場合、呼び出しは新しく割り当てられ初期化されたCertへのポインタを返します。
+     \return NULL メモリ割り当て失敗時。
 
-     \param メモリの動的確保で使用されるヒープへのポインタ。NULLの指定も可。
+     \param A 動的割り当てに使用されるヒープへのポインタ。NULLでも可。
 
      _Example_
      \code
@@ -31,7 +37,7 @@ int wc_InitCert(Cert*);
 
      myCert = wc_CertNew(NULL);
      if (myCert == NULL) {
-         // Cert creation failure
+         // Cert作成失敗
      }
      \endcode
 
@@ -42,13 +48,14 @@ int wc_InitCert(Cert*);
 */
 Cert* wc_CertNew(void* heap);
 
-
 /*!
      \ingroup ASN
 
-     \brief この関数はwc_CertNew()で確保されたCert構造体を解放します。
-     \return 無し
-     \param 解放すべきCert構造体へのポインタ
+     \brief この関数は、wc_CertNew()への以前の呼び出しによってcert構造体に割り当てられたメモリを解放します。
+
+     \return None.
+
+     \param A 解放するcert構造体へのポインタ。
 
      _Example_
      \code
@@ -56,7 +63,7 @@ Cert* wc_CertNew(void* heap);
 
      myCert = wc_CertNew(NULL);
 
-     // Perform cert operations.
+     // 証明書操作を実行。
 
      wc_CertFree(myCert);
      \endcode
@@ -70,34 +77,34 @@ void  wc_CertFree(Cert* cert);
 
 /*!
     \ingroup ASN
-    \brief  CA署名付き証明書を作成するために使用されます。
-    サブジェクト情報を入力した後に呼び出す必要があります。
-    この関数は、証明書入力からX.509v3 RSAまたはECC証明書を作成しderBufferに書き込みます。
-    証明書を生成するためのRsaKeyまたはEccKeyのいずれかを引数として取ります。
-    この関数が呼び出される前に、証明書をwc_InitCertで初期化する必要があります。
 
-    \return 指定された入力証明書からX509証明書が正常に生成された場合、生成された証明書のサイズを返します。
-    \return MEMORY_E  xmallocでのメモリ割り当でエラーが発生した場合に返ります。
-    \return BUFFER_E  提供されたderBufferが生成された証明書を保存するには小さすぎる場合に返されます
-    \return Others  証明書の生成が成功しなかった場合、追加のエラーメッセージが返される可能性があります。
-    \param cert  初期化されたCert構造体へのポインタ
-    \param derBuffer  生成された証明書を保持するバッファへのポインタ
-    \param derSz  証明書を保存するバッファのサイズ
-    \param rsaKey  証明書の生成に使用されるRSA鍵を含むRsaKey構造体へのポインタ
-    \param eccKey  証明書の生成に使用されるECC鍵を含むEccKey構造体へのポインタ
+    \brief CA署名付き証明書を作成するために使用されます。subject情報が入力された後に呼び出されます。この関数は、cert入力からx509証明書v3 RSAまたはECCを作成します。次に、この証明書をderBufferに書き込みます。証明書を生成するために、rsaKeyまたはeccKeyのいずれかを受け取ります。このメソッドを呼び出す前に、証明書をwc_InitCertで初期化する必要があります。
+
+    \return Success 指定された入力certからx509証明書を正常に作成すると、生成された証明書のサイズを返します。
+    \return MEMORY_E XMALLOCでメモリを割り当てる際にエラーがある場合に返されます
+    \return BUFFER_E 提供されたderBufferが生成された証明書を格納するには小さすぎる場合に返されます
+    \return Others 証明書の生成が成功しない場合、追加のエラーメッセージが返される可能性があります。
+
+    \param cert 初期化されたcert構造体へのポインタ
+    \param derBuffer 生成された証明書を保持するバッファへのポインタ
+    \param derSz 証明書を格納するバッファのサイズ
+    \param rsaKey 証明書の生成に使用されるrsaキーを含むRsaKey構造体へのポインタ
+    \param eccKey 証明書の生成に使用されるeccキーを含むEccKey構造体へのポインタ
+    \param rng 証明書を作成するために使用される乱数生成器へのポインタ
 
     _Example_
     \code
     Cert myCert;
     wc_InitCert(&myCert);
     WC_RNG rng;
-    //initialize rng;
+    // rngを初期化;
     RsaKey key;
-    //initialize key;
+    // keyを初期化;
     byte * derCert = malloc(FOURK_BUF);
     word32 certSz;
     certSz = wc_MakeCert(&myCert, derCert, FOURK_BUF, &key, NULL, &rng);
     \endcode
+
     \sa wc_InitCert
     \sa wc_MakeCertReq
 */
@@ -106,31 +113,32 @@ int  wc_MakeCert(Cert* cert, byte* derBuffer, word32 derSz, RsaKey* rsaKey,
 
 /*!
     \ingroup ASN
-    \brief  この関数は、入力されたCert構造体を使用して証明書署名要求を作成しderBufferに書き込みます。
-    証明書要求の生成にはRsaKeyまたはEccKeyのいずれかの鍵を受け取り使用します。
-    この関数の後に、署名するためにwc_SignCert()を呼び出す必要があります。
-    この関数の使用例については、wolfCryptテストアプリケーション(./wolfcrypt/test/test.c)を参照してください。
-    \return 証明書署名要求が正常に生成されると、生成された証明書署名要求のサイズを返します。
-    \return MEMORY_E  xmallocでのメモリ割り当てでエラーが発生した場合
-    \return BUFFER_E  提供されたderBufferが生成された証明書を保存するには小さすぎる場合
-    \return Other  証明書署名要求の生成が成功しなかった場合、追加のエラーメッセージが返される可能性があります。
-    \param cert  初期化されたCert構造体へのポインタ
-    \param derBuffer  生成された証明書署名要求を保持するバッファへのポインタ
-    \param derSz  証明書署名要求を保存するバッファのサイズ
-    \param rsaKey  証明書署名要求を生成するために使用されるRSA鍵を含むRsaKey構造体へのポインタ
-    \param eccKey  証明書署名要求を生成するために使用されるRECC鍵を含むEccKey構造体へのポインタ
+
+    \brief この関数は、入力証明書を使用して証明書署名要求を作成し、出力をderBufferに書き込みます。証明書要求を生成するために、rsaKeyまたはeccKeyのいずれかを受け取ります。証明書署名要求に署名するには、この関数の後にwc_SignCert()を呼び出す必要があります。この関数の使用例については、wolfCryptテストアプリケーション（./wolfcrypt/test/test.c）を参照してください。
+
+    \return Success 指定された入力certからX.509証明書要求を正常に作成すると、生成された証明書要求のサイズを返します。
+    \return MEMORY_E XMALLOCでメモリを割り当てる際にエラーがある場合に返されます
+    \return BUFFER_E 提供されたderBufferが生成された証明書を格納するには小さすぎる場合に返されます
+    \return Other 証明書要求の生成が成功しない場合、追加のエラーメッセージが返される可能性があります。
+
+    \param cert 初期化されたcert構造体へのポインタ
+    \param derBuffer 生成された証明書要求を保持するバッファへのポインタ
+    \param derSz 証明書要求を格納するバッファのサイズ
+    \param rsaKey 証明書要求の生成に使用されるrsaキーを含むRsaKey構造体へのポインタ
+    \param eccKey 証明書要求の生成に使用されるeccキーを含むEccKey構造体へのポインタ
 
     _Example_
     \code
     Cert myCert;
-    // initialize myCert
+    // myCertを初期化
     EccKey key;
-    //initialize key;
+    // keyを初期化;
     byte* derCert = (byte*)malloc(FOURK_BUF);
 
     word32 certSz;
     certSz = wc_MakeCertReq(&myCert, derCert, FOURK_BUF, NULL, &key);
     \endcode
+
     \sa wc_InitCert
     \sa wc_MakeCert
 */
@@ -139,34 +147,38 @@ int  wc_MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
 
 /*!
     \ingroup ASN
-    \brief  この関数はバッファーの内容に署名し、署名をバッファの最後に追加します。署名の種類を取ります。
-    CA署名付き証明書を作成する場合は、wc_MakeCert()またはwc_MakeCertReq()の後に呼び出す必要があります。
-    \return 証明書への署名に成功した場合は、証明書の新しいサイズ(署名を含む)を返します。
-    \return MEMORY_E  xmallocでのメモリを割り当てでエラーがある場合
-    \return BUFFER_E  提供された証明書を保存するには提供されたバッファが小さすぎる場合に返されます。
-    \return Other  証明書の生成が成功しなかった場合、追加のエラーメッセージが返される可能性があります。
-    \param requestSz  署名対象の証明書本文のサイズ
-    \param sigType  作成する署名の種類。有効なオプションは次のとおりです:CTC_MD5WRSA、CTC_SHAWRSA、CTC_SHAWECDSA、CTC_SHA256WECDSA、ANDCTC_SHA256WRSA
-    \param derBuffer  署名対象の証明書を含むバッファへのポインタ。関数の処理成功時には署名が付加された証明書を保持します。
-    \param derSz  新たに署名された証明書を保存するバッファの（合計）サイズ
-    \param rsaKey  証明書に署名するために使用されるRSA鍵を含むRsaKey構造体へのポインタ
-    \param eccKey  証明書に署名するために使用されるECC鍵を含むEccKey構造体へのポインタ
-    \param rng  署名に使用する乱数生成器(WC_RNG構造体)へのポインタ
+
+    \brief この関数はbufferに署名し、署名をbufferの末尾に追加します。署名タイプを受け取ります。CA署名付き証明書を作成する場合は、wc_MakeCert()またはwc_MakeCertReq()の後に呼び出す必要があります。
+
+    \return Success 証明書の署名に成功すると、証明書の新しいサイズ（署名を含む）を返します。
+    \return MEMORY_E XMALLOCでメモリを割り当てる際にエラーがある場合に返されます
+    \return BUFFER_E 提供されたバッファが生成された証明書を格納するには小さすぎる場合に返されます
+    \return Other 証明書の生成が成功しない場合、追加のエラーメッセージが返される可能性があります。
+
+    \param requestSz 署名を要求している証明書本文のサイズ
+    \param sType 作成する署名のタイプ。有効なオプションは：CTC_MD5wRSA、CTC_SHAwRSA、CTC_SHAwECDSA、CTC_SHA256wECDSA、およびCTC_SHA256wRSA
+    \param buffer 署名される証明書を含むバッファへのポインタ。成功時：新しく署名された証明書を保持します
+    \param buffSz 新しく署名された証明書を格納するバッファの（合計）サイズ
+    \param rsaKey 証明書に署名するために使用されるrsaキーを含むRsaKey構造体へのポインタ
+    \param eccKey 証明書に署名するために使用されるeccキーを含むEccKey構造体へのポインタ
+    \param rng 証明書に署名するために使用される乱数生成器へのポインタ
 
     _Example_
     \code
     Cert myCert;
     byte* derCert = (byte*)malloc(FOURK_BUF);
-    // initialize myCert, derCert
+    // myCert、derCertを初期化
     RsaKey key;
-    // initialize key;
+    // keyを初期化;
     WC_RNG rng;
-    // initialize rng
+    // rngを初期化
 
     word32 certSz;
-    certSz = wc_SignCert(myCert.bodySz, myCert.sigType, derCert, FOURK_BUF,
-    &key, NULL, &rng);
+    certSz = wc_SignCert(myCert.bodySz, myCert.sigType,derCert,FOURK_BUF,
+    &key, NULL,
+    &rng);
     \endcode
+
     \sa wc_InitCert
     \sa wc_MakeCert
 */
@@ -175,31 +187,34 @@ int  wc_SignCert(int requestSz, int sigType, byte* derBuffer,
 
 /*!
     \ingroup ASN
-    \brief  この関数は、以前の2つの関数、wc_MakeCert、および自己署名のためのwc_SignCertの組み合わせです（前の関数はCA要求に使用される場合があります）。
-    証明書を作成してから、それに署名し、自己署名証明書を生成します。
-    \return 証明書への署名が成功した場合は、証明書の新しいサイズを返します。
-    \return MEMORY_E  xmallocでのメモリを割り当てでエラーがある場合
-    \return BUFFER_E  提供された証明書を保存するには提供されたバッファが小さすぎる場合に返されます。
-    \return Other  証明書の生成が成功しなかった場合、追加のエラーメッセージが返される可能性があります。
-    \param cert  署名する対象のCert構造体へのポインタ
-    \param derBuffer  署名付き証明書を保持するためのバッファへのポインタ
-    \param derSz  署名付き証明書を保存するバッファのサイズ
-    \param key  証明書に署名するために使用されるRSA鍵を含むRsaKey構造体へのポインタ
-    \param rng  署名に使用する乱数生成器(WC_RNG構造体)へのポインタ
+
+    \brief この関数は、自己署名用の前の2つの関数、wc_MakeCertとwc_SignCertの組み合わせです（前の関数はCA要求に使用できます）。証明書を作成してから署名し、自己署名証明書を生成します。
+
+    \return Success 証明書の署名に成功すると、証明書の新しいサイズを返します。
+    \return MEMORY_E XMALLOCでメモリを割り当てる際にエラーがある場合に返されます
+    \return BUFFER_E 提供されたバッファが生成された証明書を格納するには小さすぎる場合に返されます
+    \return Other 証明書の生成が成功しない場合、追加のエラーメッセージが返される可能性があります。
+
+    \param cert 作成して署名する証明書へのポインタ
+    \param buffer 署名された証明書を保持するバッファへのポインタ
+    \param buffSz 署名された証明書を格納するバッファのサイズ
+    \param key 証明書に署名するために使用されるrsaキーを含むRsaKey構造体へのポインタ
+    \param rng 証明書の生成と署名に使用される乱数生成器へのポインタ
 
     _Example_
     \code
     Cert myCert;
     byte* derCert = (byte*)malloc(FOURK_BUF);
-    // initialize myCert, derCert
+    // myCert、derCertを初期化
     RsaKey key;
-    // initialize key;
+    // keyを初期化;
     WC_RNG rng;
-    // initialize rng
+    // rngを初期化
 
     word32 certSz;
     certSz = wc_MakeSelfCert(&myCert, derCert, FOURK_BUF, &key, NULL, &rng);
     \endcode
+
     \sa wc_InitCert
     \sa wc_MakeCert
     \sa wc_SignCert
@@ -210,38 +225,35 @@ int  wc_MakeSelfCert(Cert* cert, byte* derBuffer, word32 derSz, RsaKey* key,
 /*!
     \ingroup ASN
 
-    \brief この関数はPEM形式のissureFileで与えられた発行者を証明書の発行者として設定します。
-    また、その際に、証明書の自己署名プロパティをfalseに変更します。
-    発行者は証明書の発行者として設定される前に検証されます。
-    この関数は証明書への署名に先立ち呼び出される必要があります。
+    \brief この関数は、証明書の発行者を、提供されたpem issuerFileの発行者に設定します。また、証明書の自己署名属性をfalseに変更します。issuerFileで指定された発行者は、cert発行者を設定する前に検証されます。このメソッドは、署名前にフィールドを設定するために使用されます。
 
-    \return 0 証明書の発行者の設定に成功した場合に返されます。
-    \return MEMORY_E XMALLOCでメモリの確保に失敗した際に返されます。
-    \return ASN_PARSE_E 証明書のヘッダーファイルの解析に失敗した際に返されます。
-    \return ASN_OBJECT_ID_E 証明書の暗号タイプの解析でエラーが発生した際に返されます。
-    \return ASN_EXPECT_0_E 証明書の暗号化仕様にフォーマットエラーが検出された際に返されます。
-    \return ASN_BEFORE_DATE_E 証明書の使用開始日より前であった場合に返されます。
-    \return ASN_AFTER_DATE_E 証明書の有効期限日より後であった場合に返されます。
-    \return ASN_BITSTR_E 証明書のビットストリング要素の解析でエラーが発生した際に返されます。
-    \return ECC_CURVE_OID_E 証明書のECC鍵の解析でエラーが発生した際に返されます。
-    \return ASN_UNKNOWN_OID_E 証明書が未知のオブジェクトIDを使用していた際に返されます。
-    \return ASN_VERSION_E  ALLOW_V1_EXTENSIONSマクロが定義されていないのに証明書がV1あるいはV2形式であった場合に返されます。
-    \return BAD_FUNC_ARG 証明書の拡張情報の解析でエラーが発生した際に返されます。
-    \return ASN_CRIT_EXT_E 証明書の解析中に未知のクリティカル拡張に遭遇した際に返されます。
-    \return ASN_SIG_OID_E 署名暗号化タイプが引数で渡された証明書のタイプと異なる場合に返されます。
-    \return ASN_SIG_CONFIRM_E 証明書の署名の検証に失敗した際に返されます。
-    \return ASN_NAME_INVALID_E 証明書の名前がCAの名前に関数制限によって許されていない場合に返されます。
-    \return ASN_NO_SIGNER_E CA証明書の発行者を検証することができない場合に返されます。
+    \return 0 証明書の発行者を正常に設定した場合に返されます
+    \return MEMORY_E XMALLOCでメモリを割り当てる際にエラーがある場合に返されます
+    \return ASN_PARSE_E 証明書ヘッダーファイルの解析エラーがある場合に返されます
+    \return ASN_OBJECT_ID_E 証明書から暗号化タイプを解析する際にエラーがある場合に返されます
+    \return ASN_EXPECT_0_E 証明書ファイルの暗号化仕様にフォーマットエラーがある場合に返されます
+    \return ASN_BEFORE_DATE_E 日付が証明書の開始日より前の場合に返されます
+    \return ASN_AFTER_DATE_E 日付が証明書の有効期限より後の場合に返されます
+    \return ASN_BITSTR_E 証明書からビット文字列を解析する際にエラーがある場合に返されます
+    \return ECC_CURVE_OID_E 証明書からECCキーを解析する際にエラーがある場合に返されます
+    \return ASN_UNKNOWN_OID_E 証明書が不明なキーオブジェクトIDを使用している場合に返されます
+    \return ASN_VERSION_E ALLOW_V1_EXTENSIONSオプションが定義されておらず、証明書がV1またはV2証明書の場合に返されます
+    \return BAD_FUNC_ARG 証明書拡張の処理エラーがある場合に返されます
+    \return ASN_CRIT_EXT_E 証明書の処理中に見慣れない重要な拡張に遭遇した場合に返されます
+    \return ASN_SIG_OID_E 署名暗号化タイプが提供されたファイル内の証明書の暗号化タイプと同じでない場合に返されます
+    \return ASN_SIG_CONFIRM_E 証明書署名の確認が失敗した場合に返されます
+    \return ASN_NAME_INVALID_E 証明書の名前がCA名前制約で許可されていない場合に返されます
+    \return ASN_NO_SIGNER_E 証明書の真正性を検証するCA署名者がいない場合に返されます
 
-    \param cert 発行者を設定する対象のCert構造体へのポインタ
-    \param issuerFile PEM形式の証明書ファイルへのファイルパス
+    \param cert 発行者を設定する証明書へのポインタ
+    \param issuerFile pem形式の証明書を含むファイルのパス
 
     _Example_
     \code
     Cert myCert;
-    // initialize myCert
-    if(wc_SetIssuer(&myCert, ”./path/to/ca-cert.pem”) != 0) {
-    	// error setting issuer
+    // myCertを初期化
+    if(wc_SetIssuer(&myCert, "./path/to/ca-cert.pem") != 0) {
+    	// 発行者設定エラー
     }
     \endcode
 
@@ -254,36 +266,35 @@ int  wc_SetIssuer(Cert* cert, const char* issuerFile);
 /*!
     \ingroup ASN
 
-    \brief この関数はPEM形式のsubjectFileで与えられた主体者を証明書の主体者として設定します。
-    この関数は証明書への署名に先立ち呼び出される必要があります。
+    \brief この関数は、証明書のsubjectを、提供されたpem subjectFileのsubjectに設定します。このメソッドは、署名前にフィールドを設定するために使用されます。
 
-    \return 0 証明書の主体者の設定に成功した場合に返されます。
-    \return MEMORY_E XMALLOCでメモリの確保に失敗した際に返されます。
-    \return ASN_PARSE_E 証明書のヘッダーファイルの解析に失敗した際に返されます。
-    \return ASN_OBJECT_ID_E 証明書の暗号タイプの解析でエラーが発生した際に返されます。
-    \return ASN_EXPECT_0_E 証明書の暗号化仕様にフォーマットエラーが検出された際に返されます。
-    \return ASN_BEFORE_DATE_E 証明書の使用開始日より前であった場合に返されます。
-    \return ASN_AFTER_DATE_E 証明書の有効期限日より後であった場合に返されます。
-    \return ASN_BITSTR_E 証明書のビットストリング要素の解析でエラーが発生した際に返されます。
-    \return ECC_CURVE_OID_E 証明書のECC鍵の解析でエラーが発生した際に返されます。
-    \return ASN_UNKNOWN_OID_E 証明書が未知のオブジェクトIDを使用していた際に返されます。
-    \return ASN_VERSION_E ALLOW_V1_EXTENSIONSマクロが定義されていないのに証明書がV1あるいはV2形式であった場合に返されます。
-    \return BAD_FUNC_ARG 証明書の拡張情報の解析でエラーが発生した際に返されます。
-    \return ASN_CRIT_EXT_E 証明書の解析中に未知のクリティカル拡張に遭遇した際に返されます。
-    \return ASN_SIG_OID_E 署名暗号化タイプが引数で渡された証明書のタイプと異なる場合に返されます。
-    \return ASN_SIG_CONFIRM_E 証明書の署名の検証に失敗した際に返されます。
-    \return ASN_NAME_INVALID_E 証明書の名前がCAの名前に関数制限によって許されていない場合に返されます。
-    \return ASN_NO_SIGNER_E CA証明書の主体者を検証することができない場合に返されます。
+    \return 0 証明書の発行者を正常に設定した場合に返されます
+    \return MEMORY_E XMALLOCでメモリを割り当てる際にエラーがある場合に返されます
+    \return ASN_PARSE_E 証明書ヘッダーファイルの解析エラーがある場合に返されます
+    \return ASN_OBJECT_ID_E 証明書から暗号化タイプを解析する際にエラーがある場合に返されます
+    \return ASN_EXPECT_0_E 証明書ファイルの暗号化仕様にフォーマットエラーがある場合に返されます
+    \return ASN_BEFORE_DATE_E 日付が証明書の開始日より前の場合に返されます
+    \return ASN_AFTER_DATE_E 日付が証明書の有効期限より後の場合に返されます
+    \return ASN_BITSTR_E 証明書からビット文字列を解析する際にエラーがある場合に返されます
+    \return ECC_CURVE_OID_E 証明書からECCキーを解析する際にエラーがある場合に返されます
+    \return ASN_UNKNOWN_OID_E 証明書が不明なキーオブジェクトIDを使用している場合に返されます
+    \return ASN_VERSION_E ALLOW_V1_EXTENSIONSオプションが定義されておらず、証明書がV1またはV2証明書の場合に返されます
+    \return BAD_FUNC_ARG 証明書拡張の処理エラーがある場合に返されます
+    \return ASN_CRIT_EXT_E 証明書の処理中に見慣れない重要な拡張に遭遇した場合に返されます
+    \return ASN_SIG_OID_E 署名暗号化タイプが提供されたファイル内の証明書の暗号化タイプと同じでない場合に返されます
+    \return ASN_SIG_CONFIRM_E 証明書署名の確認が失敗した場合に返されます
+    \return ASN_NAME_INVALID_E 証明書の名前がCA名前制約で許可されていない場合に返されます
+    \return ASN_NO_SIGNER_E 証明書の真正性を検証するCA署名者がいない場合に返されます
 
-    \param 主体者を設定する対象のCert構造体へのポインタ
-    \param subjectFile PEM形式の証明書ファイルへのファイルパス
+    \param cert 発行者を設定する証明書へのポインタ
+    \param subjectFile pem形式の証明書を含むファイルのパス
 
     _Example_
     \code
     Cert myCert;
-    // initialize myCert
-    if(wc_SetSubject(&myCert, ”./path/to/ca-cert.pem”) != 0) {
-    	// error setting subject
+    // myCertを初期化
+    if(wc_SetSubject(&myCert, "./path/to/ca-cert.pem") != 0) {
+    	// subject設定エラー
     }
     \endcode
 
@@ -296,41 +307,38 @@ int  wc_SetSubject(Cert* cert, const char* subjectFile);
 /*!
     \ingroup ASN
 
-    \brief この関数はDER形式でバッファに格納されているRaw-Subject情報を証明書のRaw-Subject情報として設定します。
-    この関数は証明書への署名に先立ち呼び出される必要があります。
+    \brief この関数は、提供されたderバッファのsubjectから証明書の生のsubjectを設定します。このメソッドは、署名前に生のsubjectフィールドを設定するために使用されます。
+    \return 0 証明書のsubjectを正常に設定した場合に返されます
+    \return MEMORY_E XMALLOCでメモリを割り当てる際にエラーがある場合に返されます
+    \return ASN_PARSE_E 証明書ヘッダーファイルの解析エラーがある場合に返されます
+    \return ASN_OBJECT_ID_E 証明書から暗号化タイプを解析する際にエラーがある場合に返されます
+    \return ASN_EXPECT_0_E 証明書ファイルの暗号化仕様にフォーマットエラーがある場合に返されます
+    \return ASN_BEFORE_DATE_E 日付が証明書の開始日より前の場合に返されます
+    \return ASN_AFTER_DATE_E 日付が証明書の有効期限より後の場合に返されます
+    \return ASN_BITSTR_E 証明書からビット文字列を解析する際にエラーがある場合に返されます
+    \return ECC_CURVE_OID_E 証明書からECCキーを解析する際にエラーがある場合に返されます
+    \return ASN_UNKNOWN_OID_E 証明書が不明なキーオブジェクトIDを使用している場合に返されます
+    \return ASN_VERSION_E ALLOW_V1_EXTENSIONSオプションが定義されておらず、証明書がV1またはV2証明書の場合に返されます
+    \return BAD_FUNC_ARG 証明書拡張の処理エラーがある場合に返されます
+    \return ASN_CRIT_EXT_E 証明書の処理中に見慣れない重要な拡張に遭遇した場合に返されます
+    \return ASN_SIG_OID_E 署名暗号化タイプが提供されたファイル内の証明書の暗号化タイプと同じでない場合に返されます
+    \return ASN_SIG_CONFIRM_E 証明書署名の確認が失敗した場合に返されます
+    \return ASN_NAME_INVALID_E 証明書の名前がCA名前制約で許可されていない場合に返されます
+    \return ASN_NO_SIGNER_E 証明書の真正性を検証するCA署名者がいない場合に返されます
 
-    \return 0 証明書のRaw-Subject情報の設定に成功した場合に返されます。
-    \return MEMORY_E XMALLOCでメモリの確保に失敗した際に返されます。
-    \return ASN_PARSE_E 証明書のヘッダーファイルの解析に失敗した際に返されます。
-    \return ASN_OBJECT_ID_E 証明書の暗号タイプの解析でエラーが発生した際に返されます。
-    \return ASN_EXPECT_0_E 証明書の暗号化仕様にフォーマットエラーが検出された際に返されます。
-    \return ASN_BEFORE_DATE_E 証明書の使用開始日より前であった場合に返されます。
-    \return ASN_AFTER_DATE_E 証明書の有効期限日より後であった場合に返されます。
-    \return ASN_BITSTR_E 証明書のビットストリング要素の解析でエラーが発生した際に返されます。
-    \return ECC_CURVE_OID_E 証明書のECC鍵の解析でエラーが発生した際に返されます。
-    \return ASN_UNKNOWN_OID_E 証明書が未知のオブジェクトIDを使用していた際に返されます。
-    \return ASN_VERSION_E ALLOW_V1_EXTENSIONSマクロが定義されていないのに証明書がV1あるいはV2形式であった場合に返されます。
-    \return BAD_FUNC_ARG 証明書の拡張情報の解析でエラーが発生した際に返されます。
-    \return ASN_CRIT_EXT_E 証明書の解析中に未知のクリティカル拡張に遭遇した際に返されます。
-    \return ASN_SIG_OID_E 署名暗号化タイプが引数で渡された証明書のタイプと異なる場合に返されます。
-    \return ASN_SIG_CONFIRM_E 証明書の署名の検証に失敗した際に返されます。
-    \return ASN_NAME_INVALID_E 証明書の名前がCAの名前に関数制限によって許されていない場合に返されます。
-    \return ASN_NO_SIGNER_E CA証明書の主体者を検証することができない場合に返されます。
-    \return ASN_NO_SIGNER_E CA証明書の主体者を検証することができない場合に返されます。
-
-    \param cert Raw-Subject情報を設定する対象のCert構造体へのポインタ
-    \param der DER形式の証明書を格納しているバッファへのポインタ。この証明書のRaw-Subject情報が取り出されてcertに設定されます。
-    \param derSz DER形式の証明書を格納しているバッファのサイズ
+    \param cert 生のsubjectを設定する証明書へのポインタ
+    \param der subjectを取得するder形式の証明書を含むバッファへのポインタ
+    \param derSz subjectを取得するder形式の証明書を含むバッファのサイズ
 
     _Example_
     \code
     Cert myCert;
-    // initialize myCert
+    // myCertを初期化
     byte* der;
     der = (byte*)malloc(FOURK_BUF);
-    // initialize der
+    // derを初期化
     if(wc_SetSubjectRaw(&myCert, der, FOURK_BUF) != 0) {
-        // error setting subject
+        // subject設定エラー
     }
     \endcode
 
@@ -342,22 +350,22 @@ int  wc_SetSubjectRaw(Cert* cert, const byte* der, int derSz);
 /*!
     \ingroup ASN
 
-    \brief この関数はCert構造体からRaw-Subject情報を取り出します。
+    \brief この関数は、証明書構造体から生のsubjectを取得します。
 
-    \return 0 証明書のRaw-Subject情報の取得に成功した場合に返されます。
-    \return BAD_FUNC_ARG 証明書の拡張情報の解析でエラーが発生した際に返されます。
+    \return 0 証明書からsubjectを正常に取得した場合に返されます
+    \return BAD_FUNC_ARG 証明書拡張の処理エラーがある場合に返されます
 
-    \param subjectRaw 処理が成功した際に返されるRaw-Subject情報を格納するバッファへのポインタのポインタ
-    \param cert Raw-Subject情報を保持するCert構造体へのポインタ
+    \param subjectRaw 正常に返された場合の生のsubjectへのポインタのポインタ
+    \param cert 生のsubjectを取得する証明書へのポインタ
 
     _Example_
     \code
     Cert myCert;
     byte *subjRaw;
-    // initialize myCert
+    // myCertを初期化
 
     if(wc_GetSubjectRaw(&subjRaw, &myCert) != 0) {
-        // error setting subject
+        // subject設定エラー
     }
     \endcode
 
@@ -369,38 +377,35 @@ int  wc_GetSubjectRaw(byte **subjectRaw, Cert *cert);
 /*!
     \ingroup ASN
 
-    \brief この関数は引数で与えられたPEM形式の証明書の主体者の別名をCert構造体に設定します。
-    複数のドメインで同一の証明書を使用する際には主体者の別名を付与する機能は有用です。
-    この関数は証明書への署名に先立ち呼び出される必要があります。
+    \brief この関数は、証明書の代替名を、提供されたpemファイル内の代替名に設定します。これは、同じ証明書で複数のドメインを保護したい場合に便利です。このメソッドは、署名前にフィールドを設定するために使用されます。
 
-    \return 0 証明書の主体者の設定に成功した場合に返されます。
-    \return MEMORY_E XMALLOCでメモリの確保に失敗した際に返されます。
-    \return ASN_PARSE_E 証明書のヘッダーファイルの解析に失敗した際に返されます。
-    \return ASN_OBJECT_ID_E 証明書の暗号タイプの解析でエラーが発生した際に返されます。
-    \return ASN_EXPECT_0_E 証明書の暗号化仕様にフォーマットエラーが検出された際に返されます。
-    \return ASN_BEFORE_DATE_E 証明書の使用開始日より前であった場合に返されます。
-    \return ASN_AFTER_DATE_E 証明書の有効期限日より後であった場合に返されます。
-    \return ASN_BITSTR_E 証明書のビットストリング要素の解析でエラーが発生した際に返されます。
-    \return ECC_CURVE_OID_E 証明書のECC鍵の解析でエラーが発生した際に返されます。
-    \return ASN_UNKNOWN_OID_E 証明書が未知のオブジェクトIDを使用していた際に返されます。
-    \return ASN_VERSION_E ALLOW_V1_EXTENSIONSマクロが定義されていないのに証明書がV1あるいはV2形式であった場合に返されます。
-    \return BAD_FUNC_ARG 証明書の拡張情報の解析でエラーが発生した際に返されます。
-    \return ASN_CRIT_EXT_E 証明書の解析中に未知のクリティカル拡張に遭遇した際に返されます。
-    \return ASN_SIG_OID_E 署名暗号化タイプが引数で渡された証明書のタイプと異なる場合に返されます。
-    \return ASN_SIG_CONFIRM_E 証明書の署名の検証に失敗した際に返されます。
-    \return ASN_NAME_INVALID_E 証明書の名前がCAの名前に関数制限によって許されていない場合に返されます。
-    \return ASN_NO_SIGNER_E CA証明書の主体者を検証することができない場合に返されます。
-    \return ASN_NO_SIGNER_E CA証明書の主体者を検証することができない場合に返されます。
+    \return 0 証明書の代替名を正常に設定した場合に返されます
+    \return MEMORY_E XMALLOCでメモリを割り当てる際にエラーがある場合に返されます
+    \return ASN_PARSE_E 証明書ヘッダーファイルの解析エラーがある場合に返されます
+    \return ASN_OBJECT_ID_E 証明書から暗号化タイプを解析する際にエラーがある場合に返されます
+    \return ASN_EXPECT_0_E 証明書ファイルの暗号化仕様にフォーマットエラーがある場合に返されます
+    \return ASN_BEFORE_DATE_E 日付が証明書の開始日より前の場合に返されます
+    \return ASN_AFTER_DATE_E 日付が証明書の有効期限より後の場合に返されます
+    \return ASN_BITSTR_E 証明書からビット文字列を解析する際にエラーがある場合に返されます
+    \return ECC_CURVE_OID_E 証明書からECCキーを解析する際にエラーがある場合に返されます
+    \return ASN_UNKNOWN_OID_E 証明書が不明なキーオブジェクトIDを使用している場合に返されます
+    \return ASN_VERSION_E ALLOW_V1_EXTENSIONSオプションが定義されておらず、証明書がV1またはV2証明書の場合に返されます
+    \return BAD_FUNC_ARG 証明書拡張の処理エラーがある場合に返されます
+    \return ASN_CRIT_EXT_E 証明書の処理中に見慣れない重要な拡張に遭遇した場合に返されます
+    \return ASN_SIG_OID_E 署名暗号化タイプが提供されたファイル内の証明書の暗号化タイプと同じでない場合に返されます
+    \return ASN_SIG_CONFIRM_E 証明書署名の確認が失敗した場合に返されます
+    \return ASN_NAME_INVALID_E 証明書の名前がCA名前制約で許可されていない場合に返されます
+    \return ASN_NO_SIGNER_E 証明書の真正性を検証するCA署名者がいない場合に返されます
 
-    \param cert 主体者の別名を設定する対象のCert構造体へのポインタ
-    \param file PEM形式の証明書のファイルパス
+    \param cert 代替名を設定する証明書へのポインタ
+    \param file pem形式の証明書を含むファイルのパス
 
     _Example_
     \code
     Cert myCert;
-    // initialize myCert
-    if(wc_SetSubject(&myCert, ”./path/to/ca-cert.pem”) != 0) {
-    	// error setting alt names
+    // myCertを初期化
+    if(wc_SetSubject(&myCert, "./path/to/ca-cert.pem") != 0) {
+    	// 代替名設定エラー
     }
     \endcode
 
@@ -412,42 +417,39 @@ int  wc_SetAltNames(Cert* cert, const char* file);
 /*!
     \ingroup ASN
 
-    \brief この関数はDER形式でバッファに格納されている発行者を証明書の発行者として設定します。
-    加えて、証明書の事故署名プロパティをfalseに設定します。
-    この関数は証明書への署名に先立ち呼び出される必要があります。
+    \brief この関数は、提供されたderバッファの発行者から証明書の発行者を設定します。また、証明書の自己署名属性をfalseに変更します。このメソッドは、署名前にフィールドを設定するために使用されます。
 
-    \return 0 証明書の発行者の設定に成功した場合に返されます。
-    \return MEMORY_E XMALLOCでメモリの確保に失敗した際に返されます。
-    \return ASN_PARSE_E 証明書のヘッダーファイルの解析に失敗した際に返されます。
-    \return ASN_OBJECT_ID_E 証明書の暗号タイプの解析でエラーが発生した際に返されます。
-    \return ASN_EXPECT_0_E 証明書の暗号化仕様にフォーマットエラーが検出された際に返されます。
-    \return ASN_BEFORE_DATE_E 証明書の使用開始日より前であった場合に返されます。
-    \return ASN_AFTER_DATE_E 証明書の有効期限日より後であった場合に返されます。
-    \return ASN_BITSTR_E 証明書のビットストリング要素の解析でエラーが発生した際に返されます。
-    \return ECC_CURVE_OID_E 証明書のECC鍵の解析でエラーが発生した際に返されます。
-    \return ASN_UNKNOWN_OID_E 証明書が未知のオブジェクトIDを使用していた際に返されます。
-    \return ASN_VERSION_E ALLOW_V1_EXTENSIONSマクロが定義されていないのに証明書がV1あるいはV2形式であった場合に返されます。
-    \return BAD_FUNC_ARG 証明書の拡張情報の解析でエラーが発生した際に返されます。
-    \return ASN_CRIT_EXT_E 証明書の解析中に未知のクリティカル拡張に遭遇した際に返されます。
-    \return ASN_SIG_OID_E 署名暗号化タイプが引数で渡された証明書のタイプと異なる場合に返されます。
-    \return ASN_SIG_CONFIRM_E 証明書の署名の検証に失敗した際に返されます。
-    \return ASN_NAME_INVALID_E 証明書の名前がCAの名前に関数制限によって許されていない場合に返されます。
-    \return ASN_NO_SIGNER_E CA証明書の主体者を検証することができない場合に返されます。
-    \return ASN_NO_SIGNER_E CA証明書の主体者を検証することができない場合に返されます。
+    \return 0 証明書の発行者を正常に設定した場合に返されます
+    \return MEMORY_E XMALLOCでメモリを割り当てる際にエラーがある場合に返されます
+    \return ASN_PARSE_E 証明書ヘッダーファイルの解析エラーがある場合に返されます
+    \return ASN_OBJECT_ID_E 証明書から暗号化タイプを解析する際にエラーがある場合に返されます
+    \return ASN_EXPECT_0_E 証明書ファイルの暗号化仕様にフォーマットエラーがある場合に返されます
+    \return ASN_BEFORE_DATE_E 日付が証明書の開始日より前の場合に返されます
+    \return ASN_AFTER_DATE_E 日付が証明書の有効期限より後の場合に返されます
+    \return ASN_BITSTR_E 証明書からビット文字列を解析する際にエラーがある場合に返されます
+    \return ECC_CURVE_OID_E 証明書からECCキーを解析する際にエラーがある場合に返されます
+    \return ASN_UNKNOWN_OID_E 証明書が不明なキーオブジェクトIDを使用している場合に返されます
+    \return ASN_VERSION_E ALLOW_V1_EXTENSIONSオプションが定義されておらず、証明書がV1またはV2証明書の場合に返されます
+    \return BAD_FUNC_ARG 証明書拡張の処理エラーがある場合に返されます
+    \return ASN_CRIT_EXT_E 証明書の処理中に見慣れない重要な拡張に遭遇した場合に返されます
+    \return ASN_SIG_OID_E 署名暗号化タイプが提供されたファイル内の証明書の暗号化タイプと同じでない場合に返されます
+    \return ASN_SIG_CONFIRM_E 証明書署名の確認が失敗した場合に返されます
+    \return ASN_NAME_INVALID_E 証明書の名前がCA名前制約で許可されていない場合に返されます
+    \return ASN_NO_SIGNER_E 証明書の真正性を検証するCA署名者がいない場合に返されます
 
-    \param cert 発行者を設定する対象のCert構造体へのポインタ
-    \param der DER形式の証明書を格納しているバッファへのポインタ。この証明書の発行者情報が取り出されてcertに設定されます。
-    \param derSz DER形式の証明書を格納しているバッファのサイズ
+    \param cert 発行者を設定する証明書へのポインタ
+    \param der 発行者を取得するder形式の証明書を含むバッファへのポインタ
+    \param derSz 発行者を取得するder形式の証明書を含むバッファのサイズ
 
     _Example_
     \code
     Cert myCert;
-    // initialize myCert
+    // myCertを初期化
     byte* der;
     der = (byte*)malloc(FOURK_BUF);
-    // initialize der
+    // derを初期化
     if(wc_SetIssuerBuffer(&myCert, der, FOURK_BUF) != 0) {
-	    // error setting issuer
+	    // issuer設定エラー
     }
     \endcode
 
@@ -459,42 +461,39 @@ int  wc_SetIssuerBuffer(Cert* cert, const byte* der, int derSz);
 /*!
     \ingroup ASN
 
-    \brief この関数はDER形式でバッファに格納されているRaw-Issuer情報を証明書のRaw-Issuer情報として設定します。
-    この関数は証明書への署名に先立ち呼び出される必要があります。
+    \brief この関数は、提供されたderバッファの発行者から証明書の生の発行者を設定します。このメソッドは、署名前に生の発行者フィールドを設定するために使用されます。
 
-    \return 0 証明書のRaw-Issuer情報の設定に成功した場合に返されます。
-    \return MEMORY_E XMALLOCでメモリの確保に失敗した際に返されます。
-    \return ASN_PARSE_E 証明書のヘッダーファイルの解析に失敗した際に返されます。
-    \return ASN_OBJECT_ID_E 証明書の暗号タイプの解析でエラーが発生した際に返されます。
-    \return ASN_EXPECT_0_E 証明書の暗号化仕様にフォーマットエラーが検出された際に返されます。
-    \return ASN_BEFORE_DATE_E 証明書の使用開始日より前であった場合に返されます。
-    \return ASN_AFTER_DATE_E 証明書の有効期限日より後であった場合に返されます。
-    \return ASN_BITSTR_E 証明書のビットストリング要素の解析でエラーが発生した際に返されます。
-    \return ECC_CURVE_OID_E 証明書のECC鍵の解析でエラーが発生した際に返されます。
-    \return ASN_UNKNOWN_OID_E 証明書が未知のオブジェクトIDを使用していた際に返されます。
-    \return ASN_VERSION_E ALLOW_V1_EXTENSIONSマクロが定義されていないのに証明書がV1あるいはV2形式であった場合に返されます。
-    \return BAD_FUNC_ARG 証明書の拡張情報の解析でエラーが発生した際に返されます。
-    \return ASN_CRIT_EXT_E 証明書の解析中に未知のクリティカル拡張に遭遇した際に返されます。
-    \return ASN_SIG_OID_E 署名暗号化タイプが引数で渡された証明書のタイプと異なる場合に返されます。
-    \return ASN_SIG_CONFIRM_E 証明書の署名の検証に失敗した際に返されます。
-    \return ASN_NAME_INVALID_E 証明書の名前がCAの名前に関数制限によって許されていない場合に返されます。
-    \return ASN_NO_SIGNER_E CA証明書の主体者を検証することができない場合に返されます。
-    \return ASN_NO_SIGNER_E CA証明書の主体者を検証することができない場合に返されます。
+    \return 0 証明書の発行者を正常に設定した場合に返されます
+    \return MEMORY_E XMALLOCでメモリを割り当てる際にエラーがある場合に返されます
+    \return ASN_PARSE_E 証明書ヘッダーファイルの解析エラーがある場合に返されます
+    \return ASN_OBJECT_ID_E 証明書から暗号化タイプを解析する際にエラーがある場合に返されます
+    \return ASN_EXPECT_0_E 証明書ファイルの暗号化仕様にフォーマットエラーがある場合に返されます
+    \return ASN_BEFORE_DATE_E 日付が証明書の開始日より前の場合に返されます
+    \return ASN_AFTER_DATE_E 日付が証明書の有効期限より後の場合に返されます
+    \return ASN_BITSTR_E 証明書からビット文字列を解析する際にエラーがある場合に返されます
+    \return ECC_CURVE_OID_E 証明書からECCキーを解析する際にエラーがある場合に返されます
+    \return ASN_UNKNOWN_OID_E 証明書が不明なキーオブジェクトIDを使用している場合に返されます
+    \return ASN_VERSION_E ALLOW_V1_EXTENSIONSオプションが定義されておらず、証明書がV1またはV2証明書の場合に返されます
+    \return BAD_FUNC_ARG 証明書拡張の処理エラーがある場合に返されます
+    \return ASN_CRIT_EXT_E 証明書の処理中に見慣れない重要な拡張に遭遇した場合に返されます
+    \return ASN_SIG_OID_E 署名暗号化タイプが提供されたファイル内の証明書の暗号化タイプと同じでない場合に返されます
+    \return ASN_SIG_CONFIRM_E 証明書署名の確認が失敗した場合に返されます
+    \return ASN_NAME_INVALID_E 証明書の名前がCA名前制約で許可されていない場合に返されます
+    \return ASN_NO_SIGNER_E 証明書の真正性を検証するCA署名者がいない場合に返されます
 
-
-    \param cert Raw-Issuer情報を設定する対象のCert構造体へのポインタ
-    \param der DER形式の証明書を格納しているバッファへのポインタ。この証明書のRaw-Issuer情報が取り出されてcertに設定されます。
-    \param derSz DER形式の証明書を格納しているバッファのサイズ
+    \param cert 生の発行者を設定する証明書へのポインタ
+    \param der subjectを取得するder形式の証明書を含むバッファへのポインタ
+    \param derSz subjectを取得するder形式の証明書を含むバッファのサイズ
 
     _Example_
     \code
     Cert myCert;
-    // initialize myCert
+    // myCertを初期化
     byte* der;
     der = (byte*)malloc(FOURK_BUF);
-    // initialize der
+    // derを初期化
     if(wc_SetIssuerRaw(&myCert, der, FOURK_BUF) != 0) {
-        // error setting subject
+        // subject設定エラー
     }
     \endcode
 
@@ -506,41 +505,39 @@ int  wc_SetIssuerRaw(Cert* cert, const byte* der, int derSz);
 /*!
     \ingroup ASN
 
-    \brief この関数はDER形式でバッファに格納されている主体者を証明書の主体者として設定します。
-    この関数は証明書への署名に先立ち呼び出される必要があります。
+    \brief この関数は、提供されたderバッファのsubjectから証明書のsubjectを設定します。このメソッドは、署名前にフィールドを設定するために使用されます。
 
-    \return 0 証明書の主体者の設定に成功した場合に返されます。
-    \return MEMORY_E XMALLOCでメモリの確保に失敗した際に返されます。
-    \return ASN_PARSE_E 証明書のヘッダーファイルの解析に失敗した際に返されます。
-    \return ASN_OBJECT_ID_E 証明書の暗号タイプの解析でエラーが発生した際に返されます。
-    \return ASN_EXPECT_0_E 証明書の暗号化仕様にフォーマットエラーが検出された際に返されます。
-    \return ASN_BEFORE_DATE_E 証明書の使用開始日より前であった場合に返されます。
-    \return ASN_AFTER_DATE_E 証明書の有効期限日より後であった場合に返されます。
-    \return ASN_BITSTR_E 証明書のビットストリング要素の解析でエラーが発生した際に返されます。
-    \return ECC_CURVE_OID_E 証明書のECC鍵の解析でエラーが発生した際に返されます。
-    \return ASN_UNKNOWN_OID_E 証明書が未知のオブジェクトIDを使用していた際に返されます。
-    \return ASN_VERSION_E ALLOW_V1_EXTENSIONSマクロが定義されていないのに証明書がV1あるいはV2形式であった場合に返されます。
-    \return BAD_FUNC_ARG 証明書の拡張情報の解析でエラーが発生した際に返されます。
-    \return ASN_CRIT_EXT_E 証明書の解析中に未知のクリティカル拡張に遭遇した際に返されます。
-    \return ASN_SIG_OID_E 署名暗号化タイプが引数で渡された証明書のタイプと異なる場合に返されます。
-    \return ASN_SIG_CONFIRM_E 証明書の署名の検証に失敗した際に返されます。
-    \return ASN_NAME_INVALID_E 証明書の名前がCAの名前に関数制限によって許されていない場合に返されます。
-    \return ASN_NO_SIGNER_E CA証明書の主体者を検証することができない場合に返されます。
-    \return ASN_NO_SIGNER_E CA証明書の主体者を検証することができない場合に返されます。
+    \return 0 証明書のsubjectを正常に設定した場合に返されます
+    \return MEMORY_E XMALLOCでメモリを割り当てる際にエラーがある場合に返されます
+    \return ASN_PARSE_E 証明書ヘッダーファイルの解析エラーがある場合に返されます
+    \return ASN_OBJECT_ID_E 証明書から暗号化タイプを解析する際にエラーがある場合に返されます
+    \return ASN_EXPECT_0_E 証明書ファイルの暗号化仕様にフォーマットエラーがある場合に返されます
+    \return ASN_BEFORE_DATE_E 日付が証明書の開始日より前の場合に返されます
+    \return ASN_AFTER_DATE_E 日付が証明書の有効期限より後の場合に返されます
+    \return ASN_BITSTR_E 証明書からビット文字列を解析する際にエラーがある場合に返されます
+    \return ECC_CURVE_OID_E 証明書からECCキーを解析する際にエラーがある場合に返されます
+    \return ASN_UNKNOWN_OID_E 証明書が不明なキーオブジェクトIDを使用している場合に返されます
+    \return ASN_VERSION_E ALLOW_V1_EXTENSIONSオプションが定義されておらず、証明書がV1またはV2証明書の場合に返されます
+    \return BAD_FUNC_ARG 証明書拡張の処理エラーがある場合に返されます
+    \return ASN_CRIT_EXT_E 証明書の処理中に見慣れない重要な拡張に遭遇した場合に返されます
+    \return ASN_SIG_OID_E 署名暗号化タイプが提供されたファイル内の証明書の暗号化タイプと同じでない場合に返されます
+    \return ASN_SIG_CONFIRM_E 証明書署名の確認が失敗した場合に返されます
+    \return ASN_NAME_INVALID_E 証明書の名前がCA名前制約で許可されていない場合に返されます
+    \return ASN_NO_SIGNER_E 証明書の真正性を検証するCA署名者がいない場合に返されます
 
-    \param cert 主体者を設定する対象のCert構造体へのポインタ
-    \param der DER形式の証明書を格納しているバッファへのポインタ。この証明書の主体者が取り出されてcertに設定されます。
-    \param derSz DER形式の証明書を格納しているバッファのサイズ
+    \param cert subjectを設定する証明書へのポインタ
+    \param der subjectを取得するder形式の証明書を含むバッファへのポインタ
+    \param derSz subjectを取得するder形式の証明書を含むバッファのサイズ
 
     _Example_
     \code
     Cert myCert;
-    // initialize myCert
+    // myCertを初期化
     byte* der;
     der = (byte*)malloc(FOURK_BUF);
-    // initialize der
+    // derを初期化
     if(wc_SetSubjectBuffer(&myCert, der, FOURK_BUF) != 0) {
-    	// error setting subject
+    	// subject設定エラー
     }
     \endcode
 
@@ -552,42 +549,39 @@ int  wc_SetSubjectBuffer(Cert* cert, const byte* der, int derSz);
 /*!
     \ingroup ASN
 
-    \brief この関数はDER形式でバッファに格納されている「別名情報」を証明書の「別名情報」として設定します。
-    この機能は複数ドメインを一つの証明書を使ってセキュアにする際に有用です。
-    この関数は証明書への署名に先立ち呼び出される必要があります。
+    \brief この関数は、提供されたderバッファの代替名から証明書の代替名を設定します。これは、同じ証明書で複数のドメインを保護したい場合に便利です。このメソッドは、署名前にフィールドを設定するために使用されます。
 
-    \return 0 証明書の別名情報の設定に成功した場合に返されます。
-    \return MEMORY_E XMALLOCでメモリの確保に失敗した際に返されます。
-    \return ASN_PARSE_E 証明書のヘッダーファイルの解析に失敗した際に返されます。
-    \return ASN_OBJECT_ID_E 証明書の暗号タイプの解析でエラーが発生した際に返されます。
-    \return ASN_EXPECT_0_E 証明書の暗号化仕様にフォーマットエラーが検出された際に返されます。
-    \return ASN_BEFORE_DATE_E 証明書の使用開始日より前であった場合に返されます。
-    \return ASN_AFTER_DATE_E 証明書の有効期限日より後であった場合に返されます。
-    \return ASN_BITSTR_E 証明書のビットストリング要素の解析でエラーが発生した際に返されます。
-    \return ECC_CURVE_OID_E 証明書のECC鍵の解析でエラーが発生した際に返されます。
-    \return ASN_UNKNOWN_OID_E 証明書が未知のオブジェクトIDを使用していた際に返されます。
-    \return ASN_VERSION_E ALLOW_V1_EXTENSIONSマクロが定義されていないのに証明書がV1あるいはV2形式であった場合に返されます。
-    \return BAD_FUNC_ARG 証明書の拡張情報の解析でエラーが発生した際に返されます。
-    \return ASN_CRIT_EXT_E 証明書の解析中に未知のクリティカル拡張に遭遇した際に返されます。
-    \return ASN_SIG_OID_E 署名暗号化タイプが引数で渡された証明書のタイプと異なる場合に返されます。
-    \return ASN_SIG_CONFIRM_E 証明書の署名の検証に失敗した際に返されます。
-    \return ASN_NAME_INVALID_E 証明書の名前がCAの名前に関数制限によって許されていない場合に返されます。
-    \return ASN_NO_SIGNER_E CA証明書の主体者を検証することができない場合に返されます。
-    \return ASN_NO_SIGNER_E CA証明書の主体者を検証することができない場合に返されます。
+    \return 0 証明書の代替名を正常に設定した場合に返されます
+    \return MEMORY_E XMALLOCでメモリを割り当てる際にエラーがある場合に返されます
+    \return ASN_PARSE_E 証明書ヘッダーファイルの解析エラーがある場合に返されます
+    \return ASN_OBJECT_ID_E 証明書から暗号化タイプを解析する際にエラーがある場合に返されます
+    \return ASN_EXPECT_0_E 証明書ファイルの暗号化仕様にフォーマットエラーがある場合に返されます
+    \return ASN_BEFORE_DATE_E 日付が証明書の開始日より前の場合に返されます
+    \return ASN_AFTER_DATE_E 日付が証明書の有効期限より後の場合に返されます
+    \return ASN_BITSTR_E 証明書からビット文字列を解析する際にエラーがある場合に返されます
+    \return ECC_CURVE_OID_E 証明書からECCキーを解析する際にエラーがある場合に返されます
+    \return ASN_UNKNOWN_OID_E 証明書が不明なキーオブジェクトIDを使用している場合に返されます
+    \return ASN_VERSION_E ALLOW_V1_EXTENSIONSオプションが定義されておらず、証明書がV1またはV2証明書の場合に返されます
+    \return BAD_FUNC_ARG 証明書拡張の処理エラーがある場合に返されます
+    \return ASN_CRIT_EXT_E 証明書の処理中に見慣れない重要な拡張に遭遇した場合に返されます
+    \return ASN_SIG_OID_E 署名暗号化タイプが提供されたファイル内の証明書の暗号化タイプと同じでない場合に返されます
+    \return ASN_SIG_CONFIRM_E 証明書署名の確認が失敗した場合に返されます
+    \return ASN_NAME_INVALID_E 証明書の名前がCA名前制約で許可されていない場合に返されます
+    \return ASN_NO_SIGNER_E 証明書の真正性を検証するCA署名者がいない場合に返されます
 
-    \param cert 別名情報を設定する対象のCert構造体へのポインタ
-    \param der DER形式の証明書を格納しているバッファへのポインタ。この証明書の別名情報が取り出されてcertに設定されます。
-    \param derSz DER形式の証明書を格納しているバッファのサイズ
+    \param cert 代替名を設定する証明書へのポインタ
+    \param der 代替名を取得するder形式の証明書を含むバッファへのポインタ
+    \param derSz 代替名を取得するder形式の証明書を含むバッファのサイズ
 
     _Example_
     \code
     Cert myCert;
-    // initialize myCert
+    // myCertを初期化
     byte* der;
     der = (byte*)malloc(FOURK_BUF);
-    // initialize der
+    // derを初期化
     if(wc_SetAltNamesBuffer(&myCert, der, FOURK_BUF) != 0) {
-    	// error setting subject
+    	// subject設定エラー
     }
     \endcode
 
@@ -599,41 +593,39 @@ int  wc_SetAltNamesBuffer(Cert* cert, const byte* der, int derSz);
 /*!
     \ingroup ASN
 
-    \brief この関数はDER形式でバッファに格納されている「有効期間」情報を証明書の「有効期間」情報として設定します。
-    この関数は証明書への署名に先立ち呼び出される必要があります。
+    \brief この関数は、提供されたderバッファの日付範囲から証明書の日付を設定します。このメソッドは、署名前にフィールドを設定するために使用されます。
 
-    \return 0 証明書の有効期間情報の設定に成功した場合に返されます。
-    \return MEMORY_E XMALLOCでメモリの確保に失敗した際に返されます。
-    \return ASN_PARSE_E 証明書のヘッダーファイルの解析に失敗した際に返されます。
-    \return ASN_OBJECT_ID_E 証明書の暗号タイプの解析でエラーが発生した際に返されます。
-    \return ASN_EXPECT_0_E 証明書の暗号化仕様にフォーマットエラーが検出された際に返されます。
-    \return ASN_BEFORE_DATE_E 証明書の使用開始日より前であった場合に返されます。
-    \return ASN_AFTER_DATE_E 証明書の有効期限日より後であった場合に返されます。
-    \return ASN_BITSTR_E 証明書のビットストリング要素の解析でエラーが発生した際に返されます。
-    \return ECC_CURVE_OID_E 証明書のECC鍵の解析でエラーが発生した際に返されます。
-    \return ASN_UNKNOWN_OID_E 証明書が未知のオブジェクトIDを使用していた際に返されます。
-    \return ASN_VERSION_E ALLOW_V1_EXTENSIONSマクロが定義されていないのに証明書がV1あるいはV2形式であった場合に返されます。
-    \return BAD_FUNC_ARG 証明書の拡張情報の解析でエラーが発生した際に返されます。
-    \return ASN_CRIT_EXT_E 証明書の解析中に未知のクリティカル拡張に遭遇した際に返されます。
-    \return ASN_SIG_OID_E 署名暗号化タイプが引数で渡された証明書のタイプと異なる場合に返されます。
-    \return ASN_SIG_CONFIRM_E 証明書の署名の検証に失敗した際に返されます。
-    \return ASN_NAME_INVALID_E 証明書の名前がCAの名前に関数制限によって許されていない場合に返されます。
-    \return ASN_NO_SIGNER_E CA証明書の主体者を検証することができない場合に返されます。
-    \return ASN_NO_SIGNER_E CA証明書の主体者を検証することができない場合に返されます。
+    \return 0 証明書の日付を正常に設定した場合に返されます
+    \return MEMORY_E XMALLOCでメモリを割り当てる際にエラーがある場合に返されます
+    \return ASN_PARSE_E 証明書ヘッダーファイルの解析エラーがある場合に返されます
+    \return ASN_OBJECT_ID_E 証明書から暗号化タイプを解析する際にエラーがある場合に返されます
+    \return ASN_EXPECT_0_E 証明書ファイルの暗号化仕様にフォーマットエラーがある場合に返されます
+    \return ASN_BEFORE_DATE_E 日付が証明書の開始日より前の場合に返されます
+    \return ASN_AFTER_DATE_E 日付が証明書の有効期限より後の場合に返されます
+    \return ASN_BITSTR_E 証明書からビット文字列を解析する際にエラーがある場合に返されます
+    \return ECC_CURVE_OID_E 証明書からECCキーを解析する際にエラーがある場合に返されます
+    \return ASN_UNKNOWN_OID_E 証明書が不明なキーオブジェクトIDを使用している場合に返されます
+    \return ASN_VERSION_E ALLOW_V1_EXTENSIONSオプションが定義されておらず、証明書がV1またはV2証明書の場合に返されます
+    \return BAD_FUNC_ARG 証明書拡張の処理エラーがある場合に返されます
+    \return ASN_CRIT_EXT_E 証明書の処理中に見慣れない重要な拡張に遭遇した場合に返されます
+    \return ASN_SIG_OID_E 署名暗号化タイプが提供されたファイル内の証明書の暗号化タイプと同じでない場合に返されます
+    \return ASN_SIG_CONFIRM_E 証明書署名の確認が失敗した場合に返されます
+    \return ASN_NAME_INVALID_E 証明書の名前がCA名前制約で許可されていない場合に返されます
+    \return ASN_NO_SIGNER_E 証明書の真正性を検証するCA署名者がいない場合に返されます
 
-    \param cert 有効期間情報を設定する対象のCert構造体へのポインタ
-    \param der DER形式の証明書を格納しているバッファへのポインタ。この証明書の有効期間情報が取り出されてcertに設定されます。
-    \param derSz DER形式の証明書を格納しているバッファのサイズ
+    \param cert 日付を設定する証明書へのポインタ
+    \param der 日付範囲を取得するder形式の証明書を含むバッファへのポインタ
+    \param derSz 日付範囲を取得するder形式の証明書を含むバッファのサイズ
 
     _Example_
     \code
     Cert myCert;
-    // initialize myCert
+    // myCertを初期化
     byte* der;
     der = (byte*)malloc(FOURK_BUF);
-    // initialize der
+    // derを初期化
     if(wc_SetDatesBuffer(&myCert, der, FOURK_BUF) != 0) {
-    	// error setting subject
+    	// subject設定エラー
     }
     \endcode
 
@@ -644,16 +636,16 @@ int  wc_SetDatesBuffer(Cert* cert, const byte* der, int derSz);
 /*!
     \ingroup ASN
 
-    \brief この関数は指定されたRSAあるいはECC公開鍵の一方から得たAKID（認証者鍵ID）を証明書のAKIDとして設定します。
+    \brief RSAまたはECC公開鍵からAKIDを設定します。注：rsakeyまたはeckeyのいずれか一方のみを設定し、両方は設定しないでください。
 
-    \return 0 証明書のAKIDの設定に成功した場合に返されます。
-    \return BAD_FUNC_ARG Cert構造体へのポインタ(cert)がNULLかRsaKey構造体へのポインタ(rsakey)とecc_key構造体へのポインタ(eckey)の両方がNULLである場合に返されます。
-    \return MEMORY_E メモリの確保に失敗した際に返されます。
-    \return PUBLIC_KEY_E 公開鍵の取得に失敗した際に返されます。
+    \return 0 成功
+    \return BAD_FUNC_ARG certがnullまたはrsakeyとeckeyの両方がnullの場合。
+    \return MEMORY_E メモリの割り当てエラー。
+    \return PUBLIC_KEY_E キーへの書き込みエラー。
 
-    \param cert AKIDを設定する対象のCert構造体へのポインタ
-    \param rsakey RsaKey構造体へのポインタ
-    \param eckey ecc_key構造体へのポインタ
+    \param cert SKIDを設定する証明書へのポインタ。
+    \param rsakey 読み取り元のRsaKey構造体へのポインタ。
+    \param eckey 読み取り元のecc_keyへのポインタ。
 
     _Example_
     \code
@@ -664,7 +656,7 @@ int  wc_SetDatesBuffer(Cert* cert, const byte* der, int derSz);
 
     if (wc_SetAuthKeyIdFromPublicKey(&myCert, &keypub, NULL) != 0)
     {
-        // Handle error
+        // エラーを処理
     }
     \endcode
 
@@ -678,25 +670,25 @@ int wc_SetAuthKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey,
 /*!
     \ingroup ASN
 
-    \brief この関数はDER形式でバッファに格納された証明書から得たAKID(認証者鍵ID)を証明書のAKIDとして設定します。
+    \brief DERエンコードされた証明書からAKIDを設定します。
 
-    \return 0 証明書のAKIDの設定に成功した場合に返されます。
-    \return BAD_FUNC_ARG 引数のいずれかがNULL,あるいはderSzが０より小さい場合に返されます。
-    \return MEMORY_E メモリの確保に失敗した際に返されます。
-    \return ASN_NO_SKID 認証者鍵IDが見つからない場合に返されます。
+    \return 0 成功
+    \return BAD_FUNC_ARG いずれかの引数がnullまたはderSzが0未満の場合のエラー。
+    \return MEMORY_E メモリの割り当てに問題がある場合のエラー。
+    \return ASN_NO_SKID サブジェクトキーIDが見つかりません。
 
-    \param cert AKIDを設定する対象のCert構造体へのポインタ。
-    \param der DER形式の証明書を格納しているバッファへのポインタ。
-    \param derSz DER形式の証明書を格納しているバッファのサイズ。
+    \param cert 書き込み先のCert構造体。
+    \param der DERエンコードされた証明書バッファ。
+    \param derSz derのサイズ（バイト単位）。
 
     _Example_
     \code
     Cert some_cert;
-    byte some_der[] = { // Initialize a DER buffer };
+    byte some_der[] = { // DERバッファを初期化 };
     wc_InitCert(&some_cert);
     if(wc_SetAuthKeyIdFromCert(&some_cert, some_der, sizeof(some_der) != 0)
     {
-        // Handle error
+        // エラーを処理
     }
     \endcode
 
@@ -708,14 +700,14 @@ int wc_SetAuthKeyIdFromCert(Cert *cert, const byte *der, int derSz);
 /*!
     \ingroup ASN
 
-    \brief この関数はPEM形式の証明書から得たAKID(認証者鍵ID)を証明書のAKIDとして設定します。
+    \brief PEM形式の証明書ファイルからAKIDを設定します。
 
-    \return 0 証明書のAKIDの設定に成功した場合に返されます。
-    \return BAD_FUNC_ARG 引数のいずれかがNULLの場合に返されます。
-    \return MEMORY_E メモリの確保に失敗した際に返されます。
+    \return 0 成功
+    \return BAD_FUNC_ARG certまたはfileがnullの場合のエラー。
+    \return MEMORY_E メモリの割り当てに問題がある場合のエラー。
 
-    \param cert AKIDを設定する対象のCert構造体へのポインタ。
-    \param file PEM形式の証明書ファイルへのファイルパス
+    \param cert AKIDを設定したいCert構造体。
+    \param file PEM証明書ファイルを含むバッファ。
 
     _Example_
     \code
@@ -725,7 +717,7 @@ int wc_SetAuthKeyIdFromCert(Cert *cert, const byte *der, int derSz);
 
     if(wc_SetAuthKeyId(&some_cert, file_name) != 0)
     {
-        // Handle Error
+        // エラーを処理
     }
     \endcode
 
@@ -737,14 +729,14 @@ int wc_SetAuthKeyId(Cert *cert, const char* file);
 /*!
     \ingroup ASN
 
-    \brief この関数は指定されたRSAあるいはECC公開鍵の一方から得たSKID（主体者鍵ID）を証明書のSKIDとして設定します。
+    \brief RSAまたはECC公開鍵からSKIDを設定します。
 
-    \return 0 証明書のSKIDの設定に成功した場合に返されます。
-    \return BAD_FUNC_ARG Cert構造体へのポインタ(cert)がNULLかRsaKey構造体へのポインタ(rsakey)とecc_key構造体へのポインタ(eckey)の両方がNULLである場合に返されます。
-    \return MEMORY_E メモリの確保に失敗した際に返されます。
-    \return PUBLIC_KEY_E 公開鍵の取得に失敗した際に返されます。
+    \return 0 成功
+    \return BAD_FUNC_ARG certまたはrsakeyとeckeyがnullの場合に返されます。
+    \return MEMORY_E メモリの割り当てエラーがある場合に返されます。
+    \return PUBLIC_KEY_E 公開鍵の取得エラーがある場合に返されます。
 
-    \param cert SKIDを設定する対象のCert構造体へのポインタ
+    \param cert 使用するCert構造体へのポインタ。
     \param rsakey RsaKey構造体へのポインタ
     \param eckey ecc_key構造体へのポインタ
 
@@ -757,7 +749,7 @@ int wc_SetAuthKeyId(Cert *cert, const char* file);
 
     if(wc_SetSubjectKeyIdFromPublicKey(&some_cert,&some_key, NULL) != 0)
     {
-        // Handle Error
+        // エラーを処理
     }
     \endcode
 
@@ -769,16 +761,15 @@ int wc_SetSubjectKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey,
 /*!
     \ingroup ASN
 
-    \brief この関数はPEM形式の証明書から得たSKID(主体者鍵ID)を証明書のSKIDとして設定します。
-    引数は両方が与えられることが必要です。
+    \brief PEM形式の公開鍵ファイルからSKIDを設定します。両方の引数が必要です。
 
-    \return 0 証明書のSKIDの設定に成功した場合に返されます。
-    \return BAD_FUNC_ARG 引数のいずれかがNULLの場合に返されます。
-    \return MEMORY_E メモリの確保に失敗した際に返されます。
-    \return PUBLIC_KEY_E 公開鍵のデコードに失敗した際に返されます。
+    \return 0 成功
+    \return BAD_FUNC_ARG certまたはfileがnullの場合に返されます。
+    \return MEMORY_E キー用のメモリ割り当てに問題がある場合に返されます。
+    \return PUBLIC_KEY_E 公開鍵のデコードエラーがある場合に返されます。
 
-    \param cert SKIDを設定する対象のCert構造体へのポインタ。
-    \param file PEM形式の証明書ファイルへのファイルパス
+    \param cert SKIDを設定するCert構造体。
+    \param file PEMエンコードされたファイルを含む。
 
     _Example_
     \code
@@ -788,7 +779,7 @@ int wc_SetSubjectKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey,
 
     if(wc_SetSubjectKeyId(&some_cert, file_name) != 0)
     {
-        // Handle Error
+        // エラーを処理
     }
     \endcode
 
@@ -799,19 +790,15 @@ int wc_SetSubjectKeyId(Cert *cert, const char* file);
 /*!
     \ingroup RSA
 
-    \brief この関数は鍵の用途を設定します。設定値の指定はコンマ区切りトークンを使用できます。
-    受け付けられるトークンは：digitalSignature, nonRepudiation, contentCommitment, keyCertSign, cRLSign, dataEncipherment,
-    keyAgreement, keyEncipherment, encipherOnly, decipherOnly です。
-    指定例："digitalSignature,nonRepudiation"。
-    nonRepudiation と contentCommitment　は同じ用途を意味します。
+    \brief この関数を使用すると、カンマ区切りのトークン文字列を使用してキー使用法を設定できます。受け入れられるトークンは：digitalSignature、nonRepudiation、contentCommitment、keyCertSign、cRLSign、dataEncipherment、keyAgreement、keyEncipherment、encipherOnly、decipherOnlyです。例："digitalSignature,nonRepudiation" nonRepudiationとcontentCommitmentは同じ用途です。
 
-    \return 0 証明書の用途の設定に成功した場合に返されます。
-    \return BAD_FUNC_ARG 引数のいずれかがNULLの場合に返されます。
-    \return MEMORY_E メモリの確保に失敗した際に返されます。
-    \return KEYUSAGE_E 未知のトークンが検出された際に返されます。
+    \return 0 成功
+    \return BAD_FUNC_ARG いずれかの引数がnullの場合に返されます。
+    \return MEMORY_E メモリの割り当てエラーがある場合に返されます。
+    \return KEYUSAGE_E 認識されないトークンが入力された場合に返されます。
 
-    \param cert 鍵の用途を設定する対象の初期化済みCert構造体へのポインタ。
-    \param value 鍵の用途を意味するコンマ区切りトークン文字列へのポインタ
+    \param cert 初期化されたCert構造体へのポインタ。
+    \param value 使用法を設定するトークンのカンマ区切り文字列。
 
     _Example_
     \code
@@ -820,7 +807,7 @@ int wc_SetSubjectKeyId(Cert *cert, const char* file);
 
     if(wc_SetKeyUsage(&cert, "cRLSign,keyCertSign") != 0)
     {
-        // Handle error
+        // エラーを処理
     }
     \endcode
 
@@ -832,17 +819,17 @@ int wc_SetKeyUsage(Cert *cert, const char *value);
 /*!
     \ingroup ASN
 
-    \brief PEM形式の鍵ファイルをロードしDER形式に変換してバッファに出力します。
+    \brief ファイルからPEMキーを読み込み、DERエンコードされたバッファに変換します。
 
-    \return 0 処理成功時に返されます。
-    \return <0 エラー発生時に返されます。
-    \return SSL_BAD_FILE ファイルのオープンに問題が生じた際に返されます。
-    \return MEMORY_E メモリの確保に失敗した際に返されます。
-    \return BUFFER_E 与えられた出力バッファderBufが結果を保持するのに十分な大きさがない場合に返されます。
+    \return 0 成功
+    \return <0 エラー
+    \return SSL_BAD_FILE ファイルを開く際に問題があります。
+    \return MEMORY_E ファイルバッファ用のメモリ割り当てエラーがあります。
+    \return BUFFER_E derBufが変換されたキーを保持するのに十分な大きさではありません。
 
-    \param fileName PEM形式のファイルパス
-    \param derBuf DER形式鍵を出力する先のバッファ
-    \param derSz 出力先バッファのサイズ
+    \param fileName ロードするファイルの名前。
+    \param derBuf DERエンコードされたキー用のバッファ。
+    \param derSz DERバッファのサイズ。
 
     _Example_
     \code
@@ -851,7 +838,7 @@ int wc_SetKeyUsage(Cert *cert, const char *value);
 
     if(wc_PemPubKeyToDer(some_file, der, sizeof(der)) != 0)
     {
-        //Handle Error
+        // エラーを処理
     }
     \endcode
 
@@ -863,26 +850,26 @@ int wc_PemPubKeyToDer(const char* fileName,
 /*!
     \ingroup ASN
 
-    \brief PEM形式の鍵データをDER形式に変換してバッファに出力し、出力バイト数あるいは負のエラー値を返します。
+    \brief PEMエンコードされた公開鍵をDERに変換します。バッファに書き込まれたバイト数、またはエラーの場合は負の値を返します。
 
-    \return >0 処理成功時には出力したバイト数が返されます。
-    \return BAD_FUNC_ARG 引数のpem, buff, あるいは buffSz のいずれかばNULLの場合に返されます。
-    \return <0 エラーが発生した際に返されます。
+    \return >0 成功、書き込まれたバイト数。
+    \return BAD_FUNC_ARG pem、buff、またはbuffSzがnullの場合に返されます
+    \return <0 関数内でエラーが発生しました。
 
-    \param pem PEM形式の鍵を含んだバッファへのポインタ
-    \param pemSz PEM形式の鍵を含んだバッファのサイズ
-    \param buff 出力先バッファへのポインタ
-    \param buffSz 出力先バッファのサイズ
+    \param pem PEMエンコードされたキー
+    \param pemSz pemのサイズ
+    \param buff 出力用バッファへのポインタ。
+    \param buffSz バッファのサイズ。
 
     _Example_
     \code
-    byte some_pem[] = { Initialize with PEM key }
-    unsigned char out_buffer[1024]; // Ensure buffer is large enough to fit DER
+    byte some_pem[] = { PEMキーで初期化 }
+    unsigned char out_buffer[1024]; // バッファがDERを格納するのに十分な大きさであることを確認
 
     if(wc_PubKeyPemToDer(some_pem, sizeof(some_pem), out_buffer,
     sizeof(out_buffer)) < 0)
     {
-        // Handle error
+        // エラーを処理
     }
     \endcode
 
@@ -894,29 +881,29 @@ int wc_PubKeyPemToDer(const unsigned char* pem, int pemSz,
 /*!
     \ingroup ASN
 
-    \brief この関数はPEM形式の証明書をDER形式に変換し、与えられたバッファに出力します。
+    \brief この関数は、pem証明書をder証明書に変換し、結果の証明書を提供されたderBufバッファに配置します。
 
-    \return 処理成功時には出力したバイト数が返されます。
-    \return BUFFER_E 与えられた出力バッファderBufが結果を保持するのに十分な大きさがない場合に返されます。
-    \return MEMORY_E メモリの確保に失敗した際に返されます。
+    \return Success 成功時に生成されたderBufのサイズを返します
+    \return BUFFER_E derBufのサイズが生成された証明書を保持するには小さすぎる場合に返されます
+    \return MEMORY_E XMALLOCの呼び出しが失敗した場合に返されます
 
-    \param fileName PEM形式のファイルパス
-    \param derBuf DER形式証明書を出力する先のバッファへのポインタ
-    \param derSz DER形式証明書を出力する先のバッファのサイズ
+    \param fileName der証明書に変換するpem証明書を含むファイルへのパス
+    \param derBuf 変換された証明書を格納するcharバッファへのポインタ
+    \param derSz 変換された証明書を格納するcharバッファのサイズ
 
     _Example_
     \code
-    char * file = “./certs/client-cert.pem”;
+    char * file = "./certs/client-cert.pem";
     int derSz;
     byte* der = (byte*)XMALLOC((8*1024), NULL, DYNAMIC_TYPE_CERT);
 
     derSz = wc_PemCertToDer(file, der, (8*1024));
     if (derSz <= 0) {
-        //PemCertToDer error
+        // PemCertToDerエラー
     }
     \endcode
 
-    \sa none
+    \sa なし
 */
 
 int wc_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz);
@@ -924,25 +911,24 @@ int wc_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz);
 /*!
     \ingroup ASN
 
-    \brief この関数はバッファで与えられたDER形式の証明書をPEM形式に変換し、与えられた出力用バッファに出力します。
-    この関数は入力バッファと出力バッファを共用することはできません。両バッファは必ず別のものを用意してください。
+    \brief この関数は、derバッファに含まれるder形式の入力証明書を、outputバッファに含まれるpem形式の出力証明書に変換します。これはインプレース変換ではなく、pem形式の出力を格納するために別のバッファを使用する必要があることに注意してください。
 
-    \return 処理成功時には変換後のPEM形式データのサイズを返します。
-    \return BAD_FUNC_ARG DER形式証明書データの解析中にエラーが発生した際、あるいはPEM形式に変換の際にエラーが発生した際に返されます。
-    \return MEMORY_E メモリの確保に失敗した際に返されます。
-    \return ASN_INPUT_E Base64エンコーディングエラーが検出された際に返されます。
-    \return BUFFER_E 与えられた出力バッファが結果を保持するのに十分な大きさがない場合に返されます。
+    \return Success 入力der証明書から正常にpem証明書を作成すると、生成されたpem証明書のサイズを返します。
+    \return BAD_FUNC_ARG derファイルを解析してpemファイルとして格納する際にエラーがある場合に返されます
+    \return MEMORY_E XMALLOCでメモリを割り当てる際にエラーがある場合に返されます
+    \return ASN_INPUT_E base64エンコードエラーの場合に返されます
+    \return BUFFER_E 出力バッファがpem形式の証明書を格納するには小さすぎる場合に返される可能性があります
 
-    \param der DER形式証明書データを保持するバッファへのポインタ
-    \param derSz DER形式証明書データのサイズ
-    \param output PEM形式証明書データを出力する先のバッファへのポインタ
-    \param outSz PEM形式証明書データを出力する先のバッファのサイズ
-    \param type 変換する証明書のタイプ。次のタイプが指定可: CERT_TYPE, PRIVATEKEY_TYPE, ECC_PRIVATEKEY_TYPE, and CERTREQ_TYPE.
+    \param der 変換する証明書のバッファへのポインタ
+    \param derSz 変換する証明書のサイズ
+    \param output pem形式の証明書を格納するバッファへのポインタ
+    \param outSz pem形式の証明書を格納するバッファのサイズ
+    \param type 生成する証明書のタイプ。有効なタイプは：CERT_TYPE、PRIVATEKEY_TYPE、ECC_PRIVATEKEY_TYPE、およびCERTREQ_TYPE。
 
     _Example_
     \code
     byte* der;
-    // initialize der with certificate
+    // 証明書でderを初期化
     byte* pemFormatted[FOURK_BUF];
 
     word32 pemSz;
@@ -952,57 +938,56 @@ int wc_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz);
     \sa wc_PemCertToDer
 */
 int wc_DerToPem(const byte* der, word32 derSz, byte* output,
-                                word32 outputSz, int type);
+                                word32 outSz, int type);
 
 /*!
     \ingroup ASN
 
-    \brief この関数はDER形式証明書を入力バッファから読み出し、PEM形式に変換して出力バッファに出力します。
-    この関数は入力バッファと出力バッファを共用することはできません。両バッファは必ず別のものを用意してください。
-    追加の暗号情報を指定することができます。
+    \brief この関数は、der形式の入力証明書を変換します、
+    derバッファに含まれる、pem形式の出力証明書に変換し、outputバッファに格納します。これはインプレース変換ではなく、pem形式の出力を格納するために別のバッファを使用する必要があることに注意してください。暗号情報の設定を許可します。
 
-    \return 処理成功時には変換後のPEM形式データのサイズを返します。
-    \return BAD_FUNC_ARG Returned DER形式証明書データの解析中にエラーが発生した際、あるいはPEM形式に変換の際にエラーが発生した際に返されます。
-    \return MEMORY_E メモリの確保に失敗した際に返されます。
-    \return ASN_INPUT_E Base64エンコーディングエラーが検出された際に返されます。
-    \return BUFFER_E 与えられた出力バッファが結果を保持するのに十分な大きさがない場合に返されます。
+    \return Success 入力der証明書から正常にpem証明書を作成すると、生成されたpem証明書のサイズを返します。
+    \return BAD_FUNC_ARG derファイルを解析してpemファイルとして格納する際にエラーがある場合に返されます
+    \return MEMORY_E XMALLOCでメモリを割り当てる際にエラーがある場合に返されます
+    \return ASN_INPUT_E base64エンコードエラーの場合に返されます
+    \return BUFFER_E 出力バッファがpem形式の証明書を格納するには小さすぎる場合に返される可能性があります
 
-    \param der DER形式証明書データを保持するバッファへのポインタ
-    \param derSz DER形式証明書データのサイズ
-    \param output PEM形式証明書データを出力する先のバッファへのポインタ
-    \param outSz PEM形式証明書データを出力する先のバッファのサイズ
-    \param cipher_inf 追加の暗号情報
-    \param type 生成する証明書タイプ。指定可能なタイプ: CERT_TYPE, PRIVATEKEY_TYPE, ECC_PRIVATEKEY_TYPE と CERTREQ_TYPE
+    \param der 変換する証明書のバッファへのポインタ
+    \param derSz 変換する証明書のサイズ
+    \param output pem形式の証明書を格納するバッファへのポインタ
+    \param outSz pem形式の証明書を格納するバッファのサイズ
+    \param cipher_info 追加の暗号情報。
+    \param type 生成する証明書のタイプ。有効なタイプは：CERT_TYPE、PRIVATEKEY_TYPE、ECC_PRIVATEKEY_TYPE、およびCERTREQ_TYPE。
 
     _Example_
     \code
     byte* der;
-    // initialize der with certificate
+    // 証明書でderを初期化
     byte* pemFormatted[FOURK_BUF];
 
     word32 pemSz;
-    byte* cipher_info[] { Additional cipher info. }
+    byte* cipher_info[] { 追加の暗号情報。 }
     pemSz = wc_DerToPemEx(der, derSz, pemFormatted, FOURK_BUF, cipher_info, CERT_TYPE);
     \endcode
 
     \sa wc_PemCertToDer
 */
 int wc_DerToPemEx(const byte* der, word32 derSz, byte* output,
-                                word32 outputSz, byte *cipherIno, int type);
+                                word32 outSz, byte *cipher_info, int type);
 
 /*!
     \ingroup CertsKeys
 
-    \brief PEM形式の鍵をDER形式に変換します。
+    \brief PEM形式のキーをDER形式に変換します。
 
-    \return 変換に成功した際には出力バッファに書き込んだデータサイズを返します。
-    \return エラー発生時には負の整数値を返します。
+    \return int 関数は正常実行時にバッファに書き込まれたバイト数を返します。
+    \return int エラーを示す負の整数が返されます。
 
-    \param pem PEM形式の証明書データへのポインタ
-    \param pemSz PEM形式の証明書データのサイズ
-    \param buff DerBuffer構造体のbufferメンバーのコピーへのポインタ
-    \param buffSz DerBuffer構造体のbufferメンバーへ確保されたバッファのサイズ
-    \param pass パスワード
+    \param pem PEMエンコードされた証明書へのポインタ。
+    \param pemSz PEMバッファ（pem）のサイズ
+    \param buff DerBuffer構造体のbufferメンバーのコピーへのポインタ。
+    \param buffSz DerBuffer構造体に割り当てられたバッファスペースのサイズ。
+    \param pass 関数に渡されるパスワード。
 
     _Example_
     \code
@@ -1017,7 +1002,7 @@ int wc_DerToPemEx(const byte* der, word32 derSz, byte* output,
     (int)fileSz, password);
 
     if(saveBufSz > 0){
-        // Bytes were written to the buffer.
+        // バイトがバッファに書き込まれました。
     }
     \endcode
 
@@ -1029,15 +1014,15 @@ int wc_KeyPemToDer(const unsigned char* pem, int pemSz,
 /*!
     \ingroup CertsKeys
 
-    \brief この関数はPEM形式の証明書をDER形式に変換します。内部ではOpenSSL互換APIのPemToDerを呼び出します。
+    \brief この関数は、PEM形式の証明書をDER形式に変換します。OpenSSL関数PemToDerを呼び出します。
 
-    \return バッファに出力したサイズを返します。
+    \return buffer バッファに書き込まれたバイトを返します。
 
-    \param pem PEM形式の証明書を含むバッファへのポインタ
-    \param pemSz PEM形式の証明書を含むバッファのサイズ
-    \param buff DER形式に変換した証明書データの出力先バッファへのポインタ
-    \param buffSz 出力先バッファのサイズ
-    \param type 証明書のタイプ。asn_public.h で定義のenum CertTypeの値。
+    \param pem PEM形式の証明書へのポインタ。
+    \param pemSz 証明書のサイズ。
+    \param buff DER形式にコピーされるバッファ。
+    \param buffSz バッファのサイズ。
+    \param type asn_public.h enum CertTypeにある証明書ファイルタイプ。
 
     _Example_
     \code
@@ -1048,7 +1033,7 @@ int wc_KeyPemToDer(const unsigned char* pem, int pemSz,
     int type;
     ...
     if(wc_CertPemToDer(pem, pemSz, buff, buffSz, type) <= 0) {
-        // There were bytes written to buffer
+        // バッファにバイトが書き込まれました
     }
     \endcode
 
@@ -1060,18 +1045,13 @@ int wc_CertPemToDer(const unsigned char* pem, int pemSz,
 /*!
     \ingroup CertsKeys
 
-    \brief この関数は公開鍵をDER形式でDecodedCert構造体から取り出します。
-    wc_InitDecodedCert()とwc_ParseCert()を事前に呼び出しておく必要があります。
-    wc_InitDecodedCert()はDER/ASN.1エンコードされた証明書を受け付けます。
-    PEM形式の鍵をDER形式で取得する場合には、wc_InitDecodedCert()より先にwc_CertPemToDer()を呼び出してください。
+    \brief この関数は、入力されたDecodedCert構造体からDER形式の公開鍵を取得します。このAPIを呼び出す前に、ユーザーはwc_InitDecodedCert()とwc_ParseCert()を呼び出す必要があります。wc_InitDecodedCert()はDER/ASN.1エンコードされた証明書を受け入れます。PEM証明書をDERに変換するには、wc_InitDecodedCert()を呼び出す前にまずwc_CertPemToDer()を使用してください。
 
-    \return 成功時に0を返します。エラー発生時には負の整数を返します。
-    \return LENGTH_ONLY_E derKeyがNULLの際に返されます。
+    \return 0 成功時、エラー時は負の値。derKeyがNULLで長さのみを返す場合はLENGTH_ONLY_E。
 
-    \param cert X.509証明書を保持したDecodedCert構造体へのポインタ
-    \param derKey DER形式の公開鍵を出力する先のバッファへのポインタ
-    \param derKeySz [IN/OUT] 入力時にはderKeyで与えられるバッファのサイズ,出力時には公開鍵のサイズを保持します。
-    もし、derKeyがNULLで渡された場合には, derKeySzには必要なバッファサイズが格納され、LENGTH_ONLY_Eが戻り値として返されます。
+    \param cert X.509証明書を保持する入力されたDecodedCert構造体
+    \param derKey DERエンコードされた公開鍵を配置する出力バッファ
+    \param derKeySz [IN/OUT] 入力時のderKeyバッファのサイズ、返却時の公開鍵のサイズ。derKeyがNULLとして渡された場合、derKeySzは公開鍵に必要なバッファサイズに設定され、関数からLENGTH_ONLY_Eが返されます。
 
     \sa wc_GetPubKeyDerFromCert
 */
@@ -1081,41 +1061,41 @@ int wc_GetPubKeyDerFromCert(struct DecodedCert* cert,
 /*!
     \ingroup ASN
 
-    \brief この関数はECC秘密鍵を入力バッファから読み込み、解析の後ecc_key構造体を作成してそこに鍵を格納します。
+    \brief この関数は、入力バッファinputからECC秘密鍵を読み取り、秘密鍵を解析し、それを使用してecc_keyオブジェクトを生成し、keyに格納します。
 
-    \return 0 秘密鍵のデコードと結果のecc_key構造体への格納成功時に返されます。
-    \return ASN_PARSE_E 入力バッファの解析あるいは結果の格納時にエラーが発生した場合に返されます。
-    \return MEMORY_E メモリの確保に失敗した際に返されます。
-    \return BUFFER_E 入力された証明書が最大証明書サイズより大きかった場合に返されます。
-    \return ASN_OBJECT_ID_E 証明書が無効なオブジェクトIDを含んでいる場合に返されます。
-    \return ECC_CURVE_OID_E 与えられた秘密鍵のECC曲線がサポートされていない場合に返されます。
-    \return ECC_BAD_ARG_E ECC秘密鍵のフォーマットにエラーがある場合に返されます。
-    \return NOT_COMPILED_IN 秘密鍵が圧縮されていて圧縮鍵が提供されていない場合に返されます。
-    \return MP_MEM 秘密鍵の解析で使用される数学ライブラリがエラーを検出した場合に返されます。
-    \return MP_VAL 秘密鍵の解析で使用される数学ライブラリがエラーを検出した場合に返されます。
-    \return MP_RANGE 秘密鍵の解析で使用される数学ライブラリがエラーを検出した場合に返されます。
+    \return 0 秘密鍵のデコードに成功し、結果をecc_key構造体に格納した場合
+    \return ASN_PARSE_E derファイルを解析してpemファイルとして格納する際にエラーがある場合に返されます
+    \return MEMORY_E XMALLOCでメモリを割り当てる際にエラーがある場合に返されます
+    \return BUFFER_E 変換する証明書が指定された最大証明書サイズより大きい場合に返されます
+    \return ASN_OBJECT_ID_E 証明書エンコーディングに無効なオブジェクトIDがある場合に返されます
+    \return ECC_CURVE_OID_E 提供されたキーのECC曲線がサポートされていない場合に返されます
+    \return ECC_BAD_ARG_E ECCキー形式にエラーがある場合に返されます
+    \return NOT_COMPILED_IN 秘密鍵が圧縮されており、圧縮キーが提供されていない場合に返されます
+    \return MP_MEM 秘密鍵の解析中に使用される数学ライブラリにエラーがある場合に返されます
+    \return MP_VAL 秘密鍵の解析中に使用される数学ライブラリにエラーがある場合に返されます
+    \return MP_RANGE 秘密鍵の解析中に使用される数学ライブラリにエラーがある場合に返されます
 
-    \param input 入力となる秘密鍵データを含んでいるバッファへのポインタ
-    \param inOutIdx word32型変数で内容として入力バッファの処理開始位置を先頭からのインデクス値として保持している。
-    \param key デコードされた秘密鍵が格納される初期化済みのecc_key構造体へのポインタ
-    \param inSz 秘密鍵を含んでいる入力バッファのサイズ
+    \param input 入力秘密鍵を含むバッファへのポインタ
+    \param inOutIdx バッファ内で開始するインデックスを含むword32オブジェクトへのポインタ
+    \param key デコードされた秘密鍵を格納する初期化されたeccオブジェクトへのポインタ
+    \param inSz 秘密鍵を含む入力バッファのサイズ
 
     _Example_
     \code
     int ret, idx=0;
-    ecc_key key; // to store key in
+    ecc_key key; // キーを格納
 
-    byte* tmp; // tmp buffer to read key from
+    byte* tmp; // キーを読み取るための一時バッファ
     tmp = (byte*) malloc(FOURK_BUF);
 
     int inSz;
     inSz = fread(tmp, 1, FOURK_BUF, privateKeyFile);
-    // read key into tmp buffer
+    // tmpバッファにキーを読み取る
 
-    wc_ecc_init(&key); // initialize key
+    wc_ecc_init(&key); // キーを初期化
     ret = wc_EccPrivateKeyDecode(tmp, &idx, &key, (word32)inSz);
     if(ret < 0) {
-        // error decoding ecc key
+        // eccキーのデコードエラー
     }
     \endcode
 
@@ -1127,32 +1107,32 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx,
 /*!
     \ingroup ASN
 
-    \brief この関数はECC秘密鍵をDER形式でバッファに出力します。
+    \brief この関数は、秘密ECCキーをder形式に書き込みます。
 
-    \return ECC秘密鍵をDER形式での出力に成功した場合にはバッファへ出力したサイズを返します。
-    \return BAD_FUNC_ARG 出力バッファoutputがNULLあるいはinLenがゼロの場合に返します。
-    \return MEMORY_E メモリの確保に失敗した際に返されます。
-    \return BUFFER_E 出力バッファが必要量より小さい
-    \return ASN_UNKNOWN_OID_E ECC秘密鍵が未知のタイプの場合に返します。
-    \return MP_MEM 秘密鍵の解析で使用される数学ライブラリがエラーを検出した場合に返されます。
-    \return MP_VAL 秘密鍵の解析で使用される数学ライブラリがエラーを検出した場合に返されます。
-    \return MP_RANGE 秘密鍵の解析で使用される数学ライブラリがエラーを検出した場合に返されます。
+    \return Success ECCキーのder形式への書き込みに成功すると、バッファに書き込まれた長さを返します
+    \return BAD_FUNC_ARG keyまたはoutputがnull、またはinLenがゼロの場合に返されます
+    \return MEMORY_E XMALLOCでメモリを割り当てる際にエラーがある場合に返されます
+    \return BUFFER_E 変換された証明書が出力バッファに格納するには大きすぎる場合に返されます
+    \return ASN_UNKNOWN_OID_E 使用されているECCキーが不明なタイプの場合に返されます
+    \return MP_MEM 秘密鍵の解析中に使用される数学ライブラリにエラーがある場合に返されます
+    \return MP_VAL 秘密鍵の解析中に使用される数学ライブラリにエラーがある場合に返されます
+    \return MP_RANGE 秘密鍵の解析中に使用される数学ライブラリにエラーがある場合に返されます
 
-    \param key 入力となるECC秘密鍵データを含んでいるバッファへのポインタ
-    \param output DER形式のECC秘密鍵を出力する先のバッファへのポインタ
-    \param inLen DER形式のECC秘密鍵を出力する先のバッファのサイズ
+    \param key 入力eccキーを含むバッファへのポインタ
+    \param output der形式のキーを格納するバッファへのポインタ
+    \param inLen der形式のキーを格納するバッファの長さ
 
     _Example_
     \code
     int derSz;
     ecc_key key;
-    // initialize and make key
+    // キーを初期化して作成
     byte der[FOURK_BUF];
-    // store der formatted key here
+    // ここにder形式のキーを格納
 
     derSz = wc_EccKeyToDer(&key, der, FOURK_BUF);
     if(derSz < 0) {
-        // error converting ecc key to der buffer
+        // eccキーをderバッファに変換する際のエラー
     }
     \endcode
 
@@ -1163,29 +1143,28 @@ int wc_EccKeyToDer(ecc_key* key, byte* output, word32 inLen);
 /*!
     \ingroup ASN
 
-    \brief この関数は入力バッファのECC公開鍵をASNシーケンスをデコードして取り出します。
+    \brief 入力バッファからECC公開鍵をデコードします。ECCキーを取得するためにASNシーケンスを解析します。
 
-    \return 0 処理成功時に返します。
-    \return BAD_FUNC_ARG Returns いずれかの引数がNULLの場合に返します。
-    \return ASN_PARSE_E 解析中にエラーが発生した場合に返します。
-    \return ASN_ECC_KEY_E 鍵のインポートでエラーが発生した場合に返します。
-    発生理由についてはwc_ecc_import_x963()を参照のこと。
+    \return 0 成功
+    \return BAD_FUNC_ARG いずれかの引数がnullの場合に返されます。
+    \return ASN_PARSE_E 解析エラーがある場合に返されます
+    \return ASN_ECC_KEY_E キーのインポートエラーがある場合に返されます。
+    考えられる理由についてはwc_ecc_import_x963を参照してください。
 
-    \param input DER形式の公開鍵を含んだバッファへのポインタ
-    \param inOutIdx バッファの読み出し位置インデクス値を保持している変数へのポインタ(入力時)。
-    出力時にはこの変数に解析済みのバッファのインデクス値が格納されます。
-    \param key ecc_key構造体へのポインタ
-    \param inSz 入力バッファのサイズ
+    \param input デコードするDERエンコードされたキーを含むバッファ。
+    \param inOutIdx 入力バッファの読み取り開始位置のインデックス。出力時、インデックスは入力バッファの最後に解析された位置に設定されます。
+    \param key 公開鍵を格納するecc_key構造体へのポインタ。
+    \param inSz 入力バッファのサイズ。
 
     _Example_
     \code
     int ret;
     word32 idx = 0;
-    byte buff[] = { // initialize with key };
+    byte buff[] = { // キーで初期化 };
     ecc_key pubKey;
     wc_ecc_init(&pubKey);
     if ( wc_EccPublicKeyDecode(buff, &idx, &pubKey, sizeof(buff)) != 0) {
-            // error decoding key
+            // キーのデコードエラー
     }
     \endcode
 
@@ -1197,19 +1176,17 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
 /*!
     \ingroup ASN
 
-    \brief この関数はECC公開鍵をDER形式に変換します。
-    処理したバッファのサイズを返します。変換して得られるDER形式のECC公開鍵は出力バッファに格納されます。
-    AlgCurveフラグの指定により、アルゴリズムと曲線情報をヘッダーに含めることができます。
+    \brief この関数は、ECC公開鍵をDER形式に変換します。使用されたバッファのサイズを返します。DER形式のECC公開鍵は出力バッファに格納されます。with_AlgCurveフラグは、アルゴリズムと曲線情報を持つヘッダーを含めます
 
-    \return 成功時には処理したバッファのサイズを返します。
-    \return BAD_FUNC_ARG 出力バッファoutputあるいはecc_key構造体keyがNULLの場合に返します。
-    \return LENGTH_ONLY_E ECC公開鍵のサイズ取得に失敗した場合に返します。
-    \return BUFFER_E 出力バッファが必要量より小さい場合に返します。
+    \return >0 成功、使用されたバッファのサイズ
+    \return BAD_FUNC_ARG outputまたはkeyがnullの場合に返されます。
+    \return LENGTH_ONLY_E ECC公開鍵のサイズ取得エラー。
+    \return BUFFER_E 出力バッファが小さすぎる場合に返されます。
 
-    \param key ecc_key構造体へのポインタ
-    \param output 出力バッファへのポインタ
-    \param inLen 出力バッファのサイズ
-    \param with_AlgCurve アルゴリズムと曲線情報をヘッダーに含める際には１を指定
+    \param key ECCキーへのポインタ
+    \param output 書き込み先の出力バッファへのポインタ。
+    \param inLen バッファのサイズ。
+    \param with_AlgCurve アルゴリズムと曲線情報を持つヘッダーを含めるタイミングのフラグ。
 
     _Example_
     \code
@@ -1218,12 +1195,12 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
     WC_RNG rng;
     wc_InitRng(&rng);
     wc_ecc_make_key(&rng, 32, &key);
-    int derSz = // Some appropriate size for der;
+    int derSz = // der用の適切なサイズ;
     byte der[derSz];
 
     if(wc_EccPublicKeyToDer(&key, der, derSz, 1) < 0)
     {
-        // Error converting ECC public key to der
+        // ECC公開鍵のder変換エラー
     }
     \endcode
 
@@ -1236,21 +1213,18 @@ int wc_EccPublicKeyToDer(ecc_key* key, byte* output,
 /*!
     \ingroup ASN
 
-    \brief この関数はECC公開鍵をDER形式に変換します。
-    処理したバッファサイズを返します。変換されたDER形式のECC公開鍵は出力バッファに格納されます。
-    AlgCurveフラグの指定により、アルゴリズムと曲線情報をヘッダーに含めることができます。
-    compパラメータは公開鍵を圧縮して出力するか否かを指定します。
+    \brief この関数は、ECC公開鍵をDER形式に変換します。使用されたバッファのサイズを返します。DER形式のECC公開鍵は出力バッファに格納されます。with_AlgCurveフラグは、アルゴリズムと曲線情報を持つヘッダーを含めます。compパラメータは、公開鍵を圧縮形式でエクスポートするかどうかを決定します。
 
-    \return >0 成功時には処理したバッファのサイズを返します。
-    \return BAD_FUNC_ARG 出力バッファoutputあるいはecc_key構造体keyがNULLの場合に返します。
-    \return LENGTH_ONLY_E ECC公開鍵のサイズ取得に失敗した場合に返します。
-    \return BUFFER_E 出力バッファが必要量より小さい場合に返します。
+    \return >0 成功、使用されたバッファのサイズ
+    \return BAD_FUNC_ARG outputまたはkeyがnullの場合に返されます。
+    \return LENGTH_ONLY_E ECC公開鍵のサイズ取得エラー。
+    \return BUFFER_E 出力バッファが小さすぎる場合に返されます。
 
-    \param key ecc_key構造体へのポインタ
-    \param output 出力バッファへのポインタ
-    \param inLen 出力バッファのサイズ
-    \param with_AlgCurve アルゴリズムと曲線情報をヘッダーに含める際には１を指定
-    \param comp 非ゼロ値の指定時にはECC公開鍵は圧縮形式で出力されます。ゼロが指定された場合には非圧縮で出力されます。
+    \param key ECCキーへのポインタ
+    \param output 書き込み先の出力バッファへのポインタ。
+    \param inLen バッファのサイズ。
+    \param with_AlgCurve アルゴリズムと曲線情報を持つヘッダーを含めるタイミングのフラグ。
+    \param comp 1（ゼロ以外）の場合、ECC公開鍵は圧縮形式で書き込まれます。0の場合、非圧縮形式で書き込まれます。
 
     _Example_
     \code
@@ -1259,13 +1233,13 @@ int wc_EccPublicKeyToDer(ecc_key* key, byte* output,
     WC_RNG rng;
     wc_InitRng(&rng);
     wc_ecc_make_key(&rng, 32, &key);
-    int derSz = // Some appropriate size for der;
+    int derSz = // der用の適切なサイズ;
     byte der[derSz];
 
-    // Write out a compressed ECC key
+    // 圧縮されたECCキーを書き出す
     if(wc_EccPublicKeyToDer_ex(&key, der, derSz, 1, 1) < 0)
     {
-        // Error converting ECC public key to der
+        // ECC公開鍵のder変換エラー
     }
     \endcode
 
@@ -1275,33 +1249,225 @@ int wc_EccPublicKeyToDer(ecc_key* key, byte* output,
 int wc_EccPublicKeyToDer_ex(ecc_key* key, byte* output,
                                      word32 inLen, int with_AlgCurve, int comp);
 
+
 /*!
     \ingroup ASN
 
-    \brief この関数はデジタル署名をエンコードして出力バッファに出力し、生成された署名のサイズを返します。
+    \brief この関数は、DERエンコードされたバッファからCurve25519秘密鍵（のみ）をデコードします
 
-    \return 成功時には署名を出力バッファに出力し、出力したサイズを返します。
+    \return 0 成功
+    \return BAD_FUNC_ARG input、inOutIdxまたはkeyがnullの場合に返されます
+    \return ASN_PARSE_E DERエンコードされたデータの解析エラーがある場合に返されます
+    \return ECC_BAD_ARG_E キー長がCURVE25519_KEYSIZEでない場合、またはDERキーが適切にフォーマットされているにもかかわらず他の問題を含む場合に返されます。
+    \return BUFFER_E 入力バッファが有効なDERエンコードされたキーを含むには小さすぎる場合に返されます。
 
-    \param out エンコードした署名データを出力する先のバッファへのポインタ
-    \param digest 署名データのエンコードに使用するダイジェストへのポインタ
-    \param digSz ダイジェストを含んでいるバッファのサイズ
-    \param hashOID ハッシュタイプを示すオブジェクトID。有効な値は: SHAh, SHA256h, SHA384h, SHA512h, MD2h, MD5h, DESb, DES3b, CTC_MD5wRSA,
-    CTC_SHAwRSA, CTC_SHA256wRSA, CTC_SHA384wRSA, CTC_SHA512wRSA, CTC_SHAwECDSA, CTC_SHA256wECDSA, CTC_SHA384wECDSA, と CTC_SHA512wECDSA。
+    \param input DERエンコードされた秘密鍵を含むバッファへのポインタ
+    \param inOutIdx 入力バッファの読み取り開始位置のインデックス。出力時、インデックスは入力バッファの最後に解析された位置に設定されます。
+    \param key デコードされたキーを格納するcurve25519_key構造体へのポインタ
+    \param inSz 入力DERバッファのサイズ
+
+    \sa wc_Curve25519KeyDecode
+    \sa wc_Curve25519PublicKeyDecode
+
+    _Example_
+    \code
+    byte der[] = { // DERエンコードされたキー };
+    word32 idx = 0;
+    curve25519_key key;
+    wc_curve25519_init(&key);
+
+    if (wc_Curve25519PrivateKeyDecode(der, &idx, &key, sizeof(der)) != 0) {
+        // 秘密鍵のデコードエラー
+    }
+    \endcode
+*/
+int wc_Curve25519PrivateKeyDecode(const byte* input, word32* inOutIdx,
+                                  curve25519_key* key, word32 inSz);
+
+/*!
+    \ingroup ASN
+
+    \brief この関数は、DERエンコードされたバッファからCurve25519公開鍵（のみ）をデコードします。
+
+    \return 0 成功
+    \return BAD_FUNC_ARG input、inOutIdxまたはkeyがnullの場合に返されます
+    \return ASN_PARSE_E DERエンコードされたデータの解析エラーがある場合に返されます
+    \return ECC_BAD_ARG_E キー長がCURVE25519_KEYSIZEでない場合、またはDERキーが適切にフォーマットされているにもかかわらず他の問題を含む場合に返されます。
+    \return BUFFER_E 入力バッファが有効なDERエンコードされたキーを含むには小さすぎる場合に返されます。
+
+    \param input DERエンコードされた公開鍵を含むバッファへのポインタ
+    \param inOutIdx 入力バッファの読み取り開始位置のインデックス。出力時、インデックスは入力バッファの最後に解析された位置に設定されます。
+    \param key デコードされたキーを格納するcurve25519_key構造体へのポインタ
+    \param inSz 入力DERバッファのサイズ
+
+    \sa wc_Curve25519KeyDecode
+    \sa wc_Curve25519PrivateKeyDecode
+
+    _Example_
+    \code
+    byte der[] = { // DERエンコードされたキー };
+    word32 idx = 0;
+    curve25519_key key;
+    wc_curve25519_init(&key);
+    if (wc_Curve25519PublicKeyDecode(der, &idx, &key, sizeof(der)) != 0) {
+        // 公開鍵のデコードエラー
+    }
+    \endcode
+*/
+int wc_Curve25519PublicKeyDecode(const byte* input, word32* inOutIdx,
+                                 curve25519_key* key, word32 inSz);
+
+/*!
+    \ingroup ASN
+
+    \brief この関数は、DERエンコードされたバッファからCurve25519キーをデコードします。秘密鍵、公開鍵、または両方をデコードできます。
+
+    \return 0 成功
+    \return BAD_FUNC_ARG input、inOutIdxまたはkeyがnullの場合に返されます
+    \return ASN_PARSE_E DERエンコードされたデータの解析エラーがある場合に返されます
+    \return ECC_BAD_ARG_E キー長がCURVE25519_KEYSIZEでない場合、またはDERキーが適切にフォーマットされているにもかかわらず他の問題を含む場合に返されます。
+    \return BUFFER_E 入力バッファが有効なDERエンコードされたキーを含むには小さすぎる場合に返されます。
+
+    \param input DERエンコードされたキーを含むバッファへのポインタ
+    \param inOutIdx 入力バッファの読み取り開始位置のインデックス。出力時、インデックスは入力バッファの最後に解析された位置に設定されます。
+    \param key デコードされたキーを格納するcurve25519_key構造体へのポインタ
+    \param inSz 入力DERバッファのサイズ
+
+    \sa wc_Curve25519PrivateKeyDecode
+    \sa wc_Curve25519PublicKeyDecode
+
+    _Example_
+    \code
+    byte der[] = { // DERエンコードされたキー };
+    word32 idx = 0;
+    curve25519_key key;
+    wc_curve25519_init(&key);
+    if (wc_Curve25519KeyDecode(der, &idx, &key, sizeof(der)) != 0) {
+        // キーのデコードエラー
+    }
+    \endcode
+*/
+int wc_Curve25519KeyDecode(const byte* input, word32* inOutIdx,
+                           curve25519_key* key, word32 inSz);
+
+/*!
+    \ingroup ASN
+
+    \brief この関数は、Curve25519秘密鍵をDER形式にエンコードします。入力キー構造体に公開鍵が含まれている場合、それは無視されます。
+
+    \return >0 成功、DERエンコーディングの長さ
+    \return BAD_FUNC_ARG keyまたはoutputがnullの場合に返されます
+    \return MEMORY_E 割り当て失敗がある場合に返されます
+    \return BUFFER_E 出力バッファが小さすぎる場合に返されます
+
+    \param key エンコードする秘密鍵を含むcurve25519_key構造体へのポインタ
+    \param output DERエンコーディングを保持するバッファ
+    \param inLen 出力バッファのサイズ
+
+    \sa wc_Curve25519KeyToDer
+    \sa wc_Curve25519PublicKeyToDer
+
+    _Example_
+    \code
+    curve25519_key key;
+    wc_curve25519_init(&key);
+    ...
+    int derSz = 128; // 出力DER用の適切なサイズ
+    byte der[derSz];
+    wc_Curve25519PrivateKeyToDer(&key, der, derSz);
+    \endcode
+*/
+int wc_Curve25519PrivateKeyToDer(curve25519_key* key, byte* output,
+                                 word32 inLen);
+
+/*!
+    \ingroup ASN
+
+    \brief この関数は、Curve25519公開鍵をDER形式にエンコードします。入力キー構造体に秘密鍵が含まれている場合、それは無視されます。
+
+    \return >0 成功、DERエンコーディングの長さ
+    \return BAD_FUNC_ARG keyまたはoutputがnullの場合に返されます
+    \return MEMORY_E 割り当て失敗がある場合に返されます
+    \return BUFFER_E 出力バッファが小さすぎる場合に返されます
+
+    \param key エンコードする公開鍵を含むcurve25519_key構造体へのポインタ
+    \param output DERエンコーディングを保持するバッファ
+    \param inLen 出力バッファのサイズ
+    \param withAlg DERエンコーディングにアルゴリズム識別子を含めるかどうか
+
+    \sa wc_Curve25519KeyToDer
+    \sa wc_Curve25519PrivateKeyToDer
+
+    _Example_
+    \code
+    curve25519_key key;
+    wc_curve25519_init(&key);
+    ...
+    int derSz = 128; // 出力DER用の適切なサイズ
+    byte der[derSz];
+    wc_Curve25519PublicKeyToDer(&key, der, derSz, 1);
+    \endcode
+*/
+int wc_Curve25519PublicKeyToDer(curve25519_key* key, byte* output, word32 inLen,
+                                int withAlg);
+
+/*!
+    \ingroup ASN
+
+    \brief この関数は、Curve25519キーをDER形式にエンコードします。秘密鍵、公開鍵、または両方をエンコードできます。
+
+    \return >0 成功、DERエンコーディングの長さ
+    \return BAD_FUNC_ARG keyまたはoutputがnullの場合に返されます
+    \return MEMORY_E 割り当て失敗がある場合に返されます
+    \return BUFFER_E 出力バッファが小さすぎる場合に返されます
+
+    \param key エンコードするキーを含むcurve25519_key構造体へのポインタ
+    \param output DERエンコーディングを保持するバッファ
+    \param inLen 出力バッファのサイズ
+    \param withAlg DERエンコーディングにアルゴリズム識別子を含めるかどうか
+
+    \sa wc_Curve25519PrivateKeyToDer
+    \sa wc_Curve25519PublicKeyToDer
+
+    _Example_
+    \code
+    curve25519_key key;
+    wc_curve25519_init(&key);
+    ...
+    int derSz = 128; // 出力DER用の適切なサイズ
+    byte der[derSz];
+    wc_Curve25519KeyToDer(&key, der, derSz, 1);
+    \endcode
+*/
+int wc_Curve25519KeyToDer(curve25519_key* key, byte* output, word32 inLen,
+                          int withAlg);
+
+/*!
+    \ingroup ASN
+
+    \brief この関数は、デジタル署名を出力バッファにエンコードし、作成されたエンコードされた署名のサイズを返します。
+
+    \return Success エンコードされた署名をoutputに正常に書き込むと、バッファに書き込まれた長さを返します
+
+    \param out エンコードされた署名が書き込まれるバッファへのポインタ
+    \param digest 署名のエンコードに使用するダイジェストへのポインタ
+    \param digSz ダイジェストを含むバッファの長さ
+    \param hashOID 署名の生成に使用されるハッシュタイプを識別するOID。ビルド構成に応じた有効なオプションは：SHAh、SHA256h、SHA384h、SHA512h、MD2h、MD5h、DESb、DES3b、CTC_MD5wRSA、CTC_SHAwRSA、CTC_SHA256wRSA、CTC_SHA384wRSA、CTC_SHA512wRSA、CTC_SHAwECDSA、CTC_SHA256wECDSA、CTC_SHA384wECDSA、およびCTC_SHA512wECDSA。
 
     \endcode
     \code
     int signSz;
     byte encodedSig[MAX_ENCODED_SIG_SZ];
     Sha256 sha256;
-    // initialize sha256 for hashing
+    // ハッシュ化のためにsha256を初期化
 
     byte* dig = = (byte*)malloc(WC_SHA256_DIGEST_SIZE);
-    // perform hashing and hash updating so dig stores SHA-256 hash
-    // (see wc_InitSha256, wc_Sha256Update and wc_Sha256Final)
+    // ハッシュ化とハッシュ更新を実行してdigにSHA-256ハッシュを格納
+    // （wc_InitSha256、wc_Sha256Update、wc_Sha256Finalを参照）
     signSz = wc_EncodeSignature(encodedSig, dig, WC_SHA256_DIGEST_SIZE, SHA256h);
     \endcode
 
-    \sa none
+    \sa なし
 */
 word32 wc_EncodeSignature(byte* out, const byte* digest,
                                       word32 digSz, int hashOID);
@@ -1309,13 +1475,12 @@ word32 wc_EncodeSignature(byte* out, const byte* digest,
 /*!
     \ingroup ASN
 
-    \brief この関数はハッシュタイプに対応したハッシュOIDを返します。
-    例えば、ハッシュタイプが"WC_SHA512"の場合、この関数は"SHA512h"を対応するハッシュOIDとして返します。
+    \brief この関数は、ハッシュタイプに対応するハッシュOIDを返します。例えば、WC_SHA512タイプが与えられた場合、この関数はSHA512ハッシュに対応する識別子SHA512hを返します。
 
-    \return 成功時には指定されたハッシュタイプと対応するハッシュOIDを返します。
-    \return 0 認識できないハッシュタイプが引数として指定された場合に返します。
+    \return Success 成功時に、その暗号化タイプで使用する適切なハッシュに対応するOIDを返します。
+    \return 0 認識されないハッシュタイプが引数として渡された場合に返されます。
 
-    \param type ハッシュタイプ。指定可能なタイプ: WC_MD5, WC_SHA, WC_SHA256, WC_SHA384, WC_SHA512, WC_SHA3_224, WC_SHA3_256, WC_SHA3_384, WC_SHA3_512
+    \param type OIDを見つけるハッシュタイプ。ビルド構成に応じた有効なオプションには：WC_MD5、WC_SHA、WC_SHA256、WC_SHA384、WC_SHA512、WC_SHA3_224、WC_SHA3_256、WC_SHA3_384、またはWC_SHA3_512
 
     _Example_
     \code
@@ -1323,28 +1488,27 @@ word32 wc_EncodeSignature(byte* out, const byte* digest,
 
     hashOID = wc_GetCTC_HashOID(WC_SHA512);
     if (hashOID == 0) {
-	    // WOLFSSL_SHA512 not defined
+	    // WOLFSSL_SHA512が定義されていません
     }
     \endcode
 
-    \sa none
+    \sa なし
 */
 int wc_GetCTC_HashOID(int type);
 
 /*!
     \ingroup ASN
 
-    \brief この関数はキャッシュされていたCert構造体で使用されたメモリとリソースをクリーンアップします。
-     WOLFSSL_CERT_GEN_CACHEが定義されている場合にはDecodedCert構造体がCert構造体内部にキャッシュされ、後続するset系関数の呼び出しの都度DecodedCert構造体がパースされることを防ぎます。
+    \brief この関数は、証明書構造体のデコードされた証明書キャッシュによって使用されるメモリとリソースをクリーンアップします。WOLFSSL_CERT_GEN_CACHEが定義されている場合、デコードされた証明書構造体は証明書構造体にキャッシュされます。これにより、証明書設定関数への後続の呼び出しで、各呼び出しでデコードされた証明書を解析することを回避できます。
 
-    \return 0 成功時に返されます。
-    \return BAD_FUNC_ARG 引数として無効な値が渡された場合に返されます。
+    \return 0 成功時。
+    \return BAD_FUNC_ARG 無効なポインタが引数として渡された場合に返されます。
 
-    \param cert 未初期化のCert構造体へのポインタ
+    \param cert 初期化されていない証明書情報構造体へのポインタ。
 
     _Example_
     \code
-    Cert cert; // Initialized certificate structure
+    Cert cert; // 初期化された証明書構造体
 
     wc_SetCert_Free(&cert);
     \endcode
@@ -1362,23 +1526,23 @@ void wc_SetCert_Free(Cert* cert);
 /*!
     \ingroup ASN
 
-    \brief この関数はPKCS#8の暗号化されていないバッファ内部の従来の秘密鍵の開始位置を検出して返します。
+    \brief この関数は、PKCS#8暗号化されていないバッファ内の従来の秘密鍵の先頭を見つけます。
 
-    \return 成功時には従来の秘密鍵の長さを返します。
-    \return エラー時には負の整数値を返します。
+    \return Length 成功時に従来の秘密鍵の長さ。
+    \return Negative 失敗時に負の値。
 
-    \param input PKCS#8の暗号化されていない秘密鍵を保持するバッファへのポインタ
-    \param inOutIdx バッファのインデクス位置を保持する変数へのポインタ。入力時にはこの変数の内容はバッファ内部のPKCS#8の開始位置を示します。出力時には、秘密鍵の先頭位置を保持します。
-    \param sz 入力バッファのサイズ
+    \param input 暗号化されていないPKCS#8秘密鍵を含むバッファ。
+    \param inOutIdx 入力バッファへのインデックス。入力時、PKCS#8バッファの先頭へのバイトオフセットである必要があります。出力時、入力バッファ内の従来の秘密鍵へのバイトオフセットになります。
+    \param sz 入力バッファのバイト数。
 
     _Example_
     \code
-    byte* pkcs8Buf; // Buffer containing PKCS#8 key.
+    byte* pkcs8Buf; // PKCS#8キーを含むバッファ。
     word32 idx = 0;
-    word32 sz; // Size of pkcs8Buf.
+    word32 sz; // pkcs8Bufのサイズ。
     ...
     ret = wc_GetPkcs8TraditionalOffset(pkcs8Buf, &idx, sz);
-    // pkcs8Buf + idx is now the beginning of the traditional private key bytes.
+    // pkcs8Buf + idxは従来の秘密鍵バイトの先頭になります。
     \endcode
 
     \sa wc_CreatePKCS8Key
@@ -1392,30 +1556,29 @@ int wc_GetPkcs8TraditionalOffset(byte* input,
 /*!
     \ingroup ASN
 
-    \brief この関数はDER形式の秘密鍵を入力とし、RKCS#8形式に変換します。
-    また、PKCS#12のシュロ―ディットキーバッグの作成にも使用できます。RFC5208を参照のこと。
+    \brief この関数は、DER秘密鍵を受け取り、PKCS#8形式に変換します。PKCS#12縮小キーバッグの作成にも使用されます。RFC 5208を参照してください。
 
-    \return 成功時には出力されたPKCS#8 鍵のサイズを返します。
-    \return LENGTH_ONLY_E 出力先バッファoutがNULLとして渡された場合にはこのエラーコードが返され、outSzに必要な出力バッファのサイズが格納されます。
-    \return エラー時には負の整数値が返されます。
+    \return The 成功時にoutに配置されたPKCS#8キーのサイズ。
+    \return LENGTH_ONLY_E outがNULLの場合、outSzに必要な出力バッファサイズが返されます。
+    \return Other 失敗時に負の値。
 
-    \param out 結果の出力先バッファへのポインタ。NULLの場合には必要な出力先バッファのサイズがoutSzに格納されます。
-    \param outSz 出力先バッファのサイズ
-    \param key 従来のDER形式の秘密鍵を含むバッファへのポインタ
-    \param keySz 秘密鍵を含むバッファのサイズ
-    \param algoID アルゴリズムID (RSAk等の)
-    \param curveOID ECC曲線OID。RSA鍵を使用する場合にはNULLにすること。
-    \param oidSz ECC曲線OIDのサイズ。curveOIDがNULLの場合には0にすること。
+    \param out 結果を配置するバッファ。NULLの場合、outSzに必要な出力バッファサイズが返されます。
+    \param outSz outバッファのサイズ。
+    \param key 従来のDERキーを持つバッファ。
+    \param keySz keyバッファのサイズ。
+    \param algoID アルゴリズムID（例：RSAk）。
+    \param curveOID 使用される場合のECC曲線OID。RSAキーの場合はNULLである必要があります。
+    \param oidSz 曲線OIDのサイズ。curveOIDがNULLの場合は0に設定されます。
 
     _Example_
     \code
-    ecc_key eccKey;              // wolfSSL ECC key object.
-    byte* der;                   // DER-encoded ECC key.
-    word32 derSize;              // Size of der.
-    const byte* curveOid = NULL; // OID of curve used by eccKey.
-    word32 curveOidSz = 0;       // Size of curve OID.
-    byte* pkcs8;                 // Output buffer for PKCS#8 key.
-    word32 pkcs8Sz;              // Size of output buffer.
+    ecc_key eccKey;              // wolfSSL ECCキーオブジェクト。
+    byte* der;                   // DERエンコードされたECCキー。
+    word32 derSize;              // derのサイズ。
+    const byte* curveOid = NULL; // eccKeyで使用される曲線のOID。
+    word32 curveOidSz = 0;       // 曲線OIDのサイズ。
+    byte* pkcs8;                 // PKCS#8キー用の出力バッファ。
+    word32 pkcs8Sz;              // 出力バッファのサイズ。
 
     derSize = wc_EccKeyDerSize(&eccKey, 1);
     ...
@@ -1424,7 +1587,7 @@ int wc_GetPkcs8TraditionalOffset(byte* input,
     ret = wc_ecc_get_oid(eccKey.dp->oidSum, &curveOid, &curveOidSz);
     ...
     ret = wc_CreatePKCS8Key(NULL, &pkcs8Sz, der,
-        derSize, ECDSAk, curveOid, curveOidSz); // Get size needed in pkcs8Sz.
+        derSize, ECDSAk, curveOid, curveOidSz); // pkcs8Szに必要なサイズを取得。
     ...
     ret = wc_CreatePKCS8Key(pkcs8, &pkcs8Sz, der,
         derSize, ECDSAk, curveOid, curveOidSz);
@@ -1442,42 +1605,40 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz,
 /*!
     \ingroup ASN
 
-    \brief この関数は暗号化されていないPKCS#8のDER形式の鍵(例えばwc_CreatePKCS8Keyで生成された鍵)を受け取り、PKCS#8 暗号化形式に変換します。
-     結果として得られた暗号化鍵はwc_DecryptPKCS8Keyを使って復号できます。RFC5208を参照してください。
+    \brief この関数は、暗号化されていないPKCS#8 DERキー（例：wc_CreatePKCS8Keyによって作成されたもの）を受け取り、PKCS#8暗号化形式に変換します。結果の暗号化されたキーは、wc_DecryptPKCS8Keyを使用して復号できます。RFC 5208を参照してください。
 
-    \return 成功時には出力先バッファに出力された暗号化鍵のサイズを返します。
-    \return LENGTH_ONLY_E 出力先バッファoutがNULLとして渡された場合にはこのエラーコードが返され、outSzに必要な出力バッファのサイズが格納されます。
-    \return エラー時には負の整数値が返されます。
+    \return The 成功時にoutに配置された暗号化されたキーのサイズ。
+    \return LENGTH_ONLY_E outがNULLの場合、outSzに必要な出力バッファサイズが返されます。
+    \return Other 失敗時に負の値。
 
-    \param key 従来のDER形式の鍵を含んだバッファへのポインタ
-    \param keySz 鍵を含んだバッファのサイズ
-    \param out 出力結果を格納する先のバッファへのポインタ。NULLの場合には必要な出力先バッファのサイズがoutSzに格納されます。
-    \param outSz 出力先バッファのサイズ
-    \param password パスワードベース暗号化アルゴリズムに使用されるパスワード
-    \param passwordSz パスワードのサイズ(NULL終端文字は含まない)
-    \param vPKCS 使用するPKCSのバージョン番号。1 はPKCS12 かPKCS5。
-    \param pbeOid パスワードベース暗号化スキームのOID(PBES2 あるいはRFC2898 A.3にあるOIDの一つ)
-    \param encAlgId 暗号化アルゴリズムID(例えばAES256CBCb)。
-    \param salt ソルト。NULLの場合はランダムに選定したソルトが使用されます。
-    \param saltSz ソルトサイズ。saltにNULLを渡した場合には0を指定できます。
-    \param itt 鍵導出のための繰り返し回数
-    \param rng 初期化済みのWC_RNG構造体へのポインタ
-    \param heap 動的メモリ確保のためのヒープ。NULL指定も可。
+    \param key 従来のDERキーを持つバッファ。
+    \param keySz keyバッファのサイズ。
+    \param out 結果を配置するバッファ。NULLの場合、outSzに必要な出力バッファサイズが返されます。
+    \param outSz outバッファのサイズ。
+    \param password パスワードベースの暗号化アルゴリズムに使用するパスワード。
+    \param passwordSz パスワードの長さ（NULLターミネータを含まない）。
+    \param vPKCS 使用するPKCSバージョン。PKCS12またはPKCS5の場合は1。
+    \param pbeOid 使用するPBEスキームのOID（例：PBES2またはRFC 2898 A.3のPBES1のOIDの1つ）。
+    \param encAlgId 使用する暗号化アルゴリズムID（例：AES256CBCb）。
+    \param salt 使用するソルトバッファ。NULLの場合、ランダムなソルトが使用されます。
+    \param saltSz ソルトバッファの長さ。saltにNULLを渡す場合は0。
+    \param itt KDFに使用する反復回数。
+    \param rng 初期化されたWC_RNGオブジェクトへのポインタ。
+    \param heap 動的割り当てに使用されるヒープへのポインタ。NULLでも可。
 
     _Example_
     \code
-    byte* pkcs8;          // Unencrypted PKCS#8 key.
-    word32 pkcs8Sz;       // Size of pkcs8.
-    byte* pkcs8Enc;       // Encrypted PKCS#8 key.
-    word32 pkcs8EncSz;    // Size of pkcs8Enc.
-    const char* password; // Password to use for encryption.
-    int passwordSz;       // Length of password (not including NULL terminator).
+    byte* pkcs8;          // 暗号化されていないPKCS#8キー。
+    word32 pkcs8Sz;       // pkcs8のサイズ。
+    byte* pkcs8Enc;       // 暗号化されたPKCS#8キー。
+    word32 pkcs8EncSz;    // pkcs8Encのサイズ。
+    const char* password; // 暗号化に使用するパスワード。
+    int passwordSz;       // パスワードの長さ（NULLターミネータを含まない）。
     WC_RNG rng;
 
-    // The following produces an encrypted version of pkcs8 in pkcs8Enc. The
-    // encryption uses password-based encryption scheme 2 (PBE2) from PKCS#5 and
-    // the AES cipher in CBC mode with a 256-bit key. See RFC 8018 for more on
-    // PKCS#5.
+    // 以下は、pkcs8Encにpkcs8の暗号化されたバージョンを生成します。暗号化は
+    // PKCS#5のパスワードベース暗号化スキーム2（PBE2）とCBCモードの256ビット
+    // キーを持つAES暗号を使用します。PKCS#5の詳細についてはRFC 8018を参照してください。
     ret = wc_EncryptPKCS8Key(pkcs8, pkcs8Sz, pkcs8Enc, &pkcs8EncSz, password,
             passwordSz, PKCS5, PBES2, AES256CBCb, NULL, 0,
             WC_PKCS12_ITT_DEFAULT, &rng, NULL);
@@ -1496,24 +1657,22 @@ int wc_EncryptPKCS8Key(byte* key, word32 keySz, byte* out,
 /*!
     \ingroup ASN
 
-    \brief この関数は暗号化されたPKCS#8のDER形式の鍵を受け取り、復号してPKCS#8 DER形式に変換します。
-     wc_EncryptPKCS8Keyによって行われた暗号化を元に戻します。RFC5208を参照してください。
-     入力データは復号データによって上書きされます。
+    \brief この関数は、暗号化されたPKCS#8 DERキーを受け取り、PKCS#8暗号化されていないDERに復号します。wc_EncryptPKCS8Keyによって行われた暗号化を元に戻します。RFC5208を参照してください。入力バッファは復号されたデータで上書きされます。
 
-    \return 成功時には復号データの長さを返します。
-    \return エラー発生時には負の整数値を返します。
+    \return The 成功時に復号されたバッファの長さ。
+    \return Negative 失敗時に負の値。
 
-    \param input 入力時には暗号化されたPKCS#8鍵データを含みます。出力時には復号されたPKCS#8鍵データを含みます。
-    \param sz 入力バッファのサイズ
-    \param password 鍵を暗号化する際のパスワード
-    \param passwordSz パスワードのサイズ(NULL終端文字は含まない)
+    \param input 入力時、暗号化されたPKCS#8キーを含むバッファ。出力が成功すると、復号されたキーを含みます。
+    \param sz 入力バッファのサイズ。
+    \param password キーの暗号化に使用されたパスワード。
+    \param passwordSz パスワードの長さ（NULLターミネータを含まない）。
 
     _Example_
     \code
-    byte* pkcs8Enc;       // Encrypted PKCS#8 key made with wc_EncryptPKCS8Key.
-    word32 pkcs8EncSz;    // Size of pkcs8Enc.
-    const char* password; // Password to use for decryption.
-    int passwordSz;       // Length of password (not including NULL terminator).
+    byte* pkcs8Enc;       // wc_EncryptPKCS8Keyで作成された暗号化されたPKCS#8キー。
+    word32 pkcs8EncSz;    // pkcs8Encのサイズ。
+    const char* password; // 復号に使用するパスワード。
+    int passwordSz;       // パスワードの長さ（NULLターミネータを含まない）。
 
     ret = wc_DecryptPKCS8Key(pkcs8Enc, pkcs8EncSz, password, passwordSz);
     \endcode
@@ -1529,42 +1688,41 @@ int wc_DecryptPKCS8Key(byte* input, word32 sz, const char* password,
 /*!
     \ingroup ASN
 
-    \brief この関数は従来のDER形式の鍵をPKCS#8フォーマットに変換し、暗号化を行います。
-     この処理にはwc_CreatePKCS8Keyとwc_EncryptPKCS8Keyを使用します。
+    \brief この関数は、従来のDERキーを受け取り、PKCS#8形式に変換し、暗号化します。これを行うためにwc_CreatePKCS8Keyとwc_EncryptPKCS8Keyを使用します。
 
-    \return 成功時には出力した暗号化鍵のサイズを返します。
-    \return LENGTH_ONLY_E もし出力用バッファoutにNULLが渡された場合に返されます。その際にはoutSz変数に必要な出力用バッファサイズを格納します。
-    \return エラー発生時には負の整数値を返します。
+    \return The 成功時にoutに配置された暗号化されたキーのサイズ。
+    \return LENGTH_ONLY_E outがNULLの場合、outSzに必要な出力バッファサイズが返されます。
+    \return Other 失敗時に負の値。
 
-    \param key 従来のDER形式の鍵を含んだバッファへのポインタ
-    \param keySz 鍵を含んだバッファのサイズ
-    \param out 結果を出力する先のバッファへのポインタ。NULLが指定された場合には、必要なバッファサイズがoutSzに格納されます。
-    \param outSz 結果を出力する先のバッファのサイズ
-    \param password パスワードベース暗号アルゴリズムに使用されるパスワード
-    \param passwordSz パスワードのサイズ(NULL終端文字は含まない)
-    \param vPKCS 使用するPKCSのバージョン番号。1 はPKCS12 かPKCS5。
-    \param pbeOid パスワードベース暗号化スキームのOID(PBES2 あるいはRFC2898 A.3にあるOIDの一つ)
-    \param encAlgId 暗号化アルゴリズムID(例えばAES256CBCb)。
-    \param salt ソルト。NULLの場合はランダムに選定したソルトが使用されます。
-    \param saltSz ソルトサイズ。saltにNULLを渡した場合には0を指定できます。
-    \param itt 鍵導出のための繰り返し回数
-    \param rng 初期化済みのWC_RNG構造体へのポインタ
-    \param heap 動的メモリ確保のためのヒープ。NULL指定も可。
+    \param key 従来のDERキーを持つバッファ。
+    \param keySz keyバッファのサイズ。
+    \param out 結果を配置するバッファ。NULLの場合、outSzに必要な出力バッファサイズが返されます。
+    \param outSz outバッファのサイズ。
+    \param password パスワードベースの暗号化アルゴリズムに使用するパスワード。
+    \param passwordSz パスワードの長さ（NULLターミネータを含まない）。
+    \param vPKCS 使用するPKCSバージョン。PKCS12またはPKCS5の場合は1。
+    \param pbeOid 使用するPBEスキームのOID（例：PBES2またはRFC 2898 A.3のPBES1のOIDの1つ）。
+    \param encAlgId 使用する暗号化アルゴリズムID（例：AES256CBCb）。
+    \param salt 使用するソルトバッファ。NULLの場合、ランダムなソルトが使用されます。
+    \param saltSz ソルトバッファの長さ。saltにNULLを渡す場合は0。
+    \param itt KDFに使用する反復回数。
+    \param rng 初期化されたWC_RNGオブジェクトへのポインタ。
+    \param heap 動的割り当てに使用されるヒープへのポインタ。NULLでも可。
 
     _Example_
     \code
-    byte* key;            // Traditional private key (DER formatted).
-    word32 keySz;         // Size of key.
-    byte* pkcs8Enc;       // Encrypted PKCS#8 key.
-    word32 pkcs8EncSz;    // Size of pkcs8Enc.
-    const char* password; // Password to use for encryption.
-    int passwordSz;       // Length of password (not including NULL terminator).
+    byte* key;            // 従来の秘密鍵（DER形式）。
+    word32 keySz;         // keyのサイズ。
+    byte* pkcs8Enc;       // 暗号化されたPKCS#8キー。
+    word32 pkcs8EncSz;    // pkcs8Encのサイズ。
+    const char* password; // 暗号化に使用するパスワード。
+    int passwordSz;       // パスワードの長さ（NULLターミネータを含まない）。
     WC_RNG rng;
 
-    // The following produces an encrypted, PKCS#8 version of key in pkcs8Enc.
-    // The encryption uses password-based encryption scheme 2 (PBE2) from PKCS#5
-    // and the AES cipher in CBC mode with a 256-bit key. See RFC 8018 for more
-    // on PKCS#5.
+    // 以下は、pkcs8Encにkeyの暗号化されたPKCS#8バージョンを生成します。
+    // 暗号化はPKCS#5のパスワードベース暗号化スキーム2（PBE2）とCBCモードの
+    // 256ビットキーを持つAES暗号を使用します。PKCS#5の詳細については
+    // RFC 8018を参照してください。
     ret = wc_CreateEncryptedPKCS8Key(key, keySz, pkcs8Enc, &pkcs8EncSz,
             password, passwordSz, PKCS5, PBES2, AES256CBCb, NULL, 0,
             WC_PKCS12_ITT_DEFAULT, &rng, NULL);
@@ -1583,20 +1741,18 @@ int wc_CreateEncryptedPKCS8Key(byte* key, word32 keySz, byte* out,
 /*!
     \ingroup ASN
 
-    \brief この関数はcert引数で与えられたDecodedCert構造体を初期化します。
-     DER形式の証明書を含んでいるsource引数の指すポインタから証明書サイズinSzの長さを内部に保存します。
-     この関数の後に呼び出されるwc_ParseCertによって証明書が解析されます。
+    \brief この関数は、"cert"パラメータが指すDecodedCertを初期化します。長さ"inSz"のDERエンコードされた証明書への"source"ポインタを保存します。この証明書は、wc_ParseCertへの後続の呼び出しによって解析できます。
 
-    \param cert DecodedCert構造体へのポインタ
-    \param source DER形式の証明書データへのポインタ
-    \param inSz 証明書データのサイズ（バイト数）
-    \param heap 動的メモリ確保のためのヒープ。NULL指定も可。
+    \param cert 割り当てられたDecodedCertオブジェクトへのポインタ。
+    \param source DERエンコードされた証明書へのポインタ。
+    \param inSz DERエンコードされた証明書の長さ（バイト単位）。
+    \param heap 動的割り当てに使用されるヒープへのポインタ。NULLでも可。
 
     _Example_
     \code
-    DecodedCert decodedCert; // Decoded certificate object.
-    byte* certBuf;           // DER-encoded certificate buffer.
-    word32 certBufSz;        // Size of certBuf in bytes.
+    DecodedCert decodedCert; // デコードされた証明書オブジェクト。
+    byte* certBuf;           // DERエンコードされた証明書バッファ。
+    word32 certBufSz;        // certBufのサイズ（バイト単位）。
 
     wc_InitDecodedCert(&decodedCert, certBuf, certBufSz, NULL);
     \endcode
@@ -1610,25 +1766,22 @@ void wc_InitDecodedCert(struct DecodedCert* cert,
 /*!
     \ingroup ASN
 
-    \brief この関数はDecodedCert構造体に保存されているDER形式の証明書を解析し、その構造体に各種フィールドを設定します。
-    DecodedCert構造体はwc_InitDecodedCertを呼び出して初期化しておく必要があります。
-    この関数はオプションでCertificateManager構造体へのポインタを受け取り、CAが証明書マネジャーで検索できた場合には、
-    そのCAに関する情報もDecodedCert構造体に追加設定します。
+    \brief この関数は、DecodedCertオブジェクトに保存されたDERエンコードされた証明書を解析し、そのオブジェクトのフィールドを設定します。DecodedCertは、wc_InitDecodedCertへの事前の呼び出しで初期化されている必要があります。この関数は、CertificateManagerオブジェクトへのオプションのポインタを取り、CAがCertificateManagerで見つかった場合、DecodedCertの証明機関情報を設定するために使用されます。
 
-    \return 0 成功時に返します。
-    \return エラー発生時には負の整数値を返します。
+    \return 0 成功時。
+    \return Other 失敗時に負の値。
 
-    \param cert 初期化済みのDecodedCert構造体へのポインタ。
-    \param type 証明書タイプ。タイプの設定値についてはasn_public.hのCertType enum定義を参照してください。
-    \param verify 呼び出し側が証明書の検証を求めていることを指示すフラグです。
-    \param cm CertificateManager構造体へのポインタ。オプションで指定可。NULLでも可。
+    \param cert 初期化されたDecodedCertオブジェクトへのポインタ。
+    \param type 証明書のタイプ。asn_public.hのCertType列挙型を参照してください。
+    \param verify 設定されている場合、ユーザーが証明書の有効性を検証したいことを示すフラグ。
+    \param cm CertificateManagerへのオプションのポインタ。NULLでも可。
 
     _Example_
     \code
     int ret;
-    DecodedCert decodedCert; // Decoded certificate object.
-    byte* certBuf;           // DER-encoded certificate buffer.
-    word32 certBufSz;        // Size of certBuf in bytes.
+    DecodedCert decodedCert; // デコードされた証明書オブジェクト。
+    byte* certBuf;           // DERエンコードされた証明書バッファ。
+    word32 certBufSz;        // certBufのサイズ（バイト単位）。
 
     wc_InitDecodedCert(&decodedCert, certBuf, certBufSz, NULL);
     ret = wc_ParseCert(&decodedCert, CERT_TYPE, NO_VERIFY, NULL);
@@ -1645,16 +1798,16 @@ int wc_ParseCert(DecodedCert* cert, int type, int verify, void* cm);
 /*!
     \ingroup ASN
 
-    \brief この関数はwc_InitDecodedCertで初期化済みのDecodedCert構造体を解放します。
+    \brief この関数は、wc_InitDecodedCertで以前に初期化されたDecodedCertを解放します。
 
-    \param cert 初期化済みのDecodedCert構造体へのポインタ。
+    \param cert 初期化されたDecodedCertオブジェクトへのポインタ。
 
     _Example_
     \code
     int ret;
-    DecodedCert decodedCert; // Decoded certificate object.
-    byte* certBuf;           // DER-encoded certificate buffer.
-    word32 certBufSz;        // Size of certBuf in bytes.
+    DecodedCert decodedCert; // デコードされた証明書オブジェクト。
+    byte* certBuf;           // DERエンコードされた証明書バッファ。
+    word32 certBufSz;        // certBufのサイズ（バイト単位）。
 
     wc_InitDecodedCert(&decodedCert, certBuf, certBufSz, NULL);
     ret = wc_ParseCert(&decodedCert, CERT_TYPE, NO_VERIFY, NULL);
@@ -1672,27 +1825,25 @@ void wc_FreeDecodedCert(struct DecodedCert* cert);
 /*!
     \ingroup ASN
 
-    \brief この関数はタイムコールバック関数を登録します。wolfSSLが現在時刻を必要としたタイミングでこのコールバックを呼び出します。
-    このタイムコールバック関数のプロトタイプ（シグネチャ）はC標準ライブラリの"time"関数と同一です。
+    \brief この関数は、wolfSSLが現在時刻を取得する必要があるときに使用される時刻コールバックを登録します。コールバックのプロトタイプは、C標準ライブラリの"time"関数と同じである必要があります。
 
+    \return 0 成功時に返されます。
 
-    \return 0 成功時に返します。
-
-    \param f タイムコールバック関数ポインタ
+    \param f 時刻コールバックとして登録する関数。
 
     _Example_
     \code
     int ret = 0;
-    // Time callback prototype
+    // 時刻コールバックのプロトタイプ
     time_t my_time_cb(time_t* t);
-    // Register it
+    // 登録する
     ret = wc_SetTimeCb(my_time_cb);
     if (ret != 0) {
-        // failed to set time callback
+        // 時刻コールバックの設定失敗
     }
     time_t my_time_cb(time_t* t)
     {
-        // custom time function
+        // カスタム時刻関数
     }
     \endcode
 
@@ -1703,12 +1854,11 @@ int wc_SetTimeCb(wc_time_cb f);
 /*!
     \ingroup ASN
 
-    \brief この関数は現在時刻を取得します。デフォルトでXTIMEマクロ関数を使います。このマクロ関数はプラットフォーム依存です。
-    ユーザーはこのマクロの代わりにwc_SetTimeCbでタイムコールバック関数を使うように設定することができます
+    \brief この関数は、現在時刻を取得します。デフォルトでは、プラットフォーム間で異なるXTIMEマクロを使用します。ユーザーは、wc_SetTimeCb関数を介して任意の関数を使用できます。
 
-    \return 成功時には現在時刻を返します。
+    \return Time 成功時に返される現在時刻。
 
-    \param t 現在時刻を返却するオプションのtime_t型変数。
+    \param t 現在時刻を設定するオプションのtime_tポインタ。
 
     _Example_
     \code
@@ -1724,19 +1874,19 @@ time_t wc_Time(time_t* t);
 /*!
     \ingroup ASN
 
-    \brief この関数はX.509証明書にカスタム拡張を追加します。
-    注: この関数に渡すポインタ引数が保持する内容は証明書が生成されるまで変更されてはいけません。
-    この関数ではポインタが指す先の内容は別のバッファには複製しません。
+    \brief この関数は、X.509証明書にカスタム拡張を挿入します。
+     注：ポインタであるパラメータのいずれかが指すアドレスのコンテンツは、
+           証明書が生成されてder出力が得られるまで変更してはいけません。
+           この関数はコンテンツを別のバッファにコピーしません。
 
-    \return 0 成功時に返します。
-    \return エラー発生時には負の整数値を返します。
+    \return 0 成功時に返されます。
+    \return Other 失敗時に負の値。
 
-    \param cert 初期化済みのDecodedCert構造体へのポインタ。
-    \param critical 0が指定された場合には追加する拡張はクリティカルとはマークされません。
-     0以外が指定された場合にはクリティカルとマークされます。
-    \param oid ドット区切りのoid文字列。例えば、"1.2.840.10045.3.1.7"
-    \param der 拡張情報のDERエンコードされた内容を含むバッファへのポインタ。
-    \param derSz DERエンコードされた内容を含むバッファのサイズ
+    \param cert 初期化されたDecodedCertオブジェクトへのポインタ。
+    \param critical 0の場合、拡張は重要としてマークされません。それ以外の場合は重要としてマークされます。
+    \param oid ドット区切りのoidを文字列として。例："1.2.840.10045.3.1.7"
+    \param der 拡張のコンテンツのderエンコーディング。
+    \param derSz derエンコーディングのサイズ（バイト単位）。
 
 
     _Example_
@@ -1745,21 +1895,21 @@ time_t wc_Time(time_t* t);
     Cert newCert;
     wc_InitCert(&newCert);
 
-    // Code to setup subject, public key, issuer, and other things goes here.
+    // subject、公開鍵、発行者、その他のものを設定するコードがここに入ります。
 
     ret = wc_SetCustomExtension(&newCert, 1, "1.2.3.4.5",
               (const byte *)"This is a critical extension", 28);
     if (ret < 0) {
-        // Failed to set the extension.
+        // 拡張の設定失敗。
     }
 
     ret = wc_SetCustomExtension(&newCert, 0, "1.2.3.4.6",
               (const byte *)"This is NOT a critical extension", 32)
     if (ret < 0) {
-        // Failed to set the extension.
+        // 拡張の設定失敗。
     }
 
-    // Code to sign the certificate and then write it out goes here.
+    // 証明書に署名してから書き出すコードがここに入ります。
 
     \endcode
 
@@ -1772,44 +1922,44 @@ int wc_SetCustomExtension(Cert *cert, int critical, const char *oid,
 /*!
     \ingroup ASN
 
-    \brief この関数はwolfSSLが証明書の解析中に未知のX.509拡張に遭遇した際に呼び出すコールバック関数を登録します。
-    コールバック関数のプロトタイプは使用例を参照してください。
+    \brief この関数は、wolfSSLが証明書の解析中に証明書内の不明なX.509拡張に遭遇したときに使用されるコールバックを登録します。コールバックのプロトタイプは次のようにする必要があります：
 
-    \return 0 成功時に返します。
-    \return エラー発生時には負の整数値を返します。
+    \return 0 成功時に返されます。
+    \return Other 失敗時に負の値。
 
-    \param cert コールバック関数を登録する対象のDecodedCert構造体へのポインタ。
-    \param cb 登録されるコールバック関数ポインタ
+    \param cert このコールバックに関連付けられるDecodedCert構造体。
+    \param cb 時刻コールバックとして登録する関数。
 
     _Example_
     \code
     int ret = 0;
-    // Unknown extension callback prototype
+    // 不明な拡張コールバックのプロトタイプ
     int myUnknownExtCallback(const word16* oid, word32 oidSz, int crit,
                              const unsigned char* der, word32 derSz);
 
-    // Register it
+    // 登録する
     ret = wc_SetUnknownExtCallback(cert, myUnknownExtCallback);
     if (ret != 0) {
-        // failed to set the callback
+        // コールバックの設定失敗
     }
 
-    // oid: OIDを構成するドット区切りの数を格納した配列
-    // oidSz: oid内の値の数
-    // crit: 拡張がクリティカルとマークされているか
-    // der: DERエンコードされている拡張の内容
-    // derSz: 拡張の内容のサイズ
+    // oid: oidのドット区切り値である整数の配列。
+    // oidSz: oid内の値の数。
+    // crit: 拡張が重要としてマークされたかどうか。
+    // der: 拡張のコンテンツのderエンコーディング。
+    // derSz: derエンコーディングのサイズ（バイト単位）。
     int myCustomExtCallback(const word16* oid, word32 oidSz, int crit,
                             const unsigned char* der, word32 derSz) {
 
-        // 拡張を解析するロジックはここに記述します
+        // 拡張を解析するロジックがここに入ります。
 
-        // NOTE: コールバック関数から0を返すとwolfSSLに対してこの拡張を受け入れ可能と
-        // 表明することになります。この拡張を処理できると判断できない場合にはエラーを
-        // 返してください。クリティカルとマークされている未知の拡張に遭遇した際の標準的
-        // な振る舞いはASN_CRIT_EXT_Eを返すことです。
-        // 簡潔にするためにこの例ではすべての拡張情報を受け入れ可としていますが、実際には実情に沿うようにロジックを追加してください。
-
+        // 注：0を返すことで、この拡張を受け入れ、wolfSSLに
+        // それが許容可能であることを通知しています。許容できない拡張が
+        // 見つかった場合は、エラーを返す必要があります。重要フラグが
+        // 設定された不明な拡張に遭遇した場合の標準的な動作は、
+        // ASN_CRIT_EXT_Eを返すことです。簡潔にするため、この例では
+        // 常にすべての拡張を受け入れています。異なるロジックを
+        // 使用する必要があります。
         return 0;
     }
     \endcode
@@ -1822,18 +1972,18 @@ int wc_SetUnknownExtCallback(DecodedCert* cert,
 /*!
     \ingroup ASN
 
-    \brief この関数はDER形式のX.509 証明書の署名を与えられた公開鍵を使って検証します。
-    公開鍵はDER形式で全公開鍵情報を含んだものが求められます。
+    \brief この関数は、X.509証明書のder形式の署名を公開鍵に対して検証します。公開鍵は、der形式の完全なサブジェクト公開鍵情報であることが期待されます。
 
-    \return 0 成功時に返します。
-    \return エラー発生時には負の整数値を返します。
+    \return 0 成功時に返されます。
+    \return Other 失敗時に負の値。
 
-    \param cert DER形式のX.509証明書を含んだバッファへのポインタ
-    \param certSz 証明書を含んだバッファのサイズ
-    \param heap 動的メモリ確保のためのヒープ。NULL指定も可。
-    \param pubKey DER形式の公開鍵を含んだバッファへのポインタ
-    \param pubKeySz 公開鍵を含んだバッファのサイズ
-    \param pubKeyOID 公開鍵のアルゴリズムを特定するOID(すなわち: ECDSAk, DSAk や RSAk)
+    \param cert X.509証明書のderエンコーディング。
+    \param certSz certのサイズ（バイト単位）。
+    \param heap 動的割り当てに使用されるヒープへのポインタ。NULLでも可。
+    \param pubKey 公開鍵のderエンコーディング。
+    \param pubKeySz pubKeyのサイズ（バイト単位）。
+    \param pubKeyOID 公開鍵のアルゴリズムを識別するOID。
+    (例：ECDSAk、DSAkまたはRSAk)
 */
 int wc_CheckCertSigPubKey(const byte* cert, word32 certSz,
                                       void* heap, const byte* pubKey,
@@ -1842,21 +1992,20 @@ int wc_CheckCertSigPubKey(const byte* cert, word32 certSz,
 /*!
     \ingroup ASN
 
-    \brief この関数はAsn1PrintOptions構造体を初期化します。
+    \brief この関数は、ASN.1プリントオプションを初期化します。
 
-    \return  0 成功時に返します。
-    \return  BAD_FUNC_ARG asn1がNULLの場合に返されます。
+    \return  0 成功時。
+    \return  BAD_FUNC_ARG asn1がNULLの場合。
 
-    \param opts  プリントのためのAsn1PrintOptions構造体へのポインタ
+    \param opts  プリント用のASN.1オプション。
 
     _Example_
     \code
     Asn1PrintOptions opt;
 
-    // Initialize ASN.1 print options before use.
+    // 使用前にASN.1プリントオプションを初期化します。
     wc_Asn1PrintOptions_Init(&opt);
     \endcode
-
     \sa wc_Asn1PrintOptions_Set
     \sa wc_Asn1_PrintAll
 */
@@ -1865,23 +2014,23 @@ int wc_Asn1PrintOptions_Init(Asn1PrintOptions* opts);
 /*!
     \ingroup ASN
 
-    \brief この関数はAsn1PrintOptions構造体にプリント情報を設定します。
+    \brief この関数は、ASN.1プリントオプションオブジェクトにプリントオプションを設定します。
 
-    \return  0 成功時に返します。
-    \return  BAD_FUNC_ARG asn1がNULLの場合に返されます。
-    \return  BAD_FUNC_ARG valが範囲外の場合に返されます。
+    \return  0 成功時。
+    \return  BAD_FUNC_ARG asn1がNULLの場合。
+    \return  BAD_FUNC_ARG valがoptionの範囲外の場合。
 
-    \param opts  Asn1PrintOptions構造体へのポインタ
-    \param opt   設定する情報へのポインタ
-    \param val   設定値
+    \param opts  プリント用のASN.1オプション。
+    \param opt   値を設定するオプション。
+    \param val   設定する値。
 
     _Example_
     \code
     Asn1PrintOptions opt;
 
-    // Initialize ASN.1 print options before use.
+    // 使用前にASN.1プリントオプションを初期化します。
     wc_Asn1PrintOptions_Init(&opt);
-    // Set the number of indents when printing tag name to be 1.
+    // タグ名をプリントする際のインデント数を1に設定します。
     wc_Asn1PrintOptions_Set(&opt, ASN1_PRINT_OPT_INDENT, 1);
     \endcode
 
@@ -1894,18 +2043,18 @@ int wc_Asn1PrintOptions_Set(Asn1PrintOptions* opts, enum Asn1PrintOpt opt,
 /*!
     \ingroup ASN
 
-    \brief この関数はAsn1構造体を初期化します。
+    \brief この関数は、ASN.1解析オブジェクトを初期化します。
 
-    \return  0 成功時に返します。
-    \return  BAD_FUNC_ARG asn1がNULLの場合に返されます。
+    \return  0 成功時。
+    \return  BAD_FUNC_ARG asn1がNULLの場合。
 
-    \param asn1  Asn1構造体へのポインタ
+    \param asn1  ASN.1解析オブジェクト。
 
     _Example_
     \code
     Asn1 asn1;
 
-    // Initialize ASN.1 parse object before use.
+    // 使用前にASN.1解析オブジェクトを初期化します。
     wc_Asn1_Init(&asn1);
     \endcode
 
@@ -1917,22 +2066,22 @@ int wc_Asn1_Init(Asn1* asn1);
 /*!
     \ingroup ASN
 
-    \brief この関数は出力先として使用するファイルをAsn1構造体にセットします。
+    \brief この関数は、ASN.1解析オブジェクトへのプリント時に使用するファイルを設定します。
 
-    \return  0 成功時に返します。
-    \return  BAD_FUNC_ARG asn1がNULLの場合に返されます。
-    \return  BAD_FUNC_ARG fileがXBADFILEの場合に返されます。.
+    \return  0 成功時。
+    \return  BAD_FUNC_ARG asn1がNULLの場合。
+    \return  BAD_FUNC_ARG fileがXBADFILEの場合。
 
-    \param asn1  Asn1構造体へのポインタ
-    \param file  プリント先のファイル
+    \param asn1  ASN.1解析オブジェクト。
+    \param file  プリント先のファイル。
 
     _Example_
     \code
     Asn1 asn1;
 
-    // Initialize ASN.1 parse object before use.
+    // 使用前にASN.1解析オブジェクトを初期化します。
     wc_Asn1_Init(&asn1);
-    // Set standard out to be the file descriptor to write to.
+    // 標準出力を書き込み先のファイル記述子として設定します。
     wc_Asn1_SetFile(&asn1, stdout);
     \endcode
 
@@ -1944,35 +2093,35 @@ int wc_Asn1_SetFile(Asn1* asn1, XFILE file);
 /*!
     \ingroup ASN
 
-    \brief ASN.1アイテムをプリントします。
+    \brief すべてのASN.1項目をプリントします。
 
-    \return  0 成功時に返します。
-    \return  BAD_FUNC_ARG asn1かoptsがNULLの場合に返されます。
-    \return  ASN_LEN_E ASN.1アイテムが長すぎる場合に返されます。
-    \return  ASN_DEPTH_E 終了オフセットが無効の場合に返されます。
-    \return  ASN_PARSE_E 全のASN.1アイテムの解析が完了できなかった場合に返されます。
+    \return  0 成功時。
+    \return  BAD_FUNC_ARG asn1またはoptsがNULLの場合。
+    \return  ASN_LEN_E ASN.1項目の長さが長すぎる場合。
+    \return  ASN_DEPTH_E 終了オフセットが無効な場合。
+    \return  ASN_PARSE_E ASN.1項目のすべてが解析されなかった場合。
 
-    \param asn1  Asn1構造体へのポインタ
-    \param opts  Asn1PrintOptions構造体へのポインタ
-    \param data  BER/DER形式のプリント対象データへのポインタ
-    \param len   プリント対象データのサイズ（バイト数）
+    \param asn1  ASN.1解析オブジェクト。
+    \param opts  ASN.1プリントオプション。
+    \param data  プリントするBER/DERデータを含むバッファ。
+    \param len   プリントするデータの長さ（バイト単位）。
 
     \code
     Asn1PrintOptions opts;
     Asn1 asn1;
-    unsigned char data[] = { Initialize with DER/BER data };
+    unsigned char data[] = { DER/BERデータで初期化 };
     word32 len = sizeof(data);
 
-    // Initialize ASN.1 print options before use.
+    // 使用前にASN.1プリントオプションを初期化します。
     wc_Asn1PrintOptions_Init(&opt);
-    // Set the number of indents when printing tag name to be 1.
+    // タグ名をプリントする際のインデント数を1に設定します。
     wc_Asn1PrintOptions_Set(&opt, ASN1_PRINT_OPT_INDENT, 1);
 
-    // Initialize ASN.1 parse object before use.
+    // 使用前にASN.1解析オブジェクトを初期化します。
     wc_Asn1_Init(&asn1);
-    // Set standard out to be the file descriptor to write to.
+    // 標準出力を書き込み先のファイル記述子として設定します。
     wc_Asn1_SetFile(&asn1, stdout);
-    // Print all ASN.1 items in buffer with the specified print options.
+    // 指定されたプリントオプションでバッファ内のすべてのASN.1項目をプリントします。
     wc_Asn1_PrintAll(&asn1, &opts, data, len);
     \endcode
 
@@ -1981,4 +2130,3 @@ int wc_Asn1_SetFile(Asn1* asn1, XFILE file);
  */
 int wc_Asn1_PrintAll(Asn1* asn1, Asn1PrintOptions* opts, unsigned char* data,
     word32 len);
-

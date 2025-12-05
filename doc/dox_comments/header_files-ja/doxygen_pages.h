@@ -73,4 +73,3 @@
     - \ref SAKKE_RSK
     - \ref SAKKE_Operations
 */
-
