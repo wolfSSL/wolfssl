@@ -1000,8 +1000,15 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
         if (wc_RNG_HealthTestLocal(1) == 0) {
             byte newSeed[SEED_SZ + SEED_BLOCK_SZ];
 
+#ifdef WC_RNG_SEED_CB
+            if (seedCb == NULL)
+                ret = DRBG_NO_SEED_CB;
+            else
+                ret = seedCb(&rng->seed, newSeed, SEED_SZ + SEED_BLOCK_SZ);
+#else
             ret = wc_GenerateSeed(&rng->seed, newSeed,
                                   SEED_SZ + SEED_BLOCK_SZ);
+#endif
             if (ret != 0)
                 ret = DRBG_FAILURE;
             else
