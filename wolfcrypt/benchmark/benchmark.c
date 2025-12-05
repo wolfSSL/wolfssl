@@ -1038,7 +1038,7 @@ static const bench_alg bench_cipher_opt[] = {
 #ifdef HAVE_AESGCM
     { "-aes-gmac",           BENCH_AES_GMAC          },
 #endif
-#ifdef WOLFSSL_AES_DIRECT
+#if defined(HAVE_AES_ECB) || (defined(HAVE_FIPS) && defined(WOLFSSL_AES_DIRECT))
     { "-aes-ecb",            BENCH_AES_ECB           },
 #endif
 #ifdef WOLFSSL_AES_XTS
@@ -3844,7 +3844,7 @@ static void* benchmarks_do(void* args)
     #endif
     }
 #endif
-#ifdef HAVE_AES_ECB
+#if defined(HAVE_AES_ECB) || (defined(HAVE_FIPS) && defined(WOLFSSL_AES_DIRECT))
     if (bench_all || (bench_cipher_algs & BENCH_AES_ECB)) {
     #ifndef NO_SW_BENCH
         bench_aesecb(0);
@@ -5604,7 +5604,7 @@ void bench_gmac(int useDeviceID)
 #endif /* HAVE_AESGCM */
 
 
-#ifdef HAVE_AES_ECB
+#if defined(HAVE_AES_ECB) || (defined(HAVE_FIPS) && defined(WOLFSSL_AES_DIRECT))
 static void bench_aesecb_internal(int useDeviceID,
                                   const byte* key, word32 keySz,
                                   const char* encLabel, const char* decLabel)
@@ -5773,7 +5773,7 @@ void bench_aesecb(int useDeviceID)
                  "AES-256-ECB-enc", "AES-256-ECB-dec");
 #endif
 }
-#endif /* HAVE_AES_ECB */
+#endif /* HAVE_AES_ECB || (HAVE_FIPS && WOLFSSL_AES_DIRECT) */
 
 #ifdef WOLFSSL_AES_CFB
 static void bench_aescfb_internal(const byte* key,
