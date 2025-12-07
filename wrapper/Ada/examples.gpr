@@ -14,7 +14,8 @@ project Examples is
 
    for Main use ("tls_server_main.adb",
                  "tls_client_main.adb",
-                 "sha256_main.adb");
+                 "sha256_main.adb",
+                 "rsa_verify_main.adb");
 
    package Naming is
       for Spec_Suffix ("C") use ".h";

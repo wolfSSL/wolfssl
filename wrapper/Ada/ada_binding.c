@@ -28,9 +28,11 @@
 #include <wolfssl/ssl.h>
 #include <wolfssl/wolfcrypt/rsa.h>
 #include <wolfssl/wolfcrypt/sha256.h>
+#include <wolfssl/wolfcrypt/aes.h>
 
-#define WOLFSSL_RSA_INSTANCES 2
+#define WOLFSSL_RSA_INSTANCES    2
 #define WOLFSSL_SHA256_INSTANCES 2
+#define WOLFSSL_AES_INSTANCES    2
 
 /* These functions give access to the integer values of the enumeration
    constants used in WolfSSL. These functions make it possible
@@ -53,11 +55,14 @@ extern int get_wolfssl_filetype_asn1(void);
 extern int get_wolfssl_filetype_pem(void);
 extern int get_wolfssl_filetype_default(void);
 
-extern int get_wolfssl_rsa_instances(void);
-extern int ada_RsaPublicKeyDecode(const byte *input, word32 *inOutIdx,
-                                  uint32_t key, word32 inSz);
+extern int get_wolfssl_rsa_instances (void);
+extern void* ada_new_rsa (int index);
 
-extern void* ada_new_sha256 (int index);
+extern void *ada_new_sha256 (int index);
+extern int get_wolfssl_sha256_instances(void);
+
+extern void* ada_new_aes (int index);
+extern int get_wolfssl_aes_instances(void);
 
 extern int get_wolfssl_error_want_read(void) {
   return WOLFSSL_ERROR_WANT_READ;
@@ -125,12 +130,9 @@ extern int get_wolfssl_rsa_instances(void) {
 
 RsaKey preAllocatedRSAKeys[WOLFSSL_RSA_INSTANCES];
 
-extern int
-ada_RsaPublicKeyDecode(const byte *input, word32 *inOutIdx,
-                       uint32_t key, word32 inSz)
+extern void* ada_new_rsa (int index)
 {
-  return wc_RsaPublicKeyDecode (input, inOutIdx,
-                                &preAllocatedRSAKeys[key], inSz);
+  return &preAllocatedRSAKeys[index];
 }
 
 wc_Sha256 preAllocatedSHA256[WOLFSSL_SHA256_INSTANCES];
@@ -142,4 +144,15 @@ extern void* ada_new_sha256 (int index)
 
 extern int get_wolfssl_sha256_instances(void) {
   return WOLFSSL_SHA256_INSTANCES;
+}
+
+Aes preAllocatedAes[WOLFSSL_AES_INSTANCES];
+
+extern void* ada_new_aes (int index)
+{
+  return &preAllocatedAes[index];
+}
+
+extern int get_wolfssl_aes_instances(void) {
+  return WOLFSSL_AES_INSTANCES;
 }

@@ -20,7 +20,9 @@ project Default is
       "tls_client.adb",
       "tls_server_main.adb",
       "tls_server.ads",
-      "tls_server.adb");
+      "tls_server.adb",
+      "sha256_main.adb",
+      "rsa_verify_main.adb");
 
    for Object_Dir use "obj";
 
