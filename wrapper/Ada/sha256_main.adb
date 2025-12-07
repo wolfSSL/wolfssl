@@ -11,6 +11,7 @@ procedure SHA256_Main is
 
    use type WolfSSL.Subprogram_Result;
    
+   Hash : WolfSSL.SHA256_Hash;
    B : WolfSSL.Byte_Array := (1 => 'a',
                               2 => 's',
                               3 => 'd',
@@ -31,7 +32,10 @@ begin
       New_Line;
       return;
    end if;
-   WolfSSL.Finalize_SHA256 (SHA256 => SHA256, Hash => S, Result => R);
+   WolfSSL.Finalize_SHA256 (SHA256 => SHA256,
+                            Hash   => Hash,
+                            Text   => S,
+                            Result => R);
    if R = 0 then
       Put (S);
       New_Line;
@@ -39,5 +43,5 @@ begin
       Put ("Finalization of SHA256 instance failed");
       New_Line;
       return;
-   end if;   
+   end if;
 end SHA256_Main;

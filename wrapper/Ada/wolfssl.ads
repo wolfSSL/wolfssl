@@ -25,6 +25,8 @@ with Interfaces.C;
 --  the API of this package is used correctly.
 package WolfSSL with SPARK_Mode is
 
+   Terminator_Error : exception;   
+   
    type Subprogram_Result is new Integer;
    Success : constant Subprogram_Result;
    Failure : constant Subprogram_Result;
@@ -487,19 +489,31 @@ package WolfSSL with SPARK_Mode is
    RSA_INSTANCES : constant := 2;
    
    type RSA_Key_Index is range 0 .. RSA_INSTANCES - 1;
+
+   type RSA_Key_Type is limited private;   
+
+   function Is_Valid (Key : RSA_Key_Type) return Boolean;
+   --  Indicates if the RSA has successfully been initialized.   
+   
+   procedure Create_RSA (Index  : RSA_Key_Index;
+                         Key    : in out RSA_Key_Type;
+                         Result : out Integer) with
+     Pre => not Is_Valid (Key),
+     Post => (if Result = 0 then Is_Valid (Key));
+   --  If successful Result = 0.
    
    procedure Rsa_Public_Key_Decode (Input : Byte_Array;
-                                    Index : in out Integer;
-                                    Key   : RSA_Key_Index;
+                                    Index : in out Byte_Index;
+                                    Key   : in out RSA_Key_Type;
                                     Size  : Integer;
-                                    Result : out Subprogram_Result);
+                                    Result : out Integer) with
+     Pre => Is_Valid (Key);
    --  This function parses a DER-formatted RSA public key,
    --  extracts the public key and stores it in the RsaKey structure
    --  specified by the Key input argument. It also sets the distance
    --  parsed in Index.
 
-   SHA256_INSTANCES : constant := 2;
-   
+   SHA256_INSTANCES : constant := 2;   
    type SHA256_Index is range 0 .. SHA256_INSTANCES - 1;
    
    type SHA256_Type is limited private;
@@ -510,8 +524,9 @@ package WolfSSL with SPARK_Mode is
    procedure Create_SHA256 (Index  : SHA256_Index;
                             SHA256 : in out SHA256_Type;
                             Result : out Integer) with
-     Pre => not Is_Valid (SHA256);
-   --  If successful Is_Valid (SSHA256) = True, and Result = 0.
+     Pre  => not Is_Valid (SHA256),
+     Post => (if Result = 0 then Is_Valid (SHA256));
+   --  If successful Result = 0.
    
    procedure Update_SHA256 (SHA256 : in out SHA256_Type;
                             Byte   : Byte_Array;
@@ -519,13 +534,63 @@ package WolfSSL with SPARK_Mode is
      Pre => Is_Valid (SHA256);
    --  If successful Result = 0.
 
-   subtype SHA256_As_String is String (1 .. 64);   
+   subtype SHA256_As_String is String (1 .. 64);
+   
+   subtype SHA256_Hash is Byte_Array (1 .. 32);
    
    procedure Finalize_SHA256 (SHA256 : in out SHA256_Type;
-                              Hash   : out SHA256_As_String;
+                              Hash   : out SHA256_Hash;
+                              Text   : out SHA256_As_String;
                               Result : out Integer) with
      Pre => Is_Valid (SHA256);
    --  If successful Result = 0.
+   
+   AES_INSTANCES : constant := 2;   
+   type AES_Index is range 0 .. AES_INSTANCES - 1;
+
+   type AES_Type is limited private;
+
+   function Is_Valid (AES : AES_Type) return Boolean;
+   --  Indicates if the AES has successfully been initialized.
+
+   procedure Create_AES (Index  : AES_Index;
+                         Device : Integer;
+                         AES    : in out AES_Type;
+                         Result : out Integer) with
+     Pre => not Is_Valid (AES);
+   --  If successful Is_Valid (AES) = True, and Result = 0.
+
+   procedure AES_Set_Key (AES    : AES_Type;
+                          Key    : Byte_Array;
+                          Length : Integer;
+                          IV     : Byte_Array;
+                          Dir    : Integer;
+                          Result : out Integer) with
+     Pre => Is_Valid (AES);
+
+   procedure AES_Set_IV (AES : AES_Type;
+                         IV  : Byte_Array;
+                         Result : out Integer) with
+     Pre => Is_Valid (AES);
+   
+   procedure AES_Set_Cbc_Encrypt (AES : AES_Type;
+                                  Output : out Byte_Array;
+                                  Input : Byte_Array;
+                                  Size : Integer;
+                                  Result : out Integer) with
+     Pre => Is_Valid (AES);
+   
+   procedure AES_Set_Cbc_Decrypt (AES : AES_Type;
+                                  Output : out Byte_Array;
+                                  Input : Byte_Array;
+                                  Size : Integer;
+                                  Result : out Integer) with
+     Pre => Is_Valid (AES);
+
+   procedure AES_Free (AES : in out AES_Type;
+                       Result : out Integer) with
+     Pre  => Is_Valid (AES),
+     Post => (if Result = 0 then not Is_Valid (AES));
    
 private
    pragma SPARK_Mode (Off);
@@ -670,9 +735,15 @@ private
       Error_Code (Get_WolfSSL_Error_Want_Read);
 
    Error_Want_Write : constant Error_Code :=
-      Error_Code (Get_WolfSSL_Error_Want_Write);
-
+     Error_Code (Get_WolfSSL_Error_Want_Write);
+   
+   type Opaque_RSA is limited null record;  
+   type RSA_Key_Type is access Opaque_RSA with Convention => C;   
+   
    type Opaque_Sha256 is limited null record;  
-   type SHA256_Type is access Opaque_Sha256 with Convention => C;   
+   type SHA256_Type is access Opaque_Sha256 with Convention => C;
+   
+   type Opaque_AES is limited null record;
+   type AES_Type is access Opaque_AES with Convention => C;   
    
 end WolfSSL;
