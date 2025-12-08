@@ -14190,6 +14190,13 @@ int wolfSSL_X509_check_host(WOLFSSL_X509 *x, const char *chk, size_t chklen,
         chklen--;
     }
 
+#ifdef WOLFSSL_IP_ALT_NAME
+    ret = CheckIPAddr(dCert, (char *)chk);
+    if (ret == 0) {
+        goto out;
+    }
+#endif /* WOLFSSL_IP_ALT_NAME */
+
     ret = CheckHostName(dCert, (char *)chk, chklen, flags, 0);
 
 out:
