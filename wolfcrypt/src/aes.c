@@ -4574,19 +4574,31 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
 #endif /* WC_C_DYNAMIC_FALLBACK */
 
     #ifdef WOLFSSL_AESNI
-        aes->use_aesni = 0;
-        if (checkedAESNI == 0) {
-            haveAESNI  = Check_CPU_support_AES();
-            checkedAESNI = 1;
+#if defined(WC_FLAG_DONT_USE_VECTOR_OPS)
+        if (aes->use_aesni == WC_FLAG_DONT_USE_VECTOR_OPS) {
+            aes->use_aesni = 0;
+         }
+        else
+#endif
+        {
+            if (checkedAESNI == 0) {
+                haveAESNI  = Check_CPU_support_AES();
+                checkedAESNI = 1;
+            }
+            aes->use_aesni = haveAESNI;
         }
-        if (haveAESNI) {
-            #ifdef WOLFSSL_LINUXKM
+
+        if (aes->use_aesni) {
+            #ifdef WOLFSSL_KERNEL_MODE
             /* runtime alignment check */
             if ((wc_ptr_t)&aes->key & (wc_ptr_t)0xf) {
-                return BAD_ALIGN_E;
+                ret = BAD_ALIGN_E;
             }
-            #endif /* WOLFSSL_LINUXKM */
-            ret = SAVE_VECTOR_REGISTERS2();
+            else
+            #endif /* WOLFSSL_KERNEL_MODE */
+            {
+                ret = SAVE_VECTOR_REGISTERS2();
+            }
             if (ret == 0) {
                 if (dir == AES_ENCRYPTION)
                     ret = AES_set_encrypt_key_AESNI(userKey, (int)keylen * 8, aes);
@@ -12952,6 +12964,10 @@ int wc_AesXtsDecryptSector(XtsAes* aes, byte* out, const byte* in, word32 sz,
 }
 
 #ifdef WOLFSSL_AESNI
+
+#if defined(USE_INTEL_SPEEDUP_FOR_AES) && !defined(USE_INTEL_SPEEDUP)
+    #define USE_INTEL_SPEEDUP
+#endif
 
 #if defined(USE_INTEL_SPEEDUP)
     #define HAVE_INTEL_AVX1

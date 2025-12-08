@@ -220,7 +220,9 @@ WOLFSSL_API int wc_Shake256_Copy(wc_Shake* src, wc_Sha3* dst);
     WOLFSSL_API int wc_Sha3_GetFlags(wc_Sha3* sha3, word32* flags);
 #endif
 
-#ifdef USE_INTEL_SPEEDUP
+#ifdef WC_SHA3_NO_ASM
+/* asm speedups disabled */
+#elif defined(USE_INTEL_SPEEDUP)
 WOLFSSL_LOCAL void sha3_block_n_bmi2(word64* s, const byte* data, word32 n,
     word64 c);
 WOLFSSL_LOCAL void sha3_block_bmi2(word64* s);

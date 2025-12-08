@@ -64,12 +64,12 @@
     }
 #endif
 
-#if defined(WOLFSSL_LINUXKM) && !defined(WOLFSSL_SP_ASM)
+#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && !defined(WOLFSSL_SP_ASM)
     /* force off unneeded vector register save/restore. */
     #undef SAVE_VECTOR_REGISTERS
-    #define SAVE_VECTOR_REGISTERS(fail_clause) WC_DO_NOTHING
+    #define SAVE_VECTOR_REGISTERS(fail_clause) SAVE_NO_VECTOR_REGISTERS(fail_clause)
     #undef RESTORE_VECTOR_REGISTERS
-    #define RESTORE_VECTOR_REGISTERS() WC_DO_NOTHING
+    #define RESTORE_VECTOR_REGISTERS() RESTORE_NO_VECTOR_REGISTERS()
 #endif
 
 /*
@@ -1376,6 +1376,36 @@ static int GeneratePublicDh(DhKey* key, byte* priv, word32 privSz,
 #else
     ret = WC_KEY_SIZE_E;
 #endif
+
+    return ret;
+}
+
+/**
+ * Given a DhKey with set params and a priv key, generate the corresponding
+ * public key. If fips, does pub key validation.
+ * */
+WOLFSSL_API int wc_DhGeneratePublic(DhKey* key, byte* priv, word32 privSz,
+    byte* pub, word32* pubSz)
+{
+    int ret = 0;
+
+    if (key == NULL || priv == NULL || privSz == 0 ||
+        pub == NULL || pubSz == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    SAVE_VECTOR_REGISTERS(return _svr_ret;);
+
+    ret = GeneratePublicDh(key, priv, privSz, pub, pubSz);
+
+    #if FIPS_VERSION_GE(5,0) || defined(WOLFSSL_VALIDATE_DH_KEYGEN)
+    if (ret == 0)
+        ret = _ffc_validate_public_key(key, pub, *pubSz, NULL, 0, 0);
+    if (ret == 0)
+        ret = _ffc_pairwise_consistency_test(key, pub, *pubSz, priv, privSz);
+    #endif /* FIPS V5 or later || WOLFSSL_VALIDATE_DH_KEYGEN */
+
+    RESTORE_VECTOR_REGISTERS();
 
     return ret;
 }
