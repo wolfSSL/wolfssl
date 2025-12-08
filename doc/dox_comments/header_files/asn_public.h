@@ -327,17 +327,23 @@ int wc_GetCertDates(Cert* cert, struct tm* before, struct tm* after);
 
 /*!
     \ingroup ASN
-    \brief Extracts date information from certificate date field.
+    \brief Extracts date information from certificate date field. This
+    function parses an ASN.1 encoded date (including tag and length) and
+    returns a pointer to the raw date value bytes, the ASN.1 time type,
+    and the length of the date value.
 
     \return 0 on success
     \return BAD_FUNC_ARG if parameters invalid
     \return ASN_PARSE_E if date parsing fails
 
-    \param certDate Certificate date buffer
+    \param certDate Certificate date buffer containing ASN.1 encoded date
+    (tag + length + value)
     \param certDateSz Size of certificate date buffer
-    \param date Pointer to extracted date data
-    \param format Pointer to date format byte
-    \param length Pointer to date length
+    \param date Output pointer set to the raw date value bytes (without
+    tag/length)
+    \param format Output byte indicating ASN.1 time type: ASN_UTC_TIME
+    (0x17) or ASN_GENERALIZED_TIME (0x18)
+    \param length Output length of the raw date value in bytes
 
     _Example_
     \code
@@ -347,6 +353,10 @@ int wc_GetCertDates(Cert* cert, struct tm* before, struct tm* after);
     int length;
     int ret = wc_GetDateInfo(certDate, certDateSz, &date,
                              &format, &length);
+    if (ret == 0) {
+        // date points to raw time bytes, format indicates UTC or
+        // Generalized time, length is the number of date value bytes
+    }
     \endcode
 
     \sa wc_GetCertDates
