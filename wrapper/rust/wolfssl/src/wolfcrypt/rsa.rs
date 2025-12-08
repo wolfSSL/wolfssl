@@ -393,7 +393,7 @@ impl RSA {
     /// }
     /// ```
     #[cfg(all(random, rsa_keygen))]
-    pub fn generate(size: i32, e: i64, rng: &mut RNG) -> Result<Self, i32> {
+    pub fn generate(size: i32, e: i32, rng: &mut RNG) -> Result<Self, i32> {
         Self::generate_ex(size, e, rng, None, None)
     }
 
@@ -440,7 +440,7 @@ impl RSA {
     /// }
     /// ```
     #[cfg(all(random, rsa_keygen))]
-    pub fn generate_ex(size: i32, e: i64, rng: &mut RNG, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn generate_ex(size: i32, e: i32, rng: &mut RNG, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_rsakey: MaybeUninit<sys::RsaKey> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
@@ -455,6 +455,7 @@ impl RSA {
             return Err(rc);
         }
         let mut wc_rsakey = unsafe { wc_rsakey.assume_init() };
+        let e = e as core::ffi::c_long;
         let rc = unsafe {
             sys::wc_MakeRsaKey(&mut wc_rsakey, size, e, &mut rng.wc_rng)
         };
