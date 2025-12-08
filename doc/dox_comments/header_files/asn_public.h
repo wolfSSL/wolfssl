@@ -239,9 +239,20 @@ int wc_MakeCertReq_ex(Cert* cert, byte* derBuffer, word32 derSz,
     byte derCert[4096];
     RsaKey key;
     WC_RNG rng;
-    int certSz = wc_SignCert_ex(myCert.bodySz, myCert.sigType,
-                                derCert, sizeof(derCert), RSA_TYPE,
-                                &key, &rng);
+    // Initialize cert and set fields (issuer, subject, dates, etc.)
+    wc_InitCert(&myCert);
+    // ... set myCert fields ...
+    // Generate certificate body (TBS - To Be Signed)
+    int bodySz = wc_MakeCert_ex(&myCert, derCert, sizeof(derCert),
+                                RSA_TYPE, &key, &rng);
+    if (bodySz > 0) {
+        // bodySz is the size of the unsigned certificate body
+        // Sign the certificate body and append signature
+        int certSz = wc_SignCert_ex(bodySz, CTC_SHA256wRSA,
+                                    derCert, sizeof(derCert), RSA_TYPE,
+                                    &key, &rng);
+        // derCert now contains complete signed certificate of size certSz
+    }
     \endcode
 
     \sa wc_SignCert
