@@ -524,27 +524,61 @@ int wc_DsaImportParamsRaw(DsaKey* dsa, const char* p, const char* q,
 
 /*!
     \ingroup DSA
-    \brief Imports DSA parameters from raw format with validation.
+    \brief Imports DSA parameters from raw format with optional validation.
+    The parameters p, q, and g must be provided as ASCII hexadecimal strings
+    (without 0x prefix). The trusted parameter controls whether the prime p
+    is validated: when trusted=1, prime checking is skipped (use when
+    parameters come from a trusted source); when trusted=0, performs full
+    primality testing on p (recommended for untrusted sources).
 
     \return 0 on success
-    \return negative on failure
+    \return DH_CHECK_PUB_E if p fails primality test (when trusted=0)
+    \return negative on other failures
 
-    \param dsa DSA key structure
-    \param p P parameter string
-    \param q Q parameter string
-    \param g G parameter string
-    \param trusted Trust flag
-    \param rng Random number generator
+    \param dsa DSA key structure (must be initialized)
+    \param p P parameter as ASCII hex string (prime modulus)
+    \param q Q parameter as ASCII hex string (prime divisor/subgroup order)
+    \param g G parameter as ASCII hex string (generator)
+    \param trusted If 1, skip prime validation (trusted source); if 0,
+    perform full primality test on p
+    \param rng Random number generator (required when trusted=0 for
+    primality testing)
 
     _Example_
     \code
     DsaKey dsa;
     WC_RNG rng;
-    int ret = wc_DsaImportParamsRawCheck(&dsa, pStr, qStr, gStr, 1,
+    
+    // Initialize DSA key and RNG
+    wc_InitDsaKey(&dsa);
+    wc_InitRng(&rng);
+    
+    // DSA parameters as ASCII hexadecimal strings
+    const char* pStr = "E0A67598CD1B763BC98C8ABB333E5DDA0CD3AA0E5E1F"
+                       "B5BA8A7B4EABC10BA338FAE06DD4B90FDA70D7CF0CB0"
+                       "C638BE3341BEC0AF8A7330A3307DED2299A0EE606DF0"
+                       "35177A239C34A912C202AA5F83B9C4A7CF0235B5316B"
+                       "FC6EFB9A248411258B30B839AF172440F32563056CB6"
+                       "7A861158DDD90E6A894C72A5BBEF9E286C6B";
+    const char* qStr = "E950511EAB424B9A19A2AEB4E159B7844C589C4F";
+    const char* gStr = "D29D5121B0423C2769AB21843E5A3240FF19CACC792D"
+                       "C6E7925E6D1A4E6E4E3D119A3D133C8D3C8C8C8C8C8C"
+                       "8C8C8C8C8C8C8C8C8C8C8C8C8C8C8C8C8C8C8C8C8C8C"
+                       "8C8C8C8C8C8C8C8C8C8C8C8C8C8C8C8C8C8C8C8C8C8C";
+    
+    // Import with validation (trusted=0 performs primality test on p)
+    int ret = wc_DsaImportParamsRawCheck(&dsa, pStr, qStr, gStr, 0,
                                          &rng);
+    if (ret == 0) {
+        // Parameters imported and validated successfully
+    }
+    
+    wc_FreeDsaKey(&dsa);
+    wc_FreeRng(&rng);
     \endcode
 
     \sa wc_DsaImportParamsRaw
+    \sa wc_InitDsaKey
 */
 int wc_DsaImportParamsRawCheck(DsaKey* dsa, const char* p,
     const char* q, const char* g, int trusted, WC_RNG* rng);
