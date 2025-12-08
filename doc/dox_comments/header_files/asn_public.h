@@ -1910,14 +1910,21 @@ int wc_RsaPublicKeyDerSize(RsaKey* key, int with_header);
 
 /*!
     \ingroup RSA
-    \brief Validates DER encoded RSA private key format.
+    \brief Validates DER encoded RSA private key format. This function
+    validates the ASN.1 syntax and structure of the RSA private key
+    (sequences, integer tags, and lengths) without loading the key values
+    into an RsaKey structure. It does not perform mathematical validation
+    of the RSA key parameters (e.g., checking if p and q are prime, or if
+    the key components satisfy RSA mathematical relationships).
 
-    \return 0 on success
-    \return negative on error
+    \return 0 on success (valid ASN.1 structure)
+    \return ASN_PARSE_E if ASN.1 parsing fails
+    \return ASN_RSA_KEY_E if RSA key structure is invalid
+    \return BAD_FUNC_ARG if parameters are invalid
 
     \param input DER encoded RSA private key buffer
-    \param inOutIdx Pointer to index in buffer
-    \param keySz Pointer to store key size
+    \param inOutIdx Pointer to index in buffer (updated on success)
+    \param keySz Pointer to store modulus size in bytes
     \param inSz Size of input buffer
 
     _Example_
@@ -1926,6 +1933,9 @@ int wc_RsaPublicKeyDerSize(RsaKey* key, int with_header);
     int keySz;
     int ret = wc_RsaPrivateKeyValidate(derBuf, &idx, &keySz,
                                        derSz);
+    if (ret == 0) {
+        // ASN.1 structure is valid, keySz contains modulus size
+    }
     \endcode
 
     \sa wc_RsaPrivateKeyDecode
