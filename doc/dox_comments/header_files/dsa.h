@@ -450,8 +450,25 @@ int wc_SetDsaPublicKey(byte* output, DsaKey* key, int outLen,
 
     _Example_
     \code
+    DsaKey key;
+    WC_RNG rng;
     byte output[256];
+    
+    // Initialize key and RNG
+    wc_InitDsaKey(&key);
+    wc_InitRng(&rng);
+    
+    // Generate DSA key or import existing key
+    wc_MakeDsaKey(&rng, &key);
+    
+    // Convert to public DER format
     int ret = wc_DsaKeyToPublicDer(&key, output, sizeof(output));
+    if (ret > 0) {
+        // output contains DER encoded public key of size ret
+    }
+    
+    wc_FreeDsaKey(&key);
+    wc_FreeRng(&rng);
     \endcode
 
     \sa wc_SetDsaPublicKey
