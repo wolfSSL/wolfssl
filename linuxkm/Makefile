@@ -104,21 +104,41 @@ ifndef MAKE_TMPDIR
 endif
 
 GENERATE_SECTION_MAP := $(AWK) 'BEGIN { printf("") >ENVIRON["SECTION_MAP"]; }		\
-	{										\
-	    if ($$7 !~ "^[0-9]+$$")							\
-		next;									\
-	    if ($$4 == "SECTION") {							\
-		sections[$$7] = $$8;							\
-		next;									\
+	/^Section Headers:/ {								\
+	    in_sections = 1;								\
+	    in_symbols = 0;								\
+	    next;									\
+	}										\
+	/^Symbol table / {								\
+	    if (! in_sections) {							\
+		print "symbol table appeared before section headers." >"/dev/stderr";	\
+		exit(1);								\
 	    }										\
-	    if (($$4 == "NOTYPE") || ($$4 == "OBJECT") || ($$4 == "FUNC")) {		\
-		if (($$8 == "$$d") || ($$8 == "$$t"))					\
+	    in_sections = 0;								\
+	    in_symbols = 1;								\
+	    next;									\
+	}										\
+	{										\
+	    if (in_sections) {								\
+		if (match($$0,								\
+			  "^[[:space:]]*\\[[[:space:]]*([0-9]+)[[:space:]]*\\][[:space:]]+([^[:space:]]+)[[:space:]]",\
+			  section_line_a)) {						\
+		    sections[section_line_a[1]] = section_line_a[2];			\
 		    next;								\
-		if ($$7 in sections) {							\
-		    if (sections[$$7] ~ "_wolfcrypt$$")					\
-			print $$8 "\t" sections[$$7] >>ENVIRON["SECTION_MAP"];		\
-		} else									\
-		    print $$8 " is in section " $$7 " with no name mapping." >"/dev/stderr";\
+		}									\
+	    }										\
+	    if (in_symbols) {								\
+		if ($$7 !~ "^[0-9]+$$")							\
+		    next;								\
+		if (($$4 == "NOTYPE") || ($$4 == "OBJECT") || ($$4 == "FUNC")) {	\
+		    if (($$8 == "$$d") || ($$8 == "$$t"))				\
+			next;								\
+		    if ($$7 in sections) {						\
+			if (sections[$$7] ~ "_wolfcrypt$$")				\
+			    print $$8 "\t" sections[$$7] >>ENVIRON["SECTION_MAP"];	\
+		    } else								\
+			print $$8 " is in section " $$7 " with no name mapping." >"/dev/stderr";\
+		}									\
 	    }										\
 	}'
 
@@ -272,7 +292,7 @@ ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
 	@SECTION_MAP=$$(mktemp)
 	@trap 'rm "$$SECTION_MAP"' EXIT
 	@export SECTION_MAP
-	@$(READELF) --wide --symbols "$@" | $(GENERATE_SECTION_MAP)
+	@$(READELF) --wide --sections --symbols "$@" | $(GENERATE_SECTION_MAP)
 	@$(READELF) --wide --relocs "$@" | $(GENERATE_RELOC_TAB) >| '$(MODULE_TOP)/linuxkm/wc_linuxkm_pie_reloc_tab.c'
 	+$(MAKE) ARCH='$(KERNEL_ARCH)' $(OVERRIDE_PATHS) $(CROSS_COMPILE) -C '$(KERNEL_ROOT)' M='$(MODULE_TOP)' $(KBUILD_EXTRA_FLAGS) CC_FLAGS_FTRACE=
 	@$(READELF) --wide --relocs "$@" | $(GENERATE_RELOC_TAB) >| "$$RELOC_TMP"
