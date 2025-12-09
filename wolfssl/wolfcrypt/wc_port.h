@@ -95,9 +95,15 @@
     #elif defined(__WATCOMC__)
           /* Watcom macro needs to expand to something, here just a comment: */
           #define WC_DEPRECATED(msg) /* null expansion */
-    #elif defined(_MSC_VER) || defined(__MINGW32__) || defined(__CYGWIN__) || \
-          defined(_WIN32_WCE)
+    #elif (defined(_MSC_VER) && _MSC_VER >= 1400) || defined(__MINGW32__) || \
+          defined(__CYGWIN__) || defined(_WIN32_WCE)
         #define WC_DEPRECATED(msg) __declspec(deprecated(msg))
+    #elif defined(_MSC_VER)
+        #ifdef __cplusplus
+            #define WC_DEPRECATED(msg) __declspec(deprecated)
+        #else
+            #define WC_DEPRECATED(msg) __pragma(deprecated)
+        #endif
     #elif (defined(__GNUC__) && (__GNUC__ >= 4)) || \
           defined(__IAR_SYSTEMS_ICC__)
         #define WC_DEPRECATED(msg) __attribute__((deprecated))
