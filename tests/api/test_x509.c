@@ -181,6 +181,8 @@ int test_x509_GetCAByAKID(void)
     XMEMSET(&cm, 0, sizeof(cm));
     XMEMSET(&signerA, 0, sizeof(signerA));
     XMEMSET(&signerB, 0, sizeof(signerB));
+    XMEMSET(issuerHash, 0, sizeof(issuerHash));
+    XMEMSET(serialHash, 0, sizeof(serialHash));
 
     /* Initialize CA mutex so GetCAByAKID can lock/unlock it. */
     ExpectIntEQ(wc_InitMutex(&cm.caLock), 0);
