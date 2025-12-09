@@ -63,7 +63,7 @@ jobs:
             name: tvOS Simulator (ARM64, Release)
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Build wolfSSL with Xcode (${{ matrix.name }})
         working-directory: ./IDE/XCODE
         run: |
