@@ -396,8 +396,9 @@ package body Tls_Client with SPARK_Mode is
       SPARK_Sockets.To_C (Item       => Text (1 .. Last),
                           Target     => D,
                           Count      => Count);
-      Output := WolfSSL.Write (Ssl  => Ssl,
-                               Data => D (1 .. Count));
+      WolfSSL.Write (Ssl    => Ssl,
+                     Data   => D (1 .. Count),
+                     Result => Output);
       if not Output.Success then
          Put ("ERROR: write failure");
          New_Line;
@@ -421,7 +422,7 @@ package body Tls_Client with SPARK_Mode is
          return;
       end if;
 
-      Input := WolfSSL.Read (Ssl);
+      WolfSSL.Read (Ssl => Ssl, Result => Input);
       if not Input.Success then
          Put_Line ("Read error.");
          Set (Exit_Status_Failure);
