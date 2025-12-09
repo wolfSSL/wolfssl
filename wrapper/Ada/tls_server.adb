@@ -349,9 +349,10 @@ package body Tls_Server with SPARK_Mode is
          if not WolfSSL.Is_Valid (Ssl) then
             Put_Line ("ERROR: failed to create WOLFSSL object.");
             declare
-               Error_Message : constant WolfSSL.Error_Message :=
-                 WolfSSL.Error (WolfSSL.Get_Error (Ssl, Result));
+               Error_Message : WolfSSL.Error_Message;
             begin
+               WolfSSL.Error (WolfSSL.Get_Error (Ssl, Result),
+                              Message => Error_Message);
                if Result = Success then
                   Put_Line (Error_Message.Text (1 .. Error_Message.Last));
                end if;
@@ -403,7 +404,7 @@ package body Tls_Server with SPARK_Mode is
 
          Put_Line ("Client connected successfully.");
 
-         Input := WolfSSL.Read (Ssl);
+         WolfSSL.Read (Ssl => Ssl, Result => Input);
          if not Input.Success then
             Put_Line ("Read error.");
             WolfSSL.Free (Ssl);
@@ -438,7 +439,7 @@ package body Tls_Server with SPARK_Mode is
             end if;
          end if;
 
-         Output := WolfSSL.Write (Ssl, Reply);
+         WolfSSL.Write (Ssl, Reply, Result => Output);
          if not Output.Success then
             Put_Line ("ERROR: write failure.");
          elsif Output.Bytes_Written /= Reply'Length then

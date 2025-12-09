@@ -354,7 +354,8 @@ package WolfSSL with SPARK_Mode is
       end case;
    end record;
 
-   function Read (Ssl : WolfSSL_Type) return Read_Result with
+   procedure Read (Ssl : WolfSSL_Type;
+                   Result : out Read_Result) with
       Pre => Is_Valid (Ssl);
    --  This function reads a number of bytes from the SSL session (ssl)
    --  internal read buffer into the buffer data. The bytes read are
@@ -382,8 +383,9 @@ package WolfSSL with SPARK_Mode is
       end case;
    end record;
 
-   function Write (Ssl  : WolfSSL_Type;
-                   Data : Byte_Array) return Write_Result with
+   procedure Write (Ssl  : WolfSSL_Type;
+                    Data : Byte_Array;
+                    Result : out Write_Result) with
       Pre => Is_Valid (Ssl);
    --  The number of bytes written is returned.
    --  This function writes bytes from the buffer, Data,
@@ -475,7 +477,8 @@ package WolfSSL with SPARK_Mode is
       Text : String (1 .. Last);
    end record;
 
-   function Error (Code : Error_Code) return Error_Message;
+   procedure Error (Code    : in  Error_Code;
+                    Message : out Error_Message);
    --  This function converts an error code returned by Get_Error(..)
    --  into a more human readable error string. Code is the error code
    --  returned by Get_error(). The maximum length of error strings is

@@ -117,7 +117,7 @@ package body WolfSSL is
       end if;
    end To_Ada;
 
-   WOLFSSL_SUCCESS : constant int := Get_WolfSSL_Success;
+   --  WOLFSSL_SUCCESS : constant int := Get_WolfSSL_Success;
 
    function Initialize_WolfSSL return int with
      Convention    => C,
@@ -632,7 +632,7 @@ package body WolfSSL is
    function Attach (Ssl    : WolfSSL_Type;
                     Socket : Integer)
                     return Subprogram_Result is
-      Result : int := WolfSSL_Set_Fd (Ssl, int (Socket));
+      Result : constant int := WolfSSL_Set_Fd (Ssl, int (Socket));
    begin
       return Subprogram_Result (Result);
    end Attach;
@@ -654,7 +654,7 @@ package body WolfSSL is
 
    function Accept_Connection (Ssl : WolfSSL_Type)
                                return Subprogram_Result is
-      Result : int := WolfSSL_Accept (Ssl);
+      Result : constant int := WolfSSL_Accept (Ssl);
    begin
       return Subprogram_Result (Result);
    end Accept_Connection;
@@ -705,19 +705,20 @@ package body WolfSSL is
    --  and and the application needs to call wolfSSL_read() again.
    --  Use wolfSSL_get_error() to get a specific error code.
 
-   function Read (Ssl : WolfSSL_Type) return Read_Result is
+   procedure Read (Ssl : WolfSSL_Type;
+                   Result : out Read_Result) is
       Data   : Byte_Array (1 .. Byte_Index'Last);
       Size   : int;
    begin
       Size := WolfSSL_Read (Ssl, Data, int (Byte_Index'Last));
       if Size <= 0 then
-         return (Success => False,
-                 Last    => 0,
-                 Code    => Subprogram_Result (Size));
+         Result := (Success => False,
+                    Last    => 0,
+                    Code    => Subprogram_Result (Size));
       else
-         return (Success => True,
-                 Last    => Byte_Index (Size),
-                 Buffer  => Data (1 .. Byte_Index (Size)));
+         Result := (Success => True,
+                    Last    => Byte_Index (Size),
+                    Buffer  => Data (1 .. Byte_Index (Size)));
       end if;
    end Read;
 
@@ -728,17 +729,18 @@ package body WolfSSL is
      External_Name => "wolfSSL_write",
      Import        => True;
 
-   function Write (Ssl  : WolfSSL_Type;
-                   Data : Byte_Array) return Write_Result is
+   procedure Write (Ssl  : WolfSSL_Type;
+                    Data : Byte_Array;
+                    Result : out Write_Result) is
       Size   : constant int := Data'Length;
-      Result : int;
+      R : int;
    begin
-      Result := WolfSSL_Write (Ssl, Data, Size);
-      if Result > 0 then
-         return (Success       => True,
-                 Bytes_Written => Byte_Index (Result));
+      R := WolfSSL_Write (Ssl, Data, Size);
+      if R > 0 then
+         Result := (Success       => True,
+                    Bytes_Written => Byte_Index (R));
       else
-         return (Success => False, Code => Subprogram_Result (Result));
+         Result := (Success => False, Code => Subprogram_Result (R));
       end if;
    end Write;
 
@@ -796,7 +798,8 @@ package body WolfSSL is
      External_Name => "wolfSSL_ERR_error_string_n",
      Import        => True;
 
-   function Error (Code : Error_Code) return Error_Message is
+   procedure Error (Code    : in  Error_Code;
+                    Message : out Error_Message) is
       S : String (1 .. Error_Message_Index'Last);
       B : Byte_Array (1 .. size_t (Error_Message_Index'Last));
       C : Natural;
@@ -813,8 +816,8 @@ package body WolfSSL is
               Target   => S,
               Count    => C,
               Trim_Nul => True);
-      return (Last => C,
-              Text => S (1 .. C));
+      Message := (Last => C,
+                  Text => S (1 .. C));
    end Error;
 
    function Get_WolfSSL_Max_Error_Size return int with
