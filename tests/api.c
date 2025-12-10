@@ -27713,7 +27713,7 @@ static int test_wolfSSL_cert_cb_dyn_ciphers(void)
                 "ECDSA+SHA256", caEccCertFile, wolfTLSv1_3_server_method},
 #endif
 #endif
-#ifndef WOLFSSL_NO_TLS12
+#if !defined(WOLFSSL_NO_TLS12)  && !defined(WOLFSSL_HARDEN_TLS)
 #if !defined(NO_RSA) && defined(WC_RSA_PSS) && !defined(NO_DH)
         {wolfTLSv1_2_client_method,
                 "DHE-RSA-AES128-GCM-SHA256",
