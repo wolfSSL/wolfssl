@@ -34,7 +34,8 @@ void wc_Pkcs11Token_Close(Pkcs11Token* token);
 /*!
     \ingroup PKCS11
  */
-int wc_Pkcs11StoreKey(Pkcs11Token* token, int type, int clear, void* key);
+int wc_Pkcs11StoreKey(Pkcs11Token* token, int type, int clear,
+    void* key);
 
 /*!
     \ingroup PKCS11
