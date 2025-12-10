@@ -1,10 +1,12 @@
 #![cfg(dh)]
 
+#[cfg(any(all(dh_keygen, dh_ffdhe_2048), random))]
 use wolfssl::wolfcrypt::dh::DH;
+#[cfg(random)]
 use wolfssl::wolfcrypt::random::RNG;
 
 #[test]
-#[cfg(dh_keygen)]
+#[cfg(all(dh_keygen, dh_ffdhe_2048))]
 fn test_dh_named_parameters() {
     assert_eq!(DH::get_min_key_size_for_named_parameters(DH::FFDHE_2048), 29);
 
@@ -27,7 +29,7 @@ fn test_dh_named_parameters() {
 }
 
 #[test]
-#[cfg(dh_keygen)]
+#[cfg(all(dh_keygen, random))]
 fn test_generate_params() {
     let mut rng = RNG::new().expect("Error with RNG::new()");
     let mut dh = DH::generate(&mut rng, 2048).expect("Error with generate()");
@@ -40,7 +42,7 @@ fn test_generate_params() {
 }
 
 #[test]
-#[cfg(dh_keygen)]
+#[cfg(all(dh_keygen, dh_ffdhe_2048, random))]
 fn test_generate_key_pair() {
     let mut rng = RNG::new().expect("Error with RNG::new()");
     let mut dh = DH::new_named(DH::FFDHE_2048).expect("Error with new_named()");
@@ -71,6 +73,7 @@ fn test_generate_key_pair() {
 }
 
 #[test]
+#[cfg(random)]
 fn test_dh_checks() {
     let p = [
         0xc5u8, 0x7c, 0xa2, 0x4f, 0x4b, 0xd6, 0x8c, 0x3c,
@@ -171,6 +174,7 @@ fn test_dh_checks() {
 }
 
 #[test]
+#[cfg(all(dh_ffdhe_2048, random))]
 fn test_dh_shared_secret() {
     let mut rng = RNG::new().expect("Error with RNG::new()");
     let mut dh = DH::new_named(DH::FFDHE_2048).expect("Error with new_named()");

@@ -23,6 +23,8 @@ This module provides a Rust wrapper for the wolfCrypt library's Pseudo Random
 Function (PRF) functionality.
 */
 
+#![cfg(prf)]
+
 use crate::sys;
 
 pub const PRF_HASH_NONE: i32 = sys::wc_MACAlgorithm_no_mac as i32;
@@ -53,6 +55,8 @@ pub const PRF_HASH_SM3: i32 = sys::wc_MACAlgorithm_sm3_mac as i32;
 /// # Example
 ///
 /// ```rust
+/// #[cfg(sha384)]
+/// {
 /// use wolfssl::wolfcrypt::prf::*;
 /// let secret = [0x10u8, 0xbc, 0xb4, 0xa2, 0xe8, 0xdc, 0xf1, 0x9b, 0x4c,
 ///     0x51, 0x9c, 0xed, 0x31, 0x1b, 0x51, 0x57, 0x02, 0x3f,
@@ -69,6 +73,7 @@ pub const PRF_HASH_SM3: i32 = sys::wc_MACAlgorithm_sm3_mac as i32;
 ///     0x5d, 0x93, 0x5f, 0x4c, 0x92, 0xcc, 0x98, 0x5b, 0x43];
 /// let mut out = [0u8; 12];
 /// prf(&secret, &seed, PRF_HASH_SHA384, &mut out).expect("Error with prf()");
+/// }
 /// ```
 pub fn prf(secret: &[u8], seed: &[u8], hash_type: i32, dout: &mut [u8]) -> Result<(), i32> {
     prf_ex(secret, seed, hash_type, None, None, dout)
@@ -94,6 +99,8 @@ pub fn prf(secret: &[u8], seed: &[u8], hash_type: i32, dout: &mut [u8]) -> Resul
 /// # Example
 ///
 /// ```rust
+/// #[cfg(sha384)]
+/// {
 /// use wolfssl::wolfcrypt::prf::*;
 /// let secret = [0x10u8, 0xbc, 0xb4, 0xa2, 0xe8, 0xdc, 0xf1, 0x9b, 0x4c,
 ///     0x51, 0x9c, 0xed, 0x31, 0x1b, 0x51, 0x57, 0x02, 0x3f,
@@ -110,6 +117,7 @@ pub fn prf(secret: &[u8], seed: &[u8], hash_type: i32, dout: &mut [u8]) -> Resul
 ///     0x5d, 0x93, 0x5f, 0x4c, 0x92, 0xcc, 0x98, 0x5b, 0x43];
 /// let mut out = [0u8; 12];
 /// prf_ex(&secret, &seed, PRF_HASH_SHA384, None, None, &mut out).expect("Error with prf_ex()");
+/// }
 /// ```
 pub fn prf_ex(secret: &[u8], seed: &[u8], hash_type: i32, heap: Option<*mut ::std::os::raw::c_void>, dev_id: Option<i32>, dout: &mut [u8]) -> Result<(), i32> {
     let secret_size = secret.len() as u32;

@@ -44,6 +44,20 @@ int SetCipherSpecs(WOLFSSL* ssl)
                                 ssl->options.cipherSuite, &ssl->specs,
                                 &ssl->options);
     if (ret == 0) {
+    #ifdef WOLFSSL_ALLOW_SSLV3
+         /* SSLv3 (RFC 6101) defines MAC algorithms as MD5 and SHA-1. SHA-256
+          * was introduced in TLS 1.2 (RFC 5246). SSL_hmac for old SSLv3
+          * connections can not handle newer cipher suites that use digest sizes
+          * larger than SHA-1 */
+        if (ssl->version.major == SSLv3_MAJOR &&
+                    ssl->version.minor == SSLv3_MINOR &&
+                    ssl->specs.hash_size > WC_SHA_DIGEST_SIZE) {
+                WOLFSSL_MSG("SSLv3 does not support SHA-256 or higher MAC");
+                WOLFSSL_ERROR_VERBOSE(UNSUPPORTED_SUITE);
+                return UNSUPPORTED_SUITE;
+        }
+    #endif /* WOLFSSL_ALLOW_SSLV3 */
+
         /* set TLS if it hasn't been turned off */
         if (ssl->version.major == SSLv3_MAJOR &&
                 ssl->version.minor >= TLSv1_MINOR) {

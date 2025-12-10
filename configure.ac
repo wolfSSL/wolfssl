@@ -3179,7 +3179,7 @@ then
     ENABLED_AESGCM=no
 fi
 
-if test "$ENABLED_AESGCM" = "yes" && test "$ac_cv_c_bigendian" != "yes"
+if test "$ENABLED_AESGCM" = "yes"
 then
     ENABLED_AESGCM="4bit"
 fi
@@ -3364,6 +3364,7 @@ fi
 
 ENABLED_ARMASM_CRYPTO="unknown"
 ENABLED_ARMASM_INLINE="no"
+ENABLED_ARMASM_SHA256_SMALL="no"
 ENABLED_ARMASM_SHA3="unknown"
 ENABLED_ARMASM_CRYPTO_SM4="no"
 # ARM Assembly
@@ -3386,6 +3387,9 @@ then
             ;;
         no-crypto)
             ENABLED_ARMASM_CRYPTO=no
+            ;;
+        sha256-small)
+            ENABLED_ARMASM_SHA256_SMALL=yes
             ;;
         sha512-crypto | sha3-crypto)
             case $host_cpu in
@@ -3583,6 +3587,10 @@ then
     esac
 fi
 
+if test "$ENABLED_ARMASM_SHA256_SMALL" = "yes"; then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM_SHA256_SMALL"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_ARMASM_SHA256_SMALL"
+fi
 if test "$ENABLED_ARMASM_SHA3" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM_CRYPTO_SHA512 -DWOLFSSL_ARMASM_CRYPTO_SHA3"
     AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_ARMASM_CRYPTO_SHA512 -DWOLFSSL_ARMASM_CRYPTO_SHA3"

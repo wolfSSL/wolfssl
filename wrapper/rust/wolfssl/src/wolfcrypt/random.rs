@@ -42,6 +42,8 @@ rng.generate_block(&mut buffer).expect("Failed to generate a block");
 ```
 */
 
+#![cfg(random)]
+
 use crate::sys;
 use std::mem::{size_of_val, MaybeUninit};
 

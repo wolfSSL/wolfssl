@@ -1,0 +1,89 @@
+name: Xcode Build Tests
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  build:
+    if: github.repository_owner == 'wolfssl'
+    runs-on: macos-latest
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        include:
+          # macOS builds
+          - target: wolfssl_osx
+            arch: arm64
+            config: Release
+            sdk: macosx
+            name: macOS (ARM64, Release)
+          - target: wolfssl_osx
+            arch: x86_64
+            config: Release
+            sdk: macosx
+            name: macOS (x86_64, Release)
+          - target: wolfssl_osx
+            arch: arm64
+            config: Debug
+            sdk: macosx
+            name: macOS (ARM64, Debug)
+          - target: wolfssl_osx
+            arch: x86_64
+            config: Debug
+            sdk: macosx
+            name: macOS (x86_64, Debug)
+          # Universal build (both architectures)
+          - target: wolfssl_osx
+            arch: arm64
+            arch2: x86_64
+            config: Release
+            sdk: macosx
+            name: macOS (Universal, Release)
+            universal: true
+          # tvOS builds
+          - target: wolfssl_tvos
+            arch: arm64
+            config: Release
+            sdk: appletvos
+            name: tvOS (ARM64, Release)
+          - target: wolfssl_tvos
+            arch: arm64
+            config: Release
+            sdk: appletvsimulator
+            name: tvOS Simulator (ARM64, Release)
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build wolfSSL with Xcode (${{ matrix.name }})
+        working-directory: ./IDE/XCODE
+        run: |
+          if [ "${{ matrix.universal }}" == "true" ]; then
+            xcodebuild -project wolfssl.xcodeproj \
+                       -target ${{ matrix.target }} \
+                       -configuration ${{ matrix.config }} \
+                       -arch ${{ matrix.arch }} \
+                       -arch ${{ matrix.arch2 }} \
+                       -sdk ${{ matrix.sdk }} \
+                       SYMROOT=build \
+                       OBJROOT=build \
+                       build
+          else
+            xcodebuild -project wolfssl.xcodeproj \
+                       -target ${{ matrix.target }} \
+                       -configuration ${{ matrix.config }} \
+                       -arch ${{ matrix.arch }} \
+                       -sdk ${{ matrix.sdk }} \
+                       SYMROOT=build \
+                       OBJROOT=build \
+                       build
+          fi

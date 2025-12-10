@@ -1,10 +1,13 @@
 #![cfg(ecc)]
 
+#[cfg(any(all(ecc_import, ecc_export, ecc_sign, ecc_verify, random), random))]
 use std::fs;
 use wolfssl::wolfcrypt::ecc::*;
+#[cfg(random)]
 use wolfssl::wolfcrypt::random::RNG;
 
 #[test]
+#[cfg(random)]
 fn test_ecc_generate() {
     let mut rng = RNG::new().expect("Failed to create RNG");
     let mut ecc = ECC::generate(32, &mut rng, None, None).expect("Error with generate()");
@@ -12,6 +15,7 @@ fn test_ecc_generate() {
 }
 
 #[test]
+#[cfg(random)]
 fn test_ecc_generate_ex() {
     let mut rng = RNG::new().expect("Failed to create RNG");
     let curve_id = ECC::SECP256R1;
@@ -22,7 +26,7 @@ fn test_ecc_generate_ex() {
 }
 
 #[test]
-#[cfg(all(ecc_import, ecc_export))]
+#[cfg(all(ecc_import, ecc_export, random))]
 fn test_ecc_import_x963() {
     let mut rng = RNG::new().expect("Failed to create RNG");
     let curve_id = ECC::SECP256R1;
@@ -39,6 +43,7 @@ fn test_ecc_import_x963() {
 }
 
 #[test]
+#[cfg(random)]
 fn test_ecc_generate_ex2() {
     let mut rng = RNG::new().expect("Failed to create RNG");
     let curve_id = ECC::SECP256R1;
@@ -48,17 +53,8 @@ fn test_ecc_generate_ex2() {
     ecc.check().expect("Error with check()");
 }
 
-fn bytes_to_asciiz_hex_string(bytes: &[u8]) -> String {
-    let mut hex_string = String::with_capacity(bytes.len() * 2 + 1);
-    for byte in bytes {
-        hex_string.push_str(&format!("{:02X}", byte));
-    }
-    hex_string.push('\0');
-    hex_string
-}
-
 #[test]
-#[cfg(all(ecc_import, ecc_export, ecc_sign, ecc_verify))]
+#[cfg(all(ecc_import, ecc_export, ecc_sign, ecc_verify, random))]
 fn test_ecc_import_export_sign_verify() {
     let mut rng = RNG::new().expect("Failed to create RNG");
     let key_path = "../../../certs/ecc-client-key.der";
@@ -106,6 +102,15 @@ fn test_ecc_import_export_sign_verify() {
     let sig_out_size = ECC::rs_bin_to_sig(r, s, &mut sig_out).expect("Error with rs_bin_to_sig()");
     assert_eq!(*signature, *&sig_out[0..sig_out_size]);
 
+    fn bytes_to_asciiz_hex_string(bytes: &[u8]) -> String {
+        let mut hex_string = String::with_capacity(bytes.len() * 2 + 1);
+        for byte in bytes {
+            hex_string.push_str(&format!("{:02X}", byte));
+        }
+        hex_string.push('\0');
+        hex_string
+    }
+
     let r_hex_string = bytes_to_asciiz_hex_string(r);
     let s_hex_string = bytes_to_asciiz_hex_string(s);
     let mut sig_out = [0u8; 128];
@@ -121,7 +126,7 @@ fn test_ecc_import_export_sign_verify() {
 }
 
 #[test]
-#[cfg(ecc_dh)]
+#[cfg(all(ecc_dh, random))]
 fn test_ecc_shared_secret() {
     let mut rng = RNG::new().expect("Failed to create RNG");
     let mut ecc0 = ECC::generate(32, &mut rng, None, None).expect("Error with generate()");
@@ -145,7 +150,7 @@ fn test_ecc_shared_secret() {
 }
 
 #[test]
-#[cfg(ecc_export)]
+#[cfg(all(ecc_export, random))]
 fn test_ecc_export() {
     let mut rng = RNG::new().expect("Failed to create RNG");
     let mut ecc = ECC::generate(32, &mut rng, None, None).expect("Error with generate()");
@@ -159,7 +164,7 @@ fn test_ecc_export() {
 }
 
 #[test]
-#[cfg(ecc_export)]
+#[cfg(all(ecc_export, random))]
 fn test_ecc_export_ex() {
     let mut rng = RNG::new().expect("Failed to create RNG");
     let mut ecc = ECC::generate(32, &mut rng, None, None).expect("Error with generate()");
@@ -173,7 +178,7 @@ fn test_ecc_export_ex() {
 }
 
 #[test]
-#[cfg(all(ecc_import, ecc_export, ecc_sign, ecc_verify))]
+#[cfg(all(ecc_import, ecc_export, ecc_sign, ecc_verify, random))]
 fn test_ecc_import_export_private() {
     let mut rng = RNG::new().expect("Failed to create RNG");
     let mut ecc = ECC::generate(32, &mut rng, None, None).expect("Error with generate()");
@@ -195,7 +200,7 @@ fn test_ecc_import_export_private() {
 }
 
 #[test]
-#[cfg(all(ecc_import, ecc_export, ecc_sign, ecc_verify))]
+#[cfg(all(ecc_import, ecc_export, ecc_sign, ecc_verify, random))]
 fn test_ecc_import_export_private_ex() {
     let mut rng = RNG::new().expect("Failed to create RNG");
     let curve_id = ECC::SECP256R1;
@@ -219,7 +224,7 @@ fn test_ecc_import_export_private_ex() {
 }
 
 #[test]
-#[cfg(ecc_export)]
+#[cfg(all(ecc_export, random))]
 fn test_ecc_export_public() {
     let mut rng = RNG::new().expect("Failed to create RNG");
     let mut ecc = ECC::generate(32, &mut rng, None, None).expect("Error with generate()");
@@ -231,7 +236,7 @@ fn test_ecc_export_public() {
 }
 
 #[test]
-#[cfg(all(ecc_import, ecc_export, ecc_sign, ecc_verify))]
+#[cfg(all(ecc_import, ecc_export, ecc_sign, ecc_verify, random))]
 fn test_ecc_import_unsigned() {
     let mut rng = RNG::new().expect("Failed to create RNG");
     let curve_id = ECC::SECP256R1;
@@ -256,6 +261,7 @@ fn test_ecc_import_unsigned() {
 }
 
 #[test]
+#[cfg(random)]
 fn test_ecc_make_pub() {
     let mut rng = RNG::new().expect("Failed to create RNG");
     let key_path = "../../../certs/ecc-client-key.der";
@@ -268,7 +274,7 @@ fn test_ecc_make_pub() {
 }
 
 #[test]
-#[cfg(ecc_export)]
+#[cfg(all(ecc_export, random))]
 fn test_ecc_point() {
     let mut rng = RNG::new().expect("Failed to create RNG");
     let curve_id = ECC::SECP256R1;
@@ -282,7 +288,7 @@ fn test_ecc_point() {
 }
 
 #[test]
-#[cfg(all(ecc_import, ecc_export))]
+#[cfg(all(all(ecc_import, ecc_export, random)))]
 fn test_ecc_point_import() {
     let mut rng = RNG::new().expect("Failed to create RNG");
     let curve_id = ECC::SECP256R1;
@@ -297,7 +303,7 @@ fn test_ecc_point_import() {
 }
 
 #[test]
-#[cfg(all(ecc_import, ecc_export, ecc_comp_key))]
+#[cfg(all(ecc_import, ecc_export, ecc_comp_key, random))]
 fn test_ecc_point_import_compressed() {
     let mut rng = RNG::new().expect("Failed to create RNG");
     let curve_id = ECC::SECP256R1;

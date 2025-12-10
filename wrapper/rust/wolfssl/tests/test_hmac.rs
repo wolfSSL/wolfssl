@@ -1,3 +1,5 @@
+#![cfg(hmac)]
+
 use wolfssl::wolfcrypt::hmac::*;
 use wolfssl::wolfcrypt::sha::SHA256;
 

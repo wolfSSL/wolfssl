@@ -1,3 +1,5 @@
+#![cfg(random)]
+
 use wolfssl::wolfcrypt::random::RNG;
 
 // Test that RNG::new() returns successfully and that drop() does not panic.

@@ -6698,10 +6698,11 @@ WOLFSSL_LOCAL WC_RNG* WOLFSSL_RSA_GetRNG(WOLFSSL_RSA *rsa, WC_RNG **tmpRNG,
     #ifndef GetCA
         WOLFSSL_LOCAL Signer* GetCA(void* vp, byte* hash);
     #endif
-    #if defined(WOLFSSL_AKID_NAME) && !defined(GetCAByAKID)
-        #ifdef WOLFSSL_API_PREFIX_MAP
-            #define GetCAByAKID wolfSSL_GetCAByAKID
-        #endif
+    #if defined(WOLFSSL_AKID_NAME) && !defined(WC_SYM_RELOC_TABLES)
+        /* note WOLFSSL_API_PREFIX_MAPping is in asn.h, and if
+         * WC_SYM_RELOC_TABLES, the prototype is in the port layer
+         * (e.g. linuxkm_wc_port.h), to allow shimming.
+         */
         WOLFSSL_TEST_VIS Signer* GetCAByAKID(void* vp, const byte* issuer,
                 word32 issuerSz, const byte* serial, word32 serialSz);
     #endif

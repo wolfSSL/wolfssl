@@ -3636,15 +3636,28 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
                 if (rsa_type == RSA_PRIVATE_DECRYPT) {
                     word32 i = 0;
                     word32 j;
+                    byte last = 0;
                     int start = (int)((size_t)pad - (size_t)key->data);
 
                     for (j = 0; j < key->dataLen; j++) {
-                        signed char c;
-                        out[i] = key->data[j];
-                        c  = (signed char)ctMaskGTE((int)j, start);
-                        c &= (signed char)ctMaskLT((int)i, (int)outLen);
-                        /* 0 - no add, -1 add */
-                        i += (word32)((byte)(-c));
+                        signed char incMask;
+                        signed char maskData;
+
+                        /* When j < start + outLen then out[i] = key->data[j]
+                         *                         else out[i] = last
+                         */
+                        maskData = (signed char)ctMaskLT((int)j,
+                            start + (int)outLen);
+                        out[i] = (byte)(key->data[j] &   maskData ) |
+                                 (byte)(last         & (~maskData));
+                        last = out[i];
+
+                        /* Increment i when j is in range:
+                         *   [start..(start + outLen - 1)]. */
+                        incMask  = (signed char)ctMaskGTE((int)j, start);
+                        incMask &= (signed char)ctMaskLT((int)j,
+                            start + (int)outLen - 1);
+                        i += (word32)((byte)(-incMask));
                     }
                 }
                 else
