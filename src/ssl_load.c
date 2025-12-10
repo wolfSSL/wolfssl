@@ -1607,6 +1607,9 @@ static int ProcessBufferCertPublicKey(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
 #ifndef NO_RSA
     word32 idx;
 #endif
+    if (ctx == NULL && ssl == NULL) {
+        return BAD_FUNC_ARG;
+    }
 
     /* Get key size and check unless not verifying. */
     switch (cert->keyOID) {
