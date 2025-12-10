@@ -1025,6 +1025,7 @@ __MWERKS__
 __NT__
 __OS2__
 __OpenBSD__
+__PIC__
 __PIE__
 __POWERPC__
 __PPC__
