@@ -2085,7 +2085,8 @@ int wolfSSL_session_export_internal(WOLFSSL* ssl, byte* buf, word32* sz,
         #endif
     }
 
-    /* check is at least the minimum size needed, TLS cipher states add more */
+    /* check if sz is sufficient for the worst-case scenario computed above,
+     * TLS cipher states add more */
     if (ret == 0 && (totalLen > *sz || buf == NULL)) {
         WOLFSSL_MSG("export buffer was too small or null");
         *sz = totalLen;
