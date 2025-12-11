@@ -323,7 +323,7 @@ int wc_MakeDsaParameters(WC_RNG *rng, int modulus_size, DsaKey *dsa)
 
     if (err == MP_OKAY)
 #endif
-        err = mp_init_multi(tmp, tmp2, &dsa->p, &dsa->q, 0, 0);
+        err = mp_init_multi(tmp, tmp2, &dsa->p, &dsa->q, &dsa->g, 0);
 
     if (err == MP_OKAY)
         err = mp_read_unsigned_bin(tmp2, buf, (word32)(msize - qsize));
@@ -368,9 +368,6 @@ int wc_MakeDsaParameters(WC_RNG *rng, int modulus_size, DsaKey *dsa)
             err = mp_add_d(tmp2, 2 * (mp_digit)loop_check_prime, tmp2);
     }
 
-    if (err == MP_OKAY)
-        err = mp_init(&dsa->g);
-
     /* find a value g for which g^tmp2 != 1 */
     if (err == MP_OKAY)
         err = mp_set(&dsa->g, 1);
@@ -399,18 +396,24 @@ int wc_MakeDsaParameters(WC_RNG *rng, int modulus_size, DsaKey *dsa)
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     XFREE(buf, dsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmp != NULL) {
-        mp_clear(tmp);
+        if ((err != WC_NO_ERR_TRACE(MP_INIT_E)) &&
+                (err != WC_NO_ERR_TRACE(MEMORY_E)))
+            mp_clear(tmp);
         XFREE(tmp, NULL, DYNAMIC_TYPE_WOLF_BIGINT);
     }
     if (tmp2 != NULL) {
-        mp_clear(tmp2);
+        if ((err != WC_NO_ERR_TRACE(MP_INIT_E)) &&
+                (err != WC_NO_ERR_TRACE(MEMORY_E)))
+            mp_clear(tmp2);
         XFREE(tmp2, NULL, DYNAMIC_TYPE_WOLF_BIGINT);
     }
 #else
-    mp_clear(tmp);
-    mp_clear(tmp2);
+    if (err != WC_NO_ERR_TRACE(MP_INIT_E)) {
+        mp_clear(tmp);
+        mp_clear(tmp2);
+    }
 #endif
-    if (err != MP_OKAY) {
+    if ((err != MP_OKAY) && (err != WC_NO_ERR_TRACE(MP_INIT_E))) {
         mp_clear(&dsa->q);
         mp_clear(&dsa->p);
         mp_clear(&dsa->g);
