@@ -106,6 +106,19 @@ PR stands for Pull Request, and PR <NUMBER> references a GitHub pull request num
 
 * [Low CVE-2025-12889] With TLS 1.2 connections a client can use any digest, specifically a weaker digest, rather than those in the CertificateRequest. Thanks to Jaehun Lee from Pohang University of Science and Technology (POSTECH) for the report. Fixed in PR 9395
 
+* [Low CVE-2025-13912] When using the Clang compiler, various optimization levels or flags could result in non-constant-time compiled code. Assembly implementations of the functions in wolfSSL were not affected. The report was done specifically with Clang version 18 but there was shown to be similarities in timing variations when using the optimization levels with Clang 14 and Clang 20.
+
+On the following architectures, the expected constant-time functions were found to have potential timing variations when specific compiler flags or optimization levels were used.
+
+AArch64: Using O3, Ofast, or --enable-nontrivial-unswitch with O1/O2 flags leads to possible timing variations with the software implementations of sp_read_radix, sp_div_2_mod_ct, and sp_addmod_ct. Using O3, O2, Ofast, Os, or Oz with --unroll-force-peel-count=50 leads to possible timing variations with wc_AesGcmDecrypt.
+
+RISC-V: TLS HMAC update/final operations, RSA unpad operations, and DH key pair generation with O1, O2, O3, Ofast, Oz, or Os. wc_AesGcmDecrypt and wc_Chacha_Process with O1, O2, O3, Os, or Ofast. Also SP software operations sp_div_2_mod_ct and sp_addmod_ct using O3 or Ofast.
+
+
+X86_64: TLS HMAC update/final operations and TimingVerifyPad used with verifying the TLS MAC with --fast-isel or --x86-cmov-converter-force-all compile flags. RSA unpad operations, ECC mulmod, and wc_Chacha_Process with the --x86-cmov-converter-force-all flag. DH key agreement, sp_div_2_mod_ct and sp_addmod_ct with O1, O2, O3, Os, or Ofast. wc_AesGcmDecrypt with the compiler flags O2, O3, Os, Ofast, Oz --x86-cmov-converter-force-all | --unroll-force-peel-count=50, or O1 --x86-cmov-converter-force-all.
+
+Thanks to Jing Liu, Zhiyuan Zhang, LUCÍA MARTÍNEZ GAVIER, Gilles Barthe, Marcel Böhme from Max Planck Institute for Security and Privacy (MPI-SP) for the report. Fixed in PR 9148.
+
 ## New Features
 * New ML-KEM / ML-DSA APIs and seed/import PKCS8 support; added _new/_delete APIs for ML-KEM/ML-DSA. (PR 9039, 9000, 9049)
 * Initial wolfCrypt FreeBSD kernel module support (PR 9392)
