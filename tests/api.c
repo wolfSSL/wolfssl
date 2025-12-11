@@ -52,7 +52,7 @@
 
 #include <stdlib.h>
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__FreeBSD__)
 #include <unistd.h>
 #include <sys/wait.h>
 #endif
