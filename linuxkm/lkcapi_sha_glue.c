@@ -1073,17 +1073,17 @@ static inline struct wc_rng_inst *get_drbg(struct crypto_rng *tfm) {
         return NULL;
     }
 
-    #if defined(CONFIG_SMP) && !defined(CONFIG_PREEMPT_COUNT) && \
-        (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0))
     if (tfm == crypto_default_rng) {
+        #if defined(CONFIG_SMP) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0))
         migrate_disable(); /* this actually makes irq_count() nonzero, so that
                             * DISABLE_VECTOR_REGISTERS() is superfluous, but
                             * don't depend on that.
                             */
+        #endif
+        local_bh_disable();
         new_lock_value = 2;
     }
     else
-    #endif
     {
         new_lock_value = 1;
     }
@@ -1104,7 +1104,9 @@ static inline struct wc_rng_inst *get_drbg(struct crypto_rng *tfm) {
 }
 
 /* get_drbg_n() is used by bulk seed, mix-in, and reseed operations.  It expects
- * the caller to be able to wait until the requested DRBG is available.
+ * the caller to be able to wait until the requested DRBG is available.  If the
+ * caller can't sleep and the requested DRBG is busy, it returns immediately --
+ * this avoids priority inversions and deadlocks.
  */
 static inline struct wc_rng_inst *get_drbg_n(struct wc_linuxkm_drbg_ctx *ctx, int n) {
     int can_sleep = (preempt_count() == 0);
@@ -1119,23 +1121,22 @@ static inline struct wc_rng_inst *get_drbg_n(struct wc_linuxkm_drbg_ctx *ctx, in
             cond_resched();
         }
         else
-            cpu_relax();
+            return NULL;
     }
 
     __builtin_unreachable();
 }
 
 static inline void put_drbg(struct wc_rng_inst *drbg) {
-    #if defined(CONFIG_SMP) && !defined(CONFIG_PREEMPT_COUNT) && \
-        (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0))
     int migration_disabled = (drbg->lock == 2);
-    #endif
     __atomic_store_n(&(drbg->lock),0,__ATOMIC_RELEASE);
-    #if defined(CONFIG_SMP) && !defined(CONFIG_PREEMPT_COUNT) && \
-        (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0))
-    if (migration_disabled)
+
+    if (migration_disabled) {
+        local_bh_enable();
+        #if defined(CONFIG_SMP) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0))
         migrate_enable();
-    #endif
+        #endif
+    }
 }
 
 static int wc_linuxkm_drbg_generate(struct crypto_rng *tfm,
