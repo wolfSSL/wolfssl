@@ -916,6 +916,93 @@ int test_wolfSSL_X509_get_serialNumber(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_get_tbs(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_CERTS) && !defined(NO_RSA) && !defined(NO_FILESYSTEM) \
+    && defined(OPENSSL_EXTRA)
+    WOLFSSL_X509* x509 = NULL;
+    const unsigned char* tbs;
+    int tbsSz;
+
+    ExpectNotNull(x509 = wolfSSL_X509_new());
+    ExpectNull(tbs = wolfSSL_X509_get_tbs(x509, &tbsSz));
+    wolfSSL_X509_free(x509);
+    x509 = NULL;
+
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(caCertFile,
+        WOLFSSL_FILETYPE_PEM));
+
+    ExpectNull(tbs = wolfSSL_X509_get_tbs(NULL, &tbsSz));
+    ExpectNull(tbs = wolfSSL_X509_get_tbs(x509, NULL));
+    ExpectNotNull(tbs = wolfSSL_X509_get_tbs(x509, &tbsSz));
+    ExpectIntEQ(tbsSz, 1003);
+
+    wolfSSL_FreeX509(x509);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_X509_ext_get_critical_by_NID(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS)
+    WOLFSSL_X509* x509 = NULL;
+
+    ExpectNotNull(x509 = wolfSSL_X509_new());
+    ExpectIntEQ(wolfSSL_X509_ext_get_critical_by_NID(NULL,
+        WC_NID_basic_constraints), 0);
+    ExpectIntEQ(wolfSSL_X509_ext_get_critical_by_NID(x509,
+        WC_NID_basic_constraints), 0);
+    ExpectIntEQ(wolfSSL_X509_ext_get_critical_by_NID(x509,
+        WC_NID_subject_alt_name), 0);
+    ExpectIntEQ(wolfSSL_X509_ext_get_critical_by_NID(x509,
+        WC_NID_authority_key_identifier), 0);
+    ExpectIntEQ(wolfSSL_X509_ext_get_critical_by_NID(x509,
+        WC_NID_subject_key_identifier), 0);
+    ExpectIntEQ(wolfSSL_X509_ext_get_critical_by_NID(x509,
+        WC_NID_key_usage), 0);
+    ExpectIntEQ(wolfSSL_X509_ext_get_critical_by_NID(x509,
+        WC_NID_crl_distribution_points), 0);
+    ExpectIntEQ(wolfSSL_X509_ext_get_critical_by_NID(x509,
+        WC_NID_ext_key_usage), 0);
+#ifdef WOLFSSL_SEP
+    ExpectIntEQ(wolfSSL_X509_ext_get_critical_by_NID(x509,
+        WC_NID_certificate_policies), 0);
+#endif
+    ExpectIntEQ(wolfSSL_X509_ext_get_critical_by_NID(x509,
+        WC_NID_info_access), 0);
+    wolfSSL_X509_free(x509);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_X509_CRL_distribution_points(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM)
+    WOLFSSL_X509* x509 = NULL;
+    const char* file = "./certs/client-crl-dist.pem";
+
+    ExpectIntEQ(wolfSSL_X509_ext_isSet_by_NID(NULL,
+        WC_NID_crl_distribution_points), 0);
+
+    ExpectNotNull(x509 = wolfSSL_X509_new());
+    ExpectIntEQ(wolfSSL_X509_ext_isSet_by_NID(x509,
+        WC_NID_crl_distribution_points), 0);
+    wolfSSL_X509_free(x509);
+    x509 = NULL;
+
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(file,
+         WOLFSSL_FILETYPE_PEM));
+    ExpectIntEQ(wolfSSL_X509_ext_isSet_by_NID(x509,
+        WC_NID_crl_distribution_points), 1);
+    wolfSSL_X509_free(x509);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_X509_check_ip_asc(void)
 {
     EXPECT_DECLS;
