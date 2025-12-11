@@ -323,7 +323,7 @@ int wc_MakeDsaParameters(WC_RNG *rng, int modulus_size, DsaKey *dsa)
 
     if (err == MP_OKAY)
 #endif
-        err = mp_init_multi(tmp, tmp2, &dsa->p, &dsa->q, 0, 0);
+        err = mp_init_multi(tmp, tmp2, &dsa->p, &dsa->q, &dsa->g, 0);
 
     if (err == MP_OKAY)
         err = mp_read_unsigned_bin(tmp2, buf, (word32)(msize - qsize));
@@ -367,9 +367,6 @@ int wc_MakeDsaParameters(WC_RNG *rng, int modulus_size, DsaKey *dsa)
         if (loop_check_prime)
             err = mp_add_d(tmp2, 2 * (mp_digit)loop_check_prime, tmp2);
     }
-
-    if (err == MP_OKAY)
-        err = mp_init(&dsa->g);
 
     /* find a value g for which g^tmp2 != 1 */
     if (err == MP_OKAY)
