@@ -124,8 +124,8 @@ impl ECCPoint {
     /// let mut ecc = ECC::generate_ex(curve_size, &mut rng, curve_id, None, None).expect("Error with generate()");
     /// let ecc_point = ecc.make_pub_to_point(Some(&mut rng), None).expect("Error with make_pub_to_point()");
     /// let mut der = [0u8; 128];
-    /// let size = ecc_point.export_der_compressed(&mut der, curve_id).expect("Error with export_der_compressed()");
-    /// ECCPoint::import_der_ex(&der[0..size], curve_id, 1, None).expect("Error with import_der_ex()");
+    /// let size = ecc_point.export_der(&mut der, curve_id).expect("Error with export_der()");
+    /// ECCPoint::import_der_ex(&der[0..size], curve_id, 0, None).expect("Error with import_der_ex()");
     /// }
     /// ```
     #[cfg(ecc_import)]
@@ -227,7 +227,6 @@ impl ECCPoint {
     /// let ecc_point = ecc.make_pub_to_point(Some(&mut rng), None).expect("Error with make_pub_to_point()");
     /// let mut der = [0u8; 128];
     /// let size = ecc_point.export_der_compressed(&mut der, curve_id).expect("Error with export_der_compressed()");
-    /// ECCPoint::import_der_ex(&der[0..size], curve_id, 1, None).expect("Error with import_der_ex()");
     /// }
     /// ```
     #[cfg(all(ecc_export, ecc_comp_key))]
