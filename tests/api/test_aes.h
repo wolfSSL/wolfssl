@@ -41,6 +41,9 @@ int test_wc_AesGcmMixedEncDecLongIV(void);
 int test_wc_AesGcmStream(void);
 int test_wc_AesCcmSetKey(void);
 int test_wc_AesCcmEncryptDecrypt(void);
+int test_wc_AesXtsSetKey(void);
+int test_wc_AesXtsEncryptDecrypt_Sizes(void);
+int test_wc_AesXtsEncryptDecrypt(void);
 #if defined(WOLFSSL_AES_EAX) && defined(WOLFSSL_AES_256) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
 int test_wc_AesEaxVectors(void);
@@ -68,7 +71,10 @@ int test_wc_GmacUpdate(void);
     TEST_DECL_GROUP("aes", test_wc_AesGcmMixedEncDecLongIV),    \
     TEST_DECL_GROUP("aes", test_wc_AesGcmStream),               \
     TEST_DECL_GROUP("aes", test_wc_AesCcmSetKey),               \
-    TEST_DECL_GROUP("aes", test_wc_AesCcmEncryptDecrypt)
+    TEST_DECL_GROUP("aes", test_wc_AesCcmEncryptDecrypt),       \
+    TEST_DECL_GROUP("aes", test_wc_AesXtsSetKey),               \
+    TEST_DECL_GROUP("aes", test_wc_AesXtsEncryptDecrypt_Sizes), \
+    TEST_DECL_GROUP("aes", test_wc_AesXtsEncryptDecrypt)
 
 #if defined(WOLFSSL_AES_EAX) && defined(WOLFSSL_AES_256) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
