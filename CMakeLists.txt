@@ -2693,6 +2693,18 @@ if(WOLFSSL_EXAMPLES)
         tests/api/test_ossl_mac.c
         tests/api/test_ossl_rsa.c
         tests/api/test_ossl_sk.c
+        tests/api/test_ossl_x509.c
+        tests/api/test_ossl_x509_ext.c
+        tests/api/test_ossl_x509_name.c
+        tests/api/test_ossl_x509_pk.c
+        tests/api/test_ossl_x509_vp.c
+        tests/api/test_ossl_x509_io.c
+        tests/api/test_ossl_x509_crypto.c
+        tests/api/test_ossl_x509_acert.c
+        tests/api/test_ossl_x509_info.c
+        tests/api/test_ossl_x509_str.c
+        tests/api/test_ossl_x509_lu.c
+        tests/api/test_ossl_pem.c
         tests/api/test_tls13.c
         tests/srp.c
         tests/suites.c
