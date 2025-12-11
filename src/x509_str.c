@@ -230,6 +230,18 @@ int wolfSSL_X509_STORE_CTX_init(WOLFSSL_X509_STORE_CTX* ctx,
             XMEMSET(ctx->param, 0, sizeof(*ctx->param));
         }
 
+        /* Copy check_time from store parameters if available */
+        if (store != NULL && store->param != NULL) {
+            if ((store->param->flags & WOLFSSL_USE_CHECK_TIME) != 0 &&
+                store->param->check_time != 0) {
+                ctx->param->check_time = store->param->check_time;
+                ctx->param->flags |= WOLFSSL_USE_CHECK_TIME;
+            }
+            if ((store->param->flags & WOLFSSL_NO_CHECK_TIME) != 0) {
+                ctx->param->flags |= WOLFSSL_NO_CHECK_TIME;
+            }
+        }
+
         return WOLFSSL_SUCCESS;
     }
     return WOLFSSL_FAILURE;
@@ -321,6 +333,74 @@ static void SetupStoreCtxError(WOLFSSL_X509_STORE_CTX* ctx, int ret)
     SetupStoreCtxError_ex(ctx, ret, depth);
 }
 
+#ifndef NO_ASN_TIME
+/* Post certificate validation date handling. This function is called after the
+ * certificate has been verified by the certificate manager. It then checks if
+ * X509 store parameters are set for date validation override.
+ * @param ctx The certificate store context
+ * @param ret The return value from the certificate manager verify
+ * @return The return value for the certificate date validation after override
+ */
+static int X509StoreVerifyCertDate(WOLFSSL_X509_STORE_CTX* ctx, int ret)
+{
+    byte *afterDate  = ctx->current_cert->notAfter.data;
+    byte *beforeDate = ctx->current_cert->notBefore.data;
+
+    /* Only override existing date errors or WOLFSSL_SUCCESS. */
+    if (ret == WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E) ||
+            ret == WC_NO_ERR_TRACE(ASN_AFTER_DATE_E) ||
+            ret == WC_NO_ERR_TRACE(WOLFSSL_SUCCESS)) {
+#ifdef USE_WOLF_VALIDDATE
+        WOLFSSL_X509_VERIFY_PARAM* param = NULL;
+
+        /* If no external XVALIDATE_DATE was defined then use param for date
+           validation overrides. */
+        if (ctx->param != NULL) {
+            param = ctx->param;
+        }
+        else if (ctx->store != NULL && ctx->store->param != NULL) {
+            param = ctx->store->param;
+        }
+
+        if (param != NULL) {
+            if ((param->flags & WOLFSSL_NO_CHECK_TIME) != 0) {
+                WOLFSSL_MSG("Overriding date validation WOLFSSL_NO_CHECK_TIME");
+                ret = WOLFSSL_SUCCESS;
+            }
+            else if ((param->flags & WOLFSSL_USE_CHECK_TIME) != 0 &&
+                (param->check_time != 0)) {
+                time_t checkTime = param->check_time;
+                ret = WOLFSSL_SUCCESS; /* override date error and use custom set
+                                        time for validating certificate dates */
+                WOLFSSL_MSG("Override date validation, WOLFSSL_USE_CHECK_TIME");
+                if (wc_ValidateDateWithTime(afterDate,
+                    (byte)ctx->current_cert->notAfter.type, ASN_AFTER,
+                    checkTime) < 1) {
+                    ret = ASN_AFTER_DATE_E;
+                }
+                else if (wc_ValidateDateWithTime(beforeDate,
+                    (byte)ctx->current_cert->notBefore.type, ASN_BEFORE,
+                    checkTime) < 1) {
+                    ret = ASN_BEFORE_DATE_E;
+                }
+            }
+        }
+#else
+        if (XVALIDATE_DATE(afterDate,
+                (byte)ctx->current_cert->notAfter.type, ASN_AFTER) < 1) {
+            ret = ASN_AFTER_DATE_E;
+        }
+        else if (XVALIDATE_DATE(beforeDate,
+                (byte)ctx->current_cert->notBefore.type, ASN_BEFORE) < 1) {
+            ret = ASN_BEFORE_DATE_E;
+        }
+#endif /* USE_WOLF_VALIDDATE */
+    }
+
+    return ret;
+}
+#endif /* NO_ASN_TIME */
+
 static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx)
 {
     int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
@@ -331,38 +411,15 @@ static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx)
                     ctx->current_cert->derCert->buffer,
                     ctx->current_cert->derCert->length,
                     WOLFSSL_FILETYPE_ASN1);
+    #ifndef NO_ASN_TIME
+        /* update return value with any date validation overrides */
+        ret = X509StoreVerifyCertDate(ctx, ret);
+    #endif
         SetupStoreCtxError(ctx, ret);
     #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
         if (ctx->store->verify_cb)
             ret = ctx->store->verify_cb(ret >= 0 ? 1 : 0, ctx) == 1 ?
                                                         WOLFSSL_SUCCESS : ret;
-    #endif
-
-    #ifndef NO_ASN_TIME
-        if (ret != WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E) &&
-            ret != WC_NO_ERR_TRACE(ASN_AFTER_DATE_E)) {
-            /* wolfSSL_CertManagerVerifyBuffer only returns ASN_AFTER_DATE_E or
-             * ASN_BEFORE_DATE_E if there are no additional errors found in the
-             * cert. Therefore, check if the cert is expired or not yet valid
-             * in order to return the correct expected error. */
-            byte *afterDate = ctx->current_cert->notAfter.data;
-            byte *beforeDate = ctx->current_cert->notBefore.data;
-
-            if (XVALIDATE_DATE(afterDate,
-                    (byte)ctx->current_cert->notAfter.type, ASN_AFTER) < 1) {
-                ret = ASN_AFTER_DATE_E;
-            }
-            else if (XVALIDATE_DATE(beforeDate,
-                    (byte)ctx->current_cert->notBefore.type, ASN_BEFORE) < 1) {
-                ret = ASN_BEFORE_DATE_E;
-            }
-            SetupStoreCtxError(ctx, ret);
-        #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
-            if (ctx->store->verify_cb)
-                ret = ctx->store->verify_cb(ret >= 0 ? 1 : 0,
-                                            ctx) == 1 ? WOLFSSL_SUCCESS : -1;
-        #endif
-        }
     #endif
     }
 
@@ -1445,16 +1502,22 @@ static int X509StoreAddCa(WOLFSSL_X509_STORE* store,
 {
     int result = WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR);
     DerBuffer* derCert = NULL;
+    int verify = VERIFY;
 
     WOLFSSL_ENTER("X509StoreAddCa");
     if (store != NULL && x509 != NULL && x509->derCert != NULL) {
+        /* Check if NO_CHECK_TIME flag is set - if so, skip date validation */
+        if (store->param != NULL &&
+            (store->param->flags & WOLFSSL_NO_CHECK_TIME) != 0) {
+            verify = VERIFY_SKIP_DATE;
+        }
         result = AllocDer(&derCert, x509->derCert->length,
             x509->derCert->type, NULL);
         if (result == 0) {
             /* AddCA() frees the buffer. */
             XMEMCPY(derCert->buffer,
                             x509->derCert->buffer, x509->derCert->length);
-            result = AddCA(store->cm, &derCert, type, VERIFY);
+            result = AddCA(store->cm, &derCert, type, verify);
         }
     }
 
