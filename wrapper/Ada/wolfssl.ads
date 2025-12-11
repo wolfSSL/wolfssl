@@ -29,8 +29,16 @@ package WolfSSL with SPARK_Mode is
    
    type Subprogram_Result is new Integer;
    Success : constant Subprogram_Result;
+   --  Indicates success for some functions.
+   --  Do not use, unless you know what you do.
+   
    Failure : constant Subprogram_Result;
+   --  Indicates failure for some functions.
+   --  Do not use, unless you know what you do.   
 
+   Exception_Error : constant := -1234567;
+   --  Indicates an exception was raised during a subprogram call.
+   
    function Initialize return Subprogram_Result;
    --  Initializes the wolfSSL library for use. Must be called once per
    --  application and before any other call to the library.
@@ -478,12 +486,15 @@ package WolfSSL with SPARK_Mode is
    end record;
 
    procedure Error (Code    : in  Error_Code;
-                    Message : out Error_Message);
+                    Message : in out Error_Message);
    --  This function converts an error code returned by Get_Error(..)
    --  into a more human readable error string. Code is the error code
    --  returned by Get_error(). The maximum length of error strings is
    --  80 characters by default, as defined by MAX_ERROR_SZ
    --  is wolfssl/wolfcrypt/error.h.
+   --
+   --  If Message has not been updated with a text, it may be because
+   --  an exception was raised during the execution of the subprogram.
 
    function Max_Error_Size return Natural;
    --  Returns the value of the defined MAX_ERROR_SZ integer
@@ -664,6 +675,13 @@ private
      External_Name => "get_wolfssl_verify_default",
      Import        => True;
 
+   pragma Warnings (Off, "pragma Restrictions (No_Exception_Propagation)");
+   --  The compiler may check for warnings related to no exception
+   --  propagation if this code is compiled with the Zero
+   --  Footprint run-time. The constants exposed here in the Ada binding
+   --  have valid values defined in the WolfSSL library but the compiler
+   --  cannot know this since the values become known during run-time.
+   
    Verify_None : constant Mode_Type := Mode_Type (WolfSSL_Verify_None);
    Verify_Peer : constant Mode_Type := Mode_Type (WolfSSL_Verify_Peer);
 
@@ -681,6 +699,7 @@ private
 
    Verify_Default : constant Mode_Type :=
      Mode_Type (WolfSSL_Verify_Default);
+   pragma Warnings (On, "pragma Restrictions (No_Exception_Propagation)");
 
    type File_Format is new Unsigned_32;
 
@@ -699,6 +718,12 @@ private
      External_Name => "get_wolfssl_filetype_default",
      Import        => True;
 
+   pragma Warnings (Off, "pragma Restrictions (No_Exception_Propagation)");
+   --  The compiler may check for warnings related to no exception
+   --  propagation if this code is compiled with the Zero
+   --  Footprint run-time. The constants exposed here in the Ada binding
+   --  have valid values defined in the WolfSSL library but the compiler
+   --  cannot know this since the values become known during run-time.   
    Format_Asn1 : constant File_Format :=
      File_Format (WolfSSL_Filetype_Asn1);
 
@@ -707,7 +732,8 @@ private
 
    Format_Default : constant File_Format :=
      File_Format (WolfSSL_Filetype_Default);
-
+   pragma Warnings (On, "pragma Restrictions (No_Exception_Propagation)");
+   
    function Get_WolfSSL_Success return int with
      Convention    => C,
      External_Name => "get_wolfssl_success",
@@ -720,10 +746,12 @@ private
 
    Success : constant Subprogram_Result :=
       Subprogram_Result (Get_WolfSSL_Success);
+   --  Indicates success for some functions.
+   --  Do not use, unless you know what you do.
 
    Failure : constant Subprogram_Result :=
-      Subprogram_Result (Get_WolfSSL_Failure);
-
+     Subprogram_Result (Get_WolfSSL_Failure);
+      
    function Get_WolfSSL_Error_Want_Read return int with
      Convention    => C,
      External_Name => "get_wolfssl_error_want_read",

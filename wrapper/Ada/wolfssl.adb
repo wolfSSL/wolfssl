@@ -31,92 +31,6 @@ package body WolfSSL is
 
    nul : constant Byte_Type := Byte_Type'First;
 
-   --  Convert String to char_array (procedure form)
-   --  This subprogram originates from the full Ada run-time
-   --  but is not present on the Zero Footprint run-time,
-   --  therefore it is included here.
-   procedure To_C
-     (Item       : String;
-      Target     : out Byte_Array;
-      Count      : out size_t;
-      Append_Nul : Boolean := True)
-   is
-      To : size_t;
-   begin
-      if Target'Length < Item'Length then
-         raise Constraint_Error;
-      else
-         To := Target'First;
-         for From in Item'Range loop
-            Target (To) := Byte_Type (Item (From));
-            To := To + 1;
-         end loop;
-
-         if Append_Nul then
-            if To > Target'Last then
-               raise Constraint_Error;
-            else
-               Target (To) := nul;
-               Count := Item'Length + 1;
-            end if;
-         else
-            Count := Item'Length;
-         end if;
-      end if;
-   end To_C;
-
-   --  Convert char_array to String (procedure form)
-   --  This subprogram originates from the full Ada run-time
-   --  but is not present on the Zero Footprint run-time,
-   --  therefore it is included here.
-   procedure To_Ada
-     (Item     : Byte_Array;
-      Target   : out String;
-      Count    : out Natural;
-      Trim_Nul : Boolean := True)
-   is
-      use type Byte_Type;
-
-      From : size_t;
-      To   : Integer;
-   begin
-      if Trim_Nul then
-         From := Item'First;
-         loop
-            if From > Item'Last then
-               raise Terminator_Error;
-            elsif Item (From) = nul then
-               exit;
-            else
-               From := From + 1;
-            end if;
-         end loop;
-
-         Count := Natural (From - Item'First);
-
-      else
-         Count := Item'Length;
-      end if;
-
-      if Count > Target'Length then
-         raise Constraint_Error;
-
-      else
-         From := Item'First;
-         To   := Target'First;
-
-         for J in 1 .. Count loop
-            Target (To) := Character (Item (From));
-            --  Avoid possible overflow when incrementing To in the last
-            --  iteration of the loop.
-            exit when J = Count;
-
-            From := From + 1;
-            To   := To + 1;
-         end loop;
-      end if;
-   end To_Ada;
-
    --  WOLFSSL_SUCCESS : constant int := Get_WolfSSL_Success;
 
    function Initialize_WolfSSL return int with
@@ -297,20 +211,28 @@ package body WolfSSL is
 
    procedure Set_Verify (Context : Context_Type;
                          Mode    : Mode_Type) is
+      pragma Warnings (Off, "pragma Restrictions (No_Exception_Propagation)");
+      --  The values that Set_Verify may be called with have first
+      --  been int values, then converted into Mode_Type values and
+      --  here they are converted back to int. This can never fail
+      --  unless there is hardware failure or cosmic radiation has
+      --  done a bit flip.
+      V : constant int := int (Mode);
+      pragma Warnings (On, "pragma Restrictions (No_Exception_Propagation)");
    begin
       WolfSSL_CTX_Set_Verify (Context  => Context,
-                              Mode     => int (Mode),
+                              Mode     => V,
                               Callback => null);
    end Set_Verify;
 
-   function WolfSSL_Get_Verify(Context : Context_Type) return int with
+   function WolfSSL_Get_Verify (Context : Context_Type) return int with
      Convention    => C,
      External_Name => "wolfSSL_CTX_get_verify_mode",
      Import        => True;
 
    function Get_Verify (Context : Context_Type) return Mode_Type is
    begin
-      return Mode_Type (WolfSSL_Get_Verify(Context));
+      return Mode_Type (WolfSSL_Get_Verify (Context));
    end Get_Verify;
 
    function Use_Certificate_File (Context : Context_Type;
@@ -325,17 +247,22 @@ package body WolfSSL is
                                   File    : String;
                                   Format  : File_Format)
                                   return Subprogram_Result is
-      Ctx : constant Context_Type := Context;
-      C : size_t;
-      F : Byte_Array (1 .. File'Length + 1);
-      Result : int;
    begin
-      To_C (Item       => File,
-            Target     => F,
-            Count      => C,
-            Append_Nul => True);
-      Result := Use_Certificate_File (Ctx, F (1 .. C), int (Format));
-      return Subprogram_Result (Result);
+      declare
+         Ctx : constant Context_Type := Context;
+         F : Byte_Array (1 .. File'Length + 1);
+         Result : int;
+      begin
+         for I in File'Range loop
+            F (F'First + Byte_Index (I - File'First)) := Byte_Type (File (I));
+         end loop;
+         F (F'Last) := nul;
+         Result := Use_Certificate_File (Ctx, F, int (Format));
+         return Subprogram_Result (Result);
+      end;
+   exception
+      when others =>
+         return Exception_Error;
    end Use_Certificate_File;
 
    function Use_Certificate_Buffer (Context : Context_Type;
@@ -356,6 +283,9 @@ package body WolfSSL is
       Result := Use_Certificate_Buffer (Context, Input,
                                         Input'Length, int (Format));
       return Subprogram_Result (Result);
+   exception
+      when others =>
+         return Exception_Error;
    end Use_Certificate_Buffer;
 
    function Use_Private_Key_File (Context : Context_Type;
@@ -370,17 +300,22 @@ package body WolfSSL is
                                   File    : String;
                                   Format  : File_Format)
                                   return Subprogram_Result is
-      Ctx : constant Context_Type := Context;
-      C : size_t;
-      F : Byte_Array (1 .. File'Length + 1);
-      Result : int;
    begin
-      To_C (Item       => File,
-            Target     => F,
-            Count      => C,
-            Append_Nul => True);
-      Result := Use_Private_Key_File (Ctx, F (1 .. C), int (Format));
-      return Subprogram_Result (Result);
+      declare
+         Ctx : constant Context_Type := Context;
+         F : Byte_Array (1 .. File'Length + 1);
+         Result : int;
+      begin
+         for I in File'Range loop
+            F (F'First + Byte_Index (I - File'First)) := Byte_Type (File (I));
+         end loop;
+         F (F'Last) := Byte_Type'Val (0);
+         Result := Use_Private_Key_File (Ctx, F, int (Format));
+         return Subprogram_Result (Result);
+      end;
+   exception
+      when others =>
+         return Exception_Error;
    end Use_Private_Key_File;
 
    function Use_Private_Key_Buffer (Context : Context_Type;
@@ -401,6 +336,9 @@ package body WolfSSL is
       Result := Use_Private_Key_Buffer (Context, Input,
                                         Input'Length, int (Format));
       return Subprogram_Result (Result);
+   exception
+      when others =>
+         return Exception_Error;
    end Use_Private_Key_Buffer;
 
    function Load_Verify_Locations1
@@ -454,47 +392,48 @@ package body WolfSSL is
                                    File    : String;
                                    Path    : String)
                                    return Subprogram_Result is
-      Ctx : constant Context_Type := Context;
-      FC : size_t;  -- File Count, specifies the characters used in F.
-      F : aliased Byte_Array := (1 .. File'Length + 1 => '#');
-
-      PC : size_t;  -- Path Count, specifies the characters used in P.
-      P : aliased Byte_Array := (1 .. Path'Length + 1 => '#');
-
-      Result : int;
    begin
-      if File = "" then
-         if Path = "" then
-            Result := Load_Verify_Locations4 (Ctx, null, null);
+      declare
+         Ctx : constant Context_Type := Context;
+         F : aliased Byte_Array := (1 .. File'Length + 1 => '#');
+         P : aliased Byte_Array := (1 .. Path'Length + 1 => '#');
+         Result : int;
+      begin
+         if File = "" then
+            if Path = "" then
+               Result := Load_Verify_Locations4 (Ctx, null, null);
+            else
+               for I in Path'Range loop
+                  P (P'First + Byte_Index (I - Path'First)) :=
+                    Byte_Type (Path (I));
+               end loop;
+               P (P'Last) := nul;
+               Result := Load_Verify_Locations3 (Ctx, null, P);
+            end if;
          else
-            To_C (Item       => Path,
-                  Target     => P,
-                  Count      => PC,
-                  Append_Nul => True);
-            Result := Load_Verify_Locations3 (Ctx, null, P);
+            for I in File'Range loop
+               F (F'First + Byte_Index (I - File'First)) :=
+                 Byte_Type (File (I));
+            end loop;
+            F (F'Last) := nul;
+            if Path = "" then
+               Result := Load_Verify_Locations2 (Ctx, F, null);
+            else
+               for I in Path'Range loop
+                  P (P'First + Byte_Index (I - Path'First)) :=
+                    Byte_Type (Path (I));
+               end loop;
+               P (P'Last) := nul;
+               Result := Load_Verify_Locations1 (Context => Ctx,
+                                                 File    => F,
+                                                 Path    => P);
+            end if;
          end if;
-      else
-         To_C (Item       => File,
-               Target     => F,
-               Count      => FC,
-               Append_Nul => True);
-         if Path = "" then
-            Result := Load_Verify_Locations2 (Ctx, F, null);
-         else
-            To_C (Item       => Path,
-                  Target     => P,
-                  Count      => PC,
-                  Append_Nul => True);
-            To_C (Item       => Path,
-                  Target     => P,
-                  Count      => PC,
-                  Append_Nul => True);
-            Result := Load_Verify_Locations1 (Context => Ctx,
-                                              File    => F,
-                                              Path    => P);
-         end if;
-      end if;
-      return Subprogram_Result (Result);
+         return Subprogram_Result (Result);
+      end;
+   exception
+      when others =>
+         return Exception_Error;
    end Load_Verify_Locations;
 
    function Load_Verify_Buffer
@@ -517,6 +456,9 @@ package body WolfSSL is
                                     Size    => Input'Length,
                                     Format  => int(Format));
       return Subprogram_Result (Result);
+   exception
+      when others =>
+         return Exception_Error;
    end Load_Verify_Buffer;
 
    function Is_Valid (Ssl : WolfSSL_Type) return Boolean is
@@ -548,16 +490,22 @@ package body WolfSSL is
                                   File    : String;
                                   Format  : File_Format)
                                   return Subprogram_Result is
-      C : size_t;
-      F : Byte_Array (1 .. File'Length + 1);
-      Result : int;
    begin
-      To_C (Item       => File,
-            Target     => F,
-            Count      => C,
-            Append_Nul => True);
-      Result := Use_Certificate_File (Ssl, F (1 .. C), int (Format));
-      return Subprogram_Result (Result);
+      declare
+         F : Byte_Array (1 .. File'Length + 1);
+         Result : int;
+      begin
+         for I in File'Range loop
+            F (F'First + Byte_Index (I - File'First)) :=
+              Byte_Type (File (I));
+         end loop;
+         F (F'Last) := nul;
+         Result := Use_Certificate_File (Ssl, F, int (Format));
+         return Subprogram_Result (Result);
+      end;
+   exception
+      when others =>
+         return Exception_Error;
    end Use_Certificate_File;
 
    function Use_Certificate_Buffer (Ssl     : WolfSSL_Type;
@@ -578,6 +526,9 @@ package body WolfSSL is
       Result := Use_Certificate_Buffer (Ssl, Input,
                                         Input'Length, int (Format));
       return Subprogram_Result (Result);
+   exception
+      when others =>
+         return Exception_Error;
    end Use_Certificate_Buffer;
 
    function Use_Private_Key_File (Ssl     : WolfSSL_Type;
@@ -592,16 +543,21 @@ package body WolfSSL is
                                   File    : String;
                                   Format  : File_Format)
                                   return Subprogram_Result is
-      C : size_t;
-      F : Byte_Array (1 .. File'Length + 1);
-      Result : int;
    begin
-      To_C (Item       => File,
-            Target     => F,
-            Count      => C,
-            Append_Nul => True);
-      Result := Use_Private_Key_File (Ssl, F (1 .. C), int (Format));
-      return Subprogram_Result (Result);
+      declare
+         F : Byte_Array (1 .. File'Length + 1);
+         Result : int;
+      begin
+         for I in File'Range loop
+            F (F'First + Byte_Index (I - File'First)) := Byte_Type (File (I));
+         end loop;
+         F (F'Last) := nul;
+         Result := Use_Private_Key_File (Ssl, F, int (Format));
+         return Subprogram_Result (Result);
+      end;
+   exception
+      when others =>
+         return Exception_Error;
    end Use_Private_Key_File;
 
    function Use_Private_Key_Buffer (Ssl     : WolfSSL_Type;
@@ -622,6 +578,9 @@ package body WolfSSL is
       Result := Use_Private_Key_Buffer (Ssl, Input,
                                         Input'Length, int (Format));
       return Subprogram_Result (Result);
+   exception
+      when others =>
+         return Exception_Error;
    end Use_Private_Key_Buffer;
 
    function WolfSSL_Set_Fd (Ssl : WolfSSL_Type; Fd : int) return int with
@@ -707,19 +666,28 @@ package body WolfSSL is
 
    procedure Read (Ssl : WolfSSL_Type;
                    Result : out Read_Result) is
-      Data   : Byte_Array (1 .. Byte_Index'Last);
-      Size   : int;
    begin
-      Size := WolfSSL_Read (Ssl, Data, int (Byte_Index'Last));
-      if Size <= 0 then
-         Result := (Success => False,
-                    Last    => 0,
-                    Code    => Subprogram_Result (Size));
-      else
-         Result := (Success => True,
-                    Last    => Byte_Index (Size),
-                    Buffer  => Data (1 .. Byte_Index (Size)));
-      end if;
+      Result := (Success => False,  --  In case of exception.
+                 Last    => 0,
+                 Code    => Subprogram_Result (Exception_Error));
+      declare
+         Data   : Byte_Array (1 .. Byte_Index'Last);
+         Size   : int;
+      begin
+         Size := WolfSSL_Read (Ssl, Data, int (Byte_Index'Last));
+         if Size <= 0 then
+            Result := (Success => False,
+                       Last    => 0,
+                       Code    => Subprogram_Result (Size));
+         else
+            Result := (Success => True,
+                       Last    => Byte_Index (Size),
+                       Buffer  => Data (1 .. Byte_Index (Size)));
+         end if;
+      end;
+   exception
+      when others =>
+         null;
    end Read;
 
    function WolfSSL_Write (Ssl  : WolfSSL_Type;
@@ -732,16 +700,24 @@ package body WolfSSL is
    procedure Write (Ssl  : WolfSSL_Type;
                     Data : Byte_Array;
                     Result : out Write_Result) is
-      Size   : constant int := Data'Length;
-      R : int;
    begin
-      R := WolfSSL_Write (Ssl, Data, Size);
-      if R > 0 then
-         Result := (Success       => True,
-                    Bytes_Written => Byte_Index (R));
-      else
-         Result := (Success => False, Code => Subprogram_Result (R));
-      end if;
+      Result := (Success => False,
+                 Code    => Subprogram_Result (Exception_Error));
+      declare
+         Size   : constant int := Data'Length;
+         R : int;
+      begin
+         R := WolfSSL_Write (Ssl, Data, Size);
+         if R > 0 then
+            Result := (Success       => True,
+                       Bytes_Written => Byte_Index (R));
+         else
+            Result := (Success => False, Code => Subprogram_Result (R));
+         end if;
+      end;
+   exception
+      when others =>
+         null;
    end Write;
 
    function WolfSSL_Shutdown (Ssl : WolfSSL_Type) return int with
@@ -799,25 +775,38 @@ package body WolfSSL is
      Import        => True;
 
    procedure Error (Code    : in  Error_Code;
-                    Message : out Error_Message) is
-      S : String (1 .. Error_Message_Index'Last);
-      B : Byte_Array (1 .. size_t (Error_Message_Index'Last));
-      C : Natural;
+                    Message : in out Error_Message) is
+      use type Byte_Type;
       -- Use unchecked conversion instead of type conversion to mimic C style
       -- conversion from int to unsigned long, avoiding the Ada overflow check.
       function To_Unsigned_Long is new Ada.Unchecked_Conversion
         (Source => long,
          Target => unsigned_long);
    begin
-      WolfSSL_Error_String (Error => To_Unsigned_Long (long (Code)),
-                            Data  => B,
-                            Size  => To_Unsigned_Long (long (B'Last)));
-      To_Ada (Item     => B,
-              Target   => S,
-              Count    => C,
-              Trim_Nul => True);
-      Message := (Last => C,
-                  Text => S (1 .. C));
+      declare
+         S : String (1 .. Error_Message_Index'Last);
+         B : Byte_Array (1 .. size_t (Error_Message_Index'Last));
+         L : Positive;
+      begin
+         WolfSSL_Error_String (Error => To_Unsigned_Long (long (Code)),
+                               Data  => B,
+                               Size  => To_Unsigned_Long (long (B'Last)));
+         for I in B'Range loop
+            L := S'First + Natural (I - B'First);
+            S (L) := Character (B (I));
+            exit when B (I) = nul;
+         end loop;
+         if S (L) = Character (nul) then
+            Message := (Last => L - 1,
+                        Text => S (1 .. L - 1));
+         else
+            Message := (Last => L,
+                        Text => S (1 .. L));
+         end if;
+      end;
+   exception
+      when others =>
+         null;
    end Error;
 
    function Get_WolfSSL_Max_Error_Size return int with
@@ -855,6 +844,9 @@ package body WolfSSL is
       Key := Ada_New_RSA (int (Index));
       R := Init_RSA_Key (Key, null);
       Result := Integer (R);
+   exception
+      when others =>
+         Result := Exception_Error;
    end Create_RSA;
 
    function RSA_Public_Key_Decode (Input : Byte_Array;
@@ -870,12 +862,18 @@ package body WolfSSL is
                                     Key   : in out RSA_Key_Type;
                                     Size  : Integer;
                                     Result : out Integer) is
-      I : aliased int := int (Index);
-      R : constant int :=
-        RSA_Public_Key_Decode (Input, I, Key, int (Size));
    begin
-      Index := WolfSSL.Byte_Index (I);
-      Result := Integer (R);
+      declare
+         I : aliased int := int (Index);
+         R : constant int :=
+           RSA_Public_Key_Decode (Input, I, Key, int (Size));
+      begin
+         Index := WolfSSL.Byte_Index (I);
+         Result := Integer (R);
+      end;
+   exception
+      when others =>
+         Result := Exception_Error;
    end Rsa_Public_Key_Decode;
 
    function Init_SHA256 (SHA256 : not null Sha256_Type) return int with
@@ -910,20 +908,32 @@ package body WolfSSL is
    procedure Create_SHA256 (Index  : SHA256_Index;
                             SHA256 : in out SHA256_Type;
                             Result : out Integer) is
-      R : int;
    begin
-      SHA256 := Ada_New_SHA256 (Index);
-      R := Init_SHA256 (SHA256);
-      Result := Integer (R);
+      declare
+         R : int;
+      begin
+         SHA256 := Ada_New_SHA256 (Index);
+         R := Init_SHA256 (SHA256);
+         Result := Integer (R);
+      end;
+   exception
+      when others =>
+         Result := Exception_Error;
    end Create_SHA256;
 
    procedure Update_SHA256 (SHA256 : in out SHA256_Type;
                             Byte   : Byte_Array;
                             Result : out Integer) is
-      R : int;
    begin
-      R := SHA256_Update (SHA256, Byte, Byte'Length);
-      Result := Integer (R);
+      declare
+         R : int;
+      begin
+         R := SHA256_Update (SHA256, Byte, Byte'Length);
+         Result := Integer (R);
+      end;
+   exception
+      when others =>
+         Result := Exception_Error;
    end Update_SHA256;
 
    procedure Finalize_SHA256 (SHA256 : in out SHA256_Type;
@@ -948,6 +958,9 @@ package body WolfSSL is
          Text (I+0) := Hex_Chars ((Unsigned_8 (C) and 16#F0#) / 16);
          Text (I+1) := Hex_Chars (Unsigned_8 (C) and 16#0F#);
       end loop;
+   exception
+      when others =>
+         Result := Exception_Error;
    end Finalize_SHA256;
 
    function Is_Valid (AES : AES_Type) return Boolean is
@@ -972,11 +985,17 @@ package body WolfSSL is
                          Device : Integer;
                          AES    : in out AES_Type;
                          Result : out Integer) is
-      R : int;
    begin
-      AES := Ada_New_AES (Index);
-      R := AES_Init (AES, null, int (Device));
-      Result := Integer (R);
+      declare
+         R : int;
+      begin
+         AES := Ada_New_AES (Index);
+         R := AES_Init (AES, null, int (Device));
+         Result := Integer (R);
+      end;
+   exception
+      when others =>
+         Result := Exception_Error;
    end Create_AES;
 
    function AES_Set_Key (AES : not null AES_Type;
@@ -994,10 +1013,16 @@ package body WolfSSL is
                           IV     : Byte_Array;
                           Dir    : Integer;
                           Result : out Integer) is
-      R : int;
    begin
-      R := AES_Set_Key (AES, Key, int (Length), IV, int (Dir));
-      Result := Integer (R);
+      declare
+         R : int;
+      begin
+         R := AES_Set_Key (AES, Key, int (Length), IV, int (Dir));
+         Result := Integer (R);
+      end;
+   exception
+      when others =>
+         Result := Exception_Error;
    end AES_Set_Key;
 
    function AES_Set_IV (AES : not null AES_Type;
@@ -1009,10 +1034,16 @@ package body WolfSSL is
    procedure AES_Set_IV (AES : AES_Type;
                          IV  : Byte_Array;
                          Result : out Integer) is
-      R : int;
    begin
-      R := AES_Set_IV (AES, IV);
-      Result := Integer (R);
+      declare
+         R : int;
+      begin
+         R := AES_Set_IV (AES, IV);
+         Result := Integer (R);
+      end;
+   exception
+      when others =>
+         Result := Exception_Error;
    end AES_Set_IV;
 
    function AES_Set_Cbc_Encrypt (AES : not null AES_Type;
@@ -1028,10 +1059,16 @@ package body WolfSSL is
                                   Input : Byte_Array;
                                   Size : Integer;
                                   Result : out Integer) is
-      R : int;
    begin
-      R := AES_Set_Cbc_Encrypt (AES, Output, Input, int (Size));
-      Result := Integer (R);
+      declare
+         R : int;
+      begin
+         R := AES_Set_Cbc_Encrypt (AES, Output, Input, int (Size));
+         Result := Integer (R);
+      end;
+   exception
+      when others =>
+         Result := Exception_Error;
    end AES_Set_Cbc_Encrypt;
 
    function AES_Set_Cbc_Decrypt (AES : not null AES_Type;
@@ -1047,10 +1084,16 @@ package body WolfSSL is
                                   Input : Byte_Array;
                                   Size : Integer;
                                   Result : out Integer) is
-      R : int;
    begin
-      R := AES_Set_Cbc_Decrypt (AES, Output, Input, int (Size));
-      Result := Integer (R);
+      declare
+         R : int;
+      begin
+         R := AES_Set_Cbc_Decrypt (AES, Output, Input, int (Size));
+         Result := Integer (R);
+      end;
+   exception
+      when others =>
+         Result := Exception_Error;
    end AES_Set_Cbc_Decrypt;
 
    function AES_Free (AES : not null AES_Type) return int with
@@ -1060,13 +1103,19 @@ package body WolfSSL is
 
    procedure AES_Free (AES : in out AES_Type;
                        Result : out Integer) is
-      R : int;
    begin
-      R := AES_Free (AES);
-      Result := Integer (R);
-      if Result = 0 then
-         AES := null;
-      end if;
+      declare
+         R : int;
+      begin
+         R := AES_Free (AES);
+         Result := Integer (R);
+         if Result = 0 then
+            AES := null;
+         end if;
+      end;
+   exception
+      when others =>
+         Result := Exception_Error;
    end AES_Free;
 
    function Get_WolfSSL_RSA_Instances return int with

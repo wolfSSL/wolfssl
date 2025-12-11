@@ -36,7 +36,9 @@ package body WolfSSL.Full_Runtime is
              (ssl    => Ssl,
               peer   => Sin'Unchecked_Access,
               peerSz => Interfaces.C.unsigned (Length)));
-
+   exception
+      when others =>
+         return Exception_Error;
    end DTLS_Set_Peer;
 
    procedure WolfSSL_Set_Psk_Client_Callback
