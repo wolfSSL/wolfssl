@@ -7,7 +7,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -19,6 +19,9 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+
+/* included by linuxkm/lkcapi_glue.c */
+#ifndef WC_SKIP_INCLUDED_C_FILES
 
 #ifndef LINUXKM_LKCAPI_REGISTER
     #error lkcapi_dh_glue.c included in non-LINUXKM_LKCAPI_REGISTER project.
@@ -33,9 +36,8 @@
 #endif
 
 #if defined(LINUXKM_LKCAPI_REGISTER_DH) && \
-    (!defined(WOLFSSL_DH_EXTRA) ||         \
-     !defined(WOLFSSL_DH_GEN_PUB))
-     /* not supported without WOLFSSL_DH_EXTRA && WOLFSSL_DH_GEN_PUB */
+    !defined(WOLFSSL_DH_EXTRA)
+     /* not supported without WOLFSSL_DH_EXTRA */
     #undef LINUXKM_LKCAPI_REGISTER_DH
 
     #if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_DH)
@@ -443,13 +445,9 @@ static int km_dh_reset_ctx(struct km_dh_ctx * ctx)
         }
     }
 
+reset_ctx_end:
     /* clear old priv and public key arrays. */
     km_dh_clear_keys(ctx);
-
-reset_ctx_end:
-    if (err) {
-        km_dh_clear_keys(ctx);
-    }
 
     return err;
 }
@@ -885,7 +883,6 @@ static int km_dh_gen_pub(struct kpp_request *req)
     #ifdef WOLFKM_DEBUG_DH
     pr_info("info: exiting km_dh_gen_pub: %d", ctx->pub_len);
     #endif /* WOLFKM_DEBUG_DH */
-
     return err;
 }
 
@@ -2971,3 +2968,5 @@ test_kpp_end:
 }
 
 #endif /* LINUXKM_LKCAPI_REGISTER_DH */
+
+#endif /* !WC_SKIP_INCLUDED_C_FILES */

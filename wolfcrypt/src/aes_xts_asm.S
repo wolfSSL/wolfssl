@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -108,7 +108,7 @@ L_AES_XTS_init_aesni_tweak_aes_enc_block_last:
 .section	__DATA,__data
 #endif /* __APPLE__ */
 L_aes_xts_gc_xts:
-.long	0x87,0x1,0x1,0x1
+.long	0x00000087,0x00000001,0x00000001,0x00000001
 #ifndef __APPLE__
 .text
 .globl	AES_XTS_encrypt_aesni
@@ -1492,7 +1492,7 @@ L_AES_XTS_init_avx1_tweak_aes_enc_block_last:
 .section	__DATA,__data
 #endif /* __APPLE__ */
 L_avx1_aes_xts_gc_xts:
-.long	0x87,0x1,0x1,0x1
+.long	0x00000087,0x00000001,0x00000001,0x00000001
 #ifndef __APPLE__
 .text
 .globl	AES_XTS_encrypt_avx1

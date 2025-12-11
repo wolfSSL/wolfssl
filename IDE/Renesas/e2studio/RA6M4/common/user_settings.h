@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -108,10 +108,10 @@
     #define WC_USE_DEVID 7890
     #define NO_AES_192
     #define NO_SW_BENCH
-#endif
-
-#if defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
+    /* Use SCE RSAES-PKCS1-V1_5 RSA Function */
+    #define WOLF_CRYPTO_CB_RSA_PAD
     #define WOLFSSL_KEY_GEN
+    #define RSA_MIN_SIZE 512
 #endif
 
 #define CUSTOM_RAND_GENERATE_BLOCK wc_fspsm_GenerateRandBlock

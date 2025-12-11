@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -106,6 +106,7 @@ struct PKCS7State {
     word32 currContSz;    /* size of current content */
     word32 currContRmnSz; /* remaining size of current content */
     word32 accumContSz;   /* size of accumulated content size */
+    int recipientSz; /* size of recipient set */
     byte tmpIv[MAX_CONTENT_IV_SIZE]; /* store IV if needed */
 #ifdef WC_PKCS7_STREAM_DEBUG
     word32 peakUsed; /* most bytes used for struct at any one time */
@@ -1117,9 +1118,7 @@ int wc_PKCS7_InitWithCert(wc_PKCS7* pkcs7, byte* derCert, word32 derCertSz)
         cert = (Pkcs7Cert*)XMALLOC(sizeof(Pkcs7Cert), pkcs7->heap,
                                    DYNAMIC_TYPE_PKCS7);
         if (cert == NULL) {
-#ifdef WOLFSSL_SMALL_STACK
-            XFREE(dCert, pkcs7->heap, DYNAMIC_TYPE_DCERT);
-#endif
+            WC_FREE_VAR_EX(dCert, pkcs7->heap, DYNAMIC_TYPE_DCERT);
             return MEMORY_E;
         }
         XMEMSET(cert, 0, sizeof(Pkcs7Cert));
@@ -1149,9 +1148,7 @@ int wc_PKCS7_InitWithCert(wc_PKCS7* pkcs7, byte* derCert, word32 derCertSz)
         ret = ParseCert(dCert, CA_TYPE, NO_VERIFY, 0);
         if (ret < 0) {
             FreeDecodedCert(dCert);
-#ifdef WOLFSSL_SMALL_STACK
-            XFREE(dCert, pkcs7->heap, DYNAMIC_TYPE_DCERT);
-#endif
+            WC_FREE_VAR_EX(dCert, pkcs7->heap, DYNAMIC_TYPE_DCERT);
             return ret;
         }
 
@@ -1161,9 +1158,7 @@ int wc_PKCS7_InitWithCert(wc_PKCS7* pkcs7, byte* derCert, word32 derCertSz)
         if (ret != 0) {
             WOLFSSL_MSG("Invalid public key, check pkcs7->cert");
             FreeDecodedCert(dCert);
-#ifdef WOLFSSL_SMALL_STACK
-            XFREE(dCert, pkcs7->heap, DYNAMIC_TYPE_DCERT);
-#endif
+            WC_FREE_VAR_EX(dCert, pkcs7->heap, DYNAMIC_TYPE_DCERT);
             return ret;
         }
 
@@ -1171,9 +1166,7 @@ int wc_PKCS7_InitWithCert(wc_PKCS7* pkcs7, byte* derCert, word32 derCertSz)
             dCert->serialSz > MAX_SN_SZ) {
             WOLFSSL_MSG("Invalid size in certificate");
             FreeDecodedCert(dCert);
-#ifdef WOLFSSL_SMALL_STACK
-            XFREE(dCert, pkcs7->heap, DYNAMIC_TYPE_DCERT);
-#endif
+            WC_FREE_VAR_EX(dCert, pkcs7->heap, DYNAMIC_TYPE_DCERT);
             return ASN_PARSE_E;
         }
 
@@ -1195,9 +1188,7 @@ int wc_PKCS7_InitWithCert(wc_PKCS7* pkcs7, byte* derCert, word32 derCertSz)
 
         FreeDecodedCert(dCert);
 
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(dCert, pkcs7->heap, DYNAMIC_TYPE_DCERT);
-#endif
+        WC_FREE_VAR_EX(dCert, pkcs7->heap, DYNAMIC_TYPE_DCERT);
     }
 
     return ret;
@@ -1816,22 +1807,14 @@ static int wc_PKCS7_ImportRSA(wc_PKCS7* pkcs7, RsaKey* privKey)
 static int wc_PKCS7_RsaSign(wc_PKCS7* pkcs7, byte* in, word32 inSz, ESD* esd)
 {
     int ret;
-#ifdef WOLFSSL_SMALL_STACK
-    RsaKey* privKey;
-#else
-    RsaKey  privKey[1];
-#endif
+    WC_DECLARE_VAR(privKey, RsaKey, 1, 0);
 
     if (pkcs7 == NULL || pkcs7->rng == NULL || in == NULL || esd == NULL) {
         return BAD_FUNC_ARG;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    privKey = (RsaKey*)XMALLOC(sizeof(RsaKey), pkcs7->heap,
-        DYNAMIC_TYPE_TMP_BUFFER);
-    if (privKey == NULL)
-        return MEMORY_E;
-#endif
+    WC_ALLOC_VAR_EX(privKey, RsaKey, 1, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER,
+        return MEMORY_E);
 
     ret = wc_PKCS7_ImportRSA(pkcs7, privKey);
     if (ret == 0) {
@@ -1852,9 +1835,7 @@ static int wc_PKCS7_RsaSign(wc_PKCS7* pkcs7, byte* in, word32 inSz, ESD* esd)
     }
 
     wc_FreeRsaKey(privKey);
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(privKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(privKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -1907,22 +1888,14 @@ static int wc_PKCS7_EcdsaSign(wc_PKCS7* pkcs7, byte* in, word32 inSz, ESD* esd)
 {
     int ret;
     word32 outSz;
-#ifdef WOLFSSL_SMALL_STACK
-    ecc_key* privKey;
-#else
-    ecc_key  privKey[1];
-#endif
+    WC_DECLARE_VAR(privKey, ecc_key, 1, 0);
 
     if (pkcs7 == NULL || pkcs7->rng == NULL || in == NULL || esd == NULL) {
         return BAD_FUNC_ARG;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    privKey = (ecc_key*)XMALLOC(sizeof(ecc_key), pkcs7->heap,
-        DYNAMIC_TYPE_TMP_BUFFER);
-    if (privKey == NULL)
-        return MEMORY_E;
-#endif
+    WC_ALLOC_VAR_EX(privKey, ecc_key, 1, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER,
+        return MEMORY_E);
 
     ret = wc_PKCS7_ImportECC(pkcs7, privKey);
     if (ret == 0) {
@@ -1945,9 +1918,7 @@ static int wc_PKCS7_EcdsaSign(wc_PKCS7* pkcs7, byte* in, word32 inSz, ESD* esd)
     }
 
     wc_ecc_free(privKey);
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(privKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(privKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -1979,9 +1950,7 @@ static int wc_PKCS7_GetSignSize(wc_PKCS7* pkcs7)
                 ret = wc_RsaEncryptSize(privKey);
             }
             wc_FreeRsaKey(privKey);
-        #ifdef WOLFSSL_SMALL_STACK
-            XFREE(privKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
+            WC_FREE_VAR_EX(privKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
         break;
     #endif
@@ -2004,9 +1973,7 @@ static int wc_PKCS7_GetSignSize(wc_PKCS7* pkcs7)
                 ret = wc_ecc_sig_size(privKey);
             }
             wc_ecc_free(privKey);
-        #ifdef WOLFSSL_SMALL_STACK
-            XFREE(privKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
+            WC_FREE_VAR_EX(privKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
         break;
     #endif
@@ -2374,31 +2341,20 @@ static int wc_PKCS7_SignedDataBuildSignature(wc_PKCS7* pkcs7,
     int hashOID;
 #endif
     word32 digestInfoSz = MAX_PKCS7_DIGEST_SZ;
-#ifdef WOLFSSL_SMALL_STACK
-    byte* digestInfo;
-#else
-    byte  digestInfo[MAX_PKCS7_DIGEST_SZ];
-#endif
+    WC_DECLARE_VAR(digestInfo, byte, MAX_PKCS7_DIGEST_SZ, 0);
 
     if (pkcs7 == NULL || esd == NULL)
         return BAD_FUNC_ARG;
 
-#ifdef WOLFSSL_SMALL_STACK
-    digestInfo = (byte*)XMALLOC(digestInfoSz, pkcs7->heap,
-        DYNAMIC_TYPE_TMP_BUFFER);
-    if (digestInfo == NULL) {
-        return MEMORY_E;
-    }
-#endif
+    WC_ALLOC_VAR_EX(digestInfo, byte, digestInfoSz, pkcs7->heap,
+        DYNAMIC_TYPE_TMP_BUFFER, return MEMORY_E);
     XMEMSET(digestInfo, 0, digestInfoSz);
 
     ret = wc_PKCS7_BuildDigestInfo(pkcs7, flatSignedAttribs,
                                    flatSignedAttribsSz, esd, digestInfo,
                                    &digestInfoSz);
     if (ret < 0) {
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(digestInfo, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+        WC_FREE_VAR_EX(digestInfo, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
         return ret;
     }
 
@@ -2407,9 +2363,7 @@ static int wc_PKCS7_SignedDataBuildSignature(wc_PKCS7* pkcs7,
     /* get digest size from hash type */
     hashSz = wc_HashGetDigestSize(esd->hashType);
     if (hashSz < 0) {
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(digestInfo, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
+        WC_FREE_VAR_EX(digestInfo, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
         return hashSz;
     }
 #endif
@@ -2451,9 +2405,7 @@ static int wc_PKCS7_SignedDataBuildSignature(wc_PKCS7* pkcs7,
             ret = BAD_FUNC_ARG;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(digestInfo, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(digestInfo, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     if (ret >= 0) {
         esd->encContentDigestSz = (word32)ret;
@@ -2783,19 +2735,11 @@ static int PKCS7_EncodeSigned(wc_PKCS7* pkcs7,
     byte* flatSignedAttribs = NULL;
     word32 flatSignedAttribsSz = 0;
 
-#ifdef WOLFSSL_SMALL_STACK
-    ESD* esd = NULL;
-#else
-    ESD  esd[1];
-#endif
+    WC_DECLARE_VAR(esd, ESD, 1, 0);
 #ifdef ASN_BER_TO_DER
     word32 streamSz = 0;
 #endif
-#ifdef WOLFSSL_SMALL_STACK
-    byte *signedDataOid = NULL;
-#else
-    byte signedDataOid[MAX_OID_SZ];
-#endif
+    WC_DECLARE_VAR(signedDataOid, byte, MAX_OID_SZ, 0);
     word32 signedDataOidSz;
 
     byte signingTime[MAX_TIME_STRING_SZ];
@@ -3406,10 +3350,8 @@ static int PKCS7_EncodeSigned(wc_PKCS7* pkcs7,
 
     XFREE(flatSignedAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(esd, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(signedDataOid, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(esd, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(signedDataOid, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return idx;
 }
@@ -4101,11 +4043,9 @@ static int wc_PKCS7_RsaVerify(wc_PKCS7* pkcs7, byte* sig, int sigSz,
 
         ret = wc_InitRsaKey_ex(key, pkcs7->heap, pkcs7->devId);
         if (ret != 0) {
-#ifdef WOLFSSL_SMALL_STACK
-            XFREE(digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(key,    pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(dCert,  pkcs7->heap, DYNAMIC_TYPE_DCERT);
-#endif
+            WC_FREE_VAR_EX(digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            WC_FREE_VAR_EX(key, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            WC_FREE_VAR_EX(dCert, pkcs7->heap, DYNAMIC_TYPE_DCERT);
             return ret;
         }
 
@@ -4157,11 +4097,9 @@ static int wc_PKCS7_RsaVerify(wc_PKCS7* pkcs7, byte* sig, int sigSz,
         ret = SIG_VERIFY_E;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(key,    pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(dCert,  pkcs7->heap, DYNAMIC_TYPE_DCERT);
-#endif
+    WC_FREE_VAR_EX(digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(key, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(dCert, pkcs7->heap, DYNAMIC_TYPE_DCERT);
 
     return ret;
 }
@@ -4229,15 +4167,21 @@ static int wc_PKCS7_EcdsaVerify(wc_PKCS7* pkcs7, byte* sig, int sigSz,
 
         ret = wc_ecc_init_ex(key, pkcs7->heap, pkcs7->devId);
         if (ret != 0) {
-#ifdef WOLFSSL_SMALL_STACK
-            XFREE(digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(key,    pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(dCert,  pkcs7->heap, DYNAMIC_TYPE_DCERT);
-#endif
+            WC_FREE_VAR_EX(digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            WC_FREE_VAR_EX(key, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            WC_FREE_VAR_EX(dCert, pkcs7->heap, DYNAMIC_TYPE_DCERT);
             return ret;
         }
 
         InitDecodedCert(dCert, pkcs7->cert[i], pkcs7->certSz[i], pkcs7->heap);
+
+        /* This allows the user to not error out in the case of extensions that
+         * we are not aware of. */
+#ifdef WC_ASN_UNKNOWN_EXT_CB
+        if (pkcs7->unknownExtCallback != NULL)
+            wc_SetUnknownExtCallback(dCert, pkcs7->unknownExtCallback);
+#endif
+
         /* not verifying, only using this to extract public key */
         ret = ParseCert(dCert, CA_TYPE, NO_VERIFY, 0);
         if (ret < 0) {
@@ -4287,11 +4231,9 @@ static int wc_PKCS7_EcdsaVerify(wc_PKCS7* pkcs7, byte* sig, int sigSz,
         ret = SIG_VERIFY_E;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(key,    pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(dCert,  pkcs7->heap, DYNAMIC_TYPE_DCERT);
-#endif
+    WC_FREE_VAR_EX(digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(key, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(dCert, pkcs7->heap, DYNAMIC_TYPE_DCERT);
 
     return ret;
 }
@@ -4325,11 +4267,7 @@ static int wc_PKCS7_BuildSignedDataDigest(wc_PKCS7* pkcs7, byte* signedAttrib,
     byte digestStr[MAX_OCTET_STR_SZ];
     byte algoId[MAX_ALGO_SZ];
     word32 digestInfoSeqSz, digestStrSz, algoIdSz;
-#ifdef WOLFSSL_SMALL_STACK
-    byte* digestInfo;
-#else
-    byte  digestInfo[MAX_PKCS7_DIGEST_SZ];
-#endif
+    WC_DECLARE_VAR(digestInfo, byte, MAX_PKCS7_DIGEST_SZ, 0);
 
     wc_HashAlg hash;
     enum wc_HashType hashType;
@@ -4359,12 +4297,8 @@ static int wc_PKCS7_BuildSignedDataDigest(wc_PKCS7* pkcs7, byte* signedAttrib,
             return BAD_FUNC_ARG;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    digestInfo = (byte*)XMALLOC(MAX_PKCS7_DIGEST_SZ, pkcs7->heap,
-        DYNAMIC_TYPE_TMP_BUFFER);
-    if (digestInfo == NULL)
-        return MEMORY_E;
-#endif
+    WC_ALLOC_VAR_EX(digestInfo, byte, MAX_PKCS7_DIGEST_SZ, pkcs7->heap,
+        DYNAMIC_TYPE_TMP_BUFFER, return MEMORY_E);
 
     XMEMSET(pkcs7Digest, 0, *pkcs7DigestSz);
     XMEMSET(digest,      0, WC_MAX_DIGEST_SIZE);
@@ -4378,9 +4312,7 @@ static int wc_PKCS7_BuildSignedDataDigest(wc_PKCS7* pkcs7, byte* signedAttrib,
     else {
         ret = wc_HashInit(&hash, hashType);
         if (ret < 0) {
-    #ifdef WOLFSSL_SMALL_STACK
-            XFREE(digestInfo, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
+            WC_FREE_VAR_EX(digestInfo, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
             return ret;
         }
 
@@ -4401,9 +4333,7 @@ static int wc_PKCS7_BuildSignedDataDigest(wc_PKCS7* pkcs7, byte* signedAttrib,
 
         wc_HashFree(&hash, hashType);
         if (ret < 0) {
-    #ifdef WOLFSSL_SMALL_STACK
-            XFREE(digestInfo, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
+            WC_FREE_VAR_EX(digestInfo, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
             return ret;
         }
     }
@@ -4432,9 +4362,7 @@ static int wc_PKCS7_BuildSignedDataDigest(wc_PKCS7* pkcs7, byte* signedAttrib,
     *plainDigest = pkcs7Digest + digIdx - hashSz;
     *plainDigestSz = hashSz;
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(digestInfo, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(digestInfo, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
     return 0;
 }
 
@@ -4460,11 +4388,7 @@ static int wc_PKCS7_VerifyContentMessageDigest(wc_PKCS7* pkcs7,
     word32 contentIdx = 0;
     byte* content = NULL;
     byte* digestBuf = NULL;
-#ifdef WOLFSSL_SMALL_STACK
-    byte* digest = NULL;
-#else
-    byte  digest[MAX_PKCS7_DIGEST_SZ];
-#endif
+    WC_DECLARE_VAR(digest, byte, MAX_PKCS7_DIGEST_SZ, 0);
     PKCS7DecodedAttrib* attrib;
     enum wc_HashType hashType;
 
@@ -4509,12 +4433,8 @@ static int wc_PKCS7_VerifyContentMessageDigest(wc_PKCS7* pkcs7,
     /* build content hash if needed, or use existing hash value */
     if (hashBuf == NULL) {
 
-#ifdef WOLFSSL_SMALL_STACK
-        digest = (byte*)XMALLOC(MAX_PKCS7_DIGEST_SZ, pkcs7->heap,
-                                DYNAMIC_TYPE_TMP_BUFFER);
-        if (digest == NULL)
-            return MEMORY_E;
-#endif
+        WC_ALLOC_VAR_EX(digest, byte, MAX_PKCS7_DIGEST_SZ, pkcs7->heap,
+            DYNAMIC_TYPE_TMP_BUFFER, return MEMORY_E);
         XMEMSET(digest, 0, MAX_PKCS7_DIGEST_SZ);
 
         content = pkcs7->content;
@@ -4532,9 +4452,8 @@ static int wc_PKCS7_VerifyContentMessageDigest(wc_PKCS7* pkcs7,
 
             if (GetLength_ex(content, &contentIdx, &contentLen,
                     (word32)contentLen, 1) < 0) {
-                #ifdef WOLFSSL_SMALL_STACK
-                    XFREE(digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-                #endif
+                    WC_FREE_VAR_EX(digest, pkcs7->heap,
+                        DYNAMIC_TYPE_TMP_BUFFER);
                 return ASN_PARSE_E;
             }
         }
@@ -4543,9 +4462,7 @@ static int wc_PKCS7_VerifyContentMessageDigest(wc_PKCS7* pkcs7,
                       MAX_PKCS7_DIGEST_SZ);
         if (ret < 0) {
             WOLFSSL_MSG("Error hashing PKCS7 content for verification");
-#ifdef WOLFSSL_SMALL_STACK
-            XFREE(digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+            WC_FREE_VAR_EX(digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
             return ret;
         }
 
@@ -4553,9 +4470,7 @@ static int wc_PKCS7_VerifyContentMessageDigest(wc_PKCS7* pkcs7,
         digestSz = wc_HashGetDigestSize(hashType);
         if (digestSz < 0) {
             WOLFSSL_MSG("Invalid hash type");
-#ifdef WOLFSSL_SMALL_STACK
-            XFREE(digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+            WC_FREE_VAR_EX(digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
             return digestSz;
         }
     } else {
@@ -4569,16 +4484,12 @@ static int wc_PKCS7_VerifyContentMessageDigest(wc_PKCS7* pkcs7,
     if ((innerAttribSz != digestSz) ||
         (XMEMCMP(attrib->value + idx, digestBuf, (size_t)digestSz) != 0)) {
         WOLFSSL_MSG("Content digest does not match messageDigest attrib value");
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+        WC_FREE_VAR_EX(digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
         return SIG_VERIFY_E;
     }
 
     if (hashBuf == NULL) {
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+        WC_FREE_VAR_EX(digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
     return 0;
@@ -4603,23 +4514,15 @@ static int wc_PKCS7_SignedDataVerifySignature(wc_PKCS7* pkcs7, byte* sig,
     int ret = 0;
     word32 plainDigestSz = 0, pkcs7DigestSz;
     byte* plainDigest = NULL; /* offset into pkcs7Digest */
-#ifdef WOLFSSL_SMALL_STACK
-    byte* pkcs7Digest;
-#else
-    byte  pkcs7Digest[MAX_PKCS7_DIGEST_SZ];
-#endif
+    WC_DECLARE_VAR(pkcs7Digest, byte, MAX_PKCS7_DIGEST_SZ, 0);
 
     if (pkcs7 == NULL)
         return BAD_FUNC_ARG;
 
     /* allocate space to build hash */
     pkcs7DigestSz = MAX_PKCS7_DIGEST_SZ;
-#ifdef WOLFSSL_SMALL_STACK
-    pkcs7Digest = (byte*)XMALLOC(pkcs7DigestSz, pkcs7->heap,
-                                 DYNAMIC_TYPE_TMP_BUFFER);
-    if (pkcs7Digest == NULL)
-        return MEMORY_E;
-#endif
+    WC_ALLOC_VAR_EX(pkcs7Digest, byte, pkcs7DigestSz, pkcs7->heap,
+        DYNAMIC_TYPE_TMP_BUFFER, return MEMORY_E);
 
     XMEMSET(pkcs7Digest, 0, pkcs7DigestSz);
 
@@ -4627,9 +4530,8 @@ static int wc_PKCS7_SignedDataVerifySignature(wc_PKCS7* pkcs7, byte* sig,
     if (signedAttrib != NULL) {
         ret = wc_PKCS7_VerifyContentMessageDigest(pkcs7, hashBuf, hashSz);
         if (ret != 0) {
-#ifdef WOLFSSL_SMALL_STACK
-            XFREE(pkcs7Digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+            WC_FREE_VAR_EX(pkcs7Digest, pkcs7->heap,
+                DYNAMIC_TYPE_TMP_BUFFER);
             return ret;
         }
     }
@@ -4640,9 +4542,7 @@ static int wc_PKCS7_SignedDataVerifySignature(wc_PKCS7* pkcs7, byte* sig,
                                          &pkcs7DigestSz, &plainDigest,
                                          &plainDigestSz, hashBuf, hashSz);
     if (ret < 0) {
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(pkcs7Digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+        WC_FREE_VAR_EX(pkcs7Digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
         return ret;
     }
 
@@ -4669,9 +4569,8 @@ static int wc_PKCS7_SignedDataVerifySignature(wc_PKCS7* pkcs7, byte* sig,
             pkcs7->signature = (byte*)XMALLOC(sigSz, pkcs7->heap,
                     DYNAMIC_TYPE_SIGNATURE);
             if (pkcs7->signature == NULL) {
-            #ifdef WOLFSSL_SMALL_STACK
-                XFREE(pkcs7Digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            #endif
+                WC_FREE_VAR_EX(pkcs7Digest, pkcs7->heap,
+                    DYNAMIC_TYPE_TMP_BUFFER);
                 return MEMORY_E;
             }
             XMEMCPY(pkcs7->signature, sig, sigSz);
@@ -4684,9 +4583,8 @@ static int wc_PKCS7_SignedDataVerifySignature(wc_PKCS7* pkcs7, byte* sig,
             pkcs7->plainDigest = (byte*)XMALLOC(plainDigestSz, pkcs7->heap,
                     DYNAMIC_TYPE_DIGEST);
             if (pkcs7->plainDigest == NULL) {
-            #ifdef WOLFSSL_SMALL_STACK
-                XFREE(pkcs7Digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            #endif
+                WC_FREE_VAR_EX(pkcs7Digest, pkcs7->heap,
+                    DYNAMIC_TYPE_TMP_BUFFER);
                 return MEMORY_E;
             }
             XMEMCPY(pkcs7->plainDigest, plainDigest, plainDigestSz);
@@ -4699,17 +4597,15 @@ static int wc_PKCS7_SignedDataVerifySignature(wc_PKCS7* pkcs7, byte* sig,
             pkcs7->pkcs7Digest = (byte*)XMALLOC(pkcs7DigestSz, pkcs7->heap,
                     DYNAMIC_TYPE_DIGEST);
             if (pkcs7->pkcs7Digest == NULL) {
-            #ifdef WOLFSSL_SMALL_STACK
-                XFREE(pkcs7Digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            #endif
+                WC_FREE_VAR_EX(pkcs7Digest, pkcs7->heap,
+                    DYNAMIC_TYPE_TMP_BUFFER);
                 return MEMORY_E;
             }
             XMEMCPY(pkcs7->pkcs7Digest, pkcs7Digest, pkcs7DigestSz);
             pkcs7->pkcs7DigestSz = pkcs7DigestSz;
 
-            #ifdef WOLFSSL_SMALL_STACK
-            XFREE(pkcs7Digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            #endif
+            WC_FREE_VAR_EX(pkcs7Digest, pkcs7->heap,
+                DYNAMIC_TYPE_TMP_BUFFER);
             return PKCS7_SIGNEEDS_CHECK;
         }
     }
@@ -4742,9 +4638,7 @@ static int wc_PKCS7_SignedDataVerifySignature(wc_PKCS7* pkcs7, byte* sig,
             ret = BAD_FUNC_ARG;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-     XFREE(pkcs7Digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+     WC_FREE_VAR_EX(pkcs7Digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 
@@ -6814,14 +6708,15 @@ static int PKCS7_GenerateContentEncryptionKey(wc_PKCS7* pkcs7, word32 len)
 }
 
 
-/* wrap CEK (content encryption key) with KEK, 0 on success, < 0 on error */
-static int wc_PKCS7_KeyWrap(byte* cek, word32 cekSz, byte* kek,
-                            word32 kekSz, byte* out, word32 outSz,
-                            int keyWrapAlgo, int direction)
+/* wrap CEK (content encryption key) with KEK, returns output size (> 0) on
+ * success, < 0 on error */
+static int wc_PKCS7_KeyWrap(const wc_PKCS7 * pkcs7, const byte * cek,
+        word32 cekSz, const byte * kek, word32 kekSz, byte * out, word32 outSz,
+        int keyWrapAlgo, int direction)
 {
     int ret = 0;
 
-    if (cek == NULL || kek == NULL || out == NULL)
+    if (pkcs7 == NULL || cek == NULL || kek == NULL || out == NULL)
         return BAD_FUNC_ARG;
 
     switch (keyWrapAlgo) {
@@ -6837,14 +6732,32 @@ static int wc_PKCS7_KeyWrap(byte* cek, word32 cekSz, byte* kek,
     #endif
 
             if (direction == AES_ENCRYPTION) {
-
-                ret = wc_AesKeyWrap(kek, kekSz, cek, cekSz,
-                                    out, outSz, NULL);
+                if (pkcs7->aesKeyWrapUnwrapCb != NULL) {
+                    ret = pkcs7->aesKeyWrapUnwrapCb(kek, kekSz, cek, cekSz, 1,
+                                                    out, outSz);
+                }
+                else {
+                #ifdef HAVE_AES_KEYWRAP
+                    ret = wc_AesKeyWrap(kek, kekSz, cek, cekSz,
+                                        out, outSz, NULL);
+                #else
+                    ret = NOT_COMPILED_IN;
+                #endif
+                }
 
             } else if (direction == AES_DECRYPTION) {
-
-                ret = wc_AesKeyUnWrap(kek, kekSz, cek, cekSz,
-                                      out, outSz, NULL);
+                if (pkcs7->aesKeyWrapUnwrapCb != NULL) {
+                    ret = pkcs7->aesKeyWrapUnwrapCb(kek, kekSz, cek, cekSz, 0,
+                                                    out, outSz);
+                }
+                else {
+                #ifdef HAVE_AES_KEYWRAP
+                    ret = wc_AesKeyUnWrap(kek, kekSz, cek, cekSz,
+                                          out, outSz, NULL);
+                #else
+                    ret = NOT_COMPILED_IN;
+                #endif
+                }
             } else {
                 WOLFSSL_MSG("Bad key un/wrap direction");
                 return BAD_FUNC_ARG;
@@ -7353,16 +7266,16 @@ static int wc_PKCS7_KariGenerateKEK(WC_PKCS7_KARI* kari, WC_RNG* rng,
             return BAD_FUNC_ARG;
     };
 
+#ifdef HAVE_X963_KDF
     ret = wc_X963_KDF(kdfType, secret, secretSz, kari->sharedInfo,
                       kari->sharedInfoSz, kari->kek, kari->kekSz);
-    if (ret != 0) {
-        XFREE(secret, kari->heap, DYNAMIC_TYPE_PKCS7);
-        return ret;
-    }
+#else
+    (void)kdfType;
+    ret = NOT_COMPILED_IN;
+#endif
 
     XFREE(secret, kari->heap, DYNAMIC_TYPE_PKCS7);
-
-    return 0;
+    return ret;
 }
 
 
@@ -7447,9 +7360,7 @@ int wc_PKCS7_AddRecipient_KARI(wc_PKCS7* pkcs7, const byte* cert, word32 certSz,
     recip = (Pkcs7EncodedRecip*)XMALLOC(sizeof(Pkcs7EncodedRecip), pkcs7->heap,
                                  DYNAMIC_TYPE_PKCS7);
     if (recip == NULL) {
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+        WC_FREE_VAR_EX(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
         return MEMORY_E;
     }
     XMEMSET(recip, 0, sizeof(Pkcs7EncodedRecip));
@@ -7457,9 +7368,7 @@ int wc_PKCS7_AddRecipient_KARI(wc_PKCS7* pkcs7, const byte* cert, word32 certSz,
     /* get key size for content-encryption key based on algorithm */
     blockKeySz = wc_PKCS7_GetOIDKeySize(pkcs7->encryptOID);
     if (blockKeySz < 0) {
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+        WC_FREE_VAR_EX(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         return blockKeySz;
     }
@@ -7467,9 +7376,7 @@ int wc_PKCS7_AddRecipient_KARI(wc_PKCS7* pkcs7, const byte* cert, word32 certSz,
     /* generate random content encryption key, if needed */
     ret = PKCS7_GenerateContentEncryptionKey(pkcs7, (word32)blockKeySz);
     if (ret < 0) {
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+        WC_FREE_VAR_EX(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         return ret;
     }
@@ -7491,18 +7398,15 @@ int wc_PKCS7_AddRecipient_KARI(wc_PKCS7* pkcs7, const byte* cert, word32 certSz,
 #endif
         default:
             WOLFSSL_MSG("Unsupported key wrap algorithm");
-#ifdef WOLFSSL_SMALL_STACK
-            XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+            WC_FREE_VAR_EX(encryptedKey, pkcs7->heap,
+                DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
             return BAD_KEYWRAP_ALG_E;
     }
 
     kari = wc_PKCS7_KariNew(pkcs7, WC_PKCS7_ENCODE);
     if (kari == NULL) {
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+        WC_FREE_VAR_EX(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         return MEMORY_E;
     }
@@ -7518,9 +7422,7 @@ int wc_PKCS7_AddRecipient_KARI(wc_PKCS7* pkcs7, const byte* cert, word32 certSz,
     ret = wc_PKCS7_KariParseRecipCert(kari, cert, certSz, NULL, 0);
     if (ret != 0) {
         wc_PKCS7_KariFree(kari);
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+        WC_FREE_VAR_EX(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         return ret;
     }
@@ -7529,9 +7431,7 @@ int wc_PKCS7_AddRecipient_KARI(wc_PKCS7* pkcs7, const byte* cert, word32 certSz,
     ret = wc_PKCS7_KariGenerateEphemeralKey(kari);
     if (ret != 0) {
         wc_PKCS7_KariFree(kari);
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+        WC_FREE_VAR_EX(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         return ret;
     }
@@ -7540,22 +7440,18 @@ int wc_PKCS7_AddRecipient_KARI(wc_PKCS7* pkcs7, const byte* cert, word32 certSz,
     ret = wc_PKCS7_KariGenerateKEK(kari, pkcs7->rng, keyWrapOID, keyAgreeOID);
     if (ret != 0) {
         wc_PKCS7_KariFree(kari);
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+        WC_FREE_VAR_EX(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         return ret;
     }
 
     /* encrypt CEK with KEK */
-    keySz = wc_PKCS7_KeyWrap(pkcs7->cek, pkcs7->cekSz, kari->kek,
+    keySz = wc_PKCS7_KeyWrap(pkcs7, pkcs7->cek, pkcs7->cekSz, kari->kek,
                              kari->kekSz, encryptedKey, encryptedKeySz,
                              keyWrapOID, direction);
     if (keySz <= 0) {
         wc_PKCS7_KariFree(kari);
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+        WC_FREE_VAR_EX(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         return keySz;
     }
@@ -7649,9 +7545,7 @@ int wc_PKCS7_AddRecipient_KARI(wc_PKCS7* pkcs7, const byte* cert, word32 certSz,
     if (totalSz > MAX_RECIP_SZ) {
         WOLFSSL_MSG("KeyAgreeRecipientInfo output buffer too small");
         wc_PKCS7_KariFree(kari);
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+        WC_FREE_VAR_EX(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         return BUFFER_E;
     }
@@ -7708,9 +7602,7 @@ int wc_PKCS7_AddRecipient_KARI(wc_PKCS7* pkcs7, const byte* cert, word32 certSz,
     idx += encryptedKeySz;
 
     wc_PKCS7_KariFree(kari);
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     /* store recipient size */
     recip->recipSz = idx;
@@ -7797,11 +7689,9 @@ int wc_PKCS7_AddRecipient_KTRI(wc_PKCS7* pkcs7, const byte* cert, word32 certSz,
     encryptedKey = (byte*)XMALLOC(MAX_ENCRYPTED_KEY_SZ, pkcs7->heap,
                                   DYNAMIC_TYPE_WOLF_BIGINT);
     if (encryptedKey == NULL) {
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(serial, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(keyAlgArray, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(decoded, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
+        WC_FREE_VAR_EX(serial, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        WC_FREE_VAR_EX(keyAlgArray, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        WC_FREE_VAR_EX(decoded, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
         return MEMORY_E;
     }
 
@@ -7826,11 +7716,9 @@ int wc_PKCS7_AddRecipient_KTRI(wc_PKCS7* pkcs7, const byte* cert, word32 certSz,
     recip = (Pkcs7EncodedRecip*)XMALLOC(sizeof(Pkcs7EncodedRecip), pkcs7->heap,
                                  DYNAMIC_TYPE_PKCS7);
     if (recip == NULL) {
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(serial,       pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(keyAlgArray,  pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(decoded,      pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+        WC_FREE_VAR_EX(serial, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        WC_FREE_VAR_EX(keyAlgArray, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        WC_FREE_VAR_EX(decoded, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_WOLF_BIGINT);
         return MEMORY_E;
     }
@@ -7839,11 +7727,9 @@ int wc_PKCS7_AddRecipient_KTRI(wc_PKCS7* pkcs7, const byte* cert, word32 certSz,
     /* get key size for content-encryption key based on algorithm */
     blockKeySz = wc_PKCS7_GetOIDKeySize(pkcs7->encryptOID);
     if (blockKeySz < 0) {
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(serial,       pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(keyAlgArray,  pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(decoded,      pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+        WC_FREE_VAR_EX(serial, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        WC_FREE_VAR_EX(keyAlgArray, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        WC_FREE_VAR_EX(decoded, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_WOLF_BIGINT);
         XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         return blockKeySz;
@@ -7852,11 +7738,9 @@ int wc_PKCS7_AddRecipient_KTRI(wc_PKCS7* pkcs7, const byte* cert, word32 certSz,
     /* generate random content encryption key, if needed */
     ret = PKCS7_GenerateContentEncryptionKey(pkcs7, (word32)blockKeySz);
     if (ret < 0) {
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(serial,       pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(keyAlgArray,  pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(decoded,      pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+        WC_FREE_VAR_EX(serial, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        WC_FREE_VAR_EX(keyAlgArray, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        WC_FREE_VAR_EX(decoded, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_WOLF_BIGINT);
         XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         return ret;
@@ -7866,11 +7750,9 @@ int wc_PKCS7_AddRecipient_KTRI(wc_PKCS7* pkcs7, const byte* cert, word32 certSz,
     ret = ParseCert(decoded, CA_TYPE, NO_VERIFY, 0);
     if (ret < 0) {
         FreeDecodedCert(decoded);
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(serial,       pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(keyAlgArray,  pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(decoded,      pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+        WC_FREE_VAR_EX(serial, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        WC_FREE_VAR_EX(keyAlgArray, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        WC_FREE_VAR_EX(decoded, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_WOLF_BIGINT);
         XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         return ret;
@@ -7893,11 +7775,10 @@ int wc_PKCS7_AddRecipient_KTRI(wc_PKCS7* pkcs7, const byte* cert, word32 certSz,
         if (decoded->issuerRaw == NULL || decoded->issuerRawLen == 0) {
             WOLFSSL_MSG("DecodedCert lacks raw issuer pointer and length");
             FreeDecodedCert(decoded);
-#ifdef WOLFSSL_SMALL_STACK
-            XFREE(serial,       pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(keyAlgArray,  pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(decoded,      pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+            WC_FREE_VAR_EX(serial, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            WC_FREE_VAR_EX(keyAlgArray, pkcs7->heap,
+                DYNAMIC_TYPE_TMP_BUFFER);
+            WC_FREE_VAR_EX(decoded, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_WOLF_BIGINT);
             XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
             return -1;
@@ -7908,11 +7789,10 @@ int wc_PKCS7_AddRecipient_KTRI(wc_PKCS7* pkcs7, const byte* cert, word32 certSz,
         if (decoded->serialSz == 0) {
             WOLFSSL_MSG("DecodedCert missing serial number");
             FreeDecodedCert(decoded);
-#ifdef WOLFSSL_SMALL_STACK
-            XFREE(serial,       pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(keyAlgArray,  pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(decoded,      pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+            WC_FREE_VAR_EX(serial, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            WC_FREE_VAR_EX(keyAlgArray, pkcs7->heap,
+                DYNAMIC_TYPE_TMP_BUFFER);
+            WC_FREE_VAR_EX(decoded, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_WOLF_BIGINT);
             XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
             return -1;
@@ -7922,11 +7802,10 @@ int wc_PKCS7_AddRecipient_KTRI(wc_PKCS7* pkcs7, const byte* cert, word32 certSz,
         if (snSz < 0) {
             WOLFSSL_MSG("Error setting the serial number");
             FreeDecodedCert(decoded);
-#ifdef WOLFSSL_SMALL_STACK
-            XFREE(serial,       pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(keyAlgArray,  pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(decoded,      pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+            WC_FREE_VAR_EX(serial, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            WC_FREE_VAR_EX(keyAlgArray, pkcs7->heap,
+                DYNAMIC_TYPE_TMP_BUFFER);
+            WC_FREE_VAR_EX(decoded, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_WOLF_BIGINT);
             XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
             return -1;
@@ -7942,11 +7821,9 @@ int wc_PKCS7_AddRecipient_KTRI(wc_PKCS7* pkcs7, const byte* cert, word32 certSz,
         issuerSKIDSz = SetLength((word32)keyIdSize, issuerSKID);
     } else {
         FreeDecodedCert(decoded);
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(serial,       pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(keyAlgArray,  pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(decoded,      pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+        WC_FREE_VAR_EX(serial, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        WC_FREE_VAR_EX(keyAlgArray, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        WC_FREE_VAR_EX(decoded, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_WOLF_BIGINT);
         XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         return PKCS7_RECIP_E;
@@ -7957,11 +7834,9 @@ int wc_PKCS7_AddRecipient_KTRI(wc_PKCS7* pkcs7, const byte* cert, word32 certSz,
     /* KeyEncryptionAlgorithmIdentifier, only support RSA now */
     if (pkcs7->publicKeyOID != RSAk) {
         FreeDecodedCert(decoded);
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(serial,       pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(keyAlgArray,  pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(decoded,      pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+        WC_FREE_VAR_EX(serial, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        WC_FREE_VAR_EX(keyAlgArray, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        WC_FREE_VAR_EX(decoded, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_WOLF_BIGINT);
         XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         return ALGO_ID_E;
@@ -7971,11 +7846,9 @@ int wc_PKCS7_AddRecipient_KTRI(wc_PKCS7* pkcs7, const byte* cert, word32 certSz,
                                  oidKeyType, 0);
     if (keyEncAlgSz == 0) {
         FreeDecodedCert(decoded);
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(serial,       pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(keyAlgArray,  pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(decoded,      pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+        WC_FREE_VAR_EX(serial, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        WC_FREE_VAR_EX(keyAlgArray, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        WC_FREE_VAR_EX(decoded, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_WOLF_BIGINT);
         XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         return BAD_FUNC_ARG;
@@ -7999,12 +7872,10 @@ int wc_PKCS7_AddRecipient_KTRI(wc_PKCS7* pkcs7, const byte* cert, word32 certSz,
     ret = wc_InitRsaKey_ex(pubKey, pkcs7->heap, pkcs7->devId);
     if (ret != 0) {
         FreeDecodedCert(decoded);
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(pubKey,       pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(serial,       pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(keyAlgArray,  pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(decoded,      pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+        WC_FREE_VAR_EX(pubKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        WC_FREE_VAR_EX(serial, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        WC_FREE_VAR_EX(keyAlgArray, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        WC_FREE_VAR_EX(decoded, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_WOLF_BIGINT);
         XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         return ret;
@@ -8015,12 +7886,10 @@ int wc_PKCS7_AddRecipient_KTRI(wc_PKCS7* pkcs7, const byte* cert, word32 certSz,
         WOLFSSL_MSG("ASN RSA key decode error");
         wc_FreeRsaKey(pubKey);
         FreeDecodedCert(decoded);
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(pubKey,       pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(serial,       pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(keyAlgArray,  pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(decoded,      pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+        WC_FREE_VAR_EX(pubKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        WC_FREE_VAR_EX(serial, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        WC_FREE_VAR_EX(keyAlgArray, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        WC_FREE_VAR_EX(decoded, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_WOLF_BIGINT);
         XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         return PUBLIC_KEY_E;
@@ -8030,12 +7899,10 @@ int wc_PKCS7_AddRecipient_KTRI(wc_PKCS7* pkcs7, const byte* cert, word32 certSz,
     if (ret != 0) {
         wc_FreeRsaKey(pubKey);
         FreeDecodedCert(decoded);
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(pubKey,       pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(serial,       pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(keyAlgArray,  pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(decoded,      pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+        WC_FREE_VAR_EX(pubKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        WC_FREE_VAR_EX(serial, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        WC_FREE_VAR_EX(keyAlgArray, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        WC_FREE_VAR_EX(decoded, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_WOLF_BIGINT);
         XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         return MEMORY_E;
@@ -8058,18 +7925,14 @@ int wc_PKCS7_AddRecipient_KTRI(wc_PKCS7* pkcs7, const byte* cert, word32 certSz,
     wc_FreeRsaKey(pubKey);
     wc_FreeRng(&rng);
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(pubKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(pubKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     if (ret < 0) {
         WOLFSSL_MSG("RSA Public Encrypt failed");
         FreeDecodedCert(decoded);
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(serial,       pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(keyAlgArray,  pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(decoded,      pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+        WC_FREE_VAR_EX(serial, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        WC_FREE_VAR_EX(keyAlgArray, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        WC_FREE_VAR_EX(decoded, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_WOLF_BIGINT);
         XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         return ret;
@@ -8088,11 +7951,10 @@ int wc_PKCS7_AddRecipient_KTRI(wc_PKCS7* pkcs7, const byte* cert, word32 certSz,
         if ((recipSeqSz + recipLen) > MAX_RECIP_SZ) {
             WOLFSSL_MSG("RecipientInfo output buffer too small");
             FreeDecodedCert(decoded);
-#ifdef WOLFSSL_SMALL_STACK
-            XFREE(serial,       pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(keyAlgArray,  pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(decoded,      pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+            WC_FREE_VAR_EX(serial, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            WC_FREE_VAR_EX(keyAlgArray, pkcs7->heap,
+                DYNAMIC_TYPE_TMP_BUFFER);
+            WC_FREE_VAR_EX(decoded, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_WOLF_BIGINT);
             XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
             return BUFFER_E;
@@ -8105,11 +7967,10 @@ int wc_PKCS7_AddRecipient_KTRI(wc_PKCS7* pkcs7, const byte* cert, word32 certSz,
         if ((recipSeqSz + recipLen) > MAX_RECIP_SZ) {
             WOLFSSL_MSG("RecipientInfo output buffer too small");
             FreeDecodedCert(decoded);
-#ifdef WOLFSSL_SMALL_STACK
-            XFREE(serial,       pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(keyAlgArray,  pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(decoded,      pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+            WC_FREE_VAR_EX(serial, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            WC_FREE_VAR_EX(keyAlgArray, pkcs7->heap,
+                DYNAMIC_TYPE_TMP_BUFFER);
+            WC_FREE_VAR_EX(decoded, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_WOLF_BIGINT);
             XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
             return BUFFER_E;
@@ -8147,11 +8008,9 @@ int wc_PKCS7_AddRecipient_KTRI(wc_PKCS7* pkcs7, const byte* cert, word32 certSz,
 
     FreeDecodedCert(decoded);
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(serial,       pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(keyAlgArray,  pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(decoded,      pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(serial, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(keyAlgArray, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(decoded, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_WOLF_BIGINT);
 
     /* store recipient size */
@@ -8223,11 +8082,7 @@ static int wc_PKCS7_EncryptContent(wc_PKCS7* pkcs7, int encryptOID, byte* key,
 {
     int ret;
 #ifndef NO_AES
-#ifdef WOLFSSL_SMALL_STACK
-    Aes* aes;
-#else
-    Aes  aes[1];
-#endif
+    WC_DECLARE_VAR(aes, Aes, 1, 0);
 #endif
 #ifndef NO_DES3
     Des  des;
@@ -8289,9 +8144,7 @@ static int wc_PKCS7_EncryptContent(wc_PKCS7* pkcs7, int encryptOID, byte* key,
                 }
                 wc_AesFree(aes);
             }
-#ifdef WOLFSSL_SMALL_STACK
-            XFREE(aes, NULL, DYNAMIC_TYPE_AES);
-#endif
+            WC_FREE_VAR_EX(aes, NULL, DYNAMIC_TYPE_AES);
             break;
     #endif /* HAVE_AES_CBC */
     #ifdef HAVE_AESGCM
@@ -8352,9 +8205,7 @@ static int wc_PKCS7_EncryptContent(wc_PKCS7* pkcs7, int encryptOID, byte* key,
                 }
                 wc_AesFree(aes);
             }
-#ifdef WOLFSSL_SMALL_STACK
-            XFREE(aes, NULL, DYNAMIC_TYPE_AES);
-#endif
+            WC_FREE_VAR_EX(aes, NULL, DYNAMIC_TYPE_AES);
             break;
         #endif
     #endif /* HAVE_AESGCM */
@@ -8397,9 +8248,7 @@ static int wc_PKCS7_EncryptContent(wc_PKCS7* pkcs7, int encryptOID, byte* key,
                 }
                 wc_AesFree(aes);
             }
-#ifdef WOLFSSL_SMALL_STACK
-            XFREE(aes, NULL, DYNAMIC_TYPE_AES);
-#endif
+            WC_FREE_VAR_EX(aes, NULL, DYNAMIC_TYPE_AES);
             break;
         #endif
     #endif /* HAVE_AESCCM */
@@ -9569,11 +9418,7 @@ int wc_PKCS7_AddRecipient_KEKRI(wc_PKCS7* pkcs7, int keyWrapOID, byte* kek,
     byte otherAttSeq[MAX_SEQ_SZ];
     byte encAlgoId[MAX_ALGO_SZ];
     byte encKeyOctetStr[MAX_OCTET_STR_SZ];
-#ifdef WOLFSSL_SMALL_STACK
-    byte* encryptedKey;
-#else
-    byte encryptedKey[MAX_ENCRYPTED_KEY_SZ];
-#endif
+    WC_DECLARE_VAR(encryptedKey, byte, MAX_ENCRYPTED_KEY_SZ, 0);
 
     int blockKeySz = 0, ret = 0, direction;
     word32 idx = 0;
@@ -9630,21 +9475,16 @@ int wc_PKCS7_AddRecipient_KEKRI(wc_PKCS7* pkcs7, int keyWrapOID, byte* kek,
         direction = DES_ENCRYPTION;
     #endif
 
-    encryptedKeySz = wc_PKCS7_KeyWrap(pkcs7->cek, pkcs7->cekSz, kek, kekSz,
-                               encryptedKey, (word32)encryptedKeySz, keyWrapOID,
-                               direction);
+    encryptedKeySz = wc_PKCS7_KeyWrap(pkcs7, pkcs7->cek, pkcs7->cekSz, kek,
+            kekSz, encryptedKey, (word32)encryptedKeySz, keyWrapOID, direction);
     if (encryptedKeySz < 0) {
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-    #endif
+        WC_FREE_VAR_EX(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         return encryptedKeySz;
     }
     /* handle a zero size encKey case as WC_KEY_SIZE_E */
     if (encryptedKeySz == 0 || encryptedKeySz > MAX_ENCRYPTED_KEY_SZ) {
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-    #endif
+        WC_FREE_VAR_EX(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         return WC_KEY_SIZE_E;
     }
@@ -9667,9 +9507,7 @@ int wc_PKCS7_AddRecipient_KEKRI(wc_PKCS7* pkcs7, int keyWrapOID, byte* kek,
         timeSz = GetAsnTimeString(tm, genTime, sizeof(genTime));
         if (timeSz < 0) {
             XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-        #ifdef WOLFSSL_SMALL_STACK
-            XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-        #endif
+            WC_FREE_VAR_EX(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
             return timeSz;
         }
         totalSz += (word32)timeSz;
@@ -9699,9 +9537,7 @@ int wc_PKCS7_AddRecipient_KEKRI(wc_PKCS7* pkcs7, int keyWrapOID, byte* kek,
     if (totalSz > MAX_RECIP_SZ) {
         WOLFSSL_MSG("CMS Recipient output buffer too small");
         XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-    #endif
+        WC_FREE_VAR_EX(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         return BUFFER_E;
     }
 
@@ -9734,9 +9570,7 @@ int wc_PKCS7_AddRecipient_KEKRI(wc_PKCS7* pkcs7, int keyWrapOID, byte* kek,
     XMEMCPY(recip->recip + idx, encryptedKey, (word32)encryptedKeySz);
     idx += (word32)encryptedKeySz;
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-#endif
+    WC_FREE_VAR_EX(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
 
     /* store recipient size */
     recip->recipSz = idx;
@@ -10346,25 +10180,19 @@ static int wc_PKCS7_DecryptKtri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                     *recipFound = 1;
                 }
 
-        #ifdef WOLFSSL_SMALL_STACK
-                serialNum = (mp_int*)XMALLOC(sizeof(mp_int), pkcs7->heap,
-                                             DYNAMIC_TYPE_TMP_BUFFER);
-                if (serialNum == NULL)
-                    return MEMORY_E;
-        #endif
+                WC_ALLOC_VAR_EX(serialNum, mp_int, 1, pkcs7->heap,
+                    DYNAMIC_TYPE_TMP_BUFFER, return MEMORY_E);
 
                 if (GetInt(serialNum, pkiMsg, idx, pkiMsgSz) < 0) {
-        #ifdef WOLFSSL_SMALL_STACK
-                    XFREE(serialNum, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
+                    WC_FREE_VAR_EX(serialNum, pkcs7->heap,
+                        DYNAMIC_TYPE_TMP_BUFFER);
                     return ASN_PARSE_E;
                 }
 
                 mp_clear(serialNum);
 
-        #ifdef WOLFSSL_SMALL_STACK
-                XFREE(serialNum, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
+                WC_FREE_VAR_EX(serialNum, pkcs7->heap,
+                    DYNAMIC_TYPE_TMP_BUFFER);
 
             } else {
                 /* parse SubjectKeyIdentifier
@@ -10469,6 +10297,14 @@ static int wc_PKCS7_DecryptKtri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                 XMEMCPY(encryptedKey, &pkiMsg[*idx], (word32)encryptedKeySz);
             *idx += (word32)encryptedKeySz;
 
+            /* If this is not the correct recipient then do not try to decode
+             * the encrypted key */
+            if (*recipFound == 0) {
+                XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_WOLF_BIGINT);
+                ret = PKCS7_RECIP_E;
+                break;
+            }
+
             /* load private key */
         #ifdef WOLFSSL_SMALL_STACK
             privKey = (RsaKey*)XMALLOC(sizeof(RsaKey), pkcs7->heap,
@@ -10482,9 +10318,8 @@ static int wc_PKCS7_DecryptKtri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
             ret = wc_InitRsaKey_ex(privKey, pkcs7->heap, pkcs7->devId);
             if (ret != 0) {
                 XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_WOLF_BIGINT);
-        #ifdef WOLFSSL_SMALL_STACK
-                XFREE(privKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
+                WC_FREE_VAR_EX(privKey, pkcs7->heap,
+                    DYNAMIC_TYPE_TMP_BUFFER);
                 return ret;
             }
 
@@ -10500,9 +10335,8 @@ static int wc_PKCS7_DecryptKtri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                 WOLFSSL_MSG("Failed to decode RSA private key");
                 wc_FreeRsaKey(privKey);
                 XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_WOLF_BIGINT);
-        #ifdef WOLFSSL_SMALL_STACK
-                XFREE(privKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
+                WC_FREE_VAR_EX(privKey, pkcs7->heap,
+                    DYNAMIC_TYPE_TMP_BUFFER);
                 return ret;
             }
 
@@ -10540,10 +10374,8 @@ static int wc_PKCS7_DecryptKtri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                             wc_FreeRsaKey(privKey);
                             XFREE(encryptedKey, pkcs7->heap,
                                                     DYNAMIC_TYPE_WOLF_BIGINT);
-                            #ifdef WOLFSSL_SMALL_STACK
-                                    XFREE(privKey, pkcs7->heap,
-                                                    DYNAMIC_TYPE_TMP_BUFFER);
-                            #endif
+                                    WC_FREE_VAR_EX(privKey, pkcs7->heap,
+                                        DYNAMIC_TYPE_TMP_BUFFER);
                             WOLFSSL_ERROR_VERBOSE(MEMORY_E);
                             return MEMORY_E;
                         }
@@ -10569,9 +10401,8 @@ static int wc_PKCS7_DecryptKtri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
             if (keySz <= 0 || outKey == NULL) {
                 ForceZero(encryptedKey, (word32)encryptedKeySz);
                 XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_WOLF_BIGINT);
-        #ifdef WOLFSSL_SMALL_STACK
-                XFREE(privKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
+                WC_FREE_VAR_EX(privKey, pkcs7->heap,
+                    DYNAMIC_TYPE_TMP_BUFFER);
         #ifndef WC_NO_RSA_OAEP
                 if (encOID == RSAESOAEPk) {
                     if (!outKey) {
@@ -10587,9 +10418,7 @@ static int wc_PKCS7_DecryptKtri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
             }
 
             XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_WOLF_BIGINT);
-        #ifdef WOLFSSL_SMALL_STACK
-            XFREE(privKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
+            WC_FREE_VAR_EX(privKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
         #ifndef WC_NO_RSA_OAEP
             if (encOID == RSAESOAEPk) {
                 if (!outKey) {
@@ -10925,10 +10754,8 @@ static int wc_PKCS7_KariGetIssuerAndSerialNumber(WC_PKCS7_KARI* kari,
 #endif
 
     if (GetInt(serial, pkiMsg, idx, pkiMsgSz) < 0) {
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(serial,      kari->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(recipSerial, kari->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+        WC_FREE_VAR_EX(serial, kari->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        WC_FREE_VAR_EX(recipSerial, kari->heap, DYNAMIC_TYPE_TMP_BUFFER);
         return ASN_PARSE_E;
     }
 
@@ -10939,10 +10766,8 @@ static int wc_PKCS7_KariGetIssuerAndSerialNumber(WC_PKCS7_KARI* kari,
     if (ret != MP_OKAY) {
         mp_clear(serial);
         WOLFSSL_MSG("Failed to parse CMS recipient serial number");
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(serial,      kari->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(recipSerial, kari->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+        WC_FREE_VAR_EX(serial, kari->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        WC_FREE_VAR_EX(recipSerial, kari->heap, DYNAMIC_TYPE_TMP_BUFFER);
         return ret;
     }
 
@@ -10951,20 +10776,16 @@ static int wc_PKCS7_KariGetIssuerAndSerialNumber(WC_PKCS7_KARI* kari,
         mp_clear(serial);
         mp_clear(recipSerial);
         WOLFSSL_MSG("CMS serial number does not match recipient");
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(serial,      kari->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(recipSerial, kari->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+        WC_FREE_VAR_EX(serial, kari->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        WC_FREE_VAR_EX(recipSerial, kari->heap, DYNAMIC_TYPE_TMP_BUFFER);
         return PKCS7_RECIP_E;
     }
 
     mp_clear(serial);
     mp_clear(recipSerial);
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(serial,      kari->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(recipSerial, kari->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(serial, kari->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(recipSerial, kari->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return 0;
 }
@@ -11081,6 +10902,19 @@ int wc_PKCS7_SetWrapCEKCb(wc_PKCS7* pkcs7, CallbackWrapCEK cb)
 
     return 0;
 }
+
+
+/* return 0 on success */
+int wc_PKCS7_SetAESKeyWrapUnwrapCb(wc_PKCS7* pkcs7, CallbackAESKeyWrapUnwrap aesKeyWrapUnwrapCb)
+{
+    if (pkcs7 == NULL)
+        return BAD_FUNC_ARG;
+
+    pkcs7->aesKeyWrapUnwrapCb = aesKeyWrapUnwrapCb;
+
+    return 0;
+}
+
 
 /* Decrypt ASN.1 OtherRecipientInfo (ori), as defined by:
  *
@@ -11529,10 +11363,9 @@ static int wc_PKCS7_DecryptKekri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                                     (int)PKCS7_KEKRI, direction);
             }
             else {
-                keySz = wc_PKCS7_KeyWrap(pkiMsg + *idx, (word32)length,
-                                    pkcs7->privateKey, pkcs7->privateKeySz,
-                                    decryptedKey, *decryptedKeySz,
-                                    (int)keyWrapOID, direction);
+                keySz = wc_PKCS7_KeyWrap(pkcs7, pkiMsg + *idx, (word32)length,
+                        pkcs7->privateKey, pkcs7->privateKeySz, decryptedKey,
+                        *decryptedKeySz, (int)keyWrapOID, direction);
             }
             if (keySz <= 0)
                 return keySz;
@@ -11577,11 +11410,7 @@ static int wc_PKCS7_DecryptKari(wc_PKCS7* pkcs7, byte* in, word32 inSz,
     word32 keyAgreeOID, keyWrapOID;
     byte rid[KEYID_SIZE];
 
-#ifdef WOLFSSL_SMALL_STACK
-    byte* encryptedKey;
-#else
-    byte  encryptedKey[MAX_ENCRYPTED_KEY_SZ];
-#endif
+    WC_DECLARE_VAR(encryptedKey, byte, MAX_ENCRYPTED_KEY_SZ, 0);
 
     byte* pkiMsg    = in;
     word32 pkiMsgSz = inSz;
@@ -11619,14 +11448,12 @@ static int wc_PKCS7_DecryptKari(wc_PKCS7* pkcs7, byte* in, word32 inSz,
             if (kari == NULL)
                 return MEMORY_E;
 
-        #ifdef WOLFSSL_SMALL_STACK
-            encryptedKey = (byte*)XMALLOC(MAX_ENCRYPTED_KEY_SZ, pkcs7->heap,
-                                          DYNAMIC_TYPE_PKCS7);
-            if (encryptedKey == NULL) {
+            WC_ALLOC_VAR_EX(encryptedKey, byte, MAX_ENCRYPTED_KEY_SZ,
+                pkcs7->heap, DYNAMIC_TYPE_PKCS7,
+            {
                 wc_PKCS7_KariFree(kari);
                 return MEMORY_E;
-            }
-        #endif
+            });
             encryptedKeySz = MAX_ENCRYPTED_KEY_SZ;
 
             /* parse cert and key */
@@ -11636,9 +11463,8 @@ static int wc_PKCS7_DecryptKari(wc_PKCS7* pkcs7, byte* in, word32 inSz,
 
              if (ret != 0) {
                 wc_PKCS7_KariFree(kari);
-            #ifdef WOLFSSL_SMALL_STACK
-                XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-            #endif
+                WC_FREE_VAR_EX(encryptedKey, pkcs7->heap,
+                    DYNAMIC_TYPE_PKCS7);
                 return ret;
             }
 
@@ -11647,9 +11473,8 @@ static int wc_PKCS7_DecryptKari(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                                                             pkiMsgSz, idx);
             if (ret != 0) {
                 wc_PKCS7_KariFree(kari);
-                #ifdef WOLFSSL_SMALL_STACK
-                    XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-                #endif
+                    WC_FREE_VAR_EX(encryptedKey, pkcs7->heap,
+                        DYNAMIC_TYPE_PKCS7);
                 return ret;
             }
 
@@ -11658,9 +11483,8 @@ static int wc_PKCS7_DecryptKari(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                 idx);
             if (ret != 0) {
                 wc_PKCS7_KariFree(kari);
-                #ifdef WOLFSSL_SMALL_STACK
-                    XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-                #endif
+                    WC_FREE_VAR_EX(encryptedKey, pkcs7->heap,
+                        DYNAMIC_TYPE_PKCS7);
                 return ret;
             }
 
@@ -11669,9 +11493,8 @@ static int wc_PKCS7_DecryptKari(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                     pkiMsgSz, idx, &keyAgreeOID, &keyWrapOID);
             if (ret != 0) {
                 wc_PKCS7_KariFree(kari);
-                #ifdef WOLFSSL_SMALL_STACK
-                    XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-                #endif
+                    WC_FREE_VAR_EX(encryptedKey, pkcs7->heap,
+                        DYNAMIC_TYPE_PKCS7);
                 return ret;
             }
 
@@ -11705,9 +11528,8 @@ static int wc_PKCS7_DecryptKari(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                     }
 
                     wc_PKCS7_KariFree(kari);
-                    #ifdef WOLFSSL_SMALL_STACK
-                        XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-                    #endif
+                        WC_FREE_VAR_EX(encryptedKey, pkcs7->heap,
+                            DYNAMIC_TYPE_PKCS7);
                     return BAD_KEYWRAP_ALG_E;
             }
 
@@ -11716,9 +11538,8 @@ static int wc_PKCS7_DecryptKari(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                            idx, recipFound, encryptedKey, &encryptedKeySz, rid);
             if (ret != 0) {
                 wc_PKCS7_KariFree(kari);
-                #ifdef WOLFSSL_SMALL_STACK
-                    XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-                #endif
+                    WC_FREE_VAR_EX(encryptedKey, pkcs7->heap,
+                        DYNAMIC_TYPE_PKCS7);
                 return ret;
             }
 
@@ -11732,9 +11553,8 @@ static int wc_PKCS7_DecryptKari(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                 PRIVATE_KEY_LOCK();
                 if (ret != WC_NO_ERR_TRACE(LENGTH_ONLY_E)) {
                     wc_PKCS7_KariFree(kari);
-                    #ifdef WOLFSSL_SMALL_STACK
-                    XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-                    #endif
+                    WC_FREE_VAR_EX(encryptedKey, pkcs7->heap,
+                        DYNAMIC_TYPE_PKCS7);
                     return ret;
                 }
 
@@ -11750,9 +11570,8 @@ static int wc_PKCS7_DecryptKari(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                         DYNAMIC_TYPE_TMP_BUFFER);
                 if (tmpKeyDer == NULL) {
                     wc_PKCS7_KariFree(kari);
-                    #ifdef WOLFSSL_SMALL_STACK
-                    XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-                    #endif
+                    WC_FREE_VAR_EX(encryptedKey, pkcs7->heap,
+                        DYNAMIC_TYPE_PKCS7);
                     return MEMORY_E;
                 }
 
@@ -11760,9 +11579,8 @@ static int wc_PKCS7_DecryptKari(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                                          tmpKeySz, 1);
                 if (ret < 0) {
                     wc_PKCS7_KariFree(kari);
-                    #ifdef WOLFSSL_SMALL_STACK
-                    XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-                    #endif
+                    WC_FREE_VAR_EX(encryptedKey, pkcs7->heap,
+                        DYNAMIC_TYPE_PKCS7);
                     XFREE(tmpKeyDer, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
                     return ret;
                 }
@@ -11788,30 +11606,28 @@ static int wc_PKCS7_DecryptKari(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                     (int)keyWrapOID, pkcs7->keyAgreeOID);
                 if (ret != 0) {
                     wc_PKCS7_KariFree(kari);
-                    #ifdef WOLFSSL_SMALL_STACK
-                        XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-                    #endif
+                        WC_FREE_VAR_EX(encryptedKey, pkcs7->heap,
+                            DYNAMIC_TYPE_PKCS7);
                     return ret;
                 }
 
                 /* decrypt CEK with KEK */
-                keySz = wc_PKCS7_KeyWrap(encryptedKey, (word32)encryptedKeySz,
-                    kari->kek, kari->kekSz, decryptedKey, *decryptedKeySz,
-                    (int)keyWrapOID, direction);
+                keySz = wc_PKCS7_KeyWrap(pkcs7, encryptedKey,
+                        (word32)encryptedKeySz, kari->kek, kari->kekSz,
+                        decryptedKey, *decryptedKeySz, (int)keyWrapOID,
+                        direction);
             }
             if (keySz <= 0) {
                 wc_PKCS7_KariFree(kari);
-                #ifdef WOLFSSL_SMALL_STACK
-                    XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-                #endif
+                    WC_FREE_VAR_EX(encryptedKey, pkcs7->heap,
+                        DYNAMIC_TYPE_PKCS7);
                 return keySz;
             }
             *decryptedKeySz = (word32)keySz;
 
             wc_PKCS7_KariFree(kari);
-            #ifdef WOLFSSL_SMALL_STACK
-                XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-            #endif
+                WC_FREE_VAR_EX(encryptedKey, pkcs7->heap,
+                    DYNAMIC_TYPE_PKCS7);
             #ifndef NO_PKCS7_STREAM
             if ((ret = wc_PKCS7_StreamEndCase(pkcs7, &tmpIdx, idx)) != 0) {
                 break;
@@ -11942,8 +11758,15 @@ static int wc_PKCS7_DecryptRecipientInfos(wc_PKCS7* pkcs7, byte* in,
             ret = wc_PKCS7_DecryptKtri(pkcs7, in, inSz, idx,
                                       decryptedKey, decryptedKeySz,
                                       recipFound);
-            if (ret != 0)
-                return ret;
+            if (ret != 0) {
+                if (ret != WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E) &&
+                        *recipFound == 0) {
+                    continue; /* try next recipient */
+                }
+                else {
+                    return ret; /* found recipient and failed decrypt */
+                }
+            }
         #else
             return NOT_COMPILED_IN;
         #endif
@@ -12064,8 +11887,8 @@ static int wc_PKCS7_DecryptRecipientInfos(wc_PKCS7* pkcs7, byte* in,
                                           recipFound);
                 if (ret != 0)
                     return ret;
-
-            } else {
+            }
+            else {
                 /* failed to find RecipientInfo, restore idx and continue */
                 *idx = savedIdx;
                 break;
@@ -12284,8 +12107,16 @@ static int wc_PKCS7_ParseToRecipientInfoSet(wc_PKCS7* pkcs7, byte* in,
 
         #ifndef NO_PKCS7_STREAM
             pkcs7->stream->expected = (word32)length;
+
             if ((ret = wc_PKCS7_StreamEndCase(pkcs7, &tmpIdx, idx)) != 0) {
                 break;
+            }
+
+            /* update the stored max length */
+            if (pkcs7->stream->totalRd + pkcs7->stream->expected >
+                    pkcs7->stream->maxLen) {
+                pkcs7->stream->maxLen = pkcs7->stream->totalRd +
+                    pkcs7->stream->expected;
             }
         #endif
 
@@ -12308,7 +12139,7 @@ static int wc_PKCS7_ParseToRecipientInfoSet(wc_PKCS7* pkcs7, byte* in,
  * the secret key for decryption a EnvelopedData KEKRI RecipientInfo.
  *
  * Returns 0 on success, negative upon error */
-WOLFSSL_API int wc_PKCS7_SetKey(wc_PKCS7* pkcs7, byte* key, word32 keySz)
+int wc_PKCS7_SetKey(wc_PKCS7* pkcs7, byte* key, word32 keySz)
 {
     if (pkcs7 == NULL || key == NULL || keySz == 0)
         return BAD_FUNC_ARG;
@@ -12358,16 +12189,15 @@ static int PKCS7_CacheEncryptedContent(wc_PKCS7* pkcs7, byte* in, word32 inSz)
 
 
 /* unwrap and decrypt PKCS#7 envelopedData object, return decoded size */
-WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
+int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                                          word32 inSz, byte* output,
                                          word32 outputSz)
 {
     int recipFound = 0;
     int ret, length = 0;
     word32 idx = 0;
-#ifndef NO_PKCS7_STREAM
     word32 tmpIdx = 0;
-#endif
+    word32 recipientSetSz = 0;
     word32 contentType = 0, encOID = 0;
     word32 decryptedKeySz = MAX_ENCRYPTED_KEY_SZ;
 
@@ -12426,17 +12256,21 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
             if (decryptedKey == NULL)
                 return MEMORY_E;
             wc_PKCS7_ChangeState(pkcs7, WC_PKCS7_ENV_2);
-        #ifndef NO_PKCS7_STREAM
             tmpIdx = idx;
+            recipientSetSz = (word32)ret;
+        #ifndef NO_PKCS7_STREAM
             pkcs7->stream->aad = decryptedKey;
+            /* get the full recipient set */
+            pkcs7->stream->expected     = recipientSetSz;
+            pkcs7->stream->recipientSz  = ret;
         #endif
             FALL_THROUGH;
 
         case WC_PKCS7_ENV_2:
         #ifndef NO_PKCS7_STREAM
             /* store up enough buffer for initial info set decode */
-            if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz, MAX_LENGTH_SZ +
-                            MAX_VERSION_SZ + ASN_TAG_SZ, &pkiMsg, &idx)) != 0) {
+            if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz,
+                    pkcs7->stream->expected, &pkiMsg, &idx)) != 0) {
                 return ret;
             }
         #endif
@@ -12452,8 +12286,8 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
         #ifndef NO_PKCS7_STREAM
             decryptedKey   = pkcs7->stream->aad;
             decryptedKeySz = MAX_ENCRYPTED_KEY_SZ;
+            tmpIdx = idx;
         #endif
-
             ret = wc_PKCS7_DecryptRecipientInfos(pkcs7, in, inSz, &idx,
                                         decryptedKey, &decryptedKeySz,
                                         &recipFound);
@@ -12466,10 +12300,24 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
             if (ret != 0)
                 break;
         #ifndef NO_PKCS7_STREAM
+            /* advance idx past recipient info set if not all recipients
+             * parsed */
+            if (pkcs7->stream->totalRd < ((word32)pkcs7->stream->recipientSz +
+                    tmpIdx)) {
+                idx = tmpIdx + (word32)pkcs7->stream->recipientSz;
+
+                /* process additional recipients as read */
+                if ((ret = wc_PKCS7_StreamEndCase(pkcs7, &tmpIdx, &idx)) != 0) {
+                    break;
+                }
+            }
+
             tmpIdx               = idx;
             pkcs7->stream->aadSz = decryptedKeySz;
             pkcs7->stream->expected = MAX_LENGTH_SZ + MAX_VERSION_SZ +
                 ASN_TAG_SZ + MAX_LENGTH_SZ;
+        #else
+            idx = tmpIdx + recipientSetSz;
         #endif
             wc_PKCS7_ChangeState(pkcs7, WC_PKCS7_ENV_3);
             FALL_THROUGH;
@@ -12653,6 +12501,7 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
             }
 
         #endif
+            pkcs7->totalEncryptedContentSz = 0;
             wc_PKCS7_ChangeState(pkcs7, WC_PKCS7_ENV_5);
             FALL_THROUGH;
 
@@ -12788,6 +12637,10 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                     /* advance idx past encrypted content */
                     localIdx += (word32)encryptedContentSz;
 
+                    /* keep track of total encrypted content size */
+                    pkcs7->totalEncryptedContentSz +=
+                        (word32)encryptedContentSz;
+
                     if (localIdx + ASN_INDEF_END_SZ <= pkiMsgSz) {
                         if (pkiMsg[localIdx] == ASN_EOC &&
                                 pkiMsg[localIdx+1] == ASN_EOC) {
@@ -12832,6 +12685,8 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                 wc_PKCS7_DecryptContentFree(pkcs7, encOID, pkcs7->heap);
             } else {
                 pkcs7->cachedEncryptedContentSz =
+                    (word32)encryptedContentTotalSz;
+                pkcs7->totalEncryptedContentSz =
                     (word32)encryptedContentTotalSz;
                 pkcs7->cachedEncryptedContent = (byte*)XMALLOC(
                         pkcs7->cachedEncryptedContentSz, pkcs7->heap,
@@ -12894,7 +12749,7 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                 pkcs7->cachedEncryptedContentSz = 0;
             }
 
-            ret = encryptedContentSz - padLen;
+            ret = (int)pkcs7->totalEncryptedContentSz - padLen;
         #ifndef NO_PKCS7_STREAM
             pkcs7->stream->aad = NULL;
             pkcs7->stream->aadSz = 0;
@@ -12930,6 +12785,116 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
         pkcs7->cachedEncryptedContentSz = 0;
     }
 #endif
+    return ret;
+}
+
+
+int wc_PKCS7_GetEnvelopedDataKariRid(const byte * in, word32 inSz,
+        byte * out, word32 * outSz)
+{
+    int ret = 0;
+    word32 idx = 0;
+    int length = 0;
+    word32 contentType = 0;
+    word32 ridIdx = 0;
+    byte ridTag = 0;
+
+    if (in == NULL || inSz == 0 || out == NULL || outSz == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+    /* Consume ContentInfo SEQUENCE header. */
+    else if (GetSequence(in, &idx, &length, inSz) < 0) {
+        ret = ASN_PARSE_E;
+    }
+    /* Validate the EnvelopedData OBJECT IDENTIFIER. */
+    else if (wc_GetContentType(in, &idx, &contentType, inSz) < 0) {
+        ret = ASN_PARSE_E;
+    }
+    else if (contentType != ENVELOPED_DATA) {
+        WOLFSSL_MSG("PKCS#7 input not of type EnvelopedData");
+        ret = PKCS7_OID_E;
+    }
+    /* Consume EXPLICIT content [0] header. */
+    else if (GetASNHeader(in, ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED, &idx,
+                &length, inSz) < 0) {
+        ret = ASN_PARSE_E;
+    }
+    /* Consume EnvelopedData SEQUENCE header. */
+    else if (GetSequence(in, &idx, &length, inSz) < 0) {
+        ret = ASN_PARSE_E;
+    }
+    /* Consume version. */
+    else if (GetMyVersion(in, &idx, &length, inSz) < 0) {
+        ret = ASN_PARSE_E;
+    }
+    /* Consume originatorInfo if present. */
+    else if (GetASNHeader(in, ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED, &idx,
+                &length, inSz) >= 0) {
+        idx += (word32)length;
+    }
+    /* Consume recipientInfos SET OF header. */
+    if (ret == 0 && GetSet(in, &idx, &length, inSz) < 0) {
+        ret = ASN_PARSE_E;
+    }
+    /* Consume kari [1] header. */
+    if (ret == 0 && GetASNHeader(in, ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 1,
+                &idx, &length, inSz) < 0) {
+        ret = ASN_PARSE_E;
+    }
+    /* Consume KARI version. */
+    if (ret == 0 && GetMyVersion(in, &idx, &length, inSz) < 0) {
+        ret = ASN_PARSE_E;
+    }
+    /* Consume KARI originator [0] header. */
+    if (ret == 0 && GetASNHeader(in, ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED,
+                &idx, &length, inSz) < 0) {
+        ret = ASN_PARSE_E;
+    }
+    /* Skip originator [0] content. */
+    if (ret == 0)
+        idx += (word32)length;
+    /* Consume KARI ukm [1] if present. */
+    if (ret == 0 && GetASNHeader(in, ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 1,
+                &idx, &length, inSz) >= 0) {
+        idx += (word32) length;
+    }
+    /* Consume KARI keyEncryptionAlgorithm. */
+    if (ret == 0 && GetSequence(in, &idx, &length, inSz) < 0) {
+        ret = ASN_PARSE_E;
+    }
+    /* Skip keyEncryptionAlgorithm content. */
+    if (ret == 0)
+        idx += (word32)length;
+    /* Consume RecipientEncryptedKeys SEQUENCE OF header. */
+    if (ret == 0 && GetSequence(in, &idx, &length, inSz) < 0) {
+        ret = ASN_PARSE_E;
+    }
+    /* Consume RecipientEncryptedKey SEQUENCE header. */
+    if (ret == 0 && GetSequence(in, &idx, &length, inSz) < 0) {
+        ret = ASN_PARSE_E;
+    }
+    if (ret == 0)
+        ridIdx = idx;
+    /* Consume KeyAgreeRecipientIdentifier tag. */
+    if (ret == 0 && GetASNTag(in, &idx, &ridTag, inSz) < 0) {
+        ret = ASN_PARSE_E;
+    }
+    /* Consume KeyAgreeRecipientIdentifier length. */
+    if (ret == 0 && GetLength(in, &idx, &length, inSz) < 0) {
+        ret = ASN_PARSE_E;
+    }
+    if (ret == 0) {
+        word32 ridSz = (idx + (word32)length) - ridIdx;
+        if (ridSz > *outSz) {
+            /* Not enough room in output buffer. */
+            ret = BUFFER_E;
+        }
+        else {
+            /* Copy KeyAgreeRecipientIdentifier to output buffer. */
+            XMEMCPY(out, &in[ridIdx], ridSz);
+            *outSz = ridSz;
+        }
+    }
     return ret;
 }
 
@@ -13486,7 +13451,7 @@ int wc_PKCS7_EncodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* output,
 
 
 /* unwrap and decrypt PKCS#7 AuthEnvelopedData object, return decoded size */
-WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* in,
+int wc_PKCS7_DecodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                                                  word32 inSz, byte* output,
                                                  word32 outputSz)
 {
@@ -14878,6 +14843,62 @@ int wc_PKCS7_SetDecodeEncryptedCtx(wc_PKCS7* pkcs7, void* ctx)
 #endif /* NO_PKCS7_ENCRYPTED_DATA */
 
 
+/* Unwrap and decrypt PKCS#7/CMS EncryptedKeyPackage object, return the
+ * decoded size. */
+int wc_PKCS7_DecodeEncryptedKeyPackage(wc_PKCS7 * pkcs7,
+        byte * pkiMsg, word32 pkiMsgSz, byte * output, word32 outputSz)
+{
+    int ret = 0;
+    word32 pkiIndex = 0;
+    word32 contentType = 0;
+    int length = 0;
+
+    if (pkiMsg == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+    /* Expect a SEQUENCE header to start the EncryptedKeyPackage
+     * ContentInfo. */
+    else if (GetSequence_ex(pkiMsg, &pkiIndex, &length, pkiMsgSz, 1) < 0) {
+        ret = ASN_PARSE_E;
+    }
+    /* Validate the EncryptedKeyPackage OBJECT IDENTIFIER. */
+    else if (wc_GetContentType(pkiMsg, &pkiIndex, &contentType, pkiMsgSz) < 0) {
+        ret = ASN_PARSE_E;
+    }
+    else if (contentType != ENCRYPTED_KEY_PACKAGE) {
+        WOLFSSL_MSG("PKCS#7 input not of type EncryptedKeyPackage");
+        ret = PKCS7_OID_E;
+    }
+    /* Expect content [0] tag */
+    else if (GetASNHeader(pkiMsg, ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED,
+                &pkiIndex, &length, pkiMsgSz) < 0) {
+        ret = ASN_PARSE_E;
+    }
+    /* Check for an EncryptedKeyPackage explicit CHOICE [0] tag, indicating
+     * an EnvelopedData subtype. */
+    else if (GetASNHeader(pkiMsg, ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED,
+                &pkiIndex, &length, pkiMsgSz) >= 0) {
+        /* An explicit CHOICE [0] tag was found. pkiIndex now should point
+         * to the EnvelopedData ContentInfo object within the
+         * EncryptedKeyPackage. */
+        ret = wc_PKCS7_DecodeEnvelopedData(pkcs7, &pkiMsg[pkiIndex],
+                pkiMsgSz - pkiIndex, output, outputSz);
+    }
+    else {
+#ifndef NO_PKCS7_ENCRYPTED_DATA
+        /* An explicit CHOICE [0] tag was not found. Check if we have an
+         * EncryptedData blob. */
+        ret = wc_PKCS7_DecodeEncryptedData(pkcs7, &pkiMsg[pkiIndex],
+                pkiMsgSz - pkiIndex, output, outputSz);
+#else
+        ret = ASN_PARSE_E;
+#endif
+    }
+
+    return ret;
+}
+
+
 /* set stream mode for encoding and signing
  * returns 0 on success */
 int wc_PKCS7_SetStreamMode(wc_PKCS7* pkcs7, byte flag,
@@ -15249,6 +15270,129 @@ int wc_PKCS7_DecodeCompressedData(wc_PKCS7* pkcs7, byte* pkiMsg,
 
 #endif /* HAVE_LIBZ && !NO_PKCS7_COMPRESSED_DATA */
 
+static int wc_PKCS7_DecodeSymmetricKeyPackage(const byte * skp, word32 skpSz,
+        size_t index, const byte ** out, word32 * outSz, int getKey)
+{
+    word32 skpIndex = 0;
+    int length = 0;
+    int version = 0;
+    int ret = 0;
+
+    if (skp == NULL || out == NULL || outSz == NULL)
+        ret = BAD_FUNC_ARG;
+
+    /* Expect a SEQUENCE header to start the SymmetricKeyPackage object. */
+    if (ret == 0 && GetSequence(skp, &skpIndex, &length, skpSz) < 0)
+        ret = ASN_PARSE_E;
+
+    /* Expect version v1 */
+    if (ret == 0 && GetMyVersion(skp, &skpIndex, &version, skpSz) < 0)
+        ret = ASN_PARSE_E;
+
+    if (ret == 0 && version != 1)
+        ret = ASN_PARSE_E;
+
+    if (ret == 0 && GetASNHeader(skp, ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED,
+            &skpIndex, &length, skpSz) >= 0) {
+        /* sKeyPkgAttrs [0] tag found so there are attributes present. */
+        if (getKey != 0) {
+            /* Key was requested, not attribute, so skip the attributes. */
+            skpIndex += (word32)length;
+        }
+        else {
+            /* sKeyPkgAttrs is present at &skp[skpIndex], length in length */
+            ret = wc_IndexSequenceOf(&skp[skpIndex], (word32)length, index,
+                    out, outSz);
+        }
+    }
+    else if (ret == 0 && getKey == 0) {
+        /* An attribute was requested, but none are present. */
+        ret = BAD_INDEX_E;
+    }
+
+    if (ret == 0 && getKey != 0) {
+        /* sKeys is present at &skp[skpIndex]. */
+        ret = wc_IndexSequenceOf(&skp[skpIndex], skpSz - skpIndex, index,
+                out, outSz);
+    }
+
+    return ret;
+}
+
+int wc_PKCS7_DecodeSymmetricKeyPackageAttribute(const byte * skp,
+        word32 skpSz, size_t index, const byte ** attr, word32 * attrSz)
+{
+    return wc_PKCS7_DecodeSymmetricKeyPackage(skp, skpSz, index, attr, attrSz,
+            0);
+}
+
+int wc_PKCS7_DecodeSymmetricKeyPackageKey(const byte * skp,
+        word32 skpSz, size_t index, const byte ** key, word32 * keySz)
+{
+    return wc_PKCS7_DecodeSymmetricKeyPackage(skp, skpSz, index, key, keySz, 1);
+}
+
+int wc_PKCS7_DecodeOneSymmetricKeyAttribute(const byte * osk,
+        word32 oskSz, size_t index, const byte ** attr, word32 * attrSz)
+{
+    word32 oskIndex = 0;
+    word32 tmpIndex;
+    int length = 0;
+    int ret = 0;
+
+    if (osk == NULL || attr == NULL || attrSz == NULL)
+        ret = BAD_FUNC_ARG;
+
+    /* Expect a SEQUENCE header to start the OneSymmetricKey object. */
+    if (ret == 0 && GetSequence(osk, &oskIndex, &length, oskSz) < 0)
+        ret = ASN_PARSE_E;
+
+    tmpIndex = oskIndex;
+
+    if (ret == 0 && GetSequence(osk, &tmpIndex, &length, oskSz) < 0) {
+        /* sKeyAttrs is not present. */
+        ret = BAD_INDEX_E;
+    }
+
+    /* Index the sKeyAttrs SEQUENCE OF object with the given index. */
+    if (ret == 0)
+        ret = wc_IndexSequenceOf(&osk[oskIndex], oskSz - oskIndex, index, attr,
+            attrSz);
+
+    return ret;
+}
+
+int wc_PKCS7_DecodeOneSymmetricKeyKey(const byte * osk,
+        word32 oskSz, const byte ** key, word32 * keySz)
+{
+    word32 oskIndex = 0;
+    int length = 0;
+    int ret = 0;
+
+    if (osk == NULL || key == NULL || keySz == NULL)
+        ret = BAD_FUNC_ARG;
+
+    /* Expect a SEQUENCE header to start the OneSymmetricKey object. */
+    if (ret == 0 && GetSequence(osk, &oskIndex, &length, oskSz) < 0)
+        ret = ASN_PARSE_E;
+
+    if (ret == 0 && GetSequence(osk, &oskIndex, &length, oskSz) >= 0) {
+        /* sKeyAttrs is present. Skip it. */
+        oskIndex += (word32)length;
+    }
+
+    if (ret == 0 && GetASNHeader(osk, ASN_OCTET_STRING, &oskIndex, &length,
+                oskSz) < 0)
+        ret = ASN_PARSE_E;
+
+    if (ret == 0) {
+        *key = &osk[oskIndex];
+        *keySz = (word32)length;
+    }
+
+    return ret;
+}
+
 #else  /* HAVE_PKCS7 */
 
 
@@ -15259,4 +15403,3 @@ int wc_PKCS7_DecodeCompressedData(wc_PKCS7* pkcs7, byte* pkiMsg,
 
 
 #endif /* HAVE_PKCS7 */
-

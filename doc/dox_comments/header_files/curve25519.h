@@ -108,7 +108,7 @@ int wc_curve25519_shared_secret(curve25519_key* private_key,
     the received public key.
     \param [out] out Pointer to a buffer in which to store the 32 byte computed
     secret key.
-    \param pin,out] outlen Pointer in which to store the length written to the
+    \param [in,out] outlen Pointer in which to store the length written to the
     output buffer.
     \param [in] endian EC25519_BIG_ENDIAN or EC25519_LITTLE_ENDIAN to set which
     form to use.
@@ -537,7 +537,7 @@ int wc_curve25519_import_public_ex(const byte* in, word32 inLen,
     \return BAD_FUNC_ARG Returned if any of the input parameters are NULL.
 
     \param [in] pub Pointer to the buffer containing the public key to check.
-    \param [in] pubLen Length of the public key to check.
+    \param [in] pubSz Length of the public key to check.
     \param [in] endian EC25519_BIG_ENDIAN or EC25519_LITTLE_ENDIAN to set which
     form to use.
 

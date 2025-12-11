@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -30,7 +30,7 @@
 
 /* This user_settings.h is for Espressif ESP-IDF
  *
- * Standardized wolfSSL Espressif ESP32 + ESP8266 user_settings.h V5.7.0-1
+ * Standardized wolfSSL Espressif ESP32 + ESP8266 user_settings.h V5.8.2-1 certs
  *
  * Do not include any wolfssl headers here.
  *
@@ -257,11 +257,6 @@
     #define WOLFSSL_AES_DIRECT
 #endif
 
-/* Pick a cert buffer size: */
-/* #define USE_CERT_BUFFERS_2048 */
-/* #define USE_CERT_BUFFERS_1024 */
-#define USE_CERT_BUFFERS_2048
-
 /* The Espressif sdkconfig will have chipset info.
 **
 ** Some possible values:
@@ -376,10 +371,6 @@
 /* Full debugging turned off, but show malloc failure detail */
 /* #define DEBUG_WOLFSSL */
 #define DEBUG_WOLFSSL_MALLOC
-
-/* See test.c that sets cert buffers; we'll set them here: */
-#define USE_CERT_BUFFERS_256
-#define USE_CERT_BUFFERS_2048
 
 /* RSA_LOW_MEM: Half as much memory but twice as slow. */
 #define RSA_LOW_MEM
@@ -678,9 +669,6 @@
 
     #undef  HAVE_AESGCM
     #define HAVE_AESGCM
-#else
-    /* default settings */
-    #define USE_CERT_BUFFERS_2048
 #endif
 
 /* Chipset detection from sdkconfig.h
@@ -1058,10 +1046,9 @@ Turn on timer debugging (used when CPU cycles not available)
             #error "USE_CERT_BUFFERS_1024 is already defined. Pick one."
         #endif
 
-        /* Be sure to include in app when using example certs: */
-        #include <wolfssl/certs_test.h>
+        /* Be sure to include in app, not here, when using example certs: */
+        /* #include <wolfssl/certs_test.h> */
 
-        #define USE_CERT_BUFFERS_256
         #define CTX_CA_CERT          ca_cert_der_2048
         #define CTX_CA_CERT_SIZE     sizeof_ca_cert_der_2048
         #define CTX_CA_CERT_TYPE     WOLFSSL_FILETYPE_ASN1
@@ -1085,10 +1072,9 @@ Turn on timer debugging (used when CPU cycles not available)
             #error "USE_CERT_BUFFERS_2048 is already defined. Pick one."
         #endif
 
-        /* Be sure to include in app when using example certs: */
-        #include <wolfssl/certs_test.h>
+        /* Be sure to include in app, not here, when using example certs: */
+        /* #include <wolfssl/certs_test.h> */
 
-        #define USE_CERT_BUFFERS_256
         #define CTX_CA_CERT          ca_cert_der_1024
         #define CTX_CA_CERT_SIZE     sizeof_ca_cert_der_1024
         #define CTX_CA_CERT_TYPE     WOLFSSL_FILETYPE_ASN1
@@ -1108,7 +1094,6 @@ Turn on timer debugging (used when CPU cycles not available)
         #define CTX_SERVER_KEY_TYPE  WOLFSSL_FILETYPE_ASN1
     #else
         /* Optionally define custom cert arrays, sizes, and types here */
-        #error "Must define USE_CERT_BUFFERS_2048 or USE_CERT_BUFFERS_1024"
     #endif
 #endif /* Conditional key and cert constant names */
 

@@ -5,7 +5,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -499,6 +499,11 @@ int wc_caamAddAndWait(CAAM_BUFFER* buf, int sz, word32 arg[4], word32 type)
             fprintf(stderr, ".");
         #endif
             return RAN_BLOCK_E;
+        }
+
+        if (ret == CRYPTOCB_UNAVAILABLE) {
+            WOLFSSL_MSG("Driver does not support requested operation");
+            return ret;
         }
 
         if (ret == ResourceNotAvailable) {

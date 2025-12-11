@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -977,7 +977,7 @@ int main(int argc, char* argv[])
             out_len = der->length;
         }
     }
-    else {
+    else if (ret == 0) {
 #ifdef WOLFSSL_DER_TO_PEM
     #if defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_PWDBASED)
         if (enc_der) {

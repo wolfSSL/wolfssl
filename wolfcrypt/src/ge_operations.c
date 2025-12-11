@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -264,33 +264,33 @@ void sc_reduce(byte* s)
 
     s[ 0] = (byte)(t[ 0] >>  0);
     s[ 1] = (byte)(t[ 0] >>  8);
-    s[ 2] = (byte)((t[ 0] >> 16) | (t[ 1] <<  5));
+    s[ 2] = (byte)(t[ 0] >> 16) | (byte)((byte)t[ 1] <<  5);
     s[ 3] = (byte)(t[ 1] >>  3);
     s[ 4] = (byte)(t[ 1] >> 11);
-    s[ 5] = (byte)((t[ 1] >> 19) | (t[ 2] <<  2));
+    s[ 5] = (byte)(t[ 1] >> 19) | (byte)((byte)t[ 2] <<  2);
     s[ 6] = (byte)(t[ 2] >>  6);
-    s[ 7] = (byte)((t[ 2] >> 14) | (t[ 3] <<  7));
+    s[ 7] = (byte)(t[ 2] >> 14) | (byte)((byte)t[ 3] <<  7);
     s[ 8] = (byte)(t[ 3] >>  1);
     s[ 9] = (byte)(t[ 3] >>  9);
-    s[10] = (byte)((t[ 3] >> 17) | (t[ 4] <<  4));
+    s[10] = (byte)(t[ 3] >> 17) | (byte)((byte)t[ 4] <<  4);
     s[11] = (byte)(t[ 4] >>  4);
     s[12] = (byte)(t[ 4] >> 12);
-    s[13] = (byte)((t[ 4] >> 20) | (t[ 5] <<  1));
+    s[13] = (byte)(t[ 4] >> 20) | (byte)((byte)t[ 5] <<  1);
     s[14] = (byte)(t[ 5] >>  7);
-    s[15] = (byte)((t[ 5] >> 15) | (t[ 6] <<  6));
+    s[15] = (byte)(t[ 5] >> 15) | (byte)((byte)t[ 6] <<  6);
     s[16] = (byte)(t[ 6] >>  2);
     s[17] = (byte)(t[ 6] >> 10);
-    s[18] = (byte)((t[ 6] >> 18) | (t[ 7] <<  3));
+    s[18] = (byte)(t[ 6] >> 18) | (byte)((byte)t[ 7] <<  3);
     s[19] = (byte)(t[ 7] >>  5);
     s[20] = (byte)(t[ 7] >> 13);
     s[21] = (byte)(t[ 8] >>  0);
     s[22] = (byte)(t[ 8] >>  8);
-    s[23] = (byte)((t[ 8] >> 16) | (t[ 9] <<  5));
+    s[23] = (byte)(t[ 8] >> 16) | (byte)((byte)t[ 9] <<  5);
     s[24] = (byte)(t[ 9] >>  3);
     s[25] = (byte)(t[ 9] >> 11);
-    s[26] = (byte)((t[ 9] >> 19) | (t[10] <<  2));
+    s[26] = (byte)(t[ 9] >> 19) | (byte)((byte)t[10] <<  2);
     s[27] = (byte)(t[10] >>  6);
-    s[28] = (byte)((t[10] >> 14) | (t[11] <<  7));
+    s[28] = (byte)(t[10] >> 14) | (byte)((byte)t[11] <<  7);
     s[29] = (byte)(t[11] >>  1);
     s[30] = (byte)(t[11] >>  9);
     s[31] = (byte)(t[11] >> 17);
@@ -584,33 +584,33 @@ void sc_muladd(byte* s, const byte* a, const byte* b, const byte* c)
 
     s[ 0] = (byte)(t[ 0] >>  0);
     s[ 1] = (byte)(t[ 0] >>  8);
-    s[ 2] = (byte)((t[ 0] >> 16) | (t[ 1] <<  5));
+    s[ 2] = (byte)(t[ 0] >> 16) | (byte)((byte)t[ 1] <<  5);
     s[ 3] = (byte)(t[ 1] >>  3);
     s[ 4] = (byte)(t[ 1] >> 11);
-    s[ 5] = (byte)((t[ 1] >> 19) | (t[ 2] <<  2));
+    s[ 5] = (byte)(t[ 1] >> 19) | (byte)((byte)t[ 2] <<  2);
     s[ 6] = (byte)(t[ 2] >>  6);
-    s[ 7] = (byte)((t[ 2] >> 14) | (t[ 3] <<  7));
+    s[ 7] = (byte)(t[ 2] >> 14) | (byte)((byte)t[ 3] <<  7);
     s[ 8] = (byte)(t[ 3] >>  1);
     s[ 9] = (byte)(t[ 3] >>  9);
-    s[10] = (byte)((t[ 3] >> 17) | (t[ 4] <<  4));
+    s[10] = (byte)(t[ 3] >> 17) | (byte)((byte)t[ 4] <<  4);
     s[11] = (byte)(t[ 4] >>  4);
     s[12] = (byte)(t[ 4] >> 12);
-    s[13] = (byte)((t[ 4] >> 20) | (t[ 5] <<  1));
+    s[13] = (byte)(t[ 4] >> 20) | (byte)((byte)t[ 5] <<  1);
     s[14] = (byte)(t[ 5] >>  7);
-    s[15] = (byte)((t[ 5] >> 15) | (t[ 6] <<  6));
+    s[15] = (byte)(t[ 5] >> 15) | (byte)((byte)t[ 6] <<  6);
     s[16] = (byte)(t[ 6] >>  2);
     s[17] = (byte)(t[ 6] >> 10);
-    s[18] = (byte)((t[ 6] >> 18) | (t[ 7] <<  3));
+    s[18] = (byte)(t[ 6] >> 18) | (byte)((byte)t[ 7] <<  3);
     s[19] = (byte)(t[ 7] >>  5);
     s[20] = (byte)(t[ 7] >> 13);
     s[21] = (byte)(t[ 8] >>  0);
     s[22] = (byte)(t[ 8] >>  8);
-    s[23] = (byte)((t[ 8] >> 16) | (t[ 9] <<  5));
+    s[23] = (byte)(t[ 8] >> 16) | (byte)((byte)t[ 9] <<  5);
     s[24] = (byte)(t[ 9] >>  3);
     s[25] = (byte)(t[ 9] >> 11);
-    s[26] = (byte)((t[ 9] >> 19) | (t[10] <<  2));
+    s[26] = (byte)(t[ 9] >> 19) | (byte)((byte)t[10] <<  2);
     s[27] = (byte)(t[10] >>  6);
-    s[28] = (byte)((t[10] >> 14) | (t[11] <<  7));
+    s[28] = (byte)(t[10] >> 14) | (byte)((byte)t[11] <<  7);
     s[29] = (byte)(t[11] >>  1);
     s[30] = (byte)(t[11] >>  9);
     s[31] = (byte)(t[11] >> 17);
@@ -728,17 +728,17 @@ void sc_reduce(byte* s)
     s[ 2] = (byte)(t[ 0] >> 16);
     s[ 3] = (byte)(t[ 0] >> 24);
     s[ 4] = (byte)(t[ 0] >> 32);
-    s[ 5] = (byte)(t[ 0] >> 40) | (byte)(t[ 1] <<  2);
+    s[ 5] = (byte)(t[ 0] >> 40) | (byte)((byte)t[ 1] <<  2);
     s[ 6] = (byte)(t[ 1] >>  6);
     s[ 7] = (byte)(t[ 1] >> 14);
     s[ 8] = (byte)(t[ 1] >> 22);
     s[ 9] = (byte)(t[ 1] >> 30);
-    s[10] = (byte)(t[ 1] >> 38) | (byte)(t[ 2] <<  4);
+    s[10] = (byte)(t[ 1] >> 38) | (byte)((byte)t[ 2] <<  4);
     s[11] = (byte)(t[ 2] >>  4);
     s[12] = (byte)(t[ 2] >> 12);
     s[13] = (byte)(t[ 2] >> 20);
     s[14] = (byte)(t[ 2] >> 28);
-    s[15] = (byte)(t[ 2] >> 36) | (byte)(t[ 3] <<  6);
+    s[15] = (byte)(t[ 2] >> 36) | (byte)((byte)t[ 3] <<  6);
     s[16] = (byte)(t[ 3] >>  2);
     s[17] = (byte)(t[ 3] >> 10);
     s[18] = (byte)(t[ 3] >> 18);
@@ -749,7 +749,7 @@ void sc_reduce(byte* s)
     s[23] = (byte)(t[ 4] >> 16);
     s[24] = (byte)(t[ 4] >> 24);
     s[25] = (byte)(t[ 4] >> 32);
-    s[26] = (byte)(t[ 4] >> 40) | (byte)(t[ 5] <<  2);
+    s[26] = (byte)(t[ 4] >> 40) | (byte)((byte)t[ 5] <<  2);
     s[27] = (byte)(t[ 5] >>  6);
     s[28] = (byte)(t[ 5] >> 14);
     s[29] = (byte)(t[ 5] >> 22);
@@ -880,17 +880,17 @@ void sc_muladd(byte* s, const byte* a, const byte* b, const byte* c)
     s[ 2] = (byte)(t[ 0] >> 16);
     s[ 3] = (byte)(t[ 0] >> 24);
     s[ 4] = (byte)(t[ 0] >> 32);
-    s[ 5] = (byte)(t[ 0] >> 40) | (byte)(t[ 1] <<  2);
+    s[ 5] = (byte)(t[ 0] >> 40) | (byte)((byte)t[ 1] <<  2);
     s[ 6] = (byte)(t[ 1] >>  6);
     s[ 7] = (byte)(t[ 1] >> 14);
     s[ 8] = (byte)(t[ 1] >> 22);
     s[ 9] = (byte)(t[ 1] >> 30);
-    s[10] = (byte)(t[ 1] >> 38) | (byte)(t[ 2] <<  4);
+    s[10] = (byte)(t[ 1] >> 38) | (byte)((byte)t[ 2] <<  4);
     s[11] = (byte)(t[ 2] >>  4);
     s[12] = (byte)(t[ 2] >> 12);
     s[13] = (byte)(t[ 2] >> 20);
     s[14] = (byte)(t[ 2] >> 28);
-    s[15] = (byte)(t[ 2] >> 36) | (byte)(t[ 3] <<  6);
+    s[15] = (byte)(t[ 2] >> 36) | (byte)((byte)t[ 3] <<  6);
     s[16] = (byte)(t[ 3] >>  2);
     s[17] = (byte)(t[ 3] >> 10);
     s[18] = (byte)(t[ 3] >> 18);
@@ -901,7 +901,7 @@ void sc_muladd(byte* s, const byte* a, const byte* b, const byte* c)
     s[23] = (byte)(t[ 4] >> 16);
     s[24] = (byte)(t[ 4] >> 24);
     s[25] = (byte)(t[ 4] >> 32);
-    s[26] = (byte)(t[ 4] >> 40) | (byte)(t[ 5] <<  2);
+    s[26] = (byte)(t[ 4] >> 40) | (byte)((byte)t[ 5] <<  2);
     s[27] = (byte)(t[ 5] >>  6);
     s[28] = (byte)(t[ 5] >> 14);
     s[29] = (byte)(t[ 5] >> 22);
@@ -9072,7 +9072,8 @@ static void ge_select(ge_precomp *t,int pos,signed char b)
 #ifndef CURVED25519_ASM
   ge_precomp minust;
   unsigned char bnegative = negative(b);
-  unsigned char babs = (unsigned char)(b - (((-bnegative) & b) << 1));
+  unsigned char babs = (unsigned char)(b -
+    (signed char)((unsigned char)((-bnegative) & b) << 1));
 
   ge_precomp_0(t);
   cmov(t,&base[pos][0],babs,1);
@@ -9122,7 +9123,7 @@ void ge_scalarmult_base(ge_p3 *h,const unsigned char *a)
     e[i] = (signed char)(e[i] + carry);
     carry = (signed char)(e[i] + 8);
     carry = (signed char)(carry >> 4);
-    e[i] = (signed char)(e[i] - (carry << 4));
+    e[i] = (signed char)(e[i] - (signed char)((unsigned char)carry << 4));
   }
   e[63] = (signed char)(e[63] + carry);
   /* each e[i] is between -8 and 8 */
@@ -9183,11 +9184,12 @@ static void slide(signed char *r,const unsigned char *a)
     if (r[i]) {
       for (b = 1;b <= 6 && i + b < SLIDE_SIZE;++b) {
         if (r[i + b]) {
-          if (r[i] + (r[i + b] << b) <= 15) {
-              r[i] = (signed char)(r[i] + (r[i + b] << b));
+          signed char rb = (signed char)((unsigned char)r[i + b] << b);
+          if (r[i] + rb <= 15) {
+              r[i] = (signed char)(r[i] + rb);
               r[i + b] = 0;
-          } else if (r[i] - (r[i + b] << b) >= -15) {
-            r[i] = (signed char)(r[i] - (r[i + b] << b));
+          } else if (r[i] - rb >= -15) {
+            r[i] = (signed char)(r[i] - rb);
             for (k = i + b;k < SLIDE_SIZE;++k) {
               if (!r[k]) {
                 r[k] = 1;
@@ -9761,7 +9763,7 @@ void ge_p3_tobytes(unsigned char *s,const ge_p3 *h)
   fe_mul(x,h->X,recip);
   fe_mul(y,h->Y,recip);
   fe_tobytes(s,y);
-  s[31] ^= (unsigned char)(fe_isnegative(x) << 7);
+  s[31] ^= (unsigned char)((unsigned char)fe_isnegative(x) << 7);
 }
 #endif
 
@@ -9813,8 +9815,21 @@ void ge_tobytes(unsigned char *s,const ge_p2 *h)
   fe_mul(x,h->X,recip);
   fe_mul(y,h->Y,recip);
   fe_tobytes(s,y);
-  s[31] ^= (unsigned char)(fe_isnegative(x) << 7);
+  s[31] ^= (unsigned char)((unsigned char)fe_isnegative(x) << 7);
 }
 
 #endif /* !ED25519_SMALL */
+
+/* if HAVE_ED25519 but not HAVE_CURVE25519, and an asm implementation is built,
+ * then curve25519() won't get its WOLFSSL_LOCAL attribute unless we dummy-call
+ * it here.
+ */
+#if defined(CURVED25519_ASM) && defined(WOLFSSL_API_PREFIX_MAP) && \
+    !defined(HAVE_CURVE25519) && !defined(FREESCALE_LTC_ECC)
+WOLFSSL_LOCAL void _wc_curve25519_dummy(void);
+WOLFSSL_LOCAL void _wc_curve25519_dummy(void) {
+    (void)curve25519((byte *)0, (byte *)0, (const byte *)0);
+}
+#endif
+
 #endif /* HAVE_ED25519 */

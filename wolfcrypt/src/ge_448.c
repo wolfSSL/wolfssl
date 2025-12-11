@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -22,6 +22,11 @@
 /* Based On Daniel J Bernstein's ed25519 Public Domain ref10 work.
  * Small implementation based on Daniel Beer's ed25519 public domain work.
  * Reworked for ed448 by Sean Parkinson.
+ */
+
+/* Generated using (from wolfssl):
+ *   cd ../scripts/curve448
+ *   ./gen-curve448.sh
  */
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
@@ -302,7 +307,7 @@ void ge448_to_bytes(byte *s, const ge448_p2 *h)
     fe448_mul(s, h->Y, recip);
     fe448_norm(x);
     fe448_norm(s);
-    s[56] = (x[0] & 1) << 7;
+    s[56] = (byte)(x[0] & 1) << 7;
 }
 
 /* Compress the point to y-ordinate and negative bit.
@@ -319,7 +324,7 @@ int ge448_compress_key(byte* out, const byte* xIn, const byte* yIn)
     fe448_copy(out, yIn);
     fe448_norm(x);
     fe448_norm(out);
-    out[56] = (x[0] & 1) << 7;
+    out[56] = (byte)(x[0] & 1) << 7;
 
     return 0;
 }
@@ -458,125 +463,150 @@ void sc448_reduce(byte* b)
     word128 c;
     word64 o;
 
-    /* Load from bytes */
-    t[ 0] =  (word64)((sword64) (b[ 0]) <<  0)
-          |  (word64)((sword64) (b[ 1]) <<  8)
-          |  (word64)((sword64) (b[ 2]) << 16)
-          |  (word64)((sword64) (b[ 3]) << 24)
-          |  (word64)((sword64) (b[ 4]) << 32)
-          |  (word64)((sword64) (b[ 5]) << 40)
-          |  (word64)((sword64) (b[ 6]) << 48);
-    t[ 1] =  (word64)((sword64) (b[ 7]) <<  0)
-          |  (word64)((sword64) (b[ 8]) <<  8)
-          |  (word64)((sword64) (b[ 9]) << 16)
-          |  (word64)((sword64) (b[10]) << 24)
-          |  (word64)((sword64) (b[11]) << 32)
-          |  (word64)((sword64) (b[12]) << 40)
-          |  (word64)((sword64) (b[13]) << 48);
-    t[ 2] =  (word64)((sword64) (b[14]) <<  0)
-          |  (word64)((sword64) (b[15]) <<  8)
-          |  (word64)((sword64) (b[16]) << 16)
-          |  (word64)((sword64) (b[17]) << 24)
-          |  (word64)((sword64) (b[18]) << 32)
-          |  (word64)((sword64) (b[19]) << 40)
-          |  (word64)((sword64) (b[20]) << 48);
-    t[ 3] =  (word64)((sword64) (b[21]) <<  0)
-          |  (word64)((sword64) (b[22]) <<  8)
-          |  (word64)((sword64) (b[23]) << 16)
-          |  (word64)((sword64) (b[24]) << 24)
-          |  (word64)((sword64) (b[25]) << 32)
-          |  (word64)((sword64) (b[26]) << 40)
-          |  (word64)((sword64) (b[27]) << 48);
-    t[ 4] =  (word64)((sword64) (b[28]) <<  0)
-          |  (word64)((sword64) (b[29]) <<  8)
-          |  (word64)((sword64) (b[30]) << 16)
-          |  (word64)((sword64) (b[31]) << 24)
-          |  (word64)((sword64) (b[32]) << 32)
-          |  (word64)((sword64) (b[33]) << 40)
-          |  (word64)((sword64) (b[34]) << 48);
-    t[ 5] =  (word64)((sword64) (b[35]) <<  0)
-          |  (word64)((sword64) (b[36]) <<  8)
-          |  (word64)((sword64) (b[37]) << 16)
-          |  (word64)((sword64) (b[38]) << 24)
-          |  (word64)((sword64) (b[39]) << 32)
-          |  (word64)((sword64) (b[40]) << 40)
-          |  (word64)((sword64) (b[41]) << 48);
-    t[ 6] =  (word64)((sword64) (b[42]) <<  0)
-          |  (word64)((sword64) (b[43]) <<  8)
-          |  (word64)((sword64) (b[44]) << 16)
-          |  (word64)((sword64) (b[45]) << 24)
-          |  (word64)((sword64) (b[46]) << 32)
-          |  (word64)((sword64) (b[47]) << 40)
-          |  (word64)((sword64) (b[48]) << 48);
-    t[ 7] =  (word64)((sword64) (b[49]) <<  0)
-          |  (word64)((sword64) (b[50]) <<  8)
-          |  (word64)((sword64) (b[51]) << 16)
-          |  (word64)((sword64) (b[52]) << 24)
-          |  (word64)((sword64) (b[53]) << 32)
-          |  (word64)((sword64) (b[54]) << 40)
-          |  (word64)((sword64) (b[55]) << 48);
-    t[ 8] =  (word64)((sword64) (b[56]) <<  0)
-          |  (word64)((sword64) (b[57]) <<  8)
-          |  (word64)((sword64) (b[58]) << 16)
-          |  (word64)((sword64) (b[59]) << 24)
-          |  (word64)((sword64) (b[60]) << 32)
-          |  (word64)((sword64) (b[61]) << 40)
-          |  (word64)((sword64) (b[62]) << 48);
-    t[ 9] =  (word64)((sword64) (b[63]) <<  0)
-          |  (word64)((sword64) (b[64]) <<  8)
-          |  (word64)((sword64) (b[65]) << 16)
-          |  (word64)((sword64) (b[66]) << 24)
-          |  (word64)((sword64) (b[67]) << 32)
-          |  (word64)((sword64) (b[68]) << 40)
-          |  (word64)((sword64) (b[69]) << 48);
-    t[10] =  (word64)((sword64) (b[70]) <<  0)
-          |  (word64)((sword64) (b[71]) <<  8)
-          |  (word64)((sword64) (b[72]) << 16)
-          |  (word64)((sword64) (b[73]) << 24)
-          |  (word64)((sword64) (b[74]) << 32)
-          |  (word64)((sword64) (b[75]) << 40)
-          |  (word64)((sword64) (b[76]) << 48);
-    t[11] =  (word64)((sword64) (b[77]) <<  0)
-          |  (word64)((sword64) (b[78]) <<  8)
-          |  (word64)((sword64) (b[79]) << 16)
-          |  (word64)((sword64) (b[80]) << 24)
-          |  (word64)((sword64) (b[81]) << 32)
-          |  (word64)((sword64) (b[82]) << 40)
-          |  (word64)((sword64) (b[83]) << 48);
-    t[12] =  (word64)((sword64) (b[84]) <<  0)
-          |  (word64)((sword64) (b[85]) <<  8)
-          |  (word64)((sword64) (b[86]) << 16)
-          |  (word64)((sword64) (b[87]) << 24)
-          |  (word64)((sword64) (b[88]) << 32)
-          |  (word64)((sword64) (b[89]) << 40)
-          |  (word64)((sword64) (b[90]) << 48);
-    t[13] =  (word64)((sword64) (b[91]) <<  0)
-          |  (word64)((sword64) (b[92]) <<  8)
-          |  (word64)((sword64) (b[93]) << 16)
-          |  (word64)((sword64) (b[94]) << 24)
-          |  (word64)((sword64) (b[95]) << 32)
-          |  (word64)((sword64) (b[96]) << 40)
-          |  (word64)((sword64) (b[97]) << 48);
-    t[14] =  (word64)((sword64) (b[98]) <<  0)
-          |  (word64)((sword64) (b[99]) <<  8)
-          |  (word64)((sword64) (b[100]) << 16)
-          |  (word64)((sword64) (b[101]) << 24)
-          |  (word64)((sword64) (b[102]) << 32)
-          |  (word64)((sword64) (b[103]) << 40)
-          |  (word64)((sword64) (b[104]) << 48);
-    t[15] =  (word64)((sword64) (b[105]) <<  0)
-          |  (word64)((sword64) (b[106]) <<  8)
-          |  (word64)((sword64) (b[107]) << 16)
-          |  (word64)((sword64) (b[108]) << 24)
-          |  (word64)((sword64) (b[109]) << 32)
-          |  (word64)((sword64) (b[110]) << 40)
-          |  (word64)((sword64) (b[111]) << 48);
-    t[16] =  (word64)((sword64) (b[112]) <<  0)
-          |  (word64)((sword64) (b[113]) <<  8);
+    /* Load from bytes: 114 bytes */
+#ifdef WOLFSSL_ED448_NO_LARGE_CODE
+    for (o = 0; o < 16; o++) {
+        t[o] = (word64)(
+                (((sword64)b[o * 7 + 0]) <<  0)
+              | (((sword64)b[o * 7 + 1]) <<  8)
+              | (((sword64)b[o * 7 + 2]) << 16)
+              | (((sword64)b[o * 7 + 3]) << 24)
+              | (((sword64)b[o * 7 + 4]) << 32)
+              | (((sword64)b[o * 7 + 5]) << 40)
+              | (((sword64)b[o * 7 + 6]) << 48));
+    }
+    t[16] = (word64)(
+            (((sword64)b[o * 7 + 0]) <<  0)
+          | (((sword64)b[o * 7 + 1]) <<  8));
+#else
+    t[ 0] = (word64) ((sword64) (b[ 0]) <<  0)
+          | (word64) ((sword64) (b[ 1]) <<  8)
+          | (word64) ((sword64) (b[ 2]) << 16)
+          | (word64) ((sword64) (b[ 3]) << 24)
+          | (word64) ((sword64) (b[ 4]) << 32)
+          | (word64) ((sword64) (b[ 5]) << 40)
+          | (word64) ((sword64) (b[ 6]) << 48);
+    t[ 1] = (word64) ((sword64) (b[ 7]) <<  0)
+          | (word64) ((sword64) (b[ 8]) <<  8)
+          | (word64) ((sword64) (b[ 9]) << 16)
+          | (word64) ((sword64) (b[10]) << 24)
+          | (word64) ((sword64) (b[11]) << 32)
+          | (word64) ((sword64) (b[12]) << 40)
+          | (word64) ((sword64) (b[13]) << 48);
+    t[ 2] = (word64) ((sword64) (b[14]) <<  0)
+          | (word64) ((sword64) (b[15]) <<  8)
+          | (word64) ((sword64) (b[16]) << 16)
+          | (word64) ((sword64) (b[17]) << 24)
+          | (word64) ((sword64) (b[18]) << 32)
+          | (word64) ((sword64) (b[19]) << 40)
+          | (word64) ((sword64) (b[20]) << 48);
+    t[ 3] = (word64) ((sword64) (b[21]) <<  0)
+          | (word64) ((sword64) (b[22]) <<  8)
+          | (word64) ((sword64) (b[23]) << 16)
+          | (word64) ((sword64) (b[24]) << 24)
+          | (word64) ((sword64) (b[25]) << 32)
+          | (word64) ((sword64) (b[26]) << 40)
+          | (word64) ((sword64) (b[27]) << 48);
+    t[ 4] = (word64) ((sword64) (b[28]) <<  0)
+          | (word64) ((sword64) (b[29]) <<  8)
+          | (word64) ((sword64) (b[30]) << 16)
+          | (word64) ((sword64) (b[31]) << 24)
+          | (word64) ((sword64) (b[32]) << 32)
+          | (word64) ((sword64) (b[33]) << 40)
+          | (word64) ((sword64) (b[34]) << 48);
+    t[ 5] = (word64) ((sword64) (b[35]) <<  0)
+          | (word64) ((sword64) (b[36]) <<  8)
+          | (word64) ((sword64) (b[37]) << 16)
+          | (word64) ((sword64) (b[38]) << 24)
+          | (word64) ((sword64) (b[39]) << 32)
+          | (word64) ((sword64) (b[40]) << 40)
+          | (word64) ((sword64) (b[41]) << 48);
+    t[ 6] = (word64) ((sword64) (b[42]) <<  0)
+          | (word64) ((sword64) (b[43]) <<  8)
+          | (word64) ((sword64) (b[44]) << 16)
+          | (word64) ((sword64) (b[45]) << 24)
+          | (word64) ((sword64) (b[46]) << 32)
+          | (word64) ((sword64) (b[47]) << 40)
+          | (word64) ((sword64) (b[48]) << 48);
+    t[ 7] = (word64) ((sword64) (b[49]) <<  0)
+          | (word64) ((sword64) (b[50]) <<  8)
+          | (word64) ((sword64) (b[51]) << 16)
+          | (word64) ((sword64) (b[52]) << 24)
+          | (word64) ((sword64) (b[53]) << 32)
+          | (word64) ((sword64) (b[54]) << 40)
+          | (word64) ((sword64) (b[55]) << 48);
+    t[ 8] = (word64) ((sword64) (b[56]) <<  0)
+          | (word64) ((sword64) (b[57]) <<  8)
+          | (word64) ((sword64) (b[58]) << 16)
+          | (word64) ((sword64) (b[59]) << 24)
+          | (word64) ((sword64) (b[60]) << 32)
+          | (word64) ((sword64) (b[61]) << 40)
+          | (word64) ((sword64) (b[62]) << 48);
+    t[ 9] = (word64) ((sword64) (b[63]) <<  0)
+          | (word64) ((sword64) (b[64]) <<  8)
+          | (word64) ((sword64) (b[65]) << 16)
+          | (word64) ((sword64) (b[66]) << 24)
+          | (word64) ((sword64) (b[67]) << 32)
+          | (word64) ((sword64) (b[68]) << 40)
+          | (word64) ((sword64) (b[69]) << 48);
+    t[10] = (word64) ((sword64) (b[70]) <<  0)
+          | (word64) ((sword64) (b[71]) <<  8)
+          | (word64) ((sword64) (b[72]) << 16)
+          | (word64) ((sword64) (b[73]) << 24)
+          | (word64) ((sword64) (b[74]) << 32)
+          | (word64) ((sword64) (b[75]) << 40)
+          | (word64) ((sword64) (b[76]) << 48);
+    t[11] = (word64) ((sword64) (b[77]) <<  0)
+          | (word64) ((sword64) (b[78]) <<  8)
+          | (word64) ((sword64) (b[79]) << 16)
+          | (word64) ((sword64) (b[80]) << 24)
+          | (word64) ((sword64) (b[81]) << 32)
+          | (word64) ((sword64) (b[82]) << 40)
+          | (word64) ((sword64) (b[83]) << 48);
+    t[12] = (word64) ((sword64) (b[84]) <<  0)
+          | (word64) ((sword64) (b[85]) <<  8)
+          | (word64) ((sword64) (b[86]) << 16)
+          | (word64) ((sword64) (b[87]) << 24)
+          | (word64) ((sword64) (b[88]) << 32)
+          | (word64) ((sword64) (b[89]) << 40)
+          | (word64) ((sword64) (b[90]) << 48);
+    t[13] = (word64) ((sword64) (b[91]) <<  0)
+          | (word64) ((sword64) (b[92]) <<  8)
+          | (word64) ((sword64) (b[93]) << 16)
+          | (word64) ((sword64) (b[94]) << 24)
+          | (word64) ((sword64) (b[95]) << 32)
+          | (word64) ((sword64) (b[96]) << 40)
+          | (word64) ((sword64) (b[97]) << 48);
+    t[14] = (word64) ((sword64) (b[98]) <<  0)
+          | (word64) ((sword64) (b[99]) <<  8)
+          | (word64) ((sword64) (b[100]) << 16)
+          | (word64) ((sword64) (b[101]) << 24)
+          | (word64) ((sword64) (b[102]) << 32)
+          | (word64) ((sword64) (b[103]) << 40)
+          | (word64) ((sword64) (b[104]) << 48);
+    t[15] = (word64) ((sword64) (b[105]) <<  0)
+          | (word64) ((sword64) (b[106]) <<  8)
+          | (word64) ((sword64) (b[107]) << 16)
+          | (word64) ((sword64) (b[108]) << 24)
+          | (word64) ((sword64) (b[109]) << 32)
+          | (word64) ((sword64) (b[110]) << 40)
+          | (word64) ((sword64) (b[111]) << 48);
+    t[16] = (word64) ((sword64) (b[112]) <<  0)
+          | (word64) ((sword64) (b[113]) <<  8);
+#endif /* WOLFSSL_ED448_NO_LARGE_CODE */
 
     /* Mod curve order */
     /* 2^446 - 0x8335dc163bb124b65129c96fde933d8d723a70aadc873d6d54a7bb0d */
     /* Mod top half of extra words */
+#ifdef WOLFSSL_ED448_NO_LARGE_CODE
+    for (o = 0; o < 5; o++) {
+        t[ 4 + o] += (sword128)0x21cf5b5529eec34L * t[12 + o];
+        t[ 5 + o] += (sword128)0x0f635c8e9c2ab70L * t[12 + o];
+        t[ 6 + o] += (sword128)0x2d944a725bf7a4cL * t[12 + o];
+        t[ 7 + o] += (sword128)0x20cd77058eec490L * t[12 + o];
+    }
+    t[12]  = 0;
+#else
     t[ 4] += (sword128)0x21cf5b5529eec34L * t[12];
     t[ 5] += (sword128)0x0f635c8e9c2ab70L * t[12];
     t[ 6] += (sword128)0x2d944a725bf7a4cL * t[12];
@@ -598,6 +628,7 @@ void sc448_reduce(byte* b)
     t[10] += (sword128)0x2d944a725bf7a4cL * t[16];
     t[11] += (sword128)0x20cd77058eec490L * t[16];
     t[12]  = 0;
+#endif /* WOLFSSL_ED448_NO_LARGE_CODE */
     /* Propagate carries */
     c = t[ 4] >> 56; t[ 5] += c; t[ 4] = t[ 4] & 0xffffffffffffff;
     c = t[ 5] >> 56; t[ 6] += c; t[ 5] = t[ 5] & 0xffffffffffffff;
@@ -608,6 +639,15 @@ void sc448_reduce(byte* b)
     c = t[10] >> 56; t[11] += c; t[10] = t[10] & 0xffffffffffffff;
     c = t[11] >> 56; t[12] += c; t[11] = t[11] & 0xffffffffffffff;
     /* Mod bottom half of extra words */
+#ifdef WOLFSSL_ED448_NO_LARGE_CODE
+    for (o = 0; o < 5; o++) {
+        t[ 0 + o] += (sword128)0x21cf5b5529eec34L * t[ 8 + o];
+        t[ 1 + o] += (sword128)0x0f635c8e9c2ab70L * t[ 8 + o];
+        t[ 2 + o] += (sword128)0x2d944a725bf7a4cL * t[ 8 + o];
+        t[ 3 + o] += (sword128)0x20cd77058eec490L * t[ 8 + o];
+    }
+    t[ 8]  = 0;
+#else
     t[ 0] += (sword128)0x21cf5b5529eec34L * t[ 8];
     t[ 1] += (sword128)0x0f635c8e9c2ab70L * t[ 8];
     t[ 2] += (sword128)0x2d944a725bf7a4cL * t[ 8];
@@ -629,6 +669,7 @@ void sc448_reduce(byte* b)
     t[ 6] += (sword128)0x2d944a725bf7a4cL * t[12];
     t[ 7] += (sword128)0x20cd77058eec490L * t[12];
     t[ 8]  = 0;
+#endif /* WOLFSSL_ED448_NO_LARGE_CODE */
     /* Propagate carries */
     c = t[ 0] >> 56; t[ 1] += c; t[ 0] = t[ 0] & 0xffffffffffffff;
     c = t[ 1] >> 56; t[ 2] += c; t[ 1] = t[ 1] & 0xffffffffffffff;
@@ -667,6 +708,22 @@ void sc448_reduce(byte* b)
     o = d[ 6] >> 56; d[ 7] += o; d[ 6] = d[ 6] & 0xffffffffffffff;
 
     /* Convert to bytes */
+#ifdef WOLFSSL_ED448_NO_LARGE_CODE
+    {
+        word64 ow = 0;
+        for (o = 0; o < 56; o += 7) {
+            b[o + 0] = (byte)(d[ow] >>  0);
+            b[o + 1] = (byte)(d[ow] >>  8);
+            b[o + 2] = (byte)(d[ow] >> 16);
+            b[o + 3] = (byte)(d[ow] >> 24);
+            b[o + 4] = (byte)(d[ow] >> 32);
+            b[o + 5] = (byte)(d[ow] >> 40);
+            b[o + 6] = (byte)(d[ow] >> 48);
+            ow++;
+        }
+        b[56] = 0;
+    }
+#else
     b[ 0] = (byte)(d[0 ] >>  0);
     b[ 1] = (byte)(d[0 ] >>  8);
     b[ 2] = (byte)(d[0 ] >> 16);
@@ -724,6 +781,7 @@ void sc448_reduce(byte* b)
     b[54] = (byte)(d[7 ] >> 40);
     b[55] = (byte)(d[7 ] >> 48);
     b[56] = 0;
+#endif /* WOLFSSL_ED448_NO_LARGE_CODE */
 }
 
 /* Multiply a by b and add d. r = (a * b + d) mod order
@@ -741,177 +799,216 @@ void sc448_muladd(byte* r, const byte* a, const byte* b, const byte* d)
     word64 o;
     sword64 u;
 
-    /* Load from bytes */
-    ad[ 0] =  (word64)((sword64) (a[ 0]) <<  0)
-           |  (word64)((sword64) (a[ 1]) <<  8)
-           |  (word64)((sword64) (a[ 2]) << 16)
-           |  (word64)((sword64) (a[ 3]) << 24)
-           |  (word64)((sword64) (a[ 4]) << 32)
-           |  (word64)((sword64) (a[ 5]) << 40)
-           |  (word64)((sword64) (a[ 6]) << 48);
-    ad[ 1] =  (word64)((sword64) (a[ 7]) <<  0)
-           |  (word64)((sword64) (a[ 8]) <<  8)
-           |  (word64)((sword64) (a[ 9]) << 16)
-           |  (word64)((sword64) (a[10]) << 24)
-           |  (word64)((sword64) (a[11]) << 32)
-           |  (word64)((sword64) (a[12]) << 40)
-           |  (word64)((sword64) (a[13]) << 48);
-    ad[ 2] =  (word64)((sword64) (a[14]) <<  0)
-           |  (word64)((sword64) (a[15]) <<  8)
-           |  (word64)((sword64) (a[16]) << 16)
-           |  (word64)((sword64) (a[17]) << 24)
-           |  (word64)((sword64) (a[18]) << 32)
-           |  (word64)((sword64) (a[19]) << 40)
-           |  (word64)((sword64) (a[20]) << 48);
-    ad[ 3] =  (word64)((sword64) (a[21]) <<  0)
-           |  (word64)((sword64) (a[22]) <<  8)
-           |  (word64)((sword64) (a[23]) << 16)
-           |  (word64)((sword64) (a[24]) << 24)
-           |  (word64)((sword64) (a[25]) << 32)
-           |  (word64)((sword64) (a[26]) << 40)
-           |  (word64)((sword64) (a[27]) << 48);
-    ad[ 4] =  (word64)((sword64) (a[28]) <<  0)
-           |  (word64)((sword64) (a[29]) <<  8)
-           |  (word64)((sword64) (a[30]) << 16)
-           |  (word64)((sword64) (a[31]) << 24)
-           |  (word64)((sword64) (a[32]) << 32)
-           |  (word64)((sword64) (a[33]) << 40)
-           |  (word64)((sword64) (a[34]) << 48);
-    ad[ 5] =  (word64)((sword64) (a[35]) <<  0)
-           |  (word64)((sword64) (a[36]) <<  8)
-           |  (word64)((sword64) (a[37]) << 16)
-           |  (word64)((sword64) (a[38]) << 24)
-           |  (word64)((sword64) (a[39]) << 32)
-           |  (word64)((sword64) (a[40]) << 40)
-           |  (word64)((sword64) (a[41]) << 48);
-    ad[ 6] =  (word64)((sword64) (a[42]) <<  0)
-           |  (word64)((sword64) (a[43]) <<  8)
-           |  (word64)((sword64) (a[44]) << 16)
-           |  (word64)((sword64) (a[45]) << 24)
-           |  (word64)((sword64) (a[46]) << 32)
-           |  (word64)((sword64) (a[47]) << 40)
-           |  (word64)((sword64) (a[48]) << 48);
-    ad[ 7] =  (word64)((sword64) (a[49]) <<  0)
-           |  (word64)((sword64) (a[50]) <<  8)
-           |  (word64)((sword64) (a[51]) << 16)
-           |  (word64)((sword64) (a[52]) << 24)
-           |  (word64)((sword64) (a[53]) << 32)
-           |  (word64)((sword64) (a[54]) << 40)
-           |  (word64)((sword64) (a[55]) << 48);
-    /* Load from bytes */
-    bd[ 0] =  (word64)((sword64) (b[ 0]) <<  0)
-           |  (word64)((sword64) (b[ 1]) <<  8)
-           |  (word64)((sword64) (b[ 2]) << 16)
-           |  (word64)((sword64) (b[ 3]) << 24)
-           |  (word64)((sword64) (b[ 4]) << 32)
-           |  (word64)((sword64) (b[ 5]) << 40)
-           |  (word64)((sword64) (b[ 6]) << 48);
-    bd[ 1] =  (word64)((sword64) (b[ 7]) <<  0)
-           |  (word64)((sword64) (b[ 8]) <<  8)
-           |  (word64)((sword64) (b[ 9]) << 16)
-           |  (word64)((sword64) (b[10]) << 24)
-           |  (word64)((sword64) (b[11]) << 32)
-           |  (word64)((sword64) (b[12]) << 40)
-           |  (word64)((sword64) (b[13]) << 48);
-    bd[ 2] =  (word64)((sword64) (b[14]) <<  0)
-           |  (word64)((sword64) (b[15]) <<  8)
-           |  (word64)((sword64) (b[16]) << 16)
-           |  (word64)((sword64) (b[17]) << 24)
-           |  (word64)((sword64) (b[18]) << 32)
-           |  (word64)((sword64) (b[19]) << 40)
-           |  (word64)((sword64) (b[20]) << 48);
-    bd[ 3] =  (word64)((sword64) (b[21]) <<  0)
-           |  (word64)((sword64) (b[22]) <<  8)
-           |  (word64)((sword64) (b[23]) << 16)
-           |  (word64)((sword64) (b[24]) << 24)
-           |  (word64)((sword64) (b[25]) << 32)
-           |  (word64)((sword64) (b[26]) << 40)
-           |  (word64)((sword64) (b[27]) << 48);
-    bd[ 4] =  (word64)((sword64) (b[28]) <<  0)
-           |  (word64)((sword64) (b[29]) <<  8)
-           |  (word64)((sword64) (b[30]) << 16)
-           |  (word64)((sword64) (b[31]) << 24)
-           |  (word64)((sword64) (b[32]) << 32)
-           |  (word64)((sword64) (b[33]) << 40)
-           |  (word64)((sword64) (b[34]) << 48);
-    bd[ 5] =  (word64)((sword64) (b[35]) <<  0)
-           |  (word64)((sword64) (b[36]) <<  8)
-           |  (word64)((sword64) (b[37]) << 16)
-           |  (word64)((sword64) (b[38]) << 24)
-           |  (word64)((sword64) (b[39]) << 32)
-           |  (word64)((sword64) (b[40]) << 40)
-           |  (word64)((sword64) (b[41]) << 48);
-    bd[ 6] =  (word64)((sword64) (b[42]) <<  0)
-           |  (word64)((sword64) (b[43]) <<  8)
-           |  (word64)((sword64) (b[44]) << 16)
-           |  (word64)((sword64) (b[45]) << 24)
-           |  (word64)((sword64) (b[46]) << 32)
-           |  (word64)((sword64) (b[47]) << 40)
-           |  (word64)((sword64) (b[48]) << 48);
-    bd[ 7] =  (word64)((sword64) (b[49]) <<  0)
-           |  (word64)((sword64) (b[50]) <<  8)
-           |  (word64)((sword64) (b[51]) << 16)
-           |  (word64)((sword64) (b[52]) << 24)
-           |  (word64)((sword64) (b[53]) << 32)
-           |  (word64)((sword64) (b[54]) << 40)
-           |  (word64)((sword64) (b[55]) << 48);
-    /* Load from bytes */
-    dd[ 0] =  (word64)((sword64) (d[ 0]) <<  0)
-           |  (word64)((sword64) (d[ 1]) <<  8)
-           |  (word64)((sword64) (d[ 2]) << 16)
-           |  (word64)((sword64) (d[ 3]) << 24)
-           |  (word64)((sword64) (d[ 4]) << 32)
-           |  (word64)((sword64) (d[ 5]) << 40)
-           |  (word64)((sword64) (d[ 6]) << 48);
-    dd[ 1] =  (word64)((sword64) (d[ 7]) <<  0)
-           |  (word64)((sword64) (d[ 8]) <<  8)
-           |  (word64)((sword64) (d[ 9]) << 16)
-           |  (word64)((sword64) (d[10]) << 24)
-           |  (word64)((sword64) (d[11]) << 32)
-           |  (word64)((sword64) (d[12]) << 40)
-           |  (word64)((sword64) (d[13]) << 48);
-    dd[ 2] =  (word64)((sword64) (d[14]) <<  0)
-           |  (word64)((sword64) (d[15]) <<  8)
-           |  (word64)((sword64) (d[16]) << 16)
-           |  (word64)((sword64) (d[17]) << 24)
-           |  (word64)((sword64) (d[18]) << 32)
-           |  (word64)((sword64) (d[19]) << 40)
-           |  (word64)((sword64) (d[20]) << 48);
-    dd[ 3] =  (word64)((sword64) (d[21]) <<  0)
-           |  (word64)((sword64) (d[22]) <<  8)
-           |  (word64)((sword64) (d[23]) << 16)
-           |  (word64)((sword64) (d[24]) << 24)
-           |  (word64)((sword64) (d[25]) << 32)
-           |  (word64)((sword64) (d[26]) << 40)
-           |  (word64)((sword64) (d[27]) << 48);
-    dd[ 4] =  (word64)((sword64) (d[28]) <<  0)
-           |  (word64)((sword64) (d[29]) <<  8)
-           |  (word64)((sword64) (d[30]) << 16)
-           |  (word64)((sword64) (d[31]) << 24)
-           |  (word64)((sword64) (d[32]) << 32)
-           |  (word64)((sword64) (d[33]) << 40)
-           |  (word64)((sword64) (d[34]) << 48);
-    dd[ 5] =  (word64)((sword64) (d[35]) <<  0)
-           |  (word64)((sword64) (d[36]) <<  8)
-           |  (word64)((sword64) (d[37]) << 16)
-           |  (word64)((sword64) (d[38]) << 24)
-           |  (word64)((sword64) (d[39]) << 32)
-           |  (word64)((sword64) (d[40]) << 40)
-           |  (word64)((sword64) (d[41]) << 48);
-    dd[ 6] =  (word64)((sword64) (d[42]) <<  0)
-           |  (word64)((sword64) (d[43]) <<  8)
-           |  (word64)((sword64) (d[44]) << 16)
-           |  (word64)((sword64) (d[45]) << 24)
-           |  (word64)((sword64) (d[46]) << 32)
-           |  (word64)((sword64) (d[47]) << 40)
-           |  (word64)((sword64) (d[48]) << 48);
-    dd[ 7] =  (word64)((sword64) (d[49]) <<  0)
-           |  (word64)((sword64) (d[50]) <<  8)
-           |  (word64)((sword64) (d[51]) << 16)
-           |  (word64)((sword64) (d[52]) << 24)
-           |  (word64)((sword64) (d[53]) << 32)
-           |  (word64)((sword64) (d[54]) << 40)
-           |  (word64)((sword64) (d[55]) << 48);
+    /* Load from bytes: 56 bytes */
+#ifdef WOLFSSL_ED448_NO_LARGE_CODE
+    for (o = 0; o < 8; o++) {
+        ad[o] = (word64)(
+                (((sword64)a[o * 7 + 0]) <<  0)
+              | (((sword64)a[o * 7 + 1]) <<  8)
+              | (((sword64)a[o * 7 + 2]) << 16)
+              | (((sword64)a[o * 7 + 3]) << 24)
+              | (((sword64)a[o * 7 + 4]) << 32)
+              | (((sword64)a[o * 7 + 5]) << 40)
+              | (((sword64)a[o * 7 + 6]) << 48));
+    }
+#else
+    ad[ 0] = (word64) ((sword64) (a[ 0]) <<  0)
+           | (word64) ((sword64) (a[ 1]) <<  8)
+           | (word64) ((sword64) (a[ 2]) << 16)
+           | (word64) ((sword64) (a[ 3]) << 24)
+           | (word64) ((sword64) (a[ 4]) << 32)
+           | (word64) ((sword64) (a[ 5]) << 40)
+           | (word64) ((sword64) (a[ 6]) << 48);
+    ad[ 1] = (word64) ((sword64) (a[ 7]) <<  0)
+           | (word64) ((sword64) (a[ 8]) <<  8)
+           | (word64) ((sword64) (a[ 9]) << 16)
+           | (word64) ((sword64) (a[10]) << 24)
+           | (word64) ((sword64) (a[11]) << 32)
+           | (word64) ((sword64) (a[12]) << 40)
+           | (word64) ((sword64) (a[13]) << 48);
+    ad[ 2] = (word64) ((sword64) (a[14]) <<  0)
+           | (word64) ((sword64) (a[15]) <<  8)
+           | (word64) ((sword64) (a[16]) << 16)
+           | (word64) ((sword64) (a[17]) << 24)
+           | (word64) ((sword64) (a[18]) << 32)
+           | (word64) ((sword64) (a[19]) << 40)
+           | (word64) ((sword64) (a[20]) << 48);
+    ad[ 3] = (word64) ((sword64) (a[21]) <<  0)
+           | (word64) ((sword64) (a[22]) <<  8)
+           | (word64) ((sword64) (a[23]) << 16)
+           | (word64) ((sword64) (a[24]) << 24)
+           | (word64) ((sword64) (a[25]) << 32)
+           | (word64) ((sword64) (a[26]) << 40)
+           | (word64) ((sword64) (a[27]) << 48);
+    ad[ 4] = (word64) ((sword64) (a[28]) <<  0)
+           | (word64) ((sword64) (a[29]) <<  8)
+           | (word64) ((sword64) (a[30]) << 16)
+           | (word64) ((sword64) (a[31]) << 24)
+           | (word64) ((sword64) (a[32]) << 32)
+           | (word64) ((sword64) (a[33]) << 40)
+           | (word64) ((sword64) (a[34]) << 48);
+    ad[ 5] = (word64) ((sword64) (a[35]) <<  0)
+           | (word64) ((sword64) (a[36]) <<  8)
+           | (word64) ((sword64) (a[37]) << 16)
+           | (word64) ((sword64) (a[38]) << 24)
+           | (word64) ((sword64) (a[39]) << 32)
+           | (word64) ((sword64) (a[40]) << 40)
+           | (word64) ((sword64) (a[41]) << 48);
+    ad[ 6] = (word64) ((sword64) (a[42]) <<  0)
+           | (word64) ((sword64) (a[43]) <<  8)
+           | (word64) ((sword64) (a[44]) << 16)
+           | (word64) ((sword64) (a[45]) << 24)
+           | (word64) ((sword64) (a[46]) << 32)
+           | (word64) ((sword64) (a[47]) << 40)
+           | (word64) ((sword64) (a[48]) << 48);
+    ad[ 7] = (word64) ((sword64) (a[49]) <<  0)
+           | (word64) ((sword64) (a[50]) <<  8)
+           | (word64) ((sword64) (a[51]) << 16)
+           | (word64) ((sword64) (a[52]) << 24)
+           | (word64) ((sword64) (a[53]) << 32)
+           | (word64) ((sword64) (a[54]) << 40)
+           | (word64) ((sword64) (a[55]) << 48);
+#endif /* WOLFSSL_ED448_NO_LARGE_CODE */
+    /* Load from bytes: 56 bytes */
+#ifdef WOLFSSL_ED448_NO_LARGE_CODE
+    for (o = 0; o < 8; o++) {
+        bd[o] = (word64)(
+                (((sword64)b[o * 7 + 0]) <<  0)
+              | (((sword64)b[o * 7 + 1]) <<  8)
+              | (((sword64)b[o * 7 + 2]) << 16)
+              | (((sword64)b[o * 7 + 3]) << 24)
+              | (((sword64)b[o * 7 + 4]) << 32)
+              | (((sword64)b[o * 7 + 5]) << 40)
+              | (((sword64)b[o * 7 + 6]) << 48));
+    }
+#else
+    bd[ 0] = (word64) ((sword64) (b[ 0]) <<  0)
+           | (word64) ((sword64) (b[ 1]) <<  8)
+           | (word64) ((sword64) (b[ 2]) << 16)
+           | (word64) ((sword64) (b[ 3]) << 24)
+           | (word64) ((sword64) (b[ 4]) << 32)
+           | (word64) ((sword64) (b[ 5]) << 40)
+           | (word64) ((sword64) (b[ 6]) << 48);
+    bd[ 1] = (word64) ((sword64) (b[ 7]) <<  0)
+           | (word64) ((sword64) (b[ 8]) <<  8)
+           | (word64) ((sword64) (b[ 9]) << 16)
+           | (word64) ((sword64) (b[10]) << 24)
+           | (word64) ((sword64) (b[11]) << 32)
+           | (word64) ((sword64) (b[12]) << 40)
+           | (word64) ((sword64) (b[13]) << 48);
+    bd[ 2] = (word64) ((sword64) (b[14]) <<  0)
+           | (word64) ((sword64) (b[15]) <<  8)
+           | (word64) ((sword64) (b[16]) << 16)
+           | (word64) ((sword64) (b[17]) << 24)
+           | (word64) ((sword64) (b[18]) << 32)
+           | (word64) ((sword64) (b[19]) << 40)
+           | (word64) ((sword64) (b[20]) << 48);
+    bd[ 3] = (word64) ((sword64) (b[21]) <<  0)
+           | (word64) ((sword64) (b[22]) <<  8)
+           | (word64) ((sword64) (b[23]) << 16)
+           | (word64) ((sword64) (b[24]) << 24)
+           | (word64) ((sword64) (b[25]) << 32)
+           | (word64) ((sword64) (b[26]) << 40)
+           | (word64) ((sword64) (b[27]) << 48);
+    bd[ 4] = (word64) ((sword64) (b[28]) <<  0)
+           | (word64) ((sword64) (b[29]) <<  8)
+           | (word64) ((sword64) (b[30]) << 16)
+           | (word64) ((sword64) (b[31]) << 24)
+           | (word64) ((sword64) (b[32]) << 32)
+           | (word64) ((sword64) (b[33]) << 40)
+           | (word64) ((sword64) (b[34]) << 48);
+    bd[ 5] = (word64) ((sword64) (b[35]) <<  0)
+           | (word64) ((sword64) (b[36]) <<  8)
+           | (word64) ((sword64) (b[37]) << 16)
+           | (word64) ((sword64) (b[38]) << 24)
+           | (word64) ((sword64) (b[39]) << 32)
+           | (word64) ((sword64) (b[40]) << 40)
+           | (word64) ((sword64) (b[41]) << 48);
+    bd[ 6] = (word64) ((sword64) (b[42]) <<  0)
+           | (word64) ((sword64) (b[43]) <<  8)
+           | (word64) ((sword64) (b[44]) << 16)
+           | (word64) ((sword64) (b[45]) << 24)
+           | (word64) ((sword64) (b[46]) << 32)
+           | (word64) ((sword64) (b[47]) << 40)
+           | (word64) ((sword64) (b[48]) << 48);
+    bd[ 7] = (word64) ((sword64) (b[49]) <<  0)
+           | (word64) ((sword64) (b[50]) <<  8)
+           | (word64) ((sword64) (b[51]) << 16)
+           | (word64) ((sword64) (b[52]) << 24)
+           | (word64) ((sword64) (b[53]) << 32)
+           | (word64) ((sword64) (b[54]) << 40)
+           | (word64) ((sword64) (b[55]) << 48);
+#endif /* WOLFSSL_ED448_NO_LARGE_CODE */
+    /* Load from bytes: 56 bytes */
+#ifdef WOLFSSL_ED448_NO_LARGE_CODE
+    for (o = 0; o < 8; o++) {
+        dd[o] = (word64)(
+                (((sword64)d[o * 7 + 0]) <<  0)
+              | (((sword64)d[o * 7 + 1]) <<  8)
+              | (((sword64)d[o * 7 + 2]) << 16)
+              | (((sword64)d[o * 7 + 3]) << 24)
+              | (((sword64)d[o * 7 + 4]) << 32)
+              | (((sword64)d[o * 7 + 5]) << 40)
+              | (((sword64)d[o * 7 + 6]) << 48));
+    }
+#else
+    dd[ 0] = (word64) ((sword64) (d[ 0]) <<  0)
+           | (word64) ((sword64) (d[ 1]) <<  8)
+           | (word64) ((sword64) (d[ 2]) << 16)
+           | (word64) ((sword64) (d[ 3]) << 24)
+           | (word64) ((sword64) (d[ 4]) << 32)
+           | (word64) ((sword64) (d[ 5]) << 40)
+           | (word64) ((sword64) (d[ 6]) << 48);
+    dd[ 1] = (word64) ((sword64) (d[ 7]) <<  0)
+           | (word64) ((sword64) (d[ 8]) <<  8)
+           | (word64) ((sword64) (d[ 9]) << 16)
+           | (word64) ((sword64) (d[10]) << 24)
+           | (word64) ((sword64) (d[11]) << 32)
+           | (word64) ((sword64) (d[12]) << 40)
+           | (word64) ((sword64) (d[13]) << 48);
+    dd[ 2] = (word64) ((sword64) (d[14]) <<  0)
+           | (word64) ((sword64) (d[15]) <<  8)
+           | (word64) ((sword64) (d[16]) << 16)
+           | (word64) ((sword64) (d[17]) << 24)
+           | (word64) ((sword64) (d[18]) << 32)
+           | (word64) ((sword64) (d[19]) << 40)
+           | (word64) ((sword64) (d[20]) << 48);
+    dd[ 3] = (word64) ((sword64) (d[21]) <<  0)
+           | (word64) ((sword64) (d[22]) <<  8)
+           | (word64) ((sword64) (d[23]) << 16)
+           | (word64) ((sword64) (d[24]) << 24)
+           | (word64) ((sword64) (d[25]) << 32)
+           | (word64) ((sword64) (d[26]) << 40)
+           | (word64) ((sword64) (d[27]) << 48);
+    dd[ 4] = (word64) ((sword64) (d[28]) <<  0)
+           | (word64) ((sword64) (d[29]) <<  8)
+           | (word64) ((sword64) (d[30]) << 16)
+           | (word64) ((sword64) (d[31]) << 24)
+           | (word64) ((sword64) (d[32]) << 32)
+           | (word64) ((sword64) (d[33]) << 40)
+           | (word64) ((sword64) (d[34]) << 48);
+    dd[ 5] = (word64) ((sword64) (d[35]) <<  0)
+           | (word64) ((sword64) (d[36]) <<  8)
+           | (word64) ((sword64) (d[37]) << 16)
+           | (word64) ((sword64) (d[38]) << 24)
+           | (word64) ((sword64) (d[39]) << 32)
+           | (word64) ((sword64) (d[40]) << 40)
+           | (word64) ((sword64) (d[41]) << 48);
+    dd[ 6] = (word64) ((sword64) (d[42]) <<  0)
+           | (word64) ((sword64) (d[43]) <<  8)
+           | (word64) ((sword64) (d[44]) << 16)
+           | (word64) ((sword64) (d[45]) << 24)
+           | (word64) ((sword64) (d[46]) << 32)
+           | (word64) ((sword64) (d[47]) << 40)
+           | (word64) ((sword64) (d[48]) << 48);
+    dd[ 7] = (word64) ((sword64) (d[49]) <<  0)
+           | (word64) ((sword64) (d[50]) <<  8)
+           | (word64) ((sword64) (d[51]) << 16)
+           | (word64) ((sword64) (d[52]) << 24)
+           | (word64) ((sword64) (d[53]) << 32)
+           | (word64) ((sword64) (d[54]) << 40)
+           | (word64) ((sword64) (d[55]) << 48);
+#endif /* WOLFSSL_ED448_NO_LARGE_CODE */
 
     /* a * b + d */
     t[ 0] = (word128)(dd[ 0] + (word128)((sword128)ad[ 0] * bd[ 0]));
@@ -999,6 +1096,14 @@ void sc448_muladd(byte* r, const byte* a, const byte* b, const byte* d)
     c = t[13] >> 56; t[14] += c; t[13] = t[13] & 0xffffffffffffff;
     c = t[14] >> 56; t[15] += c; t[14] = t[14] & 0xffffffffffffff;
     /* Mod top half of extra words */
+#ifdef WOLFSSL_ED448_NO_LARGE_CODE
+    for (o = 0; o < 4; o++) {
+        t[ 4 + o] += (sword128)0x21cf5b5529eec34L * t[12 + o];
+        t[ 5 + o] += (sword128)0x0f635c8e9c2ab70L * t[12 + o];
+        t[ 6 + o] += (sword128)0x2d944a725bf7a4cL * t[12 + o];
+        t[ 7 + o] += (sword128)0x20cd77058eec490L * t[12 + o];
+    }
+#else
     t[ 4] += (sword128)0x21cf5b5529eec34L * t[12];
     t[ 5] += (sword128)0x0f635c8e9c2ab70L * t[12];
     t[ 6] += (sword128)0x2d944a725bf7a4cL * t[12];
@@ -1015,6 +1120,7 @@ void sc448_muladd(byte* r, const byte* a, const byte* b, const byte* d)
     t[ 8] += (sword128)0x0f635c8e9c2ab70L * t[15];
     t[ 9] += (sword128)0x2d944a725bf7a4cL * t[15];
     t[10] += (sword128)0x20cd77058eec490L * t[15];
+#endif /* WOLFSSL_ED448_NO_LARGE_CODE */
     /* Propagate carries */
     c = t[ 4] >> 56; t[ 5] += c; t[ 4] = t[ 4] & 0xffffffffffffff;
     c = t[ 5] >> 56; t[ 6] += c; t[ 5] = t[ 5] & 0xffffffffffffff;
@@ -1024,6 +1130,14 @@ void sc448_muladd(byte* r, const byte* a, const byte* b, const byte* d)
     c = t[ 9] >> 56; t[10] += c; t[ 9] = t[ 9] & 0xffffffffffffff;
     c = t[10] >> 56; t[11] += c; t[10] = t[10] & 0xffffffffffffff;
     /* Mod bottom half of extra words */
+#ifdef WOLFSSL_ED448_NO_LARGE_CODE
+    for (o = 0; o < 4; o++) {
+        t[ 0 + o] += (sword128)0x21cf5b5529eec34L * t[ 8 + o];
+        t[ 1 + o] += (sword128)0x0f635c8e9c2ab70L * t[ 8 + o];
+        t[ 2 + o] += (sword128)0x2d944a725bf7a4cL * t[ 8 + o];
+        t[ 3 + o] += (sword128)0x20cd77058eec490L * t[ 8 + o];
+    }
+#else
     t[ 0] += (sword128)0x21cf5b5529eec34L * t[ 8];
     t[ 1] += (sword128)0x0f635c8e9c2ab70L * t[ 8];
     t[ 2] += (sword128)0x2d944a725bf7a4cL * t[ 8];
@@ -1040,6 +1154,7 @@ void sc448_muladd(byte* r, const byte* a, const byte* b, const byte* d)
     t[ 4] += (sword128)0x0f635c8e9c2ab70L * t[11];
     t[ 5] += (sword128)0x2d944a725bf7a4cL * t[11];
     t[ 6] += (sword128)0x20cd77058eec490L * t[11];
+#endif /* WOLFSSL_ED448_NO_LARGE_CODE */
     /* Propagate carries */
     c = t[ 0] >> 56; t[ 1] += c; rd[ 0] = (sword64)(t[ 0] & 0xffffffffffffff);
     c = t[ 1] >> 56; t[ 2] += c; rd[ 1] = (sword64)(t[ 1] & 0xffffffffffffff);
@@ -1100,6 +1215,22 @@ void sc448_muladd(byte* r, const byte* a, const byte* b, const byte* d)
     rd[7] = u & 0xffffffffffffff;
 
     /* Convert to bytes */
+#ifdef WOLFSSL_ED448_NO_LARGE_CODE
+    {
+        word64 ow = 0;
+        for (o = 0; o < 56; o += 7) {
+            r[o + 0] = (byte)(rd[ow] >>  0);
+            r[o + 1] = (byte)(rd[ow] >>  8);
+            r[o + 2] = (byte)(rd[ow] >> 16);
+            r[o + 3] = (byte)(rd[ow] >> 24);
+            r[o + 4] = (byte)(rd[ow] >> 32);
+            r[o + 5] = (byte)(rd[ow] >> 40);
+            r[o + 6] = (byte)(rd[ow] >> 48);
+            ow++;
+        }
+        r[56] = 0;
+    }
+#else
     r[ 0] = (byte)(rd[0 ] >>  0);
     r[ 1] = (byte)(rd[0 ] >>  8);
     r[ 2] = (byte)(rd[0 ] >> 16);
@@ -1157,6 +1288,7 @@ void sc448_muladd(byte* r, const byte* a, const byte* b, const byte* d)
     r[54] = (byte)(rd[7 ] >> 40);
     r[55] = (byte)(rd[7 ] >> 48);
     r[56] = 0;
+#endif /* WOLFSSL_ED448_NO_LARGE_CODE */
 }
 
 /* Precomputed multiples of the base point. */
@@ -5137,174 +5269,172 @@ void sc448_reduce(byte* b)
     word64 c;
     word32 o;
 
-    /* Load from bytes */
-    t[ 0] = (word64)(
-             (((sword32)((b[ 0]        ) >>  0)) <<  0)
-          |  (((sword32)((b[ 1]        ) >>  0)) <<  8)
-          |  (((sword32)((b[ 2]        ) >>  0)) << 16)
-          | ((((sword32)((b[ 3] & 0xf )) >>  0)) << 24));
-    t[ 1] = (word64)(
-             (((sword32)((b[ 3]        ) >>  4)) <<  0)
-          |  (((sword32)((b[ 4]        ) >>  0)) <<  4)
-          |  (((sword32)((b[ 5]        ) >>  0)) << 12)
-          |  (((sword32)((b[ 6]        ) >>  0)) << 20));
-    t[ 2] = (word64)(
-             (((sword32)((b[ 7]        ) >>  0)) <<  0)
-          |  (((sword32)((b[ 8]        ) >>  0)) <<  8)
-          |  (((sword32)((b[ 9]        ) >>  0)) << 16)
-          | ((((sword32)((b[10] & 0xf )) >>  0)) << 24));
-    t[ 3] = (word64)(
-             (((sword32)((b[10]        ) >>  4)) <<  0)
-          |  (((sword32)((b[11]        ) >>  0)) <<  4)
-          |  (((sword32)((b[12]        ) >>  0)) << 12)
-          |  (((sword32)((b[13]        ) >>  0)) << 20));
-    t[ 4] = (word64)(
-             (((sword32)((b[14]        ) >>  0)) <<  0)
-          |  (((sword32)((b[15]        ) >>  0)) <<  8)
-          |  (((sword32)((b[16]        ) >>  0)) << 16)
-          | ((((sword32)((b[17] & 0xf )) >>  0)) << 24));
-    t[ 5] = (word64)(
-             (((sword32)((b[17]        ) >>  4)) <<  0)
-          |  (((sword32)((b[18]        ) >>  0)) <<  4)
-          |  (((sword32)((b[19]        ) >>  0)) << 12)
-          |  (((sword32)((b[20]        ) >>  0)) << 20));
-    t[ 6] = (word64)(
-             (((sword32)((b[21]        ) >>  0)) <<  0)
-          |  (((sword32)((b[22]        ) >>  0)) <<  8)
-          |  (((sword32)((b[23]        ) >>  0)) << 16)
-          | ((((sword32)((b[24] & 0xf )) >>  0)) << 24));
-    t[ 7] = (word64)(
-             (((sword32)((b[24]        ) >>  4)) <<  0)
-          |  (((sword32)((b[25]        ) >>  0)) <<  4)
-          |  (((sword32)((b[26]        ) >>  0)) << 12)
-          |  (((sword32)((b[27]        ) >>  0)) << 20));
-    t[ 8] = (word64)(
-             (((sword32)((b[28]        ) >>  0)) <<  0)
-          |  (((sword32)((b[29]        ) >>  0)) <<  8)
-          |  (((sword32)((b[30]        ) >>  0)) << 16)
-          | ((((sword32)((b[31] & 0xf )) >>  0)) << 24));
-    t[ 9] = (word64)(
-             (((sword32)((b[31]        ) >>  4)) <<  0)
-          |  (((sword32)((b[32]        ) >>  0)) <<  4)
-          |  (((sword32)((b[33]        ) >>  0)) << 12)
-          |  (((sword32)((b[34]        ) >>  0)) << 20));
-    t[10] = (word64)(
-             (((sword32)((b[35]        ) >>  0)) <<  0)
-          |  (((sword32)((b[36]        ) >>  0)) <<  8)
-          |  (((sword32)((b[37]        ) >>  0)) << 16)
-          | ((((sword32)((b[38] & 0xf )) >>  0)) << 24));
-    t[11] = (word64)(
-             (((sword32)((b[38]        ) >>  4)) <<  0)
-          |  (((sword32)((b[39]        ) >>  0)) <<  4)
-          |  (((sword32)((b[40]        ) >>  0)) << 12)
-          |  (((sword32)((b[41]        ) >>  0)) << 20));
-    t[12] = (word64)(
-             (((sword32)((b[42]        ) >>  0)) <<  0)
-          |  (((sword32)((b[43]        ) >>  0)) <<  8)
-          |  (((sword32)((b[44]        ) >>  0)) << 16)
-          | ((((sword32)((b[45] & 0xf )) >>  0)) << 24));
-    t[13] = (word64)(
-             (((sword32)((b[45]        ) >>  4)) <<  0)
-          |  (((sword32)((b[46]        ) >>  0)) <<  4)
-          |  (((sword32)((b[47]        ) >>  0)) << 12)
-          |  (((sword32)((b[48]        ) >>  0)) << 20));
-    t[14] = (word64)(
-             (((sword32)((b[49]        ) >>  0)) <<  0)
-          |  (((sword32)((b[50]        ) >>  0)) <<  8)
-          |  (((sword32)((b[51]        ) >>  0)) << 16)
-          | ((((sword32)((b[52] & 0xf )) >>  0)) << 24));
-    t[15] = (word64)(
-             (((sword32)((b[52]        ) >>  4)) <<  0)
-          |  (((sword32)((b[53]        ) >>  0)) <<  4)
-          |  (((sword32)((b[54]        ) >>  0)) << 12)
-          |  (((sword32)((b[55]        ) >>  0)) << 20));
-    t[16] = (word64)(
-             (((sword32)((b[56]        ) >>  0)) <<  0)
-          |  (((sword32)((b[57]        ) >>  0)) <<  8)
-          |  (((sword32)((b[58]        ) >>  0)) << 16)
-          | ((((sword32)((b[59] & 0xf )) >>  0)) << 24));
-    t[17] = (word64)(
-             (((sword32)((b[59]        ) >>  4)) <<  0)
-          |  (((sword32)((b[60]        ) >>  0)) <<  4)
-          |  (((sword32)((b[61]        ) >>  0)) << 12)
-          |  (((sword32)((b[62]        ) >>  0)) << 20));
-    t[18] = (word64)(
-             (((sword32)((b[63]        ) >>  0)) <<  0)
-          |  (((sword32)((b[64]        ) >>  0)) <<  8)
-          |  (((sword32)((b[65]        ) >>  0)) << 16)
-          | ((((sword32)((b[66] & 0xf )) >>  0)) << 24));
-    t[19] = (word64)(
-             (((sword32)((b[66]        ) >>  4)) <<  0)
-          |  (((sword32)((b[67]        ) >>  0)) <<  4)
-          |  (((sword32)((b[68]        ) >>  0)) << 12)
-          |  (((sword32)((b[69]        ) >>  0)) << 20));
-    t[20] = (word64)(
-             (((sword32)((b[70]        ) >>  0)) <<  0)
-          |  (((sword32)((b[71]        ) >>  0)) <<  8)
-          |  (((sword32)((b[72]        ) >>  0)) << 16)
-          | ((((sword32)((b[73] & 0xf )) >>  0)) << 24));
-    t[21] = (word64)(
-             (((sword32)((b[73]        ) >>  4)) <<  0)
-          |  (((sword32)((b[74]        ) >>  0)) <<  4)
-          |  (((sword32)((b[75]        ) >>  0)) << 12)
-          |  (((sword32)((b[76]        ) >>  0)) << 20));
-    t[22] = (word64)(
-             (((sword32)((b[77]        ) >>  0)) <<  0)
-          |  (((sword32)((b[78]        ) >>  0)) <<  8)
-          |  (((sword32)((b[79]        ) >>  0)) << 16)
-          | ((((sword32)((b[80] & 0xf )) >>  0)) << 24));
-    t[23] = (word64)(
-             (((sword32)((b[80]        ) >>  4)) <<  0)
-          |  (((sword32)((b[81]        ) >>  0)) <<  4)
-          |  (((sword32)((b[82]        ) >>  0)) << 12)
-          |  (((sword32)((b[83]        ) >>  0)) << 20));
-    t[24] = (word64)(
-             (((sword32)((b[84]        ) >>  0)) <<  0)
-          |  (((sword32)((b[85]        ) >>  0)) <<  8)
-          |  (((sword32)((b[86]        ) >>  0)) << 16)
-          | ((((sword32)((b[87] & 0xf )) >>  0)) << 24));
-    t[25] = (word64)(
-             (((sword32)((b[87]        ) >>  4)) <<  0)
-          |  (((sword32)((b[88]        ) >>  0)) <<  4)
-          |  (((sword32)((b[89]        ) >>  0)) << 12)
-          |  (((sword32)((b[90]        ) >>  0)) << 20));
-    t[26] = (word64)(
-             (((sword32)((b[91]        ) >>  0)) <<  0)
-          |  (((sword32)((b[92]        ) >>  0)) <<  8)
-          |  (((sword32)((b[93]        ) >>  0)) << 16)
-          | ((((sword32)((b[94] & 0xf )) >>  0)) << 24));
-    t[27] = (word64)(
-             (((sword32)((b[94]        ) >>  4)) <<  0)
-          |  (((sword32)((b[95]        ) >>  0)) <<  4)
-          |  (((sword32)((b[96]        ) >>  0)) << 12)
-          |  (((sword32)((b[97]        ) >>  0)) << 20));
-    t[28] = (word64)(
-             (((sword32)((b[98]        ) >>  0)) <<  0)
-          |  (((sword32)((b[99]        ) >>  0)) <<  8)
-          |  (((sword32)((b[100]        ) >>  0)) << 16)
-          | ((((sword32)((b[101] & 0xf )) >>  0)) << 24));
-    t[29] = (word64)(
-             (((sword32)((b[101]        ) >>  4)) <<  0)
-          |  (((sword32)((b[102]        ) >>  0)) <<  4)
-          |  (((sword32)((b[103]        ) >>  0)) << 12)
-          |  (((sword32)((b[104]        ) >>  0)) << 20));
-    t[30] = (word64)(
-             (((sword32)((b[105]        ) >>  0)) <<  0)
-          |  (((sword32)((b[106]        ) >>  0)) <<  8)
-          |  (((sword32)((b[107]        ) >>  0)) << 16)
-          | ((((sword32)((b[108] & 0xf )) >>  0)) << 24));
-    t[31] = (word64)(
-             (((sword32)((b[108]        ) >>  4)) <<  0)
-          |  (((sword32)((b[109]        ) >>  0)) <<  4)
-          |  (((sword32)((b[110]        ) >>  0)) << 12)
-          |  (((sword32)((b[111]        ) >>  0)) << 20));
-    t[32] = (word64)(
+    /* Load from bytes: 114 bytes */
+#ifdef WOLFSSL_ED448_NO_LARGE_CODE
+    for (o = 0; o < 31; o += 2) {
+        t[o + 0] = (word32)(
+                     (((sword32)((b[o / 2 * 7 + 0]        ) >>  0)) <<  0)
+                  |  (((sword32)((b[o / 2 * 7 + 1]        ) >>  0)) <<  8)
+                  |  (((sword32)((b[o / 2 * 7 + 2]        ) >>  0)) << 16)
+                  | ((((sword32)((b[o / 2 * 7 + 3] & 0xf )) >>  0)) << 24));
+        t[o + 1] = (word32)(
+                     (((sword32)((b[o / 2 * 7 + 3]        ) >>  4)) <<  0)
+                  |  (((sword32)((b[o / 2 * 7 + 4]        ) >>  0)) <<  4)
+                  |  (((sword32)((b[o / 2 * 7 + 5]        ) >>  0)) << 12)
+                  |  (((sword32)((b[o / 2 * 7 + 6]        ) >>  0)) << 20));
+    }
+    t[32] = (word32)(
              (((sword32)((b[112]        ) >>  0)) <<  0)
           |  (((sword32)((b[113]        ) >>  0)) <<  8));
+#else
+    t[ 0] =  (word32) (((sword32)((b[ 0]        ) >>  0)) <<  0)
+          |  (word32) (((sword32)((b[ 1]        ) >>  0)) <<  8)
+          |  (word32) (((sword32)((b[ 2]        ) >>  0)) << 16)
+          |  (word32)((((sword32)((b[ 3] & 0xf )) >>  0)) << 24);
+    t[ 1] =  (word32) (((sword32)((b[ 3]        ) >>  4)) <<  0)
+          |  (word32) (((sword32)((b[ 4]        ) >>  0)) <<  4)
+          |  (word32) (((sword32)((b[ 5]        ) >>  0)) << 12)
+          |  (word32) (((sword32)((b[ 6]        ) >>  0)) << 20);
+    t[ 2] =  (word32) (((sword32)((b[ 7]        ) >>  0)) <<  0)
+          |  (word32) (((sword32)((b[ 8]        ) >>  0)) <<  8)
+          |  (word32) (((sword32)((b[ 9]        ) >>  0)) << 16)
+          |  (word32)((((sword32)((b[10] & 0xf )) >>  0)) << 24);
+    t[ 3] =  (word32) (((sword32)((b[10]        ) >>  4)) <<  0)
+          |  (word32) (((sword32)((b[11]        ) >>  0)) <<  4)
+          |  (word32) (((sword32)((b[12]        ) >>  0)) << 12)
+          |  (word32) (((sword32)((b[13]        ) >>  0)) << 20);
+    t[ 4] =  (word32) (((sword32)((b[14]        ) >>  0)) <<  0)
+          |  (word32) (((sword32)((b[15]        ) >>  0)) <<  8)
+          |  (word32) (((sword32)((b[16]        ) >>  0)) << 16)
+          |  (word32)((((sword32)((b[17] & 0xf )) >>  0)) << 24);
+    t[ 5] =  (word32) (((sword32)((b[17]        ) >>  4)) <<  0)
+          |  (word32) (((sword32)((b[18]        ) >>  0)) <<  4)
+          |  (word32) (((sword32)((b[19]        ) >>  0)) << 12)
+          |  (word32) (((sword32)((b[20]        ) >>  0)) << 20);
+    t[ 6] =  (word32) (((sword32)((b[21]        ) >>  0)) <<  0)
+          |  (word32) (((sword32)((b[22]        ) >>  0)) <<  8)
+          |  (word32) (((sword32)((b[23]        ) >>  0)) << 16)
+          |  (word32)((((sword32)((b[24] & 0xf )) >>  0)) << 24);
+    t[ 7] =  (word32) (((sword32)((b[24]        ) >>  4)) <<  0)
+          |  (word32) (((sword32)((b[25]        ) >>  0)) <<  4)
+          |  (word32) (((sword32)((b[26]        ) >>  0)) << 12)
+          |  (word32) (((sword32)((b[27]        ) >>  0)) << 20);
+    t[ 8] =  (word32) (((sword32)((b[28]        ) >>  0)) <<  0)
+          |  (word32) (((sword32)((b[29]        ) >>  0)) <<  8)
+          |  (word32) (((sword32)((b[30]        ) >>  0)) << 16)
+          |  (word32)((((sword32)((b[31] & 0xf )) >>  0)) << 24);
+    t[ 9] =  (word32) (((sword32)((b[31]        ) >>  4)) <<  0)
+          |  (word32) (((sword32)((b[32]        ) >>  0)) <<  4)
+          |  (word32) (((sword32)((b[33]        ) >>  0)) << 12)
+          |  (word32) (((sword32)((b[34]        ) >>  0)) << 20);
+    t[10] =  (word32) (((sword32)((b[35]        ) >>  0)) <<  0)
+          |  (word32) (((sword32)((b[36]        ) >>  0)) <<  8)
+          |  (word32) (((sword32)((b[37]        ) >>  0)) << 16)
+          |  (word32)((((sword32)((b[38] & 0xf )) >>  0)) << 24);
+    t[11] =  (word32) (((sword32)((b[38]        ) >>  4)) <<  0)
+          |  (word32) (((sword32)((b[39]        ) >>  0)) <<  4)
+          |  (word32) (((sword32)((b[40]        ) >>  0)) << 12)
+          |  (word32) (((sword32)((b[41]        ) >>  0)) << 20);
+    t[12] =  (word32) (((sword32)((b[42]        ) >>  0)) <<  0)
+          |  (word32) (((sword32)((b[43]        ) >>  0)) <<  8)
+          |  (word32) (((sword32)((b[44]        ) >>  0)) << 16)
+          |  (word32)((((sword32)((b[45] & 0xf )) >>  0)) << 24);
+    t[13] =  (word32) (((sword32)((b[45]        ) >>  4)) <<  0)
+          |  (word32) (((sword32)((b[46]        ) >>  0)) <<  4)
+          |  (word32) (((sword32)((b[47]        ) >>  0)) << 12)
+          |  (word32) (((sword32)((b[48]        ) >>  0)) << 20);
+    t[14] =  (word32) (((sword32)((b[49]        ) >>  0)) <<  0)
+          |  (word32) (((sword32)((b[50]        ) >>  0)) <<  8)
+          |  (word32) (((sword32)((b[51]        ) >>  0)) << 16)
+          |  (word32)((((sword32)((b[52] & 0xf )) >>  0)) << 24);
+    t[15] =  (word32) (((sword32)((b[52]        ) >>  4)) <<  0)
+          |  (word32) (((sword32)((b[53]        ) >>  0)) <<  4)
+          |  (word32) (((sword32)((b[54]        ) >>  0)) << 12)
+          |  (word32) (((sword32)((b[55]        ) >>  0)) << 20);
+    t[16] =  (word32) (((sword32)((b[56]        ) >>  0)) <<  0)
+          |  (word32) (((sword32)((b[57]        ) >>  0)) <<  8)
+          |  (word32) (((sword32)((b[58]        ) >>  0)) << 16)
+          |  (word32)((((sword32)((b[59] & 0xf )) >>  0)) << 24);
+    t[17] =  (word32) (((sword32)((b[59]        ) >>  4)) <<  0)
+          |  (word32) (((sword32)((b[60]        ) >>  0)) <<  4)
+          |  (word32) (((sword32)((b[61]        ) >>  0)) << 12)
+          |  (word32) (((sword32)((b[62]        ) >>  0)) << 20);
+    t[18] =  (word32) (((sword32)((b[63]        ) >>  0)) <<  0)
+          |  (word32) (((sword32)((b[64]        ) >>  0)) <<  8)
+          |  (word32) (((sword32)((b[65]        ) >>  0)) << 16)
+          |  (word32)((((sword32)((b[66] & 0xf )) >>  0)) << 24);
+    t[19] =  (word32) (((sword32)((b[66]        ) >>  4)) <<  0)
+          |  (word32) (((sword32)((b[67]        ) >>  0)) <<  4)
+          |  (word32) (((sword32)((b[68]        ) >>  0)) << 12)
+          |  (word32) (((sword32)((b[69]        ) >>  0)) << 20);
+    t[20] =  (word32) (((sword32)((b[70]        ) >>  0)) <<  0)
+          |  (word32) (((sword32)((b[71]        ) >>  0)) <<  8)
+          |  (word32) (((sword32)((b[72]        ) >>  0)) << 16)
+          |  (word32)((((sword32)((b[73] & 0xf )) >>  0)) << 24);
+    t[21] =  (word32) (((sword32)((b[73]        ) >>  4)) <<  0)
+          |  (word32) (((sword32)((b[74]        ) >>  0)) <<  4)
+          |  (word32) (((sword32)((b[75]        ) >>  0)) << 12)
+          |  (word32) (((sword32)((b[76]        ) >>  0)) << 20);
+    t[22] =  (word32) (((sword32)((b[77]        ) >>  0)) <<  0)
+          |  (word32) (((sword32)((b[78]        ) >>  0)) <<  8)
+          |  (word32) (((sword32)((b[79]        ) >>  0)) << 16)
+          |  (word32)((((sword32)((b[80] & 0xf )) >>  0)) << 24);
+    t[23] =  (word32) (((sword32)((b[80]        ) >>  4)) <<  0)
+          |  (word32) (((sword32)((b[81]        ) >>  0)) <<  4)
+          |  (word32) (((sword32)((b[82]        ) >>  0)) << 12)
+          |  (word32) (((sword32)((b[83]        ) >>  0)) << 20);
+    t[24] =  (word32) (((sword32)((b[84]        ) >>  0)) <<  0)
+          |  (word32) (((sword32)((b[85]        ) >>  0)) <<  8)
+          |  (word32) (((sword32)((b[86]        ) >>  0)) << 16)
+          |  (word32)((((sword32)((b[87] & 0xf )) >>  0)) << 24);
+    t[25] =  (word32) (((sword32)((b[87]        ) >>  4)) <<  0)
+          |  (word32) (((sword32)((b[88]        ) >>  0)) <<  4)
+          |  (word32) (((sword32)((b[89]        ) >>  0)) << 12)
+          |  (word32) (((sword32)((b[90]        ) >>  0)) << 20);
+    t[26] =  (word32) (((sword32)((b[91]        ) >>  0)) <<  0)
+          |  (word32) (((sword32)((b[92]        ) >>  0)) <<  8)
+          |  (word32) (((sword32)((b[93]        ) >>  0)) << 16)
+          |  (word32)((((sword32)((b[94] & 0xf )) >>  0)) << 24);
+    t[27] =  (word32) (((sword32)((b[94]        ) >>  4)) <<  0)
+          |  (word32) (((sword32)((b[95]        ) >>  0)) <<  4)
+          |  (word32) (((sword32)((b[96]        ) >>  0)) << 12)
+          |  (word32) (((sword32)((b[97]        ) >>  0)) << 20);
+    t[28] =  (word32) (((sword32)((b[98]        ) >>  0)) <<  0)
+          |  (word32) (((sword32)((b[99]        ) >>  0)) <<  8)
+          |  (word32) (((sword32)((b[100]        ) >>  0)) << 16)
+          |  (word32)((((sword32)((b[101] & 0xf )) >>  0)) << 24);
+    t[29] =  (word32) (((sword32)((b[101]        ) >>  4)) <<  0)
+          |  (word32) (((sword32)((b[102]        ) >>  0)) <<  4)
+          |  (word32) (((sword32)((b[103]        ) >>  0)) << 12)
+          |  (word32) (((sword32)((b[104]        ) >>  0)) << 20);
+    t[30] =  (word32) (((sword32)((b[105]        ) >>  0)) <<  0)
+          |  (word32) (((sword32)((b[106]        ) >>  0)) <<  8)
+          |  (word32) (((sword32)((b[107]        ) >>  0)) << 16)
+          |  (word32)((((sword32)((b[108] & 0xf )) >>  0)) << 24);
+    t[31] =  (word32) (((sword32)((b[108]        ) >>  4)) <<  0)
+          |  (word32) (((sword32)((b[109]        ) >>  0)) <<  4)
+          |  (word32) (((sword32)((b[110]        ) >>  0)) << 12)
+          |  (word32) (((sword32)((b[111]        ) >>  0)) << 20);
+    t[32] =  (word32) (((sword32)((b[112]        ) >>  0)) <<  0)
+          |  (word32) (((sword32)((b[113]        ) >>  0)) <<  8);
+#endif /* WOLFSSL_ED448_NO_LARGE_CODE */
 
     /* Mod curve order */
     /* 2^446 - 0x8335dc163bb124b65129c96fde933d8d723a70aadc873d6d54a7bb0d */
     /* Mod top half of extra words */
+#ifdef WOLFSSL_ED448_NO_LARGE_CODE
+    for (o = 0; o < 9; o++) {
+        t[ 8 + o] += (sword64)0x129eec34 * t[24 + o];
+        t[ 9 + o] += (sword64)0x21cf5b54 * t[24 + o];
+        t[10 + o] += (sword64)0x29c2ab70 * t[24 + o];
+        t[11 + o] += (sword64)0x0f635c8c * t[24 + o];
+        t[12 + o] += (sword64)0x25bf7a4c * t[24 + o];
+        t[13 + o] += (sword64)0x2d944a70 * t[24 + o];
+        t[14 + o] += (sword64)0x18eec490 * t[24 + o];
+        t[15 + o] += (sword64)0x20cd7704 * t[24 + o];
+    }
+    t[24]  = 0;
+#else
     t[ 8] += (sword64)0x129eec34 * t[24];
     t[ 9] += (sword64)0x21cf5b54 * t[24];
     t[10] += (sword64)0x29c2ab70 * t[24];
@@ -5378,6 +5508,7 @@ void sc448_reduce(byte* b)
     t[22] += (sword64)0x18eec490 * t[32];
     t[23] += (sword64)0x20cd7704 * t[32];
     t[24]  = 0;
+#endif /* WOLFSSL_ED448_NO_LARGE_CODE */
     /* Propagate carries */
     c = t[ 8] >> 28; t[ 9] += c; t[ 8] = t[ 8] & 0xfffffff;
     c = t[ 9] >> 28; t[10] += c; t[ 9] = t[ 9] & 0xfffffff;
@@ -5396,6 +5527,19 @@ void sc448_reduce(byte* b)
     c = t[22] >> 28; t[23] += c; t[22] = t[22] & 0xfffffff;
     c = t[23] >> 28; t[24] += c; t[23] = t[23] & 0xfffffff;
     /* Mod bottom half of extra words */
+#ifdef WOLFSSL_ED448_NO_LARGE_CODE
+    for (o = 0; o < 9; o++) {
+        t[ 0 + o] += (sword64)0x129eec34 * t[16 + o];
+        t[ 1 + o] += (sword64)0x21cf5b54 * t[16 + o];
+        t[ 2 + o] += (sword64)0x29c2ab70 * t[16 + o];
+        t[ 3 + o] += (sword64)0x0f635c8c * t[16 + o];
+        t[ 4 + o] += (sword64)0x25bf7a4c * t[16 + o];
+        t[ 5 + o] += (sword64)0x2d944a70 * t[16 + o];
+        t[ 6 + o] += (sword64)0x18eec490 * t[16 + o];
+        t[ 7 + o] += (sword64)0x20cd7704 * t[16 + o];
+    }
+    t[16]  = 0;
+#else
     t[ 0] += (sword64)0x129eec34 * t[16];
     t[ 1] += (sword64)0x21cf5b54 * t[16];
     t[ 2] += (sword64)0x29c2ab70 * t[16];
@@ -5469,6 +5613,7 @@ void sc448_reduce(byte* b)
     t[14] += (sword64)0x18eec490 * t[24];
     t[15] += (sword64)0x20cd7704 * t[24];
     t[16]  = 0;
+#endif /* WOLFSSL_ED448_NO_LARGE_CODE */
     /* Propagate carries */
     c = t[ 0] >> 28; t[ 1] += c; t[ 0] = t[ 0] & 0xfffffff;
     c = t[ 1] >> 28; t[ 2] += c; t[ 1] = t[ 1] & 0xfffffff;
@@ -5539,6 +5684,24 @@ void sc448_reduce(byte* b)
     o = d[14] >> 28; d[15] += o; d[14] = d[14] & 0xfffffff;
 
     /* Convert to bytes */
+#ifdef WOLFSSL_ED448_NO_LARGE_CODE
+    {
+        word32 ow = 0;
+        for (o = 0; o < 56; o += 7) {
+            b[o + 0]  = (byte)(d[ow] >>  0);
+            b[o + 1]  = (byte)(d[ow] >>  8);
+            b[o + 2]  = (byte)(d[ow] >> 16);
+            b[o + 3]  = (byte)(d[ow] >> 24);
+            ow++;
+            b[o + 3] += (byte)((d[ow] >>  0) << 4);
+            b[o + 4]  = (byte)(d[ow] >>  4);
+            b[o + 5]  = (byte)(d[ow] >> 12);
+            b[o + 6]  = (byte)(d[ow] >> 20);
+            ow++;
+        }
+        b[56] = 0;
+    }
+#else
     b[ 0] = (byte)(d[0 ] >>  0);
     b[ 1] = (byte)(d[0 ] >>  8);
     b[ 2] = (byte)(d[0 ] >> 16);
@@ -5596,6 +5759,7 @@ void sc448_reduce(byte* b)
     b[54] = (byte)(d[15] >> 12);
     b[55] = (byte)(d[15] >> 20);
     b[56] = 0;
+#endif /* WOLFSSL_ED448_NO_LARGE_CODE */
 }
 
 /* Multiply a by b and add d. r = (a * b + d) mod order
@@ -5613,249 +5777,246 @@ void sc448_muladd(byte* r, const byte* a, const byte* b, const byte* d)
     word32 o;
     sword32 u;
 
-    /* Load from bytes */
-    ad[ 0] = (word32)(
-              (((sword32)((a[ 0]        ) >>  0)) <<  0)
-           |  (((sword32)((a[ 1]        ) >>  0)) <<  8)
-           |  (((sword32)((a[ 2]        ) >>  0)) << 16)
-           | ((((sword32)((a[ 3] & 0xf )) >>  0)) << 24));
-    ad[ 1] = (word32)(
-              (((sword32)((a[ 3]        ) >>  4)) <<  0)
-           |  (((sword32)((a[ 4]        ) >>  0)) <<  4)
-           |  (((sword32)((a[ 5]        ) >>  0)) << 12)
-           |  (((sword32)((a[ 6]        ) >>  0)) << 20));
-    ad[ 2] = (word32)(
-              (((sword32)((a[ 7]        ) >>  0)) <<  0)
-           |  (((sword32)((a[ 8]        ) >>  0)) <<  8)
-           |  (((sword32)((a[ 9]        ) >>  0)) << 16)
-           | ((((sword32)((a[10] & 0xf )) >>  0)) << 24));
-    ad[ 3] = (word32)(
-              (((sword32)((a[10]        ) >>  4)) <<  0)
-           |  (((sword32)((a[11]        ) >>  0)) <<  4)
-           |  (((sword32)((a[12]        ) >>  0)) << 12)
-           |  (((sword32)((a[13]        ) >>  0)) << 20));
-    ad[ 4] = (word32)(
-              (((sword32)((a[14]        ) >>  0)) <<  0)
-           |  (((sword32)((a[15]        ) >>  0)) <<  8)
-           |  (((sword32)((a[16]        ) >>  0)) << 16)
-           | ((((sword32)((a[17] & 0xf )) >>  0)) << 24));
-    ad[ 5] = (word32)(
-              (((sword32)((a[17]        ) >>  4)) <<  0)
-           |  (((sword32)((a[18]        ) >>  0)) <<  4)
-           |  (((sword32)((a[19]        ) >>  0)) << 12)
-           |  (((sword32)((a[20]        ) >>  0)) << 20));
-    ad[ 6] = (word32)(
-              (((sword32)((a[21]        ) >>  0)) <<  0)
-           |  (((sword32)((a[22]        ) >>  0)) <<  8)
-           |  (((sword32)((a[23]        ) >>  0)) << 16)
-           | ((((sword32)((a[24] & 0xf )) >>  0)) << 24));
-    ad[ 7] = (word32)(
-              (((sword32)((a[24]        ) >>  4)) <<  0)
-           |  (((sword32)((a[25]        ) >>  0)) <<  4)
-           |  (((sword32)((a[26]        ) >>  0)) << 12)
-           |  (((sword32)((a[27]        ) >>  0)) << 20));
-    ad[ 8] = (word32)(
-              (((sword32)((a[28]        ) >>  0)) <<  0)
-           |  (((sword32)((a[29]        ) >>  0)) <<  8)
-           |  (((sword32)((a[30]        ) >>  0)) << 16)
-           | ((((sword32)((a[31] & 0xf )) >>  0)) << 24));
-    ad[ 9] = (word32)(
-              (((sword32)((a[31]        ) >>  4)) <<  0)
-           |  (((sword32)((a[32]        ) >>  0)) <<  4)
-           |  (((sword32)((a[33]        ) >>  0)) << 12)
-           |  (((sword32)((a[34]        ) >>  0)) << 20));
-    ad[10] = (word32)(
-              (((sword32)((a[35]        ) >>  0)) <<  0)
-           |  (((sword32)((a[36]        ) >>  0)) <<  8)
-           |  (((sword32)((a[37]        ) >>  0)) << 16)
-           | ((((sword32)((a[38] & 0xf )) >>  0)) << 24));
-    ad[11] = (word32)(
-              (((sword32)((a[38]        ) >>  4)) <<  0)
-           |  (((sword32)((a[39]        ) >>  0)) <<  4)
-           |  (((sword32)((a[40]        ) >>  0)) << 12)
-           |  (((sword32)((a[41]        ) >>  0)) << 20));
-    ad[12] = (word32)(
-              (((sword32)((a[42]        ) >>  0)) <<  0)
-           |  (((sword32)((a[43]        ) >>  0)) <<  8)
-           |  (((sword32)((a[44]        ) >>  0)) << 16)
-           | ((((sword32)((a[45] & 0xf )) >>  0)) << 24));
-    ad[13] = (word32)(
-              (((sword32)((a[45]        ) >>  4)) <<  0)
-           |  (((sword32)((a[46]        ) >>  0)) <<  4)
-           |  (((sword32)((a[47]        ) >>  0)) << 12)
-           |  (((sword32)((a[48]        ) >>  0)) << 20));
-    ad[14] = (word32)(
-              (((sword32)((a[49]        ) >>  0)) <<  0)
-           |  (((sword32)((a[50]        ) >>  0)) <<  8)
-           |  (((sword32)((a[51]        ) >>  0)) << 16)
-           | ((((sword32)((a[52] & 0xf )) >>  0)) << 24));
-    ad[15] = (word32)(
-              (((sword32)((a[52]        ) >>  4)) <<  0)
-           |  (((sword32)((a[53]        ) >>  0)) <<  4)
-           |  (((sword32)((a[54]        ) >>  0)) << 12)
-           |  (((sword32)((a[55]        ) >>  0)) << 20));
-    /* Load from bytes */
-    bd[ 0] = (word32)(
-              (((sword32)((b[ 0]        ) >>  0)) <<  0)
-           |  (((sword32)((b[ 1]        ) >>  0)) <<  8)
-           |  (((sword32)((b[ 2]        ) >>  0)) << 16)
-           | ((((sword32)((b[ 3] & 0xf )) >>  0)) << 24));
-    bd[ 1] = (word32)(
-              (((sword32)((b[ 3]        ) >>  4)) <<  0)
-           |  (((sword32)((b[ 4]        ) >>  0)) <<  4)
-           |  (((sword32)((b[ 5]        ) >>  0)) << 12)
-           |  (((sword32)((b[ 6]        ) >>  0)) << 20));
-    bd[ 2] = (word32)(
-              (((sword32)((b[ 7]        ) >>  0)) <<  0)
-           |  (((sword32)((b[ 8]        ) >>  0)) <<  8)
-           |  (((sword32)((b[ 9]        ) >>  0)) << 16)
-           | ((((sword32)((b[10] & 0xf )) >>  0)) << 24));
-    bd[ 3] = (word32)(
-              (((sword32)((b[10]        ) >>  4)) <<  0)
-           |  (((sword32)((b[11]        ) >>  0)) <<  4)
-           |  (((sword32)((b[12]        ) >>  0)) << 12)
-           |  (((sword32)((b[13]        ) >>  0)) << 20));
-    bd[ 4] = (word32)(
-              (((sword32)((b[14]        ) >>  0)) <<  0)
-           |  (((sword32)((b[15]        ) >>  0)) <<  8)
-           |  (((sword32)((b[16]        ) >>  0)) << 16)
-           | ((((sword32)((b[17] & 0xf )) >>  0)) << 24));
-    bd[ 5] = (word32)(
-              (((sword32)((b[17]        ) >>  4)) <<  0)
-           |  (((sword32)((b[18]        ) >>  0)) <<  4)
-           |  (((sword32)((b[19]        ) >>  0)) << 12)
-           |  (((sword32)((b[20]        ) >>  0)) << 20));
-    bd[ 6] = (word32)(
-              (((sword32)((b[21]        ) >>  0)) <<  0)
-           |  (((sword32)((b[22]        ) >>  0)) <<  8)
-           |  (((sword32)((b[23]        ) >>  0)) << 16)
-           | ((((sword32)((b[24] & 0xf )) >>  0)) << 24));
-    bd[ 7] = (word32)(
-              (((sword32)((b[24]        ) >>  4)) <<  0)
-           |  (((sword32)((b[25]        ) >>  0)) <<  4)
-           |  (((sword32)((b[26]        ) >>  0)) << 12)
-           |  (((sword32)((b[27]        ) >>  0)) << 20));
-    bd[ 8] = (word32)(
-              (((sword32)((b[28]        ) >>  0)) <<  0)
-           |  (((sword32)((b[29]        ) >>  0)) <<  8)
-           |  (((sword32)((b[30]        ) >>  0)) << 16)
-           | ((((sword32)((b[31] & 0xf )) >>  0)) << 24));
-    bd[ 9] = (word32)(
-              (((sword32)((b[31]        ) >>  4)) <<  0)
-           |  (((sword32)((b[32]        ) >>  0)) <<  4)
-           |  (((sword32)((b[33]        ) >>  0)) << 12)
-           |  (((sword32)((b[34]        ) >>  0)) << 20));
-    bd[10] = (word32)(
-              (((sword32)((b[35]        ) >>  0)) <<  0)
-           |  (((sword32)((b[36]        ) >>  0)) <<  8)
-           |  (((sword32)((b[37]        ) >>  0)) << 16)
-           | ((((sword32)((b[38] & 0xf )) >>  0)) << 24));
-    bd[11] = (word32)(
-              (((sword32)((b[38]        ) >>  4)) <<  0)
-           |  (((sword32)((b[39]        ) >>  0)) <<  4)
-           |  (((sword32)((b[40]        ) >>  0)) << 12)
-           |  (((sword32)((b[41]        ) >>  0)) << 20));
-    bd[12] = (word32)(
-              (((sword32)((b[42]        ) >>  0)) <<  0)
-           |  (((sword32)((b[43]        ) >>  0)) <<  8)
-           |  (((sword32)((b[44]        ) >>  0)) << 16)
-           | ((((sword32)((b[45] & 0xf )) >>  0)) << 24));
-    bd[13] = (word32)(
-              (((sword32)((b[45]        ) >>  4)) <<  0)
-           |  (((sword32)((b[46]        ) >>  0)) <<  4)
-           |  (((sword32)((b[47]        ) >>  0)) << 12)
-           |  (((sword32)((b[48]        ) >>  0)) << 20));
-    bd[14] = (word32)(
-              (((sword32)((b[49]        ) >>  0)) <<  0)
-           |  (((sword32)((b[50]        ) >>  0)) <<  8)
-           |  (((sword32)((b[51]        ) >>  0)) << 16)
-           | ((((sword32)((b[52] & 0xf )) >>  0)) << 24));
-    bd[15] = (word32)(
-              (((sword32)((b[52]        ) >>  4)) <<  0)
-           |  (((sword32)((b[53]        ) >>  0)) <<  4)
-           |  (((sword32)((b[54]        ) >>  0)) << 12)
-           |  (((sword32)((b[55]        ) >>  0)) << 20));
-    /* Load from bytes */
-    dd[ 0] = (word32)(
-              (((sword32)((d[ 0]        ) >>  0)) <<  0)
-           |  (((sword32)((d[ 1]        ) >>  0)) <<  8)
-           |  (((sword32)((d[ 2]        ) >>  0)) << 16)
-           | ((((sword32)((d[ 3] & 0xf )) >>  0)) << 24));
-    dd[ 1] = (word32)(
-              (((sword32)((d[ 3]        ) >>  4)) <<  0)
-           |  (((sword32)((d[ 4]        ) >>  0)) <<  4)
-           |  (((sword32)((d[ 5]        ) >>  0)) << 12)
-           |  (((sword32)((d[ 6]        ) >>  0)) << 20));
-    dd[ 2] = (word32)(
-              (((sword32)((d[ 7]        ) >>  0)) <<  0)
-           |  (((sword32)((d[ 8]        ) >>  0)) <<  8)
-           |  (((sword32)((d[ 9]        ) >>  0)) << 16)
-           | ((((sword32)((d[10] & 0xf )) >>  0)) << 24));
-    dd[ 3] = (word32)(
-              (((sword32)((d[10]        ) >>  4)) <<  0)
-           |  (((sword32)((d[11]        ) >>  0)) <<  4)
-           |  (((sword32)((d[12]        ) >>  0)) << 12)
-           |  (((sword32)((d[13]        ) >>  0)) << 20));
-    dd[ 4] = (word32)(
-              (((sword32)((d[14]        ) >>  0)) <<  0)
-           |  (((sword32)((d[15]        ) >>  0)) <<  8)
-           |  (((sword32)((d[16]        ) >>  0)) << 16)
-           | ((((sword32)((d[17] & 0xf )) >>  0)) << 24));
-    dd[ 5] = (word32)(
-              (((sword32)((d[17]        ) >>  4)) <<  0)
-           |  (((sword32)((d[18]        ) >>  0)) <<  4)
-           |  (((sword32)((d[19]        ) >>  0)) << 12)
-           |  (((sword32)((d[20]        ) >>  0)) << 20));
-    dd[ 6] = (word32)(
-              (((sword32)((d[21]        ) >>  0)) <<  0)
-           |  (((sword32)((d[22]        ) >>  0)) <<  8)
-           |  (((sword32)((d[23]        ) >>  0)) << 16)
-           | ((((sword32)((d[24] & 0xf )) >>  0)) << 24));
-    dd[ 7] = (word32)(
-              (((sword32)((d[24]        ) >>  4)) <<  0)
-           |  (((sword32)((d[25]        ) >>  0)) <<  4)
-           |  (((sword32)((d[26]        ) >>  0)) << 12)
-           |  (((sword32)((d[27]        ) >>  0)) << 20));
-    dd[ 8] = (word32)(
-              (((sword32)((d[28]        ) >>  0)) <<  0)
-           |  (((sword32)((d[29]        ) >>  0)) <<  8)
-           |  (((sword32)((d[30]        ) >>  0)) << 16)
-           | ((((sword32)((d[31] & 0xf )) >>  0)) << 24));
-    dd[ 9] = (word32)(
-              (((sword32)((d[31]        ) >>  4)) <<  0)
-           |  (((sword32)((d[32]        ) >>  0)) <<  4)
-           |  (((sword32)((d[33]        ) >>  0)) << 12)
-           |  (((sword32)((d[34]        ) >>  0)) << 20));
-    dd[10] = (word32)(
-              (((sword32)((d[35]        ) >>  0)) <<  0)
-           |  (((sword32)((d[36]        ) >>  0)) <<  8)
-           |  (((sword32)((d[37]        ) >>  0)) << 16)
-           | ((((sword32)((d[38] & 0xf )) >>  0)) << 24));
-    dd[11] = (word32)(
-              (((sword32)((d[38]        ) >>  4)) <<  0)
-           |  (((sword32)((d[39]        ) >>  0)) <<  4)
-           |  (((sword32)((d[40]        ) >>  0)) << 12)
-           |  (((sword32)((d[41]        ) >>  0)) << 20));
-    dd[12] = (word32)(
-              (((sword32)((d[42]        ) >>  0)) <<  0)
-           |  (((sword32)((d[43]        ) >>  0)) <<  8)
-           |  (((sword32)((d[44]        ) >>  0)) << 16)
-           | ((((sword32)((d[45] & 0xf )) >>  0)) << 24));
-    dd[13] = (word32)(
-              (((sword32)((d[45]        ) >>  4)) <<  0)
-           |  (((sword32)((d[46]        ) >>  0)) <<  4)
-           |  (((sword32)((d[47]        ) >>  0)) << 12)
-           |  (((sword32)((d[48]        ) >>  0)) << 20));
-    dd[14] = (word32)(
-              (((sword32)((d[49]        ) >>  0)) <<  0)
-           |  (((sword32)((d[50]        ) >>  0)) <<  8)
-           |  (((sword32)((d[51]        ) >>  0)) << 16)
-           | ((((sword32)((d[52] & 0xf )) >>  0)) << 24));
-    dd[15] = (word32)(
-              (((sword32)((d[52]        ) >>  4)) <<  0)
-           |  (((sword32)((d[53]        ) >>  0)) <<  4)
-           |  (((sword32)((d[54]        ) >>  0)) << 12)
-           |  (((sword32)((d[55]        ) >>  0)) << 20));
+    /* Load from bytes: 56 bytes */
+#ifdef WOLFSSL_ED448_NO_LARGE_CODE
+    for (o = 0; o < 15; o += 2) {
+        ad[o + 0] = (word32)(
+                     (((sword32)((a[o / 2 * 7 + 0]        ) >>  0)) <<  0)
+                  |  (((sword32)((a[o / 2 * 7 + 1]        ) >>  0)) <<  8)
+                  |  (((sword32)((a[o / 2 * 7 + 2]        ) >>  0)) << 16)
+                  | ((((sword32)((a[o / 2 * 7 + 3] & 0xf )) >>  0)) << 24));
+        ad[o + 1] = (word32)(
+                     (((sword32)((a[o / 2 * 7 + 3]        ) >>  4)) <<  0)
+                  |  (((sword32)((a[o / 2 * 7 + 4]        ) >>  0)) <<  4)
+                  |  (((sword32)((a[o / 2 * 7 + 5]        ) >>  0)) << 12)
+                  |  (((sword32)((a[o / 2 * 7 + 6]        ) >>  0)) << 20));
+    }
+#else
+    ad[ 0] =  (word32) (((sword32)((a[ 0]        ) >>  0)) <<  0)
+           |  (word32) (((sword32)((a[ 1]        ) >>  0)) <<  8)
+           |  (word32) (((sword32)((a[ 2]        ) >>  0)) << 16)
+           |  (word32)((((sword32)((a[ 3] & 0xf )) >>  0)) << 24);
+    ad[ 1] =  (word32) (((sword32)((a[ 3]        ) >>  4)) <<  0)
+           |  (word32) (((sword32)((a[ 4]        ) >>  0)) <<  4)
+           |  (word32) (((sword32)((a[ 5]        ) >>  0)) << 12)
+           |  (word32) (((sword32)((a[ 6]        ) >>  0)) << 20);
+    ad[ 2] =  (word32) (((sword32)((a[ 7]        ) >>  0)) <<  0)
+           |  (word32) (((sword32)((a[ 8]        ) >>  0)) <<  8)
+           |  (word32) (((sword32)((a[ 9]        ) >>  0)) << 16)
+           |  (word32)((((sword32)((a[10] & 0xf )) >>  0)) << 24);
+    ad[ 3] =  (word32) (((sword32)((a[10]        ) >>  4)) <<  0)
+           |  (word32) (((sword32)((a[11]        ) >>  0)) <<  4)
+           |  (word32) (((sword32)((a[12]        ) >>  0)) << 12)
+           |  (word32) (((sword32)((a[13]        ) >>  0)) << 20);
+    ad[ 4] =  (word32) (((sword32)((a[14]        ) >>  0)) <<  0)
+           |  (word32) (((sword32)((a[15]        ) >>  0)) <<  8)
+           |  (word32) (((sword32)((a[16]        ) >>  0)) << 16)
+           |  (word32)((((sword32)((a[17] & 0xf )) >>  0)) << 24);
+    ad[ 5] =  (word32) (((sword32)((a[17]        ) >>  4)) <<  0)
+           |  (word32) (((sword32)((a[18]        ) >>  0)) <<  4)
+           |  (word32) (((sword32)((a[19]        ) >>  0)) << 12)
+           |  (word32) (((sword32)((a[20]        ) >>  0)) << 20);
+    ad[ 6] =  (word32) (((sword32)((a[21]        ) >>  0)) <<  0)
+           |  (word32) (((sword32)((a[22]        ) >>  0)) <<  8)
+           |  (word32) (((sword32)((a[23]        ) >>  0)) << 16)
+           |  (word32)((((sword32)((a[24] & 0xf )) >>  0)) << 24);
+    ad[ 7] =  (word32) (((sword32)((a[24]        ) >>  4)) <<  0)
+           |  (word32) (((sword32)((a[25]        ) >>  0)) <<  4)
+           |  (word32) (((sword32)((a[26]        ) >>  0)) << 12)
+           |  (word32) (((sword32)((a[27]        ) >>  0)) << 20);
+    ad[ 8] =  (word32) (((sword32)((a[28]        ) >>  0)) <<  0)
+           |  (word32) (((sword32)((a[29]        ) >>  0)) <<  8)
+           |  (word32) (((sword32)((a[30]        ) >>  0)) << 16)
+           |  (word32)((((sword32)((a[31] & 0xf )) >>  0)) << 24);
+    ad[ 9] =  (word32) (((sword32)((a[31]        ) >>  4)) <<  0)
+           |  (word32) (((sword32)((a[32]        ) >>  0)) <<  4)
+           |  (word32) (((sword32)((a[33]        ) >>  0)) << 12)
+           |  (word32) (((sword32)((a[34]        ) >>  0)) << 20);
+    ad[10] =  (word32) (((sword32)((a[35]        ) >>  0)) <<  0)
+           |  (word32) (((sword32)((a[36]        ) >>  0)) <<  8)
+           |  (word32) (((sword32)((a[37]        ) >>  0)) << 16)
+           |  (word32)((((sword32)((a[38] & 0xf )) >>  0)) << 24);
+    ad[11] =  (word32) (((sword32)((a[38]        ) >>  4)) <<  0)
+           |  (word32) (((sword32)((a[39]        ) >>  0)) <<  4)
+           |  (word32) (((sword32)((a[40]        ) >>  0)) << 12)
+           |  (word32) (((sword32)((a[41]        ) >>  0)) << 20);
+    ad[12] =  (word32) (((sword32)((a[42]        ) >>  0)) <<  0)
+           |  (word32) (((sword32)((a[43]        ) >>  0)) <<  8)
+           |  (word32) (((sword32)((a[44]        ) >>  0)) << 16)
+           |  (word32)((((sword32)((a[45] & 0xf )) >>  0)) << 24);
+    ad[13] =  (word32) (((sword32)((a[45]        ) >>  4)) <<  0)
+           |  (word32) (((sword32)((a[46]        ) >>  0)) <<  4)
+           |  (word32) (((sword32)((a[47]        ) >>  0)) << 12)
+           |  (word32) (((sword32)((a[48]        ) >>  0)) << 20);
+    ad[14] =  (word32) (((sword32)((a[49]        ) >>  0)) <<  0)
+           |  (word32) (((sword32)((a[50]        ) >>  0)) <<  8)
+           |  (word32) (((sword32)((a[51]        ) >>  0)) << 16)
+           |  (word32)((((sword32)((a[52] & 0xf )) >>  0)) << 24);
+    ad[15] =  (word32) (((sword32)((a[52]        ) >>  4)) <<  0)
+           |  (word32) (((sword32)((a[53]        ) >>  0)) <<  4)
+           |  (word32) (((sword32)((a[54]        ) >>  0)) << 12)
+           |  (word32) (((sword32)((a[55]        ) >>  0)) << 20);
+#endif /* WOLFSSL_ED448_NO_LARGE_CODE */
+    /* Load from bytes: 56 bytes */
+#ifdef WOLFSSL_ED448_NO_LARGE_CODE
+    for (o = 0; o < 15; o += 2) {
+        bd[o + 0] = (word32)(
+                     (((sword32)((b[o / 2 * 7 + 0]        ) >>  0)) <<  0)
+                  |  (((sword32)((b[o / 2 * 7 + 1]        ) >>  0)) <<  8)
+                  |  (((sword32)((b[o / 2 * 7 + 2]        ) >>  0)) << 16)
+                  | ((((sword32)((b[o / 2 * 7 + 3] & 0xf )) >>  0)) << 24));
+        bd[o + 1] = (word32)(
+                     (((sword32)((b[o / 2 * 7 + 3]        ) >>  4)) <<  0)
+                  |  (((sword32)((b[o / 2 * 7 + 4]        ) >>  0)) <<  4)
+                  |  (((sword32)((b[o / 2 * 7 + 5]        ) >>  0)) << 12)
+                  |  (((sword32)((b[o / 2 * 7 + 6]        ) >>  0)) << 20));
+    }
+#else
+    bd[ 0] =  (word32) (((sword32)((b[ 0]        ) >>  0)) <<  0)
+           |  (word32) (((sword32)((b[ 1]        ) >>  0)) <<  8)
+           |  (word32) (((sword32)((b[ 2]        ) >>  0)) << 16)
+           |  (word32)((((sword32)((b[ 3] & 0xf )) >>  0)) << 24);
+    bd[ 1] =  (word32) (((sword32)((b[ 3]        ) >>  4)) <<  0)
+           |  (word32) (((sword32)((b[ 4]        ) >>  0)) <<  4)
+           |  (word32) (((sword32)((b[ 5]        ) >>  0)) << 12)
+           |  (word32) (((sword32)((b[ 6]        ) >>  0)) << 20);
+    bd[ 2] =  (word32) (((sword32)((b[ 7]        ) >>  0)) <<  0)
+           |  (word32) (((sword32)((b[ 8]        ) >>  0)) <<  8)
+           |  (word32) (((sword32)((b[ 9]        ) >>  0)) << 16)
+           |  (word32)((((sword32)((b[10] & 0xf )) >>  0)) << 24);
+    bd[ 3] =  (word32) (((sword32)((b[10]        ) >>  4)) <<  0)
+           |  (word32) (((sword32)((b[11]        ) >>  0)) <<  4)
+           |  (word32) (((sword32)((b[12]        ) >>  0)) << 12)
+           |  (word32) (((sword32)((b[13]        ) >>  0)) << 20);
+    bd[ 4] =  (word32) (((sword32)((b[14]        ) >>  0)) <<  0)
+           |  (word32) (((sword32)((b[15]        ) >>  0)) <<  8)
+           |  (word32) (((sword32)((b[16]        ) >>  0)) << 16)
+           |  (word32)((((sword32)((b[17] & 0xf )) >>  0)) << 24);
+    bd[ 5] =  (word32) (((sword32)((b[17]        ) >>  4)) <<  0)
+           |  (word32) (((sword32)((b[18]        ) >>  0)) <<  4)
+           |  (word32) (((sword32)((b[19]        ) >>  0)) << 12)
+           |  (word32) (((sword32)((b[20]        ) >>  0)) << 20);
+    bd[ 6] =  (word32) (((sword32)((b[21]        ) >>  0)) <<  0)
+           |  (word32) (((sword32)((b[22]        ) >>  0)) <<  8)
+           |  (word32) (((sword32)((b[23]        ) >>  0)) << 16)
+           |  (word32)((((sword32)((b[24] & 0xf )) >>  0)) << 24);
+    bd[ 7] =  (word32) (((sword32)((b[24]        ) >>  4)) <<  0)
+           |  (word32) (((sword32)((b[25]        ) >>  0)) <<  4)
+           |  (word32) (((sword32)((b[26]        ) >>  0)) << 12)
+           |  (word32) (((sword32)((b[27]        ) >>  0)) << 20);
+    bd[ 8] =  (word32) (((sword32)((b[28]        ) >>  0)) <<  0)
+           |  (word32) (((sword32)((b[29]        ) >>  0)) <<  8)
+           |  (word32) (((sword32)((b[30]        ) >>  0)) << 16)
+           |  (word32)((((sword32)((b[31] & 0xf )) >>  0)) << 24);
+    bd[ 9] =  (word32) (((sword32)((b[31]        ) >>  4)) <<  0)
+           |  (word32) (((sword32)((b[32]        ) >>  0)) <<  4)
+           |  (word32) (((sword32)((b[33]        ) >>  0)) << 12)
+           |  (word32) (((sword32)((b[34]        ) >>  0)) << 20);
+    bd[10] =  (word32) (((sword32)((b[35]        ) >>  0)) <<  0)
+           |  (word32) (((sword32)((b[36]        ) >>  0)) <<  8)
+           |  (word32) (((sword32)((b[37]        ) >>  0)) << 16)
+           |  (word32)((((sword32)((b[38] & 0xf )) >>  0)) << 24);
+    bd[11] =  (word32) (((sword32)((b[38]        ) >>  4)) <<  0)
+           |  (word32) (((sword32)((b[39]        ) >>  0)) <<  4)
+           |  (word32) (((sword32)((b[40]        ) >>  0)) << 12)
+           |  (word32) (((sword32)((b[41]        ) >>  0)) << 20);
+    bd[12] =  (word32) (((sword32)((b[42]        ) >>  0)) <<  0)
+           |  (word32) (((sword32)((b[43]        ) >>  0)) <<  8)
+           |  (word32) (((sword32)((b[44]        ) >>  0)) << 16)
+           |  (word32)((((sword32)((b[45] & 0xf )) >>  0)) << 24);
+    bd[13] =  (word32) (((sword32)((b[45]        ) >>  4)) <<  0)
+           |  (word32) (((sword32)((b[46]        ) >>  0)) <<  4)
+           |  (word32) (((sword32)((b[47]        ) >>  0)) << 12)
+           |  (word32) (((sword32)((b[48]        ) >>  0)) << 20);
+    bd[14] =  (word32) (((sword32)((b[49]        ) >>  0)) <<  0)
+           |  (word32) (((sword32)((b[50]        ) >>  0)) <<  8)
+           |  (word32) (((sword32)((b[51]        ) >>  0)) << 16)
+           |  (word32)((((sword32)((b[52] & 0xf )) >>  0)) << 24);
+    bd[15] =  (word32) (((sword32)((b[52]        ) >>  4)) <<  0)
+           |  (word32) (((sword32)((b[53]        ) >>  0)) <<  4)
+           |  (word32) (((sword32)((b[54]        ) >>  0)) << 12)
+           |  (word32) (((sword32)((b[55]        ) >>  0)) << 20);
+#endif /* WOLFSSL_ED448_NO_LARGE_CODE */
+    /* Load from bytes: 56 bytes */
+#ifdef WOLFSSL_ED448_NO_LARGE_CODE
+    for (o = 0; o < 15; o += 2) {
+        dd[o + 0] = (word32)(
+                     (((sword32)((d[o / 2 * 7 + 0]        ) >>  0)) <<  0)
+                  |  (((sword32)((d[o / 2 * 7 + 1]        ) >>  0)) <<  8)
+                  |  (((sword32)((d[o / 2 * 7 + 2]        ) >>  0)) << 16)
+                  | ((((sword32)((d[o / 2 * 7 + 3] & 0xf )) >>  0)) << 24));
+        dd[o + 1] = (word32)(
+                     (((sword32)((d[o / 2 * 7 + 3]        ) >>  4)) <<  0)
+                  |  (((sword32)((d[o / 2 * 7 + 4]        ) >>  0)) <<  4)
+                  |  (((sword32)((d[o / 2 * 7 + 5]        ) >>  0)) << 12)
+                  |  (((sword32)((d[o / 2 * 7 + 6]        ) >>  0)) << 20));
+    }
+#else
+    dd[ 0] =  (word32) (((sword32)((d[ 0]        ) >>  0)) <<  0)
+           |  (word32) (((sword32)((d[ 1]        ) >>  0)) <<  8)
+           |  (word32) (((sword32)((d[ 2]        ) >>  0)) << 16)
+           |  (word32)((((sword32)((d[ 3] & 0xf )) >>  0)) << 24);
+    dd[ 1] =  (word32) (((sword32)((d[ 3]        ) >>  4)) <<  0)
+           |  (word32) (((sword32)((d[ 4]        ) >>  0)) <<  4)
+           |  (word32) (((sword32)((d[ 5]        ) >>  0)) << 12)
+           |  (word32) (((sword32)((d[ 6]        ) >>  0)) << 20);
+    dd[ 2] =  (word32) (((sword32)((d[ 7]        ) >>  0)) <<  0)
+           |  (word32) (((sword32)((d[ 8]        ) >>  0)) <<  8)
+           |  (word32) (((sword32)((d[ 9]        ) >>  0)) << 16)
+           |  (word32)((((sword32)((d[10] & 0xf )) >>  0)) << 24);
+    dd[ 3] =  (word32) (((sword32)((d[10]        ) >>  4)) <<  0)
+           |  (word32) (((sword32)((d[11]        ) >>  0)) <<  4)
+           |  (word32) (((sword32)((d[12]        ) >>  0)) << 12)
+           |  (word32) (((sword32)((d[13]        ) >>  0)) << 20);
+    dd[ 4] =  (word32) (((sword32)((d[14]        ) >>  0)) <<  0)
+           |  (word32) (((sword32)((d[15]        ) >>  0)) <<  8)
+           |  (word32) (((sword32)((d[16]        ) >>  0)) << 16)
+           |  (word32)((((sword32)((d[17] & 0xf )) >>  0)) << 24);
+    dd[ 5] =  (word32) (((sword32)((d[17]        ) >>  4)) <<  0)
+           |  (word32) (((sword32)((d[18]        ) >>  0)) <<  4)
+           |  (word32) (((sword32)((d[19]        ) >>  0)) << 12)
+           |  (word32) (((sword32)((d[20]        ) >>  0)) << 20);
+    dd[ 6] =  (word32) (((sword32)((d[21]        ) >>  0)) <<  0)
+           |  (word32) (((sword32)((d[22]        ) >>  0)) <<  8)
+           |  (word32) (((sword32)((d[23]        ) >>  0)) << 16)
+           |  (word32)((((sword32)((d[24] & 0xf )) >>  0)) << 24);
+    dd[ 7] =  (word32) (((sword32)((d[24]        ) >>  4)) <<  0)
+           |  (word32) (((sword32)((d[25]        ) >>  0)) <<  4)
+           |  (word32) (((sword32)((d[26]        ) >>  0)) << 12)
+           |  (word32) (((sword32)((d[27]        ) >>  0)) << 20);
+    dd[ 8] =  (word32) (((sword32)((d[28]        ) >>  0)) <<  0)
+           |  (word32) (((sword32)((d[29]        ) >>  0)) <<  8)
+           |  (word32) (((sword32)((d[30]        ) >>  0)) << 16)
+           |  (word32)((((sword32)((d[31] & 0xf )) >>  0)) << 24);
+    dd[ 9] =  (word32) (((sword32)((d[31]        ) >>  4)) <<  0)
+           |  (word32) (((sword32)((d[32]        ) >>  0)) <<  4)
+           |  (word32) (((sword32)((d[33]        ) >>  0)) << 12)
+           |  (word32) (((sword32)((d[34]        ) >>  0)) << 20);
+    dd[10] =  (word32) (((sword32)((d[35]        ) >>  0)) <<  0)
+           |  (word32) (((sword32)((d[36]        ) >>  0)) <<  8)
+           |  (word32) (((sword32)((d[37]        ) >>  0)) << 16)
+           |  (word32)((((sword32)((d[38] & 0xf )) >>  0)) << 24);
+    dd[11] =  (word32) (((sword32)((d[38]        ) >>  4)) <<  0)
+           |  (word32) (((sword32)((d[39]        ) >>  0)) <<  4)
+           |  (word32) (((sword32)((d[40]        ) >>  0)) << 12)
+           |  (word32) (((sword32)((d[41]        ) >>  0)) << 20);
+    dd[12] =  (word32) (((sword32)((d[42]        ) >>  0)) <<  0)
+           |  (word32) (((sword32)((d[43]        ) >>  0)) <<  8)
+           |  (word32) (((sword32)((d[44]        ) >>  0)) << 16)
+           |  (word32)((((sword32)((d[45] & 0xf )) >>  0)) << 24);
+    dd[13] =  (word32) (((sword32)((d[45]        ) >>  4)) <<  0)
+           |  (word32) (((sword32)((d[46]        ) >>  0)) <<  4)
+           |  (word32) (((sword32)((d[47]        ) >>  0)) << 12)
+           |  (word32) (((sword32)((d[48]        ) >>  0)) << 20);
+    dd[14] =  (word32) (((sword32)((d[49]        ) >>  0)) <<  0)
+           |  (word32) (((sword32)((d[50]        ) >>  0)) <<  8)
+           |  (word32) (((sword32)((d[51]        ) >>  0)) << 16)
+           |  (word32)((((sword32)((d[52] & 0xf )) >>  0)) << 24);
+    dd[15] =  (word32) (((sword32)((d[52]        ) >>  4)) <<  0)
+           |  (word32) (((sword32)((d[53]        ) >>  0)) <<  4)
+           |  (word32) (((sword32)((d[54]        ) >>  0)) << 12)
+           |  (word32) (((sword32)((d[55]        ) >>  0)) << 20);
+#endif /* WOLFSSL_ED448_NO_LARGE_CODE */
 
     /* a * b + d */
     t[ 0] = (word64)(dd[ 0] + (word64)((sword64)ad[ 0] * bd[ 0]));
@@ -6151,6 +6312,18 @@ void sc448_muladd(byte* r, const byte* a, const byte* b, const byte* d)
     c = t[29] >> 28; t[30] += c; t[29] = t[29] & 0xfffffff;
     c = t[30] >> 28; t[31] += c; t[30] = t[30] & 0xfffffff;
     /* Mod top half of extra words */
+#ifdef WOLFSSL_ED448_NO_LARGE_CODE
+    for (o = 0; o < 8; o++) {
+        t[ 8 + o] += (sword64)0x129eec34 * t[24 + o];
+        t[ 9 + o] += (sword64)0x21cf5b54 * t[24 + o];
+        t[10 + o] += (sword64)0x29c2ab70 * t[24 + o];
+        t[11 + o] += (sword64)0x0f635c8c * t[24 + o];
+        t[12 + o] += (sword64)0x25bf7a4c * t[24 + o];
+        t[13 + o] += (sword64)0x2d944a70 * t[24 + o];
+        t[14 + o] += (sword64)0x18eec490 * t[24 + o];
+        t[15 + o] += (sword64)0x20cd7704 * t[24 + o];
+    }
+#else
     t[ 8] += (sword64)0x129eec34 * t[24];
     t[ 9] += (sword64)0x21cf5b54 * t[24];
     t[10] += (sword64)0x29c2ab70 * t[24];
@@ -6215,6 +6388,7 @@ void sc448_muladd(byte* r, const byte* a, const byte* b, const byte* d)
     t[20] += (sword64)0x2d944a70 * t[31];
     t[21] += (sword64)0x18eec490 * t[31];
     t[22] += (sword64)0x20cd7704 * t[31];
+#endif /* WOLFSSL_ED448_NO_LARGE_CODE */
     /* Propagate carries */
     c = t[ 8] >> 28; t[ 9] += c; t[ 8] = t[ 8] & 0xfffffff;
     c = t[ 9] >> 28; t[10] += c; t[ 9] = t[ 9] & 0xfffffff;
@@ -6232,6 +6406,18 @@ void sc448_muladd(byte* r, const byte* a, const byte* b, const byte* d)
     c = t[21] >> 28; t[22] += c; t[21] = t[21] & 0xfffffff;
     c = t[22] >> 28; t[23] += c; t[22] = t[22] & 0xfffffff;
     /* Mod bottom half of extra words */
+#ifdef WOLFSSL_ED448_NO_LARGE_CODE
+    for (o = 0; o < 8; o++) {
+        t[ 0 + o] += (sword64)0x129eec34 * t[16 + o];
+        t[ 1 + o] += (sword64)0x21cf5b54 * t[16 + o];
+        t[ 2 + o] += (sword64)0x29c2ab70 * t[16 + o];
+        t[ 3 + o] += (sword64)0x0f635c8c * t[16 + o];
+        t[ 4 + o] += (sword64)0x25bf7a4c * t[16 + o];
+        t[ 5 + o] += (sword64)0x2d944a70 * t[16 + o];
+        t[ 6 + o] += (sword64)0x18eec490 * t[16 + o];
+        t[ 7 + o] += (sword64)0x20cd7704 * t[16 + o];
+    }
+#else
     t[ 0] += (sword64)0x129eec34 * t[16];
     t[ 1] += (sword64)0x21cf5b54 * t[16];
     t[ 2] += (sword64)0x29c2ab70 * t[16];
@@ -6296,6 +6482,7 @@ void sc448_muladd(byte* r, const byte* a, const byte* b, const byte* d)
     t[12] += (sword64)0x2d944a70 * t[23];
     t[13] += (sword64)0x18eec490 * t[23];
     t[14] += (sword64)0x20cd7704 * t[23];
+#endif /* WOLFSSL_ED448_NO_LARGE_CODE */
     /* Propagate carries */
     c = t[ 0] >> 28; t[ 1] += c; rd[ 0] = (sword32)(t[ 0] & 0xfffffff);
     c = t[ 1] >> 28; t[ 2] += c; rd[ 1] = (sword32)(t[ 1] & 0xfffffff);
@@ -6408,6 +6595,24 @@ void sc448_muladd(byte* r, const byte* a, const byte* b, const byte* d)
     rd[15] = u & 0xfffffff;
 
     /* Convert to bytes */
+#ifdef WOLFSSL_ED448_NO_LARGE_CODE
+    {
+        word32 ow = 0;
+        for (o = 0; o < 56; o += 7) {
+            r[o + 0]  = (byte)(rd[ow] >>  0);
+            r[o + 1]  = (byte)(rd[ow] >>  8);
+            r[o + 2]  = (byte)(rd[ow] >> 16);
+            r[o + 3]  = (byte)(rd[ow] >> 24);
+            ow++;
+            r[o + 3] += (byte)((rd[ow] >>  0) << 4);
+            r[o + 4]  = (byte)(rd[ow] >>  4);
+            r[o + 5]  = (byte)(rd[ow] >> 12);
+            r[o + 6]  = (byte)(rd[ow] >> 20);
+            ow++;
+        }
+        r[56] = 0;
+    }
+#else
     r[ 0] = (byte)(rd[0 ] >>  0);
     r[ 1] = (byte)(rd[0 ] >>  8);
     r[ 2] = (byte)(rd[0 ] >> 16);
@@ -6465,6 +6670,7 @@ void sc448_muladd(byte* r, const byte* a, const byte* b, const byte* d)
     r[54] = (byte)(rd[15] >> 12);
     r[55] = (byte)(rd[15] >> 20);
     r[56] = 0;
+#endif /* WOLFSSL_ED448_NO_LARGE_CODE */
 }
 
 /* Precomputed multiples of the base point. */

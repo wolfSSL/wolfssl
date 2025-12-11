@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -20,6 +20,7 @@
  */
 /* Operating Environment and Threading */
 #if defined(WOLFSSL_RENESAS_RSIP)
+    #define WOLFSSL_RENESAS_RZFSP_VER     200
     /* FSP SM stands for Flexible Software Package Security Module
     *  WOLFSSL_RENESAS_FSPSM enables fundamental code when it uses.
     *    e.g. Open/Close/Random generator
@@ -104,7 +105,9 @@
 #endif
 
 #if defined(WOLFSSL_RENESAS_RSIP_CRYPTONLY)
+    #define WOLF_CRYPTO_CB_RSA_PAD
     #define WOLFSSL_KEY_GEN
+    #define RSA_MIN_SIZE 512
 #endif
 
 int uart_printf (const char *__restrict format, ...);
@@ -112,4 +115,7 @@ int uart_printf (const char *__restrict format, ...);
 #define printf uart_printf
 
 #define TEST_SLEEP() vTaskDelay(50)
+#if defined(WOLFSSL_RENESAS_RSIP)
 #define CUSTOM_RAND_GENERATE_BLOCK wc_fspsm_GenerateRandBlock
+#endif
+

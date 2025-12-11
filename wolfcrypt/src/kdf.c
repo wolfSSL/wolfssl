@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -43,8 +43,11 @@
 
 #include <wolfssl/wolfcrypt/hmac.h>
 #include <wolfssl/wolfcrypt/kdf.h>
-#ifdef WC_SRTP_KDF
-#include <wolfssl/wolfcrypt/aes.h>
+#if defined(WC_SRTP_KDF) || defined(HAVE_CMAC_KDF)
+    #include <wolfssl/wolfcrypt/aes.h>
+#endif
+#ifdef WOLF_CRYPTO_CB
+    #include <wolfssl/wolfcrypt/cryptocb.h>
 #endif
 
 #if FIPS_VERSION3_GE(6,0,0)
@@ -209,10 +212,8 @@ int wc_PRF(byte* result, word32 resLen, const byte* secret,
     wc_MemZero_Check(hmac,    sizeof(Hmac));
 #endif
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(current, heap, DYNAMIC_TYPE_DIGEST);
-    XFREE(hmac,     heap, DYNAMIC_TYPE_HMAC);
-#endif
+    WC_FREE_VAR_EX(current, heap, DYNAMIC_TYPE_DIGEST);
+    WC_FREE_VAR_EX(hmac, heap, DYNAMIC_TYPE_HMAC);
 
     return ret;
 }
@@ -278,10 +279,8 @@ int wc_PRF_TLSv1(byte* digest, word32 digLen, const byte* secret,
     wc_MemZero_Check(sha_result, MAX_PRF_DIG);
 #endif
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(sha_result, heap, DYNAMIC_TYPE_DIGEST);
-    XFREE(labelSeed, heap, DYNAMIC_TYPE_DIGEST);
-#endif
+    WC_FREE_VAR_EX(sha_result, heap, DYNAMIC_TYPE_DIGEST);
+    WC_FREE_VAR_EX(labelSeed, heap, DYNAMIC_TYPE_DIGEST);
 
     return ret;
 }
@@ -303,24 +302,15 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
     WOLFSSL_BUFFER(seed, seedLen);
 #endif
 
-
     if (useAtLeastSha256) {
-    #ifdef WOLFSSL_SMALL_STACK
-        byte* labelSeed;
-    #else
-        byte  labelSeed[MAX_PRF_LABSEED];
-    #endif
+        WC_DECLARE_VAR(labelSeed, byte, MAX_PRF_LABSEED, 0);
 
         if (labLen + seedLen > MAX_PRF_LABSEED) {
             return BUFFER_E;
         }
 
-    #ifdef WOLFSSL_SMALL_STACK
-        labelSeed = (byte*)XMALLOC(MAX_PRF_LABSEED, heap, DYNAMIC_TYPE_DIGEST);
-        if (labelSeed == NULL) {
-            return MEMORY_E;
-        }
-    #endif
+        WC_ALLOC_VAR_EX(labelSeed, byte, MAX_PRF_LABSEED, heap,
+            DYNAMIC_TYPE_DIGEST, return MEMORY_E);
 
         XMEMCPY(labelSeed, label, labLen);
         XMEMCPY(labelSeed + labLen, seed, seedLen);
@@ -334,9 +324,7 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
         ret = wc_PRF(digest, digLen, secret, secLen, labelSeed,
                      labLen + seedLen, hash_type, heap, devId);
 
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(labelSeed, heap, DYNAMIC_TYPE_DIGEST);
-    #endif
+        WC_FREE_VAR_EX(labelSeed, heap, DYNAMIC_TYPE_DIGEST);
     }
     else {
 #ifndef NO_OLD_TLS
@@ -448,11 +436,7 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
     {
         int    ret = 0;
         word32 idx = 0;
-    #ifdef WOLFSSL_SMALL_STACK
-        byte*  data;
-    #else
-        byte   data[MAX_TLS13_HKDF_LABEL_SZ];
-    #endif
+        WC_DECLARE_VAR(data, byte, MAX_TLS13_HKDF_LABEL_SZ, 0);
 
         /* okmLen (2) + protocol|label len (1) + info len(1) + protocollen +
          * labellen + infolen */
@@ -461,12 +445,8 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
             return BUFFER_E;
         }
 
-    #ifdef WOLFSSL_SMALL_STACK
-        data = (byte*)XMALLOC(idx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (data == NULL) {
-            return MEMORY_E;
-        }
-    #endif
+        WC_ALLOC_VAR_EX(data, byte, idx, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+            return MEMORY_E);
         idx = 0;
 
         /* Output length. */
@@ -524,9 +504,7 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
     #ifdef WOLFSSL_CHECK_MEM_ZERO
         wc_MemZero_Check(data, idx);
     #endif
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
+        WC_FREE_VAR_EX(data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return ret;
     }
 
@@ -819,8 +797,10 @@ int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
     remainder = keySz % digestSz;
 
     ret = _HashInit(enmhashId, &hash);
-    if (ret == 0)
-        ret = _HashUpdate(enmhashId, &hash, kSzFlat, LENGTH_SZ);
+    if (ret != 0)
+        return ret;
+
+    ret = _HashUpdate(enmhashId, &hash, kSzFlat, LENGTH_SZ);
     if (ret == 0 && kPad)
         ret = _HashUpdate(enmhashId, &hash, &pad, 1);
     if (ret == 0)
@@ -1023,11 +1003,7 @@ int wc_SRTP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
 {
     int ret = 0;
     byte block[WC_AES_BLOCK_SIZE];
-#ifdef WOLFSSL_SMALL_STACK
-    Aes* aes = NULL;
-#else
-    Aes aes[1];
-#endif
+    WC_DECLARE_VAR(aes, Aes, 1, 0);
     int aes_inited = 0;
 
     /* Validate parameters. */
@@ -1078,9 +1054,7 @@ int wc_SRTP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
 
     if (aes_inited)
         wc_AesFree(aes);
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(aes, NULL, DYNAMIC_TYPE_CIPHER);
-#endif
+    WC_FREE_VAR_EX(aes, NULL, DYNAMIC_TYPE_CIPHER);
     return ret;
 }
 
@@ -1114,11 +1088,7 @@ int wc_SRTCP_KDF_ex(const byte* key, word32 keySz, const byte* salt, word32 salt
 {
     int ret = 0;
     byte block[WC_AES_BLOCK_SIZE];
-#ifdef WOLFSSL_SMALL_STACK
-    Aes* aes = NULL;
-#else
-    Aes aes[1];
-#endif
+    WC_DECLARE_VAR(aes, Aes, 1, 0);
     int aes_inited = 0;
     int idxLen;
 
@@ -1177,9 +1147,7 @@ int wc_SRTCP_KDF_ex(const byte* key, word32 keySz, const byte* salt, word32 salt
 
     if (aes_inited)
         wc_AesFree(aes);
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(aes, NULL, DYNAMIC_TYPE_CIPHER);
-#endif
+    WC_FREE_VAR_EX(aes, NULL, DYNAMIC_TYPE_CIPHER);
     return ret;
 }
 
@@ -1219,11 +1187,7 @@ int wc_SRTP_KDF_label(const byte* key, word32 keySz, const byte* salt,
 {
     int ret = 0;
     byte block[WC_AES_BLOCK_SIZE];
-#ifdef WOLFSSL_SMALL_STACK
-    Aes* aes = NULL;
-#else
-    Aes aes[1];
-#endif
+    WC_DECLARE_VAR(aes, Aes, 1, 0);
     int aes_inited = 0;
 
     /* Validate parameters. */
@@ -1264,9 +1228,7 @@ int wc_SRTP_KDF_label(const byte* key, word32 keySz, const byte* salt,
 
     if (aes_inited)
         wc_AesFree(aes);
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(aes, NULL, DYNAMIC_TYPE_CIPHER);
-#endif
+    WC_FREE_VAR_EX(aes, NULL, DYNAMIC_TYPE_CIPHER);
     return ret;
 
 }
@@ -1298,11 +1260,7 @@ int wc_SRTCP_KDF_label(const byte* key, word32 keySz, const byte* salt,
 {
     int ret = 0;
     byte block[WC_AES_BLOCK_SIZE];
-#ifdef WOLFSSL_SMALL_STACK
-    Aes* aes = NULL;
-#else
-    Aes aes[1];
-#endif
+    WC_DECLARE_VAR(aes, Aes, 1, 0);
     int aes_inited = 0;
 
     /* Validate parameters. */
@@ -1343,9 +1301,7 @@ int wc_SRTCP_KDF_label(const byte* key, word32 keySz, const byte* salt,
 
     if (aes_inited)
         wc_AesFree(aes);
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(aes, NULL, DYNAMIC_TYPE_CIPHER);
-#endif
+    WC_FREE_VAR_EX(aes, NULL, DYNAMIC_TYPE_CIPHER);
     return ret;
 
 }
@@ -1399,7 +1355,7 @@ static int wc_KDA_KDF_iteration(const byte* z, word32 zSz, word32 counter,
 
 /**
  * \brief Performs the single-step key derivation function (KDF) as specified in
- * SP800-56C option 1.
+ * SP800-56C option 1. This implementation uses a 32 bit counter.
  *
  * \param [in] z The input keying material.
  * \param [in] zSz The size of the input keying material.
@@ -1431,26 +1387,26 @@ int wc_KDA_KDF_onestep(const byte* z, word32 zSz, const byte* fixedInfo,
         return BAD_FUNC_ARG;
 
     hashOutSz = wc_HashGetDigestSize(hashType);
-    if (hashOutSz == WC_NO_ERR_TRACE(HASH_TYPE_E))
+    if (hashOutSz <= 0)
         return BAD_FUNC_ARG;
 
     /* According to SP800_56C, table 1, the max input size (max_H_inputBits)
      * depends on the HASH algo. The smaller value in the table is (2**64-1)/8.
      * This is larger than the possible length using word32 integers. */
 
-    counter = 1;
+    counter = 1; /* init counter to 1, from SP800-56C section 4.1 */
     outIdx = 0;
     ret = 0;
 
     /* According to SP800_56C the number of iterations shall not be greater than
      * 2**32-1. This is not possible using word32 integers.*/
-    while (outIdx + hashOutSz <= derivedSecretSz) {
+    while (outIdx + (word32) hashOutSz <= derivedSecretSz) {
         ret = wc_KDA_KDF_iteration(z, zSz, counter, fixedInfo, fixedInfoSz,
             hashType, output + outIdx);
         if (ret != 0)
             break;
         counter++;
-        outIdx += hashOutSz;
+        outIdx += (word32) hashOutSz;
     }
 
     if (ret == 0 && outIdx < derivedSecretSz) {
@@ -1459,7 +1415,7 @@ int wc_KDA_KDF_onestep(const byte* z, word32 zSz, const byte* fixedInfo,
         if (ret == 0) {
             XMEMCPY(output + outIdx, hashTempBuf, derivedSecretSz - outIdx);
         }
-        ForceZero(hashTempBuf, hashOutSz);
+        ForceZero(hashTempBuf, (word32) hashOutSz);
     }
 
     if (ret != 0) {
@@ -1469,5 +1425,280 @@ int wc_KDA_KDF_onestep(const byte* z, word32 zSz, const byte* fixedInfo,
     return ret;
 }
 #endif /* WC_KDF_NIST_SP_800_56C */
+
+#ifdef HAVE_CMAC_KDF
+/**
+ * \brief Performs the two-step cmac key derivation function (KDF) as
+ * specified in SP800-56C, section 5.1, in counter mode.
+ *
+ *            Z                               fixedInfo
+ *        ____|_________________________________|___________
+ *       |    |                                 |           |
+ *       |    ________________                ___________   |
+ * salt--|-> | Randomness     |              | Key       |  |
+ *       |   | Extract        | --Key_kdk--> | Expansion | -|-output-->
+ *       |    ----------------                -----------   |
+ *        --------------------------------------------------
+ *
+ * \param [in]  salt         The input keying material for cmac.
+ * \param [in]  salt_len     The size of the input keying material.
+ * \param [in]  z            The input shared secret (message to cmac).
+ * \param [in]  zSz          The size of the input shared secret.
+ * \param [in]  fixedInfo    The fixed information in the KDF.
+ * \param [in]  fixedInfoSz  The size of the fixed information.
+ * \param [out] output       The buffer to store the derived secret.
+ * \param [in]  outputSz     The desired size of the output secret.
+ * \param [in]  heap         The heap hint.
+ * \param [in]  devId        The device id.
+ *
+ * \return 0 if the KDF operation is successful.
+ * \return BAD_FUNC_ARG if the input parameters are invalid.
+ * \return negative error code if the KDF operation fails.
+ */
+int wc_KDA_KDF_twostep_cmac(const byte * salt, word32 salt_len,
+                            const byte* z, word32 zSz,
+                            const byte* fixedInfo, word32 fixedInfoSz,
+                            byte* output, word32 outputSz,
+                            void * heap, int devId)
+{
+    byte   Key_kdk[WC_AES_BLOCK_SIZE]; /* key derivation key*/
+    word32 kdk_len = sizeof(Key_kdk);
+    word32 tag_len = WC_AES_BLOCK_SIZE;
+    #ifdef WOLFSSL_SMALL_STACK
+    Cmac * cmac = NULL;
+    #else
+    Cmac   cmac[1];
+    #endif /* WOLFSSL_SMALL_STACK */
+    int    ret = 0;
+
+    /* screen out bad args. */
+    switch (salt_len) {
+    case AES_128_KEY_SIZE:
+    case AES_192_KEY_SIZE:
+    case AES_256_KEY_SIZE:
+        break; /* salt ok */
+    default:
+        WOLFSSL_MSG_EX("KDF twostep cmac: bad salt len: %d", salt_len);
+        return BAD_FUNC_ARG;
+    }
+
+    if (zSz == 0 || outputSz == 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (fixedInfoSz > 0 && fixedInfo == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (salt == NULL || z == NULL || output == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    #ifdef WOLF_CRYPTO_CB
+    /* Try crypto callback first for complete operation */
+    if (devId != INVALID_DEVID) {
+         ret = wc_CryptoCb_Kdf_TwostepCmac(salt, salt_len, z, zSz,
+                                           fixedInfo, fixedInfoSz,
+                                           output, outputSz, devId);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            return ret;
+        }
+        /* fall-through when unavailable */
+    }
+    #endif
+
+    XMEMSET(Key_kdk, 0, kdk_len);
+
+    #ifdef WOLFSSL_SMALL_STACK
+    cmac = (Cmac*)XMALLOC(sizeof(Cmac), heap, DYNAMIC_TYPE_CMAC);
+    if (cmac == NULL) {
+        return MEMORY_E;
+    }
+    #endif
+
+    /* step 1: cmac extract */
+    ret = wc_AesCmacGenerate_ex(cmac, Key_kdk, &tag_len, z, zSz, salt, salt_len,
+                                heap, devId);
+
+    if (ret == 0) {
+        if (tag_len != WC_AES_BLOCK_SIZE) {
+            WOLFSSL_MSG_EX("KDF twostep cmac: got %d, expected %d\n",
+                           tag_len, WC_AES_BLOCK_SIZE);
+            ret = BUFFER_E;
+        }
+    }
+
+    #ifdef WOLFSSL_SMALL_STACK
+    if (cmac) {
+        XFREE(cmac, heap, DYNAMIC_TYPE_CMAC);
+        cmac = NULL;
+    }
+    #endif /* WOLFSSL_SMALL_STACK */
+
+    /* step 2: cmac expand with SP 800-108 PRF.
+     * If AES-128-CMAC, AES-192-CMAC, or AES-256-CMAC is used in the
+     * randomness extraction step, then only AES-128-CMAC is used in the
+     * key-expansion step.*/
+    if (ret == 0) {
+        ret = wc_KDA_KDF_PRF_cmac(Key_kdk, kdk_len, fixedInfo, fixedInfoSz,
+                                  output, outputSz, WC_CMAC_AES,
+                                  heap, devId);
+    }
+
+    /* always force zero the intermediate key derivation key. */
+    ForceZero(Key_kdk, sizeof(Key_kdk));
+
+    return ret;
+}
+
+/**
+ * \brief Performs the KDF PRF as specified in SP800-108r1.
+ * At the moment, only AES-CMAC counter mode (section 4.1) is
+ * implemented. This implementation uses a 32 bit counter.
+ *
+ * \param [in]  Kin       The input keying material.
+ * \param [in]  KinSz     The size of the input keying material.
+ * \param [in]  fixedInfo The fixed information to be included in the KDF.
+ * \param [in]  fixedInfo Sz The size of the fixed information.
+ * \param [out] Kout      The output keying material.
+ * \param [in]  KoutSz    The desired size of the output key.
+ * \param [in]  type      The type of cmac.
+ * \param [in]  heap      The heap hint.
+ * \param [in]  devId     The device id.
+ *
+ * \return 0 if the KDF operation is successful.
+ * \return BAD_FUNC_ARG if the input parameters are invalid.
+ * \return negative error code if the KDF operation fails.
+ */
+int wc_KDA_KDF_PRF_cmac(const byte* Kin, word32 KinSz,
+                        const byte* fixedInfo, word32 fixedInfoSz,
+                        byte* Kout, word32 KoutSz, CmacType type,
+                        void * heap, int devId)
+{
+    word32 len_rem = KoutSz;
+    word32 tag_len = WC_AES_BLOCK_SIZE;
+    word32 counter = 1; /* init counter to 1, from SP800-108r1 section 4.1 */
+    #ifdef WOLFSSL_SMALL_STACK
+    Cmac * cmac = NULL;
+    #else
+    Cmac   cmac[1];
+    #endif /* WOLFSSL_SMALL_STACK */
+    byte   counterBuf[4];
+    int    ret = 0;
+
+    /* screen out bad args. */
+    if (Kin == NULL || Kout == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (fixedInfoSz > 0 && fixedInfo == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (KoutSz == 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* Only AES-CMAC PRF supported at this time. */
+    if (type != WC_CMAC_AES) {
+        return BAD_FUNC_ARG;
+    }
+
+    #ifdef WOLFSSL_SMALL_STACK
+    cmac = (Cmac*)XMALLOC(sizeof(Cmac), heap, DYNAMIC_TYPE_CMAC);
+    if (cmac == NULL) {
+        return MEMORY_E;
+    }
+    #endif
+
+    while (ret == 0 && len_rem >= WC_AES_BLOCK_SIZE) {
+        /* cmac in place in block size increments */
+        c32toa(counter, counterBuf);
+        #ifdef WOLFSSL_DEBUG_KDF
+        WOLFSSL_MSG_EX("wc_KDA_KDF_PRF_cmac: in place: "
+                       "len_rem = %d, i = %d", len_rem, counter);
+        #endif /* WOLFSSL_DEBUG_KDF */
+
+        ret = wc_InitCmac_ex(cmac, Kin, KinSz, WC_CMAC_AES, NULL, heap, devId);
+
+        if (ret == 0) {
+            ret = wc_CmacUpdate(cmac, counterBuf, sizeof(counterBuf));
+        }
+
+        if (ret == 0 && fixedInfoSz > 0) {
+            ret = wc_CmacUpdate(cmac, fixedInfo, fixedInfoSz);
+        }
+
+        if (ret == 0) {
+            ret = wc_CmacFinalNoFree(cmac, &Kout[KoutSz - len_rem], &tag_len);
+
+            if (tag_len != WC_AES_BLOCK_SIZE) {
+                WOLFSSL_MSG_EX("wc_KDA_KDF_PRF_cmac: got %d, expected %d\n",
+                               tag_len, WC_AES_BLOCK_SIZE);
+                ret = BUFFER_E;
+            }
+        }
+
+        (void)wc_CmacFree(cmac);
+
+        if (ret != 0) { break; }
+
+        len_rem -= WC_AES_BLOCK_SIZE;
+        ++counter;
+    }
+
+    if (ret == 0 && len_rem) {
+        /* cmac the last little bit that wouldn't fit in a block size. */
+        byte rem[WC_AES_BLOCK_SIZE];
+        XMEMSET(rem, 0, sizeof(rem));
+        c32toa(counter, counterBuf);
+
+        #ifdef WOLFSSL_DEBUG_KDF
+        WOLFSSL_MSG_EX("wc_KDA_KDF_PRF_cmac: last little bit: "
+                       "len_rem = %d, i = %d", len_rem, counter);
+        #endif /* WOLFSSL_DEBUG_KDF */
+
+        ret = wc_InitCmac_ex(cmac, Kin, KinSz, WC_CMAC_AES, NULL, heap, devId);
+
+        if (ret == 0) {
+            ret = wc_CmacUpdate(cmac, counterBuf, sizeof(counterBuf));
+        }
+
+        if (ret == 0 && fixedInfoSz > 0) {
+            ret = wc_CmacUpdate(cmac, fixedInfo, fixedInfoSz);
+        }
+
+        if (ret == 0) {
+            ret = wc_CmacFinalNoFree(cmac, rem, &tag_len);
+
+            if (tag_len != WC_AES_BLOCK_SIZE) {
+                WOLFSSL_MSG_EX("wc_KDA_KDF_PRF_cmac: got %d, expected %d\n",
+                               tag_len, WC_AES_BLOCK_SIZE);
+                ret = BUFFER_E;
+            }
+        }
+
+        if (ret == 0) {
+            XMEMCPY(&Kout[KoutSz - len_rem], rem, len_rem);
+        }
+
+        ForceZero(rem, sizeof(rem));
+        (void)wc_CmacFree(cmac);
+    }
+
+    #ifdef WOLFSSL_SMALL_STACK
+    if (cmac) {
+        XFREE(cmac, heap, DYNAMIC_TYPE_CMAC);
+        cmac = NULL;
+    }
+    #endif /* WOLFSSL_SMALL_STACK */
+
+    if (ret != 0) {
+        ForceZero(Kout, KoutSz);
+    }
+
+    return ret;
+}
+#endif /* HAVE_CMAC_KDF */
 
 #endif /* NO_KDF */

@@ -5,7 +5,7 @@
 #
 # wolfSSL is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
+# the Free Software Foundation; either version 3 of the License, or
 # (at your option) any later version.
 #
 # wolfSSL is distributed in the hope that it will be useful,
@@ -79,6 +79,7 @@ set(COMPONENT_SRCEXCLUDE
     "./src/ssl_misc.c"    # included by ssl.c
     "./src/ssl_p7p12.c"   # included by ssl.c
     "./src/ssl_sess.c"    # included by ssl.c
+    "./src/ssl_sk.c"      # included by ssl.c
     "./src/x509.c"
     "./src/x509_str.c"
     "./wolfcrypt/src/evp.c"

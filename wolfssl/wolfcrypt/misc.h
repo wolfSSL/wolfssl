@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -67,7 +67,7 @@ WOLFSSL_LOCAL
 void xorbuf(void* buf, const void* mask, word32 count);
 
 WOLFSSL_LOCAL
-void ForceZero(void* mem, word32 len);
+void ForceZero(void* mem, size_t len);
 
 WOLFSSL_LOCAL
 int ConstantCompare(const byte* a, const byte* b, int length);
@@ -184,7 +184,7 @@ WOLFSSL_LOCAL w64wrapper w64Mul(word32 a, word32 b);
 
 /* Declarations for user defined functions */
 #ifdef WOLFSSL_NO_FORCE_ZERO
-void ForceZero(void* mem, word32 len);
+void ForceZero(void* mem, size_t len);
 #endif
 #ifdef WOLFSSL_NO_CONST_CMP
 int ConstantCompare(const byte* a, const byte* b, int length);

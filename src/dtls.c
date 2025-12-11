@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -678,6 +678,8 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch)
             ERROR_OUT(BUFFER_ERROR, dtls13_cleanup);
         if ((sigAlgs.size % 2) != 0)
             ERROR_OUT(BUFFER_ERROR, dtls13_cleanup);
+        if (sigAlgs.size > WOLFSSL_MAX_SIGALGO)
+            ERROR_OUT(BUFFER_ERROR, dtls13_cleanup);
         suites.hashSigAlgoSz = (word16)sigAlgs.size;
         XMEMCPY(suites.hashSigAlgo, sigAlgs.elements, sigAlgs.size);
         haveSA = 1;
@@ -730,8 +732,13 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch)
 
         /* Ask the user for the ciphersuite matching this identity */
         if (TLSX_PreSharedKey_Parse_ClientHello(&parsedExts,
-                tlsx.elements, (word16)tlsx.size, ssl->heap) == 0)
+                tlsx.elements, (word16)tlsx.size, ssl->heap) == 0) {
+            /* suites only needs to be refined when searching for a PSK.
+             * MatchSuite_ex handles refining internally. */
+            refineSuites(WOLFSSL_SUITES(ssl), &suites, &suites,
+                    ssl->options.useClientOrder);
             FindPskSuiteFromExt(ssl, parsedExts, &pskInfo, &suites);
+        }
         /* Revert to full handshake if PSK parsing failed */
 
         if (pskInfo.isValid) {
@@ -751,8 +758,9 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch)
                     ERROR_OUT(PSK_KEY_ERROR, dtls13_cleanup);
                 doKE = 1;
             }
-            else if ((modes & (1 << PSK_KE)) == 0) {
-                    ERROR_OUT(PSK_KEY_ERROR, dtls13_cleanup);
+            else if ((modes & (1 << PSK_KE)) == 0 ||
+                    ssl->options.onlyPskDheKe) {
+                ERROR_OUT(PSK_KEY_ERROR, dtls13_cleanup);
             }
             usePSK = 1;
         }

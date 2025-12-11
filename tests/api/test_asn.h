@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -24,9 +24,13 @@
 
 #include <tests/api/api_decl.h>
 
-int test_SetShortInt(void);
+int test_SetAsymKeyDer(void);
+int test_GetSetShortInt(void);
+int test_wc_IndexSequenceOf(void);
 
 #define TEST_ASN_DECLS                                              \
-    TEST_DECL_GROUP("asn", test_SetShortInt)                        \
+    TEST_DECL_GROUP("asn", test_SetAsymKeyDer),                     \
+    TEST_DECL_GROUP("asn", test_GetSetShortInt),                    \
+    TEST_DECL_GROUP("asn", test_wc_IndexSequenceOf)
 
 #endif /* WOLFCRYPT_TEST_ASN_H */

@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -149,7 +149,13 @@ static WC_INLINE void wc_xmss_state_free(XmssState* state)
  */
 typedef struct wc_XmssString {
     /* Name of algorithm as a string. */
+#ifdef WOLFSSL_NAMES_STATIC
+    const char str[32]; /* large enough for largest string in wc_xmss_alg[] or
+                         * wc_xmssmt_alg[]
+                         */
+#else
     const char* str;
+#endif
     /* OID for algorithm. */
     word32 oid;
     /* XMSS parameters. */
@@ -725,19 +731,11 @@ static WC_INLINE int wc_xmsskey_signupdate(XmssKey* key, byte* sig,
     }
 
     if (ret == 0) {
-    #ifdef WOLFSSL_SMALL_STACK
-        XmssState* state;
-    #else
-        XmssState state[1];
-    #endif
+        WC_DECLARE_VAR(state, XmssState, 1, 0);
 
-    #ifdef WOLFSSL_SMALL_STACK
-        state = (XmssState*)XMALLOC(sizeof(XmssState), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (state == NULL) {
-            ret = MEMORY_E;
-        }
-        if (ret == 0)
-    #endif
+        WC_ALLOC_VAR_EX(state, XmssState, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+            ret=MEMORY_E);
+        if (WC_VAR_OK(state))
         {
             /* Initialize state for use in signing. */
             ret = wc_xmss_state_init(state, key->params);
@@ -768,9 +766,7 @@ static WC_INLINE int wc_xmsskey_signupdate(XmssKey* key, byte* sig,
                 /* Free state after use. */
                 wc_xmss_state_free(state);
             }
-        #ifdef WOLFSSL_SMALL_STACK
-            XFREE(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
+            WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         }
     }
 
@@ -1096,19 +1092,11 @@ int wc_XmssKey_MakeKey(XmssKey* key, WC_RNG* rng)
     }
 
     if (ret == 0) {
-    #ifdef WOLFSSL_SMALL_STACK
-        XmssState* state;
-    #else
-        XmssState state[1];
-    #endif
+        WC_DECLARE_VAR(state, XmssState, 1, 0);
 
-    #ifdef WOLFSSL_SMALL_STACK
-        state = (XmssState*)XMALLOC(sizeof(XmssState), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (state == NULL) {
-            ret = MEMORY_E;
-        }
-        if (ret == 0)
-    #endif
+        WC_ALLOC_VAR_EX(state, XmssState, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+            ret=MEMORY_E);
+        if (WC_VAR_OK(state))
         {
             /* Initialize state for use in key generation. */
             ret = wc_xmss_state_init(state, key->params);
@@ -1132,9 +1120,7 @@ int wc_XmssKey_MakeKey(XmssKey* key, WC_RNG* rng)
                 /* Free state after use. */
                 wc_xmss_state_free(state);
             }
-        #ifdef WOLFSSL_SMALL_STACK
-            XFREE(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
+            WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         }
     }
 
@@ -1155,9 +1141,7 @@ int wc_XmssKey_MakeKey(XmssKey* key, WC_RNG* rng)
         key->state = WC_XMSS_STATE_OK;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(seed, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(seed, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 
@@ -1632,19 +1616,11 @@ int wc_XmssKey_Verify(XmssKey* key, const byte* sig, word32 sigLen,
     }
 
     if (ret == 0) {
-    #ifdef WOLFSSL_SMALL_STACK
-        XmssState* state;
-    #else
-        XmssState state[1];
-    #endif
+        WC_DECLARE_VAR(state, XmssState, 1, 0);
 
-    #ifdef WOLFSSL_SMALL_STACK
-        state = (XmssState*)XMALLOC(sizeof(XmssState), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (state == NULL) {
-            ret = MEMORY_E;
-        }
-        if (ret == 0)
-    #endif
+        WC_ALLOC_VAR_EX(state, XmssState, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+            ret=MEMORY_E);
+        if (WC_VAR_OK(state))
         {
             /* Initialize state for use in verification. */
             ret = wc_xmss_state_init(state, key->params);
@@ -1654,9 +1630,7 @@ int wc_XmssKey_Verify(XmssKey* key, const byte* sig, word32 sigLen,
                 /* Free state after use. */
                 wc_xmss_state_free(state);
             }
-        #ifdef WOLFSSL_SMALL_STACK
-            XFREE(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
+            WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         }
     }
 

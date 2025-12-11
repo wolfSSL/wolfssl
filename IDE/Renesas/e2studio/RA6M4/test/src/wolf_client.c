@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -28,6 +28,7 @@
 #include "wolfssl/wolfcrypt/settings.h"
 #include "wolfssl/ssl.h"
 #include "wolfssl/certs_test.h"
+#include "wolfssl/wolfcrypt/port/Renesas/renesas-fspsm-crypt.h"
 
 uint32_t g_encrypted_root_public_key[140];
 WOLFSSL_CTX *client_ctx = NULL;
@@ -198,7 +199,6 @@ int wolfSSL_TLS_client_do(void *pvParam)
         #if !defined(TLS_MULTITHREAD_TEST)
 
         XMEMSET(&guser_PKCbInfo, 0, sizeof(FSPSM_ST));
-        guser_PKCbInfo.devId = 0;
         wc_sce_set_callback_ctx(ssl, (void*)&guser_PKCbInfo);
 
         #else

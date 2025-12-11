@@ -1,0 +1,47 @@
+name: Fil-C Tests
+
+env:
+  FIL_C_VERSION: v0.674
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  run_fil_c:
+    strategy:
+      fail-fast: false
+      matrix:
+        config: [
+          # Add new configs here. Don't use CPPFLAGS.
+          '',
+          '--enable-all',
+        ]
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 30
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-22.04
+    name: ${{ matrix.config }}
+    steps:
+    - name: Download fil-c release
+      run: gh release download ${{ env.FIL_C_VERSION }} --repo pizlonator/fil-c --pattern 'filc-*'
+      env:
+        GH_TOKEN: ${{ github.token }}
+
+    - name: Extract fil-c tarball
+      run: mkdir -p filc && tar -xf filc-*.tar* --strip-components=1 -C filc
+
+    - name: Build and test wolfSSL
+      uses: wolfSSL/actions-build-autotools-project@v1
+      with:
+        path: wolfssl
+        configure: ${{ matrix.config }} CC=$GITHUB_WORKSPACE/filc/build/bin/filcc --disable-asm CPPFLAGS=-DWC_NO_CACHE_RESISTANT
+        check: true

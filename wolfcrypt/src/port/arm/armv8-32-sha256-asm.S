@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -103,12 +103,12 @@ L_SHA256_transform_len_k:
 	.word	0xc67178f2
 	.text
 	.align	4
-	.globl	Transform_Sha256_Len
-	.type	Transform_Sha256_Len, %function
-Transform_Sha256_Len:
+	.globl	Transform_Sha256_Len_base
+	.type	Transform_Sha256_Len_base, %function
+Transform_Sha256_Len_base:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
 	sub	sp, sp, #0xc0
-	adr	r3, L_SHA256_transform_len_k
+	adr	r12, L_SHA256_transform_len_k
 	# Copy digest to add in at end
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldm	r0, {r4, r5}
@@ -372,9 +372,10 @@ L_SHA256_transform_len_begin:
 	ldr	r11, [r0, #4]
 	ldr	r4, [r0, #8]
 	eor	r11, r11, r4
-	mov	r12, #3
+#ifndef WOLFSSL_ARMASM_SHA256_SMALL
+	mov	r3, #3
 	# Start of 16 rounds
-L_SHA256_transform_len_start:
+L_SHA256_transform_len_start_fast:
 	# Round 0
 	ldr	r5, [r0, #16]
 	ldr	r6, [r0, #20]
@@ -389,7 +390,7 @@ L_SHA256_transform_len_start:
 	add	r9, r9, r4
 	add	r9, r9, r6
 	ldr	r5, [sp]
-	ldr	r6, [r3]
+	ldr	r6, [r12]
 	add	r9, r9, r5
 	add	r9, r9, r6
 	ldr	r5, [r0]
@@ -436,7 +437,7 @@ L_SHA256_transform_len_start:
 	add	r9, r9, r4
 	add	r9, r9, r6
 	ldr	r5, [sp, #4]
-	ldr	r6, [r3, #4]
+	ldr	r6, [r12, #4]
 	add	r9, r9, r5
 	add	r9, r9, r6
 	ldr	r5, [r0, #28]
@@ -483,7 +484,7 @@ L_SHA256_transform_len_start:
 	add	r9, r9, r4
 	add	r9, r9, r6
 	ldr	r5, [sp, #8]
-	ldr	r6, [r3, #8]
+	ldr	r6, [r12, #8]
 	add	r9, r9, r5
 	add	r9, r9, r6
 	ldr	r5, [r0, #24]
@@ -530,7 +531,7 @@ L_SHA256_transform_len_start:
 	add	r9, r9, r4
 	add	r9, r9, r6
 	ldr	r5, [sp, #12]
-	ldr	r6, [r3, #12]
+	ldr	r6, [r12, #12]
 	add	r9, r9, r5
 	add	r9, r9, r6
 	ldr	r5, [r0, #20]
@@ -577,7 +578,7 @@ L_SHA256_transform_len_start:
 	add	r9, r9, r4
 	add	r9, r9, r6
 	ldr	r5, [sp, #16]
-	ldr	r6, [r3, #16]
+	ldr	r6, [r12, #16]
 	add	r9, r9, r5
 	add	r9, r9, r6
 	ldr	r5, [r0, #16]
@@ -624,7 +625,7 @@ L_SHA256_transform_len_start:
 	add	r9, r9, r4
 	add	r9, r9, r6
 	ldr	r5, [sp, #20]
-	ldr	r6, [r3, #20]
+	ldr	r6, [r12, #20]
 	add	r9, r9, r5
 	add	r9, r9, r6
 	ldr	r5, [r0, #12]
@@ -671,7 +672,7 @@ L_SHA256_transform_len_start:
 	add	r9, r9, r4
 	add	r9, r9, r6
 	ldr	r5, [sp, #24]
-	ldr	r6, [r3, #24]
+	ldr	r6, [r12, #24]
 	add	r9, r9, r5
 	add	r9, r9, r6
 	ldr	r5, [r0, #8]
@@ -718,7 +719,7 @@ L_SHA256_transform_len_start:
 	add	r9, r9, r4
 	add	r9, r9, r6
 	ldr	r5, [sp, #28]
-	ldr	r6, [r3, #28]
+	ldr	r6, [r12, #28]
 	add	r9, r9, r5
 	add	r9, r9, r6
 	ldr	r5, [r0, #4]
@@ -765,7 +766,7 @@ L_SHA256_transform_len_start:
 	add	r9, r9, r4
 	add	r9, r9, r6
 	ldr	r5, [sp, #32]
-	ldr	r6, [r3, #32]
+	ldr	r6, [r12, #32]
 	add	r9, r9, r5
 	add	r9, r9, r6
 	ldr	r5, [r0]
@@ -812,7 +813,7 @@ L_SHA256_transform_len_start:
 	add	r9, r9, r4
 	add	r9, r9, r6
 	ldr	r5, [sp, #36]
-	ldr	r6, [r3, #36]
+	ldr	r6, [r12, #36]
 	add	r9, r9, r5
 	add	r9, r9, r6
 	ldr	r5, [r0, #28]
@@ -859,7 +860,7 @@ L_SHA256_transform_len_start:
 	add	r9, r9, r4
 	add	r9, r9, r6
 	ldr	r5, [sp, #40]
-	ldr	r6, [r3, #40]
+	ldr	r6, [r12, #40]
 	add	r9, r9, r5
 	add	r9, r9, r6
 	ldr	r5, [r0, #24]
@@ -906,7 +907,7 @@ L_SHA256_transform_len_start:
 	add	r9, r9, r4
 	add	r9, r9, r6
 	ldr	r5, [sp, #44]
-	ldr	r6, [r3, #44]
+	ldr	r6, [r12, #44]
 	add	r9, r9, r5
 	add	r9, r9, r6
 	ldr	r5, [r0, #20]
@@ -953,7 +954,7 @@ L_SHA256_transform_len_start:
 	add	r9, r9, r4
 	add	r9, r9, r6
 	ldr	r5, [sp, #48]
-	ldr	r6, [r3, #48]
+	ldr	r6, [r12, #48]
 	add	r9, r9, r5
 	add	r9, r9, r6
 	ldr	r5, [r0, #16]
@@ -1000,7 +1001,7 @@ L_SHA256_transform_len_start:
 	add	r9, r9, r4
 	add	r9, r9, r6
 	ldr	r5, [sp, #52]
-	ldr	r6, [r3, #52]
+	ldr	r6, [r12, #52]
 	add	r9, r9, r5
 	add	r9, r9, r6
 	ldr	r5, [r0, #12]
@@ -1047,7 +1048,7 @@ L_SHA256_transform_len_start:
 	add	r9, r9, r4
 	add	r9, r9, r6
 	ldr	r5, [sp, #56]
-	ldr	r6, [r3, #56]
+	ldr	r6, [r12, #56]
 	add	r9, r9, r5
 	add	r9, r9, r6
 	ldr	r5, [r0, #8]
@@ -1094,7 +1095,7 @@ L_SHA256_transform_len_start:
 	add	r9, r9, r4
 	add	r9, r9, r6
 	ldr	r5, [sp, #60]
-	ldr	r6, [r3, #60]
+	ldr	r6, [r12, #60]
 	add	r9, r9, r5
 	add	r9, r9, r6
 	ldr	r5, [r0, #4]
@@ -1127,9 +1128,9 @@ L_SHA256_transform_len_start:
 	add	r4, r4, r5
 	add	r9, r9, r4
 	str	r9, [sp, #60]
-	add	r3, r3, #0x40
-	subs	r12, r12, #1
-	bne	L_SHA256_transform_len_start
+	add	r12, r12, #0x40
+	subs	r3, r3, #1
+	bne	L_SHA256_transform_len_start_fast
 	# Round 0
 	ldr	r5, [r0, #16]
 	ldr	r6, [r0, #20]
@@ -1144,7 +1145,7 @@ L_SHA256_transform_len_start:
 	add	r9, r9, r4
 	add	r9, r9, r6
 	ldr	r5, [sp]
-	ldr	r6, [r3]
+	ldr	r6, [r12]
 	add	r9, r9, r5
 	add	r9, r9, r6
 	ldr	r5, [r0]
@@ -1176,7 +1177,7 @@ L_SHA256_transform_len_start:
 	add	r9, r9, r4
 	add	r9, r9, r6
 	ldr	r5, [sp, #4]
-	ldr	r6, [r3, #4]
+	ldr	r6, [r12, #4]
 	add	r9, r9, r5
 	add	r9, r9, r6
 	ldr	r5, [r0, #28]
@@ -1208,7 +1209,7 @@ L_SHA256_transform_len_start:
 	add	r9, r9, r4
 	add	r9, r9, r6
 	ldr	r5, [sp, #8]
-	ldr	r6, [r3, #8]
+	ldr	r6, [r12, #8]
 	add	r9, r9, r5
 	add	r9, r9, r6
 	ldr	r5, [r0, #24]
@@ -1240,7 +1241,7 @@ L_SHA256_transform_len_start:
 	add	r9, r9, r4
 	add	r9, r9, r6
 	ldr	r5, [sp, #12]
-	ldr	r6, [r3, #12]
+	ldr	r6, [r12, #12]
 	add	r9, r9, r5
 	add	r9, r9, r6
 	ldr	r5, [r0, #20]
@@ -1272,7 +1273,7 @@ L_SHA256_transform_len_start:
 	add	r9, r9, r4
 	add	r9, r9, r6
 	ldr	r5, [sp, #16]
-	ldr	r6, [r3, #16]
+	ldr	r6, [r12, #16]
 	add	r9, r9, r5
 	add	r9, r9, r6
 	ldr	r5, [r0, #16]
@@ -1304,7 +1305,7 @@ L_SHA256_transform_len_start:
 	add	r9, r9, r4
 	add	r9, r9, r6
 	ldr	r5, [sp, #20]
-	ldr	r6, [r3, #20]
+	ldr	r6, [r12, #20]
 	add	r9, r9, r5
 	add	r9, r9, r6
 	ldr	r5, [r0, #12]
@@ -1336,7 +1337,7 @@ L_SHA256_transform_len_start:
 	add	r9, r9, r4
 	add	r9, r9, r6
 	ldr	r5, [sp, #24]
-	ldr	r6, [r3, #24]
+	ldr	r6, [r12, #24]
 	add	r9, r9, r5
 	add	r9, r9, r6
 	ldr	r5, [r0, #8]
@@ -1368,7 +1369,7 @@ L_SHA256_transform_len_start:
 	add	r9, r9, r4
 	add	r9, r9, r6
 	ldr	r5, [sp, #28]
-	ldr	r6, [r3, #28]
+	ldr	r6, [r12, #28]
 	add	r9, r9, r5
 	add	r9, r9, r6
 	ldr	r5, [r0, #4]
@@ -1400,7 +1401,7 @@ L_SHA256_transform_len_start:
 	add	r9, r9, r4
 	add	r9, r9, r6
 	ldr	r5, [sp, #32]
-	ldr	r6, [r3, #32]
+	ldr	r6, [r12, #32]
 	add	r9, r9, r5
 	add	r9, r9, r6
 	ldr	r5, [r0]
@@ -1432,7 +1433,7 @@ L_SHA256_transform_len_start:
 	add	r9, r9, r4
 	add	r9, r9, r6
 	ldr	r5, [sp, #36]
-	ldr	r6, [r3, #36]
+	ldr	r6, [r12, #36]
 	add	r9, r9, r5
 	add	r9, r9, r6
 	ldr	r5, [r0, #28]
@@ -1464,7 +1465,7 @@ L_SHA256_transform_len_start:
 	add	r9, r9, r4
 	add	r9, r9, r6
 	ldr	r5, [sp, #40]
-	ldr	r6, [r3, #40]
+	ldr	r6, [r12, #40]
 	add	r9, r9, r5
 	add	r9, r9, r6
 	ldr	r5, [r0, #24]
@@ -1496,7 +1497,7 @@ L_SHA256_transform_len_start:
 	add	r9, r9, r4
 	add	r9, r9, r6
 	ldr	r5, [sp, #44]
-	ldr	r6, [r3, #44]
+	ldr	r6, [r12, #44]
 	add	r9, r9, r5
 	add	r9, r9, r6
 	ldr	r5, [r0, #20]
@@ -1528,7 +1529,7 @@ L_SHA256_transform_len_start:
 	add	r9, r9, r4
 	add	r9, r9, r6
 	ldr	r5, [sp, #48]
-	ldr	r6, [r3, #48]
+	ldr	r6, [r12, #48]
 	add	r9, r9, r5
 	add	r9, r9, r6
 	ldr	r5, [r0, #16]
@@ -1560,7 +1561,7 @@ L_SHA256_transform_len_start:
 	add	r9, r9, r4
 	add	r9, r9, r6
 	ldr	r5, [sp, #52]
-	ldr	r6, [r3, #52]
+	ldr	r6, [r12, #52]
 	add	r9, r9, r5
 	add	r9, r9, r6
 	ldr	r5, [r0, #12]
@@ -1592,7 +1593,7 @@ L_SHA256_transform_len_start:
 	add	r9, r9, r4
 	add	r9, r9, r6
 	ldr	r5, [sp, #56]
-	ldr	r6, [r3, #56]
+	ldr	r6, [r12, #56]
 	add	r9, r9, r5
 	add	r9, r9, r6
 	ldr	r5, [r0, #8]
@@ -1624,7 +1625,7 @@ L_SHA256_transform_len_start:
 	add	r9, r9, r4
 	add	r9, r9, r6
 	ldr	r5, [sp, #60]
-	ldr	r6, [r3, #60]
+	ldr	r6, [r12, #60]
 	add	r9, r9, r5
 	add	r9, r9, r6
 	ldr	r5, [r0, #4]
@@ -1642,6 +1643,815 @@ L_SHA256_transform_len_start:
 	add	r9, r9, r10
 	str	r8, [r0, #16]
 	str	r9, [r0]
+#else
+	mov	r3, #4
+	# Start of 16 rounds
+L_SHA256_transform_len_start_small:
+	sub	r3, r3, #1
+	# Round 0
+	ldr	r5, [r0, #16]
+	ldr	r6, [r0, #20]
+	ldr	r7, [r0, #24]
+	ldr	r9, [r0, #28]
+	ror	r4, r5, #6
+	eor	r6, r6, r7
+	eor	r4, r4, r5, ror #11
+	and	r6, r6, r5
+	eor	r4, r4, r5, ror #25
+	eor	r6, r6, r7
+	add	r9, r9, r4
+	add	r9, r9, r6
+	ldr	r5, [sp]
+	ldr	r6, [r12]
+	add	r9, r9, r5
+	add	r9, r9, r6
+	ldr	r5, [r0]
+	ldr	r6, [r0, #4]
+	ldr	r7, [r0, #8]
+	ldr	r8, [r0, #12]
+	ror	r4, r5, #2
+	eor	r10, r5, r6
+	eor	r4, r4, r5, ror #13
+	and	r11, r11, r10
+	eor	r4, r4, r5, ror #22
+	eor	r11, r11, r6
+	add	r8, r8, r9
+	add	r9, r9, r4
+	add	r9, r9, r11
+	str	r8, [r0, #12]
+	str	r9, [r0, #28]
+	cmp	r3, #0
+	beq	L_SHA256_transform_len_blk_end_0
+	# Calc new W[0]
+	ldr	r6, [sp, #56]
+	ldr	r7, [sp, #36]
+	ldr	r8, [sp, #4]
+	ldr	r9, [sp]
+	ror	r4, r6, #17
+	ror	r5, r8, #7
+	eor	r4, r4, r6, ror #19
+	eor	r5, r5, r8, ror #18
+	eor	r4, r4, r6, lsr #10
+	eor	r5, r5, r8, lsr #3
+	add	r9, r9, r7
+	add	r4, r4, r5
+	add	r9, r9, r4
+	str	r9, [sp]
+L_SHA256_transform_len_blk_end_0:
+	# Round 1
+	ldr	r5, [r0, #12]
+	ldr	r6, [r0, #16]
+	ldr	r7, [r0, #20]
+	ldr	r9, [r0, #24]
+	ror	r4, r5, #6
+	eor	r6, r6, r7
+	eor	r4, r4, r5, ror #11
+	and	r6, r6, r5
+	eor	r4, r4, r5, ror #25
+	eor	r6, r6, r7
+	add	r9, r9, r4
+	add	r9, r9, r6
+	ldr	r5, [sp, #4]
+	ldr	r6, [r12, #4]
+	add	r9, r9, r5
+	add	r9, r9, r6
+	ldr	r5, [r0, #28]
+	ldr	r6, [r0]
+	ldr	r7, [r0, #4]
+	ldr	r8, [r0, #8]
+	ror	r4, r5, #2
+	eor	r11, r5, r6
+	eor	r4, r4, r5, ror #13
+	and	r10, r10, r11
+	eor	r4, r4, r5, ror #22
+	eor	r10, r10, r6
+	add	r8, r8, r9
+	add	r9, r9, r4
+	add	r9, r9, r10
+	str	r8, [r0, #8]
+	str	r9, [r0, #24]
+	cmp	r3, #0
+	beq	L_SHA256_transform_len_blk_end_1
+	# Calc new W[1]
+	ldr	r6, [sp, #60]
+	ldr	r7, [sp, #40]
+	ldr	r8, [sp, #8]
+	ldr	r9, [sp, #4]
+	ror	r4, r6, #17
+	ror	r5, r8, #7
+	eor	r4, r4, r6, ror #19
+	eor	r5, r5, r8, ror #18
+	eor	r4, r4, r6, lsr #10
+	eor	r5, r5, r8, lsr #3
+	add	r9, r9, r7
+	add	r4, r4, r5
+	add	r9, r9, r4
+	str	r9, [sp, #4]
+L_SHA256_transform_len_blk_end_1:
+	# Round 2
+	ldr	r5, [r0, #8]
+	ldr	r6, [r0, #12]
+	ldr	r7, [r0, #16]
+	ldr	r9, [r0, #20]
+	ror	r4, r5, #6
+	eor	r6, r6, r7
+	eor	r4, r4, r5, ror #11
+	and	r6, r6, r5
+	eor	r4, r4, r5, ror #25
+	eor	r6, r6, r7
+	add	r9, r9, r4
+	add	r9, r9, r6
+	ldr	r5, [sp, #8]
+	ldr	r6, [r12, #8]
+	add	r9, r9, r5
+	add	r9, r9, r6
+	ldr	r5, [r0, #24]
+	ldr	r6, [r0, #28]
+	ldr	r7, [r0]
+	ldr	r8, [r0, #4]
+	ror	r4, r5, #2
+	eor	r10, r5, r6
+	eor	r4, r4, r5, ror #13
+	and	r11, r11, r10
+	eor	r4, r4, r5, ror #22
+	eor	r11, r11, r6
+	add	r8, r8, r9
+	add	r9, r9, r4
+	add	r9, r9, r11
+	str	r8, [r0, #4]
+	str	r9, [r0, #20]
+	cmp	r3, #0
+	beq	L_SHA256_transform_len_blk_end_2
+	# Calc new W[2]
+	ldr	r6, [sp]
+	ldr	r7, [sp, #44]
+	ldr	r8, [sp, #12]
+	ldr	r9, [sp, #8]
+	ror	r4, r6, #17
+	ror	r5, r8, #7
+	eor	r4, r4, r6, ror #19
+	eor	r5, r5, r8, ror #18
+	eor	r4, r4, r6, lsr #10
+	eor	r5, r5, r8, lsr #3
+	add	r9, r9, r7
+	add	r4, r4, r5
+	add	r9, r9, r4
+	str	r9, [sp, #8]
+L_SHA256_transform_len_blk_end_2:
+	# Round 3
+	ldr	r5, [r0, #4]
+	ldr	r6, [r0, #8]
+	ldr	r7, [r0, #12]
+	ldr	r9, [r0, #16]
+	ror	r4, r5, #6
+	eor	r6, r6, r7
+	eor	r4, r4, r5, ror #11
+	and	r6, r6, r5
+	eor	r4, r4, r5, ror #25
+	eor	r6, r6, r7
+	add	r9, r9, r4
+	add	r9, r9, r6
+	ldr	r5, [sp, #12]
+	ldr	r6, [r12, #12]
+	add	r9, r9, r5
+	add	r9, r9, r6
+	ldr	r5, [r0, #20]
+	ldr	r6, [r0, #24]
+	ldr	r7, [r0, #28]
+	ldr	r8, [r0]
+	ror	r4, r5, #2
+	eor	r11, r5, r6
+	eor	r4, r4, r5, ror #13
+	and	r10, r10, r11
+	eor	r4, r4, r5, ror #22
+	eor	r10, r10, r6
+	add	r8, r8, r9
+	add	r9, r9, r4
+	add	r9, r9, r10
+	str	r8, [r0]
+	str	r9, [r0, #16]
+	cmp	r3, #0
+	beq	L_SHA256_transform_len_blk_end_3
+	# Calc new W[3]
+	ldr	r6, [sp, #4]
+	ldr	r7, [sp, #48]
+	ldr	r8, [sp, #16]
+	ldr	r9, [sp, #12]
+	ror	r4, r6, #17
+	ror	r5, r8, #7
+	eor	r4, r4, r6, ror #19
+	eor	r5, r5, r8, ror #18
+	eor	r4, r4, r6, lsr #10
+	eor	r5, r5, r8, lsr #3
+	add	r9, r9, r7
+	add	r4, r4, r5
+	add	r9, r9, r4
+	str	r9, [sp, #12]
+L_SHA256_transform_len_blk_end_3:
+	# Round 4
+	ldr	r5, [r0]
+	ldr	r6, [r0, #4]
+	ldr	r7, [r0, #8]
+	ldr	r9, [r0, #12]
+	ror	r4, r5, #6
+	eor	r6, r6, r7
+	eor	r4, r4, r5, ror #11
+	and	r6, r6, r5
+	eor	r4, r4, r5, ror #25
+	eor	r6, r6, r7
+	add	r9, r9, r4
+	add	r9, r9, r6
+	ldr	r5, [sp, #16]
+	ldr	r6, [r12, #16]
+	add	r9, r9, r5
+	add	r9, r9, r6
+	ldr	r5, [r0, #16]
+	ldr	r6, [r0, #20]
+	ldr	r7, [r0, #24]
+	ldr	r8, [r0, #28]
+	ror	r4, r5, #2
+	eor	r10, r5, r6
+	eor	r4, r4, r5, ror #13
+	and	r11, r11, r10
+	eor	r4, r4, r5, ror #22
+	eor	r11, r11, r6
+	add	r8, r8, r9
+	add	r9, r9, r4
+	add	r9, r9, r11
+	str	r8, [r0, #28]
+	str	r9, [r0, #12]
+	cmp	r3, #0
+	beq	L_SHA256_transform_len_blk_end_4
+	# Calc new W[4]
+	ldr	r6, [sp, #8]
+	ldr	r7, [sp, #52]
+	ldr	r8, [sp, #20]
+	ldr	r9, [sp, #16]
+	ror	r4, r6, #17
+	ror	r5, r8, #7
+	eor	r4, r4, r6, ror #19
+	eor	r5, r5, r8, ror #18
+	eor	r4, r4, r6, lsr #10
+	eor	r5, r5, r8, lsr #3
+	add	r9, r9, r7
+	add	r4, r4, r5
+	add	r9, r9, r4
+	str	r9, [sp, #16]
+L_SHA256_transform_len_blk_end_4:
+	# Round 5
+	ldr	r5, [r0, #28]
+	ldr	r6, [r0]
+	ldr	r7, [r0, #4]
+	ldr	r9, [r0, #8]
+	ror	r4, r5, #6
+	eor	r6, r6, r7
+	eor	r4, r4, r5, ror #11
+	and	r6, r6, r5
+	eor	r4, r4, r5, ror #25
+	eor	r6, r6, r7
+	add	r9, r9, r4
+	add	r9, r9, r6
+	ldr	r5, [sp, #20]
+	ldr	r6, [r12, #20]
+	add	r9, r9, r5
+	add	r9, r9, r6
+	ldr	r5, [r0, #12]
+	ldr	r6, [r0, #16]
+	ldr	r7, [r0, #20]
+	ldr	r8, [r0, #24]
+	ror	r4, r5, #2
+	eor	r11, r5, r6
+	eor	r4, r4, r5, ror #13
+	and	r10, r10, r11
+	eor	r4, r4, r5, ror #22
+	eor	r10, r10, r6
+	add	r8, r8, r9
+	add	r9, r9, r4
+	add	r9, r9, r10
+	str	r8, [r0, #24]
+	str	r9, [r0, #8]
+	cmp	r3, #0
+	beq	L_SHA256_transform_len_blk_end_5
+	# Calc new W[5]
+	ldr	r6, [sp, #12]
+	ldr	r7, [sp, #56]
+	ldr	r8, [sp, #24]
+	ldr	r9, [sp, #20]
+	ror	r4, r6, #17
+	ror	r5, r8, #7
+	eor	r4, r4, r6, ror #19
+	eor	r5, r5, r8, ror #18
+	eor	r4, r4, r6, lsr #10
+	eor	r5, r5, r8, lsr #3
+	add	r9, r9, r7
+	add	r4, r4, r5
+	add	r9, r9, r4
+	str	r9, [sp, #20]
+L_SHA256_transform_len_blk_end_5:
+	# Round 6
+	ldr	r5, [r0, #24]
+	ldr	r6, [r0, #28]
+	ldr	r7, [r0]
+	ldr	r9, [r0, #4]
+	ror	r4, r5, #6
+	eor	r6, r6, r7
+	eor	r4, r4, r5, ror #11
+	and	r6, r6, r5
+	eor	r4, r4, r5, ror #25
+	eor	r6, r6, r7
+	add	r9, r9, r4
+	add	r9, r9, r6
+	ldr	r5, [sp, #24]
+	ldr	r6, [r12, #24]
+	add	r9, r9, r5
+	add	r9, r9, r6
+	ldr	r5, [r0, #8]
+	ldr	r6, [r0, #12]
+	ldr	r7, [r0, #16]
+	ldr	r8, [r0, #20]
+	ror	r4, r5, #2
+	eor	r10, r5, r6
+	eor	r4, r4, r5, ror #13
+	and	r11, r11, r10
+	eor	r4, r4, r5, ror #22
+	eor	r11, r11, r6
+	add	r8, r8, r9
+	add	r9, r9, r4
+	add	r9, r9, r11
+	str	r8, [r0, #20]
+	str	r9, [r0, #4]
+	cmp	r3, #0
+	beq	L_SHA256_transform_len_blk_end_6
+	# Calc new W[6]
+	ldr	r6, [sp, #16]
+	ldr	r7, [sp, #60]
+	ldr	r8, [sp, #28]
+	ldr	r9, [sp, #24]
+	ror	r4, r6, #17
+	ror	r5, r8, #7
+	eor	r4, r4, r6, ror #19
+	eor	r5, r5, r8, ror #18
+	eor	r4, r4, r6, lsr #10
+	eor	r5, r5, r8, lsr #3
+	add	r9, r9, r7
+	add	r4, r4, r5
+	add	r9, r9, r4
+	str	r9, [sp, #24]
+L_SHA256_transform_len_blk_end_6:
+	# Round 7
+	ldr	r5, [r0, #20]
+	ldr	r6, [r0, #24]
+	ldr	r7, [r0, #28]
+	ldr	r9, [r0]
+	ror	r4, r5, #6
+	eor	r6, r6, r7
+	eor	r4, r4, r5, ror #11
+	and	r6, r6, r5
+	eor	r4, r4, r5, ror #25
+	eor	r6, r6, r7
+	add	r9, r9, r4
+	add	r9, r9, r6
+	ldr	r5, [sp, #28]
+	ldr	r6, [r12, #28]
+	add	r9, r9, r5
+	add	r9, r9, r6
+	ldr	r5, [r0, #4]
+	ldr	r6, [r0, #8]
+	ldr	r7, [r0, #12]
+	ldr	r8, [r0, #16]
+	ror	r4, r5, #2
+	eor	r11, r5, r6
+	eor	r4, r4, r5, ror #13
+	and	r10, r10, r11
+	eor	r4, r4, r5, ror #22
+	eor	r10, r10, r6
+	add	r8, r8, r9
+	add	r9, r9, r4
+	add	r9, r9, r10
+	str	r8, [r0, #16]
+	str	r9, [r0]
+	cmp	r3, #0
+	beq	L_SHA256_transform_len_blk_end_7
+	# Calc new W[7]
+	ldr	r6, [sp, #20]
+	ldr	r7, [sp]
+	ldr	r8, [sp, #32]
+	ldr	r9, [sp, #28]
+	ror	r4, r6, #17
+	ror	r5, r8, #7
+	eor	r4, r4, r6, ror #19
+	eor	r5, r5, r8, ror #18
+	eor	r4, r4, r6, lsr #10
+	eor	r5, r5, r8, lsr #3
+	add	r9, r9, r7
+	add	r4, r4, r5
+	add	r9, r9, r4
+	str	r9, [sp, #28]
+L_SHA256_transform_len_blk_end_7:
+	# Round 8
+	ldr	r5, [r0, #16]
+	ldr	r6, [r0, #20]
+	ldr	r7, [r0, #24]
+	ldr	r9, [r0, #28]
+	ror	r4, r5, #6
+	eor	r6, r6, r7
+	eor	r4, r4, r5, ror #11
+	and	r6, r6, r5
+	eor	r4, r4, r5, ror #25
+	eor	r6, r6, r7
+	add	r9, r9, r4
+	add	r9, r9, r6
+	ldr	r5, [sp, #32]
+	ldr	r6, [r12, #32]
+	add	r9, r9, r5
+	add	r9, r9, r6
+	ldr	r5, [r0]
+	ldr	r6, [r0, #4]
+	ldr	r7, [r0, #8]
+	ldr	r8, [r0, #12]
+	ror	r4, r5, #2
+	eor	r10, r5, r6
+	eor	r4, r4, r5, ror #13
+	and	r11, r11, r10
+	eor	r4, r4, r5, ror #22
+	eor	r11, r11, r6
+	add	r8, r8, r9
+	add	r9, r9, r4
+	add	r9, r9, r11
+	str	r8, [r0, #12]
+	str	r9, [r0, #28]
+	cmp	r3, #0
+	beq	L_SHA256_transform_len_blk_end_8
+	# Calc new W[8]
+	ldr	r6, [sp, #24]
+	ldr	r7, [sp, #4]
+	ldr	r8, [sp, #36]
+	ldr	r9, [sp, #32]
+	ror	r4, r6, #17
+	ror	r5, r8, #7
+	eor	r4, r4, r6, ror #19
+	eor	r5, r5, r8, ror #18
+	eor	r4, r4, r6, lsr #10
+	eor	r5, r5, r8, lsr #3
+	add	r9, r9, r7
+	add	r4, r4, r5
+	add	r9, r9, r4
+	str	r9, [sp, #32]
+L_SHA256_transform_len_blk_end_8:
+	# Round 9
+	ldr	r5, [r0, #12]
+	ldr	r6, [r0, #16]
+	ldr	r7, [r0, #20]
+	ldr	r9, [r0, #24]
+	ror	r4, r5, #6
+	eor	r6, r6, r7
+	eor	r4, r4, r5, ror #11
+	and	r6, r6, r5
+	eor	r4, r4, r5, ror #25
+	eor	r6, r6, r7
+	add	r9, r9, r4
+	add	r9, r9, r6
+	ldr	r5, [sp, #36]
+	ldr	r6, [r12, #36]
+	add	r9, r9, r5
+	add	r9, r9, r6
+	ldr	r5, [r0, #28]
+	ldr	r6, [r0]
+	ldr	r7, [r0, #4]
+	ldr	r8, [r0, #8]
+	ror	r4, r5, #2
+	eor	r11, r5, r6
+	eor	r4, r4, r5, ror #13
+	and	r10, r10, r11
+	eor	r4, r4, r5, ror #22
+	eor	r10, r10, r6
+	add	r8, r8, r9
+	add	r9, r9, r4
+	add	r9, r9, r10
+	str	r8, [r0, #8]
+	str	r9, [r0, #24]
+	cmp	r3, #0
+	beq	L_SHA256_transform_len_blk_end_9
+	# Calc new W[9]
+	ldr	r6, [sp, #28]
+	ldr	r7, [sp, #8]
+	ldr	r8, [sp, #40]
+	ldr	r9, [sp, #36]
+	ror	r4, r6, #17
+	ror	r5, r8, #7
+	eor	r4, r4, r6, ror #19
+	eor	r5, r5, r8, ror #18
+	eor	r4, r4, r6, lsr #10
+	eor	r5, r5, r8, lsr #3
+	add	r9, r9, r7
+	add	r4, r4, r5
+	add	r9, r9, r4
+	str	r9, [sp, #36]
+L_SHA256_transform_len_blk_end_9:
+	# Round 10
+	ldr	r5, [r0, #8]
+	ldr	r6, [r0, #12]
+	ldr	r7, [r0, #16]
+	ldr	r9, [r0, #20]
+	ror	r4, r5, #6
+	eor	r6, r6, r7
+	eor	r4, r4, r5, ror #11
+	and	r6, r6, r5
+	eor	r4, r4, r5, ror #25
+	eor	r6, r6, r7
+	add	r9, r9, r4
+	add	r9, r9, r6
+	ldr	r5, [sp, #40]
+	ldr	r6, [r12, #40]
+	add	r9, r9, r5
+	add	r9, r9, r6
+	ldr	r5, [r0, #24]
+	ldr	r6, [r0, #28]
+	ldr	r7, [r0]
+	ldr	r8, [r0, #4]
+	ror	r4, r5, #2
+	eor	r10, r5, r6
+	eor	r4, r4, r5, ror #13
+	and	r11, r11, r10
+	eor	r4, r4, r5, ror #22
+	eor	r11, r11, r6
+	add	r8, r8, r9
+	add	r9, r9, r4
+	add	r9, r9, r11
+	str	r8, [r0, #4]
+	str	r9, [r0, #20]
+	cmp	r3, #0
+	beq	L_SHA256_transform_len_blk_end_10
+	# Calc new W[10]
+	ldr	r6, [sp, #32]
+	ldr	r7, [sp, #12]
+	ldr	r8, [sp, #44]
+	ldr	r9, [sp, #40]
+	ror	r4, r6, #17
+	ror	r5, r8, #7
+	eor	r4, r4, r6, ror #19
+	eor	r5, r5, r8, ror #18
+	eor	r4, r4, r6, lsr #10
+	eor	r5, r5, r8, lsr #3
+	add	r9, r9, r7
+	add	r4, r4, r5
+	add	r9, r9, r4
+	str	r9, [sp, #40]
+L_SHA256_transform_len_blk_end_10:
+	# Round 11
+	ldr	r5, [r0, #4]
+	ldr	r6, [r0, #8]
+	ldr	r7, [r0, #12]
+	ldr	r9, [r0, #16]
+	ror	r4, r5, #6
+	eor	r6, r6, r7
+	eor	r4, r4, r5, ror #11
+	and	r6, r6, r5
+	eor	r4, r4, r5, ror #25
+	eor	r6, r6, r7
+	add	r9, r9, r4
+	add	r9, r9, r6
+	ldr	r5, [sp, #44]
+	ldr	r6, [r12, #44]
+	add	r9, r9, r5
+	add	r9, r9, r6
+	ldr	r5, [r0, #20]
+	ldr	r6, [r0, #24]
+	ldr	r7, [r0, #28]
+	ldr	r8, [r0]
+	ror	r4, r5, #2
+	eor	r11, r5, r6
+	eor	r4, r4, r5, ror #13
+	and	r10, r10, r11
+	eor	r4, r4, r5, ror #22
+	eor	r10, r10, r6
+	add	r8, r8, r9
+	add	r9, r9, r4
+	add	r9, r9, r10
+	str	r8, [r0]
+	str	r9, [r0, #16]
+	cmp	r3, #0
+	beq	L_SHA256_transform_len_blk_end_11
+	# Calc new W[11]
+	ldr	r6, [sp, #36]
+	ldr	r7, [sp, #16]
+	ldr	r8, [sp, #48]
+	ldr	r9, [sp, #44]
+	ror	r4, r6, #17
+	ror	r5, r8, #7
+	eor	r4, r4, r6, ror #19
+	eor	r5, r5, r8, ror #18
+	eor	r4, r4, r6, lsr #10
+	eor	r5, r5, r8, lsr #3
+	add	r9, r9, r7
+	add	r4, r4, r5
+	add	r9, r9, r4
+	str	r9, [sp, #44]
+L_SHA256_transform_len_blk_end_11:
+	# Round 12
+	ldr	r5, [r0]
+	ldr	r6, [r0, #4]
+	ldr	r7, [r0, #8]
+	ldr	r9, [r0, #12]
+	ror	r4, r5, #6
+	eor	r6, r6, r7
+	eor	r4, r4, r5, ror #11
+	and	r6, r6, r5
+	eor	r4, r4, r5, ror #25
+	eor	r6, r6, r7
+	add	r9, r9, r4
+	add	r9, r9, r6
+	ldr	r5, [sp, #48]
+	ldr	r6, [r12, #48]
+	add	r9, r9, r5
+	add	r9, r9, r6
+	ldr	r5, [r0, #16]
+	ldr	r6, [r0, #20]
+	ldr	r7, [r0, #24]
+	ldr	r8, [r0, #28]
+	ror	r4, r5, #2
+	eor	r10, r5, r6
+	eor	r4, r4, r5, ror #13
+	and	r11, r11, r10
+	eor	r4, r4, r5, ror #22
+	eor	r11, r11, r6
+	add	r8, r8, r9
+	add	r9, r9, r4
+	add	r9, r9, r11
+	str	r8, [r0, #28]
+	str	r9, [r0, #12]
+	cmp	r3, #0
+	beq	L_SHA256_transform_len_blk_end_12
+	# Calc new W[12]
+	ldr	r6, [sp, #40]
+	ldr	r7, [sp, #20]
+	ldr	r8, [sp, #52]
+	ldr	r9, [sp, #48]
+	ror	r4, r6, #17
+	ror	r5, r8, #7
+	eor	r4, r4, r6, ror #19
+	eor	r5, r5, r8, ror #18
+	eor	r4, r4, r6, lsr #10
+	eor	r5, r5, r8, lsr #3
+	add	r9, r9, r7
+	add	r4, r4, r5
+	add	r9, r9, r4
+	str	r9, [sp, #48]
+L_SHA256_transform_len_blk_end_12:
+	# Round 13
+	ldr	r5, [r0, #28]
+	ldr	r6, [r0]
+	ldr	r7, [r0, #4]
+	ldr	r9, [r0, #8]
+	ror	r4, r5, #6
+	eor	r6, r6, r7
+	eor	r4, r4, r5, ror #11
+	and	r6, r6, r5
+	eor	r4, r4, r5, ror #25
+	eor	r6, r6, r7
+	add	r9, r9, r4
+	add	r9, r9, r6
+	ldr	r5, [sp, #52]
+	ldr	r6, [r12, #52]
+	add	r9, r9, r5
+	add	r9, r9, r6
+	ldr	r5, [r0, #12]
+	ldr	r6, [r0, #16]
+	ldr	r7, [r0, #20]
+	ldr	r8, [r0, #24]
+	ror	r4, r5, #2
+	eor	r11, r5, r6
+	eor	r4, r4, r5, ror #13
+	and	r10, r10, r11
+	eor	r4, r4, r5, ror #22
+	eor	r10, r10, r6
+	add	r8, r8, r9
+	add	r9, r9, r4
+	add	r9, r9, r10
+	str	r8, [r0, #24]
+	str	r9, [r0, #8]
+	cmp	r3, #0
+	beq	L_SHA256_transform_len_blk_end_13
+	# Calc new W[13]
+	ldr	r6, [sp, #44]
+	ldr	r7, [sp, #24]
+	ldr	r8, [sp, #56]
+	ldr	r9, [sp, #52]
+	ror	r4, r6, #17
+	ror	r5, r8, #7
+	eor	r4, r4, r6, ror #19
+	eor	r5, r5, r8, ror #18
+	eor	r4, r4, r6, lsr #10
+	eor	r5, r5, r8, lsr #3
+	add	r9, r9, r7
+	add	r4, r4, r5
+	add	r9, r9, r4
+	str	r9, [sp, #52]
+L_SHA256_transform_len_blk_end_13:
+	# Round 14
+	ldr	r5, [r0, #24]
+	ldr	r6, [r0, #28]
+	ldr	r7, [r0]
+	ldr	r9, [r0, #4]
+	ror	r4, r5, #6
+	eor	r6, r6, r7
+	eor	r4, r4, r5, ror #11
+	and	r6, r6, r5
+	eor	r4, r4, r5, ror #25
+	eor	r6, r6, r7
+	add	r9, r9, r4
+	add	r9, r9, r6
+	ldr	r5, [sp, #56]
+	ldr	r6, [r12, #56]
+	add	r9, r9, r5
+	add	r9, r9, r6
+	ldr	r5, [r0, #8]
+	ldr	r6, [r0, #12]
+	ldr	r7, [r0, #16]
+	ldr	r8, [r0, #20]
+	ror	r4, r5, #2
+	eor	r10, r5, r6
+	eor	r4, r4, r5, ror #13
+	and	r11, r11, r10
+	eor	r4, r4, r5, ror #22
+	eor	r11, r11, r6
+	add	r8, r8, r9
+	add	r9, r9, r4
+	add	r9, r9, r11
+	str	r8, [r0, #20]
+	str	r9, [r0, #4]
+	cmp	r3, #0
+	beq	L_SHA256_transform_len_blk_end_14
+	# Calc new W[14]
+	ldr	r6, [sp, #48]
+	ldr	r7, [sp, #28]
+	ldr	r8, [sp, #60]
+	ldr	r9, [sp, #56]
+	ror	r4, r6, #17
+	ror	r5, r8, #7
+	eor	r4, r4, r6, ror #19
+	eor	r5, r5, r8, ror #18
+	eor	r4, r4, r6, lsr #10
+	eor	r5, r5, r8, lsr #3
+	add	r9, r9, r7
+	add	r4, r4, r5
+	add	r9, r9, r4
+	str	r9, [sp, #56]
+L_SHA256_transform_len_blk_end_14:
+	# Round 15
+	ldr	r5, [r0, #20]
+	ldr	r6, [r0, #24]
+	ldr	r7, [r0, #28]
+	ldr	r9, [r0]
+	ror	r4, r5, #6
+	eor	r6, r6, r7
+	eor	r4, r4, r5, ror #11
+	and	r6, r6, r5
+	eor	r4, r4, r5, ror #25
+	eor	r6, r6, r7
+	add	r9, r9, r4
+	add	r9, r9, r6
+	ldr	r5, [sp, #60]
+	ldr	r6, [r12, #60]
+	add	r9, r9, r5
+	add	r9, r9, r6
+	ldr	r5, [r0, #4]
+	ldr	r6, [r0, #8]
+	ldr	r7, [r0, #12]
+	ldr	r8, [r0, #16]
+	ror	r4, r5, #2
+	eor	r11, r5, r6
+	eor	r4, r4, r5, ror #13
+	and	r10, r10, r11
+	eor	r4, r4, r5, ror #22
+	eor	r10, r10, r6
+	add	r8, r8, r9
+	add	r9, r9, r4
+	add	r9, r9, r10
+	str	r8, [r0, #16]
+	str	r9, [r0]
+	cmp	r3, #0
+	beq	L_SHA256_transform_len_blk_end_15
+	# Calc new W[15]
+	ldr	r6, [sp, #52]
+	ldr	r7, [sp, #32]
+	ldr	r8, [sp]
+	ldr	r9, [sp, #60]
+	ror	r4, r6, #17
+	ror	r5, r8, #7
+	eor	r4, r4, r6, ror #19
+	eor	r5, r5, r8, ror #18
+	eor	r4, r4, r6, lsr #10
+	eor	r5, r5, r8, lsr #3
+	add	r9, r9, r7
+	add	r4, r4, r5
+	add	r9, r9, r4
+	str	r9, [sp, #60]
+L_SHA256_transform_len_blk_end_15:
+	cmp	r3, #0
+	add	r12, r12, #0x40
+	bne	L_SHA256_transform_len_start_small
+#endif /* !WOLFSSL_ARMASM_SHA256_SMALL */
 	# Add in digest from start
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldm	r0, {r4, r5}
@@ -1746,14 +2556,18 @@ L_SHA256_transform_len_start:
 	strd	r6, r7, [sp, #88]
 #endif
 	subs	r2, r2, #0x40
-	sub	r3, r3, #0xc0
+#ifndef WOLFSSL_ARMASM_SHA256_SMALL
+	sub	r12, r12, #0xc0
+#else
+	sub	r12, r12, #0x100
+#endif /* !WOLFSSL_ARMASM_SHA256_SMALL */
 	add	r1, r1, #0x40
 	bne	L_SHA256_transform_len_begin
 	add	sp, sp, #0xc0
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-	.size	Transform_Sha256_Len,.-Transform_Sha256_Len
-#endif /* WOLFSSL_ARMASM_NO_NEON */
-#ifndef WOLFSSL_ARMASM_NO_NEON
+	.size	Transform_Sha256_Len_base,.-Transform_Sha256_Len_base
+#else
+#ifdef WOLFSSL_ARMASM_NO_HW_CRYPTO
 	.text
 	.type	L_SHA256_transform_neon_len_k, %object
 	.size	L_SHA256_transform_neon_len_k, 256
@@ -1826,9 +2640,9 @@ L_SHA256_transform_neon_len_k:
 	.text
 	.align	4
 	.fpu	neon
-	.globl	Transform_Sha256_Len
-	.type	Transform_Sha256_Len, %function
-Transform_Sha256_Len:
+	.globl	Transform_Sha256_Len_neon
+	.type	Transform_Sha256_Len_neon, %function
+Transform_Sha256_Len_neon:
 	push	{r4, r5, r6, r7, r8, r9, r10, lr}
 	vpush	{d8-d11}
 	sub	sp, sp, #24
@@ -2851,7 +3665,228 @@ L_SHA256_transform_neon_len_start:
 	add	sp, sp, #24
 	vpop	{d8-d11}
 	pop	{r4, r5, r6, r7, r8, r9, r10, pc}
-	.size	Transform_Sha256_Len,.-Transform_Sha256_Len
+	.size	Transform_Sha256_Len_neon,.-Transform_Sha256_Len_neon
+#else
+	.text
+	.type	L_SHA256_trans_crypto_len_k, %object
+	.size	L_SHA256_trans_crypto_len_k, 256
+	.align	4
+L_SHA256_trans_crypto_len_k:
+	.word	0x428a2f98
+	.word	0x71374491
+	.word	0xb5c0fbcf
+	.word	0xe9b5dba5
+	.word	0x3956c25b
+	.word	0x59f111f1
+	.word	0x923f82a4
+	.word	0xab1c5ed5
+	.word	0xd807aa98
+	.word	0x12835b01
+	.word	0x243185be
+	.word	0x550c7dc3
+	.word	0x72be5d74
+	.word	0x80deb1fe
+	.word	0x9bdc06a7
+	.word	0xc19bf174
+	.word	0xe49b69c1
+	.word	0xefbe4786
+	.word	0xfc19dc6
+	.word	0x240ca1cc
+	.word	0x2de92c6f
+	.word	0x4a7484aa
+	.word	0x5cb0a9dc
+	.word	0x76f988da
+	.word	0x983e5152
+	.word	0xa831c66d
+	.word	0xb00327c8
+	.word	0xbf597fc7
+	.word	0xc6e00bf3
+	.word	0xd5a79147
+	.word	0x6ca6351
+	.word	0x14292967
+	.word	0x27b70a85
+	.word	0x2e1b2138
+	.word	0x4d2c6dfc
+	.word	0x53380d13
+	.word	0x650a7354
+	.word	0x766a0abb
+	.word	0x81c2c92e
+	.word	0x92722c85
+	.word	0xa2bfe8a1
+	.word	0xa81a664b
+	.word	0xc24b8b70
+	.word	0xc76c51a3
+	.word	0xd192e819
+	.word	0xd6990624
+	.word	0xf40e3585
+	.word	0x106aa070
+	.word	0x19a4c116
+	.word	0x1e376c08
+	.word	0x2748774c
+	.word	0x34b0bcb5
+	.word	0x391c0cb3
+	.word	0x4ed8aa4a
+	.word	0x5b9cca4f
+	.word	0x682e6ff3
+	.word	0x748f82ee
+	.word	0x78a5636f
+	.word	0x84c87814
+	.word	0x8cc70208
+	.word	0x90befffa
+	.word	0xa4506ceb
+	.word	0xbef9a3f7
+	.word	0xc67178f2
+	.text
+	.align	4
+	.globl	Transform_Sha256_Len_crypto
+	.type	Transform_Sha256_Len_crypto, %function
+Transform_Sha256_Len_crypto:
+	vpush	{d8-d15}
+	adr	r3, L_SHA256_trans_crypto_len_k
+	# Load K into vector registers
+	vldm	r3!, {q8-q11}
+	vldm	r3!, {q12, q13}
+	# Load digest into working vars
+	vldm	r0, {q0, q1}
+	# Start of loop processing a block
+L_sha256_len_crypto_begin:
+	# Load W
+	vld1.8	{q4, q5}, [r1]!
+	vld1.8	{q6, q7}, [r1]!
+	vrev32.8	q4, q4
+	vrev32.8	q5, q5
+	vrev32.8	q6, q6
+	vrev32.8	q7, q7
+	# Copy digest to add in at end
+	vmov.32	q2, q0
+	vmov.32	q3, q1
+	# Start 16 rounds
+	# Round 1
+	vadd.i32	q14, q4, q8
+	vmov.32	q15, q0
+	sha256h.32	q0, q1, q14
+	sha256h2.32	q1, q15, q14
+	# Round 2
+	sha256su0.32	q4, q5
+	vadd.i32	q14, q5, q9
+	vmov.32	q15, q0
+	sha256su1.32	q4, q6, q7
+	sha256h.32	q0, q1, q14
+	sha256h2.32	q1, q15, q14
+	# Round 3
+	sha256su0.32	q5, q6
+	vadd.i32	q14, q6, q10
+	vmov.32	q15, q0
+	sha256su1.32	q5, q7, q4
+	sha256h.32	q0, q1, q14
+	sha256h2.32	q1, q15, q14
+	# Round 4
+	sha256su0.32	q6, q7
+	vadd.i32	q14, q7, q11
+	vmov.32	q15, q0
+	sha256su1.32	q6, q4, q5
+	sha256h.32	q0, q1, q14
+	sha256h2.32	q1, q15, q14
+	# Round 5
+	sha256su0.32	q7, q4
+	vadd.i32	q14, q4, q12
+	vmov.32	q15, q0
+	sha256su1.32	q7, q5, q6
+	sha256h.32	q0, q1, q14
+	sha256h2.32	q1, q15, q14
+	# Round 6
+	sha256su0.32	q4, q5
+	vadd.i32	q14, q5, q13
+	vmov.32	q15, q0
+	sha256su1.32	q4, q6, q7
+	sha256h.32	q0, q1, q14
+	sha256h2.32	q1, q15, q14
+	# Round 7
+	vld1.32	{q14}, [r3]!
+	sha256su0.32	q5, q6
+	vadd.i32	q14, q6, q14
+	vmov.32	q15, q0
+	sha256su1.32	q5, q7, q4
+	sha256h.32	q0, q1, q14
+	sha256h2.32	q1, q15, q14
+	# Round 8
+	vld1.32	{q14}, [r3]!
+	sha256su0.32	q6, q7
+	vadd.i32	q14, q7, q14
+	vmov.32	q15, q0
+	sha256su1.32	q6, q4, q5
+	sha256h.32	q0, q1, q14
+	sha256h2.32	q1, q15, q14
+	# Round 9
+	vld1.32	{q14}, [r3]!
+	sha256su0.32	q7, q4
+	vadd.i32	q14, q4, q14
+	vmov.32	q15, q0
+	sha256su1.32	q7, q5, q6
+	sha256h.32	q0, q1, q14
+	sha256h2.32	q1, q15, q14
+	# Round 10
+	vld1.32	{q14}, [r3]!
+	sha256su0.32	q4, q5
+	vadd.i32	q14, q5, q14
+	vmov.32	q15, q0
+	sha256su1.32	q4, q6, q7
+	sha256h.32	q0, q1, q14
+	sha256h2.32	q1, q15, q14
+	# Round 11
+	vld1.32	{q14}, [r3]!
+	sha256su0.32	q5, q6
+	vadd.i32	q14, q6, q14
+	vmov.32	q15, q0
+	sha256su1.32	q5, q7, q4
+	sha256h.32	q0, q1, q14
+	sha256h2.32	q1, q15, q14
+	# Round 12
+	vld1.32	{q14}, [r3]!
+	sha256su0.32	q6, q7
+	vadd.i32	q14, q7, q14
+	vmov.32	q15, q0
+	sha256su1.32	q6, q4, q5
+	sha256h.32	q0, q1, q14
+	sha256h2.32	q1, q15, q14
+	# Round 13
+	vld1.32	{q14}, [r3]!
+	sha256su0.32	q7, q4
+	vadd.i32	q14, q4, q14
+	vmov.32	q15, q0
+	sha256su1.32	q7, q5, q6
+	sha256h.32	q0, q1, q14
+	sha256h2.32	q1, q15, q14
+	# Round 14
+	vld1.32	{q14}, [r3]!
+	vadd.i32	q14, q5, q14
+	vmov.32	q15, q0
+	sha256h.32	q0, q1, q14
+	sha256h2.32	q1, q15, q14
+	# Round 15
+	vld1.32	{q14}, [r3]!
+	vadd.i32	q14, q6, q14
+	vmov.32	q15, q0
+	sha256h.32	q0, q1, q14
+	sha256h2.32	q1, q15, q14
+	# Round 16
+	vld1.32	{q14}, [r3]!
+	vadd.i32	q14, q7, q14
+	vmov.32	q15, q0
+	sha256h.32	q0, q1, q14
+	sha256h2.32	q1, q15, q14
+	# Done 16 rounds
+	vadd.i32	q0, q0, q2
+	vadd.i32	q1, q1, q3
+	subs	r2, r2, #0x40
+	sub	r3, r3, #0xa0
+	bne	L_sha256_len_crypto_begin
+	# Store digest back
+	vst1.8	{q0, q1}, [r0]
+	vpop	{d8-d15}
+	bx	lr
+	.size	Transform_Sha256_Len_crypto,.-Transform_Sha256_Len_crypto
+#endif /* WOLFSSL_ARMASM_NO_HW_CRYPTO */
 #endif /* WOLFSSL_ARMASM_NO_NEON */
 #endif /* !NO_SHA256 */
 #endif /* !__aarch64__ && !WOLFSSL_ARMASM_THUMB2 */

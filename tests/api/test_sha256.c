@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -218,7 +218,7 @@ int test_wc_Sha256_Flags(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_SHA256) && defined(WOLFSSL_HASH_FLAGS) && \
-    (!defined(WOLFSSL_ARMASM) || !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     DIGEST_FLAGS_TEST(wc_Sha256, Sha256);
 #endif
     return EXPECT_RESULT();
@@ -365,7 +365,7 @@ int test_wc_Sha224_Flags(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_SHA224) && defined(WOLFSSL_HASH_FLAGS) && \
-    (!defined(WOLFSSL_ARMASM) || !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     DIGEST_FLAGS_TEST(wc_Sha224, Sha224);
 #endif
     return EXPECT_RESULT();

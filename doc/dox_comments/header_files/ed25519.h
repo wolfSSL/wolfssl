@@ -201,7 +201,7 @@ int wc_ed25519ctx_sign_msg(const byte* in, word32 inlen, byte* out,
     to sign.
     \param [in] hashLen Length of the hash of the message to sign.
     \param [out] out Buffer in which to store the generated signature.
-    \param [in,out] outlen Maximum length of the output buffer. Will store the
+    \param [in,out] outLen Maximum length of the output buffer. Will store the
     bytes written to out upon successfully generating a message signature.
     \param [in] key Pointer to a private ed25519_key with which to generate the
     signature.
@@ -440,8 +440,8 @@ int wc_ed25519ctx_verify_msg(const byte* sig, word32 siglen, const byte* msg,
     byte hash[] = { initialize with SHA-512 hash of message };
     byte context[] = { initialize with context of signature };
     // initialize key with received public key
-    ret = wc_ed25519ph_verify_hash(sig, sizeof(sig), msg, sizeof(msg),
-            &verified, &key, );
+    ret = wc_ed25519ph_verify_hash(sig, sizeof(sig), hash, sizeof(hash),
+            &verified, &key, context, sizeof(context));
     if (ret < 0) {
         // error performing verification
     } else if (verified == 0)
@@ -496,8 +496,8 @@ int wc_ed25519ph_verify_hash(const byte* sig, word32 siglen, const byte* hash,
     byte msg[] = { initialize with message };
     byte context[] = { initialize with context of signature };
     // initialize key with received public key
-    ret = wc_ed25519ctx_verify_msg(sig, sizeof(sig), msg, sizeof(msg),
-            &verified, &key, );
+    ret = wc_ed25519ph_verify_msg(sig, sizeof(sig), msg, sizeof(msg),
+            &verified, &key, context, sizeof(context));
     if (ret < 0) {
         // error performing verification
     } else if (verified == 0)
@@ -506,8 +506,8 @@ int wc_ed25519ph_verify_hash(const byte* sig, word32 siglen, const byte* hash,
     \endcode
 
     \sa wc_ed25519_verify_msg
+    \sa wc_ed25519ctx_verify_msg
     \sa wc_ed25519ph_verify_hash
-    \sa wc_ed25519ph_verify_msg
     \sa wc_ed25519_sign_msg
 */
 
@@ -747,7 +747,7 @@ int wc_ed25519_import_private_key(const byte* priv, word32 privSz,
 
     ed25519_key key;
     wc_ed25519_init_key(&key);
-    ret = wc_ed25519_import_private_key(priv, sizeof(priv), pub, sizeof(pub),
+    ret = wc_ed25519_import_private_key_ex(priv, sizeof(priv), pub, sizeof(pub),
             &key, 1);
     if (ret != 0) {
         // error importing key
@@ -767,14 +767,14 @@ int wc_ed25519_import_private_key_ex(const byte* priv, word32 privSz,
 /*!
     \ingroup ED25519
 
-    \brief This function exports the private key from an ed25519_key
+    \brief This function exports the public key from an ed25519_key
     structure. It stores the public key in the buffer out, and sets the bytes
     written to this buffer in outLen.
 
     \return 0 Returned upon successfully exporting the public key.
     \return BAD_FUNC_ARG Returned if any of the input values evaluate to NULL.
     \return BUFFER_E Returned if the buffer provided is not large enough to
-    store the private key. Upon returning this error, the function sets the
+    store the public key. Upon returning this error, the function sets the
     size required in outLen.
 
     \param [in] key Pointer to an ed25519_key structure from which to export the
@@ -801,10 +801,11 @@ int wc_ed25519_import_private_key_ex(const byte* priv, word32 privSz,
 
     \sa wc_ed25519_import_public
     \sa wc_ed25519_import_public_ex
+    \sa wc_ed25519_export_private
     \sa wc_ed25519_export_private_only
 */
 
-int wc_ed25519_export_public(ed25519_key* key, byte* out, word32* outLen);
+int wc_ed25519_export_public(const ed25519_key* key, byte* out, word32* outLen);
 
 /*!
     \ingroup ED25519
@@ -840,11 +841,12 @@ int wc_ed25519_export_public(ed25519_key* key, byte* out, word32* outLen);
     \endcode
 
     \sa wc_ed25519_export_public
+    \sa wc_ed25519_export_private
     \sa wc_ed25519_import_private_key
     \sa wc_ed25519_import_private_key_ex
 */
 
-int wc_ed25519_export_private_only(ed25519_key* key, byte* out, word32* outLen);
+int wc_ed25519_export_private_only(const ed25519_key* key, byte* out, word32* outLen);
 
 /*!
     \ingroup ED25519
@@ -888,7 +890,7 @@ int wc_ed25519_export_private_only(ed25519_key* key, byte* out, word32* outLen);
     \sa wc_ed25519_export_private_only
 */
 
-int wc_ed25519_export_private(ed25519_key* key, byte* out, word32* outLen);
+int wc_ed25519_export_private(const ed25519_key* key, byte* out, word32* outLen);
 
 /*!
     \ingroup ED25519
@@ -935,7 +937,7 @@ int wc_ed25519_export_private(ed25519_key* key, byte* out, word32* outLen);
     \sa wc_ed25519_export_public
 */
 
-int wc_ed25519_export_key(ed25519_key* key,
+int wc_ed25519_export_key(const ed25519_key* key,
                           byte* priv, word32 *privSz,
                           byte* pub, word32 *pubSz);
 
@@ -999,7 +1001,7 @@ int wc_ed25519_check_key(ed25519_key* key);
     \sa wc_ed25519_make_key
 */
 
-int wc_ed25519_size(ed25519_key* key);
+int wc_ed25519_size(const ed25519_key* key);
 
 /*!
     \ingroup ED25519
@@ -1028,7 +1030,7 @@ int wc_ed25519_size(ed25519_key* key);
     \sa wc_ed25519_pub_size
 */
 
-int wc_ed25519_priv_size(ed25519_key* key);
+int wc_ed25519_priv_size(const ed25519_key* key);
 
 /*!
     \ingroup ED25519
@@ -1056,7 +1058,7 @@ int wc_ed25519_priv_size(ed25519_key* key);
     \sa wc_ed25519_priv_size
 */
 
-int wc_ed25519_pub_size(ed25519_key* key);
+int wc_ed25519_pub_size(const ed25519_key* key);
 
 /*!
     \ingroup ED25519
@@ -1084,4 +1086,4 @@ int wc_ed25519_pub_size(ed25519_key* key);
     \sa wc_ed25519_sign_msg
 */
 
-int wc_ed25519_sig_size(ed25519_key* key);
+int wc_ed25519_sig_size(const ed25519_key* key);

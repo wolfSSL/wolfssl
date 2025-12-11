@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -197,8 +197,11 @@ int testsuite_test(int argc, char** argv)
     #else
         simple_test(&server_args);
     #endif
-    if (server_args.return_code != 0) return server_args.return_code;
+    if (server_args.return_code != 0)
+        return server_args.return_code;
 #if !defined(NETOS)
+    FreeTcpReady(&ready);
+    InitTcpReady(&ready);
     /* Echo input wolfSSL client server test */
     #ifdef HAVE_STACK_SIZE
         StackSizeCheck_launch(&server_args, echoserver_test, &serverThread,

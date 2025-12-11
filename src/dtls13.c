@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -255,7 +255,7 @@ static int Dtls13GetRnMask(WOLFSSL* ssl, const byte* ciphertext, byte* mask,
             return BAD_STATE_E;
 #if !defined(HAVE_SELFTEST) && \
     (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)) \
-    || defined(WOLFSSL_LINUXKM))
+    || defined(WOLFSSL_KERNEL_MODE))
         return wc_AesEncryptDirect(c->aes, mask, ciphertext);
 #else
         wc_AesEncryptDirect(c->aes, mask, ciphertext);
@@ -1898,11 +1898,11 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
 
     ret = DoTls13HandShakeMsgType(ssl, input, &idx, handshakeType,
         messageLength, size);
+    *processedSize = idx;
     if (ret != 0)
         return ret;
 
     Dtls13MsgWasProcessed(ssl, (enum HandShakeType)handshakeType);
-    *processedSize = idx;
 
     /* check if we have buffered some message */
     if (Dtls13NextMessageComplete(ssl))

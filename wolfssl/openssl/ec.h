@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -310,6 +310,9 @@ WOLFSSL_API int wolfSSL_ECDSA_verify(int type, const unsigned char *digest,
 
 
 #if defined HAVE_ECC && (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define EccEnumToNID wolfSSL_EccEnumToNID
+#endif
 WOLFSSL_API int EccEnumToNID(int n);
 #endif
 

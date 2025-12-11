@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -117,30 +117,12 @@ static const word16 L_mlkem_aarch64_zetas_qinv[] = {
 
 void mlkem_ntt(sword16* r)
 {
+    const word16* zetas = L_mlkem_aarch64_zetas;
+    const word16* qinv = L_mlkem_aarch64_zetas_qinv;
+    const word16* consts = L_mlkem_aarch64_consts;
     __asm__ __volatile__ (
-#ifndef __APPLE__
-        "adrp x2, %[L_mlkem_aarch64_zetas]\n\t"
-        "add  x2, x2, :lo12:%[L_mlkem_aarch64_zetas]\n\t"
-#else
-        "adrp x2, %[L_mlkem_aarch64_zetas]@PAGE\n\t"
-        "add  x2, x2, %[L_mlkem_aarch64_zetas]@PAGEOFF\n\t"
-#endif /* __APPLE__ */
-#ifndef __APPLE__
-        "adrp x3, %[L_mlkem_aarch64_zetas_qinv]\n\t"
-        "add  x3, x3, :lo12:%[L_mlkem_aarch64_zetas_qinv]\n\t"
-#else
-        "adrp x3, %[L_mlkem_aarch64_zetas_qinv]@PAGE\n\t"
-        "add  x3, x3, %[L_mlkem_aarch64_zetas_qinv]@PAGEOFF\n\t"
-#endif /* __APPLE__ */
-#ifndef __APPLE__
-        "adrp x4, %[L_mlkem_aarch64_consts]\n\t"
-        "add  x4, x4, :lo12:%[L_mlkem_aarch64_consts]\n\t"
-#else
-        "adrp x4, %[L_mlkem_aarch64_consts]@PAGE\n\t"
-        "add  x4, x4, %[L_mlkem_aarch64_consts]@PAGEOFF\n\t"
-#endif /* __APPLE__ */
         "add	x1, %x[r], #0x100\n\t"
-        "ldr	q4, [x4]\n\t"
+        "ldr	q4, [%[consts]]\n\t"
         "ldr	q5, [%x[r]]\n\t"
         "ldr	q6, [%x[r], #32]\n\t"
         "ldr	q7, [%x[r], #64]\n\t"
@@ -157,8 +139,8 @@ void mlkem_ntt(sword16* r)
         "ldr	q18, [x1, #160]\n\t"
         "ldr	q19, [x1, #192]\n\t"
         "ldr	q20, [x1, #224]\n\t"
-        "ldr	q0, [x2]\n\t"
-        "ldr	q1, [x3]\n\t"
+        "ldr	q0, [%[zetas]]\n\t"
+        "ldr	q1, [%[qinv]]\n\t"
         "mul	v29.8h, v13.8h, v1.h[1]\n\t"
         "mul	v30.8h, v14.8h, v1.h[1]\n\t"
         "sqrdmulh	v21.8h, v13.8h, v0.h[1]\n\t"
@@ -327,8 +309,8 @@ void mlkem_ntt(sword16* r)
         "add	v17.8h, v17.8h, v27.8h\n\t"
         "sub	v20.8h, v18.8h, v28.8h\n\t"
         "add	v18.8h, v18.8h, v28.8h\n\t"
-        "ldr	q0, [x2, #16]\n\t"
-        "ldr	q1, [x3, #16]\n\t"
+        "ldr	q0, [%[zetas], #16]\n\t"
+        "ldr	q1, [%[qinv], #16]\n\t"
         "mul	v29.8h, v6.8h, v1.h[0]\n\t"
         "mul	v30.8h, v8.8h, v1.h[1]\n\t"
         "sqrdmulh	v21.8h, v6.8h, v0.h[0]\n\t"
@@ -417,8 +399,8 @@ void mlkem_ntt(sword16* r)
         "ldr	q18, [x1, #176]\n\t"
         "ldr	q19, [x1, #208]\n\t"
         "ldr	q20, [x1, #240]\n\t"
-        "ldr	q0, [x2]\n\t"
-        "ldr	q1, [x3]\n\t"
+        "ldr	q0, [%[zetas]]\n\t"
+        "ldr	q1, [%[qinv]]\n\t"
         "mul	v29.8h, v13.8h, v1.h[1]\n\t"
         "mul	v30.8h, v14.8h, v1.h[1]\n\t"
         "sqrdmulh	v21.8h, v13.8h, v0.h[1]\n\t"
@@ -587,8 +569,8 @@ void mlkem_ntt(sword16* r)
         "add	v17.8h, v17.8h, v27.8h\n\t"
         "sub	v20.8h, v18.8h, v28.8h\n\t"
         "add	v18.8h, v18.8h, v28.8h\n\t"
-        "ldr	q0, [x2, #16]\n\t"
-        "ldr	q1, [x3, #16]\n\t"
+        "ldr	q0, [%[zetas], #16]\n\t"
+        "ldr	q1, [%[qinv], #16]\n\t"
         "mul	v29.8h, v6.8h, v1.h[0]\n\t"
         "mul	v30.8h, v8.8h, v1.h[1]\n\t"
         "sqrdmulh	v21.8h, v6.8h, v0.h[0]\n\t"
@@ -669,8 +651,8 @@ void mlkem_ntt(sword16* r)
         "ldp	q15, q16, [%x[r], #160]\n\t"
         "ldp	q17, q18, [%x[r], #192]\n\t"
         "ldp	q19, q20, [%x[r], #224]\n\t"
-        "ldr	q0, [x2, #32]\n\t"
-        "ldr	q1, [x3, #32]\n\t"
+        "ldr	q0, [%[zetas], #32]\n\t"
+        "ldr	q1, [%[qinv], #32]\n\t"
         "mul	v29.8h, v6.8h, v1.h[0]\n\t"
         "mul	v30.8h, v8.8h, v1.h[1]\n\t"
         "sqrdmulh	v21.8h, v6.8h, v0.h[0]\n\t"
@@ -727,10 +709,10 @@ void mlkem_ntt(sword16* r)
         "add	v17.8h, v17.8h, v27.8h\n\t"
         "sub	v20.8h, v19.8h, v28.8h\n\t"
         "add	v19.8h, v19.8h, v28.8h\n\t"
-        "ldr	q0, [x2, #64]\n\t"
-        "ldr	q2, [x2, #80]\n\t"
-        "ldr	q1, [x3, #64]\n\t"
-        "ldr	q3, [x3, #80]\n\t"
+        "ldr	q0, [%[zetas], #64]\n\t"
+        "ldr	q2, [%[zetas], #80]\n\t"
+        "ldr	q1, [%[qinv], #64]\n\t"
+        "ldr	q3, [%[qinv], #80]\n\t"
         "mov	v29.16b, v5.16b\n\t"
         "mov	v30.16b, v7.16b\n\t"
         "trn1	v5.2d, v5.2d, v6.2d\n\t"
@@ -747,10 +729,10 @@ void mlkem_ntt(sword16* r)
         "sub	v22.8h, v22.8h, v30.8h\n\t"
         "sshr	v21.8h, v21.8h, #1\n\t"
         "sshr	v22.8h, v22.8h, #1\n\t"
-        "ldr	q0, [x2, #96]\n\t"
-        "ldr	q2, [x2, #112]\n\t"
-        "ldr	q1, [x3, #96]\n\t"
-        "ldr	q3, [x3, #112]\n\t"
+        "ldr	q0, [%[zetas], #96]\n\t"
+        "ldr	q2, [%[zetas], #112]\n\t"
+        "ldr	q1, [%[qinv], #96]\n\t"
+        "ldr	q3, [%[qinv], #112]\n\t"
         "mov	v29.16b, v9.16b\n\t"
         "mov	v30.16b, v11.16b\n\t"
         "trn1	v9.2d, v9.2d, v10.2d\n\t"
@@ -767,10 +749,10 @@ void mlkem_ntt(sword16* r)
         "sub	v24.8h, v24.8h, v30.8h\n\t"
         "sshr	v23.8h, v23.8h, #1\n\t"
         "sshr	v24.8h, v24.8h, #1\n\t"
-        "ldr	q0, [x2, #128]\n\t"
-        "ldr	q2, [x2, #144]\n\t"
-        "ldr	q1, [x3, #128]\n\t"
-        "ldr	q3, [x3, #144]\n\t"
+        "ldr	q0, [%[zetas], #128]\n\t"
+        "ldr	q2, [%[zetas], #144]\n\t"
+        "ldr	q1, [%[qinv], #128]\n\t"
+        "ldr	q3, [%[qinv], #144]\n\t"
         "mov	v29.16b, v13.16b\n\t"
         "mov	v30.16b, v15.16b\n\t"
         "trn1	v13.2d, v13.2d, v14.2d\n\t"
@@ -787,10 +769,10 @@ void mlkem_ntt(sword16* r)
         "sub	v26.8h, v26.8h, v30.8h\n\t"
         "sshr	v25.8h, v25.8h, #1\n\t"
         "sshr	v26.8h, v26.8h, #1\n\t"
-        "ldr	q0, [x2, #160]\n\t"
-        "ldr	q2, [x2, #176]\n\t"
-        "ldr	q1, [x3, #160]\n\t"
-        "ldr	q3, [x3, #176]\n\t"
+        "ldr	q0, [%[zetas], #160]\n\t"
+        "ldr	q2, [%[zetas], #176]\n\t"
+        "ldr	q1, [%[qinv], #160]\n\t"
+        "ldr	q3, [%[qinv], #176]\n\t"
         "mov	v29.16b, v17.16b\n\t"
         "mov	v30.16b, v19.16b\n\t"
         "trn1	v17.2d, v17.2d, v18.2d\n\t"
@@ -823,10 +805,10 @@ void mlkem_ntt(sword16* r)
         "add	v17.8h, v17.8h, v27.8h\n\t"
         "sub	v20.8h, v19.8h, v28.8h\n\t"
         "add	v19.8h, v19.8h, v28.8h\n\t"
-        "ldr	q0, [x2, #320]\n\t"
-        "ldr	q2, [x2, #336]\n\t"
-        "ldr	q1, [x3, #320]\n\t"
-        "ldr	q3, [x3, #336]\n\t"
+        "ldr	q0, [%[zetas], #320]\n\t"
+        "ldr	q2, [%[zetas], #336]\n\t"
+        "ldr	q1, [%[qinv], #320]\n\t"
+        "ldr	q3, [%[qinv], #336]\n\t"
         "mov	v29.16b, v5.16b\n\t"
         "mov	v30.16b, v7.16b\n\t"
         "trn1	v5.4s, v5.4s, v6.4s\n\t"
@@ -843,10 +825,10 @@ void mlkem_ntt(sword16* r)
         "sub	v22.8h, v22.8h, v30.8h\n\t"
         "sshr	v21.8h, v21.8h, #1\n\t"
         "sshr	v22.8h, v22.8h, #1\n\t"
-        "ldr	q0, [x2, #352]\n\t"
-        "ldr	q2, [x2, #368]\n\t"
-        "ldr	q1, [x3, #352]\n\t"
-        "ldr	q3, [x3, #368]\n\t"
+        "ldr	q0, [%[zetas], #352]\n\t"
+        "ldr	q2, [%[zetas], #368]\n\t"
+        "ldr	q1, [%[qinv], #352]\n\t"
+        "ldr	q3, [%[qinv], #368]\n\t"
         "mov	v29.16b, v9.16b\n\t"
         "mov	v30.16b, v11.16b\n\t"
         "trn1	v9.4s, v9.4s, v10.4s\n\t"
@@ -863,10 +845,10 @@ void mlkem_ntt(sword16* r)
         "sub	v24.8h, v24.8h, v30.8h\n\t"
         "sshr	v23.8h, v23.8h, #1\n\t"
         "sshr	v24.8h, v24.8h, #1\n\t"
-        "ldr	q0, [x2, #384]\n\t"
-        "ldr	q2, [x2, #400]\n\t"
-        "ldr	q1, [x3, #384]\n\t"
-        "ldr	q3, [x3, #400]\n\t"
+        "ldr	q0, [%[zetas], #384]\n\t"
+        "ldr	q2, [%[zetas], #400]\n\t"
+        "ldr	q1, [%[qinv], #384]\n\t"
+        "ldr	q3, [%[qinv], #400]\n\t"
         "mov	v29.16b, v13.16b\n\t"
         "mov	v30.16b, v15.16b\n\t"
         "trn1	v13.4s, v13.4s, v14.4s\n\t"
@@ -883,10 +865,10 @@ void mlkem_ntt(sword16* r)
         "sub	v26.8h, v26.8h, v30.8h\n\t"
         "sshr	v25.8h, v25.8h, #1\n\t"
         "sshr	v26.8h, v26.8h, #1\n\t"
-        "ldr	q0, [x2, #416]\n\t"
-        "ldr	q2, [x2, #432]\n\t"
-        "ldr	q1, [x3, #416]\n\t"
-        "ldr	q3, [x3, #432]\n\t"
+        "ldr	q0, [%[zetas], #416]\n\t"
+        "ldr	q2, [%[zetas], #432]\n\t"
+        "ldr	q1, [%[qinv], #416]\n\t"
+        "ldr	q3, [%[qinv], #432]\n\t"
         "mov	v29.16b, v17.16b\n\t"
         "mov	v30.16b, v19.16b\n\t"
         "trn1	v17.4s, v17.4s, v18.4s\n\t"
@@ -1031,8 +1013,8 @@ void mlkem_ntt(sword16* r)
         "ldp	q15, q16, [x1, #160]\n\t"
         "ldp	q17, q18, [x1, #192]\n\t"
         "ldp	q19, q20, [x1, #224]\n\t"
-        "ldr	q0, [x2, #48]\n\t"
-        "ldr	q1, [x3, #48]\n\t"
+        "ldr	q0, [%[zetas], #48]\n\t"
+        "ldr	q1, [%[qinv], #48]\n\t"
         "mul	v29.8h, v6.8h, v1.h[0]\n\t"
         "mul	v30.8h, v8.8h, v1.h[1]\n\t"
         "sqrdmulh	v21.8h, v6.8h, v0.h[0]\n\t"
@@ -1089,10 +1071,10 @@ void mlkem_ntt(sword16* r)
         "add	v17.8h, v17.8h, v27.8h\n\t"
         "sub	v20.8h, v19.8h, v28.8h\n\t"
         "add	v19.8h, v19.8h, v28.8h\n\t"
-        "ldr	q0, [x2, #192]\n\t"
-        "ldr	q2, [x2, #208]\n\t"
-        "ldr	q1, [x3, #192]\n\t"
-        "ldr	q3, [x3, #208]\n\t"
+        "ldr	q0, [%[zetas], #192]\n\t"
+        "ldr	q2, [%[zetas], #208]\n\t"
+        "ldr	q1, [%[qinv], #192]\n\t"
+        "ldr	q3, [%[qinv], #208]\n\t"
         "mov	v29.16b, v5.16b\n\t"
         "mov	v30.16b, v7.16b\n\t"
         "trn1	v5.2d, v5.2d, v6.2d\n\t"
@@ -1109,10 +1091,10 @@ void mlkem_ntt(sword16* r)
         "sub	v22.8h, v22.8h, v30.8h\n\t"
         "sshr	v21.8h, v21.8h, #1\n\t"
         "sshr	v22.8h, v22.8h, #1\n\t"
-        "ldr	q0, [x2, #224]\n\t"
-        "ldr	q2, [x2, #240]\n\t"
-        "ldr	q1, [x3, #224]\n\t"
-        "ldr	q3, [x3, #240]\n\t"
+        "ldr	q0, [%[zetas], #224]\n\t"
+        "ldr	q2, [%[zetas], #240]\n\t"
+        "ldr	q1, [%[qinv], #224]\n\t"
+        "ldr	q3, [%[qinv], #240]\n\t"
         "mov	v29.16b, v9.16b\n\t"
         "mov	v30.16b, v11.16b\n\t"
         "trn1	v9.2d, v9.2d, v10.2d\n\t"
@@ -1129,10 +1111,10 @@ void mlkem_ntt(sword16* r)
         "sub	v24.8h, v24.8h, v30.8h\n\t"
         "sshr	v23.8h, v23.8h, #1\n\t"
         "sshr	v24.8h, v24.8h, #1\n\t"
-        "ldr	q0, [x2, #256]\n\t"
-        "ldr	q2, [x2, #272]\n\t"
-        "ldr	q1, [x3, #256]\n\t"
-        "ldr	q3, [x3, #272]\n\t"
+        "ldr	q0, [%[zetas], #256]\n\t"
+        "ldr	q2, [%[zetas], #272]\n\t"
+        "ldr	q1, [%[qinv], #256]\n\t"
+        "ldr	q3, [%[qinv], #272]\n\t"
         "mov	v29.16b, v13.16b\n\t"
         "mov	v30.16b, v15.16b\n\t"
         "trn1	v13.2d, v13.2d, v14.2d\n\t"
@@ -1149,10 +1131,10 @@ void mlkem_ntt(sword16* r)
         "sub	v26.8h, v26.8h, v30.8h\n\t"
         "sshr	v25.8h, v25.8h, #1\n\t"
         "sshr	v26.8h, v26.8h, #1\n\t"
-        "ldr	q0, [x2, #288]\n\t"
-        "ldr	q2, [x2, #304]\n\t"
-        "ldr	q1, [x3, #288]\n\t"
-        "ldr	q3, [x3, #304]\n\t"
+        "ldr	q0, [%[zetas], #288]\n\t"
+        "ldr	q2, [%[zetas], #304]\n\t"
+        "ldr	q1, [%[qinv], #288]\n\t"
+        "ldr	q3, [%[qinv], #304]\n\t"
         "mov	v29.16b, v17.16b\n\t"
         "mov	v30.16b, v19.16b\n\t"
         "trn1	v17.2d, v17.2d, v18.2d\n\t"
@@ -1185,10 +1167,10 @@ void mlkem_ntt(sword16* r)
         "add	v17.8h, v17.8h, v27.8h\n\t"
         "sub	v20.8h, v19.8h, v28.8h\n\t"
         "add	v19.8h, v19.8h, v28.8h\n\t"
-        "ldr	q0, [x2, #448]\n\t"
-        "ldr	q2, [x2, #464]\n\t"
-        "ldr	q1, [x3, #448]\n\t"
-        "ldr	q3, [x3, #464]\n\t"
+        "ldr	q0, [%[zetas], #448]\n\t"
+        "ldr	q2, [%[zetas], #464]\n\t"
+        "ldr	q1, [%[qinv], #448]\n\t"
+        "ldr	q3, [%[qinv], #464]\n\t"
         "mov	v29.16b, v5.16b\n\t"
         "mov	v30.16b, v7.16b\n\t"
         "trn1	v5.4s, v5.4s, v6.4s\n\t"
@@ -1205,10 +1187,10 @@ void mlkem_ntt(sword16* r)
         "sub	v22.8h, v22.8h, v30.8h\n\t"
         "sshr	v21.8h, v21.8h, #1\n\t"
         "sshr	v22.8h, v22.8h, #1\n\t"
-        "ldr	q0, [x2, #480]\n\t"
-        "ldr	q2, [x2, #496]\n\t"
-        "ldr	q1, [x3, #480]\n\t"
-        "ldr	q3, [x3, #496]\n\t"
+        "ldr	q0, [%[zetas], #480]\n\t"
+        "ldr	q2, [%[zetas], #496]\n\t"
+        "ldr	q1, [%[qinv], #480]\n\t"
+        "ldr	q3, [%[qinv], #496]\n\t"
         "mov	v29.16b, v9.16b\n\t"
         "mov	v30.16b, v11.16b\n\t"
         "trn1	v9.4s, v9.4s, v10.4s\n\t"
@@ -1225,10 +1207,10 @@ void mlkem_ntt(sword16* r)
         "sub	v24.8h, v24.8h, v30.8h\n\t"
         "sshr	v23.8h, v23.8h, #1\n\t"
         "sshr	v24.8h, v24.8h, #1\n\t"
-        "ldr	q0, [x2, #512]\n\t"
-        "ldr	q2, [x2, #528]\n\t"
-        "ldr	q1, [x3, #512]\n\t"
-        "ldr	q3, [x3, #528]\n\t"
+        "ldr	q0, [%[zetas], #512]\n\t"
+        "ldr	q2, [%[zetas], #528]\n\t"
+        "ldr	q1, [%[qinv], #512]\n\t"
+        "ldr	q3, [%[qinv], #528]\n\t"
         "mov	v29.16b, v13.16b\n\t"
         "mov	v30.16b, v15.16b\n\t"
         "trn1	v13.4s, v13.4s, v14.4s\n\t"
@@ -1245,10 +1227,10 @@ void mlkem_ntt(sword16* r)
         "sub	v26.8h, v26.8h, v30.8h\n\t"
         "sshr	v25.8h, v25.8h, #1\n\t"
         "sshr	v26.8h, v26.8h, #1\n\t"
-        "ldr	q0, [x2, #544]\n\t"
-        "ldr	q2, [x2, #560]\n\t"
-        "ldr	q1, [x3, #544]\n\t"
-        "ldr	q3, [x3, #560]\n\t"
+        "ldr	q0, [%[zetas], #544]\n\t"
+        "ldr	q2, [%[zetas], #560]\n\t"
+        "ldr	q1, [%[qinv], #544]\n\t"
+        "ldr	q3, [%[qinv], #560]\n\t"
         "mov	v29.16b, v17.16b\n\t"
         "mov	v30.16b, v19.16b\n\t"
         "trn1	v17.4s, v17.4s, v18.4s\n\t"
@@ -1386,13 +1368,11 @@ void mlkem_ntt(sword16* r)
         "stp	q17, q18, [x1, #192]\n\t"
         "stp	q19, q20, [x1, #224]\n\t"
         : [r] "+r" (r)
-        : [%[L_mlkem_aarch64_consts]] "i" (%[L_mlkem_aarch64_consts]),
-          [L_mlkem_aarch64_zetas] "i" (L_mlkem_aarch64_zetas),
-          [L_mlkem_aarch64_zetas_qinv] "i" (L_mlkem_aarch64_zetas_qinv)
-        : "memory", "cc", "x1", "x2", "x3", "x4", "v0", "v1", "v2", "v3", "v4",
-            "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14",
-            "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23",
-            "v24", "v25", "v26", "v27", "v28", "v29", "v30"
+        : [zetas] "r" (zetas), [qinv] "r" (qinv), [consts] "r" (consts)
+        : "memory", "cc", "x1", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
+            "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17",
+            "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26",
+            "v27", "v28", "v29", "v30"
     );
 }
 
@@ -1476,30 +1456,12 @@ static const word16 L_mlkem_aarch64_zetas_inv_qinv[] = {
 
 void mlkem_invntt(sword16* r)
 {
+    const word16* inv = L_mlkem_aarch64_zetas_inv;
+    const word16* qinv = L_mlkem_aarch64_zetas_inv_qinv;
+    const word16* consts = L_mlkem_aarch64_consts;
     __asm__ __volatile__ (
-#ifndef __APPLE__
-        "adrp x2, %[L_mlkem_aarch64_zetas_inv]\n\t"
-        "add  x2, x2, :lo12:%[L_mlkem_aarch64_zetas_inv]\n\t"
-#else
-        "adrp x2, %[L_mlkem_aarch64_zetas_inv]@PAGE\n\t"
-        "add  x2, x2, %[L_mlkem_aarch64_zetas_inv]@PAGEOFF\n\t"
-#endif /* __APPLE__ */
-#ifndef __APPLE__
-        "adrp x3, %[L_mlkem_aarch64_zetas_inv_qinv]\n\t"
-        "add  x3, x3, :lo12:%[L_mlkem_aarch64_zetas_inv_qinv]\n\t"
-#else
-        "adrp x3, %[L_mlkem_aarch64_zetas_inv_qinv]@PAGE\n\t"
-        "add  x3, x3, %[L_mlkem_aarch64_zetas_inv_qinv]@PAGEOFF\n\t"
-#endif /* __APPLE__ */
-#ifndef __APPLE__
-        "adrp x4, %[L_mlkem_aarch64_consts]\n\t"
-        "add  x4, x4, :lo12:%[L_mlkem_aarch64_consts]\n\t"
-#else
-        "adrp x4, %[L_mlkem_aarch64_consts]@PAGE\n\t"
-        "add  x4, x4, %[L_mlkem_aarch64_consts]@PAGEOFF\n\t"
-#endif /* __APPLE__ */
         "add	x1, %x[r], #0x100\n\t"
-        "ldr	q8, [x4]\n\t"
+        "ldr	q8, [%[consts]]\n\t"
         "ldp	q9, q10, [%x[r]]\n\t"
         "ldp	q11, q12, [%x[r], #32]\n\t"
         "ldp	q13, q14, [%x[r], #64]\n\t"
@@ -1556,10 +1518,10 @@ void mlkem_invntt(sword16* r)
         "mov	v25.16b, v23.16b\n\t"
         "trn1	v23.4s, v23.4s, v24.4s\n\t"
         "trn2	v24.4s, v25.4s, v24.4s\n\t"
-        "ldr	q0, [x2]\n\t"
-        "ldr	q1, [x2, #16]\n\t"
-        "ldr	q2, [x3]\n\t"
-        "ldr	q3, [x3, #16]\n\t"
+        "ldr	q0, [%[inv]]\n\t"
+        "ldr	q1, [%[inv], #16]\n\t"
+        "ldr	q2, [%[qinv]]\n\t"
+        "ldr	q3, [%[qinv], #16]\n\t"
         "sub	v26.8h, v9.8h, v10.8h\n\t"
         "sub	v28.8h, v11.8h, v12.8h\n\t"
         "add	v9.8h, v9.8h, v10.8h\n\t"
@@ -1574,10 +1536,10 @@ void mlkem_invntt(sword16* r)
         "sub	v12.8h, v12.8h, v27.8h\n\t"
         "sshr	v10.8h, v10.8h, #1\n\t"
         "sshr	v12.8h, v12.8h, #1\n\t"
-        "ldr	q0, [x2, #32]\n\t"
-        "ldr	q1, [x2, #48]\n\t"
-        "ldr	q2, [x3, #32]\n\t"
-        "ldr	q3, [x3, #48]\n\t"
+        "ldr	q0, [%[inv], #32]\n\t"
+        "ldr	q1, [%[inv], #48]\n\t"
+        "ldr	q2, [%[qinv], #32]\n\t"
+        "ldr	q3, [%[qinv], #48]\n\t"
         "sub	v26.8h, v13.8h, v14.8h\n\t"
         "sub	v28.8h, v15.8h, v16.8h\n\t"
         "add	v13.8h, v13.8h, v14.8h\n\t"
@@ -1592,10 +1554,10 @@ void mlkem_invntt(sword16* r)
         "sub	v16.8h, v16.8h, v27.8h\n\t"
         "sshr	v14.8h, v14.8h, #1\n\t"
         "sshr	v16.8h, v16.8h, #1\n\t"
-        "ldr	q0, [x2, #64]\n\t"
-        "ldr	q1, [x2, #80]\n\t"
-        "ldr	q2, [x3, #64]\n\t"
-        "ldr	q3, [x3, #80]\n\t"
+        "ldr	q0, [%[inv], #64]\n\t"
+        "ldr	q1, [%[inv], #80]\n\t"
+        "ldr	q2, [%[qinv], #64]\n\t"
+        "ldr	q3, [%[qinv], #80]\n\t"
         "sub	v26.8h, v17.8h, v18.8h\n\t"
         "sub	v28.8h, v19.8h, v20.8h\n\t"
         "add	v17.8h, v17.8h, v18.8h\n\t"
@@ -1610,10 +1572,10 @@ void mlkem_invntt(sword16* r)
         "sub	v20.8h, v20.8h, v27.8h\n\t"
         "sshr	v18.8h, v18.8h, #1\n\t"
         "sshr	v20.8h, v20.8h, #1\n\t"
-        "ldr	q0, [x2, #96]\n\t"
-        "ldr	q1, [x2, #112]\n\t"
-        "ldr	q2, [x3, #96]\n\t"
-        "ldr	q3, [x3, #112]\n\t"
+        "ldr	q0, [%[inv], #96]\n\t"
+        "ldr	q1, [%[inv], #112]\n\t"
+        "ldr	q2, [%[qinv], #96]\n\t"
+        "ldr	q3, [%[qinv], #112]\n\t"
         "sub	v26.8h, v21.8h, v22.8h\n\t"
         "sub	v28.8h, v23.8h, v24.8h\n\t"
         "add	v21.8h, v21.8h, v22.8h\n\t"
@@ -1628,10 +1590,10 @@ void mlkem_invntt(sword16* r)
         "sub	v24.8h, v24.8h, v27.8h\n\t"
         "sshr	v22.8h, v22.8h, #1\n\t"
         "sshr	v24.8h, v24.8h, #1\n\t"
-        "ldr	q0, [x2, #256]\n\t"
-        "ldr	q1, [x2, #272]\n\t"
-        "ldr	q2, [x3, #256]\n\t"
-        "ldr	q3, [x3, #272]\n\t"
+        "ldr	q0, [%[inv], #256]\n\t"
+        "ldr	q1, [%[inv], #272]\n\t"
+        "ldr	q2, [%[qinv], #256]\n\t"
+        "ldr	q3, [%[qinv], #272]\n\t"
         "mov	v25.16b, v9.16b\n\t"
         "mov	v26.16b, v11.16b\n\t"
         "trn1	v9.4s, v9.4s, v10.4s\n\t"
@@ -1652,10 +1614,10 @@ void mlkem_invntt(sword16* r)
         "sub	v12.8h, v12.8h, v27.8h\n\t"
         "sshr	v10.8h, v10.8h, #1\n\t"
         "sshr	v12.8h, v12.8h, #1\n\t"
-        "ldr	q0, [x2, #288]\n\t"
-        "ldr	q1, [x2, #304]\n\t"
-        "ldr	q2, [x3, #288]\n\t"
-        "ldr	q3, [x3, #304]\n\t"
+        "ldr	q0, [%[inv], #288]\n\t"
+        "ldr	q1, [%[inv], #304]\n\t"
+        "ldr	q2, [%[qinv], #288]\n\t"
+        "ldr	q3, [%[qinv], #304]\n\t"
         "mov	v25.16b, v13.16b\n\t"
         "mov	v26.16b, v15.16b\n\t"
         "trn1	v13.4s, v13.4s, v14.4s\n\t"
@@ -1676,10 +1638,10 @@ void mlkem_invntt(sword16* r)
         "sub	v16.8h, v16.8h, v27.8h\n\t"
         "sshr	v14.8h, v14.8h, #1\n\t"
         "sshr	v16.8h, v16.8h, #1\n\t"
-        "ldr	q0, [x2, #320]\n\t"
-        "ldr	q1, [x2, #336]\n\t"
-        "ldr	q2, [x3, #320]\n\t"
-        "ldr	q3, [x3, #336]\n\t"
+        "ldr	q0, [%[inv], #320]\n\t"
+        "ldr	q1, [%[inv], #336]\n\t"
+        "ldr	q2, [%[qinv], #320]\n\t"
+        "ldr	q3, [%[qinv], #336]\n\t"
         "mov	v25.16b, v17.16b\n\t"
         "mov	v26.16b, v19.16b\n\t"
         "trn1	v17.4s, v17.4s, v18.4s\n\t"
@@ -1700,10 +1662,10 @@ void mlkem_invntt(sword16* r)
         "sub	v20.8h, v20.8h, v27.8h\n\t"
         "sshr	v18.8h, v18.8h, #1\n\t"
         "sshr	v20.8h, v20.8h, #1\n\t"
-        "ldr	q0, [x2, #352]\n\t"
-        "ldr	q1, [x2, #368]\n\t"
-        "ldr	q2, [x3, #352]\n\t"
-        "ldr	q3, [x3, #368]\n\t"
+        "ldr	q0, [%[inv], #352]\n\t"
+        "ldr	q1, [%[inv], #368]\n\t"
+        "ldr	q2, [%[qinv], #352]\n\t"
+        "ldr	q3, [%[qinv], #368]\n\t"
         "mov	v25.16b, v21.16b\n\t"
         "mov	v26.16b, v23.16b\n\t"
         "trn1	v21.4s, v21.4s, v22.4s\n\t"
@@ -1724,8 +1686,8 @@ void mlkem_invntt(sword16* r)
         "sub	v24.8h, v24.8h, v27.8h\n\t"
         "sshr	v22.8h, v22.8h, #1\n\t"
         "sshr	v24.8h, v24.8h, #1\n\t"
-        "ldr	q0, [x2, #512]\n\t"
-        "ldr	q2, [x3, #512]\n\t"
+        "ldr	q0, [%[inv], #512]\n\t"
+        "ldr	q2, [%[qinv], #512]\n\t"
         "mov	v25.16b, v9.16b\n\t"
         "mov	v26.16b, v11.16b\n\t"
         "trn1	v9.2d, v9.2d, v10.2d\n\t"
@@ -1894,10 +1856,10 @@ void mlkem_invntt(sword16* r)
         "mov	v25.16b, v23.16b\n\t"
         "trn1	v23.4s, v23.4s, v24.4s\n\t"
         "trn2	v24.4s, v25.4s, v24.4s\n\t"
-        "ldr	q0, [x2, #128]\n\t"
-        "ldr	q1, [x2, #144]\n\t"
-        "ldr	q2, [x3, #128]\n\t"
-        "ldr	q3, [x3, #144]\n\t"
+        "ldr	q0, [%[inv], #128]\n\t"
+        "ldr	q1, [%[inv], #144]\n\t"
+        "ldr	q2, [%[qinv], #128]\n\t"
+        "ldr	q3, [%[qinv], #144]\n\t"
         "sub	v26.8h, v9.8h, v10.8h\n\t"
         "sub	v28.8h, v11.8h, v12.8h\n\t"
         "add	v9.8h, v9.8h, v10.8h\n\t"
@@ -1912,10 +1874,10 @@ void mlkem_invntt(sword16* r)
         "sub	v12.8h, v12.8h, v27.8h\n\t"
         "sshr	v10.8h, v10.8h, #1\n\t"
         "sshr	v12.8h, v12.8h, #1\n\t"
-        "ldr	q0, [x2, #160]\n\t"
-        "ldr	q1, [x2, #176]\n\t"
-        "ldr	q2, [x3, #160]\n\t"
-        "ldr	q3, [x3, #176]\n\t"
+        "ldr	q0, [%[inv], #160]\n\t"
+        "ldr	q1, [%[inv], #176]\n\t"
+        "ldr	q2, [%[qinv], #160]\n\t"
+        "ldr	q3, [%[qinv], #176]\n\t"
         "sub	v26.8h, v13.8h, v14.8h\n\t"
         "sub	v28.8h, v15.8h, v16.8h\n\t"
         "add	v13.8h, v13.8h, v14.8h\n\t"
@@ -1930,10 +1892,10 @@ void mlkem_invntt(sword16* r)
         "sub	v16.8h, v16.8h, v27.8h\n\t"
         "sshr	v14.8h, v14.8h, #1\n\t"
         "sshr	v16.8h, v16.8h, #1\n\t"
-        "ldr	q0, [x2, #192]\n\t"
-        "ldr	q1, [x2, #208]\n\t"
-        "ldr	q2, [x3, #192]\n\t"
-        "ldr	q3, [x3, #208]\n\t"
+        "ldr	q0, [%[inv], #192]\n\t"
+        "ldr	q1, [%[inv], #208]\n\t"
+        "ldr	q2, [%[qinv], #192]\n\t"
+        "ldr	q3, [%[qinv], #208]\n\t"
         "sub	v26.8h, v17.8h, v18.8h\n\t"
         "sub	v28.8h, v19.8h, v20.8h\n\t"
         "add	v17.8h, v17.8h, v18.8h\n\t"
@@ -1948,10 +1910,10 @@ void mlkem_invntt(sword16* r)
         "sub	v20.8h, v20.8h, v27.8h\n\t"
         "sshr	v18.8h, v18.8h, #1\n\t"
         "sshr	v20.8h, v20.8h, #1\n\t"
-        "ldr	q0, [x2, #224]\n\t"
-        "ldr	q1, [x2, #240]\n\t"
-        "ldr	q2, [x3, #224]\n\t"
-        "ldr	q3, [x3, #240]\n\t"
+        "ldr	q0, [%[inv], #224]\n\t"
+        "ldr	q1, [%[inv], #240]\n\t"
+        "ldr	q2, [%[qinv], #224]\n\t"
+        "ldr	q3, [%[qinv], #240]\n\t"
         "sub	v26.8h, v21.8h, v22.8h\n\t"
         "sub	v28.8h, v23.8h, v24.8h\n\t"
         "add	v21.8h, v21.8h, v22.8h\n\t"
@@ -1966,10 +1928,10 @@ void mlkem_invntt(sword16* r)
         "sub	v24.8h, v24.8h, v27.8h\n\t"
         "sshr	v22.8h, v22.8h, #1\n\t"
         "sshr	v24.8h, v24.8h, #1\n\t"
-        "ldr	q0, [x2, #384]\n\t"
-        "ldr	q1, [x2, #400]\n\t"
-        "ldr	q2, [x3, #384]\n\t"
-        "ldr	q3, [x3, #400]\n\t"
+        "ldr	q0, [%[inv], #384]\n\t"
+        "ldr	q1, [%[inv], #400]\n\t"
+        "ldr	q2, [%[qinv], #384]\n\t"
+        "ldr	q3, [%[qinv], #400]\n\t"
         "mov	v25.16b, v9.16b\n\t"
         "mov	v26.16b, v11.16b\n\t"
         "trn1	v9.4s, v9.4s, v10.4s\n\t"
@@ -1990,10 +1952,10 @@ void mlkem_invntt(sword16* r)
         "sub	v12.8h, v12.8h, v27.8h\n\t"
         "sshr	v10.8h, v10.8h, #1\n\t"
         "sshr	v12.8h, v12.8h, #1\n\t"
-        "ldr	q0, [x2, #416]\n\t"
-        "ldr	q1, [x2, #432]\n\t"
-        "ldr	q2, [x3, #416]\n\t"
-        "ldr	q3, [x3, #432]\n\t"
+        "ldr	q0, [%[inv], #416]\n\t"
+        "ldr	q1, [%[inv], #432]\n\t"
+        "ldr	q2, [%[qinv], #416]\n\t"
+        "ldr	q3, [%[qinv], #432]\n\t"
         "mov	v25.16b, v13.16b\n\t"
         "mov	v26.16b, v15.16b\n\t"
         "trn1	v13.4s, v13.4s, v14.4s\n\t"
@@ -2014,10 +1976,10 @@ void mlkem_invntt(sword16* r)
         "sub	v16.8h, v16.8h, v27.8h\n\t"
         "sshr	v14.8h, v14.8h, #1\n\t"
         "sshr	v16.8h, v16.8h, #1\n\t"
-        "ldr	q0, [x2, #448]\n\t"
-        "ldr	q1, [x2, #464]\n\t"
-        "ldr	q2, [x3, #448]\n\t"
-        "ldr	q3, [x3, #464]\n\t"
+        "ldr	q0, [%[inv], #448]\n\t"
+        "ldr	q1, [%[inv], #464]\n\t"
+        "ldr	q2, [%[qinv], #448]\n\t"
+        "ldr	q3, [%[qinv], #464]\n\t"
         "mov	v25.16b, v17.16b\n\t"
         "mov	v26.16b, v19.16b\n\t"
         "trn1	v17.4s, v17.4s, v18.4s\n\t"
@@ -2038,10 +2000,10 @@ void mlkem_invntt(sword16* r)
         "sub	v20.8h, v20.8h, v27.8h\n\t"
         "sshr	v18.8h, v18.8h, #1\n\t"
         "sshr	v20.8h, v20.8h, #1\n\t"
-        "ldr	q0, [x2, #480]\n\t"
-        "ldr	q1, [x2, #496]\n\t"
-        "ldr	q2, [x3, #480]\n\t"
-        "ldr	q3, [x3, #496]\n\t"
+        "ldr	q0, [%[inv], #480]\n\t"
+        "ldr	q1, [%[inv], #496]\n\t"
+        "ldr	q2, [%[qinv], #480]\n\t"
+        "ldr	q3, [%[qinv], #496]\n\t"
         "mov	v25.16b, v21.16b\n\t"
         "mov	v26.16b, v23.16b\n\t"
         "trn1	v21.4s, v21.4s, v22.4s\n\t"
@@ -2062,8 +2024,8 @@ void mlkem_invntt(sword16* r)
         "sub	v24.8h, v24.8h, v27.8h\n\t"
         "sshr	v22.8h, v22.8h, #1\n\t"
         "sshr	v24.8h, v24.8h, #1\n\t"
-        "ldr	q0, [x2, #528]\n\t"
-        "ldr	q2, [x3, #528]\n\t"
+        "ldr	q0, [%[inv], #528]\n\t"
+        "ldr	q2, [%[qinv], #528]\n\t"
         "mov	v25.16b, v9.16b\n\t"
         "mov	v26.16b, v11.16b\n\t"
         "trn1	v9.2d, v9.2d, v10.2d\n\t"
@@ -2176,10 +2138,10 @@ void mlkem_invntt(sword16* r)
         "stp	q19, q20, [x1, #160]\n\t"
         "stp	q21, q22, [x1, #192]\n\t"
         "stp	q23, q24, [x1, #224]\n\t"
-        "ldr	q4, [x2, #544]\n\t"
-        "ldr	q5, [x2, #560]\n\t"
-        "ldr	q6, [x3, #544]\n\t"
-        "ldr	q7, [x3, #560]\n\t"
+        "ldr	q4, [%[inv], #544]\n\t"
+        "ldr	q5, [%[inv], #560]\n\t"
+        "ldr	q6, [%[qinv], #544]\n\t"
+        "ldr	q7, [%[qinv], #560]\n\t"
         "ldr	q9, [%x[r]]\n\t"
         "ldr	q10, [%x[r], #32]\n\t"
         "ldr	q11, [%x[r], #64]\n\t"
@@ -2901,43 +2863,23 @@ void mlkem_invntt(sword16* r)
         "str	q23, [x1, #208]\n\t"
         "str	q24, [x1, #240]\n\t"
         : [r] "+r" (r)
-        : [%[L_mlkem_aarch64_consts]] "i" (%[L_mlkem_aarch64_consts]),
-          [L_mlkem_aarch64_zetas_inv] "i" (L_mlkem_aarch64_zetas_inv),
-          [L_mlkem_aarch64_zetas_inv_qinv] "i" (L_mlkem_aarch64_zetas_inv_qinv)
-        : "memory", "cc", "x1", "x2", "x3", "x4", "v0", "v1", "v2", "v3", "v4",
-            "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14",
-            "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23",
-            "v24", "v25", "v26", "v27", "v28"
+        : [inv] "r" (inv), [qinv] "r" (qinv), [consts] "r" (consts)
+        : "memory", "cc", "x1", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
+            "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17",
+            "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26",
+            "v27", "v28"
     );
 }
 
 #ifndef WOLFSSL_AARCH64_NO_SQRDMLSH
 void mlkem_ntt_sqrdmlsh(sword16* r)
 {
+    const word16* zetas = L_mlkem_aarch64_zetas;
+    const word16* qinv = L_mlkem_aarch64_zetas_qinv;
+    const word16* consts = L_mlkem_aarch64_consts;
     __asm__ __volatile__ (
-#ifndef __APPLE__
-        "adrp x2, %[L_mlkem_aarch64_zetas]\n\t"
-        "add  x2, x2, :lo12:%[L_mlkem_aarch64_zetas]\n\t"
-#else
-        "adrp x2, %[L_mlkem_aarch64_zetas]@PAGE\n\t"
-        "add  x2, x2, %[L_mlkem_aarch64_zetas]@PAGEOFF\n\t"
-#endif /* __APPLE__ */
-#ifndef __APPLE__
-        "adrp x3, %[L_mlkem_aarch64_zetas_qinv]\n\t"
-        "add  x3, x3, :lo12:%[L_mlkem_aarch64_zetas_qinv]\n\t"
-#else
-        "adrp x3, %[L_mlkem_aarch64_zetas_qinv]@PAGE\n\t"
-        "add  x3, x3, %[L_mlkem_aarch64_zetas_qinv]@PAGEOFF\n\t"
-#endif /* __APPLE__ */
-#ifndef __APPLE__
-        "adrp x4, %[L_mlkem_aarch64_consts]\n\t"
-        "add  x4, x4, :lo12:%[L_mlkem_aarch64_consts]\n\t"
-#else
-        "adrp x4, %[L_mlkem_aarch64_consts]@PAGE\n\t"
-        "add  x4, x4, %[L_mlkem_aarch64_consts]@PAGEOFF\n\t"
-#endif /* __APPLE__ */
         "add	x1, %x[r], #0x100\n\t"
-        "ldr	q4, [x4]\n\t"
+        "ldr	q4, [%[consts]]\n\t"
         "ldr	q5, [%x[r]]\n\t"
         "ldr	q6, [%x[r], #32]\n\t"
         "ldr	q7, [%x[r], #64]\n\t"
@@ -2954,8 +2896,8 @@ void mlkem_ntt_sqrdmlsh(sword16* r)
         "ldr	q18, [x1, #160]\n\t"
         "ldr	q19, [x1, #192]\n\t"
         "ldr	q20, [x1, #224]\n\t"
-        "ldr	q0, [x2]\n\t"
-        "ldr	q1, [x3]\n\t"
+        "ldr	q0, [%[zetas]]\n\t"
+        "ldr	q1, [%[qinv]]\n\t"
         "mul	v29.8h, v13.8h, v1.h[1]\n\t"
         "mul	v30.8h, v14.8h, v1.h[1]\n\t"
         "sqrdmulh	v21.8h, v13.8h, v0.h[1]\n\t"
@@ -3100,8 +3042,8 @@ void mlkem_ntt_sqrdmlsh(sword16* r)
         "add	v17.8h, v17.8h, v27.8h\n\t"
         "sub	v20.8h, v18.8h, v28.8h\n\t"
         "add	v18.8h, v18.8h, v28.8h\n\t"
-        "ldr	q0, [x2, #16]\n\t"
-        "ldr	q1, [x3, #16]\n\t"
+        "ldr	q0, [%[zetas], #16]\n\t"
+        "ldr	q1, [%[qinv], #16]\n\t"
         "mul	v29.8h, v6.8h, v1.h[0]\n\t"
         "mul	v30.8h, v8.8h, v1.h[1]\n\t"
         "sqrdmulh	v21.8h, v6.8h, v0.h[0]\n\t"
@@ -3182,8 +3124,8 @@ void mlkem_ntt_sqrdmlsh(sword16* r)
         "ldr	q18, [x1, #176]\n\t"
         "ldr	q19, [x1, #208]\n\t"
         "ldr	q20, [x1, #240]\n\t"
-        "ldr	q0, [x2]\n\t"
-        "ldr	q1, [x3]\n\t"
+        "ldr	q0, [%[zetas]]\n\t"
+        "ldr	q1, [%[qinv]]\n\t"
         "mul	v29.8h, v13.8h, v1.h[1]\n\t"
         "mul	v30.8h, v14.8h, v1.h[1]\n\t"
         "sqrdmulh	v21.8h, v13.8h, v0.h[1]\n\t"
@@ -3328,8 +3270,8 @@ void mlkem_ntt_sqrdmlsh(sword16* r)
         "add	v17.8h, v17.8h, v27.8h\n\t"
         "sub	v20.8h, v18.8h, v28.8h\n\t"
         "add	v18.8h, v18.8h, v28.8h\n\t"
-        "ldr	q0, [x2, #16]\n\t"
-        "ldr	q1, [x3, #16]\n\t"
+        "ldr	q0, [%[zetas], #16]\n\t"
+        "ldr	q1, [%[qinv], #16]\n\t"
         "mul	v29.8h, v6.8h, v1.h[0]\n\t"
         "mul	v30.8h, v8.8h, v1.h[1]\n\t"
         "sqrdmulh	v21.8h, v6.8h, v0.h[0]\n\t"
@@ -3402,8 +3344,8 @@ void mlkem_ntt_sqrdmlsh(sword16* r)
         "ldp	q15, q16, [%x[r], #160]\n\t"
         "ldp	q17, q18, [%x[r], #192]\n\t"
         "ldp	q19, q20, [%x[r], #224]\n\t"
-        "ldr	q0, [x2, #32]\n\t"
-        "ldr	q1, [x3, #32]\n\t"
+        "ldr	q0, [%[zetas], #32]\n\t"
+        "ldr	q1, [%[qinv], #32]\n\t"
         "mul	v29.8h, v6.8h, v1.h[0]\n\t"
         "mul	v30.8h, v8.8h, v1.h[1]\n\t"
         "sqrdmulh	v21.8h, v6.8h, v0.h[0]\n\t"
@@ -3452,10 +3394,10 @@ void mlkem_ntt_sqrdmlsh(sword16* r)
         "add	v17.8h, v17.8h, v27.8h\n\t"
         "sub	v20.8h, v19.8h, v28.8h\n\t"
         "add	v19.8h, v19.8h, v28.8h\n\t"
-        "ldr	q0, [x2, #64]\n\t"
-        "ldr	q2, [x2, #80]\n\t"
-        "ldr	q1, [x3, #64]\n\t"
-        "ldr	q3, [x3, #80]\n\t"
+        "ldr	q0, [%[zetas], #64]\n\t"
+        "ldr	q2, [%[zetas], #80]\n\t"
+        "ldr	q1, [%[qinv], #64]\n\t"
+        "ldr	q3, [%[qinv], #80]\n\t"
         "mov	v29.16b, v5.16b\n\t"
         "mov	v30.16b, v7.16b\n\t"
         "trn1	v5.2d, v5.2d, v6.2d\n\t"
@@ -3470,10 +3412,10 @@ void mlkem_ntt_sqrdmlsh(sword16* r)
         "sqrdmlsh	v22.8h, v30.8h, v4.h[0]\n\t"
         "sshr	v21.8h, v21.8h, #1\n\t"
         "sshr	v22.8h, v22.8h, #1\n\t"
-        "ldr	q0, [x2, #96]\n\t"
-        "ldr	q2, [x2, #112]\n\t"
-        "ldr	q1, [x3, #96]\n\t"
-        "ldr	q3, [x3, #112]\n\t"
+        "ldr	q0, [%[zetas], #96]\n\t"
+        "ldr	q2, [%[zetas], #112]\n\t"
+        "ldr	q1, [%[qinv], #96]\n\t"
+        "ldr	q3, [%[qinv], #112]\n\t"
         "mov	v29.16b, v9.16b\n\t"
         "mov	v30.16b, v11.16b\n\t"
         "trn1	v9.2d, v9.2d, v10.2d\n\t"
@@ -3488,10 +3430,10 @@ void mlkem_ntt_sqrdmlsh(sword16* r)
         "sqrdmlsh	v24.8h, v30.8h, v4.h[0]\n\t"
         "sshr	v23.8h, v23.8h, #1\n\t"
         "sshr	v24.8h, v24.8h, #1\n\t"
-        "ldr	q0, [x2, #128]\n\t"
-        "ldr	q2, [x2, #144]\n\t"
-        "ldr	q1, [x3, #128]\n\t"
-        "ldr	q3, [x3, #144]\n\t"
+        "ldr	q0, [%[zetas], #128]\n\t"
+        "ldr	q2, [%[zetas], #144]\n\t"
+        "ldr	q1, [%[qinv], #128]\n\t"
+        "ldr	q3, [%[qinv], #144]\n\t"
         "mov	v29.16b, v13.16b\n\t"
         "mov	v30.16b, v15.16b\n\t"
         "trn1	v13.2d, v13.2d, v14.2d\n\t"
@@ -3506,10 +3448,10 @@ void mlkem_ntt_sqrdmlsh(sword16* r)
         "sqrdmlsh	v26.8h, v30.8h, v4.h[0]\n\t"
         "sshr	v25.8h, v25.8h, #1\n\t"
         "sshr	v26.8h, v26.8h, #1\n\t"
-        "ldr	q0, [x2, #160]\n\t"
-        "ldr	q2, [x2, #176]\n\t"
-        "ldr	q1, [x3, #160]\n\t"
-        "ldr	q3, [x3, #176]\n\t"
+        "ldr	q0, [%[zetas], #160]\n\t"
+        "ldr	q2, [%[zetas], #176]\n\t"
+        "ldr	q1, [%[qinv], #160]\n\t"
+        "ldr	q3, [%[qinv], #176]\n\t"
         "mov	v29.16b, v17.16b\n\t"
         "mov	v30.16b, v19.16b\n\t"
         "trn1	v17.2d, v17.2d, v18.2d\n\t"
@@ -3540,10 +3482,10 @@ void mlkem_ntt_sqrdmlsh(sword16* r)
         "add	v17.8h, v17.8h, v27.8h\n\t"
         "sub	v20.8h, v19.8h, v28.8h\n\t"
         "add	v19.8h, v19.8h, v28.8h\n\t"
-        "ldr	q0, [x2, #320]\n\t"
-        "ldr	q2, [x2, #336]\n\t"
-        "ldr	q1, [x3, #320]\n\t"
-        "ldr	q3, [x3, #336]\n\t"
+        "ldr	q0, [%[zetas], #320]\n\t"
+        "ldr	q2, [%[zetas], #336]\n\t"
+        "ldr	q1, [%[qinv], #320]\n\t"
+        "ldr	q3, [%[qinv], #336]\n\t"
         "mov	v29.16b, v5.16b\n\t"
         "mov	v30.16b, v7.16b\n\t"
         "trn1	v5.4s, v5.4s, v6.4s\n\t"
@@ -3558,10 +3500,10 @@ void mlkem_ntt_sqrdmlsh(sword16* r)
         "sqrdmlsh	v22.8h, v30.8h, v4.h[0]\n\t"
         "sshr	v21.8h, v21.8h, #1\n\t"
         "sshr	v22.8h, v22.8h, #1\n\t"
-        "ldr	q0, [x2, #352]\n\t"
-        "ldr	q2, [x2, #368]\n\t"
-        "ldr	q1, [x3, #352]\n\t"
-        "ldr	q3, [x3, #368]\n\t"
+        "ldr	q0, [%[zetas], #352]\n\t"
+        "ldr	q2, [%[zetas], #368]\n\t"
+        "ldr	q1, [%[qinv], #352]\n\t"
+        "ldr	q3, [%[qinv], #368]\n\t"
         "mov	v29.16b, v9.16b\n\t"
         "mov	v30.16b, v11.16b\n\t"
         "trn1	v9.4s, v9.4s, v10.4s\n\t"
@@ -3576,10 +3518,10 @@ void mlkem_ntt_sqrdmlsh(sword16* r)
         "sqrdmlsh	v24.8h, v30.8h, v4.h[0]\n\t"
         "sshr	v23.8h, v23.8h, #1\n\t"
         "sshr	v24.8h, v24.8h, #1\n\t"
-        "ldr	q0, [x2, #384]\n\t"
-        "ldr	q2, [x2, #400]\n\t"
-        "ldr	q1, [x3, #384]\n\t"
-        "ldr	q3, [x3, #400]\n\t"
+        "ldr	q0, [%[zetas], #384]\n\t"
+        "ldr	q2, [%[zetas], #400]\n\t"
+        "ldr	q1, [%[qinv], #384]\n\t"
+        "ldr	q3, [%[qinv], #400]\n\t"
         "mov	v29.16b, v13.16b\n\t"
         "mov	v30.16b, v15.16b\n\t"
         "trn1	v13.4s, v13.4s, v14.4s\n\t"
@@ -3594,10 +3536,10 @@ void mlkem_ntt_sqrdmlsh(sword16* r)
         "sqrdmlsh	v26.8h, v30.8h, v4.h[0]\n\t"
         "sshr	v25.8h, v25.8h, #1\n\t"
         "sshr	v26.8h, v26.8h, #1\n\t"
-        "ldr	q0, [x2, #416]\n\t"
-        "ldr	q2, [x2, #432]\n\t"
-        "ldr	q1, [x3, #416]\n\t"
-        "ldr	q3, [x3, #432]\n\t"
+        "ldr	q0, [%[zetas], #416]\n\t"
+        "ldr	q2, [%[zetas], #432]\n\t"
+        "ldr	q1, [%[qinv], #416]\n\t"
+        "ldr	q3, [%[qinv], #432]\n\t"
         "mov	v29.16b, v17.16b\n\t"
         "mov	v30.16b, v19.16b\n\t"
         "trn1	v17.4s, v17.4s, v18.4s\n\t"
@@ -3740,8 +3682,8 @@ void mlkem_ntt_sqrdmlsh(sword16* r)
         "ldp	q15, q16, [x1, #160]\n\t"
         "ldp	q17, q18, [x1, #192]\n\t"
         "ldp	q19, q20, [x1, #224]\n\t"
-        "ldr	q0, [x2, #48]\n\t"
-        "ldr	q1, [x3, #48]\n\t"
+        "ldr	q0, [%[zetas], #48]\n\t"
+        "ldr	q1, [%[qinv], #48]\n\t"
         "mul	v29.8h, v6.8h, v1.h[0]\n\t"
         "mul	v30.8h, v8.8h, v1.h[1]\n\t"
         "sqrdmulh	v21.8h, v6.8h, v0.h[0]\n\t"
@@ -3790,10 +3732,10 @@ void mlkem_ntt_sqrdmlsh(sword16* r)
         "add	v17.8h, v17.8h, v27.8h\n\t"
         "sub	v20.8h, v19.8h, v28.8h\n\t"
         "add	v19.8h, v19.8h, v28.8h\n\t"
-        "ldr	q0, [x2, #192]\n\t"
-        "ldr	q2, [x2, #208]\n\t"
-        "ldr	q1, [x3, #192]\n\t"
-        "ldr	q3, [x3, #208]\n\t"
+        "ldr	q0, [%[zetas], #192]\n\t"
+        "ldr	q2, [%[zetas], #208]\n\t"
+        "ldr	q1, [%[qinv], #192]\n\t"
+        "ldr	q3, [%[qinv], #208]\n\t"
         "mov	v29.16b, v5.16b\n\t"
         "mov	v30.16b, v7.16b\n\t"
         "trn1	v5.2d, v5.2d, v6.2d\n\t"
@@ -3808,10 +3750,10 @@ void mlkem_ntt_sqrdmlsh(sword16* r)
         "sqrdmlsh	v22.8h, v30.8h, v4.h[0]\n\t"
         "sshr	v21.8h, v21.8h, #1\n\t"
         "sshr	v22.8h, v22.8h, #1\n\t"
-        "ldr	q0, [x2, #224]\n\t"
-        "ldr	q2, [x2, #240]\n\t"
-        "ldr	q1, [x3, #224]\n\t"
-        "ldr	q3, [x3, #240]\n\t"
+        "ldr	q0, [%[zetas], #224]\n\t"
+        "ldr	q2, [%[zetas], #240]\n\t"
+        "ldr	q1, [%[qinv], #224]\n\t"
+        "ldr	q3, [%[qinv], #240]\n\t"
         "mov	v29.16b, v9.16b\n\t"
         "mov	v30.16b, v11.16b\n\t"
         "trn1	v9.2d, v9.2d, v10.2d\n\t"
@@ -3826,10 +3768,10 @@ void mlkem_ntt_sqrdmlsh(sword16* r)
         "sqrdmlsh	v24.8h, v30.8h, v4.h[0]\n\t"
         "sshr	v23.8h, v23.8h, #1\n\t"
         "sshr	v24.8h, v24.8h, #1\n\t"
-        "ldr	q0, [x2, #256]\n\t"
-        "ldr	q2, [x2, #272]\n\t"
-        "ldr	q1, [x3, #256]\n\t"
-        "ldr	q3, [x3, #272]\n\t"
+        "ldr	q0, [%[zetas], #256]\n\t"
+        "ldr	q2, [%[zetas], #272]\n\t"
+        "ldr	q1, [%[qinv], #256]\n\t"
+        "ldr	q3, [%[qinv], #272]\n\t"
         "mov	v29.16b, v13.16b\n\t"
         "mov	v30.16b, v15.16b\n\t"
         "trn1	v13.2d, v13.2d, v14.2d\n\t"
@@ -3844,10 +3786,10 @@ void mlkem_ntt_sqrdmlsh(sword16* r)
         "sqrdmlsh	v26.8h, v30.8h, v4.h[0]\n\t"
         "sshr	v25.8h, v25.8h, #1\n\t"
         "sshr	v26.8h, v26.8h, #1\n\t"
-        "ldr	q0, [x2, #288]\n\t"
-        "ldr	q2, [x2, #304]\n\t"
-        "ldr	q1, [x3, #288]\n\t"
-        "ldr	q3, [x3, #304]\n\t"
+        "ldr	q0, [%[zetas], #288]\n\t"
+        "ldr	q2, [%[zetas], #304]\n\t"
+        "ldr	q1, [%[qinv], #288]\n\t"
+        "ldr	q3, [%[qinv], #304]\n\t"
         "mov	v29.16b, v17.16b\n\t"
         "mov	v30.16b, v19.16b\n\t"
         "trn1	v17.2d, v17.2d, v18.2d\n\t"
@@ -3878,10 +3820,10 @@ void mlkem_ntt_sqrdmlsh(sword16* r)
         "add	v17.8h, v17.8h, v27.8h\n\t"
         "sub	v20.8h, v19.8h, v28.8h\n\t"
         "add	v19.8h, v19.8h, v28.8h\n\t"
-        "ldr	q0, [x2, #448]\n\t"
-        "ldr	q2, [x2, #464]\n\t"
-        "ldr	q1, [x3, #448]\n\t"
-        "ldr	q3, [x3, #464]\n\t"
+        "ldr	q0, [%[zetas], #448]\n\t"
+        "ldr	q2, [%[zetas], #464]\n\t"
+        "ldr	q1, [%[qinv], #448]\n\t"
+        "ldr	q3, [%[qinv], #464]\n\t"
         "mov	v29.16b, v5.16b\n\t"
         "mov	v30.16b, v7.16b\n\t"
         "trn1	v5.4s, v5.4s, v6.4s\n\t"
@@ -3896,10 +3838,10 @@ void mlkem_ntt_sqrdmlsh(sword16* r)
         "sqrdmlsh	v22.8h, v30.8h, v4.h[0]\n\t"
         "sshr	v21.8h, v21.8h, #1\n\t"
         "sshr	v22.8h, v22.8h, #1\n\t"
-        "ldr	q0, [x2, #480]\n\t"
-        "ldr	q2, [x2, #496]\n\t"
-        "ldr	q1, [x3, #480]\n\t"
-        "ldr	q3, [x3, #496]\n\t"
+        "ldr	q0, [%[zetas], #480]\n\t"
+        "ldr	q2, [%[zetas], #496]\n\t"
+        "ldr	q1, [%[qinv], #480]\n\t"
+        "ldr	q3, [%[qinv], #496]\n\t"
         "mov	v29.16b, v9.16b\n\t"
         "mov	v30.16b, v11.16b\n\t"
         "trn1	v9.4s, v9.4s, v10.4s\n\t"
@@ -3914,10 +3856,10 @@ void mlkem_ntt_sqrdmlsh(sword16* r)
         "sqrdmlsh	v24.8h, v30.8h, v4.h[0]\n\t"
         "sshr	v23.8h, v23.8h, #1\n\t"
         "sshr	v24.8h, v24.8h, #1\n\t"
-        "ldr	q0, [x2, #512]\n\t"
-        "ldr	q2, [x2, #528]\n\t"
-        "ldr	q1, [x3, #512]\n\t"
-        "ldr	q3, [x3, #528]\n\t"
+        "ldr	q0, [%[zetas], #512]\n\t"
+        "ldr	q2, [%[zetas], #528]\n\t"
+        "ldr	q1, [%[qinv], #512]\n\t"
+        "ldr	q3, [%[qinv], #528]\n\t"
         "mov	v29.16b, v13.16b\n\t"
         "mov	v30.16b, v15.16b\n\t"
         "trn1	v13.4s, v13.4s, v14.4s\n\t"
@@ -3932,10 +3874,10 @@ void mlkem_ntt_sqrdmlsh(sword16* r)
         "sqrdmlsh	v26.8h, v30.8h, v4.h[0]\n\t"
         "sshr	v25.8h, v25.8h, #1\n\t"
         "sshr	v26.8h, v26.8h, #1\n\t"
-        "ldr	q0, [x2, #544]\n\t"
-        "ldr	q2, [x2, #560]\n\t"
-        "ldr	q1, [x3, #544]\n\t"
-        "ldr	q3, [x3, #560]\n\t"
+        "ldr	q0, [%[zetas], #544]\n\t"
+        "ldr	q2, [%[zetas], #560]\n\t"
+        "ldr	q1, [%[qinv], #544]\n\t"
+        "ldr	q3, [%[qinv], #560]\n\t"
         "mov	v29.16b, v17.16b\n\t"
         "mov	v30.16b, v19.16b\n\t"
         "trn1	v17.4s, v17.4s, v18.4s\n\t"
@@ -4071,40 +4013,22 @@ void mlkem_ntt_sqrdmlsh(sword16* r)
         "stp	q17, q18, [x1, #192]\n\t"
         "stp	q19, q20, [x1, #224]\n\t"
         : [r] "+r" (r)
-        : [%[L_mlkem_aarch64_consts]] "i" (%[L_mlkem_aarch64_consts])
-        : "memory", "cc", "x1", "x2", "x3", "x4", "v0", "v1", "v2", "v3", "v4",
-            "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14",
-            "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23",
-            "v24", "v25", "v26", "v27", "v28", "v29", "v30"
+        : [zetas] "r" (zetas), [qinv] "r" (qinv), [consts] "r" (consts)
+        : "memory", "cc", "x1", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
+            "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17",
+            "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26",
+            "v27", "v28", "v29", "v30"
     );
 }
 
 void mlkem_invntt_sqrdmlsh(sword16* r)
 {
+    const word16* inv = L_mlkem_aarch64_zetas_inv;
+    const word16* qinv = L_mlkem_aarch64_zetas_inv_qinv;
+    const word16* consts = L_mlkem_aarch64_consts;
     __asm__ __volatile__ (
-#ifndef __APPLE__
-        "adrp x2, %[L_mlkem_aarch64_zetas_inv]\n\t"
-        "add  x2, x2, :lo12:%[L_mlkem_aarch64_zetas_inv]\n\t"
-#else
-        "adrp x2, %[L_mlkem_aarch64_zetas_inv]@PAGE\n\t"
-        "add  x2, x2, %[L_mlkem_aarch64_zetas_inv]@PAGEOFF\n\t"
-#endif /* __APPLE__ */
-#ifndef __APPLE__
-        "adrp x3, %[L_mlkem_aarch64_zetas_inv_qinv]\n\t"
-        "add  x3, x3, :lo12:%[L_mlkem_aarch64_zetas_inv_qinv]\n\t"
-#else
-        "adrp x3, %[L_mlkem_aarch64_zetas_inv_qinv]@PAGE\n\t"
-        "add  x3, x3, %[L_mlkem_aarch64_zetas_inv_qinv]@PAGEOFF\n\t"
-#endif /* __APPLE__ */
-#ifndef __APPLE__
-        "adrp x4, %[L_mlkem_aarch64_consts]\n\t"
-        "add  x4, x4, :lo12:%[L_mlkem_aarch64_consts]\n\t"
-#else
-        "adrp x4, %[L_mlkem_aarch64_consts]@PAGE\n\t"
-        "add  x4, x4, %[L_mlkem_aarch64_consts]@PAGEOFF\n\t"
-#endif /* __APPLE__ */
         "add	x1, %x[r], #0x100\n\t"
-        "ldr	q8, [x4]\n\t"
+        "ldr	q8, [%[consts]]\n\t"
         "ldp	q9, q10, [%x[r]]\n\t"
         "ldp	q11, q12, [%x[r], #32]\n\t"
         "ldp	q13, q14, [%x[r], #64]\n\t"
@@ -4161,10 +4085,10 @@ void mlkem_invntt_sqrdmlsh(sword16* r)
         "mov	v25.16b, v23.16b\n\t"
         "trn1	v23.4s, v23.4s, v24.4s\n\t"
         "trn2	v24.4s, v25.4s, v24.4s\n\t"
-        "ldr	q0, [x2]\n\t"
-        "ldr	q1, [x2, #16]\n\t"
-        "ldr	q2, [x3]\n\t"
-        "ldr	q3, [x3, #16]\n\t"
+        "ldr	q0, [%[inv]]\n\t"
+        "ldr	q1, [%[inv], #16]\n\t"
+        "ldr	q2, [%[qinv]]\n\t"
+        "ldr	q3, [%[qinv], #16]\n\t"
         "sub	v26.8h, v9.8h, v10.8h\n\t"
         "sub	v28.8h, v11.8h, v12.8h\n\t"
         "add	v9.8h, v9.8h, v10.8h\n\t"
@@ -4177,10 +4101,10 @@ void mlkem_invntt_sqrdmlsh(sword16* r)
         "sqrdmlsh	v12.8h, v27.8h, v8.h[0]\n\t"
         "sshr	v10.8h, v10.8h, #1\n\t"
         "sshr	v12.8h, v12.8h, #1\n\t"
-        "ldr	q0, [x2, #32]\n\t"
-        "ldr	q1, [x2, #48]\n\t"
-        "ldr	q2, [x3, #32]\n\t"
-        "ldr	q3, [x3, #48]\n\t"
+        "ldr	q0, [%[inv], #32]\n\t"
+        "ldr	q1, [%[inv], #48]\n\t"
+        "ldr	q2, [%[qinv], #32]\n\t"
+        "ldr	q3, [%[qinv], #48]\n\t"
         "sub	v26.8h, v13.8h, v14.8h\n\t"
         "sub	v28.8h, v15.8h, v16.8h\n\t"
         "add	v13.8h, v13.8h, v14.8h\n\t"
@@ -4193,10 +4117,10 @@ void mlkem_invntt_sqrdmlsh(sword16* r)
         "sqrdmlsh	v16.8h, v27.8h, v8.h[0]\n\t"
         "sshr	v14.8h, v14.8h, #1\n\t"
         "sshr	v16.8h, v16.8h, #1\n\t"
-        "ldr	q0, [x2, #64]\n\t"
-        "ldr	q1, [x2, #80]\n\t"
-        "ldr	q2, [x3, #64]\n\t"
-        "ldr	q3, [x3, #80]\n\t"
+        "ldr	q0, [%[inv], #64]\n\t"
+        "ldr	q1, [%[inv], #80]\n\t"
+        "ldr	q2, [%[qinv], #64]\n\t"
+        "ldr	q3, [%[qinv], #80]\n\t"
         "sub	v26.8h, v17.8h, v18.8h\n\t"
         "sub	v28.8h, v19.8h, v20.8h\n\t"
         "add	v17.8h, v17.8h, v18.8h\n\t"
@@ -4209,10 +4133,10 @@ void mlkem_invntt_sqrdmlsh(sword16* r)
         "sqrdmlsh	v20.8h, v27.8h, v8.h[0]\n\t"
         "sshr	v18.8h, v18.8h, #1\n\t"
         "sshr	v20.8h, v20.8h, #1\n\t"
-        "ldr	q0, [x2, #96]\n\t"
-        "ldr	q1, [x2, #112]\n\t"
-        "ldr	q2, [x3, #96]\n\t"
-        "ldr	q3, [x3, #112]\n\t"
+        "ldr	q0, [%[inv], #96]\n\t"
+        "ldr	q1, [%[inv], #112]\n\t"
+        "ldr	q2, [%[qinv], #96]\n\t"
+        "ldr	q3, [%[qinv], #112]\n\t"
         "sub	v26.8h, v21.8h, v22.8h\n\t"
         "sub	v28.8h, v23.8h, v24.8h\n\t"
         "add	v21.8h, v21.8h, v22.8h\n\t"
@@ -4225,10 +4149,10 @@ void mlkem_invntt_sqrdmlsh(sword16* r)
         "sqrdmlsh	v24.8h, v27.8h, v8.h[0]\n\t"
         "sshr	v22.8h, v22.8h, #1\n\t"
         "sshr	v24.8h, v24.8h, #1\n\t"
-        "ldr	q0, [x2, #256]\n\t"
-        "ldr	q1, [x2, #272]\n\t"
-        "ldr	q2, [x3, #256]\n\t"
-        "ldr	q3, [x3, #272]\n\t"
+        "ldr	q0, [%[inv], #256]\n\t"
+        "ldr	q1, [%[inv], #272]\n\t"
+        "ldr	q2, [%[qinv], #256]\n\t"
+        "ldr	q3, [%[qinv], #272]\n\t"
         "mov	v25.16b, v9.16b\n\t"
         "mov	v26.16b, v11.16b\n\t"
         "trn1	v9.4s, v9.4s, v10.4s\n\t"
@@ -4247,10 +4171,10 @@ void mlkem_invntt_sqrdmlsh(sword16* r)
         "sqrdmlsh	v12.8h, v27.8h, v8.h[0]\n\t"
         "sshr	v10.8h, v10.8h, #1\n\t"
         "sshr	v12.8h, v12.8h, #1\n\t"
-        "ldr	q0, [x2, #288]\n\t"
-        "ldr	q1, [x2, #304]\n\t"
-        "ldr	q2, [x3, #288]\n\t"
-        "ldr	q3, [x3, #304]\n\t"
+        "ldr	q0, [%[inv], #288]\n\t"
+        "ldr	q1, [%[inv], #304]\n\t"
+        "ldr	q2, [%[qinv], #288]\n\t"
+        "ldr	q3, [%[qinv], #304]\n\t"
         "mov	v25.16b, v13.16b\n\t"
         "mov	v26.16b, v15.16b\n\t"
         "trn1	v13.4s, v13.4s, v14.4s\n\t"
@@ -4269,10 +4193,10 @@ void mlkem_invntt_sqrdmlsh(sword16* r)
         "sqrdmlsh	v16.8h, v27.8h, v8.h[0]\n\t"
         "sshr	v14.8h, v14.8h, #1\n\t"
         "sshr	v16.8h, v16.8h, #1\n\t"
-        "ldr	q0, [x2, #320]\n\t"
-        "ldr	q1, [x2, #336]\n\t"
-        "ldr	q2, [x3, #320]\n\t"
-        "ldr	q3, [x3, #336]\n\t"
+        "ldr	q0, [%[inv], #320]\n\t"
+        "ldr	q1, [%[inv], #336]\n\t"
+        "ldr	q2, [%[qinv], #320]\n\t"
+        "ldr	q3, [%[qinv], #336]\n\t"
         "mov	v25.16b, v17.16b\n\t"
         "mov	v26.16b, v19.16b\n\t"
         "trn1	v17.4s, v17.4s, v18.4s\n\t"
@@ -4291,10 +4215,10 @@ void mlkem_invntt_sqrdmlsh(sword16* r)
         "sqrdmlsh	v20.8h, v27.8h, v8.h[0]\n\t"
         "sshr	v18.8h, v18.8h, #1\n\t"
         "sshr	v20.8h, v20.8h, #1\n\t"
-        "ldr	q0, [x2, #352]\n\t"
-        "ldr	q1, [x2, #368]\n\t"
-        "ldr	q2, [x3, #352]\n\t"
-        "ldr	q3, [x3, #368]\n\t"
+        "ldr	q0, [%[inv], #352]\n\t"
+        "ldr	q1, [%[inv], #368]\n\t"
+        "ldr	q2, [%[qinv], #352]\n\t"
+        "ldr	q3, [%[qinv], #368]\n\t"
         "mov	v25.16b, v21.16b\n\t"
         "mov	v26.16b, v23.16b\n\t"
         "trn1	v21.4s, v21.4s, v22.4s\n\t"
@@ -4313,8 +4237,8 @@ void mlkem_invntt_sqrdmlsh(sword16* r)
         "sqrdmlsh	v24.8h, v27.8h, v8.h[0]\n\t"
         "sshr	v22.8h, v22.8h, #1\n\t"
         "sshr	v24.8h, v24.8h, #1\n\t"
-        "ldr	q0, [x2, #512]\n\t"
-        "ldr	q2, [x3, #512]\n\t"
+        "ldr	q0, [%[inv], #512]\n\t"
+        "ldr	q2, [%[qinv], #512]\n\t"
         "mov	v25.16b, v9.16b\n\t"
         "mov	v26.16b, v11.16b\n\t"
         "trn1	v9.2d, v9.2d, v10.2d\n\t"
@@ -4475,10 +4399,10 @@ void mlkem_invntt_sqrdmlsh(sword16* r)
         "mov	v25.16b, v23.16b\n\t"
         "trn1	v23.4s, v23.4s, v24.4s\n\t"
         "trn2	v24.4s, v25.4s, v24.4s\n\t"
-        "ldr	q0, [x2, #128]\n\t"
-        "ldr	q1, [x2, #144]\n\t"
-        "ldr	q2, [x3, #128]\n\t"
-        "ldr	q3, [x3, #144]\n\t"
+        "ldr	q0, [%[inv], #128]\n\t"
+        "ldr	q1, [%[inv], #144]\n\t"
+        "ldr	q2, [%[qinv], #128]\n\t"
+        "ldr	q3, [%[qinv], #144]\n\t"
         "sub	v26.8h, v9.8h, v10.8h\n\t"
         "sub	v28.8h, v11.8h, v12.8h\n\t"
         "add	v9.8h, v9.8h, v10.8h\n\t"
@@ -4491,10 +4415,10 @@ void mlkem_invntt_sqrdmlsh(sword16* r)
         "sqrdmlsh	v12.8h, v27.8h, v8.h[0]\n\t"
         "sshr	v10.8h, v10.8h, #1\n\t"
         "sshr	v12.8h, v12.8h, #1\n\t"
-        "ldr	q0, [x2, #160]\n\t"
-        "ldr	q1, [x2, #176]\n\t"
-        "ldr	q2, [x3, #160]\n\t"
-        "ldr	q3, [x3, #176]\n\t"
+        "ldr	q0, [%[inv], #160]\n\t"
+        "ldr	q1, [%[inv], #176]\n\t"
+        "ldr	q2, [%[qinv], #160]\n\t"
+        "ldr	q3, [%[qinv], #176]\n\t"
         "sub	v26.8h, v13.8h, v14.8h\n\t"
         "sub	v28.8h, v15.8h, v16.8h\n\t"
         "add	v13.8h, v13.8h, v14.8h\n\t"
@@ -4507,10 +4431,10 @@ void mlkem_invntt_sqrdmlsh(sword16* r)
         "sqrdmlsh	v16.8h, v27.8h, v8.h[0]\n\t"
         "sshr	v14.8h, v14.8h, #1\n\t"
         "sshr	v16.8h, v16.8h, #1\n\t"
-        "ldr	q0, [x2, #192]\n\t"
-        "ldr	q1, [x2, #208]\n\t"
-        "ldr	q2, [x3, #192]\n\t"
-        "ldr	q3, [x3, #208]\n\t"
+        "ldr	q0, [%[inv], #192]\n\t"
+        "ldr	q1, [%[inv], #208]\n\t"
+        "ldr	q2, [%[qinv], #192]\n\t"
+        "ldr	q3, [%[qinv], #208]\n\t"
         "sub	v26.8h, v17.8h, v18.8h\n\t"
         "sub	v28.8h, v19.8h, v20.8h\n\t"
         "add	v17.8h, v17.8h, v18.8h\n\t"
@@ -4523,10 +4447,10 @@ void mlkem_invntt_sqrdmlsh(sword16* r)
         "sqrdmlsh	v20.8h, v27.8h, v8.h[0]\n\t"
         "sshr	v18.8h, v18.8h, #1\n\t"
         "sshr	v20.8h, v20.8h, #1\n\t"
-        "ldr	q0, [x2, #224]\n\t"
-        "ldr	q1, [x2, #240]\n\t"
-        "ldr	q2, [x3, #224]\n\t"
-        "ldr	q3, [x3, #240]\n\t"
+        "ldr	q0, [%[inv], #224]\n\t"
+        "ldr	q1, [%[inv], #240]\n\t"
+        "ldr	q2, [%[qinv], #224]\n\t"
+        "ldr	q3, [%[qinv], #240]\n\t"
         "sub	v26.8h, v21.8h, v22.8h\n\t"
         "sub	v28.8h, v23.8h, v24.8h\n\t"
         "add	v21.8h, v21.8h, v22.8h\n\t"
@@ -4539,10 +4463,10 @@ void mlkem_invntt_sqrdmlsh(sword16* r)
         "sqrdmlsh	v24.8h, v27.8h, v8.h[0]\n\t"
         "sshr	v22.8h, v22.8h, #1\n\t"
         "sshr	v24.8h, v24.8h, #1\n\t"
-        "ldr	q0, [x2, #384]\n\t"
-        "ldr	q1, [x2, #400]\n\t"
-        "ldr	q2, [x3, #384]\n\t"
-        "ldr	q3, [x3, #400]\n\t"
+        "ldr	q0, [%[inv], #384]\n\t"
+        "ldr	q1, [%[inv], #400]\n\t"
+        "ldr	q2, [%[qinv], #384]\n\t"
+        "ldr	q3, [%[qinv], #400]\n\t"
         "mov	v25.16b, v9.16b\n\t"
         "mov	v26.16b, v11.16b\n\t"
         "trn1	v9.4s, v9.4s, v10.4s\n\t"
@@ -4561,10 +4485,10 @@ void mlkem_invntt_sqrdmlsh(sword16* r)
         "sqrdmlsh	v12.8h, v27.8h, v8.h[0]\n\t"
         "sshr	v10.8h, v10.8h, #1\n\t"
         "sshr	v12.8h, v12.8h, #1\n\t"
-        "ldr	q0, [x2, #416]\n\t"
-        "ldr	q1, [x2, #432]\n\t"
-        "ldr	q2, [x3, #416]\n\t"
-        "ldr	q3, [x3, #432]\n\t"
+        "ldr	q0, [%[inv], #416]\n\t"
+        "ldr	q1, [%[inv], #432]\n\t"
+        "ldr	q2, [%[qinv], #416]\n\t"
+        "ldr	q3, [%[qinv], #432]\n\t"
         "mov	v25.16b, v13.16b\n\t"
         "mov	v26.16b, v15.16b\n\t"
         "trn1	v13.4s, v13.4s, v14.4s\n\t"
@@ -4583,10 +4507,10 @@ void mlkem_invntt_sqrdmlsh(sword16* r)
         "sqrdmlsh	v16.8h, v27.8h, v8.h[0]\n\t"
         "sshr	v14.8h, v14.8h, #1\n\t"
         "sshr	v16.8h, v16.8h, #1\n\t"
-        "ldr	q0, [x2, #448]\n\t"
-        "ldr	q1, [x2, #464]\n\t"
-        "ldr	q2, [x3, #448]\n\t"
-        "ldr	q3, [x3, #464]\n\t"
+        "ldr	q0, [%[inv], #448]\n\t"
+        "ldr	q1, [%[inv], #464]\n\t"
+        "ldr	q2, [%[qinv], #448]\n\t"
+        "ldr	q3, [%[qinv], #464]\n\t"
         "mov	v25.16b, v17.16b\n\t"
         "mov	v26.16b, v19.16b\n\t"
         "trn1	v17.4s, v17.4s, v18.4s\n\t"
@@ -4605,10 +4529,10 @@ void mlkem_invntt_sqrdmlsh(sword16* r)
         "sqrdmlsh	v20.8h, v27.8h, v8.h[0]\n\t"
         "sshr	v18.8h, v18.8h, #1\n\t"
         "sshr	v20.8h, v20.8h, #1\n\t"
-        "ldr	q0, [x2, #480]\n\t"
-        "ldr	q1, [x2, #496]\n\t"
-        "ldr	q2, [x3, #480]\n\t"
-        "ldr	q3, [x3, #496]\n\t"
+        "ldr	q0, [%[inv], #480]\n\t"
+        "ldr	q1, [%[inv], #496]\n\t"
+        "ldr	q2, [%[qinv], #480]\n\t"
+        "ldr	q3, [%[qinv], #496]\n\t"
         "mov	v25.16b, v21.16b\n\t"
         "mov	v26.16b, v23.16b\n\t"
         "trn1	v21.4s, v21.4s, v22.4s\n\t"
@@ -4627,8 +4551,8 @@ void mlkem_invntt_sqrdmlsh(sword16* r)
         "sqrdmlsh	v24.8h, v27.8h, v8.h[0]\n\t"
         "sshr	v22.8h, v22.8h, #1\n\t"
         "sshr	v24.8h, v24.8h, #1\n\t"
-        "ldr	q0, [x2, #528]\n\t"
-        "ldr	q2, [x3, #528]\n\t"
+        "ldr	q0, [%[inv], #528]\n\t"
+        "ldr	q2, [%[qinv], #528]\n\t"
         "mov	v25.16b, v9.16b\n\t"
         "mov	v26.16b, v11.16b\n\t"
         "trn1	v9.2d, v9.2d, v10.2d\n\t"
@@ -4733,10 +4657,10 @@ void mlkem_invntt_sqrdmlsh(sword16* r)
         "stp	q19, q20, [x1, #160]\n\t"
         "stp	q21, q22, [x1, #192]\n\t"
         "stp	q23, q24, [x1, #224]\n\t"
-        "ldr	q4, [x2, #544]\n\t"
-        "ldr	q5, [x2, #560]\n\t"
-        "ldr	q6, [x3, #544]\n\t"
-        "ldr	q7, [x3, #560]\n\t"
+        "ldr	q4, [%[inv], #544]\n\t"
+        "ldr	q5, [%[inv], #560]\n\t"
+        "ldr	q6, [%[qinv], #544]\n\t"
+        "ldr	q7, [%[qinv], #560]\n\t"
         "ldr	q9, [%x[r]]\n\t"
         "ldr	q10, [%x[r], #32]\n\t"
         "ldr	q11, [%x[r], #64]\n\t"
@@ -5362,11 +5286,11 @@ void mlkem_invntt_sqrdmlsh(sword16* r)
         "str	q23, [x1, #208]\n\t"
         "str	q24, [x1, #240]\n\t"
         : [r] "+r" (r)
-        : [%[L_mlkem_aarch64_consts]] "i" (%[L_mlkem_aarch64_consts])
-        : "memory", "cc", "x1", "x2", "x3", "x4", "v0", "v1", "v2", "v3", "v4",
-            "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14",
-            "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23",
-            "v24", "v25", "v26", "v27", "v28"
+        : [inv] "r" (inv), [qinv] "r" (qinv), [consts] "r" (consts)
+        : "memory", "cc", "x1", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
+            "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17",
+            "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26",
+            "v27", "v28"
     );
 }
 
@@ -5392,22 +5316,10 @@ static const word16 L_mlkem_aarch64_zetas_mul[] = {
 
 void mlkem_basemul_mont(sword16* r, const sword16* a, const sword16* b)
 {
+    const word16* mul = L_mlkem_aarch64_zetas_mul;
+    const word16* consts = L_mlkem_aarch64_consts;
     __asm__ __volatile__ (
-#ifndef __APPLE__
-        "adrp x3, %[L_mlkem_aarch64_zetas_mul]\n\t"
-        "add  x3, x3, :lo12:%[L_mlkem_aarch64_zetas_mul]\n\t"
-#else
-        "adrp x3, %[L_mlkem_aarch64_zetas_mul]@PAGE\n\t"
-        "add  x3, x3, %[L_mlkem_aarch64_zetas_mul]@PAGEOFF\n\t"
-#endif /* __APPLE__ */
-#ifndef __APPLE__
-        "adrp x4, %[L_mlkem_aarch64_consts]\n\t"
-        "add  x4, x4, :lo12:%[L_mlkem_aarch64_consts]\n\t"
-#else
-        "adrp x4, %[L_mlkem_aarch64_consts]@PAGE\n\t"
-        "add  x4, x4, %[L_mlkem_aarch64_consts]@PAGEOFF\n\t"
-#endif /* __APPLE__ */
-        "ldr	q1, [x4]\n\t"
+        "ldr	q1, [%[consts]]\n\t"
         "ldp	q2, q3, [%x[a]]\n\t"
         "ldp	q4, q5, [%x[a], #32]\n\t"
         "ldp	q6, q7, [%x[a], #64]\n\t"
@@ -5416,7 +5328,7 @@ void mlkem_basemul_mont(sword16* r, const sword16* a, const sword16* b)
         "ldp	q12, q13, [%x[b], #32]\n\t"
         "ldp	q14, q15, [%x[b], #64]\n\t"
         "ldp	q16, q17, [%x[b], #96]\n\t"
-        "ldr	q0, [x3]\n\t"
+        "ldr	q0, [%[mul]]\n\t"
         "uzp1	v18.8h, v2.8h, v3.8h\n\t"
         "uzp2	v19.8h, v2.8h, v3.8h\n\t"
         "uzp1	v20.8h, v10.8h, v11.8h\n\t"
@@ -5455,7 +5367,7 @@ void mlkem_basemul_mont(sword16* r, const sword16* a, const sword16* b)
         "zip1	v24.8h, v22.8h, v23.8h\n\t"
         "zip2	v25.8h, v22.8h, v23.8h\n\t"
         "stp	q24, q25, [%x[r]]\n\t"
-        "ldr	q0, [x3, #16]\n\t"
+        "ldr	q0, [%[mul], #16]\n\t"
         "uzp1	v18.8h, v4.8h, v5.8h\n\t"
         "uzp2	v19.8h, v4.8h, v5.8h\n\t"
         "uzp1	v20.8h, v12.8h, v13.8h\n\t"
@@ -5494,7 +5406,7 @@ void mlkem_basemul_mont(sword16* r, const sword16* a, const sword16* b)
         "zip1	v24.8h, v22.8h, v23.8h\n\t"
         "zip2	v25.8h, v22.8h, v23.8h\n\t"
         "stp	q24, q25, [%x[r], #32]\n\t"
-        "ldr	q0, [x3, #32]\n\t"
+        "ldr	q0, [%[mul], #32]\n\t"
         "uzp1	v18.8h, v6.8h, v7.8h\n\t"
         "uzp2	v19.8h, v6.8h, v7.8h\n\t"
         "uzp1	v20.8h, v14.8h, v15.8h\n\t"
@@ -5533,7 +5445,7 @@ void mlkem_basemul_mont(sword16* r, const sword16* a, const sword16* b)
         "zip1	v24.8h, v22.8h, v23.8h\n\t"
         "zip2	v25.8h, v22.8h, v23.8h\n\t"
         "stp	q24, q25, [%x[r], #64]\n\t"
-        "ldr	q0, [x3, #48]\n\t"
+        "ldr	q0, [%[mul], #48]\n\t"
         "uzp1	v18.8h, v8.8h, v9.8h\n\t"
         "uzp2	v19.8h, v8.8h, v9.8h\n\t"
         "uzp1	v20.8h, v16.8h, v17.8h\n\t"
@@ -5580,7 +5492,7 @@ void mlkem_basemul_mont(sword16* r, const sword16* a, const sword16* b)
         "ldp	q12, q13, [%x[b], #160]\n\t"
         "ldp	q14, q15, [%x[b], #192]\n\t"
         "ldp	q16, q17, [%x[b], #224]\n\t"
-        "ldr	q0, [x3, #64]\n\t"
+        "ldr	q0, [%[mul], #64]\n\t"
         "uzp1	v18.8h, v2.8h, v3.8h\n\t"
         "uzp2	v19.8h, v2.8h, v3.8h\n\t"
         "uzp1	v20.8h, v10.8h, v11.8h\n\t"
@@ -5619,7 +5531,7 @@ void mlkem_basemul_mont(sword16* r, const sword16* a, const sword16* b)
         "zip1	v24.8h, v22.8h, v23.8h\n\t"
         "zip2	v25.8h, v22.8h, v23.8h\n\t"
         "stp	q24, q25, [%x[r], #128]\n\t"
-        "ldr	q0, [x3, #80]\n\t"
+        "ldr	q0, [%[mul], #80]\n\t"
         "uzp1	v18.8h, v4.8h, v5.8h\n\t"
         "uzp2	v19.8h, v4.8h, v5.8h\n\t"
         "uzp1	v20.8h, v12.8h, v13.8h\n\t"
@@ -5658,7 +5570,7 @@ void mlkem_basemul_mont(sword16* r, const sword16* a, const sword16* b)
         "zip1	v24.8h, v22.8h, v23.8h\n\t"
         "zip2	v25.8h, v22.8h, v23.8h\n\t"
         "stp	q24, q25, [%x[r], #160]\n\t"
-        "ldr	q0, [x3, #96]\n\t"
+        "ldr	q0, [%[mul], #96]\n\t"
         "uzp1	v18.8h, v6.8h, v7.8h\n\t"
         "uzp2	v19.8h, v6.8h, v7.8h\n\t"
         "uzp1	v20.8h, v14.8h, v15.8h\n\t"
@@ -5697,7 +5609,7 @@ void mlkem_basemul_mont(sword16* r, const sword16* a, const sword16* b)
         "zip1	v24.8h, v22.8h, v23.8h\n\t"
         "zip2	v25.8h, v22.8h, v23.8h\n\t"
         "stp	q24, q25, [%x[r], #192]\n\t"
-        "ldr	q0, [x3, #112]\n\t"
+        "ldr	q0, [%[mul], #112]\n\t"
         "uzp1	v18.8h, v8.8h, v9.8h\n\t"
         "uzp2	v19.8h, v8.8h, v9.8h\n\t"
         "uzp1	v20.8h, v16.8h, v17.8h\n\t"
@@ -5744,7 +5656,7 @@ void mlkem_basemul_mont(sword16* r, const sword16* a, const sword16* b)
         "ldp	q12, q13, [%x[b], #288]\n\t"
         "ldp	q14, q15, [%x[b], #320]\n\t"
         "ldp	q16, q17, [%x[b], #352]\n\t"
-        "ldr	q0, [x3, #128]\n\t"
+        "ldr	q0, [%[mul], #128]\n\t"
         "uzp1	v18.8h, v2.8h, v3.8h\n\t"
         "uzp2	v19.8h, v2.8h, v3.8h\n\t"
         "uzp1	v20.8h, v10.8h, v11.8h\n\t"
@@ -5783,7 +5695,7 @@ void mlkem_basemul_mont(sword16* r, const sword16* a, const sword16* b)
         "zip1	v24.8h, v22.8h, v23.8h\n\t"
         "zip2	v25.8h, v22.8h, v23.8h\n\t"
         "stp	q24, q25, [%x[r], #256]\n\t"
-        "ldr	q0, [x3, #144]\n\t"
+        "ldr	q0, [%[mul], #144]\n\t"
         "uzp1	v18.8h, v4.8h, v5.8h\n\t"
         "uzp2	v19.8h, v4.8h, v5.8h\n\t"
         "uzp1	v20.8h, v12.8h, v13.8h\n\t"
@@ -5822,7 +5734,7 @@ void mlkem_basemul_mont(sword16* r, const sword16* a, const sword16* b)
         "zip1	v24.8h, v22.8h, v23.8h\n\t"
         "zip2	v25.8h, v22.8h, v23.8h\n\t"
         "stp	q24, q25, [%x[r], #288]\n\t"
-        "ldr	q0, [x3, #160]\n\t"
+        "ldr	q0, [%[mul], #160]\n\t"
         "uzp1	v18.8h, v6.8h, v7.8h\n\t"
         "uzp2	v19.8h, v6.8h, v7.8h\n\t"
         "uzp1	v20.8h, v14.8h, v15.8h\n\t"
@@ -5861,7 +5773,7 @@ void mlkem_basemul_mont(sword16* r, const sword16* a, const sword16* b)
         "zip1	v24.8h, v22.8h, v23.8h\n\t"
         "zip2	v25.8h, v22.8h, v23.8h\n\t"
         "stp	q24, q25, [%x[r], #320]\n\t"
-        "ldr	q0, [x3, #176]\n\t"
+        "ldr	q0, [%[mul], #176]\n\t"
         "uzp1	v18.8h, v8.8h, v9.8h\n\t"
         "uzp2	v19.8h, v8.8h, v9.8h\n\t"
         "uzp1	v20.8h, v16.8h, v17.8h\n\t"
@@ -5908,7 +5820,7 @@ void mlkem_basemul_mont(sword16* r, const sword16* a, const sword16* b)
         "ldp	q12, q13, [%x[b], #416]\n\t"
         "ldp	q14, q15, [%x[b], #448]\n\t"
         "ldp	q16, q17, [%x[b], #480]\n\t"
-        "ldr	q0, [x3, #192]\n\t"
+        "ldr	q0, [%[mul], #192]\n\t"
         "uzp1	v18.8h, v2.8h, v3.8h\n\t"
         "uzp2	v19.8h, v2.8h, v3.8h\n\t"
         "uzp1	v20.8h, v10.8h, v11.8h\n\t"
@@ -5947,7 +5859,7 @@ void mlkem_basemul_mont(sword16* r, const sword16* a, const sword16* b)
         "zip1	v24.8h, v22.8h, v23.8h\n\t"
         "zip2	v25.8h, v22.8h, v23.8h\n\t"
         "stp	q24, q25, [%x[r], #384]\n\t"
-        "ldr	q0, [x3, #208]\n\t"
+        "ldr	q0, [%[mul], #208]\n\t"
         "uzp1	v18.8h, v4.8h, v5.8h\n\t"
         "uzp2	v19.8h, v4.8h, v5.8h\n\t"
         "uzp1	v20.8h, v12.8h, v13.8h\n\t"
@@ -5986,7 +5898,7 @@ void mlkem_basemul_mont(sword16* r, const sword16* a, const sword16* b)
         "zip1	v24.8h, v22.8h, v23.8h\n\t"
         "zip2	v25.8h, v22.8h, v23.8h\n\t"
         "stp	q24, q25, [%x[r], #416]\n\t"
-        "ldr	q0, [x3, #224]\n\t"
+        "ldr	q0, [%[mul], #224]\n\t"
         "uzp1	v18.8h, v6.8h, v7.8h\n\t"
         "uzp2	v19.8h, v6.8h, v7.8h\n\t"
         "uzp1	v20.8h, v14.8h, v15.8h\n\t"
@@ -6025,7 +5937,7 @@ void mlkem_basemul_mont(sword16* r, const sword16* a, const sword16* b)
         "zip1	v24.8h, v22.8h, v23.8h\n\t"
         "zip2	v25.8h, v22.8h, v23.8h\n\t"
         "stp	q24, q25, [%x[r], #448]\n\t"
-        "ldr	q0, [x3, #240]\n\t"
+        "ldr	q0, [%[mul], #240]\n\t"
         "uzp1	v18.8h, v8.8h, v9.8h\n\t"
         "uzp2	v19.8h, v8.8h, v9.8h\n\t"
         "uzp1	v20.8h, v16.8h, v17.8h\n\t"
@@ -6064,34 +5976,20 @@ void mlkem_basemul_mont(sword16* r, const sword16* a, const sword16* b)
         "zip1	v24.8h, v22.8h, v23.8h\n\t"
         "zip2	v25.8h, v22.8h, v23.8h\n\t"
         "stp	q24, q25, [%x[r], #480]\n\t"
-        : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
-        : [%[L_mlkem_aarch64_consts]] "i" (%[L_mlkem_aarch64_consts]),
-          [L_mlkem_aarch64_zetas_mul] "i" (L_mlkem_aarch64_zetas_mul)
-        : "memory", "cc", "x3", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6",
-            "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16",
-            "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25",
-            "v26", "v27"
+        : [r] "+r" (r)
+        : [a] "r" (a), [b] "r" (b), [mul] "r" (mul), [consts] "r" (consts)
+        : "memory", "cc", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8",
+            "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18",
+            "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27"
     );
 }
 
 void mlkem_basemul_mont_add(sword16* r, const sword16* a, const sword16* b)
 {
+    const word16* mul = L_mlkem_aarch64_zetas_mul;
+    const word16* consts = L_mlkem_aarch64_consts;
     __asm__ __volatile__ (
-#ifndef __APPLE__
-        "adrp x3, %[L_mlkem_aarch64_zetas_mul]\n\t"
-        "add  x3, x3, :lo12:%[L_mlkem_aarch64_zetas_mul]\n\t"
-#else
-        "adrp x3, %[L_mlkem_aarch64_zetas_mul]@PAGE\n\t"
-        "add  x3, x3, %[L_mlkem_aarch64_zetas_mul]@PAGEOFF\n\t"
-#endif /* __APPLE__ */
-#ifndef __APPLE__
-        "adrp x4, %[L_mlkem_aarch64_consts]\n\t"
-        "add  x4, x4, :lo12:%[L_mlkem_aarch64_consts]\n\t"
-#else
-        "adrp x4, %[L_mlkem_aarch64_consts]@PAGE\n\t"
-        "add  x4, x4, %[L_mlkem_aarch64_consts]@PAGEOFF\n\t"
-#endif /* __APPLE__ */
-        "ldr	q1, [x4]\n\t"
+        "ldr	q1, [%[consts]]\n\t"
         "ldp	q2, q3, [%x[a]]\n\t"
         "ldp	q4, q5, [%x[a], #32]\n\t"
         "ldp	q6, q7, [%x[a], #64]\n\t"
@@ -6101,7 +5999,7 @@ void mlkem_basemul_mont_add(sword16* r, const sword16* a, const sword16* b)
         "ldp	q14, q15, [%x[b], #64]\n\t"
         "ldp	q16, q17, [%x[b], #96]\n\t"
         "ldp	q28, q29, [%x[r]]\n\t"
-        "ldr	q0, [x3]\n\t"
+        "ldr	q0, [%[mul]]\n\t"
         "uzp1	v18.8h, v2.8h, v3.8h\n\t"
         "uzp2	v19.8h, v2.8h, v3.8h\n\t"
         "uzp1	v20.8h, v10.8h, v11.8h\n\t"
@@ -6143,7 +6041,7 @@ void mlkem_basemul_mont_add(sword16* r, const sword16* a, const sword16* b)
         "add	v29.8h, v29.8h, v25.8h\n\t"
         "stp	q28, q29, [%x[r]]\n\t"
         "ldp	q28, q29, [%x[r], #32]\n\t"
-        "ldr	q0, [x3, #16]\n\t"
+        "ldr	q0, [%[mul], #16]\n\t"
         "uzp1	v18.8h, v4.8h, v5.8h\n\t"
         "uzp2	v19.8h, v4.8h, v5.8h\n\t"
         "uzp1	v20.8h, v12.8h, v13.8h\n\t"
@@ -6185,7 +6083,7 @@ void mlkem_basemul_mont_add(sword16* r, const sword16* a, const sword16* b)
         "add	v29.8h, v29.8h, v25.8h\n\t"
         "stp	q28, q29, [%x[r], #32]\n\t"
         "ldp	q28, q29, [%x[r], #64]\n\t"
-        "ldr	q0, [x3, #32]\n\t"
+        "ldr	q0, [%[mul], #32]\n\t"
         "uzp1	v18.8h, v6.8h, v7.8h\n\t"
         "uzp2	v19.8h, v6.8h, v7.8h\n\t"
         "uzp1	v20.8h, v14.8h, v15.8h\n\t"
@@ -6227,7 +6125,7 @@ void mlkem_basemul_mont_add(sword16* r, const sword16* a, const sword16* b)
         "add	v29.8h, v29.8h, v25.8h\n\t"
         "stp	q28, q29, [%x[r], #64]\n\t"
         "ldp	q28, q29, [%x[r], #96]\n\t"
-        "ldr	q0, [x3, #48]\n\t"
+        "ldr	q0, [%[mul], #48]\n\t"
         "uzp1	v18.8h, v8.8h, v9.8h\n\t"
         "uzp2	v19.8h, v8.8h, v9.8h\n\t"
         "uzp1	v20.8h, v16.8h, v17.8h\n\t"
@@ -6277,7 +6175,7 @@ void mlkem_basemul_mont_add(sword16* r, const sword16* a, const sword16* b)
         "ldp	q14, q15, [%x[b], #192]\n\t"
         "ldp	q16, q17, [%x[b], #224]\n\t"
         "ldp	q28, q29, [%x[r], #128]\n\t"
-        "ldr	q0, [x3, #64]\n\t"
+        "ldr	q0, [%[mul], #64]\n\t"
         "uzp1	v18.8h, v2.8h, v3.8h\n\t"
         "uzp2	v19.8h, v2.8h, v3.8h\n\t"
         "uzp1	v20.8h, v10.8h, v11.8h\n\t"
@@ -6319,7 +6217,7 @@ void mlkem_basemul_mont_add(sword16* r, const sword16* a, const sword16* b)
         "add	v29.8h, v29.8h, v25.8h\n\t"
         "stp	q28, q29, [%x[r], #128]\n\t"
         "ldp	q28, q29, [%x[r], #160]\n\t"
-        "ldr	q0, [x3, #80]\n\t"
+        "ldr	q0, [%[mul], #80]\n\t"
         "uzp1	v18.8h, v4.8h, v5.8h\n\t"
         "uzp2	v19.8h, v4.8h, v5.8h\n\t"
         "uzp1	v20.8h, v12.8h, v13.8h\n\t"
@@ -6361,7 +6259,7 @@ void mlkem_basemul_mont_add(sword16* r, const sword16* a, const sword16* b)
         "add	v29.8h, v29.8h, v25.8h\n\t"
         "stp	q28, q29, [%x[r], #160]\n\t"
         "ldp	q28, q29, [%x[r], #192]\n\t"
-        "ldr	q0, [x3, #96]\n\t"
+        "ldr	q0, [%[mul], #96]\n\t"
         "uzp1	v18.8h, v6.8h, v7.8h\n\t"
         "uzp2	v19.8h, v6.8h, v7.8h\n\t"
         "uzp1	v20.8h, v14.8h, v15.8h\n\t"
@@ -6403,7 +6301,7 @@ void mlkem_basemul_mont_add(sword16* r, const sword16* a, const sword16* b)
         "add	v29.8h, v29.8h, v25.8h\n\t"
         "stp	q28, q29, [%x[r], #192]\n\t"
         "ldp	q28, q29, [%x[r], #224]\n\t"
-        "ldr	q0, [x3, #112]\n\t"
+        "ldr	q0, [%[mul], #112]\n\t"
         "uzp1	v18.8h, v8.8h, v9.8h\n\t"
         "uzp2	v19.8h, v8.8h, v9.8h\n\t"
         "uzp1	v20.8h, v16.8h, v17.8h\n\t"
@@ -6453,7 +6351,7 @@ void mlkem_basemul_mont_add(sword16* r, const sword16* a, const sword16* b)
         "ldp	q14, q15, [%x[b], #320]\n\t"
         "ldp	q16, q17, [%x[b], #352]\n\t"
         "ldp	q28, q29, [%x[r], #256]\n\t"
-        "ldr	q0, [x3, #128]\n\t"
+        "ldr	q0, [%[mul], #128]\n\t"
         "uzp1	v18.8h, v2.8h, v3.8h\n\t"
         "uzp2	v19.8h, v2.8h, v3.8h\n\t"
         "uzp1	v20.8h, v10.8h, v11.8h\n\t"
@@ -6495,7 +6393,7 @@ void mlkem_basemul_mont_add(sword16* r, const sword16* a, const sword16* b)
         "add	v29.8h, v29.8h, v25.8h\n\t"
         "stp	q28, q29, [%x[r], #256]\n\t"
         "ldp	q28, q29, [%x[r], #288]\n\t"
-        "ldr	q0, [x3, #144]\n\t"
+        "ldr	q0, [%[mul], #144]\n\t"
         "uzp1	v18.8h, v4.8h, v5.8h\n\t"
         "uzp2	v19.8h, v4.8h, v5.8h\n\t"
         "uzp1	v20.8h, v12.8h, v13.8h\n\t"
@@ -6537,7 +6435,7 @@ void mlkem_basemul_mont_add(sword16* r, const sword16* a, const sword16* b)
         "add	v29.8h, v29.8h, v25.8h\n\t"
         "stp	q28, q29, [%x[r], #288]\n\t"
         "ldp	q28, q29, [%x[r], #320]\n\t"
-        "ldr	q0, [x3, #160]\n\t"
+        "ldr	q0, [%[mul], #160]\n\t"
         "uzp1	v18.8h, v6.8h, v7.8h\n\t"
         "uzp2	v19.8h, v6.8h, v7.8h\n\t"
         "uzp1	v20.8h, v14.8h, v15.8h\n\t"
@@ -6579,7 +6477,7 @@ void mlkem_basemul_mont_add(sword16* r, const sword16* a, const sword16* b)
         "add	v29.8h, v29.8h, v25.8h\n\t"
         "stp	q28, q29, [%x[r], #320]\n\t"
         "ldp	q28, q29, [%x[r], #352]\n\t"
-        "ldr	q0, [x3, #176]\n\t"
+        "ldr	q0, [%[mul], #176]\n\t"
         "uzp1	v18.8h, v8.8h, v9.8h\n\t"
         "uzp2	v19.8h, v8.8h, v9.8h\n\t"
         "uzp1	v20.8h, v16.8h, v17.8h\n\t"
@@ -6629,7 +6527,7 @@ void mlkem_basemul_mont_add(sword16* r, const sword16* a, const sword16* b)
         "ldp	q14, q15, [%x[b], #448]\n\t"
         "ldp	q16, q17, [%x[b], #480]\n\t"
         "ldp	q28, q29, [%x[r], #384]\n\t"
-        "ldr	q0, [x3, #192]\n\t"
+        "ldr	q0, [%[mul], #192]\n\t"
         "uzp1	v18.8h, v2.8h, v3.8h\n\t"
         "uzp2	v19.8h, v2.8h, v3.8h\n\t"
         "uzp1	v20.8h, v10.8h, v11.8h\n\t"
@@ -6671,7 +6569,7 @@ void mlkem_basemul_mont_add(sword16* r, const sword16* a, const sword16* b)
         "add	v29.8h, v29.8h, v25.8h\n\t"
         "stp	q28, q29, [%x[r], #384]\n\t"
         "ldp	q28, q29, [%x[r], #416]\n\t"
-        "ldr	q0, [x3, #208]\n\t"
+        "ldr	q0, [%[mul], #208]\n\t"
         "uzp1	v18.8h, v4.8h, v5.8h\n\t"
         "uzp2	v19.8h, v4.8h, v5.8h\n\t"
         "uzp1	v20.8h, v12.8h, v13.8h\n\t"
@@ -6713,7 +6611,7 @@ void mlkem_basemul_mont_add(sword16* r, const sword16* a, const sword16* b)
         "add	v29.8h, v29.8h, v25.8h\n\t"
         "stp	q28, q29, [%x[r], #416]\n\t"
         "ldp	q28, q29, [%x[r], #448]\n\t"
-        "ldr	q0, [x3, #224]\n\t"
+        "ldr	q0, [%[mul], #224]\n\t"
         "uzp1	v18.8h, v6.8h, v7.8h\n\t"
         "uzp2	v19.8h, v6.8h, v7.8h\n\t"
         "uzp1	v20.8h, v14.8h, v15.8h\n\t"
@@ -6755,7 +6653,7 @@ void mlkem_basemul_mont_add(sword16* r, const sword16* a, const sword16* b)
         "add	v29.8h, v29.8h, v25.8h\n\t"
         "stp	q28, q29, [%x[r], #448]\n\t"
         "ldp	q28, q29, [%x[r], #480]\n\t"
-        "ldr	q0, [x3, #240]\n\t"
+        "ldr	q0, [%[mul], #240]\n\t"
         "uzp1	v18.8h, v8.8h, v9.8h\n\t"
         "uzp2	v19.8h, v8.8h, v9.8h\n\t"
         "uzp1	v20.8h, v16.8h, v17.8h\n\t"
@@ -6796,13 +6694,12 @@ void mlkem_basemul_mont_add(sword16* r, const sword16* a, const sword16* b)
         "add	v28.8h, v28.8h, v24.8h\n\t"
         "add	v29.8h, v29.8h, v25.8h\n\t"
         "stp	q28, q29, [%x[r], #480]\n\t"
-        : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
-        : [%[L_mlkem_aarch64_consts]] "i" (%[L_mlkem_aarch64_consts]),
-          [L_mlkem_aarch64_zetas_mul] "i" (L_mlkem_aarch64_zetas_mul)
-        : "memory", "cc", "x3", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6",
-            "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16",
-            "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25",
-            "v26", "v27", "v28", "v29"
+        : [r] "+r" (r)
+        : [a] "r" (a), [b] "r" (b), [mul] "r" (mul), [consts] "r" (consts)
+        : "memory", "cc", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8",
+            "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18",
+            "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27",
+            "v28", "v29"
     );
 }
 
@@ -6812,15 +6709,9 @@ static const word16 L_mlkem_aarch64_q[] = {
 
 void mlkem_csubq_neon(sword16* p)
 {
+    const word16* q = L_mlkem_aarch64_q;
     __asm__ __volatile__ (
-#ifndef __APPLE__
-        "adrp x1, %[L_mlkem_aarch64_q]\n\t"
-        "add  x1, x1, :lo12:%[L_mlkem_aarch64_q]\n\t"
-#else
-        "adrp x1, %[L_mlkem_aarch64_q]@PAGE\n\t"
-        "add  x1, x1, %[L_mlkem_aarch64_q]@PAGEOFF\n\t"
-#endif /* __APPLE__ */
-        "ldr	q20, [x1]\n\t"
+        "ldr	q20, [%[q]]\n\t"
         "ld4	{v0.8h, v1.8h, v2.8h, v3.8h}, [%x[p]], #0x40\n\t"
         "ld4	{v4.8h, v5.8h, v6.8h, v7.8h}, [%x[p]], #0x40\n\t"
         "ld4	{v8.8h, v9.8h, v10.8h, v11.8h}, [%x[p]], #0x40\n\t"
@@ -6968,24 +6859,18 @@ void mlkem_csubq_neon(sword16* p)
         "st4	{v8.8h, v9.8h, v10.8h, v11.8h}, [%x[p]], #0x40\n\t"
         "st4	{v12.8h, v13.8h, v14.8h, v15.8h}, [%x[p]], #0x40\n\t"
         : [p] "+r" (p)
-        : [L_mlkem_aarch64_q] "i" (L_mlkem_aarch64_q)
-        : "memory", "cc", "x1", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
-            "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17",
-            "v18", "v19", "v20"
+        : [q] "r" (q)
+        : "memory", "cc", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8",
+            "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18",
+            "v19", "v20"
     );
 }
 
 void mlkem_add_reduce(sword16* r, const sword16* a)
 {
+    const word16* consts = L_mlkem_aarch64_consts;
     __asm__ __volatile__ (
-#ifndef __APPLE__
-        "adrp x2, %[L_mlkem_aarch64_consts]\n\t"
-        "add  x2, x2, :lo12:%[L_mlkem_aarch64_consts]\n\t"
-#else
-        "adrp x2, %[L_mlkem_aarch64_consts]@PAGE\n\t"
-        "add  x2, x2, %[L_mlkem_aarch64_consts]@PAGEOFF\n\t"
-#endif /* __APPLE__ */
-        "ldr	q0, [x2]\n\t"
+        "ldr	q0, [%[consts]]\n\t"
         "ld4	{v1.8h, v2.8h, v3.8h, v4.8h}, [%x[r]], #0x40\n\t"
         "ld4	{v5.8h, v6.8h, v7.8h, v8.8h}, [%x[r]], #0x40\n\t"
         "ld4	{v9.8h, v10.8h, v11.8h, v12.8h}, [%x[a]], #0x40\n\t"
@@ -7142,25 +7027,18 @@ void mlkem_add_reduce(sword16* r, const sword16* a)
         "mls	v8.8h, v18.8h, v0.h[0]\n\t"
         "st4	{v1.8h, v2.8h, v3.8h, v4.8h}, [%x[r]], #0x40\n\t"
         "st4	{v5.8h, v6.8h, v7.8h, v8.8h}, [%x[r]], #0x40\n\t"
-        : [r] "+r" (r), [a] "+r" (a)
-        : [%[L_mlkem_aarch64_consts]] "i" (%[L_mlkem_aarch64_consts])
-        : "memory", "cc", "x2", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
-            "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17",
-            "v18"
+        : [r] "+r" (r)
+        : [a] "r" (a), [consts] "r" (consts)
+        : "memory", "cc", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8",
+            "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18"
     );
 }
 
 void mlkem_add3_reduce(sword16* r, const sword16* a, const sword16* b)
 {
+    const word16* consts = L_mlkem_aarch64_consts;
     __asm__ __volatile__ (
-#ifndef __APPLE__
-        "adrp x3, %[L_mlkem_aarch64_consts]\n\t"
-        "add  x3, x3, :lo12:%[L_mlkem_aarch64_consts]\n\t"
-#else
-        "adrp x3, %[L_mlkem_aarch64_consts]@PAGE\n\t"
-        "add  x3, x3, %[L_mlkem_aarch64_consts]@PAGEOFF\n\t"
-#endif /* __APPLE__ */
-        "ldr	q0, [x3]\n\t"
+        "ldr	q0, [%[consts]]\n\t"
         "ld4	{v1.8h, v2.8h, v3.8h, v4.8h}, [%x[r]], #0x40\n\t"
         "ld4	{v5.8h, v6.8h, v7.8h, v8.8h}, [%x[r]], #0x40\n\t"
         "ld4	{v9.8h, v10.8h, v11.8h, v12.8h}, [%x[a]], #0x40\n\t"
@@ -7357,25 +7235,19 @@ void mlkem_add3_reduce(sword16* r, const sword16* a, const sword16* b)
         "mls	v8.8h, v26.8h, v0.h[0]\n\t"
         "st4	{v1.8h, v2.8h, v3.8h, v4.8h}, [%x[r]], #0x40\n\t"
         "st4	{v5.8h, v6.8h, v7.8h, v8.8h}, [%x[r]], #0x40\n\t"
-        : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
-        : [%[L_mlkem_aarch64_consts]] "i" (%[L_mlkem_aarch64_consts])
-        : "memory", "cc", "x3", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
-            "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17",
-            "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26"
+        : [r] "+r" (r)
+        : [a] "r" (a), [b] "r" (b), [consts] "r" (consts)
+        : "memory", "cc", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8",
+            "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18",
+            "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26"
     );
 }
 
 void mlkem_rsub_reduce(sword16* r, const sword16* a)
 {
+    const word16* consts = L_mlkem_aarch64_consts;
     __asm__ __volatile__ (
-#ifndef __APPLE__
-        "adrp x2, %[L_mlkem_aarch64_consts]\n\t"
-        "add  x2, x2, :lo12:%[L_mlkem_aarch64_consts]\n\t"
-#else
-        "adrp x2, %[L_mlkem_aarch64_consts]@PAGE\n\t"
-        "add  x2, x2, %[L_mlkem_aarch64_consts]@PAGEOFF\n\t"
-#endif /* __APPLE__ */
-        "ldr	q0, [x2]\n\t"
+        "ldr	q0, [%[consts]]\n\t"
         "ld4	{v1.8h, v2.8h, v3.8h, v4.8h}, [%x[r]], #0x40\n\t"
         "ld4	{v5.8h, v6.8h, v7.8h, v8.8h}, [%x[r]], #0x40\n\t"
         "ld4	{v9.8h, v10.8h, v11.8h, v12.8h}, [%x[a]], #0x40\n\t"
@@ -7532,25 +7404,18 @@ void mlkem_rsub_reduce(sword16* r, const sword16* a)
         "mls	v8.8h, v18.8h, v0.h[0]\n\t"
         "st4	{v1.8h, v2.8h, v3.8h, v4.8h}, [%x[r]], #0x40\n\t"
         "st4	{v5.8h, v6.8h, v7.8h, v8.8h}, [%x[r]], #0x40\n\t"
-        : [r] "+r" (r), [a] "+r" (a)
-        : [%[L_mlkem_aarch64_consts]] "i" (%[L_mlkem_aarch64_consts])
-        : "memory", "cc", "x2", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
-            "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17",
-            "v18"
+        : [r] "+r" (r)
+        : [a] "r" (a), [consts] "r" (consts)
+        : "memory", "cc", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8",
+            "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18"
     );
 }
 
 void mlkem_to_mont(sword16* p)
 {
+    const word16* consts = L_mlkem_aarch64_consts;
     __asm__ __volatile__ (
-#ifndef __APPLE__
-        "adrp x1, %[L_mlkem_aarch64_consts]\n\t"
-        "add  x1, x1, :lo12:%[L_mlkem_aarch64_consts]\n\t"
-#else
-        "adrp x1, %[L_mlkem_aarch64_consts]@PAGE\n\t"
-        "add  x1, x1, %[L_mlkem_aarch64_consts]@PAGEOFF\n\t"
-#endif /* __APPLE__ */
-        "ldr	q0, [x1]\n\t"
+        "ldr	q0, [%[consts]]\n\t"
         "ld4	{v1.8h, v2.8h, v3.8h, v4.8h}, [%x[p]], #0x40\n\t"
         "ld4	{v5.8h, v6.8h, v7.8h, v8.8h}, [%x[p]], #0x40\n\t"
         "ld4	{v9.8h, v10.8h, v11.8h, v12.8h}, [%x[p]], #0x40\n\t"
@@ -7730,25 +7595,18 @@ void mlkem_to_mont(sword16* p)
         "st4	{v9.8h, v10.8h, v11.8h, v12.8h}, [%x[p]], #0x40\n\t"
         "st4	{v13.8h, v14.8h, v15.8h, v16.8h}, [%x[p]], #0x40\n\t"
         : [p] "+r" (p)
-        : [%[L_mlkem_aarch64_consts]] "i" (%[L_mlkem_aarch64_consts])
-        : "memory", "cc", "x1", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
-            "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17",
-            "v18"
+        : [consts] "r" (consts)
+        : "memory", "cc", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8",
+            "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18"
     );
 }
 
 #ifndef WOLFSSL_AARCH64_NO_SQRDMLSH
 void mlkem_to_mont_sqrdmlsh(sword16* p)
 {
+    const word16* consts = L_mlkem_aarch64_consts;
     __asm__ __volatile__ (
-#ifndef __APPLE__
-        "adrp x1, %[L_mlkem_aarch64_consts]\n\t"
-        "add  x1, x1, :lo12:%[L_mlkem_aarch64_consts]\n\t"
-#else
-        "adrp x1, %[L_mlkem_aarch64_consts]@PAGE\n\t"
-        "add  x1, x1, %[L_mlkem_aarch64_consts]@PAGEOFF\n\t"
-#endif /* __APPLE__ */
-        "ldr	q0, [x1]\n\t"
+        "ldr	q0, [%[consts]]\n\t"
         "ld4	{v1.8h, v2.8h, v3.8h, v4.8h}, [%x[p]], #0x40\n\t"
         "ld4	{v5.8h, v6.8h, v7.8h, v8.8h}, [%x[p]], #0x40\n\t"
         "ld4	{v9.8h, v10.8h, v11.8h, v12.8h}, [%x[p]], #0x40\n\t"
@@ -7896,10 +7754,9 @@ void mlkem_to_mont_sqrdmlsh(sword16* p)
         "st4	{v9.8h, v10.8h, v11.8h, v12.8h}, [%x[p]], #0x40\n\t"
         "st4	{v13.8h, v14.8h, v15.8h, v16.8h}, [%x[p]], #0x40\n\t"
         : [p] "+r" (p)
-        : [%[L_mlkem_aarch64_consts]] "i" (%[L_mlkem_aarch64_consts])
-        : "memory", "cc", "x1", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
-            "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17",
-            "v18"
+        : [consts] "r" (consts)
+        : "memory", "cc", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8",
+            "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18"
     );
 }
 
@@ -7918,31 +7775,13 @@ static const word16 L_mlkem_to_msg_bits[] = {
 
 void mlkem_to_msg_neon(byte* msg, sword16* p)
 {
+    const word16* low = L_mlkem_to_msg_low;
+    const word16* high = L_mlkem_to_msg_high;
+    const word16* bits = L_mlkem_to_msg_bits;
     __asm__ __volatile__ (
-#ifndef __APPLE__
-        "adrp x2, %[L_mlkem_to_msg_low]\n\t"
-        "add  x2, x2, :lo12:%[L_mlkem_to_msg_low]\n\t"
-#else
-        "adrp x2, %[L_mlkem_to_msg_low]@PAGE\n\t"
-        "add  x2, x2, %[L_mlkem_to_msg_low]@PAGEOFF\n\t"
-#endif /* __APPLE__ */
-#ifndef __APPLE__
-        "adrp x3, %[L_mlkem_to_msg_high]\n\t"
-        "add  x3, x3, :lo12:%[L_mlkem_to_msg_high]\n\t"
-#else
-        "adrp x3, %[L_mlkem_to_msg_high]@PAGE\n\t"
-        "add  x3, x3, %[L_mlkem_to_msg_high]@PAGEOFF\n\t"
-#endif /* __APPLE__ */
-#ifndef __APPLE__
-        "adrp x4, %[L_mlkem_to_msg_bits]\n\t"
-        "add  x4, x4, :lo12:%[L_mlkem_to_msg_bits]\n\t"
-#else
-        "adrp x4, %[L_mlkem_to_msg_bits]@PAGE\n\t"
-        "add  x4, x4, %[L_mlkem_to_msg_bits]@PAGEOFF\n\t"
-#endif /* __APPLE__ */
-        "ldr	q0, [x2]\n\t"
-        "ldr	q1, [x3]\n\t"
-        "ldr	q26, [x4]\n\t"
+        "ldr	q0, [%[low]]\n\t"
+        "ldr	q1, [%[high]]\n\t"
+        "ldr	q26, [%[bits]]\n\t"
         "ld1	{v2.8h, v3.8h, v4.8h, v5.8h}, [%x[p]], #0x40\n\t"
         "ld1	{v6.8h, v7.8h, v8.8h, v9.8h}, [%x[p]], #0x40\n\t"
         "cmge	v10.8h, v2.8h, v0.8h\n\t"
@@ -8144,13 +7983,10 @@ void mlkem_to_msg_neon(byte* msg, sword16* p)
         "ins	v18.b[7], v25.b[0]\n\t"
         "st1	{v18.8b}, [%x[msg]], #8\n\t"
         : [msg] "+r" (msg), [p] "+r" (p)
-        : [L_mlkem_to_msg_low] "i" (L_mlkem_to_msg_low),
-          [L_mlkem_to_msg_high] "i" (L_mlkem_to_msg_high),
-          [L_mlkem_to_msg_bits] "i" (L_mlkem_to_msg_bits)
-        : "memory", "cc", "x2", "x3", "x4", "v0", "v1", "v2", "v3", "v4", "v5",
-            "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15",
-            "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24",
-            "v25", "v26"
+        : [low] "r" (low), [high] "r" (high), [bits] "r" (bits)
+        : "memory", "cc", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8",
+            "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18",
+            "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26"
     );
 }
 
@@ -8165,24 +8001,12 @@ static const word8 L_mlkem_from_msg_bits[] = {
 
 void mlkem_from_msg_neon(sword16* p, const byte* msg)
 {
+    const word16* q1half = L_mlkem_from_msg_q1half;
+    const word8* bits = L_mlkem_from_msg_bits;
     __asm__ __volatile__ (
-#ifndef __APPLE__
-        "adrp x2, %[L_mlkem_from_msg_q1half]\n\t"
-        "add  x2, x2, :lo12:%[L_mlkem_from_msg_q1half]\n\t"
-#else
-        "adrp x2, %[L_mlkem_from_msg_q1half]@PAGE\n\t"
-        "add  x2, x2, %[L_mlkem_from_msg_q1half]@PAGEOFF\n\t"
-#endif /* __APPLE__ */
-#ifndef __APPLE__
-        "adrp x3, %[L_mlkem_from_msg_bits]\n\t"
-        "add  x3, x3, :lo12:%[L_mlkem_from_msg_bits]\n\t"
-#else
-        "adrp x3, %[L_mlkem_from_msg_bits]@PAGE\n\t"
-        "add  x3, x3, %[L_mlkem_from_msg_bits]@PAGEOFF\n\t"
-#endif /* __APPLE__ */
         "ld1	{v2.16b, v3.16b}, [%x[msg]]\n\t"
-        "ldr	q1, [x2]\n\t"
-        "ldr	q0, [x3]\n\t"
+        "ldr	q1, [%[q1half]]\n\t"
+        "ldr	q0, [%[bits]]\n\t"
         "dup	v4.8b, v2.b[0]\n\t"
         "dup	v5.8b, v2.b[1]\n\t"
         "dup	v6.8b, v2.b[2]\n\t"
@@ -8319,11 +8143,10 @@ void mlkem_from_msg_neon(sword16* p, const byte* msg)
         "and	v6.16b, v6.16b, v1.16b\n\t"
         "and	v7.16b, v7.16b, v1.16b\n\t"
         "st1	{v4.8h, v5.8h, v6.8h, v7.8h}, [%x[p]], #0x40\n\t"
-        : [p] "+r" (p), [msg] "+r" (msg)
-        : [L_mlkem_from_msg_q1half] "i" (L_mlkem_from_msg_q1half),
-          [L_mlkem_from_msg_bits] "i" (L_mlkem_from_msg_bits)
-        : "memory", "cc", "x2", "x3", "v0", "v1", "v2", "v3", "v4", "v5", "v6",
-            "v7", "v8", "v9", "v10", "v11"
+        : [p] "+r" (p)
+        : [msg] "r" (msg), [q1half] "r" (q1half), [bits] "r" (bits)
+        : "memory", "cc", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8",
+            "v9", "v10", "v11"
     );
 }
 
@@ -8586,8 +8409,8 @@ int mlkem_cmp_neon(const byte* a, const byte* b, int sz)
         "mov	x0, v8.d[0]\n\t"
         "subs	x0, x0, xzr\n\t"
         "csetm	w0, ne\n\t"
-        : [a] "+r" (a), [b] "+r" (b), [sz] "+r" (sz)
-        :
+        : [sz] "+r" (sz)
+        : [a] "r" (a), [b] "r" (b)
         : "memory", "cc", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8",
             "v9", "v10", "v11"
     );
@@ -9120,35 +8943,11 @@ static const word8 L_mlkem_rej_uniform_indices[] = {
 unsigned int mlkem_rej_uniform_neon(sword16* p, unsigned int len, const byte* r,
     unsigned int rLen)
 {
+    const word16* mask = L_mlkem_rej_uniform_mask;
+    const word16* q = L_mlkem_aarch64_q;
+    const word16* bits = L_mlkem_rej_uniform_bits;
+    const word8* indices = L_mlkem_rej_uniform_indices;
     __asm__ __volatile__ (
-#ifndef __APPLE__
-        "adrp x4, %[L_mlkem_rej_uniform_mask]\n\t"
-        "add  x4, x4, :lo12:%[L_mlkem_rej_uniform_mask]\n\t"
-#else
-        "adrp x4, %[L_mlkem_rej_uniform_mask]@PAGE\n\t"
-        "add  x4, x4, %[L_mlkem_rej_uniform_mask]@PAGEOFF\n\t"
-#endif /* __APPLE__ */
-#ifndef __APPLE__
-        "adrp x5, %[L_mlkem_aarch64_q]\n\t"
-        "add  x5, x5, :lo12:%[L_mlkem_aarch64_q]\n\t"
-#else
-        "adrp x5, %[L_mlkem_aarch64_q]@PAGE\n\t"
-        "add  x5, x5, %[L_mlkem_aarch64_q]@PAGEOFF\n\t"
-#endif /* __APPLE__ */
-#ifndef __APPLE__
-        "adrp x6, %[L_mlkem_rej_uniform_bits]\n\t"
-        "add  x6, x6, :lo12:%[L_mlkem_rej_uniform_bits]\n\t"
-#else
-        "adrp x6, %[L_mlkem_rej_uniform_bits]@PAGE\n\t"
-        "add  x6, x6, %[L_mlkem_rej_uniform_bits]@PAGEOFF\n\t"
-#endif /* __APPLE__ */
-#ifndef __APPLE__
-        "adrp x7, %[L_mlkem_rej_uniform_indices]\n\t"
-        "add  x7, x7, :lo12:%[L_mlkem_rej_uniform_indices]\n\t"
-#else
-        "adrp x7, %[L_mlkem_rej_uniform_indices]@PAGE\n\t"
-        "add  x7, x7, %[L_mlkem_rej_uniform_indices]@PAGEOFF\n\t"
-#endif /* __APPLE__ */
         "eor	v1.16b, v1.16b, v1.16b\n\t"
         "eor	v12.16b, v12.16b, v12.16b\n\t"
         "eor	v13.16b, v13.16b, v13.16b\n\t"
@@ -9156,9 +8955,9 @@ unsigned int mlkem_rej_uniform_neon(sword16* p, unsigned int len, const byte* r,
         "eor	v10.16b, v10.16b, v10.16b\n\t"
         "eor	v11.16b, v11.16b, v11.16b\n\t"
         "mov	x13, #0xd01\n\t"
-        "ldr	q0, [x4]\n\t"
-        "ldr	q3, [x5]\n\t"
-        "ldr	q2, [x6]\n\t"
+        "ldr	q0, [%[mask]]\n\t"
+        "ldr	q3, [%[q]]\n\t"
+        "ldr	q2, [%[bits]]\n\t"
         "subs	wzr, %w[len], #0\n\t"
         "b.eq	L_mlkem_rej_uniform_done_%=\n\t"
         "subs	wzr, %w[len], #16\n\t"
@@ -9194,8 +8993,8 @@ unsigned int mlkem_rej_uniform_neon(sword16* p, unsigned int len, const byte* r,
         "mov	w9, v11.s[0]\n\t"
         "lsl	w8, w8, #4\n\t"
         "lsl	w9, w9, #4\n\t"
-        "ldr	q10, [x7, x8]\n\t"
-        "ldr	q11, [x7, x9]\n\t"
+        "ldr	q10, [%[indices], x8]\n\t"
+        "ldr	q11, [%[indices], x9]\n\t"
         "tbl	v7.16b, {v4.16b}, v10.16b\n\t"
         "tbl	v8.16b, {v5.16b}, v11.16b\n\t"
         "str	q7, [%x[p]]\n\t"
@@ -9216,31 +9015,31 @@ unsigned int mlkem_rej_uniform_neon(sword16* p, unsigned int len, const byte* r,
         "b.eq	L_mlkem_rej_uniform_done_%=\n\t"
         "subs	x10, x10, #4\n\t"
         "b.lt	L_mlkem_rej_uniform_loop_lt_4_%=\n\t"
-        "ldr	x4, [%x[r]], #6\n\t"
-        "lsr	x5, x4, #12\n\t"
-        "lsr	x6, x4, #24\n\t"
-        "lsr	x7, x4, #36\n\t"
-        "and	x4, x4, #0xfff\n\t"
-        "and	x5, x5, #0xfff\n\t"
-        "and	x6, x6, #0xfff\n\t"
-        "and	x7, x7, #0xfff\n\t"
-        "strh	w4, [%x[p]]\n\t"
-        "subs	xzr, x4, x13\n\t"
+        "ldr	%[mask], [%x[r]], #6\n\t"
+        "lsr	%[q], %[mask], #12\n\t"
+        "lsr	%[bits], %[mask], #24\n\t"
+        "lsr	%[indices], %[mask], #36\n\t"
+        "and	%[mask], %[mask], #0xfff\n\t"
+        "and	%[q], %[q], #0xfff\n\t"
+        "and	%[bits], %[bits], #0xfff\n\t"
+        "and	%[indices], %[indices], #0xfff\n\t"
+        "strh	%w[mask], [%x[p]]\n\t"
+        "subs	xzr, %[mask], x13\n\t"
         "cinc	%x[p], %x[p], lt\n\t"
         "cinc	%x[p], %x[p], lt\n\t"
         "cinc	x12, x12, lt\n\t"
-        "strh	w5, [%x[p]]\n\t"
-        "subs	xzr, x5, x13\n\t"
+        "strh	%w[q], [%x[p]]\n\t"
+        "subs	xzr, %[q], x13\n\t"
         "cinc	%x[p], %x[p], lt\n\t"
         "cinc	%x[p], %x[p], lt\n\t"
         "cinc	x12, x12, lt\n\t"
-        "strh	w6, [%x[p]]\n\t"
-        "subs	xzr, x6, x13\n\t"
+        "strh	%w[bits], [%x[p]]\n\t"
+        "subs	xzr, %[bits], x13\n\t"
         "cinc	%x[p], %x[p], lt\n\t"
         "cinc	%x[p], %x[p], lt\n\t"
         "cinc	x12, x12, lt\n\t"
-        "strh	w7, [%x[p]]\n\t"
-        "subs	xzr, x7, x13\n\t"
+        "strh	%w[indices], [%x[p]]\n\t"
+        "subs	xzr, %[indices], x13\n\t"
         "cinc	%x[p], %x[p], lt\n\t"
         "cinc	%x[p], %x[p], lt\n\t"
         "cinc	x12, x12, lt\n\t"
@@ -9249,37 +9048,37 @@ unsigned int mlkem_rej_uniform_neon(sword16* p, unsigned int len, const byte* r,
         "b	L_mlkem_rej_uniform_loop_4_%=\n\t"
         "\n"
     "L_mlkem_rej_uniform_loop_lt_4_%=: \n\t"
-        "ldr	x4, [%x[r]], #6\n\t"
-        "lsr	x5, x4, #12\n\t"
-        "lsr	x6, x4, #24\n\t"
-        "lsr	x7, x4, #36\n\t"
-        "and	x4, x4, #0xfff\n\t"
-        "and	x5, x5, #0xfff\n\t"
-        "and	x6, x6, #0xfff\n\t"
-        "and	x7, x7, #0xfff\n\t"
-        "strh	w4, [%x[p]]\n\t"
-        "subs	xzr, x4, x13\n\t"
+        "ldr	%[mask], [%x[r]], #6\n\t"
+        "lsr	%[q], %[mask], #12\n\t"
+        "lsr	%[bits], %[mask], #24\n\t"
+        "lsr	%[indices], %[mask], #36\n\t"
+        "and	%[mask], %[mask], #0xfff\n\t"
+        "and	%[q], %[q], #0xfff\n\t"
+        "and	%[bits], %[bits], #0xfff\n\t"
+        "and	%[indices], %[indices], #0xfff\n\t"
+        "strh	%w[mask], [%x[p]]\n\t"
+        "subs	xzr, %[mask], x13\n\t"
         "cinc	%x[p], %x[p], lt\n\t"
         "cinc	%x[p], %x[p], lt\n\t"
         "cinc	x12, x12, lt\n\t"
         "subs	wzr, %w[len], w12\n\t"
         "b.eq	L_mlkem_rej_uniform_done_%=\n\t"
-        "strh	w5, [%x[p]]\n\t"
-        "subs	xzr, x5, x13\n\t"
+        "strh	%w[q], [%x[p]]\n\t"
+        "subs	xzr, %[q], x13\n\t"
         "cinc	%x[p], %x[p], lt\n\t"
         "cinc	%x[p], %x[p], lt\n\t"
         "cinc	x12, x12, lt\n\t"
         "subs	wzr, %w[len], w12\n\t"
         "b.eq	L_mlkem_rej_uniform_done_%=\n\t"
-        "strh	w6, [%x[p]]\n\t"
-        "subs	xzr, x6, x13\n\t"
+        "strh	%w[bits], [%x[p]]\n\t"
+        "subs	xzr, %[bits], x13\n\t"
         "cinc	%x[p], %x[p], lt\n\t"
         "cinc	%x[p], %x[p], lt\n\t"
         "cinc	x12, x12, lt\n\t"
         "subs	wzr, %w[len], w12\n\t"
         "b.eq	L_mlkem_rej_uniform_done_%=\n\t"
-        "strh	w7, [%x[p]]\n\t"
-        "subs	xzr, x7, x13\n\t"
+        "strh	%w[indices], [%x[p]]\n\t"
+        "subs	xzr, %[indices], x13\n\t"
         "cinc	%x[p], %x[p], lt\n\t"
         "cinc	%x[p], %x[p], lt\n\t"
         "cinc	x12, x12, lt\n\t"
@@ -9291,14 +9090,12 @@ unsigned int mlkem_rej_uniform_neon(sword16* p, unsigned int len, const byte* r,
         "\n"
     "L_mlkem_rej_uniform_done_%=: \n\t"
         "mov	x0, x12\n\t"
-        : [p] "+r" (p), [len] "+r" (len), [r] "+r" (r), [rLen] "+r" (rLen)
-        : [%[L_mlkem_aarch64_q]] "i" (%[L_mlkem_aarch64_q]),
-          [L_mlkem_rej_uniform_mask] "i" (L_mlkem_rej_uniform_mask),
-          [L_mlkem_rej_uniform_bits] "i" (L_mlkem_rej_uniform_bits),
-          [L_mlkem_rej_uniform_indices] "i" (L_mlkem_rej_uniform_indices)
-        : "memory", "cc", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11",
-            "x12", "x13", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8",
-            "v9", "v10", "v11", "v12", "v13"
+        : [p] "+r" (p), [len] "+r" (len), [rLen] "+r" (rLen)
+        : [r] "r" (r), [mask] "r" (mask), [q] "r" (q), [bits] "r" (bits),
+          [indices] "r" (indices)
+        : "memory", "cc", "x8", "x9", "x10", "x11", "x12", "x13", "v0", "v1",
+            "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12",
+            "v13"
     );
     return (word32)(size_t)p;
 }
@@ -9321,16 +9118,10 @@ static const word64 L_sha3_aarch64_r[] = {
 #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
 void mlkem_sha3_blocksx3_neon(word64* state)
 {
+    const word64* r = L_sha3_aarch64_r;
     __asm__ __volatile__ (
         "stp	x29, x30, [sp, #-64]!\n\t"
         "add	x29, sp, #0\n\t"
-#ifndef __APPLE__
-        "adrp x27, %[L_sha3_aarch64_r]\n\t"
-        "add  x27, x27, :lo12:%[L_sha3_aarch64_r]\n\t"
-#else
-        "adrp x27, %[L_sha3_aarch64_r]@PAGE\n\t"
-        "add  x27, x27, %[L_sha3_aarch64_r]@PAGEOFF\n\t"
-#endif /* __APPLE__ */
         "str	%x[state], [x29, #40]\n\t"
         "ld4	{v0.d, v1.d, v2.d, v3.d}[0], [%x[state]], #32\n\t"
         "ld4	{v4.d, v5.d, v6.d, v7.d}[0], [%x[state]], #32\n\t"
@@ -9365,7 +9156,7 @@ void mlkem_sha3_blocksx3_neon(word64* state)
         /* Start of 24 rounds */
         "\n"
     "L_SHA3_transform_blocksx3_neon_begin_%=: \n\t"
-        "stp	x27, x28, [x29, #48]\n\t"
+        "stp	%[r], x28, [x29, #48]\n\t"
         /* Col Mix */
         "eor3	v31.16b, v0.16b, v5.16b, v10.16b\n\t"
         "eor	%x[state], x5, x10\n\t"
@@ -9396,26 +9187,26 @@ void mlkem_sha3_blocksx3_neon(word64* state)
         "rax1	v28.2d, v28.2d, v30.2d\n\t"
         "str	x28, [x29, #24]\n\t"
         "rax1	v29.2d, v29.2d, v31.2d\n\t"
-        "eor	x27, x2, x7\n\t"
+        "eor	%[r], x2, x7\n\t"
         "eor	v0.16b, v0.16b, v25.16b\n\t"
         "xar	v30.2d, v1.2d, v26.2d, #63\n\t"
         "eor	x28, x4, x9\n\t"
         "xar	v1.2d, v6.2d, v26.2d, #20\n\t"
-        "eor	x27, x27, x12\n\t"
+        "eor	%[r], %[r], x12\n\t"
         "xar	v6.2d, v9.2d, v29.2d, #44\n\t"
         "eor	x28, x28, x14\n\t"
         "xar	v9.2d, v22.2d, v27.2d, #3\n\t"
-        "eor	x27, x27, x17\n\t"
+        "eor	%[r], %[r], x17\n\t"
         "xar	v22.2d, v14.2d, v29.2d, #25\n\t"
         "eor	x28, x28, x20\n\t"
         "xar	v14.2d, v20.2d, v25.2d, #46\n\t"
-        "eor	x27, x27, x23\n\t"
+        "eor	%[r], %[r], x23\n\t"
         "xar	v20.2d, v2.2d, v27.2d, #2\n\t"
         "eor	x28, x28, x25\n\t"
         "xar	v2.2d, v12.2d, v27.2d, #21\n\t"
-        "eor	%x[state], %x[state], x27, ror 63\n\t"
+        "eor	%x[state], %x[state], %[r], ror 63\n\t"
         "xar	v12.2d, v13.2d, v28.2d, #39\n\t"
-        "eor	x27, x27, x28, ror 63\n\t"
+        "eor	%[r], %[r], x28, ror 63\n\t"
         "xar	v13.2d, v19.2d, v29.2d, #56\n\t"
         "eor	x1, x1, %x[state]\n\t"
         "xar	v19.2d, v23.2d, v28.2d, #8\n\t"
@@ -9427,25 +9218,25 @@ void mlkem_sha3_blocksx3_neon(word64* state)
         "xar	v4.2d, v24.2d, v29.2d, #50\n\t"
         "eor	x22, x22, %x[state]\n\t"
         "xar	v24.2d, v21.2d, v26.2d, #62\n\t"
-        "eor	x3, x3, x27\n\t"
+        "eor	x3, x3, %[r]\n\t"
         "xar	v21.2d, v8.2d, v28.2d, #9\n\t"
-        "eor	x8, x8, x27\n\t"
+        "eor	x8, x8, %[r]\n\t"
         "xar	v8.2d, v16.2d, v26.2d, #19\n\t"
-        "eor	x13, x13, x27\n\t"
+        "eor	x13, x13, %[r]\n\t"
         "xar	v16.2d, v5.2d, v25.2d, #28\n\t"
-        "eor	x19, x19, x27\n\t"
+        "eor	x19, x19, %[r]\n\t"
         "xar	v5.2d, v3.2d, v28.2d, #36\n\t"
-        "eor	x24, x24, x27\n\t"
+        "eor	x24, x24, %[r]\n\t"
         "xar	v3.2d, v18.2d, v28.2d, #43\n\t"
         "ldr	%x[state], [x29, #32]\n\t"
         "xar	v18.2d, v17.2d, v27.2d, #49\n\t"
-        "ldr	x27, [x29, #24]\n\t"
+        "ldr	%[r], [x29, #24]\n\t"
         "xar	v17.2d, v11.2d, v26.2d, #54\n\t"
         "eor	x28, x28, x30, ror 63\n\t"
         "xar	v11.2d, v7.2d, v27.2d, #58\n\t"
-        "eor	x30, x30, x27, ror 63\n\t"
+        "eor	x30, x30, %[r], ror 63\n\t"
         "xar	v7.2d, v10.2d, v25.2d, #61\n\t"
-        "eor	x27, x27, %x[state], ror 63\n\t"
+        "eor	%[r], %[r], %x[state], ror 63\n\t"
         /* Row Mix */
         "mov	v25.16b, v0.16b\n\t"
         "eor	x5, x5, x28\n\t"
@@ -9468,15 +9259,15 @@ void mlkem_sha3_blocksx3_neon(word64* state)
         "bcax	v5.16b, v25.16b, v7.16b, v26.16b\n\t"
         "eor	x23, x23, x30\n\t"
         "bcax	v6.16b, v26.16b, v8.16b, v7.16b\n\t"
-        "eor	x4, x4, x27\n\t"
+        "eor	x4, x4, %[r]\n\t"
         "bcax	v7.16b, v7.16b, v9.16b, v8.16b\n\t"
-        "eor	x9, x9, x27\n\t"
+        "eor	x9, x9, %[r]\n\t"
         "bcax	v8.16b, v8.16b, v25.16b, v9.16b\n\t"
-        "eor	x14, x14, x27\n\t"
+        "eor	x14, x14, %[r]\n\t"
         "bcax	v9.16b, v9.16b, v26.16b, v25.16b\n\t"
-        "eor	x20, x20, x27\n\t"
+        "eor	x20, x20, %[r]\n\t"
         "mov	v26.16b, v11.16b\n\t"
-        "eor	x25, x25, x27\n\t"
+        "eor	x25, x25, %[r]\n\t"
         /* Swap Rotate Base */
         "bcax	v10.16b, v30.16b, v12.16b, v26.16b\n\t"
         "ror	%x[state], x2, #63\n\t"
@@ -9523,58 +9314,58 @@ void mlkem_sha3_blocksx3_neon(word64* state)
         "ror	x8, x11, #61\n\t"
         /* Row Mix Base */
         "bic	x11, x3, x2\n\t"
-        "bic	x27, x4, x3\n\t"
+        "bic	%[r], x4, x3\n\t"
         "bic	x28, x1, x5\n\t"
         "bic	x30, x2, x1\n\t"
         "eor	x1, x1, x11\n\t"
-        "eor	x2, x2, x27\n\t"
+        "eor	x2, x2, %[r]\n\t"
         "bic	x11, x5, x4\n\t"
         "eor	x4, x4, x28\n\t"
         "eor	x3, x3, x11\n\t"
         "eor	x5, x5, x30\n\t"
         "bic	x11, x8, x7\n\t"
-        "bic	x27, x9, x8\n\t"
+        "bic	%[r], x9, x8\n\t"
         "bic	x28, x6, x10\n\t"
         "bic	x30, x7, x6\n\t"
         "eor	x6, x6, x11\n\t"
-        "eor	x7, x7, x27\n\t"
+        "eor	x7, x7, %[r]\n\t"
         "bic	x11, x10, x9\n\t"
         "eor	x9, x9, x28\n\t"
         "eor	x8, x8, x11\n\t"
         "eor	x10, x10, x30\n\t"
         "bic	x11, x13, x12\n\t"
-        "bic	x27, x14, x13\n\t"
+        "bic	%[r], x14, x13\n\t"
         "bic	x28, %x[state], x15\n\t"
         "bic	x30, x12, %x[state]\n\t"
         "eor	x11, %x[state], x11\n\t"
-        "eor	x12, x12, x27\n\t"
+        "eor	x12, x12, %[r]\n\t"
         "bic	%x[state], x15, x14\n\t"
         "eor	x14, x14, x28\n\t"
         "eor	x13, x13, %x[state]\n\t"
         "eor	x15, x15, x30\n\t"
         "bic	%x[state], x19, x17\n\t"
-        "bic	x27, x20, x19\n\t"
+        "bic	%[r], x20, x19\n\t"
         "bic	x28, x16, x21\n\t"
         "bic	x30, x17, x16\n\t"
         "eor	x16, x16, %x[state]\n\t"
-        "eor	x17, x17, x27\n\t"
+        "eor	x17, x17, %[r]\n\t"
         "bic	%x[state], x21, x20\n\t"
         "eor	x20, x20, x28\n\t"
         "eor	x19, x19, %x[state]\n\t"
         "eor	x21, x21, x30\n\t"
         "bic	%x[state], x24, x23\n\t"
-        "bic	x27, x25, x24\n\t"
+        "bic	%[r], x25, x24\n\t"
         "bic	x28, x22, x26\n\t"
         "bic	x30, x23, x22\n\t"
         "eor	x22, x22, %x[state]\n\t"
-        "eor	x23, x23, x27\n\t"
+        "eor	x23, x23, %[r]\n\t"
         "bic	%x[state], x26, x25\n\t"
         "eor	x25, x25, x28\n\t"
         "eor	x24, x24, %x[state]\n\t"
         "eor	x26, x26, x30\n\t"
         /* Done transforming */
-        "ldp	x27, x28, [x29, #48]\n\t"
-        "ldr	%x[state], [x27], #8\n\t"
+        "ldp	%[r], x28, [x29, #48]\n\t"
+        "ldr	%x[state], [%[r]], #8\n\t"
         "subs	x28, x28, #1\n\t"
         "mov	v30.d[0], %x[state]\n\t"
         "mov	v30.d[1], %x[state]\n\t"
@@ -9613,29 +9404,23 @@ void mlkem_sha3_blocksx3_neon(word64* state)
         "str	x26, [%x[state], #192]\n\t"
         "ldp	x29, x30, [sp], #0x40\n\t"
         : [state] "+r" (state)
-        : [L_sha3_aarch64_r] "i" (L_sha3_aarch64_r)
+        : [r] "r" (r)
         : "memory", "cc", "x1", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9",
             "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19",
-            "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "v0",
-            "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11",
-            "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20",
-            "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29",
-            "v30", "v31"
+            "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x28", "v0", "v1",
+            "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12",
+            "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21",
+            "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30",
+            "v31"
     );
 }
 
 void mlkem_shake128_blocksx3_seed_neon(word64* state, byte* seed)
 {
+    const word64* r = L_sha3_aarch64_r;
     __asm__ __volatile__ (
         "stp	x29, x30, [sp, #-64]!\n\t"
         "add	x29, sp, #0\n\t"
-#ifndef __APPLE__
-        "adrp x28, %[L_sha3_aarch64_r]\n\t"
-        "add  x28, x28, :lo12:%[L_sha3_aarch64_r]\n\t"
-#else
-        "adrp x28, %[L_sha3_aarch64_r]@PAGE\n\t"
-        "add  x28, x28, %[L_sha3_aarch64_r]@PAGEOFF\n\t"
-#endif /* __APPLE__ */
         "str	%x[state], [x29, #40]\n\t"
         "add	%x[state], %x[state], #32\n\t"
         "ld1	{v4.d}[0], [%x[state]]\n\t"
@@ -9692,57 +9477,57 @@ void mlkem_shake128_blocksx3_seed_neon(word64* state, byte* seed)
         /* Start of 24 rounds */
         "\n"
     "L_SHA3_shake128_blocksx3_seed_neon_begin_%=: \n\t"
-        "stp	x28, %x[seed], [x29, #48]\n\t"
+        "stp	%[r], %x[seed], [x29, #48]\n\t"
         /* Col Mix */
         "eor3	v31.16b, v0.16b, v5.16b, v10.16b\n\t"
         "eor	%x[state], x6, x11\n\t"
         "eor3	v27.16b, v1.16b, v6.16b, v11.16b\n\t"
         "eor	x30, x2, x7\n\t"
         "eor3	v28.16b, v2.16b, v7.16b, v12.16b\n\t"
-        "eor	x28, x4, x9\n\t"
+        "eor	%[r], x4, x9\n\t"
         "eor3	v29.16b, v3.16b, v8.16b, v13.16b\n\t"
         "eor	%x[state], %x[state], x16\n\t"
         "eor3	v30.16b, v4.16b, v9.16b, v14.16b\n\t"
         "eor	x30, x30, x12\n\t"
         "eor3	v31.16b, v31.16b, v15.16b, v20.16b\n\t"
-        "eor	x28, x28, x14\n\t"
+        "eor	%[r], %[r], x14\n\t"
         "eor3	v27.16b, v27.16b, v16.16b, v21.16b\n\t"
         "eor	%x[state], %x[state], x22\n\t"
         "eor3	v28.16b, v28.16b, v17.16b, v22.16b\n\t"
         "eor	x30, x30, x17\n\t"
         "eor3	v29.16b, v29.16b, v18.16b, v23.16b\n\t"
-        "eor	x28, x28, x20\n\t"
+        "eor	%[r], %[r], x20\n\t"
         "eor3	v30.16b, v30.16b, v19.16b, v24.16b\n\t"
         "eor	%x[state], %x[state], x27\n\t"
         "rax1	v25.2d, v30.2d, v27.2d\n\t"
         "eor	x30, x30, x23\n\t"
         "rax1	v26.2d, v31.2d, v28.2d\n\t"
-        "eor	x28, x28, x25\n\t"
+        "eor	%[r], %[r], x25\n\t"
         "rax1	v27.2d, v27.2d, v29.2d\n\t"
         "str	%x[state], [x29, #32]\n\t"
         "rax1	v28.2d, v28.2d, v30.2d\n\t"
-        "str	x28, [x29, #24]\n\t"
+        "str	%[r], [x29, #24]\n\t"
         "rax1	v29.2d, v29.2d, v31.2d\n\t"
         "eor	%x[seed], x3, x8\n\t"
         "eor	v0.16b, v0.16b, v25.16b\n\t"
         "xar	v30.2d, v1.2d, v26.2d, #63\n\t"
-        "eor	x28, x5, x10\n\t"
+        "eor	%[r], x5, x10\n\t"
         "xar	v1.2d, v6.2d, v26.2d, #20\n\t"
         "eor	%x[seed], %x[seed], x13\n\t"
         "xar	v6.2d, v9.2d, v29.2d, #44\n\t"
-        "eor	x28, x28, x15\n\t"
+        "eor	%[r], %[r], x15\n\t"
         "xar	v9.2d, v22.2d, v27.2d, #3\n\t"
         "eor	%x[seed], %x[seed], x19\n\t"
         "xar	v22.2d, v14.2d, v29.2d, #25\n\t"
-        "eor	x28, x28, x21\n\t"
+        "eor	%[r], %[r], x21\n\t"
         "xar	v14.2d, v20.2d, v25.2d, #46\n\t"
         "eor	%x[seed], %x[seed], x24\n\t"
         "xar	v20.2d, v2.2d, v27.2d, #2\n\t"
-        "eor	x28, x28, x26\n\t"
+        "eor	%[r], %[r], x26\n\t"
         "xar	v2.2d, v12.2d, v27.2d, #21\n\t"
         "eor	%x[state], %x[state], %x[seed], ror 63\n\t"
         "xar	v12.2d, v13.2d, v28.2d, #39\n\t"
-        "eor	%x[seed], %x[seed], x28, ror 63\n\t"
+        "eor	%x[seed], %x[seed], %[r], ror 63\n\t"
         "xar	v13.2d, v19.2d, v29.2d, #56\n\t"
         "eor	x2, x2, %x[state]\n\t"
         "xar	v19.2d, v23.2d, v28.2d, #8\n\t"
@@ -9768,22 +9553,22 @@ void mlkem_shake128_blocksx3_seed_neon(word64* state, byte* seed)
         "xar	v18.2d, v17.2d, v27.2d, #49\n\t"
         "ldr	%x[seed], [x29, #24]\n\t"
         "xar	v17.2d, v11.2d, v26.2d, #54\n\t"
-        "eor	x28, x28, x30, ror 63\n\t"
+        "eor	%[r], %[r], x30, ror 63\n\t"
         "xar	v11.2d, v7.2d, v27.2d, #58\n\t"
         "eor	x30, x30, %x[seed], ror 63\n\t"
         "xar	v7.2d, v10.2d, v25.2d, #61\n\t"
         "eor	%x[seed], %x[seed], %x[state], ror 63\n\t"
         /* Row Mix */
         "mov	v25.16b, v0.16b\n\t"
-        "eor	x6, x6, x28\n\t"
+        "eor	x6, x6, %[r]\n\t"
         "mov	v26.16b, v1.16b\n\t"
-        "eor	x11, x11, x28\n\t"
+        "eor	x11, x11, %[r]\n\t"
         "bcax	v0.16b, v25.16b, v2.16b, v26.16b\n\t"
-        "eor	x16, x16, x28\n\t"
+        "eor	x16, x16, %[r]\n\t"
         "bcax	v1.16b, v26.16b, v3.16b, v2.16b\n\t"
-        "eor	x22, x22, x28\n\t"
+        "eor	x22, x22, %[r]\n\t"
         "bcax	v2.16b, v2.16b, v4.16b, v3.16b\n\t"
-        "eor	x27, x27, x28\n\t"
+        "eor	x27, x27, %[r]\n\t"
         "bcax	v3.16b, v3.16b, v25.16b, v4.16b\n\t"
         "eor	x3, x3, x30\n\t"
         "bcax	v4.16b, v4.16b, v26.16b, v25.16b\n\t"
@@ -9851,57 +9636,57 @@ void mlkem_shake128_blocksx3_seed_neon(word64* state, byte* seed)
         /* Row Mix Base */
         "bic	x12, x4, x3\n\t"
         "bic	%x[seed], x5, x4\n\t"
-        "bic	x28, x2, x6\n\t"
+        "bic	%[r], x2, x6\n\t"
         "bic	x30, x3, x2\n\t"
         "eor	x2, x2, x12\n\t"
         "eor	x3, x3, %x[seed]\n\t"
         "bic	x12, x6, x5\n\t"
-        "eor	x5, x5, x28\n\t"
+        "eor	x5, x5, %[r]\n\t"
         "eor	x4, x4, x12\n\t"
         "eor	x6, x6, x30\n\t"
         "bic	x12, x9, x8\n\t"
         "bic	%x[seed], x10, x9\n\t"
-        "bic	x28, x7, x11\n\t"
+        "bic	%[r], x7, x11\n\t"
         "bic	x30, x8, x7\n\t"
         "eor	x7, x7, x12\n\t"
         "eor	x8, x8, %x[seed]\n\t"
         "bic	x12, x11, x10\n\t"
-        "eor	x10, x10, x28\n\t"
+        "eor	x10, x10, %[r]\n\t"
         "eor	x9, x9, x12\n\t"
         "eor	x11, x11, x30\n\t"
         "bic	x12, x14, x13\n\t"
         "bic	%x[seed], x15, x14\n\t"
-        "bic	x28, %x[state], x16\n\t"
+        "bic	%[r], %x[state], x16\n\t"
         "bic	x30, x13, %x[state]\n\t"
         "eor	x12, %x[state], x12\n\t"
         "eor	x13, x13, %x[seed]\n\t"
         "bic	%x[state], x16, x15\n\t"
-        "eor	x15, x15, x28\n\t"
+        "eor	x15, x15, %[r]\n\t"
         "eor	x14, x14, %x[state]\n\t"
         "eor	x16, x16, x30\n\t"
         "bic	%x[state], x20, x19\n\t"
         "bic	%x[seed], x21, x20\n\t"
-        "bic	x28, x17, x22\n\t"
+        "bic	%[r], x17, x22\n\t"
         "bic	x30, x19, x17\n\t"
         "eor	x17, x17, %x[state]\n\t"
         "eor	x19, x19, %x[seed]\n\t"
         "bic	%x[state], x22, x21\n\t"
-        "eor	x21, x21, x28\n\t"
+        "eor	x21, x21, %[r]\n\t"
         "eor	x20, x20, %x[state]\n\t"
         "eor	x22, x22, x30\n\t"
         "bic	%x[state], x25, x24\n\t"
         "bic	%x[seed], x26, x25\n\t"
-        "bic	x28, x23, x27\n\t"
+        "bic	%[r], x23, x27\n\t"
         "bic	x30, x24, x23\n\t"
         "eor	x23, x23, %x[state]\n\t"
         "eor	x24, x24, %x[seed]\n\t"
         "bic	%x[state], x27, x26\n\t"
-        "eor	x26, x26, x28\n\t"
+        "eor	x26, x26, %[r]\n\t"
         "eor	x25, x25, %x[state]\n\t"
         "eor	x27, x27, x30\n\t"
         /* Done transforming */
-        "ldp	x28, %x[seed], [x29, #48]\n\t"
-        "ldr	%x[state], [x28], #8\n\t"
+        "ldp	%[r], %x[seed], [x29, #48]\n\t"
+        "ldr	%x[state], [%[r]], #8\n\t"
         "subs	%x[seed], %x[seed], #1\n\t"
         "mov	v30.d[0], %x[state]\n\t"
         "mov	v30.d[1], %x[state]\n\t"
@@ -9940,11 +9725,11 @@ void mlkem_shake128_blocksx3_seed_neon(word64* state, byte* seed)
         "str	x27, [%x[state], #192]\n\t"
         "ldp	x29, x30, [sp], #0x40\n\t"
         : [state] "+r" (state), [seed] "+r" (seed)
-        : [L_sha3_aarch64_r] "i" (L_sha3_aarch64_r)
+        : [r] "r" (r)
         : "memory", "cc", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10",
             "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20",
-            "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "v0", "v1",
-            "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12",
+            "x21", "x22", "x23", "x24", "x25", "x26", "x27", "v0", "v1", "v2",
+            "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12",
             "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21",
             "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30",
             "v31"
@@ -9953,16 +9738,10 @@ void mlkem_shake128_blocksx3_seed_neon(word64* state, byte* seed)
 
 void mlkem_shake256_blocksx3_seed_neon(word64* state, byte* seed)
 {
+    const word64* r = L_sha3_aarch64_r;
     __asm__ __volatile__ (
         "stp	x29, x30, [sp, #-64]!\n\t"
         "add	x29, sp, #0\n\t"
-#ifndef __APPLE__
-        "adrp x28, %[L_sha3_aarch64_r]\n\t"
-        "add  x28, x28, :lo12:%[L_sha3_aarch64_r]\n\t"
-#else
-        "adrp x28, %[L_sha3_aarch64_r]@PAGE\n\t"
-        "add  x28, x28, %[L_sha3_aarch64_r]@PAGEOFF\n\t"
-#endif /* __APPLE__ */
         "str	%x[state], [x29, #40]\n\t"
         "add	%x[state], %x[state], #32\n\t"
         "ld1	{v4.d}[0], [%x[state]]\n\t"
@@ -10019,57 +9798,57 @@ void mlkem_shake256_blocksx3_seed_neon(word64* state, byte* seed)
         /* Start of 24 rounds */
         "\n"
     "L_SHA3_shake256_blocksx3_seed_neon_begin_%=: \n\t"
-        "stp	x28, %x[seed], [x29, #48]\n\t"
+        "stp	%[r], %x[seed], [x29, #48]\n\t"
         /* Col Mix */
         "eor3	v31.16b, v0.16b, v5.16b, v10.16b\n\t"
         "eor	%x[state], x6, x11\n\t"
         "eor3	v27.16b, v1.16b, v6.16b, v11.16b\n\t"
         "eor	x30, x2, x7\n\t"
         "eor3	v28.16b, v2.16b, v7.16b, v12.16b\n\t"
-        "eor	x28, x4, x9\n\t"
+        "eor	%[r], x4, x9\n\t"
         "eor3	v29.16b, v3.16b, v8.16b, v13.16b\n\t"
         "eor	%x[state], %x[state], x16\n\t"
         "eor3	v30.16b, v4.16b, v9.16b, v14.16b\n\t"
         "eor	x30, x30, x12\n\t"
         "eor3	v31.16b, v31.16b, v15.16b, v20.16b\n\t"
-        "eor	x28, x28, x14\n\t"
+        "eor	%[r], %[r], x14\n\t"
         "eor3	v27.16b, v27.16b, v16.16b, v21.16b\n\t"
         "eor	%x[state], %x[state], x22\n\t"
         "eor3	v28.16b, v28.16b, v17.16b, v22.16b\n\t"
         "eor	x30, x30, x17\n\t"
         "eor3	v29.16b, v29.16b, v18.16b, v23.16b\n\t"
-        "eor	x28, x28, x20\n\t"
+        "eor	%[r], %[r], x20\n\t"
         "eor3	v30.16b, v30.16b, v19.16b, v24.16b\n\t"
         "eor	%x[state], %x[state], x27\n\t"
         "rax1	v25.2d, v30.2d, v27.2d\n\t"
         "eor	x30, x30, x23\n\t"
         "rax1	v26.2d, v31.2d, v28.2d\n\t"
-        "eor	x28, x28, x25\n\t"
+        "eor	%[r], %[r], x25\n\t"
         "rax1	v27.2d, v27.2d, v29.2d\n\t"
         "str	%x[state], [x29, #32]\n\t"
         "rax1	v28.2d, v28.2d, v30.2d\n\t"
-        "str	x28, [x29, #24]\n\t"
+        "str	%[r], [x29, #24]\n\t"
         "rax1	v29.2d, v29.2d, v31.2d\n\t"
         "eor	%x[seed], x3, x8\n\t"
         "eor	v0.16b, v0.16b, v25.16b\n\t"
         "xar	v30.2d, v1.2d, v26.2d, #63\n\t"
-        "eor	x28, x5, x10\n\t"
+        "eor	%[r], x5, x10\n\t"
         "xar	v1.2d, v6.2d, v26.2d, #20\n\t"
         "eor	%x[seed], %x[seed], x13\n\t"
         "xar	v6.2d, v9.2d, v29.2d, #44\n\t"
-        "eor	x28, x28, x15\n\t"
+        "eor	%[r], %[r], x15\n\t"
         "xar	v9.2d, v22.2d, v27.2d, #3\n\t"
         "eor	%x[seed], %x[seed], x19\n\t"
         "xar	v22.2d, v14.2d, v29.2d, #25\n\t"
-        "eor	x28, x28, x21\n\t"
+        "eor	%[r], %[r], x21\n\t"
         "xar	v14.2d, v20.2d, v25.2d, #46\n\t"
         "eor	%x[seed], %x[seed], x24\n\t"
         "xar	v20.2d, v2.2d, v27.2d, #2\n\t"
-        "eor	x28, x28, x26\n\t"
+        "eor	%[r], %[r], x26\n\t"
         "xar	v2.2d, v12.2d, v27.2d, #21\n\t"
         "eor	%x[state], %x[state], %x[seed], ror 63\n\t"
         "xar	v12.2d, v13.2d, v28.2d, #39\n\t"
-        "eor	%x[seed], %x[seed], x28, ror 63\n\t"
+        "eor	%x[seed], %x[seed], %[r], ror 63\n\t"
         "xar	v13.2d, v19.2d, v29.2d, #56\n\t"
         "eor	x2, x2, %x[state]\n\t"
         "xar	v19.2d, v23.2d, v28.2d, #8\n\t"
@@ -10095,22 +9874,22 @@ void mlkem_shake256_blocksx3_seed_neon(word64* state, byte* seed)
         "xar	v18.2d, v17.2d, v27.2d, #49\n\t"
         "ldr	%x[seed], [x29, #24]\n\t"
         "xar	v17.2d, v11.2d, v26.2d, #54\n\t"
-        "eor	x28, x28, x30, ror 63\n\t"
+        "eor	%[r], %[r], x30, ror 63\n\t"
         "xar	v11.2d, v7.2d, v27.2d, #58\n\t"
         "eor	x30, x30, %x[seed], ror 63\n\t"
         "xar	v7.2d, v10.2d, v25.2d, #61\n\t"
         "eor	%x[seed], %x[seed], %x[state], ror 63\n\t"
         /* Row Mix */
         "mov	v25.16b, v0.16b\n\t"
-        "eor	x6, x6, x28\n\t"
+        "eor	x6, x6, %[r]\n\t"
         "mov	v26.16b, v1.16b\n\t"
-        "eor	x11, x11, x28\n\t"
+        "eor	x11, x11, %[r]\n\t"
         "bcax	v0.16b, v25.16b, v2.16b, v26.16b\n\t"
-        "eor	x16, x16, x28\n\t"
+        "eor	x16, x16, %[r]\n\t"
         "bcax	v1.16b, v26.16b, v3.16b, v2.16b\n\t"
-        "eor	x22, x22, x28\n\t"
+        "eor	x22, x22, %[r]\n\t"
         "bcax	v2.16b, v2.16b, v4.16b, v3.16b\n\t"
-        "eor	x27, x27, x28\n\t"
+        "eor	x27, x27, %[r]\n\t"
         "bcax	v3.16b, v3.16b, v25.16b, v4.16b\n\t"
         "eor	x3, x3, x30\n\t"
         "bcax	v4.16b, v4.16b, v26.16b, v25.16b\n\t"
@@ -10178,57 +9957,57 @@ void mlkem_shake256_blocksx3_seed_neon(word64* state, byte* seed)
         /* Row Mix Base */
         "bic	x12, x4, x3\n\t"
         "bic	%x[seed], x5, x4\n\t"
-        "bic	x28, x2, x6\n\t"
+        "bic	%[r], x2, x6\n\t"
         "bic	x30, x3, x2\n\t"
         "eor	x2, x2, x12\n\t"
         "eor	x3, x3, %x[seed]\n\t"
         "bic	x12, x6, x5\n\t"
-        "eor	x5, x5, x28\n\t"
+        "eor	x5, x5, %[r]\n\t"
         "eor	x4, x4, x12\n\t"
         "eor	x6, x6, x30\n\t"
         "bic	x12, x9, x8\n\t"
         "bic	%x[seed], x10, x9\n\t"
-        "bic	x28, x7, x11\n\t"
+        "bic	%[r], x7, x11\n\t"
         "bic	x30, x8, x7\n\t"
         "eor	x7, x7, x12\n\t"
         "eor	x8, x8, %x[seed]\n\t"
         "bic	x12, x11, x10\n\t"
-        "eor	x10, x10, x28\n\t"
+        "eor	x10, x10, %[r]\n\t"
         "eor	x9, x9, x12\n\t"
         "eor	x11, x11, x30\n\t"
         "bic	x12, x14, x13\n\t"
         "bic	%x[seed], x15, x14\n\t"
-        "bic	x28, %x[state], x16\n\t"
+        "bic	%[r], %x[state], x16\n\t"
         "bic	x30, x13, %x[state]\n\t"
         "eor	x12, %x[state], x12\n\t"
         "eor	x13, x13, %x[seed]\n\t"
         "bic	%x[state], x16, x15\n\t"
-        "eor	x15, x15, x28\n\t"
+        "eor	x15, x15, %[r]\n\t"
         "eor	x14, x14, %x[state]\n\t"
         "eor	x16, x16, x30\n\t"
         "bic	%x[state], x20, x19\n\t"
         "bic	%x[seed], x21, x20\n\t"
-        "bic	x28, x17, x22\n\t"
+        "bic	%[r], x17, x22\n\t"
         "bic	x30, x19, x17\n\t"
         "eor	x17, x17, %x[state]\n\t"
         "eor	x19, x19, %x[seed]\n\t"
         "bic	%x[state], x22, x21\n\t"
-        "eor	x21, x21, x28\n\t"
+        "eor	x21, x21, %[r]\n\t"
         "eor	x20, x20, %x[state]\n\t"
         "eor	x22, x22, x30\n\t"
         "bic	%x[state], x25, x24\n\t"
         "bic	%x[seed], x26, x25\n\t"
-        "bic	x28, x23, x27\n\t"
+        "bic	%[r], x23, x27\n\t"
         "bic	x30, x24, x23\n\t"
         "eor	x23, x23, %x[state]\n\t"
         "eor	x24, x24, %x[seed]\n\t"
         "bic	%x[state], x27, x26\n\t"
-        "eor	x26, x26, x28\n\t"
+        "eor	x26, x26, %[r]\n\t"
         "eor	x25, x25, %x[state]\n\t"
         "eor	x27, x27, x30\n\t"
         /* Done transforming */
-        "ldp	x28, %x[seed], [x29, #48]\n\t"
-        "ldr	%x[state], [x28], #8\n\t"
+        "ldp	%[r], %x[seed], [x29, #48]\n\t"
+        "ldr	%x[state], [%[r]], #8\n\t"
         "subs	%x[seed], %x[seed], #1\n\t"
         "mov	v30.d[0], %x[state]\n\t"
         "mov	v30.d[1], %x[state]\n\t"
@@ -10267,11 +10046,11 @@ void mlkem_shake256_blocksx3_seed_neon(word64* state, byte* seed)
         "str	x27, [%x[state], #192]\n\t"
         "ldp	x29, x30, [sp], #0x40\n\t"
         : [state] "+r" (state), [seed] "+r" (seed)
-        : [L_sha3_aarch64_r] "i" (L_sha3_aarch64_r)
+        : [r] "r" (r)
         : "memory", "cc", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10",
             "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20",
-            "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "v0", "v1",
-            "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12",
+            "x21", "x22", "x23", "x24", "x25", "x26", "x27", "v0", "v1", "v2",
+            "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12",
             "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21",
             "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30",
             "v31"
@@ -10281,16 +10060,10 @@ void mlkem_shake256_blocksx3_seed_neon(word64* state, byte* seed)
 #else
 void mlkem_sha3_blocksx3_neon(word64* state)
 {
+    const word64* r = L_sha3_aarch64_r;
     __asm__ __volatile__ (
         "stp	x29, x30, [sp, #-64]!\n\t"
         "add	x29, sp, #0\n\t"
-#ifndef __APPLE__
-        "adrp x27, %[L_sha3_aarch64_r]\n\t"
-        "add  x27, x27, :lo12:%[L_sha3_aarch64_r]\n\t"
-#else
-        "adrp x27, %[L_sha3_aarch64_r]@PAGE\n\t"
-        "add  x27, x27, %[L_sha3_aarch64_r]@PAGEOFF\n\t"
-#endif /* __APPLE__ */
         "str	%x[state], [x29, #40]\n\t"
         "ld4	{v0.d, v1.d, v2.d, v3.d}[0], [%x[state]], #32\n\t"
         "ld4	{v4.d, v5.d, v6.d, v7.d}[0], [%x[state]], #32\n\t"
@@ -10325,7 +10098,7 @@ void mlkem_sha3_blocksx3_neon(word64* state)
         /* Start of 24 rounds */
         "\n"
     "L_SHA3_transform_blocksx3_neon_begin_%=: \n\t"
-        "stp	x27, x28, [x29, #48]\n\t"
+        "stp	%[r], x28, [x29, #48]\n\t"
         /* Col Mix NEON */
         "eor	v30.16b, v4.16b, v9.16b\n\t"
         "eor	%x[state], x5, x10\n\t"
@@ -10356,25 +10129,25 @@ void mlkem_sha3_blocksx3_neon(word64* state)
         "eor	v31.16b, v31.16b, v10.16b\n\t"
         "str	x28, [x29, #24]\n\t"
         "eor	v28.16b, v28.16b, v12.16b\n\t"
-        "eor	x27, x2, x7\n\t"
+        "eor	%[r], x2, x7\n\t"
         "eor	v31.16b, v31.16b, v15.16b\n\t"
         "eor	x28, x4, x9\n\t"
         "eor	v28.16b, v28.16b, v17.16b\n\t"
-        "eor	x27, x27, x12\n\t"
+        "eor	%[r], %[r], x12\n\t"
         "eor	v31.16b, v31.16b, v20.16b\n\t"
         "eor	x28, x28, x14\n\t"
         "eor	v28.16b, v28.16b, v22.16b\n\t"
-        "eor	x27, x27, x17\n\t"
+        "eor	%[r], %[r], x17\n\t"
         "ushr	v29.2d, v30.2d, #63\n\t"
         "eor	x28, x28, x20\n\t"
         "ushr	v26.2d, v28.2d, #63\n\t"
-        "eor	x27, x27, x23\n\t"
+        "eor	%[r], %[r], x23\n\t"
         "sli	v29.2d, v30.2d, #1\n\t"
         "eor	x28, x28, x25\n\t"
         "sli	v26.2d, v28.2d, #1\n\t"
-        "eor	%x[state], %x[state], x27, ror 63\n\t"
+        "eor	%x[state], %x[state], %[r], ror 63\n\t"
         "eor	v28.16b, v28.16b, v29.16b\n\t"
-        "eor	x27, x27, x28, ror 63\n\t"
+        "eor	%[r], %[r], x28, ror 63\n\t"
         "eor	v29.16b, v3.16b, v8.16b\n\t"
         "eor	x1, x1, %x[state]\n\t"
         "eor	v26.16b, v26.16b, v31.16b\n\t"
@@ -10386,27 +10159,27 @@ void mlkem_sha3_blocksx3_neon(word64* state)
         "eor	v29.16b, v29.16b, v23.16b\n\t"
         "eor	x22, x22, %x[state]\n\t"
         "ushr	v30.2d, v29.2d, #63\n\t"
-        "eor	x3, x3, x27\n\t"
+        "eor	x3, x3, %[r]\n\t"
         "sli	v30.2d, v29.2d, #1\n\t"
-        "eor	x8, x8, x27\n\t"
+        "eor	x8, x8, %[r]\n\t"
         "eor	v27.16b, v27.16b, v30.16b\n\t"
-        "eor	x13, x13, x27\n\t"
+        "eor	x13, x13, %[r]\n\t"
         "ushr	v30.2d, v31.2d, #63\n\t"
-        "eor	x19, x19, x27\n\t"
+        "eor	x19, x19, %[r]\n\t"
         "sli	v30.2d, v31.2d, #1\n\t"
-        "eor	x24, x24, x27\n\t"
+        "eor	x24, x24, %[r]\n\t"
         "eor	v29.16b, v29.16b, v30.16b\n\t"
         "ldr	%x[state], [x29, #32]\n\t"
         /* Swap Rotate NEON */
         "eor	v0.16b, v0.16b, v25.16b\n\t"
         "eor	v31.16b, v1.16b, v26.16b\n\t"
-        "ldr	x27, [x29, #24]\n\t"
+        "ldr	%[r], [x29, #24]\n\t"
         "eor	v6.16b, v6.16b, v26.16b\n\t"
         "eor	x28, x28, x30, ror 63\n\t"
         "ushr	v30.2d, v31.2d, #63\n\t"
-        "eor	x30, x30, x27, ror 63\n\t"
+        "eor	x30, x30, %[r], ror 63\n\t"
         "ushr	v1.2d, v6.2d, #20\n\t"
-        "eor	x27, x27, %x[state], ror 63\n\t"
+        "eor	%[r], %[r], %x[state], ror 63\n\t"
         "sli	v30.2d, v31.2d, #1\n\t"
         "eor	x5, x5, x28\n\t"
         "sli	v1.2d, v6.2d, #44\n\t"
@@ -10428,15 +10201,15 @@ void mlkem_sha3_blocksx3_neon(word64* state)
         "eor	v20.16b, v20.16b, v25.16b\n\t"
         "eor	x23, x23, x30\n\t"
         "ushr	v22.2d, v31.2d, #25\n\t"
-        "eor	x4, x4, x27\n\t"
+        "eor	x4, x4, %[r]\n\t"
         "ushr	v14.2d, v20.2d, #46\n\t"
-        "eor	x9, x9, x27\n\t"
+        "eor	x9, x9, %[r]\n\t"
         "sli	v22.2d, v31.2d, #39\n\t"
-        "eor	x14, x14, x27\n\t"
+        "eor	x14, x14, %[r]\n\t"
         "sli	v14.2d, v20.2d, #18\n\t"
-        "eor	x20, x20, x27\n\t"
+        "eor	x20, x20, %[r]\n\t"
         "eor	v31.16b, v2.16b, v27.16b\n\t"
-        "eor	x25, x25, x27\n\t"
+        "eor	x25, x25, %[r]\n\t"
         /* Swap Rotate Base */
         "eor	v12.16b, v12.16b, v27.16b\n\t"
         "ror	%x[state], x2, #63\n\t"
@@ -10490,7 +10263,7 @@ void mlkem_sha3_blocksx3_neon(word64* state)
         "eor	v8.16b, v8.16b, v28.16b\n\t"
         "bic	x11, x3, x2\n\t"
         "ushr	v24.2d, v31.2d, #62\n\t"
-        "bic	x27, x4, x3\n\t"
+        "bic	%[r], x4, x3\n\t"
         "ushr	v21.2d, v8.2d, #9\n\t"
         "bic	x28, x1, x5\n\t"
         "sli	v24.2d, v31.2d, #2\n\t"
@@ -10498,7 +10271,7 @@ void mlkem_sha3_blocksx3_neon(word64* state)
         "sli	v21.2d, v8.2d, #55\n\t"
         "eor	x1, x1, x11\n\t"
         "eor	v31.16b, v16.16b, v26.16b\n\t"
-        "eor	x2, x2, x27\n\t"
+        "eor	x2, x2, %[r]\n\t"
         "eor	v5.16b, v5.16b, v25.16b\n\t"
         "bic	x11, x5, x4\n\t"
         "ushr	v8.2d, v31.2d, #19\n\t"
@@ -10510,7 +10283,7 @@ void mlkem_sha3_blocksx3_neon(word64* state)
         "sli	v16.2d, v5.2d, #36\n\t"
         "bic	x11, x8, x7\n\t"
         "eor	v31.16b, v3.16b, v28.16b\n\t"
-        "bic	x27, x9, x8\n\t"
+        "bic	%[r], x9, x8\n\t"
         "eor	v18.16b, v18.16b, v28.16b\n\t"
         "bic	x28, x6, x10\n\t"
         "ushr	v5.2d, v31.2d, #36\n\t"
@@ -10518,7 +10291,7 @@ void mlkem_sha3_blocksx3_neon(word64* state)
         "ushr	v3.2d, v18.2d, #43\n\t"
         "eor	x6, x6, x11\n\t"
         "sli	v5.2d, v31.2d, #28\n\t"
-        "eor	x7, x7, x27\n\t"
+        "eor	x7, x7, %[r]\n\t"
         "sli	v3.2d, v18.2d, #21\n\t"
         "bic	x11, x10, x9\n\t"
         "eor	v31.16b, v17.16b, v27.16b\n\t"
@@ -10530,7 +10303,7 @@ void mlkem_sha3_blocksx3_neon(word64* state)
         "ushr	v17.2d, v11.2d, #54\n\t"
         "bic	x11, x13, x12\n\t"
         "sli	v18.2d, v31.2d, #15\n\t"
-        "bic	x27, x14, x13\n\t"
+        "bic	%[r], x14, x13\n\t"
         "sli	v17.2d, v11.2d, #10\n\t"
         "bic	x28, %x[state], x15\n\t"
         "eor	v31.16b, v7.16b, v27.16b\n\t"
@@ -10538,7 +10311,7 @@ void mlkem_sha3_blocksx3_neon(word64* state)
         "eor	v10.16b, v10.16b, v25.16b\n\t"
         "eor	x11, %x[state], x11\n\t"
         "ushr	v11.2d, v31.2d, #58\n\t"
-        "eor	x12, x12, x27\n\t"
+        "eor	x12, x12, %[r]\n\t"
         "ushr	v7.2d, v10.2d, #61\n\t"
         "bic	%x[state], x15, x14\n\t"
         "sli	v11.2d, v31.2d, #6\n\t"
@@ -10551,7 +10324,7 @@ void mlkem_sha3_blocksx3_neon(word64* state)
         "bic	v26.16b, v3.16b, v2.16b\n\t"
         "bic	%x[state], x19, x17\n\t"
         "bic	v27.16b, v4.16b, v3.16b\n\t"
-        "bic	x27, x20, x19\n\t"
+        "bic	%[r], x20, x19\n\t"
         "bic	v28.16b, v0.16b, v4.16b\n\t"
         "bic	x28, x16, x21\n\t"
         "bic	v29.16b, v1.16b, v0.16b\n\t"
@@ -10559,7 +10332,7 @@ void mlkem_sha3_blocksx3_neon(word64* state)
         "eor	v0.16b, v0.16b, v25.16b\n\t"
         "eor	x16, x16, %x[state]\n\t"
         "eor	v1.16b, v1.16b, v26.16b\n\t"
-        "eor	x17, x17, x27\n\t"
+        "eor	x17, x17, %[r]\n\t"
         "eor	v2.16b, v2.16b, v27.16b\n\t"
         "bic	%x[state], x21, x20\n\t"
         "eor	v3.16b, v3.16b, v28.16b\n\t"
@@ -10571,7 +10344,7 @@ void mlkem_sha3_blocksx3_neon(word64* state)
         "bic	v26.16b, v8.16b, v7.16b\n\t"
         "bic	%x[state], x24, x23\n\t"
         "bic	v27.16b, v9.16b, v8.16b\n\t"
-        "bic	x27, x25, x24\n\t"
+        "bic	%[r], x25, x24\n\t"
         "bic	v28.16b, v5.16b, v9.16b\n\t"
         "bic	x28, x22, x26\n\t"
         "bic	v29.16b, v6.16b, v5.16b\n\t"
@@ -10579,7 +10352,7 @@ void mlkem_sha3_blocksx3_neon(word64* state)
         "eor	v5.16b, v5.16b, v25.16b\n\t"
         "eor	x22, x22, %x[state]\n\t"
         "eor	v6.16b, v6.16b, v26.16b\n\t"
-        "eor	x23, x23, x27\n\t"
+        "eor	x23, x23, %[r]\n\t"
         "eor	v7.16b, v7.16b, v27.16b\n\t"
         "bic	%x[state], x26, x25\n\t"
         "eor	v8.16b, v8.16b, v28.16b\n\t"
@@ -10618,8 +10391,8 @@ void mlkem_sha3_blocksx3_neon(word64* state)
         "eor	v23.16b, v23.16b, v28.16b\n\t"
         "eor	v24.16b, v24.16b, v29.16b\n\t"
         /* Done transforming */
-        "ldp	x27, x28, [x29, #48]\n\t"
-        "ldr	%x[state], [x27], #8\n\t"
+        "ldp	%[r], x28, [x29, #48]\n\t"
+        "ldr	%x[state], [%[r]], #8\n\t"
         "subs	x28, x28, #1\n\t"
         "mov	v30.d[0], %x[state]\n\t"
         "mov	v30.d[1], %x[state]\n\t"
@@ -10658,29 +10431,23 @@ void mlkem_sha3_blocksx3_neon(word64* state)
         "str	x26, [%x[state], #192]\n\t"
         "ldp	x29, x30, [sp], #0x40\n\t"
         : [state] "+r" (state)
-        : [L_sha3_aarch64_r] "i" (L_sha3_aarch64_r)
+        : [r] "r" (r)
         : "memory", "cc", "x1", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9",
             "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19",
-            "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "v0",
-            "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11",
-            "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20",
-            "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29",
-            "v30", "v31"
+            "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x28", "v0", "v1",
+            "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12",
+            "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21",
+            "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30",
+            "v31"
     );
 }
 
 void mlkem_shake128_blocksx3_seed_neon(word64* state, byte* seed)
 {
+    const word64* r = L_sha3_aarch64_r;
     __asm__ __volatile__ (
         "stp	x29, x30, [sp, #-64]!\n\t"
         "add	x29, sp, #0\n\t"
-#ifndef __APPLE__
-        "adrp x28, %[L_sha3_aarch64_r]\n\t"
-        "add  x28, x28, :lo12:%[L_sha3_aarch64_r]\n\t"
-#else
-        "adrp x28, %[L_sha3_aarch64_r]@PAGE\n\t"
-        "add  x28, x28, %[L_sha3_aarch64_r]@PAGEOFF\n\t"
-#endif /* __APPLE__ */
         "str	%x[state], [x29, #40]\n\t"
         "add	%x[state], %x[state], #32\n\t"
         "ld1	{v4.d}[0], [%x[state]]\n\t"
@@ -10737,56 +10504,56 @@ void mlkem_shake128_blocksx3_seed_neon(word64* state, byte* seed)
         /* Start of 24 rounds */
         "\n"
     "L_SHA3_shake128_blocksx3_seed_neon_begin_%=: \n\t"
-        "stp	x28, %x[seed], [x29, #48]\n\t"
+        "stp	%[r], %x[seed], [x29, #48]\n\t"
         /* Col Mix NEON */
         "eor	v30.16b, v4.16b, v9.16b\n\t"
         "eor	%x[state], x6, x11\n\t"
         "eor	v27.16b, v1.16b, v6.16b\n\t"
         "eor	x30, x2, x7\n\t"
         "eor	v30.16b, v30.16b, v14.16b\n\t"
-        "eor	x28, x4, x9\n\t"
+        "eor	%[r], x4, x9\n\t"
         "eor	v27.16b, v27.16b, v11.16b\n\t"
         "eor	%x[state], %x[state], x16\n\t"
         "eor	v30.16b, v30.16b, v19.16b\n\t"
         "eor	x30, x30, x12\n\t"
         "eor	v27.16b, v27.16b, v16.16b\n\t"
-        "eor	x28, x28, x14\n\t"
+        "eor	%[r], %[r], x14\n\t"
         "eor	v30.16b, v30.16b, v24.16b\n\t"
         "eor	%x[state], %x[state], x22\n\t"
         "eor	v27.16b, v27.16b, v21.16b\n\t"
         "eor	x30, x30, x17\n\t"
         "ushr	v25.2d, v27.2d, #63\n\t"
-        "eor	x28, x28, x20\n\t"
+        "eor	%[r], %[r], x20\n\t"
         "sli	v25.2d, v27.2d, #1\n\t"
         "eor	%x[state], %x[state], x27\n\t"
         "eor	v25.16b, v25.16b, v30.16b\n\t"
         "eor	x30, x30, x23\n\t"
         "eor	v31.16b, v0.16b, v5.16b\n\t"
-        "eor	x28, x28, x25\n\t"
+        "eor	%[r], %[r], x25\n\t"
         "eor	v28.16b, v2.16b, v7.16b\n\t"
         "str	%x[state], [x29, #32]\n\t"
         "eor	v31.16b, v31.16b, v10.16b\n\t"
-        "str	x28, [x29, #24]\n\t"
+        "str	%[r], [x29, #24]\n\t"
         "eor	v28.16b, v28.16b, v12.16b\n\t"
         "eor	%x[seed], x3, x8\n\t"
         "eor	v31.16b, v31.16b, v15.16b\n\t"
-        "eor	x28, x5, x10\n\t"
+        "eor	%[r], x5, x10\n\t"
         "eor	v28.16b, v28.16b, v17.16b\n\t"
         "eor	%x[seed], %x[seed], x13\n\t"
         "eor	v31.16b, v31.16b, v20.16b\n\t"
-        "eor	x28, x28, x15\n\t"
+        "eor	%[r], %[r], x15\n\t"
         "eor	v28.16b, v28.16b, v22.16b\n\t"
         "eor	%x[seed], %x[seed], x19\n\t"
         "ushr	v29.2d, v30.2d, #63\n\t"
-        "eor	x28, x28, x21\n\t"
+        "eor	%[r], %[r], x21\n\t"
         "ushr	v26.2d, v28.2d, #63\n\t"
         "eor	%x[seed], %x[seed], x24\n\t"
         "sli	v29.2d, v30.2d, #1\n\t"
-        "eor	x28, x28, x26\n\t"
+        "eor	%[r], %[r], x26\n\t"
         "sli	v26.2d, v28.2d, #1\n\t"
         "eor	%x[state], %x[state], %x[seed], ror 63\n\t"
         "eor	v28.16b, v28.16b, v29.16b\n\t"
-        "eor	%x[seed], %x[seed], x28, ror 63\n\t"
+        "eor	%x[seed], %x[seed], %[r], ror 63\n\t"
         "eor	v29.16b, v3.16b, v8.16b\n\t"
         "eor	x2, x2, %x[state]\n\t"
         "eor	v26.16b, v26.16b, v31.16b\n\t"
@@ -10814,21 +10581,21 @@ void mlkem_shake128_blocksx3_seed_neon(word64* state, byte* seed)
         "eor	v31.16b, v1.16b, v26.16b\n\t"
         "ldr	%x[seed], [x29, #24]\n\t"
         "eor	v6.16b, v6.16b, v26.16b\n\t"
-        "eor	x28, x28, x30, ror 63\n\t"
+        "eor	%[r], %[r], x30, ror 63\n\t"
         "ushr	v30.2d, v31.2d, #63\n\t"
         "eor	x30, x30, %x[seed], ror 63\n\t"
         "ushr	v1.2d, v6.2d, #20\n\t"
         "eor	%x[seed], %x[seed], %x[state], ror 63\n\t"
         "sli	v30.2d, v31.2d, #1\n\t"
-        "eor	x6, x6, x28\n\t"
+        "eor	x6, x6, %[r]\n\t"
         "sli	v1.2d, v6.2d, #44\n\t"
-        "eor	x11, x11, x28\n\t"
+        "eor	x11, x11, %[r]\n\t"
         "eor	v31.16b, v9.16b, v29.16b\n\t"
-        "eor	x16, x16, x28\n\t"
+        "eor	x16, x16, %[r]\n\t"
         "eor	v22.16b, v22.16b, v27.16b\n\t"
-        "eor	x22, x22, x28\n\t"
+        "eor	x22, x22, %[r]\n\t"
         "ushr	v6.2d, v31.2d, #44\n\t"
-        "eor	x27, x27, x28\n\t"
+        "eor	x27, x27, %[r]\n\t"
         "ushr	v9.2d, v22.2d, #3\n\t"
         "eor	x3, x3, x30\n\t"
         "sli	v6.2d, v31.2d, #20\n\t"
@@ -10904,7 +10671,7 @@ void mlkem_shake128_blocksx3_seed_neon(word64* state, byte* seed)
         "ushr	v24.2d, v31.2d, #62\n\t"
         "bic	%x[seed], x5, x4\n\t"
         "ushr	v21.2d, v8.2d, #9\n\t"
-        "bic	x28, x2, x6\n\t"
+        "bic	%[r], x2, x6\n\t"
         "sli	v24.2d, v31.2d, #2\n\t"
         "bic	x30, x3, x2\n\t"
         "sli	v21.2d, v8.2d, #55\n\t"
@@ -10914,7 +10681,7 @@ void mlkem_shake128_blocksx3_seed_neon(word64* state, byte* seed)
         "eor	v5.16b, v5.16b, v25.16b\n\t"
         "bic	x12, x6, x5\n\t"
         "ushr	v8.2d, v31.2d, #19\n\t"
-        "eor	x5, x5, x28\n\t"
+        "eor	x5, x5, %[r]\n\t"
         "ushr	v16.2d, v5.2d, #28\n\t"
         "eor	x4, x4, x12\n\t"
         "sli	v8.2d, v31.2d, #45\n\t"
@@ -10924,7 +10691,7 @@ void mlkem_shake128_blocksx3_seed_neon(word64* state, byte* seed)
         "eor	v31.16b, v3.16b, v28.16b\n\t"
         "bic	%x[seed], x10, x9\n\t"
         "eor	v18.16b, v18.16b, v28.16b\n\t"
-        "bic	x28, x7, x11\n\t"
+        "bic	%[r], x7, x11\n\t"
         "ushr	v5.2d, v31.2d, #36\n\t"
         "bic	x30, x8, x7\n\t"
         "ushr	v3.2d, v18.2d, #43\n\t"
@@ -10934,7 +10701,7 @@ void mlkem_shake128_blocksx3_seed_neon(word64* state, byte* seed)
         "sli	v3.2d, v18.2d, #21\n\t"
         "bic	x12, x11, x10\n\t"
         "eor	v31.16b, v17.16b, v27.16b\n\t"
-        "eor	x10, x10, x28\n\t"
+        "eor	x10, x10, %[r]\n\t"
         "eor	v11.16b, v11.16b, v26.16b\n\t"
         "eor	x9, x9, x12\n\t"
         "ushr	v18.2d, v31.2d, #49\n\t"
@@ -10944,7 +10711,7 @@ void mlkem_shake128_blocksx3_seed_neon(word64* state, byte* seed)
         "sli	v18.2d, v31.2d, #15\n\t"
         "bic	%x[seed], x15, x14\n\t"
         "sli	v17.2d, v11.2d, #10\n\t"
-        "bic	x28, %x[state], x16\n\t"
+        "bic	%[r], %x[state], x16\n\t"
         "eor	v31.16b, v7.16b, v27.16b\n\t"
         "bic	x30, x13, %x[state]\n\t"
         "eor	v10.16b, v10.16b, v25.16b\n\t"
@@ -10954,7 +10721,7 @@ void mlkem_shake128_blocksx3_seed_neon(word64* state, byte* seed)
         "ushr	v7.2d, v10.2d, #61\n\t"
         "bic	%x[state], x16, x15\n\t"
         "sli	v11.2d, v31.2d, #6\n\t"
-        "eor	x15, x15, x28\n\t"
+        "eor	x15, x15, %[r]\n\t"
         "sli	v7.2d, v10.2d, #3\n\t"
         "eor	x14, x14, %x[state]\n\t"
         /* Row Mix NEON */
@@ -10965,7 +10732,7 @@ void mlkem_shake128_blocksx3_seed_neon(word64* state, byte* seed)
         "bic	v27.16b, v4.16b, v3.16b\n\t"
         "bic	%x[seed], x21, x20\n\t"
         "bic	v28.16b, v0.16b, v4.16b\n\t"
-        "bic	x28, x17, x22\n\t"
+        "bic	%[r], x17, x22\n\t"
         "bic	v29.16b, v1.16b, v0.16b\n\t"
         "bic	x30, x19, x17\n\t"
         "eor	v0.16b, v0.16b, v25.16b\n\t"
@@ -10975,7 +10742,7 @@ void mlkem_shake128_blocksx3_seed_neon(word64* state, byte* seed)
         "eor	v2.16b, v2.16b, v27.16b\n\t"
         "bic	%x[state], x22, x21\n\t"
         "eor	v3.16b, v3.16b, v28.16b\n\t"
-        "eor	x21, x21, x28\n\t"
+        "eor	x21, x21, %[r]\n\t"
         "eor	v4.16b, v4.16b, v29.16b\n\t"
         "eor	x20, x20, %x[state]\n\t"
         "bic	v25.16b, v7.16b, v6.16b\n\t"
@@ -10985,7 +10752,7 @@ void mlkem_shake128_blocksx3_seed_neon(word64* state, byte* seed)
         "bic	v27.16b, v9.16b, v8.16b\n\t"
         "bic	%x[seed], x26, x25\n\t"
         "bic	v28.16b, v5.16b, v9.16b\n\t"
-        "bic	x28, x23, x27\n\t"
+        "bic	%[r], x23, x27\n\t"
         "bic	v29.16b, v6.16b, v5.16b\n\t"
         "bic	x30, x24, x23\n\t"
         "eor	v5.16b, v5.16b, v25.16b\n\t"
@@ -10995,7 +10762,7 @@ void mlkem_shake128_blocksx3_seed_neon(word64* state, byte* seed)
         "eor	v7.16b, v7.16b, v27.16b\n\t"
         "bic	%x[state], x27, x26\n\t"
         "eor	v8.16b, v8.16b, v28.16b\n\t"
-        "eor	x26, x26, x28\n\t"
+        "eor	x26, x26, %[r]\n\t"
         "eor	v9.16b, v9.16b, v29.16b\n\t"
         "eor	x25, x25, %x[state]\n\t"
         "bic	v25.16b, v12.16b, v11.16b\n\t"
@@ -11030,8 +10797,8 @@ void mlkem_shake128_blocksx3_seed_neon(word64* state, byte* seed)
         "eor	v23.16b, v23.16b, v28.16b\n\t"
         "eor	v24.16b, v24.16b, v29.16b\n\t"
         /* Done transforming */
-        "ldp	x28, %x[seed], [x29, #48]\n\t"
-        "ldr	%x[state], [x28], #8\n\t"
+        "ldp	%[r], %x[seed], [x29, #48]\n\t"
+        "ldr	%x[state], [%[r]], #8\n\t"
         "subs	%x[seed], %x[seed], #1\n\t"
         "mov	v30.d[0], %x[state]\n\t"
         "mov	v30.d[1], %x[state]\n\t"
@@ -11070,11 +10837,11 @@ void mlkem_shake128_blocksx3_seed_neon(word64* state, byte* seed)
         "str	x27, [%x[state], #192]\n\t"
         "ldp	x29, x30, [sp], #0x40\n\t"
         : [state] "+r" (state), [seed] "+r" (seed)
-        : [L_sha3_aarch64_r] "i" (L_sha3_aarch64_r)
+        : [r] "r" (r)
         : "memory", "cc", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10",
             "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20",
-            "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "v0", "v1",
-            "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12",
+            "x21", "x22", "x23", "x24", "x25", "x26", "x27", "v0", "v1", "v2",
+            "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12",
             "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21",
             "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30",
             "v31"
@@ -11083,16 +10850,10 @@ void mlkem_shake128_blocksx3_seed_neon(word64* state, byte* seed)
 
 void mlkem_shake256_blocksx3_seed_neon(word64* state, byte* seed)
 {
+    const word64* r = L_sha3_aarch64_r;
     __asm__ __volatile__ (
         "stp	x29, x30, [sp, #-64]!\n\t"
         "add	x29, sp, #0\n\t"
-#ifndef __APPLE__
-        "adrp x28, %[L_sha3_aarch64_r]\n\t"
-        "add  x28, x28, :lo12:%[L_sha3_aarch64_r]\n\t"
-#else
-        "adrp x28, %[L_sha3_aarch64_r]@PAGE\n\t"
-        "add  x28, x28, %[L_sha3_aarch64_r]@PAGEOFF\n\t"
-#endif /* __APPLE__ */
         "str	%x[state], [x29, #40]\n\t"
         "add	%x[state], %x[state], #32\n\t"
         "ld1	{v4.d}[0], [%x[state]]\n\t"
@@ -11149,56 +10910,56 @@ void mlkem_shake256_blocksx3_seed_neon(word64* state, byte* seed)
         /* Start of 24 rounds */
         "\n"
     "L_SHA3_shake256_blocksx3_seed_neon_begin_%=: \n\t"
-        "stp	x28, %x[seed], [x29, #48]\n\t"
+        "stp	%[r], %x[seed], [x29, #48]\n\t"
         /* Col Mix NEON */
         "eor	v30.16b, v4.16b, v9.16b\n\t"
         "eor	%x[state], x6, x11\n\t"
         "eor	v27.16b, v1.16b, v6.16b\n\t"
         "eor	x30, x2, x7\n\t"
         "eor	v30.16b, v30.16b, v14.16b\n\t"
-        "eor	x28, x4, x9\n\t"
+        "eor	%[r], x4, x9\n\t"
         "eor	v27.16b, v27.16b, v11.16b\n\t"
         "eor	%x[state], %x[state], x16\n\t"
         "eor	v30.16b, v30.16b, v19.16b\n\t"
         "eor	x30, x30, x12\n\t"
         "eor	v27.16b, v27.16b, v16.16b\n\t"
-        "eor	x28, x28, x14\n\t"
+        "eor	%[r], %[r], x14\n\t"
         "eor	v30.16b, v30.16b, v24.16b\n\t"
         "eor	%x[state], %x[state], x22\n\t"
         "eor	v27.16b, v27.16b, v21.16b\n\t"
         "eor	x30, x30, x17\n\t"
         "ushr	v25.2d, v27.2d, #63\n\t"
-        "eor	x28, x28, x20\n\t"
+        "eor	%[r], %[r], x20\n\t"
         "sli	v25.2d, v27.2d, #1\n\t"
         "eor	%x[state], %x[state], x27\n\t"
         "eor	v25.16b, v25.16b, v30.16b\n\t"
         "eor	x30, x30, x23\n\t"
         "eor	v31.16b, v0.16b, v5.16b\n\t"
-        "eor	x28, x28, x25\n\t"
+        "eor	%[r], %[r], x25\n\t"
         "eor	v28.16b, v2.16b, v7.16b\n\t"
         "str	%x[state], [x29, #32]\n\t"
         "eor	v31.16b, v31.16b, v10.16b\n\t"
-        "str	x28, [x29, #24]\n\t"
+        "str	%[r], [x29, #24]\n\t"
         "eor	v28.16b, v28.16b, v12.16b\n\t"
         "eor	%x[seed], x3, x8\n\t"
         "eor	v31.16b, v31.16b, v15.16b\n\t"
-        "eor	x28, x5, x10\n\t"
+        "eor	%[r], x5, x10\n\t"
         "eor	v28.16b, v28.16b, v17.16b\n\t"
         "eor	%x[seed], %x[seed], x13\n\t"
         "eor	v31.16b, v31.16b, v20.16b\n\t"
-        "eor	x28, x28, x15\n\t"
+        "eor	%[r], %[r], x15\n\t"
         "eor	v28.16b, v28.16b, v22.16b\n\t"
         "eor	%x[seed], %x[seed], x19\n\t"
         "ushr	v29.2d, v30.2d, #63\n\t"
-        "eor	x28, x28, x21\n\t"
+        "eor	%[r], %[r], x21\n\t"
         "ushr	v26.2d, v28.2d, #63\n\t"
         "eor	%x[seed], %x[seed], x24\n\t"
         "sli	v29.2d, v30.2d, #1\n\t"
-        "eor	x28, x28, x26\n\t"
+        "eor	%[r], %[r], x26\n\t"
         "sli	v26.2d, v28.2d, #1\n\t"
         "eor	%x[state], %x[state], %x[seed], ror 63\n\t"
         "eor	v28.16b, v28.16b, v29.16b\n\t"
-        "eor	%x[seed], %x[seed], x28, ror 63\n\t"
+        "eor	%x[seed], %x[seed], %[r], ror 63\n\t"
         "eor	v29.16b, v3.16b, v8.16b\n\t"
         "eor	x2, x2, %x[state]\n\t"
         "eor	v26.16b, v26.16b, v31.16b\n\t"
@@ -11226,21 +10987,21 @@ void mlkem_shake256_blocksx3_seed_neon(word64* state, byte* seed)
         "eor	v31.16b, v1.16b, v26.16b\n\t"
         "ldr	%x[seed], [x29, #24]\n\t"
         "eor	v6.16b, v6.16b, v26.16b\n\t"
-        "eor	x28, x28, x30, ror 63\n\t"
+        "eor	%[r], %[r], x30, ror 63\n\t"
         "ushr	v30.2d, v31.2d, #63\n\t"
         "eor	x30, x30, %x[seed], ror 63\n\t"
         "ushr	v1.2d, v6.2d, #20\n\t"
         "eor	%x[seed], %x[seed], %x[state], ror 63\n\t"
         "sli	v30.2d, v31.2d, #1\n\t"
-        "eor	x6, x6, x28\n\t"
+        "eor	x6, x6, %[r]\n\t"
         "sli	v1.2d, v6.2d, #44\n\t"
-        "eor	x11, x11, x28\n\t"
+        "eor	x11, x11, %[r]\n\t"
         "eor	v31.16b, v9.16b, v29.16b\n\t"
-        "eor	x16, x16, x28\n\t"
+        "eor	x16, x16, %[r]\n\t"
         "eor	v22.16b, v22.16b, v27.16b\n\t"
-        "eor	x22, x22, x28\n\t"
+        "eor	x22, x22, %[r]\n\t"
         "ushr	v6.2d, v31.2d, #44\n\t"
-        "eor	x27, x27, x28\n\t"
+        "eor	x27, x27, %[r]\n\t"
         "ushr	v9.2d, v22.2d, #3\n\t"
         "eor	x3, x3, x30\n\t"
         "sli	v6.2d, v31.2d, #20\n\t"
@@ -11316,7 +11077,7 @@ void mlkem_shake256_blocksx3_seed_neon(word64* state, byte* seed)
         "ushr	v24.2d, v31.2d, #62\n\t"
         "bic	%x[seed], x5, x4\n\t"
         "ushr	v21.2d, v8.2d, #9\n\t"
-        "bic	x28, x2, x6\n\t"
+        "bic	%[r], x2, x6\n\t"
         "sli	v24.2d, v31.2d, #2\n\t"
         "bic	x30, x3, x2\n\t"
         "sli	v21.2d, v8.2d, #55\n\t"
@@ -11326,7 +11087,7 @@ void mlkem_shake256_blocksx3_seed_neon(word64* state, byte* seed)
         "eor	v5.16b, v5.16b, v25.16b\n\t"
         "bic	x12, x6, x5\n\t"
         "ushr	v8.2d, v31.2d, #19\n\t"
-        "eor	x5, x5, x28\n\t"
+        "eor	x5, x5, %[r]\n\t"
         "ushr	v16.2d, v5.2d, #28\n\t"
         "eor	x4, x4, x12\n\t"
         "sli	v8.2d, v31.2d, #45\n\t"
@@ -11336,7 +11097,7 @@ void mlkem_shake256_blocksx3_seed_neon(word64* state, byte* seed)
         "eor	v31.16b, v3.16b, v28.16b\n\t"
         "bic	%x[seed], x10, x9\n\t"
         "eor	v18.16b, v18.16b, v28.16b\n\t"
-        "bic	x28, x7, x11\n\t"
+        "bic	%[r], x7, x11\n\t"
         "ushr	v5.2d, v31.2d, #36\n\t"
         "bic	x30, x8, x7\n\t"
         "ushr	v3.2d, v18.2d, #43\n\t"
@@ -11346,7 +11107,7 @@ void mlkem_shake256_blocksx3_seed_neon(word64* state, byte* seed)
         "sli	v3.2d, v18.2d, #21\n\t"
         "bic	x12, x11, x10\n\t"
         "eor	v31.16b, v17.16b, v27.16b\n\t"
-        "eor	x10, x10, x28\n\t"
+        "eor	x10, x10, %[r]\n\t"
         "eor	v11.16b, v11.16b, v26.16b\n\t"
         "eor	x9, x9, x12\n\t"
         "ushr	v18.2d, v31.2d, #49\n\t"
@@ -11356,7 +11117,7 @@ void mlkem_shake256_blocksx3_seed_neon(word64* state, byte* seed)
         "sli	v18.2d, v31.2d, #15\n\t"
         "bic	%x[seed], x15, x14\n\t"
         "sli	v17.2d, v11.2d, #10\n\t"
-        "bic	x28, %x[state], x16\n\t"
+        "bic	%[r], %x[state], x16\n\t"
         "eor	v31.16b, v7.16b, v27.16b\n\t"
         "bic	x30, x13, %x[state]\n\t"
         "eor	v10.16b, v10.16b, v25.16b\n\t"
@@ -11366,7 +11127,7 @@ void mlkem_shake256_blocksx3_seed_neon(word64* state, byte* seed)
         "ushr	v7.2d, v10.2d, #61\n\t"
         "bic	%x[state], x16, x15\n\t"
         "sli	v11.2d, v31.2d, #6\n\t"
-        "eor	x15, x15, x28\n\t"
+        "eor	x15, x15, %[r]\n\t"
         "sli	v7.2d, v10.2d, #3\n\t"
         "eor	x14, x14, %x[state]\n\t"
         /* Row Mix NEON */
@@ -11377,7 +11138,7 @@ void mlkem_shake256_blocksx3_seed_neon(word64* state, byte* seed)
         "bic	v27.16b, v4.16b, v3.16b\n\t"
         "bic	%x[seed], x21, x20\n\t"
         "bic	v28.16b, v0.16b, v4.16b\n\t"
-        "bic	x28, x17, x22\n\t"
+        "bic	%[r], x17, x22\n\t"
         "bic	v29.16b, v1.16b, v0.16b\n\t"
         "bic	x30, x19, x17\n\t"
         "eor	v0.16b, v0.16b, v25.16b\n\t"
@@ -11387,7 +11148,7 @@ void mlkem_shake256_blocksx3_seed_neon(word64* state, byte* seed)
         "eor	v2.16b, v2.16b, v27.16b\n\t"
         "bic	%x[state], x22, x21\n\t"
         "eor	v3.16b, v3.16b, v28.16b\n\t"
-        "eor	x21, x21, x28\n\t"
+        "eor	x21, x21, %[r]\n\t"
         "eor	v4.16b, v4.16b, v29.16b\n\t"
         "eor	x20, x20, %x[state]\n\t"
         "bic	v25.16b, v7.16b, v6.16b\n\t"
@@ -11397,7 +11158,7 @@ void mlkem_shake256_blocksx3_seed_neon(word64* state, byte* seed)
         "bic	v27.16b, v9.16b, v8.16b\n\t"
         "bic	%x[seed], x26, x25\n\t"
         "bic	v28.16b, v5.16b, v9.16b\n\t"
-        "bic	x28, x23, x27\n\t"
+        "bic	%[r], x23, x27\n\t"
         "bic	v29.16b, v6.16b, v5.16b\n\t"
         "bic	x30, x24, x23\n\t"
         "eor	v5.16b, v5.16b, v25.16b\n\t"
@@ -11407,7 +11168,7 @@ void mlkem_shake256_blocksx3_seed_neon(word64* state, byte* seed)
         "eor	v7.16b, v7.16b, v27.16b\n\t"
         "bic	%x[state], x27, x26\n\t"
         "eor	v8.16b, v8.16b, v28.16b\n\t"
-        "eor	x26, x26, x28\n\t"
+        "eor	x26, x26, %[r]\n\t"
         "eor	v9.16b, v9.16b, v29.16b\n\t"
         "eor	x25, x25, %x[state]\n\t"
         "bic	v25.16b, v12.16b, v11.16b\n\t"
@@ -11442,8 +11203,8 @@ void mlkem_shake256_blocksx3_seed_neon(word64* state, byte* seed)
         "eor	v23.16b, v23.16b, v28.16b\n\t"
         "eor	v24.16b, v24.16b, v29.16b\n\t"
         /* Done transforming */
-        "ldp	x28, %x[seed], [x29, #48]\n\t"
-        "ldr	%x[state], [x28], #8\n\t"
+        "ldp	%[r], %x[seed], [x29, #48]\n\t"
+        "ldr	%x[state], [%[r]], #8\n\t"
         "subs	%x[seed], %x[seed], #1\n\t"
         "mov	v30.d[0], %x[state]\n\t"
         "mov	v30.d[1], %x[state]\n\t"
@@ -11482,11 +11243,11 @@ void mlkem_shake256_blocksx3_seed_neon(word64* state, byte* seed)
         "str	x27, [%x[state], #192]\n\t"
         "ldp	x29, x30, [sp], #0x40\n\t"
         : [state] "+r" (state), [seed] "+r" (seed)
-        : [L_sha3_aarch64_r] "i" (L_sha3_aarch64_r)
+        : [r] "r" (r)
         : "memory", "cc", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10",
             "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20",
-            "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "v0", "v1",
-            "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12",
+            "x21", "x22", "x23", "x24", "x25", "x26", "x27", "v0", "v1", "v2",
+            "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12",
             "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21",
             "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30",
             "v31"

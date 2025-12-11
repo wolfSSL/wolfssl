@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -51,16 +51,10 @@ static const word64 L_SHA3_transform_crypto_r[] = {
 
 void BlockSha3_crypto(word64* state)
 {
+    const word64* r = L_SHA3_transform_crypto_r;
     __asm__ __volatile__ (
 #ifdef __APPLE__
     ".arch_extension sha3\n\t"
-#endif /* __APPLE__ */
-#ifndef __APPLE__
-        "adrp x1, %[L_SHA3_transform_crypto_r]\n\t"
-        "add  x1, x1, :lo12:%[L_SHA3_transform_crypto_r]\n\t"
-#else
-        "adrp x1, %[L_SHA3_transform_crypto_r]@PAGE\n\t"
-        "add  x1, x1, %[L_SHA3_transform_crypto_r]@PAGEOFF\n\t"
 #endif /* __APPLE__ */
         "ld4	{v0.d, v1.d, v2.d, v3.d}[0], [%x[state]], #32\n\t"
         "ld4	{v4.d, v5.d, v6.d, v7.d}[0], [%x[state]], #32\n\t"
@@ -150,7 +144,7 @@ void BlockSha3_crypto(word64* state)
         "bcax	v22.16b, v22.16b, v24.16b, v23.16b\n\t"
         "bcax	v23.16b, v23.16b, v25.16b, v24.16b\n\t"
         "bcax	v24.16b, v24.16b, v26.16b, v25.16b\n\t"
-        "ld1r	{v30.2d}, [x1], #8\n\t"
+        "ld1r	{v30.2d}, [%[r]], #8\n\t"
         "subs	x2, x2, #1\n\t"
         "eor	v0.16b, v0.16b, v30.16b\n\t"
         "b.ne	L_sha3_crypto_begin_%=\n\t"
@@ -162,11 +156,11 @@ void BlockSha3_crypto(word64* state)
         "st4	{v20.d, v21.d, v22.d, v23.d}[0], [%x[state]], #32\n\t"
         "st1	{v24.1d}, [%x[state]]\n\t"
         : [state] "+r" (state)
-        : [L_SHA3_transform_crypto_r] "i" (L_SHA3_transform_crypto_r)
-        : "memory", "cc", "x1", "x2", "v0", "v1", "v2", "v3", "v4", "v5", "v6",
-            "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16",
-            "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25",
-            "v26", "v27", "v28", "v29", "v30", "v31"
+        : [r] "r" (r)
+        : "memory", "cc", "x2", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
+            "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17",
+            "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26",
+            "v27", "v28", "v29", "v30", "v31"
     );
 }
 
@@ -188,16 +182,10 @@ static const word64 L_SHA3_transform_base_r[] = {
 
 void BlockSha3_base(word64* state)
 {
+    const word64* r = L_SHA3_transform_base_r;
     __asm__ __volatile__ (
         "stp	x29, x30, [sp, #-64]!\n\t"
         "add	x29, sp, #0\n\t"
-#ifndef __APPLE__
-        "adrp x27, %[L_SHA3_transform_base_r]\n\t"
-        "add  x27, x27, :lo12:%[L_SHA3_transform_base_r]\n\t"
-#else
-        "adrp x27, %[L_SHA3_transform_base_r]@PAGE\n\t"
-        "add  x27, x27, %[L_SHA3_transform_base_r]@PAGEOFF\n\t"
-#endif /* __APPLE__ */
         "ldp	x1, x2, [%x[state]]\n\t"
         "ldp	x3, x4, [%x[state], #16]\n\t"
         "ldp	x5, x6, [%x[state], #32]\n\t"
@@ -216,7 +204,7 @@ void BlockSha3_base(word64* state)
         /* Start of 24 rounds */
         "\n"
     "L_SHA3_transform_base_begin_%=: \n\t"
-        "stp	x27, x28, [x29, #48]\n\t"
+        "stp	%[r], x28, [x29, #48]\n\t"
         "eor	%x[state], x5, x10\n\t"
         "eor	x30, x1, x6\n\t"
         "eor	x28, x3, x8\n\t"
@@ -231,31 +219,31 @@ void BlockSha3_base(word64* state)
         "eor	x28, x28, x24\n\t"
         "str	%x[state], [x29, #32]\n\t"
         "str	x28, [x29, #24]\n\t"
-        "eor	x27, x2, x7\n\t"
+        "eor	%[r], x2, x7\n\t"
         "eor	x28, x4, x9\n\t"
-        "eor	x27, x27, x12\n\t"
+        "eor	%[r], %[r], x12\n\t"
         "eor	x28, x28, x14\n\t"
-        "eor	x27, x27, x17\n\t"
+        "eor	%[r], %[r], x17\n\t"
         "eor	x28, x28, x20\n\t"
-        "eor	x27, x27, x23\n\t"
+        "eor	%[r], %[r], x23\n\t"
         "eor	x28, x28, x25\n\t"
-        "eor	%x[state], %x[state], x27, ror 63\n\t"
-        "eor	x27, x27, x28, ror 63\n\t"
+        "eor	%x[state], %x[state], %[r], ror 63\n\t"
+        "eor	%[r], %[r], x28, ror 63\n\t"
         "eor	x1, x1, %x[state]\n\t"
         "eor	x6, x6, %x[state]\n\t"
         "eor	x11, x11, %x[state]\n\t"
         "eor	x16, x16, %x[state]\n\t"
         "eor	x22, x22, %x[state]\n\t"
-        "eor	x3, x3, x27\n\t"
-        "eor	x8, x8, x27\n\t"
-        "eor	x13, x13, x27\n\t"
-        "eor	x19, x19, x27\n\t"
-        "eor	x24, x24, x27\n\t"
+        "eor	x3, x3, %[r]\n\t"
+        "eor	x8, x8, %[r]\n\t"
+        "eor	x13, x13, %[r]\n\t"
+        "eor	x19, x19, %[r]\n\t"
+        "eor	x24, x24, %[r]\n\t"
         "ldr	%x[state], [x29, #32]\n\t"
-        "ldr	x27, [x29, #24]\n\t"
+        "ldr	%[r], [x29, #24]\n\t"
         "eor	x28, x28, x30, ror 63\n\t"
-        "eor	x30, x30, x27, ror 63\n\t"
-        "eor	x27, x27, %x[state], ror 63\n\t"
+        "eor	x30, x30, %[r], ror 63\n\t"
+        "eor	%[r], %[r], %x[state], ror 63\n\t"
         "eor	x5, x5, x28\n\t"
         "eor	x10, x10, x28\n\t"
         "eor	x15, x15, x28\n\t"
@@ -266,11 +254,11 @@ void BlockSha3_base(word64* state)
         "eor	x12, x12, x30\n\t"
         "eor	x17, x17, x30\n\t"
         "eor	x23, x23, x30\n\t"
-        "eor	x4, x4, x27\n\t"
-        "eor	x9, x9, x27\n\t"
-        "eor	x14, x14, x27\n\t"
-        "eor	x20, x20, x27\n\t"
-        "eor	x25, x25, x27\n\t"
+        "eor	x4, x4, %[r]\n\t"
+        "eor	x9, x9, %[r]\n\t"
+        "eor	x14, x14, %[r]\n\t"
+        "eor	x20, x20, %[r]\n\t"
+        "eor	x25, x25, %[r]\n\t"
         /* Swap Rotate */
         "ror	%x[state], x2, #63\n\t"
         "ror	x2, x7, #20\n\t"
@@ -298,58 +286,58 @@ void BlockSha3_base(word64* state)
         "ror	x8, x11, #61\n\t"
         /* Row Mix */
         "bic	x11, x3, x2\n\t"
-        "bic	x27, x4, x3\n\t"
+        "bic	%[r], x4, x3\n\t"
         "bic	x28, x1, x5\n\t"
         "bic	x30, x2, x1\n\t"
         "eor	x1, x1, x11\n\t"
-        "eor	x2, x2, x27\n\t"
+        "eor	x2, x2, %[r]\n\t"
         "bic	x11, x5, x4\n\t"
         "eor	x4, x4, x28\n\t"
         "eor	x3, x3, x11\n\t"
         "eor	x5, x5, x30\n\t"
         "bic	x11, x8, x7\n\t"
-        "bic	x27, x9, x8\n\t"
+        "bic	%[r], x9, x8\n\t"
         "bic	x28, x6, x10\n\t"
         "bic	x30, x7, x6\n\t"
         "eor	x6, x6, x11\n\t"
-        "eor	x7, x7, x27\n\t"
+        "eor	x7, x7, %[r]\n\t"
         "bic	x11, x10, x9\n\t"
         "eor	x9, x9, x28\n\t"
         "eor	x8, x8, x11\n\t"
         "eor	x10, x10, x30\n\t"
         "bic	x11, x13, x12\n\t"
-        "bic	x27, x14, x13\n\t"
+        "bic	%[r], x14, x13\n\t"
         "bic	x28, %x[state], x15\n\t"
         "bic	x30, x12, %x[state]\n\t"
         "eor	x11, %x[state], x11\n\t"
-        "eor	x12, x12, x27\n\t"
+        "eor	x12, x12, %[r]\n\t"
         "bic	%x[state], x15, x14\n\t"
         "eor	x14, x14, x28\n\t"
         "eor	x13, x13, %x[state]\n\t"
         "eor	x15, x15, x30\n\t"
         "bic	%x[state], x19, x17\n\t"
-        "bic	x27, x20, x19\n\t"
+        "bic	%[r], x20, x19\n\t"
         "bic	x28, x16, x21\n\t"
         "bic	x30, x17, x16\n\t"
         "eor	x16, x16, %x[state]\n\t"
-        "eor	x17, x17, x27\n\t"
+        "eor	x17, x17, %[r]\n\t"
         "bic	%x[state], x21, x20\n\t"
         "eor	x20, x20, x28\n\t"
         "eor	x19, x19, %x[state]\n\t"
         "eor	x21, x21, x30\n\t"
         "bic	%x[state], x24, x23\n\t"
-        "bic	x27, x25, x24\n\t"
+        "bic	%[r], x25, x24\n\t"
         "bic	x28, x22, x26\n\t"
         "bic	x30, x23, x22\n\t"
         "eor	x22, x22, %x[state]\n\t"
-        "eor	x23, x23, x27\n\t"
+        "eor	x23, x23, %[r]\n\t"
         "bic	%x[state], x26, x25\n\t"
         "eor	x25, x25, x28\n\t"
         "eor	x24, x24, %x[state]\n\t"
         "eor	x26, x26, x30\n\t"
         /* Done transforming */
-        "ldp	x27, x28, [x29, #48]\n\t"
-        "ldr	%x[state], [x27], #8\n\t"
+        "ldp	%[r], x28, [x29, #48]\n\t"
+        "ldr	%x[state], [%[r]], #8\n\t"
         "subs	x28, x28, #1\n\t"
         "eor	x1, x1, %x[state]\n\t"
         "b.ne	L_SHA3_transform_base_begin_%=\n\t"
@@ -369,10 +357,10 @@ void BlockSha3_base(word64* state)
         "str	x26, [%x[state], #192]\n\t"
         "ldp	x29, x30, [sp], #0x40\n\t"
         : [state] "+r" (state)
-        : [L_SHA3_transform_base_r] "i" (L_SHA3_transform_base_r)
+        : [r] "r" (r)
         : "memory", "cc", "x1", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9",
             "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19",
-            "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28"
+            "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x28"
     );
 }
 

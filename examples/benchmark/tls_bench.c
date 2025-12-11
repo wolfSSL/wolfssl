@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -85,12 +85,12 @@ Or
         #define SINGLE_THREADED
     #endif
 #endif
-/* Conversely, if both server and client are enabled, we must require pthreads */
+
+/* If both client and server are enabled and single threaded, just disable this example */
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) \
     && defined(SINGLE_THREADED)
-    #error "threads must be enabled if building benchmark suite \
-to run both client and server. Please define HAVE_PTHREAD if your \
-platform supports it"
+    #undef  NO_TLS
+    #define NO_TLS
 #endif
 
 #if 0
@@ -296,14 +296,14 @@ static struct group_info groups[] = {
     { WOLFSSL_ML_KEM_512, "ML_KEM_512" },
     { WOLFSSL_ML_KEM_768, "ML_KEM_768" },
     { WOLFSSL_ML_KEM_1024, "ML_KEM_1024" },
-    { WOLFSSL_P256_ML_KEM_512,   "P256_ML_KEM_512"   },
-    { WOLFSSL_P384_ML_KEM_768,   "P384_ML_KEM_768"   },
-    { WOLFSSL_P256_ML_KEM_768,   "P256_ML_KEM_768"   },
-    { WOLFSSL_P521_ML_KEM_1024,  "P521_ML_KEM_1024"  },
-    { WOLFSSL_P384_ML_KEM_1024,  "P384_ML_KEM_1024"  },
-    { WOLFSSL_X25519_ML_KEM_512, "X25519_ML_KEM_512" },
-    { WOLFSSL_X448_ML_KEM_768,   "X448_ML_KEM_768"   },
-    { WOLFSSL_X25519_ML_KEM_768, "X25519_ML_KEM_768" },
+    { WOLFSSL_SECP256R1MLKEM512,   "SecP256r1MLKEM512"   },
+    { WOLFSSL_SECP384R1MLKEM768,   "SecP384r1MLKEM768"   },
+    { WOLFSSL_SECP256R1MLKEM768,   "SecP256r1MLKEM768"   },
+    { WOLFSSL_SECP521R1MLKEM1024,  "SecP521r1MLKEM1024"  },
+    { WOLFSSL_SECP384R1MLKEM1024,  "SecP384r1MLKEM1024"  },
+    { WOLFSSL_X25519MLKEM512, "X25519MLKEM512" },
+    { WOLFSSL_X448MLKEM768,   "X448MLKEM768"   },
+    { WOLFSSL_X25519MLKEM768, "X25519MLKEM768" },
 #endif
 #ifdef WOLFSSL_MLKEM_KYBER
     { WOLFSSL_KYBER_LEVEL1, "KYBER_LEVEL1" },

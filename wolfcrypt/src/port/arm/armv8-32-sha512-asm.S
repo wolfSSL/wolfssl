@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -199,9 +199,9 @@ L_SHA512_transform_len_k:
 	.word	0x6c44198c
 	.text
 	.align	4
-	.globl	Transform_Sha512_Len
-	.type	Transform_Sha512_Len, %function
-Transform_Sha512_Len:
+	.globl	Transform_Sha512_Len_base
+	.type	Transform_Sha512_Len_base, %function
+Transform_Sha512_Len_base:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
 	sub	sp, sp, #0xc0
 	adr	r3, L_SHA512_transform_len_k
@@ -7615,7 +7615,7 @@ L_SHA512_transform_len_start:
 	eor	r0, r0, r0
 	add	sp, sp, #0xc0
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-	.size	Transform_Sha512_Len,.-Transform_Sha512_Len
+	.size	Transform_Sha512_Len_base,.-Transform_Sha512_Len_base
 #endif /* WOLFSSL_ARMASM_NO_NEON */
 #ifndef WOLFSSL_ARMASM_NO_NEON
 	.text
@@ -7786,9 +7786,9 @@ L_SHA512_transform_neon_len_k:
 	.text
 	.align	4
 	.fpu	neon
-	.globl	Transform_Sha512_Len
-	.type	Transform_Sha512_Len, %function
-Transform_Sha512_Len:
+	.globl	Transform_Sha512_Len_neon
+	.type	Transform_Sha512_Len_neon, %function
+Transform_Sha512_Len_neon:
 	vpush	{d8-d15}
 	adr	r3, L_SHA512_transform_neon_len_k
 	# Load digest into working vars
@@ -9279,7 +9279,7 @@ L_SHA512_transform_neon_len_start:
 	bne	L_SHA512_transform_neon_len_begin
 	vpop	{d8-d15}
 	bx	lr
-	.size	Transform_Sha512_Len,.-Transform_Sha512_Len
+	.size	Transform_Sha512_Len_neon,.-Transform_Sha512_Len_neon
 #endif /* !WOLFSSL_ARMASM_NO_NEON */
 #endif /* WOLFSSL_SHA512 || WOLFSSL_SHA384 */
 #endif /* !__aarch64__ && !WOLFSSL_ARMASM_THUMB2 */

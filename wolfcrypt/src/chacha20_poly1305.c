@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -51,11 +51,7 @@ int wc_ChaCha20Poly1305_Encrypt(
                 byte outAuthTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE])
 {
     int ret;
-#ifdef WOLFSSL_SMALL_STACK
-    ChaChaPoly_Aead *aead = NULL;
-#else
-    ChaChaPoly_Aead aead[1];
-#endif
+    WC_DECLARE_VAR(aead, ChaChaPoly_Aead, 1, 0);
 
     /* Validate function arguments */
     if (!inKey || !inIV ||
@@ -66,12 +62,8 @@ int wc_ChaCha20Poly1305_Encrypt(
         return BAD_FUNC_ARG;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    aead = (ChaChaPoly_Aead *)XMALLOC(sizeof(*aead), NULL,
-                                      DYNAMIC_TYPE_TMP_BUFFER);
-    if (aead == NULL)
-        return MEMORY_E;
-#endif
+    WC_ALLOC_VAR_EX(aead, ChaChaPoly_Aead, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+        return MEMORY_E);
 
     ret = wc_ChaCha20Poly1305_Init(aead, inKey, inIV,
         CHACHA20_POLY1305_AEAD_ENCRYPT);
@@ -83,9 +75,7 @@ int wc_ChaCha20Poly1305_Encrypt(
     if (ret == 0)
         ret = wc_ChaCha20Poly1305_Final(aead, outAuthTag);
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(aead, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(aead, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -100,11 +90,7 @@ int wc_ChaCha20Poly1305_Decrypt(
                 byte* outPlaintext)
 {
     int ret;
-#ifdef WOLFSSL_SMALL_STACK
-    ChaChaPoly_Aead *aead = NULL;
-#else
-    ChaChaPoly_Aead aead[1];
-#endif
+    WC_DECLARE_VAR(aead, ChaChaPoly_Aead, 1, 0);
     byte calculatedAuthTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE];
 
     /* Validate function arguments */
@@ -116,12 +102,8 @@ int wc_ChaCha20Poly1305_Decrypt(
         return BAD_FUNC_ARG;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    aead = (ChaChaPoly_Aead *)XMALLOC(sizeof(*aead), NULL,
-                                      DYNAMIC_TYPE_TMP_BUFFER);
-    if (aead == NULL)
-        return MEMORY_E;
-#endif
+    WC_ALLOC_VAR_EX(aead, ChaChaPoly_Aead, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+        return MEMORY_E);
 
     XMEMSET(calculatedAuthTag, 0, sizeof(calculatedAuthTag));
 
@@ -137,9 +119,7 @@ int wc_ChaCha20Poly1305_Decrypt(
     if (ret == 0)
         ret = wc_ChaCha20Poly1305_CheckTag(inAuthTag, calculatedAuthTag);
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(aead, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(aead, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -401,7 +381,7 @@ static WC_INLINE int wc_XChaCha20Poly1305_crypt_oneshot(
         goto out;
     }
 
-    if ((long int)dst_space < dst_len) {
+    if (dst_len < 0 || (long int)dst_space < dst_len) {
         ret = BUFFER_E;
         goto out;
     }

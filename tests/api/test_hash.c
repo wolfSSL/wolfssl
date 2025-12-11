@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -214,9 +214,9 @@ int test_wc_HashInit(void)
 
     for (i = 0; i < notSupportedHashLen; i++) {
         /* check for null ptr */
-        ExpectIntEQ(wc_HashInit(NULL, supportedHash[i]),
+        ExpectIntEQ(wc_HashInit(NULL, notSupportedHash[i]),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-        ExpectIntEQ(wc_HashInit_ex(NULL, supportedHash[i], HEAP_HINT,
+        ExpectIntEQ(wc_HashInit_ex(NULL, notSupportedHash[i], HEAP_HINT,
             INVALID_DEVID), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
         ExpectIntEQ(wc_HashInit(&hash, notSupportedHash[i]),

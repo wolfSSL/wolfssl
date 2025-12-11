@@ -174,8 +174,8 @@ int wc_AesCmacGenerate(byte* out, word32* outSz,
     \ingroup CMAC
     \brief Single shot function for validating a CMAC
     \return 0 on success
-    \param check pointer to return the result
-    \param checkSz size of checkout buffer
+    \param check CMAC value to verify
+    \param checkSz size of check buffer
     \param in input data to process
     \param inSz size of input data
     \param key key pointer

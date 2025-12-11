@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -37,6 +37,11 @@ typedef struct {
 } silabs_aes_t;
 
 typedef struct Aes Aes;
+
+#ifdef WOLFSSL_AES_DIRECT
+int wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock);
+int wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock);
+#endif
 
 #ifdef HAVE_AESGCM
 int wc_AesGcmEncrypt_silabs (Aes* aes, byte* out, const byte* in, word32 sz,

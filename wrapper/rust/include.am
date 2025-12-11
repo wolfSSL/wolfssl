@@ -1,0 +1,39 @@
+# vim:ft=automake
+# included from Top Level Makefile.am
+# All paths should be given relative to the root
+
+EXTRA_DIST += wrapper/rust/Makefile
+EXTRA_DIST += wrapper/rust/README.md
+EXTRA_DIST += wrapper/rust/wolfssl/Cargo.lock
+EXTRA_DIST += wrapper/rust/wolfssl/Cargo.toml
+EXTRA_DIST += wrapper/rust/wolfssl/Makefile
+EXTRA_DIST += wrapper/rust/wolfssl/build.rs
+EXTRA_DIST += wrapper/rust/wolfssl/headers.h
+EXTRA_DIST += wrapper/rust/wolfssl/src/lib.rs
+EXTRA_DIST += wrapper/rust/wolfssl/src/wolfcrypt.rs
+EXTRA_DIST += wrapper/rust/wolfssl/src/wolfcrypt/aes.rs
+EXTRA_DIST += wrapper/rust/wolfssl/src/wolfcrypt/cmac.rs
+EXTRA_DIST += wrapper/rust/wolfssl/src/wolfcrypt/dh.rs
+EXTRA_DIST += wrapper/rust/wolfssl/src/wolfcrypt/ecc.rs
+EXTRA_DIST += wrapper/rust/wolfssl/src/wolfcrypt/ed25519.rs
+EXTRA_DIST += wrapper/rust/wolfssl/src/wolfcrypt/ed448.rs
+EXTRA_DIST += wrapper/rust/wolfssl/src/wolfcrypt/hkdf.rs
+EXTRA_DIST += wrapper/rust/wolfssl/src/wolfcrypt/hmac.rs
+EXTRA_DIST += wrapper/rust/wolfssl/src/wolfcrypt/kdf.rs
+EXTRA_DIST += wrapper/rust/wolfssl/src/wolfcrypt/prf.rs
+EXTRA_DIST += wrapper/rust/wolfssl/src/wolfcrypt/random.rs
+EXTRA_DIST += wrapper/rust/wolfssl/src/wolfcrypt/rsa.rs
+EXTRA_DIST += wrapper/rust/wolfssl/src/wolfcrypt/sha.rs
+EXTRA_DIST += wrapper/rust/wolfssl/tests/test_aes.rs
+EXTRA_DIST += wrapper/rust/wolfssl/tests/test_cmac.rs
+EXTRA_DIST += wrapper/rust/wolfssl/tests/test_dh.rs
+EXTRA_DIST += wrapper/rust/wolfssl/tests/test_ecc.rs
+EXTRA_DIST += wrapper/rust/wolfssl/tests/test_ed25519.rs
+EXTRA_DIST += wrapper/rust/wolfssl/tests/test_ed448.rs
+EXTRA_DIST += wrapper/rust/wolfssl/tests/test_hkdf.rs
+EXTRA_DIST += wrapper/rust/wolfssl/tests/test_hmac.rs
+EXTRA_DIST += wrapper/rust/wolfssl/tests/test_kdf.rs
+EXTRA_DIST += wrapper/rust/wolfssl/tests/test_prf.rs
+EXTRA_DIST += wrapper/rust/wolfssl/tests/test_random.rs
+EXTRA_DIST += wrapper/rust/wolfssl/tests/test_rsa.rs
+EXTRA_DIST += wrapper/rust/wolfssl/tests/test_sha.rs

@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -495,6 +495,7 @@ err_sys_with_errno(const char* msg)
 
 /* all certs relative to wolfSSL home directory now */
 #if defined(WOLFSSL_NO_CURRDIR) || defined(WOLFSSL_MDK_SHELL)
+#ifdef WOLFSSL_PEM_TO_DER
 #define caCertFile        "certs/ca-cert.pem"
 #define eccCertFile       "certs/server-ecc.pem"
 #define eccKeyFile        "certs/ecc-key.pem"
@@ -528,6 +529,41 @@ err_sys_with_errno(const char* msg)
 #define cliEd448KeyFile   "certs/ed448/client-ed448-priv.pem"
 #define caEd448CertFile   "certs/ed448/ca-ed448.pem"
 #define noIssuerCertFile  "certs/empty-issuer-cert.pem"
+#else
+#define caCertFile        "certs/ca-cert.der"
+#define eccCertFile       "certs/server-ecc.der"
+#define eccKeyFile        "certs/ecc-key.der"
+#define eccKeyPubFile     "certs/ecc-keyPub.der"
+#define eccRsaCertFile    "certs/server-ecc-rsa.der"
+#define svrCertFile       "certs/server-cert.der"
+#define svrKeyFile        "certs/server-key.der"
+#define svrKeyPubFile     "certs/server-keyPub.der"
+#define cliCertFile       "certs/client-cert.der"
+#define cliCertDerFile    "certs/client-cert.der"
+#define cliCertFileExt    "certs/client-cert-ext.der"
+#define cliCertDerFileExt "certs/client-cert-ext.der"
+#define cliKeyFile        "certs/client-key.der"
+#define cliKeyPubFile     "certs/client-keyPub.der"
+#define dhParamFile       "certs/dh2048.der"
+#define cliEccKeyFile     "certs/ecc-client-key.der"
+#define cliEccKeyPubFile  "certs/ecc-client-keyPub.der"
+#define cliEccCertFile    "certs/client-ecc-cert.der"
+#define caEccCertFile     "certs/ca-ecc-cert.der"
+#define crlPemDir         "certs/crl"
+#define edCertFile        "certs/ed25519/server-ed25519-cert.der"
+#define edKeyFile         "certs/ed25519/server-ed25519-priv.der"
+#define edKeyPubFile      "certs/ed25519/server-ed25519-key.der"
+#define cliEdCertFile     "certs/ed25519/client-ed25519.der"
+#define cliEdKeyFile      "certs/ed25519/client-ed25519-priv.der"
+#define cliEdKeyPubFile   "certs/ed25519/client-ed25519-key.der"
+#define caEdCertFile      "certs/ed25519/ca-ed25519.der"
+#define ed448CertFile     "certs/ed448/server-ed448-cert.der"
+#define ed448KeyFile      "certs/ed448/server-ed448-priv.der"
+#define cliEd448CertFile  "certs/ed448/client-ed448.der"
+#define cliEd448KeyFile   "certs/ed448/client-ed448-priv.der"
+#define caEd448CertFile   "certs/ed448/ca-ed448.der"
+#define noIssuerCertFile  "certs/empty-issuer-cert.der"
+#endif
 #define caCertFolder      "certs/"
 #ifdef HAVE_WNR
     /* Whitewood netRandom default config file */
@@ -559,6 +595,7 @@ err_sys_with_errno(const char* msg)
         #define wnrConfig  "wnr-example.conf"
     #endif
 #else
+#ifdef WOLFSSL_PEM_TO_DER
 #define caCertFile        "./certs/ca-cert.pem"
 #define eccCertFile       "./certs/server-ecc.pem"
 #define eccKeyFile        "./certs/ecc-key.pem"
@@ -592,6 +629,41 @@ err_sys_with_errno(const char* msg)
 #define cliEd448KeyFile   "./certs/ed448/client-ed448-priv.pem"
 #define caEd448CertFile   "./certs/ed448/ca-ed448.pem"
 #define noIssuerCertFile  "./certs/empty-issuer-cert.pem"
+#else
+#define caCertFile        "./certs/ca-cert.der"
+#define eccCertFile       "./certs/server-ecc.der"
+#define eccKeyFile        "./certs/ecc-key.der"
+#define eccKeyPubFile     "./certs/ecc-keyPub.der"
+#define eccRsaCertFile    "./certs/server-ecc-rsa.der"
+#define svrCertFile       "./certs/server-cert.der"
+#define svrKeyFile        "./certs/server-key.der"
+#define svrKeyPubFile     "./certs/server-keyPub.der"
+#define cliCertFile       "./certs/client-cert.der"
+#define cliCertDerFile    "./certs/client-cert.der"
+#define cliCertFileExt    "./certs/client-cert-ext.der"
+#define cliCertDerFileExt "./certs/client-cert-ext.der"
+#define cliKeyFile        "./certs/client-key.der"
+#define cliKeyPubFile     "./certs/client-keyPub.der"
+#define dhParamFile       "./certs/dh2048.der"
+#define cliEccKeyFile     "./certs/ecc-client-key.der"
+#define cliEccKeyPubFile  "./certs/ecc-client-keyPub.der"
+#define cliEccCertFile    "./certs/client-ecc-cert.der"
+#define caEccCertFile     "./certs/ca-ecc-cert.der"
+#define crlPemDir         "./certs/crl"
+#define edCertFile        "./certs/ed25519/server-ed25519-cert.der"
+#define edKeyFile         "./certs/ed25519/server-ed25519-priv.der"
+#define edKeyPubFile      "./certs/ed25519/server-ed25519-key.der"
+#define cliEdCertFile     "./certs/ed25519/client-ed25519.der"
+#define cliEdKeyFile      "./certs/ed25519/client-ed25519-priv.der"
+#define cliEdKeyPubFile   "./certs/ed25519/client-ed25519-key.der"
+#define caEdCertFile      "./certs/ed25519/ca-ed25519.der"
+#define ed448CertFile     "./certs/ed448/server-ed448-cert.der"
+#define ed448KeyFile      "./certs/ed448/server-ed448-priv.der"
+#define cliEd448CertFile  "./certs/ed448/client-ed448.der"
+#define cliEd448KeyFile   "./certs/ed448/client-ed448-priv.der"
+#define caEd448CertFile   "./certs/ed448/ca-ed448.der"
+#define noIssuerCertFile  "./certs/empty-issuer-cert.der"
+#endif
 #define caCertFolder      "./certs/"
 #ifdef HAVE_WNR
     /* Whitewood netRandom default config file */
@@ -599,6 +671,11 @@ err_sys_with_errno(const char* msg)
 #endif
 #endif
 
+#ifdef WOLFSSL_PEM_TO_DER
+    #define CERT_FILETYPE WOLFSSL_FILETYPE_PEM
+#else
+    #define CERT_FILETYPE WOLFSSL_FILETYPE_ASN1
+#endif
 
 #ifdef TEST_IPV6
     typedef struct sockaddr_in6 SOCKADDR_IN_T;
@@ -1233,7 +1310,7 @@ static WC_INLINE void showPeerEx(WOLFSSL* ssl, int lng_index)
 #if defined(SHOW_CERTS) && defined(KEEP_OUR_CERT) && \
     (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
     ShowX509(wolfSSL_get_certificate(ssl), "our cert info:");
-    printf("Peer verify result = %lu\n", wolfSSL_get_verify_result(ssl));
+    printf("Peer verify result = %ld\n", wolfSSL_get_verify_result(ssl));
 #endif /* SHOW_CERTS && KEEP_OUR_CERT */
     printf("%s %s\n", words[0], wolfSSL_get_version(ssl));
 
@@ -1302,60 +1379,7 @@ static WC_INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
 #ifndef TEST_IPV6
     /* peer could be in human readable form */
     if ( ((size_t)peer != INADDR_ANY) && isalpha((unsigned char)peer[0])) {
-    #ifdef WOLFSSL_USE_POPEN_HOST
-        char host_ipaddr[4] = { 127, 0, 0, 1 };
-        int found = 1;
-
-        if ((XSTRCMP(peer, "localhost") != 0) &&
-            (XSTRCMP(peer, "127.0.0.1") != 0)) {
-            FILE* fp;
-            char cmd[100];
-
-            XSTRNCPY(cmd, "host ", 6);
-            XSTRNCAT(cmd, peer, 99 - XSTRLEN(cmd));
-            found = 0;
-            fp = popen(cmd, "r");
-            if (fp != NULL) {
-                char host_out[100];
-                while (fgets(host_out, sizeof(host_out), fp) != NULL) {
-                    int i;
-                    int j = 0;
-                    for (j = 0; host_out[j] != '\0'; j++) {
-                        if ((host_out[j] >= '0') && (host_out[j] <= '9')) {
-                            break;
-                        }
-                    }
-                    found = (host_out[j] >= '0') && (host_out[j] <= '9');
-                    if (!found) {
-                        continue;
-                    }
-
-                    for (i = 0; i < 4; i++) {
-                        host_ipaddr[i] = atoi(host_out + j);
-                        while ((host_out[j] >= '0') && (host_out[j] <= '9')) {
-                            j++;
-                        }
-                        if (host_out[j] == '.') {
-                            j++;
-                            found &= (i != 3);
-                        }
-                        else {
-                            found &= (i == 3);
-                            break;
-                        }
-                    }
-                    if (found) {
-                        break;
-                    }
-                }
-                pclose(fp);
-            }
-        }
-        if (found) {
-            XMEMCPY(&addr->sin_addr.s_addr, host_ipaddr, sizeof(host_ipaddr));
-            useLookup = 1;
-        }
-    #elif !defined(WOLFSSL_USE_GETADDRINFO)
+    #if !defined(WOLFSSL_USE_GETADDRINFO)
         #if defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET)
             int err;
             struct hostent* entry = gethostbyname(peer, &err);
@@ -1511,6 +1535,7 @@ static WC_INLINE void tcp_connect(SOCKET_T* sockfd, const char* ip, word16 port,
                                int udp, int sctp, WOLFSSL* ssl)
 {
     SOCKADDR_IN_T addr;
+    fprintf(stderr, "connecting to %s:%d\n", ip, port);
     build_addr(&addr, ip, port, udp, sctp);
     if (udp) {
         wolfSSL_dtls_set_peer(ssl, &addr, sizeof(addr));
@@ -1518,8 +1543,10 @@ static WC_INLINE void tcp_connect(SOCKET_T* sockfd, const char* ip, word16 port,
     tcp_socket(sockfd, udp, sctp);
 
     if (!udp) {
-        if (connect(*sockfd, (const struct sockaddr*)&addr, sizeof(addr)) != 0)
+        if (connect(*sockfd, (const struct sockaddr*)&addr, sizeof(addr)) != 0) {
+            perror("connect");
             err_sys_with_errno("tcp connect failed");
+        }
     }
 }
 
@@ -1531,7 +1558,7 @@ static WC_INLINE void udp_connect(SOCKET_T* sockfd, const char* ip, word16 port)
     SOCKADDR_IN_T addr;
     build_addr(&addr, ip, port, 1, 0);
     if (connect(*sockfd, (const struct sockaddr*)&addr, sizeof(addr)) != 0)
-        err_sys_with_errno("tcp connect failed");
+        err_sys_with_errno("udp connect failed");
 }
 
 
@@ -1668,6 +1695,7 @@ static WC_INLINE void tcp_listen(SOCKET_T* sockfd, word16* port, int useAnyAddr,
             }
         }
     #endif
+    fprintf(stderr, "listening on port %d\n", *port);
 }
 
 
@@ -1800,7 +1828,7 @@ static WC_INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
 #endif /* !SINGLE_THREADED */
 
         if (ready_file) {
-        #if !defined(NO_FILESYSTEM) || defined(FORCE_BUFFER_TEST) && \
+        #if (!defined(NO_FILESYSTEM) || defined(FORCE_BUFFER_TEST)) && \
             !defined(NETOS)
             XFILE srf = (XFILE)NULL;
             if (args)
@@ -1924,7 +1952,7 @@ static WC_INLINE unsigned int my_psk_client_cb(WOLFSSL* ssl, const char* hint,
     }
 
 #if defined(HAVE_PK_CALLBACKS) && defined(TEST_PK_PSK)
-    WOLFSSL_PKMSG("PSK Client using HW (Len %d, Hint %s)\n", ret, hint);
+    WOLFSSL_PKMSG("PSK Client using HW (Len %u, Hint %s)\n", ret, hint);
     ret = (unsigned int)USE_HW_PSK;
 #endif
 
@@ -1968,7 +1996,7 @@ static WC_INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identit
         ret = 32;   /* length of key in octets or 0 for error */
     }
 #if defined(HAVE_PK_CALLBACKS) && defined(TEST_PK_PSK)
-    WOLFSSL_PKMSG("PSK Server using HW (Len %d, Hint %s)\n", ret, identity);
+    WOLFSSL_PKMSG("PSK Server using HW (Len %u, Hint %s)\n", ret, identity);
     ret = (unsigned int)USE_HW_PSK;
 #endif
 
@@ -2007,7 +2035,7 @@ static WC_INLINE unsigned int my_psk_client_tls13_cb(WOLFSSL* ssl,
     ret = 32;   /* length of key in octets or 0 for error */
 
 #if defined(HAVE_PK_CALLBACKS) && defined(TEST_PK_PSK)
-    WOLFSSL_PKMSG("PSK Client TLS 1.3 using HW (Len %d, Hint %s)\n", ret, hint);
+    WOLFSSL_PKMSG("PSK Client TLS 1.3 using HW (Len %u, Hint %s)\n", ret, hint);
     ret = (unsigned int)USE_HW_PSK;
 #endif
 
@@ -2050,7 +2078,7 @@ static WC_INLINE unsigned int my_psk_server_tls13_cb(WOLFSSL* ssl,
     ret = 32;   /* length of key in octets or 0 for error */
 
 #if defined(HAVE_PK_CALLBACKS) && defined(TEST_PK_PSK)
-    WOLFSSL_PKMSG("PSK Server TLS 1.3 using HW (Len %d, Hint %s)\n",
+    WOLFSSL_PKMSG("PSK Server TLS 1.3 using HW (Len %u, Hint %s)\n",
         ret, identity);
     ret = (unsigned int)USE_HW_PSK;
 #endif
@@ -2713,7 +2741,7 @@ static WC_INLINE void CaCb(unsigned char* der, int sz, int type)
 
     static WC_INLINE int ChangeToWolfRoot(void)
     {
-        #if !defined(NO_FILESYSTEM) || defined(FORCE_BUFFER_TEST) && \
+        #if (!defined(NO_FILESYSTEM) || defined(FORCE_BUFFER_TEST)) && \
             !defined(NETOS)
             int depth;
             for(depth = 0; depth <= MAX_WOLF_ROOT_DEPTH; depth++) {
@@ -3177,7 +3205,7 @@ static WC_INLINE int wolfSSL_PrintStats(WOLFSSL_MEM_STATS* stats)
         return 0;
     }
 
-    /* print to stderr so is on the same pipe as WOLFSSL_DEBUG */
+    /* print to stderr so is on the same pipe as DEBUG_WOLFSSL */
     fprintf(stderr, "Total mallocs   = %d\n", stats->totalAlloc);
     fprintf(stderr, "Total frees     = %d\n", stats->totalFr);
     fprintf(stderr, "Current mallocs = %d\n", stats->curAlloc);

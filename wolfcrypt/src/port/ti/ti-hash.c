@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -138,17 +138,10 @@ static int hashFinal(wolfssl_TI_Hash *hash, byte* result, word32 algo, word32 hs
 static int hashHash(const byte* data, word32 len, byte* hash, word32 algo, word32 hsize)
 {
     int ret = 0;
-#ifdef WOLFSSL_SMALL_STACK
-    wolfssl_TI_Hash* hash_desc;
-#else
-    wolfssl_TI_Hash  hash_desc[1];
-#endif
+    WC_DECLARE_VAR(hash_desc, wolfssl_TI_Hash, 1, 0);
 
-#ifdef WOLFSSL_SMALL_STACK
-    hash_desc = (wolfssl_TI_Hash*)XMALLOC(sizeof(wolfssl_TI_Hash), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (hash_desc == NULL)
-        return MEMORY_E;
-#endif
+    WC_ALLOC_VAR_EX(hash_desc, wolfssl_TI_Hash, 1, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER, return MEMORY_E);
 
     if ((ret = hashInit(hash_desc)) != 0) {
         WOLFSSL_MSG("Hash Init failed");
@@ -158,9 +151,7 @@ static int hashHash(const byte* data, word32 len, byte* hash, word32 algo, word3
         hashFinal(hash_desc, hash, algo, hsize);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(hash_desc, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(hash_desc, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }

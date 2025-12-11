@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -184,9 +184,9 @@ _Transform_Sha512_Len_neon:
 L_sha512_len_neon_begin:
 	# Load W
 	# Copy digest to add in at end
-	ld1	{v0.2d, v1.2d, v2.2d, v3.2d}, [x1], #0x40
+	ld1	{v0.16b, v1.16b, v2.16b, v3.16b}, [x1], #0x40
 	mov	x19, x4
-	ld1	{v4.2d, v5.2d, v6.2d, v7.2d}, [x1], #0x40
+	ld1	{v4.16b, v5.16b, v6.16b, v7.16b}, [x1], #0x40
 	mov	x20, x5
 	rev64	v0.16b, v0.16b
 	mov	x21, x6
@@ -1065,14 +1065,8 @@ L_sha512_len_neon_start:
 	add	x6, x6, x21
 	add	x5, x5, x20
 	add	x4, x4, x19
-#ifndef __APPLE__
-	adrp x3, L_SHA512_transform_neon_len_k
-	add  x3, x3, :lo12:L_SHA512_transform_neon_len_k
-#else
-	adrp x3, L_SHA512_transform_neon_len_k@PAGE
-	add  x3, x3, :lo12:L_SHA512_transform_neon_len_k@PAGEOFF
-#endif /* __APPLE__ */
 	subs	w2, w2, #0x80
+	sub	x3, x3, #0x280
 	bne	L_sha512_len_neon_begin
 	stp	x4, x5, [x0]
 	stp	x6, x7, [x0, #16]
@@ -1203,9 +1197,6 @@ _Transform_Sha512_Len_crypto:
 	stp	d10, d11, [x29, #32]
 	stp	d12, d13, [x29, #48]
 	stp	d14, d15, [x29, #64]
-#ifdef __APPLE__
-.arch_extension sha3
-#endif /* __APPLE__ */
 #ifndef __APPLE__
 	adrp x4, L_SHA512_trans_crypto_len_k
 	add  x4, x4, :lo12:L_SHA512_trans_crypto_len_k
@@ -1213,7 +1204,10 @@ _Transform_Sha512_Len_crypto:
 	adrp x4, L_SHA512_trans_crypto_len_k@PAGE
 	add  x4, x4, :lo12:L_SHA512_trans_crypto_len_k@PAGEOFF
 #endif /* __APPLE__ */
-	# Load first 16 64-bit words of K permanently
+#ifdef __APPLE__
+.arch_extension sha3
+#endif /* __APPLE__ */
+	# Load K into vector registers
 	ld1	{v8.2d, v9.2d, v10.2d, v11.2d}, [x4], #0x40
 	ld1	{v12.2d, v13.2d, v14.2d, v15.2d}, [x4], #0x40
 	# Load digest into working vars
@@ -1222,8 +1216,8 @@ _Transform_Sha512_Len_crypto:
 L_sha512_len_crypto_begin:
 	mov	x3, x4
 	# Load W
-	ld1	{v0.2d, v1.2d, v2.2d, v3.2d}, [x1], #0x40
-	ld1	{v4.2d, v5.2d, v6.2d, v7.2d}, [x1], #0x40
+	ld1	{v0.16b, v1.16b, v2.16b, v3.16b}, [x1], #0x40
+	ld1	{v4.16b, v5.16b, v6.16b, v7.16b}, [x1], #0x40
 	rev64	v0.16b, v0.16b
 	rev64	v1.16b, v1.16b
 	rev64	v2.16b, v2.16b

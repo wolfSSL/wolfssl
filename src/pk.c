@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -85,11 +85,7 @@
 static int pem_mem_to_der(const char* pem, int pemSz, wc_pem_password_cb* cb,
     void* pass, int keyType, int* keyFormat, DerBuffer** der)
 {
-#ifdef WOLFSSL_SMALL_STACK
-    EncryptedInfo* info = NULL;
-#else
-    EncryptedInfo info[1];
-#endif /* WOLFSSL_SMALL_STACK */
+    WC_DECLARE_VAR(info, EncryptedInfo, 1, 0);
     wc_pem_password_cb* localCb = NULL;
     int ret = 0;
 
@@ -125,9 +121,7 @@ static int pem_mem_to_der(const char* pem, int pemSz, wc_pem_password_cb* cb,
         ret = (int)info->consumed;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(info, NULL, DYNAMIC_TYPE_ENCRYPTEDINFO);
-#endif
+    WC_FREE_VAR_EX(info, NULL, DYNAMIC_TYPE_ENCRYPTEDINFO);
 
     return ret;
 }
@@ -372,11 +366,7 @@ int EncryptDerKey(byte *der, int *derSz, const WOLFSSL_EVP_CIPHER* cipher,
     int paddingSz = 0;
     word32 idx;
     word32 cipherInfoSz = 0;
-#ifdef WOLFSSL_SMALL_STACK
-    EncryptedInfo* info = NULL;
-#else
-    EncryptedInfo  info[1];
-#endif
+    WC_DECLARE_VAR(info, EncryptedInfo, 1, 0);
 
     WOLFSSL_ENTER("EncryptDerKey");
 
@@ -471,10 +461,7 @@ int EncryptDerKey(byte *der, int *derSz, const WOLFSSL_EVP_CIPHER* cipher,
         }
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    /* Free dynamically allocated info. */
-    XFREE(info, NULL, DYNAMIC_TYPE_ENCRYPTEDINFO);
-#endif
+    WC_FREE_VAR_EX(info, NULL, DYNAMIC_TYPE_ENCRYPTEDINFO);
     return ret == 0;
 }
 #endif /* WOLFSSL_KEY_GEN || WOLFSSL_PEM_TO_DER */
@@ -507,12 +494,10 @@ static int der_to_enc_pem_alloc(unsigned char* der, int derSz,
     byte* cipherInfo = NULL;
     int pemSz = 0;
     int hashType = WC_HASH_TYPE_NONE;
-#if !defined(NO_SHA256)
-    hashType = WC_SHA256;
+#if !defined(NO_MD5)
+    hashType = WC_MD5;
 #elif !defined(NO_SHA)
     hashType = WC_SHA;
-#elif !defined(NO_MD5)
-    hashType = WC_MD5;
 #endif
 
     /* Macro doesn't always use it. */
@@ -739,8 +724,13 @@ static int wolfssl_print_indent(WOLFSSL_BIO* bio, char* line, int lineLen,
     int ret = 1;
 
     if (indent > 0) {
+        int len_wanted;
+        /* Cap indent to buffer size to avoid format truncation warning */
+        if (indent >= lineLen) {
+            indent = lineLen - 1;
+        }
         /* Print indent spaces. */
-        int len_wanted = XSNPRINTF(line, (size_t)lineLen, "%*s", indent, " ");
+        len_wanted = XSNPRINTF(line, (size_t)lineLen, "%*s", indent, " ");
         if ((len_wanted < 0) || (len_wanted >= lineLen)) {
             WOLFSSL_ERROR_MSG("Buffer overflow formatting indentation");
             ret = 0;
@@ -980,23 +970,23 @@ WOLFSSL_RSA_METHOD *wolfSSL_RSA_meth_new(const char *name, int flags)
     int err;
 
     /* Validate name is not NULL. */
-    err = (name == NULL);
-    if (!err) {
-        /* Allocate an RSA METHOD to return. */
-        meth = (WOLFSSL_RSA_METHOD*)XMALLOC(sizeof(WOLFSSL_RSA_METHOD), NULL,
-            DYNAMIC_TYPE_OPENSSL);
-        err = (meth == NULL);
-    }
-    if (!err) {
-        XMEMSET(meth, 0, sizeof(*meth));
-        meth->flags = flags;
-        meth->dynamic = 1;
+    if (name == NULL)
+        return NULL;
+    /* Allocate an RSA METHOD to return. */
+    meth = (WOLFSSL_RSA_METHOD*)XMALLOC(sizeof(WOLFSSL_RSA_METHOD), NULL,
+                                        DYNAMIC_TYPE_OPENSSL);
+    if (meth == NULL)
+        return NULL;
 
-        name_len = (int)XSTRLEN(name);
-        meth->name = (char*)XMALLOC((size_t)(name_len + 1), NULL,
-            DYNAMIC_TYPE_OPENSSL);
-        err = (meth->name == NULL);
-    }
+    XMEMSET(meth, 0, sizeof(*meth));
+    meth->flags = flags;
+    meth->dynamic = 1;
+
+    name_len = (int)XSTRLEN(name);
+    meth->name = (char*)XMALLOC((size_t)(name_len + 1), NULL,
+        DYNAMIC_TYPE_OPENSSL);
+    err = (meth->name == NULL);
+
     if (!err) {
         XMEMCPY(meth->name, name, (size_t)(name_len + 1));
     }
@@ -3392,10 +3382,7 @@ static int wolfssl_rsa_generate_key_native(WOLFSSL_RSA* rsa, int bits,
     if (initTmpRng) {
         wc_FreeRng(tmpRng);
     }
-#ifdef WOLFSSL_SMALL_STACK
-    /* Dispose of any allocated RNG. */
-    XFREE(tmpRng, NULL, DYNAMIC_TYPE_RNG);
-#endif
+    WC_FREE_VAR_EX(tmpRng, NULL, DYNAMIC_TYPE_RNG);
 
     return ret;
 #else
@@ -3536,9 +3523,43 @@ int wolfSSL_RSA_generate_key_ex(WOLFSSL_RSA* rsa, int bits, WOLFSSL_BIGNUM* e,
  * RSA padding APIs
  */
 
-#if defined(WC_RSA_PSS) && (defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO) || \
-        defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_NGINX))
-#if !defined(HAVE_FIPS) || FIPS_VERSION_GT(2,0)
+#ifdef WC_RSA_PSS
+
+#if defined(OPENSSL_EXTRA) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GT(2,0))
+static int rsa_pss_calc_salt(int saltLen, int hashLen, int emLen)
+{
+    /* Calculate the salt length to use for special cases. */
+    switch (saltLen) {
+        /* Negative saltLen values are treated differently. */
+        case WC_RSA_PSS_SALTLEN_DIGEST:
+            saltLen = hashLen;
+            break;
+        case WC_RSA_PSS_SALTLEN_MAX_SIGN:
+        case WC_RSA_PSS_SALTLEN_MAX:
+        #ifdef WOLFSSL_PSS_LONG_SALT
+            saltLen = emLen - hashLen - 2;
+        #else
+            saltLen = hashLen;
+            (void)emLen;
+        #endif
+            break;
+        default:
+            break;
+    }
+    if (saltLen < 0) {
+        /* log invalid salt, let wolfCrypt handle error */
+        WOLFSSL_ERROR_MSG("invalid saltLen");
+        saltLen = -3; /* for wolfCrypt to produce error must be < -2 */
+    }
+    return saltLen;
+}
+#endif /* OPENSSL_EXTRA && !HAVE_SELFTEST */
+
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO) || \
+     defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_NGINX)) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GT(2,0))
+
 /* Add PKCS#1 PSS padding to hash.
  *
  *
@@ -3656,28 +3677,7 @@ int wolfSSL_RSA_padding_add_PKCS1_PSS_mgf1(WOLFSSL_RSA *rsa, unsigned char *em,
     }
 
     if (ret == 1) {
-        /* Calculate the salt length to use for special cases. */
-        /* TODO: use special case wolfCrypt values? */
-        switch (saltLen) {
-        /* Negative saltLen values are treated differently. */
-        case RSA_PSS_SALTLEN_DIGEST:
-            saltLen = hashLen;
-            break;
-        case RSA_PSS_SALTLEN_MAX_SIGN:
-        case RSA_PSS_SALTLEN_MAX:
-        #ifdef WOLFSSL_PSS_LONG_SALT
-            saltLen = emLen - hashLen - 2;
-        #else
-            saltLen = hashLen;
-        #endif
-            break;
-        default:
-            if (saltLen < 0) {
-                /* No other negative values implemented. */
-                WOLFSSL_ERROR_MSG("invalid saltLen");
-                ret = 0;
-            }
-        }
+        saltLen = rsa_pss_calc_salt(saltLen, hashLen, emLen);
     }
 
     if (ret == 1) {
@@ -3694,10 +3694,7 @@ int wolfSSL_RSA_padding_add_PKCS1_PSS_mgf1(WOLFSSL_RSA *rsa, unsigned char *em,
     if (initTmpRng) {
         wc_FreeRng(tmpRng);
     }
-#ifdef WOLFSSL_SMALL_STACK
-    /* Dispose of any allocated RNG. */
-    XFREE(tmpRng, NULL, DYNAMIC_TYPE_RNG);
-#endif
+    WC_FREE_VAR_EX(tmpRng, NULL, DYNAMIC_TYPE_RNG);
 
     return ret;
 }
@@ -3769,31 +3766,7 @@ int wolfSSL_RSA_verify_PKCS1_PSS_mgf1(WOLFSSL_RSA *rsa,
     }
 
     if (ret == 1) {
-        /* Calculate the salt length to use for special cases. */
-        switch (saltLen) {
-        /* Negative saltLen values are treated differently */
-        case RSA_PSS_SALTLEN_DIGEST:
-            saltLen = hashLen;
-            break;
-        case RSA_PSS_SALTLEN_AUTO:
-        #ifdef WOLFSSL_PSS_SALT_LEN_DISCOVER
-            saltLen = RSA_PSS_SALT_LEN_DISCOVER;
-            break;
-        #endif
-        case RSA_PSS_SALTLEN_MAX:
-        #ifdef WOLFSSL_PSS_LONG_SALT
-            saltLen = emLen - hashLen - 2;
-        #else
-            saltLen = hashLen;
-        #endif
-            break;
-        default:
-            if (saltLen < 0) {
-                /* No other negative values implemented. */
-                WOLFSSL_ERROR_MSG("invalid saltLen");
-                ret = 0;
-            }
-        }
+        saltLen = rsa_pss_calc_salt(saltLen, hashLen, emLen);
     }
 
     if (ret == 1) {
@@ -3858,18 +3831,23 @@ int wolfSSL_RSA_verify_PKCS1_PSS(WOLFSSL_RSA *rsa, const unsigned char *mHash,
     return wolfSSL_RSA_verify_PKCS1_PSS_mgf1(rsa, mHash, hashAlg, NULL, em,
             saltLen);
 }
-#endif /* !HAVE_FIPS || FIPS_VERSION_GT(2,0) */
-#endif /* WC_RSA_PSS && (OPENSSL_ALL || WOLFSSL_ASIO || WOLFSSL_HAPROXY ||
-        *                WOLFSSL_NGINX) */
+#endif /* (!HAVE_FIPS || FIPS_VERSION_GT(2,0)) && \
+          (OPENSSL_ALL || WOLFSSL_ASIO || WOLFSSL_HAPROXY || WOLFSSL_NGINX) */
+#endif /* WC_RSA_PSS */
 
 /*
  * RSA sign/verify APIs
  */
 
-#ifndef WOLFSSL_PSS_SALT_LEN_DISCOVER
-    #define DEF_PSS_SALT_LEN    RSA_PSS_SALT_LEN_DEFAULT
+#if defined(WC_RSA_PSS) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,1))
+    #ifndef WOLFSSL_PSS_SALT_LEN_DISCOVER
+        #define DEF_PSS_SALT_LEN    RSA_PSS_SALT_LEN_DEFAULT
+    #else
+        #define DEF_PSS_SALT_LEN    RSA_PSS_SALT_LEN_DISCOVER
+    #endif
 #else
-    #define DEF_PSS_SALT_LEN    RSA_PSS_SALT_LEN_DISCOVER
+    #define DEF_PSS_SALT_LEN 0 /* not used */
 #endif
 
 #if defined(OPENSSL_EXTRA)
@@ -3982,6 +3960,14 @@ int wolfSSL_RSA_sign_ex(int hashAlg, const unsigned char* hash,
     return ret;
 }
 
+int wolfSSL_RSA_sign_generic_padding(int hashAlg, const unsigned char* hash,
+    unsigned int hLen, unsigned char* sigRet, unsigned int* sigLen,
+    WOLFSSL_RSA* rsa, int flag, int padding)
+{
+    return wolfSSL_RSA_sign_mgf(hashAlg, hash, hLen, sigRet, sigLen, rsa, flag,
+        padding, hashAlg, DEF_PSS_SALT_LEN);
+}
+
 /**
  * Sign a message hash with the chosen message digest, padding, and RSA key.
  *
@@ -4000,12 +3986,14 @@ int wolfSSL_RSA_sign_ex(int hashAlg, const unsigned char* hash,
  * @param [in]      padding  Padding to use. Only RSA_PKCS1_PSS_PADDING and
  *                           WC_RSA_PKCS1_PADDING are currently supported for
  *                           signing.
+ * @param [in]      mgf1Hash MGF1 Hash NID
+ * @param [in]      saltLen  Length of RSA PSS salt
  * @return  1 on success.
  * @return  0 on failure.
  */
-int wolfSSL_RSA_sign_generic_padding(int hashAlg, const unsigned char* hash,
+int wolfSSL_RSA_sign_mgf(int hashAlg, const unsigned char* hash,
     unsigned int hLen, unsigned char* sigRet, unsigned int* sigLen,
-    WOLFSSL_RSA* rsa, int flag, int padding)
+    WOLFSSL_RSA* rsa, int flag, int padding, int mgf1Hash, int saltLen)
 {
     int     ret        = 1;
     word32  outLen     = 0;
@@ -4022,8 +4010,7 @@ int wolfSSL_RSA_sign_generic_padding(int hashAlg, const unsigned char* hash,
 #endif
     unsigned int encSz = 0;
 
-
-    WOLFSSL_ENTER("wolfSSL_RSA_sign_generic_padding");
+    WOLFSSL_ENTER("wolfSSL_RSA_sign_mgf");
 
     if (flag == 0) {
         /* Only encode message. */
@@ -4090,7 +4077,7 @@ int wolfSSL_RSA_sign_generic_padding(int hashAlg, const unsigned char* hash,
         case WC_RSA_NO_PAD:
             if ((signSz = wc_RsaDirect(encodedSig, encSz, sigRet, &outLen,
                 (RsaKey*)rsa->internal, RSA_PRIVATE_ENCRYPT, rng)) <= 0) {
-                WOLFSSL_ERROR_MSG("Bad Rsa Sign no pad");
+                WOLFSSL_ERROR_MSG("Bad RSA Sign no pad");
                 ret = 0;
             }
             break;
@@ -4099,17 +4086,20 @@ int wolfSSL_RSA_sign_generic_padding(int hashAlg, const unsigned char* hash,
         (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,1))
         case WC_RSA_PKCS1_PSS_PADDING:
         {
-            enum wc_HashType hType =
-                wc_OidGetHash((int)nid2oid(hashAlg, oidHashType));
-        #ifndef WOLFSSL_PSS_SALT_LEN_DISCOVER
-            WOLFSSL_MSG("Using RSA-PSS with hash length salt. "
-                        "OpenSSL uses max length by default.");
-        #endif
+            RsaKey* key = (RsaKey*)rsa->internal;
+            enum wc_HashType mgf1, hType;
+            hType = wc_OidGetHash((int)nid2oid(hashAlg, oidHashType));
+            if (mgf1Hash == WC_NID_undef)
+                mgf1Hash = hashAlg;
+            mgf1 = wc_OidGetHash((int)nid2oid(mgf1Hash, oidHashType));
+            /* handle compat layer salt special cases */
+            saltLen = rsa_pss_calc_salt(saltLen, wc_HashGetDigestSize(hType),
+                wolfSSL_RSA_size(rsa));
+
             /* Create RSA PSS signature. */
             if ((signSz = wc_RsaPSS_Sign_ex(encodedSig, encSz, sigRet, outLen,
-                    hType, wc_hash2mgf(hType), DEF_PSS_SALT_LEN,
-                    (RsaKey*)rsa->internal, rng)) <= 0) {
-                WOLFSSL_ERROR_MSG("Bad Rsa Sign");
+                hType, wc_hash2mgf(mgf1), saltLen, key, rng)) <= 0) {
+                WOLFSSL_ERROR_MSG("Bad RSA PSS Sign");
                 ret = 0;
             }
             break;
@@ -4128,13 +4118,15 @@ int wolfSSL_RSA_sign_generic_padding(int hashAlg, const unsigned char* hash,
             /* Sign (private encrypt) PKCS#1 encoded signature. */
             if ((signSz = wc_RsaSSL_Sign(encodedSig, encSz, sigRet, outLen,
                     (RsaKey*)rsa->internal, rng)) <= 0) {
-                WOLFSSL_ERROR_MSG("Bad Rsa Sign");
+                WOLFSSL_ERROR_MSG("Bad PKCS1 RSA Sign");
                 ret = 0;
             }
             break;
         }
         default:
             WOLFSSL_ERROR_MSG("Unsupported padding");
+            (void)mgf1Hash;
+            (void)saltLen;
             ret = 0;
             break;
         }
@@ -4149,13 +4141,10 @@ int wolfSSL_RSA_sign_generic_padding(int hashAlg, const unsigned char* hash,
     if (initTmpRng) {
         wc_FreeRng(tmpRng);
     }
-#ifdef WOLFSSL_SMALL_STACK
-    /* Dispose of any allocated RNG and encoded signature. */
-    XFREE(tmpRng,     NULL, DYNAMIC_TYPE_RNG);
-    XFREE(encodedSig, NULL, DYNAMIC_TYPE_SIGNATURE);
-#endif
+    WC_FREE_VAR_EX(tmpRng, NULL, DYNAMIC_TYPE_RNG);
+    WC_FREE_VAR_EX(encodedSig, NULL, DYNAMIC_TYPE_SIGNATURE);
 
-    WOLFSSL_LEAVE("wolfSSL_RSA_sign_generic_padding", ret);
+    WOLFSSL_LEAVE("wolfSSL_RSA_sign_mgf", ret);
     return ret;
 }
 
@@ -4179,6 +4168,14 @@ int wolfSSL_RSA_verify(int hashAlg, const unsigned char* hash,
         WC_RSA_PKCS1_PADDING);
 }
 
+int wolfSSL_RSA_verify_ex(int hashAlg, const unsigned char* hash,
+    unsigned int hLen, const unsigned char* sig, unsigned int sigLen,
+    WOLFSSL_RSA* rsa, int padding)
+{
+    return wolfSSL_RSA_verify_mgf(hashAlg, hash, hLen, sig, sigLen, rsa,
+        padding, hashAlg, DEF_PSS_SALT_LEN);
+}
+
 /**
  * Verify a message hash with the chosen message digest, padding, and RSA key.
  *
@@ -4193,12 +4190,14 @@ int wolfSSL_RSA_verify(int hashAlg, const unsigned char* hash,
  * @param [in]  padding  Padding to use. Only RSA_PKCS1_PSS_PADDING and
  *                       WC_RSA_PKCS1_PADDING are currently supported for
  *                       signing.
+ * @param [in]  mgf1Hash MGF1 Hash NID
+ * @param [in]  saltLen  Length of RSA PSS salt
  * @return  1 on success.
  * @return  0 on failure.
  */
-int wolfSSL_RSA_verify_ex(int hashAlg, const unsigned char* hash,
+int wolfSSL_RSA_verify_mgf(int hashAlg, const unsigned char* hash,
     unsigned int hLen, const unsigned char* sig, unsigned int sigLen,
-    WOLFSSL_RSA* rsa, int padding)
+    WOLFSSL_RSA* rsa, int padding, int mgf1Hash, int saltLen)
 {
     int              ret    = 1;
 #ifdef WOLFSSL_SMALL_STACK
@@ -4213,7 +4212,7 @@ int wolfSSL_RSA_verify_ex(int hashAlg, const unsigned char* hash,
     enum wc_HashType hType = WC_HASH_TYPE_NONE;
 #endif
 
-    WOLFSSL_ENTER("wolfSSL_RSA_verify");
+    WOLFSSL_ENTER("wolfSSL_RSA_verify_mgf");
 
     /* Validate parameters. */
     if ((hash == NULL) || (sig == NULL) || (rsa == NULL)) {
@@ -4230,8 +4229,49 @@ int wolfSSL_RSA_verify_ex(int hashAlg, const unsigned char* hash,
             ret = 0;
         }
     }
+    if (ret == 1 && padding == WC_RSA_PKCS1_PSS_PADDING) {
+        #if defined(WC_RSA_PSS) && !defined(HAVE_SELFTEST) && \
+        (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,1))
+        RsaKey* key = (RsaKey*)rsa->internal;
+        enum wc_HashType mgf1;
+        hType = wc_OidGetHash((int)nid2oid(hashAlg, oidHashType));
+        if (mgf1Hash == WC_NID_undef)
+            mgf1Hash = hashAlg;
+        mgf1 = wc_OidGetHash((int)nid2oid(mgf1Hash, oidHashType));
+
+        /* handle compat layer salt special cases */
+        saltLen = rsa_pss_calc_salt(saltLen, wc_HashGetDigestSize(hType),
+            wolfSSL_RSA_size(rsa));
+
+        verLen = wc_RsaPSS_Verify_ex((byte*)sig, sigLen, sigDec, sigLen,
+            hType, wc_hash2mgf(mgf1), saltLen, key);
+        if (verLen > 0) {
+            /* Check PSS padding is valid. */
+            if (wc_RsaPSS_CheckPadding_ex(hash, hLen, sigDec, (word32)verLen,
+                hType, saltLen, mp_count_bits(&key->n)) != 0) {
+                WOLFSSL_ERROR_MSG("wc_RsaPSS_CheckPadding_ex error");
+                ret = WOLFSSL_FAILURE;
+            }
+            else {
+                /* Success! Free resources and return early */
+                XFREE(sigDec, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                return WOLFSSL_SUCCESS;
+            }
+        }
+        else {
+            WOLFSSL_ERROR_MSG("wc_RsaPSS_Verify_ex failed!");
+            ret = WOLFSSL_FAILURE;
+        }
+    #else
+        (void)mgf1Hash;
+        (void)saltLen;
+        WOLFSSL_ERROR_MSG("RSA PSS not compiled in!");
+        ret = WOLFSSL_FAILURE;
+    #endif
+    }
+
 #ifdef WOLFSSL_SMALL_STACK
-    if ((ret == 1) && (padding != WC_RSA_PKCS1_PSS_PADDING)) {
+    if (ret == 1) {
         /* Allocate memory for encoded signature. */
         encodedSig = (unsigned char *)XMALLOC(len, NULL,
             DYNAMIC_TYPE_TMP_BUFFER);
@@ -4241,7 +4281,7 @@ int wolfSSL_RSA_verify_ex(int hashAlg, const unsigned char* hash,
         }
     }
 #endif
-    if ((ret == 1) && (padding != WC_RSA_PKCS1_PSS_PADDING)) {
+    if (ret == 1) {
         /* Make encoded signature to compare with decrypted signature. */
         if (wolfssl_rsa_sig_encode(hashAlg, hash, hLen, encodedSig, &len,
                 padding) <= 0) {
@@ -4268,20 +4308,6 @@ int wolfSSL_RSA_verify_ex(int hashAlg, const unsigned char* hash,
     #endif
     }
     if (ret == 1) {
-    #if defined(WC_RSA_PSS) && !defined(HAVE_SELFTEST) && \
-        (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 1))
-        if (padding == WC_RSA_PKCS1_PSS_PADDING) {
-            /* Check PSS padding is valid. */
-            if (wc_RsaPSS_CheckPadding_ex(hash, hLen, sigDec, (word32)verLen,
-                    hType, DEF_PSS_SALT_LEN,
-                    mp_count_bits(&((RsaKey*)rsa->internal)->n)) != 0) {
-                WOLFSSL_ERROR_MSG("wc_RsaPSS_CheckPadding_ex error");
-                ret = 0;
-            }
-        }
-        else
-    #endif /* WC_RSA_PSS && !HAVE_SELFTEST && (!HAVE_FIPS ||
-            * FIPS_VERSION >= 5.1) */
         /* Compare decrypted signature to encoded signature. */
         if (((int)len != verLen) ||
                 (XMEMCMP(encodedSig, sigDec, (size_t)verLen) != 0)) {
@@ -4291,10 +4317,10 @@ int wolfSSL_RSA_verify_ex(int hashAlg, const unsigned char* hash,
     }
 
     /* Dispose of any allocated data. */
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(encodedSig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(encodedSig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(sigDec, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    WOLFSSL_LEAVE("wolfSSL_RSA_verify_mgf", ret);
     return ret;
 }
 
@@ -4410,10 +4436,7 @@ int wolfSSL_RSA_public_encrypt(int len, const unsigned char* from,
     if (initTmpRng) {
         wc_FreeRng(tmpRng);
     }
-#ifdef WOLFSSL_SMALL_STACK
-    /* Dispose of any allocated RNG. */
-    XFREE(tmpRng, NULL, DYNAMIC_TYPE_RNG);
-#endif
+    WC_FREE_VAR_EX(tmpRng, NULL, DYNAMIC_TYPE_RNG);
 
     /* wolfCrypt error means return -1. */
     if (ret <= 0) {
@@ -4687,10 +4710,7 @@ int wolfSSL_RSA_private_encrypt(int len, const unsigned char* from,
     if (initTmpRng) {
         wc_FreeRng(tmpRng);
     }
-#ifdef WOLFSSL_SMALL_STACK
-    /* Dispose of any allocated RNG. */
-    XFREE(tmpRng, NULL, DYNAMIC_TYPE_RNG);
-#endif
+    WC_FREE_VAR_EX(tmpRng, NULL, DYNAMIC_TYPE_RNG);
 
     /* wolfCrypt error means return -1. */
     if (ret <= 0) {
@@ -4717,11 +4737,7 @@ int wolfSSL_RSA_GenAdd(WOLFSSL_RSA* rsa)
     int     ret = 1;
     int     err;
     mp_int* t = NULL;
-#ifdef WOLFSSL_SMALL_STACK
-    mp_int  *tmp = NULL;
-#else
-    mp_int  tmp[1];
-#endif
+    WC_DECLARE_VAR(tmp, mp_int, 1, 0);
 
     WOLFSSL_ENTER("wolfSSL_RsaGenAdd");
 
@@ -5086,17 +5102,10 @@ int wolfSSL_DSA_generate_key(WOLFSSL_DSA* dsa)
     {
         int initTmpRng = 0;
         WC_RNG *rng = NULL;
-#ifdef WOLFSSL_SMALL_STACK
-        WC_RNG *tmpRng;
-#else
-        WC_RNG tmpRng[1];
-#endif
+        WC_DECLARE_VAR(tmpRng, WC_RNG, 1, 0);
 
-#ifdef WOLFSSL_SMALL_STACK
-        tmpRng = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
-        if (tmpRng == NULL)
-            return WOLFSSL_FATAL_ERROR;
-#endif
+        WC_ALLOC_VAR_EX(tmpRng, WC_RNG, 1, NULL, DYNAMIC_TYPE_RNG,
+            return WOLFSSL_FATAL_ERROR);
         if (wc_InitRng(tmpRng) == 0) {
             rng = tmpRng;
             initTmpRng = 1;
@@ -5124,9 +5133,7 @@ int wolfSSL_DSA_generate_key(WOLFSSL_DSA* dsa)
         if (initTmpRng)
             wc_FreeRng(tmpRng);
 
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(tmpRng, NULL, DYNAMIC_TYPE_RNG);
-#endif
+        WC_FREE_VAR_EX(tmpRng, NULL, DYNAMIC_TYPE_RNG);
     }
 #else /* WOLFSSL_KEY_GEN */
     WOLFSSL_MSG("No Key Gen built in");
@@ -5190,17 +5197,10 @@ int wolfSSL_DSA_generate_parameters_ex(WOLFSSL_DSA* dsa, int bits,
     {
         int initTmpRng = 0;
         WC_RNG *rng = NULL;
-#ifdef WOLFSSL_SMALL_STACK
-        WC_RNG *tmpRng;
-#else
-        WC_RNG tmpRng[1];
-#endif
+        WC_DECLARE_VAR(tmpRng, WC_RNG, 1, 0);
 
-#ifdef WOLFSSL_SMALL_STACK
-        tmpRng = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
-        if (tmpRng == NULL)
-            return WOLFSSL_FATAL_ERROR;
-#endif
+        WC_ALLOC_VAR_EX(tmpRng, WC_RNG, 1, NULL, DYNAMIC_TYPE_RNG,
+            return WOLFSSL_FATAL_ERROR);
         if (wc_InitRng(tmpRng) == 0) {
             rng = tmpRng;
             initTmpRng = 1;
@@ -5223,9 +5223,7 @@ int wolfSSL_DSA_generate_parameters_ex(WOLFSSL_DSA* dsa, int bits,
         if (initTmpRng)
             wc_FreeRng(tmpRng);
 
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(tmpRng, NULL, DYNAMIC_TYPE_RNG);
-#endif
+        WC_FREE_VAR_EX(tmpRng, NULL, DYNAMIC_TYPE_RNG);
     }
 #else /* WOLFSSL_KEY_GEN */
     WOLFSSL_MSG("No Key Gen built in");
@@ -5517,11 +5515,7 @@ static int dsa_do_sign(const unsigned char* d, int dLen, unsigned char* sigRet,
     int     ret = WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR);
     int     initTmpRng = 0;
     WC_RNG* rng = NULL;
-#ifdef WOLFSSL_SMALL_STACK
-    WC_RNG* tmpRng = NULL;
-#else
-    WC_RNG  tmpRng[1];
-#endif
+    WC_DECLARE_VAR(tmpRng, WC_RNG, 1, 0);
 
     if (d == NULL || sigRet == NULL || dsa == NULL) {
         WOLFSSL_MSG("Bad function arguments");
@@ -5536,11 +5530,8 @@ static int dsa_do_sign(const unsigned char* d, int dLen, unsigned char* sigRet,
         }
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    tmpRng = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
-    if (tmpRng == NULL)
-        return WOLFSSL_FATAL_ERROR;
-#endif
+    WC_ALLOC_VAR_EX(tmpRng, WC_RNG, 1, NULL, DYNAMIC_TYPE_RNG,
+        return WOLFSSL_FATAL_ERROR);
 
     if (wc_InitRng(tmpRng) == 0) {
         rng = tmpRng;
@@ -5576,9 +5567,7 @@ static int dsa_do_sign(const unsigned char* d, int dLen, unsigned char* sigRet,
 
     if (initTmpRng)
         wc_FreeRng(tmpRng);
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(tmpRng, NULL, DYNAMIC_TYPE_RNG);
-#endif
+    WC_FREE_VAR_EX(tmpRng, NULL, DYNAMIC_TYPE_RNG);
 
     return ret;
 }
@@ -8424,11 +8413,7 @@ int wolfSSL_DH_set0_key(WOLFSSL_DH *dh, WOLFSSL_BIGNUM *pub_key,
 static int wolfssl_dh_check_prime(WOLFSSL_BIGNUM* n, int* isPrime)
 {
     int ret = 1;
-#ifdef WOLFSSL_SMALL_STACK
-    WC_RNG* tmpRng = NULL;
-#else
-    WC_RNG  tmpRng[1];
-#endif
+    WC_DECLARE_VAR(tmpRng, WC_RNG, 1, 0);
     WC_RNG* rng;
     int localRng;
 
@@ -8446,9 +8431,7 @@ static int wolfssl_dh_check_prime(WOLFSSL_BIGNUM* n, int* isPrime)
         /* Free local random number generator if created. */
         if (localRng) {
             wc_FreeRng(rng);
-        #ifdef WOLFSSL_SMALL_STACK
-            XFREE(rng, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
+            WC_FREE_VAR_EX(rng, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         }
     }
 
@@ -8576,11 +8559,7 @@ int wolfSSL_DH_generate_parameters_ex(WOLFSSL_DH* dh, int prime_len,
 {
     int ret = 1;
     DhKey* key = NULL;
-#ifdef WOLFSSL_SMALL_STACK
-    WC_RNG* tmpRng = NULL;
-#else
-    WC_RNG  tmpRng[1];
-#endif
+    WC_DECLARE_VAR(tmpRng, WC_RNG, 1, 0);
     WC_RNG* rng = NULL;
     int localRng = 0;
 
@@ -8626,9 +8605,7 @@ int wolfSSL_DH_generate_parameters_ex(WOLFSSL_DH* dh, int prime_len,
     /* Free local random number generator if created. */
     if (localRng) {
         wc_FreeRng(rng);
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(rng, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
+        WC_FREE_VAR_EX(rng, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
     if (ret == 1) {
@@ -8669,11 +8646,7 @@ int wolfSSL_DH_generate_key(WOLFSSL_DH* dh)
     word32  privSz = 0;
     int     localRng = 0;
     WC_RNG* rng    = NULL;
-#ifdef WOLFSSL_SMALL_STACK
-    WC_RNG* tmpRng = NULL;
-#else
-    WC_RNG  tmpRng[1];
-#endif
+    WC_DECLARE_VAR(tmpRng, WC_RNG, 1, 0);
     unsigned char* pub    = NULL;
     unsigned char* priv   = NULL;
 
@@ -8770,9 +8743,7 @@ int wolfSSL_DH_generate_key(WOLFSSL_DH* dh)
     if (localRng) {
         /* Free an initialized local random number generator. */
         wc_FreeRng(rng);
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(rng, NULL, DYNAMIC_TYPE_RNG);
-    #endif
+        WC_FREE_VAR_EX(rng, NULL, DYNAMIC_TYPE_RNG);
     }
     /* Dispose of allocated data. */
     XFREE(pub,  NULL, DYNAMIC_TYPE_PUBLIC_KEY);
@@ -8813,7 +8784,7 @@ static int _DH_compute_key(unsigned char* key, const WOLFSSL_BIGNUM* otherPub,
     if (ret == 0) {
         /* Validate the size of the private key. */
         sz = wolfSSL_BN_num_bytes(dh->priv_key);
-        if (sz > (int)privSz) {
+        if (sz > privSz) {
             WOLFSSL_ERROR_MSG("Bad priv internal size");
             ret = WOLFSSL_FATAL_ERROR;
         }
@@ -8912,17 +8883,17 @@ static int _DH_compute_key(unsigned char* key, const WOLFSSL_BIGNUM* otherPub,
     }
     PRIVATE_KEY_LOCK();
 
+    if (privSz > 0) {
 #ifdef WOLFSSL_SMALL_STACK
-    if (priv != NULL)
+        if (priv != NULL)
 #endif
-    {
-        /* Zeroize sensitive data. */
-        ForceZero(priv, (word32)privSz);
+        {
+            /* Zeroize sensitive data. */
+            ForceZero(priv, (word32)privSz);
+        }
     }
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(pub,  NULL, DYNAMIC_TYPE_PUBLIC_KEY);
-    XFREE(priv, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
-#endif
+    WC_FREE_VAR_EX(pub, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+    WC_FREE_VAR_EX(priv, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
 
     WOLFSSL_LEAVE("wolfSSL_DH_compute_key", ret);
 
@@ -9734,11 +9705,7 @@ int wolfSSL_EC_GROUP_get_degree(const WOLFSSL_EC_GROUP *group)
 int wolfSSL_EC_GROUP_order_bits(const WOLFSSL_EC_GROUP *group)
 {
     int ret = 0;
-#ifdef WOLFSSL_SMALL_STACK
-    mp_int *order = NULL;
-#else
-    mp_int order[1];
-#endif
+    WC_DECLARE_VAR(order, mp_int, 1, 0);
 
     /* Validate parameter. */
     if ((group == NULL) || (group->curve_idx < 0)) {
@@ -9774,10 +9741,7 @@ int wolfSSL_EC_GROUP_order_bits(const WOLFSSL_EC_GROUP *group)
         mp_clear(order);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    /* Deallocate order. */
-    XFREE(order, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(order, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     /* Convert error code to length of 0. */
     if (ret < 0) {
@@ -10745,19 +10709,10 @@ int ec_point_convert_to_affine(const WOLFSSL_EC_GROUP *group,
 {
     int err = 0;
     mp_digit mp = 0;
-#ifdef WOLFSSL_SMALL_STACK
-    mp_int* modulus;
-#else
-    mp_int modulus[1];
-#endif
+    WC_DECLARE_VAR(modulus, mp_int, 1, 0);
 
-#ifdef WOLFSSL_SMALL_STACK
     /* Allocate memory for curve's prime modulus. */
-    modulus = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_BIGINT);
-    if (modulus == NULL) {
-        err = 1;
-    }
-#endif
+    WC_ALLOC_VAR_EX(modulus, mp_int, 1, NULL, DYNAMIC_TYPE_BIGINT, err=1);
     /* Initialize the MP integer. */
     if ((!err) && (mp_init(modulus) != MP_OKAY)) {
         WOLFSSL_MSG("mp_init failed");
@@ -10794,9 +10749,7 @@ int ec_point_convert_to_affine(const WOLFSSL_EC_GROUP *group,
         mp_clear(modulus);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(modulus, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+    WC_FREE_VAR_EX(modulus, NULL, DYNAMIC_TYPE_BIGINT);
 
     return err;
 }
@@ -11098,11 +11051,9 @@ static int wolfssl_ec_point_add(int curveIdx, ecc_point* r, ecc_point* p1,
     mp_clear(mu);
     wc_ecc_del_point_h(montP1, NULL);
     wc_ecc_del_point_h(montP2, NULL);
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(a, NULL, DYNAMIC_TYPE_BIGINT);
-    XFREE(prime, NULL, DYNAMIC_TYPE_BIGINT);
-    XFREE(mu, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+    WC_FREE_VAR_EX(a, NULL, DYNAMIC_TYPE_BIGINT);
+    WC_FREE_VAR_EX(prime, NULL, DYNAMIC_TYPE_BIGINT);
+    WC_FREE_VAR_EX(mu, NULL, DYNAMIC_TYPE_BIGINT);
     return ret;
 }
 
@@ -11358,10 +11309,8 @@ static int wolfssl_ec_point_mul(int curveIdx, ecc_point* r, mp_int* n,
 
     mp_clear(a);
     mp_clear(prime);
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(a, NULL, DYNAMIC_TYPE_BIGINT);
-    XFREE(prime, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+    WC_FREE_VAR_EX(a, NULL, DYNAMIC_TYPE_BIGINT);
+    WC_FREE_VAR_EX(prime, NULL, DYNAMIC_TYPE_BIGINT);
     return ret;
 }
 
@@ -11465,19 +11414,10 @@ int wolfSSL_EC_POINT_mul(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *r,
 static int wolfssl_ec_point_invert(int curveIdx, ecc_point* point)
 {
     int ret = 1;
-#ifdef WOLFSSL_SMALL_STACK
-    mp_int* prime = NULL;
-#else
-    mp_int prime[1];
-#endif
+    WC_DECLARE_VAR(prime, mp_int, 1, 0);
 
-#ifdef WOLFSSL_SMALL_STACK
     /* Allocate memory for an MP int to hold the prime of the curve. */
-    prime = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_BIGINT);
-    if (prime == NULL) {
-        ret = 0;
-    }
-#endif
+    WC_ALLOC_VAR_EX(prime, mp_int, 1, NULL, DYNAMIC_TYPE_BIGINT, ret=0);
 
     /* Initialize MP int. */
     if ((ret == 1) && (mp_init(prime) != MP_OKAY)) {
@@ -11501,10 +11441,7 @@ static int wolfssl_ec_point_invert(int curveIdx, ecc_point* point)
 
     /* Dispose of memory associated with MP. */
     mp_free(prime);
-#ifdef WOLFSSL_SMALL_STACK
-    /* Dispose of dynamically allocated temporaries. */
-    XFREE(prime, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+    WC_FREE_VAR_EX(prime, NULL, DYNAMIC_TYPE_BIGINT);
     return ret;
 }
 
@@ -13650,11 +13587,7 @@ int wolfSSL_EC_KEY_generate_key(WOLFSSL_EC_KEY *key)
     int res = 1;
     int initTmpRng = 0;
     WC_RNG* rng = NULL;
-#ifdef WOLFSSL_SMALL_STACK
-    WC_RNG* tmpRng = NULL;
-#else
-    WC_RNG  tmpRng[1];
-#endif
+    WC_DECLARE_VAR(tmpRng, WC_RNG, 1, 0);
 
     WOLFSSL_ENTER("wolfSSL_EC_KEY_generate_key");
 
@@ -13722,9 +13655,7 @@ int wolfSSL_EC_KEY_generate_key(WOLFSSL_EC_KEY *key)
     /* Dispose of local random number generator if initialized. */
     if (initTmpRng) {
         wc_FreeRng(rng);
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(rng, NULL, DYNAMIC_TYPE_RNG);
-    #endif
+        WC_FREE_VAR_EX(rng, NULL, DYNAMIC_TYPE_RNG);
     }
 
     /* Set the external key from new internal key values. */
@@ -14127,11 +14058,7 @@ WOLFSSL_ECDSA_SIG *wolfSSL_ECDSA_do_sign(const unsigned char *dgst, int dLen,
 {
     int err = 0;
     WOLFSSL_ECDSA_SIG *sig = NULL;
-#ifdef WOLFSSL_SMALL_STACK
-    byte*   out = NULL;
-#else
-    byte    out[ECC_BUFSIZE];
-#endif
+    WC_DECLARE_VAR(out, byte, ECC_BUFSIZE, 0);
     unsigned int outLen = ECC_BUFSIZE;
 
     WOLFSSL_ENTER("wolfSSL_ECDSA_do_sign");
@@ -14173,10 +14100,7 @@ WOLFSSL_ECDSA_SIG *wolfSSL_ECDSA_do_sign(const unsigned char *dgst, int dLen,
         sig = wolfSSL_d2i_ECDSA_SIG(NULL, &p, outLen);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    /* Dispose of any temporary dynamically allocated data. */
-    XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return sig;
 }
@@ -14274,11 +14198,7 @@ int wolfSSL_ECDSA_sign(int type, const unsigned char *digest, int digestSz,
 {
     int ret = 1;
     WC_RNG* rng = NULL;
-#ifdef WOLFSSL_SMALL_STACK
-    WC_RNG* tmpRng = NULL;
-#else
-    WC_RNG  tmpRng[1];
-#endif
+    WC_DECLARE_VAR(tmpRng, WC_RNG, 1, 0);
     int initTmpRng = 0;
 
     WOLFSSL_ENTER("wolfSSL_ECDSA_sign");
@@ -14308,9 +14228,7 @@ int wolfSSL_ECDSA_sign(int type, const unsigned char *digest, int digestSz,
 
     if (initTmpRng) {
         wc_FreeRng(rng);
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(rng, NULL, DYNAMIC_TYPE_RNG);
-    #endif
+        WC_FREE_VAR_EX(rng, NULL, DYNAMIC_TYPE_RNG);
     }
 
     return ret;
@@ -14564,11 +14482,7 @@ int wolfSSL_EC25519_generate_key(unsigned char *priv, unsigned int *privSz,
     int res = 1;
     int initTmpRng = 0;
     WC_RNG *rng = NULL;
-#ifdef WOLFSSL_SMALL_STACK
-    WC_RNG *tmpRng = NULL;
-#else
-    WC_RNG tmpRng[1];
-#endif
+    WC_DECLARE_VAR(tmpRng, WC_RNG, 1, 0);
     curve25519_key key;
 
     WOLFSSL_ENTER("wolfSSL_EC25519_generate_key");
@@ -14617,9 +14531,7 @@ int wolfSSL_EC25519_generate_key(unsigned char *priv, unsigned int *privSz,
 
     if (initTmpRng) {
         wc_FreeRng(rng);
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(rng, NULL, DYNAMIC_TYPE_RNG);
-    #endif
+        WC_FREE_VAR_EX(rng, NULL, DYNAMIC_TYPE_RNG);
     }
 
     return res;
@@ -14765,11 +14677,7 @@ int wolfSSL_ED25519_generate_key(unsigned char *priv, unsigned int *privSz,
     int res = 1;
     int initTmpRng = 0;
     WC_RNG *rng = NULL;
-#ifdef WOLFSSL_SMALL_STACK
-    WC_RNG *tmpRng = NULL;
-#else
-    WC_RNG tmpRng[1];
-#endif
+    WC_DECLARE_VAR(tmpRng, WC_RNG, 1, 0);
     ed25519_key key;
 
     WOLFSSL_ENTER("wolfSSL_ED25519_generate_key");
@@ -14817,9 +14725,7 @@ int wolfSSL_ED25519_generate_key(unsigned char *priv, unsigned int *privSz,
 
     if (initTmpRng) {
         wc_FreeRng(rng);
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(rng, NULL, DYNAMIC_TYPE_RNG);
-    #endif
+        WC_FREE_VAR_EX(rng, NULL, DYNAMIC_TYPE_RNG);
     }
 
     return res;
@@ -15037,11 +14943,7 @@ int wolfSSL_EC448_generate_key(unsigned char *priv, unsigned int *privSz,
     int res = 1;
     int initTmpRng = 0;
     WC_RNG *rng = NULL;
-#ifdef WOLFSSL_SMALL_STACK
-    WC_RNG *tmpRng = NULL;
-#else
-    WC_RNG tmpRng[1];
-#endif
+    WC_DECLARE_VAR(tmpRng, WC_RNG, 1, 0);
     curve448_key key;
 
     WOLFSSL_ENTER("wolfSSL_EC448_generate_key");
@@ -15090,9 +14992,7 @@ int wolfSSL_EC448_generate_key(unsigned char *priv, unsigned int *privSz,
 
     if (initTmpRng) {
         wc_FreeRng(rng);
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(rng, NULL, DYNAMIC_TYPE_RNG);
-    #endif
+        WC_FREE_VAR_EX(rng, NULL, DYNAMIC_TYPE_RNG);
     }
 
     return res;
@@ -15231,11 +15131,7 @@ int wolfSSL_ED448_generate_key(unsigned char *priv, unsigned int *privSz,
     int res = 1;
     int initTmpRng = 0;
     WC_RNG *rng = NULL;
-#ifdef WOLFSSL_SMALL_STACK
-    WC_RNG *tmpRng = NULL;
-#else
-    WC_RNG tmpRng[1];
-#endif
+    WC_DECLARE_VAR(tmpRng, WC_RNG, 1, 0);
     ed448_key key;
 
     WOLFSSL_ENTER("wolfSSL_ED448_generate_key");
@@ -15283,9 +15179,7 @@ int wolfSSL_ED448_generate_key(unsigned char *priv, unsigned int *privSz,
 
     if (initTmpRng) {
         wc_FreeRng(rng);
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(rng, NULL, DYNAMIC_TYPE_RNG);
-    #endif
+        WC_FREE_VAR_EX(rng, NULL, DYNAMIC_TYPE_RNG);
     }
 
     return res;

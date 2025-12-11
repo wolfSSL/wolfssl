@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -105,6 +105,42 @@
 
 #ifdef WOLFSSL_WC_MLKEM
 
+#ifdef DEBUG_MLKEM
+void print_polys(const char* name, const sword16* a, int d1, int d2);
+void print_polys(const char* name, const sword16* a, int d1, int d2)
+{
+    int i;
+    int j;
+    int k;
+
+    fprintf(stderr, "%s: %d %d\n", name, d1, d2);
+    for (i = 0; i < d1; i++) {
+        for (j = 0; j < d2; j++) {
+            for (k = 0; k < 256; k++) {
+                fprintf(stderr, "%9d,", a[(i*d2*256) + (j*256) + k]);
+                if ((k % 8) == 7) fprintf(stderr, "\n");
+            }
+            fprintf(stderr, "\n");
+        }
+    }
+}
+#endif
+
+#ifdef DEBUG_MLKEM
+void print_data(const char* name, const byte* d, int len);
+void print_data(const char* name, const byte* d, int len)
+{
+    int i;
+
+    fprintf(stderr, "%s\n", name);
+    for (i = 0; i < len; i++) {
+        fprintf(stderr, "0x%02x,", d[i]);
+        if ((i % 16) == 15) fprintf(stderr, "\n");
+    }
+    fprintf(stderr, "\n");
+}
+#endif
+
 /******************************************************************************/
 
 /* Use SHA3-256 to generate 32-bytes of hash. */
@@ -125,6 +161,60 @@
 volatile sword16 mlkem_opt_blocker = 0;
 
 /******************************************************************************/
+
+#ifndef WC_NO_CONSTRUCTORS
+/**
+ * Create a new ML-KEM key object.
+ *
+ * Allocates and initializes a ML-KEM key object.
+ *
+ * @param  [in]   type         Type of key:
+ *                               WC_ML_KEM_512, WC_ML_KEM_768, WC_ML_KEM_1024,
+ *                               KYBER512, KYBER768, KYBER1024.
+ * @param  [in]   heap         Dynamic memory hint.
+ * @param  [in]   devId        Device Id.
+ * @return Pointer to new MlKemKey object, or NULL on failure.
+ */
+
+MlKemKey* wc_MlKemKey_New(int type, void* heap, int devId)
+{
+    int ret;
+    MlKemKey* key = (MlKemKey*)XMALLOC(sizeof(MlKemKey), heap,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (key != NULL) {
+        ret = wc_MlKemKey_Init(key, type, heap, devId);
+        if (ret != 0) {
+            XFREE(key, heap, DYNAMIC_TYPE_TMP_BUFFER);
+            key = NULL;
+        }
+    }
+
+    return key;
+}
+
+/**
+ * Delete and free a ML-KEM key object.
+ *
+ * Frees resources associated with a ML-KEM key object and sets pointer to NULL.
+ *
+ * @param  [in]      key    ML-KEM key object to delete.
+ * @param  [in, out] key_p  Pointer to key pointer to set to NULL.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when key is NULL.
+ */
+
+int wc_MlKemKey_Delete(MlKemKey* key, MlKemKey** key_p)
+{
+    if (key == NULL)
+        return BAD_FUNC_ARG;
+    wc_MlKemKey_Free(key);
+    XFREE(key, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (key_p != NULL)
+        *key_p = NULL;
+
+    return 0;
+}
+#endif /* !WC_NO_CONSTRUCTORS */
 
 /**
  * Initialize the Kyber key.
@@ -1599,7 +1689,15 @@ int wc_MlKemKey_DecodePrivateKey(MlKemKey* key, const unsigned char* in,
 
         /* Decode the public key that is after the private key. */
         mlkemkey_decode_public(key->pub, key->pubSeed, p, k);
+        /* Compute the hash of the public key. */
+        ret = MLKEM_HASH_H(&key->hash, p, pubLen, key->h);
         p += pubLen;
+    }
+
+    if (ret == 0) {
+        /* Compare computed public key hash with stored hash */
+        if (XMEMCMP(key->h, p, WC_ML_KEM_SYM_SZ) != 0)
+            ret = MLKEM_PUB_HASH_E;
 
         /* Copy the hash of the encoded public key that is after public key. */
         XMEMCPY(key->h, p, sizeof(key->h));

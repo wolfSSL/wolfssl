@@ -34,7 +34,7 @@ if("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
      You must delete them, or cmake will refuse to work.")
 endif()
 
-project(wolfssl VERSION 5.8.0 LANGUAGES C ASM)
+project(wolfssl VERSION 5.8.4 LANGUAGES C ASM)
 
 # Set WOLFSSL_ROOT if not already defined
 if ("${WOLFSSL_ROOT}" STREQUAL "")
@@ -49,22 +49,25 @@ endif()
 
 # shared library versioning
 # increment if interfaces have been removed or changed
-set(WOLFSSL_LIBRARY_VERSION_FIRST 43)
+set(WOLFSSL_LIBRARY_VERSION_FIRST 44)
 
 # increment if interfaces have been added
 # set to zero if WOLFSSL_LIBRARY_VERSION_FIRST is incremented
-set(WOLFSSL_LIBRARY_VERSION_SECOND 1)
+set(WOLFSSL_LIBRARY_VERSION_SECOND 0)
 
 # increment if source code has changed
 # set to zero if WOLFSSL_LIBRARY_VERSION_FIRST is incremented or
 # WOLFSSL_LIBRARY_VERSION_SECOND is incremented
-set(WOLFSSL_LIBRARY_VERSION_THIRD 0)
+set(WOLFSSL_LIBRARY_VERSION_THIRD 1)
 
 set(LIBTOOL_FULL_VERSION ${WOLFSSL_LIBRARY_VERSION_FIRST}.${WOLFSSL_LIBRARY_VERSION_SECOND}.${WOLFSSL_LIBRARY_VERSION_THIRD})
 
 set(WOLFSSL_DEFINITIONS)
 set(WOLFSSL_LINK_LIBS)
 set(WOLFSSL_INCLUDE_DIRS)
+
+# Initialize pkg-config private variables
+set(PC_LIBS_PRIVATE "")
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/")
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/functions.cmake)
@@ -281,7 +284,28 @@ add_option("WOLFSSL_DEBUG"
     "no" "yes;no")
 
 if(WOLFSSL_DEBUG)
-    set(CMAKE_C_FLAGS "-g ${CMAKE_C_FLAGS}")
+    # Optional variable inspection
+    if (0)
+        get_cmake_property(_variableNames VARIABLES)
+        list (SORT _variableNames)
+        message(STATUS "")
+        message(STATUS "ALL VARIABLES BEGIN")
+        message(STATUS "")
+        foreach (_variableName ${_variableNames})
+            message(STATUS "${_variableName}=${${_variableName}}")
+        endforeach()
+        message(STATUS "")
+        message(STATUS "ALL VARIABLES END")
+        message(STATUS "")
+    endif()
+
+    if (CMAKE_C_COMPILER_ID STREQUAL "Watcom" OR CMAKE_C_COMPILER_ID STREQUAL "OpenWatcom" OR CMAKE_GENERATOR STREQUAL "Watcom WMake")
+        # Open Watcom v2 does not support -g debugging
+        message(STATUS "Detected Watcom compiler, using CMAKE_C_FLAGS_DEBUG -d2")
+        set(CMAKE_C_FLAGS_DEBUG "-d2 ${CMAKE_C_FLAGS_DEBUG}")
+    else()
+        set(CMAKE_C_FLAGS "-g ${CMAKE_C_FLAGS}")
+    endif()
     list(APPEND WOLFSSL_DEFINITIONS
         "-DDEBUG_WOLFSSL"
         "-DDEBUG")
@@ -435,6 +459,7 @@ if(WOLFSSL_CURL)
     set(WOLFSSL_MD4 "yes")
     set(WOLFSSL_DES3 "yes")
     set(WOLFSSL_ALPN "yes")
+    set(WOLFSSL_EX_DATA "yes")
     set(WOLFSSL_WOLFSSH "yes")
     set(WOLFSSL_OPENSSLEXTRA "yes")
     set(WOLFSSL_CRL "yes")
@@ -1603,6 +1628,14 @@ if(NOT WOLFSSL_INLINE)
     list(APPEND WOLFSSL_DEFINITIONS "-DNO_INLINE")
 endif()
 
+add_option("WOLFSSL_ARMASM_INLINE"
+    "Enable ARM assembly inline functions (default: disabled)"
+    "no" "yes;no")
+
+if (WOLFSSL_ARMASM_INLINE)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_ARMASM_INLINE")
+endif()
+
 # TODO:
 #       - CRL monitor
 #       - User crypto
@@ -2646,6 +2679,21 @@ if(WOLFSSL_EXAMPLES)
         tests/api/test_tls.c
         tests/api/test_x509.c
         tests/api/test_asn.c
+        tests/api/test_pkcs7.c
+        tests/api/test_pkcs12.c
+        tests/api/test_ossl_asn1.c
+        tests/api/test_ossl_bio.c
+        tests/api/test_ossl_bn.c
+        tests/api/test_ossl_cipher.c
+        tests/api/test_ossl_dh.c
+        tests/api/test_ossl_dgst.c
+        tests/api/test_ossl_dsa.c
+        tests/api/test_ossl_ec.c
+        tests/api/test_ossl_ecx.c
+        tests/api/test_ossl_mac.c
+        tests/api/test_ossl_rsa.c
+        tests/api/test_ossl_sk.c
+        tests/api/test_tls13.c
         tests/srp.c
         tests/suites.c
         tests/w64wrapper.c
@@ -2924,6 +2972,16 @@ if(WOLFSSL_INSTALL)
             set(LIBM)
         endif()
     endif()
+
+    # Add required frameworks for static linking on Apple platforms
+    if(APPLE AND NOT BUILD_SHARED_LIBS)
+        if(WOLFSSL_SYS_CA_CERTS)
+            list(APPEND PC_LIBS_PRIVATE "-framework CoreFoundation" "-framework Security")
+        endif()
+    endif()
+
+    # Convert lists to space-separated strings for pkg-config
+    string(JOIN " " PC_LIBS_PRIVATE ${PC_LIBS_PRIVATE})
 
     configure_file(support/wolfssl.pc.in ${CMAKE_CURRENT_BINARY_DIR}/support/wolfssl.pc @ONLY)
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/support/wolfssl.pc

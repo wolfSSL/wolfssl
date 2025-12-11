@@ -76,11 +76,11 @@ jobs:
       - name: Update libssh2 test to use a stable version of debian
         working-directory: libssh2
         run: |
-            sed -i 's/testing-slim/stable-slim/' tests/openssh_server/Dockerfile
+            sed -i 's/testing-slim/oldstable-slim/' tests/openssh_server/Dockerfile
 
       - name: Run libssh2 tests
         working-directory: libssh2
-        run: make check
+        run: make -j check
 
       - name: Confirm libssh2 built with wolfSSL
         run: ldd libssh2/src/.libs/libssh2.so | grep wolfssl

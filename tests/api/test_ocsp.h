@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -26,5 +26,6 @@ int test_ocsp_certid_enc_dec(void);
 int test_ocsp_status_callback(void);
 int test_ocsp_basic_verify(void);
 int test_ocsp_response_parsing(void);
+int test_ocsp_tls_cert_cb(void);
 #endif /* WOLFSSL_TEST_OCSP_H */
 

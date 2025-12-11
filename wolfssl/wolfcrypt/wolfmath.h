@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -83,6 +83,15 @@ This library provides big integer math functions.
 
 #if !defined(NO_BIG_INT)
 /* common math functions */
+
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define mp_get_digit_count wc_mp_get_digit_count
+    #define mp_get_digit wc_mp_get_digit
+    #define mp_get_rand_digit wc_mp_get_rand_digit
+    #define mp_cond_copy wc_mp_cond_copy
+    #define mp_rand wc_mp_rand
+#endif /* WOLFSSL_API_PREFIX_MAP */
+
 MP_API int mp_get_digit_count(const mp_int* a);
 MP_API mp_digit mp_get_digit(const mp_int* a, int n);
 MP_API int mp_get_rand_digit(WC_RNG* rng, mp_digit* d);

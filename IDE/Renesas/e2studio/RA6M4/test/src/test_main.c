@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -50,19 +50,6 @@ void abort(void);
  int sce_crypt_test();
 #endif
 
-void R_BSP_WarmStart(bsp_warm_start_event_t event);
-
-/* the function is called just before main() to set up pins */
-/* this needs to be called to setup IO Port */
-void R_BSP_WarmStart (bsp_warm_start_event_t event)
-{
-
-    if (BSP_WARM_START_POST_C == event) {
-        /* C runtime environment and system clocks are setup. */
-        /* Configure pins. */
-        R_IOPORT_Open(&g_ioport_ctrl, g_ioport.p_cfg);
-    }
-}
 
 #if defined(TLS_CLIENT)
 
@@ -150,18 +137,27 @@ void Clr_CallbackCtx(FSPSM_ST *g)
 {
     (void) g;
 
-   #if defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
-    XFREE(g->wrapped_key_rsapri2048, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (g == NULL) return;
 
-    XFREE(g->wrapped_key_rsapub2048, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (g->wrapped_key_aes256 != NULL)
+        g->wrapped_key_aes256 = NULL;
 
-    XFREE(g->wrapped_key_rsapri1024, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (g->wrapped_key_aes128 != NULL)
+        g->wrapped_key_aes128 = NULL;
+
+   #if defined(WOLFSSL_RENESAS_RSIP_CRYPTONLY)
+    if (g->wrapped_key_rsapri2048 != NULL)
+        g->wrapped_key_rsapri2048 = NULL;
 
     if (g->wrapped_key_rsapub2048 != NULL)
-        XFREE(g->wrapped_key_rsapub1024,
-                            NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        g->wrapped_key_rsapub2048 = NULL;
+
+    if (g->wrapped_key_rsapri1024 != NULL)
+        g->wrapped_key_rsapri1024 = NULL;
+
+    if (g->wrapped_key_rsapub2048 != NULL)
+        g->wrapped_key_rsapub2048 = NULL;
    #endif
-   XMEMSET(g, 0, sizeof(FSPSM_ST));
 }
 #endif
 
@@ -261,9 +257,6 @@ void sce_test(void)
     printf("Start wolfCrypt Benchmark\n");
     benchmark_test(NULL);
     printf("End wolfCrypt Benchmark\n");
-
-    /* free */
-    Clr_CallbackCtx(&guser_PKCbInfo);
 
 #elif defined(TLS_CLIENT)
     #include "hal_data.h"

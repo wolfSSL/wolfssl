@@ -6,7 +6,7 @@
 #
 # wolfSSL is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
+# the Free Software Foundation; either version 3 of the License, or
 # (at your option) any later version.
 #
 # wolfSSL is distributed in the hope that it will be useful,
@@ -43,6 +43,10 @@ ifeq "$(KERNEL_ARCH)" "aarch64"
     WOLFSSL_CFLAGS += -mno-outline-atomics
 else ifeq "$(KERNEL_ARCH)" "arm64"
     WOLFSSL_CFLAGS += -mno-outline-atomics
+else ifeq "$(KERNEL_ARCH)" "arm"
+    # avoids R_ARM_THM_JUMP11 relocations, including a stubborn tail recursion
+    # optimization from wc_sp_cmp to wc_sp_cmp_mag:
+    WOLFSSL_CFLAGS += -fno-optimize-sibling-calls -Os
 endif
 
 obj-m := libwolfssl.o
@@ -86,6 +90,10 @@ MAX_STACK_FRAME_SIZE=$(shell echo $$(( $(KERNEL_THREAD_STACK_SIZE) / 4)))
 
 libwolfssl-y := $(WOLFSSL_OBJ_FILES) linuxkm/module_hooks.o linuxkm/module_exports.o
 
+ifeq "$(FIPS_OPTEST)" "1"
+libwolfssl-y += linuxkm/optest-140-3/linuxkm_optest_wrapper.o
+endif
+
 WOLFSSL_CFLAGS_NO_VECTOR_INSNS := $(CFLAGS_SIMD_DISABLE) $(CFLAGS_FPU_DISABLE)
 ifeq "$(ENABLED_ASM)" "yes"
     WOLFSSL_CFLAGS_YES_VECTOR_INSNS := $(CFLAGS_SIMD_ENABLE) $(CFLAGS_FPU_DISABLE) $(CFLAGS_AUTO_VECTORIZE_DISABLE)
@@ -93,57 +101,93 @@ else
     WOLFSSL_CFLAGS_YES_VECTOR_INSNS := $(WOLFSSL_CFLAGS_NO_VECTOR_INSNS)
 endif
 
-ccflags-y := $(WOLFSSL_CFLAGS) $(WOLFSSL_CFLAGS_NO_VECTOR_INSNS)
-
-$(obj)/libwolfssl.mod.o: ccflags-y :=
-$(obj)/wolfcrypt/test/test.o: ccflags-y += -DNO_MAIN_DRIVER -DWOLFSSL_NO_OPTIONS_H
-
-$(obj)/wolfcrypt/src/aes.o: ccflags-y = $(WOLFSSL_CFLAGS) $(WOLFSSL_CFLAGS_YES_VECTOR_INSNS)
+ccflags-y = $(WOLFSSL_CFLAGS) $(WOLFSSL_CFLAGS_NO_VECTOR_INSNS)
 
 ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
-    PIE_FLAGS := -fPIE -fno-stack-protector -fno-toplevel-reorder
-    PIE_SUPPORT_FLAGS := -DUSE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE
+    # note, we need -fno-stack-protector to avoid references to
+    # "__stack_chk_fail" from the wolfCrypt container.
+    PIE_FLAGS := -DWC_CONTAINERIZE_THIS -fno-stack-protector -fno-toplevel-reorder
+    # some targets can't handle -fpie.  E.g. ARM32 on kernel <=5.10 has no handling for R_ARM_REL32.
+    ifdef NO_PIE_FLAG
+        PIE_FLAGS += -DWC_NO_PIE_FLAG
+    else
+        PIE_FLAGS += -fPIE
+    endif
+    # the kernel sanitizers generate external references to
+    # __ubsan_handle_out_of_bounds(), __ubsan_handle_shift_out_of_bounds(), etc.
+    KASAN_SANITIZE := n
+    UBSAN_SANITIZE := n
     ifeq "$(KERNEL_ARCH_X86)" "yes"
-        PIE_FLAGS += -mcmodel=small -mindirect-branch=keep -mfunction-return=keep
+	PIE_FLAGS += -mcmodel=small
+
+	# eliminate external references to __x86_return_thunk and
+	# __x86_indirect_thunk_foo implementations.  _all_ references must be
+	# eliminated, not just those in PIE objects, otherwise some kernels will
+	# false-positively complain about unpatched thunks.
+	ifeq "$(CONFIG_MITIGATION_RETPOLINE)" "y"
+	    PIE_SUPPORT_FLAGS += -mfunction-return=thunk-inline
+	else
+	    PIE_SUPPORT_FLAGS += -mfunction-return=keep
+	endif
+	ifeq "$(CONFIG_MITIGATION_RETHUNK)" "y"
+	    PIE_SUPPORT_FLAGS +=  -mindirect-branch=thunk-inline
+	else
+	    PIE_SUPPORT_FLAGS += -mindirect-branch=keep
+	endif
+
+	OBJECT_FILES_NON_STANDARD := y
+    endif
+    ifeq "$(KERNEL_ARCH)" "arm"
+        PIE_FLAGS += -fno-unwind-tables
     endif
     ifeq "$(KERNEL_ARCH)" "mips"
         PIE_FLAGS += -mabicalls
     endif
-    $(WOLFCRYPT_PIE_FILES): ccflags-y += $(PIE_SUPPORT_FLAGS) $(PIE_FLAGS)
+    ccflags-y += $(PIE_SUPPORT_FLAGS)
+    $(WOLFCRYPT_PIE_FILES): ccflags-y += $(PIE_FLAGS)
     $(WOLFCRYPT_PIE_FILES): ccflags-remove-y += -pg
-    # disabling retpoline generation leads to profuse warnings without this:
-    $(WOLFCRYPT_PIE_FILES): OBJECT_FILES_NON_STANDARD := y
-    $(obj)/linuxkm/module_hooks.o: ccflags-y += $(PIE_SUPPORT_FLAGS)
+    ifdef FORCE_GLOBAL_OBJTOOL_OFF
+        undefine CONFIG_OBJTOOL
+    endif
 endif
 
-$(obj)/wolfcrypt/benchmark/benchmark.o: ccflags-y = $(WOLFSSL_CFLAGS) $(CFLAGS_FPU_ENABLE) $(CFLAGS_SIMD_ENABLE) $(PIE_SUPPORT_FLAGS) -DNO_MAIN_FUNCTION -DWOLFSSL_NO_OPTIONS_H
-$(obj)/wolfcrypt/benchmark/benchmark.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_ENABLE_SIMD_DISABLE)
+ifdef KERNEL_EXTRA_CFLAGS_REMOVE
+    ccflags-remove-y += $(KERNEL_EXTRA_CFLAGS_REMOVE)
+endif
+
+$(obj)/libwolfssl.mod.o: ccflags-y := $(PIE_SUPPORT_FLAGS)
+$(obj)/wolfcrypt/test/test.o: ccflags-y += -DNO_MAIN_DRIVER -DWOLFSSL_NO_OPTIONS_H
+$(obj)/wolfcrypt/src/aes.o: ccflags-y := $(WOLFSSL_CFLAGS) $(WOLFSSL_CFLAGS_YES_VECTOR_INSNS) $(PIE_FLAGS) $(PIE_SUPPORT_FLAGS)
+$(obj)/wolfcrypt/benchmark/benchmark.o: ccflags-y := $(WOLFSSL_CFLAGS) $(CFLAGS_FPU_ENABLE) $(CFLAGS_SIMD_ENABLE) $(PIE_SUPPORT_FLAGS) -DNO_MAIN_FUNCTION -DWOLFSSL_NO_OPTIONS_H
+$(obj)/wolfcrypt/benchmark/benchmark.o: asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_ENABLE_SIMD_DISABLE)
 
 asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPUSIMD_DISABLE)
 
 # vectorized implementations that are kernel-safe are listed here.
 # these are known kernel-compatible, but need the vector instructions enabled in the assembler,
 # and most of them still irritate objtool.
-$(obj)/wolfcrypt/src/aes_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
+$(obj)/wolfcrypt/src/aes_asm.o: asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
 $(obj)/wolfcrypt/src/aes_asm.o: OBJECT_FILES_NON_STANDARD := y
-$(obj)/wolfcrypt/src/aes_gcm_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
+$(obj)/wolfcrypt/src/aes_gcm_asm.o: asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
 $(obj)/wolfcrypt/src/aes_gcm_asm.o: OBJECT_FILES_NON_STANDARD := y
-$(obj)/wolfcrypt/src/aes_xts_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
+$(obj)/wolfcrypt/src/aes_xts_asm.o: asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
 $(obj)/wolfcrypt/src/aes_xts_asm.o: OBJECT_FILES_NON_STANDARD := y
-$(obj)/wolfcrypt/src/sp_x86_64_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
+$(obj)/wolfcrypt/src/sp_x86_64_asm.o: asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
 $(obj)/wolfcrypt/src/sp_x86_64_asm.o: OBJECT_FILES_NON_STANDARD := y
-$(obj)/wolfcrypt/src/sha256_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
+$(obj)/wolfcrypt/src/sha256_asm.o: asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
 $(obj)/wolfcrypt/src/sha256_asm.o: OBJECT_FILES_NON_STANDARD := y
-$(obj)/wolfcrypt/src/sha512_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
+$(obj)/wolfcrypt/src/sha512_asm.o: asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
 $(obj)/wolfcrypt/src/sha512_asm.o: OBJECT_FILES_NON_STANDARD := y
-$(obj)/wolfcrypt/src/sha3_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
+$(obj)/wolfcrypt/src/sha3_asm.o: asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
 $(obj)/wolfcrypt/src/sha3_asm.o: OBJECT_FILES_NON_STANDARD := y
-$(obj)/wolfcrypt/src/chacha_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
+$(obj)/wolfcrypt/src/chacha_asm.o: asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
 $(obj)/wolfcrypt/src/chacha_asm.o: OBJECT_FILES_NON_STANDARD := y
-$(obj)/wolfcrypt/src/poly1305_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
+$(obj)/wolfcrypt/src/poly1305_asm.o: asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
 $(obj)/wolfcrypt/src/poly1305_asm.o: OBJECT_FILES_NON_STANDARD := y
-$(obj)/wolfcrypt/src/wc_mlkem_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
+$(obj)/wolfcrypt/src/wc_mlkem_asm.o: asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
 $(obj)/wolfcrypt/src/wc_mlkem_asm.o: OBJECT_FILES_NON_STANDARD := y
+$(obj)/wolfcrypt/src/wc_mldsa_asm.o: asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
+$(obj)/wolfcrypt/src/wc_mldsa_asm.o: OBJECT_FILES_NON_STANDARD := y
 
 ifndef READELF
     READELF := readelf
@@ -151,7 +195,7 @@ endif
 
 ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
 
-rename-pie-text-and-data-sections: $(WOLFSSL_OBJ_TARGETS)
+ldflags-y += -T $(src)/wolfcrypt.lds
 
 ifndef NM
     NM := nm
@@ -161,45 +205,127 @@ ifndef OBJCOPY
     OBJCOPY := objcopy
 endif
 
-.PHONY: rename-pie-text-and-data-sections
-rename-pie-text-and-data-sections:
-ifneq "$(quiet)" "silent_"
-	@echo -n '  Checking wolfCrypt for unresolved symbols and forbidden relocations... '
-endif
-	@cd "$(obj)" || exit $$?
-	$(LD) -relocatable -o wolfcrypt_test_link.o $(WOLFCRYPT_PIE_FILES) || exit $$?
-	undefined=$$($(NM) --undefined-only wolfcrypt_test_link.o) || exit $$?
-	GOT_relocs=$$($(READELF) --relocs --wide wolfcrypt_test_link.o | egrep '^[^ ]+ +[^ ]+ +[^ ]*GOT[^ ]* ') || [ $$? = 1 ] || exit 2
-	rm wolfcrypt_test_link.o
-	if [ -n "$$undefined" ]; then
-	    echo "wolfCrypt container has unresolved symbols:" 1>&2
-	    echo "$$undefined" 1>&2
-	    exit 1
+RENAME_PIE_TEXT_AND_DATA_SECTIONS := \
+	if [[ "$(quiet)" != "silent_" ]]; then \
+	    echo -n '  Checking wolfCrypt for unresolved symbols and forbidden relocations... '; \
+	fi; \
+	cd "$(obj)" || exit $$?; \
+	$(LD) -relocatable -o wolfcrypt_test_link.o $(WOLFCRYPT_PIE_FILES) || exit $$?; \
+	undefined=$$($(NM) --undefined-only wolfcrypt_test_link.o) || exit $$?; \
+	GOT_relocs=$$($(READELF) --relocs --wide wolfcrypt_test_link.o | grep -E '^[^ ]+ +[^ ]+ +[^ ]*GOT[^ ]* ') || [ $$? = 1 ] || exit 2; \
+	rm wolfcrypt_test_link.o; \
+	if [ -n "$$undefined" ]; then \
+	    echo "wolfCrypt container has unresolved symbols:" 1>&2; \
+	    echo "$$undefined" 1>&2; \
+	    exit 1; \
+	fi; \
+	if [ -n "$$GOT_relocs" ]; then \
+	    echo "wolfCrypt container has GOT relocations (non-local function address used as operand?):" 1>&2; \
+	    echo "$$GOT_relocs" 1>&2; \
+	    exit 1; \
+	fi; \
+	if [[ "$(quiet)" != "silent_" ]]; then \
+	    echo 'OK.'; \
+	fi; \
+	cd "$(obj)" || exit $$?; \
+	for file in $(WOLFCRYPT_PIE_FILES); do				\
+	    $(OBJCOPY) $$($(READELF) --sections --wide "$$file"	|	\
+	      $(AWK) ' 							\
+	      {								\
+	          if (match($$0, "^ *\\[ *[0-9]+\\] +\\.(text|rodata|data|bss)(\\.[^ ]+)? ", a)) \
+		  {							\
+		      printf("--rename-section .%s%s=.%s_wolfcrypt ",	\
+			     a[1], a[2], a[1]);				\
+		  }							\
+		  else if (match($$0, "^ *\\[ *[0-9]+\\] +\\.([^ ]+)\\.(text|rodata|data|bss) ", a)) \
+		  {							\
+		      printf("--rename-section .%s.%s=.%s_wolfcrypt ", a[1], a[2], a[2]); \
+		  }							\
+	      }') "$$file" || exit $$?;					\
+	done; 								\
+	{ $(READELF) --sections --syms --wide $(WOLFCRYPT_PIE_FILES) |	\
+	$(AWK) -v obj="$(obj)" '					\
+	    /^File:/ {							\
+		phase = 0;						\
+		delete wolfcrypt_data_sections;				\
+		delete wolfcrypt_text_sections;				\
+		delete other_sections;					\
+		if (substr($$2, 1, length(obj)) == obj) {		\
+		    curfile = substr($$2, length(obj) + 2);		\
+		} else {						\
+		    curfile=$$2;					\
+		}							\
+		next;							\
+	    }								\
+	    /^Section Headers:/ {					\
+		phase = 1;						\
+		next;							\
+	    }								\
+	    /^Symbol table / {						\
+		phase = 2;						\
+		next;							\
+	    }								\
+	    {								\
+		if (phase == 1) {					\
+		    if (match($$0, "^ *\\[ *([0-9]+)\\] +([^ ]+) ", a)) {\
+			switch (a[2]) {					\
+			case ".text_wolfcrypt":				\
+			{						\
+			    wolfcrypt_text_sections[a[1]] = a[2];	\
+			    next;					\
+			}						\
+			case /^\.(data|rodata|bss)_wolfcrypt$$/:	\
+			{						\
+			    wolfcrypt_data_sections[a[1]] = a[2];	\
+			    next;					\
+			}						\
+			default:					\
+			{						\
+			    other_sections[a[1]] = a[2];		\
+			}						\
+			}						\
+			next;						\
+		    }							\
+		    next;						\
+		}							\
+		else if (phase == 2) {					\
+		    if ($$4 == "FUNC") {				\
+			if (! ($$7 in wolfcrypt_text_sections)) {	\
+			    print curfile ": " $$4 " " $$8 " " other_sections[$$7] >"/dev/stderr"; \
+			    ++warnings;					\
+			}						\
+			next;						\
+		    }							\
+		    else if ($$4 == "OBJECT") {				\
+			if (! ($$7 in wolfcrypt_data_sections)) {	\
+			    if ((other_sections[$$7] == ".printk_index") || \
+				(($$8 ~ /^_entry\.[0-9]+$$|^kernel_read_file_str$$/) &&		\
+				 (other_sections[$$7] == ".data.rel.ro.local"))) \
+				next;					\
+			    print curfile ": " $$4 " " $$8 " " other_sections[$$7] >"/dev/stderr"; \
+			    ++warnings;					\
+			}						\
+			next;						\
+		    }							\
+		}							\
+	    }								\
+	    END {							\
+		if (warnings) {						\
+		    exit(1);						\
+		} else {						\
+		    exit(0);						\
+	    }}'; } || \
+	{ echo 'Error: symbol(s) missed by containerization.' >&2; exit 1; }; \
+	if [[ "$(quiet)" != "silent_" ]]; then \
+	    echo '  wolfCrypt .{text,data,rodata,bss} sections containerized to .{text,data,rodata}_wolfcrypt'; \
 	fi
-	if [ -n "$$GOT_relocs" ]; then
-	    echo "wolfCrypt container has GOT relocations (non-local function address used as operand?):" 1>&2
-	    echo "$$GOT_relocs" 1>&2
-	    exit 1
-	fi
-ifneq "$(quiet)" "silent_"
-	echo 'OK.'
 endif
-	cd "$(obj)" || exit $$?
-	for file in $(WOLFCRYPT_PIE_FILES); do
-	    $(OBJCOPY) --rename-section .text=.text.wolfcrypt --rename-section .data=.data.wolfcrypt --rename-section .rodata=.rodata.wolfcrypt "$$file" || exit $$?
-	done
-ifneq "$(quiet)" "silent_"
-	echo '  wolfCrypt .{text,data,rodata} sections containerized to .{text,data,rodata}.wolfcrypt'
-endif
-
-$(obj)/linuxkm/module_exports.c: rename-pie-text-and-data-sections
-
-endif
-
 
 # auto-generate the exported symbol list, leveraging the WOLFSSL_API visibility tags.
 # exclude symbols that don't match wc_* or wolf*.
-$(obj)/linuxkm/module_exports.c: $(src)/module_exports.c.template $(WOLFSSL_OBJ_TARGETS)
+EXPORT_SYMBOL := EXPORT_SYMBOL_NS_GPL
+$(obj)/linuxkm/module_exports.c: $(src)/module_exports.c.template $(WOLFSSL_OBJ_TARGETS) $(obj)/linuxkm/module_hooks.o
+	@$(RENAME_PIE_TEXT_AND_DATA_SECTIONS)
 	@cp $< $@ || exit $$?
 	if [[ "$${VERSION}" -gt 6 || ("$${VERSION}" -eq 6 && "$${PATCHLEVEL}" -ge 13) ]]; then
 	    # use ASCII octal escape to avoid syntax disruption in the awk script.
@@ -207,13 +333,13 @@ $(obj)/linuxkm/module_exports.c: $(src)/module_exports.c.template $(WOLFSSL_OBJ_
 	else
 	    ns='WOLFSSL'
 	fi
-	$(READELF) --symbols --wide $(WOLFSSL_OBJ_TARGETS) |
+	$(READELF) --symbols --wide $(filter %.o,$^) |
 		$(AWK) '/^ *[0-9]+: / {
 		  if ($$8 !~ /^(wc_|wolf|WOLF|TLSX_)/){next;}
 		  if (($$4 == "FUNC") && ($$5 == "GLOBAL") && ($$6 == "DEFAULT")) {
-		    print "EXPORT_SYMBOL_NS_GPL(" $$8 ", '"$$ns"');";
+		    print "$(EXPORT_SYMBOL)(" $$8 ", '"$$ns"');";
 		  }
 		}' >> $@ || exit $$?
-	echo -e "#ifndef NO_CRYPT_TEST\nEXPORT_SYMBOL_NS_GPL(wolfcrypt_test, $${ns});\n#endif" >> $@
+	echo -e "#ifndef NO_CRYPT_TEST\n$(EXPORT_SYMBOL)(wolfcrypt_test, $${ns});\n#endif" >> $@
 
 clean-files := linuxkm src wolfcrypt

@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -35,6 +35,9 @@
 #include <wolfssl/openssl/ssl.h>
 #include <wolfssl/openssl/x509.h>
 #include <wolfssl/openssl/x509v3.h>
+
+#include <wolfssl/internal.h>
+#include <wolfssl/wolfcrypt/asn.h>
 
 #if defined(OPENSSL_ALL) && \
     defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
@@ -187,5 +190,97 @@ int test_wolfSSL_X509_STORE_load_multiple_certs(void)
     ExpectIntEQ(cert_count, 3);
     X509_STORE_free(store);
 #endif
+    return EXPECT_RESULT();
+}
+
+/* Basic unit coverage for GetCAByAKID.
+ *
+ * These tests construct a minimal WOLFSSL_CERT_MANAGER and Signer objects in
+ * memory and then call GetCAByAKID directly, verifying that:
+ *  - a NULL or incomplete input returns NULL,
+ *  - a matching issuer/serial pair returns the expected Signer, and
+ *  - a non-matching pair returns NULL.
+ *
+ * These tests are intended to check the behaviour of the lookup logic itself;
+ * they do not exercise certificate parsing or real CA loading.
+ */
+int test_x509_GetCAByAKID(void)
+{
+    EXPECT_DECLS;
+#ifdef WOLFSSL_AKID_NAME
+    WOLFSSL_CERT_MANAGER cm;
+    Signer signerA;
+    Signer signerB;
+    Signer* found;
+    byte issuerBuf[]  = { 0x01, 0x02, 0x03, 0x04 };
+    byte serialBuf[]  = { 0x0a, 0x0b, 0x0c, 0x0d };
+    byte wrongSerial[] = { 0x07, 0x07, 0x07, 0x07 };
+    byte issuerHash[SIGNER_DIGEST_SIZE];
+    byte serialHash[SIGNER_DIGEST_SIZE];
+    word32 row;
+
+    XMEMSET(&cm, 0, sizeof(cm));
+    XMEMSET(&signerA, 0, sizeof(signerA));
+    XMEMSET(&signerB, 0, sizeof(signerB));
+    XMEMSET(issuerHash, 0, sizeof(issuerHash));
+    XMEMSET(serialHash, 0, sizeof(serialHash));
+
+    /* Initialize CA mutex so GetCAByAKID can lock/unlock it. */
+    ExpectIntEQ(wc_InitMutex(&cm.caLock), 0);
+
+    /* Place both signers into the same CA table bucket. */
+    row = 0;
+    cm.caTable[row] = &signerA;
+    signerA.next = &signerB;
+    signerB.next = NULL;
+
+    /* Pre-compute the expected name and serial hashes using the same helper
+     * that GetCAByAKID uses internally. */
+    ExpectIntEQ(CalcHashId(issuerBuf, sizeof(issuerBuf), issuerHash), 0);
+    ExpectIntEQ(CalcHashId(serialBuf, sizeof(serialBuf), serialHash), 0);
+
+    /* Configure signerA as the matching signer. */
+    XMEMCPY(signerA.issuerNameHash, issuerHash, SIGNER_DIGEST_SIZE);
+    XMEMCPY(signerA.serialHash,     serialHash, SIGNER_DIGEST_SIZE);
+
+    /* Configure signerB with different hashes so it should not match. */
+    XMEMSET(signerB.issuerNameHash, 0x11, SIGNER_DIGEST_SIZE);
+    XMEMSET(signerB.serialHash,     0x22, SIGNER_DIGEST_SIZE);
+
+    /* 1) NULL manager should yield NULL. */
+    found = GetCAByAKID(NULL, issuerBuf, (word32)sizeof(issuerBuf),
+                        serialBuf, (word32)sizeof(serialBuf));
+    ExpectNull(found);
+
+    /* 2) NULL issuer should yield NULL. */
+    found = GetCAByAKID(&cm, NULL, (word32)sizeof(issuerBuf),
+                        serialBuf, (word32)sizeof(serialBuf));
+    ExpectNull(found);
+
+    /* 3) NULL serial should yield NULL. */
+    found = GetCAByAKID(&cm, issuerBuf, (word32)sizeof(issuerBuf),
+                        NULL, (word32)sizeof(serialBuf));
+    ExpectNull(found);
+
+    /* 4) Zero-length issuer/serial should yield NULL. */
+    found = GetCAByAKID(&cm, issuerBuf, 0, serialBuf, (word32)sizeof(serialBuf));
+    ExpectNull(found);
+    found = GetCAByAKID(&cm, issuerBuf, (word32)sizeof(issuerBuf),
+                        serialBuf, 0);
+    ExpectNull(found);
+
+    /* 5) Non-matching serial should yield NULL. */
+    found = GetCAByAKID(&cm, issuerBuf, (word32)sizeof(issuerBuf),
+                        wrongSerial, (word32)sizeof(wrongSerial));
+    ExpectNull(found);
+
+    /* 6) Matching issuer/serial should return signerA. */
+    found = GetCAByAKID(&cm, issuerBuf, (word32)sizeof(issuerBuf),
+                        serialBuf, (word32)sizeof(serialBuf));
+    ExpectPtrEq(found, &signerA);
+
+    wc_FreeMutex(&cm.caLock);
+
+#endif /* WOLFSSL_AKID_NAME */
     return EXPECT_RESULT();
 }

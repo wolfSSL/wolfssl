@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -164,6 +164,7 @@ extern "C" {
 #define CKM_ECDH1_COFACTOR_DERIVE             0x00001051UL
 #define CKM_AES_KEY_GEN                       0x00001080UL
 #define CKM_AES_CBC                           0x00001082UL
+#define CKM_AES_CTR                           0x00001086UL
 #define CKM_AES_GCM                           0x00001087UL
 
 /* full data RSA PK callbacks */

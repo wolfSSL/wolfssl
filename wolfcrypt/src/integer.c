@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -297,7 +297,7 @@ int mp_to_unsigned_bin_at_pos(int x, mp_int *t, unsigned char *b)
 }
 
 /* store in unsigned [big endian] format */
-int mp_to_unsigned_bin (mp_int * a, unsigned char *b)
+int mp_to_unsigned_bin (const mp_int * a, unsigned char *b)
 {
   int     x, res;
   mp_int  t;
@@ -335,7 +335,7 @@ int mp_to_unsigned_bin_len(mp_int * a, unsigned char *b, int c)
 }
 
 /* creates "a" then copies b into it */
-int mp_init_copy (mp_int * a, mp_int * b)
+int mp_init_copy (mp_int * a, const mp_int * b)
 {
   int     res;
 
@@ -2016,23 +2016,15 @@ int mp_exptmod_fast (mp_int * G, mp_int * X, mp_int * P, mp_int * Y,
   mp_int res;
   mp_digit buf, mp;
   int     err, bitbuf, bitcpy, bitcnt, mode, digidx, x, y, winsize;
-#ifdef WOLFSSL_SMALL_STACK
-  mp_int* M;
-#else
-  mp_int M[TAB_SIZE];
-#endif
+  WC_DECLARE_VAR(M, mp_int, TAB_SIZE, 0);
   /* use a pointer to the reduction algorithm.  This allows us to use
    * one of many reduction algorithms without modding the guts of
    * the code with if statements everywhere.
    */
   int     (*redux)(mp_int*,mp_int*,mp_digit) = NULL;
 
-#ifdef WOLFSSL_SMALL_STACK
-  M = (mp_int*) XMALLOC(sizeof(mp_int) * TAB_SIZE, NULL,
-                                                       DYNAMIC_TYPE_BIGINT);
-  if (M == NULL)
-    return MP_MEM;
-#endif
+  WC_ALLOC_VAR_EX(M, mp_int, TAB_SIZE, NULL, DYNAMIC_TYPE_BIGINT,
+      return MP_MEM);
 
   /* find window size */
   x = mp_count_bits (X);
@@ -2061,9 +2053,7 @@ int mp_exptmod_fast (mp_int * G, mp_int * X, mp_int * P, mp_int * Y,
   /* init M array */
   /* init first cell */
   if ((err = mp_init_size(&M[1], P->alloc)) != MP_OKAY) {
-#ifdef WOLFSSL_SMALL_STACK
-     XFREE(M, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+     WC_FREE_VAR_EX(M, NULL, DYNAMIC_TYPE_BIGINT);
 
      return err;
   }
@@ -2076,9 +2066,7 @@ int mp_exptmod_fast (mp_int * G, mp_int * X, mp_int * P, mp_int * Y,
       }
       mp_clear(&M[1]);
 
-#ifdef WOLFSSL_SMALL_STACK
-      XFREE(M, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+      WC_FREE_VAR_EX(M, NULL, DYNAMIC_TYPE_BIGINT);
 
       return err;
     }
@@ -2317,9 +2305,7 @@ LBL_M:
     mp_clear (&M[x]);
   }
 
-#ifdef WOLFSSL_SMALL_STACK
-  XFREE(M, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+  WC_FREE_VAR_EX(M, NULL, DYNAMIC_TYPE_BIGINT);
 
   return err;
 }
@@ -2527,11 +2513,8 @@ int mp_montgomery_setup (mp_int * n, mp_digit * rho)
 int fast_mp_montgomery_reduce (mp_int * x, mp_int * n, mp_digit rho)
 {
   int     ix, res, olduse;
-#ifdef WOLFSSL_SMALL_STACK
-  mp_word* W;    /* uses dynamic memory and slower */
-#else
-  mp_word W[MP_WARRAY];
-#endif
+  /* uses dynamic memory and slower */
+  WC_DECLARE_VAR(W, mp_word, MP_WARRAY, 0);
 
   /* get old used count */
   olduse = x->used;
@@ -2543,12 +2526,8 @@ int fast_mp_montgomery_reduce (mp_int * x, mp_int * n, mp_digit rho)
     }
   }
 
-#ifdef WOLFSSL_SMALL_STACK
-  W = (mp_word*)XMALLOC(sizeof(mp_word) * (n->used * 2 + 2), NULL,
-    DYNAMIC_TYPE_BIGINT);
-  if (W == NULL)
-    return MP_MEM;
-#endif
+  WC_ALLOC_VAR_EX(W, mp_word, (n->used*2+2), NULL, DYNAMIC_TYPE_BIGINT,
+      return MP_MEM);
 
   XMEMSET(W, 0, sizeof(mp_word) * (n->used * 2 + 2));
 
@@ -2668,9 +2647,7 @@ int fast_mp_montgomery_reduce (mp_int * x, mp_int * n, mp_digit rho)
   x->used = n->used + 1;
   mp_clamp (x);
 
-#ifdef WOLFSSL_SMALL_STACK
-  XFREE(W, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+  WC_FREE_VAR_EX(W, NULL, DYNAMIC_TYPE_BIGINT);
 
   /* if A >= m then A = A - m */
   if (mp_cmp_mag (x, n) != MP_LT) {
@@ -3384,11 +3361,8 @@ After that loop you do the squares and add them in.
 int fast_s_mp_sqr (mp_int * a, mp_int * b)
 {
   int       olduse, res, pa, ix, iz;
-#ifdef WOLFSSL_SMALL_STACK
-  mp_digit* W;    /* uses dynamic memory and slower */
-#else
-  mp_digit W[MP_WARRAY];
-#endif
+  /* uses dynamic memory and slower */
+  WC_DECLARE_VAR(W, mp_digit, MP_WARRAY, 0);
   mp_digit  *tmpx;
   mp_word   W1;
 
@@ -3409,11 +3383,8 @@ int fast_s_mp_sqr (mp_int * a, mp_int * b)
     return MP_OKAY;
   }
 
-#ifdef WOLFSSL_SMALL_STACK
-  W = (mp_digit*)XMALLOC(sizeof(mp_digit) * pa, NULL, DYNAMIC_TYPE_BIGINT);
-  if (W == NULL)
-    return MP_MEM;
-#endif
+  WC_ALLOC_VAR_EX(W, mp_digit, pa, NULL, DYNAMIC_TYPE_BIGINT,
+      return MP_MEM);
 
   /* number of output digits to produce */
   W1 = 0;
@@ -3482,9 +3453,7 @@ int fast_s_mp_sqr (mp_int * a, mp_int * b)
   }
   mp_clamp (b);
 
-#ifdef WOLFSSL_SMALL_STACK
-  XFREE(W, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+  WC_FREE_VAR_EX(W, NULL, DYNAMIC_TYPE_BIGINT);
 
   return MP_OKAY;
 }
@@ -3509,11 +3478,8 @@ int fast_s_mp_sqr (mp_int * a, mp_int * b)
 int fast_s_mp_mul_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
 {
   int     olduse, res, pa, ix, iz;
-#ifdef WOLFSSL_SMALL_STACK
-  mp_digit* W;    /* uses dynamic memory and slower */
-#else
-  mp_digit W[MP_WARRAY];
-#endif
+  /* uses dynamic memory and slower */
+  WC_DECLARE_VAR(W, mp_digit, MP_WARRAY, 0);
   mp_word  _W;
 
   /* grow the destination as required */
@@ -3534,11 +3500,8 @@ int fast_s_mp_mul_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
     return MP_OKAY;
   }
 
-#ifdef WOLFSSL_SMALL_STACK
-  W = (mp_digit*)XMALLOC(sizeof(mp_digit) * pa, NULL, DYNAMIC_TYPE_BIGINT);
-  if (W == NULL)
-    return MP_MEM;
-#endif
+  WC_ALLOC_VAR_EX(W, mp_digit, pa, NULL, DYNAMIC_TYPE_BIGINT,
+      return MP_MEM);
 
   /* clear the carry */
   _W = 0;
@@ -3594,9 +3557,7 @@ int fast_s_mp_mul_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
   }
   mp_clamp (c);
 
-#ifdef WOLFSSL_SMALL_STACK
-  XFREE(W, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+  WC_FREE_VAR_EX(W, NULL, DYNAMIC_TYPE_BIGINT);
 
   return MP_OKAY;
 }
@@ -4247,11 +4208,8 @@ int s_mp_mul_high_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
 int fast_s_mp_mul_high_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
 {
   int     olduse, res, pa, ix, iz;
-#ifdef WOLFSSL_SMALL_STACK
-  mp_digit* W;    /* uses dynamic memory and slower */
-#else
-  mp_digit W[MP_WARRAY];
-#endif
+  /* uses dynamic memory and slower */
+  WC_DECLARE_VAR(W, mp_digit, MP_WARRAY, 0);
   mp_word  _W;
 
   if (a->dp == NULL) { /* JRB, avoid reading uninitialized values */
@@ -4269,11 +4227,8 @@ int fast_s_mp_mul_high_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
   if (pa > (int)MP_WARRAY)
     return MP_RANGE;  /* TAO range check */
 
-#ifdef WOLFSSL_SMALL_STACK
-  W = (mp_digit*)XMALLOC(sizeof(mp_digit) * pa, NULL, DYNAMIC_TYPE_BIGINT);
-  if (W == NULL)
-    return MP_MEM;
-#endif
+  WC_ALLOC_VAR_EX(W, mp_digit, pa, NULL, DYNAMIC_TYPE_BIGINT,
+      return MP_MEM);
 
   /* number of output digits to produce */
   _W = 0;
@@ -4326,9 +4281,7 @@ int fast_s_mp_mul_high_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
   }
   mp_clamp (c);
 
-#ifdef WOLFSSL_SMALL_STACK
-  XFREE(W, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+  WC_FREE_VAR_EX(W, NULL, DYNAMIC_TYPE_BIGINT);
 
   return MP_OKAY;
 }

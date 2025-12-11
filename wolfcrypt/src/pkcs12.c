@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -977,8 +977,10 @@ int wc_i2d_PKCS12(WC_PKCS12* pkcs12, byte** der, int* derSz)
             totalSz += seqSz;
 
             /* check if getting length only */
-            if (der == NULL && derSz != NULL) {
-                *derSz = (int)totalSz;
+            if (der == NULL) {
+                /* repeat nullness check locally to mollify -Wnull-dereference. */
+                if (derSz != NULL)
+                    *derSz = (int)totalSz;
                 XFREE(sdBuf, pkcs12->heap, DYNAMIC_TYPE_PKCS);
                 return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
             }
@@ -1119,9 +1121,7 @@ static WARN_UNUSED_RESULT int freeDecCertList(WC_DerCertList** list,
         current  = current->next;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(DeCert, heap, DYNAMIC_TYPE_PKCS);
-#endif
+    WC_FREE_VAR_EX(DeCert, heap, DYNAMIC_TYPE_PKCS);
 
     return 0;
 }

@@ -33,7 +33,7 @@ aclocal.m4
 aminclude.am
 lt*.m4
 Makefile.in
-Makefile
+/Makefile
 depcomp
 missing
 libtool
@@ -50,16 +50,6 @@ wolfcrypt_first.c
 wolfcrypt_last.c
 selftest.c
 fipsv2.c
-src/async.c
-wolfssl/async.h
-wolfcrypt/src/async.c
-wolfssl/wolfcrypt/async.h
-wolfcrypt/src/port/intel/quickassist.c
-wolfcrypt/src/port/intel/quickassist_mem.c
-wolfcrypt/src/port/cavium/cavium_nitrox.c
-wolfssl/wolfcrypt/port/intel/quickassist.h
-wolfssl/wolfcrypt/port/intel/quickassist_mem.h
-wolfssl/wolfcrypt/port/cavium/cavium_nitrox.h
 ctaocrypt/benchmark/benchmark
 ctaocrypt/test/testctaocrypt
 wolfcrypt/benchmark/benchmark
@@ -249,6 +239,12 @@ linuxkm/linuxkm
 linuxkm/src
 linuxkm/patches/src
 *.nds
+bsdkm/export_syms
+bsdkm/i386
+bsdkm/libwolfssl.ko
+bsdkm/machine
+bsdkm/opt_global.h
+bsdkm/x86
 
 # autotools generated
 scripts/unit.test
@@ -449,6 +445,7 @@ MagicCrypto
 # debian packaging
 debian/changelog
 debian/control
+debian/rules
 *.deb
 
 # Ada/Alire files
@@ -456,6 +453,9 @@ wrapper/Ada/alire/
 wrapper/Ada/config/
 wrapper/Ada/lib/
 wrapper/Ada/obj/
+
+# Rust wrapper files
+/wrapper/rust/*/target/
 
 # PlatformIO
 /**/.pio

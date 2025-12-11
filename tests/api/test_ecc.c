@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -429,6 +429,10 @@ int test_wc_ecc_signVerify_hash(void)
         WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
     ExpectIntEQ(wc_ecc_sign_hash(digest, digestlen, sig, &siglen, &rng, NULL),
         WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+#if (!defined(HAVE_FIPS) || FIPS_VERSION_GT(7,0)) && !defined(HAVE_SELFTEST)
+    ExpectIntEQ(wc_ecc_sign_hash(digest, WC_MAX_DIGEST_SIZE+1, sig, &siglen,
+        &rng, &key), WC_NO_ERR_TRACE(BAD_LENGTH_E));
+#endif
 
 #ifdef HAVE_ECC_VERIFY
     ExpectIntEQ(wc_ecc_verify_hash(sig, siglen, digest, digestlen, &verify,
@@ -457,6 +461,10 @@ int test_wc_ecc_signVerify_hash(void)
         WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
     ExpectIntEQ(wc_ecc_verify_hash(sig, siglen, digest, digestlen, &verify,
         NULL), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+#if (!defined(HAVE_FIPS) || FIPS_VERSION_GT(7,0)) && !defined(HAVE_SELFTEST)
+    ExpectIntEQ(wc_ecc_verify_hash(sig, siglen, digest, WC_MAX_DIGEST_SIZE+1,
+        &verify, &key), WC_NO_ERR_TRACE(BAD_LENGTH_E));
+#endif
 #endif /* HAVE_ECC_VERIFY */
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
@@ -1360,7 +1368,7 @@ int test_wc_ecc_pointFns(void)
     EXPECT_DECLS;
 #if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT) && \
     !defined(WC_NO_RNG) && !defined(WOLFSSL_ATECC508A) && \
-    !defined(WOLFSSL_ATECC608A)
+    !defined(WOLFSSL_ATECC608A) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
     ecc_key    key;
     WC_RNG     rng;
     int        ret;
@@ -1465,7 +1473,7 @@ int test_wc_ecc_shared_secret_ssh(void)
 #if defined(HAVE_ECC) && defined(HAVE_ECC_DHE) && \
     !defined(WC_NO_RNG) && !defined(WOLFSSL_ATECC508A) && \
     !defined(WOLFSSL_ATECC608A) && !defined(PLUTON_CRYPTO_ECC) && \
-    !defined(WOLFSSL_CRYPTOCELL)
+    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
     ecc_key key;
     ecc_key key2;
     WC_RNG  rng;
@@ -1639,7 +1647,8 @@ int test_wc_ecc_mulmod(void)
     EXPECT_DECLS;
 #if defined(HAVE_ECC) && !defined(WC_NO_RNG) && \
     !(defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
-      defined(WOLFSSL_VALIDATE_ECC_IMPORT))
+      defined(WOLFSSL_VALIDATE_ECC_IMPORT)) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC)
     ecc_key     key1;
     ecc_key     key2;
     ecc_key     key3;

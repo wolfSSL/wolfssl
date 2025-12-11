@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -317,7 +317,7 @@ static int wc_DevCrypto_AesGcm(Aes* aes, byte* out, byte* in, word32 sz,
                       dir, (byte*)authIn, authInSz, authTag, authTagSz);
     ret = ioctl(aes->ctx.cfd, CIOCAUTHCRYPT, &crt);
     if (ret != 0) {
-        #ifdef WOLFSSL_DEBUG
+        #ifdef DEBUG_WOLFSSL
         if (authInSz > sysconf(_SC_PAGESIZE)) {
             WOLFSSL_MSG("authIn Buffer greater than System Page Size");
         }

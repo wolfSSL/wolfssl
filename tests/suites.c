@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -358,6 +358,20 @@ static int IsNoClientCert(const char* line)
 }
 #endif
 
+#if (defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)) && \
+    !defined(NO_RSA) && !defined(NO_CERTS) && !defined(WOLFSSL_NO_CLIENT_AUTH)
+static int IsEcdsaCipherSuiteDefRsaCert(const char* line)
+{
+    int found;
+
+    found  = (strstr(line, "-ECDSA-") != NULL);
+    found &= (strstr(line, "-c ") == NULL);
+    found &= (strstr(line, "-x") == NULL);
+
+    return found;
+}
+#endif
+
 static int execute_test_case(int svr_argc, char** svr_argv,
                              int cli_argc, char** cli_argv,
                              int addNoVerify, int addNonBlocking,
@@ -529,6 +543,56 @@ static int execute_test_case(int svr_argc, char** svr_argv,
         svrTestShouldFail = 1;
     }
 
+
+    commandLine[0] = '\0';
+    added = 0;
+    for (i = 0; i < cliArgs.argc; i++) {
+        added += XSTRLEN(cli_argv[i]) + 2;
+        if (added >= MAX_COMMAND_SZ) {
+            printf("client command line too long\n");
+            break;
+        }
+        XSTRLCAT(commandLine, cli_argv[i], sizeof commandLine);
+        XSTRLCAT(commandLine, flagSep, sizeof commandLine);
+    }
+    if (!IsValidCA(commandLine)) {
+        #ifdef DEBUG_SUITE_TESTS
+            printf("certificate %s not supported in build\n", commandLine);
+        #endif
+        return NOT_BUILT_IN;
+    }
+#ifdef WOLFSSL_NO_CLIENT_AUTH
+    if (reqClientCert && IsNoClientCert(commandLine)) {
+        #ifdef DEBUG_SUITE_TESTS
+            printf("client auth on line %s not supported in build\n",
+                   commandLine);
+        #endif
+        return NOT_BUILT_IN;
+    }
+#else
+    if (!IsValidCert(commandLine)) {
+        #ifdef DEBUG_SUITE_TESTS
+            printf("certificate %s not supported in build\n", commandLine);
+        #endif
+        return NOT_BUILT_IN;
+    }
+#endif
+#ifdef NO_CERTS
+    if (IsNoClientCert(commandLine)) {
+        #ifdef DEBUG_SUITE_TESTS
+            printf("certificate %s not supported in build\n", commandLine);
+        #endif
+        return NOT_BUILT_IN;
+    }
+#endif
+#if (defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)) && \
+    !defined(NO_RSA) && !defined(NO_CERTS) && !defined(WOLFSSL_NO_CLIENT_AUTH)
+    if (IsEcdsaCipherSuiteDefRsaCert(commandLine)) {
+        return NOT_BUILT_IN;
+    }
+#endif
+
+
     InitTcpReady(&ready);
 
 #if defined(WOLFSSL_SRTP) && defined(WOLFSSL_COND)
@@ -596,29 +660,6 @@ static int execute_test_case(int svr_argc, char** svr_argv,
         XSTRLCAT(commandLine, cli_argv[i], sizeof commandLine);
         XSTRLCAT(commandLine, flagSep, sizeof commandLine);
     }
-    if (!IsValidCA(commandLine)) {
-        #ifdef DEBUG_SUITE_TESTS
-            printf("certificate %s not supported in build\n", commandLine);
-        #endif
-        return NOT_BUILT_IN;
-    }
-#ifdef WOLFSSL_NO_CLIENT_AUTH
-    if (reqClientCert && IsNoClientCert(commandLine)) {
-        #ifdef DEBUG_SUITE_TESTS
-            printf("client auth on line %s not supported in build\n",
-                   commandLine);
-        #endif
-        return NOT_BUILT_IN;
-    }
-#endif
-#ifdef NO_CERTS
-    if (IsNoClientCert(commandLine)) {
-        #ifdef DEBUG_SUITE_TESTS
-            printf("certificate %s not supported in build\n", commandLine);
-        #endif
-        return NOT_BUILT_IN;
-    }
-#endif
     printf("trying client command line[%d]: %s\n", tests, commandLine);
     tests++;
 

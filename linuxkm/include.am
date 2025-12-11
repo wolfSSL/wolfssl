@@ -8,9 +8,7 @@ EXTRA_DIST += m4/ax_linuxkm.m4 \
 	      linuxkm/get_thread_size.c \
 	      linuxkm/module_hooks.c \
 	      linuxkm/module_exports.c.template \
-	      linuxkm/pie_first.c \
 	      linuxkm/pie_redirect_table.c \
-	      linuxkm/pie_last.c \
 	      linuxkm/linuxkm_memory.c \
 	      linuxkm/linuxkm_wc_port.h \
 	      linuxkm/x86_vector_register_glue.c \
@@ -20,4 +18,13 @@ EXTRA_DIST += m4/ax_linuxkm.m4 \
 	      linuxkm/lkcapi_dh_glue.c \
 	      linuxkm/lkcapi_ecdsa_glue.c \
 	      linuxkm/lkcapi_ecdh_glue.c \
-	      linuxkm/lkcapi_rsa_glue.c
+	      linuxkm/lkcapi_rsa_glue.c \
+	      linuxkm/wolfcrypt.lds \
+	      linuxkm/patches/5.10.17/WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS-5v10v17.patch \
+	      linuxkm/patches/5.10.236/WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS-5v10v236.patch \
+	      linuxkm/patches/5.15/WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS-5v15.patch \
+	      linuxkm/patches/5.17/WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS-5v17.patch \
+	      linuxkm/patches/5.17-ubuntu-jammy-tegra/WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS-5v17-ubuntu-jammy-tegra.patch \
+	      linuxkm/patches/6.1.73/WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS-6v1v73.patch \
+	      linuxkm/patches/6.12/WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS-6v12.patch \
+	      linuxkm/patches/6.15/WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS-6v15.patch

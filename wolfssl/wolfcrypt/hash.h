@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -137,6 +137,9 @@ typedef struct {
 #elif defined(WOLFSSL_SHA384)
     #define WC_MAX_DIGEST_SIZE WC_SHA384_DIGEST_SIZE
     #define WC_MAX_BLOCK_SIZE  WC_SHA384_BLOCK_SIZE
+#elif !defined(NO_SHA) && !defined(NO_MD5)
+    #define WC_MAX_DIGEST_SIZE (WC_SHA_DIGEST_SIZE + WC_MD5_DIGEST_SIZE)
+    #define WC_MAX_BLOCK_SIZE  WC_SHA_BLOCK_SIZE
 #elif !defined(NO_SHA256)
     #define WC_MAX_DIGEST_SIZE WC_SHA256_DIGEST_SIZE
     #define WC_MAX_BLOCK_SIZE  WC_SHA256_BLOCK_SIZE

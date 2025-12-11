@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -38,6 +38,34 @@
  * AES
  ******************************************************************************/
 
+#ifndef NO_AES
+static int test_wc_AesSetKey_BadArgs(Aes* aes, byte* key, word32 keyLen,
+    byte* iv)
+{
+    EXPECT_DECLS;
+
+    ExpectIntEQ(wc_AesSetKey(NULL, NULL, keyLen, iv, AES_ENCRYPTION),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesSetKey(NULL, key , keyLen, iv, AES_ENCRYPTION),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesSetKey(aes , key , 48    , iv, AES_ENCRYPTION),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    return EXPECT_RESULT();
+}
+
+static int test_wc_AesSetKey_WithKey(Aes* aes, byte* key, word32 keyLen,
+    byte* iv, int ret)
+{
+    EXPECT_DECLS;
+
+    ExpectIntEQ(wc_AesSetKey(aes, key, keyLen, iv, AES_ENCRYPTION), ret);
+    ExpectIntEQ(wc_AesSetKey(aes, key, keyLen, NULL, AES_DECRYPTION), ret);
+
+    return EXPECT_RESULT();
+}
+#endif
+
 /*
  * Testing function for wc_AesSetKey().
  */
@@ -50,47 +78,66 @@ int test_wc_AesSetKey(void)
         0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
         0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
     };
-#ifdef WOLFSSL_AES_192
     byte key24[] = {
         0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
         0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
         0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37
     };
-#endif
-#ifdef WOLFSSL_AES_256
     byte key32[] = {
         0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
         0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
         0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
         0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
     };
-#endif
     byte badKey16[] = {
         0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
         0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65
     };
     byte iv[] = "1234567890abcdef";
+    byte* key;
+    word32 keyLen;
+
+#if defined(WOLFSSL_AES_128)
+    key = key16;
+    keyLen = (word32)sizeof(key16) / sizeof(byte);
+#elif defined(WOLFSSL_AES_192)
+    key = key24;
+    keyLen = (word32)sizeof(key24) / sizeof(byte);
+#else
+    key = key32;
+    keyLen = (word32)sizeof(key32) / sizeof(byte);
+#endif
 
     XMEMSET(&aes, 0, sizeof(Aes));
 
+    ExpectIntEQ(wc_AesInit(NULL, NULL, INVALID_DEVID),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
 
+    EXPECT_TEST(test_wc_AesSetKey_BadArgs(&aes, key, keyLen, iv));
+
 #ifdef WOLFSSL_AES_128
-    ExpectIntEQ(wc_AesSetKey(&aes, key16, (word32)sizeof(key16) / sizeof(byte),
-        iv, AES_ENCRYPTION), 0);
+    EXPECT_TEST(test_wc_AesSetKey_WithKey(&aes, key16,
+        (word32)sizeof(key16) / sizeof(byte), iv, 0));
+#else
+    EXPECT_TEST(test_wc_AesSetKey_WithKey(&aes, key16,
+        (word32)sizeof(key16) / sizeof(byte), iv, BAD_FUNC_ARG));
 #endif
 #ifdef WOLFSSL_AES_192
-    ExpectIntEQ(wc_AesSetKey(&aes, key24, (word32)sizeof(key24) / sizeof(byte),
-        iv, AES_ENCRYPTION), 0);
+    EXPECT_TEST(test_wc_AesSetKey_WithKey(&aes, key24,
+        (word32)sizeof(key24) / sizeof(byte), iv, 0));
+#else
+    EXPECT_TEST(test_wc_AesSetKey_WithKey(&aes, key24,
+        (word32)sizeof(key24) / sizeof(byte), iv, BAD_FUNC_ARG));
 #endif
 #ifdef WOLFSSL_AES_256
-    ExpectIntEQ(wc_AesSetKey(&aes, key32, (word32)sizeof(key32) / sizeof(byte),
-        iv, AES_ENCRYPTION), 0);
+    EXPECT_TEST(test_wc_AesSetKey_WithKey(&aes, key32,
+        (word32)sizeof(key32) / sizeof(byte), iv, 0));
+#else
+    EXPECT_TEST(test_wc_AesSetKey_WithKey(&aes, key32,
+        (word32)sizeof(key32) / sizeof(byte), iv, BAD_FUNC_ARG));
 #endif
 
-    /* Pass in bad args. */
-    ExpectIntEQ(wc_AesSetKey(NULL, key16, (word32)sizeof(key16) / sizeof(byte),
-        iv, AES_ENCRYPTION), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_AesSetKey(&aes, badKey16,
         (word32)sizeof(badKey16) / sizeof(byte), iv, AES_ENCRYPTION),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
@@ -105,49 +152,673 @@ int test_wc_AesSetKey(void)
  */
 int test_wc_AesSetIV(void)
 {
-    int res = TEST_SKIPPED;
-#if !defined(NO_AES) && defined(WOLFSSL_AES_128)
+    EXPECT_DECLS;
+#if !defined(NO_AES)
     Aes     aes;
-    int     ret = 0;
-    byte    key16[] =
-    {
+#if defined(WOLFSSL_AES_128)
+    byte    key16[] = {
         0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
         0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
     };
+#endif
     byte    iv1[]    = "1234567890abcdef";
     byte    iv2[]    = "0987654321fedcba";
 
-    ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
-    if (ret != 0)
-        return ret;
+    ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
 
-    ret = wc_AesSetKey(&aes, key16, (word32) sizeof(key16) / sizeof(byte),
-                                                     iv1, AES_ENCRYPTION);
-    if (ret == 0) {
-        ret = wc_AesSetIV(&aes, iv2);
-    }
-    /* Test bad args. */
-    if (ret == 0) {
-        ret = wc_AesSetIV(NULL, iv1);
-        if (ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
-            /* NULL iv should return 0. */
-            ret = wc_AesSetIV(&aes, NULL);
-        }
-        else {
-            ret = WOLFSSL_FATAL_ERROR;
-        }
-    }
+#if defined(WOLFSSL_AES_128)
+    ExpectIntEQ(wc_AesSetKey(&aes, key16, (word32) sizeof(key16) / sizeof(byte),
+        iv1, AES_ENCRYPTION), 0);
+#endif
+    ExpectIntEQ(wc_AesSetIV(&aes, iv2), 0);
+
+    ExpectIntEQ(wc_AesSetIV(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesSetIV(NULL, iv1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesSetIV(&aes, NULL), 0);
 
     wc_AesFree(&aes);
-
-    res = TEST_RES_CHECK(ret == 0);
 #endif
-    return res;
+    return EXPECT_RESULT();
 } /* test_wc_AesSetIV */
+
+
+/*******************************************************************************
+ * AES Direct
+ ******************************************************************************/
+
+#if !defined(NO_AES) && defined(WOLFSSL_AES_DIRECT) && \
+    (!defined(HAVE_FIPS) || !defined(HAVE_FIPS_VERSION) || \
+        (HAVE_FIPS_VERSION > 6)) && !defined(HAVE_SELFTEST)
+static int test_wc_AesEncryptDecryptDirect_WithKey(Aes* aes, byte* key,
+    word32 keyLen, byte* expected)
+{
+    EXPECT_DECLS;
+    byte plain[WC_AES_BLOCK_SIZE];
+    byte cipher[WC_AES_BLOCK_SIZE];
+#ifdef HAVE_AES_DECRYPT
+    byte decrypted[WC_AES_BLOCK_SIZE];
+#endif
+
+    XMEMSET(plain, 0, WC_AES_BLOCK_SIZE);
+
+    ExpectIntEQ(wc_AesSetKey(aes, key, keyLen, NULL, AES_ENCRYPTION), 0);
+
+    ExpectIntEQ(wc_AesEncryptDirect(NULL, NULL, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    ExpectIntEQ(wc_AesEncryptDirect(aes, cipher, plain), 0);
+    ExpectBufEQ(cipher, expected, WC_AES_BLOCK_SIZE);
+
+#ifdef HAVE_AES_DECRYPT
+    ExpectIntEQ(wc_AesSetKey(aes, key, keyLen, NULL, AES_DECRYPTION), 0);
+    ExpectIntEQ(wc_AesDecryptDirect(NULL, NULL, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesDecryptDirect(aes, decrypted, cipher), 0);
+    ExpectBufEQ(decrypted, plain, WC_AES_BLOCK_SIZE);
+#endif
+
+    return EXPECT_RESULT();
+}
+#endif
+
+int test_wc_AesEncryptDecryptDirect(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_AES) && defined(WOLFSSL_AES_DIRECT) && \
+    (!defined(HAVE_FIPS) || !defined(HAVE_FIPS_VERSION) || \
+        (HAVE_FIPS_VERSION > 6)) && !defined(HAVE_SELFTEST)
+    Aes aes;
+#if defined(WOLFSSL_AES_128)
+    byte key16[] = {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
+    };
+    byte expected16[WC_AES_BLOCK_SIZE] = {
+        0x0b, 0x9b, 0x15, 0xda, 0x4b, 0x44, 0xa0, 0xf5,
+        0x15, 0x1d, 0xcf, 0xc4, 0xc0, 0x1f, 0x35, 0xd5,
+    };
+#endif
+#if defined(WOLFSSL_AES_192)
+    byte key24[] = {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
+    };
+    byte expected24[WC_AES_BLOCK_SIZE] = {
+        0xbe, 0x55, 0x02, 0x05, 0xfc, 0x91, 0xe8, 0x9c,
+        0x9b, 0x9c, 0xc4, 0x70, 0x93, 0xb9, 0x0a, 0x08,
+    };
+#endif
+#if defined(WOLFSSL_AES_256)
+    byte key32[] = {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
+    };
+    byte expected32[WC_AES_BLOCK_SIZE] = {
+        0x7d, 0xbd, 0x88, 0x27, 0x2f, 0xb2, 0x59, 0x37,
+        0x69, 0x2a, 0x3b, 0x81, 0x00, 0x47, 0x41, 0x75,
+    };
+#endif
+
+    XMEMSET(&aes, 0, sizeof(Aes));
+    ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+
+#ifdef WOLFSSL_AES_128
+    EXPECT_TEST(test_wc_AesEncryptDecryptDirect_WithKey(&aes, key16,
+        (word32)sizeof(key16) / sizeof(byte), expected16));
+#endif
+#ifdef WOLFSSL_AES_192
+    EXPECT_TEST(test_wc_AesEncryptDecryptDirect_WithKey(&aes, key24,
+        (word32)sizeof(key24) / sizeof(byte), expected24));
+#endif
+#ifdef WOLFSSL_AES_256
+    EXPECT_TEST(test_wc_AesEncryptDecryptDirect_WithKey(&aes, key32,
+        (word32)sizeof(key32) / sizeof(byte), expected32));
+#endif
+
+    wc_AesFree(&aes);
+#endif
+    return EXPECT_RESULT();
+}
+
+/*******************************************************************************
+ * AES-ECB
+ ******************************************************************************/
+
+#if !defined(NO_AES) && defined(HAVE_AES_ECB)
+/* Assembly code doing 8 iterations at a time. */
+#define ECB_LEN     (9 * WC_AES_BLOCK_SIZE)
+
+static int test_wc_AesEcbEncryptDecrypt_BadArgs(Aes* aes, byte* key,
+    word32 keyLen)
+{
+    EXPECT_DECLS;
+    byte plain[WC_AES_BLOCK_SIZE];
+    byte cipher[WC_AES_BLOCK_SIZE];
+    byte decrypted[WC_AES_BLOCK_SIZE];
+
+    XMEMSET(plain, 0, WC_AES_BLOCK_SIZE);
+    XMEMSET(cipher, 0, WC_AES_BLOCK_SIZE);
+
+    ExpectIntEQ(wc_AesSetKey(aes, key, keyLen, NULL, AES_DECRYPTION), 0);
+    ExpectIntEQ(wc_AesEcbEncrypt(NULL, NULL, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesEcbEncrypt(aes, NULL, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesEcbEncrypt(NULL, cipher, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesEcbEncrypt(NULL, NULL, plain, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesEcbEncrypt(aes, cipher, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesEcbEncrypt(aes, NULL, plain, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesEcbEncrypt(NULL, cipher, plain, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    ExpectIntEQ(wc_AesSetKey(aes, key, keyLen, NULL, AES_DECRYPTION), 0);
+    ExpectIntEQ(wc_AesEcbDecrypt(NULL, NULL, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesEcbDecrypt(aes, NULL, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesEcbDecrypt(NULL, decrypted, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesEcbDecrypt(NULL, NULL, cipher, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesEcbDecrypt(aes, decrypted, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesEcbDecrypt(aes, NULL, cipher, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesEcbDecrypt(NULL, decrypted, cipher, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    return EXPECT_RESULT();
+}
+
+static int test_wc_AesEcbEncryptDecrypt_WithKey(Aes* aes, byte* key,
+    word32 keyLen, byte* expected)
+{
+    EXPECT_DECLS;
+    WC_DECLARE_VAR(plain, byte, ECB_LEN, NULL);
+    WC_DECLARE_VAR(cipher, byte, ECB_LEN, NULL);
+    WC_DECLARE_VAR(decrypted, byte, ECB_LEN, NULL);
+
+    WC_ALLOC_VAR(plain, byte, ECB_LEN, NULL);
+    WC_ALLOC_VAR(cipher, byte, ECB_LEN, NULL);
+    WC_ALLOC_VAR(decrypted, byte, ECB_LEN, NULL);
+
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    ExpectNotNull(plain);
+    ExpectNotNull(cipher);
+    ExpectNotNull(decrypted);
+#endif
+
+    XMEMSET(plain, 0, ECB_LEN);
+
+    ExpectIntEQ(wc_AesSetKey(aes, key, keyLen, NULL, AES_ENCRYPTION), 0);
+    ExpectIntEQ(wc_AesEcbEncrypt(aes, cipher, plain, WC_AES_BLOCK_SIZE), 0);
+    ExpectBufEQ(cipher, expected, WC_AES_BLOCK_SIZE);
+
+#ifdef HAVE_AES_DECRYPT
+    ExpectIntEQ(wc_AesSetKey(aes, key, keyLen, NULL, AES_DECRYPTION), 0);
+    ExpectIntEQ(wc_AesEcbDecrypt(aes, decrypted, cipher, WC_AES_BLOCK_SIZE),
+        0);
+    ExpectBufEQ(decrypted, plain, WC_AES_BLOCK_SIZE);
+#endif
+
+    ExpectIntEQ(wc_AesSetKey(aes, key, keyLen, NULL, AES_ENCRYPTION), 0);
+    ExpectIntEQ(wc_AesEcbEncrypt(aes, cipher, plain, 32), 0);
+    ExpectBufEQ(cipher + WC_AES_BLOCK_SIZE, cipher, WC_AES_BLOCK_SIZE);
+    ExpectBufEQ(cipher, expected, WC_AES_BLOCK_SIZE);
+#ifdef HAVE_AES_DECRYPT
+    ExpectIntEQ(wc_AesSetKey(aes, key, keyLen, NULL, AES_DECRYPTION), 0);
+    ExpectIntEQ(wc_AesEcbDecrypt(aes, decrypted, cipher, 32), 0);
+    ExpectBufEQ(decrypted, plain, 32);
+#endif
+
+    WC_FREE_VAR(plain, NULL);
+    WC_FREE_VAR(cipher, NULL);
+    WC_FREE_VAR(decrypted, NULL);
+    return EXPECT_RESULT();
+}
+
+static int test_wc_AesEcbEncryptDecrypt_MultiBlocks(Aes* aes, byte* key,
+    word32 keyLen, byte* expected)
+{
+    EXPECT_DECLS;
+    int sz;
+    int cnt;
+    WC_DECLARE_VAR(plain, byte, ECB_LEN, NULL);
+    WC_DECLARE_VAR(cipher, byte, ECB_LEN, NULL);
+    WC_DECLARE_VAR(decrypted, byte, ECB_LEN, NULL);
+
+    WC_ALLOC_VAR(plain, byte, ECB_LEN, NULL);
+    WC_ALLOC_VAR(cipher, byte, ECB_LEN, NULL);
+    WC_ALLOC_VAR(decrypted, byte, ECB_LEN, NULL);
+
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    ExpectNotNull(plain);
+    ExpectNotNull(cipher);
+    ExpectNotNull(decrypted);
+#endif
+
+    XMEMSET(plain, 0, ECB_LEN);
+
+    ExpectIntEQ(wc_AesSetKey(aes, key, keyLen, NULL, AES_ENCRYPTION), 0);
+    /* Test multiple blocks. */
+    for (sz = WC_AES_BLOCK_SIZE; sz <= ECB_LEN; sz += WC_AES_BLOCK_SIZE) {
+        XMEMSET(cipher, 0x00, ECB_LEN);
+        for (cnt = 0; cnt + sz <= ECB_LEN; cnt += sz) {
+            ExpectIntEQ(wc_AesEcbEncrypt(aes, cipher + cnt, plain + cnt, sz),
+                0);
+        }
+        if (cnt < ECB_LEN) {
+            ExpectIntEQ(wc_AesEcbEncrypt(aes, cipher + cnt, plain + cnt,
+                ECB_LEN - cnt), 0);
+        }
+        for (cnt = 0; cnt < ECB_LEN; cnt += WC_AES_BLOCK_SIZE) {
+            ExpectBufEQ(cipher + cnt, expected, WC_AES_BLOCK_SIZE);
+        }
+    }
+#ifdef HAVE_AES_DECRYPT
+    ExpectIntEQ(wc_AesSetKey(aes, key, keyLen, NULL, AES_DECRYPTION), 0);
+    for (sz = WC_AES_BLOCK_SIZE; sz <= ECB_LEN; sz += WC_AES_BLOCK_SIZE) {
+        XMEMSET(decrypted, 0xff, ECB_LEN);
+        for (cnt = 0; cnt + sz <= ECB_LEN; cnt += sz) {
+            ExpectIntEQ(wc_AesEcbDecrypt(aes, decrypted + cnt, cipher + cnt,
+                sz), 0);
+        }
+        if (cnt < ECB_LEN) {
+            ExpectIntEQ(wc_AesEcbDecrypt(aes, decrypted + cnt, cipher + cnt,
+                ECB_LEN - cnt), 0);
+        }
+        for (cnt = 0; cnt < ECB_LEN; cnt += WC_AES_BLOCK_SIZE) {
+            ExpectBufEQ(decrypted + cnt, plain, WC_AES_BLOCK_SIZE);
+        }
+    }
+#endif
+
+    WC_FREE_VAR(plain, NULL);
+    WC_FREE_VAR(cipher, NULL);
+    WC_FREE_VAR(decrypted, NULL);
+    return EXPECT_RESULT();
+}
+
+static int test_wc_AesEcbEncryptDecrypt_SameBuffer(Aes* aes, byte* key,
+    word32 keyLen, byte* expected)
+{
+    EXPECT_DECLS;
+    int cnt;
+    WC_DECLARE_VAR(plain, byte, ECB_LEN, NULL);
+    WC_DECLARE_VAR(cipher, byte, ECB_LEN, NULL);
+
+    WC_ALLOC_VAR(plain, byte, ECB_LEN, NULL);
+    WC_ALLOC_VAR(cipher, byte, ECB_LEN, NULL);
+
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    ExpectNotNull(plain);
+    ExpectNotNull(cipher);
+#endif
+
+    XMEMSET(plain, 0, ECB_LEN);
+
+    /* Testing using same buffer for input and output. */
+    ExpectIntEQ(wc_AesSetKey(aes, key, keyLen, NULL, AES_ENCRYPTION), 0);
+    XMEMCPY(cipher, plain, ECB_LEN);
+    ExpectIntEQ(wc_AesEcbEncrypt(aes, cipher, cipher, ECB_LEN), 0);
+    for (cnt = 0; cnt < ECB_LEN; cnt += WC_AES_BLOCK_SIZE) {
+        ExpectBufEQ(cipher + cnt, expected, WC_AES_BLOCK_SIZE);
+    }
+#ifdef HAVE_AES_DECRYPT
+    ExpectIntEQ(wc_AesSetKey(aes, key, keyLen,
+        NULL, AES_DECRYPTION), 0);
+    ExpectIntEQ(wc_AesEcbDecrypt(aes, cipher, cipher, ECB_LEN), 0);
+    for (cnt = 0; cnt < ECB_LEN; cnt += WC_AES_BLOCK_SIZE) {
+        ExpectBufEQ(cipher + cnt, plain, WC_AES_BLOCK_SIZE);
+    }
+#endif
+
+    WC_FREE_VAR(plain, NULL);
+    WC_FREE_VAR(cipher, NULL);
+    return EXPECT_RESULT();
+}
+#endif
+
+int test_wc_AesEcbEncryptDecrypt(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_AES) && defined(HAVE_AES_ECB)
+    Aes aes;
+#if defined(WOLFSSL_AES_128)
+    byte key16[] = {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
+    };
+    byte expected16[WC_AES_BLOCK_SIZE] = {
+        0x0b, 0x9b, 0x15, 0xda, 0x4b, 0x44, 0xa0, 0xf5,
+        0x15, 0x1d, 0xcf, 0xc4, 0xc0, 0x1f, 0x35, 0xd5,
+    };
+#endif
+#if defined(WOLFSSL_AES_192)
+    byte key24[] = {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
+    };
+    byte expected24[WC_AES_BLOCK_SIZE] = {
+        0xbe, 0x55, 0x02, 0x05, 0xfc, 0x91, 0xe8, 0x9c,
+        0x9b, 0x9c, 0xc4, 0x70, 0x93, 0xb9, 0x0a, 0x08,
+    };
+#endif
+#if defined(WOLFSSL_AES_256)
+    byte key32[] = {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
+    };
+    byte expected32[WC_AES_BLOCK_SIZE] = {
+        0x7d, 0xbd, 0x88, 0x27, 0x2f, 0xb2, 0x59, 0x37,
+        0x69, 0x2a, 0x3b, 0x81, 0x00, 0x47, 0x41, 0x75,
+    };
+#endif
+    byte* key;
+    word32 keyLen;
+    byte* expected;
+
+#if defined(WOLFSSL_AES_128)
+    key = key16;
+    keyLen = (word32)sizeof(key16) / sizeof(byte);
+    expected = expected16;
+#elif defined(WOLFSSL_AES_192)
+    key = key24;
+    keyLen = (word32)sizeof(key24) / sizeof(byte);
+    expected = expected24;
+#else
+    key = key32;
+    keyLen = (word32)sizeof(key32) / sizeof(byte);
+    expected = expected32;
+#endif
+
+    XMEMSET(&aes, 0, sizeof(Aes));
+    ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+
+    EXPECT_TEST(test_wc_AesEcbEncryptDecrypt_BadArgs(&aes, key, keyLen));
+
+#if defined(WOLFSSL_AES_128)
+    EXPECT_TEST(test_wc_AesEcbEncryptDecrypt_WithKey(&aes, key16,
+        (word32)sizeof(key16) / sizeof(byte), expected16));
+#endif
+#if defined(WOLFSSL_AES_192)
+    EXPECT_TEST(test_wc_AesEcbEncryptDecrypt_WithKey(&aes, key24,
+        (word32)sizeof(key24) / sizeof(byte), expected24));
+#endif
+#if defined(WOLFSSL_AES_256)
+    EXPECT_TEST(test_wc_AesEcbEncryptDecrypt_WithKey(&aes, key32,
+        (word32)sizeof(key32) / sizeof(byte), expected32));
+#endif
+
+    EXPECT_TEST(test_wc_AesEcbEncryptDecrypt_MultiBlocks(&aes, key, keyLen,
+        expected));
+    EXPECT_TEST(test_wc_AesEcbEncryptDecrypt_SameBuffer(&aes, key, keyLen,
+        expected));
+
+    wc_AesFree(&aes);
+#endif
+    return EXPECT_RESULT();
+}
 
 /*******************************************************************************
  * AES-CBC
  ******************************************************************************/
+
+#if !defined(NO_AES) && defined(HAVE_AES_CBC)
+/* Assembly code doing 8 iterations at a time. */
+#define CBC_LEN     (9 * WC_AES_BLOCK_SIZE)
+
+static int test_wc_AesCbcEncryptDecrypt_BadArgs(Aes* aes, byte* key,
+    word32 keyLen, byte* iv)
+{
+    EXPECT_DECLS;
+    byte    plain[WC_AES_BLOCK_SIZE];
+    byte    cipher[WC_AES_BLOCK_SIZE];
+    byte    decrypted[WC_AES_BLOCK_SIZE];
+
+    XMEMSET(plain, 0, WC_AES_BLOCK_SIZE);
+    XMEMSET(cipher, 0, WC_AES_BLOCK_SIZE);
+    XMEMSET(decrypted, 0, WC_AES_BLOCK_SIZE);
+
+    ExpectIntEQ(wc_AesSetKey(aes, key, keyLen, iv, AES_ENCRYPTION), 0);
+    ExpectIntEQ(wc_AesCbcEncrypt(NULL, NULL, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesCbcEncrypt(aes, NULL, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesCbcEncrypt(NULL, cipher, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesCbcEncrypt(NULL, NULL, plain, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesCbcEncrypt(aes, cipher, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesCbcEncrypt(aes, NULL, plain, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesCbcEncrypt(NULL, cipher, plain, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    ExpectIntEQ(wc_AesSetKey(aes, key, keyLen, iv, AES_DECRYPTION), 0);
+    ExpectIntEQ(wc_AesCbcDecrypt(NULL, NULL, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesCbcDecrypt(aes, NULL, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesCbcDecrypt(NULL, decrypted, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesCbcDecrypt(NULL, NULL, cipher, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesCbcDecrypt(aes, decrypted, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesCbcDecrypt(aes, NULL, cipher, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesCbcDecrypt(NULL, decrypted, cipher, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    ExpectIntEQ(wc_AesCbcDecryptWithKey(NULL, NULL, 0, NULL, keyLen, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesCbcDecryptWithKey(decrypted, NULL, 0, NULL, keyLen, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesCbcDecryptWithKey(NULL, cipher, 0, NULL, keyLen, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesCbcDecryptWithKey(NULL, NULL, 0, key, keyLen, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesCbcDecryptWithKey(NULL, NULL, 0, NULL, keyLen, iv),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesCbcDecryptWithKey(decrypted, cipher,
+        WC_AES_BLOCK_SIZE * 2, key, keyLen, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesCbcDecryptWithKey(decrypted, cipher,
+        WC_AES_BLOCK_SIZE * 2, NULL, keyLen, iv),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesCbcDecryptWithKey(decrypted, NULL,
+        WC_AES_BLOCK_SIZE * 2, key, keyLen, iv),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesCbcDecryptWithKey(NULL, cipher,
+        WC_AES_BLOCK_SIZE * 2, key, keyLen, iv),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    return EXPECT_RESULT();
+}
+
+static int test_wc_AesCbcEncryptDecrypt_WithKey(Aes* aes, byte* key,
+    word32 keyLen, byte* iv, byte* vector, byte* vector_enc, word32 vector_len)
+{
+    EXPECT_DECLS;
+    byte    plain[WC_AES_BLOCK_SIZE * 2];
+    byte    cipher[WC_AES_BLOCK_SIZE * 2];
+    byte    decrypted[WC_AES_BLOCK_SIZE * 2];
+
+    XMEMSET(plain, 0, WC_AES_BLOCK_SIZE * 2);
+    XMEMSET(cipher, 0, WC_AES_BLOCK_SIZE * 2);
+    XMEMSET(decrypted, 0, WC_AES_BLOCK_SIZE * 2);
+
+    ExpectIntEQ(wc_AesSetKey(aes, key, keyLen, iv, AES_ENCRYPTION), 0);
+#if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && \
+    (HAVE_FIPS_VERSION == 2) && defined(WOLFSSL_AESNI)
+    fprintf(stderr, "Zero length inputs not supported with AESNI in FIPS "
+                    "mode (v2), skip test");
+#else
+    /* Test passing in size of 0  */
+    XMEMSET(cipher, 0x00, WC_AES_BLOCK_SIZE * 2);
+    ExpectIntEQ(wc_AesCbcEncrypt(aes, cipher, vector, 0), 0);
+    /* Check enc was not modified */
+    {
+        int i;
+        for (i = 0; i < (int)WC_AES_BLOCK_SIZE * 2; i++)
+            ExpectIntEQ(cipher[i], 0x00);
+    }
+#endif
+    ExpectIntEQ(wc_AesCbcEncrypt(aes, cipher, vector, vector_len),
+        0);
+    ExpectBufEQ(cipher, vector_enc, vector_len);
+#ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
+    ExpectIntEQ(wc_AesCbcEncrypt(aes, cipher, vector, vector_len - 1),
+        WC_NO_ERR_TRACE(BAD_LENGTH_E));
+#endif
+
+#ifdef HAVE_AES_DECRYPT
+    ExpectIntEQ(wc_AesSetKey(aes, key, keyLen, iv, AES_DECRYPTION), 0);
+    ExpectIntEQ(wc_AesCbcDecrypt(aes, decrypted, cipher,
+        WC_AES_BLOCK_SIZE * 2), 0);
+    ExpectBufEQ(decrypted, vector, vector_len);
+#ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
+    ExpectIntEQ(wc_AesCbcDecrypt(aes, decrypted, cipher,
+        WC_AES_BLOCK_SIZE * 2 - 1), WC_NO_ERR_TRACE(BAD_LENGTH_E));
+#else
+    ExpectIntEQ(wc_AesCbcDecrypt(aes, decrypted, cipher,
+        WC_AES_BLOCK_SIZE * 2 - 1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
+
+    ExpectIntEQ(wc_AesCbcDecryptWithKey(decrypted, cipher,
+        WC_AES_BLOCK_SIZE * 2, key, keyLen, iv), 0);
+    ExpectBufEQ(decrypted, vector, vector_len);
+
+    /* Test passing in size of 0  */
+    XMEMSET(decrypted, 0, WC_AES_BLOCK_SIZE * 2);
+    ExpectIntEQ(wc_AesCbcDecrypt(aes, decrypted, cipher, 0), 0);
+    /* Check dec was not modified */
+    {
+        int i;
+        for (i = 0; i < (int)WC_AES_BLOCK_SIZE * 2; i++)
+            ExpectIntEQ(decrypted[i], 0);
+    }
+#endif
+
+    return EXPECT_RESULT();
+}
+
+static int test_wc_AesCbcEncryptDecrypt_MultiBlocks(Aes* aes, byte* key,
+    word32 keyLen, byte* iv, byte* expected)
+{
+    EXPECT_DECLS;
+#ifdef WOLFSSL_KCAPI
+    (void)aes;
+    (void)key;
+    (void)keyLen;
+    (void)iv;
+    (void)expected;
+#else /* !WOLFSSL_KCAPI */
+    int sz;
+    int cnt;
+    WC_DECLARE_VAR(plain, byte, CBC_LEN, NULL);
+    WC_DECLARE_VAR(cipher, byte, CBC_LEN, NULL);
+    WC_DECLARE_VAR(decrypted, byte, CBC_LEN, NULL);
+
+    WC_ALLOC_VAR(plain, byte, CBC_LEN, NULL);
+    WC_ALLOC_VAR(cipher, byte, CBC_LEN, NULL);
+    WC_ALLOC_VAR(decrypted, byte, CBC_LEN, NULL);
+
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    ExpectNotNull(plain);
+    ExpectNotNull(cipher);
+    ExpectNotNull(decrypted);
+#endif
+
+
+    XMEMSET(plain, 0, CBC_LEN);
+    XMEMSET(cipher, 0, CBC_LEN);
+    XMEMSET(decrypted, 0, CBC_LEN);
+
+    ExpectIntEQ(wc_AesSetKey(aes, key, keyLen, NULL, AES_ENCRYPTION), 0);
+    /* Test multiple blocks. */
+    for (sz = WC_AES_BLOCK_SIZE; sz <= CBC_LEN; sz += WC_AES_BLOCK_SIZE) {
+        XMEMSET(cipher, 0x00, CBC_LEN);
+        ExpectIntEQ(wc_AesSetIV(aes, iv), 0);
+        for (cnt = 0; cnt + sz <= CBC_LEN; cnt += sz) {
+            ExpectIntEQ(wc_AesCbcEncrypt(aes, cipher + cnt, plain + cnt, sz),
+                0);
+        }
+        if (cnt < CBC_LEN) {
+            ExpectIntEQ(wc_AesCbcEncrypt(aes, cipher + cnt, plain + cnt,
+                CBC_LEN - cnt), 0);
+        }
+        ExpectBufEQ(cipher, expected, CBC_LEN);
+    }
+#ifdef HAVE_AES_DECRYPT
+    ExpectIntEQ(wc_AesSetKey(aes, key, keyLen, NULL, AES_DECRYPTION), 0);
+    for (sz = WC_AES_BLOCK_SIZE; sz <= CBC_LEN; sz += WC_AES_BLOCK_SIZE) {
+        XMEMSET(decrypted, 0xff, CBC_LEN);
+        ExpectIntEQ(wc_AesSetIV(aes, iv), 0);
+        for (cnt = 0; cnt + sz <= CBC_LEN; cnt += sz) {
+            ExpectIntEQ(wc_AesCbcDecrypt(aes, decrypted + cnt, cipher + cnt,
+                sz), 0);
+        }
+        if (cnt < CBC_LEN) {
+            ExpectIntEQ(wc_AesCbcDecrypt(aes, decrypted + cnt, cipher + cnt,
+                CBC_LEN - cnt), 0);
+        }
+        ExpectBufEQ(decrypted, plain, CBC_LEN);
+    }
+#endif
+
+    WC_FREE_VAR(plain, NULL);
+    WC_FREE_VAR(cipher, NULL);
+    WC_FREE_VAR(decrypted, NULL);
+#endif /* !WOLFSSL_KCAPI */
+    return EXPECT_RESULT();
+}
+
+static int test_wc_AesCbcEncryptDecrypt_SameBuffer(Aes* aes, byte* key,
+    word32 keyLen, byte* iv, byte* expected)
+{
+    EXPECT_DECLS;
+    WC_DECLARE_VAR(plain, byte, CBC_LEN, NULL);
+    WC_DECLARE_VAR(cipher, byte, CBC_LEN, NULL);
+
+    WC_ALLOC_VAR(plain, byte, CBC_LEN, NULL);
+    WC_ALLOC_VAR(cipher, byte, CBC_LEN, NULL);
+
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    ExpectNotNull(plain);
+    ExpectNotNull(cipher);
+#endif
+
+    XMEMSET(plain, 0, CBC_LEN);
+
+    /* Testing using same buffer for input and output. */
+    ExpectIntEQ(wc_AesSetKey(aes, key, keyLen, iv, AES_ENCRYPTION), 0);
+    XMEMCPY(cipher, plain, CBC_LEN);
+    ExpectIntEQ(wc_AesCbcEncrypt(aes, cipher, cipher, CBC_LEN), 0);
+    ExpectBufEQ(cipher, expected, CBC_LEN);
+#ifdef HAVE_AES_DECRYPT
+    ExpectIntEQ(wc_AesSetKey(aes, key, keyLen, iv, AES_DECRYPTION), 0);
+    ExpectIntEQ(wc_AesCbcDecrypt(aes, cipher, cipher, CBC_LEN), 0);
+    ExpectBufEQ(cipher, plain, CBC_LEN);
+#endif
+
+    WC_FREE_VAR(plain, NULL);
+    WC_FREE_VAR(cipher, NULL);
+    return EXPECT_RESULT();
+}
+#endif
 
 /*
  * test function for wc_AesCbcEncrypt(), wc_AesCbcDecrypt(),
@@ -156,112 +827,819 @@ int test_wc_AesSetIV(void)
 int test_wc_AesCbcEncryptDecrypt(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(HAVE_AES_DECRYPT)&& \
-    defined(WOLFSSL_AES_256)
+#if !defined(NO_AES) && defined(HAVE_AES_CBC)
     Aes  aes;
-    byte key32[] = {
-        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
-        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
-        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
-        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
-    };
     byte vector[] = { /* Now is the time for all good men w/o trailing 0 */
         0x4e, 0x6f, 0x77, 0x20, 0x69, 0x73, 0x20, 0x74,
         0x68, 0x65, 0x20, 0x74, 0x69, 0x6d, 0x65, 0x20,
         0x66, 0x6f, 0x72, 0x20, 0x61, 0x6c, 0x6c, 0x20,
         0x67, 0x6f, 0x6f, 0x64, 0x20, 0x6d, 0x65, 0x6e
     };
+#if defined(WOLFSSL_AES_128)
+    byte key16[] = {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
+    };
+    byte vector_enc16[] = {
+        0x26, 0x5b, 0x55, 0xf1, 0xcc, 0x77, 0xc0, 0x9a,
+        0x60, 0x77, 0x99, 0x1d, 0x52, 0xf1, 0xc0, 0x3a,
+        0x0f, 0x16, 0xae, 0x62, 0xf1, 0x71, 0xf5, 0x95,
+        0xb6, 0x74, 0x98, 0x2a, 0x6b, 0x7c, 0x7c, 0x39
+    };
+#endif
+#if defined(WOLFSSL_AES_192)
+    byte key24[] = {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
+    };
+    byte vector_enc24[] = {
+        0xdb, 0x96, 0xfa, 0x55, 0x90, 0x1e, 0x0c, 0x4f,
+        0xe4, 0x0f, 0xde, 0x16, 0x33, 0x44, 0xca, 0xa5,
+        0xe6, 0xa8, 0xbd, 0xd4, 0x88, 0xe5, 0x2f, 0x88,
+        0xfd, 0x61, 0x0f, 0x88, 0x6d, 0xf1, 0xf6, 0xa5
+    };
+#endif
+#if defined(WOLFSSL_AES_256)
+    byte key32[] = {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
+    };
+    byte vector_enc32[] = {
+        0xd7, 0xd6, 0x04, 0x5b, 0x4d, 0xc4, 0x90, 0xdf,
+        0x4a, 0x82, 0xed, 0x61, 0x26, 0x4e, 0x23, 0xb3,
+        0xe4, 0xb5, 0x85, 0x30, 0x29, 0x4c, 0x9d, 0xcf,
+        0x73, 0xc9, 0x46, 0xd1, 0xaa, 0xc8, 0xcb, 0x62,
+    };
+#endif
+#ifdef WOLFSSL_AES_128
+    byte expected16[CBC_LEN] = {
+        0x46, 0x1a, 0x5f, 0xfd, 0x9d, 0xf7, 0x91, 0x71,
+        0x35, 0x8e, 0x9e, 0x01, 0x77, 0xd8, 0x4e, 0xaa,
+        0x34, 0x28, 0xba, 0x95, 0x76, 0xa5, 0x60, 0xeb,
+        0xbf, 0x6e, 0x89, 0xf5, 0x9a, 0x03, 0x7a, 0x7e,
+        0x07, 0xc5, 0xec, 0x60, 0xe1, 0x9b, 0x7a, 0x35,
+        0x9c, 0x29, 0x74, 0x6c, 0x2b, 0x1c, 0xff, 0x1b,
+        0xa0, 0xd5, 0xf3, 0x5b, 0x23, 0x86, 0x31, 0xbe,
+        0x1a, 0x20, 0x2c, 0x57, 0xf4, 0x9e, 0x81, 0x67,
+        0xb8, 0xf2, 0x60, 0x28, 0x36, 0x50, 0x6c, 0x06,
+        0x69, 0xa8, 0xec, 0x36, 0x46, 0x2a, 0xc9, 0x12,
+        0x54, 0xc8, 0xeb, 0x73, 0x8d, 0xe8, 0x0f, 0x0c,
+        0xd6, 0x53, 0x8b, 0xd2, 0x24, 0xdb, 0x08, 0xf7,
+        0x1e, 0x2e, 0x34, 0x8d, 0x27, 0x6d, 0x77, 0x8f,
+        0x00, 0xa5, 0x8e, 0xc3, 0x0d, 0x07, 0x61, 0xd4,
+        0xe0, 0x54, 0x9b, 0xfe, 0x71, 0x4f, 0x25, 0x75,
+        0x9f, 0x7a, 0x2c, 0xa4, 0x0e, 0x47, 0x1f, 0xef,
+        0x85, 0x19, 0x36, 0x65, 0x3b, 0x28, 0x20, 0x3a,
+        0xf9, 0x7f, 0x13, 0xe8, 0x24, 0xd7, 0x64, 0x27,
+    };
+#elif defined(WOLFSSL_AES_192)
+    byte expected24[CBC_LEN] = {
+        0x7b, 0xde, 0x53, 0xac, 0x88, 0x24, 0xe6, 0xde,
+        0x68, 0xd4, 0x64, 0x18, 0x20, 0x96, 0x62, 0x68,
+        0xd0, 0x04, 0x81, 0x50, 0x73, 0xe7, 0x6d, 0x8e,
+        0x14, 0x44, 0x87, 0xad, 0x6d, 0x44, 0xf9, 0xc3,
+        0xe9, 0x82, 0x2e, 0x2d, 0x17, 0x16, 0x43, 0xa6,
+        0x29, 0xe3, 0x9d, 0x7f, 0x84, 0x2e, 0x9a, 0x14,
+        0x69, 0xe9, 0x7b, 0x38, 0xfd, 0xec, 0x71, 0x4a,
+        0xf7, 0x0f, 0xbf, 0x6e, 0x4d, 0x46, 0x7e, 0xad,
+        0x83, 0xcb, 0xfa, 0x20, 0x25, 0xf8, 0x13, 0xc6,
+        0x75, 0xdd, 0x12, 0x1f, 0xed, 0xfa, 0x3a, 0x1c,
+        0x01, 0x68, 0x02, 0x12, 0x69, 0x4c, 0xe7, 0x00,
+        0xf1, 0x9c, 0x40, 0xed, 0x7d, 0x64, 0x16, 0x1c,
+        0x63, 0x07, 0x87, 0x37, 0xb3, 0x5b, 0x59, 0x97,
+        0xc9, 0xe4, 0x86, 0xfd, 0xd2, 0xae, 0x5b, 0x59,
+        0x5a, 0xe9, 0xf5, 0x0b, 0xa0, 0x87, 0xf4, 0xb5,
+        0x65, 0x9c, 0x98, 0x0f, 0xbf, 0x11, 0xa4, 0x7d,
+        0x06, 0x80, 0xb5, 0x27, 0x9c, 0xd5, 0x09, 0x7a,
+        0xa1, 0x42, 0xbd, 0x87, 0x6b, 0x85, 0x2f, 0x6e,
+    };
+#else
+    byte expected32[CBC_LEN] = {
+        0x18, 0x5a, 0x48, 0xfd, 0xb7, 0xd5, 0x35, 0xf3,
+        0x3f, 0xb9, 0x14, 0x16, 0xf3, 0x05, 0xf3, 0x71,
+        0xea, 0x4e, 0x22, 0xcd, 0x15, 0x3a, 0xcc, 0xba,
+        0x3f, 0x5b, 0x85, 0x15, 0xdf, 0x07, 0xf6, 0xa4,
+        0xf4, 0x41, 0xe7, 0x08, 0x30, 0x9b, 0x09, 0x2d,
+        0xd4, 0x3e, 0x68, 0xea, 0x45, 0x3d, 0x3a, 0xe3,
+        0x7c, 0x68, 0x00, 0xda, 0xeb, 0x87, 0xd7, 0x11,
+        0x2a, 0x0b, 0x7c, 0x48, 0xe5, 0xef, 0xae, 0x6d,
+        0x61, 0x04, 0xa4, 0x16, 0xc7, 0xb6, 0x0f, 0xab,
+        0x24, 0x0c, 0x74, 0x0b, 0x4f, 0xfe, 0xfd, 0xd1,
+        0x38, 0xae, 0x92, 0x18, 0x57, 0xdd, 0x20, 0x90,
+        0x74, 0x0a, 0xdf, 0x7b, 0x06, 0x2d, 0x8a, 0xe8,
+        0x43, 0x77, 0x0d, 0x18, 0x25, 0x8b, 0x04, 0x98,
+        0xf4, 0x4c, 0x43, 0x19, 0x99, 0x16, 0x5a, 0xac,
+        0x7f, 0x52, 0x0f, 0x79, 0xd2, 0x10, 0xa5, 0xf3,
+        0x88, 0xf3, 0x79, 0x0a, 0x05, 0x22, 0xb8, 0xb2,
+        0xb7, 0xd4, 0x8e, 0x17, 0x80, 0x1b, 0x4d, 0xcb,
+        0x99, 0xa7, 0x30, 0x1b, 0xe0, 0xee, 0xd5, 0xd3,
+    };
+#endif
     byte    iv[]   = "1234567890abcdef";
-    byte    enc[sizeof(vector)];
-    byte    dec[sizeof(vector)];
-    byte    dec2[sizeof(vector)];
+    byte* key;
+    word32 keyLen;
+    byte* expected;
+
+#if defined(WOLFSSL_AES_128)
+    key = key16;
+    keyLen = (word32)sizeof(key16) / sizeof(byte);
+    expected = expected16;
+#elif defined(WOLFSSL_AES_192)
+    key = key24;
+    keyLen = (word32)sizeof(key24) / sizeof(byte);
+    expected = expected24;
+#else
+    key = key32;
+    keyLen = (word32)sizeof(key32) / sizeof(byte);
+    expected = expected32;
+#endif
 
     /* Init stack variables. */
     XMEMSET(&aes, 0, sizeof(Aes));
-    XMEMSET(enc, 0, sizeof(enc));
-    XMEMSET(dec, 0, sizeof(vector));
-    XMEMSET(dec2, 0, sizeof(vector));
 
     ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_AesSetKey(&aes, key32, WC_AES_BLOCK_SIZE * 2, iv,
-        AES_ENCRYPTION), 0);
-    ExpectIntEQ(wc_AesCbcEncrypt(&aes, enc, vector, sizeof(vector)), 0);
 
-    /* Re init for decrypt and set flag. */
-    ExpectIntEQ(wc_AesSetKey(&aes, key32, WC_AES_BLOCK_SIZE * 2, iv,
-        AES_DECRYPTION), 0);
-    ExpectIntEQ(wc_AesCbcDecrypt(&aes, dec, enc, sizeof(vector)), 0);
-    ExpectIntEQ(XMEMCMP(vector, dec, sizeof(vector)), 0);
+    EXPECT_TEST(test_wc_AesCbcEncryptDecrypt_BadArgs(&aes, key, keyLen, iv));
 
-    ExpectIntEQ(wc_AesCbcDecryptWithKey(dec2, enc, WC_AES_BLOCK_SIZE, key32,
-        sizeof(key32)/sizeof(byte), iv), 0);
-    ExpectIntEQ(XMEMCMP(vector, dec2, WC_AES_BLOCK_SIZE), 0);
-
-    /* Pass in bad args */
-    ExpectIntEQ(wc_AesCbcEncrypt(NULL, enc, vector, sizeof(vector)),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_AesCbcEncrypt(&aes, NULL, vector, sizeof(vector)),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_AesCbcEncrypt(&aes, enc, NULL, sizeof(vector)),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-#ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
-    ExpectIntEQ(wc_AesCbcEncrypt(&aes, enc, vector, sizeof(vector) - 1),
-        WC_NO_ERR_TRACE(BAD_LENGTH_E));
+#ifdef WOLFSSL_AES_128
+    EXPECT_TEST(test_wc_AesCbcEncryptDecrypt_WithKey(&aes, key16,
+        (word32)sizeof(key16) / sizeof(byte), iv, vector, vector_enc16,
+        (word32)sizeof(vector) / sizeof(byte)));
 #endif
-#if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && \
-    (HAVE_FIPS_VERSION == 2) && defined(WOLFSSL_AESNI)
-    fprintf(stderr, "Zero length inputs not supported with AESNI in FIPS "
-                    "mode (v2), skip test");
-#else
-    /* Test passing in size of 0  */
-    XMEMSET(enc, 0, sizeof(enc));
-    ExpectIntEQ(wc_AesCbcEncrypt(&aes, enc, vector, 0), 0);
-    /* Check enc was not modified */
-    {
-        int i;
-        for (i = 0; i < (int)sizeof(enc); i++)
-            ExpectIntEQ(enc[i], 0);
-    }
+#ifdef WOLFSSL_AES_192
+    EXPECT_TEST(test_wc_AesCbcEncryptDecrypt_WithKey(&aes, key24,
+        (word32)sizeof(key24) / sizeof(byte), iv, vector, vector_enc24,
+        (word32)sizeof(vector) / sizeof(byte)));
+#endif
+#ifdef WOLFSSL_AES_256
+    EXPECT_TEST(test_wc_AesCbcEncryptDecrypt_WithKey(&aes, key32,
+        (word32)sizeof(key32) / sizeof(byte), iv, vector, vector_enc32,
+        (word32)sizeof(vector) / sizeof(byte)));
 #endif
 
-    ExpectIntEQ(wc_AesCbcDecrypt(NULL, dec, enc, WC_AES_BLOCK_SIZE),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_AesCbcDecrypt(&aes, NULL, enc, WC_AES_BLOCK_SIZE),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_AesCbcDecrypt(&aes, dec, NULL, WC_AES_BLOCK_SIZE),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-#ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
-    ExpectIntEQ(wc_AesCbcDecrypt(&aes, dec, enc, WC_AES_BLOCK_SIZE * 2 - 1),
-        WC_NO_ERR_TRACE(BAD_LENGTH_E));
-#else
-    ExpectIntEQ(wc_AesCbcDecrypt(&aes, dec, enc, WC_AES_BLOCK_SIZE * 2 - 1),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-#endif
-
-    /* Test passing in size of 0  */
-    XMEMSET(dec, 0, sizeof(dec));
-    ExpectIntEQ(wc_AesCbcDecrypt(&aes, dec, enc, 0), 0);
-    /* Check dec was not modified */
-    {
-        int i;
-        for (i = 0; i < (int)sizeof(dec); i++)
-            ExpectIntEQ(dec[i], 0);
-    }
-
-    ExpectIntEQ(wc_AesCbcDecryptWithKey(NULL, enc, WC_AES_BLOCK_SIZE,
-        key32, sizeof(key32)/sizeof(byte), iv), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_AesCbcDecryptWithKey(dec2, NULL, WC_AES_BLOCK_SIZE,
-        key32, sizeof(key32)/sizeof(byte), iv), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_AesCbcDecryptWithKey(dec2, enc, WC_AES_BLOCK_SIZE,
-        NULL, sizeof(key32)/sizeof(byte), iv), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_AesCbcDecryptWithKey(dec2, enc, WC_AES_BLOCK_SIZE,
-        key32, sizeof(key32)/sizeof(byte), NULL),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    EXPECT_TEST(test_wc_AesCbcEncryptDecrypt_MultiBlocks(&aes, key, keyLen, iv,
+        expected));
+    EXPECT_TEST(test_wc_AesCbcEncryptDecrypt_SameBuffer(&aes, key, keyLen, iv,
+        expected));
 
     wc_AesFree(&aes);
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_AesCbcEncryptDecrypt */
+
+/*******************************************************************************
+ * AES-CFB
+ ******************************************************************************/
+
+#if !defined(NO_AES) && defined(WOLFSSL_AES_CFB)
+#define CFB_LEN     (5 * WC_AES_BLOCK_SIZE)
+
+static int test_wc_AesCfbEncryptDecrypt_BadArgs(Aes* aes, byte* key,
+    word32 keyLen, byte* iv)
+{
+    EXPECT_DECLS;
+    byte plain[WC_AES_BLOCK_SIZE];
+    byte cipher[WC_AES_BLOCK_SIZE];
+#ifdef HAVE_AES_DECRYPT
+    byte decrypted[WC_AES_BLOCK_SIZE];
+#endif
+
+    XMEMSET(plain, 0x00, WC_AES_BLOCK_SIZE);
+    XMEMSET(cipher, 0x00, WC_AES_BLOCK_SIZE);
+
+    ExpectIntEQ(wc_AesSetKey(aes, key, keyLen, NULL, AES_ENCRYPTION), 0);
+
+    ExpectIntEQ(wc_AesSetIV(aes, iv), 0);
+    ExpectIntEQ(wc_AesCfbEncrypt(NULL, NULL, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesCfbEncrypt(aes, NULL, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesCfbEncrypt(NULL, cipher, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesCfbEncrypt(NULL, NULL, plain, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesCfbEncrypt(aes, cipher, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesCfbEncrypt(aes, NULL, plain, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesCfbEncrypt(NULL, cipher, plain, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+#ifdef HAVE_AES_DECRYPT
+    ExpectIntEQ(wc_AesSetIV(aes, iv), 0);
+    ExpectIntEQ(wc_AesCfbDecrypt(NULL, NULL, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesCfbDecrypt(aes, NULL, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesCfbDecrypt(NULL, decrypted, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesCfbDecrypt(NULL, NULL, cipher, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesCfbDecrypt(aes, decrypted, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesCfbDecrypt(aes, NULL, cipher, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesCfbDecrypt(NULL, decrypted, cipher, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
+
+    return EXPECT_RESULT();
+}
+
+static int test_wc_AesCfbEncryptDecrypt_WithKey(Aes* aes, byte* key,
+    word32 keyLen, byte* iv, byte* expected)
+{
+    EXPECT_DECLS;
+    WC_DECLARE_VAR(plain, byte, CFB_LEN, NULL);
+    WC_DECLARE_VAR(cipher, byte, CFB_LEN, NULL);
+#ifdef HAVE_AES_DECRYPT
+    WC_DECLARE_VAR(decrypted, byte, CFB_LEN, NULL);
+#endif
+
+    WC_ALLOC_VAR(plain, byte, CFB_LEN, NULL);
+    WC_ALLOC_VAR(cipher, byte, CFB_LEN, NULL);
+#ifdef HAVE_AES_DECRYPT
+    WC_ALLOC_VAR(decrypted, byte, CFB_LEN, NULL);
+#endif
+
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    ExpectNotNull(plain);
+    ExpectNotNull(cipher);
+#ifdef HAVE_AES_DECRYPT
+    ExpectNotNull(decrypted);
+#endif
+#endif
+
+    XMEMSET(plain, 0xa5, CFB_LEN);
+
+    ExpectIntEQ(wc_AesSetKey(aes, key, keyLen, NULL, AES_ENCRYPTION), 0);
+
+    ExpectIntEQ(wc_AesSetIV(aes, iv), 0);
+    ExpectIntEQ(wc_AesCfbEncrypt(aes, cipher, plain, WC_AES_BLOCK_SIZE), 0);
+    ExpectBufEQ(cipher, expected, WC_AES_BLOCK_SIZE);
+
+#ifdef HAVE_AES_DECRYPT
+    ExpectIntEQ(wc_AesSetIV(aes, iv), 0);
+    ExpectIntEQ(wc_AesCfbDecrypt(aes, decrypted, cipher, WC_AES_BLOCK_SIZE),
+        0);
+    ExpectBufEQ(decrypted, plain, WC_AES_BLOCK_SIZE);
+#endif
+
+    ExpectIntEQ(wc_AesSetIV(aes, iv), 0);
+    ExpectIntEQ(wc_AesCfbEncrypt(aes, cipher, plain, CFB_LEN), 0);
+    ExpectBufEQ(cipher, expected, CFB_LEN);
+#ifdef HAVE_AES_DECRYPT
+    ExpectIntEQ(wc_AesSetIV(aes, iv), 0);
+    ExpectIntEQ(wc_AesCfbDecrypt(aes, decrypted, cipher, CFB_LEN), 0);
+    ExpectBufEQ(decrypted, plain, CFB_LEN);
+#endif
+
+    WC_FREE_VAR(plain, NULL);
+    WC_FREE_VAR(cipher, NULL);
+#ifdef HAVE_AES_DECRYPT
+    WC_FREE_VAR(decrypted, NULL);
+#endif
+    return EXPECT_RESULT();
+}
+
+static int test_wc_AesCfbEncryptDecrypt_Chunking(Aes* aes, byte* key,
+    word32 keyLen, byte* iv, byte* expected)
+{
+    EXPECT_DECLS;
+    int sz;
+    int cnt;
+    WC_DECLARE_VAR(plain, byte, CFB_LEN, NULL);
+    WC_DECLARE_VAR(cipher, byte, CFB_LEN, NULL);
+#ifdef HAVE_AES_DECRYPT
+    WC_DECLARE_VAR(decrypted, byte, CFB_LEN, NULL);
+#endif
+
+    WC_ALLOC_VAR(plain, byte, CFB_LEN, NULL);
+    WC_ALLOC_VAR(cipher, byte, CFB_LEN, NULL);
+#ifdef HAVE_AES_DECRYPT
+    WC_ALLOC_VAR(decrypted, byte, CFB_LEN, NULL);
+#endif
+
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    ExpectNotNull(plain);
+    ExpectNotNull(cipher);
+#ifdef HAVE_AES_DECRYPT
+    ExpectNotNull(decrypted);
+#endif
+#endif
+
+    XMEMSET(plain, 0xa5, CFB_LEN);
+
+    ExpectIntEQ(wc_AesSetKey(aes, key, keyLen, NULL, AES_ENCRYPTION), 0);
+
+    for (sz = 1; sz < CFB_LEN; sz++) {
+        ExpectIntEQ(wc_AesSetIV(aes, iv), 0);
+        XMEMSET(cipher, 0, CFB_LEN);
+        for (cnt = 0; cnt + sz <= CFB_LEN; cnt += sz) {
+            ExpectIntEQ(wc_AesCfbEncrypt(aes, cipher + cnt, plain + cnt, sz),
+                0);
+        }
+        if (cnt < CFB_LEN) {
+            ExpectIntEQ(wc_AesCfbEncrypt(aes, cipher + cnt, plain + cnt,
+                CFB_LEN - cnt), 0);
+        }
+        ExpectBufEQ(cipher, expected, CFB_LEN);
+    }
+#ifdef HAVE_AES_DECRYPT
+    for (sz = 1; sz < CFB_LEN; sz++) {
+        ExpectIntEQ(wc_AesSetIV(aes, iv), 0);
+        XMEMSET(decrypted, 0xff, CFB_LEN);
+        for (cnt = 0; cnt + sz <= CFB_LEN; cnt += sz) {
+            ExpectIntEQ(wc_AesCfbDecrypt(aes, decrypted + cnt, cipher + cnt,
+                sz), 0);
+        }
+        if (cnt < CFB_LEN) {
+            ExpectIntEQ(wc_AesCfbDecrypt(aes, decrypted + cnt, cipher + cnt,
+                CFB_LEN - cnt), 0);
+        }
+        ExpectBufEQ(decrypted, plain, CFB_LEN);
+    }
+#endif
+
+    WC_FREE_VAR(plain, NULL);
+    WC_FREE_VAR(cipher, NULL);
+#ifdef HAVE_AES_DECRYPT
+    WC_FREE_VAR(decrypted, NULL);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if (!defined(HAVE_FIPS) || !defined(HAVE_FIPS_VERSION) || \
+        (HAVE_FIPS_VERSION > 6)) && !defined(HAVE_SELFTEST)
+static int test_wc_AesCfbEncryptDecrypt_SameBuffer(Aes* aes, byte* key,
+    word32 keyLen, byte* iv, byte* expected)
+{
+    EXPECT_DECLS;
+    WC_DECLARE_VAR(plain, byte, CFB_LEN, NULL);
+    WC_DECLARE_VAR(cipher, byte, CFB_LEN, NULL);
+
+    WC_ALLOC_VAR(plain, byte, CBC_LEN, NULL);
+    WC_ALLOC_VAR(cipher, byte, CBC_LEN, NULL);
+
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    ExpectNotNull(plain);
+    ExpectNotNull(cipher);
+#endif
+
+    XMEMSET(plain, 0xa5, CFB_LEN);
+
+    ExpectIntEQ(wc_AesSetKey(aes, key, keyLen, NULL, AES_ENCRYPTION), 0);
+
+    /* Testing using same buffer for input and output. */
+    XMEMCPY(cipher, plain, CFB_LEN);
+    ExpectIntEQ(wc_AesSetIV(aes, iv), 0);
+    ExpectIntEQ(wc_AesCfbEncrypt(aes, cipher, cipher, CFB_LEN), 0);
+    ExpectBufEQ(cipher, expected, CFB_LEN);
+#ifdef HAVE_AES_DECRYPT
+    ExpectIntEQ(wc_AesSetIV(aes, iv), 0);
+    ExpectIntEQ(wc_AesCfbDecrypt(aes, cipher, cipher, CFB_LEN), 0);
+    ExpectBufEQ(cipher, plain, CFB_LEN);
+#endif
+
+    WC_FREE_VAR(plain, NULL);
+    WC_FREE_VAR(cipher, NULL);
+    return EXPECT_RESULT();
+}
+#endif
+#endif
+
+int test_wc_AesCfbEncryptDecrypt(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_AES) && defined(WOLFSSL_AES_CFB)
+    Aes aes;
+#if defined(WOLFSSL_AES_128)
+    byte key16[] = {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
+    };
+    byte expected16[CFB_LEN] = {
+        0xe3, 0xbf, 0xfa, 0x58, 0x38, 0x52, 0x34, 0xd4,
+        0x90, 0x2b, 0x3b, 0xa4, 0xd2, 0x7d, 0xeb, 0x0f,
+        0x01, 0x1f, 0xb4, 0x51, 0xa3, 0x6b, 0x21, 0x0c,
+        0x17, 0xb0, 0xb2, 0xbf, 0x33, 0x3d, 0xe4, 0x3f,
+        0xf9, 0x50, 0xcc, 0x2b, 0xab, 0xb7, 0x30, 0xaa,
+        0xaf, 0x56, 0xad, 0xdb, 0xca, 0x73, 0x4b, 0x13,
+        0x3b, 0xe2, 0xef, 0x8a, 0xb9, 0x1c, 0xfe, 0xfa,
+        0x79, 0xcd, 0x92, 0x34, 0x27, 0xae, 0x6c, 0xe9,
+        0x18, 0x60, 0x05, 0x44, 0xdd, 0x87, 0xe5, 0xfa,
+        0x87, 0x64, 0xd0, 0x4c, 0x21, 0x00, 0xe9, 0x8d,
+    };
+#endif
+#if defined(WOLFSSL_AES_192)
+    byte key24[] = {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
+    };
+    byte expected24[CFB_LEN] = {
+        0xde, 0x7b, 0xf6, 0x09, 0x2d, 0x81, 0x43, 0x7b,
+        0xcd, 0x71, 0xc1, 0xbd, 0x85, 0x33, 0xc7, 0xcd,
+        0x23, 0xb2, 0x9f, 0xf8, 0x69, 0xe5, 0x77, 0xbf,
+        0x5a, 0x7f, 0xad, 0x5d, 0x98, 0x8f, 0x17, 0x70,
+        0x65, 0xf6, 0x18, 0x90, 0x95, 0x5f, 0x85, 0xfd,
+        0xfb, 0xc4, 0xed, 0xf2, 0x85, 0x6a, 0x3f, 0x62,
+        0x8c, 0x33, 0x08, 0x42, 0x5d, 0x29, 0x51, 0xec,
+        0xaa, 0x37, 0x7c, 0x57, 0x51, 0xa0, 0xde, 0xf8,
+        0x68, 0x12, 0xf7, 0x73, 0x1c, 0x0c, 0xc7, 0xa6,
+        0xb1, 0x82, 0x0e, 0xc8, 0xbd, 0xe3, 0x48, 0x3c,
+    };
+#endif
+#if defined(WOLFSSL_AES_256)
+    byte key32[] = {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
+    };
+    byte expected32[CFB_LEN] = {
+        0xbd, 0xff, 0xed, 0x58, 0x12, 0x70, 0x90, 0x56,
+        0x9a, 0x1c, 0xb1, 0xb3, 0x56, 0xa0, 0x56, 0xd4,
+        0x97, 0xb3, 0x9c, 0xf9, 0xeb, 0x2a, 0xb6, 0x23,
+        0x11, 0x0c, 0x8d, 0x15, 0x2d, 0x03, 0x66, 0x76,
+        0x4a, 0x7f, 0xb4, 0xf4, 0xe6, 0x7c, 0xec, 0x8b,
+        0xe9, 0xa9, 0x40, 0x2b, 0x97, 0xec, 0x0e, 0x24,
+        0xfe, 0x4b, 0xa1, 0xd6, 0xfc, 0x8f, 0x9c, 0x79,
+        0x0c, 0x84, 0x18, 0x67, 0x14, 0x7d, 0x8c, 0x5a,
+        0x78, 0x4f, 0x18, 0xb1, 0x04, 0xd9, 0x41, 0x79,
+        0x72, 0x92, 0x5e, 0x91, 0xe8, 0xa9, 0xe7, 0xe9,
+    };
+#endif
+    byte iv[]   = "1234567890abcdef";
+    byte* key;
+    word32 keyLen;
+    byte* expected;
+
+#if defined(WOLFSSL_AES_128)
+    key = key16;
+    keyLen = (word32)sizeof(key16) / sizeof(byte);
+    expected = expected16;
+#elif defined(WOLFSSL_AES_192)
+    key = key24;
+    keyLen = (word32)sizeof(key24) / sizeof(byte);
+    expected = expected24;
+#else
+    key = key32;
+    keyLen = (word32)sizeof(key32) / sizeof(byte);
+    expected = expected32;
+#endif
+
+    XMEMSET(&aes, 0, sizeof(Aes));
+    ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+
+    EXPECT_TEST(test_wc_AesCfbEncryptDecrypt_BadArgs(&aes, key, keyLen, iv));
+
+#if defined(WOLFSSL_AES_128)
+    EXPECT_TEST(test_wc_AesCfbEncryptDecrypt_WithKey(&aes, key16,
+        (word32)sizeof(key16) / sizeof(byte), iv, expected16));
+#endif
+#if defined(WOLFSSL_AES_192)
+    EXPECT_TEST(test_wc_AesCfbEncryptDecrypt_WithKey(&aes, key24,
+        (word32)sizeof(key24) / sizeof(byte), iv, expected24));
+#endif
+#if defined(WOLFSSL_AES_256)
+    EXPECT_TEST(test_wc_AesCfbEncryptDecrypt_WithKey(&aes, key32,
+        (word32)sizeof(key32) / sizeof(byte), iv, expected32));
+#endif
+
+    EXPECT_TEST(test_wc_AesCfbEncryptDecrypt_Chunking(&aes, key, keyLen, iv,
+        expected));
+#if (!defined(HAVE_FIPS) || !defined(HAVE_FIPS_VERSION) || \
+        (HAVE_FIPS_VERSION > 6)) && !defined(HAVE_SELFTEST)
+    EXPECT_TEST(test_wc_AesCfbEncryptDecrypt_SameBuffer(&aes, key, keyLen, iv,
+        expected));
+#endif
+
+    wc_AesFree(&aes);
+#endif
+    return EXPECT_RESULT();
+}
+
+/*******************************************************************************
+ * AES-OFB
+ ******************************************************************************/
+
+#if !defined(NO_AES) && defined(WOLFSSL_AES_OFB)
+#define OFB_LEN     (5 * WC_AES_BLOCK_SIZE)
+
+static int test_wc_AesOfbEncryptDecrypt_BadArgs(Aes* aes, byte* key,
+    word32 keyLen, byte* iv)
+{
+    EXPECT_DECLS;
+    byte plain[WC_AES_BLOCK_SIZE];
+    byte cipher[WC_AES_BLOCK_SIZE];
+#ifdef HAVE_AES_DECRYPT
+    byte decrypted[WC_AES_BLOCK_SIZE];
+#endif
+
+    XMEMSET(plain, 0x00, WC_AES_BLOCK_SIZE);
+    XMEMSET(cipher, 0x00, WC_AES_BLOCK_SIZE);
+
+    ExpectIntEQ(wc_AesSetKey(aes, key, keyLen, NULL, AES_ENCRYPTION), 0);
+
+    ExpectIntEQ(wc_AesSetIV(aes, iv), 0);
+    ExpectIntEQ(wc_AesOfbEncrypt(NULL, NULL, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesOfbEncrypt(aes, NULL, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesOfbEncrypt(NULL, cipher, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesOfbEncrypt(NULL, NULL, plain, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesOfbEncrypt(aes, cipher, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesOfbEncrypt(aes, NULL, plain, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesOfbEncrypt(NULL, cipher, plain, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+#ifdef HAVE_AES_DECRYPT
+    ExpectIntEQ(wc_AesSetIV(aes, iv), 0);
+    ExpectIntEQ(wc_AesOfbDecrypt(NULL, NULL, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesOfbDecrypt(aes, NULL, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesOfbDecrypt(NULL, decrypted, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesOfbDecrypt(NULL, NULL, cipher, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesOfbDecrypt(aes, decrypted, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesOfbDecrypt(aes, NULL, cipher, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesOfbDecrypt(NULL, decrypted, cipher, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
+
+    return EXPECT_RESULT();
+}
+
+static int test_wc_AesOfbEncryptDecrypt_WithKey(Aes* aes, byte* key,
+    word32 keyLen, byte* iv, byte* expected)
+{
+    EXPECT_DECLS;
+    WC_DECLARE_VAR(plain, byte, OFB_LEN, NULL);
+    WC_DECLARE_VAR(cipher, byte, OFB_LEN, NULL);
+#ifdef HAVE_AES_DECRYPT
+    WC_DECLARE_VAR(decrypted, byte, OFB_LEN, NULL);
+#endif
+
+    WC_ALLOC_VAR(plain, byte, OFB_LEN, NULL);
+    WC_ALLOC_VAR(cipher, byte, OFB_LEN, NULL);
+#ifdef HAVE_AES_DECRYPT
+    WC_ALLOC_VAR(decrypted, byte, OFB_LEN, NULL);
+#endif
+
+    XMEMSET(plain, 0xa5, OFB_LEN);
+
+    ExpectIntEQ(wc_AesSetKey(aes, key, keyLen, NULL, AES_ENCRYPTION), 0);
+
+    ExpectIntEQ(wc_AesSetIV(aes, iv), 0);
+    ExpectIntEQ(wc_AesOfbEncrypt(aes, cipher, plain, WC_AES_BLOCK_SIZE), 0);
+    ExpectBufEQ(cipher, expected, WC_AES_BLOCK_SIZE);
+
+#ifdef HAVE_AES_DECRYPT
+    ExpectIntEQ(wc_AesSetIV(aes, iv), 0);
+    ExpectIntEQ(wc_AesOfbDecrypt(aes, decrypted, cipher, WC_AES_BLOCK_SIZE),
+        0);
+    ExpectBufEQ(decrypted, plain, WC_AES_BLOCK_SIZE);
+#endif
+
+    ExpectIntEQ(wc_AesSetIV(aes, iv), 0);
+    ExpectIntEQ(wc_AesOfbEncrypt(aes, cipher, plain, OFB_LEN), 0);
+    ExpectBufEQ(cipher, expected, OFB_LEN);
+#ifdef HAVE_AES_DECRYPT
+    ExpectIntEQ(wc_AesSetIV(aes, iv), 0);
+    ExpectIntEQ(wc_AesOfbDecrypt(aes, decrypted, cipher, OFB_LEN), 0);
+    ExpectBufEQ(decrypted, plain, OFB_LEN);
+#endif
+
+    WC_FREE_VAR(plain, NULL);
+    WC_FREE_VAR(cipher, NULL);
+#ifdef HAVE_AES_DECRYPT
+    WC_FREE_VAR(decrypted, NULL);
+#endif
+    return EXPECT_RESULT();
+}
+
+static int test_wc_AesOfbEncryptDecrypt_Chunking(Aes* aes, byte* key,
+    word32 keyLen, byte* iv, byte* expected)
+{
+    EXPECT_DECLS;
+    int sz;
+    int cnt;
+    WC_DECLARE_VAR(plain, byte, OFB_LEN, NULL);
+    WC_DECLARE_VAR(cipher, byte, OFB_LEN, NULL);
+#ifdef HAVE_AES_DECRYPT
+    WC_DECLARE_VAR(decrypted, byte, OFB_LEN, NULL);
+#endif
+
+    WC_ALLOC_VAR(plain, byte, OFB_LEN, NULL);
+    WC_ALLOC_VAR(cipher, byte, OFB_LEN, NULL);
+#ifdef HAVE_AES_DECRYPT
+    WC_ALLOC_VAR(decrypted, byte, OFB_LEN, NULL);
+#endif
+
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    ExpectNotNull(plain);
+    ExpectNotNull(cipher);
+#ifdef HAVE_AES_DECRYPT
+    ExpectNotNull(decrypted);
+#endif
+#endif
+
+    XMEMSET(plain, 0xa5, OFB_LEN);
+
+    ExpectIntEQ(wc_AesSetKey(aes, key, keyLen, NULL, AES_ENCRYPTION), 0);
+
+    for (sz = 1; sz < OFB_LEN; sz++) {
+        ExpectIntEQ(wc_AesSetIV(aes, iv), 0);
+        XMEMSET(cipher, 0, OFB_LEN);
+        for (cnt = 0; cnt + sz <= OFB_LEN; cnt += sz) {
+            ExpectIntEQ(wc_AesOfbEncrypt(aes, cipher + cnt, plain + cnt, sz),
+                0);
+        }
+        if (cnt < OFB_LEN) {
+            ExpectIntEQ(wc_AesOfbEncrypt(aes, cipher + cnt, plain + cnt,
+                OFB_LEN - cnt), 0);
+        }
+        ExpectBufEQ(cipher, expected, OFB_LEN);
+    }
+#ifdef HAVE_AES_DECRYPT
+    for (sz = 1; sz < OFB_LEN; sz++) {
+        ExpectIntEQ(wc_AesSetIV(aes, iv), 0);
+        XMEMSET(decrypted, 0xff, OFB_LEN);
+        for (cnt = 0; cnt + sz <= OFB_LEN; cnt += sz) {
+            ExpectIntEQ(wc_AesOfbDecrypt(aes, decrypted + cnt, cipher + cnt,
+                sz), 0);
+        }
+        if (cnt < OFB_LEN) {
+            ExpectIntEQ(wc_AesOfbDecrypt(aes, decrypted + cnt, cipher + cnt,
+                OFB_LEN - cnt), 0);
+        }
+        ExpectBufEQ(decrypted, plain, OFB_LEN);
+    }
+#endif
+
+    WC_FREE_VAR(plain, NULL);
+    WC_FREE_VAR(cipher, NULL);
+#ifdef HAVE_AES_DECRYPT
+    WC_FREE_VAR(decrypted, NULL);
+#endif
+    return EXPECT_RESULT();
+}
+
+static int test_wc_AesOfbEncryptDecrypt_SameBuffer(Aes* aes, byte* key,
+    word32 keyLen, byte* iv, byte* expected)
+{
+    EXPECT_DECLS;
+    WC_DECLARE_VAR(plain, byte, OFB_LEN, NULL);
+    WC_DECLARE_VAR(cipher, byte, OFB_LEN, NULL);
+
+    WC_ALLOC_VAR(plain, byte, OFB_LEN, NULL);
+    WC_ALLOC_VAR(cipher, byte, OFB_LEN, NULL);
+
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    ExpectNotNull(plain);
+    ExpectNotNull(cipher);
+#endif
+    XMEMSET(plain, 0xa5, OFB_LEN);
+
+    ExpectIntEQ(wc_AesSetKey(aes, key, keyLen, NULL, AES_ENCRYPTION), 0);
+
+    /* Testing using same buffer for input and output. */
+    XMEMCPY(cipher, plain, OFB_LEN);
+    ExpectIntEQ(wc_AesSetIV(aes, iv), 0);
+    ExpectIntEQ(wc_AesOfbEncrypt(aes, cipher, cipher, OFB_LEN), 0);
+    ExpectBufEQ(cipher, expected, OFB_LEN);
+#ifdef HAVE_AES_DECRYPT
+    ExpectIntEQ(wc_AesSetIV(aes, iv), 0);
+    ExpectIntEQ(wc_AesOfbDecrypt(aes, cipher, cipher, OFB_LEN), 0);
+    ExpectBufEQ(cipher, plain, OFB_LEN);
+#endif
+
+    WC_FREE_VAR(plain, NULL);
+    WC_FREE_VAR(cipher, NULL);
+    return EXPECT_RESULT();
+}
+#endif
+
+int test_wc_AesOfbEncryptDecrypt(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_AES) && defined(WOLFSSL_AES_OFB)
+    Aes aes;
+#if defined(WOLFSSL_AES_128)
+    byte key16[] = {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
+    };
+    byte expected16[OFB_LEN] = {
+        0xe3, 0xbf, 0xfa, 0x58, 0x38, 0x52, 0x34, 0xd4,
+        0x90, 0x2b, 0x3b, 0xa4, 0xd2, 0x7d, 0xeb, 0x0f,
+        0x91, 0x8d, 0x1f, 0x30, 0xd3, 0x00, 0xc5, 0x4e,
+        0x1a, 0xcb, 0x2c, 0x50, 0x3f, 0xa6, 0xdf, 0xdb,
+        0xa2, 0x60, 0x49, 0xc5, 0x44, 0x3e, 0xdf, 0x90,
+        0x39, 0x8c, 0xd1, 0xc9, 0x8e, 0xb9, 0x5a, 0xbe,
+        0x05, 0x70, 0x56, 0xfe, 0x86, 0x23, 0x94, 0x1b,
+        0xbf, 0x85, 0x89, 0xf2, 0x51, 0x3b, 0x24, 0xc2,
+        0x1d, 0x57, 0xc5, 0x8d, 0x93, 0xf5, 0xc9, 0xa3,
+        0xcc, 0x0d, 0x49, 0x93, 0xe3, 0x8f, 0x6c, 0xb7,
+    };
+#endif
+#if defined(WOLFSSL_AES_192)
+    byte key24[] = {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
+    };
+    byte expected24[OFB_LEN] = {
+        0xde, 0x7b, 0xf6, 0x09, 0x2d, 0x81, 0x43, 0x7b,
+        0xcd, 0x71, 0xc1, 0xbd, 0x85, 0x33, 0xc7, 0xcd,
+        0x75, 0xa1, 0x24, 0xf5, 0xd6, 0x42, 0xc8, 0x2b,
+        0xb1, 0xe1, 0x22, 0x08, 0xc8, 0xe1, 0x5c, 0x66,
+        0x4c, 0x27, 0x8b, 0x88, 0xb2, 0xb3, 0xe6, 0x03,
+        0x8c, 0x46, 0x38, 0xda, 0x21, 0x8b, 0x3f, 0xb1,
+        0xcc, 0x4c, 0xde, 0x9d, 0x58, 0x49, 0xd4, 0xef,
+        0x52, 0xaa, 0x1a, 0xcb, 0xe8, 0xe3, 0xdb, 0x08,
+        0x26, 0x6e, 0x5f, 0x85, 0x80, 0x5d, 0xb6, 0x63,
+        0xd0, 0x78, 0xb7, 0xba, 0x48, 0x5f, 0x9f, 0xb9,
+    };
+#endif
+#if defined(WOLFSSL_AES_256)
+    byte key32[] = {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
+    };
+    byte expected32[OFB_LEN] = {
+        0xbd, 0xff, 0xed, 0x58, 0x12, 0x70, 0x90, 0x56,
+        0x9a, 0x1c, 0xb1, 0xb3, 0x56, 0xa0, 0x56, 0xd4,
+        0x4f, 0xeb, 0x87, 0x68, 0xb0, 0x9f, 0x69, 0x1f,
+        0x9a, 0xfe, 0x20, 0xb0, 0x7a, 0xa2, 0x53, 0x01,
+        0x51, 0xe4, 0x42, 0xad, 0x95, 0x3e, 0xac, 0x88,
+        0x71, 0x9b, 0xcd, 0x4f, 0xe0, 0x98, 0x9f, 0x46,
+        0xd9, 0xcd, 0xa5, 0x7f, 0x4e, 0x22, 0x72, 0xb4,
+        0x8f, 0xae, 0xd9, 0xed, 0x40, 0x4a, 0x0b, 0xc8,
+        0xc4, 0xa1, 0x01, 0xb3, 0x62, 0x13, 0xaa, 0x0e,
+        0x81, 0xa9, 0xd1, 0xae, 0xea, 0x5b, 0x58, 0x74,
+    };
+#endif
+    byte iv[]   = "1234567890abcdef";
+    byte* key;
+    word32 keyLen;
+    byte* expected;
+
+#if defined(WOLFSSL_AES_128)
+    key = key16;
+    keyLen = (word32)sizeof(key16) / sizeof(byte);
+    expected = expected16;
+#elif defined(WOLFSSL_AES_192)
+    key = key24;
+    keyLen = (word32)sizeof(key24) / sizeof(byte);
+    expected = expected24;
+#else
+    key = key32;
+    keyLen = (word32)sizeof(key32) / sizeof(byte);
+    expected = expected32;
+#endif
+
+    XMEMSET(&aes, 0, sizeof(Aes));
+    ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+
+    EXPECT_TEST(test_wc_AesOfbEncryptDecrypt_BadArgs(&aes, key, keyLen, iv));
+
+#if defined(WOLFSSL_AES_128)
+    EXPECT_TEST(test_wc_AesOfbEncryptDecrypt_WithKey(&aes, key16,
+        (word32)sizeof(key16) / sizeof(byte), iv, expected16));
+#endif
+#if defined(WOLFSSL_AES_192)
+    EXPECT_TEST(test_wc_AesOfbEncryptDecrypt_WithKey(&aes, key24,
+        (word32)sizeof(key24) / sizeof(byte), iv, expected24));
+#endif
+#if defined(WOLFSSL_AES_256)
+    EXPECT_TEST(test_wc_AesOfbEncryptDecrypt_WithKey(&aes, key32,
+        (word32)sizeof(key32) / sizeof(byte), iv, expected32));
+#endif
+
+    EXPECT_TEST(test_wc_AesOfbEncryptDecrypt_Chunking(&aes, key, keyLen, iv,
+        expected));
+    EXPECT_TEST(test_wc_AesOfbEncryptDecrypt_SameBuffer(&aes, key, keyLen, iv,
+        expected));
+
+    wc_AesFree(&aes);
+#endif
+    return EXPECT_RESULT();
+}
 
 /*******************************************************************************
  * AES-CTS
@@ -491,60 +1869,470 @@ int test_wc_AesCtsEncryptDecrypt(void)
  * AES-CTR
  ******************************************************************************/
 
-/*
- * Testing wc_AesCtrEncrypt and wc_AesCtrDecrypt
- */
-int test_wc_AesCtrEncryptDecrypt(void)
+#if !defined(NO_AES) && defined(WOLFSSL_AES_COUNTER) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)) && \
+    !defined(HAVE_SELFTEST) && !defined(WOLFSSL_AFALG) && \
+    !defined(WOLFSSL_KCAPI)
+static int test_wc_AesCtrSetKey_BadArgs(Aes* aes, byte* key, word32 keyLen,
+    byte* iv)
 {
     EXPECT_DECLS;
-#if !defined(NO_AES) && defined(WOLFSSL_AES_COUNTER) && defined(WOLFSSL_AES_256)
-    Aes aesEnc;
-    Aes aesDec;
+
+    ExpectIntEQ(wc_AesCtrSetKey(NULL, NULL, keyLen, iv, AES_ENCRYPTION),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesCtrSetKey(NULL, key , keyLen, iv, AES_ENCRYPTION),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesCtrSetKey(aes , key , 48    , iv, AES_ENCRYPTION),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    return EXPECT_RESULT();
+}
+
+static int test_wc_AesCtrSetKey_WithKey(Aes* aes, byte* key, word32 keyLen,
+    byte* iv, int ret)
+{
+    EXPECT_DECLS;
+
+    ExpectIntEQ(wc_AesCtrSetKey(aes, key, keyLen, iv, AES_ENCRYPTION), ret);
+    ExpectIntEQ(wc_AesCtrSetKey(aes, key, keyLen, NULL, AES_DECRYPTION), ret);
+
+    return EXPECT_RESULT();
+}
+#endif /* !NO_AES && WOLFSSL_AES_COUNTER &&       */
+       /* (!HAVE_FIPS || FIPS_VERSION_GE(7,0)) && */
+       /* !HAVE_SELFTEST && !WOLFSSL_AFALG &&     */
+       /* !WOLFSSL_KCAPI */
+
+/*
+ * Testing function for wc_AesCtrSetKey().
+ */
+int test_wc_AesCtrSetKey(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_AES) && defined(WOLFSSL_AES_COUNTER) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)) && \
+    !defined(HAVE_SELFTEST) && !defined(WOLFSSL_AFALG) && \
+    !defined(WOLFSSL_KCAPI)
+    Aes  aes;
+    byte key16[] = {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
+    };
+    byte key24[] = {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37
+    };
     byte key32[] = {
         0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
         0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
         0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
         0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
     };
+    byte badKey16[] = {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65
+    };
+    byte iv[] = "1234567890abcdef";
+    byte* key;
+    word32 keyLen;
+
+#if defined(WOLFSSL_AES_128)
+    key = key16;
+    keyLen = (word32)sizeof(key16) / sizeof(byte);
+#elif defined(WOLFSSL_AES_192)
+    key = key24;
+    keyLen = (word32)sizeof(key24) / sizeof(byte);
+#else
+    key = key32;
+    keyLen = (word32)sizeof(key32) / sizeof(byte);
+#endif
+
+    XMEMSET(&aes, 0, sizeof(Aes));
+
+    ExpectIntEQ(wc_AesInit(NULL, NULL, INVALID_DEVID),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+
+    EXPECT_TEST(test_wc_AesCtrSetKey_BadArgs(&aes, key, keyLen, iv));
+
+#ifdef WOLFSSL_AES_128
+    EXPECT_TEST(test_wc_AesCtrSetKey_WithKey(&aes, key16,
+        (word32)sizeof(key16) / sizeof(byte), iv, 0));
+#else
+    EXPECT_TEST(test_wc_AesCtrSetKey_WithKey(&aes, key16,
+        (word32)sizeof(key16) / sizeof(byte), iv, BAD_FUNC_ARG));
+#endif
+#ifdef WOLFSSL_AES_192
+    EXPECT_TEST(test_wc_AesCtrSetKey_WithKey(&aes, key24,
+        (word32)sizeof(key24) / sizeof(byte), iv, 0));
+#else
+    EXPECT_TEST(test_wc_AesCtrSetKey_WithKey(&aes, key24,
+        (word32)sizeof(key24) / sizeof(byte), iv, BAD_FUNC_ARG));
+#endif
+#ifdef WOLFSSL_AES_256
+    EXPECT_TEST(test_wc_AesCtrSetKey_WithKey(&aes, key32,
+        (word32)sizeof(key32) / sizeof(byte), iv, 0));
+#else
+    EXPECT_TEST(test_wc_AesCtrSetKey_WithKey(&aes, key32,
+        (word32)sizeof(key32) / sizeof(byte), iv, BAD_FUNC_ARG));
+#endif
+
+    ExpectIntEQ(wc_AesCtrSetKey(&aes, badKey16,
+        (word32)sizeof(badKey16) / sizeof(byte), iv, AES_ENCRYPTION),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    wc_AesFree(&aes);
+#endif /* !NO_AES && WOLFSSL_AES_COUNTER &&       */
+       /* (!HAVE_FIPS || FIPS_VERSION_GE(7,0)) && */
+       /* !HAVE_SELFTEST && !WOLFSSL_AFALG &&     */
+       /* !WOLFSSL_KCAPI */
+
+    return EXPECT_RESULT();
+} /* END test_wc_AesCtrSetKey */
+
+#if !defined(NO_AES) && defined(WOLFSSL_AES_COUNTER)
+/* Assembly code doing 8 iterations at a time. */
+#define CTR_LEN     (9 * WC_AES_BLOCK_SIZE)
+
+static int test_wc_AesCtrEncrypt_BadArgs(Aes* aes, byte* key,
+    word32 keyLen, byte* iv)
+{
+    EXPECT_DECLS;
+    byte    plain[WC_AES_BLOCK_SIZE];
+    byte    cipher[WC_AES_BLOCK_SIZE];
+    byte    decrypted[WC_AES_BLOCK_SIZE];
+
+    XMEMSET(plain, 0, WC_AES_BLOCK_SIZE);
+    XMEMSET(cipher, 0, WC_AES_BLOCK_SIZE);
+    XMEMSET(decrypted, 0, WC_AES_BLOCK_SIZE);
+
+#if (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)) && \
+    !defined(HAVE_SELFTEST) && !defined(WOLFSSL_AFALG) && \
+    !defined(WOLFSSL_KCAPI)
+    ExpectIntEQ(wc_AesCtrSetKey(aes, key, keyLen, iv, AES_ENCRYPTION), 0);
+#else
+    ExpectIntEQ(wc_AesSetKey(aes, key, keyLen, iv, AES_ENCRYPTION), 0);
+#endif
+    ExpectIntEQ(wc_AesCtrEncrypt(NULL, NULL, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesCtrEncrypt(aes, NULL, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesCtrEncrypt(NULL, cipher, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesCtrEncrypt(NULL, NULL, plain, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesCtrEncrypt(aes, cipher, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesCtrEncrypt(aes, NULL, plain, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesCtrEncrypt(NULL, cipher, plain, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    return EXPECT_RESULT();
+}
+
+static int test_wc_AesCtrEncrypt_WithKey(Aes* aes, byte* key,
+    word32 keyLen, byte* iv, byte* vector, byte* vector_enc, word32 vector_len)
+{
+    EXPECT_DECLS;
+    byte    plain[WC_AES_BLOCK_SIZE * 2];
+    byte    cipher[WC_AES_BLOCK_SIZE * 2];
+    byte    decrypted[WC_AES_BLOCK_SIZE * 2];
+
+    XMEMSET(plain, 0, WC_AES_BLOCK_SIZE * 2);
+    XMEMSET(cipher, 0, WC_AES_BLOCK_SIZE * 2);
+    XMEMSET(decrypted, 0, WC_AES_BLOCK_SIZE * 2);
+
+#if (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)) && \
+    !defined(HAVE_SELFTEST) && !defined(WOLFSSL_AFALG) && \
+    !defined(WOLFSSL_KCAPI)
+    ExpectIntEQ(wc_AesCtrSetKey(aes, key, keyLen, iv, AES_ENCRYPTION), 0);
+#else
+    ExpectIntEQ(wc_AesSetKey(aes, key, keyLen, iv, AES_ENCRYPTION), 0);
+#endif
+    ExpectIntEQ(wc_AesCtrEncrypt(aes, cipher, vector, vector_len), 0);
+    ExpectBufEQ(cipher, vector_enc, vector_len);
+    /* Decrypt with wc_AesCtrEncrypt() */
+#if (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)) && \
+    !defined(HAVE_SELFTEST) && !defined(WOLFSSL_AFALG) && \
+    !defined(WOLFSSL_KCAPI)
+    ExpectIntEQ(wc_AesCtrSetKey(aes, key, keyLen, iv, AES_ENCRYPTION), 0);
+#else
+    ExpectIntEQ(wc_AesSetKey(aes, key, keyLen, iv, AES_ENCRYPTION), 0);
+#endif
+    ExpectIntEQ(wc_AesCtrEncrypt(aes, decrypted, cipher, vector_len), 0);
+    ExpectBufEQ(decrypted, vector, vector_len);
+
+    return EXPECT_RESULT();
+}
+
+static int test_wc_AesCtrEncrypt_Chunking(Aes* aes, byte* key,
+    word32 keyLen, byte* iv, byte* expected)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_AFALG) || defined(WOLFSSL_KCAPI)
+    (void)aes;
+    (void)key;
+    (void)keyLen;
+    (void)iv;
+    (void)expected;
+#else
+    int sz;
+    int cnt;
+    WC_DECLARE_VAR(plain, byte, CTR_LEN, NULL);
+    WC_DECLARE_VAR(cipher, byte, CTR_LEN, NULL);
+#ifdef HAVE_AES_DECRYPT
+    WC_DECLARE_VAR(decrypted, byte, CTR_LEN, NULL);
+#endif
+
+    WC_ALLOC_VAR(plain, byte, CTR_LEN, NULL);
+    WC_ALLOC_VAR(cipher, byte, CTR_LEN, NULL);
+#ifdef HAVE_AES_DECRYPT
+    WC_ALLOC_VAR(decrypted, byte, CTR_LEN, NULL);
+#endif
+
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    ExpectNotNull(plain);
+    ExpectNotNull(cipher);
+#ifdef HAVE_AES_DECRYPT
+    ExpectNotNull(decrypted);
+#endif
+#endif
+
+    XMEMSET(plain, 0, CTR_LEN);
+    XMEMSET(cipher, 0, CTR_LEN);
+    XMEMSET(decrypted, 0, CTR_LEN);
+
+#if (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)) && \
+    !defined(HAVE_SELFTEST)
+    ExpectIntEQ(wc_AesCtrSetKey(aes, key, keyLen, NULL, AES_ENCRYPTION), 0);
+#else
+    ExpectIntEQ(wc_AesSetKey(aes, key, keyLen, NULL, AES_ENCRYPTION), 0);
+#endif
+    /* Test multiple blocks. */
+    for (sz = 1; sz <= CTR_LEN; sz++) {
+        XMEMSET(cipher, 0x00, CTR_LEN);
+        ExpectIntEQ(wc_AesSetIV(aes, iv), 0);
+        for (cnt = 0; cnt + sz <= CTR_LEN; cnt += sz) {
+            ExpectIntEQ(wc_AesCtrEncrypt(aes, cipher + cnt, plain + cnt, sz),
+                0);
+        }
+        if (cnt < CTR_LEN) {
+            ExpectIntEQ(wc_AesCtrEncrypt(aes, cipher + cnt, plain + cnt,
+                CTR_LEN - cnt), 0);
+        }
+        ExpectBufEQ(cipher, expected, CTR_LEN);
+    }
+
+    WC_FREE_VAR(plain, NULL);
+    WC_FREE_VAR(cipher, NULL);
+#ifdef HAVE_AES_DECRYPT
+    WC_FREE_VAR(decrypted, NULL);
+#endif
+#endif /* !WOLFSSL_AFALG && !WOLFSSL_KCAPI */
+    return EXPECT_RESULT();
+}
+
+#if (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)) && \
+    !defined(HAVE_SELFTEST) && !defined(WOLFSSL_AFALG) && \
+    !defined(WOLFSSL_KCAPI)
+static int test_wc_AesCtrEncrypt_SameBuffer(Aes* aes, byte* key,
+    word32 keyLen, byte* iv, byte* expected)
+{
+    EXPECT_DECLS;
+    WC_DECLARE_VAR(plain, byte, CTR_LEN, NULL);
+    WC_DECLARE_VAR(cipher, byte, CTR_LEN, NULL);
+
+    WC_ALLOC_VAR(plain, byte, CTR_LEN, NULL);
+    WC_ALLOC_VAR(cipher, byte, CTR_LEN, NULL);
+
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    ExpectNotNull(plain);
+    ExpectNotNull(cipher);
+#endif
+
+    XMEMSET(plain, 0, CTR_LEN);
+
+    /* Testing using same buffer for input and output. */
+    ExpectIntEQ(wc_AesCtrSetKey(aes, key, keyLen, iv, AES_ENCRYPTION), 0);
+    XMEMCPY(cipher, plain, CTR_LEN);
+    ExpectIntEQ(wc_AesCtrEncrypt(aes, cipher, cipher, CTR_LEN), 0);
+    ExpectBufEQ(cipher, expected, CTR_LEN);
+
+    WC_FREE_VAR(plain, NULL);
+    WC_FREE_VAR(cipher, NULL);
+    return EXPECT_RESULT();
+}
+#endif
+#endif
+
+/*
+ * Testing wc_AesCtrEncrypt
+ * Decrypt is an encrypt.
+ */
+int test_wc_AesCtrEncryptDecrypt(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_AES) && defined(WOLFSSL_AES_COUNTER)
+    Aes aes;
     byte vector[] = { /* Now is the time for all w/o trailing 0 */
         0x4e,0x6f,0x77,0x20,0x69,0x73,0x20,0x74,
         0x68,0x65,0x20,0x74,0x69,0x6d,0x65,0x20,
         0x66,0x6f,0x72,0x20,0x61,0x6c,0x6c,0x20
     };
-    byte iv[] = "1234567890abcdef";
-    byte enc[WC_AES_BLOCK_SIZE * 2];
-    byte dec[WC_AES_BLOCK_SIZE * 2];
+#if defined(WOLFSSL_AES_128)
+    byte key16[] = {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
+    };
+    byte vector_enc16[] = {
+        0x08, 0x75, 0x28, 0xdd, 0xf4, 0x84, 0xb1, 0x05,
+        0x5d, 0xeb, 0xbe, 0x75, 0x1e, 0xb5, 0x2b, 0x8a,
+        0x39, 0x70, 0x64, 0x06, 0x98, 0xa1, 0x82, 0x35,
+    };
+#endif
+#if defined(WOLFSSL_AES_192)
+    byte key24[] = {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
+    };
+    byte vector_enc24[] = {
+        0x35, 0xb1, 0x24, 0x8c, 0xe1, 0x57, 0xc6, 0xaa,
+        0x00, 0xb1, 0x44, 0x6c, 0x49, 0xfb, 0x07, 0x48,
+        0xd2, 0xa7, 0x1e, 0x81, 0xcf, 0xa0, 0x72, 0x54,
+    };
+#endif
+#if defined(WOLFSSL_AES_256)
+    byte key32[] = {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
+    };
+    byte vector_enc32[] = {
+        0x56, 0x35, 0x3f, 0xdd, 0xde, 0xa6, 0x15, 0x87,
+        0x57, 0xdc, 0x34, 0x62, 0x9a, 0x68, 0x96, 0x51,
+        0x14, 0xeb, 0xfa, 0xba, 0x30, 0x8e, 0xfb, 0x8a,
+    };
+#endif
+#if defined(WOLFSSL_AES_128)
+    byte expected16[CTR_LEN] = {
+        0x46, 0x1a, 0x5f, 0xfd, 0x9d, 0xf7, 0x91, 0x71,
+        0x35, 0x8e, 0x9e, 0x01, 0x77, 0xd8, 0x4e, 0xaa,
+        0x5f, 0x1f, 0x16, 0x26, 0xf9, 0xcd, 0xee, 0x15,
+        0xce, 0x4d, 0x4d, 0x3d, 0x17, 0x56, 0xa1, 0x48,
+        0x36, 0x0b, 0x0e, 0x8b, 0x3d, 0x3b, 0x70, 0x02,
+        0x2e, 0xd1, 0x0b, 0x61, 0x51, 0x05, 0xd6, 0x2b,
+        0x4b, 0xb9, 0xaf, 0x26, 0x27, 0xed, 0x41, 0x50,
+        0x08, 0xaf, 0xdd, 0xbf, 0x5b, 0x12, 0x4b, 0xb2,
+        0x80, 0xd5, 0xba, 0x31, 0x31, 0x70, 0xfa, 0xfd,
+        0x15, 0x19, 0x1e, 0x35, 0xc9, 0x10, 0x96, 0x6c,
+        0xe4, 0x38, 0x61, 0xd8, 0x95, 0x30, 0x4d, 0xca,
+        0xd8, 0x68, 0xc9, 0xdc, 0x6f, 0x8b, 0x86, 0x26,
+        0x11, 0xee, 0x2d, 0x01, 0xd3, 0x0e, 0x35, 0xa2,
+        0x4b, 0x26, 0x22, 0x8c, 0xd0, 0x4e, 0xda, 0x5d,
+        0x49, 0x1e, 0x6d, 0xfa, 0x33, 0xcb, 0xa0, 0x0f,
+        0x86, 0x8f, 0x83, 0xff, 0x3d, 0xbe, 0x6e, 0xfa,
+        0xd2, 0x2b, 0x3e, 0x70, 0x21, 0x1c, 0xe8, 0x7b,
+        0xe4, 0x01, 0x2c, 0xd0, 0x82, 0xe2, 0x7a, 0x4a,
+    };
+#elif defined(WOLFSSL_AES_192)
+    byte expected24[CTR_LEN] = {
+        0x7b, 0xde, 0x53, 0xac, 0x88, 0x24, 0xe6, 0xde,
+        0x68, 0xd4, 0x64, 0x18, 0x20, 0x96, 0x62, 0x68,
+        0xb4, 0xc8, 0x6c, 0xa1, 0xae, 0xcc, 0x1e, 0x74,
+        0x2a, 0xd6, 0x69, 0x5c, 0x71, 0x76, 0x92, 0x5b,
+        0xd8, 0x61, 0xfa, 0x70, 0x8c, 0x80, 0x3e, 0xfc,
+        0xdc, 0xd8, 0xbb, 0x31, 0x22, 0x47, 0x78, 0x02,
+        0x5b, 0xa2, 0xb5, 0xb1, 0x41, 0x88, 0xc4, 0x84,
+        0x82, 0xd7, 0x20, 0x11, 0xdc, 0x58, 0xea, 0xf9,
+        0x2c, 0x43, 0x50, 0xc2, 0x33, 0x15, 0x58, 0x14,
+        0xd0, 0xf3, 0xe5, 0xe1, 0x17, 0x86, 0x4b, 0xfb,
+        0xdd, 0x83, 0xa3, 0xdd, 0x3a, 0xcc, 0x82, 0x05,
+        0xb9, 0xf2, 0xfd, 0x8d, 0x3c, 0x08, 0x5f, 0xd9,
+        0x79, 0x2d, 0xa3, 0xa0, 0xeb, 0xa3, 0xa2, 0xfe,
+        0x7b, 0x2b, 0xf9, 0x5d, 0x32, 0x52, 0xeb, 0xee,
+        0xe1, 0x68, 0xff, 0xe7, 0xb3, 0x0c, 0x08, 0x74,
+        0x8d, 0x3b, 0xa9, 0x17, 0x4c, 0x2a, 0xc7, 0x97,
+        0x99, 0xb7, 0xaf, 0x86, 0x17, 0xf9, 0xe4, 0x2c,
+        0x5a, 0x4d, 0x6d, 0x7f, 0xfe, 0xb8, 0xaa, 0x9b,
+    };
+#else
+    byte expected32[CTR_LEN] = {
+        0x18, 0x5a, 0x48, 0xfd, 0xb7, 0xd5, 0x35, 0xf3,
+        0x3f, 0xb9, 0x14, 0x16, 0xf3, 0x05, 0xf3, 0x71,
+        0x72, 0x84, 0x88, 0x9a, 0x51, 0xe2, 0x97, 0xaa,
+        0x65, 0xc1, 0x3c, 0x0b, 0x1e, 0x9f, 0x29, 0xb8,
+        0xf4, 0xc8, 0x16, 0x9c, 0x47, 0x42, 0x0a, 0x9e,
+        0xae, 0xf0, 0x75, 0x9b, 0x54, 0xdd, 0x8a, 0xa4,
+        0x28, 0x97, 0xc1, 0x5a, 0xbb, 0x08, 0x52, 0x73,
+        0xf7, 0x67, 0xa4, 0xb8, 0xc9, 0x37, 0x8d, 0x9e,
+        0x23, 0x27, 0x68, 0xca, 0x2b, 0xb5, 0xd0, 0x1c,
+        0x11, 0xe2, 0x2e, 0x7e, 0x17, 0x6b, 0x38, 0x99,
+        0x82, 0x0c, 0x65, 0xed, 0x33, 0xd8, 0xa4, 0x47,
+        0x43, 0x9c, 0x16, 0xa6, 0xab, 0x5d, 0x39, 0xad,
+        0x88, 0x6a, 0x50, 0x86, 0xd4, 0x95, 0x1b, 0x91,
+        0xb3, 0x91, 0x7d, 0x06, 0xe0, 0xfc, 0x5e, 0xd1,
+        0xaf, 0x4c, 0xb3, 0xdb, 0x01, 0x01, 0xc9, 0x09,
+        0xf1, 0x7b, 0x2b, 0x87, 0xe4, 0xcd, 0x93, 0x22,
+        0x07, 0xdc, 0x35, 0x46, 0x8a, 0x1d, 0xf5, 0xe4,
+        0x23, 0x01, 0x67, 0x00, 0x66, 0x7b, 0xd6, 0x56,
+    };
+#endif
+    byte    iv[]   = "1234567890abcdef";
+    byte* key;
+    word32 keyLen;
+    byte* expected;
+
+#if defined(WOLFSSL_AES_128)
+    key = key16;
+    keyLen = (word32)sizeof(key16) / sizeof(byte);
+    expected = expected16;
+#elif defined(WOLFSSL_AES_192)
+    key = key24;
+    keyLen = (word32)sizeof(key24) / sizeof(byte);
+    expected = expected24;
+#else
+    key = key32;
+    keyLen = (word32)sizeof(key32) / sizeof(byte);
+    expected = expected32;
+#endif
 
     /* Init stack variables. */
-    XMEMSET(&aesEnc, 0, sizeof(Aes));
-    XMEMSET(&aesDec, 0, sizeof(Aes));
-    XMEMSET(enc, 0, WC_AES_BLOCK_SIZE * 2);
-    XMEMSET(dec, 0, WC_AES_BLOCK_SIZE * 2);
+    XMEMSET(&aes, 0, sizeof(Aes));
 
-    ExpectIntEQ(wc_AesInit(&aesEnc, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_AesInit(&aesDec, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
 
-    ExpectIntEQ(wc_AesSetKey(&aesEnc, key32, WC_AES_BLOCK_SIZE * 2, iv,
-        AES_ENCRYPTION), 0);
-    ExpectIntEQ(wc_AesCtrEncrypt(&aesEnc, enc, vector,
-        sizeof(vector)/sizeof(byte)), 0);
-    /* Decrypt with wc_AesCtrEncrypt() */
-    ExpectIntEQ(wc_AesSetKey(&aesDec, key32, WC_AES_BLOCK_SIZE * 2, iv,
-        AES_ENCRYPTION), 0);
-    ExpectIntEQ(wc_AesCtrEncrypt(&aesDec, dec, enc, sizeof(enc)/sizeof(byte)),
-        0);
-    ExpectIntEQ(XMEMCMP(vector, dec, sizeof(vector)), 0);
+    EXPECT_TEST(test_wc_AesCtrEncrypt_BadArgs(&aes, key, keyLen, iv));
 
-    /* Test bad args. */
-    ExpectIntEQ(wc_AesCtrEncrypt(NULL, dec, enc, sizeof(enc)/sizeof(byte)),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_AesCtrEncrypt(&aesDec, NULL, enc, sizeof(enc)/sizeof(byte)),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_AesCtrEncrypt(&aesDec, dec, NULL, sizeof(enc)/sizeof(byte)),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#ifdef WOLFSSL_AES_128
+    EXPECT_TEST(test_wc_AesCtrEncrypt_WithKey(&aes, key16,
+        (word32)sizeof(key16) / sizeof(byte), iv, vector, vector_enc16,
+        (word32)sizeof(vector) / sizeof(byte)));
+#endif
+#ifdef WOLFSSL_AES_192
+    EXPECT_TEST(test_wc_AesCtrEncrypt_WithKey(&aes, key24,
+        (word32)sizeof(key24) / sizeof(byte), iv, vector, vector_enc24,
+        (word32)sizeof(vector) / sizeof(byte)));
+#endif
+#ifdef WOLFSSL_AES_256
+    EXPECT_TEST(test_wc_AesCtrEncrypt_WithKey(&aes, key32,
+        (word32)sizeof(key32) / sizeof(byte), iv, vector, vector_enc32,
+        (word32)sizeof(vector) / sizeof(byte)));
+#endif
 
-    wc_AesFree(&aesEnc);
-    wc_AesFree(&aesDec);
+    EXPECT_TEST(test_wc_AesCtrEncrypt_Chunking(&aes, key, keyLen, iv,
+        expected));
+#if (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)) && \
+    !defined(HAVE_SELFTEST) && !defined(WOLFSSL_AFALG) && \
+    !defined(WOLFSSL_KCAPI)
+    EXPECT_TEST(test_wc_AesCtrEncrypt_SameBuffer(&aes, key, keyLen, iv,
+        expected));
+#endif
+
+    wc_AesFree(&aes);
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_AesCtrEncryptDecrypt */
@@ -597,6 +2385,19 @@ int test_wc_AesGcmSetKey(void)
         0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
         0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65
     };
+    byte* key;
+    word32 keyLen;
+
+#ifdef WOLFSSL_AES_128
+    key = key16;
+    keyLen = sizeof(key16)/sizeof(byte);
+#elif defined(WOLFSSL_AES_192)
+    key = key24;
+    keyLen = sizeof(key24)/sizeof(byte);
+#else
+    key = key32;
+    keyLen = sizeof(key32)/sizeof(byte);
+#endif
 
     ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
 
@@ -611,6 +2412,15 @@ int test_wc_AesGcmSetKey(void)
 #endif
 
     /* Pass in bad args. */
+    ExpectIntEQ(wc_AesGcmSetKey(NULL, NULL, keyLen),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesGcmSetKey(NULL, key, keyLen),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#if (!defined(HAVE_FIPS) || !defined(HAVE_FIPS_VERSION) || \
+        (HAVE_FIPS_VERSION > 6)) && !defined(HAVE_SELFTEST)
+    ExpectIntEQ(wc_AesGcmSetKey(&aes, NULL, keyLen),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
     ExpectIntEQ(wc_AesGcmSetKey(&aes, badKey16, sizeof(badKey16)/sizeof(byte)),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_AesGcmSetKey(&aes, badKey24, sizeof(badKey24)/sizeof(byte)),
@@ -622,6 +2432,183 @@ int test_wc_AesGcmSetKey(void)
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_AesGcmSetKey */
+
+int test_wc_AesGcmEncryptDecrypt_Sizes(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_AES) && defined(HAVE_AESGCM) && defined(WOLFSSL_AES_256) && \
+    !defined(WOLFSSL_AFALG) && !defined(WOLFSSL_KCAPI)
+    #define GCM_LEN     (WC_AES_BLOCK_SIZE * 16)
+    byte expTagShort[WC_AES_BLOCK_SIZE][WC_AES_BLOCK_SIZE] = {
+        {
+            0x41, 0x5d, 0x72, 0x1e, 0xe0, 0x17, 0x7c, 0xe2,
+            0x33, 0xfb, 0x0e, 0xab, 0x5a, 0x08, 0x4c, 0xb0,
+        },
+        {
+            0x26, 0xe8, 0xc0, 0x9f, 0xbc, 0x70, 0x1d, 0x7e,
+            0x22, 0x43, 0x26, 0x1b, 0x21, 0x9d, 0x2c, 0x5b,
+        },
+        {
+            0x94, 0x8f, 0x24, 0xeb, 0xd1, 0x5b, 0x3d, 0x2a,
+            0x31, 0xf2, 0xe4, 0xf9, 0x07, 0xc8, 0xe7, 0x63,
+        },
+        {
+            0x62, 0xa9, 0x79, 0x97, 0x6c, 0x93, 0x77, 0x52,
+            0x2f, 0xbf, 0x51, 0xb2, 0xc2, 0xf7, 0xe5, 0xf4,
+        },
+        {
+            0xa5, 0x44, 0xfd, 0x3c, 0x16, 0x2a, 0x05, 0x7a,
+            0x52, 0xe1, 0xed, 0x13, 0x49, 0x81, 0x93, 0x7a,
+        },
+        {
+            0xe5, 0x3b, 0xd4, 0xc9, 0x9f, 0x9e, 0xf0, 0x55,
+            0xcd, 0x80, 0xb7, 0x42, 0xa4, 0xaf, 0x33, 0x88,
+        },
+        {
+            0x65, 0xa8, 0xc9, 0xa7, 0x8b, 0xdb, 0x80, 0xfe,
+            0x40, 0xfe, 0xb6, 0xe4, 0x00, 0xf9, 0x23, 0x72,
+        },
+        {
+            0xe0, 0x1e, 0xec, 0x38, 0x45, 0xf0, 0x9c, 0x82,
+            0x72, 0xac, 0x2f, 0xec, 0x3b, 0x2b, 0xfe, 0x75,
+        },
+        {
+            0xea, 0xb4, 0x5b, 0x4d, 0x76, 0x98, 0xc8, 0x34,
+            0x07, 0x1d, 0x7b, 0xaf, 0x36, 0xfa, 0x72, 0x9b,
+        },
+        {
+            0xcf, 0x2b, 0x12, 0x7a, 0x5a, 0x5a, 0x73, 0x73,
+            0xb5, 0xb6, 0xb6, 0xb0, 0x42, 0xa5, 0xc0, 0x23,
+        },
+        {
+            0xc1, 0x14, 0x52, 0xd0, 0xd0, 0x1d, 0xca, 0xce,
+            0x2e, 0x4c, 0xd8, 0x94, 0x62, 0x92, 0xf6, 0x9c,
+        },
+        {
+            0x5b, 0xd9, 0xa6, 0x8c, 0x34, 0x0e, 0x81, 0xaf,
+            0x09, 0xc3, 0x44, 0x74, 0x35, 0xce, 0x89, 0x92,
+        },
+        {
+            0xdc, 0x9f, 0xd0, 0xd5, 0xaa, 0x38, 0xe2, 0xce,
+            0x75, 0x88, 0x64, 0xee, 0x7a, 0x5d, 0x44, 0xa4,
+        },
+        {
+            0xc3, 0x35, 0xfe, 0xa9, 0x9d, 0x3d, 0x75, 0xb7,
+            0xba, 0xdd, 0x9e, 0xa5, 0x5d, 0xd3, 0x65, 0x80,
+        },
+        {
+            0x1d, 0x1a, 0x04, 0x99, 0xb5, 0x8b, 0xe8, 0xec,
+            0x81, 0xd1, 0xde, 0xd3, 0x3a, 0x09, 0xb4, 0x9f,
+        },
+        {
+            0xb8, 0x14, 0x0a, 0xc3, 0x8b, 0x88, 0x87, 0xa1,
+            0xdf, 0xfa, 0x6d, 0x15, 0x70, 0xde, 0xff, 0x3b,
+        },
+    };
+    byte expected[GCM_LEN] = {
+        0x9a, 0x10, 0xb2, 0x60, 0x38, 0x65, 0x46, 0x81,
+        0xc0, 0xa7, 0x0d, 0x3f, 0x5b, 0x4f, 0x27,
+    };
+    byte expTagLong[][WC_AES_BLOCK_SIZE] = {
+        {
+            0xdd, 0x1c, 0x3d, 0x12, 0xa4, 0x16, 0xa5, 0xf7,
+            0x67, 0xc5, 0x58, 0xb8, 0xda, 0x22, 0x6c, 0x22,
+        },
+        {
+            0xbe, 0x5e, 0x04, 0x61, 0xae, 0x36, 0x61, 0xfb,
+            0x86, 0x66, 0xda, 0x62, 0xaa, 0x36, 0x7e, 0x22,
+        },
+        {
+            0x18, 0xc3, 0xf5, 0xcf, 0x76, 0x24, 0xd4, 0x5c,
+            0xbb, 0xeb, 0xb3, 0x0a, 0x7a, 0x53, 0x64, 0x9b,
+        },
+        {
+            0xe0, 0xaa, 0xe9, 0x10, 0x41, 0x16, 0x72, 0x1b,
+            0x16, 0xd6, 0xd9, 0xcd, 0x2f, 0xe4, 0xd2, 0xe8,
+        },
+        {
+            0xfa, 0xdc, 0x28, 0x4a, 0x65, 0x96, 0xe0, 0x73,
+            0xfb, 0xcd, 0x2b, 0x35, 0xa0, 0x68, 0xde, 0x60,
+        },
+    };
+    byte key32[] = {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
+    };
+    Aes aes;
+    byte tag[WC_AES_BLOCK_SIZE];
+    byte iv[] = "1234567890a";
+    word32 ivLen = (word32)sizeof(iv)/sizeof(byte);
+    int sz;
+    int i;
+    WC_DECLARE_VAR(plain, byte, GCM_LEN, NULL);
+    WC_DECLARE_VAR(cipher, byte, GCM_LEN, NULL);
+#ifdef HAVE_AES_DECRYPT
+    WC_DECLARE_VAR(decrypted, byte, GCM_LEN, NULL);
+#endif
+
+    WC_ALLOC_VAR(plain, byte, GCM_LEN, NULL);
+    WC_ALLOC_VAR(cipher, byte, GCM_LEN, NULL);
+#ifdef HAVE_AES_DECRYPT
+    WC_ALLOC_VAR(decrypted, byte, GCM_LEN, NULL);
+#endif
+
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    ExpectNotNull(plain);
+    ExpectNotNull(cipher);
+#ifdef HAVE_AES_DECRYPT
+    ExpectNotNull(decrypted);
+#endif
+#endif
+
+    XMEMSET(&aes, 0, sizeof(Aes));
+    XMEMSET(plain, 0xa5, GCM_LEN);
+
+    ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+
+    ExpectIntEQ(wc_AesGcmSetKey(&aes, key32, sizeof(key32)/sizeof(byte)), 0);
+    for (sz = 0; sz < WC_AES_BLOCK_SIZE; sz++) {
+        XMEMSET(cipher, 0, GCM_LEN);
+        ExpectIntEQ(wc_AesGcmEncrypt(&aes, cipher, plain, sz, iv, ivLen, tag,
+            sizeof(tag), NULL, 0), 0);
+        ExpectBufEQ(cipher, expected, sz);
+        ExpectBufEQ(tag, expTagShort[sz], WC_AES_BLOCK_SIZE);
+
+#ifdef HAVE_AES_DECRYPT
+        XMEMSET(decrypted, 0xff, GCM_LEN);
+        ExpectIntEQ(wc_AesGcmDecrypt(&aes, decrypted, cipher, sz, iv, ivLen,
+            tag, sizeof(tag), NULL, 0), 0);
+        ExpectBufEQ(decrypted, plain, sz);
+#endif
+    }
+
+    i = 0;
+    for (sz = WC_AES_BLOCK_SIZE; sz <= GCM_LEN; sz *= 2) {
+        XMEMSET(cipher, 0, GCM_LEN);
+        ExpectIntEQ(wc_AesGcmEncrypt(&aes, cipher, plain, sz, iv, ivLen, tag,
+            sizeof(tag), NULL, 0), 0);
+        ExpectBufEQ(tag, expTagLong[i], WC_AES_BLOCK_SIZE);
+        i++;
+
+#ifdef HAVE_AES_DECRYPT
+        XMEMSET(decrypted, 0xff, GCM_LEN);
+        ExpectIntEQ(wc_AesGcmDecrypt(&aes, decrypted, cipher, sz, iv, ivLen,
+            tag, sizeof(tag), NULL, 0), 0);
+        ExpectBufEQ(decrypted, plain, sz);
+#endif
+    }
+
+    wc_AesFree(&aes);
+    WC_FREE_VAR(plain, NULL);
+    WC_FREE_VAR(cipher, NULL);
+#ifdef HAVE_AES_DECRYPT
+    WC_FREE_VAR(decrypted, NULL);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
 
 /*
  * test function for wc_AesGcmEncrypt and wc_AesGcmDecrypt
@@ -1455,6 +3442,7 @@ int test_wc_AesEaxVectors(void)
      *  from testvectors/aes_eax_test.json
      */
     const AadVector vectors[] = {
+    #ifdef WOLFSSL_AES_128
         {
             /* key, key length  */
             {0x23, 0x39, 0x52, 0xde, 0xe4, 0xd5, 0xed, 0x5f,
@@ -2620,6 +4608,7 @@ int test_wc_AesEaxVectors(void)
             /* valid */
             0,
         },
+    #endif
     };
 
     byte ciphertext[sizeof(vectors[0].ct)];
@@ -2753,11 +4742,25 @@ int test_wc_AesEaxEncryptAuth(void)
     /* Test bad key lengths */
     for (i = 0; i <= 32; i++) {
         int exp_ret;
-        if (i == AES_128_KEY_SIZE || i == AES_192_KEY_SIZE
-                                  || i == AES_256_KEY_SIZE) {
+    #ifdef WOLFSSL_AES_128
+        if (i == AES_128_KEY_SIZE) {
             exp_ret = 0;
         }
-        else {
+        else
+    #endif
+    #ifdef WOLFSSL_AES_192
+        if (i == AES_192_KEY_SIZE) {
+            exp_ret = 0;
+        }
+        else
+    #endif
+    #ifdef WOLFSSL_AES_256
+        if (i == AES_256_KEY_SIZE) {
+            exp_ret = 0;
+        }
+        else
+    #endif
+        {
             exp_ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
         }
 
@@ -2865,11 +4868,25 @@ int test_wc_AesEaxDecryptAuth(void)
     /* Test bad key lengths */
     for (i = 0; i <= 32; i++) {
         int exp_ret;
-        if (i == AES_128_KEY_SIZE || i == AES_192_KEY_SIZE
-                                  || i == AES_256_KEY_SIZE) {
+    #ifdef WOLFSSL_AES_128
+        if (i == AES_128_KEY_SIZE) {
             exp_ret = WC_NO_ERR_TRACE(AES_EAX_AUTH_E);
         }
-        else {
+        else
+    #endif
+    #ifdef WOLFSSL_AES_192
+        if (i == AES_192_KEY_SIZE) {
+            exp_ret = WC_NO_ERR_TRACE(AES_EAX_AUTH_E);
+        }
+        else
+    #endif
+    #ifdef WOLFSSL_AES_256
+        if (i == AES_256_KEY_SIZE) {
+            exp_ret = WC_NO_ERR_TRACE(AES_EAX_AUTH_E);
+        }
+        else
+    #endif
+        {
             exp_ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
         }
 
@@ -2896,7 +4913,7 @@ int test_wc_AesEaxDecryptAuth(void)
     return EXPECT_RESULT();
 } /* END test_wc_AesEaxDecryptAuth() */
 
-#endif /* WOLFSSL_AES_EAX &&
+#endif /* WOLFSSL_AES_EAX && WOLFSSL_AES_256
         * (!HAVE_FIPS || FIPS_VERSION_GE(5, 3)) && !HAVE_SELFTEST
         */
 

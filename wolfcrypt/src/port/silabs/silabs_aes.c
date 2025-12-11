@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -48,11 +48,11 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
         return BUFFER_E;
     }
 
-    XMEMSET(aes, 0, sizeof(*aes));
-
-    if (keylen > sizeof(aes->key)) {
+    if (aes == NULL || keylen > sizeof(aes->key)) {
         return BAD_FUNC_ARG;
     }
+
+    XMEMSET(aes, 0, sizeof(*aes));
 
     ret = wc_AesSetIV(aes, iv);
     aes->rounds = keylen/4 + 6;
@@ -88,6 +88,74 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
 
     return ret;
 }
+
+#ifdef HAVE_AES_ECB
+int wc_AesEcbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+{
+    sl_status_t status;
+    if ((in == NULL) || (out == NULL) || (aes == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+    if ((sz % WC_AES_BLOCK_SIZE) != 0) {
+        return BAD_LENGTH_E;
+    }
+
+    status = sl_se_aes_crypt_ecb(
+        &(aes->ctx.cmd_ctx),
+        &(aes->ctx.key),
+        SL_SE_ENCRYPT,
+        sz,
+        in,
+        out);
+    return (status != SL_STATUS_OK) ? WC_HW_E : 0;
+}
+
+int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+{
+    sl_status_t status;
+    if ((in == NULL) || (out == NULL) || (aes == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+    if ((sz % WC_AES_BLOCK_SIZE) != 0) {
+        return BAD_LENGTH_E;
+    }
+
+    status = sl_se_aes_crypt_ecb(
+        &(aes->ctx.cmd_ctx),
+        &(aes->ctx.key),
+        SL_SE_DECRYPT,
+        sz,
+        in,
+        out);
+    return (status != SL_STATUS_OK) ? WC_HW_E : 0;
+}
+#endif /* HAVE_AES_ECB */
+
+#ifdef WOLFSSL_AES_DIRECT
+int wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
+{
+    sl_status_t status = sl_se_aes_crypt_ecb(
+        &(aes->ctx.cmd_ctx),
+        &(aes->ctx.key),
+        SL_SE_ENCRYPT,
+        WC_AES_BLOCK_SIZE,
+        inBlock,
+        outBlock);
+    return (status != SL_STATUS_OK) ? WC_HW_E : 0;
+}
+
+int wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
+{
+    sl_status_t status = sl_se_aes_crypt_ecb(
+        &(aes->ctx.cmd_ctx),
+        &(aes->ctx.key),
+        SL_SE_DECRYPT,
+        WC_AES_BLOCK_SIZE,
+        inBlock,
+        outBlock);
+    return (status != SL_STATUS_OK) ? WC_HW_E : 0;
+}
+#endif /* WOLFSSL_AES_DIRECT */
 
 int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {

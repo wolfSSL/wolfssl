@@ -7,7 +7,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -21,6 +21,7 @@
  */
 
 /* included by linuxkm/module_hooks.c */
+#ifndef WC_SKIP_INCLUDED_C_FILES
 
 #ifndef LINUXKM_LKCAPI_REGISTER
     #error lkcapi_glue.c included in non-LINUXKM_LKCAPI_REGISTER project.
@@ -64,7 +65,8 @@
     #define WOLFSSL_LINUXKM_LKCAPI_PRIORITY 100000
 #endif
 
-#ifdef CONFIG_CRYPTO_MANAGER_EXTRA_TESTS
+#if defined(CONFIG_CRYPTO_MANAGER_EXTRA_TESTS) || \
+    defined(CONFIG_CRYPTO_SELFTESTS_FULL)
     static int disable_setkey_warnings = 0;
 #else
     #define disable_setkey_warnings 0
@@ -309,6 +311,7 @@ static int linuxkm_lkcapi_sysfs_deinstall(void) {
     return 0;
 }
 
+static wolfSSL_Atomic_Int linuxkm_lkcapi_registering_now = WOLFSSL_ATOMIC_INITIALIZER(0);
 static int linuxkm_lkcapi_registered = 0;
 static int linuxkm_lkcapi_n_registered = 0;
 
@@ -316,12 +319,28 @@ static int linuxkm_lkcapi_register(void)
 {
     int ret = -1;
     int seen_err = 0;
+    int current_linuxkm_lkcapi_registering_now = 0;
+
+    if (! wolfSSL_Atomic_Int_CompareExchange(
+            &linuxkm_lkcapi_registering_now,
+            &current_linuxkm_lkcapi_registering_now,
+            1))
+    {
+        return -EDEADLK;
+    }
+
+    if (WC_SIG_IGNORE_BEGIN() < 0) {
+        ret = -ECANCELED;
+        pr_err("ERROR: WC_SIG_IGNORE_BEGIN() failed.\n");
+        goto out_without_sig_ignored;
+    }
 
     ret = linuxkm_lkcapi_sysfs_install();
     if (ret)
-        return ret;
+        goto out;
 
-#ifdef CONFIG_CRYPTO_MANAGER_EXTRA_TESTS
+#if defined(CONFIG_CRYPTO_MANAGER_EXTRA_TESTS) || \
+    defined(CONFIG_CRYPTO_SELFTESTS_FULL)
     /* temporarily disable warnings around setkey failures, which are expected
      * from the crypto fuzzer in FIPS configs, and potentially in others.
      * unexpected setkey failures are fatal errors returned by the fuzzer.
@@ -591,7 +610,7 @@ static int linuxkm_lkcapi_register(void)
     * on here is for ECDH loading to be optional when fips and fips tests are
     * enabled. Failures because of !fips_allowed are skipped over.
     */
-    #if defined(CONFIG_CRYPTO_FIPS) &&                \
+    #if defined(HAVE_FIPS) && defined(CONFIG_CRYPTO_FIPS) && \
         defined(CONFIG_CRYPTO_MANAGER) &&             \
         !defined(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS)
         #if defined(LINUXKM_ECC192)
@@ -692,7 +711,8 @@ static int linuxkm_lkcapi_register(void)
 #undef REGISTER_ALG
 #undef REGISTER_ALG_OPTIONAL
 
-#ifdef CONFIG_CRYPTO_MANAGER_EXTRA_TESTS
+#if defined(CONFIG_CRYPTO_MANAGER_EXTRA_TESTS) || \
+    defined(CONFIG_CRYPTO_SELFTESTS_FULL)
     disable_setkey_warnings = 0;
 #endif
 
@@ -701,11 +721,14 @@ static int linuxkm_lkcapi_register(void)
 
     if (ret == -1) {
         /* no installations occurred */
-        if (linuxkm_lkcapi_registered)
-            return -EEXIST;
+        if (linuxkm_lkcapi_registered) {
+            ret = -EEXIST;
+            goto out;
+        }
         else {
             linuxkm_lkcapi_registered = 1;
-            return 0;
+            ret = 0;
+            goto out;
         }
     }
     else {
@@ -713,17 +736,46 @@ static int linuxkm_lkcapi_register(void)
          * occurred.
          */
         linuxkm_lkcapi_registered = 1;
-        return seen_err;
+        ret = seen_err;
+        goto out;
     }
+
+out:
+
+    (void)WC_SIG_IGNORE_END();
+
+out_without_sig_ignored:
+
+    WOLFSSL_ATOMIC_STORE(linuxkm_lkcapi_registering_now, 0);
+
+    return ret;
 }
 
 static int linuxkm_lkcapi_unregister(void)
 {
     int seen_err = 0;
     int n_deregistered = 0;
+    int ret;
+    int current_linuxkm_lkcapi_registering_now = 0;
 
-    if (linuxkm_lkcapi_n_registered == 0)
-        return -ENOENT;
+    if (! wolfSSL_Atomic_Int_CompareExchange(
+            &linuxkm_lkcapi_registering_now,
+            &current_linuxkm_lkcapi_registering_now,
+            1))
+    {
+        return -EDEADLK;
+    }
+
+    if (WC_SIG_IGNORE_BEGIN() < 0) {
+        ret = -ECANCELED;
+        pr_err("ERROR: WC_SIG_IGNORE_BEGIN() failed.\n");
+        goto out_without_sig_ignored;
+    }
+
+    if (linuxkm_lkcapi_n_registered == 0) {
+        ret = -ENOENT;
+        goto out;
+    }
 
 #define UNREGISTER_ALG(alg, alg_class)                                   \
     do {                                                                 \
@@ -846,7 +898,7 @@ static int linuxkm_lkcapi_unregister(void)
      * the system-wide default rng.
      */
     if (wc_linuxkm_drbg_loaded) {
-        int ret = wc_linuxkm_drbg_cleanup();
+        ret = wc_linuxkm_drbg_cleanup();
         if (ret == 0)
             ++n_deregistered;
         else
@@ -958,10 +1010,24 @@ static int linuxkm_lkcapi_unregister(void)
             n_deregistered, n_deregistered == 1 ? "" : "s",
             linuxkm_lkcapi_n_registered, linuxkm_lkcapi_n_registered == 1 ? "s" : "");
 
-    if (linuxkm_lkcapi_n_registered > 0)
-        return -EBUSY;
+    if (linuxkm_lkcapi_n_registered > 0) {
+        ret = -EBUSY;
+        goto out;
+    }
 
     linuxkm_lkcapi_registered = 0;
 
-    return seen_err;
+    ret = seen_err;
+
+out:
+
+    (void)WC_SIG_IGNORE_END();
+
+out_without_sig_ignored:
+
+    WOLFSSL_ATOMIC_STORE(linuxkm_lkcapi_registering_now, 0);
+
+    return ret;
 }
+
+#endif /* !WC_SKIP_INCLUDED_C_FILES */

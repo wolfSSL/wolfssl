@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -22,9 +22,21 @@
 #ifndef TESTS_API_TEST_TLS_H
 #define TESTS_API_TEST_TLS_H
 
+int test_utils_memio_move_message(void);
 int test_tls12_unexpected_ccs(void);
 int test_tls13_unexpected_ccs(void);
 int test_tls12_curve_intersection(void);
 int test_tls13_curve_intersection(void);
+int test_tls_certreq_order(void);
+int test_tls12_bad_cv_sig_alg(void);
 
-#endif /* TESTS_API_TEST_TLS_EMS_H */
+#define TEST_TLS_DECLS                                                         \
+        TEST_DECL_GROUP("tls", test_utils_memio_move_message),                 \
+        TEST_DECL_GROUP("tls", test_tls12_unexpected_ccs),                     \
+        TEST_DECL_GROUP("tls", test_tls13_unexpected_ccs),                     \
+        TEST_DECL_GROUP("tls", test_tls12_curve_intersection),                 \
+        TEST_DECL_GROUP("tls", test_tls13_curve_intersection),                 \
+        TEST_DECL_GROUP("tls", test_tls_certreq_order),                        \
+        TEST_DECL_GROUP("tls", test_tls12_bad_cv_sig_alg)
+
+#endif /* TESTS_API_TEST_TLS_H */

@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -55,6 +55,9 @@
 
     #include <hal/sha_ll.h>
     #include <hal/clk_gate_ll.h>
+    #if ESP_IDF_VERSION_MAJOR >= 6
+        #include "sha/sha_core.h"
+    #endif
 #elif defined(CONFIG_IDF_TARGET_ESP32)   || \
       defined(CONFIG_IDF_TARGET_ESP32S2) || \
       defined(CONFIG_IDF_TARGET_ESP32S3)
@@ -1311,7 +1314,8 @@ int esp_sha_try_hw_lock(WC_ESP32SHA* ctx)
         }
     }
 
-#ifdef ESP_MONITOR_HW_TASK_LOCK
+#if defined(ESP_MONITOR_HW_TASK_LOCK) || \
+   (defined(WOLFSSL_DEBUG_MUTEX) && WOLFSSL_DEBUG_MUTEX)
     /* Nothing happening here other than messages based on mutex states */
     if (mutex_ctx_task == 0 || mutex_ctx_owner == 0) {
         /* no known stray mutex task owner */
@@ -1347,13 +1351,15 @@ int esp_sha_try_hw_lock(WC_ESP32SHA* ctx)
             } /* mutex owner ESP32_SHA_FREED check */
         } /* mutex_ctx_task is current task */
         else {
+#ifdef WOLFSSL_ESP32_HW_LOCK_DEBUG
             ESP_LOGW(TAG, "Warning: sha mutex unlock from unexpected task.");
             ESP_LOGW(TAG, "Locking task: 0x%x", (word32)mutex_ctx_task);
             ESP_LOGW(TAG, "This xTaskGetCurrentTaskHandle: 0x%x",
                           (word32)xTaskGetCurrentTaskHandle());
+#endif
         }
     }
-#endif /* ESP_MONITOR_HW_TASK_LOCK */
+#endif /* ESP_MONITOR_HW_TASK_LOCK || WOLFSSL_DEBUG_MUTEX */
 
     /* check if this SHA has been operated as SW or HW, or not yet init */
     if (ctx->mode == ESP32_SHA_INIT) {
@@ -1925,6 +1931,24 @@ static int wc_esp_process_block(WC_ESP32SHA* ctx, /* see ctx->sha_type */
     }
     if (ctx->isfirstblock) {
         ets_sha_enable(); /* will clear initial digest     */
+#if ESP_IDF_VERSION_MAJOR >= 6
+        /* Beginning ESP-IDF v6, the mode needs to be explicitly set. */
+        sha_hal_wait_idle();
+        switch (ctx->sha_type) {
+            case SHA1:
+                sha_hal_set_mode(SHA1);
+                break;
+            case SHA2_224:
+                esp_sha_set_mode(SHA2_224);
+                break;
+            case SHA2_256:
+                esp_sha_set_mode(SHA2_256);
+                break;
+            default:
+                /* Unsupported SHA mode. */
+                ESP_LOGW(TAG, "Unexpected sha_type", ctx->sha_type);
+        }
+#endif
         #if defined(DEBUG_WOLFSSL)
         {
             this_block_num = 1; /* one-based counter, just for debug info */

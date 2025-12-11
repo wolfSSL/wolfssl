@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -266,11 +266,6 @@ void mlkem_redistribute_16_rand_avx2(const word64* s, byte* r0, byte* r1,
     byte* r2, byte* r3);
 void mlkem_redistribute_8_rand_avx2(const word64* s, byte* r0, byte* r1,
     byte* r2, byte* r3);
-
-WOLFSSL_LOCAL
-void mlkem_sha3_128_blocksx4_seed_avx2(word64* s, byte* seed);
-WOLFSSL_LOCAL
-void mlkem_sha3_256_blocksx4_seed_avx2(word64* s, byte* seed);
 
 WOLFSSL_LOCAL
 void mlkem_cbd_eta2_avx2(sword16* p, const byte* r);

@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -290,7 +290,7 @@ WOLFSSL_SESSION* wolfSSL_get1_session(WOLFSSL* ssl)
 }
 
 /* session is a private struct, return if it is setup or not */
-WOLFSSL_API int wolfSSL_SessionIsSetup(WOLFSSL_SESSION* session)
+int wolfSSL_SessionIsSetup(WOLFSSL_SESSION* session)
 {
     if (session != NULL)
         return session->isSetup;
@@ -1167,11 +1167,7 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
     word32       row;
     int          error = 0;
 #ifdef HAVE_SESSION_TICKET
-#ifndef WOLFSSL_SMALL_STACK
-    byte         tmpTicket[PREALLOC_SESSION_TICKET_LEN];
-#else
-    byte*        tmpTicket = NULL;
-#endif
+    WC_DECLARE_VAR(tmpTicket, byte, PREALLOC_SESSION_TICKET_LEN, 0);
 #ifdef WOLFSSL_TLS13
     byte *preallocNonce = NULL;
     byte preallocNonceLen = 0;
@@ -1300,9 +1296,7 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
             output->ticket = output->staticTicket;
             output->ticketLenAlloc = 0;
         }
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(tmpTicket, output->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+        WC_FREE_VAR_EX(tmpTicket, output->heap, DYNAMIC_TYPE_TMP_BUFFER);
         return WOLFSSL_FAILURE;
     }
 #endif /* WOLFSSL_TLS13 && HAVE_SESSION_TICKET*/
@@ -1403,9 +1397,7 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
             XMEMCPY(output->ticket, tmpTicket, output->ticketLen); /* cppcheck-suppress uninitvar */
         }
     }
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(tmpTicket, output->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(tmpTicket, output->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TICKET_NONCE_MALLOC) &&          \
     (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
@@ -1556,7 +1548,7 @@ int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
 #endif
     }
     ssl->options.resuming = 1;
-    ssl->options.haveEMS = ssl->session->haveEMS;
+    ssl->options.haveEMS = (ssl->session->haveEMS) ? 1 : 0;
 
 #if defined(SESSION_CERTS) || (defined(WOLFSSL_TLS13) && \
                            defined(HAVE_SESSION_TICKET))

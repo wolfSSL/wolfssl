@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -608,11 +608,6 @@ int wolfSSL_quic_do_handshake(WOLFSSL* ssl)
             else {
                 ret = wolfSSL_read_early_data(ssl, tmpbuffer,
                                               sizeof(tmpbuffer), &len);
-                if (ret < 0 && ssl->error == WC_NO_ERR_TRACE(ZERO_RETURN)) {
-                    /* this is expected, since QUIC handles the actual early
-                     * data separately. */
-                    ret = WOLFSSL_SUCCESS;
-                }
             }
             if (ret < 0) {
                 goto cleanup;
@@ -1119,9 +1114,7 @@ size_t wolfSSL_quic_get_aead_tag_len(const WOLFSSL_EVP_CIPHER* aead_cipher)
     }
 
     (void)wolfSSL_EVP_CIPHER_CTX_cleanup(ctx);
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(ctx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(ctx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }

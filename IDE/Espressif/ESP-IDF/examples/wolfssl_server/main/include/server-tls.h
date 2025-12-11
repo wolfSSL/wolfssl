@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -20,6 +20,24 @@
  */
 #ifndef _SERVER_TLS_
 #define _SERVER_TLS_
+
+/* This example uses wolfssl test certificates */
+#if 1
+    /* See wolfssl/certs_test.h */
+    #if defined(CONFIG_IDF_TARGET_ESP32C2) || \
+        defined(CONFIG_IDF_TARGET_ESP8684) || \
+        defined(CONFIG_IDF_TARGET_ESP8266)
+        /* Use smaller certs for low-memory devices */
+        #define USE_CERT_BUFFERS_1024
+    #else
+        #define USE_CERT_BUFFERS_2048
+    #endif
+
+    /* always include smallest testing 32 byte RSA/ECC keys */
+    #define USE_CERT_BUFFERS_256
+#else
+    /* define your own certificate macros; see user_settings.h */
+#endif
 
 #include <wolfssl/wolfcrypt/settings.h> /* includes wolfSSL user-settings.h */
 #include <wolfssl/ssl.h>

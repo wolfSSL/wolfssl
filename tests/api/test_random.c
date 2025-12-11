@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -114,7 +114,7 @@ int test_wc_RNG_GenerateBlock(void)
     ExpectIntEQ(wc_RNG_GenerateBlock(NULL, key , sizeof(key)),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
-    for (i = 0; i <= (int)sizeof(key); i++) {
+    for (i = 0; i < (int)sizeof(key); i++) {
         ExpectIntEQ(wc_RNG_GenerateBlock(&rng, key + i, sizeof(key) - i), 0);
     }
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
@@ -325,8 +325,8 @@ int test_wc_RNG_TestSeed(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_HASHDRBG) && \
-    !(defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) || \
-    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
+    (!(defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)))
     byte seed[16];
     byte i;
 

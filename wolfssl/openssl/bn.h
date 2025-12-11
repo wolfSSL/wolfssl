@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -132,6 +132,7 @@ WOLFSSL_API int wolfSSL_BN_is_negative(const WOLFSSL_BIGNUM* bn);
 WOLFSSL_API int wolfSSL_BN_is_word(const WOLFSSL_BIGNUM* bn, WOLFSSL_BN_ULONG w);
 
 WOLFSSL_API int wolfSSL_BN_cmp(const WOLFSSL_BIGNUM* a, const WOLFSSL_BIGNUM* b);
+WOLFSSL_API int wolfSSL_BN_ucmp(const WOLFSSL_BIGNUM* a, const WOLFSSL_BIGNUM* b);
 
 WOLFSSL_API int wolfSSL_BN_bn2bin(const WOLFSSL_BIGNUM* bn, unsigned char* r);
 WOLFSSL_API WOLFSSL_BIGNUM* wolfSSL_BN_bin2bn(const unsigned char* str, int len,
@@ -243,6 +244,7 @@ typedef WOLFSSL_BN_GENCB    BN_GENCB;
 #define BN_is_word     wolfSSL_BN_is_word
 
 #define BN_cmp    wolfSSL_BN_cmp
+#define BN_ucmp    wolfSSL_BN_ucmp
 
 #define BN_bn2bin  wolfSSL_BN_bn2bin
 #define BN_bin2bn  wolfSSL_BN_bin2bn

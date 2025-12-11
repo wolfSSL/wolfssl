@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -114,14 +114,14 @@ typedef struct {
 } ge_cached;
 
 #ifdef CURVED25519_ASM
-void ge_p1p1_to_p2(ge_p2 *r, const ge_p1p1 *p);
-void ge_p1p1_to_p3(ge_p3 *r, const ge_p1p1 *p);
-void ge_p2_dbl(ge_p1p1 *r, const ge_p2 *p);
+WOLFSSL_LOCAL void ge_p1p1_to_p2(ge_p2 *r, const ge_p1p1 *p);
+WOLFSSL_LOCAL void ge_p1p1_to_p3(ge_p3 *r, const ge_p1p1 *p);
+WOLFSSL_LOCAL void ge_p2_dbl(ge_p1p1 *r, const ge_p2 *p);
 #define ge_p3_dbl(r, p)     ge_p2_dbl((ge_p1p1 *)(r), (ge_p2 *)(p))
-void ge_madd(ge_p1p1 *r, const ge_p3 *p, const ge_precomp *q);
-void ge_msub(ge_p1p1 *r, const ge_p3 *p, const ge_precomp *q);
-void ge_add(ge_p1p1 *r, const ge_p3 *p, const ge_cached *q);
-void ge_sub(ge_p1p1 *r, const ge_p3 *p, const ge_cached *q);
+WOLFSSL_LOCAL void ge_madd(ge_p1p1 *r, const ge_p3 *p, const ge_precomp *q);
+WOLFSSL_LOCAL void ge_msub(ge_p1p1 *r, const ge_p3 *p, const ge_precomp *q);
+WOLFSSL_LOCAL void ge_add(ge_p1p1 *r, const ge_p3 *p, const ge_cached *q);
+WOLFSSL_LOCAL void ge_sub(ge_p1p1 *r, const ge_p3 *p, const ge_cached *q);
 #endif
 #endif /* !ED25519_SMALL */
 

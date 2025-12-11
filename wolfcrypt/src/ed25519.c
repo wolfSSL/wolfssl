@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -1117,7 +1117,7 @@ void wc_ed25519_free(ed25519_key* key)
     to the final output length.
     returns 0 on success
  */
-int wc_ed25519_export_public(ed25519_key* key, byte* out, word32* outLen)
+int wc_ed25519_export_public(const ed25519_key* key, byte* out, word32* outLen)
 {
     /* sanity check on arguments */
     if (key == NULL || out == NULL || outLen == NULL)
@@ -1343,7 +1343,7 @@ int wc_ed25519_import_private_key(const byte* priv, word32 privSz,
  to the final output length.
  returns 0 on success
  */
-int wc_ed25519_export_private_only(ed25519_key* key, byte* out, word32* outLen)
+int wc_ed25519_export_private_only(const ed25519_key* key, byte* out, word32* outLen)
 {
     /* sanity checks on arguments */
     if (key == NULL || out == NULL || outLen == NULL)
@@ -1366,7 +1366,7 @@ int wc_ed25519_export_private_only(ed25519_key* key, byte* out, word32* outLen)
  to the final output length.
  returns 0 on success
  */
-int wc_ed25519_export_private(ed25519_key* key, byte* out, word32* outLen)
+int wc_ed25519_export_private(const ed25519_key* key, byte* out, word32* outLen)
 {
     /* sanity checks on arguments */
     if (key == NULL || out == NULL || outLen == NULL)
@@ -1386,7 +1386,7 @@ int wc_ed25519_export_private(ed25519_key* key, byte* out, word32* outLen)
 /* export full private key and public key
    return 0 on success
  */
-int wc_ed25519_export_key(ed25519_key* key,
+int wc_ed25519_export_key(const ed25519_key* key,
                           byte* priv, word32 *privSz,
                           byte* pub, word32 *pubSz)
 {
@@ -1487,7 +1487,7 @@ int wc_ed25519_check_key(ed25519_key* key)
 }
 
 /* returns the private key size (secret only) in bytes */
-int wc_ed25519_size(ed25519_key* key)
+int wc_ed25519_size(const ed25519_key* key)
 {
     if (key == NULL)
         return BAD_FUNC_ARG;
@@ -1496,7 +1496,7 @@ int wc_ed25519_size(ed25519_key* key)
 }
 
 /* returns the private key size (secret + public) in bytes */
-int wc_ed25519_priv_size(ed25519_key* key)
+int wc_ed25519_priv_size(const ed25519_key* key)
 {
     if (key == NULL)
         return BAD_FUNC_ARG;
@@ -1505,7 +1505,7 @@ int wc_ed25519_priv_size(ed25519_key* key)
 }
 
 /* returns the compressed key size in bytes (public key) */
-int wc_ed25519_pub_size(ed25519_key* key)
+int wc_ed25519_pub_size(const ed25519_key* key)
 {
     if (key == NULL)
         return BAD_FUNC_ARG;
@@ -1514,7 +1514,7 @@ int wc_ed25519_pub_size(ed25519_key* key)
 }
 
 /* returns the size of signature in bytes */
-int wc_ed25519_sig_size(ed25519_key* key)
+int wc_ed25519_sig_size(const ed25519_key* key)
 {
     if (key == NULL)
         return BAD_FUNC_ARG;

@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -34,6 +34,10 @@
 #endif
 
 #include <wolfssl/wolfcrypt/hmac.h>
+
+#ifdef HAVE_CMAC_KDF
+    #include <wolfssl/wolfcrypt/cmac.h>
+#endif /* HAVE_CMAC_KDF */
 
 #ifdef __cplusplus
     extern "C" {
@@ -171,6 +175,20 @@ WOLFSSL_API int wc_KDA_KDF_onestep(const byte* z, word32 zSz,
     const byte* fixedInfo, word32 fixedInfoSz, word32 derivedSecretSz,
     enum wc_HashType hashType, byte* output, word32 outputSz);
 #endif
+
+#ifdef HAVE_CMAC_KDF
+WOLFSSL_API int wc_KDA_KDF_twostep_cmac(const byte * salt, word32 salt_len,
+                                        const byte* z, word32 zSz,
+                                        const byte* fixedInfo,
+                                        word32 fixedInfoSz,
+                                        byte* output, word32 outputSz,
+                                        void* heap, int devId);
+WOLFSSL_API int wc_KDA_KDF_PRF_cmac(const byte* Kin, word32 KinSz,
+                                    const byte* fixedInfo, word32 fixedInfoSz,
+                                    byte* Kout, word32 KoutSz, CmacType type,
+                                    void* heap, int devId);
+#endif /* HAVE_CMAC_KDF */
+
 #ifdef __cplusplus
     } /* extern "C" */
 #endif

@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -19,12 +19,17 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+/* included by linuxkm/lkcapi_glue.c */
+#ifndef WC_SKIP_INCLUDED_C_FILES
+
 #ifndef LINUXKM_LKCAPI_REGISTER
     #error lkcapi_aes_glue.c included in non-LINUXKM_LKCAPI_REGISTER project.
 #endif
 
 #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+     defined(LINUXKM_LKCAPI_REGISTER_AES_ALL) || \
      (defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_AES))) && \
+    !defined(LINUXKM_LKCAPI_DONT_REGISTER_AES_ALL) && \
     !defined(LINUXKM_LKCAPI_REGISTER_AES)
     #define LINUXKM_LKCAPI_REGISTER_AES
 #endif
@@ -36,7 +41,8 @@
     defined(LINUXKM_LKCAPI_REGISTER_AESXTS) || \
     defined(LINUXKM_LKCAPI_REGISTER_AESCTR) || \
     defined(LINUXKM_LKCAPI_REGISTER_AESOFB) || \
-    defined(LINUXKM_LKCAPI_REGISTER_AESECB)
+    defined(LINUXKM_LKCAPI_REGISTER_AESECB) || \
+    defined(LINUXKM_LKCAPI_REGISTER_AES_ALL)
 
     #ifdef NO_AES
         #error LINUXKM_LKCAPI_REGISTER_AES* requires !defined(NO_AES)
@@ -64,8 +70,13 @@
 
 #include <wolfssl/wolfcrypt/aes.h>
 
-#if defined(WC_LINUXKM_C_FALLBACK_IN_SHIMS) && !defined(WC_FLAG_DONT_USE_AESNI)
-    #error WC_LINUXKM_C_FALLBACK_IN_SHIMS is defined but WC_FLAG_DONT_USE_AESNI is missing.
+#if defined(WC_FLAG_DONT_USE_AESNI) && !defined(WC_FLAG_DONT_USE_VECTOR_OPS)
+    /* backward compat */
+    #define WC_FLAG_DONT_USE_VECTOR_OPS WC_FLAG_DONT_USE_AESNI
+#endif
+
+#if defined(WC_LINUXKM_C_FALLBACK_IN_SHIMS) && !defined(WC_FLAG_DONT_USE_VECTOR_OPS)
+    #error WC_LINUXKM_C_FALLBACK_IN_SHIMS is defined but WC_FLAG_DONT_USE_VECTOR_OPS is missing.
 #endif
 
 /* note the FIPS code will be returned on failure even in non-FIPS builds. */
@@ -103,6 +114,7 @@
 
 #ifdef HAVE_AES_CBC
     #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+         defined(LINUXKM_LKCAPI_REGISTER_AES_ALL) || \
         (defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_CBC))) && \
         !defined(LINUXKM_LKCAPI_DONT_REGISTER_AESCBC) &&               \
         !defined(LINUXKM_LKCAPI_REGISTER_AESCBC)
@@ -115,7 +127,8 @@
     #undef LINUXKM_LKCAPI_REGISTER_AESCBC
 #endif
 #ifdef WOLFSSL_AES_CFB
-    #if defined(LINUXKM_LKCAPI_REGISTER_ALL) && \
+    #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+         defined(LINUXKM_LKCAPI_REGISTER_AES_ALL)) && \
         !defined(LINUXKM_LKCAPI_DONT_REGISTER_AESCFB) &&      \
         !defined(LINUXKM_LKCAPI_REGISTER_AESCFB)
         #define LINUXKM_LKCAPI_REGISTER_AESCFB
@@ -125,12 +138,15 @@
 #endif
 #ifdef HAVE_AESGCM
     #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+         defined(LINUXKM_LKCAPI_REGISTER_AES_ALL) || \
          (defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_GCM))) && \
         !defined(LINUXKM_LKCAPI_DONT_REGISTER_AESGCM) &&               \
         !defined(LINUXKM_LKCAPI_REGISTER_AESGCM)
         #define LINUXKM_LKCAPI_REGISTER_AESGCM
     #endif
-    #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) && !defined(LINUXKM_LKCAPI_DONT_REGISTER_AESGCM_RFC4106)) && \
+    #if ((defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+          defined(LINUXKM_LKCAPI_REGISTER_AES_ALL)) &&                  \
+         !defined(LINUXKM_LKCAPI_DONT_REGISTER_AESGCM_RFC4106)) &&      \
         !defined(LINUXKM_LKCAPI_REGISTER_AESGCM_RFC4106)
         #define LINUXKM_LKCAPI_REGISTER_AESGCM_RFC4106
     #endif
@@ -143,6 +159,7 @@
 #endif
 #ifdef WOLFSSL_AES_XTS
     #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+         defined(LINUXKM_LKCAPI_REGISTER_AES_ALL) || \
          (defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_XTS))) && \
         !defined(LINUXKM_LKCAPI_DONT_REGISTER_AESXTS) &&               \
         !defined(LINUXKM_LKCAPI_REGISTER_AESXTS)
@@ -156,6 +173,7 @@
 #endif
 #ifdef WOLFSSL_AES_COUNTER
     #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+         defined(LINUXKM_LKCAPI_REGISTER_AES_ALL) || \
          (defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_CTR))) && \
         !defined(LINUXKM_LKCAPI_DONT_REGISTER_AESCTR) &&               \
         !defined(LINUXKM_LKCAPI_REGISTER_AESCTR)
@@ -168,7 +186,8 @@
     #undef LINUXKM_LKCAPI_REGISTER_AESCTR
 #endif
 #ifdef WOLFSSL_AES_OFB
-    #if defined(LINUXKM_LKCAPI_REGISTER_ALL) && \
+    #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+         defined(LINUXKM_LKCAPI_REGISTER_AES_ALL)) && \
         !defined(LINUXKM_LKCAPI_DONT_REGISTER_AESOFB) &&      \
         !defined(LINUXKM_LKCAPI_REGISTER_AESOFB)
         #define LINUXKM_LKCAPI_REGISTER_AESOFB
@@ -178,6 +197,7 @@
 #endif
 #ifdef HAVE_AES_ECB
     #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+         defined(LINUXKM_LKCAPI_REGISTER_AES_ALL) || \
          (defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_ECB))) && \
          !defined(LINUXKM_LKCAPI_DONT_REGISTER_AESECB) &&   \
         !defined(LINUXKM_LKCAPI_REGISTER_AESECB)
@@ -485,7 +505,7 @@ static int km_AesSetKeyCommon(struct km_AesCtx * ctx, const u8 *in_key,
 #ifdef WC_LINUXKM_C_FALLBACK_IN_SHIMS
 
     if (ctx->aes_encrypt->use_aesni) {
-        ctx->aes_encrypt_C->use_aesni = WC_FLAG_DONT_USE_AESNI;
+        ctx->aes_encrypt_C->use_aesni = WC_FLAG_DONT_USE_VECTOR_OPS;
 
         err = wc_AesSetKey(ctx->aes_encrypt_C, in_key, key_len, NULL, AES_ENCRYPTION);
 
@@ -501,7 +521,7 @@ static int km_AesSetKeyCommon(struct km_AesCtx * ctx, const u8 *in_key,
     }
 
     if (ctx->aes_decrypt_C && ctx->aes_decrypt->use_aesni) {
-        ctx->aes_decrypt_C->use_aesni = WC_FLAG_DONT_USE_AESNI;
+        ctx->aes_decrypt_C->use_aesni = WC_FLAG_DONT_USE_VECTOR_OPS;
 
         err = wc_AesSetKey(ctx->aes_decrypt_C, in_key, key_len, NULL,
                            AES_DECRYPTION);
@@ -912,7 +932,7 @@ static int km_AesGcmSetKey(struct crypto_aead *tfm, const u8 *in_key,
 
 #ifdef WC_LINUXKM_C_FALLBACK_IN_SHIMS
     if (ctx->aes_encrypt->use_aesni) {
-        ctx->aes_encrypt_C->use_aesni = WC_FLAG_DONT_USE_AESNI;
+        ctx->aes_encrypt_C->use_aesni = WC_FLAG_DONT_USE_VECTOR_OPS;
 
         err = wc_AesGcmSetKey(ctx->aes_encrypt_C, in_key, key_len);
 
@@ -960,7 +980,7 @@ static int km_AesGcmSetKey_Rfc4106(struct crypto_aead *tfm, const u8 *in_key,
 
 #ifdef WC_LINUXKM_C_FALLBACK_IN_SHIMS
     if (ctx->aes_encrypt->use_aesni) {
-        ctx->aes_encrypt_C->use_aesni = WC_FLAG_DONT_USE_AESNI;
+        ctx->aes_encrypt_C->use_aesni = WC_FLAG_DONT_USE_VECTOR_OPS;
 
         err = wc_AesGcmSetKey(ctx->aes_encrypt_C, in_key, key_len);
 
@@ -1597,7 +1617,7 @@ static int km_AesXtsSetKey(struct crypto_skcipher *tfm, const u8 *in_key,
     }
 
     /* It's possible to set ctx->aesXts->{tweak,aes,aes_decrypt}.use_aesni to
-     * WC_FLAG_DONT_USE_AESNI here, for WC_LINUXKM_C_FALLBACK_IN_SHIMS in
+     * WC_FLAG_DONT_USE_VECTOR_OPS here, for WC_LINUXKM_C_FALLBACK_IN_SHIMS in
      * AES-XTS, but we can use the WC_C_DYNAMIC_FALLBACK mechanism
      * unconditionally because there's no AES-XTS in Cert 4718.
      */
@@ -4300,3 +4320,5 @@ static int linuxkm_test_aesecb(void) {
 #endif /* LINUXKM_LKCAPI_REGISTER_AESECB */
 
 #endif /* LINUXKM_LKCAPI_REGISTER_AES */
+
+#endif /* !WC_SKIP_INCLUDED_C_FILES */

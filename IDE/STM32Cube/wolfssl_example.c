@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -1830,7 +1830,7 @@ double current_time(void)
     (void) date;
 
     /* return seconds.milliseconds */
-    return ((double) time.Hours * 24) + ((double) time.Minutes * 60)
+    return ((double) time.Hours * 3600) + ((double) time.Minutes * 60)
             + (double) time.Seconds + ((double) subsec / 1000);
 }
 #endif /* HAL_RTC_MODULE_ENABLED */

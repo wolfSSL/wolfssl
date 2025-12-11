@@ -9,7 +9,7 @@ Support for the STM32 PKA on WB55, H7, MP13 and other devices with on-board
 public-key acceleration:
  - ECC192/ECC224/ECC256/ECC384
 
-Support for the STSAFE-A100 crypto hardware accelerator co-processor via I2C for ECC supporting NIST or Brainpool 256-bit and 384-bit curves. It requires the ST-Safe SDK including wolf stsafe_interface.c/.h files. Please contact ST for these.
+Support for the STSAFE-A100 crypto hardware accelerator co-processor via I2C for ECC supporting NIST or Brainpool 256-bit and 384-bit curves. It requires the ST-Safe SDK including wolfSSL's `stsafe_interface.c/.h` files. Please contact us at support@wolfssl.com to get this code.
 
 
 For details see our [wolfSSL ST](https://www.wolfssl.com/docs/stm32/) page.

@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -18,6 +18,9 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+
+/* included by linuxkm/lkcapi_glue.c */
+#ifndef WC_SKIP_INCLUDED_C_FILES
 
 #ifndef LINUXKM_LKCAPI_REGISTER
     #error lkcapi_sha_glue.c included in non-LINUXKM_LKCAPI_REGISTER project.
@@ -92,6 +95,30 @@
  * to our rng_alg.generate() implementation.
  */
 #define WOLFKM_STDRNG_DRIVER ("sha2-256-drbg-nopr" WOLFKM_SHA_DRIVER_SUFFIX)
+
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA_ALL
+    #define LINUXKM_LKCAPI_REGISTER_SHA1
+    #define LINUXKM_LKCAPI_REGISTER_SHA2
+    #define LINUXKM_LKCAPI_REGISTER_SHA3
+#endif
+
+#ifdef LINUXKM_LKCAPI_DONT_REGISTER_SHA_ALL
+    #define LINUXKM_LKCAPI_DONT_REGISTER_SHA1
+    #define LINUXKM_LKCAPI_DONT_REGISTER_SHA2
+    #define LINUXKM_LKCAPI_DONT_REGISTER_SHA3
+#endif
+
+#ifdef LINUXKM_LKCAPI_REGISTER_HMAC_ALL
+    #define LINUXKM_LKCAPI_REGISTER_SHA1_HMAC
+    #define LINUXKM_LKCAPI_REGISTER_SHA2_HMAC
+    #define LINUXKM_LKCAPI_REGISTER_SHA3_HMAC
+#endif
+
+#ifdef LINUXKM_LKCAPI_DONT_REGISTER_HMAC_ALL
+    #define LINUXKM_LKCAPI_DONT_REGISTER_SHA1_HMAC
+    #define LINUXKM_LKCAPI_DONT_REGISTER_SHA2_HMAC
+    #define LINUXKM_LKCAPI_DONT_REGISTER_SHA3_HMAC
+#endif
 
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA2
     #define LINUXKM_LKCAPI_REGISTER_SHA2_224
@@ -350,10 +377,7 @@
         !defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG)
         #define LINUXKM_LKCAPI_REGISTER_HASH_DRBG
     #endif
-    #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) && !defined(LINUXKM_LKCAPI_DONT_REGISTER_HASH_DRBG_DEFAULT)) && \
-        !defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT)
-        #define LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
-    #endif
+    /* setup for LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT is in linuxkm_wc_port.h */
 #else
     #undef LINUXKM_LKCAPI_REGISTER_HASH_DRBG
 #endif
@@ -937,6 +961,9 @@ struct wc_swallow_the_semicolon
 
 #ifdef LINUXKM_LKCAPI_REGISTER_HASH_DRBG
 
+#ifdef HAVE_ENTROPY_MEMUSE
+    #include <wolfssl/wolfcrypt/wolfentropy.h>
+#endif
 #include <wolfssl/wolfcrypt/random.h>
 
 struct wc_linuxkm_drbg_ctx {
@@ -956,6 +983,9 @@ static inline void wc_linuxkm_drbg_ctx_clear(struct wc_linuxkm_drbg_ctx * ctx)
             if (ctx->rngs[i].lock != 0) {
                 /* better to leak than to crash. */
                 pr_err("BUG: wc_linuxkm_drbg_ctx_clear called with DRBG #%d still locked.", i);
+                ctx->rngs = NULL;
+                ctx->n_rngs = 0;
+                return;
             }
             else
                 wc_FreeRng(&ctx->rngs[i].rng);
@@ -1083,8 +1113,11 @@ static inline struct wc_rng_inst *get_drbg_n(struct wc_linuxkm_drbg_ctx *ctx, in
         int expected = 0;
         if (likely(__atomic_compare_exchange_n(&ctx->rngs[n].lock, &expected, 1, 0, __ATOMIC_SEQ_CST, __ATOMIC_ACQUIRE)))
             return &ctx->rngs[n];
-        if (can_sleep)
+        if (can_sleep) {
+            if (signal_pending(current))
+                return NULL;
             cond_resched();
+        }
         else
             cpu_relax();
     }
@@ -1134,24 +1167,42 @@ retry:
         }
     }
 
-    ret = wc_RNG_GenerateBlock(&drbg->rng, dst, dlen);
-
-    if (unlikely(ret == WC_NO_ERR_TRACE(RNG_FAILURE_E)) && (! retried)) {
-        retried = 1;
-        wc_FreeRng(&drbg->rng);
-        ret = wc_InitRng(&drbg->rng);
-        if (ret == 0) {
-            pr_warn("WARNING: reinitialized DRBG #%d after RNG_FAILURE_E.", raw_smp_processor_id());
-            goto retry;
+    for (;;) {
+        #define RNG_MAX_BLOCK_LEN_ROUNDED (RNG_MAX_BLOCK_LEN & ~0xfU)
+        if (dlen > RNG_MAX_BLOCK_LEN_ROUNDED) {
+            ret = wc_RNG_GenerateBlock(&drbg->rng, dst, RNG_MAX_BLOCK_LEN_ROUNDED);
+            if (ret == 0) {
+                dlen -= RNG_MAX_BLOCK_LEN_ROUNDED;
+                dst += RNG_MAX_BLOCK_LEN_ROUNDED;
+            }
         }
+        #undef RNG_MAX_BLOCK_LEN_ROUNDED
         else {
-            pr_warn_once("ERROR: reinitialization of DRBG #%d after RNG_FAILURE_E failed with ret %d.", raw_smp_processor_id(), ret);
-            ret = -EINVAL;
+            ret = wc_RNG_GenerateBlock(&drbg->rng, dst, dlen);
+            dlen -= dlen;
         }
-    }
-    else if (ret != 0) {
-        pr_warn_once("WARNING: wc_RNG_GenerateBlock returned %d\n",ret);
-        ret = -EINVAL;
+
+        if (unlikely(ret == WC_NO_ERR_TRACE(RNG_FAILURE_E)) && (! retried)) {
+            retried = 1;
+            wc_FreeRng(&drbg->rng);
+            ret = wc_InitRng(&drbg->rng);
+            if (ret == 0) {
+                pr_warn("WARNING: reinitialized DRBG #%d after RNG_FAILURE_E.", raw_smp_processor_id());
+                goto retry;
+            }
+            else {
+                pr_warn_once("ERROR: reinitialization of DRBG #%d after RNG_FAILURE_E failed with ret %d.", raw_smp_processor_id(), ret);
+                ret = -EINVAL;
+            }
+        }
+        else if (ret != 0) {
+            pr_warn_once("WARNING: wc_RNG_GenerateBlock returned %d\n",ret);
+            ret = -EINVAL;
+            break;
+        }
+
+        if (! dlen)
+            break;
     }
 
 out:
@@ -1168,7 +1219,7 @@ static int wc_linuxkm_drbg_seed(struct crypto_rng *tfm,
 {
     struct wc_linuxkm_drbg_ctx *ctx = (struct wc_linuxkm_drbg_ctx *)crypto_rng_ctx(tfm);
     u8 *seed_copy = NULL;
-    int ret;
+    int ret = 0;
     int n;
 
     if ((tfm->base.__crt_alg->cra_init != wc_linuxkm_drbg_init_tfm) ||
@@ -1191,6 +1242,11 @@ static int wc_linuxkm_drbg_seed(struct crypto_rng *tfm,
      */
     for (n = ctx->n_rngs - 1; n >= 0; --n) {
         struct wc_rng_inst *drbg = get_drbg_n(ctx, n);
+
+        if (! drbg) {
+            ret = -EINTR;
+            break;
+        }
 
         /* perturb the seed with the CPU ID, so that no DRBG has the exact same
          * seed.
@@ -1257,7 +1313,7 @@ static int wc_linuxkm_drbg_loaded = 0;
 #ifdef LINUXKM_DRBG_GET_RANDOM_BYTES
 
 #if !(defined(HAVE_ENTROPY_MEMUSE) || defined(HAVE_INTEL_RDSEED) ||    \
-    defined(HAVE_AMD_RDSEED))
+      defined(HAVE_AMD_RDSEED) || defined(WC_LINUXKM_RDSEED_IN_GLUE_LAYER))
     #error LINUXKM_DRBG_GET_RANDOM_BYTES requires a native or intrinsic entropy source.
 #endif
 
@@ -1425,6 +1481,7 @@ static int wc_mix_pool_bytes(const void *buf, size_t len) {
     struct wc_linuxkm_drbg_ctx *ctx;
     size_t i;
     int n;
+    int can_sleep = (preempt_count() == 0);
 
     if (len == 0)
         return 0;
@@ -1434,15 +1491,23 @@ static int wc_mix_pool_bytes(const void *buf, size_t len) {
 
     for (n = ctx->n_rngs - 1; n >= 0; --n) {
         struct wc_rng_inst *drbg = get_drbg_n(ctx, n);
-        int V_offset = 0;
+        int V_offset;
 
-        for (i = 0; i < len; ++i) {
+        if (! drbg)
+            return -EINTR;
+
+        for (i = 0, V_offset = 0; i < len; ++i) {
             ((struct DRBG_internal *)drbg->rng.drbg)->V[V_offset++] += ((byte *)buf)[i];
             if (V_offset == (int)sizeof ((struct DRBG_internal *)drbg->rng.drbg)->V)
                 V_offset = 0;
         }
 
         put_drbg(drbg);
+        if (can_sleep) {
+            if (signal_pending(current))
+                return -EINTR;
+            cond_resched();
+        }
     }
 
     return 0;
@@ -1458,7 +1523,12 @@ static int wc_crng_reseed(void) {
 
     for (n = ctx->n_rngs - 1; n >= 0; --n) {
         struct wc_rng_inst *drbg = get_drbg_n(ctx, n);
+
+        if (! drbg)
+            return -EINTR;
+
         ((struct DRBG_internal *)drbg->rng.drbg)->reseedCtr = WC_RESEED_INTERVAL;
+
         if (can_sleep) {
             byte scratch[4];
             int need_reenable_vec = (DISABLE_VECTOR_REGISTERS() == 0);
@@ -1468,7 +1538,12 @@ static int wc_crng_reseed(void) {
             if (ret != 0)
                 pr_err("ERROR: wc_crng_reseed() wc_RNG_GenerateBlock() for DRBG #%d returned %d.", n, ret);
             put_drbg(drbg);
+            if (signal_pending(current))
+                return -EINTR;
             cond_resched();
+        }
+        else {
+            put_drbg(drbg);
         }
     }
 
@@ -1994,3 +2069,5 @@ static int wc_linuxkm_drbg_cleanup(void) {
 }
 
 #endif /* LINUXKM_LKCAPI_REGISTER_HASH_DRBG */
+
+#endif /* !WC_SKIP_INCLUDED_C_FILES */

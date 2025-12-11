@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -57,12 +57,12 @@
     }
 #endif
 
-#if defined(WOLFSSL_LINUXKM) && !defined(WOLFSSL_SP_ASM)
+#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && !defined(WOLFSSL_SP_ASM)
     /* force off unneeded vector register save/restore. */
     #undef SAVE_VECTOR_REGISTERS
-    #define SAVE_VECTOR_REGISTERS(fail_clause) WC_DO_NOTHING
+    #define SAVE_VECTOR_REGISTERS(fail_clause) SAVE_NO_VECTOR_REGISTERS(fail_clause)
     #undef RESTORE_VECTOR_REGISTERS
-    #define RESTORE_VECTOR_REGISTERS() WC_DO_NOTHING
+    #define RESTORE_VECTOR_REGISTERS() RESTORE_NO_VECTOR_REGISTERS()
 #endif
 
 /*
@@ -1373,12 +1373,11 @@ static int GeneratePublicDh(DhKey* key, byte* priv, word32 privSz,
     return ret;
 }
 
-#if defined(WOLFSSL_DH_GEN_PUB)
 /**
  * Given a DhKey with set params and a priv key, generate the corresponding
  * public key. If fips, does pub key validation.
  * */
-WOLFSSL_API int wc_DhGeneratePublic(DhKey* key, byte* priv, word32 privSz,
+int wc_DhGeneratePublic(DhKey* key, byte* priv, word32 privSz,
     byte* pub, word32* pubSz)
 {
     int ret = 0;
@@ -1403,7 +1402,6 @@ WOLFSSL_API int wc_DhGeneratePublic(DhKey* key, byte* priv, word32 privSz,
 
     return ret;
 }
-#endif /* WOLFSSL_DH_GEN_PUB */
 
 static int wc_DhGenerateKeyPair_Sync(DhKey* key, WC_RNG* rng,
     byte* priv, word32* privSz, byte* pub, word32* pubSz)
@@ -2114,7 +2112,7 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
         }
 
         if ((ret == 0) && ct) {
-            word16 mask = 0xff;
+            volatile word16 mask = 0xff;
             sword16 o = (sword16)(*agreeSz - 1);
 
             *agreeSz = (word32)(i + 1);
@@ -3230,6 +3228,7 @@ int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
     return ret;
 }
 
+#endif /* WOLFSSL_KEY_GEN */
 
 /* Export raw DH parameters from DhKey structure
  *
@@ -3326,7 +3325,5 @@ int wc_DhExportParamsRaw(DhKey* dh, byte* p, word32* pSz,
 
     return ret;
 }
-
-#endif /* WOLFSSL_KEY_GEN */
 
 #endif /* NO_DH */

@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -27,7 +27,7 @@ This library provides single precision (SP) integer math functions.
 #ifndef WOLF_CRYPT_SP_INT_H
 #define WOLF_CRYPT_SP_INT_H
 
-#ifndef WOLFSSL_LINUXKM
+#ifndef NO_LIMITS_H
 #include <limits.h>
 #endif
 #include <wolfssl/wolfcrypt/settings.h>
@@ -932,7 +932,7 @@ typedef struct sp_int_minimal {
     sp_size_t    size;
 #ifdef WOLFSSL_SP_INT_NEGATIVE
     /** Indicates whether number is 0/positive or negative.  */
-    sp_uint8     sign;
+    sp_sign_t    sign;
 #endif
 #ifdef HAVE_WOLF_BIGINT
     /** Unsigned binary (big endian) representation of number. */
@@ -962,6 +962,154 @@ typedef sp_int_digit mp_digit;
 /*
  * Function prototypes.
  */
+
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define sp_init wc_sp_init
+    #define sp_init_size wc_sp_init_size
+    #define sp_init_multi wc_sp_init_multi
+    #define sp_free wc_sp_free
+    #define sp_grow wc_sp_grow
+
+    #define sp_zero wc_sp_zero
+    #define sp_clear wc_sp_clear
+    #define sp_forcezero wc_sp_forcezero
+    #define sp_init_copy wc_sp_init_copy
+
+    #define sp_copy wc_sp_copy
+    #define sp_exch wc_sp_exch
+    #define sp_cond_swap_ct wc_sp_cond_swap_ct
+    #define sp_cond_swap_ct_ex wc_sp_cond_swap_ct_ex
+
+    #ifdef WOLFSSL_SP_INT_NEGATIVE
+        #define sp_abs wc_sp_abs
+    #endif
+    #ifdef WOLFSSL_SP_MATH_ALL
+        #define sp_cmp_mag wc_sp_cmp_mag
+    #endif
+    #define sp_cmp wc_sp_cmp
+    #define sp_cmp_ct wc_sp_cmp_ct
+
+    #define sp_is_bit_set wc_sp_is_bit_set
+    #define sp_count_bits wc_sp_count_bits
+    #if defined(HAVE_ECC) && defined(HAVE_COMP_KEY)
+        #define sp_cnt_lsb wc_sp_cnt_lsb
+    #endif
+    #define sp_leading_bit wc_sp_leading_bit
+    #define sp_set_bit wc_sp_set_bit
+    #define sp_2expt wc_sp_2expt
+
+    #define sp_set wc_sp_set
+    #define sp_set_int wc_sp_set_int
+    #define sp_cmp_d wc_sp_cmp_d
+    #define sp_add_d wc_sp_add_d
+    #define sp_sub_d wc_sp_sub_d
+    #define sp_mul_d wc_sp_mul_d
+    #if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+        defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || \
+        defined(WC_MP_TO_RADIX)
+        #define sp_div_d wc_sp_div_d
+    #endif
+    #if defined(WOLFSSL_SP_MATH_ALL) || (defined(HAVE_ECC) && \
+        defined(HAVE_COMP_KEY)) || defined(OPENSSL_EXTRA)
+        #define sp_mod_d wc_sp_mod_d
+    #endif
+    #if defined(WOLFSSL_SP_MATH_ALL) && defined(HAVE_ECC)
+        #define sp_div_2_mod_ct wc_sp_div_2_mod_ct
+        #define sp_div_2 wc_sp_div_2
+    #endif
+
+    #define sp_add wc_sp_add
+    #define sp_sub wc_sp_sub
+    #if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+        (!defined(WOLFSSL_SP_MATH) && defined(WOLFSSL_CUSTOM_CURVES)) || \
+        defined(WOLFCRYPT_HAVE_ECCSI) || defined(WOLFCRYPT_HAVE_SAKKE)
+        #define sp_addmod wc_sp_addmod
+    #endif
+    #if defined(WOLFSSL_SP_MATH_ALL) && (!defined(WOLFSSL_RSA_VERIFY_ONLY) || \
+        defined(HAVE_ECC))
+        #define sp_submod wc_sp_submod
+    #endif
+    #if defined(WOLFSSL_SP_MATH_ALL) && defined(HAVE_ECC)
+        #define sp_submod_ct wc_sp_submod_ct
+        #define sp_addmod_ct wc_sp_addmod_ct
+    #endif
+    #if defined(WOLFSSL_SP_MATH_ALL) && defined(HAVE_ECC)
+        #define sp_xor_ct wc_sp_xor_ct
+    #endif
+
+    #define sp_lshd wc_sp_lshd
+    #ifdef WOLFSSL_SP_MATH_ALL
+        #define sp_rshd wc_sp_rshd
+    #endif
+    #define sp_rshb wc_sp_rshb
+
+    #if defined(WOLFSSL_SP_MATH_ALL) || !defined(NO_DH) || defined(HAVE_ECC) || \
+        (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
+         !defined(WOLFSSL_RSA_PUBLIC_ONLY))
+        #define sp_div wc_sp_div
+    #endif
+    #define sp_mod wc_sp_mod
+
+    #define sp_mul wc_sp_mul
+    #define sp_mulmod wc_sp_mulmod
+
+    #define sp_invmod wc_sp_invmod
+    #if defined(WOLFSSL_SP_MATH_ALL) && defined(HAVE_ECC)
+        #define sp_invmod_mont_ct wc_sp_invmod_mont_ct
+    #endif
+
+    #define sp_exptmod_ex wc_sp_exptmod_ex
+    #define sp_exptmod wc_sp_exptmod
+    #if defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_HAVE_SP_DH)
+        #define sp_exptmod_nct wc_sp_exptmod_nct
+    #endif
+
+    #if defined(WOLFSSL_SP_MATH_ALL) || defined(OPENSSL_ALL)
+        #define sp_div_2d wc_sp_div_2d
+        #define sp_mul_2d wc_sp_mul_2d
+    #endif
+    #if defined(WOLFSSL_SP_MATH_ALL) || defined(HAVE_ECC) || defined(OPENSSL_ALL)
+        #define sp_mod_2d wc_sp_mod_2d
+    #endif
+
+    #define sp_sqr wc_sp_sqr
+    #define sp_sqrmod wc_sp_sqrmod
+
+    #define sp_mont_red_ex wc_sp_mont_red_ex
+    #define sp_mont_setup wc_sp_mont_setup
+    #define sp_mont_norm wc_sp_mont_norm
+
+    #define sp_unsigned_bin_size wc_sp_unsigned_bin_size
+    #define sp_read_unsigned_bin wc_sp_read_unsigned_bin
+    #define sp_to_unsigned_bin wc_sp_to_unsigned_bin
+    #define sp_to_unsigned_bin_len wc_sp_to_unsigned_bin_len
+    #define sp_to_unsigned_bin_len_ct wc_sp_to_unsigned_bin_len_ct
+    #ifdef WOLFSSL_SP_MATH_ALL
+        #define sp_to_unsigned_bin_at_pos wc_sp_to_unsigned_bin_at_pos
+    #endif
+
+    #define sp_read_radix wc_sp_read_radix
+    #define sp_tohex wc_sp_tohex
+    #define sp_todecimal wc_sp_todecimal
+    #if defined(WOLFSSL_SP_MATH_ALL) || defined(WC_MP_TO_RADIX)
+        #define sp_toradix wc_sp_toradix
+        #define sp_radix_size wc_sp_radix_size
+    #endif
+
+    #define sp_rand_prime wc_sp_rand_prime
+    #define sp_prime_is_prime wc_sp_prime_is_prime
+    #define sp_prime_is_prime_ex wc_sp_prime_is_prime_ex
+    #if !defined(NO_RSA) || defined(WOLFSSL_KEY_GEN)
+        #define sp_gcd wc_sp_gcd
+    #endif
+    #if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && \
+        (!defined(WC_RSA_BLINDING) || defined(HAVE_FIPS) || defined(HAVE_SELFTEST))
+        #define sp_lcm wc_sp_lcm
+    #endif
+
+    #define CheckRunTimeFastMath wc_CheckRunTimeFastMath
+
+#endif /* WOLFSSL_API_PREFIX_MAP */
 
 MP_API int sp_init(sp_int* a);
 MP_API int sp_init_size(sp_int* a, unsigned int size);

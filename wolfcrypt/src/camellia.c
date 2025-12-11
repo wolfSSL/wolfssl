@@ -33,7 +33,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -704,10 +704,8 @@ static int camellia_setup128(const unsigned char *key, u32 *subkey)
     dw = CamelliaSubkeyL(23) ^ CamelliaSubkeyR(23), dw = CAMELLIA_RL8(dw);
     CamelliaSubkeyR(23) = CamelliaSubkeyL(23) ^ dw, CamelliaSubkeyL(23) = dw;
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(subL, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(subR, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(subL, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(subR, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return 0;
 }
@@ -1011,10 +1009,8 @@ static int camellia_setup256(const unsigned char *key, u32 *subkey)
     dw = CamelliaSubkeyL(31) ^ CamelliaSubkeyR(31), dw = CAMELLIA_RL8(dw);
     CamelliaSubkeyR(31) = CamelliaSubkeyL(31) ^ dw,CamelliaSubkeyL(31) = dw;
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(subL, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(subR, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(subL, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(subR, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return 0;
 }

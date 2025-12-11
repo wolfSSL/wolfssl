@@ -138,14 +138,63 @@ extern "C" {
 #undef  HAVE_FIPS
 #if 1
 
-    #define WOLFCRYPT_FIPS_CORE_HASH_VALUE C82E8BD05125ED82DE72A521EEB369E026526D089ADCB6FB2B943479A9D5DB63
+    #define WOLFCRYPT_FIPS_CORE_HASH_VALUE \
+C149F3285397DFBD0C6720E14818475C3A50B10880EF9619463173A6D5ED15E7
+/* 0F3FB6F60279949E88901E852EADF3746E92162EB3D279E4C1052FB145FB04B6 */ /* Primary Run */
+/* F952A96D70E630665F11D9933C46546063FD70108E39AB62C0886F0888B656ED */ /* Cases 206, 208 and 209 */
+/* BADBADBADBADBADBADBADDEADBEEFDEADBEEFDEADBEEFDEADBEEFBADBADBADBD */ /* TE05.05.07 */
+/* D371272290903FB9EB78FACD3504306EC8F12342CC195950E0F516A03AA51A39 */ /* harness */
+
+#ifdef _WIN32_WCE
+    #include <stdio.h>
+    #include <stdarg.h>
+    #include <time.h>
+    #include <windows.h>
+    /* Inline function for WOLFLOGV */
+    static int wolf_logv_internal(const char* fmt, ...) {
+        int n;
+        va_list args;
+
+        Sleep(1); /* Sleep for 1 millisecond before printing */
+        /* Ensure all previous buffered output is flushed */
+        fflush(stdout);
+        fflush(stderr);
+
+        va_start(args, fmt);
+        /* Use vfprintf for va_list arguments */
+        n = vfprintf(stdout, fmt, args);
+        va_end(args);
+
+        /* Flush immediately after printing */
+        fflush(stdout);
+        fflush(stderr);
+
+        Sleep(1);  /* Sleep for 1 millisecond before printing */
+
+        return n;
+    }
+
+    /* Ensure printf is not defined before redefining it */
+    #ifdef printf
+        #undef printf
+    #endif
+
+    /* Define WOLFLOGV as the wrapper */
+    #define WOLFLOGV wolf_logv_internal
+
+    /* Redirect printf to WOLFLOGV (effectively wolf_logv_internal) */
+    #define printf WOLFLOGV
+#endif
+
     #define HAVE_FIPS
 
     #undef  HAVE_FIPS_VERSION
     #define HAVE_FIPS_VERSION 5
+    #define HAVE_FIPS_VERSION_MAJOR HAVE_FIPS_VERSION
 
     #undef HAVE_FIPS_VERSION_MINOR
     #define HAVE_FIPS_VERSION_MINOR 2
+    #define HAVE_FIPS_VERSION_PATCH 3
 
     #undef WOLFSSL_WOLFSSH
     #define WOLFSSL_WOLFSSH
@@ -429,7 +478,7 @@ extern "C" {
 
 /* MD5 */
 #undef  NO_MD5
-#if 0
+#if 1
 
 #else
     #define NO_MD5
@@ -597,7 +646,7 @@ extern "C" {
     #define USE_WOLF_STRTOK
     #define XSTRTOK(s1,d,ptr) wc_strtok((s1),(d),(ptr))
 
-    #define XSTRNSTR(s1,s2,n) mystrnstr((s1),(s2),(n))
+    #define XSTRNSTR(s1,s2,n) wolfSSL_strnstr((s1),(s2),(n))
 
     #define XMEMCPY(d,s,l)    memcpy((d),(s),(l))
     #define XMEMSET(b,c,l)    memset((b),(c),(l))
@@ -677,7 +726,7 @@ extern "C" {
 #define HAVE_ENCRYPT_THEN_MAC
 
 #undef WOLFSSL_CERT_GEN
-#define WOLFSSL_CERT_GEN
+//#define WOLFSSL_CERT_GEN
 
 #undef ATOMIC_USER
 #define ATOMIC_USER
@@ -803,27 +852,26 @@ extern "C" {
 #define WOLFSSL_NO_SHAKE256
 
 /* wolfSSL engineering ACVP algo and operational testing only (Default: Off) */
-#if 1
-    #undef WOLFSSL_PUBLIC_MP
+#if 0
     #define WOLFSSL_PUBLIC_MP
-
-    #undef OPTEST_LOGGING_ENABLED
-    //#define OPTEST_LOGGING_ENABLED
-
-    #undef OPTEST_INVALID_LOGGING_ENABLED
-    //#define OPTEST_INVALID_LOGGING_ENABLED
-
-    #undef NO_MAIN_OPTEST_DRIVER
     #define NO_MAIN_OPTEST_DRIVER
-
-    #undef DEBUG_FIPS_VERBOSE
+    #define NO_WRITE_TEMP_FILES
+    #define WORKING_WITH_AEGISOLVE
+    #define USE_CERT_BUFFERS_2048
+    #define USE_CERT_BUFFERS_256
+    #define OPTEST_LOGGING_ENABLED
     #define DEBUG_FIPS_VERBOSE
-
-    #undef HAVE_FORCE_FIPS_FAILURE
+    #define OPTEST_RUNNING_ORGANIC
+    #define OPTEST_INVALID_LOGGING_ENABLED
     #define HAVE_FORCE_FIPS_FAILURE
-
-    #undef NO_WRITE_TEMP_FILES
-    #define NO_WRITE_TEMPT_FILES
+    #define DEEPLY_EMBEDDED
+    #define OPTEST_LOG_TE_MAPPING
+    #define OEUP_V523
+    #define FULL_SUBMISSION
+    #define NO_MAIN_DRIVER
+    #define WC_DECLARE_NOTOK
+    #define PRINTING_ZS_CRASHES
+    #define WOLFSSL_SMALL_STACK
 #endif
 
 #ifdef __cplusplus

@@ -47,6 +47,7 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/chacha.h \
                          wolfssl/wolfcrypt/chacha20_poly1305.h \
                          wolfssl/wolfcrypt/random.h \
+                         wolfssl/wolfcrypt/wolfentropy.h \
                          wolfssl/wolfcrypt/ripemd.h \
                          wolfssl/wolfcrypt/rsa.h \
                          wolfssl/wolfcrypt/rc2.h \
@@ -120,6 +121,7 @@ noinst_HEADERS+= \
                          wolfssl/wolfcrypt/port/Renesas/renesas_sync.h \
                          wolfssl/wolfcrypt/port/Renesas/renesas_cmn.h \
                          wolfssl/wolfcrypt/port/Renesas/renesas_tsip_types.h \
+                         wolfssl/wolfcrypt/port/Renesas/renesas_tsip_internal.h \
                          wolfssl/wolfcrypt/port/cypress/psoc6_crypto.h \
                          wolfssl/wolfcrypt/port/maxim/max3266x.h \
                          wolfssl/wolfcrypt/port/maxim/max3266x-cryptocb.h \

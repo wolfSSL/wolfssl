@@ -24,29 +24,29 @@ The wolfssl Project Summary is listed below and is relevant for every project.
 |Board|EK-RA6M4|
 |Device|R7FA6M4AF3CFB|
 |Toolchain|GCC ARM Embedded|
-|FSP Version|5.4.0|
+|FSP Version|6.1.0|
 
 #### Selected software components
 
 |Components|Version|
 |:--|:--|
-|Board Support Package Common Files|v5.4.0|
-|Secure Cryptography Engine on RA6 Protected Mode|v5.4.0|
-|I/O Port|v5.4.0|
-|Arm CMSIS Version 5 - Core (M)|v6.1.0+fsp.5.4.0|
-|RA6M4-EK Board Support Files|v5.4.0|
-|Board support package for R7FA6M4AF3CFB|v5.4.0|
-|Board support package for RA6M4 - Events|v5.4.0|
-|Board support package for RA6M4|v5.4.0|
-|Board support package for RA6M4 - FSP Data|v5.4.0|
-|FreeRTOS|v10.6.1+fsp.5.4.0|
-|FreeRTOS - Memory Management - Heap 4|v10.6.1+fsp.5.4.0|
-|r_ether to FreeRTOS+TCP Wrapper|v5.4.0|
-|Ethernet|v5.4.0|
-|Ethernet PHY|v5.4.0|
-|FreeRTOS+TCP|v4.0.0+fsp.5.4.0|
-|FreeRTOS - Buffer Allocation 2|v4.0.0+fsp.5.4.0|
-|FreeRTOS Port|v5.4.0|
+|Board Support Package Common Files|v6.1.0|
+|Secure Cryptography Engine on RA6 Protected Mode|v6.1.0|
+|I/O Port|v6.1.0|
+|Arm CMSIS Version 5 - Core (M)|v6.1.0+fsp.6.1.0|
+|RA6M4-EK Board Support Files|v6.1.0|
+|Board support package for R7FA6M4AF3CFB|v6.1.0|
+|Board support package for RA6M4 - Events|v6.1.0|
+|Board support package for RA6M4|v6.1.0|
+|Board support package for RA6M4 - FSP Data|v6.1.0|
+|FreeRTOS|v11.1.0+fsp.6.1.0|
+|FreeRTOS - Memory Management - Heap 4|v11.1.0+fsp.6.1.0|
+|r_ether to FreeRTOS+TCP Wrapper|v6.1.0|
+|Ethernet|v6.1.0|
+|Ethernet PHY|v6.1.0|
+|FreeRTOS+TCP|v4.3.3+fsp.6.1.0|
+|FreeRTOS - Buffer Allocation 2|v4.3.3+fsp.6.1.0|
+|FreeRTOS Port|v6.1.0|
 
 ## Setup Steps and Build wolfSSL Library
 
@@ -58,10 +58,11 @@ The wolfssl Project Summary is listed below and is relevant for every project.
 
 2.) Create a `dummy_library` Static Library.
 
-+ Click File->New->`RA C/C++ Project`.
-+ Select `EK-RA6M4` from Drop-down list.
-+ Check `Static Library`.
-+ Select FreeRTOS from RTOS selection. Click Next.
++ Click File->New->`RA C/C++ Project`. Select `EK-RA6M4` from Drop-down list.
++ Select `Flat(Non-TrustZone) Project`. Click Next.
++ Select `None`. Click Next.
++ Check `Static Library`. Click Next.
++ Select `FreeRTOS` from RTOS selection. Click Next.
 + Check `FreeRTOS minimal - Static Allocation`. Click Finish.
 + Open Smart Configurator by clicking configuration.xml in the project
 + Go to `BSP` tab and increase Heap Size under `RA Common` on Properties page, e.g. 0x1000
@@ -82,7 +83,8 @@ The wolfssl Project Summary is listed below and is relevant for every project.
 
 + Add `Heap 4` stack to sce_tst_thread from `New Stack` -> `RTOS` -> `FreeRTOS Heap 4`
 + Add `FreeRTOS + TCP` stack to sce_tst_thread from `New Stack` -> `Networking` -> `FreeRTOS+TCP` and set properties
-
++ Add Ethernet Driver by clicking `Add Ethernet Driver` element and select `New` -> `Ethernet(r_ether)`
++ Increase Heap size of `RA Common`. Go to `BSP` tab and inclease `RA Common` -> `Heap size (bytes)` to 0x2000
 |Property|Value|
 |:--|:--|
 |Network Events call vApplicationIPNetworkEventHook|Disable|
@@ -97,15 +99,15 @@ The wolfssl Project Summary is listed below and is relevant for every project.
 
 4.) Create a 'dummy_application' Renesas RA C Project Using RA Library.
 
-+ Click File->New->`RA C/C++ Project`.
-+ Select `EK-RA6M4` from Drop-down list.
-+ Check `Executable Using an RA Static Library`.
-+ Select FreeRTOS from RTOS selection. Click Finish.
++ Click File->New->`RA C/C++ Project`. Select `EK-RA6M4` from Drop-down list. Click Next.
++ Select `Flat(Non-TrustZone) Project`. Click Next
++ Select `None`. Click Next
++ Check `Executable Using an RA Static Library`. Select FreeRTOS from RTOS selection. Click Finish.
 + Enter `dummy_application` as the project name. Click Next.
-+ Under `RA library project`, select `wolfSSL_RA6M4`.
-+ Click Finish.
++ Under `RA library project`, select `wolfSSL_RA6M4`. Click Finish.
 + Copy the following folder and file at `dummy_application` to `test_RA6M4`\
   script/\
+  Debug/\
   src/sce_tst_thread_entry.c
 
 + Add `sce_test()` call under /* TODO: add your own code here */ line at sce_tst_thread_entry.c
@@ -131,29 +133,33 @@ The wolfssl Project Summary is listed below and is relevant for every project.
 + To place RTT block specific area, you can add the following line to `fsp.ld`:
 
 ```
-    .bss :
+    __ram_from_flash$$ :
     {
-        . = ALIGN(4);
-        __bss_start__ = .;
-        *(.bss*)
-        *(COMMON)
-        KEEP(*(.rtt_block)) /* <-- for SEGGER_RTT control block */
-        . = ALIGN(4);
-        __bss_end__ = .;
-    } > RAM
+        __ram_from_flash$$Base = .;__ram_from_flash$$Load = LOADADDR(__ram_from_flash$$);
+        /* section.ram.from_flash */
+        *(.ram_from_flash)
+        /* section.ram.code_from_flash */
+        *(.txt.rtt_block)              /* <-- for SEGGER_RTT control block */
+        *(.ram_code_from_flash)
+        *(.data*)
+        *(vtable)
+        __ram_from_flash$$Limit = .;
+    }> RAM AT > FLASH
 ```
   Also, adding the following line to `SEGGER_RTT.c`:
 
 ```
-SEGGER_RTT_CB _SEGGER_RTT __attribute__((section(".rtt_block")));
+SEGGER_RTT_CB _SEGGER_RTT __attribute__((section(".txt.rtt_block")));
 ```
 
   As the result, you can find the following similar line in the map file.
   e.g.
     [test_RA6M4.map]
    ```
-     .rtt_block     0x20023648       0xa8 ./src/SEGGER_RTT/SEGGER_RTT.o
-                    0x20023648                _SEGGER_RTT
+   *(.txt.rtt_block)
+   .txt.rtt_block
+               0x20000000       0xa8 ./src/SEGGER_RTT/SEGGER_RTT.o
+               0x20000000                _SEGGER_RTT
    ````
     you can specify "RTT control block" to 0x20023648 by Address
     OR

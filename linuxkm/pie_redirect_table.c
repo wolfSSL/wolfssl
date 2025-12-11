@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -19,8 +19,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#ifndef __PIE__
-    #error pie_redirect_table.c must be compiled -fPIE.
+#if !defined(WC_CONTAINERIZE_THIS)
+    #error pie_redirect_table.c must be compiled -DWC_CONTAINERIZE_THIS.
+#endif
+
+#if !defined(__PIE__) && !defined(WC_NO_PIE_FLAG)
+    #error pie_redirect_table.c must be compiled -fPIE or -DWC_NO_PIE_FLAG.
 #endif
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>

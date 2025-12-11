@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -1404,7 +1404,7 @@ long wolfSSL_BIO_get_mem_ptr(WOLFSSL_BIO *bio, WOLFSSL_BUF_MEM **ptr)
     }
 #endif
 
-WOLFSSL_API long wolfSSL_BIO_int_ctrl(WOLFSSL_BIO *bp, int cmd, long larg, int iarg)
+long wolfSSL_BIO_int_ctrl(WOLFSSL_BIO *bp, int cmd, long larg, int iarg)
 {
     (void) bp;
     (void) cmd;
@@ -2392,13 +2392,28 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
         WOLFSSL_ENTER("wolfSSL_BIO_new_connect");
         bio = wolfSSL_BIO_new(wolfSSL_BIO_s_socket());
         if (bio) {
-            const char* port = XSTRSTR(str, ":");
+            const char* port;
+#ifdef WOLFSSL_IPV6
+            const char* ipv6Start = XSTRSTR(str, "[");
+            const char* ipv6End = XSTRSTR(str, "]");
+
+            if (ipv6End)
+                port = XSTRSTR(ipv6End, ":");
+            else
+#endif
+                port = XSTRSTR(str, ":");
 
             if (port != NULL)
                 bio->port = (word16)XATOI(port + 1);
             else
                 port = str + XSTRLEN(str); /* point to null terminator */
 
+#ifdef WOLFSSL_IPV6
+            if (ipv6Start && ipv6End) {
+                str = ipv6Start + 1;
+                port = ipv6End;
+            }
+#endif
             bio->ip = (char*)XMALLOC(
                     (size_t)(port - str) + 1, /* +1 for null char */
                     bio->heap, DYNAMIC_TYPE_OPENSSL);
@@ -2425,9 +2440,21 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
     {
         WOLFSSL_BIO *bio;
         WOLFSSL_ENTER("wolfSSL_BIO_new_accept");
+
+        if (port == NULL) {
+            return NULL;
+        }
+
         bio = wolfSSL_BIO_new(wolfSSL_BIO_s_socket());
         if (bio) {
-            bio->port = (word16)XATOI(port);
+            const char* portStr = port;
+#ifdef WOLFSSL_IPV6
+            const char* ipv6End = XSTRSTR(port, "]");
+            if (ipv6End) {
+                portStr = XSTRSTR(ipv6End, ":");
+            }
+#endif
+            bio->port = (word16)XATOI(portStr);
             bio->type  = WOLFSSL_BIO_SOCKET;
         }
         return bio;
@@ -3312,7 +3339,7 @@ int wolfSSL_BIO_vprintf(WOLFSSL_BIO* bio, const char* format, va_list args)
     /* In Visual Studio versions prior to Visual Studio 2013, the va_* symbols
        aren't defined. If using Visual Studio 2013 or later, define
        HAVE_VA_COPY. */
-    #if !defined(_WIN32) || defined(HAVE_VA_COPY)
+    #if defined(XVSNPRINTF) && (!defined(_WIN32) || defined(HAVE_VA_COPY))
         case WOLFSSL_BIO_SSL:
             {
                 int count;
@@ -3343,7 +3370,7 @@ int wolfSSL_BIO_vprintf(WOLFSSL_BIO* bio, const char* format, va_list args)
                 va_end(copy);
             }
             break;
-    #endif /* !_WIN32 || HAVE_VA_COPY */
+    #endif /* XVSNPRINTF && (!_WIN32 || HAVE_VA_COPY) */
 
         default:
             WOLFSSL_MSG("Unsupported WOLFSSL_BIO type for wolfSSL_BIO_printf");

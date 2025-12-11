@@ -53,6 +53,7 @@ EXTRA_DIST += \
              certs/server-revoked-key.pem \
              certs/wolfssl-website-ca.pem \
              certs/test-degenerate.p7b \
+             certs/test-multiple-recipients.p7b \
              certs/test-stream-sign.p7b \
              certs/test-stream-dec.p7b \
              certs/test-ber-exp02-05-2022.p7b \
@@ -152,4 +153,5 @@ include certs/dilithium/include.am
 include certs/sphincs/include.am
 include certs/rpk/include.am
 include certs/acert/include.am
+include certs/mldsa/include.am
 

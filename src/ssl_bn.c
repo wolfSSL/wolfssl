@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -903,11 +903,7 @@ int wolfSSL_BN_set_bit(WOLFSSL_BIGNUM* bn, int n)
 int wolfSSL_BN_clear_bit(WOLFSSL_BIGNUM* bn, int n)
 {
     int ret = 1;
-#ifndef WOLFSSL_SMALL_STACK
-    mp_int tmp[1];
-#else
-    mp_int* tmp = NULL;
-#endif
+    WC_DECLARE_VAR(tmp, mp_int, 1, 0);
 
     /* Validate parameters. */
     if (BN_IS_NULL(bn) || (n < 0)) {
@@ -916,13 +912,8 @@ int wolfSSL_BN_clear_bit(WOLFSSL_BIGNUM* bn, int n)
     }
     /* Check if bit is set to clear. */
     if ((ret == 1) && (mp_is_bit_set((mp_int*)bn->internal, n))) {
-    #ifdef WOLFSSL_SMALL_STACK
         /* Allocate a new MP integer to hold bit to clear. */
-        tmp = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_BIGINT);
-        if (tmp == NULL) {
-            ret = 0;
-        }
-    #endif
+        WC_ALLOC_VAR_EX(tmp, mp_int, 1, NULL, DYNAMIC_TYPE_BIGINT, ret=0);
         if (ret == 1) {
             /* Reset new MP integer. */
             XMEMSET(tmp, 0, sizeof(mp_int));
@@ -942,10 +933,7 @@ int wolfSSL_BN_clear_bit(WOLFSSL_BIGNUM* bn, int n)
 
         /* Free any dynamic memory in MP integer. */
         mp_clear(tmp);
-    #ifdef WOLFSSL_SMALL_STACK
-        /* Dispose of temporary MP integer. */
-        XFREE(tmp, NULL, DYNAMIC_TYPE_BIGINT);
-    #endif
+        WC_FREE_VAR_EX(tmp, NULL, DYNAMIC_TYPE_BIGINT);
     }
 
     return ret;
@@ -1138,6 +1126,8 @@ int wolfSSL_BN_cmp(const WOLFSSL_BIGNUM* a, const WOLFSSL_BIGNUM* b)
         ret = 1;
     }
     else {
+        PRAGMA_GCC_DIAG_PUSH
+        PRAGMA_GCC("GCC diagnostic ignored \"-Wduplicated-branches\"")
         /* Compare big numbers with wolfCrypt. */
         ret = mp_cmp((mp_int*)a->internal, (mp_int*)b->internal);
         /* Convert wolfCrypt return value. */
@@ -1151,10 +1141,69 @@ int wolfSSL_BN_cmp(const WOLFSSL_BIGNUM* a, const WOLFSSL_BIGNUM* b)
             ret = -1;
         }
         else {
+            /* ignored warning here because the same return value
+               was intentional */
             ret = WOLFSSL_FATAL_ERROR; /* also -1 */
         }
+        PRAGMA_GCC_DIAG_POP
     }
 
+    return ret;
+}
+
+/* Same as above, but compare absolute value. */
+int wolfSSL_BN_ucmp(const WOLFSSL_BIGNUM* a, const WOLFSSL_BIGNUM* b)
+{
+    int ret = 0;
+    int bIsNull;
+
+    WOLFSSL_ENTER("wolfSSL_BN_ucmp");
+
+    /* Must know whether b is NULL. */
+    bIsNull = BN_IS_NULL(b);
+    /* Check whether a is NULL. */
+    if (BN_IS_NULL(a)) {
+        if (bIsNull) {
+            /* NULL equals NULL. */
+            ret = 0;
+        }
+        else {
+            ret = -1; /* NULL less than not NULL. */
+        }
+    }
+    else if (bIsNull) {
+        /* not NULL greater than NULL. */
+        ret = 1;
+    }
+    else {
+        /* Neither are NULL; copy to new instances and switch to positive if
+         * required, compare, and then free.  Must copy because there is
+         * possibility of switch to positive but they are declared const.
+         * wolfssl_bn_set_neg() only returns -1 if the bn is NULL, but we
+         * already check that so we can ignore the return code. Note for
+         * wolfSSL_BN_is_negative if n=1 then set to positive. */
+        WOLFSSL_BIGNUM* abs_a = wolfSSL_BN_dup(a);
+        WOLFSSL_BIGNUM* abs_b = wolfSSL_BN_dup(b);
+
+        if (abs_a == NULL || abs_b == NULL) {
+            WOLFSSL_MSG("wolfSSL_BN_dup failed");
+            wolfSSL_BN_free(abs_a);
+            wolfSSL_BN_free(abs_b);
+            return WOLFSSL_FATAL_ERROR;
+        }
+
+        if (wolfSSL_BN_is_negative(abs_a)) {
+            wolfssl_bn_set_neg(abs_a, 1);
+        }
+
+        if (wolfSSL_BN_is_negative(abs_b)) {
+            wolfssl_bn_set_neg(abs_b, 1);
+        }
+
+        ret = wolfSSL_BN_cmp(abs_a, abs_b);
+        wolfSSL_BN_free(abs_a);
+        wolfSSL_BN_free(abs_b);
+    }
     return ret;
 }
 
@@ -2199,11 +2248,7 @@ int wolfSSL_BN_generate_prime_ex(WOLFSSL_BIGNUM* prime, int bits,
     WOLFSSL_BN_GENCB* cb)
 {
     int ret = 1;
-#ifdef WOLFSSL_SMALL_STACK
-    WC_RNG* tmpRng = NULL;
-#else
-    WC_RNG  tmpRng[1];
-#endif
+    WC_DECLARE_VAR(tmpRng, WC_RNG, 1, 0);
     WC_RNG* rng = NULL;
     int localRng = 0;
 
@@ -2235,9 +2280,7 @@ int wolfSSL_BN_generate_prime_ex(WOLFSSL_BIGNUM* prime, int bits,
     if (localRng) {
         /* Dispose of local RNG that was created. */
         wc_FreeRng(rng);
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(rng, NULL, DYNAMIC_TYPE_RNG);
-    #endif
+        WC_FREE_VAR_EX(rng, NULL, DYNAMIC_TYPE_RNG);
     }
 
     WOLFSSL_LEAVE("wolfSSL_BN_generate_prime_ex", ret);
@@ -2262,11 +2305,7 @@ int wolfSSL_BN_is_prime_ex(const WOLFSSL_BIGNUM *bn, int checks,
 {
     int ret = 1;
     WC_RNG* rng    = NULL;
-#ifdef WOLFSSL_SMALL_STACK
-    WC_RNG* tmpRng = NULL;
-#else
-    WC_RNG  tmpRng[1];
-#endif
+    WC_DECLARE_VAR(tmpRng, WC_RNG, 1, 0);
     int localRng = 0;
     int res = MP_NO;
 
@@ -2294,9 +2333,7 @@ int wolfSSL_BN_is_prime_ex(const WOLFSSL_BIGNUM *bn, int checks,
 
     if (localRng) {
         wc_FreeRng(rng);
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(rng, NULL, DYNAMIC_TYPE_RNG);
-    #endif
+        WC_FREE_VAR_EX(rng, NULL, DYNAMIC_TYPE_RNG);
     }
 
     if ((ret != -1) && (res != MP_YES)) {

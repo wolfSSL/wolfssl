@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -556,6 +556,11 @@ esp_err_t ShowExtendedSystemInfo_config(void)
     show_macro("NO_WOLFSSL_DIR",            STR_IFNDEF(NO_WOLFSSL_DIR));
     show_macro("WOLFSSL_NO_CURRDIR",        STR_IFNDEF(WOLFSSL_NO_CURRDIR));
     show_macro("WOLFSSL_LWIP",              STR_IFNDEF(WOLFSSL_LWIP));
+
+    show_macro("DEBUG_WOLFSSL",             STR_IFNDEF(DEBUG_WOLFSSL));
+    show_macro("WOLFSSL_DEBUG_CERTS",       STR_IFNDEF(WOLFSSL_DEBUG_CERTS));
+    show_macro("NO_WOLFSSL_DEBUG_CERTS",    STR_IFNDEF(NO_WOLFSSL_DEBUG_CERTS));
+    show_macro("WOLFSSL_DEBUG_ERRORS_ONLY", STR_IFNDEF(WOLFSSL_DEBUG_ERRORS_ONLY));
 
     ESP_LOGI(TAG, WOLFSSL_ESPIDF_BLANKLINE_MESSAGE);
 #if defined(CONFIG_COMPILER_OPTIMIZATION_DEFAULT)

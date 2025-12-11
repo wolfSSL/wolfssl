@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -87,15 +87,15 @@ _BlockSha3_crypto:
 	stp	d10, d11, [x29, #32]
 	stp	d12, d13, [x29, #48]
 	stp	d14, d15, [x29, #64]
-#ifdef __APPLE__
-.arch_extension sha3
-#endif /* __APPLE__ */
 #ifndef __APPLE__
 	adrp x1, L_SHA3_transform_crypto_r
 	add  x1, x1, :lo12:L_SHA3_transform_crypto_r
 #else
 	adrp x1, L_SHA3_transform_crypto_r@PAGE
 	add  x1, x1, :lo12:L_SHA3_transform_crypto_r@PAGEOFF
+#endif /* __APPLE__ */
+#ifdef __APPLE__
+.arch_extension sha3
 #endif /* __APPLE__ */
 	ld4	{v0.d, v1.d, v2.d, v3.d}[0], [x0], #32
 	ld4	{v4.d, v5.d, v6.d, v7.d}[0], [x0], #32

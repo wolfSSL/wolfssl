@@ -18,7 +18,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -194,9 +194,7 @@ int blake2s_init_key( blake2s_state *S, const byte outlen, const void *key,
     secure_zero_memory( block, BLAKE2S_BLOCKBYTES ); /* Burn the key from */
                                                      /* memory */
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(block, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(block, NULL, DYNAMIC_TYPE_TMP_BUFFER);
   }
   return ret;
 }
@@ -313,9 +311,7 @@ int blake2s_update( blake2s_state *S, const byte *in, word32 inlen )
     }
   }
 
-#ifdef WOLFSSL_SMALL_STACK
-  XFREE(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+  WC_FREE_VAR_EX(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
   return ret;
 }
@@ -369,9 +365,7 @@ int blake2s_final( blake2s_state *S, byte *out, byte outlen )
 
  out:
 
-#ifdef WOLFSSL_SMALL_STACK
-  XFREE(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+  WC_FREE_VAR_EX(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
   return ret;
 }

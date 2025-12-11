@@ -14,7 +14,7 @@ tests:
     integration_platforms:
       - qemu_x86
   sample.crypto.wolfssl_test_no_malloc:
-    timeout: 120
+    timeout: 200
     platform_allow: qemu_x86
     extra_args: CONF_FILE="prj-no-malloc.conf"
     integration_platforms:

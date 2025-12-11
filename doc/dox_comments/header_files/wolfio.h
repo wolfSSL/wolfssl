@@ -115,7 +115,7 @@ int EmbedSend(WOLFSSL* ssl, char* buf, int sz, void* ctx);
     \sa wolfSSL_SSLSetIORecv
     \sa wolfSSL_dtls_get_current_timeout
 */
-int EmbedReceiveFrom(WOLFSSL* ssl, char* buf, int sz, void*);
+int EmbedReceiveFrom(WOLFSSL* ssl, char* buf, int sz, void* ctx);
 
 /*!
     \brief This function is the send embedded callback.
@@ -189,8 +189,8 @@ int EmbedSendTo(WOLFSSL* ssl, char* buf, int sz, void* ctx);
 
     \sa wolfSSL_CTX_SetGenCookie
 */
-int EmbedGenerateCookie(WOLFSSL* ssl, unsigned char* buf,
-                                           int sz, void*);
+int EmbedGenerateCookie(WOLFSSL* ssl, byte* buf,
+                                    int sz, void* ctx);
 
 /*!
     \brief This function frees the response buffer.
@@ -618,3 +618,51 @@ void wolfSSL_SSLDisableRead(WOLFSSL *ssl);
     \sa wolfSSL_SSLEnableRead
  */
 void wolfSSL_SSLEnableRead(WOLFSSL *ssl);
+
+/*!
+    \brief Set a custom DTLS recvfrom callback for a WOLFSSL session.
+
+    This function allows you to specify a custom callback function for receiving
+    datagrams (DTLS) using the `recvfrom`-style interface. The callback must match
+    the WolfSSLRecvFrom function pointer type and is expected to behave like the
+    POSIX `recvfrom()` function, including its return values and error handling.
+
+    \param ssl      A pointer to a WOLFSSL structure, created using wolfSSL_new().
+    \param recvFrom The custom callback function to use for DTLS datagram receive.
+
+    _Example_
+    \code
+    wolfSSL_SetRecvFrom(ssl, my_recvfrom_cb);
+    \endcode
+
+    \sa WolfSSLRecvFrom
+    \sa wolfSSL_SetSendTo
+    \sa EmbedReceiveFrom
+    \sa wolfSSL_CTX_SetIORecv
+    \sa wolfSSL_SSLSetIORecv
+*/
+WOLFSSL_API void wolfSSL_SetRecvFrom(WOLFSSL* ssl, WolfSSLRecvFrom recvFrom);
+
+/*!
+    \brief Set a custom DTLS sendto callback for a WOLFSSL session.
+
+    This function allows you to specify a custom callback function for sending
+    datagrams (DTLS) using the `sendto`-style interface. The callback must match
+    the WolfSSLSento function pointer type and is expected to behave like the
+    POSIX `sendto()` function, including its return values and error handling.
+
+    \param ssl    A pointer to a WOLFSSL structure, created using wolfSSL_new().
+    \param sendTo The custom callback function to use for DTLS datagram send.
+
+    _Example_
+    \code
+    wolfSSL_SetSendTo(ssl, my_sendto_cb);
+    \endcode
+
+    \sa WolfSSLSento
+    \sa wolfSSL_SetRecvFrom
+    \sa EmbedSendTo
+    \sa wolfSSL_CTX_SetIOSend
+    \sa wolfSSL_SSLSetIOSend
+*/
+WOLFSSL_API void wolfSSL_SetSendTo(WOLFSSL* ssl, WolfSSLSento sendTo);

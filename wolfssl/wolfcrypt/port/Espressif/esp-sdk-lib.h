@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -212,8 +212,23 @@ WOLFSSL_LOCAL esp_err_t esp_sdk_wifi_show_ip(void);
 * Debug helpers
 ******************************************************************************/
 WOLFSSL_LOCAL esp_err_t sdk_init_meminfo(void);
+
+#if defined(DEBUG_WOLFSSL_MALLOC) || defined(DEBUG_WOLFSSL)
 WOLFSSL_LOCAL void* wc_debug_pvPortMalloc(size_t size,
                                 const char* file, int line, const char* fname);
+WOLFSSL_LOCAL void wc_debug_pvPortFree(void *ptr,
+                                const char* file, int line, const char* fname);
+#ifndef WOLFSSL_NO_REALLOC
+WOLFSSL_LOCAL void* wc_debug_pvPortRealloc(void* ptr, size_t size,
+                                const char* file, int line, const char* fname);
+#endif
+#else
+WOLFSSL_LOCAL void* wc_pvPortMalloc(size_t size);
+WOLFSSL_LOCAL void wc_pvPortFree(void *ptr);
+#ifndef WOLFSSL_NO_REALLOC
+WOLFSSL_LOCAL void* wc_pvPortRealloc(void* ptr, size_t size);
+#endif
+#endif /*DEBUG_WOLFSSL_MALLOC || DEBUG_WOLFSSL */
 
 #ifdef __cplusplus
 } /* extern "C" */

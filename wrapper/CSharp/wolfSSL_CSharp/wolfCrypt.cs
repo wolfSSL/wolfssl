@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -2206,7 +2206,7 @@ namespace wolfSSL.CSharp
             try
             {
                 /* Allocate memory */
-                key = Marshal.AllocHGlobal(ED25519_PUB_KEY_SIZE);
+                key = wc_ed25519_new(IntPtr.Zero, INVALID_DEVID, IntPtr.Zero);
                 if (key == IntPtr.Zero)
                 {
                     throw new OutOfMemoryException("Failed to allocate memory for the key.");
@@ -2222,20 +2222,26 @@ namespace wolfSSL.CSharp
                 ret = wc_ed25519_import_public(inMsgPtr, inLen, key);
                 if (ret != 0)
                 {
+                    if (key != IntPtr.Zero) {
+                        wc_ed25519_delete(key, IntPtr.Zero);
+                        key = IntPtr.Zero;
+                    }
                     return ret;
                 }
             }
             catch (Exception ex)
             {
                 Console.WriteLine("Exception in EdImportPublic: " + ex.Message);
-
+                if (key != IntPtr.Zero) {
+                    wc_ed25519_delete(key, IntPtr.Zero);
+                    key = IntPtr.Zero;
+                }
                 return EXCEPTION_E;
             }
             finally
             {
                 /* Cleanup */
                 if (inMsgPtr != IntPtr.Zero) Marshal.FreeHGlobal(inMsgPtr);
-                if (key != IntPtr.Zero) Marshal.FreeHGlobal(key);
             }
 
             return ret;
@@ -2415,7 +2421,7 @@ namespace wolfSSL.CSharp
 
             try
             {
-                key = wc_ed25519_new(IntPtr.Zero, INVALID_DEVID, IntPtr.Zero);
+                key = wc_curve25519_new(IntPtr.Zero, INVALID_DEVID, IntPtr.Zero);
                 if (key != IntPtr.Zero)
                 {
                     ret = wc_Ed25519PrivateKeyDecode(input, ref idx, key, (uint)input.Length);

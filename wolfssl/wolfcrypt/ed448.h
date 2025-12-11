@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -183,13 +183,13 @@ int wc_ed448_import_private_key_ex(const byte* priv, word32 privSz,
 
 #ifdef HAVE_ED448_KEY_EXPORT
 WOLFSSL_API
-int wc_ed448_export_public(ed448_key* key, byte* out, word32* outLen);
+int wc_ed448_export_public(const ed448_key* key, byte* out, word32* outLen);
 WOLFSSL_API
-int wc_ed448_export_private_only(ed448_key* key, byte* out, word32* outLen);
+int wc_ed448_export_private_only(const ed448_key* key, byte* out, word32* outLen);
 WOLFSSL_API
-int wc_ed448_export_private(ed448_key* key, byte* out, word32* outLen);
+int wc_ed448_export_private(const ed448_key* key, byte* out, word32* outLen);
 WOLFSSL_API
-int wc_ed448_export_key(ed448_key* key, byte* priv, word32 *privSz,
+int wc_ed448_export_key(const ed448_key* key, byte* priv, word32 *privSz,
                         byte* pub, word32 *pubSz);
 #endif /* HAVE_ED448_KEY_EXPORT */
 
@@ -198,13 +198,13 @@ int wc_ed448_check_key(ed448_key* key);
 
 /* size helper */
 WOLFSSL_API
-int wc_ed448_size(ed448_key* key);
+int wc_ed448_size(const ed448_key* key);
 WOLFSSL_API
-int wc_ed448_priv_size(ed448_key* key);
+int wc_ed448_priv_size(const ed448_key* key);
 WOLFSSL_API
-int wc_ed448_pub_size(ed448_key* key);
+int wc_ed448_pub_size(const ed448_key* key);
 WOLFSSL_API
-int wc_ed448_sig_size(ed448_key* key);
+int wc_ed448_sig_size(const ed448_key* key);
 
 #ifdef __cplusplus
     }    /* extern "C" */

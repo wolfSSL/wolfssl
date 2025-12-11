@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -100,7 +100,6 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_ntt(sword16* r)
 #else
     register word16* L_mlkem_arm32_ntt_zetas_c =
         (word16*)&L_mlkem_arm32_ntt_zetas;
-
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -3153,7 +3152,6 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #else
     register word16* L_mlkem_invntt_zetas_inv_c =
         (word16*)&L_mlkem_invntt_zetas_inv;
-
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -7604,7 +7602,6 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_basemul_mont(sword16* r,
 #else
     register word16* L_mlkem_basemul_mont_zetas_c =
         (word16*)&L_mlkem_basemul_mont_zetas;
-
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -7910,7 +7907,6 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_basemul_mont_add(sword16* r,
 #else
     register word16* L_mlkem_basemul_mont_zetas_c =
         (word16*)&L_mlkem_basemul_mont_zetas;
-
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -8246,7 +8242,6 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_csubq(sword16* p)
 #else
     register word16* L_mlkem_basemul_mont_zetas_c =
         (word16*)&L_mlkem_basemul_mont_zetas;
-
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -8441,15 +8436,15 @@ WC_OMIT_FRAME_POINTER unsigned int mlkem_arm32_rej_uniform(sword16* p,
     register unsigned int len asm ("r1") = (unsigned int)len_p;
     register const byte* r asm ("r2") = (const byte*)r_p;
     register unsigned int rLen asm ("r3") = (unsigned int)rLen_p;
-    register word16* L_mlkem_basemul_mont_zetas_c asm ("r4") =
+    register word16* L_mlkem_basemul_mont_zetas_c asm ("r12") =
         (word16*)&L_mlkem_basemul_mont_zetas;
 #else
     register word16* L_mlkem_basemul_mont_zetas_c =
         (word16*)&L_mlkem_basemul_mont_zetas;
-
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+        "push	{%[L_mlkem_basemul_mont_zetas]}\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "mov	r8, #0x1\n\t"
         "orr	r8, r8, #0xd00\n\t"
@@ -8703,6 +8698,7 @@ WC_OMIT_FRAME_POINTER unsigned int mlkem_arm32_rej_uniform(sword16* p,
         "\n"
     "L_mlkem_arm32_rej_uniform_done_%=: \n\t"
         "lsr	r0, r12, #1\n\t"
+        "pop	{%[L_mlkem_basemul_mont_zetas]}\n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [p] "+r" (p), [len] "+r" (len), [r] "+r" (r), [rLen] "+r" (rLen),
           [L_mlkem_basemul_mont_zetas] "+r" (L_mlkem_basemul_mont_zetas_c)
@@ -8712,7 +8708,7 @@ WC_OMIT_FRAME_POINTER unsigned int mlkem_arm32_rej_uniform(sword16* p,
         : [p] "r" (p), [len] "r" (len), [r] "r" (r), [rLen] "r" (rLen),
           [L_mlkem_basemul_mont_zetas] "r" (L_mlkem_basemul_mont_zetas_c)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
-        : "memory", "cc", "r12", "lr", "r5", "r6", "r7", "r8"
+        : "memory", "cc", "lr", "r4", "r5", "r6", "r7", "r8"
     );
     return (word32)(size_t)p;
 }

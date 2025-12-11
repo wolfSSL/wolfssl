@@ -25,7 +25,7 @@ If you need to manually install a Cube Pack you can do the following:
 2. Run the "STM32CubeMX" tool.
 3. Under "Manage software installations" pane on the right, click "INSTALL/REMOVE" button. This can be also found by clicking "Help" -> "Managed embedded software packages"
 4. From Local and choose "I-CUBE-wolfSSL.pack".
-5. Accept the GPLv2 license. Contact wolfSSL at sales@wolfssl.com for a commercial license and support/maintenance.
+5. Accept the GPLv3 license. Contact wolfSSL at sales@wolfssl.com for a commercial license and support/maintenance.
 
 ### STM32 Cube Pack Usage
 
@@ -100,6 +100,7 @@ The section for "Hardware platform" may need to be adjusted depending on your pr
 * To enable STM32U5 support define `WOLFSSL_STM32U5`.
 * To enable STM32H5 support define `WOLFSSL_STM32H5`.
 * To enable STM32MP13 support define `WOLFSSL_STM32MP13`.
+* To enable STM32N6 support define `WOLFSSL_STM32N6`.
 
 To use the STM32 Cube HAL support make sure `WOLFSSL_STM32_CUBEMX` is defined.
 
@@ -195,7 +196,9 @@ Note: The Benchmark example uses float. To enable go to "Project Properties" -> 
 
 ## STM32 Printf
 
-In main.c make the following changes:
+Generation of code for a NUCLEO board provides a BSP option for generating printf support for the virtual com port. To use this set `#define HAL_CONSOLE_UART hcom_uart`.
+
+If setting the printf support manually make the following changes in `main.c`.
 
 This section needs to go below the `UART_HandleTypeDef` line, otherwise `wolfssl/wolfcrypt/settings.h` will error.
 

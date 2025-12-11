@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -1591,9 +1591,7 @@
                 }
             }
 
-    #ifdef WOLFSSL_SMALL_STACK
-            XFREE(buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
+            WC_FREE_VAR_EX(buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         }
 
         return 0;
@@ -1726,6 +1724,10 @@
     int wc_Des_CbcEncrypt(Des* des, byte* out, const byte* in, word32 sz)
     {
         word32 blocks = sz / DES_BLOCK_SIZE;
+
+        if (des == NULL || out == NULL || in == NULL) {
+            return BAD_FUNC_ARG;
+        }
 
         while (blocks--) {
             xorbuf((byte*)des->reg, in, DES_BLOCK_SIZE);

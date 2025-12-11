@@ -63,9 +63,6 @@ EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/ti/ti-ccm.c \
               wolfcrypt/src/port/pic32/pic32mz-crypt.c \
               wolfcrypt/src/port/nrf51.c \
-              wolfcrypt/src/port/arm/armv8-aes.c \
-              wolfcrypt/src/port/arm/armv8-sha256.c \
-              wolfcrypt/src/port/arm/armv8-chacha.c \
               wolfcrypt/src/port/aria/aria-crypt.c \
               wolfcrypt/src/port/aria/aria-cryptocb.c \
               wolfcrypt/src/port/nxp/ksdk_port.c \
@@ -149,12 +146,25 @@ EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/Renesas/renesas_rx64_hw_sha.c \
               wolfcrypt/src/port/Renesas/renesas_rx64_hw_util.c \
               wolfcrypt/src/port/Renesas/README.md \
+              wolfcrypt/src/port/cypress/README.md \
               wolfcrypt/src/port/cypress/psoc6_crypto.c \
               wolfcrypt/src/port/liboqs/liboqs.c \
               wolfcrypt/src/port/maxim/max3266x.c \
               wolfcrypt/src/ASN_TEMPLATE.md \
               wolfcrypt/src/port/rpi_pico/pico.c \
               wolfcrypt/src/port/rpi_pico/README.md
+
+if BUILD_FIPS_V5
+EXTRA_DIST += wolfcrypt/src/port/arm/armv8-aes.c \
+              wolfcrypt/src/port/arm/armv8-sha256.c \
+              wolfcrypt/src/port/arm/armv8-sha512.c
+else
+if BUILD_FIPS_V6
+EXTRA_DIST += wolfcrypt/src/port/arm/armv8-aes.c \
+              wolfcrypt/src/port/arm/armv8-sha256.c \
+              wolfcrypt/src/port/arm/armv8-sha512.c
+endif BUILD_FIPS_V6
+endif !BUILD_FIPS_V5
 
 $(ASYNC_FILES):
 	$(AM_V_at)touch $(srcdir)/$@

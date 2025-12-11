@@ -2,7 +2,7 @@ Summary: Embedded SSL Library
 Name: @PACKAGE@
 Version: @VERSION@
 Release: 1
-License: GPLv2
+License: GPLv3
 Group: System Environment/Libraries
 BuildRequires: gcc
 BuildRequires: glibc

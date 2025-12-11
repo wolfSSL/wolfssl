@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -418,11 +418,7 @@ int wc_AesCmacGenerate(byte* out, word32* outSz,
                        const byte* key, word32 keySz)
 {
     int ret = 0;
-#ifdef WOLFSSL_SMALL_STACK
-    Cmac *cmac;
-#else
-    Cmac cmac[1];
-#endif
+    WC_DECLARE_VAR(cmac, Cmac, 1, 0);
 
     if (out == NULL || (in == NULL && inSz > 0) || key == NULL || keySz == 0) {
         return BAD_FUNC_ARG;
@@ -498,11 +494,7 @@ int wc_AesCmacVerify(const byte* check, word32 checkSz,
                      const byte* key, word32 keySz)
 {
     int ret = 0;
-#ifdef WOLFSSL_SMALL_STACK
-    Cmac *cmac;
-#else
-    Cmac cmac[1];
-#endif
+    WC_DECLARE_VAR(cmac, Cmac, 1, 0);
 
     if (check == NULL || checkSz == 0 || (in == NULL && inSz > 0) ||
             key == NULL || keySz == 0) {

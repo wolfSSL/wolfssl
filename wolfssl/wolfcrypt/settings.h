@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -319,11 +319,24 @@
         #define WOLFSSL_USER_IO
         #define WOLFSSL_NO_SOCK
         #define NO_WRITEV
+
+        /* boards less than 32 bit int get tripped up on long OID values */
+        #define WC_16BIT_CPU
+        #define WOLFSSL_OLD_OID_SUM
+    #elif defined(__SAM3X8E__)
+        #define WOLFSSL_NO_ATOMIC
+        #define WOLFSSL_NO_SOCK
+        #define WOLFSSL_USER_IO
+        #define NO_WRITEV
     #elif defined(__arm__)
         #define WOLFSSL_NO_SOCK
         #define NO_WRITEV
-    #elif defined(ESP32) || defined(ESP8266)
+    #elif defined(ESP32)
         /* assume sockets available */
+    #elif defined(ESP8266)
+        #define WOLFSSL_NO_SOCK
+        #define WOLFSSL_USER_IO
+        #define NO_WRITEV
     #else
         #define WOLFSSL_NO_SOCK
     #endif
@@ -354,6 +367,12 @@
      * defining WOLFSSL_NO_OPTIONS_H or WOLFSSL_CUSTOM_CONFIG as appropriate.
      */
     #warning "No configuration for wolfSSL detected, check header order"
+#endif
+
+/* Ensure WOLFSSL_DEBUG_CERTS is always set when DEBUG_WOLFSSL is enabled */
+#ifdef DEBUG_WOLFSSL
+    #undef  WOLFSSL_DEBUG_CERTS
+    #define WOLFSSL_DEBUG_CERTS
 #endif
 
 #include <wolfssl/wolfcrypt/visibility.h>
@@ -423,6 +442,8 @@
     (WOLFSSL_FIPS_VERSION_CODE >= WOLFSSL_MAKE_FIPS_VERSION3(major,minor,patch))
 #define FIPS_VERSION3_GT(major,minor,patch) \
     (WOLFSSL_FIPS_VERSION_CODE > WOLFSSL_MAKE_FIPS_VERSION3(major,minor,patch))
+#define FIPS_VERSION3_NE(major,minor,patch) \
+    (WOLFSSL_FIPS_VERSION_CODE != WOLFSSL_MAKE_FIPS_VERSION3(major,minor,patch))
 /*------------------------------------------------------------*/
 
 
@@ -562,6 +583,9 @@
         /* Espressif paths can be quite long. Ensure error prints full path. */
         #define WOLFSSL_MAX_ERROR_SZ 200
     #endif
+
+    /* Debug message do not need an additional LF for ESP_LOG */
+    #define WOLFSSL_DEBUG_LINE_ENDING ""
 
     /* Parse any Kconfig / menuconfig items into wolfSSL macro equivalents.
      * Macros may or may not be defined. If defined, they may have a value of
@@ -1334,7 +1358,7 @@
     #define XSTRLEN(s1)            uStrlen((s1))
     #define XSTRNCPY(s1,s2,n)      strncpy((s1),(s2),(n))
     #define XSTRSTR(s1,s2)         strstr((s1),(s2))
-    #define XSTRNSTR(s1,s2,n)      mystrnstr((s1),(s2),(n))
+    #define XSTRNSTR(s1,s2,n)      wolfSSL_strnstr((s1),(s2),(n))
     #define XSTRNCMP(s1,s2,n)      strncmp((s1),(s2),(n))
     #define XSTRNCAT(s1,s2,n)      strncat((s1),(s2),(n))
     #define XSTRNCASECMP(s1,s2,n)  _strnicmp((s1),(s2),(n))
@@ -1497,27 +1521,53 @@ extern void uITRON4_free(void *p) ;
     #if !defined(XMALLOC_USER) && !defined(NO_WOLFSSL_MEMORY) && \
         !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_TRACK_MEMORY)
 
-        /* XMALLOC */
-        #if defined(WOLFSSL_ESPIDF) && \
-           (defined(DEBUG_WOLFSSL) || defined(DEBUG_WOLFSSL_MALLOC))
+        #if defined(WOLFSSL_ESPIDF)
             #include <wolfssl/wolfcrypt/port/Espressif/esp-sdk-lib.h>
-            #define XMALLOC(s, h, type)  \
-                           ((void)(h), (void)(type), wc_debug_pvPortMalloc( \
-                           (s), (__FILE__), (__LINE__), (__FUNCTION__) ))
+        #endif
+
+        /* XMALLOC */
+        #if defined(WOLFSSL_ESPIDF)
+            #if (defined(DEBUG_WOLFSSL) || defined(DEBUG_WOLFSSL_MALLOC))
+                #define XMALLOC(s, h, type)  \
+                              ((void)(h), (void)(type), wc_debug_pvPortMalloc( \
+                               (s), (__FILE__), (__LINE__), (__FUNCTION__) ))
+            #else
+                #define XMALLOC(s, h, type)  \
+                        ((void)(h), (void)(type), wc_pvPortMalloc((s))) /* native heap */
+            #endif
         #else
             #define XMALLOC(s, h, type)  \
                            ((void)(h), (void)(type), pvPortMalloc((s))) /* native heap */
         #endif
 
         /* XFREE */
-        #define XFREE(p, h, type)    ((void)(h), (void)(type), vPortFree((p))) /* native heap */
+        #if defined(WOLFSSL_ESPIDF)
+            #if (defined(DEBUG_WOLFSSL) || defined(DEBUG_WOLFSSL_MALLOC))
+                #define XFREE(p, h, type)   \
+                        ((void)(h), (void)(type), wc_debug_pvPortFree( \
+                                 (p), (__FILE__), (__LINE__), (__FUNCTION__) ))
+            #else
+                #define XFREE(p, h, type)   \
+                        ((void)(h), (void)(type), wc_pvPortFree((p)))
+            #endif
+        #else
+            #define XFREE(p, h, type)   \
+                     ((void)(h), (void)(type), vPortFree((p))) /* native heap */
+        #endif
 
         /* XREALLOC */
         #if defined(WOLFSSL_ESPIDF)
-            /* In the Espressif EDP-IDF, realloc(p, n) is equivalent to
-             *     heap_caps_realloc(p, s, MALLOC_CAP_8BIT)
-             * There's no pvPortRealloc available:  */
-            #define XREALLOC(p, n, h, t) ((void)(h), (void)(t), realloc((p), (n))) /* native heap */
+            #if (defined(DEBUG_WOLFSSL) || defined(DEBUG_WOLFSSL_MALLOC))
+                #define XREALLOC(p, n, h, t) \
+                        ((void)(h), (void)(t), wc_debug_pvPortRealloc( \
+                        (p), (n),(__FILE__), (__LINE__), (__FUNCTION__) ))
+            #else
+                /* In the Espressif EDP-IDF, realloc(p, n) is equivalent to
+                 *     heap_caps_realloc(p, s, MALLOC_CAP_8BIT)
+                 * There's no pvPortRealloc available, use native heap:  */
+                #define XREALLOC(p, n, h, t) \
+                       ((void)(h), (void)(t), wc_pvPortRealloc((p), (n)))
+            #endif
         #elif defined(USE_INTEGER_HEAP_MATH) || defined(OPENSSL_EXTRA) || \
               defined(OPENSSL_ALL)
             /* FreeRTOS pvPortRealloc() implementation can be found here:
@@ -1803,8 +1853,7 @@ extern void uITRON4_free(void *p) ;
         #else
             #define XFREE(p, h, t)      {void* xp = (p); (void)(h); (void)(t); if ((xp)) _mem_free((xp));}
         #endif
-
-        /* Note: MQX has no realloc, using fastmath above */
+        #define XREALLOC(p, n, h, t) ((void)(h), (void)(t), (void *)_mem_realloc((p), (n)))
     #endif
     #ifdef USE_FAST_MATH
         /* Undef first to avoid re-definition if user_settings.h defines */
@@ -1900,21 +1949,6 @@ extern void uITRON4_free(void *p) ;
 
     #define TFM_TIMING_RESISTANT
     #define ECC_TIMING_RESISTANT
-
-    #undef  HAVE_ECC
-    #ifndef WOLFCRYPT_FIPS_RAND
-    #define HAVE_ECC
-    #endif
-    #ifndef NO_AES
-        #undef  HAVE_AESCCM
-        #define HAVE_AESCCM
-        #undef  HAVE_AESGCM
-        #define HAVE_AESGCM
-        #undef  WOLFSSL_AES_COUNTER
-        #define WOLFSSL_AES_COUNTER
-        #undef  WOLFSSL_AES_DIRECT
-        #define WOLFSSL_AES_DIRECT
-    #endif
 
     #ifdef FREESCALE_KSDK_1_3
         #include "fsl_device_registers.h"
@@ -2192,6 +2226,10 @@ extern void uITRON4_free(void *p) ;
 
         #ifndef STM32_HAL_TIMEOUT
             #define STM32_HAL_TIMEOUT   0xFF
+        #endif
+        /* bypass certificate date checking, due to lack of properly configured RTC source */
+        #ifndef HAL_RTC_MODULE_ENABLED
+            #define NO_ASN_TIME
         #endif
 
         #if defined(WOLFSSL_STM32_PKA) && !defined(WOLFSSL_SP_INT_NEGATIVE)
@@ -2669,6 +2707,22 @@ extern void uITRON4_free(void *p) ;
     #ifndef WOLFSSL_NO_CAAM_BLOB
         #define WOLFSSL_CAAM_BLOB
     #endif
+#endif
+
+#if defined(__xtensa__)
+    /* Compilers for Xtensa have been seen to compile C code into
+     * non-constant time assembly code. The small implementation is not known
+     * to have these issues. */
+    #undef CURVE25519_SMALL
+    #define CURVE25519_SMALL
+    #undef ED25519_SMALL
+    #define ED25519_SMALL
+    #undef CURVE448_SMALL
+    #define CURVE448_SMALL
+    #undef ED448_SMALL
+    #define ED448_SMALL
+    #warning "Contact wolfSSL support for a fast implementation that is " \
+             "constant time"
 #endif
 
 #if defined(NO_WC_SSIZE_TYPE) || defined(ssize_t)
@@ -3207,7 +3261,23 @@ extern void uITRON4_free(void *p) ;
             #error "AES CTS requires AES CBC"
         #endif
     #endif
-#endif
+#endif /* !NO_AES */
+
+/* cmac kdf */
+#if defined(HAVE_CMAC_KDF)
+    #if defined(NO_AES)
+        #error HAVE_CMAC_KDF and NO_AES are incompatible
+    #endif
+
+    /* SP 800-56C cmac kdf two-step requires AES-128-cmac for expand step. */
+    #if defined(NO_AES_128)
+        #error HAVE_CMAC_KDF and NO_AES_128 are incompatible
+    #endif
+
+    #if !defined(WOLFSSL_CMAC)
+        #define WOLFSSL_CMAC
+    #endif
+#endif /* HAVE_CMAC_KDF*/
 
 #if (defined(WOLFSSL_TLS13) && defined(WOLFSSL_NO_TLS12)) || \
     (!defined(HAVE_AES_CBC) && defined(NO_DES3) && defined(NO_RC4) && \
@@ -3405,12 +3475,6 @@ extern void uITRON4_free(void *p) ;
     #if defined(NO_AES) && defined(NO_DES3)
         #error PKCS7 needs either AES or 3DES enabled, please enable one
     #endif
-    #ifndef HAVE_AES_KEYWRAP
-        #error PKCS7 requires AES key wrap please define HAVE_AES_KEYWRAP
-    #endif
-    #if defined(HAVE_ECC) && !defined(HAVE_X963_KDF)
-        #error PKCS7 requires X963 KDF please define HAVE_X963_KDF
-    #endif
 #endif
 
 #ifndef NO_PKCS12
@@ -3433,7 +3497,6 @@ extern void uITRON4_free(void *p) ;
     #undef  HAVE_PBKDF2
     #define HAVE_PBKDF2
 #endif
-
 
 #if !defined(WOLFCRYPT_ONLY) && !defined(NO_OLD_TLS) && \
         (defined(NO_SHA) || defined(NO_MD5))
@@ -3615,16 +3678,18 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif
 
-#ifdef WOLFSSL_PYTHON
-    /* Need to use old OID sum algorithm until OSP patches, in particular to
-     * tests, for all versions reflect the new OID sum value. */
-    #undef WOLFSSL_OLD_OID_SUM
-    #define WOLFSSL_OLD_OID_SUM
-#endif
-
-
 /* Linux Kernel Module */
 #ifdef WOLFSSL_LINUXKM
+    #ifndef WOLFSSL_KERNEL_MODE
+        #define WOLFSSL_KERNEL_MODE
+    #endif
+    #ifndef WOLFSSL_API_PREFIX_MAP
+        #define WOLFSSL_API_PREFIX_MAP
+    #endif
+    #if defined(WOLFSSL_LINUXKM_VERBOSE_DEBUG) && \
+        !defined(WOLFSSL_KERNEL_VERBOSE_DEBUG)
+        #define WOLFSSL_KERNEL_VERBOSE_DEBUG
+    #endif
     #ifdef HAVE_CONFIG_H
         #include <config.h>
         #undef HAVE_CONFIG_H
@@ -3656,28 +3721,45 @@ extern void uITRON4_free(void *p) ;
     #ifndef WOLFSSL_OLD_PRIME_CHECK
         #define WOLFSSL_OLD_PRIME_CHECK
     #endif
+    #ifdef LINUXKM_LKCAPI_REGISTER
+        #ifndef WC_TEST_EXPORT_SUBTESTS
+            #define WC_TEST_EXPORT_SUBTESTS
+        #endif
+    #endif
     #ifndef WOLFSSL_TEST_SUBROUTINE
-        #ifdef LINUXKM_LKCAPI_REGISTER
+        #ifdef WC_TEST_EXPORT_SUBTESTS
             #define WOLFSSL_TEST_SUBROUTINE
         #else
             #define WOLFSSL_TEST_SUBROUTINE static
         #endif
     #endif
-    #ifdef LINUXKM_LKCAPI_REGISTER
-        #define WC_TEST_EXPORT_SUBTESTS
-    #endif
     #undef HAVE_PTHREAD
     /* linuxkm uses linux/string.h, included by linuxkm_wc_port.h. */
     #undef HAVE_STRINGS_H
+    #define NO_STRING_H
     /* linuxkm uses linux/limits.h, included by linuxkm_wc_port.h. */
     #undef HAVE_LIMITS_H
+    #ifndef NO_LIMITS_H
+        #define NO_LIMITS_H
+    #endif
+    #ifndef NO_STDLIB_H
+        #define NO_STDLIB_H
+    #endif
+    #ifndef NO_STDINT_H
+        #define NO_STDINT_H
+    #endif
+    #ifndef NO_CTYPE_H
+        #define NO_CTYPE_H
+    #endif
     #undef HAVE_ERRNO_H
     #undef HAVE_THREAD_LS
     #undef HAVE_ATEXIT
     #undef WOLFSSL_HAVE_MIN
     #undef WOLFSSL_HAVE_MAX
     #undef WOLFSSL_HAVE_ASSERT_H
-    #define WOLFSSL_NO_ASSERT_H
+    #ifndef WOLFSSL_NO_ASSERT_H
+        #define WOLFSSL_NO_ASSERT_H
+    #endif
     #ifndef WOLFSSL_NO_GETPID
         #define WOLFSSL_NO_GETPID
     #endif /* WOLFSSL_NO_GETPID */
@@ -3694,8 +3776,21 @@ extern void uITRON4_free(void *p) ;
     #ifndef WOLFSSL_SP_DIV_WORD_HALF
         #define WOLFSSL_SP_DIV_WORD_HALF
     #endif
-    #ifdef __PIE__
-        #define WC_NO_INTERNAL_FUNCTION_POINTERS
+
+    #ifdef WC_SYM_RELOC_TABLES
+        #ifndef WC_NO_INTERNAL_FUNCTION_POINTERS
+            #define WC_NO_INTERNAL_FUNCTION_POINTERS
+        #endif
+        #ifndef WOLFSSL_ECC_CURVE_STATIC
+            #define WOLFSSL_ECC_CURVE_STATIC
+        #endif
+        #ifndef WOLFSSL_NAMES_STATIC
+            #define WOLFSSL_NAMES_STATIC
+        #endif
+        #ifndef WOLFSSL_NO_PUBLIC_FFDHE
+            #define WOLFSSL_NO_PUBLIC_FFDHE
+        #endif
+        #undef HAVE_PUBLIC_FFDHE
     #endif
 
     #ifndef NO_OLD_WC_NAMES
@@ -3723,24 +3818,129 @@ extern void uITRON4_free(void *p) ;
         #define WOLFSSL_ASN_INT_LEAD_0_ANY
     #endif
 
-    #ifdef CONFIG_KASAN
-        #ifndef WC_SANITIZE_DISABLE
-            #define WC_SANITIZE_DISABLE() kasan_disable_current()
-        #endif
-        #ifndef WC_SANITIZE_ENABLE
-            #define WC_SANITIZE_ENABLE() kasan_enable_current()
-        #endif
-    #endif
-
     #if !defined(WC_RESEED_INTERVAL) && defined(LINUXKM_LKCAPI_REGISTER)
         /* If installing handlers, use the maximum reseed interval allowed by
          * NIST SP 800-90A Rev. 1, to avoid unnecessary delays in DRBG
          * generation.
          */
-        #define WC_RESEED_INTERVAL (((word64)1UL)<<48UL)
+        #if defined(HAVE_FIPS) && FIPS_VERSION_LT(6,0)
+            #define WC_RESEED_INTERVAL UINT_MAX
+        #else
+            #define WC_RESEED_INTERVAL (((word64)1UL)<<48UL)
+        #endif
+    #endif
+    #if defined(__aarch64__) && !defined(WOLFSSL_AARCH64_PRIVILEGE_MODE)
+        #define WOLFSSL_AARCH64_PRIVILEGE_MODE
     #endif
 #endif
 
+/* FreeBSD Kernel Module */
+#ifdef WOLFSSL_BSDKM
+    #define WOLFSSL_KERNEL_MODE
+    #define WC_TEST_EXPORT_SUBTESTS
+    #ifdef WOLFSSL_BSDKM_VERBOSE_DEBUG
+        #define WOLFSSL_KERNEL_VERBOSE_DEBUG
+    #endif
+    #ifdef HAVE_CONFIG_H
+        #include <config.h>
+        #undef HAVE_CONFIG_H
+    #endif
+    #ifndef NO_ASN_TIME
+        #define NO_ASN_TIME
+    #endif
+    #ifndef NO_DEV_RANDOM
+        #define NO_DEV_RANDOM
+    #endif
+    #ifndef NO_WRITEV
+        #define NO_WRITEV
+    #endif
+    #ifndef NO_FILESYSTEM
+        #define NO_FILESYSTEM
+    #endif
+    #ifndef NO_STDIO_FILESYSTEM
+        #define NO_STDIO_FILESYSTEM
+    #endif
+    #ifndef WOLFSSL_NO_SOCK
+        #define WOLFSSL_NO_SOCK
+    #endif
+    #ifndef WOLFSSL_DH_CONST
+        #define WOLFSSL_DH_CONST
+    #endif
+    #ifndef WOLFSSL_USER_IO
+        #define WOLFSSL_USER_IO
+    #endif
+    #ifndef USE_WOLF_STRTOK
+        #define USE_WOLF_STRTOK
+    #endif
+    #ifndef WOLFSSL_OLD_PRIME_CHECK
+        #define WOLFSSL_OLD_PRIME_CHECK
+    #endif
+    #ifndef WOLFSSL_TEST_SUBROUTINE
+        #ifndef NO_CRYPT_TEST
+            #define WOLFSSL_TEST_SUBROUTINE
+        #else
+            #define WOLFSSL_TEST_SUBROUTINE static
+        #endif
+    #endif
+    /* bsdkm uses kernel headers, included in bsdkm_wc_port.h. */
+    #undef HAVE_PTHREAD
+    #undef HAVE_STRINGS_H
+    #undef HAVE_LIMITS_H
+    #define NO_STRING_H
+    #define NO_LIMITS_H
+    #define NO_STDLIB_H
+    #define NO_STDINT_H
+    #define NO_CTYPE_H
+    #undef HAVE_ERRNO_H
+    #undef HAVE_THREAD_LS
+    #undef HAVE_ATEXIT
+    #undef WOLFSSL_HAVE_ASSERT_H
+    #define WOLFSSL_NO_ASSERT_H
+    #ifndef WOLFSSL_NO_GETPID
+        #define WOLFSSL_NO_GETPID
+    #endif /* WOLFSSL_NO_GETPID */
+    #ifndef SIZEOF_LONG
+        #define SIZEOF_LONG 8
+    #endif
+    #ifndef SIZEOF_LONG_LONG
+        #define SIZEOF_LONG_LONG 8
+    #endif
+    #ifndef WOLFSSL_SP_DIV_64
+        #define WOLFSSL_SP_DIV_64
+    #endif
+    #ifndef WOLFSSL_SP_DIV_WORD_HALF
+        #define WOLFSSL_SP_DIV_WORD_HALF
+    #endif
+
+    #ifndef NO_OLD_WC_NAMES
+        #define NO_OLD_WC_NAMES
+    #endif
+    #ifndef NO_OLD_SHA_NAMES
+        #define NO_OLD_SHA_NAMES
+    #endif
+    #ifndef NO_OLD_MD5_NAME
+        #define NO_OLD_MD5_NAME
+    #endif
+    #ifndef OPENSSL_COEXIST
+        #define OPENSSL_COEXIST
+    #endif
+    #ifndef NO_OLD_SSL_NAMES
+        #define NO_OLD_SSL_NAMES
+    #endif
+
+    /* FreeBSD kernel defines its own min, max functions in sys/libkern.h */
+    #undef  WOLFSSL_HAVE_MIN
+    #define WOLFSSL_HAVE_MIN
+
+    #undef  WOLFSSL_HAVE_MAX
+    #define WOLFSSL_HAVE_MAX
+#endif
+
+#if defined(WC_SYM_RELOC_TABLES) && defined(HAVE_FIPS) && \
+    !defined(WC_PIE_RELOC_TABLES)
+    /* backward compat */
+    #define WC_PIE_RELOC_TABLES
+#endif
 
 /* Place any other flags or defines here */
 
@@ -3814,6 +4014,9 @@ extern void uITRON4_free(void *p) ;
 
     #undef WOLFSSL_SESSION_ID_CTX
     #define WOLFSSL_SESSION_ID_CTX
+
+    #undef WOLFSSL_CERT_SETUP_CB
+    #define WOLFSSL_CERT_SETUP_CB
 #endif /* OPENSSL_EXTRA */
 
 #ifdef OPENSSL_EXTRA_X509_SMALL
@@ -3987,7 +4190,7 @@ extern void uITRON4_free(void *p) ;
 
 
 /* RAW hash function APIs are not implemented */
-#if defined(WOLFSSL_ARMASM) || defined(WOLFSSL_AFALG_HASH)
+#if defined(WOLFSSL_AFALG_HASH)
     #undef  WOLFSSL_NO_HASH_RAW
     #define WOLFSSL_NO_HASH_RAW
 #endif
@@ -3997,8 +4200,7 @@ extern void uITRON4_free(void *p) ;
     #undef HAVE_XCHACHA
 #endif
 
-#if !defined(WOLFCRYPT_ONLY) && \
-    (!defined(WOLFSSL_NO_TLS12) || defined(HAVE_KEYING_MATERIAL))
+#if !defined(NO_KDF) && !defined(NO_HMAC)
     #undef  WOLFSSL_HAVE_PRF
     #define WOLFSSL_HAVE_PRF
 #endif
@@ -4014,7 +4216,7 @@ extern void uITRON4_free(void *p) ;
 #endif
 
 #if defined(WOLFCRYPT_ONLY) && defined(WOLFSSL_RSA_VERIFY_ONLY) && \
-    defined(WC_NO_RSA_OAEP)
+    defined(WC_NO_RSA_OAEP) && !defined(HAVE_ECC)
     #undef  WOLFSSL_NO_CT_OPS
     #define WOLFSSL_NO_CT_OPS
 #endif
@@ -4028,7 +4230,8 @@ extern void uITRON4_free(void *p) ;
 #if defined(WOLFCRYPT_ONLY) && defined(NO_AES) && !defined(WOLFSSL_SHA384) && \
     !defined(WOLFSSL_SHA512) && defined(WC_NO_RNG) && \
     !defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_SP_MATH_ALL) \
-    && !defined(USE_FAST_MATH) && defined(NO_SHA256)
+    && !defined(USE_FAST_MATH) && defined(NO_SHA256) && \
+    !defined(WOLFSSL_USE_FORCE_ZERO)
     #undef  WOLFSSL_NO_FORCE_ZERO
     #define WOLFSSL_NO_FORCE_ZERO
 #endif
@@ -4089,7 +4292,6 @@ extern void uITRON4_free(void *p) ;
 #if defined(__IAR_SYSTEMS_ICC__) && defined(__ROPI__)
     #define WOLFSSL_ECC_CURVE_STATIC
     #define WOLFSSL_NAMES_STATIC
-    #define WOLFSSL_NO_CONSTCHARCONST
 #endif
 
 /* FIPS v1 does not support TLS v1.3 (requires RSA PSS and HKDF) */
@@ -4380,6 +4582,31 @@ extern void uITRON4_free(void *p) ;
     #undef XREALLOC
 #endif
 
+/* There's currently no 100% reliable "smaller than 32 bit" detection.
+ * The user can specify: WC_16BIT_CPU
+ * Lower 16 bits of new OID values may collide on some 16 bit platforms.
+ *   e.g  Arduino Mega, fqbn=arduino:avr:mega  */
+#if defined(WC_16BIT_CPU)
+    /* Force the old, 16 bit OIDs to be used in wolfcrypt/oid_sum.h */
+    #undef  WOLFSSL_OLD_OID_SUM
+    #define WOLFSSL_OLD_OID_SUM
+#endif
+
+/* Support for Key to DER conversion */
+#if !defined(NO_RSA) && \
+    (defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN) || \
+     defined(WOLFSSL_KCAPI_RSA) || defined(OPENSSL_EXTRA) || \
+     defined(WOLFSSL_SE050))
+    /* FIPS v2 has the wc_RsaKeyToDer in rsa.h (in boundary),
+     * so with FIPS or self test only allow with WOLFSSL_KEY_GEN */
+    #if (!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
+        defined(WOLFSSL_KEY_GEN)
+
+        #undef  WOLFSSL_KEY_TO_DER
+        #define WOLFSSL_KEY_TO_DER
+    #endif
+#endif
+
 
 /* ---------------------------------------------------------------------------
  * Deprecated Algorithm Handling
@@ -4415,6 +4642,12 @@ extern void uITRON4_free(void *p) ;
         #undef WOLFSSL_SYS_CA_CERTS
     #endif
 #endif /* WOLFSSL_SYS_CA_CERTS */
+
+#ifdef NO_WOLFSSL_DEBUG_CERTS
+    /* Simplify certificate debugging gate check with only WOLFSSL_DEBUG_CERTS.
+     * NO_WOLFSSL_DEBUG_CERTS prioritized over WOLFSSL_DEBUG_CERTS; disable: */
+    #undef WOLFSSL_DEBUG_CERTS
+#endif
 
 #if defined(SESSION_CACHE_DYNAMIC_MEM) && defined(PERSIST_SESSION_CACHE)
 #error "Dynamic session cache currently does not support persistent session cache."

@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -111,13 +111,7 @@ library files.
     typedef byte           word24[3];
 #endif
 
-
-/* constant pointer to a constant char */
-#ifdef WOLFSSL_NO_CONSTCHARCONST
-    typedef const char*       wcchar;
-#else
-    typedef const char* const wcchar;
-#endif
+typedef const char wcchar[];
 
 #ifndef WC_BITFIELD
     #ifdef WOLF_C89
@@ -380,7 +374,9 @@ typedef struct w64wrapper {
 #ifdef WC_PTR_TYPE /* Allow user supplied type */
     typedef WC_PTR_TYPE wc_ptr_t;
 #elif defined(HAVE_UINTPTR_T)
-    #include <stdint.h>
+    #ifndef NO_STDINT_H
+        #include <stdint.h>
+    #endif
     typedef uintptr_t wc_ptr_t;
 #else /* fallback to architecture size_t for pointer size */
     #include <stddef.h> /* included for getting size_t type */
@@ -429,7 +425,7 @@ enum {
 #endif
 
 /* set up thread local storage if available */
-#ifdef HAVE_THREAD_LS
+#if defined(HAVE_THREAD_LS) && !defined(NO_THREAD_LS)
     #if defined(_MSC_VER) || defined(__WATCOMC__)
         #define THREAD_LS_T __declspec(thread)
     /* Thread local storage only in FreeRTOS v8.2.1 and higher */
@@ -466,8 +462,151 @@ enum {
 
 #define XELEM_CNT(x) (sizeof((x))/sizeof(*(x)))
 
-#define WC_SAFE_SUM_WORD32(in1, in2, out) ((in2) <= 0xffffffffU - (in1) ? \
-            ((out) = (in1) + (in2), 1) : ((out) = 0xffffffffU, 0))
+#ifdef NO_INLINE
+    #define WC_WUR_INT(x) (x)
+#else
+    static WC_INLINE WARN_UNUSED_RESULT int WC_WUR_INT(int x) { return x; }
+#endif
+
+#ifdef WORD64_AVAILABLE
+    #define WC_MAX_UINT_OF(x)                                        \
+        ((x)((((word64)1 << ((sizeof(x) * (word64)CHAR_BIT) -        \
+                             (word64)1)) - (word64)1)                \
+             |                                                       \
+             ((word64)1 <<                                           \
+              ((sizeof(x) * (word64)CHAR_BIT) - (word64)1))))
+    #define WC_MAX_SINT_OF(x)                                        \
+        ((x)((sword64)((((word64)1 <<                                \
+                         ((sizeof(x) * (word64)CHAR_BIT) -           \
+                          (word64)2)) - (word64)1)                   \
+                       |                                             \
+                       ((word64)1 <<                                 \
+                        ((sizeof(x) * (word64)CHAR_BIT) -            \
+                                      (word64)2)))))
+#else
+    #define WC_MAX_UINT_OF(x)                                        \
+        ((x)((((word32)1 << ((sizeof(x) * (word32)CHAR_BIT) -        \
+                             (word32)1)) - (word32)1)                \
+             |                                                       \
+             ((word32)1 <<                                           \
+              ((sizeof(x) * (word32)CHAR_BIT) - (word32)1))))
+    #define WC_MAX_SINT_OF(x)                                        \
+        ((x)((sword32)((((word32)1 <<                                \
+                         ((sizeof(x) * (word32)CHAR_BIT) -           \
+                          (word32)2)) - (word32)1)                   \
+                       |                                             \
+                       ((word32)1 <<                                 \
+                        ((sizeof(x) * (word32)CHAR_BIT) -            \
+                                      (word32)2)))))
+#endif
+#define WC_MIN_SINT_OF(x) (-WC_MAX_SINT_OF(x) - 1)
+
+/* The _CLIP variants of the safe arithmetic macros always store a value to out,
+ * but if the result is too large to represent in the type, out is set to the
+ * largest representable value with same sign as the actual result ("clipped").
+ *
+ * The non-_CLIP variants do not store a value if the result can't be accurately
+ * represented, and their return values must be checked.
+ *
+ * Both _CLIP and non-_CLIP macros return 1 if the result could be represented
+ * by the type, and 0 if not.
+ */
+
+#define WC_SAFE_SUM_UNSIGNED_CLIP(type, in1, in2, out)               \
+        ((in2) <= (WC_MAX_UINT_OF(type) - (in1)) ?                   \
+         ((out) = (in1) + (in2),                                     \
+          /* coverity[INTEGER_OVERFLOW] */ 1) :                      \
+         ((out) = WC_MAX_UINT_OF(type), 0))
+
+#define WC_SAFE_SUB_UNSIGNED_CLIP(type, in1, in2, out)               \
+        ((in2) <= (in1) ?                                            \
+         ((out) = (in1) - (in2),                                     \
+          /* coverity[INTEGER_UNDERFLOW] */ 1) :                     \
+         ((out) = 0, 0))
+
+#define WC_SAFE_SUM_UNSIGNED(type, in1, in2, out) WC_WUR_INT(        \
+        ((in2) <= (WC_MAX_UINT_OF(type) - (in1)) ?                   \
+         ((out) = (in1) + (in2),                                     \
+          /* coverity[INTEGER_OVERFLOW] */ 1) :                      \
+         0))
+
+#define WC_SAFE_SUB_UNSIGNED(type, in1, in2, out) WC_WUR_INT(        \
+        ((in2) <= (in1) ?                                            \
+         ((out) = (in1) - (in2),                                     \
+          /* coverity[INTEGER_UNDERFLOW] */ 1) :                     \
+         0))
+
+#if defined(HAVE_SELFTEST) || (defined(HAVE_FIPS) && FIPS_VERSION3_LE(6,0,0))
+    #define WC_SAFE_SUM_WORD32(in1, in2, out)                        \
+            WC_SAFE_SUM_UNSIGNED_CLIP(word32, in1, in2, out)
+#else
+    #define WC_SAFE_SUM_WORD32(in1, in2, out)                        \
+            WC_SAFE_SUM_UNSIGNED(word32, in1, in2, out)
+#endif
+
+#define WC_SAFE_SUM_SIGNED_CLIP(type, in1, in2, out)                 \
+        ((((in1) > 0) && ((in2) > 0)) ?                              \
+             ((in2) <= WC_MAX_SINT_OF(type) - (in1) ?                \
+              ((out) = (in1) + (in2),                                \
+               /* coverity[INTEGER_OVERFLOW] */ 1) :                 \
+              ((out) = (type)WC_MAX_SINT_OF(type), 0))               \
+             :                                                       \
+             ((((in1) < 0) && ((in2) < 0)) ?                         \
+              ((in2) >= WC_MIN_SINT_OF(type) - (in1) ?               \
+               ((out) = (in1) + (in2),                               \
+                /* coverity[INTEGER_OVERFLOW] */ 1) :                \
+               ((out) = (type)WC_MIN_SINT_OF(type), 0))              \
+              :                                                      \
+              ((out) = (in1) + (in2),                                \
+               /* coverity[INTEGER_OVERFLOW] */ 1)))
+
+#define WC_SAFE_SUB_SIGNED_CLIP(type, in1, in2, out)                 \
+        ((((in1) > 0) && ((in2) < 0)) ?                              \
+             ((in2) >= (in1) - WC_MAX_SINT_OF(type) ?                \
+              ((out) = (in1) - (in2),                                \
+               /* coverity[INTEGER_OVERFLOW] */ 1) :                 \
+              ((out) = (type)WC_MAX_SINT_OF(type), 0))               \
+             :                                                       \
+             ((((in1) < 0) && ((in2) > 0)) ?                         \
+              ((in2) <= (in1) - WC_MIN_SINT_OF(type) ?               \
+               ((out) = (in1) - (in2),                               \
+                /* coverity[INTEGER_OVERFLOW] */ 1) :                \
+               ((out) = (type)WC_MIN_SINT_OF(type), 0))              \
+              :                                                      \
+              ((out) = (in1) - (in2),                                \
+               /* coverity[INTEGER_OVERFLOW] */ 1)))
+
+#define WC_SAFE_SUM_SIGNED(type, in1, in2, out) WC_WUR_INT(          \
+        ((((in1) > 0) && ((in2) > 0)) ?                              \
+             ((in2) <= WC_MAX_SINT_OF(type) - (in1) ?                \
+              ((out) = (in1) + (in2),                                \
+               /* coverity[INTEGER_OVERFLOW] */ 1) :                 \
+              0)                                                     \
+             :                                                       \
+             ((((in1) < 0) && ((in2) < 0)) ?                         \
+              ((in2) >= WC_MIN_SINT_OF(type) - (in1) ?               \
+               ((out) = (in1) + (in2),                               \
+                /* coverity[INTEGER_OVERFLOW] */ 1) :                \
+               0)                                                    \
+              :                                                      \
+              ((out) = (in1) + (in2),                                \
+               /* coverity[INTEGER_OVERFLOW] */ 1))))
+
+#define WC_SAFE_SUB_SIGNED(type, in1, in2, out) WC_WUR_INT(          \
+        ((((in1) > 0) && ((in2) < 0)) ?                              \
+             ((in2) >= (in1) - WC_MAX_SINT_OF(type) ?                \
+              ((out) = (in1) - (in2),                                \
+               /* coverity[INTEGER_OVERFLOW] */ 1) :                 \
+              0)                                                     \
+             :                                                       \
+             ((((in1) < 0) && ((in2) > 0)) ?                         \
+              ((in2) <= (in1) - WC_MIN_SINT_OF(type) ?               \
+               ((out) = (in1) - (in2),                               \
+                /* coverity[INTEGER_OVERFLOW] */ 1) :                \
+               0)                                                    \
+              :                                                      \
+              ((out) = (in1) - (in2),                                \
+               /* coverity[INTEGER_OVERFLOW] */ 1))))
 
 #if defined(HAVE_IO_POOL)
     WOLFSSL_API void* XMALLOC(size_t n, void* heap, int type);
@@ -587,6 +726,10 @@ enum {
 #elif defined(WOLFSSL_LINUXKM)
 
     /* definitions are in linuxkm/linuxkm_wc_port.h */
+
+#elif defined(WOLFSSL_BSDKM)
+
+    /* definitions are in bsdkm/bsdkm_wc_port.h */
 
 #elif !defined(MICRIUM_MALLOC) && !defined(EBSNET) \
         && !defined(WOLFSSL_SAFERTOS) && !defined(FREESCALE_MQX) \
@@ -712,16 +855,25 @@ enum {
         idx##VAR_NAME = 0;                                                     \
     }
 
-#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_SMALL_STACK)
+#if defined(WOLFSSL_SMALL_STACK)
     #define WC_DECLARE_VAR_IS_HEAP_ALLOC
     #define WC_DECLARE_VAR(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP) \
         VAR_TYPE* VAR_NAME = NULL
+    #define WC_VAR_OK(VAR_NAME) ((VAR_NAME) != NULL)
     #define WC_ALLOC_VAR(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP)               \
         do {                                                               \
             (VAR_NAME) = (VAR_TYPE*)XMALLOC(sizeof(VAR_TYPE) * (VAR_SIZE), \
                 (HEAP), DYNAMIC_TYPE_WOLF_BIGINT);                         \
             if ((VAR_NAME) == NULL) {                                      \
                 WC_ALLOC_DO_ON_FAILURE();                                  \
+            }                                                              \
+        } while (0)
+    #define WC_ALLOC_VAR_EX(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP, TY, ONFAIL)\
+        do {                                                               \
+            (VAR_NAME) = (VAR_TYPE*)XMALLOC(sizeof(VAR_TYPE) * (VAR_SIZE), \
+                (HEAP), TY);                                               \
+            if ((VAR_NAME) == NULL) {                                      \
+                ONFAIL;                                                    \
             }                                                              \
         } while (0)
     #define WC_CALLOC_VAR(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP)    \
@@ -731,6 +883,8 @@ enum {
         } while (0)
     #define WC_FREE_VAR(VAR_NAME, HEAP) \
         XFREE(VAR_NAME, (HEAP), DYNAMIC_TYPE_WOLF_BIGINT)
+    #define WC_FREE_VAR_EX(VAR_NAME, HEAP, TYPE) \
+        XFREE(VAR_NAME, (HEAP), TYPE)
     #define WC_DECLARE_ARRAY(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) \
         WC_DECLARE_HEAP_ARRAY(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP)
     #define WC_ARRAY_ARG(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE) \
@@ -747,14 +901,18 @@ enum {
     #define WC_DECLARE_VAR(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP) \
         VAR_TYPE VAR_NAME[VAR_SIZE]
     #define WC_ALLOC_VAR(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP) WC_DO_NOTHING
+    #define WC_ALLOC_VAR_EX(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP, TYPE, ONFAIL)\
+        WC_DO_NOTHING
+    #define WC_VAR_OK(VAR_NAME) 1
     #define WC_CALLOC_VAR(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP)        \
         XMEMSET(VAR_NAME, 0, sizeof(var))
     #define WC_FREE_VAR(VAR_NAME, HEAP) WC_DO_NOTHING \
         /* nothing to free, its stack */
+    #define WC_FREE_VAR_EX(VAR_NAME, HEAP, TYPE) WC_DO_NOTHING
     #define WC_DECLARE_ARRAY(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) \
-        VAR_TYPE VAR_NAME[VAR_ITEMS][(VAR_SIZE) / sizeof(VAR_TYPE)] /* // NOLINT(bugprone-sizeof-expression) */
+        VAR_TYPE VAR_NAME[VAR_ITEMS][(VAR_SIZE) / sizeof(VAR_TYPE)] /* NOLINT(bugprone-sizeof-expression) */
     #define WC_ARRAY_ARG(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE) \
-        VAR_TYPE VAR_NAME[VAR_ITEMS][(VAR_SIZE) / sizeof(VAR_TYPE)] /* // NOLINT(bugprone-sizeof-expression) */
+        VAR_TYPE VAR_NAME[VAR_ITEMS][(VAR_SIZE) / sizeof(VAR_TYPE)] /* NOLINT(bugprone-sizeof-expression) */
     #define WC_ALLOC_ARRAY(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) \
         WC_DO_NOTHING
     #define WC_CALLOC_ARRAY(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) \
@@ -792,9 +950,7 @@ enum {
 #endif
 
 #ifndef STRING_USER
-    #if defined(WOLFSSL_LINUXKM)
-        #include <linux/string.h>
-    #else
+    #ifndef NO_STRING_H
         #include <string.h>
     #endif
 
@@ -808,7 +964,7 @@ enum {
     /* strstr, strncmp, strcmp, and strncat only used by wolfSSL proper,
         * not required for wolfCrypt only */
     #define XSTRSTR(s1,s2)    strstr((s1),(s2))
-    #define XSTRNSTR(s1,s2,n) mystrnstr((s1),(s2),(n))
+    #define XSTRNSTR(s1,s2,n) wolfSSL_strnstr((s1),(s2),(n))
     #define XSTRNCMP(s1,s2,n) strncmp((s1),(s2),(n))
     #define XSTRCMP(s1,s2)    strcmp((s1),(s2))
     #define XSTRNCAT(s1,s2,n) strncat((s1),(s2),(n))
@@ -1053,7 +1209,7 @@ binding for XSNPRINTF
 #endif /* !NO_FILESYSTEM && !NO_STDIO_FILESYSTEM */
 
 #ifndef CTYPE_USER
-    #ifndef WOLFSSL_LINUXKM
+    #ifndef NO_CTYPE_H
         #include <ctype.h>
     #endif
     #if defined(HAVE_ECC) || defined(HAVE_OCSP) || \
@@ -1205,7 +1361,13 @@ enum {
 };
 
 /* max error buffer string size */
-#ifndef WOLFSSL_MAX_ERROR_SZ
+#ifdef WOLFSSL_MAX_ERROR_SZ
+    #if  WOLFSSL_MAX_ERROR_SZ < 64
+        /* If too small, the error_test() will fail.
+         * See fixed length strings returned in wc_GetErrorString() */
+        #error WOLFSSL_MAX_ERROR_SZ must be at least length of longest message
+    #endif
+#else
     #define WOLFSSL_MAX_ERROR_SZ 80
 #endif
 
@@ -1226,8 +1388,18 @@ enum wc_AlgoType {
     WC_ALGO_TYPE_HMAC = 6,
     WC_ALGO_TYPE_CMAC = 7,
     WC_ALGO_TYPE_CERT = 8,
+    WC_ALGO_TYPE_KDF = 9,
+    WC_ALGO_TYPE_COPY = 10,
+    WC_ALGO_TYPE_FREE = 11,
+    WC_ALGO_TYPE_MAX = WC_ALGO_TYPE_FREE
+};
 
-    WC_ALGO_TYPE_MAX = WC_ALGO_TYPE_CERT
+/* KDF types */
+enum wc_KdfType {
+    WC_KDF_TYPE_NONE = 0,
+    WC_KDF_TYPE_HKDF = 1,
+    WC_KDF_TYPE_TWOSTEP_CMAC = 2 /* NIST SP 800-56C two-step cmac kdf. */
+    /* Future: WC_KDF_TYPE_PBKDF2 = 3, WC_KDF_TYPE_SCRYPT = 4, etc. */
 };
 
 /* hash types */
@@ -1438,6 +1610,9 @@ enum {
 };
 
 
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define CheckRunTimeSettings wc_CheckRunTimeSettings
+#endif
 WOLFSSL_API word32 CheckRunTimeSettings(void);
 
 /* If user uses RSA, DH, DSA, or ECC math lib directly then fast math and long
@@ -1488,6 +1663,9 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
         #define XALIGNED(x) __attribute__ ( (aligned (x)))
     #elif defined(__KEIL__)
         #define XALIGNED(x) __align(x)
+    #elif defined(__WATCOMC__) /* && (_MSC_VER or !_MSC_VER) */
+        /* No align available for Open Watcom V2, expansion comment needed: */
+        #define XALIGNED(x) /* null expansion */
     #elif defined(_MSC_VER)
         /* disable align warning, we want alignment ! */
         #pragma warning(disable: 4324)
@@ -1557,7 +1735,7 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
 #elif defined(WOLFSSL_USER_THREADING)
     /* User can define user specific threading types
         *  THREAD_RETURN
-        *  TREAD_TYPE
+        *  THREAD_TYPE
         *  WOLFSSL_THREAD
         * e.g.
         *  typedef unsigned int  THREAD_RETURN;
@@ -1585,7 +1763,7 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
         #ifndef HAVE_SELFTEST
             #define WOLFSSL_THREAD_NO_JOIN
         #endif
-    #elif defined(__NT__)
+    #elif defined(__NT__) || defined(INTIME_RTOS)
         typedef unsigned      THREAD_RETURN;
         typedef uintptr_t     THREAD_TYPE;
         typedef struct COND_TYPE {
@@ -1655,7 +1833,7 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
     #define WOLFSSL_THREAD
     #define INFINITE TX_WAIT_FOREVER
     #define WAIT_OBJECT_0 TX_NO_WAIT
-#elif defined(WOLFSSL_LINUXKM)
+#elif defined(WOLFSSL_LINUXKM) || defined(WOLFSSL_BSDKM)
     typedef unsigned int  THREAD_RETURN;
     typedef size_t        THREAD_TYPE;
     #define WOLFSSL_THREAD
@@ -1717,12 +1895,17 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
     typedef unsigned int   THREAD_RETURN;
     typedef TX_THREAD      THREAD_TYPE;
     #define WOLFSSL_THREAD
+#elif defined(INTIME_RTOS)
+    typedef unsigned int  THREAD_RETURN;
+    #define INTIME_THREAD_TYPE THREAD_TYPE
+    #undef THREAD_TYPE
+    typedef uintptr_t     THREAD_TYPE;
+    #define WOLFSSL_THREAD __stdcall
 #else
     typedef unsigned int  THREAD_RETURN;
     typedef size_t        THREAD_TYPE;
     #define WOLFSSL_THREAD __stdcall
 #endif
-
 
 #ifndef SINGLE_THREADED
     /* Necessary headers should already be included. */
@@ -1807,6 +1990,12 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
         WOLFSSL_API int wolfSSL_CondWait(COND_TYPE* cond);
         WOLFSSL_API int wolfSSL_CondStart(COND_TYPE* cond);
         WOLFSSL_API int wolfSSL_CondEnd(COND_TYPE* cond);
+    #endif
+
+    #ifdef INTIME_RTOS
+       #undef  THREAD_TYPE
+       #define THREAD_TYPE INTIME_THREAD_TYPE
+       #undef  INTIME_THREAD_TYPE
     #endif
 #else
     #define WOLFSSL_RETURN_FROM_THREAD(x) return (THREAD_RETURN)(x)
@@ -1941,12 +2130,48 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
         #define wc_static_assert2(expr, msg) wc_static_assert(expr)
 #endif
 
+#ifndef WC_RELAX_LONG_LOOP
+    #define WC_RELAX_LONG_LOOP() WC_DO_NOTHING
+#endif
+#ifndef WC_CHECK_FOR_INTR_SIGNALS
+    #define WC_CHECK_FOR_INTR_SIGNALS() 0
+    #ifndef SAVE_NO_VECTOR_REGISTERS
+        #define SAVE_NO_VECTOR_REGISTERS(fail_clause) WC_RELAX_LONG_LOOP()
+    #endif
+    #ifndef SAVE_NO_VECTOR_REGISTERS2
+        #define SAVE_NO_VECTOR_REGISTERS2() 0
+    #endif
+#else
+    #ifndef SAVE_NO_VECTOR_REGISTERS
+        #define SAVE_NO_VECTOR_REGISTERS(fail_clause) {     \
+                int _svr_ret = WC_CHECK_FOR_INTR_SIGNALS(); \
+                if (_svr_ret != 0) { fail_clause }          \
+                WC_RELAX_LONG_LOOP();                       \
+            }
+    #endif
+    #ifndef SAVE_NO_VECTOR_REGISTERS2
+        #define SAVE_NO_VECTOR_REGISTERS2() WC_CHECK_FOR_INTR_SIGNALS()
+    #endif
+#endif
+#ifndef WC_SIG_IGNORE_BEGIN
+    #define WC_SIG_IGNORE_BEGIN() 0
+#endif
+#ifndef WC_SIG_IGNORE_END
+    #define WC_SIG_IGNORE_END() 0
+#endif
+
+#ifndef RESTORE_NO_VECTOR_REGISTERS
+    #define RESTORE_NO_VECTOR_REGISTERS() WC_RELAX_LONG_LOOP()
+#endif
+
 #ifndef SAVE_VECTOR_REGISTERS
-    #define SAVE_VECTOR_REGISTERS(fail_clause) WC_DO_NOTHING
+    #define SAVE_VECTOR_REGISTERS(fail_clause) SAVE_NO_VECTOR_REGISTERS(fail_clause)
 #endif
 #ifndef SAVE_VECTOR_REGISTERS2
-    #define SAVE_VECTOR_REGISTERS2() 0
-    #define SAVE_VECTOR_REGISTERS2_DOES_NOTHING
+    #define SAVE_VECTOR_REGISTERS2() SAVE_NO_VECTOR_REGISTERS2()
+    #define SAVE_VECTOR_REGISTERS2_DOES_NOTHING /* VECTOR_REGISTERS_{PUSH,POP}
+                                                 * in aes.c depend on this.
+                                                 */
 #endif
 #ifndef CAN_SAVE_VECTOR_REGISTERS
     #define CAN_SAVE_VECTOR_REGISTERS() 1
@@ -1962,23 +2187,31 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
     #define ASSERT_RESTORED_VECTOR_REGISTERS(fail_clause) WC_DO_NOTHING
 #endif
 #ifndef RESTORE_VECTOR_REGISTERS
-    #define RESTORE_VECTOR_REGISTERS() WC_DO_NOTHING
+    #define RESTORE_VECTOR_REGISTERS() RESTORE_NO_VECTOR_REGISTERS()
 #endif
-#ifdef WOLFSSL_NO_ASM
-    /* We define fallback no-op definitions for these only if asm is disabled,
-     * otherwise the using code must detect that these macros are undefined and
-     * provide its own non-vector implementation paths.
-     *
-     * Currently these macros are only used in WOLFSSL_LINUXKM code paths, which
-     * are always compiled either with substantive definitions from
-     * linuxkm_wc_port.h, or with WOLFSSL_NO_ASM defined.
-     */
-    #ifndef DISABLE_VECTOR_REGISTERS
+
+#if (defined(USE_INTEL_SPEEDUP) || defined(USE_INTEL_SPEEDUP_FOR_AES) || \
+     defined(WOLFSSL_AESNI) || defined(WOLFSSL_ARMASM) || \
+     defined(WOLFSSL_SP_ASM)) && !defined(WOLFSSL_NO_ASM)
+    #define WC_HAVE_VECTOR_SPEEDUPS
+#endif
+
+/* DISABLE_VECTOR_REGISTERS() and REENABLE_VECTOR_REGISTERS() are currently only
+ * used by Linux kernel code.  If WC_HAVE_VECTOR_SPEEDUPS, we default
+ * DISABLE_VECTOR_REGISTERS() to -1, to assure calling code is forced to handle
+ * the failure.  But if the build disables vec regs globally, we can return 0
+ * harmlessly.  The kernel build defines real calls for these in vectorized
+ * builds, otherwise it uses these fallbacks.
+ */
+#ifndef DISABLE_VECTOR_REGISTERS
+    #ifdef WC_HAVE_VECTOR_SPEEDUPS
+        #define DISABLE_VECTOR_REGISTERS() (-1)
+    #else
         #define DISABLE_VECTOR_REGISTERS() 0
     #endif
-    #ifndef REENABLE_VECTOR_REGISTERS
-        #define REENABLE_VECTOR_REGISTERS() WC_DO_NOTHING
-    #endif
+#endif
+#ifndef REENABLE_VECTOR_REGISTERS
+    #define REENABLE_VECTOR_REGISTERS() WC_DO_NOTHING
 #endif
 
 #ifndef WC_SANITIZE_DISABLE
@@ -2035,7 +2268,12 @@ enum Max_ASN {
 #elif defined(HAVE_FALCON) || defined(HAVE_DILITHIUM)
     MAX_ENCODED_SIG_SZ  = 5120,
 #elif !defined(NO_RSA)
-#ifdef WOLFSSL_HAPROXY
+#if defined(USE_FAST_MATH) && defined(FP_MAX_BITS)
+    MAX_ENCODED_SIG_SZ  = FP_MAX_BITS / 8,
+#elif (defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_MATH)) && \
+    defined(SP_INT_BITS)
+    MAX_ENCODED_SIG_SZ  = (SP_INT_BITS + 7) / 8,
+#elif defined(WOLFSSL_HAPROXY)
     MAX_ENCODED_SIG_SZ  = 1024,    /* Supports 8192 bit keys */
 #else
     MAX_ENCODED_SIG_SZ  = 512,     /* Supports 4096 bit keys */
@@ -2047,7 +2285,6 @@ enum Max_ASN {
 #else
     MAX_ENCODED_SIG_SZ  =  64,
 #endif
-    MAX_SIG_SZ          = 256,
     MAX_ALGO_SZ         =  20,
     MAX_LENGTH_SZ       = WOLFSSL_ASN_MAX_LENGTH_SZ, /* Max length size for DER encoding */
     MAX_SHORT_SZ        = (1 + 1 + 5), /* asn int + byte len + 5 byte length */
@@ -2103,6 +2340,8 @@ enum Max_ASN {
 #ifndef WC_MAX_BLOCK_SIZE
 #define WC_MAX_BLOCK_SIZE  128
 #endif
+
+#define MAX_SIG_SZ MAX_ENCODED_SIG_SZ
 
 #ifdef WOLFSSL_CERT_GEN
     /* Used in asn.c MakeSignature for ECC and RSA non-blocking/async */

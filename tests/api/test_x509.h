@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -23,10 +23,12 @@
 #define WOLFCRYPT_TEST_X509_H
 
 int test_x509_rfc2818_verification_callback(void);
+int test_x509_GetCAByAKID(void);
 int test_wolfSSL_X509_STORE_load_multiple_certs(void);
 
 #define TEST_X509_DECLS                                                        \
     TEST_DECL_GROUP("x509", test_x509_rfc2818_verification_callback),          \
+    TEST_DECL_GROUP("x509", test_x509_GetCAByAKID),                            \
     TEST_DECL_GROUP("x509", test_wolfSSL_X509_STORE_load_multiple_certs)
 
 #endif /* WOLFCRYPT_TEST_X509_H */
