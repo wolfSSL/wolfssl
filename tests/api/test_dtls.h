@@ -37,6 +37,7 @@ int test_dtls12_short_read(void);
 int test_dtls13_longer_length(void);
 int test_dtls13_short_read(void);
 int test_records_span_network_boundaries(void);
+int test_dtls_mtu_fragment_headroom(void);
 int test_dtls_record_cross_boundaries(void);
 int test_dtls_rtx_across_epoch_change(void);
 int test_dtls_drop_client_ack(void);
@@ -64,6 +65,7 @@ int test_dtls_memio_wolfio_stateless(void);
         TEST_DECL_GROUP("dtls", test_dtls13_longer_length),                    \
         TEST_DECL_GROUP("dtls", test_dtls13_short_read),                       \
         TEST_DECL_GROUP("dtls", test_records_span_network_boundaries),         \
+        TEST_DECL_GROUP("dtls", test_dtls_mtu_fragment_headroom),              \
         TEST_DECL_GROUP("dtls", test_dtls_record_cross_boundaries),            \
         TEST_DECL_GROUP("dtls", test_dtls_rtx_across_epoch_change),            \
         TEST_DECL_GROUP("dtls", test_dtls_drop_client_ack),                    \

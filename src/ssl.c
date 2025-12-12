@@ -2905,7 +2905,7 @@ int wolfSSL_GetMaxOutputSize(WOLFSSL* ssl)
         return BAD_FUNC_ARG;
     }
 
-    return wolfSSL_GetMaxFragSize(ssl, OUTPUT_RECORD_SIZE);
+    return wolfSSL_GetMaxFragSize(ssl, OUTPUT_RECORD_SIZE, 0);
 }
 
 
