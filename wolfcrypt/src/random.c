@@ -631,9 +631,10 @@ static int Hash_DRBG_Generate(DRBG_internal* drbg, byte* out, word32 outSz)
     }
 
     if (drbg->reseedCtr >= WC_RESEED_INTERVAL) {
-    #if defined(DEBUG_WOLFSSL) || defined(DEBUG_DRBG_RESEEDS)
-        printf("DRBG reseed triggered, reseedCtr == %lu",
-               (unsigned long)drbg->reseedCtr);
+    #if (defined(DEBUG_WOLFSSL) || defined(DEBUG_DRBG_RESEEDS)) && \
+        defined(WOLFSSL_DEBUG_PRINTF)
+        WOLFSSL_DEBUG_PRINTF("DRBG reseed triggered, reseedCtr == %lu",
+                (unsigned long)drbg->reseedCtr);
     #endif
         return DRBG_NEED_RESEED;
     }
