@@ -57,3 +57,57 @@ int wc_Arc4Process(Arc4* arc4, byte* out, const byte* in, word32 length);
     \sa wc_Arc4Process
 */
 int wc_Arc4SetKey(Arc4* arc4, const byte* key, word32 length);
+
+/*!
+    \ingroup ARC4
+    \brief This function initializes an ARC4 structure for use with
+    asynchronous cryptographic operations. It sets up the heap hint and
+    device ID for hardware acceleration support.
+
+    \return 0 On success.
+    \return BAD_FUNC_ARG If arc4 is NULL.
+
+    \param arc4 pointer to the Arc4 structure to initialize
+    \param heap pointer to heap hint for memory allocation (can be NULL)
+    \param devId device ID for hardware acceleration (use INVALID_DEVID
+    for software)
+
+    _Example_
+    \code
+    Arc4 arc4;
+    int ret = wc_Arc4Init(&arc4, NULL, INVALID_DEVID);
+    if (ret != 0) {
+        // initialization failed
+    }
+    // use arc4 for encryption/decryption
+    wc_Arc4Free(&arc4);
+    \endcode
+
+    \sa wc_Arc4SetKey
+    \sa wc_Arc4Free
+*/
+int wc_Arc4Init(Arc4* arc4, void* heap, int devId);
+
+/*!
+    \ingroup ARC4
+    \brief This function frees an ARC4 structure, releasing any resources
+    allocated for asynchronous cryptographic operations. It should be
+    called when the ARC4 structure is no longer needed.
+
+    \return none No return value.
+
+    \param arc4 pointer to the Arc4 structure to free
+
+    _Example_
+    \code
+    Arc4 arc4;
+    wc_Arc4Init(&arc4, NULL, INVALID_DEVID);
+    wc_Arc4SetKey(&arc4, key, keyLen);
+    // use arc4 for encryption/decryption
+    wc_Arc4Free(&arc4);
+    \endcode
+
+    \sa wc_Arc4Init
+    \sa wc_Arc4SetKey
+*/
+void wc_Arc4Free(Arc4* arc4);

@@ -345,6 +345,42 @@ int wolfSSL_quic_read_write(WOLFSSL *ssl);
 /*!
     \ingroup QUIC
 
+    \brief Perform the QUIC handshake. This function processes CRYPTO
+    data that has been provided via wolfSSL_provide_quic_data() and
+    advances the handshake state. It should be called repeatedly until
+    the handshake is complete.
+
+    \return WOLFSSL_SUCCESS If handshake completed successfully
+    \return WOLFSSL_FATAL_ERROR If a fatal error occurred
+    \return Other values indicating handshake is in progress
+
+    \param ssl pointer to a WOLFSSL structure created using
+    wolfSSL_new()
+
+    _Example_
+    \code
+    WOLFSSL* ssl;
+    // initialize ssl with QUIC method
+
+    while (!wolfSSL_is_init_finished(ssl)) {
+        int ret = wolfSSL_quic_do_handshake(ssl);
+        if (ret == WOLFSSL_FATAL_ERROR) {
+            // handle error
+            break;
+        }
+        // provide more CRYPTO data if available
+    }
+    \endcode
+
+    \sa wolfSSL_provide_quic_data
+    \sa wolfSSL_quic_read_write
+    \sa wolfSSL_is_init_finished
+*/
+int wolfSSL_quic_do_handshake(WOLFSSL* ssl);
+
+/*!
+    \ingroup QUIC
+
     \brief Get the AEAD cipher negotiated in the TLS handshake.
 
     \return negotiated cipher or NULL if not determined.

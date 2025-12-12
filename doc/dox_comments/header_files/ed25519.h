@@ -1087,3 +1087,218 @@ int wc_ed25519_pub_size(const ed25519_key* key);
 */
 
 int wc_ed25519_sig_size(const ed25519_key* key);
+/*!
+    \ingroup ED25519
+    \brief Signs message with extended parameters.
+
+    \return 0 on success
+    \return negative on failure
+
+    \param in Input message
+    \param inLen Input message length
+    \param out Output signature buffer
+    \param outLen Output signature length pointer
+    \param key Ed25519 key
+    \param type Signature type
+    \param context Context buffer
+    \param contextLen Context length
+
+    _Example_
+    \code
+    byte msg[] = "message";
+    byte sig[ED25519_SIG_SIZE];
+    word32 sigLen = sizeof(sig);
+    int ret = wc_ed25519_sign_msg_ex(msg, sizeof(msg), sig, &sigLen,
+                                     &key, Ed25519, NULL, 0);
+    \endcode
+
+    \sa wc_ed25519_sign_msg
+*/
+int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
+    word32 *outLen, ed25519_key* key, byte type, const byte* context,
+    byte contextLen);
+
+/*!
+    \ingroup ED25519
+    \brief Verifies signature with extended parameters.
+
+    \return 0 on success
+    \return negative on failure
+
+    \param sig Signature buffer
+    \param sigLen Signature length
+    \param msg Message buffer
+    \param msgLen Message length
+    \param res Verification result pointer
+    \param key Ed25519 key
+    \param type Signature type
+    \param context Context buffer
+    \param contextLen Context length
+
+    _Example_
+    \code
+    byte msg[] = "message";
+    byte sig[ED25519_SIG_SIZE];
+    int res;
+    int ret = wc_ed25519_verify_msg_ex(sig, sizeof(sig), msg,
+                                       sizeof(msg), &res, &key,
+                                       Ed25519, NULL, 0);
+    \endcode
+
+    \sa wc_ed25519_verify_msg
+*/
+int wc_ed25519_verify_msg_ex(const byte* sig, word32 sigLen,
+    const byte* msg, word32 msgLen, int* res, ed25519_key* key,
+    byte type, const byte* context, byte contextLen);
+
+/*!
+    \ingroup ED25519
+    \brief Initializes streaming verification.
+
+    \return 0 on success
+    \return negative on failure
+
+    \param sig Signature buffer
+    \param sigLen Signature length
+    \param key Ed25519 key
+    \param type Signature type
+    \param context Context buffer
+    \param contextLen Context length
+
+    _Example_
+    \code
+    byte sig[ED25519_SIG_SIZE];
+    int ret = wc_ed25519_verify_msg_init(sig, sizeof(sig), &key,
+                                         Ed25519, NULL, 0);
+    \endcode
+
+    \sa wc_ed25519_verify_msg_update
+    \sa wc_ed25519_verify_msg_final
+*/
+int wc_ed25519_verify_msg_init(const byte* sig, word32 sigLen,
+    ed25519_key* key, byte type, const byte* context,
+    byte contextLen);
+
+/*!
+    \ingroup ED25519
+    \brief Updates streaming verification with message segment.
+
+    \return 0 on success
+    \return negative on failure
+
+    \param msgSegment Message segment buffer
+    \param msgSegmentLen Message segment length
+    \param key Ed25519 key
+
+    _Example_
+    \code
+    byte msgPart[] = "part";
+    int ret = wc_ed25519_verify_msg_update(msgPart, sizeof(msgPart),
+                                           &key);
+    \endcode
+
+    \sa wc_ed25519_verify_msg_init
+    \sa wc_ed25519_verify_msg_final
+*/
+int wc_ed25519_verify_msg_update(const byte* msgSegment,
+    word32 msgSegmentLen, ed25519_key* key);
+
+/*!
+    \ingroup ED25519
+    \brief Finalizes streaming verification.
+
+    \return 0 on success
+    \return negative on failure
+
+    \param sig Signature buffer
+    \param sigLen Signature length
+    \param res Verification result pointer
+    \param key Ed25519 key
+
+    _Example_
+    \code
+    byte sig[ED25519_SIG_SIZE];
+    int res;
+    int ret = wc_ed25519_verify_msg_final(sig, sizeof(sig), &res,
+                                          &key);
+    \endcode
+
+    \sa wc_ed25519_verify_msg_init
+    \sa wc_ed25519_verify_msg_update
+*/
+int wc_ed25519_verify_msg_final(const byte* sig, word32 sigLen,
+    int* res, ed25519_key* key);
+
+/*!
+    \ingroup ED25519
+    \brief Initializes Ed25519 key with extended parameters.
+
+    \return 0 on success
+    \return negative on failure
+
+    \param key Ed25519 key structure
+    \param heap Heap hint for memory allocation
+    \param devId Device ID for hardware acceleration
+
+    _Example_
+    \code
+    ed25519_key key;
+    int ret = wc_ed25519_init_ex(&key, NULL, INVALID_DEVID);
+    \endcode
+
+    \sa wc_ed25519_init
+*/
+int wc_ed25519_init_ex(ed25519_key* key, void* heap, int devId);
+
+/*!
+    \ingroup ED25519
+    \brief Allocates and initializes new Ed25519 key. These New/Delete
+    functions are exposed to support allocation of the structure using
+    dynamic memory to provide better ABI compatibility.
+
+    \note This API is only available when WC_NO_CONSTRUCTORS is not defined.
+    WC_NO_CONSTRUCTORS is automatically defined when WOLFSSL_NO_MALLOC is
+    defined.
+
+    \return ed25519_key pointer on success
+    \return NULL on failure
+
+    \param heap Heap hint for memory allocation
+    \param devId Device ID for hardware acceleration
+    \param result_code Result code pointer
+
+    _Example_
+    \code
+    int result;
+    ed25519_key* key = wc_ed25519_new(NULL, INVALID_DEVID, &result);
+    \endcode
+
+    \sa wc_ed25519_delete
+*/
+ed25519_key* wc_ed25519_new(void* heap, int devId, int *result_code);
+
+/*!
+    \ingroup ED25519
+    \brief Frees and deletes Ed25519 key. These New/Delete functions are
+    exposed to support allocation of the structure using dynamic memory
+    to provide better ABI compatibility.
+
+    \note This API is only available when WC_NO_CONSTRUCTORS is not defined.
+    WC_NO_CONSTRUCTORS is automatically defined when WOLFSSL_NO_MALLOC is
+    defined.
+
+    \return 0 on success
+    \return negative on failure
+
+    \param key Ed25519 key to delete
+    \param key_p Pointer to key pointer (set to NULL after delete)
+
+    _Example_
+    \code
+    ed25519_key* key = wc_ed25519_new(NULL, INVALID_DEVID, NULL);
+    int ret = wc_ed25519_delete(key, &key);
+    \endcode
+
+    \sa wc_ed25519_new
+*/
+int wc_ed25519_delete(ed25519_key* key, ed25519_key** key_p);

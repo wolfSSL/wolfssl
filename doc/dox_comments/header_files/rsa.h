@@ -43,6 +43,9 @@ int  wc_InitRsaKey(RsaKey* key, void* heap);
     The key has to be associated with RNG by wc_RsaSetRNG when WC_RSA_BLINDING
     is enabled.
 
+    \note This API is only available when WOLF_PRIVATE_KEY_ID is defined,
+    which is set for PKCS11 support.
+
     \return 0 Returned upon successfully initializing the RSA structure for
     use with encryption and decryption
     \return BAD_FUNC_ARGS Returned if the RSA key pointer evaluates to NULL
@@ -1612,3 +1615,591 @@ int wc_RsaSetNonBlock(RsaKey* key, RsaNb* nb);
 */
 int wc_RsaSetNonBlockTime(RsaKey* key, word32 maxBlockUs,
     word32 cpuMHz);
+/*!
+    \ingroup RSA
+    \brief Initializes RSA key with heap and device ID.
+
+    \return 0 on success
+    \return negative on error
+
+    \param key RSA key structure
+    \param heap Heap hint
+    \param devId Device ID
+
+    _Example_
+    \code
+    RsaKey key;
+    int ret = wc_InitRsaKey_ex(&key, NULL, INVALID_DEVID);
+    \endcode
+
+    \sa wc_InitRsaKey
+*/
+int wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId);
+
+/*!
+    \ingroup RSA
+    \brief Allocates and initializes new RSA key. These New/Delete functions
+    are exposed to support allocation of the structure using dynamic memory
+    to provide better ABI compatibility.
+
+    \note This API is only available when WC_NO_CONSTRUCTORS is not defined.
+    WC_NO_CONSTRUCTORS is automatically defined when WOLFSSL_NO_MALLOC is
+    defined.
+
+    \return RsaKey pointer on success
+    \return NULL on failure
+
+    \param heap Heap hint
+    \param devId Device ID
+    \param result_code Result code pointer
+
+    _Example_
+    \code
+    int result;
+    RsaKey* key = wc_NewRsaKey(NULL, INVALID_DEVID, &result);
+    \endcode
+
+    \sa wc_DeleteRsaKey
+*/
+RsaKey* wc_NewRsaKey(void* heap, int devId, int *result_code);
+
+/*!
+    \ingroup RSA
+    \brief Deletes and frees RSA key. These New/Delete functions are exposed
+    to support allocation of the structure using dynamic memory to provide
+    better ABI compatibility.
+
+    \note This API is only available when WC_NO_CONSTRUCTORS is not defined.
+    WC_NO_CONSTRUCTORS is automatically defined when WOLFSSL_NO_MALLOC is
+    defined.
+
+    \return 0 on success
+    \return negative on error
+
+    \param key RSA key to delete
+    \param key_p Pointer to key pointer
+
+    _Example_
+    \code
+    RsaKey* key;
+    int ret = wc_DeleteRsaKey(key, &key);
+    \endcode
+
+    \sa wc_NewRsaKey
+*/
+int wc_DeleteRsaKey(RsaKey* key, RsaKey** key_p);
+
+/*!
+    \ingroup RSA
+    \brief Initializes RSA key with label.
+
+    \note This API is only available when WOLF_PRIVATE_KEY_ID is defined,
+    which is set for PKCS11 support.
+
+    \return 0 on success
+    \return negative on error
+
+    \param key RSA key structure
+    \param label Label string
+    \param heap Heap hint
+    \param devId Device ID
+
+    _Example_
+    \code
+    RsaKey key;
+    int ret = wc_InitRsaKey_Label(&key, "mykey", NULL,
+                                  INVALID_DEVID);
+    \endcode
+
+    \sa wc_InitRsaKey_ex
+*/
+int wc_InitRsaKey_Label(RsaKey* key, const char* label, void* heap,
+    int devId);
+
+/*!
+    \ingroup RSA
+    \brief Checks RSA key validity.
+
+    \return 0 on success
+    \return negative on error
+
+    \param key RSA key to check
+
+    _Example_
+    \code
+    RsaKey key;
+    int ret = wc_CheckRsaKey(&key);
+    \endcode
+
+    \sa wc_MakeRsaKey
+*/
+int wc_CheckRsaKey(RsaKey* key);
+
+/*!
+    \ingroup RSA
+    \brief Uses key ID for hardware RSA.
+
+    \return 0 on success
+    \return negative on error
+
+    \param key RSA key
+    \param keyId Key identifier
+    \param flags Flags
+
+    _Example_
+    \code
+    RsaKey key;
+    int ret = wc_RsaUseKeyId(&key, 1, 0);
+    \endcode
+
+    \sa wc_RsaGetKeyId
+*/
+int wc_RsaUseKeyId(RsaKey* key, word32 keyId, word32 flags);
+
+/*!
+    \ingroup RSA
+    \brief Gets key ID from hardware RSA key.
+
+    \return 0 on success
+    \return negative on error
+
+    \param key RSA key
+    \param keyId Key identifier pointer
+
+    _Example_
+    \code
+    RsaKey key;
+    word32 keyId;
+    int ret = wc_RsaGetKeyId(&key, &keyId);
+    \endcode
+
+    \sa wc_RsaUseKeyId
+*/
+int wc_RsaGetKeyId(RsaKey* key, word32* keyId);
+
+/*!
+    \ingroup RSA
+    \brief Performs RSA operation.
+
+    \return 0 on success
+    \return negative on error
+
+    \param in Input buffer
+    \param inLen Input length
+    \param out Output buffer
+    \param outLen Output length pointer
+    \param type Operation type
+    \param key RSA key
+    \param rng Random number generator
+
+    _Example_
+    \code
+    RsaKey key;
+    WC_RNG rng;
+    byte in[256], out[256];
+    word32 outLen = sizeof(out);
+    int ret = wc_RsaFunction(in, 256, out, &outLen,
+                             RSA_PUBLIC_ENCRYPT, &key, &rng);
+    \endcode
+
+    \sa wc_RsaPublicEncrypt
+*/
+int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
+    word32* outLen, int type, RsaKey* key, WC_RNG* rng);
+
+/*!
+    \ingroup RSA
+    \brief Signs with RSA-PSS extended options.
+
+    \return Size of signature on success
+    \return negative on error
+
+    \param in Input buffer
+    \param inLen Input length
+    \param out Output buffer
+    \param outLen Output buffer size
+    \param hash Hash type
+    \param mgf MGF type
+    \param saltLen Salt length
+    \param key RSA key
+    \param rng Random number generator
+
+    _Example_
+    \code
+    RsaKey key;
+    WC_RNG rng;
+    byte in[32], sig[256];
+    int ret = wc_RsaPSS_Sign_ex(in, 32, sig, sizeof(sig),
+                                WC_HASH_TYPE_SHA256,
+                                WC_MGF1SHA256, 32, &key, &rng);
+    \endcode
+
+    \sa wc_RsaPSS_Sign
+*/
+int wc_RsaPSS_Sign_ex(const byte* in, word32 inLen, byte* out,
+    word32 outLen, enum wc_HashType hash, int mgf, int saltLen,
+    RsaKey* key, WC_RNG* rng);
+
+/*!
+    \ingroup RSA
+    \brief Verifies RSA signature with padding type.
+
+    \return Size of decrypted data on success
+    \return negative on error
+
+    \param in Input signature
+    \param inLen Signature length
+    \param out Output buffer
+    \param outLen Output buffer size
+    \param key RSA key
+    \param pad_type Padding type
+
+    _Example_
+    \code
+    RsaKey key;
+    byte sig[256], out[256];
+    int ret = wc_RsaSSL_Verify_ex(sig, 256, out, sizeof(out),
+                                  &key, RSA_PKCS1_PADDING);
+    \endcode
+
+    \sa wc_RsaSSL_Verify
+*/
+int wc_RsaSSL_Verify_ex(const byte* in, word32 inLen, byte* out,
+    word32 outLen, RsaKey* key, int pad_type);
+
+/*!
+    \ingroup RSA
+    \brief Verifies RSA signature with hash type.
+
+    \return Size of decrypted data on success
+    \return negative on error
+
+    \param in Input signature
+    \param inLen Signature length
+    \param out Output buffer
+    \param outLen Output buffer size
+    \param key RSA key
+    \param pad_type Padding type
+    \param hash Hash type
+
+    _Example_
+    \code
+    RsaKey key;
+    byte sig[256], out[256];
+    int ret = wc_RsaSSL_Verify_ex2(sig, 256, out, sizeof(out),
+                                   &key, RSA_PKCS1_PADDING,
+                                   WC_HASH_TYPE_SHA256);
+    \endcode
+
+    \sa wc_RsaSSL_Verify_ex
+*/
+int wc_RsaSSL_Verify_ex2(const byte* in, word32 inLen, byte* out,
+    word32 outLen, RsaKey* key, int pad_type,
+    enum wc_HashType hash);
+
+/*!
+    \ingroup RSA
+    \brief Verifies RSA-PSS inline with extended options.
+
+    \return Size of verified data on success
+    \return negative on error
+
+    \param in Input/output buffer
+    \param inLen Input length
+    \param out Output pointer
+    \param hash Hash type
+    \param mgf MGF type
+    \param saltLen Salt length
+    \param key RSA key
+
+    _Example_
+    \code
+    RsaKey key;
+    byte sig[256];
+    byte* out;
+    int ret = wc_RsaPSS_VerifyInline_ex(sig, 256, &out,
+                                        WC_HASH_TYPE_SHA256,
+                                        WC_MGF1SHA256, 32, &key);
+    \endcode
+
+    \sa wc_RsaPSS_VerifyInline
+*/
+int wc_RsaPSS_VerifyInline_ex(byte* in, word32 inLen, byte** out,
+    enum wc_HashType hash, int mgf, int saltLen, RsaKey* key);
+
+/*!
+    \ingroup RSA
+    \brief Verifies RSA-PSS with extended options.
+
+    \return Size of verified data on success
+    \return negative on error
+
+    \param in Input signature
+    \param inLen Signature length
+    \param out Output buffer
+    \param outLen Output buffer size
+    \param hash Hash type
+    \param mgf MGF type
+    \param saltLen Salt length
+    \param key RSA key
+
+    _Example_
+    \code
+    RsaKey key;
+    byte sig[256], out[256];
+    int ret = wc_RsaPSS_Verify_ex(sig, 256, out, sizeof(out),
+                                  WC_HASH_TYPE_SHA256,
+                                  WC_MGF1SHA256, 32, &key);
+    \endcode
+
+    \sa wc_RsaPSS_Verify
+*/
+int wc_RsaPSS_Verify_ex(const byte* in, word32 inLen, byte* out,
+    word32 outLen, enum wc_HashType hash, int mgf, int saltLen,
+    RsaKey* key);
+
+/*!
+    \ingroup RSA
+    \brief Checks RSA-PSS padding with extended options.
+
+    \return 0 on success
+    \return negative on error
+
+    \param in Padded data
+    \param inLen Padded data length
+    \param sig Signature
+    \param sigSz Signature size
+    \param hashType Hash type
+    \param saltLen Salt length
+    \param bits Key size in bits
+    \param heap Heap hint
+
+    _Example_
+    \code
+    byte padded[256], sig[256];
+    int ret = wc_RsaPSS_CheckPadding_ex2(padded, 256, sig, 256,
+                                         WC_HASH_TYPE_SHA256, 32,
+                                         2048, NULL);
+    \endcode
+
+    \sa wc_RsaPSS_CheckPadding_ex
+*/
+int wc_RsaPSS_CheckPadding_ex2(const byte* in, word32 inLen,
+    const byte* sig, word32 sigSz, enum wc_HashType hashType,
+    int saltLen, int bits, void* heap);
+
+/*!
+    \ingroup RSA
+    \brief Exports RSA key components.
+
+    \return 0 on success
+    \return negative on error
+
+    \param key RSA key
+    \param e Public exponent buffer
+    \param eSz Public exponent size pointer
+    \param n Modulus buffer
+    \param nSz Modulus size pointer
+    \param d Private exponent buffer
+    \param dSz Private exponent size pointer
+    \param p Prime p buffer
+    \param pSz Prime p size pointer
+    \param q Prime q buffer
+    \param qSz Prime q size pointer
+
+    _Example_
+    \code
+    RsaKey key;
+    byte e[3], n[256], d[256], p[128], q[128];
+    word32 eSz = 3, nSz = 256, dSz = 256, pSz = 128, qSz = 128;
+    int ret = wc_RsaExportKey(&key, e, &eSz, n, &nSz, d, &dSz,
+                              p, &pSz, q, &qSz);
+    \endcode
+
+    \sa wc_RsaFlattenPublicKey
+*/
+int wc_RsaExportKey(const RsaKey* key, byte* e, word32* eSz,
+    byte* n, word32* nSz, byte* d, word32* dSz, byte* p,
+    word32* pSz, byte* q, word32* qSz);
+
+/*!
+    \ingroup RSA
+    \brief Checks probable prime with extended options.
+
+    \return 0 on success
+    \return negative on error
+
+    \param p Prime p buffer
+    \param pSz Prime p size
+    \param q Prime q buffer
+    \param qSz Prime q size
+    \param e Public exponent buffer
+    \param eSz Public exponent size
+    \param nlen Modulus length
+    \param isPrime Prime result pointer
+    \param rng Random number generator
+
+    _Example_
+    \code
+    byte p[128], q[128], e[3];
+    int isPrime;
+    WC_RNG rng;
+    int ret = wc_CheckProbablePrime_ex(p, 128, q, 128, e, 3,
+                                      2048, &isPrime, &rng);
+    \endcode
+
+    \sa wc_CheckProbablePrime
+*/
+int wc_CheckProbablePrime_ex(const byte* p, word32 pSz,
+    const byte* q, word32 qSz, const byte* e, word32 eSz,
+    int nlen, int* isPrime, WC_RNG* rng);
+
+/*!
+    \ingroup RSA
+    \brief Checks probable prime.
+
+    \return 0 on success
+    \return negative on error
+
+    \param p Prime p buffer
+    \param pSz Prime p size
+    \param q Prime q buffer
+    \param qSz Prime q size
+    \param e Public exponent buffer
+    \param eSz Public exponent size
+    \param nlen Modulus length
+    \param isPrime Prime result pointer
+
+    _Example_
+    \code
+    byte p[128], q[128], e[3];
+    int isPrime;
+    int ret = wc_CheckProbablePrime(p, 128, q, 128, e, 3, 2048,
+                                   &isPrime);
+    \endcode
+
+    \sa wc_CheckProbablePrime_ex
+*/
+int wc_CheckProbablePrime(const byte* p, word32 pSz,
+    const byte* q, word32 qSz, const byte* e, word32 eSz,
+    int nlen, int* isPrime);
+
+/*!
+    \ingroup RSA
+    \brief Pads data with extended options.
+
+    \return 0 on success
+    \return negative on error
+
+    \param input Input data
+    \param inputLen Input length
+    \param pkcsBlock Output padded block
+    \param pkcsBlockLen Padded block size
+    \param padValue Pad value
+    \param rng Random number generator
+    \param padType Padding type
+    \param hType Hash type
+    \param mgf MGF type
+    \param optLabel Optional label
+    \param labelLen Label length
+    \param saltLen Salt length
+    \param bits Key size in bits
+    \param heap Heap hint
+
+    _Example_
+    \code
+    byte in[32], padded[256];
+    WC_RNG rng;
+    int ret = wc_RsaPad_ex(in, 32, padded, 256, 0x00, &rng,
+                          RSA_BLOCK_TYPE_1,
+                          WC_HASH_TYPE_SHA256, WC_MGF1SHA256,
+                          NULL, 0, 32, 2048, NULL);
+    \endcode
+
+    \sa wc_RsaUnPad_ex
+*/
+int wc_RsaPad_ex(const byte* input, word32 inputLen,
+    byte* pkcsBlock, word32 pkcsBlockLen, byte padValue,
+    WC_RNG* rng, int padType, enum wc_HashType hType, int mgf,
+    byte* optLabel, word32 labelLen, int saltLen, int bits,
+    void* heap);
+
+/*!
+    \ingroup RSA
+    \brief Unpads data with extended options.
+
+    \return Size of unpadded data on success
+    \return negative on error
+
+    \param pkcsBlock Padded block
+    \param pkcsBlockLen Padded block length
+    \param out Output pointer
+    \param padValue Pad value
+    \param padType Padding type
+    \param hType Hash type
+    \param mgf MGF type
+    \param optLabel Optional label
+    \param labelLen Label length
+    \param saltLen Salt length
+    \param bits Key size in bits
+    \param heap Heap hint
+
+    _Example_
+    \code
+    byte padded[256];
+    byte* out;
+    int ret = wc_RsaUnPad_ex(padded, 256, &out, 0x00,
+                             RSA_BLOCK_TYPE_1,
+                             WC_HASH_TYPE_SHA256, WC_MGF1SHA256,
+                             NULL, 0, 32, 2048, NULL);
+    \endcode
+
+    \sa wc_RsaPad_ex
+*/
+int wc_RsaUnPad_ex(byte* pkcsBlock, word32 pkcsBlockLen,
+    byte** out, byte padValue, int padType,
+    enum wc_HashType hType, int mgf, byte* optLabel,
+    word32 labelLen, int saltLen, int bits, void* heap);
+
+/*!
+    \ingroup RSA
+    \brief Decodes raw RSA private key.
+
+    \return 0 on success
+    \return negative on error
+
+    \param n Modulus buffer
+    \param nSz Modulus size
+    \param e Public exponent buffer
+    \param eSz Public exponent size
+    \param d Private exponent buffer
+    \param dSz Private exponent size
+    \param u Coefficient buffer
+    \param uSz Coefficient size
+    \param p Prime p buffer
+    \param pSz Prime p size
+    \param q Prime q buffer
+    \param qSz Prime q size
+    \param dP dP buffer
+    \param dPSz dP size
+    \param dQ dQ buffer
+    \param dQSz dQ size
+    \param key RSA key
+
+    _Example_
+    \code
+    RsaKey key;
+    byte n[256], e[3], d[256], u[256], p[128], q[128];
+    byte dP[128], dQ[128];
+    int ret = wc_RsaPrivateKeyDecodeRaw(n, 256, e, 3, d, 256,
+                                       u, 256, p, 128, q, 128,
+                                       dP, 128, dQ, 128, &key);
+    \endcode
+
+    \sa wc_RsaPrivateKeyDecode
+*/
+int wc_RsaPrivateKeyDecodeRaw(const byte* n, word32 nSz,
+    const byte* e, word32 eSz, const byte* d, word32 dSz,
+    const byte* u, word32 uSz, const byte* p, word32 pSz,
+    const byte* q, word32 qSz, const byte* dP, word32 dPSz,
+    const byte* dQ, word32 dQSz, RsaKey* key);
