@@ -673,7 +673,7 @@ if [ "$DOCONFIGURE" = "yes" ]; then
 
     if [ -s wolfcrypt/src/fips_test.c ]; then
         OUT=$(./wolfcrypt/test/testwolfcrypt | sed -n 's/hash = \(.*\)/\1/p')
-        NEWHASH="${OUT:0:64}"
+        NEWHASH=$(echo "$OUT" | cut -c1-64)
         if [ -n "$NEWHASH" ]; then
             cp wolfcrypt/src/fips_test.c wolfcrypt/src/fips_test.c.bak
             sed "s/^\".*\";/\"${NEWHASH}\";/" wolfcrypt/src/fips_test.c.bak > \
