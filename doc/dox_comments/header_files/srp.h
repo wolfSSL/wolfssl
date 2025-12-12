@@ -340,6 +340,8 @@ int wc_SrpSetPrivate(Srp* srp, const byte* priv, word32 size);
     This function MUST be called after wc_SrpSetPassword or wc_SrpSetVerifier.
     The function wc_SrpSetPrivate may be called before wc_SrpGetPublic.
 
+    Caller must observe value of size upon return to know the actual size.
+
     \return 0 Success
     \return BAD_FUNC_ARG Returned if srp, pub, or size is null.
     \return SRP_CALL_ORDER_E Returned if wc_SrpGetPublic is called out
@@ -349,8 +351,8 @@ int wc_SrpSetPrivate(Srp* srp, const byte* priv, word32 size);
 
     \param srp the Srp structure.
     \param pub the buffer to write the public ephemeral value.
-    \param size the the buffer size in bytes. Will be updated with
-    the ephemeral value size.
+    \param size IN: the buffer size in bytes.
+                OUT: Will be updated with the ephemeral value size.
 
     _Example_
     \code
@@ -369,7 +371,7 @@ int wc_SrpSetPrivate(Srp* srp, const byte* priv, word32 size);
     wc_SrpSetPassword(&srp, password, passwordSize)
 
     byte public[64];
-    word32 publicSz = 0;
+    word32 publicSz = sizeof(public);
 
     if( wc_SrpGetPublic(&srp, public, &publicSz) != 0)
     {

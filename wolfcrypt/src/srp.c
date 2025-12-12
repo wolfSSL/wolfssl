@@ -627,8 +627,10 @@ int wc_SrpGetPublic(Srp* srp, byte* pub, word32* size)
         }
     }
 
+    /* Clear buffer */
+    XMEMSET(pub, 0, *size);
+
     /* extract public key to buffer */
-    XMEMSET(pub, 0, modulusSz);
     if (!r) r = mp_to_unsigned_bin(pubkey, pub);
     if (!r) *size = (word32)mp_unsigned_bin_size(pubkey);
 
