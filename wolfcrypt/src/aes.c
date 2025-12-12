@@ -837,24 +837,19 @@ static WARN_UNUSED_RESULT int wc_AesEncrypt(Aes* aes, const byte* inBlock,
     else
 #endif /* !__aarch64__ */
 #endif /* !WOLFSSL_ARMASM_NO_HW_CRYPTO */
-#if defined(__aarch64__) && !defined(WOLFSSL_ARMASM_NO_NEON)
-#ifdef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
-    if (1)
-#else
-    if (0)
-#endif
+#if defined(__aarch64__) && !defined(WOLFSSL_ARMASM_NO_NEON) && \
+    defined(WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP)
     {
         AES_ECB_encrypt_NEON(inBlock, outBlock, WC_AES_BLOCK_SIZE,
             (const unsigned char*)aes->key, aes->rounds);
     }
-    else
-#endif /* __aarch64__ || WOLFSSL_ARMASM_NO_HW_CRYPTO */
-#if defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+#elif defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
     {
         AES_ECB_encrypt(inBlock, outBlock, WC_AES_BLOCK_SIZE, (byte*)aes->key,
             (int)aes->rounds);
     }
-#endif /* __aarch64__ || WOLFSSL_ARMASM_NO_HW_CRYPTO */
+#endif
+
     return 0;
 }
 #endif
@@ -874,24 +869,18 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
     else
 #endif /* !__aarch64__ */
 #endif /* !WOLFSSL_ARMASM_NO_HW_CRYPTO */
-#if defined(__aarch64__) && !defined(WOLFSSL_ARMASM_NO_NEON)
-#ifdef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
-    if (1)
-#else
-    if (0)
-#endif
+#if defined(__aarch64__) && !defined(WOLFSSL_ARMASM_NO_NEON) && \
+    defined(WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP)
     {
         AES_ECB_decrypt_NEON(inBlock, outBlock, WC_AES_BLOCK_SIZE,
             (byte*)aes->key, (int)aes->rounds);
     }
-    else
-#endif
-#if defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+#elif defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
     {
         AES_ECB_decrypt(inBlock, outBlock, WC_AES_BLOCK_SIZE, (byte*)aes->key,
             (int)aes->rounds);
     }
-#endif /* __aarch64__ || WOLFSSL_ARMASM_NO_HW_CRYPTO */
+#endif
     return 0;
 }
 #endif /* HAVE_AES_DECRYPT && WOLFSSL_AES_DIRECT */
@@ -3093,24 +3082,18 @@ static WARN_UNUSED_RESULT int wc_AesEncrypt(
     else
 #endif /* !__aarch64__ */
 #endif /* !WOLFSSL_ARMASM_NO_HW_CRYPTO */
-#if defined(__aarch64__) && !defined(WOLFSSL_ARMASM_NO_NEON)
-#ifdef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
-    if (1)
-#else
-    if (0)
-#endif
+#if defined(__aarch64__) && !defined(WOLFSSL_ARMASM_NO_NEON) && \
+    defined(WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP)
     {
         AES_ECB_encrypt_NEON(inBlock, outBlock, WC_AES_BLOCK_SIZE,
             (const unsigned char*)aes->key, aes->rounds);
     }
-    else
-#endif /* __aarch64__ || WOLFSSL_ARMASM_NO_HW_CRYPTO */
-#if defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+#elif defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
     {
         AES_ECB_encrypt(inBlock, outBlock, WC_AES_BLOCK_SIZE,
             (const unsigned char*)aes->key, aes->rounds);
     }
-#endif /* __aarch64__ || WOLFSSL_ARMASM_NO_HW_CRYPTO */
+#endif
     return 0;
 #endif /* WOLFSSL_AESNI */
 #if defined(WOLFSSL_SCE) && !defined(WOLFSSL_SCE_NO_AES)
@@ -3882,24 +3865,18 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
     else
 #endif /* !__aarch64__ */
 #endif /* !WOLFSSL_ARMASM_NO_HW_CRYPTO */
-#if defined(__aarch64__) && !defined(WOLFSSL_ARMASM_NO_NEON)
-#ifdef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
-    if (1)
-#else
-    if (0)
-#endif
+#if defined(__aarch64__) && !defined(WOLFSSL_ARMASM_NO_NEON) && \
+    defined(WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP)
     {
         AES_ECB_decrypt_NEON(inBlock, outBlock, WC_AES_BLOCK_SIZE,
             (const unsigned char*)aes->key, aes->rounds);
     }
-    else
-#endif /* __aarch64__ || WOLFSSL_ARMASM_NO_HW_CRYPTO */
-#if defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+#elif defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
     {
         AES_ECB_decrypt(inBlock, outBlock, WC_AES_BLOCK_SIZE,
             (const unsigned char*)aes->key, aes->rounds);
     }
-#endif /* __aarch64__ || WOLFSSL_ARMASM_NO_HW_CRYPTO */
+#endif
     return 0;
 #endif /* WOLFSSL_AESNI */
 #if defined(WOLFSSL_SCE) && !defined(WOLFSSL_SCE_NO_AES)
@@ -5022,9 +4999,9 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
         else
     #endif /* __aarch64__ */
 #endif /* !WOLFSSL_ARMASM_NO_HW_CRYPTO */
-#if defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
-    #if !defined(WOLFSSL_ARMASM_NO_NEON)
-        if (1) {
+    #if defined(__aarch64__) && !defined(WOLFSSL_ARMASM_NO_NEON) && \
+        defined(WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP)
+        {
             AES_set_encrypt_key_NEON(userKey, keylen * 8, (byte*)aes->key);
         #ifdef HAVE_AES_DECRYPT
             if (dir == AES_DECRYPTION) {
@@ -5034,10 +5011,7 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
             (void)dir;
         #endif
         }
-        else
-    #endif /* !WOLFSSL_ARMASM_NO_NEON */
-#endif /* __aarch64__ || WOLFSSL_ARMASM_NO_HW_CRYPTO */
-    #if defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+    #elif defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
         {
             AES_set_encrypt_key(userKey, keylen * 8, (byte*)aes->key);
         #ifdef HAVE_AES_DECRYPT
@@ -5048,9 +5022,9 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
             (void)dir;
         #endif
         }
-    #endif /* __aarch64__ || WOLFSSL_ARMASM_NO_HW_CRYPTO */
+    #endif
         return 0;
-#endif /* WOLFSSL_ARMASM */
+#else
 
     #ifdef WOLFSSL_KCAPI_AES
         XMEMCPY(aes->devKey, userKey, keylen);
@@ -5142,6 +5116,7 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
         ForceZero(local, sizeof(local));
     #endif
         return ret;
+#endif
     } /* wc_AesSetKeyLocal */
 
     int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
@@ -6350,24 +6325,18 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         else
     #endif /* __aarch64__ */
 #endif /* !WOLFSSL_ARMASM_NO_HW_CRYPTO */
-    #if defined(__aarch64__) && !defined(WOLFSSL_ARMASM_NO_NEON)
-    #ifdef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
-        if (1)
-    #else
-        if (0)
-    #endif
+    #if defined(__aarch64__) && !defined(WOLFSSL_ARMASM_NO_NEON) && \
+        defined(WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP)
         {
             AES_CBC_encrypt_NEON(in, out, sz, (const unsigned char*)aes->key,
                 aes->rounds, (unsigned char*)aes->reg);
         }
-        else
-    #endif /* __aarch64__ || WOLFSSL_ARMASM_NO_HW_CRYPTO */
-    #if defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+    #elif defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
         {
             AES_CBC_encrypt(in, out, sz, (const unsigned char*)aes->key,
                 aes->rounds, (unsigned char*)aes->reg);
         }
-    #endif /* __aarch64__ || WOLFSSL_ARMASM_NO_HW_CRYPTO */
+    #endif
         return 0;
 #else
     #if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_CRYPT)
@@ -6566,22 +6535,24 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     #endif /* !__aarch64__ */
 #endif /* !WOLFSSL_ARMASM_NO_HW_CRYPTO */
     #if defined(__aarch64__) && !defined(WOLFSSL_ARMASM_NO_NEON)
-    #ifdef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
-        if (1)
-    #else
+    #ifndef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
         if (sz >= 64)
     #endif
         {
             AES_CBC_decrypt_NEON(in, out, sz, (const unsigned char*)aes->key,
                 aes->rounds, (unsigned char*)aes->reg);
         }
+    #ifndef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
         else
+    #endif
     #endif /* __aarch64__ || WOLFSSL_ARMASM_NO_HW_CRYPTO */
     #if defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+    #ifndef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
         {
             AES_CBC_decrypt(in, out, sz, (const unsigned char*)aes->key,
                 aes->rounds, (unsigned char*)aes->reg);
         }
+    #endif
     #endif /* __aarch64__ || WOLFSSL_ARMASM_NO_HW_CRYPTO */
         return 0;
 #else
@@ -6994,9 +6965,7 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
                 numBlocks = sz / WC_AES_BLOCK_SIZE;
                 if (numBlocks > 0) {
                 #if defined(__aarch64__) && !defined(WOLFSSL_ARMASM_NO_NEON)
-                #ifdef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
-                    if (1)
-                #else
+                #ifndef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
                     if (sz >= 32)
                 #endif
                     {
@@ -7004,12 +6973,16 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
                             numBlocks * WC_AES_BLOCK_SIZE, (byte*)aes->key,
                             aes->rounds, (byte*)aes->reg);
                     }
+                #ifndef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
                     else
                 #endif
+                #endif
+                #ifndef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
                     {
                         AES_CTR_encrypt(in, out, numBlocks * WC_AES_BLOCK_SIZE,
                             (byte*)aes->key, aes->rounds, (byte*)aes->reg);
                     }
+                #endif
 
                     sz  -= numBlocks * WC_AES_BLOCK_SIZE;
                     out += numBlocks * WC_AES_BLOCK_SIZE;
@@ -7021,24 +6994,21 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
                     byte zeros[WC_AES_BLOCK_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0,
                                                       0, 0, 0, 0, 0, 0, 0, 0 };
 
-                #if defined(__aarch64__) && !defined(WOLFSSL_ARMASM_NO_NEON)
-                #ifdef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
-                    if (1)
-                #else
-                    if (0)
-                #endif
+                #if defined(__aarch64__) && \
+                    !defined(WOLFSSL_ARMASM_NO_NEON) && \
+                    defined(WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP)
                     {
                         AES_CTR_encrypt_NEON(zeros, (byte*)aes->tmp,
                             WC_AES_BLOCK_SIZE, (byte*)aes->key, aes->rounds,
                             (byte*)aes->reg);
                     }
-                    else
-                #endif
+                #else
                     {
                         AES_CTR_encrypt(zeros, (byte*)aes->tmp,
                             WC_AES_BLOCK_SIZE, (byte*)aes->key, aes->rounds,
                             (byte*)aes->reg);
                     }
+                #endif
 
                     aes->left = WC_AES_BLOCK_SIZE;
                     tmp = (byte*)aes->tmp;
@@ -7455,19 +7425,13 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
         else
     #endif /* !__aarch64__ */
 #endif /* !WOLFSSL_ARMASM_NO_HW_CRYPTO */
-#if defined(__aarch64__) && !defined(WOLFSSL_ARMASM_NO_NEON)
-    #ifdef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
-        if (1)
-    #else
-        if (0)
-    #endif
+#if defined(__aarch64__) && !defined(WOLFSSL_ARMASM_NO_NEON) && \
+    defined(WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP)
         {
             AES_ECB_encrypt_NEON(iv, aes->gcm.H, WC_AES_BLOCK_SIZE,
                 (const unsigned char*)aes->key, aes->rounds);
         }
-        else
-#endif /* __aarch64__ || WOLFSSL_ARMASM_NO_HW_CRYPTO */
-#if defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+#elif defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
         {
             AES_ECB_encrypt(iv, aes->gcm.H, WC_AES_BLOCK_SIZE,
                 (const unsigned char*)aes->key, aes->rounds);
@@ -7475,7 +7439,7 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
             GenerateM0(&aes->gcm);
         #endif /* GCM_TABLE */
         }
-#endif /* __aarch64__ || WOLFSSL_ARMASM_NO_HW_CRYPTO */
+#endif
     }
 #else
 #if !defined(FREESCALE_LTC_AES_GCM) && !defined(WOLFSSL_PSOC6_CRYPTO)
@@ -9703,43 +9667,41 @@ static int AES_GCM_encrypt_ARM(Aes* aes, byte* out, const byte* in,
     partial = sz % WC_AES_BLOCK_SIZE;
     if (blocks > 0) {
     #if defined(__aarch64__) && !defined(WOLFSSL_ARMASM_NO_NEON)
-    #ifdef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
-        if (1)
-    #else
+    #ifndef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
         if (sz >= 32)
     #endif
         {
             AES_GCM_encrypt_NEON(in, out, blocks * WC_AES_BLOCK_SIZE,
                 (const unsigned char*)aes->key, aes->rounds, counter);
         }
+    #ifndef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
         else
     #endif
+    #endif
+    #ifndef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
         {
             AES_GCM_encrypt(in, out, blocks * WC_AES_BLOCK_SIZE,
                 (const unsigned char*)aes->key, aes->rounds, counter);
         }
+    #endif
         GCM_GMULT_LEN(&aes->gcm, x, out, blocks * WC_AES_BLOCK_SIZE);
         in += blocks * WC_AES_BLOCK_SIZE;
         out += blocks * WC_AES_BLOCK_SIZE;
     }
     /* take care of partial block sizes leftover */
     if (partial != 0) {
-    #if defined(__aarch64__) && !defined(WOLFSSL_ARMASM_NO_NEON)
-    #ifdef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
-        if (1)
-    #else
-        if (0)
-    #endif
+    #if defined(__aarch64__) && !defined(WOLFSSL_ARMASM_NO_NEON) && \
+        defined(WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP)
         {
             AES_GCM_encrypt_NEON(in, scratch, WC_AES_BLOCK_SIZE,
                 (const unsigned char*)aes->key, aes->rounds, counter);
         }
-        else
-    #endif
+    #else
         {
             AES_GCM_encrypt(in, scratch, WC_AES_BLOCK_SIZE,
                 (const unsigned char*)aes->key, aes->rounds, counter);
         }
+    #endif
         XMEMCPY(out, scratch, partial);
 
         XMEMSET(scratch, 0, WC_AES_BLOCK_SIZE);
@@ -9761,22 +9723,18 @@ static int AES_GCM_encrypt_ARM(Aes* aes, byte* out, const byte* in,
     }
 
     /* Auth tag calculation. */
-#if defined(__aarch64__) && !defined(WOLFSSL_ARMASM_NO_NEON)
-#ifdef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
-    if (1)
-#else
-    if (0)
-#endif
+#if defined(__aarch64__) && !defined(WOLFSSL_ARMASM_NO_NEON) && \
+    defined(WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP)
     {
         AES_ECB_encrypt_NEON(initialCounter, scratch, WC_AES_BLOCK_SIZE,
             (const unsigned char*)aes->key, aes->rounds);
     }
-    else
-#endif
+#else
     {
         AES_ECB_encrypt(initialCounter, scratch, WC_AES_BLOCK_SIZE,
             (const unsigned char*)aes->key, aes->rounds);
     }
+#endif
     xorbuf(authTag, scratch, authTagSz);
 
     return 0;
@@ -10441,21 +10399,23 @@ static int AES_GCM_decrypt_ARM(Aes* aes, byte* out, const byte* in,
         GCM_GMULT_LEN(&aes->gcm, x, in, blocks * WC_AES_BLOCK_SIZE);
 
     #if defined(__aarch64__) && !defined(WOLFSSL_ARMASM_NO_NEON)
-    #ifdef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
-        if (1)
-    #else
+    #ifndef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
         if (sz >= 32)
     #endif
         {
             AES_GCM_encrypt_NEON(in, out, blocks * WC_AES_BLOCK_SIZE,
                 (const unsigned char*)aes->key, aes->rounds, counter);
         }
+    #ifndef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
         else
     #endif
+    #endif
+    #ifndef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
         {
             AES_GCM_encrypt(in, out, blocks * WC_AES_BLOCK_SIZE,
                 (const unsigned char*)aes->key, aes->rounds, counter);
         }
+    #endif
         in += blocks * WC_AES_BLOCK_SIZE;
         out += blocks * WC_AES_BLOCK_SIZE;
     }
@@ -10464,22 +10424,18 @@ static int AES_GCM_decrypt_ARM(Aes* aes, byte* out, const byte* in,
         XMEMCPY(scratch, in, partial);
         GCM_GMULT_LEN(&aes->gcm, x, scratch, WC_AES_BLOCK_SIZE);
 
-    #if defined(__aarch64__) && !defined(WOLFSSL_ARMASM_NO_NEON)
-    #ifdef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
-        if (1)
-    #else
-        if (0)
-    #endif
+    #if defined(__aarch64__) && !defined(WOLFSSL_ARMASM_NO_NEON) && \
+        defined(WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP)
         {
             AES_GCM_encrypt_NEON(in, scratch, WC_AES_BLOCK_SIZE,
                 (const unsigned char*)aes->key, aes->rounds, counter);
         }
-        else
-    #endif
+    #else
         {
             AES_GCM_encrypt(in, scratch, WC_AES_BLOCK_SIZE,
                 (const unsigned char*)aes->key, aes->rounds, counter);
         }
+    #endif
         XMEMCPY(out, scratch, partial);
     }
 
@@ -10487,22 +10443,18 @@ static int AES_GCM_decrypt_ARM(Aes* aes, byte* out, const byte* in,
     FlattenSzInBits(&scratch[0], authInSz);
     FlattenSzInBits(&scratch[8], sz);
     GCM_GMULT_LEN(&aes->gcm, x, scratch, WC_AES_BLOCK_SIZE);
-#if defined(__aarch64__) && !defined(WOLFSSL_ARMASM_NO_NEON)
-#ifdef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
-    if (1)
-#else
-    if (0)
-#endif
+#if defined(__aarch64__) && !defined(WOLFSSL_ARMASM_NO_NEON) && \
+    defined(WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP)
     {
         AES_ECB_encrypt_NEON(initialCounter, scratch, WC_AES_BLOCK_SIZE,
             (const unsigned char*)aes->key, aes->rounds);
     }
-    else
-#endif
+#else
     {
         AES_ECB_encrypt(initialCounter, scratch, WC_AES_BLOCK_SIZE,
             (const unsigned char*)aes->key, aes->rounds);
     }
+#endif
     xorbuf(x, scratch, authTagSz);
     if (authTag != NULL) {
         if (ConstantCompare(authTag, x, authTagSz) != 0) {
@@ -13714,21 +13666,23 @@ static WARN_UNUSED_RESULT int _AesEcbEncrypt(
     else
 #endif
 #if !defined(WOLFSSL_ARMASM_NO_NEON)
-#ifdef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
-    if (1)
-#else
+#ifndef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
     if (sz >= 32)
 #endif
     {
         AES_ECB_encrypt_NEON(in, out, sz, (const unsigned char*)aes->key,
             aes->rounds);
     }
+#ifndef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
     else
 #endif
+#endif
+#ifndef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
     {
         AES_ECB_encrypt(in, out, sz, (const unsigned char*)aes->key,
             aes->rounds);
     }
+#endif
 #else
 #ifdef WOLFSSL_AESNI
     if (aes->use_aesni) {
@@ -13798,21 +13752,23 @@ static WARN_UNUSED_RESULT int _AesEcbDecrypt(
     else
 #endif
 #if defined(__aarch64__) && !defined(WOLFSSL_ARMASM_NO_NEON)
-#ifdef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
-    if (1)
-#else
+#ifndef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
     if (sz >= 64)
 #endif
     {
         AES_ECB_decrypt_NEON(in, out, sz, (const unsigned char*)aes->key,
             aes->rounds);
     }
+#ifndef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
     else
 #endif
+#endif
+#ifndef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
     {
         AES_ECB_decrypt(in, out, sz, (const unsigned char*)aes->key,
             aes->rounds);
     }
+#endif
 #else
 #ifdef WOLFSSL_AESNI
     if (aes->use_aesni) {
@@ -14978,8 +14934,8 @@ void AES_XTS_decrypt_update_avx1(const unsigned char *in, unsigned char *out, wo
 #endif /* WOLFSSL_AESNI */
 
 #ifdef HAVE_AES_ECB
-#if defined(__aarch64__) || !defined(WOLFSSL_ARMASM) || \
-      defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+#if (!defined(WOLFSSL_ARMASM) || (!defined(__aarch64__) && \
+    defined(WOLFSSL_ARMASM_NO_HW_CRYPTO))) || defined(WOLFSSL_AESXTS_STREAM)
 /* helper function for encrypting / decrypting full buffer at once */
 static WARN_UNUSED_RESULT int _AesXtsHelper(
     Aes* aes, byte* out, const byte* in, word32 sz, int dir)
@@ -15041,8 +14997,8 @@ static WARN_UNUSED_RESULT int _AesXtsHelper(
  */
 /* Software AES - XTS Encrypt  */
 
-#if defined(__aarch64__) || !defined(WOLFSSL_ARMASM) || \
-      defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+#if !defined(WOLFSSL_ARMASM) || (!defined(__aarch64__) && \
+    defined(WOLFSSL_ARMASM_NO_HW_CRYPTO))
 static int AesXtsEncryptUpdate_sw(XtsAes* xaes, byte* out, const byte* in,
                                   word32 sz,
                                   byte *i);
@@ -15058,6 +15014,7 @@ static int AesXtsEncrypt_sw(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 
     return AesXtsEncryptUpdate_sw(xaes, out, in, sz, tweak_block);
 }
+#endif
 
 #ifdef WOLFSSL_AESXTS_STREAM
 
@@ -15074,6 +15031,8 @@ static int AesXtsInitTweak_sw(XtsAes* xaes, byte* i) {
 
 #endif /* WOLFSSL_AESXTS_STREAM */
 
+#if !defined(WOLFSSL_ARMASM) || (!defined(__aarch64__) && \
+    defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)) || defined(WOLFSSL_AESXTS_STREAM)
 /* Block-streaming AES-XTS.
  *
  * Supply block-aligned input data with successive calls.  Final call need not
@@ -15225,8 +15184,7 @@ int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
     AES_XTS_encrypt_AARCH32(in, out, sz, i, (byte*)xaes->aes.key,
         (byte*)xaes->tweak.key, (byte*)xaes->aes.tmp, xaes->aes.rounds);
     ret = 0;
-#else
-#ifdef WOLFSSL_AESNI
+#elif defined(WOLFSSL_AESNI)
     if (aes->use_aesni) {
         SAVE_VECTOR_REGISTERS(return _svr_ret;);
 #if defined(HAVE_INTEL_AVX1)
@@ -15248,7 +15206,9 @@ int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         }
         RESTORE_VECTOR_REGISTERS();
     }
-    else
+    else {
+        ret = AesXtsEncrypt_sw(xaes, out, in, sz, i);
+    }
 #elif defined(__aarch64__) && defined(WOLFSSL_ARMASM)
 #if !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
     if (aes->use_aes_hw_crypto) {
@@ -15259,9 +15219,7 @@ int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
     else
 #endif
 #if defined(__aarch64__) && !defined(WOLFSSL_ARMASM_NO_NEON)
-#ifdef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
-    if (1)
-#else
+#ifndef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
     if (sz >= 32)
 #endif
     {
@@ -15269,18 +15227,19 @@ int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
             (byte*)xaes->tweak.key, (byte*)xaes->aes.tmp, xaes->aes.rounds);
         ret = 0;
     }
+#ifndef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
     else
 #endif
-    if (1) {
+#endif
+#ifndef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
+    {
         AES_XTS_encrypt(in, out, sz, i, (byte*)xaes->aes.key,
             (byte*)xaes->tweak.key, (byte*)xaes->aes.tmp, xaes->aes.rounds);
         ret = 0;
     }
-    else
 #endif
-    {
-        ret = AesXtsEncrypt_sw(xaes, out, in, sz, i);
-    }
+#else
+    ret = AesXtsEncrypt_sw(xaes, out, in, sz, i);
 #endif
 
     return ret;
@@ -15497,8 +15456,8 @@ int wc_AesXtsEncryptFinal(XtsAes* xaes, byte* out, const byte* in, word32 sz,
  */
 /* Software AES - XTS Decrypt */
 
-#if defined(__aarch64__) || !defined(WOLFSSL_ARMASM) || \
-      defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+#if !defined(WOLFSSL_ARMASM) || (!defined(__aarch64__) && \
+    defined(WOLFSSL_ARMASM_NO_HW_CRYPTO))
 static int AesXtsDecryptUpdate_sw(XtsAes* xaes, byte* out, const byte* in,
                                   word32 sz, byte *i);
 
@@ -15514,7 +15473,10 @@ static int AesXtsDecrypt_sw(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 
     return AesXtsDecryptUpdate_sw(xaes, out, in, sz, tweak_block);
 }
+#endif
 
+#if (!defined(WOLFSSL_ARMASM) || (!defined(__aarch64__) && \
+    defined(WOLFSSL_ARMASM_NO_HW_CRYPTO))) || defined(WOLFSSL_AESXTS_STREAM)
 /* Block-streaming AES-XTS.
  *
  * Same process as encryption but use decrypt key.
@@ -15699,8 +15661,7 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
     AES_XTS_decrypt_AARCH32(in, out, sz, i, (byte*)xaes->aes.key,
         (byte*)xaes->tweak.key, (byte*)xaes->aes.tmp, xaes->aes.rounds);
     ret = 0;
-#else
-#ifdef WOLFSSL_AESNI
+#elif defined(WOLFSSL_AESNI)
     if (aes->use_aesni) {
         SAVE_VECTOR_REGISTERS(return _svr_ret;);
 #if defined(HAVE_INTEL_AVX1)
@@ -15722,7 +15683,9 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         }
         RESTORE_VECTOR_REGISTERS();
     }
-    else
+    else {
+        ret = AesXtsDecrypt_sw(xaes, out, in, sz, i);
+    }
 #elif defined(__aarch64__) && defined(WOLFSSL_ARMASM)
 #if !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
     if (aes->use_aes_hw_crypto) {
@@ -15733,9 +15696,7 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
     else
 #endif
 #if defined(__aarch64__) && !defined(WOLFSSL_ARMASM_NO_NEON)
-#ifdef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
-    if (1)
-#else
+#ifndef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
     if (sz >= 64)
 #endif
     {
@@ -15743,18 +15704,19 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
             (byte*)xaes->tweak.key, (byte*)xaes->aes.tmp, xaes->aes.rounds);
         ret = 0;
     }
+#ifndef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
     else
 #endif
-    if (1) {
+#endif
+#ifndef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
+    {
         AES_XTS_decrypt(in, out, sz, i, (byte*)xaes->aes.key,
             (byte*)xaes->tweak.key, (byte*)xaes->aes.tmp, xaes->aes.rounds);
         ret = 0;
     }
-    else
 #endif
-    {
-        ret = AesXtsDecrypt_sw(xaes, out, in, sz, i);
-    }
+#else
+    ret = AesXtsDecrypt_sw(xaes, out, in, sz, i);
 #endif
 
     return ret;
