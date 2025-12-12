@@ -12,7 +12,8 @@ then
     exit 1
 fi
 
-NEWHASH=$(./wolfcrypt/test/testwolfcrypt | sed -n 's/hash = \(.*\)/\1/p')
+OUT=$(./wolfcrypt/test/testwolfcrypt | sed -n 's/hash = \(.*\)/\1/p')
+NEWHASH=$(echo "$OUT" | cut -c1-64)
 if test -n "$NEWHASH"
 then
     cp wolfcrypt/src/fips_test.c wolfcrypt/src/fips_test.c.bak
