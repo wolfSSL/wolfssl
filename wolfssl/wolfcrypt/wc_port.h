@@ -283,24 +283,30 @@
 #elif defined(WOLFSSL_APACHE_MYNEWT)
     /* do nothing */
 #elif defined(WOLFSSL_ZEPHYR)
+    /* Zephyr SDK can use a cpp compiler which will cause
+     * problems with extern "C" linkage if not handled */
+    #ifdef __cplusplus
+        }  /* extern "C" */
+    #endif
+
     #include <version.h>
     #ifndef SINGLE_THREADED
         #if !defined(CONFIG_PTHREAD_IPC) && !defined(CONFIG_POSIX_THREADS)
             #error "Threading needs CONFIG_PTHREAD_IPC / CONFIG_POSIX_THREADS"
         #endif
-    #ifdef max
-    #undef max
+        #if KERNEL_VERSION_NUMBER >= 0x30100
+            #include <zephyr/kernel.h>
+            #include <zephyr/posix/posix_types.h>
+            #include <zephyr/posix/pthread.h>
+        #else
+            #include <kernel.h>
+            #include <posix/posix_types.h>
+            #include <posix/pthread.h>
+        #endif
     #endif
-    #if KERNEL_VERSION_NUMBER >= 0x30100
-        #include <zephyr/kernel.h>
-        #include <zephyr/posix/posix_types.h>
-        #include <zephyr/posix/pthread.h>
-    #else
-        #include <kernel.h>
-        #include <posix/posix_types.h>
-        #include <posix/pthread.h>
-    #endif
-    #define max MAX
+
+    #ifdef __cplusplus
+        extern "C" {
     #endif
 #elif defined(WOLFSSL_TELIT_M2MB)
 
