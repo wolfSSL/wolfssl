@@ -430,7 +430,11 @@ static void wolfssl_log(const int logLevel, const char* const file_name,
 #endif /* (!WOLFSSL_DEBUG_CERTS && !DEBUG_WOLFSSL) || NO_WOLFSSL_DEBUG_CERTS */
 
 #if defined(XVSNPRINTF) && !defined(NO_WOLFSSL_MSG_EX)
-#include <stdarg.h> /* for var args */
+#if defined(WOLFSSL_BSDKM)
+    #include <machine/stdarg.h> /* for var args */
+#else
+    #include <stdarg.h> /* for var args */
+#endif /* WOLFSSL_BSDKM */
 
 #ifndef WOLFSSL_MSG_EX_BUF_SZ
 #define WOLFSSL_MSG_EX_BUF_SZ 100
