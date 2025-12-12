@@ -36,6 +36,11 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 
 #include <wolfssl/wolfcrypt/types.h>
 
+#if defined(WOLFSSL_ARMASM) && !defined(GCM_SMALL) && !defined(GCM_TABLE) && \
+    !defined(GCM_TABLE_4BIT)
+    #define GCM_TABLE_4BIT
+#endif
+
 #if !defined(NO_AES) || defined(WOLFSSL_SM4)
 typedef struct Gcm {
     ALIGN16 byte H[16];
