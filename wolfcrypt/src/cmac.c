@@ -71,7 +71,7 @@
  */
 int wc_CMAC_Grow(Cmac* cmac, const byte* in, int inSz)
 {
-    return _wc_Hash_Grow(&cmac->msg, &cmac->used, &cmac->len, in, inSz, NULL);
+    return _wc_Hash_Grow(&cmac->msg, &cmac->used, &cmac->len, in, inSz, cmac->aes.heap);
 }
 #endif /* WOLFSSL_HASH_KEEP */
 
@@ -257,7 +257,7 @@ int wc_CmacFree(Cmac* cmac)
     /* TODO: msg is leaked if wc_CmacFinal() is not called
      * e.g. when multiple calls to wc_CmacUpdate() and one fails but
      * wc_CmacFinal() not called. */
-    XFREE(cmac->msg, cmac->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(cmac->msg, cmac->aes.heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     switch (cmac->type) {
 #if !defined(NO_AES) && defined(WOLFSSL_AES_DIRECT)
