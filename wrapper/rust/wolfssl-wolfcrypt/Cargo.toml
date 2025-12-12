@@ -1,0 +1,24 @@
+[package]
+name = "wolfssl-wolfcrypt"
+version = "0.1.0"
+edition = "2024"
+description = "Rust wrapper for wolfssl C library cryptographic functionality"
+license = "GPL-3.0"
+repository = "https://github.com/wolfSSL/wolfssl"
+documentation = "https://github.com/wolfSSL/wolfssl/tree/master/wrapper/rust"
+keywords = ["wolfssl", "fips", "security", "encryption", "cryptography"]
+categories = ["cryptography", "security", "api-bindings"]
+
+[features]
+std = []
+
+[build-dependencies]
+bindgen = "0.72.1"
+regex = "1.5"
+
+[profile.release]
+strip = true
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
