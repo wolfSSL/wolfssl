@@ -16575,6 +16575,12 @@ static WC_INLINE int DateLessThan(const struct tm* a, const struct tm* b)
 /* dateType = ASN_AFTER or ASN_BEFORE */
 int wc_ValidateDate(const byte* date, byte format, int dateType)
 {
+    return wc_ValidateDateWithTime(date, format, dateType, 0);
+}
+
+int wc_ValidateDateWithTime(const byte* date, byte format, int dateType,
+    time_t checkTime)
+{
     time_t ltime;
     struct tm  certTime;
     struct tm* localTime;
@@ -16591,7 +16597,14 @@ int wc_ValidateDate(const byte* date, byte format, int dateType)
 #endif
     (void)tmpTime;
 
-    ltime = wc_Time(0);
+    /* Use checkTime if provided (non-zero), otherwise use current time */
+    if (checkTime != 0) {
+        ltime = checkTime;
+    }
+    else {
+        ltime = wc_Time(0);
+    }
+
 #ifndef NO_TIME_SIGNEDNESS_CHECK
     if (sizeof(ltime) == sizeof(word32) && (sword32)ltime < 0){
         /* A negative response here could be due to a 32-bit time_t

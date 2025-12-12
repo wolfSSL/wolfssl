@@ -25,6 +25,7 @@
 #include <tests/api/api_decl.h>
 
 int test_wolfSSL_X509_STORE_CTX_set_time(void);
+int test_wolfSSL_X509_STORE_check_time(void);
 int test_wolfSSL_X509_STORE_CTX_get0_store(void);
 int test_wolfSSL_X509_STORE_CTX(void);
 int test_wolfSSL_X509_STORE_CTX_ex(void);
@@ -43,6 +44,7 @@ int test_X509_STORE_No_SSL_CTX(void);
 
 #define TEST_OSSL_X509_STORE_DECLS                                             \
     TEST_DECL_GROUP("ossl_x509_store", test_wolfSSL_X509_STORE_CTX_set_time),  \
+    TEST_DECL_GROUP("ossl_x509_store", test_wolfSSL_X509_STORE_check_time),    \
     TEST_DECL_GROUP("ossl_x509_store",                                         \
                                       test_wolfSSL_X509_STORE_CTX_get0_store), \
     TEST_DECL_GROUP("ossl_x509_store", test_wolfSSL_X509_STORE_CTX),           \

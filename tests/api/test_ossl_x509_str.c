@@ -54,6 +54,117 @@ int test_wolfSSL_X509_STORE_CTX_set_time(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_X509_STORE_check_time(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && \
+        !defined(NO_ASN_TIME) && !defined(NO_RSA)
+    WOLFSSL_X509_STORE* store = NULL;
+    WOLFSSL_X509_STORE_CTX* ctx = NULL;
+    WOLFSSL_X509* ca = NULL;
+    WOLFSSL_X509* cert = NULL;
+    int ret;
+    time_t check_time;
+    const char* srvCertFile = "./certs/server-cert.pem";
+    const char* expiredCertFile = "./certs/test/expired/expired-cert.pem";
+
+    /* Set check_time to May 26, 2000 - should fail "not yet valid" check */
+    ExpectNotNull(store = wolfSSL_X509_STORE_new());
+    if (store != NULL) {
+        /* Load CA certificate - should validate with current time by default */
+        ExpectNotNull(ca = wolfSSL_X509_load_certificate_file(caCertFile,
+                            SSL_FILETYPE_PEM));
+        ExpectIntEQ(wolfSSL_X509_STORE_add_cert(store, ca), WOLFSSL_SUCCESS);
+
+        /* Set check_time to May 26, 2000 (timestamp: 959320800) */
+        check_time = (time_t)959320800; /* May 26, 2000 00:00:00 UTC */
+        store->param->check_time = check_time;
+        wolfSSL_X509_VERIFY_PARAM_set_flags(store->param,
+            WOLFSSL_USE_CHECK_TIME);
+        ExpectTrue(store->param->check_time == check_time);
+        ExpectNotNull(cert = wolfSSL_X509_load_certificate_file(srvCertFile,
+                        SSL_FILETYPE_PEM));
+        ExpectNotNull(ctx = wolfSSL_X509_STORE_CTX_new());
+        ExpectIntEQ(wolfSSL_X509_STORE_CTX_init(ctx, store, cert, NULL),
+                    WOLFSSL_SUCCESS);
+
+        /* Verify that check_time was copied to context */
+        ExpectTrue((ctx->param->flags & WOLFSSL_USE_CHECK_TIME) ==
+            WOLFSSL_USE_CHECK_TIME);
+        ExpectTrue(ctx->param->check_time == check_time);
+
+        /* Verify certificate using the custom check_time - should fail because
+        * certificate is not yet valid (use before check fails) */
+        ret = wolfSSL_X509_verify_cert(ctx);
+        ExpectIntNE(ret, WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_X509_STORE_CTX_get_error(ctx),
+                    WOLFSSL_X509_V_ERR_CERT_NOT_YET_VALID);
+        wolfSSL_X509_STORE_CTX_free(ctx);
+        ctx = NULL;
+    }
+    wolfSSL_X509_STORE_free(store);
+    store = NULL;
+    wolfSSL_X509_free(cert);
+    cert = NULL;
+    wolfSSL_X509_free(ca);
+    ca = NULL;
+
+    /* Verify without setting check_time - should work with current time */
+    ExpectNotNull(store = wolfSSL_X509_STORE_new());
+    if (store != NULL) {
+        ExpectNotNull(ca = wolfSSL_X509_load_certificate_file(caCertFile,
+                            SSL_FILETYPE_PEM));
+        ExpectIntEQ(wolfSSL_X509_STORE_add_cert(store, ca), WOLFSSL_SUCCESS);
+        ExpectNotNull(cert = wolfSSL_X509_load_certificate_file(srvCertFile,
+                        SSL_FILETYPE_PEM));
+        ExpectNotNull(ctx = wolfSSL_X509_STORE_CTX_new());
+        ExpectIntEQ(wolfSSL_X509_STORE_CTX_init(ctx, store, cert, NULL),
+                    WOLFSSL_SUCCESS);
+        ret = wolfSSL_X509_verify_cert(ctx);
+        ExpectIntEQ(ret, WOLFSSL_SUCCESS);
+        wolfSSL_X509_STORE_CTX_free(ctx);
+        ctx = NULL;
+    }
+    wolfSSL_X509_STORE_free(store);
+    store = NULL;
+    wolfSSL_X509_free(cert);
+    cert = NULL;
+    wolfSSL_X509_free(ca);
+    ca = NULL;
+
+    /* Test WOLFSSL_NO_CHECK_TIME flag with expired certificate */
+    ExpectNotNull(store = wolfSSL_X509_STORE_new());
+    if (store != NULL) {
+        /* Set NO_CHECK_TIME flag to skip time validation */
+        wolfSSL_X509_VERIFY_PARAM_set_flags(store->param,
+            WOLFSSL_NO_CHECK_TIME);
+        ExpectTrue((store->param->flags & WOLFSSL_NO_CHECK_TIME) ==
+            WOLFSSL_NO_CHECK_TIME);
+
+        /* Load expired certificate (self-signed) */
+        ExpectNotNull(cert = wolfSSL_X509_load_certificate_file(expiredCertFile,
+                        SSL_FILETYPE_PEM));
+        /* Add expired certificate as trusted CA (self-signed) */
+        ExpectIntEQ(wolfSSL_X509_STORE_add_cert(store, cert), WOLFSSL_SUCCESS);
+
+        ExpectNotNull(ctx = wolfSSL_X509_STORE_CTX_new());
+        ExpectIntEQ(wolfSSL_X509_STORE_CTX_init(ctx, store, cert, NULL),
+                    WOLFSSL_SUCCESS);
+        /* Verify expired certificate with NO_CHECK_TIME - should succeed
+        * because time validation is skipped */
+        ret = wolfSSL_X509_verify_cert(ctx);
+        ExpectIntEQ(ret, WOLFSSL_SUCCESS);
+    }
+    wolfSSL_X509_STORE_CTX_free(ctx);
+    ctx = NULL;
+    wolfSSL_X509_STORE_free(store);
+    store = NULL;
+    wolfSSL_X509_free(cert);
+    cert = NULL;
+#endif /* OPENSSL_EXTRA && !NO_FILESYSTEM && !NO_ASN_TIME && !NO_RSA */
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_X509_STORE_CTX_get0_store(void)
 {
     EXPECT_DECLS;
