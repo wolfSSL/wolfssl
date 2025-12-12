@@ -65,6 +65,7 @@ jobs:
            --enable-cert-setup-cb --enable-sessioncerts',
           '--disable-sni --disable-ecc --disable-tls13 --disable-secure-renegotiation-info',
           'CPPFLAGS=-DWOLFSSL_BLIND_PRIVATE_KEY',
+          '--enable-all --enable-certgencache',
         ]
     name: make check
     if: github.repository_owner == 'wolfssl'

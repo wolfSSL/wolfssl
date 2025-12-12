@@ -66,8 +66,9 @@
 #define WC_HMAC_INNER_HASH_KEYED_DEV    2
 
 enum {
-    HMAC_FIPS_MIN_KEY = 14,   /* 112 bit key length minimum */
-
+    HMAC_FIPS_MIN_KEY = 14,   /* 112 bit key length minimum. Note that this
+                               * minimum also applies to the salt length for
+                               * HKDF. */
     IPAD    = 0x36,
     OPAD    = 0x5C,
 

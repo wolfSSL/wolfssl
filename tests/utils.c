@@ -770,3 +770,26 @@ int test_memio_setup(struct test_memio_ctx *ctx,
 }
 
 #endif /* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES */
+
+#if !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA) && \
+    defined(DEBUG_UNIT_TEST_CERTS)
+/* Used when debugging name constraint tests. Not static to allow use in
+ * multiple locations with complex define guards. */
+void DEBUG_WRITE_CERT_X509(WOLFSSL_X509* x509, const char* fileName)
+{
+    BIO* out = BIO_new_file(fileName, "wb");
+    if (out != NULL) {
+        PEM_write_bio_X509(out, x509);
+        BIO_free(out);
+    }
+}
+void DEBUG_WRITE_DER(const byte* der, int derSz, const char* fileName)
+{
+    BIO* out = BIO_new_file(fileName, "wb");
+    if (out != NULL) {
+        BIO_write(out, der, derSz);
+        BIO_free(out);
+    }
+}
+#endif
+

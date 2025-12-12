@@ -1038,7 +1038,7 @@ static const bench_alg bench_cipher_opt[] = {
 #ifdef HAVE_AESGCM
     { "-aes-gmac",           BENCH_AES_GMAC          },
 #endif
-#ifdef WOLFSSL_AES_DIRECT
+#if defined(HAVE_AES_ECB) || (defined(HAVE_FIPS) && defined(WOLFSSL_AES_DIRECT))
     { "-aes-ecb",            BENCH_AES_ECB           },
 #endif
 #ifdef WOLFSSL_AES_XTS
@@ -3844,7 +3844,7 @@ static void* benchmarks_do(void* args)
     #endif
     }
 #endif
-#ifdef HAVE_AES_ECB
+#if defined(HAVE_AES_ECB) || (defined(HAVE_FIPS) && defined(WOLFSSL_AES_DIRECT))
     if (bench_all || (bench_cipher_algs & BENCH_AES_ECB)) {
     #ifndef NO_SW_BENCH
         bench_aesecb(0);
@@ -5604,7 +5604,7 @@ void bench_gmac(int useDeviceID)
 #endif /* HAVE_AESGCM */
 
 
-#ifdef HAVE_AES_ECB
+#if defined(HAVE_AES_ECB) || (defined(HAVE_FIPS) && defined(WOLFSSL_AES_DIRECT))
 static void bench_aesecb_internal(int useDeviceID,
                                   const byte* key, word32 keySz,
                                   const char* encLabel, const char* decLabel)
@@ -5773,7 +5773,7 @@ void bench_aesecb(int useDeviceID)
                  "AES-256-ECB-enc", "AES-256-ECB-dec");
 #endif
 }
-#endif /* HAVE_AES_ECB */
+#endif /* HAVE_AES_ECB || (HAVE_FIPS && WOLFSSL_AES_DIRECT) */
 
 #ifdef WOLFSSL_AES_CFB
 static void bench_aescfb_internal(const byte* key,
@@ -12040,6 +12040,7 @@ void bench_ecc(int useDeviceID, int curveId)
     int ret = 0, i, times, count, pending = 0;
     int deviceID;
     int  keySize;
+    int  dgstSize;
     char name[BENCH_ECC_NAME_SZ];
     WC_DECLARE_ARRAY(genKey, ecc_key, BENCH_MAX_PENDING,
                      sizeof(ecc_key), HEAP_HINT);
@@ -12068,7 +12069,7 @@ void bench_ecc(int useDeviceID, int curveId)
     WC_DECLARE_ARRAY(sig, byte,
                      BENCH_MAX_PENDING, ECC_MAX_SIG_SIZE, HEAP_HINT);
     WC_DECLARE_ARRAY(digest, byte,
-                     BENCH_MAX_PENDING, MAX_ECC_BYTES, HEAP_HINT);
+                     BENCH_MAX_PENDING, WC_MAX_DIGEST_SIZE, HEAP_HINT);
 #endif
 
     bench_stats_prepare();
@@ -12099,6 +12100,29 @@ void bench_ecc(int useDeviceID, int curveId)
     deviceID = useDeviceID ? devId : INVALID_DEVID;
 
     keySize = wc_ecc_get_curve_size_from_id(curveId);
+    if (keySize < 28) {
+        /* SHA-1 */
+        dgstSize = 20;
+    }
+    else if (keySize < 32) {
+        /* SHA-224/SHA512-224/SHA3-224 */
+        dgstSize = 28;
+    }
+    else if (keySize < 48) {
+        /* SHA-256/SHA512-256/SHA3-256 */
+        dgstSize = 32;
+    }
+    else if (keySize < 64) {
+        /* SHA-384/SHA3-384 */
+        dgstSize = 48;
+    }
+    else {
+        /* SHA-512/SHA3-512 */
+        dgstSize = 64;
+    }
+    if (dgstSize > WC_MAX_DIGEST_SIZE) {
+        dgstSize = WC_MAX_DIGEST_SIZE;
+    }
 
     /* init keys */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
@@ -12187,7 +12211,7 @@ exit_ecdhe:
 
     /* Init digest to sign */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
-        for (count = 0; count < keySize; count++) {
+        for (count = 0; count < dgstSize; count++) {
             digest[i][count] = (byte)count;
         }
     }
@@ -12207,7 +12231,7 @@ exit_ecdhe:
                         x[i] = ECC_MAX_SIG_SIZE;
                     }
 
-                    ret = wc_ecc_sign_hash(digest[i], (word32)keySize, sig[i],
+                    ret = wc_ecc_sign_hash(digest[i], (word32)dgstSize, sig[i],
                                            &x[i], GLOBAL_RNG, genKey[i]);
 
                     if (!bench_async_handle(&ret,
@@ -12259,7 +12283,7 @@ exit_ecdsa_sign:
                     }
 
                     ret = wc_ecc_verify_hash(sig[i], x[i], digest[i],
-                                             (word32)keySize, &verify[i],
+                                             (word32)dgstSize, &verify[i],
                                              genKey[i]);
 
                     if (!bench_async_handle(&ret,

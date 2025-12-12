@@ -11630,15 +11630,20 @@ int wolfSSL_i2d_X509_NAME_canon(WOLFSSL_X509_NAME* name, unsigned char** out)
             }
             nameStr = (const char*)wolfSSL_ASN1_STRING_data(cano_data);
 
-            ret = wc_EncodeNameCanonical(&names[i], nameStr, CTC_UTF8,
-                (byte)ConvertNIDToWolfSSL(entry->nid));
-            if (ret < 0) {
-                WC_FREE_VAR_EX(names, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                wolfSSL_ASN1_STRING_free(cano_data);
-                WOLFSSL_MSG("EncodeName failed");
-                return WOLFSSL_FATAL_ERROR;
+            /* allow for blank values in the name structure, eg OU= */
+            if (nameStr)
+            {
+                ret = wc_EncodeNameCanonical(&names[i], nameStr, CTC_UTF8,
+                    (byte)ConvertNIDToWolfSSL(entry->nid));
+                if (ret < 0) {
+                    WC_FREE_VAR_EX(names, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                    wolfSSL_ASN1_STRING_free(cano_data);
+                    WOLFSSL_MSG("EncodeName failed");
+                    return WOLFSSL_FATAL_ERROR;
+                }
+                totalBytes += ret;
             }
-            totalBytes += ret;
+
             wolfSSL_ASN1_STRING_free(cano_data);
         }
     }
@@ -14189,6 +14194,13 @@ int wolfSSL_X509_check_host(WOLFSSL_X509 *x, const char *chk, size_t chklen,
     if (chklen > 1 && (chk[chklen - 1] == '\0')) {
         chklen--;
     }
+
+#ifdef WOLFSSL_IP_ALT_NAME
+    ret = CheckIPAddr(dCert, (char *)chk);
+    if (ret == 0) {
+        goto out;
+    }
+#endif /* WOLFSSL_IP_ALT_NAME */
 
     ret = CheckHostName(dCert, (char *)chk, chklen, flags, 0);
 
