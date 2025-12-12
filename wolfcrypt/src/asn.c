@@ -16579,7 +16579,7 @@ int wc_ValidateDate(const byte* date, byte format, int dateType)
 }
 
 int wc_ValidateDateWithTime(const byte* date, byte format, int dateType,
-    time_t check_time)
+    time_t checkTime)
 {
     time_t ltime;
     struct tm  certTime;
@@ -16597,9 +16597,9 @@ int wc_ValidateDateWithTime(const byte* date, byte format, int dateType,
 #endif
     (void)tmpTime;
 
-    /* Use check_time if provided (non-zero), otherwise use current time */
-    if (check_time != 0) {
-        ltime = check_time;
+    /* Use checkTime if provided (non-zero), otherwise use current time */
+    if (checkTime != 0) {
+        ltime = checkTime;
     }
     else {
         ltime = wc_Time(0);

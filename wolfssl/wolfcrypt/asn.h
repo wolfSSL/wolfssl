@@ -2255,8 +2255,10 @@ WOLFSSL_LOCAL int ExtractDate(const unsigned char* date, unsigned char format,
                                                  wolfssl_tm* certTime, int* idx);
 WOLFSSL_LOCAL int DateGreaterThan(const struct tm* a, const struct tm* b);
 WOLFSSL_LOCAL int wc_ValidateDate(const byte* date, byte format, int dateType);
+#ifndef NO_ASN_TIME
 WOLFSSL_LOCAL int wc_ValidateDateWithTime(const byte* date, byte format,
-    int dateType, time_t check_time);
+    int dateType, time_t checkTime);
+#endif
 WOLFSSL_TEST_VIS int wc_AsnSetSkipDateCheck(int skip_p);
 WOLFSSL_LOCAL int wc_AsnGetSkipDateCheck(void);
 
