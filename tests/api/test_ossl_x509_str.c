@@ -57,7 +57,8 @@ int test_wolfSSL_X509_STORE_CTX_set_time(void)
 int test_wolfSSL_X509_STORE_check_time(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_ASN_TIME)
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && \
+        !defined(NO_ASN_TIME) && !defined(NO_RSA)
     WOLFSSL_X509_STORE* store = NULL;
     WOLFSSL_X509_STORE_CTX* ctx = NULL;
     WOLFSSL_X509* ca = NULL;
@@ -160,8 +161,7 @@ int test_wolfSSL_X509_STORE_check_time(void)
     store = NULL;
     wolfSSL_X509_free(cert);
     cert = NULL;
-#endif /* defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && \
-    !defined(NO_ASN_TIME) */
+#endif /* OPENSSL_EXTRA && !NO_FILESYSTEM && !NO_ASN_TIME && !NO_RSA */
     return EXPECT_RESULT();
 }
 
