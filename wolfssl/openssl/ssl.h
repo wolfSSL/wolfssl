@@ -868,7 +868,6 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define BIO_nread0                      wolfSSL_BIO_nread0
 #define BIO_nread                       wolfSSL_BIO_nread
 #define BIO_read                        wolfSSL_BIO_read
-#define BIO_nwrite0                     wolfSSL_BIO_nwrite0
 #define BIO_nwrite                      wolfSSL_BIO_nwrite
 #define BIO_write                       wolfSSL_BIO_write
 #define BIO_push                        wolfSSL_BIO_push
