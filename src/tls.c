@@ -16567,15 +16567,18 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
      * contain SupportedGroups and vice-versa. */
     if (IsAtLeastTLSv1_3(ssl->version) && msgType == client_hello && isRequest) {
         int hasKeyShare = !IS_OFF(seenType, TLSX_ToSemaphore(TLSX_KEY_SHARE));
-        int hasSupportedGroups = !IS_OFF(seenType, TLSX_ToSemaphore(TLSX_SUPPORTED_GROUPS));
+        int hasSupportedGroups = !IS_OFF(seenType,
+            TLSX_ToSemaphore(TLSX_SUPPORTED_GROUPS));
 
         if (hasKeyShare && !hasSupportedGroups) {
-            WOLFSSL_MSG("ClientHello with KeyShare extension missing required SupportedGroups extension");
-            return MISSING_HANDSHAKE_DATA;
+            WOLFSSL_MSG("ClientHello with KeyShare extension missing required "
+                        "SupportedGroups extension");
+            return INCOMPLETE_DATA;
         }
         if (hasSupportedGroups && !hasKeyShare) {
-            WOLFSSL_MSG("ClientHello with SupportedGroups extension missing required KeyShare extension");
-            return MISSING_HANDSHAKE_DATA;
+            WOLFSSL_MSG("ClientHello with SupportedGroups extension missing "
+                        "required KeyShare extension");
+            return INCOMPLETE_DATA;
         }
     }
 #endif
