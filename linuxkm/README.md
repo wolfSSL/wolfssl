@@ -47,3 +47,46 @@ $ sudo modprobe libwolfssl
 | --enable-linuxkm-pie             | Enable relocatable object build of module|
 | --enable-linuxkm-benchmarks      | Run crypto benchmark at module load      |
 
+## Kernel Patches
+
+The dir `linuxkm/patches` contains a patch to the linux kernel CRNG. The
+CRNG provides the implementation for `/dev/random`, `/dev/urandom`, and
+`getrandom()`.
+
+The patch updates these two sources
+- `drivers/char/random.c`
+- `include/linux/random.h`
+
+
+to use FIPS-compliant algorithms, instead of chacha and blake2s.
+
+Patches are provided for several kernel versions, ranging from `5.10.x` to
+`6.15`.
+
+### patch procedure
+
+1. Ensure kernel src tree is clean before patching:
+
+```sh
+cd ~/kernelsrc/
+make mrproper
+```
+
+2. Verify patches will apply clean with a dry run check:
+
+```sh
+patch -p1 --dry-run  <~/wolfssl-5.8.2/linuxkm/patches/6.12/WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS-6v12.patch
+checking file drivers/char/random.c
+checking file include/linux/random.h
+```
+
+3. Finally patch the kernel:
+
+```sh
+patch -p1 <~/wolfssl-5.8.2/linuxkm/patches/6.12/WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS-6v12.patch
+patching file drivers/char/random.c
+patching file include/linux/random.h
+```
+
+4. Build kernel.
+
