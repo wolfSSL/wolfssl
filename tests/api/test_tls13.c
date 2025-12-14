@@ -2483,3 +2483,92 @@ int test_tls13_ks_missing(void)
 #endif
     return EXPECT_RESULT();
 }
+
+#if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_CLIENT) && \
+    defined(HAVE_ECC)
+/* Called when writing. */
+static int DESend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
+{
+    (void)ssl;
+    (void)buf;
+    (void)sz;
+    (void)ctx;
+
+    return sz;
+}
+/* Called when reading. */
+static int DERecv(WOLFSSL* ssl, char* buf, int sz, void* ctx)
+{
+    WOLFSSL_BUFFER_INFO* msg = (WOLFSSL_BUFFER_INFO*)ctx;
+    int len = (int)msg->length;
+
+    (void)ssl;
+    (void)sz;
+
+    /* Pass back as much of message as will fit in buffer. */
+    if (len > sz)
+        len = sz;
+    XMEMCPY(buf, msg->buffer, len);
+    /* Move over returned data. */
+    msg->buffer += len;
+    msg->length -= len;
+
+    /* Amount actually copied. */
+    return len;
+}
+#endif
+
+int test_tls13_duplicate_extension(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_CLIENT) && \
+    defined(HAVE_ECC)
+    WOLFSSL_CTX *ctx = NULL;
+    WOLFSSL *ssl = NULL;
+    byte serverHello[] = {
+        0x16, 0x03, 0x03, 0x00, 0x81, 0x02, 0x00, 0x00,
+        0x7d, 0x03, 0x03, 0x01, 0x01, 0x01, 0x01, 0x01,
+        0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
+        0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
+        0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
+        0x01, 0x01, 0x01, 0x00, 0x13, 0x01, 0x00, 0x00,
+        0x55, 0x00, 0x2b, 0x00, 0x02, 0x03, 0x04, 0x00,
+        0x33, 0x00, 0x45, 0x00, 0x17, 0x00, 0x41, 0x04,
+        0x0c, 0x90, 0x1d, 0x42, 0x3c, 0x83, 0x1c, 0xa8,
+        0x5e, 0x27, 0xc7, 0x3c, 0x26, 0x3b, 0xa1, 0x32,
+        0x72, 0x1b, 0xb9, 0xd7, 0xa8, 0x4c, 0x4f, 0x03,
+        0x80, 0xb2, 0xa6, 0x75, 0x6f, 0xd6, 0x01, 0x33,
+        0x1c, 0x88, 0x70, 0x23, 0x4d, 0xec, 0x87, 0x85,
+        0x04, 0xc1, 0x74, 0x14, 0x4f, 0xa4, 0xb1, 0x4b,
+        0x66, 0xa6, 0x51, 0x69, 0x16, 0x06, 0xd8, 0x17,
+        0x3e, 0x55, 0xbd, 0x37, 0xe3, 0x81, 0x56, 0x9e,
+        0x00, 0x2b, 0x00, 0x02, 0x03, 0x04
+    };
+    WOLFSSL_BUFFER_INFO msg;
+    WOLFSSL_ALERT_HISTORY h;
+
+    /* Set up wolfSSL context. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    /* Read from 'msg'. */
+    wolfSSL_SetIORecv(ctx, DERecv);
+    /* No where to send to - dummy sender. */
+    wolfSSL_SetIOSend(ctx, DESend);
+
+    /* Test cipher suite list with many copies of a cipher suite. */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    msg.buffer = serverHello;
+    msg.length = (unsigned int)sizeof(serverHello);
+    wolfSSL_SetIOReadCtx(ssl, &msg);
+
+    ExpectIntEQ(wolfSSL_connect_TLSv13(ssl),
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+    ExpectIntEQ(wolfSSL_get_alert_history(ssl, &h), WOLFSSL_SUCCESS);
+    ExpectIntEQ(h.last_tx.code, illegal_parameter);
+    ExpectIntEQ(h.last_tx.level, alert_fatal);
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+

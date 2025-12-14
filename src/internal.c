@@ -35235,6 +35235,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             case WC_NO_ERR_TRACE(INVALID_PARAMETER):
             case WC_NO_ERR_TRACE(HRR_COOKIE_ERROR):
             case WC_NO_ERR_TRACE(BAD_BINDER):
+            case WC_NO_ERR_TRACE(DUPLICATE_TLS_EXT_E):
                 return illegal_parameter;
             case WC_NO_ERR_TRACE(INCOMPLETE_DATA):
                 return missing_extension;
