@@ -13204,6 +13204,10 @@ int CheckHostName(DecodedCert* dCert, const char *domainName,
     int checkCN;
     int ret = WC_NO_ERR_TRACE(DOMAIN_NAME_MISMATCH);
 
+    if (dCert == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
     if (CheckForAltNames(dCert, domainName, (word32)domainNameLen,
                                             &checkCN, flags, isIP) != 1) {
         ret = DOMAIN_NAME_MISMATCH;

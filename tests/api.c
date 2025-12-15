@@ -40476,33 +40476,50 @@ static int test_tls_multi_handshakes_one_record(void)
     rh = (RecordLayerHeader*)(test_ctx.c_buff);
     len = &rh->length[0];
     ato16((const byte*)len, &recLen);
-    XMEMCPY(buff, test_ctx.c_buff, RECORD_HEADER_SZ + recLen);
-    newRecIdx = idx = RECORD_HEADER_SZ + recLen;
-    /* Combine server handshake msgs into one record */
-    while (idx < test_ctx.c_len) {
 
-        rh = (RecordLayerHeader*)(test_ctx.c_buff + idx);
-        len = &rh->length[0];
+    ExpectIntLE(RECORD_HEADER_SZ + recLen, (int)sizeof(buff));
+    ExpectIntLE(RECORD_HEADER_SZ + recLen, test_ctx.c_len);
 
-        ato16((const byte*)len, &recLen);
-        idx += RECORD_HEADER_SZ;
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(buff, test_ctx.c_buff, RECORD_HEADER_SZ + recLen);
+        newRecIdx = idx = RECORD_HEADER_SZ + recLen;
+        /* Combine server handshake msgs into one record */
+        while (idx < test_ctx.c_len) {
 
-        XMEMCPY(buff + newRecIdx, test_ctx.c_buff + idx,
-                (size_t)recLen);
+            rh = (RecordLayerHeader*)(test_ctx.c_buff + idx);
+            len = &rh->length[0];
 
-        newRecIdx += recLen;
-        idx += recLen;
+            ato16((const byte*)len, &recLen);
+            ExpectIntLE(idx + RECORD_HEADER_SZ + recLen, test_ctx.c_len);
+            ExpectIntLE(newRecIdx + recLen, (int)sizeof(buff));
+
+            if (!EXPECT_SUCCESS()) {
+                break;
+            }
+
+            idx += RECORD_HEADER_SZ;
+
+            XMEMCPY(buff + newRecIdx, test_ctx.c_buff + idx,
+                    (size_t)recLen);
+
+            newRecIdx += recLen;
+            idx += recLen;
+        }
+        if (EXPECT_SUCCESS()) {
+            rh = (RecordLayerHeader*)(buff);
+            len = &rh->length[0];
+            c16toa((word16)newRecIdx - RECORD_HEADER_SZ, len);
+            test_memio_clear_buffer(&test_ctx, 1);
+            test_memio_inject_message(&test_ctx, 1, (const char*)buff,
+                                      newRecIdx);
+
+            ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+            ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+            ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        }
     }
-    rh = (RecordLayerHeader*)(buff);
-    len = &rh->length[0];
-    c16toa((word16)newRecIdx - RECORD_HEADER_SZ, len);
-    test_memio_clear_buffer(&test_ctx, 1);
-    test_memio_inject_message(&test_ctx, 1, (const char*)buff, newRecIdx);
 
-    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
-    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
-
-    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
 
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);

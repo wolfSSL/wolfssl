@@ -4671,7 +4671,6 @@ int  wolfSSL_BIO_ctrl_reset_read_request(WOLFSSL_BIO *b);
     \endcode
 
     \sa wolfSSL_BIO_new
-    \sa wolfSSL_BIO_nwrite0
 */
 int  wolfSSL_BIO_nread0(WOLFSSL_BIO *bio, char **buf);
 
