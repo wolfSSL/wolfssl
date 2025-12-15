@@ -433,6 +433,11 @@ int wc_curve25519_make_key(WC_RNG* rng, int keysize, curve25519_key* key)
         ret = wc_curve25519_make_pub((int)sizeof(key->p.point), key->p.point,
                                      (int)sizeof(key->k), key->k);
 #endif
+        if (ret == 0) {
+            ret = wc_curve25519_check_public(key->p.point,
+                                       (word32)sizeof(key->p.point),
+                                      EC25519_LITTLE_ENDIAN);
+        }
         key->pubSet = (ret == 0);
     }
 #endif
