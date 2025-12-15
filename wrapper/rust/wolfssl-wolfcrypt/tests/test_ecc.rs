@@ -311,7 +311,7 @@ fn test_ecc_point_import_compressed() {
     let mut ecc = ECC::generate_ex(curve_size, &mut rng, curve_id, None, None).expect("Error with generate()");
     let mut ecc_point = ecc.make_pub_to_point(Some(&mut rng), None).expect("Error with make_pub_to_point()");
     let mut der = [0u8; 128];
-    let size = ecc_point.export_der_compressed(&mut der, curve_id).expect("Error with export_der_compressed()");
+    let _size = ecc_point.export_der_compressed(&mut der, curve_id).expect("Error with export_der_compressed()");
     ecc_point.forcezero();
 }
 
