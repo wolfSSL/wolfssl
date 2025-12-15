@@ -184,7 +184,7 @@ enum wolfSSL_ErrorCodes {
     TLS13_SECRET_CB_E            = -438,   /* TLS1.3 secret Cb fcn failure */
     DTLS_SIZE_ERROR              = -439,   /* Trying to send too much data */
     NO_CERT_ERROR                = -440,   /* TLS1.3 - no cert set error */
-    APP_DATA_READY               = -441,   /* DTLS1.2 application data ready for read */
+    APP_DATA_READY               = -441,   /* Application data ready for read */
     TOO_MUCH_EARLY_DATA          = -442,   /* Too much Early data */
     SOCKET_FILTERED_E            = -443,   /* Session stopped by network filter */
     HTTP_RECV_ERR                = -444,   /* HTTP Receive error */
