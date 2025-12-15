@@ -1,17 +1,11 @@
 # wolfSSL Rust Wrapper
 
 The wolfSSL Rust wrapper currently consists of a single Rust crate named
-`wolfssl-wolfcrypt`. This crate provides wrappers for the cryptographic
-algorithms supported by wolfCrypt in the wolfSSL library.
+`wolfssl-wolfcrypt`.
+The `wolfssl-wolfcrypt` crate is a Rust wrapper for the wolfCrypt cryptographic
+algorithms portion of the wolfSSL C library.
 
-The `wolfssl-wolfcrypt` crate is intended to be published to
-[crates.io](https://crates.io/) and can be used by including it in your
-project's `Cargo.toml` file.
-
-It can also be built locally from within the wolfssl C library repository to
-test changes to the C library using the Rust API.
-
-## Locally building the wolfssl-wolfcrypt crate
+## Locally building and testing the wolfSSL Rust Wrapper
 
 First, configure and build wolfssl C library.
 
@@ -30,29 +24,3 @@ Run tests with:
 | `/wrapper/rust` | Top level container for all Rust wrapper functionality. |
 | `/wrapper/rust/wolfssl-wolfcrypt` | Top level for the `wolfssl-wolfcrypt` library crate. |
 | `/wrapper/rust/wolfssl-wolfcrypt/src` | Source directory for `wolfssl-wolfcrypt` crate top-level modules. |
-
-## API Coverage
-
-The wolfSSL Rust wrapper provides a wrapper API for the following C library
-functionality:
-
-  * AES
-    * CBC, CCM, CFB, CTR, EAX, ECB, GCM, OFB, XTS
-  * CMAC
-  * DH
-  * ECC
-  * Ed448
-  * Ed25519
-  * HKDF
-  * HMAC
-  * PBKDF2
-  * PKCS #12 PBKDF
-  * PRF
-  * RSA
-  * RNG
-  * SHA
-    * SHA-1, SHA-224, SHA-256, SHA-384, SHA-512, SHA3-224, SHA3-256, SHA3-384,
-      SHA3-512, SHAKE128, SHAKE256
-  * SRTP/SRTCP KDF
-  * SSH KDF
-  * TLSv1.3 HKDF
