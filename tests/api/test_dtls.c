@@ -1559,11 +1559,11 @@ int test_dtls_mtu_fragment_headroom(void)
         test_memio_clear_buffer(&test_ctx, 0);
 
         /* Measure application-data record overhead. */
-        ExpectIntEQ(wolfSSL_write(ssl_c, "A", 1), 1);
+        ExpectIntEQ(wolfSSL_write(ssl_c, payload, 32), 32);
         ExpectIntEQ(test_ctx.s_msg_count, 1);
         recordLen = test_ctx.s_len;
-        ExpectIntGT(recordLen, 1);
-        overhead = recordLen - 1;
+        ExpectIntGT(recordLen, 32);
+        overhead = recordLen - 32;
 
         /* Reset buffers before MTU-limited send. */
         test_memio_clear_buffer(&test_ctx, 0);
