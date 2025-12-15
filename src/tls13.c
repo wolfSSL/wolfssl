@@ -1197,6 +1197,8 @@ int DeriveHandshakeSecret(WOLFSSL* ssl)
         return ret;
 #endif
 
+    /* Derive-Secret(., "derived", "") per RFC 8446 Section 7.1.
+     * Empty hash (NULL, 0) is required by the TLS 1.3 key schedule. */
     ret = DeriveKeyMsg(ssl, key, -1, ssl->arrays->secret,
                         derivedLabel, DERIVED_LABEL_SZ,
                         NULL, 0, ssl->specs.mac_algorithm);
@@ -1232,6 +1234,8 @@ int DeriveMasterSecret(WOLFSSL* ssl)
         return ret;
 #endif
 
+    /* Derive-Secret(., "derived", "") per RFC 8446 Section 7.1.
+     * Empty hash (NULL, 0) is required by the TLS 1.3 key schedule. */
     ret = DeriveKeyMsg(ssl, key, -1, ssl->arrays->preMasterSecret,
                         derivedLabel, DERIVED_LABEL_SZ,
                         NULL, 0, ssl->specs.mac_algorithm);
