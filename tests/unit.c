@@ -324,6 +324,17 @@ exit:
         err_sys("Failed to free netRandom context");
 #endif /* HAVE_WNR */
 
+#ifdef WOLFSSL_TRACK_MEMORY
+    if (ret == 0) {
+        (void)wolfSSL_Cleanup();
+        if (wc_MemStats_Ptr->currentBytes > 0)
+        {
+            fprintf(stderr, "WOLFSSL_TRACK_MEMORY: currentBytes after cleanup is %ld\n", wc_MemStats_Ptr->currentBytes);
+            ret = MEMORY_E;
+        }
+    }
+#endif
+
     if (ret == 0) {
         puts("\nunit_test: Success for all configured tests.");
         fflush(stdout);

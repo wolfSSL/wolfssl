@@ -133,6 +133,7 @@ typedef struct memoryList {
 
 
 static memoryStats ourMemStats;
+WOLFSSL_API extern memoryStats *wc_MemStats_Ptr;
 
 #ifdef DO_MEM_LIST
     #include <pthread.h>
@@ -384,6 +385,8 @@ static WC_INLINE int InitMemoryTracker(void)
     #endif
     }
 
+    wc_MemStats_Ptr = &ourMemStats;
+
     return ret;
 }
 
@@ -427,6 +430,7 @@ static WC_INLINE void ShowMemoryTracker(void)
 
 static WC_INLINE int CleanupMemoryTracker(void)
 {
+    wc_MemStats_Ptr = NULL;
     /* restore default allocators */
     return wolfSSL_SetAllocators(mfDefault, ffDefault, rfDefault);
 }
