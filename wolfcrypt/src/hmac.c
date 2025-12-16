@@ -248,7 +248,6 @@ int _InitHmac(Hmac* hmac, int type, void* heap)
     return ret;
 }
 
-#ifdef WOLFSSL_HMAC_COPY_HASH
 static int HmacKeyCopyHash(byte macType, wc_HmacHash* src, wc_HmacHash* dst)
 {
     int ret = 0;
@@ -323,7 +322,21 @@ static int HmacKeyCopyHash(byte macType, wc_HmacHash* src, wc_HmacHash* dst)
 
     return ret;
 }
-#endif
+
+int wc_HmacCopy(Hmac* src, Hmac* dst) {
+    int ret;
+
+    if ((src == NULL) || (dst == NULL))
+        return BAD_FUNC_ARG;
+
+    XMEMCPY(dst, src, sizeof(*dst));
+
+    ret = HmacKeyCopyHash(src->macType, &src->hash, &dst->hash);
+
+    if (ret != 0)
+        XMEMSET(dst, 0, sizeof(*dst));
+    return ret;
+}
 
 static int HmacKeyHashUpdate(byte macType, wc_HmacHash* hash, byte* pad)
 {
