@@ -4,7 +4,7 @@ use regex::Regex;
 use std::env;
 use std::fs;
 use std::io::{self, Read, Result};
-use std::path::PathBuf;
+use std::path::{Path,PathBuf};
 
 /// Perform crate build.
 fn main() {
@@ -69,11 +69,18 @@ fn generate_bindings() -> Result<()> {
 /// Returns `Ok(())` if successful, or an error if any step fails.
 fn setup_wolfssl_link() -> Result<()> {
     println!("cargo:rustc-link-lib=wolfssl");
-    println!("cargo:rustc-link-search={}", wolfssl_lib_dir()?);
-    println!("cargo:rustc-link-arg=-Wl,-rpath,{}", wolfssl_lib_dir()?);
 
 //    TODO: do we need this if only a static library is built?
 //    println!("cargo:rustc-link-lib=static=wolfssl");
+
+    let build_in_repo = Path::new(&wolfssl_lib_dir()?).exists();
+    if build_in_repo {
+        // When the crate is built in the wolfssl repository, link with the
+        // locally build wolfssl library to allow testing any local changes
+        // and running unit tests even if library is not installed.
+        println!("cargo:rustc-link-search={}", wolfssl_lib_dir()?);
+        println!("cargo:rustc-link-arg=-Wl,-rpath,{}", wolfssl_lib_dir()?);
+    }
 
     Ok(())
 }
