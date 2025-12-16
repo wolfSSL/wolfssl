@@ -32566,8 +32566,10 @@ static word32 test_wolfSSL_dtls_stateless_HashWOLFSSL(const WOLFSSL* ssl)
     wc_HashAlg hash;
     const TLSX* exts = ssl->extensions;
     WOLFSSL sslCopy; /* Use a copy to omit certain fields */
+#ifndef WOLFSSL_SMALL_STACK_CACHE
     HS_Hashes* hsHashes = ssl->hsHashes; /* Is re-allocated in
                                           * InitHandshakeHashes */
+#endif
 
     XMEMCPY(&sslCopy, ssl, sizeof(*ssl));
     XMEMSET(hashBuf, 0, sizeof(hashBuf));
@@ -32614,9 +32616,17 @@ static word32 test_wolfSSL_dtls_stateless_HashWOLFSSL(const WOLFSSL* ssl)
         AssertIntEQ(wc_HashUpdate(&hash, hashType, (byte*)sslCopy.suites,
                 sizeof(struct Suites)), 0);
     }
+
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+    /* with WOLFSSL_SMALL_STACK_CACHE, the SHA-2 objects always differ after
+     * initialization because of cached W and (for SHA512) X buffers.
+     */
+#else
     /* Hash hsHashes */
     AssertIntEQ(wc_HashUpdate(&hash, hashType, (byte*)hsHashes,
             sizeof(*hsHashes)), 0);
+#endif
+
     AssertIntEQ(wc_HashFinal(&hash, hashType, hashBuf), 0);
     AssertIntEQ(wc_HashFree(&hash, hashType), 0);
 
