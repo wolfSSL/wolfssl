@@ -678,7 +678,10 @@ static int InitSha256(wc_Sha256* sha256)
         sha256->devCtx = NULL;
     #endif
     #ifdef WOLFSSL_SMALL_STACK_CACHE
-        sha256->W = NULL;
+        sha256->W = (word32*)XMALLOC(sizeof(word32) * WC_SHA256_BLOCK_SIZE,
+                                     sha256->heap, DYNAMIC_TYPE_DIGEST);
+        if (sha256->W == NULL)
+            return MEMORY_E;
     #endif
 
         ret = InitSha256(sha256);
@@ -1163,7 +1166,10 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         }
     #endif
     #ifdef WOLFSSL_SMALL_STACK_CACHE
-        sha256->W = NULL;
+        sha256->W = (word32*)XMALLOC(sizeof(word32) * WC_SHA256_BLOCK_SIZE,
+                                     sha256->heap, DYNAMIC_TYPE_DIGEST);
+        if (sha256->W == NULL)
+            return MEMORY_E;
     #endif
 
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA256)
@@ -1244,13 +1250,8 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
 
     #if defined(WOLFSSL_SMALL_STACK_CACHE) && !defined(WOLFSSL_NO_MALLOC)
         word32* W = sha256->W;
-        if (W == NULL) {
-            W = (word32*)XMALLOC(sizeof(word32) * WC_SHA256_BLOCK_SIZE,
-                                 sha256->heap, DYNAMIC_TYPE_DIGEST);
-            if (W == NULL)
-                return MEMORY_E;
-            sha256->W = W;
-        }
+        if (W == NULL)
+            return BAD_FUNC_ARG;
     #elif defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         word32* W;
         W = (word32*)XMALLOC(sizeof(word32) * WC_SHA256_BLOCK_SIZE,
@@ -2065,6 +2066,15 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
     {
         int ret = 0;
 
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+    if (sha224->W == NULL) {
+        sha224->W = (word32*)XMALLOC(sizeof(word32) * WC_SHA256_BLOCK_SIZE,
+                                     sha224->heap, DYNAMIC_TYPE_DIGEST);
+        if (sha224->W == NULL)
+            return MEMORY_E;
+    }
+#endif
+
         sha224->digest[0] = 0xc1059ed8;
         sha224->digest[1] = 0x367cd507;
         sha224->digest[2] = 0x3070dd17;
@@ -2575,7 +2585,12 @@ int wc_Sha224_Grow(wc_Sha224* sha224, const byte* in, int inSz)
         XMEMCPY(dst, src, sizeof(wc_Sha224));
 
     #ifdef WOLFSSL_SMALL_STACK_CACHE
-        dst->W = NULL;
+        dst->W = (word32*)XMALLOC(sizeof(word32) * WC_SHA256_BLOCK_SIZE,
+                                  dst->heap, DYNAMIC_TYPE_DIGEST);
+        if (dst->W == NULL) {
+            XMEMSET(dst, 0, sizeof(wc_Sha224));
+            return MEMORY_E;
+        }
     #endif
 
     #if defined(WOLFSSL_SILABS_SE_ACCEL) && defined(WOLFSSL_SILABS_SE_ACCEL_3)
@@ -2727,7 +2742,12 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK_CACHE
-    dst->W = NULL;
+    dst->W = (word32*)XMALLOC(sizeof(word32) * WC_SHA256_BLOCK_SIZE,
+                              dst->heap, DYNAMIC_TYPE_DIGEST);
+    if (dst->W == NULL) {
+        XMEMSET(dst, 0, sizeof(wc_Sha256));
+        return MEMORY_E;
+    }
 #endif
 
 #if defined(WOLFSSL_SILABS_SE_ACCEL) && defined(WOLFSSL_SILABS_SE_ACCEL_3)
