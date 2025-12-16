@@ -7475,6 +7475,15 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
     if (ret != 0)
         return ret;
 
+    if (extMsgType == hello_retry_request) {
+        TLSX* ksExt = TLSX_Find(ssl->extensions, TLSX_KEY_SHARE);
+        if (ksExt != NULL) {
+            KeyShareEntry* kse = (KeyShareEntry*)ksExt->data;
+            if (kse != NULL)
+                ssl->hrr_keyshare_group = kse->group;
+        }
+    }
+
 #ifdef WOLFSSL_SEND_HRR_COOKIE
     if (ssl->options.sendCookie && extMsgType == hello_retry_request) {
         /* Reset the hashes from here. We will be able to restart the hashes
