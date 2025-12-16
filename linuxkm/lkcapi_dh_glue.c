@@ -58,7 +58,10 @@
     #undef LINUXKM_LKCAPI_REGISTER_DH
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 18, 0)
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 18, 0)) &&                  \
+    !(defined(RHEL_MAJOR) &&                                            \
+      ((RHEL_MAJOR > 9) || ((RHEL_MAJOR == 9) && (RHEL_MINOR >= 5))))
+
     /* Support for FFDHE was added in kernel 5.18, and generic DH support
      * pre-5.18 used a different binary format for the secret (an additional
      * slot for q).
@@ -73,7 +76,8 @@
 
 #if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && \
     (defined(CONFIG_CRYPTO_DH) || defined(CONFIG_CRYPTO_DH_RFC7919_GROUPS)) && \
-    !defined(LINUXKM_LKCAPI_REGISTER_DH)
+    !defined(LINUXKM_LKCAPI_REGISTER_DH) && \
+    !defined(LINUXKM_LKCAPI_DONT_REGISTER_DH)
     #error Config conflict: target kernel has CONFIG_CRYPTO_DH and/or \
         _DH_RFC7919_GROUPS, but module is missing LINUXKM_LKCAPI_REGISTER_DH.
 #endif

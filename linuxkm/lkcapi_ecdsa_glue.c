@@ -64,13 +64,15 @@
         #undef LINUXKM_LKCAPI_REGISTER_ECDSA
     #endif /* LINUXKM_LKCAPI_REGISTER_ECDSA */
 
-    #if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_ECDSA)
+    #if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_ECDSA) && \
+        !defined(LINUXKM_LKCAPI_DONT_REGISTER_ECDSA)
         #error Config conflict: missing implementation forces off LINUXKM_LKCAPI_REGISTER_ECDSA.
     #endif
 #endif
 
 #if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && \
     defined(CONFIG_CRYPTO_ECDSA) && \
+    !defined(LINUXKM_LKCAPI_DONT_REGISTER_ECDSA) && \
     !defined(LINUXKM_LKCAPI_REGISTER_ECDSA)
     #error Config conflict: target kernel has CONFIG_CRYPTO_ECDSA, but module is missing LINUXKM_LKCAPI_REGISTER_ECDSA.
 #endif

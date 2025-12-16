@@ -63,7 +63,8 @@
 
 #if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && \
     defined(CONFIG_CRYPTO_RSA) && \
-    !defined(LINUXKM_LKCAPI_REGISTER_RSA)
+    !defined(LINUXKM_LKCAPI_REGISTER_RSA) && \
+    !defined(LINUXKM_LKCAPI_DONT_REGISTER_RSA)
     #error Config conflict: target kernel has CONFIG_CRYPTO_RSA, but module is missing LINUXKM_LKCAPI_REGISTER_RSA.
 #endif
 
@@ -71,7 +72,7 @@
 
 #if defined(WOLFSSL_RSA_VERIFY_ONLY) || \
     defined(WOLFSSL_RSA_PUBLIC_ONLY)
-    #error LINUXKM_LKCAPI_REGISTER_RSA and RSA_VERIFY_ONLY not supported
+    #error LINUXKM_LKCAPI_REGISTER_RSA with RSA_VERIFY_ONLY/WOLFSSL_RSA_PUBLIC_ONLY not supported
 #endif /* WOLFSSL_RSA_VERIFY_ONLY || WOLFSSL_RSA_PUBLIC_ONLY */
 
 #ifdef WC_RSA_NO_PADDING
