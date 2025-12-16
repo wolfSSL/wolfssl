@@ -7512,7 +7512,7 @@ then
 fi
 
 # Small Stack - Cache on object
-if test "$KERNEL_MODE_DEFAULTS" = "yes" && (test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -ge 6)
+if test "$KERNEL_MODE_DEFAULTS" = "yes"
 then
     ENABLED_SMALL_STACK_CACHE_DEFAULT=yes
 else
