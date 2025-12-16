@@ -2830,7 +2830,7 @@ static WC_INLINE int myMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
     ret = wc_HmacFinal(&hmac, macOut);
     if (ret != 0)
         return ret;
-
+    wc_HmacFree(&hmac);
 
     /* encrypt setup on first time */
     if (encCtx->keySetup == 0) {
@@ -2959,6 +2959,7 @@ static WC_INLINE int myDecryptVerifyCb(WOLFSSL* ssl,
     ret = wc_HmacFinal(&hmac, verify);
     if (ret != 0)
         return ret;
+    wc_HmacFree(&hmac);
 
     if (XMEMCMP(verify, decOut + decSz - digestSz - pad - padByte,
                (size_t) digestSz) != 0) {
@@ -3041,7 +3042,9 @@ static WC_INLINE int myEncryptMacCb(WOLFSSL* ssl, unsigned char* macOut,
     ret = wc_HmacUpdate(&hmac, encOut, encSz);
     if (ret != 0)
         return ret;
-    return wc_HmacFinal(&hmac, macOut);
+    ret = wc_HmacFinal(&hmac, macOut);
+    wc_HmacFree(&hmac);
+    return ret;
 }
 
 
@@ -3088,6 +3091,7 @@ static WC_INLINE int myVerifyDecryptCb(WOLFSSL* ssl,
     ret = wc_HmacFinal(&hmac, verify);
     if (ret != 0)
         return ret;
+    wc_HmacFree(&hmac);
 
     if (XMEMCMP(verify, decOut + decSz, (size_t) digestSz) != 0) {
         printf("myDecryptVerify verify failed\n");
