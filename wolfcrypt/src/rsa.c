@@ -1538,7 +1538,7 @@ static int RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
                             byte* optLabel, word32 labelLen, void* heap)
 {
     word32 hLen;
-    volatile int ret;
+    int ret;
     byte h[WC_MAX_DIGEST_SIZE]; /* max digest size */
     word32 idx;
     word32 i;
@@ -1573,8 +1573,9 @@ static int RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
 #endif
 
     /* find seedMask value */
-    if ((ret = RsaMGF(mgf, (byte*)(pkcsBlock + (hLen + 1)),
-                            pkcsBlockLen - hLen - 1, tmp, hLen, heap)) != 0) {
+    ret = RsaMGF(mgf, (byte*)(pkcsBlock + (hLen + 1)),
+                 pkcsBlockLen - hLen - 1, tmp, hLen, heap);
+    if (ret != 0) {
         WC_FREE_VAR_EX(tmp, heap, DYNAMIC_TYPE_RSA_BUFFER);
         return ret;
     }
@@ -1583,8 +1584,8 @@ static int RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
     xorbuf(tmp, pkcsBlock + 1, hLen);
 
     /* get dbMask value */
-    if ((ret = RsaMGF(mgf, tmp, hLen, tmp + hLen,
-                                       pkcsBlockLen - hLen - 1, heap)) != 0) {
+    ret = RsaMGF(mgf, tmp, hLen, tmp + hLen, pkcsBlockLen - hLen - 1, heap);
+    if (ret != 0) {
         ForceZero(tmp, hLen);
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(tmp, NULL, DYNAMIC_TYPE_RSA_BUFFER);
@@ -1616,7 +1617,8 @@ static int RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
     }
 
     /* create hash of label for comparison with hash sent */
-    if ((ret = wc_Hash(hType, optLabel, labelLen, h, hLen)) != 0) {
+    ret = wc_Hash(hType, optLabel, labelLen, h, hLen);
+    if (ret != 0) {
         return ret;
     }
 
@@ -1626,13 +1628,14 @@ static int RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
        Attackers should not be able to get error condition from the timing of
        these checks.
      */
-    ret = 0;
-    ret |= ConstantCompare(pkcsBlock + hLen + 1, h, (int)hLen);
-    ret += pkcsBlock[idx++] ^ 0x01; /* separator value is 0x01 */
-    ret += pkcsBlock[0]     ^ 0x00; /* Y, the first value, should be 0 */
+    {
+        volatile int c = ConstantCompare(pkcsBlock + hLen + 1, h, (int)hLen);
+        c = c + (pkcsBlock[idx++] ^ 0x01); /* separator value is 0x01 */
+        c = c + (pkcsBlock[0]     ^ 0x00); /* Y, the first value, should be 0 */
 
-    /* Return 0 data length on error. */
-    idx = ctMaskSelWord32(ctMaskEq(ret, 0), idx, pkcsBlockLen);
+        /* Return 0 data length on error. */
+        idx = ctMaskSelWord32(ctMaskEq(c, 0), idx, pkcsBlockLen);
+    }
 
     /* adjust pointer to correct location in array and return size of M */
     *output = (byte*)(pkcsBlock + idx);
