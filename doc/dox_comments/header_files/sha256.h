@@ -334,7 +334,11 @@ int wc_Sha256HashBlock(wc_Sha256* sha, const unsigned char* data,
 
 /*!
     \ingroup SHA
-    \brief Grows SHA256 buffer with input data.
+    \brief Grows SHA256 buffer with input data. This function is only
+    available when WOLFSSL_HASH_KEEP is defined. It is used for keeping an
+    internal buffer to hold all data to be hashed rather than iterating
+    over update, which is necessary for some hardware acceleration
+    platforms that have restrictions on streaming hash operations.
 
     \return 0 on success
     \return negative on error
@@ -476,7 +480,11 @@ void wc_Sha224Free(wc_Sha224* sha224);
 
 /*!
     \ingroup SHA
-    \brief Grows SHA224 buffer with input data.
+    \brief Grows SHA224 buffer with input data. This function is only
+    available when WOLFSSL_HASH_KEEP is defined. It is used for keeping an
+    internal buffer to hold all data to be hashed rather than iterating
+    over update, which is necessary for some hardware acceleration
+    platforms that have restrictions on streaming hash operations.
 
     \return 0 on success
     \return negative on error
