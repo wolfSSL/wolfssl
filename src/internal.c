@@ -7345,14 +7345,19 @@ int InitHandshakeHashesAndCopy(WOLFSSL* ssl, HS_Hashes* source,
 {
     int ret;
 
-    if (source == NULL)
+    if ((ssl == NULL) || (source == NULL) || (destination == NULL))
         return BAD_FUNC_ARG;
 
-    /* Note we can't call InitHandshakeHashes() here, because the copy methods
-     * overwrite the entire dest low level hash struct.  With some hashes and
-     * settings (e.g. SHA-2 hashes with WOLFSSL_SMALL_STACK_CACHE), internal
-     * scratch buffers are preallocated at init and will leak if overwritten.
+    /* If *destination is already allocated, its constituent hashes need to be
+     * freed, else they would leak.  To keep things simple, we reuse
+     * FreeHandshakeHashes(), which deallocates *destination.
      */
+    if (*destination != NULL) {
+        HS_Hashes* tmp = ssl->hsHashes;
+        ssl->hsHashes = *destination;
+        FreeHandshakeHashes(ssl);
+        ssl->hsHashes = tmp;
+    }
 
     /* allocate handshake hashes */
     *destination = (HS_Hashes*)XMALLOC(sizeof(HS_Hashes), ssl->heap,
@@ -7361,6 +7366,12 @@ int InitHandshakeHashesAndCopy(WOLFSSL* ssl, HS_Hashes* source,
         WOLFSSL_MSG("HS_Hashes Memory error");
         return MEMORY_E;
     }
+
+    /* Note we can't call InitHandshakeHashes() here, because the copy methods
+     * overwrite the entire dest low level hash struct.  With some hashes and
+     * settings (e.g. SHA-2 hashes with WOLFSSL_SMALL_STACK_CACHE), internal
+     * scratch buffers are preallocated at init and will leak if overwritten.
+     */
     XMEMSET(*destination, 0, sizeof(HS_Hashes));
 
   /* now copy the source contents to the destination */

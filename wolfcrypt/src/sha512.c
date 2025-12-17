@@ -870,6 +870,10 @@ static int InitSha512_Family(wc_Sha512* sha512, void* heap, int devId,
 
     sha512->heap = heap;
 #ifdef WOLFSSL_SMALL_STACK_CACHE
+    /* This allocation combines the customary W buffer used by
+     * _Transform_Sha512() with additional buffer space used by
+     * wc_Sha512Transform().
+     */
     sha512->W = (word64 *)XMALLOC((sizeof(word64) * 16) + WC_SHA512_BLOCK_SIZE,
                                   sha512->heap, DYNAMIC_TYPE_DIGEST);
     if (sha512->W == NULL)
@@ -1702,6 +1706,9 @@ int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data)
 #if defined(WOLFSSL_SMALL_STACK_CACHE)
     if (sha->W == NULL)
         return BAD_FUNC_ARG;
+    /* Skip over the initial `W' buffer at the start (used by
+     * _Transform_Sha512()).
+     */
     buffer = sha->W + 16;
 #elif defined(WOLFSSL_SMALL_STACK)
     buffer = (word64*)XMALLOC(WC_SHA512_BLOCK_SIZE, sha->heap,
@@ -1873,6 +1880,10 @@ static int InitSha384(wc_Sha384* sha384)
 
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     if (sha384->W == NULL) {
+        /* This allocation combines the customary W buffer used by
+         * _Transform_Sha512() with additional buffer space used by
+         * wc_Sha512Transform().
+         */
         sha384->W = (word64 *)XMALLOC((sizeof(word64) * 16) + WC_SHA512_BLOCK_SIZE,
                                       sha384->heap, DYNAMIC_TYPE_DIGEST);
         if (sha384->W == NULL)
@@ -2232,6 +2243,10 @@ int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst)
 
     XMEMCPY(dst, src, sizeof(wc_Sha512));
 #ifdef WOLFSSL_SMALL_STACK_CACHE
+    /* This allocation combines the customary W buffer used by
+     * _Transform_Sha512() with additional buffer space used by
+     * wc_Sha512Transform().
+     */
     dst->W = (word64 *)XMALLOC((sizeof(word64) * 16) + WC_SHA512_BLOCK_SIZE,
                                dst->heap, DYNAMIC_TYPE_DIGEST);
     if (dst->W == NULL) {
@@ -2667,6 +2682,10 @@ int wc_Sha384Copy(wc_Sha384* src, wc_Sha384* dst)
     XMEMCPY(dst, src, sizeof(wc_Sha384));
 
 #ifdef WOLFSSL_SMALL_STACK_CACHE
+    /* This allocation combines the customary W buffer used by
+     * _Transform_Sha512() with additional buffer space used by
+     * wc_Sha512Transform().
+     */
     dst->W = (word64 *)XMALLOC((sizeof(word64) * 16) + WC_SHA384_BLOCK_SIZE,
                                dst->heap, DYNAMIC_TYPE_DIGEST);
     if (dst->W == NULL) {
