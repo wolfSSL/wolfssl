@@ -819,6 +819,53 @@ package body WolfSSL is
       return Natural (Get_WolfSSL_Max_Error_Size);
    end Max_Error_Size;
 
+   function Is_Valid (Key : RNG_Key_Type) return Boolean is
+   begin
+      return Key /= null;
+   end Is_Valid;
+
+   function Ada_New_RNG (Index : int)
+                         return RNG_Key_Type with
+     Convention    => C,
+     External_Name => "ada_new_rng",
+     Import        => True;
+
+   function Init_RNG_Key (Key  : not null RNG_Key_Type) return int with
+     Convention    => C,
+     External_Name => "wc_InitRng",
+     Import        => True;
+
+   procedure Create_RNG (Index  : RNG_Key_Index;
+                         Key    : in out RNG_Key_Type;
+                         Result : out Integer) is
+      R : int;
+   begin
+      Key := Ada_New_RNG (int (Index));
+      R := Init_RNG_Key (Key);
+      Result := Integer (R);
+   exception
+      when others =>
+         Result := Exception_Error;
+   end Create_RNG;
+
+   function Ada_RSA_Set_RNG (Key : not null RSA_Key_Type;
+                             RNG : not null RNG_Key_Type) return int with
+     Convention    => C,
+     External_Name => "ada_RsaSetRNG",
+     Import        => True;
+
+   procedure Rsa_Set_RNG (Key    : in out Rsa_Key_Type;
+                          RNG    : in out RNG_Key_Type;
+                          Result : out Integer) is
+      R : int;
+   begin
+      R := Ada_RSA_Set_RNG (Key, RNG);
+      Result := Integer (R);
+   exception
+      when others =>
+         Result := Exception_Error;
+   end Rsa_Set_RNG;
+
    function Is_Valid (Key : RSA_Key_Type) return Boolean is
    begin
       return Key /= null;
@@ -875,6 +922,66 @@ package body WolfSSL is
       when others =>
          Result := Exception_Error;
    end Rsa_Public_Key_Decode;
+
+   function RSA_Private_Key_Decode (Input : Byte_Array;
+                                    Index : in out int;
+                                    Key   : not null RSA_Key_Type;
+                                    Size  : int) return int with
+     Convention    => C,
+     External_Name => "wc_RsaPrivateKeyDecode",
+     Import        => True;
+
+   procedure Rsa_Private_Key_Decode (Input : Byte_Array;
+                                     Index : in out Byte_Index;
+                                     Key   : in out RSA_Key_Type;
+                                     Size  : Integer;
+                                     Result : out Integer) is
+   begin
+      declare
+         I : aliased int := int (Index);
+         R : constant int :=
+           RSA_Private_Key_Decode (Input, I, Key, int (Size));
+      begin
+         Index := WolfSSL.Byte_Index (I);
+         Result := Integer (R);
+      end;
+   exception
+      when others =>
+         Result := Exception_Error;
+   end Rsa_Private_Key_Decode;
+
+   function RSA_SSL_Sign (Input      : Byte_Array;
+                          In_Length  : int;
+                          Output     : in out Byte_Array;
+                          Out_Length : int;
+                          RSA        : not null RSA_Key_Type;
+                          RNG        : not null RNG_Key_Type)
+                          return int with
+     Convention    => C,
+     External_Name => "wc_RsaSSL_Sign",
+     Import        => True;
+
+   procedure Rsa_SSL_Sign (Input  : Byte_Array;
+                           Output : in out Byte_Array;
+                           RSA    : in out RSA_Key_Type;
+                           RNG    : in out RNG_Key_Type;
+                           Result : out Integer) is
+   begin
+      declare
+         R : constant int :=
+           RSA_SSL_Sign (Input,
+                         Input'Length,
+                         Output,
+                         Output'Length,
+                         RSA,
+                         RNG);
+      begin
+         Result := Integer (R);
+      end;
+   exception
+      when others =>
+         Result := Exception_Error;
+   end Rsa_SSL_Sign;
 
    function Init_SHA256 (SHA256 : not null Sha256_Type) return int with
      Convention    => C,

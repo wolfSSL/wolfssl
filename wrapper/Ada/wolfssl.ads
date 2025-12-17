@@ -500,6 +500,22 @@ package WolfSSL with SPARK_Mode is
    --  Returns the value of the defined MAX_ERROR_SZ integer
    --  in wolfssl/wolfcrypt/error.h.
 
+   RNG_INSTANCES : constant := 2;
+   
+   type RNG_Key_Index is range 0 .. RNG_INSTANCES - 1;
+
+   type RNG_Key_Type is limited private;   
+
+   function Is_Valid (Key : RNG_Key_Type) return Boolean;
+   --  Indicates if the RSA has successfully been initialized.   
+   
+   procedure Create_RNG (Index  : RNG_Key_Index;
+                         Key    : in out RNG_Key_Type;
+                         Result : out Integer) with
+     Pre => not Is_Valid (Key),
+     Post => (if Result = 0 then Is_Valid (Key));
+   --  If successful Result = 0.   
+   
    RSA_INSTANCES : constant := 2;
    
    type RSA_Key_Index is range 0 .. RSA_INSTANCES - 1;
@@ -526,7 +542,37 @@ package WolfSSL with SPARK_Mode is
    --  extracts the public key and stores it in the RsaKey structure
    --  specified by the Key input argument. It also sets the distance
    --  parsed in Index.
+   --  Note: A RsaKey structure contains two parts,
+   --        one public and one private key.
 
+   procedure Rsa_Private_Key_Decode (Input : Byte_Array;
+                                     Index : in out Byte_Index;
+                                     Key   : in out RSA_Key_Type;
+                                     Size  : Integer;
+                                     Result : out Integer) with
+     Pre => Is_Valid (Key);
+   --  This function parses a DER-formatted RSA private key,
+   --  extracts the private key and stores it in the RsaKey structure
+   --  specified by the Key input argument. It also sets the distance
+   --  parsed in Index.
+   --  Note: A RsaKey structure contains two parts,
+   --        one public and one private key.
+
+   procedure Rsa_Set_RNG (Key    : in out Rsa_Key_Type;
+                          RNG    : in out RNG_Key_Type;
+                          Result : out Integer);   
+
+   procedure Rsa_SSL_Sign (Input  : Byte_Array;
+                           Output : in out Byte_Array;
+                           RSA    : in out RSA_Key_Type;
+                           RNG    : in out RNG_Key_Type;
+                           Result : out Integer) with
+     Pre => Is_Valid (RSA) and Is_Valid (RNG);
+   --  The Output buffer must have the same size as the RSA key.
+   --  If successful Result = 0.
+   --  If Result < 0, then failure.
+   --  If Result > 0, then Success and is the size of the RSA key in bytes.
+   
    SHA256_INSTANCES : constant := 2;   
    type SHA256_Index is range 0 .. SHA256_INSTANCES - 1;
    
@@ -767,9 +813,12 @@ private
 
    Error_Want_Write : constant Error_Code :=
      Error_Code (Get_WolfSSL_Error_Want_Write);
+
+   type Opaque_RNG is limited null record;  
+   type RNG_Key_Type is access Opaque_RNG with Convention => C;   
    
    type Opaque_RSA is limited null record;  
-   type RSA_Key_Type is access Opaque_RSA with Convention => C;   
+   type RSA_Key_Type is access Opaque_RSA with Convention => C;
    
    type Opaque_Sha256 is limited null record;  
    type SHA256_Type is access Opaque_Sha256 with Convention => C;

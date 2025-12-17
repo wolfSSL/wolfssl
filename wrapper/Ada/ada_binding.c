@@ -33,7 +33,7 @@
 #define WOLFSSL_RSA_INSTANCES    2
 #define WOLFSSL_SHA256_INSTANCES 2
 #define WOLFSSL_AES_INSTANCES    2
-
+#define WOLFSSL_RNG_INSTANCES    2
 /* These functions give access to the integer values of the enumeration
    constants used in WolfSSL. These functions make it possible
    for the WolfSSL implementation to change the values of the constants
@@ -63,6 +63,10 @@ extern int get_wolfssl_sha256_instances(void);
 
 extern void* ada_new_aes (int index);
 extern int get_wolfssl_aes_instances(void);
+
+extern void* ada_new_rng (int index);
+extern int get_wolfssl_rng_instances(void);
+extern int ada_RsaSetRNG (RsaKey* key, WC_RNG* rng);
 
 extern int get_wolfssl_error_want_read(void) {
   return WOLFSSL_ERROR_WANT_READ;
@@ -155,4 +159,24 @@ extern void* ada_new_aes (int index)
 
 extern int get_wolfssl_aes_instances(void) {
   return WOLFSSL_AES_INSTANCES;
+}
+
+WC_RNG preAllocatedRNG[WOLFSSL_RNG_INSTANCES];
+
+extern void* ada_new_rng (int index)
+{
+  return &preAllocatedRNG[index];
+}
+
+extern int get_wolfssl_rng_instances(void) {
+  return WOLFSSL_RNG_INSTANCES;
+}
+
+extern int ada_RsaSetRNG(RsaKey* key, WC_RNG* rng)
+{
+  int r = 0;
+#ifdef WC_RSA_BLINDING /* HIGHLY RECOMMENDED! */
+  r = wc_RsaSetRNG(key, rng);
+#endif
+  return r;
 }
