@@ -88,7 +88,7 @@ int sdcard_open(MQX_FILE_PTR *com_handle, MQX_FILE_PTR *sdcard_handle,
 	/* Open partition manager */
 	*partman_handle = fopen(partman_name, NULL);
 	if (*partman_handle == NULL) {
-		printf("Error opening partition manager: %s\n");
+		printf("Error opening partition manager\n");
 		return -64;
 	}
 
