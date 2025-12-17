@@ -10561,9 +10561,18 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 #if defined(WOLFSSL_ARMASM)
 #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
 #ifndef __aarch64__
-    ret = AES_GCM_decrypt_AARCH32(in, out, sz, iv, ivSz, authTag, authTagSz,
-        authIn, authInSz, (byte*)aes->key, aes->gcm.H, (byte*)aes->tmp,
-        (byte*)aes->reg, aes->rounds);
+    {
+    #ifdef OPENSSL_EXTRA
+        word32 reg[WC_AES_BLOCK_SIZE / sizeof(word32)];
+        XMEMCPY(reg, aes->reg, sizeof(reg));
+    #endif
+        ret = AES_GCM_decrypt_AARCH32(in, out, sz, iv, ivSz, authTag, authTagSz,
+            authIn, authInSz, (byte*)aes->key, aes->gcm.H, (byte*)aes->tmp,
+            (byte*)aes->reg, aes->rounds);
+    #ifdef OPENSSL_EXTRA
+        XMEMCPY(aes->reg, reg, sizeof(reg));
+    #endif
+    }
 #else
     if (aes->use_aes_hw_crypto && aes->use_pmull_hw_crypto) {
     #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
