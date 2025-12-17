@@ -24,10 +24,11 @@
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
-#ifdef HAVE_ED25519
+#include <wolfssl/wolfcrypt/ge_operations.h>
+
+#if defined(HAVE_ED25519) || defined(WOLFSSL_CURVE25519_USE_ED25519)
 #ifndef ED25519_SMALL /* run when not defined to use small memory math */
 
-#include <wolfssl/wolfcrypt/ge_operations.h>
 #include <wolfssl/wolfcrypt/ed25519.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -52,7 +53,8 @@
 
 static void ge_p2_0(ge_p2 *h);
 #ifndef CURVED25519_ASM
-#if defined(HAVE_ED25519_SIGN) || defined(HAVE_ED25519_MAKE_KEY)
+#if defined(HAVE_ED25519_SIGN) || defined(HAVE_ED25519_MAKE_KEY) || \
+    defined(WOLFSSL_CURVE25519_USE_ED25519)
 static void ge_precomp_0(ge_precomp *h);
 #endif
 static void ge_p3_to_p2(ge_p2 *r,const ge_p3 *p);
@@ -968,7 +970,8 @@ static unsigned char equal(unsigned char b,unsigned char c)
   return (unsigned char)y;
 }
 
-#if defined(HAVE_ED25519_SIGN) || defined(HAVE_ED25519_MAKE_KEY)
+#if defined(HAVE_ED25519_SIGN) || defined(HAVE_ED25519_MAKE_KEY) || \
+    defined(WOLFSSL_CURVE25519_USE_ED25519)
 static unsigned char negative(signed char b)
 {
   return ((unsigned char)b) >> 7;
@@ -986,7 +989,8 @@ static WC_INLINE void cmov(ge_precomp *t,const ge_precomp *u,unsigned char b,
 }
 #endif
 
-#if defined(HAVE_ED25519_SIGN) || defined(HAVE_ED25519_MAKE_KEY)
+#if defined(HAVE_ED25519_SIGN) || defined(HAVE_ED25519_MAKE_KEY) || \
+    defined(WOLFSSL_CURVE25519_USE_ED25519)
 #ifdef CURVED25519_ASM_64BIT
 static const ge_precomp base[64][8] = {
 {
@@ -9066,7 +9070,6 @@ static const ge_precomp base[32][8] = {
 } ;
 #endif
 
-
 static void ge_select(ge_precomp *t,int pos,signed char b)
 {
 #ifndef CURVED25519_ASM
@@ -9165,7 +9168,8 @@ void ge_scalarmult_base(ge_p3 *h,const unsigned char *a)
   }
 #endif
 }
-#endif /* HAVE_ED25519_SIGN || HAVE_ED25519_MAKE_KEY */
+#endif /* HAVE_ED25519_SIGN || HAVE_ED25519_MAKE_KEY ||
+        * WOLFSSL_CURVE25519_USE_ED25519 */
 
 
 #define SLIDE_SIZE 256
@@ -9769,7 +9773,8 @@ void ge_p3_tobytes(unsigned char *s,const ge_p3 *h)
 
 
 #ifndef CURVED25519_ASM
-#if defined(HAVE_ED25519_SIGN) || defined(HAVE_ED25519_MAKE_KEY)
+#if defined(HAVE_ED25519_SIGN) || defined(HAVE_ED25519_MAKE_KEY) || \
+    defined(WOLFSSL_CURVE25519_USE_ED25519)
 /* ge_precomp_0 */
 static void ge_precomp_0(ge_precomp *h)
 {

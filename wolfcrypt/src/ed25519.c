@@ -88,13 +88,7 @@ static int ed25519_hash_init(ed25519_key* key, wc_Sha512 *sha)
 {
     int ret;
 
-#ifndef WOLFSSL_ED25519_PERSISTENT_SHA
-    /* when not using persistent SHA, we'll zero the sha param */
-    XMEMSET(sha, 0, sizeof(wc_Sha512));
-#endif
-
     ret = wc_InitSha512_ex(sha, key->heap,
-
 #if defined(WOLF_CRYPTO_CB)
                            key->devId
 #else
@@ -103,8 +97,9 @@ static int ed25519_hash_init(ed25519_key* key, wc_Sha512 *sha)
         );
 
 #ifdef WOLFSSL_ED25519_PERSISTENT_SHA
-    if (ret == 0)
+    if (ret == 0) {
         key->sha_clean_flag = 1;
+    }
 #endif
 
     return ret;
@@ -114,8 +109,10 @@ static int ed25519_hash_init(ed25519_key* key, wc_Sha512 *sha)
 static int ed25519_hash_reset(ed25519_key* key)
 {
     int ret;
-    if (key->sha_clean_flag)
+
+    if (key->sha_clean_flag) {
         ret = 0;
+    }
     else {
         wc_Sha512Free(&key->sha);
         ret = wc_InitSha512_ex(&key->sha, key->heap,
@@ -128,6 +125,7 @@ static int ed25519_hash_reset(ed25519_key* key)
         if (ret == 0)
             key->sha_clean_flag = 1;
     }
+
     return ret;
 }
 #endif /* WOLFSSL_ED25519_PERSISTENT_SHA */
@@ -136,8 +134,9 @@ static int ed25519_hash_update(ed25519_key* key, wc_Sha512 *sha,
                                const byte* data, word32 len)
 {
 #ifdef WOLFSSL_ED25519_PERSISTENT_SHA
-    if (key->sha_clean_flag)
+    if (key->sha_clean_flag) {
         key->sha_clean_flag = 0;
+    }
 #else
     (void)key;
 #endif
@@ -148,8 +147,9 @@ static int ed25519_hash_final(ed25519_key* key, wc_Sha512 *sha, byte* hash)
 {
     int ret = wc_Sha512Final(sha, hash);
 #ifdef WOLFSSL_ED25519_PERSISTENT_SHA
-    if (ret == 0)
+    if (ret == 0) {
         key->sha_clean_flag = 1;
+    }
 #else
     (void)key;
 #endif
@@ -187,16 +187,15 @@ static int ed25519_hash(ed25519_key* key, const byte* in, word32 inLen,
 #else
     ret = ed25519_hash_init(key, sha);
 #endif
-    if (ret < 0)
-        return ret;
+    if (ret == 0) {
+        ret = ed25519_hash_update(key, sha, in, inLen);
+        if (ret == 0)
+            ret = ed25519_hash_final(key, sha, hash);
 
-    ret = ed25519_hash_update(key, sha, in, inLen);
-    if (ret == 0)
-        ret = ed25519_hash_final(key, sha, hash);
-
-#ifndef WOLFSSL_ED25519_PERSISTENT_SHA
-    ed25519_hash_free(key, sha);
-#endif
+    #ifndef WOLFSSL_ED25519_PERSISTENT_SHA
+        ed25519_hash_free(key, sha);
+    #endif
+    }
 
     return ret;
 }

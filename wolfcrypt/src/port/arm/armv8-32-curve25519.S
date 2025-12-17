@@ -345,7 +345,7 @@ fe_add:
 	bl	fe_add_op
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	.size	fe_add,.-fe_add
-#ifdef HAVE_ED25519
+#if defined(HAVE_ED25519) || defined(WOLFSSL_CURVE25519_USE_ED25519)
 	.text
 	.align	4
 	.globl	fe_frombytes
@@ -590,7 +590,7 @@ fe_isnegative:
 	eor	r0, r0, r1
 	pop	{r4, r5, pc}
 	.size	fe_isnegative,.-fe_isnegative
-#if defined(HAVE_ED25519_MAKE_KEY) || defined(HAVE_ED25519_SIGN)
+#if defined(HAVE_ED25519_MAKE_KEY) || defined(HAVE_ED25519_SIGN) || defined(WOLFSSL_CURVE25519_USE_ED25519)
 #ifndef WC_NO_CACHE_RESISTANT
 	.text
 	.align	4
@@ -2235,8 +2235,8 @@ fe_cmov_table:
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	.size	fe_cmov_table,.-fe_cmov_table
 #endif /* WC_NO_CACHE_RESISTANT */
-#endif /* HAVE_ED25519_MAKE_KEY || HAVE_ED25519_SIGN */
-#endif /* HAVE_ED25519 */
+#endif /* HAVE_ED25519_MAKE_KEY || HAVE_ED25519_SIGN || WOLFSSL_CURVE25519_USE_ED25519 */
+#endif /* HAVE_ED25519 || WOLFSSL_CURVE25519_USE_ED25519 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
 	.text
 	.align	4
@@ -3981,7 +3981,7 @@ L_curve25519_inv_8:
 	.size	curve25519,.-curve25519
 #endif /* WC_NO_CACHE_RESISTANT */
 #endif /* HAVE_CURVE25519 */
-#ifdef HAVE_ED25519
+#if defined(HAVE_ED25519) || defined(WOLFSSL_CURVE25519_USE_ED25519)
 	.text
 	.align	4
 	.globl	fe_invert
@@ -5217,6 +5217,8 @@ ge_sub:
 	add	sp, sp, #44
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	.size	ge_sub,.-ge_sub
+#endif /* HAVE_ED25519 || WOLFSSL_CURVE25519_USE_ED25519 */
+#ifdef HAVE_ED25519
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
 	.text
 	.align	4

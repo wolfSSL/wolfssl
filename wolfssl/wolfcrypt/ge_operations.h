@@ -27,9 +27,9 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#ifdef HAVE_ED25519
-
 #include <wolfssl/wolfcrypt/fe_operations.h>
+
+#if defined(HAVE_ED25519) || defined(WOLFSSL_CURVE25519_USE_ED25519)
 
 /*
 ge means group element.

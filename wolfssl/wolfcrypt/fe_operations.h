@@ -48,6 +48,12 @@
     #define CURVED25519_ASM
 #endif
 
+#if (defined(CURVED25519_ASM_64BIT) || defined(HAVE_ED25519)) && \
+        !defined(WOLFSSL_CURVE25519_BLINDING)
+    #undef  WOLFSSL_CURVE25519_USE_ED25519
+    #define WOLFSSL_CURVE25519_USE_ED25519
+#endif
+
 /*
 fe means field element.
 Here the field is \Z/(2^255-19).
@@ -75,6 +81,7 @@ Bounds on each t[i] vary depending on context.
 #if !defined(FREESCALE_LTC_ECC)
 WOLFSSL_LOCAL void fe_init(void);
 
+WOLFSSL_LOCAL int  curve25519_base(byte * q, const byte * n);
 WOLFSSL_LOCAL int  curve25519(byte * q, const byte * n, const byte * p);
 #ifdef WOLFSSL_CURVE25519_BLINDING
 WOLFSSL_LOCAL int  curve25519_blind(byte * q, const byte * n, const byte* mask,

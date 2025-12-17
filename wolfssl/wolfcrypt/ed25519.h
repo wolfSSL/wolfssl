@@ -29,7 +29,7 @@
 
 #include <wolfssl/wolfcrypt/types.h>
 
-#ifdef HAVE_ED25519
+#if defined(HAVE_ED25519) || defined(WOLFSSL_CURVE25519_USE_ED25519)
 
 #include <wolfssl/wolfcrypt/random.h>
 #ifndef WOLFSSL_SHA512
