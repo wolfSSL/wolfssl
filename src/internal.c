@@ -42538,6 +42538,9 @@ void wolfSSL_MaybeCheckAlertOnErr(WOLFSSL* ssl, int err)
     }
     /* check if an alert was sent */
     ProcessReplyEx(ssl, 1);
+#else
+    (void)ssl;
+    (void)err;
 #endif /* WOLFSSL_CHECK_ALERT_ON_ERR */
 }
 
