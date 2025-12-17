@@ -1310,7 +1310,14 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
     #error WOLFSSL_USE_SAVE_VECTOR_REGISTERS is set for an unsupported architecture.
 #endif /* WOLFSSL_USE_SAVE_VECTOR_REGISTERS */
 
-    wolfssl_linuxkm_pie_redirect_table.__mutex_init = __mutex_init;
+    #ifndef CONFIG_PREEMPT_RT
+        wolfssl_linuxkm_pie_redirect_table.__mutex_init = __mutex_init;
+    #else
+        wolfssl_linuxkm_pie_redirect_table.__rt_mutex_init = __rt_mutex_init;
+        wolfssl_linuxkm_pie_redirect_table.rt_mutex_base_init = rt_mutex_base_init;
+        wolfssl_linuxkm_pie_redirect_table.rt_spin_lock = rt_spin_lock;
+        wolfssl_linuxkm_pie_redirect_table.rt_spin_unlock = rt_spin_unlock;
+    #endif
     #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
         wolfssl_linuxkm_pie_redirect_table.mutex_lock_nested = mutex_lock_nested;
     #else
@@ -1489,8 +1496,10 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
 #endif
 
 #ifdef CONFIG_ARM64
+#ifndef CONFIG_ARCH_TEGRA
     wolfssl_linuxkm_pie_redirect_table.alt_cb_patch_nops = alt_cb_patch_nops;
     wolfssl_linuxkm_pie_redirect_table.queued_spin_lock_slowpath = queued_spin_lock_slowpath;
+#endif
 #endif
 
     wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_sig_ignore_begin = wc_linuxkm_sig_ignore_begin;
