@@ -27,6 +27,7 @@ jobs:
 #
 # Note, don't combine wolfEntropy with the full TLS cipher suite test -- the implicit wc_InitRng()s in each suite have an enormous CPU footprint.
           '--enable-wolfEntropy --enable-smallstackcache --enable-smallstack --enable-all CFLAGS="-DWC_RNG_SEED_CB -DWOLFSSL_TRACK_MEMORY -DWOLFSSL_DEBUG_MEMORY -DNO_WOLFSSL_CIPHER_SUITE_TEST"',
+          '--enable-intelrdseed --enable-smallstackcache --enable-smallstack --enable-all CFLAGS="-DWC_RNG_SEED_CB -DWOLFSSL_TRACK_MEMORY -DWOLFSSL_DEBUG_MEMORY -DNO_WOLFSSL_CIPHER_SUITE_TEST"',
           '--enable-amdrand --enable-smallstackcache --enable-smallstack --enable-all CFLAGS="-DWC_RNG_SEED_CB -DWOLFSSL_TRACK_MEMORY -DWOLFSSL_DEBUG_MEMORY -DNO_WOLFSSL_CIPHER_SUITE_TEST"',
           '--disable-asm --enable-wolfEntropy --enable-smallstackcache --enable-smallstack --enable-all CFLAGS="-DWC_RNG_SEED_CB -DWOLFSSL_TRACK_MEMORY -DWOLFSSL_DEBUG_MEMORY -DNO_WOLFSSL_CIPHER_SUITE_TEST"'
         ]

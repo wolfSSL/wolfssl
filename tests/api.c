@@ -22832,8 +22832,6 @@ static int test_wolfSSL_EVP_Cipher_extra(void)
 
     set_plain(plain, BUFFSZ * RECORDS);
 
-    SSL_library_init();
-
     ExpectNotNull(evp = EVP_CIPHER_CTX_new());
     ExpectIntNE((ret = EVP_CipherInit(evp, type, NULL, iv, 0)), 0);
 
@@ -41503,8 +41501,6 @@ TEST_CASE testCases[] = {
     TEST_MLDSA_DECLS,
     /* Signature API */
     TEST_SIGNATURE_DECLS,
-    /* x509 */
-    TEST_X509_DECLS,
 
     /* ASN */
     TEST_ASN_DECLS,
@@ -41561,6 +41557,9 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfCrypt_Cleanup),
 
     TEST_DECL(test_wolfSSL_Init),
+
+    /* x509 -- must appear after test_wolfSSL_Init(). */
+    TEST_X509_DECLS,
 
     TEST_DECL(test_dual_alg_support),
     TEST_DECL(test_dual_alg_crit_ext_support),

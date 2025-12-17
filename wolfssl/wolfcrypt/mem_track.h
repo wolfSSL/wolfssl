@@ -83,6 +83,8 @@
     #define DO_MEM_LIST
 #endif
 
+struct memoryList;
+
 typedef struct memoryStats {
     long totalAllocs;     /* number of allocations */
     long totalDeallocs;   /* number of deallocations */
@@ -97,6 +99,9 @@ typedef struct memoryStats {
     long peakBytesTripOdometer; /* peak concurrent bytes, subject to reset
                                  * by wolfCrypt_heap_peak_checkpoint()
                                  */
+#endif
+#ifdef DO_MEM_LIST
+    struct memoryList *memList;
 #endif
 } memoryStats;
 
@@ -380,6 +385,7 @@ static WC_INLINE int InitMemoryTracker(void)
 
     #ifdef DO_MEM_LIST
         XMEMSET(&ourMemList, 0, sizeof(ourMemList));
+        ourMemStats.memList = &ourMemList;
 
         pthread_mutex_unlock(&memLock);
     #endif

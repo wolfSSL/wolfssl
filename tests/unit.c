@@ -273,6 +273,7 @@ int unit_test(int argc, char** argv)
         }
 
         printf("wolfCrypt unit test completed successfully.\n\n");
+        fflush(stdout);
     }
 #endif
 
@@ -282,6 +283,7 @@ int unit_test(int argc, char** argv)
     {
         if (apiTesting) {
             ret = ApiTest();
+            fflush(stdout);
             if (ret != 0)
                 goto exit;
         }
@@ -291,20 +293,25 @@ int unit_test(int argc, char** argv)
         }
 
     #ifdef WOLFSSL_W64_WRAPPER
-        if ((ret = w64wrapper_test()) != 0) {
+        ret = w64wrapper_test();
+        fflush(stdout);
+        if (ret != 0) {
             fprintf(stderr, "w64wrapper test failed with %d\n", ret);
             goto exit;
         }
     #endif /* WOLFSSL_W64_WRAPPER */
 
     #ifdef WOLFSSL_QUIC
-        if ((ret = QuicTest()) != 0) {
+        ret = QuicTest();
+        fflush(stdout);
+        if (ret != 0) {
             fprintf(stderr, "quic test failed with %d\n", ret);
             goto exit;
         }
     #endif
 
         SrpTest();
+        fflush(stdout);
     }
 
 #if !defined(NO_WOLFSSL_CIPHER_SUITE_TEST) && \
@@ -326,10 +333,18 @@ exit:
 
 #ifdef WOLFSSL_TRACK_MEMORY
     if (ret == 0) {
-        (void)wolfSSL_Cleanup();
+        ret = wolfSSL_Cleanup(); /* no-op in a successful full run. */
+
+        if (ret == WOLFSSL_SUCCESS)
+            ret = 0;
+        else
+            fprintf(stderr, "wolfSSL_Cleanup() returned %d\n", ret);
+
         if (wc_MemStats_Ptr->currentBytes > 0)
         {
-            fprintf(stderr, "WOLFSSL_TRACK_MEMORY: currentBytes after cleanup is %ld\n", wc_MemStats_Ptr->currentBytes);
+            fprintf(stderr,
+                    "WOLFSSL_TRACK_MEMORY: currentBytes after cleanup is %ld\n",
+                    wc_MemStats_Ptr->currentBytes);
             ret = MEMORY_E;
         }
     }

@@ -19693,7 +19693,9 @@ static wc_test_ret_t _rng_test(WC_RNG* rng)
         return WC_TEST_RET_ENC_EC(ret);
     }
 
-#if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
+#if defined(HAVE_HASHDRBG) && !defined(HAVE_INTEL_RDRAND) && \
+    !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(5,0,0))
     /* Test periodic reseed dynamics. */
 
     ((struct DRBG_internal *)rng->drbg)->reseedCtr = WC_RESEED_INTERVAL;
@@ -19704,7 +19706,7 @@ static wc_test_ret_t _rng_test(WC_RNG* rng)
 
     if (((struct DRBG_internal *)rng->drbg)->reseedCtr == WC_RESEED_INTERVAL)
         return WC_TEST_RET_ENC_NC;
-#endif /* HAVE_HASHDRBG && !CUSTOM_RAND_GENERATE_BLOCK */
+#endif /* HAVE_HASHDRBG && !CUSTOM_RAND_GENERATE_BLOCK && !HAVE_SELFTEST */
 
 #if defined(WOLFSSL_TRACK_MEMORY) && defined(WOLFSSL_SMALL_STACK_CACHE)
     /* wc_RNG_GenerateBlock() must not allocate any memory in
@@ -19797,7 +19799,8 @@ static wc_test_ret_t random_rng_test(void)
     return ret;
 }
 
-#if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
+#if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    !defined(HAVE_INTEL_RDRAND)
 
 #if defined(WC_RNG_SEED_CB) && \
     !(defined(ENTROPY_SCALE_FACTOR) || defined(SEED_BLOCK_SZ))
@@ -19940,7 +19943,7 @@ static wc_test_ret_t rng_seed_test(void)
 out:
     return ret;
 }
-#endif /* WC_RNG_SEED_CB) && !(ENTROPY_SCALE_FACTOR || SEED_BLOCK_SZ) */
+#endif /* WC_RNG_SEED_CB && !(ENTROPY_SCALE_FACTOR || SEED_BLOCK_SZ) */
 
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_test(void)
@@ -20060,7 +20063,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_test(void)
     return 0;
 }
 
-#else
+#else /* !HAVE_HASHDRBG || CUSTOM_RAND_GENERATE_BLOCK || HAVE_INTEL_RDRAND */
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_test(void)
 {
@@ -20070,7 +20073,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_test(void)
     return random_rng_test();
 }
 
-#endif /* HAVE_HASHDRBG && !CUSTOM_RAND_GENERATE_BLOCK */
+#endif /* !HAVE_HASHDRBG || CUSTOM_RAND_GENERATE_BLOCK || HAVE_INTEL_RDRAND */
 #endif /* WC_NO_RNG */
 
 #ifndef MEM_TEST_SZ
