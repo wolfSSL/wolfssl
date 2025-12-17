@@ -88,9 +88,7 @@ int sdcard_open(MQX_FILE_PTR *com_handle, MQX_FILE_PTR *sdcard_handle,
 	/* Open partition manager */
 	*partman_handle = fopen(partman_name, NULL);
 	if (*partman_handle == NULL) {
-		error_code = ferror(*partman_handle);
-		printf("Error opening partition manager: %s\n", MFS_Error_text(
-				(uint32_t) error_code));
+		printf("Error opening partition manager\n");
 		return -64;
 	}
 
@@ -119,15 +117,19 @@ int sdcard_open(MQX_FILE_PTR *com_handle, MQX_FILE_PTR *sdcard_handle,
 
 	/* Open file system */
 	*filesystem_handle = fopen(filesystem_name, NULL);
+	if (*filesystem_handle == NULL) {
+		printf("Error opening filesystem.\n");
+		return -67;
+	}
 	error_code = ferror(*filesystem_handle);
 	if ((error_code != MFS_NO_ERROR) && (error_code != MFS_NOT_A_DOS_DISK)) {
 		printf("Error opening filesystem: %s\n", MFS_Error_text(
 				(uint32_t) error_code));
-		return -67;
+		return -68;
 	}
 	if (error_code == MFS_NOT_A_DOS_DISK) {
 		printf("NOT A DOS DISK! You must format to continue.\n");
-		return -68;
+		return -69;
 	}
 
 	return 0;
