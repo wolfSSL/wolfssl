@@ -31,6 +31,7 @@
 #ifdef HAVE_CURVE25519
 
 #include <wolfssl/wolfcrypt/curve25519.h>
+#include <wolfssl/wolfcrypt/ge_operations.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -54,6 +55,8 @@
         #error "Blinding not needed nor available for small implementation"
     #elif defined(USE_INTEL_SPEEDUP) || defined(WOLFSSL_ARMASM)
         #error "Blinding not needed nor available for assembly implementation"
+    #elif defined(WOLFSSL_CURVE25519_USE_ED25519)
+        #error "Ed25519 base scalar mult cannot be used with blinding "
     #endif
 #endif
 
@@ -72,6 +75,8 @@ const curve25519_set_type curve25519_sets[] = {
     }
 };
 
+#if !defined(WOLFSSL_CURVE25519_USE_ED25519) || \
+    defined(WOLFSSL_CURVE25519_BLINDING)
 static const word32 kCurve25519BasePoint[CURVE25519_KEYSIZE/sizeof(word32)] = {
 #ifdef BIG_ENDIAN_ORDER
     0x09000000
@@ -79,6 +84,7 @@ static const word32 kCurve25519BasePoint[CURVE25519_KEYSIZE/sizeof(word32)] = {
     9
 #endif
 };
+#endif /* !WOLFSSL_CURVE25519_USE_ED25519 || WOLFSSL_CURVE25519_BLINDING */
 
 /* Curve25519 private key must be less than order */
 /* These functions clamp private k and check it */
@@ -154,7 +160,31 @@ int wc_curve25519_make_pub(int public_size, byte* pub, int private_size,
 
     SAVE_VECTOR_REGISTERS(return _svr_ret;);
 
+#if defined(WOLFSSL_CURVE25519_USE_ED25519)
+    {
+        ge_p3 A;
+
+        ge_scalarmult_base(&A, priv);
+    #ifndef CURVE25519_SMALL
+        fe_add(A.X, A.Z, A.Y);
+        fe_sub(A.T, A.Z, A.Y);
+        fe_invert(A.T, A.T);
+        fe_mul(A.T, A.X, A.T);
+        fe_tobytes(pub, A.T);
+    #else
+        lm_add(A.X, A.Z, A.Y);
+        lm_sub(A.T, A.Z, A.Y);
+        lm_invert(A.T, A.T);
+        lm_mul(pub, A.X, A.T);
+    #endif
+        ret = 0;
+    }
+#elif defined(CURVED25519_X64) || (defined(WOLFSSL_ARMASM) && \
+    defined(__aarch64__))
+    ret = curve25519_base(pub, priv);
+#else
     ret = curve25519(pub, priv, (byte*)kCurve25519BasePoint);
+#endif
 
     RESTORE_VECTOR_REGISTERS();
 #else
