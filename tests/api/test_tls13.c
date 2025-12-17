@@ -2140,6 +2140,8 @@ int test_tls13_early_data(void)
         struct test_tls13_wwrite_ctx wwrite_ctx_s, wwrite_ctx_c;
 
         XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        XMEMSET(&wwrite_ctx_c, 0, sizeof(wwrite_ctx_c));
+        XMEMSET(&wwrite_ctx_s, 0, sizeof(wwrite_ctx_s));
 
         fprintf(stderr, "\tEarly data with %s%s%s\n", params[i].tls_version,
             splitEarlyData ? " (split early data)" : "",
@@ -2179,8 +2181,6 @@ int test_tls13_early_data(void)
 #endif
 
         if (everyWriteWantWrite) {
-            XMEMSET(&wwrite_ctx_c, 0, sizeof(wwrite_ctx_c));
-            XMEMSET(&wwrite_ctx_s, 0, sizeof(wwrite_ctx_s));
             wwrite_ctx_c.test_ctx = &test_ctx;
             wwrite_ctx_s.test_ctx = &test_ctx;
             wolfSSL_SetIOWriteCtx(ssl_c, &wwrite_ctx_c);

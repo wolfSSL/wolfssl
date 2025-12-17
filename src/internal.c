@@ -42513,10 +42513,10 @@ int wolfSSL_TestAppleNativeCertValidation_AppendCA(WOLFSSL_CTX* ctx,
 
 #endif /* defined(__APPLE__) && defined(WOLFSSL_SYS_CA_CERTS) */
 
-#if defined(WOLFSSL_CHECK_ALERT_ON_ERR)
 /* Do not try to process error for async, non blocking io, and app_read */
-void wolfSSL_maybeCheckAlertOnErr(WOLFSSL* ssl, int err)
+void wolfSSL_MaybeCheckAlertOnErr(WOLFSSL* ssl, int err)
 {
+#if defined(WOLFSSL_CHECK_ALERT_ON_ERR)
 #if defined(WOLFSSL_ASYNC_CRYPT)
     if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
         return;
@@ -42538,8 +42538,8 @@ void wolfSSL_maybeCheckAlertOnErr(WOLFSSL* ssl, int err)
     }
     /* check if an alert was sent */
     ProcessReplyEx(ssl, 1);
-}
 #endif /* WOLFSSL_CHECK_ALERT_ON_ERR */
+}
 
 #undef ERROR_OUT
 

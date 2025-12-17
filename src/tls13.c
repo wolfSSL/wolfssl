@@ -13403,13 +13403,14 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
             if (ssl->earlyData != no_early_data &&
                 ssl->options.handShakeState != CLIENT_HELLO_COMPLETE) {
         #if defined(WOLFSSL_TLS13_MIDDLEBOX_COMPAT)
-                if (!ssl->options.dtls && ssl->options.tls13MiddleBoxCompat) {
-                    if ((ssl->error = SendChangeCipher(ssl)) != 0) {
-                        WOLFSSL_ERROR(ssl->error);
-                        return WOLFSSL_FATAL_ERROR;
+                    if (!ssl->options.dtls &&
+                           ssl->options.tls13MiddleBoxCompat) {
+                        if ((ssl->error = SendChangeCipher(ssl)) != 0) {
+                            WOLFSSL_ERROR(ssl->error);
+                            return WOLFSSL_FATAL_ERROR;
+                        }
+                        ssl->options.sentChangeCipher = 1;
                     }
-                    ssl->options.sentChangeCipher = 1;
-                }
         #endif
             ssl->options.handShakeState = CLIENT_HELLO_COMPLETE;
             return WOLFSSL_SUCCESS;
@@ -13547,9 +13548,7 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
             if (!ssl->options.resuming && ssl->options.sendVerify) {
                 ssl->error = SendTls13Certificate(ssl);
                 if (ssl->error != 0) {
-                #ifdef WOLFSSL_CHECK_ALERT_ON_ERR
-                    wolfSSL_maybeCheckAlertOnErr(ssl, ssl->error);
-                #endif
+                    wolfSSL_MaybeCheckAlertOnErr(ssl, ssl->error);
                     WOLFSSL_ERROR(ssl->error);
                     return WOLFSSL_FATAL_ERROR;
                 }
@@ -13569,9 +13568,7 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
             if (!ssl->options.resuming && ssl->options.sendVerify) {
                 ssl->error = SendTls13CertificateVerify(ssl);
                 if (ssl->error != 0) {
-                #ifdef WOLFSSL_CHECK_ALERT_ON_ERR
-                    wolfSSL_maybeCheckAlertOnErr(ssl, ssl->error);
-                #endif
+                    wolfSSL_MaybeCheckAlertOnErr(ssl, ssl->error);
                     WOLFSSL_ERROR(ssl->error);
                     return WOLFSSL_FATAL_ERROR;
                 }
@@ -13585,9 +13582,7 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
 
         case FIRST_REPLY_FOURTH:
             if ((ssl->error = SendTls13Finished(ssl)) != 0) {
-            #ifdef WOLFSSL_CHECK_ALERT_ON_ERR
-                wolfSSL_maybeCheckAlertOnErr(ssl, ssl->error);
-            #endif
+                wolfSSL_MaybeCheckAlertOnErr(ssl, ssl->error);
                 WOLFSSL_ERROR(ssl->error);
                 return WOLFSSL_FATAL_ERROR;
             }
