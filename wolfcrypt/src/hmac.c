@@ -291,6 +291,89 @@ int _InitHmac(Hmac* hmac, int type, void* heap)
     return ret;
 }
 
+static int HmacKeyCopyHash(byte macType, wc_HmacHash* src, wc_HmacHash* dst)
+{
+    int ret = 0;
+
+    switch (macType) {
+    #ifndef NO_MD5
+        case WC_MD5:
+            ret = wc_Md5Copy(&src->md5, &dst->md5);
+            break;
+    #endif /* !NO_MD5 */
+
+    #ifndef NO_SHA
+        case WC_SHA:
+            ret = wc_ShaCopy(&src->sha, &dst->sha);
+            break;
+    #endif /* !NO_SHA */
+
+    #ifdef WOLFSSL_SHA224
+        case WC_SHA224:
+            ret = wc_Sha224Copy(&src->sha224, &dst->sha224);
+            break;
+    #endif /* WOLFSSL_SHA224 */
+    #ifndef NO_SHA256
+        case WC_SHA256:
+            ret = wc_Sha256Copy(&src->sha256, &dst->sha256);
+            break;
+    #endif /* !NO_SHA256 */
+
+    #ifdef WOLFSSL_SHA384
+        case WC_SHA384:
+            ret = wc_Sha384Copy(&src->sha384, &dst->sha384);
+            break;
+    #endif /* WOLFSSL_SHA384 */
+    #ifdef WOLFSSL_SHA512
+        case WC_SHA512:
+            ret = wc_Sha512Copy(&src->sha512, &dst->sha512);
+            break;
+    #endif /* WOLFSSL_SHA512 */
+
+    #ifdef WOLFSSL_SHA3
+    #ifndef WOLFSSL_NOSHA3_224
+        case WC_SHA3_224:
+            ret = wc_Sha3_224_Copy(&src->sha3, &dst->sha3);
+            break;
+    #endif
+    #ifndef WOLFSSL_NOSHA3_256
+        case WC_SHA3_256:
+            ret = wc_Sha3_256_Copy(&src->sha3, &dst->sha3);
+            break;
+    #endif
+    #ifndef WOLFSSL_NOSHA3_384
+        case WC_SHA3_384:
+            ret = wc_Sha3_384_Copy(&src->sha3, &dst->sha3);
+            break;
+    #endif
+    #ifndef WOLFSSL_NOSHA3_512
+        case WC_SHA3_512:
+            ret = wc_Sha3_512_Copy(&src->sha3, &dst->sha3);
+            break;
+    #endif
+    #endif /* WOLFSSL_SHA3 */
+
+        default:
+            break;
+    }
+
+    return ret;
+}
+
+int wc_HmacCopy(Hmac* src, Hmac* dst) {
+    int ret;
+
+    if ((src == NULL) || (dst == NULL))
+        return BAD_FUNC_ARG;
+
+    XMEMCPY(dst, src, sizeof(*dst));
+
+    ret = HmacKeyCopyHash(src->macType, &src->hash, &dst->hash);
+
+    if (ret != 0)
+        XMEMSET(dst, 0, sizeof(*dst));
+    return ret;
+}
 
 int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
 {
