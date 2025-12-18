@@ -895,7 +895,7 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
 #endif
 
 #ifndef USE_WINDOWS_API
-    rng->seed.fd = 0;
+    rng->seed.fd = -1;
 #endif
 
 #ifdef CUSTOM_RAND_GENERATE_BLOCK
@@ -1378,7 +1378,7 @@ int wc_FreeRng(WC_RNG* rng)
 #endif
 
 #ifdef XCLOSE
-    if(rng->seed.fd != 0 && rng->seed.fd != -1) {
+    if(rng->seed.fd != -1) {
         XCLOSE(rng->seed.fd);
         rng->seed.fd = -1;
     }
@@ -3564,7 +3564,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
 #ifndef NO_FILESYSTEM
     #ifndef NO_DEV_URANDOM /* way to disable use of /dev/urandom */
-        if (os->fd == 0 || os->fd == -1) {
+        if (os->fd == -1) {
             os->fd = open("/dev/urandom", O_RDONLY);
             #if defined(DEBUG_WOLFSSL)
                 WOLFSSL_MSG("opened /dev/urandom.");
