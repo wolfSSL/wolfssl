@@ -392,7 +392,7 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
         return BAD_FUNC_ARG;
     }
 
-#ifndef HAVE_FIPS
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(5,0,0)
     /* if set key has already been run then make sure and free existing */
     /* This is for async and PIC32MZ situations, and just normally OK,
        provided the user calls wc_HmacInit() first. That function is not
