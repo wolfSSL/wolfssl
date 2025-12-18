@@ -3038,7 +3038,7 @@ void FreeSSL_Ctx(WOLFSSL_CTX* ctx)
     !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && !defined(NO_TLS)
         TicketEncCbCtx_Free(&ctx->ticketKeyCtx);
 #endif
-        wolfSSL_RefFree(&ctx->ref);
+        wolfSSL_RefWithMutexFree(&ctx->ref);
         XFREE(ctx, heap, DYNAMIC_TYPE_CTX);
     }
     else {
