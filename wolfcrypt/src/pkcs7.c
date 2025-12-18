@@ -5455,7 +5455,6 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
             if (ret == 0 && GetMyVersion(pkiMsg, &idx, &version, pkiMsgSz) < 0)
                 ret = ASN_PARSE_E;
 
-
             /* version 1 follows RFC 2315 */
             /* version 3 follows RFC 4108 */
             if (ret == 0 && (version != 1 && version != 3)) {
@@ -5673,6 +5672,15 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                  * this as start of content. */
                 localIdx = start;
                 pkcs7->contentIsPkcs7Type = 1;
+
+                #ifndef NO_PKCS7_STREAM
+                    /* Set streaming variables for PKCS#7 type content.
+                     * length contains the size from [0] EXPLICIT wrapper */
+                    pkcs7->stream->multi         = 0;
+                    pkcs7->stream->currContIdx   = localIdx;
+                    pkcs7->stream->currContSz    = (word32)length;
+                    pkcs7->stream->currContRmnSz = (word32)length;
+                #endif
             }
             else {
                 /* CMS eContent OCTET_STRING */
@@ -5762,7 +5770,6 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                 idx = localIdx;
             }
             else {
-
                 /* If either pkcs7->content and pkcs7->contentSz are set
                  * (detached signature where user has set content explicitly
                  * into pkcs7->content/contentSz) OR pkcs7->hashBuf and
@@ -5862,7 +5869,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
 
             /* copy content to pkcs7->contentDynamic */
             if (keepContent && pkcs7->stream->content &&
-                                            pkcs7->stream->contentSz >0) {
+                                            pkcs7->stream->contentSz > 0) {
                 pkcs7->contentDynamic = (byte*)XMALLOC(pkcs7->stream->contentSz,
                                               pkcs7->heap, DYNAMIC_TYPE_PKCS7);
                 if (pkcs7->contentDynamic == NULL) {
