@@ -185,6 +185,7 @@ WOLFSSL_API int wc_HmacInit_Id(Hmac* hmac, byte* id, int len, void* heap,
 WOLFSSL_API int wc_HmacInit_Label(Hmac* hmac, const char* label, void* heap,
                                   int devId);
 #endif
+WOLFSSL_API int wc_HmacCopy(Hmac* src, Hmac* dst);
 WOLFSSL_API void wc_HmacFree(Hmac* hmac);
 
 WOLFSSL_API int wolfSSL_GetHmacMaxSize(void);
