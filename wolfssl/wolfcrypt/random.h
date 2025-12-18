@@ -156,6 +156,7 @@ struct OS_Seed {
         ProviderHandle handle;
     #else
         int fd;
+        byte fdOpen:1;
     #endif
     #if defined(WOLF_CRYPTO_CB)
         int devId;
