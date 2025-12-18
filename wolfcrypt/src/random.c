@@ -894,8 +894,8 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
     }
 #endif
 
-#ifndef USE_WINDOWS_API
-    if (!rng->seed.fdOpen)
+#if defined(WOLFSSL_KEEP_RNG_SEED_FD_OPEN) && !defined(USE_WINDOWS_API)
+    if (!rng->seed.seedFdOpen)
         rng->seed.fd = -1;
 #endif
 
@@ -1378,11 +1378,12 @@ int wc_FreeRng(WC_RNG* rng)
         ret = WC_HW_E;
 #endif
 
-#ifdef XCLOSE
-    if(rng->seed.fdOpen && rng->seed.fd != -1) {
+#if defined(WOLFSSL_KEEP_RNG_SEED_FD_OPEN) && defined(XCLOSE) && \
+    !defined(USE_WINDOWS_API)
+    if(rng->seed.seedFdOpen && rng->seed.fd != -1) {
         XCLOSE(rng->seed.fd);
         rng->seed.fd = -1;
-        rng->seed.fdOpen = 0;
+        rng->seed.seedFdOpen = 0;
     }
 #endif
 
@@ -3566,7 +3567,10 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
 #ifndef NO_FILESYSTEM
     #ifndef NO_DEV_URANDOM /* way to disable use of /dev/urandom */
-        if (!os->fdOpen && os->fd == -1) {
+        #ifdef WOLFSSL_KEEP_RNG_SEED_FD_OPEN
+        if (os->fd == -1 && !os->seedFdOpen)
+        #endif
+        {
             os->fd = open("/dev/urandom", O_RDONLY);
             #if defined(DEBUG_WOLFSSL)
                 WOLFSSL_MSG("opened /dev/urandom.");
@@ -3581,13 +3585,11 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         #endif
                 if (os->fd == -1)
                     return OPEN_RAN_E;
-                else
-                    os->fdOpen = 1;
             }
-            else
-            {
-                os->fdOpen = 1;
-            }
+        #ifdef WOLFSSL_KEEP_RNG_SEED_FD_OPEN
+            if (os->fd != -1)
+                os->seedFdOpen = 1;
+        #endif
         }
     #if defined(DEBUG_WOLFSSL)
         WOLFSSL_MSG("rnd read...");
@@ -3611,6 +3613,9 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     #endif
             }
         }
+    #ifndef WOLFSSL_KEEP_RNG_SEED_FD_OPEN
+        close(os->fd);
+    #endif
 #else
         (void)output;
         (void)sz;
