@@ -25964,11 +25964,10 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
         outputSz = wolfSSL_GetRecordSize(ssl, (word32)sz - sent, 1);
 #if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_DTLS_SIZE_CHECK)
         if (ssl->options.dtls) {
-            int mtu;
 #if defined(WOLFSSL_DTLS_MTU)
-            mtu = ssl->dtlsMtuSz;
+            int mtu = ssl->dtlsMtuSz;
 #else
-            mtu = MAX_MTU;
+            int mtu = MAX_MTU;
 #endif
             if (outputSz > mtu) {
                 error = DTLS_SIZE_ERROR;

@@ -1516,6 +1516,10 @@ int test_dtls_mtu_fragment_headroom(void)
 #if !defined(WOLFSSL_AEAD_ONLY) && !defined(NO_AES) && !defined(NO_SHA)
         { wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method,
           "ECDHE-RSA-AES128-SHA", 0 },
+#ifdef WOLFSSL_DTLS_CID
+        { wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method,
+          "ECDHE-RSA-AES128-SHA", 1 },
+#endif
 #endif
 #endif
     };
@@ -1532,6 +1536,7 @@ int test_dtls_mtu_fragment_headroom(void)
         int ret;
 
         XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        XMEMSET(payload, 'A', sizeof(payload));
 
         ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
                         params[i].client_meth, params[i].server_meth),
