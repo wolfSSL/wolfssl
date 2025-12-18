@@ -733,7 +733,7 @@ void wc_ecc_del_point(ecc_point* p);
     \sa wc_ecc_del_point
 */
 
-int wc_ecc_copy_point(ecc_point* p, ecc_point *r);
+int wc_ecc_copy_point(const ecc_point* p, ecc_point *r);
 
 /*!
     \ingroup ECC
@@ -847,7 +847,7 @@ int wc_ecc_point_is_at_infinity(ecc_point *p);
     \sa なし
 */
 
-int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R,
+int wc_ecc_mulmod(const mp_int* k, ecc_point *G, ecc_point *R,
                   mp_int* a, mp_int* modulus, int map);
 
 /*!
@@ -1020,7 +1020,7 @@ int wc_ecc_import_x963(const byte* in, word32 inLen, ecc_key* key);
     \param privSz 秘密鍵バッファのサイズ
     \param pub ANSI x9.63形式のECC公開鍵を含むバッファへのポインタ
     \param pubSz 公開鍵入力バッファの長さ
-    \param key インポートされた秘密/公開キーペアを格納するecc_keyオブジェクトへのポインタ
+    \param key インポートされた秘密/公開鍵ペアを格納するecc_keyオブジェクトへのポインタ
 
     _Example_
     \code
@@ -1241,7 +1241,7 @@ int wc_ecc_export_point_der(const int curve_idx, ecc_point* point,
     \sa wc_ecc_export_point_der
 */
 
-int wc_ecc_import_point_der(byte* in, word32 inLen, const int curve_idx,
+int wc_ecc_import_point_der(const byte* in, word32 inLen, const int curve_idx,
                             ecc_point* point);
 
 /*!
@@ -1319,7 +1319,7 @@ int wc_ecc_sig_size_calc(int sz);
     \sa wc_ecc_sig_size_calc
 */
 
-int wc_ecc_sig_size(ecc_key* key);
+int wc_ecc_sig_size(const ecc_key* key);
 
 
 /*!
@@ -1375,7 +1375,7 @@ ecEncCtx* wc_ecc_ctx_new(int flags, WC_RNG* rng);
     \sa wc_ecc_ctx_new
 */
 
-void wc_ecc_ctx_free(ecEncCtx*);
+void wc_ecc_ctx_free(ecEncCtx* ctx);
 
 /*!
     \ingroup ECC

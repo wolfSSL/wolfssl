@@ -41,8 +41,8 @@
 int wc_ChaCha20Poly1305_Encrypt(
                 const byte inKey[CHACHA20_POLY1305_AEAD_KEYSIZE],
                 const byte inIV[CHACHA20_POLY1305_AEAD_IV_SIZE],
-                const byte* inAAD, const word32 inAADLen,
-                const byte* inPlaintext, const word32 inPlaintextLen,
+                const byte* inAAD, word32 inAADLen,
+                const byte* inPlaintext, word32 inPlaintextLen,
                 byte* outCiphertext,
                 byte outAuthTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE]);
 
@@ -95,7 +95,7 @@ int wc_ChaCha20Poly1305_Encrypt(
 int wc_ChaCha20Poly1305_Decrypt(
                 const byte inKey[CHACHA20_POLY1305_AEAD_KEYSIZE],
                 const byte inIV[CHACHA20_POLY1305_AEAD_IV_SIZE],
-                const byte* inAAD, const word32 inAADLen,
-                const byte* inCiphertext, const word32 inCiphertextLen,
+                const byte* inAAD, word32 inAADLen,
+                const byte* inCiphertext, word32 inCiphertextLen,
                 const byte inAuthTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE],
                 byte* outPlaintext);
