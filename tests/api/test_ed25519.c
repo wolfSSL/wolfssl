@@ -490,7 +490,7 @@ int test_wc_Ed25519PublicKeyToDer(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_ed25519_init(&key), 0);
     ExpectIntEQ(wc_Ed25519PublicKeyToDer(&key, derBuf, 0, 0),
-        WC_NO_ERR_TRACE(BUFFER_E));
+        WC_NO_ERR_TRACE(PUBLIC_KEY_E));
     wc_ed25519_free(&key);
 
     /*  Test good args */

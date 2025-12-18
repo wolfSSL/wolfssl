@@ -1127,6 +1127,9 @@ int wc_ed25519_export_public(const ed25519_key* key, byte* out, word32* outLen)
         return BUFFER_E;
     }
 
+    if (!key->pubKeySet)
+        return PUBLIC_KEY_E;
+
     *outLen = ED25519_PUB_KEY_SIZE;
     XMEMCPY(out, key->p, ED25519_PUB_KEY_SIZE);
 
@@ -1368,7 +1371,7 @@ int wc_ed25519_export_private_only(const ed25519_key* key, byte* out, word32* ou
 int wc_ed25519_export_private(const ed25519_key* key, byte* out, word32* outLen)
 {
     /* sanity checks on arguments */
-    if (key == NULL || out == NULL || outLen == NULL)
+    if (key == NULL || !key->privKeySet || out == NULL || outLen == NULL)
         return BAD_FUNC_ARG;
 
     if (*outLen < ED25519_PRV_KEY_SIZE) {
@@ -1398,6 +1401,8 @@ int wc_ed25519_export_key(const ed25519_key* key,
 
     /* export public part */
     ret = wc_ed25519_export_public(key, pub, pubSz);
+    if (ret == WC_NO_ERR_TRACE(PUBLIC_KEY_E))
+        ret = 0; /* ignore no public key */
 
     return ret;
 }
