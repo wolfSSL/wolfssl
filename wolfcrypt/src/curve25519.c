@@ -206,7 +206,7 @@ int wc_curve25519_make_pub(int public_size, byte* pub, int private_size,
  * wc_curve25519_make_pub_blind since it could be called directly. */
 #if !defined(WOLFSSL_CURVE25519_BLINDING) || defined(FREESCALE_LTC_ECC)
     if (ret == 0) {
-        ret = wc_curve25519_check_public(pub, public_size,
+        ret = wc_curve25519_check_public(pub, (word32)public_size,
                                     EC25519_LITTLE_ENDIAN);
     }
 #endif
@@ -307,7 +307,7 @@ int wc_curve25519_make_pub_blind(int public_size, byte* pub, int private_size,
 #endif
 
     if (ret == 0) {
-        ret = wc_curve25519_check_public(pub, public_size,
+        ret = wc_curve25519_check_public(pub, (word32)public_size,
                                     EC25519_LITTLE_ENDIAN);
     }
 
