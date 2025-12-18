@@ -10591,7 +10591,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                 #endif
                 if (ssl->options.sendVerify) {
                     if ( (ssl->error = SendCertificate(ssl)) != 0) {
-                        wolfSSL_MaybeCheckAlertOnErr(ssl, ssl->error);
+                        wolfMaybeCheckAlertOnErr(ssl, ssl->error);
                         WOLFSSL_ERROR(ssl->error);
                         return WOLFSSL_FATAL_ERROR;
                     }
@@ -10610,7 +10610,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
         #endif
             if (!ssl->options.resuming) {
                 if ( (ssl->error = SendClientKeyExchange(ssl)) != 0) {
-                    wolfSSL_MaybeCheckAlertOnErr(ssl, ssl->error);
+                    wolfMaybeCheckAlertOnErr(ssl, ssl->error);
 #ifdef WOLFSSL_EXTRA_ALERTS
                     if (ssl->error == WC_NO_ERR_TRACE(NO_PEER_KEY) ||
                         ssl->error == WC_NO_ERR_TRACE(PSK_KEY_ERROR)) {
@@ -10639,7 +10639,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CLIENT_AUTH)
                 if (ssl->options.sendVerify) {
                     if ( (ssl->error = SendCertificateVerify(ssl)) != 0) {
-                        wolfSSL_MaybeCheckAlertOnErr(ssl, ssl->error);
+                        wolfMaybeCheckAlertOnErr(ssl, ssl->error);
                         WOLFSSL_ERROR(ssl->error);
                         return WOLFSSL_FATAL_ERROR;
                     }
@@ -10652,7 +10652,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 
         case FIRST_REPLY_THIRD :
             if ( (ssl->error = SendChangeCipher(ssl)) != 0) {
-                wolfSSL_MaybeCheckAlertOnErr(ssl, ssl->error);
+                wolfMaybeCheckAlertOnErr(ssl, ssl->error);
                 WOLFSSL_ERROR(ssl->error);
                 return WOLFSSL_FATAL_ERROR;
             }
@@ -10663,7 +10663,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 
         case FIRST_REPLY_FOURTH :
             if ( (ssl->error = SendFinished(ssl)) != 0) {
-                wolfSSL_MaybeCheckAlertOnErr(ssl, ssl->error);
+                wolfMaybeCheckAlertOnErr(ssl, ssl->error);
                 WOLFSSL_ERROR(ssl->error);
                 return WOLFSSL_FATAL_ERROR;
             }
@@ -11041,7 +11041,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                 return WOLFSSL_FATAL_ERROR;
             }
             if ( (ssl->error = SendServerHello(ssl)) != 0) {
-                wolfSSL_MaybeCheckAlertOnErr(ssl, ssl->error);
+                wolfMaybeCheckAlertOnErr(ssl, ssl->error);
                 WOLFSSL_ERROR(ssl->error);
                 return WOLFSSL_FATAL_ERROR;
             }
@@ -11058,7 +11058,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             #ifndef NO_CERTS
                 if (!ssl->options.resuming)
                     if ( (ssl->error = SendCertificate(ssl)) != 0) {
-                        wolfSSL_MaybeCheckAlertOnErr(ssl, ssl->error);
+                        wolfMaybeCheckAlertOnErr(ssl, ssl->error);
                         WOLFSSL_ERROR(ssl->error);
                         return WOLFSSL_FATAL_ERROR;
                     }
@@ -11071,7 +11071,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             #ifndef NO_CERTS
             if (!ssl->options.resuming)
                 if ( (ssl->error = SendCertificateStatus(ssl)) != 0) {
-                    wolfSSL_MaybeCheckAlertOnErr(ssl, ssl->error);
+                    wolfMaybeCheckAlertOnErr(ssl, ssl->error);
                     WOLFSSL_ERROR(ssl->error);
                     return WOLFSSL_FATAL_ERROR;
                 }
@@ -11088,7 +11088,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
         #endif
             if (!ssl->options.resuming)
                 if ( (ssl->error = SendServerKeyExchange(ssl)) != 0) {
-                    wolfSSL_MaybeCheckAlertOnErr(ssl, ssl->error);
+                    wolfMaybeCheckAlertOnErr(ssl, ssl->error);
                     WOLFSSL_ERROR(ssl->error);
                     return WOLFSSL_FATAL_ERROR;
                 }
@@ -11101,7 +11101,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                 if (!ssl->options.resuming) {
                     if (ssl->options.verifyPeer) {
                         if ( (ssl->error = SendCertificateRequest(ssl)) != 0) {
-                            wolfSSL_MaybeCheckAlertOnErr(ssl, ssl->error);
+                            wolfMaybeCheckAlertOnErr(ssl, ssl->error);
                             WOLFSSL_ERROR(ssl->error);
                             return WOLFSSL_FATAL_ERROR;
                         }
@@ -11119,7 +11119,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
         case CERT_REQ_SENT :
             if (!ssl->options.resuming)
                 if ( (ssl->error = SendServerHelloDone(ssl)) != 0) {
-                    wolfSSL_MaybeCheckAlertOnErr(ssl, ssl->error);
+                    wolfMaybeCheckAlertOnErr(ssl, ssl->error);
                     WOLFSSL_ERROR(ssl->error);
                     return WOLFSSL_FATAL_ERROR;
                 }
@@ -11158,7 +11158,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 #ifdef HAVE_SESSION_TICKET
             if (ssl->options.createTicket && !ssl->options.noTicketTls12) {
                 if ( (ssl->error = SendTicket(ssl)) != 0) {
-                    wolfSSL_MaybeCheckAlertOnErr(ssl, ssl->error);
+                    wolfMaybeCheckAlertOnErr(ssl, ssl->error);
                     WOLFSSL_MSG("Thought we need ticket but failed");
                     WOLFSSL_ERROR(ssl->error);
                     return WOLFSSL_FATAL_ERROR;
@@ -11177,7 +11177,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             }
 
             if ( (ssl->error = SendChangeCipher(ssl)) != 0) {
-                wolfSSL_MaybeCheckAlertOnErr(ssl, ssl->error);
+                wolfMaybeCheckAlertOnErr(ssl, ssl->error);
                 WOLFSSL_ERROR(ssl->error);
                 return WOLFSSL_FATAL_ERROR;
             }
@@ -11187,7 +11187,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 
         case CHANGE_CIPHER_SENT :
             if ( (ssl->error = SendFinished(ssl)) != 0) {
-                wolfSSL_MaybeCheckAlertOnErr(ssl, ssl->error);
+                wolfMaybeCheckAlertOnErr(ssl, ssl->error);
                 WOLFSSL_ERROR(ssl->error);
                 return WOLFSSL_FATAL_ERROR;
             }
