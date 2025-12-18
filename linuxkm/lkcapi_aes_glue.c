@@ -121,7 +121,8 @@
         #define LINUXKM_LKCAPI_REGISTER_AESCBC
     #endif
 #else
-    #if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_CBC)
+    #if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_CBC) && \
+        !defined(LINUXKM_LKCAPI_DONT_REGISTER_AESCBC)
         #error Config conflict: target kernel has CONFIG_CRYPTO_CBC, but module is missing HAVE_AES_CBC.
     #endif
     #undef LINUXKM_LKCAPI_REGISTER_AESCBC
@@ -151,7 +152,8 @@
         #define LINUXKM_LKCAPI_REGISTER_AESGCM_RFC4106
     #endif
 #else
-    #if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_GCM)
+    #if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_GCM) && \
+        !defined(LINUXKM_LKCAPI_DONT_REGISTER_AESGCM)
         #error Config conflict: target kernel has CONFIG_CRYPTO_GCM, but module is missing HAVE_AESGCM.
     #endif
     #undef LINUXKM_LKCAPI_REGISTER_AESGCM
@@ -166,8 +168,9 @@
         #define LINUXKM_LKCAPI_REGISTER_AESXTS
     #endif
 #else
-    #if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_XTS)
-        #error Config conflict: target kernel has CONFIG_CRYPTO_GCM, but module is missing WOLFSSL_AES_XTS.
+    #if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_XTS) && \
+        !defined(LINUXKM_LKCAPI_DONT_REGISTER_AESXTS)
+        #error Config conflict: target kernel has CONFIG_CRYPTO_XTS, but module is missing WOLFSSL_AES_XTS.
     #endif
     #undef LINUXKM_LKCAPI_REGISTER_AESXTS
 #endif
@@ -180,7 +183,8 @@
         #define LINUXKM_LKCAPI_REGISTER_AESCTR
     #endif
 #else
-    #if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_CTR)
+    #if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_CTR) && \
+        !defined(LINUXKM_LKCAPI_DONT_REGISTER_AESCTR)
         #error Config conflict: target kernel has CONFIG_CRYPTO_CTR, but module is missing WOLFSSL_AES_COUNTER.
     #endif
     #undef LINUXKM_LKCAPI_REGISTER_AESCTR
@@ -204,7 +208,8 @@
         #define LINUXKM_LKCAPI_REGISTER_AESECB
     #endif
 #else
-    #if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_ECB)
+    #if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_ECB) && \
+        !defined(LINUXKM_LKCAPI_DONT_REGISTER_AESECB)
         #error Config conflict: target kernel has CONFIG_CRYPTO_ECB, but module is missing HAVE_AES_ECB.
     #endif
     #undef LINUXKM_LKCAPI_REGISTER_AESECB

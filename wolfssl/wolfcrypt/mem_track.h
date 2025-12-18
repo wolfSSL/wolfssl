@@ -83,6 +83,8 @@
     #define DO_MEM_LIST
 #endif
 
+struct memoryList;
+
 typedef struct memoryStats {
     long totalAllocs;     /* number of allocations */
     long totalDeallocs;   /* number of deallocations */
@@ -97,6 +99,9 @@ typedef struct memoryStats {
     long peakBytesTripOdometer; /* peak concurrent bytes, subject to reset
                                  * by wolfCrypt_heap_peak_checkpoint()
                                  */
+#endif
+#ifdef DO_MEM_LIST
+    struct memoryList *memList;
 #endif
 } memoryStats;
 
@@ -133,6 +138,7 @@ typedef struct memoryList {
 
 
 static memoryStats ourMemStats;
+WOLFSSL_API extern memoryStats *wc_MemStats_Ptr;
 
 #ifdef DO_MEM_LIST
     #include <pthread.h>
@@ -379,10 +385,13 @@ static WC_INLINE int InitMemoryTracker(void)
 
     #ifdef DO_MEM_LIST
         XMEMSET(&ourMemList, 0, sizeof(ourMemList));
+        ourMemStats.memList = &ourMemList;
 
         pthread_mutex_unlock(&memLock);
     #endif
     }
+
+    wc_MemStats_Ptr = &ourMemStats;
 
     return ret;
 }
@@ -427,6 +436,7 @@ static WC_INLINE void ShowMemoryTracker(void)
 
 static WC_INLINE int CleanupMemoryTracker(void)
 {
+    wc_MemStats_Ptr = NULL;
     /* restore default allocators */
     return wolfSSL_SetAllocators(mfDefault, ffDefault, rfDefault);
 }

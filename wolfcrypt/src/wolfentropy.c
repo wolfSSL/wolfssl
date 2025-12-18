@@ -735,13 +735,10 @@ static wolfSSL_Mutex entropy_mutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(entropy_mute
 int wc_Entropy_Get(int bits, unsigned char* entropy, word32 len)
 {
     int ret = 0;
-    WC_DECLARE_VAR(noise, byte, MAX_NOISE_CNT, 0);
     /* Noise length is the number of 8 byte samples required to get the bits of
      * entropy requested. */
     int noise_len = (bits + ENTROPY_EXTRA) / ENTROPY_MIN;
-
-    WC_ALLOC_VAR_EX(noise, byte, MAX_NOISE_CNT, NULL, DYNAMIC_TYPE_TMP_BUFFER,
-        return MEMORY_E);
+    static byte noise[MAX_NOISE_CNT];
 
     /* Lock the mutex as collection uses globals. */
     if ((ret == 0) && (wc_LockMutex(&entropy_mutex) != 0)) {
@@ -790,6 +787,12 @@ int wc_Entropy_Get(int bits, unsigned char* entropy, word32 len)
             entropy += entropy_len;
             len -= entropy_len;
         }
+        if (ret == 0) {
+            ret = WC_CHECK_FOR_INTR_SIGNALS();
+        }
+        if (ret == 0) {
+            WC_RELAX_LONG_LOOP();
+        }
     }
 
 #ifdef ENTROPY_MEMUSE_THREADED
@@ -801,8 +804,6 @@ int wc_Entropy_Get(int bits, unsigned char* entropy, word32 len)
         /* Unlock mutex now we are done. */
         wc_UnLockMutex(&entropy_mutex);
     }
-
-    WC_FREE_VAR_EX(noise, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }

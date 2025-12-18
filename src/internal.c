@@ -7344,36 +7344,48 @@ int InitHandshakeHashesAndCopy(WOLFSSL* ssl, HS_Hashes* source,
   HS_Hashes** destination)
 {
     int ret;
-    HS_Hashes* tmpHashes;
 
-    if (source == NULL)
+    if ((ssl == NULL) || (source == NULL) || (destination == NULL))
         return BAD_FUNC_ARG;
 
-    /* save the original so we can put it back afterward */
-    tmpHashes = ssl->hsHashes;
-    ssl->hsHashes = *destination;
-
-    ret = InitHandshakeHashes(ssl);
-    if (ret != 0) {
-        WOLFSSL_MSG_EX("InitHandshakeHashes failed. err = %d", ret);
-        ssl->hsHashes = tmpHashes; /* restore hsHashes pointer to original
-                                    * before returning */
-        return ret;
+    /* If *destination is already allocated, its constituent hashes need to be
+     * freed, else they would leak.  To keep things simple, we reuse
+     * FreeHandshakeHashes(), which deallocates *destination.
+     */
+    if (*destination != NULL) {
+        HS_Hashes* tmp = ssl->hsHashes;
+        ssl->hsHashes = *destination;
+        FreeHandshakeHashes(ssl);
+        ssl->hsHashes = tmp;
     }
 
-    *destination = ssl->hsHashes;
-    ssl->hsHashes = tmpHashes;
+    /* allocate handshake hashes */
+    *destination = (HS_Hashes*)XMALLOC(sizeof(HS_Hashes), ssl->heap,
+                                       DYNAMIC_TYPE_HASHES);
+    if (*destination == NULL) {
+        WOLFSSL_MSG("HS_Hashes Memory error");
+        return MEMORY_E;
+    }
+
+    /* Note we can't call InitHandshakeHashes() here, because the copy methods
+     * overwrite the entire dest low level hash struct.  With some hashes and
+     * settings (e.g. SHA-2 hashes with WOLFSSL_SMALL_STACK_CACHE), internal
+     * scratch buffers are preallocated at init and will leak if overwritten.
+     */
+    XMEMSET(*destination, 0, sizeof(HS_Hashes));
 
   /* now copy the source contents to the destination */
+    ret = 0;
 #ifndef NO_OLD_TLS
     #ifndef NO_SHA
-    ret = wc_ShaCopy(&source->hashSha, &(*destination)->hashSha);
+    if (ret == 0)
+        ret = wc_ShaCopy(&source->hashSha, &(*destination)->hashSha);
     #endif
     #ifndef NO_MD5
     if (ret == 0)
         ret = wc_Md5Copy(&source->hashMd5, &(*destination)->hashMd5);
     #endif
-    #endif /* !NO_OLD_TLS */
+#endif /* !NO_OLD_TLS */
     #ifndef NO_SHA256
     if (ret == 0)
         ret = wc_Sha256Copy(&source->hashSha256,

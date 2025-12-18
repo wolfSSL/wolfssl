@@ -2064,7 +2064,7 @@ static int ProcessBufferCert(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der)
             }
             /* Don't check if no SSL object verification is disabled for SSL
              * context. */
-            else if ((ssl == NULL) && ctx->verifyNone) {
+            else if ((ssl == NULL) && (ctx != NULL) && ctx->verifyNone) {
                 checkKeySz = 0;
             }
 

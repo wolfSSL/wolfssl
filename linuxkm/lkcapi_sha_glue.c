@@ -176,7 +176,8 @@
     #define LINUXKM_LKCAPI_DONT_REGISTER_SHA3_512_HMAC
 #endif
 
-#if defined(NO_HMAC) && defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_HMAC)
+#if defined(NO_HMAC) && defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_HMAC) && \
+    !defined(LINUXKM_LKCAPI_DONT_REGISTER_HMAC_ALL)
     #error Config conflict: target kernel has CONFIG_CRYPTO_HMAC, but module has NO_HMAC
 #endif
 
@@ -196,7 +197,8 @@
         #define LINUXKM_LKCAPI_REGISTER_SHA1_HMAC
     #endif
 #else
-    #if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_SHA1)
+    #if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_SHA1) && \
+        !defined(LINUXKM_LKCAPI_DONT_REGISTER_SHA1)
         #error Config conflict: target kernel has CONFIG_CRYPTO_SHA1, but module has NO_SHA
     #endif
 
@@ -220,7 +222,8 @@
         #define LINUXKM_LKCAPI_REGISTER_SHA2_224_HMAC
     #endif
 #else
-    #if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_SHA256)
+    #if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_SHA256) && \
+        !defined(LINUXKM_LKCAPI_DONT_REGISTER_SHA2_224)
         #error Config conflict: target kernel has CONFIG_CRYPTO_SHA256, but module is missing WOLFSSL_SHA224
     #endif
 
@@ -244,7 +247,8 @@
         #define LINUXKM_LKCAPI_REGISTER_SHA2_256_HMAC
     #endif
 #else
-    #if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_SHA256)
+    #if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_SHA256) && \
+        !defined(LINUXKM_LKCAPI_DONT_REGISTER_SHA2_256)
         #error Config conflict: target kernel has CONFIG_CRYPTO_SHA256, but module has NO_SHA256
     #endif
 
@@ -268,7 +272,8 @@
         #define LINUXKM_LKCAPI_REGISTER_SHA2_384_HMAC
     #endif
 #else
-    #if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_SHA512)
+    #if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_SHA512) && \
+        !defined(LINUXKM_LKCAPI_DONT_REGISTER_SHA2_384)
         #error Config conflict: target kernel has CONFIG_CRYPTO_SHA512, but module is missing WOLFSSL_SHA384
     #endif
 
@@ -292,7 +297,8 @@
         #define LINUXKM_LKCAPI_REGISTER_SHA2_512_HMAC
     #endif
 #else
-    #if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_SHA512)
+    #if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_SHA512) && \
+        !defined(LINUXKM_LKCAPI_DONT_REGISTER_SHA2_512)
         #error Config conflict: target kernel has CONFIG_CRYPTO_SHA512, but module is missing WOLFSSL_SHA512
     #endif
 
@@ -345,7 +351,8 @@
         #endif
     #endif
 #else
-    #if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_SHA3)
+    #if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_SHA3) && \
+        !defined(LINUXKM_LKCAPI_DONT_REGISTER_SHA3)
         #error Config conflict: target kernel has CONFIG_CRYPTO_SHA3, but module is missing WOLFSSL_SHA3
     #endif
 
@@ -379,6 +386,10 @@
     #endif
     /* setup for LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT is in linuxkm_wc_port.h */
 #else
+    #if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_DRBG) && \
+        !defined(LINUXKM_LKCAPI_DONT_REGISTER_HASH_DRBG)
+        #error Config conflict: target kernel has CONFIG_CRYPTO_SHA3, but module is missing WOLFSSL_SHA3
+    #endif
     #undef LINUXKM_LKCAPI_REGISTER_HASH_DRBG
 #endif
 
@@ -757,6 +768,7 @@ WC_MAYBE_UNUSED static void km_hmac_exit_tfm(struct crypto_shash *tfm)
 }
 
 WC_MAYBE_UNUSED static int km_hmac_init(struct shash_desc *desc) {
+    int ret;
     struct km_sha_hmac_state *t_ctx = (struct km_sha_hmac_state *)shash_desc_ctx(desc);
     struct km_sha_hmac_pstate *p_ctx = (struct km_sha_hmac_pstate *)crypto_shash_ctx(desc->tfm);
 
@@ -764,34 +776,12 @@ WC_MAYBE_UNUSED static int km_hmac_init(struct shash_desc *desc) {
     if (! t_ctx->wc_hmac)
         return -ENOMEM;
 
-    XMEMCPY(t_ctx->wc_hmac, &p_ctx->wc_hmac, sizeof *t_ctx->wc_hmac);
-
-#ifdef WOLFSSL_SMALL_STACK_CACHE
-    /* The cached W buffer from the persistent ctx can't be used because it
-     * would be double-freed, first by km_hmac_free_tstate(), then by
-     * km_hmac_exit_tfm().
-     */
-    switch (t_ctx->wc_hmac->macType) {
-
-    #ifndef NO_SHA256
-        case WC_SHA256:
-    #ifdef WOLFSSL_SHA224
-        case WC_SHA224:
-    #endif
-            t_ctx->wc_hmac->hash.sha256.W = NULL;
-            break;
-    #endif /* WOLFSSL_SHA256 */
-
-    #ifdef WOLFSSL_SHA512
-        case WC_SHA512:
-    #ifdef WOLFSSL_SHA384
-        case WC_SHA384:
-    #endif
-            t_ctx->wc_hmac->hash.sha512.W = NULL;
-            break;
-    #endif /* WOLFSSL_SHA512 */
+    ret = wc_HmacCopy(&p_ctx->wc_hmac, t_ctx->wc_hmac);
+    if (ret != 0) {
+        free(t_ctx->wc_hmac);
+        t_ctx->wc_hmac = NULL;
+        return -EINVAL;
     }
-#endif /* WOLFSSL_SMALL_STACK_CACHE */
 
     return 0;
 }
@@ -1073,7 +1063,7 @@ static inline struct wc_rng_inst *get_drbg(struct crypto_rng *tfm) {
         return NULL;
     }
 
-    if (tfm == crypto_default_rng) {
+    if ((tfm == crypto_default_rng) && (preempt_count() == 0)) {
         #if defined(CONFIG_SMP) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0))
         migrate_disable(); /* this actually makes irq_count() nonzero, so that
                             * DISABLE_VECTOR_REGISTERS() is superfluous, but
@@ -1108,14 +1098,14 @@ static inline struct wc_rng_inst *get_drbg(struct crypto_rng *tfm) {
  * caller can't sleep and the requested DRBG is busy, it returns immediately --
  * this avoids priority inversions and deadlocks.
  */
-static inline struct wc_rng_inst *get_drbg_n(struct wc_linuxkm_drbg_ctx *ctx, int n) {
+static inline struct wc_rng_inst *get_drbg_n(struct wc_linuxkm_drbg_ctx *ctx, int n, int can_spin) {
     int can_sleep = (preempt_count() == 0);
 
     for (;;) {
         int expected = 0;
         if (likely(__atomic_compare_exchange_n(&ctx->rngs[n].lock, &expected, 1, 0, __ATOMIC_SEQ_CST, __ATOMIC_ACQUIRE)))
             return &ctx->rngs[n];
-        if (can_sleep) {
+        if (can_sleep && can_spin) {
             if (signal_pending(current))
                 return NULL;
             cond_resched();
@@ -1242,7 +1232,7 @@ static int wc_linuxkm_drbg_seed(struct crypto_rng *tfm,
      * up, to assure they can't possibly phase-lock to each other.
      */
     for (n = ctx->n_rngs - 1; n >= 0; --n) {
-        struct wc_rng_inst *drbg = get_drbg_n(ctx, n);
+        struct wc_rng_inst *drbg = get_drbg_n(ctx, n, 1);
 
         if (! drbg) {
             ret = -EINTR;
@@ -1312,6 +1302,14 @@ static int wc_linuxkm_drbg_loaded = 0;
 #endif
 
 #ifdef LINUXKM_DRBG_GET_RANDOM_BYTES
+
+#ifndef WOLFSSL_SMALL_STACK_CACHE
+    /* WOLFSSL_SMALL_STACK_CACHE eliminates post-init heap allocations in SHA-2
+     * and the Hash DRBG, fixing circular call dependencies between
+     * get_random_u32() from kernel heap and wolfCrypt DRBG.
+     */
+    #error LINUXKM_DRBG_GET_RANDOM_BYTES requires WOLFSSL_SMALL_STACK_CACHE.
+#endif
 
 #if !(defined(HAVE_ENTROPY_MEMUSE) || defined(HAVE_INTEL_RDSEED) ||    \
       defined(HAVE_AMD_RDSEED) || defined(WC_LINUXKM_RDSEED_IN_GLUE_LAYER))
@@ -1491,11 +1489,11 @@ static int wc_mix_pool_bytes(const void *buf, size_t len) {
         return -EFAULT;
 
     for (n = ctx->n_rngs - 1; n >= 0; --n) {
-        struct wc_rng_inst *drbg = get_drbg_n(ctx, n);
+        struct wc_rng_inst *drbg = get_drbg_n(ctx, n, 0);
         int V_offset;
 
         if (! drbg)
-            return -EINTR;
+            continue;
 
         for (i = 0, V_offset = 0; i < len; ++i) {
             ((struct DRBG_internal *)drbg->rng.drbg)->V[V_offset++] += ((byte *)buf)[i];
@@ -1523,7 +1521,7 @@ static int wc_crng_reseed(void) {
         return -EFAULT;
 
     for (n = ctx->n_rngs - 1; n >= 0; --n) {
-        struct wc_rng_inst *drbg = get_drbg_n(ctx, n);
+        struct wc_rng_inst *drbg = get_drbg_n(ctx, n, 1);
 
         if (! drbg)
             return -EINTR;

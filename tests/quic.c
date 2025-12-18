@@ -1892,6 +1892,12 @@ int QuicTest(void)
     int ret = 0;
 #ifdef WOLFSSL_QUIC
     int verbose = 0;
+
+    if (wolfSSL_Init() != WOLFSSL_SUCCESS) {
+        printf("wolfSSL_Init() failed in QuicTest().");
+        return -1;
+    }
+
     printf(" Begin QUIC Tests\n");
 
     if ((ret = test_set_quic_method()) != TEST_SUCCESS) goto leave;
@@ -1917,6 +1923,8 @@ leave:
         printf("  FAILED: some tests did not pass.\n");
     }
     printf(" End QUIC Tests\n");
+
+    (void)wolfSSL_Cleanup();
 #endif
     return ret == TEST_SUCCESS ? 0 : -1;
 }

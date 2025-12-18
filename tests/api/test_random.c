@@ -327,7 +327,7 @@ int test_wc_RNG_TestSeed(void)
 #if defined(HAVE_HASHDRBG) && \
     (!(defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) || \
     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)))
-    byte seed[16];
+    byte seed[32];
     byte i;
 
 #ifdef TEST_WC_RNG_TESTSEED_BAD_PARAMS

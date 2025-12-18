@@ -3111,6 +3111,14 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         }
 #endif
 
+#ifdef WOLFSSL_TRACK_MEMORY
+        if (wc_MemStats_Ptr && (wc_MemStats_Ptr->currentBytes > 0) &&
+            (args.return_code == 0))
+        {
+            args.return_code = WC_TEST_RET_ENC_EC(MEMORY_E);
+        }
+#endif
+
 #if defined(WOLFSSL_ESPIDF)
         /* ESP_LOGI to print takes up a lot less memory than printf */
         ESP_LOGI(ESPIDF_TAG, "Exiting main with return code: % d\n",
@@ -4734,11 +4742,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha224_test(void)
     ret = wc_InitSha224_ex(&sha, HEAP_HINT, devId);
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
-    ret = wc_InitSha224_ex(&shaCopy, HEAP_HINT, devId);
-    if (ret != 0) {
-        wc_Sha224Free(&sha);
-        return WC_TEST_RET_ENC_EC(ret);
-    }
+    XMEMSET(&shaCopy, 0, sizeof(shaCopy));
 
     for (i = 0; i < times; ++i) {
         ret = wc_Sha224Update(&sha, (byte*)test_sha[i].input,
@@ -4846,19 +4850,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha256_test(void)
         return WC_TEST_RET_ENC_EC(ret);
 #endif
 
-    ret = wc_InitSha256_ex(&shaCopy, HEAP_HINT, devId);
-    if (ret != 0) {
-        wc_Sha256Free(&sha);
-        return WC_TEST_RET_ENC_EC(ret);
-    }
-#ifndef NO_WOLFSSL_SHA256_INTERLEAVE
-    ret = wc_InitSha256_ex(&i_shaCopy, HEAP_HINT, devId);
-    if (ret != 0) {
-        wc_Sha256Free(&sha);
-        wc_Sha256Free(&i_sha);
-        return WC_TEST_RET_ENC_EC(ret);
-    }
-#endif
+    XMEMSET(&shaCopy, 0, sizeof(shaCopy));
 
     for (i = 0; i < times; ++i) {
         ret = wc_Sha256Update(&sha, (byte*)test_sha[i].input,
@@ -5085,18 +5077,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha512_test(void)
         return WC_TEST_RET_ENC_EC(ret);
 #endif
 
-    ret = wc_InitSha512_ex(&shaCopy, HEAP_HINT, devId);
-    if (ret != 0) {
-        wc_Sha512Free(&sha);
-        return WC_TEST_RET_ENC_EC(ret);
-    }
+    XMEMSET(&shaCopy, 0, sizeof(shaCopy));
 #ifndef NO_WOLFSSL_SHA512_INTERLEAVE
-    ret = wc_InitSha512_ex(&i_shaCopy, HEAP_HINT, devId);
-    if (ret != 0) {
-        wc_Sha512Free(&sha);
-        wc_Sha512Free(&i_sha);
-        return WC_TEST_RET_ENC_EC(ret);
-    }
+    XMEMSET(&i_shaCopy, 0, sizeof(i_shaCopy));
 #endif
 
     for (i = 0; i < times; ++i) {
@@ -5296,11 +5279,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha512_224_test(void)
     ret = wc_InitSha512_224_ex(&sha, HEAP_HINT, devId);
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
-    ret = wc_InitSha512_224_ex(&shaCopy, HEAP_HINT, devId);
-    if (ret != 0) {
-        wc_Sha512_224Free(&sha);
-        return WC_TEST_RET_ENC_EC(ret);
-    }
+    XMEMSET(&shaCopy, 0, sizeof(shaCopy));
 
     for (i = 0; i < times; ++i) {
         ret = wc_Sha512_224Update(&sha, (byte*)test_sha[i].input,
@@ -5449,11 +5428,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha512_256_test(void)
     ret = wc_InitSha512_256_ex(&sha, HEAP_HINT, devId);
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
-    ret = wc_InitSha512_256_ex(&shaCopy, HEAP_HINT, devId);
-    if (ret != 0) {
-        wc_Sha512_256Free(&sha);
-        return WC_TEST_RET_ENC_EC(ret);
-    }
+    XMEMSET(&shaCopy, 0, sizeof(shaCopy));
 
     for (i = 0; i < times; ++i) {
         ret = wc_Sha512_256Update(&sha, (byte*)test_sha[i].input,
@@ -5586,11 +5561,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha384_test(void)
     ret = wc_InitSha384_ex(&sha, HEAP_HINT, devId);
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
-    ret = wc_InitSha384_ex(&shaCopy, HEAP_HINT, devId);
-    if (ret != 0) {
-        wc_Sha384Free(&sha);
-        return WC_TEST_RET_ENC_EC(ret);
-    }
+
+    XMEMSET(&shaCopy, 0, sizeof(shaCopy));
 
     for (i = 0; i < times; ++i) {
         ret = wc_Sha384Update(&sha, (byte*)test_sha[i].input,
@@ -7149,17 +7121,20 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hash_test(void)
        if (ret != 0) {
            ERROR_OUT(WC_TEST_RET_ENC_EC(BAD_FUNC_ARG), out);
        }
-#endif
+#else
         ret = wc_HashInit(hash, typesGood[i]);
         if (ret != exp_ret)
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
+#endif
         ret = wc_HashUpdate(hash, typesGood[i], data, sizeof(data));
         if (ret != exp_ret)
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
         ret = wc_HashFinal(hash, typesGood[i], out);
         if (ret != exp_ret)
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
-        wc_HashFree(hash, typesGood[i]);
+        ret = wc_HashFree(hash, typesGood[i]);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
 
         digestSz = wc_HashGetDigestSize(typesGood[i]);
         if (exp_ret == 0 && digestSz < 0)
@@ -7407,6 +7382,9 @@ out:
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_md5_test(void)
 {
     Hmac hmac;
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
+    WC_DECLARE_VAR(hmac_copy, Hmac, 1, HEAP_HINT);
+#endif
     byte hash[WC_MD5_DIGEST_SIZE];
 
     const char* keys[]=
@@ -7462,6 +7440,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_md5_test(void)
     test_hmac[2] = c;
     test_hmac[3] = d;
 
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
+    WC_ALLOC_VAR_EX(hmac_copy, Hmac, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+                    return WC_TEST_RET_ENC_EC(MEMORY_E));
+#endif
+
     for (i = 0; i < times; ++i) {
     #if defined(HAVE_FIPS) || defined(HAVE_CAVIUM)
         if (i == 1) {
@@ -7477,6 +7460,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_md5_test(void)
             (word32)XSTRLEN(keys[i]));
         if (ret != 0)
             return WC_TEST_RET_ENC_EC(ret);
+
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
+        ret = wc_HmacCopy(&hmac, hmac_copy);
+        if (ret != 0)
+            return WC_TEST_RET_ENC_EC(ret);
+#endif
+
         ret = wc_HmacUpdate(&hmac, (byte*)test_hmac[i].input,
                    (word32)test_hmac[i].inLen);
         if (ret != 0)
@@ -7489,7 +7479,26 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_md5_test(void)
             return WC_TEST_RET_ENC_I(i);
 
         wc_HmacFree(&hmac);
+
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
+        ret = wc_HmacUpdate(hmac_copy, (byte*)test_hmac[i].input,
+                   (word32)test_hmac[i].inLen);
+        if (ret != 0)
+            return WC_TEST_RET_ENC_EC(ret);
+        ret = wc_HmacFinal(hmac_copy, hash);
+        if (ret != 0)
+            return WC_TEST_RET_ENC_EC(ret);
+
+        if (XMEMCMP(hash, test_hmac[i].output, WC_MD5_DIGEST_SIZE) != 0)
+            return WC_TEST_RET_ENC_I(i);
+
+        wc_HmacFree(hmac_copy);
+#endif
     }
+
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
+    WC_FREE_VAR_EX(hmac_copy, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
 #if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(6,0,0)
     if ((ret = wc_HmacSizeByType(WC_MD5)) != WC_MD5_DIGEST_SIZE)
@@ -7504,6 +7513,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_md5_test(void)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha_test(void)
 {
     Hmac hmac;
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
+    WC_DECLARE_VAR(hmac_copy, Hmac, 1, HEAP_HINT);
+#endif
     byte hash[WC_SHA_DIGEST_SIZE];
 
     const char* keys[]=
@@ -7565,6 +7577,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha_test(void)
     test_hmac[2] = c;
     test_hmac[3] = d;
 
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
+    WC_ALLOC_VAR_EX(hmac_copy, Hmac, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+                    return WC_TEST_RET_ENC_EC(MEMORY_E));
+#endif
+
     for (i = 0; i < times; ++i) {
 #if defined(HAVE_CAVIUM) || (defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0))
         if (i == 1)
@@ -7587,6 +7604,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha_test(void)
 #endif
         if (ret != 0)
             return WC_TEST_RET_ENC_EC(ret);
+
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
+        ret = wc_HmacCopy(&hmac, hmac_copy);
+        if (ret != 0)
+            return WC_TEST_RET_ENC_EC(ret);
+#endif
+
         ret = wc_HmacUpdate(&hmac, (byte*)test_hmac[i].input,
                    (word32)test_hmac[i].inLen);
         if (ret != 0)
@@ -7599,7 +7623,26 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha_test(void)
             return WC_TEST_RET_ENC_I(i);
 
         wc_HmacFree(&hmac);
+
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
+        ret = wc_HmacUpdate(hmac_copy, (byte*)test_hmac[i].input,
+                   (word32)test_hmac[i].inLen);
+        if (ret != 0)
+            return WC_TEST_RET_ENC_EC(ret);
+        ret = wc_HmacFinal(hmac_copy, hash);
+        if (ret != 0)
+            return WC_TEST_RET_ENC_EC(ret);
+
+        if (XMEMCMP(hash, test_hmac[i].output, WC_SHA_DIGEST_SIZE) != 0)
+            return WC_TEST_RET_ENC_I(i);
+
+        wc_HmacFree(hmac_copy);
+#endif
     }
+
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
+    WC_FREE_VAR_EX(hmac_copy, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
 #if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(6,0,0)
     if ((ret = wc_HmacSizeByType(WC_SHA)) != WC_SHA_DIGEST_SIZE)
@@ -7615,6 +7658,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha_test(void)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha224_test(void)
 {
     Hmac hmac;
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
+    WC_DECLARE_VAR(hmac_copy, Hmac, 1, HEAP_HINT);
+#endif
     byte hash[WC_SHA224_DIGEST_SIZE];
 
     const char* keys[]=
@@ -7674,6 +7720,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha224_test(void)
     test_hmac[2] = c;
     test_hmac[3] = d;
 
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
+    WC_ALLOC_VAR_EX(hmac_copy, Hmac, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+                    return WC_TEST_RET_ENC_EC(MEMORY_E));
+#endif
+
     for (i = 0; i < times; ++i) {
 #if defined(HAVE_FIPS) || defined(HAVE_CAVIUM)
         if (i == 1)
@@ -7687,6 +7738,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha224_test(void)
             (word32)XSTRLEN(keys[i]));
         if (ret != 0)
             return WC_TEST_RET_ENC_EC(ret);
+
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
+        ret = wc_HmacCopy(&hmac, hmac_copy);
+        if (ret != 0)
+            return WC_TEST_RET_ENC_EC(ret);
+#endif
+
         ret = wc_HmacUpdate(&hmac, (byte*)test_hmac[i].input,
                    (word32)test_hmac[i].inLen);
         if (ret != 0)
@@ -7699,7 +7757,26 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha224_test(void)
             return WC_TEST_RET_ENC_I(i);
 
         wc_HmacFree(&hmac);
+
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
+        ret = wc_HmacUpdate(hmac_copy, (byte*)test_hmac[i].input,
+                   (word32)test_hmac[i].inLen);
+        if (ret != 0)
+            return WC_TEST_RET_ENC_EC(ret);
+        ret = wc_HmacFinal(hmac_copy, hash);
+        if (ret != 0)
+            return WC_TEST_RET_ENC_EC(ret);
+
+        if (XMEMCMP(hash, test_hmac[i].output, WC_SHA224_DIGEST_SIZE) != 0)
+            return WC_TEST_RET_ENC_I(i);
+
+        wc_HmacFree(hmac_copy);
+#endif
     }
+
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
+    WC_FREE_VAR_EX(hmac_copy, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
 #if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(6,0,0)
     if ((ret = wc_HmacSizeByType(WC_SHA224)) != WC_SHA224_DIGEST_SIZE)
@@ -7715,6 +7792,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha224_test(void)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha256_test(void)
 {
     Hmac hmac;
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
+    WC_DECLARE_VAR(hmac_copy, Hmac, 1, HEAP_HINT);
+#endif
     byte hash[WC_SHA256_DIGEST_SIZE];
 
     const char* keys[]=
@@ -7789,6 +7869,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha256_test(void)
     test_hmac[3] = d;
     test_hmac[4] = e;
 
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
+    WC_ALLOC_VAR_EX(hmac_copy, Hmac, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+                    return WC_TEST_RET_ENC_EC(MEMORY_E));
+#endif
+
     for (i = 0; i < times; ++i) {
 #if defined(HAVE_FIPS) || defined(HAVE_CAVIUM)
         if (i == 1)
@@ -7806,6 +7891,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha256_test(void)
             (word32)XSTRLEN(keys[i]));
         if (ret != 0)
             return WC_TEST_RET_ENC_I(i);
+
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
+        ret = wc_HmacCopy(&hmac, hmac_copy);
+        if (ret != 0)
+            return WC_TEST_RET_ENC_EC(ret);
+#endif
+
         if (test_hmac[i].input != NULL) {
             ret = wc_HmacUpdate(&hmac, (byte*)test_hmac[i].input,
                        (word32)test_hmac[i].inLen);
@@ -7820,7 +7912,28 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha256_test(void)
             return WC_TEST_RET_ENC_I(i);
 
         wc_HmacFree(&hmac);
+
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
+        if (test_hmac[i].input != NULL) {
+            ret = wc_HmacUpdate(hmac_copy, (byte*)test_hmac[i].input,
+                       (word32)test_hmac[i].inLen);
+            if (ret != 0)
+                return WC_TEST_RET_ENC_I(i);
+        }
+        ret = wc_HmacFinal(hmac_copy, hash);
+        if (ret != 0)
+            return WC_TEST_RET_ENC_I(i);
+
+        if (XMEMCMP(hash, test_hmac[i].output, WC_SHA256_DIGEST_SIZE) != 0)
+            return WC_TEST_RET_ENC_I(i);
+
+        wc_HmacFree(hmac_copy);
+#endif
     }
+
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
+    WC_FREE_VAR_EX(hmac_copy, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
 #if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(6,0,0)
     if ((ret = wc_HmacSizeByType(WC_SHA256)) != WC_SHA256_DIGEST_SIZE)
@@ -7846,6 +7959,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha256_test(void)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha384_test(void)
 {
     Hmac hmac;
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
+    WC_DECLARE_VAR(hmac_copy, Hmac, 1, HEAP_HINT);
+#endif
     byte hash[WC_SHA384_DIGEST_SIZE];
 
     const char* keys[]=
@@ -7914,6 +8030,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha384_test(void)
     test_hmac[2] = c;
     test_hmac[3] = d;
 
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
+    WC_ALLOC_VAR_EX(hmac_copy, Hmac, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+                    return WC_TEST_RET_ENC_EC(MEMORY_E));
+#endif
+
     for (i = 0; i < times; ++i) {
 #if defined(HAVE_FIPS)
         if (i == 1)
@@ -7927,6 +8048,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha384_test(void)
             (word32)XSTRLEN(keys[i]));
         if (ret != 0)
             return WC_TEST_RET_ENC_EC(ret);
+
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
+        ret = wc_HmacCopy(&hmac, hmac_copy);
+        if (ret != 0)
+            return WC_TEST_RET_ENC_EC(ret);
+#endif
+
         ret = wc_HmacUpdate(&hmac, (byte*)test_hmac[i].input,
                    (word32)test_hmac[i].inLen);
         if (ret != 0)
@@ -7939,7 +8067,26 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha384_test(void)
             return WC_TEST_RET_ENC_I(i);
 
         wc_HmacFree(&hmac);
+
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
+        ret = wc_HmacUpdate(hmac_copy, (byte*)test_hmac[i].input,
+                   (word32)test_hmac[i].inLen);
+        if (ret != 0)
+            return WC_TEST_RET_ENC_EC(ret);
+        ret = wc_HmacFinal(hmac_copy, hash);
+        if (ret != 0)
+            return WC_TEST_RET_ENC_EC(ret);
+
+        if (XMEMCMP(hash, test_hmac[i].output, WC_SHA384_DIGEST_SIZE) != 0)
+            return WC_TEST_RET_ENC_I(i);
+
+        wc_HmacFree(hmac_copy);
+#endif
     }
+
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
+    WC_FREE_VAR_EX(hmac_copy, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
 #if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(6,0,0)
     if ((ret = wc_HmacSizeByType(WC_SHA384)) != WC_SHA384_DIGEST_SIZE)
@@ -7955,6 +8102,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha384_test(void)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha512_test(void)
 {
     Hmac hmac;
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
+    WC_DECLARE_VAR(hmac_copy, Hmac, 1, HEAP_HINT);
+#endif
     byte hash[WC_SHA512_DIGEST_SIZE];
 
     const char* keys[]=
@@ -8027,6 +8177,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha512_test(void)
     test_hmac[2] = c;
     test_hmac[3] = d;
 
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
+    WC_ALLOC_VAR_EX(hmac_copy, Hmac, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+                    return WC_TEST_RET_ENC_EC(MEMORY_E));
+#endif
+
     for (i = 0; i < times; ++i) {
 #if defined(HAVE_FIPS)
         if (i == 1)
@@ -8040,6 +8195,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha512_test(void)
             (word32)XSTRLEN(keys[i]));
         if (ret != 0)
             return WC_TEST_RET_ENC_EC(ret);
+
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
+        ret = wc_HmacCopy(&hmac, hmac_copy);
+        if (ret != 0)
+            return WC_TEST_RET_ENC_EC(ret);
+#endif
+
         ret = wc_HmacUpdate(&hmac, (byte*)test_hmac[i].input,
                    (word32)test_hmac[i].inLen);
         if (ret != 0)
@@ -8052,7 +8214,26 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha512_test(void)
             return WC_TEST_RET_ENC_I(i);
 
         wc_HmacFree(&hmac);
+
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
+        ret = wc_HmacUpdate(hmac_copy, (byte*)test_hmac[i].input,
+                   (word32)test_hmac[i].inLen);
+        if (ret != 0)
+            return WC_TEST_RET_ENC_EC(ret);
+        ret = wc_HmacFinal(hmac_copy, hash);
+        if (ret != 0)
+            return WC_TEST_RET_ENC_EC(ret);
+
+        if (XMEMCMP(hash, test_hmac[i].output, WC_SHA512_DIGEST_SIZE) != 0)
+            return WC_TEST_RET_ENC_I(i);
+
+        wc_HmacFree(hmac_copy);
+#endif
     }
+
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
+    WC_FREE_VAR_EX(hmac_copy, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
 #if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(6,0,0)
     if ((ret = wc_HmacSizeByType(WC_SHA512)) != WC_SHA512_DIGEST_SIZE)
@@ -8070,6 +8251,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha512_test(void)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha3_test(void)
 {
     Hmac hmac;
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
+    WC_DECLARE_VAR(hmac_copy, Hmac, 1, HEAP_HINT);
+#endif
     byte hash[WC_SHA3_512_DIGEST_SIZE];
 
     const char* key[4] =
@@ -8197,6 +8381,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha3_test(void)
     int ret;
     WOLFSSL_ENTER("hmac_sha3_test");
 
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
+    WC_ALLOC_VAR_EX(hmac_copy, Hmac, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+                    return WC_TEST_RET_ENC_EC(MEMORY_E));
+#endif
+
 #ifdef HAVE_FIPS
     /* FIPS requires a minimum length for HMAC keys, and "Jefe" is too
      * short. Skip it in FIPS builds. */
@@ -8211,6 +8400,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha3_test(void)
                                                        (word32)XSTRLEN(key[i]));
             if (ret != 0)
                 return WC_TEST_RET_ENC_EC(ret);
+
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
+            ret = wc_HmacCopy(&hmac, hmac_copy);
+            if (ret != 0)
+                return WC_TEST_RET_ENC_EC(ret);
+#endif
+
             ret = wc_HmacUpdate(&hmac, (byte*)input[i],
                                                      (word32)XSTRLEN(input[i]));
             if (ret != 0)
@@ -8223,6 +8419,20 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha3_test(void)
 
             wc_HmacFree(&hmac);
 
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
+            ret = wc_HmacUpdate(hmac_copy, (byte*)input[i],
+                                                     (word32)XSTRLEN(input[i]));
+            if (ret != 0)
+                return WC_TEST_RET_ENC_EC(ret);
+            ret = wc_HmacFinal(hmac_copy, hash);
+            if (ret != 0)
+                return WC_TEST_RET_ENC_EC(ret);
+            if (XMEMCMP(hash, output[(i*jMax) + j], (size_t)hashSz[j]) != 0)
+                return WC_TEST_RET_ENC_NC;
+
+            wc_HmacFree(hmac_copy);
+#endif
+
             if (i > 0)
                 continue;
 
@@ -8233,6 +8443,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha3_test(void)
         #endif
         }
     }
+
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
+    WC_FREE_VAR_EX(hmac_copy, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return 0;
 }
@@ -19452,6 +19666,9 @@ static wc_test_ret_t _rng_test(WC_RNG* rng)
     byte block[32];
     wc_test_ret_t ret;
     int i;
+#if defined(WOLFSSL_TRACK_MEMORY) && defined(WOLFSSL_SMALL_STACK_CACHE)
+    long current_totalAllocs = wc_MemStats_Ptr->totalAllocs;
+#endif
 
     XMEMSET(block, 0, sizeof(block));
 
@@ -19475,6 +19692,33 @@ static wc_test_ret_t _rng_test(WC_RNG* rng)
     if (ret != 0) {
         return WC_TEST_RET_ENC_EC(ret);
     }
+
+#if defined(HAVE_HASHDRBG) && !defined(HAVE_INTEL_RDRAND) && \
+    !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(5,0,0))
+    /* Test periodic reseed dynamics. */
+
+    ((struct DRBG_internal *)rng->drbg)->reseedCtr = WC_RESEED_INTERVAL;
+
+    ret = wc_RNG_GenerateBlock(rng, block, sizeof(block));
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    if (((struct DRBG_internal *)rng->drbg)->reseedCtr == WC_RESEED_INTERVAL)
+        return WC_TEST_RET_ENC_NC;
+#endif /* HAVE_HASHDRBG && !CUSTOM_RAND_GENERATE_BLOCK && !HAVE_SELFTEST */
+
+#if defined(WOLFSSL_TRACK_MEMORY) && defined(WOLFSSL_SMALL_STACK_CACHE)
+    /* wc_RNG_GenerateBlock() must not allocate any memory in
+     * WOLFSSL_SMALL_STACK_CACHE builds, even if it had to reseed.
+     * LINUXKM_DRBG_GET_RANDOM_BYTES depends on this --
+     * wolfssl_linuxkm_random_bytes_handlers (wc__get_random_bytes() and
+     * wc_crng_reseed()) can't call the heap, since the kernel heap will call
+     * them via get_random_u32().
+     */
+    if (current_totalAllocs != wc_MemStats_Ptr->totalAllocs)
+        return WC_TEST_RET_ENC_NC;
+#endif
 
     /* Parameter validation testing. */
     ret = wc_RNG_GenerateBlock(NULL, block, sizeof(block));
@@ -19555,7 +19799,8 @@ static wc_test_ret_t random_rng_test(void)
     return ret;
 }
 
-#if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
+#if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    !defined(HAVE_INTEL_RDRAND)
 
 #if defined(WC_RNG_SEED_CB) && \
     !(defined(ENTROPY_SCALE_FACTOR) || defined(SEED_BLOCK_SZ))
@@ -19698,7 +19943,7 @@ static wc_test_ret_t rng_seed_test(void)
 out:
     return ret;
 }
-#endif /* WC_RNG_SEED_CB) && !(ENTROPY_SCALE_FACTOR || SEED_BLOCK_SZ) */
+#endif /* WC_RNG_SEED_CB && !(ENTROPY_SCALE_FACTOR || SEED_BLOCK_SZ) */
 
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_test(void)
@@ -19818,7 +20063,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_test(void)
     return 0;
 }
 
-#else
+#else /* !HAVE_HASHDRBG || CUSTOM_RAND_GENERATE_BLOCK || HAVE_INTEL_RDRAND */
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_test(void)
 {
@@ -19828,7 +20073,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_test(void)
     return random_rng_test();
 }
 
-#endif /* HAVE_HASHDRBG && !CUSTOM_RAND_GENERATE_BLOCK */
+#endif /* !HAVE_HASHDRBG || CUSTOM_RAND_GENERATE_BLOCK || HAVE_INTEL_RDRAND */
 #endif /* WC_NO_RNG */
 
 #ifndef MEM_TEST_SZ
@@ -27946,6 +28191,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t openSSL_evpMD_test(void)
         goto openSSL_evpMD_test_done;
     }
 
+    ret = wolfSSL_EVP_MD_CTX_cleanup(ctx);
+    if (ret != WOLFSSL_SUCCESS) {
+        ret = WC_TEST_RET_ENC_NC;
+        goto openSSL_evpMD_test_done;
+    }
+
     ret = wolfSSL_EVP_DigestInit(ctx, wolfSSL_EVP_sha1());
     if (ret != WOLFSSL_SUCCESS) {
         ret = WC_TEST_RET_ENC_NC;
@@ -27973,6 +28224,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t openSSL_evpMD_test(void)
         goto openSSL_evpMD_test_done;
     }
 
+    ret = wolfSSL_EVP_MD_CTX_cleanup(ctx);
+    if (ret != WOLFSSL_SUCCESS) {
+        ret = WC_TEST_RET_ENC_NC;
+        goto openSSL_evpMD_test_done;
+    }
+
     if (wolfSSL_EVP_DigestInit_ex(ctx, wolfSSL_EVP_sha1(), NULL) != WOLFSSL_SUCCESS) {
         ret = WC_TEST_RET_ENC_NC;
         goto openSSL_evpMD_test_done;
@@ -27984,6 +28241,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t openSSL_evpMD_test(void)
     }
 
     if (wolfSSL_EVP_add_cipher(NULL) != 0) {
+        ret = WC_TEST_RET_ENC_NC;
+        goto openSSL_evpMD_test_done;
+    }
+
+    ret = wolfSSL_EVP_MD_CTX_cleanup(ctx);
+    if (ret != WOLFSSL_SUCCESS) {
         ret = WC_TEST_RET_ENC_NC;
         goto openSSL_evpMD_test_done;
     }

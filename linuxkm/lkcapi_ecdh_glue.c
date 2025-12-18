@@ -43,7 +43,8 @@
         /* currently incompatible with kernel 5.12 or earlier. */
         #undef LINUXKM_LKCAPI_REGISTER_ECDH
 
-        #if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_ECDH)
+        #if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_ECDH) && \
+            !defined(LINUXKM_LKCAPI_DONT_REGISTER_ECDH)
             #error Config conflict: missing implementation forces off LINUXKM_LKCAPI_REGISTER_ECDH.
         #endif
     #endif
@@ -51,6 +52,7 @@
 
 #if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && \
     defined(CONFIG_CRYPTO_ECDH) && \
+    !defined(LINUXKM_LKCAPI_DONT_REGISTER_ECDH) && \
     !defined(LINUXKM_LKCAPI_REGISTER_ECDH)
     #error Config conflict: target kernel has CONFIG_CRYPTO_ECDH, but module is missing LINUXKM_LKCAPI_REGISTER_ECDH.
 #endif

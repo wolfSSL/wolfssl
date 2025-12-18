@@ -4321,6 +4321,13 @@ extern void uITRON4_free(void *p) ;
            without staticmemory (WOLFSSL_STATIC_MEMORY)
 #endif
 
+/* Undefine WOLFSSL_SMALL_STACK_CACHE if WOLFSSL_SMALL_STACK is undefined --
+ * they only work together.
+ */
+#if defined(WOLFSSL_SMALL_STACK_CACHE) && !defined(WOLFSSL_SMALL_STACK)
+    #undef WOLFSSL_SMALL_STACK_CACHE
+#endif
+
 /* If malloc is disabled make sure it is also disabled in SP math */
 #if defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_SP_NO_MALLOC) && \
     (defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL))
