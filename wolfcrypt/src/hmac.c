@@ -1279,8 +1279,8 @@ int wolfSSL_GetHmacMaxSize(void)
                 ret = wc_HmacUpdate(&myHmac, inKey, inKeySz);
             if (ret == 0)
                 ret = wc_HmacFinal(&myHmac,  out);
-            ForceZero(&myHmac, sizeof(myHmac));
             wc_HmacFree(&myHmac);
+            ForceZero(&myHmac, sizeof(myHmac));
         }
 
         return ret;
@@ -1345,8 +1345,8 @@ int wolfSSL_GetHmacMaxSize(void)
             n++;
         }
 
-        ForceZero(&myHmac, sizeof(myHmac));
         wc_HmacFree(&myHmac);
+        ForceZero(&myHmac, sizeof(myHmac));
 
         return ret;
     }
