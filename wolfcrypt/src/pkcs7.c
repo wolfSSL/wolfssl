@@ -6419,6 +6419,17 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                         NO_USER_CHECK) < 0)
                 ret = ASN_PARSE_E;
 
+            /* Update degenerate flag based on if signerInfos SET is empty.
+             * The earlier degenerate check at digestAlgorithms is an early
+             * optimization, but depending on degenerate case may not be
+             * detected until here. */
+            if (ret == 0) {
+                degenerate = (length == 0) ? 1 : 0;
+            #ifndef NO_PKCS7_STREAM
+                pkcs7->stream->degenerate = (degenerate != 0);
+            #endif
+            }
+
             if (ret != 0)
                 break;
         #ifndef NO_PKCS7_STREAM
