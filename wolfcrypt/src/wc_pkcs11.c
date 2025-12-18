@@ -2764,7 +2764,8 @@ static int Pkcs11ECDH(Pkcs11Session* session, wc_CryptoInfo* info)
 
     if (ret == 0) {
         secSz = *info->pk.ecdh.outlen;
-        if (secSz > (CK_ULONG)info->pk.ecdh.private_key->dp->size)
+        if (info->pk.ecdh.private_key->dp != NULL &&
+            secSz > (CK_ULONG)info->pk.ecdh.private_key->dp->size)
             secSz = info->pk.ecdh.private_key->dp->size;
 
         params.kdf             = CKD_NULL;
