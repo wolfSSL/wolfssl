@@ -58,7 +58,7 @@ data, use this implementation to seed and re-seed the DRBG.
 #define MAX_NOISE_CNT        (MAX_ENTROPY_BITS * 8 + ENTROPY_EXTRA)
 
 /* MemUse entropy global state initialized. */
-static int entropy_memuse_initialized = 0;
+static volatile int entropy_memuse_initialized = 0;
 /* Global SHA-3 object used for conditioning entropy and creating noise. */
 static wc_Sha3 entropyHash;
 /* Reset the health tests. */
@@ -740,6 +740,21 @@ int wc_Entropy_Get(int bits, unsigned char* entropy, word32 len)
     int noise_len = (bits + ENTROPY_EXTRA) / ENTROPY_MIN;
     static byte noise[MAX_NOISE_CNT];
 
+#ifdef HAVE_FIPS
+    /* FIPS KATs, e.g. EccPrimitiveZ_KnownAnswerTest(), call wc_Entropy_Get()
+     * incidental to wc_InitRng(), without first calling Entropy_Init(), neither
+     * directly, nor indirectly via wolfCrypt_Init().  This matters, because
+     * KATs must be usable before wolfCrypt_Init() (indeed, in the library
+     * embodiment, the HMAC KAT always runs before wolfCrypt_Init(), incidental
+     * to fipsEntry()).  Without the InitSha3() under Entropy_Init(), the
+     * SHA3_BLOCK function pointer is null when Sha3Update() is called by
+     * Entropy_MemUse(), which ends badly.
+     */
+    if (!entropy_memuse_initialized) {
+        ret = Entropy_Init();
+    }
+#endif
+
     /* Lock the mutex as collection uses globals. */
     if ((ret == 0) && (wc_LockMutex(&entropy_mutex) != 0)) {
         ret = BAD_MUTEX_E;
@@ -851,6 +866,19 @@ int Entropy_Init(void)
     #if !defined(SINGLE_THREADED) && !defined(WOLFSSL_MUTEX_INITIALIZER)
         ret = wc_InitMutex(&entropy_mutex);
     #endif
+        if (ret == 0)
+            ret = wc_LockMutex(&entropy_mutex);
+
+        if (entropy_memuse_initialized) {
+            /* Short circuit return -- a competing thread initialized the state
+             * while we were waiting.  Note, this is only threadsafe when
+             * WOLFSSL_MUTEX_INITIALIZER is defined.
+             */
+            if (ret == 0)
+                wc_UnLockMutex(&entropy_mutex);
+            return 0;
+        }
+
         if (ret == 0) {
             /* Initialize a SHA3-256 object for use in entropy operations. */
             ret = wc_InitSha3_256(&entropyHash, NULL, INVALID_DEVID);
@@ -871,6 +899,10 @@ int Entropy_Init(void)
             /* Stop the counter thread to avoid thrashing the system. */
             Entropy_StopThread();
         #endif
+        }
+
+        if (ret != WC_NO_ERR_TRACE(BAD_MUTEX_E)) {
+            wc_UnLockMutex(&entropy_mutex);
         }
     }
 
