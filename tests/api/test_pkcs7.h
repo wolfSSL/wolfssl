@@ -48,6 +48,7 @@ int test_wc_PKCS7_SetOriEncryptCtx(void);
 int test_wc_PKCS7_SetOriDecryptCtx(void);
 int test_wc_PKCS7_DecodeCompressedData(void);
 int test_wc_PKCS7_DecodeEnvelopedData_multiple_recipients(void);
+int test_wc_PKCS7_VerifySignedData_PKCS7ContentSeq(void);
 
 
 #define TEST_PKCS7_DECLS                                        \
@@ -63,7 +64,8 @@ int test_wc_PKCS7_DecodeEnvelopedData_multiple_recipients(void);
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_ECC),    \
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_Degenerate),              \
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_BER),                     \
-    TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_NoDefaultSignedAttribs)
+    TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_NoDefaultSignedAttribs),  \
+    TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_PKCS7ContentSeq)
 
 #define TEST_PKCS7_ENCRYPTED_DATA_DECLS                                     \
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_DecodeEnvelopedData_stream),  \
