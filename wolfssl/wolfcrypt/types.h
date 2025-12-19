@@ -1233,7 +1233,7 @@ binding for XSNPRINTF
 #ifndef WC_OFFSETOF
     #if defined(__clang__) || (defined(__GNUC__) && (__GNUC__ >= 4))
         #define WC_OFFSETOF(type, field) __builtin_offsetof(type, field)
-    #elif defined(__WATCOMC__)
+    #elif defined(__WATCOMC__) || defined(__IAR_SYSTEMS_ICC__)
         #include <stddef.h>
         #define WC_OFFSETOF    offsetof
     #else
