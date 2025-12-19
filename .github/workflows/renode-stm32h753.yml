@@ -1,0 +1,271 @@
+name: Renode STM32H753 Test
+
+# Platform-specific configuration
+# To add a new platform, create a new workflow file based on this template
+# and update these variables for the target MCU
+env:
+  PLATFORM_NAME: stm32h753
+  PLATFORM_DISPLAY_NAME: STM32H753
+  CMSIS_DEVICE_REPO: cmsis-device-h7
+  CMSIS_DEVICE_PATH: /opt/cmsis-device-h7
+  CMSIS_DEVICE_CACHE_KEY: cmsis-device-h7-v1
+  STM32CUBE_REPO: STM32CubeH7
+  STM32CUBE_BRANCH: v1.11.2
+  STM32CUBE_PATH: /opt/STM32CubeH7
+  STM32CUBE_CACHE_KEY: stm32cubeh7-v1.11.2-v1
+  HAL_CONFIG_FILE: stm32h7xx_hal_conf.h
+  HAL_DRIVER_INC_PATH: STM32H7xx_HAL_Driver/Inc
+  HAL_DRIVER_SRC_PATH: STM32H7xx_HAL_Driver/Src
+  RENODE_PLATFORM_NAME: stm32h753
+  RENODE_REPL_PATH: platforms/cpus/stm32h753.repl
+  RENODE_TEST_DIR: .github/renode-test/stm32h753
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+    - name: Checkout wolfSSL
+      uses: actions/checkout@v4
+
+    - name: Set up build environment
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends \
+          build-essential \
+          ca-certificates \
+          cmake \
+          ninja-build \
+          python3 \
+          git \
+          gcc-arm-none-eabi \
+          libnewlib-arm-none-eabi \
+          libstdc++-arm-none-eabi-newlib \
+          wget \
+          unzip
+
+    - name: Cache CMSIS Device
+      id: cache-cmsis-device
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.CMSIS_DEVICE_PATH }}
+        key: ${{ env.CMSIS_DEVICE_CACHE_KEY }}
+        restore-keys: |
+          ${{ env.CMSIS_DEVICE_CACHE_KEY }}-
+
+    - name: Cache CMSIS 5
+      id: cache-cmsis-5
+      uses: actions/cache@v4
+      with:
+        path: /opt/CMSIS_5
+        key: cmsis-5-v1
+        restore-keys: |
+          cmsis-5-
+
+    - name: Cache STM32Cube
+      id: cache-stm32cube
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.STM32CUBE_PATH }}
+        key: ${{ env.STM32CUBE_CACHE_KEY }}
+        restore-keys: |
+          ${{ env.STM32CUBE_CACHE_KEY }}-
+
+    - name: Cache Renode
+      id: cache-renode
+      uses: actions/cache@v4
+      with:
+        path: /opt/renode
+        key: renode-1.15.3-v1
+        restore-keys: |
+          renode-1.15.3-
+
+    - name: Install Renode dependencies
+      run: |
+        # Install Mono and other dependencies needed for Renode (always needed, even when cached)
+        sudo apt-get install -y --no-install-recommends \
+          mono-runtime \
+          libmono-cil-dev \
+          screen \
+          policykit-1 || true
+
+    - name: Install Renode (if not cached)
+      if: steps.cache-renode.outputs.cache-hit != 'true'
+      run: |
+        # Install Renode by extracting .deb (avoids GUI dependency issues for headless use)
+        cd /tmp
+        wget -q https://github.com/renode/renode/releases/download/v1.15.3/renode_1.15.3_amd64.deb
+        # Extract the .deb file
+        dpkg-deb -x renode_1.15.3_amd64.deb /tmp/renode-extract
+        # Copy Renode files to system locations
+        sudo mkdir -p /opt/renode
+        sudo cp -r /tmp/renode-extract/opt/renode/* /opt/renode/ || true
+        sudo cp -r /tmp/renode-extract/usr/* /usr/ || true
+        # Create symlink for easy access
+        if [ -f /opt/renode/renode ]; then
+          sudo ln -sf /opt/renode/renode /usr/local/bin/renode
+        elif [ -f /usr/bin/renode ]; then
+          echo "Renode already in PATH at /usr/bin/renode"
+        fi
+        # Cleanup
+        rm -rf /tmp/renode-extract renode_1.15.3_amd64.deb
+
+    - name: Setup Renode symlinks and permissions
+      run: |
+        # When Renode is cached, we need to recreate /usr/bin/renode wrapper script
+        # The /usr/bin/renode is a wrapper that checks Mono and calls /opt/renode/bin/Renode.exe
+        if [ -d /opt/renode ] && [ ! -x /usr/bin/renode ]; then
+          echo "Renode cached but /usr/bin/renode wrapper missing, recreating..."
+          # Create the wrapper script
+          sudo bash -c 'cat > /usr/bin/renode << '\''SCRIPT_EOF'\''
+        #!/bin/sh
+        MONOVERSION=5.20
+        REQUIRED_MAJOR=5
+        REQUIRED_MINOR=20
+        
+        LAUNCHER=mono
+        
+        if ! [ -x "$(command -v $LAUNCHER)" ]
+        then
+            echo "$LAUNCHER not found. Renode requires Mono $MONOVERSION or newer. Please refer to documentation for installation instructions. Exiting!"
+            exit 1
+        fi
+        
+        # Check installed mono version
+        INSTALLED_MONO=`$LAUNCHER --version | head -n1 | cut -d'\'' '\'' -f5`
+        INSTALLED_MONO_MAJOR=`echo $INSTALLED_MONO | cut -d'\''.'\'' -f1`
+        INSTALLED_MONO_MINOR=`echo $INSTALLED_MONO | cut -d'\''.'\'' -f2`
+        
+        if [ $INSTALLED_MONO_MAJOR -lt $REQUIRED_MAJOR ] || [ $INSTALLED_MONO_MAJOR -eq $REQUIRED_MAJOR -a $INSTALLED_MONO_MINOR -lt $REQUIRED_MINOR ]
+        then
+            echo "Wrong Mono version detected: $INSTALLED_MONO. Renode requires Mono $MONOVERSION or newer. Please refer to documentation for installation instructions. Exiting!"
+            exit 1
+        fi
+        
+        exec $LAUNCHER $MONO_OPTIONS /opt/renode/bin/Renode.exe "$@"
+        SCRIPT_EOF'
+          sudo chmod +x /usr/bin/renode
+          echo "Created /usr/bin/renode wrapper script"
+        fi
+        
+        # Also ensure /usr/local/bin/renode symlink exists
+        if [ -x /usr/bin/renode ] && [ ! -x /usr/local/bin/renode ]; then
+          sudo ln -sf /usr/bin/renode /usr/local/bin/renode
+          echo "Created symlink: /usr/local/bin/renode -> /usr/bin/renode"
+        fi
+
+    - name: Verify Renode installation
+      run: |
+        # Verify Renode is installed and accessible
+        RENODE_FOUND=false
+        RENODE_BIN=""
+        
+        # Check various possible locations
+        for path in /opt/renode/renode /opt/renode/bin/renode /usr/local/bin/renode /usr/bin/renode; do
+          if [ -x "$path" ]; then
+            echo "Renode found at $path"
+            "$path" --version || true
+            RENODE_BIN="$path"
+            RENODE_FOUND=true
+            break
+          fi
+        done
+        
+        if [ "$RENODE_FOUND" != "true" ]; then
+          echo "ERROR: Renode binary not found or not executable!"
+          echo "Searching for renode..."
+          find /opt /usr -name renode -type f 2>/dev/null | head -10 || true
+          echo "Checking /opt/renode contents:"
+          ls -la /opt/renode/ 2>/dev/null | head -10 || true
+          if [ -d /opt/renode ]; then
+            echo "Checking /opt/renode subdirectories:"
+            find /opt/renode -type f -name "*renode*" 2>/dev/null | head -10 || true
+          fi
+          exit 1
+        fi
+
+
+    - name: Clone CMSIS Device (if not cached)
+      if: steps.cache-cmsis-device.outputs.cache-hit != 'true'
+      run: |
+        sudo mkdir -p /opt
+        sudo git clone --depth 1 https://github.com/STMicroelectronics/${{ env.CMSIS_DEVICE_REPO }}.git ${{ env.CMSIS_DEVICE_PATH }}
+
+    - name: Clone CMSIS 5 (if not cached)
+      if: steps.cache-cmsis-5.outputs.cache-hit != 'true'
+      run: |
+        sudo mkdir -p /opt
+        sudo git clone --depth 1 https://github.com/ARM-software/CMSIS_5.git /opt/CMSIS_5
+
+    - name: Clone STM32Cube (if not cached)
+      if: steps.cache-stm32cube.outputs.cache-hit != 'true'
+      run: |
+        sudo mkdir -p /opt
+        sudo git clone --depth 1 --branch ${{ env.STM32CUBE_BRANCH }} --recurse-submodules https://github.com/STMicroelectronics/${{ env.STM32CUBE_REPO }}.git ${{ env.STM32CUBE_PATH }} || \
+          (sudo git clone --depth 1 --branch ${{ env.STM32CUBE_BRANCH }} https://github.com/STMicroelectronics/${{ env.STM32CUBE_REPO }}.git ${{ env.STM32CUBE_PATH }} && \
+           cd ${{ env.STM32CUBE_PATH }} && sudo git submodule update --init --recursive --depth 1)
+
+    - name: Setup firmware build directory and helper files
+      run: |
+        sudo mkdir -p /opt/firmware
+        # Copy helper files from repository
+        sudo cp -r ${{ github.workspace }}/${{ env.RENODE_TEST_DIR }}/* /opt/firmware/
+        # Copy HAL config to STM32Cube directory
+        sudo cp /opt/firmware/${{ env.HAL_CONFIG_FILE }} ${{ env.STM32CUBE_PATH }}/Drivers/${{ env.HAL_DRIVER_INC_PATH }}/ 2>/dev/null || true
+        sudo chmod +x /opt/firmware/entrypoint.sh
+        # Create .renode-root file so Renode can find platform files
+        # Try to find Renode installation directory and create .renode-root with proper permissions
+        if [ -d "/opt/renode/platforms" ]; then
+          echo "/opt/renode" | sudo tee /opt/firmware/.renode-root > /dev/null
+          sudo chmod 644 /opt/firmware/.renode-root
+        elif [ -d "/usr/lib/renode/platforms" ]; then
+          echo "/usr/lib/renode" | sudo tee /opt/firmware/.renode-root > /dev/null
+          sudo chmod 644 /opt/firmware/.renode-root
+        elif [ -d "/usr/share/renode/platforms" ]; then
+          echo "/usr/share/renode" | sudo tee /opt/firmware/.renode-root > /dev/null
+          sudo chmod 644 /opt/firmware/.renode-root
+        fi
+
+    - name: Build wolfSSL firmware (NOT CACHED - rebuilds on every run)
+      env:
+        WOLFSSL_ROOT: /opt/wolfssl
+      run: |
+        # Copy wolfSSL source (this is NOT cached - fresh checkout each time)
+        sudo cp -r ${{ github.workspace }} /opt/wolfssl
+        # Build with CMake
+        cd /opt/firmware
+        sudo cmake -G Ninja \
+          -DWOLFSSL_USER_SETTINGS=ON \
+          -DUSER_SETTINGS_FILE=/opt/firmware/user_settings.h \
+          -DCMAKE_TOOLCHAIN_FILE=/opt/firmware/toolchain-arm-none-eabi.cmake \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DWOLFSSL_CRYPT_TESTS=OFF \
+          -DWOLFSSL_EXAMPLES=OFF \
+          -B /opt/firmware/build \
+          -S /opt/firmware
+        sudo cmake --build /opt/firmware/build
+        # Verify ELF file was created and copy it to expected location
+        if [ -f "/opt/firmware/build/wolfcrypt_test.elf" ]; then
+          sudo cp /opt/firmware/build/wolfcrypt_test.elf /opt/firmware/wolfcrypt_test.elf
+          echo "ELF file copied to /opt/firmware/wolfcrypt_test.elf"
+          ls -lh /opt/firmware/wolfcrypt_test.elf
+        else
+          echo "ERROR: ELF file not found at /opt/firmware/build/wolfcrypt_test.elf"
+          echo "Searching for ELF files..."
+          find /opt/firmware/build -name "*.elf" 2>/dev/null || true
+          exit 1
+        fi
+
+    - name: Run Renode test
+      run: |
+        # Ensure PATH includes standard binary locations for sudo
+        sudo env PATH="$PATH" /opt/firmware/entrypoint.sh
+
