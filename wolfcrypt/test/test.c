@@ -7402,7 +7402,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_md5_test(void)
     testVector a, b, c, d;
     testVector test_hmac[4];
 
-    wc_test_ret_t ret;
+    wc_test_ret_t ret = WC_TEST_RET_ENC_NC;
     int times = sizeof(test_hmac) / sizeof(testVector), i;
     WOLFSSL_ENTER("hmac_md5_test");
 
@@ -7543,7 +7543,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha_test(void)
     testVector a, b, c, d;
     testVector test_hmac[4];
 
-    wc_test_ret_t ret;
+    wc_test_ret_t ret = WC_TEST_RET_ENC_NC;
     int times = sizeof(test_hmac) / sizeof(testVector), i;
 
 #if FIPS_VERSION3_GE(6,0,0)
@@ -7700,7 +7700,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha224_test(void)
     testVector a, b, c, d;
     testVector test_hmac[4];
 
-    wc_test_ret_t ret;
+    wc_test_ret_t ret = WC_TEST_RET_ENC_NC;
     int times = sizeof(test_hmac) / sizeof(testVector), i;
     WOLFSSL_ENTER("hmac_sha224_test");
 
@@ -7844,7 +7844,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha256_test(void)
     testVector a, b, c, d, e;
     testVector test_hmac[5];
 
-    wc_test_ret_t ret;
+    wc_test_ret_t ret = WC_TEST_RET_ENC_NC;
     int times = sizeof(test_hmac) / sizeof(testVector), i;
     WOLFSSL_ENTER("hmac_sha256_test");
 
@@ -8014,7 +8014,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha384_test(void)
     testVector a, b, c, d;
     testVector test_hmac[4];
 
-    wc_test_ret_t ret;
+    wc_test_ret_t ret = WC_TEST_RET_ENC_NC;
     int times = sizeof(test_hmac) / sizeof(testVector), i;
     WOLFSSL_ENTER("hmac_sha384_test");
 
@@ -8165,7 +8165,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha512_test(void)
     testVector a, b, c, d;
     testVector test_hmac[4];
 
-    wc_test_ret_t ret;
+    wc_test_ret_t ret = WC_TEST_RET_ENC_NC;
     int times = sizeof(test_hmac) / sizeof(testVector), i;
     WOLFSSL_ENTER("hmac_sha512_test");
 
@@ -8423,7 +8423,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha3_test(void)
 
     int i = 0, iMax = sizeof(input) / sizeof(input[0]),
         j, jMax = sizeof(hashType) / sizeof(hashType[0]);
-    int ret;
+    wc_test_ret_t ret = WC_TEST_RET_ENC_NC;
     WOLFSSL_ENTER("hmac_sha3_test");
 
     XMEMSET(&hmac, 0, sizeof(hmac));
