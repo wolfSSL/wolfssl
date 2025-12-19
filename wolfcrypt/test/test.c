@@ -7402,7 +7402,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_md5_test(void)
     testVector a, b, c, d;
     testVector test_hmac[4];
 
-    wc_test_ret_t ret;
+    wc_test_ret_t ret = WC_TEST_RET_ENC_NC;
     int times = sizeof(test_hmac) / sizeof(testVector), i;
     WOLFSSL_ENTER("hmac_md5_test");
 
@@ -7543,7 +7543,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha_test(void)
     testVector a, b, c, d;
     testVector test_hmac[4];
 
-    wc_test_ret_t ret;
+    wc_test_ret_t ret = WC_TEST_RET_ENC_NC;
     int times = sizeof(test_hmac) / sizeof(testVector), i;
 
 #if FIPS_VERSION3_GE(6,0,0)
@@ -7700,7 +7700,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha224_test(void)
     testVector a, b, c, d;
     testVector test_hmac[4];
 
-    wc_test_ret_t ret;
+    wc_test_ret_t ret = WC_TEST_RET_ENC_NC;
     int times = sizeof(test_hmac) / sizeof(testVector), i;
     WOLFSSL_ENTER("hmac_sha224_test");
 
@@ -7844,7 +7844,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha256_test(void)
     testVector a, b, c, d, e;
     testVector test_hmac[5];
 
-    wc_test_ret_t ret;
+    wc_test_ret_t ret = WC_TEST_RET_ENC_NC;
     int times = sizeof(test_hmac) / sizeof(testVector), i;
     WOLFSSL_ENTER("hmac_sha256_test");
 
@@ -8014,7 +8014,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha384_test(void)
     testVector a, b, c, d;
     testVector test_hmac[4];
 
-    wc_test_ret_t ret;
+    wc_test_ret_t ret = WC_TEST_RET_ENC_NC;
     int times = sizeof(test_hmac) / sizeof(testVector), i;
     WOLFSSL_ENTER("hmac_sha384_test");
 
@@ -8165,7 +8165,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha512_test(void)
     testVector a, b, c, d;
     testVector test_hmac[4];
 
-    wc_test_ret_t ret;
+    wc_test_ret_t ret = WC_TEST_RET_ENC_NC;
     int times = sizeof(test_hmac) / sizeof(testVector), i;
     WOLFSSL_ENTER("hmac_sha512_test");
 
@@ -8423,7 +8423,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha3_test(void)
 
     int i = 0, iMax = sizeof(input) / sizeof(input[0]),
         j, jMax = sizeof(hashType) / sizeof(hashType[0]);
-    int ret;
+    wc_test_ret_t ret = WC_TEST_RET_ENC_NC;
     WOLFSSL_ENTER("hmac_sha3_test");
 
     XMEMSET(&hmac, 0, sizeof(hmac));
@@ -19748,14 +19748,23 @@ static wc_test_ret_t _rng_test(WC_RNG* rng)
     !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(5,0,0))
     /* Test periodic reseed dynamics. */
 
-    ((struct DRBG_internal *)rng->drbg)->reseedCtr = WC_RESEED_INTERVAL;
+#ifdef WOLF_CRYPTO_CB
+    if (wc_CryptoCb_RandomBlock(rng, block, sizeof(block)) ==
+        WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+    {
+#endif
+        ((struct DRBG_internal *)rng->drbg)->reseedCtr = WC_RESEED_INTERVAL;
 
-    ret = wc_RNG_GenerateBlock(rng, block, sizeof(block));
-    if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+        ret = wc_RNG_GenerateBlock(rng, block, sizeof(block));
+        if (ret != 0)
+            return WC_TEST_RET_ENC_EC(ret);
 
-    if (((struct DRBG_internal *)rng->drbg)->reseedCtr == WC_RESEED_INTERVAL)
-        return WC_TEST_RET_ENC_NC;
+        if (((struct DRBG_internal *)rng->drbg)->reseedCtr == WC_RESEED_INTERVAL)
+            return WC_TEST_RET_ENC_NC;
+#ifdef WOLF_CRYPTO_CB
+    }
+#endif
+
 #endif /* HAVE_HASHDRBG && !CUSTOM_RAND_GENERATE_BLOCK && !HAVE_SELFTEST */
 
 #if defined(WOLFSSL_TRACK_MEMORY) && defined(WOLFSSL_SMALL_STACK_CACHE)
@@ -19870,7 +19879,7 @@ static wc_test_ret_t rng_seed_test(void)
      * SEED_BLOCK_SZ, which depend on which seed back end is configured.
      */
 #if defined(HAVE_ENTROPY_MEMUSE) && defined(HAVE_AMD_RDSEED) && \
-    !(defined(HAVE_FIPS) && FIPS_VERSION_LT(6,0))
+    !(defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0) && FIPS_VERSION3_NE(5,2,4))
     #ifdef HAVE_FIPS
     WOLFSSL_SMALL_STACK_STATIC const byte check[] =
     {
@@ -19908,7 +19917,7 @@ static wc_test_ret_t rng_seed_test(void)
     };
     #endif
 #elif defined(HAVE_AMD_RDSEED) && \
-    !(defined(HAVE_FIPS) && FIPS_VERSION_LT(6,0))
+    !(defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0) && FIPS_VERSION3_NE(5,2,4))
     WOLFSSL_SMALL_STACK_STATIC const byte check[] =
     {
         0x2c, 0xd4, 0x9b, 0x1e, 0x1e, 0xe7, 0xb0, 0xb0,
@@ -19917,7 +19926,7 @@ static wc_test_ret_t rng_seed_test(void)
         0xa2, 0xe7, 0xe5, 0x90, 0x6d, 0x1f, 0x88, 0x98
     };
 #elif (defined(HAVE_INTEL_RDSEED) || defined(HAVE_INTEL_RDRAND)) && \
-    !(defined(HAVE_FIPS) && FIPS_VERSION_LT(6,0))
+    !(defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0) && FIPS_VERSION3_NE(5,2,4))
     #ifdef HAVE_FIPS
     WOLFSSL_SMALL_STACK_STATIC const byte check[] =
     {
@@ -19936,7 +19945,7 @@ static wc_test_ret_t rng_seed_test(void)
     };
     #endif
 #elif defined(HAVE_INTEL_RDSEED) && \
-    defined(HAVE_FIPS) && FIPS_VERSION_LT(6,0)
+    defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0) && FIPS_VERSION3_NE(5,2,4)
     WOLFSSL_SMALL_STACK_STATIC const byte check[] =
     {
         0x27, 0xdd, 0xff, 0x5b, 0x21, 0x26, 0x0a, 0x48,
