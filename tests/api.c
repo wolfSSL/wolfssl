@@ -22128,24 +22128,24 @@ static int test_MakeCertWith0Ser(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_CERT_REQ) && !defined(NO_ASN_TIME) && \
-    defined(WOLFSSL_CERT_GEN) && defined(HAVE_ECC) && \
-    defined(WOLFSSL_ASN_TEMPLATE)
+    defined(WOLFSSL_CERT_GEN) && !defined(NO_RSA) && \
+    defined(WOLFSSL_KEY_GEN) && defined(WOLFSSL_ASN_TEMPLATE)
     Cert cert;
     DecodedCert decodedCert;
     byte der[FOURK_BUF];
     int derSize = 0;
     WC_RNG rng;
-    ecc_key key;
+    RsaKey key;
     int ret;
 
     XMEMSET(&rng, 0, sizeof(WC_RNG));
-    XMEMSET(&key, 0, sizeof(ecc_key));
+    XMEMSET(&key, 0, sizeof(RsaKey));
     XMEMSET(&cert, 0, sizeof(Cert));
     XMEMSET(&decodedCert, 0, sizeof(DecodedCert));
 
     ExpectIntEQ(wc_InitRng(&rng), 0);
-    ExpectIntEQ(wc_ecc_init(&key), 0);
-    ExpectIntEQ(wc_ecc_make_key(&rng, 32, &key), 0);
+    ExpectIntEQ(wc_InitRsaKey(&key, NULL), 0);
+    ExpectIntEQ(wc_MakeRsaKey(&key, 2048, WC_RSA_EXPONENT, &rng), 0);
     ExpectIntEQ(wc_InitCert(&cert), 0);
 
     (void)XSTRNCPY(cert.subject.country, "US", CTC_NAME_SIZE);
@@ -22159,20 +22159,16 @@ static int test_MakeCertWith0Ser(void)
         CTC_NAME_SIZE);
 
     cert.selfSigned = 1;
-    cert.isCA       = 1;
-    cert.sigType    = CTC_SHA256wECDSA;
-
-#ifdef WOLFSSL_CERT_EXT
-    cert.keyUsage |= KEYUSE_KEY_CERT_SIGN;
-#endif
+    cert.isCA       = 0;
+    cert.sigType    = CTC_SHA256wRSA;
 
     /* set serial number to 0 */
     cert.serialSz  = 1;
     cert.serial[0] = 0;
 
-    ExpectIntGE(wc_MakeCert(&cert, der, FOURK_BUF, NULL, &key, &rng), 0);
+    ExpectIntGE(wc_MakeCert(&cert, der, FOURK_BUF, &key, NULL, &rng), 0);
     ExpectIntGE(derSize = wc_SignCert(cert.bodySz, cert.sigType, der,
-        FOURK_BUF, NULL, &key, &rng), 0);
+        FOURK_BUF, &key, NULL, &rng), 0);
 
     wc_InitDecodedCert(&decodedCert, der, (word32)derSize, NULL);
 
@@ -22185,7 +22181,7 @@ static int test_MakeCertWith0Ser(void)
 #endif
 
     wc_FreeDecodedCert(&decodedCert);
-    ret = wc_ecc_free(&key);
+    ret = wc_FreeRsaKey(&key);
     ExpectIntEQ(ret, 0);
     ret = wc_FreeRng(&rng);
     ExpectIntEQ(ret, 0);
