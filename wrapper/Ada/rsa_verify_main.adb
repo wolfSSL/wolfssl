@@ -314,80 +314,6 @@ procedure Rsa_Verify_Main is
      To_C (16#45#), To_C (16#5D#), To_C (16#13#), To_C (16#39#), To_C (16#65#),
      To_C (16#42#), To_C (16#46#), To_C (16#A1#), To_C (16#9F#), To_C (16#CD#),
      To_C (16#F5#), To_C (16#BF#));
-
-   Message : constant WolfSSL.Byte_Array :=
-     (To_C (16#54#), To_C (16#68#), To_C (16#69#), To_C (16#73#),
-      To_C (16#20#), To_C (16#69#), To_C (16#73#), To_C (16#20#),
-      To_C (16#74#), To_C (16#68#), To_C (16#65#), To_C (16#20#),
-      To_C (16#6d#), To_C (16#65#), To_C (16#73#), To_C (16#73#),
-      To_C (16#61#), To_C (16#67#), To_C (16#65#));
-   
-
-   RSA_Signature : constant WolfSSL.Byte_Array :=
-     (To_C (16#41#), To_C (16#eb#), To_C (16#f5#), To_C (16#5e#),
-      To_C (16#97#), To_C (16#43#), To_C (16#f4#), To_C (16#d1#),
-      To_C (16#da#), To_C (16#b6#), To_C (16#5c#), To_C (16#75#),
-      To_C (16#57#), To_C (16#2c#), To_C (16#e1#), To_C (16#01#),
-      To_C (16#07#), To_C (16#dc#), To_C (16#42#), To_C (16#c4#),
-      To_C (16#2d#), To_C (16#e2#), To_C (16#b5#), To_C (16#c8#),
-      To_C (16#63#), To_C (16#e8#), To_C (16#45#), To_C (16#9a#),
-      To_C (16#4a#), To_C (16#fa#), To_C (16#df#), To_C (16#5e#),
-      To_C (16#a6#), To_C (16#08#), To_C (16#0a#), To_C (16#26#),
-      To_C (16#2e#), To_C (16#ca#), To_C (16#2c#), To_C (16#10#),
-      To_C (16#7a#), To_C (16#15#), To_C (16#8d#), To_C (16#c1#),
-      To_C (16#55#), To_C (16#cc#), To_C (16#33#), To_C (16#db#),
-      To_C (16#b2#), To_C (16#ef#), To_C (16#8b#), To_C (16#a6#),
-      To_C (16#4b#), To_C (16#ef#), To_C (16#a1#), To_C (16#cf#),
-      To_C (16#d3#), To_C (16#e2#), To_C (16#5d#), To_C (16#ac#),
-      To_C (16#88#), To_C (16#86#), To_C (16#62#), To_C (16#67#),
-      To_C (16#8b#), To_C (16#8c#), To_C (16#45#), To_C (16#7f#),
-      To_C (16#10#), To_C (16#ad#), To_C (16#fa#), To_C (16#27#),
-      To_C (16#7a#), To_C (16#35#), To_C (16#5a#), To_C (16#f9#),
-      To_C (16#09#), To_C (16#78#), To_C (16#83#), To_C (16#ba#),
-      To_C (16#18#), To_C (16#cb#), To_C (16#3e#), To_C (16#8e#),
-      To_C (16#08#), To_C (16#be#), To_C (16#36#), To_C (16#de#),
-      To_C (16#ac#), To_C (16#c1#), To_C (16#77#), To_C (16#44#),
-      To_C (16#e8#), To_C (16#43#), To_C (16#db#), To_C (16#52#),
-      To_C (16#23#), To_C (16#08#), To_C (16#36#), To_C (16#8f#),
-      To_C (16#74#), To_C (16#4a#), To_C (16#bd#), To_C (16#a3#),
-      To_C (16#3f#), To_C (16#c1#), To_C (16#fb#), To_C (16#d6#),
-      To_C (16#45#), To_C (16#25#), To_C (16#61#), To_C (16#e2#),
-      To_C (16#19#), To_C (16#cb#), To_C (16#0b#), To_C (16#28#),
-      To_C (16#ef#), To_C (16#ca#), To_C (16#0a#), To_C (16#3b#),
-      To_C (16#7b#), To_C (16#3d#), To_C (16#e3#), To_C (16#47#),
-      To_C (16#46#), To_C (16#07#), To_C (16#1a#), To_C (16#7f#),
-      To_C (16#ff#), To_C (16#38#), To_C (16#fd#), To_C (16#59#),
-      To_C (16#94#), To_C (16#0b#), To_C (16#eb#), To_C (16#00#),
-      To_C (16#ab#), To_C (16#cc#), To_C (16#8c#), To_C (16#48#),
-      To_C (16#7b#), To_C (16#d6#), To_C (16#87#), To_C (16#b8#),
-      To_C (16#54#), To_C (16#b0#), To_C (16#2a#), To_C (16#07#),
-      To_C (16#cf#), To_C (16#44#), To_C (16#11#), To_C (16#d4#),
-      To_C (16#b6#), To_C (16#9a#), To_C (16#4e#), To_C (16#6d#),
-      To_C (16#5c#), To_C (16#1a#), To_C (16#e3#), To_C (16#c7#),
-      To_C (16#f3#), To_C (16#c7#), To_C (16#cb#), To_C (16#8e#),
-      To_C (16#82#), To_C (16#7d#), To_C (16#c8#), To_C (16#77#),
-      To_C (16#f0#), To_C (16#b6#), To_C (16#d0#), To_C (16#85#),
-      To_C (16#cb#), To_C (16#db#), To_C (16#d0#), To_C (16#b0#),
-      To_C (16#e0#), To_C (16#cf#), To_C (16#ca#), To_C (16#3f#),
-      To_C (16#17#), To_C (16#46#), To_C (16#84#), To_C (16#cb#),
-      To_C (16#5b#), To_C (16#fe#), To_C (16#51#), To_C (16#3a#),
-      To_C (16#aa#), To_C (16#71#), To_C (16#ad#), To_C (16#eb#),
-      To_C (16#f1#), To_C (16#ed#), To_C (16#3f#), To_C (16#f8#),
-      To_C (16#de#), To_C (16#b4#), To_C (16#a1#), To_C (16#26#),
-      To_C (16#db#), To_C (16#c6#), To_C (16#8e#), To_C (16#70#),
-      To_C (16#d4#), To_C (16#58#), To_C (16#a8#), To_C (16#31#),
-      To_C (16#d8#), To_C (16#db#), To_C (16#cf#), To_C (16#64#),
-      To_C (16#4a#), To_C (16#5f#), To_C (16#1b#), To_C (16#89#),
-      To_C (16#22#), To_C (16#03#), To_C (16#3f#), To_C (16#ab#),
-      To_C (16#b5#), To_C (16#6d#), To_C (16#2a#), To_C (16#63#),
-      To_C (16#2f#), To_C (16#4e#), To_C (16#7a#), To_C (16#e1#),
-      To_C (16#89#), To_C (16#b4#), To_C (16#f0#), To_C (16#9a#),
-      To_C (16#b7#), To_C (16#d3#), To_C (16#d6#), To_C (16#0a#),
-      To_C (16#10#), To_C (16#67#), To_C (16#28#), To_C (16#25#),
-      To_C (16#6d#), To_C (16#da#), To_C (16#92#), To_C (16#99#),
-      To_C (16#3f#), To_C (16#64#), To_C (16#a7#), To_C (16#ea#),
-      To_C (16#e0#), To_C (16#dc#), To_C (16#7c#), To_C (16#e8#),
-      To_C (16#41#), To_C (16#b0#), To_C (16#eb#), To_C (16#45#));
    
    procedure Put (Text : String) renames Ada.Text_IO.Put;
 
@@ -407,42 +333,19 @@ procedure Rsa_Verify_Main is
      "Thisismyfakeaeskeythatis32bytes!";
 
    Digital_Signature_Of_AES_Key : WolfSSL.Byte_Array (1 .. 256);
+
+   Decrypted_Digital_Signature : WolfSSL.Byte_Array (1 .. 256);
    
    Hash : WolfSSL.SHA256_Hash;
    SHA256 : WolfSSL.SHA256_Type;
    R : Integer;
-   S : WolfSSL.SHA256_As_String;
 
    RNG : WolfSSL.RNG_Key_Type;
    
-   RSA_Key : WolfSSL.RSA_Key_Type;
+   RSA_Encrypt_Key : WolfSSL.RSA_Key_Type;
+   RSA_Decrypt_Key : WolfSSL.RSA_Key_Type;
    Index : WolfSSL.Byte_Index;
 begin
-   WolfSSL.Create_SHA256 (Index => 0, SHA256 => SHA256, Result => R);
-   if R /= 0 then
-      Put ("SHA256 instance creation failed");
-      New_Line;
-      return;
-   end if;
-   WolfSSL.Update_SHA256 (SHA256 => SHA256, Byte => Message, Result => R);
-   if R /= 0 then
-      Put ("Update of SHA256 instance failed");
-      New_Line;
-      return;
-   end if;
-   WolfSSL.Finalize_SHA256 (SHA256 => SHA256,
-                            Hash   => Hash,
-                            Text   => S,
-                            Result => R);
-   if R = 0 then
-      Put (S);
-      New_Line;
-   else
-      Put ("Finalization of SHA256 instance failed");
-      New_Line;
-      return;
-   end if;
-
    WolfSSL.Create_RNG (Index  => 0,
                        Key    => RNG,
                        Result => R);
@@ -453,7 +356,7 @@ begin
    end if;
    
    WolfSSL.Create_RSA (Index  => 0,
-                       Key    => RSA_Key,
+                       Key    => RSA_Encrypt_Key,
                        Result => R);
    if R /= 0 then
       Put ("Attaining RSA key instance failed");
@@ -461,7 +364,7 @@ begin
       return;
    end if;
    
-   WolfSSL.Rsa_Set_RNG (Key    => RSA_Key,
+   WolfSSL.Rsa_Set_RNG (Key    => RSA_Encrypt_Key,
                         RNG    => RNG,
                         Result => R);
    if R /= 0 then
@@ -473,32 +376,19 @@ begin
    Index := Client_Private_Key_2048'First;
    WolfSSL.Rsa_Private_Key_Decode (Input  => Client_Private_Key_2048,
                                    Index  => Index,
-                                   Key    => RSA_Key,
+                                   Key    => RSA_Encrypt_Key,
                                    Size   => Client_Private_Key_2048'Length,
                                    Result => R);
    if R /= 0 then
-      Put ("Loading RSA private key failed with error code ");
+      Put ("Loading private RSA key failed with error code ");
       Put (R);
       New_Line;
       return;
    end if;
-   
-   Index := Rsa_Public_key_2048'First;
-   WolfSSL.Rsa_Public_Key_Decode (Input  => Rsa_Public_key_2048,
-                                  Index  => Index,
-                                  Key    => RSA_Key,
-                                  Size   => Rsa_Public_key_2048'Length,
-                                  Result => R);
-   if R /= 0 then
-      Put ("Loading RSA key failed with DER encoded key");
-      Put (R);
-      New_Line;
-      return;
-   end if;
-   
+
    WolfSSL.Rsa_SSL_Sign (Input  => Original_AES_Key,
                          Output => Digital_Signature_Of_AES_Key,
-                         RSA    => RSA_Key,
+                         RSA    => RSA_Encrypt_Key,
                          RNG    => RNG,
                          Result => R);
    if R < 0 then
@@ -506,5 +396,41 @@ begin
       Put (R);
       New_Line;
       return;
-   end if;   
+   end if;
+   
+   WolfSSL.Create_RSA (Index  => 1,
+                       Key    => RSA_Decrypt_Key,
+                       Result => R);
+   if R /= 0 then
+      Put ("Attaining RSA key instance failed");
+      New_Line;
+      return;
+   end if;
+
+   Index := Rsa_Public_key_2048'First;
+   WolfSSL.Rsa_Public_Key_Decode (Input  => Rsa_Public_key_2048,
+                                  Index  => Index,
+                                  Key    => RSA_Decrypt_Key,
+                                  Size   => Rsa_Public_key_2048'Length,
+                                  Result => R);
+   if R /= 0 then
+      Put ("Loading public RSA key failed with DER encoded key");
+      Put (R);
+      New_Line;
+      return;
+   end if;
+   
+   WolfSSL.Rsa_SSL_Verify
+     (Input  => Digital_Signature_Of_AES_Key,
+      Output => Decrypted_Digital_Signature,
+      RSA    => RSA_Decrypt_Key,
+      Result => R);
+   if R < 0 then
+      Put ("Verify digital signature failed");
+      Put (R);
+      New_Line;
+      return;
+   end if;
+   Put ("Successful verification of RSA based digital signature.");
+   New_Line;
 end Rsa_Verify_Main;
