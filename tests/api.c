@@ -268,7 +268,7 @@
 #endif
 
 #ifdef WOLFSSL_DUMP_MEMIO_STREAM
-const char* currentTestName;
+const char* currentTestName = NULL;
 char tmpDirName[16];
 int tmpDirNameSet = 0;
 #endif
