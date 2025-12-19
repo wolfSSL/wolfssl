@@ -10111,10 +10111,7 @@ fi
 
 if test "x$ENABLED_SYS_CA_CERTS" = "xyes"
 then
-    if test "x$ENABLED_FILESYSTEM" = "xno"
-    then
-        ENABLED_SYS_CA_CERTS="no"
-    elif test "x$ENABLED_CERTS" = "xno"
+    if test "x$ENABLED_CERTS" = "xno"
     then
         ENABLED_SYS_CA_CERTS="no"
     fi
@@ -10145,6 +10142,16 @@ then
             [
               AC_MSG_ERROR([Unable to find Apple Security.framework headers])
             ])
+            ;;
+        mingw*)
+            ;;
+        *)
+            # Only disable on no filesystem non Mac/Windows, as Mac and Windows
+            # depend on APIs which don't need filesystem support enabled in wolfSSL.
+            if test "x$ENABLED_FILESYSTEM" = "xno"
+            then
+                ENABLED_SYS_CA_CERTS="no"
+            fi
             ;;
     esac
 fi
