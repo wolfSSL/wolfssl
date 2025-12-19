@@ -19879,7 +19879,7 @@ static wc_test_ret_t rng_seed_test(void)
      * SEED_BLOCK_SZ, which depend on which seed back end is configured.
      */
 #if defined(HAVE_ENTROPY_MEMUSE) && defined(HAVE_AMD_RDSEED) && \
-    !(defined(HAVE_FIPS) && FIPS_VERSION_LT(6,0))
+    !(defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0) && FIPS_VERSION3_NE(5,2,4))
     #ifdef HAVE_FIPS
     WOLFSSL_SMALL_STACK_STATIC const byte check[] =
     {
@@ -19917,7 +19917,7 @@ static wc_test_ret_t rng_seed_test(void)
     };
     #endif
 #elif defined(HAVE_AMD_RDSEED) && \
-    !(defined(HAVE_FIPS) && FIPS_VERSION_LT(6,0))
+    !(defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0) && FIPS_VERSION3_NE(5,2,4))
     WOLFSSL_SMALL_STACK_STATIC const byte check[] =
     {
         0x2c, 0xd4, 0x9b, 0x1e, 0x1e, 0xe7, 0xb0, 0xb0,
@@ -19926,7 +19926,7 @@ static wc_test_ret_t rng_seed_test(void)
         0xa2, 0xe7, 0xe5, 0x90, 0x6d, 0x1f, 0x88, 0x98
     };
 #elif (defined(HAVE_INTEL_RDSEED) || defined(HAVE_INTEL_RDRAND)) && \
-    !(defined(HAVE_FIPS) && FIPS_VERSION_LT(6,0))
+    !(defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0) && FIPS_VERSION3_NE(5,2,4))
     #ifdef HAVE_FIPS
     WOLFSSL_SMALL_STACK_STATIC const byte check[] =
     {
@@ -19945,7 +19945,7 @@ static wc_test_ret_t rng_seed_test(void)
     };
     #endif
 #elif defined(HAVE_INTEL_RDSEED) && \
-    defined(HAVE_FIPS) && FIPS_VERSION_LT(6,0)
+    defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0) && FIPS_VERSION3_NE(5,2,4)
     WOLFSSL_SMALL_STACK_STATIC const byte check[] =
     {
         0x27, 0xdd, 0xff, 0x5b, 0x21, 0x26, 0x0a, 0x48,
