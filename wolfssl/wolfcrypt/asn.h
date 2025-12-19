@@ -1952,24 +1952,24 @@ struct Signer {
     int     nameLen;
     char*   name;                    /* common name */
 #ifndef IGNORE_NAME_CONSTRAINTS
-        Base_entry* permittedNames;
-        Base_entry* excludedNames;
-#endif /* !IGNORE_NAME_CONSTRAINTS */
+    Base_entry* permittedNames;
+    Base_entry* excludedNames;
+#endif
     byte    subjectNameHash[SIGNER_DIGEST_SIZE];
                                      /* sha hash of names in certificate */
-    #if defined(HAVE_OCSP) || defined(HAVE_CRL) || defined(WOLFSSL_AKID_NAME)
-        byte    issuerNameHash[SIGNER_DIGEST_SIZE];
-                                     /* sha hash of issuer names in certificate.
-                                      * Used in OCSP to check for authorized
-                                      * responders. */
-    #endif
-    #ifndef NO_SKID
-        byte    subjectKeyIdHash[SIGNER_DIGEST_SIZE];
-                                     /* sha hash of key in certificate */
-    #endif
-    #ifdef HAVE_OCSP
-        byte subjectKeyHash[KEYID_SIZE];
-    #endif
+#if defined(HAVE_OCSP) || defined(HAVE_CRL) || defined(WOLFSSL_AKID_NAME)
+    byte    issuerNameHash[SIGNER_DIGEST_SIZE];
+                                    /* sha hash of issuer names in certificate.
+                                    * Used in OCSP to check for authorized
+                                    * responders. */
+#endif
+#ifndef NO_SKID
+    byte    subjectKeyIdHash[SIGNER_DIGEST_SIZE];
+                                    /* sha hash of key in certificate */
+#endif
+#ifdef HAVE_OCSP
+    byte subjectKeyHash[KEYID_SIZE];
+#endif
 #if defined(WOLFSSL_AKID_NAME) || defined(HAVE_CRL)
     byte serialHash[SIGNER_DIGEST_SIZE]; /* serial number hash */
 #endif
