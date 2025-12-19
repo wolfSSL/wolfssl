@@ -3568,7 +3568,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 #ifndef NO_FILESYSTEM
     #ifndef NO_DEV_URANDOM /* way to disable use of /dev/urandom */
         #ifdef WOLFSSL_KEEP_RNG_SEED_FD_OPEN
-        if (os->fd == -1 && !os->seedFdOpen)
+        if (!os->seedFdOpen)
         #endif
         {
             os->fd = open("/dev/urandom", O_RDONLY);
@@ -3585,10 +3585,18 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         #endif
                 if (os->fd == -1)
                     return OPEN_RAN_E;
+        #ifdef WOLFSSL_KEEP_RNG_SEED_FD_OPEN
+                else {
+                    os->keepSeedFdOpen = 0;
+                    os->seedFdOpen = 1;
+                }
+        #endif
             }
         #ifdef WOLFSSL_KEEP_RNG_SEED_FD_OPEN
-            if (os->fd != -1)
+            else {
+                os->keepSeedFdOpen = 1;
                 os->seedFdOpen = 1;
+            }
         #endif
         }
     #if defined(DEBUG_WOLFSSL)
@@ -3613,7 +3621,14 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     #endif
             }
         }
-    #ifndef WOLFSSL_KEEP_RNG_SEED_FD_OPEN
+    #ifdef WOLFSSL_KEEP_RNG_SEED_FD_OPEN
+        if (!os->keepSeedFdOpen && os->seedFdOpen)
+        {
+            close(os->fd);
+            os->fd = -1;
+            os->seedFdOpen = 0;
+        }
+    #else
         close(os->fd);
     #endif
 #else
