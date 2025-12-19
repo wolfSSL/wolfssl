@@ -23897,18 +23897,7 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
         cert->version = version;
         cert->serialSz = (int)serialSz;
 
-    #if !defined(WOLFSSL_NO_ASN_STRICT) && !defined(WOLFSSL_PYTHON) && \
-        !defined(WOLFSSL_ASN_ALLOW_0_SERIAL)
-        /* RFC 5280 section 4.1.2.2 states that non-conforming CAs may issue
-         * a negative or zero serial number and should be handled gracefully.
-         * Since it is a non-conforming CA that issues a serial of 0 then we
-         * treat it as an error here. */
-        if (cert->serialSz == 1 && cert->serial[0] == 0) {
-            WOLFSSL_MSG("Error serial number of 0, use WOLFSSL_NO_ASN_STRICT "
-                "if wanted");
-            ret = ASN_PARSE_E;
-        }
-    #endif
+        /* Check for serial size of zero */
         if (cert->serialSz == 0) {
             WOLFSSL_MSG("Error serial size is zero. Should be at least one "
                         "even with no serial number.");
@@ -24123,6 +24112,20 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
             }
         }
     }
+
+#if !defined(WOLFSSL_NO_ASN_STRICT) && !defined(WOLFSSL_PYTHON) && \
+    !defined(WOLFSSL_ASN_ALLOW_0_SERIAL)
+    /* Check for serial number of 0. RFC 5280 section 4.1.2.2 requires
+     * positive serial numbers. However, allow zero for self-signed CA
+     * certificates (root CAs) since they are explicitly trusted and some
+     * legacy root CAs in real-world trust stores have serial number 0. */
+    if ((ret == 0) && (cert->serialSz == 1) && (cert->serial[0] == 0)) {
+        if (!(cert->isCA && cert->selfSigned)) {
+            WOLFSSL_MSG("Error serial number of 0 for non-root certificate");
+            ret = ASN_PARSE_E;
+        }
+    }
+#endif
 
     if ((ret == 0) && (!done) && (badDate != 0)) {
         /* Parsed whole certificate fine but return any date errors. */
