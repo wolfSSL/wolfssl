@@ -19748,14 +19748,23 @@ static wc_test_ret_t _rng_test(WC_RNG* rng)
     !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(5,0,0))
     /* Test periodic reseed dynamics. */
 
-    ((struct DRBG_internal *)rng->drbg)->reseedCtr = WC_RESEED_INTERVAL;
+#ifdef WOLF_CRYPTO_CB
+    if (wc_CryptoCb_RandomBlock(rng, block, sizeof(block)) ==
+        WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+    {
+#endif
+        ((struct DRBG_internal *)rng->drbg)->reseedCtr = WC_RESEED_INTERVAL;
 
-    ret = wc_RNG_GenerateBlock(rng, block, sizeof(block));
-    if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+        ret = wc_RNG_GenerateBlock(rng, block, sizeof(block));
+        if (ret != 0)
+            return WC_TEST_RET_ENC_EC(ret);
 
-    if (((struct DRBG_internal *)rng->drbg)->reseedCtr == WC_RESEED_INTERVAL)
-        return WC_TEST_RET_ENC_NC;
+        if (((struct DRBG_internal *)rng->drbg)->reseedCtr == WC_RESEED_INTERVAL)
+            return WC_TEST_RET_ENC_NC;
+#ifdef WOLF_CRYPTO_CB
+    }
+#endif
+
 #endif /* HAVE_HASHDRBG && !CUSTOM_RAND_GENERATE_BLOCK && !HAVE_SELFTEST */
 
 #if defined(WOLFSSL_TRACK_MEMORY) && defined(WOLFSSL_SMALL_STACK_CACHE)
