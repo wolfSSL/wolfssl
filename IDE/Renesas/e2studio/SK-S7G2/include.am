@@ -1,0 +1,13 @@
+# vim:ft=automake
+# included from Top Level Makefile.am
+# All paths should be given relative to the root
+
+EXTRA_DIST+= IDE/Renesas/e2studio/SK-S7G2/README.md
+EXTRA_DIST+= IDE/Renesas/e2studio/SK-S7G2/wolfssl_lib/.cproject
+EXTRA_DIST+= IDE/Renesas/e2studio/SK-S7G2/wolfssl_lib/.project
+EXTRA_DIST+= IDE/Renesas/e2studio/SK-S7G2/wolfssl_lib/configuration.xml
+EXTRA_DIST+= IDE/Renesas/e2studio/SK-S7G2/wolfcrypt_test/.cproject
+EXTRA_DIST+= IDE/Renesas/e2studio/SK-S7G2/wolfcrypt_test/.project
+EXTRA_DIST+= IDE/Renesas/e2studio/SK-S7G2/benchmark_test/.cproject
+EXTRA_DIST+= IDE/Renesas/e2studio/SK-S7G2/benchmark_test/.project
+EXTRA_DIST+= IDE/Renesas/e2studio/SK-S7G2/common/user_settings.h
