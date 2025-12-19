@@ -573,6 +573,35 @@ package WolfSSL with SPARK_Mode is
    --  If Result < 0, then failure.
    --  If Result > 0, then Success and is the size of the RSA key in bytes.
    
+   procedure Rsa_SSL_Verify (Input  : Byte_Array;
+                             Output : in out Byte_Array;
+                             RSA    : in out RSA_Key_Type;
+                             Result : out Integer) with
+     Pre => Is_Valid (RSA);
+   --  If Result < 0, then failure.
+   --  If Result > 0, then digital signature in Input
+   --                 successfully verified.
+   
+   procedure RSA_Public_Encrypt (Input  : Byte_Array;
+                                 Output : in out Byte_Array;
+                                 Index  :    out Byte_Index;
+                                 RSA    : in out RSA_Key_Type;
+                                 RNG    : in out RNG_Key_Type;
+                                 Result :    out Integer) with
+     Pre => Is_Valid (RSA);
+   --  This function encrypts a message from Input and stores the result
+   --  in Output. It requires an initialized public key and a random
+   --  number generator. As a side effect, this function will return
+   --  the bytes written to Output in Index.
+   
+   procedure RSA_Private_Decrypt (Input  : Byte_Array;
+                                  Output : in out Byte_Array;
+                                  Index  :    out Byte_Index;
+                                  RSA    : in out RSA_Key_Type;
+                                  Result :    out Integer) with
+     Pre => Is_Valid (RSA);
+   --  This functions provides private RSA decryption.
+
    SHA256_INSTANCES : constant := 2;   
    type SHA256_Index is range 0 .. SHA256_INSTANCES - 1;
    

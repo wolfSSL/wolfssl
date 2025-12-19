@@ -983,6 +983,109 @@ package body WolfSSL is
          Result := Exception_Error;
    end Rsa_SSL_Sign;
 
+   function WC_RSA_SSL_Verify (Input      : Byte_Array;
+                               In_Length  : int;
+                               Output     : in out Byte_Array;
+                               Out_Length : int;
+                               RSA        : not null RSA_Key_Type)
+                               return int with
+     Convention    => C,
+     External_Name => "wc_RsaSSL_Verify",
+     Import        => True;
+
+   procedure Rsa_SSL_Verify (Input  : Byte_Array;
+                             Output : in out Byte_Array;
+                             RSA    : in out RSA_Key_Type;
+                             Result : out Integer) is
+   begin
+      declare
+         R : constant int :=
+           WC_RSA_SSL_Verify (Input,
+                              Input'Length,
+                              Output,
+                              Output'Length,
+                              RSA);
+      begin
+         Result := Integer (R);
+      end;
+   exception
+      when others =>
+         Result := Exception_Error;
+   end Rsa_SSL_Verify;
+
+   function WC_RSA_Public_Encrypt (Input      : Byte_Array;
+                                   In_Length  : int;
+                                   Output     : in out Byte_Array;
+                                   Out_Length : int;
+                                   RSA        : not null RSA_Key_Type;
+                                   RNG        : not null RNG_Key_Type)
+                                   return int with
+     Convention    => C,
+     External_Name => "wc_RsaPublicEncrypt",
+     Import        => True;
+
+   procedure RSA_Public_Encrypt (Input  : Byte_Array;
+                                 Output : in out Byte_Array;
+                                 Index  :    out Byte_Index;
+                                 RSA    : in out RSA_Key_Type;
+                                 RNG    : in out RNG_Key_Type;
+                                 Result : out Integer) is
+   begin
+      Index := 0;
+      declare
+         R : constant int :=
+           WC_RSA_Public_Encrypt (Input,
+                                  Input'Length,
+                                  Output,
+                                  Output'Length,
+                                  RSA,
+                                  RNG);
+      begin
+         Result := Integer (R);
+         if Result >= 0 then
+            Index := Byte_Index (Result);
+         end if;
+      end;
+   exception
+      when others =>
+         Result := Exception_Error;
+   end RSA_Public_Encrypt;
+
+   function WC_RSA_Private_Decrypt (Input      : Byte_Array;
+                                    In_Length  : int;
+                                    Output     : in out Byte_Array;
+                                    Out_Length : int;
+                                    RSA        : not null RSA_Key_Type)
+                                    return int with
+     Convention    => C,
+     External_Name => "wc_RsaPrivateDecrypt",
+     Import        => True;
+
+   procedure RSA_Private_Decrypt (Input  : Byte_Array;
+                                  Output : in out Byte_Array;
+                                  Index  :    out Byte_Index;
+                                  RSA    : in out RSA_Key_Type;
+                                  Result :    out Integer) is
+   begin
+      Index := 0;
+      declare
+         R : constant int :=
+           WC_RSA_Private_Decrypt (Input,
+                                   Input'Length,
+                                   Output,
+                                   Output'Length,
+                                   RSA);
+      begin
+         Result := Integer (R);
+         if Result >= 0 then
+            Index := Byte_Index (Result);
+         end if;
+      end;
+   exception
+      when others =>
+         Result := Exception_Error;
+   end RSA_Private_Decrypt;
+
    function Init_SHA256 (SHA256 : not null Sha256_Type) return int with
      Convention    => C,
      External_Name => "wc_InitSha256",
