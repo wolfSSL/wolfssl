@@ -346,6 +346,8 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define SSL_new                         wolfSSL_new
 #define SSL_set_fd                      wolfSSL_set_fd
 #define SSL_get_fd                      wolfSSL_get_fd
+#define SSL_get_rfd                     wolfSSL_get_fd
+#define SSL_get_wfd                     wolfSSL_get_wfd
 #define SSL_connect                     wolfSSL_connect
 #define SSL_clear                       wolfSSL_clear
 #define SSL_state                       wolfSSL_state
