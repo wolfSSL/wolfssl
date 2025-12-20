@@ -1742,6 +1742,7 @@ int wolfSSL_CTX_der_load_verify_locations(WOLFSSL_CTX* ctx,
     \param method pointer to the desired WOLFSSL_METHOD to use for the SSL
     context. This is created using one of the wolfSSLvXX_XXXX_method()
     functions to specify SSL/TLS/DTLS protocol level.
+    This function frees the passed in WOLFSSL_METHOD struct on failure.
 
     _Example_
     \code
