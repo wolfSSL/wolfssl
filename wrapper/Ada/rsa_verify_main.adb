@@ -2,7 +2,13 @@ with Ada.Integer_Text_IO;
 with Ada.Text_IO;
 with WolfSSL;
 
+--  If this example executes successfully the output is:
+--
+--  Successful verification of RSA based digital signature.
+--  Successfully encrypted and decrypted using RSA.
 procedure Rsa_Verify_Main is
+   
+   use type WolfSSL.Byte_Array;
    
    type Unsigned_8 is mod 2 ** 8;
       
@@ -336,6 +342,17 @@ procedure Rsa_Verify_Main is
 
    Decrypted_Digital_Signature : WolfSSL.Byte_Array (1 .. 256);
    
+   Encrypted : WolfSSL.Byte_Array (1 .. 1_024);
+   --  Actually only needs to be at least 256 bytes.
+   --  The purpose is to store the Original_AES_Key encrypted.
+   
+   Decrypted : WolfSSL.Byte_Array (1 .. 1_024);
+   --  Actually only needs to be at least 32 bytes.
+   --  The purpose is to store the Original_AES_Key after
+   --  first being encrypted and then decrypted.
+   --  After the process, this byte array should contain the same
+   --  contents as Original_AES_KEY.
+   
    Hash : WolfSSL.SHA256_Hash;
    SHA256 : WolfSSL.SHA256_Type;
    R : Integer;
@@ -420,11 +437,10 @@ begin
       return;
    end if;
    
-   WolfSSL.Rsa_SSL_Verify
-     (Input  => Digital_Signature_Of_AES_Key,
-      Output => Decrypted_Digital_Signature,
-      RSA    => RSA_Decrypt_Key,
-      Result => R);
+   WolfSSL.Rsa_SSL_Verify (Input  => Digital_Signature_Of_AES_Key,
+                           Output => Decrypted_Digital_Signature,
+                           RSA    => RSA_Decrypt_Key,
+                           Result => R);
    if R < 0 then
       Put ("Verify digital signature failed");
       Put (R);
@@ -433,4 +449,43 @@ begin
    end if;
    Put ("Successful verification of RSA based digital signature.");
    New_Line;
+   
+   WolfSSL.RSA_Public_Encrypt (Input  => Original_AES_Key,
+                               Output => Encrypted,
+                               Index  => Index,
+                               RSA    => RSA_Decrypt_Key,
+                               RNG    => RNG,
+                               Result => R);     
+   if R < 0 then
+      Put ("Failed to encrypt the original AES key");
+      Put (R);
+      New_Line;
+      return;
+   end if;
+   
+   WolfSSL.RSA_Private_Decrypt (Input  => Encrypted (1 .. Index),
+                                Output => Decrypted,
+                                Index  => Index,
+                                RSA    => RSA_Encrypt_Key,
+                                Result => R);
+   if R < 0 then
+      Put ("Failed to decrypt the encrypted original AES key");
+      Put (R);
+      New_Line;
+      return;
+   end if;
+   
+   if Integer (Index) /= 32 then
+      Put ("Decryption of the encrypted original AES key, wrong size");
+      New_Line;
+      return;
+   end if;
+
+   if Original_AES_Key = Decrypted (1 .. 32) then
+      Put ("Successfully encrypted and decrypted using RSA.");
+      New_Line;
+   else
+      Put ("Failed to encrypt and decrypt original AES key.");
+      New_Line;
+   end if;   
 end Rsa_Verify_Main;
