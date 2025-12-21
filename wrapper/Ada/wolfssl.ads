@@ -516,6 +516,22 @@ package WolfSSL with SPARK_Mode is
      Post => (if Result = 0 then Is_Valid (Key));
    --  If successful Result = 0.   
    
+   procedure RNG_Generate_Block (RNG    : RNG_Key_Type;
+                                 Output : out Byte_Array;
+                                 Result : out Integer) with
+     Pre => Is_Valid (RNG);
+   
+   type HMAC_Hash is (MD5, SHA, SHA256, SHA384, SHA512, SHA3_224,
+                      SHA3_256, SHA3_384, SHA3_512);
+
+   procedure PBKDF2 (Output     : out Byte_Array;
+                     Password   : Byte_Array;
+                     Salt       : Byte_Array;
+                     Iterations : Positive;
+                     Key_Length : Positive;
+                     HMAC       : HMAC_Hash;
+                     Result     : out Integer);
+   
    RSA_INSTANCES : constant := 2;
    
    type RSA_Key_Index is range 0 .. RSA_INSTANCES - 1;
@@ -634,6 +650,10 @@ package WolfSSL with SPARK_Mode is
      Pre => Is_Valid (SHA256);
    --  If successful Result = 0.
    
+   type Device_Identifier is new Integer;
+   
+   function Invalid_Device return Device_Identifier;
+   
    AES_INSTANCES : constant := 2;   
    type AES_Index is range 0 .. AES_INSTANCES - 1;
 
@@ -643,7 +663,7 @@ package WolfSSL with SPARK_Mode is
    --  Indicates if the AES has successfully been initialized.
 
    procedure Create_AES (Index  : AES_Index;
-                         Device : Integer;
+                         Device : Device_Identifier;
                          AES    : in out AES_Type;
                          Result : out Integer) with
      Pre => not Is_Valid (AES);

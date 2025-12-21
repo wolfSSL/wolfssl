@@ -838,15 +838,146 @@ package body WolfSSL is
    procedure Create_RNG (Index  : RNG_Key_Index;
                          Key    : in out RNG_Key_Type;
                          Result : out Integer) is
-      R : int;
    begin
-      Key := Ada_New_RNG (int (Index));
-      R := Init_RNG_Key (Key);
-      Result := Integer (R);
+      Result := -121212;
+      declare
+         R : int;
+      begin
+         Key := Ada_New_RNG (int (Index));
+         R := Init_RNG_Key (Key);
+         Result := Integer (R);
+      end;
    exception
       when others =>
          Result := Exception_Error;
    end Create_RNG;
+
+   function WC_RNG_Generate_Block (RNG    : not null RNG_Key_Type;
+                                   Output : out Byte_Array;
+                                   Size   : int) return int with
+     Convention    => C,
+     External_Name => "wc_RNG_GenerateBlock",
+     Import        => True;
+
+   procedure RNG_Generate_Block (RNG    : RNG_Key_Type;
+                                 Output : out Byte_Array;
+                                 Result : out Integer) is
+   begin
+      Result := -121212;
+      declare
+         R : int;
+      begin
+         R := WC_RNG_Generate_Block (RNG, Output, Output'Length);
+         Result := Integer (R);
+      end;
+   exception
+      when others =>
+         Result := Exception_Error;
+   end RNG_Generate_Block;
+
+   type Unsigned_8 is mod 2 ** 8;
+
+   function To_C (Value : Unsigned_8) return WolfSSL.Byte_Type is
+   begin
+      return WolfSSL.Byte_Type'Val (Value);
+   end To_C;
+
+   function WC_PBKDF2 (Output     : out Byte_Array;
+                       Password   : Byte_Array;
+                       P_Length   : int;
+                       Salt       : Byte_Array;
+                       S_Length   : int;
+                       Iterations : int;
+                       Key_Length : int;
+                       Hash_Type  : int) return int with
+     Convention    => C,
+     External_Name => "wc_PBKDF2",
+     Import        => True;
+
+   function Ada_MD5 return int with
+     Convention    => C,
+     External_Name => "ada_md5",
+     Import        => True;
+
+   function Ada_SHA return int with
+     Convention    => C,
+     External_Name => "ada_sha",
+     Import        => True;
+
+   function Ada_SHA256 return int with
+     Convention    => C,
+     External_Name => "ada_sha256",
+     Import        => True;
+
+   function Ada_SHA384 return int with
+     Convention    => C,
+     External_Name => "ada_sha384",
+     Import        => True;
+
+   function Ada_SHA512 return int with
+     Convention    => C,
+     External_Name => "ada_sha512",
+     Import        => True;
+
+   function Ada_SHA3_224 return int with
+     Convention    => C,
+     External_Name => "ada_sha3_224",
+     Import        => True;
+
+   function Ada_SHA3_256 return int with
+     Convention    => C,
+     External_Name => "ada_sha3_256",
+     Import        => True;
+
+   function Ada_SHA3_384 return int with
+     Convention    => C,
+     External_Name => "ada_sha3_384",
+     Import        => True;
+
+   function Ada_SHA3_512 return int with
+     Convention    => C,
+     External_Name => "ada_sha3_512",
+     Import        => True;
+
+   procedure PBKDF2 (Output     : out Byte_Array;
+                     Password   : Byte_Array;
+                     Salt       : Byte_Array;
+                     Iterations : Positive;
+                     Key_Length : Positive;
+                     HMAC       : HMAC_Hash;
+                     Result     : out Integer) is
+   begin
+      Result := -121212;
+      Output := (others => To_C (0));
+      declare
+         R : int;
+         H : int;
+      begin
+         case HMAC is
+            when MD5      => H := Ada_MD5;
+            when SHA      => H := Ada_SHA;
+            when SHA256   => H := Ada_SHA256;
+            when SHA384   => H := Ada_SHA384;
+            when SHA512   => H := Ada_SHA512;
+            when SHA3_224 => H := Ada_SHA3_224;
+            when SHA3_256 => H := Ada_SHA3_256;
+            when SHA3_384 => H := Ada_SHA3_384;
+            when SHA3_512 => H := Ada_SHA3_512;
+         end case;
+         R := WC_PBKDF2 (Output     => Output,
+                         Password   => Password,
+                         P_Length   => Password'Length,
+                         Salt       => Salt,
+                         S_Length   => Salt'Length,
+                         Iterations => int (Iterations),
+                         Key_Length => int (Key_Length),
+                         Hash_Type  => H);
+         Result := Integer (R);
+      end;
+   exception
+      when others =>
+         Result := Exception_Error;
+   end PBKDF2;
 
    function Ada_RSA_Set_RNG (Key : not null RSA_Key_Type;
                              RNG : not null RNG_Key_Type) return int with
@@ -857,10 +988,14 @@ package body WolfSSL is
    procedure Rsa_Set_RNG (Key    : in out Rsa_Key_Type;
                           RNG    : in out RNG_Key_Type;
                           Result : out Integer) is
-      R : int;
    begin
-      R := Ada_RSA_Set_RNG (Key, RNG);
-      Result := Integer (R);
+      Result := -121212;
+      declare
+         R : int;
+      begin
+         R := Ada_RSA_Set_RNG (Key, RNG);
+         Result := Integer (R);
+      end;
    exception
       when others =>
          Result := Exception_Error;
@@ -1173,6 +1308,16 @@ package body WolfSSL is
          Result := Exception_Error;
    end Finalize_SHA256;
 
+   function WC_Get_Invalid_Device_Identifier return int with
+     Convention    => C,
+     External_Name => "get_wolfssl_invalid_devid",
+     Import        => True;
+
+   function Invalid_Device return Device_Identifier is
+   begin
+      return Device_Identifier (WC_Get_Invalid_Device_Identifier);
+   end Invalid_Device;
+
    function Is_Valid (AES : AES_Type) return Boolean is
    begin
       return AES /= null;
@@ -1192,7 +1337,7 @@ package body WolfSSL is
      Import        => True;
 
    procedure Create_AES (Index  : AES_Index;
-                         Device : Integer;
+                         Device : Device_Identifier;
                          AES    : in out AES_Type;
                          Result : out Integer) is
    begin
