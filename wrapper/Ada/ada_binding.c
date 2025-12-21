@@ -68,6 +68,18 @@ extern void* ada_new_rng (int index);
 extern int get_wolfssl_rng_instances(void);
 extern int ada_RsaSetRNG (RsaKey* key, WC_RNG* rng);
 
+extern int get_wolfssl_invalid_devid (void);
+
+extern int ada_md5 (void);
+extern int ada_sha (void);
+extern int ada_sha256 (void);
+extern int ada_sha384 (void);
+extern int ada_sha512 (void);
+extern int ada_sha3_224 (void);
+extern int ada_sha3_256 (void);
+extern int ada_sha3_384 (void);
+extern int ada_sha3_512 (void);
+
 extern int get_wolfssl_error_want_read(void) {
   return WOLFSSL_ERROR_WANT_READ;
 }
@@ -161,6 +173,11 @@ extern int get_wolfssl_aes_instances(void) {
   return WOLFSSL_AES_INSTANCES;
 }
 
+extern int get_wolfssl_invalid_devid (void)
+{
+  return INVALID_DEVID;
+}
+
 WC_RNG preAllocatedRNG[WOLFSSL_RNG_INSTANCES];
 
 extern void* ada_new_rng (int index)
@@ -179,4 +196,49 @@ extern int ada_RsaSetRNG(RsaKey* key, WC_RNG* rng)
   r = wc_RsaSetRNG(key, rng);
 #endif
   return r;
+}
+
+extern int ada_md5 (void)
+{
+  return WC_MD5;
+}
+
+extern int ada_sha (void)
+{
+  return WC_SHA;
+}
+
+extern int ada_sha256 (void)
+{
+  return WC_SHA256;
+}
+
+extern int ada_sha384 (void)
+{
+  return WC_SHA384;
+}
+
+extern int ada_sha512 (void)
+{
+  return WC_SHA512;
+}
+
+extern int ada_sha3_224 (void)
+{
+  return WC_SHA3_224;
+}
+
+extern int ada_sha3_256 (void)
+{
+  return WC_SHA3_256;
+}
+
+extern int ada_sha3_384 (void)
+{
+  return WC_SHA3_384;
+}
+
+extern int ada_sha3_512 (void)
+{
+  return WC_SHA3_512;
 }
