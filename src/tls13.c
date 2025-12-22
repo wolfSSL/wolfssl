@@ -13412,8 +13412,8 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
                         ssl->options.sentChangeCipher = 1;
                     }
         #endif
-            ssl->options.handShakeState = CLIENT_HELLO_COMPLETE;
-            return WOLFSSL_SUCCESS;
+                ssl->options.handShakeState = CLIENT_HELLO_COMPLETE;
+                return WOLFSSL_SUCCESS;
             }
     #endif
             /* Get the response/s from the server. */
