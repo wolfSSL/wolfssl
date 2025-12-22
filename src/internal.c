@@ -25961,8 +25961,8 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
         if (sent == (word32)sz) break;
 
         buffSz = (word32)sz - sent;
-        outputSz = wolfSSL_GetRecordSize(ssl, (word32)sz - sent, 1);
-#if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_DTLS_SIZE_CHECK)
+        outputSz = wolfSSL_GetRecordSize(ssl, (word32)buffSz, 1);
+#if defined(WOLFSSL_DTLS)
         if (ssl->options.dtls) {
 #if defined(WOLFSSL_DTLS_MTU)
             int mtu = ssl->dtlsMtuSz;
@@ -25970,13 +25970,19 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
             int mtu = MAX_MTU;
 #endif
             if (outputSz > mtu) {
+#if defined(WOLFSSL_NO_DTLS_SIZE_CHECK)
+                /* split instead of error out */
+                buffSz = min(buffSz, wolfSSL_GetMaxPlaintextSize(ssl));
+                outputSz = wolfSSL_GetRecordSize(ssl, (word32)buffSz, 1);
+#else
                 error = DTLS_SIZE_ERROR;
                 ssl->error = error;
                 WOLFSSL_ERROR(error);
                 return error;
+#endif /* WOLFSSL_NO_DTLS_SIZE_CHECK */
             }
         }
-#endif /* WOLFSSL_DTLS && !WOLFSSL_NO_DTLS_SIZE_CHECK */
+#endif /* WOLFSSL_DTLS */
 
         /* check for available size, it does also DTLS MTU checks */
         if ((ret = CheckAvailableSize(ssl, outputSz)) != 0)
@@ -41869,7 +41875,6 @@ int wolfSSL_GetMaxPlaintextSize(WOLFSSL *ssl)
 #endif /* WOLFSSL_DTLS */
 
     return maxFrag;
-
 }
 /**
  * Return the max fragment size. This is essentially the maximum
