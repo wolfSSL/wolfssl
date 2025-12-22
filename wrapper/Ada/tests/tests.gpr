@@ -10,7 +10,12 @@ project Tests is
    for Main use ("tests.adb");
 
    package Compiler is
-      for Default_Switches ("Ada") use Tests_Config.Ada_Compiler_Switches;
+      --  "-gnatyM0" disables the GNAT style check for maximum line length.
+      --  We keep it disabled for this tests project because some embedded
+      --  test vectors (e.g., DER keys) are long comma-separated literals that
+      --  would otherwise generate many "this line is too long" warnings.
+      for Default_Switches ("Ada") use
+        Tests_Config.Ada_Compiler_Switches & ("-gnatyM0");
    end Compiler;
 
    package Binder is
