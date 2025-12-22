@@ -1489,8 +1489,9 @@ int test_records_span_network_boundaries(void)
 
 int test_dtls_mtu_fragment_headroom(void)
 {
-#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS_MTU) && \
-    defined(HAVE_AESGCM) && defined(HAVE_ECC)
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) &&                           \
+    defined(WOLFSSL_DTLS_MTU) && defined(HAVE_AESGCM) && defined(HAVE_ECC) &&  \
+    !defined(WOLFSSL_NO_DTLS_SIZE_CHECK)
     EXPECT_DECLS;
     struct {
         method_provider client_meth;
@@ -2374,4 +2375,117 @@ int test_dtls_memio_wolfio_stateless(void)
     }
 #endif
     return EXPECT_RESULT();
+}
+
+int test_dtls_mtu_split_messages(void)
+{
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_DTLS_MTU) && defined(WOLFSSL_NO_DTLS_SIZE_CHECK) && \
+    defined(HAVE_AESGCM) && defined(HAVE_ECC)
+    EXPECT_DECLS;
+    struct {
+        method_provider client_meth;
+        method_provider server_meth;
+        const char* cipher;
+    } params[] = {
+#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_TLS13)
+        { wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method,
+          "TLS13-AES128-GCM-SHA256" },
+#endif
+#if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12)
+        { wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method,
+          "ECDHE-RSA-AES128-GCM-SHA256" },
+#if !defined(WOLFSSL_AEAD_ONLY) && !defined(NO_AES) && !defined(NO_SHA)
+        /* Block cipher test */
+        { wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method,
+          "ECDHE-RSA-AES128-SHA" },
+#endif
+#endif
+    };
+    size_t i;
+
+    for (i = 0; i < XELEM_CNT(params) && EXPECT_SUCCESS(); i++) {
+        WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+        WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+        struct test_memio_ctx test_ctx;
+        /* Payload larger than typical MTU to force splitting */
+        unsigned char payload[200];
+        unsigned char readBuf[200];
+        word16 mtu;
+        int recordLen;
+        int overhead;
+        int totalRead;
+        int ret;
+        int j;
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        XMEMSET(payload, 'A', sizeof(payload));
+
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                        params[i].client_meth, params[i].server_meth),
+            0);
+
+        ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, params[i].cipher), 1);
+        ExpectIntEQ(wolfSSL_set_cipher_list(ssl_s, params[i].cipher), 1);
+
+        /* Complete handshake and clear any leftover records. */
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        test_memio_clear_buffer(&test_ctx, 1);
+        test_memio_clear_buffer(&test_ctx, 0);
+
+        /* Measure application-data record overhead with small payload. */
+        ExpectIntEQ(wolfSSL_write(ssl_c, payload, 32), 32);
+        ExpectIntEQ(test_ctx.s_msg_count, 1);
+        recordLen = test_ctx.s_len;
+        ExpectIntGT(recordLen, 32);
+        overhead = recordLen - 32;
+
+        /* Reset buffers before MTU-limited send. */
+        test_memio_clear_buffer(&test_ctx, 0);
+        test_memio_clear_buffer(&test_ctx, 1);
+
+        /* Set MTU to allow only ~50 bytes of payload per record.
+         * This ensures a 200-byte payload must be split into multiple msgs. */
+        mtu = (word16)(overhead + 50);
+        ExpectIntEQ(wolfSSL_dtls_set_mtu(ssl_c, mtu), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_dtls_set_mtu(ssl_s, mtu), WOLFSSL_SUCCESS);
+
+        /* Write payload larger than MTU allows in single record.
+         * With WOLFSSL_NO_DTLS_SIZE_CHECK, this should split into multiple
+         * messages instead of returning DTLS_SIZE_ERROR. */
+        ExpectIntEQ(wolfSSL_write(ssl_c, payload, (int)sizeof(payload)),
+            (int)sizeof(payload));
+
+        /* Verify multiple messages were sent */
+        ExpectIntGT(test_ctx.s_msg_count, 1);
+
+        /* Each record should fit within MTU */
+        for (j = 0; j < test_ctx.s_msg_count && EXPECT_SUCCESS(); j++) {
+            ExpectIntLE(test_ctx.s_msg_sizes[j], mtu);
+        }
+
+        /* Read all data on server side and verify it matches */
+        totalRead = 0;
+        while (totalRead < (int)sizeof(payload) && EXPECT_SUCCESS()) {
+            ret = wolfSSL_read(ssl_s, readBuf + totalRead,
+                (int)sizeof(readBuf) - totalRead);
+            if (ret > 0) {
+                totalRead += ret;
+            }
+            else {
+                break;
+            }
+        }
+        ExpectIntEQ(totalRead, (int)sizeof(payload));
+        ExpectIntEQ(XMEMCMP(payload, readBuf, sizeof(payload)), 0);
+
+        wolfSSL_free(ssl_c);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_s);
+    }
+    return EXPECT_RESULT();
+#else
+    return TEST_SKIPPED;
+#endif
 }
