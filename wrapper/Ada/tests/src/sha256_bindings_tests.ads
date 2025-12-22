@@ -1,3 +1,4 @@
+with AUnit.Test_Fixtures;
 with AUnit.Test_Suites;
 
 package SHA256_Bindings_Tests is
@@ -12,6 +13,11 @@ package SHA256_Bindings_Tests is
    --  boilerplate small.
    --
    --  Suite returns a suite containing all SHA256-related tests.
+
+   type Fixture is new AUnit.Test_Fixtures.Test_Fixture with null record;
+
+   procedure Test_SHA256_Asdf_Known_Vector (F : in out Fixture);
+   procedure Test_SHA256_Empty_Message     (F : in out Fixture);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite;
 

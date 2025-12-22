@@ -1,14 +1,9 @@
 with AUnit.Assertions;
 with AUnit.Test_Caller;
-with AUnit.Test_Fixtures;
-with AUnit.Test_Suites;
 
-with Interfaces.C;
 with WolfSSL;
 
 package body SHA256_Bindings_Tests is
-
-   type Fixture is new AUnit.Test_Fixtures.Test_Fixture with null record;
 
    procedure Assert_Text_Matches_Hash
      (Hash : WolfSSL.SHA256_Hash;
@@ -20,9 +15,6 @@ package body SHA256_Bindings_Tests is
       Hash   : out WolfSSL.SHA256_Hash;
       Text   : out WolfSSL.SHA256_As_String;
       Result : out Integer);
-
-   procedure Test_SHA256_Asdf_Known_Vector (F : in out Fixture);
-   procedure Test_SHA256_Empty_Message     (F : in out Fixture);
 
    procedure Assert_Text_Matches_Hash
      (Hash : WolfSSL.SHA256_Hash;
@@ -62,12 +54,12 @@ package body SHA256_Bindings_Tests is
 
          Byte_As_Int := 16 * Hi + Lo;
 
-         --  Hash elements are `Interfaces.C.char`, so compare with `char'Pos`.
-         --  If your binding changes `Byte_Array` element type, tell me and I'll
-         --  adjust this conversion.
+         --  SHA256_Hash is a Byte_Array backed by `Interfaces.C.char_array`.
+         --  Avoid a direct `Interfaces.C` dependency here by using the binding's
+         --  own aliases (`Byte_Type`, `Byte_Index`) for indexing and conversion.
          AUnit.Assertions.Assert
            (Byte_As_Int =
-              Interfaces.C.char'Pos (Hash (Interfaces.C.size_t (Index))),
+              WolfSSL.Byte_Type'Pos (Hash (WolfSSL.Byte_Index (Index))),
             Msg & ": Text/Hash mismatch at byte" &
               Integer'Image (Index));
       end loop;
