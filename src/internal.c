@@ -42514,7 +42514,7 @@ int wolfSSL_TestAppleNativeCertValidation_AppendCA(WOLFSSL_CTX* ctx,
 #endif /* defined(__APPLE__) && defined(WOLFSSL_SYS_CA_CERTS) */
 
 /* Do not try to process error for async, non blocking io, and app_read */
-void wolfMaybeCheckAlertOnErr(WOLFSSL* ssl, int err)
+void wolfssl_i_MaybeCheckAlertOnErr(WOLFSSL* ssl, int err)
 {
 #if defined(WOLFSSL_CHECK_ALERT_ON_ERR)
 #if defined(WOLFSSL_ASYNC_CRYPT)
