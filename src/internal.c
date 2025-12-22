@@ -41820,19 +41820,18 @@ int wolfSSL_GetRecordSize(WOLFSSL *ssl, int payloadSz, int isEncrypted)
              0, 1, 0, CUR_ORDER);
         /* use a safe upper bound in case of error */
         if (recordSz < 0) {
-            recordSz = payloadSz + DTLS_RECORD_HEADER_SZ
+            recordSz = payloadSz + RECORD_HEADER_SZ
                 + cipherExtraData(ssl) + COMP_EXTRA;
+            if (ssl->options.dtls) {
+                recordSz += DTLS_RECORD_EXTRA;
+            }
         }
     }
     else {
-        recordSz = payloadSz;
+        recordSz = payloadSz + RECORD_HEADER_SZ;
         if (ssl->options.dtls) {
-            recordSz += DTLS_RECORD_HEADER_SZ;
+            recordSz += DTLS_RECORD_EXTRA;
         }
-        else {
-            recordSz += RECORD_HEADER_SZ;
-        }
-
     }
     return recordSz;
 }
