@@ -81,6 +81,16 @@ static int wc_SignatureDerEncode(enum wc_HashType hash_type, byte* hash_data,
 }
 #endif /* !NO_RSA && !NO_ASN */
 
+/* Returns signature length given a sig_type, key, and key_len.
+ * Also sanity checks that key, key_len match sig_type.
+ *
+ * @param [in]     sig_type   The signature type (ECC, RSA, RSA_W_ENC)
+ * @param [in]     key        void pointer to a wolfcrypt key struct.
+ * @param [in]     key_len    size of key structure.
+ *
+ * @return signature length on success
+ * @return < 0 on error
+ * */
 int wc_SignatureGetSize(enum wc_SignatureType sig_type,
     const void* key, word32 key_len)
 {
@@ -128,6 +138,24 @@ int wc_SignatureGetSize(enum wc_SignatureType sig_type,
     return sig_len;
 }
 
+/* Verify a signature using provided hash and key.
+ *
+ * If sig_type is RSA_W_ENC, hash data must be encoded with wc_EncodeSignature
+ * prior to calling.
+ *
+ * @param [in]     hash_type  The type of hash (SHA256, etc.)
+ * @param [in]     sig_type   The signature type (ECC, RSA, RSA_W_ENC)
+ * @param [in]     hash_data  The (der encoded) hash data.
+ * @param [in]     hash_len   The (encoded) hash data length.
+ * @param [in]     sig        Output der encoded signature buffer.
+ * @param [in]     sig_len    Size of signature buffer.
+ * @param [in]     key        void pointer to a wolfcrypt key struct.
+ * @param [in]     key_len    size of key structure.
+ *
+ * @return   0 on success
+ * @return < 0 on error
+ * @return BAD_FUNC_ARG if sig_len is too small.
+ * */
 int wc_SignatureVerifyHash(
     enum wc_HashType hash_type, enum wc_SignatureType sig_type,
     const byte* hash_data, word32 hash_len,
@@ -267,6 +295,21 @@ int wc_SignatureVerifyHash(
     return ret;
 }
 
+/* Verify a signature using provided input data, hash_type, key, sig_type.
+ *
+ * @param [in]     hash_type  The type of hash (SHA256, etc.)
+ * @param [in]     sig_type   The signature type (ECC, RSA, RSA_W_ENC)
+ * @param [in]     data       Input data to hash and sign.
+ * @param [in]     data_len   Input data len.
+ * @param [in]     sig        Input der encoded signature buffer.
+ * @param [in]     sig_len    Size of signature buffer.
+ * @param [in]     key        void pointer to a wolfcrypt key struct.
+ * @param [in]     key_len    size of key structure.
+ *
+ * @return   0 on success
+ * @return < 0 on error
+ * @return BAD_FUNC_ARG if sig_len is too small.
+ * */
 int wc_SignatureVerify(
     enum wc_HashType hash_type, enum wc_SignatureType sig_type,
     const byte* data, word32 data_len,
@@ -363,8 +406,8 @@ int wc_SignatureGenerateHash(
  *
  * @param [in]     hash_type  The type of hash (SHA256, etc.)
  * @param [in]     sig_type   The signature type (ECC, RSA, RSA_W_ENC)
- * @param [in]     hash_data  The der encoded hash data
- * @param [in]     hash_len   Encoded hash data length
+ * @param [in]     hash_data  The (der encoded) hash data.
+ * @param [in]     hash_len   The (encoded) hash data length.
  * @param [out]    sig        Output der encoded signature buffer.
  * @param [in/out] sig_len    Size of signature buffer. Updated on success.
  * @param [in]     key        void pointer to a wolfcrypt key struct.
@@ -487,6 +530,27 @@ int wc_SignatureGenerate(
         sig_len, key, key_len, rng, 1);
 }
 
+/* Generate a signature using provided input data, hash_type, key, sig_type.
+ * Optionally verify result.
+ *
+ * sig_len must be at least wc_SignatureGetSize(sig_type, key, key_len) in
+ * size, and is updated on success.
+ *
+ * @param [in]     hash_type  The type of hash (SHA256, etc.)
+ * @param [in]     sig_type   The signature type (ECC, RSA, RSA_W_ENC)
+ * @param [in]     data       Input data to hash and sign.
+ * @param [in]     data_len   Input data len.
+ * @param [out]    sig        Output der encoded signature buffer.
+ * @param [in/out] sig_len    Size of signature buffer. Updated on success.
+ * @param [in]     key        void pointer to a wolfcrypt key struct.
+ * @param [in]     key_len    size of key structure.
+ * @param [in]     rng        wolfcrypt rng structure.
+ * @param [in]     verify     Whether to verify signature after generating.
+ *
+ * @return   0 on success
+ * @return < 0 on error
+ * @return BAD_FUNC_ARG if sig_len is too small.
+ * */
 int wc_SignatureGenerate_ex(
     enum wc_HashType hash_type, enum wc_SignatureType sig_type,
     const byte* data, word32 data_len,
