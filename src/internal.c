@@ -10745,7 +10745,7 @@ static int SendHandshakeMsg(WOLFSSL* ssl, byte* input, word32 inputSz,
         inputSz += HANDSHAKE_HEADER_SZ;
         rHdrSz = RECORD_HEADER_SZ;
     }
-    maxFrag = wolfSSL_GetMaxPlaintextSize(ssl);
+    maxFrag = wolfssl_i_GetMaxPlaintextSize(ssl);
 #ifdef WOLFSSL_DTLS
     if (ssl->options.dtls) {
         /* In DTLS the handshake header is per fragment */
@@ -24800,7 +24800,7 @@ int SendCertificate(WOLFSSL* ssl)
         length -= (ssl->fragOffset + headerSz);
 
 
-    maxFragment = (word32)wolfSSL_GetMaxPlaintextSize(ssl);
+    maxFragment = (word32)wolfssl_i_GetMaxPlaintextSize(ssl);
     if (ssl->options.dtls)
         maxFragment -= DTLS_HANDSHAKE_HEADER_SZ;
     else
@@ -25961,7 +25961,7 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
         if (sent == (word32)sz) break;
 
         buffSz = (word32)sz - sent;
-        outputSz = wolfSSL_GetRecordSize(ssl, (word32)buffSz, 1);
+        outputSz = wolfssl_i_GetRecordSize(ssl, (word32)buffSz, 1);
 #if defined(WOLFSSL_DTLS)
         if (ssl->options.dtls) {
 #if defined(WOLFSSL_DTLS_MTU)
@@ -25972,8 +25972,8 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
             if (outputSz > mtu) {
 #if defined(WOLFSSL_NO_DTLS_SIZE_CHECK)
                 /* split instead of error out */
-                buffSz = min(buffSz, wolfSSL_GetMaxPlaintextSize(ssl));
-                outputSz = wolfSSL_GetRecordSize(ssl, (word32)buffSz, 1);
+                buffSz = min(buffSz, wolfssl_i_GetMaxPlaintextSize(ssl));
+                outputSz = wolfssl_i_GetRecordSize(ssl, (word32)buffSz, 1);
 #else
                 error = DTLS_SIZE_ERROR;
                 ssl->error = error;
@@ -41808,7 +41808,7 @@ int wolfSSL_AsyncPush(WOLFSSL* ssl, WC_ASYNC_DEV* asyncDev)
  * @param isEncrypted 1 if encryption is on, 0 if not
  * @return            Record size for sending payloadSz of data
  */
-int wolfSSL_GetRecordSize(WOLFSSL *ssl, int payloadSz, int isEncrypted)
+int wolfssl_i_GetRecordSize(WOLFSSL *ssl, int payloadSz, int isEncrypted)
 {
     int recordSz;
 
@@ -41837,11 +41837,11 @@ int wolfSSL_GetRecordSize(WOLFSSL *ssl, int payloadSz, int isEncrypted)
 }
 #endif
 
-/** Return the maximum plaintext size for the current MTU.
+/** Return the maximum plaintext size for the current Max Fragment and MTU.
  * @param ssl         WOLFSSL object containing ciphersuite information.
  * @return            Max plaintext size for current MTU
  */
-int wolfSSL_GetMaxPlaintextSize(WOLFSSL *ssl)
+int wolfssl_i_GetMaxPlaintextSize(WOLFSSL *ssl)
 {
     int maxFrag;
 
@@ -41854,8 +41854,6 @@ int wolfSSL_GetMaxPlaintextSize(WOLFSSL *ssl)
     if (IsDtlsNotSctpMode(ssl)) {
         int recordSz;
         int mtu;
-
-        recordSz = wolfSSL_GetRecordSize(ssl, maxFrag, IsEncryptionOn(ssl, 1));
 
 #if defined(WOLFSSL_DTLS_MTU)
         mtu = ssl->dtlsMtuSz;
