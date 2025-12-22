@@ -41862,13 +41862,39 @@ int wolfSSL_GetMaxPlaintextSize(WOLFSSL *ssl)
 #else
         mtu = MAX_MTU;
 #endif
-        if (recordSz > mtu) {
-            maxFrag -= (recordSz - mtu);
+
+        recordSz = wolfssl_i_GetRecordSize(ssl, maxFrag, IsEncryptionOn(ssl, 1));
+        /* record size of maxFrag fits in MTU */
+        if (recordSz <= mtu) {
+            return maxFrag;
         }
+
+        /* adjust plaintext size to fit in MTU */
+        maxFrag -= (recordSz - mtu);
+        if (maxFrag <= 0) {
+            WOLFSSL_MSG("MTU too small for any plaintext");
+            return DTLS_SIZE_ERROR;
+        }
+
 #ifndef WOLFSSL_AEAD_ONLY
-        /* account for padding if using block cipher*/
-        if (ssl->specs.cipher_type == block)
-            maxFrag -= ssl->specs.block_size;
+        /* For block ciphers, reducing maxFrag may change padding alignment,
+         * causing the record to still exceed MTU. Iterate to find exact fit.
+         * Converges in at most 2 iterations due to bounded padding variance. */
+        if (ssl->specs.cipher_type == block) {
+            int iter;
+            for (iter = 0; iter < 2; iter++) {
+                recordSz = wolfssl_i_GetRecordSize(ssl, maxFrag,
+                    IsEncryptionOn(ssl, 1));
+                if (recordSz <= mtu)
+                    break;
+                maxFrag -= (recordSz - mtu);
+            }
+            if (recordSz > mtu) {
+                /* this should never happen */
+                WOLFSSL_MSG("Failed to fit record in MTU after padding adjust");
+                return DTLS_SIZE_ERROR;
+            }
+        }
 #endif
     }
 #endif /* WOLFSSL_DTLS */
