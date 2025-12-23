@@ -212,8 +212,13 @@ WC_MAYBE_UNUSED static int check_shash_driver_masking(struct crypto_shash *tfm, 
 #endif
 }
 
+static wolfSSL_Atomic_Int linuxkm_lkcapi_registering_now = WOLFSSL_ATOMIC_INITIALIZER(0);
+
 #include "lkcapi_aes_glue.c"
-#include "lkcapi_sha_glue.c"
+#include "lkcapi_sha_glue.c" /* must be included before the PK glue, to make the
+                              * crypto_default_rng usable therein when
+                              * LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT.
+                              */
 #include "lkcapi_ecdsa_glue.c"
 #include "lkcapi_ecdh_glue.c"
 #include "lkcapi_rsa_glue.c"
@@ -311,7 +316,6 @@ static int linuxkm_lkcapi_sysfs_deinstall(void) {
     return 0;
 }
 
-static wolfSSL_Atomic_Int linuxkm_lkcapi_registering_now = WOLFSSL_ATOMIC_INITIALIZER(0);
 static int linuxkm_lkcapi_registered = 0;
 static int linuxkm_lkcapi_n_registered = 0;
 
@@ -475,6 +479,9 @@ static int linuxkm_lkcapi_register(void)
     REGISTER_ALG(ecbAesAlg, skcipher, linuxkm_test_aesecb);
 #endif
 
+/* SHA algs must be registered before PK algs, to make the crypto_default_rng
+ * available beforehand when LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT.
+ */
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA1_HMAC
     REGISTER_ALG(sha1_hmac_alg, shash, linuxkm_test_sha1_hmac);
 #endif
