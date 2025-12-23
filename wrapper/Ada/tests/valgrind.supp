@@ -1,0 +1,17 @@
+{
+   aunit_test_results_add_success_leak
+   Memcheck:Leak
+   match-leak-kinds: definite,indirect
+   fun:malloc
+   fun:__gnat_malloc
+   fun:aunit__test_results__add_success
+}
+
+{
+   aunit_test_results_successes_leak
+   Memcheck:Leak
+   match-leak-kinds: definite,indirect
+   fun:malloc
+   fun:__gnat_malloc
+   fun:aunit__test_results__successes
+}
