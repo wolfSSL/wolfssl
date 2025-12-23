@@ -214,9 +214,11 @@ struct RsaKey {
     int   type;                               /* public or private */
     int   state;
     word32 dataLen;
+#ifndef WC_NO_RNG
     WC_RNG* rng;                              /* for PrivateDecrypt blinding and
                                                * _ifc_pairwise_consistency_test()
                                                */
+#endif
 #ifdef WOLFSSL_SE050
     word32 keyId;
     byte   keyIdSet;
@@ -403,7 +405,9 @@ WOLFSSL_API int  wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz,
     WOLFSSL_API int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen);
 #endif
 
+#ifndef WC_NO_RNG
     WOLFSSL_API int wc_RsaSetRNG(RsaKey* key, WC_RNG* rng);
+#endif
 #ifdef WC_RSA_NONBLOCK
     WOLFSSL_API int wc_RsaSetNonBlock(RsaKey* key, RsaNb* nb);
     #ifdef WC_RSA_NONBLOCK_TIME

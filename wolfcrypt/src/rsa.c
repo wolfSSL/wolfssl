@@ -5254,7 +5254,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 #endif /* !FIPS || FIPS_VER >= 2 */
 #endif /* WOLFSSL_KEY_GEN */
 
-
+#ifndef WC_NO_RNG
 int wc_RsaSetRNG(RsaKey* key, WC_RNG* rng)
 {
     if (key == NULL || rng == NULL)
@@ -5264,6 +5264,7 @@ int wc_RsaSetRNG(RsaKey* key, WC_RNG* rng)
 
     return 0;
 }
+#endif /* !WC_NO_RNG */
 
 #ifdef WC_RSA_NONBLOCK
 int wc_RsaSetNonBlock(RsaKey* key, RsaNb* nb)
