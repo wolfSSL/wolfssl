@@ -34,7 +34,7 @@
 
 /* RSA instances are now dynamically allocated (no fixed pool). */
 /* SHA256 instances are now dynamically allocated (no fixed pool). */
-#define WOLFSSL_AES_INSTANCES    2
+/* AES instances are now dynamically allocated (no fixed pool). */
 /* These functions give access to the integer values of the enumeration
    constants used in WolfSSL. These functions make it possible
    for the WolfSSL implementation to change the values of the constants
@@ -62,8 +62,8 @@ extern void ada_free_rsa (void* key);
 extern void *ada_new_sha256 (void);
 extern void ada_free_sha256 (void* sha256);
 
-extern void* ada_new_aes (int index);
-extern int get_wolfssl_aes_instances(void);
+extern void* ada_new_aes (int devId);
+extern void ada_free_aes (void* aes);
 
 extern void* ada_new_rng (void);
 extern void ada_free_rng (void* rng);
@@ -141,8 +141,6 @@ extern int get_wolfssl_filetype_default(void) {
   return WOLFSSL_FILETYPE_DEFAULT;
 }
 
-
-
 extern void* ada_new_rsa (void)
 {
   /* Allocate and initialize an RSA key using wolfCrypt's constructor. */
@@ -167,15 +165,16 @@ extern void ada_free_sha256 (void* sha256)
 
 
 
-Aes preAllocatedAes[WOLFSSL_AES_INSTANCES];
-
-extern void* ada_new_aes (int index)
+extern void* ada_new_aes (int devId)
 {
-  return &preAllocatedAes[index];
+  /* Allocate and initialize an AES object using wolfCrypt's constructor. */
+  return (void*)wc_AesNew(NULL, devId, NULL);
 }
 
-extern int get_wolfssl_aes_instances(void) {
-  return WOLFSSL_AES_INSTANCES;
+extern void ada_free_aes (void* aes)
+{
+  /* Delete AES object and release its memory. */
+  wc_AesDelete((Aes*)aes, NULL);
 }
 
 extern int get_wolfssl_invalid_devid (void)

@@ -46,8 +46,7 @@ package body AES_Bindings_Tests is
       IV_Enc := IV_Init;
       IV_Dec := IV_Init;
 
-      WolfSSL.Create_AES (Index  => 0,
-                          Device => WolfSSL.Invalid_Device,
+      WolfSSL.Create_AES (Device => WolfSSL.Invalid_Device,
                           AES    => AES,
                           Result => R);
       Test_Support.Assert_Success (R, "Create_AES");
@@ -115,8 +114,7 @@ package body AES_Bindings_Tests is
       AES : WolfSSL.AES_Type;
       R   : Integer;
    begin
-      WolfSSL.Create_AES (Index  => 1,
-                          Device => WolfSSL.Invalid_Device,
+      WolfSSL.Create_AES (Device => WolfSSL.Invalid_Device,
                           AES    => AES,
                           Result => R);
       Test_Support.Assert_Success (R, "Create_AES");
