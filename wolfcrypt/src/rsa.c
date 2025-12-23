@@ -201,11 +201,6 @@ int wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId)
     (!defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_VERIFY_INLINE)))
     key->dataIsAlloc = 0;
 #endif
-    key->data = NULL;
-    key->dataLen = 0;
-#ifdef WC_RSA_BLINDING
-    key->rng = NULL;
-#endif
 
 #ifdef WOLF_CRYPTO_CB
     key->devId = devId;
@@ -741,6 +736,13 @@ int wc_CheckRsaKey(RsaKey* key)
         }
 #endif
         ret = wc_InitRng(rng);
+        if (ret != 0) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+            XFREE(rng, NULL, DYNAMIC_TYPE_RNG);
+            FREE_MP_INT_SIZE(tmp, NULL, DYNAMIC_TYPE_RSA);
+#endif
+            return ret;
+        }
     }
 
     SAVE_VECTOR_REGISTERS(ret = _svr_ret;);

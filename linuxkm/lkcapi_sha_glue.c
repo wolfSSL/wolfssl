@@ -1134,6 +1134,11 @@ static inline void put_drbg(struct wc_rng_inst *drbg) {
 static inline struct crypto_rng *get_crypto_default_rng(void) {
     struct crypto_rng *current_crypto_default_rng = crypto_default_rng;
 
+    if (unlikely(! current_crypto_default_rng)) {
+        pr_warn("BUG: get_default_drbg_ctx() called with NULL crypto_default_rng.");
+        return NULL;
+    }
+
     if (unlikely(! wc_linuxkm_drbg_default_instance_registered)) {
         pr_warn("BUG: get_default_drbg_ctx() called without wc_linuxkm_drbg_default_instance_registered.");
         return NULL;
