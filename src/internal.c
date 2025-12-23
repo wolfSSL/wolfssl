@@ -1555,10 +1555,12 @@ static int ImportOptions(WOLFSSL* ssl, const byte* exp, word32 len, byte ver,
         idx++;
 #endif
     }
-
+#ifdef WOLFSSL_DTLS
     /* If we had a connection established, let's assume that we can act
      * statefully */
     options->dtlsStateful = 1;
+#endif
+
     if (ver > WOLFSSL_EXPORT_VERSION_4) {
 #ifdef WOLFSSL_DTLS
         options->dtlsStateful = exp[idx++];
