@@ -4,21 +4,21 @@ package Test_Support is
    --  Small helpers to reduce test boilerplate and keep data declarations concise.
 
    -----------------------------------------------------------------------------
-   -- Assertions
+   --  Assertions
    -----------------------------------------------------------------------------
 
    --  Assert that a WolfSSL binding call returned success (0).
    procedure Assert_Success (Result : Integer; What : String);
 
    -----------------------------------------------------------------------------
-   -- Data helpers
+   --  Data helpers
    -----------------------------------------------------------------------------
 
    --  Convert a String into a WolfSSL.Byte_Array, byte-for-byte.
    --  Intended for test vectors like keys/IVs/plaintext where ASCII is fine.
    function Bytes (S : String) return WolfSSL.Byte_Array;
 
-   --  Convert a hex string (e.g. "0A1bFF") into a Byte_Array.
+   --  Convert a hex string (for example "0A1bFF") into a Byte_Array.
    --    - Accepts both uppercase and lowercase hex.
    --    - Requires an even number of hex characters.
    function Hex_Bytes (Hex : String) return WolfSSL.Byte_Array;
