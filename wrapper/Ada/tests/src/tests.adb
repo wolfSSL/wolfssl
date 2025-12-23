@@ -6,6 +6,7 @@ with AUnit.Test_Suites;
 --  AUnit uses a generic test runner instantiated with your suite function.
 with SHA256_Suite;
 with RSA_Suite;
+with AES_Suite;
 
 procedure Tests is
    function Suite return AUnit.Test_Suites.Access_Test_Suite;
@@ -16,6 +17,7 @@ procedure Tests is
    begin
       AUnit.Test_Suites.Add_Test (S, SHA256_Suite.Suite);
       AUnit.Test_Suites.Add_Test (S, RSA_Suite.Suite);
+      AUnit.Test_Suites.Add_Test (S, AES_Suite.Suite);
       return S;
    end Suite;
 
