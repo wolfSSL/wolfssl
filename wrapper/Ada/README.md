@@ -91,6 +91,14 @@ cd obj/
 ./tls_client_main 127.0.0.1
 ```
 
+If you are using Alire, you can access `gprclean` and `gprbuild` through Alire's environment:
+
+```sh
+alr exec -- gprclean
+alr exec -- gprbuild default.gpr
+alr exec -- gprbuild examples.gpr
+```
+
 On Windows, build the executables with:
 ```sh
 gprbuild -XOS=Windows default.gpr
