@@ -557,16 +557,6 @@ static int km_rsa_ctx_init(struct km_rsa_ctx * ctx, int hash_oid)
         goto out;
     }
 
-    ret = wc_InitRng(&ctx->rng);
-    if (ret) {
-        pr_err("%s: init rng returned: %d\n", WOLFKM_RSA_DRIVER, ret);
-        if (ret == WC_NO_ERR_TRACE(MEMORY_E))
-            ret = -ENOMEM;
-        else
-            ret = -EINVAL;
-        goto out;
-    }
-
     ret = wc_InitRsaKey(ctx->key, NULL);
     if (ret) {
         pr_err("%s: init rsa key returned: %d\n", WOLFKM_RSA_DRIVER, ret);
@@ -574,13 +564,12 @@ static int km_rsa_ctx_init(struct km_rsa_ctx * ctx, int hash_oid)
         goto out;
     }
 
-    #ifdef WC_RSA_BLINDING
+    /* Note the initialization of ctx->rng is deferred unless/until needed. */
     ret = wc_RsaSetRNG(ctx->key, &ctx->rng);
     if (ret) {
         ret = -EINVAL;
         goto out;
     }
-    #endif /* WC_RSA_BLINDING */
 
     ctx->hash_oid = hash_oid;
 
@@ -636,6 +625,31 @@ out:
     }
 
     return ret;
+}
+
+static inline int km_rsa_ctx_init_rng(struct km_rsa_ctx * ctx) {
+    switch (ctx->rng.status) {
+    case WC_DRBG_OK:
+        return 0;
+    case WC_DRBG_NOT_INIT:
+    {
+        int err;
+        if (WOLFSSL_ATOMIC_LOAD(linuxkm_lkcapi_registering_now))
+            err = LKCAPI_INITRNG_FOR_SELFTEST(&ctx->rng);
+        else
+            err = wc_InitRng(&ctx->rng);
+        if (err) {
+            pr_err("%s: init rng returned: %d\n", WOLFKM_RSA_DRIVER, err);
+            if (err == WC_NO_ERR_TRACE(MEMORY_E))
+                return -ENOMEM;
+            else
+                return -EINVAL;
+        }
+        return 0;
+    }
+    default:
+        return -EINVAL;
+    }
 }
 
 #if defined(LINUXKM_DIRECT_RSA)
@@ -704,8 +718,15 @@ static int km_direct_rsa_enc(struct akcipher_request *req)
     scatterwalk_map_and_copy(dec, req->src, 0, req->src_len, 0);
 
     /* note: matching behavior of kernel rsa-generic. */
+
+    /* note, currently WOLF_CRYPTO_CB is not supported for linuxkm, and the rng
+     * are to wc_RsaFunction() is not actually used for low level (no-pad)
+     * public key ops in the native implementation (it is a pure function of its
+     * input args).
+     */
+
     err = wc_RsaFunction(dec, req->src_len, enc, &out_len,
-                         RSA_PUBLIC_ENCRYPT, ctx->key, &ctx->rng);
+                         RSA_PUBLIC_ENCRYPT, ctx->key, NULL /* rng */);
 
     if (unlikely(err || (out_len != ctx->key_len))) {
         #ifdef WOLFKM_DEBUG_RSA
@@ -789,6 +810,10 @@ static int km_direct_rsa_dec(struct akcipher_request *req)
     memset(dec, 0, req->dst_len);
     scatterwalk_map_and_copy(enc, req->src, 0, req->src_len, 0);
 
+    err = km_rsa_ctx_init_rng(ctx);
+    if (err)
+        goto rsa_dec_out;
+
     err = wc_RsaDirect(enc, ctx->key_len, dec, &out_len,
                        ctx->key, RSA_PRIVATE_DECRYPT, &ctx->rng);
 
@@ -848,12 +873,11 @@ static int km_rsa_set_priv(struct crypto_akcipher *tfm, const void *key,
             return -ENOMEM;
         }
 
-        #ifdef WC_RSA_BLINDING
+        /* Note the initialization of ctx->rng is deferred unless/until needed. */
         err = wc_RsaSetRNG(ctx->key, &ctx->rng);
         if (unlikely(err)) {
             return -ENOMEM;
         }
-        #endif /* WC_RSA_BLINDING */
     }
 
     err = wc_RsaPrivateKeyDecode(key, &idx, ctx->key, keylen);
@@ -904,6 +928,12 @@ static int km_rsa_set_pub(struct crypto_akcipher *tfm, const void *key,
         wc_FreeRsaKey(ctx->key);
 
         err = wc_InitRsaKey(ctx->key, NULL);
+        if (unlikely(err)) {
+            return -ENOMEM;
+        }
+
+        /* Note the initialization of ctx->rng is deferred unless/until needed. */
+        err = wc_RsaSetRNG(ctx->key, &ctx->rng);
         if (unlikely(err)) {
             return -ENOMEM;
         }
@@ -1113,6 +1143,10 @@ static int km_pkcs1pad_sign(struct akcipher_request *req)
         err = -EINVAL;
         goto pkcs1pad_sign_out;
     }
+
+    err = km_rsa_ctx_init_rng(ctx);
+    if (err)
+        goto pkcs1pad_sign_out;
 
     /* sign encoded message. */
     sig_len = wc_RsaSSL_Sign(msg, enc_len, sig,
@@ -1355,6 +1389,10 @@ static int km_pkcs1_sign(struct crypto_sig *tfm,
         goto pkcs1_sign_out;
     }
 
+    err = km_rsa_ctx_init_rng(ctx);
+    if (err)
+        goto pkcs1_sign_out;
+
     /* sign encoded message. */
     sig_len = wc_RsaSSL_Sign(msg, enc_msg_len, sig,
                              ctx->key_len, ctx->key, &ctx->rng);
@@ -1522,12 +1560,11 @@ static int km_pkcs1_set_priv(struct crypto_sig *tfm, const void *key,
             return -ENOMEM;
         }
 
-        #ifdef WC_RSA_BLINDING
+        /* Note the initialization of ctx->rng is deferred unless/until needed. */
         err = wc_RsaSetRNG(ctx->key, &ctx->rng);
         if (unlikely(err)) {
             return -ENOMEM;
         }
-        #endif /* WC_RSA_BLINDING */
     }
 
     err = wc_RsaPrivateKeyDecode(key, &idx, ctx->key, keylen);
@@ -1667,6 +1704,10 @@ static int km_pkcs1pad_enc(struct akcipher_request *req)
     memset(enc, 0, req->dst_len);
     scatterwalk_map_and_copy(dec, req->src, 0, req->src_len, 0);
 
+    err = km_rsa_ctx_init_rng(ctx);
+    if (err)
+        goto pkcs1_enc_out;
+
     err = wc_RsaPublicEncrypt(dec, req->src_len, enc, ctx->key_len,
                               ctx->key, &ctx->rng);
 
@@ -1740,6 +1781,12 @@ static int km_pkcs1pad_dec(struct akcipher_request *req)
     memset(enc, 0, req->src_len);
     memset(dec, 0, req->dst_len);
     scatterwalk_map_and_copy(enc, req->src, 0, req->src_len, 0);
+
+#ifdef WC_RSA_BLINDING
+    err = km_rsa_ctx_init_rng(ctx);
+    if (err)
+        goto pkcs1_dec_out;
+#endif
 
     dec_len = wc_RsaPrivateDecrypt(enc, ctx->key_len, dec, req->dst_len,
                                    ctx->key);
@@ -2054,7 +2101,8 @@ static int linuxkm_test_rsa_driver(const char * driver, int nbits)
     memset(&rng, 0, sizeof(rng));
     memset(key, 0, sizeof(RsaKey));
 
-    ret = wc_InitRng(&rng);
+    ret = LKCAPI_INITRNG_FOR_SELFTEST(&rng);
+
     if (ret) {
         pr_err("error: init rng returned: %d\n", ret);
         goto test_rsa_end;
@@ -2068,13 +2116,11 @@ static int linuxkm_test_rsa_driver(const char * driver, int nbits)
     }
     init_key = 1;
 
-    #ifdef WC_RSA_BLINDING
     ret = wc_RsaSetRNG(key, &rng);
     if (ret) {
         pr_err("error: rsa set rng returned: %d\n", ret);
         goto test_rsa_end;
     }
-    #endif /* WC_RSA_BLINDING */
 
     #ifdef HAVE_FIPS
     for (;;) {
@@ -2425,7 +2471,7 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
     memset(&rng, 0, sizeof(rng));
     memset(key, 0, sizeof(RsaKey));
 
-    ret = wc_InitRng(&rng);
+    ret = LKCAPI_INITRNG_FOR_SELFTEST(&rng);
     if (ret) {
         pr_err("error: init rng returned: %d\n", ret);
         goto test_pkcs1_end;
@@ -2440,14 +2486,12 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
     }
     init_key = 1;
 
-    #ifdef WC_RSA_BLINDING
     ret = wc_RsaSetRNG(key, &rng);
     if (ret) {
         pr_err("error: rsa set rng returned: %d\n", ret);
         test_rc = ret;
         goto test_pkcs1_end;
     }
-    #endif /* WC_RSA_BLINDING */
 
     #ifdef HAVE_FIPS
     for (;;) {
@@ -2935,7 +2979,7 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
     memset(&rng, 0, sizeof(rng));
     memset(key, 0, sizeof(RsaKey));
 
-    ret = wc_InitRng(&rng);
+    ret = LKCAPI_INITRNG_FOR_SELFTEST(&rng);
     if (ret) {
         pr_err("error: init rng returned: %d\n", ret);
         goto test_pkcs1_end;
@@ -2950,14 +2994,12 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
     }
     init_key = 1;
 
-    #ifdef WC_RSA_BLINDING
     ret = wc_RsaSetRNG(key, &rng);
     if (ret) {
         pr_err("error: rsa set rng returned: %d\n", ret);
         test_rc = ret;
         goto test_pkcs1_end;
     }
-    #endif /* WC_RSA_BLINDING */
 
     #ifdef HAVE_FIPS
     for (;;) {

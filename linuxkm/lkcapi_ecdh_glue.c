@@ -387,7 +387,10 @@ static int km_ecdh_init(struct crypto_kpp *tfm, int curve_id)
         ctx->curve_len = (word32) ret;
     }
 
-    ret = wc_InitRng(&ctx->rng);
+    if (WOLFSSL_ATOMIC_LOAD(linuxkm_lkcapi_registering_now))
+        ret = LKCAPI_INITRNG_FOR_SELFTEST(&ctx->rng);
+    else
+        ret = wc_InitRng(&ctx->rng);
     if (ret) {
         #ifdef WOLFKM_DEBUG_ECDH
         pr_err("%s: init rng returned: %d\n", WOLFKM_ECDH_DRIVER, ret);

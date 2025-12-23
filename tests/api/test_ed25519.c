@@ -489,8 +489,16 @@ int test_wc_Ed25519PublicKeyToDer(void)
     ExpectIntEQ(wc_Ed25519PublicKeyToDer(NULL, NULL, 0, 0),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_ed25519_init(&key), 0);
+#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
+    if (EXPECT_SUCCESS()) {
+        int ret = wc_Ed25519PublicKeyToDer(&key, derBuf, 0, 0);
+        ExpectTrue((ret == WC_NO_ERR_TRACE(BUFFER_E)) ||
+                   (ret == WC_NO_ERR_TRACE(PUBLIC_KEY_E)));
+    }
+#else
     ExpectIntEQ(wc_Ed25519PublicKeyToDer(&key, derBuf, 0, 0),
         WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+#endif
     wc_ed25519_free(&key);
 
     /*  Test good args */

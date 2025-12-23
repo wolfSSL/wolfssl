@@ -998,7 +998,7 @@ static int wc_linuxkm_drbg_init_tfm(struct crypto_tfm *tfm)
     int need_reenable_vec = 0;
     int can_sleep = (preempt_count() == 0);
 
-    ctx->n_rngs = max(4, nr_cpu_ids);
+    ctx->n_rngs = nr_cpu_ids + 4;
     ctx->rngs = (struct wc_rng_inst *)malloc(sizeof(*ctx->rngs) * ctx->n_rngs);
     if (! ctx->rngs) {
         ctx->n_rngs = 0;
@@ -1128,6 +1128,204 @@ static inline void put_drbg(struct wc_rng_inst *drbg) {
         #endif
     }
 }
+
+#if defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT) && defined(HAVE_HASHDRBG)
+
+static inline struct crypto_rng *get_crypto_default_rng(void) {
+    struct crypto_rng *current_crypto_default_rng = crypto_default_rng;
+
+    if (unlikely(! current_crypto_default_rng)) {
+        pr_warn("BUG: get_default_drbg_ctx() called with NULL crypto_default_rng.");
+        return NULL;
+    }
+
+    if (unlikely(! wc_linuxkm_drbg_default_instance_registered)) {
+        pr_warn("BUG: get_default_drbg_ctx() called without wc_linuxkm_drbg_default_instance_registered.");
+        return NULL;
+    }
+
+    /* note we can't call crypto_get_default_rng(), because it uses a mutex
+     * (not allowed in interrupt handlers).  we do however sanity-check the
+     * cra_init function pointer, and these handlers are protected by
+     * random_bytes_cb_refcnt in the patched drivers/char/random.c.
+     */
+
+    if (current_crypto_default_rng->base.__crt_alg->cra_init != wc_linuxkm_drbg_init_tfm) {
+        pr_err("BUG: get_default_drbg_ctx() found wrong crypto_default_rng \"%s\"\n", crypto_tfm_alg_driver_name(&current_crypto_default_rng->base));
+        crypto_put_default_rng();
+        return NULL;
+    }
+
+    return current_crypto_default_rng;
+}
+
+static int drbg_init_from(WC_RNG *source_rng, struct DRBG_internal* dest_drbg) {
+    int ret;
+    int need_vec_reenable;
+
+    XMEMSET(dest_drbg, 0, sizeof(struct DRBG_internal));
+
+    need_vec_reenable = (DISABLE_VECTOR_REGISTERS() == 0);
+
+    /* Don't copy out the low level DRBG itself -- it contains sensitive secret
+     * state.  Instead, use it to generate fresh V and C values in a
+     * non-intrusive way.
+     */
+    ret = wc_RNG_GenerateBlock(source_rng, dest_drbg->V, sizeof dest_drbg->V);
+    if (ret != 0) {
+        pr_err("drbg_init_from: wc_RNG_GenerateBlock for V returned %d\n", ret);
+        goto out;
+    }
+    ret = wc_RNG_GenerateBlock(source_rng, dest_drbg->C, sizeof dest_drbg->C);
+    if (ret != 0) {
+        pr_err("drbg_init_from: wc_RNG_GenerateBlock for C returned %d\n", ret);
+        goto out;
+    }
+
+    dest_drbg->heap = source_rng->heap;
+#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
+    dest_drbg->devId = source_rng->devId;
+#endif
+
+    ret = wc_InitSha256_ex(&dest_drbg->sha256, dest_drbg->heap,
+#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
+                           source_rng->dev_id
+#else
+                           INVALID_DEVID
+#endif
+        );
+    if (ret != 0)
+        goto out;
+
+    dest_drbg->reseedCtr = 1;
+
+    ret = 0;
+
+out:
+
+    if (need_vec_reenable)
+        REENABLE_VECTOR_REGISTERS();
+
+    return ret;
+}
+
+/* fork_default_rng() is a non-FIPS-compliant helper function to initialize an
+ * RNG for glue layer POSTs.  Direct replacement for wc_InitRng(), and secure in
+ * principle, but not permissible to use as such in FIPS runtimes.
+ */
+static WC_MAYBE_UNUSED int fork_default_rng(WC_RNG *forked_rng) {
+    struct crypto_rng *current_crypto_default_rng;
+    struct wc_rng_inst *rng = NULL;
+    struct DRBG_internal *drbg = NULL;
+    struct DRBG_internal *drbg_scratch = NULL;
+    byte *health_check_scratch = NULL;
+    byte *newSeed_buf = NULL;
+    int ret;
+
+    if (forked_rng == NULL)
+        return BAD_FUNC_ARG;
+
+    XMEMSET(forked_rng, 0, sizeof *forked_rng);
+
+    health_check_scratch =
+        (byte *)XMALLOC(RNG_HEALTH_TEST_CHECK_SIZE, NULL,
+                        DYNAMIC_TYPE_TMP_BUFFER);
+    if (health_check_scratch == NULL) {
+        ret = MEMORY_E;
+        goto out;
+    }
+
+    newSeed_buf = (byte*)XMALLOC(WC_DRBG_SEED_SZ +
+                                 WC_DRBG_SEED_BLOCK_SZ,
+                                 NULL,
+                                 DYNAMIC_TYPE_SEED);
+    if (newSeed_buf == NULL) {
+        ret = MEMORY_E;
+        goto out;
+    }
+
+    drbg = (struct DRBG_internal *)XMALLOC(sizeof *drbg, NULL,
+                                           DYNAMIC_TYPE_RNG);
+    if (drbg == NULL) {
+        ret = MEMORY_E;
+        goto out;
+    }
+
+    drbg_scratch =
+        (struct DRBG_internal *)XMALLOC(sizeof *drbg_scratch, NULL,
+                                        DYNAMIC_TYPE_RNG);
+    if (drbg_scratch == NULL) {
+        ret = MEMORY_E;
+        goto out;
+    }
+
+    current_crypto_default_rng = get_crypto_default_rng();
+    if (current_crypto_default_rng == NULL) {
+        ret = BAD_STATE_E;
+        goto out;
+    }
+
+    rng = get_drbg(current_crypto_default_rng);
+    if (rng == NULL) {
+        ret = BAD_STATE_E;
+        goto out;
+    }
+
+    if (rng->rng.status != WC_DRBG_OK) {
+        pr_err("fork_default_rng: rng->rng.status = %d\n", rng->rng.status);
+        ret = RNG_FAILURE_E;
+        goto out;
+    }
+
+    XMEMCPY(forked_rng, &rng->rng, sizeof *forked_rng);
+    forked_rng->drbg = (struct DRBG *)drbg;
+    forked_rng->drbg_scratch = drbg_scratch;
+    forked_rng->health_check_scratch = health_check_scratch;
+    forked_rng->newSeed_buf = newSeed_buf;
+
+    ret = drbg_init_from(&rng->rng, (struct DRBG_internal*)forked_rng->drbg);
+    if (ret != 0)
+        goto out;
+
+    ret = drbg_init_from(&rng->rng, (struct DRBG_internal*)forked_rng->drbg_scratch);
+    if (ret != 0)
+        goto out;
+
+    put_drbg(rng);
+    rng = NULL;
+
+    {
+        byte scratch[4];
+        ret = wc_RNG_GenerateBlock(forked_rng, scratch, sizeof scratch);
+        if (ret != 0)
+            goto out;
+    }
+
+    ret = 0;
+
+out:
+
+    if (ret == 0)
+        return ret;
+    else {
+        if (rng)
+            put_drbg(rng);
+        XFREE(drbg, rng->rng.heap, DYNAMIC_TYPE_RNG);
+        XFREE(drbg_scratch, rng->rng.heap, DYNAMIC_TYPE_RNG);
+        XFREE(health_check_scratch, rng->rng.heap, DYNAMIC_TYPE_RNG);
+        XFREE(newSeed_buf, rng->rng.heap, DYNAMIC_TYPE_RNG);
+        pr_warn("WARNING: fork_default_rng: ret=%d; falling through to wc_InitRng()\n", ret);
+        return wc_InitRng(forked_rng);
+    }
+}
+
+#define LKCAPI_INITRNG_FOR_SELFTEST(rng) fork_default_rng(rng)
+
+#else /* !LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT || !HAVE_HASHDRBG */
+
+#define LKCAPI_INITRNG_FOR_SELFTEST(rng) wc_InitRng(rng)
+
+#endif /* !LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT || !HAVE_HASHDRBG */
 
 static int wc_linuxkm_drbg_generate(struct crypto_rng *tfm,
                         const u8 *src, unsigned int slen,
@@ -1321,29 +1519,6 @@ static int wc_linuxkm_drbg_loaded = 0;
 #endif
 
 #ifdef WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS
-
-static inline struct crypto_rng *get_crypto_default_rng(void) {
-    struct crypto_rng *current_crypto_default_rng = crypto_default_rng;
-
-    if (unlikely(! wc_linuxkm_drbg_default_instance_registered)) {
-        pr_warn("BUG: get_default_drbg_ctx() called without wc_linuxkm_drbg_default_instance_registered.");
-        return NULL;
-    }
-
-    /* note we can't call crypto_get_default_rng(), because it uses a mutex
-     * (not allowed in interrupt handlers).  we do however sanity-check the
-     * cra_init function pointer, and these handlers are protected by
-     * random_bytes_cb_refcnt in the patched drivers/char/random.c.
-     */
-
-    if (current_crypto_default_rng->base.__crt_alg->cra_init != wc_linuxkm_drbg_init_tfm) {
-        pr_err("BUG: get_default_drbg_ctx() found wrong crypto_default_rng \"%s\"\n", crypto_tfm_alg_driver_name(&current_crypto_default_rng->base));
-        crypto_put_default_rng();
-        return NULL;
-    }
-
-    return current_crypto_default_rng;
-}
 
 static inline struct wc_linuxkm_drbg_ctx *get_default_drbg_ctx(void) {
     struct crypto_rng *current_crypto_default_rng = get_crypto_default_rng();
