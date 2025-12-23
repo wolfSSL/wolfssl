@@ -20,7 +20,7 @@ procedure SHA256_Main is
    R : Integer;
    S : WolfSSL.SHA256_As_String;
 begin
-   WolfSSL.Create_SHA256 (Index => 1, SHA256 => SHA256, Result => R);
+   WolfSSL.Create_SHA256 (SHA256 => SHA256, Result => R);
    if R /= 0 then
       Put ("SHA256 instance creation failed");
       New_Line;
@@ -42,6 +42,7 @@ begin
    else
       Put ("Finalization of SHA256 instance failed");
       New_Line;
-      return;
    end if;
+
+   WolfSSL.Free_SHA256 (SHA256 => SHA256);
 end SHA256_Main;

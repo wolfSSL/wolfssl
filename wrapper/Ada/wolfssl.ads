@@ -618,21 +618,22 @@ package WolfSSL with SPARK_Mode is
      Pre => Is_Valid (RSA);
    --  This functions provides private RSA decryption.
 
-   SHA256_INSTANCES : constant := 2;   
-   type SHA256_Index is range 0 .. SHA256_INSTANCES - 1;
-   
    type SHA256_Type is limited private;
 
    function Is_Valid (SHA256 : SHA256_Type) return Boolean;
    --  Indicates if the SHA256 has successfully been initialized.
 
-   procedure Create_SHA256 (Index  : SHA256_Index;
-                            SHA256 : in out SHA256_Type;
+   procedure Create_SHA256 (SHA256 : in out SHA256_Type;
                             Result : out Integer) with
      Pre  => not Is_Valid (SHA256),
      Post => (if Result = 0 then Is_Valid (SHA256));
    --  If successful Result = 0.
-   
+
+   procedure Free_SHA256 (SHA256 : in out SHA256_Type) with
+     Pre  => Is_Valid (SHA256);
+   --  Frees resources associated with SHA256 and releases the underlying C object.
+   --  If successful Result = 0.
+
    procedure Update_SHA256 (SHA256 : in out SHA256_Type;
                             Byte   : Byte_Array;
                             Result : out Integer) with
