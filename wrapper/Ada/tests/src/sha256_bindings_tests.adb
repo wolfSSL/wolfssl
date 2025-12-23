@@ -183,43 +183,32 @@ package body SHA256_Bindings_Tests is
    end Test_SHA256_Empty_Message;
 
    ----------------------------------------------------------------------------
-   --  Statically allocated suite + test case objects (no heap allocation)
+   --  Statically allocated suite object; register tests at elaboration time
    ----------------------------------------------------------------------------
 
    package Caller is new AUnit.Test_Caller (Fixture);
 
    Suite_Object : aliased AUnit.Test_Suites.Test_Suite;
-   Built        : Boolean := False;
-
-   procedure Build_Once is
-   begin
-      if Built then
-         return;
-      end if;
-
-      --  Each Caller.Create returns an access value. Depending on AUnit internals,
-      --  those test case objects might still be allocated by the framework.
-      --  This unit guarantees that *our* suite object is statically allocated
-      --  and that the registration is done once at library level.
-      AUnit.Test_Suites.Add_Test
-        (Suite_Object'Access,
-         Caller.Create
-           (Name => "SHA256('asdf') produces expected hash",
-            Test => Test_SHA256_Asdf_Known_Vector'Access));
-
-      AUnit.Test_Suites.Add_Test
-        (Suite_Object'Access,
-         Caller.Create
-           (Name => "SHA256('') produces expected hash",
-            Test => Test_SHA256_Empty_Message'Access));
-
-      Built := True;
-   end Build_Once;
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
    begin
-      Build_Once;
       return Suite_Object'Access;
    end Suite;
+
+begin
+   --  Register SHA256-related tests once at elaboration time.
+   --  Note: Caller.Create returns an access value; AUnit may still allocate
+   --  the test-case objects internally. This keeps the suite itself static.
+   AUnit.Test_Suites.Add_Test
+     (Suite_Object'Access,
+      Caller.Create
+        (Name => "SHA256('asdf') produces expected hash",
+         Test => Test_SHA256_Asdf_Known_Vector'Access));
+
+   AUnit.Test_Suites.Add_Test
+     (Suite_Object'Access,
+      Caller.Create
+        (Name => "SHA256('') produces expected hash",
+         Test => Test_SHA256_Empty_Message'Access));
 
 end SHA256_Bindings_Tests;

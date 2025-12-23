@@ -442,27 +442,18 @@ package body RSA_Verify_Bindings_Tests is
    package Caller is new AUnit.Test_Caller (Fixture);
 
    Suite_Object : aliased AUnit.Test_Suites.Test_Suite;
-   Built        : Boolean := False;
-
-   procedure Build_Once is
-   begin
-      if Built then
-         return;
-      end if;
-
-      AUnit.Test_Suites.Add_Test
-        (Suite_Object'Access,
-         Caller.Create
-           (Name => "RSA sign/verify and encrypt/decrypt (rsa_verify_main)",
-            Test => Test_RSA_Sign_Verify_And_Encrypt_Decrypt'Access));
-
-      Built := True;
-   end Build_Once;
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
    begin
-      Build_Once;
       return Suite_Object'Access;
    end Suite;
+
+begin
+   --  Register RSA tests once at elaboration time.
+   AUnit.Test_Suites.Add_Test
+     (Suite_Object'Access,
+      Caller.Create
+        (Name => "RSA sign/verify and encrypt/decrypt (rsa_verify_main)",
+         Test => Test_RSA_Sign_Verify_And_Encrypt_Decrypt'Access));
 
 end RSA_Verify_Bindings_Tests;
