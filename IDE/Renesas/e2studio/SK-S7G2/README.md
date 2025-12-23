@@ -114,6 +114,7 @@ $ ./examples/server/server -bdi -p 11112 -v d
 The `-b` option binds the server to all network interfaces (instead of localhost only).
 The `-d` option disables client authentication.
 The `-i` option makes the server loop indefinitely (allow repeated connections).
+The `-p` option sets the port number.
 The `-v` option sets the TLS version. The `d` value allows a downgrade to TLS 1.2 if a TLS 1.3 connection cannot be established.
 
 ### 7.3 Run benchmark application on the board
