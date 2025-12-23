@@ -3561,11 +3561,10 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     #endif
 
 #ifndef NO_FILESYSTEM
-    #ifndef NO_DEV_URANDOM /* way to disable use of /dev/urandom */
-        #ifdef WOLFSSL_KEEP_RNG_SEED_FD_OPEN
+    #ifdef WOLFSSL_KEEP_RNG_SEED_FD_OPEN
         if (!os->seedFdOpen)
-        #endif
         {
+        #ifndef NO_DEV_URANDOM /* way to disable use of /dev/urandom */
             os->fd = open("/dev/urandom", O_RDONLY);
             #if defined(DEBUG_WOLFSSL)
                 WOLFSSL_MSG("opened /dev/urandom.");
@@ -3575,25 +3574,39 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             {
                 /* may still have /dev/random */
                 os->fd = open("/dev/random", O_RDONLY);
-        #if defined(DEBUG_WOLFSSL)
+            #if defined(DEBUG_WOLFSSL)
                 WOLFSSL_MSG("opened /dev/random.");
-        #endif
+            #endif
                 if (os->fd == -1)
                     return OPEN_RAN_E;
-        #ifdef WOLFSSL_KEEP_RNG_SEED_FD_OPEN
                 else {
                     os->keepSeedFdOpen = 0;
                     os->seedFdOpen = 1;
                 }
-        #endif
             }
-        #ifdef WOLFSSL_KEEP_RNG_SEED_FD_OPEN
             else {
                 os->keepSeedFdOpen = 1;
                 os->seedFdOpen = 1;
             }
-        #endif
         }
+    #else
+        #ifndef NO_DEV_URANDOM /* way to disable use of /dev/urandom */
+        os->fd = open("/dev/urandom", O_RDONLY);
+        #if defined(DEBUG_WOLFSSL)
+            WOLFSSL_MSG("opened /dev/urandom.");
+        #endif
+        if (os->fd == -1)
+        #endif
+        {
+            /* may still have /dev/random */
+            os->fd = open("/dev/random", O_RDONLY);
+        #if defined(DEBUG_WOLFSSL)
+            WOLFSSL_MSG("opened /dev/random.");
+        #endif
+            if (os->fd == -1)
+                return OPEN_RAN_E;
+        }
+    #endif
     #if defined(DEBUG_WOLFSSL)
         WOLFSSL_MSG("rnd read...");
     #endif
