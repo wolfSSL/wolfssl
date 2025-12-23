@@ -531,21 +531,20 @@ package WolfSSL with SPARK_Mode is
                      HMAC       : HMAC_Hash;
                      Result     : out Integer);
    
-   RSA_INSTANCES : constant := 2;
-   
-   type RSA_Key_Index is range 0 .. RSA_INSTANCES - 1;
-
    type RSA_Key_Type is limited private;   
 
    function Is_Valid (Key : RSA_Key_Type) return Boolean;
    --  Indicates if the RSA has successfully been initialized.   
    
-   procedure Create_RSA (Index  : RSA_Key_Index;
-                         Key    : in out RSA_Key_Type;
+   procedure Create_RSA (Key    : in out RSA_Key_Type;
                          Result : out Integer) with
      Pre => not Is_Valid (Key),
      Post => (if Result = 0 then Is_Valid (Key));
    --  If successful Result = 0.
+
+   procedure Free_RSA (Key : in out RSA_Key_Type) with
+     Pre => Is_Valid (Key);
+   --  Frees resources associated with RSA and releases the underlying C object.
    
    procedure Rsa_Public_Key_Decode (Input : Byte_Array;
                                     Index : in out Byte_Index;

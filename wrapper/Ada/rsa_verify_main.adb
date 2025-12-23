@@ -362,21 +362,39 @@ procedure Rsa_Verify_Main is
    RSA_Encrypt_Key : WolfSSL.RSA_Key_Type;
    RSA_Decrypt_Key : WolfSSL.RSA_Key_Type;
    Index : WolfSSL.Byte_Index;
+
+   --  Release any resources that may have been acquired so far.
+   --  Safe to call multiple times and safe when handles are null.
+   procedure Cleanup is
+   begin
+      if WolfSSL.Is_Valid (RSA_Encrypt_Key) then
+         WolfSSL.Free_RSA (Key => RSA_Encrypt_Key);
+      end if;
+
+      if WolfSSL.Is_Valid (RSA_Decrypt_Key) then
+         WolfSSL.Free_RSA (Key => RSA_Decrypt_Key);
+      end if;
+
+      if WolfSSL.Is_Valid (RNG) then
+         WolfSSL.Free_RNG (Key => RNG);
+      end if;
+   end Cleanup;
 begin
    WolfSSL.Create_RNG (Key    => RNG,
                        Result => R);
    if R /= 0 then
       Put ("Attaining RNG key instance failed");
       New_Line;
+      Cleanup;
       return;
    end if;
    
-   WolfSSL.Create_RSA (Index  => 0,
-                       Key    => RSA_Encrypt_Key,
+   WolfSSL.Create_RSA (Key    => RSA_Encrypt_Key,
                        Result => R);
    if R /= 0 then
       Put ("Attaining RSA key instance failed");
       New_Line;
+      Cleanup;
       return;
    end if;
    
@@ -386,6 +404,7 @@ begin
    if R /= 0 then
       Put ("Associating RSA key with random number generator failed");
       New_Line;
+      Cleanup;
       return;
    end if;
    
@@ -399,6 +418,7 @@ begin
       Put ("Loading private RSA key failed with error code ");
       Put (R);
       New_Line;
+      Cleanup;
       return;
    end if;
 
@@ -411,15 +431,16 @@ begin
       Put ("Creating digital signature using RSA private key failed");
       Put (R);
       New_Line;
+      Cleanup;
       return;
    end if;
    
-   WolfSSL.Create_RSA (Index  => 1,
-                       Key    => RSA_Decrypt_Key,
+   WolfSSL.Create_RSA (Key    => RSA_Decrypt_Key,
                        Result => R);
    if R /= 0 then
       Put ("Attaining RSA key instance failed");
       New_Line;
+      Cleanup;
       return;
    end if;
 
@@ -433,6 +454,7 @@ begin
       Put ("Loading public RSA key failed with DER encoded key");
       Put (R);
       New_Line;
+      Cleanup;
       return;
    end if;
    
@@ -444,6 +466,7 @@ begin
       Put ("Verify digital signature failed");
       Put (R);
       New_Line;
+      Cleanup;
       return;
    end if;
    Put ("Successful verification of RSA based digital signature.");
@@ -459,6 +482,7 @@ begin
       Put ("Failed to encrypt the original AES key");
       Put (R);
       New_Line;
+      Cleanup;
       return;
    end if;
    
@@ -471,12 +495,14 @@ begin
       Put ("Failed to decrypt the encrypted original AES key");
       Put (R);
       New_Line;
+      Cleanup;
       return;
    end if;
    
    if Integer (Index) /= 32 then
       Put ("Decryption of the encrypted original AES key, wrong size");
       New_Line;
+      Cleanup;
       return;
    end if;
 
@@ -486,8 +512,7 @@ begin
    else
       Put ("Failed to encrypt and decrypt original AES key.");
       New_Line;
-   end if;   
-   --  Release RNG resources before exiting.
-   WolfSSL.Free_RNG (Key => RNG);
+   end if;
 
+   Cleanup;
 end Rsa_Verify_Main;

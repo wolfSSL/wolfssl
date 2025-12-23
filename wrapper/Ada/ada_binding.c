@@ -32,7 +32,7 @@
 
 #include <stdlib.h>
 
-#define WOLFSSL_RSA_INSTANCES    2
+/* RSA instances are now dynamically allocated (no fixed pool). */
 /* SHA256 instances are now dynamically allocated (no fixed pool). */
 #define WOLFSSL_AES_INSTANCES    2
 /* These functions give access to the integer values of the enumeration
@@ -56,8 +56,8 @@ extern int get_wolfssl_filetype_asn1(void);
 extern int get_wolfssl_filetype_pem(void);
 extern int get_wolfssl_filetype_default(void);
 
-extern int get_wolfssl_rsa_instances (void);
-extern void* ada_new_rsa (int index);
+extern void* ada_new_rsa (void);
+extern void ada_free_rsa (void* key);
 
 extern void *ada_new_sha256 (void);
 extern void ada_free_sha256 (void* sha256);
@@ -141,15 +141,18 @@ extern int get_wolfssl_filetype_default(void) {
   return WOLFSSL_FILETYPE_DEFAULT;
 }
 
-extern int get_wolfssl_rsa_instances(void) {
-  return WOLFSSL_RSA_INSTANCES;
+
+
+extern void* ada_new_rsa (void)
+{
+  /* Allocate and initialize an RSA key using wolfCrypt's constructor. */
+  return (void*)wc_NewRsaKey(NULL, INVALID_DEVID, NULL);
 }
 
-RsaKey preAllocatedRSAKeys[WOLFSSL_RSA_INSTANCES];
-
-extern void* ada_new_rsa (int index)
+extern void ada_free_rsa (void* key)
 {
-  return &preAllocatedRSAKeys[index];
+  /* Delete RSA key and release its memory. */
+  wc_DeleteRsaKey((RsaKey*)key, NULL);
 }
 
 extern void* ada_new_sha256 (void)

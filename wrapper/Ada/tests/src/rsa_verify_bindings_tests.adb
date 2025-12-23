@@ -349,8 +349,7 @@ package body RSA_Verify_Bindings_Tests is
       AUnit.Assertions.Assert (R = 0, "Create_RNG failed, Result =" &
                                 Integer'Image (R));
 
-      WolfSSL.Create_RSA (Index  => 0,
-                          Key    => RSA_Encrypt_Key,
+      WolfSSL.Create_RSA (Key    => RSA_Encrypt_Key,
                           Result => R);
       AUnit.Assertions.Assert (R = 0, "Create_RSA (private) failed, Result =" &
                                 Integer'Image (R));
@@ -379,8 +378,7 @@ package body RSA_Verify_Bindings_Tests is
                               "Rsa_SSL_Sign failed, Result =" &
                                 Integer'Image (R));
 
-      WolfSSL.Create_RSA (Index  => 1,
-                          Key    => RSA_Decrypt_Key,
+      WolfSSL.Create_RSA (Key    => RSA_Decrypt_Key,
                           Result => R);
       AUnit.Assertions.Assert (R = 0, "Create_RSA (public) failed, Result =" &
                                 Integer'Image (R));
@@ -389,7 +387,7 @@ package body RSA_Verify_Bindings_Tests is
       WolfSSL.Rsa_Public_Key_Decode (Input  => Rsa_Public_Key_2048,
                                      Index  => Index,
                                      Key    => RSA_Decrypt_Key,
-                                     Size   => Rsa_Public_Key_2048'Length,
+                                     Size  => Rsa_Public_Key_2048'Length,
                                      Result => R);
       AUnit.Assertions.Assert (R = 0, "Rsa_Public_Key_Decode failed, Result =" &
                                 Integer'Image (R));
@@ -436,6 +434,10 @@ package body RSA_Verify_Bindings_Tests is
 
       AUnit.Assertions.Assert (Decrypted (1 .. 32) = Original_AES_Key,
                               "RSA decrypt result does not equal original key");
+
+      --  Ensure RSA key resources are released (RSA is now dynamically allocated).
+      WolfSSL.Free_RSA (Key => RSA_Encrypt_Key);
+      WolfSSL.Free_RSA (Key => RSA_Decrypt_Key);
 
       --  Ensure RNG resources are released (RNG is now dynamically allocated).
       --  Must be done after all operations that use RNG / depend on it.
