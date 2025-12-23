@@ -439,19 +439,30 @@ package body RSA_Verify_Bindings_Tests is
                               "RSA decrypt result does not equal original key");
    end Test_RSA_Sign_Verify_And_Encrypt_Decrypt;
 
-   function Suite return AUnit.Test_Suites.Access_Test_Suite is
-      package Caller is new AUnit.Test_Caller (Fixture);
+   package Caller is new AUnit.Test_Caller (Fixture);
 
-      S : constant AUnit.Test_Suites.Access_Test_Suite :=
-        new AUnit.Test_Suites.Test_Suite;
+   Suite_Object : aliased AUnit.Test_Suites.Test_Suite;
+   Built        : Boolean := False;
+
+   procedure Build_Once is
    begin
+      if Built then
+         return;
+      end if;
+
       AUnit.Test_Suites.Add_Test
-        (S,
+        (Suite_Object'Access,
          Caller.Create
            (Name => "RSA sign/verify and encrypt/decrypt (rsa_verify_main)",
             Test => Test_RSA_Sign_Verify_And_Encrypt_Decrypt'Access));
 
-      return S;
+      Built := True;
+   end Build_Once;
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+   begin
+      Build_Once;
+      return Suite_Object'Access;
    end Suite;
 
 end RSA_Verify_Bindings_Tests;

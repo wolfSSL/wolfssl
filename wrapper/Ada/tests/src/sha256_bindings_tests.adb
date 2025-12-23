@@ -5,6 +5,10 @@ with WolfSSL;
 
 package body SHA256_Bindings_Tests is
 
+   ----------------------------------------------------------------------------
+   --  Helpers
+   ----------------------------------------------------------------------------
+
    procedure Assert_Text_Matches_Hash
      (Hash : WolfSSL.SHA256_Hash;
       Text : WolfSSL.SHA256_As_String;
@@ -112,6 +116,10 @@ package body SHA256_Bindings_Tests is
       Result := R;
    end Compute_SHA256;
 
+   ----------------------------------------------------------------------------
+   --  Tests
+   ----------------------------------------------------------------------------
+
    procedure Test_SHA256_Asdf_Known_Vector (F : in out Fixture) is
       pragma Unreferenced (F);
 
@@ -151,8 +159,7 @@ package body SHA256_Bindings_Tests is
       R    : Integer;
 
       --  If this doesn't compile depending on how `Byte_Array` is declared,
-      --  tell me the exact declaration from `wolfssl.ads` and I will rework
-      --  this test to produce an empty input safely.
+      --  rework this test to produce an empty input safely for that declaration.
       Empty : constant WolfSSL.Byte_Array := (1 .. 0 => <>);
 
       Expected_Text : constant WolfSSL.SHA256_As_String :=
@@ -175,25 +182,44 @@ package body SHA256_Bindings_Tests is
          Msg  => "SHA256('')");
    end Test_SHA256_Empty_Message;
 
-   function Suite return AUnit.Test_Suites.Access_Test_Suite is
-      package Caller is new AUnit.Test_Caller (Fixture);
+   ----------------------------------------------------------------------------
+   --  Statically allocated suite + test case objects (no heap allocation)
+   ----------------------------------------------------------------------------
 
-      S : constant AUnit.Test_Suites.Access_Test_Suite :=
-        new AUnit.Test_Suites.Test_Suite;
+   package Caller is new AUnit.Test_Caller (Fixture);
+
+   Suite_Object : aliased AUnit.Test_Suites.Test_Suite;
+   Built        : Boolean := False;
+
+   procedure Build_Once is
    begin
+      if Built then
+         return;
+      end if;
+
+      --  Each Caller.Create returns an access value. Depending on AUnit internals,
+      --  those test case objects might still be allocated by the framework.
+      --  This unit guarantees that *our* suite object is statically allocated
+      --  and that the registration is done once at library level.
       AUnit.Test_Suites.Add_Test
-        (S,
+        (Suite_Object'Access,
          Caller.Create
            (Name => "SHA256('asdf') produces expected hash",
             Test => Test_SHA256_Asdf_Known_Vector'Access));
 
       AUnit.Test_Suites.Add_Test
-        (S,
+        (Suite_Object'Access,
          Caller.Create
            (Name => "SHA256('') produces expected hash",
             Test => Test_SHA256_Empty_Message'Access));
 
-      return S;
+      Built := True;
+   end Build_Once;
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+   begin
+      Build_Once;
+      return Suite_Object'Access;
    end Suite;
 
 end SHA256_Bindings_Tests;
