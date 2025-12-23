@@ -1027,28 +1027,51 @@ package body WolfSSL is
       return Key /= null;
    end Is_Valid;
 
-   function Ada_New_RSA (Index : int)
-                         return RSA_Key_Type with
+   function Ada_New_RSA return RSA_Key_Type with
      Convention    => C,
      External_Name => "ada_new_rsa",
      Import        => True;
 
-   function Init_RSA_Key (Key  : not null RSA_Key_Type;
-                          Heap : access Byte_Type) return int with
+   procedure Ada_Free_RSA (Key : in RSA_Key_Type) with
      Convention    => C,
-     External_Name => "wc_InitRsaKey",
+     External_Name => "ada_free_rsa",
      Import        => True;
 
-   procedure Create_RSA (Index  : RSA_Key_Index;
-                         Key    : in out RSA_Key_Type;
-                         Result : out Integer) is
-      R : int;
+   procedure Free_RSA (Key : in out RSA_Key_Type) is
    begin
-      Key := Ada_New_RSA (int (Index));
-      R := Init_RSA_Key (Key, null);
-      Result := Integer (R);
+      if Key = null then
+         return;
+      end if;
+
+      --  wc_DeleteRsaKey() already calls wc_FreeRsaKey() internally.
+      Ada_Free_RSA (Key);
+
+      --  Prevent accidental double-free and make Is_Valid return False.
+      Key := null;
+   end Free_RSA;
+
+   procedure Create_RSA (Key    : in out RSA_Key_Type;
+                         Result : out Integer) is
+   begin
+      --  Allocate and initialize RSA key using the C wrapper.
+      --  The wrapper uses wc_NewRsaKey() and returns NULL on failure.
+      Key := Ada_New_RSA;
+
+      if Key = null then
+         Result := Exception_Error;
+         return;
+      end if;
+
+      --  wc_NewRsaKey() already calls wc_InitRsaKey_ex() internally.
+      Result := 0;
+
    exception
       when others =>
+         --  Avoid leaking the dynamically allocated RSA key on failure.
+         if Key /= null then
+            Ada_Free_RSA (Key);
+            Key := null;
+         end if;
          Result := Exception_Error;
    end Create_RSA;
 
@@ -1529,19 +1552,11 @@ package body WolfSSL is
          Result := Exception_Error;
    end AES_Free;
 
-   function Get_WolfSSL_RSA_Instances return int with
-     Convention    => C,
-     External_Name => "get_wolfssl_rsa_instances",
-     Import        => True;
-
-
-
    function Get_WolfSSL_AES_Instances return int with
      Convention    => C,
      External_Name => "get_wolfssl_aes_instances",
      Import        => True;
 
 begin
-   pragma Assert (RSA_INSTANCES = Get_WolfSSL_RSA_Instances);
    pragma Assert (AES_INSTANCES = Get_WolfSSL_AES_Instances);
 end WolfSSL;
