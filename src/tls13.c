@@ -4522,7 +4522,7 @@ int SendTls13ClientHello(WOLFSSL* ssl)
 
     {
 #ifdef WOLFSSL_DTLS_CH_FRAG
-        word16 maxFrag = wolfssl_i_GetMaxPlaintextSize(ssl);
+        word16 maxFrag = wolfssl_local_GetMaxPlaintextSize(ssl);
         word16 lenWithoutExts = args->length;
 #endif
 
@@ -8872,7 +8872,7 @@ static int SendTls13Certificate(WOLFSSL* ssl)
     if (ssl->fragOffset != 0)
         length -= (ssl->fragOffset + headerSz);
 
-    maxFragment = (word32)wolfssl_i_GetMaxPlaintextSize(ssl);
+    maxFragment = (word32)wolfssl_local_GetMaxPlaintextSize(ssl);
 
     extIdx = 0;
 

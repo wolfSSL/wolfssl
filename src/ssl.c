@@ -2905,7 +2905,7 @@ int wolfSSL_GetMaxOutputSize(WOLFSSL* ssl)
         return BAD_FUNC_ARG;
     }
 
-    return min(OUTPUT_RECORD_SIZE, wolfssl_i_GetMaxPlaintextSize(ssl));
+    return min(OUTPUT_RECORD_SIZE, wolfssl_local_GetMaxPlaintextSize(ssl));
 }
 
 
@@ -2925,7 +2925,7 @@ int wolfSSL_GetOutputSize(WOLFSSL* ssl, int inSz)
     if (inSz > maxSize)
         return INPUT_SIZE_E;
 
-    return wolfssl_i_GetRecordSize(ssl, inSz, 1);
+    return wolfssl_local_GetRecordSize(ssl, inSz, 1);
 }
 
 
