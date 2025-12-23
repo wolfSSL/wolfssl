@@ -42257,11 +42257,11 @@ static int DisplaySecTrustError(CFErrorRef error, SecTrustRef trust)
     /* Description */
     desc = CFErrorCopyDescription(error);
     if (desc) {
-        char buffer[256];
-        if (CFStringGetCString(desc, buffer, sizeof(buffer),
+        char buf[256];
+        if (CFStringGetCString(desc, buf, sizeof(buf),
                                kCFStringEncodingUTF8)) {
             WOLFSSL_MSG_EX("SecTrustEvaluateWithError Error description: %s\n",
-                           buffer);
+                           buf);
         }
         CFRelease(desc);
     }
