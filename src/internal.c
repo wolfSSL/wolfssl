@@ -41861,7 +41861,8 @@ int wolfssl_local_GetMaxPlaintextSize(WOLFSSL *ssl)
         mtu = MAX_MTU;
 #endif
 
-        recordSz = wolfssl_local_GetRecordSize(ssl, maxFrag, IsEncryptionOn(ssl, 1));
+        recordSz = wolfssl_local_GetRecordSize(ssl, maxFrag,
+                       IsEncryptionOn(ssl, 1));
         /* record size of maxFrag fits in MTU */
         if (recordSz <= mtu) {
             return maxFrag;
