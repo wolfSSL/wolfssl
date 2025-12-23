@@ -143,3 +143,13 @@ rules:
 
       ensure ephemeral structures are freed once no longer needed, and avoid
       reusing pointers after free
+  - name: use-proper-function-visibility
+    trigger: >-
+      functions must use appropriate visibility modifiers. Public functions
+      should use WOLFSSL_API, local functions should use WOLFSSL_LOCAL, and
+      non-static local functions should have a wolfssl_local_ or wc_local_ prefix.
+    solution: >-
+      for public functions that are part of the external API, declare them with
+      WOLFSSL_API. For functions local to the library but not static, use
+      WOLFSSL_LOCAL and prefix the function name with wolfssl_local_ or wc_local_
+      to clearly indicate internal usage.
