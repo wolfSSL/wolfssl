@@ -13,25 +13,40 @@ package body AES_Bindings_Tests is
    AES_Encrypt_Dir : constant Integer := 0;
    AES_Decrypt_Dir : constant Integer := 1;
 
-   function Suite return AUnit.Test_Suites.Access_Test_Suite is
-      package Caller is new AUnit.Test_Caller (Fixture);
+   ----------------------------------------------------------------------------
+   --  Statically allocated suite object + one-time registration
+   ----------------------------------------------------------------------------
 
-      S : constant AUnit.Test_Suites.Access_Test_Suite :=
-        new AUnit.Test_Suites.Test_Suite;
+   package Caller is new AUnit.Test_Caller (Fixture);
+
+   Suite_Object : aliased AUnit.Test_Suites.Test_Suite;
+   Built        : Boolean := False;
+
+   procedure Build_Once is
    begin
+      if Built then
+         return;
+      end if;
+
       AUnit.Test_Suites.Add_Test
-        (S,
+        (Suite_Object'Access,
          Caller.Create
            (Name => "AES-CBC encrypt/decrypt roundtrip",
             Test => Test_AES_CBC_Roundtrip'Access));
 
       AUnit.Test_Suites.Add_Test
-        (S,
+        (Suite_Object'Access,
          Caller.Create
            (Name => "AES_Free succeeds after Create_AES",
             Test => Test_AES_Free_Invalidates'Access));
 
-      return S;
+      Built := True;
+   end Build_Once;
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+   begin
+      Build_Once;
+      return Suite_Object'Access;
    end Suite;
 
    procedure Test_AES_CBC_Roundtrip (F : in out Fixture) is

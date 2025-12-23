@@ -19,7 +19,7 @@ package body Tests_Root_Suite is
       --  Compose the root suite from sub-suites.
       AUnit.Test_Suites.Add_Test (Root'Access, SHA256_Suite.Suite);
       AUnit.Test_Suites.Add_Test (Root'Access, RSA_Suite.Suite);
-      -- AUnit.Test_Suites.Add_Test (Root'Access, AES_Suite.Suite);
+      AUnit.Test_Suites.Add_Test (Root'Access, AES_Suite.Suite);
 
       Built := True;
    end Build_Once;
