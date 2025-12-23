@@ -35,7 +35,6 @@
 #define WOLFSSL_RSA_INSTANCES    2
 /* SHA256 instances are now dynamically allocated (no fixed pool). */
 #define WOLFSSL_AES_INSTANCES    2
-#define WOLFSSL_RNG_INSTANCES    2
 /* These functions give access to the integer values of the enumeration
    constants used in WolfSSL. These functions make it possible
    for the WolfSSL implementation to change the values of the constants
@@ -66,8 +65,8 @@ extern void ada_free_sha256 (void* sha256);
 extern void* ada_new_aes (int index);
 extern int get_wolfssl_aes_instances(void);
 
-extern void* ada_new_rng (int index);
-extern int get_wolfssl_rng_instances(void);
+extern void* ada_new_rng (void);
+extern void ada_free_rng (void* rng);
 extern int ada_RsaSetRNG (RsaKey* key, WC_RNG* rng);
 
 extern int get_wolfssl_invalid_devid (void);
@@ -181,15 +180,17 @@ extern int get_wolfssl_invalid_devid (void)
   return INVALID_DEVID;
 }
 
-WC_RNG preAllocatedRNG[WOLFSSL_RNG_INSTANCES];
-
-extern void* ada_new_rng (int index)
+extern void* ada_new_rng (void)
 {
-  return &preAllocatedRNG[index];
+  /* Allocate and initialize a WC_RNG using wolfCrypt's allocator.
+   * Per request: pass NULL and 0 to wc_rng_new (nonce, nonceSz).
+   */
+  return (void*)wc_rng_new(NULL, 0, NULL);
 }
 
-extern int get_wolfssl_rng_instances(void) {
-  return WOLFSSL_RNG_INSTANCES;
+extern void ada_free_rng (void* rng)
+{
+  wc_rng_free((WC_RNG*)rng);
 }
 
 extern int ada_RsaSetRNG(RsaKey* key, WC_RNG* rng)

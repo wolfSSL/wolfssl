@@ -35,8 +35,7 @@ procedure AES_Verify_Main is
    R : Integer;
    Pad : Integer := 3;
 begin
-   WolfSSL.Create_RNG (Index  => 0,
-                       Key    => RNG,
+   WolfSSL.Create_RNG (Key    => RNG,
                        Result => R);
    if R /= 0 then
       Put ("Attaining RNG key instance failed");
@@ -50,6 +49,7 @@ begin
    if R /= 0 then
       Put ("Generating random salt");
       New_Line;
+      WolfSSL.Free_RNG (Key => RNG);
       return;
    end if;
    
@@ -66,6 +66,7 @@ begin
    if R /= 0 then
       Put ("Attaining AES key instance failed");
       New_Line;
+      WolfSSL.Free_RNG (Key => RNG);
       return;
    end if;
 
@@ -79,6 +80,9 @@ begin
    --  if R /= 0 then
    --     Put ("Attaining AES key instance failed");
    --     New_Line;
+   --     WolfSSL.Free_RNG (Key => RNG);
    --     return;
-   --  end if;   
+   --  end if;
+
+   WolfSSL.Free_RNG (Key => RNG);
 end AES_Verify_Main;

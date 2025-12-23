@@ -344,8 +344,7 @@ package body RSA_Verify_Bindings_Tests is
       Index : WolfSSL.Byte_Index;
       R     : Integer;
    begin
-      WolfSSL.Create_RNG (Index  => 0,
-                          Key    => RNG,
+      WolfSSL.Create_RNG (Key    => RNG,
                           Result => R);
       AUnit.Assertions.Assert (R = 0, "Create_RNG failed, Result =" &
                                 Integer'Image (R));
@@ -437,6 +436,10 @@ package body RSA_Verify_Bindings_Tests is
 
       AUnit.Assertions.Assert (Decrypted (1 .. 32) = Original_AES_Key,
                               "RSA decrypt result does not equal original key");
+
+      --  Ensure RNG resources are released (RNG is now dynamically allocated).
+      --  Must be done after all operations that use RNG / depend on it.
+      WolfSSL.Free_RNG (Key => RNG);
    end Test_RSA_Sign_Verify_And_Encrypt_Decrypt;
 
    package Caller is new AUnit.Test_Caller (Fixture);
