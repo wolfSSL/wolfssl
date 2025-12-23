@@ -813,7 +813,6 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
 #ifdef HAVE_HASHDRBG
     word32 seedSz = SEED_SZ + SEED_BLOCK_SZ;
     WC_DECLARE_VAR(seed, byte, MAX_SEED_SZ, rng->heap);
-    int drbg_instantiated = 0;
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     int drbg_scratch_instantiated = 0;
 #endif
@@ -1025,8 +1024,6 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
                 ret = Hash_DRBG_Instantiate((DRBG_internal *)rng->drbg,
                             seed + SEED_BLOCK_SZ, seedSz - SEED_BLOCK_SZ,
                             nonce, nonceSz, rng->heap, devId);
-            if (ret == 0)
-                drbg_instantiated = 1;
     } /* ret == 0 */
 
     #ifdef WOLFSSL_SMALL_STACK
@@ -1038,8 +1035,6 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
     WC_FREE_VAR_EX(seed, rng->heap, DYNAMIC_TYPE_SEED);
 
     if (ret != DRBG_SUCCESS) {
-        if (drbg_instantiated)
-            (void)Hash_DRBG_Uninstantiate((DRBG_internal *)rng->drbg);
     #if !defined(WOLFSSL_NO_MALLOC) || defined(WOLFSSL_STATIC_MEMORY)
         XFREE(rng->drbg, rng->heap, DYNAMIC_TYPE_RNG);
     #endif

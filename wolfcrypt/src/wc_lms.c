@@ -913,6 +913,7 @@ int wc_LmsKey_Reload(LmsKey* key)
                 /* Reload the key ready for signing. */
                 ret = wc_hss_reload_key(state, key->priv_raw, &key->priv,
                     key->priv_data, NULL);
+                wc_lmskey_state_free(state);
             }
             ForceZero(state, sizeof(LmsState));
             WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);

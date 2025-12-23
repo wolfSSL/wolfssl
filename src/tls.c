@@ -9979,6 +9979,20 @@ int TLSX_KeyShare_Parse_ClientHello(const WOLFSSL* ssl,
         offset += ret;
     }
 
+    if (ssl->hrr_keyshare_group != 0) {
+        /*
+         * https://datatracker.ietf.org/doc/html/rfc8446#section-4.2.8
+         *   when sending the new ClientHello, the client MUST
+         *   replace the original "key_share" extension with one containing only a
+         *   new KeyShareEntry for the group indicated in the selected_group field
+         *   of the triggering HelloRetryRequest
+         */
+        if (seenGroupsCnt != 1 || seenGroups[0] != ssl->hrr_keyshare_group) {
+            WOLFSSL_ERROR_VERBOSE(BAD_KEY_SHARE_DATA);
+            return BAD_KEY_SHARE_DATA;
+        }
+    }
+
     return 0;
 }
 

@@ -268,7 +268,7 @@
 #endif
 
 #ifdef WOLFSSL_DUMP_MEMIO_STREAM
-const char* currentTestName;
+const char* currentTestName = NULL;
 char tmpDirName[16];
 int tmpDirNameSet = 0;
 #endif
@@ -35744,6 +35744,23 @@ static int test_CryptoCb_Func(int thisDevId, wc_CryptoInfo* info, void* ctx)
                     wc_Sha3* sha = (wc_Sha3*)info->free.obj;
                     sha->devId = INVALID_DEVID;
                     wc_Sha3_512_Free(sha);
+                    ret = 0;
+                    break;
+                }
+    #endif
+                default:
+                    ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
+                    break;
+            }
+        }
+        else if (info->free.algo == WC_ALGO_TYPE_CIPHER) {
+            switch (info->free.type) {
+    #ifndef NO_AES
+                case WC_CIPHER_AES:
+                {
+                    Aes* aes = (Aes*)info->free.obj;
+                    aes->devId = INVALID_DEVID;
+                    wc_AesFree(aes);
                     ret = 0;
                     break;
                 }

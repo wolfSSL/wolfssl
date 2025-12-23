@@ -104,6 +104,9 @@ ASN Options:
  *  DO NOT enable this unless required for interoperability.
  * WOLFSSL_ASN_EXTRA: Make more ASN.1 APIs available regardless of internal
  *  usage.
+ * WOLFSSL_ALLOW_AKID_SKID_MATCH: By default cert issuer is found using hash
+ * of cert subject hash with signers subject hash. This option allows fallback
+ * to using AKID and SKID matching.
 */
 
 #ifndef NO_RSA
@@ -21339,42 +21342,25 @@ static int DecodeAuthKeyIdInternal(const byte* input, word32 sz,
     ret = DecodeAuthKeyId(input, sz, &extAuthKeyId, &extAuthKeyIdSz,
             &extAuthKeyIdIssuer, &extAuthKeyIdIssuerSz, &extAuthKeyIdIssuerSN,
             &extAuthKeyIdIssuerSNSz);
-
-    if (ret != 0)
-        return ret;
-
-#ifndef WOLFSSL_ASN_TEMPLATE
-
-    if (extAuthKeyIdSz == 0)
-    {
+    if (ret != 0) {
         cert->extAuthKeyIdSet = 0;
-        return 0;
+        return ret;
     }
-
-    cert->extAuthKeyIdSz = extAuthKeyIdSz;
-
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-#ifdef WOLFSSL_AKID_NAME
-    cert->extRawAuthKeyIdSrc = input;
-    cert->extRawAuthKeyIdSz = sz;
-#endif
-    cert->extAuthKeyIdSrc = extAuthKeyId;
-#endif /* OPENSSL_EXTRA */
-
-    return GetHashId(extAuthKeyId, extAuthKeyIdSz, cert->extAuthKeyId,
-        HashIdAlg(cert->signatureOID));
-#else
 
     /* Each field is optional */
     if (extAuthKeyIdSz > 0) {
-#ifdef OPENSSL_EXTRA
-        cert->extAuthKeyIdSrc = extAuthKeyId;
+        cert->extAuthKeyIdSet = 1;
         cert->extAuthKeyIdSz = extAuthKeyIdSz;
-#endif /* OPENSSL_EXTRA */
+
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+        cert->extAuthKeyIdSrc = extAuthKeyId;
+#endif
+
         /* Get the hash or hash of the hash if wrong size. */
         ret = GetHashId(extAuthKeyId, (int)extAuthKeyIdSz, cert->extAuthKeyId,
                         HashIdAlg(cert->signatureOID));
     }
+
 #ifdef WOLFSSL_AKID_NAME
     if (ret == 0 && extAuthKeyIdIssuerSz > 0) {
         cert->extAuthKeyIdIssuer = extAuthKeyIdIssuer;
@@ -21386,15 +21372,15 @@ static int DecodeAuthKeyIdInternal(const byte* input, word32 sz,
     }
 #endif /* WOLFSSL_AKID_NAME */
     if (ret == 0) {
-#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_AKID_NAME)
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+     defined(WOLFSSL_AKID_NAME)
         /* Store the raw authority key id. */
         cert->extRawAuthKeyIdSrc = input;
         cert->extRawAuthKeyIdSz = sz;
-#endif /* OPENSSL_EXTRA */
+#endif
     }
 
     return ret;
-#endif /* WOLFSSL_ASN_TEMPLATE */
 }
 
 /* Decode subject key id extension.
@@ -25723,7 +25709,22 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
             }
             if (cert->ca != NULL && XMEMCMP(cert->issuerHash,
                     cert->ca->subjectNameHash, KEYID_SIZE) != 0) {
-                cert->ca = NULL;
+            #ifdef WOLFSSL_ALLOW_AKID_SKID_MATCH
+                /* if hash of cert subject does not match hash of issuer
+                 * then try with AKID/SKID if available */
+                if (cert->extAuthKeyIdSet && cert->extAuthKeyIdSz > 0 &&
+                    cert->extAuthKeyIdSz ==
+                        (word32)sizeof(cert->ca->subjectKeyIdHash) &&
+                    XMEMCMP(cert->extAuthKeyId, cert->ca->subjectKeyIdHash,
+                            cert->extAuthKeyIdSz) == 0) {
+                    WOLFSSL_MSG("Cert AKID matches CA SKID");
+                }
+                else
+            #endif
+                {
+                    WOLFSSL_MSG("Cert subject hash does not match issuer hash");
+                    cert->ca = NULL;
+                }
             }
             if (cert->ca == NULL) {
                 cert->ca = GetCAByName(cm, cert->issuerHash);

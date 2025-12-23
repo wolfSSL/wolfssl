@@ -4383,4 +4383,135 @@ int test_wc_PKCS7_DecodeCompressedData(void)
     return EXPECT_RESULT();
 }
 
+/*
+ * Test for PKCS#7 SignedData with non-OCTET_STRING content
+ * (PKCS#7 style vs CMS)
+ *
+ * Tests parsing PKCS#7 SignedData where the encapsulated content
+ * is a SEQUENCE (as allowed by original PKCS#7 spec "ANY DEFINED BY
+ * contentType") rather than an OCTET STRING (as mandated by CMS). This showed
+ * up in use case of Authenticode signatures.
+ */
+int test_wc_PKCS7_VerifySignedData_PKCS7ContentSeq(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7)
+    PKCS7* pkcs7 = NULL;
+#ifndef NO_PKCS7_STREAM
+    word32 idx;
+    int ret;
+#endif
+
+    /*
+     * Hand-crafted PKCS#7 SignedData (degenerate, no signers) with:
+     * - Content type OID (1.3.6.1.4.1.311.2.1.4 = SPC_INDIRECT_DATA)
+     * - Content is a SEQUENCE, NOT an OCTET STRING
+     * - eContent is encoded as "ANY" type per original PKCS#7 spec.
+     *
+     * This test ensures wolfSSL's PKCS7 streaming code can correctly
+     * parse SignedData types when the encapsulated content is not an OCTET
+     * STRING (as CMS requires) but rather a SEQUENCE or other type
+     * (as PKCS#7's "ANY" type allows). Microsoft Authenticode signatures
+     * use this format with SPC_INDIRECT_DATA content.
+     *
+     * Structure:
+     *   ContentInfo SEQUENCE
+     *     contentType OID signedData
+     *     [0] SignedData SEQUENCE
+     *       version INTEGER 1
+     *       digestAlgorithms SET { sha256 }
+     *       encapContentInfo SEQUENCE
+     *         eContentType OID 1.3.6.1.4.1.311.2.1.4
+     *         [0] eContent
+     *           SEQUENCE { OID, OCTET STRING } - SEQUENCE not OCTET STRING
+     *       signerInfos SET {} (empty = degenerate)
+     */
+    static const byte pkcs7Content[] = {
+        /* ContentInfo SEQUENCE */
+        0x30, 0x56,
+        /* contentType OID: 1.2.840.113549.1.7.2 (signedData) */
+        0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07, 0x02,
+        /* [0] EXPLICIT - content */
+        0xA0, 0x49,
+        /* SignedData SEQUENCE */
+        0x30, 0x47,
+        /* version INTEGER 1 */
+        0x02, 0x01, 0x01,
+        /* digestAlgorithms SET */
+        0x31, 0x0F,
+        /* AlgorithmIdentifier SEQUENCE */
+        0x30, 0x0D,
+        /* OID sha256: 2.16.840.1.101.3.4.2.1 */
+        0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03,
+        0x04, 0x02, 0x01,
+        /* NULL */
+        0x05, 0x00,
+        /* encapContentInfo SEQUENCE */
+        0x30, 0x2F,
+        /* eContentType OID: 1.3.6.1.4.1.311.2.1.4 (SPC_INDIRECT_DATA) */
+        0x06, 0x0A, 0x2B, 0x06, 0x01, 0x04, 0x01, 0x82,
+        0x37, 0x02, 0x01, 0x04,
+        /* [0] EXPLICIT - eContent */
+        0xA0, 0x21,
+        /* Content SEQUENCE (0x30), not OCTET STRING (0x04)
+         * Following PKCS#7 "ANY" type, not CMS OCTET STRING */
+        0x30, 0x1F,
+        /* Content: SEQUENCE { OID, OCTET STRING with 24 bytes } */
+        0x06, 0x03, 0x55, 0x04, 0x03,  /* OID 2.5.4.3 (5 bytes) */
+        0x04, 0x18,                    /* OCTET STRING length 24 */
+        0x54, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20,  /* "This is " */
+        0x74, 0x65, 0x73, 0x74, 0x20, 0x63, 0x6F, 0x6E,  /* "test con" */
+        0x74, 0x65, 0x6E, 0x74, 0x20, 0x64, 0x61, 0x74,  /* "tent dat" */
+        /* signerInfos SET - empty for degenerate */
+        0x31, 0x00
+    };
+
+    /* Test non-streaming verification */
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, (byte*)pkcs7Content,
+                (word32)sizeof(pkcs7Content)), 0);
+
+    /* Verify content was parsed correctly */
+    if (pkcs7 != NULL) {
+        /* contentIsPkcs7Type should be set */
+        ExpectIntEQ(pkcs7->contentIsPkcs7Type, 1);
+        /* Content should have been parsed (33 bytes) */
+        ExpectIntEQ(pkcs7->contentSz, 33);
+        ExpectNotNull(pkcs7->content);
+    }
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+#ifndef NO_PKCS7_STREAM
+    /* Test streaming verification - feed data byte by byte */
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+
+    /* Feed data byte by byte to exercise streaming path */
+    ret = WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E);
+    for (idx = 0; idx < (word32)sizeof(pkcs7Content) && ret != 0; idx++) {
+        ret = wc_PKCS7_VerifySignedData(pkcs7,
+                  (byte*)pkcs7Content + idx, 1);
+        if (ret < 0 && ret != WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E)) {
+            /* Unexpected error */
+            break;
+        }
+    }
+
+    /* Expecting ret = 0, not ASN_PARSE_E or other negative error */
+    ExpectIntEQ(ret, 0);
+
+    if (pkcs7 != NULL) {
+        ExpectIntEQ(pkcs7->contentIsPkcs7Type, 1);
+        ExpectIntEQ(pkcs7->contentSz, 33);
+        ExpectNotNull(pkcs7->content);
+    }
+    wc_PKCS7_Free(pkcs7);
+#endif /* !NO_PKCS7_STREAM */
+#endif /* HAVE_PKCS7 */
+    return EXPECT_RESULT();
+}
 

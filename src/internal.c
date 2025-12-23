@@ -3038,7 +3038,7 @@ void FreeSSL_Ctx(WOLFSSL_CTX* ctx)
     !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && !defined(NO_TLS)
         TicketEncCbCtx_Free(&ctx->ticketKeyCtx);
 #endif
-        wolfSSL_RefFree(&ctx->ref);
+        wolfSSL_RefWithMutexFree(&ctx->ref);
         XFREE(ctx, heap, DYNAMIC_TYPE_CTX);
     }
     else {
@@ -21697,20 +21697,20 @@ static int DoAlert(WOLFSSL* ssl, byte* input, word32* inOutIdx, int* type)
     byte code;
     word32 dataSz = (word32)ssl->curSize;
 
-    #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
-        if (ssl->hsInfoOn)
-            AddPacketName(ssl, "Alert");
-        if (ssl->toInfoOn) {
-            /* add record header back on to info + alert bytes level/code */
-            int ret = AddPacketInfo(ssl, "Alert", alert, input + *inOutIdx,
-                          ALERT_SIZE, READ_PROTO, RECORD_HEADER_SZ, ssl->heap);
-            if (ret != 0)
-                return ret;
-            #ifdef WOLFSSL_CALLBACKS
-            AddLateRecordHeader(&ssl->curRL, &ssl->timeoutInfo);
-            #endif
-        }
-    #endif
+#if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
+    if (ssl->hsInfoOn)
+        AddPacketName(ssl, "Alert");
+    if (ssl->toInfoOn) {
+        /* add record header back on to info + alert bytes level/code */
+        int ret = AddPacketInfo(ssl, "Alert", alert, input + *inOutIdx,
+                           ALERT_SIZE, READ_PROTO, RECORD_HEADER_SZ, ssl->heap);
+        if (ret != 0)
+            return ret;
+        #ifdef WOLFSSL_CALLBACKS
+        AddLateRecordHeader(&ssl->curRL, &ssl->timeoutInfo);
+        #endif
+    }
+#endif
 
     if (IsEncryptionOn(ssl, 0))
         dataSz -= ssl->keys.padSz;
@@ -21725,11 +21725,18 @@ static int DoAlert(WOLFSSL* ssl, byte* input, word32* inOutIdx, int* type)
 
     level = input[(*inOutIdx)++];
     code  = input[(*inOutIdx)++];
-    ssl->alert_history.last_rx.code = code;
-    ssl->alert_history.last_rx.level = level;
     *type = code;
-    if (level == alert_fatal) {
-        ssl->options.isClosed = 1;  /* Don't send close_notify */
+#ifdef WOLFSSL_TLS13_IGNORE_PT_ALERT_ON_ENC
+    /* Don't process alert when TLS 1.3 and encrypting but plaintext alert. */
+    if (!IsAtLeastTLSv1_3(ssl->version) || !IsEncryptionOn(ssl, 0) ||
+                                                       ssl->keys.decryptedCur)
+#endif
+    {
+        ssl->alert_history.last_rx.code = code;
+        ssl->alert_history.last_rx.level = level;
+        if (level == alert_fatal) {
+            ssl->options.isClosed = 1;  /* Don't send close_notify */
+        }
     }
 
     if (++ssl->options.alertCount >= WOLFSSL_ALERT_COUNT_MAX) {
@@ -21743,20 +21750,35 @@ static int DoAlert(WOLFSSL* ssl, byte* input, word32* inOutIdx, int* type)
     }
 
     LogAlert(*type);
-    if (*type == close_notify) {
-        ssl->options.closeNotify = 1;
+    if (IsAtLeastTLSv1_3(ssl->version) && IsEncryptionOn(ssl, 0) &&
+                                                      !ssl->keys.decryptedCur)
+    {
+#ifdef WOLFSSL_TLS13_IGNORE_PT_ALERT_ON_ENC
+        /* Ignore alert if TLS 1.3 and encrypting but was plaintext alert. */
+        *type = invalid_alert;
+        level = alert_none;
+
+#else
+        /* Unexpected message when encryption is on and alert not encrypted. */
+        SendAlert(ssl, alert_fatal, unexpected_message);
+        WOLFSSL_ERROR_VERBOSE(PARSE_ERROR);
+        return PARSE_ERROR;
+#endif
     }
     else {
-        /*
-         * A close_notify alert doesn't mean there's been an error, so we only
-         * add other types of alerts to the error queue
-         */
-        WOLFSSL_ERROR(*type);
+        if (*type == close_notify) {
+            ssl->options.closeNotify = 1;
+        }
+        else {
+            /*
+             * A close_notify alert doesn't mean there's been an error, so we
+             * only add other types of alerts to the error queue
+             */
+            WOLFSSL_ERROR(*type);
+        }
     }
-
-    if (IsEncryptionOn(ssl, 0)) {
+    if (IsEncryptionOn(ssl, 0))
         *inOutIdx += ssl->keys.padSz;
-    }
 
     return level;
 }
@@ -22507,7 +22529,8 @@ default:
 #ifdef WOLFSSL_TLS13
             if (IsAtLeastTLSv1_3(ssl->version) && IsEncryptionOn(ssl, 0) &&
                                         ssl->curRL.type != application_data &&
-                                        ssl->curRL.type != change_cipher_spec) {
+                                        ssl->curRL.type != change_cipher_spec &&
+                                        ssl->curRL.type != alert) {
                 SendAlert(ssl, alert_fatal, unexpected_message);
                 WOLFSSL_ERROR_VERBOSE(PARSE_ERROR);
                 return PARSE_ERROR;
@@ -22615,9 +22638,9 @@ default:
         case decryptMessage:
 
             if (IsEncryptionOn(ssl, 0) && ssl->keys.decryptedCur == 0 &&
-                                        (!IsAtLeastTLSv1_3(ssl->version) ||
-                                         ssl->curRL.type != change_cipher_spec))
-            {
+                                      (!IsAtLeastTLSv1_3(ssl->version) ||
+                                       (ssl->curRL.type != change_cipher_spec &&
+                                        ssl->curRL.type != alert))) {
                 ret = DoDecrypt(ssl);
             #ifdef WOLFSSL_ASYNC_CRYPT
                 if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
@@ -22694,9 +22717,9 @@ default:
         case verifyMessage:
 
             if (IsEncryptionOn(ssl, 0) && ssl->keys.decryptedCur == 0 &&
-                                        (!IsAtLeastTLSv1_3(ssl->version) ||
-                                         ssl->curRL.type != change_cipher_spec))
-            {
+                                      (!IsAtLeastTLSv1_3(ssl->version) ||
+                                       (ssl->curRL.type != change_cipher_spec &&
+                                        ssl->curRL.type != alert))) {
                 if (!atomicUser
 #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
                                 && !ssl->options.startedETMRead
@@ -42234,11 +42257,11 @@ static int DisplaySecTrustError(CFErrorRef error, SecTrustRef trust)
     /* Description */
     desc = CFErrorCopyDescription(error);
     if (desc) {
-        char buffer[256];
-        if (CFStringGetCString(desc, buffer, sizeof(buffer),
+        char buf[256];
+        if (CFStringGetCString(desc, buf, sizeof(buf),
                                kCFStringEncodingUTF8)) {
             WOLFSSL_MSG_EX("SecTrustEvaluateWithError Error description: %s\n",
-                           buffer);
+                           buf);
         }
         CFRelease(desc);
     }

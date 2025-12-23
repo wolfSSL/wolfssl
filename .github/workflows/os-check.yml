@@ -63,6 +63,8 @@ jobs:
           '--enable-coding=no',
           '--enable-dtls --enable-dtls13 --enable-ocspstapling --enable-ocspstapling2
            --enable-cert-setup-cb --enable-sessioncerts',
+          '--enable-dtls --enable-dtls13 --enable-tls13
+           CPPFLAGS=-DWOLFSSL_TLS13_IGNORE_PT_ALERT_ON_ENC',
           '--disable-sni --disable-ecc --disable-tls13 --disable-secure-renegotiation-info',
           'CPPFLAGS=-DWOLFSSL_BLIND_PRIVATE_KEY',
           '--enable-all --enable-certgencache',
