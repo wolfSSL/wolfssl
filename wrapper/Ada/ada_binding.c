@@ -30,8 +30,10 @@
 #include <wolfssl/wolfcrypt/sha256.h>
 #include <wolfssl/wolfcrypt/aes.h>
 
+#include <stdlib.h>
+
 #define WOLFSSL_RSA_INSTANCES    2
-#define WOLFSSL_SHA256_INSTANCES 2
+/* SHA256 instances are now dynamically allocated (no fixed pool). */
 #define WOLFSSL_AES_INSTANCES    2
 #define WOLFSSL_RNG_INSTANCES    2
 /* These functions give access to the integer values of the enumeration
@@ -58,8 +60,8 @@ extern int get_wolfssl_filetype_default(void);
 extern int get_wolfssl_rsa_instances (void);
 extern void* ada_new_rsa (int index);
 
-extern void *ada_new_sha256 (int index);
-extern int get_wolfssl_sha256_instances(void);
+extern void *ada_new_sha256 (void);
+extern void ada_free_sha256 (void* sha256);
 
 extern void* ada_new_aes (int index);
 extern int get_wolfssl_aes_instances(void);
@@ -151,16 +153,17 @@ extern void* ada_new_rsa (int index)
   return &preAllocatedRSAKeys[index];
 }
 
-wc_Sha256 preAllocatedSHA256[WOLFSSL_SHA256_INSTANCES];
-
-extern void* ada_new_sha256 (int index)
+extern void* ada_new_sha256 (void)
 {
-  return &preAllocatedSHA256[index];
+  return malloc(sizeof(wc_Sha256));
 }
 
-extern int get_wolfssl_sha256_instances(void) {
-  return WOLFSSL_SHA256_INSTANCES;
+extern void ada_free_sha256 (void* sha256)
+{
+  free(sha256);
 }
+
+
 
 Aes preAllocatedAes[WOLFSSL_AES_INSTANCES];
 

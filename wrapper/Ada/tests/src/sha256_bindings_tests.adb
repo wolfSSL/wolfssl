@@ -73,8 +73,8 @@ package body SHA256_Bindings_Tests is
       SHA256 : WolfSSL.SHA256_Type;
       R      : Integer;
    begin
-      --  Follow the example in `sha256_main.adb` (Index => 1).
-      WolfSSL.Create_SHA256 (Index => 1, SHA256 => SHA256, Result => R);
+      --  SHA256 instances are dynamically allocated; no index is required.
+      WolfSSL.Create_SHA256 (SHA256 => SHA256, Result => R);
       if R /= 0 then
          Result := R;
          return;
@@ -83,6 +83,7 @@ package body SHA256_Bindings_Tests is
       WolfSSL.Update_SHA256 (SHA256 => SHA256, Byte => Input, Result => R);
       if R /= 0 then
          Result := R;
+         WolfSSL.Free_SHA256 (SHA256 => SHA256);
          return;
       end if;
 
@@ -93,6 +94,8 @@ package body SHA256_Bindings_Tests is
          Result => R);
 
       Result := R;
+
+      WolfSSL.Free_SHA256 (SHA256 => SHA256);
    end Compute_SHA256;
 
    ----------------------------------------------------------------------------

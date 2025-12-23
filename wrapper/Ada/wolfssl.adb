@@ -1244,22 +1244,57 @@ package body WolfSSL is
       return SHA256 /= null;
    end Is_Valid;
 
-   function Ada_New_SHA256 (Index : SHA256_Index)
-                            return SHA256_Type with
+   function Ada_New_SHA256 return SHA256_Type with
      Convention    => C,
      External_Name => "ada_new_sha256",
      Import        => True;
 
-   procedure Create_SHA256 (Index  : SHA256_Index;
-                            SHA256 : in out SHA256_Type;
+   procedure Ada_Free_SHA256 (SHA256 : in SHA256_Type) with
+     Convention    => C,
+     External_Name => "ada_free_sha256",
+     Import        => True;
+
+   procedure Free_SHA256 (SHA256 : in out SHA256_Type) is
+      --  Ensure any internal wolfCrypt resources are released (hardware locks,
+      --  etc.) before releasing the object storage itself.
+      procedure WC_Sha256_Free (SHA256 : not null SHA256_Type) with
+        Convention    => C,
+        External_Name => "wc_Sha256Free",
+        Import        => True;
+   begin
+      if SHA256 = null then
+         return;
+      end if;
+
+      WC_Sha256_Free (SHA256);
+      Ada_Free_SHA256 (SHA256);
+
+      --  Prevent accidental double-free and make Is_Valid return False.
+      SHA256 := null;
+   end Free_SHA256;
+
+   procedure Create_SHA256 (SHA256 : in out SHA256_Type;
                             Result : out Integer) is
    begin
       declare
          R : int;
       begin
-         SHA256 := Ada_New_SHA256 (Index);
+         SHA256 := Ada_New_SHA256;
+
+         if SHA256 = null then
+            Result := Exception_Error;
+            return;
+         end if;
+
          R := Init_SHA256 (SHA256);
          Result := Integer (R);
+
+         if Result /= 0 then
+            --  Avoid leaking the dynamically allocated SHA256 on init failure.
+            --  Also clear the handle to prevent accidental double-free by caller.
+            Ada_Free_SHA256 (SHA256);
+            SHA256 := null;
+         end if;
       end;
    exception
       when others =>
@@ -1478,10 +1513,7 @@ package body WolfSSL is
      External_Name => "get_wolfssl_rsa_instances",
      Import        => True;
 
-   function Get_WolfSSL_SHA256_Instances return int with
-     Convention    => C,
-     External_Name => "get_wolfssl_sha256_instances",
-     Import        => True;
+
 
    function Get_WolfSSL_AES_Instances return int with
      Convention    => C,
@@ -1490,6 +1522,5 @@ package body WolfSSL is
 
 begin
    pragma Assert (RSA_INSTANCES = Get_WolfSSL_RSA_Instances);
-   pragma Assert (SHA256_INSTANCES = Get_WolfSSL_SHA256_Instances);
    pragma Assert (AES_INSTANCES = Get_WolfSSL_AES_Instances);
 end WolfSSL;
