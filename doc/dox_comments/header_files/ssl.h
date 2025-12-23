@@ -14418,8 +14418,7 @@ int  wolfSSL_set_max_early_data(WOLFSSL* ssl, unsigned int sz);
     \ingroup IO
 
     \brief This function writes early data to the server on resumption.
-    Call this function instead of wolfSSL_connect() or wolfSSL_connect_TLSv13()
-    to connect to the server and send the data in the handshake.
+    Call this function before wolfSSL_connect() or wolfSSL_connect_TLSv13().
     This function is only used with clients.
 
     \param [in,out] ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
@@ -14431,7 +14430,7 @@ int  wolfSSL_set_max_early_data(WOLFSSL* ssl, unsigned int sz);
     not using TLSv1.3.
     \return SIDE_ERROR if called with a server.
     \return WOLFSSL_FATAL_ERROR if the connection is not made.
-    \return WOLFSSL_SUCCESS if successful.
+    \return the amount of early data written in bytes if successful.
 
     _Example_
     \code
@@ -14444,7 +14443,7 @@ int  wolfSSL_set_max_early_data(WOLFSSL* ssl, unsigned int sz);
     ...
 
     ret = wolfSSL_write_early_data(ssl, earlyData, sizeof(earlyData), &outSz);
-    if (ret != WOLFSSL_SUCCESS) {
+    if (ret < 0) {
         err = wolfSSL_get_error(ssl, ret);
         printf(“error = %d, %s\n”, err, wolfSSL_ERR_error_string(err, buffer));
         goto err_label;
