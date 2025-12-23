@@ -34,12 +34,26 @@ procedure AES_Verify_Main is
    AES : WolfSSL.AES_Type;
    R : Integer;
    Pad : Integer := 3;
+
+   procedure Cleanup is
+      RR : Integer := 0;
+   begin
+      if WolfSSL.Is_Valid (AES) then
+         WolfSSL.AES_Free (AES    => AES,
+                           Result => RR);
+      end if;
+
+      if WolfSSL.Is_Valid (RNG) then
+         WolfSSL.Free_RNG (Key => RNG);
+      end if;
+   end Cleanup;
 begin
    WolfSSL.Create_RNG (Key    => RNG,
                        Result => R);
    if R /= 0 then
       Put ("Attaining RNG key instance failed");
       New_Line;
+      Cleanup;
       return;
    end if;
    
@@ -49,7 +63,7 @@ begin
    if R /= 0 then
       Put ("Generating random salt");
       New_Line;
-      WolfSSL.Free_RNG (Key => RNG);
+      Cleanup;
       return;
    end if;
    
@@ -59,14 +73,15 @@ begin
       Salt (1) := To_C (1);
    end if;
    
-   WolfSSL.Create_AES (Index  => 0,
-                       Device => WolfSSL.Invalid_Device,
+   --  Create_AES signature no longer requires Index when AES objects are
+   --  dynamically allocated.
+   WolfSSL.Create_AES (Device => WolfSSL.Invalid_Device,
                        AES    => AES,
                        Result => R);
    if R /= 0 then
       Put ("Attaining AES key instance failed");
       New_Line;
-      WolfSSL.Free_RNG (Key => RNG);
+      Cleanup;
       return;
    end if;
 
@@ -80,9 +95,9 @@ begin
    --  if R /= 0 then
    --     Put ("Attaining AES key instance failed");
    --     New_Line;
-   --     WolfSSL.Free_RNG (Key => RNG);
+   --     Cleanup;
    --     return;
    --  end if;
 
-   WolfSSL.Free_RNG (Key => RNG);
+   Cleanup;
 end AES_Verify_Main;

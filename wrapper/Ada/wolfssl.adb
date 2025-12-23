@@ -1402,33 +1402,44 @@ package body WolfSSL is
       return AES /= null;
    end Is_Valid;
 
-   function Ada_New_AES (Index : AES_Index)
+   function Ada_New_AES (Device : int)
                          return AES_Type with
      Convention    => C,
      External_Name => "ada_new_aes",
      Import        => True;
 
-   function AES_Init (AES : not null AES_Type;
-                      Heap : access Byte_Type;
-                      Device : int) return int with
+   procedure Ada_Free_AES (AES : in AES_Type) with
      Convention    => C,
-     External_Name => "wc_AesInit",
+     External_Name => "ada_free_aes",
      Import        => True;
 
-   procedure Create_AES (Index  : AES_Index;
-                         Device : Device_Identifier;
+   procedure Create_AES (Device : Device_Identifier;
                          AES    : in out AES_Type;
                          Result : out Integer) is
    begin
       declare
          R : int;
       begin
-         AES := Ada_New_AES (Index);
-         R := AES_Init (AES, null, int (Device));
-         Result := Integer (R);
+         --  Allocate and initialize AES using the C wrapper.
+         --  The wrapper is expected to call wc_AesNew(NULL, devId, &ret) and
+         --  return NULL on failure.
+         AES := Ada_New_AES (int (Device));
+
+         if AES = null then
+            Result := Exception_Error;
+            return;
+         end if;
+
+         --  wc_AesNew() already calls wc_AesInit() internally, so no extra init.
+         Result := 0;
       end;
    exception
       when others =>
+         --  Avoid leaking the dynamically allocated AES on failure.
+         if AES /= null then
+            Ada_Free_AES (AES);
+            AES := null;
+         end if;
          Result := Exception_Error;
    end Create_AES;
 
@@ -1530,33 +1541,23 @@ package body WolfSSL is
          Result := Exception_Error;
    end AES_Set_Cbc_Decrypt;
 
-   function AES_Free (AES : not null AES_Type) return int with
-     Convention    => C,
-     External_Name => "wc_AesFree",
-     Import        => True;
-
    procedure AES_Free (AES : in out AES_Type;
                        Result : out Integer) is
    begin
-      declare
-         R : int;
-      begin
-         R := AES_Free (AES);
-         Result := Integer (R);
-         if Result = 0 then
-            AES := null;
-         end if;
-      end;
+      if AES = null then
+         Result := Exception_Error;
+         return;
+      end if;
+
+      --  wc_AesDelete() already calls wc_AesFree() internally.
+      Ada_Free_AES (AES);
+      AES := null;
+      Result := 0;
    exception
       when others =>
          Result := Exception_Error;
    end AES_Free;
 
-   function Get_WolfSSL_AES_Instances return int with
-     Convention    => C,
-     External_Name => "get_wolfssl_aes_instances",
-     Import        => True;
-
 begin
-   pragma Assert (AES_INSTANCES = Get_WolfSSL_AES_Instances);
+   null;
 end WolfSSL;

@@ -653,20 +653,23 @@ package WolfSSL with SPARK_Mode is
    
    function Invalid_Device return Device_Identifier;
    
-   AES_INSTANCES : constant := 2;   
-   type AES_Index is range 0 .. AES_INSTANCES - 1;
-
    type AES_Type is limited private;
 
    function Is_Valid (AES : AES_Type) return Boolean;
    --  Indicates if the AES has successfully been initialized.
 
-   procedure Create_AES (Index  : AES_Index;
-                         Device : Device_Identifier;
+   procedure Create_AES (Device : Device_Identifier;
                          AES    : in out AES_Type;
                          Result : out Integer) with
-     Pre => not Is_Valid (AES);
+     Pre  => not Is_Valid (AES),
+     Post => (if Result = 0 then Is_Valid (AES));
    --  If successful Is_Valid (AES) = True, and Result = 0.
+
+   procedure AES_Free (AES : in out AES_Type;
+                       Result : out Integer) with
+     Pre  => Is_Valid (AES),
+     Post => (if Result = 0 then not Is_Valid (AES));
+   --  Frees resources associated with AES and releases the underlying C object.
 
    procedure AES_Set_Key (AES    : AES_Type;
                           Key    : Byte_Array;
@@ -695,10 +698,7 @@ package WolfSSL with SPARK_Mode is
                                   Result : out Integer) with
      Pre => Is_Valid (AES);
 
-   procedure AES_Free (AES : in out AES_Type;
-                       Result : out Integer) with
-     Pre  => Is_Valid (AES),
-     Post => (if Result = 0 then not Is_Valid (AES));
+   --  (Removed duplicate AES_Free declaration)
    
 private
    pragma SPARK_Mode (Off);
