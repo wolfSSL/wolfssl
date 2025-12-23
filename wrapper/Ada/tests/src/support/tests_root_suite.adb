@@ -1,5 +1,3 @@
-with AUnit.Test_Suites;
-
 with AES_Bindings_Tests;
 with RSA_Verify_Bindings_Tests;
 with SHA256_Bindings_Tests;

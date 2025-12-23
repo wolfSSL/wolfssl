@@ -1,6 +1,5 @@
 with AUnit.Assertions;
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 
 with WolfSSL;
 
@@ -17,7 +16,7 @@ package body AES_Bindings_Tests is
    AES_Decrypt_Dir : constant Integer := 1;
 
    ----------------------------------------------------------------------------
-   -- Tests
+   --  Tests
    ----------------------------------------------------------------------------
 
    procedure Test_AES_CBC_Roundtrip (F : in out Fixture) is
@@ -93,14 +92,14 @@ package body AES_Bindings_Tests is
                                    Result => R);
       Test_Support.Assert_Success (R, "AES_Set_Cbc_Decrypt");
 
-      AUnit.Assertions.Assert (Decoded = Plain,
-                              "AES-CBC roundtrip mismatch");
+      AUnit.Assertions.Assert
+        (Decoded = Plain,
+         "AES-CBC roundtrip mismatch");
 
       WolfSSL.AES_Free (AES    => AES,
                         Result => R);
-      --  Some wolfCrypt builds/configurations may not support `wc_AesFree` as a
-      --  no-op success in all cases (or may return a non-zero code). Keep this
-      --  test focused on the binding contract: only require invalidation on
+      Test_Support.Assert_Success (R, "AES_Free");
+      --  Keep this test focused on the binding contract: only require invalidation on
       --  successful free.
       if R = 0 then
          AUnit.Assertions.Assert (not WolfSSL.Is_Valid (AES),
@@ -134,7 +133,7 @@ package body AES_Bindings_Tests is
    end Test_AES_Free_Invalidates;
 
    ----------------------------------------------------------------------------
-   -- Suite (static suite object + elaboration-time registration)
+   --  Suite (static suite object + elaboration-time registration)
    ----------------------------------------------------------------------------
 
    package Caller is new AUnit.Test_Caller (Fixture);

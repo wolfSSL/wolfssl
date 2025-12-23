@@ -1,22 +1,20 @@
 with AUnit.Assertions;
 
-with WolfSSL;
-
 package body Test_Support is
 
    ----------------------------------------------------------------------------
-   -- Assertions
+   --  Assertions
    ----------------------------------------------------------------------------
 
    procedure Assert_Success (Result : Integer; What : String) is
    begin
       AUnit.Assertions.Assert
         (Result = 0,
-         What & " failed, Result =" & Integer'Image (Result));
+         What & " failed, Result = " & Integer'Image (Result));
    end Assert_Success;
 
    ----------------------------------------------------------------------------
-   -- Data helpers
+   --  Data helpers
    ----------------------------------------------------------------------------
 
    function Bytes (S : String) return WolfSSL.Byte_Array is
