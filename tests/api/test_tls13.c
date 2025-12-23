@@ -2339,7 +2339,6 @@ static int MERecv(WOLFSSL* ssl, char* buf, int sz, void* ctx)
     int len = (int)msg->length;
 
     (void)ssl;
-    (void)sz;
 
     /* Pass back as much of message as will fit in buffer. */
     if (len > sz)
@@ -2572,7 +2571,6 @@ int test_tls13_duplicate_extension(void)
 }
 
 
-
 int test_key_share_mismatch(void)
 {
     EXPECT_DECLS;
@@ -2652,3 +2650,224 @@ int test_key_share_mismatch(void)
 #endif
     return EXPECT_RESULT();
 }
+
+
+#if defined(WOLFSSL_TLS13) && !defined(NO_RSA) && defined(HAVE_ECC) && \
+    defined(HAVE_AESGCM) && !defined(NO_WOLFSSL_SERVER)
+/* Called when writing. */
+static int Tls13PTASend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
+{
+    (void)ssl;
+    (void)buf;
+    (void)ctx;
+
+    return sz;
+}
+static int Tls13PTARecv(WOLFSSL* ssl, char* buf, int sz, void* ctx)
+{
+    WOLFSSL_BUFFER_INFO* msg = (WOLFSSL_BUFFER_INFO*)ctx;
+    int len;
+
+    (void)ssl;
+
+    if (msg->length == 0) {
+        /* Only do as many alerts as required to get to max alert count. */
+        msg->buffer[0]--;
+        if (msg->buffer[0] > 0) {
+            msg->buffer -= 7;
+            msg->length += 7;
+        }
+        else {
+            return -1;
+        }
+    }
+
+    len = (int)msg->length;
+    /* Pass back as much of message as will fit in buffer. */
+    if (len > sz)
+        len = sz;
+    XMEMCPY(buf, msg->buffer, len);
+    /* Move over returned data. */
+    msg->buffer += len;
+    msg->length -= len;
+
+    /* Amount actually copied. */
+    return len;
+}
+#endif
+
+int test_tls13_plaintext_alert(void)
+{
+    EXPECT_DECLS;
+
+#if defined(WOLFSSL_TLS13) && !defined(NO_RSA) && defined(HAVE_ECC) && \
+    defined(HAVE_AESGCM) && !defined(NO_WOLFSSL_SERVER)
+    byte clientMsgs[] = {
+        /* Client Hello */
+        0x16, 0x03, 0x03, 0x01, 0x9b, 0x01, 0x00, 0x01,
+        0x97, 0x03, 0x03, 0xf4, 0x65, 0xbd, 0x22, 0xfe,
+        0x6e, 0xab, 0x66, 0xdd, 0xcf, 0xe9, 0x65, 0x55,
+        0xe8, 0xdf, 0xc3, 0x8e, 0x4b, 0x00, 0xbc, 0xf8,
+        0x23, 0x57, 0x1b, 0xa0, 0xc8, 0xa9, 0xe2, 0x8c,
+        0x91, 0x6e, 0xf9, 0x20, 0xf7, 0x5c, 0xc5, 0x5b,
+        0x75, 0x8c, 0x47, 0x0a, 0x0e, 0xc4, 0x1a, 0xda,
+        0xef, 0x75, 0xe5, 0x21, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x13, 0x01,
+        0x13, 0x02, 0x01, 0x00, 0x01, 0x4a, 0x00, 0x2d,
+        0x00, 0x03, 0x02, 0x00, 0x01, 0x00, 0x33, 0x00,
+        0x47, 0x00, 0x45, 0x00, 0x17, 0x00, 0x41, 0x04,
+        0x90, 0xfc, 0xe2, 0x97, 0x05, 0x7c, 0xb5, 0x23,
+        0x5d, 0x5f, 0x5b, 0xcd, 0x0c, 0x1e, 0xe0, 0xe9,
+        0xab, 0x38, 0x6b, 0x1e, 0x20, 0x5c, 0x1c, 0x90,
+        0x2a, 0x9e, 0x68, 0x8e, 0x70, 0x05, 0x10, 0xa8,
+        0x02, 0x1b, 0xf9, 0x5c, 0xef, 0xc9, 0xaf, 0xca,
+        0x1a, 0x3b, 0x16, 0x8b, 0xe4, 0x1b, 0x3c, 0x15,
+        0xb8, 0x0d, 0xbd, 0xaf, 0x62, 0x8d, 0xa7, 0x13,
+        0xa0, 0x7c, 0xe0, 0x59, 0x0c, 0x4f, 0x8a, 0x6d,
+        0x00, 0x2b, 0x00, 0x03, 0x02, 0x03, 0x04, 0x00,
+        0x0d, 0x00, 0x20, 0x00, 0x1e, 0x06, 0x03, 0x05,
+        0x03, 0x04, 0x03, 0x02, 0x03, 0x08, 0x06, 0x08,
+        0x0b, 0x08, 0x05, 0x08, 0x0a, 0x08, 0x04, 0x08,
+        0x09, 0x06, 0x01, 0x05, 0x01, 0x04, 0x01, 0x03,
+        0x01, 0x02, 0x01, 0x00, 0x0a, 0x00, 0x04, 0x00,
+        0x02, 0x00, 0x17, 0x00, 0x16, 0x00, 0x00, 0x00,
+        0x23, 0x00, 0x00, 0x00, 0x29, 0x00, 0xb9, 0x00,
+        0x94, 0x00, 0x8e, 0x0f, 0x12, 0xfa, 0x84, 0x1f,
+        0x76, 0x94, 0xd7, 0x09, 0x5e, 0xad, 0x08, 0x51,
+        0xb6, 0x80, 0x28, 0x31, 0x8b, 0xfd, 0xc6, 0xbd,
+        0x9e, 0xf5, 0x3b, 0x4d, 0x02, 0xbe, 0x1d, 0x73,
+        0xea, 0x13, 0x68, 0x00, 0x4c, 0xfd, 0x3d, 0x48,
+        0x51, 0xf9, 0x06, 0xbb, 0x92, 0xed, 0x42, 0x9f,
+        0x7f, 0x2c, 0x73, 0x9f, 0xd9, 0xb4, 0xef, 0x05,
+        0x26, 0x5b, 0x60, 0x5c, 0x0a, 0xfc, 0xa3, 0xbd,
+        0x2d, 0x2d, 0x8b, 0xf9, 0xaa, 0x5c, 0x96, 0x3a,
+        0xf2, 0xec, 0xfa, 0xe5, 0x57, 0x2e, 0x87, 0xbe,
+        0x27, 0xc5, 0x3d, 0x4f, 0x5d, 0xdd, 0xde, 0x1c,
+        0x1b, 0xb3, 0xcc, 0x27, 0x27, 0x57, 0x5a, 0xd9,
+        0xea, 0x99, 0x27, 0x23, 0xa6, 0x0e, 0xea, 0x9c,
+        0x0d, 0x85, 0xcb, 0x72, 0xeb, 0xd7, 0x93, 0xe3,
+        0xfe, 0xf7, 0x5c, 0xc5, 0x5b, 0x75, 0x8c, 0x47,
+        0x0a, 0x0e, 0xc4, 0x1a, 0xda, 0xef, 0x75, 0xe5,
+        0x21, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0xfb, 0x92, 0xce, 0xaa, 0x00, 0x21, 0x20,
+        0xcb, 0x73, 0x25, 0x80, 0x46, 0x78, 0x4f, 0xe5,
+        0x34, 0xf6, 0x91, 0x13, 0x7f, 0xc8, 0x8d, 0xdc,
+        0x81, 0x04, 0xb7, 0x0d, 0x49, 0x85, 0x2e, 0x12,
+        0x7a, 0x07, 0x23, 0xe9, 0x13, 0xa4, 0x6d, 0x8c,
+        0x15, 0x03, 0x03, 0x00, 0x02, 0x01, 0x00, 0x00
+    };
+
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    WOLFSSL_BUFFER_INFO msg;
+
+#ifdef WOLFSSL_TLS13_IGNORE_PT_ALERT_ON_ENC
+    /* We fail on WOLFSSL_ALERT_COUNT_MAX alerts. */
+
+    /* Set up wolfSSL context. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+    ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
+        CERT_FILETYPE));
+    ExpectTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
+        CERT_FILETYPE));
+    if (EXPECT_SUCCESS()) {
+        wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_NONE, NULL);
+    }
+    /* Read from 'msg'. */
+    wolfSSL_SetIORecv(ctx, Tls13PTARecv);
+    /* No where to send to - dummy sender. */
+    wolfSSL_SetIOSend(ctx, Tls13PTASend);
+
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    msg.buffer = clientMsgs;
+    msg.length = (unsigned int)sizeof(clientMsgs) - 1;
+    clientMsgs[sizeof(clientMsgs) - 1] = WOLFSSL_ALERT_COUNT_MAX;
+    if (EXPECT_SUCCESS()) {
+        wolfSSL_SetIOReadCtx(ssl, &msg);
+    }
+    /* Alert will be ignored until too many. */
+    /* Read all message  include CertificateVerify with invalid signature
+     * algorithm. */
+    ExpectIntEQ(wolfSSL_accept(ssl), WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+    /* Expect an invalid parameter error. */
+    ExpectIntEQ(wolfSSL_get_error(ssl, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(ALERT_COUNT_E));
+
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+
+    /* Set up wolfSSL context. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+    ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
+        CERT_FILETYPE));
+    ExpectTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
+        CERT_FILETYPE));
+    if (EXPECT_SUCCESS()) {
+        wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_NONE, NULL);
+    }
+    /* Read from 'msg'. */
+    wolfSSL_SetIORecv(ctx, Tls13PTARecv);
+    /* No where to send to - dummy sender. */
+    wolfSSL_SetIOSend(ctx, Tls13PTASend);
+
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    msg.buffer = clientMsgs;
+    msg.length = (unsigned int)sizeof(clientMsgs) - 1;
+    clientMsgs[sizeof(clientMsgs) - 1] = WOLFSSL_ALERT_COUNT_MAX - 1;
+    if (EXPECT_SUCCESS()) {
+        wolfSSL_SetIOReadCtx(ssl, &msg);
+    }
+    /* Alert will be ignored until too many. */
+    /* Read all message  include CertificateVerify with invalid signature
+     * algorithm. */
+    ExpectIntEQ(wolfSSL_accept(ssl), WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+    /* Expect an invalid parameter error. */
+    ExpectIntEQ(wolfSSL_get_error(ssl, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(SOCKET_ERROR_E));
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#else
+    /* Fail on plaintext alert when encryption keys on. */
+
+    /* Set up wolfSSL context. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+    ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
+        CERT_FILETYPE));
+    ExpectTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
+        CERT_FILETYPE));
+    if (EXPECT_SUCCESS()) {
+        wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_NONE, NULL);
+    }
+    /* Read from 'msg'. */
+    wolfSSL_SetIORecv(ctx, Tls13PTARecv);
+    /* No where to send to - dummy sender. */
+    wolfSSL_SetIOSend(ctx, Tls13PTASend);
+
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    msg.buffer = clientMsgs;
+    msg.length = (unsigned int)sizeof(clientMsgs) - 1;
+    clientMsgs[sizeof(clientMsgs) - 1] = 1;
+    if (EXPECT_SUCCESS()) {
+        wolfSSL_SetIOReadCtx(ssl, &msg);
+    }
+    /* Alert will be ignored until too many. */
+    /* Read all message  include CertificateVerify with invalid signature
+     * algorithm. */
+    ExpectIntEQ(wolfSSL_accept(ssl), WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+    /* Expect an invalid parameter error. */
+    ExpectIntEQ(wolfSSL_get_error(ssl, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(PARSE_ERROR));
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+#endif
+
+    return EXPECT_RESULT();
+}
+
