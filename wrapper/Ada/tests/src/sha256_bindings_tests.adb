@@ -3,6 +3,8 @@ with AUnit.Test_Caller;
 
 with WolfSSL;
 
+with Test_Support;
+
 package body SHA256_Bindings_Tests is
 
    ----------------------------------------------------------------------------
@@ -25,50 +27,23 @@ package body SHA256_Bindings_Tests is
       Text : WolfSSL.SHA256_As_String;
       Msg  : String)
    is
-      function Hex_Value (C : Character) return Natural is
-      begin
-         case C is
-            when '0' .. '9' =>
-               return Character'Pos (C) - Character'Pos ('0');
-            when 'A' .. 'F' =>
-               return 10 + (Character'Pos (C) - Character'Pos ('A'));
-            when 'a' .. 'f' =>
-               return 10 + (Character'Pos (C) - Character'Pos ('a'));
-            when others =>
-               AUnit.Assertions.Assert
-                 (False,
-                  Msg & ": invalid hex character '" & C & "'");
-               return 0;
-         end case;
-      end Hex_Value;
+      use type WolfSSL.Byte_Array;
 
-      I           : Positive;
-      Hi          : Natural;
-      Lo          : Natural;
-      Byte_As_Int : Natural;
+      Expected : constant WolfSSL.Byte_Array := Test_Support.Hex_Bytes (Text);
+      Actual   : WolfSSL.Byte_Array (Expected'Range);
+      H        : WolfSSL.Byte_Index := Hash'First;
    begin
+      --  Copy bytes out of the hash into the expected-range buffer.
+      --  Do not assume Hash and Expected share the same index range.
+      for I in Actual'Range loop
+         Actual (I) := Hash (H);
+         H := WolfSSL.Byte_Index'Succ (H);
+      end loop;
       AUnit.Assertions.Assert
         (Text'Length = 64,
          Msg & ": expected 64 hex chars, got" & Integer'Image (Text'Length));
 
-      for Index in Positive range 1 .. 32 loop
-         I := 2 * (Index - 1) + 1;
-         Hi := Hex_Value (Text (I));
-         Lo := Hex_Value (Text (I + 1));
-
-         Byte_As_Int := 16 * Hi + Lo;
-
-         --  SHA256_Hash is a Byte_Array backed by `Interfaces.C.char_array`.
-         --  Avoid a direct `Interfaces.C` dependency here by using the binding's
-         --  own aliases (`Byte_Type`, `Byte_Index`) for indexing and conversion.
-         AUnit.Assertions.Assert
-           (Byte_As_Int =
-              WolfSSL.Byte_Type'Pos (Hash (WolfSSL.Byte_Index (Index))),
-            Msg & ": Text/Hash mismatch at byte" &
-              Integer'Image (Index));
-      end loop;
-
-      --  `Finalize_SHA256` generates uppercase hex, validate that expectation.
+      --  `Finalize_SHA256` should generate uppercase hex, validate that expectation.
       for J in Text'Range loop
          declare
             C : constant Character := Text (J);
@@ -83,6 +58,10 @@ package body SHA256_Bindings_Tests is
             end if;
          end;
       end loop;
+
+      AUnit.Assertions.Assert
+        (Actual = Expected,
+         Msg & ": Text/Hash mismatch");
    end Assert_Text_Matches_Hash;
 
    procedure Compute_SHA256
@@ -127,21 +106,15 @@ package body SHA256_Bindings_Tests is
       Text : WolfSSL.SHA256_As_String;
       R    : Integer;
 
-      Input : constant WolfSSL.Byte_Array :=
-        (1 => 'a',
-         2 => 's',
-         3 => 'd',
-         4 => 'f');
+      Input : constant WolfSSL.Byte_Array := Test_Support.Bytes ("asdf");
 
       Expected_Text : constant WolfSSL.SHA256_As_String :=
-        "F0E4C2F76C58916EC258F246851BEA091D14D4247A2FC3E18694461B1816E13B";
+        Test_Support.SHA256_Text
+          ("F0E4C2F76C58916EC258F246851BEA091D14D4247A2FC3E18694461B1816E13B");
    begin
       Compute_SHA256 (Input => Input, Hash => Hash, Text => Text, Result => R);
 
-      AUnit.Assertions.Assert
-        (R = 0,
-         "SHA256('asdf') bindings should succeed, Result =" &
-           Integer'Image (R));
+      Test_Support.Assert_Success (R, "SHA256(asdf)");
 
       AUnit.Assertions.Assert
         (Text = Expected_Text,
@@ -158,19 +131,16 @@ package body SHA256_Bindings_Tests is
       Text : WolfSSL.SHA256_As_String;
       R    : Integer;
 
-      --  If this doesn't compile depending on how `Byte_Array` is declared,
-      --  rework this test to produce an empty input safely for that declaration.
+      --  Represent empty input as a null range, matching the existing test style.
       Empty : constant WolfSSL.Byte_Array := (1 .. 0 => <>);
 
       Expected_Text : constant WolfSSL.SHA256_As_String :=
-        "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855";
+        Test_Support.SHA256_Text
+          ("E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855");
    begin
       Compute_SHA256 (Input => Empty, Hash => Hash, Text => Text, Result => R);
 
-      AUnit.Assertions.Assert
-        (R = 0,
-         "SHA256('') bindings should succeed, Result =" &
-           Integer'Image (R));
+      Test_Support.Assert_Success (R, "SHA256(empty)");
 
       AUnit.Assertions.Assert
         (Text = Expected_Text,

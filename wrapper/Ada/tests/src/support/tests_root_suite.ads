@@ -7,7 +7,8 @@ with AUnit.Test_Suites;
 --    - Return an Access_Test_Suite that safely designates a library-level object
 --      (to satisfy Ada accessibility rules without Unrestricted_Access).
 --
---  The body is responsible for populating the suite exactly once.
+--  The body is responsible for populating the suite exactly once (typically at
+--  elaboration time).
 
 package Tests_Root_Suite is
 
