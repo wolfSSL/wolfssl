@@ -363,8 +363,7 @@ procedure Rsa_Verify_Main is
    RSA_Decrypt_Key : WolfSSL.RSA_Key_Type;
    Index : WolfSSL.Byte_Index;
 begin
-   WolfSSL.Create_RNG (Index  => 0,
-                       Key    => RNG,
+   WolfSSL.Create_RNG (Key    => RNG,
                        Result => R);
    if R /= 0 then
       Put ("Attaining RNG key instance failed");
@@ -488,4 +487,7 @@ begin
       Put ("Failed to encrypt and decrypt original AES key.");
       New_Line;
    end if;   
+   --  Release RNG resources before exiting.
+   WolfSSL.Free_RNG (Key => RNG);
+
 end Rsa_Verify_Main;

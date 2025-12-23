@@ -500,21 +500,20 @@ package WolfSSL with SPARK_Mode is
    --  Returns the value of the defined MAX_ERROR_SZ integer
    --  in wolfssl/wolfcrypt/error.h.
 
-   RNG_INSTANCES : constant := 2;
-   
-   type RNG_Key_Index is range 0 .. RNG_INSTANCES - 1;
-
    type RNG_Key_Type is limited private;   
 
    function Is_Valid (Key : RNG_Key_Type) return Boolean;
    --  Indicates if the RSA has successfully been initialized.   
    
-   procedure Create_RNG (Index  : RNG_Key_Index;
-                         Key    : in out RNG_Key_Type;
+   procedure Create_RNG (Key    : in out RNG_Key_Type;
                          Result : out Integer) with
      Pre => not Is_Valid (Key),
      Post => (if Result = 0 then Is_Valid (Key));
-   --  If successful Result = 0.   
+   --  If successful Result = 0.
+   
+   procedure Free_RNG (Key : in out RNG_Key_Type) with
+     Pre => Is_Valid (Key);
+   --  Frees resources associated with RNG and releases the underlying C object.
    
    procedure RNG_Generate_Block (RNG    : RNG_Key_Type;
                                  Output : out Byte_Array;

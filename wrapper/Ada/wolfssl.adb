@@ -824,28 +824,49 @@ package body WolfSSL is
       return Key /= null;
    end Is_Valid;
 
-   function Ada_New_RNG (Index : int)
-                         return RNG_Key_Type with
+   function Ada_New_RNG return RNG_Key_Type with
      Convention    => C,
      External_Name => "ada_new_rng",
      Import        => True;
 
-   function Init_RNG_Key (Key  : not null RNG_Key_Type) return int with
+   procedure Ada_Free_RNG (Key : in RNG_Key_Type) with
      Convention    => C,
-     External_Name => "wc_InitRng",
+     External_Name => "ada_free_rng",
      Import        => True;
 
-   procedure Create_RNG (Index  : RNG_Key_Index;
-                         Key    : in out RNG_Key_Type;
+
+
+   procedure Free_RNG (Key : in out RNG_Key_Type) is
+   begin
+      if Key = null then
+         return;
+      end if;
+
+      --  wc_rng_free() already calls wc_FreeRng() internally.
+      Ada_Free_RNG (Key);
+
+      --  Prevent accidental double-free and make Is_Valid return False.
+      Key := null;
+   end Free_RNG;
+
+   procedure Create_RNG (Key    : in out RNG_Key_Type;
                          Result : out Integer) is
    begin
       Result := -121212;
       declare
          R : int;
       begin
-         Key := Ada_New_RNG (int (Index));
-         R := Init_RNG_Key (Key);
-         Result := Integer (R);
+         --  Allocate RNG using the C wrapper, which internally calls
+         --  wc_rng_new(NULL, 0, NULL) as required.
+         Key := Ada_New_RNG;
+
+         if Key = null then
+            Result := Exception_Error;
+            return;
+         end if;
+
+         --  wc_rng_new() already calls wc_InitRng() internally, so no extra init.
+         Result := 0;
       end;
    exception
       when others =>
