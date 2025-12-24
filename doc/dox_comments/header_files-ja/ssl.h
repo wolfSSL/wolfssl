@@ -588,7 +588,7 @@ int wolfSSL_use_old_poly(WOLFSSL* ssl, int value);
     \sa wolfSSL_CTX_new
     \sa wolfSSL_CTX_dtls_set_export
 */
-int wolfSSL_dtls_import(WOLFSSL* ssl, unsigned char* buf,
+int wolfSSL_dtls_import(WOLFSSL* ssl, const unsigned char* buf,
                                                                unsigned int sz);
 
 
@@ -985,7 +985,7 @@ int wolfSSL_CTX_load_verify_locations(WOLFSSL_CTX* ctx, const char* file,
     \sa wolfSSL_use_certificate_chain_file
 */
 int wolfSSL_CTX_load_verify_locations_ex(WOLFSSL_CTX* ctx, const char* file,
-                                         const char* path, unsigned int flags);
+                                         const char* path, word32 flags);
 
 /*!
     \ingroup CertsKeys
@@ -1634,7 +1634,7 @@ const char* wolfSSL_get_cipher_name(WOLFSSL* ssl);
     \sa wolfSSL_set_read_fd
     \sa wolfSSL_set_write_fd
 */
-int  wolfSSL_get_fd(const WOLFSSL*);
+int  wolfSSL_get_fd(const WOLFSSL* ssl);
 
 /*!
     \ingroup IO
@@ -1658,7 +1658,7 @@ int  wolfSSL_get_fd(const WOLFSSL*);
     \sa wolfSSL_set_read_fd
     \sa wolfSSL_set_write_fd
 */
-int  wolfSSL_get_wfd(const WOLFSSL*);
+int  wolfSSL_get_wfd(const WOLFSSL* ssl);
 
 /*!
     \ingroup Setup
@@ -1834,7 +1834,7 @@ int  wolfSSL_peek(WOLFSSL* ssl, void* data, int sz);
     \sa wolfSSL_get_error
     \sa wolfSSL_connect
 */
-int  wolfSSL_accept(WOLFSSL*);
+int  wolfSSL_accept(WOLFSSL* ssl);
 
 /*!
     \ingroup IO
@@ -1891,7 +1891,7 @@ int  wolfDTLS_accept_stateless(WOLFSSL* ssl);
     \sa wolfSSL_new
     \sa wolfSSL_free
 */
-void wolfSSL_CTX_free(WOLFSSL_CTX*);
+void wolfSSL_CTX_free(WOLFSSL_CTX* ctx);
 
 /*!
     \ingroup Setup
@@ -1915,7 +1915,7 @@ void wolfSSL_CTX_free(WOLFSSL_CTX*);
     \sa wolfSSL_new
     \sa wolfSSL_CTX_free
 */
-void wolfSSL_free(WOLFSSL*);
+void wolfSSL_free(WOLFSSL* ssl);
 
 /*!
     \ingroup TLS
@@ -1944,7 +1944,7 @@ void wolfSSL_free(WOLFSSL*);
     \sa wolfSSL_free
     \sa wolfSSL_CTX_free
 */
-int  wolfSSL_shutdown(WOLFSSL*);
+int  wolfSSL_shutdown(WOLFSSL* ssl);
 
 /*!
     \ingroup IO
@@ -2218,7 +2218,7 @@ int wolfSSL_GetSessionIndex(WOLFSSL* ssl);
     \return BAD_MUTEX_E mutexのアンロックまたはロックエラーがあった場合に返されます。
     \return SSL_FAILURE 関数が正常に実行されなかった場合に返されます。
 
-    \param idx セッションインデックスを表すint型。
+    \param index セッションインデックスを表すint型。
     \param session WOLFSSL_SESSION構造体へのポインタ。
 
     _Example_
@@ -2235,7 +2235,7 @@ int wolfSSL_GetSessionIndex(WOLFSSL* ssl);
     \sa LockMutex
     \sa wolfSSL_GetSessionIndex
 */
-int wolfSSL_GetSessionAtIndex(int idx, WOLFSSL_SESSION* session);
+int wolfSSL_GetSessionAtIndex(int index, WOLFSSL_SESSION* session);
 
 /*!
     \ingroup IO
@@ -2390,7 +2390,7 @@ void wolfSSL_CTX_SetCertCbCtx(WOLFSSL_CTX* ctx, void* userCtx);
     \sa wolfSSL_read
     \sa wolfSSL_peek
 */
-int  wolfSSL_pending(WOLFSSL*);
+int  wolfSSL_pending(WOLFSSL* ssl);
 
 /*!
     \ingroup Debug
@@ -3022,7 +3022,7 @@ void  wolfSSL_dtls13_set_send_more_acks(WOLFSSL *ssl, int value);
     \sa wolfSSL_dtls_set_timeout_max
     \sa wolfSSL_dtls_got_timeout
 */
-int  wolfSSL_dtls_set_timeout_init(WOLFSSL* ssl, int);
+int  wolfSSL_dtls_set_timeout_init(WOLFSSL* ssl, int timeout);
 
 /*!
     \brief この関数は最大dtlsタイムアウトを設定します。
@@ -3048,7 +3048,7 @@ int  wolfSSL_dtls_set_timeout_init(WOLFSSL* ssl, int);
     \sa wolfSSL_dtls_set_timeout_init
     \sa wolfSSL_dtls_got_timeout
 */
-int  wolfSSL_dtls_set_timeout_max(WOLFSSL* ssl, int);
+int  wolfSSL_dtls_set_timeout_max(WOLFSSL* ssl, int timeout);
 
 /*!
     \brief DTLSでノンブロッキングソケットを使用する場合、制御コードが送信がタイムアウトしたと判断したときに、この関数をWOLFSSLオブジェクトに対して呼び出す必要があります。この関数は、タイムアウト値の調整を含め、最後の送信を再試行するために必要なアクションを実行します。時間が経過しすぎた場合、失敗が返されます。
@@ -3387,7 +3387,7 @@ int  wolfSSL_session_reused(WOLFSSL* ssl);
     \sa wolfSSL_get_keys
     \sa wolfSSL_set_shutdown
 */
-int  wolfSSL_is_init_finished(WOLFSSL* ssl);
+int  wolfSSL_is_init_finished(const WOLFSSL* ssl);
 
 /*!
     \ingroup IO
@@ -3758,7 +3758,7 @@ int  wolfSSL_BIO_make_bio_pair(WOLFSSL_BIO *b1, WOLFSSL_BIO *b2);
     \return SSL_SUCCESS 値の設定に成功した場合。
     \return SSL_FAILURE エラーケースが発生した場合。
 
-    \param bio 読み取り要求フラグを設定するWOLFSSL_BIO構造体。
+    \param b 読み取り要求フラグを設定するWOLFSSL_BIO構造体。
 
     _Example_
     \code
@@ -3772,7 +3772,7 @@ int  wolfSSL_BIO_make_bio_pair(WOLFSSL_BIO *b1, WOLFSSL_BIO *b2);
     \sa wolfSSL_BIO_new, wolfSSL_BIO_s_mem
     \sa wolfSSL_BIO_new, wolfSSL_BIO_free
 */
-int  wolfSSL_BIO_ctrl_reset_read_request(WOLFSSL_BIO *bio);
+int  wolfSSL_BIO_ctrl_reset_read_request(WOLFSSL_BIO *b);
 
 /*!
     \ingroup IO
@@ -4083,7 +4083,7 @@ WOLFSSL_X509_NAME*  wolfSSL_X509_get_subject_name(WOLFSSL_X509* cert);
     \return isCA WOLFSSL_X509構造体のisCaメンバーの値が返されます。
     \return 0 有効なx509構造体が渡されなかった場合に返されます。
 
-    \param cert WOLFSSL_X509構造体へのポインタ。
+    \param x509 WOLFSSL_X509構造体へのポインタ。
 
     _Example_
     \code
@@ -4102,7 +4102,7 @@ WOLFSSL_X509_NAME*  wolfSSL_X509_get_subject_name(WOLFSSL_X509* cert);
     \sa wolfSSL_X509_get_issuer_name
     \sa wolfSSL_X509_get_isCA
 */
-int  wolfSSL_X509_get_isCA(WOLFSSL_X509* cert);
+int  wolfSSL_X509_get_isCA(WOLFSSL_X509* x509);
 
 /*!
     \ingroup CertsKeys
@@ -4142,7 +4142,7 @@ int wolfSSL_X509_NAME_get_text_by_NID(WOLFSSL_X509_NAME* name, int nid,
     \return 0 WOLFSSL_X509構造体がNULLの場合に返されます。
     \return int x509オブジェクトから取得された整数値が返されます。
 
-    \param cert WOLFSSL_X509構造体へのポインタ。
+    \param x509 WOLFSSL_X509構造体へのポインタ。
 
     _Example_
     \code
@@ -4164,7 +4164,7 @@ int wolfSSL_X509_NAME_get_text_by_NID(WOLFSSL_X509_NAME* name, int nid,
     \sa wolfSSL_X509_notAfter
     \sa wolfSSL_X509_free
 */
-int wolfSSL_X509_get_signature_type(WOLFSSL_X509* cert);
+int wolfSSL_X509_get_signature_type(WOLFSSL_X509* x509);
 
 /*!
     \brief この関数はWOLFSSL_X509構造体を解放します。
@@ -4773,7 +4773,7 @@ long wolfSSL_set_options(WOLFSSL *s, long op);
 
     \return val sslに格納されているマスク値を返します。
 
-    \param ssl オプションマスクを取得するWOLFSSL構造体。
+    \param s オプションマスクを取得するWOLFSSL構造体。
 
     _Example_
     \code
@@ -4787,7 +4787,7 @@ long wolfSSL_set_options(WOLFSSL *s, long op);
     \sa wolfSSL_free
     \sa wolfSSL_set_options
 */
-long wolfSSL_get_options(const WOLFSSL *ssl);
+long wolfSSL_get_options(const WOLFSSL *s);
 
 /*!
     \ingroup Setup
@@ -4797,7 +4797,7 @@ long wolfSSL_get_options(const WOLFSSL *ssl);
     \return SSL_SUCCESS 引数の設定に成功した場合。
     \return SSL_FAILURE NULLのsslが渡された場合。
 
-    \param ssl 引数を設定するWOLFSSL構造体。
+    \param s 引数を設定するWOLFSSL構造体。
     \param arg 使用する引数。
 
     _Example_
@@ -4813,7 +4813,7 @@ long wolfSSL_get_options(const WOLFSSL *ssl);
     \sa wolfSSL_new
     \sa wolfSSL_free
 */
-long wolfSSL_set_tlsext_debug_arg(WOLFSSL *ssl, void *arg);
+long wolfSSL_set_tlsext_debug_arg(WOLFSSL *s, void *arg);
 
 /*!
     \ingroup openSSL
@@ -4993,7 +4993,7 @@ void wolfSSL_CTX_set_psk_client_callback(WOLFSSL_CTX* ctx,
     \sa wolfSSL_set_psk_server_callback
 */
 void wolfSSL_set_psk_client_callback(WOLFSSL* ssl,
-                                                    wc_psk_client_callback);
+                                                    wc_psk_client_callback cb);
 
 /*!
     \ingroup CertsKeys
@@ -5267,7 +5267,7 @@ void* wolfSSL_CTX_get_psk_callback_ctx(WOLFSSL_CTX* ctx);
 
     \sa none
 */
-int wolfSSL_CTX_allow_anon_cipher(WOLFSSL_CTX*);
+int wolfSSL_CTX_allow_anon_cipher(WOLFSSL_CTX* ctx);
 
 /*!
     \ingroup Setup
@@ -5380,7 +5380,7 @@ WOLFSSL_X509* wolfSSL_get_peer_certificate(WOLFSSL* ssl);
     \sa wolfSSL_want_write
     \sa wolfSSL_get_error
 */
-int wolfSSL_want_read(WOLFSSL*);
+int wolfSSL_want_read(WOLFSSL* ssl);
 
 /*!
     \ingroup Debug
@@ -5405,7 +5405,7 @@ int wolfSSL_want_read(WOLFSSL*);
 
     \sa wolfSSL_want_read
     \sa wolfSSL_get_error
-*/int wolfSSL_want_write(WOLFSSL*);
+*/int wolfSSL_want_write(WOLFSSL* ssl);
 
 /*!
     \ingroup Setup
@@ -5934,7 +5934,7 @@ WOLFSSL_ASN1_TIME* wolfSSL_X509_get_notAfter(WOLFSSL_X509*);
     \sa wolfSSL_X509_get_isCA
     \sa wolfSSL_get_peer_certificate
 */
-int wolfSSL_X509_version(WOLFSSL_X509*);
+int wolfSSL_X509_version(WOLFSSL_X509* x509);
 
 /*!
     \ingroup CertsKeys
@@ -6482,7 +6482,7 @@ int  wolfSSL_CTX_SetTmpDH_file(WOLFSSL_CTX* ctx, const char* f,
     \sa wolfSSL_GetDhKey_Sz
     \sa wolfSSL_CTX_SetTMpDH_file
 */
-int wolfSSL_CTX_SetMinDhKey_Sz(WOLFSSL_CTX* ctx, word16);
+int wolfSSL_CTX_SetMinDhKey_Sz(WOLFSSL_CTX* ctx, word16 keySz_bits);
 
 /*!
     \ingroup CertsKeys
@@ -6593,7 +6593,7 @@ int wolfSSL_SetMaxDhKey_Sz(WOLFSSL* ssl, word16 keySz_bits);
     \sa wolfSSL_SetTmpDH
     \sa wolfSSL_CTX_SetTmpDH_file
 */
-int wolfSSL_GetDhKey_Sz(WOLFSSL*);
+int wolfSSL_GetDhKey_Sz(WOLFSSL* ssl);
 
 /*!
     \ingroup CertsKeys
@@ -6672,7 +6672,7 @@ int wolfSSL_SetMinRsaKey_Sz(WOLFSSL* ssl, short keySz);
 
     \sa wolfSSL_SetMinEccKey_Sz
 */
-int wolfSSL_CTX_SetMinEccKey_Sz(WOLFSSL_CTX* ssl, short keySz);
+int wolfSSL_CTX_SetMinEccKey_Sz(WOLFSSL_CTX* ctx, short keySz);
 
 /*!
     \ingroup CertsKeys
@@ -6793,7 +6793,7 @@ int wolfSSL_writev(WOLFSSL* ssl, const struct iovec* iov,
     \sa LockMutex
     \sa UnlockMutex
 */
-int wolfSSL_CTX_UnloadCAs(WOLFSSL_CTX*);
+int wolfSSL_CTX_UnloadCAs(WOLFSSL_CTX* ctx);
 
 
 /*!
@@ -6849,7 +6849,7 @@ int wolfSSL_CTX_UnloadIntermediateCerts(WOLFSSL_CTX* ctx);
     \sa wolfSSL_CTX_trust_peer_buffer
     \sa wolfSSL_CTX_trust_peer_cert
 */
-int wolfSSL_CTX_Unload_trust_peers(WOLFSSL_CTX*);
+int wolfSSL_CTX_Unload_trust_peers(WOLFSSL_CTX* ctx);
 
 /*!
     \ingroup Setup
@@ -7298,7 +7298,7 @@ int wolfSSL_use_certificate_chain_buffer(WOLFSSL* ssl,
 
     \sa wolfSSL_CTX_UnloadCAs
 */
-int wolfSSL_UnloadCertsKeys(WOLFSSL*);
+int wolfSSL_UnloadCertsKeys(WOLFSSL* ssl);
 
 /*!
     \ingroup Setup
@@ -7323,7 +7323,7 @@ int wolfSSL_UnloadCertsKeys(WOLFSSL*);
     \sa wolfSSL_set_group_messages
     \sa wolfSSL_CTX_new
 */
-int wolfSSL_CTX_set_group_messages(WOLFSSL_CTX*);
+int wolfSSL_CTX_set_group_messages(WOLFSSL_CTX* ctx);
 
 /*!
     \ingroup Setup
@@ -7348,7 +7348,7 @@ int wolfSSL_CTX_set_group_messages(WOLFSSL_CTX*);
     \sa wolfSSL_CTX_set_group_messages
     \sa wolfSSL_new
 */
-int wolfSSL_set_group_messages(WOLFSSL*);
+int wolfSSL_set_group_messages(WOLFSSL* ssl);
 
 /*!
     \brief この関数はファザーコールバックを設定します。
@@ -7407,8 +7407,8 @@ void wolfSSL_SetFuzzerCb(WOLFSSL* ssl, CallbackFuzzer cbf, void* fCtx);
     \sa wc_RNG_GenerateBlock
 */
 int   wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
-                                               const unsigned char* secret,
-                                               unsigned int secretSz);
+                                               const byte* secret,
+                                               word32 secretSz);
 
 /*!
     \brief この関数は乱数を取得します。
@@ -7534,7 +7534,7 @@ int wolfSSL_GetOutputSize(WOLFSSL* ssl, int inSz);
 
     \sa wolfSSL_GetOutputSize
 */
-int wolfSSL_GetMaxOutputSize(WOLFSSL*);
+int wolfSSL_GetMaxOutputSize(WOLFSSL* ssl);
 
 /*!
     \ingroup Setup
@@ -7568,7 +7568,7 @@ int wolfSSL_SetVersion(WOLFSSL* ssl, int version);
 
     \return none 戻り値なし。
 
-    \param No パラメータなし。
+    \param none パラメータなし。
 
     _Example_
     \code
@@ -7578,7 +7578,7 @@ int wolfSSL_SetVersion(WOLFSSL* ssl, int version);
     \sa wolfSSL_SetMacEncryptCtx
     \sa wolfSSL_GetMacEncryptCtx
 */
-void  wolfSSL_CTX_SetMacEncryptCb(WOLFSSL_CTX* ctx, CallbackMacEncrypti cb);
+void  wolfSSL_CTX_SetMacEncryptCb(WOLFSSL_CTX* ctx, CallbackMacEncrypt cb);
 
 /*!
     \brief 呼び出し元がアトミックユーザレコード処理Mac/暗号化コールバックコンテキストをctxに設定できるようにします。
@@ -7769,7 +7769,7 @@ const unsigned char* wolfSSL_GetServerWriteIV(WOLFSSL*);
     \sa wolfSSL_GetClientWriteKey
     \sa wolfSSL_GetServerWriteKey
 */
-int                  wolfSSL_GetKeySize(WOLFSSL*);
+int                  wolfSSL_GetKeySize(WOLFSSL* ssl);
 
 /*!
     \ingroup CertsKeys
@@ -7798,7 +7798,7 @@ int                  wolfSSL_GetKeySize(WOLFSSL*);
     \sa wolfSSL_GetClientWriteIV
     \sa wolfSSL_GetServerWriteIV
 */
-int                  wolfSSL_GetIVSize(WOLFSSL*);
+int                  wolfSSL_GetIVSize(WOLFSSL* ssl);
 
 /*!
     \brief このWOLFSSL接続のサイド(側)の取得を可能にします。
@@ -7816,7 +7816,7 @@ int                  wolfSSL_GetIVSize(WOLFSSL*);
     \sa wolfSSL_GetClientWriteKey
     \sa wolfSSL_GetServerWriteKey
 */
-int                  wolfSSL_GetSide(WOLFSSL*);
+int                  wolfSSL_GetSide(WOLFSSL* ssl);
 
 /*!
     \brief 呼び出し元が、ネゴシエートされたプロトコルバージョンが少なくともTLSバージョン1.1以上であるかどうかを判断できるようにします。
@@ -7833,7 +7833,9 @@ int                  wolfSSL_GetSide(WOLFSSL*);
 
     \sa wolfSSL_GetSide
 */
-int                  wolfSSL_IsTLSv1_1(WOLFSSL*);/*!
+int                  wolfSSL_IsTLSv1_1(WOLFSSL* ssl);
+
+/*!
     \brief 呼び出し元がハンドシェイクからネゴシエートされたバルク暗号アルゴリズムを判定できるようにします。
 
     \return 成功時、以下のいずれかを返します。
@@ -7851,7 +7853,7 @@ int                  wolfSSL_IsTLSv1_1(WOLFSSL*);/*!
     \sa wolfSSL_GetCipherBlockSize
     \sa wolfSSL_GetKeySize
 */
-int                  wolfSSL_GetBulkCipher(WOLFSSL*);
+int                  wolfSSL_GetBulkCipher(WOLFSSL* ssl);
 
 /*!
     \brief 呼び出し元がハンドシェイクからネゴシエートされた暗号ブロックサイズを判定できるようにします。
@@ -7869,7 +7871,7 @@ int                  wolfSSL_GetBulkCipher(WOLFSSL*);
     \sa wolfSSL_GetBulkCipher
     \sa wolfSSL_GetKeySize
 */
-int                  wolfSSL_GetCipherBlockSize(WOLFSSL*);
+int                  wolfSSL_GetCipherBlockSize(WOLFSSL* ssl);
 
 /*!
     \brief 呼び出し元がハンドシェイクからネゴシエートされたaead macサイズを判定できるようにします。暗号タイプWOLFSSL_AEAD_TYPE用。
@@ -7887,7 +7889,7 @@ int                  wolfSSL_GetCipherBlockSize(WOLFSSL*);
     \sa wolfSSL_GetBulkCipher
     \sa wolfSSL_GetKeySize
 */
-int                  wolfSSL_GetAeadMacSize(WOLFSSL*);
+int                  wolfSSL_GetAeadMacSize(WOLFSSL* ssl);
 
 /*!
     \brief 呼び出し元がハンドシェイクからネゴシエートされた(h)macサイズを判定できるようにします。WOLFSSL_AEAD_TYPE以外の暗号タイプ用。
@@ -7905,7 +7907,7 @@ int                  wolfSSL_GetAeadMacSize(WOLFSSL*);
     \sa wolfSSL_GetBulkCipher
     \sa wolfSSL_GetHmacType
 */
-int                  wolfSSL_GetHmacSize(WOLFSSL*);
+int                  wolfSSL_GetHmacSize(WOLFSSL* ssl);
 
 /*!
     \brief 呼び出し元がハンドシェイクからネゴシエートされた(h)macタイプを判定できるようにします。WOLFSSL_AEAD_TYPE以外の暗号タイプ用。
@@ -7925,7 +7927,7 @@ int                  wolfSSL_GetHmacSize(WOLFSSL*);
     \sa wolfSSL_GetBulkCipher
     \sa wolfSSL_GetHmacSize
 */
-int                  wolfSSL_GetHmacType(WOLFSSL*);
+int                  wolfSSL_GetHmacType(WOLFSSL* ssl);
 
 /*!
     \brief 呼び出し元がハンドシェイクからネゴシエートされた暗号タイプを判定できるようにします。
@@ -7944,7 +7946,7 @@ int                  wolfSSL_GetHmacType(WOLFSSL*);
     \sa wolfSSL_GetBulkCipher
     \sa wolfSSL_GetHmacType
 */
-int                  wolfSSL_GetCipherType(WOLFSSL*);
+int                  wolfSSL_GetCipherType(WOLFSSL* ssl);
 
 /*!
     \brief 呼び出し元がメッセージの送受信のためにHmac Innerベクトルを設定できるようにします。結果はinnerに書き込まれ、少なくともwolfSSL_GetHmacSize()バイトである必要があります。メッセージのサイズはszで指定され、contentはメッセージのタイプ、verifyはこれがピアメッセージの検証であるかを指定します。WOLFSSL_AEAD_TYPEを除く暗号タイプで有効です。
@@ -8393,7 +8395,7 @@ WOLFSSL_CERT_MANAGER* wolfSSL_CertManagerNew(void);
 
     \sa wolfSSL_CertManagerNew
 */
-void wolfSSL_CertManagerFree(WOLFSSL_CERT_MANAGER*);
+void wolfSSL_CertManagerFree(WOLFSSL_CERT_MANAGER* cm);
 
 /*!
     \ingroup CertManager
@@ -8460,7 +8462,8 @@ int wolfSSL_CertManagerLoadCA(WOLFSSL_CERT_MANAGER* cm, const char* f,
     \sa cm_pick_method
 */
 int wolfSSL_CertManagerLoadCABuffer(WOLFSSL_CERT_MANAGER* cm,
-                                  const unsigned char* in, long sz, int format);
+                                  const unsigned char* buff, long sz,
+                                  int format);
 
 /*!
     \ingroup CertManager
@@ -8679,7 +8682,7 @@ void wolfSSL_CertManagerSetVerify(WOLFSSL_CERT_MANAGER* cm,
     \sa InitDecodedCert
 */
 int wolfSSL_CertManagerCheckCRL(WOLFSSL_CERT_MANAGER* cm,
-                                unsigned char* der, int sz);
+                                const unsigned char* der, int sz);
 
 /*!
     \ingroup CertManager
@@ -8740,7 +8743,7 @@ int wolfSSL_CertManagerEnableCRL(WOLFSSL_CERT_MANAGER* cm,
 
     \sa wolfSSL_CertManagerEnableCRL
 */
-int wolfSSL_CertManagerDisableCRL(WOLFSSL_CERT_MANAGER*);
+int wolfSSL_CertManagerDisableCRL(WOLFSSL_CERT_MANAGER* cm);
 
 /*!
     \ingroup CertManager
@@ -8969,7 +8972,7 @@ int wolfSSL_CertManagerFreeCRL(WOLFSSL_CERT_MANAGER* cm);
     \sa CheckCertOCSP
 */
 int wolfSSL_CertManagerCheckOCSP(WOLFSSL_CERT_MANAGER* cm,
-                                 unsigned char* der, int sz);
+                                 const unsigned char* der, int sz);
 
 /*!
     \ingroup CertManager
@@ -9026,7 +9029,7 @@ int wolfSSL_CertManagerEnableOCSP(WOLFSSL_CERT_MANAGER* cm,
 
     \sa wolfSSL_DisableCRL
 */
-int wolfSSL_CertManagerDisableOCSP(WOLFSSL_CERT_MANAGER*);
+int wolfSSL_CertManagerDisableOCSP(WOLFSSL_CERT_MANAGER* cm);
 
 /*!
     \ingroup CertManager
@@ -9270,7 +9273,7 @@ int wolfSSL_EnableOCSP(WOLFSSL* ssl, int options);
 
     \sa wolfSSL_CertManagerDisableOCSP
 */
-int wolfSSL_DisableOCSP(WOLFSSL*);
+int wolfSSL_DisableOCSP(WOLFSSL* ssl);
 
 /*!
     \brief この関数は、WOLFSSL_CERT_MANAGER構造体のocspOverrideURLメンバを設定します。
@@ -9494,7 +9497,7 @@ int wolfSSL_CTX_EnableOCSP(WOLFSSL_CTX* ctx, int options);
     \sa wolfSSL_DisableOCSP
     \sa wolfSSL_CertManagerDisableOCSP
 */
-int wolfSSL_CTX_DisableOCSP(WOLFSSL_CTX*);
+int wolfSSL_CTX_DisableOCSP(WOLFSSL_CTX* ctx);
 
 /*!
     \brief この関数は、OCSPが使用するURLを手動で設定します。デフォルトでは、wolfSSL_CTX_EnableOCSPを使用してWOLFSSL_OCSP_URL_OVERRIDEオプションが設定されていない限り、OCSPは個々の証明書で見つかったURLを使用します。
@@ -9576,7 +9579,7 @@ int wolfSSL_CTX_SetOCSP_Cb(WOLFSSL_CTX* ctx,
     \sa wolfSSL_CertManagerEnableOCSPStapling
     \sa InitOCSP
 */
-int wolfSSL_CTX_EnableOCSPStapling(WOLFSSL_CTX*);
+int wolfSSL_CTX_EnableOCSPStapling(WOLFSSL_CTX* ctx);
 
 /*!
     \ingroup CertsKeys
@@ -9596,7 +9599,7 @@ int wolfSSL_CTX_EnableOCSPStapling(WOLFSSL_CTX*);
 
     \sa wolfSSL_FreeArrays
 */
-void wolfSSL_KeepArrays(WOLFSSL*);
+void wolfSSL_KeepArrays(WOLFSSL* ssl);
 
 /*!
     \ingroup CertsKeys
@@ -9616,7 +9619,7 @@ void wolfSSL_KeepArrays(WOLFSSL*);
 
     \sa wolfSSL_KeepArrays
 */
-void wolfSSL_FreeArrays(WOLFSSL*);
+void wolfSSL_FreeArrays(WOLFSSL* ssl);
 
 /*!
     \brief この関数は、'ssl'パラメータで渡されたSSLオブジェクトでServer Name Indicationの使用を有効にします。つまり、wolfSSLクライアントはClientHelloでSNI拡張を送信し、wolfSSLサーバーはSNI不一致の場合、ClientHello + SNIに対してServerHello + 空のSNIまたはfatalアラートで応答します。
@@ -10546,7 +10549,7 @@ int wolfSSL_send_SessionTicket(WOLFSSL* ssl);
     \sa wolfSSL_CTX_set_TicketEncCtx
 */
 int wolfSSL_CTX_set_TicketEncCb(WOLFSSL_CTX* ctx,
-                                            SessionTicketEncCb);
+                                            SessionTicketEncCb cb);
 
 /*!
     \brief この関数は、クライアントに中継されるセッションチケットヒントを設定します。サーバ側での使用。
@@ -10563,7 +10566,7 @@ int wolfSSL_CTX_set_TicketEncCb(WOLFSSL_CTX* ctx,
     \endcode
 
     \sa wolfSSL_CTX_set_TicketEncCb*/
-int wolfSSL_CTX_set_TicketHint(WOLFSSL_CTX* ctx, int);
+int wolfSSL_CTX_set_TicketHint(WOLFSSL_CTX* ctx, int hint);
 
 /*!
     \brief この関数は、コールバック用のセッションチケット暗号化ユーザコンテキストを設定します。サーバ側で使用します。
@@ -10581,7 +10584,7 @@ int wolfSSL_CTX_set_TicketHint(WOLFSSL_CTX* ctx, int);
 
     \sa wolfSSL_CTX_set_TicketEncCb
 */
-int wolfSSL_CTX_set_TicketEncCtx(WOLFSSL_CTX* ctx, void*);
+int wolfSSL_CTX_set_TicketEncCtx(WOLFSSL_CTX* ctx, void* userCtx);
 
 /*!
     \brief この関数は、コールバック用のセッションチケット暗号化ユーザコンテキストを取得します。サーバ側で使用します。
@@ -10804,7 +10807,7 @@ int wolfSSL_connect_ex(WOLFSSL* ssl, HandShakeCallBack hsCb,
 
     \sa wolfSSL_connect_ex
 */
-int wolfSSL_accept_ex(WOLFSSL* ssl, HandShakeCallBacki hsCb,
+int wolfSSL_accept_ex(WOLFSSL* ssl, HandShakeCallBack hsCb,
                       TimeoutCallBack toCb, WOLFSSL_TIMEVAL timeout);
 
 /*!
@@ -10899,7 +10902,7 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl);
 
     \param x509 拡張を検索するために解析する証明書。
     \param nid 見つける拡張OID。
-    \param lastPos lastPos以降の拡張から検索を開始します。
+    \param lastpos lastPos以降の拡張から検索を開始します。
                    最初は-1に設定します。
 
     _Example_
@@ -10910,8 +10913,7 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl);
 
     idx = wolfSSL_X509_get_ext_by_NID(x509, NID_basic_constraints, lastPos);
     \endcode*/
-int wolfSSL_X509_get_ext_by_NID(const WOLFSSL_X509* x509,
-                                             int nid, int lastPos);
+int wolfSSL_X509_get_ext_by_NID(const WOLFSSL_X509 *x, int nid, int lastpos);
 
 /*!
     \ingroup CertsKeys
@@ -11022,8 +11024,8 @@ int wolfSSL_use_certificate(WOLFSSL* ssl, WOLFSSL_X509* x509);
     \sa wolfSSL_new
     \sa wolfSSL_free
 */
-int wolfSSL_use_certificate_ASN1(WOLFSSL* ssl, unsigned char* der,
-                                                                     int derSz);
+int wolfSSL_use_certificate_ASN1(WOLFSSL* ssl, const unsigned char* der,
+                                 int derSz);
 
 /*!
     \ingroup CertsKeys
@@ -11080,7 +11082,7 @@ int wolfSSL_use_PrivateKey(WOLFSSL* ssl, WOLFSSL_EVP_PKEY* pkey);
     \sa wolfSSL_use_PrivateKey
 */
 int wolfSSL_use_PrivateKey_ASN1(int pri, WOLFSSL* ssl,
-                                            unsigned char* der, long derSz);
+                        const unsigned char* der, long derSz);
 
 /*!
     \ingroup CertsKeys
@@ -12060,7 +12062,7 @@ int  wolfSSL_request_certificate(WOLFSSL* ssl);
     \sa wolfSSL_UseKeyShare
     \sa wolfSSL_preferred_group
 */
-int  wolfSSL_CTX_set1_groups_list(WOLFSSL_CTX *ctx, char *list);
+int  wolfSSL_CTX_set1_groups_list(WOLFSSL_CTX *ctx, const char *list);
 
 /*!
     \ingroup Setup
@@ -12091,7 +12093,7 @@ int  wolfSSL_CTX_set1_groups_list(WOLFSSL_CTX *ctx, char *list);
     \sa wolfSSL_UseKeyShare
     \sa wolfSSL_preferred_group
 */
-int  wolfSSL_set1_groups_list(WOLFSSL *ssl, char *list);
+int  wolfSSL_set1_groups_list(WOLFSSL *ssl, const char *list);
 
 /*!
     \ingroup TLS
@@ -12227,7 +12229,7 @@ int  wolfSSL_set_groups(WOLFSSL* ssl, int* groups, int count);
     \sa wolfSSL_accept_TLSv13
     \sa wolfSSL_accept
 */
-int  wolfSSL_connect_TLSv13(WOLFSSL*);
+int  wolfSSL_connect_TLSv13(WOLFSSL* ssl);
 
 /*!
     \ingroup IO
@@ -12824,17 +12826,17 @@ int wolfSSL_get_ephemeral_key(WOLFSSL* ssl, int keyAlgo,
  \ingroup SSL
  \brief 選択したメッセージダイジェスト、パディング、およびRSA鍵でメッセージに署名します。
  \return WOLFSSL_SUCCESS 成功時、エラー時はc。
- \param type ハッシュNID。
- \param m 署名するメッセージ。おそらくこれは署名するメッセージのダイジェストになります。
- \param mLen 署名するメッセージの長さ。
+ \param hashAlg ハッシュNID。
+ \param hash 署名するメッセージ。おそらくこれは署名するメッセージのダイジェストになります。
+ \param hLen 署名するメッセージの長さ。
  \param sigRet 出力バッファ。
  \param sigLen 入力時: sigRetバッファの長さ、出力時: sigRetに書き込まれたデータの長さ。
  \param rsa 入力の署名に使用されるRSA鍵。
  \param flag 1: 署名を出力、0: パディングされていない署名と比較すべき値を出力。注意: RSA_PKCS1_PSS_PADDINGの場合、*Verify*関数の出力をチェックするためにwc_RsaPSS_CheckPadding_ex関数を使用する必要があります。
  \param padding 使用するパディング。現在、署名にはRSA_PKCS1_PSS_PADDINGとRSA_PKCS1_PADDINGのみがサポートされています。
  */
-int wolfSSL_RSA_sign_generic_padding(int type, const unsigned char* m,
-                               unsigned int mLen, unsigned char* sigRet,
+int wolfSSL_RSA_sign_generic_padding(int hashAlg, const unsigned char* hash,
+                               unsigned int hLen, unsigned char* sigRet,
                                unsigned int* sigLen, WOLFSSL_RSA* rsa,
                                int flag, int padding);
 /*!
@@ -12868,11 +12870,19 @@ unsigned int wolfSSL_SESSION_get_max_early_data(const WOLFSSL_SESSION *s);
            - wolfSSL_SESSION_get_ex_new_index
            - wolfSSL_X509_get_ex_new_index
 
-    \param [in] すべての入力パラメータは無視されます。コールバック関数はwolfSSLではサポートされていません。
+    \param [in] class_index 外部データインデックスが適用されるオブジェクトクラスの識別子。wolfSSLでは無視されます。
+    \param [in] argl 互換性のために渡されるオプションのlong型引数。wolfSSLでは無視されます。
+    \param [in] argp 互換性のために渡されるオプションのポインタ型引数。wolfSSLでは無視されます。
+    \param [in] new_func 外部データコンストラクタコールバックへのポインタ。wolfSSLでは無視されます。
+    \param [in] dup_func 外部データ複製コールバックへのポインタ。wolfSSLでは無視されます。
+    \param [in] free_func 外部データデストラクタコールバックへのポインタ。wolfSSLでは無視されます。
 
     \return このオブジェクトクラスの外部データAPIで使用される新しいインデックス値。
  */
-int wolfSSL_CRYPTO_get_ex_new_index(int, void*, void*, void*, void*);
+int wolfSSL_CRYPTO_get_ex_new_index(int class_index, long argl, void *argp,
+                                    WOLFSSL_CRYPTO_EX_new* new_func,
+                                    WOLFSSL_CRYPTO_EX_dup* dup_func,
+                                    WOLFSSL_CRYPTO_EX_free* free_func);
 
 /*!
  \ingroup Setup
@@ -13530,10 +13540,10 @@ void wolfSSL_CTX_set_cert_cb(WOLFSSL_CTX* ctx,
     \brief この関数は、クライアントが提供する暗号スイートと署名アルゴリズムの生のリストを返します。リストは、wolfSSL_CTX_set_cert_cb()で設定されたコールバック内でのみ保存され、返されます。これは、利用可能な暗号スイートと署名アルゴリズムに基づいて証明書と鍵を動的にロードできるようにするのに便利です。
 
     \param [in] ssl リストを抽出するWOLFSSLオブジェクト。
-    \param [out] optional suites クライアント暗号スイートの生の未フィルタリストリスト。
-    \param [out] optional suiteSz suitesのサイズ(バイト単位)。
-    \param [out] optional hashSigAlgo クライアント署名アルゴリズムの生の未フィルタリストリスト。
-    \param [out] optional hashSigAlgoSz hashSigAlgoのサイズ(バイト単位)。
+    \param [out] suites クライアント暗号スイートの生のフィルタリングされていないリスト。利用可能なスイートがない場合はNULLになることがあります。
+    \param [out] suiteSz suitesのサイズ(バイト単位)。
+    \param [out] hashSigAlgo クライアント署名アルゴリズムの生のフィルタリングされていないリスト。提供されない場合はNULLになることがあります。
+    \param [out] hashSigAlgoSz hashSigAlgoのサイズ(バイト単位)。
     \return WOLFSSL_SUCCESS スイートが利用可能な場合。
     \return WOLFSSL_FAILURE スイートが利用できない場合。
 

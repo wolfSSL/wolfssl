@@ -173,7 +173,7 @@ int wc_ed25519ctx_sign_msg(const byte* in, word32 inlen, byte* out,
     \param [in] hash 署名するメッセージのハッシュを含むバッファへのポインタ。
     \param [in] hashLen 署名するメッセージのハッシュの長さ。
     \param [out] out 生成された署名を格納するバッファ。
-    \param [in,out] outlen 出力バッファの最大長。メッセージ署名の生成に成功した後、outに書き込まれたバイト数が格納されます。
+    \param [in,out] outLen 出力バッファの最大長。メッセージ署名の生成に成功した後、outに書き込まれたバイト数が格納されます。
     \param [in] key 署名を生成するために使用する秘密ed25519_keyへのポインタ。
     \param [in] context メッセージが署名されているコンテキストを含むバッファへのポインタ。
     \param [in] contextLen コンテキストバッファの長さ。
@@ -373,8 +373,8 @@ int wc_ed25519ctx_verify_msg(const byte* sig, word32 siglen, const byte* msg,
     byte hash[] = { メッセージのSHA-512ハッシュで初期化 };
     byte context[] = { 署名のコンテキストで初期化 };
     // 受信した公開鍵でkeyを初期化
-    ret = wc_ed25519ph_verify_hash(sig, sizeof(sig), msg, sizeof(msg),
-            &verified, &key, );
+    ret = wc_ed25519ph_verify_hash(sig, sizeof(sig), hash, sizeof(hash),
+            &verified, &key, context, sizeof(context));
     if (ret < 0) {
         // 検証実行エラー
     } else if (verified == 0)
@@ -419,8 +419,8 @@ int wc_ed25519ph_verify_hash(const byte* sig, word32 siglen, const byte* hash,
     byte msg[] = { メッセージで初期化 };
     byte context[] = { 署名のコンテキストで初期化 };
     // 受信した公開鍵でkeyを初期化
-    ret = wc_ed25519ctx_verify_msg(sig, sizeof(sig), msg, sizeof(msg),
-            &verified, &key, );
+    ret = wc_ed25519ph_verify_msg(sig, sizeof(sig), msg, sizeof(msg),
+            &verified, &key, context, sizeof(context));
     if (ret < 0) {
         // 検証実行エラー
     } else if (verified == 0)
@@ -429,8 +429,8 @@ int wc_ed25519ph_verify_hash(const byte* sig, word32 siglen, const byte* hash,
     \endcode
 
     \sa wc_ed25519_verify_msg
+    \sa wc_ed25519ctx_verify_msg
     \sa wc_ed25519ph_verify_hash
-    \sa wc_ed25519ph_verify_msg
     \sa wc_ed25519_sign_msg
 */
 
@@ -645,7 +645,7 @@ int wc_ed25519_import_private_key(const byte* priv, word32 privSz,
 
     ed25519_key key;
     wc_ed25519_init_key(&key);
-    ret = wc_ed25519_import_private_key(priv, sizeof(priv), pub, sizeof(pub),
+    ret = wc_ed25519_import_private_key_ex(priv, sizeof(priv), pub, sizeof(pub),
             &key, 1);
     if (ret != 0) {
         // 鍵のインポートエラー
@@ -669,7 +669,7 @@ int wc_ed25519_import_private_key_ex(const byte* priv, word32 privSz,
 
     \return 0 公開鍵のエクスポートに成功した場合に返されます。
     \return BAD_FUNC_ARG 入力値のいずれかがNULLと評価された場合に返されます。
-    \return BUFFER_E 提供されたバッファが秘密鍵を格納するのに十分な大きさでない場合に返されます。このエラーを返す際、関数はoutLenに必要なサイズを設定します。
+    \return BUFFER_E 提供されたバッファが公開鍵を格納するのに十分な大きさでない場合に返されます。このエラーを返す際、関数はoutLenに必要なサイズを設定します。
 
     \param [in] key 公開鍵をエクスポートするed25519_key構造体へのポインタ。
     \param [out] out 公開鍵を格納するバッファへのポインタ。
@@ -692,10 +692,11 @@ int wc_ed25519_import_private_key_ex(const byte* priv, word32 privSz,
 
     \sa wc_ed25519_import_public
     \sa wc_ed25519_import_public_ex
+    \sa wc_ed25519_export_private
     \sa wc_ed25519_export_private_only
 */
 
-int wc_ed25519_export_public(ed25519_key* key, byte* out, word32* outLen);
+int wc_ed25519_export_public(const ed25519_key* key, byte* out, word32* outLen);
 
 /*!
     \ingroup ED25519
@@ -725,11 +726,12 @@ int wc_ed25519_export_public(ed25519_key* key, byte* out, word32* outLen);
     \endcode
 
     \sa wc_ed25519_export_public
+    \sa wc_ed25519_export_private
     \sa wc_ed25519_import_private_key
     \sa wc_ed25519_import_private_key_ex
 */
 
-int wc_ed25519_export_private_only(ed25519_key* key, byte* out, word32* outLen);
+int wc_ed25519_export_private_only(const ed25519_key* key, byte* out, word32* outLen);
 
 /*!
     \ingroup ED25519
@@ -767,7 +769,7 @@ int wc_ed25519_export_private_only(ed25519_key* key, byte* out, word32* outLen);
     \sa wc_ed25519_export_private_only
 */
 
-int wc_ed25519_export_private(ed25519_key* key, byte* out, word32* outLen);
+int wc_ed25519_export_private(const ed25519_key* key, byte* out, word32* outLen);
 
 /*!
     \ingroup ED25519
@@ -805,7 +807,7 @@ int wc_ed25519_export_private(ed25519_key* key, byte* out, word32* outLen);
     \sa wc_ed25519_export_public
 */
 
-int wc_ed25519_export_key(ed25519_key* key,
+int wc_ed25519_export_key(const ed25519_key* key,
                           byte* priv, word32 *privSz,
                           byte* pub, word32 *pubSz);
 
@@ -866,7 +868,7 @@ int wc_ed25519_check_key(ed25519_key* key);
     \sa wc_ed25519_make_key
 */
 
-int wc_ed25519_size(ed25519_key* key);
+int wc_ed25519_size(const ed25519_key* key);
 
 /*!
     \ingroup ED25519
@@ -893,7 +895,7 @@ int wc_ed25519_size(ed25519_key* key);
     \sa wc_ed25519_pub_size
 */
 
-int wc_ed25519_priv_size(ed25519_key* key);
+int wc_ed25519_priv_size(const ed25519_key* key);
 
 /*!
     \ingroup ED25519
@@ -919,7 +921,7 @@ int wc_ed25519_priv_size(ed25519_key* key);
     \sa wc_ed25519_priv_size
 */
 
-int wc_ed25519_pub_size(ed25519_key* key);
+int wc_ed25519_pub_size(const ed25519_key* key);
 
 /*!
     \ingroup ED25519
@@ -946,4 +948,4 @@ int wc_ed25519_pub_size(ed25519_key* key);
     \sa wc_ed25519_sign_msg
 */
 
-int wc_ed25519_sig_size(ed25519_key* key);
+int wc_ed25519_sig_size(const ed25519_key* key);

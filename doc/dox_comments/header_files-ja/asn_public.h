@@ -19,7 +19,7 @@
     \sa wc_MakeCert
     \sa wc_MakeCertReq
 */
-int wc_InitCert(Cert*);
+int wc_InitCert(Cert* cert);
 
 /*!
      \ingroup ASN
