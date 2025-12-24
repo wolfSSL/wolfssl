@@ -22021,7 +22021,8 @@ int wolfSSL_get_ocsp_producedDate_tm(WOLFSSL *ssl, struct tm *produced_tm) {
         return BAD_FUNC_ARG;
 
     if (ExtractDate(ssl->ocspProducedDate,
-            (unsigned char)ssl->ocspProducedDateFormat, produced_tm, &idx))
+            (unsigned char)ssl->ocspProducedDateFormat, produced_tm, &idx,
+            MAX_DATE_SZ))
         return 0;
     else
         return ASN_PARSE_E;

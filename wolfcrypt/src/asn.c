@@ -16271,7 +16271,7 @@ static WC_INLINE int GetTime_Long(long* value, const byte* date, int* idx)
  * Reminder: idx is incremented in each call to GetTime()
  * Return 0 on failure, 1 for success.  */
 int ExtractDate(const unsigned char* date, unsigned char format,
-                struct tm* certTime, int* idx)
+                struct tm* certTime, int* idx, int len)
 {
     int i = *idx;
 
@@ -16280,13 +16280,21 @@ int ExtractDate(const unsigned char* date, unsigned char format,
      * Subtract 2; one for zero indexing and one to exclude null terminator
      * built into macro values. */
     if (format == ASN_UTC_TIME) {
-        /* UTCTime format requires YYMMDDHHMMSSZ. */
+        /* UTCTime format requires YYMMDDHHMMSSZ (13 chars). */
+        /* Bounds check: ensure we have enough data before accessing. */
+        if (len < i + ASN_UTC_TIME_SIZE - 1) {
+            return 0;
+        }
         if (date[i + ASN_UTC_TIME_SIZE - 2] != 'Z') {
             return 0;
         }
     }
     else if (format == ASN_GENERALIZED_TIME) {
-        /* GeneralizedTime format requires YYYYMMDDHHMMSSZ. */
+        /* GeneralizedTime format requires YYYYMMDDHHMMSSZ (15 chars). */
+        /* Bounds check: ensure we have enough data before accessing. */
+        if (len < i + ASN_GENERALIZED_TIME_SIZE - 1) {
+            return 0;
+        }
         if (date[ i + ASN_GENERALIZED_TIME_SIZE - 2] != 'Z') {
             return 0;
         }
@@ -16363,12 +16371,12 @@ int ExtractDate(const unsigned char* date, unsigned char format,
 
 
 #ifdef WOLFSSL_ASN_TIME_STRING
-int GetTimeString(byte* date, int format, char* buf, int len)
+int GetTimeString(byte* date, int format, char* buf, int len, int dateLen)
 {
     struct tm t;
     int idx = 0;
 
-    if (!ExtractDate(date, (unsigned char)format, &t, &idx)) {
+    if (!ExtractDate(date, (unsigned char)format, &t, &idx, dateLen)) {
         return 0;
     }
 
@@ -16598,13 +16606,13 @@ static WC_INLINE int DateLessThan(const struct tm* a, const struct tm* b)
 /* date = ASN.1 raw */
 /* format = ASN_UTC_TIME or ASN_GENERALIZED_TIME */
 /* dateType = ASN_AFTER or ASN_BEFORE */
-int wc_ValidateDate(const byte* date, byte format, int dateType)
+int wc_ValidateDate(const byte* date, byte format, int dateType, int len)
 {
-    return wc_ValidateDateWithTime(date, format, dateType, 0);
+    return wc_ValidateDateWithTime(date, format, dateType, 0, len);
 }
 
 int wc_ValidateDateWithTime(const byte* date, byte format, int dateType,
-    time_t checkTime)
+    time_t checkTime, int len)
 {
     time_t ltime;
     struct tm  certTime;
@@ -16653,7 +16661,7 @@ int wc_ValidateDateWithTime(const byte* date, byte format, int dateType,
     }
 #endif
 
-    if (!ExtractDate(date, format, &certTime, &i)) {
+    if (!ExtractDate(date, format, &certTime, &i, len)) {
         WOLFSSL_MSG("Error extracting the date");
         return 0;
     }
@@ -16875,7 +16883,7 @@ static int GetDate(DecodedCert* cert, int dateType, int verify, int maxIdx)
 #ifndef NO_ASN_TIME_CHECK
     if (verify != NO_VERIFY && verify != VERIFY_SKIP_DATE &&
             (! AsnSkipDateCheck) &&
-            !XVALIDATE_DATE(date, format, dateType)) {
+            !XVALIDATE_DATE(date, format, dateType, length)) {
         if (dateType == ASN_BEFORE) {
             WOLFSSL_ERROR_VERBOSE(ASN_BEFORE_DATE_E);
             return ASN_BEFORE_DATE_E;
@@ -16933,7 +16941,7 @@ int wc_GetDateAsCalendarTime(const byte* date, int length, byte format,
 {
     int idx = 0;
     (void)length;
-    if (!ExtractDate(date, format, timearg, &idx))
+    if (!ExtractDate(date, format, timearg, &idx, length))
         return ASN_TIME_E;
     return 0;
 }
@@ -23612,7 +23620,8 @@ static int CheckDate(ASNGetData *dataASN, int dateType)
 #ifndef NO_ASN_TIME_CHECK
     /* Check date is a valid string and ASN_BEFORE or ASN_AFTER now. */
     if ((ret == 0) && (! AsnSkipDateCheck)) {
-        if (!XVALIDATE_DATE(dataASN->data.ref.data, dataASN->tag, dateType)) {
+        if (!XVALIDATE_DATE(dataASN->data.ref.data, dataASN->tag, dateType,
+                            (int)dataASN->data.ref.length)) {
             if (dateType == ASN_BEFORE) {
                 ret = ASN_BEFORE_DATE_E;
             }
@@ -38403,7 +38412,7 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
 #ifndef NO_ASN_TIME_CHECK
 #ifndef WOLFSSL_NO_OCSP_DATE_CHECK
     if ((! AsnSkipDateCheck) && !XVALIDATE_DATE(single->status->thisDate,
-        single->status->thisDateFormat, ASN_BEFORE))
+        single->status->thisDateFormat, ASN_BEFORE, MAX_DATE_SIZE))
         return ASN_BEFORE_DATE_E;
 #endif
 #endif
@@ -38441,7 +38450,7 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
 #ifndef WOLFSSL_NO_OCSP_DATE_CHECK
         if ((! AsnSkipDateCheck) &&
             !XVALIDATE_DATE(single->status->nextDate,
-                            single->status->nextDateFormat, ASN_AFTER))
+                            single->status->nextDateFormat, ASN_AFTER, MAX_DATE_SIZE))
             return ASN_AFTER_DATE_E;
 #endif
 #endif
@@ -38515,7 +38524,8 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
     #if !defined(NO_ASN_TIME_CHECK) && !defined(WOLFSSL_NO_OCSP_DATE_CHECK)
         /* Check date is a valid string and ASN_BEFORE now. */
         if ((! AsnSkipDateCheck) &&
-            !XVALIDATE_DATE(cs->thisDate, ASN_GENERALIZED_TIME, ASN_BEFORE))
+            !XVALIDATE_DATE(cs->thisDate, ASN_GENERALIZED_TIME, ASN_BEFORE,
+                            MAX_DATE_SIZE))
         {
             ret = ASN_BEFORE_DATE_E;
         }
@@ -38540,7 +38550,8 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
     #if !defined(NO_ASN_TIME_CHECK) && !defined(WOLFSSL_NO_OCSP_DATE_CHECK)
         /* Check date is a valid string and ASN_AFTER now. */
         if ((! AsnSkipDateCheck) &&
-            !XVALIDATE_DATE(cs->nextDate, ASN_GENERALIZED_TIME, ASN_AFTER))
+            !XVALIDATE_DATE(cs->nextDate, ASN_GENERALIZED_TIME, ASN_AFTER,
+                            MAX_DATE_SIZE))
         {
             ret = ASN_AFTER_DATE_E;
         }
@@ -40627,7 +40638,8 @@ static int ParseCRL_CertList(RevokedCert* rcert, DecodedCRL* dcrl,
 #if !defined(NO_ASN_TIME) && !defined(WOLFSSL_NO_CRL_DATE_CHECK)
         if (verify != NO_VERIFY &&
             (! AsnSkipDateCheck) &&
-            !XVALIDATE_DATE(dcrl->nextDate, dcrl->nextDateFormat, ASN_AFTER)) {
+            !XVALIDATE_DATE(dcrl->nextDate, dcrl->nextDateFormat, ASN_AFTER,
+                            MAX_DATE_SIZE)) {
             WOLFSSL_MSG("CRL after date is no longer valid");
             WOLFSSL_ERROR_VERBOSE(CRL_CERT_DATE_ERR);
             return CRL_CERT_DATE_ERR;
@@ -41289,7 +41301,8 @@ end:
             /* Next date was set, so validate it. */
             if (verify != NO_VERIFY &&
                 (! AsnSkipDateCheck) &&
-                 !XVALIDATE_DATE(dcrl->nextDate, dcrl->nextDateFormat, ASN_AFTER)) {
+                 !XVALIDATE_DATE(dcrl->nextDate, dcrl->nextDateFormat, ASN_AFTER,
+                            MAX_DATE_SIZE)) {
                 WOLFSSL_MSG("CRL after date is no longer valid");
                 ret = CRL_CERT_DATE_ERR;
                 WOLFSSL_ERROR_VERBOSE(ret);

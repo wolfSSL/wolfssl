@@ -2244,7 +2244,8 @@ WOLFSSL_LOCAL int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID,
 
 typedef struct tm wolfssl_tm;
 #ifdef WOLFSSL_ASN_TIME_STRING
-WOLFSSL_LOCAL int GetTimeString(byte* date, int format, char* buf, int len);
+WOLFSSL_LOCAL int GetTimeString(byte* date, int format, char* buf, int len,
+                                int dateLen);
 #endif
 #if !defined(NO_ASN_TIME) && !defined(USER_TIME) && \
     !defined(TIME_OVERRIDES) && (defined(OPENSSL_EXTRA) || defined(HAVE_PKCS7))
@@ -2252,12 +2253,13 @@ WOLFSSL_LOCAL int GetFormattedTime(void* currTime, byte* buf, word32 len);
 WOLFSSL_LOCAL int GetAsnTimeString(void* currTime, byte* buf, word32 len);
 #endif
 WOLFSSL_LOCAL int ExtractDate(const unsigned char* date, unsigned char format,
-                                                 wolfssl_tm* certTime, int* idx);
+                                wolfssl_tm* certTime, int* idx, int len);
 WOLFSSL_LOCAL int DateGreaterThan(const struct tm* a, const struct tm* b);
-WOLFSSL_LOCAL int wc_ValidateDate(const byte* date, byte format, int dateType);
+WOLFSSL_LOCAL int wc_ValidateDate(const byte* date, byte format, int dateType,
+                                  int len);
 #ifndef NO_ASN_TIME
 WOLFSSL_LOCAL int wc_ValidateDateWithTime(const byte* date, byte format,
-    int dateType, time_t checkTime);
+    int dateType, time_t checkTime, int len);
 #endif
 WOLFSSL_TEST_VIS int wc_AsnSetSkipDateCheck(int skip_p);
 WOLFSSL_LOCAL int wc_AsnGetSkipDateCheck(void);
