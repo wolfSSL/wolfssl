@@ -163,6 +163,92 @@ struct OS_Seed {
 };
 
 #ifdef HAVE_HASHDRBG
+
+/* The security strength for the RNG is the target number of bits of
+ * entropy you are looking for in a seed. */
+/* RNG_SECURITY_STRENGTH is unprefixed for backward compat. */
+#ifndef RNG_SECURITY_STRENGTH
+    /* SHA-256 requires a minimum of 256-bits of entropy. */
+    #define RNG_SECURITY_STRENGTH (256)
+#endif
+
+/* wolfentropy.h will define for HAVE_ENTROPY_MEMUSE */
+#ifdef HAVE_ENTROPY_MEMUSE
+    #include <wolfssl/wolfcrypt/wolfentropy.h>
+#endif
+
+/* ENTROPY_SCALE_FACTOR is unprefixed for backward compat. */
+#ifndef ENTROPY_SCALE_FACTOR
+    /* The entropy scale factor should be the whole number inverse of the
+     * minimum bits of entropy per bit of NDRNG output. */
+    #if defined(HAVE_AMD_RDSEED)
+        /* This will yield a SEED_SZ of 16kb. Since nonceSz will be 0,
+         * we'll add an additional 8kb on top.
+         *
+         * See "AMD RNG ESV Public Use Document".  Version 0.7 of October 24,
+         * 2024 specifies 0.656 to 1.312 bits of entropy per 128 bit block of
+         * RDSEED output, depending on CPU family.
+         */
+        #define ENTROPY_SCALE_FACTOR  (512)
+    #elif defined(HAVE_INTEL_RDSEED) || defined(HAVE_INTEL_RDRAND)
+        /* The value of 2 applies to Intel's RDSEED which provides about
+         * 0.5 bits minimum of entropy per bit. The value of 4 gives a
+         * conservative margin for FIPS. */
+        #if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && \
+            (HAVE_FIPS_VERSION >= 2)
+            #define ENTROPY_SCALE_FACTOR (2*4)
+        #else
+            /* Not FIPS, but Intel RDSEED, only double. */
+            #define ENTROPY_SCALE_FACTOR (2)
+        #endif
+    #elif defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && \
+        (HAVE_FIPS_VERSION >= 2)
+        /* If doing a FIPS build without a specific scale factor, default
+         * to 4. This will give 1024 bits of entropy. More is better, but
+         * more is also slower. */
+        #define ENTROPY_SCALE_FACTOR (4)
+    #else
+        /* Setting the default to 1. */
+        #define ENTROPY_SCALE_FACTOR (1)
+    #endif
+#endif /* !ENTROPY_SCALE_FACTOR */
+
+/* SEED_BLOCK_SZ is unprefixed for backward compat. */
+#ifndef SEED_BLOCK_SZ
+    /* The seed block size, is the size of the output of the underlying NDRNG.
+     * This value is used for testing the output of the NDRNG. */
+    #if defined(HAVE_AMD_RDSEED)
+        /* AMD's RDSEED instruction works in 128-bit blocks read 64-bits
+        * at a time. */
+        #define SEED_BLOCK_SZ (sizeof(word64)*2)
+    #elif defined(HAVE_INTEL_RDSEED) || defined(HAVE_INTEL_RDRAND)
+        /* RDSEED outputs in blocks of 64-bits. */
+        #define SEED_BLOCK_SZ sizeof(word64)
+    #else
+        /* Setting the default to 4. */
+        #define SEED_BLOCK_SZ 4
+    #endif
+#endif
+
+#define WC_DRBG_SEED_BLOCK_SZ SEED_BLOCK_SZ
+
+#define WC_DRBG_SEED_SZ        (RNG_SECURITY_STRENGTH*ENTROPY_SCALE_FACTOR/8)
+
+/* The maximum seed size will be the seed size plus a seed block for the
+ * test, and an additional half of the seed size. This additional half
+ * is in case the user does not supply a nonce. A nonce will be obtained
+ * from the NDRNG. */
+#define WC_DRBG_MAX_SEED_SZ    (WC_DRBG_SEED_SZ + WC_DRBG_SEED_SZ/2 + \
+                                SEED_BLOCK_SZ)
+
+#define RNG_HEALTH_TEST_CHECK_SIZE (WC_SHA256_DIGEST_SIZE * 4)
+
+/* RNG health states */
+#define WC_DRBG_NOT_INIT     0
+#define WC_DRBG_OK           1
+#define WC_DRBG_FAILED       2
+#define WC_DRBG_CONT_FAILED  3
+
 struct DRBG_internal {
     #ifdef WORD64_AVAILABLE
     word64 reseedCtr;
