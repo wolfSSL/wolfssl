@@ -555,6 +555,253 @@ _fe_cmov_table:
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .text
+.globl	fe_invert_nct
+.type	fe_invert_nct,@function
+.align	2
+fe_invert_nct:
+#else
+.section	__TEXT,__text
+.globl	_fe_invert_nct
+.p2align	2
+_fe_invert_nct:
+#endif /* __APPLE__ */
+	stp	x29, x30, [sp, #-80]!
+	add	x29, sp, #0
+	stp	x17, x19, [x29, #24]
+	stp	x20, x21, [x29, #40]
+	stp	x22, x23, [x29, #56]
+	str	x24, [x29, #72]
+	mov	x19, #-19
+	mov	x20, #-1
+	mov	x21, #0x7fffffffffffffff
+	ldr	x6, [x1]
+	ldr	x7, [x1, #8]
+	ldr	x8, [x1, #16]
+	ldr	x9, [x1, #24]
+	mov	x2, x19
+	mov	x3, x20
+	mov	x4, x20
+	mov	x5, x21
+	mov	x10, xzr
+	mov	x11, xzr
+	mov	x12, xzr
+	mov	x13, xzr
+	mov	x14, #1
+	mov	x15, xzr
+	mov	x16, xzr
+	mov	x17, xzr
+	mov	x22, #0xff
+	cmp	x9, #0
+	beq	L_fe_invert_nct_num_bits_init_v_0
+	mov	x24, #0x100
+	clz	x23, x9
+	sub	x23, x24, x23
+	b	L_fe_invert_nct_num_bits_init_v_3
+L_fe_invert_nct_num_bits_init_v_0:
+	cmp	x8, #0
+	beq	L_fe_invert_nct_num_bits_init_v_1
+	mov	x24, #0xc0
+	clz	x23, x8
+	sub	x23, x24, x23
+	b	L_fe_invert_nct_num_bits_init_v_3
+L_fe_invert_nct_num_bits_init_v_1:
+	cmp	x7, #0
+	beq	L_fe_invert_nct_num_bits_init_v_2
+	mov	x24, #0x80
+	clz	x23, x7
+	sub	x23, x24, x23
+	b	L_fe_invert_nct_num_bits_init_v_3
+L_fe_invert_nct_num_bits_init_v_2:
+	mov	x24, #0x40
+	clz	x23, x6
+	sub	x23, x24, x23
+L_fe_invert_nct_num_bits_init_v_3:
+	tst	x6, #1
+	bne	L_fe_invert_nct_loop
+L_fe_invert_nct_even_init_v_0:
+	extr	x6, x7, x6, #1
+	extr	x7, x8, x7, #1
+	extr	x8, x9, x8, #1
+	lsr	x9, x9, #1
+	sub	x23, x23, #1
+	ands	x24, x14, #1
+	beq	L_fe_invert_nct_even_init_v_1
+	adds	x14, x14, x19
+	adcs	x15, x15, x20
+	adcs	x16, x16, x20
+	adcs	x17, x17, x21
+	cset	x24, cs
+L_fe_invert_nct_even_init_v_1:
+	extr	x14, x15, x14, #1
+	extr	x15, x16, x15, #1
+	extr	x16, x17, x16, #1
+	extr	x17, x24, x17, #1
+	tst	x6, #1
+	beq	L_fe_invert_nct_even_init_v_0
+L_fe_invert_nct_loop:
+	cmp	x22, #1
+	beq	L_fe_invert_nct_u_done
+	cmp	x23, #1
+	beq	L_fe_invert_nct_v_done
+	cmp	x22, x23
+	bhi	L_fe_invert_nct_u_larger
+	bcc	L_fe_invert_nct_v_larger
+	cmp	x5, x9
+	bhi	L_fe_invert_nct_u_larger
+	bcc	L_fe_invert_nct_v_larger
+	cmp	x4, x8
+	bhi	L_fe_invert_nct_u_larger
+	bcc	L_fe_invert_nct_v_larger
+	cmp	x3, x7
+	bhi	L_fe_invert_nct_u_larger
+	bcc	L_fe_invert_nct_v_larger
+	cmp	x2, x6
+	bcc	L_fe_invert_nct_v_larger
+L_fe_invert_nct_u_larger:
+	subs	x2, x2, x6
+	sbcs	x3, x3, x7
+	sbcs	x4, x4, x8
+	sbc	x5, x5, x9
+	subs	x10, x10, x14
+	sbcs	x11, x11, x15
+	sbcs	x12, x12, x16
+	sbcs	x13, x13, x17
+	bcs	L_fe_invert_nct_sub_uv
+	adds	x10, x10, x19
+	adcs	x11, x11, x20
+	adcs	x12, x12, x20
+	adc	x13, x13, x21
+L_fe_invert_nct_sub_uv:
+	cmp	x5, #0
+	beq	L_fe_invert_nct_nct_num_bits_u_0
+	mov	x24, #0x100
+	clz	x22, x5
+	sub	x22, x24, x22
+	b	L_fe_invert_nct_nct_num_bits_u_3
+L_fe_invert_nct_nct_num_bits_u_0:
+	cmp	x4, #0
+	beq	L_fe_invert_nct_nct_num_bits_u_1
+	mov	x24, #0xc0
+	clz	x22, x4
+	sub	x22, x24, x22
+	b	L_fe_invert_nct_nct_num_bits_u_3
+L_fe_invert_nct_nct_num_bits_u_1:
+	cmp	x3, #0
+	beq	L_fe_invert_nct_nct_num_bits_u_2
+	mov	x24, #0x80
+	clz	x22, x3
+	sub	x22, x24, x22
+	b	L_fe_invert_nct_nct_num_bits_u_3
+L_fe_invert_nct_nct_num_bits_u_2:
+	mov	x24, #0x40
+	clz	x22, x2
+	sub	x22, x24, x22
+L_fe_invert_nct_nct_num_bits_u_3:
+L_fe_invert_nct_even_u_0:
+	extr	x2, x3, x2, #1
+	extr	x3, x4, x3, #1
+	extr	x4, x5, x4, #1
+	lsr	x5, x5, #1
+	sub	x22, x22, #1
+	ands	x24, x10, #1
+	beq	L_fe_invert_nct_even_u_1
+	adds	x10, x10, x19
+	adcs	x11, x11, x20
+	adcs	x12, x12, x20
+	adcs	x13, x13, x21
+	cset	x24, cs
+L_fe_invert_nct_even_u_1:
+	extr	x10, x11, x10, #1
+	extr	x11, x12, x11, #1
+	extr	x12, x13, x12, #1
+	extr	x13, x24, x13, #1
+	tst	x2, #1
+	beq	L_fe_invert_nct_even_u_0
+	b	L_fe_invert_nct_loop
+L_fe_invert_nct_v_larger:
+	subs	x6, x6, x2
+	sbcs	x7, x7, x3
+	sbcs	x8, x8, x4
+	sbc	x9, x9, x5
+	subs	x14, x14, x10
+	sbcs	x15, x15, x11
+	sbcs	x16, x16, x12
+	sbcs	x17, x17, x13
+	bcs	L_fe_invert_nct_sub_vu
+	adds	x14, x14, x19
+	adcs	x15, x15, x20
+	adcs	x16, x16, x20
+	adc	x17, x17, x21
+L_fe_invert_nct_sub_vu:
+	cmp	x9, #0
+	beq	L_fe_invert_nct_nct_num_bits_v_0
+	mov	x24, #0x100
+	clz	x23, x9
+	sub	x23, x24, x23
+	b	L_fe_invert_nct_nct_num_bits_v_3
+L_fe_invert_nct_nct_num_bits_v_0:
+	cmp	x8, #0
+	beq	L_fe_invert_nct_nct_num_bits_v_1
+	mov	x24, #0xc0
+	clz	x23, x8
+	sub	x23, x24, x23
+	b	L_fe_invert_nct_nct_num_bits_v_3
+L_fe_invert_nct_nct_num_bits_v_1:
+	cmp	x7, #0
+	beq	L_fe_invert_nct_nct_num_bits_v_2
+	mov	x24, #0x80
+	clz	x23, x7
+	sub	x23, x24, x23
+	b	L_fe_invert_nct_nct_num_bits_v_3
+L_fe_invert_nct_nct_num_bits_v_2:
+	mov	x24, #0x40
+	clz	x23, x6
+	sub	x23, x24, x23
+L_fe_invert_nct_nct_num_bits_v_3:
+L_fe_invert_nct_even_v_0:
+	extr	x6, x7, x6, #1
+	extr	x7, x8, x7, #1
+	extr	x8, x9, x8, #1
+	lsr	x9, x9, #1
+	sub	x23, x23, #1
+	ands	x24, x14, #1
+	beq	L_fe_invert_nct_even_v_1
+	adds	x14, x14, x19
+	adcs	x15, x15, x20
+	adcs	x16, x16, x20
+	adcs	x17, x17, x21
+	cset	x24, cs
+L_fe_invert_nct_even_v_1:
+	extr	x14, x15, x14, #1
+	extr	x15, x16, x15, #1
+	extr	x16, x17, x16, #1
+	extr	x17, x24, x17, #1
+	tst	x6, #1
+	beq	L_fe_invert_nct_even_v_0
+	b	L_fe_invert_nct_loop
+L_fe_invert_nct_u_done:
+	str	x10, [x0]
+	str	x11, [x0, #8]
+	str	x12, [x0, #16]
+	str	x13, [x0, #24]
+	b	L_fe_invert_nct_done
+L_fe_invert_nct_v_done:
+	str	x14, [x0]
+	str	x15, [x0, #8]
+	str	x16, [x0, #16]
+	str	x17, [x0, #24]
+L_fe_invert_nct_done:
+	ldp	x17, x19, [x29, #24]
+	ldp	x20, x21, [x29, #40]
+	ldp	x22, x23, [x29, #56]
+	ldr	x24, [x29, #72]
+	ldp	x29, x30, [sp], #0x50
+	ret
+#ifndef __APPLE__
+	.size	fe_invert_nct,.-fe_invert_nct
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
 .globl	fe_mul
 .type	fe_mul,@function
 .align	2
