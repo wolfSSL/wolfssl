@@ -12320,7 +12320,7 @@ int  wolfSSL_set_max_early_data(WOLFSSL* ssl, unsigned int sz);
 /*!
     \ingroup IO
 
-    \brief この関数は再開時にサーバーにアーリーデータを書き込みます。サーバーに接続してハンドシェイクでデータを送信するには、wolfSSL_connect()またはwolfSSL_connect_TLSv13()の代わりにこの関数を呼び出します。この関数はクライアントでのみ使用されます。
+    \brief この関数は再開時にサーバーにアーリーデータを書き込みます。wolfSSL_connect()またはwolfSSL_connect_TLSv13()の前にこの関数を呼び出してください。この関数はクライアントでのみ使用されます。
 
     \param [in,out] ssl wolfSSL_new()を使用して作成されたWOLFSSL構造体へのポインタ。
     \param [in] data サーバーに書き込むアーリーデータを保持するバッファ。
@@ -12330,7 +12330,7 @@ int  wolfSSL_set_max_early_data(WOLFSSL* ssl, unsigned int sz);
     \return BAD_FUNC_ARG ポインタパラメータがNULL、szが0未満、またはTLSv1.3を使用していない場合。
     \return SIDE_ERROR サーバーで呼び出された場合。
     \return WOLFSSL_FATAL_ERROR 接続が確立されなかった場合。
-    \return WOLFSSL_SUCCESS 成功した場合。
+    \return 成功した場合、書き込まれたアーリーデータのバイト数。
 
     _Example_
     \code
@@ -12343,7 +12343,7 @@ int  wolfSSL_set_max_early_data(WOLFSSL* ssl, unsigned int sz);
     ...
 
     ret = wolfSSL_write_early_data(ssl, earlyData, sizeof(earlyData), &outSz);
-    if (ret != WOLFSSL_SUCCESS) {
+    if (ret < 0) {
         err = wolfSSL_get_error(ssl, ret);
         printf("error = %d, %s\n", err, wolfSSL_ERR_error_string(err, buffer));
         goto err_label;
