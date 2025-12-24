@@ -7468,6 +7468,8 @@ static int check_cert_key(const DerBuffer* cert, const DerBuffer* key,
         }
 
         if (ret == WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+#else
+        if (ret == WOLFSSL_SUCCESS)
 #endif /* WOLF_PRIVATE_KEY_ID */
         {
             ret = wc_CheckPrivateKeyCert(buff, size, der, 1, heap);
