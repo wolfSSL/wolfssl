@@ -739,10 +739,14 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
 {
     int ret = 0;
 #ifdef HAVE_HASHDRBG
+#if !defined(HAVE_FIPS) && defined(WOLFSSL_RNG_USE_FULL_SEED)
+    word32 seedSz = SEED_SZ;
+#else
     word32 seedSz = SEED_SZ + SEED_BLOCK_SZ;
     WC_DECLARE_VAR(seed, byte, MAX_SEED_SZ, rng->heap);
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     int drbg_scratch_instantiated = 0;
+#endif
 #endif
 #endif
 
@@ -945,7 +949,11 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
     #endif
             if (ret == DRBG_SUCCESS)
                 ret = Hash_DRBG_Instantiate((DRBG_internal *)rng->drbg,
+            #if defined(HAVE_FIPS) || !defined(WOLFSSL_RNG_USE_FULL_SEED)
                             seed + SEED_BLOCK_SZ, seedSz - SEED_BLOCK_SZ,
+            #else
+                            seed, seedSz,
+            #endif
                             nonce, nonceSz, rng->heap, devId);
     } /* ret == 0 */
 
