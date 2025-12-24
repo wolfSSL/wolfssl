@@ -6596,7 +6596,10 @@ WOLFSSL_LOCAL int VerifyClientSuite(word16 havePSK, byte cipherSuite0,
                                     byte cipherSuite);
 
 WOLFSSL_LOCAL int SetTicket(WOLFSSL* ssl, const byte* ticket, word32 length);
-WOLFSSL_LOCAL int wolfSSL_GetMaxFragSize(WOLFSSL* ssl, int maxFragment);
+WOLFSSL_LOCAL int wolfssl_local_GetRecordSize(WOLFSSL *ssl, int payloadSz,
+        int isEncrypted);
+WOLFSSL_LOCAL int wolfssl_local_GetMaxPlaintextSize(WOLFSSL *ssl);
+WOLFSSL_LOCAL int wolfSSL_GetMaxFragSize(WOLFSSL* ssl);
 
 #if defined(WOLFSSL_IOTSAFE) && defined(HAVE_PK_CALLBACKS)
 WOLFSSL_LOCAL IOTSAFE *wolfSSL_get_iotsafe_ctx(WOLFSSL *ssl);
