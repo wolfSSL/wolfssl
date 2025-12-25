@@ -157,8 +157,8 @@ struct OS_Seed {
     #else
         int fd;
     #if defined(WOLFSSL_KEEP_RNG_SEED_FD_OPEN)
-        byte seedFdOpen:1;
-        byte keepSeedFdOpen:1;
+        WC_BITFIELD seedFdOpen:1;
+        WC_BITFIELD keepSeedFdOpen:1;
     #endif
     #endif
     #if defined(WOLF_CRYPTO_CB)
