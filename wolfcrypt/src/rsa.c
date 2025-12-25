@@ -201,11 +201,6 @@ int wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId)
     (!defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_VERIFY_INLINE)))
     key->dataIsAlloc = 0;
 #endif
-    key->data = NULL;
-    key->dataLen = 0;
-#ifdef WC_RSA_BLINDING
-    key->rng = NULL;
-#endif
 
 #ifdef WOLF_CRYPTO_CB
     key->devId = devId;
@@ -703,7 +698,10 @@ static int _ifc_pairwise_consistency_test(RsaKey* key, WC_RNG* rng)
 
 int wc_CheckRsaKey(RsaKey* key)
 {
-    WC_DECLARE_VAR(rng, WC_RNG, 1, 0);
+    WC_RNG *rng = NULL;
+#if !defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_NO_MALLOC)
+    WC_RNG rng_buf;
+#endif
     int ret = 0;
     DECL_MP_INT_SIZE_DYN(tmp, (key)? mp_bitsused(&key->n) : 0, RSA_MAX_SIZE);
 
@@ -718,17 +716,34 @@ int wc_CheckRsaKey(RsaKey* key)
     }
 #endif
 
-    WC_ALLOC_VAR_EX(rng, WC_RNG, 1, NULL, DYNAMIC_TYPE_RNG,
-        return MEMORY_E);
     NEW_MP_INT_SIZE(tmp, mp_bitsused(&key->n), NULL, DYNAMIC_TYPE_RSA);
 #ifdef MP_INT_SIZE_CHECK_NULL
     if (tmp == NULL) {
-        XFREE(rng, NULL, DYNAMIC_TYPE_RNG);
         return MEMORY_E;
     }
 #endif
 
-    ret = wc_InitRng(rng);
+    if (key->rng)
+        rng = key->rng;
+    else {
+#if !defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_NO_MALLOC)
+        rng = &rng_buf;
+#else
+        rng = (WC_RNG *)XMALLOC(sizeof(*rng), NULL, DYNAMIC_TYPE_RNG);
+        if (rng == NULL) {
+            FREE_MP_INT_SIZE(tmp, NULL, DYNAMIC_TYPE_RSA);
+            return MEMORY_E;
+        }
+#endif
+        ret = wc_InitRng(rng);
+        if (ret != 0) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+            XFREE(rng, NULL, DYNAMIC_TYPE_RNG);
+            FREE_MP_INT_SIZE(tmp, NULL, DYNAMIC_TYPE_RSA);
+#endif
+            return ret;
+        }
+    }
 
     SAVE_VECTOR_REGISTERS(ret = _svr_ret;);
 
@@ -846,11 +861,14 @@ int wc_CheckRsaKey(RsaKey* key)
 
     RESTORE_VECTOR_REGISTERS();
 
-    wc_FreeRng(rng);
-    FREE_MP_INT_SIZE(tmp, NULL, DYNAMIC_TYPE_RSA);
+    if ((rng != NULL) && (rng != key->rng)) {
+        wc_FreeRng(rng);
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(rng, NULL, DYNAMIC_TYPE_RNG);
-#elif defined(WOLFSSL_CHECK_MEM_ZERO)
+        XFREE(rng, NULL, DYNAMIC_TYPE_RNG);
+#endif
+    }
+    FREE_MP_INT_SIZE(tmp, NULL, DYNAMIC_TYPE_RSA);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
     mp_memzero_check(tmp);
 #endif
 
@@ -5238,8 +5256,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 #endif /* !FIPS || FIPS_VER >= 2 */
 #endif /* WOLFSSL_KEY_GEN */
 
-
-#ifdef WC_RSA_BLINDING
+#ifndef WC_NO_RNG
 int wc_RsaSetRNG(RsaKey* key, WC_RNG* rng)
 {
     if (key == NULL || rng == NULL)
@@ -5249,7 +5266,7 @@ int wc_RsaSetRNG(RsaKey* key, WC_RNG* rng)
 
     return 0;
 }
-#endif /* WC_RSA_BLINDING */
+#endif /* !WC_NO_RNG */
 
 #ifdef WC_RSA_NONBLOCK
 int wc_RsaSetNonBlock(RsaKey* key, RsaNb* nb)

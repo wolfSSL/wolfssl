@@ -12043,7 +12043,7 @@ static int test_wolfSSL_dtls_export_peers(void)
     };
 
     for (i = 0; i < sizeof(params)/sizeof(*params); i++) {
-        for (j = 0; j <= 0b11; j++) {
+        for (j = 0; j <= 3; j++) {
             XMEMSET(&client_cbf, 0, sizeof(client_cbf));
             XMEMSET(&server_cbf, 0, sizeof(server_cbf));
 
@@ -12052,12 +12052,12 @@ static int test_wolfSSL_dtls_export_peers(void)
             client_cbf.method = params[i].client_meth;
             server_cbf.method = params[i].server_meth;
 
-            if (j & 0b01) {
+            if (j & 0x1) {
                 client_cbf.on_handshake =
                         test_wolfSSL_dtls_export_peers_on_handshake;
                 printf(" With client export;");
             }
-            if (j & 0b10) {
+            if (j & 0x2) {
                 server_cbf.on_handshake =
                         test_wolfSSL_dtls_export_peers_on_handshake;
                 printf(" With server export;");

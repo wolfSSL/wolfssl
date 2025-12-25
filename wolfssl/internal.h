@@ -6596,7 +6596,10 @@ WOLFSSL_LOCAL int VerifyClientSuite(word16 havePSK, byte cipherSuite0,
                                     byte cipherSuite);
 
 WOLFSSL_LOCAL int SetTicket(WOLFSSL* ssl, const byte* ticket, word32 length);
-WOLFSSL_LOCAL int wolfSSL_GetMaxFragSize(WOLFSSL* ssl, int maxFragment);
+WOLFSSL_LOCAL int wolfssl_local_GetRecordSize(WOLFSSL *ssl, int payloadSz,
+        int isEncrypted);
+WOLFSSL_LOCAL int wolfssl_local_GetMaxPlaintextSize(WOLFSSL *ssl);
+WOLFSSL_LOCAL int wolfSSL_GetMaxFragSize(WOLFSSL* ssl);
 
 #if defined(WOLFSSL_IOTSAFE) && defined(HAVE_PK_CALLBACKS)
 WOLFSSL_LOCAL IOTSAFE *wolfSSL_get_iotsafe_ctx(WOLFSSL *ssl);
@@ -7239,6 +7242,8 @@ WOLFSSL_LOCAL int pkcs8_encrypt(WOLFSSL_EVP_PKEY* pkey,
         const WOLFSSL_EVP_CIPHER* enc, char* passwd, int passwdSz, byte* key,
         word32* keySz);
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+
+WOLFSSL_LOCAL void wolfssl_local_MaybeCheckAlertOnErr(WOLFSSL* ssl, int err);
 
 #ifdef __cplusplus
     }  /* extern "C" */

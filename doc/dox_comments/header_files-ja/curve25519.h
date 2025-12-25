@@ -482,7 +482,7 @@ int wc_curve25519_import_public_ex(const byte* in, word32 inLen,
     \return BAD_FUNC_ARG 入力パラメータのいずれかがNULLの場合に返されます。
 
     \param [in] pub チェックする公開鍵を含むバッファへのポインタ。
-    \param [in] pubLen チェックする公開鍵の長さ。
+    \param [in] pubSz チェックする公開鍵の長さ。
     \param [in] endian 使用する形式を設定するためのEC25519_BIG_ENDIANまたはEC25519_LITTLE_ENDIAN。
 
     _Example_

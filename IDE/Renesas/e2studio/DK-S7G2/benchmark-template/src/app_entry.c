@@ -37,9 +37,9 @@ extern void initialise_monitor_handles(void);
 
 #include "nx_api.h"
 #define CONNECTION_TIMES 100
-#define SERVER_IP IP_ADDRESS(10,22,73,128)
-#define TLS_PORT 11111
-#define TCP_PORT 11112
+#define SERVER_IP IP_ADDRESS(192,168,3,10)
+#define TLS_PORT 11112
+#define TCP_PORT 11111
 
 static double milliseconds = 0;
 void  timer_callback(timer_callback_args_t * args)

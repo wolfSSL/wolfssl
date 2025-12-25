@@ -225,79 +225,6 @@ This library contains implementation for the random number generator.
 #define OUTPUT_BLOCK_LEN  (WC_SHA256_DIGEST_SIZE)
 #define MAX_REQUEST_LEN   (0x10000)
 
-
-/* The security strength for the RNG is the target number of bits of
- * entropy you are looking for in a seed. */
-#ifndef RNG_SECURITY_STRENGTH
-    /* SHA-256 requires a minimum of 256-bits of entropy. */
-    #define RNG_SECURITY_STRENGTH (256)
-#endif
-
-/* wolfentropy.h will define for HAVE_ENTROPY_MEMUSE */
-#ifdef HAVE_ENTROPY_MEMUSE
-    #include <wolfssl/wolfcrypt/wolfentropy.h>
-#endif
-
-#ifndef ENTROPY_SCALE_FACTOR
-    /* The entropy scale factor should be the whole number inverse of the
-     * minimum bits of entropy per bit of NDRNG output. */
-    #if defined(HAVE_AMD_RDSEED)
-        /* This will yield a SEED_SZ of 16kb. Since nonceSz will be 0,
-         * we'll add an additional 8kb on top.
-         *
-         * See "AMD RNG ESV Public Use Document".  Version 0.7 of October 24,
-         * 2024 specifies 0.656 to 1.312 bits of entropy per 128 bit block of
-         * RDSEED output, depending on CPU family.
-         */
-        #define ENTROPY_SCALE_FACTOR  (512)
-    #elif defined(HAVE_INTEL_RDSEED) || defined(HAVE_INTEL_RDRAND)
-        /* The value of 2 applies to Intel's RDSEED which provides about
-         * 0.5 bits minimum of entropy per bit. The value of 4 gives a
-         * conservative margin for FIPS. */
-        #if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && \
-            (HAVE_FIPS_VERSION >= 2)
-            #define ENTROPY_SCALE_FACTOR (2*4)
-        #else
-            /* Not FIPS, but Intel RDSEED, only double. */
-            #define ENTROPY_SCALE_FACTOR (2)
-        #endif
-    #elif defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && \
-        (HAVE_FIPS_VERSION >= 2)
-        /* If doing a FIPS build without a specific scale factor, default
-         * to 4. This will give 1024 bits of entropy. More is better, but
-         * more is also slower. */
-        #define ENTROPY_SCALE_FACTOR (4)
-    #else
-        /* Setting the default to 1. */
-        #define ENTROPY_SCALE_FACTOR (1)
-    #endif
-#endif /* !ENTROPY_SCALE_FACTOR */
-
-#ifndef SEED_BLOCK_SZ
-    /* The seed block size, is the size of the output of the underlying NDRNG.
-     * This value is used for testing the output of the NDRNG. */
-    #if defined(HAVE_AMD_RDSEED)
-        /* AMD's RDSEED instruction works in 128-bit blocks read 64-bits
-        * at a time. */
-        #define SEED_BLOCK_SZ (sizeof(word64)*2)
-    #elif defined(HAVE_INTEL_RDSEED) || defined(HAVE_INTEL_RDRAND)
-        /* RDSEED outputs in blocks of 64-bits. */
-        #define SEED_BLOCK_SZ sizeof(word64)
-    #else
-        /* Setting the default to 4. */
-        #define SEED_BLOCK_SZ 4
-    #endif
-#endif
-
-#define SEED_SZ        (RNG_SECURITY_STRENGTH*ENTROPY_SCALE_FACTOR/8)
-
-/* The maximum seed size will be the seed size plus a seed block for the
- * test, and an additional half of the seed size. This additional half
- * is in case the user does not supply a nonce. A nonce will be obtained
- * from the NDRNG. */
-#define MAX_SEED_SZ    (SEED_SZ + SEED_SZ/2 + SEED_BLOCK_SZ)
-
-
 #ifdef WC_RNG_SEED_CB
 
 #ifndef HAVE_FIPS
@@ -323,12 +250,13 @@ int wc_SetSeed_Cb(wc_RngSeed_Cb cb)
 #define DRBG_NO_SEED_CB   4
 
 /* RNG health states */
-#define DRBG_NOT_INIT     0
-#define DRBG_OK           1
-#define DRBG_FAILED       2
-#define DRBG_CONT_FAILED  3
+#define DRBG_NOT_INIT     WC_DRBG_NOT_INIT
+#define DRBG_OK           WC_DRBG_OK
+#define DRBG_FAILED       WC_DRBG_FAILED
+#define DRBG_CONT_FAILED  WC_DRBG_CONT_FAILED
 
-#define RNG_HEALTH_TEST_CHECK_SIZE (WC_SHA256_DIGEST_SIZE * 4)
+#define SEED_SZ           WC_DRBG_SEED_SZ
+#define MAX_SEED_SZ       WC_DRBG_MAX_SEED_SZ
 
 /* Verify max gen block len */
 #if RNG_MAX_BLOCK_LEN > MAX_REQUEST_LEN
@@ -811,10 +739,14 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
 {
     int ret = 0;
 #ifdef HAVE_HASHDRBG
+#if !defined(HAVE_FIPS) && defined(WOLFSSL_RNG_USE_FULL_SEED)
+    word32 seedSz = SEED_SZ;
+#else
     word32 seedSz = SEED_SZ + SEED_BLOCK_SZ;
     WC_DECLARE_VAR(seed, byte, MAX_SEED_SZ, rng->heap);
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     int drbg_scratch_instantiated = 0;
+#endif
 #endif
 #endif
 
@@ -1022,7 +954,11 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
     #endif
             if (ret == DRBG_SUCCESS)
                 ret = Hash_DRBG_Instantiate((DRBG_internal *)rng->drbg,
+            #if defined(HAVE_FIPS) || !defined(WOLFSSL_RNG_USE_FULL_SEED)
                             seed + SEED_BLOCK_SZ, seedSz - SEED_BLOCK_SZ,
+            #else
+                            seed, seedSz,
+            #endif
                             nonce, nonceSz, rng->heap, devId);
     } /* ret == 0 */
 
