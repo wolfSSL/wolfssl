@@ -2063,10 +2063,7 @@ add_option("WOLFSSL_SYS_CA_CERTS"
     "yes" "yes;no")
 
 if(WOLFSSL_SYS_CA_CERTS)
-    if(NOT WOLFSSL_FILESYSTEM)
-        message("Can't enable system CA certs without a filesystem.")
-        override_cache(WOLFSSL_SYS_CA_CERTS "no")
-    elseif(APPLE)
+    if(APPLE)
         # Headers used for MacOS default system CA certs behavior. Only MacOS SDK will have this header
         check_include_file("Security/SecTrustSettings.h" HAVE_SECURITY_SECTRUSTSETTINGS_H)
         # Headers used for Apple native cert validation. All device SDKs should have these headers
@@ -2100,6 +2097,9 @@ if(WOLFSSL_SYS_CA_CERTS)
         else()
             message(FATAL_ERROR "Can't enable system CA certs without Apple Security.framework headers.")
         endif()
+    elseif(NOT WIN32 AND NOT WOLFSSL_FILESYSTEM)
+        message("Can't enable system CA certs without a filesystem.")
+        override_cache(WOLFSSL_SYS_CA_CERTS "no")
     endif()
 
 
