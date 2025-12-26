@@ -1,8 +1,9 @@
 rules:
   - name: no-void-functions
     trigger: >-
-      All public functions (WOLFSSL_API) must return a value. Avoid using "void"
-      return types to ensure error values can be propagated upstream.
+      When implementing new public functions (WOLFSSL_API) avoid using "void"
+      return type to ensure error values can be propagated upstream. Does not
+      apply to "doc/" directory.
     solution: >-
       Change the function to return an appropriate error code or result instead
       of void. Ensure all return paths provide a meaningful value.
