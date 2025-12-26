@@ -707,7 +707,7 @@ static int AddCRL(WOLFSSL_CRL* crl, DecodedCRL* dcrl, const byte* buff,
                 WOLFSSL_MSG("Same or newer CRL entry already exists");
                 CRL_Entry_free(crle, crl->heap);
                 wc_UnLockRwLock(&crl->crlLock);
-                return BAD_FUNC_ARG;
+                return DUPE_ENTRY_E;
             }
             else if (ret < 0) {
                 WOLFSSL_MSG("Error comparing CRL Numbers");

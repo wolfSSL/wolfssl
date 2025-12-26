@@ -26748,6 +26748,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case PSK_KEY_ERROR:
         return "psk key callback error";
 
+    case DUPE_ENTRY_E:
+        return "duplicate entry error";
+
     case GETTIME_ERROR:
         return "gettimeofday() error";
 
