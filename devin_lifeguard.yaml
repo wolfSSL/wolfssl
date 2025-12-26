@@ -1,8 +1,8 @@
 rules:
   - name: no-void-functions
     trigger: >-
-      All functions must return a value. Avoid using void return types to ensure
-      error values can be propagated upstream.
+      All public functions (WOLFSSL_API) must return a value. Avoid using "void"
+      return types to ensure error values can be propagated upstream.
     solution: >-
       Change the function to return an appropriate error code or result instead
       of void. Ensure all return paths provide a meaningful value.
@@ -51,8 +51,8 @@ rules:
       variables to minimize stack usage within the function.
   - name: prefer-constant-time
     trigger: >-
-      Implement algorithms in constant time to prevent timing attacks and ensure
-      security.
+      For private key based asymmetric algorithms implement in constant time
+      to prevent timing attacks and ensure security.
     solution: >-
       Review and refactor algorithms to ensure their execution time does not
       depend on input values. Use constant-time libraries or functions where
@@ -153,3 +153,4 @@ rules:
       WOLFSSL_API. For functions local to the library but not static, use
       WOLFSSL_LOCAL and prefix the function name with wolfssl_local_ or wc_local_
       to clearly indicate internal usage.
+  -
