@@ -3420,13 +3420,19 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     #ifdef HAVE_ENTROPY_MEMUSE
         ret = wc_Entropy_Get(MAX_ENTROPY_BITS, output, sz);
         if (ret == 0) {
-            return 0;
+            /* success, we're done */
+            return ret;
         }
-     #ifdef ENTROPY_MEMUSE_FORCE_FAILURE
-        /* Don't fallback to /dev/urandom. */
+    #ifdef ENTROPY_MEMUSE_FORCE_FAILURE
+        /* Don't fall back to /dev/urandom. */
         return ret;
+    #else
+        /* Reset error and fall back to using /dev/urandom. */
+        ret = 0;
     #endif
     #endif
+
+    #if !defined(HAVE_ENTROPY_MEMUSE) || !defined(ENTROPY_MEMUSE_FORCE_FAILURE)
 
     #if defined(HAVE_INTEL_RDSEED) || defined(HAVE_AMD_RDSEED)
         if (IS_INTEL_RDSEED(intel_flags)) {
@@ -3436,14 +3442,23 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
                  return ret;
              }
         #ifdef FORCE_FAILURE_RDSEED
-             /* don't fallback to /dev/urandom */
+             /* Don't fall back to /dev/urandom. */
              return ret;
         #else
-             /* reset error and fallback to using /dev/urandom */
+             /* Reset error and fall back to using /dev/urandom. */
              ret = 0;
         #endif
         }
+    #ifdef FORCE_FAILURE_RDSEED
+        else {
+            /* Don't fall back to /dev/urandom */
+            return MISSING_RNG_E;
+        }
+    #endif
     #endif /* HAVE_INTEL_RDSEED || HAVE_AMD_RDSEED */
+
+    #if (!defined(HAVE_INTEL_RDSEED) && !defined(HAVE_AMD_RDSEED)) || \
+        !defined(FORCE_FAILURE_RDSEED)
 
     #if defined(WOLFSSL_GETRANDOM) || defined(HAVE_GETRANDOM)
         {
@@ -3472,15 +3487,19 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             if (ret == 0)
                 return ret;
         #ifdef FORCE_FAILURE_GETRANDOM
-            /* don't fallback to /dev/urandom */
+            /* don't fall back to /dev/urandom */
             return ret;
         #elif !defined(NO_FILESYSTEM)
-            /* reset error and fallback to using /dev/urandom if filesystem
+            /* reset error and fall back to using /dev/urandom if filesystem
              * support is compiled in */
             ret = 0;
         #endif
         }
     #endif
+
+    #endif /* (!HAVE_INTEL_RDSEED && !HAVE_AMD_RDSEED) || !FORCE_FAILURE_RDSEED */
+
+    #endif /*!HAVE_ENTROPY_MEMUSE || !ENTROPY_MEMUSE_FORCE_FAILURE */
 
 #ifndef NO_FILESYSTEM
     #ifndef NO_DEV_URANDOM /* way to disable use of /dev/urandom */
