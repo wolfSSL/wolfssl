@@ -3181,7 +3181,7 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
 #endif
    mp_digit      mp;
 #ifdef ECC_TIMING_RESISTANT
-   mp_int t;
+   WC_DECLARE_VAR(t, mp_int, 1, heap);
 #endif
 
    if (k == NULL || G == NULL || R == NULL || modulus == NULL) {
@@ -3206,6 +3206,10 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
       goto exit;
    R->key = key;
 #endif /* WOLFSSL_SMALL_STACK_CACHE */
+
+#ifdef ECC_TIMING_RESISTANT
+   WC_ALLOC_VAR_EX(t, mp_int, 1, heap, DYNAMIC_TYPE_BIGINT, err = MEMORY_E; goto exit );
+#endif
 
    /* alloc ram for window temps */
    for (i = 0; i < M_POINTS; i++) {
@@ -3244,9 +3248,8 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
       goto exit;
    }
 
-
 #ifdef ECC_TIMING_RESISTANT
-   if ((err = mp_init(&t)) != MP_OKAY)
+   if ((err = mp_init(t)) != MP_OKAY)
       goto exit;
 
    if (err == MP_OKAY)
@@ -3257,22 +3260,22 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
      * (with constant time implementation)
      */
    if (err == MP_OKAY)
-      err = mp_sub_d(order, 1, &t);
+      err = mp_sub_d(order, 1, t);
    if (err == MP_OKAY) {
-      int kIsMinusOne = (mp_cmp((mp_int*)k, &t) == MP_EQ);
+      int kIsMinusOne = (mp_cmp((mp_int*)k, t) == MP_EQ);
       err = mp_cond_copy(tG->x, kIsMinusOne, R->x);
       if (err == MP_OKAY) {
-          err = mp_sub(modulus, tG->y, &t);
+          err = mp_sub(modulus, tG->y, t);
       }
       if (err == MP_OKAY) {
-          err = mp_cond_copy(&t, kIsMinusOne, R->y);
+          err = mp_cond_copy(t, kIsMinusOne, R->y);
       }
       if (err == MP_OKAY) {
           err = mp_cond_copy(tG->z, kIsMinusOne, R->z);
       }
    }
 
-   mp_free(&t);
+   mp_free(t);
 #else
    err = ecc_mulmod(k, tG, R, M, a, modulus, mp, rng);
 
@@ -3294,6 +3297,10 @@ exit:
    ecc_key_tmp_final(key, heap);
    XFREE(key, heap, DYNAMIC_TYPE_ECC);
 #endif /* WOLFSSL_SMALL_STACK_CACHE */
+
+#ifdef ECC_TIMING_RESISTANT
+   WC_FREE_VAR_EX(t, heap, DYNAMIC_TYPE_BIGINT);
+#endif
 
    return err;
 }
