@@ -466,4 +466,109 @@ int wc_AsconAEAD128_DecryptUpdate(wc_AsconAEAD128* a, byte* out, const byte* in,
     */
 int wc_AsconAEAD128_DecryptFinal(wc_AsconAEAD128* a, const byte* tag);
 
+/*!
+    \ingroup ASCON
+    \brief This function allocates and initializes a new Ascon Hash256
+    context. The returned context must be freed with wc_AsconHash256_Free
+    when no longer needed.
+
+    \return Pointer to allocated wc_AsconHash256 structure on success.
+    \return NULL on allocation or initialization failure.
+
+    _Example_
+    \code
+    wc_AsconHash256* hash = wc_AsconHash256_New();
+    if (hash == NULL) {
+        // handle allocation error
+    }
+    byte data[]; // data to hash
+    wc_AsconHash256_Update(hash, data, sizeof(data));
+    byte digest[ASCON_HASH256_SZ];
+    wc_AsconHash256_Final(hash, digest);
+    wc_AsconHash256_Free(hash);
+    \endcode
+
+    \sa wc_AsconHash256_Free
+    \sa wc_AsconHash256_Init
+*/
+wc_AsconHash256* wc_AsconHash256_New(void);
+
+/*!
+    \ingroup ASCON
+    \brief This function frees an Ascon Hash256 context that was allocated
+    with wc_AsconHash256_New. It clears the context before freeing to
+    prevent information leakage.
+
+    \return none No return value.
+
+    \param a pointer to the wc_AsconHash256 structure to free
+
+    _Example_
+    \code
+    wc_AsconHash256* hash = wc_AsconHash256_New();
+    if (hash != NULL) {
+        // use hash context
+        wc_AsconHash256_Free(hash);
+    }
+    \endcode
+
+    \sa wc_AsconHash256_New
+    \sa wc_AsconHash256_Clear
+*/
+void wc_AsconHash256_Free(wc_AsconHash256* a);
+
+/*!
+    \ingroup ASCON
+    \brief This function clears an Ascon Hash256 context by zeroing all
+    internal state. This should be called to securely erase sensitive
+    data from memory.
+
+    \return none No return value.
+
+    \param a pointer to the wc_AsconHash256 structure to clear
+
+    _Example_
+    \code
+    wc_AsconHash256 hash;
+    wc_AsconHash256_Init(&hash);
+    byte data[]; // data to hash
+    wc_AsconHash256_Update(&hash, data, sizeof(data));
+    byte digest[ASCON_HASH256_SZ];
+    wc_AsconHash256_Final(&hash, digest);
+    wc_AsconHash256_Clear(&hash);
+    \endcode
+
+    \sa wc_AsconHash256_Init
+    \sa wc_AsconHash256_Free
+*/
+void wc_AsconHash256_Clear(wc_AsconHash256* a);
+
+/*!
+    \ingroup ASCON
+    \brief This function allocates and initializes a new Ascon AEAD128
+    context. The returned context must be freed with wc_AsconAEAD128_Free
+    when no longer needed.
+
+    \return Pointer to allocated wc_AsconAEAD128 structure on success.
+    \return NULL on allocation or initialization failure.
+
+    _Example_
+    \code
+    wc_AsconAEAD128* aead = wc_AsconAEAD128_New();
+    if (aead == NULL) {
+        // handle allocation error
+    }
+    byte key[ASCON_AEAD128_KEY_SZ] = { }; // key
+    byte nonce[ASCON_AEAD128_NONCE_SZ] = { }; // nonce
+    wc_AsconAEAD128_SetKey(aead, key);
+    wc_AsconAEAD128_SetNonce(aead, nonce);
+    // perform encryption/decryption
+    wc_AsconAEAD128_Free(aead);
+    \endcode
+
+    \sa wc_AsconAEAD128_Free
+    \sa wc_AsconAEAD128_Init
+*/
+wc_AsconAEAD128* wc_AsconAEAD128_New(void);
+
 

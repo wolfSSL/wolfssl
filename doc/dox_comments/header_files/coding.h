@@ -235,3 +235,43 @@ int Base16_Decode(const byte* in, word32 inLen, byte* out, word32* outLen);
 */
 
 int Base16_Encode(const byte* in, word32 inLen, byte* out, word32* outLen);
+
+/*!
+    \ingroup Base_Encoding
+    \brief This function decodes Base64 encoded input without using
+    constant-time operations. This is faster than the constant-time
+    version but may be vulnerable to timing attacks. Use only when
+    timing attacks are not a concern.
+
+    \return 0 On successfully decoding the Base64 encoded input.
+    \return BAD_FUNC_ARG If the output buffer is too small to store the
+    decoded input.
+    \return ASN_INPUT_E If a character in the input buffer falls outside
+    of the Base64 range or if there is an invalid line ending.
+    \return BUFFER_E If running out of buffer while decoding.
+
+    \param in pointer to the input buffer to decode
+    \param inLen length of the input buffer to decode
+    \param out pointer to the output buffer to store decoded message
+    \param outLen pointer to length of output buffer; updated with bytes
+    written
+
+    _Example_
+    \code
+    byte encoded[] = "SGVsbG8gV29ybGQ="; // "Hello World" in Base64
+    byte decoded[64];
+    word32 outLen = sizeof(decoded);
+
+    int ret = Base64_Decode_nonCT(encoded, sizeof(encoded)-1, decoded,
+                                   &outLen);
+    if (ret != 0) {
+        // error decoding input
+    }
+    // decoded now contains "Hello World"
+    \endcode
+
+    \sa Base64_Decode
+    \sa Base64_Encode
+*/
+int Base64_Decode_nonCT(const byte* in, word32 inLen, byte* out,
+                        word32* outLen);
