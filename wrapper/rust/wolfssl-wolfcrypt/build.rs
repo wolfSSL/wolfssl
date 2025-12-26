@@ -126,6 +126,10 @@ fn scan_cfg() -> Result<()> {
     check_cfg(&binding, "wc_AesXtsInit", "aes_xts");
     check_cfg(&binding, "wc_AesXtsEncryptInit", "aes_xts_stream");
 
+    /* blake2 */
+    check_cfg(&binding, "wc_InitBlake2b", "blake2b");
+    check_cfg(&binding, "wc_InitBlake2s", "blake2s");
+
     /* cmac */
     check_cfg(&binding, "wc_InitCmac", "cmac");
 
