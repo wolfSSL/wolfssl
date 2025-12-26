@@ -26979,7 +26979,7 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
         return "Certificate context does not match request or not empty";
 
     case BAD_KEY_SHARE_DATA:
-        return "The Key Share data contains group that wasn't in Client Hello";
+        return "The Key Share data contains a group which is invalid";
 
     case MISSING_HANDSHAKE_DATA:
         return "The handshake message is missing required data";

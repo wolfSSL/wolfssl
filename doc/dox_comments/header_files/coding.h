@@ -46,6 +46,8 @@ int Base64_Decode(const byte* in, word32 inLen, byte* out,
     traditional ‘\n’ line endings, instead of escaped %0A line endings. Upon
     successfully completing, this function also sets outLen to the number
     of bytes written to the output buffer.
+    If there is enough room in out to store an extra byte, a NULL terminator
+    will be added.  This will NOT be included in outLen.
 
     \return 0 Returned upon successfully decoding the Base64 encoded input
     \return BAD_FUNC_ARG Returned if the output buffer is too small to
@@ -203,6 +205,8 @@ int Base16_Decode(const byte* in, word32 inLen, byte* out, word32* outLen);
     \ingroup Base_Encoding
 
     \brief Encode input to base16 output.
+    If there is enough room in out to store an extra byte, a NULL terminator
+    will be added and included in outLen.
 
     \return 0 Success
     \return BAD_FUNC_ARG Returns if in, out, or outLen is null or if outLen is
