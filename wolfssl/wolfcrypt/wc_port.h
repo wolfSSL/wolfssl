@@ -1010,7 +1010,7 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XSEEK_SET           FS_SEEK_SET
     #define XSEEK_END           FS_SEEK_END
     #define XBADFILE            NULL
-    #define XBADFD              -1
+    #define XBADFD              (-1)
     #define XFGETS(b,s,f)       -2 /* Not ported yet */
 
     #define XSTAT               fs_stat
@@ -1120,7 +1120,7 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XSEEK_SET  SEEK_SET
     #define XSEEK_END  SEEK_END
     #define XBADFILE   NULL
-    #define XBADFD     -1
+    #define XBADFD     (-1)
     #define XFGETS     fgets
     #define XFPRINTF   fprintf
     #define XFFLUSH    fflush
