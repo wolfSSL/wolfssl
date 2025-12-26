@@ -95,14 +95,14 @@ _wc_chacha_crypt_bytes:
 	add  x5, x5, :lo12:L_chacha20_arm64_rol8
 #else
 	adrp x5, L_chacha20_arm64_rol8@PAGE
-	add  x5, x5, :lo12:L_chacha20_arm64_rol8@PAGEOFF
+	add  x5, x5, L_chacha20_arm64_rol8@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 	adrp x6, L_chacha20_arm64_ctr
 	add  x6, x6, :lo12:L_chacha20_arm64_ctr
 #else
 	adrp x6, L_chacha20_arm64_ctr@PAGE
-	add  x6, x6, :lo12:L_chacha20_arm64_ctr@PAGEOFF
+	add  x6, x6, L_chacha20_arm64_ctr@PAGEOFF
 #endif /* __APPLE__ */
 	eor	v29.16b, v29.16b, v29.16b
 	mov	x26, #5
@@ -1134,7 +1134,7 @@ _wc_chacha_setkey:
 	add  x3, x3, :lo12:L_chacha_setkey_arm64_constant
 #else
 	adrp x3, L_chacha_setkey_arm64_constant@PAGE
-	add  x3, x3, :lo12:L_chacha_setkey_arm64_constant@PAGEOFF
+	add  x3, x3, L_chacha_setkey_arm64_constant@PAGEOFF
 #endif /* __APPLE__ */
 	subs	x2, x2, #16
 	add	x3, x3, x2

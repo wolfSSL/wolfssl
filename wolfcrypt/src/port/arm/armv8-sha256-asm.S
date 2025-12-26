@@ -133,7 +133,7 @@ _Transform_Sha256_Len_neon:
 	add  x3, x3, :lo12:L_SHA256_transform_neon_len_k
 #else
 	adrp x3, L_SHA256_transform_neon_len_k@PAGE
-	add  x3, x3, :lo12:L_SHA256_transform_neon_len_k@PAGEOFF
+	add  x3, x3, L_SHA256_transform_neon_len_k@PAGEOFF
 #endif /* __APPLE__ */
 	# Load digest into working vars
 	ldr	w4, [x0]
@@ -1200,7 +1200,7 @@ _Transform_Sha256_Len_crypto:
 	add  x3, x3, :lo12:L_SHA256_trans_crypto_len_k
 #else
 	adrp x3, L_SHA256_trans_crypto_len_k@PAGE
-	add  x3, x3, :lo12:L_SHA256_trans_crypto_len_k@PAGEOFF
+	add  x3, x3, L_SHA256_trans_crypto_len_k@PAGEOFF
 #endif /* __APPLE__ */
 	# Load K into vector registers
 	ld1	{v8.4s, v9.4s, v10.4s, v11.4s}, [x3], #0x40

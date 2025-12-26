@@ -92,7 +92,7 @@ _BlockSha3_crypto:
 	add  x1, x1, :lo12:L_SHA3_transform_crypto_r
 #else
 	adrp x1, L_SHA3_transform_crypto_r@PAGE
-	add  x1, x1, :lo12:L_SHA3_transform_crypto_r@PAGEOFF
+	add  x1, x1, L_SHA3_transform_crypto_r@PAGEOFF
 #endif /* __APPLE__ */
 #ifdef __APPLE__
 .arch_extension sha3
@@ -268,7 +268,7 @@ _BlockSha3_base:
 	add  x27, x27, :lo12:L_SHA3_transform_base_r
 #else
 	adrp x27, L_SHA3_transform_base_r@PAGE
-	add  x27, x27, :lo12:L_SHA3_transform_base_r@PAGEOFF
+	add  x27, x27, L_SHA3_transform_base_r@PAGEOFF
 #endif /* __APPLE__ */
 	ldp	x1, x2, [x0]
 	ldp	x3, x4, [x0, #16]

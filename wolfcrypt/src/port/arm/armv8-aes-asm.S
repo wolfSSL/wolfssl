@@ -43294,14 +43294,14 @@ _AES_set_encrypt_key_NEON:
 	add  x4, x4, :lo12:L_AES_ARM64_NEON_rcon
 #else
 	adrp x4, L_AES_ARM64_NEON_rcon@PAGE
-	add  x4, x4, :lo12:L_AES_ARM64_NEON_rcon@PAGEOFF
+	add  x4, x4, L_AES_ARM64_NEON_rcon@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 	adrp x5, L_AES_ARM64_NEON_te
 	add  x5, x5, :lo12:L_AES_ARM64_NEON_te
 #else
 	adrp x5, L_AES_ARM64_NEON_te@PAGE
-	add  x5, x5, :lo12:L_AES_ARM64_NEON_te@PAGEOFF
+	add  x5, x5, L_AES_ARM64_NEON_te@PAGEOFF
 #endif /* __APPLE__ */
 	ld1	{v6.16b, v7.16b, v8.16b, v9.16b}, [x5], #0x40
 	ld1	{v10.16b, v11.16b, v12.16b, v13.16b}, [x5], #0x40
@@ -43543,14 +43543,14 @@ _AES_ECB_encrypt_NEON:
 	add  x5, x5, :lo12:L_AES_ARM64_NEON_te
 #else
 	adrp x5, L_AES_ARM64_NEON_te@PAGE
-	add  x5, x5, :lo12:L_AES_ARM64_NEON_te@PAGEOFF
+	add  x5, x5, L_AES_ARM64_NEON_te@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 	adrp x6, L_AES_ARM64_NEON_shift_rows_shuffle
 	add  x6, x6, :lo12:L_AES_ARM64_NEON_shift_rows_shuffle
 #else
 	adrp x6, L_AES_ARM64_NEON_shift_rows_shuffle@PAGE
-	add  x6, x6, :lo12:L_AES_ARM64_NEON_shift_rows_shuffle@PAGEOFF
+	add  x6, x6, L_AES_ARM64_NEON_shift_rows_shuffle@PAGEOFF
 #endif /* __APPLE__ */
 	ld1	{v16.16b, v17.16b, v18.16b, v19.16b}, [x5], #0x40
 	ld1	{v20.16b, v21.16b, v22.16b, v23.16b}, [x5], #0x40
@@ -44324,14 +44324,14 @@ _AES_CBC_encrypt_NEON:
 	add  x6, x6, :lo12:L_AES_ARM64_NEON_te
 #else
 	adrp x6, L_AES_ARM64_NEON_te@PAGE
-	add  x6, x6, :lo12:L_AES_ARM64_NEON_te@PAGEOFF
+	add  x6, x6, L_AES_ARM64_NEON_te@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 	adrp x7, L_AES_ARM64_NEON_shift_rows_shuffle
 	add  x7, x7, :lo12:L_AES_ARM64_NEON_shift_rows_shuffle
 #else
 	adrp x7, L_AES_ARM64_NEON_shift_rows_shuffle@PAGE
-	add  x7, x7, :lo12:L_AES_ARM64_NEON_shift_rows_shuffle@PAGEOFF
+	add  x7, x7, L_AES_ARM64_NEON_shift_rows_shuffle@PAGEOFF
 #endif /* __APPLE__ */
 	ld1	{v10.16b, v11.16b, v12.16b, v13.16b}, [x6], #0x40
 	ld1	{v14.16b, v15.16b, v16.16b, v17.16b}, [x6], #0x40
@@ -44489,14 +44489,14 @@ _AES_CTR_encrypt_NEON:
 	add  x6, x6, :lo12:L_AES_ARM64_NEON_te
 #else
 	adrp x6, L_AES_ARM64_NEON_te@PAGE
-	add  x6, x6, :lo12:L_AES_ARM64_NEON_te@PAGEOFF
+	add  x6, x6, L_AES_ARM64_NEON_te@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 	adrp x7, L_AES_ARM64_NEON_shift_rows_shuffle
 	add  x7, x7, :lo12:L_AES_ARM64_NEON_shift_rows_shuffle
 #else
 	adrp x7, L_AES_ARM64_NEON_shift_rows_shuffle@PAGE
-	add  x7, x7, :lo12:L_AES_ARM64_NEON_shift_rows_shuffle@PAGEOFF
+	add  x7, x7, L_AES_ARM64_NEON_shift_rows_shuffle@PAGEOFF
 #endif /* __APPLE__ */
 	ld1	{v16.16b, v17.16b, v18.16b, v19.16b}, [x6], #0x40
 	ld1	{v20.16b, v21.16b, v22.16b, v23.16b}, [x6], #0x40
@@ -45391,14 +45391,14 @@ _AES_ECB_decrypt_NEON:
 	add  x5, x5, :lo12:L_AES_ARM64_NEON_td
 #else
 	adrp x5, L_AES_ARM64_NEON_td@PAGE
-	add  x5, x5, :lo12:L_AES_ARM64_NEON_td@PAGEOFF
+	add  x5, x5, L_AES_ARM64_NEON_td@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 	adrp x6, L_AES_ARM64_NEON_shift_rows_invshuffle
 	add  x6, x6, :lo12:L_AES_ARM64_NEON_shift_rows_invshuffle
 #else
 	adrp x6, L_AES_ARM64_NEON_shift_rows_invshuffle@PAGE
-	add  x6, x6, :lo12:L_AES_ARM64_NEON_shift_rows_invshuffle@PAGEOFF
+	add  x6, x6, L_AES_ARM64_NEON_shift_rows_invshuffle@PAGEOFF
 #endif /* __APPLE__ */
 	ld1	{v16.16b, v17.16b, v18.16b, v19.16b}, [x5], #0x40
 	ld1	{v20.16b, v21.16b, v22.16b, v23.16b}, [x5], #0x40
@@ -46441,14 +46441,14 @@ _AES_CBC_decrypt_NEON:
 	add  x6, x6, :lo12:L_AES_ARM64_NEON_td
 #else
 	adrp x6, L_AES_ARM64_NEON_td@PAGE
-	add  x6, x6, :lo12:L_AES_ARM64_NEON_td@PAGEOFF
+	add  x6, x6, L_AES_ARM64_NEON_td@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 	adrp x7, L_AES_ARM64_NEON_shift_rows_invshuffle
 	add  x7, x7, :lo12:L_AES_ARM64_NEON_shift_rows_invshuffle
 #else
 	adrp x7, L_AES_ARM64_NEON_shift_rows_invshuffle@PAGE
-	add  x7, x7, :lo12:L_AES_ARM64_NEON_shift_rows_invshuffle@PAGEOFF
+	add  x7, x7, L_AES_ARM64_NEON_shift_rows_invshuffle@PAGEOFF
 #endif /* __APPLE__ */
 	ld1	{v16.16b, v17.16b, v18.16b, v19.16b}, [x6], #0x40
 	ld1	{v20.16b, v21.16b, v22.16b, v23.16b}, [x6], #0x40
@@ -47857,14 +47857,14 @@ _AES_GCM_encrypt_NEON:
 	add  x9, x9, :lo12:L_AES_ARM64_NEON_te
 #else
 	adrp x9, L_AES_ARM64_NEON_te@PAGE
-	add  x9, x9, :lo12:L_AES_ARM64_NEON_te@PAGEOFF
+	add  x9, x9, L_AES_ARM64_NEON_te@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 	adrp x10, L_AES_ARM64_NEON_shift_rows_shuffle
 	add  x10, x10, :lo12:L_AES_ARM64_NEON_shift_rows_shuffle
 #else
 	adrp x10, L_AES_ARM64_NEON_shift_rows_shuffle@PAGE
-	add  x10, x10, :lo12:L_AES_ARM64_NEON_shift_rows_shuffle@PAGEOFF
+	add  x10, x10, L_AES_ARM64_NEON_shift_rows_shuffle@PAGEOFF
 #endif /* __APPLE__ */
 	ld1	{v16.16b, v17.16b, v18.16b, v19.16b}, [x9], #0x40
 	ld1	{v20.16b, v21.16b, v22.16b, v23.16b}, [x9], #0x40
@@ -48666,14 +48666,14 @@ _AES_XTS_encrypt_NEON:
 	add  x19, x19, :lo12:L_AES_ARM64_NEON_te
 #else
 	adrp x19, L_AES_ARM64_NEON_te@PAGE
-	add  x19, x19, :lo12:L_AES_ARM64_NEON_te@PAGEOFF
+	add  x19, x19, L_AES_ARM64_NEON_te@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 	adrp x20, L_AES_ARM64_NEON_shift_rows_shuffle
 	add  x20, x20, :lo12:L_AES_ARM64_NEON_shift_rows_shuffle
 #else
 	adrp x20, L_AES_ARM64_NEON_shift_rows_shuffle@PAGE
-	add  x20, x20, :lo12:L_AES_ARM64_NEON_shift_rows_shuffle@PAGEOFF
+	add  x20, x20, L_AES_ARM64_NEON_shift_rows_shuffle@PAGEOFF
 #endif /* __APPLE__ */
 	ld1	{v16.16b, v17.16b, v18.16b, v19.16b}, [x19], #0x40
 	ld1	{v20.16b, v21.16b, v22.16b, v23.16b}, [x19], #0x40
@@ -49749,28 +49749,28 @@ _AES_XTS_decrypt_NEON:
 	add  x20, x20, :lo12:L_AES_ARM64_NEON_te
 #else
 	adrp x20, L_AES_ARM64_NEON_te@PAGE
-	add  x20, x20, :lo12:L_AES_ARM64_NEON_te@PAGEOFF
+	add  x20, x20, L_AES_ARM64_NEON_te@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 	adrp x21, L_AES_ARM64_NEON_td
 	add  x21, x21, :lo12:L_AES_ARM64_NEON_td
 #else
 	adrp x21, L_AES_ARM64_NEON_td@PAGE
-	add  x21, x21, :lo12:L_AES_ARM64_NEON_td@PAGEOFF
+	add  x21, x21, L_AES_ARM64_NEON_td@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 	adrp x22, L_AES_ARM64_NEON_shift_rows_shuffle
 	add  x22, x22, :lo12:L_AES_ARM64_NEON_shift_rows_shuffle
 #else
 	adrp x22, L_AES_ARM64_NEON_shift_rows_shuffle@PAGE
-	add  x22, x22, :lo12:L_AES_ARM64_NEON_shift_rows_shuffle@PAGEOFF
+	add  x22, x22, L_AES_ARM64_NEON_shift_rows_shuffle@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 	adrp x23, L_AES_ARM64_NEON_shift_rows_invshuffle
 	add  x23, x23, :lo12:L_AES_ARM64_NEON_shift_rows_invshuffle
 #else
 	adrp x23, L_AES_ARM64_NEON_shift_rows_invshuffle@PAGE
-	add  x23, x23, :lo12:L_AES_ARM64_NEON_shift_rows_invshuffle@PAGEOFF
+	add  x23, x23, L_AES_ARM64_NEON_shift_rows_invshuffle@PAGEOFF
 #endif /* __APPLE__ */
 	ld1	{v16.16b, v17.16b, v18.16b, v19.16b}, [x20], #0x40
 	ld1	{v20.16b, v21.16b, v22.16b, v23.16b}, [x20], #0x40
@@ -51851,14 +51851,14 @@ _AES_invert_key:
 	add  x2, x2, :lo12:L_AES_ARM64_te
 #else
 	adrp x2, L_AES_ARM64_te@PAGE
-	add  x2, x2, :lo12:L_AES_ARM64_te@PAGEOFF
+	add  x2, x2, L_AES_ARM64_te@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 	adrp x3, L_AES_ARM64_td
 	add  x3, x3, :lo12:L_AES_ARM64_td
 #else
 	adrp x3, L_AES_ARM64_td@PAGE
-	add  x3, x3, :lo12:L_AES_ARM64_td@PAGEOFF
+	add  x3, x3, L_AES_ARM64_td@PAGEOFF
 #endif /* __APPLE__ */
 	add	x12, x0, x1, lsl 4
 	mov	w13, w1
@@ -52008,14 +52008,14 @@ _AES_set_encrypt_key:
 	add  x5, x5, :lo12:L_AES_ARM64_rcon
 #else
 	adrp x5, L_AES_ARM64_rcon@PAGE
-	add  x5, x5, :lo12:L_AES_ARM64_rcon@PAGEOFF
+	add  x5, x5, L_AES_ARM64_rcon@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 	adrp x12, L_AES_ARM64_te
 	add  x12, x12, :lo12:L_AES_ARM64_te
 #else
 	adrp x12, L_AES_ARM64_te@PAGE
-	add  x12, x12, :lo12:L_AES_ARM64_te@PAGEOFF
+	add  x12, x12, L_AES_ARM64_te@PAGEOFF
 #endif /* __APPLE__ */
 	cmp	x1, #0x80
 	beq	L_AES_set_encrypt_key_start_128
@@ -52271,7 +52271,7 @@ _AES_ECB_encrypt:
 	add  x5, x5, :lo12:L_AES_ARM64_te
 #else
 	adrp x5, L_AES_ARM64_te@PAGE
-	add  x5, x5, :lo12:L_AES_ARM64_te@PAGEOFF
+	add  x5, x5, L_AES_ARM64_te@PAGEOFF
 #endif /* __APPLE__ */
 L_AES_ECB_encrypt_loop_block_128:
 	mov	x17, x3
@@ -52604,7 +52604,7 @@ _AES_CBC_encrypt:
 	add  x6, x6, :lo12:L_AES_ARM64_te
 #else
 	adrp x6, L_AES_ARM64_te@PAGE
-	add  x6, x6, :lo12:L_AES_ARM64_te@PAGEOFF
+	add  x6, x6, L_AES_ARM64_te@PAGEOFF
 #endif /* __APPLE__ */
 	ldp	x7, x8, [x5]
 L_AES_CBC_encrypt_loop_block:
@@ -52941,7 +52941,7 @@ _AES_CTR_encrypt:
 	add  x6, x6, :lo12:L_AES_ARM64_te
 #else
 	adrp x6, L_AES_ARM64_te@PAGE
-	add  x6, x6, :lo12:L_AES_ARM64_te@PAGEOFF
+	add  x6, x6, L_AES_ARM64_te@PAGEOFF
 #endif /* __APPLE__ */
 	ldp	x15, x16, [x5]
 	rev32	x15, x15
@@ -53335,14 +53335,14 @@ _AES_ECB_decrypt:
 	add  x5, x5, :lo12:L_AES_ARM64_td
 #else
 	adrp x5, L_AES_ARM64_td@PAGE
-	add  x5, x5, :lo12:L_AES_ARM64_td@PAGEOFF
+	add  x5, x5, L_AES_ARM64_td@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 	adrp x6, L_AES_ARM64_td4
 	add  x6, x6, :lo12:L_AES_ARM64_td4
 #else
 	adrp x6, L_AES_ARM64_td4@PAGE
-	add  x6, x6, :lo12:L_AES_ARM64_td4@PAGEOFF
+	add  x6, x6, L_AES_ARM64_td4@PAGEOFF
 #endif /* __APPLE__ */
 L_AES_ECB_decrypt_loop_block:
 	mov	x19, x3
@@ -53659,14 +53659,14 @@ _AES_CBC_decrypt:
 	add  x6, x6, :lo12:L_AES_ARM64_td4
 #else
 	adrp x6, L_AES_ARM64_td4@PAGE
-	add  x6, x6, :lo12:L_AES_ARM64_td4@PAGEOFF
+	add  x6, x6, L_AES_ARM64_td4@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 	adrp x7, L_AES_ARM64_td
 	add  x7, x7, :lo12:L_AES_ARM64_td
 #else
 	adrp x7, L_AES_ARM64_td@PAGE
-	add  x7, x7, :lo12:L_AES_ARM64_td@PAGEOFF
+	add  x7, x7, L_AES_ARM64_td@PAGEOFF
 #endif /* __APPLE__ */
 L_AES_CBC_decrypt_loop_block:
 	mov	x20, x3
@@ -54327,7 +54327,7 @@ _GCM_gmult_len:
 	add  x10, x10, :lo12:L_GCM_gmult_len_r
 #else
 	adrp x10, L_GCM_gmult_len_r@PAGE
-	add  x10, x10, :lo12:L_GCM_gmult_len_r@PAGEOFF
+	add  x10, x10, L_GCM_gmult_len_r@PAGEOFF
 #endif /* __APPLE__ */
 L_GCM_gmult_len_start_block:
 	ldp	x4, x5, [x0]
@@ -54754,7 +54754,7 @@ _AES_GCM_encrypt:
 	add  x19, x19, :lo12:L_AES_ARM64_te
 #else
 	adrp x19, L_AES_ARM64_te@PAGE
-	add  x19, x19, :lo12:L_AES_ARM64_te@PAGEOFF
+	add  x19, x19, L_AES_ARM64_te@PAGEOFF
 #endif /* __APPLE__ */
 	ldp	x16, x17, [x5]
 	rev32	x16, x16
@@ -55100,7 +55100,7 @@ _AES_XTS_encrypt:
 	add  x8, x8, :lo12:L_AES_ARM64_te
 #else
 	adrp x8, L_AES_ARM64_te@PAGE
-	add  x8, x8, :lo12:L_AES_ARM64_te@PAGEOFF
+	add  x8, x8, L_AES_ARM64_te@PAGEOFF
 #endif /* __APPLE__ */
 	mov	x9, #0x87
 	mov	x26, x5
@@ -56056,21 +56056,21 @@ _AES_XTS_decrypt:
 	add  x8, x8, :lo12:L_AES_ARM64_td
 #else
 	adrp x8, L_AES_ARM64_td@PAGE
-	add  x8, x8, :lo12:L_AES_ARM64_td@PAGEOFF
+	add  x8, x8, L_AES_ARM64_td@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 	adrp x9, L_AES_ARM64_td4
 	add  x9, x9, :lo12:L_AES_ARM64_td4
 #else
 	adrp x9, L_AES_ARM64_td4@PAGE
-	add  x9, x9, :lo12:L_AES_ARM64_td4@PAGEOFF
+	add  x9, x9, L_AES_ARM64_td4@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 	adrp x10, L_AES_ARM64_te
 	add  x10, x10, :lo12:L_AES_ARM64_te
 #else
 	adrp x10, L_AES_ARM64_te@PAGE
-	add  x10, x10, :lo12:L_AES_ARM64_te@PAGEOFF
+	add  x10, x10, L_AES_ARM64_te@PAGEOFF
 #endif /* __APPLE__ */
 	ands	w11, w2, #15
 	cset	w11, ne
