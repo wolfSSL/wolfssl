@@ -4987,6 +4987,8 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
         }
     #endif /* WOLFSSL_AESNI */
 
+#ifndef WC_C_DYNAMIC_FALLBACK
+
 #if defined(WOLFSSL_ARMASM)
 #if !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
     #ifndef __aarch64__
@@ -5117,6 +5119,9 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
     #endif
         return ret;
 #endif
+
+#endif /* !WC_C_DYNAMIC_FALLBACK */
+
     } /* wc_AesSetKeyLocal */
 
     int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
