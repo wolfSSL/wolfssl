@@ -124,7 +124,7 @@ static int wolfkmod_init(void)
         printf("error: wolfSSL_Init failed: %s\n", wc_GetErrorString(error));
         return (ECANCELED);
     }
-    #endif
+    #endif /* WOLFCRYPT_ONLY */
 
     #ifdef HAVE_FIPS
     error = wc_RunAllCast_fips();
@@ -134,33 +134,33 @@ static int wolfkmod_init(void)
         return (ECANCELED);
     }
     else {
-        printf("FIPS 140-3 wolfCrypt-fips v%d.%d.%d%s%s startup "
+        printf("info: FIPS 140-3 wolfCrypt-fips v%d.%d.%d%s%s startup "
                "self-test succeeded.\n",
-#ifdef HAVE_FIPS_VERSION_MAJOR
+    #ifdef HAVE_FIPS_VERSION_MAJOR
             HAVE_FIPS_VERSION_MAJOR,
-#else
+    #else
             HAVE_FIPS_VERSION,
-#endif
-#ifdef HAVE_FIPS_VERSION_MINOR
+    #endif
+    #ifdef HAVE_FIPS_VERSION_MINOR
             HAVE_FIPS_VERSION_MINOR,
-#else
+    #else
             0,
-#endif
-#ifdef HAVE_FIPS_VERSION_PATCH
+    #endif
+    #ifdef HAVE_FIPS_VERSION_PATCH
             HAVE_FIPS_VERSION_PATCH,
-#else
+    #else
             0,
-#endif
-#ifdef HAVE_FIPS_VERSION_PORT
+    #endif
+    #ifdef HAVE_FIPS_VERSION_PORT
             "-",
             HAVE_FIPS_VERSION_PORT
-#else
+    #else
             "",
             ""
-#endif
+    #endif
         );
     }
-    #endif
+    #endif /* HAVE_FIPS */
 
     return (0);
 }
@@ -209,9 +209,7 @@ static int wolfkmod_load(void)
         (void)wolfkmod_cleanup();
         return (ECANCELED);
     }
-    #if defined(WOLFSSL_BSDKM_VERBOSE_DEBUG)
     printf("info: wolfCrypt self-test passed.\n");
-    #endif /* WOLFSSL_BSDKM_VERBOSE_DEBUG */
     #endif /* NO_CRYPT_TEST */
 
     /**
