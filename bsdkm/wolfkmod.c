@@ -33,9 +33,19 @@
 #else
     #include <wolfssl/ssl.h>
 #endif
+
+#ifdef HAVE_FIPS
+    #ifdef USE_CONTESTMUTEX
+        #error USE_CONTESTMUTEX is incompatible with WOLFSSL_BSDKM
+    #endif
+    #include <wolfssl/wolfcrypt/fips_test.h>
+#endif /* HAVE_FIPS */
+
 #if !defined(NO_CRYPT_TEST)
     #include <wolfcrypt/test/test.h>
 #endif
+
+#include <wolfssl/wolfcrypt/random.h>
 
 MALLOC_DEFINE(M_WOLFSSL, "libwolfssl", "wolfSSL kernel memory");
 
@@ -44,21 +54,111 @@ static int wolfkmod_cleanup(void);
 static int wolfkmod_load(void);
 static int wolfkmod_unload(void);
 
+#ifdef HAVE_FIPS
+    #define WOLFKMOD_FIPS_ERR_MSG(hash) ({                                   \
+        printf("In-core integrity hash check failure.\n");                   \
+        if ((hash))                                                          \
+            printf("Rebuild with \"WOLFCRYPT_FIPS_CORE_HASH_VALUE=%s\".\n",  \
+                   hash);                                                    \
+        else                                                                 \
+            printf("error: could not compute new hash. "                     \
+                   "Contact customer support.\n");                           \
+    })
+
+    static void wolfkmod_fips_cb(int ok, int err, const char * hash)
+    {
+        if ((!ok) || (err != 0)) {
+            printf("error: libwolfssl FIPS error: %s\n",
+                   wc_GetErrorString(err));
+        }
+
+        if (err == WC_NO_ERR_TRACE(IN_CORE_FIPS_E)) {
+            WOLFKMOD_FIPS_ERR_MSG(hash);
+        }
+    }
+#endif /* HAVE_FIPS */
+
 static int wolfkmod_init(void)
 {
-    int ret = 0;
+    int error = 0;
+
+    #ifdef HAVE_FIPS
+    error = wolfCrypt_SetCb_fips(wolfkmod_fips_cb);
+    if (error != 0) {
+        printf("error: wolfCrypt_SetCb_fips failed: %s\n",
+               wc_GetErrorString(error));
+        return (ECANCELED);
+    }
+
+    fipsEntry();
+
+    error = wolfCrypt_GetStatus_fips();
+    if (error != 0) {
+        printf("error: wolfCrypt_GetStatus_fips failed: %d: %s\n",
+               error, wc_GetErrorString(error));
+        if (error == WC_NO_ERR_TRACE(IN_CORE_FIPS_E)) {
+            const char *newhash = wolfCrypt_GetCoreHash_fips();
+            WOLFKMOD_FIPS_ERR_MSG(newhash);
+        }
+        return (ECANCELED);
+    }
+    #endif /* HAVE_FIPS */
+
+    #ifdef WC_RNG_SEED_CB
+    error = wc_SetSeed_Cb(WC_GENERATE_SEED_DEFAULT);
+    if (error < 0) {
+        printf("error: wc_SetSeed_Cb failed: %d\n", error);
+        return (ECANCELED);
+    }
+    #endif /* WC_RNG_SEED_CB */
 
     #ifdef WOLFCRYPT_ONLY
-    ret = wolfCrypt_Init();
-    if (ret != 0) {
-        printf("error: wolfCrypt_Init failed: %s\n", wc_GetErrorString(ret));
+    error = wolfCrypt_Init();
+    if (error != 0) {
+        printf("error: wolfCrypt_Init failed: %s\n", wc_GetErrorString(error));
         return (ECANCELED);
     }
     #else
-    ret = wolfSSL_Init();
-    if (ret != WOLFSSL_SUCCESS) {
-        printf("error: wolfSSL_Init failed: %s\n", wc_GetErrorString(ret));
+    error = wolfSSL_Init();
+    if (error != WOLFSSL_SUCCESS) {
+        printf("error: wolfSSL_Init failed: %s\n", wc_GetErrorString(error));
         return (ECANCELED);
+    }
+    #endif
+
+    #ifdef HAVE_FIPS
+    error = wc_RunAllCast_fips();
+    if (error != 0) {
+        printf("error: wc_RunAllCast_fips failed with "
+               "return value %d\n", error);
+        return (ECANCELED);
+    }
+    else {
+        printf("FIPS 140-3 wolfCrypt-fips v%d.%d.%d%s%s startup "
+               "self-test succeeded.\n",
+#ifdef HAVE_FIPS_VERSION_MAJOR
+            HAVE_FIPS_VERSION_MAJOR,
+#else
+            HAVE_FIPS_VERSION,
+#endif
+#ifdef HAVE_FIPS_VERSION_MINOR
+            HAVE_FIPS_VERSION_MINOR,
+#else
+            0,
+#endif
+#ifdef HAVE_FIPS_VERSION_PATCH
+            HAVE_FIPS_VERSION_PATCH,
+#else
+            0,
+#endif
+#ifdef HAVE_FIPS_VERSION_PORT
+            "-",
+            HAVE_FIPS_VERSION_PORT
+#else
+            "",
+            ""
+#endif
+        );
     }
     #endif
 
@@ -67,24 +167,27 @@ static int wolfkmod_init(void)
 
 static int wolfkmod_cleanup(void)
 {
-    int ret = 0;
+    int error = 0;
 
     #ifdef WOLFCRYPT_ONLY
-    ret = wolfCrypt_Cleanup();
-    if (ret != 0) {
-        printf("error: wolfCrypt_Cleanup failed: %s\n", wc_GetErrorString(ret));
+    error = wolfCrypt_Cleanup();
+    if (error != 0) {
+        printf("error: wolfCrypt_Cleanup failed: %s\n",
+               wc_GetErrorString(error));
         return (ECANCELED);
     }
     #else
-    ret = wolfSSL_Cleanup();
-    if (ret != WOLFSSL_SUCCESS) {
-        printf("error: wolfSSL_Cleanup failed: %s\n", wc_GetErrorString(ret));
+    error = wolfSSL_Cleanup();
+    if (error != WOLFSSL_SUCCESS) {
+        printf("error: wolfSSL_Cleanup failed: %s\n",
+               wc_GetErrorString(error));
         return (ECANCELED);
     }
     #endif /* WOLFCRYPT_ONLY */
 
     #if defined(WOLFSSL_BSDKM_VERBOSE_DEBUG)
-    printf("info: libwolfssl " LIBWOLFSSL_VERSION_STRING " cleanup complete.\n");
+    printf("info: libwolfssl " LIBWOLFSSL_VERSION_STRING
+           " cleanup complete.\n");
     #endif /* WOLFSSL_BSDKM_VERBOSE_DEBUG */
 
     return (0);
@@ -92,17 +195,17 @@ static int wolfkmod_cleanup(void)
 
 static int wolfkmod_load(void)
 {
-    int ret = 0;
+    int error = 0;
 
-    ret = wolfkmod_init();
-    if (ret != 0) {
+    error = wolfkmod_init();
+    if (error != 0) {
         return (ECANCELED);
     }
 
     #ifndef NO_CRYPT_TEST
-    ret = wolfcrypt_test(NULL);
-    if (ret != 0) {
-        printf("error: wolfcrypt test failed with return code: %d\n", ret);
+    error = wolfcrypt_test(NULL);
+    if (error != 0) {
+        printf("error: wolfcrypt test failed: %d\n", error);
         (void)wolfkmod_cleanup();
         return (ECANCELED);
     }
@@ -123,52 +226,83 @@ static int wolfkmod_load(void)
 
 static int wolfkmod_unload(void)
 {
-    int ret = 0;
+    int error = 0;
 
-    ret = wolfkmod_cleanup();
+    #ifdef HAVE_FIPS
+    error = wc_RunAllCast_fips();
+    if (error != 0) {
+        printf("error: wc_RunAllCast_fips failed at shutdown with "
+               "return value %d\n", error);
+    }
+    else
+        printf("info: wolfCrypt FIPS re-self-test succeeded at unload: "
+               "all algorithms re-verified.\n");
+    #endif
+
+    error = wolfkmod_cleanup();
 
     /**
      * todo: unregister wolfcrypt algs here with crypto_unregister_all
      * and related.
      * */
 
-    if (ret == 0) {
+    if (error == 0) {
         printf("info: libwolfssl unloaded\n");
     }
 
-    return (ret);
+    return (error);
 }
+
+#if defined(WOLFSSL_BSDKM_VERBOSE_DEBUG)
+static const char * wolfkmod_event_to_str(modeventtype_t what)
+{
+    switch (what) {
+    case MOD_LOAD:
+        return "MOD_LOAD";
+    case MOD_UNLOAD:
+        return "MOD_UNLOAD";
+    case MOD_SHUTDOWN:
+        return "MOD_SHUTDOWN";
+    case MOD_QUIESCE:
+        return "MOD_QUIESCE";
+    }
+}
+#endif /* WOLFSSL_BSDKM_VERBOSE_DEBUG */
 
 /* see /usr/include/sys/module.h for more info. */
 static int
 wolfkmod_event(struct module * m, int what, void * arg)
 {
-    int ret = 0;
+    int error = 0;
+    #if defined(WOLFSSL_BSDKM_VERBOSE_DEBUG)
+    printf("info: wolfkmod_event: %s\n", wolfkmod_event_to_str(what));
+    #endif /* WOLFSSL_BSDKM_VERBOSE_DEBUG */
 
     switch (what) {
     case MOD_LOAD:
-        ret = wolfkmod_load();
+        error = wolfkmod_load();
         break;
     case MOD_UNLOAD:
-        ret = wolfkmod_unload();
+        error = wolfkmod_unload();
         break;
     case MOD_SHUTDOWN:
     case MOD_QUIESCE:
     default:
-        #if defined(WOLFSSL_BSDKM_VERBOSE_DEBUG)
-        printf("info: not implemented: %d\n", what);
-        #endif /* WOLFSSL_BSDKM_VERBOSE_DEBUG */
-        ret = EOPNOTSUPP;
+        error = EOPNOTSUPP;
     }
 
     (void)m;
     (void)arg;
 
-    return (ret);
+    return (error);
 }
 
 static moduledata_t libwolfmod = {
+    #ifdef HAVE_FIPS
+    "libwolfssl_fips",   /* module name */
+    #else
     "libwolfssl",   /* module name */
+    #endif /* HAVE_FIPS */
     wolfkmod_event, /* module event handler */
     NULL            /* extra data, unused */
 };
