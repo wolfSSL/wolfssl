@@ -2150,25 +2150,18 @@ static int wc_linuxkm_drbg_startup(void)
 }
 
 static int wc_linuxkm_drbg_cleanup(void) {
-    int cur_refcnt = WC_LKM_REFCOUNT_TO_INT(wc_linuxkm_drbg.base.cra_refcnt);
+    int cur_refcnt;
 
     if (! wc_linuxkm_drbg_loaded) {
         pr_err("ERROR: wc_linuxkm_drbg_cleanup called with ! wc_linuxkm_drbg_loaded");
         return -EINVAL;
     }
 
-    if (cur_refcnt - wc_linuxkm_drbg_default_instance_registered != 1) {
-        pr_err("ERROR: wc_linuxkm_drbg_cleanup called with refcnt = %d, with wc_linuxkm_drbg %sset as default rng",
-               cur_refcnt, wc_linuxkm_drbg_default_instance_registered ? "" : "not ");
-        return -EBUSY;
-    }
-
-    /* The below is racey, but the kernel doesn't provide any other way.  It's
-     * written to be retryable.
-     */
-
 #ifdef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
     if (wc_linuxkm_drbg_default_instance_registered) {
+        /* These deinstallations are racey, but the kernel doesn't provide any other
+         * way.  It's written to be retryable.
+         */
         int ret;
 
     #ifdef LINUXKM_DRBG_GET_RANDOM_BYTES
@@ -2193,16 +2186,16 @@ static int wc_linuxkm_drbg_cleanup(void) {
         #elif defined(WOLFSSL_LINUXKM_USE_GET_RANDOM_KPROBES)
 
         if (wc_get_random_bytes_kprobe_installed) {
-            wc_get_random_bytes_kprobe_installed = 0;
-            barrier();
             unregister_kprobe(&wc_get_random_bytes_kprobe);
+            barrier();
+            wc_get_random_bytes_kprobe_installed = 0;
             pr_info("libwolfssl: wc_get_random_bytes_kprobe uninstalled\n");
         }
         #ifdef WOLFSSL_LINUXKM_USE_GET_RANDOM_USER_KRETPROBE
         if (wc_get_random_bytes_user_kretprobe_installed) {
-            wc_get_random_bytes_user_kretprobe_installed = 0;
-            barrier();
             unregister_kretprobe(&wc_get_random_bytes_user_kretprobe);
+            barrier();
+            wc_get_random_bytes_user_kretprobe_installed = 0;
             pr_info("libwolfssl: wc_get_random_bytes_user_kretprobe uninstalled\n");
         }
         #endif /* WOLFSSL_LINUXKM_USE_GET_RANDOM_USER_KRETPROBE */
@@ -2218,13 +2211,17 @@ static int wc_linuxkm_drbg_cleanup(void) {
             pr_err("ERROR: crypto_del_default_rng failed: %d", ret);
             return ret;
         }
-        cur_refcnt = WC_LKM_REFCOUNT_TO_INT(wc_linuxkm_drbg.base.cra_refcnt);
-        if (cur_refcnt != 1) {
-            pr_warn("WARNING: wc_linuxkm_drbg refcnt = %d after crypto_del_default_rng()", cur_refcnt);
-            return -EINVAL;
-        }
+
+        wc_linuxkm_drbg_default_instance_registered = 0;
     }
 #endif /* LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT */
+
+    cur_refcnt = WC_LKM_REFCOUNT_TO_INT(wc_linuxkm_drbg.base.cra_refcnt);
+
+    if (cur_refcnt != 1) {
+        pr_err("ERROR: wc_linuxkm_drbg_cleanup called with refcnt = %d", cur_refcnt);
+        return -EBUSY;
+    }
 
     crypto_unregister_rng(&wc_linuxkm_drbg);
 
@@ -2232,10 +2229,6 @@ static int wc_linuxkm_drbg_cleanup(void) {
         pr_warn("WARNING: wc_linuxkm_drbg_cleanup: after crypto_unregister_rng, wc_linuxkm_drbg isn't dead.");
         return -EBUSY;
     }
-
-#ifdef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
-    wc_linuxkm_drbg_default_instance_registered = 0;
-#endif /* LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT */
 
     wc_linuxkm_drbg_loaded = 0;
 
