@@ -2315,6 +2315,12 @@ int wc_AesCtrSetKey(Aes* aes, const byte* key, word32 len, const byte* iv,
     update parameter. It allows for key updates in certain hardware
     implementations.
 
+    \note This function is currently only available when building with
+    Xilinx hardware acceleration. It requires one of the following build
+    options: WOLFSSL_XILINX_CRYPT (for Xilinx SecureIP integration) or
+    WOLFSSL_AFALG_XILINX_AES (for Xilinx AF_ALG support). This API may
+    be exposed for additional build configurations in the future.
+
     \return 0 On success.
     \return BAD_FUNC_ARG If aes or key is NULL, or if key length is invalid.
 
@@ -2460,8 +2466,15 @@ int wc_AesGcmEncryptInit_ex(Aes* aes, const byte* key, word32 len,
     It processes plaintext and/or additional authentication data (AAD)
     in a streaming fashion.
 
+    All the AAD must be passed to update before the plaintext.
+    The last part of AAD can be passed with the first part of plaintext.
+
+    Must set key and IV before calling this function.
+    Must call wc_AesGcmInit() before calling this function.
+
     \return 0 On success.
-    \return BAD_FUNC_ARG If aes is NULL, or if parameters are invalid.
+    \return BAD_FUNC_ARG If aes is NULL, or a length is non-zero but
+    buffer is NULL.
 
     \param aes pointer to the AES structure
     \param out pointer to buffer to store ciphertext (can be NULL if sz=0)
@@ -2480,7 +2493,7 @@ int wc_AesGcmEncryptInit_ex(Aes* aes, const byte* key, word32 len,
     byte aad[20] = { }; // additional data
 
     wc_AesInit(&aes, NULL, INVALID_DEVID);
-    wc_AesGcmEncryptInit(&aes, key, 16, iv, 12);
+    wc_AesGcmInit(&aes, key, 16, iv, 12);
     int ret = wc_AesGcmEncryptUpdate(&aes, ciphertext, plaintext, 100,
                                      aad, 20);
     if (ret != 0) {
@@ -2489,6 +2502,7 @@ int wc_AesGcmEncryptInit_ex(Aes* aes, const byte* key, word32 len,
     wc_AesFree(&aes);
     \endcode
 
+    \sa wc_AesGcmInit
     \sa wc_AesGcmEncryptInit
     \sa wc_AesGcmEncryptFinal
 */
@@ -2575,8 +2589,15 @@ int wc_AesGcmDecryptInit(Aes* aes, const byte* key, word32 len,
     It processes ciphertext and/or additional authentication data (AAD)
     in a streaming fashion.
 
+    All the AAD must be passed to update before the ciphertext.
+    The last part of AAD can be passed with the first part of ciphertext.
+
+    Must set key and IV before calling this function.
+    Must call wc_AesGcmInit() before calling this function.
+
     \return 0 On success.
-    \return BAD_FUNC_ARG If aes is NULL, or if parameters are invalid.
+    \return BAD_FUNC_ARG If aes is NULL, or a length is non-zero but
+    buffer is NULL.
 
     \param aes pointer to the AES structure
     \param out pointer to buffer to store plaintext (can be NULL if sz=0)
@@ -2595,7 +2616,7 @@ int wc_AesGcmDecryptInit(Aes* aes, const byte* key, word32 len,
     byte aad[20] = { }; // additional data
 
     wc_AesInit(&aes, NULL, INVALID_DEVID);
-    wc_AesGcmDecryptInit(&aes, key, 16, iv, 12);
+    wc_AesGcmInit(&aes, key, 16, iv, 12);
     int ret = wc_AesGcmDecryptUpdate(&aes, plaintext, ciphertext, 100,
                                      aad, 20);
     if (ret != 0) {
@@ -2604,6 +2625,7 @@ int wc_AesGcmDecryptInit(Aes* aes, const byte* key, word32 len,
     wc_AesFree(&aes);
     \endcode
 
+    \sa wc_AesGcmInit
     \sa wc_AesGcmDecryptInit
     \sa wc_AesGcmDecryptFinal
 */

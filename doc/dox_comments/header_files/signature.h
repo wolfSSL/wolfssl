@@ -177,7 +177,7 @@ int wc_SignatureGenerate(
     word32 sigLen = sizeof(sig);
 
     wc_ecc_init(&eccKey);
-    // import public key and compute hash
+    // import public key, signature, and pre-computed hash ...
     int ret = wc_SignatureVerifyHash(WC_HASH_TYPE_SHA256,
                                      WC_SIGNATURE_TYPE_ECC, hash,
                                      sizeof(hash), sig, sigLen,
@@ -231,7 +231,7 @@ int wc_SignatureVerifyHash(enum wc_HashType hash_type,
     wc_InitRng(&rng);
     wc_ecc_init(&eccKey);
     wc_ecc_make_key(&rng, 32, &eccKey);
-    // compute hash
+    // generate signature from pre-computed hash
     int ret = wc_SignatureGenerateHash(WC_HASH_TYPE_SHA256,
                                        WC_SIGNATURE_TYPE_ECC, hash,
                                        sizeof(hash), sig, &sigLen,
