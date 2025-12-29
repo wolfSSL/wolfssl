@@ -501,7 +501,8 @@ package WolfSSL with SPARK_Mode is
    --  Returns the value of the defined MAX_ERROR_SZ integer
    --  in wolfssl/wolfcrypt/error.h.
 
-   type RNG_Key_Type is limited private;   
+   type RNG_Key_Type is limited private with
+     Annotate => (GNATprove, Ownership, "Needs_Reclamation");
 
    function Is_Valid (Key : RNG_Key_Type) return Boolean;
    --  Indicates if the RSA has successfully been initialized.   
@@ -533,7 +534,8 @@ package WolfSSL with SPARK_Mode is
                      HMAC       : HMAC_Hash;
                      Result     : out Integer);
    
-   type RSA_Key_Type is limited private;   
+   type RSA_Key_Type is limited private with
+     Annotate => (GNATprove, Ownership, "Needs_Reclamation");
 
    function Is_Valid (Key : RSA_Key_Type) return Boolean;
    --  Indicates if the RSA has successfully been initialized.   
@@ -619,7 +621,8 @@ package WolfSSL with SPARK_Mode is
      Pre => Is_Valid (RSA);
    --  This functions provides private RSA decryption.
 
-   type SHA256_Type is limited private;
+   type SHA256_Type is limited private with
+     Annotate => (GNATprove, Ownership, "Needs_Reclamation");
 
    function Is_Valid (SHA256 : SHA256_Type) return Boolean;
    --  Indicates if the SHA256 has successfully been initialized.
@@ -657,7 +660,8 @@ package WolfSSL with SPARK_Mode is
    
    function Invalid_Device return Device_Identifier;
    
-   type AES_Type is limited private;
+   type AES_Type is limited private with
+     Annotate => (GNATprove, Ownership, "Needs_Reclamation");
 
    function Is_Valid (AES : AES_Type) return Boolean;
    --  Indicates if the AES has successfully been initialized.
