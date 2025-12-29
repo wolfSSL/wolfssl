@@ -46,7 +46,7 @@ int wc_curve25519_make_key(WC_RNG* rng, int keysize, curve25519_key* key);
 
     \brief This function computes a shared secret key given a secret private
     key and a received public key. It stores the generated secret key in the
-    buffer out and assigns the variable of the secret key to outlen. Only
+    buffer out and assigns the length of the secret key to outlen. Only
     supports big endian.
 
     \return 0 Returned on successfully computing a shared secret key.
@@ -93,7 +93,7 @@ int wc_curve25519_shared_secret(curve25519_key* private_key,
 
     \brief This function computes a shared secret key given a secret private
     key and a received public key. It stores the generated secret key in the
-    buffer out and assigns the variable of the secret key to outlen. Supports
+    buffer out and assigns the length of the secret key to outlen. Supports
     both big and little endian.
 
     \return 0 Returned on successfully computing a shared secret key.
@@ -361,7 +361,7 @@ int wc_curve25519_import_private_raw_ex(const byte* priv, word32 privSz,
     \return 0 Returned on successfully exporting the private key from the
     curve25519_key structure.
     \return BAD_FUNC_ARG Returned if any input parameters are NULL.
-    \return ECC_BAD_ARG_E Returned if wc_curve25519_size() is not equal to key.
+    \return ECC_BAD_ARG_E Returned if *outLen is less than wc_curve25519_size().
 
     \param [in] key Pointer to the structure from which to export the key.
     \param [out] out Pointer to the buffer in which to store the exported key.
@@ -372,7 +372,7 @@ int wc_curve25519_import_private_raw_ex(const byte* priv, word32 privSz,
     \code
     int ret;
     byte priv[32];
-    int privSz;
+    word32 privSz;
 
     curve25519_key key;
     // initialize and make key
@@ -402,7 +402,7 @@ int wc_curve25519_export_private_raw(curve25519_key* key, byte* out,
     \return 0 Returned on successfully exporting the private key from the
     curve25519_key structure.
     \return BAD_FUNC_ARG Returned if any input parameters are NULL.
-    \return ECC_BAD_ARG_E Returned if wc_curve25519_size() is not equal to key.
+    \return ECC_BAD_ARG_E Returned if *outLen is less than wc_curve25519_size().
 
     \param [in] key Pointer to the structure from which to export the key.
     \param [out] out Pointer to the buffer in which to store the exported key.
@@ -416,7 +416,7 @@ int wc_curve25519_export_private_raw(curve25519_key* key, byte* out,
     int ret;
 
     byte priv[32];
-    int privSz;
+    word32 privSz;
     curve25519_key key;
     // initialize and make key
     ret = wc_curve25519_export_private_raw_ex(&key, priv, &privSz,
@@ -656,7 +656,7 @@ int wc_curve25519_export_public_ex(curve25519_key* key, byte* out,
     \return ECC_BAD_ARG_E Returned if privSz is less than CURVE25519_KEY_SIZE or
     pubSz is less than CURVE25519_PUB_KEY_SIZE.
 
-    \param [in] key Pointer to the curve448_key structure in from which to
+    \param [in] key Pointer to the curve25519_key structure in from which to
     export the key pair.
     \param [out] priv Pointer to the buffer in which to store the private key.
     \param [in,out] privSz On in, is the size of the priv buffer in bytes.
@@ -702,7 +702,7 @@ int wc_curve25519_export_key_raw(curve25519_key* key,
     \return ECC_BAD_ARG_E Returned if privSz is less than CURVE25519_KEY_SIZE or
     pubSz is less than CURVE25519_PUB_KEY_SIZE.
 
-    \param [in] key Pointer to the curve448_key structure in from which to
+    \param [in] key Pointer to the curve25519_key structure in from which to
     export the key pair.
     \param [out] priv Pointer to the buffer in which to store the private key.
     \param [in,out] privSz On in, is the size of the priv buffer in bytes.
@@ -725,7 +725,7 @@ int wc_curve25519_export_key_raw(curve25519_key* key,
     curve25519_key key;
     // initialize and make key
 
-    ret = wc_curve25519_export_key_raw_ex(&key,priv, &privSz, pub, &pubSz,
+    ret = wc_curve25519_export_key_raw_ex(&key, priv, &privSz, pub, &pubSz,
             EC25519_BIG_ENDIAN);
     if (ret != 0) {
         // error exporting key
