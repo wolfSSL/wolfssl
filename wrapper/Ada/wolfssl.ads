@@ -320,7 +320,8 @@ package WolfSSL with SPARK_Mode is
    --  be freed when the associated SSL object is freed.
 
    procedure Free_Arrays (Ssl : WolfSSL_Type) with
-      Pre => Is_Valid (Ssl);
+      Pre => Is_Valid (Ssl),
+      Post => not Is_Valid (Ssl);
    --  Normally, at the end of the SSL handshake, wolfSSL frees temporary
    --  arrays. If Keep_Arrays(..) has been called before the handshake,
    --  wolfSSL will not free temporary arrays. This function explicitly
@@ -512,7 +513,8 @@ package WolfSSL with SPARK_Mode is
    --  If successful Result = 0.
    
    procedure Free_RNG (Key : in out RNG_Key_Type) with
-     Pre => Is_Valid (Key);
+     Pre => Is_Valid (Key),
+     Post => not Is_Valid (Key);
    --  Frees resources associated with RNG and releases the underlying C object.
    
    procedure RNG_Generate_Block (RNG    : RNG_Key_Type;
@@ -543,7 +545,8 @@ package WolfSSL with SPARK_Mode is
    --  If successful Result = 0.
 
    procedure Free_RSA (Key : in out RSA_Key_Type) with
-     Pre => Is_Valid (Key);
+     Pre => Is_Valid (Key),
+     Post => not Is_Valid (Key);
    --  Frees resources associated with RSA and releases the underlying C object.
    
    procedure Rsa_Public_Key_Decode (Input : Byte_Array;
@@ -628,7 +631,8 @@ package WolfSSL with SPARK_Mode is
    --  If successful Result = 0.
 
    procedure Free_SHA256 (SHA256 : in out SHA256_Type) with
-     Pre  => Is_Valid (SHA256);
+     Pre  => Is_Valid (SHA256),
+     Post => not Is_Valid (SHA256);
    --  Frees resources associated with SHA256 and releases the underlying C object.
    --  If successful Result = 0.
 
