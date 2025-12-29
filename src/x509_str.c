@@ -375,23 +375,25 @@ static int X509StoreVerifyCertDate(WOLFSSL_X509_STORE_CTX* ctx, int ret)
                 WOLFSSL_MSG("Override date validation, WOLFSSL_USE_CHECK_TIME");
                 if (wc_ValidateDateWithTime(afterDate,
                     (byte)ctx->current_cert->notAfter.type, ASN_AFTER,
-                    checkTime) < 1) {
+                    checkTime, ctx->current_cert->notAfter.length) < 1) {
                     ret = ASN_AFTER_DATE_E;
                 }
                 else if (wc_ValidateDateWithTime(beforeDate,
                     (byte)ctx->current_cert->notBefore.type, ASN_BEFORE,
-                    checkTime) < 1) {
+                    checkTime, ctx->current_cert->notBefore.length) < 1) {
                     ret = ASN_BEFORE_DATE_E;
                 }
             }
         }
 #else
         if (XVALIDATE_DATE(afterDate,
-                (byte)ctx->current_cert->notAfter.type, ASN_AFTER) < 1) {
+                (byte)ctx->current_cert->notAfter.type, ASN_AFTER,
+                ctx->current_cert->notAfter.length) < 1) {
             ret = ASN_AFTER_DATE_E;
         }
         else if (XVALIDATE_DATE(beforeDate,
-                (byte)ctx->current_cert->notBefore.type, ASN_BEFORE) < 1) {
+                (byte)ctx->current_cert->notBefore.type, ASN_BEFORE,
+                ctx->current_cert->notBefore.length) < 1) {
             ret = ASN_BEFORE_DATE_E;
         }
 #endif /* USE_WOLF_VALIDDATE */
