@@ -12,4 +12,4 @@ tags = ["ssl", "tests"]
 executables = ["tests"]
 
 [[depends-on]]
-aunit = "^26.0.0"
+aunit = "^24.0.0"
