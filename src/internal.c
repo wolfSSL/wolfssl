@@ -10766,6 +10766,8 @@ static int SendHandshakeMsg(WOLFSSL* ssl, byte* input, word32 inputSz,
         maxFrag -= DTLS_HANDSHAKE_HEADER_SZ;
     }
 #endif
+    if (maxFrag <= 0 || maxFrag > MAX_RECORD_SIZE)
+        return BUFFER_E;
 
     /* Make sure input is not the ssl output buffer as this
      * function doesn't handle that */
@@ -10801,6 +10803,8 @@ static int SendHandshakeMsg(WOLFSSL* ssl, byte* input, word32 inputSz,
             fragSz = inputSz - ssl->fragOffset;
 
         /* check for available size */
+        if (fragSz > (word32)MAX_RECORD_SIZE)
+            return BUFFER_E;
         outputSz = headerSz + (int)fragSz;
         if (IsEncryptionOn(ssl, 1))
             outputSz += cipherExtraData(ssl);
@@ -10816,6 +10820,8 @@ static int SendHandshakeMsg(WOLFSSL* ssl, byte* input, word32 inputSz,
             int dataSz = (int)fragSz;
 #ifdef WOLFSSL_DTLS
             if (ssl->options.dtls) {
+                if (fragSz + DTLS_HANDSHAKE_HEADER_SZ > (word32)MAX_RECORD_SIZE)
+                    return BUFFER_E;
                 data   -= DTLS_HANDSHAKE_HEADER_SZ;
                 dataSz += DTLS_HANDSHAKE_HEADER_SZ;
                 AddHandShakeHeader(data, inputSz, ssl->fragOffset, fragSz,
