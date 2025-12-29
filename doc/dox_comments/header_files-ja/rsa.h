@@ -307,8 +307,8 @@ int  wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out,
 
     \brief メッセージがRSAキーによって署名されたことを検証するために使用されます。出力は入力と同じバイト配列を使用します。
 
-    \return >0 テキストの長さ。
-    \return <0 エラーが発生しました。
+    \return `>0` ダイジェストの長さ。
+    \return `<0` エラーが発生しました。
 
     \param in 復号されるバイト配列。
     \param inLen 入力バッファの長さ。
@@ -344,7 +344,7 @@ int  wc_RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out,
 
     \brief メッセージがキーによって署名されたことを検証するために使用されます。
 
-    \return Success エラーがない場合のテキストの長さ。
+    \return Success エラーがない場合のダイジェストの長さ。
     \return MEMORY_E メモリ例外。
 
     \param in 復号されるバイト配列。
