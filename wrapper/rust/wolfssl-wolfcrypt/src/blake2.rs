@@ -23,6 +23,8 @@ This module provides a Rust wrapper for the wolfCrypt library's BLAKE2
 functionality.
 */
 
+#![cfg(any(blake2b, blake2s))]
+
 use crate::sys;
 use std::mem::MaybeUninit;
 
