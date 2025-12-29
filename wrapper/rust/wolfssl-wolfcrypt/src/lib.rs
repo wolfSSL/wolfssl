@@ -22,6 +22,7 @@
 pub mod sys;
 
 pub mod aes;
+pub mod blake2;
 pub mod cmac;
 pub mod dh;
 pub mod ecc;
