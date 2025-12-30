@@ -18073,6 +18073,16 @@ int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     }
 #endif
 
+#if !defined(HAVE_SECURE_RENEGOTIATION)
+    if (ssl->options.handShakeState == HANDSHAKE_DONE && type == client_hello &&
+                ssl->options.side == WOLFSSL_SERVER_END){
+        WOLFSSL_MSG("Renegotiation request rejected");
+        SendAlert(ssl, alert_fatal, no_renegotiation);
+        WOLFSSL_ERROR_VERBOSE(SECURE_RENEGOTIATION_E);
+        return SECURE_RENEGOTIATION_E;
+    }
+#endif
+
     if (ssl->options.handShakeState == HANDSHAKE_DONE && type != hello_request){
         WOLFSSL_MSG("HandShake message after handshake complete");
         SendAlert(ssl, alert_fatal, unexpected_message);
