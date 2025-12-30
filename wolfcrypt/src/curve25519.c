@@ -75,8 +75,9 @@ const curve25519_set_type curve25519_sets[] = {
     }
 };
 
-#if !defined(WOLFSSL_CURVE25519_USE_ED25519) || \
-    defined(WOLFSSL_CURVE25519_BLINDING)
+#if (!defined(WOLFSSL_CURVE25519_USE_ED25519) && \
+     !(defined(CURVED25519_X64) || (defined(WOLFSSL_ARMASM) && \
+     defined(__aarch64__)))) || defined(WOLFSSL_CURVE25519_BLINDING)
 static const word32 kCurve25519BasePoint[CURVE25519_KEYSIZE/sizeof(word32)] = {
 #ifdef BIG_ENDIAN_ORDER
     0x09000000
