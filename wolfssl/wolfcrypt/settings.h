@@ -3934,6 +3934,11 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_HAVE_MAX
 #endif
 
+#if defined(WOLFSSL_KERNEL_MODE) && !defined(WC_NO_VERBOSE_RNG) && \
+    !defined(WC_VERBOSE_RNG)
+    #define WC_VERBOSE_RNG
+#endif
+
 #if defined(WC_SYM_RELOC_TABLES) && defined(HAVE_FIPS) && \
     !defined(WC_PIE_RELOC_TABLES)
     /* backward compat */

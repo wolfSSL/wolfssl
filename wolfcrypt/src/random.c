@@ -369,6 +369,11 @@ static int Hash_df(DRBG_internal* drbg, byte* out, word32 outSz, byte type,
     XFREE(digest, drbg->heap, DYNAMIC_TYPE_DIGEST);
 #endif
 
+#ifdef WC_VERBOSE_RNG
+    if (ret != 0)
+        WOLFSSL_DEBUG_PRINTF("%s failed with err = %d", __FUNCTION__, ret);
+#endif
+
     return (ret == 0) ? DRBG_SUCCESS : DRBG_FAILURE;
 }
 
@@ -406,6 +411,12 @@ static int Hash_DRBG_Reseed(DRBG_internal* drbg, const byte* seed, word32 seedSz
 #ifndef WOLFSSL_SMALL_STACK_CACHE
     WC_FREE_VAR_EX(newV, drbg->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
+
+    #ifdef WC_VERBOSE_RNG
+    if (ret != 0)
+        WOLFSSL_DEBUG_PRINTF("Hash_DRBG_Reseed failed with err %d.", ret);
+    #endif
+
     return ret;
 }
 
@@ -525,6 +536,11 @@ static int Hash_gen(DRBG_internal* drbg, byte* out, word32 outSz, const byte* V)
     WC_FREE_VAR_EX(data, drbg->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
+    #ifdef WC_VERBOSE_RNG
+    if ((ret != DRBG_SUCCESS) && (ret != DRBG_FAILURE))
+        WOLFSSL_DEBUG_PRINTF("Hash_gen failed with err %d.", ret);
+    #endif
+
     return (ret == 0) ? DRBG_SUCCESS : DRBG_FAILURE;
 }
 
@@ -635,6 +651,11 @@ static int Hash_DRBG_Generate(DRBG_internal* drbg, byte* out, word32 outSz)
     #endif
     }
 
+    #ifdef WC_VERBOSE_RNG
+    if ((ret != DRBG_SUCCESS) && (ret != DRBG_FAILURE))
+        WOLFSSL_DEBUG_PRINTF("Hash_DRBG_Generate failed with err %d.", ret);
+    #endif
+
     return (ret == 0) ? DRBG_SUCCESS : DRBG_FAILURE;
 }
 
@@ -722,6 +743,9 @@ int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
                             seed + seedIdx + scratchSz,
                             (int)scratchSz) == 0) {
 
+    #ifdef WC_VERBOSE_RNG
+            WOLFSSL_DEBUG_PRINTF("wc_RNG_TestSeed() returning DRBG_CONT_FAILURE on duplicate word32,");
+    #endif
             ret = DRBG_CONT_FAILURE;
         }
         seedIdx += SEED_BLOCK_SZ;
@@ -926,6 +950,9 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
             else {
                 ret = seedCb(&rng->seed, seed, seedSz);
                 if (ret != 0) {
+#ifdef WC_VERBOSE_RNG
+                    WOLFSSL_DEBUG_PRINTF("seedCb in _InitRng() failed with err = %d", ret);
+#endif
                     ret = DRBG_FAILURE;
                 }
             }
@@ -935,6 +962,8 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
             if (ret != 0) {
     #if defined(DEBUG_WOLFSSL)
                 WOLFSSL_MSG_EX("Seed generation failed... %d", ret);
+    #elif defined(WC_VERBOSE_RNG)
+                WOLFSSL_DEBUG_PRINTF("wc_GenerateSeed() in _InitRng() failed with err %d", ret);
     #endif
                 ret = DRBG_FAILURE;
                 rng->status = DRBG_FAILED;
@@ -1004,6 +1033,7 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
         ret = RNG_FAILURE_E;
     }
     else {
+    if ((ret != DRBG_SUCCESS) && (ret != DRBG_FAILURE))
         rng->status = DRBG_FAILED;
     }
 #endif /* HAVE_HASHDRBG */
@@ -1120,15 +1150,22 @@ static int PollAndReSeed(WC_RNG* rng)
             else {
                 ret = seedCb(&rng->seed, newSeed, SEED_SZ + SEED_BLOCK_SZ);
                 if (ret != 0) {
+    #ifdef WC_VERBOSE_RNG
+                    WOLFSSL_DEBUG_PRINTF("seedCb() in PollAndReSeed() failed with err %d", ret);
+    #endif
                     ret = DRBG_FAILURE;
                 }
             }
         #else
             ret = wc_GenerateSeed(&rng->seed, newSeed,
                               SEED_SZ + SEED_BLOCK_SZ);
-        #endif
-            if (ret != 0)
+            if (ret != 0) {
+    #ifdef WC_VERBOSE_RNG
+                WOLFSSL_DEBUG_PRINTF("wc_GenerateSeed() in PollAndReSeed() failed with err %d", ret);
+    #endif
                 ret = DRBG_FAILURE;
+            }
+        #endif
         }
         if (ret == DRBG_SUCCESS)
             ret = wc_RNG_TestSeed(newSeed, SEED_SZ + SEED_BLOCK_SZ);
@@ -1202,6 +1239,10 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
 #ifdef CUSTOM_RAND_GENERATE_BLOCK
     XMEMSET(output, 0, sz);
     ret = (int)CUSTOM_RAND_GENERATE_BLOCK(output, sz);
+    #ifdef WC_VERBOSE_RNG
+    if (ret != 0)
+        WOLFSSL_DEBUG_PRINTF("CUSTOM_RAND_GENERATE_BLOCK failed with err %d.", ret);
+    #endif
 #else
 
 #ifdef HAVE_HASHDRBG
