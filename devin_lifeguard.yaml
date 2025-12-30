@@ -52,12 +52,17 @@ rules:
       variables to minimize stack usage within the function.
   - name: prefer-constant-time
     trigger: >-
-      For private key based asymmetric algorithms implement in constant time
-      to prevent timing attacks and ensure security.
+      Any code handling secret or private key data (symmetric or asymmetric)
+      must be implemented in constant time. This includes cryptographic
+      operations, key comparisons, and encoding/decoding operations (base64,
+      hex, etc.) when processing secrets. Use constant-time implementations
+      by default for all secret data since tracking when timing attacks are
+      strictly possible is error-prone.
     solution: >-
-      Review and refactor algorithms to ensure their execution time does not
-      depend on input values. Use constant-time libraries or functions where
-      applicable.
+      Review and refactor code to ensure execution time does not depend on
+      secret values. Use constant-time functions such as ConstantCompare()
+      for comparisons and avoid early-exit conditions based on secret data.
+      When in doubt, assume constant-time handling is required.
   - name: use-sizeof
     trigger: >-
       Avoid hard-coded numeric values for sizes. Use `sizeof()` to ensure
@@ -154,4 +159,3 @@ rules:
       WOLFSSL_API. For functions local to the library but not static, use
       WOLFSSL_LOCAL and prefix the function name with wolfssl_local_ or wc_local_
       to clearly indicate internal usage.
-  -
