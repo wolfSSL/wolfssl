@@ -990,6 +990,10 @@ static inline void wc_linuxkm_drbg_ctx_clear(struct wc_linuxkm_drbg_ctx * ctx)
 
 static volatile int wc_linuxkm_drbg_init_tfm_disable_vector_registers = 0;
 
+#ifndef WC_LINUXKM_INITRNG_TIMEOUT_SEC
+    #define WC_LINUXKM_INITRNG_TIMEOUT_SEC 30
+#endif
+
 static int wc_linuxkm_drbg_init_tfm(struct crypto_tfm *tfm)
 {
     struct wc_linuxkm_drbg_ctx *ctx = (struct wc_linuxkm_drbg_ctx *)crypto_tfm_ctx(tfm);
@@ -1007,19 +1011,35 @@ static int wc_linuxkm_drbg_init_tfm(struct crypto_tfm *tfm)
     XMEMSET(ctx->rngs, 0, sizeof(*ctx->rngs) * ctx->n_rngs);
 
     for (i = 0; i < ctx->n_rngs; ++i) {
-        ctx->rngs[i].lock = 0;
-        if (wc_linuxkm_drbg_init_tfm_disable_vector_registers)
-            need_reenable_vec = (DISABLE_VECTOR_REGISTERS() == 0);
-        ret = wc_InitRng(&ctx->rngs[i].rng);
-        if (need_reenable_vec)
-            REENABLE_VECTOR_REGISTERS();
+        int nretries = 0;
+        u64 ts1 = ktime_get_ns();
+        for (;;) {
+            u64 ts2;
+            if (wc_linuxkm_drbg_init_tfm_disable_vector_registers)
+                need_reenable_vec = (DISABLE_VECTOR_REGISTERS() == 0);
+            ret = wc_InitRng(&ctx->rngs[i].rng);
+            if (need_reenable_vec)
+                REENABLE_VECTOR_REGISTERS();
+            if (can_sleep)
+                cond_resched();
+            if (ret == 0)
+                break;
+            if (can_sleep) {
+                if (WC_CHECK_FOR_INTR_SIGNALS() == INTERRUPTED_E) {
+                    ret = -EINTR;
+                    break;
+                }
+            }
+            ts2 = ktime_get_ns();
+            if (ts2 - ts1 > 1000000000L * WC_LINUXKM_INITRNG_TIMEOUT_SEC)
+                break;
+            ++nretries;
+        }
         if (ret != 0) {
-            pr_warn_once("WARNING: wc_InitRng returned %d\n",ret);
+            pr_warn("WARNING: wc_InitRng returned %d after %d retries.\n",ret,nretries);
             ret = -EINVAL;
             break;
         }
-        if (can_sleep)
-            cond_resched();
     }
 
     if (ret != 0) {
