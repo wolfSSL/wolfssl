@@ -156,6 +156,10 @@ struct OS_Seed {
         ProviderHandle handle;
     #else
         int fd;
+    #if defined(WOLFSSL_KEEP_RNG_SEED_FD_OPEN)
+        WC_BITFIELD seedFdOpen:1;
+        WC_BITFIELD keepSeedFdOpen:1;
+    #endif
     #endif
     #if defined(WOLF_CRYPTO_CB)
         int devId;

@@ -855,6 +855,11 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
     }
 #endif
 
+#if defined(WOLFSSL_KEEP_RNG_SEED_FD_OPEN) && !defined(USE_WINDOWS_API)
+    if (!rng->seed.seedFdOpen)
+        rng->seed.fd = XBADFD;
+#endif
+
 #ifdef CUSTOM_RAND_GENERATE_BLOCK
     ret = 0; /* success */
 #else
@@ -1357,6 +1362,15 @@ int wc_FreeRng(WC_RNG* rng)
     /* don't overwrite previously set error */
     if (wc_VersalTrngReset() && !ret)
         ret = WC_HW_E;
+#endif
+
+#if defined(WOLFSSL_KEEP_RNG_SEED_FD_OPEN) && defined(XCLOSE) && \
+    !defined(USE_WINDOWS_API)
+    if(rng->seed.seedFdOpen && rng->seed.fd != XBADFD) {
+        XCLOSE(rng->seed.fd);
+        rng->seed.fd = XBADFD;
+        rng->seed.seedFdOpen = 0;
+    }
 #endif
 
     return ret;
@@ -3553,25 +3567,55 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     #endif
 
 #ifndef NO_FILESYSTEM
-    #ifndef NO_DEV_URANDOM /* way to disable use of /dev/urandom */
+    #ifdef WOLFSSL_KEEP_RNG_SEED_FD_OPEN
+        if (!os->seedFdOpen)
+        {
+        #ifndef NO_DEV_URANDOM /* way to disable use of /dev/urandom */
+            os->fd = open("/dev/urandom", O_RDONLY);
+            #if defined(DEBUG_WOLFSSL)
+                WOLFSSL_MSG("opened /dev/urandom.");
+            #endif /* DEBUG_WOLFSSL */
+            if (os->fd == XBADFD)
+        #endif /* NO_DEV_URANDOM */
+            {
+                /* may still have /dev/random */
+                os->fd = open("/dev/random", O_RDONLY);
+            #if defined(DEBUG_WOLFSSL)
+                WOLFSSL_MSG("opened /dev/random.");
+            #endif /* DEBUG_WOLFSSL */
+                if (os->fd == XBADFD)
+                    return OPEN_RAN_E;
+                else {
+                    os->keepSeedFdOpen = 0;
+                    os->seedFdOpen = 1;
+                }
+            }
+            else {
+                os->keepSeedFdOpen = 1;
+                os->seedFdOpen = 1;
+            }
+        }
+    #else /* WOLFSSL_KEEP_RNG_SEED_FD_OPEN */
+        #ifndef NO_DEV_URANDOM /* way to disable use of /dev/urandom */
         os->fd = open("/dev/urandom", O_RDONLY);
         #if defined(DEBUG_WOLFSSL)
             WOLFSSL_MSG("opened /dev/urandom.");
-        #endif
-        if (os->fd == -1)
-    #endif
+        #endif /* DEBUG_WOLFSSL */
+        if (os->fd == XBADFD)
+        #endif /* !NO_DEV_URANDOM */
         {
             /* may still have /dev/random */
             os->fd = open("/dev/random", O_RDONLY);
-    #if defined(DEBUG_WOLFSSL)
+        #if defined(DEBUG_WOLFSSL)
             WOLFSSL_MSG("opened /dev/random.");
-    #endif
-            if (os->fd == -1)
+        #endif /* DEBUG_WOLFSSL */
+            if (os->fd == XBADFD)
                 return OPEN_RAN_E;
         }
+    #endif /* WOLFSSL_KEEP_RNG_SEED_FD_OPEN */
     #if defined(DEBUG_WOLFSSL)
         WOLFSSL_MSG("rnd read...");
-    #endif
+    #endif /* DEBUG_WOLFSSL */
         while (sz) {
             int len = (int)read(os->fd, output, sz);
             if (len == -1) {
@@ -3588,11 +3632,20 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     #else
                 ret = RAN_BLOCK_E;
                 break;
-    #endif
+    #endif /* BLOCKING || WC_RNG_BLOCKING */
             }
         }
+    #ifdef WOLFSSL_KEEP_RNG_SEED_FD_OPEN
+        if (!os->keepSeedFdOpen && os->seedFdOpen)
+        {
+            close(os->fd);
+            os->fd = -1;
+            os->seedFdOpen = 0;
+        }
+    #else
         close(os->fd);
-#else
+    #endif /* WOLFSSL_KEEP_RNG_SEED_FD_OPEN */
+#else /* NO_FILESYSTEM */
         (void)output;
         (void)sz;
         ret = NOT_COMPILED_IN;
