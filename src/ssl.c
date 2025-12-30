@@ -4215,6 +4215,30 @@ long wolfSSL_SSL_get_secure_renegotiation_support(WOLFSSL* ssl)
 
 #endif /* HAVE_SECURE_RENEGOTIATION_INFO */
 
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(WOLFSSL_HARDEN_TLS) && !defined(WOLFSSL_HARDEN_TLS_NO_SCR_CHECK)
+WOLFSSL_API int wolfSSL_get_scr_check_enabled(WOLFSSL* ssl)
+{
+    WOLFSSL_ENTER("wolfSSL_get_scr_check_enabled");
+
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    return ssl->scr_check_enabled;
+}
+
+WOLFSSL_API int wolfSSL_set_scr_check_enabled(WOLFSSL* ssl, byte enabled)
+{
+    WOLFSSL_ENTER("wolfSSL_set_scr_check_enabled");
+
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    ssl->scr_check_enabled = !!enabled;
+    return WOLFSSL_SUCCESS;
+}
+#endif
+
 #if defined(HAVE_SESSION_TICKET)
 /* Session Ticket */
 

@@ -7850,6 +7850,10 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 
     ssl->disabledCurves = ctx->disabledCurves;
 #endif
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(WOLFSSL_HARDEN_TLS) && !defined(WOLFSSL_HARDEN_TLS_NO_SCR_CHECK)
+    ssl->scr_check_enabled = 1;
+#endif
 
     InitCiphers(ssl);
     InitCipherSpecs(&ssl->specs);
@@ -31666,8 +31670,8 @@ static int DhSetKey(WOLFSSL* ssl)
 #endif /* HAVE_TLS_EXTENSIONS */
 
 #if defined(WOLFSSL_HARDEN_TLS) && !defined(WOLFSSL_HARDEN_TLS_NO_SCR_CHECK)
-        if (ssl->secure_renegotiation == NULL ||
-                !ssl->secure_renegotiation->enabled) {
+        if (ssl->scr_check_enabled && (ssl->secure_renegotiation == NULL ||
+                !ssl->secure_renegotiation->enabled)) {
             /* If the server does not acknowledge the extension, the client
              * MUST generate a fatal handshake_failure alert prior to
              * terminating the connection.
