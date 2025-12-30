@@ -349,7 +349,7 @@ package body Tls_Server with SPARK_Mode is
          if not WolfSSL.Is_Valid (Ssl) then
             Put_Line ("ERROR: failed to create WOLFSSL object.");
             declare
-               Error_Message : WolfSSL.Error_Message;
+               Error_Message : WolfSSL.Error_Message := (Text => (others => ' '), Last => 0);
             begin
                WolfSSL.Error (WolfSSL.Get_Error (Ssl, Result),
                               Message => Error_Message);

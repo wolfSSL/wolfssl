@@ -112,7 +112,7 @@ package body Tls_Client with SPARK_Mode is
 
    procedure Put (Number : Natural)
    with
-     Always_Terminates => False
+     Annotate => (GNATprove, Might_Not_Return)
    is
    begin
       Natural_IO.Put (Item => Number, Width => 0, Base => 10);
@@ -120,7 +120,7 @@ package body Tls_Client with SPARK_Mode is
 
    procedure Put (Number : Byte_Index)
    with
-     Always_Terminates => False
+     Annotate => (GNATprove, Might_Not_Return)
    is
    begin
       Natural_IO.Put (Item => Natural (Number), Width => 0, Base => 10);
