@@ -81,14 +81,15 @@ impl Curve25519Key {
         if rc != 0 {
             return Err(rc);
         }
-        let mut wc_key = unsafe { wc_key.assume_init() };
+        let wc_key = unsafe { wc_key.assume_init() };
+        let mut curve25519key = Curve25519Key { wc_key };
         let rc = unsafe {
-            sys::wc_curve25519_make_key(&mut rng.wc_rng, Self::KEYSIZE as i32, &mut wc_key)
+            sys::wc_curve25519_make_key(&mut rng.wc_rng, Self::KEYSIZE as i32,
+                &mut curve25519key.wc_key)
         };
         if rc != 0 {
             return Err(rc);
         }
-        let curve25519key = Curve25519Key { wc_key };
         Ok(curve25519key)
     }
 
@@ -134,15 +135,16 @@ impl Curve25519Key {
         if rc != 0 {
             return Err(rc);
         }
-        let mut wc_key = unsafe { wc_key.assume_init() };
+        let wc_key = unsafe { wc_key.assume_init() };
+        let mut curve25519key = Curve25519Key { wc_key };
         let private_size = private.len() as u32;
         let rc = unsafe {
-            sys::wc_curve25519_import_private(private.as_ptr(), private_size, &mut wc_key)
+            sys::wc_curve25519_import_private(private.as_ptr(), private_size,
+                &mut curve25519key.wc_key)
         };
         if rc != 0 {
             return Err(rc);
         }
-        let curve25519key = Curve25519Key { wc_key };
         Ok(curve25519key)
     }
 
@@ -165,17 +167,17 @@ impl Curve25519Key {
         if rc != 0 {
             return Err(rc);
         }
-        let mut wc_key = unsafe { wc_key.assume_init() };
+        let wc_key = unsafe { wc_key.assume_init() };
+        let mut curve25519key = Curve25519Key { wc_key };
         let private_size = private.len() as u32;
         let endian = if big_endian {sys::EC25519_BIG_ENDIAN} else {sys::EC25519_LITTLE_ENDIAN};
         let rc = unsafe {
             sys::wc_curve25519_import_private_ex(private.as_ptr(),
-                private_size, &mut wc_key, endian as i32)
+                private_size, &mut curve25519key.wc_key, endian as i32)
         };
         if rc != 0 {
             return Err(rc);
         }
-        let curve25519key = Curve25519Key { wc_key };
         Ok(curve25519key)
     }
 
@@ -198,17 +200,18 @@ impl Curve25519Key {
         if rc != 0 {
             return Err(rc);
         }
-        let mut wc_key = unsafe { wc_key.assume_init() };
+        let wc_key = unsafe { wc_key.assume_init() };
+        let mut curve25519key = Curve25519Key { wc_key };
         let private_size = private.len() as u32;
         let public_size = public.len() as u32;
         let rc = unsafe {
             sys::wc_curve25519_import_private_raw(private.as_ptr(),
-                private_size, public.as_ptr(), public_size, &mut wc_key)
+                private_size, public.as_ptr(), public_size,
+                &mut curve25519key.wc_key)
         };
         if rc != 0 {
             return Err(rc);
         }
-        let curve25519key = Curve25519Key { wc_key };
         Ok(curve25519key)
     }
 
@@ -232,19 +235,19 @@ impl Curve25519Key {
         if rc != 0 {
             return Err(rc);
         }
-        let mut wc_key = unsafe { wc_key.assume_init() };
+        let wc_key = unsafe { wc_key.assume_init() };
+        let mut curve25519key = Curve25519Key { wc_key };
         let private_size = private.len() as u32;
         let public_size = public.len() as u32;
         let endian = if big_endian {sys::EC25519_BIG_ENDIAN} else {sys::EC25519_LITTLE_ENDIAN};
         let rc = unsafe {
             sys::wc_curve25519_import_private_raw_ex(private.as_ptr(),
-                private_size, public.as_ptr(), public_size, &mut wc_key,
-                endian as i32)
+                private_size, public.as_ptr(), public_size,
+                &mut curve25519key.wc_key, endian as i32)
         };
         if rc != 0 {
             return Err(rc);
         }
-        let curve25519key = Curve25519Key { wc_key };
         Ok(curve25519key)
     }
 
@@ -266,15 +269,16 @@ impl Curve25519Key {
         if rc != 0 {
             return Err(rc);
         }
-        let mut wc_key = unsafe { wc_key.assume_init() };
+        let wc_key = unsafe { wc_key.assume_init() };
+        let mut curve25519key = Curve25519Key { wc_key };
         let public_size = public.len() as u32;
         let rc = unsafe {
-            sys::wc_curve25519_import_public(public.as_ptr(), public_size, &mut wc_key)
+            sys::wc_curve25519_import_public(public.as_ptr(), public_size,
+                &mut curve25519key.wc_key)
         };
         if rc != 0 {
             return Err(rc);
         }
-        let curve25519key = Curve25519Key { wc_key };
         Ok(curve25519key)
     }
 
@@ -297,17 +301,17 @@ impl Curve25519Key {
         if rc != 0 {
             return Err(rc);
         }
-        let mut wc_key = unsafe { wc_key.assume_init() };
+        let wc_key = unsafe { wc_key.assume_init() };
+        let mut curve25519key = Curve25519Key { wc_key };
         let public_size = public.len() as u32;
         let endian = if big_endian {sys::EC25519_BIG_ENDIAN} else {sys::EC25519_LITTLE_ENDIAN};
         let rc = unsafe {
             sys::wc_curve25519_import_public_ex(public.as_ptr(), public_size,
-                &mut wc_key, endian as i32)
+                &mut curve25519key.wc_key, endian as i32)
         };
         if rc != 0 {
             return Err(rc);
         }
-        let curve25519key = Curve25519Key { wc_key };
         Ok(curve25519key)
     }
 
