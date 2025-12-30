@@ -752,10 +752,6 @@ int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
         if (ConstantCompare(seed + seedIdx,
                             seed + seedIdx + scratchSz,
                             (int)scratchSz) == 0) {
-
-    #ifdef WC_VERBOSE_RNG
-            WOLFSSL_DEBUG_PRINTF("wc_RNG_TestSeed() returning DRBG_CONT_FAILURE on duplicate word32,");
-    #endif
             ret = DRBG_CONT_FAILURE;
         }
         seedIdx += SEED_BLOCK_SZ;
@@ -985,7 +981,12 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
             if (ret != 0) {
                 WOLFSSL_MSG_EX("wc_RNG_TestSeed failed... %d", ret);
             }
+    #elif defined(WC_VERBOSE_RNG)
+            if (ret != DRBG_SUCCESS) {
+                WOLFSSL_DEBUG_PRINTF("wc_RNG_TestSeed() in _InitRng() returned err %d.", ret);
+            }
     #endif
+
             if (ret == DRBG_SUCCESS)
                 ret = Hash_DRBG_Instantiate((DRBG_internal *)rng->drbg,
             #if defined(HAVE_FIPS) || !defined(WOLFSSL_RNG_USE_FULL_SEED)
@@ -1176,9 +1177,13 @@ static int PollAndReSeed(WC_RNG* rng)
             }
         #endif
         }
-        if (ret == DRBG_SUCCESS)
+        if (ret == DRBG_SUCCESS) {
             ret = wc_RNG_TestSeed(newSeed, SEED_SZ + SEED_BLOCK_SZ);
-
+    #ifdef WC_VERBOSE_RNG
+            if (ret != DRBG_SUCCESS)
+                WOLFSSL_DEBUG_PRINTF("wc_RNG_TestSeed() in PollAndReSeed() returned err %d.", ret);
+    #endif
+        }
         if (ret == DRBG_SUCCESS)
             ret = Hash_DRBG_Reseed((DRBG_internal *)rng->drbg,
                                    newSeed + SEED_BLOCK_SZ, SEED_SZ);
