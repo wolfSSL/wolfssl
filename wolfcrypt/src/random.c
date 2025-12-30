@@ -537,8 +537,16 @@ static int Hash_gen(DRBG_internal* drbg, byte* out, word32 outSz, const byte* V)
 #endif
 
     #ifdef WC_VERBOSE_RNG
-    if ((ret != DRBG_SUCCESS) && (ret != DRBG_FAILURE))
+    if ((ret != DRBG_SUCCESS) && (ret != DRBG_FAILURE)) {
+        /* Note, if we're just going to return DRBG_FAILURE to the caller, then
+         * there's no point printing it out here because (1) the lower-level
+         * code that was remapped to DRBG_FAILURE already got printed before the
+         * remapping, so a DRBG_FAILURE message would just be spamming the log,
+         * and (2) the caller will actually see the DRBG_FAILURE code, and is
+         * free to (and probably will) log it itself.
+         */
         WOLFSSL_DEBUG_PRINTF("Hash_gen failed with err %d.", ret);
+    }
     #endif
 
     return (ret == 0) ? DRBG_SUCCESS : DRBG_FAILURE;
@@ -652,8 +660,10 @@ static int Hash_DRBG_Generate(DRBG_internal* drbg, byte* out, word32 outSz)
     }
 
     #ifdef WC_VERBOSE_RNG
-    if ((ret != DRBG_SUCCESS) && (ret != DRBG_FAILURE))
+    if ((ret != DRBG_SUCCESS) && (ret != DRBG_FAILURE)) {
+        /* see note above regarding log spam reduction */
         WOLFSSL_DEBUG_PRINTF("Hash_DRBG_Generate failed with err %d.", ret);
+    }
     #endif
 
     return (ret == 0) ? DRBG_SUCCESS : DRBG_FAILURE;
@@ -1033,7 +1043,6 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
         ret = RNG_FAILURE_E;
     }
     else {
-    if ((ret != DRBG_SUCCESS) && (ret != DRBG_FAILURE))
         rng->status = DRBG_FAILED;
     }
 #endif /* HAVE_HASHDRBG */

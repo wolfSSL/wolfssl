@@ -1020,11 +1020,20 @@ static int wc_linuxkm_drbg_init_tfm(struct crypto_tfm *tfm)
             ret = wc_InitRng(&ctx->rngs[i].rng);
             if (need_reenable_vec)
                 REENABLE_VECTOR_REGISTERS();
-            if (can_sleep)
+            if (can_sleep) {
+                /* if we're allowed to sleep, relax the loop between each inner
+                 * iteration even on success, assuring relaxation of the outer
+                 * iterations.
+                 */
                 cond_resched();
+            }
             if (ret == 0)
                 break;
             if (can_sleep) {
+                /* Allow interrupt only if we're stuck spinning retries -- i.e.,
+                 * don't allow an untimely user signal to derail an
+                 * initialization that is proceeding expeditiously.
+                 */
                 if (WC_CHECK_FOR_INTR_SIGNALS() == WC_NO_ERR_TRACE(INTERRUPTED_E)) {
                     ret = -EINTR;
                     break;
@@ -1036,7 +1045,7 @@ static int wc_linuxkm_drbg_init_tfm(struct crypto_tfm *tfm)
             ++nretries;
         }
         if (ret != 0) {
-            pr_warn("WARNING: wc_InitRng returned %d after %d retries.\n",ret,nretries);
+            pr_warn("WARNING: wc_InitRng returned %d after %d retries.\n", ret, nretries);
             ret = -EINVAL;
             break;
         }
