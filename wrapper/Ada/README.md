@@ -62,6 +62,8 @@ ecosystem.  The latest version is available for Windows, OSX, Linux and FreeBSD
 systems.  It can install a complete Ada toolchain if needed, see `alr install`
 for more information.
 
+**Note:** If you encounter a missing dependency error, it may be caused by the installed dependency being too old. In this case, either install a newer toolchain or decrease the required dependency version in your project.
+
 In order to use WolfSSL in a project, just add WolfSSL as a dependency by
 running `alr with wolfssl` within your project's directory.
 
