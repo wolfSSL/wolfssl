@@ -1025,7 +1025,7 @@ static int wc_linuxkm_drbg_init_tfm(struct crypto_tfm *tfm)
             if (ret == 0)
                 break;
             if (can_sleep) {
-                if (WC_CHECK_FOR_INTR_SIGNALS() == INTERRUPTED_E) {
+                if (WC_CHECK_FOR_INTR_SIGNALS() == WC_NO_ERR_TRACE(INTERRUPTED_E)) {
                     ret = -EINTR;
                     break;
                 }
