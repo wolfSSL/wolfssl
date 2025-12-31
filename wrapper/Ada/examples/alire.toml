@@ -9,4 +9,10 @@ licenses = "GPL-3.0-or-later"
 website = "https://www.wolfssl.com/"
 tags = []
 
-executables = ["examples"]
+executables = [
+    "aes_verify_main",
+    "rsa_verify_main",
+    "sha256_main",
+    "tls_client_main",
+    "tls_server_main"
+]
