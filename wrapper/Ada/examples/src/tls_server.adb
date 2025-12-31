@@ -94,9 +94,9 @@ package body Tls_Server with SPARK_Mode is
 
    Any_Inet_Addr : Inet_Addr_Type renames SPARK_Sockets.Any_Inet_Addr;
 
-   CERT_FILE : constant String := "../../certs/server-cert.pem";
-   KEY_FILE  : constant String := "../../certs/server-key.pem";
-   CA_FILE   : constant String := "../../certs/client-cert.pem";
+   CERT_FILE : constant String := "../../../certs/server-cert.pem";
+   KEY_FILE  : constant String := "../../../certs/server-key.pem";
+   CA_FILE   : constant String := "../../../certs/client-cert.pem";
 
    subtype Byte_Array is WolfSSL.Byte_Array;
 
@@ -324,7 +324,7 @@ package body Tls_Server with SPARK_Mode is
             (Context  => Ctx,
              Callback => PSK_Server_Callback'Access);
       end if;
-               
+
       while Shall_Continue loop
          pragma Loop_Invariant (not C.Exists);
          pragma Loop_Invariant (not WolfSSL.Is_Valid (Ssl));
