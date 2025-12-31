@@ -37,11 +37,15 @@
     #include <sys/limits.h>
 #endif /* !CHAR_BIT*/
 
+#define NO_THREAD_LS
+#define NO_ATTRIBUTE_CONSTRUCTOR
+
 /* needed to prevent wolfcrypt/src/asn.c version shadowing
  * extern global version from /usr/src/sys/sys/systm.h */
 #define version wc_version
 
-#define wc_km_printf printf
+#define wc_km_printf    printf
+#define wc_km_print_err printf
 
 /* str and char utility functions */
 #define XATOI(s) ({                                         \
@@ -51,7 +55,7 @@
         _xatoi_ret = 0;                                     \
       }                                                     \
       (int)_xatoi_ret;                                      \
-    })
+})
 
 #if !defined(XMALLOC_OVERRIDE)
     #error bsdkm requires XMALLOC_OVERRIDE
@@ -60,20 +64,44 @@
 /* use malloc and free from /usr/include/sys/malloc.h */
 extern struct malloc_type M_WOLFSSL[1];
 
-#define XMALLOC(s, h, t) \
-    ({(void)(h); (void)(t); malloc(s, M_WOLFSSL, M_WAITOK | M_ZERO);})
+#if defined(WOLFSSL_BSDKM_MEMORY_DEBUG)
+    #define XMALLOC(s, h, t) ({                                              \
+        (void)(h); (void)(t);                                                \
+        void * _ptr = malloc(s, M_WOLFSSL, M_WAITOK | M_ZERO);               \
+        printf("info: malloc: %p, M_WOLFSSL, %zu\n", _ptr, (size_t) s);      \
+        (void *)_ptr;                                                        \
+    })
 
-#ifdef WOLFSSL_XFREE_NO_NULLNESS_CHECK
-    #define XFREE(p, h, t) \
-        ({(void)(h); (void)(t); free(p, M_WOLFSSL);})
+    #define XFREE(p, h, t) ({                                                \
+        void* _xp; (void)(h); (void)(t); _xp = (p);                          \
+        printf("info: free: %p, M_WOLFSSL\n", p);                            \
+        if(_xp) free(_xp, M_WOLFSSL);                                        \
+    })
 #else
-    #define XFREE(p, h, t) \
-        ({void* _xp; (void)(h); (void)(t); _xp = (p); \
-         if(_xp) free(_xp, M_WOLFSSL);})
-#endif
+    #define XMALLOC(s, h, t) ({                                              \
+        (void)(h); (void)(t);                                                \
+        void * _ptr = malloc(s, M_WOLFSSL, M_WAITOK | M_ZERO);               \
+        (void *)_ptr;                                                        \
+    })
+
+    #define XFREE(p, h, t) ({                                                \
+        void* _xp; (void)(h); (void)(t); _xp = (p);                          \
+        if(_xp) free(_xp, M_WOLFSSL);                                        \
+    })
+#endif /* WOLFSSL_BSDKM_DEBUG_MEMORY */
 
 #if !defined(SINGLE_THREADED)
     #define WC_MUTEX_OPS_INLINE
+
+    /* Copied from wc_port.h */
+    #if defined(HAVE_FIPS) && !defined(WOLFSSL_API_PREFIX_MAP)
+        /* For FIPS keep the function names the same */
+        #define wc_InitMutex   InitMutex
+        #define wc_FreeMutex   FreeMutex
+        #define wc_LockMutex   LockMutex
+        #define wc_UnLockMutex UnLockMutex
+        #define NO_THREAD_LS
+    #endif /* HAVE_FIPS */
 
     typedef struct wolfSSL_Mutex {
         struct mtx lock;
@@ -106,12 +134,18 @@ extern struct malloc_type M_WOLFSSL[1];
 
 #if defined(WOLFSSL_HAVE_ATOMIC_H) && !defined(WOLFSSL_NO_ATOMICS)
     #include <machine/atomic.h>
-    typedef volatile int wolfSSL_Atomic_Int;
+    typedef volatile int          wolfSSL_Atomic_Int;
     typedef volatile unsigned int wolfSSL_Atomic_Uint;
     #define WOLFSSL_ATOMIC_INITIALIZER(x) (x)
     #define WOLFSSL_ATOMIC_LOAD(x)  (int)atomic_load_acq_int(&(x))
     #define WOLFSSL_ATOMIC_STORE(x, v)  atomic_store_rel_int(&(x), (v))
     #define WOLFSSL_ATOMIC_OPS
+
+    #if defined(HAVE_FIPS)
+        /* There is no corresponding ATOMIC_INIT macro in FreeBSD.
+         * The FreeBSD equivalent is just an integer initialization. */
+        #define ATOMIC_INIT(x) (x)
+    #endif
 #endif /* WOLFSSL_HAVE_ATOMIC_H && !WOLFSSL_NO_ATOMICS */
 
 #endif /* WOLFSSL_BSDKM */

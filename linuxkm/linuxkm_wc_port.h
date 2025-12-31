@@ -1430,6 +1430,8 @@
     #endif
     #define printf(...) wc_km_printf(__VA_ARGS__)
 
+    #define wc_km_print_err pr_err
+
     #ifdef HAVE_FIPS
         extern void fipsEntry(void);
     #endif

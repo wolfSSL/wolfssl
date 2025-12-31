@@ -5,8 +5,14 @@ WOLFSSL_DIR=../
 
 CFLAGS+=-I${WOLFSSL_DIR}
 CFLAGS+=-DWOLFSSL_IGNORE_FILE_WARN -DHAVE_CONFIG_H -DNO_MAIN_DRIVER
-# debug printing
-# CFLAGS+=-DWOLFSSL_BSDKM_VERBOSE_DEBUG
+#
+# debug options
+#   verbose printing:
+#   CFLAGS+=-DWOLFSSL_BSDKM_VERBOSE_DEBUG
+#
+#   print memory mallocs / frees:
+#   CFLAGS+=-DWOLFSSL_BSDKM_MEMORY_DEBUG
+#
 CFLAGS+=$(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS)
 
 # FreeBSD make does not support GNU make's patsubst and related. Filter
