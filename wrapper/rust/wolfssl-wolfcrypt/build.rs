@@ -133,6 +133,10 @@ fn scan_cfg() -> Result<()> {
     /* cmac */
     check_cfg(&binding, "wc_InitCmac", "cmac");
 
+    /* curve25519 */
+    check_cfg(&binding, "wc_curve25519_make_pub", "curve25519");
+    check_cfg(&binding, "wc_curve25519_make_pub_blind", "curve25519_blinding");
+
     /* dh */
     check_cfg(&binding, "wc_InitDhKey", "dh");
     check_cfg(&binding, "wc_DhGenerateParams", "dh_keygen");
