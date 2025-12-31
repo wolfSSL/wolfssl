@@ -15984,3 +15984,70 @@ void wolfSSL_CTX_set_default_passwd_cb(WOLFSSL_CTX* ctx,
 */
 void wolfSSL_CTX_set_default_passwd_cb_userdata(WOLFSSL_CTX* ctx,
                                                    void* userdata);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets the state of the secure renegotiation (SCR) check requirement.
+
+    This function returns whether the client requires the server to acknowledge
+    the secure renegotiation extension and enable secure renegotiation when
+    sending it from the client. When enabled, the client will generate a fatal
+    handshake_failure alert if the server does not acknowledge the extension
+    in the ServerHello message, as required by RFC 9325.
+
+    \return 1 if the SCR check is enabled.
+    \return 0 if the SCR check is disabled.
+    \return BAD_FUNC_ARG if ssl is NULL.
+
+    \param ssl Pointer to the WOLFSSL structure, created with wolfSSL_new().
+
+    _Example_
+    \code
+    WOLFSSL* ssl;
+    int enabled;
+
+    ssl = wolfSSL_new(ctx);
+    enabled = wolfSSL_get_scr_check_enabled(ssl);
+    if (enabled) {
+        // SCR check is enabled
+    }
+    \endcode
+
+    \sa wolfSSL_set_scr_check_enabled
+*/
+byte wolfSSL_get_scr_check_enabled(WOLFSSL* ssl);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets the state of the secure renegotiation (SCR) check requirement.
+
+    This function enables or disables the requirement for the server to
+    acknowledge the secure renegotiation extension and enable secure
+    renegotiation when sending it from the client. When enabled, the client
+    will generate a fatal handshake_failure alert if the server does not
+    acknowledge the extension in the ServerHello message, as required by
+    RFC 9325.
+
+    \return WOLFSSL_SUCCESS on success.
+    \return BAD_FUNC_ARG if ssl is NULL.
+
+    \param ssl Pointer to the WOLFSSL structure, created with wolfSSL_new().
+    \param enabled Non-zero to enable the SCR check, zero to disable it.
+
+    _Example_
+    \code
+    WOLFSSL* ssl;
+    int ret;
+
+    ssl = wolfSSL_new(ctx);
+    ret = wolfSSL_set_scr_check_enabled(ssl, 1);
+    if (ret != WOLFSSL_SUCCESS) {
+        // Error setting SCR check
+    }
+    \endcode
+
+    \sa wolfSSL_get_scr_check_enabled
+*/
+int wolfSSL_set_scr_check_enabled(WOLFSSL* ssl, byte enabled);
