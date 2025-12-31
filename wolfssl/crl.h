@@ -39,8 +39,11 @@ WOLFSSL_LOCAL void FreeCRL(WOLFSSL_CRL* crl, int dynamic);
 
 WOLFSSL_LOCAL int  LoadCRL(WOLFSSL_CRL* crl, const char* path, int type,
                            int monitor);
+WOLFSSL_LOCAL int  StoreCRL(WOLFSSL_CRL* crl, const char* file, int type);
 WOLFSSL_LOCAL int  BufferLoadCRL(WOLFSSL_CRL* crl, const byte* buff, long sz,
                                  int type, int verify);
+WOLFSSL_LOCAL int  BufferStoreCRL(WOLFSSL_CRL* crl, byte* buff, long* inOutSz,
+                                  int type);
 WOLFSSL_LOCAL int  CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert);
 WOLFSSL_LOCAL int  CheckCertCRL_ex(WOLFSSL_CRL* crl, byte* issuerHash,
         byte* serial, int serialSz, byte* serialHash, const byte* extCrlInfo,
