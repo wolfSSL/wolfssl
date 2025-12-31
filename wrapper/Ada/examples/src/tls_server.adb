@@ -241,17 +241,30 @@ package body Tls_Server with SPARK_Mode is
       end if;
 
       --  Create and initialize WOLFSSL_CTX.
-      WolfSSL.Create_Context
-        (Method  =>
-           (if DTLS then
-               WolfSSL.DTLSv1_3_Server_Method
-            else
-               WolfSSL.TLSv1_3_Server_Method),
-         Context => Ctx);
+      if DTLS then
+         declare
+            Method : WolfSSL.Method_Type :=
+              WolfSSL.DTLSv1_3_Server_Method;
+         begin
+            pragma Warnings (Off, """Method"" is set by ""Create_Context"" but not used after the call");
+            WolfSSL.Create_Context (Method => Method, Context => Ctx);
+            pragma Warnings (On, """Method"" is set by ""Create_Context"" but not used after the call");
+         end;
+      else
+         declare
+            Method : WolfSSL.Method_Type :=
+              WolfSSL.TLSv1_3_Server_Method;
+         begin
+            pragma Warnings (Off, """Method"" is set by ""Create_Context"" but not used after the call");
+            WolfSSL.Create_Context (Method => Method, Context => Ctx);
+            pragma Warnings (On, """Method"" is set by ""Create_Context"" but not used after the call");
+         end;
+      end if;
 
       if not WolfSSL.Is_Valid (Ctx) then
          Put_Line ("ERROR: failed to create WOLFSSL_CTX.");
          SPARK_Sockets.Close_Socket (L);
+         WolfSSL.Free (Context => Ctx);
          Set (Exit_Status_Failure);
          return;
       end if;
@@ -363,6 +376,7 @@ package body Tls_Server with SPARK_Mode is
                SPARK_Sockets.Close_Socket (C);
             end if;
 
+            WolfSSL.Free (Ssl);
             WolfSSL.Free (Context => Ctx);
             Set (Exit_Status_Failure);
             return;

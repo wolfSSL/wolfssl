@@ -60,6 +60,11 @@ package body WolfSSL is
       return Context /= null;
    end Is_Valid;
 
+   function Is_Valid (Method : Method_Type) return Boolean is
+   begin
+      return Method /= null;
+   end Is_Valid;
+
    function WolfTLSv1_2_Server_Method return Method_Type with
      Convention    => C,
      External_Name => "wolfTLSv1_2_server_method",
@@ -144,10 +149,11 @@ package body WolfSSL is
                              return Context_Type with
      Convention => C, External_Name => "wolfSSL_CTX_new", Import => True;
 
-   procedure Create_Context (Method  : Method_Type;
+   procedure Create_Context (Method  : in out Method_Type;
                              Context : out Context_Type) is
    begin
       Context := WolfSSL_CTX_new (Method);
+      Method := null;
    end Create_Context;
 
    procedure WolfSSL_CTX_free (Context : Context_Type) with
@@ -155,7 +161,9 @@ package body WolfSSL is
 
    procedure Free (Context : in out Context_Type) is
    begin
-      WolfSSL_CTX_free (Context);
+      if Context /= null then
+         WolfSSL_CTX_free (Context);
+      end if;
       Context := null;
    end Free;
 

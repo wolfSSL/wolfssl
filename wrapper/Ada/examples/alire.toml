@@ -16,3 +16,6 @@ executables = [
     "tls_client_main",
     "tls_server_main"
 ]
+
+[[depends-on]]
+gnatprove = "^13.2.1"
