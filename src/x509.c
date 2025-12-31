@@ -9292,12 +9292,37 @@ WOLFSSL_X509_CRL* wolfSSL_d2i_X509_CRL(WOLFSSL_X509_CRL** crl,
  * return X509_NAME*  on success
  * return NULL on failure
  */
-WOLFSSL_X509_NAME* wolfSSL_X509_CRL_get_issuer_name(WOLFSSL_X509_CRL* crl)
+WOLFSSL_X509_NAME* wolfSSL_X509_CRL_get_issuer_name(const WOLFSSL_X509_CRL* crl)
 {
     if (crl == NULL || crl->crlList == NULL)
         return NULL;
 
     return crl->crlList->issuer;
+}
+
+/* Set issuer name of CRL
+ * return WOLFSSL_SUCCESS on success
+ * return WOLFSSL_FAILURE on failure
+ */
+int wolfSSL_X509_CRL_set_issuer_name(WOLFSSL_X509_CRL* crl,
+                                     const WOLFSSL_X509_NAME* name)
+{
+    WOLFSSL_X509_NAME* newName;
+
+    if (crl == NULL || crl->crlList == NULL || name == NULL)
+        return WOLFSSL_FAILURE;
+
+    newName = wolfSSL_X509_NAME_dup(name);
+    if (newName == NULL)
+        return WOLFSSL_FAILURE;
+
+    if (crl->crlList->issuer != NULL) {
+        FreeX509Name(crl->crlList->issuer);
+        XFREE(crl->crlList->issuer, crl->heap, DYNAMIC_TYPE_X509);
+    }
+    crl->crlList->issuer = newName;
+
+    return WOLFSSL_SUCCESS;
 }
 
 /* Retrieve version from CRL
@@ -9312,6 +9337,27 @@ int wolfSSL_X509_CRL_version(WOLFSSL_X509_CRL* crl)
     return crl->crlList->version;
 }
 
+/* Set version of CRL
+ * Caller passes the RFC 5280 value: 0 for v1, 1 for v2.
+ * Internally wolfSSL stores version + 1 (v1 = 1, v2 = 2) to match
+ * what ParseCRL produces, so apply the same normalization here.
+ * return WOLFSSL_SUCCESS on success
+ * return WOLFSSL_FAILURE on failure
+ */
+int wolfSSL_X509_CRL_set_version(WOLFSSL_X509_CRL* crl, long version)
+{
+    if (crl == NULL || crl->crlList == NULL)
+        return WOLFSSL_FAILURE;
+
+    /* Only v1 (0) and v2 (1) are defined by RFC 5280. */
+    if (version < 0 || version > 1)
+        return WOLFSSL_FAILURE;
+
+    /* Store as version + 1 to match internal convention. */
+    crl->crlList->version = (int)version + 1;
+    return WOLFSSL_SUCCESS;
+}
+
 /* Retrieve sig OID from CRL
  * return OID on success
  * return 0 on failure
@@ -9324,6 +9370,20 @@ int wolfSSL_X509_CRL_get_signature_type(WOLFSSL_X509_CRL* crl)
     return crl->crlList->signatureOID;
 }
 
+/* Set signature type of CRL
+ * return WOLFSSL_SUCCESS on success
+ * return WOLFSSL_FAILURE on failure
+ */
+int wolfSSL_X509_CRL_set_signature_type(WOLFSSL_X509_CRL* crl,
+                                        int signatureType)
+{
+    if (crl == NULL || crl->crlList == NULL)
+        return WOLFSSL_FAILURE;
+
+    crl->crlList->signatureOID = signatureType;
+    return WOLFSSL_SUCCESS;
+}
+
 /* Retrieve sig NID from CRL
  * return NID on success
  * return 0 on failure
@@ -9334,6 +9394,19 @@ int wolfSSL_X509_CRL_get_signature_nid(const WOLFSSL_X509_CRL* crl)
         return 0;
 
     return oid2nid(crl->crlList->signatureOID, oidSigType);
+}
+
+/* Set signature NID of CRL
+ * return OID on success
+ * return negative value on failure
+ */
+int wolfSSL_X509_CRL_set_signature_nid(WOLFSSL_X509_CRL* crl, int nid)
+{
+    if (crl == NULL || crl->crlList == NULL || nid <= 0)
+        return BAD_FUNC_ARG;
+
+    crl->crlList->signatureOID = nid2oid(nid, oidSigType);
+    return WOLFSSL_SUCCESS;
 }
 
 /* Retrieve signature from CRL
@@ -9359,6 +9432,45 @@ int wolfSSL_X509_CRL_get_signature(WOLFSSL_X509_CRL* crl,
     }
     *bufSz = (int)crl->crlList->signatureSz;
 
+    return WOLFSSL_SUCCESS;
+}
+
+int wolfSSL_X509_CRL_set_signature(WOLFSSL_X509_CRL* crl,
+    unsigned char* buf, int bufSz)
+{
+    byte* newSig;
+
+    if (crl == NULL || crl->crlList == NULL || buf == NULL || bufSz <= 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* Ensure signature buffer is allocated and large enough. */
+    if (crl->crlList->signature == NULL) {
+        crl->crlList->signature = (byte*)XMALLOC((word32)bufSz, crl->heap,
+                                                 DYNAMIC_TYPE_CRL_ENTRY);
+        if (crl->crlList->signature == NULL) {
+            return MEMORY_E;
+        }
+        crl->crlList->signatureSz = (word32)bufSz;
+    }
+    else if ((word32)bufSz > crl->crlList->signatureSz) {
+        newSig = (byte*)XMALLOC((word32)bufSz, crl->heap,
+                                DYNAMIC_TYPE_CRL_ENTRY);
+        if (newSig == NULL) {
+            return MEMORY_E;
+        }
+        XFREE(crl->crlList->signature, crl->heap, DYNAMIC_TYPE_CRL_ENTRY);
+        crl->crlList->signature = newSig;
+        crl->crlList->signatureSz = (word32)bufSz;
+    }
+    else {
+        /* Reuse existing buffer, clear contents in case new signature
+         * is smaller. Note that we do not shrink the buffer. */
+        XMEMSET(crl->crlList->signature, 0, crl->crlList->signatureSz);
+    }
+
+    XMEMCPY(crl->crlList->signature, buf, bufSz);
+    crl->crlList->signatureSz = (word32)bufSz;
     return WOLFSSL_SUCCESS;
 }
 
@@ -9843,8 +9955,17 @@ WOLFSSL_ASN1_TIME* wolfSSL_X509_CRL_get_lastUpdate(WOLFSSL_X509_CRL* crl)
         (crl->crlList->lastDateAsn1.data[0] != 0)) {
         return &crl->crlList->lastDateAsn1;
     }
-    else
-        return NULL;
+    return NULL;
+}
+
+int wolfSSL_X509_CRL_set_lastUpdate(WOLFSSL_X509_CRL* crl,
+                                    const WOLFSSL_ASN1_TIME* time)
+{
+    if (crl != NULL && crl->crlList != NULL && time != NULL) {
+        crl->crlList->lastDateAsn1 = *time;
+        return WOLFSSL_SUCCESS;
+    }
+    return WOLFSSL_FAILURE;
 }
 
 WOLFSSL_ASN1_TIME* wolfSSL_X509_CRL_get_nextUpdate(WOLFSSL_X509_CRL* crl)
@@ -9853,8 +9974,17 @@ WOLFSSL_ASN1_TIME* wolfSSL_X509_CRL_get_nextUpdate(WOLFSSL_X509_CRL* crl)
         (crl->crlList->nextDateAsn1.data[0] != 0)) {
         return &crl->crlList->nextDateAsn1;
     }
-    else
-        return NULL;
+    return NULL;
+}
+
+int wolfSSL_X509_CRL_set_nextUpdate(WOLFSSL_X509_CRL* crl,
+                                    const WOLFSSL_ASN1_TIME* time)
+{
+    if (crl != NULL && crl->crlList != NULL && time != NULL) {
+        crl->crlList->nextDateAsn1 = *time;
+        return WOLFSSL_SUCCESS;
+    }
+    return WOLFSSL_FAILURE;
 }
 
 #ifndef NO_WOLFSSL_STUB
@@ -9866,6 +9996,70 @@ int wolfSSL_X509_CRL_verify(WOLFSSL_X509_CRL* crl, WOLFSSL_EVP_PKEY* key)
     return 0;
 }
 #endif
+
+/* Encode CRL to DER format in memory.
+ *
+ * If *out is NULL, allocates memory and returns it via *out.
+ * If *out is not NULL, writes DER data starting at *out.
+ *
+ * @param crl  CRL to encode
+ * @param out  Pointer to output buffer pointer
+ * @return     Size of DER encoding on success, negative on failure
+ */
+int wolfSSL_i2d_X509_CRL(WOLFSSL_X509_CRL* crl, unsigned char** out)
+{
+    int ret;
+    long derSz = 0;
+    byte* der = NULL;
+    int alloced = 0;
+
+    WOLFSSL_ENTER("wolfSSL_i2d_X509_CRL");
+
+    if (crl == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* Get required size */
+    ret = BufferStoreCRL(crl, NULL, &derSz, WOLFSSL_FILETYPE_ASN1);
+    if (ret != WOLFSSL_SUCCESS || derSz <= 0) {
+        WOLFSSL_MSG("BufferStoreCRL failed to get size");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (out == NULL) {
+        /* Just return size */
+        return (int)derSz;
+    }
+
+    if (*out == NULL) {
+        /* Allocate output buffer */
+        der = (byte*)XMALLOC((size_t)derSz, NULL, DYNAMIC_TYPE_OPENSSL);
+        if (der == NULL) {
+            WOLFSSL_MSG("Memory allocation failed");
+            return MEMORY_E;
+        }
+        alloced = 1;
+    }
+    else {
+        der = *out;
+    }
+
+    /* Encode CRL to DER */
+    ret = BufferStoreCRL(crl, der, &derSz, WOLFSSL_FILETYPE_ASN1);
+    if (ret != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("BufferStoreCRL failed to encode");
+        if (alloced) {
+            XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
+        }
+        return WOLFSSL_FAILURE;
+    }
+
+    if (alloced) {
+        *out = der;
+    }
+
+    return (int)derSz;
+}
 #endif /* HAVE_CRL && OPENSSL_EXTRA */
 
 #ifdef OPENSSL_EXTRA
@@ -10446,10 +10640,11 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_X509_get_serialNumber(WOLFSSL_X509* x509)
 
 #endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD) \
-    || defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_WPAS)
+#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || \
+    defined(WOLFSSL_APACHE_HTTPD) || defined(WOLFSSL_HAPROXY) || \
+    defined(WOLFSSL_WPAS)
 WOLFSSL_X509_ALGOR* wolfSSL_X509_ALGOR_new(void)
 {
     WOLFSSL_X509_ALGOR* ret;
@@ -10864,10 +11059,11 @@ error:
     return WOLFSSL_FAILURE;
 }
 
-#endif /* OPENSSL_ALL || WOLFSSL_APACHE_HTTPD || WOLFSSL_HAPROXY ||
-        * WOLFSSL_WPAS */
+#endif /* OPENSSL_ALL || OPENSSL_EXTRA || WOLFSSL_APACHE_HTTPD ||
+        * WOLFSSL_HAPROXY || WOLFSSL_WPAS */
 
-#if !defined(NO_CERTS) && !defined(NO_ASN) && !defined(NO_PWDBASED)
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_ASN) && \
+    !defined(NO_PWDBASED)
 
 int wolfSSL_i2d_X509_PUBKEY(WOLFSSL_X509_PUBKEY* x509_PubKey,
     unsigned char** der)
@@ -10877,9 +11073,9 @@ int wolfSSL_i2d_X509_PUBKEY(WOLFSSL_X509_PUBKEY* x509_PubKey,
     return wolfSSL_i2d_PublicKey(x509_PubKey->pkey, der);
 }
 
-#endif /* !NO_CERTS && !NO_ASN && !NO_PWDBASED */
+#endif /* OPENSSL_EXTRA && !NO_CERTS && !NO_ASN && !NO_PWDBASED */
 
-#endif /* OPENSSL_EXTRA */
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 WOLFSSL_BASIC_CONSTRAINTS* wolfSSL_BASIC_CONSTRAINTS_new(void)
@@ -11030,7 +11226,7 @@ WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* wolfSSL_sk_X509_OBJECT_deep_copy(
 
     /* Creates a duplicate of a WOLFSSL_X509_NAME structure.
        Returns a new WOLFSSL_X509_NAME structure or NULL on failure */
-    WOLFSSL_X509_NAME* wolfSSL_X509_NAME_dup(WOLFSSL_X509_NAME *name)
+    WOLFSSL_X509_NAME* wolfSSL_X509_NAME_dup(const WOLFSSL_X509_NAME *name)
     {
         WOLFSSL_X509_NAME* copy = NULL;
 
@@ -12909,6 +13105,19 @@ WOLFSSL_X509_CRL* wolfSSL_PEM_read_X509_CRL(XFILE fp,
     return (WOLFSSL_X509_CRL* )wolfSSL_PEM_read_X509_ex(fp, (void **)crl, cb, u,
          CRL_TYPE);
 }
+
+/* Convert CRL to DER or PEM format.
+ * Returns WOLFSSL_SUCCESS on success, negative on failure.
+ * The caller is responsible for freeing the buffer using XFREE.
+ */
+int wolfSSL_write_X509_CRL(WOLFSSL_X509_CRL* crl, const char* path, int type)
+{
+    int ret;
+    WOLFSSL_ENTER("wolfSSL_write_X509_CRL");
+    ret = StoreCRL(crl, path, type);
+    WOLFSSL_LEAVE("wolfSSL_write_X509_CRL", ret);
+    return ret;
+}
 #endif
 
 #ifdef WOLFSSL_CERT_GEN
@@ -13593,7 +13802,7 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
         else {
             /* iterate through and find first open spot */
             for (i = 0; i < MAX_NAME_ENTRIES; i++) {
-                if (name->entry[i].set != 1) { /* not set so overwritten */
+                if (name->entry[i].set == 0) { /* not set so overwritten */
                     WOLFSSL_MSG("Found place for name entry");
                     break;
                 }
@@ -13635,6 +13844,15 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
                 name->entrySz--;
             return WOLFSSL_FAILURE;
         }
+
+#ifdef WOLFSSL_PYTHON
+        /* Set name index for OpenSSL stack index position and so Python can
+         * generate tuples/sets from the list. */
+        for (i = 0; i < MAX_NAME_ENTRIES; i++) {
+            if (name->entry[i].set != 0)
+                name->entry[i].set = i + 1;
+        }
+#endif
 
         if (RebuildFullName(name) != 0)
             return WOLFSSL_FAILURE;
@@ -13707,6 +13925,17 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
             return NULL;
         }
         name->entry[loc].set = 0;
+#ifdef WOLFSSL_PYTHON
+        {
+            int i;
+            /* Set name index for OpenSSL stack index position and so Python can
+            * generate tuples/sets from the list. */
+            for (i = 0; i < MAX_NAME_ENTRIES; i++) {
+                if (name->entry[i].set != 0)
+                    name->entry[i].set = i + 1;
+            }
+        }
+#endif
         return ret;
     }
 
@@ -13757,7 +13986,7 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
     /* returns a pointer to the internal entry at location 'loc' on success,
      * a null pointer is returned in fail cases */
     WOLFSSL_X509_NAME_ENTRY *wolfSSL_X509_NAME_get_entry(
-                                             WOLFSSL_X509_NAME *name, int loc)
+                                        const WOLFSSL_X509_NAME *name, int loc)
     {
 #ifdef WOLFSSL_DEBUG_OPENSSL
         WOLFSSL_ENTER("wolfSSL_X509_NAME_get_entry");
@@ -13773,15 +14002,7 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
         }
 
         if (name->entry[loc].set) {
-#ifdef WOLFSSL_PYTHON
-            /* "set" is not only flag use, but also stack index position use in
-            *  OpenSSL. Python makes tuple based on this number. Therefore,
-            *  updating "set" by position + 1. "plus 1" means to avoid "not set"
-            *  zero.
-            */
-            name->entry[loc].set = loc + 1;
-#endif
-            return &name->entry[loc];
+            return (WOLFSSL_X509_NAME_ENTRY*)&name->entry[loc];
         }
         else {
             return NULL;
@@ -15247,7 +15468,7 @@ int wolfSSL_sk_X509_OBJECT_push(WOLFSSL_STACK* sk, WOLFSSL_X509_OBJECT* obj)
 /* unlike wolfSSL_X509_NAME_dup this does not malloc a duplicate, only deep
  * copy. "to" is expected to be a fresh blank name, if not pointers could be
  * lost */
-int wolfSSL_X509_NAME_copy(WOLFSSL_X509_NAME* from, WOLFSSL_X509_NAME* to)
+int wolfSSL_X509_NAME_copy(const WOLFSSL_X509_NAME* from, WOLFSSL_X509_NAME* to)
 {
     int i;
 

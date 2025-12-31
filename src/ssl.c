@@ -17272,6 +17272,10 @@ int wolfSSL_set_alpn_protos(WOLFSSL* ssl,
 #include "src/bio.c"
 #endif
 
+#endif /* OPENSSL_EXTRA */
+
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+
 word32 nid2oid(int nid, int grp)
 {
     /* get OID type */
@@ -18038,6 +18042,10 @@ int oid2nid(word32 oid, int grp)
 
     return WOLFSSL_FATAL_ERROR;
 }
+
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+
+#if defined(OPENSSL_EXTRA)
 
 /* frees all nodes in the current threads error queue
  *

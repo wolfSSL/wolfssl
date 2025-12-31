@@ -28,7 +28,8 @@
 #elif defined(WOLFCRYPT_ONLY)
 #else
 
-#if defined(OPENSSL_EXTRA) || defined(HAVE_CURL)
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+    defined(HAVE_CURL)
 
 #if !defined(HAVE_PKCS7) && \
       ((defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && \
