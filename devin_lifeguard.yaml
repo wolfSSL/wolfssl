@@ -1,8 +1,9 @@
 rules:
   - name: no-void-functions
     trigger: >-
-      All functions must return a value. Avoid using void return types to ensure
-      error values can be propagated upstream.
+      When implementing new public functions (WOLFSSL_API) avoid using "void"
+      return type to ensure error values can be propagated upstream. Does not
+      apply to "doc/" directory.
     solution: >-
       Change the function to return an appropriate error code or result instead
       of void. Ensure all return paths provide a meaningful value.
@@ -51,12 +52,17 @@ rules:
       variables to minimize stack usage within the function.
   - name: prefer-constant-time
     trigger: >-
-      Implement algorithms in constant time to prevent timing attacks and ensure
-      security.
+      Any code handling secret or private key data (symmetric or asymmetric)
+      must be implemented in constant time. This includes cryptographic
+      operations, key comparisons, and encoding/decoding operations (base64,
+      hex, etc.) when processing secrets. Use constant-time implementations
+      by default for all secret data since tracking when timing attacks are
+      strictly possible is error-prone.
     solution: >-
-      Review and refactor algorithms to ensure their execution time does not
-      depend on input values. Use constant-time libraries or functions where
-      applicable.
+      Review and refactor code to ensure execution time does not depend on
+      secret values. Use constant-time functions such as ConstantCompare()
+      for comparisons and avoid early-exit conditions based on secret data.
+      When in doubt, assume constant-time handling is required.
   - name: use-sizeof
     trigger: >-
       Avoid hard-coded numeric values for sizes. Use `sizeof()` to ensure
@@ -143,3 +149,13 @@ rules:
 
       ensure ephemeral structures are freed once no longer needed, and avoid
       reusing pointers after free
+  - name: use-proper-function-visibility
+    trigger: >-
+      functions must use appropriate visibility modifiers. Public functions
+      should use WOLFSSL_API, local functions should use WOLFSSL_LOCAL, and
+      non-static local functions should have a wolfssl_local_ or wc_local_ prefix.
+    solution: >-
+      for public functions that are part of the external API, declare them with
+      WOLFSSL_API. For functions local to the library but not static, use
+      WOLFSSL_LOCAL and prefix the function name with wolfssl_local_ or wc_local_
+      to clearly indicate internal usage.
