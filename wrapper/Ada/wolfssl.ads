@@ -54,15 +54,25 @@ package WolfSSL with SPARK_Mode is
    subtype Byte_Index is Interfaces.C.size_t range 0 .. 16_000;
    subtype Byte_Array is Interfaces.C.char_array;
 
-   type Context_Type is limited private;
+   type Context_Type is limited private with
+     Annotate => (GNATprove, Ownership, "Needs_Reclamation");
    --  Instances of this type are called SSL Contexts.
 
-   function Is_Valid (Context : Context_Type) return Boolean;
+   function Is_Valid (Context : Context_Type) return Boolean with
+      Annotate => (GNATprove, Ownership, "Needs_Reclamation");
    --  Indicates if the SSL Context has successfully been initialized.
    --  If initialized, the SSL Context has allocated resources
    --  that needs to be deallocated before application exit.
+   --  Annotation added for GNATprove ownership analysis.
+   --    https://docs.adacore.com/spark2014-docs/html/ug/en/appendix/additional_annotate_pragmas.html#annotation-for-enforcing-ownership-checking-on-a-private-type
 
-   type Method_Type is limited private;
+   type Method_Type is limited private with
+     Annotate => (GNATprove, Ownership, "Needs_Reclamation");
+     
+   function Is_Valid (Method : Method_Type) return Boolean with
+      Annotate => (GNATprove, Ownership, "Needs_Reclamation");
+   --  Annotation added for GNATprove ownership analysis.
+   --    https://docs.adacore.com/spark2014-docs/html/ug/en/appendix/additional_annotate_pragmas.html#annotation-for-enforcing-ownership-checking-on-a-private-type
 
    function TLSv1_2_Server_Method return Method_Type;
    --  This function is used to indicate that the application is a server
@@ -96,16 +106,18 @@ package WolfSSL with SPARK_Mode is
    --  This function is used to indicate that the application is a client
    --  and will only support the DTLS 1.3 protocol.
 
-   procedure Create_Context (Method  : Method_Type;
-                             Context : out Context_Type);
+   procedure Create_Context (Method  : in out Method_Type;
+                             Context : out Context_Type) with
+      Post => not Is_Valid (Method);
    --  This function creates a new SSL context, taking a desired SSL/TLS
    --  protocol method for input.
    --  If successful Is_Valid (Context) = True, otherwise False.
+   --  The Method is consumed by this operation and set to null.
 
    procedure Free (Context : in out Context_Type) with
-      Pre  => Is_Valid (Context),
       Post => not Is_Valid (Context);
    --  This function frees an allocated SSL Context object.
+   --  If Context is not valid, this is a no-op.
 
    type Mode_Type is private;
 
@@ -240,13 +252,17 @@ package WolfSSL with SPARK_Mode is
    --  per buffer as long as the format is in PEM.
    --  Please see the examples for proper usage.
 
-   type WolfSSL_Type is limited private;
+   type WolfSSL_Type is limited private with
+     Annotate => (GNATprove, Ownership, "Needs_Reclamation");
    --  Instances of this type are called SSL Sessions.
 
-   function Is_Valid (Ssl : WolfSSL_Type) return Boolean;
+   function Is_Valid (Ssl : WolfSSL_Type) return Boolean with
+      Annotate => (GNATprove, Ownership, "Needs_Reclamation");
    --  Indicates if the SSL Session has successfully been initialized.
    --  If initialized, the SSL Session has allocated resources
    --  that needs to be deallocated before application exit.
+   --  Annotation added for GNATprove ownership analysis.
+   --    https://docs.adacore.com/spark2014-docs/html/ug/en/appendix/additional_annotate_pragmas.html#annotation-for-enforcing-ownership-checking-on-a-private-type
 
    procedure Create_WolfSSL (Context : Context_Type;
                              Ssl     : out WolfSSL_Type) with
@@ -320,8 +336,7 @@ package WolfSSL with SPARK_Mode is
    --  be freed when the associated SSL object is freed.
 
    procedure Free_Arrays (Ssl : WolfSSL_Type) with
-      Pre => Is_Valid (Ssl),
-      Post => not Is_Valid (Ssl);
+      Pre => Is_Valid (Ssl);
    --  Normally, at the end of the SSL handshake, wolfSSL frees temporary
    --  arrays. If Keep_Arrays(..) has been called before the handshake,
    --  wolfSSL will not free temporary arrays. This function explicitly
@@ -432,9 +447,9 @@ package WolfSSL with SPARK_Mode is
    --  the call to Shutdown() when the underlying I/O is ready.
 
    procedure Free (Ssl : in out WolfSSL_Type) with
-      Pre  => Is_Valid (Ssl),
       Post => not Is_Valid (Ssl);
    --  Frees the resources allocated by the SSL session object.
+   --  If Ssl is not valid, this is a no-op.
 
    function Connect (Ssl : WolfSSL_Type) return Subprogram_Result with
       Pre => Is_Valid (Ssl);
@@ -504,8 +519,11 @@ package WolfSSL with SPARK_Mode is
    type RNG_Key_Type is limited private with
      Annotate => (GNATprove, Ownership, "Needs_Reclamation");
 
-   function Is_Valid (Key : RNG_Key_Type) return Boolean;
-   --  Indicates if the RSA has successfully been initialized.   
+   function Is_Valid (Key : RNG_Key_Type) return Boolean with
+      Annotate => (GNATprove, Ownership, "Needs_Reclamation");
+   --  Indicates if the RSA has successfully been initialized.
+   --  Annotation added for GNATprove ownership analysis.
+   --    https://docs.adacore.com/spark2014-docs/html/ug/en/appendix/additional_annotate_pragmas.html#annotation-for-enforcing-ownership-checking-on-a-private-type 
    
    procedure Create_RNG (Key    : in out RNG_Key_Type;
                          Result : out Integer) with
@@ -537,8 +555,11 @@ package WolfSSL with SPARK_Mode is
    type RSA_Key_Type is limited private with
      Annotate => (GNATprove, Ownership, "Needs_Reclamation");
 
-   function Is_Valid (Key : RSA_Key_Type) return Boolean;
-   --  Indicates if the RSA has successfully been initialized.   
+   function Is_Valid (Key : RSA_Key_Type) return Boolean with
+      Annotate => (GNATprove, Ownership, "Needs_Reclamation");
+   --  Indicates if the RSA has successfully been initialized.
+   --  Annotation added for GNATprove ownership analysis.
+   --    https://docs.adacore.com/spark2014-docs/html/ug/en/appendix/additional_annotate_pragmas.html#annotation-for-enforcing-ownership-checking-on-a-private-type
    
    procedure Create_RSA (Key    : in out RSA_Key_Type;
                          Result : out Integer) with
@@ -624,8 +645,11 @@ package WolfSSL with SPARK_Mode is
    type SHA256_Type is limited private with
      Annotate => (GNATprove, Ownership, "Needs_Reclamation");
 
-   function Is_Valid (SHA256 : SHA256_Type) return Boolean;
+   function Is_Valid (SHA256 : SHA256_Type) return Boolean with
+      Annotate => (GNATprove, Ownership, "Needs_Reclamation");
    --  Indicates if the SHA256 has successfully been initialized.
+   --  Annotation added for GNATprove ownership analysis.
+   --    https://docs.adacore.com/spark2014-docs/html/ug/en/appendix/additional_annotate_pragmas.html#annotation-for-enforcing-ownership-checking-on-a-private-type
 
    procedure Create_SHA256 (SHA256 : in out SHA256_Type;
                             Result : out Integer) with
@@ -663,8 +687,11 @@ package WolfSSL with SPARK_Mode is
    type AES_Type is limited private with
      Annotate => (GNATprove, Ownership, "Needs_Reclamation");
 
-   function Is_Valid (AES : AES_Type) return Boolean;
+   function Is_Valid (AES : AES_Type) return Boolean with
+      Annotate => (GNATprove, Ownership, "Needs_Reclamation");
    --  Indicates if the AES has successfully been initialized.
+   --  Annotation added for GNATprove ownership analysis.
+   --    https://docs.adacore.com/spark2014-docs/html/ug/en/appendix/additional_annotate_pragmas.html#annotation-for-enforcing-ownership-checking-on-a-private-type
 
    procedure Create_AES (Device : Device_Identifier;
                          AES    : in out AES_Type;
