@@ -11607,7 +11607,7 @@ static int TLSX_PreSharedKey_Parse(WOLFSSL* ssl, const byte* input,
         /* Find the list of identities sent to server. */
         extension = TLSX_Find(ssl->extensions, TLSX_PRE_SHARED_KEY);
         if (extension == NULL)
-            return PSK_KEY_ERROR;
+            return INCOMPLETE_DATA;
         list = (PreSharedKey*)extension->data;
 
         /* Mark the identity as chosen. */

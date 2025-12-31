@@ -3448,25 +3448,25 @@ int wolfSSL_X509_pubkey_digest(const WOLFSSL_X509 *x509,
     const char* wolfSSL_X509_get_default_cert_file_env(void)
     {
         WOLFSSL_STUB("X509_get_default_cert_file_env");
-        return NULL;
+        return "";
     }
 
     const char* wolfSSL_X509_get_default_cert_file(void)
     {
         WOLFSSL_STUB("X509_get_default_cert_file");
-        return NULL;
+        return "";
     }
 
     const char* wolfSSL_X509_get_default_cert_dir_env(void)
     {
         WOLFSSL_STUB("X509_get_default_cert_dir_env");
-        return NULL;
+        return "";
     }
 
     const char* wolfSSL_X509_get_default_cert_dir(void)
     {
         WOLFSSL_STUB("X509_get_default_cert_dir");
-        return NULL;
+        return "";
     }
     #endif
 
