@@ -36,6 +36,26 @@
 #include <tests/api/api.h>
 #include <tests/api/test_ossl_x509_str.h>
 
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_QT)) && \
+        !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+
+static int last_errcode[2];
+static int last_errdepth[2];
+static int err_index = 0;
+
+static int X509Callback(int ok, X509_STORE_CTX *ctx)
+{
+
+    if (!ok) {
+        last_errcode[err_index]    = X509_STORE_CTX_get_error(ctx);
+        last_errdepth[err_index++] = X509_STORE_CTX_get_error_depth(ctx);
+    }
+    /* Always return OK to allow verification to continue.*/
+    return 1;
+}
+
+#endif
+
 int test_wolfSSL_X509_STORE_CTX_set_time(void)
 {
     EXPECT_DECLS;
@@ -161,6 +181,78 @@ int test_wolfSSL_X509_STORE_check_time(void)
     store = NULL;
     wolfSSL_X509_free(cert);
     cert = NULL;
+
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_QT)) && \
+        !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+
+    err_index = 0;
+
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectNotNull(ca = wolfSSL_X509_load_certificate_file(caCertFile,
+                        SSL_FILETYPE_PEM));
+    ExpectIntEQ(wolfSSL_X509_STORE_add_cert(store, ca), WOLFSSL_SUCCESS);
+
+    X509_STORE_set_verify_cb(store, X509Callback);
+
+    ExpectNotNull(cert = wolfSSL_X509_load_certificate_file(expiredCertFile,
+                        SSL_FILETYPE_PEM));
+
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, cert, NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(X509_verify_cert(ctx), WOLFSSL_SUCCESS);
+    /* while verifying the certificate, it should have two errors */
+    ExpectIntEQ(err_index, 2);
+    /* self-signed */
+    ExpectIntEQ(last_errcode[err_index - 2],
+                WOLFSSL_X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT);
+    /* expired */
+    ExpectIntEQ(last_errcode[err_index - 1],
+                WOLFSSL_X509_V_ERR_CERT_HAS_EXPIRED);
+
+    X509_STORE_CTX_free(ctx);
+    ctx = NULL;
+    X509_STORE_free(store);
+    store = NULL;
+    X509_free(cert);
+    cert = NULL;
+    X509_free(ca);
+    ca = NULL;
+
+    err_index = 0;
+
+    ExpectNotNull(store = X509_STORE_new());
+    /* Set NO_CHECK_TIME flag to skip time validation */
+    ExpectIntEQ(X509_VERIFY_PARAM_set_flags(store->param,
+                        WOLFSSL_NO_CHECK_TIME), WOLFSSL_SUCCESS);
+    ExpectTrue((store->param->flags & WOLFSSL_NO_CHECK_TIME) ==
+        WOLFSSL_NO_CHECK_TIME);
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectNotNull(ca = wolfSSL_X509_load_certificate_file(caCertFile,
+                        SSL_FILETYPE_PEM));
+    ExpectIntEQ(wolfSSL_X509_STORE_add_cert(store, ca), WOLFSSL_SUCCESS);
+
+    X509_STORE_set_verify_cb(store, X509Callback);
+
+    ExpectNotNull(cert = wolfSSL_X509_load_certificate_file(expiredCertFile,
+                        SSL_FILETYPE_PEM));
+
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, cert, NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(X509_verify_cert(ctx), WOLFSSL_SUCCESS);
+    /* while verifying the certificate, it should have an error */
+    ExpectIntEQ(err_index, 1);
+    /* self-signed */
+    ExpectIntEQ(last_errcode[err_index - 1],
+                WOLFSSL_X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT);
+    /* no expired because of no_check_time */
+    X509_STORE_CTX_free(ctx);
+    ctx = NULL;
+    X509_STORE_free(store);
+    store = NULL;
+    X509_free(cert);
+    cert = NULL;
+    X509_free(ca);
+    ca = NULL;
+#endif
 #endif /* OPENSSL_EXTRA && !NO_FILESYSTEM && !NO_ASN_TIME && !NO_RSA */
     return EXPECT_RESULT();
 }
@@ -919,24 +1011,6 @@ int test_X509_STORE_untrusted(void)
     return EXPECT_RESULT();
 }
 
-#if defined(OPENSSL_ALL) && !defined(NO_RSA) && !defined(NO_FILESYSTEM)
-
-static int last_errcode;
-static int last_errdepth;
-
-static int X509Callback(int ok, X509_STORE_CTX *ctx)
-{
-
-    if (!ok) {
-        last_errcode  = X509_STORE_CTX_get_error(ctx);
-        last_errdepth = X509_STORE_CTX_get_error_depth(ctx);
-    }
-    /* Always return OK to allow verification to continue.*/
-    return 1;
-}
-
-#endif
-
 int test_X509_STORE_InvalidCa(void)
 {
     EXPECT_DECLS;
@@ -951,9 +1025,7 @@ int test_X509_STORE_InvalidCa(void)
     X509* cert = NULL;
     STACK_OF(X509)* untrusted = NULL;
 
-    last_errcode = 0;
-    last_errdepth = 0;
-
+    err_index = 0;
     ExpectTrue((fp = XFOPEN(srvfile, "rb"))
             != XBADFILE);
     ExpectNotNull(cert = PEM_read_X509(fp, 0, 0, 0 ));
@@ -978,7 +1050,8 @@ int test_X509_STORE_InvalidCa(void)
 
     ExpectIntEQ(X509_STORE_CTX_init(ctx, str, cert, untrusted), 1);
     ExpectIntEQ(X509_verify_cert(ctx), 1);
-    ExpectIntEQ(last_errcode, X509_V_ERR_INVALID_CA);
+    ExpectIntEQ(err_index, 1);
+    ExpectIntEQ(last_errcode[err_index - 1], X509_V_ERR_INVALID_CA);
 
     X509_free(cert);
     X509_STORE_free(str);
