@@ -130,6 +130,9 @@ fn scan_cfg() -> Result<()> {
     check_cfg(&binding, "wc_InitBlake2b", "blake2b");
     check_cfg(&binding, "wc_InitBlake2s", "blake2s");
 
+    /* chacha20_poly1305 */
+    check_cfg(&binding, "wc_ChaCha20Poly1305_Encrypt", "chacha20_poly1305");
+
     /* cmac */
     check_cfg(&binding, "wc_InitCmac", "cmac");
 
