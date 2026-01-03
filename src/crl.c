@@ -659,11 +659,10 @@ static int CompareCRLnumber(CRL_Entry* prev, CRL_Entry* curr)
     return ret;
 }
 
-/* Add Decoded CRL, 0 on success */
-static int AddCRL(WOLFSSL_CRL* crl, DecodedCRL* dcrl, const byte* buff,
-                  int verified)
+/* Add or replace a decoded CRL, 0 on success */
+static int AddCRL(WOLFSSL_CRL* crl, DecodedCRL* dcrl, CRL_Entry* crle, 
+                  const byte* buff, int verified)
 {
-    CRL_Entry* crle = NULL;
     CRL_Entry* curr = NULL;
     CRL_Entry* prev = NULL;
 #ifdef HAVE_CRL_UPDATE_CB
@@ -677,26 +676,16 @@ static int AddCRL(WOLFSSL_CRL* crl, DecodedCRL* dcrl, const byte* buff,
     if (crl == NULL)
         return WOLFSSL_FATAL_ERROR;
 
-    crle = crl->currentEntry;
-
-    if (crle == NULL) {
-        crle = CRL_Entry_new(crl->heap);
-        if (crle == NULL) {
-            WOLFSSL_MSG("alloc CRL Entry failed");
-            return MEMORY_E;
-        }
+    /* Lock prior to reading or writing global state. */
+    if (wc_LockRwLock_Wr(&crl->crlLock) != 0) {
+        WOLFSSL_MSG("wc_LockRwLock_Wr failed");
+        return BAD_MUTEX_E;
     }
 
     if (InitCRL_Entry(crle, dcrl, buff, verified, crl->heap) < 0) {
         WOLFSSL_MSG("Init CRL Entry failed");
-        CRL_Entry_free(crle, crl->heap);
+        wc_UnLockRwLock(&crl->crlLock);
         return WOLFSSL_FATAL_ERROR;
-    }
-
-    if (wc_LockRwLock_Wr(&crl->crlLock) != 0) {
-        WOLFSSL_MSG("wc_LockRwLock_Wr failed");
-        CRL_Entry_free(crle, crl->heap);
-        return BAD_MUTEX_E;
     }
 
     for (curr = crl->crlList; curr != NULL; curr = curr->next) {
@@ -706,15 +695,16 @@ static int AddCRL(WOLFSSL_CRL* crl, DecodedCRL* dcrl, const byte* buff,
              * authoritative than the existing entry */
             if (ret == MP_LT || ret == MP_EQ) {
                 WOLFSSL_MSG("Same or newer CRL entry already exists");
-                CRL_Entry_free(crle, crl->heap);
                 wc_UnLockRwLock(&crl->crlLock);
                 return BAD_FUNC_ARG;
             }
             else if (ret < 0) {
                 WOLFSSL_MSG("Error comparing CRL Numbers");
+                wc_UnLockRwLock(&crl->crlLock);
                 return ret;
             }
 
+            /* Insert the new entry after the current entry. */
             crle->next = curr->next;
             if (prev != NULL) {
                 prev->next = crle;
@@ -736,17 +726,13 @@ static int AddCRL(WOLFSSL_CRL* crl, DecodedCRL* dcrl, const byte* buff,
         prev = curr;
     }
 
-    if (curr != NULL) {
-        CRL_Entry_free(curr, crl->heap);
-    }
-    else {
+    if (curr == NULL) {
+        /* No replacement occurred, prepend the new entry. */
         crle->next = crl->crlList;
         crl->crlList = crle;
     }
-    wc_UnLockRwLock(&crl->crlLock);
-    /* Avoid heap-use-after-free after crl->crlList is released */
-    crl->currentEntry = NULL;
 
+    wc_UnLockRwLock(&crl->crlLock);
     return 0;
 }
 
@@ -810,12 +796,14 @@ int BufferLoadCRL(WOLFSSL_CRL* crl, const byte* buff, long sz, int type,
         crl->currentEntry = NULL;
     }
     else {
-        ret = AddCRL(crl, dcrl, myBuffer,
+        ret = AddCRL(crl, dcrl, crl->currentEntry, myBuffer,
                      ret != WC_NO_ERR_TRACE(ASN_CRL_NO_SIGNER_E));
         if (ret != 0) {
             WOLFSSL_MSG_CERT_LOG("AddCRL error");
-            crl->currentEntry = NULL;
+            CRL_Entry_free(crl->currentEntry, crl->heap);
         }
+        /* Entry now is in the list, or has been freed due to error */
+        crl->currentEntry = NULL;
     }
 
     FreeDecodedCRL(dcrl);
@@ -826,6 +814,7 @@ int BufferLoadCRL(WOLFSSL_CRL* crl, const byte* buff, long sz, int type,
 
     return ret ? ret : WOLFSSL_SUCCESS; /* convert 0 to WOLFSSL_SUCCESS */
 }
+
 
 #ifdef HAVE_CRL_UPDATE_CB
 /* Fill out CRL info structure, WOLFSSL_SUCCESS on ok */
