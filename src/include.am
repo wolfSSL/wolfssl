@@ -304,7 +304,11 @@ if BUILD_PPC32_ASM
 if BUILD_PPC32_ASM_INLINE
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/ppc32/ppc32-sha256-asm_c.c
 else
+if BUILD_PPC32_ASM_INLINE_REG
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/ppc32/ppc32-sha256-asm_cr.c
+else
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/ppc32/ppc32-sha256-asm.S
+endif !BUILD_PPC32_ASM_INLINE_REG
 endif !BUILD_PPC32_ASM_INLINE
 endif BUILD_PPC32_ASM
 
@@ -539,7 +543,11 @@ if BUILD_PPC32_ASM
 if BUILD_PPC32_ASM_INLINE
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/ppc32/ppc32-sha256-asm_c.c
 else
+if BUILD_PPC32_ASM_INLINE_REG
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/ppc32/ppc32-sha256-asm_cr.c
+else
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/ppc32/ppc32-sha256-asm.S
+endif !BUILD_PPC32_ASM_INLINE_REG
 endif !BUILD_PPC32_ASM_INLINE
 endif BUILD_PPC32_ASM
 
@@ -830,7 +838,11 @@ if BUILD_PPC32_ASM
 if BUILD_PPC32_ASM_INLINE
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/ppc32/ppc32-sha256-asm_c.c
 else
+if BUILD_PPC32_ASM_INLINE_REG
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/ppc32/ppc32-sha256-asm_cr.c
+else
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/ppc32/ppc32-sha256-asm.S
+endif !BUILD_PPC32_ASM_INLINE_REG
 endif !BUILD_PPC32_ASM_INLINE
 endif BUILD_PPC32_ASM
 

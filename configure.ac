@@ -3721,6 +3721,9 @@ then
       inline)
         ENABLED_PPC32_ASM_INLINE=yes
         ;;
+      inline-reg)
+        ENABLED_PPC32_ASM_INLINE_REG=yes
+        ;;
       small)
         ENABLED_PPC32_ASM_SMALL=yes
         ;;
@@ -3738,7 +3741,7 @@ then
     AC_MSG_NOTICE([32-bit PowerPC assembly for SHA-256])
     ENABLED_PPC32_ASM=yes
 fi
-if test "$ENABLED_PPC32_ASM_INLINE" = "yes"; then
+if test "$ENABLED_PPC32_ASM_INLINE" = "yes" || test "$ENABLED_PPC32_ASM_INLINE_REG" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PPC32_ASM_INLINE"
 else
     AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_PPC32_ASM"
@@ -11006,6 +11009,7 @@ AM_CONDITIONAL([BUILD_ARM_64],[test "$ENABLED_ARM_64" = "yes"  || test "$ENABLED
 AM_CONDITIONAL([BUILD_RISCV_ASM],[test "x$ENABLED_RISCV_ASM" = "xyes"])
 AM_CONDITIONAL([BUILD_PPC32_ASM],[test "x$ENABLED_PPC32_ASM" = "xyes"])
 AM_CONDITIONAL([BUILD_PPC32_ASM_INLINE],[test "x$ENABLED_PPC32_ASM_INLINE" = "xyes"])
+AM_CONDITIONAL([BUILD_PPC32_ASM_INLINE_REG],[test "x$ENABLED_PPC32_ASM_INLINE_REG" = "xyes"])
 AM_CONDITIONAL([BUILD_XILINX],[test "x$ENABLED_XILINX" = "xyes"])
 AM_CONDITIONAL([BUILD_AESNI],[test "x$ENABLED_AESNI" = "xyes"])
 AM_CONDITIONAL([BUILD_INTELASM],[test "x$ENABLED_INTELASM" = "xyes"])
@@ -11676,6 +11680,10 @@ echo "   * RISC-V ASM                  $ENABLED_RISCV_ASM"
 if test "$ENABLED_PPC32_ASM_INLINE" = "yes"
 then
     ENABLED_PPC32_ASM="inline C"
+fi
+if test "$ENABLED_PPC32_ASM_INLINE_REG" = "yes"
+then
+    ENABLED_PPC32_ASM="inline C Reg"
 fi
 echo "   * PPC32 ASM                   $ENABLED_PPC32_ASM"
 echo "   * Write duplicate:            $ENABLED_WRITEDUP"
