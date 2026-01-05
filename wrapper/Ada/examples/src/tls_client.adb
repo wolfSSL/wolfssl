@@ -437,23 +437,17 @@ package body Tls_Client with SPARK_Mode is
       end if;
 
       WolfSSL.Read (Ssl => Ssl, Result => Input);
-      if not Input.Success then
-         Put_Line ("Read error.");
+      if not Input.Success or Input.Last > Text'Length then
+         Put_Line ("Read error or response too long.");
          Set (Exit_Status_Failure);
          SPARK_Sockets.Close_Socket (C);
          WolfSSL.Free (Ssl);
          WolfSSL.Free (Context => Ctx);
          return;
       end if;
-      if Input.Buffer'Length > Text'Length then
-         SPARK_Sockets.To_Ada (Item     => Input.Buffer (1 .. 200),
-                               Target   => Text,
-                               Count    => Last);
-      else
-         SPARK_Sockets.To_Ada (Item     => Input.Buffer,
-                               Target   => Text,
-                               Count    => Last);
-      end if;
+      SPARK_Sockets.To_Ada (Item     => Input.Buffer,
+                            Target   => Text,
+                            Count    => Last);
       Put ("Server: ");
       Put (Text (1 .. Last));
       New_Line;
