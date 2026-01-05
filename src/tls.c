@@ -14681,6 +14681,8 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
             #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
                 if (ssl->options.resuming && ssl->session->namedGroup != 0)
                     namedGroup = ssl->session->namedGroup;
+                else if (ssl->options.noPskDheKe)
+                    namedGroup = WOLFSSL_NAMED_GROUP_INVALID;
                 else
             #endif
                 if (ssl->numGroups > 0) {
