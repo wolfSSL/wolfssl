@@ -5744,15 +5744,13 @@ static int DoTls13EncryptedExtensions(WOLFSSL* ssl, const byte* input,
         if (ext == NULL || !ext->val)
             ssl->earlyData = no_early_data;
     }
-#endif
 
-#ifdef WOLFSSL_EARLY_DATA
     if (ssl->earlyData == no_early_data) {
         ret = SetKeysSide(ssl, ENCRYPT_SIDE_ONLY);
         if (ret != 0)
             return ret;
     }
-#endif
+#endif /* WOLFSSL_EARLY_DATA */
 
     ssl->options.serverState = SERVER_ENCRYPTED_EXTENSIONS_COMPLETE;
 
