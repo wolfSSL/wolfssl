@@ -4322,6 +4322,26 @@ typedef struct Sch13Args {
 #endif
 } Sch13Args;
 
+#ifdef WOLFSSL_EARLY_DATA
+/* Check if early data can potentially be sent.
+ * Returns 1 if early data is possible, 0 otherwise.
+ */
+static int EarlyDataPossible(WOLFSSL* ssl)
+{
+    /* Need session resumption OR PSK callback configured */
+    if (ssl->options.resuming) {
+        return 1;
+    }
+#ifndef NO_PSK
+    if (ssl->options.client_psk_tls13_cb != NULL ||
+        ssl->options.client_psk_cb != NULL) {
+        return 1;
+    }
+#endif
+    return 0;
+}
+#endif /* WOLFSSL_EARLY_DATA */
+
 int SendTls13ClientHello(WOLFSSL* ssl)
 {
     int ret;
@@ -4461,14 +4481,8 @@ int SendTls13ClientHello(WOLFSSL* ssl)
     case TLS_ASYNC_FINALIZE:
     {
 #ifdef WOLFSSL_EARLY_DATA
-    #ifndef NO_PSK
-        if (!ssl->options.resuming &&
-                                     ssl->options.client_psk_tls13_cb == NULL &&
-                                     ssl->options.client_psk_cb == NULL)
-    #else
-        if (!ssl->options.resuming)
-    #endif
-            ssl->earlyData = no_early_data;
+    if (!EarlyDataPossible(ssl))
+        ssl->earlyData = no_early_data;
     if (ssl->options.serverState == SERVER_HELLO_RETRY_REQUEST_COMPLETE)
         ssl->earlyData = no_early_data;
     if (ssl->earlyData == no_early_data)
@@ -14993,6 +15007,12 @@ int wolfSSL_write_early_data(WOLFSSL* ssl, const void* data, int sz, int* outSz)
 #ifndef NO_WOLFSSL_CLIENT
     if (ssl->options.side == WOLFSSL_SERVER_END)
         return SIDE_ERROR;
+
+    /* Early data requires PSK or session resumption */
+    if (!EarlyDataPossible(ssl)) {
+        ssl->error = BAD_STATE_E;
+        return WOLFSSL_FATAL_ERROR;
+    }
 
     if (ssl->options.handShakeState == NULL_STATE) {
         if (ssl->error != WC_NO_ERR_TRACE(WC_PENDING_E))
