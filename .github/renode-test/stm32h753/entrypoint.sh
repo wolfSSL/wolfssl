@@ -111,7 +111,7 @@ while true; do
     if ! kill -0 "$RENODE_PID" 2>/dev/null; then
         break
     fi
-    
+
     # Flush new log content to stdout (unbuffered)
     if [ -f "${LOG}" ]; then
         CURRENT_LOG_SIZE=$(stat -f%z "${LOG}" 2>/dev/null || stat -c%s "${LOG}" 2>/dev/null || echo 0)
@@ -121,7 +121,7 @@ while true; do
             LAST_LOG_SIZE=$CURRENT_LOG_SIZE
         fi
     fi
-    
+
     # Check for Renode errors (must check before completion to catch errors early)
     if grep -q "\[ERROR\]" "${LOG}" 2>/dev/null; then
         echo ""
@@ -129,18 +129,18 @@ while true; do
         RESULT="renode_error"
         break
     fi
-    
+
     # Check for completion messages
     if grep -q "=== wolfCrypt test passed! ===" "${LOG}" 2>/dev/null; then
         RESULT="passed"
         break
     fi
-    
+
     if grep -q "=== wolfCrypt test FAILED ===" "${LOG}" 2>/dev/null; then
         RESULT="failed"
         break
     fi
-    
+
     # Check timeout
     CURRENT_TIME=$(date +%s)
     ELAPSED=$((CURRENT_TIME - START_TIME))
@@ -150,7 +150,7 @@ while true; do
         RESULT="timeout"
         break
     fi
-    
+
     sleep 0.5
 done
 

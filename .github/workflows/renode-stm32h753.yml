@@ -130,32 +130,32 @@ jobs:
         MONOVERSION=5.20
         REQUIRED_MAJOR=5
         REQUIRED_MINOR=20
-        
+
         LAUNCHER=mono
-        
+
         if ! [ -x "$(command -v $LAUNCHER)" ]
         then
             echo "$LAUNCHER not found. Renode requires Mono $MONOVERSION or newer. Please refer to documentation for installation instructions. Exiting!"
             exit 1
         fi
-        
+
         # Check installed mono version
         INSTALLED_MONO=`$LAUNCHER --version | head -n1 | cut -d'\'' '\'' -f5`
         INSTALLED_MONO_MAJOR=`echo $INSTALLED_MONO | cut -d'\''.'\'' -f1`
         INSTALLED_MONO_MINOR=`echo $INSTALLED_MONO | cut -d'\''.'\'' -f2`
-        
+
         if [ $INSTALLED_MONO_MAJOR -lt $REQUIRED_MAJOR ] || [ $INSTALLED_MONO_MAJOR -eq $REQUIRED_MAJOR -a $INSTALLED_MONO_MINOR -lt $REQUIRED_MINOR ]
         then
             echo "Wrong Mono version detected: $INSTALLED_MONO. Renode requires Mono $MONOVERSION or newer. Please refer to documentation for installation instructions. Exiting!"
             exit 1
         fi
-        
+
         exec $LAUNCHER $MONO_OPTIONS /opt/renode/bin/Renode.exe "$@"
         SCRIPT_EOF'
           sudo chmod +x /usr/bin/renode
           echo "Created /usr/bin/renode wrapper script"
         fi
-        
+
         # Also ensure /usr/local/bin/renode symlink exists
         if [ -x /usr/bin/renode ] && [ ! -x /usr/local/bin/renode ]; then
           sudo ln -sf /usr/bin/renode /usr/local/bin/renode
@@ -167,7 +167,7 @@ jobs:
         # Verify Renode is installed and accessible
         RENODE_FOUND=false
         RENODE_BIN=""
-        
+
         # Check various possible locations
         for path in /opt/renode/renode /opt/renode/bin/renode /usr/local/bin/renode /usr/bin/renode; do
           if [ -x "$path" ]; then
@@ -178,7 +178,7 @@ jobs:
             break
           fi
         done
-        
+
         if [ "$RENODE_FOUND" != "true" ]; then
           echo "ERROR: Renode binary not found or not executable!"
           echo "Searching for renode..."

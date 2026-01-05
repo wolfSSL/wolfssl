@@ -30,7 +30,7 @@ static void uart_init(void)
 {
     /* Enable USART3 clock */
     RCC_APB1LENR |= RCC_APB1LENR_USART3EN;
-    
+
     /* Configure USART3: 115200 baud at 64MHz HSI */
     USART3_BRR = 64000000 / 115200;
     USART3_CR1 = USART_CR1_UE | USART_CR1_TE;

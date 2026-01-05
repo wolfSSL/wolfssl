@@ -68,15 +68,15 @@ void Default_Handler(void)
 }
 
 /* Exception handlers - all weak aliases to Default_Handler */
-__attribute__((weak, alias("Default_Handler"))) void NMI_Handler(void);
-__attribute__((weak, alias("Default_Handler"))) void HardFault_Handler(void);
-__attribute__((weak, alias("Default_Handler"))) void MemManage_Handler(void);
-__attribute__((weak, alias("Default_Handler"))) void BusFault_Handler(void);
-__attribute__((weak, alias("Default_Handler"))) void UsageFault_Handler(void);
-__attribute__((weak, alias("Default_Handler"))) void SVC_Handler(void);
-__attribute__((weak, alias("Default_Handler"))) void DebugMon_Handler(void);
-__attribute__((weak, alias("Default_Handler"))) void PendSV_Handler(void);
-__attribute__((weak, alias("Default_Handler"))) void SysTick_Handler(void);
+void NMI_Handler(void) __attribute__((weak, alias("Default_Handler")));
+void HardFault_Handler(void) __attribute__((weak, alias("Default_Handler")));
+void MemManage_Handler(void) __attribute__((weak, alias("Default_Handler")));
+void BusFault_Handler(void) __attribute__((weak, alias("Default_Handler")));
+void UsageFault_Handler(void) __attribute__((weak, alias("Default_Handler")));
+void SVC_Handler(void) __attribute__((weak, alias("Default_Handler")));
+void DebugMon_Handler(void) __attribute__((weak, alias("Default_Handler")));
+void PendSV_Handler(void) __attribute__((weak, alias("Default_Handler")));
+void SysTick_Handler(void) __attribute__((weak, alias("Default_Handler")));
 
 /* Vector table */
 __attribute__ ((section(".isr_vector"), used))
@@ -99,4 +99,3 @@ void (* const g_pfnVectors[])(void) = {
     SysTick_Handler             /* SysTick Handler */
     /* IRQ vectors would continue here */
 };
-
