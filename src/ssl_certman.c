@@ -1795,6 +1795,7 @@ int wolfSSL_CertManagerDisableCRL(WOLFSSL_CERT_MANAGER* cm)
  *                     WOLFSSL_FILETYPE_ASN1, WOLFSSL_FILETYPE_PEM.
  * @return  WOLFSSL_SUCCESS on success.
  * @return  BAD_FUNC_ARG when cm or buff is NULL or sz is negative or zero.
+ * @return  DUPE_ENTRY_E if the same or a newer CRL already exists in the cm.
  * @return  WOLFSSL_FATAL_ERROR when creating CRL object fails.
  */
 int wolfSSL_CertManagerLoadCRLBuffer(WOLFSSL_CERT_MANAGER* cm,
