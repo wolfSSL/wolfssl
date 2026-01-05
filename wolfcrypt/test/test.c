@@ -36140,7 +36140,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test(void)
         ECC_MIN_KEY_SZ <= 521
     ret = ecc521_test_deterministic_k(&rng);
     if (ret != 0) {
-        printf("ecc512_test_deterministic_k failed!\n");
+        printf("ecc521_test_deterministic_k failed!\n");
         goto done;
     }
     #endif
