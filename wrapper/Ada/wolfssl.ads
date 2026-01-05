@@ -54,6 +54,8 @@ package WolfSSL with SPARK_Mode is
    subtype Byte_Index is Interfaces.C.size_t range 0 .. 16_000;
    subtype Byte_Array is Interfaces.C.char_array;
 
+   use type Interfaces.C.size_t;
+
    type Context_Type is limited private with
      Annotate => (GNATprove, Ownership, "Needs_Reclamation");
    --  Instances of this type are called SSL Contexts.
