@@ -15015,7 +15015,9 @@ int wolfSSL_write_early_data(WOLFSSL* ssl, const void* data, int sz, int* outSz)
     }
 
     if (ssl->options.handShakeState == NULL_STATE) {
-        if (ssl->error != WC_NO_ERR_TRACE(WC_PENDING_E))
+        /* avoid re-setting ssl->earlyData if we re-enter the function because
+         * of WC_PENDING_E, WANT_WRITE or WANT_READ */
+        if (ssl->error == 0)
             ssl->earlyData = expecting_early_data;
         ret = wolfSSL_connect_TLSv13(ssl);
         if (ret != WOLFSSL_SUCCESS)
