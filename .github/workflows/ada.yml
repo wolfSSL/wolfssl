@@ -49,7 +49,7 @@ jobs:
         alr run tls_server_main &> server.log &
         SERVER_PID=$!
         sleep 1
-        echo "test message" | alr run tls_client_main -- 127.0.0.1
+        echo "test message" | alr run tls_client_main --args=127.0.0.1
         kill $SERVER_PID || true
 
     - name: show errors
