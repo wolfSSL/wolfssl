@@ -289,7 +289,7 @@ struct WC_RNG {
     void* heap;
     byte status;
 
-#if HAVE_ANONYMOUS_INLINE_AGGREGATES
+#ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
     union {
 #endif
 
@@ -298,7 +298,7 @@ struct WC_RNG {
     #endif
 
     #ifdef HAVE_HASHDRBG
-        #if HAVE_ANONYMOUS_INLINE_AGGREGATES
+        #ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
         struct {
         #endif
             /* Hash-based Deterministic Random Bit Generator */
@@ -312,12 +312,12 @@ struct WC_RNG {
             byte *health_check_scratch;
             byte *newSeed_buf;
         #endif
-        #if HAVE_ANONYMOUS_INLINE_AGGREGATES
+        #ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
         };
         #endif
     #endif /* HAVE_HASHDRBG */
 
-#if HAVE_ANONYMOUS_INLINE_AGGREGATES
+#ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
     };
 #endif
 
