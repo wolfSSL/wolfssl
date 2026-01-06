@@ -2703,236 +2703,239 @@ int ecc_projective_dbl_point(ecc_point *P, ecc_point *R, mp_int* a,
 */
 int ecc_map_ex(ecc_point* P, mp_int* modulus, mp_digit mp, int ct)
 {
-   int err = MP_OKAY;
-#if !defined(WOLFSSL_SP_MATH)
-   DECL_MP_INT_SIZE_DYN(t1, mp_bitsused(modulus), MAX_ECC_BITS_USE);
-   DECL_MP_INT_SIZE_DYN(t2, mp_bitsused(modulus), MAX_ECC_BITS_USE);
-#ifdef ALT_ECC_SIZE
-   DECL_MP_INT_SIZE_DYN(rx, mp_bitsused(modulus), MAX_ECC_BITS_USE);
-   DECL_MP_INT_SIZE_DYN(ry, mp_bitsused(modulus), MAX_ECC_BITS_USE);
-   DECL_MP_INT_SIZE_DYN(rz, mp_bitsused(modulus), MAX_ECC_BITS_USE);
-#endif
-   mp_int *x, *y, *z;
+    int err = MP_OKAY;
+    mp_int *x, *y, *z;
+    (void)ct;
 
-   (void)ct;
+    if (P == NULL || modulus == NULL){
+        return ECC_BAD_ARG_E;
+    }
+    {
+        #if !defined(WOLFSSL_SP_MATH)
+        DECL_MP_INT_SIZE_DYN(t1, mp_bitsused(modulus), MAX_ECC_BITS_USE);
+        DECL_MP_INT_SIZE_DYN(t2, mp_bitsused(modulus), MAX_ECC_BITS_USE);
+        #ifdef ALT_ECC_SIZE
+        DECL_MP_INT_SIZE_DYN(rx, mp_bitsused(modulus), MAX_ECC_BITS_USE);
+        DECL_MP_INT_SIZE_DYN(ry, mp_bitsused(modulus), MAX_ECC_BITS_USE);
+        DECL_MP_INT_SIZE_DYN(rz, mp_bitsused(modulus), MAX_ECC_BITS_USE);
+        #endif
 
-   if (P == NULL || modulus == NULL)
-       return ECC_BAD_ARG_E;
+        /* special case for point at infinity */
+        if (mp_cmp_d(P->z, 0) == MP_EQ) {
+            err = mp_set(P->x, 0);
+            if (err == MP_OKAY)
+                err = mp_set(P->y, 0);
+            if (err == MP_OKAY)
+                err = mp_set(P->z, 1);
+            return err;
+        }
 
-   /* special case for point at infinity */
-   if (mp_cmp_d(P->z, 0) == MP_EQ) {
-       err = mp_set(P->x, 0);
-       if (err == MP_OKAY)
-           err = mp_set(P->y, 0);
-       if (err == MP_OKAY)
-           err = mp_set(P->z, 1);
-       return err;
-   }
+        #ifdef WOLFSSL_SMALL_STACK
+        #ifdef WOLFSSL_SMALL_STACK_CACHE
+        if (P->key != NULL) {
+            t1 = P->key->t1;
+            t2 = P->key->t2;
+        #ifdef ALT_ECC_SIZE
+            rx = P->key->x;
+            ry = P->key->y;
+            rz = P->key->z;
+        #endif
+        }
+        else
+        #endif /* WOLFSSL_SMALL_STACK_CACHE */
+        #endif
+        {
+            NEW_MP_INT_SIZE(t1, mp_bitsused(modulus), NULL, DYNAMIC_TYPE_ECC);
+            NEW_MP_INT_SIZE(t2, mp_bitsused(modulus), NULL, DYNAMIC_TYPE_ECC);
+        #ifdef MP_INT_SIZE_CHECK_NULL
+            if (t1 == NULL || t2 == NULL) {
+                FREE_MP_INT_SIZE(t2, NULL, DYNAMIC_TYPE_ECC);
+                FREE_MP_INT_SIZE(t1, NULL, DYNAMIC_TYPE_ECC);
+                return MEMORY_E;
+            }
+        #endif
+        #ifdef ALT_ECC_SIZE
+            NEW_MP_INT_SIZE(rx, mp_bitsused(modulus), NULL, DYNAMIC_TYPE_ECC);
+            NEW_MP_INT_SIZE(ry, mp_bitsused(modulus), NULL, DYNAMIC_TYPE_ECC);
+            NEW_MP_INT_SIZE(rz, mp_bitsused(modulus), NULL, DYNAMIC_TYPE_ECC);
+        #ifdef MP_INT_SIZE_CHECK_NULL
+            if (rx == NULL || ry == NULL || rz == NULL) {
+                FREE_MP_INT_SIZE(rz, NULL, DYNAMIC_TYPE_ECC);
+                FREE_MP_INT_SIZE(ry, NULL, DYNAMIC_TYPE_ECC);
+                FREE_MP_INT_SIZE(rx, NULL, DYNAMIC_TYPE_ECC);
+                FREE_MP_INT_SIZE(t2, NULL, DYNAMIC_TYPE_ECC);
+                FREE_MP_INT_SIZE(t1, NULL, DYNAMIC_TYPE_ECC);
+                return MEMORY_E;
+            }
+        #endif
+        #endif
+        }
 
-#ifdef WOLFSSL_SMALL_STACK
-#ifdef WOLFSSL_SMALL_STACK_CACHE
-   if (P->key != NULL) {
-       t1 = P->key->t1;
-       t2 = P->key->t2;
-   #ifdef ALT_ECC_SIZE
-       rx = P->key->x;
-       ry = P->key->y;
-       rz = P->key->z;
-   #endif
-   }
-   else
-#endif /* WOLFSSL_SMALL_STACK_CACHE */
-#endif
-   {
-      NEW_MP_INT_SIZE(t1, mp_bitsused(modulus), NULL, DYNAMIC_TYPE_ECC);
-      NEW_MP_INT_SIZE(t2, mp_bitsused(modulus), NULL, DYNAMIC_TYPE_ECC);
-   #ifdef MP_INT_SIZE_CHECK_NULL
-      if (t1 == NULL || t2 == NULL) {
-         FREE_MP_INT_SIZE(t2, NULL, DYNAMIC_TYPE_ECC);
-         FREE_MP_INT_SIZE(t1, NULL, DYNAMIC_TYPE_ECC);
-         return MEMORY_E;
-      }
-   #endif
-   #ifdef ALT_ECC_SIZE
-      NEW_MP_INT_SIZE(rx, mp_bitsused(modulus), NULL, DYNAMIC_TYPE_ECC);
-      NEW_MP_INT_SIZE(ry, mp_bitsused(modulus), NULL, DYNAMIC_TYPE_ECC);
-      NEW_MP_INT_SIZE(rz, mp_bitsused(modulus), NULL, DYNAMIC_TYPE_ECC);
-   #ifdef MP_INT_SIZE_CHECK_NULL
-      if (rx == NULL || ry == NULL || rz == NULL) {
-          FREE_MP_INT_SIZE(rz, NULL, DYNAMIC_TYPE_ECC);
-          FREE_MP_INT_SIZE(ry, NULL, DYNAMIC_TYPE_ECC);
-          FREE_MP_INT_SIZE(rx, NULL, DYNAMIC_TYPE_ECC);
-          FREE_MP_INT_SIZE(t2, NULL, DYNAMIC_TYPE_ECC);
-          FREE_MP_INT_SIZE(t1, NULL, DYNAMIC_TYPE_ECC);
-          return MEMORY_E;
-      }
-   #endif
-   #endif
-   }
+        err = INIT_MP_INT_SIZE(t1, mp_bitsused(modulus));
+        if (err == MP_OKAY) {
+            err = INIT_MP_INT_SIZE(t2, mp_bitsused(modulus));
+        }
+        if (err != MP_OKAY) {
+        #ifdef WOLFSSL_SMALL_STACK
+        #ifdef WOLFSSL_SMALL_STACK_CACHE
+            if (P->key == NULL)
+        #endif
+        #endif
+            {
+            #ifdef ALT_ECC_SIZE
+                FREE_MP_INT_SIZE(rz, NULL, DYNAMIC_TYPE_ECC);
+                FREE_MP_INT_SIZE(ry, NULL, DYNAMIC_TYPE_ECC);
+                FREE_MP_INT_SIZE(rx, NULL, DYNAMIC_TYPE_ECC);
+            #endif
+                FREE_MP_INT_SIZE(t2, NULL, DYNAMIC_TYPE_ECC);
+                FREE_MP_INT_SIZE(t1, NULL, DYNAMIC_TYPE_ECC);
+            }
+            return MEMORY_E;
+        }
 
-   err = INIT_MP_INT_SIZE(t1, mp_bitsused(modulus));
-   if (err == MP_OKAY) {
-      err = INIT_MP_INT_SIZE(t2, mp_bitsused(modulus));
-   }
-   if (err != MP_OKAY) {
-#ifdef WOLFSSL_SMALL_STACK
-   #ifdef WOLFSSL_SMALL_STACK_CACHE
-      if (P->key == NULL)
-   #endif
-#endif
-      {
-      #ifdef ALT_ECC_SIZE
-         FREE_MP_INT_SIZE(rz, NULL, DYNAMIC_TYPE_ECC);
-         FREE_MP_INT_SIZE(ry, NULL, DYNAMIC_TYPE_ECC);
-         FREE_MP_INT_SIZE(rx, NULL, DYNAMIC_TYPE_ECC);
-      #endif
-         FREE_MP_INT_SIZE(t2, NULL, DYNAMIC_TYPE_ECC);
-         FREE_MP_INT_SIZE(t1, NULL, DYNAMIC_TYPE_ECC);
-      }
-      return MEMORY_E;
-   }
+        #ifdef ALT_ECC_SIZE
+        /* Use local stack variable */
+        x = rx;
+        y = ry;
+        z = rz;
 
-#ifdef ALT_ECC_SIZE
-   /* Use local stack variable */
-   x = rx;
-   y = ry;
-   z = rz;
+        err = INIT_MP_INT_SIZE(x, mp_bitsused(modulus));
+        if (err == MP_OKAY) {
+            err = INIT_MP_INT_SIZE(y, mp_bitsused(modulus));
+        }
+        if (err == MP_OKAY) {
+            err = INIT_MP_INT_SIZE(z, mp_bitsused(modulus));
+        }
+        if (err != MP_OKAY) {
+            goto done;
+        }
 
-   err = INIT_MP_INT_SIZE(x, mp_bitsused(modulus));
-   if (err == MP_OKAY) {
-      err = INIT_MP_INT_SIZE(y, mp_bitsused(modulus));
-   }
-   if (err == MP_OKAY) {
-      err = INIT_MP_INT_SIZE(z, mp_bitsused(modulus));
-   }
-   if (err != MP_OKAY) {
-      goto done;
-   }
+        if (err == MP_OKAY)
+            err = mp_copy(P->x, x);
+        if (err == MP_OKAY)
+            err = mp_copy(P->y, y);
+        if (err == MP_OKAY)
+            err = mp_copy(P->z, z);
 
-   if (err == MP_OKAY)
-      err = mp_copy(P->x, x);
-   if (err == MP_OKAY)
-      err = mp_copy(P->y, y);
-   if (err == MP_OKAY)
-      err = mp_copy(P->z, z);
+        if (err != MP_OKAY) {
+            goto done;
+        }
+        #else
+        /* Use destination directly */
+        x = P->x;
+        y = P->y;
+        z = P->z;
+        #endif
 
-   if (err != MP_OKAY) {
-      goto done;
-   }
-#else
-   /* Use destination directly */
-   x = P->x;
-   y = P->y;
-   z = P->z;
-#endif
+        /* get 1/z */
+        if (err == MP_OKAY) {
+        #if defined(ECC_TIMING_RESISTANT) && (defined(USE_FAST_MATH) || \
+                        defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL))
+            if (ct) {
+                err = mp_invmod_mont_ct(z, modulus, t1, mp);
+                if (err == MP_OKAY)
+                    err = mp_montgomery_reduce(t1, modulus, mp);
+            }
+            else
+        #endif
+            {
+                /* first map z back to normal */
+                err = mp_montgomery_reduce(z, modulus, mp);
+                if (err == MP_OKAY)
+                    err = mp_invmod(z, modulus, t1);
+            }
+        }
 
-   /* get 1/z */
-   if (err == MP_OKAY) {
-#if defined(ECC_TIMING_RESISTANT) && (defined(USE_FAST_MATH) || \
-                       defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL))
-       if (ct) {
-           err = mp_invmod_mont_ct(z, modulus, t1, mp);
-           if (err == MP_OKAY)
-               err = mp_montgomery_reduce(t1, modulus, mp);
-       }
-       else
-#endif
-       {
-           /* first map z back to normal */
-           err = mp_montgomery_reduce(z, modulus, mp);
-           if (err == MP_OKAY)
-               err = mp_invmod(z, modulus, t1);
-       }
-   }
+        /* get 1/z^2 and 1/z^3 */
+        if (err == MP_OKAY)
+            err = mp_sqr(t1, t2);
+        if (err == MP_OKAY)
+            err = mp_mod(t2, modulus, t2);
+        if (err == MP_OKAY)
+            err = mp_mul(t1, t2, t1);
+        if (err == MP_OKAY)
+            err = mp_mod(t1, modulus, t1);
 
-   /* get 1/z^2 and 1/z^3 */
-   if (err == MP_OKAY)
-       err = mp_sqr(t1, t2);
-   if (err == MP_OKAY)
-       err = mp_mod(t2, modulus, t2);
-   if (err == MP_OKAY)
-       err = mp_mul(t1, t2, t1);
-   if (err == MP_OKAY)
-       err = mp_mod(t1, modulus, t1);
+        /* multiply against x/y */
+        if (err == MP_OKAY)
+            err = mp_mul(x, t2, x);
+        if (err == MP_OKAY)
+            err = mp_montgomery_reduce(x, modulus, mp);
+        if (err == MP_OKAY)
+            err = mp_mul(y, t1, y);
+        if (err == MP_OKAY)
+            err = mp_montgomery_reduce(y, modulus, mp);
 
-   /* multiply against x/y */
-   if (err == MP_OKAY)
-       err = mp_mul(x, t2, x);
-   if (err == MP_OKAY)
-       err = mp_montgomery_reduce(x, modulus, mp);
-   if (err == MP_OKAY)
-       err = mp_mul(y, t1, y);
-   if (err == MP_OKAY)
-       err = mp_montgomery_reduce(y, modulus, mp);
+        if (err == MP_OKAY)
+            err = mp_set(z, 1);
 
-   if (err == MP_OKAY)
-       err = mp_set(z, 1);
+        #ifdef ALT_ECC_SIZE
+        /* return result */
+        if (err == MP_OKAY)
+            err = mp_copy(x, P->x);
+        if (err == MP_OKAY)
+            err = mp_copy(y, P->y);
+        if (err == MP_OKAY)
+            err = mp_copy(z, P->z);
 
-#ifdef ALT_ECC_SIZE
-   /* return result */
-   if (err == MP_OKAY)
-      err = mp_copy(x, P->x);
-   if (err == MP_OKAY)
-      err = mp_copy(y, P->y);
-   if (err == MP_OKAY)
-      err = mp_copy(z, P->z);
+        done:
+        #endif
 
-done:
-#endif
+        /* clean up */
+        mp_clear(t1);
+        mp_clear(t2);
 
-   /* clean up */
-   mp_clear(t1);
-   mp_clear(t2);
+        #ifdef WOLFSSL_SMALL_STACK
+        #ifdef WOLFSSL_SMALL_STACK_CACHE
+        if (P->key == NULL)
+        #endif
+        #endif
+        {
+        #ifdef ALT_ECC_SIZE
+            FREE_MP_INT_SIZE(rz, NULL, DYNAMIC_TYPE_ECC);
+            FREE_MP_INT_SIZE(ry, NULL, DYNAMIC_TYPE_ECC);
+            FREE_MP_INT_SIZE(rx, NULL, DYNAMIC_TYPE_ECC);
+        #endif
+            FREE_MP_INT_SIZE(t2, NULL, DYNAMIC_TYPE_ECC);
+            FREE_MP_INT_SIZE(t1, NULL, DYNAMIC_TYPE_ECC);
+        }
 
-#ifdef WOLFSSL_SMALL_STACK
-#ifdef WOLFSSL_SMALL_STACK_CACHE
-   if (P->key == NULL)
-#endif
-#endif
-   {
-   #ifdef ALT_ECC_SIZE
-      FREE_MP_INT_SIZE(rz, NULL, DYNAMIC_TYPE_ECC);
-      FREE_MP_INT_SIZE(ry, NULL, DYNAMIC_TYPE_ECC);
-      FREE_MP_INT_SIZE(rx, NULL, DYNAMIC_TYPE_ECC);
-   #endif
-      FREE_MP_INT_SIZE(t2, NULL, DYNAMIC_TYPE_ECC);
-      FREE_MP_INT_SIZE(t1, NULL, DYNAMIC_TYPE_ECC);
-   }
+        return err;
+        /* end !defined(WOLFSSL_SP_MATH) */
 
-   return err;
-   /* end !defined(WOLFSSL_SP_MATH) */
+        #else
+        /* begin defined(WOLFSSL_SP_MATH) */
+        if (P == NULL || modulus == NULL)
+            return ECC_BAD_ARG_E;
 
-#else
-   /* begin defined(WOLFSSL_SP_MATH) */
-   if (P == NULL || modulus == NULL)
-       return ECC_BAD_ARG_E;
+        (void)mp;
+        (void)ct;
 
-   (void)mp;
-   (void)ct;
+        #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SP_SM2)
+        if ((mp_count_bits(modulus) == 256) &&
+            (!mp_is_bit_set(modulus, 224))) {
+            err = sp_ecc_map_sm2_256(P->x, P->y, P->z);
+        }
+        #elif !defined(WOLFSSL_SP_NO_256)
+        if (mp_count_bits(modulus) == 256) {
+            err = sp_ecc_map_256(P->x, P->y, P->z);
+        }
+        #elif defined(WOLFSSL_SP_384)
+        if (mp_count_bits(modulus) == 384) {
+            err = sp_ecc_map_384(P->x, P->y, P->z);
+        }
+        #elif defined(WOLFSSL_SP_521)
+        if (mp_count_bits(modulus) == 521) {
+            err = sp_ecc_map_521(P->x, P->y, P->z);
+        }
+        #else
+        err = ECC_BAD_ARG_E;
+        #endif
 
-#if defined(WOLFSSL_SM2) && defined(WOLFSSL_SP_SM2)
-   if ((mp_count_bits(modulus) == 256) && (!mp_is_bit_set(modulus, 224))) {
-       err = sp_ecc_map_sm2_256(P->x, P->y, P->z);
-   }
-#elif !defined(WOLFSSL_SP_NO_256)
-   if (mp_count_bits(modulus) == 256) {
-       err = sp_ecc_map_256(P->x, P->y, P->z);
-   }
-#elif defined(WOLFSSL_SP_384)
-   if (mp_count_bits(modulus) == 384) {
-       err = sp_ecc_map_384(P->x, P->y, P->z);
-   }
-#elif defined(WOLFSSL_SP_521)
-   if (mp_count_bits(modulus) == 521) {
-       err = sp_ecc_map_521(P->x, P->y, P->z);
-   }
-#else
-   err = ECC_BAD_ARG_E;
-#endif
-
-   WOLFSSL_LEAVE("ecc_map_ex (SP Math)", err);
-   return err;
+        WOLFSSL_LEAVE("ecc_map_ex (SP Math)", err);
+    return err;
 #endif /* WOLFSSL_SP_MATH */
+    }
 }
 #endif /* !FREESCALE_LTC_ECC && !WOLFSSL_STM32_PKA */
 
