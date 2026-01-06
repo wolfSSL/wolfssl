@@ -694,13 +694,15 @@ typedef struct wolfSSL_RefWithMutex {
 #endif
     int count;
 } wolfSSL_RefWithMutex;
-
+#define wolfSSL_RefWithMutexCur(ref) ((ref).count)
 #if defined(WOLFSSL_ATOMIC_OPS) && !defined(SINGLE_THREADED)
 typedef struct wolfSSL_Ref {
     wolfSSL_Atomic_Int count;
 } wolfSSL_Ref;
+#define wolfSSL_RefCur(ref) WOLFSSL_ATOMIC_LOAD(ref.count)
 #else
 typedef struct wolfSSL_RefWithMutex wolfSSL_Ref;
+#define wolfSSL_RefCur(ref) wolfSSL_RefWithMutexCur(ref)
 #endif
 
 #if defined(SINGLE_THREADED) || defined(WOLFSSL_ATOMIC_OPS)
@@ -710,7 +712,10 @@ typedef struct wolfSSL_RefWithMutex wolfSSL_Ref;
         wolfSSL_Atomic_Int_Init(&(ref)->count, 1); \
         *(err) = 0;                          \
     } while(0)
-#define wolfSSL_RefFree(ref) WC_DO_NOTHING
+#define wolfSSL_RefFree(ref)                 \
+    do {                                     \
+        wolfSSL_Atomic_Int_Init(&(ref)->count, 0); \
+    } while(0)
 #define wolfSSL_RefInc(ref, err)             \
     do {                                     \
         (void)wolfSSL_Atomic_Int_FetchAdd(&(ref)->count, 1); \
