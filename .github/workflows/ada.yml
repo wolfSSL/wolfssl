@@ -22,6 +22,10 @@ jobs:
       working-directory: ./wrapper/Ada
       run: alr install
 
+    - name: Build default.gpr
+      working-directory: ./wrapper/Ada
+      run: alr exec -- gprbuild default.gpr -j$(nproc)
+
     - name: Run Ada wrapper tests
       working-directory: ./wrapper/Ada/tests
       run: alr run
