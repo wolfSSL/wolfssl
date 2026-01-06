@@ -125,7 +125,7 @@ typedef const char wcchar[];
     /* if a version is available, pivot on the version, otherwise guess it's
         * disallowed, subject to override.
         */
-    #if !defined(WOLF_C89) && (!defined(__STDC__)                \
+    #if !defined(WOLF_C89) && !defined(_MSC_VER) && (!defined(__STDC__) \
         || (!defined(__STDC_VERSION__) && !defined(__cplusplus)) \
         || (defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201101L)) \
         || (defined(__cplusplus) && (__cplusplus >= 201103L)))
