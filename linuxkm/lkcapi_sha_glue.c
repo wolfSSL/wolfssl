@@ -995,7 +995,7 @@ static int wc_linuxkm_drbg_init_tfm(struct crypto_tfm *tfm)
 {
     struct wc_rng_bank *ctx = (struct wc_rng_bank *)crypto_tfm_ctx(tfm);
     int ret;
-    enum wc_rng_bank_flags flags = WC_RNG_BANK_FLAG_CAN_WAIT;
+    word32 flags = WC_RNG_BANK_FLAG_CAN_WAIT;
 
     if (wc_linuxkm_drbg_init_tfm_disable_vector_registers)
         flags |= WC_RNG_BANK_FLAG_NO_VECTOR_OPS;
@@ -1048,7 +1048,7 @@ static struct wc_rng_bank_inst *linuxkm_get_drbg(struct crypto_rng *tfm) {
     struct wc_rng_bank *ctx = (struct wc_rng_bank *)crypto_rng_ctx(tfm);
     int err;
     struct wc_rng_bank_inst *ret;
-    enum wc_rng_bank_flags flags =
+    word32 flags =
         WC_RNG_BANK_FLAG_CAN_FAIL_OVER_INST |
         WC_RNG_BANK_FLAG_CAN_WAIT |
         WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST;

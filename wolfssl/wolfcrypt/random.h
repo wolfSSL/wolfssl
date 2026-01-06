@@ -414,39 +414,39 @@ WOLFSSL_API int  wc_FreeRng(WC_RNG* rng);
  * applications.
  */
 
-enum wc_rng_bank_flags {
-    WC_RNG_BANK_FLAG_NONE = 0,
-    WC_RNG_BANK_FLAG_INITED = (1<<0),
-    WC_RNG_BANK_FLAG_CAN_FAIL_OVER_INST = (1<<1),
-    WC_RNG_BANK_FLAG_CAN_WAIT = (1<<2),
-    WC_RNG_BANK_FLAG_NO_VECTOR_OPS = (1<<3),
-    WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST = (1<<4),
-    WC_RNG_BANK_FLAG_AFFINITY_LOCK = (1<<5)
-};
+#define WC_RNG_BANK_FLAG_NONE 0
+#define WC_RNG_BANK_FLAG_INITED (1<<0)
+#define WC_RNG_BANK_FLAG_CAN_FAIL_OVER_INST (1<<1)
+#define WC_RNG_BANK_FLAG_CAN_WAIT (1<<2)
+#define WC_RNG_BANK_FLAG_NO_VECTOR_OPS (1<<3)
+#define WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST (1<<4)
+#define WC_RNG_BANK_FLAG_AFFINITY_LOCK (1<<5)
 
 typedef int (*wc_affinity_lock_fn_t)(void *arg);
 typedef int (*wc_affinity_get_id_fn_t)(void *arg, int *id);
 typedef int (*wc_affinity_unlock_fn_t)(void *arg);
 
+struct wc_rng_bank_inst {
+    wolfSSL_Atomic_Int lock;
+    WC_RNG rng;
+};
+
 struct wc_rng_bank {
     wolfSSL_Ref refcount;
     void *heap;
-    enum wc_rng_bank_flags flags;
+    word32 flags;
     wc_affinity_lock_fn_t affinity_lock_cb;
     wc_affinity_get_id_fn_t affinity_get_id_cb;
     wc_affinity_unlock_fn_t affinity_unlock_cb;
     void *cb_arg; /* if mutable, caller is responsible for thread safety. */
     int n_rngs;
-    struct wc_rng_bank_inst {
-        wolfSSL_Atomic_Int lock;
-        WC_RNG rng;
-    } *rngs; /* typically one per CPU ID, plus a few */
+    struct wc_rng_bank_inst *rngs; /* typically one per CPU ID, plus a few */
 };
 
 WOLFSSL_API int wc_rng_bank_init(
     struct wc_rng_bank *ctx,
     int n_rngs,
-    enum wc_rng_bank_flags flags,
+    word32 flags,
     int timeout_secs,
     void *heap);
 
@@ -464,7 +464,7 @@ WOLFSSL_API int wc_rng_bank_checkout(
     struct wc_rng_bank_inst **rng,
     int preferred_inst_offset,
     int timeout_secs,
-    enum wc_rng_bank_flags flags);
+    word32 flags);
 
 WOLFSSL_API int wc_rng_bank_checkin(
     struct wc_rng_bank *bank,
@@ -474,22 +474,22 @@ WOLFSSL_API int wc_rng_bank_inst_reinit(
     struct wc_rng_bank *bank,
     struct wc_rng_bank_inst *rng_inst,
     int timeout_secs,
-    enum wc_rng_bank_flags flags);
+    word32 flags);
 
 WOLFSSL_API int wc_rng_bank_seed(struct wc_rng_bank *bank,
                                  const byte* seed, word32 seedSz,
                                  int timeout_secs,
-                                 enum wc_rng_bank_flags flags);
+                                 word32 flags);
 
 WOLFSSL_API int wc_rng_bank_reseed(struct wc_rng_bank *bank,
                                    int timeout_secs,
-                                   enum wc_rng_bank_flags flags);
+                                   word32 flags);
 
 WOLFSSL_API int wc_InitRng_BankRef(struct wc_rng_bank *bank, WC_RNG *rng);
 
 WOLFSSL_API int wc_rng_new_bankref(struct wc_rng_bank *bank, WC_RNG **rng);
 
-#define WC_RNG_BANK_INST_TO_RNG(rng_inst) (&rng_inst->rng)
+#define WC_RNG_BANK_INST_TO_RNG(rng_inst) (&(rng_inst)->rng)
 
 #endif /* WC_DRBG_BANK_SUPPORT */
 

@@ -1274,8 +1274,12 @@ static int PollAndReSeed(WC_RNG* rng)
 #endif
 
 /* place a generated block in output */
+#ifdef WC_RNG_BANK_SUPPORT
+static int wc_local_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
+#else
 WOLFSSL_ABI
 int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
+#endif
 {
     int ret;
 
@@ -1284,46 +1288,6 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
 
     if (sz == 0)
         return 0;
-
-#ifdef WC_RNG_BANK_SUPPORT
-    if (rng->status == WC_DRBG_BANKREF) {
-        struct wc_rng_bank_inst *bank_inst = NULL;
-
-        if ((rng->bankref == NULL) ||
-            (! (rng->bankref->flags & WC_RNG_BANK_FLAG_INITED)))
-        {
-            return BAD_FUNC_ARG;
-        }
-
-        ret = wc_rng_bank_checkout(rng->bankref, &bank_inst, 0, 0,
-                                   WC_RNG_BANK_FLAG_CAN_FAIL_OVER_INST |
-                                   WC_RNG_BANK_FLAG_CAN_WAIT |
-                                   WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST |
-                                   WC_RNG_BANK_FLAG_AFFINITY_LOCK);
-        if (ret != 0)
-            return ret;
-        if (bank_inst == NULL)
-            return BAD_STATE_E;
-        if (bank_inst->rng.status != WC_DRBG_OK) {
-            (void)wc_rng_bank_checkin(rng->bankref, bank_inst);
-            return BAD_STATE_E;
-        }
-        ret = wc_RNG_GenerateBlock(&bank_inst->rng, output, sz);
-        {
-            int checkin_ret = wc_rng_bank_checkin(rng->bankref, bank_inst);
-            if (checkin_ret != 0) {
-#ifdef WC_VERBOSE_RNG
-                WOLFSSL_DEBUG_PRINTF(
-                    "ERROR: wc_RNG_GenerateBlock() wc_rng_bank_checkin() "
-                    "failed with err %d.", checkin_ret);
-#endif
-                if (ret == 0)
-                    ret = checkin_ret;
-            }
-        }
-        return ret;
-    }
-#endif
 
 #ifdef WOLF_CRYPTO_CB
     #ifndef WOLF_CRYPTO_CB_FIND
@@ -1416,6 +1380,55 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
     return ret;
 }
 
+#ifdef WC_RNG_BANK_SUPPORT
+WOLFSSL_ABI
+int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
+{
+    if ((rng == NULL) || (output == NULL))
+        return BAD_FUNC_ARG;
+
+    if (rng->status == WC_DRBG_BANKREF) {
+        int ret;
+        struct wc_rng_bank_inst *bank_inst = NULL;
+
+        if ((rng->bankref == NULL) ||
+            (! (rng->bankref->flags & WC_RNG_BANK_FLAG_INITED)))
+        {
+            return BAD_FUNC_ARG;
+        }
+
+        ret = wc_rng_bank_checkout(rng->bankref, &bank_inst, 0, 0,
+                                   WC_RNG_BANK_FLAG_CAN_FAIL_OVER_INST |
+                                   WC_RNG_BANK_FLAG_CAN_WAIT |
+                                   WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST |
+                                   WC_RNG_BANK_FLAG_AFFINITY_LOCK);
+        if (ret != 0)
+            return ret;
+        if (bank_inst == NULL)
+            return BAD_STATE_E;
+        if (bank_inst->rng.status != WC_DRBG_OK) {
+            (void)wc_rng_bank_checkin(rng->bankref, bank_inst);
+            return BAD_STATE_E;
+        }
+        ret = wc_local_RNG_GenerateBlock(&bank_inst->rng, output, sz);
+        {
+            int checkin_ret = wc_rng_bank_checkin(rng->bankref, bank_inst);
+            if (checkin_ret != 0) {
+#ifdef WC_VERBOSE_RNG
+                WOLFSSL_DEBUG_PRINTF(
+                    "ERROR: wc_RNG_GenerateBlock() wc_rng_bank_checkin() "
+                    "failed with err %d.", checkin_ret);
+#endif
+                if (ret == 0)
+                    ret = checkin_ret;
+            }
+        }
+        return ret;
+    }
+    else
+        return wc_local_RNG_GenerateBlock(rng, output, sz);
+}
+#endif
 
 int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 {
@@ -3833,7 +3846,7 @@ int wc_hwrng_generate_block(byte *output, word32 sz)
 WOLFSSL_API int wc_rng_bank_init(
     struct wc_rng_bank *ctx,
     int n_rngs,
-    enum wc_rng_bank_flags flags,
+    word32 flags,
     int timeout_secs,
     void *heap)
 {
@@ -3853,17 +3866,20 @@ WOLFSSL_API int wc_rng_bank_init(
     ctx->flags = flags | WC_RNG_BANK_FLAG_INITED;
     ctx->heap = heap;
 
-    ctx->rngs = (struct wc_rng_bank_inst *)XMALLOC(sizeof(*ctx->rngs) * n_rngs,
-                                                   heap, DYNAMIC_TYPE_RNG);
+    ctx->rngs = (struct wc_rng_bank_inst *)
+        XMALLOC(sizeof(*ctx->rngs) * (size_t)n_rngs,
+                heap, DYNAMIC_TYPE_RNG);
     if (! ctx->rngs)
         ret = MEMORY_E;
 
     if (ret == 0) {
-        XMEMSET(ctx->rngs, 0, sizeof(*ctx->rngs) * n_rngs);
+        XMEMSET(ctx->rngs, 0, sizeof(*ctx->rngs) * (size_t)n_rngs);
         ctx->n_rngs = n_rngs;
 
         for (i = 0; i < n_rngs; ++i) {
+#ifdef WC_VERBOSE_RNG
             int nretries = 0;
+#endif
             time_t ts1 = XTIME(0);
             for (;;) {
                 time_t ts2;
@@ -3893,7 +3909,9 @@ WOLFSSL_API int wc_rng_bank_init(
                     ret = WC_TIMEOUT_E;
                     break;
                 }
+#ifdef WC_VERBOSE_RNG
                 ++nretries;
+#endif
             }
             if (ret != 0) {
 #ifdef WC_VERBOSE_RNG
@@ -3901,7 +3919,6 @@ WOLFSSL_API int wc_rng_bank_init(
                     "ERROR: wc_InitRng returned %d after %d retries.\n", ret,
                     nretries);
 #endif
-                ret = -EINVAL;
                 break;
             }
         }
@@ -3998,7 +4015,7 @@ WOLFSSL_API int wc_rng_bank_checkout(
     struct wc_rng_bank_inst **rng,
     int preferred_inst_offset,
     int timeout_secs,
-    enum wc_rng_bank_flags flags)
+    word32 flags)
 {
     int new_lock_value, ret = 0;
     time_t ts1, ts2;
@@ -4183,7 +4200,7 @@ WOLFSSL_API int wc_rng_bank_inst_reinit(
     struct wc_rng_bank *bank,
     struct wc_rng_bank_inst *rng_inst,
     int timeout_secs,
-    enum wc_rng_bank_flags flags)
+    word32 flags)
 {
     int ret;
     time_t ts1 = 0;
@@ -4238,7 +4255,7 @@ WOLFSSL_API int wc_rng_bank_inst_reinit(
 WOLFSSL_API int wc_rng_bank_seed(struct wc_rng_bank *bank,
                                  const byte* seed, word32 seedSz,
                                  int timeout_secs,
-                                 enum wc_rng_bank_flags flags)
+                                 word32 flags)
 {
     int ret = 0;
     int n;
@@ -4294,7 +4311,7 @@ WOLFSSL_API int wc_rng_bank_seed(struct wc_rng_bank *bank,
 
 WOLFSSL_API int wc_rng_bank_reseed(struct wc_rng_bank *bank,
                                    int timeout_secs,
-                                   enum wc_rng_bank_flags flags)
+                                   word32 flags)
 {
     int n;
     int ret;

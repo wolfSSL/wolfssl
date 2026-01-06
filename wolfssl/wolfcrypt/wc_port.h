@@ -699,7 +699,7 @@ typedef struct wolfSSL_RefWithMutex {
 typedef struct wolfSSL_Ref {
     wolfSSL_Atomic_Int count;
 } wolfSSL_Ref;
-#define wolfSSL_RefCur(ref) WOLFSSL_ATOMIC_LOAD(ref.count)
+#define wolfSSL_RefCur(ref) WOLFSSL_ATOMIC_LOAD((ref).count)
 #else
 typedef struct wolfSSL_RefWithMutex wolfSSL_Ref;
 #define wolfSSL_RefCur(ref) wolfSSL_RefWithMutexCur(ref)
