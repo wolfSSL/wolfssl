@@ -297,8 +297,10 @@ void wc_linuxkm_relax_long_loop(void) {
              */
         }
         #endif
+        return;
     }
     #endif
+    cpu_relax();
 }
 
 #if defined(WC_LINUXKM_WOLFENTROPY_IN_GLUE_LAYER)
@@ -1475,9 +1477,7 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 #endif /* !WOLFCRYPT_ONLY && !NO_CERTS */
 
-#ifdef WOLFSSL_DEBUG_BACKTRACE_ERROR_CODES
     wolfssl_linuxkm_pie_redirect_table.dump_stack = dump_stack;
-#endif
 
     wolfssl_linuxkm_pie_redirect_table.preempt_count = my_preempt_count;
 #ifndef _raw_spin_lock_irqsave

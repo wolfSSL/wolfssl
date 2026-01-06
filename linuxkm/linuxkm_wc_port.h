@@ -1072,9 +1072,7 @@
 
         #endif /* !WOLFCRYPT_ONLY && !NO_CERTS */
 
-        #ifdef WOLFSSL_DEBUG_BACKTRACE_ERROR_CODES
         typeof(dump_stack) *dump_stack;
-        #endif
 
         #ifdef CONFIG_ARM64
         #ifndef CONFIG_ARCH_TEGRA
@@ -1345,9 +1343,7 @@
 
     #endif /* !WOLFCRYPT_ONLY && !NO_CERTS */
 
-    #ifdef WOLFSSL_DEBUG_BACKTRACE_ERROR_CODES
         #define dump_stack WC_PIE_INDIRECT_SYM(dump_stack)
-    #endif
 
     #undef preempt_count /* just in case -- not a macro on x86. */
     #define preempt_count WC_PIE_INDIRECT_SYM(preempt_count)
@@ -1727,6 +1723,15 @@
 
 #else
         #error unexpected BITS_PER_LONG value.
+#endif
+
+/* WC_DUMP_BACKTRACE_NONDEBUG is intended to dump a backtrace only if it hasn't
+ * already been dumped by the called function.
+ */
+#if defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES) && defined(WOLFSSL_DEBUG_BACKTRACE_ERROR_CODES)
+    #define WC_DUMP_BACKTRACE_NONDEBUG WC_DO_NOTHING
+#else
+    #define WC_DUMP_BACKTRACE_NONDEBUG dump_stack()
 #endif
 
 #endif /* LINUXKM_WC_PORT_H */
