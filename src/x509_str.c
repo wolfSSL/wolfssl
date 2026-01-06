@@ -389,11 +389,13 @@ static int X509StoreVerifyCertDate(WOLFSSL_X509_STORE_CTX* ctx, int ret)
                 WOLFSSL_MSG("Using system time for date validation");
                 /* use system time for date validation */
                 if (wc_ValidateDate(afterDate,
-                        (byte)ctx->current_cert->notAfter.type, ASN_AFTER) < 1) {
+                        (byte)ctx->current_cert->notAfter.type, ASN_AFTER,
+                        ctx->current_cert->notAfter.length) < 1) {
                     ret = ASN_AFTER_DATE_E;
                 }
                 else if (wc_ValidateDate(beforeDate,
-                        (byte)ctx->current_cert->notBefore.type, ASN_BEFORE) < 1) {
+                        (byte)ctx->current_cert->notBefore.type, ASN_BEFORE,
+                        ctx->current_cert->notBefore.length) < 1) {
                     ret = ASN_BEFORE_DATE_E;
                 }
             }
