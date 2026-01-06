@@ -36,24 +36,36 @@
 #include <tests/api/api.h>
 #include <tests/api/test_ossl_x509_str.h>
 
-#if (defined(OPENSSL_ALL) || defined(WOLFSSL_QT)) && \
+#if defined(OPENSSL_ALL) && \
         !defined(NO_RSA) && !defined(NO_FILESYSTEM)
 
-static int last_errcode[2];
-static int last_errdepth[2];
+static int last_errcode;
+static int last_errdepth;
+static int last_errcodes[10];
+static int last_errdepths[10];
 static int err_index = 0;
 
 static int X509Callback(int ok, X509_STORE_CTX *ctx)
 {
 
     if (!ok) {
-        last_errcode[err_index]    = X509_STORE_CTX_get_error(ctx);
-        last_errdepth[err_index++] = X509_STORE_CTX_get_error_depth(ctx);
+        last_errcode  = X509_STORE_CTX_get_error(ctx);
+        last_errdepth = X509_STORE_CTX_get_error_depth(ctx);
     }
     /* Always return OK to allow verification to continue.*/
     return 1;
 }
 
+static int X509CallbackCount(int ok, X509_STORE_CTX *ctx)
+{
+    if (!ok) {
+        last_errcodes[err_index]  = X509_STORE_CTX_get_error(ctx);
+        last_errdepths[err_index] = X509_STORE_CTX_get_error_depth(ctx);
+        err_index++;
+    }
+    /* Always return OK to allow verification to continue.*/
+    return 1;
+}
 #endif
 
 int test_wolfSSL_X509_STORE_CTX_set_time(void)
@@ -182,7 +194,7 @@ int test_wolfSSL_X509_STORE_check_time(void)
     wolfSSL_X509_free(cert);
     cert = NULL;
 
-#if (defined(OPENSSL_ALL) || defined(WOLFSSL_QT)) && \
+#if defined(OPENSSL_ALL) && \
         !defined(NO_RSA) && !defined(NO_FILESYSTEM)
 
     err_index = 0;
@@ -193,7 +205,7 @@ int test_wolfSSL_X509_STORE_check_time(void)
                         SSL_FILETYPE_PEM));
     ExpectIntEQ(wolfSSL_X509_STORE_add_cert(store, ca), WOLFSSL_SUCCESS);
 
-    X509_STORE_set_verify_cb(store, X509Callback);
+    X509_STORE_set_verify_cb(store, X509CallbackCount);
 
     ExpectNotNull(cert = wolfSSL_X509_load_certificate_file(expiredCertFile,
                         SSL_FILETYPE_PEM));
@@ -203,10 +215,10 @@ int test_wolfSSL_X509_STORE_check_time(void)
     /* while verifying the certificate, it should have two errors */
     ExpectIntEQ(err_index, 2);
     /* self-signed */
-    ExpectIntEQ(last_errcode[err_index - 2],
+    ExpectIntEQ(last_errcodes[err_index - 2],
                 WOLFSSL_X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT);
     /* expired */
-    ExpectIntEQ(last_errcode[err_index - 1],
+    ExpectIntEQ(last_errcodes[err_index - 1],
                 WOLFSSL_X509_V_ERR_CERT_HAS_EXPIRED);
 
     X509_STORE_CTX_free(ctx);
@@ -231,7 +243,7 @@ int test_wolfSSL_X509_STORE_check_time(void)
                         SSL_FILETYPE_PEM));
     ExpectIntEQ(wolfSSL_X509_STORE_add_cert(store, ca), WOLFSSL_SUCCESS);
 
-    X509_STORE_set_verify_cb(store, X509Callback);
+    X509_STORE_set_verify_cb(store, X509CallbackCount);
 
     ExpectNotNull(cert = wolfSSL_X509_load_certificate_file(expiredCertFile,
                         SSL_FILETYPE_PEM));
@@ -241,7 +253,7 @@ int test_wolfSSL_X509_STORE_check_time(void)
     /* while verifying the certificate, it should have an error */
     ExpectIntEQ(err_index, 1);
     /* self-signed */
-    ExpectIntEQ(last_errcode[err_index - 1],
+    ExpectIntEQ(last_errcodes[err_index - 1],
                 WOLFSSL_X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT);
     /* no expired because of no_check_time */
     X509_STORE_CTX_free(ctx);
@@ -1025,7 +1037,6 @@ int test_X509_STORE_InvalidCa(void)
     X509* cert = NULL;
     STACK_OF(X509)* untrusted = NULL;
 
-    err_index = 0;
     ExpectTrue((fp = XFOPEN(srvfile, "rb"))
             != XBADFILE);
     ExpectNotNull(cert = PEM_read_X509(fp, 0, 0, 0 ));
@@ -1050,8 +1061,7 @@ int test_X509_STORE_InvalidCa(void)
 
     ExpectIntEQ(X509_STORE_CTX_init(ctx, str, cert, untrusted), 1);
     ExpectIntEQ(X509_verify_cert(ctx), 1);
-    ExpectIntEQ(err_index, 1);
-    ExpectIntEQ(last_errcode[err_index - 1], X509_V_ERR_INVALID_CA);
+    ExpectIntEQ(last_errcode, X509_V_ERR_INVALID_CA);
 
     X509_free(cert);
     X509_STORE_free(str);

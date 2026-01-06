@@ -384,7 +384,7 @@ static int X509StoreVerifyCertDate(WOLFSSL_X509_STORE_CTX* ctx, int ret)
                     ret = ASN_BEFORE_DATE_E;
                 }
             }
-        #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+        #if defined(OPENSSL_ALL)
             else {
                 WOLFSSL_MSG("Using system time for date validation");
                 /* use system time for date validation */
@@ -438,18 +438,24 @@ static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx)
                                                         WOLFSSL_SUCCESS : ret;
     #endif
     }
-    #if !defined(NO_ASN_TIME) && (defined(OPENSSL_ALL) || defined(WOLFSSL_QT))
+    #if !defined(NO_ASN_TIME) && defined(OPENSSL_ALL)
         if (ret != WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E) &&
             ret != WC_NO_ERR_TRACE(ASN_AFTER_DATE_E)) {
-        /* With Qt and OpenSSL, we need to check the certificate's date
+        /* With OpenSSL, we need to check the certificate's date
          * after certificate manager verification,
          * as it skips date validation when other errors are present.
          */
             ret = X509StoreVerifyCertDate(ctx, ret);
             SetupStoreCtxError(ctx, ret);
-            if (ctx->store->verify_cb)
-                ret = ctx->store->verify_cb(ret >= 0 ? 1 : 0,
-                                            ctx) == 1 ? WOLFSSL_SUCCESS : -1;
+            ret = ret == WOLFSSL_SUCCESS ? 1 : 0;
+            if (ctx->store->verify_cb) {
+                if (ctx->store->verify_cb(ret, ctx) == 1) {
+                    ret = WOLFSSL_SUCCESS;
+                }
+                else {
+                    ret = -1;
+                }
+            }
         }
     #endif
     return ret;
