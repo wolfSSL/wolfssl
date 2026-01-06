@@ -634,14 +634,13 @@ out:
 static inline int km_rsa_ctx_init_rng(struct km_rsa_ctx * ctx) {
     switch (ctx->rng.status) {
     case WC_DRBG_OK:
+#ifdef WC_RNG_BANK_SUPPORT
+    case WC_DRBG_BANKREF:
+#endif
         return 0;
     case WC_DRBG_NOT_INIT:
     {
-        int err;
-        if (WOLFSSL_ATOMIC_LOAD(linuxkm_lkcapi_registering_now))
-            err = LKCAPI_INITRNG_FOR_SELFTEST(&ctx->rng);
-        else
-            err = wc_InitRng(&ctx->rng);
+        int err = LKCAPI_INITRNG(&ctx->rng);
         if (err) {
             pr_err("%s: init rng returned: %d\n", WOLFKM_RSA_DRIVER, err);
             if (err == WC_NO_ERR_TRACE(MEMORY_E))
@@ -2105,7 +2104,7 @@ static int linuxkm_test_rsa_driver(const char * driver, int nbits)
     memset(&rng, 0, sizeof(rng));
     memset(key, 0, sizeof(RsaKey));
 
-    ret = LKCAPI_INITRNG_FOR_SELFTEST(&rng);
+    ret = LKCAPI_INITRNG(&rng);
 
     if (ret) {
         pr_err("error: init rng returned: %d\n", ret);
@@ -2483,7 +2482,7 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
     memset(&rng, 0, sizeof(rng));
     memset(key, 0, sizeof(RsaKey));
 
-    ret = LKCAPI_INITRNG_FOR_SELFTEST(&rng);
+    ret = LKCAPI_INITRNG(&rng);
     if (ret) {
         pr_err("error: init rng returned: %d\n", ret);
         goto test_pkcs1_end;
@@ -3007,7 +3006,7 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
     memset(&rng, 0, sizeof(rng));
     memset(key, 0, sizeof(RsaKey));
 
-    ret = LKCAPI_INITRNG_FOR_SELFTEST(&rng);
+    ret = LKCAPI_INITRNG(&rng);
     if (ret) {
         pr_err("error: init rng returned: %d\n", ret);
         goto test_pkcs1_end;
