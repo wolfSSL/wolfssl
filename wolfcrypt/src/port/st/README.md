@@ -9,7 +9,9 @@ Support for the STM32 PKA on WB55, H7, MP13 and other devices with on-board
 public-key acceleration:
  - ECC192/ECC224/ECC256/ECC384
 
-Support for the STSAFE-A100 crypto hardware accelerator co-processor via I2C for ECC supporting NIST or Brainpool 256-bit and 384-bit curves. It requires the ST-Safe SDK including wolfSSL's `stsafe_interface.c/.h` files. Please contact us at support@wolfssl.com to get this code.
+Support for the STSAFE-A secure element family via I2C for ECC supporting NIST P-256/P-384 and Brainpool 256/384-bit curves:
+ - **STSAFE-A100/A110**: Uses ST's proprietary STSAFE-A1xx middleware. Contact us at support@wolfssl.com for integration assistance.
+ - **STSAFE-A120**: Uses ST's open-source [STSELib](https://github.com/STMicroelectronics/STSELib) (BSD-3 license).
 
 
 For details see our [wolfSSL ST](https://www.wolfssl.com/docs/stm32/) page.
@@ -65,29 +67,69 @@ To enable support define the following
 
 When the support is enabled, the ECC operations will be accelerated using the PKA crypto co-processor.
 
-## STSAFE-A100 ECC Acceleration
+## STSAFE-A ECC Acceleration
 
-Using the wolfSSL PK callbacks and the reference ST Safe reference API's we support an ECC only cipher suite such as ECDHE-ECDSA-AES128-SHA256 for TLS client or server.
+Using the wolfSSL PK callbacks or Crypto callbacks with the ST-Safe reference API's we support ECC operations for TLS client/server:
+ - **ECDSA Sign/Verify**: P-256 and P-384 (NIST and Brainpool curves)
+ - **ECDH Key Agreement**: For TLS key exchange
+ - **ECC Key Generation**: Ephemeral keys for TLS
 
-At the wolfCrypt level we also support ECC native API's for `wc_ecc_*` using the ST-Safe.
+At the wolfCrypt level we also support ECC native API's for `wc_ecc_*` using the ST-Safe via Crypto Callbacks.
+
+### Supported Hardware
+
+| Model | Macro | SDK |
+|-------|-------|-----|
+| STSAFE-A100/A110 | `WOLFSSL_STSAFEA100` | ST STSAFE-A1xx Middleware (proprietary) |
+| STSAFE-A120 | `WOLFSSL_STSAFEA120` | [STSELib](https://github.com/STMicroelectronics/STSELib) (BSD-3, open source) |
 
 ### Building
 
-`./configure --enable-pkcallbacks CFLAGS="-DWOLFSSL_STSAFEA100"`
+For STSAFE-A100/A110 (legacy):
 
-or
+```
+./configure --enable-pkcallbacks CFLAGS="-DWOLFSSL_STSAFEA100"
+```
 
-`#define HAVE_PK_CALLBACKS`
-`#define WOLFSSL_STSAFEA100`
+or in `user_settings.h`:
 
+```c
+#define HAVE_PK_CALLBACKS
+#define WOLFSSL_STSAFEA100
+```
+
+For STSAFE-A120 with STSELib:
+
+```
+./configure --enable-pkcallbacks CFLAGS="-DWOLFSSL_STSAFEA120"
+```
+
+or in `user_settings.h`:
+
+```c
+#define HAVE_PK_CALLBACKS
+#define WOLFSSL_STSAFEA120
+```
+
+To use Crypto Callbacks (recommended for wolfCrypt-level ECC operations):
+
+```c
+#define WOLF_CRYPTO_CB
+#define WOLFSSL_STSAFEA120  /* or WOLFSSL_STSAFEA100 */
+```
 
 ### Coding
 
+#### Using PK Callbacks (TLS)
+
 Setup the PK callbacks for TLS using:
 
-```
-/* Setup PK Callbacks for STSAFE-A100 */
+```c
+/* Setup PK Callbacks for STSAFE */
 WOLFSSL_CTX* ctx;
+SSL_STSAFE_SetupPkCallbacks(ctx);
+
+/* Or manually: */
 wolfSSL_CTX_SetEccKeyGenCb(ctx, SSL_STSAFE_CreateKeyCb);
 wolfSSL_CTX_SetEccSignCb(ctx, SSL_STSAFE_SignCertificateCb);
 wolfSSL_CTX_SetEccVerifyCb(ctx, SSL_STSAFE_VerifyPeerCertCb);
@@ -95,19 +137,130 @@ wolfSSL_CTX_SetEccSharedSecretCb(ctx, SSL_STSAFE_SharedSecretCb);
 wolfSSL_CTX_SetDevId(ctx, 0); /* enables wolfCrypt `wc_ecc_*` ST-Safe use */
 ```
 
-The reference STSAFE-A100 PK callback functions are located in the `wolfcrypt/src/port/st/stsafe.c` file.
+The reference STSAFE PK callback functions are located in the `wolfcrypt/src/port/st/stsafe.c` file.
 
 Adding a custom context to the callbacks:
 
-```
+```c
 /* Setup PK Callbacks context */
 WOLFSSL* ssl;
 void* myOwnCtx;
-wolfSSL_SetEccKeyGenCtx(ssl, myOwnCtx);
-wolfSSL_SetEccVerifyCtx(ssl, myOwnCtx);
-wolfSSL_SetEccSignCtx(ssl, myOwnCtx);
-wolfSSL_SetEccSharedSecretCtx(ssl, myOwnCtx);
+SSL_STSAFE_SetupPkCallbackCtx(ssl, myOwnCtx);
 ```
+
+#### Using Crypto Callbacks (wolfCrypt)
+
+For direct wolfCrypt ECC operations using the hardware:
+
+```c
+#include <wolfssl/wolfcrypt/port/st/stsafe.h>
+
+/* Register the crypto callback */
+wolfSTSAFE_CryptoCb_Ctx stsafeCtx;
+stsafeCtx.devId = WOLF_STSAFE_DEVID;
+wc_CryptoCb_RegisterDevice(WOLF_STSAFE_DEVID, wolfSSL_STSAFE_CryptoDevCb, &stsafeCtx);
+
+/* Use with ECC operations */
+ecc_key key;
+wc_ecc_init_ex(&key, NULL, WOLF_STSAFE_DEVID);
+/* ECC operations will now use STSAFE hardware */
+```
+
+### Implementation Details
+
+The STSAFE support is self-contained in `wolfcrypt/src/port/st/stsafe.c` with SDK-specific implementations selected at compile time:
+
+| Macro | SDK | Description |
+|-------|-----|-------------|
+| `WOLFSSL_STSAFEA100` | STSAFE-A1xx Middleware | ST's proprietary SDK for A100/A110 |
+| `WOLFSSL_STSAFEA120` | [STSELib](https://github.com/STMicroelectronics/STSELib) | ST's open-source SDK for A120 (BSD-3) |
+
+#### External Interface (Backwards Compatibility)
+
+For customers with existing custom implementations, define `WOLFSSL_STSAFE_INTERFACE_EXTERNAL` to use an external `stsafe_interface.h` file instead of the built-in implementation:
+
+```c
+#define WOLFSSL_STSAFEA100  /* or WOLFSSL_STSAFEA120 */
+#define WOLFSSL_STSAFE_INTERFACE_EXTERNAL
+```
+
+When `WOLFSSL_STSAFE_INTERFACE_EXTERNAL` is defined, the customer must provide a `stsafe_interface.h` header that defines:
+
+| Item | Type | Description |
+|------|------|-------------|
+| `stsafe_curve_id_t` | typedef | Curve identifier type |
+| `stsafe_slot_t` | typedef | Key slot identifier type |
+| `STSAFE_ECC_CURVE_P256` | macro | P-256 curve ID value |
+| `STSAFE_ECC_CURVE_P384` | macro | P-384 curve ID value |
+| `STSAFE_KEY_SLOT_0/1/EPHEMERAL` | macros | Key slot values |
+| `STSAFE_A_OK` | macro | Success return code |
+| `STSAFE_MAX_KEY_LEN` | macro | Max key size in bytes (48) |
+| `STSAFE_MAX_PUBKEY_RAW_LEN` | macro | Max public key size (96) |
+| `STSAFE_MAX_SIG_LEN` | macro | Max signature size (96) |
+
+And provide implementations for these internal interface functions:
+- `int stsafe_interface_init(void)`
+- `int stsafe_create_key(stsafe_slot_t*, stsafe_curve_id_t, uint8_t*)`
+- `int stsafe_sign(stsafe_slot_t, stsafe_curve_id_t, uint8_t*, uint8_t*)`
+- `int stsafe_verify(stsafe_curve_id_t, uint8_t*, uint8_t*, uint8_t*, uint8_t*, int32_t*)`
+- `int stsafe_shared_secret(stsafe_slot_t, stsafe_curve_id_t, uint8_t*, uint8_t*, uint8_t*, int32_t*)`
+- `int stsafe_read_certificate(uint8_t**, uint32_t*)`
+- `int stsafe_get_random(uint8_t*, uint32_t)` (if `USE_STSAFE_RNG_SEED` defined)
+
+When **NOT** defined (default behavior): All code is self-contained in `stsafe.c` using the appropriate SDK automatically.
+
+The implementation provides these internal operations:
+
+| Operation | Description |
+|-----------|-------------|
+| `stsafe_interface_init()` | Initialize the STSAFE device (called by `wolfCrypt_Init()`) |
+| `stsafe_sign()` | ECDSA signature generation (P-256/P-384) |
+| `stsafe_verify()` | ECDSA signature verification (P-256/P-384) |
+| `stsafe_create_key()` | Generate ECC key pair on device |
+| `stsafe_shared_secret()` | ECDH shared secret computation |
+| `stsafe_read_certificate()` | Read device certificate from secure storage |
+
+### STSELib Setup (A120)
+
+For STSAFE-A120, you need to include the STSELib library:
+
+1. Clone STSELib as a submodule or add to your project:
+   ```bash
+   git submodule add https://github.com/STMicroelectronics/STSELib.git lib/stselib
+   ```
+
+2. Add STSELib headers to your include path
+
+3. Implement the platform abstraction files required by STSELib:
+   - `stse_conf.h` - Configuration (target device, features)
+   - `stse_platform_generic.h` - Platform callbacks (I2C, timing)
+
+4. See STSELib documentation for platform-specific integration details
+
+### Raspberry Pi with STSAFE-A120
+
+For testing on a Raspberry Pi with an STSAFE-A120 connected via I2C:
+
+1. **Enable I2C** on the Raspberry Pi:
+   ```bash
+   sudo raspi-config
+   # Navigate to: Interface Options -> I2C -> Enable
+   ```
+
+2. **Verify the STSAFE device is detected** (default I2C address is 0x20):
+   ```bash
+   sudo i2cdetect -y 1
+   ```
+
+3. **Build wolfSSL with STSAFE-A120 support**:
+   ```bash
+   ./configure --enable-pkcallbacks --enable-cryptocb \
+       CFLAGS="-DWOLFSSL_STSAFEA120 -I/path/to/STSELib"
+   make
+   sudo make install
+   ```
+
+4. **Platform abstraction**: Implement the STSELib I2C callbacks using the Linux I2C driver (`/dev/i2c-1`).
 
 ### Benchmarks and Memory Use
 
