@@ -35,12 +35,6 @@
 #include <wolfssl/ssl.h>
 #endif
 
-/* Combined STSAFE macro - enables when either A100 or A120 is defined */
-#if defined(WOLFSSL_STSAFEA100) || defined(WOLFSSL_STSAFEA120)
-    #undef  WOLFSSL_STSAFE
-    #define WOLFSSL_STSAFE
-#endif
-
 #ifdef WOLFSSL_STSAFE
 
 /* -------------------------------------------------------------------------- */
@@ -52,7 +46,7 @@
  * This maintains backwards compatibility with older integrations that
  * used a separate interface file.
  *
- * When NOT defined (default): All code is self-contained in stsafe.c using
+ * When NOT set (the default): All code is self-contained in stsafe.c using
  * the appropriate SDK (STSELib for A120, STSAFE-A1xx SDK for A100/A110).
  *
  * When defined: Include customer-provided stsafe_interface.h which must define:
