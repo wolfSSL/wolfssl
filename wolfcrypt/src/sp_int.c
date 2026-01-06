@@ -18258,14 +18258,14 @@ int sp_to_unsigned_bin_len_ct(const sp_int* a, byte* out, int outSz)
         /* Start at the end of the buffer - least significant byte. */
         int j;
         unsigned int i;
-        volatile sp_int_digit mask = (sp_int_digit)-1;
+        byte mask = (byte)-1;
         sp_int_digit d;
 
         /* Put each digit in. */
         i = 0;
         for (j = outSz - 1; j >= 0; ) {
             unsigned int b;
-            volatile unsigned int notFull = (i < (unsigned int)a->used - 1);
+            volatile byte notFull = ctMaskLT((int)i, (int)a->used - 1);
 
             d = a->dp[i];
             /* Place each byte of a digit into the buffer. */
@@ -18273,7 +18273,7 @@ int sp_to_unsigned_bin_len_ct(const sp_int* a, byte* out, int outSz)
                 out[j--] = (byte)(d & mask);
                 d >>= 8;
             }
-            mask &= (sp_int_digit)(-(int)notFull);
+            mask &= notFull;
             i += (unsigned int)(1 & mask);
         }
     }
