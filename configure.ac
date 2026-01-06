@@ -3389,6 +3389,13 @@ then
             ENABLED_ARMASM_CRYPTO=no
             ;;
         sha256-small)
+            case $host_cpu in
+            *arm*)
+                ;;
+            *)
+                AC_MSG_ERROR([SHA256 small option only available on 32-bit ARM CPU.])
+                break;;
+            esac
             ENABLED_ARMASM_SHA256_SMALL=yes
             ;;
         sha512-crypto | sha3-crypto)
@@ -3458,8 +3465,25 @@ then
             esac
             ENABLED_ARMASM_BARRIER_DETECT=yes
             ;;
+        aes-block-dup)
+            case $host_cpu in
+            *arm*)
+                ;;
+            *)
+                AC_MSG_ERROR([AES assembly option only available on 32-bit ARM CPU.])
+                break;;
+            esac
+            ENABLED_ARMASM_AES_BLOCK_INLINE=yes
+            ;;
         *)
-            AC_MSG_ERROR([Invalid choice of ARM asm inclusions (yes, sha512-crypto, sha3-crypto): $ENABLED_ARMASM.])
+            case $host_cpu in
+            *aarch64*)
+                AC_MSG_ERROR([Invalid choice of ARM asm inclusions (yes, inline, no-crypto, sha512-crypto, sha3-crypto, no-sha512-crypto, no-sha3-crypto, barrier-sb, barrier-detect): $ENABLED_ARMASM.])
+                break;;
+            *arm*)
+                AC_MSG_ERROR([Invalid choice of ARM asm inclusions (yes, inline, no-crypto, sha256-small, aes-block-dup): $ENABLED_ARMASM.])
+                break;;
+            esac
             break;;
         esac
     done
@@ -3623,6 +3647,9 @@ fi
 
 if test "$ENABLED_ARMASM_INLINE" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM_INLINE"
+fi
+if test "$ENABLED_ARMASM_AES_BLOCK_INLINE" = "yes"; then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM_AES_BLOCK_INLINE"
 fi
 
 # RISC-V Assembly
