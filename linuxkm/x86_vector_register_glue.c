@@ -332,7 +332,8 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
      * a second look at preempt_count().
      */
     if (((preempt_count() & (NMI_MASK | HARDIRQ_MASK)) != 0) || (task_pid_nr(current) == 0)) {
-        VRG_PR_WARN_X("WARNING: wc_save_vector_registers_x86 called with preempt_count 0x%x and pid %d on CPU %d.\n", preempt_count(), task_pid_nr(current), raw_smp_processor_id());
+        if (! (flags & WC_SVR_FLAG_INHIBIT))
+            VRG_PR_WARN_X("WARNING: wc_save_vector_registers_x86(0x%x) called with preempt_count 0x%x and pid %d on CPU %d.\n", (unsigned)flags, preempt_count(), task_pid_nr(current), raw_smp_processor_id());
         return WC_ACCEL_INHIBIT_E;
     }
 
