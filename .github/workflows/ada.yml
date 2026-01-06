@@ -59,3 +59,11 @@ jobs:
         sudo apt-get install -y valgrind
         valgrind --leak-check=full --error-exitcode=1 \
           --suppressions=valgrind.supp ./bin/tests
+
+    - name: Run gnatprove on wolfssl
+      working-directory: ./wrapper/Ada
+      run: alr gnatprove --level=4 -P wolfssl.gpr -j 0 --warnings=error --checks-as-errors --proof-warnings -U
+
+    - name: Run gnatprove on examples
+      working-directory: ./wrapper/Ada/examples
+      run: alr gnatprove --level=4 -P examples.gpr -j 0 --warnings=error --checks-as-errors --proof-warnings -U
