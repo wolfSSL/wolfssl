@@ -1793,7 +1793,9 @@ int wc_MlKemKey_DecodePublicKey(MlKemKey* key, const unsigned char* in,
 
     if (ret == 0) {
         mlkemkey_decode_public(key->pub, key->pubSeed, p, k);
-
+        ret = mlkem_check_public(key->pub, k);
+    }
+    if (ret == 0) {
         /* Calculate public hash. */
         ret = MLKEM_HASH_H(&key->hash, in, len, key->h);
     }
