@@ -9285,10 +9285,13 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
 
                     /* Swap keys */
                     ssl->buffers.key     = ssl->buffers.altKey;
+                    ssl->buffers.weOwnKey = ssl->buffers.weOwnAltKey;
+
                 #ifdef WOLFSSL_BLIND_PRIVATE_KEY
                     ssl->buffers.keyMask = ssl->buffers.altKeyMask;
+                    /* Unblind the alternative key before decoding */
+                    wolfssl_priv_der_blind_toggle(ssl->buffers.key, ssl->buffers.keyMask);
                 #endif
-                    ssl->buffers.weOwnKey = ssl->buffers.weOwnAltKey;
                 }
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
                 ret = DecodePrivateKey(ssl, &args->sigLen);
@@ -9356,7 +9359,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                 /* The native was already decoded. Now we need to do the
                  * alternative. Note that no swap was done because this case is
                  * both native and alternative, not just alternative. */
-                if (ssl->ctx->altPrivateKey == NULL) {
+                if (ssl->buffers.altKey == NULL) {
                     ERROR_OUT(NO_PRIVATE_KEY, exit_scv);
                 }
 
