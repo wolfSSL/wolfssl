@@ -11384,7 +11384,7 @@ static int SendTls13Finished(WOLFSSL* ssl)
         if ((ret = SetKeysSide(ssl, ENCRYPT_SIDE_ONLY)) != 0)
             return ret;
 
-#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+#if defined(HAVE_SESSION_TICKET)
         ret = DeriveResumptionSecret(ssl, ssl->session->masterSecret);
         if (ret != 0)
             return ret;
@@ -13086,7 +13086,7 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     #endif /* NO_WOLFSSL_CLIENT */
 
 #ifndef NO_WOLFSSL_SERVER
-    #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+    #if defined(HAVE_SESSION_TICKET)
         if (ssl->options.side == WOLFSSL_SERVER_END && type == finished) {
             ret = DeriveResumptionSecret(ssl, ssl->session->masterSecret);
             if (ret != 0)
