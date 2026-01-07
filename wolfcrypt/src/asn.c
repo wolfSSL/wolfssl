@@ -19373,6 +19373,10 @@ static int MatchBaseName(int type, const char* name, int nameSz,
      * host1.example.com does not. */
     if (type == ASN_DNS_TYPE || (type == ASN_RFC822_TYPE && base[0] == '.')) {
         int szAdjust = nameSz - baseSz;
+        if (szAdjust > 0) {
+            if (name[szAdjust-1] != '.')
+                return 0;
+        }
         name += szAdjust;
         nameSz -= szAdjust;
     }
