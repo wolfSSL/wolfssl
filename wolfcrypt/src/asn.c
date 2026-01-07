@@ -24120,7 +24120,11 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
      * certificates (root CAs) since they are explicitly trusted and some
      * legacy root CAs in real-world trust stores have serial number 0. */
     if ((ret == 0) && (cert->serialSz == 1) && (cert->serial[0] == 0)) {
-        if (!(cert->isCA && cert->selfSigned)) {
+        if (!(cert->isCA && cert->selfSigned)
+#ifdef WOLFSSL_CERT_REQ
+            && !cert->isCSR
+#endif
+        ) {
             WOLFSSL_MSG("Error serial number of 0 for non-root certificate");
             ret = ASN_PARSE_E;
         }
@@ -25765,14 +25769,21 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
          * certificates (root CAs) since they are explicitly trusted and some
          * legacy root CAs in real-world trust stores have serial number 0. */
         if ((ret == 0) && (cert->serialSz == 1) && (cert->serial[0] == 0)) {
-            if (!(cert->isCA && cert->selfSigned)) {
+            if (!(cert->isCA && cert->selfSigned)
+#ifdef WOLFSSL_CERT_REQ
+                && !cert->isCSR
+#endif
+            ) {
                 WOLFSSL_MSG("Error serial number of 0 for non-root certificate");
                 ret = ASN_PARSE_E;
             }
         }
+        if (ret < 0) {
+            return ret;
+        }
 #endif
 
-        if ((ret != 0) || (ret = GetSigAlg(cert,
+        if ((ret = GetSigAlg(cert,
 #ifdef WOLFSSL_CERT_REQ
                 !cert->isCSR ? &confirmOID : &cert->signatureOID,
 #else
