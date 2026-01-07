@@ -39,22 +39,9 @@
 #if defined(OPENSSL_ALL) && \
         !defined(NO_RSA) && !defined(NO_FILESYSTEM)
 
-static int last_errcode;
-static int last_errdepth;
 static int last_errcodes[10];
 static int last_errdepths[10];
 static int err_index = 0;
-
-static int X509Callback(int ok, X509_STORE_CTX *ctx)
-{
-
-    if (!ok) {
-        last_errcode  = X509_STORE_CTX_get_error(ctx);
-        last_errdepth = X509_STORE_CTX_get_error_depth(ctx);
-    }
-    /* Always return OK to allow verification to continue.*/
-    return 1;
-}
 
 static int X509CallbackCount(int ok, X509_STORE_CTX *ctx)
 {
@@ -1029,6 +1016,24 @@ int test_X509_STORE_untrusted(void)
     return EXPECT_RESULT();
 }
 
+#if defined(OPENSSL_ALL) && !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+
+static int last_errcode;
+static int last_errdepth;
+
+static int X509Callback(int ok, X509_STORE_CTX *ctx)
+{
+
+    if (!ok) {
+        last_errcode  = X509_STORE_CTX_get_error(ctx);
+        last_errdepth = X509_STORE_CTX_get_error_depth(ctx);
+    }
+    /* Always return OK to allow verification to continue.*/
+    return 1;
+}
+
+#endif
+
 int test_X509_STORE_InvalidCa(void)
 {
     EXPECT_DECLS;
@@ -1042,6 +1047,9 @@ int test_X509_STORE_InvalidCa(void)
     XFILE fp = XBADFILE;
     X509* cert = NULL;
     STACK_OF(X509)* untrusted = NULL;
+
+    last_errcode = 0;
+    last_errdepth = 0;
 
     ExpectTrue((fp = XFOPEN(srvfile, "rb"))
             != XBADFILE);

@@ -443,10 +443,10 @@ static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx)
     #if !defined(NO_ASN_TIME) && defined(OPENSSL_ALL)
         if (ret != WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E) &&
             ret != WC_NO_ERR_TRACE(ASN_AFTER_DATE_E)) {
-        /* With OpenSSL, we need to check the certificate's date
-         * after certificate manager verification,
-         * as it skips date validation when other errors are present.
-         */
+            /* With OpenSSL, we need to check the certificate's date
+            * after certificate manager verification,
+            * as it skips date validation when other errors are present.
+            */
             ret = X509StoreVerifyCertDate(ctx, ret);
             SetupStoreCtxError(ctx, ret);
             ret = ret == WOLFSSL_SUCCESS ? 1 : 0;
