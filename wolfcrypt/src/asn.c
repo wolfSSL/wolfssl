@@ -25758,7 +25758,21 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
             cert->srcIdx = cert->sigIndex;
         }
 
-        if ((ret = GetSigAlg(cert,
+#if !defined(WOLFSSL_NO_ASN_STRICT) && !defined(WOLFSSL_PYTHON) && \
+    !defined(WOLFSSL_ASN_ALLOW_0_SERIAL)
+        /* Check for serial number of 0. RFC 5280 section 4.1.2.2 requires
+         * positive serial numbers. However, allow zero for self-signed CA
+         * certificates (root CAs) since they are explicitly trusted and some
+         * legacy root CAs in real-world trust stores have serial number 0. */
+        if ((ret == 0) && (cert->serialSz == 1) && (cert->serial[0] == 0)) {
+            if (!(cert->isCA && cert->selfSigned)) {
+                WOLFSSL_MSG("Error serial number of 0 for non-root certificate");
+                ret = ASN_PARSE_E;
+            }
+        }
+#endif
+
+        if ((ret != 0) || (ret = GetSigAlg(cert,
 #ifdef WOLFSSL_CERT_REQ
                 !cert->isCSR ? &confirmOID : &cert->signatureOID,
 #else
