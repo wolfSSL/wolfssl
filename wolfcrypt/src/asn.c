@@ -19315,8 +19315,8 @@ exit_cs:
 
 #ifndef IGNORE_NAME_CONSTRAINTS
 
-static int MatchBaseName(int type, const char* name, int nameSz,
-                         const char* base, int baseSz)
+int wolfssl_local_MatchBaseName(int type, const char* name, int nameSz,
+    const char* base, int baseSz)
 {
     if (base == NULL || baseSz <= 0 || name == NULL || nameSz <= 0 ||
             name[0] == '.' || nameSz < baseSz ||
@@ -19333,6 +19333,8 @@ static int MatchBaseName(int type, const char* name, int nameSz,
     if (type == ASN_RFC822_TYPE) {
         const char* p = NULL;
         int count = 0;
+        int baseIsEmail = 0;
+        int atPos = -1;
 
         if (base[0] != '.') {
             p = base;
@@ -19344,25 +19346,36 @@ static int MatchBaseName(int type, const char* name, int nameSz,
                 p++;
             }
 
-            /* No '@' in base, reset p to NULL */
-            if (count >= baseSz)
-                p = NULL;
+            if (count < baseSz) {
+                /* '@' found in base - validate it's not at start/end and only one */
+                if (count == 0 || count == baseSz - 1)
+                    return 0; /* '@' at start or end of base is invalid */
+                baseIsEmail = 1;
+            }
         }
 
-        if (p == NULL) {
-            /* Base isn't an email address, it is a domain name,
-             * wind the name forward one character past its '@'. */
-            p = name;
-            count = 0;
-            while (*p != '@' && count < baseSz) {
-                count++;
-                p++;
+        /* verify that name is a valid email address, store @ position */
+        p = name;
+        count = 0;
+        while (count < nameSz) {
+            if (*p == '@') {
+                if (atPos >= 0)
+                    return 0; /* Multiple '@' in name is invalid */
+                atPos = count;
             }
+            count++;
+            p++;
+        }
 
-            if (count < baseSz && *p == '@') {
-                name = p + 1;
-                nameSz -= count + 1;
-            }
+        /* Validate '@' exists and is not at start or end */
+        if (atPos < 0 || atPos == 0 || atPos == nameSz - 1)
+            return 0;
+
+        if (!baseIsEmail) {
+            /* Base isn't an email address but a domain or host.
+             * wind the name forward one character past its '@'. */
+            name = name + atPos + 1;
+            nameSz -= atPos + 1;
         }
     }
 
@@ -19370,12 +19383,23 @@ static int MatchBaseName(int type, const char* name, int nameSz,
      * "...Any DNS name that can be constructed by simply adding zero or more
      *  labels to the left-hand side of the name satisfies the name constraint."
      * i.e www.host.example.com works for host.example.com name constraint and
-     * host1.example.com does not. */
+     * host1.example.com does not.
+     *
+     * Note: For DNS type, RFC 5280 does not allow leading dot in constraint.
+     * However, we accept it here for backwards compatibility. */
     if (type == ASN_DNS_TYPE || (type == ASN_RFC822_TYPE && base[0] == '.')) {
         int szAdjust = nameSz - baseSz;
+        /* Check dot boundary: if there's a prefix and base doesn't start with
+         * '.', the character before the matched suffix must be '.'.
+         * When base starts with '.', the dot is included in the comparison. */
+        if (szAdjust > 0 && base[0] != '.' && name[szAdjust - 1] != '.')
+            return 0;
         name += szAdjust;
         nameSz -= szAdjust;
     }
+
+    if (nameSz != baseSz)
+        return 0;
 
     while (nameSz > 0) {
         if (XTOLOWER((unsigned char)*name) !=
@@ -19408,8 +19432,8 @@ static int PermittedListOk(DNS_entry* name, Base_entry* dnsList, byte nameType)
         if (current->type == nameType) {
             need = 1; /* restriction on permitted names is set for this type */
             if (name->len >= current->nameSz &&
-                MatchBaseName(nameType, name->name, name->len,
-                              current->name, current->nameSz)) {
+                wolfssl_local_MatchBaseName(nameType, name->name, name->len,
+                                            current->name, current->nameSz)) {
                 match = 1; /* found the current name in the permitted list*/
                 break;
             }
@@ -19439,8 +19463,8 @@ static int IsInExcludedList(DNS_entry* name, Base_entry* dnsList, byte nameType)
     while (current != NULL) {
         if (current->type == nameType) {
             if (name->len >= current->nameSz &&
-                MatchBaseName(nameType, name->name, name->len,
-                              current->name, current->nameSz)) {
+                wolfssl_local_MatchBaseName(nameType, name->name, name->len,
+                                            current->name, current->nameSz)) {
                 ret = 1;
                 break;
             }
