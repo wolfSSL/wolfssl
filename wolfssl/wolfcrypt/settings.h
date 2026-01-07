@@ -2942,8 +2942,7 @@ extern void uITRON4_free(void *p) ;
 /* Determine when mp_add_d is required. */
 #if !defined(NO_PWDBASED) || defined(WOLFSSL_KEY_GEN) || !defined(NO_DH) || \
     !defined(NO_DSA) || defined(HAVE_ECC) || \
-    (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
-    defined(OPENSSL_EXTRA)
+    !defined(NO_RSA) || defined(OPENSSL_EXTRA)
     #define WOLFSSL_SP_ADD_D
 #endif
 
