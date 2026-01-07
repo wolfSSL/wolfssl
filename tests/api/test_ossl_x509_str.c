@@ -59,9 +59,15 @@ static int X509Callback(int ok, X509_STORE_CTX *ctx)
 static int X509CallbackCount(int ok, X509_STORE_CTX *ctx)
 {
     if (!ok) {
-        last_errcodes[err_index]  = X509_STORE_CTX_get_error(ctx);
-        last_errdepths[err_index] = X509_STORE_CTX_get_error_depth(ctx);
-        err_index++;
+        if (err_index < 10) {
+            last_errcodes[err_index]  = X509_STORE_CTX_get_error(ctx);
+            last_errdepths[err_index] = X509_STORE_CTX_get_error_depth(ctx);
+            err_index++;
+        } else {
+            /* Should not happen in test */
+            WOLFSSL_MSG("Error index overflow in X509CallbackCount");
+            err_index = 0;
+        }
     }
     /* Always return OK to allow verification to continue.*/
     return 1;
