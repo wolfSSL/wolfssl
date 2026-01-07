@@ -129,8 +129,8 @@ WOLFSSL_API WARN_UNUSED_RESULT int wc_ChaCha20Poly1305_Final(ChaChaPoly_Aead* ae
 WOLFSSL_API int wc_XChaCha20Poly1305_Init(
     ChaChaPoly_Aead* aead,
     const byte *ad, word32 ad_len,
-    const byte *inKey, word32 inKeySz,
-    const byte *inIV, word32 inIVSz,
+    const byte *nonce, word32 nonce_len,
+    const byte *key, word32 key_len,
     int isEncrypt);
 
 WOLFSSL_API int wc_XChaCha20Poly1305_Encrypt(
