@@ -14990,8 +14990,9 @@ int wolfSSL_get_max_early_data(WOLFSSL* ssl)
  * sz     The size of the early data in bytes.
  * outSz  The number of early data bytes written.
  * returns BAD_FUNC_ARG when: ssl, data or outSz is NULL; sz is negative;
- * or not using TLS v1.3. SIDE ERROR when not a server. Otherwise the number of
- * early data bytes written.
+ * or not using TLS v1.3. SIDE ERROR when not a server. BAD_STATE_E if invoked
+ * without a valid session or without a valid PSK CB.
+ * Otherwise the number of early data bytes written.
  */
 int wolfSSL_write_early_data(WOLFSSL* ssl, const void* data, int sz, int* outSz)
 {
@@ -15010,8 +15011,7 @@ int wolfSSL_write_early_data(WOLFSSL* ssl, const void* data, int sz, int* outSz)
 
     /* Early data requires PSK or session resumption */
     if (!EarlyDataPossible(ssl)) {
-        ssl->error = BAD_STATE_E;
-        return WOLFSSL_FATAL_ERROR;
+        return BAD_STATE_E;
     }
 
     if (ssl->options.handShakeState == NULL_STATE) {

@@ -764,8 +764,9 @@ int test_tls13_apis(void)
     ExpectIntEQ(wolfSSL_write_early_data(clientTls12Ssl, earlyData,
         sizeof(earlyData), &outSz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #endif
+    /* invoking without session or psk cbs */
     ExpectIntEQ(wolfSSL_write_early_data(clientSsl, earlyData,
-        sizeof(earlyData), &outSz), WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+        sizeof(earlyData), &outSz), WC_NO_ERR_TRACE(BAD_STATE_E));
 #endif
 
     ExpectIntEQ(wolfSSL_read_early_data(NULL, earlyDataBuffer,
