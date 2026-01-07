@@ -168,21 +168,21 @@ _mlkem_ntt:
 	add  x2, x2, :lo12:L_mlkem_aarch64_zetas
 #else
 	adrp x2, L_mlkem_aarch64_zetas@PAGE
-	add  x2, x2, :lo12:L_mlkem_aarch64_zetas@PAGEOFF
+	add  x2, x2, L_mlkem_aarch64_zetas@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 	adrp x3, L_mlkem_aarch64_zetas_qinv
 	add  x3, x3, :lo12:L_mlkem_aarch64_zetas_qinv
 #else
 	adrp x3, L_mlkem_aarch64_zetas_qinv@PAGE
-	add  x3, x3, :lo12:L_mlkem_aarch64_zetas_qinv@PAGEOFF
+	add  x3, x3, L_mlkem_aarch64_zetas_qinv@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 	adrp x4, L_mlkem_aarch64_consts
 	add  x4, x4, :lo12:L_mlkem_aarch64_consts
 #else
 	adrp x4, L_mlkem_aarch64_consts@PAGE
-	add  x4, x4, :lo12:L_mlkem_aarch64_consts@PAGEOFF
+	add  x4, x4, L_mlkem_aarch64_consts@PAGEOFF
 #endif /* __APPLE__ */
 	add	x1, x0, #0x100
 	ldr	q4, [x4]
@@ -1562,21 +1562,21 @@ _mlkem_invntt:
 	add  x2, x2, :lo12:L_mlkem_aarch64_zetas_inv
 #else
 	adrp x2, L_mlkem_aarch64_zetas_inv@PAGE
-	add  x2, x2, :lo12:L_mlkem_aarch64_zetas_inv@PAGEOFF
+	add  x2, x2, L_mlkem_aarch64_zetas_inv@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 	adrp x3, L_mlkem_aarch64_zetas_inv_qinv
 	add  x3, x3, :lo12:L_mlkem_aarch64_zetas_inv_qinv
 #else
 	adrp x3, L_mlkem_aarch64_zetas_inv_qinv@PAGE
-	add  x3, x3, :lo12:L_mlkem_aarch64_zetas_inv_qinv@PAGEOFF
+	add  x3, x3, L_mlkem_aarch64_zetas_inv_qinv@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 	adrp x4, L_mlkem_aarch64_consts
 	add  x4, x4, :lo12:L_mlkem_aarch64_consts
 #else
 	adrp x4, L_mlkem_aarch64_consts@PAGE
-	add  x4, x4, :lo12:L_mlkem_aarch64_consts@PAGEOFF
+	add  x4, x4, L_mlkem_aarch64_consts@PAGEOFF
 #endif /* __APPLE__ */
 	add	x1, x0, #0x100
 	ldr	q8, [x4]
@@ -3013,21 +3013,21 @@ _mlkem_ntt_sqrdmlsh:
 	add  x2, x2, :lo12:L_mlkem_aarch64_zetas
 #else
 	adrp x2, L_mlkem_aarch64_zetas@PAGE
-	add  x2, x2, :lo12:L_mlkem_aarch64_zetas@PAGEOFF
+	add  x2, x2, L_mlkem_aarch64_zetas@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 	adrp x3, L_mlkem_aarch64_zetas_qinv
 	add  x3, x3, :lo12:L_mlkem_aarch64_zetas_qinv
 #else
 	adrp x3, L_mlkem_aarch64_zetas_qinv@PAGE
-	add  x3, x3, :lo12:L_mlkem_aarch64_zetas_qinv@PAGEOFF
+	add  x3, x3, L_mlkem_aarch64_zetas_qinv@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 	adrp x4, L_mlkem_aarch64_consts
 	add  x4, x4, :lo12:L_mlkem_aarch64_consts
 #else
 	adrp x4, L_mlkem_aarch64_consts@PAGE
-	add  x4, x4, :lo12:L_mlkem_aarch64_consts@PAGEOFF
+	add  x4, x4, L_mlkem_aarch64_consts@PAGEOFF
 #endif /* __APPLE__ */
 	add	x1, x0, #0x100
 	ldr	q4, [x4]
@@ -4195,21 +4195,21 @@ _mlkem_invntt_sqrdmlsh:
 	add  x2, x2, :lo12:L_mlkem_aarch64_zetas_inv
 #else
 	adrp x2, L_mlkem_aarch64_zetas_inv@PAGE
-	add  x2, x2, :lo12:L_mlkem_aarch64_zetas_inv@PAGEOFF
+	add  x2, x2, L_mlkem_aarch64_zetas_inv@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 	adrp x3, L_mlkem_aarch64_zetas_inv_qinv
 	add  x3, x3, :lo12:L_mlkem_aarch64_zetas_inv_qinv
 #else
 	adrp x3, L_mlkem_aarch64_zetas_inv_qinv@PAGE
-	add  x3, x3, :lo12:L_mlkem_aarch64_zetas_inv_qinv@PAGEOFF
+	add  x3, x3, L_mlkem_aarch64_zetas_inv_qinv@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 	adrp x4, L_mlkem_aarch64_consts
 	add  x4, x4, :lo12:L_mlkem_aarch64_consts
 #else
 	adrp x4, L_mlkem_aarch64_consts@PAGE
-	add  x4, x4, :lo12:L_mlkem_aarch64_consts@PAGEOFF
+	add  x4, x4, L_mlkem_aarch64_consts@PAGEOFF
 #endif /* __APPLE__ */
 	add	x1, x0, #0x100
 	ldr	q8, [x4]
@@ -5532,14 +5532,14 @@ _mlkem_basemul_mont:
 	add  x3, x3, :lo12:L_mlkem_aarch64_zetas_mul
 #else
 	adrp x3, L_mlkem_aarch64_zetas_mul@PAGE
-	add  x3, x3, :lo12:L_mlkem_aarch64_zetas_mul@PAGEOFF
+	add  x3, x3, L_mlkem_aarch64_zetas_mul@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 	adrp x4, L_mlkem_aarch64_consts
 	add  x4, x4, :lo12:L_mlkem_aarch64_consts
 #else
 	adrp x4, L_mlkem_aarch64_consts@PAGE
-	add  x4, x4, :lo12:L_mlkem_aarch64_consts@PAGEOFF
+	add  x4, x4, L_mlkem_aarch64_consts@PAGEOFF
 #endif /* __APPLE__ */
 	ldr	q1, [x4]
 	ldp	q2, q3, [x1]
@@ -6230,14 +6230,14 @@ _mlkem_basemul_mont_add:
 	add  x3, x3, :lo12:L_mlkem_aarch64_zetas_mul
 #else
 	adrp x3, L_mlkem_aarch64_zetas_mul@PAGE
-	add  x3, x3, :lo12:L_mlkem_aarch64_zetas_mul@PAGEOFF
+	add  x3, x3, L_mlkem_aarch64_zetas_mul@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 	adrp x4, L_mlkem_aarch64_consts
 	add  x4, x4, :lo12:L_mlkem_aarch64_consts
 #else
 	adrp x4, L_mlkem_aarch64_consts@PAGE
-	add  x4, x4, :lo12:L_mlkem_aarch64_consts@PAGEOFF
+	add  x4, x4, L_mlkem_aarch64_consts@PAGEOFF
 #endif /* __APPLE__ */
 	ldr	q1, [x4]
 	ldp	q2, q3, [x1]
@@ -6991,7 +6991,7 @@ _mlkem_csubq_neon:
 	add  x1, x1, :lo12:L_mlkem_aarch64_q
 #else
 	adrp x1, L_mlkem_aarch64_q@PAGE
-	add  x1, x1, :lo12:L_mlkem_aarch64_q@PAGEOFF
+	add  x1, x1, L_mlkem_aarch64_q@PAGEOFF
 #endif /* __APPLE__ */
 	ldr	q20, [x1]
 	ld4	{v0.8h, v1.8h, v2.8h, v3.8h}, [x0], #0x40
@@ -7172,7 +7172,7 @@ _mlkem_add_reduce:
 	add  x2, x2, :lo12:L_mlkem_aarch64_consts
 #else
 	adrp x2, L_mlkem_aarch64_consts@PAGE
-	add  x2, x2, :lo12:L_mlkem_aarch64_consts@PAGEOFF
+	add  x2, x2, L_mlkem_aarch64_consts@PAGEOFF
 #endif /* __APPLE__ */
 	ldr	q0, [x2]
 	ld4	{v1.8h, v2.8h, v3.8h, v4.8h}, [x0], #0x40
@@ -7363,7 +7363,7 @@ _mlkem_add3_reduce:
 	add  x3, x3, :lo12:L_mlkem_aarch64_consts
 #else
 	adrp x3, L_mlkem_aarch64_consts@PAGE
-	add  x3, x3, :lo12:L_mlkem_aarch64_consts@PAGEOFF
+	add  x3, x3, L_mlkem_aarch64_consts@PAGEOFF
 #endif /* __APPLE__ */
 	ldr	q0, [x3]
 	ld4	{v1.8h, v2.8h, v3.8h, v4.8h}, [x0], #0x40
@@ -7594,7 +7594,7 @@ _mlkem_rsub_reduce:
 	add  x2, x2, :lo12:L_mlkem_aarch64_consts
 #else
 	adrp x2, L_mlkem_aarch64_consts@PAGE
-	add  x2, x2, :lo12:L_mlkem_aarch64_consts@PAGEOFF
+	add  x2, x2, L_mlkem_aarch64_consts@PAGEOFF
 #endif /* __APPLE__ */
 	ldr	q0, [x2]
 	ld4	{v1.8h, v2.8h, v3.8h, v4.8h}, [x0], #0x40
@@ -7785,7 +7785,7 @@ _mlkem_to_mont:
 	add  x1, x1, :lo12:L_mlkem_aarch64_consts
 #else
 	adrp x1, L_mlkem_aarch64_consts@PAGE
-	add  x1, x1, :lo12:L_mlkem_aarch64_consts@PAGEOFF
+	add  x1, x1, L_mlkem_aarch64_consts@PAGEOFF
 #endif /* __APPLE__ */
 	ldr	q0, [x1]
 	ld4	{v1.8h, v2.8h, v3.8h, v4.8h}, [x0], #0x40
@@ -7999,7 +7999,7 @@ _mlkem_to_mont_sqrdmlsh:
 	add  x1, x1, :lo12:L_mlkem_aarch64_consts
 #else
 	adrp x1, L_mlkem_aarch64_consts@PAGE
-	add  x1, x1, :lo12:L_mlkem_aarch64_consts@PAGEOFF
+	add  x1, x1, L_mlkem_aarch64_consts@PAGEOFF
 #endif /* __APPLE__ */
 	ldr	q0, [x1]
 	ld4	{v1.8h, v2.8h, v3.8h, v4.8h}, [x0], #0x40
@@ -8226,21 +8226,21 @@ _mlkem_to_msg_neon:
 	add  x2, x2, :lo12:L_mlkem_to_msg_low
 #else
 	adrp x2, L_mlkem_to_msg_low@PAGE
-	add  x2, x2, :lo12:L_mlkem_to_msg_low@PAGEOFF
+	add  x2, x2, L_mlkem_to_msg_low@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 	adrp x3, L_mlkem_to_msg_high
 	add  x3, x3, :lo12:L_mlkem_to_msg_high
 #else
 	adrp x3, L_mlkem_to_msg_high@PAGE
-	add  x3, x3, :lo12:L_mlkem_to_msg_high@PAGEOFF
+	add  x3, x3, L_mlkem_to_msg_high@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 	adrp x4, L_mlkem_to_msg_bits
 	add  x4, x4, :lo12:L_mlkem_to_msg_bits
 #else
 	adrp x4, L_mlkem_to_msg_bits@PAGE
-	add  x4, x4, :lo12:L_mlkem_to_msg_bits@PAGEOFF
+	add  x4, x4, L_mlkem_to_msg_bits@PAGEOFF
 #endif /* __APPLE__ */
 	ldr	q0, [x2]
 	ldr	q1, [x3]
@@ -8506,14 +8506,14 @@ _mlkem_from_msg_neon:
 	add  x2, x2, :lo12:L_mlkem_from_msg_q1half
 #else
 	adrp x2, L_mlkem_from_msg_q1half@PAGE
-	add  x2, x2, :lo12:L_mlkem_from_msg_q1half@PAGEOFF
+	add  x2, x2, L_mlkem_from_msg_q1half@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 	adrp x3, L_mlkem_from_msg_bits
 	add  x3, x3, :lo12:L_mlkem_from_msg_bits
 #else
 	adrp x3, L_mlkem_from_msg_bits@PAGE
-	add  x3, x3, :lo12:L_mlkem_from_msg_bits@PAGEOFF
+	add  x3, x3, L_mlkem_from_msg_bits@PAGEOFF
 #endif /* __APPLE__ */
 	ld1	{v2.16b, v3.16b}, [x1]
 	ldr	q1, [x2]
@@ -9517,28 +9517,28 @@ _mlkem_rej_uniform_neon:
 	add  x4, x4, :lo12:L_mlkem_rej_uniform_mask
 #else
 	adrp x4, L_mlkem_rej_uniform_mask@PAGE
-	add  x4, x4, :lo12:L_mlkem_rej_uniform_mask@PAGEOFF
+	add  x4, x4, L_mlkem_rej_uniform_mask@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 	adrp x5, L_mlkem_aarch64_q
 	add  x5, x5, :lo12:L_mlkem_aarch64_q
 #else
 	adrp x5, L_mlkem_aarch64_q@PAGE
-	add  x5, x5, :lo12:L_mlkem_aarch64_q@PAGEOFF
+	add  x5, x5, L_mlkem_aarch64_q@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 	adrp x6, L_mlkem_rej_uniform_bits
 	add  x6, x6, :lo12:L_mlkem_rej_uniform_bits
 #else
 	adrp x6, L_mlkem_rej_uniform_bits@PAGE
-	add  x6, x6, :lo12:L_mlkem_rej_uniform_bits@PAGEOFF
+	add  x6, x6, L_mlkem_rej_uniform_bits@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 	adrp x7, L_mlkem_rej_uniform_indices
 	add  x7, x7, :lo12:L_mlkem_rej_uniform_indices
 #else
 	adrp x7, L_mlkem_rej_uniform_indices@PAGE
-	add  x7, x7, :lo12:L_mlkem_rej_uniform_indices@PAGEOFF
+	add  x7, x7, L_mlkem_rej_uniform_indices@PAGEOFF
 #endif /* __APPLE__ */
 	eor	v1.16b, v1.16b, v1.16b
 	eor	v12.16b, v12.16b, v12.16b
@@ -9754,7 +9754,7 @@ _mlkem_sha3_blocksx3_neon:
 	add  x27, x27, :lo12:L_sha3_aarch64_r
 #else
 	adrp x27, L_sha3_aarch64_r@PAGE
-	add  x27, x27, :lo12:L_sha3_aarch64_r@PAGEOFF
+	add  x27, x27, L_sha3_aarch64_r@PAGEOFF
 #endif /* __APPLE__ */
 	str	x0, [x29, #40]
 	ld4	{v0.d, v1.d, v2.d, v3.d}[0], [x0], #32
@@ -10079,7 +10079,7 @@ _mlkem_shake128_blocksx3_seed_neon:
 	add  x28, x28, :lo12:L_sha3_aarch64_r
 #else
 	adrp x28, L_sha3_aarch64_r@PAGE
-	add  x28, x28, :lo12:L_sha3_aarch64_r@PAGEOFF
+	add  x28, x28, L_sha3_aarch64_r@PAGEOFF
 #endif /* __APPLE__ */
 	str	x0, [x29, #40]
 	add	x0, x0, #32
@@ -10426,7 +10426,7 @@ _mlkem_shake256_blocksx3_seed_neon:
 	add  x28, x28, :lo12:L_sha3_aarch64_r
 #else
 	adrp x28, L_sha3_aarch64_r@PAGE
-	add  x28, x28, :lo12:L_sha3_aarch64_r@PAGEOFF
+	add  x28, x28, L_sha3_aarch64_r@PAGEOFF
 #endif /* __APPLE__ */
 	str	x0, [x29, #40]
 	add	x0, x0, #32
@@ -10774,7 +10774,7 @@ _mlkem_sha3_blocksx3_neon:
 	add  x27, x27, :lo12:L_sha3_aarch64_r
 #else
 	adrp x27, L_sha3_aarch64_r@PAGE
-	add  x27, x27, :lo12:L_sha3_aarch64_r@PAGEOFF
+	add  x27, x27, L_sha3_aarch64_r@PAGEOFF
 #endif /* __APPLE__ */
 	str	x0, [x29, #40]
 	ld4	{v0.d, v1.d, v2.d, v3.d}[0], [x0], #32
@@ -11184,7 +11184,7 @@ _mlkem_shake128_blocksx3_seed_neon:
 	add  x28, x28, :lo12:L_sha3_aarch64_r
 #else
 	adrp x28, L_sha3_aarch64_r@PAGE
-	add  x28, x28, :lo12:L_sha3_aarch64_r@PAGEOFF
+	add  x28, x28, L_sha3_aarch64_r@PAGEOFF
 #endif /* __APPLE__ */
 	str	x0, [x29, #40]
 	add	x0, x0, #32
@@ -11616,7 +11616,7 @@ _mlkem_shake256_blocksx3_seed_neon:
 	add  x28, x28, :lo12:L_sha3_aarch64_r
 #else
 	adrp x28, L_sha3_aarch64_r@PAGE
-	add  x28, x28, :lo12:L_sha3_aarch64_r@PAGEOFF
+	add  x28, x28, L_sha3_aarch64_r@PAGEOFF
 #endif /* __APPLE__ */
 	str	x0, [x29, #40]
 	add	x0, x0, #32
