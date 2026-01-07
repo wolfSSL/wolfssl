@@ -822,7 +822,7 @@ static int ed25519_verify_msg_final_with_sha(const byte* sig, word32 sigLen,
     if (ret != 0)
         return ret;
 
-    ge_tobytes(rcheck, &R);
+    ge_tobytes_nct(rcheck, &R);
 #endif /* FREESCALE_LTC_ECC */
 
     /* comparison of R created to R in sig */

@@ -9175,24 +9175,25 @@ void ge_scalarmult_base(ge_p3 *h,const unsigned char *a)
 #define SLIDE_SIZE 256
 
 /* ge double scalar mult */
-static void slide(signed char *r,const unsigned char *a)
+static void slide(signed char *r,const unsigned char *a, int max)
 {
   int i;
   int b;
   int k;
 
-  for (i = 0;i < SLIDE_SIZE;++i)
+  for (i = 0;i < SLIDE_SIZE;++i) {
     r[i] = 1 & (a[i >> 3] >> (i & 7));
+  }
 
-  for (i = 0;i < SLIDE_SIZE;++i)
+  for (i = 0;i < SLIDE_SIZE;++i) {
     if (r[i]) {
       for (b = 1;b <= 6 && i + b < SLIDE_SIZE;++b) {
         if (r[i + b]) {
           signed char rb = (signed char)((unsigned char)r[i + b] << b);
-          if (r[i] + rb <= 15) {
+          if (r[i] + rb <= max) {
               r[i] = (signed char)(r[i] + rb);
               r[i + b] = 0;
-          } else if (r[i] - rb >= -15) {
+          } else if (r[i] - rb >= -max) {
             r[i] = (signed char)(r[i] - rb);
             for (k = i + b;k < SLIDE_SIZE;++k) {
               if (!r[k]) {
@@ -9206,180 +9207,470 @@ static void slide(signed char *r,const unsigned char *a)
         }
       }
     }
+  }
 }
 
+/* Generated using command: ruby ../scripts/x25519/ed25519.rb */
 #ifdef CURVED25519_ASM_64BIT
-static const ge_precomp Bi[8] = {
+static const ge_precomp Bi[32] = {
     {
-        { 0x2fbc93c6f58c3b85, -0x306cd2390473f1e7, 0x270b4898643d42c2, 0x07cf9d3a33d4ba65,  },
-        { -0x62efc6fa28bf6ec2, -0x02c660fa2ebf414d, -0x5a3e7bcb977075f7, 0x44fd2f9298f81267,  },
-        { -0x5436edfa78855598, 0x26d9e823ccaac49e, 0x5a1b7dcbdd43598c, 0x6f117b689f0c65a8,  },
+        {  0x2fbc93c6f58c3b85, -0x306cd2390473f1e7,  0x270b4898643d42c2,
+           0x07cf9d3a33d4ba65 },
+        { -0x62efc6fa28bf6ec2, -0x02c660fa2ebf414d, -0x5a3e7bcb977075f7,
+           0x44fd2f9298f81267 },
+        { -0x5436edfa78855598,  0x26d9e823ccaac49e,  0x5a1b7dcbdd43598c,
+           0x6f117b689f0c65a8 },
     },
     {
-        { -0x50da4f57b31168d0, 0x025a8430e8864b8a, -0x3ee4affd60fe98ce, 0x7a164e1b9a80f8f4,  },
-        { 0x56611fe8a4fcd265, 0x3bd353fde5c1ba7d, -0x7ece0ce5deb42943, 0x2ab91587555bda62,  },
-        { 0x14ae933f0dd0d889, 0x589423221c35da62, -0x2e8f1aba730d24b4, 0x5a2826af12b9b4c6,  },
+        { -0x50da4f57b31168d0,  0x025a8430e8864b8a, -0x3ee4affd60fe98ce,
+           0x7a164e1b9a80f8f4 },
+        {  0x56611fe8a4fcd265,  0x3bd353fde5c1ba7d, -0x7ece0ce5deb42943,
+           0x2ab91587555bda62 },
+        {  0x14ae933f0dd0d889,  0x589423221c35da62, -0x2e8f1aba730d24b4,
+           0x5a2826af12b9b4c6 },
     },
     {
-        { -0x5ded43bbf75a44cd, -0x72afb73c38a112fe, -0x22e414f3a54013bc, 0x2945ccf146e206eb,  },
-        { 0x7f9182c3a447d6ba, -0x2affeb2eb4d8d649, -0x1cc30ee3479b5f79, 0x154a7e73eb1b55f3,  },
-        { -0x4344240e7ed57d7b, 0x270e0807d0bdd1fc, -0x4be498f4e44258d3, 0x43aabe696b3bb69a,  },
+        { -0x5ded43bbf75a44cd, -0x72afb73c38a112fe, -0x22e414f3a54013bc,
+           0x2945ccf146e206eb },
+        {  0x7f9182c3a447d6ba, -0x2affeb2eb4d8d649, -0x1cc30ee3479b5f79,
+           0x154a7e73eb1b55f3 },
+        { -0x4344240e7ed57d7b,  0x270e0807d0bdd1fc, -0x4be498f4e44258d3,
+           0x43aabe696b3bb69a },
     },
     {
-        { 0x6b1a5cd0944ea3bf, 0x7470353ab39dc0d2, 0x71b2528228542e49, 0x461bea69283c927e,  },
-        { -0x4590d36555cdde4f, 0x6ca021533bba23a7, -0x621589b06de6d3c6, 0x1d6edd5d2e5317e0,  },
-        { -0x0e7c9237fe474c5e, -0x4cfca0b8fac15b66, 0x529c41ba5877adf3, 0x7a9fbb1c6a0f90a7,  },
+        {  0x6b1a5cd0944ea3bf,  0x7470353ab39dc0d2,  0x71b2528228542e49,
+           0x461bea69283c927e },
+        { -0x4590d36555cdde4f,  0x6ca021533bba23a7, -0x621589b06de6d3c6,
+           0x1d6edd5d2e5317e0 },
+        { -0x0e7c9237fe474c5e, -0x4cfca0b8fac15b66,  0x529c41ba5877adf3,
+           0x7a9fbb1c6a0f90a7 },
     },
     {
-        { -0x64d1987559579cd1, -0x59af6190ae43b93b, -0x314dcc3639790a4b, 0x34b9ed338add7f59,  },
-        { -0x0c91de81fc627f9c, -0x675f7e490adfbe65, -0x693439f718a14fbc, 0x49c05a51fadc9c8f,  },
-        { 0x06b4e8bf9045af1b, -0x1d007c1758e62dd1, -0x550903d66c2b30ea, 0x73c172021b008b06,  },
+        { -0x64d1987559579cd1, -0x59af6190ae43b93b, -0x314dcc3639790a4b,
+           0x34b9ed338add7f59 },
+        { -0x0c91de81fc627f9c, -0x675f7e490adfbe65, -0x693439f718a14fbc,
+           0x49c05a51fadc9c8f },
+        {  0x06b4e8bf9045af1b, -0x1d007c1758e62dd1, -0x550903d66c2b30ea,
+           0x73c172021b008b06 },
     },
     {
-        { 0x2fbf00848a802ade, -0x1a260130fdcfd1d9, 0x113e847117703406, 0x4275aae2546d8faf,  },
-        { 0x315f5b0249864348, 0x3ed6b36977088381, -0x5c5f8aaa9572146b, 0x18ab598029d5c77f,  },
-        { -0x27d4d33a029f7617, 0x031eb4a13282e4a4, 0x44311199b51a8622, 0x3dc65522b53df948,  },
+        {  0x2fbf00848a802ade, -0x1a260130fdcfd1d9,  0x113e847117703406,
+           0x4275aae2546d8faf },
+        {  0x315f5b0249864348,  0x3ed6b36977088381, -0x5c5f8aaa9572146b,
+           0x18ab598029d5c77f },
+        { -0x27d4d33a029f7617,  0x031eb4a13282e4a4,  0x44311199b51a8622,
+           0x3dc65522b53df948 },
     },
     {
-        { -0x408f3ddd5dff8093, -0x407b4c654a432125, 0x537a0e12fb07ba07, 0x234fd7eec346f241,  },
-        { 0x506f013b327fbf93, -0x5103143664889095, -0x62ed4dcd5552a698, 0x0267882d176024a7,  },
-        { 0x5360a119732ea378, 0x2437e6b1df8dd471, -0x5d10c8076e581acd, 0x497ba6fdaa097863,  },
+        { -0x408f3ddd5dff8093, -0x407b4c654a432125,  0x537a0e12fb07ba07,
+           0x234fd7eec346f241 },
+        {  0x506f013b327fbf93, -0x5103143664889095, -0x62ed4dcd5552a698,
+           0x0267882d176024a7 },
+        {  0x5360a119732ea378,  0x2437e6b1df8dd471, -0x5d10c8076e581acd,
+           0x497ba6fdaa097863 },
     },
     {
-        { 0x24cecc0313cfeaa0, -0x79b73d72e763db93, 0x2dbdbdfac1f2d4d0, 0x61e22917f12de72b,  },
-        { 0x040bcd86468ccf0b, -0x2c7d645bd566ef2a, 0x7508300807b25192, 0x43b5cd4218d05ebf,  },
-        { 0x5d9a762f9bd0b516, -0x14c750b1c8c02112, 0x032e5a7d93d64270, 0x511d61210ae4d842,  },
+        {  0x24cecc0313cfeaa0, -0x79b73d72e763db93,  0x2dbdbdfac1f2d4d0,
+           0x61e22917f12de72b },
+        {  0x040bcd86468ccf0b, -0x2c7d645bd566ef2a,  0x7508300807b25192,
+           0x43b5cd4218d05ebf },
+        {  0x5d9a762f9bd0b516, -0x14c750b1c8c02112,  0x032e5a7d93d64270,
+           0x511d61210ae4d842 },
+    },
+    {
+        { -0x6d3989106af1627f, -0x5ab9df323f28fbb1, -0x5564c99b9070edb8,
+           0x6d325924ddb855e3 },
+        {  0x081386484420de87, -0x75e30fe94a6d124c,  0x39fa4e2729942d25,
+           0x71a7fe6fe2482810 },
+        {  0x6c7182b8a5c8c854,  0x33fd1479fe5f2a03,  0x72cf591883778d0c,
+           0x4746c4b6559eeaa9 },
+    },
+    {
+        { -0x2c8884c3923965d5, -0x21054dd8907609e9,  0x45651cf7b53a16b5,
+           0x5c9a51de34fe9fb7 },
+        {  0x348546c864741147,  0x7d35aedd0efcc849, -0x006c6589f98d5cce,
+           0x219663497db5e6d6 },
+        { -0x0aef0e30860ef199, -0x0022255e19a7aea5,  0x09c3a71710142277,
+           0x4804503c608223bb },
+    },
+    {
+        { -0x3bdb612fd35c8039, -0x5fa65f1c59ea5355, -0x775691283691f1dd,
+           0x553398a51650696d },
+        {  0x3b6821d23a36d175, -0x444bf558166461ce,  0x5d9e5ce420838a47,
+           0x771e098858de4c5e },
+        { -0x65ed0a2d87bae121,  0x3ada5d7985899ccb,  0x477f4a2d9fa59508,
+           0x5a5ed1d68ff5a611 },
+    },
+    {
+        {  0x1195122afe150e83, -0x30df65da81b4ca28,  0x7387f8291e711e20,
+           0x44acb897d8bf92f0 },
+        { -0x451a1f3aa7ad8ca7,  0x392e5c19cadb9d7e,  0x28653c1eda1cabe9,
+           0x019b60135fefdc44 },
+        {  0x1e6068145e134b83, -0x3b0a19b0dbcfb3ea,  0x506e88a8fc1a3ed7,
+           0x150c49fde6ad2f92 },
+    },
+    {
+        { -0x71840d6af6b8eec8,  0x5d6fef394f75a651,  0x10af79c425a708ad,
+           0x6b2b5a075bb99922 },
+        { -0x47b679c363235798, -0x37c0bb24478eb530, -0x01c11ca9f3c9e973,
+           0x78a6d7791e05fbc1 },
+        {  0x58bf704b47a0b976, -0x59fe4caa8be8b72b, -0x55d4e04e2abd0a70,
+           0x725c7ffc4ad55d00 },
+    },
+    {
+        { -0x1bbd98ea2e30664e,  0x7352d51102a20d34,  0x23d1157b8b12109f,
+           0x794cc9277cb1f3a3 },
+        { -0x6e7fd408e32f6740, -0x01be935b12a19c9a, -0x20a7a28eb6fd66b4,
+           0x4cd54625f855fae7 },
+        {  0x4af6c426c2ac5053, -0x43651252cd098da8,  0x2ad032f10a311021,
+           0x7008357b6fcc8e85 },
+    },
+    {
+        {  0x0b88672738773f01, -0x473337056a043305, -0x72d22a5c4652d64a,
+           0x06ef7e9851ad0f6a },
+        { -0x2fe460447da7b5cc,  0x47ab6463d2b4792b, -0x49ce9c63b7ac9dfe,
+           0x13a92a3669d6d428 },
+        { -0x356c88e33fa8821b,  0x7540e41e5035dc5c,  0x24680f01d802e071,
+           0x3c296ddf8a2af86a },
+    },
+    {
+        { -0x5152ea0626eb58ed, -0x56d08406737006ee, -0x5007dce860ac28d0,
+           0x7a99d393490c77ba },
+        { -0x0314b2d144e0dabf, -0x476aef38bf5246e1, -0x038e5c822f5e52fb,
+           0x0a892c700747717b },
+        { -0x70ad12dbc9425c18,  0x77a8c84157e80794, -0x5a569a9cd9d06320,
+           0x286762d28302f7d2 },
+    },
+    {
+        {  0x4e7836093ce35b25, -0x7d1ee7e24d945569,  0x0cc192d3cbc7b83f,
+           0x32f1da046a9d9d3a },
+        {  0x7c558e2bce2ef5bd, -0x1b67934b98b8439d,  0x154a179f3bbb89b8,
+           0x7686f2a3d6f1767a },
+        { -0x5572ed5992a68396, -0x70ee6cfcfb2c7ad5,  0x3f91dc73c209b022,
+           0x561305f8a9ad28a6 },
+    },
+    {
+        {  0x100c978dec92aed1, -0x35bc2abcb2928c1b, -0x7cece4dd27b845b8,
+           0x00aaec53e35d4d2c },
+        {  0x6722cc28e7b0c0d5,  0x709de9bbdb075c53, -0x3509725828fef59f,
+           0x030a1aef2c57cc6c },
+        {  0x7bb1f773003ad2aa,  0x0b3f29802b216608,  0x7821dc86520ed23e,
+           0x20be9c1c24065480 },
+    },
+    {
+        { -0x1eac7827db698c5a,  0x5943bc2df546e493,  0x1c7f9a81c36f63b5,
+           0x750ab3361f0ac1de },
+        {  0x20e0e44ae2025e60, -0x4fc4c4d0342346c8,  0x105d639cf95a0d1c,
+           0x69764c545067e311 },
+        {  0x1e8a3283a2f81037,  0x6f2eda23bd7fcbf1, -0x48d02ea453d1da9d,
+           0x54f96b3fb7075040 },
+    },
+    {
+        {  0x0fadf20429669279,  0x3adda2047d7d724a,  0x6f3d94828c5760f1,
+           0x3d7fe9c52bb7539e },
+        {  0x177dafc616b11ecd, -0x7689b46305a89b87, -0x48575eef1913187b,
+           0x78e6839fbe85dbf0 },
+        {  0x70332df737b8856b,  0x75d05d43041a178a,  0x320ff74aa0e59e22,
+           0x70f268f350088242 },
+    },
+    {
+        {  0x66864583b1805f47, -0x0aca3a2e9f2283e7, -0x1678b148e1b34ffa,
+           0x7c0d345cfad889d9 },
+        {  0x2324112070dcf355,  0x380cc97ee7fce117, -0x4ce22112caad4968,
+           0x404e56c039b8c4b9 },
+        {  0x591f1f4b8c78338a, -0x5fc9954e981f4a1f,  0x5cbc4152b45f3d44,
+           0x20d754762aaec777 },
+    },
+    {
+        {  0x5e8fc36fc73bb758, -0x531abc5ac9c34466, -0x566cb5826fc436de,
+           0x2b8f1e46f3ceec62 },
+        { -0x628b014eca460abd, -0x7b4c820e21736a94, -0x16cdd4f8a8ec7457,
+           0x38b8ada8790b4ce1 },
+        { -0x4a3fb56320ae06a3,  0x2b3952aecb1fdeac,  0x1d106d8b328b66da,
+           0x049aeb32ceba1953 },
+    },
+    {
+        { -0x55af82f48a0386cf,  0x0fef924b7a6725d3,  0x1d82542b396b3930,
+           0x795ee17530f674fc },
+        { -0x288982c39c230182,  0x209c594897856e40, -0x4998979e1eb083ed,
+           0x51c665e0c8d625fc },
+        {  0x254a5b0a52ecbd81,  0x5d411f6ee034afe7, -0x195db2f23511b5cf,
+           0x6cd19bf49dc54477 },
+    },
+    {
+        {  0x1ffe612165afc386,  0x082a2a88b8d51b10,  0x76f6627e20990baa,
+           0x5e01b3a7429e43e7 },
+        {  0x7e87619052179ca3,  0x571d0a060b2c9f85, -0x7f5d45577b668ee2,
+           0x7520f3db40b2e638 },
+        {  0x3db50be3d39357a1, -0x69849322a6616b5b,  0x1a309a64df311e6e,
+           0x71092c9ccef3c986 },
+    },
+    {
+        { -0x7a9427538bfae231,  0x03f6a40855b7aa1e,  0x3a4ae7cbc9743ceb,
+           0x4173a5bb7137abde },
+        {  0x53d8523f0364918c, -0x5d4bfb0bc05494e4,  0x080b4a9e6681e5a4,
+           0x0ea15b03d0257ba7 },
+        {  0x17c56e31f0f9218a,  0x5a696e2b1afc4708, -0x086ce9970b4d0e8a,
+           0x5fc565614a4e3a67 },
+    },
+    {
+        {  0x4892e1e67790988e,  0x01d5950f1c5cd722, -0x1c4f7e651a6dc113,
+           0x3214c7409d46651b },
+        {  0x136e570dc46d7ae5,  0x0fd0aacc54f8dc8f,  0x59549f03310dad86,
+           0x62711c414c454aa1 },
+        {  0x1329827406651770,  0x3ba4a0668a279436, -0x26494713e7a2ddc4,
+           0x5bea94073ecb833c },
+    },
+    {
+        { -0x4b8f319c0cbc2d08,  0x0067ba8f0543e8f1,  0x35da51a1a2117b6f,
+           0x4ad0785944f1bd2f },
+        {  0x641dbf0912c89be4, -0x530c74ce8291a864, -0x540161fd09684f9b,
+           0x3aacd5c148f61eec },
+        { -0x7a71c4cb3cce7cff, -0x23663fb8f8ce97da,  0x34085b2ed39da88c,
+           0x3aff0cb1d902853d },
+    },
+    {
+        { -0x6dd9bcf40b3acafb,  0x68e49c13261f2283,  0x09ef33788fd327c6,
+           0x2ccf9f732bd99e7f },
+        { -0x783a3814c5dfbfa2, -0x711cee101252a937,  0x29252e48ad29d5f9,
+           0x110e7e86f4cd251d },
+        {  0x57c0d89ed603f5e4,  0x12888628f0b0200c,  0x53172709a02e3bb7,
+           0x05c557e0b9693a37 },
+    },
+    {
+        { -0x0889444f763df150,  0x61f85bf6fa0fd85c, -0x4946c0b19cbbde05,
+           0x289fef0841861205 },
+        { -0x270631cee0368191,  0x7a3f263011f9fdae, -0x1ea4815f7412da23,
+           0x6e154c178fe9875a },
+        { -0x309e9cc901296541, -0x64e91b187cca36b1,  0x13789765753a7fe7,
+           0x6afbf642a95ca319 },
+    },
+    {
+        {  0x5de55070f913a8cc,  0x7d1d167b2b0cf561, -0x25d6a9496f152b77,
+           0x12c093cedb801ed9 },
+        {  0x7da8de0c62f5d2c1, -0x6703c25b4ff18466,  0x7deb6ada0dad70e0,
+           0x0db4b851b95038c4 },
+        { -0x03eb806cf747e6f1,  0x06969da0a11ae310, -0x3118aa8d25382803,
+           0x33aa8799c6635ce6 },
+    },
+    {
+        { -0x7cb70a7703ea934f,  0x6da2ba9b1a0a6d27, -0x1dd9d2a37835a54a,
+           0x212cd0c1c8d589a6 },
+        { -0x50f00ae142f7a30e,  0x78f51a8967d33f1f,  0x6ec2bfe15060033c,
+           0x233c6f29e8e21a86 },
+        { -0x2d0b2aef80e7387f,  0x122ecdf2527e9d28, -0x58f579d5c2c2ccbf,
+           0x1db7778911914ce3 },
+    },
+    {
+        { -0x4cc6b896228fe54a, -0x1d47212be630725b,  0x15df4161fd2ac852,
+           0x7ae2ca8a017d24be },
+        { -0x220cadc683943d91,  0x7a97e2cc53d50113,  0x7c74f43abf79a330,
+           0x31ad97ad26e2adfc },
+        { -0x4817e812f6df469e,  0x1e8518cc3f19da9d, -0x1b6e3eb0daa9f59c,
+           0x1ed1fc53a6622c83 },
     },
 };
 #elif defined(CURVED25519_ASM_32BIT)
 static const ge_precomp Bi[8] = {
     {
-        { -0x0a73c47b, 0x2fbc93c6, -0x0473f1e7, -0x306cd23a, 0x643d42c2, 0x270b4898, 0x33d4ba65, 0x07cf9d3a,  },
-        { -0x28bf6ec2, -0x62efc6fb, -0x2ebf414d, -0x02c660fb, 0x688f8a09, -0x5a3e7bcc, -0x6707ed99, 0x44fd2f92,  },
-        { -0x78855598, -0x5436edfb, -0x33553b62, 0x26d9e823, -0x22bca674, 0x5a1b7dcb, -0x60f39a58, 0x6f117b68,  },
+        { -0x0a73c47b,  0x2fbc93c6, -0x0473f1e7, -0x306cd23a,  0x643d42c2,
+           0x270b4898,  0x33d4ba65,  0x07cf9d3a },
+        { -0x28bf6ec2, -0x62efc6fb, -0x2ebf414d, -0x02c660fb,  0x688f8a09,
+          -0x5a3e7bcc, -0x6707ed99,  0x44fd2f92 },
+        { -0x78855598, -0x5436edfb, -0x33553b62,  0x26d9e823, -0x22bca674,
+           0x5a1b7dcb, -0x60f39a58,  0x6f117b68 },
     },
     {
-        { 0x4cee9730, -0x50da4f58, -0x1779b476, 0x025a8430, -0x60fe98ce, -0x3ee4affe, -0x657f070c, 0x7a164e1b,  },
-        { -0x5b032d9b, 0x56611fe8, -0x1a3e4583, 0x3bd353fd, 0x214bd6bd, -0x7ece0ce6, 0x555bda62, 0x2ab91587,  },
-        { 0x0dd0d889, 0x14ae933f, 0x1c35da62, 0x58942322, -0x730d24b4, -0x2e8f1abb, 0x12b9b4c6, 0x5a2826af,  },
+        {  0x4cee9730, -0x50da4f58, -0x1779b476,  0x025a8430, -0x60fe98ce,
+          -0x3ee4affe, -0x657f070c,  0x7a164e1b },
+        { -0x5b032d9b,  0x56611fe8, -0x1a3e4583,  0x3bd353fd,  0x214bd6bd,
+          -0x7ece0ce6,  0x555bda62,  0x2ab91587 },
+        {  0x0dd0d889,  0x14ae933f,  0x1c35da62,  0x58942322, -0x730d24b4,
+          -0x2e8f1abb,  0x12b9b4c6,  0x5a2826af },
     },
     {
-        { 0x08a5bb33, -0x5ded43bc, -0x38a112fe, -0x72afb73d, 0x5abfec44, -0x22e414f4, 0x46e206eb, 0x2945ccf1,  },
-        { -0x5bb82946, 0x7f9182c3, 0x4b2729b7, -0x2affeb2f, -0x479b5f79, -0x1cc30ee4, -0x14e4aa0d, 0x154a7e73,  },
-        { -0x7ed57d7b, -0x4344240f, -0x2f422e04, 0x270e0807, 0x1bbda72d, -0x4be498f5, 0x6b3bb69a, 0x43aabe69,  },
+        {  0x08a5bb33, -0x5ded43bc, -0x38a112fe, -0x72afb73d,  0x5abfec44,
+          -0x22e414f4,  0x46e206eb,  0x2945ccf1 },
+        { -0x5bb82946,  0x7f9182c3,  0x4b2729b7, -0x2affeb2f, -0x479b5f79,
+          -0x1cc30ee4, -0x14e4aa0d,  0x154a7e73 },
+        { -0x7ed57d7b, -0x4344240f, -0x2f422e04,  0x270e0807,  0x1bbda72d,
+          -0x4be498f5,  0x6b3bb69a,  0x43aabe69 },
     },
     {
-        { -0x6bb15c41, 0x6b1a5cd0, -0x4c623f2e, 0x7470353a, 0x28542e49, 0x71b25282, 0x283c927e, 0x461bea69,  },
-        { -0x55cdde4f, -0x4590d366, 0x3bba23a7, 0x6ca02153, -0x6de6d3c6, -0x621589b1, 0x2e5317e0, 0x1d6edd5d,  },
-        { 0x01b8b3a2, -0x0e7c9238, 0x053ea49a, -0x4cfca0b9, 0x5877adf3, 0x529c41ba, 0x6a0f90a7, 0x7a9fbb1c,  },
+        { -0x6bb15c41,  0x6b1a5cd0, -0x4c623f2e,  0x7470353a,  0x28542e49,
+           0x71b25282,  0x283c927e,  0x461bea69 },
+        { -0x55cdde4f, -0x4590d366,  0x3bba23a7,  0x6ca02153, -0x6de6d3c6,
+          -0x621589b1,  0x2e5317e0,  0x1d6edd5d },
+        {  0x01b8b3a2, -0x0e7c9238,  0x053ea49a, -0x4cfca0b9,  0x5877adf3,
+           0x529c41ba,  0x6a0f90a7,  0x7a9fbb1c },
     },
     {
-        { -0x59579cd1, -0x64d19876, 0x51bc46c5, -0x59af6191, -0x39790a4b, -0x314dcc37, -0x752280a7, 0x34b9ed33,  },
-        { 0x039d8064, -0x0c91de82, -0x0adfbe65, -0x675f7e4a, -0x18a14fbc, -0x693439f8, -0x05236371, 0x49c05a51,  },
-        { -0x6fba50e5, 0x06b4e8bf, -0x58e62dd1, -0x1d007c18, -0x6c2b30ea, -0x550903d7, 0x1b008b06, 0x73c17202,  },
+        { -0x59579cd1, -0x64d19876,  0x51bc46c5, -0x59af6191, -0x39790a4b,
+          -0x314dcc37, -0x752280a7,  0x34b9ed33 },
+        {  0x039d8064, -0x0c91de82, -0x0adfbe65, -0x675f7e4a, -0x18a14fbc,
+          -0x693439f8, -0x05236371,  0x49c05a51 },
+        { -0x6fba50e5,  0x06b4e8bf, -0x58e62dd1, -0x1d007c18, -0x6c2b30ea,
+          -0x550903d7,  0x1b008b06,  0x73c17202 },
     },
     {
-        { -0x757fd522, 0x2fbf0084, 0x02302e27, -0x1a260131, 0x17703406, 0x113e8471, 0x546d8faf, 0x4275aae2,  },
-        { 0x49864348, 0x315f5b02, 0x77088381, 0x3ed6b369, 0x6a8deb95, -0x5c5f8aab, 0x29d5c77f, 0x18ab5980,  },
-        { -0x029f7617, -0x27d4d33b, 0x3282e4a4, 0x031eb4a1, -0x4ae579de, 0x44311199, -0x4ac206b8, 0x3dc65522,  },
+        { -0x757fd522,  0x2fbf0084,  0x02302e27, -0x1a260131,  0x17703406,
+           0x113e8471,  0x546d8faf,  0x4275aae2 },
+        {  0x49864348,  0x315f5b02,  0x77088381,  0x3ed6b369,  0x6a8deb95,
+          -0x5c5f8aab,  0x29d5c77f,  0x18ab5980 },
+        { -0x029f7617, -0x27d4d33b,  0x3282e4a4,  0x031eb4a1, -0x4ae579de,
+           0x44311199, -0x4ac206b8,  0x3dc65522 },
     },
     {
-        { -0x5dff8093, -0x408f3dde, -0x4a432125, -0x407b4c66, -0x04f845f9, 0x537a0e12, -0x3cb90dbf, 0x234fd7ee,  },
-        { 0x327fbf93, 0x506f013b, -0x64889095, -0x51031437, -0x5552a698, -0x62ed4dce, 0x176024a7, 0x0267882d,  },
-        { 0x732ea378, 0x5360a119, -0x20722b8f, 0x2437e6b1, -0x6e581acd, -0x5d10c808, -0x55f6879d, 0x497ba6fd,  },
+        { -0x5dff8093, -0x408f3dde, -0x4a432125, -0x407b4c66, -0x04f845f9,
+           0x537a0e12, -0x3cb90dbf,  0x234fd7ee },
+        {  0x327fbf93,  0x506f013b, -0x64889095, -0x51031437, -0x5552a698,
+          -0x62ed4dce,  0x176024a7,  0x0267882d },
+        {  0x732ea378,  0x5360a119, -0x20722b8f,  0x2437e6b1, -0x6e581acd,
+          -0x5d10c808, -0x55f6879d,  0x497ba6fd },
     },
     {
-        { 0x13cfeaa0, 0x24cecc03, 0x189c246d, -0x79b73d73, -0x3e0d2b30, 0x2dbdbdfa, -0x0ed218d5, 0x61e22917,  },
-        { 0x468ccf0b, 0x040bcd86, 0x2a9910d6, -0x2c7d645c, 0x07b25192, 0x75083008, 0x18d05ebf, 0x43b5cd42,  },
-        { -0x642f4aea, 0x5d9a762f, 0x373fdeee, -0x14c750b2, -0x6c29bd90, 0x032e5a7d, 0x0ae4d842, 0x511d6121,  },
+        {  0x13cfeaa0,  0x24cecc03,  0x189c246d, -0x79b73d73, -0x3e0d2b30,
+           0x2dbdbdfa, -0x0ed218d5,  0x61e22917 },
+        {  0x468ccf0b,  0x040bcd86,  0x2a9910d6, -0x2c7d645c,  0x07b25192,
+           0x75083008,  0x18d05ebf,  0x43b5cd42 },
+        { -0x642f4aea,  0x5d9a762f,  0x373fdeee, -0x14c750b2, -0x6c29bd90,
+           0x032e5a7d,  0x0ae4d842,  0x511d6121 },
     },
 };
 #elif defined(CURVED25519_128BIT)
 static const ge_precomp Bi[8] = {
     {
-        { 0x493c6f58c3b85, 0x0df7181c325f7, 0x0f50b0b3e4cb7, 0x5329385a44c32, 0x07cf9d3a33d4b },
-        { 0x03905d740913e, 0x0ba2817d673a2, 0x23e2827f4e67c, 0x133d2e0c21a34, 0x44fd2f9298f81 },
-        { 0x11205877aaa68, 0x479955893d579, 0x50d66309b67a0, 0x2d42d0dbee5ee, 0x6f117b689f0c6 },
+        { 0x493c6f58c3b85, 0x0df7181c325f7, 0x0f50b0b3e4cb7, 0x5329385a44c32,
+          0x07cf9d3a33d4b },
+        { 0x03905d740913e, 0x0ba2817d673a2, 0x23e2827f4e67c, 0x133d2e0c21a34,
+          0x44fd2f9298f81 },
+        { 0x11205877aaa68, 0x479955893d579, 0x50d66309b67a0, 0x2d42d0dbee5ee,
+          0x6f117b689f0c6 },
     },
     {
-        { 0x5b0a84cee9730, 0x61d10c97155e4, 0x4059cc8096a10, 0x47a608da8014f, 0x7a164e1b9a80f },
-        { 0x11fe8a4fcd265, 0x7bcb8374faacc, 0x52f5af4ef4d4f, 0x5314098f98d10, 0x2ab91587555bd },
-        { 0x6933f0dd0d889, 0x44386bb4c4295, 0x3cb6d3162508c, 0x26368b872a2c6, 0x5a2826af12b9b },
+        { 0x5b0a84cee9730, 0x61d10c97155e4, 0x4059cc8096a10, 0x47a608da8014f,
+          0x7a164e1b9a80f },
+        { 0x11fe8a4fcd265, 0x7bcb8374faacc, 0x52f5af4ef4d4f, 0x5314098f98d10,
+          0x2ab91587555bd },
+        { 0x6933f0dd0d889, 0x44386bb4c4295, 0x3cb6d3162508c, 0x26368b872a2c6,
+          0x5a2826af12b9b },
     },
     {
-        { 0x2bc4408a5bb33, 0x078ebdda05442, 0x2ffb112354123, 0x375ee8df5862d, 0x2945ccf146e20 },
-        { 0x182c3a447d6ba, 0x22964e536eff2, 0x192821f540053, 0x2f9f19e788e5c, 0x154a7e73eb1b5 },
-        { 0x3dbf1812a8285, 0x0fa17ba3f9797, 0x6f69cb49c3820, 0x34d5a0db3858d, 0x43aabe696b3bb },
+        { 0x2bc4408a5bb33, 0x078ebdda05442, 0x2ffb112354123, 0x375ee8df5862d,
+          0x2945ccf146e20 },
+        { 0x182c3a447d6ba, 0x22964e536eff2, 0x192821f540053, 0x2f9f19e788e5c,
+          0x154a7e73eb1b5 },
+        { 0x3dbf1812a8285, 0x0fa17ba3f9797, 0x6f69cb49c3820, 0x34d5a0db3858d,
+          0x43aabe696b3bb },
     },
     {
-        { 0x25cd0944ea3bf, 0x75673b81a4d63, 0x150b925d1c0d4, 0x13f38d9294114, 0x461bea69283c9 },
-        { 0x72c9aaa3221b1, 0x267774474f74d, 0x064b0e9b28085, 0x3f04ef53b27c9, 0x1d6edd5d2e531 },
-        { 0x36dc801b8b3a2, 0x0e0a7d4935e30, 0x1deb7cecc0d7d, 0x053a94e20dd2c, 0x7a9fbb1c6a0f9 },
+        { 0x25cd0944ea3bf, 0x75673b81a4d63, 0x150b925d1c0d4, 0x13f38d9294114,
+          0x461bea69283c9 },
+        { 0x72c9aaa3221b1, 0x267774474f74d, 0x064b0e9b28085, 0x3f04ef53b27c9,
+          0x1d6edd5d2e531 },
+        { 0x36dc801b8b3a2, 0x0e0a7d4935e30, 0x1deb7cecc0d7d, 0x053a94e20dd2c,
+          0x7a9fbb1c6a0f9 },
     },
     {
-        { 0x6678aa6a8632f, 0x5ea3788d8b365, 0x21bd6d6994279, 0x7ace75919e4e3, 0x34b9ed338add7 },
-        { 0x6217e039d8064, 0x6dea408337e6d, 0x57ac112628206, 0x647cb65e30473, 0x49c05a51fadc9 },
-        { 0x4e8bf9045af1b, 0x514e33a45e0d6, 0x7533c5b8bfe0f, 0x583557b7e14c9, 0x73c172021b008 },
+        { 0x6678aa6a8632f, 0x5ea3788d8b365, 0x21bd6d6994279, 0x7ace75919e4e3,
+          0x34b9ed338add7 },
+        { 0x6217e039d8064, 0x6dea408337e6d, 0x57ac112628206, 0x647cb65e30473,
+          0x49c05a51fadc9 },
+        { 0x4e8bf9045af1b, 0x514e33a45e0d6, 0x7533c5b8bfe0f, 0x583557b7e14c9,
+          0x73c172021b008 },
     },
     {
-        { 0x700848a802ade, 0x1e04605c4e5f7, 0x5c0d01b9767fb, 0x7d7889f42388b, 0x4275aae2546d8 },
-        { 0x75b0249864348, 0x52ee11070262b, 0x237ae54fb5acd, 0x3bfd1d03aaab5, 0x18ab598029d5c },
-        { 0x32cc5fd6089e9, 0x426505c949b05, 0x46a18880c7ad2, 0x4a4221888ccda, 0x3dc65522b53df },
+        { 0x700848a802ade, 0x1e04605c4e5f7, 0x5c0d01b9767fb, 0x7d7889f42388b,
+          0x4275aae2546d8 },
+        { 0x75b0249864348, 0x52ee11070262b, 0x237ae54fb5acd, 0x3bfd1d03aaab5,
+          0x18ab598029d5c },
+        { 0x32cc5fd6089e9, 0x426505c949b05, 0x46a18880c7ad2, 0x4a4221888ccda,
+          0x3dc65522b53df },
     },
     {
-        { 0x0c222a2007f6d, 0x356b79bdb77ee, 0x41ee81efe12ce, 0x120a9bd07097d, 0x234fd7eec346f },
-        { 0x7013b327fbf93, 0x1336eeded6a0d, 0x2b565a2bbf3af, 0x253ce89591955, 0x0267882d17602 },
-        { 0x0a119732ea378, 0x63bf1ba8e2a6c, 0x69f94cc90df9a, 0x431d1779bfc48, 0x497ba6fdaa097 },
+        { 0x0c222a2007f6d, 0x356b79bdb77ee, 0x41ee81efe12ce, 0x120a9bd07097d,
+          0x234fd7eec346f },
+        { 0x7013b327fbf93, 0x1336eeded6a0d, 0x2b565a2bbf3af, 0x253ce89591955,
+          0x0267882d17602 },
+        { 0x0a119732ea378, 0x63bf1ba8e2a6c, 0x69f94cc90df9a, 0x431d1779bfc48,
+          0x497ba6fdaa097 },
     },
     {
-        { 0x6cc0313cfeaa0, 0x1a313848da499, 0x7cb534219230a, 0x39596dedefd60, 0x61e22917f12de },
-        { 0x3cd86468ccf0b, 0x48553221ac081, 0x6c9464b4e0a6e, 0x75fba84180403, 0x43b5cd4218d05 },
-        { 0x2762f9bd0b516, 0x1c6e7fbddcbb3, 0x75909c3ace2bd, 0x42101972d3ec9, 0x511d61210ae4d },
+        { 0x6cc0313cfeaa0, 0x1a313848da499, 0x7cb534219230a, 0x39596dedefd60,
+          0x61e22917f12de },
+        { 0x3cd86468ccf0b, 0x48553221ac081, 0x6c9464b4e0a6e, 0x75fba84180403,
+          0x43b5cd4218d05 },
+        { 0x2762f9bd0b516, 0x1c6e7fbddcbb3, 0x75909c3ace2bd, 0x42101972d3ec9,
+          0x511d61210ae4d },
     },
 };
 #else
 static const ge_precomp Bi[8] = {
- {
-  { 25967493,-14356035,29566456,3660896,-12694345,4014787,27544626,-11754271,-6079156,2047605 },
-  { -12545711,934262,-2722910,3049990,-727428,9406986,12720692,5043384,19500929,-15469378 },
-  { -8738181,4489570,9688441,-14785194,10184609,-12363380,29287919,11864899,-24514362,-4438546 },
- },
- {
-  { 15636291,-9688557,24204773,-7912398,616977,-16685262,27787600,-14772189,28944400,-1550024 },
-  { 16568933,4717097,-11556148,-1102322,15682896,-11807043,16354577,-11775962,7689662,11199574 },
-  { 30464156,-5976125,-11779434,-15670865,23220365,15915852,7512774,10017326,-17749093,-9920357 },
- },
- {
-  { 10861363,11473154,27284546,1981175,-30064349,12577861,32867885,14515107,-15438304,10819380 },
-  { 4708026,6336745,20377586,9066809,-11272109,6594696,-25653668,12483688,-12668491,5581306 },
-  { 19563160,16186464,-29386857,4097519,10237984,-4348115,28542350,13850243,-23678021,-15815942 },
- },
- {
-  { 5153746,9909285,1723747,-2777874,30523605,5516873,19480852,5230134,-23952439,-15175766 },
-  { -30269007,-3463509,7665486,10083793,28475525,1649722,20654025,16520125,30598449,7715701 },
-  { 28881845,14381568,9657904,3680757,-20181635,7843316,-31400660,1370708,29794553,-1409300 },
- },
- {
-  { -22518993,-6692182,14201702,-8745502,-23510406,8844726,18474211,-1361450,-13062696,13821877 },
-  { -6455177,-7839871,3374702,-4740862,-27098617,-10571707,31655028,-7212327,18853322,-14220951 },
-  { 4566830,-12963868,-28974889,-12240689,-7602672,-2830569,-8514358,-10431137,2207753,-3209784 },
- },
- {
-  { -25154831,-4185821,29681144,7868801,-6854661,-9423865,-12437364,-663000,-31111463,-16132436 },
-  { 25576264,-2703214,7349804,-11814844,16472782,9300885,3844789,15725684,171356,6466918 },
-  { 23103977,13316479,9739013,-16149481,817875,-15038942,8965339,-14088058,-30714912,16193877 },
- },
- {
-  { -33521811,3180713,-2394130,14003687,-16903474,-16270840,17238398,4729455,-18074513,9256800 },
-  { -25182317,-4174131,32336398,5036987,-21236817,11360617,22616405,9761698,-19827198,630305 },
-  { -13720693,2639453,-24237460,-7406481,9494427,-5774029,-6554551,-15960994,-2449256,-14291300 },
- },
- {
-  { -3151181,-5046075,9282714,6866145,-31907062,-863023,-18940575,15033784,25105118,-7894876 },
-  { -24326370,15950226,-31801215,-14592823,-11662737,-5090925,1573892,-2625887,2198790,-15804619 },
-  { -3099351,10324967,-2241613,7453183,-5446979,-2735503,-13812022,-16236442,-32461234,-12290683 },
- },
-} ;
+    {
+        {  0x18c3b85, -0x0db0e43,  0x1c325f8,  0x037dc60, -0x0c1b349,
+           0x03d42c3,  0x1a44c32, -0x0b35b1f, -0x05cc2b4,  0x01f3e75 },
+        { -0x0bf6eaf,  0x00e4176, -0x0298c5e,  0x02e8a06, -0x00b1984,
+           0x08f8a0a,  0x0c21a34,  0x04cf4b8,  0x1298f81, -0x0ec0b42 },
+        { -0x0855585,  0x0448162,  0x093d579, -0x0e19aaa,  0x09b67a1,
+          -0x0bca674,  0x1bee5ef,  0x0b50b43, -0x1760f3a, -0x043ba12 },
+    },
+    {
+        {  0x0ee9743, -0x093d5ed,  0x17155e5, -0x078bbce,  0x0096a11,
+          -0x0fe98ce,  0x1a80150, -0x0e167dd,  0x1b9a810, -0x017a6c8 },
+        {  0x0fcd265,  0x047fa29, -0x0b05534, -0x010d1f2,  0x0ef4d50,
+          -0x0b42943,  0x0f98d11, -0x0b3afda,  0x07555be,  0x0aae456 },
+        {  0x1d0d89c, -0x05b303d, -0x0b3bd6a, -0x0ef1e51,  0x162508d,
+           0x0f2db4c,  0x072a2c6,  0x098da2e, -0x10ed465, -0x0975f65 },
+    },
+    {
+        {  0x0a5bb33,  0x0af1102,  0x1a05442,  0x01e3af7, -0x1cabedd,
+           0x0bfec45,  0x1f5862d,  0x0dd7ba3, -0x0eb91e0,  0x0a51734 },
+        {  0x047d6ba,  0x060b0e9,  0x136eff2,  0x08a5939, -0x0abffad,
+           0x064a088, -0x18771a4,  0x0be7c68, -0x0c14e4b,  0x05529fa },
+        {  0x12a8298,  0x0f6fc60, -0x1c06869,  0x03e85ef,  0x09c3820,
+          -0x04258d3,  0x1b3858e,  0x0d35683, -0x1694c45, -0x0f15506 },
+    },
+    {
+        {  0x04ea3d2,  0x0973425,  0x01a4d63, -0x02a6312,  0x1d1c0d5,
+           0x0542e49,  0x1294114,  0x04fce36, -0x16d7c37, -0x0e79056 },
+        { -0x1cdde4f, -0x034d955,  0x074f74e,  0x099ddd1,  0x1b28085,
+           0x0192c3a,  0x13b27c9,  0x0fc13bd,  0x1d2e531,  0x075bb75 },
+        {  0x1b8b3b5,  0x0db7200,  0x0935e30,  0x03829f5, -0x133f283,
+           0x077adf4, -0x1df22d4,  0x014ea54,  0x1c6a0f9, -0x0158114 },
+    },
+    {
+        { -0x1579cd1, -0x0661d56,  0x0d8b366, -0x085721e, -0x166bd86,
+           0x086f5b6,  0x119e4e3, -0x014c62a, -0x0c75228,  0x0d2e7b5 },
+        { -0x0627f89, -0x077a07f,  0x0337e6e, -0x04856fe, -0x19d7df9,
+          -0x0a14fbb,  0x1e30474, -0x06e0d27,  0x11fadca, -0x0d8fe97 },
+        {  0x045af2e, -0x0c5d01c, -0x1ba1f29, -0x0bac731, -0x07401f0,
+          -0x02b30e9, -0x081eb36, -0x09f2aa1,  0x021b009, -0x030fa38 },
+    },
+    {
+        { -0x17fd50f, -0x03fdedd,  0x1c4e5f8,  0x0781181, -0x0689805,
+          -0x08fcbf9, -0x0bdc774, -0x00a1dd8, -0x1dab927, -0x0f62954 },
+        {  0x1864348, -0x0293f6e,  0x070262c, -0x0b447bc,  0x0fb5ace,
+           0x08deb95,  0x03aaab5,  0x0eff474,  0x0029d5c,  0x062ad66 },
+        {  0x16089e9,  0x0cb317f,  0x0949b05, -0x0f66be9,  0x00c7ad3,
+          -0x0e579de,  0x088ccdb, -0x0d6f77a, -0x1d4ac20,  0x0f71955 },
+    },
+    {
+        { -0x1ff8093,  0x03088a9, -0x0248812,  0x0d5ade7, -0x101ed32,
+          -0x0f845f8,  0x107097e,  0x0482a6f, -0x113cb91,  0x08d3f60 },
+        { -0x180406d, -0x03fb133,  0x1ed6a0e,  0x04cdbbb, -0x1440c51,
+           0x0ad5969,  0x1591955,  0x094f3a2, -0x12e89fe,  0x0099e21 },
+        { -0x0d15c75,  0x028465d, -0x171d594, -0x0710391,  0x090df9b,
+          -0x0581acd, -0x06403b7, -0x0f38ba2, -0x0255f68, -0x0da1164 },
+    },
+    {
+        { -0x030154d, -0x04cff3b,  0x08da49a,  0x068c4e1, -0x1e6dcf6,
+          -0x00d2b2f, -0x121029f,  0x0e565b8,  0x17f12de, -0x078775c },
+        { -0x17330e2,  0x0f36192, -0x1e53f7f, -0x0deab37, -0x0b1f591,
+          -0x04dae6d,  0x0180404, -0x028115f,  0x0218d06, -0x0f128cb },
+        { -0x02f4ad7,  0x09d8be7, -0x022344d,  0x071b9ff, -0x0531d43,
+          -0x029bd8f, -0x0d2c136, -0x0f7bf9a, -0x1ef51b2, -0x0bb8a7b },
+    },
+};
 #endif
 
 
@@ -9405,7 +9696,7 @@ int ge_double_scalarmult_vartime(ge_p2 *r, const unsigned char *a,
 #else
   signed char aslide[SLIDE_SIZE];
   signed char bslide[SLIDE_SIZE];
-  ge_cached Ai[8]; /* A,3A,5A,7A,9A,11A,13A,15A */
+  ge_cached Ai[16]; /* A,3A,5A,7A,9A,11A,13A,15A */
 
   ge_p1p1 t[1];
   ge_p3 u[1];
@@ -9416,7 +9707,7 @@ int ge_double_scalarmult_vartime(ge_p2 *r, const unsigned char *a,
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
   if (((aslide = (signed char *)XMALLOC(SLIDE_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER))== NULL) ||
       ((bslide = (signed char *)XMALLOC(SLIDE_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER))== NULL) ||
-      ((Ai = (ge_cached *)XMALLOC(8 * sizeof(*Ai), NULL, DYNAMIC_TYPE_TMP_BUFFER))== NULL) ||
+      ((Ai = (ge_cached *)XMALLOC(16 * sizeof(*Ai), NULL, DYNAMIC_TYPE_TMP_BUFFER))== NULL) ||
       ((t = (ge_p1p1 *)XMALLOC(sizeof(*t), NULL, DYNAMIC_TYPE_TMP_BUFFER))== NULL) ||
       ((u = (ge_p3 *)XMALLOC(sizeof(*u), NULL, DYNAMIC_TYPE_TMP_BUFFER))== NULL) ||
       ((A2 = (ge_p3 *)XMALLOC(sizeof(*A2), NULL, DYNAMIC_TYPE_TMP_BUFFER))== NULL))
@@ -9427,8 +9718,12 @@ int ge_double_scalarmult_vartime(ge_p2 *r, const unsigned char *a,
       ret = 0;
 #endif
 
-  slide(aslide,a);
-  slide(bslide,b);
+  slide(aslide,a,15);
+#ifdef CURVED25519_ASM_64BIT
+  slide(bslide,b,63);
+#else
+  slide(bslide,b,15);
+#endif
 
   ge_p3_to_cached(&Ai[0],A);
   ge_p3_dbl(t,A); ge_p1p1_to_p3(A2,t);
@@ -9442,8 +9737,60 @@ int ge_double_scalarmult_vartime(ge_p2 *r, const unsigned char *a,
 
   ge_p2_0(r);
 
-  for (i = 255;i >= 0;--i) {
-    if (aslide[i] || bslide[i]) break;
+  for (i = SLIDE_SIZE-1;i >= 0;--i) {
+    if (aslide[i] || bslide[i]) {
+#ifdef CURVED25519_ASM_64BIT
+      if (aslide[i] > 0) {
+        fe_copy(t->Z, Ai[aslide[i]/2].YplusX);
+        fe_copy(t->Y, Ai[aslide[i]/2].YminusX);
+        fe_sub(t->X,t->Z,t->Y);
+        fe_add(t->Y,t->Z,t->Y);
+        fe_add(t->T,Ai[aslide[i]/2].Z, Ai[aslide[i]/2].Z);
+        fe_copy(t->Z,t->T);
+      } else if (aslide[i] < 0) {
+        fe_copy(t->Z, Ai[aslide[i]/2].YminusX);
+        fe_copy(t->Y, Ai[aslide[i]/2].YplusX);
+        fe_sub(t->X,t->Z,t->Y);
+        fe_add(t->Y,t->Z,t->Y);
+        fe_add(t->T,Ai[aslide[i]/2].Z, Ai[aslide[i]/2].Z);
+        fe_copy(t->Z,t->T);
+      }
+
+      if (bslide[i] > 0) {
+        if (aslide[i] != 0) {
+          ge_p1p1_to_p3(u,t);
+          ge_madd(t,u,&Bi[bslide[i]/2]);
+        } else {
+          fe_copy(t->Z,Bi[bslide[i]/2].yplusx);
+          fe_copy(t->Y,Bi[bslide[i]/2].yminusx);
+          fe_sub(t->X,t->Z,t->Y);
+          fe_add(t->Y,t->Z,t->Y);
+          fe_0(t->T);
+          t->T[0] = 0x2;
+          fe_0(t->Z);
+          t->Z[0] = 0x2;
+        }
+      } else if (bslide[i] < 0) {
+        if (aslide[i] != 0) {
+          ge_p1p1_to_p3(u,t);
+          ge_msub(t,u,&Bi[(-bslide[i])/2]);
+        } else {
+          fe_copy(t->Z,Bi[bslide[i]/2].yminusx);
+          fe_copy(t->Y,Bi[bslide[i]/2].yplusx);
+          fe_sub(t->X,t->Z,t->Y);
+          fe_add(t->Y,t->Z,t->Y);
+          fe_0(t->T);
+          t->T[0] = 0x2;
+          fe_0(t->Z);
+          t->Z[0] = 0x2;
+        }
+      }
+
+      ge_p1p1_to_p2(r,t);
+      --i;
+#endif
+      break;
+    }
   }
 
   for (;i >= 0;--i) {
@@ -9556,6 +9903,11 @@ int ge_frombytes_negate_vartime(ge_p3 *h,const unsigned char *s)
   fe_mul(h->X,h->X,u);    /* x = uv^7 */
 
   fe_pow22523(h->X,h->X); /* x = (uv^7)^((q-5)/8) */
+  /* Alternative if inversion very fast.
+   *   x^2^252 * invert(x^3)
+   * = x^2^252 * x^-3
+   * = x^(2^252 - 3)
+   */
   fe_mul(h->X,h->X,v3);
   fe_mul(h->X,h->X,u);    /* x = uv^3(uv^7)^((q-5)/8) */
 
@@ -9822,6 +10174,26 @@ void ge_tobytes(unsigned char *s,const ge_p2 *h)
   fe_tobytes(s,y);
   s[31] ^= (unsigned char)((unsigned char)fe_isnegative(x) << 7);
 }
+
+#ifdef HAVE_ED25519_VERIFY
+#ifndef CURVED25519_ASM_64BIT
+    #define fe_invert_nct fe_invert
+#endif
+
+/* ge tobytes */
+void ge_tobytes_nct(unsigned char *s,const ge_p2 *h)
+{
+  ge recip;
+  ge x;
+  ge y;
+
+  fe_invert_nct(recip,h->Z);
+  fe_mul(x,h->X,recip);
+  fe_mul(y,h->Y,recip);
+  fe_tobytes(s,y);
+  s[31] ^= (unsigned char)((unsigned char)fe_isnegative(x) << 7);
+}
+#endif
 
 #endif /* !ED25519_SMALL */
 

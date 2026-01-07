@@ -49,7 +49,8 @@
 #endif
 
 #if (defined(CURVED25519_ASM_64BIT) || defined(HAVE_ED25519)) && \
-        !defined(WOLFSSL_CURVE25519_BLINDING)
+        !defined(WOLFSSL_CURVE25519_BLINDING) && \
+        !defined(WOLFSSL_CURVE25519_NOT_USE_ED25519)
     #undef  WOLFSSL_CURVE25519_USE_ED25519
     #define WOLFSSL_CURVE25519_USE_ED25519
 #endif
@@ -133,6 +134,8 @@ WOLFSSL_LOCAL void fe_pow22523(fe out,const fe z);
 
 #ifdef CURVED25519_ASM
 WOLFSSL_LOCAL void fe_cmov_table(fe* r, fe* base, signed char b);
+
+WOLFSSL_LOCAL void fe_invert_nct(fe r, const fe a);
 #endif /* CURVED25519_ASM */
 #endif /* !CURVE25519_SMALL || !ED25519_SMALL */
 
