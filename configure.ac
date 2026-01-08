@@ -1428,6 +1428,7 @@ then
     test "$enable_md5" = "" && enable_md5=yes
     test "$enable_anon" = "" && enable_anon=yes
     test "$enable_ssh" = "" && test "$enable_hmac" != "no" && enable_ssh=yes
+    test "$enable_rng_bank" = "" && enable_rng_bank=yes
 
     # the compiler optimizer generates a weird out-of-bounds bss reference for
     # find_hole() in the FP_ECC implementation.
@@ -2206,6 +2207,19 @@ AC_ARG_ENABLE([rng],
 if test "$ENABLED_RNG" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DWC_NO_RNG"
+fi
+
+AC_ARG_ENABLE([rng-bank],
+    [AS_HELP_STRING([--enable-rng-bank],[Enable compiling and using RNG banks (default: disabled)])],
+    [ ENABLED_RNG_BANK=$enableval ],
+    [ ENABLED_RNG_BANK=$KERNEL_MODE_DEFAULTS ]
+    )
+
+if test "$ENABLED_RNG_BANK" = "yes"
+then
+    AS_IF([test "$ENABLED_RNG" = "no"],
+    AC_MSG_ERROR([--enable-rng-bank requires --enable-rng]))
+    AM_CFLAGS="$AM_CFLAGS -DWC_RNG_BANK_SUPPORT"
 fi
 
 
@@ -3984,10 +3998,15 @@ then
 fi
 
 # AMD RDSEED
-AC_ARG_ENABLE([amdrand],
-    [AS_HELP_STRING([--enable-amdrand],[Enable AMD rdseed as preferred RNG seeding source (default: disabled)])],
+AC_ARG_ENABLE([amdrdseed],
+    [AS_HELP_STRING([--enable-amdrdseed],[Enable AMD rdseed as preferred RNG seeding source (default: disabled)])],
     [ ENABLED_AMDRDSEED=$enableval ],
     [ ENABLED_AMDRDSEED=no ]
+    )
+
+AC_ARG_ENABLE([amdrand],
+    [AS_HELP_STRING([--enable-amdrand],[Enable AMD rdseed as preferred RNG seeding source (default: disabled)])],
+    [ ENABLED_AMDRDSEED=$enableval ]
     )
 
 if test "$ENABLED_AMDRDSEED" = "yes"
@@ -11079,6 +11098,7 @@ AM_CONDITIONAL([BUILD_ECCSI],[test "x$ENABLED_ECCSI" = "xyes" || test "x$ENABLED
 AM_CONDITIONAL([BUILD_SAKKE],[test "x$ENABLED_SAKKE" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_MEMORY],[test "x$ENABLED_MEMORY" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_MEMUSE],[test "x$ENABLED_ENTROPY_MEMUSE" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_RNG_BANK],[test "$ENABLED_RNG_BANK" = "yes" || test "$ENABLED_USERSETTINGS" = "yes"])
 AM_CONDITIONAL([BUILD_RSA],[test "x$ENABLED_RSA" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_DH],[test "x$ENABLED_DH" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_ASN],[test "x$ENABLED_ASN" != "xno" || test "x$ENABLED_RSA" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])

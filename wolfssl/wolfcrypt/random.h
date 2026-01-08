@@ -247,12 +247,6 @@ struct OS_Seed {
 
 #define RNG_HEALTH_TEST_CHECK_SIZE (WC_SHA256_DIGEST_SIZE * 4)
 
-/* RNG health states */
-#define WC_DRBG_NOT_INIT     0
-#define WC_DRBG_OK           1
-#define WC_DRBG_FAILED       2
-#define WC_DRBG_CONT_FAILED  3
-
 struct DRBG_internal {
     #ifdef WORD64_AVAILABLE
     word64 reseedCtr;
@@ -271,26 +265,57 @@ struct DRBG_internal {
     byte digest_scratch[WC_SHA256_DIGEST_SIZE];
 #endif
 };
+#endif /* HAVE_HASHDRBG */
+
+/* RNG health states */
+#define WC_DRBG_NOT_INIT     0
+#define WC_DRBG_OK           1
+#define WC_DRBG_FAILED       2
+#define WC_DRBG_CONT_FAILED  3
+#ifdef WC_RNG_BANK_SUPPORT
+    #define WC_DRBG_BANKREF  4 /* Marks the WC_RNG as a ref to a wc_rng_bank,
+                                * with no usable DRBG of its own.
+                                */
 #endif
 
 /* RNG context */
 struct WC_RNG {
     struct OS_Seed seed;
     void* heap;
-#ifdef HAVE_HASHDRBG
-    /* Hash-based Deterministic Random Bit Generator */
-    struct DRBG* drbg;
-#if defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_STATIC_MEMORY)
-    struct DRBG_internal drbg_data;
-#endif
-#ifdef WOLFSSL_SMALL_STACK_CACHE
-    /* Scratch buffer slots -- everything is preallocated by _InitRng(). */
-    struct DRBG_internal *drbg_scratch;
-    byte *health_check_scratch;
-    byte *newSeed_buf;
-#endif
     byte status;
-#endif /* HAVE_HASHDRBG */
+
+#ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
+    union {
+#endif
+
+    #ifdef WC_RNG_BANK_SUPPORT
+        struct wc_rng_bank *bankref;
+    #endif
+
+    #ifdef HAVE_HASHDRBG
+        #ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
+        struct {
+        #endif
+            /* Hash-based Deterministic Random Bit Generator */
+            struct DRBG* drbg;
+        #if defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_STATIC_MEMORY)
+            struct DRBG_internal drbg_data;
+        #endif
+        #ifdef WOLFSSL_SMALL_STACK_CACHE
+            /* Scratch buffers -- all preallocated by _InitRng(). */
+            struct DRBG_internal *drbg_scratch;
+            byte *health_check_scratch;
+            byte *newSeed_buf;
+        #endif
+        #ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
+        };
+        #endif
+    #endif /* HAVE_HASHDRBG */
+
+#ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
+    };
+#endif
+
 #if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID)
     pid_t pid;
 #endif
