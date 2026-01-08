@@ -7454,7 +7454,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_md5_test(void)
 
     XMEMSET(&hmac, 0, sizeof(hmac));
 #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
-    WC_ALLOC_VAR_EX(hmac_copy, Hmac, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+    WC_CALLOC_VAR_EX(hmac_copy, Hmac, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
                     return WC_TEST_RET_ENC_EC(MEMORY_E));
 #endif
 
@@ -7599,7 +7599,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha_test(void)
 
     XMEMSET(&hmac, 0, sizeof(hmac));
 #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
-    WC_ALLOC_VAR_EX(hmac_copy, Hmac, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+    WC_CALLOC_VAR_EX(hmac_copy, Hmac, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
                     return WC_TEST_RET_ENC_EC(MEMORY_E));
 #endif
 
@@ -7750,7 +7750,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha224_test(void)
 
     XMEMSET(&hmac, 0, sizeof(hmac));
 #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
-    WC_ALLOC_VAR_EX(hmac_copy, Hmac, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+    WC_CALLOC_VAR_EX(hmac_copy, Hmac, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
                     return WC_TEST_RET_ENC_EC(MEMORY_E));
 #endif
 
@@ -7907,7 +7907,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha256_test(void)
 
     XMEMSET(&hmac, 0, sizeof(hmac));
 #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
-    WC_ALLOC_VAR_EX(hmac_copy, Hmac, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+    WC_CALLOC_VAR_EX(hmac_copy, Hmac, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
                     return WC_TEST_RET_ENC_EC(MEMORY_E));
 #endif
 
@@ -8073,7 +8073,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha384_test(void)
 
     XMEMSET(&hmac, 0, sizeof(hmac));
 #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
-    WC_ALLOC_VAR_EX(hmac_copy, Hmac, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+    WC_CALLOC_VAR_EX(hmac_copy, Hmac, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
                     return WC_TEST_RET_ENC_EC(MEMORY_E));
 #endif
 
@@ -8228,7 +8228,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha512_test(void)
 
     XMEMSET(&hmac, 0, sizeof(hmac));
 #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
-    WC_ALLOC_VAR_EX(hmac_copy, Hmac, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+    WC_CALLOC_VAR_EX(hmac_copy, Hmac, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
                     return WC_TEST_RET_ENC_EC(MEMORY_E));
 #endif
 
@@ -8440,7 +8440,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha3_test(void)
 
     XMEMSET(&hmac, 0, sizeof(hmac));
 #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
-    WC_ALLOC_VAR_EX(hmac_copy, Hmac, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+    WC_CALLOC_VAR_EX(hmac_copy, Hmac, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
                     return WC_TEST_RET_ENC_EC(MEMORY_E));
 #endif
 
