@@ -74,4 +74,30 @@
     - \ref SAKKE_RSK
     - \ref SAKKE_Operations
 */
+/*!
+    \page AES_CryptoCB_KeyImport AES CryptoCB Key Import
+
+    When enabled via WOLF_CRYPTO_CB_AES_SETKEY, wolfSSL allows AES keys
+    to be imported into external cryptographic devices using the Crypto
+    Callback interface.
+
+    **TLS Builds (Default):**
+    - Keys ARE retained in memory for fallback.
+    - Provides acceleration, not key isolation.
+
+    **Crypto-Only Builds (--disable-tls):**
+    - Keys NOT retained in memory.
+    - Provides true offload with key isolation.
+
+    This mode is compatible with Secure Elements and hardware-backed
+    key storage and is intended for protecting TLS traffic keys.
+
+    Software fallback to the standard AES implementation occurs
+    automatically during key setup if the device does not handle the
+    SetKey operation. However, once a key is imported (devCtx is set),
+    AES-GCM operations are expected to be handled by the device.
+
+    \sa wc_CryptoCb_AesSetKey
+    \sa \ref Crypto Callbacks
+*/
 

@@ -143,6 +143,7 @@ WOLFSSL_LOCAL void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
 #include <psa/crypto.h>
 #endif
 
+
 #if defined(WOLFSSL_CRYPTOCELL)
     #include <wolfssl/wolfcrypt/port/arm/cryptoCell.h>
 #endif
@@ -334,7 +335,7 @@ struct Aes {
 #endif /* __aarch64__ && WOLFSSL_ARMASM && !WOLFSSL_ARMASM_NO_HW_CRYPTO */
 #if defined(WOLF_CRYPTO_CB) || defined(WOLFSSL_STM32U5_DHUK)
     int    devId;
-    void*  devCtx;
+    void*  devCtx;  /* Opaque handle for CryptoCB device */
 #endif
 #ifdef WOLF_PRIVATE_KEY_ID
     byte id[AES_MAX_ID_LEN];
