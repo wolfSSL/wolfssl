@@ -68,6 +68,9 @@ This library contains implementation for the random number generator.
 
 
 #include <wolfssl/wolfcrypt/random.h>
+#ifdef WC_RNG_BANK_SUPPORT
+    #include <wolfssl/wolfcrypt/rng_bank.h>
+#endif
 #include <wolfssl/wolfcrypt/cpuid.h>
 
 #ifndef WC_NO_RNG /* if not FIPS and RNG is disabled then do not compile */
@@ -1197,8 +1200,12 @@ static int PollAndReSeed(WC_RNG* rng)
 #endif
 
 /* place a generated block in output */
+#ifdef WC_RNG_BANK_SUPPORT
+static int wc_local_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
+#else
 WOLFSSL_ABI
 int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
+#endif
 {
     int ret;
 
@@ -1298,6 +1305,42 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
     return ret;
 }
 
+#ifdef WC_RNG_BANK_SUPPORT
+WOLFSSL_ABI
+int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
+{
+    if (rng == NULL)
+        return BAD_FUNC_ARG;
+
+    if (rng->status == WC_DRBG_BANKREF) {
+        int ret;
+        struct wc_rng_bank_inst *bank_inst = NULL;
+
+        ret = wc_local_rng_bank_checkout_for_bankref(rng->bankref, &bank_inst);
+        if (ret != 0)
+            return ret;
+        if (bank_inst == NULL)
+            return BAD_STATE_E;
+        ret = wc_local_RNG_GenerateBlock(WC_RNG_BANK_INST_TO_RNG(bank_inst),
+                                         output, sz);
+        {
+            int checkin_ret = wc_rng_bank_checkin(rng->bankref, &bank_inst);
+            if (checkin_ret != 0) {
+#ifdef WC_VERBOSE_RNG
+                WOLFSSL_DEBUG_PRINTF(
+                    "ERROR: wc_RNG_GenerateBlock() wc_rng_bank_checkin() "
+                    "failed with err %d.", checkin_ret);
+#endif
+                if (ret == 0)
+                    ret = checkin_ret;
+            }
+        }
+        return ret;
+    }
+    else
+        return wc_local_RNG_GenerateBlock(rng, output, sz);
+}
+#endif
 
 int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 {
@@ -1311,6 +1354,11 @@ int wc_FreeRng(WC_RNG* rng)
 
     if (rng == NULL)
         return BAD_FUNC_ARG;
+
+#ifdef WC_RNG_BANK_SUPPORT
+    if (rng->status == WC_DRBG_BANKREF)
+        return wc_BankRef_Release(rng);
+#endif /* WC_RNG_BANK_SUPPORT */
 
 #if defined(WOLFSSL_ASYNC_CRYPT)
     wolfAsync_DevCtxFree(&rng->asyncDev, WOLFSSL_ASYNC_MARKER_RNG);
@@ -3049,32 +3097,10 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
 #elif defined(WOLFSSL_LINUXKM)
 
-    /* When registering the kernel default DRBG with a native/intrinsic entropy
-     * source, fallback to get_random_bytes() isn't allowed because we replace
-     * it with our DRBG.
-     */
+    #ifndef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
+        #include <linux/random.h>
+    #endif
 
-    #if defined(HAVE_ENTROPY_MEMUSE) && \
-        defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT)
-
-    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
-    {
-        (void)os;
-        return wc_Entropy_Get(MAX_ENTROPY_BITS, output, sz);
-    }
-
-    #elif (defined(HAVE_INTEL_RDSEED) || defined(HAVE_AMD_RDSEED)) && \
-        defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT)
-
-    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
-    {
-        (void)os;
-        return wc_GenerateSeed_IntelRD(NULL, output, sz);
-    }
-
-    #else /* !((HAVE_ENTROPY_MEMUSE || HAVE_*_RDSEED) && LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT) */
-
-    #include <linux/random.h>
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
         (void)os;
@@ -3082,11 +3108,9 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
     #ifdef HAVE_ENTROPY_MEMUSE
         ret = wc_Entropy_Get(MAX_ENTROPY_BITS, output, sz);
-        if (ret == 0) {
+        if (ret == 0)
             return 0;
-        }
         #ifdef ENTROPY_MEMUSE_FORCE_FAILURE
-        /* Don't fallback to /dev/urandom. */
         return ret;
         #endif
     #endif
@@ -3094,22 +3118,29 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     #if defined(HAVE_INTEL_RDSEED) || defined(HAVE_AMD_RDSEED)
         if (IS_INTEL_RDSEED(intel_flags)) {
             ret = wc_GenerateSeed_IntelRD(NULL, output, sz);
-        #ifndef FORCE_FAILURE_RDSEED
             if (ret == 0)
-        #endif
-            {
-                return ret;
-            }
+                return 0;
+            #ifdef FORCE_FAILURE_RDSEED
+            return ret;
+            #endif
         }
     #endif /* HAVE_INTEL_RDSEED || HAVE_AMD_RDSEED */
 
+    #ifdef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
+        #if !defined(HAVE_ENTROPY_MEMUSE) && \
+            !defined(HAVE_INTEL_RDSEED) && \
+            !defined(HAVE_AMD_RDSEED)
+            #error LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT requires an intrinsic entropy source.
+        #else
+            return ret;
+        #endif
+    #else
         (void)ret;
 
         get_random_bytes(output, sz);
         return 0;
+    #endif
     }
-
-    #endif /* !(HAVE_*_RDSEED && LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT) */
 
 #elif defined(WOLFSSL_BSDKM)
     #include <sys/random.h>
