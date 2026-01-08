@@ -10310,8 +10310,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
             args->idx += OPAQUE16_LEN;
 
             /* Signature data. */
-            if ((args->idx - args->begin) + args->sz > totalSz ||
-                                                       args->sz > ENCRYPT_LEN) {
+            if ((args->idx - args->begin) + args->sz > totalSz) {
                 ERROR_OUT(BUFFER_ERROR, exit_dcv);
             }
 
