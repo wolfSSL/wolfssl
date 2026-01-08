@@ -29748,24 +29748,32 @@ int CreateDevPrivateKey(void** pkey, byte* data, word32 length, int hsType,
 }
 #endif /* WOLF_PRIVATE_KEY_ID && !NO_CHECK_PRIVATE_KEY */
 
-/* Decode the private key - RSA/ECC/Ed25519/Ed448/Falcon/Dilithium - and
- * creates a key object.
+/* Decode a private key - RSA/ECC/Ed25519/Ed448/Falcon/Dilithium - and
+ * create a key object. The signature type is set as well.
  *
- * The signature type is set as well.
- * The maximum length of a signature is returned.
+ * ssl          The SSL/TLS object.
+ * keyType      The type of the key to decode.
+ * key          The key to decode.
+ * hsType       The handshake related type of the decoded key.
+ * hsKey        The decoded key.
+ * keyDevId     The devId of the key.
+ * keyIdSet     The key data contains a key id.
+ * keyLabelSet  The key data contains a key label.
+ * keySz        The size of the key.
+ * sigLen       The length of a signature.
  *
- * ssl     The SSL/TLS object.
- * length  The length of a signature.
  * returns 0 on success, otherwise failure.
  */
-int DecodePrivateKey(WOLFSSL *ssl, word32* length)
+static int DecodePrivateKey_ex(WOLFSSL *ssl, byte keyType, const DerBuffer* key,
+                word32* hsType, void** hsKey, int keyDevId, byte keyIdSet,
+                byte keyLabelSet, int keySz, word32* sigLen)
 {
     int      ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
-    int      keySz;
+    int      keySzDecoded;
     word32   idx;
 
     /* make sure private key exists */
-    if (ssl->buffers.key == NULL || ssl->buffers.key->buffer == NULL) {
+    if (key == NULL || key->buffer == NULL) {
         /* allow no private key if using external */
     #ifdef WOLF_PRIVATE_KEY_ID
         if (ssl->devId != INVALID_DEVID
@@ -29773,7 +29781,7 @@ int DecodePrivateKey(WOLFSSL *ssl, word32* length)
             || wolfSSL_CTX_IsPrivatePkSet(ssl->ctx)
         #endif
         ) {
-            *length = (word32)GetPrivateKeySigSize(ssl);
+            *sigLen = (word32)GetPrivateKeySigSize(ssl);
             return 0;
         }
         else
@@ -29785,147 +29793,101 @@ int DecodePrivateKey(WOLFSSL *ssl, word32* length)
     }
 
 #ifdef WOLF_PRIVATE_KEY_ID
-    if (ssl->buffers.keyDevId != INVALID_DEVID && (ssl->buffers.keyId ||
-                                                       ssl->buffers.keyLabel)) {
-        if (ssl->buffers.keyType == rsa_sa_algo)
-            ssl->hsType = DYNAMIC_TYPE_RSA;
-        else if (ssl->buffers.keyType == ecc_dsa_sa_algo)
-            ssl->hsType = DYNAMIC_TYPE_ECC;
-        else if ((ssl->buffers.keyType == falcon_level1_sa_algo) ||
-                 (ssl->buffers.keyType == falcon_level5_sa_algo))
-            ssl->hsType = DYNAMIC_TYPE_FALCON;
-        else if ((ssl->buffers.keyType == dilithium_level2_sa_algo) ||
-                 (ssl->buffers.keyType == dilithium_level3_sa_algo) ||
-                 (ssl->buffers.keyType == dilithium_level5_sa_algo))
-            ssl->hsType = DYNAMIC_TYPE_DILITHIUM;
-        ret = AllocKey(ssl, (int)(ssl->hsType), &ssl->hsKey);
+    if (keyDevId != INVALID_DEVID && (keyIdSet || keyLabelSet)) {
+        /* Set hsType */
+        if (keyType == rsa_sa_algo)
+            *hsType = DYNAMIC_TYPE_RSA;
+        else if (keyType == ecc_dsa_sa_algo)
+            *hsType = DYNAMIC_TYPE_ECC;
+        else if ((keyType == falcon_level1_sa_algo) ||
+                 (keyType == falcon_level5_sa_algo))
+            *hsType = DYNAMIC_TYPE_FALCON;
+        else if ((keyType == dilithium_level2_sa_algo) ||
+                 (keyType == dilithium_level3_sa_algo) ||
+                 (keyType == dilithium_level5_sa_algo))
+            *hsType = DYNAMIC_TYPE_DILITHIUM;
+
+        /* Create the private key */
+        ret = CreateDevPrivateKey(hsKey, key->buffer,
+                                  key->length, *hsType,
+                                  keyLabelSet, keyIdSet, ssl->heap,
+                                  keyDevId);
         if (ret != 0) {
             goto exit_dpk;
         }
 
-        if (ssl->buffers.keyType == rsa_sa_algo) {
+        /* Check key size */
+        if (*hsType == DYNAMIC_TYPE_RSA) {
     #ifndef NO_RSA
-            if (ssl->buffers.keyLabel) {
-                ret = wc_InitRsaKey_Label((RsaKey*)ssl->hsKey,
-                                          (char*)ssl->buffers.key->buffer,
-                                          ssl->heap, ssl->buffers.keyDevId);
+            if (keySz < ssl->options.minRsaKeySz) {
+                WOLFSSL_MSG("RSA key size too small");
+                ERROR_OUT(RSA_KEY_SIZE_E, exit_dpk);
             }
-            else if (ssl->buffers.keyId) {
-                ret = wc_InitRsaKey_Id((RsaKey*)ssl->hsKey,
-                                    (ssl->buffers.key->buffer),
-                                    (int)(ssl->buffers.key->length),
-                                    ssl->heap,
-                                    ssl->buffers.keyDevId);
-            }
-            if (ret == 0) {
-                if (ssl->buffers.keySz < ssl->options.minRsaKeySz) {
-                    WOLFSSL_MSG("RSA key size too small");
-                    ERROR_OUT(RSA_KEY_SIZE_E, exit_dpk);
-                }
 
-                /* Return the maximum signature length. */
-                *length = (word32)ssl->buffers.keySz;
-            }
+            /* Return the maximum signature length. */
+            *sigLen = (word32)keySz;
     #else
             ret = NOT_COMPILED_IN;
     #endif
         }
-        else if (ssl->buffers.keyType == ecc_dsa_sa_algo) {
+        else if (*hsType == DYNAMIC_TYPE_ECC) {
     #ifdef HAVE_ECC
-            if (ssl->buffers.keyLabel) {
-                ret = wc_ecc_init_label((ecc_key*)ssl->hsKey,
-                                        (char*)ssl->buffers.key->buffer,
-                                        ssl->heap, ssl->buffers.keyDevId);
+            if (keySz < ssl->options.minEccKeySz) {
+                WOLFSSL_MSG("ECC key size too small");
+                ERROR_OUT(ECC_KEY_SIZE_E, exit_dpk);
             }
-            else if (ssl->buffers.keyId) {
-                ret = wc_ecc_init_id((ecc_key*)ssl->hsKey,
-                                     (ssl->buffers.key->buffer),
-                                     ssl->buffers.key->length, ssl->heap,
-                                     ssl->buffers.keyDevId);
-            }
-            if (ret == 0) {
-                if (ssl->buffers.keySz < ssl->options.minEccKeySz) {
-                    WOLFSSL_MSG("ECC key size too small");
-                    ERROR_OUT(ECC_KEY_SIZE_E, exit_dpk);
-                }
 
-                /* Return the maximum signature length. */
-                *length = (word32)wc_ecc_sig_size_calc(ssl->buffers.keySz);
-            }
+            /* Return the maximum signature length. */
+            *sigLen = (word32)wc_ecc_sig_size_calc(keySz);
     #else
             ret = NOT_COMPILED_IN;
     #endif
         }
-        else if ((ssl->buffers.keyType == falcon_level1_sa_algo) ||
-                 (ssl->buffers.keyType == falcon_level5_sa_algo)) {
+        else if (*hsType == DYNAMIC_TYPE_FALCON) {
     #if defined(HAVE_FALCON)
-            if (ssl->buffers.keyLabel) {
-                ret = wc_falcon_init_label((falcon_key*)ssl->hsKey,
-                                           (char*)ssl->buffers.key->buffer,
-                                           ssl->heap, ssl->buffers.keyDevId);
+            if (keyType == falcon_level1_sa_algo) {
+                ret = wc_falcon_set_level((falcon_key*)*hsKey, 1);
             }
-            else if (ssl->buffers.keyId) {
-                ret = wc_falcon_init_id((falcon_key*)ssl->hsKey,
-                                        ssl->buffers.key->buffer,
-                                        ssl->buffers.key->length, ssl->heap,
-                                        ssl->buffers.keyDevId);
+            else if (keyType == falcon_level5_sa_algo) {
+                ret = wc_falcon_set_level((falcon_key*)*hsKey, 5);
             }
+
             if (ret == 0) {
-                if (ssl->buffers.keyType == falcon_level1_sa_algo) {
-                    ret = wc_falcon_set_level((falcon_key*)ssl->hsKey, 1);
-                }
-                else if (ssl->buffers.keyType == falcon_level5_sa_algo) {
-                    ret = wc_falcon_set_level((falcon_key*)ssl->hsKey, 5);
-                }
-            }
-            if (ret == 0) {
-                if (ssl->buffers.keySz < ssl->options.minFalconKeySz) {
+                if (keySz < ssl->options.minFalconKeySz) {
                     WOLFSSL_MSG("Falcon key size too small");
                     ERROR_OUT(FALCON_KEY_SIZE_E, exit_dpk);
                 }
 
                 /* Return the maximum signature length. */
-                *length = wc_falcon_sig_size((falcon_key*)ssl->hsKey);
+                *sigLen = wc_falcon_sig_size((falcon_key*)*hsKey);
             }
     #else
             ret = NOT_COMPILED_IN;
     #endif
         }
-        else if ((ssl->buffers.keyType == dilithium_level2_sa_algo) ||
-                 (ssl->buffers.keyType == dilithium_level3_sa_algo) ||
-                 (ssl->buffers.keyType == dilithium_level5_sa_algo)) {
+        else if (*hsType == DYNAMIC_TYPE_DILITHIUM) {
     #if defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_SIGN)
-            if (ssl->buffers.keyLabel) {
-                ret = wc_dilithium_init_label((dilithium_key*)ssl->hsKey,
-                                              (char*)ssl->buffers.key->buffer,
-                                              ssl->heap, ssl->buffers.keyDevId);
+            if (keyType == dilithium_level2_sa_algo) {
+                ret = wc_dilithium_set_level((dilithium_key*)*hsKey,
+                                             WC_ML_DSA_44);
             }
-            else if (ssl->buffers.keyId) {
-                ret = wc_dilithium_init_id((dilithium_key*)ssl->hsKey,
-                                        ssl->buffers.key->buffer,
-                                        ssl->buffers.key->length, ssl->heap,
-                                        ssl->buffers.keyDevId);
+            else if (keyType == dilithium_level3_sa_algo) {
+                ret = wc_dilithium_set_level((dilithium_key*)*hsKey,
+                                             WC_ML_DSA_65);
             }
+            else if (keyType == dilithium_level5_sa_algo) {
+                ret = wc_dilithium_set_level((dilithium_key*)*hsKey,
+                                             WC_ML_DSA_87);
+            }
+
             if (ret == 0) {
-                if (ssl->buffers.keyType == dilithium_level2_sa_algo) {
-                    ret = wc_dilithium_set_level((dilithium_key*)ssl->hsKey, WC_ML_DSA_44);
-                }
-                else if (ssl->buffers.keyType == dilithium_level3_sa_algo) {
-                    ret = wc_dilithium_set_level((dilithium_key*)ssl->hsKey, WC_ML_DSA_65);
-                }
-                else if (ssl->buffers.keyType == dilithium_level5_sa_algo) {
-                    ret = wc_dilithium_set_level((dilithium_key*)ssl->hsKey, WC_ML_DSA_87);
-                }
-            }
-            if (ret == 0) {
-                if (ssl->buffers.keySz < ssl->options.minDilithiumKeySz) {
+                if (keySz < ssl->options.minDilithiumKeySz) {
                     WOLFSSL_MSG("Dilithium key size too small");
                     ERROR_OUT(DILITHIUM_KEY_SIZE_E, exit_dpk);
                 }
 
                 /* Return the maximum signature length. */
-                *length = wc_dilithium_sig_size(
-                                    (dilithium_key*)ssl->hsKey);
+                *sigLen = wc_dilithium_sig_size((dilithium_key*)*hsKey);
             }
     #else
             ret = NOT_COMPILED_IN;
@@ -29936,9 +29898,9 @@ int DecodePrivateKey(WOLFSSL *ssl, word32* length)
 #endif /* WOLF_PRIVATE_KEY_ID */
 
 #ifndef NO_RSA
-    if (ssl->buffers.keyType == rsa_sa_algo || ssl->buffers.keyType == 0) {
-        ssl->hsType = DYNAMIC_TYPE_RSA;
-        ret = AllocKey(ssl, (int)ssl->hsType, &ssl->hsKey);
+    if (keyType == rsa_sa_algo || keyType == 0) {
+        *hsType = DYNAMIC_TYPE_RSA;
+        ret = AllocKey(ssl, (int)*hsType, hsKey);
         if (ret != 0) {
             goto exit_dpk;
         }
@@ -29948,8 +29910,8 @@ int DecodePrivateKey(WOLFSSL *ssl, word32* length)
         /* Set start of data to beginning of buffer. */
         idx = 0;
         /* Decode the key assuming it is an RSA private key. */
-        ret = wc_RsaPrivateKeyDecode(ssl->buffers.key->buffer, &idx,
-                    (RsaKey*)ssl->hsKey, ssl->buffers.key->length);
+        ret = wc_RsaPrivateKeyDecode(key->buffer, &idx,
+                    (RsaKey*)*hsKey, key->length);
     #ifdef WOLF_PRIVATE_KEY_ID
         /* if using external key then allow using a public key */
         if (ret != 0 && (ssl->devId != INVALID_DEVID
@@ -29959,26 +29921,26 @@ int DecodePrivateKey(WOLFSSL *ssl, word32* length)
         )) {
             WOLFSSL_MSG("Trying RSA public key with crypto callbacks");
             idx = 0;
-            ret = wc_RsaPublicKeyDecode(ssl->buffers.key->buffer, &idx,
-                        (RsaKey*)ssl->hsKey, ssl->buffers.key->length);
+            ret = wc_RsaPublicKeyDecode(key->buffer, &idx,
+                        (RsaKey*)*hsKey, key->length);
         }
     #endif
         if (ret == 0) {
             WOLFSSL_MSG("Using RSA private key");
 
             /* It worked so check it meets minimum key size requirements. */
-            keySz = wc_RsaEncryptSize((RsaKey*)ssl->hsKey);
-            if (keySz < 0) { /* check if keySz has error case */
-                ERROR_OUT(keySz, exit_dpk);
+            keySzDecoded = wc_RsaEncryptSize((RsaKey*)*hsKey);
+            if (keySzDecoded < 0) { /* check if keySzDecoded has error case */
+                ERROR_OUT(keySzDecoded, exit_dpk);
             }
 
-            if (keySz < ssl->options.minRsaKeySz) {
+            if (keySzDecoded < ssl->options.minRsaKeySz) {
                 WOLFSSL_MSG("RSA key size too small");
                 ERROR_OUT(RSA_KEY_SIZE_E, exit_dpk);
             }
 
             /* Return the maximum signature length. */
-            *length = (word32)keySz;
+            *sigLen = (word32)keySzDecoded;
 
             goto exit_dpk;
         }
@@ -29987,32 +29949,28 @@ int DecodePrivateKey(WOLFSSL *ssl, word32* length)
 
 #ifdef HAVE_ECC
 #ifndef NO_RSA
-    FreeKey(ssl, (int)ssl->hsType, (void**)&ssl->hsKey);
+    FreeKey(ssl, (int)*hsType, hsKey);
 #endif /* !NO_RSA */
 
-    if (ssl->buffers.keyType == ecc_dsa_sa_algo || ssl->buffers.keyType == 0
+    if (keyType == ecc_dsa_sa_algo || keyType == 0
     #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
-         || ssl->buffers.keyType == sm2_sa_algo
+         || keyType == sm2_sa_algo
     #endif
         ) {
-        ssl->hsType = DYNAMIC_TYPE_ECC;
-        ret = AllocKey(ssl, (int)ssl->hsType, &ssl->hsKey);
+        *hsType = DYNAMIC_TYPE_ECC;
+        ret = AllocKey(ssl, (int)*hsType, hsKey);
         if (ret != 0) {
             goto exit_dpk;
         }
 
-    #ifndef NO_RSA
-        WOLFSSL_MSG("Trying ECC private key, RSA didn't work");
-    #else
         WOLFSSL_MSG("Trying ECC private key");
-    #endif
 
         /* Set start of data to beginning of buffer. */
         idx = 0;
         /* Decode the key assuming it is an ECC private key. */
-        ret = wc_EccPrivateKeyDecode(ssl->buffers.key->buffer, &idx,
-                                     (ecc_key*)ssl->hsKey,
-                                     ssl->buffers.key->length);
+        ret = wc_EccPrivateKeyDecode(key->buffer, &idx,
+                                     (ecc_key*)*hsKey,
+                                     key->length);
     #ifdef WOLF_PRIVATE_KEY_ID
         /* if using external key then allow using a public key */
         if (ret != 0 && (ssl->devId != INVALID_DEVID
@@ -30022,14 +29980,14 @@ int DecodePrivateKey(WOLFSSL *ssl, word32* length)
         )) {
             WOLFSSL_MSG("Trying ECC public key with crypto callbacks");
             idx = 0;
-            ret = wc_EccPublicKeyDecode(ssl->buffers.key->buffer, &idx,
-                                     (ecc_key*)ssl->hsKey,
-                                     ssl->buffers.key->length);
+            ret = wc_EccPublicKeyDecode(key->buffer, &idx,
+                                     (ecc_key*)*hsKey,
+                                     key->length);
         }
     #endif
     #ifdef WOLFSSL_SM2
-        if ((ret == 0) && (ssl->buffers.keyType == sm2_sa_algo)) {
-            ret = wc_ecc_set_curve((ecc_key*)ssl->hsKey,
+        if ((ret == 0) && (keyType == sm2_sa_algo)) {
+            ret = wc_ecc_set_curve((ecc_key*)*hsKey,
                 WOLFSSL_SM2_KEY_BITS / 8, ECC_SM2P256V1);
         }
     #endif
@@ -30037,14 +29995,14 @@ int DecodePrivateKey(WOLFSSL *ssl, word32* length)
             WOLFSSL_MSG("Using ECC private key");
 
             /* Check it meets the minimum ECC key size requirements. */
-            keySz = wc_ecc_size((ecc_key*)ssl->hsKey);
-            if (keySz < ssl->options.minEccKeySz) {
+            keySzDecoded = wc_ecc_size((ecc_key*)*hsKey);
+            if (keySzDecoded < ssl->options.minEccKeySz) {
                 WOLFSSL_MSG("ECC key size too small");
                 ERROR_OUT(ECC_KEY_SIZE_E, exit_dpk);
             }
 
             /* Return the maximum signature length. */
-            *length = (word32)wc_ecc_sig_size((ecc_key*)ssl->hsKey);
+            *sigLen = (word32)wc_ecc_sig_size((ecc_key*)*hsKey);
 
             goto exit_dpk;
         }
@@ -30052,30 +30010,24 @@ int DecodePrivateKey(WOLFSSL *ssl, word32* length)
 #endif
 #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)
     #if !defined(NO_RSA) || defined(HAVE_ECC)
-        FreeKey(ssl, ssl->hsType, (void**)&ssl->hsKey);
+        FreeKey(ssl, *hsType, hsKey);
     #endif
 
-    if (ssl->buffers.keyType == ed25519_sa_algo || ssl->buffers.keyType == 0) {
-        ssl->hsType = DYNAMIC_TYPE_ED25519;
-        ret = AllocKey(ssl, ssl->hsType, &ssl->hsKey);
+    if (keyType == ed25519_sa_algo || keyType == 0) {
+        *hsType = DYNAMIC_TYPE_ED25519;
+        ret = AllocKey(ssl, *hsType, hsKey);
         if (ret != 0) {
             goto exit_dpk;
         }
 
-        #ifdef HAVE_ECC
-            WOLFSSL_MSG("Trying ED25519 private key, ECC didn't work");
-        #elif !defined(NO_RSA)
-            WOLFSSL_MSG("Trying ED25519 private key, RSA didn't work");
-        #else
-            WOLFSSL_MSG("Trying ED25519 private key");
-        #endif
+        WOLFSSL_MSG("Trying ED25519 private key");
 
         /* Set start of data to beginning of buffer. */
         idx = 0;
         /* Decode the key assuming it is an ED25519 private key. */
-        ret = wc_Ed25519PrivateKeyDecode(ssl->buffers.key->buffer, &idx,
-                                         (ed25519_key*)ssl->hsKey,
-                                         ssl->buffers.key->length);
+        ret = wc_Ed25519PrivateKeyDecode(key->buffer, &idx,
+                                         (ed25519_key*)*hsKey,
+                                         key->length);
     #ifdef WOLF_PRIVATE_KEY_ID
         /* if using external key then allow using a public key */
         if (ret != 0 && (ssl->devId != INVALID_DEVID
@@ -30085,9 +30037,9 @@ int DecodePrivateKey(WOLFSSL *ssl, word32* length)
         )) {
             WOLFSSL_MSG("Trying ED25519 public key with crypto callbacks");
             idx = 0;
-            ret = wc_Ed25519PublicKeyDecode(ssl->buffers.key->buffer, &idx,
-                                           (ed25519_key*)ssl->hsKey,
-                                            ssl->buffers.key->length);
+            ret = wc_Ed25519PublicKeyDecode(key->buffer, &idx,
+                                           (ed25519_key*)*hsKey,
+                                            key->length);
         }
     #endif
         if (ret == 0) {
@@ -30100,7 +30052,7 @@ int DecodePrivateKey(WOLFSSL *ssl, word32* length)
             }
 
             /* Return the maximum signature length. */
-            *length = ED25519_SIG_SIZE;
+            *sigLen = ED25519_SIG_SIZE;
 
             goto exit_dpk;
         }
@@ -30108,32 +30060,24 @@ int DecodePrivateKey(WOLFSSL *ssl, word32* length)
 #endif /* HAVE_ED25519 && HAVE_ED25519_KEY_IMPORT */
 #if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)
     #if !defined(NO_RSA) || defined(HAVE_ECC)
-        FreeKey(ssl, ssl->hsType, (void**)&ssl->hsKey);
+        FreeKey(ssl, *hsType, hsKey);
     #endif
 
-    if (ssl->buffers.keyType == ed448_sa_algo || ssl->buffers.keyType == 0) {
-        ssl->hsType = DYNAMIC_TYPE_ED448;
-        ret = AllocKey(ssl, ssl->hsType, &ssl->hsKey);
+    if (keyType == ed448_sa_algo || keyType == 0) {
+        *hsType = DYNAMIC_TYPE_ED448;
+        ret = AllocKey(ssl, *hsType, hsKey);
         if (ret != 0) {
             goto exit_dpk;
         }
 
-        #ifdef HAVE_ED25519
-            WOLFSSL_MSG("Trying ED448 private key, ED25519 didn't work");
-        #elif defined(HAVE_ECC)
-            WOLFSSL_MSG("Trying ED448 private key, ECC didn't work");
-        #elif !defined(NO_RSA)
-            WOLFSSL_MSG("Trying ED448 private key, RSA didn't work");
-        #else
-            WOLFSSL_MSG("Trying ED448 private key");
-        #endif
+        WOLFSSL_MSG("Trying ED448 private key");
 
         /* Set start of data to beginning of buffer. */
         idx = 0;
         /* Decode the key assuming it is an ED448 private key. */
-        ret = wc_Ed448PrivateKeyDecode(ssl->buffers.key->buffer, &idx,
-                                       (ed448_key*)ssl->hsKey,
-                                       ssl->buffers.key->length);
+        ret = wc_Ed448PrivateKeyDecode(key->buffer, &idx,
+                                       (ed448_key*)*hsKey,
+                                       key->length);
     #ifdef WOLF_PRIVATE_KEY_ID
         /* if using external key then allow using a public key */
         if (ret != 0 && (ssl->devId != INVALID_DEVID
@@ -30143,9 +30087,9 @@ int DecodePrivateKey(WOLFSSL *ssl, word32* length)
         )) {
             WOLFSSL_MSG("Trying ED25519 public key with crypto callbacks");
             idx = 0;
-            ret = wc_Ed448PublicKeyDecode(ssl->buffers.key->buffer, &idx,
-                                          (ed448_key*)ssl->hsKey,
-                                          ssl->buffers.key->length);
+            ret = wc_Ed448PublicKeyDecode(key->buffer, &idx,
+                                          (ed448_key*)*hsKey,
+                                          key->length);
         }
     #endif
         if (ret == 0) {
@@ -30158,7 +30102,7 @@ int DecodePrivateKey(WOLFSSL *ssl, word32* length)
             }
 
             /* Return the maximum signature length. */
-            *length = ED448_SIG_SIZE;
+            *sigLen = ED448_SIG_SIZE;
 
             goto exit_dpk;
         }
@@ -30166,27 +30110,27 @@ int DecodePrivateKey(WOLFSSL *ssl, word32* length)
 #endif /* HAVE_ED448 && HAVE_ED448_KEY_IMPORT */
 #if defined(HAVE_FALCON)
     #if !defined(NO_RSA) || defined(HAVE_ECC)
-        FreeKey(ssl, ssl->hsType, (void**)&ssl->hsKey);
+        FreeKey(ssl, *hsType, hsKey);
     #endif
 
-    if (ssl->buffers.keyType == falcon_level1_sa_algo ||
-        ssl->buffers.keyType == falcon_level5_sa_algo ||
-        ssl->buffers.keyType == 0) {
+    if (keyType == falcon_level1_sa_algo ||
+        keyType == falcon_level5_sa_algo ||
+        keyType == 0) {
 
-        ssl->hsType = DYNAMIC_TYPE_FALCON;
-        ret = AllocKey(ssl, ssl->hsType, &ssl->hsKey);
+        *hsType = DYNAMIC_TYPE_FALCON;
+        ret = AllocKey(ssl, *hsType, hsKey);
         if (ret != 0) {
             goto exit_dpk;
         }
 
-        if (ssl->buffers.keyType == falcon_level1_sa_algo) {
-            ret = wc_falcon_set_level((falcon_key*)ssl->hsKey, 1);
+        if (keyType == falcon_level1_sa_algo) {
+            ret = wc_falcon_set_level((falcon_key*)*hsKey, 1);
         }
-        else if (ssl->buffers.keyType == falcon_level5_sa_algo) {
-            ret = wc_falcon_set_level((falcon_key*)ssl->hsKey, 5);
+        else if (keyType == falcon_level5_sa_algo) {
+            ret = wc_falcon_set_level((falcon_key*)*hsKey, 5);
         }
         else {
-            /* What if ssl->buffers.keyType is 0? We might want to do something
+            /* What if keyType is 0? We might want to do something
              * more graceful here. */
             ret = ALGO_ID_E;
         }
@@ -30195,36 +30139,26 @@ int DecodePrivateKey(WOLFSSL *ssl, word32* length)
             goto exit_dpk;
         }
 
-        #if defined(HAVE_ED448)
-            WOLFSSL_MSG("Trying Falcon private key, ED448 didn't work");
-        #elif defined(HAVE_ED25519)
-            WOLFSSL_MSG("Trying Falcon private key, ED25519 didn't work");
-        #elif defined(HAVE_ECC)
-            WOLFSSL_MSG("Trying Falcon private key, ECC didn't work");
-        #elif !defined(NO_RSA)
-            WOLFSSL_MSG("Trying Falcon private key, RSA didn't work");
-        #else
-            WOLFSSL_MSG("Trying Falcon private key");
-        #endif
+        WOLFSSL_MSG("Trying Falcon private key");
 
         /* Set start of data to beginning of buffer. */
         idx = 0;
         /* Decode the key assuming it is a Falcon private key. */
-        ret = wc_falcon_import_private_only(ssl->buffers.key->buffer,
-                                            ssl->buffers.key->length,
-                                            (falcon_key*)ssl->hsKey);
+        ret = wc_falcon_import_private_only(key->buffer,
+                                            key->length,
+                                            (falcon_key*)*hsKey);
         if (ret == 0) {
             WOLFSSL_MSG("Using Falcon private key");
 
             /* Check it meets the minimum Falcon key size requirements. */
-            keySz = wc_falcon_size((falcon_key*)ssl->hsKey);
-            if (keySz < ssl->options.minFalconKeySz) {
+            keySzDecoded = wc_falcon_size((falcon_key*)*hsKey);
+            if (keySzDecoded < ssl->options.minFalconKeySz) {
                 WOLFSSL_MSG("Falcon key size too small");
                 ERROR_OUT(FALCON_KEY_SIZE_E, exit_dpk);
             }
 
             /* Return the maximum signature length. */
-            *length = wc_falcon_sig_size((falcon_key*)ssl->hsKey);
+            *sigLen = wc_falcon_sig_size((falcon_key*)*hsKey);
 
             goto exit_dpk;
         }
@@ -30233,31 +30167,31 @@ int DecodePrivateKey(WOLFSSL *ssl, word32* length)
 #if defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
     !defined(WOLFSSL_DILITHIUM_NO_ASN1)
     #if !defined(NO_RSA) || defined(HAVE_ECC)
-        FreeKey(ssl, ssl->hsType, (void**)&ssl->hsKey);
+        FreeKey(ssl, *hsType, hsKey);
     #endif
 
-    if (ssl->buffers.keyType == dilithium_level2_sa_algo ||
-        ssl->buffers.keyType == dilithium_level3_sa_algo ||
-        ssl->buffers.keyType == dilithium_level5_sa_algo ||
-        ssl->buffers.keyType == 0) {
+    if (keyType == dilithium_level2_sa_algo ||
+        keyType == dilithium_level3_sa_algo ||
+        keyType == dilithium_level5_sa_algo ||
+        keyType == 0) {
 
-        ssl->hsType = DYNAMIC_TYPE_DILITHIUM;
-        ret = AllocKey(ssl, ssl->hsType, &ssl->hsKey);
+        *hsType = DYNAMIC_TYPE_DILITHIUM;
+        ret = AllocKey(ssl, *hsType, hsKey);
         if (ret != 0) {
             goto exit_dpk;
         }
 
-        if (ssl->buffers.keyType == dilithium_level2_sa_algo) {
-            ret = wc_dilithium_set_level((dilithium_key*)ssl->hsKey, WC_ML_DSA_44);
+        if (keyType == dilithium_level2_sa_algo) {
+            ret = wc_dilithium_set_level((dilithium_key*)*hsKey, WC_ML_DSA_44);
         }
-        else if (ssl->buffers.keyType == dilithium_level3_sa_algo) {
-            ret = wc_dilithium_set_level((dilithium_key*)ssl->hsKey, WC_ML_DSA_65);
+        else if (keyType == dilithium_level3_sa_algo) {
+            ret = wc_dilithium_set_level((dilithium_key*)*hsKey, WC_ML_DSA_65);
         }
-        else if (ssl->buffers.keyType == dilithium_level5_sa_algo) {
-            ret = wc_dilithium_set_level((dilithium_key*)ssl->hsKey, WC_ML_DSA_87);
+        else if (keyType == dilithium_level5_sa_algo) {
+            ret = wc_dilithium_set_level((dilithium_key*)*hsKey, WC_ML_DSA_87);
         }
         else {
-            /* What if ssl->buffers.keyType is 0? We might want to do something
+            /* What if keyType is 0? We might want to do something
              * more graceful here. */
             ret = ALGO_ID_E;
         }
@@ -30266,39 +30200,27 @@ int DecodePrivateKey(WOLFSSL *ssl, word32* length)
             goto exit_dpk;
         }
 
-        #if defined(HAVE_ED448)
-            WOLFSSL_MSG("Trying Dilithium private key, ED448 didn't work");
-        #elif defined(HAVE_ED25519)
-            WOLFSSL_MSG("Trying Dilithium private key, ED25519 didn't work");
-        #elif defined(HAVE_ECC)
-            WOLFSSL_MSG("Trying Dilithium private key, ECC didn't work");
-        #elif !defined(NO_RSA)
-            WOLFSSL_MSG("Trying Dilithium private key, RSA didn't work");
-        #elif defined(HAVE_FALCON)
-            WOLFSSL_MSG("Trying Dilithium private key, Falcon didn't work");
-        #else
-            WOLFSSL_MSG("Trying Dilithium private key");
-        #endif
+        WOLFSSL_MSG("Trying Dilithium private key");
 
         /* Set start of data to beginning of buffer. */
         idx = 0;
         /* Decode the key assuming it is a Dilithium private key. */
-        ret = wc_Dilithium_PrivateKeyDecode(ssl->buffers.key->buffer,
+        ret = wc_Dilithium_PrivateKeyDecode(key->buffer,
                                             &idx,
-                                            (dilithium_key*)ssl->hsKey,
-                                            ssl->buffers.key->length);
+                                            (dilithium_key*)*hsKey,
+                                            key->length);
         if (ret == 0) {
             WOLFSSL_MSG("Using Dilithium private key");
 
             /* Check it meets the minimum Dilithium key size requirements. */
-            keySz = wc_dilithium_size((dilithium_key*)ssl->hsKey);
-            if (keySz < ssl->options.minDilithiumKeySz) {
+            keySzDecoded = wc_dilithium_size((dilithium_key*)*hsKey);
+            if (keySzDecoded < ssl->options.minDilithiumKeySz) {
                 WOLFSSL_MSG("Dilithium key size too small");
                 ERROR_OUT(DILITHIUM_KEY_SIZE_E, exit_dpk);
             }
 
             /* Return the maximum signature length. */
-            *length = wc_dilithium_sig_size((dilithium_key*)ssl->hsKey);
+            *sigLen = wc_dilithium_sig_size((dilithium_key*)*hsKey);
 
             goto exit_dpk;
         }
@@ -30306,8 +30228,16 @@ int DecodePrivateKey(WOLFSSL *ssl, word32* length)
 #endif /* HAVE_DILITHIUM */
 
     (void)idx;
+    (void)keySzDecoded;
+    (void)keyType;
+    (void)key;
+    (void)hsType;
+    (void)hsKey;
+    (void)keyDevId;
+    (void)keyIdSet;
+    (void)keyLabelSet;
     (void)keySz;
-    (void)length;
+    (void)sigLen;
 
 exit_dpk:
     if (ret != 0) {
@@ -30317,440 +30247,40 @@ exit_dpk:
     return ret;
 }
 
-#if defined(WOLFSSL_DUAL_ALG_CERTS)
-/* This is just like the above, but only consider RSA, ECC, Falcon and
- * Dilthium; Furthermore, use the alternative key, not the native key.
+/* Decode the private key - RSA/ECC/Ed25519/Ed448/Falcon/Dilithium - and
+ * creates a key object.
+ *
+ * The signature type is set as well.
+ * The maximum length of a signature is returned.
+ *
+ * ssl     The SSL/TLS object.
+ * sigLen  The length of a signature.
+ * returns 0 on success, otherwise failure.
  */
-int DecodeAltPrivateKey(WOLFSSL *ssl, word32* length)
+int DecodePrivateKey(WOLFSSL *ssl, word32* sigLen)
 {
-    int      ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
-    int      keySz;
-    word32   idx;
+    int ret = 0;
 
-    /* make sure alt private key exists */
-    if (ssl->buffers.altKey == NULL || ssl->buffers.altKey->buffer == NULL) {
-        WOLFSSL_MSG("Alternative Private key missing!");
-        ERROR_OUT(NO_PRIVATE_KEY, exit_dapk);
-    }
+    ret = DecodePrivateKey_ex(ssl, ssl->buffers.keyType, ssl->buffers.key,
+                &ssl->hsType, &ssl->hsKey, ssl->buffers.keyDevId,
+                ssl->buffers.keyId, ssl->buffers.keyLabel, ssl->buffers.keySz,
+                sigLen);
 
-#ifdef WOLFSSL_BLIND_PRIVATE_KEY
-    wolfssl_priv_der_blind_toggle(ssl->buffers.altKey, ssl->buffers.altKeyMask);
-#endif
+    return ret;
+}
 
-#ifdef WOLF_PRIVATE_KEY_ID
-    if (ssl->buffers.altKeyDevId != INVALID_DEVID &&
-        (ssl->buffers.altKeyId || ssl->buffers.altKeyLabel)) {
-        if (ssl->buffers.altKeyType == rsa_sa_algo)
-            ssl->hsAltType = DYNAMIC_TYPE_RSA;
-        else if (ssl->buffers.altKeyType == ecc_dsa_sa_algo)
-            ssl->hsAltType = DYNAMIC_TYPE_ECC;
-        else if ((ssl->buffers.altKeyType == falcon_level1_sa_algo) ||
-                 (ssl->buffers.altKeyType == falcon_level5_sa_algo))
-            ssl->hsAltType = DYNAMIC_TYPE_FALCON;
-        else if ((ssl->buffers.altKeyType == dilithium_level2_sa_algo) ||
-                 (ssl->buffers.altKeyType == dilithium_level3_sa_algo) ||
-                 (ssl->buffers.altKeyType == dilithium_level5_sa_algo))
-            ssl->hsAltType = DYNAMIC_TYPE_DILITHIUM;
-        ret = AllocKey(ssl, ssl->hsAltType, &ssl->hsAltKey);
-        if (ret != 0) {
-            goto exit_dapk;
-        }
+#if defined(WOLFSSL_DUAL_ALG_CERTS)
+/* This is just like the above, but uses the alternative key of the ssl object,
+ * not the primary key.
+ */
+int DecodeAltPrivateKey(WOLFSSL *ssl, word32* sigLen)
+{
+    int ret = 0;
 
-        if (ssl->buffers.altKeyType == rsa_sa_algo) {
-    #ifndef NO_RSA
-            if (ssl->buffers.altKeyLabel) {
-                ret = wc_InitRsaKey_Label((RsaKey*)ssl->hsAltKey,
-                                          (char*)ssl->buffers.altKey->buffer,
-                                          ssl->heap, ssl->buffers.altKeyDevId);
-            }
-            else if (ssl->buffers.altKeyId) {
-                ret = wc_InitRsaKey_Id((RsaKey*)ssl->hsAltKey,
-                                       ssl->buffers.altKey->buffer,
-                                       ssl->buffers.altKey->length, ssl->heap,
-                                       ssl->buffers.altKeyDevId);
-            }
-            if (ret == 0) {
-                if (ssl->buffers.altKeySz < ssl->options.minRsaKeySz) {
-                    WOLFSSL_MSG("RSA key size too small");
-                    ERROR_OUT(RSA_KEY_SIZE_E, exit_dapk);
-                }
-
-                /* Return the maximum signature length. */
-                *length = ssl->buffers.altKeySz;
-            }
-    #else
-            ret = NOT_COMPILED_IN;
-    #endif
-        }
-        else if (ssl->buffers.altKeyType == ecc_dsa_sa_algo) {
-    #ifdef HAVE_ECC
-            if (ssl->buffers.altKeyLabel) {
-                ret = wc_ecc_init_label((ecc_key*)ssl->hsAltKey,
-                                        (char*)ssl->buffers.altKey->buffer,
-                                        ssl->heap, ssl->buffers.altKeyDevId);
-            }
-            else if (ssl->buffers.altKeyId) {
-                ret = wc_ecc_init_id((ecc_key*)ssl->hsAltKey,
-                                     ssl->buffers.altKey->buffer,
-                                     ssl->buffers.altKey->length, ssl->heap,
-                                     ssl->buffers.altKeyDevId);
-            }
-            if (ret == 0) {
-                if (ssl->buffers.altKeySz < ssl->options.minEccKeySz) {
-                    WOLFSSL_MSG("ECC key size too small");
-                    ERROR_OUT(ECC_KEY_SIZE_E, exit_dapk);
-                }
-
-                /* Return the maximum signature length. */
-                *length = wc_ecc_sig_size_calc(ssl->buffers.altKeySz);
-            }
-    #else
-            ret = NOT_COMPILED_IN;
-    #endif
-        }
-        else if ((ssl->buffers.altKeyType == falcon_level1_sa_algo) ||
-                 (ssl->buffers.altKeyType == falcon_level5_sa_algo)) {
-    #if defined(HAVE_FALCON)
-            if (ssl->buffers.altKeyLabel) {
-                ret = wc_falcon_init_label((falcon_key*)ssl->hsAltKey,
-                                           (char*)ssl->buffers.altKey->buffer,
-                                           ssl->heap, ssl->buffers.altKeyDevId);
-            }
-            else if (ssl->buffers.altKeyId) {
-                ret = wc_falcon_init_id((falcon_key*)ssl->hsAltKey,
-                                        ssl->buffers.altKey->buffer,
-                                        ssl->buffers.altKey->length, ssl->heap,
-                                        ssl->buffers.altKeyDevId);
-            }
-            if (ret == 0) {
-                if (ssl->buffers.altKeyType == falcon_level1_sa_algo) {
-                    ret = wc_falcon_set_level((falcon_key*)ssl->hsAltKey, 1);
-                }
-                else if (ssl->buffers.altKeyType == falcon_level5_sa_algo) {
-                    ret = wc_falcon_set_level((falcon_key*)ssl->hsAltKey, 5);
-                }
-            }
-            if (ret == 0) {
-                if (ssl->buffers.altKeySz < ssl->options.minFalconKeySz) {
-                    WOLFSSL_MSG("Falcon key size too small");
-                    ERROR_OUT(FALCON_KEY_SIZE_E, exit_dapk);
-                }
-
-                /* Return the maximum signature length. */
-                *length = wc_falcon_sig_size((falcon_key*)ssl->hsAltKey);
-            }
-    #else
-            ret = NOT_COMPILED_IN;
-    #endif
-        }
-        else if ((ssl->buffers.altKeyType == dilithium_level2_sa_algo) ||
-                 (ssl->buffers.altKeyType == dilithium_level3_sa_algo) ||
-                 (ssl->buffers.altKeyType == dilithium_level5_sa_algo)) {
-    #if defined(HAVE_DILITHIUM)
-            if (ssl->buffers.altKeyLabel) {
-                ret = wc_dilithium_init_label((dilithium_key*)ssl->hsAltKey,
-                                        (char*)ssl->buffers.altKey->buffer,
-                                        ssl->heap, ssl->buffers.altKeyDevId);
-            }
-            else if (ssl->buffers.altKeyId) {
-                ret = wc_dilithium_init_id((dilithium_key*)ssl->hsAltKey,
-                                        ssl->buffers.altKey->buffer,
-                                        ssl->buffers.altKey->length, ssl->heap,
-                                        ssl->buffers.altKeyDevId);
-            }
-            if (ret == 0) {
-                if (ssl->buffers.altKeyType == dilithium_level2_sa_algo) {
-                    ret = wc_dilithium_set_level(
-                                        (dilithium_key*)ssl->hsAltKey, WC_ML_DSA_44);
-                }
-                else if (ssl->buffers.altKeyType == dilithium_level3_sa_algo) {
-                    ret = wc_dilithium_set_level(
-                                        (dilithium_key*)ssl->hsAltKey, WC_ML_DSA_65);
-                }
-                else if (ssl->buffers.altKeyType == dilithium_level5_sa_algo) {
-                    ret = wc_dilithium_set_level(
-                                        (dilithium_key*)ssl->hsAltKey, WC_ML_DSA_87);
-                }
-            }
-            if (ret == 0) {
-                if (ssl->buffers.altKeySz < ssl->options.minDilithiumKeySz) {
-                    WOLFSSL_MSG("Dilithium key size too small");
-                    ERROR_OUT(DILITHIUM_KEY_SIZE_E, exit_dapk);
-                }
-
-                /* Return the maximum signature length. */
-                *length = wc_dilithium_sig_size(
-                                    (dilithium_key*)ssl->hsAltKey);
-            }
-    #else
-            ret = NOT_COMPILED_IN;
-    #endif
-        }
-        goto exit_dapk;
-    }
-#endif /* WOLF_PRIVATE_KEY_ID */
-
-#ifndef NO_RSA
-    if (ssl->buffers.altKeyType == rsa_sa_algo ||
-        ssl->buffers.altKeyType == 0) {
-        ssl->hsAltType = DYNAMIC_TYPE_RSA;
-        ret = AllocKey(ssl, ssl->hsAltType, &ssl->hsAltKey);
-        if (ret != 0) {
-            goto exit_dapk;
-        }
-
-        WOLFSSL_MSG("Trying RSA private key");
-
-        /* Set start of data to beginning of buffer. */
-        idx = 0;
-        /* Decode the key assuming it is an RSA private key. */
-        ret = wc_RsaPrivateKeyDecode(ssl->buffers.altKey->buffer, &idx,
-                    (RsaKey*)ssl->hsAltKey, ssl->buffers.altKey->length);
-    #ifdef WOLF_PRIVATE_KEY_ID
-        /* if using external key then allow using a public key */
-        if (ret != 0 && (ssl->devId != INVALID_DEVID
-        #ifdef HAVE_PK_CALLBACKS
-            || wolfSSL_CTX_IsPrivatePkSet(ssl->ctx)
-        #endif
-        )) {
-            WOLFSSL_MSG("Trying RSA public key with crypto callbacks");
-            idx = 0;
-            ret = wc_RsaPublicKeyDecode(ssl->buffers.altKey->buffer, &idx,
-                        (RsaKey*)ssl->hsAltKey, ssl->buffers.altKey->length);
-        }
-    #endif
-        if (ret == 0) {
-            WOLFSSL_MSG("Using RSA private key");
-
-            /* It worked so check it meets minimum key size requirements. */
-            keySz = wc_RsaEncryptSize((RsaKey*)ssl->hsAltKey);
-            if (keySz < 0) { /* check if keySz has error case */
-                ERROR_OUT(keySz, exit_dapk);
-            }
-
-            if (keySz < ssl->options.minRsaKeySz) {
-                WOLFSSL_MSG("RSA key size too small");
-                ERROR_OUT(RSA_KEY_SIZE_E, exit_dapk);
-            }
-
-            /* Return the maximum signature length. */
-            *length = keySz;
-
-            goto exit_dapk;
-        }
-    }
-#endif /* !NO_RSA */
-
-#ifdef HAVE_ECC
-#ifndef NO_RSA
-    FreeKey(ssl, ssl->hsAltType, (void**)&ssl->hsAltKey);
-#endif /* !NO_RSA */
-
-    if (ssl->buffers.altKeyType == ecc_dsa_sa_algo ||
-        ssl->buffers.altKeyType == 0
-    #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
-         || ssl->buffers.altKeyType == sm2_sa_algo
-    #endif
-        ) {
-        ssl->hsAltType = DYNAMIC_TYPE_ECC;
-        ret = AllocKey(ssl, ssl->hsAltType, &ssl->hsAltKey);
-        if (ret != 0) {
-            goto exit_dapk;
-        }
-
-    #ifndef NO_RSA
-        WOLFSSL_MSG("Trying ECC private key, RSA didn't work");
-    #else
-        WOLFSSL_MSG("Trying ECC private key");
-    #endif
-
-        /* Set start of data to beginning of buffer. */
-        idx = 0;
-        /* Decode the key assuming it is an ECC private key. */
-        ret = wc_EccPrivateKeyDecode(ssl->buffers.altKey->buffer, &idx,
-                                     (ecc_key*)ssl->hsAltKey,
-                                     ssl->buffers.altKey->length);
-    #ifdef WOLF_PRIVATE_KEY_ID
-        /* if using external key then allow using a public key */
-        if (ret != 0 && (ssl->devId != INVALID_DEVID
-        #ifdef HAVE_PK_CALLBACKS
-            || wolfSSL_CTX_IsPrivatePkSet(ssl->ctx)
-        #endif
-        )) {
-            WOLFSSL_MSG("Trying ECC public key with crypto callbacks");
-            idx = 0;
-            ret = wc_EccPublicKeyDecode(ssl->buffers.altKey->buffer, &idx,
-                                     (ecc_key*)ssl->hsAltKey,
-                                     ssl->buffers.altKey->length);
-        }
-    #endif
-        if (ret == 0) {
-            WOLFSSL_MSG("Using ECC private key");
-
-            /* Check it meets the minimum ECC key size requirements. */
-            keySz = wc_ecc_size((ecc_key*)ssl->hsAltKey);
-            if (keySz < ssl->options.minEccKeySz) {
-                WOLFSSL_MSG("ECC key size too small");
-                ERROR_OUT(ECC_KEY_SIZE_E, exit_dapk);
-            }
-
-            /* Return the maximum signature length. */
-            *length = wc_ecc_sig_size((ecc_key*)ssl->hsAltKey);
-
-            goto exit_dapk;
-        }
-    }
-#endif
-#if defined(HAVE_FALCON)
-    #if !defined(NO_RSA) || defined(HAVE_ECC)
-        FreeKey(ssl, ssl->hsAltType, (void**)&ssl->hsAltKey);
-    #endif
-
-    if (ssl->buffers.altKeyType == falcon_level1_sa_algo ||
-        ssl->buffers.altKeyType == falcon_level5_sa_algo ||
-        ssl->buffers.altKeyType == 0) {
-
-        ssl->hsAltType = DYNAMIC_TYPE_FALCON;
-        ret = AllocKey(ssl, ssl->hsAltType, &ssl->hsAltKey);
-        if (ret != 0) {
-            goto exit_dapk;
-        }
-
-        if (ssl->buffers.altKeyType == falcon_level1_sa_algo) {
-            ret = wc_falcon_set_level((falcon_key*)ssl->hsAltKey, 1);
-        }
-        else if (ssl->buffers.altKeyType == falcon_level5_sa_algo) {
-            ret = wc_falcon_set_level((falcon_key*)ssl->hsAltKey, 5);
-        }
-        else {
-            /* What if ssl->buffers.keyType is 0? We might want to do something
-             * more graceful here. */
-            ret = ALGO_ID_E;
-        }
-
-        if (ret != 0) {
-            goto exit_dapk;
-        }
-
-        #if defined(HAVE_ECC)
-            WOLFSSL_MSG("Trying Falcon private key, ECC didn't work");
-        #elif !defined(NO_RSA)
-            WOLFSSL_MSG("Trying Falcon private key, RSA didn't work");
-        #else
-            WOLFSSL_MSG("Trying Falcon private key");
-        #endif
-
-        /* Set start of data to beginning of buffer. */
-        idx = 0;
-        /* Decode the key assuming it is a Falcon private key. */
-        ret = wc_falcon_import_private_only(ssl->buffers.altKey->buffer,
-                                            ssl->buffers.altKey->length,
-                                            (falcon_key*)ssl->hsAltKey);
-        if (ret == 0) {
-            WOLFSSL_MSG("Using Falcon private key");
-
-            /* Check it meets the minimum Falcon key size requirements. */
-            keySz = wc_falcon_size((falcon_key*)ssl->hsAltKey);
-            if (keySz < ssl->options.minFalconKeySz) {
-                WOLFSSL_MSG("Falcon key size too small");
-                ERROR_OUT(FALCON_KEY_SIZE_E, exit_dapk);
-            }
-
-            /* Return the maximum signature length. */
-            *length = wc_falcon_sig_size((falcon_key*)ssl->hsAltKey);
-
-            goto exit_dapk;
-        }
-    }
-#endif /* HAVE_FALCON */
-#if defined(HAVE_DILITHIUM)
-    #if !defined(NO_RSA) || defined(HAVE_ECC)
-        FreeKey(ssl, ssl->hsAltType, (void**)&ssl->hsAltKey);
-    #endif
-
-    if (ssl->buffers.altKeyType == dilithium_level2_sa_algo ||
-        ssl->buffers.altKeyType == dilithium_level3_sa_algo ||
-        ssl->buffers.altKeyType == dilithium_level5_sa_algo ||
-        ssl->buffers.altKeyType == 0) {
-
-        ssl->hsAltType = DYNAMIC_TYPE_DILITHIUM;
-        ret = AllocKey(ssl, ssl->hsAltType, &ssl->hsAltKey);
-        if (ret != 0) {
-            goto exit_dapk;
-        }
-
-        if (ssl->buffers.altKeyType == dilithium_level2_sa_algo) {
-            ret = wc_dilithium_set_level((dilithium_key*)ssl->hsAltKey, WC_ML_DSA_44);
-        }
-        else if (ssl->buffers.altKeyType == dilithium_level3_sa_algo) {
-            ret = wc_dilithium_set_level((dilithium_key*)ssl->hsAltKey, WC_ML_DSA_65);
-        }
-        else if (ssl->buffers.altKeyType == dilithium_level5_sa_algo) {
-            ret = wc_dilithium_set_level((dilithium_key*)ssl->hsAltKey, WC_ML_DSA_87);
-        }
-        else {
-            /* What if ssl->buffers.keyType is 0? We might want to do something
-             * more graceful here. */
-            ret = ALGO_ID_E;
-        }
-
-        if (ret != 0) {
-            goto exit_dapk;
-        }
-
-        #if defined(HAVE_FALCON)
-            WOLFSSL_MSG("Trying Dilithium private key, Falcon didn't work");
-        #elif defined(HAVE_ECC)
-            WOLFSSL_MSG("Trying Dilithium private key, ECC didn't work");
-        #elif !defined(NO_RSA)
-            WOLFSSL_MSG("Trying Dilithium private key, RSA didn't work");
-        #else
-            WOLFSSL_MSG("Trying Dilithium private key");
-        #endif
-
-        /* Set start of data to beginning of buffer. */
-        idx = 0;
-        /* Decode the key assuming it is a Dilithium private key. */
-        ret = wc_Dilithium_PrivateKeyDecode(ssl->buffers.altKey->buffer,
-                                            &idx,
-                                            (dilithium_key*)ssl->hsAltKey,
-                                            ssl->buffers.altKey->length);
-        if (ret == 0) {
-            WOLFSSL_MSG("Using Dilithium private key");
-
-            /* Check it meets the minimum Dilithium key size requirements. */
-            keySz = wc_dilithium_size((dilithium_key*)ssl->hsAltKey);
-            if (keySz < ssl->options.minDilithiumKeySz) {
-                WOLFSSL_MSG("Dilithium key size too small");
-                ERROR_OUT(DILITHIUM_KEY_SIZE_E, exit_dapk);
-            }
-
-            /* Return the maximum signature length. */
-            *length = wc_dilithium_sig_size((dilithium_key*)ssl->hsAltKey);
-
-            goto exit_dapk;
-        }
-    }
-#endif /* HAVE_DILITHIUM */
-
-    (void)idx;
-    (void)keySz;
-    (void)length;
-
-exit_dapk:
-#ifdef WOLFSSL_BLIND_PRIVATE_KEY
-    if (ret == 0) {
-        ret = wolfssl_priv_der_blind(ssl->rng, ssl->buffers.altKey,
-            &ssl->buffers.altKeyMask);
-    }
-    else {
-        wolfssl_priv_der_blind_toggle(ssl->buffers.key, ssl->buffers.keyMask);
-    }
-#endif
-
-    if (ret != 0) {
-        WOLFSSL_ERROR_VERBOSE(ret);
-    }
+    ret = DecodePrivateKey_ex(ssl, ssl->buffers.altKeyType, ssl->buffers.altKey,
+                &ssl->hsAltType, &ssl->hsAltKey, ssl->buffers.altKeyDevId,
+                ssl->buffers.altKeyId, ssl->buffers.altKeyLabel,
+                ssl->buffers.altKeySz, sigLen);
 
     return ret;
 }
