@@ -57,6 +57,29 @@ suites are available. You can remove this error by defining
 `WOLFSSL_ALLOW_NO_SUITES` in the event that you desire that, i.e., you're
 not using TLS cipher suites.
 
+### AES CryptoCB Key Import Support
+
+wolfSSL supports hardware-accelerated AES operations via CryptoCB.
+
+When `WOLF_CRYPTO_CB_AES_SETKEY` is defined, wolfSSL invokes a CryptoCB
+callback during AES key setup. The callback behavior determines the mode:
+
+**If callback returns 0 (success):**
+- Key is imported to Secure Element/HSM
+- Key is NOT copied to wolfSSL RAM (true key isolation)
+- GCM tables are NOT generated (full hardware offload)
+- All subsequent AES operations route through CryptoCB
+
+**If callback returns CRYPTOCB_UNAVAILABLE:**
+- SE doesn't support key import
+- Normal software AES path is used
+- Key is copied to devKey for CryptoCB encrypt/decrypt acceleration
+
+This feature enables TLS 1.3 traffic key protection on embedded platforms
+where symmetric keys must never exist in main RAM.
+
+Enable with: `CPPFLAGS="-DWOLF_CRYPTO_CB_AES_SETKEY -DWOLF_CRYPTO_CB_FREE"`
+
 ### Note 2
 wolfSSL takes a different approach to certificate verification than OpenSSL
 does. The default policy for the client is to verify the server, this means
