@@ -955,6 +955,7 @@ struct wc_swallow_the_semicolon
     #include <wolfssl/wolfcrypt/wolfentropy.h>
 #endif
 #include <wolfssl/wolfcrypt/random.h>
+#include <wolfssl/wolfcrypt/rng_bank.h>
 
 static volatile int wc_linuxkm_drbg_init_tfm_disable_vector_registers = 0;
 
@@ -1000,8 +1001,9 @@ static int wc_linuxkm_drbg_init_tfm(struct crypto_tfm *tfm)
     if (wc_linuxkm_drbg_init_tfm_disable_vector_registers)
         flags |= WC_RNG_BANK_FLAG_NO_VECTOR_OPS;
 
-    ret = wc_rng_bank_init(ctx, nr_cpu_ids + 4, flags,
-                           WC_LINUXKM_INITRNG_TIMEOUT_SEC, NULL /* heap */);
+    ret = wc_rng_bank_init(
+        ctx, nr_cpu_ids + 4, flags, WC_LINUXKM_INITRNG_TIMEOUT_SEC,
+        NULL /* heap */, INVALID_DEVID);
 
     if (ret == 0) {
         ret = wc_rng_bank_set_affinity_handlers(
@@ -1075,7 +1077,7 @@ static struct wc_rng_bank_inst *linuxkm_get_drbg(struct crypto_rng *tfm) {
     return ret;
 }
 
-static void linuxkm_put_drbg(struct crypto_rng *tfm, struct wc_rng_bank_inst *drbg) {
+static void linuxkm_put_drbg(struct crypto_rng *tfm, struct wc_rng_bank_inst **drbg) {
     struct wc_rng_bank *ctx = (struct wc_rng_bank *)crypto_rng_ctx(tfm);
     int ret = wc_rng_bank_checkin(ctx, drbg);
     if (ret != 0) {
@@ -1114,6 +1116,10 @@ static inline struct crypto_rng *get_crypto_default_rng(void) {
     return current_crypto_default_rng;
 }
 
+#ifndef WC_DRBG_BANKREF
+    #error LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT requires WC_DRBG_BANKREF support.
+#endif
+
 WC_MAYBE_UNUSED static int linuxkm_InitRng_DefaultRef(WC_RNG* rng) {
     int ret;
     struct crypto_rng *current_crypto_default_rng = get_crypto_default_rng();
@@ -1146,7 +1152,7 @@ static int wc_linuxkm_drbg_generate(struct crypto_rng *tfm,
     }
 
     if (slen > 0) {
-        ret = wc_RNG_DRBG_Reseed(&drbg->rng, src, slen);
+        ret = wc_RNG_DRBG_Reseed(WC_RNG_BANK_INST_TO_RNG(drbg), src, slen);
         if (ret != 0) {
             pr_warn_once("WARNING: wc_RNG_DRBG_Reseed returned %d\n",ret);
             ret = -EINVAL;
@@ -1157,7 +1163,7 @@ static int wc_linuxkm_drbg_generate(struct crypto_rng *tfm,
     for (;;) {
         #define RNG_MAX_BLOCK_LEN_ROUNDED (RNG_MAX_BLOCK_LEN & ~0xfU)
         if (dlen > RNG_MAX_BLOCK_LEN_ROUNDED) {
-            ret = wc_RNG_GenerateBlock(&drbg->rng, dst, RNG_MAX_BLOCK_LEN_ROUNDED);
+            ret = wc_RNG_GenerateBlock(WC_RNG_BANK_INST_TO_RNG(drbg), dst, RNG_MAX_BLOCK_LEN_ROUNDED);
             if (ret == 0) {
                 dlen -= RNG_MAX_BLOCK_LEN_ROUNDED;
                 dst += RNG_MAX_BLOCK_LEN_ROUNDED;
@@ -1165,7 +1171,7 @@ static int wc_linuxkm_drbg_generate(struct crypto_rng *tfm,
         }
         #undef RNG_MAX_BLOCK_LEN_ROUNDED
         else {
-            ret = wc_RNG_GenerateBlock(&drbg->rng, dst, dlen);
+            ret = wc_RNG_GenerateBlock(WC_RNG_BANK_INST_TO_RNG(drbg), dst, dlen);
             if (ret == 0)
                 dlen = 0;
         }
@@ -1206,7 +1212,7 @@ static int wc_linuxkm_drbg_generate(struct crypto_rng *tfm,
 
 out:
 
-    linuxkm_put_drbg(tfm, drbg);
+    linuxkm_put_drbg(tfm, &drbg);
 
     return ret;
 }
@@ -1438,12 +1444,12 @@ static int wc_mix_pool_bytes(const void *buf, size_t len) {
             continue;
 
         for (i = 0, V_offset = 0; i < len; ++i) {
-            ((struct DRBG_internal *)drbg->rng.drbg)->V[V_offset++] += ((byte *)buf)[i];
-            if (V_offset == (int)sizeof ((struct DRBG_internal *)drbg->rng.drbg)->V)
+            ((struct DRBG_internal *)WC_RNG_BANK_INST_TO_RNG(drbg)->drbg)->V[V_offset++] += ((byte *)buf)[i];
+            if (V_offset == (int)sizeof ((struct DRBG_internal *)WC_RNG_BANK_INST_TO_RNG(drbg)->drbg)->V)
                 V_offset = 0;
         }
 
-        wc_rng_bank_checkin(ctx, drbg);
+        wc_rng_bank_checkin(ctx, &drbg);
         if (can_sleep) {
             if (signal_pending(current))
                 return -EINTR;

@@ -247,15 +247,6 @@ struct OS_Seed {
 
 #define RNG_HEALTH_TEST_CHECK_SIZE (WC_SHA256_DIGEST_SIZE * 4)
 
-/* RNG health states */
-#define WC_DRBG_NOT_INIT     0
-#define WC_DRBG_OK           1
-#define WC_DRBG_FAILED       2
-#define WC_DRBG_CONT_FAILED  3
-#ifdef WC_RNG_BANK_SUPPORT
-    #define WC_DRBG_BANKREF  4
-#endif
-
 struct DRBG_internal {
     #ifdef WORD64_AVAILABLE
     word64 reseedCtr;
@@ -273,14 +264,18 @@ struct DRBG_internal {
     byte seed_scratch[DRBG_SEED_LEN];
     byte digest_scratch[WC_SHA256_DIGEST_SIZE];
 #endif
-#ifdef WC_RNG_BANK_SUPPORT
-    #ifndef WC_DRBG_MAX_SALT_SZ
-        #define WC_DRBG_MAX_SALT_SZ 4
-    #endif
-    word32 saltSz;
-    byte salt[WC_DRBG_MAX_SALT_SZ];
-#endif
 };
+#endif /* HAVE_HASHDRBG */
+
+/* RNG health states */
+#define WC_DRBG_NOT_INIT     0
+#define WC_DRBG_OK           1
+#define WC_DRBG_FAILED       2
+#define WC_DRBG_CONT_FAILED  3
+#ifdef WC_RNG_BANK_SUPPORT
+    #define WC_DRBG_BANKREF  4 /* Marks the WC_RNG as a ref to a wc_rng_bank,
+                                * with no usable DRBG of its own.
+                                */
 #endif
 
 /* RNG context */
@@ -406,92 +401,6 @@ WOLFSSL_API int  wc_FreeRng(WC_RNG* rng);
                                         byte* output, word32 outputSz,
                                         void* heap, int devId);
 #endif /* HAVE_HASHDRBG */
-
-#ifdef WC_RNG_BANK_SUPPORT
-
-/* This facility allocates and manages a bank of persistent RNGs with thread
- * safety and provisions for automatic affinity.  It is typically used in kernel
- * applications.
- */
-
-#define WC_RNG_BANK_FLAG_NONE 0
-#define WC_RNG_BANK_FLAG_INITED (1<<0)
-#define WC_RNG_BANK_FLAG_CAN_FAIL_OVER_INST (1<<1)
-#define WC_RNG_BANK_FLAG_CAN_WAIT (1<<2)
-#define WC_RNG_BANK_FLAG_NO_VECTOR_OPS (1<<3)
-#define WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST (1<<4)
-#define WC_RNG_BANK_FLAG_AFFINITY_LOCK (1<<5)
-
-typedef int (*wc_affinity_lock_fn_t)(void *arg);
-typedef int (*wc_affinity_get_id_fn_t)(void *arg, int *id);
-typedef int (*wc_affinity_unlock_fn_t)(void *arg);
-
-struct wc_rng_bank_inst {
-    wolfSSL_Atomic_Int lock;
-    WC_RNG rng;
-};
-
-struct wc_rng_bank {
-    wolfSSL_Ref refcount;
-    void *heap;
-    word32 flags;
-    wc_affinity_lock_fn_t affinity_lock_cb;
-    wc_affinity_get_id_fn_t affinity_get_id_cb;
-    wc_affinity_unlock_fn_t affinity_unlock_cb;
-    void *cb_arg; /* if mutable, caller is responsible for thread safety. */
-    int n_rngs;
-    struct wc_rng_bank_inst *rngs; /* typically one per CPU ID, plus a few */
-};
-
-WOLFSSL_API int wc_rng_bank_init(
-    struct wc_rng_bank *ctx,
-    int n_rngs,
-    word32 flags,
-    int timeout_secs,
-    void *heap);
-
-WOLFSSL_API int wc_rng_bank_set_affinity_handlers(
-    struct wc_rng_bank *ctx,
-    wc_affinity_lock_fn_t affinity_lock_cb,
-    wc_affinity_get_id_fn_t affinity_get_id_cb,
-    wc_affinity_unlock_fn_t affinity_unlock_cb,
-    void *cb_arg);
-
-WOLFSSL_API int wc_rng_bank_fini(struct wc_rng_bank *ctx);
-
-WOLFSSL_API int wc_rng_bank_checkout(
-    struct wc_rng_bank *bank,
-    struct wc_rng_bank_inst **rng,
-    int preferred_inst_offset,
-    int timeout_secs,
-    word32 flags);
-
-WOLFSSL_API int wc_rng_bank_checkin(
-    struct wc_rng_bank *bank,
-    struct wc_rng_bank_inst *rng_inst);
-
-WOLFSSL_API int wc_rng_bank_inst_reinit(
-    struct wc_rng_bank *bank,
-    struct wc_rng_bank_inst *rng_inst,
-    int timeout_secs,
-    word32 flags);
-
-WOLFSSL_API int wc_rng_bank_seed(struct wc_rng_bank *bank,
-                                 const byte* seed, word32 seedSz,
-                                 int timeout_secs,
-                                 word32 flags);
-
-WOLFSSL_API int wc_rng_bank_reseed(struct wc_rng_bank *bank,
-                                   int timeout_secs,
-                                   word32 flags);
-
-WOLFSSL_API int wc_InitRng_BankRef(struct wc_rng_bank *bank, WC_RNG *rng);
-
-WOLFSSL_API int wc_rng_new_bankref(struct wc_rng_bank *bank, WC_RNG **rng);
-
-#define WC_RNG_BANK_INST_TO_RNG(rng_inst) (&(rng_inst)->rng)
-
-#endif /* WC_DRBG_BANK_SUPPORT */
 
 #ifdef __cplusplus
     } /* extern "C" */

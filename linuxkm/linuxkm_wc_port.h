@@ -937,7 +937,9 @@
         typeof(kfree) *kfree;
         typeof(ksize) *ksize;
 
+#ifndef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
         typeof(get_random_bytes) *get_random_bytes;
+#endif
         #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
             typeof(getnstimeofday) *getnstimeofday;
         #elif LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)
@@ -1267,7 +1269,9 @@
     #endif
     #define ksize WC_PIE_INDIRECT_SYM(ksize)
 
+#ifndef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
     #define get_random_bytes WC_PIE_INDIRECT_SYM(get_random_bytes)
+#endif
     #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
         #define getnstimeofday WC_PIE_INDIRECT_SYM(getnstimeofday)
     #elif LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)
