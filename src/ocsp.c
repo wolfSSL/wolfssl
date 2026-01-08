@@ -683,6 +683,47 @@ int CheckOcspResponder(OcspResponse *bs, DecodedCert *cert, void* vp)
 }
 
 
+OcspRequest* wc_OcspRequest_new(void* heap)
+{
+    OcspRequest* request = (OcspRequest*)XMALLOC(sizeof(OcspRequest), heap,
+                                                 DYNAMIC_TYPE_OCSP_REQUEST);
+    if (request != NULL) {
+        XMEMSET(request, 0, sizeof(OcspRequest));
+        request->heap = heap;
+    }
+
+    return request;
+}
+
+void wc_OcspRequest_free(OcspRequest* request)
+{
+    if (request != NULL) {
+        FreeOcspRequest(request);
+        XFREE(request, request->heap, DYNAMIC_TYPE_OCSP_REQUEST);
+    }
+}
+
+OcspResponse* wc_OcspResponse_new(void* heap)
+{
+    OcspResponse* response = (OcspResponse*)XMALLOC(sizeof(OcspResponse),
+                                                   heap,
+                                                   DYNAMIC_TYPE_OCSP_REQUEST);
+    if (response != NULL) {
+        XMEMSET(response, 0, sizeof(OcspResponse));
+        response->heap = heap;
+    }
+
+    return response;
+}
+
+void wc_OcspResponse_free(OcspResponse* response)
+{
+    if (response != NULL) {
+        FreeOcspResponse(response);
+        XFREE(response, response->heap, DYNAMIC_TYPE_OCSP_REQUEST);
+    }
+}
+
 /* compatibility layer OCSP functions */
 #ifdef OPENSSL_EXTRA
 int wolfSSL_OCSP_resp_find_status(WOLFSSL_OCSP_BASICRESP *bs,

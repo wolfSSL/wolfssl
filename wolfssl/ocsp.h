@@ -84,6 +84,11 @@ WOLFSSL_API void wc_FreeOCSP(WOLFSSL_OCSP* ocsp);
 WOLFSSL_API int wc_CheckCertOcspResponse(WOLFSSL_OCSP *ocsp, DecodedCert *cert,
         byte *response, int responseSz, void* heap);
 
+WOLFSSL_API OcspRequest* wc_OcspRequest_new(void* heap);
+WOLFSSL_API void wc_OcspRequest_free(OcspRequest* request);
+
+WOLFSSL_API OcspResponse* wc_OcspResponse_new(void* heap);
+WOLFSSL_API void wc_OcspResponse_free(OcspResponse* response);
 
 #ifdef OPENSSL_EXTRA
 WOLFSSL_API int wolfSSL_OCSP_resp_find_status(WOLFSSL_OCSP_BASICRESP *bs,
