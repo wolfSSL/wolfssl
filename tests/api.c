@@ -19987,6 +19987,125 @@ static int test_MakeCertWithCaFalse(void)
     return EXPECT_RESULT();
 }
 
+/* Mock callback for testing wc_SignCert_cb */
+#if defined(WOLFSSL_CERT_SIGN_CB) && (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_REQ))
+/* Context structure for mock signing callback */
+typedef struct {
+    void* key;      /* Pointer to RSA or ECC key */
+    WC_RNG* rng;    /* Random number generator (required for ECC) */
+} MockSignCtx;
+
+static int mockSignCb(const byte* in, word32 inLen, byte* out, word32* outLen,
+                      int sigAlgo, int keyType, void* ctx)
+{
+    int ret = 0;
+    MockSignCtx* signCtx = (MockSignCtx*)ctx;
+
+    if (signCtx == NULL || signCtx->key == NULL || in == NULL ||
+        out == NULL || outLen == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    (void)sigAlgo;
+
+#ifndef NO_RSA
+    if (keyType == RSA_TYPE) {
+        RsaKey* rsaKey = (RsaKey*)signCtx->key;
+        word32 outSz = *outLen;
+
+        /* For RSA, input is DER-encoded digest (DigestInfo structure) */
+        ret = wc_RsaSSL_Sign(in, inLen, out, outSz, rsaKey, signCtx->rng);
+        if (ret > 0) {
+            *outLen = (word32)ret;
+            ret = 0;
+        }
+    }
+    else
+#endif
+#ifdef HAVE_ECC
+    if (keyType == ECC_TYPE) {
+        ecc_key* eccKey = (ecc_key*)signCtx->key;
+        word32 outSz = *outLen;
+
+        /* For ECC, input is raw hash, sign it (RNG required for ECDSA k value) */
+        ret = wc_ecc_sign_hash(in, inLen, out, &outSz, signCtx->rng, eccKey);
+        if (ret == 0) {
+            *outLen = outSz;
+        }
+    }
+    else
+#endif
+    {
+        ret = BAD_FUNC_ARG;
+    }
+
+    return ret;
+}
+#endif
+
+#ifdef WOLFSSL_CERT_SIGN_CB
+static int test_wc_SignCert_cb(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_CERT_GEN) && defined(HAVE_ECC) && !defined(NO_ASN_TIME)
+    Cert cert;
+    byte der[FOURK_BUF];
+    int derSize = 0;
+    WC_RNG rng;
+    ecc_key key;
+    MockSignCtx signCtx;
+    int ret;
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    XMEMSET(&key, 0, sizeof(ecc_key));
+    XMEMSET(&cert, 0, sizeof(Cert));
+    XMEMSET(&signCtx, 0, sizeof(MockSignCtx));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, 32, &key), 0);
+    ExpectIntEQ(wc_InitCert(&cert), 0);
+
+    (void)XSTRNCPY(cert.subject.country, "US", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.state, "state", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.locality, "locality", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.org, "org", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.unit, "unit", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.commonName, "www.example.com",
+        CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.email, "test@example.com", CTC_NAME_SIZE);
+
+    cert.selfSigned = 1;
+    cert.isCA       = 0;
+    cert.sigType    = CTC_SHA256wECDSA;
+
+    /* Make cert body */
+    ExpectIntGT(wc_MakeCert(&cert, der, FOURK_BUF, NULL, &key, &rng), 0);
+
+    /* Setup signing context with key and RNG */
+    signCtx.key = &key;
+    signCtx.rng = &rng;
+
+    /* Sign using callback API */
+    ExpectIntGT(derSize = wc_SignCert_cb(cert.bodySz, cert.sigType, der,
+        FOURK_BUF, ECC_TYPE, mockSignCb, &signCtx, &rng), 0);
+
+    /* Verify the certificate was created properly */
+    ExpectIntGT(derSize, 0);
+
+    /* Test error cases */
+    ExpectIntEQ(wc_SignCert_cb(cert.bodySz, cert.sigType, der,
+        FOURK_BUF, ECC_TYPE, NULL, &signCtx, &rng), BAD_FUNC_ARG);
+
+    ret = wc_ecc_free(&key);
+    ExpectIntEQ(ret, 0);
+    ret = wc_FreeRng(&rng);
+    ExpectIntEQ(ret, 0);
+#endif
+    return EXPECT_RESULT();
+}
+#endif /* WOLFSSL_CERT_SIGN_CB */
+
 static int test_ERR_load_crypto_strings(void)
 {
 #if defined(OPENSSL_ALL)
@@ -31467,6 +31586,9 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_MakeCertWithPathLen),
     TEST_DECL(test_MakeCertWith0Ser),
     TEST_DECL(test_MakeCertWithCaFalse),
+#ifdef WOLFSSL_CERT_SIGN_CB
+    TEST_DECL(test_wc_SignCert_cb),
+#endif
     TEST_DECL(test_wc_SetKeyUsage),
     TEST_DECL(test_wc_SetAuthKeyIdFromPublicKey_ex),
     TEST_DECL(test_wc_SetSubjectBuffer),
