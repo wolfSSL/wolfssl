@@ -4322,6 +4322,26 @@ typedef struct Sch13Args {
 #endif
 } Sch13Args;
 
+#ifdef WOLFSSL_EARLY_DATA
+/* Check if early data can potentially be sent.
+ * Returns 1 if early data is possible, 0 otherwise.
+ */
+static int EarlyDataPossible(WOLFSSL* ssl)
+{
+    /* Need session resumption OR PSK callback configured */
+    if (ssl->options.resuming) {
+        return 1;
+    }
+#ifndef NO_PSK
+    if (ssl->options.client_psk_tls13_cb != NULL ||
+        ssl->options.client_psk_cb != NULL) {
+        return 1;
+    }
+#endif
+    return 0;
+}
+#endif /* WOLFSSL_EARLY_DATA */
+
 int SendTls13ClientHello(WOLFSSL* ssl)
 {
     int ret;
@@ -4461,14 +4481,8 @@ int SendTls13ClientHello(WOLFSSL* ssl)
     case TLS_ASYNC_FINALIZE:
     {
 #ifdef WOLFSSL_EARLY_DATA
-    #ifndef NO_PSK
-        if (!ssl->options.resuming &&
-                                     ssl->options.client_psk_tls13_cb == NULL &&
-                                     ssl->options.client_psk_cb == NULL)
-    #else
-        if (!ssl->options.resuming)
-    #endif
-            ssl->earlyData = no_early_data;
+    if (!EarlyDataPossible(ssl))
+        ssl->earlyData = no_early_data;
     if (ssl->options.serverState == SERVER_HELLO_RETRY_REQUEST_COMPLETE)
         ssl->earlyData = no_early_data;
     if (ssl->earlyData == no_early_data)
@@ -5744,15 +5758,13 @@ static int DoTls13EncryptedExtensions(WOLFSSL* ssl, const byte* input,
         if (ext == NULL || !ext->val)
             ssl->earlyData = no_early_data;
     }
-#endif
 
-#ifdef WOLFSSL_EARLY_DATA
     if (ssl->earlyData == no_early_data) {
         ret = SetKeysSide(ssl, ENCRYPT_SIDE_ONLY);
         if (ret != 0)
             return ret;
     }
-#endif
+#endif /* WOLFSSL_EARLY_DATA */
 
     ssl->options.serverState = SERVER_ENCRYPTED_EXTENSIONS_COMPLETE;
 
@@ -14978,8 +14990,9 @@ int wolfSSL_get_max_early_data(WOLFSSL* ssl)
  * sz     The size of the early data in bytes.
  * outSz  The number of early data bytes written.
  * returns BAD_FUNC_ARG when: ssl, data or outSz is NULL; sz is negative;
- * or not using TLS v1.3. SIDE ERROR when not a server. Otherwise the number of
- * early data bytes written.
+ * or not using TLS v1.3. SIDE ERROR when not a server. BAD_STATE_E if invoked
+ * without a valid session or without a valid PSK CB.
+ * Otherwise the number of early data bytes written.
  */
 int wolfSSL_write_early_data(WOLFSSL* ssl, const void* data, int sz, int* outSz)
 {
@@ -14996,8 +15009,15 @@ int wolfSSL_write_early_data(WOLFSSL* ssl, const void* data, int sz, int* outSz)
     if (ssl->options.side == WOLFSSL_SERVER_END)
         return SIDE_ERROR;
 
+    /* Early data requires PSK or session resumption */
+    if (!EarlyDataPossible(ssl)) {
+        return BAD_STATE_E;
+    }
+
     if (ssl->options.handShakeState == NULL_STATE) {
-        if (ssl->error != WC_NO_ERR_TRACE(WC_PENDING_E))
+        /* avoid re-setting ssl->earlyData if we re-enter the function because
+         * of WC_PENDING_E, WANT_WRITE or WANT_READ */
+        if (ssl->error == 0)
             ssl->earlyData = expecting_early_data;
         ret = wolfSSL_connect_TLSv13(ssl);
         if (ret != WOLFSSL_SUCCESS)
