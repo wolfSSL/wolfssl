@@ -2789,6 +2789,12 @@ WOLFSSL_LOCAL int  VerifyX509Acert(const byte* cert, word32 certSz,
 #endif /* WOLFSSL_ACERT */
 
 
+#ifndef IGNORE_NAME_CONSTRAINTS
+WOLFSSL_TEST_VIS int  wolfssl_local_MatchBaseName(int type, const char* name,
+                                                  int nameSz, const char* base,
+                                                  int baseSz);
+#endif
+
 #if ((defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)) \
     || (defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_IMPORT)) \
     || (defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)) \
