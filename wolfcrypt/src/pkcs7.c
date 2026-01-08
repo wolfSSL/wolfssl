@@ -2074,6 +2074,11 @@ static int wc_PKCS7_BuildSignedAttributes(wc_PKCS7* pkcs7, ESD* esd,
 
     /* add custom signed attributes if set */
     if (pkcs7->signedAttribsSz > 0 && pkcs7->signedAttribs != NULL) {
+        word32 availableSpace = MAX_SIGNED_ATTRIBS_SZ - atrIdx;
+
+        if (pkcs7->signedAttribsSz > availableSpace)
+            return BUFFER_E;
+
         esd->signedAttribsCount += pkcs7->signedAttribsSz;
         esd->signedAttribsSz += (word32)EncodeAttributes(
             &esd->signedAttribs[atrIdx], (int)esd->signedAttribsCount,
