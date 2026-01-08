@@ -26920,6 +26920,112 @@ static int test_MakeCertWithCaFalse(void)
     return EXPECT_RESULT();
 }
 
+/* Mock callback for testing wc_SignCert_cb */
+#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_REQ)
+static int mockSignCb(const byte* in, word32 inLen, byte* out, word32* outLen,
+                      int sigAlgo, int keyType, void* ctx)
+{
+    int ret = 0;
+    void* key = ctx;
+
+    if (key == NULL || in == NULL || out == NULL || outLen == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    (void)sigAlgo;
+
+#ifndef NO_RSA
+    if (keyType == RSA_TYPE) {
+        RsaKey* rsaKey = (RsaKey*)key;
+        word32 idx = 0;
+        word32 outSz = *outLen;
+        
+        /* For RSA, input is pre-encoded digest, just sign it */
+        ret = wc_RsaSSL_Sign(in, inLen, out, outSz, rsaKey, NULL);
+        if (ret > 0) {
+            *outLen = (word32)ret;
+            ret = 0;
+        }
+    }
+    else
+#endif
+#ifdef HAVE_ECC
+    if (keyType == ECC_TYPE) {
+        ecc_key* eccKey = (ecc_key*)key;
+        word32 outSz = *outLen;
+        
+        /* For ECC, input is raw hash, sign it */
+        ret = wc_ecc_sign_hash(in, inLen, out, &outSz, NULL, eccKey);
+        if (ret == 0) {
+            *outLen = outSz;
+        }
+    }
+    else
+#endif
+    {
+        ret = BAD_FUNC_ARG;
+    }
+
+    return ret;
+}
+#endif
+
+static int test_wc_SignCert_cb(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_CERT_GEN) && defined(HAVE_ECC) && !defined(NO_ASN_TIME)
+    Cert cert;
+    byte der[FOURK_BUF];
+    int derSize = 0;
+    WC_RNG rng;
+    ecc_key key;
+    int ret;
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    XMEMSET(&key, 0, sizeof(ecc_key));
+    XMEMSET(&cert, 0, sizeof(Cert));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, 32, &key), 0);
+    ExpectIntEQ(wc_InitCert(&cert), 0);
+
+    (void)XSTRNCPY(cert.subject.country, "US", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.state, "state", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.locality, "locality", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.org, "org", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.unit, "unit", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.commonName, "www.example.com",
+        CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.email, "test@example.com", CTC_NAME_SIZE);
+
+    cert.selfSigned = 1;
+    cert.isCA       = 0;
+    cert.sigType    = CTC_SHA256wECDSA;
+
+    /* Make cert body */
+    ExpectIntGT(wc_MakeCert(&cert, der, FOURK_BUF, NULL, &key, &rng), 0);
+    
+    /* Sign using callback API */
+    ExpectIntGT(derSize = wc_SignCert_cb(cert.bodySz, cert.sigType, der,
+        FOURK_BUF, ECC_TYPE, mockSignCb, &key, &rng), 0);
+
+    /* Verify the certificate was created properly */
+    ExpectIntGT(derSize, 0);
+
+    /* Test error cases */
+    ExpectIntEQ(wc_SignCert_cb(cert.bodySz, cert.sigType, der,
+        FOURK_BUF, ECC_TYPE, NULL, &key, &rng), BAD_FUNC_ARG);
+
+    ret = wc_ecc_free(&key);
+    ExpectIntEQ(ret, 0);
+    ret = wc_FreeRng(&rng);
+    ExpectIntEQ(ret, 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+
 static int test_wolfSSL_EVP_PKEY_encrypt(void)
 {
     EXPECT_DECLS;
