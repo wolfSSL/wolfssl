@@ -6967,19 +6967,6 @@ AC_ARG_ENABLE([ocsp],
     [ ENABLED_OCSP=no ]
     )
 
-if test "$ENABLED_OCSP" = "yes"
-then
-    # check openssl command tool for testing ocsp
-    AC_CHECK_PROG([HAVE_OPENSSL_CMD],[openssl],[yes],[no])
-
-    if test "$HAVE_OPENSSL_CMD" = "yes"
-    then
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_OPENSSL_CMD"
-    else
-        AC_MSG_WARN([openssl command line tool not available for testing ocsp])
-    fi
-fi
-
 
 # Certificate Status Request : a.k.a. OCSP Stapling
 AC_ARG_ENABLE([ocspstapling],
@@ -7047,6 +7034,23 @@ then
     fi
 fi
 
+
+AC_ARG_ENABLE([ocsp-responder],
+    [AS_HELP_STRING([--enable-ocsp-responder],[Enable OCSP Responder (default: disabled)])],
+    [ ENABLED_OCSP_RESPONDER=$enableval ],
+    [ ENABLED_OCSP_RESPONDER=no ]
+    )
+
+if test "x$ENABLED_OCSP_RESPONDER" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP_RESPONDER"
+
+    # Requires OCSP make sure on
+    if test "x$ENABLED_OCSP" = "xno"
+    then
+        ENABLED_OCSP="yes"
+    fi
+fi
 
 # CRL
 AC_ARG_ENABLE([crl],
@@ -10578,6 +10582,19 @@ AS_IF([test "x$ENABLED_CERTEXT" = "xyes"],
 
 AS_IF([test "x$ENABLED_OCSP" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP"])
+
+if test "$ENABLED_OCSP" = "yes"
+then
+    # check openssl command tool for testing ocsp
+    AC_CHECK_PROG([HAVE_OPENSSL_CMD],[openssl],[yes],[no])
+
+    if test "$HAVE_OPENSSL_CMD" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_OPENSSL_CMD"
+    else
+        AC_MSG_WARN([openssl command line tool not available for testing ocsp])
+    fi
+fi
 
 AS_IF([test "x$ENABLED_STRONGSWAN" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LOG_PRINTF -DWOLFSSL_PUBLIC_MP -DHAVE_EX_DATA"

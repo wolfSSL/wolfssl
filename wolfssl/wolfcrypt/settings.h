@@ -4994,6 +4994,12 @@ extern void uITRON4_free(void *p) ;
     #undef WC_RNG_BANK_SUPPORT
 #endif
 
+#ifdef HAVE_OCSP_RESPONDER
+    #ifndef HAVE_OCSP
+        #error "HAVE_OCSP_RESPONDER requires HAVE_OCSP"
+    #endif
+#endif
+
 #ifdef __cplusplus
     }   /* extern "C" */
 #endif
