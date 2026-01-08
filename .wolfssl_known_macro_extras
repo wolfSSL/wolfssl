@@ -1105,6 +1105,7 @@ __thumb__
 __ti__
 __x86_64__
 __xtensa__
+__ZEPHYR__
 byte
 configTICK_RATE_HZ
 fallthrough
