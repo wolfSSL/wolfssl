@@ -1980,7 +1980,7 @@ _curve25519_base:
 	add  x2, x2, :lo12:L_curve25519_base_x2
 #else
 	adrp x2, L_curve25519_base_x2@PAGE
-	add  x2, x2, :lo12:L_curve25519_base_x2@PAGEOFF
+	add  x2, x2, L_curve25519_base_x2@PAGEOFF
 #endif /* __APPLE__ */
 	ldp	x6, x7, [x2]
 	ldp	x8, x9, [x2, #16]
