@@ -155,12 +155,12 @@ extern void ada_free_rsa (void* key)
 
 extern void* ada_new_sha256 (void)
 {
-  return malloc(sizeof(wc_Sha256));
+  return XMALLOC(sizeof(wc_Sha256), NULL, DYNAMIC_TYPE_SHA);
 }
 
 extern void ada_free_sha256 (void* sha256)
 {
-  free(sha256);
+  XFREE(sha256, NULL, DYNAMIC_TYPE_SHA);
 }
 
 
