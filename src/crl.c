@@ -138,7 +138,7 @@ static int InitCRL_Entry(CRL_Entry* crle, DecodedCRL* dcrl, const byte* buff,
     crle->totalCerts = dcrl->totalCerts;
     crle->crlNumberSet = dcrl->crlNumberSet;
     if (crle->crlNumberSet) {
-        XMEMCPY(crle->crlNumber, dcrl->crlNumber, CRL_MAX_NUM_SZ);
+        XMEMCPY(crle->crlNumber, dcrl->crlNumber, CRL_MAX_NUM_HEX_STR_SZ);
     }
     crle->verified = verified;
     if (!verified) {
@@ -597,7 +597,7 @@ static void SetCrlInfo(CRL_Entry* entry, CrlInfo *info)
     info->nextDateFormat = entry->nextDateFormat;
     info->crlNumberSet = entry->crlNumberSet;
     if (info->crlNumberSet)
-        XMEMCPY(info->crlNumber, entry->crlNumber, CRL_MAX_NUM_SZ);
+        XMEMCPY(info->crlNumber, entry->crlNumber, CRL_MAX_NUM_HEX_STR_SZ);
 }
 
 static void SetCrlInfoFromDecoded(DecodedCRL* entry, CrlInfo *info)
@@ -612,7 +612,7 @@ static void SetCrlInfoFromDecoded(DecodedCRL* entry, CrlInfo *info)
     info->nextDateFormat = entry->nextDateFormat;
     info->crlNumberSet = entry->crlNumberSet;
     if (info->crlNumberSet)
-        XMEMCPY(info->crlNumber, entry->crlNumber, CRL_MAX_NUM_SZ);
+        XMEMCPY(info->crlNumber, entry->crlNumber, CRL_MAX_NUM_HEX_STR_SZ);
 }
 #endif
 

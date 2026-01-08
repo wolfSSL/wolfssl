@@ -2693,6 +2693,7 @@ struct RevokedCert {
 #define CRL_MAX_NUM_SZ 20 /* RFC5280 states that CRL number can be up to 20 */
 #endif                    /* octets long */
 
+#define CRL_MAX_NUM_HEX_STR_SZ (CRL_MAX_NUM_SZ * 2 + 1)
 
 typedef struct DecodedCRL DecodedCRL;
 
@@ -2706,7 +2707,7 @@ struct DecodedCRL {
     word32  sigParamsLength;         /* length of signature parameters   */
 #endif
     byte*   signature;               /* pointer into raw source, not owned */
-    byte    crlNumber[CRL_MAX_NUM_SZ];      /* CRL number extension */
+    byte    crlNumber[CRL_MAX_NUM_HEX_STR_SZ];      /* CRL number extension */
     byte    issuerHash[SIGNER_DIGEST_SIZE]; /* issuer name hash          */
     byte    crlHash[SIGNER_DIGEST_SIZE]; /* raw crl data hash            */
     byte    lastDate[MAX_DATE_SIZE]; /* last date updated  */
