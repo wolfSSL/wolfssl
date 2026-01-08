@@ -384,6 +384,22 @@ static int X509StoreVerifyCertDate(WOLFSSL_X509_STORE_CTX* ctx, int ret)
                     ret = ASN_BEFORE_DATE_E;
                 }
             }
+        #if defined(OPENSSL_ALL)
+            else {
+                WOLFSSL_MSG("Using system time for date validation");
+                /* use system time for date validation */
+                if (wc_ValidateDate(afterDate,
+                        (byte)ctx->current_cert->notAfter.type, ASN_AFTER,
+                        ctx->current_cert->notAfter.length) < 1) {
+                    ret = ASN_AFTER_DATE_E;
+                }
+                else if (wc_ValidateDate(beforeDate,
+                        (byte)ctx->current_cert->notBefore.type, ASN_BEFORE,
+                        ctx->current_cert->notBefore.length) < 1) {
+                    ret = ASN_BEFORE_DATE_E;
+                }
+            }
+        #endif
         }
 #else
         if (XVALIDATE_DATE(afterDate,
@@ -424,7 +440,26 @@ static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx)
                                                         WOLFSSL_SUCCESS : ret;
     #endif
     }
-
+#if !defined(NO_ASN_TIME) && defined(OPENSSL_ALL)
+    if (ret != WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E) &&
+        ret != WC_NO_ERR_TRACE(ASN_AFTER_DATE_E)) {
+        /* With OpenSSL, we need to check the certificate's date
+        * after certificate manager verification,
+        * as it skips date validation when other errors are present.
+        */
+        ret = X509StoreVerifyCertDate(ctx, ret);
+        SetupStoreCtxError(ctx, ret);
+        ret = ret == WOLFSSL_SUCCESS ? 1 : 0;
+        if (ctx->store->verify_cb) {
+            if (ctx->store->verify_cb(ret, ctx) == 1) {
+                ret = WOLFSSL_SUCCESS;
+            }
+            else {
+                ret = -1;
+            }
+        }
+    }
+#endif
     return ret;
 }
 
