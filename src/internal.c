@@ -7136,7 +7136,7 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->buffers.altKey   = ctx->altPrivateKey;
 #else
     if (ctx->altPrivateKey != NULL) {
-        ret = AllocCopyDer(&ssl->buffers.altkey, ctx->altPrivateKey->buffer,
+        ret = AllocCopyDer(&ssl->buffers.altKey, ctx->altPrivateKey->buffer,
             ctx->altPrivateKey->length, ctx->altPrivateKey->type,
             ctx->altPrivateKey->heap);
         if (ret != 0) {
