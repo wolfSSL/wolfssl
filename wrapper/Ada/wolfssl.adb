@@ -29,6 +29,8 @@ package body WolfSSL is
    subtype long is Interfaces.C.long;
    subtype unsigned_long is Interfaces.C.unsigned_long;
 
+   --  The first value in the Byte_Type range (Byte_Type'First),
+   --  used as the null byte (0).
    nul : constant Byte_Type := Byte_Type'First;
 
    --  WOLFSSL_SUCCESS : constant int := Get_WolfSSL_Success;
@@ -860,7 +862,6 @@ package body WolfSSL is
    procedure Create_RNG (Key    : in out RNG_Key_Type;
                          Result : out Integer) is
    begin
-      Result := -121212;
       declare
          R : int;
       begin
@@ -892,7 +893,6 @@ package body WolfSSL is
                                  Output : out Byte_Array;
                                  Result : out Integer) is
    begin
-      Result := -121212;
       declare
          R : int;
       begin
@@ -976,8 +976,6 @@ package body WolfSSL is
                      HMAC       : HMAC_Hash;
                      Result     : out Integer) is
    begin
-      Result := -121212;
-      Output := (others => To_C (0));
       declare
          R : int;
          H : int;
@@ -1018,7 +1016,6 @@ package body WolfSSL is
                           RNG    : in out RNG_Key_Type;
                           Result : out Integer) is
    begin
-      Result := -121212;
       declare
          R : int;
       begin

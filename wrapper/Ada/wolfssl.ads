@@ -25,8 +25,6 @@ with Interfaces.C;
 --  the API of this package is used correctly.
 package WolfSSL with SPARK_Mode is
 
-   Terminator_Error : exception;   
-   
    type Subprogram_Result is new Integer;
    Success : constant Subprogram_Result;
    --  Indicates success for some functions.
@@ -523,7 +521,7 @@ package WolfSSL with SPARK_Mode is
 
    function Is_Valid (Key : RNG_Key_Type) return Boolean with
       Annotate => (GNATprove, Ownership, "Needs_Reclamation");
-   --  Indicates if the RSA has successfully been initialized.
+   --  Indicates if the RNG has successfully been initialized.
    --  Annotation added for GNATprove ownership analysis.
    --    https://docs.adacore.com/spark2014-docs/html/ug/en/appendix/additional_annotate_pragmas.html#annotation-for-enforcing-ownership-checking-on-a-private-type 
    
