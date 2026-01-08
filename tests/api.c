@@ -26937,7 +26937,6 @@ static int mockSignCb(const byte* in, word32 inLen, byte* out, word32* outLen,
 #ifndef NO_RSA
     if (keyType == RSA_TYPE) {
         RsaKey* rsaKey = (RsaKey*)key;
-        word32 idx = 0;
         word32 outSz = *outLen;
         
         /* For RSA, input is pre-encoded digest, just sign it */
@@ -41641,6 +41640,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_MakeCertWithPathLen),
     TEST_DECL(test_MakeCertWith0Ser),
     TEST_DECL(test_MakeCertWithCaFalse),
+    TEST_DECL(test_wc_SignCert_cb),
     TEST_DECL(test_wc_SetKeyUsage),
     TEST_DECL(test_wc_SetAuthKeyIdFromPublicKey_ex),
     TEST_DECL(test_wc_SetSubjectBuffer),
