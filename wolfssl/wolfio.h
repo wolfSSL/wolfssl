@@ -176,6 +176,10 @@
         #include <lwip-socket.h>
         #include <errno.h>
     #elif defined(WOLFSSL_ZEPHYR)
+        #ifdef __cplusplus
+            }  /* extern "C" */
+        #endif
+
         #include <version.h>
         #if KERNEL_VERSION_NUMBER >= 0x30100
             #include <zephyr/net/socket.h>
@@ -187,6 +191,10 @@
             #ifdef CONFIG_POSIX_API
                 #include <posix/sys/socket.h>
             #endif
+        #endif
+
+        #ifdef __cplusplus
+            extern "C" {
         #endif
     #elif defined(MICROCHIP_PIC32)
         #include <sys/errno.h>
