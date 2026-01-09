@@ -279,6 +279,11 @@ then
     AM_LDFLAGS="$AM_LDFLAGS -lbacktrace"
 fi
 
+if test "$DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS" = ""
+then
+    DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS=4096
+fi
+
 # Start without certificates enabled and enable if a certificate algorithm is
 # enabled
 ENABLED_CERTS="no"
@@ -1498,7 +1503,6 @@ then
 
     # Enable DH const table speedups (eliminates `-lm` math lib dependency)
     AM_CFLAGS="$AM_CFLAGS -DHAVE_FFDHE_2048 -DHAVE_FFDHE_3072"
-    DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS=4096
 
     # Enable all parsing features for ASN */
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASN_ALL"
@@ -2797,7 +2801,7 @@ fi
 if test "$ENABLED_BUMP" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DLARGE_STATIC_BUFFERS -DWOLFSSL_CERT_GEN -DWOLFSSL_KEY_GEN -DHUGE_SESSION_CACHE -DWOLFSSL_DER_LOAD -DWOLFSSL_ALT_NAMES -DWOLFSSL_TEST_CERT"
-    DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS=4096
+    DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS=8192
 fi
 
 
