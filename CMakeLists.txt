@@ -711,11 +711,18 @@ if (WOLFSSL_EXPERIMENTAL)
         set(WOLFSSL_FOUND_EXPERIMENTAL_FEATURE 1)
 
         message(STATUS "Automatically set related requirements for Dilithium:")
-        set_wolfssl_definitions("HAVE_DILITHIUM"       RESUlT)
-        set_wolfssl_definitions("WOLFSSL_WC_DILITHIUM" RESUlT)
-        set_wolfssl_definitions("WOLFSSL_SHA3"       RESUlT)
-        set_wolfssl_definitions("WOLFSSL_SHAKE128"   RESUlT)
-        set_wolfssl_definitions("WOLFSSL_SHAKE256"   RESUlT)
+        add_definitions("-DHAVE_DILITHIUM")
+        add_definitions("-DWOLFSSL_WC_DILITHIUM")
+        add_definitions("-DWOLFSSL_SHA3")
+        add_definitions("-DWOLFSSL_SHAKE128")
+        add_definitions("-DWOLFSSL_SHAKE256")
+
+        message(STATUS "Automatically set related requirements for Dilithium:")
+        set_wolfssl_definitions("HAVE_DILITHIUM"       RESULT)
+        set_wolfssl_definitions("WOLFSSL_WC_DILITHIUM" RESULT)
+        set_wolfssl_definitions("WOLFSSL_SHA3"         RESULT)
+        set_wolfssl_definitions("WOLFSSL_SHAKE128"     RESULT)
+        set_wolfssl_definitions("WOLFSSL_SHAKE256"     RESULT)
         message(STATUS "Looking for WOLFSSL_DILITHIUM - found")
     else()
         message(STATUS "Looking for WOLFSSL_DILITHIUM - not found")
@@ -1061,6 +1068,41 @@ if(WOLFSSL_ECC)
     if("${WOLFSSL_ECC}" STREQUAL "nonblock")
         list(APPEND WOLFSSL_DEFINITIONS "-DWC_ECC_NONBLOCK")
     endif()
+endif()
+
+# ECCSI
+add_option("WOLFSSL_ECCSI"
+    "Enable ECCSI (default: disabled)"
+    "no" "yes;no")
+
+if(WOLFSSL_ECCSI)
+    if (NOT WOLFSSL_ECC)
+        message(FATAL_ERROR "cannot enable ECCSI without enabling ECC.")
+    endif()
+
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFCRYPT_HAVE_ECCSI -DWOLFSSL_PUBLIC_MP")
+endif()
+
+# SAKKE
+add_option("WOLFSSL_SAKKE"
+    "Enable SAKKE (default: disabled)"
+    "no" "yes;no")
+
+if(WOLFSSL_SAKKE)
+    if (NOT WOLFSSL_ECC)
+        message(FATAL_ERROR "cannot enable SAKKE without enabling ECC.")
+    endif()
+
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFCRYPT_HAVE_SAKKE")
+endif()
+
+# SipHash
+add_option("WOLFSSL_SIPHASH"
+    "Enable SipHash (default: disabled)"
+    "no" "yes;no")
+
+if(WOLFSSL_SIPHASH)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SIPHASH")
 endif()
 
 # TODO: - Compressed key
@@ -1898,6 +1940,7 @@ add_option("WOLFSSL_PKCS11"
     "no" "yes;no")
 
 if(WOLFSSL_PKCS11 AND NOT WIN32)
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_PKCS11 -DHAVE_WOLF_BIGINT")
     list(APPEND WOLFSSL_LINK_LIBS ${CMAKE_DL_LIBS})
 endif()
 
