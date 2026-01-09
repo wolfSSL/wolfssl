@@ -1,0 +1,20 @@
+# Renode test script for STM32H753
+# Note: @platforms/cpus/stm32h753.repl is relative to Renode root
+# If RENODE_ROOT is set, Renode will use it; otherwise it looks for .renode-root file
+using sysbus
+
+mach create "stm32h753"
+
+# Try relative path first (works if RENODE_ROOT or .renode-root is set correctly)
+# If this fails, the absolute path will be tried in entrypoint.sh
+machine LoadPlatformDescription @platforms/cpus/stm32h753.repl
+
+sysbus LoadELF @/opt/firmware/wolfcrypt_test.elf
+
+# Connect USART3 to the console for wolfCrypt output
+showAnalyzer usart3
+
+# Start emulation and run for a long time
+# The entrypoint script will kill Renode when test completes
+emulation RunFor "600s"
+

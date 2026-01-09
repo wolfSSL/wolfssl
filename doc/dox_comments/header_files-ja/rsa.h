@@ -307,8 +307,8 @@ int  wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out,
 
     \brief メッセージがRSAキーによって署名されたことを検証するために使用されます。出力は入力と同じバイト配列を使用します。
 
-    \return >0 テキストの長さ。
-    \return <0 エラーが発生しました。
+    \return `>0` ダイジェストの長さ。
+    \return `<0` エラーが発生しました。
 
     \param in 復号されるバイト配列。
     \param inLen 入力バッファの長さ。
@@ -344,7 +344,7 @@ int  wc_RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out,
 
     \brief メッセージがキーによって署名されたことを検証するために使用されます。
 
-    \return Success エラーがない場合のテキストの長さ。
+    \return Success エラーがない場合のダイジェストの長さ。
     \return MEMORY_E メモリ例外。
 
     \param in 復号されるバイト配列。
@@ -476,7 +476,7 @@ int  wc_RsaPSS_Sign(const byte* in, word32 inLen, byte* out,
     \sa wc_RsaPSS_CheckPadding
     \sa wc_RsaSetRNG
 */
-int  wc_RsaPSS_Verify(byte* in, word32 inLen, byte* out,
+int  wc_RsaPSS_Verify(const byte* in, word32 inLen, byte* out,
                                   word32 outLen, enum wc_HashType hash, int mgf,
                                   RsaKey* key);
 
@@ -599,7 +599,7 @@ int  wc_RsaPSS_VerifyInline(byte* in, word32 inLen, byte** out,
     \sa wc_RsaSetRNG
 */
 
-int  wc_RsaPSS_VerifyCheck(byte* in, word32 inLen,
+int  wc_RsaPSS_VerifyCheck(const byte* in, word32 inLen,
                                byte* out, word32 outLen,
                                const byte* digest, word32 digestLen,
                                enum wc_HashType hash, int mgf,
@@ -862,7 +862,7 @@ int  wc_RsaPSS_VerifyCheckInline_ex(byte* in, word32 inLen, byte** out,
     \sa wc_RsaPSS_CheckPadding_ex
     \sa wc_RsaSetRNG
 */
-int  wc_RsaPSS_CheckPadding(const byte* in, word32 inLen, byte* sig,
+int  wc_RsaPSS_CheckPadding(const byte* in, word32 inLen, const byte* sig,
                                         word32 sigSz,
                                         enum wc_HashType hashType);
 /*!
@@ -922,7 +922,7 @@ int  wc_RsaPSS_CheckPadding(const byte* in, word32 inLen, byte* sig,
     \sa wc_RsaPSS_VerifyCheckInline_ex
     \sa wc_RsaPSS_CheckPadding
 */
-int  wc_RsaPSS_CheckPadding_ex(const byte* in, word32 inLen, byte* sig,
+int  wc_RsaPSS_CheckPadding_ex(const byte* in, word32 inLen, const byte* sig,
                 word32 sigSz, enum wc_HashType hashType, int saltLen, int bits);
 /*!
     \ingroup RSA
@@ -942,7 +942,7 @@ int  wc_RsaPSS_CheckPadding_ex(const byte* in, word32 inLen, byte* sig,
     \sa wc_InitRsaKey_ex
     \sa wc_MakeRsaKey
 */
-int  wc_RsaEncryptSize(RsaKey* key);
+int  wc_RsaEncryptSize(const RsaKey* key);
 
 /*!
     \ingroup RSA
@@ -1264,7 +1264,7 @@ int  wc_RsaPrivateDecryptInline_ex(byte* in, word32 inLen,
     \sa wc_InitRsaKey_ex
     \sa wc_MakeRsaKey
 */
-int  wc_RsaFlattenPublicKey(RsaKey* key, byte* e, word32* eSz, byte* n,
+int  wc_RsaFlattenPublicKey(const RsaKey* key, byte* e, word32* eSz, byte* n,
                             word32* nSz);
 
 /*!

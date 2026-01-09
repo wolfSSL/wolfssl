@@ -201,6 +201,9 @@ function(generate_build_flags)
     if(WOLFSSL_MLKEM OR WOLFSSL_USER_SETTINGS)
         set(BUILD_WC_MLKEM "yes" PARENT_SCOPE)
     endif()
+    if(WOLFSSL_DILITHIUM OR WOLFSSL_USER_SETTINGS)
+        set(BUILD_DILITHIUM "yes" PARENT_SCOPE)
+    endif()
     if(WOLFSSL_OQS OR WOLFSSL_USER_SETTINGS)
         set(BUILD_FALCON "yes" PARENT_SCOPE)
         set(BUILD_SPHINCS "yes" PARENT_SCOPE)
@@ -389,6 +392,10 @@ function(generate_lib_src_list LIB_SOURCES)
 
                 if(BUILD_INTELASM)
                     list(APPEND LIB_SOURCES wolfcrypt/src/aes_gcm_asm.S)
+                    list(APPEND LIB_SOURCES wolfcrypt/src/sha3_asm.S)
+                elseif(BUILD_ARMASM)
+                    list(APPEND LIB_SOURCES wolfcrypt/src/port/arm/armv8-sha3-asm_c.c)
+                    list(APPEND LIB_SOURCES wolfcrypt/src/port/arm/armv8-sha3-asm.S)
                 endif()
             endif()
 
@@ -563,11 +570,13 @@ function(generate_lib_src_list LIB_SOURCES)
                 if(BUILD_ARMASM_INLINE)
                     list(APPEND LIB_SOURCES
                         wolfcrypt/src/port/arm/armv8-sha256.c
-                        wolfcrypt/src/port/arm/armv8-32-sha256-asm_c.c)
+                        wolfcrypt/src/port/arm/armv8-32-sha256-asm_c.c
+                        wolfcrypt/src/port/arm/armv8-sha256-asm_c.c)
                 else()
                     list(APPEND LIB_SOURCES
-                        wolfcrypt/src/port/arm/armv8-sha256-asm.S
-                        wolfcrypt/src/port/arm/armv8-32-sha256-asm.S)
+                        wolfcrypt/src/port/arm/armv8-sha256.c
+                        wolfcrypt/src/port/arm/armv8-32-sha256-asm.S
+                        wolfcrypt/src/port/arm/armv8-sha256-asm.S)
                 endif()
                 if(BUILD_ARMASM_INLINE AND BUILD_ARM_THUMB)
                     list(APPEND LIB_SOURCES
@@ -990,6 +999,10 @@ function(generate_lib_src_list LIB_SOURCES)
 
         if(BUILD_DILITHIUM)
             list(APPEND LIB_SOURCES wolfcrypt/src/dilithium.c)
+
+            if(BUILD_INTELASM)
+                list(APPEND LIB_SOURCES wolfcrypt/src/wc_mldsa_asm.S)
+            endif()
         endif()
 
         if(BUILD_WC_MLKEM)

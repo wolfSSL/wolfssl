@@ -117,7 +117,7 @@ int wc_Sha3_224_Final(wc_Sha3* sha3, byte* hash);
     \sa wc_Sha3_224_Update
     \sa wc_Sha3_224_Final
 */
-void wc_Sha3_224_Free(wc_Sha3*);
+void wc_Sha3_224_Free(wc_Sha3* sha3);
 
 /*!
     \ingroup SHA
@@ -297,7 +297,7 @@ int wc_Sha3_256_Final(wc_Sha3* sha3, byte* hash);
     \sa wc_Sha3_256_Update
     \sa wc_Sha3_256_Final
 */
-void wc_Sha3_256_Free(wc_Sha3*);
+void wc_Sha3_256_Free(wc_Sha3* sha3);
 
 /*!
     \ingroup SHA
@@ -477,7 +477,7 @@ int wc_Sha3_384_Final(wc_Sha3* sha3, byte* hash);
     \sa wc_Sha3_384_Update
     \sa wc_Sha3_384_Final
 */
-void wc_Sha3_384_Free(wc_Sha3*);
+void wc_Sha3_384_Free(wc_Sha3* sha3);
 
 /*!
     \ingroup SHA
@@ -657,7 +657,7 @@ int wc_Sha3_512_Final(wc_Sha3* sha3, byte* hash);
     \sa wc_Sha3_512_Update
     \sa wc_Sha3_512_Final
 */
-void wc_Sha3_512_Free(wc_Sha3*);
+void wc_Sha3_512_Free(wc_Sha3* sha3);
 
 /*!
     \ingroup SHA
@@ -786,6 +786,7 @@ int wc_Shake128_Update(wc_Shake* sha, const byte* data, word32 len);
 
     \param shake 暗号化に使用するshake構造体へのポインタ
     \param hash ハッシュ値を保持するバイト配列。
+    \param hashLen hashに書き込むバイト数。
 
     _Example_
     \code
@@ -806,7 +807,7 @@ int wc_Shake128_Update(wc_Shake* sha, const byte* data, word32 len);
     \sa wc_Shake128_GetHash
     \sa wc_InitShake128
 */
-int wc_Shake128_Final(wc_Shake* shake, byte* hash);
+int wc_Shake128_Final(wc_Shake* shake, byte* hash, word32 hashLen);
 
 /*!
     \ingroup SHA
@@ -903,7 +904,7 @@ int wc_Shake128_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt);
     \sa wc_Shake128_Update
     \sa wc_Shake128_Final
 */
-void wc_Shake128_Free(wc_Shake*);
+void wc_Shake128_Free(wc_Shake* shake);
 
 /*!
     \ingroup SHA
@@ -941,8 +942,8 @@ int wc_Shake128_GetHash(wc_Shake* shake, byte* hash);
 
     \return 0 コピーに成功した場合に返されます。
 
-    \param shake コピーするshake構造体へのポインタ
-    \param dst  コピー先のshake構造体へのポインタ
+    \param src コピーするshake構造体へのポインタ
+    \param dst コピー先のshake構造体へのポインタ
 
     _Example_
     \code
@@ -962,7 +963,7 @@ int wc_Shake128_GetHash(wc_Shake* shake, byte* hash);
     \sa wc_InitShake128
     \sa wc_Shake128_GetHash
 */
-int wc_Shake128_Copy(wc_Shake* shake, wc_Shake* dst);
+int wc_Shake128_Copy(wc_Shake* src, wc_Sha3* dst);
 
 /*!
     \ingroup SHA
@@ -1150,7 +1151,7 @@ int wc_Shake256_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt);
     \sa wc_Shake256_Update
     \sa wc_Shake256_Final
 */
-void wc_Shake256_Free(wc_Shake*);
+void wc_Shake256_Free(wc_Shake* shake);
 
 /*!
     \ingroup SHA
@@ -1188,7 +1189,7 @@ int wc_Shake256_GetHash(wc_Shake* shake, byte* hash);
 
     \return 0 コピーに成功した場合に返されます。
 
-    \param shake コピーするshake構造体へのポインタ
+    \param src コピーするshake構造体へのポインタ
     \param dst  コピー先のshake構造体へのポインタ
 
     _Example_
@@ -1209,4 +1210,4 @@ int wc_Shake256_GetHash(wc_Shake* shake, byte* hash);
     \sa wc_InitShake256
     \sa wc_Shake256_GetHash
 */
-int wc_Shake256_Copy(wc_Shake* shake, wc_Shake* dst);
+int wc_Shake256_Copy(wc_Shake* src, wc_Sha3* dst);

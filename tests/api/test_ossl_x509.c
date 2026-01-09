@@ -528,10 +528,10 @@ int test_wolfSSL_X509(void)
     ExpectIntEQ(X509_verify_cert(ctx), SSL_SUCCESS);
 
 #ifndef NO_WOLFSSL_STUB
-    ExpectNull(X509_get_default_cert_file_env());
-    ExpectNull(X509_get_default_cert_file());
-    ExpectNull(X509_get_default_cert_dir_env());
-    ExpectNull(X509_get_default_cert_dir());
+    ExpectStrEQ(X509_get_default_cert_file_env(), "");
+    ExpectStrEQ(X509_get_default_cert_file(), "");
+    ExpectStrEQ(X509_get_default_cert_dir_env(), "");
+    ExpectStrEQ(X509_get_default_cert_dir(), "");
 #endif
 
     ExpectNull(wolfSSL_X509_get_der(NULL, NULL));

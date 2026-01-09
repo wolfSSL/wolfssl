@@ -46,7 +46,7 @@ int wc_curve25519_make_key(WC_RNG* rng, int keysize, curve25519_key* key);
 
     \brief This function computes a shared secret key given a secret private
     key and a received public key. It stores the generated secret key in the
-    buffer out and assigns the variable of the secret key to outlen. Only
+    buffer out and assigns the length of the secret key to outlen. Only
     supports big endian.
 
     \return 0 Returned on successfully computing a shared secret key.
@@ -93,7 +93,7 @@ int wc_curve25519_shared_secret(curve25519_key* private_key,
 
     \brief This function computes a shared secret key given a secret private
     key and a received public key. It stores the generated secret key in the
-    buffer out and assigns the variable of the secret key to outlen. Supports
+    buffer out and assigns the length of the secret key to outlen. Supports
     both big and little endian.
 
     \return 0 Returned on successfully computing a shared secret key.
@@ -361,7 +361,7 @@ int wc_curve25519_import_private_raw_ex(const byte* priv, word32 privSz,
     \return 0 Returned on successfully exporting the private key from the
     curve25519_key structure.
     \return BAD_FUNC_ARG Returned if any input parameters are NULL.
-    \return ECC_BAD_ARG_E Returned if wc_curve25519_size() is not equal to key.
+    \return ECC_BAD_ARG_E Returned if *outLen is less than wc_curve25519_size().
 
     \param [in] key Pointer to the structure from which to export the key.
     \param [out] out Pointer to the buffer in which to store the exported key.
@@ -372,7 +372,7 @@ int wc_curve25519_import_private_raw_ex(const byte* priv, word32 privSz,
     \code
     int ret;
     byte priv[32];
-    int privSz;
+    word32 privSz;
 
     curve25519_key key;
     // initialize and make key
@@ -402,7 +402,7 @@ int wc_curve25519_export_private_raw(curve25519_key* key, byte* out,
     \return 0 Returned on successfully exporting the private key from the
     curve25519_key structure.
     \return BAD_FUNC_ARG Returned if any input parameters are NULL.
-    \return ECC_BAD_ARG_E Returned if wc_curve25519_size() is not equal to key.
+    \return ECC_BAD_ARG_E Returned if *outLen is less than wc_curve25519_size().
 
     \param [in] key Pointer to the structure from which to export the key.
     \param [out] out Pointer to the buffer in which to store the exported key.
@@ -416,7 +416,7 @@ int wc_curve25519_export_private_raw(curve25519_key* key, byte* out,
     int ret;
 
     byte priv[32];
-    int privSz;
+    word32 privSz;
     curve25519_key key;
     // initialize and make key
     ret = wc_curve25519_export_private_raw_ex(&key, priv, &privSz,
@@ -656,7 +656,7 @@ int wc_curve25519_export_public_ex(curve25519_key* key, byte* out,
     \return ECC_BAD_ARG_E Returned if privSz is less than CURVE25519_KEY_SIZE or
     pubSz is less than CURVE25519_PUB_KEY_SIZE.
 
-    \param [in] key Pointer to the curve448_key structure in from which to
+    \param [in] key Pointer to the curve25519_key structure in from which to
     export the key pair.
     \param [out] priv Pointer to the buffer in which to store the private key.
     \param [in,out] privSz On in, is the size of the priv buffer in bytes.
@@ -702,7 +702,7 @@ int wc_curve25519_export_key_raw(curve25519_key* key,
     \return ECC_BAD_ARG_E Returned if privSz is less than CURVE25519_KEY_SIZE or
     pubSz is less than CURVE25519_PUB_KEY_SIZE.
 
-    \param [in] key Pointer to the curve448_key structure in from which to
+    \param [in] key Pointer to the curve25519_key structure in from which to
     export the key pair.
     \param [out] priv Pointer to the buffer in which to store the private key.
     \param [in,out] privSz On in, is the size of the priv buffer in bytes.
@@ -725,7 +725,7 @@ int wc_curve25519_export_key_raw(curve25519_key* key,
     curve25519_key key;
     // initialize and make key
 
-    ret = wc_curve25519_export_key_raw_ex(&key,priv, &privSz, pub, &pubSz,
+    ret = wc_curve25519_export_key_raw_ex(&key, priv, &privSz, pub, &pubSz,
             EC25519_BIG_ENDIAN);
     if (ret != 0) {
         // error exporting key
@@ -769,3 +769,326 @@ int wc_curve25519_export_key_raw_ex(curve25519_key* key,
 */
 
 int wc_curve25519_size(curve25519_key* key);
+
+/*!
+    \ingroup Curve25519
+    \brief This function generates a Curve25519 public key from a given
+    private key. This is a lower-level function that operates directly
+    on byte buffers rather than curve25519_key structures.
+
+    \return 0 On successfully generating the public key
+    \return ECC_BAD_ARG_E If the key sizes are invalid
+    \return BAD_FUNC_ARG If any input parameters are NULL
+
+    \param public_size Size of the public key buffer (must be 32)
+    \param pub Pointer to buffer to store the public key
+    \param private_size Size of the private key (must be 32)
+    \param priv Pointer to buffer containing the private key
+
+    _Example_
+    \code
+    byte priv[CURVE25519_KEYSIZE];
+    byte pub[CURVE25519_KEYSIZE];
+
+    // initialize priv with private key
+    int ret = wc_curve25519_make_pub(sizeof(pub), pub, sizeof(priv),
+                                     priv);
+    if (ret != 0) {
+        // error generating public key
+    }
+    \endcode
+
+    \sa wc_curve25519_make_key
+    \sa wc_curve25519_make_pub_blind
+*/
+int wc_curve25519_make_pub(int public_size, byte* pub, int private_size,
+                           const byte* priv);
+
+/*!
+    \ingroup Curve25519
+    \brief This function generates a Curve25519 public key from a given
+    private key with blinding to resist side-channel attacks. This adds
+    randomization to the scalar multiplication operation.
+
+    \return 0 On successfully generating the public key
+    \return ECC_BAD_ARG_E If the key sizes are invalid
+    \return BAD_FUNC_ARG If any input parameters are NULL
+
+    \param public_size Size of the public key buffer (must be 32)
+    \param pub Pointer to buffer to store the public key
+    \param private_size Size of the private key (must be 32)
+    \param priv Pointer to buffer containing the private key
+    \param rng Pointer to initialized RNG for blinding
+
+    _Example_
+    \code
+    WC_RNG rng;
+    byte priv[CURVE25519_KEYSIZE];
+    byte pub[CURVE25519_KEYSIZE];
+
+    wc_InitRng(&rng);
+    // initialize priv with private key
+    int ret = wc_curve25519_make_pub_blind(sizeof(pub), pub,
+                                           sizeof(priv), priv, &rng);
+    if (ret != 0) {
+        // error generating public key
+    }
+    \endcode
+
+    \sa wc_curve25519_make_pub
+    \sa wc_curve25519_generic_blind
+*/
+int wc_curve25519_make_pub_blind(int public_size, byte* pub,
+                                 int private_size, const byte* priv,
+                                 WC_RNG* rng);
+
+/*!
+    \ingroup Curve25519
+    \brief This function performs a generic Curve25519 scalar
+    multiplication with a custom basepoint. This allows computing
+    scalar * basepoint for any basepoint, not just the standard
+    generator.
+
+    \return 0 On successfully computing the result
+    \return ECC_BAD_ARG_E If the sizes are invalid
+    \return BAD_FUNC_ARG If any input parameters are NULL
+
+    \param public_size Size of the output buffer (must be 32)
+    \param pub Pointer to buffer to store the result
+    \param private_size Size of the scalar (must be 32)
+    \param priv Pointer to buffer containing the scalar
+    \param basepoint_size Size of the basepoint (must be 32)
+    \param basepoint Pointer to buffer containing the basepoint
+
+    _Example_
+    \code
+    byte scalar[CURVE25519_KEYSIZE];
+    byte basepoint[CURVE25519_KEYSIZE];
+    byte result[CURVE25519_KEYSIZE];
+
+    // initialize scalar and basepoint
+    int ret = wc_curve25519_generic(sizeof(result), result,
+                                    sizeof(scalar), scalar,
+                                    sizeof(basepoint), basepoint);
+    if (ret != 0) {
+        // error computing result
+    }
+    \endcode
+
+    \sa wc_curve25519_shared_secret
+    \sa wc_curve25519_generic_blind
+*/
+int wc_curve25519_generic(int public_size, byte* pub, int private_size,
+                         const byte* priv, int basepoint_size,
+                         const byte* basepoint);
+
+/*!
+    \ingroup Curve25519
+    \brief This function performs a generic Curve25519 scalar
+    multiplication with a custom basepoint and blinding to resist
+    side-channel attacks.
+
+    \return 0 On successfully computing the result
+    \return ECC_BAD_ARG_E If the sizes are invalid
+    \return BAD_FUNC_ARG If any input parameters are NULL
+
+    \param public_size Size of the output buffer (must be 32)
+    \param pub Pointer to buffer to store the result
+    \param private_size Size of the scalar (must be 32)
+    \param priv Pointer to buffer containing the scalar
+    \param basepoint_size Size of the basepoint (must be 32)
+    \param basepoint Pointer to buffer containing the basepoint
+    \param rng Pointer to initialized RNG for blinding
+
+    _Example_
+    \code
+    WC_RNG rng;
+    byte scalar[CURVE25519_KEYSIZE];
+    byte basepoint[CURVE25519_KEYSIZE];
+    byte result[CURVE25519_KEYSIZE];
+
+    wc_InitRng(&rng);
+    // initialize scalar and basepoint
+    int ret = wc_curve25519_generic_blind(sizeof(result), result,
+                                          sizeof(scalar), scalar,
+                                          sizeof(basepoint), basepoint,
+                                          &rng);
+    \endcode
+
+    \sa wc_curve25519_generic
+    \sa wc_curve25519_make_pub_blind
+*/
+int wc_curve25519_generic_blind(int public_size, byte* pub,
+                                int private_size, const byte* priv,
+                                int basepoint_size, const byte* basepoint,
+                                WC_RNG* rng);
+
+/*!
+    \ingroup Curve25519
+    \brief This function generates a Curve25519 private key using the
+    given random number generator. This is a lower-level function that
+    generates only the private key bytes.
+
+    \return 0 On successfully generating the private key
+    \return ECC_BAD_ARG_E If keysize is invalid
+    \return BAD_FUNC_ARG If any input parameters are NULL
+    \return RNG_FAILURE_E If random number generation fails
+
+    \param rng Pointer to initialized RNG
+    \param keysize Size of the key to generate (must be 32)
+    \param priv Pointer to buffer to store the private key
+
+    _Example_
+    \code
+    WC_RNG rng;
+    byte priv[CURVE25519_KEYSIZE];
+
+    wc_InitRng(&rng);
+    int ret = wc_curve25519_make_priv(&rng, sizeof(priv), priv);
+    if (ret != 0) {
+        // error generating private key
+    }
+    \endcode
+
+    \sa wc_curve25519_make_key
+    \sa wc_curve25519_make_pub
+*/
+int wc_curve25519_make_priv(WC_RNG* rng, int keysize, byte* priv);
+
+/*!
+    \ingroup Curve25519
+    \brief This function initializes a Curve25519 key with extended
+    parameters, allowing specification of custom heap and device ID
+    for hardware acceleration.
+
+    \return 0 On successfully initializing the key
+    \return BAD_FUNC_ARG If key is NULL
+
+    \param key Pointer to the curve25519_key structure to initialize
+    \param heap Pointer to heap hint for memory allocation (can be
+    NULL)
+    \param devId Device ID for hardware acceleration (use
+    INVALID_DEVID for software only)
+
+    _Example_
+    \code
+    curve25519_key key;
+    void* heap = NULL;
+    int devId = INVALID_DEVID;
+
+    int ret = wc_curve25519_init_ex(&key, heap, devId);
+    if (ret != 0) {
+        // error initializing key
+    }
+    \endcode
+
+    \sa wc_curve25519_init
+    \sa wc_curve25519_free
+*/
+int wc_curve25519_init_ex(curve25519_key* key, void* heap, int devId);
+
+/*!
+    \ingroup Curve25519
+    \brief This function sets the RNG to be used with a Curve25519
+    key. This is useful for operations that require randomness such
+    as blinded scalar multiplication.
+
+    \return 0 On successfully setting the RNG
+    \return BAD_FUNC_ARG If key or rng is NULL
+
+    \param key Pointer to the curve25519_key structure
+    \param rng Pointer to initialized RNG
+
+    _Example_
+    \code
+    WC_RNG rng;
+    curve25519_key key;
+
+    wc_InitRng(&rng);
+    wc_curve25519_init(&key);
+    int ret = wc_curve25519_set_rng(&key, &rng);
+    if (ret != 0) {
+        // error setting RNG
+    }
+    \endcode
+
+    \sa wc_curve25519_init
+    \sa wc_curve25519_make_key
+*/
+int wc_curve25519_set_rng(curve25519_key* key, WC_RNG* rng);
+
+/*!
+    \ingroup Curve25519
+    \brief This function allocates and initializes a new Curve25519
+    key structure with extended parameters. The caller is responsible
+    for freeing the key with wc_curve25519_delete. These New/Delete
+    functions are exposed to support allocation of the structure using
+    dynamic memory to provide better ABI compatibility.
+
+    \note This API is only available when WC_NO_CONSTRUCTORS is not defined.
+    WC_NO_CONSTRUCTORS is automatically defined when WOLFSSL_NO_MALLOC is
+    defined.
+
+    \return Pointer to newly allocated curve25519_key on success
+    \return NULL on failure
+
+    \param heap Pointer to heap hint for memory allocation (can be
+    NULL)
+    \param devId Device ID for hardware acceleration (use
+    INVALID_DEVID for software only)
+    \param result_code Pointer to store result code (0 on success)
+
+    _Example_
+    \code
+    int ret;
+    curve25519_key* key;
+
+    key = wc_curve25519_new(NULL, INVALID_DEVID, &ret);
+    if (key == NULL || ret != 0) {
+        // error allocating key
+    }
+    // use key
+    wc_curve25519_delete(key, &key);
+    \endcode
+
+    \sa wc_curve25519_delete
+    \sa wc_curve25519_init_ex
+*/
+curve25519_key* wc_curve25519_new(void* heap, int devId,
+                                  int *result_code);
+
+/*!
+    \ingroup Curve25519
+    \brief This function frees a Curve25519 key structure that was
+    allocated with wc_curve25519_new and sets the pointer to NULL.
+    These New/Delete functions are exposed to support allocation of the
+    structure using dynamic memory to provide better ABI compatibility.
+
+    \note This API is only available when WC_NO_CONSTRUCTORS is not defined.
+    WC_NO_CONSTRUCTORS is automatically defined when WOLFSSL_NO_MALLOC is
+    defined.
+
+    \return 0 On successfully freeing the key
+    \return BAD_FUNC_ARG If key or key_p is NULL
+
+    \param key Pointer to the curve25519_key structure to free
+    \param key_p Pointer to the key pointer (will be set to NULL)
+
+    _Example_
+    \code
+    int ret;
+    curve25519_key* key;
+
+    key = wc_curve25519_new(NULL, INVALID_DEVID, &ret);
+    // use key
+    ret = wc_curve25519_delete(key, &key);
+    if (ret != 0) {
+        // error freeing key
+    }
+    // key is now NULL
+    \endcode
+
+    \sa wc_curve25519_new
+    \sa wc_curve25519_free
+*/
+int wc_curve25519_delete(curve25519_key* key, curve25519_key** key_p);

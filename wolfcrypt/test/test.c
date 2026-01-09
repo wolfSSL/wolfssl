@@ -325,6 +325,9 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
 #include <wolfssl/wolfcrypt/arc4.h>
 #if !defined(WC_NO_RNG)
     #include <wolfssl/wolfcrypt/random.h>
+    #ifdef WC_RNG_BANK_SUPPORT
+        #include <wolfssl/wolfcrypt/rng_bank.h>
+    #endif
 #endif
 #include <wolfssl/wolfcrypt/wolfmath.h>
 #include <wolfssl/wolfcrypt/coding.h>
@@ -687,6 +690,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  dsa_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  srp_test(void);
 #ifndef WC_NO_RNG
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_test(void);
+#ifdef WC_RNG_BANK_SUPPORT
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_bank_test(void);
+#endif
 #endif /* WC_NO_RNG */
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  pwdbased_test(void);
 #if defined(USE_CERT_BUFFERS_2048) && \
@@ -2133,6 +2139,12 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_FAIL("RANDOM   test failed!\n", ret);
     else
         TEST_PASS("RANDOM   test passed!\n");
+#ifdef WC_RNG_BANK_SUPPORT
+    if ((ret = random_bank_test()) != 0)
+        TEST_FAIL("RNGBANK  test failed!\n", ret);
+    else
+        TEST_PASS("RNGBANK  test passed!\n");
+#endif
 #endif /* WC_NO_RNG */
 
 #ifdef WOLFSSL_SHAKE128
@@ -7402,7 +7414,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_md5_test(void)
     testVector a, b, c, d;
     testVector test_hmac[4];
 
-    wc_test_ret_t ret;
+    wc_test_ret_t ret = WC_TEST_RET_ENC_NC;
     int times = sizeof(test_hmac) / sizeof(testVector), i;
     WOLFSSL_ENTER("hmac_md5_test");
 
@@ -7442,7 +7454,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_md5_test(void)
 
     XMEMSET(&hmac, 0, sizeof(hmac));
 #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
-    WC_ALLOC_VAR_EX(hmac_copy, Hmac, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+    WC_CALLOC_VAR_EX(hmac_copy, Hmac, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
                     return WC_TEST_RET_ENC_EC(MEMORY_E));
 #endif
 
@@ -7543,7 +7555,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha_test(void)
     testVector a, b, c, d;
     testVector test_hmac[4];
 
-    wc_test_ret_t ret;
+    wc_test_ret_t ret = WC_TEST_RET_ENC_NC;
     int times = sizeof(test_hmac) / sizeof(testVector), i;
 
 #if FIPS_VERSION3_GE(6,0,0)
@@ -7587,7 +7599,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha_test(void)
 
     XMEMSET(&hmac, 0, sizeof(hmac));
 #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
-    WC_ALLOC_VAR_EX(hmac_copy, Hmac, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+    WC_CALLOC_VAR_EX(hmac_copy, Hmac, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
                     return WC_TEST_RET_ENC_EC(MEMORY_E));
 #endif
 
@@ -7700,7 +7712,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha224_test(void)
     testVector a, b, c, d;
     testVector test_hmac[4];
 
-    wc_test_ret_t ret;
+    wc_test_ret_t ret = WC_TEST_RET_ENC_NC;
     int times = sizeof(test_hmac) / sizeof(testVector), i;
     WOLFSSL_ENTER("hmac_sha224_test");
 
@@ -7738,7 +7750,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha224_test(void)
 
     XMEMSET(&hmac, 0, sizeof(hmac));
 #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
-    WC_ALLOC_VAR_EX(hmac_copy, Hmac, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+    WC_CALLOC_VAR_EX(hmac_copy, Hmac, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
                     return WC_TEST_RET_ENC_EC(MEMORY_E));
 #endif
 
@@ -7844,7 +7856,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha256_test(void)
     testVector a, b, c, d, e;
     testVector test_hmac[5];
 
-    wc_test_ret_t ret;
+    wc_test_ret_t ret = WC_TEST_RET_ENC_NC;
     int times = sizeof(test_hmac) / sizeof(testVector), i;
     WOLFSSL_ENTER("hmac_sha256_test");
 
@@ -7895,7 +7907,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha256_test(void)
 
     XMEMSET(&hmac, 0, sizeof(hmac));
 #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
-    WC_ALLOC_VAR_EX(hmac_copy, Hmac, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+    WC_CALLOC_VAR_EX(hmac_copy, Hmac, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
                     return WC_TEST_RET_ENC_EC(MEMORY_E));
 #endif
 
@@ -8014,7 +8026,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha384_test(void)
     testVector a, b, c, d;
     testVector test_hmac[4];
 
-    wc_test_ret_t ret;
+    wc_test_ret_t ret = WC_TEST_RET_ENC_NC;
     int times = sizeof(test_hmac) / sizeof(testVector), i;
     WOLFSSL_ENTER("hmac_sha384_test");
 
@@ -8061,7 +8073,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha384_test(void)
 
     XMEMSET(&hmac, 0, sizeof(hmac));
 #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
-    WC_ALLOC_VAR_EX(hmac_copy, Hmac, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+    WC_CALLOC_VAR_EX(hmac_copy, Hmac, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
                     return WC_TEST_RET_ENC_EC(MEMORY_E));
 #endif
 
@@ -8165,7 +8177,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha512_test(void)
     testVector a, b, c, d;
     testVector test_hmac[4];
 
-    wc_test_ret_t ret;
+    wc_test_ret_t ret = WC_TEST_RET_ENC_NC;
     int times = sizeof(test_hmac) / sizeof(testVector), i;
     WOLFSSL_ENTER("hmac_sha512_test");
 
@@ -8216,7 +8228,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha512_test(void)
 
     XMEMSET(&hmac, 0, sizeof(hmac));
 #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
-    WC_ALLOC_VAR_EX(hmac_copy, Hmac, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+    WC_CALLOC_VAR_EX(hmac_copy, Hmac, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
                     return WC_TEST_RET_ENC_EC(MEMORY_E));
 #endif
 
@@ -8423,12 +8435,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha3_test(void)
 
     int i = 0, iMax = sizeof(input) / sizeof(input[0]),
         j, jMax = sizeof(hashType) / sizeof(hashType[0]);
-    int ret;
+    wc_test_ret_t ret = WC_TEST_RET_ENC_NC;
     WOLFSSL_ENTER("hmac_sha3_test");
 
     XMEMSET(&hmac, 0, sizeof(hmac));
 #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
-    WC_ALLOC_VAR_EX(hmac_copy, Hmac, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+    WC_CALLOC_VAR_EX(hmac_copy, Hmac, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
                     return WC_TEST_RET_ENC_EC(MEMORY_E));
 #endif
 
@@ -19748,14 +19760,23 @@ static wc_test_ret_t _rng_test(WC_RNG* rng)
     !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(5,0,0))
     /* Test periodic reseed dynamics. */
 
-    ((struct DRBG_internal *)rng->drbg)->reseedCtr = WC_RESEED_INTERVAL;
+#ifdef WOLF_CRYPTO_CB
+    if (wc_CryptoCb_RandomBlock(rng, block, sizeof(block)) ==
+        WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+    {
+#endif
+        ((struct DRBG_internal *)rng->drbg)->reseedCtr = WC_RESEED_INTERVAL;
 
-    ret = wc_RNG_GenerateBlock(rng, block, sizeof(block));
-    if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+        ret = wc_RNG_GenerateBlock(rng, block, sizeof(block));
+        if (ret != 0)
+            return WC_TEST_RET_ENC_EC(ret);
 
-    if (((struct DRBG_internal *)rng->drbg)->reseedCtr == WC_RESEED_INTERVAL)
-        return WC_TEST_RET_ENC_NC;
+        if (((struct DRBG_internal *)rng->drbg)->reseedCtr == WC_RESEED_INTERVAL)
+            return WC_TEST_RET_ENC_NC;
+#ifdef WOLF_CRYPTO_CB
+    }
+#endif
+
 #endif /* HAVE_HASHDRBG && !CUSTOM_RAND_GENERATE_BLOCK && !HAVE_SELFTEST */
 
 #if defined(WOLFSSL_TRACK_MEMORY) && defined(WOLFSSL_SMALL_STACK_CACHE)
@@ -19870,7 +19891,7 @@ static wc_test_ret_t rng_seed_test(void)
      * SEED_BLOCK_SZ, which depend on which seed back end is configured.
      */
 #if defined(HAVE_ENTROPY_MEMUSE) && defined(HAVE_AMD_RDSEED) && \
-    !(defined(HAVE_FIPS) && FIPS_VERSION_LT(6,0))
+    !(defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0) && FIPS_VERSION3_NE(5,2,4))
     #ifdef HAVE_FIPS
     WOLFSSL_SMALL_STACK_STATIC const byte check[] =
     {
@@ -19908,7 +19929,7 @@ static wc_test_ret_t rng_seed_test(void)
     };
     #endif
 #elif defined(HAVE_AMD_RDSEED) && \
-    !(defined(HAVE_FIPS) && FIPS_VERSION_LT(6,0))
+    !(defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0) && FIPS_VERSION3_NE(5,2,4))
     WOLFSSL_SMALL_STACK_STATIC const byte check[] =
     {
         0x2c, 0xd4, 0x9b, 0x1e, 0x1e, 0xe7, 0xb0, 0xb0,
@@ -19917,7 +19938,7 @@ static wc_test_ret_t rng_seed_test(void)
         0xa2, 0xe7, 0xe5, 0x90, 0x6d, 0x1f, 0x88, 0x98
     };
 #elif (defined(HAVE_INTEL_RDSEED) || defined(HAVE_INTEL_RDRAND)) && \
-    !(defined(HAVE_FIPS) && FIPS_VERSION_LT(6,0))
+    !(defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0) && FIPS_VERSION3_NE(5,2,4))
     #ifdef HAVE_FIPS
     WOLFSSL_SMALL_STACK_STATIC const byte check[] =
     {
@@ -19936,7 +19957,7 @@ static wc_test_ret_t rng_seed_test(void)
     };
     #endif
 #elif defined(HAVE_INTEL_RDSEED) && \
-    defined(HAVE_FIPS) && FIPS_VERSION_LT(6,0)
+    defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0) && FIPS_VERSION3_NE(5,2,4)
     WOLFSSL_SMALL_STACK_STATIC const byte check[] =
     {
         0x27, 0xdd, 0xff, 0x5b, 0x21, 0x26, 0x0a, 0x48,
@@ -20124,7 +20145,338 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_test(void)
 }
 
 #endif /* !HAVE_HASHDRBG || CUSTOM_RAND_GENERATE_BLOCK || HAVE_INTEL_RDRAND */
-#endif /* WC_NO_RNG */
+
+#ifdef WC_RNG_BANK_SUPPORT
+
+static char *rng_bank_affinity_lock_lock;
+static int rng_bank_affinity_lock(void *arg) {
+    rng_bank_affinity_lock_lock = (char *)arg;
+    return 0;
+}
+
+static int rng_bank_affinity_get_id_id;
+static int rng_bank_affinity_get_id(void *arg, int *id) {
+    if (rng_bank_affinity_lock_lock != (char *)arg)
+        return BAD_STATE_E;
+    rng_bank_affinity_lock_lock = (char *)arg + 1;
+    *id = rng_bank_affinity_get_id_id;
+    return 0;
+}
+
+static int rng_bank_affinity_unlock(void *arg) {
+    rng_bank_affinity_lock_lock = (char *)arg + 2;
+    return 0;
+}
+
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
+{
+
+    int ret;
+    WC_DECLARE_VAR(bank, struct wc_rng_bank, 1, HEAP_HINT);
+    struct wc_rng_bank_inst *rng_inst = NULL;
+    struct wc_rng_bank *bank2 = NULL;
+    struct wc_rng_bank_inst *rng_inst2 = NULL;
+#ifdef WC_DRBG_BANKREF
+    WC_RNG *rng = NULL, *rng2 = NULL;
+#endif
+    static const char bank_arg[] = "hi";
+    byte outbuf1[16], outbuf2[16];
+    int i;
+
+    WC_ALLOC_VAR_EX(bank, struct wc_rng_bank, 1, HEAP_HINT,
+                    DYNAMIC_TYPE_TMP_BUFFER,
+                    return WC_TEST_RET_ENC_EC(MEMORY_E));
+    XMEMSET(bank, 0, sizeof(*bank));
+
+    ret = wc_rng_bank_init(NULL, 4, WC_RNG_BANK_FLAG_CAN_WAIT, 10, HEAP_HINT, INVALID_DEVID);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_rng_bank_init(bank, 4, WC_RNG_BANK_FLAG_CAN_WAIT, 10, HEAP_HINT, INVALID_DEVID);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_rng_bank_set_affinity_handlers(
+        bank,
+        rng_bank_affinity_lock,
+        rng_bank_affinity_get_id,
+        rng_bank_affinity_unlock,
+        (char *)bank_arg);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_rng_bank_new(&bank2, 4, WC_RNG_BANK_FLAG_NO_VECTOR_OPS, 10, HEAP_HINT, INVALID_DEVID);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_rng_bank_set_affinity_handlers(
+        bank2,
+        rng_bank_affinity_lock,
+        rng_bank_affinity_get_id,
+        rng_bank_affinity_unlock,
+        (char *)bank_arg);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    rng_bank_affinity_get_id_id = 4;
+    ret = wc_rng_bank_checkout(bank2, &rng_inst2, -1, 10, WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST | WC_RNG_BANK_FLAG_AFFINITY_LOCK);
+    if (ret != WC_NO_ERR_TRACE(BAD_INDEX_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    rng_bank_affinity_get_id_id = 2;
+    ret = wc_rng_bank_checkout(bank2, &rng_inst2, -1, 10, WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST | WC_RNG_BANK_FLAG_AFFINITY_LOCK);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (rng_inst2 != bank2->rngs + 2)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    if (rng_bank_affinity_lock_lock != bank_arg + 1)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    /* if we can, confirm that WC_RNG_BANK_FLAG_NO_VECTOR_OPS worked. */
+#if defined(WC_HAVE_VECTOR_SPEEDUPS) && \
+    defined(WOLFSSL_KERNEL_MODE) &&       \
+    defined(WC_C_DYNAMIC_FALLBACK) &&     \
+    defined(HAVE_HASHDRBG) &&                           \
+    defined(WC_NO_INTERNAL_FUNCTION_POINTERS)
+    if (((struct DRBG_internal *)rng_inst2->rng.drbg)->sha256.sha_method != 7 /* SHA256_C */)
+        ERROR_OUT(WC_TEST_RET_ENC_I(((struct DRBG_internal *)rng_inst2->rng.drbg)->sha256.sha_method), out);
+#endif
+
+    ret = wc_RNG_GenerateBlock(WC_RNG_BANK_INST_TO_RNG(rng_inst2), outbuf1, sizeof(outbuf1));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_rng_bank_checkin(bank2, &rng_inst2);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (rng_inst2 != NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    if (rng_bank_affinity_lock_lock != bank_arg + 2)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    ret = wc_rng_bank_checkout(bank2, &rng_inst2, 3, 10, WC_RNG_BANK_FLAG_NONE);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (rng_inst2 != bank2->rngs + 3)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    ret = wc_rng_bank_checkin(bank2, &rng_inst2);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    rng_bank_affinity_get_id_id = 3;
+    ret = wc_rng_bank_checkout(bank2, &rng_inst2, -1, 10, WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST | WC_RNG_BANK_FLAG_AFFINITY_LOCK);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (rng_inst2 != bank2->rngs + 3)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    ret = wc_RNG_GenerateBlock(WC_RNG_BANK_INST_TO_RNG(rng_inst2), outbuf2, sizeof(outbuf2));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_rng_bank_checkin(bank2, &rng_inst2);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (rng_inst2 != NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    if (XMEMCMP(outbuf1, outbuf2, sizeof(outbuf1)) == 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+#ifdef WC_DRBG_BANKREF
+    ret = wc_rng_new_bankref(bank2, &rng2);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    rng_bank_affinity_get_id_id = 1;
+    ret = wc_RNG_GenerateBlock(rng2, outbuf1, sizeof(outbuf1));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    if (XMEMCMP(outbuf1, outbuf2, sizeof(outbuf1)) == 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif
+
+    ret = wc_rng_bank_reseed(bank2, 10, WC_RNG_BANK_FLAG_NONE);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    for (i = 0; i < bank2->n_rngs; ++i) {
+        if (((struct DRBG_internal *)bank2->rngs[i].rng.drbg)
+            ->reseedCtr != WC_RESEED_INTERVAL)
+        {
+            ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
+        }
+    }
+
+    rng_bank_affinity_get_id_id = 0;
+    /* WC_RNG_BANK_FLAG_CAN_WAIT needed to avoiding warning message that the
+     * instance needs reseed.
+     */
+    ret = wc_rng_bank_checkout(bank2, &rng_inst2, -1, 10, WC_RNG_BANK_FLAG_CAN_WAIT | WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST | WC_RNG_BANK_FLAG_AFFINITY_LOCK);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_RNG_GenerateBlock(WC_RNG_BANK_INST_TO_RNG(rng_inst2), outbuf1, sizeof(outbuf1));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_rng_bank_checkin(bank2, &rng_inst2);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    rng_bank_affinity_get_id_id = 1;
+    ret = wc_rng_bank_checkout(bank2, &rng_inst2, -1, 10, WC_RNG_BANK_FLAG_CAN_WAIT | WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST | WC_RNG_BANK_FLAG_AFFINITY_LOCK);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_RNG_GenerateBlock(WC_RNG_BANK_INST_TO_RNG(rng_inst2), outbuf2, sizeof(outbuf2));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_rng_bank_checkin(bank2, &rng_inst2);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    if (XMEMCMP(outbuf1, outbuf2, sizeof(outbuf1)) == 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+#ifdef WC_DRBG_BANKREF
+    if (wolfSSL_RefCur(bank2->refcount) != 2)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    ret = wc_rng_bank_free(&bank2);
+    if (ret != WC_NO_ERR_TRACE(BUSY_E))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    wc_rng_free(rng2);
+    rng2 = NULL;
+
+    if (wolfSSL_RefCur(bank2->refcount) != 1)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif
+
+    ret = wc_rng_bank_free(&bank2);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (bank2 != NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    rng_bank_affinity_get_id_id = 0;
+
+    ret = wc_rng_bank_checkout(bank, &rng_inst, -1, 10, WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST | WC_RNG_BANK_FLAG_AFFINITY_LOCK);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_RNG_GenerateBlock(WC_RNG_BANK_INST_TO_RNG(rng_inst), outbuf1, sizeof(outbuf1));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* can't wc_rng_bank_seed() with _FLAG_CAN_WAIT while holding an inst --
+     * deadlocks then times out.
+     */
+    ret = wc_rng_bank_checkin(bank, &rng_inst);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_rng_bank_seed(bank, (byte *)bank_arg, (word32)sizeof(bank_arg), 10, WC_RNG_BANK_FLAG_CAN_WAIT);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_rng_bank_checkout(bank, &rng_inst, -1, 10, WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST | WC_RNG_BANK_FLAG_AFFINITY_LOCK);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_RNG_GenerateBlock(WC_RNG_BANK_INST_TO_RNG(rng_inst), outbuf2, sizeof(outbuf2));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    if (XMEMCMP(outbuf1, outbuf2, sizeof(outbuf1)) == 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    ret = wc_rng_bank_checkin(bank, &rng_inst);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_rng_bank_seed(bank, (byte *)bank_arg, (word32)sizeof(bank_arg), 10, WC_RNG_BANK_FLAG_CAN_WAIT);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_rng_bank_checkout(bank, &rng_inst, -1, 10, WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST | WC_RNG_BANK_FLAG_AFFINITY_LOCK);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_RNG_GenerateBlock(WC_RNG_BANK_INST_TO_RNG(rng_inst), outbuf1, sizeof(outbuf1));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* even though we passed in the same seed, the state is different, because
+     * Hash_DRBG_Reseed() chains in the previous state, and also churns in the
+     * "type" only on reseed.
+     */
+    if (XMEMCMP(outbuf1, outbuf2, sizeof(outbuf1)) == 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    ret = wc_rng_bank_inst_reinit(bank, rng_inst, 10, WC_RNG_BANK_FLAG_CAN_WAIT);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_RNG_GenerateBlock(WC_RNG_BANK_INST_TO_RNG(rng_inst), outbuf1, sizeof(outbuf1));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    if (XMEMCMP(outbuf1, outbuf2, sizeof(outbuf1)) == 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    ret = wc_rng_bank_checkin(bank, &rng_inst);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+out:
+
+    {
+        int cleanup_ret;
+
+#ifdef WC_DRBG_BANKREF
+        if (rng) {
+            cleanup_ret = wc_FreeRng(rng);
+            if ((cleanup_ret != 0) && (ret == 0))
+                ret = WC_TEST_RET_ENC_EC(cleanup_ret);
+        }
+        if (rng2) {
+            cleanup_ret = wc_FreeRng(rng2);
+            if ((cleanup_ret != 0) && (ret == 0))
+                ret = WC_TEST_RET_ENC_EC(cleanup_ret);
+        }
+#endif
+
+        if (rng_inst) {
+            cleanup_ret = wc_rng_bank_checkin(bank, &rng_inst);
+            if ((cleanup_ret != 0) && (ret == 0))
+                ret = WC_TEST_RET_ENC_EC(cleanup_ret);
+            if ((rng_inst != NULL) && (ret == 0))
+                ret = WC_TEST_RET_ENC_NC;
+        }
+        if (rng_inst2) {
+            cleanup_ret = wc_rng_bank_checkin(bank2, &rng_inst2);
+            if ((cleanup_ret != 0) && (ret == 0))
+                ret = WC_TEST_RET_ENC_EC(cleanup_ret);
+            if ((rng_inst2 != NULL) && (ret == 0))
+                ret = WC_TEST_RET_ENC_NC;
+        }
+        cleanup_ret = wc_rng_bank_fini(bank);
+        if ((cleanup_ret != 0) && (ret == 0))
+            ret = WC_TEST_RET_ENC_EC(cleanup_ret);
+        WC_FREE_VAR_EX(bank, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        cleanup_ret = wc_rng_bank_free(&bank2);
+        if ((cleanup_ret != 0) && (ret == 0))
+            ret = WC_TEST_RET_ENC_EC(cleanup_ret);
+        if ((bank2 != NULL) && (ret == 0))
+            ret = WC_TEST_RET_ENC_NC;
+    }
+
+    return ret;
+}
+
+#endif /* WC_RNG_BANK_SUPPORT */
+
+#endif /* !WC_NO_RNG */
 
 #ifndef MEM_TEST_SZ
     #define MEM_TEST_SZ 1024
@@ -31974,7 +32326,7 @@ static wc_test_ret_t ecc_test_deterministic_k(WC_RNG* rng)
 #endif
 
     WC_ALLOC_VAR_EX(key, ecc_key, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
-        return MEMORY_E);
+        return WC_TEST_RET_ENC_EC(MEMORY_E));
 
     ret = wc_ecc_init_ex(key, HEAP_HINT, devId);
     if (ret != 0)
@@ -36131,7 +36483,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test(void)
         ECC_MIN_KEY_SZ <= 521
     ret = ecc521_test_deterministic_k(&rng);
     if (ret != 0) {
-        printf("ecc512_test_deterministic_k failed!\n");
+        printf("ecc521_test_deterministic_k failed!\n");
         goto done;
     }
     #endif
@@ -62510,6 +62862,23 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                     wc_Sha3* sha = (wc_Sha3*)info->free.obj;
                     sha->devId = INVALID_DEVID;
                     wc_Sha3_512_Free(sha);
+                    ret = 0;
+                    break;
+                }
+#endif
+                default:
+                    ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
+                    break;
+            }
+        }
+        else if (info->free.algo == WC_ALGO_TYPE_CIPHER) {
+            switch (info->free.type) {
+#ifndef NO_AES
+                case WC_CIPHER_AES:
+                {
+                    Aes* aes = (Aes*)info->free.obj;
+                    aes->devId = INVALID_DEVID;
+                    wc_AesFree(aes);
                     ret = 0;
                     break;
                 }

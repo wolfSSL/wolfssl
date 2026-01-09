@@ -52,7 +52,7 @@
 
 #include <stdlib.h>
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__FreeBSD__)
 #include <unistd.h>
 #include <sys/wait.h>
 #endif
@@ -268,7 +268,7 @@
 #endif
 
 #ifdef WOLFSSL_DUMP_MEMIO_STREAM
-const char* currentTestName;
+const char* currentTestName = NULL;
 char tmpDirName[16];
 int tmpDirNameSet = 0;
 #endif
@@ -12043,7 +12043,7 @@ static int test_wolfSSL_dtls_export_peers(void)
     };
 
     for (i = 0; i < sizeof(params)/sizeof(*params); i++) {
-        for (j = 0; j <= 0b11; j++) {
+        for (j = 0; j <= 3; j++) {
             XMEMSET(&client_cbf, 0, sizeof(client_cbf));
             XMEMSET(&server_cbf, 0, sizeof(server_cbf));
 
@@ -12052,12 +12052,12 @@ static int test_wolfSSL_dtls_export_peers(void)
             client_cbf.method = params[i].client_meth;
             server_cbf.method = params[i].server_meth;
 
-            if (j & 0b01) {
+            if (j & 0x1) {
                 client_cbf.on_handshake =
                         test_wolfSSL_dtls_export_peers_on_handshake;
                 printf(" With client export;");
             }
-            if (j & 0b10) {
+            if (j & 0x2) {
                 server_cbf.on_handshake =
                         test_wolfSSL_dtls_export_peers_on_handshake;
                 printf(" With server export;");
@@ -27604,10 +27604,25 @@ static int test_sk_X509_CRL(void)
     ExpectIntEQ(BIO_get_mem_data(bio, NULL), 1324);
 #endif
     BIO_free(bio);
-
+    bio = NULL;
     wolfSSL_X509_CRL_free(crl);
     crl = NULL;
-#endif
+
+#ifndef NO_ASN_TIME
+    /* Test CRL with invalid GeneralizedTime */
+    ExpectNotNull(bio = BIO_new_file("./certs/crl/bad_time_fmt.pem", "rb"));
+    ExpectNotNull(crl = PEM_read_bio_X509_CRL(bio, NULL, NULL, NULL));
+    BIO_free(bio);
+    bio = NULL;
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+    ExpectIntEQ(wolfSSL_X509_CRL_print(bio, crl), WOLFSSL_FAILURE);
+
+    BIO_free(bio);
+    bio = NULL;
+    wolfSSL_X509_CRL_free(crl);
+    crl = NULL;
+#endif /* !NO_ASN_TIME */
+#endif /* !NO_BIO */
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
     ExpectTrue((fp = XFOPEN("./certs/crl/crl.der", "rb")) != XBADFILE);
@@ -35747,6 +35762,23 @@ static int test_CryptoCb_Func(int thisDevId, wc_CryptoInfo* info, void* ctx)
                     wc_Sha3* sha = (wc_Sha3*)info->free.obj;
                     sha->devId = INVALID_DEVID;
                     wc_Sha3_512_Free(sha);
+                    ret = 0;
+                    break;
+                }
+    #endif
+                default:
+                    ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
+                    break;
+            }
+        }
+        else if (info->free.algo == WC_ALGO_TYPE_CIPHER) {
+            switch (info->free.type) {
+    #ifndef NO_AES
+                case WC_CIPHER_AES:
+                {
+                    Aes* aes = (Aes*)info->free.obj;
+                    aes->devId = INVALID_DEVID;
+                    wc_AesFree(aes);
                     ret = 0;
                     break;
                 }

@@ -1698,6 +1698,7 @@ void wolfSSL_RefWithMutexFree(wolfSSL_RefWithMutex* ref)
     if (wc_FreeMutex(&ref->mutex) != 0) {
         WOLFSSL_MSG("Failed to free mutex of reference counting!");
     }
+    ref->count = 0;
 }
 
 void wolfSSL_RefWithMutexInc(wolfSSL_RefWithMutex* ref, int* err)

@@ -37,7 +37,7 @@ int wc_InitDhKey(DhKey* key);
 
     \sa wc_InitDhKey
 */
-void wc_FreeDhKey(DhKey* key);
+int wc_FreeDhKey(DhKey* key);
 
 /*!
     \ingroup Diffie-Hellman
@@ -155,7 +155,7 @@ int wc_DhAgree(DhKey* key, byte* agree, word32* agreeSz,
     \sa wc_DhSetKey
 */
 int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key,
-                           word32);
+                           word32 inSz);
 
 /*!
     \ingroup Diffie-Hellman

@@ -122,5 +122,5 @@ int wc_Poly1305Final(Poly1305* poly1305, byte* tag);
     \sa wc_Poly1305Update
     \sa wcPoly1305Final
 */
-int wc_Poly1305_MAC(Poly1305* ctx, byte* additional, word32 addSz,
-                               byte* input, word32 sz, byte* tag, word32 tagSz);
+int wc_Poly1305_MAC(Poly1305* ctx, const byte* additional, word32 addSz,
+                    const byte* input, word32 sz, byte* tag, word32 tagSz);

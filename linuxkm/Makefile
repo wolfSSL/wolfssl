@@ -290,7 +290,7 @@ ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
 	# if the above make didn't build a fresh libwolfssl.ko, then the module is already up to date and we leave it untouched, assuring stability for purposes of module-update-fips-hash.
 	@if [[ ! "$@" -nt "$$RELOC_TMP" ]]; then echo '  Module already up-to-date.'; exit 0; fi
 	@SECTION_MAP=$$(mktemp)
-	@trap 'rm "$$SECTION_MAP"' EXIT
+	@trap 'rm "$$RELOC_TMP" "$$SECTION_MAP"' EXIT
 	@export SECTION_MAP
 	@$(READELF) --wide --sections --symbols "$@" | $(GENERATE_SECTION_MAP)
 	@$(READELF) --wide --relocs "$@" | $(GENERATE_RELOC_TAB) >| '$(MODULE_TOP)/linuxkm/wc_linuxkm_pie_reloc_tab.c'

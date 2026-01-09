@@ -887,7 +887,7 @@ int  wc_AesInit(Aes* aes, void* heap, int devId);
 
     \sa wc_AesInit
 */
-int  wc_AesFree(Aes* aes);
+void wc_AesFree(Aes* aes);
 
 /*!
     \ingroup AES
@@ -1049,17 +1049,17 @@ int wc_AesSivDecrypt(const byte* key, word32 keySz, const byte* assoc,
     \return BAD_FUNC_ARG 入力または出力バッファがNULLの場合に返されます。また、キーサイズが有効なAESキーサイズ（16、24、または32バイト）でない場合にも返されます
     \return other AESまたはCMAC操作が失敗した場合に返されるその他の負のエラー値。
 
-    \param key 使用するキーを含むバッファ
-    \param keySz キーバッファの長さ（バイト単位）
-    \param[out] out 暗号文を保持するバッファ。平文バッファと同じ長さである必要があります
-    \param in 暗号化する平文バッファ
-    \param inSz 平文バッファの長さ
-    \param nonce EAX操作に使用する暗号ナンス
-    \param nonceSz nonceバッファの長さ（バイト単位）
-    \param[out] authTag 認証タグを格納するバッファへのポインタ
-    \param authTagSz 希望する認証タグの長さ
-    \param authIn 認証する入力データを含むバッファへのポインタ
-    \param authInSz 入力認証データの長さ
+    \param [in] key 使用するキーを含むバッファ
+    \param [in] keySz キーバッファの長さ（バイト単位）
+    \param [out] out 暗号文を保持するバッファ。平文バッファと同じ長さである必要があります
+    \param [in] in 暗号化する平文バッファ
+    \param [in] inSz 平文バッファの長さ
+    \param [in] nonce EAX操作に使用する暗号ナンス
+    \param [in] nonceSz nonceバッファの長さ（バイト単位）
+    \param [out] authTag 認証タグを格納するバッファへのポインタ
+    \param [in] authTagSz 希望する認証タグの長さ
+    \param [in] authIn 認証する入力データを含むバッファへのポインタ
+    \param [in] authInSz 入力認証データの長さ
 
     _Example_
     \code
@@ -1101,17 +1101,17 @@ WOLFSSL_API int  wc_AesEaxEncryptAuth(const byte* key, word32 keySz, byte* out,
     \return AES_EAX_AUTH_E 認証タグが提供された認証コードベクトル \c authTag と一致しない場合
     \return other AESまたはCMAC操作が失敗した場合に返されるその他の負のエラー値。
 
-    \param key 使用するキーを含むバイトバッファ
-    \param keySz キーバッファの長さ（バイト単位）
-    \param[out] out 平文を保持するバッファ。入力暗号文バッファと同じ長さである必要があります
-    \param in 復号する暗号文バッファ
-    \param inSz 暗号文バッファの長さ
-    \param nonce EAX操作に使用する暗号ナンス
-    \param nonceSz nonceバッファの長さ（バイト単位）
-    \param authTag データの真正性をチェックするために照合する認証タグを保持するバッファ
-    \param authTagSz 入力認証タグの長さ
-    \param authIn 認証する入力データを含むバッファへのポインタ
-    \param authInSz 入力認証データの長さ
+    \param [in] key 使用するキーを含むバイトバッファ
+    \param [in] keySz キーバッファの長さ（バイト単位）
+    \param [out] out 平文を保持するバッファ。入力暗号文バッファと同じ長さである必要があります
+    \param [in] in 復号する暗号文バッファ
+    \param [in] inSz 暗号文バッファの長さ
+    \param [in] nonce EAX操作に使用する暗号ナンス
+    \param [in] nonceSz nonceバッファの長さ（バイト単位）
+    \param [in] authTag データの真正性をチェックするために照合する認証タグを保持するバッファ
+    \param [in] authTagSz 入力認証タグの長さ
+    \param [in] authIn 認証する入力データを含むバッファへのポインタ
+    \param [in] authInSz 入力認証データの長さ
 
     _Example_
     \code
@@ -1216,13 +1216,13 @@ WOLFSSL_API int  wc_AesEaxInit(AesEax* eax,
     \return 0 成功した場合
     \return error code 失敗した場合のエラーコード
 
-    \param eax AEAD操作のコンテキストを保持するAES EAX構造体
-    \param[out] out 暗号文を保持する出力バッファ
-    \param in 暗号化する平文を保持する入力バッファ
-    \param inSz 入力データバッファのサイズ（バイト単位）
-    \param authIn （オプション）認証ストリームに追加する入力データ
+    \param [in] eax AEAD操作のコンテキストを保持するAES EAX構造体
+    \param [out] out 暗号文を保持する出力バッファ
+    \param [in] in 暗号化する平文を保持する入力バッファ
+    \param [in] inSz 入力データバッファのサイズ（バイト単位）
+    \param [in] authIn （オプション）認証ストリームに追加する入力データ
     使用しない場合、この引数はNULLである必要があります
-    \param authInSz 入力認証データのサイズ（バイト単位）
+    \param [in] authInSz 入力認証データのサイズ（バイト単位）
 
     _Example_
     \code
@@ -1279,13 +1279,13 @@ WOLFSSL_API int  wc_AesEaxEncryptUpdate(AesEax* eax, byte* out,
     \return 0 成功した場合
     \return error code 失敗した場合のエラーコード
 
-    \param eax AEAD操作のコンテキストを保持するAES EAX構造体
-    \param[out] out 復号された平文を保持する出力バッファ
-    \param in 暗号文を保持する入力バッファ
-    \param inSz 入力データバッファのサイズ（バイト単位）
-    \param authIn （オプション）認証ストリームに追加する入力データ
+    \param [in] eax AEAD操作のコンテキストを保持するAES EAX構造体
+    \param [out] out 復号された平文を保持する出力バッファ
+    \param [in] in 暗号文を保持する入力バッファ
+    \param [in] inSz 入力データバッファのサイズ（バイト単位）
+    \param [in] authIn （オプション）認証ストリームに追加する入力データ
     使用しない場合、この引数はNULLである必要があります
-    \param authInSz 入力認証データのサイズ（バイト単位）
+    \param [in] authInSz 入力認証データのサイズ（バイト単位）
 
 
     _Example_
@@ -1551,12 +1551,12 @@ WOLFSSL_API int wc_AesEaxFree(AesEax* eax);
     \return BAD_FUNC_ARG 入力引数が無効な場合。
     \return other negative error codes 暗号化失敗のためのその他の負のエラーコード。
 
-    \param key 暗号化に使用されるAESキーへのポインタ。
-    \param keySz AESキーのサイズ（バイト単位）（16、24、または32バイト）。
-    \param[out] out 暗号化された暗号文を保持するバッファ。少なくとも入力と同じサイズである必要があります。
-    \param in 暗号化する平文入力データへのポインタ。
-    \param inSz 平文入力データのサイズ（バイト単位）。
-    \param iv 暗号化に使用される初期化ベクトル（IV）へのポインタ。16バイトである必要があります。
+    \param [in] key 暗号化に使用されるAESキーへのポインタ。
+    \param [in] keySz AESキーのサイズ（バイト単位）（16、24、または32バイト）。
+    \param [out] out 暗号化された暗号文を保持するバッファ。少なくとも入力と同じサイズである必要があります。
+    \param [in] in 暗号化する平文入力データへのポインタ。
+    \param [in] inSz 平文入力データのサイズ（バイト単位）。
+    \param [in] iv 暗号化に使用される初期化ベクトル（IV）へのポインタ。16バイトである必要があります。
 
     _Example_
     \code
@@ -1586,12 +1586,12 @@ int wc_AesCtsEncrypt(const byte* key, word32 keySz, byte* out,
     \return BAD_FUNC_ARG 入力引数が無効な場合。
     \return other negative error codes 暗号化失敗のためのその他の負のエラーコード。
 
-    \param key 暗号化に使用されるAESキーへのポインタ。
-    \param keySz AESキーのサイズ（バイト単位）（16、24、または32バイト）。
-    \param[out] out 暗号化された暗号文を保持するバッファ。少なくとも入力平文と同じサイズである必要があります。
-    \param in 暗号化する平文入力データへのポインタ。
-    \param inSz 平文入力データのサイズ（バイト単位）。
-    \param iv 暗号化に使用される初期化ベクトル（IV）へのポインタ。16バイトである必要があります。
+    \param [in] key 暗号化に使用されるAESキーへのポインタ。
+    \param [in] keySz AESキーのサイズ（バイト単位）（16、24、または32バイト）。
+    \param [out] out 暗号化された暗号文を保持するバッファ。少なくとも入力平文と同じサイズである必要があります。
+    \param [in] in 暗号化する平文入力データへのポインタ。
+    \param [in] inSz 平文入力データのサイズ（バイト単位）。
+    \param [in] iv 暗号化に使用される初期化ベクトル（IV）へのポインタ。16バイトである必要があります。
     _Example_
     \code
         byte key[16] = { 0 };
@@ -1616,12 +1616,12 @@ int wc_AesCtsEncrypt(const byte* key, word32 keySz, byte* out,
     \return 0 復号に成功した場合。
     \return BAD_FUNC_ARG 入力引数が無効な場合。
     \return other negative error codes 復号失敗のためのその他の負のエラーコード。
-    \param key 復号に使用されるAESキーへのポインタ。
-    \param keySz AESキーのサイズ（バイト単位）（16、24、または32バイト）。
-    \param[out] out 復号された平文を保持するバッファ。少なくとも入力暗号文と同じサイズである必要があります。
-    \param in 復号する暗号文入力データへのポインタ。
-    \param inSz 暗号文入力データのサイズ（バイト単位）。
-    \param iv 復号に使用される初期化ベクトル（IV）へのポインタ。16バイトである必要があります。
+    \param [in] key 復号に使用されるAESキーへのポインタ。
+    \param [in] keySz AESキーのサイズ（バイト単位）（16、24、または32バイト）。
+    \param [out] out 復号された平文を保持するバッファ。少なくとも入力暗号文と同じサイズである必要があります。
+    \param [in] in 復号する暗号文入力データへのポインタ。
+    \param [in] inSz 暗号文入力データのサイズ（バイト単位）。
+    \param [in] iv 復号に使用される初期化ベクトル（IV）へのポインタ。16バイトである必要があります。
     _Example_
     \code
         byte key[16] = { 0 };
@@ -1645,11 +1645,11 @@ int wc_AesCtsDecrypt(const byte* key, word32 keySz, byte* out,
     \brief この関数は、AES CTS暗号化の更新ステップを実行します。平文のチャンクを処理し、中間データを保存します。
     \return 0 処理に成功した場合。
     \return BAD_FUNC_ARG 入力引数が無効な場合。
-    \param aes 操作のコンテキストを保持するAes構造体へのポインタ。
-    \param[out] out 暗号化された暗号文を保持するバッファ。この更新ステップからの出力を保存するのに十分な大きさである必要があります。
-    \param[out] outSz \c out バッファに書き込まれた出力データのサイズ（バイト単位）。入力時には、\c out バッファに書き込むことができる最大バイト数を含める必要があります。
-    \param in 暗号化する平文入力データへのポインタ。
-    \param inSz 平文入力データのサイズ（バイト単位）。
+    \param [in] aes 操作のコンテキストを保持するAes構造体へのポインタ。
+    \param [out] out 暗号化された暗号文を保持するバッファ。この更新ステップからの出力を保存するのに十分な大きさである必要があります。
+    \param [out] outSz \c out バッファに書き込まれた出力データのサイズ（バイト単位）。入力時には、\c out バッファに書き込むことができる最大バイト数を含める必要があります。
+    \param [in] in 暗号化する平文入力データへのポインタ。
+    \param [in] inSz 平文入力データのサイズ（バイト単位）。
     _Example_
     \code
         Aes aes;
@@ -1676,9 +1676,9 @@ int wc_AesCtsEncryptUpdate(Aes* aes, byte* out, word32* outSz,
     \brief この関数は、AES CTS暗号化操作を完了します。残りの平文を処理し、暗号化を完了します。
     \return 0 暗号化の完了に成功した場合。
     \return BAD_FUNC_ARG 入力引数が無効な場合。
-    \param aes 操作のコンテキストを保持するAes構造体へのポインタ。
-    \param[out] out 最終的な暗号化された暗号文を保持するバッファ。この最終ステップから残りの暗号文を保存するのに十分な大きさである必要があります。
-    \param[out] outSz \c out バッファに書き込まれた出力データのサイズ（バイト単位）。入力時には、\c out バッファに書き込むことができる最大バイト数を含める必要があります。
+    \param [in] aes 操作のコンテキストを保持するAes構造体へのポインタ。
+    \param [out] out 最終的な暗号化された暗号文を保持するバッファ。この最終ステップから残りの暗号文を保存するのに十分な大きさである必要があります。
+    \param [out] outSz \c out バッファに書き込まれた出力データのサイズ（バイト単位）。入力時には、\c out バッファに書き込むことができる最大バイト数を含める必要があります。
     _Example_
     \code
         Aes aes;
@@ -1705,11 +1705,11 @@ int wc_AesCtsEncryptFinal(Aes* aes, byte* out, word32* outSz);
     \brief この関数は、AES CTS復号の更新ステップを実行します。暗号文のチャンクを処理し、中間データを保存します。
     \return 0 処理に成功した場合。
     \return BAD_FUNC_ARG 入力引数が無効な場合。
-    \param aes 操作のコンテキストを保持するAes構造体へのポインタ。
-    \param[out] out 復号された平文を保持するバッファ。この更新ステップからの出力を保存するのに十分な大きさである必要があります。
-    \param[out] outSz \c out バッファに書き込まれた出力データのサイズ（バイト単位）。入力時には、\c out バッファに書き込むことができる最大バイト数を含める必要があります。
-    \param in 復号する暗号文入力データへのポインタ。
-    \param inSz 暗号文入力データのサイズ（バイト単位）。
+    \param [in] aes 操作のコンテキストを保持するAes構造体へのポインタ。
+    \param [out] out 復号された平文を保持するバッファ。この更新ステップからの出力を保存するのに十分な大きさである必要があります。
+    \param [out] outSz \c out バッファに書き込まれた出力データのサイズ（バイト単位）。入力時には、\c out バッファに書き込むことができる最大バイト数を含める必要があります。
+    \param [in] in 復号する暗号文入力データへのポインタ。
+    \param [in] inSz 暗号文入力データのサイズ（バイト単位）。
     _Example_
     \code
         Aes aes;
@@ -1736,9 +1736,9 @@ int wc_AesCtsDecryptUpdate(Aes* aes, byte* out, word32* outSz,
     \brief この関数は、AES CTS復号操作を完了します。残りの暗号文を処理し、復号を完了します。
     \return 0 復号の完了に成功した場合。
     \return BAD_FUNC_ARG 入力引数が無効な場合。
-    \param aes 操作のコンテキストを保持するAes構造体へのポインタ。
-    \param[out] out 最終的な復号された平文を保持するバッファ。この最終ステップから残りの平文を保存するのに十分な大きさである必要があります。
-    \param[out] outSz \c out バッファに書き込まれた出力データのサイズ（バイト単位）。入力時には、\c out バッファに書き込むことができる最大バイト数を含める必要があります。
+    \param [in] aes 操作のコンテキストを保持するAes構造体へのポインタ。
+    \param [out] out 最終的な復号された平文を保持するバッファ。この最終ステップから残りの平文を保存するのに十分な大きさである必要があります。
+    \param [out] outSz \c out バッファに書き込まれた出力データのサイズ（バイト単位）。入力時には、\c out バッファに書き込むことができる最大バイト数を含める必要があります。
     _Example_
     \code
         Aes aes;

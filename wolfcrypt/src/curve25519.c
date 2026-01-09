@@ -75,8 +75,9 @@ const curve25519_set_type curve25519_sets[] = {
     }
 };
 
-#if !defined(WOLFSSL_CURVE25519_USE_ED25519) || \
-    defined(WOLFSSL_CURVE25519_BLINDING)
+#if (!defined(WOLFSSL_CURVE25519_USE_ED25519) && \
+     !(defined(CURVED25519_X64) || (defined(WOLFSSL_ARMASM) && \
+     defined(__aarch64__)))) || defined(WOLFSSL_CURVE25519_BLINDING)
 static const word32 kCurve25519BasePoint[CURVE25519_KEYSIZE/sizeof(word32)] = {
 #ifdef BIG_ENDIAN_ORDER
     0x09000000
@@ -202,6 +203,15 @@ int wc_curve25519_make_pub(int public_size, byte* pub, int private_size,
 #endif /* !WOLFSSL_CURVE25519_BLINDING */
 #endif /* FREESCALE_LTC_ECC */
 
+/* If WOLFSSL_CURVE25519_BLINDING is defined, this check is run in
+ * wc_curve25519_make_pub_blind since it could be called directly. */
+#if !defined(WOLFSSL_CURVE25519_BLINDING) || defined(FREESCALE_LTC_ECC)
+    if (ret == 0) {
+        ret = wc_curve25519_check_public(pub, (word32)public_size,
+                                    EC25519_LITTLE_ENDIAN);
+    }
+#endif
+
     return ret;
 }
 
@@ -296,6 +306,11 @@ int wc_curve25519_make_pub_blind(int public_size, byte* pub, int private_size,
 
     ret = curve25519_smul_blind(pub, priv, (byte*)kCurve25519BasePoint, rng);
 #endif
+
+    if (ret == 0) {
+        ret = wc_curve25519_check_public(pub, (word32)public_size,
+                                    EC25519_LITTLE_ENDIAN);
+    }
 
     return ret;
 }
@@ -463,11 +478,6 @@ int wc_curve25519_make_key(WC_RNG* rng, int keysize, curve25519_key* key)
         ret = wc_curve25519_make_pub((int)sizeof(key->p.point), key->p.point,
                                      (int)sizeof(key->k), key->k);
 #endif
-        if (ret == 0) {
-            ret = wc_curve25519_check_public(key->p.point,
-                                       (word32)sizeof(key->p.point),
-                                      EC25519_LITTLE_ENDIAN);
-        }
         key->pubSet = (ret == 0);
     }
 #endif

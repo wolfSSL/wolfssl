@@ -1742,6 +1742,7 @@ int wolfSSL_CTX_der_load_verify_locations(WOLFSSL_CTX* ctx,
     \param method pointer to the desired WOLFSSL_METHOD to use for the SSL
     context. This is created using one of the wolfSSLvXX_XXXX_method()
     functions to specify SSL/TLS/DTLS protocol level.
+    This function frees the passed in WOLFSSL_METHOD struct on failure.
 
     _Example_
     \code
@@ -14418,8 +14419,7 @@ int  wolfSSL_set_max_early_data(WOLFSSL* ssl, unsigned int sz);
     \ingroup IO
 
     \brief This function writes early data to the server on resumption.
-    Call this function instead of wolfSSL_connect() or wolfSSL_connect_TLSv13()
-    to connect to the server and send the data in the handshake.
+    Call this function before wolfSSL_connect() or wolfSSL_connect_TLSv13().
     This function is only used with clients.
 
     \param [in,out] ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
@@ -14430,8 +14430,10 @@ int  wolfSSL_set_max_early_data(WOLFSSL* ssl, unsigned int sz);
     \return BAD_FUNC_ARG if a pointer parameter is NULL, sz is less than 0 or
     not using TLSv1.3.
     \return SIDE_ERROR if called with a server.
+    \return BAD_STATE_E if invoked without a valid session or without a valid
+    PSK cb
     \return WOLFSSL_FATAL_ERROR if the connection is not made.
-    \return WOLFSSL_SUCCESS if successful.
+    \return the amount of early data written in bytes if successful.
 
     _Example_
     \code
@@ -14444,7 +14446,7 @@ int  wolfSSL_set_max_early_data(WOLFSSL* ssl, unsigned int sz);
     ...
 
     ret = wolfSSL_write_early_data(ssl, earlyData, sizeof(earlyData), &outSz);
-    if (ret != WOLFSSL_SUCCESS) {
+    if (ret < 0) {
         err = wolfSSL_get_error(ssl, ret);
         printf(“error = %d, %s\n”, err, wolfSSL_ERR_error_string(err, buffer));
         goto err_label;
@@ -15936,3 +15938,51 @@ WOLFSSL_CIPHERSUITE_INFO wolfSSL_get_ciphersuite_info(byte first,
 */
 int wolfSSL_get_sigalg_info(byte first, byte second,
         int* hashAlgo, int* sigAlgo);
+
+/*!
+    \brief This function will set the password callback in the provided CTX.
+    This callback is used when loading an encrypted cert or key which requires
+    a password.
+
+    \param ctx a pointer to a WOLFSSL_CTX structure, created with
+    wolfSSL_CTX_new().
+    \param cb a function pointer to (*wc_pem_password_cb) that is set to the
+    passwd_cb member of the WOLFSSL_CTX.
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new( protocol method );
+    int PasswordCallBack(char* passwd, int sz, int rw, void* userdata) {
+
+    }
+    …
+    wolfSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
+    \endcode
+
+    \sa wolfSSL_CTX_set_default_passwd_cb_userdata
+*/
+void wolfSSL_CTX_set_default_passwd_cb(WOLFSSL_CTX* ctx,
+                                        wc_pem_password_cb* cb);
+
+/*!
+    \brief This function will set the userdata argument to the passwd_userdata
+    member of the WOLFSSL_CTX structure.
+    This member is passed into the CTX's password callback when called.
+
+    \param ctx a pointer to a WOLFSSL_CTX structure, created with
+    wolfSSL_CTX_new().
+    \param userdata a pointer to userdata which is passed into the
+    password callback.
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new( protocol method );
+    int data;
+    …
+    wolfSSL_CTX_set_default_passwd_cb_userdata(ctx, (void*)&data);
+    \endcode
+
+    \sa wolfSSL_CTX_set_default_passwd_cb
+*/
+void wolfSSL_CTX_set_default_passwd_cb_userdata(WOLFSSL_CTX* ctx,
+                                                   void* userdata);

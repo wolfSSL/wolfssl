@@ -1526,15 +1526,10 @@ enum Misc {
     MAXEARLYDATASZ_LEN = 4,     /* maxEarlyDataSz size in ticket */
 #endif
 #endif
-#if defined(HAVE_FALCON) || defined(HAVE_DILITHIUM)
-    ENCRYPT_LEN     = 5120,     /* Allow 5k byte buffer for dilithium and
-                                 * hybridization with other algs. */
-#else
 #ifndef NO_PSK
     ENCRYPT_LEN     = (ENCRYPT_BASE_BITS / 8) + MAX_PSK_KEY_LEN + 2,
 #else
     ENCRYPT_LEN     = (ENCRYPT_BASE_BITS / 8),
-#endif
 #endif
     SIZEOF_SENDER   =  4,       /* clnt or srvr           */
     FINISHED_SZ     = 36,       /* WC_MD5_DIGEST_SIZE + WC_SHA_DIGEST_SIZE */
@@ -2189,9 +2184,9 @@ WOLFSSL_LOCAL WARN_UNUSED_RESULT DerBuffer *wolfssl_priv_der_unblind(
     const DerBuffer* key, const DerBuffer* mask);
 WOLFSSL_LOCAL void wolfssl_priv_der_unblind_free(DerBuffer* key);
 #endif
-WOLFSSL_LOCAL int  DecodePrivateKey(WOLFSSL *ssl, word32* length);
+WOLFSSL_LOCAL int  DecodePrivateKey(WOLFSSL *ssl, word32* sigLen);
 #ifdef WOLFSSL_DUAL_ALG_CERTS
-WOLFSSL_LOCAL int  DecodeAltPrivateKey(WOLFSSL *ssl, word32* length);
+WOLFSSL_LOCAL int  DecodeAltPrivateKey(WOLFSSL *ssl, word32* sigLen);
 #endif
 #if defined(WOLF_PRIVATE_KEY_ID) || defined(HAVE_PK_CALLBACKS)
 WOLFSSL_LOCAL int GetPrivateKeySigSize(WOLFSSL* ssl);
@@ -6150,6 +6145,7 @@ struct WOLFSSL {
         void*                 session_ticket_ctx;
         byte                  expect_session_ticket;
     #endif
+        word16 hrr_keyshare_group;
 #endif /* HAVE_TLS_EXTENSIONS */
 #ifdef HAVE_OCSP
         void*       ocspIOCtx;
@@ -6595,7 +6591,10 @@ WOLFSSL_LOCAL int VerifyClientSuite(word16 havePSK, byte cipherSuite0,
                                     byte cipherSuite);
 
 WOLFSSL_LOCAL int SetTicket(WOLFSSL* ssl, const byte* ticket, word32 length);
-WOLFSSL_LOCAL int wolfSSL_GetMaxFragSize(WOLFSSL* ssl, int maxFragment);
+WOLFSSL_LOCAL int wolfssl_local_GetRecordSize(WOLFSSL *ssl, int payloadSz,
+        int isEncrypted);
+WOLFSSL_LOCAL int wolfssl_local_GetMaxPlaintextSize(WOLFSSL *ssl);
+WOLFSSL_LOCAL int wolfSSL_GetMaxFragSize(WOLFSSL* ssl);
 
 #if defined(WOLFSSL_IOTSAFE) && defined(HAVE_PK_CALLBACKS)
 WOLFSSL_LOCAL IOTSAFE *wolfSSL_get_iotsafe_ctx(WOLFSSL *ssl);
@@ -7238,6 +7237,8 @@ WOLFSSL_LOCAL int pkcs8_encrypt(WOLFSSL_EVP_PKEY* pkey,
         const WOLFSSL_EVP_CIPHER* enc, char* passwd, int passwdSz, byte* key,
         word32* keySz);
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+
+WOLFSSL_LOCAL void wolfssl_local_MaybeCheckAlertOnErr(WOLFSSL* ssl, int err);
 
 #ifdef __cplusplus
     }  /* extern "C" */

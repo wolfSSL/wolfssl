@@ -937,7 +937,9 @@
         typeof(kfree) *kfree;
         typeof(ksize) *ksize;
 
+#ifndef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
         typeof(get_random_bytes) *get_random_bytes;
+#endif
         #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
             typeof(getnstimeofday) *getnstimeofday;
         #elif LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)
@@ -1072,9 +1074,7 @@
 
         #endif /* !WOLFCRYPT_ONLY && !NO_CERTS */
 
-        #ifdef WOLFSSL_DEBUG_BACKTRACE_ERROR_CODES
         typeof(dump_stack) *dump_stack;
-        #endif
 
         #ifdef CONFIG_ARM64
         #ifndef CONFIG_ARCH_TEGRA
@@ -1269,7 +1269,9 @@
     #endif
     #define ksize WC_PIE_INDIRECT_SYM(ksize)
 
+#ifndef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
     #define get_random_bytes WC_PIE_INDIRECT_SYM(get_random_bytes)
+#endif
     #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
         #define getnstimeofday WC_PIE_INDIRECT_SYM(getnstimeofday)
     #elif LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)
@@ -1345,9 +1347,7 @@
 
     #endif /* !WOLFCRYPT_ONLY && !NO_CERTS */
 
-    #ifdef WOLFSSL_DEBUG_BACKTRACE_ERROR_CODES
         #define dump_stack WC_PIE_INDIRECT_SYM(dump_stack)
-    #endif
 
     #undef preempt_count /* just in case -- not a macro on x86. */
     #define preempt_count WC_PIE_INDIRECT_SYM(preempt_count)
@@ -1727,6 +1727,15 @@
 
 #else
         #error unexpected BITS_PER_LONG value.
+#endif
+
+/* WC_DUMP_BACKTRACE_NONDEBUG is intended to dump a backtrace only if it hasn't
+ * already been dumped by the called function.
+ */
+#if defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES) && defined(WOLFSSL_DEBUG_BACKTRACE_ERROR_CODES)
+    #define WC_DUMP_BACKTRACE_NONDEBUG WC_DO_NOTHING
+#else
+    #define WC_DUMP_BACKTRACE_NONDEBUG dump_stack()
 #endif
 
 #endif /* LINUXKM_WC_PORT_H */

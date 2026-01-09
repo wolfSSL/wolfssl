@@ -200,23 +200,23 @@
 /* Number of dropped bits. */
 #define DILITHIUM_D                     13
 /* Maximum value of dropped bits. */
-#define DILITHIUM_D_MAX                 (1 << DILITHIUM_D)
+#define DILITHIUM_D_MAX                 ((sword32)1 << DILITHIUM_D)
 /* Half maximum value. */
-#define DILITHIUM_D_MAX_HALF            (1 << (DILITHIUM_D - 1))
+#define DILITHIUM_D_MAX_HALF            ((sword32)1 << (DILITHIUM_D - 1))
 /* Number of undropped bits. */
 #define DILITHIUM_U                     (DILITHIUM_Q_BITS - DILITHIUM_D)
 
 /* Bits in coefficient range of y, GAMMA1, of 2^17 is 17. */
 #define DILITHIUM_GAMMA1_BITS_17        17
 /* Coefficient range of y, GAMMA1, of 2^17. */
-#define DILITHIUM_GAMMA1_17             (1 << 17)
+#define DILITHIUM_GAMMA1_17             ((sword32)1 << 17)
 /* # encoding bits of y is GAMMA1 + 1. */
 #define DILITHIUM_GAMMA1_17_ENC_BITS    18
 /* Coefficient range of y, GAMMA1, of 2^17. */
 /* Bits in coefficient range of y, GAMMA1, of 2^19 is 19. */
 #define DILITHIUM_GAMMA1_BITS_19        19
 /* Coefficient range of y, GAMMA1, of 2^19. */
-#define DILITHIUM_GAMMA1_19             (1 << 19)
+#define DILITHIUM_GAMMA1_19             ((sword32)1 << 19)
 /* # encoding bits of y is GAMMA1 + 1. */
 #define DILITHIUM_GAMMA1_19_ENC_BITS    20
 
@@ -265,13 +265,14 @@
 #define PARAMS_ML_DSA_44_TAU            39
 /* BETA = TAU * ETA for ML-DSA-44. */
 #define PARAMS_ML_DSA_44_BETA           \
-    (PARAMS_ML_DSA_44_TAU * PARAMS_ML_DSA_44_ETA)
+(PARAMS_ML_DSA_44_TAU * PARAMS_ML_DSA_44_ETA)
 /* Max # 1's in the hint h, OMEGA, for ML-DSA-44. */
 #define PARAMS_ML_DSA_44_OMEGA          80
 /* Bits in coefficient range of y, GAMMA1, for ML-DSA-44. */
 #define PARAMS_ML_DSA_44_GAMMA1_BITS    DILITHIUM_GAMMA1_BITS_17
 /* Ccoefficient range of y, GAMMA1, for ML-DSA-44. */
-#define PARAMS_ML_DSA_44_GAMMA1         (1 << PARAMS_ML_DSA_44_GAMMA1_BITS)
+#define PARAMS_ML_DSA_44_GAMMA1         \
+    ((sword32)1 << PARAMS_ML_DSA_44_GAMMA1_BITS)
 /* Low-order rounding range, GAMMA2, for ML-DSA-44. */
 #define PARAMS_ML_DSA_44_GAMMA2         DILITHIUM_Q_LOW_88
 /* Bits in high-order rounding range, GAMMA2, for ML-DSA-44. */
@@ -331,8 +332,9 @@
 #define PARAMS_ML_DSA_65_OMEGA          55
 /* Bits in coefficient range of y, GAMMA1, for ML-DSA-65. */
 #define PARAMS_ML_DSA_65_GAMMA1_BITS    DILITHIUM_GAMMA1_BITS_19
-/* Ccoefficient range of y, GAMMA1, for ML-DSA-65. */
-#define PARAMS_ML_DSA_65_GAMMA1         (1 << PARAMS_ML_DSA_65_GAMMA1_BITS)
+/* Coefficient range of y, GAMMA1, for ML-DSA-65. */
+#define PARAMS_ML_DSA_65_GAMMA1         \
+    ((sword32)1 << PARAMS_ML_DSA_65_GAMMA1_BITS)
 /* Low-order rounding range, GAMMA2, for ML-DSA-65. */
 #define PARAMS_ML_DSA_65_GAMMA2         DILITHIUM_Q_LOW_32
 /* Bits in high-order rounding range, GAMMA2, for ML-DSA-65. */
@@ -393,7 +395,8 @@
 /* Bits in coefficient range of y, GAMMA1, for ML-DSA-87. */
 #define PARAMS_ML_DSA_87_GAMMA1_BITS    DILITHIUM_GAMMA1_BITS_19
 /* Ccoefficient range of y, GAMMA1, for ML-DSA-87. */
-#define PARAMS_ML_DSA_87_GAMMA1         (1 << PARAMS_ML_DSA_87_GAMMA1_BITS)
+#define PARAMS_ML_DSA_87_GAMMA1         \
+    ((sword32)1 << PARAMS_ML_DSA_87_GAMMA1_BITS)
 /* Low-order rounding range, GAMMA2, for ML-DSA-87. */
 #define PARAMS_ML_DSA_87_GAMMA2         DILITHIUM_Q_LOW_32
 /* Bits in high-order rounding range, GAMMA2, for ML-DSA-87. */

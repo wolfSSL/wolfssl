@@ -101,7 +101,7 @@ int EmbedSend(WOLFSSL* ssl, char* buf, int sz, void* ctx);
     \sa wolfSSL_SSLSetIORecv
     \sa wolfSSL_dtls_get_current_timeout
 */
-int EmbedReceiveFrom(WOLFSSL* ssl, char* buf, int sz, void*);
+int EmbedReceiveFrom(WOLFSSL* ssl, char* buf, int sz, void* ctx);
 
 /*!
     \brief この関数は送信埋め込みコールバックです。
@@ -166,8 +166,8 @@ int EmbedSendTo(WOLFSSL* ssl, char* buf, int sz, void* ctx);
 
     \sa wolfSSL_CTX_SetGenCookie
 */
-int EmbedGenerateCookie(WOLFSSL* ssl, unsigned char* buf,
-                                           int sz, void*);
+int EmbedGenerateCookie(WOLFSSL* ssl, byte* buf,
+                                    int sz, void* ctx);
 
 /*!
     \brief この関数は応答バッファを解放します。

@@ -8,8 +8,8 @@
     \return MEMORY_E 関数実行中にメモリの割り当てエラーが発生した場合に返されます。
 
     \param [in] key キーを生成するed448_keyへのポインタ。
-    \param [out] out 公開鍵を格納するバッファへのポインタ。
-    \param [in,out] outLen outで利用可能なサイズを持つword32オブジェクトへのポインタ。公開鍵のエクスポートに成功した後、outに書き込まれたバイト数が設定されます。
+    \param [out] pubKey 公開鍵を格納するバッファへのポインタ。
+    \param [in] pubKeySz pubKeyバッファのサイズ(バイト単位)。
 
     _Example_
     \code
@@ -79,10 +79,12 @@ int wc_ed448_make_key(WC_RNG* rng, int keysize, ed448_key* key);
     \return MEMORY_E 関数実行中にメモリの割り当てエラーが発生した場合に返されます。
 
     \param [in] in 署名するメッセージを含むバッファへのポインタ。
-    \param [in] inlen 署名するメッセージの長さ。
+    \param [in] inLen 署名するメッセージの長さ。
     \param [out] out 生成された署名を格納するバッファ。
-    \param [in,out] outlen 出力バッファの最大長。メッセージ署名の生成に成功した後、outに書き込まれたバイト数が格納されます。
+    \param [in,out] outLen 出力バッファの最大長。メッセージ署名の生成に成功した後、outに書き込まれたバイト数が格納されます。
     \param [in] key 署名を生成するために使用する秘密ed448_keyへのポインタ。
+    \param [in] context メッセージが署名されるコンテキストを含むバッファへのポインタ。
+    \param [in] contextLen コンテキストバッファの長さ。
 
     _Example_
     \code
@@ -108,8 +110,9 @@ int wc_ed448_make_key(WC_RNG* rng, int keysize, ed448_key* key);
     \sa wc_ed448_verify_msg
 */
 
-int wc_ed448_sign_msg(const byte* in, word32 inlen, byte* out,
-                        word32 *outlen, ed448_key* key);
+int wc_ed448_sign_msg(const byte* in, word32 inLen, byte* out,
+                        word32 *outLen, ed448_key* key,
+                        const byte* context, byte contextLen);
 
 /*!
     \ingroup ED448
@@ -123,7 +126,7 @@ int wc_ed448_sign_msg(const byte* in, word32 inlen, byte* out,
     \param [in] hash 署名するメッセージのハッシュを含むバッファへのポインタ。
     \param [in] hashLen 署名するメッセージのハッシュの長さ。
     \param [out] out 生成された署名を格納するバッファ。
-    \param [in,out] outlen 出力バッファの最大長。メッセージ署名の生成に成功した後、outに書き込まれたバイト数が格納されます。
+    \param [in,out] outLen 出力バッファの最大長。メッセージ署名の生成に成功した後、outに書き込まれたバイト数が格納されます。
     \param [in] key 署名を生成するために使用する秘密ed448_keyへのポインタ。
     \param [in] context メッセージが署名されているコンテキストを含むバッファへのポインタ。
     \param [in] contextLen コンテキストバッファの長さ。
@@ -168,9 +171,9 @@ int wc_ed448ph_sign_hash(const byte* hash, word32 hashLen, byte* out,
     \return MEMORY_E 関数実行中にメモリの割り当てエラーが発生した場合に返されます。
 
     \param [in] in 署名するメッセージを含むバッファへのポインタ。
-    \param [in] inlen 署名するメッセージの長さ。
+    \param [in] inLen 署名するメッセージの長さ。
     \param [out] out 生成された署名を格納するバッファ。
-    \param [in,out] outlen 出力バッファの最大長。メッセージ署名の生成に成功した後、outに書き込まれたバイト数が格納されます。
+    \param [in,out] outLen 出力バッファの最大長。メッセージ署名の生成に成功した後、outに書き込まれたバイト数が格納されます。
     \param [in] key 署名を生成するために使用する秘密ed448_keyへのポインタ。
     \param [in] context メッセージが署名されているコンテキストを含むバッファへのポインタ。
     \param [in] contextLen コンテキストバッファの長さ。
@@ -218,6 +221,7 @@ int wc_ed448ph_sign_msg(const byte* in, word32 inlen, byte* out,
     \param [in] siglen 検証する署名の長さ。
     \param [in] msg 検証するメッセージを含むバッファへのポインタ。
     \param [in] msgLen 検証するメッセージの長さ。
+    \param [out] res 検証完了後、有効な署名の場合は1、無効な署名の場合は0が設定されるint型へのポインタ。
     \param [in] key 署名を検証するために使用する公開Ed448鍵へのポインタ。
     \param [in] context メッセージが署名されたコンテキストを含むバッファへのポインタ。
     \param [in] contextLen コンテキストバッファの長さ。
@@ -261,7 +265,8 @@ int wc_ed448_verify_msg(const byte* sig, word32 siglen, const byte* msg,
     \param [in] sig 検証する署名を含むバッファへのポインタ。
     \param [in] siglen 検証する署名の長さ。
     \param [in] hash 検証するメッセージのハッシュを含むバッファへのポインタ。
-    \param [in] hashLen 検証するハッシュの長さ。
+    \param [in] hashlen 検証するハッシュの長さ。
+    \param [out] res 検証完了後、有効な署名の場合は1、無効な署名の場合は0が設定されるint型へのポインタ。
     \param [in] key 署名を検証するために使用する公開Ed448鍵へのポインタ。
     \param [in] context メッセージが署名されたコンテキストを含むバッファへのポインタ。
     \param [in] contextLen コンテキストバッファの長さ。
@@ -306,6 +311,7 @@ int wc_ed448ph_verify_hash(const byte* sig, word32 siglen, const byte* hash,
     \param [in] siglen 検証する署名の長さ。
     \param [in] msg 検証するメッセージを含むバッファへのポインタ。
     \param [in] msgLen 検証するメッセージの長さ。
+    \param [out] res 検証完了後、有効な署名の場合は1、無効な署名の場合は0が設定されるint型へのポインタ。
     \param [in] key 署名を検証するために使用する公開Ed448鍵へのポインタ。
     \param [in] context メッセージが署名されたコンテキストを含むバッファへのポインタ。
     \param [in] contextLen コンテキストバッファの長さ。
@@ -594,7 +600,7 @@ int wc_ed448_import_private_key_ex(const byte* priv, word32 privSz,
     \sa wc_ed448_export_private_only
 */
 
-int wc_ed448_export_public(ed448_key* key, byte* out, word32* outLen);
+int wc_ed448_export_public(const ed448_key* key, byte* out, word32* outLen);
 
 /*!
     \ingroup ED448
@@ -628,7 +634,8 @@ int wc_ed448_export_public(ed448_key* key, byte* out, word32* outLen);
     \sa wc_ed448_import_private_key_ex
 */
 
-int wc_ed448_export_private_only(ed448_key* key, byte* out, word32* outLen);
+int wc_ed448_export_private_only(const ed448_key* key, byte* out,
+                                 word32* outLen);
 
 /*!
     \ingroup ED448
@@ -665,7 +672,7 @@ int wc_ed448_export_private_only(ed448_key* key, byte* out, word32* outLen);
     \sa wc_ed448_export_private_only
 */
 
-int wc_ed448_export_private(ed448_key* key, byte* out, word32* outLen);
+int wc_ed448_export_private(const ed448_key* key, byte* out, word32* outLen);
 
 /*!
     \ingroup ED448
@@ -703,7 +710,7 @@ int wc_ed448_export_private(ed448_key* key, byte* out, word32* outLen);
     \sa wc_ed448_export_public
 */
 
-int wc_ed448_export_key(ed448_key* key,
+int wc_ed448_export_key(const ed448_key* key,
                           byte* priv, word32 *privSz,
                           byte* pub, word32 *pubSz);
 
@@ -764,7 +771,7 @@ int wc_ed448_check_key(ed448_key* key);
     \sa wc_ed448_make_key
 */
 
-int wc_ed448_size(ed448_key* key);
+int wc_ed448_size(const ed448_key* key);
 
 /*!
     \ingroup ED448
@@ -791,7 +798,7 @@ int wc_ed448_size(ed448_key* key);
     \sa wc_ed448_pub_size
 */
 
-int wc_ed448_priv_size(ed448_key* key);
+int wc_ed448_priv_size(const ed448_key* key);
 
 /*!
     \ingroup ED448
@@ -817,7 +824,7 @@ int wc_ed448_priv_size(ed448_key* key);
     \sa wc_ed448_priv_size
 */
 
-int wc_ed448_pub_size(ed448_key* key);
+int wc_ed448_pub_size(const ed448_key* key);
 
 /*!
     \ingroup ED448
@@ -844,4 +851,4 @@ int wc_ed448_pub_size(ed448_key* key);
     \sa wc_ed448_sign_msg
 */
 
-int wc_ed448_sig_size(ed448_key* key);
+int wc_ed448_sig_size(const ed448_key* key);

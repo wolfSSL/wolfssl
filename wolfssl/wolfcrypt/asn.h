@@ -1952,24 +1952,24 @@ struct Signer {
     int     nameLen;
     char*   name;                    /* common name */
 #ifndef IGNORE_NAME_CONSTRAINTS
-        Base_entry* permittedNames;
-        Base_entry* excludedNames;
-#endif /* !IGNORE_NAME_CONSTRAINTS */
+    Base_entry* permittedNames;
+    Base_entry* excludedNames;
+#endif
     byte    subjectNameHash[SIGNER_DIGEST_SIZE];
                                      /* sha hash of names in certificate */
-    #if defined(HAVE_OCSP) || defined(HAVE_CRL) || defined(WOLFSSL_AKID_NAME)
-        byte    issuerNameHash[SIGNER_DIGEST_SIZE];
-                                     /* sha hash of issuer names in certificate.
-                                      * Used in OCSP to check for authorized
-                                      * responders. */
-    #endif
-    #ifndef NO_SKID
-        byte    subjectKeyIdHash[SIGNER_DIGEST_SIZE];
-                                     /* sha hash of key in certificate */
-    #endif
-    #ifdef HAVE_OCSP
-        byte subjectKeyHash[KEYID_SIZE];
-    #endif
+#if defined(HAVE_OCSP) || defined(HAVE_CRL) || defined(WOLFSSL_AKID_NAME)
+    byte    issuerNameHash[SIGNER_DIGEST_SIZE];
+                                    /* sha hash of issuer names in certificate.
+                                    * Used in OCSP to check for authorized
+                                    * responders. */
+#endif
+#ifndef NO_SKID
+    byte    subjectKeyIdHash[SIGNER_DIGEST_SIZE];
+                                    /* sha hash of key in certificate */
+#endif
+#ifdef HAVE_OCSP
+    byte subjectKeyHash[KEYID_SIZE];
+#endif
 #if defined(WOLFSSL_AKID_NAME) || defined(HAVE_CRL)
     byte serialHash[SIGNER_DIGEST_SIZE]; /* serial number hash */
 #endif
@@ -2244,7 +2244,8 @@ WOLFSSL_LOCAL int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID,
 
 typedef struct tm wolfssl_tm;
 #ifdef WOLFSSL_ASN_TIME_STRING
-WOLFSSL_LOCAL int GetTimeString(byte* date, int format, char* buf, int len);
+WOLFSSL_LOCAL int GetTimeString(byte* date, int format, char* buf, int len,
+                                int dateLen);
 #endif
 #if !defined(NO_ASN_TIME) && !defined(USER_TIME) && \
     !defined(TIME_OVERRIDES) && (defined(OPENSSL_EXTRA) || defined(HAVE_PKCS7))
@@ -2252,12 +2253,13 @@ WOLFSSL_LOCAL int GetFormattedTime(void* currTime, byte* buf, word32 len);
 WOLFSSL_LOCAL int GetAsnTimeString(void* currTime, byte* buf, word32 len);
 #endif
 WOLFSSL_LOCAL int ExtractDate(const unsigned char* date, unsigned char format,
-                                                 wolfssl_tm* certTime, int* idx);
+                                wolfssl_tm* certTime, int* idx, int len);
 WOLFSSL_LOCAL int DateGreaterThan(const struct tm* a, const struct tm* b);
-WOLFSSL_LOCAL int wc_ValidateDate(const byte* date, byte format, int dateType);
+WOLFSSL_LOCAL int wc_ValidateDate(const byte* date, byte format, int dateType,
+                                  int len);
 #ifndef NO_ASN_TIME
 WOLFSSL_LOCAL int wc_ValidateDateWithTime(const byte* date, byte format,
-    int dateType, time_t checkTime);
+    int dateType, time_t checkTime, int len);
 #endif
 WOLFSSL_TEST_VIS int wc_AsnSetSkipDateCheck(int skip_p);
 WOLFSSL_LOCAL int wc_AsnGetSkipDateCheck(void);
@@ -2786,6 +2788,12 @@ WOLFSSL_LOCAL int  VerifyX509Acert(const byte* cert, word32 certSz,
                                    int pubKeyOID, void * heap);
 #endif /* WOLFSSL_ACERT */
 
+
+#ifndef IGNORE_NAME_CONSTRAINTS
+WOLFSSL_TEST_VIS int  wolfssl_local_MatchBaseName(int type, const char* name,
+                                                  int nameSz, const char* base,
+                                                  int baseSz);
+#endif
 
 #if ((defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)) \
     || (defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_IMPORT)) \

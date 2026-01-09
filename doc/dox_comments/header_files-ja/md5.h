@@ -31,7 +31,7 @@
     \sa wc_Md5Update
     \sa wc_Md5Final
 */
-int wc_InitMd5(wc_Md5*);
+int wc_InitMd5(wc_Md5* md5);
 
 /*!
     \ingroup MD5
@@ -139,7 +139,7 @@ int wc_Md5Final(wc_Md5* md5, byte* hash);
     \sa wc_Md5Update
     \sa wc_Md5Final
 */
-void wc_Md5Free(wc_Md5*);
+void wc_Md5Free(wc_Md5* md5);
 
 /*!
     \ingroup MD5

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<projectDescription>
+	<name>wolfbenchmark_test</name>
+	<comment></comment>
+	<projects>
+	</projects>
+	<buildSpec>
+		<buildCommand>
+			<name>org.eclipse.cdt.managedbuilder.core.genmakebuilder</name>
+			<triggers>clean,full,incremental,</triggers>
+			<arguments>
+			</arguments>
+		</buildCommand>
+		<buildCommand>
+			<name>org.eclipse.cdt.managedbuilder.core.ScannerConfigBuilder</name>
+			<triggers>full,incremental,</triggers>
+			<arguments>
+			</arguments>
+		</buildCommand>
+	</buildSpec>
+	<natures>
+		<nature>org.eclipse.cdt.core.cnature</nature>
+		<nature>com.renesas.cdt.synergy.contentgen.synergyExecutableNature</nature>
+		<nature>org.eclipse.cdt.managedbuilder.core.managedBuildNature</nature>
+		<nature>org.eclipse.cdt.managedbuilder.core.ScannerConfigNature</nature>
+	</natures>
+	<linkedResources>
+		<link>
+			<name>src/app_entry.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/DK-S7G2/benchmark-template/src/app_entry.c</locationURI>
+		</link>
+		<link>
+			<name>src/benchmark.c</name>
+			<type>1</type>
+			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/benchmark/benchmark.c</locationURI>
+		</link>
+	</linkedResources>
+</projectDescription>

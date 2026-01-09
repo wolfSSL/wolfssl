@@ -43,7 +43,7 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type);
     // 必要に応じてデータを処理
     ...
     if(tenInts) {
-    	wolfSSL_Free(tenInts);
+    	wolfSSL_Free(tenInts, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
     \endcode
 
@@ -123,9 +123,8 @@ void* wolfSSL_Realloc(void *ptr, size_t size, void* heap, int type);
 
     \sa none
 */
-int wolfSSL_SetAllocators(wolfSSL_Malloc_cb,
-                                      wolfSSL_Free_cb,
-                                      wolfSSL_Realloc_cb);
+int wolfSSL_SetAllocators(wolfSSL_Malloc_cb mf, wolfSSL_Free_cb ff,
+                                      wolfSSL_Realloc_cb rf);
 
 /*!
     \ingroup Memory
@@ -325,10 +324,9 @@ int wolfSSL_is_static_memory(WOLFSSL* ssl, WOLFSSL_MEM_CONN_STATS* mem_stats);
     WOLFMEM_IO_FIXED - WOLFMEM_IO_POOLと同じですが、各SSLは存続期間中に2つのバッファを保持します。
     WOLFMEM_TRACK_STATS - 各SSLは実行中にメモリ統計を追跡します。
 
-    \return 成功した場合、0が返されます。
-    \return すべての失敗した戻り値は0未満になります。
+    \return none この関数は値を返しません。
 
-    \param hint 使用するWOLFSSL_HEAP_HINT構造体。
+    \param phint 使用するWOLFSSL_HEAP_HINT構造体。
     \param buf すべての操作に使用するメモリ。
     \param sz 渡されるメモリバッファのサイズ。
     \param flag メモリのタイプ。
@@ -358,24 +356,24 @@ int wolfSSL_is_static_memory(WOLFSSL* ssl, WOLFSSL_MEM_CONN_STATS* mem_stats);
 
     \sa none
 */
-int wc_LoadStaticMemory(WOLFSSL_HEAP_HINT* hint, unsigned char* buf, unsigned int sz,
-                int flag, int max);
+int wc_LoadStaticMemory(WOLFSSL_HEAP_HINT** pHint, unsigned char* buf,
+                unsigned int sz, int flag, int max);
 
 /*!
     \ingroup Memory
 
     \brief この関数は、カスタムバケットサイズと配分を使用してwolfCrypt使用のために静的メモリを確保するために使用されます。作成されたヒープヒントを関数に渡すことでメモリを使用できます。この拡張バージョンでは、デフォルトの事前定義されたサイズを使用する代わりに、カスタムバケットサイズと配分を使用できます。
 
-    \return 成功した場合、0が返されます。
-    \return すべての失敗した戻り値は0未満になります。
+    \return none この関数は値を返しません。
 
-    \param hint 使用するWOLFSSL_HEAP_HINT構造体。
+    \param pHint 初期化するWOLFSSL_HEAP_HINTハンドル。
+    \param listSz サイズリストと分布リストのエントリ数。
+    \param sizeList 使用するバケットサイズの配列。
+    \param distList sizeListに対応する分布リスト。
     \param buf すべての操作に使用するメモリ。
     \param sz 渡されるメモリバッファのサイズ。
     \param flag メモリのタイプ。
     \param max 最大同時操作数（ハンドシェイク、IO）。
-    \param bucket_sizes 使用するバケットサイズの配列。
-    \param bucket_count 配列内のバケットサイズの数。
 
     _Example_
     \code
@@ -384,14 +382,16 @@ int wc_LoadStaticMemory(WOLFSSL_HEAP_HINT* hint, unsigned char* buf, unsigned in
     unsigned char memory[MAX];
     int memorySz = MAX;
     int flag = WOLFMEM_GENERAL | WOLFMEM_TRACK_STATS;
-    word16 bucket_sizes[] = {64, 128, 256, 512, 1024};
-    int bucket_count = 5;
+    const word32 sizeList[] = {64, 128, 256, 512, 1024};
+    const word32 distList[] = {1, 1, 1, 1, 1};
+    unsigned int listSz = (unsigned int)(sizeof(sizeList)/
+                                         sizeof(sizeList[0]));
     ...
 
     // カスタムバケットサイズで使用するメモリをロード
 
-    ret = wc_LoadStaticMemory_ex(&hint, memory, memorySz, flag, 0,
-                                 bucket_sizes, bucket_count);
+    ret = wc_LoadStaticMemory_ex(&hint, listSz, sizeList, distList,
+                                 memory, memorySz, flag, 0);
     if (ret != SSL_SUCCESS) {
         // エラーケースを処理
     }
@@ -405,8 +405,9 @@ int wc_LoadStaticMemory(WOLFSSL_HEAP_HINT* hint, unsigned char* buf, unsigned in
     \sa wc_LoadStaticMemory
     \sa wc_UnloadStaticMemory
 */
-int wc_LoadStaticMemory_ex(WOLFSSL_HEAP_HINT* hint, unsigned char* buf, unsigned int sz,
-                int flag, int max, word16* bucket_sizes, int bucket_count);
+int wc_LoadStaticMemory_ex(WOLFSSL_HEAP_HINT** pHint, unsigned int listSz,
+                const word32 *sizeList, const word32 *distList,
+                unsigned char* buf, unsigned int sz, int flag, int max);
 
 /*!
     \ingroup Memory
@@ -499,7 +500,7 @@ WOLFSSL_HEAP_HINT* wolfSSL_GetGlobalHeapHint(void);
 
     \sa none
 */
-int wolfSSL_SetDebugMemoryCb(wolfSSL_DebugMemoryCb cb);
+void wolfSSL_SetDebugMemoryCb(DebugMemoryCb cb);
 
 /*!
     \ingroup Memory
@@ -529,16 +530,13 @@ int wolfSSL_SetDebugMemoryCb(wolfSSL_DebugMemoryCb cb);
     ...
 
     // 完了時にクリーンアップ
-    ret = wc_UnloadStaticMemory(&hint);
-    if (ret != 0) {
-        // エラーケースを処理
-    }
+    wc_UnloadStaticMemory(&hint);
     \endcode
 
     \sa wc_LoadStaticMemory
     \sa wc_LoadStaticMemory_ex
 */
-int wc_UnloadStaticMemory(WOLFSSL_HEAP_HINT* hint);
+void wc_UnloadStaticMemory(WOLFSSL_HEAP_HINT* heap);
 
 /*!
     \ingroup Memory

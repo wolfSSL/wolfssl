@@ -4987,6 +4987,8 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
         }
     #endif /* WOLFSSL_AESNI */
 
+#ifndef WC_C_DYNAMIC_FALLBACK
+
 #if defined(WOLFSSL_ARMASM)
 #if !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
     #ifndef __aarch64__
@@ -5117,6 +5119,9 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
     #endif
         return ret;
 #endif
+
+#endif /* !WC_C_DYNAMIC_FALLBACK */
+
     } /* wc_AesSetKeyLocal */
 
     int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
@@ -12095,24 +12100,7 @@ int wc_AesGcmEncryptInit_ex(Aes* aes, const byte* key, word32 len, byte* ivOut,
     return ret;
 }
 
-/* Update the AES GCM for encryption with data and/or authentication data.
- *
- * All the AAD must be passed to update before the plaintext.
- * Last part of AAD can be passed with first part of plaintext.
- *
- * Must set key and IV before calling this function.
- * Must call wc_AesGcmInit() before calling this function.
- *
- * @param [in, out] aes       AES object.
- * @param [out]     out       Buffer to hold cipher text.
- * @param [in]      in        Buffer holding plaintext.
- * @param [in]      sz        Length of plaintext in bytes.
- * @param [in]      authIn    Buffer holding authentication data.
- * @param [in]      authInSz  Length of authentication data in bytes.
- * @return  0 on success.
- * @return  BAD_FUNC_ARG when aes is NULL, or a length is non-zero but buffer
- *          is NULL.
- */
+/* Update the AES GCM for encryption with data and/or authentication data. */
 int wc_AesGcmEncryptUpdate(Aes* aes, byte* out, const byte* in, word32 sz,
     const byte* authIn, word32 authInSz)
 {
@@ -12254,24 +12242,7 @@ int wc_AesGcmDecryptInit(Aes* aes, const byte* key, word32 len, const byte* iv,
     return wc_AesGcmInit(aes, key, len, iv, ivSz);
 }
 
-/* Update the AES GCM for decryption with data and/or authentication data.
- *
- * All the AAD must be passed to update before the cipher text.
- * Last part of AAD can be passed with first part of cipher text.
- *
- * Must set key and IV before calling this function.
- * Must call wc_AesGcmInit() before calling this function.
- *
- * @param [in, out] aes       AES object.
- * @param [out]     out       Buffer to hold plaintext.
- * @param [in]      in        Buffer holding cipher text.
- * @param [in]      sz        Length of cipher text in bytes.
- * @param [in]      authIn    Buffer holding authentication data.
- * @param [in]      authInSz  Length of authentication data in bytes.
- * @return  0 on success.
- * @return  BAD_FUNC_ARG when aes is NULL, or a length is non-zero but buffer
- *          is NULL.
- */
+/* Update the AES GCM for decryption with data and/or authentication data. */
 int wc_AesGcmDecryptUpdate(Aes* aes, byte* out, const byte* in, word32 sz,
     const byte* authIn, word32 authInSz)
 {
@@ -13402,9 +13373,33 @@ int wc_AesInit_Label(Aes* aes, const char* label, void* heap, int devId)
 /* Free Aes resources */
 void wc_AesFree(Aes* aes)
 {
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
+    int ret = 0;
+#endif
+
     if (aes == NULL) {
         return;
     }
+
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (aes->devId != INVALID_DEVID)
+    #endif
+    {
+        ret = wc_CryptoCb_Free(aes->devId, WC_ALGO_TYPE_CIPHER,
+                         WC_CIPHER_AES, (void*)aes);
+        /* If they want the standard free, they can call it themselves */
+        /* via their callback setting devId to INVALID_DEVID */
+        /* otherwise assume the callback handled it */
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return;
+        /* fall-through when unavailable */
+    }
+
+    /* silence compiler warning */
+    (void)ret;
+
+#endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_FREE */
 
 #ifdef WC_DEBUG_CIPHER_LIFECYCLE
     (void)wc_debug_CipherLifecycleFree(&aes->CipherLifecycleTag, aes->heap, 1);

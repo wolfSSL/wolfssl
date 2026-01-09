@@ -186,7 +186,7 @@ struct WC_ASYNC_DEV;
 
     typedef struct WC_ASYNC_SW {
         void* ctx;
-    #if HAVE_ANONYMOUS_INLINE_AGGREGATES
+    #ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
         union {
     #endif
     #ifdef HAVE_ECC
@@ -211,7 +211,7 @@ struct WC_ASYNC_DEV;
     #ifndef NO_DES3
         struct AsyncCryptSwDes des;
     #endif /* !NO_DES3 */
-    #if HAVE_ANONYMOUS_INLINE_AGGREGATES
+    #ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
         }; /* union */
     #endif
         byte type; /* enum WC_ASYNC_SW_TYPE */

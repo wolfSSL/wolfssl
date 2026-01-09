@@ -3448,25 +3448,25 @@ int wolfSSL_X509_pubkey_digest(const WOLFSSL_X509 *x509,
     const char* wolfSSL_X509_get_default_cert_file_env(void)
     {
         WOLFSSL_STUB("X509_get_default_cert_file_env");
-        return NULL;
+        return "";
     }
 
     const char* wolfSSL_X509_get_default_cert_file(void)
     {
         WOLFSSL_STUB("X509_get_default_cert_file");
-        return NULL;
+        return "";
     }
 
     const char* wolfSSL_X509_get_default_cert_dir_env(void)
     {
         WOLFSSL_STUB("X509_get_default_cert_dir_env");
-        return NULL;
+        return "";
     }
 
     const char* wolfSSL_X509_get_default_cert_dir(void)
     {
         WOLFSSL_STUB("X509_get_default_cert_dir");
-        return NULL;
+        return "";
     }
     #endif
 
@@ -6440,9 +6440,9 @@ static int X509PrintValidity(WOLFSSL_BIO* bio, WOLFSSL_ASN1_TIME * notBefore,
     }
     if (notBefore->length > 0) {
         if (GetTimeString(notBefore->data, ASN_UTC_TIME,
-            tmp, sizeof(tmp)) != WOLFSSL_SUCCESS) {
+            tmp, sizeof(tmp), notBefore->length) != WOLFSSL_SUCCESS) {
             if (GetTimeString(notBefore->data, ASN_GENERALIZED_TIME,
-            tmp, sizeof(tmp)) != WOLFSSL_SUCCESS) {
+            tmp, sizeof(tmp), notBefore->length) != WOLFSSL_SUCCESS) {
                 WOLFSSL_MSG("Error getting not before date");
                 return WOLFSSL_FAILURE;
             }
@@ -6462,9 +6462,9 @@ static int X509PrintValidity(WOLFSSL_BIO* bio, WOLFSSL_ASN1_TIME * notBefore,
     }
     if (notAfter->length > 0) {
         if (GetTimeString(notAfter->data, ASN_UTC_TIME,
-            tmp, sizeof(tmp)) != WOLFSSL_SUCCESS) {
+            tmp, sizeof(tmp), notAfter->length) != WOLFSSL_SUCCESS) {
             if (GetTimeString(notAfter->data, ASN_GENERALIZED_TIME,
-                tmp, sizeof(tmp)) != WOLFSSL_SUCCESS) {
+                tmp, sizeof(tmp), notAfter->length) != WOLFSSL_SUCCESS) {
                 WOLFSSL_MSG("Error getting not after date");
                 return WOLFSSL_FAILURE;
             }
@@ -9018,9 +9018,9 @@ static int X509CRLPrintRevoked(WOLFSSL_BIO* bio, WOLFSSL_X509_CRL* crl,
 
             if (revoked->revDate[0] != 0) {
                 if (GetTimeString(revoked->revDate, ASN_UTC_TIME,
-                    tmp, MAX_WIDTH) != WOLFSSL_SUCCESS) {
+                    tmp, MAX_WIDTH, MAX_DATE_SIZE) != WOLFSSL_SUCCESS) {
                     if (GetTimeString(revoked->revDate, ASN_GENERALIZED_TIME,
-                    tmp, MAX_WIDTH) != WOLFSSL_SUCCESS) {
+                    tmp, MAX_WIDTH, MAX_DATE_SIZE) != WOLFSSL_SUCCESS) {
                         WOLFSSL_MSG("Error getting revocation date");
                         return WOLFSSL_FAILURE;
                     }
@@ -9071,13 +9071,10 @@ static int X509CRLPrintDates(WOLFSSL_BIO* bio, WOLFSSL_X509_CRL* crl,
     }
 
     if (crl->crlList->lastDate[0] != 0) {
-        if (GetTimeString(crl->crlList->lastDate, ASN_UTC_TIME,
-            tmp, MAX_WIDTH) != WOLFSSL_SUCCESS) {
-            if (GetTimeString(crl->crlList->lastDate, ASN_GENERALIZED_TIME,
-            tmp, MAX_WIDTH) != WOLFSSL_SUCCESS) {
-                WOLFSSL_MSG("Error getting last update date");
-                return WOLFSSL_FAILURE;
-            }
+        if (GetTimeString(crl->crlList->lastDate, crl->crlList->lastDateFormat,
+            tmp, MAX_WIDTH, MAX_DATE_SIZE) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("Error getting last update date");
+            return WOLFSSL_FAILURE;
         }
     }
     else {
@@ -9102,13 +9099,10 @@ static int X509CRLPrintDates(WOLFSSL_BIO* bio, WOLFSSL_X509_CRL* crl,
     }
 
     if (crl->crlList->nextDate[0] != 0) {
-        if (GetTimeString(crl->crlList->nextDate, ASN_UTC_TIME,
-            tmp, MAX_WIDTH) != WOLFSSL_SUCCESS) {
-            if (GetTimeString(crl->crlList->nextDate, ASN_GENERALIZED_TIME,
-            tmp, MAX_WIDTH) != WOLFSSL_SUCCESS) {
-                WOLFSSL_MSG("Error getting next update date");
-                return WOLFSSL_FAILURE;
-            }
+        if (GetTimeString(crl->crlList->nextDate, crl->crlList->nextDateFormat,
+            tmp, MAX_WIDTH, MAX_DATE_SIZE) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("Error getting next update date");
+            return WOLFSSL_FAILURE;
         }
     }
     else {

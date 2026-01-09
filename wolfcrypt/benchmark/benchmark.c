@@ -10554,35 +10554,39 @@ static void bench_mlkem_encap(int type, const char* name, int keySize,
     int ret = 0, times, count, pending = 0;
     double start;
     const char**desc = bench_desc_words[lng_index];
-    byte ct[WC_ML_KEM_MAX_CIPHER_TEXT_SIZE];
-    byte ss[WC_ML_KEM_SS_SZ];
-    byte pub[WC_ML_KEM_MAX_PUBLIC_KEY_SIZE];
+    WC_DECLARE_VAR(ct, byte, WC_ML_KEM_MAX_CIPHER_TEXT_SIZE, HEAP_HINT);
+    WC_DECLARE_VAR(ss, byte, WC_ML_KEM_SS_SZ, HEAP_HINT);
+    WC_DECLARE_VAR(pub, byte, WC_ML_KEM_MAX_PUBLIC_KEY_SIZE, HEAP_HINT);
     word32 pubLen;
     word32 ctSz;
     DECLARE_MULTI_VALUE_STATS_VARS()
 
     bench_stats_prepare();
 
+    WC_ALLOC_VAR(ct, byte, WC_ML_KEM_MAX_CIPHER_TEXT_SIZE, HEAP_HINT);
+    WC_ALLOC_VAR(ss, byte, WC_ML_KEM_SS_SZ, HEAP_HINT);
+    WC_ALLOC_VAR(pub, byte, WC_ML_KEM_MAX_PUBLIC_KEY_SIZE, HEAP_HINT);
+
     ret = wc_KyberKey_PublicKeySize(key1, &pubLen);
     if (ret != 0) {
-        return;
+        goto exit;
     }
     ret = wc_KyberKey_EncodePublicKey(key1, pub, pubLen);
     if (ret != 0) {
-        return;
+        goto exit;
     }
     ret = wc_KyberKey_Init(type, key2, HEAP_HINT, INVALID_DEVID);
     if (ret != 0) {
-        return;
+        goto exit;
     }
     ret = wc_KyberKey_DecodePublicKey(key2, pub, pubLen);
     if (ret != 0) {
-        return;
+        goto exit;
     }
 
     ret = wc_KyberKey_CipherTextSize(key2, &ctSz);
     if (ret != 0) {
-        return;
+        goto exit;
     }
 
 #ifndef WOLFSSL_MLKEM_NO_ENCAPSULATE
@@ -10641,7 +10645,19 @@ exit_decap:
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
+
 #endif
+
+exit:
+
+    WC_FREE_VAR(ct, HEAP_HINT);
+    WC_FREE_VAR(ss, HEAP_HINT);
+    WC_FREE_VAR(pub, HEAP_HINT);
+
+    if (ret != 0)
+        printf("error: bench_mlkem_encap() failed with code %d.\n", ret);
+
+    return;
 }
 #endif
 

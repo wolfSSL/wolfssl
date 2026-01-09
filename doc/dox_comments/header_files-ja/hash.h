@@ -327,6 +327,7 @@ int wc_Sha3_512Hash(const byte* data, word32 len, byte* hash);
     \param data ハッシュ化するデータ
     \param len データの長さ
     \param hash ハッシュ値を保持するバイト配列。
+    \param hashLen hashに書き込むバイト数。
 
     _Example_
     \code
@@ -337,7 +338,8 @@ int wc_Sha3_512Hash(const byte* data, word32 len, byte* hash);
     \sa wc_Shake128_Update
     \sa wc_Shake128_Final
 */
-int wc_Shake128Hash(const byte* data, word32 len, byte* hash);
+int wc_Shake128Hash(const byte* data, word32 len, byte* hash,
+                    word32 hashLen);
 
 /*!
     \ingroup SHA
@@ -350,6 +352,7 @@ int wc_Shake128Hash(const byte* data, word32 len, byte* hash);
     \param data ハッシュ化するデータ
     \param len データの長さ
     \param hash ハッシュ値を保持するバイト配列。
+    \param hashLen hashに書き込むバイト数。
 
     _Example_
     \code
@@ -360,4 +363,5 @@ int wc_Shake128Hash(const byte* data, word32 len, byte* hash);
     \sa wc_Shake256_Update
     \sa wc_Shake256_Final
 */
-int wc_Shake256Hash(const byte* data, word32 len, byte* hash);
+int wc_Shake256Hash(const byte* data, word32 len, byte* hash,
+                    word32 hashLen);

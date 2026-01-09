@@ -27,6 +27,11 @@
 #ifndef TESTS_UTILS_H
 #define TESTS_UTILS_H
 
+#ifdef WOLFSSL_DUMP_MEMIO_STREAM
+extern char tmpDirName[16];
+extern const char* currentTestName;
+#endif
+
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
     (!defined(NO_RSA) || defined(HAVE_RPK)) && \
     !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \

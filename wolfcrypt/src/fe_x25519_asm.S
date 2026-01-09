@@ -238,7 +238,7 @@ L_fe_init_get_flags:
 #else
         movq	%rax, _ge_sub_p(%rip)
 #endif /* __APPLE__ */
-#if !defined(HAVE_ED25519) && !defined(WOLFSSL_CURVE25519_USE_ED25519)
+#if defined(WOLFSSL_CURVE25519_NOT_USE_ED25519)
 #ifndef __APPLE__
         movq	curve25519_base_avx2@GOTPCREL(%rip), %rax
 #else
@@ -250,7 +250,7 @@ L_fe_init_get_flags:
 #else
         movq	%rax, _curve25519_base_p(%rip)
 #endif /* __APPLE__ */
-#endif /* !HAVE_ED25519 && !WOLFSSL_CURVE25519_USE_ED25519 */
+#endif /* WOLFSSL_CURVE25519_NOT_USE_ED25519 */
 #ifdef HAVE_ED25519
 #ifndef __APPLE__
         movq	fe_sq2_avx2@GOTPCREL(%rip), %rax
@@ -262,6 +262,17 @@ L_fe_init_get_flags:
         movq	%rax, (%rdx)
 #else
         movq	%rax, _fe_sq2_p(%rip)
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+        movq	fe_invert_nct_avx2@GOTPCREL(%rip), %rax
+#else
+        leaq	_fe_invert_nct_avx2(%rip), %rax
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+        movq	fe_invert_nct_p@GOTPCREL(%rip), %rdx
+        movq	%rax, (%rdx)
+#else
+        movq	%rax, _fe_invert_nct_p(%rip)
 #endif /* __APPLE__ */
 #ifndef __APPLE__
         movq	sc_reduce_avx2@GOTPCREL(%rip), %rax
@@ -443,7 +454,6 @@ fe_sub:
 .p2align	4
 _fe_sub:
 #endif /* __APPLE__ */
-        pushq	%r12
         # Sub
         movq	(%rsi), %rax
         movq	8(%rsi), %rcx
@@ -453,13 +463,12 @@ _fe_sub:
         sbbq	8(%rdx), %rcx
         sbbq	16(%rdx), %r8
         sbbq	24(%rdx), %r9
-        sbbq	%r11, %r11
-        shldq	$0x01, %r9, %r11
-        movq	$0x7fffffffffffffff, %r12
-        imulq	$-19, %r11
-        andq	%r12, %r9
+        sbbq	%r10, %r10
+        shldq	$0x01, %r9, %r10
+        imulq	$-19, %r10
+        btr	$63, %r9
         #   Add modulus (if underflow)
-        subq	%r11, %rax
+        subq	%r10, %rax
         sbbq	$0x00, %rcx
         sbbq	$0x00, %r8
         sbbq	$0x00, %r9
@@ -467,7 +476,6 @@ _fe_sub:
         movq	%rcx, 8(%rdi)
         movq	%r8, 16(%rdi)
         movq	%r9, 24(%rdi)
-        popq	%r12
         repz retq
 #ifndef __APPLE__
 .size	fe_sub,.-fe_sub
@@ -484,7 +492,6 @@ fe_add:
 .p2align	4
 _fe_add:
 #endif /* __APPLE__ */
-        pushq	%r12
         # Add
         movq	(%rsi), %rax
         movq	8(%rsi), %rcx
@@ -494,14 +501,13 @@ _fe_add:
         movq	24(%rsi), %r9
         adcq	16(%rdx), %r8
         adcq	24(%rdx), %r9
-        movq	$0x00, %r11
-        adcq	$0x00, %r11
-        shldq	$0x01, %r9, %r11
-        movq	$0x7fffffffffffffff, %r12
-        imulq	$19, %r11
-        andq	%r12, %r9
+        movq	$0x00, %r10
+        adcq	$0x00, %r10
+        shldq	$0x01, %r9, %r10
+        imulq	$19, %r10
+        btr	$63, %r9
         #   Sub modulus (if overflow)
-        addq	%r11, %rax
+        addq	%r10, %rax
         adcq	$0x00, %rcx
         adcq	$0x00, %r8
         adcq	$0x00, %r9
@@ -509,7 +515,6 @@ _fe_add:
         movq	%rcx, 8(%rdi)
         movq	%r8, 16(%rdi)
         movq	%r9, 24(%rdi)
-        popq	%r12
         repz retq
 #ifndef __APPLE__
 .size	fe_add,.-fe_add
@@ -920,6 +925,30 @@ _ge_sub:
 #ifndef __APPLE__
 .size	ge_sub,.-ge_sub
 #endif /* __APPLE__ */
+#if defined(WOLFSSL_CURVE25519_NOT_USE_ED25519)
+#if defined(WOLFSSL_CURVE25519_NOT_USE_ED25519)
+#ifndef __APPLE__
+.text
+.globl	curve25519_base
+.type	curve25519_base,@function
+.align	16
+curve25519_base:
+#else
+.section	__TEXT,__text
+.globl	_curve25519_base
+.p2align	4
+_curve25519_base:
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+        jmpq	*curve25519_base_p(%rip)
+#else
+        jmpq	*_curve25519_base_p(%rip)
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.size	curve25519_base,.-curve25519_base
+#endif /* __APPLE__ */
+#endif /* WOLFSSL_CURVE25519_NOT_USE_ED25519 */
+#endif /* WOLFSSL_CURVE25519_NOT_USE_ED25519 */
 #ifdef HAVE_ED25519
 #ifdef HAVE_ED25519
 #ifndef __APPLE__
@@ -941,6 +970,28 @@ _fe_sq2:
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .size	fe_sq2,.-fe_sq2
+#endif /* __APPLE__ */
+#endif /* HAVE_ED25519 */
+#ifdef HAVE_ED25519
+#ifndef __APPLE__
+.text
+.globl	fe_invert_nct
+.type	fe_invert_nct,@function
+.align	16
+fe_invert_nct:
+#else
+.section	__TEXT,__text
+.globl	_fe_invert_nct
+.p2align	4
+_fe_invert_nct:
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+        jmpq	*fe_invert_nct_p(%rip)
+#else
+        jmpq	*_fe_invert_nct_p(%rip)
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.size	fe_invert_nct,.-fe_invert_nct
 #endif /* __APPLE__ */
 #endif /* HAVE_ED25519 */
 #ifdef HAVE_ED25519
@@ -1180,7 +1231,7 @@ ge_sub_p:
 _ge_sub_p:
 	.quad	_ge_sub_x64
 #endif /* __APPLE__ */
-#if !defined(HAVE_ED25519) && !defined(WOLFSSL_CURVE25519_USE_ED25519)
+#if defined(WOLFSSL_CURVE25519_NOT_USE_ED25519)
 #ifndef __APPLE__
 .data
 .type	curve25519_base_p, @object
@@ -1193,7 +1244,7 @@ curve25519_base_p:
 _curve25519_base_p:
 	.quad	_curve25519_base_x64
 #endif /* __APPLE__ */
-#endif /* !HAVE_ED25519 && !WOLFSSL_CURVE25519_USE_ED25519 */
+#endif /* WOLFSSL_CURVE25519_NOT_USE_ED25519 */
 #ifdef HAVE_ED25519
 #ifndef __APPLE__
 .data
@@ -1206,6 +1257,18 @@ fe_sq2_p:
 .p2align	3
 _fe_sq2_p:
 	.quad	_fe_sq2_x64
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+.type	fe_invert_nct_p, @object
+.size	fe_invert_nct_p,8
+fe_invert_nct_p:
+	.quad	fe_invert_nct_x64
+#else
+.section	__DATA,__data
+.p2align	3
+_fe_invert_nct_p:
+	.quad	_fe_invert_nct_x64
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .data
@@ -2268,7 +2331,7 @@ _fe_invert_x64:
         movq	128(%rsp), %rdi
         addq	$0x90, %rsp
         repz retq
-#if !defined(HAVE_ED25519) && !defined(WOLFSSL_CURVE25519_USE_ED25519)
+#if defined(WOLFSSL_CURVE25519_NOT_USE_ED25519)
 #ifndef __APPLE__
 .data
 #else
@@ -2342,43 +2405,42 @@ L_curve25519_base_x64_bits:
         movq	8(%rdi), %r8
         movq	16(%rdi), %r9
         movq	24(%rdi), %r10
+        movq	(%rsp), %r11
+        movq	8(%rsp), %r12
+        movq	16(%rsp), %r13
+        movq	24(%rsp), %r14
         xorq	64(%rsp), %rcx
         xorq	72(%rsp), %r8
         xorq	80(%rsp), %r9
         xorq	88(%rsp), %r10
+        xorq	32(%rsp), %r11
+        xorq	40(%rsp), %r12
+        xorq	48(%rsp), %r13
+        xorq	56(%rsp), %r14
         andq	%r15, %rcx
         andq	%r15, %r8
         andq	%r15, %r9
         andq	%r15, %r10
+        andq	%r15, %r11
+        andq	%r15, %r12
+        andq	%r15, %r13
+        andq	%r15, %r14
         xorq	%rcx, (%rdi)
         xorq	%r8, 8(%rdi)
         xorq	%r9, 16(%rdi)
         xorq	%r10, 24(%rdi)
+        xorq	%r11, (%rsp)
+        xorq	%r12, 8(%rsp)
+        xorq	%r13, 16(%rsp)
+        xorq	%r14, 24(%rsp)
         xorq	%rcx, 64(%rsp)
         xorq	%r8, 72(%rsp)
         xorq	%r9, 80(%rsp)
         xorq	%r10, 88(%rsp)
-        # Conditional Swap
-        movq	(%rsp), %rcx
-        movq	8(%rsp), %r8
-        movq	16(%rsp), %r9
-        movq	24(%rsp), %r10
-        xorq	32(%rsp), %rcx
-        xorq	40(%rsp), %r8
-        xorq	48(%rsp), %r9
-        xorq	56(%rsp), %r10
-        andq	%r15, %rcx
-        andq	%r15, %r8
-        andq	%r15, %r9
-        andq	%r15, %r10
-        xorq	%rcx, (%rsp)
-        xorq	%r8, 8(%rsp)
-        xorq	%r9, 16(%rsp)
-        xorq	%r10, 24(%rsp)
-        xorq	%rcx, 32(%rsp)
-        xorq	%r8, 40(%rsp)
-        xorq	%r9, 48(%rsp)
-        xorq	%r10, 56(%rsp)
+        xorq	%r11, 32(%rsp)
+        xorq	%r12, 40(%rsp)
+        xorq	%r13, 48(%rsp)
+        xorq	%r14, 56(%rsp)
         movq	%rbx, %r15
         # Add-Sub
         # Add
@@ -2394,14 +2456,13 @@ L_curve25519_base_x64_bits:
         adcq	16(%rsp), %r9
         movq	%r10, %r14
         adcq	24(%rsp), %r10
-        movq	$0x00, %rax
-        adcq	$0x00, %rax
-        shldq	$0x01, %r10, %rax
-        movq	$0x7fffffffffffffff, %rdx
-        imulq	$19, %rax
-        andq	%rdx, %r10
+        movq	$0x00, %rbx
+        adcq	$0x00, %rbx
+        shldq	$0x01, %r10, %rbx
+        imulq	$19, %rbx
+        btr	$63, %r10
         #   Sub modulus (if overflow)
-        addq	%rax, %rcx
+        addq	%rbx, %rcx
         adcq	$0x00, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
@@ -2410,12 +2471,12 @@ L_curve25519_base_x64_bits:
         sbbq	8(%rsp), %r12
         sbbq	16(%rsp), %r13
         sbbq	24(%rsp), %r14
-        sbbq	%rax, %rax
-        shldq	$0x01, %r14, %rax
-        imulq	$-19, %rax
-        andq	%rdx, %r14
+        sbbq	%rbx, %rbx
+        shldq	$0x01, %r14, %rbx
+        imulq	$-19, %rbx
+        btr	$63, %r14
         #   Add modulus (if underflow)
-        subq	%rax, %r11
+        subq	%rbx, %r11
         sbbq	$0x00, %r12
         sbbq	$0x00, %r13
         sbbq	$0x00, %r14
@@ -2441,14 +2502,13 @@ L_curve25519_base_x64_bits:
         adcq	48(%rsp), %r9
         movq	%r10, %r14
         adcq	56(%rsp), %r10
-        movq	$0x00, %rax
-        adcq	$0x00, %rax
-        shldq	$0x01, %r10, %rax
-        movq	$0x7fffffffffffffff, %rdx
-        imulq	$19, %rax
-        andq	%rdx, %r10
+        movq	$0x00, %rbx
+        adcq	$0x00, %rbx
+        shldq	$0x01, %r10, %rbx
+        imulq	$19, %rbx
+        btr	$63, %r10
         #   Sub modulus (if overflow)
-        addq	%rax, %rcx
+        addq	%rbx, %rcx
         adcq	$0x00, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
@@ -2457,12 +2517,12 @@ L_curve25519_base_x64_bits:
         sbbq	40(%rsp), %r12
         sbbq	48(%rsp), %r13
         sbbq	56(%rsp), %r14
-        sbbq	%rax, %rax
-        shldq	$0x01, %r14, %rax
-        imulq	$-19, %rax
-        andq	%rdx, %r14
+        sbbq	%rbx, %rbx
+        shldq	$0x01, %r14, %rbx
+        imulq	$-19, %rbx
+        btr	$63, %r14
         #   Add modulus (if underflow)
-        subq	%rax, %r11
+        subq	%rbx, %r11
         sbbq	$0x00, %r12
         sbbq	$0x00, %r13
         sbbq	$0x00, %r14
@@ -2962,14 +3022,13 @@ L_curve25519_base_x64_bits:
         adcq	48(%rsp), %r9
         movq	%r10, %r14
         adcq	56(%rsp), %r10
-        movq	$0x00, %rax
-        adcq	$0x00, %rax
-        shldq	$0x01, %r10, %rax
-        movq	$0x7fffffffffffffff, %rdx
-        imulq	$19, %rax
-        andq	%rdx, %r10
+        movq	$0x00, %rbx
+        adcq	$0x00, %rbx
+        shldq	$0x01, %r10, %rbx
+        imulq	$19, %rbx
+        btr	$63, %r10
         #   Sub modulus (if overflow)
-        addq	%rax, %rcx
+        addq	%rbx, %rcx
         adcq	$0x00, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
@@ -2978,12 +3037,12 @@ L_curve25519_base_x64_bits:
         sbbq	40(%rsp), %r12
         sbbq	48(%rsp), %r13
         sbbq	56(%rsp), %r14
-        sbbq	%rax, %rax
-        shldq	$0x01, %r14, %rax
-        imulq	$-19, %rax
-        andq	%rdx, %r14
+        sbbq	%rbx, %rbx
+        shldq	$0x01, %r14, %rbx
+        imulq	$-19, %rbx
+        btr	$63, %r14
         #   Add modulus (if underflow)
-        subq	%rax, %r11
+        subq	%rbx, %r11
         sbbq	$0x00, %r12
         sbbq	$0x00, %r13
         sbbq	$0x00, %r14
@@ -3136,13 +3195,12 @@ L_curve25519_base_x64_bits:
         sbbq	104(%rsp), %r8
         sbbq	112(%rsp), %r9
         sbbq	120(%rsp), %r10
-        sbbq	%rax, %rax
-        shldq	$0x01, %r10, %rax
-        movq	$0x7fffffffffffffff, %rdx
-        imulq	$-19, %rax
-        andq	%rdx, %r10
+        sbbq	%rbx, %rbx
+        shldq	$0x01, %r10, %rbx
+        imulq	$-19, %rbx
+        btr	$63, %r10
         #   Add modulus (if underflow)
-        subq	%rax, %rcx
+        subq	%rbx, %rcx
         sbbq	$0x00, %r8
         sbbq	$0x00, %r9
         sbbq	$0x00, %r10
@@ -3255,39 +3313,6 @@ L_curve25519_base_x64_bits:
         movq	%r8, 40(%rsp)
         movq	%r9, 48(%rsp)
         movq	%r10, 56(%rsp)
-        # Multiply by 121666
-        movq	$0x1db42, %rax
-        mulq	128(%rsp)
-        xorq	%r9, %r9
-        movq	%rax, %rcx
-        movq	%rdx, %r8
-        movq	$0x1db42, %rax
-        mulq	136(%rsp)
-        xorq	%r10, %r10
-        addq	%rax, %r8
-        adcq	%rdx, %r9
-        movq	$0x1db42, %rax
-        mulq	144(%rsp)
-        xorq	%r12, %r12
-        addq	%rax, %r9
-        adcq	%rdx, %r10
-        movq	$0x1db42, %rax
-        mulq	152(%rsp)
-        movq	$0x7fffffffffffffff, %r11
-        addq	%rax, %r10
-        adcq	%rdx, %r12
-        shldq	$0x01, %r10, %r12
-        andq	%r11, %r10
-        movq	$19, %rax
-        mulq	%r12
-        addq	%rax, %rcx
-        adcq	$0x00, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        movq	%rcx, (%rsp)
-        movq	%r8, 8(%rsp)
-        movq	%r9, 16(%rsp)
-        movq	%r10, 24(%rsp)
         # Square
         #  A[0] * A[1]
         movq	64(%rsp), %rax
@@ -3393,22 +3418,36 @@ L_curve25519_base_x64_bits:
         movq	%r8, 72(%rsp)
         movq	%r9, 80(%rsp)
         movq	%r10, 88(%rsp)
-        # Add
-        movq	96(%rsp), %rcx
-        movq	104(%rsp), %r8
-        addq	(%rsp), %rcx
-        movq	112(%rsp), %r9
-        adcq	8(%rsp), %r8
-        movq	120(%rsp), %r10
-        adcq	16(%rsp), %r9
-        adcq	24(%rsp), %r10
-        movq	$0x00, %rax
-        adcq	$0x00, %rax
-        shldq	$0x01, %r10, %rax
-        movq	$0x7fffffffffffffff, %rdx
-        imulq	$19, %rax
-        andq	%rdx, %r10
-        #   Sub modulus (if overflow)
+        # Multiply by 121666
+        movq	$0x1db42, %rax
+        mulq	128(%rsp)
+        xorq	%r9, %r9
+        movq	%rax, %rcx
+        movq	%rdx, %r8
+        movq	$0x1db42, %rax
+        mulq	136(%rsp)
+        xorq	%r10, %r10
+        addq	%rax, %r8
+        adcq	%rdx, %r9
+        movq	$0x1db42, %rax
+        mulq	144(%rsp)
+        xorq	%r12, %r12
+        addq	%rax, %r9
+        adcq	%rdx, %r10
+        movq	$0x1db42, %rax
+        mulq	152(%rsp)
+        movq	$0x7fffffffffffffff, %r11
+        addq	%rax, %r10
+        adcq	%rdx, %r12
+        addq	96(%rsp), %rcx
+        adcq	104(%rsp), %r8
+        adcq	112(%rsp), %r9
+        adcq	120(%rsp), %r10
+        adcq	$0x00, %r12
+        shldq	$0x01, %r10, %r12
+        andq	%r11, %r10
+        movq	$19, %rax
+        mulq	%r12
         addq	%rax, %rcx
         adcq	$0x00, %r8
         adcq	$0x00, %r9
@@ -3591,43 +3630,42 @@ L_curve25519_base_x64_bits:
         movq	8(%rdi), %r8
         movq	16(%rdi), %r9
         movq	24(%rdi), %r10
+        movq	(%rsp), %r11
+        movq	8(%rsp), %r12
+        movq	16(%rsp), %r13
+        movq	24(%rsp), %r14
         xorq	64(%rsp), %rcx
         xorq	72(%rsp), %r8
         xorq	80(%rsp), %r9
         xorq	88(%rsp), %r10
+        xorq	32(%rsp), %r11
+        xorq	40(%rsp), %r12
+        xorq	48(%rsp), %r13
+        xorq	56(%rsp), %r14
         andq	%r15, %rcx
         andq	%r15, %r8
         andq	%r15, %r9
         andq	%r15, %r10
+        andq	%r15, %r11
+        andq	%r15, %r12
+        andq	%r15, %r13
+        andq	%r15, %r14
         xorq	%rcx, (%rdi)
         xorq	%r8, 8(%rdi)
         xorq	%r9, 16(%rdi)
         xorq	%r10, 24(%rdi)
+        xorq	%r11, (%rsp)
+        xorq	%r12, 8(%rsp)
+        xorq	%r13, 16(%rsp)
+        xorq	%r14, 24(%rsp)
         xorq	%rcx, 64(%rsp)
         xorq	%r8, 72(%rsp)
         xorq	%r9, 80(%rsp)
         xorq	%r10, 88(%rsp)
-        # Conditional Swap
-        movq	(%rsp), %rcx
-        movq	8(%rsp), %r8
-        movq	16(%rsp), %r9
-        movq	24(%rsp), %r10
-        xorq	32(%rsp), %rcx
-        xorq	40(%rsp), %r8
-        xorq	48(%rsp), %r9
-        xorq	56(%rsp), %r10
-        andq	%r15, %rcx
-        andq	%r15, %r8
-        andq	%r15, %r9
-        andq	%r15, %r10
-        xorq	%rcx, (%rsp)
-        xorq	%r8, 8(%rsp)
-        xorq	%r9, 16(%rsp)
-        xorq	%r10, 24(%rsp)
-        xorq	%rcx, 32(%rsp)
-        xorq	%r8, 40(%rsp)
-        xorq	%r9, 48(%rsp)
-        xorq	%r10, 56(%rsp)
+        xorq	%r11, 32(%rsp)
+        xorq	%r12, 40(%rsp)
+        xorq	%r13, 48(%rsp)
+        xorq	%r14, 56(%rsp)
 L_curve25519_base_x64_3:
         # Add-Sub
         # Add
@@ -3643,14 +3681,13 @@ L_curve25519_base_x64_3:
         adcq	16(%rsp), %r9
         movq	%r10, %r14
         adcq	24(%rsp), %r10
-        movq	$0x00, %rax
-        adcq	$0x00, %rax
-        shldq	$0x01, %r10, %rax
-        movq	$0x7fffffffffffffff, %rdx
-        imulq	$19, %rax
-        andq	%rdx, %r10
+        movq	$0x00, %rbx
+        adcq	$0x00, %rbx
+        shldq	$0x01, %r10, %rbx
+        imulq	$19, %rbx
+        btr	$63, %r10
         #   Sub modulus (if overflow)
-        addq	%rax, %rcx
+        addq	%rbx, %rcx
         adcq	$0x00, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
@@ -3659,12 +3696,12 @@ L_curve25519_base_x64_3:
         sbbq	8(%rsp), %r12
         sbbq	16(%rsp), %r13
         sbbq	24(%rsp), %r14
-        sbbq	%rax, %rax
-        shldq	$0x01, %r14, %rax
-        imulq	$-19, %rax
-        andq	%rdx, %r14
+        sbbq	%rbx, %rbx
+        shldq	$0x01, %r14, %rbx
+        imulq	$-19, %rbx
+        btr	$63, %r14
         #   Add modulus (if underflow)
-        subq	%rax, %r11
+        subq	%rbx, %r11
         sbbq	$0x00, %r12
         sbbq	$0x00, %r13
         sbbq	$0x00, %r14
@@ -4027,13 +4064,12 @@ L_curve25519_base_x64_3:
         sbbq	104(%rsp), %r8
         sbbq	112(%rsp), %r9
         sbbq	120(%rsp), %r10
-        sbbq	%rax, %rax
-        shldq	$0x01, %r10, %rax
-        movq	$0x7fffffffffffffff, %rdx
-        imulq	$-19, %rax
-        andq	%rdx, %r10
+        sbbq	%rbx, %rbx
+        shldq	$0x01, %r10, %rbx
+        imulq	$-19, %rbx
+        btr	$63, %r10
         #   Add modulus (if underflow)
-        subq	%rax, %rcx
+        subq	%rbx, %rcx
         sbbq	$0x00, %r8
         sbbq	$0x00, %r9
         sbbq	$0x00, %r10
@@ -4062,34 +4098,15 @@ L_curve25519_base_x64_3:
         movq	$0x7fffffffffffffff, %r11
         addq	%rax, %r10
         adcq	%rdx, %r12
+        addq	96(%rsp), %rcx
+        adcq	104(%rsp), %r8
+        adcq	112(%rsp), %r9
+        adcq	120(%rsp), %r10
+        adcq	$0x00, %r12
         shldq	$0x01, %r10, %r12
         andq	%r11, %r10
         movq	$19, %rax
         mulq	%r12
-        addq	%rax, %rcx
-        adcq	$0x00, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        movq	%rcx, (%rsp)
-        movq	%r8, 8(%rsp)
-        movq	%r9, 16(%rsp)
-        movq	%r10, 24(%rsp)
-        # Add
-        movq	96(%rsp), %rcx
-        movq	104(%rsp), %r8
-        addq	(%rsp), %rcx
-        movq	112(%rsp), %r9
-        adcq	8(%rsp), %r8
-        movq	120(%rsp), %r10
-        adcq	16(%rsp), %r9
-        adcq	24(%rsp), %r10
-        movq	$0x00, %rax
-        adcq	$0x00, %rax
-        shldq	$0x01, %r10, %rax
-        movq	$0x7fffffffffffffff, %rdx
-        imulq	$19, %rax
-        andq	%rdx, %r10
-        #   Sub modulus (if overflow)
         addq	%rax, %rcx
         adcq	$0x00, %r8
         adcq	$0x00, %r9
@@ -4639,7 +4656,7 @@ L_curve25519_base_x64_3:
 #ifndef __APPLE__
 .size	curve25519_base_x64,.-curve25519_base_x64
 #endif /* __APPLE__ */
-#endif /* !HAVE_ED25519 && !WOLFSSL_CURVE25519_USE_ED25519 */
+#endif /* WOLFSSL_CURVE25519_NOT_USE_ED25519 */
 #ifndef __APPLE__
 .text
 .globl	curve25519_x64
@@ -4702,43 +4719,42 @@ L_curve25519_x64_bits:
         movq	8(%rdi), %r9
         movq	16(%rdi), %r10
         movq	24(%rdi), %r11
+        movq	(%rsp), %r12
+        movq	8(%rsp), %r13
+        movq	16(%rsp), %r14
+        movq	24(%rsp), %r15
         xorq	64(%rsp), %rcx
         xorq	72(%rsp), %r9
         xorq	80(%rsp), %r10
         xorq	88(%rsp), %r11
+        xorq	32(%rsp), %r12
+        xorq	40(%rsp), %r13
+        xorq	48(%rsp), %r14
+        xorq	56(%rsp), %r15
         andq	%rbx, %rcx
         andq	%rbx, %r9
         andq	%rbx, %r10
         andq	%rbx, %r11
+        andq	%rbx, %r12
+        andq	%rbx, %r13
+        andq	%rbx, %r14
+        andq	%rbx, %r15
         xorq	%rcx, (%rdi)
         xorq	%r9, 8(%rdi)
         xorq	%r10, 16(%rdi)
         xorq	%r11, 24(%rdi)
+        xorq	%r12, (%rsp)
+        xorq	%r13, 8(%rsp)
+        xorq	%r14, 16(%rsp)
+        xorq	%r15, 24(%rsp)
         xorq	%rcx, 64(%rsp)
         xorq	%r9, 72(%rsp)
         xorq	%r10, 80(%rsp)
         xorq	%r11, 88(%rsp)
-        # Conditional Swap
-        movq	(%rsp), %rcx
-        movq	8(%rsp), %r9
-        movq	16(%rsp), %r10
-        movq	24(%rsp), %r11
-        xorq	32(%rsp), %rcx
-        xorq	40(%rsp), %r9
-        xorq	48(%rsp), %r10
-        xorq	56(%rsp), %r11
-        andq	%rbx, %rcx
-        andq	%rbx, %r9
-        andq	%rbx, %r10
-        andq	%rbx, %r11
-        xorq	%rcx, (%rsp)
-        xorq	%r9, 8(%rsp)
-        xorq	%r10, 16(%rsp)
-        xorq	%r11, 24(%rsp)
-        xorq	%rcx, 32(%rsp)
-        xorq	%r9, 40(%rsp)
-        xorq	%r10, 48(%rsp)
-        xorq	%r11, 56(%rsp)
+        xorq	%r12, 32(%rsp)
+        xorq	%r13, 40(%rsp)
+        xorq	%r14, 48(%rsp)
+        xorq	%r15, 56(%rsp)
         movq	%rbp, %rbx
         # Add-Sub
         # Add
@@ -4754,14 +4770,13 @@ L_curve25519_x64_bits:
         adcq	16(%rsp), %r10
         movq	%r11, %r15
         adcq	24(%rsp), %r11
-        movq	$0x00, %rax
-        adcq	$0x00, %rax
-        shldq	$0x01, %r11, %rax
-        movq	$0x7fffffffffffffff, %rdx
-        imulq	$19, %rax
-        andq	%rdx, %r11
+        movq	$0x00, %rbp
+        adcq	$0x00, %rbp
+        shldq	$0x01, %r11, %rbp
+        imulq	$19, %rbp
+        btr	$63, %r11
         #   Sub modulus (if overflow)
-        addq	%rax, %rcx
+        addq	%rbp, %rcx
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -4770,12 +4785,12 @@ L_curve25519_x64_bits:
         sbbq	8(%rsp), %r13
         sbbq	16(%rsp), %r14
         sbbq	24(%rsp), %r15
-        sbbq	%rax, %rax
-        shldq	$0x01, %r15, %rax
-        imulq	$-19, %rax
-        andq	%rdx, %r15
+        sbbq	%rbp, %rbp
+        shldq	$0x01, %r15, %rbp
+        imulq	$-19, %rbp
+        btr	$63, %r15
         #   Add modulus (if underflow)
-        subq	%rax, %r12
+        subq	%rbp, %r12
         sbbq	$0x00, %r13
         sbbq	$0x00, %r14
         sbbq	$0x00, %r15
@@ -4801,14 +4816,13 @@ L_curve25519_x64_bits:
         adcq	48(%rsp), %r10
         movq	%r11, %r15
         adcq	56(%rsp), %r11
-        movq	$0x00, %rax
-        adcq	$0x00, %rax
-        shldq	$0x01, %r11, %rax
-        movq	$0x7fffffffffffffff, %rdx
-        imulq	$19, %rax
-        andq	%rdx, %r11
+        movq	$0x00, %rbp
+        adcq	$0x00, %rbp
+        shldq	$0x01, %r11, %rbp
+        imulq	$19, %rbp
+        btr	$63, %r11
         #   Sub modulus (if overflow)
-        addq	%rax, %rcx
+        addq	%rbp, %rcx
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -4817,12 +4831,12 @@ L_curve25519_x64_bits:
         sbbq	40(%rsp), %r13
         sbbq	48(%rsp), %r14
         sbbq	56(%rsp), %r15
-        sbbq	%rax, %rax
-        shldq	$0x01, %r15, %rax
-        imulq	$-19, %rax
-        andq	%rdx, %r15
+        sbbq	%rbp, %rbp
+        shldq	$0x01, %r15, %rbp
+        imulq	$-19, %rbp
+        btr	$63, %r15
         #   Add modulus (if underflow)
-        subq	%rax, %r12
+        subq	%rbp, %r12
         sbbq	$0x00, %r13
         sbbq	$0x00, %r14
         sbbq	$0x00, %r15
@@ -5322,14 +5336,13 @@ L_curve25519_x64_bits:
         adcq	48(%rsp), %r10
         movq	%r11, %r15
         adcq	56(%rsp), %r11
-        movq	$0x00, %rax
-        adcq	$0x00, %rax
-        shldq	$0x01, %r11, %rax
-        movq	$0x7fffffffffffffff, %rdx
-        imulq	$19, %rax
-        andq	%rdx, %r11
+        movq	$0x00, %rbp
+        adcq	$0x00, %rbp
+        shldq	$0x01, %r11, %rbp
+        imulq	$19, %rbp
+        btr	$63, %r11
         #   Sub modulus (if overflow)
-        addq	%rax, %rcx
+        addq	%rbp, %rcx
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -5338,12 +5351,12 @@ L_curve25519_x64_bits:
         sbbq	40(%rsp), %r13
         sbbq	48(%rsp), %r14
         sbbq	56(%rsp), %r15
-        sbbq	%rax, %rax
-        shldq	$0x01, %r15, %rax
-        imulq	$-19, %rax
-        andq	%rdx, %r15
+        sbbq	%rbp, %rbp
+        shldq	$0x01, %r15, %rbp
+        imulq	$-19, %rbp
+        btr	$63, %r15
         #   Add modulus (if underflow)
-        subq	%rax, %r12
+        subq	%rbp, %r12
         sbbq	$0x00, %r13
         sbbq	$0x00, %r14
         sbbq	$0x00, %r15
@@ -5496,13 +5509,12 @@ L_curve25519_x64_bits:
         sbbq	104(%rsp), %r9
         sbbq	112(%rsp), %r10
         sbbq	120(%rsp), %r11
-        sbbq	%rax, %rax
-        shldq	$0x01, %r11, %rax
-        movq	$0x7fffffffffffffff, %rdx
-        imulq	$-19, %rax
-        andq	%rdx, %r11
+        sbbq	%rbp, %rbp
+        shldq	$0x01, %r11, %rbp
+        imulq	$-19, %rbp
+        btr	$63, %r11
         #   Add modulus (if underflow)
-        subq	%rax, %rcx
+        subq	%rbp, %rcx
         sbbq	$0x00, %r9
         sbbq	$0x00, %r10
         sbbq	$0x00, %r11
@@ -5615,39 +5627,6 @@ L_curve25519_x64_bits:
         movq	%r9, 40(%rsp)
         movq	%r10, 48(%rsp)
         movq	%r11, 56(%rsp)
-        # Multiply by 121666
-        movq	$0x1db42, %rax
-        mulq	128(%rsp)
-        xorq	%r10, %r10
-        movq	%rax, %rcx
-        movq	%rdx, %r9
-        movq	$0x1db42, %rax
-        mulq	136(%rsp)
-        xorq	%r11, %r11
-        addq	%rax, %r9
-        adcq	%rdx, %r10
-        movq	$0x1db42, %rax
-        mulq	144(%rsp)
-        xorq	%r13, %r13
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        movq	$0x1db42, %rax
-        mulq	152(%rsp)
-        movq	$0x7fffffffffffffff, %r12
-        addq	%rax, %r11
-        adcq	%rdx, %r13
-        shldq	$0x01, %r11, %r13
-        andq	%r12, %r11
-        movq	$19, %rax
-        mulq	%r13
-        addq	%rax, %rcx
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        movq	%rcx, (%rsp)
-        movq	%r9, 8(%rsp)
-        movq	%r10, 16(%rsp)
-        movq	%r11, 24(%rsp)
         # Square
         #  A[0] * A[1]
         movq	64(%rsp), %rax
@@ -5753,22 +5732,36 @@ L_curve25519_x64_bits:
         movq	%r9, 72(%rsp)
         movq	%r10, 80(%rsp)
         movq	%r11, 88(%rsp)
-        # Add
-        movq	96(%rsp), %rcx
-        movq	104(%rsp), %r9
-        addq	(%rsp), %rcx
-        movq	112(%rsp), %r10
-        adcq	8(%rsp), %r9
-        movq	120(%rsp), %r11
-        adcq	16(%rsp), %r10
-        adcq	24(%rsp), %r11
-        movq	$0x00, %rax
-        adcq	$0x00, %rax
-        shldq	$0x01, %r11, %rax
-        movq	$0x7fffffffffffffff, %rdx
-        imulq	$19, %rax
-        andq	%rdx, %r11
-        #   Sub modulus (if overflow)
+        # Multiply by 121666
+        movq	$0x1db42, %rax
+        mulq	128(%rsp)
+        xorq	%r10, %r10
+        movq	%rax, %rcx
+        movq	%rdx, %r9
+        movq	$0x1db42, %rax
+        mulq	136(%rsp)
+        xorq	%r11, %r11
+        addq	%rax, %r9
+        adcq	%rdx, %r10
+        movq	$0x1db42, %rax
+        mulq	144(%rsp)
+        xorq	%r13, %r13
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        movq	$0x1db42, %rax
+        mulq	152(%rsp)
+        movq	$0x7fffffffffffffff, %r12
+        addq	%rax, %r11
+        adcq	%rdx, %r13
+        addq	96(%rsp), %rcx
+        adcq	104(%rsp), %r9
+        adcq	112(%rsp), %r10
+        adcq	120(%rsp), %r11
+        adcq	$0x00, %r13
+        shldq	$0x01, %r11, %r13
+        andq	%r12, %r11
+        movq	$19, %rax
+        mulq	%r13
         addq	%rax, %rcx
         adcq	$0x00, %r9
         adcq	$0x00, %r10
@@ -6045,50 +6038,49 @@ L_curve25519_x64_bits:
         decq	%r9
         cmpq	$3, %r9
         jge	L_curve25519_x64_bits
-        movq	%r9, 160(%rsp)
+        movq	$2, 160(%rsp)
         negq	%rbx
         # Conditional Swap
         movq	(%rdi), %rcx
         movq	8(%rdi), %r9
         movq	16(%rdi), %r10
         movq	24(%rdi), %r11
+        movq	(%rsp), %r12
+        movq	8(%rsp), %r13
+        movq	16(%rsp), %r14
+        movq	24(%rsp), %r15
         xorq	64(%rsp), %rcx
         xorq	72(%rsp), %r9
         xorq	80(%rsp), %r10
         xorq	88(%rsp), %r11
+        xorq	32(%rsp), %r12
+        xorq	40(%rsp), %r13
+        xorq	48(%rsp), %r14
+        xorq	56(%rsp), %r15
         andq	%rbx, %rcx
         andq	%rbx, %r9
         andq	%rbx, %r10
         andq	%rbx, %r11
+        andq	%rbx, %r12
+        andq	%rbx, %r13
+        andq	%rbx, %r14
+        andq	%rbx, %r15
         xorq	%rcx, (%rdi)
         xorq	%r9, 8(%rdi)
         xorq	%r10, 16(%rdi)
         xorq	%r11, 24(%rdi)
+        xorq	%r12, (%rsp)
+        xorq	%r13, 8(%rsp)
+        xorq	%r14, 16(%rsp)
+        xorq	%r15, 24(%rsp)
         xorq	%rcx, 64(%rsp)
         xorq	%r9, 72(%rsp)
         xorq	%r10, 80(%rsp)
         xorq	%r11, 88(%rsp)
-        # Conditional Swap
-        movq	(%rsp), %rcx
-        movq	8(%rsp), %r9
-        movq	16(%rsp), %r10
-        movq	24(%rsp), %r11
-        xorq	32(%rsp), %rcx
-        xorq	40(%rsp), %r9
-        xorq	48(%rsp), %r10
-        xorq	56(%rsp), %r11
-        andq	%rbx, %rcx
-        andq	%rbx, %r9
-        andq	%rbx, %r10
-        andq	%rbx, %r11
-        xorq	%rcx, (%rsp)
-        xorq	%r9, 8(%rsp)
-        xorq	%r10, 16(%rsp)
-        xorq	%r11, 24(%rsp)
-        xorq	%rcx, 32(%rsp)
-        xorq	%r9, 40(%rsp)
-        xorq	%r10, 48(%rsp)
-        xorq	%r11, 56(%rsp)
+        xorq	%r12, 32(%rsp)
+        xorq	%r13, 40(%rsp)
+        xorq	%r14, 48(%rsp)
+        xorq	%r15, 56(%rsp)
 L_curve25519_x64_3:
         # Add-Sub
         # Add
@@ -6104,14 +6096,13 @@ L_curve25519_x64_3:
         adcq	16(%rsp), %r10
         movq	%r11, %r15
         adcq	24(%rsp), %r11
-        movq	$0x00, %rax
-        adcq	$0x00, %rax
-        shldq	$0x01, %r11, %rax
-        movq	$0x7fffffffffffffff, %rdx
-        imulq	$19, %rax
-        andq	%rdx, %r11
+        movq	$0x00, %rbp
+        adcq	$0x00, %rbp
+        shldq	$0x01, %r11, %rbp
+        imulq	$19, %rbp
+        btr	$63, %r11
         #   Sub modulus (if overflow)
-        addq	%rax, %rcx
+        addq	%rbp, %rcx
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -6120,12 +6111,12 @@ L_curve25519_x64_3:
         sbbq	8(%rsp), %r13
         sbbq	16(%rsp), %r14
         sbbq	24(%rsp), %r15
-        sbbq	%rax, %rax
-        shldq	$0x01, %r15, %rax
-        imulq	$-19, %rax
-        andq	%rdx, %r15
+        sbbq	%rbp, %rbp
+        shldq	$0x01, %r15, %rbp
+        imulq	$-19, %rbp
+        btr	$63, %r15
         #   Add modulus (if underflow)
-        subq	%rax, %r12
+        subq	%rbp, %r12
         sbbq	$0x00, %r13
         sbbq	$0x00, %r14
         sbbq	$0x00, %r15
@@ -6488,13 +6479,12 @@ L_curve25519_x64_3:
         sbbq	104(%rsp), %r9
         sbbq	112(%rsp), %r10
         sbbq	120(%rsp), %r11
-        sbbq	%rax, %rax
-        shldq	$0x01, %r11, %rax
-        movq	$0x7fffffffffffffff, %rdx
-        imulq	$-19, %rax
-        andq	%rdx, %r11
+        sbbq	%rbp, %rbp
+        shldq	$0x01, %r11, %rbp
+        imulq	$-19, %rbp
+        btr	$63, %r11
         #   Add modulus (if underflow)
-        subq	%rax, %rcx
+        subq	%rbp, %rcx
         sbbq	$0x00, %r9
         sbbq	$0x00, %r10
         sbbq	$0x00, %r11
@@ -6523,34 +6513,15 @@ L_curve25519_x64_3:
         movq	$0x7fffffffffffffff, %r12
         addq	%rax, %r11
         adcq	%rdx, %r13
+        addq	96(%rsp), %rcx
+        adcq	104(%rsp), %r9
+        adcq	112(%rsp), %r10
+        adcq	120(%rsp), %r11
+        adcq	$0x00, %r13
         shldq	$0x01, %r11, %r13
         andq	%r12, %r11
         movq	$19, %rax
         mulq	%r13
-        addq	%rax, %rcx
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        movq	%rcx, (%rsp)
-        movq	%r9, 8(%rsp)
-        movq	%r10, 16(%rsp)
-        movq	%r11, 24(%rsp)
-        # Add
-        movq	96(%rsp), %rcx
-        movq	104(%rsp), %r9
-        addq	(%rsp), %rcx
-        movq	112(%rsp), %r10
-        adcq	8(%rsp), %r9
-        movq	120(%rsp), %r11
-        adcq	16(%rsp), %r10
-        adcq	24(%rsp), %r11
-        movq	$0x00, %rax
-        adcq	$0x00, %rax
-        shldq	$0x01, %r11, %rax
-        movq	$0x7fffffffffffffff, %rdx
-        imulq	$19, %rax
-        andq	%rdx, %r11
-        #   Sub modulus (if overflow)
         addq	%rax, %rcx
         adcq	$0x00, %r9
         adcq	$0x00, %r10
@@ -6691,9 +6662,7 @@ L_curve25519_x64_3:
         movq	%r9, 8(%rsp)
         movq	%r10, 16(%rsp)
         movq	%r11, 24(%rsp)
-        movq	160(%rsp), %r9
-        decq	%r9
-        movq	%r9, 160(%rsp)
+        decq	160(%rsp)
         jge	L_curve25519_x64_3
         # Invert
         leaq	32(%rsp), %rdi
@@ -8598,14 +8567,13 @@ _ge_p2_dbl_x64:
         adcq	16(%rsi), %r11
         movq	%r12, %rbx
         adcq	24(%rsi), %r12
-        movq	$0x00, %rax
-        adcq	$0x00, %rax
-        shldq	$0x01, %r12, %rax
-        movq	$0x7fffffffffffffff, %rdx
-        imulq	$19, %rax
-        andq	%rdx, %r12
+        movq	$0x00, %r8
+        adcq	$0x00, %r8
+        shldq	$0x01, %r12, %r8
+        imulq	$19, %r8
+        btr	$63, %r12
         #   Sub modulus (if overflow)
-        addq	%rax, %r9
+        addq	%r8, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
@@ -8614,12 +8582,12 @@ _ge_p2_dbl_x64:
         sbbq	8(%rsi), %r14
         sbbq	16(%rsi), %r15
         sbbq	24(%rsi), %rbx
-        sbbq	%rax, %rax
-        shldq	$0x01, %rbx, %rax
-        imulq	$-19, %rax
-        andq	%rdx, %rbx
+        sbbq	%r8, %r8
+        shldq	$0x01, %rbx, %r8
+        imulq	$-19, %r8
+        btr	$63, %rbx
         #   Add modulus (if underflow)
-        subq	%rax, %r13
+        subq	%r8, %r13
         sbbq	$0x00, %r14
         sbbq	$0x00, %r15
         sbbq	$0x00, %rbx
@@ -8644,14 +8612,13 @@ _ge_p2_dbl_x64:
         movq	24(%rsi), %r12
         adcq	16(%rcx), %r11
         adcq	24(%rcx), %r12
-        movq	$0x00, %rax
-        adcq	$0x00, %rax
-        shldq	$0x01, %r12, %rax
-        movq	$0x7fffffffffffffff, %rdx
-        imulq	$19, %rax
-        andq	%rdx, %r12
+        movq	$0x00, %r8
+        adcq	$0x00, %r8
+        shldq	$0x01, %r12, %r8
+        imulq	$19, %r8
+        btr	$63, %r12
         #   Sub modulus (if overflow)
-        addq	%rax, %r9
+        addq	%r8, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
@@ -8767,13 +8734,12 @@ _ge_p2_dbl_x64:
         sbbq	8(%rsi), %r10
         sbbq	16(%rsi), %r11
         sbbq	24(%rsi), %r12
-        sbbq	%rax, %rax
-        shldq	$0x01, %r12, %rax
-        movq	$0x7fffffffffffffff, %rdx
-        imulq	$-19, %rax
-        andq	%rdx, %r12
+        sbbq	%r8, %r8
+        shldq	$0x01, %r12, %r8
+        imulq	$-19, %r8
+        btr	$63, %r12
         #   Add modulus (if underflow)
-        subq	%rax, %r9
+        subq	%r8, %r9
         sbbq	$0x00, %r10
         sbbq	$0x00, %r11
         sbbq	$0x00, %r12
@@ -8904,13 +8870,12 @@ _ge_p2_dbl_x64:
         sbbq	8(%rsi), %r10
         sbbq	16(%rsi), %r11
         sbbq	24(%rsi), %r12
-        sbbq	%rax, %rax
-        shldq	$0x01, %r12, %rax
-        movq	$0x7fffffffffffffff, %rdx
-        imulq	$-19, %rax
-        andq	%rdx, %r12
+        sbbq	%r8, %r8
+        shldq	$0x01, %r12, %r8
+        imulq	$-19, %r8
+        btr	$63, %r12
         #   Add modulus (if underflow)
-        subq	%rax, %r9
+        subq	%r8, %r9
         sbbq	$0x00, %r10
         sbbq	$0x00, %r11
         sbbq	$0x00, %r12
@@ -8970,14 +8935,13 @@ _ge_madd_x64:
         adcq	16(%r8), %r12
         movq	%r13, %rbp
         adcq	24(%r8), %r13
-        movq	$0x00, %rax
-        adcq	$0x00, %rax
-        shldq	$0x01, %r13, %rax
-        movq	$0x7fffffffffffffff, %rdx
-        imulq	$19, %rax
-        andq	%rdx, %r13
+        movq	$0x00, %r9
+        adcq	$0x00, %r9
+        shldq	$0x01, %r13, %r9
+        imulq	$19, %r9
+        btr	$63, %r13
         #   Sub modulus (if overflow)
-        addq	%rax, %r10
+        addq	%r9, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
         adcq	$0x00, %r13
@@ -8986,12 +8950,12 @@ _ge_madd_x64:
         sbbq	8(%r8), %r15
         sbbq	16(%r8), %rbx
         sbbq	24(%r8), %rbp
-        sbbq	%rax, %rax
-        shldq	$0x01, %rbp, %rax
-        imulq	$-19, %rax
-        andq	%rdx, %rbp
+        sbbq	%r9, %r9
+        shldq	$0x01, %rbp, %r9
+        imulq	$-19, %r9
+        btr	$63, %rbp
         #   Add modulus (if underflow)
-        subq	%rax, %r14
+        subq	%r9, %r14
         sbbq	$0x00, %r15
         sbbq	$0x00, %rbx
         sbbq	$0x00, %rbp
@@ -9412,14 +9376,13 @@ _ge_madd_x64:
         adcq	16(%rsi), %r12
         movq	%r13, %rbp
         adcq	24(%rsi), %r13
-        movq	$0x00, %rax
-        adcq	$0x00, %rax
-        shldq	$0x01, %r13, %rax
-        movq	$0x7fffffffffffffff, %rdx
-        imulq	$19, %rax
-        andq	%rdx, %r13
+        movq	$0x00, %r9
+        adcq	$0x00, %r9
+        shldq	$0x01, %r13, %r9
+        imulq	$19, %r9
+        btr	$63, %r13
         #   Sub modulus (if overflow)
-        addq	%rax, %r10
+        addq	%r9, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
         adcq	$0x00, %r13
@@ -9428,12 +9391,12 @@ _ge_madd_x64:
         sbbq	8(%rsi), %r15
         sbbq	16(%rsi), %rbx
         sbbq	24(%rsi), %rbp
-        sbbq	%rax, %rax
-        shldq	$0x01, %rbp, %rax
-        imulq	$-19, %rax
-        andq	%rdx, %rbp
+        sbbq	%r9, %r9
+        shldq	$0x01, %rbp, %r9
+        imulq	$-19, %r9
+        btr	$63, %rbp
         #   Add modulus (if underflow)
-        subq	%rax, %r14
+        subq	%r9, %r14
         sbbq	$0x00, %r15
         sbbq	$0x00, %rbx
         sbbq	$0x00, %rbp
@@ -9455,14 +9418,13 @@ _ge_madd_x64:
         movq	24(%r8), %r13
         adcq	%r12, %r12
         adcq	%r13, %r13
-        movq	$0x00, %rax
-        adcq	$0x00, %rax
-        shldq	$0x01, %r13, %rax
-        movq	$0x7fffffffffffffff, %rdx
-        imulq	$19, %rax
-        andq	%rdx, %r13
+        movq	$0x00, %r9
+        adcq	$0x00, %r9
+        shldq	$0x01, %r13, %r9
+        imulq	$19, %r9
+        btr	$63, %r13
         #   Sub modulus (if overflow)
-        addq	%rax, %r10
+        addq	%r9, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
         adcq	$0x00, %r13
@@ -9479,14 +9441,13 @@ _ge_madd_x64:
         adcq	16(%rsi), %r12
         movq	%r13, %rbp
         adcq	24(%rsi), %r13
-        movq	$0x00, %rax
-        adcq	$0x00, %rax
-        shldq	$0x01, %r13, %rax
-        movq	$0x7fffffffffffffff, %rdx
-        imulq	$19, %rax
-        andq	%rdx, %r13
+        movq	$0x00, %r9
+        adcq	$0x00, %r9
+        shldq	$0x01, %r13, %r9
+        imulq	$19, %r9
+        btr	$63, %r13
         #   Sub modulus (if overflow)
-        addq	%rax, %r10
+        addq	%r9, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
         adcq	$0x00, %r13
@@ -9495,12 +9456,12 @@ _ge_madd_x64:
         sbbq	8(%rsi), %r15
         sbbq	16(%rsi), %rbx
         sbbq	24(%rsi), %rbp
-        sbbq	%rax, %rax
-        shldq	$0x01, %rbp, %rax
-        imulq	$-19, %rax
-        andq	%rdx, %rbp
+        sbbq	%r9, %r9
+        shldq	$0x01, %rbp, %r9
+        imulq	$-19, %r9
+        btr	$63, %rbp
         #   Add modulus (if underflow)
-        subq	%rax, %r14
+        subq	%r9, %r14
         sbbq	$0x00, %r15
         sbbq	$0x00, %rbx
         sbbq	$0x00, %rbp
@@ -9565,14 +9526,13 @@ _ge_msub_x64:
         adcq	16(%r8), %r12
         movq	%r13, %rbp
         adcq	24(%r8), %r13
-        movq	$0x00, %rax
-        adcq	$0x00, %rax
-        shldq	$0x01, %r13, %rax
-        movq	$0x7fffffffffffffff, %rdx
-        imulq	$19, %rax
-        andq	%rdx, %r13
+        movq	$0x00, %r9
+        adcq	$0x00, %r9
+        shldq	$0x01, %r13, %r9
+        imulq	$19, %r9
+        btr	$63, %r13
         #   Sub modulus (if overflow)
-        addq	%rax, %r10
+        addq	%r9, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
         adcq	$0x00, %r13
@@ -9581,12 +9541,12 @@ _ge_msub_x64:
         sbbq	8(%r8), %r15
         sbbq	16(%r8), %rbx
         sbbq	24(%r8), %rbp
-        sbbq	%rax, %rax
-        shldq	$0x01, %rbp, %rax
-        imulq	$-19, %rax
-        andq	%rdx, %rbp
+        sbbq	%r9, %r9
+        shldq	$0x01, %rbp, %r9
+        imulq	$-19, %r9
+        btr	$63, %rbp
         #   Add modulus (if underflow)
-        subq	%rax, %r14
+        subq	%r9, %r14
         sbbq	$0x00, %r15
         sbbq	$0x00, %rbx
         sbbq	$0x00, %rbp
@@ -10007,14 +9967,13 @@ _ge_msub_x64:
         adcq	16(%rsi), %r12
         movq	%r13, %rbp
         adcq	24(%rsi), %r13
-        movq	$0x00, %rax
-        adcq	$0x00, %rax
-        shldq	$0x01, %r13, %rax
-        movq	$0x7fffffffffffffff, %rdx
-        imulq	$19, %rax
-        andq	%rdx, %r13
+        movq	$0x00, %r9
+        adcq	$0x00, %r9
+        shldq	$0x01, %r13, %r9
+        imulq	$19, %r9
+        btr	$63, %r13
         #   Sub modulus (if overflow)
-        addq	%rax, %r10
+        addq	%r9, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
         adcq	$0x00, %r13
@@ -10023,12 +9982,12 @@ _ge_msub_x64:
         sbbq	8(%rsi), %r15
         sbbq	16(%rsi), %rbx
         sbbq	24(%rsi), %rbp
-        sbbq	%rax, %rax
-        shldq	$0x01, %rbp, %rax
-        imulq	$-19, %rax
-        andq	%rdx, %rbp
+        sbbq	%r9, %r9
+        shldq	$0x01, %rbp, %r9
+        imulq	$-19, %r9
+        btr	$63, %rbp
         #   Add modulus (if underflow)
-        subq	%rax, %r14
+        subq	%r9, %r14
         sbbq	$0x00, %r15
         sbbq	$0x00, %rbx
         sbbq	$0x00, %rbp
@@ -10051,14 +10010,13 @@ _ge_msub_x64:
         movq	24(%r8), %r13
         adcq	%r12, %r12
         adcq	%r13, %r13
-        movq	$0x00, %rax
-        adcq	$0x00, %rax
-        shldq	$0x01, %r13, %rax
-        movq	$0x7fffffffffffffff, %rdx
-        imulq	$19, %rax
-        andq	%rdx, %r13
+        movq	$0x00, %r9
+        adcq	$0x00, %r9
+        shldq	$0x01, %r13, %r9
+        imulq	$19, %r9
+        btr	$63, %r13
         #   Sub modulus (if overflow)
-        addq	%rax, %r10
+        addq	%r9, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
         adcq	$0x00, %r13
@@ -10074,14 +10032,13 @@ _ge_msub_x64:
         adcq	16(%rsi), %r12
         movq	%r13, %rbp
         adcq	24(%rsi), %r13
-        movq	$0x00, %rax
-        adcq	$0x00, %rax
-        shldq	$0x01, %r13, %rax
-        movq	$0x7fffffffffffffff, %rdx
-        imulq	$19, %rax
-        andq	%rdx, %r13
+        movq	$0x00, %r9
+        adcq	$0x00, %r9
+        shldq	$0x01, %r13, %r9
+        imulq	$19, %r9
+        btr	$63, %r13
         #   Sub modulus (if overflow)
-        addq	%rax, %r10
+        addq	%r9, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
         adcq	$0x00, %r13
@@ -10090,12 +10047,12 @@ _ge_msub_x64:
         sbbq	8(%rsi), %r15
         sbbq	16(%rsi), %rbx
         sbbq	24(%rsi), %rbp
-        sbbq	%rax, %rax
-        shldq	$0x01, %rbp, %rax
-        imulq	$-19, %rax
-        andq	%rdx, %rbp
+        sbbq	%r9, %r9
+        shldq	$0x01, %rbp, %r9
+        imulq	$-19, %r9
+        btr	$63, %rbp
         #   Add modulus (if underflow)
-        subq	%rax, %r14
+        subq	%r9, %r14
         sbbq	$0x00, %r15
         sbbq	$0x00, %rbx
         sbbq	$0x00, %rbp
@@ -10160,14 +10117,13 @@ _ge_add_x64:
         adcq	16(%r8), %r12
         movq	%r13, %rbp
         adcq	24(%r8), %r13
-        movq	$0x00, %rax
-        adcq	$0x00, %rax
-        shldq	$0x01, %r13, %rax
-        movq	$0x7fffffffffffffff, %rdx
-        imulq	$19, %rax
-        andq	%rdx, %r13
+        movq	$0x00, %r9
+        adcq	$0x00, %r9
+        shldq	$0x01, %r13, %r9
+        imulq	$19, %r9
+        btr	$63, %r13
         #   Sub modulus (if overflow)
-        addq	%rax, %r10
+        addq	%r9, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
         adcq	$0x00, %r13
@@ -10176,12 +10132,12 @@ _ge_add_x64:
         sbbq	8(%r8), %r15
         sbbq	16(%r8), %rbx
         sbbq	24(%r8), %rbp
-        sbbq	%rax, %rax
-        shldq	$0x01, %rbp, %rax
-        imulq	$-19, %rax
-        andq	%rdx, %rbp
+        sbbq	%r9, %r9
+        shldq	$0x01, %rbp, %r9
+        imulq	$-19, %r9
+        btr	$63, %rbp
         #   Add modulus (if underflow)
-        subq	%rax, %r14
+        subq	%r9, %r14
         sbbq	$0x00, %r15
         sbbq	$0x00, %rbx
         sbbq	$0x00, %rbp
@@ -10603,14 +10559,13 @@ _ge_add_x64:
         adcq	16(%rsi), %r12
         movq	%r13, %rbp
         adcq	24(%rsi), %r13
-        movq	$0x00, %rax
-        adcq	$0x00, %rax
-        shldq	$0x01, %r13, %rax
-        movq	$0x7fffffffffffffff, %rdx
-        imulq	$19, %rax
-        andq	%rdx, %r13
+        movq	$0x00, %r9
+        adcq	$0x00, %r9
+        shldq	$0x01, %r13, %r9
+        imulq	$19, %r9
+        btr	$63, %r13
         #   Sub modulus (if overflow)
-        addq	%rax, %r10
+        addq	%r9, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
         adcq	$0x00, %r13
@@ -10619,12 +10574,12 @@ _ge_add_x64:
         sbbq	8(%rsi), %r15
         sbbq	16(%rsi), %rbx
         sbbq	24(%rsi), %rbp
-        sbbq	%rax, %rax
-        shldq	$0x01, %rbp, %rax
-        imulq	$-19, %rax
-        andq	%rdx, %rbp
+        sbbq	%r9, %r9
+        shldq	$0x01, %rbp, %r9
+        imulq	$-19, %r9
+        btr	$63, %rbp
         #   Add modulus (if underflow)
-        subq	%rax, %r14
+        subq	%r9, %r14
         sbbq	$0x00, %r15
         sbbq	$0x00, %rbx
         sbbq	$0x00, %rbp
@@ -10772,14 +10727,13 @@ _ge_add_x64:
         adcq	%r11, %r11
         adcq	%r12, %r12
         adcq	%r13, %r13
-        movq	$0x00, %rax
-        adcq	$0x00, %rax
-        shldq	$0x01, %r13, %rax
-        movq	$0x7fffffffffffffff, %rdx
-        imulq	$19, %rax
-        andq	%rdx, %r13
+        movq	$0x00, %r9
+        adcq	$0x00, %r9
+        shldq	$0x01, %r13, %r9
+        imulq	$19, %r9
+        btr	$63, %r13
         #   Sub modulus (if overflow)
-        addq	%rax, %r10
+        addq	%r9, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
         adcq	$0x00, %r13
@@ -10795,14 +10749,13 @@ _ge_add_x64:
         adcq	16(%rsi), %r12
         movq	%r13, %rbp
         adcq	24(%rsi), %r13
-        movq	$0x00, %rax
-        adcq	$0x00, %rax
-        shldq	$0x01, %r13, %rax
-        movq	$0x7fffffffffffffff, %rdx
-        imulq	$19, %rax
-        andq	%rdx, %r13
+        movq	$0x00, %r9
+        adcq	$0x00, %r9
+        shldq	$0x01, %r13, %r9
+        imulq	$19, %r9
+        btr	$63, %r13
         #   Sub modulus (if overflow)
-        addq	%rax, %r10
+        addq	%r9, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
         adcq	$0x00, %r13
@@ -10811,12 +10764,12 @@ _ge_add_x64:
         sbbq	8(%rsi), %r15
         sbbq	16(%rsi), %rbx
         sbbq	24(%rsi), %rbp
-        sbbq	%rax, %rax
-        shldq	$0x01, %rbp, %rax
-        imulq	$-19, %rax
-        andq	%rdx, %rbp
+        sbbq	%r9, %r9
+        shldq	$0x01, %rbp, %r9
+        imulq	$-19, %r9
+        btr	$63, %rbp
         #   Add modulus (if underflow)
-        subq	%rax, %r14
+        subq	%r9, %r14
         sbbq	$0x00, %r15
         sbbq	$0x00, %rbx
         sbbq	$0x00, %rbp
@@ -10881,14 +10834,13 @@ _ge_sub_x64:
         adcq	16(%r8), %r12
         movq	%r13, %rbp
         adcq	24(%r8), %r13
-        movq	$0x00, %rax
-        adcq	$0x00, %rax
-        shldq	$0x01, %r13, %rax
-        movq	$0x7fffffffffffffff, %rdx
-        imulq	$19, %rax
-        andq	%rdx, %r13
+        movq	$0x00, %r9
+        adcq	$0x00, %r9
+        shldq	$0x01, %r13, %r9
+        imulq	$19, %r9
+        btr	$63, %r13
         #   Sub modulus (if overflow)
-        addq	%rax, %r10
+        addq	%r9, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
         adcq	$0x00, %r13
@@ -10897,12 +10849,12 @@ _ge_sub_x64:
         sbbq	8(%r8), %r15
         sbbq	16(%r8), %rbx
         sbbq	24(%r8), %rbp
-        sbbq	%rax, %rax
-        shldq	$0x01, %rbp, %rax
-        imulq	$-19, %rax
-        andq	%rdx, %rbp
+        sbbq	%r9, %r9
+        shldq	$0x01, %rbp, %r9
+        imulq	$-19, %r9
+        btr	$63, %rbp
         #   Add modulus (if underflow)
-        subq	%rax, %r14
+        subq	%r9, %r14
         sbbq	$0x00, %r15
         sbbq	$0x00, %rbx
         sbbq	$0x00, %rbp
@@ -11323,14 +11275,13 @@ _ge_sub_x64:
         adcq	16(%rsi), %r12
         movq	%r13, %rbp
         adcq	24(%rsi), %r13
-        movq	$0x00, %rax
-        adcq	$0x00, %rax
-        shldq	$0x01, %r13, %rax
-        movq	$0x7fffffffffffffff, %rdx
-        imulq	$19, %rax
-        andq	%rdx, %r13
+        movq	$0x00, %r9
+        adcq	$0x00, %r9
+        shldq	$0x01, %r13, %r9
+        imulq	$19, %r9
+        btr	$63, %r13
         #   Sub modulus (if overflow)
-        addq	%rax, %r10
+        addq	%r9, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
         adcq	$0x00, %r13
@@ -11339,12 +11290,12 @@ _ge_sub_x64:
         sbbq	8(%rsi), %r15
         sbbq	16(%rsi), %rbx
         sbbq	24(%rsi), %rbp
-        sbbq	%rax, %rax
-        shldq	$0x01, %rbp, %rax
-        imulq	$-19, %rax
-        andq	%rdx, %rbp
+        sbbq	%r9, %r9
+        shldq	$0x01, %rbp, %r9
+        imulq	$-19, %r9
+        btr	$63, %rbp
         #   Add modulus (if underflow)
-        subq	%rax, %r14
+        subq	%r9, %r14
         sbbq	$0x00, %r15
         sbbq	$0x00, %rbx
         sbbq	$0x00, %rbp
@@ -11491,14 +11442,13 @@ _ge_sub_x64:
         adcq	%r11, %r11
         adcq	%r12, %r12
         adcq	%r13, %r13
-        movq	$0x00, %rax
-        adcq	$0x00, %rax
-        shldq	$0x01, %r13, %rax
-        movq	$0x7fffffffffffffff, %rdx
-        imulq	$19, %rax
-        andq	%rdx, %r13
+        movq	$0x00, %r9
+        adcq	$0x00, %r9
+        shldq	$0x01, %r13, %r9
+        imulq	$19, %r9
+        btr	$63, %r13
         #   Sub modulus (if overflow)
-        addq	%rax, %r10
+        addq	%r9, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
         adcq	$0x00, %r13
@@ -11515,14 +11465,13 @@ _ge_sub_x64:
         adcq	16(%rdi), %r12
         movq	%r13, %rbp
         adcq	24(%rdi), %r13
-        movq	$0x00, %rax
-        adcq	$0x00, %rax
-        shldq	$0x01, %r13, %rax
-        movq	$0x7fffffffffffffff, %rdx
-        imulq	$19, %rax
-        andq	%rdx, %r13
+        movq	$0x00, %r9
+        adcq	$0x00, %r9
+        shldq	$0x01, %r13, %r9
+        imulq	$19, %r9
+        btr	$63, %r13
         #   Sub modulus (if overflow)
-        addq	%rax, %r10
+        addq	%r9, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
         adcq	$0x00, %r13
@@ -11531,12 +11480,12 @@ _ge_sub_x64:
         sbbq	8(%rdi), %r15
         sbbq	16(%rdi), %rbx
         sbbq	24(%rdi), %rbp
-        sbbq	%rax, %rax
-        shldq	$0x01, %rbp, %rax
-        imulq	$-19, %rax
-        andq	%rdx, %rbp
+        sbbq	%r9, %r9
+        shldq	$0x01, %rbp, %r9
+        imulq	$-19, %r9
+        btr	$63, %rbp
         #   Add modulus (if underflow)
-        subq	%rax, %r14
+        subq	%r9, %r14
         sbbq	$0x00, %r15
         sbbq	$0x00, %rbx
         sbbq	$0x00, %rbp
@@ -12173,6 +12122,236 @@ _sc_muladd_x64:
 #ifndef __APPLE__
 .size	sc_muladd_x64,.-sc_muladd_x64
 #endif /* __APPLE__ */
+/* Non-constant time modular inversion.
+ *
+ * @param  [out]  r   Resulting number.
+ * @param  [in]   a   Number to invert.
+ * @return  MP_OKAY on success.
+ */
+#ifndef __APPLE__
+.text
+.globl	fe_invert_nct_x64
+.type	fe_invert_nct_x64,@function
+.align	16
+fe_invert_nct_x64:
+#else
+.section	__TEXT,__text
+.globl	_fe_invert_nct_x64
+.p2align	4
+_fe_invert_nct_x64:
+#endif /* __APPLE__ */
+        pushq	%r12
+        pushq	%r13
+        pushq	%r14
+        pushq	%r15
+        subq	$0x201, %rsp
+        movq	$-19, %rcx
+        movq	$-1, %r8
+        movq	$-1, %r9
+        movq	$0x7fffffffffffffff, %r10
+        movq	(%rsi), %r11
+        movq	8(%rsi), %r12
+        movq	16(%rsi), %r13
+        movq	24(%rsi), %r14
+        movq	$0x00, %r15
+        testb	$0x01, %r11b
+        jnz	fe_invert_nct_v_even_end
+fe_invert_nct_v_even_start:
+        shrdq	$0x01, %r12, %r11
+        shrdq	$0x01, %r13, %r12
+        shrdq	$0x01, %r14, %r13
+        shrq	$0x01, %r14
+        movb	$0x01, (%rsp,%r15,1)
+        incq	%r15
+        testb	$0x01, %r11b
+        jz	fe_invert_nct_v_even_start
+fe_invert_nct_v_even_end:
+L_fe_invert_nct_uv_start:
+        cmpq	%r14, %r10
+        jb	L_fe_invert_nct_uv_v
+        ja	L_fe_invert_nct_uv_u
+        cmpq	%r13, %r9
+        jb	L_fe_invert_nct_uv_v
+        ja	L_fe_invert_nct_uv_u
+        cmpq	%r12, %r8
+        jb	L_fe_invert_nct_uv_v
+        ja	L_fe_invert_nct_uv_u
+        cmpq	%r11, %rcx
+        jb	L_fe_invert_nct_uv_v
+L_fe_invert_nct_uv_u:
+        movb	$2, (%rsp,%r15,1)
+        incq	%r15
+        subq	%r11, %rcx
+        sbbq	%r12, %r8
+        sbbq	%r13, %r9
+        sbbq	%r14, %r10
+        shrdq	$0x01, %r8, %rcx
+        shrdq	$0x01, %r9, %r8
+        shrdq	$0x01, %r10, %r9
+        shrq	$0x01, %r10
+        testb	$0x01, %cl
+        jnz	fe_invert_nct_usubv_even_end
+fe_invert_nct_usubv_even_start:
+        shrdq	$0x01, %r8, %rcx
+        shrdq	$0x01, %r9, %r8
+        shrdq	$0x01, %r10, %r9
+        shrq	$0x01, %r10
+        movb	$0x00, (%rsp,%r15,1)
+        incq	%r15
+        testb	$0x01, %cl
+        jz	fe_invert_nct_usubv_even_start
+fe_invert_nct_usubv_even_end:
+        cmpq	$0x01, %rcx
+        jne	L_fe_invert_nct_uv_start
+        movq	%r8, %rdx
+        orq	%r9, %rdx
+        jne	L_fe_invert_nct_uv_start
+        orq	%r10, %rdx
+        jne	L_fe_invert_nct_uv_start
+        movb	$0x01, %al
+        jmp	L_fe_invert_nct_uv_end
+L_fe_invert_nct_uv_v:
+        movb	$3, (%rsp,%r15,1)
+        incq	%r15
+        subq	%rcx, %r11
+        sbbq	%r8, %r12
+        sbbq	%r9, %r13
+        sbbq	%r10, %r14
+        shrdq	$0x01, %r12, %r11
+        shrdq	$0x01, %r13, %r12
+        shrdq	$0x01, %r14, %r13
+        shrq	$0x01, %r14
+        testb	$0x01, %r11b
+        jnz	fe_invert_nct_vsubu_even_end
+fe_invert_nct_vsubu_even_start:
+        shrdq	$0x01, %r12, %r11
+        shrdq	$0x01, %r13, %r12
+        shrdq	$0x01, %r14, %r13
+        shrq	$0x01, %r14
+        movb	$0x01, (%rsp,%r15,1)
+        incq	%r15
+        testb	$0x01, %r11b
+        jz	fe_invert_nct_vsubu_even_start
+fe_invert_nct_vsubu_even_end:
+        cmpq	$0x01, %r11
+        jne	L_fe_invert_nct_uv_start
+        movq	%r12, %rdx
+        orq	%r13, %rdx
+        jne	L_fe_invert_nct_uv_start
+        orq	%r14, %rdx
+        jne	L_fe_invert_nct_uv_start
+        movb	$0x00, %al
+L_fe_invert_nct_uv_end:
+        movq	$-19, %rcx
+        movq	$-1, %r8
+        movq	$-1, %r9
+        movq	$0x7fffffffffffffff, %r10
+        movq	$0x01, %r11
+        xorq	%r12, %r12
+        xorq	%r13, %r13
+        xorq	%r14, %r14
+        movb	$7, (%rsp,%r15,1)
+        movb	(%rsp), %dl
+        movq	$0x01, %r15
+        cmpb	$0x01, %dl
+        je	L_fe_invert_nct_op_div2_d
+        jl	L_fe_invert_nct_op_div2_b
+        cmpb	$3, %dl
+        je	L_fe_invert_nct_op_d_sub_b
+        jl	L_fe_invert_nct_op_b_sub_d
+        jmp	L_fe_invert_nct_op_end
+L_fe_invert_nct_op_b_sub_d:
+        subq	%r11, %rcx
+        sbbq	%r12, %r8
+        sbbq	%r13, %r9
+        sbbq	%r14, %r10
+        jnc	L_fe_invert_nct_op_div2_b
+        movq	$-1, %rdx
+        addq	$-19, %rcx
+        adcq	%rdx, %r8
+        adcq	%rdx, %r9
+        movq	$0x7fffffffffffffff, %rdx
+        adcq	%rdx, %r10
+L_fe_invert_nct_op_div2_b:
+        testb	$0x01, %cl
+        jz	L_fe_invert_nct_op_div2_b_mod
+        addq	$-19, %rcx
+        movq	$-1, %rdx
+        adcq	%rdx, %r8
+        adcq	%rdx, %r9
+        movq	$0x7fffffffffffffff, %rdx
+        adcq	%rdx, %r10
+L_fe_invert_nct_op_div2_b_mod:
+        shrdq	$0x01, %r8, %rcx
+        shrdq	$0x01, %r9, %r8
+        shrdq	$0x01, %r10, %r9
+        shrq	$0x01, %r10
+        movb	(%rsp,%r15,1), %dl
+        incq	%r15
+        cmpb	$0x01, %dl
+        je	L_fe_invert_nct_op_div2_d
+        jl	L_fe_invert_nct_op_div2_b
+        cmpb	$3, %dl
+        je	L_fe_invert_nct_op_d_sub_b
+        jl	L_fe_invert_nct_op_b_sub_d
+        jmp	L_fe_invert_nct_op_end
+L_fe_invert_nct_op_d_sub_b:
+        subq	%rcx, %r11
+        sbbq	%r8, %r12
+        sbbq	%r9, %r13
+        sbbq	%r10, %r14
+        jnc	L_fe_invert_nct_op_div2_d
+        movq	$-1, %rdx
+        addq	$-19, %r11
+        adcq	%rdx, %r12
+        adcq	%rdx, %r13
+        movq	$0x7fffffffffffffff, %rdx
+        adcq	%rdx, %r14
+L_fe_invert_nct_op_div2_d:
+        testb	$0x01, %r11b
+        jz	L_fe_invert_nct_op_div2_d_mod
+        addq	$-19, %r11
+        movq	$-1, %rdx
+        adcq	%rdx, %r12
+        adcq	%rdx, %r13
+        movq	$0x7fffffffffffffff, %rdx
+        adcq	%rdx, %r14
+L_fe_invert_nct_op_div2_d_mod:
+        shrdq	$0x01, %r12, %r11
+        shrdq	$0x01, %r13, %r12
+        shrdq	$0x01, %r14, %r13
+        shrq	$0x01, %r14
+        movb	(%rsp,%r15,1), %dl
+        incq	%r15
+        cmpb	$0x01, %dl
+        je	L_fe_invert_nct_op_div2_d
+        jl	L_fe_invert_nct_op_div2_b
+        cmpb	$3, %dl
+        je	L_fe_invert_nct_op_d_sub_b
+        jl	L_fe_invert_nct_op_b_sub_d
+L_fe_invert_nct_op_end:
+        cmpb	$0x01, %al
+        jne	L_fe_invert_nct_store_d
+        movq	%rcx, (%rdi)
+        movq	%r8, 8(%rdi)
+        movq	%r9, 16(%rdi)
+        movq	%r10, 24(%rdi)
+        jmp	L_fe_invert_nct_store_end
+L_fe_invert_nct_store_d:
+        movq	%r11, (%rdi)
+        movq	%r12, 8(%rdi)
+        movq	%r13, 16(%rdi)
+        movq	%r14, 24(%rdi)
+L_fe_invert_nct_store_end:
+        addq	$0x201, %rsp
+        popq	%r15
+        popq	%r14
+        popq	%r13
+        popq	%r12
+        repz retq
+#ifndef __APPLE__
+.size	fe_invert_nct_x64,.-fe_invert_nct_x64
+#endif /* __APPLE__ */
 #endif /* HAVE_ED25519 */
 #ifdef HAVE_INTEL_AVX2
 #ifndef __APPLE__
@@ -12358,16 +12537,18 @@ fe_mul_avx2:
 .p2align	4
 _fe_mul_avx2:
 #endif /* __APPLE__ */
+        pushq	%rbx
         pushq	%r12
         pushq	%r13
         pushq	%r14
         pushq	%r15
-        pushq	%rbx
-        movq	%rdx, %rbx
+        pushq	%rbp
+        movq	%rdx, %rbp
+        movq	(%rsi), %rbx
         # Multiply
         # A[0] * B[0]
-        movq	(%rbx), %rdx
-        mulxq	(%rsi), %r8, %r9
+        movq	(%rbp), %rdx
+        mulxq	%rbx, %r8, %r9
         # A[2] * B[0]
         mulxq	16(%rsi), %r10, %r11
         # A[1] * B[0]
@@ -12375,66 +12556,66 @@ _fe_mul_avx2:
         xorq	%r15, %r15
         adcxq	%rax, %r9
         # A[3] * B[1]
-        movq	8(%rbx), %rdx
+        movq	8(%rbp), %rdx
         mulxq	24(%rsi), %r12, %r13
         adcxq	%rcx, %r10
         # A[0] * B[1]
-        mulxq	(%rsi), %rax, %rcx
+        mulxq	%rbx, %rax, %rcx
         adoxq	%rax, %r9
         # A[2] * B[1]
         mulxq	16(%rsi), %rax, %r14
         adoxq	%rcx, %r10
         adcxq	%rax, %r11
         # A[1] * B[2]
-        movq	16(%rbx), %rdx
+        movq	16(%rbp), %rdx
         mulxq	8(%rsi), %rax, %rcx
         adcxq	%r14, %r12
         adoxq	%rax, %r11
         adcxq	%r15, %r13
         adoxq	%rcx, %r12
         # A[0] * B[2]
-        mulxq	(%rsi), %rax, %rcx
+        mulxq	%rbx, %rax, %rcx
         adoxq	%r15, %r13
         xorq	%r14, %r14
         adcxq	%rax, %r10
         # A[1] * B[1]
-        movq	8(%rbx), %rdx
+        movq	8(%rbp), %rdx
         mulxq	8(%rsi), %rdx, %rax
         adcxq	%rcx, %r11
         adoxq	%rdx, %r10
         # A[1] * B[3]
-        movq	24(%rbx), %rdx
+        movq	24(%rbp), %rdx
         adoxq	%rax, %r11
         mulxq	8(%rsi), %rax, %rcx
         adcxq	%rax, %r12
         # A[2] * B[2]
-        movq	16(%rbx), %rdx
+        movq	16(%rbp), %rdx
         mulxq	16(%rsi), %rdx, %rax
         adcxq	%rcx, %r13
         adoxq	%rdx, %r12
         # A[3] * B[3]
-        movq	24(%rbx), %rdx
+        movq	24(%rbp), %rdx
         adoxq	%rax, %r13
         mulxq	24(%rsi), %rax, %rcx
         adoxq	%r15, %r14
         adcxq	%rax, %r14
         # A[0] * B[3]
-        mulxq	(%rsi), %rdx, %rax
+        mulxq	%rbx, %rdx, %rax
         adcxq	%rcx, %r15
         xorq	%rcx, %rcx
         adcxq	%rdx, %r11
         # A[3] * B[0]
         movq	24(%rsi), %rdx
         adcxq	%rax, %r12
-        mulxq	(%rbx), %rdx, %rax
+        mulxq	(%rbp), %rdx, %rax
         adoxq	%rdx, %r11
         adoxq	%rax, %r12
         # A[3] * B[2]
         movq	24(%rsi), %rdx
-        mulxq	16(%rbx), %rdx, %rax
+        mulxq	16(%rbp), %rdx, %rax
         adcxq	%rdx, %r13
         # A[2] * B[3]
-        movq	24(%rbx), %rdx
+        movq	24(%rbp), %rdx
         adcxq	%rax, %r14
         mulxq	16(%rsi), %rax, %rdx
         adcxq	%rcx, %r15
@@ -12475,11 +12656,12 @@ _fe_mul_avx2:
         movq	%r9, 8(%rdi)
         movq	%r10, 16(%rdi)
         movq	%r11, 24(%rdi)
-        popq	%rbx
+        popq	%rbp
         popq	%r15
         popq	%r14
         popq	%r13
         popq	%r12
+        popq	%rbx
         repz retq
 #ifndef __APPLE__
 .size	fe_mul_avx2,.-fe_mul_avx2
@@ -12729,14 +12911,13 @@ _fe_mul121666_avx2:
         mulxq	(%rsi), %rax, %r13
         mulxq	8(%rsi), %rcx, %r12
         mulxq	16(%rsi), %r8, %r11
-        mulxq	24(%rsi), %r9, %r10
         addq	%r13, %rcx
+        mulxq	24(%rsi), %r9, %r10
         adcq	%r12, %r8
         adcq	%r11, %r9
         adcq	$0x00, %r10
-        movq	$0x7fffffffffffffff, %r13
         shldq	$0x01, %r9, %r10
-        andq	%r13, %r9
+        btr	$63, %r9
         imulq	$19, %r10, %r10
         addq	%r10, %rax
         adcq	$0x00, %rcx
@@ -13008,7 +13189,7 @@ _fe_invert_avx2:
         movq	128(%rsp), %rdi
         addq	$0x90, %rsp
         repz retq
-#if !defined(HAVE_ED25519) && !defined(WOLFSSL_CURVE25519_USE_ED25519)
+#if defined(WOLFSSL_CURVE25519_NOT_USE_ED25519)
 #ifndef __APPLE__
 .data
 #else
@@ -13083,43 +13264,42 @@ L_curve25519_base_avx2_bits:
         movq	8(%rdi), %r9
         movq	16(%rdi), %r10
         movq	24(%rdi), %r11
+        movq	(%rsp), %r12
+        movq	8(%rsp), %r13
+        movq	16(%rsp), %r14
+        movq	24(%rsp), %r15
         xorq	64(%rsp), %r8
         xorq	72(%rsp), %r9
         xorq	80(%rsp), %r10
         xorq	88(%rsp), %r11
+        xorq	32(%rsp), %r12
+        xorq	40(%rsp), %r13
+        xorq	48(%rsp), %r14
+        xorq	56(%rsp), %r15
         andq	%rax, %r8
         andq	%rax, %r9
         andq	%rax, %r10
         andq	%rax, %r11
+        andq	%rax, %r12
+        andq	%rax, %r13
+        andq	%rax, %r14
+        andq	%rax, %r15
         xorq	%r8, (%rdi)
         xorq	%r9, 8(%rdi)
         xorq	%r10, 16(%rdi)
         xorq	%r11, 24(%rdi)
+        xorq	%r12, (%rsp)
+        xorq	%r13, 8(%rsp)
+        xorq	%r14, 16(%rsp)
+        xorq	%r15, 24(%rsp)
         xorq	%r8, 64(%rsp)
         xorq	%r9, 72(%rsp)
         xorq	%r10, 80(%rsp)
         xorq	%r11, 88(%rsp)
-        # Conditional Swap
-        movq	(%rsp), %r8
-        movq	8(%rsp), %r9
-        movq	16(%rsp), %r10
-        movq	24(%rsp), %r11
-        xorq	32(%rsp), %r8
-        xorq	40(%rsp), %r9
-        xorq	48(%rsp), %r10
-        xorq	56(%rsp), %r11
-        andq	%rax, %r8
-        andq	%rax, %r9
-        andq	%rax, %r10
-        andq	%rax, %r11
-        xorq	%r8, (%rsp)
-        xorq	%r9, 8(%rsp)
-        xorq	%r10, 16(%rsp)
-        xorq	%r11, 24(%rsp)
-        xorq	%r8, 32(%rsp)
-        xorq	%r9, 40(%rsp)
-        xorq	%r10, 48(%rsp)
-        xorq	%r11, 56(%rsp)
+        xorq	%r12, 32(%rsp)
+        xorq	%r13, 40(%rsp)
+        xorq	%r14, 48(%rsp)
+        xorq	%r15, 56(%rsp)
         movq	%rbx, 168(%rsp)
         # Add-Sub
         # Add
@@ -13135,14 +13315,13 @@ L_curve25519_base_avx2_bits:
         adcq	16(%rsp), %r10
         movq	%r11, %r15
         adcq	24(%rsp), %r11
-        movq	$0x00, %rcx
-        adcq	$0x00, %rcx
-        shldq	$0x01, %r11, %rcx
-        movq	$0x7fffffffffffffff, %rbx
-        imulq	$19, %rcx
-        andq	%rbx, %r11
+        movq	$0x00, %rbx
+        adcq	$0x00, %rbx
+        shldq	$0x01, %r11, %rbx
+        imulq	$19, %rbx
+        btr	$63, %r11
         #   Sub modulus (if overflow)
-        addq	%rcx, %r8
+        addq	%rbx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -13151,12 +13330,12 @@ L_curve25519_base_avx2_bits:
         sbbq	8(%rsp), %r13
         sbbq	16(%rsp), %r14
         sbbq	24(%rsp), %r15
-        sbbq	%rcx, %rcx
-        shldq	$0x01, %r15, %rcx
-        imulq	$-19, %rcx
-        andq	%rbx, %r15
+        sbbq	%rbx, %rbx
+        shldq	$0x01, %r15, %rbx
+        imulq	$-19, %rbx
+        btr	$63, %r15
         #   Add modulus (if underflow)
-        subq	%rcx, %r12
+        subq	%rbx, %r12
         sbbq	$0x00, %r13
         sbbq	$0x00, %r14
         sbbq	$0x00, %r15
@@ -13182,14 +13361,13 @@ L_curve25519_base_avx2_bits:
         adcq	48(%rsp), %r10
         movq	%r11, %r15
         adcq	56(%rsp), %r11
-        movq	$0x00, %rcx
-        adcq	$0x00, %rcx
-        shldq	$0x01, %r11, %rcx
-        movq	$0x7fffffffffffffff, %rbx
-        imulq	$19, %rcx
-        andq	%rbx, %r11
+        movq	$0x00, %rbx
+        adcq	$0x00, %rbx
+        shldq	$0x01, %r11, %rbx
+        imulq	$19, %rbx
+        btr	$63, %r11
         #   Sub modulus (if overflow)
-        addq	%rcx, %r8
+        addq	%rbx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -13198,12 +13376,12 @@ L_curve25519_base_avx2_bits:
         sbbq	40(%rsp), %r13
         sbbq	48(%rsp), %r14
         sbbq	56(%rsp), %r15
-        sbbq	%rcx, %rcx
-        shldq	$0x01, %r15, %rcx
-        imulq	$-19, %rcx
-        andq	%rbx, %r15
+        sbbq	%rbx, %rbx
+        shldq	$0x01, %r15, %rbx
+        imulq	$-19, %rbx
+        btr	$63, %r15
         #   Add modulus (if underflow)
-        subq	%rcx, %r12
+        subq	%rbx, %r12
         sbbq	$0x00, %r13
         sbbq	$0x00, %r14
         sbbq	$0x00, %r15
@@ -13215,10 +13393,11 @@ L_curve25519_base_avx2_bits:
         movq	%r13, 104(%rsp)
         movq	%r14, 112(%rsp)
         movq	%r15, 120(%rsp)
+        movq	32(%rsp), %rax
         # Multiply
         # A[0] * B[0]
         movq	128(%rsp), %rdx
-        mulxq	32(%rsp), %r8, %r9
+        mulxq	%rax, %r8, %r9
         # A[2] * B[0]
         mulxq	48(%rsp), %r10, %r11
         # A[1] * B[0]
@@ -13230,7 +13409,7 @@ L_curve25519_base_avx2_bits:
         mulxq	56(%rsp), %r12, %r13
         adcxq	%rbx, %r10
         # A[0] * B[1]
-        mulxq	32(%rsp), %rcx, %rbx
+        mulxq	%rax, %rcx, %rbx
         adoxq	%rcx, %r9
         # A[2] * B[1]
         mulxq	48(%rsp), %rcx, %r14
@@ -13244,7 +13423,7 @@ L_curve25519_base_avx2_bits:
         adcxq	%r15, %r13
         adoxq	%rbx, %r12
         # A[0] * B[2]
-        mulxq	32(%rsp), %rcx, %rbx
+        mulxq	%rax, %rcx, %rbx
         adoxq	%r15, %r13
         xorq	%r14, %r14
         adcxq	%rcx, %r10
@@ -13270,7 +13449,7 @@ L_curve25519_base_avx2_bits:
         adoxq	%r15, %r14
         adcxq	%rcx, %r14
         # A[0] * B[3]
-        mulxq	32(%rsp), %rdx, %rcx
+        mulxq	%rax, %rdx, %rcx
         adcxq	%rbx, %r15
         xorq	%rbx, %rbx
         adcxq	%rdx, %r11
@@ -13317,10 +13496,11 @@ L_curve25519_base_avx2_bits:
         movq	%r9, 40(%rsp)
         movq	%r10, 48(%rsp)
         movq	%r11, 56(%rsp)
+        movq	96(%rsp), %rax
         # Multiply
         # A[0] * B[0]
         movq	(%rdi), %rdx
-        mulxq	96(%rsp), %r8, %r9
+        mulxq	%rax, %r8, %r9
         # A[2] * B[0]
         mulxq	112(%rsp), %r10, %r11
         # A[1] * B[0]
@@ -13332,7 +13512,7 @@ L_curve25519_base_avx2_bits:
         mulxq	120(%rsp), %r12, %r13
         adcxq	%rbx, %r10
         # A[0] * B[1]
-        mulxq	96(%rsp), %rcx, %rbx
+        mulxq	%rax, %rcx, %rbx
         adoxq	%rcx, %r9
         # A[2] * B[1]
         mulxq	112(%rsp), %rcx, %r14
@@ -13346,7 +13526,7 @@ L_curve25519_base_avx2_bits:
         adcxq	%r15, %r13
         adoxq	%rbx, %r12
         # A[0] * B[2]
-        mulxq	96(%rsp), %rcx, %rbx
+        mulxq	%rax, %rcx, %rbx
         adoxq	%r15, %r13
         xorq	%r14, %r14
         adcxq	%rcx, %r10
@@ -13372,7 +13552,7 @@ L_curve25519_base_avx2_bits:
         adoxq	%r15, %r14
         adcxq	%rcx, %r14
         # A[0] * B[3]
-        mulxq	96(%rsp), %rdx, %rcx
+        mulxq	%rax, %rdx, %rcx
         adcxq	%rbx, %r15
         xorq	%rbx, %rbx
         adcxq	%rdx, %r11
@@ -13593,14 +13773,13 @@ L_curve25519_base_avx2_bits:
         adcq	48(%rsp), %r10
         movq	%r11, %r15
         adcq	56(%rsp), %r11
-        movq	$0x00, %rcx
-        adcq	$0x00, %rcx
-        shldq	$0x01, %r11, %rcx
-        movq	$0x7fffffffffffffff, %rbx
-        imulq	$19, %rcx
-        andq	%rbx, %r11
+        movq	$0x00, %rbx
+        adcq	$0x00, %rbx
+        shldq	$0x01, %r11, %rbx
+        imulq	$19, %rbx
+        btr	$63, %r11
         #   Sub modulus (if overflow)
-        addq	%rcx, %r8
+        addq	%rbx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -13609,12 +13788,12 @@ L_curve25519_base_avx2_bits:
         sbbq	40(%rsp), %r13
         sbbq	48(%rsp), %r14
         sbbq	56(%rsp), %r15
-        sbbq	%rcx, %rcx
-        shldq	$0x01, %r15, %rcx
-        imulq	$-19, %rcx
-        andq	%rbx, %r15
+        sbbq	%rbx, %rbx
+        shldq	$0x01, %r15, %rbx
+        imulq	$-19, %rbx
+        btr	$63, %r15
         #   Add modulus (if underflow)
-        subq	%rcx, %r12
+        subq	%rbx, %r12
         sbbq	$0x00, %r13
         sbbq	$0x00, %r14
         sbbq	$0x00, %r15
@@ -13626,10 +13805,11 @@ L_curve25519_base_avx2_bits:
         movq	%r13, 40(%rsp)
         movq	%r14, 48(%rsp)
         movq	%r15, 56(%rsp)
+        movq	128(%rsp), %rax
         # Multiply
         # A[0] * B[0]
         movq	96(%rsp), %rdx
-        mulxq	128(%rsp), %r8, %r9
+        mulxq	%rax, %r8, %r9
         # A[2] * B[0]
         mulxq	144(%rsp), %r10, %r11
         # A[1] * B[0]
@@ -13641,7 +13821,7 @@ L_curve25519_base_avx2_bits:
         mulxq	152(%rsp), %r12, %r13
         adcxq	%rbx, %r10
         # A[0] * B[1]
-        mulxq	128(%rsp), %rcx, %rbx
+        mulxq	%rax, %rcx, %rbx
         adoxq	%rcx, %r9
         # A[2] * B[1]
         mulxq	144(%rsp), %rcx, %r14
@@ -13655,7 +13835,7 @@ L_curve25519_base_avx2_bits:
         adcxq	%r15, %r13
         adoxq	%rbx, %r12
         # A[0] * B[2]
-        mulxq	128(%rsp), %rcx, %rbx
+        mulxq	%rax, %rcx, %rbx
         adoxq	%r15, %r13
         xorq	%r14, %r14
         adcxq	%rcx, %r10
@@ -13681,7 +13861,7 @@ L_curve25519_base_avx2_bits:
         adoxq	%r15, %r14
         adcxq	%rcx, %r14
         # A[0] * B[3]
-        mulxq	128(%rsp), %rdx, %rcx
+        mulxq	%rax, %rdx, %rcx
         adcxq	%rbx, %r15
         xorq	%rbx, %rbx
         adcxq	%rdx, %r11
@@ -13737,13 +13917,12 @@ L_curve25519_base_avx2_bits:
         sbbq	104(%rsp), %r9
         sbbq	112(%rsp), %r10
         sbbq	120(%rsp), %r11
-        sbbq	%rcx, %rcx
-        shldq	$0x01, %r11, %rcx
-        movq	$0x7fffffffffffffff, %rbx
-        imulq	$-19, %rcx
-        andq	%rbx, %r11
+        sbbq	%rbx, %rbx
+        shldq	$0x01, %r11, %rbx
+        imulq	$-19, %rbx
+        btr	$63, %r11
         #   Add modulus (if underflow)
-        subq	%rcx, %r8
+        subq	%rbx, %r8
         sbbq	$0x00, %r9
         sbbq	$0x00, %r10
         sbbq	$0x00, %r11
@@ -13831,27 +14010,6 @@ L_curve25519_base_avx2_bits:
         movq	%r9, 40(%rsp)
         movq	%r10, 48(%rsp)
         movq	%r11, 56(%rsp)
-        movq	$0x1db42, %rdx
-        mulxq	128(%rsp), %r8, %r15
-        mulxq	136(%rsp), %r9, %r14
-        mulxq	144(%rsp), %r10, %r13
-        mulxq	152(%rsp), %r11, %r12
-        addq	%r15, %r9
-        adcq	%r14, %r10
-        adcq	%r13, %r11
-        adcq	$0x00, %r12
-        movq	$0x7fffffffffffffff, %r15
-        shldq	$0x01, %r11, %r12
-        andq	%r15, %r11
-        imulq	$19, %r12, %r12
-        addq	%r12, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        movq	%r8, (%rsp)
-        movq	%r9, 8(%rsp)
-        movq	%r10, 16(%rsp)
-        movq	%r11, 24(%rsp)
         # Square
         movq	64(%rsp), %rdx
         movq	72(%rsp), %rax
@@ -13932,23 +14090,24 @@ L_curve25519_base_avx2_bits:
         movq	%r9, 72(%rsp)
         movq	%r10, 80(%rsp)
         movq	%r11, 88(%rsp)
-        # Add
-        movq	96(%rsp), %r8
-        movq	104(%rsp), %r9
-        addq	(%rsp), %r8
-        movq	112(%rsp), %r10
-        adcq	8(%rsp), %r9
-        movq	120(%rsp), %r11
-        adcq	16(%rsp), %r10
-        adcq	24(%rsp), %r11
-        movq	$0x00, %rcx
-        adcq	$0x00, %rcx
-        shldq	$0x01, %r11, %rcx
-        movq	$0x7fffffffffffffff, %rbx
-        imulq	$19, %rcx
-        andq	%rbx, %r11
-        #   Sub modulus (if overflow)
-        addq	%rcx, %r8
+        movq	$0x1db42, %rdx
+        mulxq	128(%rsp), %r8, %r15
+        mulxq	136(%rsp), %r9, %r14
+        mulxq	144(%rsp), %r10, %r13
+        addq	%r15, %r9
+        mulxq	152(%rsp), %r11, %r12
+        adcq	%r14, %r10
+        adcq	%r13, %r11
+        adcq	$0x00, %r12
+        addq	96(%rsp), %r8
+        adcq	104(%rsp), %r9
+        adcq	112(%rsp), %r10
+        adcq	120(%rsp), %r11
+        adcq	$0x00, %r12
+        shldq	$0x01, %r11, %r12
+        btr	$63, %r11
+        imulq	$19, %r12, %r12
+        addq	%r12, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -13960,14 +14119,13 @@ L_curve25519_base_avx2_bits:
         mulxq	32(%rsp), %r8, %r15
         mulxq	40(%rsp), %r9, %r14
         mulxq	48(%rsp), %r10, %r13
-        mulxq	56(%rsp), %r11, %r12
         addq	%r15, %r9
+        mulxq	56(%rsp), %r11, %r12
         adcq	%r14, %r10
         adcq	%r13, %r11
         adcq	$0x00, %r12
-        movq	$0x7fffffffffffffff, %r15
         shldq	$0x01, %r11, %r12
-        andq	%r15, %r11
+        btr	$63, %r11
         imulq	$19, %r12, %r12
         addq	%r12, %r8
         adcq	$0x00, %r9
@@ -13977,10 +14135,11 @@ L_curve25519_base_avx2_bits:
         movq	%r9, 40(%rsp)
         movq	%r10, 48(%rsp)
         movq	%r11, 56(%rsp)
+        movq	128(%rsp), %rax
         # Multiply
         # A[0] * B[0]
         movq	96(%rsp), %rdx
-        mulxq	128(%rsp), %r8, %r9
+        mulxq	%rax, %r8, %r9
         # A[2] * B[0]
         mulxq	144(%rsp), %r10, %r11
         # A[1] * B[0]
@@ -13992,7 +14151,7 @@ L_curve25519_base_avx2_bits:
         mulxq	152(%rsp), %r12, %r13
         adcxq	%rbx, %r10
         # A[0] * B[1]
-        mulxq	128(%rsp), %rcx, %rbx
+        mulxq	%rax, %rcx, %rbx
         adoxq	%rcx, %r9
         # A[2] * B[1]
         mulxq	144(%rsp), %rcx, %r14
@@ -14006,7 +14165,7 @@ L_curve25519_base_avx2_bits:
         adcxq	%r15, %r13
         adoxq	%rbx, %r12
         # A[0] * B[2]
-        mulxq	128(%rsp), %rcx, %rbx
+        mulxq	%rax, %rcx, %rbx
         adoxq	%r15, %r13
         xorq	%r14, %r14
         adcxq	%rcx, %r10
@@ -14032,7 +14191,7 @@ L_curve25519_base_avx2_bits:
         adoxq	%r15, %r14
         adcxq	%rcx, %r14
         # A[0] * B[3]
-        mulxq	128(%rsp), %rdx, %rcx
+        mulxq	%rax, %rdx, %rcx
         adcxq	%rbx, %r15
         xorq	%rbx, %rbx
         adcxq	%rdx, %r11
@@ -14089,43 +14248,42 @@ L_curve25519_base_avx2_bits:
         movq	8(%rdi), %r9
         movq	16(%rdi), %r10
         movq	24(%rdi), %r11
+        movq	(%rsp), %r12
+        movq	8(%rsp), %r13
+        movq	16(%rsp), %r14
+        movq	24(%rsp), %r15
         xorq	64(%rsp), %r8
         xorq	72(%rsp), %r9
         xorq	80(%rsp), %r10
         xorq	88(%rsp), %r11
+        xorq	32(%rsp), %r12
+        xorq	40(%rsp), %r13
+        xorq	48(%rsp), %r14
+        xorq	56(%rsp), %r15
         andq	%rax, %r8
         andq	%rax, %r9
         andq	%rax, %r10
         andq	%rax, %r11
+        andq	%rax, %r12
+        andq	%rax, %r13
+        andq	%rax, %r14
+        andq	%rax, %r15
         xorq	%r8, (%rdi)
         xorq	%r9, 8(%rdi)
         xorq	%r10, 16(%rdi)
         xorq	%r11, 24(%rdi)
+        xorq	%r12, (%rsp)
+        xorq	%r13, 8(%rsp)
+        xorq	%r14, 16(%rsp)
+        xorq	%r15, 24(%rsp)
         xorq	%r8, 64(%rsp)
         xorq	%r9, 72(%rsp)
         xorq	%r10, 80(%rsp)
         xorq	%r11, 88(%rsp)
-        # Conditional Swap
-        movq	(%rsp), %r8
-        movq	8(%rsp), %r9
-        movq	16(%rsp), %r10
-        movq	24(%rsp), %r11
-        xorq	32(%rsp), %r8
-        xorq	40(%rsp), %r9
-        xorq	48(%rsp), %r10
-        xorq	56(%rsp), %r11
-        andq	%rax, %r8
-        andq	%rax, %r9
-        andq	%rax, %r10
-        andq	%rax, %r11
-        xorq	%r8, (%rsp)
-        xorq	%r9, 8(%rsp)
-        xorq	%r10, 16(%rsp)
-        xorq	%r11, 24(%rsp)
-        xorq	%r8, 32(%rsp)
-        xorq	%r9, 40(%rsp)
-        xorq	%r10, 48(%rsp)
-        xorq	%r11, 56(%rsp)
+        xorq	%r12, 32(%rsp)
+        xorq	%r13, 40(%rsp)
+        xorq	%r14, 48(%rsp)
+        xorq	%r15, 56(%rsp)
 L_curve25519_base_avx2_last_3:
         # Add-Sub
         # Add
@@ -14141,14 +14299,13 @@ L_curve25519_base_avx2_last_3:
         adcq	16(%rsp), %r10
         movq	%r11, %r15
         adcq	24(%rsp), %r11
-        movq	$0x00, %rcx
-        adcq	$0x00, %rcx
-        shldq	$0x01, %r11, %rcx
-        movq	$0x7fffffffffffffff, %rbx
-        imulq	$19, %rcx
-        andq	%rbx, %r11
+        movq	$0x00, %rbx
+        adcq	$0x00, %rbx
+        shldq	$0x01, %r11, %rbx
+        imulq	$19, %rbx
+        btr	$63, %r11
         #   Sub modulus (if overflow)
-        addq	%rcx, %r8
+        addq	%rbx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -14157,12 +14314,12 @@ L_curve25519_base_avx2_last_3:
         sbbq	8(%rsp), %r13
         sbbq	16(%rsp), %r14
         sbbq	24(%rsp), %r15
-        sbbq	%rcx, %rcx
-        shldq	$0x01, %r15, %rcx
-        imulq	$-19, %rcx
-        andq	%rbx, %r15
+        sbbq	%rbx, %rbx
+        shldq	$0x01, %r15, %rbx
+        imulq	$-19, %rbx
+        btr	$63, %r15
         #   Add modulus (if underflow)
-        subq	%rcx, %r12
+        subq	%rbx, %r12
         sbbq	$0x00, %r13
         sbbq	$0x00, %r14
         sbbq	$0x00, %r15
@@ -14334,10 +14491,11 @@ L_curve25519_base_avx2_last_3:
         movq	%r9, 136(%rsp)
         movq	%r10, 144(%rsp)
         movq	%r11, 152(%rsp)
+        movq	128(%rsp), %rax
         # Multiply
         # A[0] * B[0]
         movq	96(%rsp), %rdx
-        mulxq	128(%rsp), %r8, %r9
+        mulxq	%rax, %r8, %r9
         # A[2] * B[0]
         mulxq	144(%rsp), %r10, %r11
         # A[1] * B[0]
@@ -14349,7 +14507,7 @@ L_curve25519_base_avx2_last_3:
         mulxq	152(%rsp), %r12, %r13
         adcxq	%rbx, %r10
         # A[0] * B[1]
-        mulxq	128(%rsp), %rcx, %rbx
+        mulxq	%rax, %rcx, %rbx
         adoxq	%rcx, %r9
         # A[2] * B[1]
         mulxq	144(%rsp), %rcx, %r14
@@ -14363,7 +14521,7 @@ L_curve25519_base_avx2_last_3:
         adcxq	%r15, %r13
         adoxq	%rbx, %r12
         # A[0] * B[2]
-        mulxq	128(%rsp), %rcx, %rbx
+        mulxq	%rax, %rcx, %rbx
         adoxq	%r15, %r13
         xorq	%r14, %r14
         adcxq	%rcx, %r10
@@ -14389,7 +14547,7 @@ L_curve25519_base_avx2_last_3:
         adoxq	%r15, %r14
         adcxq	%rcx, %r14
         # A[0] * B[3]
-        mulxq	128(%rsp), %rdx, %rcx
+        mulxq	%rax, %rdx, %rcx
         adcxq	%rbx, %r15
         xorq	%rbx, %rbx
         adcxq	%rdx, %r11
@@ -14445,13 +14603,12 @@ L_curve25519_base_avx2_last_3:
         sbbq	104(%rsp), %r9
         sbbq	112(%rsp), %r10
         sbbq	120(%rsp), %r11
-        sbbq	%rcx, %rcx
-        shldq	$0x01, %r11, %rcx
-        movq	$0x7fffffffffffffff, %rbx
-        imulq	$-19, %rcx
-        andq	%rbx, %r11
+        sbbq	%rbx, %rbx
+        shldq	$0x01, %r11, %rbx
+        imulq	$-19, %rbx
+        btr	$63, %r11
         #   Add modulus (if underflow)
-        subq	%rcx, %r8
+        subq	%rbx, %r8
         sbbq	$0x00, %r9
         sbbq	$0x00, %r10
         sbbq	$0x00, %r11
@@ -14463,40 +14620,20 @@ L_curve25519_base_avx2_last_3:
         mulxq	128(%rsp), %r8, %r15
         mulxq	136(%rsp), %r9, %r14
         mulxq	144(%rsp), %r10, %r13
-        mulxq	152(%rsp), %r11, %r12
         addq	%r15, %r9
+        mulxq	152(%rsp), %r11, %r12
         adcq	%r14, %r10
         adcq	%r13, %r11
         adcq	$0x00, %r12
-        movq	$0x7fffffffffffffff, %r15
+        addq	96(%rsp), %r8
+        adcq	104(%rsp), %r9
+        adcq	112(%rsp), %r10
+        adcq	120(%rsp), %r11
+        adcq	$0x00, %r12
         shldq	$0x01, %r11, %r12
-        andq	%r15, %r11
+        btr	$63, %r11
         imulq	$19, %r12, %r12
         addq	%r12, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        movq	%r8, (%rsp)
-        movq	%r9, 8(%rsp)
-        movq	%r10, 16(%rsp)
-        movq	%r11, 24(%rsp)
-        # Add
-        movq	96(%rsp), %r8
-        movq	104(%rsp), %r9
-        addq	(%rsp), %r8
-        movq	112(%rsp), %r10
-        adcq	8(%rsp), %r9
-        movq	120(%rsp), %r11
-        adcq	16(%rsp), %r10
-        adcq	24(%rsp), %r11
-        movq	$0x00, %rcx
-        adcq	$0x00, %rcx
-        shldq	$0x01, %r11, %rcx
-        movq	$0x7fffffffffffffff, %rbx
-        imulq	$19, %rcx
-        andq	%rbx, %r11
-        #   Sub modulus (if overflow)
-        addq	%rcx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -14504,10 +14641,11 @@ L_curve25519_base_avx2_last_3:
         movq	%r9, 104(%rsp)
         movq	%r10, 112(%rsp)
         movq	%r11, 120(%rsp)
+        movq	128(%rsp), %rax
         # Multiply
         # A[0] * B[0]
         movq	96(%rsp), %rdx
-        mulxq	128(%rsp), %r8, %r9
+        mulxq	%rax, %r8, %r9
         # A[2] * B[0]
         mulxq	144(%rsp), %r10, %r11
         # A[1] * B[0]
@@ -14519,7 +14657,7 @@ L_curve25519_base_avx2_last_3:
         mulxq	152(%rsp), %r12, %r13
         adcxq	%rbx, %r10
         # A[0] * B[1]
-        mulxq	128(%rsp), %rcx, %rbx
+        mulxq	%rax, %rcx, %rbx
         adoxq	%rcx, %r9
         # A[2] * B[1]
         mulxq	144(%rsp), %rcx, %r14
@@ -14533,7 +14671,7 @@ L_curve25519_base_avx2_last_3:
         adcxq	%r15, %r13
         adoxq	%rbx, %r12
         # A[0] * B[2]
-        mulxq	128(%rsp), %rcx, %rbx
+        mulxq	%rax, %rcx, %rbx
         adoxq	%r15, %r13
         xorq	%r14, %r14
         adcxq	%rcx, %r10
@@ -14559,7 +14697,7 @@ L_curve25519_base_avx2_last_3:
         adoxq	%r15, %r14
         adcxq	%rcx, %r14
         # A[0] * B[3]
-        mulxq	128(%rsp), %rdx, %rcx
+        mulxq	%rax, %rdx, %rcx
         adcxq	%rbx, %r15
         xorq	%rbx, %rbx
         adcxq	%rdx, %r11
@@ -14846,10 +14984,11 @@ L_curve25519_base_avx2_last_3:
         callq	_fe_mul_avx2
 #endif /* __APPLE__ */
         movq	160(%rsp), %rdi
+        movq	(%rdi), %rax
         # Multiply
         # A[0] * B[0]
         movq	(%rsp), %rdx
-        mulxq	(%rdi), %r8, %r9
+        mulxq	%rax, %r8, %r9
         # A[2] * B[0]
         mulxq	16(%rdi), %r10, %r11
         # A[1] * B[0]
@@ -14861,7 +15000,7 @@ L_curve25519_base_avx2_last_3:
         mulxq	24(%rdi), %r12, %r13
         adcxq	%rbx, %r10
         # A[0] * B[1]
-        mulxq	(%rdi), %rcx, %rbx
+        mulxq	%rax, %rcx, %rbx
         adoxq	%rcx, %r9
         # A[2] * B[1]
         mulxq	16(%rdi), %rcx, %r14
@@ -14875,7 +15014,7 @@ L_curve25519_base_avx2_last_3:
         adcxq	%r15, %r13
         adoxq	%rbx, %r12
         # A[0] * B[2]
-        mulxq	(%rdi), %rcx, %rbx
+        mulxq	%rax, %rcx, %rbx
         adoxq	%r15, %r13
         xorq	%r14, %r14
         adcxq	%rcx, %r10
@@ -14901,7 +15040,7 @@ L_curve25519_base_avx2_last_3:
         adoxq	%r15, %r14
         adcxq	%rcx, %r14
         # A[0] * B[3]
-        mulxq	(%rdi), %rdx, %rcx
+        mulxq	%rax, %rdx, %rcx
         adcxq	%rbx, %r15
         xorq	%rbx, %rbx
         adcxq	%rdx, %r11
@@ -14985,7 +15124,7 @@ L_curve25519_base_avx2_last_3:
 #ifndef __APPLE__
 .size	curve25519_base_avx2,.-curve25519_base_avx2
 #endif /* __APPLE__ */
-#endif /* !HAVE_ED25519 && !WOLFSSL_CURVE25519_USE_ED25519 */
+#endif /* WOLFSSL_CURVE25519_NOT_USE_ED25519 */
 #ifndef __APPLE__
 .text
 .globl	curve25519_avx2
@@ -15034,59 +15173,58 @@ _curve25519_avx2:
         movq	%r12, 88(%rsp)
         movq	$0xfe, %rbx
 L_curve25519_avx2_bits:
-        movq	176(%rsp), %rax
         movq	%rbx, 160(%rsp)
         movq	%rbx, %rcx
+        movq	176(%rsp), %rax
         andq	$63, %rcx
         shrq	$6, %rbx
         movq	(%rsi,%rbx,8), %rbx
         shrq	%cl, %rbx
         andq	$0x01, %rbx
         xorq	%rbx, %rax
+        movq	%rbx, 176(%rsp)
         negq	%rax
         # Conditional Swap
         movq	(%rdi), %r9
         movq	8(%rdi), %r10
         movq	16(%rdi), %r11
         movq	24(%rdi), %r12
+        movq	(%rsp), %r13
+        movq	8(%rsp), %r14
+        movq	16(%rsp), %r15
+        movq	24(%rsp), %rbp
         xorq	64(%rsp), %r9
         xorq	72(%rsp), %r10
         xorq	80(%rsp), %r11
         xorq	88(%rsp), %r12
+        xorq	32(%rsp), %r13
+        xorq	40(%rsp), %r14
+        xorq	48(%rsp), %r15
+        xorq	56(%rsp), %rbp
         andq	%rax, %r9
         andq	%rax, %r10
         andq	%rax, %r11
         andq	%rax, %r12
+        andq	%rax, %r13
+        andq	%rax, %r14
+        andq	%rax, %r15
+        andq	%rax, %rbp
         xorq	%r9, (%rdi)
         xorq	%r10, 8(%rdi)
         xorq	%r11, 16(%rdi)
         xorq	%r12, 24(%rdi)
+        xorq	%r13, (%rsp)
+        xorq	%r14, 8(%rsp)
+        xorq	%r15, 16(%rsp)
+        xorq	%rbp, 24(%rsp)
         xorq	%r9, 64(%rsp)
         xorq	%r10, 72(%rsp)
         xorq	%r11, 80(%rsp)
         xorq	%r12, 88(%rsp)
-        # Conditional Swap
-        movq	(%rsp), %r9
-        movq	8(%rsp), %r10
-        movq	16(%rsp), %r11
-        movq	24(%rsp), %r12
-        xorq	32(%rsp), %r9
-        xorq	40(%rsp), %r10
-        xorq	48(%rsp), %r11
-        xorq	56(%rsp), %r12
-        andq	%rax, %r9
-        andq	%rax, %r10
-        andq	%rax, %r11
-        andq	%rax, %r12
-        xorq	%r9, (%rsp)
-        xorq	%r10, 8(%rsp)
-        xorq	%r11, 16(%rsp)
-        xorq	%r12, 24(%rsp)
-        xorq	%r9, 32(%rsp)
-        xorq	%r10, 40(%rsp)
-        xorq	%r11, 48(%rsp)
-        xorq	%r12, 56(%rsp)
-        movq	%rbx, 176(%rsp)
+        xorq	%r13, 32(%rsp)
+        xorq	%r14, 40(%rsp)
+        xorq	%r15, 48(%rsp)
+        xorq	%rbp, 56(%rsp)
         # Add-Sub
         # Add
         movq	(%rdi), %r9
@@ -15101,14 +15239,13 @@ L_curve25519_avx2_bits:
         adcq	16(%rsp), %r11
         movq	%r12, %rbp
         adcq	24(%rsp), %r12
-        movq	$0x00, %rcx
-        adcq	$0x00, %rcx
-        shldq	$0x01, %r12, %rcx
-        movq	$0x7fffffffffffffff, %rbx
-        imulq	$19, %rcx
-        andq	%rbx, %r12
+        movq	$0x00, %rbx
+        adcq	$0x00, %rbx
+        shldq	$0x01, %r12, %rbx
+        imulq	$19, %rbx
+        btr	$63, %r12
         #   Sub modulus (if overflow)
-        addq	%rcx, %r9
+        addq	%rbx, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
@@ -15117,12 +15254,12 @@ L_curve25519_avx2_bits:
         sbbq	8(%rsp), %r14
         sbbq	16(%rsp), %r15
         sbbq	24(%rsp), %rbp
-        sbbq	%rcx, %rcx
-        shldq	$0x01, %rbp, %rcx
-        imulq	$-19, %rcx
-        andq	%rbx, %rbp
+        sbbq	%rbx, %rbx
+        shldq	$0x01, %rbp, %rbx
+        imulq	$-19, %rbx
+        btr	$63, %rbp
         #   Add modulus (if underflow)
-        subq	%rcx, %r13
+        subq	%rbx, %r13
         sbbq	$0x00, %r14
         sbbq	$0x00, %r15
         sbbq	$0x00, %rbp
@@ -15148,14 +15285,13 @@ L_curve25519_avx2_bits:
         adcq	48(%rsp), %r11
         movq	%r12, %rbp
         adcq	56(%rsp), %r12
-        movq	$0x00, %rcx
-        adcq	$0x00, %rcx
-        shldq	$0x01, %r12, %rcx
-        movq	$0x7fffffffffffffff, %rbx
-        imulq	$19, %rcx
-        andq	%rbx, %r12
+        movq	$0x00, %rbx
+        adcq	$0x00, %rbx
+        shldq	$0x01, %r12, %rbx
+        imulq	$19, %rbx
+        btr	$63, %r12
         #   Sub modulus (if overflow)
-        addq	%rcx, %r9
+        addq	%rbx, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
@@ -15164,12 +15300,12 @@ L_curve25519_avx2_bits:
         sbbq	40(%rsp), %r14
         sbbq	48(%rsp), %r15
         sbbq	56(%rsp), %rbp
-        sbbq	%rcx, %rcx
-        shldq	$0x01, %rbp, %rcx
-        imulq	$-19, %rcx
-        andq	%rbx, %rbp
+        sbbq	%rbx, %rbx
+        shldq	$0x01, %rbp, %rbx
+        imulq	$-19, %rbx
+        btr	$63, %rbp
         #   Add modulus (if underflow)
-        subq	%rcx, %r13
+        subq	%rbx, %r13
         sbbq	$0x00, %r14
         sbbq	$0x00, %r15
         sbbq	$0x00, %rbp
@@ -15181,10 +15317,11 @@ L_curve25519_avx2_bits:
         movq	%r14, 104(%rsp)
         movq	%r15, 112(%rsp)
         movq	%rbp, 120(%rsp)
+        movq	32(%rsp), %rax
         # Multiply
         # A[0] * B[0]
         movq	128(%rsp), %rdx
-        mulxq	32(%rsp), %r9, %r10
+        mulxq	%rax, %r9, %r10
         # A[2] * B[0]
         mulxq	48(%rsp), %r11, %r12
         # A[1] * B[0]
@@ -15196,7 +15333,7 @@ L_curve25519_avx2_bits:
         mulxq	56(%rsp), %r13, %r14
         adcxq	%rbx, %r11
         # A[0] * B[1]
-        mulxq	32(%rsp), %rcx, %rbx
+        mulxq	%rax, %rcx, %rbx
         adoxq	%rcx, %r10
         # A[2] * B[1]
         mulxq	48(%rsp), %rcx, %r15
@@ -15210,7 +15347,7 @@ L_curve25519_avx2_bits:
         adcxq	%rbp, %r14
         adoxq	%rbx, %r13
         # A[0] * B[2]
-        mulxq	32(%rsp), %rcx, %rbx
+        mulxq	%rax, %rcx, %rbx
         adoxq	%rbp, %r14
         xorq	%r15, %r15
         adcxq	%rcx, %r11
@@ -15236,7 +15373,7 @@ L_curve25519_avx2_bits:
         adoxq	%rbp, %r15
         adcxq	%rcx, %r15
         # A[0] * B[3]
-        mulxq	32(%rsp), %rdx, %rcx
+        mulxq	%rax, %rdx, %rcx
         adcxq	%rbx, %rbp
         xorq	%rbx, %rbx
         adcxq	%rdx, %r12
@@ -15283,10 +15420,11 @@ L_curve25519_avx2_bits:
         movq	%r10, 40(%rsp)
         movq	%r11, 48(%rsp)
         movq	%r12, 56(%rsp)
+        movq	96(%rsp), %rax
         # Multiply
         # A[0] * B[0]
         movq	(%rdi), %rdx
-        mulxq	96(%rsp), %r9, %r10
+        mulxq	%rax, %r9, %r10
         # A[2] * B[0]
         mulxq	112(%rsp), %r11, %r12
         # A[1] * B[0]
@@ -15298,7 +15436,7 @@ L_curve25519_avx2_bits:
         mulxq	120(%rsp), %r13, %r14
         adcxq	%rbx, %r11
         # A[0] * B[1]
-        mulxq	96(%rsp), %rcx, %rbx
+        mulxq	%rax, %rcx, %rbx
         adoxq	%rcx, %r10
         # A[2] * B[1]
         mulxq	112(%rsp), %rcx, %r15
@@ -15312,7 +15450,7 @@ L_curve25519_avx2_bits:
         adcxq	%rbp, %r14
         adoxq	%rbx, %r13
         # A[0] * B[2]
-        mulxq	96(%rsp), %rcx, %rbx
+        mulxq	%rax, %rcx, %rbx
         adoxq	%rbp, %r14
         xorq	%r15, %r15
         adcxq	%rcx, %r11
@@ -15338,7 +15476,7 @@ L_curve25519_avx2_bits:
         adoxq	%rbp, %r15
         adcxq	%rcx, %r15
         # A[0] * B[3]
-        mulxq	96(%rsp), %rdx, %rcx
+        mulxq	%rax, %rdx, %rcx
         adcxq	%rbx, %rbp
         xorq	%rbx, %rbx
         adcxq	%rdx, %r12
@@ -15559,14 +15697,13 @@ L_curve25519_avx2_bits:
         adcq	48(%rsp), %r11
         movq	%r12, %rbp
         adcq	56(%rsp), %r12
-        movq	$0x00, %rcx
-        adcq	$0x00, %rcx
-        shldq	$0x01, %r12, %rcx
-        movq	$0x7fffffffffffffff, %rbx
-        imulq	$19, %rcx
-        andq	%rbx, %r12
+        movq	$0x00, %rbx
+        adcq	$0x00, %rbx
+        shldq	$0x01, %r12, %rbx
+        imulq	$19, %rbx
+        btr	$63, %r12
         #   Sub modulus (if overflow)
-        addq	%rcx, %r9
+        addq	%rbx, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
@@ -15575,12 +15712,12 @@ L_curve25519_avx2_bits:
         sbbq	40(%rsp), %r14
         sbbq	48(%rsp), %r15
         sbbq	56(%rsp), %rbp
-        sbbq	%rcx, %rcx
-        shldq	$0x01, %rbp, %rcx
-        imulq	$-19, %rcx
-        andq	%rbx, %rbp
+        sbbq	%rbx, %rbx
+        shldq	$0x01, %rbp, %rbx
+        imulq	$-19, %rbx
+        btr	$63, %rbp
         #   Add modulus (if underflow)
-        subq	%rcx, %r13
+        subq	%rbx, %r13
         sbbq	$0x00, %r14
         sbbq	$0x00, %r15
         sbbq	$0x00, %rbp
@@ -15592,10 +15729,11 @@ L_curve25519_avx2_bits:
         movq	%r14, 40(%rsp)
         movq	%r15, 48(%rsp)
         movq	%rbp, 56(%rsp)
+        movq	128(%rsp), %rax
         # Multiply
         # A[0] * B[0]
         movq	96(%rsp), %rdx
-        mulxq	128(%rsp), %r9, %r10
+        mulxq	%rax, %r9, %r10
         # A[2] * B[0]
         mulxq	144(%rsp), %r11, %r12
         # A[1] * B[0]
@@ -15607,7 +15745,7 @@ L_curve25519_avx2_bits:
         mulxq	152(%rsp), %r13, %r14
         adcxq	%rbx, %r11
         # A[0] * B[1]
-        mulxq	128(%rsp), %rcx, %rbx
+        mulxq	%rax, %rcx, %rbx
         adoxq	%rcx, %r10
         # A[2] * B[1]
         mulxq	144(%rsp), %rcx, %r15
@@ -15621,7 +15759,7 @@ L_curve25519_avx2_bits:
         adcxq	%rbp, %r14
         adoxq	%rbx, %r13
         # A[0] * B[2]
-        mulxq	128(%rsp), %rcx, %rbx
+        mulxq	%rax, %rcx, %rbx
         adoxq	%rbp, %r14
         xorq	%r15, %r15
         adcxq	%rcx, %r11
@@ -15647,7 +15785,7 @@ L_curve25519_avx2_bits:
         adoxq	%rbp, %r15
         adcxq	%rcx, %r15
         # A[0] * B[3]
-        mulxq	128(%rsp), %rdx, %rcx
+        mulxq	%rax, %rdx, %rcx
         adcxq	%rbx, %rbp
         xorq	%rbx, %rbx
         adcxq	%rdx, %r12
@@ -15703,13 +15841,12 @@ L_curve25519_avx2_bits:
         sbbq	104(%rsp), %r10
         sbbq	112(%rsp), %r11
         sbbq	120(%rsp), %r12
-        sbbq	%rcx, %rcx
-        shldq	$0x01, %r12, %rcx
-        movq	$0x7fffffffffffffff, %rbx
-        imulq	$-19, %rcx
-        andq	%rbx, %r12
+        sbbq	%rbx, %rbx
+        shldq	$0x01, %r12, %rbx
+        imulq	$-19, %rbx
+        btr	$63, %r12
         #   Add modulus (if underflow)
-        subq	%rcx, %r9
+        subq	%rbx, %r9
         sbbq	$0x00, %r10
         sbbq	$0x00, %r11
         sbbq	$0x00, %r12
@@ -15797,27 +15934,6 @@ L_curve25519_avx2_bits:
         movq	%r10, 40(%rsp)
         movq	%r11, 48(%rsp)
         movq	%r12, 56(%rsp)
-        movq	$0x1db42, %rdx
-        mulxq	128(%rsp), %r9, %rbp
-        mulxq	136(%rsp), %r10, %r15
-        mulxq	144(%rsp), %r11, %r14
-        mulxq	152(%rsp), %r12, %r13
-        addq	%rbp, %r10
-        adcq	%r15, %r11
-        adcq	%r14, %r12
-        adcq	$0x00, %r13
-        movq	$0x7fffffffffffffff, %rbp
-        shldq	$0x01, %r12, %r13
-        andq	%rbp, %r12
-        imulq	$19, %r13, %r13
-        addq	%r13, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        adcq	$0x00, %r12
-        movq	%r9, (%rsp)
-        movq	%r10, 8(%rsp)
-        movq	%r11, 16(%rsp)
-        movq	%r12, 24(%rsp)
         # Square
         movq	64(%rsp), %rdx
         movq	72(%rsp), %rax
@@ -15898,23 +16014,24 @@ L_curve25519_avx2_bits:
         movq	%r10, 72(%rsp)
         movq	%r11, 80(%rsp)
         movq	%r12, 88(%rsp)
-        # Add
-        movq	96(%rsp), %r9
-        movq	104(%rsp), %r10
-        addq	(%rsp), %r9
-        movq	112(%rsp), %r11
-        adcq	8(%rsp), %r10
-        movq	120(%rsp), %r12
-        adcq	16(%rsp), %r11
-        adcq	24(%rsp), %r12
-        movq	$0x00, %rcx
-        adcq	$0x00, %rcx
-        shldq	$0x01, %r12, %rcx
-        movq	$0x7fffffffffffffff, %rbx
-        imulq	$19, %rcx
-        andq	%rbx, %r12
-        #   Sub modulus (if overflow)
-        addq	%rcx, %r9
+        movq	$0x1db42, %rdx
+        mulxq	128(%rsp), %r9, %rbp
+        mulxq	136(%rsp), %r10, %r15
+        mulxq	144(%rsp), %r11, %r14
+        addq	%rbp, %r10
+        mulxq	152(%rsp), %r12, %r13
+        adcq	%r15, %r11
+        adcq	%r14, %r12
+        adcq	$0x00, %r13
+        addq	96(%rsp), %r9
+        adcq	104(%rsp), %r10
+        adcq	112(%rsp), %r11
+        adcq	120(%rsp), %r12
+        adcq	$0x00, %r13
+        shldq	$0x01, %r12, %r13
+        btr	$63, %r12
+        imulq	$19, %r13, %r13
+        addq	%r13, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
@@ -15922,10 +16039,11 @@ L_curve25519_avx2_bits:
         movq	%r10, 104(%rsp)
         movq	%r11, 112(%rsp)
         movq	%r12, 120(%rsp)
+        movq	(%r8), %rax
         # Multiply
         # A[0] * B[0]
         movq	32(%rsp), %rdx
-        mulxq	(%r8), %r9, %r10
+        mulxq	%rax, %r9, %r10
         # A[2] * B[0]
         mulxq	16(%r8), %r11, %r12
         # A[1] * B[0]
@@ -15937,7 +16055,7 @@ L_curve25519_avx2_bits:
         mulxq	24(%r8), %r13, %r14
         adcxq	%rbx, %r11
         # A[0] * B[1]
-        mulxq	(%r8), %rcx, %rbx
+        mulxq	%rax, %rcx, %rbx
         adoxq	%rcx, %r10
         # A[2] * B[1]
         mulxq	16(%r8), %rcx, %r15
@@ -15951,7 +16069,7 @@ L_curve25519_avx2_bits:
         adcxq	%rbp, %r14
         adoxq	%rbx, %r13
         # A[0] * B[2]
-        mulxq	(%r8), %rcx, %rbx
+        mulxq	%rax, %rcx, %rbx
         adoxq	%rbp, %r14
         xorq	%r15, %r15
         adcxq	%rcx, %r11
@@ -15977,7 +16095,7 @@ L_curve25519_avx2_bits:
         adoxq	%rbp, %r15
         adcxq	%rcx, %r15
         # A[0] * B[3]
-        mulxq	(%r8), %rdx, %rcx
+        mulxq	%rax, %rdx, %rcx
         adcxq	%rbx, %rbp
         xorq	%rbx, %rbx
         adcxq	%rdx, %r12
@@ -16024,79 +16142,80 @@ L_curve25519_avx2_bits:
         movq	%r10, 40(%rsp)
         movq	%r11, 48(%rsp)
         movq	%r12, 56(%rsp)
+        movq	96(%rsp), %rax
         # Multiply
         # A[0] * B[0]
-        movq	96(%rsp), %rdx
-        mulxq	128(%rsp), %r9, %r10
+        movq	128(%rsp), %rdx
+        mulxq	%rax, %r9, %r10
         # A[2] * B[0]
-        mulxq	144(%rsp), %r11, %r12
+        mulxq	112(%rsp), %r11, %r12
         # A[1] * B[0]
-        mulxq	136(%rsp), %rcx, %rbx
+        mulxq	104(%rsp), %rcx, %rbx
         xorq	%rbp, %rbp
         adcxq	%rcx, %r10
         # A[3] * B[1]
-        movq	104(%rsp), %rdx
-        mulxq	152(%rsp), %r13, %r14
+        movq	136(%rsp), %rdx
+        mulxq	120(%rsp), %r13, %r14
         adcxq	%rbx, %r11
         # A[0] * B[1]
-        mulxq	128(%rsp), %rcx, %rbx
+        mulxq	%rax, %rcx, %rbx
         adoxq	%rcx, %r10
         # A[2] * B[1]
-        mulxq	144(%rsp), %rcx, %r15
+        mulxq	112(%rsp), %rcx, %r15
         adoxq	%rbx, %r11
         adcxq	%rcx, %r12
         # A[1] * B[2]
-        movq	112(%rsp), %rdx
-        mulxq	136(%rsp), %rcx, %rbx
+        movq	144(%rsp), %rdx
+        mulxq	104(%rsp), %rcx, %rbx
         adcxq	%r15, %r13
         adoxq	%rcx, %r12
         adcxq	%rbp, %r14
         adoxq	%rbx, %r13
         # A[0] * B[2]
-        mulxq	128(%rsp), %rcx, %rbx
+        mulxq	%rax, %rcx, %rbx
         adoxq	%rbp, %r14
         xorq	%r15, %r15
         adcxq	%rcx, %r11
         # A[1] * B[1]
-        movq	104(%rsp), %rdx
-        mulxq	136(%rsp), %rdx, %rcx
+        movq	136(%rsp), %rdx
+        mulxq	104(%rsp), %rdx, %rcx
         adcxq	%rbx, %r12
         adoxq	%rdx, %r11
         # A[1] * B[3]
-        movq	120(%rsp), %rdx
+        movq	152(%rsp), %rdx
         adoxq	%rcx, %r12
-        mulxq	136(%rsp), %rcx, %rbx
+        mulxq	104(%rsp), %rcx, %rbx
         adcxq	%rcx, %r13
         # A[2] * B[2]
-        movq	112(%rsp), %rdx
-        mulxq	144(%rsp), %rdx, %rcx
+        movq	144(%rsp), %rdx
+        mulxq	112(%rsp), %rdx, %rcx
         adcxq	%rbx, %r14
         adoxq	%rdx, %r13
         # A[3] * B[3]
-        movq	120(%rsp), %rdx
+        movq	152(%rsp), %rdx
         adoxq	%rcx, %r14
-        mulxq	152(%rsp), %rcx, %rbx
+        mulxq	120(%rsp), %rcx, %rbx
         adoxq	%rbp, %r15
         adcxq	%rcx, %r15
         # A[0] * B[3]
-        mulxq	128(%rsp), %rdx, %rcx
+        mulxq	%rax, %rdx, %rcx
         adcxq	%rbx, %rbp
         xorq	%rbx, %rbx
         adcxq	%rdx, %r12
         # A[3] * B[0]
-        movq	152(%rsp), %rdx
+        movq	120(%rsp), %rdx
         adcxq	%rcx, %r13
-        mulxq	96(%rsp), %rdx, %rcx
+        mulxq	128(%rsp), %rdx, %rcx
         adoxq	%rdx, %r12
         adoxq	%rcx, %r13
         # A[3] * B[2]
-        movq	152(%rsp), %rdx
-        mulxq	112(%rsp), %rdx, %rcx
+        movq	120(%rsp), %rdx
+        mulxq	144(%rsp), %rdx, %rcx
         adcxq	%rdx, %r14
         # A[2] * B[3]
-        movq	120(%rsp), %rdx
+        movq	152(%rsp), %rdx
         adcxq	%rcx, %r15
-        mulxq	144(%rsp), %rcx, %rdx
+        mulxq	112(%rsp), %rcx, %rdx
         adcxq	%rbx, %rbp
         adoxq	%rcx, %r14
         adoxq	%rdx, %r15
@@ -16130,7 +16249,7 @@ L_curve25519_avx2_bits:
         decq	%rbx
         cmpq	$3, %rbx
         jge	L_curve25519_avx2_bits
-        movq	%rbx, 160(%rsp)
+        movq	$2, 160(%rsp)
         movq	176(%rsp), %rax
         negq	%rax
         # Conditional Swap
@@ -16138,43 +16257,42 @@ L_curve25519_avx2_bits:
         movq	8(%rdi), %r10
         movq	16(%rdi), %r11
         movq	24(%rdi), %r12
+        movq	(%rsp), %r13
+        movq	8(%rsp), %r14
+        movq	16(%rsp), %r15
+        movq	24(%rsp), %rbp
         xorq	64(%rsp), %r9
         xorq	72(%rsp), %r10
         xorq	80(%rsp), %r11
         xorq	88(%rsp), %r12
+        xorq	32(%rsp), %r13
+        xorq	40(%rsp), %r14
+        xorq	48(%rsp), %r15
+        xorq	56(%rsp), %rbp
         andq	%rax, %r9
         andq	%rax, %r10
         andq	%rax, %r11
         andq	%rax, %r12
+        andq	%rax, %r13
+        andq	%rax, %r14
+        andq	%rax, %r15
+        andq	%rax, %rbp
         xorq	%r9, (%rdi)
         xorq	%r10, 8(%rdi)
         xorq	%r11, 16(%rdi)
         xorq	%r12, 24(%rdi)
+        xorq	%r13, (%rsp)
+        xorq	%r14, 8(%rsp)
+        xorq	%r15, 16(%rsp)
+        xorq	%rbp, 24(%rsp)
         xorq	%r9, 64(%rsp)
         xorq	%r10, 72(%rsp)
         xorq	%r11, 80(%rsp)
         xorq	%r12, 88(%rsp)
-        # Conditional Swap
-        movq	(%rsp), %r9
-        movq	8(%rsp), %r10
-        movq	16(%rsp), %r11
-        movq	24(%rsp), %r12
-        xorq	32(%rsp), %r9
-        xorq	40(%rsp), %r10
-        xorq	48(%rsp), %r11
-        xorq	56(%rsp), %r12
-        andq	%rax, %r9
-        andq	%rax, %r10
-        andq	%rax, %r11
-        andq	%rax, %r12
-        xorq	%r9, (%rsp)
-        xorq	%r10, 8(%rsp)
-        xorq	%r11, 16(%rsp)
-        xorq	%r12, 24(%rsp)
-        xorq	%r9, 32(%rsp)
-        xorq	%r10, 40(%rsp)
-        xorq	%r11, 48(%rsp)
-        xorq	%r12, 56(%rsp)
+        xorq	%r13, 32(%rsp)
+        xorq	%r14, 40(%rsp)
+        xorq	%r15, 48(%rsp)
+        xorq	%rbp, 56(%rsp)
 L_curve25519_avx2_last_3:
         # Add-Sub
         # Add
@@ -16190,14 +16308,13 @@ L_curve25519_avx2_last_3:
         adcq	16(%rsp), %r11
         movq	%r12, %rbp
         adcq	24(%rsp), %r12
-        movq	$0x00, %rcx
-        adcq	$0x00, %rcx
-        shldq	$0x01, %r12, %rcx
-        movq	$0x7fffffffffffffff, %rbx
-        imulq	$19, %rcx
-        andq	%rbx, %r12
+        movq	$0x00, %rbx
+        adcq	$0x00, %rbx
+        shldq	$0x01, %r12, %rbx
+        imulq	$19, %rbx
+        btr	$63, %r12
         #   Sub modulus (if overflow)
-        addq	%rcx, %r9
+        addq	%rbx, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
@@ -16206,12 +16323,12 @@ L_curve25519_avx2_last_3:
         sbbq	8(%rsp), %r14
         sbbq	16(%rsp), %r15
         sbbq	24(%rsp), %rbp
-        sbbq	%rcx, %rcx
-        shldq	$0x01, %rbp, %rcx
-        imulq	$-19, %rcx
-        andq	%rbx, %rbp
+        sbbq	%rbx, %rbx
+        shldq	$0x01, %rbp, %rbx
+        imulq	$-19, %rbx
+        btr	$63, %rbp
         #   Add modulus (if underflow)
-        subq	%rcx, %r13
+        subq	%rbx, %r13
         sbbq	$0x00, %r14
         sbbq	$0x00, %r15
         sbbq	$0x00, %rbp
@@ -16383,10 +16500,11 @@ L_curve25519_avx2_last_3:
         movq	%r10, 136(%rsp)
         movq	%r11, 144(%rsp)
         movq	%r12, 152(%rsp)
+        movq	128(%rsp), %rax
         # Multiply
         # A[0] * B[0]
         movq	96(%rsp), %rdx
-        mulxq	128(%rsp), %r9, %r10
+        mulxq	%rax, %r9, %r10
         # A[2] * B[0]
         mulxq	144(%rsp), %r11, %r12
         # A[1] * B[0]
@@ -16398,7 +16516,7 @@ L_curve25519_avx2_last_3:
         mulxq	152(%rsp), %r13, %r14
         adcxq	%rbx, %r11
         # A[0] * B[1]
-        mulxq	128(%rsp), %rcx, %rbx
+        mulxq	%rax, %rcx, %rbx
         adoxq	%rcx, %r10
         # A[2] * B[1]
         mulxq	144(%rsp), %rcx, %r15
@@ -16412,7 +16530,7 @@ L_curve25519_avx2_last_3:
         adcxq	%rbp, %r14
         adoxq	%rbx, %r13
         # A[0] * B[2]
-        mulxq	128(%rsp), %rcx, %rbx
+        mulxq	%rax, %rcx, %rbx
         adoxq	%rbp, %r14
         xorq	%r15, %r15
         adcxq	%rcx, %r11
@@ -16438,7 +16556,7 @@ L_curve25519_avx2_last_3:
         adoxq	%rbp, %r15
         adcxq	%rcx, %r15
         # A[0] * B[3]
-        mulxq	128(%rsp), %rdx, %rcx
+        mulxq	%rax, %rdx, %rcx
         adcxq	%rbx, %rbp
         xorq	%rbx, %rbx
         adcxq	%rdx, %r12
@@ -16494,13 +16612,12 @@ L_curve25519_avx2_last_3:
         sbbq	104(%rsp), %r10
         sbbq	112(%rsp), %r11
         sbbq	120(%rsp), %r12
-        sbbq	%rcx, %rcx
-        shldq	$0x01, %r12, %rcx
-        movq	$0x7fffffffffffffff, %rbx
-        imulq	$-19, %rcx
-        andq	%rbx, %r12
+        sbbq	%rbx, %rbx
+        shldq	$0x01, %r12, %rbx
+        imulq	$-19, %rbx
+        btr	$63, %r12
         #   Add modulus (if underflow)
-        subq	%rcx, %r9
+        subq	%rbx, %r9
         sbbq	$0x00, %r10
         sbbq	$0x00, %r11
         sbbq	$0x00, %r12
@@ -16512,40 +16629,20 @@ L_curve25519_avx2_last_3:
         mulxq	128(%rsp), %r9, %rbp
         mulxq	136(%rsp), %r10, %r15
         mulxq	144(%rsp), %r11, %r14
-        mulxq	152(%rsp), %r12, %r13
         addq	%rbp, %r10
+        mulxq	152(%rsp), %r12, %r13
         adcq	%r15, %r11
         adcq	%r14, %r12
         adcq	$0x00, %r13
-        movq	$0x7fffffffffffffff, %rbp
+        addq	96(%rsp), %r9
+        adcq	104(%rsp), %r10
+        adcq	112(%rsp), %r11
+        adcq	120(%rsp), %r12
+        adcq	$0x00, %r13
         shldq	$0x01, %r12, %r13
-        andq	%rbp, %r12
+        btr	$63, %r12
         imulq	$19, %r13, %r13
         addq	%r13, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        adcq	$0x00, %r12
-        movq	%r9, (%rsp)
-        movq	%r10, 8(%rsp)
-        movq	%r11, 16(%rsp)
-        movq	%r12, 24(%rsp)
-        # Add
-        movq	96(%rsp), %r9
-        movq	104(%rsp), %r10
-        addq	(%rsp), %r9
-        movq	112(%rsp), %r11
-        adcq	8(%rsp), %r10
-        movq	120(%rsp), %r12
-        adcq	16(%rsp), %r11
-        adcq	24(%rsp), %r12
-        movq	$0x00, %rcx
-        adcq	$0x00, %rcx
-        shldq	$0x01, %r12, %rcx
-        movq	$0x7fffffffffffffff, %rbx
-        imulq	$19, %rcx
-        andq	%rbx, %r12
-        #   Sub modulus (if overflow)
-        addq	%rcx, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
@@ -16553,79 +16650,80 @@ L_curve25519_avx2_last_3:
         movq	%r10, 104(%rsp)
         movq	%r11, 112(%rsp)
         movq	%r12, 120(%rsp)
+        movq	96(%rsp), %rax
         # Multiply
         # A[0] * B[0]
-        movq	96(%rsp), %rdx
-        mulxq	128(%rsp), %r9, %r10
+        movq	128(%rsp), %rdx
+        mulxq	%rax, %r9, %r10
         # A[2] * B[0]
-        mulxq	144(%rsp), %r11, %r12
+        mulxq	112(%rsp), %r11, %r12
         # A[1] * B[0]
-        mulxq	136(%rsp), %rcx, %rbx
+        mulxq	104(%rsp), %rcx, %rbx
         xorq	%rbp, %rbp
         adcxq	%rcx, %r10
         # A[3] * B[1]
-        movq	104(%rsp), %rdx
-        mulxq	152(%rsp), %r13, %r14
+        movq	136(%rsp), %rdx
+        mulxq	120(%rsp), %r13, %r14
         adcxq	%rbx, %r11
         # A[0] * B[1]
-        mulxq	128(%rsp), %rcx, %rbx
+        mulxq	%rax, %rcx, %rbx
         adoxq	%rcx, %r10
         # A[2] * B[1]
-        mulxq	144(%rsp), %rcx, %r15
+        mulxq	112(%rsp), %rcx, %r15
         adoxq	%rbx, %r11
         adcxq	%rcx, %r12
         # A[1] * B[2]
-        movq	112(%rsp), %rdx
-        mulxq	136(%rsp), %rcx, %rbx
+        movq	144(%rsp), %rdx
+        mulxq	104(%rsp), %rcx, %rbx
         adcxq	%r15, %r13
         adoxq	%rcx, %r12
         adcxq	%rbp, %r14
         adoxq	%rbx, %r13
         # A[0] * B[2]
-        mulxq	128(%rsp), %rcx, %rbx
+        mulxq	%rax, %rcx, %rbx
         adoxq	%rbp, %r14
         xorq	%r15, %r15
         adcxq	%rcx, %r11
         # A[1] * B[1]
-        movq	104(%rsp), %rdx
-        mulxq	136(%rsp), %rdx, %rcx
+        movq	136(%rsp), %rdx
+        mulxq	104(%rsp), %rdx, %rcx
         adcxq	%rbx, %r12
         adoxq	%rdx, %r11
         # A[1] * B[3]
-        movq	120(%rsp), %rdx
+        movq	152(%rsp), %rdx
         adoxq	%rcx, %r12
-        mulxq	136(%rsp), %rcx, %rbx
+        mulxq	104(%rsp), %rcx, %rbx
         adcxq	%rcx, %r13
         # A[2] * B[2]
-        movq	112(%rsp), %rdx
-        mulxq	144(%rsp), %rdx, %rcx
+        movq	144(%rsp), %rdx
+        mulxq	112(%rsp), %rdx, %rcx
         adcxq	%rbx, %r14
         adoxq	%rdx, %r13
         # A[3] * B[3]
-        movq	120(%rsp), %rdx
+        movq	152(%rsp), %rdx
         adoxq	%rcx, %r14
-        mulxq	152(%rsp), %rcx, %rbx
+        mulxq	120(%rsp), %rcx, %rbx
         adoxq	%rbp, %r15
         adcxq	%rcx, %r15
         # A[0] * B[3]
-        mulxq	128(%rsp), %rdx, %rcx
+        mulxq	%rax, %rdx, %rcx
         adcxq	%rbx, %rbp
         xorq	%rbx, %rbx
         adcxq	%rdx, %r12
         # A[3] * B[0]
-        movq	152(%rsp), %rdx
+        movq	120(%rsp), %rdx
         adcxq	%rcx, %r13
-        mulxq	96(%rsp), %rdx, %rcx
+        mulxq	128(%rsp), %rdx, %rcx
         adoxq	%rdx, %r12
         adoxq	%rcx, %r13
         # A[3] * B[2]
-        movq	152(%rsp), %rdx
-        mulxq	112(%rsp), %rdx, %rcx
+        movq	120(%rsp), %rdx
+        mulxq	144(%rsp), %rdx, %rcx
         adcxq	%rdx, %r14
         # A[2] * B[3]
-        movq	120(%rsp), %rdx
+        movq	152(%rsp), %rdx
         adcxq	%rcx, %r15
-        mulxq	144(%rsp), %rcx, %rdx
+        mulxq	112(%rsp), %rcx, %rdx
         adcxq	%rbx, %rbp
         adoxq	%rcx, %r14
         adoxq	%rdx, %r15
@@ -16655,9 +16753,7 @@ L_curve25519_avx2_last_3:
         movq	%r10, 8(%rsp)
         movq	%r11, 16(%rsp)
         movq	%r12, 24(%rsp)
-        movq	160(%rsp), %rbx
-        decq	%rbx
-        movq	%rbx, 160(%rsp)
+        decq	160(%rsp)
         jge	L_curve25519_avx2_last_3
         # Invert
         leaq	32(%rsp), %rdi
@@ -16897,10 +16993,11 @@ L_curve25519_avx2_last_3:
         callq	_fe_mul_avx2
 #endif /* __APPLE__ */
         movq	168(%rsp), %rdi
+        movq	(%rdi), %rax
         # Multiply
         # A[0] * B[0]
         movq	(%rsp), %rdx
-        mulxq	(%rdi), %r9, %r10
+        mulxq	%rax, %r9, %r10
         # A[2] * B[0]
         mulxq	16(%rdi), %r11, %r12
         # A[1] * B[0]
@@ -16912,7 +17009,7 @@ L_curve25519_avx2_last_3:
         mulxq	24(%rdi), %r13, %r14
         adcxq	%rbx, %r11
         # A[0] * B[1]
-        mulxq	(%rdi), %rcx, %rbx
+        mulxq	%rax, %rcx, %rbx
         adoxq	%rcx, %r10
         # A[2] * B[1]
         mulxq	16(%rdi), %rcx, %r15
@@ -16926,7 +17023,7 @@ L_curve25519_avx2_last_3:
         adcxq	%rbp, %r14
         adoxq	%rbx, %r13
         # A[0] * B[2]
-        mulxq	(%rdi), %rcx, %rbx
+        mulxq	%rax, %rcx, %rbx
         adoxq	%rbp, %r14
         xorq	%r15, %r15
         adcxq	%rcx, %r11
@@ -16952,7 +17049,7 @@ L_curve25519_avx2_last_3:
         adoxq	%rbp, %r15
         adcxq	%rcx, %r15
         # A[0] * B[3]
-        mulxq	(%rdi), %rdx, %rcx
+        mulxq	%rax, %rdx, %rcx
         adcxq	%rbx, %rbp
         xorq	%rbx, %rbx
         adcxq	%rdx, %r12
@@ -17308,321 +17405,326 @@ _ge_p1p1_to_p2_avx2:
         pushq	%r14
         pushq	%r15
         pushq	%rbx
+        pushq	%rbp
         subq	$16, %rsp
         movq	%rdi, (%rsp)
         movq	%rsi, 8(%rsp)
         leaq	96(%rsi), %rax
+        movq	(%rsi), %r9
         # Multiply
         # A[0] * B[0]
         movq	(%rax), %rdx
-        mulxq	(%rsi), %r9, %r10
+        mulxq	%r9, %r10, %r11
         # A[2] * B[0]
-        mulxq	16(%rsi), %r11, %r12
+        mulxq	16(%rsi), %r12, %r13
         # A[1] * B[0]
         mulxq	8(%rsi), %rcx, %r8
-        xorq	%rbx, %rbx
-        adcxq	%rcx, %r10
+        xorq	%rbp, %rbp
+        adcxq	%rcx, %r11
         # A[3] * B[1]
         movq	8(%rax), %rdx
-        mulxq	24(%rsi), %r13, %r14
-        adcxq	%r8, %r11
+        mulxq	24(%rsi), %r14, %r15
+        adcxq	%r8, %r12
         # A[0] * B[1]
-        mulxq	(%rsi), %rcx, %r8
-        adoxq	%rcx, %r10
+        mulxq	%r9, %rcx, %r8
+        adoxq	%rcx, %r11
         # A[2] * B[1]
-        mulxq	16(%rsi), %rcx, %r15
-        adoxq	%r8, %r11
-        adcxq	%rcx, %r12
+        mulxq	16(%rsi), %rcx, %rbx
+        adoxq	%r8, %r12
+        adcxq	%rcx, %r13
         # A[1] * B[2]
         movq	16(%rax), %rdx
         mulxq	8(%rsi), %rcx, %r8
-        adcxq	%r15, %r13
-        adoxq	%rcx, %r12
         adcxq	%rbx, %r14
-        adoxq	%r8, %r13
+        adoxq	%rcx, %r13
+        adcxq	%rbp, %r15
+        adoxq	%r8, %r14
         # A[0] * B[2]
-        mulxq	(%rsi), %rcx, %r8
-        adoxq	%rbx, %r14
-        xorq	%r15, %r15
-        adcxq	%rcx, %r11
+        mulxq	%r9, %rcx, %r8
+        adoxq	%rbp, %r15
+        xorq	%rbx, %rbx
+        adcxq	%rcx, %r12
         # A[1] * B[1]
         movq	8(%rax), %rdx
         mulxq	8(%rsi), %rdx, %rcx
-        adcxq	%r8, %r12
-        adoxq	%rdx, %r11
+        adcxq	%r8, %r13
+        adoxq	%rdx, %r12
         # A[1] * B[3]
         movq	24(%rax), %rdx
-        adoxq	%rcx, %r12
+        adoxq	%rcx, %r13
         mulxq	8(%rsi), %rcx, %r8
-        adcxq	%rcx, %r13
+        adcxq	%rcx, %r14
         # A[2] * B[2]
         movq	16(%rax), %rdx
         mulxq	16(%rsi), %rdx, %rcx
-        adcxq	%r8, %r14
-        adoxq	%rdx, %r13
+        adcxq	%r8, %r15
+        adoxq	%rdx, %r14
         # A[3] * B[3]
         movq	24(%rax), %rdx
-        adoxq	%rcx, %r14
+        adoxq	%rcx, %r15
         mulxq	24(%rsi), %rcx, %r8
-        adoxq	%rbx, %r15
-        adcxq	%rcx, %r15
+        adoxq	%rbp, %rbx
+        adcxq	%rcx, %rbx
         # A[0] * B[3]
-        mulxq	(%rsi), %rdx, %rcx
-        adcxq	%r8, %rbx
+        mulxq	%r9, %rdx, %rcx
+        adcxq	%r8, %rbp
         xorq	%r8, %r8
-        adcxq	%rdx, %r12
+        adcxq	%rdx, %r13
         # A[3] * B[0]
         movq	24(%rsi), %rdx
-        adcxq	%rcx, %r13
+        adcxq	%rcx, %r14
         mulxq	(%rax), %rdx, %rcx
-        adoxq	%rdx, %r12
-        adoxq	%rcx, %r13
+        adoxq	%rdx, %r13
+        adoxq	%rcx, %r14
         # A[3] * B[2]
         movq	24(%rsi), %rdx
         mulxq	16(%rax), %rdx, %rcx
-        adcxq	%rdx, %r14
+        adcxq	%rdx, %r15
         # A[2] * B[3]
         movq	24(%rax), %rdx
-        adcxq	%rcx, %r15
+        adcxq	%rcx, %rbx
         mulxq	16(%rsi), %rcx, %rdx
-        adcxq	%r8, %rbx
-        adoxq	%rcx, %r14
-        adoxq	%rdx, %r15
-        adoxq	%r8, %rbx
+        adcxq	%r8, %rbp
+        adoxq	%rcx, %r15
+        adoxq	%rdx, %rbx
+        adoxq	%r8, %rbp
         movq	$38, %rdx
-        mulxq	%rbx, %rbx, %rcx
-        addq	%rbx, %r12
+        mulxq	%rbp, %rbp, %rcx
+        addq	%rbp, %r13
         adcq	$0x00, %rcx
         movq	$0x7fffffffffffffff, %r8
-        shldq	$0x01, %r12, %rcx
+        shldq	$0x01, %r13, %rcx
         imulq	$19, %rcx, %rcx
-        andq	%r8, %r12
+        andq	%r8, %r13
         xorq	%r8, %r8
-        adoxq	%rcx, %r9
-        mulxq	%r13, %rcx, %r13
-        adcxq	%rcx, %r9
-        adoxq	%r13, %r10
+        adoxq	%rcx, %r10
         mulxq	%r14, %rcx, %r14
         adcxq	%rcx, %r10
         adoxq	%r14, %r11
         mulxq	%r15, %rcx, %r15
         adcxq	%rcx, %r11
         adoxq	%r15, %r12
-        adcxq	%r8, %r12
+        mulxq	%rbx, %rcx, %rbx
+        adcxq	%rcx, %r12
+        adoxq	%rbx, %r13
+        adcxq	%r8, %r13
         # Store
-        movq	%r9, (%rdi)
-        movq	%r10, 8(%rdi)
-        movq	%r11, 16(%rdi)
-        movq	%r12, 24(%rdi)
+        movq	%r10, (%rdi)
+        movq	%r11, 8(%rdi)
+        movq	%r12, 16(%rdi)
+        movq	%r13, 24(%rdi)
         leaq	64(%rsi), %rsi
         leaq	64(%rdi), %rdi
+        movq	(%rsi), %r9
         # Multiply
         # A[0] * B[0]
         movq	(%rax), %rdx
-        mulxq	(%rsi), %r9, %r10
+        mulxq	%r9, %r10, %r11
         # A[2] * B[0]
-        mulxq	16(%rsi), %r11, %r12
+        mulxq	16(%rsi), %r12, %r13
         # A[1] * B[0]
         mulxq	8(%rsi), %rcx, %r8
-        xorq	%rbx, %rbx
-        adcxq	%rcx, %r10
+        xorq	%rbp, %rbp
+        adcxq	%rcx, %r11
         # A[3] * B[1]
         movq	8(%rax), %rdx
-        mulxq	24(%rsi), %r13, %r14
-        adcxq	%r8, %r11
+        mulxq	24(%rsi), %r14, %r15
+        adcxq	%r8, %r12
         # A[0] * B[1]
-        mulxq	(%rsi), %rcx, %r8
-        adoxq	%rcx, %r10
+        mulxq	%r9, %rcx, %r8
+        adoxq	%rcx, %r11
         # A[2] * B[1]
-        mulxq	16(%rsi), %rcx, %r15
-        adoxq	%r8, %r11
-        adcxq	%rcx, %r12
+        mulxq	16(%rsi), %rcx, %rbx
+        adoxq	%r8, %r12
+        adcxq	%rcx, %r13
         # A[1] * B[2]
         movq	16(%rax), %rdx
         mulxq	8(%rsi), %rcx, %r8
-        adcxq	%r15, %r13
-        adoxq	%rcx, %r12
         adcxq	%rbx, %r14
-        adoxq	%r8, %r13
+        adoxq	%rcx, %r13
+        adcxq	%rbp, %r15
+        adoxq	%r8, %r14
         # A[0] * B[2]
-        mulxq	(%rsi), %rcx, %r8
-        adoxq	%rbx, %r14
-        xorq	%r15, %r15
-        adcxq	%rcx, %r11
+        mulxq	%r9, %rcx, %r8
+        adoxq	%rbp, %r15
+        xorq	%rbx, %rbx
+        adcxq	%rcx, %r12
         # A[1] * B[1]
         movq	8(%rax), %rdx
         mulxq	8(%rsi), %rdx, %rcx
-        adcxq	%r8, %r12
-        adoxq	%rdx, %r11
+        adcxq	%r8, %r13
+        adoxq	%rdx, %r12
         # A[1] * B[3]
         movq	24(%rax), %rdx
-        adoxq	%rcx, %r12
+        adoxq	%rcx, %r13
         mulxq	8(%rsi), %rcx, %r8
-        adcxq	%rcx, %r13
+        adcxq	%rcx, %r14
         # A[2] * B[2]
         movq	16(%rax), %rdx
         mulxq	16(%rsi), %rdx, %rcx
-        adcxq	%r8, %r14
-        adoxq	%rdx, %r13
+        adcxq	%r8, %r15
+        adoxq	%rdx, %r14
         # A[3] * B[3]
         movq	24(%rax), %rdx
-        adoxq	%rcx, %r14
+        adoxq	%rcx, %r15
         mulxq	24(%rsi), %rcx, %r8
-        adoxq	%rbx, %r15
-        adcxq	%rcx, %r15
+        adoxq	%rbp, %rbx
+        adcxq	%rcx, %rbx
         # A[0] * B[3]
-        mulxq	(%rsi), %rdx, %rcx
-        adcxq	%r8, %rbx
+        mulxq	%r9, %rdx, %rcx
+        adcxq	%r8, %rbp
         xorq	%r8, %r8
-        adcxq	%rdx, %r12
+        adcxq	%rdx, %r13
         # A[3] * B[0]
         movq	24(%rsi), %rdx
-        adcxq	%rcx, %r13
+        adcxq	%rcx, %r14
         mulxq	(%rax), %rdx, %rcx
-        adoxq	%rdx, %r12
-        adoxq	%rcx, %r13
+        adoxq	%rdx, %r13
+        adoxq	%rcx, %r14
         # A[3] * B[2]
         movq	24(%rsi), %rdx
         mulxq	16(%rax), %rdx, %rcx
-        adcxq	%rdx, %r14
+        adcxq	%rdx, %r15
         # A[2] * B[3]
         movq	24(%rax), %rdx
-        adcxq	%rcx, %r15
+        adcxq	%rcx, %rbx
         mulxq	16(%rsi), %rcx, %rdx
-        adcxq	%r8, %rbx
-        adoxq	%rcx, %r14
-        adoxq	%rdx, %r15
-        adoxq	%r8, %rbx
+        adcxq	%r8, %rbp
+        adoxq	%rcx, %r15
+        adoxq	%rdx, %rbx
+        adoxq	%r8, %rbp
         movq	$38, %rdx
-        mulxq	%rbx, %rbx, %rcx
-        addq	%rbx, %r12
+        mulxq	%rbp, %rbp, %rcx
+        addq	%rbp, %r13
         adcq	$0x00, %rcx
         movq	$0x7fffffffffffffff, %r8
-        shldq	$0x01, %r12, %rcx
+        shldq	$0x01, %r13, %rcx
         imulq	$19, %rcx, %rcx
-        andq	%r8, %r12
+        andq	%r8, %r13
         xorq	%r8, %r8
-        adoxq	%rcx, %r9
-        mulxq	%r13, %rcx, %r13
-        adcxq	%rcx, %r9
-        adoxq	%r13, %r10
+        adoxq	%rcx, %r10
         mulxq	%r14, %rcx, %r14
         adcxq	%rcx, %r10
         adoxq	%r14, %r11
         mulxq	%r15, %rcx, %r15
         adcxq	%rcx, %r11
         adoxq	%r15, %r12
-        adcxq	%r8, %r12
+        mulxq	%rbx, %rcx, %rbx
+        adcxq	%rcx, %r12
+        adoxq	%rbx, %r13
+        adcxq	%r8, %r13
         # Store
-        movq	%r9, (%rdi)
-        movq	%r10, 8(%rdi)
-        movq	%r11, 16(%rdi)
-        movq	%r12, 24(%rdi)
+        movq	%r10, (%rdi)
+        movq	%r11, 8(%rdi)
+        movq	%r12, 16(%rdi)
+        movq	%r13, 24(%rdi)
         leaq	-32(%rsi), %rax
         leaq	-32(%rdi), %rdi
+        movq	(%rsi), %r9
         # Multiply
         # A[0] * B[0]
         movq	(%rax), %rdx
-        mulxq	(%rsi), %r9, %r10
+        mulxq	%r9, %r10, %r11
         # A[2] * B[0]
-        mulxq	16(%rsi), %r11, %r12
+        mulxq	16(%rsi), %r12, %r13
         # A[1] * B[0]
         mulxq	8(%rsi), %rcx, %r8
-        xorq	%rbx, %rbx
-        adcxq	%rcx, %r10
+        xorq	%rbp, %rbp
+        adcxq	%rcx, %r11
         # A[3] * B[1]
         movq	8(%rax), %rdx
-        mulxq	24(%rsi), %r13, %r14
-        adcxq	%r8, %r11
+        mulxq	24(%rsi), %r14, %r15
+        adcxq	%r8, %r12
         # A[0] * B[1]
-        mulxq	(%rsi), %rcx, %r8
-        adoxq	%rcx, %r10
+        mulxq	%r9, %rcx, %r8
+        adoxq	%rcx, %r11
         # A[2] * B[1]
-        mulxq	16(%rsi), %rcx, %r15
-        adoxq	%r8, %r11
-        adcxq	%rcx, %r12
+        mulxq	16(%rsi), %rcx, %rbx
+        adoxq	%r8, %r12
+        adcxq	%rcx, %r13
         # A[1] * B[2]
         movq	16(%rax), %rdx
         mulxq	8(%rsi), %rcx, %r8
-        adcxq	%r15, %r13
-        adoxq	%rcx, %r12
         adcxq	%rbx, %r14
-        adoxq	%r8, %r13
+        adoxq	%rcx, %r13
+        adcxq	%rbp, %r15
+        adoxq	%r8, %r14
         # A[0] * B[2]
-        mulxq	(%rsi), %rcx, %r8
-        adoxq	%rbx, %r14
-        xorq	%r15, %r15
-        adcxq	%rcx, %r11
+        mulxq	%r9, %rcx, %r8
+        adoxq	%rbp, %r15
+        xorq	%rbx, %rbx
+        adcxq	%rcx, %r12
         # A[1] * B[1]
         movq	8(%rax), %rdx
         mulxq	8(%rsi), %rdx, %rcx
-        adcxq	%r8, %r12
-        adoxq	%rdx, %r11
+        adcxq	%r8, %r13
+        adoxq	%rdx, %r12
         # A[1] * B[3]
         movq	24(%rax), %rdx
-        adoxq	%rcx, %r12
+        adoxq	%rcx, %r13
         mulxq	8(%rsi), %rcx, %r8
-        adcxq	%rcx, %r13
+        adcxq	%rcx, %r14
         # A[2] * B[2]
         movq	16(%rax), %rdx
         mulxq	16(%rsi), %rdx, %rcx
-        adcxq	%r8, %r14
-        adoxq	%rdx, %r13
+        adcxq	%r8, %r15
+        adoxq	%rdx, %r14
         # A[3] * B[3]
         movq	24(%rax), %rdx
-        adoxq	%rcx, %r14
+        adoxq	%rcx, %r15
         mulxq	24(%rsi), %rcx, %r8
-        adoxq	%rbx, %r15
-        adcxq	%rcx, %r15
+        adoxq	%rbp, %rbx
+        adcxq	%rcx, %rbx
         # A[0] * B[3]
-        mulxq	(%rsi), %rdx, %rcx
-        adcxq	%r8, %rbx
+        mulxq	%r9, %rdx, %rcx
+        adcxq	%r8, %rbp
         xorq	%r8, %r8
-        adcxq	%rdx, %r12
+        adcxq	%rdx, %r13
         # A[3] * B[0]
         movq	24(%rsi), %rdx
-        adcxq	%rcx, %r13
+        adcxq	%rcx, %r14
         mulxq	(%rax), %rdx, %rcx
-        adoxq	%rdx, %r12
-        adoxq	%rcx, %r13
+        adoxq	%rdx, %r13
+        adoxq	%rcx, %r14
         # A[3] * B[2]
         movq	24(%rsi), %rdx
         mulxq	16(%rax), %rdx, %rcx
-        adcxq	%rdx, %r14
+        adcxq	%rdx, %r15
         # A[2] * B[3]
         movq	24(%rax), %rdx
-        adcxq	%rcx, %r15
+        adcxq	%rcx, %rbx
         mulxq	16(%rsi), %rcx, %rdx
-        adcxq	%r8, %rbx
-        adoxq	%rcx, %r14
-        adoxq	%rdx, %r15
-        adoxq	%r8, %rbx
+        adcxq	%r8, %rbp
+        adoxq	%rcx, %r15
+        adoxq	%rdx, %rbx
+        adoxq	%r8, %rbp
         movq	$38, %rdx
-        mulxq	%rbx, %rbx, %rcx
-        addq	%rbx, %r12
+        mulxq	%rbp, %rbp, %rcx
+        addq	%rbp, %r13
         adcq	$0x00, %rcx
         movq	$0x7fffffffffffffff, %r8
-        shldq	$0x01, %r12, %rcx
+        shldq	$0x01, %r13, %rcx
         imulq	$19, %rcx, %rcx
-        andq	%r8, %r12
+        andq	%r8, %r13
         xorq	%r8, %r8
-        adoxq	%rcx, %r9
-        mulxq	%r13, %rcx, %r13
-        adcxq	%rcx, %r9
-        adoxq	%r13, %r10
+        adoxq	%rcx, %r10
         mulxq	%r14, %rcx, %r14
         adcxq	%rcx, %r10
         adoxq	%r14, %r11
         mulxq	%r15, %rcx, %r15
         adcxq	%rcx, %r11
         adoxq	%r15, %r12
-        adcxq	%r8, %r12
+        mulxq	%rbx, %rcx, %rbx
+        adcxq	%rcx, %r12
+        adoxq	%rbx, %r13
+        adcxq	%r8, %r13
         # Store
-        movq	%r9, (%rdi)
-        movq	%r10, 8(%rdi)
-        movq	%r11, 16(%rdi)
-        movq	%r12, 24(%rdi)
+        movq	%r10, (%rdi)
+        movq	%r11, 8(%rdi)
+        movq	%r12, 16(%rdi)
+        movq	%r13, 24(%rdi)
         addq	$16, %rsp
+        popq	%rbp
         popq	%rbx
         popq	%r15
         popq	%r14
@@ -17649,425 +17751,431 @@ _ge_p1p1_to_p3_avx2:
         pushq	%r14
         pushq	%r15
         pushq	%rbx
+        pushq	%rbp
         subq	$16, %rsp
         movq	%rdi, (%rsp)
         movq	%rsi, 8(%rsp)
         leaq	96(%rsi), %rax
+        movq	(%rsi), %r9
         # Multiply
         # A[0] * B[0]
         movq	(%rax), %rdx
-        mulxq	(%rsi), %r9, %r10
+        mulxq	%r9, %r10, %r11
         # A[2] * B[0]
-        mulxq	16(%rsi), %r11, %r12
+        mulxq	16(%rsi), %r12, %r13
         # A[1] * B[0]
         mulxq	8(%rsi), %rcx, %r8
-        xorq	%rbx, %rbx
-        adcxq	%rcx, %r10
+        xorq	%rbp, %rbp
+        adcxq	%rcx, %r11
         # A[3] * B[1]
         movq	8(%rax), %rdx
-        mulxq	24(%rsi), %r13, %r14
-        adcxq	%r8, %r11
+        mulxq	24(%rsi), %r14, %r15
+        adcxq	%r8, %r12
         # A[0] * B[1]
-        mulxq	(%rsi), %rcx, %r8
-        adoxq	%rcx, %r10
+        mulxq	%r9, %rcx, %r8
+        adoxq	%rcx, %r11
         # A[2] * B[1]
-        mulxq	16(%rsi), %rcx, %r15
-        adoxq	%r8, %r11
-        adcxq	%rcx, %r12
+        mulxq	16(%rsi), %rcx, %rbx
+        adoxq	%r8, %r12
+        adcxq	%rcx, %r13
         # A[1] * B[2]
         movq	16(%rax), %rdx
         mulxq	8(%rsi), %rcx, %r8
-        adcxq	%r15, %r13
-        adoxq	%rcx, %r12
         adcxq	%rbx, %r14
-        adoxq	%r8, %r13
+        adoxq	%rcx, %r13
+        adcxq	%rbp, %r15
+        adoxq	%r8, %r14
         # A[0] * B[2]
-        mulxq	(%rsi), %rcx, %r8
-        adoxq	%rbx, %r14
-        xorq	%r15, %r15
-        adcxq	%rcx, %r11
+        mulxq	%r9, %rcx, %r8
+        adoxq	%rbp, %r15
+        xorq	%rbx, %rbx
+        adcxq	%rcx, %r12
         # A[1] * B[1]
         movq	8(%rax), %rdx
         mulxq	8(%rsi), %rdx, %rcx
-        adcxq	%r8, %r12
-        adoxq	%rdx, %r11
+        adcxq	%r8, %r13
+        adoxq	%rdx, %r12
         # A[1] * B[3]
         movq	24(%rax), %rdx
-        adoxq	%rcx, %r12
+        adoxq	%rcx, %r13
         mulxq	8(%rsi), %rcx, %r8
-        adcxq	%rcx, %r13
+        adcxq	%rcx, %r14
         # A[2] * B[2]
         movq	16(%rax), %rdx
         mulxq	16(%rsi), %rdx, %rcx
-        adcxq	%r8, %r14
-        adoxq	%rdx, %r13
+        adcxq	%r8, %r15
+        adoxq	%rdx, %r14
         # A[3] * B[3]
         movq	24(%rax), %rdx
-        adoxq	%rcx, %r14
+        adoxq	%rcx, %r15
         mulxq	24(%rsi), %rcx, %r8
-        adoxq	%rbx, %r15
-        adcxq	%rcx, %r15
+        adoxq	%rbp, %rbx
+        adcxq	%rcx, %rbx
         # A[0] * B[3]
-        mulxq	(%rsi), %rdx, %rcx
-        adcxq	%r8, %rbx
+        mulxq	%r9, %rdx, %rcx
+        adcxq	%r8, %rbp
         xorq	%r8, %r8
-        adcxq	%rdx, %r12
+        adcxq	%rdx, %r13
         # A[3] * B[0]
         movq	24(%rsi), %rdx
-        adcxq	%rcx, %r13
+        adcxq	%rcx, %r14
         mulxq	(%rax), %rdx, %rcx
-        adoxq	%rdx, %r12
-        adoxq	%rcx, %r13
+        adoxq	%rdx, %r13
+        adoxq	%rcx, %r14
         # A[3] * B[2]
         movq	24(%rsi), %rdx
         mulxq	16(%rax), %rdx, %rcx
-        adcxq	%rdx, %r14
+        adcxq	%rdx, %r15
         # A[2] * B[3]
         movq	24(%rax), %rdx
-        adcxq	%rcx, %r15
+        adcxq	%rcx, %rbx
         mulxq	16(%rsi), %rcx, %rdx
-        adcxq	%r8, %rbx
-        adoxq	%rcx, %r14
-        adoxq	%rdx, %r15
-        adoxq	%r8, %rbx
+        adcxq	%r8, %rbp
+        adoxq	%rcx, %r15
+        adoxq	%rdx, %rbx
+        adoxq	%r8, %rbp
         movq	$38, %rdx
-        mulxq	%rbx, %rbx, %rcx
-        addq	%rbx, %r12
+        mulxq	%rbp, %rbp, %rcx
+        addq	%rbp, %r13
         adcq	$0x00, %rcx
         movq	$0x7fffffffffffffff, %r8
-        shldq	$0x01, %r12, %rcx
+        shldq	$0x01, %r13, %rcx
         imulq	$19, %rcx, %rcx
-        andq	%r8, %r12
+        andq	%r8, %r13
         xorq	%r8, %r8
-        adoxq	%rcx, %r9
-        mulxq	%r13, %rcx, %r13
-        adcxq	%rcx, %r9
-        adoxq	%r13, %r10
+        adoxq	%rcx, %r10
         mulxq	%r14, %rcx, %r14
         adcxq	%rcx, %r10
         adoxq	%r14, %r11
         mulxq	%r15, %rcx, %r15
         adcxq	%rcx, %r11
         adoxq	%r15, %r12
-        adcxq	%r8, %r12
+        mulxq	%rbx, %rcx, %rbx
+        adcxq	%rcx, %r12
+        adoxq	%rbx, %r13
+        adcxq	%r8, %r13
         # Store
-        movq	%r9, (%rdi)
-        movq	%r10, 8(%rdi)
-        movq	%r11, 16(%rdi)
-        movq	%r12, 24(%rdi)
+        movq	%r10, (%rdi)
+        movq	%r11, 8(%rdi)
+        movq	%r12, 16(%rdi)
+        movq	%r13, 24(%rdi)
         leaq	32(%rsi), %rax
         leaq	96(%rdi), %rdi
+        movq	(%rsi), %r9
         # Multiply
         # A[0] * B[0]
         movq	(%rax), %rdx
-        mulxq	(%rsi), %r9, %r10
+        mulxq	%r9, %r10, %r11
         # A[2] * B[0]
-        mulxq	16(%rsi), %r11, %r12
+        mulxq	16(%rsi), %r12, %r13
         # A[1] * B[0]
         mulxq	8(%rsi), %rcx, %r8
-        xorq	%rbx, %rbx
-        adcxq	%rcx, %r10
+        xorq	%rbp, %rbp
+        adcxq	%rcx, %r11
         # A[3] * B[1]
         movq	8(%rax), %rdx
-        mulxq	24(%rsi), %r13, %r14
-        adcxq	%r8, %r11
+        mulxq	24(%rsi), %r14, %r15
+        adcxq	%r8, %r12
         # A[0] * B[1]
-        mulxq	(%rsi), %rcx, %r8
-        adoxq	%rcx, %r10
+        mulxq	%r9, %rcx, %r8
+        adoxq	%rcx, %r11
         # A[2] * B[1]
-        mulxq	16(%rsi), %rcx, %r15
-        adoxq	%r8, %r11
-        adcxq	%rcx, %r12
+        mulxq	16(%rsi), %rcx, %rbx
+        adoxq	%r8, %r12
+        adcxq	%rcx, %r13
         # A[1] * B[2]
         movq	16(%rax), %rdx
         mulxq	8(%rsi), %rcx, %r8
-        adcxq	%r15, %r13
-        adoxq	%rcx, %r12
         adcxq	%rbx, %r14
-        adoxq	%r8, %r13
+        adoxq	%rcx, %r13
+        adcxq	%rbp, %r15
+        adoxq	%r8, %r14
         # A[0] * B[2]
-        mulxq	(%rsi), %rcx, %r8
-        adoxq	%rbx, %r14
-        xorq	%r15, %r15
-        adcxq	%rcx, %r11
+        mulxq	%r9, %rcx, %r8
+        adoxq	%rbp, %r15
+        xorq	%rbx, %rbx
+        adcxq	%rcx, %r12
         # A[1] * B[1]
         movq	8(%rax), %rdx
         mulxq	8(%rsi), %rdx, %rcx
-        adcxq	%r8, %r12
-        adoxq	%rdx, %r11
+        adcxq	%r8, %r13
+        adoxq	%rdx, %r12
         # A[1] * B[3]
         movq	24(%rax), %rdx
-        adoxq	%rcx, %r12
+        adoxq	%rcx, %r13
         mulxq	8(%rsi), %rcx, %r8
-        adcxq	%rcx, %r13
+        adcxq	%rcx, %r14
         # A[2] * B[2]
         movq	16(%rax), %rdx
         mulxq	16(%rsi), %rdx, %rcx
-        adcxq	%r8, %r14
-        adoxq	%rdx, %r13
+        adcxq	%r8, %r15
+        adoxq	%rdx, %r14
         # A[3] * B[3]
         movq	24(%rax), %rdx
-        adoxq	%rcx, %r14
+        adoxq	%rcx, %r15
         mulxq	24(%rsi), %rcx, %r8
-        adoxq	%rbx, %r15
-        adcxq	%rcx, %r15
+        adoxq	%rbp, %rbx
+        adcxq	%rcx, %rbx
         # A[0] * B[3]
-        mulxq	(%rsi), %rdx, %rcx
-        adcxq	%r8, %rbx
+        mulxq	%r9, %rdx, %rcx
+        adcxq	%r8, %rbp
         xorq	%r8, %r8
-        adcxq	%rdx, %r12
+        adcxq	%rdx, %r13
         # A[3] * B[0]
         movq	24(%rsi), %rdx
-        adcxq	%rcx, %r13
+        adcxq	%rcx, %r14
         mulxq	(%rax), %rdx, %rcx
-        adoxq	%rdx, %r12
-        adoxq	%rcx, %r13
+        adoxq	%rdx, %r13
+        adoxq	%rcx, %r14
         # A[3] * B[2]
         movq	24(%rsi), %rdx
         mulxq	16(%rax), %rdx, %rcx
-        adcxq	%rdx, %r14
+        adcxq	%rdx, %r15
         # A[2] * B[3]
         movq	24(%rax), %rdx
-        adcxq	%rcx, %r15
+        adcxq	%rcx, %rbx
         mulxq	16(%rsi), %rcx, %rdx
-        adcxq	%r8, %rbx
-        adoxq	%rcx, %r14
-        adoxq	%rdx, %r15
-        adoxq	%r8, %rbx
+        adcxq	%r8, %rbp
+        adoxq	%rcx, %r15
+        adoxq	%rdx, %rbx
+        adoxq	%r8, %rbp
         movq	$38, %rdx
-        mulxq	%rbx, %rbx, %rcx
-        addq	%rbx, %r12
+        mulxq	%rbp, %rbp, %rcx
+        addq	%rbp, %r13
         adcq	$0x00, %rcx
         movq	$0x7fffffffffffffff, %r8
-        shldq	$0x01, %r12, %rcx
+        shldq	$0x01, %r13, %rcx
         imulq	$19, %rcx, %rcx
-        andq	%r8, %r12
+        andq	%r8, %r13
         xorq	%r8, %r8
-        adoxq	%rcx, %r9
-        mulxq	%r13, %rcx, %r13
-        adcxq	%rcx, %r9
-        adoxq	%r13, %r10
+        adoxq	%rcx, %r10
         mulxq	%r14, %rcx, %r14
         adcxq	%rcx, %r10
         adoxq	%r14, %r11
         mulxq	%r15, %rcx, %r15
         adcxq	%rcx, %r11
         adoxq	%r15, %r12
-        adcxq	%r8, %r12
+        mulxq	%rbx, %rcx, %rbx
+        adcxq	%rcx, %r12
+        adoxq	%rbx, %r13
+        adcxq	%r8, %r13
         # Store
-        movq	%r9, (%rdi)
-        movq	%r10, 8(%rdi)
-        movq	%r11, 16(%rdi)
-        movq	%r12, 24(%rdi)
+        movq	%r10, (%rdi)
+        movq	%r11, 8(%rdi)
+        movq	%r12, 16(%rdi)
+        movq	%r13, 24(%rdi)
         leaq	64(%rsi), %rsi
         leaq	-64(%rdi), %rdi
+        movq	(%rsi), %r9
         # Multiply
         # A[0] * B[0]
         movq	(%rax), %rdx
-        mulxq	(%rsi), %r9, %r10
+        mulxq	%r9, %r10, %r11
         # A[2] * B[0]
-        mulxq	16(%rsi), %r11, %r12
+        mulxq	16(%rsi), %r12, %r13
         # A[1] * B[0]
         mulxq	8(%rsi), %rcx, %r8
-        xorq	%rbx, %rbx
-        adcxq	%rcx, %r10
+        xorq	%rbp, %rbp
+        adcxq	%rcx, %r11
         # A[3] * B[1]
         movq	8(%rax), %rdx
-        mulxq	24(%rsi), %r13, %r14
-        adcxq	%r8, %r11
+        mulxq	24(%rsi), %r14, %r15
+        adcxq	%r8, %r12
         # A[0] * B[1]
-        mulxq	(%rsi), %rcx, %r8
-        adoxq	%rcx, %r10
+        mulxq	%r9, %rcx, %r8
+        adoxq	%rcx, %r11
         # A[2] * B[1]
-        mulxq	16(%rsi), %rcx, %r15
-        adoxq	%r8, %r11
-        adcxq	%rcx, %r12
+        mulxq	16(%rsi), %rcx, %rbx
+        adoxq	%r8, %r12
+        adcxq	%rcx, %r13
         # A[1] * B[2]
         movq	16(%rax), %rdx
         mulxq	8(%rsi), %rcx, %r8
-        adcxq	%r15, %r13
-        adoxq	%rcx, %r12
         adcxq	%rbx, %r14
-        adoxq	%r8, %r13
+        adoxq	%rcx, %r13
+        adcxq	%rbp, %r15
+        adoxq	%r8, %r14
         # A[0] * B[2]
-        mulxq	(%rsi), %rcx, %r8
-        adoxq	%rbx, %r14
-        xorq	%r15, %r15
-        adcxq	%rcx, %r11
+        mulxq	%r9, %rcx, %r8
+        adoxq	%rbp, %r15
+        xorq	%rbx, %rbx
+        adcxq	%rcx, %r12
         # A[1] * B[1]
         movq	8(%rax), %rdx
         mulxq	8(%rsi), %rdx, %rcx
-        adcxq	%r8, %r12
-        adoxq	%rdx, %r11
+        adcxq	%r8, %r13
+        adoxq	%rdx, %r12
         # A[1] * B[3]
         movq	24(%rax), %rdx
-        adoxq	%rcx, %r12
+        adoxq	%rcx, %r13
         mulxq	8(%rsi), %rcx, %r8
-        adcxq	%rcx, %r13
+        adcxq	%rcx, %r14
         # A[2] * B[2]
         movq	16(%rax), %rdx
         mulxq	16(%rsi), %rdx, %rcx
-        adcxq	%r8, %r14
-        adoxq	%rdx, %r13
+        adcxq	%r8, %r15
+        adoxq	%rdx, %r14
         # A[3] * B[3]
         movq	24(%rax), %rdx
-        adoxq	%rcx, %r14
+        adoxq	%rcx, %r15
         mulxq	24(%rsi), %rcx, %r8
-        adoxq	%rbx, %r15
-        adcxq	%rcx, %r15
+        adoxq	%rbp, %rbx
+        adcxq	%rcx, %rbx
         # A[0] * B[3]
-        mulxq	(%rsi), %rdx, %rcx
-        adcxq	%r8, %rbx
+        mulxq	%r9, %rdx, %rcx
+        adcxq	%r8, %rbp
         xorq	%r8, %r8
-        adcxq	%rdx, %r12
+        adcxq	%rdx, %r13
         # A[3] * B[0]
         movq	24(%rsi), %rdx
-        adcxq	%rcx, %r13
+        adcxq	%rcx, %r14
         mulxq	(%rax), %rdx, %rcx
-        adoxq	%rdx, %r12
-        adoxq	%rcx, %r13
+        adoxq	%rdx, %r13
+        adoxq	%rcx, %r14
         # A[3] * B[2]
         movq	24(%rsi), %rdx
         mulxq	16(%rax), %rdx, %rcx
-        adcxq	%rdx, %r14
+        adcxq	%rdx, %r15
         # A[2] * B[3]
         movq	24(%rax), %rdx
-        adcxq	%rcx, %r15
+        adcxq	%rcx, %rbx
         mulxq	16(%rsi), %rcx, %rdx
-        adcxq	%r8, %rbx
-        adoxq	%rcx, %r14
-        adoxq	%rdx, %r15
-        adoxq	%r8, %rbx
+        adcxq	%r8, %rbp
+        adoxq	%rcx, %r15
+        adoxq	%rdx, %rbx
+        adoxq	%r8, %rbp
         movq	$38, %rdx
-        mulxq	%rbx, %rbx, %rcx
-        addq	%rbx, %r12
+        mulxq	%rbp, %rbp, %rcx
+        addq	%rbp, %r13
         adcq	$0x00, %rcx
         movq	$0x7fffffffffffffff, %r8
-        shldq	$0x01, %r12, %rcx
+        shldq	$0x01, %r13, %rcx
         imulq	$19, %rcx, %rcx
-        andq	%r8, %r12
+        andq	%r8, %r13
         xorq	%r8, %r8
-        adoxq	%rcx, %r9
-        mulxq	%r13, %rcx, %r13
-        adcxq	%rcx, %r9
-        adoxq	%r13, %r10
+        adoxq	%rcx, %r10
         mulxq	%r14, %rcx, %r14
         adcxq	%rcx, %r10
         adoxq	%r14, %r11
         mulxq	%r15, %rcx, %r15
         adcxq	%rcx, %r11
         adoxq	%r15, %r12
-        adcxq	%r8, %r12
+        mulxq	%rbx, %rcx, %rbx
+        adcxq	%rcx, %r12
+        adoxq	%rbx, %r13
+        adcxq	%r8, %r13
         # Store
-        movq	%r9, (%rdi)
-        movq	%r10, 8(%rdi)
-        movq	%r11, 16(%rdi)
-        movq	%r12, 24(%rdi)
+        movq	%r10, (%rdi)
+        movq	%r11, 8(%rdi)
+        movq	%r12, 16(%rdi)
+        movq	%r13, 24(%rdi)
         leaq	32(%rsi), %rax
         leaq	32(%rdi), %rdi
+        movq	(%rsi), %r9
         # Multiply
         # A[0] * B[0]
         movq	(%rax), %rdx
-        mulxq	(%rsi), %r9, %r10
+        mulxq	%r9, %r10, %r11
         # A[2] * B[0]
-        mulxq	16(%rsi), %r11, %r12
+        mulxq	16(%rsi), %r12, %r13
         # A[1] * B[0]
         mulxq	8(%rsi), %rcx, %r8
-        xorq	%rbx, %rbx
-        adcxq	%rcx, %r10
+        xorq	%rbp, %rbp
+        adcxq	%rcx, %r11
         # A[3] * B[1]
         movq	8(%rax), %rdx
-        mulxq	24(%rsi), %r13, %r14
-        adcxq	%r8, %r11
+        mulxq	24(%rsi), %r14, %r15
+        adcxq	%r8, %r12
         # A[0] * B[1]
-        mulxq	(%rsi), %rcx, %r8
-        adoxq	%rcx, %r10
+        mulxq	%r9, %rcx, %r8
+        adoxq	%rcx, %r11
         # A[2] * B[1]
-        mulxq	16(%rsi), %rcx, %r15
-        adoxq	%r8, %r11
-        adcxq	%rcx, %r12
+        mulxq	16(%rsi), %rcx, %rbx
+        adoxq	%r8, %r12
+        adcxq	%rcx, %r13
         # A[1] * B[2]
         movq	16(%rax), %rdx
         mulxq	8(%rsi), %rcx, %r8
-        adcxq	%r15, %r13
-        adoxq	%rcx, %r12
         adcxq	%rbx, %r14
-        adoxq	%r8, %r13
+        adoxq	%rcx, %r13
+        adcxq	%rbp, %r15
+        adoxq	%r8, %r14
         # A[0] * B[2]
-        mulxq	(%rsi), %rcx, %r8
-        adoxq	%rbx, %r14
-        xorq	%r15, %r15
-        adcxq	%rcx, %r11
+        mulxq	%r9, %rcx, %r8
+        adoxq	%rbp, %r15
+        xorq	%rbx, %rbx
+        adcxq	%rcx, %r12
         # A[1] * B[1]
         movq	8(%rax), %rdx
         mulxq	8(%rsi), %rdx, %rcx
-        adcxq	%r8, %r12
-        adoxq	%rdx, %r11
+        adcxq	%r8, %r13
+        adoxq	%rdx, %r12
         # A[1] * B[3]
         movq	24(%rax), %rdx
-        adoxq	%rcx, %r12
+        adoxq	%rcx, %r13
         mulxq	8(%rsi), %rcx, %r8
-        adcxq	%rcx, %r13
+        adcxq	%rcx, %r14
         # A[2] * B[2]
         movq	16(%rax), %rdx
         mulxq	16(%rsi), %rdx, %rcx
-        adcxq	%r8, %r14
-        adoxq	%rdx, %r13
+        adcxq	%r8, %r15
+        adoxq	%rdx, %r14
         # A[3] * B[3]
         movq	24(%rax), %rdx
-        adoxq	%rcx, %r14
+        adoxq	%rcx, %r15
         mulxq	24(%rsi), %rcx, %r8
-        adoxq	%rbx, %r15
-        adcxq	%rcx, %r15
+        adoxq	%rbp, %rbx
+        adcxq	%rcx, %rbx
         # A[0] * B[3]
-        mulxq	(%rsi), %rdx, %rcx
-        adcxq	%r8, %rbx
+        mulxq	%r9, %rdx, %rcx
+        adcxq	%r8, %rbp
         xorq	%r8, %r8
-        adcxq	%rdx, %r12
+        adcxq	%rdx, %r13
         # A[3] * B[0]
         movq	24(%rsi), %rdx
-        adcxq	%rcx, %r13
+        adcxq	%rcx, %r14
         mulxq	(%rax), %rdx, %rcx
-        adoxq	%rdx, %r12
-        adoxq	%rcx, %r13
+        adoxq	%rdx, %r13
+        adoxq	%rcx, %r14
         # A[3] * B[2]
         movq	24(%rsi), %rdx
         mulxq	16(%rax), %rdx, %rcx
-        adcxq	%rdx, %r14
+        adcxq	%rdx, %r15
         # A[2] * B[3]
         movq	24(%rax), %rdx
-        adcxq	%rcx, %r15
+        adcxq	%rcx, %rbx
         mulxq	16(%rsi), %rcx, %rdx
-        adcxq	%r8, %rbx
-        adoxq	%rcx, %r14
-        adoxq	%rdx, %r15
-        adoxq	%r8, %rbx
+        adcxq	%r8, %rbp
+        adoxq	%rcx, %r15
+        adoxq	%rdx, %rbx
+        adoxq	%r8, %rbp
         movq	$38, %rdx
-        mulxq	%rbx, %rbx, %rcx
-        addq	%rbx, %r12
+        mulxq	%rbp, %rbp, %rcx
+        addq	%rbp, %r13
         adcq	$0x00, %rcx
         movq	$0x7fffffffffffffff, %r8
-        shldq	$0x01, %r12, %rcx
+        shldq	$0x01, %r13, %rcx
         imulq	$19, %rcx, %rcx
-        andq	%r8, %r12
+        andq	%r8, %r13
         xorq	%r8, %r8
-        adoxq	%rcx, %r9
-        mulxq	%r13, %rcx, %r13
-        adcxq	%rcx, %r9
-        adoxq	%r13, %r10
+        adoxq	%rcx, %r10
         mulxq	%r14, %rcx, %r14
         adcxq	%rcx, %r10
         adoxq	%r14, %r11
         mulxq	%r15, %rcx, %r15
         adcxq	%rcx, %r11
         adoxq	%r15, %r12
-        adcxq	%r8, %r12
+        mulxq	%rbx, %rcx, %rbx
+        adcxq	%rcx, %r12
+        adoxq	%rbx, %r13
+        adcxq	%r8, %r13
         # Store
-        movq	%r9, (%rdi)
-        movq	%r10, 8(%rdi)
-        movq	%r11, 16(%rdi)
-        movq	%r12, 24(%rdi)
+        movq	%r10, (%rdi)
+        movq	%r11, 8(%rdi)
+        movq	%r12, 16(%rdi)
+        movq	%r13, 24(%rdi)
         addq	$16, %rsp
+        popq	%rbp
         popq	%rbx
         popq	%r15
         popq	%r14
@@ -18268,14 +18376,13 @@ _ge_p2_dbl_avx2:
         adcq	16(%rsi), %r12
         movq	%r13, %rbp
         adcq	24(%rsi), %r13
-        movq	$0x00, %rcx
-        adcq	$0x00, %rcx
-        shldq	$0x01, %r13, %rcx
-        movq	$0x7fffffffffffffff, %r8
-        imulq	$19, %rcx
-        andq	%r8, %r13
+        movq	$0x00, %rdx
+        adcq	$0x00, %rdx
+        shldq	$0x01, %r13, %rdx
+        imulq	$19, %rdx
+        btr	$63, %r13
         #   Sub modulus (if overflow)
-        addq	%rcx, %r10
+        addq	%rdx, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
         adcq	$0x00, %r13
@@ -18284,12 +18391,12 @@ _ge_p2_dbl_avx2:
         sbbq	8(%rsi), %r15
         sbbq	16(%rsi), %rbx
         sbbq	24(%rsi), %rbp
-        sbbq	%rcx, %rcx
-        shldq	$0x01, %rbp, %rcx
-        imulq	$-19, %rcx
-        andq	%r8, %rbp
+        sbbq	%rdx, %rdx
+        shldq	$0x01, %rbp, %rdx
+        imulq	$-19, %rdx
+        btr	$63, %rbp
         #   Add modulus (if underflow)
-        subq	%rcx, %r14
+        subq	%rdx, %r14
         sbbq	$0x00, %r15
         sbbq	$0x00, %rbx
         sbbq	$0x00, %rbp
@@ -18313,14 +18420,13 @@ _ge_p2_dbl_avx2:
         movq	24(%rsi), %r13
         adcq	16(%rax), %r12
         adcq	24(%rax), %r13
-        movq	$0x00, %rcx
-        adcq	$0x00, %rcx
-        shldq	$0x01, %r13, %rcx
-        movq	$0x7fffffffffffffff, %r8
-        imulq	$19, %rcx
-        andq	%r8, %r13
+        movq	$0x00, %rdx
+        adcq	$0x00, %rdx
+        shldq	$0x01, %r13, %rdx
+        imulq	$19, %rdx
+        btr	$63, %r13
         #   Sub modulus (if overflow)
-        addq	%rcx, %r10
+        addq	%rdx, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
         adcq	$0x00, %r13
@@ -18410,13 +18516,12 @@ _ge_p2_dbl_avx2:
         sbbq	8(%rsi), %r11
         sbbq	16(%rsi), %r12
         sbbq	24(%rsi), %r13
-        sbbq	%rcx, %rcx
-        shldq	$0x01, %r13, %rcx
-        movq	$0x7fffffffffffffff, %r8
-        imulq	$-19, %rcx
-        andq	%r8, %r13
+        sbbq	%rdx, %rdx
+        shldq	$0x01, %r13, %rdx
+        imulq	$-19, %rdx
+        btr	$63, %r13
         #   Add modulus (if underflow)
-        subq	%rcx, %r10
+        subq	%rdx, %r10
         sbbq	$0x00, %r11
         sbbq	$0x00, %r12
         sbbq	$0x00, %r13
@@ -18521,13 +18626,12 @@ _ge_p2_dbl_avx2:
         sbbq	8(%rsi), %r11
         sbbq	16(%rsi), %r12
         sbbq	24(%rsi), %r13
-        sbbq	%rcx, %rcx
-        shldq	$0x01, %r13, %rcx
-        movq	$0x7fffffffffffffff, %r8
-        imulq	$-19, %rcx
-        andq	%r8, %r13
+        sbbq	%rdx, %rdx
+        shldq	$0x01, %r13, %rdx
+        imulq	$-19, %rdx
+        btr	$63, %r13
         #   Add modulus (if underflow)
-        subq	%rcx, %r10
+        subq	%rdx, %r10
         sbbq	$0x00, %r11
         sbbq	$0x00, %r12
         sbbq	$0x00, %r13
@@ -18692,14 +18796,13 @@ _ge_madd_avx2:
         adcq	16(%rcx), %r12
         movq	%r13, %rbp
         adcq	24(%rcx), %r13
-        movq	$0x00, %r8
-        adcq	$0x00, %r8
-        shldq	$0x01, %r13, %r8
-        movq	$0x7fffffffffffffff, %r9
-        imulq	$19, %r8
-        andq	%r9, %r13
+        movq	$0x00, %rdx
+        adcq	$0x00, %rdx
+        shldq	$0x01, %r13, %rdx
+        imulq	$19, %rdx
+        btr	$63, %r13
         #   Sub modulus (if overflow)
-        addq	%r8, %r10
+        addq	%rdx, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
         adcq	$0x00, %r13
@@ -18708,12 +18811,12 @@ _ge_madd_avx2:
         sbbq	8(%rcx), %r15
         sbbq	16(%rcx), %rbx
         sbbq	24(%rcx), %rbp
-        sbbq	%r8, %r8
-        shldq	$0x01, %rbp, %r8
-        imulq	$-19, %r8
-        andq	%r9, %rbp
+        sbbq	%rdx, %rdx
+        shldq	$0x01, %rbp, %rdx
+        imulq	$-19, %rdx
+        btr	$63, %rbp
         #   Add modulus (if underflow)
-        subq	%r8, %r14
+        subq	%rdx, %r14
         sbbq	$0x00, %r15
         sbbq	$0x00, %rbx
         sbbq	$0x00, %rbp
@@ -18945,14 +19048,13 @@ _ge_madd_avx2:
         adcq	16(%rsi), %r12
         movq	%r13, %rbp
         adcq	24(%rsi), %r13
-        movq	$0x00, %r8
-        adcq	$0x00, %r8
-        shldq	$0x01, %r13, %r8
-        movq	$0x7fffffffffffffff, %r9
-        imulq	$19, %r8
-        andq	%r9, %r13
+        movq	$0x00, %rdx
+        adcq	$0x00, %rdx
+        shldq	$0x01, %r13, %rdx
+        imulq	$19, %rdx
+        btr	$63, %r13
         #   Sub modulus (if overflow)
-        addq	%r8, %r10
+        addq	%rdx, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
         adcq	$0x00, %r13
@@ -18961,12 +19063,12 @@ _ge_madd_avx2:
         sbbq	8(%rsi), %r15
         sbbq	16(%rsi), %rbx
         sbbq	24(%rsi), %rbp
-        sbbq	%r8, %r8
-        shldq	$0x01, %rbp, %r8
-        imulq	$-19, %r8
-        andq	%r9, %rbp
+        sbbq	%rdx, %rdx
+        shldq	$0x01, %rbp, %rdx
+        imulq	$-19, %rdx
+        btr	$63, %rbp
         #   Add modulus (if underflow)
-        subq	%r8, %r14
+        subq	%rdx, %r14
         sbbq	$0x00, %r15
         sbbq	$0x00, %rbx
         sbbq	$0x00, %rbp
@@ -18988,14 +19090,13 @@ _ge_madd_avx2:
         movq	24(%rcx), %r13
         adcq	%r12, %r12
         adcq	%r13, %r13
-        movq	$0x00, %r8
-        adcq	$0x00, %r8
-        shldq	$0x01, %r13, %r8
-        movq	$0x7fffffffffffffff, %r9
-        imulq	$19, %r8
-        andq	%r9, %r13
+        movq	$0x00, %rdx
+        adcq	$0x00, %rdx
+        shldq	$0x01, %r13, %rdx
+        imulq	$19, %rdx
+        btr	$63, %r13
         #   Sub modulus (if overflow)
-        addq	%r8, %r10
+        addq	%rdx, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
         adcq	$0x00, %r13
@@ -19011,14 +19112,13 @@ _ge_madd_avx2:
         adcq	16(%rsi), %r12
         movq	%r13, %rbp
         adcq	24(%rsi), %r13
-        movq	$0x00, %r8
-        adcq	$0x00, %r8
-        shldq	$0x01, %r13, %r8
-        movq	$0x7fffffffffffffff, %r9
-        imulq	$19, %r8
-        andq	%r9, %r13
+        movq	$0x00, %rdx
+        adcq	$0x00, %rdx
+        shldq	$0x01, %r13, %rdx
+        imulq	$19, %rdx
+        btr	$63, %r13
         #   Sub modulus (if overflow)
-        addq	%r8, %r10
+        addq	%rdx, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
         adcq	$0x00, %r13
@@ -19027,12 +19127,12 @@ _ge_madd_avx2:
         sbbq	8(%rsi), %r15
         sbbq	16(%rsi), %rbx
         sbbq	24(%rsi), %rbp
-        sbbq	%r8, %r8
-        shldq	$0x01, %rbp, %r8
-        imulq	$-19, %r8
-        andq	%r9, %rbp
+        sbbq	%rdx, %rdx
+        shldq	$0x01, %rbp, %rdx
+        imulq	$-19, %rdx
+        btr	$63, %rbp
         #   Add modulus (if underflow)
-        subq	%r8, %r14
+        subq	%rdx, %r14
         sbbq	$0x00, %r15
         sbbq	$0x00, %rbx
         sbbq	$0x00, %rbp
@@ -19201,14 +19301,13 @@ _ge_msub_avx2:
         adcq	16(%rcx), %r12
         movq	%r13, %rbp
         adcq	24(%rcx), %r13
-        movq	$0x00, %r8
-        adcq	$0x00, %r8
-        shldq	$0x01, %r13, %r8
-        movq	$0x7fffffffffffffff, %r9
-        imulq	$19, %r8
-        andq	%r9, %r13
+        movq	$0x00, %rdx
+        adcq	$0x00, %rdx
+        shldq	$0x01, %r13, %rdx
+        imulq	$19, %rdx
+        btr	$63, %r13
         #   Sub modulus (if overflow)
-        addq	%r8, %r10
+        addq	%rdx, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
         adcq	$0x00, %r13
@@ -19217,12 +19316,12 @@ _ge_msub_avx2:
         sbbq	8(%rcx), %r15
         sbbq	16(%rcx), %rbx
         sbbq	24(%rcx), %rbp
-        sbbq	%r8, %r8
-        shldq	$0x01, %rbp, %r8
-        imulq	$-19, %r8
-        andq	%r9, %rbp
+        sbbq	%rdx, %rdx
+        shldq	$0x01, %rbp, %rdx
+        imulq	$-19, %rdx
+        btr	$63, %rbp
         #   Add modulus (if underflow)
-        subq	%r8, %r14
+        subq	%rdx, %r14
         sbbq	$0x00, %r15
         sbbq	$0x00, %rbx
         sbbq	$0x00, %rbp
@@ -19455,14 +19554,13 @@ _ge_msub_avx2:
         adcq	16(%rsi), %r12
         movq	%r13, %rbp
         adcq	24(%rsi), %r13
-        movq	$0x00, %r8
-        adcq	$0x00, %r8
-        shldq	$0x01, %r13, %r8
-        movq	$0x7fffffffffffffff, %r9
-        imulq	$19, %r8
-        andq	%r9, %r13
+        movq	$0x00, %rdx
+        adcq	$0x00, %rdx
+        shldq	$0x01, %r13, %rdx
+        imulq	$19, %rdx
+        btr	$63, %r13
         #   Sub modulus (if overflow)
-        addq	%r8, %r10
+        addq	%rdx, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
         adcq	$0x00, %r13
@@ -19471,12 +19569,12 @@ _ge_msub_avx2:
         sbbq	8(%rsi), %r15
         sbbq	16(%rsi), %rbx
         sbbq	24(%rsi), %rbp
-        sbbq	%r8, %r8
-        shldq	$0x01, %rbp, %r8
-        imulq	$-19, %r8
-        andq	%r9, %rbp
+        sbbq	%rdx, %rdx
+        shldq	$0x01, %rbp, %rdx
+        imulq	$-19, %rdx
+        btr	$63, %rbp
         #   Add modulus (if underflow)
-        subq	%r8, %r14
+        subq	%rdx, %r14
         sbbq	$0x00, %r15
         sbbq	$0x00, %rbx
         sbbq	$0x00, %rbp
@@ -19498,14 +19596,13 @@ _ge_msub_avx2:
         movq	24(%rcx), %r13
         adcq	%r12, %r12
         adcq	%r13, %r13
-        movq	$0x00, %r8
-        adcq	$0x00, %r8
-        shldq	$0x01, %r13, %r8
-        movq	$0x7fffffffffffffff, %r9
-        imulq	$19, %r8
-        andq	%r9, %r13
+        movq	$0x00, %rdx
+        adcq	$0x00, %rdx
+        shldq	$0x01, %r13, %rdx
+        imulq	$19, %rdx
+        btr	$63, %r13
         #   Sub modulus (if overflow)
-        addq	%r8, %r10
+        addq	%rdx, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
         adcq	$0x00, %r13
@@ -19521,14 +19618,13 @@ _ge_msub_avx2:
         adcq	16(%rsi), %r12
         movq	%r13, %rbp
         adcq	24(%rsi), %r13
-        movq	$0x00, %r8
-        adcq	$0x00, %r8
-        shldq	$0x01, %r13, %r8
-        movq	$0x7fffffffffffffff, %r9
-        imulq	$19, %r8
-        andq	%r9, %r13
+        movq	$0x00, %rdx
+        adcq	$0x00, %rdx
+        shldq	$0x01, %r13, %rdx
+        imulq	$19, %rdx
+        btr	$63, %r13
         #   Sub modulus (if overflow)
-        addq	%r8, %r10
+        addq	%rdx, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
         adcq	$0x00, %r13
@@ -19537,12 +19633,12 @@ _ge_msub_avx2:
         sbbq	8(%rsi), %r15
         sbbq	16(%rsi), %rbx
         sbbq	24(%rsi), %rbp
-        sbbq	%r8, %r8
-        shldq	$0x01, %rbp, %r8
-        imulq	$-19, %r8
-        andq	%r9, %rbp
+        sbbq	%rdx, %rdx
+        shldq	$0x01, %rbp, %rdx
+        imulq	$-19, %rdx
+        btr	$63, %rbp
         #   Add modulus (if underflow)
-        subq	%r8, %r14
+        subq	%rdx, %r14
         sbbq	$0x00, %r15
         sbbq	$0x00, %rbx
         sbbq	$0x00, %rbp
@@ -19711,14 +19807,13 @@ _ge_add_avx2:
         adcq	16(%rcx), %r12
         movq	%r13, %rbp
         adcq	24(%rcx), %r13
-        movq	$0x00, %r8
-        adcq	$0x00, %r8
-        shldq	$0x01, %r13, %r8
-        movq	$0x7fffffffffffffff, %r9
-        imulq	$19, %r8
-        andq	%r9, %r13
+        movq	$0x00, %rdx
+        adcq	$0x00, %rdx
+        shldq	$0x01, %r13, %rdx
+        imulq	$19, %rdx
+        btr	$63, %r13
         #   Sub modulus (if overflow)
-        addq	%r8, %r10
+        addq	%rdx, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
         adcq	$0x00, %r13
@@ -19727,12 +19822,12 @@ _ge_add_avx2:
         sbbq	8(%rcx), %r15
         sbbq	16(%rcx), %rbx
         sbbq	24(%rcx), %rbp
-        sbbq	%r8, %r8
-        shldq	$0x01, %rbp, %r8
-        imulq	$-19, %r8
-        andq	%r9, %rbp
+        sbbq	%rdx, %rdx
+        shldq	$0x01, %rbp, %rdx
+        imulq	$-19, %rdx
+        btr	$63, %rbp
         #   Add modulus (if underflow)
-        subq	%r8, %r14
+        subq	%rdx, %r14
         sbbq	$0x00, %r15
         sbbq	$0x00, %rbx
         sbbq	$0x00, %rbp
@@ -20056,14 +20151,13 @@ _ge_add_avx2:
         adcq	%r11, %r11
         adcq	%r12, %r12
         adcq	%r13, %r13
-        movq	$0x00, %r8
-        adcq	$0x00, %r8
-        shldq	$0x01, %r13, %r8
-        movq	$0x7fffffffffffffff, %r9
-        imulq	$19, %r8
-        andq	%r9, %r13
+        movq	$0x00, %rdx
+        adcq	$0x00, %rdx
+        shldq	$0x01, %r13, %rdx
+        imulq	$19, %rdx
+        btr	$63, %r13
         #   Sub modulus (if overflow)
-        addq	%r8, %r10
+        addq	%rdx, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
         adcq	$0x00, %r13
@@ -20086,14 +20180,13 @@ _ge_add_avx2:
         adcq	16(%rsi), %r12
         movq	%r13, %rbp
         adcq	24(%rsi), %r13
-        movq	$0x00, %r8
-        adcq	$0x00, %r8
-        shldq	$0x01, %r13, %r8
-        movq	$0x7fffffffffffffff, %r9
-        imulq	$19, %r8
-        andq	%r9, %r13
+        movq	$0x00, %rdx
+        adcq	$0x00, %rdx
+        shldq	$0x01, %r13, %rdx
+        imulq	$19, %rdx
+        btr	$63, %r13
         #   Sub modulus (if overflow)
-        addq	%r8, %r10
+        addq	%rdx, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
         adcq	$0x00, %r13
@@ -20102,12 +20195,12 @@ _ge_add_avx2:
         sbbq	8(%rsi), %r15
         sbbq	16(%rsi), %rbx
         sbbq	24(%rsi), %rbp
-        sbbq	%r8, %r8
-        shldq	$0x01, %rbp, %r8
-        imulq	$-19, %r8
-        andq	%r9, %rbp
+        sbbq	%rdx, %rdx
+        shldq	$0x01, %rbp, %rdx
+        imulq	$-19, %rdx
+        btr	$63, %rbp
         #   Add modulus (if underflow)
-        subq	%r8, %r14
+        subq	%rdx, %r14
         sbbq	$0x00, %r15
         sbbq	$0x00, %rbx
         sbbq	$0x00, %rbp
@@ -20135,14 +20228,13 @@ _ge_add_avx2:
         adcq	16(%rsi), %r12
         movq	%r13, %rbp
         adcq	24(%rsi), %r13
-        movq	$0x00, %r8
-        adcq	$0x00, %r8
-        shldq	$0x01, %r13, %r8
-        movq	$0x7fffffffffffffff, %r9
-        imulq	$19, %r8
-        andq	%r9, %r13
+        movq	$0x00, %rdx
+        adcq	$0x00, %rdx
+        shldq	$0x01, %r13, %rdx
+        imulq	$19, %rdx
+        btr	$63, %r13
         #   Sub modulus (if overflow)
-        addq	%r8, %r10
+        addq	%rdx, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
         adcq	$0x00, %r13
@@ -20151,12 +20243,12 @@ _ge_add_avx2:
         sbbq	8(%rsi), %r15
         sbbq	16(%rsi), %rbx
         sbbq	24(%rsi), %rbp
-        sbbq	%r8, %r8
-        shldq	$0x01, %rbp, %r8
-        imulq	$-19, %r8
-        andq	%r9, %rbp
+        sbbq	%rdx, %rdx
+        shldq	$0x01, %rbp, %rdx
+        imulq	$-19, %rdx
+        btr	$63, %rbp
         #   Add modulus (if underflow)
-        subq	%r8, %r14
+        subq	%rdx, %r14
         sbbq	$0x00, %r15
         sbbq	$0x00, %rbx
         sbbq	$0x00, %rbp
@@ -20325,14 +20417,13 @@ _ge_sub_avx2:
         adcq	16(%rcx), %r12
         movq	%r13, %rbp
         adcq	24(%rcx), %r13
-        movq	$0x00, %r8
-        adcq	$0x00, %r8
-        shldq	$0x01, %r13, %r8
-        movq	$0x7fffffffffffffff, %r9
-        imulq	$19, %r8
-        andq	%r9, %r13
+        movq	$0x00, %rdx
+        adcq	$0x00, %rdx
+        shldq	$0x01, %r13, %rdx
+        imulq	$19, %rdx
+        btr	$63, %r13
         #   Sub modulus (if overflow)
-        addq	%r8, %r10
+        addq	%rdx, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
         adcq	$0x00, %r13
@@ -20341,12 +20432,12 @@ _ge_sub_avx2:
         sbbq	8(%rcx), %r15
         sbbq	16(%rcx), %rbx
         sbbq	24(%rcx), %rbp
-        sbbq	%r8, %r8
-        shldq	$0x01, %rbp, %r8
-        imulq	$-19, %r8
-        andq	%r9, %rbp
+        sbbq	%rdx, %rdx
+        shldq	$0x01, %rbp, %rdx
+        imulq	$-19, %rdx
+        btr	$63, %rbp
         #   Add modulus (if underflow)
-        subq	%r8, %r14
+        subq	%rdx, %r14
         sbbq	$0x00, %r15
         sbbq	$0x00, %rbx
         sbbq	$0x00, %rbp
@@ -20671,14 +20762,13 @@ _ge_sub_avx2:
         adcq	%r11, %r11
         adcq	%r12, %r12
         adcq	%r13, %r13
-        movq	$0x00, %r8
-        adcq	$0x00, %r8
-        shldq	$0x01, %r13, %r8
-        movq	$0x7fffffffffffffff, %r9
-        imulq	$19, %r8
-        andq	%r9, %r13
+        movq	$0x00, %rdx
+        adcq	$0x00, %rdx
+        shldq	$0x01, %r13, %rdx
+        imulq	$19, %rdx
+        btr	$63, %r13
         #   Sub modulus (if overflow)
-        addq	%r8, %r10
+        addq	%rdx, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
         adcq	$0x00, %r13
@@ -20701,14 +20791,13 @@ _ge_sub_avx2:
         adcq	16(%rsi), %r12
         movq	%r13, %rbp
         adcq	24(%rsi), %r13
-        movq	$0x00, %r8
-        adcq	$0x00, %r8
-        shldq	$0x01, %r13, %r8
-        movq	$0x7fffffffffffffff, %r9
-        imulq	$19, %r8
-        andq	%r9, %r13
+        movq	$0x00, %rdx
+        adcq	$0x00, %rdx
+        shldq	$0x01, %r13, %rdx
+        imulq	$19, %rdx
+        btr	$63, %r13
         #   Sub modulus (if overflow)
-        addq	%r8, %r10
+        addq	%rdx, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
         adcq	$0x00, %r13
@@ -20717,12 +20806,12 @@ _ge_sub_avx2:
         sbbq	8(%rsi), %r15
         sbbq	16(%rsi), %rbx
         sbbq	24(%rsi), %rbp
-        sbbq	%r8, %r8
-        shldq	$0x01, %rbp, %r8
-        imulq	$-19, %r8
-        andq	%r9, %rbp
+        sbbq	%rdx, %rdx
+        shldq	$0x01, %rbp, %rdx
+        imulq	$-19, %rdx
+        btr	$63, %rbp
         #   Add modulus (if underflow)
-        subq	%r8, %r14
+        subq	%rdx, %r14
         sbbq	$0x00, %r15
         sbbq	$0x00, %rbx
         sbbq	$0x00, %rbp
@@ -20750,14 +20839,13 @@ _ge_sub_avx2:
         adcq	16(%rdi), %r12
         movq	%r13, %rbp
         adcq	24(%rdi), %r13
-        movq	$0x00, %r8
-        adcq	$0x00, %r8
-        shldq	$0x01, %r13, %r8
-        movq	$0x7fffffffffffffff, %r9
-        imulq	$19, %r8
-        andq	%r9, %r13
+        movq	$0x00, %rdx
+        adcq	$0x00, %rdx
+        shldq	$0x01, %r13, %rdx
+        imulq	$19, %rdx
+        btr	$63, %r13
         #   Sub modulus (if overflow)
-        addq	%r8, %r10
+        addq	%rdx, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
         adcq	$0x00, %r13
@@ -20766,12 +20854,12 @@ _ge_sub_avx2:
         sbbq	8(%rdi), %r15
         sbbq	16(%rdi), %rbx
         sbbq	24(%rdi), %rbp
-        sbbq	%r8, %r8
-        shldq	$0x01, %rbp, %r8
-        imulq	$-19, %r8
-        andq	%r9, %rbp
+        sbbq	%rdx, %rdx
+        shldq	$0x01, %rbp, %rdx
+        imulq	$-19, %rdx
+        btr	$63, %rbp
         #   Add modulus (if underflow)
-        subq	%r8, %r14
+        subq	%rdx, %r14
         sbbq	$0x00, %r15
         sbbq	$0x00, %rbx
         sbbq	$0x00, %rbp
@@ -21321,6 +21409,384 @@ _sc_muladd_avx2:
         repz retq
 #ifndef __APPLE__
 .size	sc_muladd_avx2,.-sc_muladd_avx2
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+L_sp_mod_inv_avx2__prime:
+.long	0x03ffffed,0x03ffffff,0x03ffffff,0x03ffffff
+.long	0x03ffffff,0x00000000,0x00000000,0x00000000
+.long	0x03ffffff,0x03ffffff,0x03ffffff,0x03ffffff
+.long	0x001fffff,0x00000000,0x00000000,0x00000000
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_sp_mod_inv_avx2__one:
+.quad	0x1, 0x0
+.quad	0x0, 0x0
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+L_sp_mod_inv_avx2__all_one:
+.long	0x00000001,0x00000001,0x00000001,0x00000001
+.long	0x00000001,0x00000001,0x00000001,0x00000001
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+L_sp_mod_inv_avx2__mask01111:
+.long	0x00000000,0x00000001,0x00000001,0x00000001
+.long	0x00000001,0x00000000,0x00000000,0x00000000
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+L_sp_mod_inv_avx2__down_one_dword:
+.long	0x00000001,0x00000002,0x00000003,0x00000004
+.long	0x00000005,0x00000006,0x00000007,0x00000007
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+L_sp_mod_inv_avx2__neg:
+.long	0x00000000,0x00000000,0x00000000,0x00000000
+.long	0x80000000,0x00000000,0x00000000,0x00000000
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+L_sp_mod_inv_avx2__up_one_dword:
+.long	0x00000007,0x00000000,0x00000001,0x00000002
+.long	0x00000003,0x00000007,0x00000007,0x00000007
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+L_sp_mod_inv_avx2__mask26:
+.long	0x03ffffff,0x03ffffff,0x03ffffff,0x03ffffff
+.long	0x03ffffff,0x00000000,0x00000000,0x00000000
+/* Non-constant time modular inversion.
+ *
+ * @param  [out]  r   Resulting number.
+ * @param  [in]   a   Number to invert.
+ * @param  [in]   m   Modulus.
+ * @return  MP_OKAY on success.
+ */
+#ifndef __APPLE__
+.text
+.globl	fe_invert_nct_avx2
+.type	fe_invert_nct_avx2,@function
+.align	16
+fe_invert_nct_avx2:
+#else
+.section	__TEXT,__text
+.globl	_fe_invert_nct_avx2
+.p2align	4
+_fe_invert_nct_avx2:
+#endif /* __APPLE__ */
+        pushq	%r12
+        pushq	%r13
+        pushq	%r14
+        pushq	%r15
+        pushq	%rbx
+        movq	$-19, %rax
+        movq	$-1, %rcx
+        movq	$-1, %r8
+        movq	$0x7fffffffffffffff, %r9
+        movq	(%rsi), %r10
+        movq	8(%rsi), %r11
+        movq	16(%rsi), %r12
+        movq	24(%rsi), %r13
+        leaq	L_sp_mod_inv_avx2__prime(%rip), %rbx
+        vmovupd	(%rbx), %ymm6
+        vmovupd	32(%rbx), %ymm7
+        leaq	L_sp_mod_inv_avx2__one(%rip), %rbx
+        vmovupd	(%rbx), %ymm8
+        leaq	L_sp_mod_inv_avx2__mask01111(%rip), %rbx
+        vmovupd	(%rbx), %ymm9
+        leaq	L_sp_mod_inv_avx2__all_one(%rip), %rbx
+        vmovupd	(%rbx), %ymm10
+        leaq	L_sp_mod_inv_avx2__down_one_dword(%rip), %rbx
+        vmovupd	(%rbx), %ymm11
+        leaq	L_sp_mod_inv_avx2__neg(%rip), %rbx
+        vmovupd	(%rbx), %ymm12
+        leaq	L_sp_mod_inv_avx2__up_one_dword(%rip), %rbx
+        vmovupd	(%rbx), %ymm13
+        leaq	L_sp_mod_inv_avx2__mask26(%rip), %rbx
+        vmovupd	(%rbx), %ymm14
+        vpxor	%xmm0, %xmm0, %xmm0
+        vpxor	%xmm1, %xmm1, %xmm1
+        vmovdqu	%ymm8, %ymm2
+        vpxor	%xmm3, %xmm3, %xmm3
+        testb	$0x01, %r10b
+        jnz	L__mod_inv_avx2__v_even_end
+L__mod_inv_avx2__v_even_start:
+        shrdq	$0x01, %r11, %r10
+        shrdq	$0x01, %r12, %r11
+        shrdq	$0x01, %r13, %r12
+        shrq	$0x01, %r13
+        vptest	%ymm8, %ymm2
+        jz	L__mod_inv_avx2__v_even_shr1
+        vpaddd	%ymm6, %ymm2, %ymm2
+        vpaddd	%ymm7, %ymm3, %ymm3
+L__mod_inv_avx2__v_even_shr1:
+        vpand	%ymm9, %ymm2, %ymm4
+        vpand	%ymm10, %ymm3, %ymm5
+        vpermd	%ymm4, %ymm11, %ymm4
+        vpsrad	$0x01, %ymm2, %ymm2
+        vpsrad	$0x01, %ymm3, %ymm3
+        vpslld	$25, %ymm5, %ymm5
+        vpslld	$25, %xmm4, %xmm4
+        vpaddd	%ymm5, %ymm2, %ymm2
+        vpaddd	%ymm4, %ymm3, %ymm3
+        testb	$0x01, %r10b
+        jz	L__mod_inv_avx2__v_even_start
+L__mod_inv_avx2__v_even_end:
+L__mod_inv_avx2__uv_start:
+        cmpq	%r13, %r9
+        jb	L__mod_inv_avx2__uv_v
+        ja	L__mod_inv_avx2__uv_u
+        cmpq	%r12, %r8
+        jb	L__mod_inv_avx2__uv_v
+        ja	L__mod_inv_avx2__uv_u
+        cmpq	%r11, %rcx
+        jb	L__mod_inv_avx2__uv_v
+        ja	L__mod_inv_avx2__uv_u
+        cmpq	%r10, %rax
+        jb	L__mod_inv_avx2__uv_v
+L__mod_inv_avx2__uv_u:
+        subq	%r10, %rax
+        sbbq	%r11, %rcx
+        vpsubd	%ymm2, %ymm0, %ymm0
+        sbbq	%r12, %r8
+        vpsubd	%ymm3, %ymm1, %ymm1
+        sbbq	%r13, %r9
+        vptest	%ymm12, %ymm1
+        jz	L__mod_inv_avx2__usubv_done_neg
+        vpaddd	%ymm6, %ymm0, %ymm0
+        vpaddd	%ymm7, %ymm1, %ymm1
+L__mod_inv_avx2__usubv_done_neg:
+L__mod_inv_avx2__usubv_shr1:
+        shrdq	$0x01, %rcx, %rax
+        shrdq	$0x01, %r8, %rcx
+        shrdq	$0x01, %r9, %r8
+        shrq	$0x01, %r9
+        vptest	%ymm8, %ymm0
+        jz	L__mod_inv_avx2__usubv_sub_shr1
+        vpaddd	%ymm6, %ymm0, %ymm0
+        vpaddd	%ymm7, %ymm1, %ymm1
+L__mod_inv_avx2__usubv_sub_shr1:
+        vpand	%ymm9, %ymm0, %ymm4
+        vpand	%ymm10, %ymm1, %ymm5
+        vpermd	%ymm4, %ymm11, %ymm4
+        vpsrad	$0x01, %ymm0, %ymm0
+        vpsrad	$0x01, %ymm1, %ymm1
+        vpslld	$25, %ymm5, %ymm5
+        vpslld	$25, %xmm4, %xmm4
+        vpaddd	%ymm5, %ymm0, %ymm0
+        vpaddd	%ymm4, %ymm1, %ymm1
+        testb	$0x01, %al
+        jz	L__mod_inv_avx2__usubv_shr1
+        cmpq	$0x01, %rax
+        jne	L__mod_inv_avx2__uv_start
+        movq	%rcx, %rdx
+        orq	%r8, %rdx
+        jne	L__mod_inv_avx2__uv_start
+        orq	%r9, %rdx
+        jne	L__mod_inv_avx2__uv_start
+        vpextrd	$0x00, %xmm0, %eax
+        vpextrd	$0x01, %xmm0, %r8d
+        vpextrd	$2, %xmm0, %r10d
+        vpextrd	$3, %xmm0, %r12d
+        vpextrd	$0x00, %xmm1, %ecx
+        vpextrd	$0x01, %xmm1, %r9d
+        vpextrd	$2, %xmm1, %r11d
+        vpextrd	$3, %xmm1, %r13d
+        vextracti128	$0x01, %ymm0, %xmm0
+        vextracti128	$0x01, %ymm1, %xmm1
+        vpextrd	$0x00, %xmm0, %r14d
+        vpextrd	$0x00, %xmm1, %r15d
+        jmp	L__mod_inv_avx2__store_done
+L__mod_inv_avx2__uv_v:
+        subq	%rax, %r10
+        sbbq	%rcx, %r11
+        vpsubd	%ymm0, %ymm2, %ymm2
+        sbbq	%r8, %r12
+        vpsubd	%ymm1, %ymm3, %ymm3
+        sbbq	%r9, %r13
+        vptest	%ymm12, %ymm3
+        jz	L__mod_inv_avx2__vsubu_done_neg
+        vpaddd	%ymm6, %ymm2, %ymm2
+        vpaddd	%ymm7, %ymm3, %ymm3
+L__mod_inv_avx2__vsubu_done_neg:
+L__mod_inv_avx2__vsubu_shr1:
+        shrdq	$0x01, %r11, %r10
+        shrdq	$0x01, %r12, %r11
+        shrdq	$0x01, %r13, %r12
+        shrq	$0x01, %r13
+        vptest	%ymm8, %ymm2
+        jz	L__mod_inv_avx2__vsubu_sub_shr1
+        vpaddd	%ymm6, %ymm2, %ymm2
+        vpaddd	%ymm7, %ymm3, %ymm3
+L__mod_inv_avx2__vsubu_sub_shr1:
+        vpand	%ymm9, %ymm2, %ymm4
+        vpand	%ymm10, %ymm3, %ymm5
+        vpermd	%ymm4, %ymm11, %ymm4
+        vpsrad	$0x01, %ymm2, %ymm2
+        vpsrad	$0x01, %ymm3, %ymm3
+        vpslld	$25, %ymm5, %ymm5
+        vpslld	$25, %xmm4, %xmm4
+        vpaddd	%ymm5, %ymm2, %ymm2
+        vpaddd	%ymm4, %ymm3, %ymm3
+        testb	$0x01, %r10b
+        jz	L__mod_inv_avx2__vsubu_shr1
+        cmpq	$0x01, %r10
+        jne	L__mod_inv_avx2__uv_start
+        movq	%r11, %rdx
+        orq	%r12, %rdx
+        jne	L__mod_inv_avx2__uv_start
+        orq	%r13, %rdx
+        jne	L__mod_inv_avx2__uv_start
+        vpextrd	$0x00, %xmm2, %eax
+        vpextrd	$0x01, %xmm2, %r8d
+        vpextrd	$2, %xmm2, %r10d
+        vpextrd	$3, %xmm2, %r12d
+        vpextrd	$0x00, %xmm3, %ecx
+        vpextrd	$0x01, %xmm3, %r9d
+        vpextrd	$2, %xmm3, %r11d
+        vpextrd	$3, %xmm3, %r13d
+        vextracti128	$0x01, %ymm2, %xmm2
+        vextracti128	$0x01, %ymm3, %xmm3
+        vpextrd	$0x00, %xmm2, %r14d
+        vpextrd	$0x00, %xmm3, %r15d
+L__mod_inv_avx2__store_done:
+        movl	%eax, %edx
+        andl	$0x3ffffff, %eax
+        sarl	$26, %edx
+        addl	%edx, %ecx
+        movl	%ecx, %edx
+        andl	$0x3ffffff, %ecx
+        sarl	$26, %edx
+        addl	%edx, %r8d
+        movl	%r8d, %edx
+        andl	$0x3ffffff, %r8d
+        sarl	$26, %edx
+        addl	%edx, %r9d
+        movl	%r9d, %edx
+        andl	$0x3ffffff, %r9d
+        sarl	$26, %edx
+        addl	%edx, %r10d
+        movl	%r10d, %edx
+        andl	$0x3ffffff, %r10d
+        sarl	$26, %edx
+        addl	%edx, %r11d
+        movl	%r11d, %edx
+        andl	$0x3ffffff, %r11d
+        sarl	$26, %edx
+        addl	%edx, %r12d
+        movl	%r12d, %edx
+        andl	$0x3ffffff, %r12d
+        sarl	$26, %edx
+        addl	%edx, %r13d
+        movl	%r13d, %edx
+        andl	$0x3ffffff, %r13d
+        sarl	$26, %edx
+        addl	%edx, %r14d
+        movl	%r14d, %edx
+        andl	$0x3ffffff, %r14d
+        sarl	$26, %edx
+        addl	%edx, %r15d
+        movslq	%ecx, %rcx
+        movslq	%r9d, %r9
+        movslq	%r11d, %r11
+        movslq	%r13d, %r13
+        movslq	%r15d, %r15
+        shlq	$26, %rcx
+        shlq	$26, %r9
+        shlq	$26, %r11
+        shlq	$26, %r13
+        shlq	$26, %r15
+        movslq	%eax, %rax
+        addq	%rcx, %rax
+        movslq	%r8d, %r8
+        adcq	%r9, %r8
+        movslq	%r10d, %r10
+        adcq	%r11, %r10
+        movslq	%r12d, %r12
+        adcq	%r13, %r12
+        movslq	%r14d, %r14
+        adcq	%r15, %r14
+        jge	L__mod_inv_avx2__3_no_add_prime
+        movq	$0xfffffffffffed, %rcx
+        movq	$0xfffffffffffff, %r9
+        movq	$0xfffffffffffff, %r11
+        movq	$0xfffffffffffff, %r13
+        movq	$0x7fffffffffff, %r15
+        addq	%rcx, %rax
+        addq	%r9, %r8
+        addq	%r11, %r10
+        addq	%r13, %r12
+        addq	%r15, %r14
+        movq	$0xfffffffffffff, %rdx
+        movq	%rax, %rcx
+        andq	%rdx, %rax
+        sarq	$52, %rcx
+        addq	%rcx, %r8
+        movq	%r8, %r9
+        andq	%rdx, %r8
+        sarq	$52, %r9
+        addq	%r9, %r10
+        movq	%r10, %r11
+        andq	%rdx, %r10
+        sarq	$52, %r11
+        addq	%r11, %r12
+        movq	%r12, %r13
+        andq	%rdx, %r12
+        sarq	$52, %r13
+        addq	%r13, %r14
+L__mod_inv_avx2__3_no_add_prime:
+        movq	%r8, %rcx
+        movq	%r10, %r9
+        movq	%r12, %r11
+        shlq	$52, %rcx
+        sarq	$12, %r8
+        shlq	$40, %r9
+        sarq	$24, %r10
+        shlq	$28, %r11
+        sarq	$36, %r12
+        shlq	$16, %r14
+        addq	%rcx, %rax
+        adcq	%r9, %r8
+        adcq	%r11, %r10
+        adcq	%r14, %r12
+        movq	%rax, (%rdi)
+        movq	%r8, 8(%rdi)
+        movq	%r10, 16(%rdi)
+        movq	%r12, 24(%rdi)
+        popq	%rbx
+        popq	%r15
+        popq	%r14
+        popq	%r13
+        popq	%r12
+        repz retq
+#ifndef __APPLE__
+.size	fe_invert_nct_avx2,.-fe_invert_nct_avx2
 #endif /* __APPLE__ */
 #endif /* HAVE_ED25519 */
 #endif /* HAVE_INTEL_AVX2 */

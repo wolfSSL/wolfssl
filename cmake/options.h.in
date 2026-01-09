@@ -96,6 +96,8 @@ extern "C" {
 #cmakedefine HAVE_CURVE448
 #undef HAVE_DH_DEFAULT_PARAMS
 #cmakedefine HAVE_DH_DEFAULT_PARAMS
+#undef HAVE_DILITHIUM
+#cmakedefine HAVE_DILITHIUM
 #undef HAVE_ECC
 #cmakedefine HAVE_ECC
 #undef HAVE_ECH
@@ -354,6 +356,8 @@ extern "C" {
 #cmakedefine WOLFSSL_TLS13
 #undef WOLFSSL_USE_ALIGN
 #cmakedefine WOLFSSL_USE_ALIGN
+#undef WOLFSSL_USER_SETTINGS
+#cmakedefine WOLFSSL_USER_SETTINGS
 #undef WOLFSSL_USER_SETTINGS_ASM
 #cmakedefine WOLFSSL_USER_SETTINGS_ASM
 #undef WOLFSSL_W64_WRAPPER
@@ -370,6 +374,8 @@ extern "C" {
 #cmakedefine WOLFSSL_HAVE_MLKEM
 #undef WOLFSSL_WC_MLKEM
 #cmakedefine WOLFSSL_WC_MLKEM
+#undef WOLFSSL_WC_DILITHIUM
+#cmakedefine WOLFSSL_WC_DILITHIUM
 #undef NO_WOLFSSL_STUB
 #cmakedefine NO_WOLFSSL_STUB
 #undef HAVE_ECC_SECPR2

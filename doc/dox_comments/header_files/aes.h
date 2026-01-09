@@ -1974,3 +1974,1718 @@ int wc_AesCtsDecryptUpdate(Aes* aes, byte* out, word32* outSz,
     \sa wc_AesCtsEncryptFinal
 */
 int wc_AesCtsDecryptFinal(Aes* aes, byte* out, word32* outSz);
+
+
+/*!
+    \ingroup AES
+    \brief This function encrypts data using AES CFB-1 mode (1-bit
+    feedback). It processes data one bit at a time, making it suitable
+    for bit-oriented applications.
+
+    \return 0 On success.
+    \return BAD_FUNC_ARG If aes, out, or in is NULL.
+    \return Other negative values on error.
+
+    \param aes pointer to the AES structure containing the key
+    \param out pointer to the output buffer to store encrypted data
+    \param in pointer to the input buffer containing data to encrypt
+    (packed to left, e.g., 101 is 0x90)
+    \param sz size of input in bits
+
+    _Example_
+    \code
+    Aes aes;
+    byte key[16] = { }; // 128-bit key
+    byte iv[16] = { }; // initialization vector
+    byte plaintext[1] = { 0x90 }; // bits 101
+    byte ciphertext[1];
+
+    wc_AesInit(&aes, NULL, INVALID_DEVID);
+    wc_AesSetKey(&aes, key, 16, iv, AES_ENCRYPTION);
+    int ret = wc_AesCfb1Encrypt(&aes, ciphertext, plaintext, 3);
+    if (ret != 0) {
+        // encryption failed
+    }
+    wc_AesFree(&aes);
+    \endcode
+
+    \sa wc_AesCfb1Decrypt
+    \sa wc_AesCfb8Encrypt
+*/
+int wc_AesCfb1Encrypt(Aes* aes, byte* out, const byte* in, word32 sz);
+
+/*!
+    \ingroup AES
+    \brief This function encrypts data using AES CFB-8 mode (8-bit
+    feedback). It processes data one byte at a time, making it suitable
+    for byte-oriented stream encryption.
+
+    \return 0 On success.
+    \return BAD_FUNC_ARG If aes, out, or in is NULL.
+    \return Other negative values on error.
+
+    \param aes pointer to the AES structure containing the key
+    \param out pointer to the output buffer to store encrypted data
+    \param in pointer to the input buffer containing data to encrypt
+    \param sz size of input in bytes
+
+    _Example_
+    \code
+    Aes aes;
+    byte key[16] = { }; // 128-bit key
+    byte iv[16] = { }; // initialization vector
+    byte plaintext[10] = { }; // data to encrypt
+    byte ciphertext[10];
+
+    wc_AesInit(&aes, NULL, INVALID_DEVID);
+    wc_AesSetKey(&aes, key, 16, iv, AES_ENCRYPTION);
+    int ret = wc_AesCfb8Encrypt(&aes, ciphertext, plaintext, 10);
+    if (ret != 0) {
+        // encryption failed
+    }
+    wc_AesFree(&aes);
+    \endcode
+
+    \sa wc_AesCfb8Decrypt
+    \sa wc_AesCfb1Encrypt
+*/
+int wc_AesCfb8Encrypt(Aes* aes, byte* out, const byte* in, word32 sz);
+
+/*!
+    \ingroup AES
+    \brief This function decrypts data using AES CFB-1 mode (1-bit
+    feedback). It processes data one bit at a time, making it suitable
+    for bit-oriented applications.
+
+    \return 0 On success.
+    \return BAD_FUNC_ARG If aes, out, or in is NULL.
+    \return Other negative values on error.
+
+    \param aes pointer to the AES structure containing the key
+    \param out pointer to the output buffer to store decrypted data
+    \param in pointer to the input buffer containing data to decrypt
+    \param sz size of input in bits
+
+    _Example_
+    \code
+    Aes aes;
+    byte key[16] = { }; // 128-bit key
+    byte iv[16] = { }; // initialization vector
+    byte ciphertext[1] = { }; // encrypted bits
+    byte plaintext[1];
+
+    wc_AesInit(&aes, NULL, INVALID_DEVID);
+    wc_AesSetKey(&aes, key, 16, iv, AES_ENCRYPTION);
+    int ret = wc_AesCfb1Decrypt(&aes, plaintext, ciphertext, 3);
+    if (ret != 0) {
+        // decryption failed
+    }
+    wc_AesFree(&aes);
+    \endcode
+
+    \sa wc_AesCfb1Encrypt
+    \sa wc_AesCfb8Decrypt
+*/
+int wc_AesCfb1Decrypt(Aes* aes, byte* out, const byte* in, word32 sz);
+
+/*!
+    \ingroup AES
+    \brief This function decrypts data using AES CFB-8 mode (8-bit
+    feedback). It processes data one byte at a time, making it suitable
+    for byte-oriented stream decryption.
+
+    \return 0 On success.
+    \return BAD_FUNC_ARG If aes, out, or in is NULL.
+    \return Other negative values on error.
+
+    \param aes pointer to the AES structure containing the key
+    \param out pointer to the output buffer to store decrypted data
+    \param in pointer to the input buffer containing data to decrypt
+    \param sz size of input in bytes
+
+    _Example_
+    \code
+    Aes aes;
+    byte key[16] = { }; // 128-bit key
+    byte iv[16] = { }; // initialization vector
+    byte ciphertext[10] = { }; // encrypted data
+    byte plaintext[10];
+
+    wc_AesInit(&aes, NULL, INVALID_DEVID);
+    wc_AesSetKey(&aes, key, 16, iv, AES_ENCRYPTION);
+    int ret = wc_AesCfb8Decrypt(&aes, plaintext, ciphertext, 10);
+    if (ret != 0) {
+        // decryption failed
+    }
+    wc_AesFree(&aes);
+    \endcode
+
+    \sa wc_AesCfb8Encrypt
+    \sa wc_AesCfb1Decrypt
+*/
+int wc_AesCfb8Decrypt(Aes* aes, byte* out, const byte* in, word32 sz);
+
+/*!
+    \ingroup AES
+    \brief This function encrypts data using AES OFB mode (Output
+    Feedback). OFB mode turns a block cipher into a stream cipher by
+    encrypting the IV and XORing with plaintext.
+
+    \return 0 On success.
+    \return BAD_FUNC_ARG If aes, out, or in is NULL.
+    \return Other negative values on error.
+
+    \param aes pointer to the AES structure containing the key
+    \param out pointer to the output buffer to store encrypted data
+    \param in pointer to the input buffer containing data to encrypt
+    \param sz size of input in bytes
+
+    _Example_
+    \code
+    Aes aes;
+    byte key[16] = { }; // 128-bit key
+    byte iv[16] = { }; // initialization vector
+    byte plaintext[100] = { }; // data to encrypt
+    byte ciphertext[100];
+
+    wc_AesInit(&aes, NULL, INVALID_DEVID);
+    wc_AesSetKey(&aes, key, 16, iv, AES_ENCRYPTION);
+    int ret = wc_AesOfbEncrypt(&aes, ciphertext, plaintext, 100);
+    if (ret != 0) {
+        // encryption failed
+    }
+    wc_AesFree(&aes);
+    \endcode
+
+    \sa wc_AesOfbDecrypt
+    \sa wc_AesSetKey
+*/
+int wc_AesOfbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz);
+
+/*!
+    \ingroup AES
+    \brief This function decrypts data using AES OFB mode (Output
+    Feedback). In OFB mode, encryption and decryption are the same
+    operation.
+
+    \return 0 On success.
+    \return BAD_FUNC_ARG If aes, out, or in is NULL.
+    \return Other negative values on error.
+
+    \param aes pointer to the AES structure containing the key
+    \param out pointer to the output buffer to store decrypted data
+    \param in pointer to the input buffer containing data to decrypt
+    \param sz size of input in bytes
+
+    _Example_
+    \code
+    Aes aes;
+    byte key[16] = { }; // 128-bit key
+    byte iv[16] = { }; // initialization vector
+    byte ciphertext[100] = { }; // encrypted data
+    byte plaintext[100];
+
+    wc_AesInit(&aes, NULL, INVALID_DEVID);
+    wc_AesSetKey(&aes, key, 16, iv, AES_ENCRYPTION);
+    int ret = wc_AesOfbDecrypt(&aes, plaintext, ciphertext, 100);
+    if (ret != 0) {
+        // decryption failed
+    }
+    wc_AesFree(&aes);
+    \endcode
+
+    \sa wc_AesOfbEncrypt
+    \sa wc_AesSetKey
+*/
+int wc_AesOfbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz);
+
+/*!
+    \ingroup AES
+    \brief This function encrypts data using AES ECB mode (Electronic
+    Codebook). Warning: ECB mode is not recommended for most use cases
+    as it does not provide semantic security. Each block is encrypted
+    independently.
+
+    \return 0 On success.
+    \return BAD_FUNC_ARG If aes, out, or in is NULL.
+    \return Other negative values on error.
+
+    \param aes pointer to the AES structure containing the key
+    \param out pointer to the output buffer to store encrypted data
+    \param in pointer to the input buffer containing data to encrypt
+    \param sz size of input in bytes (must be multiple of AES_BLOCK_SIZE)
+
+    _Example_
+    \code
+    Aes aes;
+    byte key[16] = { }; // 128-bit key
+    byte plaintext[32] = { }; // data to encrypt
+    byte ciphertext[32];
+
+    wc_AesInit(&aes, NULL, INVALID_DEVID);
+    wc_AesSetKey(&aes, key, 16, NULL, AES_ENCRYPTION);
+    int ret = wc_AesEcbEncrypt(&aes, ciphertext, plaintext, 32);
+    if (ret != 0) {
+        // encryption failed
+    }
+    wc_AesFree(&aes);
+    \endcode
+
+    \sa wc_AesEcbDecrypt
+    \sa wc_AesSetKey
+*/
+int wc_AesEcbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz);
+
+/*!
+    \ingroup AES
+    \brief This function decrypts data using AES ECB mode (Electronic
+    Codebook). Warning: ECB mode is not recommended for most use cases
+    as it does not provide semantic security. Each block is decrypted
+    independently.
+
+    \return 0 On success.
+    \return BAD_FUNC_ARG If aes, out, or in is NULL.
+    \return Other negative values on error.
+
+    \param aes pointer to the AES structure containing the key
+    \param out pointer to the output buffer to store decrypted data
+    \param in pointer to the input buffer containing data to decrypt
+    \param sz size of input in bytes (must be multiple of AES_BLOCK_SIZE)
+
+    _Example_
+    \code
+    Aes aes;
+    byte key[16] = { }; // 128-bit key
+    byte ciphertext[32] = { }; // encrypted data
+    byte plaintext[32];
+
+    wc_AesInit(&aes, NULL, INVALID_DEVID);
+    wc_AesSetKey(&aes, key, 16, NULL, AES_DECRYPTION);
+    int ret = wc_AesEcbDecrypt(&aes, plaintext, ciphertext, 32);
+    if (ret != 0) {
+        // decryption failed
+    }
+    wc_AesFree(&aes);
+    \endcode
+
+    \sa wc_AesEcbEncrypt
+    \sa wc_AesSetKey
+*/
+int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz);
+
+/*!
+    \ingroup AES
+    \brief This function sets the key and IV for AES CTR mode. It
+    initializes the AES structure for counter mode encryption or
+    decryption.
+
+    \return 0 On success.
+    \return BAD_FUNC_ARG If aes, key, or iv is NULL, or if key length
+    is invalid.
+
+    \param aes pointer to the AES structure to initialize
+    \param key pointer to the key buffer (16, 24, or 32 bytes)
+    \param len length of the key in bytes
+    \param iv pointer to the initialization vector (16 bytes)
+    \param dir cipher direction (always use AES_ENCRYPTION for CTR mode)
+
+    _Example_
+    \code
+    Aes aes;
+    byte key[16] = { }; // 128-bit key
+    byte iv[16] = { }; // initialization vector
+
+    wc_AesInit(&aes, NULL, INVALID_DEVID);
+    int ret = wc_AesCtrSetKey(&aes, key, 16, iv, AES_ENCRYPTION);
+    if (ret != 0) {
+        // failed to set key
+    }
+    wc_AesFree(&aes);
+    \endcode
+
+    \sa wc_AesCtrEncrypt
+    \sa wc_AesSetKey
+*/
+int wc_AesCtrSetKey(Aes* aes, const byte* key, word32 len, const byte* iv,
+                    int dir);
+
+/*!
+    \ingroup AES
+    \brief This function sets the key for AES GCM with an extended key
+    update parameter. It allows for key updates in certain hardware
+    implementations.
+
+    \note This function is currently only available when building with
+    Xilinx hardware acceleration. It requires one of the following build
+    options: WOLFSSL_XILINX_CRYPT (for Xilinx SecureIP integration) or
+    WOLFSSL_AFALG_XILINX_AES (for Xilinx AF_ALG support). This API may
+    be exposed for additional build configurations in the future.
+
+    \return 0 On success.
+    \return BAD_FUNC_ARG If aes or key is NULL, or if key length is invalid.
+
+    \param aes pointer to the AES structure to initialize
+    \param key pointer to the key buffer (16, 24, or 32 bytes)
+    \param len length of the key in bytes
+    \param kup key update parameter for hardware implementations
+
+    _Example_
+    \code
+    Aes aes;
+    byte key[16] = { }; // 128-bit key
+
+    wc_AesInit(&aes, NULL, INVALID_DEVID);
+    int ret = wc_AesGcmSetKey_ex(&aes, key, 16, 0);
+    if (ret != 0) {
+        // failed to set key
+    }
+    wc_AesFree(&aes);
+    \endcode
+
+    \sa wc_AesGcmSetKey
+    \sa wc_AesGcmInit
+*/
+int wc_AesGcmSetKey_ex(Aes* aes, const byte* key, word32 len, word32 kup);
+
+/*!
+    \ingroup AES
+    \brief This function initializes an AES GCM cipher with key and IV.
+    It can be called with NULL key to only set the IV, or with NULL IV
+    to only set the key.
+
+    \return 0 On success.
+    \return BAD_FUNC_ARG If aes is NULL, or if parameters are invalid.
+    \return MEMORY_E If dynamic memory allocation fails.
+
+    \param aes pointer to the AES structure to initialize
+    \param key pointer to the key buffer, or NULL to skip key setting
+    \param len length of the key in bytes
+    \param iv pointer to the IV/nonce buffer, or NULL to skip IV setting
+    \param ivSz length of the IV/nonce in bytes
+
+    _Example_
+    \code
+    Aes aes;
+    byte key[16] = { }; // 128-bit key
+    byte iv[12] = { }; // 96-bit nonce
+
+    wc_AesInit(&aes, NULL, INVALID_DEVID);
+    int ret = wc_AesGcmInit(&aes, key, 16, iv, 12);
+    if (ret != 0) {
+        // failed to initialize
+    }
+    wc_AesFree(&aes);
+    \endcode
+
+    \sa wc_AesGcmSetKey
+    \sa wc_AesGcmEncrypt
+*/
+int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
+                  word32 ivSz);
+
+/*!
+    \ingroup AES
+    \brief This function initializes an AES GCM cipher for encryption.
+    It is a convenience wrapper around wc_AesGcmInit for encryption
+    operations.
+
+    \return 0 On success.
+    \return BAD_FUNC_ARG If aes is NULL, or if parameters are invalid.
+
+    \param aes pointer to the AES structure to initialize
+    \param key pointer to the key buffer, or NULL to skip key setting
+    \param len length of the key in bytes
+    \param iv pointer to the IV/nonce buffer, or NULL to skip IV setting
+    \param ivSz length of the IV/nonce in bytes
+
+    _Example_
+    \code
+    Aes aes;
+    byte key[16] = { }; // 128-bit key
+    byte iv[12] = { }; // 96-bit nonce
+
+    wc_AesInit(&aes, NULL, INVALID_DEVID);
+    int ret = wc_AesGcmEncryptInit(&aes, key, 16, iv, 12);
+    if (ret != 0) {
+        // failed to initialize
+    }
+    wc_AesFree(&aes);
+    \endcode
+
+    \sa wc_AesGcmInit
+    \sa wc_AesGcmEncryptUpdate
+*/
+int wc_AesGcmEncryptInit(Aes* aes, const byte* key, word32 len,
+                         const byte* iv, word32 ivSz);
+
+/*!
+    \ingroup AES
+    \brief This function initializes an AES GCM cipher for encryption and
+    outputs the IV. This is useful when part of the IV is generated
+    internally. Must call wc_AesGcmSetIV() before this function to set
+    the fixed part of the IV.
+
+    \return 0 On success.
+    \return BAD_FUNC_ARG If aes, ivOut is NULL, or if ivOutSz doesn't
+    match the cached nonce size.
+
+    \param aes pointer to the AES structure to initialize
+    \param key pointer to the key buffer, or NULL to skip key setting
+    \param len length of the key in bytes
+    \param ivOut pointer to buffer to receive the complete IV
+    \param ivOutSz length of the IV output buffer in bytes
+
+    _Example_
+    \code
+    Aes aes;
+    byte key[16] = { }; // 128-bit key
+    byte ivFixed[4] = { }; // fixed part of IV
+    byte ivOut[12];
+    WC_RNG rng;
+
+    wc_InitRng(&rng);
+    wc_AesInit(&aes, NULL, INVALID_DEVID);
+    wc_AesGcmSetIV(&aes, 12, ivFixed, 4, &rng);
+    int ret = wc_AesGcmEncryptInit_ex(&aes, key, 16, ivOut, 12);
+    if (ret != 0) {
+        // failed to initialize
+    }
+    wc_AesFree(&aes);
+    wc_FreeRng(&rng);
+    \endcode
+
+    \sa wc_AesGcmSetIV
+    \sa wc_AesGcmEncryptUpdate
+*/
+int wc_AesGcmEncryptInit_ex(Aes* aes, const byte* key, word32 len,
+                            byte* ivOut, word32 ivOutSz);
+
+/*!
+    \ingroup AES
+    \brief This function performs an update step of AES GCM encryption.
+    It processes plaintext and/or additional authentication data (AAD)
+    in a streaming fashion.
+
+    All the AAD must be passed to update before the plaintext.
+    The last part of AAD can be passed with the first part of plaintext.
+
+    Must set key and IV before calling this function.
+    Must call wc_AesGcmInit() before calling this function.
+
+    \return 0 On success.
+    \return BAD_FUNC_ARG If aes is NULL, or a length is non-zero but
+    buffer is NULL.
+
+    \param aes pointer to the AES structure
+    \param out pointer to buffer to store ciphertext (can be NULL if sz=0)
+    \param in pointer to plaintext to encrypt (can be NULL if sz=0)
+    \param sz length of plaintext in bytes
+    \param authIn pointer to additional authentication data (can be NULL)
+    \param authInSz length of AAD in bytes
+
+    _Example_
+    \code
+    Aes aes;
+    byte key[16] = { }; // 128-bit key
+    byte iv[12] = { }; // nonce
+    byte plaintext[100] = { }; // data
+    byte ciphertext[100];
+    byte aad[20] = { }; // additional data
+
+    wc_AesInit(&aes, NULL, INVALID_DEVID);
+    wc_AesGcmInit(&aes, key, 16, iv, 12);
+    int ret = wc_AesGcmEncryptUpdate(&aes, ciphertext, plaintext, 100,
+                                     aad, 20);
+    if (ret != 0) {
+        // encryption failed
+    }
+    wc_AesFree(&aes);
+    \endcode
+
+    \sa wc_AesGcmInit
+    \sa wc_AesGcmEncryptInit
+    \sa wc_AesGcmEncryptFinal
+*/
+int wc_AesGcmEncryptUpdate(Aes* aes, byte* out, const byte* in, word32 sz,
+                           const byte* authIn, word32 authInSz);
+
+/*!
+    \ingroup AES
+    \brief This function finalizes AES GCM encryption and generates the
+    authentication tag. This must be called after all data has been
+    processed with wc_AesGcmEncryptUpdate.
+
+    \return 0 On success.
+    \return BAD_FUNC_ARG If aes or authTag is NULL, or if authTagSz is
+    invalid.
+
+    \param aes pointer to the AES structure
+    \param authTag pointer to buffer to store the authentication tag
+    \param authTagSz length of the authentication tag in bytes (typically
+    12 or 16)
+
+    _Example_
+    \code
+    Aes aes;
+    byte key[16] = { }; // 128-bit key
+    byte iv[12] = { }; // nonce
+    byte plaintext[100] = { }; // data
+    byte ciphertext[100];
+    byte authTag[16];
+
+    wc_AesInit(&aes, NULL, INVALID_DEVID);
+    wc_AesGcmEncryptInit(&aes, key, 16, iv, 12);
+    wc_AesGcmEncryptUpdate(&aes, ciphertext, plaintext, 100, NULL, 0);
+    int ret = wc_AesGcmEncryptFinal(&aes, authTag, 16);
+    if (ret != 0) {
+        // failed to generate tag
+    }
+    wc_AesFree(&aes);
+    \endcode
+
+    \sa wc_AesGcmEncryptUpdate
+    \sa wc_AesGcmDecryptFinal
+*/
+int wc_AesGcmEncryptFinal(Aes* aes, byte* authTag, word32 authTagSz);
+
+/*!
+    \ingroup AES
+    \brief This function initializes an AES GCM cipher for decryption.
+    It is a convenience wrapper around wc_AesGcmInit for decryption
+    operations.
+
+    \return 0 On success.
+    \return BAD_FUNC_ARG If aes is NULL, or if parameters are invalid.
+
+    \param aes pointer to the AES structure to initialize
+    \param key pointer to the key buffer, or NULL to skip key setting
+    \param len length of the key in bytes
+    \param iv pointer to the IV/nonce buffer, or NULL to skip IV setting
+    \param ivSz length of the IV/nonce in bytes
+
+    _Example_
+    \code
+    Aes aes;
+    byte key[16] = { }; // 128-bit key
+    byte iv[12] = { }; // 96-bit nonce
+
+    wc_AesInit(&aes, NULL, INVALID_DEVID);
+    int ret = wc_AesGcmDecryptInit(&aes, key, 16, iv, 12);
+    if (ret != 0) {
+        // failed to initialize
+    }
+    wc_AesFree(&aes);
+    \endcode
+
+    \sa wc_AesGcmInit
+    \sa wc_AesGcmDecryptUpdate
+*/
+int wc_AesGcmDecryptInit(Aes* aes, const byte* key, word32 len,
+                         const byte* iv, word32 ivSz);
+
+/*!
+    \ingroup AES
+    \brief This function performs an update step of AES GCM decryption.
+    It processes ciphertext and/or additional authentication data (AAD)
+    in a streaming fashion.
+
+    All the AAD must be passed to update before the ciphertext.
+    The last part of AAD can be passed with the first part of ciphertext.
+
+    Must set key and IV before calling this function.
+    Must call wc_AesGcmInit() before calling this function.
+
+    \return 0 On success.
+    \return BAD_FUNC_ARG If aes is NULL, or a length is non-zero but
+    buffer is NULL.
+
+    \param aes pointer to the AES structure
+    \param out pointer to buffer to store plaintext (can be NULL if sz=0)
+    \param in pointer to ciphertext to decrypt (can be NULL if sz=0)
+    \param sz length of ciphertext in bytes
+    \param authIn pointer to additional authentication data (can be NULL)
+    \param authInSz length of AAD in bytes
+
+    _Example_
+    \code
+    Aes aes;
+    byte key[16] = { }; // 128-bit key
+    byte iv[12] = { }; // nonce
+    byte ciphertext[100] = { }; // encrypted data
+    byte plaintext[100];
+    byte aad[20] = { }; // additional data
+
+    wc_AesInit(&aes, NULL, INVALID_DEVID);
+    wc_AesGcmInit(&aes, key, 16, iv, 12);
+    int ret = wc_AesGcmDecryptUpdate(&aes, plaintext, ciphertext, 100,
+                                     aad, 20);
+    if (ret != 0) {
+        // decryption failed
+    }
+    wc_AesFree(&aes);
+    \endcode
+
+    \sa wc_AesGcmInit
+    \sa wc_AesGcmDecryptInit
+    \sa wc_AesGcmDecryptFinal
+*/
+int wc_AesGcmDecryptUpdate(Aes* aes, byte* out, const byte* in, word32 sz,
+                           const byte* authIn, word32 authInSz);
+
+/*!
+    \ingroup AES
+    \brief This function finalizes AES GCM decryption and verifies the
+    authentication tag. This must be called after all data has been
+    processed with wc_AesGcmDecryptUpdate.
+
+    \return 0 On success.
+    \return AES_GCM_AUTH_E If authentication tag verification fails.
+    \return BAD_FUNC_ARG If aes or authTag is NULL, or if authTagSz is
+    invalid.
+
+    \param aes pointer to the AES structure
+    \param authTag pointer to the authentication tag to verify
+    \param authTagSz length of the authentication tag in bytes
+
+    _Example_
+    \code
+    Aes aes;
+    byte key[16] = { }; // 128-bit key
+    byte iv[12] = { }; // nonce
+    byte ciphertext[100] = { }; // encrypted data
+    byte plaintext[100];
+    byte authTag[16] = { }; // received tag
+
+    wc_AesInit(&aes, NULL, INVALID_DEVID);
+    wc_AesGcmDecryptInit(&aes, key, 16, iv, 12);
+    wc_AesGcmDecryptUpdate(&aes, plaintext, ciphertext, 100, NULL, 0);
+    int ret = wc_AesGcmDecryptFinal(&aes, authTag, 16);
+    if (ret != 0) {
+        // authentication failed
+    }
+    wc_AesFree(&aes);
+    \endcode
+
+    \sa wc_AesGcmDecryptUpdate
+    \sa wc_AesGcmEncryptFinal
+*/
+int wc_AesGcmDecryptFinal(Aes* aes, const byte* authTag, word32 authTagSz);
+
+/*!
+    \ingroup AES
+    \brief This function sets an external IV for AES GCM. This allows
+    using an IV that was generated externally or received from another
+    source.
+
+    \return 0 On success.
+    \return BAD_FUNC_ARG If aes or iv is NULL, or if ivSz is invalid.
+
+    \param aes pointer to the AES structure
+    \param iv pointer to the IV/nonce buffer
+    \param ivSz length of the IV/nonce in bytes
+
+    _Example_
+    \code
+    Aes aes;
+    byte key[16] = { }; // 128-bit key
+    byte iv[12] = { }; // external nonce
+
+    wc_AesInit(&aes, NULL, INVALID_DEVID);
+    wc_AesGcmSetKey(&aes, key, 16);
+    int ret = wc_AesGcmSetExtIV(&aes, iv, 12);
+    if (ret != 0) {
+        // failed to set IV
+    }
+    wc_AesFree(&aes);
+    \endcode
+
+    \sa wc_AesGcmSetIV
+    \sa wc_AesGcmInit
+*/
+int wc_AesGcmSetExtIV(Aes* aes, const byte* iv, word32 ivSz);
+
+/*!
+    \ingroup AES
+    \brief This function sets the IV for AES GCM with optional random
+    generation. It can generate part of the IV using an RNG, which is
+    useful for ensuring IV uniqueness.
+
+    \return 0 On success.
+    \return BAD_FUNC_ARG If aes is NULL, or if parameters are invalid.
+    \return Other negative values on RNG or other errors.
+
+    \param aes pointer to the AES structure
+    \param ivSz total length of the IV/nonce in bytes
+    \param ivFixed pointer to the fixed part of the IV (can be NULL)
+    \param ivFixedSz length of the fixed part in bytes
+    \param rng pointer to initialized RNG for generating random part
+    (can be NULL if ivFixedSz equals ivSz)
+
+    _Example_
+    \code
+    Aes aes;
+    byte key[16] = { }; // 128-bit key
+    byte ivFixed[4] = { }; // fixed part
+    WC_RNG rng;
+
+    wc_InitRng(&rng);
+    wc_AesInit(&aes, NULL, INVALID_DEVID);
+    wc_AesGcmSetKey(&aes, key, 16);
+    int ret = wc_AesGcmSetIV(&aes, 12, ivFixed, 4, &rng);
+    if (ret != 0) {
+        // failed to set IV
+    }
+    wc_AesFree(&aes);
+    wc_FreeRng(&rng);
+    \endcode
+
+    \sa wc_AesGcmSetExtIV
+    \sa wc_AesGcmEncryptInit_ex
+*/
+int wc_AesGcmSetIV(Aes* aes, word32 ivSz, const byte* ivFixed,
+                   word32 ivFixedSz, WC_RNG* rng);
+
+/*!
+    \ingroup AES
+    \brief This function performs AES GCM encryption with extended
+    parameters, including IV output. This is a one-shot encryption
+    function that outputs the generated IV.
+
+    \return 0 On success.
+    \return BAD_FUNC_ARG If parameters are invalid.
+    \return Other negative values on error.
+
+    \param aes pointer to the AES structure
+    \param out pointer to buffer to store ciphertext
+    \param in pointer to plaintext to encrypt
+    \param sz length of plaintext in bytes
+    \param ivOut pointer to buffer to receive the IV
+    \param ivOutSz length of the IV output buffer in bytes
+    \param authTag pointer to buffer to store authentication tag
+    \param authTagSz length of authentication tag in bytes
+    \param authIn pointer to additional authentication data
+    \param authInSz length of AAD in bytes
+
+    _Example_
+    \code
+    Aes aes;
+    byte key[16] = { }; // 128-bit key
+    byte ivFixed[4] = { }; // fixed part
+    byte ivOut[12];
+    byte plaintext[100] = { }; // data
+    byte ciphertext[100];
+    byte authTag[16];
+    WC_RNG rng;
+
+    wc_InitRng(&rng);
+    wc_AesInit(&aes, NULL, INVALID_DEVID);
+    wc_AesGcmSetKey(&aes, key, 16);
+    wc_AesGcmSetIV(&aes, 12, ivFixed, 4, &rng);
+    int ret = wc_AesGcmEncrypt_ex(&aes, ciphertext, plaintext, 100,
+                                  ivOut, 12, authTag, 16, NULL, 0);
+    if (ret != 0) {
+        // encryption failed
+    }
+    wc_AesFree(&aes);
+    wc_FreeRng(&rng);
+    \endcode
+
+    \sa wc_AesGcmEncrypt
+    \sa wc_AesGcmSetIV
+*/
+int wc_AesGcmEncrypt_ex(Aes* aes, byte* out, const byte* in, word32 sz,
+                        byte* ivOut, word32 ivOutSz, byte* authTag,
+                        word32 authTagSz, const byte* authIn,
+                        word32 authInSz);
+
+/*!
+    \ingroup AES
+    \brief This function performs GMAC (Galois Message Authentication Code)
+    generation. GMAC is essentially AES-GCM with no plaintext, used for
+    authentication only.
+
+    \return 0 On success.
+    \return BAD_FUNC_ARG If parameters are invalid.
+    \return Other negative values on error.
+
+    \param key pointer to the key buffer
+    \param keySz length of the key in bytes (16, 24, or 32)
+    \param iv pointer to the IV/nonce buffer
+    \param ivSz length of the IV/nonce in bytes
+    \param authIn pointer to data to authenticate
+    \param authInSz length of data to authenticate in bytes
+    \param authTag pointer to buffer to store authentication tag
+    \param authTagSz length of authentication tag in bytes
+    \param rng pointer to initialized RNG (can be NULL if IV is complete)
+
+    _Example_
+    \code
+    byte key[16] = { }; // 128-bit key
+    byte iv[12] = { }; // nonce
+    byte data[100] = { }; // data to authenticate
+    byte authTag[16];
+
+    int ret = wc_Gmac(key, 16, iv, 12, data, 100, authTag, 16, NULL);
+    if (ret != 0) {
+        // GMAC generation failed
+    }
+    \endcode
+
+    \sa wc_GmacVerify
+    \sa wc_AesGcmEncrypt
+*/
+int wc_Gmac(const byte* key, word32 keySz, byte* iv, word32 ivSz,
+            const byte* authIn, word32 authInSz, byte* authTag,
+            word32 authTagSz, WC_RNG* rng);
+
+/*!
+    \ingroup AES
+    \brief This function verifies a GMAC (Galois Message Authentication
+    Code). It computes the GMAC and compares it with the provided tag.
+
+    \return 0 On successful verification.
+    \return AES_GCM_AUTH_E If authentication tag verification fails.
+    \return BAD_FUNC_ARG If parameters are invalid.
+    \return Other negative values on error.
+
+    \param key pointer to the key buffer
+    \param keySz length of the key in bytes (16, 24, or 32)
+    \param iv pointer to the IV/nonce buffer
+    \param ivSz length of the IV/nonce in bytes
+    \param authIn pointer to data to authenticate
+    \param authInSz length of data to authenticate in bytes
+    \param authTag pointer to the authentication tag to verify
+    \param authTagSz length of authentication tag in bytes
+
+    _Example_
+    \code
+    byte key[16] = { }; // 128-bit key
+    byte iv[12] = { }; // nonce
+    byte data[100] = { }; // data to authenticate
+    byte authTag[16] = { }; // received tag
+
+    int ret = wc_GmacVerify(key, 16, iv, 12, data, 100, authTag, 16);
+    if (ret != 0) {
+        // GMAC verification failed
+    }
+    \endcode
+
+    \sa wc_Gmac
+    \sa wc_AesGcmDecrypt
+*/
+int wc_GmacVerify(const byte* key, word32 keySz, const byte* iv,
+                  word32 ivSz, const byte* authIn, word32 authInSz,
+                  const byte* authTag, word32 authTagSz);
+
+/*!
+    \ingroup AES
+    \brief This function sets the nonce for AES CCM mode. The nonce must
+    be set before encryption or decryption operations.
+
+    \return 0 On success.
+    \return BAD_FUNC_ARG If aes or nonce is NULL, or if nonceSz is invalid.
+
+    \param aes pointer to the AES structure
+    \param nonce pointer to the nonce buffer
+    \param nonceSz length of the nonce in bytes (7-13 bytes for CCM)
+
+    _Example_
+    \code
+    Aes aes;
+    byte key[16] = { }; // 128-bit key
+    byte nonce[12] = { }; // nonce
+
+    wc_AesInit(&aes, NULL, INVALID_DEVID);
+    wc_AesCcmSetKey(&aes, key, 16);
+    int ret = wc_AesCcmSetNonce(&aes, nonce, 12);
+    if (ret != 0) {
+        // failed to set nonce
+    }
+    wc_AesFree(&aes);
+    \endcode
+
+    \sa wc_AesCcmEncrypt
+    \sa wc_AesCcmSetKey
+*/
+int wc_AesCcmSetNonce(Aes* aes, const byte* nonce, word32 nonceSz);
+
+/*!
+    \ingroup AES
+    \brief This function performs AES CCM encryption with extended
+    parameters, including nonce output. This is useful when part of the
+    nonce is generated internally.
+
+    \return 0 On success.
+    \return BAD_FUNC_ARG If parameters are invalid.
+    \return Other negative values on error.
+
+    \param aes pointer to the AES structure
+    \param out pointer to buffer to store ciphertext
+    \param in pointer to plaintext to encrypt
+    \param sz length of plaintext in bytes
+    \param ivOut pointer to buffer to receive the nonce
+    \param ivOutSz length of the nonce output buffer in bytes
+    \param authTag pointer to buffer to store authentication tag
+    \param authTagSz length of authentication tag in bytes
+    \param authIn pointer to additional authentication data
+    \param authInSz length of AAD in bytes
+
+    _Example_
+    \code
+    Aes aes;
+    byte key[16] = { }; // 128-bit key
+    byte nonce[12];
+    byte plaintext[100] = { }; // data
+    byte ciphertext[100];
+    byte authTag[16];
+
+    wc_AesInit(&aes, NULL, INVALID_DEVID);
+    wc_AesCcmSetKey(&aes, key, 16);
+    int ret = wc_AesCcmEncrypt_ex(&aes, ciphertext, plaintext, 100,
+                                  nonce, 12, authTag, 16, NULL, 0);
+    if (ret != 0) {
+        // encryption failed
+    }
+    wc_AesFree(&aes);
+    \endcode
+
+    \sa wc_AesCcmEncrypt
+    \sa wc_AesCcmSetNonce
+*/
+int wc_AesCcmEncrypt_ex(Aes* aes, byte* out, const byte* in, word32 sz,
+                        byte* ivOut, word32 ivOutSz, byte* authTag,
+                        word32 authTagSz, const byte* authIn,
+                        word32 authInSz);
+
+/*!
+    \ingroup AES
+    \brief This function wraps a key using AES Key Wrap algorithm
+    (RFC 3394). This is commonly used to securely transport
+    cryptographic keys.
+
+    \return Length of wrapped key in bytes on success.
+    \return BAD_FUNC_ARG If parameters are invalid.
+    \return Other negative values on error.
+
+    \param key pointer to the key-encryption key
+    \param keySz length of the key-encryption key in bytes
+    \param in pointer to the key to wrap
+    \param inSz length of the key to wrap in bytes
+    \param out pointer to buffer to store wrapped key
+    \param outSz size of output buffer in bytes
+    \param iv pointer to IV (typically NULL to use default)
+
+    _Example_
+    \code
+    byte kek[16] = { }; // key-encryption key
+    byte keyToWrap[16] = { }; // key to wrap
+    byte wrappedKey[24];
+
+    int wrappedLen = wc_AesKeyWrap(kek, 16, keyToWrap, 16, wrappedKey,
+                                   24, NULL);
+    if (wrappedLen <= 0) {
+        // key wrap failed
+    }
+    \endcode
+
+    \sa wc_AesKeyUnWrap
+    \sa wc_AesKeyWrap_ex
+*/
+int wc_AesKeyWrap(const byte* key, word32 keySz, const byte* in,
+                  word32 inSz, byte* out, word32 outSz, const byte* iv);
+
+/*!
+    \ingroup AES
+    \brief This function wraps a key using AES Key Wrap algorithm with
+    an initialized AES structure. This allows reusing the same AES
+    structure for multiple wrap operations.
+
+    \return Length of wrapped key in bytes on success.
+    \return BAD_FUNC_ARG If parameters are invalid.
+    \return Other negative values on error.
+
+    \param aes pointer to initialized AES structure
+    \param in pointer to the key to wrap
+    \param inSz length of the key to wrap in bytes
+    \param out pointer to buffer to store wrapped key
+    \param outSz size of output buffer in bytes
+    \param iv pointer to IV (typically NULL to use default)
+
+    _Example_
+    \code
+    Aes aes;
+    byte kek[16] = { }; // key-encryption key
+    byte keyToWrap[16] = { }; // key to wrap
+    byte wrappedKey[24];
+
+    wc_AesInit(&aes, NULL, INVALID_DEVID);
+    wc_AesSetKey(&aes, kek, 16, NULL, AES_ENCRYPTION);
+    int wrappedLen = wc_AesKeyWrap_ex(&aes, keyToWrap, 16, wrappedKey,
+                                      24, NULL);
+    if (wrappedLen <= 0) {
+        // key wrap failed
+    }
+    wc_AesFree(&aes);
+    \endcode
+
+    \sa wc_AesKeyWrap
+    \sa wc_AesKeyUnWrap_ex
+*/
+int wc_AesKeyWrap_ex(Aes *aes, const byte* in, word32 inSz, byte* out,
+                     word32 outSz, const byte* iv);
+
+/*!
+    \ingroup AES
+    \brief This function unwraps a key using AES Key Unwrap algorithm
+    (RFC 3394). This is used to securely receive cryptographic keys
+    that were wrapped.
+
+    \return Length of unwrapped key in bytes on success.
+    \return BAD_FUNC_ARG If parameters are invalid.
+    \return Other negative values on error.
+
+    \param key pointer to the key-encryption key
+    \param keySz length of the key-encryption key in bytes
+    \param in pointer to the wrapped key
+    \param inSz length of the wrapped key in bytes
+    \param out pointer to buffer to store unwrapped key
+    \param outSz size of output buffer in bytes
+    \param iv pointer to IV (typically NULL to use default)
+
+    _Example_
+    \code
+    byte kek[16] = { }; // key-encryption key
+    byte wrappedKey[24] = { }; // wrapped key
+    byte unwrappedKey[16];
+
+    int unwrappedLen = wc_AesKeyUnWrap(kek, 16, wrappedKey, 24,
+                                       unwrappedKey, 16, NULL);
+    if (unwrappedLen <= 0) {
+        // key unwrap failed
+    }
+    \endcode
+
+    \sa wc_AesKeyWrap
+    \sa wc_AesKeyUnWrap_ex
+*/
+int wc_AesKeyUnWrap(const byte* key, word32 keySz, const byte* in,
+                    word32 inSz, byte* out, word32 outSz, const byte* iv);
+
+/*!
+    \ingroup AES
+    \brief This function unwraps a key using AES Key Unwrap algorithm
+    with an initialized AES structure. This allows reusing the same AES
+    structure for multiple unwrap operations.
+
+    \return Length of unwrapped key in bytes on success.
+    \return BAD_FUNC_ARG If parameters are invalid.
+    \return Other negative values on error.
+
+    \param aes pointer to initialized AES structure
+    \param in pointer to the wrapped key
+    \param inSz length of the wrapped key in bytes
+    \param out pointer to buffer to store unwrapped key
+    \param outSz size of output buffer in bytes
+    \param iv pointer to IV (typically NULL to use default)
+
+    _Example_
+    \code
+    Aes aes;
+    byte kek[16] = { }; // key-encryption key
+    byte wrappedKey[24] = { }; // wrapped key
+    byte unwrappedKey[16];
+
+    wc_AesInit(&aes, NULL, INVALID_DEVID);
+    wc_AesSetKey(&aes, kek, 16, NULL, AES_ENCRYPTION);
+    int unwrappedLen = wc_AesKeyUnWrap_ex(&aes, wrappedKey, 24,
+                                          unwrappedKey, 16, NULL);
+    if (unwrappedLen <= 0) {
+        // key unwrap failed
+    }
+    wc_AesFree(&aes);
+    \endcode
+
+    \sa wc_AesKeyUnWrap
+    \sa wc_AesKeyWrap_ex
+*/
+int wc_AesKeyUnWrap_ex(Aes *aes, const byte* in, word32 inSz, byte* out,
+                       word32 outSz, const byte* iv);
+
+/*!
+    \ingroup AES
+    \brief This function encrypts multiple consecutive sectors using AES XTS
+    mode. It processes multiple sectors in sequence, automatically
+    incrementing the sector number for each sector.
+
+    \return 0 On success.
+    \return BAD_FUNC_ARG If aes, out, or in is NULL, or if sectorSz is 0,
+    or if sz is less than AES_BLOCK_SIZE.
+    \return Other negative values on error.
+
+    \param aes pointer to the XtsAes structure
+    \param out pointer to buffer to store encrypted data
+    \param in pointer to plaintext data to encrypt
+    \param sz total length of data in bytes
+    \param sector starting sector number for the tweak
+    \param sectorSz size of each sector in bytes
+
+    _Example_
+    \code
+    XtsAes aes;
+    byte key[32] = { }; // 256-bit key
+    byte plaintext[1024] = { }; // data
+    byte ciphertext[1024];
+
+    wc_AesXtsSetKey(&aes, key, 32, AES_ENCRYPTION, NULL, INVALID_DEVID);
+    int ret = wc_AesXtsEncryptConsecutiveSectors(&aes, ciphertext,
+                                                 plaintext, 1024, 0, 512);
+    if (ret != 0) {
+        // encryption failed
+    }
+    wc_AesXtsFree(&aes);
+    \endcode
+
+    \sa wc_AesXtsDecryptConsecutiveSectors
+    \sa wc_AesXtsEncryptSector
+*/
+int wc_AesXtsEncryptConsecutiveSectors(XtsAes* aes, byte* out,
+                                       const byte* in, word32 sz,
+                                       word64 sector, word32 sectorSz);
+
+/*!
+    \ingroup AES
+    \brief This function decrypts multiple consecutive sectors using AES XTS
+    mode. It processes multiple sectors in sequence, automatically
+    incrementing the sector number for each sector.
+
+    \return 0 On success.
+    \return BAD_FUNC_ARG If aes, out, or in is NULL, or if sectorSz is 0,
+    or if sz is less than AES_BLOCK_SIZE.
+    \return Other negative values on error.
+
+    \param aes pointer to the XtsAes structure
+    \param out pointer to buffer to store decrypted data
+    \param in pointer to ciphertext data to decrypt
+    \param sz total length of data in bytes
+    \param sector starting sector number for the tweak
+    \param sectorSz size of each sector in bytes
+
+    _Example_
+    \code
+    XtsAes aes;
+    byte key[32] = { }; // 256-bit key
+    byte ciphertext[1024] = { }; // encrypted data
+    byte plaintext[1024];
+
+    wc_AesXtsSetKey(&aes, key, 32, AES_DECRYPTION, NULL, INVALID_DEVID);
+    int ret = wc_AesXtsDecryptConsecutiveSectors(&aes, plaintext,
+                                                 ciphertext, 1024, 0, 512);
+    if (ret != 0) {
+        // decryption failed
+    }
+    wc_AesXtsFree(&aes);
+    \endcode
+
+    \sa wc_AesXtsEncryptConsecutiveSectors
+    \sa wc_AesXtsDecryptSector
+*/
+int wc_AesXtsDecryptConsecutiveSectors(XtsAes* aes, byte* out,
+                                       const byte* in, word32 sz,
+                                       word64 sector, word32 sectorSz);
+
+/*!
+    \ingroup AES
+    \brief This function initializes streaming AES XTS encryption. It sets
+    up the context for processing data in multiple update calls.
+
+    \return 0 On success.
+    \return BAD_FUNC_ARG If parameters are invalid.
+
+    \param aes pointer to the XtsAes structure
+    \param i pointer to the tweak/IV buffer
+    \param iSz length of the tweak/IV in bytes
+    \param stream pointer to XtsAesStreamData structure for streaming state
+
+    _Example_
+    \code
+    XtsAes aes;
+    struct XtsAesStreamData stream;
+    byte key[32] = { }; // 256-bit key
+    byte tweak[16] = { }; // tweak value
+
+    wc_AesXtsSetKey(&aes, key, 32, AES_ENCRYPTION, NULL, INVALID_DEVID);
+    int ret = wc_AesXtsEncryptInit(&aes, tweak, 16, &stream);
+    if (ret != 0) {
+        // initialization failed
+    }
+    wc_AesXtsFree(&aes);
+    \endcode
+
+    \sa wc_AesXtsEncryptUpdate
+    \sa wc_AesXtsEncryptFinal
+*/
+int wc_AesXtsEncryptInit(XtsAes* aes, const byte* i, word32 iSz,
+                         struct XtsAesStreamData *stream);
+
+/*!
+    \ingroup AES
+    \brief This function initializes streaming AES XTS decryption. It sets
+    up the context for processing data in multiple update calls.
+
+    \return 0 On success.
+    \return BAD_FUNC_ARG If parameters are invalid.
+
+    \param aes pointer to the XtsAes structure
+    \param i pointer to the tweak/IV buffer
+    \param iSz length of the tweak/IV in bytes
+    \param stream pointer to XtsAesStreamData structure for streaming state
+
+    _Example_
+    \code
+    XtsAes aes;
+    struct XtsAesStreamData stream;
+    byte key[32] = { }; // 256-bit key
+    byte tweak[16] = { }; // tweak value
+
+    wc_AesXtsSetKey(&aes, key, 32, AES_DECRYPTION, NULL, INVALID_DEVID);
+    int ret = wc_AesXtsDecryptInit(&aes, tweak, 16, &stream);
+    if (ret != 0) {
+        // initialization failed
+    }
+    wc_AesXtsFree(&aes);
+    \endcode
+
+    \sa wc_AesXtsDecryptUpdate
+    \sa wc_AesXtsDecryptFinal
+*/
+int wc_AesXtsDecryptInit(XtsAes* aes, const byte* i, word32 iSz,
+                         struct XtsAesStreamData *stream);
+
+/*!
+    \ingroup AES
+    \brief This function performs an update step of streaming AES XTS
+    encryption. It processes a chunk of data and can be called multiple
+    times.
+
+    \return 0 On success.
+    \return BAD_FUNC_ARG If parameters are invalid.
+
+    \param aes pointer to the XtsAes structure
+    \param out pointer to buffer to store encrypted data
+    \param in pointer to plaintext data to encrypt
+    \param sz length of data in bytes
+    \param stream pointer to XtsAesStreamData structure for streaming state
+
+    _Example_
+    \code
+    XtsAes aes;
+    struct XtsAesStreamData stream;
+    byte key[32] = { }; // 256-bit key
+    byte tweak[16] = { }; // tweak value
+    byte plaintext[100] = { }; // data
+    byte ciphertext[100];
+
+    wc_AesXtsSetKey(&aes, key, 32, AES_ENCRYPTION, NULL, INVALID_DEVID);
+    wc_AesXtsEncryptInit(&aes, tweak, 16, &stream);
+    int ret = wc_AesXtsEncryptUpdate(&aes, ciphertext, plaintext, 100,
+                                     &stream);
+    if (ret != 0) {
+        // encryption failed
+    }
+    wc_AesXtsFree(&aes);
+    \endcode
+
+    \sa wc_AesXtsEncryptInit
+    \sa wc_AesXtsEncryptFinal
+*/
+int wc_AesXtsEncryptUpdate(XtsAes* aes, byte* out, const byte* in,
+                           word32 sz, struct XtsAesStreamData *stream);
+
+/*!
+    \ingroup AES
+    \brief This function performs an update step of streaming AES XTS
+    decryption. It processes a chunk of data and can be called multiple
+    times.
+
+    \return 0 On success.
+    \return BAD_FUNC_ARG If parameters are invalid.
+
+    \param aes pointer to the XtsAes structure
+    \param out pointer to buffer to store decrypted data
+    \param in pointer to ciphertext data to decrypt
+    \param sz length of data in bytes
+    \param stream pointer to XtsAesStreamData structure for streaming state
+
+    _Example_
+    \code
+    XtsAes aes;
+    struct XtsAesStreamData stream;
+    byte key[32] = { }; // 256-bit key
+    byte tweak[16] = { }; // tweak value
+    byte ciphertext[100] = { }; // encrypted data
+    byte plaintext[100];
+
+    wc_AesXtsSetKey(&aes, key, 32, AES_DECRYPTION, NULL, INVALID_DEVID);
+    wc_AesXtsDecryptInit(&aes, tweak, 16, &stream);
+    int ret = wc_AesXtsDecryptUpdate(&aes, plaintext, ciphertext, 100,
+                                     &stream);
+    if (ret != 0) {
+        // decryption failed
+    }
+    wc_AesXtsFree(&aes);
+    \endcode
+
+    \sa wc_AesXtsDecryptInit
+    \sa wc_AesXtsDecryptFinal
+*/
+int wc_AesXtsDecryptUpdate(XtsAes* aes, byte* out, const byte* in,
+                           word32 sz, struct XtsAesStreamData *stream);
+
+/*!
+    \ingroup AES
+    \brief This function finalizes streaming AES XTS encryption. It
+    processes any remaining data and completes the encryption operation.
+
+    \return 0 On success.
+    \return BAD_FUNC_ARG If parameters are invalid.
+
+    \param aes pointer to the XtsAes structure
+    \param out pointer to buffer to store final encrypted data
+    \param in pointer to final plaintext data to encrypt
+    \param sz length of final data in bytes
+    \param stream pointer to XtsAesStreamData structure for streaming state
+
+    _Example_
+    \code
+    XtsAes aes;
+    struct XtsAesStreamData stream;
+    byte key[32] = { }; // 256-bit key
+    byte tweak[16] = { }; // tweak value
+    byte plaintext[50] = { }; // final data
+    byte ciphertext[50];
+
+    wc_AesXtsSetKey(&aes, key, 32, AES_ENCRYPTION, NULL, INVALID_DEVID);
+    wc_AesXtsEncryptInit(&aes, tweak, 16, &stream);
+    // ... update calls ...
+    int ret = wc_AesXtsEncryptFinal(&aes, ciphertext, plaintext, 50,
+                                    &stream);
+    if (ret != 0) {
+        // finalization failed
+    }
+    wc_AesXtsFree(&aes);
+    \endcode
+
+    \sa wc_AesXtsEncryptUpdate
+    \sa wc_AesXtsEncryptInit
+*/
+int wc_AesXtsEncryptFinal(XtsAes* aes, byte* out, const byte* in,
+                          word32 sz, struct XtsAesStreamData *stream);
+
+/*!
+    \ingroup AES
+    \brief This function finalizes streaming AES XTS decryption. It
+    processes any remaining data and completes the decryption operation.
+
+    \return 0 On success.
+    \return BAD_FUNC_ARG If parameters are invalid.
+
+    \param aes pointer to the XtsAes structure
+    \param out pointer to buffer to store final decrypted data
+    \param in pointer to final ciphertext data to decrypt
+    \param sz length of final data in bytes
+    \param stream pointer to XtsAesStreamData structure for streaming state
+
+    _Example_
+    \code
+    XtsAes aes;
+    struct XtsAesStreamData stream;
+    byte key[32] = { }; // 256-bit key
+    byte tweak[16] = { }; // tweak value
+    byte ciphertext[50] = { }; // final encrypted data
+    byte plaintext[50];
+
+    wc_AesXtsSetKey(&aes, key, 32, AES_DECRYPTION, NULL, INVALID_DEVID);
+    wc_AesXtsDecryptInit(&aes, tweak, 16, &stream);
+    // ... update calls ...
+    int ret = wc_AesXtsDecryptFinal(&aes, plaintext, ciphertext, 50,
+                                    &stream);
+    if (ret != 0) {
+        // finalization failed
+    }
+    wc_AesXtsFree(&aes);
+    \endcode
+
+    \sa wc_AesXtsDecryptUpdate
+    \sa wc_AesXtsDecryptInit
+*/
+int wc_AesXtsDecryptFinal(XtsAes* aes, byte* out, const byte* in,
+                          word32 sz, struct XtsAesStreamData *stream);
+
+/*!
+    \ingroup AES
+    \brief This function retrieves the key size from an initialized AES
+    structure. It returns the size of the key currently set in the AES
+    object.
+
+    \return 0 On success.
+    \return BAD_FUNC_ARG If aes or keySize is NULL.
+
+    \param aes pointer to the AES structure
+    \param keySize pointer to word32 to store the key size in bytes
+
+    _Example_
+    \code
+    Aes aes;
+    byte key[16] = { }; // 128-bit key
+    word32 keySize;
+
+    wc_AesInit(&aes, NULL, INVALID_DEVID);
+    wc_AesSetKey(&aes, key, 16, NULL, AES_ENCRYPTION);
+    int ret = wc_AesGetKeySize(&aes, &keySize);
+    if (ret == 0) {
+        // keySize now contains 16
+    }
+    wc_AesFree(&aes);
+    \endcode
+
+    \sa wc_AesSetKey
+    \sa wc_AesInit
+*/
+int wc_AesGetKeySize(Aes* aes, word32* keySize);
+
+/*!
+    \ingroup AES
+    \brief This function initializes an AES structure with an ID. This is
+    useful for tracking or identifying specific AES instances in
+    applications that manage multiple AES contexts.
+
+    \note This API is only available when WOLF_PRIVATE_KEY_ID is defined,
+    which is set for PKCS11 support.
+
+    \return 0 On success.
+    \return BAD_FUNC_ARG If aes or id is NULL, or if len is invalid.
+
+    \param aes pointer to the AES structure to initialize
+    \param id pointer to the ID buffer
+    \param len length of the ID in bytes
+    \param heap pointer to heap hint for memory allocation (can be NULL)
+    \param devId device ID for hardware acceleration (use INVALID_DEVID
+    for software)
+
+    _Example_
+    \code
+    Aes aes;
+    byte id[8] = { }; // unique identifier
+
+    int ret = wc_AesInit_Id(&aes, id, 8, NULL, INVALID_DEVID);
+    if (ret != 0) {
+        // initialization failed
+    }
+    wc_AesFree(&aes);
+    \endcode
+
+    \sa wc_AesInit
+    \sa wc_AesInit_Label
+*/
+int wc_AesInit_Id(Aes* aes, unsigned char* id, int len, void* heap,
+                  int devId);
+
+/*!
+    \ingroup AES
+    \brief This function initializes an AES structure with a label string.
+    This is useful for tracking or identifying specific AES instances with
+    human-readable names.
+
+    \note This API is only available when WOLF_PRIVATE_KEY_ID is defined,
+    which is set for PKCS11 support.
+
+    \return 0 On success.
+    \return BAD_FUNC_ARG If aes or label is NULL.
+
+    \param aes pointer to the AES structure to initialize
+    \param label pointer to the null-terminated label string
+    \param heap pointer to heap hint for memory allocation (can be NULL)
+    \param devId device ID for hardware acceleration (use INVALID_DEVID
+    for software)
+
+    _Example_
+    \code
+    Aes aes;
+
+    int ret = wc_AesInit_Label(&aes, "MyAESContext", NULL, INVALID_DEVID);
+    if (ret != 0) {
+        // initialization failed
+    }
+    wc_AesFree(&aes);
+    \endcode
+
+    \sa wc_AesInit
+    \sa wc_AesInit_Id
+*/
+int wc_AesInit_Label(Aes* aes, const char* label, void* heap, int devId);
+
+/*!
+    \ingroup AES
+    \brief This function allocates and initializes a new AES structure.
+    It returns a pointer to the allocated structure, which must be freed
+    with wc_AesDelete when no longer needed. These New/Delete functions
+    are exposed to support allocation of the structure using dynamic memory
+    to provide better ABI compatibility.
+
+    \note This API is only available when WC_NO_CONSTRUCTORS is not defined.
+    WC_NO_CONSTRUCTORS is automatically defined when WOLFSSL_NO_MALLOC is
+    defined.
+
+    \return Pointer to allocated Aes structure on success.
+    \return NULL on allocation failure.
+
+    \param heap pointer to heap hint for memory allocation (can be NULL)
+    \param devId device ID for hardware acceleration (use INVALID_DEVID
+    for software)
+    \param result_code pointer to int to store result code (can be NULL)
+
+    _Example_
+    \code
+    int result;
+    Aes* aes = wc_AesNew(NULL, INVALID_DEVID, &result);
+    if (aes == NULL || result != 0) {
+        // allocation or initialization failed
+    }
+    // use aes...
+    wc_AesDelete(aes, &aes);
+    \endcode
+
+    \sa wc_AesDelete
+    \sa wc_AesInit
+*/
+Aes* wc_AesNew(void* heap, int devId, int *result_code);
+
+/*!
+    \ingroup AES
+    \brief This function frees an AES structure that was allocated with
+    wc_AesNew. It also sets the pointer to NULL to prevent use-after-free.
+    These New/Delete functions are exposed to support allocation of the
+    structure using dynamic memory to provide better ABI compatibility.
+
+    \note This API is only available when WC_NO_CONSTRUCTORS is not defined.
+    WC_NO_CONSTRUCTORS is automatically defined when WOLFSSL_NO_MALLOC is
+    defined.
+
+    \return 0 On success.
+    \return BAD_FUNC_ARG If aes or aes_p is NULL.
+
+    \param aes pointer to the AES structure to free
+    \param aes_p pointer to the AES pointer (will be set to NULL)
+
+    _Example_
+    \code
+    Aes* aes = wc_AesNew(NULL, INVALID_DEVID, NULL);
+    if (aes != NULL) {
+        // use aes...
+        int ret = wc_AesDelete(aes, &aes);
+        // aes is now NULL
+    }
+    \endcode
+
+    \sa wc_AesNew
+    \sa wc_AesFree
+*/
+int wc_AesDelete(Aes* aes, Aes** aes_p);
+
+/*!
+    \ingroup AES
+    \brief This function performs AES-SIV (Synthetic IV) encryption with
+    extended parameters. AES-SIV provides nonce-misuse resistance and
+    deterministic authenticated encryption.
+
+    \return 0 On success.
+    \return BAD_FUNC_ARG If parameters are invalid.
+    \return Other negative values on error.
+
+    \param key pointer to the key buffer (32, 48, or 64 bytes for SIV)
+    \param keySz length of the key in bytes
+    \param assoc pointer to array of associated data structures
+    \param numAssoc number of associated data items
+    \param nonce pointer to the nonce buffer (can be NULL)
+    \param nonceSz length of the nonce in bytes
+    \param in pointer to plaintext to encrypt
+    \param inSz length of plaintext in bytes
+    \param siv pointer to buffer to store the SIV (16 bytes)
+    \param out pointer to buffer to store ciphertext
+
+    _Example_
+    \code
+    byte key[32] = { }; // 256-bit key for AES-128-SIV
+    AesSivAssoc assoc[1];
+    byte aad[20] = { }; // associated data
+    byte nonce[12] = { }; // nonce
+    byte plaintext[100] = { }; // data
+    byte siv[16];
+    byte ciphertext[100];
+
+    assoc[0].data = aad;
+    assoc[0].sz = 20;
+
+    int ret = wc_AesSivEncrypt_ex(key, 32, assoc, 1, nonce, 12,
+                                  plaintext, 100, siv, ciphertext);
+    if (ret != 0) {
+        // encryption failed
+    }
+    \endcode
+
+    \sa wc_AesSivDecrypt_ex
+    \sa wc_AesSivEncrypt
+*/
+int wc_AesSivEncrypt_ex(const byte* key, word32 keySz,
+                        const AesSivAssoc* assoc, word32 numAssoc,
+                        const byte* nonce, word32 nonceSz, const byte* in,
+                        word32 inSz, byte* siv, byte* out);
+
+/*!
+    \ingroup AES
+    \brief This function performs AES-SIV (Synthetic IV) decryption with
+    extended parameters. It verifies the SIV and decrypts the ciphertext.
+
+    \return 0 On successful decryption and verification.
+    \return AES_SIV_AUTH_E If SIV verification fails.
+    \return BAD_FUNC_ARG If parameters are invalid.
+    \return Other negative values on error.
+
+    \param key pointer to the key buffer (32, 48, or 64 bytes for SIV)
+    \param keySz length of the key in bytes
+    \param assoc pointer to array of associated data structures
+    \param numAssoc number of associated data items
+    \param nonce pointer to the nonce buffer (can be NULL)
+    \param nonceSz length of the nonce in bytes
+    \param in pointer to ciphertext to decrypt
+    \param inSz length of ciphertext in bytes
+    \param siv pointer to the SIV to verify (16 bytes)
+    \param out pointer to buffer to store plaintext
+
+    _Example_
+    \code
+    byte key[32] = { }; // 256-bit key for AES-128-SIV
+    AesSivAssoc assoc[1];
+    byte aad[20] = { }; // associated data
+    byte nonce[12] = { }; // nonce
+    byte ciphertext[100] = { }; // encrypted data
+    byte siv[16] = { }; // received SIV
+    byte plaintext[100];
+
+    assoc[0].data = aad;
+    assoc[0].sz = 20;
+
+    int ret = wc_AesSivDecrypt_ex(key, 32, assoc, 1, nonce, 12,
+                                  ciphertext, 100, siv, plaintext);
+    if (ret != 0) {
+        // decryption or verification failed
+    }
+    \endcode
+
+    \sa wc_AesSivEncrypt_ex
+    \sa wc_AesSivDecrypt
+*/
+int wc_AesSivDecrypt_ex(const byte* key, word32 keySz,
+                        const AesSivAssoc* assoc, word32 numAssoc,
+                        const byte* nonce, word32 nonceSz, const byte* in,
+                        word32 inSz, byte* siv, byte* out);

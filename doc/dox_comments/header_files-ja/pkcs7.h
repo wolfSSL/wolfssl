@@ -40,12 +40,12 @@ typedef int (*CallbackAESKeyWrapUnwrap)(const byte* key, word32 keySz,
     \return ASN_NO_SIGNER_E 証明書の真正性を検証するCA署名者がいない場合に返されます。
 
     \param pkcs7 デコードされた証明書を格納するPKCS7構造体へのポインタ。
-    \param cert PKCS7構造体を初期化するためのDER形式ASN.1証明書を含むバッファへのポインタ。
-    \param certSz 証明書バッファのサイズ。
+    \param der PKCS7構造体を初期化するためのDER形式ASN.1証明書を含むバッファへのポインタ。
+    \param derSz 証明書バッファのサイズ。
 
     _Example_
     \code
-    PKCS7 pkcs7;
+    wc_PKCS7 pkcs7;
     byte derBuff[] = { }; // DERエンコードされた証明書で初期化
     if ( wc_PKCS7_InitWithCert(&pkcs7, derBuff, sizeof(derBuff)) != 0 ) {
     	// 証明書のpkcs7形式への解析エラー
@@ -54,7 +54,7 @@ typedef int (*CallbackAESKeyWrapUnwrap)(const byte* key, word32 keySz,
 
     \sa wc_PKCS7_Free
 */
-int  wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz);
+int  wc_PKCS7_InitWithCert(wc_PKCS7* pkcs7, byte* der, word32 derSz);
 
 /*!
     \ingroup PKCS7
@@ -75,7 +75,7 @@ int  wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz);
 
     \sa wc_PKCS7_InitWithCert
 */
-void wc_PKCS7_Free(PKCS7* pkcs7);
+void wc_PKCS7_Free(wc_PKCS7* pkcs7);
 
 /*!
     \ingroup PKCS7
@@ -113,7 +113,7 @@ void wc_PKCS7_Free(PKCS7* pkcs7);
 
     \sa wc_PKCS7_InitWithCert
 */
-int  wc_PKCS7_EncodeData(PKCS7* pkcs7, byte* output,
+int  wc_PKCS7_EncodeData(wc_PKCS7* pkcs7, byte* output,
                                        word32 outputSz);
 
 /*!
@@ -173,7 +173,7 @@ int  wc_PKCS7_EncodeData(PKCS7* pkcs7, byte* output,
     \sa wc_PKCS7_InitWithCert
     \sa wc_PKCS7_VerifySignedData
 */
-int  wc_PKCS7_EncodeSignedData(PKCS7* pkcs7,
+int  wc_PKCS7_EncodeSignedData(wc_PKCS7* pkcs7,
                                        byte* output, word32 outputSz);
 
 /*!
@@ -254,7 +254,7 @@ int  wc_PKCS7_EncodeSignedData(PKCS7* pkcs7,
     \sa wc_PKCS7_InitWithCert
     \sa wc_PKCS7_VerifySignedData_ex
 */
-int wc_PKCS7_EncodeSignedData_ex(PKCS7* pkcs7, const byte* hashBuf,
+int wc_PKCS7_EncodeSignedData_ex(wc_PKCS7* pkcs7, const byte* hashBuf,
     word32 hashSz, byte* outputHead, word32* outputHeadSz, byte* outputFoot,
     word32* outputFootSz);
 
@@ -313,7 +313,7 @@ int wc_PKCS7_EncodeSignedData_ex(PKCS7* pkcs7, const byte* hashBuf,
     \sa wc_PKCS7_InitWithCert
     \sa wc_PKCS7_EncodeSignedData
 */
-int  wc_PKCS7_VerifySignedData(PKCS7* pkcs7,
+int  wc_PKCS7_VerifySignedData(wc_PKCS7* pkcs7,
                                        byte* pkiMsg, word32 pkiMsgSz);
 
 /*!
@@ -392,7 +392,7 @@ int  wc_PKCS7_VerifySignedData(PKCS7* pkcs7,
     \sa wc_PKCS7_InitWithCert
     \sa wc_PKCS7_EncodeSignedData_ex
 */
-int wc_PKCS7_VerifySignedData_ex(PKCS7* pkcs7, const byte* hashBuf,
+int wc_PKCS7_VerifySignedData_ex(wc_PKCS7* pkcs7, const byte* hashBuf,
     word32 hashSz, byte* pkiMsgHead, word32 pkiMsgHeadSz, byte* pkiMsgFoot,
     word32 pkiMsgFootSz);
 
@@ -453,7 +453,7 @@ int wc_PKCS7_SetAESKeyWrapUnwrapCb(wc_PKCS7* pkcs7,
     \sa wc_PKCS7_InitWithCert
     \sa wc_PKCS7_DecodeEnvelopedData
 */
-int  wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7,
+int  wc_PKCS7_EncodeEnvelopedData(wc_PKCS7* pkcs7,
                                           byte* output, word32 outputSz);
 
 /*!
@@ -513,7 +513,7 @@ int  wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7,
     \sa wc_PKCS7_InitWithCert
     \sa wc_PKCS7_EncodeEnvelopedData
 */
-int  wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
+int  wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* pkiMsg,
         word32 pkiMsgSz, byte* output, word32 outputSz);
 
 /*!
@@ -575,7 +575,7 @@ int wc_PKCS7_GetEnvelopedDataKariRid(const byte * in, word32 inSz,
 
     \sa wc_PKCS7_InitWithCert
 */
-int wc_PKCS7_DecodeEncryptedData(PKCS7* pkcs7, byte* pkiMsg,
+int wc_PKCS7_DecodeEncryptedData(wc_PKCS7* pkcs7, byte* pkiMsg,
         word32 pkiMsgSz, byte* output, word32 outputSz);
 
 /*!

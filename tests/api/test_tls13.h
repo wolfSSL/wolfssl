@@ -35,18 +35,22 @@ int test_tls13_hrr_different_cs(void);
 int test_tls13_sg_missing(void);
 int test_tls13_ks_missing(void);
 int test_tls13_duplicate_extension(void);
+int test_key_share_mismatch(void);
+int test_tls13_plaintext_alert(void);
 
-#define TEST_TLS13_DECLS                                      \
-    TEST_DECL_GROUP("tls13", test_tls13_apis),                \
-    TEST_DECL_GROUP("tls13", test_tls13_cipher_suites),       \
-    TEST_DECL_GROUP("tls13", test_tls13_bad_psk_binder),      \
-    TEST_DECL_GROUP("tls13", test_tls13_rpk_handshake),       \
-    TEST_DECL_GROUP("tls13", test_tls13_pq_groups),           \
-    TEST_DECL_GROUP("tls13", test_tls13_early_data),          \
-    TEST_DECL_GROUP("tls13", test_tls13_same_ch),             \
-    TEST_DECL_GROUP("tls13", test_tls13_hrr_different_cs),    \
-    TEST_DECL_GROUP("tls13", test_tls13_sg_missing),          \
-    TEST_DECL_GROUP("tls13", test_tls13_ks_missing),          \
-    TEST_DECL_GROUP("tls13", test_tls13_duplicate_extension)
+#define TEST_TLS13_DECLS                                        \
+    TEST_DECL_GROUP("tls13", test_tls13_apis),                  \
+    TEST_DECL_GROUP("tls13", test_tls13_cipher_suites),         \
+    TEST_DECL_GROUP("tls13", test_tls13_bad_psk_binder),        \
+    TEST_DECL_GROUP("tls13", test_tls13_rpk_handshake),         \
+    TEST_DECL_GROUP("tls13", test_tls13_pq_groups),             \
+    TEST_DECL_GROUP("tls13", test_tls13_early_data),            \
+    TEST_DECL_GROUP("tls13", test_tls13_same_ch),               \
+    TEST_DECL_GROUP("tls13", test_tls13_hrr_different_cs),      \
+    TEST_DECL_GROUP("tls13", test_tls13_sg_missing),            \
+    TEST_DECL_GROUP("tls13", test_tls13_ks_missing),            \
+    TEST_DECL_GROUP("tls13", test_tls13_duplicate_extension),   \
+    TEST_DECL_GROUP("tls13", test_key_share_mismatch),          \
+    TEST_DECL_GROUP("tls13", test_tls13_plaintext_alert)
 
 #endif /* WOLFCRYPT_TEST_TLS13_H */

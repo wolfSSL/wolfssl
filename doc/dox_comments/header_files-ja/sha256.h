@@ -23,7 +23,7 @@
     \sa wc_Sha256Update
     \sa wc_Sha256Final
 */
-int wc_InitSha256(wc_Sha256*);
+int wc_InitSha256(wc_Sha256* sha);
 
 /*!
     \ingroup SHA
@@ -117,7 +117,7 @@ int wc_Sha256Final(wc_Sha256* sha256, byte* hash);
     \sa wc_Sha256Update
     \sa wc_Sha256Final
 */
-void wc_Sha256Free(wc_Sha256*);
+void wc_Sha256Free(wc_Sha256* sha256);
 
 /*!
     \ingroup SHA
@@ -170,7 +170,7 @@ int wc_Sha256GetHash(wc_Sha256* sha256, byte* hash);
     \sa wc_Sha224Update
     \sa wc_Sha224Final
 */
-int wc_InitSha224(wc_Sha224*);
+int wc_InitSha224(wc_Sha224* sha224);
 
 /*!
     \ingroup SHA

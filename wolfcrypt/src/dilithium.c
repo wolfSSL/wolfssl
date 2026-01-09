@@ -1884,17 +1884,17 @@ static void dilithium_decode_gamma1_c(const byte* s, int bits, sword32* z)
         #endif
     #else
             z[i+0] = DILITHIUM_GAMMA1_17 -
-                     ( s[ 0]       | ((sword32)(s[ 1] << 8) |
+                     ( (sword32)s[ 0]       | (((sword32)s[ 1] << 8) |
                       (sword32)(s[ 2] & 0x03) << 16));
             z[i+1] = DILITHIUM_GAMMA1_17 -
-                     ((s[ 2] >> 2) | ((sword32)(s[ 3] << 6) |
+                     (((sword32)s[ 2] >> 2) | (((sword32)s[ 3] << 6) |
                       (sword32)(s[ 4] & 0x0f) << 14));
             z[i+2] = DILITHIUM_GAMMA1_17 -
-                     ((s[ 4] >> 4) | ((sword32)(s[ 5] << 4) |
+                     (((sword32)s[ 4] >> 4) | (((sword32)s[ 5] << 4) |
                       (sword32)(s[ 6] & 0x3f) << 12));
             z[i+3] = DILITHIUM_GAMMA1_17 -
-                     ((s[ 6] >> 6) | ((sword32)(s[ 7] << 2) |
-                      (sword32)(s[ 8]       ) << 10));
+                     (((sword32)s[ 6] >> 6) | (((sword32)s[ 7] << 2) |
+                      ((sword32)s[ 8]       ) << 10));
     #endif
             /* Move to next place to decode from. */
             s += DILITHIUM_GAMMA1_17_ENC_BITS / 2;
@@ -1948,29 +1948,29 @@ static void dilithium_decode_gamma1_c(const byte* s, int bits, sword32* z)
         #endif
     #else
             z[i+0] = (sword32)((word32)DILITHIUM_GAMMA1_17 -
-                               ( s[ 0]       | ((sword32)(s[ 1] << 8) |
-                                (sword32)(s[ 2] & 0x03) << 16)));
+                               ( (sword32)s[ 0]       | (((sword32)s[ 1] << 8) |
+                                ((sword32)s[ 2] & 0x03) << 16)));
             z[i+1] = (sword32)((word32)DILITHIUM_GAMMA1_17 -
-                               ((s[ 2] >> 2) | ((sword32)(s[ 3] << 6) |
-                                (sword32)(s[ 4] & 0x0f) << 14)));
+                               (((sword32)s[ 2] >> 2) | (((sword32)s[ 3] << 6) |
+                                ((sword32)s[ 4] & 0x0f) << 14)));
             z[i+2] = (sword32)((word32)DILITHIUM_GAMMA1_17 -
-                               ((s[ 4] >> 4) | ((sword32)(s[ 5] << 4) |
-                                (sword32)(s[ 6] & 0x3f) << 12)));
+                               (((sword32)s[ 4] >> 4) | (((sword32)s[ 5] << 4) |
+                                ((sword32)s[ 6] & 0x3f) << 12)));
             z[i+3] = (sword32)((word32)DILITHIUM_GAMMA1_17 -
-                               ((s[ 6] >> 6) | ((sword32)(s[ 7] << 2) |
-                                (sword32)(s[ 8]       ) << 10)));
+                               (((sword32)s[ 6] >> 6) | (((sword32)s[ 7] << 2) |
+                                ((sword32)s[ 8]       ) << 10)));
             z[i+4] = (sword32)((word32)DILITHIUM_GAMMA1_17 -
-                               ( s[ 9]       | ((sword32)(s[10] << 8) |
-                                (sword32)(s[11] & 0x03) << 16)));
+                               ( (sword32)s[ 9]       | (((sword32)s[10] << 8) |
+                                ((sword32)s[11] & 0x03) << 16)));
             z[i+5] = (sword32)((word32)DILITHIUM_GAMMA1_17 -
-                               ((s[11] >> 2) | ((sword32)(s[12] << 6) |
-                                (sword32)(s[13] & 0x0f) << 14)));
+                               (((sword32)s[11] >> 2) | (((sword32)s[12] << 6) |
+                                ((sword32)s[13] & 0x0f) << 14)));
             z[i+6] = (sword32)((word32)DILITHIUM_GAMMA1_17 -
-                               ((s[13] >> 4) | ((sword32)(s[14] << 4) |
-                                (sword32)(s[15] & 0x3f) << 12)));
+                               (((sword32)s[13] >> 4) | (((sword32)s[14] << 4) |
+                                ((sword32)s[15] & 0x3f) << 12)));
             z[i+7] = (sword32)((word32)DILITHIUM_GAMMA1_17 -
-                               ((s[15] >> 6) | ((sword32)(s[16] << 2) |
-                                (sword32)(s[17]       ) << 10)));
+                               (((sword32)s[15] >> 6) | (((sword32)s[16] << 2) |
+                                ((sword32)s[17]       ) << 10)));
     #endif
             /* Move to next place to decode from. */
             s += DILITHIUM_GAMMA1_17_ENC_BITS;
@@ -2005,14 +2005,18 @@ static void dilithium_decode_gamma1_c(const byte* s, int bits, sword32* z)
                                             ((sword32)s16_0    <<  4));
         #endif
     #else
-            z[i+0] = DILITHIUM_GAMMA1_19 - ( s[0]       | ((sword32)s[1] << 8) |
-                                            ((sword32)(s[2] & 0x0f) << 16));
-            z[i+1] = DILITHIUM_GAMMA1_19 - ((s[2] >> 4) | ((sword32)s[3] << 4) |
-                                            ((sword32)(s[4]       ) << 12));
-            z[i+2] = DILITHIUM_GAMMA1_19 - ( s[5]       | ((sword32)s[6] << 8) |
-                                            ((sword32)(s[7] & 0x0f) << 16));
-            z[i+3] = DILITHIUM_GAMMA1_19 - ((s[7] >> 4) | ((sword32)s[8] << 4) |
-                                            ((sword32)(s[9]       ) << 12));
+            z[i+0] = DILITHIUM_GAMMA1_19 -
+                     ( (sword32)s[0]       | ((sword32)s[1] << 8) |
+                     (((sword32)s[2] & 0x0f) << 16));
+            z[i+1] = DILITHIUM_GAMMA1_19 -
+                     (((sword32)s[2] >> 4) | ((sword32)s[3] << 4) |
+                     (((sword32)s[4]       ) << 12));
+            z[i+2] = DILITHIUM_GAMMA1_19 -
+                     ( (sword32)s[5]       | ((sword32)s[6] << 8) |
+                     (((sword32)s[7] & 0x0f) << 16));
+            z[i+3] = DILITHIUM_GAMMA1_19 -
+                     (((sword32)s[7] >> 4) | ((sword32)s[8] << 4) |
+                     (((sword32)s[9]       ) << 12));
     #endif
             /* Move to next place to decode from. */
             s += DILITHIUM_GAMMA1_19_ENC_BITS / 2;
@@ -2065,30 +2069,38 @@ static void dilithium_decode_gamma1_c(const byte* s, int bits, sword32* z)
                                             ((sword32)s16_1    <<  4));
         #endif
     #else
-            z[i+0] = DILITHIUM_GAMMA1_19 - ( s[ 0]       |
-                                            ((sword32)s[ 1] << 8) |
-                                            ((sword32)(s[ 2] & 0x0f) << 16));
-            z[i+1] = DILITHIUM_GAMMA1_19 - ((s[ 2] >> 4) |
-                                            ((sword32) s[ 3] << 4) |
-                                            ((sword32)(s[ 4]       ) << 12));
-            z[i+2] = DILITHIUM_GAMMA1_19 - ( s[ 5]       |
-                                            ((sword32) s[ 6] << 8) |
-                                            ((sword32)(s[ 7] & 0x0f) << 16));
-            z[i+3] = DILITHIUM_GAMMA1_19 - ((s[ 7] >> 4) |
-                                            ((sword32) s[ 8] << 4) |
-                                            ((sword32)(s[ 9]       ) << 12));
-            z[i+4] = DILITHIUM_GAMMA1_19 - ( s[10]       |
-                                            ((sword32) s[11] << 8) |
-                                            ((sword32)(s[12] & 0x0f) << 16));
-            z[i+5] = DILITHIUM_GAMMA1_19 - ((s[12] >> 4) |
-                                            ((sword32) s[13] << 4) |
-                                            ((sword32)(s[14]       ) << 12));
-            z[i+6] = DILITHIUM_GAMMA1_19 - ( s[15]       |
-                                            ((sword32) s[16] << 8) |
-                                            ((sword32)(s[17] & 0x0f) << 16));
-            z[i+7] = DILITHIUM_GAMMA1_19 - ((s[17] >> 4) |
-                                            ((sword32) s[18] << 4) |
-                                            ((sword32)(s[19]       ) << 12));
+            z[i+0] = DILITHIUM_GAMMA1_19 -
+                     (  (sword32)s[ 0]       |
+                      ( (sword32)s[ 1] << 8) |
+                      (((sword32)s[ 2] & 0x0f) << 16));
+            z[i+1] = DILITHIUM_GAMMA1_19 -
+                     (((sword32)s[ 2] >> 4) |
+                      ( (sword32)s[ 3] << 4) |
+                      (((sword32)s[ 4]       ) << 12));
+            z[i+2] = DILITHIUM_GAMMA1_19 -
+                     (  (sword32)s[ 5]       |
+                      ( (sword32)s[ 6] << 8) |
+                      (((sword32)s[ 7] & 0x0f) << 16));
+            z[i+3] = DILITHIUM_GAMMA1_19 -
+                     ( ((sword32)s[ 7] >> 4) |
+                      ( (sword32)s[ 8] << 4) |
+                      (((sword32)s[ 9]       ) << 12));
+            z[i+4] = DILITHIUM_GAMMA1_19 -
+                     (  (sword32)s[10]       |
+                      ( (sword32)s[11] << 8) |
+                      (((sword32)s[12] & 0x0f) << 16));
+            z[i+5] = DILITHIUM_GAMMA1_19 -
+                     ( ((sword32)s[12] >> 4) |
+                      ( (sword32)s[13] << 4) |
+                      (((sword32)s[14]       ) << 12));
+            z[i+6] = DILITHIUM_GAMMA1_19 -
+                     (  (sword32)s[15]       |
+                      ( (sword32)s[16] << 8) |
+                      (((sword32)s[17] & 0x0f) << 16));
+            z[i+7] = DILITHIUM_GAMMA1_19 -
+                     ( ((sword32)s[17] >> 4) |
+                      ( (sword32)s[18] << 4) |
+                      (((sword32)s[19]       ) << 12));
     #endif
             /* Move to next place to decode from. */
             s += DILITHIUM_GAMMA1_19_ENC_BITS;
@@ -2868,7 +2880,7 @@ static int wc_mldsa_gen_matrix_6x5_avx2(sword32* a, byte* seed)
     }
 
     for (l = 0; l < 2; l++) {
-        state[4*4 + l] = 0x1f0000 + (5 << 8) + (l + 3);
+        state[4*4 + l] = 0x1f0000 + ((word32)5 << 8) + (l + 3);
     }
 
     sha3_128_blocksx4_seed_avx2(state, seed);
@@ -5451,7 +5463,7 @@ static sword32 dilithium_mont_red(sword64 a)
  */
 static sword32 dilithium_red(sword32 a)
 {
-    sword32 t = (sword32)((a + (1 << 22)) >> 23);
+    sword32 t = (sword32)((a + ((sword32)1 << 22)) >> 23);
 #ifndef DILITHIUM_MUL_Q_SLOW
     return (sword32)(a - (t * DILITHIUM_Q));
 #else
@@ -8252,7 +8264,7 @@ static int dilithium_sign_with_seed_mu(dilithium_key* key,
                 params->gamma1_bits, y, params->l);
         #ifdef WOLFSSL_DILITHIUM_SIGN_CHECK_Y
             valid = dilithium_vec_check_low(y, params->l,
-                (1 << params->gamma1_bits) - params->beta);
+                ((sword32)1 << params->gamma1_bits) - params->beta);
             if (valid)
         #endif
             {
@@ -8306,7 +8318,7 @@ static int dilithium_sign_with_seed_mu(dilithium_key* key,
                         valid = dilithium_vec_check_low(w0 + i * DILITHIUM_N, 1,
                             hi);
                     }
-                    hi = (1 << params->gamma1_bits) - params->beta;
+                    hi = ((sword32)1 << params->gamma1_bits) - params->beta;
                     for (i = 0; valid && i < params->l; i++) {
                         /* Step 19: cs1 = NTT-1(c o s1) */
                         dilithium_mul(z + i * DILITHIUM_N, c,
@@ -8515,7 +8527,7 @@ static int dilithium_sign_with_seed_mu(dilithium_key* key,
                 params->gamma1_bits, y, params->l);
         #ifdef WOLFSSL_DILITHIUM_SIGN_CHECK_Y
             valid = dilithium_vec_check_low(y, params->l,
-                (1 << params->gamma1_bits) - params->beta);
+                ((sword32)1 << params->gamma1_bits) - params->beta);
         #endif
 
         #ifdef WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC_A
@@ -8743,7 +8755,7 @@ static int dilithium_sign_with_seed_mu(dilithium_key* key,
                     dilithium_add(z, yt);
                     dilithium_poly_red(z);
                     /* Step 23: Check z has low enough values. */
-                    hi = (1 << params->gamma1_bits) - params->beta;
+                    hi = ((sword32)1 << params->gamma1_bits) - params->beta;
                     valid = dilithium_check_low(z, hi);
                     if (valid) {
                         /* Step 32: Encode z into signature.
@@ -9385,7 +9397,7 @@ static int dilithium_verify_mu(dilithium_key* key, const byte* mu,
         /* Step 2: Decode z from signature. */
         dilithium_vec_decode_gamma1(ze, params->l, params->gamma1_bits, z);
         /* Step 13: Check z is valid - values are low enough. */
-        hi = (1 << params->gamma1_bits) - params->beta;
+        hi = ((sword32)1 << params->gamma1_bits) - params->beta;
         valid = dilithium_vec_check_low(z, params->l, hi);
     }
     if ((ret == 0) && valid) {
@@ -9524,7 +9536,7 @@ static int dilithium_verify_mu(dilithium_key* key, const byte* mu,
         /* Step 2: Decode z from signature. */
         dilithium_vec_decode_gamma1(ze, params->l, params->gamma1_bits, z);
         /* Step 13: Check z is valid - values are low enough. */
-        hi = (1 << params->gamma1_bits) - params->beta;
+        hi = ((sword32)1 << params->gamma1_bits) - params->beta;
         valid = dilithium_vec_check_low(z, params->l, hi);
     }
     if ((ret == 0) && valid) {

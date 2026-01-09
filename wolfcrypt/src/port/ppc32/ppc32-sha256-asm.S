@@ -1287,6 +1287,7 @@ L_SHA256_transform_len_k:
 	.long	0xa4506ceb
 	.long	0xbef9a3f7
 	.long	0xc67178f2
+#ifndef __PIC__
 	.section	".text"
 	.align	4
 	.globl	Transform_Sha256_Len
@@ -4503,6 +4504,3244 @@ L_SHA256_transform_len_after_blk_15:
 	addi	1, 1, 0x4c
 	blr
 	.size	Transform_Sha256_Len,.-Transform_Sha256_Len
+#else
+/* PIC version not using register 30 or 31 */
+	.section	".text"
+	.align	4
+	.globl	Transform_Sha256_Len
+	.type	Transform_Sha256_Len, @function
+Transform_Sha256_Len:
+	stwu	1, -68(1)
+	mflr	0
+	stw	0, 64(1)
+	stw	14, 0(1)
+	stw	15, 4(1)
+	stw	16, 8(1)
+	stw	17, 12(1)
+	stw	18, 16(1)
+	stw	19, 20(1)
+	stw	20, 24(1)
+	stw	21, 28(1)
+	stw	22, 32(1)
+	stw	23, 36(1)
+	stw	24, 40(1)
+	stw	25, 44(1)
+	stw	26, 48(1)
+	stw	27, 52(1)
+	stw	28, 56(1)
+	stw	29, 60(1)
+	srwi	5, 5, 6
+	lis	6, L_SHA256_transform_len_k@ha
+	la	6, L_SHA256_transform_len_k@l(6)
+#ifndef WOLFSSL_PPC32_ASM_SMALL
+	subi	1, 1, 8
+	stw	3, 0(1)
+	stw	4, 4(1)
+	mtctr	5
+	# Copy digest to add in at end
+	lwz	0, 0(3)
+	lwz	4, 4(3)
+	lwz	7, 8(3)
+	lwz	8, 12(3)
+	lwz	9, 16(3)
+	lwz	10, 20(3)
+	lwz	11, 24(3)
+	lwz	12, 28(3)
+	lwz	3, 4(1)
+	# Start of loop processing a block
+L_SHA256_transform_len_begin:
+	# Load W - 64 bytes
+	lwz	14, 0(3)
+	lwz	15, 4(3)
+	lwz	16, 8(3)
+	lwz	17, 12(3)
+	lwz	18, 16(3)
+	lwz	19, 20(3)
+	lwz	20, 24(3)
+	lwz	21, 28(3)
+	lwz	22, 32(3)
+	lwz	23, 36(3)
+	lwz	24, 40(3)
+	lwz	25, 44(3)
+	lwz	26, 48(3)
+	lwz	27, 52(3)
+	lwz	28, 56(3)
+	lwz	29, 60(3)
+	# Start of 16 rounds
+	# Round 0
+	rotlwi	3, 9, 26
+	rotlwi	5, 9, 21
+	xor	3, 3, 5
+	rotlwi	5, 9, 7
+	xor	3, 3, 5
+	add	12, 12, 3
+	xor	3, 10, 11
+	and	3, 3, 9
+	xor	3, 3, 11
+	add	12, 12, 3
+	lwz	3, 0(6)
+	add	12, 12, 14
+	add	12, 12, 3
+	add	8, 8, 12
+	rotlwi	3, 0, 30
+	rotlwi	5, 0, 19
+	xor	3, 3, 5
+	rotlwi	5, 0, 10
+	xor	3, 3, 5
+	add	12, 12, 3
+	xor	5, 0, 4
+	xor	3, 4, 7
+	and	3, 3, 5
+	xor	3, 3, 4
+	add	12, 12, 3
+	# Calc new W[0]
+	rotlwi	3, 15, 25
+	rotlwi	5, 15, 14
+	xor	3, 3, 5
+	srwi	5, 15, 3
+	xor	3, 3, 5
+	add	14, 14, 3
+	rotlwi	3, 28, 15
+	rotlwi	5, 28, 13
+	xor	3, 3, 5
+	srwi	5, 28, 10
+	xor	3, 3, 5
+	add	14, 14, 3
+	add	14, 14, 23
+	# Round 1
+	rotlwi	3, 8, 26
+	rotlwi	5, 8, 21
+	xor	3, 3, 5
+	rotlwi	5, 8, 7
+	xor	3, 3, 5
+	add	11, 11, 3
+	xor	3, 9, 10
+	and	3, 3, 8
+	xor	3, 3, 10
+	add	11, 11, 3
+	lwz	3, 4(6)
+	add	11, 11, 15
+	add	11, 11, 3
+	add	7, 7, 11
+	rotlwi	3, 12, 30
+	rotlwi	5, 12, 19
+	xor	3, 3, 5
+	rotlwi	5, 12, 10
+	xor	3, 3, 5
+	add	11, 11, 3
+	xor	5, 12, 0
+	xor	3, 0, 4
+	and	3, 3, 5
+	xor	3, 3, 0
+	add	11, 11, 3
+	# Calc new W[1]
+	rotlwi	3, 16, 25
+	rotlwi	5, 16, 14
+	xor	3, 3, 5
+	srwi	5, 16, 3
+	xor	3, 3, 5
+	add	15, 15, 3
+	rotlwi	3, 29, 15
+	rotlwi	5, 29, 13
+	xor	3, 3, 5
+	srwi	5, 29, 10
+	xor	3, 3, 5
+	add	15, 15, 3
+	add	15, 15, 24
+	# Round 2
+	rotlwi	3, 7, 26
+	rotlwi	5, 7, 21
+	xor	3, 3, 5
+	rotlwi	5, 7, 7
+	xor	3, 3, 5
+	add	10, 10, 3
+	xor	3, 8, 9
+	and	3, 3, 7
+	xor	3, 3, 9
+	add	10, 10, 3
+	lwz	3, 8(6)
+	add	10, 10, 16
+	add	10, 10, 3
+	add	4, 4, 10
+	rotlwi	3, 11, 30
+	rotlwi	5, 11, 19
+	xor	3, 3, 5
+	rotlwi	5, 11, 10
+	xor	3, 3, 5
+	add	10, 10, 3
+	xor	5, 11, 12
+	xor	3, 12, 0
+	and	3, 3, 5
+	xor	3, 3, 12
+	add	10, 10, 3
+	# Calc new W[2]
+	rotlwi	3, 17, 25
+	rotlwi	5, 17, 14
+	xor	3, 3, 5
+	srwi	5, 17, 3
+	xor	3, 3, 5
+	add	16, 16, 3
+	rotlwi	3, 14, 15
+	rotlwi	5, 14, 13
+	xor	3, 3, 5
+	srwi	5, 14, 10
+	xor	3, 3, 5
+	add	16, 16, 3
+	add	16, 16, 25
+	# Round 3
+	rotlwi	3, 4, 26
+	rotlwi	5, 4, 21
+	xor	3, 3, 5
+	rotlwi	5, 4, 7
+	xor	3, 3, 5
+	add	9, 9, 3
+	xor	3, 7, 8
+	and	3, 3, 4
+	xor	3, 3, 8
+	add	9, 9, 3
+	lwz	3, 12(6)
+	add	9, 9, 17
+	add	9, 9, 3
+	add	0, 0, 9
+	rotlwi	3, 10, 30
+	rotlwi	5, 10, 19
+	xor	3, 3, 5
+	rotlwi	5, 10, 10
+	xor	3, 3, 5
+	add	9, 9, 3
+	xor	5, 10, 11
+	xor	3, 11, 12
+	and	3, 3, 5
+	xor	3, 3, 11
+	add	9, 9, 3
+	# Calc new W[3]
+	rotlwi	3, 18, 25
+	rotlwi	5, 18, 14
+	xor	3, 3, 5
+	srwi	5, 18, 3
+	xor	3, 3, 5
+	add	17, 17, 3
+	rotlwi	3, 15, 15
+	rotlwi	5, 15, 13
+	xor	3, 3, 5
+	srwi	5, 15, 10
+	xor	3, 3, 5
+	add	17, 17, 3
+	add	17, 17, 26
+	# Round 4
+	rotlwi	3, 0, 26
+	rotlwi	5, 0, 21
+	xor	3, 3, 5
+	rotlwi	5, 0, 7
+	xor	3, 3, 5
+	add	8, 8, 3
+	xor	3, 4, 7
+	and	3, 3, 0
+	xor	3, 3, 7
+	add	8, 8, 3
+	lwz	3, 16(6)
+	add	8, 8, 18
+	add	8, 8, 3
+	add	12, 12, 8
+	rotlwi	3, 9, 30
+	rotlwi	5, 9, 19
+	xor	3, 3, 5
+	rotlwi	5, 9, 10
+	xor	3, 3, 5
+	add	8, 8, 3
+	xor	5, 9, 10
+	xor	3, 10, 11
+	and	3, 3, 5
+	xor	3, 3, 10
+	add	8, 8, 3
+	# Calc new W[4]
+	rotlwi	3, 19, 25
+	rotlwi	5, 19, 14
+	xor	3, 3, 5
+	srwi	5, 19, 3
+	xor	3, 3, 5
+	add	18, 18, 3
+	rotlwi	3, 16, 15
+	rotlwi	5, 16, 13
+	xor	3, 3, 5
+	srwi	5, 16, 10
+	xor	3, 3, 5
+	add	18, 18, 3
+	add	18, 18, 27
+	# Round 5
+	rotlwi	3, 12, 26
+	rotlwi	5, 12, 21
+	xor	3, 3, 5
+	rotlwi	5, 12, 7
+	xor	3, 3, 5
+	add	7, 7, 3
+	xor	3, 0, 4
+	and	3, 3, 12
+	xor	3, 3, 4
+	add	7, 7, 3
+	lwz	3, 20(6)
+	add	7, 7, 19
+	add	7, 7, 3
+	add	11, 11, 7
+	rotlwi	3, 8, 30
+	rotlwi	5, 8, 19
+	xor	3, 3, 5
+	rotlwi	5, 8, 10
+	xor	3, 3, 5
+	add	7, 7, 3
+	xor	5, 8, 9
+	xor	3, 9, 10
+	and	3, 3, 5
+	xor	3, 3, 9
+	add	7, 7, 3
+	# Calc new W[5]
+	rotlwi	3, 20, 25
+	rotlwi	5, 20, 14
+	xor	3, 3, 5
+	srwi	5, 20, 3
+	xor	3, 3, 5
+	add	19, 19, 3
+	rotlwi	3, 17, 15
+	rotlwi	5, 17, 13
+	xor	3, 3, 5
+	srwi	5, 17, 10
+	xor	3, 3, 5
+	add	19, 19, 3
+	add	19, 19, 28
+	# Round 6
+	rotlwi	3, 11, 26
+	rotlwi	5, 11, 21
+	xor	3, 3, 5
+	rotlwi	5, 11, 7
+	xor	3, 3, 5
+	add	4, 4, 3
+	xor	3, 12, 0
+	and	3, 3, 11
+	xor	3, 3, 0
+	add	4, 4, 3
+	lwz	3, 24(6)
+	add	4, 4, 20
+	add	4, 4, 3
+	add	10, 10, 4
+	rotlwi	3, 7, 30
+	rotlwi	5, 7, 19
+	xor	3, 3, 5
+	rotlwi	5, 7, 10
+	xor	3, 3, 5
+	add	4, 4, 3
+	xor	5, 7, 8
+	xor	3, 8, 9
+	and	3, 3, 5
+	xor	3, 3, 8
+	add	4, 4, 3
+	# Calc new W[6]
+	rotlwi	3, 21, 25
+	rotlwi	5, 21, 14
+	xor	3, 3, 5
+	srwi	5, 21, 3
+	xor	3, 3, 5
+	add	20, 20, 3
+	rotlwi	3, 18, 15
+	rotlwi	5, 18, 13
+	xor	3, 3, 5
+	srwi	5, 18, 10
+	xor	3, 3, 5
+	add	20, 20, 3
+	add	20, 20, 29
+	# Round 7
+	rotlwi	3, 10, 26
+	rotlwi	5, 10, 21
+	xor	3, 3, 5
+	rotlwi	5, 10, 7
+	xor	3, 3, 5
+	add	0, 0, 3
+	xor	3, 11, 12
+	and	3, 3, 10
+	xor	3, 3, 12
+	add	0, 0, 3
+	lwz	3, 28(6)
+	add	0, 0, 21
+	add	0, 0, 3
+	add	9, 9, 0
+	rotlwi	3, 4, 30
+	rotlwi	5, 4, 19
+	xor	3, 3, 5
+	rotlwi	5, 4, 10
+	xor	3, 3, 5
+	add	0, 0, 3
+	xor	5, 4, 7
+	xor	3, 7, 8
+	and	3, 3, 5
+	xor	3, 3, 7
+	add	0, 0, 3
+	# Calc new W[7]
+	rotlwi	3, 22, 25
+	rotlwi	5, 22, 14
+	xor	3, 3, 5
+	srwi	5, 22, 3
+	xor	3, 3, 5
+	add	21, 21, 3
+	rotlwi	3, 19, 15
+	rotlwi	5, 19, 13
+	xor	3, 3, 5
+	srwi	5, 19, 10
+	xor	3, 3, 5
+	add	21, 21, 3
+	add	21, 21, 14
+	# Round 8
+	rotlwi	3, 9, 26
+	rotlwi	5, 9, 21
+	xor	3, 3, 5
+	rotlwi	5, 9, 7
+	xor	3, 3, 5
+	add	12, 12, 3
+	xor	3, 10, 11
+	and	3, 3, 9
+	xor	3, 3, 11
+	add	12, 12, 3
+	lwz	3, 32(6)
+	add	12, 12, 22
+	add	12, 12, 3
+	add	8, 8, 12
+	rotlwi	3, 0, 30
+	rotlwi	5, 0, 19
+	xor	3, 3, 5
+	rotlwi	5, 0, 10
+	xor	3, 3, 5
+	add	12, 12, 3
+	xor	5, 0, 4
+	xor	3, 4, 7
+	and	3, 3, 5
+	xor	3, 3, 4
+	add	12, 12, 3
+	# Calc new W[8]
+	rotlwi	3, 23, 25
+	rotlwi	5, 23, 14
+	xor	3, 3, 5
+	srwi	5, 23, 3
+	xor	3, 3, 5
+	add	22, 22, 3
+	rotlwi	3, 20, 15
+	rotlwi	5, 20, 13
+	xor	3, 3, 5
+	srwi	5, 20, 10
+	xor	3, 3, 5
+	add	22, 22, 3
+	add	22, 22, 15
+	# Round 9
+	rotlwi	3, 8, 26
+	rotlwi	5, 8, 21
+	xor	3, 3, 5
+	rotlwi	5, 8, 7
+	xor	3, 3, 5
+	add	11, 11, 3
+	xor	3, 9, 10
+	and	3, 3, 8
+	xor	3, 3, 10
+	add	11, 11, 3
+	lwz	3, 36(6)
+	add	11, 11, 23
+	add	11, 11, 3
+	add	7, 7, 11
+	rotlwi	3, 12, 30
+	rotlwi	5, 12, 19
+	xor	3, 3, 5
+	rotlwi	5, 12, 10
+	xor	3, 3, 5
+	add	11, 11, 3
+	xor	5, 12, 0
+	xor	3, 0, 4
+	and	3, 3, 5
+	xor	3, 3, 0
+	add	11, 11, 3
+	# Calc new W[9]
+	rotlwi	3, 24, 25
+	rotlwi	5, 24, 14
+	xor	3, 3, 5
+	srwi	5, 24, 3
+	xor	3, 3, 5
+	add	23, 23, 3
+	rotlwi	3, 21, 15
+	rotlwi	5, 21, 13
+	xor	3, 3, 5
+	srwi	5, 21, 10
+	xor	3, 3, 5
+	add	23, 23, 3
+	add	23, 23, 16
+	# Round 10
+	rotlwi	3, 7, 26
+	rotlwi	5, 7, 21
+	xor	3, 3, 5
+	rotlwi	5, 7, 7
+	xor	3, 3, 5
+	add	10, 10, 3
+	xor	3, 8, 9
+	and	3, 3, 7
+	xor	3, 3, 9
+	add	10, 10, 3
+	lwz	3, 40(6)
+	add	10, 10, 24
+	add	10, 10, 3
+	add	4, 4, 10
+	rotlwi	3, 11, 30
+	rotlwi	5, 11, 19
+	xor	3, 3, 5
+	rotlwi	5, 11, 10
+	xor	3, 3, 5
+	add	10, 10, 3
+	xor	5, 11, 12
+	xor	3, 12, 0
+	and	3, 3, 5
+	xor	3, 3, 12
+	add	10, 10, 3
+	# Calc new W[10]
+	rotlwi	3, 25, 25
+	rotlwi	5, 25, 14
+	xor	3, 3, 5
+	srwi	5, 25, 3
+	xor	3, 3, 5
+	add	24, 24, 3
+	rotlwi	3, 22, 15
+	rotlwi	5, 22, 13
+	xor	3, 3, 5
+	srwi	5, 22, 10
+	xor	3, 3, 5
+	add	24, 24, 3
+	add	24, 24, 17
+	# Round 11
+	rotlwi	3, 4, 26
+	rotlwi	5, 4, 21
+	xor	3, 3, 5
+	rotlwi	5, 4, 7
+	xor	3, 3, 5
+	add	9, 9, 3
+	xor	3, 7, 8
+	and	3, 3, 4
+	xor	3, 3, 8
+	add	9, 9, 3
+	lwz	3, 44(6)
+	add	9, 9, 25
+	add	9, 9, 3
+	add	0, 0, 9
+	rotlwi	3, 10, 30
+	rotlwi	5, 10, 19
+	xor	3, 3, 5
+	rotlwi	5, 10, 10
+	xor	3, 3, 5
+	add	9, 9, 3
+	xor	5, 10, 11
+	xor	3, 11, 12
+	and	3, 3, 5
+	xor	3, 3, 11
+	add	9, 9, 3
+	# Calc new W[11]
+	rotlwi	3, 26, 25
+	rotlwi	5, 26, 14
+	xor	3, 3, 5
+	srwi	5, 26, 3
+	xor	3, 3, 5
+	add	25, 25, 3
+	rotlwi	3, 23, 15
+	rotlwi	5, 23, 13
+	xor	3, 3, 5
+	srwi	5, 23, 10
+	xor	3, 3, 5
+	add	25, 25, 3
+	add	25, 25, 18
+	# Round 12
+	rotlwi	3, 0, 26
+	rotlwi	5, 0, 21
+	xor	3, 3, 5
+	rotlwi	5, 0, 7
+	xor	3, 3, 5
+	add	8, 8, 3
+	xor	3, 4, 7
+	and	3, 3, 0
+	xor	3, 3, 7
+	add	8, 8, 3
+	lwz	3, 48(6)
+	add	8, 8, 26
+	add	8, 8, 3
+	add	12, 12, 8
+	rotlwi	3, 9, 30
+	rotlwi	5, 9, 19
+	xor	3, 3, 5
+	rotlwi	5, 9, 10
+	xor	3, 3, 5
+	add	8, 8, 3
+	xor	5, 9, 10
+	xor	3, 10, 11
+	and	3, 3, 5
+	xor	3, 3, 10
+	add	8, 8, 3
+	# Calc new W[12]
+	rotlwi	3, 27, 25
+	rotlwi	5, 27, 14
+	xor	3, 3, 5
+	srwi	5, 27, 3
+	xor	3, 3, 5
+	add	26, 26, 3
+	rotlwi	3, 24, 15
+	rotlwi	5, 24, 13
+	xor	3, 3, 5
+	srwi	5, 24, 10
+	xor	3, 3, 5
+	add	26, 26, 3
+	add	26, 26, 19
+	# Round 13
+	rotlwi	3, 12, 26
+	rotlwi	5, 12, 21
+	xor	3, 3, 5
+	rotlwi	5, 12, 7
+	xor	3, 3, 5
+	add	7, 7, 3
+	xor	3, 0, 4
+	and	3, 3, 12
+	xor	3, 3, 4
+	add	7, 7, 3
+	lwz	3, 52(6)
+	add	7, 7, 27
+	add	7, 7, 3
+	add	11, 11, 7
+	rotlwi	3, 8, 30
+	rotlwi	5, 8, 19
+	xor	3, 3, 5
+	rotlwi	5, 8, 10
+	xor	3, 3, 5
+	add	7, 7, 3
+	xor	5, 8, 9
+	xor	3, 9, 10
+	and	3, 3, 5
+	xor	3, 3, 9
+	add	7, 7, 3
+	# Calc new W[13]
+	rotlwi	3, 28, 25
+	rotlwi	5, 28, 14
+	xor	3, 3, 5
+	srwi	5, 28, 3
+	xor	3, 3, 5
+	add	27, 27, 3
+	rotlwi	3, 25, 15
+	rotlwi	5, 25, 13
+	xor	3, 3, 5
+	srwi	5, 25, 10
+	xor	3, 3, 5
+	add	27, 27, 3
+	add	27, 27, 20
+	# Round 14
+	rotlwi	3, 11, 26
+	rotlwi	5, 11, 21
+	xor	3, 3, 5
+	rotlwi	5, 11, 7
+	xor	3, 3, 5
+	add	4, 4, 3
+	xor	3, 12, 0
+	and	3, 3, 11
+	xor	3, 3, 0
+	add	4, 4, 3
+	lwz	3, 56(6)
+	add	4, 4, 28
+	add	4, 4, 3
+	add	10, 10, 4
+	rotlwi	3, 7, 30
+	rotlwi	5, 7, 19
+	xor	3, 3, 5
+	rotlwi	5, 7, 10
+	xor	3, 3, 5
+	add	4, 4, 3
+	xor	5, 7, 8
+	xor	3, 8, 9
+	and	3, 3, 5
+	xor	3, 3, 8
+	add	4, 4, 3
+	# Calc new W[14]
+	rotlwi	3, 29, 25
+	rotlwi	5, 29, 14
+	xor	3, 3, 5
+	srwi	5, 29, 3
+	xor	3, 3, 5
+	add	28, 28, 3
+	rotlwi	3, 26, 15
+	rotlwi	5, 26, 13
+	xor	3, 3, 5
+	srwi	5, 26, 10
+	xor	3, 3, 5
+	add	28, 28, 3
+	add	28, 28, 21
+	# Round 15
+	rotlwi	3, 10, 26
+	rotlwi	5, 10, 21
+	xor	3, 3, 5
+	rotlwi	5, 10, 7
+	xor	3, 3, 5
+	add	0, 0, 3
+	xor	3, 11, 12
+	and	3, 3, 10
+	xor	3, 3, 12
+	add	0, 0, 3
+	lwz	3, 60(6)
+	add	0, 0, 29
+	add	0, 0, 3
+	add	9, 9, 0
+	rotlwi	3, 4, 30
+	rotlwi	5, 4, 19
+	xor	3, 3, 5
+	rotlwi	5, 4, 10
+	xor	3, 3, 5
+	add	0, 0, 3
+	xor	5, 4, 7
+	xor	3, 7, 8
+	and	3, 3, 5
+	xor	3, 3, 7
+	add	0, 0, 3
+	# Calc new W[15]
+	rotlwi	3, 14, 25
+	rotlwi	5, 14, 14
+	xor	3, 3, 5
+	srwi	5, 14, 3
+	xor	3, 3, 5
+	add	29, 29, 3
+	rotlwi	3, 27, 15
+	rotlwi	5, 27, 13
+	xor	3, 3, 5
+	srwi	5, 27, 10
+	xor	3, 3, 5
+	add	29, 29, 3
+	add	29, 29, 22
+	addi	6, 6, 0x40
+	# Round 0
+	rotlwi	3, 9, 26
+	rotlwi	5, 9, 21
+	xor	3, 3, 5
+	rotlwi	5, 9, 7
+	xor	3, 3, 5
+	add	12, 12, 3
+	xor	3, 10, 11
+	and	3, 3, 9
+	xor	3, 3, 11
+	add	12, 12, 3
+	lwz	3, 0(6)
+	add	12, 12, 14
+	add	12, 12, 3
+	add	8, 8, 12
+	rotlwi	3, 0, 30
+	rotlwi	5, 0, 19
+	xor	3, 3, 5
+	rotlwi	5, 0, 10
+	xor	3, 3, 5
+	add	12, 12, 3
+	xor	5, 0, 4
+	xor	3, 4, 7
+	and	3, 3, 5
+	xor	3, 3, 4
+	add	12, 12, 3
+	# Calc new W[0]
+	rotlwi	3, 15, 25
+	rotlwi	5, 15, 14
+	xor	3, 3, 5
+	srwi	5, 15, 3
+	xor	3, 3, 5
+	add	14, 14, 3
+	rotlwi	3, 28, 15
+	rotlwi	5, 28, 13
+	xor	3, 3, 5
+	srwi	5, 28, 10
+	xor	3, 3, 5
+	add	14, 14, 3
+	add	14, 14, 23
+	# Round 1
+	rotlwi	3, 8, 26
+	rotlwi	5, 8, 21
+	xor	3, 3, 5
+	rotlwi	5, 8, 7
+	xor	3, 3, 5
+	add	11, 11, 3
+	xor	3, 9, 10
+	and	3, 3, 8
+	xor	3, 3, 10
+	add	11, 11, 3
+	lwz	3, 4(6)
+	add	11, 11, 15
+	add	11, 11, 3
+	add	7, 7, 11
+	rotlwi	3, 12, 30
+	rotlwi	5, 12, 19
+	xor	3, 3, 5
+	rotlwi	5, 12, 10
+	xor	3, 3, 5
+	add	11, 11, 3
+	xor	5, 12, 0
+	xor	3, 0, 4
+	and	3, 3, 5
+	xor	3, 3, 0
+	add	11, 11, 3
+	# Calc new W[1]
+	rotlwi	3, 16, 25
+	rotlwi	5, 16, 14
+	xor	3, 3, 5
+	srwi	5, 16, 3
+	xor	3, 3, 5
+	add	15, 15, 3
+	rotlwi	3, 29, 15
+	rotlwi	5, 29, 13
+	xor	3, 3, 5
+	srwi	5, 29, 10
+	xor	3, 3, 5
+	add	15, 15, 3
+	add	15, 15, 24
+	# Round 2
+	rotlwi	3, 7, 26
+	rotlwi	5, 7, 21
+	xor	3, 3, 5
+	rotlwi	5, 7, 7
+	xor	3, 3, 5
+	add	10, 10, 3
+	xor	3, 8, 9
+	and	3, 3, 7
+	xor	3, 3, 9
+	add	10, 10, 3
+	lwz	3, 8(6)
+	add	10, 10, 16
+	add	10, 10, 3
+	add	4, 4, 10
+	rotlwi	3, 11, 30
+	rotlwi	5, 11, 19
+	xor	3, 3, 5
+	rotlwi	5, 11, 10
+	xor	3, 3, 5
+	add	10, 10, 3
+	xor	5, 11, 12
+	xor	3, 12, 0
+	and	3, 3, 5
+	xor	3, 3, 12
+	add	10, 10, 3
+	# Calc new W[2]
+	rotlwi	3, 17, 25
+	rotlwi	5, 17, 14
+	xor	3, 3, 5
+	srwi	5, 17, 3
+	xor	3, 3, 5
+	add	16, 16, 3
+	rotlwi	3, 14, 15
+	rotlwi	5, 14, 13
+	xor	3, 3, 5
+	srwi	5, 14, 10
+	xor	3, 3, 5
+	add	16, 16, 3
+	add	16, 16, 25
+	# Round 3
+	rotlwi	3, 4, 26
+	rotlwi	5, 4, 21
+	xor	3, 3, 5
+	rotlwi	5, 4, 7
+	xor	3, 3, 5
+	add	9, 9, 3
+	xor	3, 7, 8
+	and	3, 3, 4
+	xor	3, 3, 8
+	add	9, 9, 3
+	lwz	3, 12(6)
+	add	9, 9, 17
+	add	9, 9, 3
+	add	0, 0, 9
+	rotlwi	3, 10, 30
+	rotlwi	5, 10, 19
+	xor	3, 3, 5
+	rotlwi	5, 10, 10
+	xor	3, 3, 5
+	add	9, 9, 3
+	xor	5, 10, 11
+	xor	3, 11, 12
+	and	3, 3, 5
+	xor	3, 3, 11
+	add	9, 9, 3
+	# Calc new W[3]
+	rotlwi	3, 18, 25
+	rotlwi	5, 18, 14
+	xor	3, 3, 5
+	srwi	5, 18, 3
+	xor	3, 3, 5
+	add	17, 17, 3
+	rotlwi	3, 15, 15
+	rotlwi	5, 15, 13
+	xor	3, 3, 5
+	srwi	5, 15, 10
+	xor	3, 3, 5
+	add	17, 17, 3
+	add	17, 17, 26
+	# Round 4
+	rotlwi	3, 0, 26
+	rotlwi	5, 0, 21
+	xor	3, 3, 5
+	rotlwi	5, 0, 7
+	xor	3, 3, 5
+	add	8, 8, 3
+	xor	3, 4, 7
+	and	3, 3, 0
+	xor	3, 3, 7
+	add	8, 8, 3
+	lwz	3, 16(6)
+	add	8, 8, 18
+	add	8, 8, 3
+	add	12, 12, 8
+	rotlwi	3, 9, 30
+	rotlwi	5, 9, 19
+	xor	3, 3, 5
+	rotlwi	5, 9, 10
+	xor	3, 3, 5
+	add	8, 8, 3
+	xor	5, 9, 10
+	xor	3, 10, 11
+	and	3, 3, 5
+	xor	3, 3, 10
+	add	8, 8, 3
+	# Calc new W[4]
+	rotlwi	3, 19, 25
+	rotlwi	5, 19, 14
+	xor	3, 3, 5
+	srwi	5, 19, 3
+	xor	3, 3, 5
+	add	18, 18, 3
+	rotlwi	3, 16, 15
+	rotlwi	5, 16, 13
+	xor	3, 3, 5
+	srwi	5, 16, 10
+	xor	3, 3, 5
+	add	18, 18, 3
+	add	18, 18, 27
+	# Round 5
+	rotlwi	3, 12, 26
+	rotlwi	5, 12, 21
+	xor	3, 3, 5
+	rotlwi	5, 12, 7
+	xor	3, 3, 5
+	add	7, 7, 3
+	xor	3, 0, 4
+	and	3, 3, 12
+	xor	3, 3, 4
+	add	7, 7, 3
+	lwz	3, 20(6)
+	add	7, 7, 19
+	add	7, 7, 3
+	add	11, 11, 7
+	rotlwi	3, 8, 30
+	rotlwi	5, 8, 19
+	xor	3, 3, 5
+	rotlwi	5, 8, 10
+	xor	3, 3, 5
+	add	7, 7, 3
+	xor	5, 8, 9
+	xor	3, 9, 10
+	and	3, 3, 5
+	xor	3, 3, 9
+	add	7, 7, 3
+	# Calc new W[5]
+	rotlwi	3, 20, 25
+	rotlwi	5, 20, 14
+	xor	3, 3, 5
+	srwi	5, 20, 3
+	xor	3, 3, 5
+	add	19, 19, 3
+	rotlwi	3, 17, 15
+	rotlwi	5, 17, 13
+	xor	3, 3, 5
+	srwi	5, 17, 10
+	xor	3, 3, 5
+	add	19, 19, 3
+	add	19, 19, 28
+	# Round 6
+	rotlwi	3, 11, 26
+	rotlwi	5, 11, 21
+	xor	3, 3, 5
+	rotlwi	5, 11, 7
+	xor	3, 3, 5
+	add	4, 4, 3
+	xor	3, 12, 0
+	and	3, 3, 11
+	xor	3, 3, 0
+	add	4, 4, 3
+	lwz	3, 24(6)
+	add	4, 4, 20
+	add	4, 4, 3
+	add	10, 10, 4
+	rotlwi	3, 7, 30
+	rotlwi	5, 7, 19
+	xor	3, 3, 5
+	rotlwi	5, 7, 10
+	xor	3, 3, 5
+	add	4, 4, 3
+	xor	5, 7, 8
+	xor	3, 8, 9
+	and	3, 3, 5
+	xor	3, 3, 8
+	add	4, 4, 3
+	# Calc new W[6]
+	rotlwi	3, 21, 25
+	rotlwi	5, 21, 14
+	xor	3, 3, 5
+	srwi	5, 21, 3
+	xor	3, 3, 5
+	add	20, 20, 3
+	rotlwi	3, 18, 15
+	rotlwi	5, 18, 13
+	xor	3, 3, 5
+	srwi	5, 18, 10
+	xor	3, 3, 5
+	add	20, 20, 3
+	add	20, 20, 29
+	# Round 7
+	rotlwi	3, 10, 26
+	rotlwi	5, 10, 21
+	xor	3, 3, 5
+	rotlwi	5, 10, 7
+	xor	3, 3, 5
+	add	0, 0, 3
+	xor	3, 11, 12
+	and	3, 3, 10
+	xor	3, 3, 12
+	add	0, 0, 3
+	lwz	3, 28(6)
+	add	0, 0, 21
+	add	0, 0, 3
+	add	9, 9, 0
+	rotlwi	3, 4, 30
+	rotlwi	5, 4, 19
+	xor	3, 3, 5
+	rotlwi	5, 4, 10
+	xor	3, 3, 5
+	add	0, 0, 3
+	xor	5, 4, 7
+	xor	3, 7, 8
+	and	3, 3, 5
+	xor	3, 3, 7
+	add	0, 0, 3
+	# Calc new W[7]
+	rotlwi	3, 22, 25
+	rotlwi	5, 22, 14
+	xor	3, 3, 5
+	srwi	5, 22, 3
+	xor	3, 3, 5
+	add	21, 21, 3
+	rotlwi	3, 19, 15
+	rotlwi	5, 19, 13
+	xor	3, 3, 5
+	srwi	5, 19, 10
+	xor	3, 3, 5
+	add	21, 21, 3
+	add	21, 21, 14
+	# Round 8
+	rotlwi	3, 9, 26
+	rotlwi	5, 9, 21
+	xor	3, 3, 5
+	rotlwi	5, 9, 7
+	xor	3, 3, 5
+	add	12, 12, 3
+	xor	3, 10, 11
+	and	3, 3, 9
+	xor	3, 3, 11
+	add	12, 12, 3
+	lwz	3, 32(6)
+	add	12, 12, 22
+	add	12, 12, 3
+	add	8, 8, 12
+	rotlwi	3, 0, 30
+	rotlwi	5, 0, 19
+	xor	3, 3, 5
+	rotlwi	5, 0, 10
+	xor	3, 3, 5
+	add	12, 12, 3
+	xor	5, 0, 4
+	xor	3, 4, 7
+	and	3, 3, 5
+	xor	3, 3, 4
+	add	12, 12, 3
+	# Calc new W[8]
+	rotlwi	3, 23, 25
+	rotlwi	5, 23, 14
+	xor	3, 3, 5
+	srwi	5, 23, 3
+	xor	3, 3, 5
+	add	22, 22, 3
+	rotlwi	3, 20, 15
+	rotlwi	5, 20, 13
+	xor	3, 3, 5
+	srwi	5, 20, 10
+	xor	3, 3, 5
+	add	22, 22, 3
+	add	22, 22, 15
+	# Round 9
+	rotlwi	3, 8, 26
+	rotlwi	5, 8, 21
+	xor	3, 3, 5
+	rotlwi	5, 8, 7
+	xor	3, 3, 5
+	add	11, 11, 3
+	xor	3, 9, 10
+	and	3, 3, 8
+	xor	3, 3, 10
+	add	11, 11, 3
+	lwz	3, 36(6)
+	add	11, 11, 23
+	add	11, 11, 3
+	add	7, 7, 11
+	rotlwi	3, 12, 30
+	rotlwi	5, 12, 19
+	xor	3, 3, 5
+	rotlwi	5, 12, 10
+	xor	3, 3, 5
+	add	11, 11, 3
+	xor	5, 12, 0
+	xor	3, 0, 4
+	and	3, 3, 5
+	xor	3, 3, 0
+	add	11, 11, 3
+	# Calc new W[9]
+	rotlwi	3, 24, 25
+	rotlwi	5, 24, 14
+	xor	3, 3, 5
+	srwi	5, 24, 3
+	xor	3, 3, 5
+	add	23, 23, 3
+	rotlwi	3, 21, 15
+	rotlwi	5, 21, 13
+	xor	3, 3, 5
+	srwi	5, 21, 10
+	xor	3, 3, 5
+	add	23, 23, 3
+	add	23, 23, 16
+	# Round 10
+	rotlwi	3, 7, 26
+	rotlwi	5, 7, 21
+	xor	3, 3, 5
+	rotlwi	5, 7, 7
+	xor	3, 3, 5
+	add	10, 10, 3
+	xor	3, 8, 9
+	and	3, 3, 7
+	xor	3, 3, 9
+	add	10, 10, 3
+	lwz	3, 40(6)
+	add	10, 10, 24
+	add	10, 10, 3
+	add	4, 4, 10
+	rotlwi	3, 11, 30
+	rotlwi	5, 11, 19
+	xor	3, 3, 5
+	rotlwi	5, 11, 10
+	xor	3, 3, 5
+	add	10, 10, 3
+	xor	5, 11, 12
+	xor	3, 12, 0
+	and	3, 3, 5
+	xor	3, 3, 12
+	add	10, 10, 3
+	# Calc new W[10]
+	rotlwi	3, 25, 25
+	rotlwi	5, 25, 14
+	xor	3, 3, 5
+	srwi	5, 25, 3
+	xor	3, 3, 5
+	add	24, 24, 3
+	rotlwi	3, 22, 15
+	rotlwi	5, 22, 13
+	xor	3, 3, 5
+	srwi	5, 22, 10
+	xor	3, 3, 5
+	add	24, 24, 3
+	add	24, 24, 17
+	# Round 11
+	rotlwi	3, 4, 26
+	rotlwi	5, 4, 21
+	xor	3, 3, 5
+	rotlwi	5, 4, 7
+	xor	3, 3, 5
+	add	9, 9, 3
+	xor	3, 7, 8
+	and	3, 3, 4
+	xor	3, 3, 8
+	add	9, 9, 3
+	lwz	3, 44(6)
+	add	9, 9, 25
+	add	9, 9, 3
+	add	0, 0, 9
+	rotlwi	3, 10, 30
+	rotlwi	5, 10, 19
+	xor	3, 3, 5
+	rotlwi	5, 10, 10
+	xor	3, 3, 5
+	add	9, 9, 3
+	xor	5, 10, 11
+	xor	3, 11, 12
+	and	3, 3, 5
+	xor	3, 3, 11
+	add	9, 9, 3
+	# Calc new W[11]
+	rotlwi	3, 26, 25
+	rotlwi	5, 26, 14
+	xor	3, 3, 5
+	srwi	5, 26, 3
+	xor	3, 3, 5
+	add	25, 25, 3
+	rotlwi	3, 23, 15
+	rotlwi	5, 23, 13
+	xor	3, 3, 5
+	srwi	5, 23, 10
+	xor	3, 3, 5
+	add	25, 25, 3
+	add	25, 25, 18
+	# Round 12
+	rotlwi	3, 0, 26
+	rotlwi	5, 0, 21
+	xor	3, 3, 5
+	rotlwi	5, 0, 7
+	xor	3, 3, 5
+	add	8, 8, 3
+	xor	3, 4, 7
+	and	3, 3, 0
+	xor	3, 3, 7
+	add	8, 8, 3
+	lwz	3, 48(6)
+	add	8, 8, 26
+	add	8, 8, 3
+	add	12, 12, 8
+	rotlwi	3, 9, 30
+	rotlwi	5, 9, 19
+	xor	3, 3, 5
+	rotlwi	5, 9, 10
+	xor	3, 3, 5
+	add	8, 8, 3
+	xor	5, 9, 10
+	xor	3, 10, 11
+	and	3, 3, 5
+	xor	3, 3, 10
+	add	8, 8, 3
+	# Calc new W[12]
+	rotlwi	3, 27, 25
+	rotlwi	5, 27, 14
+	xor	3, 3, 5
+	srwi	5, 27, 3
+	xor	3, 3, 5
+	add	26, 26, 3
+	rotlwi	3, 24, 15
+	rotlwi	5, 24, 13
+	xor	3, 3, 5
+	srwi	5, 24, 10
+	xor	3, 3, 5
+	add	26, 26, 3
+	add	26, 26, 19
+	# Round 13
+	rotlwi	3, 12, 26
+	rotlwi	5, 12, 21
+	xor	3, 3, 5
+	rotlwi	5, 12, 7
+	xor	3, 3, 5
+	add	7, 7, 3
+	xor	3, 0, 4
+	and	3, 3, 12
+	xor	3, 3, 4
+	add	7, 7, 3
+	lwz	3, 52(6)
+	add	7, 7, 27
+	add	7, 7, 3
+	add	11, 11, 7
+	rotlwi	3, 8, 30
+	rotlwi	5, 8, 19
+	xor	3, 3, 5
+	rotlwi	5, 8, 10
+	xor	3, 3, 5
+	add	7, 7, 3
+	xor	5, 8, 9
+	xor	3, 9, 10
+	and	3, 3, 5
+	xor	3, 3, 9
+	add	7, 7, 3
+	# Calc new W[13]
+	rotlwi	3, 28, 25
+	rotlwi	5, 28, 14
+	xor	3, 3, 5
+	srwi	5, 28, 3
+	xor	3, 3, 5
+	add	27, 27, 3
+	rotlwi	3, 25, 15
+	rotlwi	5, 25, 13
+	xor	3, 3, 5
+	srwi	5, 25, 10
+	xor	3, 3, 5
+	add	27, 27, 3
+	add	27, 27, 20
+	# Round 14
+	rotlwi	3, 11, 26
+	rotlwi	5, 11, 21
+	xor	3, 3, 5
+	rotlwi	5, 11, 7
+	xor	3, 3, 5
+	add	4, 4, 3
+	xor	3, 12, 0
+	and	3, 3, 11
+	xor	3, 3, 0
+	add	4, 4, 3
+	lwz	3, 56(6)
+	add	4, 4, 28
+	add	4, 4, 3
+	add	10, 10, 4
+	rotlwi	3, 7, 30
+	rotlwi	5, 7, 19
+	xor	3, 3, 5
+	rotlwi	5, 7, 10
+	xor	3, 3, 5
+	add	4, 4, 3
+	xor	5, 7, 8
+	xor	3, 8, 9
+	and	3, 3, 5
+	xor	3, 3, 8
+	add	4, 4, 3
+	# Calc new W[14]
+	rotlwi	3, 29, 25
+	rotlwi	5, 29, 14
+	xor	3, 3, 5
+	srwi	5, 29, 3
+	xor	3, 3, 5
+	add	28, 28, 3
+	rotlwi	3, 26, 15
+	rotlwi	5, 26, 13
+	xor	3, 3, 5
+	srwi	5, 26, 10
+	xor	3, 3, 5
+	add	28, 28, 3
+	add	28, 28, 21
+	# Round 15
+	rotlwi	3, 10, 26
+	rotlwi	5, 10, 21
+	xor	3, 3, 5
+	rotlwi	5, 10, 7
+	xor	3, 3, 5
+	add	0, 0, 3
+	xor	3, 11, 12
+	and	3, 3, 10
+	xor	3, 3, 12
+	add	0, 0, 3
+	lwz	3, 60(6)
+	add	0, 0, 29
+	add	0, 0, 3
+	add	9, 9, 0
+	rotlwi	3, 4, 30
+	rotlwi	5, 4, 19
+	xor	3, 3, 5
+	rotlwi	5, 4, 10
+	xor	3, 3, 5
+	add	0, 0, 3
+	xor	5, 4, 7
+	xor	3, 7, 8
+	and	3, 3, 5
+	xor	3, 3, 7
+	add	0, 0, 3
+	# Calc new W[15]
+	rotlwi	3, 14, 25
+	rotlwi	5, 14, 14
+	xor	3, 3, 5
+	srwi	5, 14, 3
+	xor	3, 3, 5
+	add	29, 29, 3
+	rotlwi	3, 27, 15
+	rotlwi	5, 27, 13
+	xor	3, 3, 5
+	srwi	5, 27, 10
+	xor	3, 3, 5
+	add	29, 29, 3
+	add	29, 29, 22
+	addi	6, 6, 0x40
+	# Round 0
+	rotlwi	3, 9, 26
+	rotlwi	5, 9, 21
+	xor	3, 3, 5
+	rotlwi	5, 9, 7
+	xor	3, 3, 5
+	add	12, 12, 3
+	xor	3, 10, 11
+	and	3, 3, 9
+	xor	3, 3, 11
+	add	12, 12, 3
+	lwz	3, 0(6)
+	add	12, 12, 14
+	add	12, 12, 3
+	add	8, 8, 12
+	rotlwi	3, 0, 30
+	rotlwi	5, 0, 19
+	xor	3, 3, 5
+	rotlwi	5, 0, 10
+	xor	3, 3, 5
+	add	12, 12, 3
+	xor	5, 0, 4
+	xor	3, 4, 7
+	and	3, 3, 5
+	xor	3, 3, 4
+	add	12, 12, 3
+	# Calc new W[0]
+	rotlwi	3, 15, 25
+	rotlwi	5, 15, 14
+	xor	3, 3, 5
+	srwi	5, 15, 3
+	xor	3, 3, 5
+	add	14, 14, 3
+	rotlwi	3, 28, 15
+	rotlwi	5, 28, 13
+	xor	3, 3, 5
+	srwi	5, 28, 10
+	xor	3, 3, 5
+	add	14, 14, 3
+	add	14, 14, 23
+	# Round 1
+	rotlwi	3, 8, 26
+	rotlwi	5, 8, 21
+	xor	3, 3, 5
+	rotlwi	5, 8, 7
+	xor	3, 3, 5
+	add	11, 11, 3
+	xor	3, 9, 10
+	and	3, 3, 8
+	xor	3, 3, 10
+	add	11, 11, 3
+	lwz	3, 4(6)
+	add	11, 11, 15
+	add	11, 11, 3
+	add	7, 7, 11
+	rotlwi	3, 12, 30
+	rotlwi	5, 12, 19
+	xor	3, 3, 5
+	rotlwi	5, 12, 10
+	xor	3, 3, 5
+	add	11, 11, 3
+	xor	5, 12, 0
+	xor	3, 0, 4
+	and	3, 3, 5
+	xor	3, 3, 0
+	add	11, 11, 3
+	# Calc new W[1]
+	rotlwi	3, 16, 25
+	rotlwi	5, 16, 14
+	xor	3, 3, 5
+	srwi	5, 16, 3
+	xor	3, 3, 5
+	add	15, 15, 3
+	rotlwi	3, 29, 15
+	rotlwi	5, 29, 13
+	xor	3, 3, 5
+	srwi	5, 29, 10
+	xor	3, 3, 5
+	add	15, 15, 3
+	add	15, 15, 24
+	# Round 2
+	rotlwi	3, 7, 26
+	rotlwi	5, 7, 21
+	xor	3, 3, 5
+	rotlwi	5, 7, 7
+	xor	3, 3, 5
+	add	10, 10, 3
+	xor	3, 8, 9
+	and	3, 3, 7
+	xor	3, 3, 9
+	add	10, 10, 3
+	lwz	3, 8(6)
+	add	10, 10, 16
+	add	10, 10, 3
+	add	4, 4, 10
+	rotlwi	3, 11, 30
+	rotlwi	5, 11, 19
+	xor	3, 3, 5
+	rotlwi	5, 11, 10
+	xor	3, 3, 5
+	add	10, 10, 3
+	xor	5, 11, 12
+	xor	3, 12, 0
+	and	3, 3, 5
+	xor	3, 3, 12
+	add	10, 10, 3
+	# Calc new W[2]
+	rotlwi	3, 17, 25
+	rotlwi	5, 17, 14
+	xor	3, 3, 5
+	srwi	5, 17, 3
+	xor	3, 3, 5
+	add	16, 16, 3
+	rotlwi	3, 14, 15
+	rotlwi	5, 14, 13
+	xor	3, 3, 5
+	srwi	5, 14, 10
+	xor	3, 3, 5
+	add	16, 16, 3
+	add	16, 16, 25
+	# Round 3
+	rotlwi	3, 4, 26
+	rotlwi	5, 4, 21
+	xor	3, 3, 5
+	rotlwi	5, 4, 7
+	xor	3, 3, 5
+	add	9, 9, 3
+	xor	3, 7, 8
+	and	3, 3, 4
+	xor	3, 3, 8
+	add	9, 9, 3
+	lwz	3, 12(6)
+	add	9, 9, 17
+	add	9, 9, 3
+	add	0, 0, 9
+	rotlwi	3, 10, 30
+	rotlwi	5, 10, 19
+	xor	3, 3, 5
+	rotlwi	5, 10, 10
+	xor	3, 3, 5
+	add	9, 9, 3
+	xor	5, 10, 11
+	xor	3, 11, 12
+	and	3, 3, 5
+	xor	3, 3, 11
+	add	9, 9, 3
+	# Calc new W[3]
+	rotlwi	3, 18, 25
+	rotlwi	5, 18, 14
+	xor	3, 3, 5
+	srwi	5, 18, 3
+	xor	3, 3, 5
+	add	17, 17, 3
+	rotlwi	3, 15, 15
+	rotlwi	5, 15, 13
+	xor	3, 3, 5
+	srwi	5, 15, 10
+	xor	3, 3, 5
+	add	17, 17, 3
+	add	17, 17, 26
+	# Round 4
+	rotlwi	3, 0, 26
+	rotlwi	5, 0, 21
+	xor	3, 3, 5
+	rotlwi	5, 0, 7
+	xor	3, 3, 5
+	add	8, 8, 3
+	xor	3, 4, 7
+	and	3, 3, 0
+	xor	3, 3, 7
+	add	8, 8, 3
+	lwz	3, 16(6)
+	add	8, 8, 18
+	add	8, 8, 3
+	add	12, 12, 8
+	rotlwi	3, 9, 30
+	rotlwi	5, 9, 19
+	xor	3, 3, 5
+	rotlwi	5, 9, 10
+	xor	3, 3, 5
+	add	8, 8, 3
+	xor	5, 9, 10
+	xor	3, 10, 11
+	and	3, 3, 5
+	xor	3, 3, 10
+	add	8, 8, 3
+	# Calc new W[4]
+	rotlwi	3, 19, 25
+	rotlwi	5, 19, 14
+	xor	3, 3, 5
+	srwi	5, 19, 3
+	xor	3, 3, 5
+	add	18, 18, 3
+	rotlwi	3, 16, 15
+	rotlwi	5, 16, 13
+	xor	3, 3, 5
+	srwi	5, 16, 10
+	xor	3, 3, 5
+	add	18, 18, 3
+	add	18, 18, 27
+	# Round 5
+	rotlwi	3, 12, 26
+	rotlwi	5, 12, 21
+	xor	3, 3, 5
+	rotlwi	5, 12, 7
+	xor	3, 3, 5
+	add	7, 7, 3
+	xor	3, 0, 4
+	and	3, 3, 12
+	xor	3, 3, 4
+	add	7, 7, 3
+	lwz	3, 20(6)
+	add	7, 7, 19
+	add	7, 7, 3
+	add	11, 11, 7
+	rotlwi	3, 8, 30
+	rotlwi	5, 8, 19
+	xor	3, 3, 5
+	rotlwi	5, 8, 10
+	xor	3, 3, 5
+	add	7, 7, 3
+	xor	5, 8, 9
+	xor	3, 9, 10
+	and	3, 3, 5
+	xor	3, 3, 9
+	add	7, 7, 3
+	# Calc new W[5]
+	rotlwi	3, 20, 25
+	rotlwi	5, 20, 14
+	xor	3, 3, 5
+	srwi	5, 20, 3
+	xor	3, 3, 5
+	add	19, 19, 3
+	rotlwi	3, 17, 15
+	rotlwi	5, 17, 13
+	xor	3, 3, 5
+	srwi	5, 17, 10
+	xor	3, 3, 5
+	add	19, 19, 3
+	add	19, 19, 28
+	# Round 6
+	rotlwi	3, 11, 26
+	rotlwi	5, 11, 21
+	xor	3, 3, 5
+	rotlwi	5, 11, 7
+	xor	3, 3, 5
+	add	4, 4, 3
+	xor	3, 12, 0
+	and	3, 3, 11
+	xor	3, 3, 0
+	add	4, 4, 3
+	lwz	3, 24(6)
+	add	4, 4, 20
+	add	4, 4, 3
+	add	10, 10, 4
+	rotlwi	3, 7, 30
+	rotlwi	5, 7, 19
+	xor	3, 3, 5
+	rotlwi	5, 7, 10
+	xor	3, 3, 5
+	add	4, 4, 3
+	xor	5, 7, 8
+	xor	3, 8, 9
+	and	3, 3, 5
+	xor	3, 3, 8
+	add	4, 4, 3
+	# Calc new W[6]
+	rotlwi	3, 21, 25
+	rotlwi	5, 21, 14
+	xor	3, 3, 5
+	srwi	5, 21, 3
+	xor	3, 3, 5
+	add	20, 20, 3
+	rotlwi	3, 18, 15
+	rotlwi	5, 18, 13
+	xor	3, 3, 5
+	srwi	5, 18, 10
+	xor	3, 3, 5
+	add	20, 20, 3
+	add	20, 20, 29
+	# Round 7
+	rotlwi	3, 10, 26
+	rotlwi	5, 10, 21
+	xor	3, 3, 5
+	rotlwi	5, 10, 7
+	xor	3, 3, 5
+	add	0, 0, 3
+	xor	3, 11, 12
+	and	3, 3, 10
+	xor	3, 3, 12
+	add	0, 0, 3
+	lwz	3, 28(6)
+	add	0, 0, 21
+	add	0, 0, 3
+	add	9, 9, 0
+	rotlwi	3, 4, 30
+	rotlwi	5, 4, 19
+	xor	3, 3, 5
+	rotlwi	5, 4, 10
+	xor	3, 3, 5
+	add	0, 0, 3
+	xor	5, 4, 7
+	xor	3, 7, 8
+	and	3, 3, 5
+	xor	3, 3, 7
+	add	0, 0, 3
+	# Calc new W[7]
+	rotlwi	3, 22, 25
+	rotlwi	5, 22, 14
+	xor	3, 3, 5
+	srwi	5, 22, 3
+	xor	3, 3, 5
+	add	21, 21, 3
+	rotlwi	3, 19, 15
+	rotlwi	5, 19, 13
+	xor	3, 3, 5
+	srwi	5, 19, 10
+	xor	3, 3, 5
+	add	21, 21, 3
+	add	21, 21, 14
+	# Round 8
+	rotlwi	3, 9, 26
+	rotlwi	5, 9, 21
+	xor	3, 3, 5
+	rotlwi	5, 9, 7
+	xor	3, 3, 5
+	add	12, 12, 3
+	xor	3, 10, 11
+	and	3, 3, 9
+	xor	3, 3, 11
+	add	12, 12, 3
+	lwz	3, 32(6)
+	add	12, 12, 22
+	add	12, 12, 3
+	add	8, 8, 12
+	rotlwi	3, 0, 30
+	rotlwi	5, 0, 19
+	xor	3, 3, 5
+	rotlwi	5, 0, 10
+	xor	3, 3, 5
+	add	12, 12, 3
+	xor	5, 0, 4
+	xor	3, 4, 7
+	and	3, 3, 5
+	xor	3, 3, 4
+	add	12, 12, 3
+	# Calc new W[8]
+	rotlwi	3, 23, 25
+	rotlwi	5, 23, 14
+	xor	3, 3, 5
+	srwi	5, 23, 3
+	xor	3, 3, 5
+	add	22, 22, 3
+	rotlwi	3, 20, 15
+	rotlwi	5, 20, 13
+	xor	3, 3, 5
+	srwi	5, 20, 10
+	xor	3, 3, 5
+	add	22, 22, 3
+	add	22, 22, 15
+	# Round 9
+	rotlwi	3, 8, 26
+	rotlwi	5, 8, 21
+	xor	3, 3, 5
+	rotlwi	5, 8, 7
+	xor	3, 3, 5
+	add	11, 11, 3
+	xor	3, 9, 10
+	and	3, 3, 8
+	xor	3, 3, 10
+	add	11, 11, 3
+	lwz	3, 36(6)
+	add	11, 11, 23
+	add	11, 11, 3
+	add	7, 7, 11
+	rotlwi	3, 12, 30
+	rotlwi	5, 12, 19
+	xor	3, 3, 5
+	rotlwi	5, 12, 10
+	xor	3, 3, 5
+	add	11, 11, 3
+	xor	5, 12, 0
+	xor	3, 0, 4
+	and	3, 3, 5
+	xor	3, 3, 0
+	add	11, 11, 3
+	# Calc new W[9]
+	rotlwi	3, 24, 25
+	rotlwi	5, 24, 14
+	xor	3, 3, 5
+	srwi	5, 24, 3
+	xor	3, 3, 5
+	add	23, 23, 3
+	rotlwi	3, 21, 15
+	rotlwi	5, 21, 13
+	xor	3, 3, 5
+	srwi	5, 21, 10
+	xor	3, 3, 5
+	add	23, 23, 3
+	add	23, 23, 16
+	# Round 10
+	rotlwi	3, 7, 26
+	rotlwi	5, 7, 21
+	xor	3, 3, 5
+	rotlwi	5, 7, 7
+	xor	3, 3, 5
+	add	10, 10, 3
+	xor	3, 8, 9
+	and	3, 3, 7
+	xor	3, 3, 9
+	add	10, 10, 3
+	lwz	3, 40(6)
+	add	10, 10, 24
+	add	10, 10, 3
+	add	4, 4, 10
+	rotlwi	3, 11, 30
+	rotlwi	5, 11, 19
+	xor	3, 3, 5
+	rotlwi	5, 11, 10
+	xor	3, 3, 5
+	add	10, 10, 3
+	xor	5, 11, 12
+	xor	3, 12, 0
+	and	3, 3, 5
+	xor	3, 3, 12
+	add	10, 10, 3
+	# Calc new W[10]
+	rotlwi	3, 25, 25
+	rotlwi	5, 25, 14
+	xor	3, 3, 5
+	srwi	5, 25, 3
+	xor	3, 3, 5
+	add	24, 24, 3
+	rotlwi	3, 22, 15
+	rotlwi	5, 22, 13
+	xor	3, 3, 5
+	srwi	5, 22, 10
+	xor	3, 3, 5
+	add	24, 24, 3
+	add	24, 24, 17
+	# Round 11
+	rotlwi	3, 4, 26
+	rotlwi	5, 4, 21
+	xor	3, 3, 5
+	rotlwi	5, 4, 7
+	xor	3, 3, 5
+	add	9, 9, 3
+	xor	3, 7, 8
+	and	3, 3, 4
+	xor	3, 3, 8
+	add	9, 9, 3
+	lwz	3, 44(6)
+	add	9, 9, 25
+	add	9, 9, 3
+	add	0, 0, 9
+	rotlwi	3, 10, 30
+	rotlwi	5, 10, 19
+	xor	3, 3, 5
+	rotlwi	5, 10, 10
+	xor	3, 3, 5
+	add	9, 9, 3
+	xor	5, 10, 11
+	xor	3, 11, 12
+	and	3, 3, 5
+	xor	3, 3, 11
+	add	9, 9, 3
+	# Calc new W[11]
+	rotlwi	3, 26, 25
+	rotlwi	5, 26, 14
+	xor	3, 3, 5
+	srwi	5, 26, 3
+	xor	3, 3, 5
+	add	25, 25, 3
+	rotlwi	3, 23, 15
+	rotlwi	5, 23, 13
+	xor	3, 3, 5
+	srwi	5, 23, 10
+	xor	3, 3, 5
+	add	25, 25, 3
+	add	25, 25, 18
+	# Round 12
+	rotlwi	3, 0, 26
+	rotlwi	5, 0, 21
+	xor	3, 3, 5
+	rotlwi	5, 0, 7
+	xor	3, 3, 5
+	add	8, 8, 3
+	xor	3, 4, 7
+	and	3, 3, 0
+	xor	3, 3, 7
+	add	8, 8, 3
+	lwz	3, 48(6)
+	add	8, 8, 26
+	add	8, 8, 3
+	add	12, 12, 8
+	rotlwi	3, 9, 30
+	rotlwi	5, 9, 19
+	xor	3, 3, 5
+	rotlwi	5, 9, 10
+	xor	3, 3, 5
+	add	8, 8, 3
+	xor	5, 9, 10
+	xor	3, 10, 11
+	and	3, 3, 5
+	xor	3, 3, 10
+	add	8, 8, 3
+	# Calc new W[12]
+	rotlwi	3, 27, 25
+	rotlwi	5, 27, 14
+	xor	3, 3, 5
+	srwi	5, 27, 3
+	xor	3, 3, 5
+	add	26, 26, 3
+	rotlwi	3, 24, 15
+	rotlwi	5, 24, 13
+	xor	3, 3, 5
+	srwi	5, 24, 10
+	xor	3, 3, 5
+	add	26, 26, 3
+	add	26, 26, 19
+	# Round 13
+	rotlwi	3, 12, 26
+	rotlwi	5, 12, 21
+	xor	3, 3, 5
+	rotlwi	5, 12, 7
+	xor	3, 3, 5
+	add	7, 7, 3
+	xor	3, 0, 4
+	and	3, 3, 12
+	xor	3, 3, 4
+	add	7, 7, 3
+	lwz	3, 52(6)
+	add	7, 7, 27
+	add	7, 7, 3
+	add	11, 11, 7
+	rotlwi	3, 8, 30
+	rotlwi	5, 8, 19
+	xor	3, 3, 5
+	rotlwi	5, 8, 10
+	xor	3, 3, 5
+	add	7, 7, 3
+	xor	5, 8, 9
+	xor	3, 9, 10
+	and	3, 3, 5
+	xor	3, 3, 9
+	add	7, 7, 3
+	# Calc new W[13]
+	rotlwi	3, 28, 25
+	rotlwi	5, 28, 14
+	xor	3, 3, 5
+	srwi	5, 28, 3
+	xor	3, 3, 5
+	add	27, 27, 3
+	rotlwi	3, 25, 15
+	rotlwi	5, 25, 13
+	xor	3, 3, 5
+	srwi	5, 25, 10
+	xor	3, 3, 5
+	add	27, 27, 3
+	add	27, 27, 20
+	# Round 14
+	rotlwi	3, 11, 26
+	rotlwi	5, 11, 21
+	xor	3, 3, 5
+	rotlwi	5, 11, 7
+	xor	3, 3, 5
+	add	4, 4, 3
+	xor	3, 12, 0
+	and	3, 3, 11
+	xor	3, 3, 0
+	add	4, 4, 3
+	lwz	3, 56(6)
+	add	4, 4, 28
+	add	4, 4, 3
+	add	10, 10, 4
+	rotlwi	3, 7, 30
+	rotlwi	5, 7, 19
+	xor	3, 3, 5
+	rotlwi	5, 7, 10
+	xor	3, 3, 5
+	add	4, 4, 3
+	xor	5, 7, 8
+	xor	3, 8, 9
+	and	3, 3, 5
+	xor	3, 3, 8
+	add	4, 4, 3
+	# Calc new W[14]
+	rotlwi	3, 29, 25
+	rotlwi	5, 29, 14
+	xor	3, 3, 5
+	srwi	5, 29, 3
+	xor	3, 3, 5
+	add	28, 28, 3
+	rotlwi	3, 26, 15
+	rotlwi	5, 26, 13
+	xor	3, 3, 5
+	srwi	5, 26, 10
+	xor	3, 3, 5
+	add	28, 28, 3
+	add	28, 28, 21
+	# Round 15
+	rotlwi	3, 10, 26
+	rotlwi	5, 10, 21
+	xor	3, 3, 5
+	rotlwi	5, 10, 7
+	xor	3, 3, 5
+	add	0, 0, 3
+	xor	3, 11, 12
+	and	3, 3, 10
+	xor	3, 3, 12
+	add	0, 0, 3
+	lwz	3, 60(6)
+	add	0, 0, 29
+	add	0, 0, 3
+	add	9, 9, 0
+	rotlwi	3, 4, 30
+	rotlwi	5, 4, 19
+	xor	3, 3, 5
+	rotlwi	5, 4, 10
+	xor	3, 3, 5
+	add	0, 0, 3
+	xor	5, 4, 7
+	xor	3, 7, 8
+	and	3, 3, 5
+	xor	3, 3, 7
+	add	0, 0, 3
+	# Calc new W[15]
+	rotlwi	3, 14, 25
+	rotlwi	5, 14, 14
+	xor	3, 3, 5
+	srwi	5, 14, 3
+	xor	3, 3, 5
+	add	29, 29, 3
+	rotlwi	3, 27, 15
+	rotlwi	5, 27, 13
+	xor	3, 3, 5
+	srwi	5, 27, 10
+	xor	3, 3, 5
+	add	29, 29, 3
+	add	29, 29, 22
+	addi	6, 6, 0x40
+	# Round 0
+	rotlwi	3, 9, 26
+	rotlwi	5, 9, 21
+	xor	3, 3, 5
+	rotlwi	5, 9, 7
+	xor	3, 3, 5
+	add	12, 12, 3
+	xor	3, 10, 11
+	and	3, 3, 9
+	xor	3, 3, 11
+	add	12, 12, 3
+	lwz	3, 0(6)
+	add	12, 12, 14
+	add	12, 12, 3
+	add	8, 8, 12
+	rotlwi	3, 0, 30
+	rotlwi	5, 0, 19
+	xor	3, 3, 5
+	rotlwi	5, 0, 10
+	xor	3, 3, 5
+	add	12, 12, 3
+	xor	5, 0, 4
+	xor	3, 4, 7
+	and	3, 3, 5
+	xor	3, 3, 4
+	add	12, 12, 3
+	# Round 1
+	rotlwi	3, 8, 26
+	rotlwi	5, 8, 21
+	xor	3, 3, 5
+	rotlwi	5, 8, 7
+	xor	3, 3, 5
+	add	11, 11, 3
+	xor	3, 9, 10
+	and	3, 3, 8
+	xor	3, 3, 10
+	add	11, 11, 3
+	lwz	3, 4(6)
+	add	11, 11, 15
+	add	11, 11, 3
+	add	7, 7, 11
+	rotlwi	3, 12, 30
+	rotlwi	5, 12, 19
+	xor	3, 3, 5
+	rotlwi	5, 12, 10
+	xor	3, 3, 5
+	add	11, 11, 3
+	xor	5, 12, 0
+	xor	3, 0, 4
+	and	3, 3, 5
+	xor	3, 3, 0
+	add	11, 11, 3
+	# Round 2
+	rotlwi	3, 7, 26
+	rotlwi	5, 7, 21
+	xor	3, 3, 5
+	rotlwi	5, 7, 7
+	xor	3, 3, 5
+	add	10, 10, 3
+	xor	3, 8, 9
+	and	3, 3, 7
+	xor	3, 3, 9
+	add	10, 10, 3
+	lwz	3, 8(6)
+	add	10, 10, 16
+	add	10, 10, 3
+	add	4, 4, 10
+	rotlwi	3, 11, 30
+	rotlwi	5, 11, 19
+	xor	3, 3, 5
+	rotlwi	5, 11, 10
+	xor	3, 3, 5
+	add	10, 10, 3
+	xor	5, 11, 12
+	xor	3, 12, 0
+	and	3, 3, 5
+	xor	3, 3, 12
+	add	10, 10, 3
+	# Round 3
+	rotlwi	3, 4, 26
+	rotlwi	5, 4, 21
+	xor	3, 3, 5
+	rotlwi	5, 4, 7
+	xor	3, 3, 5
+	add	9, 9, 3
+	xor	3, 7, 8
+	and	3, 3, 4
+	xor	3, 3, 8
+	add	9, 9, 3
+	lwz	3, 12(6)
+	add	9, 9, 17
+	add	9, 9, 3
+	add	0, 0, 9
+	rotlwi	3, 10, 30
+	rotlwi	5, 10, 19
+	xor	3, 3, 5
+	rotlwi	5, 10, 10
+	xor	3, 3, 5
+	add	9, 9, 3
+	xor	5, 10, 11
+	xor	3, 11, 12
+	and	3, 3, 5
+	xor	3, 3, 11
+	add	9, 9, 3
+	# Round 4
+	rotlwi	3, 0, 26
+	rotlwi	5, 0, 21
+	xor	3, 3, 5
+	rotlwi	5, 0, 7
+	xor	3, 3, 5
+	add	8, 8, 3
+	xor	3, 4, 7
+	and	3, 3, 0
+	xor	3, 3, 7
+	add	8, 8, 3
+	lwz	3, 16(6)
+	add	8, 8, 18
+	add	8, 8, 3
+	add	12, 12, 8
+	rotlwi	3, 9, 30
+	rotlwi	5, 9, 19
+	xor	3, 3, 5
+	rotlwi	5, 9, 10
+	xor	3, 3, 5
+	add	8, 8, 3
+	xor	5, 9, 10
+	xor	3, 10, 11
+	and	3, 3, 5
+	xor	3, 3, 10
+	add	8, 8, 3
+	# Round 5
+	rotlwi	3, 12, 26
+	rotlwi	5, 12, 21
+	xor	3, 3, 5
+	rotlwi	5, 12, 7
+	xor	3, 3, 5
+	add	7, 7, 3
+	xor	3, 0, 4
+	and	3, 3, 12
+	xor	3, 3, 4
+	add	7, 7, 3
+	lwz	3, 20(6)
+	add	7, 7, 19
+	add	7, 7, 3
+	add	11, 11, 7
+	rotlwi	3, 8, 30
+	rotlwi	5, 8, 19
+	xor	3, 3, 5
+	rotlwi	5, 8, 10
+	xor	3, 3, 5
+	add	7, 7, 3
+	xor	5, 8, 9
+	xor	3, 9, 10
+	and	3, 3, 5
+	xor	3, 3, 9
+	add	7, 7, 3
+	# Round 6
+	rotlwi	3, 11, 26
+	rotlwi	5, 11, 21
+	xor	3, 3, 5
+	rotlwi	5, 11, 7
+	xor	3, 3, 5
+	add	4, 4, 3
+	xor	3, 12, 0
+	and	3, 3, 11
+	xor	3, 3, 0
+	add	4, 4, 3
+	lwz	3, 24(6)
+	add	4, 4, 20
+	add	4, 4, 3
+	add	10, 10, 4
+	rotlwi	3, 7, 30
+	rotlwi	5, 7, 19
+	xor	3, 3, 5
+	rotlwi	5, 7, 10
+	xor	3, 3, 5
+	add	4, 4, 3
+	xor	5, 7, 8
+	xor	3, 8, 9
+	and	3, 3, 5
+	xor	3, 3, 8
+	add	4, 4, 3
+	# Round 7
+	rotlwi	3, 10, 26
+	rotlwi	5, 10, 21
+	xor	3, 3, 5
+	rotlwi	5, 10, 7
+	xor	3, 3, 5
+	add	0, 0, 3
+	xor	3, 11, 12
+	and	3, 3, 10
+	xor	3, 3, 12
+	add	0, 0, 3
+	lwz	3, 28(6)
+	add	0, 0, 21
+	add	0, 0, 3
+	add	9, 9, 0
+	rotlwi	3, 4, 30
+	rotlwi	5, 4, 19
+	xor	3, 3, 5
+	rotlwi	5, 4, 10
+	xor	3, 3, 5
+	add	0, 0, 3
+	xor	5, 4, 7
+	xor	3, 7, 8
+	and	3, 3, 5
+	xor	3, 3, 7
+	add	0, 0, 3
+	# Round 8
+	rotlwi	3, 9, 26
+	rotlwi	5, 9, 21
+	xor	3, 3, 5
+	rotlwi	5, 9, 7
+	xor	3, 3, 5
+	add	12, 12, 3
+	xor	3, 10, 11
+	and	3, 3, 9
+	xor	3, 3, 11
+	add	12, 12, 3
+	lwz	3, 32(6)
+	add	12, 12, 22
+	add	12, 12, 3
+	add	8, 8, 12
+	rotlwi	3, 0, 30
+	rotlwi	5, 0, 19
+	xor	3, 3, 5
+	rotlwi	5, 0, 10
+	xor	3, 3, 5
+	add	12, 12, 3
+	xor	5, 0, 4
+	xor	3, 4, 7
+	and	3, 3, 5
+	xor	3, 3, 4
+	add	12, 12, 3
+	# Round 9
+	rotlwi	3, 8, 26
+	rotlwi	5, 8, 21
+	xor	3, 3, 5
+	rotlwi	5, 8, 7
+	xor	3, 3, 5
+	add	11, 11, 3
+	xor	3, 9, 10
+	and	3, 3, 8
+	xor	3, 3, 10
+	add	11, 11, 3
+	lwz	3, 36(6)
+	add	11, 11, 23
+	add	11, 11, 3
+	add	7, 7, 11
+	rotlwi	3, 12, 30
+	rotlwi	5, 12, 19
+	xor	3, 3, 5
+	rotlwi	5, 12, 10
+	xor	3, 3, 5
+	add	11, 11, 3
+	xor	5, 12, 0
+	xor	3, 0, 4
+	and	3, 3, 5
+	xor	3, 3, 0
+	add	11, 11, 3
+	# Round 10
+	rotlwi	3, 7, 26
+	rotlwi	5, 7, 21
+	xor	3, 3, 5
+	rotlwi	5, 7, 7
+	xor	3, 3, 5
+	add	10, 10, 3
+	xor	3, 8, 9
+	and	3, 3, 7
+	xor	3, 3, 9
+	add	10, 10, 3
+	lwz	3, 40(6)
+	add	10, 10, 24
+	add	10, 10, 3
+	add	4, 4, 10
+	rotlwi	3, 11, 30
+	rotlwi	5, 11, 19
+	xor	3, 3, 5
+	rotlwi	5, 11, 10
+	xor	3, 3, 5
+	add	10, 10, 3
+	xor	5, 11, 12
+	xor	3, 12, 0
+	and	3, 3, 5
+	xor	3, 3, 12
+	add	10, 10, 3
+	# Round 11
+	rotlwi	3, 4, 26
+	rotlwi	5, 4, 21
+	xor	3, 3, 5
+	rotlwi	5, 4, 7
+	xor	3, 3, 5
+	add	9, 9, 3
+	xor	3, 7, 8
+	and	3, 3, 4
+	xor	3, 3, 8
+	add	9, 9, 3
+	lwz	3, 44(6)
+	add	9, 9, 25
+	add	9, 9, 3
+	add	0, 0, 9
+	rotlwi	3, 10, 30
+	rotlwi	5, 10, 19
+	xor	3, 3, 5
+	rotlwi	5, 10, 10
+	xor	3, 3, 5
+	add	9, 9, 3
+	xor	5, 10, 11
+	xor	3, 11, 12
+	and	3, 3, 5
+	xor	3, 3, 11
+	add	9, 9, 3
+	# Round 12
+	rotlwi	3, 0, 26
+	rotlwi	5, 0, 21
+	xor	3, 3, 5
+	rotlwi	5, 0, 7
+	xor	3, 3, 5
+	add	8, 8, 3
+	xor	3, 4, 7
+	and	3, 3, 0
+	xor	3, 3, 7
+	add	8, 8, 3
+	lwz	3, 48(6)
+	add	8, 8, 26
+	add	8, 8, 3
+	add	12, 12, 8
+	rotlwi	3, 9, 30
+	rotlwi	5, 9, 19
+	xor	3, 3, 5
+	rotlwi	5, 9, 10
+	xor	3, 3, 5
+	add	8, 8, 3
+	xor	5, 9, 10
+	xor	3, 10, 11
+	and	3, 3, 5
+	xor	3, 3, 10
+	add	8, 8, 3
+	# Round 13
+	rotlwi	3, 12, 26
+	rotlwi	5, 12, 21
+	xor	3, 3, 5
+	rotlwi	5, 12, 7
+	xor	3, 3, 5
+	add	7, 7, 3
+	xor	3, 0, 4
+	and	3, 3, 12
+	xor	3, 3, 4
+	add	7, 7, 3
+	lwz	3, 52(6)
+	add	7, 7, 27
+	add	7, 7, 3
+	add	11, 11, 7
+	rotlwi	3, 8, 30
+	rotlwi	5, 8, 19
+	xor	3, 3, 5
+	rotlwi	5, 8, 10
+	xor	3, 3, 5
+	add	7, 7, 3
+	xor	5, 8, 9
+	xor	3, 9, 10
+	and	3, 3, 5
+	xor	3, 3, 9
+	add	7, 7, 3
+	# Round 14
+	rotlwi	3, 11, 26
+	rotlwi	5, 11, 21
+	xor	3, 3, 5
+	rotlwi	5, 11, 7
+	xor	3, 3, 5
+	add	4, 4, 3
+	xor	3, 12, 0
+	and	3, 3, 11
+	xor	3, 3, 0
+	add	4, 4, 3
+	lwz	3, 56(6)
+	add	4, 4, 28
+	add	4, 4, 3
+	add	10, 10, 4
+	rotlwi	3, 7, 30
+	rotlwi	5, 7, 19
+	xor	3, 3, 5
+	rotlwi	5, 7, 10
+	xor	3, 3, 5
+	add	4, 4, 3
+	xor	5, 7, 8
+	xor	3, 8, 9
+	and	3, 3, 5
+	xor	3, 3, 8
+	add	4, 4, 3
+	# Round 15
+	rotlwi	3, 10, 26
+	rotlwi	5, 10, 21
+	xor	3, 3, 5
+	rotlwi	5, 10, 7
+	xor	3, 3, 5
+	add	0, 0, 3
+	xor	3, 11, 12
+	and	3, 3, 10
+	xor	3, 3, 12
+	add	0, 0, 3
+	lwz	3, 60(6)
+	add	0, 0, 29
+	add	0, 0, 3
+	add	9, 9, 0
+	rotlwi	3, 4, 30
+	rotlwi	5, 4, 19
+	xor	3, 3, 5
+	rotlwi	5, 4, 10
+	xor	3, 3, 5
+	add	0, 0, 3
+	xor	5, 4, 7
+	xor	3, 7, 8
+	and	3, 3, 5
+	xor	3, 3, 7
+	add	0, 0, 3
+	subi	6, 6, 0xc0
+	lwz	3, 0(1)
+	# Add in digest from start
+	lwz	5, 0(3)
+	add	0, 0, 5
+	lwz	5, 4(3)
+	add	4, 4, 5
+	lwz	5, 8(3)
+	add	7, 7, 5
+	lwz	5, 12(3)
+	add	8, 8, 5
+	lwz	5, 16(3)
+	add	9, 9, 5
+	lwz	5, 20(3)
+	add	10, 10, 5
+	lwz	5, 24(3)
+	add	11, 11, 5
+	lwz	5, 28(3)
+	add	12, 12, 5
+	stw	0, 0(3)
+	stw	4, 4(3)
+	stw	7, 8(3)
+	stw	8, 12(3)
+	stw	9, 16(3)
+	stw	10, 20(3)
+	stw	11, 24(3)
+	stw	12, 28(3)
+	lwz	3, 4(1)
+	addi	3, 3, 0x40
+	stw	3, 4(1)
+	bdnz	L_SHA256_transform_len_begin
+	addi	1, 1, 8
+#else
+	subi	1, 1, 12
+	stw	3, 0(1)
+	stw	4, 4(1)
+	stw	5, 8(1)
+	# Copy digest to add in at end
+	lwz	0, 0(3)
+	lwz	4, 4(3)
+	lwz	7, 8(3)
+	lwz	8, 12(3)
+	lwz	9, 16(3)
+	lwz	10, 20(3)
+	lwz	11, 24(3)
+	lwz	12, 28(3)
+	lwz	3, 4(1)
+	# Start of loop processing a block
+L_SHA256_transform_len_begin:
+	# Load W - 64 bytes
+	lwz	14, 0(3)
+	lwz	15, 4(3)
+	lwz	16, 8(3)
+	lwz	17, 12(3)
+	lwz	18, 16(3)
+	lwz	19, 20(3)
+	lwz	20, 24(3)
+	lwz	21, 28(3)
+	lwz	22, 32(3)
+	lwz	23, 36(3)
+	lwz	24, 40(3)
+	lwz	25, 44(3)
+	lwz	26, 48(3)
+	lwz	27, 52(3)
+	lwz	28, 56(3)
+	lwz	29, 60(3)
+	li	3, 4
+	mtctr	3
+	# Start of 16 rounds
+L_SHA256_transform_len_start:
+	# Round 0
+	rotlwi	3, 9, 26
+	rotlwi	5, 9, 21
+	xor	3, 3, 5
+	rotlwi	5, 9, 7
+	xor	3, 3, 5
+	add	12, 12, 3
+	xor	3, 10, 11
+	and	3, 3, 9
+	xor	3, 3, 11
+	add	12, 12, 3
+	lwz	3, 0(6)
+	add	12, 12, 14
+	add	12, 12, 3
+	add	8, 8, 12
+	rotlwi	3, 0, 30
+	rotlwi	5, 0, 19
+	xor	3, 3, 5
+	rotlwi	5, 0, 10
+	xor	3, 3, 5
+	add	12, 12, 3
+	xor	5, 0, 4
+	xor	3, 4, 7
+	and	3, 3, 5
+	xor	3, 3, 4
+	add	12, 12, 3
+	mfctr	5
+	cmpwi	3, 5, 1
+	beq	3, L_SHA256_transform_len_after_blk_0
+	# Calc new W[0]
+	rotlwi	3, 15, 25
+	rotlwi	5, 15, 14
+	xor	3, 3, 5
+	srwi	5, 15, 3
+	xor	3, 3, 5
+	add	14, 14, 3
+	rotlwi	3, 28, 15
+	rotlwi	5, 28, 13
+	xor	3, 3, 5
+	srwi	5, 28, 10
+	xor	3, 3, 5
+	add	14, 14, 3
+	add	14, 14, 23
+L_SHA256_transform_len_after_blk_0:
+	# Round 1
+	rotlwi	3, 8, 26
+	rotlwi	5, 8, 21
+	xor	3, 3, 5
+	rotlwi	5, 8, 7
+	xor	3, 3, 5
+	add	11, 11, 3
+	xor	3, 9, 10
+	and	3, 3, 8
+	xor	3, 3, 10
+	add	11, 11, 3
+	lwz	3, 4(6)
+	add	11, 11, 15
+	add	11, 11, 3
+	add	7, 7, 11
+	rotlwi	3, 12, 30
+	rotlwi	5, 12, 19
+	xor	3, 3, 5
+	rotlwi	5, 12, 10
+	xor	3, 3, 5
+	add	11, 11, 3
+	xor	5, 12, 0
+	xor	3, 0, 4
+	and	3, 3, 5
+	xor	3, 3, 0
+	add	11, 11, 3
+	mfctr	5
+	cmpwi	3, 5, 1
+	beq	3, L_SHA256_transform_len_after_blk_1
+	# Calc new W[1]
+	rotlwi	3, 16, 25
+	rotlwi	5, 16, 14
+	xor	3, 3, 5
+	srwi	5, 16, 3
+	xor	3, 3, 5
+	add	15, 15, 3
+	rotlwi	3, 29, 15
+	rotlwi	5, 29, 13
+	xor	3, 3, 5
+	srwi	5, 29, 10
+	xor	3, 3, 5
+	add	15, 15, 3
+	add	15, 15, 24
+L_SHA256_transform_len_after_blk_1:
+	# Round 2
+	rotlwi	3, 7, 26
+	rotlwi	5, 7, 21
+	xor	3, 3, 5
+	rotlwi	5, 7, 7
+	xor	3, 3, 5
+	add	10, 10, 3
+	xor	3, 8, 9
+	and	3, 3, 7
+	xor	3, 3, 9
+	add	10, 10, 3
+	lwz	3, 8(6)
+	add	10, 10, 16
+	add	10, 10, 3
+	add	4, 4, 10
+	rotlwi	3, 11, 30
+	rotlwi	5, 11, 19
+	xor	3, 3, 5
+	rotlwi	5, 11, 10
+	xor	3, 3, 5
+	add	10, 10, 3
+	xor	5, 11, 12
+	xor	3, 12, 0
+	and	3, 3, 5
+	xor	3, 3, 12
+	add	10, 10, 3
+	mfctr	5
+	cmpwi	3, 5, 1
+	beq	3, L_SHA256_transform_len_after_blk_2
+	# Calc new W[2]
+	rotlwi	3, 17, 25
+	rotlwi	5, 17, 14
+	xor	3, 3, 5
+	srwi	5, 17, 3
+	xor	3, 3, 5
+	add	16, 16, 3
+	rotlwi	3, 14, 15
+	rotlwi	5, 14, 13
+	xor	3, 3, 5
+	srwi	5, 14, 10
+	xor	3, 3, 5
+	add	16, 16, 3
+	add	16, 16, 25
+L_SHA256_transform_len_after_blk_2:
+	# Round 3
+	rotlwi	3, 4, 26
+	rotlwi	5, 4, 21
+	xor	3, 3, 5
+	rotlwi	5, 4, 7
+	xor	3, 3, 5
+	add	9, 9, 3
+	xor	3, 7, 8
+	and	3, 3, 4
+	xor	3, 3, 8
+	add	9, 9, 3
+	lwz	3, 12(6)
+	add	9, 9, 17
+	add	9, 9, 3
+	add	0, 0, 9
+	rotlwi	3, 10, 30
+	rotlwi	5, 10, 19
+	xor	3, 3, 5
+	rotlwi	5, 10, 10
+	xor	3, 3, 5
+	add	9, 9, 3
+	xor	5, 10, 11
+	xor	3, 11, 12
+	and	3, 3, 5
+	xor	3, 3, 11
+	add	9, 9, 3
+	mfctr	5
+	cmpwi	3, 5, 1
+	beq	3, L_SHA256_transform_len_after_blk_3
+	# Calc new W[3]
+	rotlwi	3, 18, 25
+	rotlwi	5, 18, 14
+	xor	3, 3, 5
+	srwi	5, 18, 3
+	xor	3, 3, 5
+	add	17, 17, 3
+	rotlwi	3, 15, 15
+	rotlwi	5, 15, 13
+	xor	3, 3, 5
+	srwi	5, 15, 10
+	xor	3, 3, 5
+	add	17, 17, 3
+	add	17, 17, 26
+L_SHA256_transform_len_after_blk_3:
+	# Round 4
+	rotlwi	3, 0, 26
+	rotlwi	5, 0, 21
+	xor	3, 3, 5
+	rotlwi	5, 0, 7
+	xor	3, 3, 5
+	add	8, 8, 3
+	xor	3, 4, 7
+	and	3, 3, 0
+	xor	3, 3, 7
+	add	8, 8, 3
+	lwz	3, 16(6)
+	add	8, 8, 18
+	add	8, 8, 3
+	add	12, 12, 8
+	rotlwi	3, 9, 30
+	rotlwi	5, 9, 19
+	xor	3, 3, 5
+	rotlwi	5, 9, 10
+	xor	3, 3, 5
+	add	8, 8, 3
+	xor	5, 9, 10
+	xor	3, 10, 11
+	and	3, 3, 5
+	xor	3, 3, 10
+	add	8, 8, 3
+	mfctr	5
+	cmpwi	3, 5, 1
+	beq	3, L_SHA256_transform_len_after_blk_4
+	# Calc new W[4]
+	rotlwi	3, 19, 25
+	rotlwi	5, 19, 14
+	xor	3, 3, 5
+	srwi	5, 19, 3
+	xor	3, 3, 5
+	add	18, 18, 3
+	rotlwi	3, 16, 15
+	rotlwi	5, 16, 13
+	xor	3, 3, 5
+	srwi	5, 16, 10
+	xor	3, 3, 5
+	add	18, 18, 3
+	add	18, 18, 27
+L_SHA256_transform_len_after_blk_4:
+	# Round 5
+	rotlwi	3, 12, 26
+	rotlwi	5, 12, 21
+	xor	3, 3, 5
+	rotlwi	5, 12, 7
+	xor	3, 3, 5
+	add	7, 7, 3
+	xor	3, 0, 4
+	and	3, 3, 12
+	xor	3, 3, 4
+	add	7, 7, 3
+	lwz	3, 20(6)
+	add	7, 7, 19
+	add	7, 7, 3
+	add	11, 11, 7
+	rotlwi	3, 8, 30
+	rotlwi	5, 8, 19
+	xor	3, 3, 5
+	rotlwi	5, 8, 10
+	xor	3, 3, 5
+	add	7, 7, 3
+	xor	5, 8, 9
+	xor	3, 9, 10
+	and	3, 3, 5
+	xor	3, 3, 9
+	add	7, 7, 3
+	mfctr	5
+	cmpwi	3, 5, 1
+	beq	3, L_SHA256_transform_len_after_blk_5
+	# Calc new W[5]
+	rotlwi	3, 20, 25
+	rotlwi	5, 20, 14
+	xor	3, 3, 5
+	srwi	5, 20, 3
+	xor	3, 3, 5
+	add	19, 19, 3
+	rotlwi	3, 17, 15
+	rotlwi	5, 17, 13
+	xor	3, 3, 5
+	srwi	5, 17, 10
+	xor	3, 3, 5
+	add	19, 19, 3
+	add	19, 19, 28
+L_SHA256_transform_len_after_blk_5:
+	# Round 6
+	rotlwi	3, 11, 26
+	rotlwi	5, 11, 21
+	xor	3, 3, 5
+	rotlwi	5, 11, 7
+	xor	3, 3, 5
+	add	4, 4, 3
+	xor	3, 12, 0
+	and	3, 3, 11
+	xor	3, 3, 0
+	add	4, 4, 3
+	lwz	3, 24(6)
+	add	4, 4, 20
+	add	4, 4, 3
+	add	10, 10, 4
+	rotlwi	3, 7, 30
+	rotlwi	5, 7, 19
+	xor	3, 3, 5
+	rotlwi	5, 7, 10
+	xor	3, 3, 5
+	add	4, 4, 3
+	xor	5, 7, 8
+	xor	3, 8, 9
+	and	3, 3, 5
+	xor	3, 3, 8
+	add	4, 4, 3
+	mfctr	5
+	cmpwi	3, 5, 1
+	beq	3, L_SHA256_transform_len_after_blk_6
+	# Calc new W[6]
+	rotlwi	3, 21, 25
+	rotlwi	5, 21, 14
+	xor	3, 3, 5
+	srwi	5, 21, 3
+	xor	3, 3, 5
+	add	20, 20, 3
+	rotlwi	3, 18, 15
+	rotlwi	5, 18, 13
+	xor	3, 3, 5
+	srwi	5, 18, 10
+	xor	3, 3, 5
+	add	20, 20, 3
+	add	20, 20, 29
+L_SHA256_transform_len_after_blk_6:
+	# Round 7
+	rotlwi	3, 10, 26
+	rotlwi	5, 10, 21
+	xor	3, 3, 5
+	rotlwi	5, 10, 7
+	xor	3, 3, 5
+	add	0, 0, 3
+	xor	3, 11, 12
+	and	3, 3, 10
+	xor	3, 3, 12
+	add	0, 0, 3
+	lwz	3, 28(6)
+	add	0, 0, 21
+	add	0, 0, 3
+	add	9, 9, 0
+	rotlwi	3, 4, 30
+	rotlwi	5, 4, 19
+	xor	3, 3, 5
+	rotlwi	5, 4, 10
+	xor	3, 3, 5
+	add	0, 0, 3
+	xor	5, 4, 7
+	xor	3, 7, 8
+	and	3, 3, 5
+	xor	3, 3, 7
+	add	0, 0, 3
+	mfctr	5
+	cmpwi	3, 5, 1
+	beq	3, L_SHA256_transform_len_after_blk_7
+	# Calc new W[7]
+	rotlwi	3, 22, 25
+	rotlwi	5, 22, 14
+	xor	3, 3, 5
+	srwi	5, 22, 3
+	xor	3, 3, 5
+	add	21, 21, 3
+	rotlwi	3, 19, 15
+	rotlwi	5, 19, 13
+	xor	3, 3, 5
+	srwi	5, 19, 10
+	xor	3, 3, 5
+	add	21, 21, 3
+	add	21, 21, 14
+L_SHA256_transform_len_after_blk_7:
+	# Round 8
+	rotlwi	3, 9, 26
+	rotlwi	5, 9, 21
+	xor	3, 3, 5
+	rotlwi	5, 9, 7
+	xor	3, 3, 5
+	add	12, 12, 3
+	xor	3, 10, 11
+	and	3, 3, 9
+	xor	3, 3, 11
+	add	12, 12, 3
+	lwz	3, 32(6)
+	add	12, 12, 22
+	add	12, 12, 3
+	add	8, 8, 12
+	rotlwi	3, 0, 30
+	rotlwi	5, 0, 19
+	xor	3, 3, 5
+	rotlwi	5, 0, 10
+	xor	3, 3, 5
+	add	12, 12, 3
+	xor	5, 0, 4
+	xor	3, 4, 7
+	and	3, 3, 5
+	xor	3, 3, 4
+	add	12, 12, 3
+	mfctr	5
+	cmpwi	3, 5, 1
+	beq	3, L_SHA256_transform_len_after_blk_8
+	# Calc new W[8]
+	rotlwi	3, 23, 25
+	rotlwi	5, 23, 14
+	xor	3, 3, 5
+	srwi	5, 23, 3
+	xor	3, 3, 5
+	add	22, 22, 3
+	rotlwi	3, 20, 15
+	rotlwi	5, 20, 13
+	xor	3, 3, 5
+	srwi	5, 20, 10
+	xor	3, 3, 5
+	add	22, 22, 3
+	add	22, 22, 15
+L_SHA256_transform_len_after_blk_8:
+	# Round 9
+	rotlwi	3, 8, 26
+	rotlwi	5, 8, 21
+	xor	3, 3, 5
+	rotlwi	5, 8, 7
+	xor	3, 3, 5
+	add	11, 11, 3
+	xor	3, 9, 10
+	and	3, 3, 8
+	xor	3, 3, 10
+	add	11, 11, 3
+	lwz	3, 36(6)
+	add	11, 11, 23
+	add	11, 11, 3
+	add	7, 7, 11
+	rotlwi	3, 12, 30
+	rotlwi	5, 12, 19
+	xor	3, 3, 5
+	rotlwi	5, 12, 10
+	xor	3, 3, 5
+	add	11, 11, 3
+	xor	5, 12, 0
+	xor	3, 0, 4
+	and	3, 3, 5
+	xor	3, 3, 0
+	add	11, 11, 3
+	mfctr	5
+	cmpwi	3, 5, 1
+	beq	3, L_SHA256_transform_len_after_blk_9
+	# Calc new W[9]
+	rotlwi	3, 24, 25
+	rotlwi	5, 24, 14
+	xor	3, 3, 5
+	srwi	5, 24, 3
+	xor	3, 3, 5
+	add	23, 23, 3
+	rotlwi	3, 21, 15
+	rotlwi	5, 21, 13
+	xor	3, 3, 5
+	srwi	5, 21, 10
+	xor	3, 3, 5
+	add	23, 23, 3
+	add	23, 23, 16
+L_SHA256_transform_len_after_blk_9:
+	# Round 10
+	rotlwi	3, 7, 26
+	rotlwi	5, 7, 21
+	xor	3, 3, 5
+	rotlwi	5, 7, 7
+	xor	3, 3, 5
+	add	10, 10, 3
+	xor	3, 8, 9
+	and	3, 3, 7
+	xor	3, 3, 9
+	add	10, 10, 3
+	lwz	3, 40(6)
+	add	10, 10, 24
+	add	10, 10, 3
+	add	4, 4, 10
+	rotlwi	3, 11, 30
+	rotlwi	5, 11, 19
+	xor	3, 3, 5
+	rotlwi	5, 11, 10
+	xor	3, 3, 5
+	add	10, 10, 3
+	xor	5, 11, 12
+	xor	3, 12, 0
+	and	3, 3, 5
+	xor	3, 3, 12
+	add	10, 10, 3
+	mfctr	5
+	cmpwi	3, 5, 1
+	beq	3, L_SHA256_transform_len_after_blk_10
+	# Calc new W[10]
+	rotlwi	3, 25, 25
+	rotlwi	5, 25, 14
+	xor	3, 3, 5
+	srwi	5, 25, 3
+	xor	3, 3, 5
+	add	24, 24, 3
+	rotlwi	3, 22, 15
+	rotlwi	5, 22, 13
+	xor	3, 3, 5
+	srwi	5, 22, 10
+	xor	3, 3, 5
+	add	24, 24, 3
+	add	24, 24, 17
+L_SHA256_transform_len_after_blk_10:
+	# Round 11
+	rotlwi	3, 4, 26
+	rotlwi	5, 4, 21
+	xor	3, 3, 5
+	rotlwi	5, 4, 7
+	xor	3, 3, 5
+	add	9, 9, 3
+	xor	3, 7, 8
+	and	3, 3, 4
+	xor	3, 3, 8
+	add	9, 9, 3
+	lwz	3, 44(6)
+	add	9, 9, 25
+	add	9, 9, 3
+	add	0, 0, 9
+	rotlwi	3, 10, 30
+	rotlwi	5, 10, 19
+	xor	3, 3, 5
+	rotlwi	5, 10, 10
+	xor	3, 3, 5
+	add	9, 9, 3
+	xor	5, 10, 11
+	xor	3, 11, 12
+	and	3, 3, 5
+	xor	3, 3, 11
+	add	9, 9, 3
+	mfctr	5
+	cmpwi	3, 5, 1
+	beq	3, L_SHA256_transform_len_after_blk_11
+	# Calc new W[11]
+	rotlwi	3, 26, 25
+	rotlwi	5, 26, 14
+	xor	3, 3, 5
+	srwi	5, 26, 3
+	xor	3, 3, 5
+	add	25, 25, 3
+	rotlwi	3, 23, 15
+	rotlwi	5, 23, 13
+	xor	3, 3, 5
+	srwi	5, 23, 10
+	xor	3, 3, 5
+	add	25, 25, 3
+	add	25, 25, 18
+L_SHA256_transform_len_after_blk_11:
+	# Round 12
+	rotlwi	3, 0, 26
+	rotlwi	5, 0, 21
+	xor	3, 3, 5
+	rotlwi	5, 0, 7
+	xor	3, 3, 5
+	add	8, 8, 3
+	xor	3, 4, 7
+	and	3, 3, 0
+	xor	3, 3, 7
+	add	8, 8, 3
+	lwz	3, 48(6)
+	add	8, 8, 26
+	add	8, 8, 3
+	add	12, 12, 8
+	rotlwi	3, 9, 30
+	rotlwi	5, 9, 19
+	xor	3, 3, 5
+	rotlwi	5, 9, 10
+	xor	3, 3, 5
+	add	8, 8, 3
+	xor	5, 9, 10
+	xor	3, 10, 11
+	and	3, 3, 5
+	xor	3, 3, 10
+	add	8, 8, 3
+	mfctr	5
+	cmpwi	3, 5, 1
+	beq	3, L_SHA256_transform_len_after_blk_12
+	# Calc new W[12]
+	rotlwi	3, 27, 25
+	rotlwi	5, 27, 14
+	xor	3, 3, 5
+	srwi	5, 27, 3
+	xor	3, 3, 5
+	add	26, 26, 3
+	rotlwi	3, 24, 15
+	rotlwi	5, 24, 13
+	xor	3, 3, 5
+	srwi	5, 24, 10
+	xor	3, 3, 5
+	add	26, 26, 3
+	add	26, 26, 19
+L_SHA256_transform_len_after_blk_12:
+	# Round 13
+	rotlwi	3, 12, 26
+	rotlwi	5, 12, 21
+	xor	3, 3, 5
+	rotlwi	5, 12, 7
+	xor	3, 3, 5
+	add	7, 7, 3
+	xor	3, 0, 4
+	and	3, 3, 12
+	xor	3, 3, 4
+	add	7, 7, 3
+	lwz	3, 52(6)
+	add	7, 7, 27
+	add	7, 7, 3
+	add	11, 11, 7
+	rotlwi	3, 8, 30
+	rotlwi	5, 8, 19
+	xor	3, 3, 5
+	rotlwi	5, 8, 10
+	xor	3, 3, 5
+	add	7, 7, 3
+	xor	5, 8, 9
+	xor	3, 9, 10
+	and	3, 3, 5
+	xor	3, 3, 9
+	add	7, 7, 3
+	mfctr	5
+	cmpwi	3, 5, 1
+	beq	3, L_SHA256_transform_len_after_blk_13
+	# Calc new W[13]
+	rotlwi	3, 28, 25
+	rotlwi	5, 28, 14
+	xor	3, 3, 5
+	srwi	5, 28, 3
+	xor	3, 3, 5
+	add	27, 27, 3
+	rotlwi	3, 25, 15
+	rotlwi	5, 25, 13
+	xor	3, 3, 5
+	srwi	5, 25, 10
+	xor	3, 3, 5
+	add	27, 27, 3
+	add	27, 27, 20
+L_SHA256_transform_len_after_blk_13:
+	# Round 14
+	rotlwi	3, 11, 26
+	rotlwi	5, 11, 21
+	xor	3, 3, 5
+	rotlwi	5, 11, 7
+	xor	3, 3, 5
+	add	4, 4, 3
+	xor	3, 12, 0
+	and	3, 3, 11
+	xor	3, 3, 0
+	add	4, 4, 3
+	lwz	3, 56(6)
+	add	4, 4, 28
+	add	4, 4, 3
+	add	10, 10, 4
+	rotlwi	3, 7, 30
+	rotlwi	5, 7, 19
+	xor	3, 3, 5
+	rotlwi	5, 7, 10
+	xor	3, 3, 5
+	add	4, 4, 3
+	xor	5, 7, 8
+	xor	3, 8, 9
+	and	3, 3, 5
+	xor	3, 3, 8
+	add	4, 4, 3
+	mfctr	5
+	cmpwi	3, 5, 1
+	beq	3, L_SHA256_transform_len_after_blk_14
+	# Calc new W[14]
+	rotlwi	3, 29, 25
+	rotlwi	5, 29, 14
+	xor	3, 3, 5
+	srwi	5, 29, 3
+	xor	3, 3, 5
+	add	28, 28, 3
+	rotlwi	3, 26, 15
+	rotlwi	5, 26, 13
+	xor	3, 3, 5
+	srwi	5, 26, 10
+	xor	3, 3, 5
+	add	28, 28, 3
+	add	28, 28, 21
+L_SHA256_transform_len_after_blk_14:
+	# Round 15
+	rotlwi	3, 10, 26
+	rotlwi	5, 10, 21
+	xor	3, 3, 5
+	rotlwi	5, 10, 7
+	xor	3, 3, 5
+	add	0, 0, 3
+	xor	3, 11, 12
+	and	3, 3, 10
+	xor	3, 3, 12
+	add	0, 0, 3
+	lwz	3, 60(6)
+	add	0, 0, 29
+	add	0, 0, 3
+	add	9, 9, 0
+	rotlwi	3, 4, 30
+	rotlwi	5, 4, 19
+	xor	3, 3, 5
+	rotlwi	5, 4, 10
+	xor	3, 3, 5
+	add	0, 0, 3
+	xor	5, 4, 7
+	xor	3, 7, 8
+	and	3, 3, 5
+	xor	3, 3, 7
+	add	0, 0, 3
+	mfctr	5
+	cmpwi	3, 5, 1
+	beq	3, L_SHA256_transform_len_after_blk_15
+	# Calc new W[15]
+	rotlwi	3, 14, 25
+	rotlwi	5, 14, 14
+	xor	3, 3, 5
+	srwi	5, 14, 3
+	xor	3, 3, 5
+	add	29, 29, 3
+	rotlwi	3, 27, 15
+	rotlwi	5, 27, 13
+	xor	3, 3, 5
+	srwi	5, 27, 10
+	xor	3, 3, 5
+	add	29, 29, 3
+	add	29, 29, 22
+L_SHA256_transform_len_after_blk_15:
+	addi	6, 6, 0x40
+	bdnz	L_SHA256_transform_len_start
+	subi	6, 6, 0x100
+	lwz	3, 0(1)
+	# Add in digest from start
+	lwz	5, 0(3)
+	add	0, 0, 5
+	lwz	5, 4(3)
+	add	4, 4, 5
+	lwz	5, 8(3)
+	add	7, 7, 5
+	lwz	5, 12(3)
+	add	8, 8, 5
+	lwz	5, 16(3)
+	add	9, 9, 5
+	lwz	5, 20(3)
+	add	10, 10, 5
+	lwz	5, 24(3)
+	add	11, 11, 5
+	lwz	5, 28(3)
+	add	12, 12, 5
+	stw	0, 0(3)
+	stw	4, 4(3)
+	stw	7, 8(3)
+	stw	8, 12(3)
+	stw	9, 16(3)
+	stw	10, 20(3)
+	stw	11, 24(3)
+	stw	12, 28(3)
+	lwz	3, 4(1)
+	lwz	5, 8(1)
+	mtctr	5
+	subi	5, 5, 1
+	addi	3, 3, 0x40
+	stw	3, 4(1)
+	stw	5, 8(1)
+	bdnz	L_SHA256_transform_len_begin
+	addi	1, 1, 12
+#endif /* WOLFSSL_PPC32_ASM_SMALL */
+	lwz	0, 64(1)
+	mtlr	0
+	lwz	14, 0(1)
+	lwz	15, 4(1)
+	lwz	16, 8(1)
+	lwz	17, 12(1)
+	lwz	18, 16(1)
+	lwz	19, 20(1)
+	lwz	20, 24(1)
+	lwz	21, 28(1)
+	lwz	22, 32(1)
+	lwz	23, 36(1)
+	lwz	24, 40(1)
+	lwz	25, 44(1)
+	lwz	26, 48(1)
+	lwz	27, 52(1)
+	lwz	28, 56(1)
+	lwz	29, 60(1)
+	addi	1, 1, 0x44
+	blr
+	.size	Transform_Sha256_Len,.-Transform_Sha256_Len
+#endif /* __PIC__ */
 #endif /* !WOLFSSL_PPC32_ASM_SPE */
 #endif /* !NO_SHA256 */
 

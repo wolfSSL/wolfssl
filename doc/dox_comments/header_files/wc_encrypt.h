@@ -210,3 +210,124 @@ int  wc_Des3_CbcEncryptWithKey(byte* out,
 int  wc_Des3_CbcDecryptWithKey(byte* out,
                                            const byte* in, word32 sz,
                                            const byte* key, const byte* iv);
+
+/*!
+    \ingroup AES
+    \brief This function encrypts a plaintext message and stores the
+    result in the output buffer. It uses AES encryption with cipher
+    block chaining (CBC) mode. This function does not require an AES
+    structure to be initialized. Instead, it takes in a key and an iv
+    and uses these to encrypt the message.
+
+    \return 0 On successfully encrypting the message
+    \return BAD_ALIGN_E Returned on block align error
+    \return BAD_FUNC_ARG Returned if key length is invalid
+    \return MEMORY_E Returned if WOLFSSL_SMALL_STACK is enabled and
+    XMALLOC fails to instantiate an AES object
+
+    \param out pointer to the output buffer in which to store the
+    ciphertext of the encrypted message
+    \param in pointer to the input buffer containing plaintext to
+    encrypt
+    \param inSz size of input message
+    \param key 16, 24, or 32 byte secret key for encryption
+    \param keySz size of key used for encryption
+    \param iv pointer to the 16 byte initialization vector to use
+
+    _Example_
+    \code
+    byte key[]; // 16, 24, or 32 byte key
+    byte iv[]; // 16 byte iv
+    byte plain[]; // plaintext to encrypt
+    byte cipher[sizeof(plain)];
+
+    int ret = wc_AesCbcEncryptWithKey(cipher, plain, sizeof(plain),
+                                      key, sizeof(key), iv);
+    if (ret != 0) {
+        // encryption error
+    }
+    \endcode
+
+    \sa wc_AesCbcDecryptWithKey
+    \sa wc_AesSetKey
+    \sa wc_AesCbcEncrypt
+*/
+int wc_AesCbcEncryptWithKey(byte* out, const byte* in, word32 inSz,
+                            const byte* key, word32 keySz,
+                            const byte* iv);
+
+/*!
+    \ingroup Crypto
+    \brief This function decrypts an encrypted key buffer using the
+    provided password. It supports various encryption algorithms
+    including DES, 3DES, and AES. The encryption information is
+    provided in the EncryptedInfo structure.
+
+    \return Length of decrypted key on success
+    \return Negative value on error
+
+    \param info pointer to EncryptedInfo structure containing encryption
+    algorithm and parameters
+    \param der pointer to the encrypted key buffer
+    \param derSz size of the encrypted key buffer
+    \param password pointer to the password buffer
+    \param passwordSz size of the password
+    \param hashType hash algorithm to use for key derivation
+
+    _Example_
+    \code
+    EncryptedInfo info;
+    byte encryptedKey[]; // encrypted key data
+    byte password[] = "mypassword";
+
+    int ret = wc_BufferKeyDecrypt(&info, encryptedKey,
+                                  sizeof(encryptedKey), password,
+                                  sizeof(password)-1, WC_SHA256);
+    if (ret < 0) {
+        // decryption error
+    }
+    \endcode
+
+    \sa wc_BufferKeyEncrypt
+*/
+int wc_BufferKeyDecrypt(struct EncryptedInfo* info, byte* der,
+                        word32 derSz, const byte* password,
+                        int passwordSz, int hashType);
+
+/*!
+    \ingroup Crypto
+    \brief This function encrypts a key buffer using the provided
+    password. It supports various encryption algorithms including DES,
+    3DES, and AES. The encryption information is provided in the
+    EncryptedInfo structure.
+
+    \return Length of encrypted key on success
+    \return Negative value on error
+
+    \param info pointer to EncryptedInfo structure containing encryption
+    algorithm and parameters
+    \param der pointer to the key buffer to encrypt
+    \param derSz size of the key buffer
+    \param password pointer to the password buffer
+    \param passwordSz size of the password
+    \param hashType hash algorithm to use for key derivation
+
+    _Example_
+    \code
+    EncryptedInfo info;
+    byte key[]; // key data to encrypt
+    byte password[] = "mypassword";
+
+    info.algo = AES256CBCb;
+    int ret = wc_BufferKeyEncrypt(&info, key, sizeof(key), password,
+                                  sizeof(password)-1, WC_SHA256);
+    if (ret < 0) {
+        // encryption error
+    }
+    \endcode
+
+    \sa wc_BufferKeyDecrypt
+*/
+int wc_BufferKeyEncrypt(struct EncryptedInfo* info, byte* der,
+                        word32 derSz, const byte* password,
+                        int passwordSz, int hashType);

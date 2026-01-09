@@ -4847,18 +4847,25 @@ static int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
             XMEMCPY(ssl->decrypt.nonce, ssl->keys.aead_dec_imp_IV, AESGCM_IMP_IV_SZ);
             XMEMCPY(ssl->decrypt.nonce + AESGCM_IMP_IV_SZ, input, AESGCM_EXP_IV_SZ);
 
-            if ((ret = aes_auth_fn(ssl->decrypt.aes,
-                        plain,
-                        input + AESGCM_EXP_IV_SZ,
-                          sz - AESGCM_EXP_IV_SZ - ssl->specs.aead_mac_size,
-                        ssl->decrypt.nonce, AESGCM_NONCE_SZ,
-                        ssl->decrypt.additional, AEAD_AUTH_DATA_SZ,
-                        NULL, 0)) < 0) {
-            #ifdef WOLFSSL_ASYNC_CRYPT
-                if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-                    ret = wolfSSL_AsyncPush(ssl, &ssl->decrypt.aes->asyncDev);
+            if (sz < AESGCM_EXP_IV_SZ + ssl->specs.aead_mac_size) {
+                ret = BUFFER_ERROR;
+            }
+
+            if (ret == 0) {
+                ret = aes_auth_fn(ssl->decrypt.aes,
+                       plain,
+                       input + AESGCM_EXP_IV_SZ,
+                       sz - AESGCM_EXP_IV_SZ - ssl->specs.aead_mac_size,
+                       ssl->decrypt.nonce, AESGCM_NONCE_SZ,
+                       ssl->decrypt.additional, AEAD_AUTH_DATA_SZ,
+                       NULL, 0);
+                if (ret < 0) {
+                #ifdef WOLFSSL_ASYNC_CRYPT
+                    if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+                        ret = wolfSSL_AsyncPush(ssl, &ssl->decrypt.aes->asyncDev);
+                    }
+                #endif
                 }
-            #endif
             }
         }
         break;
@@ -4866,13 +4873,19 @@ static int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
 
     #ifdef HAVE_ARIA
         case wolfssl_aria_gcm:
-            ret = wc_AriaDecrypt(ssl->decrypt.aria,
-                        plain,
-                        (byte *)input + AESGCM_EXP_IV_SZ,
-                          sz - AESGCM_EXP_IV_SZ - ssl->specs.aead_mac_size,
-                        ssl->decrypt.nonce, AESGCM_NONCE_SZ,
-                        ssl->decrypt.additional, ssl->specs.aead_mac_size,
-                        NULL, 0);
+            if (sz < AESGCM_EXP_IV_SZ + ssl->specs.aead_mac_size) {
+                ret = BUFFER_ERROR;
+            }
+
+            if (ret == 0) {
+                ret = wc_AriaDecrypt(ssl->decrypt.aria,
+                            plain,
+                            (byte *)input + AESGCM_EXP_IV_SZ,
+                            sz - AESGCM_EXP_IV_SZ - ssl->specs.aead_mac_size,
+                            ssl->decrypt.nonce, AESGCM_NONCE_SZ,
+                            ssl->decrypt.additional, ssl->specs.aead_mac_size,
+                            NULL, 0);
+            }
             break;
     #endif
 

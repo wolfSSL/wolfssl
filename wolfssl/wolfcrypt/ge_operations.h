@@ -85,6 +85,11 @@ WOLFSSL_LOCAL void sc_reduce(byte* s);
 WOLFSSL_LOCAL void sc_muladd(byte* s, const byte* a, const byte* b,
                              const byte* c);
 WOLFSSL_LOCAL void ge_tobytes(unsigned char *s,const ge_p2 *h);
+#ifndef ED25519_SMALL
+WOLFSSL_LOCAL void ge_tobytes_nct(unsigned char *s,const ge_p2 *h);
+#else
+#define ge_tobytes_nct ge_tobytes
+#endif
 #ifndef GE_P3_TOBYTES_IMPL
 #define ge_p3_tobytes(s, h) ge_tobytes((s), (const ge_p2 *)(h))
 #else

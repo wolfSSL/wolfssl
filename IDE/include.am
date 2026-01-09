@@ -43,6 +43,7 @@ include IDE/Renesas/e2studio/RX65N/GR-ROSE/include.am
 include IDE/Renesas/e2studio/RX65N/RSK/include.am
 include IDE/Renesas/e2studio/RX72N/EnvisionKit/include.am
 include IDE/Renesas/e2studio/RZN2L/include.am
+include IDE/Renesas/e2studio/SK-S7G2/include.am
 include IDE/RISCV/include.am
 include IDE/ROWLEY-CROSSWORKS-ARM/include.am
 include IDE/SimplicityStudio/include.am

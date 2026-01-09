@@ -288,6 +288,43 @@ int wc_iotsafe_ecc_import_public(ecc_key *key, byte key_id);
 */
 int wc_iotsafe_ecc_export_public(ecc_key *key, byte key_id);
 
+/*!
+    \ingroup IoTSafe
+    \brief Export an ECC 256-bit public key, from ecc_key object to a
+    writable public-key slot into the IoT-Safe applet. Equivalent to
+    wc_iotsafe_ecc_export_public, except that it can be invoked with a
+    key ID of two or more bytes.
+
+    \return 0 upon success
+    \return < 0 in case of failure
+
+    \param key the ecc_key object containing the key to be exported
+    \param key_id pointer to the key id in the IoT-Safe applet where
+    the public key will be stored
+    \param id_size the key id size in bytes
+
+    _Example_
+    \code
+    ecc_key key;
+    word16 keyId = 0x0302;
+
+    wc_ecc_init(&key);
+    wc_ecc_make_key(&rng, 32, &key);
+
+    int ret = wc_iotsafe_ecc_export_public_ex(&key, (byte*)&keyId,
+                                              sizeof(keyId));
+    if (ret != 0) {
+        // error exporting public key
+    }
+    \endcode
+
+    \sa wc_iotsafe_ecc_export_public
+    \sa wc_iotsafe_ecc_import_public_ex
+    \sa wc_iotsafe_ecc_export_private_ex
+*/
+int wc_iotsafe_ecc_export_public_ex(ecc_key *key, byte *key_id,
+                                    word16 id_size);
+
 
 /*!
     \ingroup IoTSafe
@@ -462,4 +499,4 @@ int wc_iotsafe_ecc_gen_k(byte key_id);
     \sa wc_iotsafe_ecc_sign_hash_ex
     \sa wc_iotsafe_ecc_verify_hash_ex
 */
-int wc_iotsafe_ecc_gen_k(byte key_id);
+int wc_iotsafe_ecc_gen_k_ex(byte *key_id, word16 id_size);
