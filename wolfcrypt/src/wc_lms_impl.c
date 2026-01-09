@@ -3185,9 +3185,14 @@ int wc_hss_reload_key(LmsState* state, const byte* priv_raw,
     (void)pub_root;
 
     /* Defend against undefined shifts; LmsParams* params = state->params */
-    if ((state->params->cacheBits >= 32U) || (state->params->height >= 32U)) {
+    if (state->params->height >= 32U) {
         return BAD_FUNC_ARG;
     }
+#ifndef WOLFSSL_WC_LMS_SMALL
+    if (state->params->cacheBits >= 32U) {
+        return BAD_FUNC_ARG;
+    }
+#endif
 
     wc_hss_priv_data_load(state->params, priv_key, priv_data);
 #ifndef WOLFSSL_WC_LMS_SMALL

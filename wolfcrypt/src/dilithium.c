@@ -8788,9 +8788,9 @@ static int dilithium_sign_with_seed_mu(dilithium_key* key,
                 const byte* s2pt = s2p;
             #endif
                 sword32* cs2 = ct0;
+                byte idx = 0;
                 w0t = w0;
                 w1t = w1;
-                byte idx = 0;
 
                 for (r = 0; valid && (r < params->k); r++) {
             #ifndef WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC
