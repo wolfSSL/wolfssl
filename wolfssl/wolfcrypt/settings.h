@@ -2592,6 +2592,10 @@ extern void uITRON4_free(void *p) ;
 #endif /*(WOLFSSL_APACHE_MYNEWT)*/
 
 #ifdef WOLFSSL_ZEPHYR
+    #ifdef __cplusplus
+        }  /* extern "C" */
+    #endif
+
     #include <version.h>
 #if KERNEL_VERSION_NUMBER >= 0x30100
     #include <zephyr/kernel.h>
@@ -2603,6 +2607,10 @@ extern void uITRON4_free(void *p) ;
     #include <sys/util.h>
 #endif
     #include <stdlib.h>
+
+    #ifdef __cplusplus
+        extern "C" {
+    #endif
 
     #define WOLFSSL_DH_CONST
     #define NO_WRITEV
