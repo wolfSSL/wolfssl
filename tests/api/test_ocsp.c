@@ -26,6 +26,7 @@
 #include <wolfssl/internal.h>
 #include <wolfssl/ocsp.h>
 #include <wolfssl/ssl.h>
+#include <wolfssl/wolfcrypt/asn.h>
 
 #if defined(HAVE_OCSP) && !defined(NO_SHA) && !defined(NO_RSA)
 struct ocsp_cb_ctx {
@@ -1025,3 +1026,114 @@ int test_ocsp_tls_cert_cb(void)
     return TEST_SKIPPED;
 }
 #endif
+
+int test_ocsp_responder(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_OCSP_RESPONDER) && !defined(NO_SHA) && !defined(NO_RSA)
+    OcspResponder* responder = NULL;
+    OcspRequest* clientReq = NULL;
+    DecodedCert serverCert;
+    DecodedCert caCert;
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    byte caCertDer[4096];
+    byte caKeyDer[4096];
+    byte serverCertDer[4096];
+    byte respBuf[1024];
+    word32 caCertSz = sizeof(caCertDer);
+    word32 caKeyDerSz = sizeof(caKeyDer);
+    word32 serverCertSz = sizeof(serverCertDer);
+    word32 respSz = sizeof(respBuf);
+    byte reqBuf[1024];
+    int reqSz = 0;
+    XFILE f = XBADFILE;
+    
+    WOLFSSL_ENTER("test_ocsp_responder");
+
+    XMEMSET(&serverCert, 0, sizeof(serverCert));
+    XMEMSET(&caCert, 0, sizeof(caCert));
+    XMEMSET(&caCertDer, 0, sizeof(caCertDer));
+    XMEMSET(&caKeyDer, 0, sizeof(caKeyDer));
+    XMEMSET(&serverCertDer, 0, sizeof(serverCertDer));
+
+    /* Create certificate manager */
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    
+    /* Load CA certificate */
+    ExpectTrue((f = XFOPEN("./certs/ca-cert.der", "rb")) != XBADFILE);
+    ExpectIntGT(caCertSz = (word32)XFREAD(caCertDer, 1,
+                                          caCertSz, f), 0);
+    XFCLOSE(f);
+    f = XBADFILE;
+    
+    /* Load CA into certificate manager */
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, caCertDer, caCertSz,
+                                                WOLFSSL_FILETYPE_ASN1),
+                WOLFSSL_SUCCESS);
+    
+    wc_InitDecodedCert(&caCert, caCertDer, caCertSz, NULL);
+    ExpectIntEQ(wc_ParseCert(&caCert, CERT_TYPE, 0, NULL), 0);
+
+    /* Load CA private key */
+    ExpectTrue((f = XFOPEN("./certs/ca-key.der", "rb")) != XBADFILE);
+    ExpectIntGT(caKeyDerSz = (word32)XFREAD(caKeyDer, 1, caKeyDerSz, f), 0);
+    XFCLOSE(f);
+    f = XBADFILE;
+
+    /* Load server certificate */
+    ExpectTrue((f = XFOPEN("./certs/server-cert.der", "rb")) != XBADFILE);
+    ExpectIntGT(serverCertSz = (word32)XFREAD(serverCertDer, 1,
+                                              serverCertSz, f), 0);
+    XFCLOSE(f);
+    f = XBADFILE;
+
+    /* Parse server certificate with certificate manager to populate issuerKeyHash */
+    wc_InitDecodedCert(&serverCert, serverCertDer, serverCertSz, NULL);
+    ExpectIntEQ(wc_ParseCert(&serverCert, CERT_TYPE, 0, cm), 0);
+
+    /* Create OCSP request from server certificate */
+    ExpectNotNull(clientReq = wc_OcspRequest_new(NULL));
+    ExpectIntEQ(wc_InitOcspRequest(clientReq, &serverCert, 0, NULL), 0);
+    ExpectIntGT(reqSz = wc_EncodeOcspRequest(clientReq, reqBuf, sizeof(reqBuf)), 
+                0);
+
+    /* Create OCSP Responder */
+    ExpectNotNull(responder = wc_OcspResponder_new(NULL));
+    
+    /* Add CA to responder (DER format only) */
+    ExpectIntEQ(wc_OcspResponder_AddCA(responder, caCertDer, caCertSz,
+                                       caKeyDer, caKeyDerSz, RSAk), 0);
+
+    /* Set certificate status as good for the server cert */
+    {
+        const char* caSubject;
+        word32 caSubjectSz;
+        const byte* serial;
+        word32 serialSz;
+        
+        ExpectNotNull(caSubject = wc_GetDecodedCertSubject(&caCert, &caSubjectSz));
+        ExpectIntGT(caSubjectSz, 0);
+        ExpectNotNull(serial = wc_GetDecodedCertSerial(&serverCert, &serialSz));
+        ExpectIntGT(serialSz, 0);
+        
+        ExpectIntEQ(wc_OcspResponder_SetCertStatus(responder,
+                                                   caSubject, caSubjectSz,
+                                                   serial, serialSz,
+                                                   CERT_GOOD,
+                                                   NULL, NULL), 0);
+    }
+
+    /* Generate OCSP response */
+    ExpectIntEQ(wc_OcspResponder_WriteResponse(responder, reqBuf, reqSz,
+                                               respBuf, &respSz),
+                NOT_COMPILED_IN);  /* Expected until full response generation is implemented */
+
+    /* Cleanup */
+    wc_OcspRequest_free(clientReq);
+    wc_OcspResponder_free(responder);
+    wc_FreeDecodedCert(&serverCert);
+    wc_FreeDecodedCert(&caCert);
+    wolfSSL_CertManagerFree(cm);
+#endif
+    return EXPECT_RESULT();
+}
