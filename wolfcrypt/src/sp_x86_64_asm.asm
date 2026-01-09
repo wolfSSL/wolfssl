@@ -65067,7 +65067,11 @@ sp_521_get_point_33_9 PROC
         mov	r14, 1
         mov	rax, 1
         movd	xmm13, r8d
+IFNDEF SP_ALIGN_16
         add	rdx, 440
+ELSE
+        add	rdx, 448
+ENDIF
         movd	xmm15, eax
         mov	rax, 32
         pshufd	xmm15, xmm15, 0
@@ -65098,7 +65102,11 @@ L_521_get_point_33_9_start_1:
         mov	r10, QWORD PTR [rdx+64]
         movdqu	xmm10, OWORD PTR [rdx+144]
         movdqu	xmm11, OWORD PTR [rdx+160]
+IFNDEF SP_ALIGN_16
         add	rdx, 440
+ELSE
+        add	rdx, 448
+ENDIF
         pand	xmm6, xmm12
         pand	xmm7, xmm12
         pand	xmm8, xmm12
@@ -65125,7 +65133,11 @@ L_521_get_point_33_9_start_1:
         mov	r14, 1
         mov	rax, 1
         movd	xmm13, r8d
+IFNDEF SP_ALIGN_16
         sub	rdx, 14080
+ELSE
+        sub	rdx, 14336
+ENDIF
         movd	xmm15, eax
         mov	rax, 32
         pshufd	xmm15, xmm15, 0
@@ -65157,7 +65169,11 @@ L_521_get_point_33_9_start_2:
         movdqu	xmm10, OWORD PTR [rdx+320]
         movdqu	xmm11, OWORD PTR [rdx+336]
         mov	r11, QWORD PTR [rdx+352]
+IFNDEF SP_ALIGN_16
         add	rdx, 440
+ELSE
+        add	rdx, 448
+ENDIF
         pand	xmm6, xmm12
         pand	xmm7, xmm12
         pand	xmm8, xmm12
@@ -65229,7 +65245,11 @@ sp_521_get_point_33_avx2_9 PROC
         mov	rdi, 1
         mov	rax, 1
         movd	xmm13, r8d
+IFNDEF SP_ALIGN_16
         add	rdx, 440
+ELSE
+        add	rdx, 448
+ENDIF
         movd	xmm15, eax
         mov	rax, 32
         vpxor	ymm14, ymm14, ymm14
@@ -65262,7 +65282,11 @@ L_521_get_point_33_avx2_9_start:
         mov	r13, QWORD PTR [rdx+64]
         mov	r14, QWORD PTR [rdx+208]
         mov	r15, QWORD PTR [rdx+352]
+IFNDEF SP_ALIGN_16
         add	rdx, 440
+ELSE
+        add	rdx, 448
+ENDIF
         vpand	ymm6, ymm6, ymm12
         vpand	ymm7, ymm7, ymm12
         vpand	ymm8, ymm8, ymm12
@@ -65336,7 +65360,6 @@ sp_521_mont_mul_avx2_9 PROC
         mov	r9, rdx
         sub	rsp, 144
         mov	rbx, rsp
-        add	rsp, 72
         xor	r15, r15
         mov	rdx, QWORD PTR [r9]
         ; A[0] * B[0]
@@ -65377,7 +65400,7 @@ sp_521_mont_mul_avx2_9 PROC
         mov	r14, r15
         adcx	r14, r15
         mov	QWORD PTR [rbx+64], r10
-        mov	QWORD PTR [rsp], r11
+        mov	QWORD PTR [rsp+72], r11
         mov	rdx, QWORD PTR [r9+8]
         mov	r11, QWORD PTR [rbx+8]
         mov	r12, QWORD PTR [rbx+16]
@@ -65417,7 +65440,7 @@ sp_521_mont_mul_avx2_9 PROC
         adox	r13, rcx
         mov	QWORD PTR [rbx+48], r12
         mov	r10, QWORD PTR [rbx+64]
-        mov	r11, QWORD PTR [rsp]
+        mov	r11, QWORD PTR [rsp+72]
         ; A[1] * B[6]
         mulx	rcx, rax, QWORD PTR [rbp+48]
         adcx	r13, rax
@@ -65437,8 +65460,8 @@ sp_521_mont_mul_avx2_9 PROC
         mov	r14, r15
         adox	r14, r15
         adcx	r14, r15
-        mov	QWORD PTR [rsp], r11
-        mov	QWORD PTR [rsp+8], r12
+        mov	QWORD PTR [rsp+72], r11
+        mov	QWORD PTR [rsp+80], r12
         mov	rdx, QWORD PTR [r9+16]
         mov	r12, QWORD PTR [rbx+16]
         mov	r13, QWORD PTR [rbx+24]
@@ -65477,8 +65500,8 @@ sp_521_mont_mul_avx2_9 PROC
         adcx	r13, rax
         adox	r10, rcx
         mov	QWORD PTR [rbx+56], r13
-        mov	r11, QWORD PTR [rsp]
-        mov	r12, QWORD PTR [rsp+8]
+        mov	r11, QWORD PTR [rsp+72]
+        mov	r12, QWORD PTR [rsp+80]
         ; A[2] * B[6]
         mulx	rcx, rax, QWORD PTR [rbp+48]
         adcx	r10, rax
@@ -65490,7 +65513,7 @@ sp_521_mont_mul_avx2_9 PROC
         adox	r12, rcx
         ; A[2] * B[8]
         mulx	rcx, rax, QWORD PTR [rbp+64]
-        mov	QWORD PTR [rsp], r11
+        mov	QWORD PTR [rsp+72], r11
         mov	r13, r15
         adcx	r12, rax
         adox	r13, rcx
@@ -65498,8 +65521,8 @@ sp_521_mont_mul_avx2_9 PROC
         mov	r14, r15
         adox	r14, r15
         adcx	r14, r15
-        mov	QWORD PTR [rsp+8], r12
-        mov	QWORD PTR [rsp+16], r13
+        mov	QWORD PTR [rsp+80], r12
+        mov	QWORD PTR [rsp+88], r13
         mov	rdx, QWORD PTR [r9+24]
         mov	r13, QWORD PTR [rbx+24]
         mov	r10, QWORD PTR [rbx+32]
@@ -65522,7 +65545,7 @@ sp_521_mont_mul_avx2_9 PROC
         mov	QWORD PTR [rbx+40], r11
         mov	r13, QWORD PTR [rbx+56]
         mov	r10, QWORD PTR [rbx+64]
-        mov	r11, QWORD PTR [rsp]
+        mov	r11, QWORD PTR [rsp+72]
         ; A[3] * B[3]
         mulx	rcx, rax, QWORD PTR [rbp+24]
         adcx	r12, rax
@@ -65538,20 +65561,20 @@ sp_521_mont_mul_avx2_9 PROC
         adcx	r10, rax
         adox	r11, rcx
         mov	QWORD PTR [rbx+64], r10
-        mov	r12, QWORD PTR [rsp+8]
-        mov	r13, QWORD PTR [rsp+16]
+        mov	r12, QWORD PTR [rsp+80]
+        mov	r13, QWORD PTR [rsp+88]
         ; A[3] * B[6]
         mulx	rcx, rax, QWORD PTR [rbp+48]
         adcx	r11, rax
         adox	r12, rcx
         ; A[3] * B[7]
         mulx	rcx, rax, QWORD PTR [rbp+56]
-        mov	QWORD PTR [rsp], r11
+        mov	QWORD PTR [rsp+72], r11
         adcx	r12, rax
         adox	r13, rcx
         ; A[3] * B[8]
         mulx	rcx, rax, QWORD PTR [rbp+64]
-        mov	QWORD PTR [rsp+8], r12
+        mov	QWORD PTR [rsp+80], r12
         mov	r10, r15
         adcx	r13, rax
         adox	r10, rcx
@@ -65559,8 +65582,8 @@ sp_521_mont_mul_avx2_9 PROC
         mov	r14, r15
         adox	r14, r15
         adcx	r14, r15
-        mov	QWORD PTR [rsp+16], r13
-        mov	QWORD PTR [rsp+24], r10
+        mov	QWORD PTR [rsp+88], r13
+        mov	QWORD PTR [rsp+96], r10
         mov	rdx, QWORD PTR [r9+32]
         mov	r10, QWORD PTR [rbx+32]
         mov	r11, QWORD PTR [rbx+40]
@@ -65582,8 +65605,8 @@ sp_521_mont_mul_avx2_9 PROC
         adox	r13, rcx
         mov	QWORD PTR [rbx+48], r12
         mov	r10, QWORD PTR [rbx+64]
-        mov	r11, QWORD PTR [rsp]
-        mov	r12, QWORD PTR [rsp+8]
+        mov	r11, QWORD PTR [rsp+72]
+        mov	r12, QWORD PTR [rsp+80]
         ; A[4] * B[3]
         mulx	rcx, rax, QWORD PTR [rbp+24]
         adcx	r13, rax
@@ -65598,21 +65621,21 @@ sp_521_mont_mul_avx2_9 PROC
         mov	QWORD PTR [rbx+64], r10
         adcx	r11, rax
         adox	r12, rcx
-        mov	QWORD PTR [rsp], r11
-        mov	r13, QWORD PTR [rsp+16]
-        mov	r10, QWORD PTR [rsp+24]
+        mov	QWORD PTR [rsp+72], r11
+        mov	r13, QWORD PTR [rsp+88]
+        mov	r10, QWORD PTR [rsp+96]
         ; A[4] * B[6]
         mulx	rcx, rax, QWORD PTR [rbp+48]
         adcx	r12, rax
         adox	r13, rcx
         ; A[4] * B[7]
         mulx	rcx, rax, QWORD PTR [rbp+56]
-        mov	QWORD PTR [rsp+8], r12
+        mov	QWORD PTR [rsp+80], r12
         adcx	r13, rax
         adox	r10, rcx
         ; A[4] * B[8]
         mulx	rcx, rax, QWORD PTR [rbp+64]
-        mov	QWORD PTR [rsp+16], r13
+        mov	QWORD PTR [rsp+88], r13
         mov	r11, r15
         adcx	r10, rax
         adox	r11, rcx
@@ -65620,8 +65643,8 @@ sp_521_mont_mul_avx2_9 PROC
         mov	r14, r15
         adox	r14, r15
         adcx	r14, r15
-        mov	QWORD PTR [rsp+24], r10
-        mov	QWORD PTR [rsp+32], r11
+        mov	QWORD PTR [rsp+96], r10
+        mov	QWORD PTR [rsp+104], r11
         mov	rdx, QWORD PTR [r9+40]
         mov	r11, QWORD PTR [rbx+40]
         mov	r12, QWORD PTR [rbx+48]
@@ -65642,9 +65665,9 @@ sp_521_mont_mul_avx2_9 PROC
         adcx	r13, rax
         adox	r10, rcx
         mov	QWORD PTR [rbx+56], r13
-        mov	r11, QWORD PTR [rsp]
-        mov	r12, QWORD PTR [rsp+8]
-        mov	r13, QWORD PTR [rsp+16]
+        mov	r11, QWORD PTR [rsp+72]
+        mov	r12, QWORD PTR [rsp+80]
+        mov	r13, QWORD PTR [rsp+88]
         ; A[5] * B[3]
         mulx	rcx, rax, QWORD PTR [rbp+24]
         adcx	r10, rax
@@ -65656,24 +65679,24 @@ sp_521_mont_mul_avx2_9 PROC
         adox	r12, rcx
         ; A[5] * B[5]
         mulx	rcx, rax, QWORD PTR [rbp+40]
-        mov	QWORD PTR [rsp], r11
+        mov	QWORD PTR [rsp+72], r11
         adcx	r12, rax
         adox	r13, rcx
-        mov	QWORD PTR [rsp+8], r12
-        mov	r10, QWORD PTR [rsp+24]
-        mov	r11, QWORD PTR [rsp+32]
+        mov	QWORD PTR [rsp+80], r12
+        mov	r10, QWORD PTR [rsp+96]
+        mov	r11, QWORD PTR [rsp+104]
         ; A[5] * B[6]
         mulx	rcx, rax, QWORD PTR [rbp+48]
         adcx	r13, rax
         adox	r10, rcx
         ; A[5] * B[7]
         mulx	rcx, rax, QWORD PTR [rbp+56]
-        mov	QWORD PTR [rsp+16], r13
+        mov	QWORD PTR [rsp+88], r13
         adcx	r10, rax
         adox	r11, rcx
         ; A[5] * B[8]
         mulx	rcx, rax, QWORD PTR [rbp+64]
-        mov	QWORD PTR [rsp+24], r10
+        mov	QWORD PTR [rsp+96], r10
         mov	r12, r15
         adcx	r11, rax
         adox	r12, rcx
@@ -65681,13 +65704,13 @@ sp_521_mont_mul_avx2_9 PROC
         mov	r14, r15
         adox	r14, r15
         adcx	r14, r15
-        mov	QWORD PTR [rsp+32], r11
-        mov	QWORD PTR [rsp+40], r12
+        mov	QWORD PTR [rsp+104], r11
+        mov	QWORD PTR [rsp+112], r12
         mov	rdx, QWORD PTR [r9+48]
         mov	r12, QWORD PTR [rbx+48]
         mov	r13, QWORD PTR [rbx+56]
         mov	r10, QWORD PTR [rbx+64]
-        mov	r11, QWORD PTR [rsp]
+        mov	r11, QWORD PTR [rsp+72]
         ; A[6] * B[0]
         mulx	rcx, rax, QWORD PTR [rbp]
         adcx	r12, rax
@@ -65703,38 +65726,38 @@ sp_521_mont_mul_avx2_9 PROC
         adcx	r10, rax
         adox	r11, rcx
         mov	QWORD PTR [rbx+64], r10
-        mov	r12, QWORD PTR [rsp+8]
-        mov	r13, QWORD PTR [rsp+16]
-        mov	r10, QWORD PTR [rsp+24]
+        mov	r12, QWORD PTR [rsp+80]
+        mov	r13, QWORD PTR [rsp+88]
+        mov	r10, QWORD PTR [rsp+96]
         ; A[6] * B[3]
         mulx	rcx, rax, QWORD PTR [rbp+24]
         adcx	r11, rax
         adox	r12, rcx
         ; A[6] * B[4]
         mulx	rcx, rax, QWORD PTR [rbp+32]
-        mov	QWORD PTR [rsp], r11
+        mov	QWORD PTR [rsp+72], r11
         adcx	r12, rax
         adox	r13, rcx
         ; A[6] * B[5]
         mulx	rcx, rax, QWORD PTR [rbp+40]
-        mov	QWORD PTR [rsp+8], r12
+        mov	QWORD PTR [rsp+80], r12
         adcx	r13, rax
         adox	r10, rcx
-        mov	QWORD PTR [rsp+16], r13
-        mov	r11, QWORD PTR [rsp+32]
-        mov	r12, QWORD PTR [rsp+40]
+        mov	QWORD PTR [rsp+88], r13
+        mov	r11, QWORD PTR [rsp+104]
+        mov	r12, QWORD PTR [rsp+112]
         ; A[6] * B[6]
         mulx	rcx, rax, QWORD PTR [rbp+48]
         adcx	r10, rax
         adox	r11, rcx
         ; A[6] * B[7]
         mulx	rcx, rax, QWORD PTR [rbp+56]
-        mov	QWORD PTR [rsp+24], r10
+        mov	QWORD PTR [rsp+96], r10
         adcx	r11, rax
         adox	r12, rcx
         ; A[6] * B[8]
         mulx	rcx, rax, QWORD PTR [rbp+64]
-        mov	QWORD PTR [rsp+32], r11
+        mov	QWORD PTR [rsp+104], r11
         mov	r13, r15
         adcx	r12, rax
         adox	r13, rcx
@@ -65742,13 +65765,13 @@ sp_521_mont_mul_avx2_9 PROC
         mov	r14, r15
         adox	r14, r15
         adcx	r14, r15
-        mov	QWORD PTR [rsp+40], r12
-        mov	QWORD PTR [rsp+48], r13
+        mov	QWORD PTR [rsp+112], r12
+        mov	QWORD PTR [rsp+120], r13
         mov	rdx, QWORD PTR [r9+56]
         mov	r13, QWORD PTR [rbx+56]
         mov	r10, QWORD PTR [rbx+64]
-        mov	r11, QWORD PTR [rsp]
-        mov	r12, QWORD PTR [rsp+8]
+        mov	r11, QWORD PTR [rsp+72]
+        mov	r12, QWORD PTR [rsp+80]
         ; A[7] * B[0]
         mulx	rcx, rax, QWORD PTR [rbp]
         adcx	r13, rax
@@ -65763,39 +65786,39 @@ sp_521_mont_mul_avx2_9 PROC
         mov	QWORD PTR [rbx+64], r10
         adcx	r11, rax
         adox	r12, rcx
-        mov	QWORD PTR [rsp], r11
-        mov	r13, QWORD PTR [rsp+16]
-        mov	r10, QWORD PTR [rsp+24]
-        mov	r11, QWORD PTR [rsp+32]
+        mov	QWORD PTR [rsp+72], r11
+        mov	r13, QWORD PTR [rsp+88]
+        mov	r10, QWORD PTR [rsp+96]
+        mov	r11, QWORD PTR [rsp+104]
         ; A[7] * B[3]
         mulx	rcx, rax, QWORD PTR [rbp+24]
         adcx	r12, rax
         adox	r13, rcx
         ; A[7] * B[4]
         mulx	rcx, rax, QWORD PTR [rbp+32]
-        mov	QWORD PTR [rsp+8], r12
+        mov	QWORD PTR [rsp+80], r12
         adcx	r13, rax
         adox	r10, rcx
         ; A[7] * B[5]
         mulx	rcx, rax, QWORD PTR [rbp+40]
-        mov	QWORD PTR [rsp+16], r13
+        mov	QWORD PTR [rsp+88], r13
         adcx	r10, rax
         adox	r11, rcx
-        mov	QWORD PTR [rsp+24], r10
-        mov	r12, QWORD PTR [rsp+40]
-        mov	r13, QWORD PTR [rsp+48]
+        mov	QWORD PTR [rsp+96], r10
+        mov	r12, QWORD PTR [rsp+112]
+        mov	r13, QWORD PTR [rsp+120]
         ; A[7] * B[6]
         mulx	rcx, rax, QWORD PTR [rbp+48]
         adcx	r11, rax
         adox	r12, rcx
         ; A[7] * B[7]
         mulx	rcx, rax, QWORD PTR [rbp+56]
-        mov	QWORD PTR [rsp+32], r11
+        mov	QWORD PTR [rsp+104], r11
         adcx	r12, rax
         adox	r13, rcx
         ; A[7] * B[8]
         mulx	rcx, rax, QWORD PTR [rbp+64]
-        mov	QWORD PTR [rsp+40], r12
+        mov	QWORD PTR [rsp+112], r12
         mov	r10, r15
         adcx	r13, rax
         adox	r10, rcx
@@ -65803,13 +65826,13 @@ sp_521_mont_mul_avx2_9 PROC
         mov	r14, r15
         adox	r14, r15
         adcx	r14, r15
-        mov	QWORD PTR [rsp+48], r13
-        mov	QWORD PTR [rsp+56], r10
+        mov	QWORD PTR [rsp+120], r13
+        mov	QWORD PTR [rsp+128], r10
         mov	rdx, QWORD PTR [r9+64]
         mov	r10, QWORD PTR [rbx+64]
-        mov	r11, QWORD PTR [rsp]
-        mov	r12, QWORD PTR [rsp+8]
-        mov	r13, QWORD PTR [rsp+16]
+        mov	r11, QWORD PTR [rsp+72]
+        mov	r12, QWORD PTR [rsp+80]
+        mov	r13, QWORD PTR [rsp+88]
         ; A[8] * B[0]
         mulx	rcx, rax, QWORD PTR [rbp]
         adcx	r10, rax
@@ -65821,60 +65844,59 @@ sp_521_mont_mul_avx2_9 PROC
         adox	r12, rcx
         ; A[8] * B[2]
         mulx	rcx, rax, QWORD PTR [rbp+16]
-        mov	QWORD PTR [rsp], r11
+        mov	QWORD PTR [rsp+72], r11
         adcx	r12, rax
         adox	r13, rcx
-        mov	QWORD PTR [rsp+8], r12
-        mov	r10, QWORD PTR [rsp+24]
-        mov	r11, QWORD PTR [rsp+32]
-        mov	r12, QWORD PTR [rsp+40]
+        mov	QWORD PTR [rsp+80], r12
+        mov	r10, QWORD PTR [rsp+96]
+        mov	r11, QWORD PTR [rsp+104]
+        mov	r12, QWORD PTR [rsp+112]
         ; A[8] * B[3]
         mulx	rcx, rax, QWORD PTR [rbp+24]
         adcx	r13, rax
         adox	r10, rcx
         ; A[8] * B[4]
         mulx	rcx, rax, QWORD PTR [rbp+32]
-        mov	QWORD PTR [rsp+16], r13
+        mov	QWORD PTR [rsp+88], r13
         adcx	r10, rax
         adox	r11, rcx
         ; A[8] * B[5]
         mulx	rcx, rax, QWORD PTR [rbp+40]
-        mov	QWORD PTR [rsp+24], r10
+        mov	QWORD PTR [rsp+96], r10
         adcx	r11, rax
         adox	r12, rcx
-        mov	QWORD PTR [rsp+32], r11
-        mov	r13, QWORD PTR [rsp+48]
-        mov	r10, QWORD PTR [rsp+56]
+        mov	QWORD PTR [rsp+104], r11
+        mov	r13, QWORD PTR [rsp+120]
+        mov	r10, QWORD PTR [rsp+128]
         ; A[8] * B[6]
         mulx	rcx, rax, QWORD PTR [rbp+48]
         adcx	r12, rax
         adox	r13, rcx
         ; A[8] * B[7]
         mulx	rcx, rax, QWORD PTR [rbp+56]
-        mov	QWORD PTR [rsp+40], r12
+        mov	QWORD PTR [rsp+112], r12
         adcx	r13, rax
         adox	r10, rcx
         ; A[8] * B[8]
         mulx	rcx, rax, QWORD PTR [rbp+64]
-        mov	QWORD PTR [rsp+48], r13
+        mov	QWORD PTR [rsp+120], r13
         mov	r11, r15
         adcx	r10, rax
         adox	r11, rcx
         adcx	r11, r14
-        mov	QWORD PTR [rsp+56], r10
-        mov	QWORD PTR [rsp+64], r11
-        mov	rax, QWORD PTR [rsp+-8]
-        mov	rcx, QWORD PTR [rsp]
-        mov	r10, QWORD PTR [rsp+8]
+        mov	QWORD PTR [rsp+128], r10
+        mov	QWORD PTR [rsp+136], r11
+        mov	rax, QWORD PTR [rsp+64]
+        mov	rcx, QWORD PTR [rsp+72]
+        mov	r10, QWORD PTR [rsp+80]
         mov	r15, rax
         and	r15, 511
-        mov	r11, QWORD PTR [rsp+16]
-        mov	r12, QWORD PTR [rsp+24]
-        mov	r13, QWORD PTR [rsp+32]
-        mov	r14, QWORD PTR [rsp+40]
-        mov	rbx, QWORD PTR [rsp+48]
-        mov	rdx, QWORD PTR [rsp+56]
-        sub	rsp, 72
+        mov	r11, QWORD PTR [rsp+88]
+        mov	r12, QWORD PTR [rsp+96]
+        mov	r13, QWORD PTR [rsp+104]
+        mov	r14, QWORD PTR [rsp+112]
+        mov	rbx, QWORD PTR [rsp+120]
+        mov	rdx, QWORD PTR [rsp+128]
         shrd	rax, rcx, 9
         shrd	rcx, r10, 9
         shrd	r10, r11, 9
@@ -65947,7 +65969,6 @@ sp_521_mont_sqr_avx2_9 PROC
         mov	r9, rdx
         sub	rsp, 144
         mov	rbp, rsp
-        add	rsp, 72
         xor	r12, r12
         ; Diagonal 1
         ; Zero into %r9
@@ -66003,13 +66024,13 @@ sp_521_mont_sqr_avx2_9 PROC
         mulx	r11, rax, QWORD PTR [r9+64]
         adcx	r10, rax
         adox	r11, r12
-        mov	QWORD PTR [rsp], r10
+        mov	QWORD PTR [rsp+72], r10
         ;  Carry
         adcx	r11, r12
         mov	r13, r12
         adcx	r13, r12
         adox	r13, r12
-        mov	QWORD PTR [rsp+8], r11
+        mov	QWORD PTR [rsp+80], r11
         ; Diagonal 2
         mov	r11, QWORD PTR [rbp+24]
         ; No load %r12 - %r8
@@ -66042,39 +66063,39 @@ sp_521_mont_sqr_avx2_9 PROC
         adcx	rsi, rax
         adox	rbx, rcx
         ; No store %r15 - %r9
-        mov	r11, QWORD PTR [rsp]
+        mov	r11, QWORD PTR [rsp+72]
         ; A[7] x A[1]
         mulx	rcx, rax, QWORD PTR [r9+56]
         adcx	rbx, rax
         adox	r11, rcx
         ; No store %rbx - %r8
-        mov	r10, QWORD PTR [rsp+8]
+        mov	r10, QWORD PTR [rsp+80]
         ; A[7] x A[2]
         mov	rdx, QWORD PTR [r9+16]
         mulx	rcx, rax, QWORD PTR [r9+56]
         adcx	r11, rax
         adox	r10, rcx
-        mov	QWORD PTR [rsp], r11
+        mov	QWORD PTR [rsp+72], r11
         ; Zero into %r9
         ; A[7] x A[3]
         mov	rdx, QWORD PTR [r9+24]
         mulx	r11, rax, QWORD PTR [r9+56]
         adcx	r10, rax
         adox	r11, r12
-        mov	QWORD PTR [rsp+8], r10
+        mov	QWORD PTR [rsp+80], r10
         ; Zero into %r8
         ; A[7] x A[4]
         mov	rdx, QWORD PTR [r9+32]
         mulx	r10, rax, QWORD PTR [r9+56]
         adcx	r11, rax
         adox	r10, r12
-        mov	QWORD PTR [rsp+16], r11
+        mov	QWORD PTR [rsp+88], r11
         ;  Carry
         adcx	r10, r13
         mov	r13, r12
         adcx	r13, r12
         adox	r13, r12
-        mov	QWORD PTR [rsp+24], r10
+        mov	QWORD PTR [rsp+96], r10
         ; Diagonal 3
         ; No load %r14 - %r9
         ; A[3] x A[2]
@@ -66095,53 +66116,53 @@ sp_521_mont_sqr_avx2_9 PROC
         adcx	rsi, rax
         adox	rbx, rcx
         ; No store %r15 - %r8
-        mov	r10, QWORD PTR [rsp]
+        mov	r10, QWORD PTR [rsp+72]
         ; A[6] x A[2]
         mulx	rcx, rax, QWORD PTR [r9+48]
         adcx	rbx, rax
         adox	r10, rcx
         ; No store %rbx - %r9
-        mov	r11, QWORD PTR [rsp+8]
+        mov	r11, QWORD PTR [rsp+80]
         ; A[6] x A[3]
         mov	rdx, QWORD PTR [r9+24]
         mulx	rcx, rax, QWORD PTR [r9+48]
         adcx	r10, rax
         adox	r11, rcx
-        mov	QWORD PTR [rsp], r10
-        mov	r10, QWORD PTR [rsp+16]
+        mov	QWORD PTR [rsp+72], r10
+        mov	r10, QWORD PTR [rsp+88]
         ; A[6] x A[4]
         mov	rdx, QWORD PTR [r9+32]
         mulx	rcx, rax, QWORD PTR [r9+48]
         adcx	r11, rax
         adox	r10, rcx
-        mov	QWORD PTR [rsp+8], r11
-        mov	r11, QWORD PTR [rsp+24]
+        mov	QWORD PTR [rsp+80], r11
+        mov	r11, QWORD PTR [rsp+96]
         ; A[6] x A[5]
         mov	rdx, QWORD PTR [r9+40]
         mulx	rcx, rax, QWORD PTR [r9+48]
         adcx	r10, rax
         adox	r11, rcx
-        mov	QWORD PTR [rsp+16], r10
+        mov	QWORD PTR [rsp+88], r10
         ; Zero into %r8
         ; A[8] x A[4]
         mov	rdx, QWORD PTR [r9+32]
         mulx	r10, rax, QWORD PTR [r9+64]
         adcx	r11, rax
         adox	r10, r12
-        mov	QWORD PTR [rsp+24], r11
+        mov	QWORD PTR [rsp+96], r11
         ; Zero into %r9
         ; A[8] x A[5]
         mov	rdx, QWORD PTR [r9+40]
         mulx	r11, rax, QWORD PTR [r9+64]
         adcx	r10, rax
         adox	r11, r12
-        mov	QWORD PTR [rsp+32], r10
+        mov	QWORD PTR [rsp+104], r10
         ;  Carry
         adcx	r11, r13
         mov	r13, r12
         adcx	r13, r12
         adox	r13, r12
-        mov	QWORD PTR [rsp+40], r11
+        mov	QWORD PTR [rsp+112], r11
         ; Diagonal 4
         ; No load %rbx - %r8
         ; A[4] x A[3]
@@ -66150,67 +66171,67 @@ sp_521_mont_sqr_avx2_9 PROC
         adcx	rsi, rax
         adox	rbx, rcx
         ; No store %r15 - %r9
-        mov	r11, QWORD PTR [rsp]
+        mov	r11, QWORD PTR [rsp+72]
         ; A[5] x A[3]
         mulx	rcx, rax, QWORD PTR [r9+40]
         adcx	rbx, rax
         adox	r11, rcx
         ; No store %rbx - %r8
-        mov	r10, QWORD PTR [rsp+8]
+        mov	r10, QWORD PTR [rsp+80]
         ; A[5] x A[4]
         mov	rdx, QWORD PTR [r9+32]
         mulx	rcx, rax, QWORD PTR [r9+40]
         adcx	r11, rax
         adox	r10, rcx
-        mov	QWORD PTR [rsp], r11
-        mov	r11, QWORD PTR [rsp+16]
+        mov	QWORD PTR [rsp+72], r11
+        mov	r11, QWORD PTR [rsp+88]
         ; A[8] x A[2]
         mov	rdx, QWORD PTR [r9+16]
         mulx	rcx, rax, QWORD PTR [r9+64]
         adcx	r10, rax
         adox	r11, rcx
-        mov	QWORD PTR [rsp+8], r10
-        mov	r10, QWORD PTR [rsp+24]
+        mov	QWORD PTR [rsp+80], r10
+        mov	r10, QWORD PTR [rsp+96]
         ; A[8] x A[3]
         mov	rdx, QWORD PTR [r9+24]
         mulx	rcx, rax, QWORD PTR [r9+64]
         adcx	r11, rax
         adox	r10, rcx
-        mov	QWORD PTR [rsp+16], r11
-        mov	r11, QWORD PTR [rsp+32]
+        mov	QWORD PTR [rsp+88], r11
+        mov	r11, QWORD PTR [rsp+104]
         ; A[7] x A[5]
         mov	rdx, QWORD PTR [r9+40]
         mulx	rcx, rax, QWORD PTR [r9+56]
         adcx	r10, rax
         adox	r11, rcx
-        mov	QWORD PTR [rsp+24], r10
-        mov	r10, QWORD PTR [rsp+40]
+        mov	QWORD PTR [rsp+96], r10
+        mov	r10, QWORD PTR [rsp+112]
         ; A[7] x A[6]
         mov	rdx, QWORD PTR [r9+48]
         mulx	rcx, rax, QWORD PTR [r9+56]
         adcx	r11, rax
         adox	r10, rcx
-        mov	QWORD PTR [rsp+32], r11
+        mov	QWORD PTR [rsp+104], r11
         ; Zero into %r9
         ; A[8] x A[6]
         mulx	r11, rax, QWORD PTR [r9+64]
         adcx	r10, rax
         adox	r11, r12
-        mov	QWORD PTR [rsp+40], r10
+        mov	QWORD PTR [rsp+112], r10
         ; Zero into %r8
         ; A[8] x A[7]
         mov	rdx, QWORD PTR [r9+56]
         mulx	r10, rax, QWORD PTR [r9+64]
         adcx	r11, rax
         adox	r10, r12
-        mov	QWORD PTR [rsp+48], r11
+        mov	QWORD PTR [rsp+120], r11
         ;  Carry
         adcx	r10, r13
         mov	r13, r12
         adcx	r13, r12
         adox	r13, r12
-        mov	QWORD PTR [rsp+56], r10
-        mov	QWORD PTR [rsp+64], r13
+        mov	QWORD PTR [rsp+128], r10
+        mov	QWORD PTR [rsp+136], r13
         ; Double and Add in A[i] x A[i]
         mov	r11, QWORD PTR [rbp+8]
         ; A[0] x A[0]
@@ -66245,7 +66266,7 @@ sp_521_mont_sqr_avx2_9 PROC
         adox	rsi, rsi
         adcx	rdi, rax
         adcx	rsi, rcx
-        mov	r11, QWORD PTR [rsp]
+        mov	r11, QWORD PTR [rsp+72]
         ; A[4] x A[4]
         mov	rdx, QWORD PTR [r9+32]
         mulx	rcx, rax, rdx
@@ -66253,9 +66274,9 @@ sp_521_mont_sqr_avx2_9 PROC
         adox	r11, r11
         adcx	rbx, rax
         adcx	r11, rcx
-        mov	QWORD PTR [rsp], r11
-        mov	r10, QWORD PTR [rsp+8]
-        mov	r11, QWORD PTR [rsp+16]
+        mov	QWORD PTR [rsp+72], r11
+        mov	r10, QWORD PTR [rsp+80]
+        mov	r11, QWORD PTR [rsp+88]
         ; A[5] x A[5]
         mov	rdx, QWORD PTR [r9+40]
         mulx	rcx, rax, rdx
@@ -66263,10 +66284,10 @@ sp_521_mont_sqr_avx2_9 PROC
         adox	r11, r11
         adcx	r10, rax
         adcx	r11, rcx
-        mov	QWORD PTR [rsp+8], r10
-        mov	QWORD PTR [rsp+16], r11
-        mov	r10, QWORD PTR [rsp+24]
-        mov	r11, QWORD PTR [rsp+32]
+        mov	QWORD PTR [rsp+80], r10
+        mov	QWORD PTR [rsp+88], r11
+        mov	r10, QWORD PTR [rsp+96]
+        mov	r11, QWORD PTR [rsp+104]
         ; A[6] x A[6]
         mov	rdx, QWORD PTR [r9+48]
         mulx	rcx, rax, rdx
@@ -66274,10 +66295,10 @@ sp_521_mont_sqr_avx2_9 PROC
         adox	r11, r11
         adcx	r10, rax
         adcx	r11, rcx
-        mov	QWORD PTR [rsp+24], r10
-        mov	QWORD PTR [rsp+32], r11
-        mov	r10, QWORD PTR [rsp+40]
-        mov	r11, QWORD PTR [rsp+48]
+        mov	QWORD PTR [rsp+96], r10
+        mov	QWORD PTR [rsp+104], r11
+        mov	r10, QWORD PTR [rsp+112]
+        mov	r11, QWORD PTR [rsp+120]
         ; A[7] x A[7]
         mov	rdx, QWORD PTR [r9+56]
         mulx	rcx, rax, rdx
@@ -66285,10 +66306,10 @@ sp_521_mont_sqr_avx2_9 PROC
         adox	r11, r11
         adcx	r10, rax
         adcx	r11, rcx
-        mov	QWORD PTR [rsp+40], r10
-        mov	QWORD PTR [rsp+48], r11
-        mov	r10, QWORD PTR [rsp+56]
-        mov	r11, QWORD PTR [rsp+64]
+        mov	QWORD PTR [rsp+112], r10
+        mov	QWORD PTR [rsp+120], r11
+        mov	r10, QWORD PTR [rsp+128]
+        mov	r11, QWORD PTR [rsp+136]
         ; A[8] x A[8]
         mov	rdx, QWORD PTR [r9+64]
         mulx	rcx, rax, rdx
@@ -66296,25 +66317,24 @@ sp_521_mont_sqr_avx2_9 PROC
         adox	r11, r11
         adcx	r10, rax
         adcx	r11, rcx
-        mov	QWORD PTR [rsp+56], r10
-        mov	QWORD PTR [rsp+64], r11
-        mov	QWORD PTR [rsp+-40], r14
-        mov	QWORD PTR [rsp+-32], r15
-        mov	QWORD PTR [rsp+-24], rdi
-        mov	QWORD PTR [rsp+-16], rsi
-        mov	QWORD PTR [rsp+-8], rbx
-        mov	r10, QWORD PTR [rsp+-8]
-        mov	r11, QWORD PTR [rsp]
-        mov	r14, QWORD PTR [rsp+8]
+        mov	QWORD PTR [rsp+128], r10
+        mov	QWORD PTR [rsp+136], r11
+        mov	QWORD PTR [rsp+32], r14
+        mov	QWORD PTR [rsp+40], r15
+        mov	QWORD PTR [rsp+48], rdi
+        mov	QWORD PTR [rsp+56], rsi
+        mov	QWORD PTR [rsp+64], rbx
+        mov	r10, QWORD PTR [rsp+64]
+        mov	r11, QWORD PTR [rsp+72]
+        mov	r14, QWORD PTR [rsp+80]
         mov	rcx, r10
         and	rcx, 511
-        mov	r15, QWORD PTR [rsp+16]
-        mov	rdi, QWORD PTR [rsp+24]
-        mov	rsi, QWORD PTR [rsp+32]
-        mov	rbx, QWORD PTR [rsp+40]
-        mov	rdx, QWORD PTR [rsp+48]
-        mov	rax, QWORD PTR [rsp+56]
-        sub	rsp, 72
+        mov	r15, QWORD PTR [rsp+88]
+        mov	rdi, QWORD PTR [rsp+96]
+        mov	rsi, QWORD PTR [rsp+104]
+        mov	rbx, QWORD PTR [rsp+112]
+        mov	rdx, QWORD PTR [rsp+120]
+        mov	rax, QWORD PTR [rsp+128]
         shrd	r10, r11, 9
         shrd	r11, r14, 9
         shrd	r14, r15, 9
