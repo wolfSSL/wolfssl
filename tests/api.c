@@ -19613,13 +19613,20 @@ static int test_MakeCertWithCaFalse(void)
 
 /* Mock callback for testing wc_SignCert_cb */
 #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_REQ)
+/* Context structure for mock signing callback */
+typedef struct {
+    void* key;      /* Pointer to RSA or ECC key */
+    WC_RNG* rng;    /* Random number generator (required for ECC) */
+} MockSignCtx;
+
 static int mockSignCb(const byte* in, word32 inLen, byte* out, word32* outLen,
                       int sigAlgo, int keyType, void* ctx)
 {
     int ret = 0;
-    void* key = ctx;
+    MockSignCtx* signCtx = (MockSignCtx*)ctx;
 
-    if (key == NULL || in == NULL || out == NULL || outLen == NULL) {
+    if (signCtx == NULL || signCtx->key == NULL || in == NULL || 
+        out == NULL || outLen == NULL) {
         return BAD_FUNC_ARG;
     }
 
@@ -19627,7 +19634,7 @@ static int mockSignCb(const byte* in, word32 inLen, byte* out, word32* outLen,
 
 #ifndef NO_RSA
     if (keyType == RSA_TYPE) {
-        RsaKey* rsaKey = (RsaKey*)key;
+        RsaKey* rsaKey = (RsaKey*)signCtx->key;
         word32 outSz = *outLen;
         
         /* For RSA, input is pre-encoded digest, just sign it */
@@ -19641,11 +19648,11 @@ static int mockSignCb(const byte* in, word32 inLen, byte* out, word32* outLen,
 #endif
 #ifdef HAVE_ECC
     if (keyType == ECC_TYPE) {
-        ecc_key* eccKey = (ecc_key*)key;
+        ecc_key* eccKey = (ecc_key*)signCtx->key;
         word32 outSz = *outLen;
         
-        /* For ECC, input is raw hash, sign it */
-        ret = wc_ecc_sign_hash(in, inLen, out, &outSz, NULL, eccKey);
+        /* For ECC, input is raw hash, sign it (RNG required for ECDSA k value) */
+        ret = wc_ecc_sign_hash(in, inLen, out, &outSz, signCtx->rng, eccKey);
         if (ret == 0) {
             *outLen = outSz;
         }
@@ -19669,11 +19676,13 @@ static int test_wc_SignCert_cb(void)
     int derSize = 0;
     WC_RNG rng;
     ecc_key key;
+    MockSignCtx signCtx;
     int ret;
 
     XMEMSET(&rng, 0, sizeof(WC_RNG));
     XMEMSET(&key, 0, sizeof(ecc_key));
     XMEMSET(&cert, 0, sizeof(Cert));
+    XMEMSET(&signCtx, 0, sizeof(MockSignCtx));
 
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ExpectIntEQ(wc_ecc_init(&key), 0);
@@ -19696,16 +19705,20 @@ static int test_wc_SignCert_cb(void)
     /* Make cert body */
     ExpectIntGT(wc_MakeCert(&cert, der, FOURK_BUF, NULL, &key, &rng), 0);
     
+    /* Setup signing context with key and RNG */
+    signCtx.key = &key;
+    signCtx.rng = &rng;
+    
     /* Sign using callback API */
     ExpectIntGT(derSize = wc_SignCert_cb(cert.bodySz, cert.sigType, der,
-        FOURK_BUF, ECC_TYPE, mockSignCb, &key, &rng), 0);
+        FOURK_BUF, ECC_TYPE, mockSignCb, &signCtx, &rng), 0);
 
     /* Verify the certificate was created properly */
     ExpectIntGT(derSize, 0);
 
     /* Test error cases */
     ExpectIntEQ(wc_SignCert_cb(cert.bodySz, cert.sigType, der,
-        FOURK_BUF, ECC_TYPE, NULL, &key, &rng), BAD_FUNC_ARG);
+        FOURK_BUF, ECC_TYPE, NULL, &signCtx, &rng), BAD_FUNC_ARG);
 
     ret = wc_ecc_free(&key);
     ExpectIntEQ(ret, 0);
