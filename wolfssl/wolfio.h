@@ -585,6 +585,10 @@ union WOLFSSL_BIO_ADDR {
 
 typedef union WOLFSSL_BIO_ADDR WOLFSSL_BIO_ADDR;
 
+WOLFSSL_API WOLFSSL_BIO_ADDR *wolfSSL_BIO_ADDR_new(void);
+WOLFSSL_API void wolfSSL_BIO_ADDR_free(WOLFSSL_BIO_ADDR *addr);
+WOLFSSL_API void wolfSSL_BIO_ADDR_clear(WOLFSSL_BIO_ADDR *addr);
+
 #if defined(WOLFSSL_DTLS) && defined(OPENSSL_EXTRA)
 WOLFSSL_API  int wolfIO_SendTo(SOCKET_T sd, WOLFSSL_BIO_ADDR *addr, char *buf, int sz, int wrFlags);
 WOLFSSL_API  int wolfIO_RecvFrom(SOCKET_T sd, WOLFSSL_BIO_ADDR *addr, char *buf, int sz, int rdFlags);
