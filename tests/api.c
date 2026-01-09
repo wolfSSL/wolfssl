@@ -31627,7 +31627,7 @@ static void updateCrlCb(CrlInfo* old, CrlInfo* cnew)
     AssertIntEQ(crl1Info.nextDateMaxLen, old->nextDateMaxLen);
     AssertIntEQ(crl1Info.nextDateFormat, old->nextDateFormat);
     AssertIntEQ(XMEMCMP(
-        crl1Info.crlNumber, old->crlNumber, CRL_MAX_NUM_HEX_STR_SZ), 0);
+        crl1Info.crlNumber, old->crlNumber, sizeof(old->crlNumber)), 0);
     AssertIntEQ(XMEMCMP(
         crl1Info.issuerHash, old->issuerHash, old->issuerHashLen), 0);
     AssertIntEQ(XMEMCMP(
@@ -31642,7 +31642,7 @@ static void updateCrlCb(CrlInfo* old, CrlInfo* cnew)
     AssertIntEQ(crlRevInfo.nextDateMaxLen, cnew->nextDateMaxLen);
     AssertIntEQ(crlRevInfo.nextDateFormat, cnew->nextDateFormat);
     AssertIntEQ(XMEMCMP(
-        crlRevInfo.crlNumber, cnew->crlNumber, CRL_MAX_NUM_HEX_STR_SZ), 0);
+        crlRevInfo.crlNumber, cnew->crlNumber, sizeof(cnew->crlNumber)), 0);
     AssertIntEQ(XMEMCMP(
         crlRevInfo.issuerHash, cnew->issuerHash, cnew->issuerHashLen), 0);
     AssertIntEQ(XMEMCMP(

@@ -40856,20 +40856,11 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf,
                         ret = BUFFER_E;
                     /* Check CRL number size
                      * if it exceeds CRL_MAX_NUM_SZ(octets)
+                     * and CRL_MAX_NUM_HEX_STR_SZ(hex string)
                      */
-                    if (mp_unsigned_bin_size(m) > CRL_MAX_NUM_SZ) {
+                    if (((needed = mp_unsigned_bin_size(m)) > CRL_MAX_NUM_SZ) ||
+                        ((needed * 2 + 1) > CRL_MAX_NUM_HEX_STR_SZ)) {
                         WOLFSSL_MSG("CRL number exceeds limitation.");
-                        ret = BUFFER_E;
-                    }
-                    /* Determine required size for hexadecimal string encoding */
-                    if (ret == MP_OKAY &&
-                        (mp_radix_size(m, MP_RADIX_HEX, &needed) != MP_OKAY)) {
-                        WOLFSSL_MSG("mp_radix_size failure");
-                        ret = BUFFER_E;
-                    }
-                    if (ret == MP_OKAY && needed > CRL_MAX_NUM_HEX_STR_SZ) {
-                        WOLFSSL_MSG("CRL number hex string"
-                                        " exceeds buffer limitation");
                         ret = BUFFER_E;
                     }
                     if (ret == MP_OKAY && mp_toradix(m, (char*)dcrl->crlNumber,
@@ -40991,20 +40982,11 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32 idx,
                     }
                     /* Check CRL number size
                      * if it exceeds CRL_MAX_NUM_SZ(octets)
+                     * and CRL_MAX_NUM_HEX_STR_SZ(hex string)
                      */
-                    if (mp_unsigned_bin_size(m) > CRL_MAX_NUM_SZ) {
+                    if (((needed = mp_unsigned_bin_size(m)) > CRL_MAX_NUM_SZ) ||
+                        ((needed * 2 + 1) > CRL_MAX_NUM_HEX_STR_SZ)) {
                         WOLFSSL_MSG("CRL number exceeds limitation.");
-                        ret = BUFFER_E;
-                    }
-                    /* Determine required size for hexadecimal string encoding */
-                    if (ret == MP_OKAY &&
-                        (mp_radix_size(m, MP_RADIX_HEX, &needed) != MP_OKAY)) {
-                        WOLFSSL_MSG("mp_radix_size failure");
-                        ret = BUFFER_E;
-                    }
-                    if (ret == MP_OKAY && needed > CRL_MAX_NUM_HEX_STR_SZ) {
-                        WOLFSSL_MSG("CRL number hex string"
-                                        " exceeds buffer limitation");
                         ret = BUFFER_E;
                     }
                     if (ret == 0 && mp_toradix(m, (char*)dcrl->crlNumber,

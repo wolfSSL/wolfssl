@@ -2694,6 +2694,7 @@ struct RevokedCert {
 #endif                    /* octets long */
 
 #define CRL_MAX_NUM_HEX_STR_SZ (CRL_MAX_NUM_SZ * 2 + 1)
+#define CRL_MAX_NUM_SZ_BITS    (CRL_MAX_NUM_SZ * CHAR_BIT)
 
 typedef struct DecodedCRL DecodedCRL;
 
@@ -2707,7 +2708,7 @@ struct DecodedCRL {
     word32  sigParamsLength;         /* length of signature parameters   */
 #endif
     byte*   signature;               /* pointer into raw source, not owned */
-    byte    crlNumber[CRL_MAX_NUM_HEX_STR_SZ];      /* CRL number extension */
+    char    crlNumber[CRL_MAX_NUM_HEX_STR_SZ];      /* CRL number extension */
     byte    issuerHash[SIGNER_DIGEST_SIZE]; /* issuer name hash          */
     byte    crlHash[SIGNER_DIGEST_SIZE]; /* raw crl data hash            */
     byte    lastDate[MAX_DATE_SIZE]; /* last date updated  */
