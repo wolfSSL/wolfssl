@@ -707,7 +707,7 @@ OcspResponse* wc_OcspResponse_new(void* heap)
 {
     OcspResponse* response = (OcspResponse*)XMALLOC(sizeof(OcspResponse),
                                                    heap,
-                                                   DYNAMIC_TYPE_OCSP_REQUEST);
+                                                   DYNAMIC_TYPE_OCSP_RESPONSE);
     if (response != NULL) {
         XMEMSET(response, 0, sizeof(OcspResponse));
         response->heap = heap;
@@ -720,7 +720,7 @@ void wc_OcspResponse_free(OcspResponse* response)
 {
     if (response != NULL) {
         FreeOcspResponse(response);
-        XFREE(response, response->heap, DYNAMIC_TYPE_OCSP_REQUEST);
+        XFREE(response, response->heap, DYNAMIC_TYPE_OCSP_RESPONSE);
     }
 }
 
