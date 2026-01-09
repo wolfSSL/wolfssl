@@ -24624,6 +24624,33 @@ int wc_ParseCert(DecodedCert* cert, int type, int verify, void* cm)
     return ParseCert(cert, type, verify, cm);
 }
 
+const char* wc_GetDecodedCertSubject(struct DecodedCert* cert, word32* subjectSz)
+{
+    if (cert == NULL || subjectSz == NULL) {
+        return NULL;
+    }
+    *subjectSz = (word32)XSTRLEN(cert->subject);
+    return cert->subject;
+}
+
+const char* wc_GetDecodedCertIssuer(struct DecodedCert* cert, word32* issuerSz)
+{
+    if (cert == NULL || issuerSz == NULL) {
+        return NULL;
+    }
+    *issuerSz = (word32)XSTRLEN(cert->issuer);
+    return cert->issuer;
+}
+
+const byte* wc_GetDecodedCertSerial(struct DecodedCert* cert, word32* serialSz)
+{
+    if (cert == NULL || serialSz == NULL) {
+        return NULL;
+    }
+    *serialSz = (word32)cert->serialSz;
+    return cert->serial;
+}
+
 #ifdef WOLFCRYPT_ONLY
 
 /* dummy functions, not using wolfSSL so don't need actual ones */
