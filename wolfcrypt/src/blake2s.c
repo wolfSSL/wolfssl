@@ -505,7 +505,65 @@ int wc_Blake2sFinal(Blake2s* b2s, byte* final, word32 requestSz)
 }
 
 
-/* end CTaoCrypt API */
+int wc_Blake2sHmac(const byte * in, size_t in_len,
+        const byte * key, size_t key_len,
+        byte * out, size_t out_len)
+{
+    byte x_key[BLAKE2S_BLOCKBYTES];
+    byte i_hash[BLAKE2S_OUTBYTES];
+    Blake2s state;
+    int i;
+    int ret;
+
+    if (in == NULL || key == NULL || out == NULL)
+        return BAD_FUNC_ARG;
+
+    if (out_len != BLAKE2S_OUTBYTES)
+        return BUFFER_E;
+
+    if (key_len > BLAKE2S_BLOCKBYTES) {
+        if ((ret = wc_InitBlake2s(&state, BLAKE2S_OUTBYTES)) != 0)
+            return ret;
+        if ((ret = wc_Blake2sUpdate(&state, key, (word32)key_len)) != 0)
+            return ret;
+        if ((ret = wc_Blake2sFinal(&state, x_key, 0)) != 0)
+            return ret;
+    } else {
+        XMEMCPY(x_key, key, key_len);
+        XMEMSET(x_key + key_len, 0, BLAKE2S_BLOCKBYTES - key_len);
+    }
+
+    for (i = 0; i < BLAKE2S_BLOCKBYTES; ++i)
+        x_key[i] ^= 0x36U;
+
+    if ((ret = wc_InitBlake2s(&state, BLAKE2S_OUTBYTES)) != 0)
+        return ret;
+    if ((ret = wc_Blake2sUpdate(&state, x_key, BLAKE2S_BLOCKBYTES)) != 0)
+        return ret;
+    if ((ret = wc_Blake2sUpdate(&state, in, (word32)in_len)) != 0)
+        return ret;
+    if ((ret = wc_Blake2sFinal(&state, i_hash, 0)) != 0)
+        return ret;
+
+    for (i = 0; i < BLAKE2S_BLOCKBYTES; ++i)
+        x_key[i] ^= (0x5CU ^ 0x36U);
+
+    if ((ret = wc_InitBlake2s(&state, BLAKE2S_OUTBYTES)) != 0)
+        return ret;
+    if ((ret = wc_Blake2sUpdate(&state, x_key, BLAKE2S_BLOCKBYTES)) != 0)
+        return ret;
+    if ((ret = wc_Blake2sUpdate(&state, i_hash, BLAKE2S_OUTBYTES)) != 0)
+        return ret;
+    if ((ret = wc_Blake2sFinal(&state, i_hash, 0)) != 0)
+        return ret;
+
+    XMEMCPY(out, i_hash, BLAKE2S_OUTBYTES);
+    XMEMSET(x_key, 0, BLAKE2S_BLOCKBYTES);
+    XMEMSET(i_hash, 0, BLAKE2S_OUTBYTES);
+
+    return 0;
+}
+
+/* end wolfCrypt API */
 
 #endif  /* HAVE_BLAKE2S */
-
