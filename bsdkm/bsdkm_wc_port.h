@@ -44,8 +44,9 @@
  * extern global version from /usr/src/sys/sys/systm.h */
 #define version wc_version
 
-#define wc_km_printf    printf
-#define wc_km_print_err printf
+/* printf and logging defines */
+#define wc_km_printf            printf
+#define WOLFSSL_DEBUG_PRINTF_FN printf
 
 /* str and char utility functions */
 #define XATOI(s) ({                                         \

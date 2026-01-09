@@ -66,7 +66,6 @@ fips_hash=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
 placeholder.
 ```sh
 $ sudo kldload bsdkm/libwolfssl.ko
-Password:
 kldload: an error occurred while loading module bsdkm/libwolfssl.ko. Please check dmesg(8) for more details.
 ```
 
@@ -86,6 +85,11 @@ module_register_init: MOD_LOAD (libwolfssl_fips, 0xffffffff842c28d0, 0) error 85
 $ kldstat -m libwolfssl_fips
 Id  Refs Name
 523    1 libwolfssl_fips
+```
+
+Unload with
+```
+sudo kldunload libwolfssl
 ```
 
 On unload, the FIPS self-test will run a final time and print its status
