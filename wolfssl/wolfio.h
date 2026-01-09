@@ -541,7 +541,11 @@
         typedef struct hostent          HOSTENT;
     #endif /* HAVE_SOCKADDR */
 
-    #if defined(HAVE_GETADDRINFO)
+    #if defined(WOLFSSL_ZEPHYR)
+        typedef struct zsock_addrinfo   ADDRINFO;
+        #define getaddrinfo             zsock_getaddrinfo
+        #define freeaddrinfo            zsock_freeaddrinfo
+    #elif defined(HAVE_GETADDRINFO)
         typedef struct addrinfo         ADDRINFO;
     #endif
 #endif /* WOLFSSL_NO_SOCK */
@@ -1002,6 +1006,8 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
         #endif
     #elif defined(FREESCALE_MQX)
         #define XINET_PTON(a,b,c,d) inet_pton((a),(b),(c),(d))
+    #elif defined(WOLFSSL_ZEPHYR)
+        #define XINET_PTON(a,b,c)   zsock_inet_pton((a),(b),(c))
     #else
         #define XINET_PTON(a,b,c)   inet_pton((a),(b),(c))
     #endif
