@@ -810,6 +810,8 @@ WOLFSSL_API
 int wc_dilithium_make_key(dilithium_key* key, WC_RNG* rng);
 WOLFSSL_API
 int wc_dilithium_make_key_from_seed(dilithium_key* key, const byte* seed);
+WOLFSSL_API
+int wc_dilithium_pub_from_priv(dilithium_key* key);
 
 WOLFSSL_API
 int wc_dilithium_sign_msg(const byte* msg, word32 msgLen, byte* sig,

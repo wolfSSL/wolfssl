@@ -7981,6 +7981,145 @@ static int dilithium_make_key_from_seed(dilithium_key* key, const byte* seed)
 #endif
 }
 
+static int dilithium_pub_from_priv(dilithium_key* key)
+{
+    int ret = 0;
+    const wc_dilithium_params* params = key->params;
+    const byte* pub_seed = key->k;
+    const byte* s1p = pub_seed + DILITHIUM_PUB_SEED_SZ + DILITHIUM_K_SZ + DILITHIUM_TR_SZ;
+    const byte* s2p = s1p + params->s1EncSz;
+    sword32* a  = NULL;
+    sword32* s1 = NULL;
+    sword32* s2 = NULL;
+    sword32* t  = NULL;
+    byte* t0 = NULL;
+    byte* t1 = key->p + DILITHIUM_PUB_SEED_SZ;
+
+    /* Allocate and create cached values. */
+#ifndef WC_DILITHIUM_CACHE_MATRIX_A
+    a = (sword32*)XMALLOC(params->aSz, key->heap,
+        DYNAMIC_TYPE_DILITHIUM);
+    if (a == NULL) {
+        ret = MEMORY_E;
+    }
+    else {
+        XMEMSET(a, 0, params->aSz);
+    }
+
+    if (ret == 0) {
+        ret = dilithium_expand_a(&key->shake, pub_seed, params->k, params->l,
+            a, key->heap);
+    }
+#else
+    if (ret == 0) {
+        if (key->a == NULL) {
+            ret = BAD_STATE_E;
+        }
+        else {
+            a = key->a;
+        }
+    }
+#endif
+#ifndef WC_DILITHIUM_CACHE_PRIV_VECTORS
+    if (ret == 0) {
+        s1 = (sword32*)XMALLOC(params->s1Sz + params->s2Sz, key->heap,
+            DYNAMIC_TYPE_DILITHIUM);
+        if (s1 == NULL) {
+            ret = MEMORY_E;
+           }
+        else {
+            s2 = s1 + params->s1Sz / sizeof(*s1);
+
+            dilithium_vec_decode_eta_bits(s1p, params->eta, s1, params->l);
+            dilithium_vec_decode_eta_bits(s2p, params->eta, s2, params->k);
+
+            dilithium_vec_ntt_small(s1, params->l);
+        }
+    }
+#else
+    if (ret == 0) {
+        if (key->s1 == NULL || key->s2 == NULL) {
+            ret = BAD_STATE_E;
+        }
+        else {
+            s1 = key->s1;
+            s2 = key->s2;
+        }
+    }
+#endif
+
+    if (ret == 0) {
+        t0 = (byte*)XMALLOC(params->s2Sz, key->heap, DYNAMIC_TYPE_DILITHIUM);
+        if (t0 == NULL) {
+            ret = MEMORY_E;
+        }
+    }
+
+    if (ret == 0) {
+        t = (sword32*)XMALLOC(params->s2Sz, key->heap, DYNAMIC_TYPE_DILITHIUM);
+        if (t == NULL) {
+            ret = MEMORY_E;
+        }
+    }
+
+    /* cal t and get t0, t1 */
+    if (ret == 0) {
+        /* Copy public seed into public key. */
+        XMEMCPY(key->p, pub_seed, DILITHIUM_PUB_SEED_SZ);
+
+        /* t <- NTT-1(A_circum o NTT(s1)) + s2 */
+        dilithium_matrix_mul(t, a, s1, params->k, params->l);
+        dilithium_vec_invntt_full(t, params->k);
+        dilithium_vec_add(t, s2, params->k);
+        /* NTT s2 */
+        dilithium_vec_ntt_small(s2, params->k);
+
+        /* Make positive for decomposing. */
+        dilithium_vec_make_pos(t, params->k);
+        /* Decompose t in t0 and t1 and encode into public and private key. */
+        dilithium_vec_encode_t0_t1(t, params->k, t0, t1);
+    }
+
+#ifndef WC_DILITHIUM_CACHE_MATRIX_A
+    XMEMSET(a, 0, params->aSz);
+    XFREE(a, key->heap, DYNAMIC_TYPE_DILITHIUM);
+#endif
+#ifndef WC_DILITHIUM_CACHE_PRIV_VECTORS
+    XMEMSET(s1, 0, params->s1Sz + params->s2Sz);
+    XFREE(s1, key->heap, DYNAMIC_TYPE_DILITHIUM);
+#endif
+    XMEMSET(t0, 0, params->s2Sz);
+    XMEMSET(t, 0, params->s2Sz);
+    XFREE(t0, key->heap, DYNAMIC_TYPE_DILITHIUM);
+    XFREE(t, key->heap, DYNAMIC_TYPE_DILITHIUM);
+
+    if (ret == 0) {
+#ifdef WC_DILITHIUM_CACHE_PUB_VECTORS
+    #ifndef WC_DILITHIUM_FIXED_ARRAY
+        /* Allocate t1 if required. */
+        if (key->t1 == NULL) {
+            key->t1 = (sword32*)XMALLOC(params->s2Sz, key->heap,
+                DYNAMIC_TYPE_DILITHIUM);
+            if (key->t1 == NULL) {
+                ret = MEMORY_E;
+            }
+            else {
+                XMEMSET(key->t1, 0, key->params->s2Sz);
+            }
+        }
+    #endif
+    }
+    if (ret == 0) {
+        /* Compute t1 from public key data. */
+        dilithium_make_pub_vec(key, key->t1);
+#endif
+        /* Public key is set. */
+        key->pubKeySet = 1;
+    }
+
+    return ret;
+}
+
 /* Make a key from a random seed.
  *
  * FIPS 204. 5.1: Algorithm 1 ML-DSA.KeyGen()
@@ -10099,6 +10238,25 @@ int wc_dilithium_make_key_from_seed(dilithium_key* key, const byte* seed)
         }
 #elif defined(HAVE_LIBOQS)
         /* Make the key. */
+        ret = NOT_COMPILED_IN;
+#endif
+    }
+
+    return ret;
+}
+
+int wc_dilithium_pub_from_priv(dilithium_key* key)
+{
+    int ret = 0;
+
+    if (key == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+
+    if (ret == 0) {
+#ifdef WOLFSSL_WC_DILITHIUM
+        ret = dilithium_pub_from_priv(key);
+#elif defined(HAVE_LIBOQS)
         ret = NOT_COMPILED_IN;
 #endif
     }
