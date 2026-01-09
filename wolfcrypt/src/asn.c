@@ -33893,7 +33893,7 @@ static int MakeSignatureCb(CertSignCtx* certSignCtx, const byte* buf,
             goto exit_ms;
         }
 #endif
-        ret = HashForSignature(buf, sz, sigAlgoType, certSignCtx->digest,
+        ret = HashForSignature(buf, sz, (word32)sigAlgoType, certSignCtx->digest,
                                &typeH, &digestSz, 0, NULL, INVALID_DEVID);
         certSignCtx->state = CERTSIGN_STATE_ENCODE;
         if (ret != 0) {
