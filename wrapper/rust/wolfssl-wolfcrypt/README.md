@@ -24,18 +24,21 @@ functionality:
 
   * AES
     * CBC, CCM, CFB, CTR, EAX, ECB, GCM, OFB, XTS
+  * BLAKE2
   * CMAC
+  * ChaCha20-Poly1305
+  * Curve25519
   * DH
   * ECC
-  * Ed448
   * Ed25519
+  * Ed448
   * HKDF
   * HMAC
   * PBKDF2
   * PKCS #12 PBKDF
   * PRF
-  * RSA
   * RNG
+  * RSA
   * SHA
     * SHA-1, SHA-224, SHA-256, SHA-384, SHA-512, SHA3-224, SHA3-256, SHA3-384,
       SHA3-512, SHAKE128, SHAKE256
