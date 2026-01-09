@@ -33861,6 +33861,103 @@ int wc_MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
 #endif /* WOLFSSL_CERT_REQ */
 
 
+
+#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_REQ)
+/* Internal function to create signature using callback
+ * This allows external signing implementations (e.g., TPM, HSM) without
+ * requiring the crypto callback infrastructure.
+ */
+static int MakeSignatureCb(CertSignCtx* certSignCtx, const byte* buf,
+    word32 sz, byte* sig, word32 sigSz, int sigAlgoType, int keyType,
+    wc_SignCertCb signCb, void* signCtx, WC_RNG* rng, void* heap)
+{
+    int digestSz = 0, typeH = 0, ret = 0;
+    word32 outLen;
+
+    (void)rng;
+    (void)heap;
+
+    switch (certSignCtx->state) {
+    case CERTSIGN_STATE_BEGIN:
+    case CERTSIGN_STATE_DIGEST:
+        certSignCtx->state = CERTSIGN_STATE_DIGEST;
+#ifndef WOLFSSL_NO_MALLOC
+        certSignCtx->digest = (byte*)XMALLOC(WC_MAX_DIGEST_SIZE, heap,
+            DYNAMIC_TYPE_TMP_BUFFER);
+        if (certSignCtx->digest == NULL) {
+            ret = MEMORY_E;
+            goto exit_ms;
+        }
+#endif
+        ret = HashForSignature(buf, sz, (word32)sigAlgoType, certSignCtx->digest,
+                               &typeH, &digestSz, 0, NULL, INVALID_DEVID);
+        certSignCtx->state = CERTSIGN_STATE_ENCODE;
+        if (ret != 0) {
+            goto exit_ms;
+        }
+        FALL_THROUGH;
+
+    case CERTSIGN_STATE_ENCODE:
+        /* For RSA, encode the digest with algorithm identifier */
+        if (keyType == RSA_TYPE) {
+#ifndef WOLFSSL_NO_MALLOC
+            certSignCtx->encSig = (byte*)XMALLOC(MAX_DER_DIGEST_SZ, heap,
+                DYNAMIC_TYPE_TMP_BUFFER);
+            if (certSignCtx->encSig == NULL) {
+                ret = MEMORY_E;
+                goto exit_ms;
+            }
+#endif
+            certSignCtx->encSigSz = (int)wc_EncodeSignature(certSignCtx->encSig,
+                certSignCtx->digest, (word32)digestSz, typeH);
+        }
+        FALL_THROUGH;
+
+    case CERTSIGN_STATE_DO:
+        certSignCtx->state = CERTSIGN_STATE_DO;
+        outLen = sigSz;
+
+        /* Call the user-provided signing callback */
+        if (keyType == RSA_TYPE) {
+            /* RSA: pass encoded digest */
+            ret = signCb(certSignCtx->encSig, (word32)certSignCtx->encSigSz,
+                         sig, &outLen, sigAlgoType, keyType, signCtx);
+        }
+        else {
+            /* ECC/EdDSA: pass raw hash or message */
+            ret = signCb(certSignCtx->digest, (word32)digestSz,
+                         sig, &outLen, sigAlgoType, keyType, signCtx);
+        }
+
+        if (ret == 0) {
+            ret = (int)outLen;
+        }
+        break;
+    }
+
+exit_ms:
+#ifndef WOLFSSL_NO_MALLOC
+    if (keyType == RSA_TYPE) {
+        XFREE(certSignCtx->encSig, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        certSignCtx->encSig = NULL;
+    }
+    XFREE(certSignCtx->digest, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    certSignCtx->digest = NULL;
+#endif
+
+    /* reset state */
+    certSignCtx->state = CERTSIGN_STATE_BEGIN;
+
+    if (ret < 0) {
+        WOLFSSL_ERROR_VERBOSE(ret);
+    }
+
+    return ret;
+}
+#endif /* WOLFSSL_CERT_GEN || WOLFSSL_CERT_REQ */
+
+
+
 static int SignCert(int requestSz, int sType, byte* buf, word32 buffSz,
                     RsaKey* rsaKey, ecc_key* eccKey, ed25519_key* ed25519Key,
                     ed448_key* ed448Key, falcon_key* falconKey,
@@ -34158,6 +34255,71 @@ int wc_SignCert(int requestSz, int sType, byte* buf, word32 buffSz,
     return SignCert(requestSz, sType, buf, buffSz, rsaKey, eccKey, NULL, NULL,
                     NULL, NULL, NULL, rng);
 }
+
+/* Sign certificate/CSR using a callback function
+ * This allows external signing implementations (e.g., TPM, HSM)
+ * without requiring the crypto callback infrastructure.
+ *
+ * @param [in]     requestSz Size of certificate body to sign.
+ * @param [in]     sType     The signature type.
+ * @param [in,out] buf       Der buffer to sign.
+ * @param [in]     buffSz    Der buffer size.
+ * @param [in]     keyType   The type of key.
+ * @param [in]     signCb    User signing callback.
+ * @param [in]     signCtx   Context passed to callback.
+ * @param [in]     rng       Random number generator (may be NULL).
+ *
+ * @return  Size of signature on success.
+ * @return  < 0 on error
+ */
+int wc_SignCert_cb(int requestSz, int sType, byte* buf, word32 buffSz,
+                   int keyType, wc_SignCertCb signCb, void* signCtx,
+                   WC_RNG* rng)
+{
+    int sigSz = 0;
+    CertSignCtx certSignCtx_lcl;
+    CertSignCtx* certSignCtx = &certSignCtx_lcl;
+
+    if (signCb == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    XMEMSET(certSignCtx, 0, sizeof(*certSignCtx));
+
+    if (requestSz < 0) {
+        return requestSz;
+    }
+
+#ifndef WOLFSSL_NO_MALLOC
+    certSignCtx->sig = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (certSignCtx->sig == NULL) {
+        return MEMORY_E;
+    }
+#endif
+
+    sigSz = MakeSignatureCb(certSignCtx, buf, (word32)requestSz,
+        certSignCtx->sig, MAX_ENCODED_SIG_SZ, sType, keyType,
+        signCb, signCtx, rng, NULL);
+
+    if (sigSz >= 0) {
+        if (requestSz + MAX_SEQ_SZ * 2 + sigSz > (int)buffSz) {
+            sigSz = BUFFER_E;
+        }
+        else {
+            sigSz = AddSignature(buf, requestSz, certSignCtx->sig, sigSz, sType);
+        }
+    }
+
+#ifndef WOLFSSL_NO_MALLOC
+    XFREE(certSignCtx->sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    certSignCtx->sig = NULL;
+#endif
+
+    return sigSz;
+}
+
+
 
 
 WOLFSSL_ABI
