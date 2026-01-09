@@ -20170,15 +20170,19 @@ static int rng_bank_affinity_unlock(void *arg) {
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
 {
-
     int ret;
     WC_DECLARE_VAR(bank, struct wc_rng_bank, 1, HEAP_HINT);
     struct wc_rng_bank_inst *rng_inst = NULL;
+#ifdef WC_DRBG_BANKREF
+    WC_DECLARE_VAR(rng, WC_RNG, 1, HEAP_HINT);
+#endif
+#ifndef WC_RNG_BANK_STATIC
     struct wc_rng_bank *bank2 = NULL;
     struct wc_rng_bank_inst *rng_inst2 = NULL;
 #ifdef WC_DRBG_BANKREF
-    WC_RNG *rng = NULL, *rng2 = NULL;
+    WC_RNG *rng2 = NULL;
 #endif
+#endif /* !WC_RNG_BANK_STATIC */
     static const char bank_arg[] = "hi";
     byte outbuf1[16], outbuf2[16];
     int i;
@@ -20188,11 +20192,22 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
                     return WC_TEST_RET_ENC_EC(MEMORY_E));
     XMEMSET(bank, 0, sizeof(*bank));
 
-    ret = wc_rng_bank_init(NULL, 4, WC_RNG_BANK_FLAG_CAN_WAIT, 10, HEAP_HINT, INVALID_DEVID);
+    WC_ALLOC_VAR_EX(rng, WC_RNG, 1, HEAP_HINT,
+                    DYNAMIC_TYPE_TMP_BUFFER,
+                    return WC_TEST_RET_ENC_EC(MEMORY_E));
+    XMEMSET(rng, 0, sizeof(*rng));
+
+    ret = wc_rng_bank_init(NULL, WC_RNG_BANK_STATIC_SIZE, WC_RNG_BANK_FLAG_CAN_WAIT, 10, HEAP_HINT, INVALID_DEVID);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-    ret = wc_rng_bank_init(bank, 4, WC_RNG_BANK_FLAG_CAN_WAIT, 10, HEAP_HINT, INVALID_DEVID);
+#ifdef WC_RNG_BANK_STATIC
+    ret = wc_rng_bank_init(bank, WC_RNG_BANK_STATIC_SIZE + 1, WC_RNG_BANK_FLAG_CAN_WAIT, 10, HEAP_HINT, INVALID_DEVID);
+    if (ret != WC_NO_ERR_TRACE(BAD_LENGTH_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#endif
+
+    ret = wc_rng_bank_init(bank, WC_RNG_BANK_STATIC_SIZE, WC_RNG_BANK_FLAG_CAN_WAIT, 10, HEAP_HINT, INVALID_DEVID);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -20205,91 +20220,79 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-    ret = wc_rng_bank_new(&bank2, 4, WC_RNG_BANK_FLAG_NO_VECTOR_OPS, 10, HEAP_HINT, INVALID_DEVID);
-    if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-
-    ret = wc_rng_bank_set_affinity_handlers(
-        bank2,
-        rng_bank_affinity_lock,
-        rng_bank_affinity_get_id,
-        rng_bank_affinity_unlock,
-        (char *)bank_arg);
-    if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-
     rng_bank_affinity_get_id_id = 4;
-    ret = wc_rng_bank_checkout(bank2, &rng_inst2, -1, 10, WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST | WC_RNG_BANK_FLAG_AFFINITY_LOCK);
+    ret = wc_rng_bank_checkout(bank, &rng_inst, -1, 10, WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST | WC_RNG_BANK_FLAG_AFFINITY_LOCK);
     if (ret != WC_NO_ERR_TRACE(BAD_INDEX_E))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     rng_bank_affinity_get_id_id = 2;
-    ret = wc_rng_bank_checkout(bank2, &rng_inst2, -1, 10, WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST | WC_RNG_BANK_FLAG_AFFINITY_LOCK);
+    ret = wc_rng_bank_checkout(bank, &rng_inst, -1, 10, WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST | WC_RNG_BANK_FLAG_AFFINITY_LOCK);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-    if (rng_inst2 != bank2->rngs + 2)
+    if (rng_inst != bank->rngs + 2)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     if (rng_bank_affinity_lock_lock != bank_arg + 1)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
     /* if we can, confirm that WC_RNG_BANK_FLAG_NO_VECTOR_OPS worked. */
-#if defined(WC_HAVE_VECTOR_SPEEDUPS) && \
+#if defined(USE_INTEL_SPEEDUP) &&   \
     defined(WOLFSSL_KERNEL_MODE) &&       \
+    defined(WOLFSSL_SMALL_STACK_CACHE) && \
     defined(WC_C_DYNAMIC_FALLBACK) &&     \
-    defined(HAVE_HASHDRBG) &&                           \
+    defined(HAVE_HASHDRBG) &&             \
     defined(WC_NO_INTERNAL_FUNCTION_POINTERS)
-    if (((struct DRBG_internal *)rng_inst2->rng.drbg)->sha256.sha_method != 7 /* SHA256_C */)
-        ERROR_OUT(WC_TEST_RET_ENC_I(((struct DRBG_internal *)rng_inst2->rng.drbg)->sha256.sha_method), out);
+    if (((struct DRBG_internal *)rng_inst->rng.drbg)->sha256.sha_method != 7 /* SHA256_C */)
+        ERROR_OUT(WC_TEST_RET_ENC_I(((struct DRBG_internal *)rng_inst->rng.drbg)->sha256.sha_method), out);
 #endif
 
-    ret = wc_RNG_GenerateBlock(WC_RNG_BANK_INST_TO_RNG(rng_inst2), outbuf1, sizeof(outbuf1));
+    ret = wc_RNG_GenerateBlock(WC_RNG_BANK_INST_TO_RNG(rng_inst), outbuf1, sizeof(outbuf1));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-    ret = wc_rng_bank_checkin(bank2, &rng_inst2);
+    ret = wc_rng_bank_checkin(bank, &rng_inst);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-    if (rng_inst2 != NULL)
+    if (rng_inst != NULL)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     if (rng_bank_affinity_lock_lock != bank_arg + 2)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
-    ret = wc_rng_bank_checkout(bank2, &rng_inst2, 3, 10, WC_RNG_BANK_FLAG_NONE);
+    ret = wc_rng_bank_checkout(bank, &rng_inst, 3, 10, WC_RNG_BANK_FLAG_NONE);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-    if (rng_inst2 != bank2->rngs + 3)
+    if (rng_inst != bank->rngs + 3)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-    ret = wc_rng_bank_checkin(bank2, &rng_inst2);
+    ret = wc_rng_bank_checkin(bank, &rng_inst);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     rng_bank_affinity_get_id_id = 3;
-    ret = wc_rng_bank_checkout(bank2, &rng_inst2, -1, 10, WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST | WC_RNG_BANK_FLAG_AFFINITY_LOCK);
+    ret = wc_rng_bank_checkout(bank, &rng_inst, -1, 10, WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST | WC_RNG_BANK_FLAG_AFFINITY_LOCK);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-    if (rng_inst2 != bank2->rngs + 3)
+    if (rng_inst != bank->rngs + 3)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
-    ret = wc_RNG_GenerateBlock(WC_RNG_BANK_INST_TO_RNG(rng_inst2), outbuf2, sizeof(outbuf2));
+    ret = wc_RNG_GenerateBlock(WC_RNG_BANK_INST_TO_RNG(rng_inst), outbuf2, sizeof(outbuf2));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-    ret = wc_rng_bank_checkin(bank2, &rng_inst2);
+    ret = wc_rng_bank_checkin(bank, &rng_inst);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-    if (rng_inst2 != NULL)
+    if (rng_inst != NULL)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
     if (XMEMCMP(outbuf1, outbuf2, sizeof(outbuf1)) == 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
 #ifdef WC_DRBG_BANKREF
-    ret = wc_rng_new_bankref(bank2, &rng2);
+    ret = wc_InitRng_BankRef(bank, rng);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     rng_bank_affinity_get_id_id = 1;
-    ret = wc_RNG_GenerateBlock(rng2, outbuf1, sizeof(outbuf1));
+    ret = wc_RNG_GenerateBlock(rng, outbuf1, sizeof(outbuf1));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -20297,12 +20300,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #endif
 
-    ret = wc_rng_bank_reseed(bank2, 10, WC_RNG_BANK_FLAG_NONE);
+    ret = wc_rng_bank_reseed(bank, 10, WC_RNG_BANK_FLAG_NONE);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-    for (i = 0; i < bank2->n_rngs; ++i) {
-        if (((struct DRBG_internal *)bank2->rngs[i].rng.drbg)
+    for (i = 0; i < bank->n_rngs; ++i) {
+        if (((struct DRBG_internal *)bank->rngs[i].rng.drbg)
             ->reseedCtr != WC_RESEED_INTERVAL)
         {
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
@@ -20313,53 +20316,35 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     /* WC_RNG_BANK_FLAG_CAN_WAIT needed to avoiding warning message that the
      * instance needs reseed.
      */
-    ret = wc_rng_bank_checkout(bank2, &rng_inst2, -1, 10, WC_RNG_BANK_FLAG_CAN_WAIT | WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST | WC_RNG_BANK_FLAG_AFFINITY_LOCK);
+    ret = wc_rng_bank_checkout(bank, &rng_inst, -1, 10, WC_RNG_BANK_FLAG_CAN_WAIT | WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST | WC_RNG_BANK_FLAG_AFFINITY_LOCK);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-    ret = wc_RNG_GenerateBlock(WC_RNG_BANK_INST_TO_RNG(rng_inst2), outbuf1, sizeof(outbuf1));
+    ret = wc_RNG_GenerateBlock(WC_RNG_BANK_INST_TO_RNG(rng_inst), outbuf1, sizeof(outbuf1));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-    ret = wc_rng_bank_checkin(bank2, &rng_inst2);
+    ret = wc_rng_bank_checkin(bank, &rng_inst);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     rng_bank_affinity_get_id_id = 1;
-    ret = wc_rng_bank_checkout(bank2, &rng_inst2, -1, 10, WC_RNG_BANK_FLAG_CAN_WAIT | WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST | WC_RNG_BANK_FLAG_AFFINITY_LOCK);
+    ret = wc_rng_bank_checkout(bank, &rng_inst, -1, 10, WC_RNG_BANK_FLAG_CAN_WAIT | WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST | WC_RNG_BANK_FLAG_AFFINITY_LOCK);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-    ret = wc_RNG_GenerateBlock(WC_RNG_BANK_INST_TO_RNG(rng_inst2), outbuf2, sizeof(outbuf2));
+    ret = wc_RNG_GenerateBlock(WC_RNG_BANK_INST_TO_RNG(rng_inst), outbuf2, sizeof(outbuf2));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-    ret = wc_rng_bank_checkin(bank2, &rng_inst2);
+    ret = wc_rng_bank_checkin(bank, &rng_inst);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     if (XMEMCMP(outbuf1, outbuf2, sizeof(outbuf1)) == 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
-#ifdef WC_DRBG_BANKREF
-    if (wolfSSL_RefCur(bank2->refcount) != 2)
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-
-    ret = wc_rng_bank_free(&bank2);
-    if (ret != WC_NO_ERR_TRACE(BUSY_E))
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-
-    wc_rng_free(rng2);
-    rng2 = NULL;
-
-    if (wolfSSL_RefCur(bank2->refcount) != 1)
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-#endif
-
-    ret = wc_rng_bank_free(&bank2);
+    ret = wc_rng_bank_seed(bank, (byte *)bank_arg, (word32)sizeof(bank_arg), 10, WC_RNG_BANK_FLAG_CAN_WAIT);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-    if (bank2 != NULL)
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
     rng_bank_affinity_get_id_id = 0;
-
     ret = wc_rng_bank_checkout(bank, &rng_inst, -1, 10, WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST | WC_RNG_BANK_FLAG_AFFINITY_LOCK);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -20368,8 +20353,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-    /* can't wc_rng_bank_seed() with _FLAG_CAN_WAIT while holding an inst --
-     * deadlocks then times out.
+    if (XMEMCMP(outbuf1, outbuf2, sizeof(outbuf1)) == 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    /* can't wc_rng_bank_seed() while holding an inst (deadlock/timeout) --
+     * check in then check back out.
      */
     ret = wc_rng_bank_checkin(bank, &rng_inst);
     if (ret != 0)
@@ -20384,25 +20372,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     ret = wc_RNG_GenerateBlock(WC_RNG_BANK_INST_TO_RNG(rng_inst), outbuf2, sizeof(outbuf2));
-    if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-
-    if (XMEMCMP(outbuf1, outbuf2, sizeof(outbuf1)) == 0)
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-
-    ret = wc_rng_bank_checkin(bank, &rng_inst);
-    if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-
-    ret = wc_rng_bank_seed(bank, (byte *)bank_arg, (word32)sizeof(bank_arg), 10, WC_RNG_BANK_FLAG_CAN_WAIT);
-    if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-
-    ret = wc_rng_bank_checkout(bank, &rng_inst, -1, 10, WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST | WC_RNG_BANK_FLAG_AFFINITY_LOCK);
-    if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-
-    ret = wc_RNG_GenerateBlock(WC_RNG_BANK_INST_TO_RNG(rng_inst), outbuf1, sizeof(outbuf1));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -20428,24 +20397,160 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
+#ifdef WC_DRBG_BANKREF
+    if (wolfSSL_RefCur(bank->refcount) != 2)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    ret = wc_rng_bank_fini(bank);
+    if (ret != WC_NO_ERR_TRACE(BUSY_E))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    wc_FreeRng(rng);
+
+    if (wolfSSL_RefCur(bank->refcount) != 1)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif
+
+#ifdef WC_RNG_BANK_STATIC
+
+    ret = 0;
+
+#else /* !WC_RNG_BANK_STATIC */
+
+    ret = wc_rng_bank_new(&bank2, WC_RNG_BANK_STATIC_SIZE + 1, WC_RNG_BANK_FLAG_NO_VECTOR_OPS, 10, HEAP_HINT, INVALID_DEVID);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_rng_bank_set_affinity_handlers(
+        bank2,
+        rng_bank_affinity_lock,
+        rng_bank_affinity_get_id,
+        rng_bank_affinity_unlock,
+        (char *)bank_arg);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    rng_bank_affinity_get_id_id = WC_RNG_BANK_STATIC_SIZE;
+    ret = wc_rng_bank_checkout(bank2, &rng_inst2, -1, 10, WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST | WC_RNG_BANK_FLAG_AFFINITY_LOCK);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (rng_inst2 != bank2->rngs + WC_RNG_BANK_STATIC_SIZE)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    ret = wc_RNG_GenerateBlock(WC_RNG_BANK_INST_TO_RNG(rng_inst2), outbuf1, sizeof(outbuf1));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* can't wc_rng_bank_seed() while holding an inst (deadlock/timeout) --
+     * check in then check back out.
+     */
+    ret = wc_rng_bank_checkin(bank2, &rng_inst2);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_rng_bank_seed(bank2, (byte *)bank_arg, (word32)sizeof(bank_arg), 10, WC_RNG_BANK_FLAG_CAN_WAIT);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_rng_bank_checkout(bank2, &rng_inst2, -1, 10, WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST | WC_RNG_BANK_FLAG_AFFINITY_LOCK);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_RNG_GenerateBlock(WC_RNG_BANK_INST_TO_RNG(rng_inst2), outbuf2, sizeof(outbuf2));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    if (XMEMCMP(outbuf1, outbuf2, sizeof(outbuf1)) == 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    ret = wc_rng_bank_checkin(bank2, &rng_inst2);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_rng_bank_seed(bank2, (byte *)bank_arg, (word32)sizeof(bank_arg), 10, WC_RNG_BANK_FLAG_CAN_WAIT);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_rng_bank_checkout(bank2, &rng_inst2, -1, 10, WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST | WC_RNG_BANK_FLAG_AFFINITY_LOCK);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_RNG_GenerateBlock(WC_RNG_BANK_INST_TO_RNG(rng_inst2), outbuf1, sizeof(outbuf1));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* even though we passed in the same seed, the state is different, because
+     * Hash_DRBG_Reseed() chains in the previous state, and also churns in the
+     * "type" only on reseed.
+     */
+    if (XMEMCMP(outbuf1, outbuf2, sizeof(outbuf1)) == 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    ret = wc_rng_bank_inst_reinit(bank2, rng_inst2, 10, WC_RNG_BANK_FLAG_CAN_WAIT);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_RNG_GenerateBlock(WC_RNG_BANK_INST_TO_RNG(rng_inst2), outbuf1, sizeof(outbuf1));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    if (XMEMCMP(outbuf1, outbuf2, sizeof(outbuf1)) == 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    ret = wc_rng_bank_checkin(bank2, &rng_inst2);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+#ifdef WC_DRBG_BANKREF
+    ret = wc_rng_new_bankref(bank2, &rng2);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (rng2 == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    rng_bank_affinity_get_id_id = 1;
+    ret = wc_RNG_GenerateBlock(rng2, outbuf2, sizeof(outbuf2));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    if (XMEMCMP(outbuf1, outbuf2, sizeof(outbuf1)) == 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    if (wolfSSL_RefCur(bank2->refcount) != 2)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    ret = wc_rng_bank_free(&bank2);
+    if (ret != WC_NO_ERR_TRACE(BUSY_E))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    wc_FreeRng(rng2);
+
+    if (wolfSSL_RefCur(bank2->refcount) != 1)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+#endif /* WC_DRBG_BANKREF */
+
+    ret = wc_rng_bank_free(&bank2);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (bank2 != NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+#endif /* WC_RNG_BANK_STATIC */
+
 out:
 
     {
         int cleanup_ret;
 
 #ifdef WC_DRBG_BANKREF
-        if (rng) {
-            cleanup_ret = wc_FreeRng(rng);
-            if ((cleanup_ret != 0) && (ret == 0))
-                ret = WC_TEST_RET_ENC_EC(cleanup_ret);
-        }
-        if (rng2) {
-            cleanup_ret = wc_FreeRng(rng2);
-            if ((cleanup_ret != 0) && (ret == 0))
-                ret = WC_TEST_RET_ENC_EC(cleanup_ret);
-        }
-#endif
-
+        cleanup_ret = wc_FreeRng(rng);
+        if ((cleanup_ret != 0) && (ret == 0))
+{
+            ret = WC_TEST_RET_ENC_EC(cleanup_ret);
+}
+        WC_FREE_VAR_EX(rng, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif /* WC_DRBG_BANKREF */
         if (rng_inst) {
             cleanup_ret = wc_rng_bank_checkin(bank, &rng_inst);
             if ((cleanup_ret != 0) && (ret == 0))
@@ -20453,6 +20558,16 @@ out:
             if ((rng_inst != NULL) && (ret == 0))
                 ret = WC_TEST_RET_ENC_NC;
         }
+        cleanup_ret = wc_rng_bank_fini(bank);
+        if ((cleanup_ret != 0) && (ret == 0))
+            ret = WC_TEST_RET_ENC_EC(cleanup_ret);
+        WC_FREE_VAR_EX(bank, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+#ifndef WC_RNG_BANK_STATIC
+#ifdef WC_DRBG_BANKREF
+        if (rng2)
+            wc_rng_free(rng2);
+#endif
         if (rng_inst2) {
             cleanup_ret = wc_rng_bank_checkin(bank2, &rng_inst2);
             if ((cleanup_ret != 0) && (ret == 0))
@@ -20460,15 +20575,12 @@ out:
             if ((rng_inst2 != NULL) && (ret == 0))
                 ret = WC_TEST_RET_ENC_NC;
         }
-        cleanup_ret = wc_rng_bank_fini(bank);
-        if ((cleanup_ret != 0) && (ret == 0))
-            ret = WC_TEST_RET_ENC_EC(cleanup_ret);
-        WC_FREE_VAR_EX(bank, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         cleanup_ret = wc_rng_bank_free(&bank2);
         if ((cleanup_ret != 0) && (ret == 0))
             ret = WC_TEST_RET_ENC_EC(cleanup_ret);
         if ((bank2 != NULL) && (ret == 0))
             ret = WC_TEST_RET_ENC_NC;
+#endif /* !WC_RNG_BANK_STATIC */
     }
 
     return ret;

@@ -57,9 +57,22 @@ typedef int (*wc_affinity_get_id_fn_t)(void *arg, int *id);
 typedef int (*wc_affinity_unlock_fn_t)(void *arg);
 
 struct wc_rng_bank_inst {
+#ifdef WOLFSSL_NO_ATOMICS
+    int lock;
+#else
     wolfSSL_Atomic_Int lock;
+#endif
     WC_RNG rng;
 };
+
+#if defined(WOLFSSL_NO_MALLOC) && defined(NO_WOLFSSL_MEMORY) && \
+    !defined(WC_RNG_BANK_STATIC)
+    #define WC_RNG_BANK_STATIC
+#endif
+
+#ifndef WC_RNG_BANK_STATIC_SIZE
+    #define WC_RNG_BANK_STATIC_SIZE 4
+#endif
 
 struct wc_rng_bank {
     wolfSSL_Ref refcount;
@@ -70,9 +83,14 @@ struct wc_rng_bank {
     wc_affinity_unlock_fn_t affinity_unlock_cb;
     void *cb_arg; /* if mutable, caller is responsible for thread safety. */
     int n_rngs;
+#ifdef WC_RNG_BANK_STATIC
+    struct wc_rng_bank_inst rngs[WC_RNG_BANK_STATIC_SIZE];
+#else
     struct wc_rng_bank_inst *rngs; /* typically one per CPU ID, plus a few */
+#endif
 };
 
+#ifndef WC_RNG_BANK_STATIC
 WOLFSSL_API int wc_rng_bank_new(
     struct wc_rng_bank **ctx,
     int n_rngs,
@@ -80,6 +98,7 @@ WOLFSSL_API int wc_rng_bank_new(
     int timeout_secs,
     void *heap,
     int devId);
+#endif
 
 WOLFSSL_API int wc_rng_bank_init(
     struct wc_rng_bank *ctx,
@@ -98,7 +117,9 @@ WOLFSSL_API int wc_rng_bank_set_affinity_handlers(
 
 WOLFSSL_API int wc_rng_bank_fini(struct wc_rng_bank *ctx);
 
+#ifndef WC_RNG_BANK_STATIC
 WOLFSSL_API int wc_rng_bank_free(struct wc_rng_bank **ctx);
+#endif
 
 WOLFSSL_API int wc_rng_bank_checkout(
     struct wc_rng_bank *bank,
@@ -135,7 +156,9 @@ WOLFSSL_API int wc_InitRng_BankRef(struct wc_rng_bank *bank, WC_RNG *rng);
 
 WOLFSSL_API int wc_BankRef_Release(WC_RNG *rng);
 
+#ifndef WC_RNG_BANK_STATIC
 WOLFSSL_API int wc_rng_new_bankref(struct wc_rng_bank *bank, WC_RNG **rng);
+#endif
 #endif /* WC_DRBG_BANKREF */
 
 #define WC_RNG_BANK_INST_TO_RNG(rng_inst) (&(rng_inst)->rng)
