@@ -34750,6 +34750,7 @@ static int error_test(void)
     if (EXPECT_FAIL())
         return OPEN_RAN_E;
 #else
+    int start_idx = 0;
     int i;
     int j = 0;
     /* Values that are not or no longer error codes. */
@@ -34763,14 +34764,12 @@ static int error_test(void)
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
     defined(HAVE_WEBSERVER) || defined(HAVE_MEMCACHED)
-        { -11, -12 },
-        { -15, -17 },
-        { -19, -19 },
-        { -26, -27 },
-        { -30, WC_SPAN1_FIRST_E + 1 },
-#else
-        { -9, WC_SPAN1_FIRST_E + 1 },
+        {11, 11},
+        {17, 15},
+        {19, 19},
+        {27, 26 },
 #endif
+        { -9, WC_SPAN1_FIRST_E + 1 },
         { -124, -124 },
         { -167, -169 },
         { -300, -300 },
@@ -34788,7 +34787,10 @@ static int error_test(void)
      * APIs. Check that the values that are not errors map to the unknown
      * string.
      */
-    for (i = 0; i >= MIN_CODE_E; i--) {
+#if defined(OPENSSL_EXTRA)
+    start_idx = WC_OSSL_V509_V_ERR_MAX - 1;
+#endif
+    for (i = start_idx; i >= MIN_CODE_E; i--) {
         int this_missing = 0;
         for (j = 0; j < (int)XELEM_CNT(missing); ++j) {
             if ((i <= missing[j].first) && (i >= missing[j].last)) {
