@@ -1,0 +1,21 @@
+name = "examples"
+description = "Examples using the wolfSSL Ada bindings"
+version = "0.1.0-dev"
+
+authors = ["Juliusz Sosinowicz"]
+maintainers = ["Juliusz Sosinowicz <juliusz@wolfssl.com>"]
+maintainers-logins = ["julek-wolfssl"]
+licenses = "GPL-3.0-or-later"
+website = "https://www.wolfssl.com/"
+tags = []
+
+executables = [
+    "aes_verify_main",
+    "rsa_verify_main",
+    "sha256_main",
+    "tls_client_main",
+    "tls_server_main"
+]
+
+[[depends-on]]
+gnatprove = "^13.2.1"

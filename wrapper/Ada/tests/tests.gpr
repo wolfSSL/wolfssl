@@ -1,0 +1,36 @@
+with "config/tests_config.gpr";
+with "../wolfssl.gpr";
+
+project Tests is
+
+   for Source_Dirs use ("src/", "src/support", "config/");
+   for Object_Dir use "obj/" & Tests_Config.Build_Profile;
+   for Create_Missing_Dirs use "True";
+   for Exec_Dir use "bin";
+   for Main use ("tests.adb");
+
+   package Compiler is
+      --  "-gnatyM0" disables the GNAT style check for maximum line length.
+      --  We keep it disabled for this tests project because some embedded
+      --  test vectors (e.g., DER keys) are long comma-separated literals that
+      --  would otherwise generate many "this line is too long" warnings.
+      for Default_Switches ("Ada") use
+        Tests_Config.Ada_Compiler_Switches & ("-gnatyM0");
+   end Compiler;
+
+   package Binder is
+      for Switches ("Ada") use ("-Es"); --  Symbolic traceback
+   end Binder;
+
+   package Linker is
+      --  WolfSSL uses libm on Linux/macOS; wolfssl.gpr already encodes OS-specifics,
+      --  but we repeat "-lm" here so the standalone tests executable links when
+      --  consumed without a full project tree.
+      for Switches ("Ada") use ("-lm");
+   end Linker;
+
+   package Install is
+      for Artifacts (".") use ("share");
+   end Install;
+
+end Tests;
