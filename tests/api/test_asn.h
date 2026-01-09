@@ -34,7 +34,7 @@ int test_wolfssl_local_MatchBaseName(void);
     TEST_DECL_GROUP("asn", test_SetAsymKeyDer),                     \
     TEST_DECL_GROUP("asn", test_GetSetShortInt),                    \
     TEST_DECL_GROUP("asn", test_wc_IndexSequenceOf),                \
-    TEST_DECL_GROUP("asn", test_SerialNumber0_RootCA)
+    TEST_DECL_GROUP("asn", test_SerialNumber0_RootCA),              \
     TEST_DECL_GROUP("asn", test_wolfssl_local_MatchBaseName)
 
 #endif /* WOLFCRYPT_TEST_ASN_H */

@@ -709,6 +709,10 @@ int test_SerialNumber0_RootCA(void)
           !WOLFSSL_ASN_ALLOW_0_SERIAL */
 #endif /* !NO_CERTS && !NO_FILESYSTEM && !NO_RSA && WOLFSSL_CERT_GEN && 
           WOLFSSL_CERT_EXT */
+
+    return EXPECT_RESULT();
+}
+
 int test_wolfssl_local_MatchBaseName(void)
 {
     EXPECT_DECLS;
