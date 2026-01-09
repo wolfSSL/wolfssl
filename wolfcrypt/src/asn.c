@@ -40834,9 +40834,9 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf,
                     return ret;
                 }
                 else {
-                    DECL_MP_INT_SIZE_DYN(m, CRL_MAX_NUM_SZ * CHAR_BIT,
-                                   CRL_MAX_NUM_SZ * CHAR_BIT);
-                    NEW_MP_INT_SIZE(m, CRL_MAX_NUM_SZ * CHAR_BIT, NULL,
+                    DECL_MP_INT_SIZE_DYN(m, CRL_MAX_NUM_SZ_BITS,
+                                   CRL_MAX_NUM_SZ_BITS);
+                    NEW_MP_INT_SIZE(m, CRL_MAX_NUM_SZ_BITS, NULL,
                                    DYNAMIC_TYPE_TMP_BUFFER);
                 #ifdef MP_INT_SIZE_CHECK_NULL
                     if (m == NULL) {
@@ -40961,9 +40961,9 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32 idx,
                 #endif
                 }
                 else if (oid == CRL_NUMBER_OID) {
-                    DECL_MP_INT_SIZE_DYN(m, CRL_MAX_NUM_SZ * CHAR_BIT,
-                                   CRL_MAX_NUM_SZ * CHAR_BIT);
-                    NEW_MP_INT_SIZE(m, CRL_MAX_NUM_SZ * CHAR_BIT, NULL,
+                    DECL_MP_INT_SIZE_DYN(m, CRL_MAX_NUM_SZ_BITS,
+                                   CRL_MAX_NUM_SZ_BITS);
+                    NEW_MP_INT_SIZE(m, CRL_MAX_NUM_SZ_BITS, NULL,
                                    DYNAMIC_TYPE_TMP_BUFFER);
 
                 #ifdef MP_INT_SIZE_CHECK_NULL
