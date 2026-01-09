@@ -1665,7 +1665,7 @@ end:
     return ret;
 }
 
-#if (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK))
+#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK) || defined(WOLFSSL_DTLS13)
 #ifdef WOLFSSL_32BIT_MILLI_TIME
 #ifndef NO_ASN_TIME
 #if defined(USER_TICKS)
@@ -2264,7 +2264,7 @@ end:
      */
 #endif /* !NO_ASN_TIME */
 #endif /* WOLFSSL_32BIT_MILLI_TIME */
-#endif /* HAVE_SESSION_TICKET || !NO_PSK */
+#endif /* HAVE_SESSION_TICKET || !NO_PSK || WOLFSSL_DTLS13 */
 
 /* Add record layer header to message.
  *

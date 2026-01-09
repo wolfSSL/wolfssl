@@ -2489,3 +2489,78 @@ int test_dtls_mtu_split_messages(void)
     return TEST_SKIPPED;
 #endif
 }
+
+/* Test DTLS 1.3 minimum retransmission interval. This test calls
+ * wolfSSL_dtls_got_timeout() to simulate timeouts and verify that
+ * retransmissions are spaced at least DTLS13_MIN_RTX_INTERVAL apart.
+ */
+int test_dtls13_min_rtx_interval(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_DTLS13) && !defined(DTLS13_MIN_RTX_INTERVAL) && \
+    !defined(NO_ASN_TIME)
+    /* We don't want to test when DTLS13_MIN_RTX_INTERVAL is defined because
+     * it may be too low to trigger reliably in a test. The default value is
+     * 1 second which is sufficient for testing here. */
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    int c_msg_count = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    /* Setup DTLS 1.3 contexts */
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+
+    /* CH0 */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), SSL_ERROR_WANT_READ);
+
+    /* HRR */
+    ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), SSL_ERROR_WANT_READ);
+
+    /* CH1 */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), SSL_ERROR_WANT_READ);
+
+    /* SH ... FINISHED */
+    ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), SSL_ERROR_WANT_READ);
+
+    /* We should have SH ... FINISHED messages in the buffer */
+    ExpectIntGE(test_ctx.c_msg_count, 2);
+
+    /* Drop everything */
+    test_memio_clear_buffer(&test_ctx, 1);
+
+    /* First timeout. This one should trigger a retransmission */
+    if (wolfSSL_dtls13_use_quick_timeout(ssl_s))
+        ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_s), WOLFSSL_SUCCESS);
+    /* Save the message count to make sure no new messages are sent */
+    ExpectIntGE(c_msg_count = test_ctx.c_msg_count, 2);
+
+    /* Second timeout. This one should not trigger a retransmission */
+    if (wolfSSL_dtls13_use_quick_timeout(ssl_s))
+        ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_s), WOLFSSL_SUCCESS);
+    /* This is the critical check. The message count should not increase
+     * after the second timeout. DTLS13_MIN_RTX_INTERVAL should have blocked
+     * retransmission here. */
+    ExpectIntEQ(c_msg_count, test_ctx.c_msg_count);
+
+    /* Now complete the handshake. We didn't clear the first retransmission
+     * so the handshake should proceed without issues. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Cleanup */
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
