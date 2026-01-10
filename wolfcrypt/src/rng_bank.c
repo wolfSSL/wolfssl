@@ -645,7 +645,7 @@ WOLFSSL_API int wc_rng_bank_reseed(struct wc_rng_bank *bank,
                     "ERROR: wc_crng_reseed() wc_RNG_GenerateBlock() "
                     "for DRBG #%d returned %d.", n, ret);
 #endif
-            wc_rng_bank_checkin(bank, &drbg);
+            (void)wc_rng_bank_checkin(bank, &drbg);
             if (ret == WC_NO_ERR_TRACE(WC_TIMEOUT_E))
                 return ret;
             ret = WC_CHECK_FOR_INTR_SIGNALS();
@@ -654,7 +654,7 @@ WOLFSSL_API int wc_rng_bank_reseed(struct wc_rng_bank *bank,
             WC_RELAX_LONG_LOOP();
         }
         else {
-            wc_rng_bank_checkin(bank, &drbg);
+            (void)wc_rng_bank_checkin(bank, &drbg);
         }
     }
 

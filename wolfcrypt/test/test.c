@@ -20523,7 +20523,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     if (ret != WC_NO_ERR_TRACE(BUSY_E))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
-    wc_FreeRng(rng2);
+    wc_rng_free(rng2);
+    rng2 = NULL;
 
     if (wolfSSL_RefCur(bank2->refcount) != 1)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
@@ -20536,7 +20537,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     if (bank2 != NULL)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
-#endif /* WC_RNG_BANK_STATIC */
+#endif /* !WC_RNG_BANK_STATIC */
 
 out:
 
@@ -20546,9 +20547,7 @@ out:
 #ifdef WC_DRBG_BANKREF
         cleanup_ret = wc_FreeRng(rng);
         if ((cleanup_ret != 0) && (ret == 0))
-{
             ret = WC_TEST_RET_ENC_EC(cleanup_ret);
-}
         WC_FREE_VAR_EX(rng, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #endif /* WC_DRBG_BANKREF */
         if (rng_inst) {
