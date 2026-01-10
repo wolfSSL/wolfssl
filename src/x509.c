@@ -8663,6 +8663,30 @@ WOLFSSL_X509_NAME* wolfSSL_X509_CRL_get_issuer_name(WOLFSSL_X509_CRL* crl)
     return crl->crlList->issuer;
 }
 
+/* Set issuer name of CRL
+ * return WOLFSSL_SUCCESS on success
+ * return WOLFSSL_FAILURE on failure
+ */
+int wolfSSL_X509_CRL_set_issuer_name(WOLFSSL_X509_CRL* crl, WOLFSSL_X509_NAME* name)
+{
+    WOLFSSL_X509_NAME* newName;
+
+    if (crl == NULL || crl->crlList == NULL || name == NULL)
+        return WOLFSSL_FAILURE;
+
+    newName = wolfSSL_X509_NAME_dup(name);
+    if (newName == NULL)
+        return WOLFSSL_FAILURE;
+
+    if (crl->crlList->issuer != NULL) {
+        FreeX509Name(crl->crlList->issuer);
+        XFREE(crl->crlList->issuer, crl->heap, DYNAMIC_TYPE_X509);
+    }
+    crl->crlList->issuer = newName;
+
+    return WOLFSSL_SUCCESS;
+}
+
 /* Retrieve version from CRL
  * return version on success
  * return 0 on failure
@@ -8673,6 +8697,20 @@ int wolfSSL_X509_CRL_version(WOLFSSL_X509_CRL* crl)
         return 0;
 
     return crl->crlList->version;
+}
+
+/* Set version of CRL
+ * RFC 5280: 5.2.1. CRL version is 0 for v1, 1 for v2, etc
+ * return WOLFSSL_SUCCESS on success
+ * return WOLFSSL_FAILURE on failure
+ */
+int wolfSSL_X509_CRL_set_version(WOLFSSL_X509_CRL* crl, int version)
+{
+    if (crl == NULL || crl->crlList == NULL)
+        return WOLFSSL_FAILURE;
+
+    crl->crlList->version = version;
+    return WOLFSSL_SUCCESS;
 }
 
 /* Retrieve sig OID from CRL
@@ -8687,6 +8725,19 @@ int wolfSSL_X509_CRL_get_signature_type(WOLFSSL_X509_CRL* crl)
     return crl->crlList->signatureOID;
 }
 
+/* Set signature type of CRL
+ * return WOLFSSL_SUCCESS on success
+ * return WOLFSSL_FAILURE on failure
+ */
+int wolfSSL_X509_CRL_set_signature_type(WOLFSSL_X509_CRL* crl, int signatureType)
+{
+    if (crl == NULL || crl->crlList == NULL)
+        return WOLFSSL_FAILURE;
+
+    crl->crlList->signatureOID = signatureType;
+    return WOLFSSL_SUCCESS;
+}
+
 /* Retrieve sig NID from CRL
  * return NID on success
  * return 0 on failure
@@ -8697,6 +8748,19 @@ int wolfSSL_X509_CRL_get_signature_nid(const WOLFSSL_X509_CRL* crl)
         return 0;
 
     return oid2nid(crl->crlList->signatureOID, oidSigType);
+}
+
+/* Set signature NID of CRL
+ * return OID on success
+ * return negative value on failure
+ */
+int wolfSSL_X509_CRL_set_signature_nid(WOLFSSL_X509_CRL* crl, int nid)
+{
+    if (crl == NULL || crl->crlList == NULL || nid <= 0)
+        return BAD_FUNC_ARG;
+
+    crl->crlList->signatureOID = nid2oid(nid, oidSigType);
+    return WOLFSSL_SUCCESS;
 }
 
 /* Retrieve signature from CRL
@@ -8722,6 +8786,23 @@ int wolfSSL_X509_CRL_get_signature(WOLFSSL_X509_CRL* crl,
     }
     *bufSz = (int)crl->crlList->signatureSz;
 
+    return WOLFSSL_SUCCESS;
+}
+
+int wolfSSL_X509_CRL_set_signature(WOLFSSL_X509_CRL* crl,
+    unsigned char* buf, int bufSz)
+{
+    if (crl == NULL || crl->crlList == NULL ||
+        crl->crlList->signature == NULL)
+        return BAD_FUNC_ARG;
+
+    if (bufSz < (int)sizeof(crl->crlList->signature)) {
+        WOLFSSL_MSG("Signature buffer too small");
+        return BAD_FUNC_ARG;
+    }
+
+    XMEMCPY(crl->crlList->signature, buf, bufSz);
+    crl->crlList->signatureSz = bufSz;
     return WOLFSSL_SUCCESS;
 }
 
@@ -9210,10 +9291,30 @@ WOLFSSL_ASN1_TIME* wolfSSL_X509_CRL_get_lastUpdate(WOLFSSL_X509_CRL* crl)
         return NULL;
 }
 
+WOLFSSL_ASN1_TIME* wolfSSL_X509_CRL_set_lastUpdate(WOLFSSL_X509_CRL* crl, WOLFSSL_ASN1_TIME* time)
+{
+    if (crl != NULL && crl->crlList != NULL) {
+        crl->crlList->lastDateAsn1 = *time;
+        return &crl->crlList->lastDateAsn1;
+    }
+    else
+        return NULL;
+}
+
 WOLFSSL_ASN1_TIME* wolfSSL_X509_CRL_get_nextUpdate(WOLFSSL_X509_CRL* crl)
 {
     if ((crl != NULL) && (crl->crlList != NULL) &&
         (crl->crlList->nextDateAsn1.data[0] != 0)) {
+        return &crl->crlList->nextDateAsn1;
+    }
+    else
+        return NULL;
+}
+
+WOLFSSL_ASN1_TIME* wolfSSL_X509_CRL_set_nextUpdate(WOLFSSL_X509_CRL* crl, WOLFSSL_ASN1_TIME* time)
+{
+    if (crl != NULL && crl->crlList != NULL) {
+        crl->crlList->nextDateAsn1 = *time;
         return &crl->crlList->nextDateAsn1;
     }
     else
@@ -12271,6 +12372,19 @@ WOLFSSL_X509_CRL* wolfSSL_PEM_read_X509_CRL(XFILE fp,
 {
     return (WOLFSSL_X509_CRL* )wolfSSL_PEM_read_X509_ex(fp, (void **)crl, cb, u,
          CRL_TYPE);
+}
+
+/* Convert CRL to DER or PEM format.
+ * Returns WOLFSSL_SUCCESS on success, negative on failure.
+ * The caller is responsible for freeing the buffer using XFREE.
+ */
+int wolfSSL_write_X509_CRL(WOLFSSL_X509_CRL* crl, const char* path, int type)
+{
+    int ret;
+    WOLFSSL_ENTER("wolfSSL_write_X509_CRL");
+    ret = StoreCRL(crl, path, type);
+    WOLFSSL_LEAVE("wolfSSL_write_X509_CRL", ret);
+    return ret;
 }
 #endif
 

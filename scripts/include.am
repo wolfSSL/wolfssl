@@ -19,6 +19,13 @@ if BUILD_CRL
 # make revoked test rely on completion of resume test
 dist_noinst_SCRIPTS+= scripts/crl-revoked.test
 scripts/crl-revoked.log: scripts/resume.log
+
+# CRL OpenSSL verification test - verifies CRLs created by test_sk_X509_CRL_encode
+# depends on unit tests completing first (which creates the CRL files)
+# also depends on resume.log to ensure DTLS resume tests complete first
+dist_noinst_SCRIPTS+= scripts/crl-openssl-verify.test
+scripts/crl-openssl-verify.log: tests/unit.log
+scripts/crl-openssl-verify.log: scripts/resume.log
 endif
 
 # arrange to serialize ocsp.test, ocsp-stapling.test, ocsp-stapling-with-ca-as-responder.test, ocsp-stapling2.test, and testsuite,
