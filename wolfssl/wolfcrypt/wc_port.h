@@ -283,8 +283,6 @@
 #elif defined(WOLFSSL_APACHE_MYNEWT)
     /* do nothing */
 #elif defined(WOLFSSL_ZEPHYR)
-    /* Zephyr SDK can use a cpp compiler which will cause
-     * problems with extern "C" linkage if not handled */
     #ifdef __cplusplus
         }  /* extern "C" */
     #endif
@@ -994,7 +992,15 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XFGETS(b,s,f) -2 /* Not ported yet */
 
 #elif defined(WOLFSSL_ZEPHYR)
+    #ifdef __cplusplus
+        }  /* extern "C" */
+    #endif
+
     #include <zephyr/fs/fs.h>
+
+    #ifdef __cplusplus
+        extern "C" {
+    #endif
 
     #define XFILE      struct fs_file_t*
 
@@ -1481,6 +1487,10 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define USE_WOLF_TIME_T
 
 #elif defined(WOLFSSL_ZEPHYR)
+    #ifdef __cplusplus
+        }  /* extern "C" */
+    #endif
+
     #include <version.h>
     #ifndef _POSIX_C_SOURCE
         #if KERNEL_VERSION_NUMBER >= 0x30100
@@ -1498,6 +1508,10 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
         #else
             #warning "RTC support needs picolibc or newlib (nano)"
         #endif
+    #endif
+
+    #ifdef __cplusplus
+        extern "C" {
     #endif
 
     time_t z_time(time_t *timer);
