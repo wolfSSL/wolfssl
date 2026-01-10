@@ -26595,8 +26595,9 @@ int SendAlert(WOLFSSL* ssl, int severity, int type)
 #include <wolfssl/debug-untrace-error-codes.h>
 #endif
 
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
-    defined(HAVE_WEBSERVER) || defined(HAVE_MEMCACHED)
+#if !defined(NO_ERROR_STRINGS) && (defined(OPENSSL_EXTRA) || \
+    defined(OPENSSL_EXTRA_X509_SMALL) || \
+    defined(HAVE_WEBSERVER) || defined(HAVE_MEMCACHED))
 static const char* wolfSSL_ERR_reason_error_string_OpenSSL(unsigned long e)
 {
     switch (e) {
@@ -26668,7 +26669,7 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     if (error > 0) {
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
     defined(HAVE_WEBSERVER) || defined(HAVE_MEMCACHED)
-    /* try OpenSSL error strings first */
+    /* Check the OpenSSL error strings first. */
         const char* ossl_err = wolfSSL_ERR_reason_error_string_OpenSSL(e);
         if (ossl_err != NULL) {
             return ossl_err;
