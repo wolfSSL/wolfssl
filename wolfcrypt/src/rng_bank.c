@@ -50,11 +50,16 @@ WOLFSSL_API int wc_rng_bank_init(
     ctx->flags = flags | WC_RNG_BANK_FLAG_INITED;
     ctx->heap = heap;
 
+#ifdef WC_RNG_BANK_STATIC
+    if (n_rngs > WC_RNG_BANK_STATIC_SIZE)
+        return BAD_LENGTH_E;
+#else
     ctx->rngs = (struct wc_rng_bank_inst *)
         XMALLOC(sizeof(*ctx->rngs) * (size_t)n_rngs,
                 heap, DYNAMIC_TYPE_RNG);
     if (! ctx->rngs)
         ret = MEMORY_E;
+#endif
 
     if (ret == 0) {
         XMEMSET(ctx->rngs, 0, sizeof(*ctx->rngs) * (size_t)n_rngs);
@@ -116,6 +121,7 @@ WOLFSSL_API int wc_rng_bank_init(
     return ret;
 }
 
+#ifndef WC_RNG_BANK_STATIC
 WOLFSSL_API int wc_rng_bank_new(
     struct wc_rng_bank **ctx,
     int n_rngs,
@@ -142,6 +148,7 @@ WOLFSSL_API int wc_rng_bank_new(
 
     return ret;
 }
+#endif /* !WC_RNG_BANK_STATIC */
 
 WOLFSSL_API int wc_rng_bank_set_affinity_handlers(
     struct wc_rng_bank *ctx,
@@ -181,7 +188,10 @@ WOLFSSL_API int wc_rng_bank_fini(struct wc_rng_bank *ctx) {
     if (wolfSSL_RefCur(ctx->refcount) > 1)
         return BUSY_E;
 
-    if (ctx->rngs) {
+#ifndef WC_RNG_BANK_STATIC
+    if (ctx->rngs)
+#endif
+    {
         for (i = 0; i < ctx->n_rngs; ++i) {
             if (ctx->rngs[i].lock != 0) {
                 /* better to leak than to crash. */
@@ -198,8 +208,10 @@ WOLFSSL_API int wc_rng_bank_fini(struct wc_rng_bank *ctx) {
             wc_FreeRng(&ctx->rngs[i].rng);
         }
 
+#ifndef WC_RNG_BANK_STATIC
         XFREE(ctx->rngs, ctx->heap, DYNAMIC_TYPE_RNG);
         ctx->rngs = NULL;
+#endif
         ctx->n_rngs = 0;
     }
 
@@ -211,6 +223,7 @@ WOLFSSL_API int wc_rng_bank_fini(struct wc_rng_bank *ctx) {
     return 0;
 }
 
+#ifndef WC_RNG_BANK_STATIC
 WOLFSSL_API int wc_rng_bank_free(struct wc_rng_bank **ctx) {
     int ret;
     void *heap;
@@ -232,6 +245,7 @@ WOLFSSL_API int wc_rng_bank_free(struct wc_rng_bank **ctx) {
 
     return ret;
 }
+#endif /* !WC_RNG_BANK_STATIC */
 
 /* wc_rng_bank_checkout() uses atomic operations to get exclusive ownership of a
  * DRBG without delay.  It expects to be called in uninterruptible context,
@@ -631,7 +645,7 @@ WOLFSSL_API int wc_rng_bank_reseed(struct wc_rng_bank *bank,
                     "ERROR: wc_crng_reseed() wc_RNG_GenerateBlock() "
                     "for DRBG #%d returned %d.", n, ret);
 #endif
-            wc_rng_bank_checkin(bank, &drbg);
+            (void)wc_rng_bank_checkin(bank, &drbg);
             if (ret == WC_NO_ERR_TRACE(WC_TIMEOUT_E))
                 return ret;
             ret = WC_CHECK_FOR_INTR_SIGNALS();
@@ -640,7 +654,7 @@ WOLFSSL_API int wc_rng_bank_reseed(struct wc_rng_bank *bank,
             WC_RELAX_LONG_LOOP();
         }
         else {
-            wc_rng_bank_checkin(bank, &drbg);
+            (void)wc_rng_bank_checkin(bank, &drbg);
         }
     }
 
@@ -694,6 +708,7 @@ WOLFSSL_API int wc_BankRef_Release(WC_RNG *rng)
     return ret;
 }
 
+#ifndef WC_RNG_BANK_STATIC
 WOLFSSL_API int wc_rng_new_bankref(struct wc_rng_bank *bank, WC_RNG **rng) {
     int ret;
 
@@ -717,6 +732,7 @@ WOLFSSL_API int wc_rng_new_bankref(struct wc_rng_bank *bank, WC_RNG **rng) {
 
     return ret;
 }
+#endif /* !WC_RNG_BANK_STATIC */
 
 #endif /* WC_DRBG_BANKREF */
 
