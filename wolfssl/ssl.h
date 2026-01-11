@@ -2612,9 +2612,11 @@ WOLFSSL_API void* wolfSSL_get_app_data( const WOLFSSL *ssl);
      */
 enum {
     WOLFSSL_X509_V_OK                                    = 0,
+    WOLFSSL_X509_V_ERR_UNABLE_TO_GET_CRL                 = 3,
     WOLFSSL_X509_V_ERR_CERT_SIGNATURE_FAILURE            = 7,
     WOLFSSL_X509_V_ERR_CERT_NOT_YET_VALID                = 9,
     WOLFSSL_X509_V_ERR_CERT_HAS_EXPIRED                  = 10,
+    WOLFSSL_X509_V_ERR_CRL_HAS_EXPIRED                   = 12,
     WOLFSSL_X509_V_ERR_ERROR_IN_CERT_NOT_BEFORE_FIELD    = 13,
     WOLFSSL_X509_V_ERR_ERROR_IN_CERT_NOT_AFTER_FIELD     = 14,
     WOLFSSL_X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT       = 18,
@@ -2626,6 +2628,7 @@ enum {
     WOLFSSL_X509_V_ERR_PATH_LENGTH_EXCEEDED              = 25,
     WOLFSSL_X509_V_ERR_CERT_REJECTED                     = 28,
     WOLFSSL_X509_V_ERR_SUBJECT_ISSUER_MISMATCH           = 29,
+    WC_OSSL_V509_V_ERR_MAX = 30,
 
 #ifdef HAVE_OCSP
     /* OCSP Flags */
