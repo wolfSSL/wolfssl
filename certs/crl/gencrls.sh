@@ -219,4 +219,26 @@ openssl crl -in crl_rsapss.pem -text > tmp
 check_result $?
 mv tmp crl_rsapss.pem
 
+echo "Step 29 large CRL number( = 20 octets )"
+echo d8afada7f08b38e6178bd0e5cd7b0df80071ba74 > crlnumber
+openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 1000 -out extra-crls/large_crlnum.pem -keyfile ../ca-key.pem -cert ../ca-cert.pem
+check_result $?
+
+# metadata
+echo "Step 29"
+openssl crl -in extra-crls/large_crlnum.pem -text > tmp
+check_result $?
+mv tmp extra-crls/large_crlnum.pem
+
+echo "Step 30 large CRL number( > 20 octets )"
+echo 8bc28c3b3f7a6344cd464a9fdc837f2009deb94fd3 > crlnumber
+openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 1000 -out extra-crls/large_crlnum2.pem -keyfile ../ca-key.pem -cert ../ca-cert.pem
+check_result $?
+
+# metadata
+echo "Step 30"
+openssl crl -in extra-crls/large_crlnum2.pem -text > tmp
+check_result $?
+mv tmp extra-crls/large_crlnum2.pem
+
 exit 0

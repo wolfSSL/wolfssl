@@ -138,7 +138,7 @@ static int InitCRL_Entry(CRL_Entry* crle, DecodedCRL* dcrl, const byte* buff,
     crle->totalCerts = dcrl->totalCerts;
     crle->crlNumberSet = dcrl->crlNumberSet;
     if (crle->crlNumberSet) {
-        XMEMCPY(crle->crlNumber, dcrl->crlNumber, CRL_MAX_NUM_SZ);
+        XMEMCPY(crle->crlNumber, dcrl->crlNumber, sizeof(crle->crlNumber));
     }
     crle->verified = verified;
     if (!verified) {
@@ -597,7 +597,7 @@ static void SetCrlInfo(CRL_Entry* entry, CrlInfo *info)
     info->nextDateFormat = entry->nextDateFormat;
     info->crlNumberSet = entry->crlNumberSet;
     if (info->crlNumberSet)
-        XMEMCPY(info->crlNumber, entry->crlNumber, CRL_MAX_NUM_SZ);
+        XMEMCPY(info->crlNumber, entry->crlNumber, sizeof(entry->crlNumber));
 }
 
 static void SetCrlInfoFromDecoded(DecodedCRL* entry, CrlInfo *info)
@@ -612,7 +612,7 @@ static void SetCrlInfoFromDecoded(DecodedCRL* entry, CrlInfo *info)
     info->nextDateFormat = entry->nextDateFormat;
     info->crlNumberSet = entry->crlNumberSet;
     if (info->crlNumberSet)
-        XMEMCPY(info->crlNumber, entry->crlNumber, CRL_MAX_NUM_SZ);
+        XMEMCPY(info->crlNumber, entry->crlNumber, sizeof(entry->crlNumber));
 }
 #endif
 
@@ -622,14 +622,14 @@ static void SetCrlInfoFromDecoded(DecodedCRL* entry, CrlInfo *info)
 static int CompareCRLnumber(CRL_Entry* prev, CRL_Entry* curr)
 {
     int ret = 0;
-    DECL_MP_INT_SIZE_DYN(prev_num, CRL_MAX_NUM_SZ * CHAR_BIT,
-                                   CRL_MAX_NUM_SZ * CHAR_BIT);
-    DECL_MP_INT_SIZE_DYN(curr_num, CRL_MAX_NUM_SZ * CHAR_BIT,
-                                   CRL_MAX_NUM_SZ * CHAR_BIT);
+    DECL_MP_INT_SIZE_DYN(prev_num, CRL_MAX_NUM_SZ_BITS,
+                                   CRL_MAX_NUM_SZ_BITS);
+    DECL_MP_INT_SIZE_DYN(curr_num, CRL_MAX_NUM_SZ_BITS,
+                                   CRL_MAX_NUM_SZ_BITS);
 
-    NEW_MP_INT_SIZE(prev_num, CRL_MAX_NUM_SZ * CHAR_BIT, NULL,
+    NEW_MP_INT_SIZE(prev_num, CRL_MAX_NUM_SZ_BITS, NULL,
                                    DYNAMIC_TYPE_TMP_BUFFER);
-    NEW_MP_INT_SIZE(curr_num, CRL_MAX_NUM_SZ * CHAR_BIT, NULL,
+    NEW_MP_INT_SIZE(curr_num, CRL_MAX_NUM_SZ_BITS, NULL,
                                    DYNAMIC_TYPE_TMP_BUFFER);
 #ifdef MP_INT_SIZE_CHECK_NULL
     if ((prev_num == NULL) || (curr_num == NULL)) {
@@ -637,9 +637,9 @@ static int CompareCRLnumber(CRL_Entry* prev, CRL_Entry* curr)
     }
 #endif
 
-    if (ret == 0 && ((INIT_MP_INT_SIZE(prev_num, CRL_MAX_NUM_SZ * CHAR_BIT)
+    if (ret == 0 && ((INIT_MP_INT_SIZE(prev_num, CRL_MAX_NUM_SZ_BITS)
                 != MP_OKAY) || (INIT_MP_INT_SIZE(curr_num,
-                CRL_MAX_NUM_SZ * CHAR_BIT)) != MP_OKAY)) {
+                CRL_MAX_NUM_SZ_BITS)) != MP_OKAY)) {
         ret = MP_INIT_E;
     }
 
