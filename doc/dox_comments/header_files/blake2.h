@@ -14,7 +14,7 @@
     \code
     Blake2b b2b;
     // initialize Blake2b structure with 64 byte digest
-    wc_InitBlake2b(&b2b, 64);
+    wc_InitBlake2b(&b2b, BLAKE2B_OUTBYTES);
     \endcode
 
     \sa wc_Blake2bUpdate
@@ -41,13 +41,13 @@ int wc_InitBlake2b(Blake2b* b2b, word32 digestSz);
     int ret;
     Blake2b b2b;
     // initialize Blake2b structure with 64 byte digest
-    wc_InitBlake2b(&b2b, 64);
+    wc_InitBlake2b(&b2b, BLAKE2B_OUTBYTES);
 
     byte plain[] = { // initialize input };
 
     ret = wc_Blake2bUpdate(&b2b, plain, sizeof(plain));
     if( ret != 0) {
-    	// error updating blake2b
+        // error updating blake2b
     }
     \endcode
 
@@ -78,14 +78,14 @@ int wc_Blake2bUpdate(Blake2b* b2b, const byte* data, word32 sz);
     \code
     int ret;
     Blake2b b2b;
-    byte hash[64];
+    byte hash[BLAKE2B_OUTBYTES];
     // initialize Blake2b structure with 64 byte digest
-    wc_InitBlake2b(&b2b, 64);
+    wc_InitBlake2b(&b2b, BLAKE2B_OUTBYTES);
     ... // call wc_Blake2bUpdate to add data to hash
 
-    ret = wc_Blake2bFinal(&b2b, hash, 64);
+    ret = wc_Blake2bFinal(&b2b, hash, BLAKE2B_OUTBYTES);
     if( ret != 0) {
-    	// error generating blake2b hash
+        // error generating blake2b hash
     }
     \endcode
 
@@ -93,3 +93,162 @@ int wc_Blake2bUpdate(Blake2b* b2b, const byte* data, word32 sz);
     \sa wc_Blake2bUpdate
 */
 int wc_Blake2bFinal(Blake2b* b2b, byte* final, word32 requestSz);
+
+/*!
+    \ingroup BLAKE2
+
+    \brief This function computes the HMAC-BLAKE2b message authentication code
+    of the given input data using the given key.
+
+    \return 0 Returned upon successfully computing the HMAC-BLAKE2b MAC.
+
+    \param in pointer to the input data
+    \param in_len length of the input data
+    \param key pointer to the key
+    \param key_len length of the key
+    \param out output buffer to store computed MAC
+    \param out_len length of output buffer
+
+    _Example_
+    \code
+    int ret;
+    byte mac[BLAKE2B_OUTBYTES];
+    byte data[] = {1, 2, 3};
+    byte key[] = {4, 5, 6};
+    ret = wc_Blake2bHmac(data, sizeof(data), key, sizeof(key), mac, sizeof(mac));
+    if( ret != 0) {
+        // error generating HMAC-BLAKE2b
+    }
+    \endcode
+*/
+int wc_Blake2bHmac(const byte * in, size_t in_len,
+        const byte * key, size_t key_len,
+        byte * out, size_t out_len);
+
+
+/*!
+    \ingroup BLAKE2
+
+    \brief This function initializes a Blake2s structure for use with the
+    Blake2 hash function.
+
+    \return 0 Returned upon successfully initializing the Blake2s structure and
+    setting the digest size.
+
+    \param b2s pointer to the Blake2s structure to initialize
+    \param digestSz length of the blake 2 digest to implement
+
+    _Example_
+    \code
+    Blake2s b2s;
+    // initialize Blake2s structure with 32 byte digest
+    wc_InitBlake2s(&b2s, BLAKE2S_OUTBYTES);
+    \endcode
+
+    \sa wc_Blake2sUpdate
+*/
+int wc_InitBlake2s(Blake2s* b2s, word32 digestSz);
+
+/*!
+    \ingroup BLAKE2
+
+    \brief This function updates the Blake2s hash with the given input data.
+    This function should be called after wc_InitBlake2s, and repeated until
+    one is ready for the final hash: wc_Blake2sFinal.
+
+    \return 0 Returned upon successfully update the Blake2s structure with
+    the given data
+    \return -1 Returned if there is a failure while compressing the input data
+
+    \param b2s pointer to the Blake2s structure to update
+    \param data pointer to a buffer containing the data to append
+    \param sz length of the input data to append
+
+    _Example_
+    \code
+    int ret;
+    Blake2s b2s;
+    // initialize Blake2s structure with 32 byte digest
+    wc_InitBlake2s(&b2s, BLAKE2S_OUTBYTES);
+
+    byte plain[] = { // initialize input };
+
+    ret = wc_Blake2sUpdate(&b2s, plain, sizeof(plain));
+    if( ret != 0) {
+        // error updating blake2s
+    }
+    \endcode
+
+    \sa wc_InitBlake2s
+    \sa wc_Blake2sFinal
+*/
+int wc_Blake2sUpdate(Blake2s* b2s, const byte* data, word32 sz);
+
+/*!
+    \ingroup BLAKE2
+
+    \brief This function computes the Blake2s hash of the previously supplied
+    input data. The output hash will be of length requestSz, or, if
+    requestSz==0, the digestSz of the b2s structure. This function should be
+    called after wc_InitBlake2s and wc_Blake2sUpdate has been processed for
+    each piece of input data desired.
+
+    \return 0 Returned upon successfully computing the Blake2s hash
+    \return -1 Returned if there is a failure while parsing the Blake2s hash
+
+    \param b2s pointer to the Blake2s structure to update
+    \param final pointer to a buffer in which to store the blake2s hash.
+    Should be of length requestSz
+    \param requestSz length of the digest to compute. When this is zero,
+    b2s->digestSz will be used instead
+
+    _Example_
+    \code
+    int ret;
+    Blake2s b2s;
+    byte hash[BLAKE2S_OUTBYTES];
+    // initialize Blake2s structure with 32 byte digest
+    wc_InitBlake2s(&b2s, BLAKE2S_OUTBYTES);
+    ... // call wc_Blake2sUpdate to add data to hash
+
+    ret = wc_Blake2sFinal(&b2s, hash, BLAKE2S_OUTBYTES);
+    if( ret != 0) {
+        // error generating blake2s hash
+    }
+    \endcode
+
+    \sa wc_InitBlake2s
+    \sa wc_Blake2sUpdate
+*/
+int wc_Blake2sFinal(Blake2s* b2s, byte* final, word32 requestSz);
+
+/*!
+    \ingroup BLAKE2
+
+    \brief This function computes the HMAC-BLAKE2s message authentication code
+    of the given input data using the given key.
+
+    \return 0 Returned upon successfully computing the HMAC-BLAKE2s MAC.
+
+    \param in pointer to the input data
+    \param in_len length of the input data
+    \param key pointer to the key
+    \param key_len length of the key
+    \param out output buffer to store computed MAC
+    \param out_len length of output buffer
+
+    _Example_
+    \code
+    int ret;
+    byte mac[BLAKE2S_OUTBYTES];
+    byte data[] = {1, 2, 3};
+    byte key[] = {4, 5, 6};
+    ret = wc_Blake2sHmac(data, sizeof(data), key, sizeof(key), mac, sizeof(mac));
+    if( ret != 0) {
+        // error generating HMAC-BLAKE2s
+    }
+    \endcode
+*/
+int wc_Blake2sHmac(const byte * in, size_t in_len,
+        const byte * key, size_t key_len,
+        byte * out, size_t out_len);
