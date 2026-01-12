@@ -50,7 +50,7 @@ static inline time_t wolfkmod_time(time_t * tloc) {
     }
     return _now;
 }
-#define	XTIME(tp) wolfkmod_time((tp))
+#define XTIME wolfkmod_time
 
 /* needed to prevent wolfcrypt/src/asn.c version shadowing
  * extern global version from /usr/src/sys/sys/systm.h */
