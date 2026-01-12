@@ -26,6 +26,9 @@
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/port/st/stsafe.h>
 #include <wolfssl/wolfcrypt/logging.h>
+#ifndef NO_ASN
+    #include <wolfssl/wolfcrypt/asn.h>
+#endif
 
 #ifndef STSAFE_INTERFACE_PRINTF
     #define STSAFE_INTERFACE_PRINTF(...) WC_DO_NOTHING
@@ -609,15 +612,30 @@ static int stsafe_sign(stsafe_slot_t slot, stsafe_curve_id_t curve_id,
     if (status_code == STSAFE_A_OK && signature != NULL) {
         /* Parse signature - format is: len(2) || R || len(2) || S */
         r_length = ((uint16_t)signature->Data[0] << 8) | signature->Data[1];
-        s_length = ((uint16_t)signature->Data[2 + r_length] << 8) |
-                   signature->Data[3 + r_length];
 
-        /* Copy R and S to output (zero-padded) */
-        XMEMSET(pSigRS, 0, key_sz * 2);
-        XMEMCPY(pSigRS + (key_sz - r_length), &signature->Data[2], r_length);
-        XMEMCPY(pSigRS + key_sz + (key_sz - s_length),
-                &signature->Data[4 + r_length], s_length);
-        rc = STSAFE_A_OK;
+        /* Bounds check: r_length must be valid and fit within signature buffer */
+        if (r_length > key_sz || r_length == 0 ||
+            (size_t)(2 + r_length + 2) > signature->Length) {
+            rc = ASN_PARSE_E;
+        }
+        else {
+            s_length = ((uint16_t)signature->Data[2 + r_length] << 8) |
+                       signature->Data[3 + r_length];
+
+            /* Bounds check: s_length must be valid and fit within signature buffer */
+            if (s_length > key_sz || s_length == 0 ||
+                (size_t)(4 + r_length + s_length) > signature->Length) {
+                rc = ASN_PARSE_E;
+            }
+            else {
+                /* Copy R and S to output (zero-padded) */
+                XMEMSET(pSigRS, 0, key_sz * 2);
+                XMEMCPY(pSigRS + (key_sz - r_length), &signature->Data[2], r_length);
+                XMEMCPY(pSigRS + key_sz + (key_sz - s_length),
+                        &signature->Data[4 + r_length], s_length);
+                rc = STSAFE_A_OK;
+            }
+        }
     }
     else {
         rc = (int)status_code;
@@ -811,22 +829,26 @@ static int stsafe_read_certificate(uint8_t** ppCert, uint32_t* pCertLen)
     status_code = StSafeA_Read(g_stsafe_handle, 0, 0, STSAFE_A_ALWAYS,
         0, 0, 4, &readBuf, STSAFE_A_NO_MAC);
 
-    if (status_code == STSAFE_A_OK && readBuf->Length == 4 &&
-        readBuf->Data[0] == 0x30) {
-        /* Parse ASN.1 length */
-        switch (readBuf->Data[1]) {
-            case 0x81:
-                *pCertLen = readBuf->Data[2] + 3;
-                break;
-            case 0x82:
-                *pCertLen = ((uint16_t)readBuf->Data[2] << 8) +
+    if (status_code == STSAFE_A_OK && readBuf->Length == 4) {
+        /* Parse ASN.1 DER certificate header */
+        /* 0x30 = ASN_SEQUENCE | ASN_CONSTRUCTED (certificate is a SEQUENCE) */
+        if (readBuf->Data[0] == (ASN_SEQUENCE | ASN_CONSTRUCTED)) {
+            /* Parse ASN.1 length encoding */
+            switch (readBuf->Data[1]) {
+                case (ASN_LONG_LENGTH | 0x01):  /* Length encoded in 1 byte */
+                    *pCertLen = readBuf->Data[2] + 3;
+                    break;
+                case (ASN_LONG_LENGTH | 0x02):  /* Length encoded in 2 bytes */
+                    *pCertLen = ((uint16_t)readBuf->Data[2] << 8) +
                                        readBuf->Data[3] + 4;
-                break;
-            default:
-                if (readBuf->Data[1] < 0x81) {
-                    *pCertLen = readBuf->Data[1] + 2;
-                }
-                break;
+                    break;
+                default:
+                    /* Short form: length < 128, encoded directly */
+                    if (readBuf->Data[1] < ASN_LONG_LENGTH) {
+                        *pCertLen = readBuf->Data[1] + 2;
+                    }
+                    break;
+            }
         }
     }
     else {
@@ -843,6 +865,10 @@ static int stsafe_read_certificate(uint8_t** ppCert, uint32_t* pCertLen)
     }
 
     if (rc == STSAFE_A_OK && *pCertLen > 0) {
+        /* STSAFE-A100/A110 maximum read size is 225 bytes per command.
+         * When CRC is supported, 2 bytes are used for CRC, leaving 223 bytes
+         * for data. Without CRC, we can read up to 225 bytes, but use 223
+         * for consistency and to leave room for protocol overhead. */
         step = 223 - (stsafe_a->CrcSupport ? 2 : 0);
 
         for (i = 0; rc == STSAFE_A_OK && i < *pCertLen / step; i++) {
