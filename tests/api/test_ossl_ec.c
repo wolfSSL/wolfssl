@@ -1345,12 +1345,15 @@ int test_wolfSSL_EC_KEY_print_fp(void)
     EC_KEY* key = NULL;
 
     /* Bad file pointer. */
-    ExpectIntEQ(wolfSSL_EC_KEY_print_fp(NULL, key, 0), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    ExpectIntEQ(wolfSSL_EC_KEY_print_fp(NULL, key, 0),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
     /* NULL key. */
-    ExpectIntEQ(wolfSSL_EC_KEY_print_fp(stderr, NULL, 0), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    ExpectIntEQ(wolfSSL_EC_KEY_print_fp(stderr, NULL, 0),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
     ExpectNotNull((key = wolfSSL_EC_KEY_new_by_curve_name(NID_secp224r1)));
     /* Negative indent. */
-    ExpectIntEQ(wolfSSL_EC_KEY_print_fp(stderr, key, -1), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    ExpectIntEQ(wolfSSL_EC_KEY_print_fp(stderr, key, -1),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
 
     ExpectIntEQ(wolfSSL_EC_KEY_print_fp(stderr, key, 4), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_EC_KEY_generate_key(key), WOLFSSL_SUCCESS);

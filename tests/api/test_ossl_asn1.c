@@ -1195,7 +1195,8 @@ int test_wolfSSL_ASN1_STRING_to_UTF8(void)
     ExpectNotNull(e = wolfSSL_X509_NAME_get_entry(subject, idx));
     ExpectNotNull(a = wolfSSL_X509_NAME_ENTRY_get_data(e));
     ExpectIntEQ((len = wolfSSL_ASN1_STRING_to_UTF8(&actual_output, a)), 15);
-    ExpectIntEQ(strncmp((const char*)actual_output, targetOutput, (size_t)len), 0);
+    ExpectIntEQ(strncmp((const char*)actual_output, targetOutput, (size_t)len),
+                0);
     a = NULL;
 
     /* wolfSSL_ASN1_STRING_to_UTF8(NULL, valid) */
@@ -1269,9 +1270,12 @@ int test_wolfSSL_ASN1_STRING_canon(void)
     ExpectNotNull(canon = ASN1_STRING_new());
 
     /* Invalid parameter testing. */
-    ExpectIntEQ(wolfSSL_ASN1_STRING_canon(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wolfSSL_ASN1_STRING_canon(canon, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wolfSSL_ASN1_STRING_canon(NULL, orig), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_ASN1_STRING_canon(NULL, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_ASN1_STRING_canon(canon, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_ASN1_STRING_canon(NULL, orig),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     ExpectIntEQ(wolfSSL_ASN1_STRING_canon(canon, orig), 1);
     ExpectIntEQ(ASN1_STRING_cmp(orig, canon), 0);
@@ -1622,9 +1626,12 @@ int test_wolfSSL_ASN1_GENERALIZEDTIME_print(void)
     ExpectIntEQ(wolfSSL_ASN1_TIME_set_string(gtime, "20180504123500Z"), 1);
 
     /* Invalid parameters testing. */
-    ExpectIntEQ(wolfSSL_ASN1_GENERALIZEDTIME_print(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wolfSSL_ASN1_GENERALIZEDTIME_print(bio, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wolfSSL_ASN1_GENERALIZEDTIME_print(NULL, gtime), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_ASN1_GENERALIZEDTIME_print(NULL, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_ASN1_GENERALIZEDTIME_print(bio, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_ASN1_GENERALIZEDTIME_print(NULL, gtime),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     ExpectIntEQ(wolfSSL_ASN1_GENERALIZEDTIME_print(bio, gtime), 1);
     ExpectIntEQ(BIO_read(bio, buf, sizeof(buf)), 20);
