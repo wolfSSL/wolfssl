@@ -2121,6 +2121,11 @@ static int CheckIp6Hdr(Ip6Hdr* iphdr, IpInfo* info, int length, char* error)
     int        version = IP_V(iphdr);
     int        exthdrsz = IP6_HDR_SZ;
 
+    if (length < IP6_HDR_SZ) {
+        SetError(BAD_IPVER_STR, error, NULL, 0);
+        return WOLFSSL_FATAL_ERROR;
+    }
+
     TraceIP6(iphdr);
     Trace(IP_CHECK_STR);
 
@@ -2174,6 +2179,11 @@ static int CheckIpHdr(IpHdr* iphdr, IpInfo* info, int length, char* error,
 
     if (version == IPV6)
         return CheckIp6Hdr((Ip6Hdr*)iphdr, info, length, error);
+
+    if (length < IP_HDR_SZ) {
+        SetError(PACKET_HDR_SHORT_STR, error, NULL, 0);
+        return WOLFSSL_FATAL_ERROR;
+    }
 
     if (trace) {
         TraceIP(iphdr);
@@ -5026,6 +5036,10 @@ static const byte* DecryptMessage(WOLFSSL* ssl, const byte* input, word32 sz,
 
 #ifdef WOLFSSL_TLS13
     if (IsAtLeastTLSv1_3(ssl->version)) {
+        if (sz < ssl->specs.aead_mac_size) {
+            *error = BUFFER_ERROR;
+            return NULL;
+        }
         ret = DecryptTls13(ssl, output, input, sz, (byte*)rh, RECORD_HEADER_SZ);
     }
     else
@@ -5404,6 +5418,12 @@ static int CheckHeaders(IpInfo* ipInfo, TcpInfo* tcpInfo, const byte* packet,
             /* trim VLAN header and try again */
             packet += 8;
             length -= 8;
+            if (length < IP_HDR_SZ) {
+                SetError(PACKET_HDR_SHORT_STR, error, NULL, 0);
+                return WOLFSSL_FATAL_ERROR;
+            }
+            iphdr = (IpHdr*)packet;
+            version = IP_V(iphdr);
         }
     }
 
