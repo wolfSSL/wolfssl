@@ -20187,10 +20187,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     byte outbuf1[16], outbuf2[16];
     int i;
 
-    WC_ALLOC_VAR_EX(bank, struct wc_rng_bank, 1, HEAP_HINT,
+    WC_CALLOC_VAR_EX(bank, struct wc_rng_bank, 1, HEAP_HINT,
                     DYNAMIC_TYPE_TMP_BUFFER,
                     return WC_TEST_RET_ENC_EC(MEMORY_E));
-    XMEMSET(bank, 0, sizeof(*bank));
 
     WC_ALLOC_VAR_EX(rng, WC_RNG, 1, HEAP_HINT,
                     DYNAMIC_TYPE_TMP_BUFFER,

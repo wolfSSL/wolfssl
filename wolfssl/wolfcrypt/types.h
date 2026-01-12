@@ -912,9 +912,9 @@ enum {
         WC_DO_NOTHING
     #define WC_VAR_OK(VAR_NAME) 1
     #define WC_CALLOC_VAR(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP)        \
-        XMEMSET(VAR_NAME, 0, sizeof(var))
+        XMEMSET(VAR_NAME, 0, sizeof(VAR_TYPE))
     #define WC_CALLOC_VAR_EX(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP, TY, ONFAIL)\
-        WC_DO_NOTHING
+        XMEMSET(VAR_NAME, 0, sizeof(VAR_TYPE))
     #define WC_FREE_VAR(VAR_NAME, HEAP) WC_DO_NOTHING \
         /* nothing to free, its stack */
     #define WC_FREE_VAR_EX(VAR_NAME, HEAP, TYPE) WC_DO_NOTHING
