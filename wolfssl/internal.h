@@ -1668,6 +1668,12 @@ enum Misc {
     MAX_REQUEST_SZ      = 256, /* Maximum cert req len (no auth yet */
     SESSION_FLUSH_COUNT = 256, /* Flush session cache unless user turns off */
     TLS_MAX_PAD_SZ      = 255, /* Max padding in TLS */
+    MAX_EXT_DATA_LEN    = 65535,
+                          /* Max extension data length <0..2^16-1> RFC 8446
+                           * Section 4.2 */
+    MAX_SV_EXT_LEN      = 255,
+                          /* Max supported_versions extension length
+                           * <2..254> RFC 8446 Section 4.2.1.*/
 
 #if defined(HAVE_NULL_CIPHER) && defined(WOLFSSL_TLS13)
     #if defined(WOLFSSL_SHA384) && WC_MAX_SYM_KEY_SIZE < 48

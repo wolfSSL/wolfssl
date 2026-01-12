@@ -6972,8 +6972,10 @@ int TLSX_SupportedVersions_Parse(const WOLFSSL* ssl, const byte* input,
         int set = 0;
 
         /* Must contain a length and at least one version. */
-        if (length < OPAQUE8_LEN + OPAQUE16_LEN || (length & 1) != 1)
+        if (length < OPAQUE8_LEN + OPAQUE16_LEN || (length & 1) != 1
+            || length > MAX_SV_EXT_LEN) {
             return BUFFER_ERROR;
+        }
 
         len = *input;
 
@@ -9963,10 +9965,13 @@ int TLSX_KeyShare_Parse_ClientHello(const WOLFSSL* ssl,
     if (length < OPAQUE16_LEN)
         return BUFFER_ERROR;
 
-    /* ClientHello contains zero or more key share entries. */
+    /* ClientHello contains zero or more key share entries. Limits extension
+     * length to 2^16-1 and subtracting 4 bytes for header size per RFC 8446 */
     ato16(input, &len);
-    if (len != length - OPAQUE16_LEN)
+    if ((len != length - OPAQUE16_LEN) ||
+         length > (MAX_EXT_DATA_LEN - HELLO_EXT_SZ)) {
         return BUFFER_ERROR;
+    }
     offset += OPAQUE16_LEN;
 
     while (offset < (int)length) {
