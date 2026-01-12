@@ -284,6 +284,8 @@ struct WC_RNG {
     void* heap;
     byte status;
 
+#if defined(WC_RNG_BANK_SUPPORT) || defined(HAVE_HASHDRBG)
+
 #ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
     union {
 #endif
@@ -315,6 +317,8 @@ struct WC_RNG {
 #ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
     };
 #endif
+
+#endif /* WC_RNG_BANK_SUPPORT || HAVE_HASHDRBG */
 
 #if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID)
     pid_t pid;
