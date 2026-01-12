@@ -39989,8 +39989,9 @@ static const ASNItem ocspRequestASN[] = {
                                                                   /* serialNumber */
 /* TBS_REQ_SERIAL    */                        { 5, ASN_INTEGER, 0, 0, 0 },
                                                       /* requestExtensions */
-/* TBS_REQEXT        */            { 2, ASN_CONTEXT_SPECIFIC | 2, 1, 0, 0 },
-                                                  /* optionalSignature not written. */
+/* TBS_REQEXT        */            { 2, ASN_CONTEXT_SPECIFIC | 2, 1, 0, 1 },
+                                                  /* optionalSignature */
+/* OPT_SIG           */        { 1, ASN_CONTEXT_SPECIFIC | 0, 1, 1, 1 }
 };
 enum {
     OCSPREQUESTASN_IDX_SEQ = 0,
@@ -40004,6 +40005,7 @@ enum {
     OCSPREQUESTASN_IDX_TBS_REQ_ISSUERKEY,
     OCSPREQUESTASN_IDX_TBS_REQ_SERIAL,
     OCSPREQUESTASN_IDX_TBS_REQEXT,
+    OCSPREQUESTASN_IDX_OPT_SIG,
 };
 
 /* Number of items in ASN.1 template for OCSPRequest. */
@@ -40131,6 +40133,8 @@ int EncodeOcspRequest(OcspRequest* req, byte* output, word32 size)
             /* Don't write out extensions. */
             dataASN[OCSPREQUESTASN_IDX_TBS_REQEXT].noOut = 1;
         }
+        /* Don't write out signature. */
+        dataASN[OCSPREQUESTASN_IDX_OPT_SIG].noOut = 1;
     }
     if (ret == 0) {
         /* Calculate size of encoding. */
@@ -40164,6 +40168,90 @@ int EncodeOcspRequest(OcspRequest* req, byte* output, word32 size)
     return ret;
 #endif /* WOLFSSL_ASN_TEMPLATE */
 }
+
+#ifdef HAVE_OCSP_RESPONDER
+
+int DecodeOcspRequest(OcspRequest* req, const byte* input, word32 size)
+{
+#ifndef WOLFSSL_ASN_TEMPLATE
+    (void)req;
+    (void)input;
+    (void)size;
+    /* Decoding ocsp requests not supported in legacy ASN parsing */
+    return NOT_COMPILED_IN;
+#else
+    DECL_ASNGETDATA(dataASN, ocspRequestASN_Length);
+    int ret = 0;
+    word32 idx = 0;
+    word32 issuerHashSz = sizeof(req->issuerHash);
+    word32 issuerKeyHashSz = sizeof(req->issuerKeyHash);
+    byte* serial = NULL;
+    word32 serialSz = 0;
+
+    WOLFSSL_ENTER("DecodeOcspRequest");
+
+    CALLOC_ASNGETDATA(dataASN, ocspRequestASN_Length, ret, req->heap);
+
+    if (ret == 0) {
+        GetASN_OID(&dataASN[OCSPREQUESTASN_IDX_TBS_REQ_HASH_OID], oidOcspType);
+        GetASN_Buffer(&dataASN[OCSPREQUESTASN_IDX_TBS_REQ_ISSUER],
+                req->issuerHash, &issuerHashSz);
+        GetASN_Buffer(&dataASN[OCSPREQUESTASN_IDX_TBS_REQ_ISSUERKEY],
+                req->issuerKeyHash, &issuerKeyHashSz);
+        ret = GetASN_Items(ocspRequestASN, dataASN, ocspRequestASN_Length, 1,
+            input, &idx, size);
+    }
+    if (ret == 0) {
+        /* Make sure all input was consumed */
+        if (idx != size)
+            ret = ASN_PARSE_E;
+    }
+    if (ret == 0) {
+        /* For now support only SHA-1 */
+        if (dataASN[OCSPREQUESTASN_IDX_TBS_REQ_HASH_OID].data.oid.sum != SHAh)
+            ret = ASN_SIG_HASH_E;
+    }
+    if (ret == 0) {
+        if (issuerHashSz != KEYID_SIZE || issuerKeyHashSz != KEYID_SIZE)
+            ret = ASN_PARSE_E;
+    }
+    if (ret == 0) {
+        /* Optional extensions not supported yet */
+        if (dataASN[OCSPREQUESTASN_IDX_TBS_REQEXT].data.ref.data != NULL) {
+            ret = NOT_COMPILED_IN;
+        }
+    }
+    if (ret == 0) {
+        /* Optional signature not supported yet */
+        if (dataASN[OCSPREQUESTASN_IDX_OPT_SIG].length > 0 ||
+                dataASN[OCSPREQUESTASN_IDX_OPT_SIG].data.ref.data != NULL)
+            ret = NOT_COMPILED_IN;
+    }
+    if (ret == 0) {
+        GetASN_GetRef(&dataASN[OCSPREQUESTASN_IDX_TBS_REQ_SERIAL],
+                &serial, &serialSz);
+        if (serialSz == 0 || serial == NULL)
+            ret = ASN_PARSE_E;
+    }
+    if (ret == 0) {
+        /* Copy serial number */
+        req->serial = (byte*)XMALLOC((size_t)serialSz, req->heap,
+                                     DYNAMIC_TYPE_OCSP_REQUEST);
+        if (req->serial == NULL) {
+            ret = MEMORY_E;
+        }
+        else {
+            XMEMCPY(req->serial, serial, (size_t)serialSz);
+            req->serialSz = serialSz;
+        }
+    }
+
+    FREE_ASNGETDATA(dataASN, req->heap);
+    return ret;
+#endif
+}
+
+#endif /* HAVE_OCSP_RESPONDER */
 
 
 int InitOcspRequest(OcspRequest* req, DecodedCert* cert, byte useNonce,

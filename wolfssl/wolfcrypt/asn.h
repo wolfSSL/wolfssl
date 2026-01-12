@@ -2814,6 +2814,8 @@ WOLFSSL_LOCAL int    InitOcspRequest(OcspRequest* req, DecodedCert* cert,
 WOLFSSL_LOCAL void   FreeOcspRequest(OcspRequest* req);
 WOLFSSL_LOCAL int    EncodeOcspRequest(OcspRequest* req, byte* output,
                                        word32 size);
+WOLFSSL_LOCAL int DecodeOcspRequest(OcspRequest* req, const byte* input,
+                                    word32 size);
 WOLFSSL_LOCAL word32 EncodeOcspRequestExtensions(OcspRequest* req, byte* output,
                                                  word32 size);
 
