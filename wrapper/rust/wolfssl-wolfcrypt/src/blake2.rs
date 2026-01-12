@@ -167,6 +167,141 @@ impl BLAKE2b {
     }
 }
 
+
+/// Context for HMAC-BLAKE2b computation.
+#[cfg(blake2b_hmac)]
+pub struct BLAKE2bHmac {
+    wc_blake2b: sys::Blake2b,
+}
+
+#[cfg(blake2b_hmac)]
+impl BLAKE2bHmac {
+    /// Build a new BLAKE2bHmac instance.
+    ///
+    /// # Parameters
+    ///
+    /// * `key`: Key to use for HMAC-BLAKE2b computation.
+    ///
+    /// # Returns
+    ///
+    /// Returns either Ok(hmac_blake2b) or Err(e) containing the wolfSSL
+    /// library error code value.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use wolfssl_wolfcrypt::blake2::BLAKE2bHmac;
+    /// let key = [42u8, 43, 44];
+    /// let hmac_blake2b = BLAKE2bHmac::new(&key).expect("Error with new()");
+    /// ```
+    pub fn new(key: &[u8]) -> Result<Self, i32> {
+        let mut wc_blake2b: MaybeUninit<sys::Blake2b> = MaybeUninit::uninit();
+        let rc = unsafe {
+            sys::wc_Blake2bHmacInit(wc_blake2b.as_mut_ptr(), key.as_ptr(), key.len())
+        };
+        if rc != 0 {
+            return Err(rc);
+        }
+        let wc_blake2b = unsafe { wc_blake2b.assume_init() };
+        let hmac_blake2b = BLAKE2bHmac { wc_blake2b };
+        Ok(hmac_blake2b)
+    }
+
+    /// Update the HMAC-BLAKE2b computation with the input data.
+    ///
+    /// This method may be called several times and then the finalize()
+    /// method should be called to retrieve the final MAC.
+    ///
+    /// # Parameters
+    ///
+    /// * `data`: Input data to hash.
+    ///
+    /// # Returns
+    ///
+    /// Returns either Ok(()) on success or Err(e) containing the wolfSSL
+    /// library error code value.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use wolfssl_wolfcrypt::blake2::BLAKE2bHmac;
+    /// let key = [42u8, 43, 44];
+    /// let mut hmac_blake2b = BLAKE2bHmac::new(&key).expect("Error with new()");
+    /// let data = [33u8, 34, 35];
+    /// hmac_blake2b.update(&data).expect("Error with update()");
+    /// ```
+    pub fn update(&mut self, data: &[u8]) -> Result<(), i32> {
+        let rc = unsafe {
+            sys::wc_Blake2bHmacUpdate(&mut self.wc_blake2b, data.as_ptr(), data.len())
+        };
+        if rc != 0 {
+            return Err(rc);
+        }
+        Ok(())
+    }
+
+    /// Compute and retrieve the final HMAC-BLAKE2b MAC.
+    ///
+    /// # Parameters
+    ///
+    /// * `key`: Key to use for HMAC-BLAKE2b computation.
+    /// * `mac`: Output buffer in which to store the computed HMAC-BLAKE2b MAC.
+    ///   It must be 64 bytes long.
+    ///
+    /// # Returns
+    ///
+    /// Returns either Ok(()) on success or Err(e) containing the wolfSSL
+    /// library error code value.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use wolfssl_wolfcrypt::blake2::BLAKE2bHmac;
+    /// let key = [42u8, 43, 44];
+    /// let mut hmac_blake2b = BLAKE2bHmac::new(&key).expect("Error with new()");
+    /// let data = [33u8, 34, 35];
+    /// hmac_blake2b.update(&data).expect("Error with update()");
+    /// let mut mac = [0u8; 64];
+    /// hmac_blake2b.finalize(&key, &mut mac).expect("Error with finalize()");
+    /// ```
+    pub fn finalize(&mut self, key: &[u8], mac: &mut [u8]) -> Result<(), i32> {
+        let rc = unsafe {
+            sys::wc_Blake2bHmacFinal(&mut self.wc_blake2b,
+                key.as_ptr(), key.len(), mac.as_mut_ptr(), mac.len())
+        };
+        if rc != 0 {
+            return Err(rc);
+        }
+        Ok(())
+    }
+
+    /// Compute the HMAC-BLAKE2b message authentication code of the given
+    /// input data using the given key (one-shot API).
+    ///
+    /// # Parameters
+    ///
+    /// * `data`: Input data to create MAC from.
+    /// * `key`: Key to use for MAC creation.
+    /// * `out`: Buffer in which to store the computed MAC.
+    ///
+    /// # Returns
+    ///
+    /// Returns either Ok(()) on success or Err(e) containing the wolfSSL
+    /// library error code value.
+    #[cfg(blake2b_hmac)]
+    pub fn hmac(data: &[u8], key: &[u8], out: &mut [u8]) -> Result<(), i32> {
+        let rc = unsafe {
+            sys::wc_Blake2bHmac(data.as_ptr(), data.len(), key.as_ptr(),
+                key.len(), out.as_mut_ptr(), out.len())
+        };
+        if rc != 0 {
+            return Err(rc);
+        }
+        Ok(())
+    }
+}
+
+
 /// Context for BLAKE2s computation.
 #[cfg(blake2s)]
 pub struct BLAKE2s {
@@ -291,13 +426,147 @@ impl BLAKE2s {
     /// use wolfssl_wolfcrypt::blake2::BLAKE2s;
     /// let mut blake2s = BLAKE2s::new(32).expect("Error with new()");
     /// blake2s.update(&[0u8; 16]).expect("Error with update()");
-    /// let mut hash = [0u8; 64];
+    /// let mut hash = [0u8; 32];
     /// blake2s.finalize(&mut hash).expect("Error with finalize()");
     /// ```
     pub fn finalize(&mut self, hash: &mut [u8]) -> Result<(), i32> {
         let hash_size = hash.len() as u32;
         let rc = unsafe {
             sys::wc_Blake2sFinal(&mut self.wc_blake2s, hash.as_mut_ptr(), hash_size)
+        };
+        if rc != 0 {
+            return Err(rc);
+        }
+        Ok(())
+    }
+}
+
+
+/// Context for HMAC-BLAKE2s computation.
+#[cfg(blake2s_hmac)]
+pub struct BLAKE2sHmac {
+    wc_blake2s: sys::Blake2s,
+}
+
+#[cfg(blake2s_hmac)]
+impl BLAKE2sHmac {
+    /// Build a new BLAKE2sHmac instance.
+    ///
+    /// # Parameters
+    ///
+    /// * `key`: Key to use for HMAC-BLAKE2s computation.
+    ///
+    /// # Returns
+    ///
+    /// Returns either Ok(hmac_blake2s) or Err(e) containing the wolfSSL
+    /// library error code value.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use wolfssl_wolfcrypt::blake2::BLAKE2sHmac;
+    /// let key = [42u8, 43, 44];
+    /// let hmac_blake2s = BLAKE2sHmac::new(&key).expect("Error with new()");
+    /// ```
+    pub fn new(key: &[u8]) -> Result<Self, i32> {
+        let mut wc_blake2s: MaybeUninit<sys::Blake2s> = MaybeUninit::uninit();
+        let rc = unsafe {
+            sys::wc_Blake2sHmacInit(wc_blake2s.as_mut_ptr(), key.as_ptr(), key.len())
+        };
+        if rc != 0 {
+            return Err(rc);
+        }
+        let wc_blake2s = unsafe { wc_blake2s.assume_init() };
+        let hmac_blake2s = BLAKE2sHmac { wc_blake2s };
+        Ok(hmac_blake2s)
+    }
+
+    /// Update the HMAC-BLAKE2s computation with the input data.
+    ///
+    /// This method may be called several times and then the finalize()
+    /// method should be called to retrieve the final MAC.
+    ///
+    /// # Parameters
+    ///
+    /// * `data`: Input data to hash.
+    ///
+    /// # Returns
+    ///
+    /// Returns either Ok(()) on success or Err(e) containing the wolfSSL
+    /// library error code value.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use wolfssl_wolfcrypt::blake2::BLAKE2sHmac;
+    /// let key = [42u8, 43, 44];
+    /// let mut hmac_blake2s = BLAKE2sHmac::new(&key).expect("Error with new()");
+    /// let data = [33u8, 34, 35];
+    /// hmac_blake2s.update(&data).expect("Error with update()");
+    /// ```
+    pub fn update(&mut self, data: &[u8]) -> Result<(), i32> {
+        let rc = unsafe {
+            sys::wc_Blake2sHmacUpdate(&mut self.wc_blake2s, data.as_ptr(), data.len())
+        };
+        if rc != 0 {
+            return Err(rc);
+        }
+        Ok(())
+    }
+
+    /// Compute and retrieve the final HMAC-BLAKE2s MAC.
+    ///
+    /// # Parameters
+    ///
+    /// * `key`: Key to use for HMAC-BLAKE2s computation.
+    /// * `mac`: Output buffer in which to store the computed HMAC-BLAKE2s MAC.
+    ///   It must be 32 bytes long.
+    ///
+    /// # Returns
+    ///
+    /// Returns either Ok(()) on success or Err(e) containing the wolfSSL
+    /// library error code value.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use wolfssl_wolfcrypt::blake2::BLAKE2sHmac;
+    /// let key = [42u8, 43, 44];
+    /// let mut hmac_blake2s = BLAKE2sHmac::new(&key).expect("Error with new()");
+    /// let data = [33u8, 34, 35];
+    /// hmac_blake2s.update(&data).expect("Error with update()");
+    /// let mut mac = [0u8; 32];
+    /// hmac_blake2s.finalize(&key, &mut mac).expect("Error with finalize()");
+    /// ```
+    pub fn finalize(&mut self, key: &[u8], mac: &mut [u8]) -> Result<(), i32> {
+        let rc = unsafe {
+            sys::wc_Blake2sHmacFinal(&mut self.wc_blake2s,
+                key.as_ptr(), key.len(), mac.as_mut_ptr(), mac.len())
+        };
+        if rc != 0 {
+            return Err(rc);
+        }
+        Ok(())
+    }
+
+    /// Compute the HMAC-BLAKE2s message authentication code of the given
+    /// input data using the given key (one-shot API).
+    ///
+    /// # Parameters
+    ///
+    /// * `data`: Input data to create MAC from.
+    /// * `key`: Key to use for MAC creation.
+    /// * `out`: Buffer in which to store the computed MAC.
+    ///
+    /// # Returns
+    ///
+    /// Returns either Ok(()) on success or Err(e) containing the wolfSSL
+    /// library error code value.
+    #[cfg(blake2s_hmac)]
+    pub fn hmac(data: &[u8], key: &[u8], out: &mut [u8]) -> Result<(), i32> {
+        let rc = unsafe {
+            sys::wc_Blake2sHmac(data.as_ptr(), data.len(), key.as_ptr(),
+                key.len(), out.as_mut_ptr(), out.len())
         };
         if rc != 0 {
             return Err(rc);
