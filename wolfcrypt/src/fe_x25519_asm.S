@@ -21779,6 +21779,7 @@ L__mod_inv_avx2__3_no_add_prime:
         movq	%r8, 8(%rdi)
         movq	%r10, 16(%rdi)
         movq	%r12, 24(%rdi)
+        vzeroupper
         popq	%rbx
         popq	%r15
         popq	%r14
