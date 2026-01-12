@@ -1058,7 +1058,7 @@ static int GetOID(const byte* input, word32* inOutIdx, word32* oid,
                   word32 oidType, int length);
 
 /* Maximum supported depth in ASN.1 description. */
-#define GET_ASN_MAX_DEPTH          7
+#define GET_ASN_MAX_DEPTH          8
 /* Maximum number of checked numbered choices. Only one of the items with the
  * number is allowed.
  */
@@ -1531,7 +1531,7 @@ static int GetASN_StoreData(const ASNItem* asn, ASNGetData* data,
  * @return  ASN_UNKNOWN_OID_E when the OID cannot be verified.
  */
 int GetASN_Items(const ASNItem* asn, ASNGetData *data, int count, int complete,
-                 const byte* input, word32* inOutIdx, word32 length)
+                 const byte* input, word32* inOutIdx, const word32 length)
 {
     int    i;
     int    j;
@@ -1573,12 +1573,12 @@ int GetASN_Items(const ASNItem* asn, ASNGetData *data, int count, int complete,
         data[i].length = 0;
         /* Get current item depth. */
         depth = asn[i].depth;
+        if (depth >= GET_ASN_MAX_DEPTH) {
     #ifdef WOLFSSL_DEBUG_ASN_TEMPLATE
-        if (depth > GET_ASN_MAX_DEPTH) {
             WOLFSSL_MSG("Depth in template too large");
+    #endif
             return ASN_PARSE_E;
         }
-    #endif
         /* Keep track of minimum depth. */
         if (depth < minDepth) {
             minDepth = depth;
@@ -1704,6 +1704,12 @@ int GetASN_Items(const ASNItem* asn, ASNGetData *data, int count, int complete,
         }
         /* Store length of data. */
         data[i].length = (word32)len;
+        if (depth + 1 >= GET_ASN_MAX_DEPTH) {
+    #ifdef WOLFSSL_DEBUG_ASN_TEMPLATE
+            WOLFSSL_MSG("Depth in template too large");
+    #endif
+            return ASN_PARSE_E;
+        }
         /* Note the max length of items under this one. */
         endIdx[depth + 1] = idx + (word32)len;
         if (choice > 1) {

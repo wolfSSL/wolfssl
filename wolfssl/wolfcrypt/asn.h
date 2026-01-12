@@ -356,7 +356,7 @@ WOLFSSL_LOCAL int SizeASN_Items(const ASNItem* asn, ASNSetData *data,
 WOLFSSL_LOCAL int SetASN_Items(const ASNItem* asn, ASNSetData *data, int count,
     byte* output);
 WOLFSSL_LOCAL int GetASN_Items(const ASNItem* asn, ASNGetData *data, int count,
-    int complete, const byte* input, word32* inOutIdx, word32 length);
+    int complete, const byte* input, word32* inOutIdx, const word32 length);
 
 #ifdef WOLFSSL_ASN_TEMPLATE_TYPE_CHECK
 WOLFSSL_LOCAL void GetASN_Int8Bit(ASNGetData *dataASN, byte* num);
