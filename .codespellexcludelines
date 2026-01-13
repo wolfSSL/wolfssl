@@ -13,6 +13,7 @@ rsource "Kconfig.tls-generic"
     const uint8_t* hashIn, int hashSz)
     XMEMCPY(hash + (curveSz - hashSz), hashIn, hashSz);
         0x63, 0x72, 0x65, 0x65, 0x6e, 0x20, 0x77, 0x6f, 0x75, 0x6c, 0x64, 0x20, 0x62, 0x65, 0x20, 0x69, /* creen would be i */
+        0x75, 0x6c, 0x64, 0x20, 0x62, 0x65, 0x20, 0x69, /* creen would be i */
 \pagenumbering{alph}
     DES3_KEY_SIZE       = 24,  /* 3 des ede               */
 /* functions added to support above needed, removed TOOM and KARATSUBA */

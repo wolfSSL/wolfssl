@@ -132,6 +132,7 @@ fn scan_cfg() -> Result<()> {
 
     /* chacha20_poly1305 */
     check_cfg(&binding, "wc_ChaCha20Poly1305_Encrypt", "chacha20_poly1305");
+    check_cfg(&binding, "wc_XChaCha20Poly1305_Encrypt", "xchacha20_poly1305");
 
     /* cmac */
     check_cfg(&binding, "wc_InitCmac", "cmac");
