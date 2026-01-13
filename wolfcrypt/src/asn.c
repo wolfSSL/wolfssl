@@ -27660,8 +27660,8 @@ static int KeyPemToDerPassCb(char* passwd, int sz, int rw, void* userdata)
     if (userdata == NULL)
         return 0;
 
-    XSTRNCPY(passwd, (char*)userdata, (size_t)sz);
-    return (int)min((word32)sz, (word32)XSTRLEN((char*)userdata));
+    XSTRLCPY(passwd, (char*)userdata, (size_t)sz);
+    return (int)min((word32)(sz - 1), (word32)XSTRLEN((char*)userdata));
 }
 #endif
 
