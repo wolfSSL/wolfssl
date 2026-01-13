@@ -20195,7 +20195,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     WC_ALLOC_VAR_EX(rng, WC_RNG, 1, HEAP_HINT,
                     DYNAMIC_TYPE_TMP_BUFFER,
                     return WC_TEST_RET_ENC_EC(MEMORY_E));
+#ifdef WC_DRBG_BANKREF
     XMEMSET(rng, 0, sizeof(*rng));
+#endif
 
     ret = wc_rng_bank_init(NULL, WC_RNG_BANK_STATIC_SIZE, WC_RNG_BANK_FLAG_CAN_WAIT, 10, HEAP_HINT, INVALID_DEVID);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
@@ -20207,7 +20209,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 #endif
 
-    ret = wc_rng_bank_init(bank, WC_RNG_BANK_STATIC_SIZE, WC_RNG_BANK_FLAG_CAN_WAIT, 10, HEAP_HINT, INVALID_DEVID);
+    ret = wc_rng_bank_init(bank, WC_RNG_BANK_STATIC_SIZE,
+                           WC_RNG_BANK_FLAG_NO_VECTOR_OPS |
+                           WC_RNG_BANK_FLAG_CAN_WAIT,
+                           10, HEAP_HINT, INVALID_DEVID);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -20417,7 +20422,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
 
 #else /* !WC_RNG_BANK_STATIC */
 
-    ret = wc_rng_bank_new(&bank2, WC_RNG_BANK_STATIC_SIZE + 1, WC_RNG_BANK_FLAG_NO_VECTOR_OPS, 10, HEAP_HINT, INVALID_DEVID);
+    ret = wc_rng_bank_new(&bank2, WC_RNG_BANK_STATIC_SIZE + 1, WC_RNG_BANK_FLAG_NONE, 10, HEAP_HINT, INVALID_DEVID);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
