@@ -40,6 +40,18 @@
 #define NO_THREAD_LS
 #define NO_ATTRIBUTE_CONSTRUCTOR
 
+/* <time.h> and TIME(3) are userspace only in FreeBSD.
+ * Use a small wrapper around <sys/time.h> time_second instead. */
+#include <sys/time.h>
+static inline time_t wolfkmod_time(time_t * tloc) {
+    time_t _now = time_second;
+    if (tloc) {
+        *tloc = _now;
+    }
+    return _now;
+}
+#define XTIME wolfkmod_time
+
 /* needed to prevent wolfcrypt/src/asn.c version shadowing
  * extern global version from /usr/src/sys/sys/systm.h */
 #define version wc_version
@@ -101,7 +113,6 @@ extern struct malloc_type M_WOLFSSL[1];
         #define wc_FreeMutex   FreeMutex
         #define wc_LockMutex   LockMutex
         #define wc_UnLockMutex UnLockMutex
-        #define NO_THREAD_LS
     #endif /* HAVE_FIPS */
 
     typedef struct wolfSSL_Mutex {
