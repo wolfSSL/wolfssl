@@ -576,11 +576,16 @@ int wolfCrypt_Cleanup(void)
     #endif
 
         (void)wolfSSL_Atomic_Int_SubFetch(&initRefCount, 1);
-    }
 
 #if defined(HAVE_LIBOQS)
-    wolfSSL_liboqsClose();
+        wolfSSL_liboqsClose();
 #endif
+    }
+    else if (my_initRefCount < 0) {
+        (void)wolfSSL_Atomic_Int_AddFetch(&initRefCount, 1);
+        WOLFSSL_MSG("wolfCrypt_Cleanup() called with initRefCount <= 0.");
+        ret = ALREADY_E;
+    }
 
     return ret;
 }
