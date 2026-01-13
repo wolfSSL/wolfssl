@@ -10921,6 +10921,11 @@ fi
 LIB_SOCKET_NSL
 AX_HARDEN_CC_COMPILER_FLAGS
 
+# -Wdeprecated-enum-enum-conversion is on by default in C++20, but conflicts with
+# our use of enum constructs to define fungible constants.
+AX_CHECK_COMPILE_FLAG([-Werror -Wno-deprecated-enum-enum-conversion],
+  [AX_APPEND_FLAG([-Wno-deprecated-enum-enum-conversion], [AM_CFLAGS])])
+
 case $host_os in
     mingw*)
         # if mingw then link to ws2_32 for sockets, and crypt32
