@@ -1119,7 +1119,12 @@ static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
 #endif
 
 /* prevent multiple mutex initializations */
+
+/* note, initRefCount is not used for thread synchronization, only for
+ * bookkeeping while inits_count_mutex is held.
+ */
 static volatile WC_THREADSHARED int initRefCount = 0;
+
 /* init ref count mutex */
 static WC_THREADSHARED wolfSSL_Mutex inits_count_mutex
     WOLFSSL_MUTEX_INITIALIZER_CLAUSE(inits_count_mutex);
@@ -6527,7 +6532,7 @@ int wolfSSL_Init(void)
 #endif /* WOLFSSL_SYS_CRYPTO_POLICY */
 
     if (ret == WOLFSSL_SUCCESS) {
-        initRefCount++;
+        initRefCount = initRefCount + 1;
     }
     else {
         initRefCount = 1; /* Force cleanup */
@@ -11401,7 +11406,7 @@ int wolfSSL_Cleanup(void)
 #endif
 
     if (initRefCount > 0) {
-        --initRefCount;
+        initRefCount = initRefCount - 1;
         if (initRefCount == 0)
             release = 1;
     }
