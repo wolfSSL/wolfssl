@@ -50,6 +50,8 @@ pub mod sha;
 /// ```rust
 /// use wolfssl_wolfcrypt::*;
 /// wolfcrypt_init().expect("Error with wolfcrypt_init()");
+/// // ... use the library ...
+/// wolfcrypt_cleanup().expect("wolfCrypt_Cleanup failed");
 /// ```
 pub fn wolfcrypt_init() -> Result<(), i32> {
     let rc = unsafe { sys::wolfCrypt_Init() };
@@ -66,12 +68,7 @@ pub fn wolfcrypt_init() -> Result<(), i32> {
 /// Returns either Ok(()) on success or Err(e) containing the wolfSSL
 /// library error code value.
 ///
-/// # Example
-///
-/// ```rust
-/// use wolfssl_wolfcrypt::*;
-/// wolfcrypt_cleanup().expect("Error with wolfcrypt_cleanup()");
-/// ```
+/// See also: [`wolfcrypt_init`]
 pub fn wolfcrypt_cleanup() -> Result<(), i32> {
     let rc = unsafe { sys::wolfCrypt_Cleanup() };
     if rc != 0 {
