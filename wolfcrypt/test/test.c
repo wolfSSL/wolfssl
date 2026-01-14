@@ -52297,44 +52297,67 @@ static wc_test_ret_t sakke_kat_derive_test(SakkeKey* key, ecc_point* rsk)
         return WC_TEST_RET_ENC_EC(ret);
     if (iTableLen != 0) {
         iTable = (byte*)XMALLOC(iTableLen, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        if (iTable == NULL)
-            return WC_TEST_RET_ENC_ERRNO;
+        if (iTable == NULL) {
+            ret = WC_TEST_RET_ENC_ERRNO;
+            goto out;
+        }
         ret = wc_GenerateSakkePointITable(key, iTable, &iTableLen);
-        if (ret != 0)
-            return WC_TEST_RET_ENC_EC(ret);
+        if (ret != 0) {
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto out;
+        }
     }
     len = 0;
     ret = wc_GenerateSakkeRskTable(key, rsk, NULL, &len);
-    if (ret != WC_NO_ERR_TRACE(LENGTH_ONLY_E))
-        return WC_TEST_RET_ENC_EC(ret);
+    if (ret != WC_NO_ERR_TRACE(LENGTH_ONLY_E)) {
+        ret = WC_TEST_RET_ENC_EC(ret);
+        goto out;
+    }
     if (len > 0) {
         table = (byte*)XMALLOC(len, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        if (table == NULL)
-            return WC_TEST_RET_ENC_ERRNO;
+        if (table == NULL) {
+            ret = WC_TEST_RET_ENC_ERRNO;
+            goto out;
+        }
         ret = wc_GenerateSakkeRskTable(key, rsk, table, &len);
-        if (ret != 0)
-            return WC_TEST_RET_ENC_EC(ret);
+        if (ret != 0) {
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto out;
+        }
     }
 
     ret = wc_SetSakkeRsk(key, rsk, table, len);
-    if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+    if (ret != 0) {
+        ret = WC_TEST_RET_ENC_EC(ret);
+        goto out;
+    }
 
     XMEMCPY(tmpSsv, encSsv, sizeof(encSsv));
     ret = wc_DeriveSakkeSSV(key, WC_HASH_TYPE_SHA256, tmpSsv, sizeof(tmpSsv),
             auth, sizeof(auth));
-    if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
-    if (XMEMCMP(tmpSsv, ssv, sizeof(ssv)) != 0)
-        return WC_TEST_RET_ENC_NC;
+    if (ret != 0) {
+        ret = WC_TEST_RET_ENC_EC(ret);
+        goto out;
+    }
+    if (XMEMCMP(tmpSsv, ssv, sizeof(ssv)) != 0) {
+        ret = WC_TEST_RET_ENC_NC;
+        goto out;
+    }
 
     /* Don't reference table that is about to be freed. */
     ret = wc_ClearSakkePointITable(key);
-    if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+    if (ret != 0) {
+        ret = WC_TEST_RET_ENC_EC(ret);
+    }
+
+out:
     /* Dispose of tables */
     XFREE(iTable, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(table, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    /* return error code if encountered */
+    if (ret != 0) {
+        return ret;
+    }
 
     /* Make sure the key public key is exportable - convert to Montgomery form
      * in Validation.
