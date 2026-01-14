@@ -74,8 +74,8 @@
 /* Structs */
 
 struct falcon_key {
-    bool pubKeySet;
-    bool prvKeySet;
+    WC_BITFIELD pubKeySet:1;
+    WC_BITFIELD prvKeySet:1;
     byte level;
 
 #ifdef WOLF_CRYPTO_CB
