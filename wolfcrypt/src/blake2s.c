@@ -37,6 +37,12 @@
 
 #include <wolfssl/wolfcrypt/blake2.h>
 #include <wolfssl/wolfcrypt/blake2-impl.h>
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #define WOLFSSL_MISC_INCLUDED
+    #include <wolfcrypt/src/misc.c>
+#endif
 
 static const word32 blake2s_IV[8] =
 {
@@ -558,8 +564,8 @@ int wc_Blake2sHmac(const byte * in, size_t in_len,
         return ret;
 
     XMEMCPY(out, i_hash, BLAKE2S_OUTBYTES);
-    XMEMSET(x_key, 0, BLAKE2S_BLOCKBYTES);
-    XMEMSET(i_hash, 0, BLAKE2S_OUTBYTES);
+    ForceZero(x_key, BLAKE2S_BLOCKBYTES);
+    ForceZero(i_hash, BLAKE2S_OUTBYTES);
 
     return 0;
 }
