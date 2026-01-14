@@ -21414,6 +21414,9 @@ static int DecodeAuthKeyIdInternal(const byte* input, word32 sz,
         ret = GetHashId(extAuthKeyId, (int)extAuthKeyIdSz, cert->extAuthKeyId,
                         HashIdAlg(cert->signatureOID));
     }
+    else {
+        cert->extAuthKeyIdSet = 0;
+    }
 
 #ifdef WOLFSSL_AKID_NAME
     if (ret == 0 && extAuthKeyIdIssuerSz > 0) {
