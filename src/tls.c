@@ -937,6 +937,9 @@ static int Hmac_UpdateFinal_CT(Hmac* hmac, byte* digest, const byte* in,
     word32       realLen;
     byte         extraBlock;
 
+    if (macLen <= 0 || macLen > (int)sizeof(hmac->innerHash))
+        return BAD_FUNC_ARG;
+
     switch (hmac->macType) {
     #ifndef NO_SHA
         case WC_SHA:
