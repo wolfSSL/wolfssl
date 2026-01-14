@@ -33952,6 +33952,7 @@ static int MakeSignatureCb(CertSignCtx* certSignCtx, const byte* buf,
 
     case CERTSIGN_STATE_ENCODE:
         /* For RSA, encode the digest with algorithm identifier */
+#ifndef NO_RSA
         if (keyType == RSA_TYPE) {
 #ifndef WOLFSSL_NO_MALLOC
             certSignCtx->encSig = (byte*)XMALLOC(MAX_DER_DIGEST_SZ, heap,
@@ -33964,6 +33965,7 @@ static int MakeSignatureCb(CertSignCtx* certSignCtx, const byte* buf,
             certSignCtx->encSigSz = (int)wc_EncodeSignature(certSignCtx->encSig,
                 certSignCtx->digest, (word32)digestSz, typeH);
         }
+#endif /* !NO_RSA */
         FALL_THROUGH;
 
     case CERTSIGN_STATE_DO:
@@ -33971,12 +33973,15 @@ static int MakeSignatureCb(CertSignCtx* certSignCtx, const byte* buf,
         outLen = sigSz;
 
         /* Call the user-provided signing callback */
+#ifndef NO_RSA
         if (keyType == RSA_TYPE) {
             /* RSA: pass encoded digest */
             ret = signCb(certSignCtx->encSig, (word32)certSignCtx->encSigSz,
                          sig, &outLen, sigAlgoType, keyType, signCtx);
         }
-        else {
+        else
+#endif /* !NO_RSA */
+        {
             /* ECC/EdDSA: pass raw hash or message */
             ret = signCb(certSignCtx->digest, (word32)digestSz,
                          sig, &outLen, sigAlgoType, keyType, signCtx);
@@ -33990,10 +33995,12 @@ static int MakeSignatureCb(CertSignCtx* certSignCtx, const byte* buf,
 
 exit_ms:
 #ifndef WOLFSSL_NO_MALLOC
+#ifndef NO_RSA
     if (keyType == RSA_TYPE) {
         XFREE(certSignCtx->encSig, heap, DYNAMIC_TYPE_TMP_BUFFER);
         certSignCtx->encSig = NULL;
     }
+#endif /* !NO_RSA */
     XFREE(certSignCtx->digest, heap, DYNAMIC_TYPE_TMP_BUFFER);
     certSignCtx->digest = NULL;
 #endif
