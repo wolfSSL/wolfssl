@@ -16538,11 +16538,51 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
 #if defined(HAVE_RPK)
             case TLSX_CLIENT_CERTIFICATE_TYPE:
                 WOLFSSL_MSG("Client Certificate Type extension received");
+#if defined(WOLFSSL_TLS13)
+                /* RFC 8446, Section 4.2 (Extensions), client_certificate_type
+                   and server_certificate_type MUST be sent in ClientHello(CH)
+                   or EncryptedExtensions(EE) */
+                if (IsAtLeastTLSv1_3(ssl->version)) {
+                    if (msgType != client_hello &&
+                        msgType != encrypted_extensions) {
+                        WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
+                        return EXT_NOT_ALLOWED;
+                    }
+                }
+                else
+#endif
+                {
+                    /* TLS 1.2: allowed in CH and SH (RFC 7250) */
+                    if (msgType != client_hello &&
+                        msgType != server_hello) {
+                        WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
+                        return EXT_NOT_ALLOWED;
+                    }
+                }
                 ret = CCT_PARSE(ssl, input + offset, size, msgType);
                 break;
 
             case TLSX_SERVER_CERTIFICATE_TYPE:
                 WOLFSSL_MSG("Server Certificate Type extension received");
+#if defined(WOLFSSL_TLS13)
+                /* RFC 8446, Section 4.2 (Extensions) */
+                if (IsAtLeastTLSv1_3(ssl->version)) {
+                    if (msgType != client_hello &&
+                        msgType != encrypted_extensions) {
+                        WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
+                        return EXT_NOT_ALLOWED;
+                    }
+                }
+                else
+#endif
+                {
+                    /* TLS 1.2: allowed in CH and SH (RFC 7250) */
+                    if (msgType != client_hello &&
+                        msgType != server_hello) {
+                        WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
+                        return EXT_NOT_ALLOWED;
+                    }
+                }
                 ret = SCT_PARSE(ssl, input + offset, size, msgType);
                 break;
 #endif /* HAVE_RPK */
