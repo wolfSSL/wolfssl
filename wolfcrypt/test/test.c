@@ -4702,8 +4702,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t blake2b_hmac_test(void)
     };
 
     byte out[BLAKE2B_OUTBYTES];
-
     int ret;
+    Blake2b b2b;
 
     ret = wc_Blake2bHmac(message1, sizeof(message1),
             key1, sizeof(key1), out, sizeof(out));
@@ -4718,6 +4718,32 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t blake2b_hmac_test(void)
         return WC_TEST_RET_ENC_EC(ret);
     if (XMEMCMP(out, expected2, sizeof(out)) != 0)
         return WC_TEST_RET_ENC_NC;
+
+    ret = wc_Blake2bHmacInit(&b2b, key1, sizeof(key1));
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_Blake2bHmacUpdate(&b2b, message1, sizeof(message1) / 2u);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_Blake2bHmacUpdate(&b2b, &message1[sizeof(message1) / 2u], sizeof(message1) - sizeof(message1) / 2u);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_Blake2bHmacFinal(&b2b, key1, sizeof(key1), out, sizeof(out));
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    ret = wc_Blake2bHmacInit(&b2b, key2, sizeof(key2));
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_Blake2bHmacUpdate(&b2b, message2, sizeof(message2) / 2u);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_Blake2bHmacUpdate(&b2b, &message2[sizeof(message2) / 2u], sizeof(message2) - sizeof(message2) / 2u);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_Blake2bHmacFinal(&b2b, key2, sizeof(key2), out, sizeof(out));
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
 
     return 0;
 }
@@ -4814,8 +4840,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t blake2s_hmac_test(void)
     };
 
     byte out[BLAKE2S_OUTBYTES];
-
     int ret;
+    Blake2s b2s;
 
     ret = wc_Blake2sHmac(message1, sizeof(message1),
             key1, sizeof(key1), out, sizeof(out));
@@ -4830,6 +4856,32 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t blake2s_hmac_test(void)
         return WC_TEST_RET_ENC_EC(ret);
     if (XMEMCMP(out, expected2, sizeof(out)) != 0)
         return WC_TEST_RET_ENC_NC;
+
+    ret = wc_Blake2sHmacInit(&b2s, key1, sizeof(key1));
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_Blake2sHmacUpdate(&b2s, message1, sizeof(message1) / 2u);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_Blake2sHmacUpdate(&b2s, &message1[sizeof(message1) / 2u], sizeof(message1) - sizeof(message1) / 2u);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_Blake2sHmacFinal(&b2s, key1, sizeof(key1), out, sizeof(out));
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    ret = wc_Blake2sHmacInit(&b2s, key2, sizeof(key2));
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_Blake2sHmacUpdate(&b2s, message2, sizeof(message2) / 2u);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_Blake2sHmacUpdate(&b2s, &message2[sizeof(message2) / 2u], sizeof(message2) - sizeof(message2) / 2u);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_Blake2sHmacFinal(&b2s, key2, sizeof(key2), out, sizeof(out));
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
 
     return 0;
 }

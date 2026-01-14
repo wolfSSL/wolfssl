@@ -46,7 +46,7 @@ int wc_InitBlake2b(Blake2b* b2b, word32 digestSz);
     byte plain[] = { // initialize input };
 
     ret = wc_Blake2bUpdate(&b2b, plain, sizeof(plain));
-    if( ret != 0) {
+    if (ret != 0) {
         // error updating blake2b
     }
     \endcode
@@ -84,7 +84,7 @@ int wc_Blake2bUpdate(Blake2b* b2b, const byte* data, word32 sz);
     ... // call wc_Blake2bUpdate to add data to hash
 
     ret = wc_Blake2bFinal(&b2b, hash, WC_BLAKE2B_DIGEST_SIZE);
-    if( ret != 0) {
+    if (ret != 0) {
         // error generating blake2b hash
     }
     \endcode
@@ -97,8 +97,90 @@ int wc_Blake2bFinal(Blake2b* b2b, byte* final, word32 requestSz);
 /*!
     \ingroup BLAKE2
 
-    \brief This function computes the HMAC-BLAKE2b message authentication code
-    of the given input data using the given key.
+    \brief Initialize an HMAC-BLAKE2b message authentication code computation.
+
+    \return 0 Returned upon successfully initializing the HMAC-BLAKE2b MAC
+    computation.
+
+    \param b2b Blake2b structure to be used for the MAC computation.
+    \param key pointer to the key
+    \param key_len length of the key
+
+    _Example_
+    \code
+    Blake2b b2b;
+    int ret;
+    byte key[] = {4, 5, 6};
+    ret = wc_Blake2bHmacInit(&b2b, key);
+    if (ret != 0) {
+        // error generating HMAC-BLAKE2b
+    }
+    \endcode
+*/
+int wc_Blake2bHmacInit(Blake2b * b2b,
+        const byte * key, size_t key_len);
+
+/*!
+    \ingroup BLAKE2
+
+    \brief Update an HMAC-BLAKE2b message authentication code computation with
+    additional input data.
+
+    \return 0 Returned upon successfully updating the HMAC-BLAKE2b MAC
+    computation.
+
+    \param b2b Blake2b structure to be used for the MAC computation.
+    \param in pointer to the input data
+    \param in_len length of the input data
+
+    _Example_
+    \code
+    Blake2b b2b;
+    int ret;
+    byte key[] = {4, 5, 6};
+    byte data[] = {1, 2, 3};
+    ret = wc_Blake2bHmacInit(&b2b, key, sizeof(key));
+    ret = wc_Blake2bHmacUpdate(&b2b, data, sizeof(data));
+    \endcode
+*/
+int wc_Blake2bHmacUpdate(Blake2b * b2b,
+        const byte * in, size_t in_len);
+
+/*!
+    \ingroup BLAKE2
+
+    \brief Finalize an HMAC-BLAKE2b message authentication code computation.
+
+    \return 0 Returned upon successfully finalizing the HMAC-BLAKE2b MAC
+    computation.
+
+    \param b2b Blake2b structure to be used for the MAC computation.
+    \param key pointer to the key
+    \param key_len length of the key
+    \param out output buffer to store computed MAC
+    \param out_len length of output buffer
+
+    _Example_
+    \code
+    Blake2b b2b;
+    int ret;
+    byte key[] = {4, 5, 6};
+    byte data[] = {1, 2, 3};
+    byte mac[WC_BLAKE2B_DIGEST_SIZE];
+    ret = wc_Blake2bHmacInit(&b2b, key, sizeof(key));
+    ret = wc_Blake2bHmacUpdate(&b2b, data, sizeof(data));
+    ret = wc_Blake2bHmacFinalize(&b2b, key, sizeof(key), mac, sizezof(mac));
+    \endcode
+*/
+int wc_Blake2bHmacFinal(Blake2b * b2b,
+        const byte * key, size_t key_len,
+        byte * out, size_t out_len);
+
+/*!
+    \ingroup BLAKE2
+
+    \brief Compute the HMAC-BLAKE2b message authentication code of the given
+    input data using the given key.
 
     \return 0 Returned upon successfully computing the HMAC-BLAKE2b MAC.
 
@@ -116,7 +198,7 @@ int wc_Blake2bFinal(Blake2b* b2b, byte* final, word32 requestSz);
     byte data[] = {1, 2, 3};
     byte key[] = {4, 5, 6};
     ret = wc_Blake2bHmac(data, sizeof(data), key, sizeof(key), mac, sizeof(mac));
-    if( ret != 0) {
+    if (ret != 0) {
         // error generating HMAC-BLAKE2b
     }
     \endcode
@@ -174,7 +256,7 @@ int wc_InitBlake2s(Blake2s* b2s, word32 digestSz);
     byte plain[] = { // initialize input };
 
     ret = wc_Blake2sUpdate(&b2s, plain, sizeof(plain));
-    if( ret != 0) {
+    if (ret != 0) {
         // error updating blake2s
     }
     \endcode
@@ -212,7 +294,7 @@ int wc_Blake2sUpdate(Blake2s* b2s, const byte* data, word32 sz);
     ... // call wc_Blake2sUpdate to add data to hash
 
     ret = wc_Blake2sFinal(&b2s, hash, WC_BLAKE2S_DIGEST_SIZE);
-    if( ret != 0) {
+    if (ret != 0) {
         // error generating blake2s hash
     }
     \endcode
@@ -221,6 +303,88 @@ int wc_Blake2sUpdate(Blake2s* b2s, const byte* data, word32 sz);
     \sa wc_Blake2sUpdate
 */
 int wc_Blake2sFinal(Blake2s* b2s, byte* final, word32 requestSz);
+
+/*!
+    \ingroup BLAKE2
+
+    \brief Initialize an HMAC-BLAKE2s message authentication code computation.
+
+    \return 0 Returned upon successfully initializing the HMAC-BLAKE2s MAC
+    computation.
+
+    \param b2s Blake2s structure to be used for the MAC computation.
+    \param key pointer to the key
+    \param key_len length of the key
+
+    _Example_
+    \code
+    Blake2s b2s;
+    int ret;
+    byte key[] = {4, 5, 6};
+    ret = wc_Blake2sHmacInit(&b2s, key);
+    if (ret != 0) {
+        // error generating HMAC-BLAKE2s
+    }
+    \endcode
+*/
+int wc_Blake2sHmacInit(Blake2s * b2s,
+        const byte * key, size_t key_len);
+
+/*!
+    \ingroup BLAKE2
+
+    \brief Update an HMAC-BLAKE2s message authentication code computation with
+    additional input data.
+
+    \return 0 Returned upon successfully updating the HMAC-BLAKE2s MAC
+    computation.
+
+    \param b2s Blake2s structure to be used for the MAC computation.
+    \param in pointer to the input data
+    \param in_len length of the input data
+
+    _Example_
+    \code
+    Blake2s b2s;
+    int ret;
+    byte key[] = {4, 5, 6};
+    byte data[] = {1, 2, 3};
+    ret = wc_Blake2sHmacInit(&b2s, key, sizeof(key));
+    ret = wc_Blake2sHmacUpdate(&b2s, data, sizeof(data));
+    \endcode
+*/
+int wc_Blake2sHmacUpdate(Blake2s * b2s,
+        const byte * in, size_t in_len);
+
+/*!
+    \ingroup BLAKE2
+
+    \brief Finalize an HMAC-BLAKE2s message authentication code computation.
+
+    \return 0 Returned upon successfully finalizing the HMAC-BLAKE2s MAC
+    computation.
+
+    \param b2s Blake2s structure to be used for the MAC computation.
+    \param key pointer to the key
+    \param key_len length of the key
+    \param out output buffer to store computed MAC
+    \param out_len length of output buffer
+
+    _Example_
+    \code
+    Blake2s b2s;
+    int ret;
+    byte key[] = {4, 5, 6};
+    byte data[] = {1, 2, 3};
+    byte mac[WC_BLAKE2S_DIGEST_SIZE];
+    ret = wc_Blake2sHmacInit(&b2s, key, sizeof(key));
+    ret = wc_Blake2sHmacUpdate(&b2s, data, sizeof(data));
+    ret = wc_Blake2sHmacFinalize(&b2s, key, sizeof(key), mac, sizezof(mac));
+    \endcode
+*/
+int wc_Blake2sHmacFinal(Blake2s * b2s,
+        const byte * key, size_t key_len,
+        byte * out, size_t out_len);
 
 /*!
     \ingroup BLAKE2
@@ -244,7 +408,7 @@ int wc_Blake2sFinal(Blake2s* b2s, byte* final, word32 requestSz);
     byte data[] = {1, 2, 3};
     byte key[] = {4, 5, 6};
     ret = wc_Blake2sHmac(data, sizeof(data), key, sizeof(key), mac, sizeof(mac));
-    if( ret != 0) {
+    if (ret != 0) {
         // error generating HMAC-BLAKE2s
     }
     \endcode

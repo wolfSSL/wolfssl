@@ -517,29 +517,21 @@ int wc_Blake2bFinal(Blake2b* b2b, byte* final, word32 requestSz)
 }
 
 
-int wc_Blake2bHmac(const byte * in, size_t in_len,
-        const byte * key, size_t key_len,
-        byte * out, size_t out_len)
+int wc_Blake2bHmacInit(Blake2b * b2b, const byte * key, size_t key_len)
 {
     byte x_key[BLAKE2B_BLOCKBYTES];
-    byte i_hash[BLAKE2B_OUTBYTES];
-    Blake2b state;
     int i;
-    int ret;
+    int ret = 0;
 
-    if (in == NULL || key == NULL || out == NULL)
+    if (key == NULL)
         return BAD_FUNC_ARG;
 
-    if (out_len != BLAKE2B_OUTBYTES)
-        return BUFFER_E;
-
     if (key_len > BLAKE2B_BLOCKBYTES) {
-        if ((ret = wc_InitBlake2b(&state, BLAKE2B_OUTBYTES)) != 0)
-            return ret;
-        if ((ret = wc_Blake2bUpdate(&state, key, (word32)key_len)) != 0)
-            return ret;
-        if ((ret = wc_Blake2bFinal(&state, x_key, 0)) != 0)
-            return ret;
+        ret = wc_InitBlake2b(b2b, BLAKE2B_OUTBYTES);
+        if (ret == 0)
+            ret = wc_Blake2bUpdate(b2b, key, (word32)key_len);
+        if (ret == 0)
+            ret = wc_Blake2bFinal(b2b, x_key, 0);
     } else {
         XMEMCPY(x_key, key, key_len);
         XMEMSET(x_key + key_len, 0, BLAKE2B_BLOCKBYTES - key_len);
@@ -548,32 +540,82 @@ int wc_Blake2bHmac(const byte * in, size_t in_len,
     for (i = 0; i < BLAKE2B_BLOCKBYTES; ++i)
         x_key[i] ^= 0x36U;
 
-    if ((ret = wc_InitBlake2b(&state, BLAKE2B_OUTBYTES)) != 0)
-        return ret;
-    if ((ret = wc_Blake2bUpdate(&state, x_key, BLAKE2B_BLOCKBYTES)) != 0)
-        return ret;
-    if ((ret = wc_Blake2bUpdate(&state, in, (word32)in_len)) != 0)
-        return ret;
-    if ((ret = wc_Blake2bFinal(&state, i_hash, 0)) != 0)
-        return ret;
+    if (ret == 0)
+        ret = wc_InitBlake2b(b2b, BLAKE2B_OUTBYTES);
+    if (ret == 0)
+        ret = wc_Blake2bUpdate(b2b, x_key, BLAKE2B_BLOCKBYTES);
+
+    ForceZero(x_key, sizeof(x_key));
+
+    return ret;
+}
+
+int wc_Blake2bHmacUpdate(Blake2b * b2b, const byte * in, size_t in_len)
+{
+    if (in == NULL)
+        return BAD_FUNC_ARG;
+
+    return wc_Blake2bUpdate(b2b, in, (word32)in_len);
+}
+
+int wc_Blake2bHmacFinal(Blake2b * b2b, const byte * key, size_t key_len,
+        byte * out, size_t out_len)
+{
+    byte x_key[BLAKE2B_BLOCKBYTES];
+    int i;
+    int ret = 0;
+
+    if (key == NULL)
+        return BAD_FUNC_ARG;
+
+    if (out_len != BLAKE2B_OUTBYTES)
+        return BUFFER_E;
+
+    if (key_len > BLAKE2B_BLOCKBYTES) {
+        ret = wc_InitBlake2b(b2b, BLAKE2B_OUTBYTES);
+        if (ret == 0)
+            ret = wc_Blake2bUpdate(b2b, key, (word32)key_len);
+        if (ret == 0)
+            ret = wc_Blake2bFinal(b2b, x_key, 0);
+    } else {
+        XMEMCPY(x_key, key, key_len);
+        XMEMSET(x_key + key_len, 0, BLAKE2B_BLOCKBYTES - key_len);
+    }
 
     for (i = 0; i < BLAKE2B_BLOCKBYTES; ++i)
-        x_key[i] ^= (0x5CU ^ 0x36U);
+        x_key[i] ^= 0x5CU;
 
-    if ((ret = wc_InitBlake2b(&state, BLAKE2B_OUTBYTES)) != 0)
-        return ret;
-    if ((ret = wc_Blake2bUpdate(&state, x_key, BLAKE2B_BLOCKBYTES)) != 0)
-        return ret;
-    if ((ret = wc_Blake2bUpdate(&state, i_hash, BLAKE2B_OUTBYTES)) != 0)
-        return ret;
-    if ((ret = wc_Blake2bFinal(&state, i_hash, 0)) != 0)
-        return ret;
+    if (ret == 0)
+        ret = wc_Blake2bFinal(b2b, out, 0);
 
-    XMEMCPY(out, i_hash, BLAKE2B_OUTBYTES);
-    ForceZero(x_key, BLAKE2B_BLOCKBYTES);
-    ForceZero(i_hash, BLAKE2B_OUTBYTES);
+    if (ret == 0)
+        ret = wc_InitBlake2b(b2b, BLAKE2B_OUTBYTES);
+    if (ret == 0)
+        ret = wc_Blake2bUpdate(b2b, x_key, BLAKE2B_BLOCKBYTES);
+    if (ret == 0)
+        ret = wc_Blake2bUpdate(b2b, out, BLAKE2B_OUTBYTES);
+    if (ret == 0)
+        ret = wc_Blake2bFinal(b2b, out, 0);
 
-    return 0;
+    ForceZero(x_key, sizeof(x_key));
+
+    return ret;
+}
+
+int wc_Blake2bHmac(const byte * in, size_t in_len,
+        const byte * key, size_t key_len,
+        byte * out, size_t out_len)
+{
+    Blake2b state;
+    int ret;
+
+    ret = wc_Blake2bHmacInit(&state, key, key_len);
+    if (ret == 0)
+        ret = wc_Blake2bHmacUpdate(&state, in, in_len);
+    if (ret == 0)
+        ret = wc_Blake2bHmacFinal(&state, key, key_len, out, out_len);
+
+    return ret;
 }
 
 /* end wolfCrypt API */
