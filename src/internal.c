@@ -42028,12 +42028,17 @@ static int DoAppleNativeCertValidation(WOLFSSL*                   ssl,
             kCFAllocatorDefault, (const char*)ssl->buffers.domainName.buffer,
             kCFStringEncodingUTF8);
     }
-    if (hostname != NULL) {
-        policy = SecPolicyCreateSSL(true, hostname);
+
+    /* If we're the client, we're validating the server's cert - use server
+     * policy (true). If we're the server, we're validating the client's cert -
+     * use client policy (false). Hostname validation only applies to server
+     * certs. */
+    {
+        int isServerCert = (ssl->options.side == WOLFSSL_CLIENT_END);
+        policy = SecPolicyCreateSSL(isServerCert,
+                                    isServerCert ? hostname : NULL);
     }
-    else {
-        policy = SecPolicyCreateSSL(true, NULL);
-    }
+
     status = SecTrustCreateWithCertificates(certArray, policy, &trust);
     if (status != errSecSuccess) {
         WOLFSSL_MSG_EX("Error creating trust object, "
