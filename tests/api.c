@@ -19612,7 +19612,7 @@ static int test_MakeCertWithCaFalse(void)
 }
 
 /* Mock callback for testing wc_SignCert_cb */
-#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_REQ)
+#if defined(WOLFSSL_CERT_SIGN_CB) && (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_REQ))
 /* Context structure for mock signing callback */
 typedef struct {
     void* key;      /* Pointer to RSA or ECC key */
@@ -19667,6 +19667,7 @@ static int mockSignCb(const byte* in, word32 inLen, byte* out, word32* outLen,
 }
 #endif
 
+#ifdef WOLFSSL_CERT_SIGN_CB
 static int test_wc_SignCert_cb(void)
 {
     EXPECT_DECLS;
@@ -19727,6 +19728,7 @@ static int test_wc_SignCert_cb(void)
 #endif
     return EXPECT_RESULT();
 }
+#endif /* WOLFSSL_CERT_SIGN_CB */
 
 
 static int test_wolfSSL_EVP_PKEY_encrypt(void)
@@ -31705,7 +31707,9 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_MakeCertWithPathLen),
     TEST_DECL(test_MakeCertWith0Ser),
     TEST_DECL(test_MakeCertWithCaFalse),
+#ifdef WOLFSSL_CERT_SIGN_CB
     TEST_DECL(test_wc_SignCert_cb),
+#endif
     TEST_DECL(test_wc_SetKeyUsage),
     TEST_DECL(test_wc_SetAuthKeyIdFromPublicKey_ex),
     TEST_DECL(test_wc_SetSubjectBuffer),
