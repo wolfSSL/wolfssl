@@ -14,7 +14,7 @@
     \code
     Blake2b b2b;
     // initialize Blake2b structure with 64 byte digest
-    wc_InitBlake2b(&b2b, BLAKE2B_OUTBYTES);
+    wc_InitBlake2b(&b2b, WC_BLAKE2B_DIGEST_SIZE);
     \endcode
 
     \sa wc_Blake2bUpdate
@@ -41,7 +41,7 @@ int wc_InitBlake2b(Blake2b* b2b, word32 digestSz);
     int ret;
     Blake2b b2b;
     // initialize Blake2b structure with 64 byte digest
-    wc_InitBlake2b(&b2b, BLAKE2B_OUTBYTES);
+    wc_InitBlake2b(&b2b, WC_BLAKE2B_DIGEST_SIZE);
 
     byte plain[] = { // initialize input };
 
@@ -78,12 +78,12 @@ int wc_Blake2bUpdate(Blake2b* b2b, const byte* data, word32 sz);
     \code
     int ret;
     Blake2b b2b;
-    byte hash[BLAKE2B_OUTBYTES];
+    byte hash[WC_BLAKE2B_DIGEST_SIZE];
     // initialize Blake2b structure with 64 byte digest
-    wc_InitBlake2b(&b2b, BLAKE2B_OUTBYTES);
+    wc_InitBlake2b(&b2b, WC_BLAKE2B_DIGEST_SIZE);
     ... // call wc_Blake2bUpdate to add data to hash
 
-    ret = wc_Blake2bFinal(&b2b, hash, BLAKE2B_OUTBYTES);
+    ret = wc_Blake2bFinal(&b2b, hash, WC_BLAKE2B_DIGEST_SIZE);
     if( ret != 0) {
         // error generating blake2b hash
     }
@@ -112,7 +112,7 @@ int wc_Blake2bFinal(Blake2b* b2b, byte* final, word32 requestSz);
     _Example_
     \code
     int ret;
-    byte mac[BLAKE2B_OUTBYTES];
+    byte mac[WC_BLAKE2B_DIGEST_SIZE];
     byte data[] = {1, 2, 3};
     byte key[] = {4, 5, 6};
     ret = wc_Blake2bHmac(data, sizeof(data), key, sizeof(key), mac, sizeof(mac));
@@ -142,7 +142,7 @@ int wc_Blake2bHmac(const byte * in, size_t in_len,
     \code
     Blake2s b2s;
     // initialize Blake2s structure with 32 byte digest
-    wc_InitBlake2s(&b2s, BLAKE2S_OUTBYTES);
+    wc_InitBlake2s(&b2s, WC_BLAKE2S_DIGEST_SIZE);
     \endcode
 
     \sa wc_Blake2sUpdate
@@ -169,7 +169,7 @@ int wc_InitBlake2s(Blake2s* b2s, word32 digestSz);
     int ret;
     Blake2s b2s;
     // initialize Blake2s structure with 32 byte digest
-    wc_InitBlake2s(&b2s, BLAKE2S_OUTBYTES);
+    wc_InitBlake2s(&b2s, WC_BLAKE2S_DIGEST_SIZE);
 
     byte plain[] = { // initialize input };
 
@@ -206,12 +206,12 @@ int wc_Blake2sUpdate(Blake2s* b2s, const byte* data, word32 sz);
     \code
     int ret;
     Blake2s b2s;
-    byte hash[BLAKE2S_OUTBYTES];
+    byte hash[WC_BLAKE2S_DIGEST_SIZE];
     // initialize Blake2s structure with 32 byte digest
-    wc_InitBlake2s(&b2s, BLAKE2S_OUTBYTES);
+    wc_InitBlake2s(&b2s, WC_BLAKE2S_DIGEST_SIZE);
     ... // call wc_Blake2sUpdate to add data to hash
 
-    ret = wc_Blake2sFinal(&b2s, hash, BLAKE2S_OUTBYTES);
+    ret = wc_Blake2sFinal(&b2s, hash, WC_BLAKE2S_DIGEST_SIZE);
     if( ret != 0) {
         // error generating blake2s hash
     }
@@ -240,7 +240,7 @@ int wc_Blake2sFinal(Blake2s* b2s, byte* final, word32 requestSz);
     _Example_
     \code
     int ret;
-    byte mac[BLAKE2S_OUTBYTES];
+    byte mac[WC_BLAKE2S_DIGEST_SIZE];
     byte data[] = {1, 2, 3};
     byte key[] = {4, 5, 6};
     ret = wc_Blake2sHmac(data, sizeof(data), key, sizeof(key), mac, sizeof(mac));
