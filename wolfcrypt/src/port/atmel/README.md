@@ -98,6 +98,21 @@ ATECC508A HW accelerated implementation:
 
 ### Microchip Trust Anchor TA100 ECC/RSA
 
+rm -rf build-shared
+cmake -S . -B build-shared \
+  -DCMAKE_BUILD_TYPE=Debug \
+  -DATCA_BUILD_SHARED_LIBS=ON \
+  -DATCA_HAL_SPI=ON \
+  -DATCA_PRINTF=ON \
+  -DATCA_TA100_SUPPORT=ON \
+  -DATCA_TA100_AES_AUTH_SUPPORT=ON \
+  -DATCA_TA100_FCE_SUPPORT=ON \
+  -DATCA_WOLFSSL=ON \
+  -DBUILD_TESTS=ON
+cmake --build build-shared -j
+sudo cmake --install build-shared
+sudo ldconfig
+
 `./configure CFLAGS="-DWOLFSSL_CMAC -DHAVE_PK_CALLBACKS -DWOLFSSL_ATECC508A_NOIDLE -DECC_USER_CURVES -DWOLFSSL_ATECC_NO_ECDH_ENC -DWOLFSSL_ATECC_DEBUG" --enable-cmac --enable-microchip=100 --with-cryptoauthlib`
 
 Supported Features:

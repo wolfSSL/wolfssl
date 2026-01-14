@@ -842,8 +842,7 @@ int wc_ecc_point_is_at_infinity(ecc_point *p);
 WOLFSSL_API
 int wc_ecc_point_is_on_curve(ecc_point *p, int curve_idx);
 
-#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
-    !defined(WOLFSSL_MICROCHIP_TA100)
+#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A)
 WOLFSSL_API
 int wc_ecc_mulmod(const mp_int* k, ecc_point *G, ecc_point *R,
                   mp_int* a, mp_int* modulus, int map);
