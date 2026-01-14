@@ -161,6 +161,52 @@ static int ateccx08a_cfg_initialized = 0;
 static ATCAIfaceCfg* gCfg = &config_atmel_device[WOLFSSL_ATCA_DEVICE_NO];
 
 #if defined(WOLFSSL_MICROCHIP_TA100)
+
+
+    /* TA100 device expects little-endian data for the property field.
+     * On big-endian hosts, we need to byte-swap the uint16_t property value.
+     * Use ATCA_UINT16_HOST_TO_LE if available from cryptoauthlib, otherwise
+     * define our own based on wolfSSL's endianness detection.
+     */
+    #ifndef ATCA_UINT16_HOST_TO_LE
+        #ifdef BIG_ENDIAN_ORDER
+            #define ATCA_UINT16_HOST_TO_LE(x) \
+                ((uint16_t)(((x) >> 8) | (((x) & 0xFF) << 8)))
+        #else
+            #define ATCA_UINT16_HOST_TO_LE(x) (x)
+        #endif
+    #endif
+
+    /* Helper function to fix property field endianness after talib_handle_init_*
+     * functions populate the ta_element_attributes_t structure.
+     * The talib functions build the property value in host byte order, but
+     * the TA100 device expects little-endian format.
+     */
+    static WC_INLINE void ta100_fix_property_endian(ta_element_attributes_t* attr)
+    {
+    #ifdef BIG_ENDIAN_ORDER
+        if (attr != NULL) {
+            attr->property = ATCA_UINT16_HOST_TO_LE(attr->property);
+        }
+    #else
+        (void)attr; /* Suppress unused warning on little-endian */
+    #endif
+    }
+
+    /* The sharedData_attr property values need to be in LE format.
+     * On little-endian: 0x1600 stays as 0x1600 (bytes: 00 16)
+     * On big-endian:    0x1600 becomes 0x0016 (bytes: 00 16)
+     *
+     * Since we cannot use function calls in static initializers,
+     * we define the values directly for each endianness:
+     */
+    #ifdef BIG_ENDIAN_ORDER
+        /* Big-endian: swap bytes so wire format is correct */
+        #define TA100_PROP_SHARED_DATA  0x0016
+    #else
+        /* Little-endian: use value as-is */
+        #define TA100_PROP_SHARED_DATA  0x1600
+    #endif
     #ifndef SHARED_DATA_ADDR
         #define SHARED_DATA_ADDR 0x8006
     #endif
@@ -190,14 +236,14 @@ typedef struct
 See Shared Data Element Attributes in the programming specifications
 */
 static ta_element_attributes_t sharedData_attr[ATECC_MAX_SLOT] = {
-    {0x81, 0x1600, 0x00, 0x00, 0x00, 0x41, 0x10},
-    {0x81, 0x1600, 0x00, 0x00, 0x00, 0x41, 0x10},
-    {0x81, 0x1600, 0x00, 0x00, 0x00, 0x41, 0x10},
-    {0x81, 0x1600, 0x00, 0x00, 0x00, 0x41, 0x10},
-    {0x81, 0x1600, 0x00, 0x00, 0x00, 0x41, 0x10},
-    {0x81, 0x1600, 0x00, 0x00, 0x00, 0x41, 0x10},
-    {0x81, 0x1600, 0x00, 0x00, 0x00, 0x41, 0x10},
-    {0x81, 0x1600, 0x00, 0x00, 0x00, 0x41, 0x10},
+    {0x81, TA100_PROP_SHARED_DATA, 0x00, 0x00, 0x00, 0x41, 0x10},
+    {0x81, TA100_PROP_SHARED_DATA, 0x00, 0x00, 0x00, 0x41, 0x10},
+    {0x81, TA100_PROP_SHARED_DATA, 0x00, 0x00, 0x00, 0x41, 0x10},
+    {0x81, TA100_PROP_SHARED_DATA, 0x00, 0x00, 0x00, 0x41, 0x10},
+    {0x81, TA100_PROP_SHARED_DATA, 0x00, 0x00, 0x00, 0x41, 0x10},
+    {0x81, TA100_PROP_SHARED_DATA, 0x00, 0x00, 0x00, 0x41, 0x10},
+    {0x81, TA100_PROP_SHARED_DATA, 0x00, 0x00, 0x00, 0x41, 0x10},
+    {0x81, TA100_PROP_SHARED_DATA, 0x00, 0x00, 0x00, 0x41, 0x10},
 };
 static ta_element_attributes_t* gSharedDataAttr = sharedData_attr;
 
@@ -517,6 +563,9 @@ static int atmel_init_enc_key(void)
 int atmel_get_rev_info(word32* revision)
 {
     int ret;
+    printf("Waking device...\n");
+    ret = atcab_wakeup();
+    printf("atcab_wakeup: %d\n", ret);
     ret = atcab_info((uint8_t*)revision);
     ret = atmel_ecc_translate_err(ret);
     return ret;
@@ -639,115 +688,171 @@ int atmel_ecc_verify(const byte* message, const byte* signature,
 #ifdef WOLFSSL_MICROCHIP_TA100
 
 #ifndef NO_RSA
+/*
+ * TA100 RSA Support - Sign/Verify AND Encrypt/Decrypt
+ *
+*/
+
 int wc_Microchip_rsa_create_key(struct RsaKey* key, int size, long e)
 {
     ATCA_STATUS ret;
     ta_element_attributes_t rKeyA, uKeyA;
-    size_t uKey_len = WOLFSSL_TA_KEY_TYPE_RSA_SIZE;
+    size_t uKey_len = TA_KEY_TYPE_RSA2048_SIZE;
 
     (void)size;
     (void)e;
 
-    ret = talib_handle_init_private_key(&rKeyA, WOLFSSL_TA_KEY_TYPE_RSA,
-            TA_ALG_MODE_RSA_SSA_PSS,TA_PROP_SIGN_INT_EXT_DIGEST,
+    /* Private key for signing AND decryption */
+    ret = talib_handle_init_private_key(&rKeyA, TA_KEY_TYPE_RSA2048,
+            TA_ALG_MODE_RSA_SSA_1_5, TA_PROP_SIGN_INT_EXT_DIGEST,
             TA_PROP_KEY_AGREEMENT_OUT_BUFF);
-    if (ret != ATCA_SUCCESS) return WC_HW_E;
+    if (ret != ATCA_SUCCESS)
+        return WC_HW_E;
+
+    ta100_fix_property_endian(&rKeyA);
 
     ret = talib_create_element(atcab_get_device(), &rKeyA, &key->rKeyH);
-    if (ret != ATCA_SUCCESS) return WC_HW_E;
+    if (ret != ATCA_SUCCESS)
+        return WC_HW_E;
 
-    ret = talib_handle_init_public_key(&uKeyA, WOLFSSL_TA_KEY_TYPE_RSA,
-            TA_ALG_MODE_RSA_SSA_PSS, TA_PROP_VAL_NO_SECURE_BOOT_SIGN,
-            TA_PROP_ROOT_PUB_KEY_VERIFY);
-    if (ret != ATCA_SUCCESS) return WC_HW_E;
+    /* Public key - use 0, 0 for encryption support! */
+    ret = talib_handle_init_public_key(&uKeyA, TA_KEY_TYPE_RSA2048,
+            TA_ALG_MODE_RSA_SSA_1_5, 0, 0);
+    if (ret != ATCA_SUCCESS)
+        return WC_HW_E;
+
+    ta100_fix_property_endian(&uKeyA);
 
     ret = talib_create_element(atcab_get_device(), &uKeyA, &key->uKeyH);
-    if (ret != ATCA_SUCCESS) return WC_HW_E;
+    if (ret != ATCA_SUCCESS)
+        return WC_HW_E;
 
     ret = talib_genkey_base(atcab_get_device(), TA_KEYGEN_MODE_NEWKEY,
             (uint32_t)key->rKeyH, key->uKey, &uKey_len);
-    if (ret != ATCA_SUCCESS) return WC_HW_E;
+    if (ret != ATCA_SUCCESS)
+        return WC_HW_E;
 
-    /* Write the RSA public key to the handle. */
-    ret = talib_write_pub_key(atcab_get_device(), key->uKeyH, (uint16_t)uKey_len,
-            key->uKey);
+    /* Use talib_write_element, not talib_write_pub_key */
+    ret = talib_write_element(atcab_get_device(), key->uKeyH,
+            (uint16_t)uKey_len, key->uKey);
 
-    ret = atmel_ecc_translate_err(ret);
-
-    return ret;
-
+    return atmel_ecc_translate_err(ret);
 }
-int wc_Microchip_rsa_sign(const byte* in, word32 inLen, byte* out, word32 outLen,
-                       RsaKey* key)
+
+int wc_Microchip_rsa_encrypt(const byte* in, word32 inLen, byte* out,
+                             word32 outLen, RsaKey* key)
 {
     int ret;
-    uint16_t sign_size = outLen; /* WOLFSSL_TA_KEY_TYPE_RSA_SIZE */
+
+#ifdef WOLFSSL_ATECC_DEBUG
+    printf("WOLFSSL_TA_KEY_TYPE_RSA = %d\n", WOLFSSL_TA_KEY_TYPE_RSA);
+    printf("TA_KEY_TYPE_RSA2048 = %d\n", TA_KEY_TYPE_RSA2048);
+    printf("=== talib_rsaenc_encrypt debug ===\n");
+    printf("device: %p\n", atcab_get_device());
+    printf("uKeyH: 0x%08X (%u)\n", key->uKeyH, key->uKeyH);
+    printf("inLen: %u\n", inLen);
+    printf("in: %p\n", in);
+    printf("outLen: %u\n", outLen);
+    printf("out: %p\n", out);
+#endif
+    /* Use the 2048-specific function */
+    ret = talib_rsaenc_encrypt2048(atcab_get_device(), key->uKeyH,
+                                   (uint16_t)inLen, in,
+                                   (uint16_t)outLen, out);
+
+    return atmel_ecc_translate_err(ret);
+}
+
+int wc_Microchip_rsa_decrypt(const byte* in, word32 inLen, byte* out,
+                             word32 outLen, RsaKey* key)
+{
+    int ret;
+
+
+    ret = talib_rsaenc_decrypt2048(atcab_get_device(), key->rKeyH,
+                                   (uint16_t)inLen, in,
+                                   (uint16_t)outLen, out);
+
+    return atmel_ecc_translate_err(ret);
+}
+
+
+int wc_Microchip_rsa_sign(const byte* in, word32 inLen, byte* out, word32 outLen,
+                          RsaKey* key)
+{
+    int ret;
+    uint16_t sign_size = (uint16_t)outLen;
     byte hash_data[WC_SHA256_DIGEST_SIZE];
 
-    if ((ret = wc_Sha256Hash(in, inLen, hash_data)) != 0) {
-       return ret;
+    if (in == NULL || out == NULL || key == NULL) {
+        return BAD_FUNC_ARG;
     }
 
+    /* Hash the input message */
+    ret = wc_Sha256Hash(in, inLen, hash_data);
+    if (ret != 0) {
+        return ret;
+    }
+
+    /* Sign using the signing private key handle */
     ret = talib_sign_external(atcab_get_device(), WOLFSSL_TA_KEY_TYPE_RSA,
                               key->rKeyH, TA_HANDLE_INPUT_BUFFER, hash_data,
                               WC_SHA256_DIGEST_SIZE, out, &sign_size);
-    ret = atmel_ecc_translate_err(ret);
-    return ret;
+
+    return atmel_ecc_translate_err(ret);
 }
 
+
 int wc_Microchip_rsa_verify(const byte* in, word32 inLen, byte* sig, word32 sigLen,
-                     RsaKey* key, int* pVerified)
+                            RsaKey* key, int* pVerified)
 {
     int ret;
     bool verified = false;
     byte hash_data[WC_SHA256_DIGEST_SIZE];
 
-    if ((ret = wc_Sha256Hash(in, inLen, hash_data)) != 0) {
-       return ret;
+    if (in == NULL || sig == NULL || key == NULL) {
+        return BAD_FUNC_ARG;
     }
+
+    /* Hash the input message */
+    ret = wc_Sha256Hash(in, inLen, hash_data);
+    if (ret != 0) {
+        return ret;
+    }
+
+    /* Verify using the verification public key handle */
     ret = talib_verify(atcab_get_device(), WOLFSSL_TA_KEY_TYPE_RSA,
-                        TA_HANDLE_INPUT_BUFFER, key->uKeyH, sig,
-                        sigLen, hash_data, WC_SHA256_DIGEST_SIZE, NULL,
-                        sigLen, &verified);
+                       TA_HANDLE_INPUT_BUFFER, key->uKeyH, sig,
+                       sigLen, hash_data, WC_SHA256_DIGEST_SIZE, NULL,
+                       sigLen, &verified);
 
     ret = atmel_ecc_translate_err(ret);
-    if (pVerified)
+
+    if (pVerified != NULL) {
         *pVerified = (int)verified;
+    }
 
     return ret;
 }
 
-int wc_Microchip_rsa_encrypt(const byte* in, word32 inLen, byte* out, word32 outLen,
-                       RsaKey* key)
-{
-    int ret;
-
-    /* Encrypt the plaintext with the rsa public key in handle */
-    ret = talib_rsaenc_encrypt(atcab_get_device(), key->uKeyH,
-                               inLen, in, outLen, out);
-    ret = atmel_ecc_translate_err(ret);
-    return ret;
-}
-
-int wc_Microchip_rsa_decrypt(const byte* in, word32 inLen, byte* out,
-                          word32 outLen, RsaKey* key)
-{
-    int ret;
-    /* Decrypt the ciphertext with the rsa private key in handle */
-    ret = talib_rsaenc_decrypt(atcab_get_device(), key->rKeyH,
-                             inLen, in, outLen, out);
-    ret = atmel_ecc_translate_err(ret);
-    return ret;
-}
 
 void wc_Microchip_rsa_free(struct RsaKey* key)
 {
-    if (key->rKeyH)
-        (void)talib_delete_handle(atcab_get_device(), (uint32_t)key->rKeyH);
-    if (key->uKeyH)
-        (void)talib_delete_handle(atcab_get_device(), (uint32_t)key->uKeyH);
+    if (key == NULL) {
+        return;
+    }
 
+    /* Free signing/encryption key handles */
+    if (key->rKeyH) {
+        (void)talib_delete_handle(atcab_get_device(), (uint32_t)key->rKeyH);
+        key->rKeyH = 0;
+    }
+    if (key->uKeyH) {
+        (void)talib_delete_handle(atcab_get_device(), (uint32_t)key->uKeyH);
+        key->uKeyH = 0;
+    }
 }
+
 #endif /* NO_RSA */
 
 #ifdef WOLFSSL_ATECC_DEBUG
@@ -837,14 +942,20 @@ static void atmel_Handle_Attributes(void)
 }
 #endif
 
-#define CHECK_STATUS(s)                                                        \
-    if (s != ATCA_SUCCESS)                                                     \
-    {                                                                          \
-        printf("Error: Line %d in File %s\r\n", __LINE__, __FILE__);           \
-        printf("STATUS = %X\r\n", s);                                          \
-        printf("See atca_status.h for error code \r\n");                       \
-        return atmel_ecc_translate_err(s);                                     \
-    }
+#ifdef WOLFSSL_ATECC_DEBUG
+    #define CHECK_STATUS(s)                                                    \
+        if ((s) != ATCA_SUCCESS) {                                             \
+            WOLFSSL_MSG("TA100 Error");                                        \
+            printf("Error: Line %d in File %s\r\n", __LINE__, __FILE__);       \
+            printf("STATUS = %X\r\n", (unsigned int)(s));                      \
+            return atmel_ecc_translate_err(s);                                 \
+        }
+#else
+    #define CHECK_STATUS(s)                                                    \
+        if ((s) != ATCA_SUCCESS) {                                             \
+            return atmel_ecc_translate_err(s);                                 \
+        }
+#endif
 static int atmel_createHandles(void)
 {
     ATCA_STATUS status;
@@ -1547,50 +1658,41 @@ void wc_Microchip_aes_free(Aes* aes)
     (void)aes;
 }
 
+
 static int wc_Microchip_AesGcmCommon(Aes* aes, byte* out, const byte* in,
         word32 sz, const byte* iv, word32 ivSz, byte* authTag, word32 authTagSz,
         const byte* authIn, word32 authInSz, int dir)
 {
     ATCA_STATUS status;
-    atca_aes_gcm_ctx_t ctx;
 
-    (void)out;
-    (void)in;
-    (void)sz;
-    (void)iv;
+    (void)aes;
     (void)ivSz;
-    (void)authTag;
     (void)authTagSz;
-    (void)authIn;
-    (void)authInSz;
-    (void)dir;
-
-    (void)ctx;
 
     if (aes == NULL) {
         return BAD_FUNC_ARG;
     }
-    if (dir != AES_ENCRYPTION &&
-        dir != AES_DECRYPTION) {
+    if (dir != AES_ENCRYPTION && dir != AES_DECRYPTION) {
         return BAD_FUNC_ARG;
     }
 
-
     if (dir == AES_ENCRYPTION) {
+        /* Note: talib API takes non-const iv */
         status = talib_aes_gcm_encrypt(atcab_get_device(), authIn,
-                                       authInSz, iv, in, sz, out, authTag);
-        CHECK_STATUS(status);
+                                       authInSz, (uint8_t*)iv, in, sz, out, authTag);
     }
     else {
         status = talib_aes_gcm_decrypt(atcab_get_device(), authIn,
-             authInSz, iv, authTag, in, sz, out);
-
-        /* Add cipher to gcm */
-        status = atcab_aes_gcm_decrypt_update(&ctx, in, sz, out);
-        CHECK_STATUS(status);
+                                       authInSz, (uint8_t*)iv, authTag, in, sz, out);
     }
-    return atmel_ecc_translate_err(status);
+
+    if (status != ATCA_SUCCESS) {
+        return atmel_ecc_translate_err(status);
+    }
+
+    return 0;
 }
+
 int wc_Microchip_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                              const byte* iv, word32 ivSz,
                              byte* authTag, word32 authTagSz,
