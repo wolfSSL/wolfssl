@@ -2704,7 +2704,6 @@ int ecc_projective_dbl_point(ecc_point *P, ecc_point *R, mp_int* a,
 int ecc_map_ex(ecc_point* P, mp_int* modulus, mp_digit mp, int ct)
 {
     int err = MP_OKAY;
-    mp_int *x, *y, *z;
     (void)ct;
 
     if (P == NULL || modulus == NULL){
@@ -2719,6 +2718,7 @@ int ecc_map_ex(ecc_point* P, mp_int* modulus, mp_digit mp, int ct)
         DECL_MP_INT_SIZE_DYN(ry, mp_bitsused(modulus), MAX_ECC_BITS_USE);
         DECL_MP_INT_SIZE_DYN(rz, mp_bitsused(modulus), MAX_ECC_BITS_USE);
         #endif
+        mp_int *x, *y, *z;
 
         /* special case for point at infinity */
         if (mp_cmp_d(P->z, 0) == MP_EQ) {
