@@ -2355,7 +2355,9 @@ int test_tls13_same_ch(void)
     ExpectIntEQ(test_memio_inject_message(&test_ctx, 1, (char*)hrr,
             sizeof(hrr)), 0);
     ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
-    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), DUPLICATE_MSG_E);
+    /* issue 9653: use a more appropriate error than DUPLICATE_MSG_E.
+     * Since the cause of this is missing extension, return that. */
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), EXT_MISSING);
 
     wolfSSL_free(ssl_c);
     wolfSSL_CTX_free(ctx_c);
