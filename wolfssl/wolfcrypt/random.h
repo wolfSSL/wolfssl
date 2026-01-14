@@ -179,6 +179,9 @@ struct OS_Seed {
 /* wolfentropy.h will define for HAVE_ENTROPY_MEMUSE */
 #ifdef HAVE_ENTROPY_MEMUSE
     #include <wolfssl/wolfcrypt/wolfentropy.h>
+#else
+    /* Maximum entropy bits that can be produced. */
+    #define MAX_ENTROPY_BITS    256
 #endif
 
 /* ENTROPY_SCALE_FACTOR is unprefixed for backward compat. */

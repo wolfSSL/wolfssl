@@ -746,28 +746,131 @@ static int Hash_DRBG_Uninstantiate(DRBG_internal* drbg)
 }
 
 
+/* FIPS 140-3 IG 10.3.A / SP800-90B Health Tests for Seed Data
+ *
+ * These tests replace the older FIPS 140-2 Continuous Random Number Generator
+ * Test (CRNGT) with more mathematically robust statistical tests per
+ * ISO 19790 / SP800-90B requirements.
+ *
+ * When HAVE_ENTROPY_MEMUSE is defined, the wolfentropy.c jitter-based TRNG
+ * performs another set of these health tests, but those are on the noise not
+ * the conditioned output so we still need to retest here even in that case
+ * to evaluate the conditioned output for the same behavior. These tests ensure
+ * the seed data meets basic entropy requirements regardless of the source.
+ */
+
+/* SP800-90B 4.4.1 - Repetition Count Test
+ * Detects if the noise source becomes "stuck" producing repeated output.
+ *
+ * C = 1 + ceil(-log2(alpha) / H)
+ * For alpha = 2^-30 (false positive probability) and H = 1 (min entropy):
+ * C = 1 + ceil(30 / 1) = 31
+ */
+#ifndef WC_RNG_SEED_RCT_CUTOFF
+    #define WC_RNG_SEED_RCT_CUTOFF 31
+#endif
+
+/* SP800-90B 4.4.2 - Adaptive Proportion Test
+ * Monitors if a particular sample value appears too frequently within a
+ * window of samples, indicating loss of entropy.
+ *
+ * Window size W = 512 for non-binary alphabet (byte values 0-255)
+ * C = 1 + CRITBINOM(W, 2^(-H), 1-alpha)
+ * For alpha = 2^-30 and H = 1, W = 512:
+ * C = 1 + CRITBINOM(512, 0.5, 1-2^-30) = 325
+ */
+#ifndef WC_RNG_SEED_APT_WINDOW
+    #define WC_RNG_SEED_APT_WINDOW 512
+#endif
+#ifndef WC_RNG_SEED_APT_CUTOFF
+    #define WC_RNG_SEED_APT_CUTOFF 325
+#endif
+
 int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
 {
     int ret = 0;
 
-    /* Check the seed for duplicate words. */
-    word32 seedIdx = 0;
-    word32 scratchSz = 0;
+    word32 i;
+    int rctFailed = 0;
+    int aptFailed = 0;
 
-    if (seed == NULL || seedSz < SEED_BLOCK_SZ)
+    if (seed == NULL || seedSz == 0) {
         return BAD_FUNC_ARG;
+    }
 
-    scratchSz = min(SEED_BLOCK_SZ, seedSz - SEED_BLOCK_SZ);
+    /* SP800-90B 4.4.1 - Repetition Count Test (RCT)
+     * Check for consecutive identical bytes that would indicate a stuck
+     * entropy source. Fail if we see WC_RNG_SEED_RCT_CUTOFF or more
+     * consecutive identical values.
+     *
+     * Constant-time implementation: always process full seed, accumulate
+     * failure status without early exit to prevent timing side-channels.
+     */
+    {
+        int repCount = 1;
+        byte prevByte = seed[0];
 
-    while (seedIdx < seedSz - SEED_BLOCK_SZ) {
-        if (ConstantCompare(seed + seedIdx,
-                            seed + seedIdx + scratchSz,
-                            (int)scratchSz) == 0) {
-
-            ret = DRBG_CONT_FAILURE;
+        for (i = 1; i < seedSz; i++) {
+            /* Constant-time: always evaluate both branches effects */
+            int match = (seed[i] == prevByte);
+            /* If match, increment count, if not, reset to 1 */
+            repCount = (match * (repCount + 1)) + (!match * 1);
+            /* Update prevByte only when not matching (new value) */
+            prevByte = (byte) ((match * prevByte) + (!match * seed[i]));
+            /* Accumulate failure flag - once set, stays set */
+            rctFailed |= (repCount >= WC_RNG_SEED_RCT_CUTOFF);
         }
-        seedIdx += SEED_BLOCK_SZ;
-        scratchSz = min(SEED_BLOCK_SZ, (seedSz - seedIdx));
+    }
+
+    /* SP800-90B 4.4.2 - Adaptive Proportion Test (APT)
+     * Check that no single byte value appears too frequently within
+     * a sliding window. This detects bias in the entropy source.
+     *
+     * For seeds smaller than the window size, we test the entire seed.
+     * For larger seeds, we use a sliding window approach.
+     *
+     * Constant-time implementation: always process full seed and check
+     * all counts to prevent timing side-channels.
+     */
+    {
+        word16 byteCounts[MAX_ENTROPY_BITS];
+        word32 windowSize = min(seedSz, (word32)WC_RNG_SEED_APT_WINDOW);
+        word32 windowStart = 0;
+        word32 newIdx;
+
+        XMEMSET(byteCounts, 0, sizeof(byteCounts));
+
+        /* Initialize counts for first window */
+        for (i = 0; i < windowSize; i++) {
+            byteCounts[seed[i]]++;
+        }
+
+        /* Check first window - scan all 256 counts */
+        for (i = 0; i < MAX_ENTROPY_BITS; i++) {
+            aptFailed |= (byteCounts[i] >= WC_RNG_SEED_APT_CUTOFF);
+        }
+
+        /* Slide window through remaining seed data */
+        while ((windowStart + windowSize) < seedSz) {
+            /* Remove byte leaving the window */
+            byteCounts[seed[windowStart]]--;
+            windowStart++;
+
+            /* Add byte entering the window */
+            newIdx = windowStart + windowSize - 1;
+            byteCounts[seed[newIdx]]++;
+
+            /* Accumulate failure flag for new byte's count */
+            aptFailed |= (byteCounts[seed[newIdx]] >= WC_RNG_SEED_APT_CUTOFF);
+        }
+    }
+
+    /* Set return code based on accumulated failure flags */
+    if (rctFailed) {
+        ret = ENTROPY_RT_E;
+    }
+    else if (aptFailed) {
+        ret = ENTROPY_APT_E;
     }
 
     return ret;
