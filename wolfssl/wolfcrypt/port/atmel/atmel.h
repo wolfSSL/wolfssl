@@ -109,8 +109,8 @@ enum atmelSlotType {
     ATMEL_SLOT_ECDHE_BOB,
 };
 
-int  atmel_ecc_alloc(int slotType);
-void atmel_ecc_free(int slotId);
+WOLFSSL_API int  atmel_ecc_alloc(int slotType);
+WOLFSSL_API void atmel_ecc_free(int slotId);
 
 typedef int  (*atmel_slot_alloc_cb)(int);
 typedef void (*atmel_slot_dealloc_cb)(int);

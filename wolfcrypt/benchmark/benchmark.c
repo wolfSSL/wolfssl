@@ -2081,6 +2081,10 @@ static const char* bench_result_words2[][6] = {
 #endif
 };
 #endif /* !WC_NO_RNG || WOLFSSL_HAVE_MLKEM */
+#endif
+#if defined(WOLFSSL_MICROCHIP_TA100)
+    #include <wolfssl/wolfcrypt/port/atmel/atmel.h>
+#endif
 
 #ifdef WOLFSSL_CAAM
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
@@ -10713,7 +10717,7 @@ void bench_rsa(int useDeviceID)
         /* Note: To benchmark public only define WOLFSSL_PUBLIC_MP */
         rsaKeySz = 0;
 #endif
-#if defined(WOLFSSL_MICROCHIP_TA100)
+#if defined(WOLFSSL_KEY_GEN) && defined(WOLFSSL_MICROCHIP_TA100)
         /* Create new keys since you cannot import a private key to TA100 */
         ret = wc_MakeRsaKey(rsaKey[i], rsaKeySz, WC_RSA_EXPONENT, &gRng);
         if (ret) {
