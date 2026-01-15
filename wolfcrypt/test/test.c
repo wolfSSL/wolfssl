@@ -49412,13 +49412,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t dilithium_test(void)
 #ifndef WOLFSSL_DILITHIUM_NO_VERIFY
     ret = dilithium_param_44_vfy_test();
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(ret, out);
 #endif
 #endif
 #ifndef WOLFSSL_DILITHIUM_NO_MAKE_KEY
     ret = dilithium_param_test(WC_ML_DSA_44, &rng);
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(ret, out);
 #endif
 #endif
 #ifndef WOLFSSL_NO_ML_DSA_65
@@ -49426,13 +49426,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t dilithium_test(void)
 #ifndef WOLFSSL_DILITHIUM_NO_VERIFY
     ret = dilithium_param_65_vfy_test();
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(ret, out);
 #endif
 #endif
 #ifndef WOLFSSL_DILITHIUM_NO_MAKE_KEY
     ret = dilithium_param_test(WC_ML_DSA_65, &rng);
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(ret, out);
 #endif
 #endif
 #ifndef WOLFSSL_NO_ML_DSA_87
@@ -49440,13 +49440,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t dilithium_test(void)
 #ifndef WOLFSSL_DILITHIUM_NO_VERIFY
     ret = dilithium_param_87_vfy_test();
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(ret, out);
 #endif
 #endif
 #ifndef WOLFSSL_DILITHIUM_NO_MAKE_KEY
     ret = dilithium_param_test(WC_ML_DSA_87, &rng);
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(ret, out);
 #endif
 #endif
 
@@ -49456,7 +49456,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t dilithium_test(void)
      !defined(WOLFSSL_DILITHIUM_NO_VERIFY))
     ret = dilithium_decode_test();
     if (ret != 0) {
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(ret, out);
     }
 #endif /* (WOLFSSL_DILITHIUM_PUBLIC_KEY && !WOLFSSL_DILITHIUM_NO_VERIFY) ||
         * (WOLFSSL_DILITHIUM_PRIVATE_KEY && !WOLFSSL_DILITHIUM_NO_SIGN) */
@@ -49503,8 +49503,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test(void)
     word32          skSz = 0;
     word32          sigSz = 0;
     word32          bufSz = 0;
-    unsigned char * sk = NULL;
-    unsigned char * old_sk = NULL;
+#ifdef WOLFSSL_NO_MALLOC
+    static byte     sk[2048];
+    static byte     old_sk[2048];
+#else
+    byte *          sk = NULL;
+    byte *          old_sk = NULL;
+#endif
     const char *    msg = "XMSS post quantum signature test";
     word32          msgSz = (word32) XSTRLEN(msg);
 #if WOLFSSL_XMSS_MIN_HEIGHT <= 10
@@ -49516,7 +49521,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test(void)
 #else
     const char *    param = "XMSSMT-SHA2_60/12_256";
 #endif
+#ifdef WOLFSSL_NO_MALLOC
+    static byte     sig[4096];
+#else
     byte *          sig = NULL;
+#endif
     int             ret2 = -1;
     int             ret = WC_TEST_RET_ENC_NC;
     WOLFSSL_ENTER("xmss_test");
@@ -49553,8 +49562,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test(void)
     if (ret != 0) { ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out); }
 
     /* Allocate signature array. */
+#ifdef WOLFSSL_NO_MALLOC
+    if (sigSz > sizeof(sig))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#else
     sig = (byte *)XMALLOC(sigSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (sig == NULL) { ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out); }
+#endif
 
     bufSz = sigSz;
 
@@ -49566,11 +49580,16 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test(void)
 #endif
 
     /* Allocate current and old secret keys.*/
+#ifdef WOLFSSL_NO_MALLOC
+    if (skSz > sizeof(sk))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#else
     sk = (unsigned char *)XMALLOC(skSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (sk == NULL) { ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out); }
 
     old_sk = (unsigned char *)XMALLOC(skSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (old_sk == NULL) { ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out); }
+#endif
 
     XMEMSET(sk, 0, skSz);
     XMEMSET(old_sk, 0, skSz);
@@ -49631,6 +49650,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test(void)
 out:
 
     /* Cleanup everything. */
+#ifndef WOLFSSL_NO_MALLOC
     XFREE(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     sig = NULL;
 
@@ -49639,6 +49659,7 @@ out:
 
     XFREE(old_sk, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     old_sk = NULL;
+#endif /* !WOLFSSL_NO_MALLOC */
 
     wc_XmssKey_Free(&signingKey);
     wc_XmssKey_Free(&verifyKey);
@@ -50153,6 +50174,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test(void)
     int           sigsLeft = 0;
     LmsKey        signingKey;
     LmsKey        verifyKey;
+#if defined(WOLFSSL_NO_MALLOC) && defined(NO_WOLFSSL_MEMORY)
+    static byte signingKey_priv_data[4096];
+#endif
     WC_RNG        rng;
     word32        sigSz = 0;
     const char *  msg = "LMS HSS post quantum signature test";
@@ -50208,6 +50232,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test(void)
 
     ret = wc_LmsKey_Init(&signingKey, NULL, devId);
     if (ret != 0) { ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out); }
+#if defined(WOLFSSL_NO_MALLOC) && defined(NO_WOLFSSL_MEMORY)
+    signingKey.priv_data = signingKey_priv_data;
+#endif
 
     ret = wc_LmsKey_Init(&verifyKey, NULL, devId);
     if (ret != 0) { ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out); }
@@ -50317,6 +50344,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test(void)
 
 out:
 
+#if defined(WOLFSSL_NO_MALLOC) && defined(NO_WOLFSSL_MEMORY)
+    signingKey.priv_data = NULL;
+#endif
     wc_LmsKey_Free(&signingKey);
     wc_LmsKey_Free(&verifyKey);
 

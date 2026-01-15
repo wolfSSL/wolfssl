@@ -797,10 +797,12 @@ int wc_dilithium_verify_ctx_hash(const byte* sig, word32 sigLen,
     const byte* ctx, word32 ctxLen, int hashAlg, const byte* hash,
     word32 hashLen, int* res, dilithium_key* key);
 
+#ifndef WC_NO_CONSTRUCTORS
 WOLFSSL_API
 dilithium_key* wc_dilithium_new(void* heap, int devId);
 WOLFSSL_API
 int wc_dilithium_delete(dilithium_key* key, dilithium_key** key_p);
+#endif /* !WC_NO_CONSTRUCTORS */
 
 WOLFSSL_API
 int wc_dilithium_init(dilithium_key* key);
