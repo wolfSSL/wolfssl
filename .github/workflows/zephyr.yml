@@ -42,7 +42,7 @@ jobs:
             make gcc gcc-multilib g++-multilib libsdl2-dev libmagic1 \
             autoconf automake bison build-essential ca-certificates cargo ccache chrpath cmake \
             cpio device-tree-compiler dfu-util diffstat dos2unix doxygen file flex g++ gawk gcc \
-            gcovr git git-core gnupg gperf gtk-sharp2 help2man iproute2 lcov libcairo2-dev \
+            gcovr git git-core gnupg gperf gtk-sharp3 help2man iproute2 lcov libcairo2-dev \
             libglib2.0-dev libgtk2.0-0 liblocale-gettext-perl libncurses5-dev libpcap-dev \
             libpopt0 libsdl1.2-dev libsdl2-dev libssl-dev libtool libtool-bin locales make \
             net-tools ninja-build openssh-client parallel pkg-config python3-dev python3-pip \
