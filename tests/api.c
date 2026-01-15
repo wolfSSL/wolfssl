@@ -19637,8 +19637,8 @@ static int mockSignCb(const byte* in, word32 inLen, byte* out, word32* outLen,
         RsaKey* rsaKey = (RsaKey*)signCtx->key;
         word32 outSz = *outLen;
         
-        /* For RSA, input is pre-encoded digest, just sign it */
-        ret = wc_RsaSSL_Sign(in, inLen, out, outSz, rsaKey, NULL);
+        /* For RSA, input is DER-encoded digest (DigestInfo structure) */
+        ret = wc_RsaSSL_Sign(in, inLen, out, outSz, rsaKey, signCtx->rng);
         if (ret > 0) {
             *outLen = (word32)ret;
             ret = 0;

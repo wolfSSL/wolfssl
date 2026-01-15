@@ -33928,7 +33928,9 @@ static int MakeSignatureCb(CertSignCtx* certSignCtx, const byte* buf,
     word32 outLen;
 
     (void)rng;
+#ifdef WOLFSSL_NO_MALLOC
     (void)heap;
+#endif
 
     switch (certSignCtx->state) {
     case CERTSIGN_STATE_BEGIN:
@@ -33982,7 +33984,7 @@ static int MakeSignatureCb(CertSignCtx* certSignCtx, const byte* buf,
         else
 #endif /* !NO_RSA */
         {
-            /* ECC/EdDSA: pass raw hash or message */
+            /* ECC: pass raw hash */
             ret = signCb(certSignCtx->digest, (word32)digestSz,
                          sig, &outLen, sigAlgoType, keyType, signCtx);
         }

@@ -243,8 +243,9 @@ typedef int (wc_pem_password_cb)(char* passwd, int sz, int rw, void* userdata);
     infrastructure. This is particularly useful for FIPS compliance where
     offloading wolfCrypt operations is not acceptable.
     
-    \param in Data to sign. For RSA, this is the PKCS#1 v1.5 padded digest.
-              For ECC, this is the raw hash to sign.
+    \param in Data to sign. For RSA, this is the DER-encoded digest
+              (DigestInfo structure with algorithm identifier). For ECC,
+              this is the raw hash to sign.
     \param inLen Length of data to sign in bytes.
     \param out Output buffer for the signature.
     \param outLen Input: size of output buffer. Output: actual signature size.
