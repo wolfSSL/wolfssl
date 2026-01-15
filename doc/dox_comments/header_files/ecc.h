@@ -983,6 +983,7 @@ int wc_ecc_point_is_at_infinity(ecc_point *p);
     \param k The multiplicand.
     \param G Base point to multiply.
     \param R Destination of product.
+    \param a ECC curve parameter a.
     \param modulus The modulus for the curve.
     \param map If non-zero maps the point back to affine coordinates,
     otherwise it's left in jacobian-montgomery form.
@@ -997,7 +998,10 @@ int wc_ecc_point_is_at_infinity(ecc_point *p);
     // Setup other arguments
     mp_int multiplicand;
     mp_int modulus;
+    mp_int a;
     int map;
+    int rc;
+    rc = wc_ecc_mulmod(&multiplicand, base, destination, &a, &modulus, map);
     \endcode
 
     \sa none
