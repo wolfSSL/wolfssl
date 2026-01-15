@@ -59,7 +59,7 @@ on:
   pull_request:
     branches: [ '**' ]
     paths:
-      - 'github/workflows/arduino.yml'
+      - '.github/workflows/arduino.yml'
       - 'IDE/ARDUINO/**'
       - 'src/**'
       - 'wolfcrypt/**'
@@ -122,6 +122,15 @@ jobs:
       REPO_OWNER: ${{ github.repository_owner }}
 
     steps:
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo apt-get clean
+          df -h
+
       - name: Checkout Repository
         uses: actions/checkout@v4
 
@@ -248,7 +257,8 @@ jobs:
           path: |
             ~/.arduino15
             ~/.cache/arduino
-            ~/.arduino15/staging
+            # Exclude staging directory from cache to save space
+            !~/.arduino15/staging
 
             # Arduino libraries
             # Specific to Arduino CI Build (2 of 4) Arduinbo Release wolfSSL for Local Examples
@@ -405,6 +415,9 @@ jobs:
           WOLFSSL_EXAMPLES_DIRECTORY="$ARDUINO_ROOT/wolfssl/examples"
           echo "WOLFSSL_EXAMPLES_DIRECTORY:  $WOLFSSL_EXAMPLES_DIRECTORY"
 
+          # Limit the number of jobs to 1 to avoid running out of memory
+          export ARDUINO_CLI_MAX_JOBS=1
+
           echo "Change directory to Arduino examples..."
           pushd "$WOLFSSL_EXAMPLES_DIRECTORY"
             chmod +x ./compile-all-examples.sh
@@ -416,3 +429,37 @@ jobs:
             bash ./compile-all-examples.sh  ./board_list.txt "${{ matrix.fqbn }}"
           popd
           # End Compile Arduino Sketches for Various Boards
+
+      - name: Cleanup to Save Disk Space
+        if: always()
+        run: |
+          echo "Disk usage before cleanup:"
+          df -h
+          echo ""
+          echo "Cleaning up build artifacts and temporary files..."
+
+          # Clean up Arduino build artifacts
+          find ~/Arduino -name "*.hex" -delete 2>/dev/null || true
+          find ~/Arduino -name "*.elf" -delete 2>/dev/null || true
+          find ~/Arduino -name "*.bin" -delete 2>/dev/null || true
+          find ~/Arduino -name "build" -type d -exec rm -rf {} + 2>/dev/null || true
+
+          rm -rf ~/.arduino15/packages/esp32/tools || true
+          rm -rf ~/.arduino15/packages/esp32/hardware || true
+          rm -rf ~/.espressif || true
+
+          # Clean up staging directories
+          rm -rf ~/.arduino15/staging/* || true
+          rm -rf ~/.cache/arduino/* || true
+
+          # Clean up git clone of wolfssl-examples
+          GITHUB_WORK=$(realpath "$GITHUB_WORKSPACE/../..")
+          rm -rf "$GITHUB_WORK/wolfssl-examples-publish" || true
+
+          # Clean up any temporary files in workspace
+          find "$GITHUB_WORKSPACE" -name "*.o" -delete 2>/dev/null || true
+          find "$GITHUB_WORKSPACE" -name "*.a" -delete 2>/dev/null || true
+
+          echo ""
+          echo "Disk usage after cleanup:"
+          df -h
