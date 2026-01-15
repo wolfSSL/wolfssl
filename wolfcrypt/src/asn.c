@@ -31981,7 +31981,9 @@ static int WriteCertBody(DerCert* der, byte* buf)
 
 
 #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_REQ)
-/* Internal typedef for callback signature if not already defined in header */
+/* Internal typedef for callback signature - must match wc_SignCertCb in asn_public.h
+ * This fallback is needed when WOLFSSL_CERT_SIGN_CB is not defined but
+ * MakeSignatureCb is still used internally by the refactored MakeSignature. */
 #ifndef WOLFSSL_CERT_SIGN_CB
 typedef int (*wc_SignCertCb)(const byte* in, word32 inLen,
                              byte* out, word32* outLen,
@@ -32037,25 +32039,23 @@ static int InternalSignCb(const byte* in, word32 inLen,
 
 #if defined(HAVE_ED25519) && defined(HAVE_ED25519_SIGN)
     if (keyType == ED25519_TYPE && signCtx->ed25519Key) {
-        /* Ed25519 needs the original message, not hash */
-        /* Note: For Ed25519, 'in' should be the original message buffer */
-        /* This is a limitation of the refactoring - Ed25519 signs messages, not hashes */
-        ret = NOT_COMPILED_IN; /* Cannot support Ed25519 through callback path */
+        /* Ed25519 signs messages, not hashes - cannot use callback path */
+        ret = SIG_TYPE_E;
     }
 #endif /* HAVE_ED25519 && HAVE_ED25519_SIGN */
 
 #if defined(HAVE_ED448) && defined(HAVE_ED448_SIGN)
     if (keyType == ED448_TYPE && signCtx->ed448Key) {
-        /* Ed448 needs the original message, not hash */
-        ret = NOT_COMPILED_IN; /* Cannot support Ed448 through callback path */
+        /* Ed448 signs messages, not hashes - cannot use callback path */
+        ret = SIG_TYPE_E;
     }
 #endif /* HAVE_ED448 && HAVE_ED448_SIGN */
 
 #if defined(HAVE_FALCON)
     if (keyType == FALCON_LEVEL1_TYPE || keyType == FALCON_LEVEL5_TYPE) {
         if (signCtx->falconKey) {
-            /* Falcon needs the original message */
-            ret = NOT_COMPILED_IN; /* Cannot support Falcon through callback path */
+            /* Falcon signs messages, not hashes - cannot use callback path */
+            ret = SIG_TYPE_E;
         }
     }
 #endif /* HAVE_FALCON */
@@ -32064,8 +32064,8 @@ static int InternalSignCb(const byte* in, word32 inLen,
     if (keyType == DILITHIUM_LEVEL2_TYPE || keyType == DILITHIUM_LEVEL3_TYPE ||
         keyType == DILITHIUM_LEVEL5_TYPE) {
         if (signCtx->dilithiumKey) {
-            /* Dilithium needs the original message */
-            ret = NOT_COMPILED_IN; /* Cannot support Dilithium through callback path */
+            /* Dilithium signs messages, not hashes - cannot use callback path */
+            ret = SIG_TYPE_E;
         }
     }
 #endif /* HAVE_DILITHIUM && !WOLFSSL_DILITHIUM_NO_SIGN */
@@ -32075,8 +32075,8 @@ static int InternalSignCb(const byte* in, word32 inLen,
         keyType == SPHINCS_FAST_LEVEL5_TYPE || keyType == SPHINCS_SMALL_LEVEL1_TYPE ||
         keyType == SPHINCS_SMALL_LEVEL3_TYPE || keyType == SPHINCS_SMALL_LEVEL5_TYPE) {
         if (signCtx->sphincsKey) {
-            /* Sphincs needs the original message */
-            ret = NOT_COMPILED_IN; /* Cannot support Sphincs through callback path */
+            /* Sphincs signs messages, not hashes - cannot use callback path */
+            ret = SIG_TYPE_E;
         }
     }
 #endif /* HAVE_SPHINCS */
