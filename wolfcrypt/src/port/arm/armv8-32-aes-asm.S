@@ -3914,7 +3914,8 @@ L_aes_ctr_encrypt_arm32_crypto_done:
 AES_GCM_set_key_AARCH32:
 	vpush	{d8, d9}
 	vld1.8	{q0}, [r0]
-	vldm	r1!, {q1-q4}
+	vld1.8	{q1, q2}, [r1]!
+	vld1.8	{q3, q4}, [r1]!
 	aese.8	q0, q1
 	aesmc.8	q0, q0
 	aese.8	q0, q2
@@ -3923,7 +3924,8 @@ AES_GCM_set_key_AARCH32:
 	aesmc.8	q0, q0
 	aese.8	q0, q4
 	aesmc.8	q0, q0
-	vldm	r1!, {q1-q4}
+	vld1.8	{q1, q2}, [r1]!
+	vld1.8	{q3, q4}, [r1]!
 	aese.8	q0, q1
 	aesmc.8	q0, q0
 	aese.8	q0, q2
@@ -3933,25 +3935,25 @@ AES_GCM_set_key_AARCH32:
 	aese.8	q0, q4
 	aesmc.8	q0, q0
 	subs	r3, r3, #10
-	vld1.32	{q1, q2}, [r1]!
+	vld1.8	{q1, q2}, [r1]!
 	aese.8	q0, q1
 	aesmc.8	q0, q0
 	aese.8	q0, q2
 	beq	L_aes_gcm_set_key_arm32_crypto_round_done
-	vld1.32	{q1, q2}, [r1]!
+	vld1.8	{q1, q2}, [r1]!
 	subs	r3, r3, #2
 	aesmc.8	q0, q0
 	aese.8	q0, q1
 	aesmc.8	q0, q0
 	aese.8	q0, q2
 	beq	L_aes_gcm_set_key_arm32_crypto_round_done
-	vld1.32	{q1, q2}, [r1]!
+	vld1.8	{q1, q2}, [r1]!
 	aesmc.8	q0, q0
 	aese.8	q0, q1
 	aesmc.8	q0, q0
 	aese.8	q0, q2
 L_aes_gcm_set_key_arm32_crypto_round_done:
-	vld1.32	{q1}, [r1]
+	vld1.8	{q1}, [r1]
 	veor	q0, q0, q1
 	vmov.i8	q1, #0x55
 	vshl.u8	q2, q0, #1
