@@ -13211,7 +13211,8 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int outLen,
     if (ret == 0) {
         /* Calculate the size of the encoded public point. */
         PRIVATE_KEY_UNLOCK();
-    #if defined(HAVE_COMP_KEY) && defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+    #if defined(HAVE_COMP_KEY) && \
+    (defined(HAVE_SELFTEST) || (defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)))
         /* in earlier versions of FIPS the get length functionality is not
          * available with compressed keys */
         pubSz = key->dp ? key->dp->size : MAX_ECC_BYTES;

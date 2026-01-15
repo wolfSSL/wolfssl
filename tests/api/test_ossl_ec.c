@@ -610,7 +610,7 @@ int test_wolfSSL_EC_POINT(void)
     hexStr = EC_POINT_point2hex(group, Gxy, POINT_CONVERSION_COMPRESSED, ctx);
     ExpectNotNull(hexStr);
     ExpectStrEQ(hexStr, compG);
-    #ifdef HAVE_COMP_KEY
+    #if defined(HAVE_COMP_KEY) && !defined(HAVE_SELFTEST)
     ExpectNotNull(get_point = EC_POINT_hex2point
                                             (group, hexStr, get_point, ctx));
     ExpectIntEQ(EC_POINT_cmp(group, Gxy, get_point, ctx), 0);

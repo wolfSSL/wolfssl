@@ -676,7 +676,8 @@ int test_wc_ecc_export_x963_ex(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_ecc_export_x963_ex(&key, out, NULL, COMP),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-#if defined(HAVE_FIPS) && (!defined(FIPS_VERSION_LT) || FIPS_VERSION_LT(5,3))
+#if (defined(HAVE_FIPS) && (!defined(FIPS_VERSION_LT) || FIPS_VERSION_LT(5,3)))\
+    || defined(HAVE_SELFTEST)
     ExpectIntEQ(wc_ecc_export_x963_ex(&key, out, &badOutLen, COMP),
         WC_NO_ERR_TRACE(BUFFER_E));
 #else
