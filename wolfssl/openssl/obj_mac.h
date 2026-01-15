@@ -82,8 +82,6 @@
 
 #endif /* !OPENSSL_COEXIST */
 
-/* the definition is for Qt Unit test */
-#define SN_jurisdictionCountryName "jurisdictionC"
 #ifdef __cplusplus
     } /* extern "C" */
 #endif

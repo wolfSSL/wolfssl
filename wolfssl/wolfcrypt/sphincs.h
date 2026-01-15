@@ -83,8 +83,8 @@
 /* Structs */
 
 struct sphincs_key {
-    bool pubKeySet;
-    bool prvKeySet;
+    WC_BITFIELD pubKeySet:1;
+    WC_BITFIELD prvKeySet:1;
     byte level; /* 1,3 or 5 */
     byte optim; /* FAST_VARIANT or SMALL_VARIANT */
     byte p[SPHINCS_MAX_PUB_KEY_SIZE];
