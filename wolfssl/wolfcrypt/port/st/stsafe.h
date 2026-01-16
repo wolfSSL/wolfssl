@@ -92,6 +92,10 @@
     /* Return codes */
     #define STSAFE_A_OK                 0  /* STSE_OK */
 
+    /* Key usage limits */
+    #define STSAFE_PERSISTENT_KEY_USAGE_LIMIT  255  /* Usage limit for persistent keys in slot 1 */
+    #define STSAFE_EPHEMERAL_KEY_USAGE_LIMIT   255  /* Usage limit for ephemeral keys in slot 0xFF */
+
     /* Hash types - must match stse_hash_algorithm_t values in STSELib */
     #define STSAFE_HASH_SHA256          0  /* STSE_SHA_256 */
     #define STSAFE_HASH_SHA384          1  /* STSE_SHA_384 */
