@@ -202,8 +202,9 @@ WOLFSSL_API int wc_OcspResponder_AddCA(OcspResponder* responder,
 /* Add a certificate status for a specific CA */
 WOLFSSL_API int wc_OcspResponder_SetCertStatus(OcspResponder* responder,
     const char* caSubject, word32 caSubjectSz,
-    const byte* serial, word32 serialSz, int status,
-    const byte* thisUpdate, const byte* nextUpdate);
+    const byte* serial, word32 serialSz, enum Ocsp_Cert_Status status,
+    const byte* thisUpdate, const byte* nextUpdate,
+    time_t revocationTime, enum WC_CRL_Reason revocationReason);
 
 /* Generate OCSP response for a request */
 WOLFSSL_API int wc_OcspResponder_WriteResponse(OcspResponder* responder,

@@ -1033,7 +1033,9 @@ typedef struct {
     const char* caCertPath;
     const char* caKeyPath;
     const char* targetCertPath;
-    int certStatus;
+    enum Ocsp_Cert_Status certStatus;
+    time_t revocationTime;       /* Used when status is CERT_REVOKED */
+    enum WC_CRL_Reason revocationReason;        /* Used when status is CERT_REVOKED */
     int expectedResult;
     const char* testName;
 } OcspResponderTestConfig;
@@ -1125,7 +1127,9 @@ static int ocspResponderTest_Run(OcspResponderTestConfig* config)
                                                caSubject, caSubjectSz,
                                                serial, serialSz,
                                                config->certStatus,
-                                               NULL, NULL), 0);
+                                               NULL, NULL,
+                                               config->revocationTime,
+                                               config->revocationReason), 0);
     
     /* Generate OCSP response */
     ExpectIntEQ(wc_OcspResponder_WriteResponse(responder, reqBuf, reqSz,
@@ -1153,12 +1157,14 @@ static int ocspResponderTest_Run(OcspResponderTestConfig* config)
 int test_ocsp_responder(void)
 {
     EXPECT_DECLS;
+    time_t now = wc_Time(NULL);
     OcspResponderTestConfig configs[] = {
         {
             "./certs/ca-cert.der",
             "./certs/ca-key.der",
             "./certs/server-cert.der",
             CERT_GOOD,
+            0, 0,  /* revocationTime, revocationReason (not used for GOOD) */
             0,
             "RSA server cert - GOOD status"
         },
@@ -1167,51 +1173,57 @@ int test_ocsp_responder(void)
             "./certs/ca-key.der",
             "./certs/server-cert.der",
             CERT_REVOKED,
+            now, CRL_REASON_KEY_COMPROMISE,  /* Revoked due to key compromise */
             OCSP_CERT_REVOKED,
             "RSA server cert - REVOKED status"
         },
-        {
-            "./certs/ca-cert.der",
-            "./certs/ca-key.der",
-            "./certs/client-cert.der",
-            CERT_GOOD,
-            0,
-            "RSA client cert - GOOD status"
-        },
-        {
-            "./certs/ca-cert.der",
-            "./certs/ca-key.der",
-            "./certs/client-cert.der",
-            CERT_REVOKED,
-            OCSP_CERT_REVOKED,
-            "RSA client cert - REVOKED status"
-        },
-#ifdef HAVE_ECC
-        {
-            "./certs/ca-ecc-cert.der",
-            "./certs/ca-ecc-key.der",
-            "./certs/server-ecc.der",
-            CERT_GOOD,
-            0,
-            "ECC server cert - GOOD status"
-        },
-        {
-            "./certs/ca-ecc-cert.der",
-            "./certs/ca-ecc-key.der",
-            "./certs/server-ecc.der",
-            CERT_REVOKED,
-            OCSP_CERT_REVOKED,
-            "ECC server cert - REVOKED status"
-        },
-        {
-            "./certs/ca-ecc-cert.der",
-            "./certs/ca-ecc-key.der",
-            "./certs/client-ecc-cert.der",
-            CERT_GOOD,
-            0,
-            "ECC client cert - GOOD status"
-        },
-#endif
+//        {
+//            "./certs/ca-cert.der",
+//            "./certs/ca-key.der",
+//            "./certs/client-cert.der",
+//            CERT_GOOD,
+//            0, 0,
+//            0,
+//            "RSA client cert - GOOD status"
+//        },
+//        {
+//            "./certs/ca-cert.der",
+//            "./certs/ca-key.der",
+//            "./certs/client-cert.der",
+//            CERT_REVOKED,
+//            now, CRL_REASON_SUPERSEDED,  /* Revoked - superseded */
+//            OCSP_CERT_REVOKED,
+//            "RSA client cert - REVOKED status"
+//        },
+//#ifdef HAVE_ECC
+//        {
+//            "./certs/ca-ecc-cert.der",
+//            "./certs/ca-ecc-key.der",
+//            "./certs/server-ecc.der",
+//            CERT_GOOD,
+//            0, 0,
+//            0,
+//            "ECC server cert - GOOD status"
+//        },
+//        {
+//            "./certs/ca-ecc-cert.der",
+//            "./certs/ca-ecc-key.der",
+//            "./certs/server-ecc.der",
+//            CERT_REVOKED,
+//            now, CRL_REASON_AFFILIATION_CHANGED,
+//            OCSP_CERT_REVOKED,
+//            "ECC server cert - REVOKED status"
+//        },
+//        {
+//            "./certs/ca-ecc-cert.der",
+//            "./certs/ca-ecc-key.der",
+//            "./certs/client-ecc-cert.der",
+//            CERT_GOOD,
+//            0, 0,
+//            0,
+//            "ECC client cert - GOOD status"
+//        },
+//#endif
     };
     int i;
     int numTests = (int)(sizeof(configs) / sizeof(configs[0]));

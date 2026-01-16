@@ -38671,8 +38671,19 @@ static int EncodeSingleResponse(OcspEntry* single, byte* out, word32* outSz,
             SetASNItem_NoOutNode(dataASN, singleResponseASN,
                     SINGLERESPONSEASN_IDX_UNKNOWN,
                     singleResponseASN_Length);
-            /* TODO: Add revocationTime and revocationReason */
-            ret = BAD_FUNC_ARG;
+            /* Set revocation time - always GeneralizedTime format */
+            if (single->status->revocationDateSz == 0 ||
+                single->status->revocationDateSz > MAX_DATE_SIZE) {
+                ret = BAD_FUNC_ARG;
+            }
+            else {
+                SetASN_Buffer(&dataASN[SINGLERESPONSEASN_IDX_CS_REVOKED_TIME],
+                        single->status->revocationDate,
+                        single->status->revocationDateSz);
+                /* Set revocation reason - optional field */
+                SetASN_Int8Bit(&dataASN[SINGLERESPONSEASN_IDX_CS_REVOKED_REASON_VAL],
+                        single->status->revocationReason);
+            }
         }
         else if (single->status->status == CERT_UNKNOWN) {
             SetASNItem_NoOutNode(dataASN, singleResponseASN,
@@ -38886,7 +38897,11 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
                 cs->thisDate, &thisDateLen);
         GetASN_Buffer(&dataASN[SINGLERESPONSEASN_IDX_NEXTUPDATE_GT],
                 cs->nextDate, &nextDateLen);
-        /* TODO: decode revoked time and reason. */
+        cs->revocationDateSz = MAX_DATE_SIZE;
+        GetASN_Buffer(&dataASN[SINGLERESPONSEASN_IDX_CS_REVOKED_TIME],
+                cs->revocationDate, &cs->revocationDateSz);
+        GetASN_Int8Bit(&dataASN[SINGLERESPONSEASN_IDX_CS_REVOKED_REASON_VAL],
+                &cs->revocationReason);
         /* Decode OCSP single response. */
         ret = GetASN_Items(singleResponseASN, dataASN, singleResponseASN_Length,
                 1, source, ioIndex, size);

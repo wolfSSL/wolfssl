@@ -2446,11 +2446,13 @@ static OcspResponderCa* FindCaBySubject(OcspResponder* responder,
 /* Add a certificate status for a specific CA */
 int wc_OcspResponder_SetCertStatus(OcspResponder* responder,
     const char* caSubject, word32 caSubjectSz,
-    const byte* serial, word32 serialSz, int status,
-    const byte* thisUpdate, const byte* nextUpdate)
+    const byte* serial, word32 serialSz, enum Ocsp_Cert_Status status,
+    const byte* thisUpdate, const byte* nextUpdate,
+    time_t revocationTime, enum WC_CRL_Reason revocationReason)
 {
     OcspResponderCa* ca;
     OcspResponderCertStatus* certStatus;
+    int ret = 0;
     
     WOLFSSL_ENTER("wc_OcspResponder_SetCertStatus");
     
@@ -2462,6 +2464,18 @@ int wc_OcspResponder_SetCertStatus(OcspResponder* responder,
         status != CERT_UNKNOWN)
         return BAD_FUNC_ARG;
     
+    /* Validate revocation parameters when status is REVOKED */
+    if (status == CERT_REVOKED) {
+        if (revocationTime <= 0)
+            return BAD_FUNC_ARG;
+        if (revocationReason < CRL_REASON_UNSPECIFIED || 
+            revocationReason > CRL_REASON_AA_COMPROMISE)
+            return BAD_FUNC_ARG;
+        /* Skip value 7 which is not used */
+        if (revocationReason == 7)
+            return BAD_FUNC_ARG;
+    }
+    
     /* Find the CA */
     ca = FindCaBySubject(responder, caSubject, caSubjectSz);
     if (ca == NULL)
@@ -2472,6 +2486,16 @@ int wc_OcspResponder_SetCertStatus(OcspResponder* responder,
     if (certStatus != NULL) {
         /* Update existing status */
         certStatus->status = status;
+        if (status == CERT_REVOKED) {
+            ret = GetFormattedTime_ex(&revocationTime, certStatus->revocationDate,
+                sizeof(certStatus->revocationDate), ASN_GENERALIZED_TIME);
+            if (ret <= 0) {
+                WOLFSSL_MSG("Failed to format revocation time");
+                return ret;
+            }
+            certStatus->revocationDateSz = (word32)ret;
+            certStatus->revocationReason = revocationReason;
+        }
     }
     else {
         /* Allocate new status entry */
@@ -2484,6 +2508,18 @@ int wc_OcspResponder_SetCertStatus(OcspResponder* responder,
         XMEMCPY(certStatus->serial, serial, serialSz);
         certStatus->serialSz = serialSz;
         certStatus->status = status;
+        
+        if (status == CERT_REVOKED) {
+            ret = GetFormattedTime_ex(&revocationTime, certStatus->revocationDate,
+                sizeof(certStatus->revocationDate), ASN_GENERALIZED_TIME);
+            if (ret <= 0) {
+                WOLFSSL_MSG("Failed to format revocation time");
+                XFREE(certStatus, responder->heap, DYNAMIC_TYPE_OCSP);
+                return ret;
+            }
+            certStatus->revocationDateSz = (word32)ret;
+            certStatus->revocationReason = revocationReason;
+        }
         
         /* Add to CA's status list */
         certStatus->next = ca->statuses;
@@ -2529,7 +2565,15 @@ static int OcspResponse_WriteResponse(OcspResponder* responder, byte* response,
     XMEMCPY(status.serial, certStatus->serial, certStatus->serialSz);
     status.serialSz = (byte)certStatus->serialSz;
 
-    tm = wc_Time(0);
+    /* Copy revocation information if status is REVOKED */
+    if (certStatus->status == CERT_REVOKED) {
+        XMEMCPY(status.revocationDate, certStatus->revocationDate,
+                certStatus->revocationDateSz);
+        status.revocationDateSz = certStatus->revocationDateSz;
+        status.revocationReason = (byte)certStatus->revocationReason;
+    }
+
+    tm = wc_Time(NULL);
     ret = GetFormattedTime_ex(&tm, status.thisDate, sizeof(status.thisDate),
             ASN_GENERALIZED_TIME);
     if (ret <= 0) {
@@ -2542,7 +2586,7 @@ static int OcspResponse_WriteResponse(OcspResponder* responder, byte* response,
     resp.producedDateFormat = status.thisDateFormat = ASN_GENERALIZED_TIME;
 
     /* Only support sha-1 hashes for now */
-    wc_static_assert(KEYID_SIZE == WC_SHA_DIGEST_SIZE);
+    wc_static_assert((int)KEYID_SIZE == (int)WC_SHA_DIGEST_SIZE);
     entry.hashAlgoOID = SHAh;
     XMEMCPY(entry.issuerHash, ca->issuerHash, KEYID_SIZE);
     XMEMCPY(entry.issuerKeyHash, ca->issuerKeyHash, KEYID_SIZE);

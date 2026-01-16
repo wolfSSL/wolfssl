@@ -2694,6 +2694,9 @@ struct CertStatus {
     byte* thisDateAsn;
     byte* nextDateAsn;
 #endif
+    byte revocationDate[MAX_DATE_SIZE]; /* ASN-formatted revocation time */
+    word32 revocationDateSz;
+    byte revocationReason;              /* CRL reason code */
 
     byte*  rawOcspResponse;
     word32 rawOcspResponseSz;
@@ -2834,16 +2837,34 @@ WOLFSSL_LOCAL int OcspDecodeCertID(const byte* input, word32* inOutIdx, word32 i
                  OcspEntry* entry);
 
 #ifdef HAVE_OCSP_RESPONDER
+/* Revocation reason codes from RFC 5280 */
+enum WC_CRL_Reason {
+    CRL_REASON_UNSPECIFIED             = 0,
+    CRL_REASON_KEY_COMPROMISE          = 1,
+    CRL_REASON_CA_COMPROMISE           = 2,
+    CRL_REASON_AFFILIATION_CHANGED     = 3,
+    CRL_REASON_SUPERSEDED              = 4,
+    CRL_REASON_CESSATION_OF_OPERATION  = 5,
+    CRL_REASON_CERTIFICATE_HOLD        = 6,
+    /* value 7 is not used */
+    CRL_REASON_REMOVE_FROM_CRL         = 8,
+    CRL_REASON_PRIVILEGE_WITHDRAWN     = 9,
+    CRL_REASON_AA_COMPROMISE           = 10
+};
+
 /* Certificate status entry for a single certificate */
 typedef struct OcspResponderCertStatus OcspResponderCertStatus;
 struct OcspResponderCertStatus {
     byte serial[EXTERNAL_SERIAL_SIZE];
     int serialSz;
-    int status;                      /* CERT_GOOD, CERT_REVOKED, CERT_UNKNOWN */
+    enum Ocsp_Cert_Status status;    /* CERT_GOOD, CERT_REVOKED, CERT_UNKNOWN */
     byte thisDate[MAX_DATE_SIZE];
     byte nextDate[MAX_DATE_SIZE];
     byte thisDateFormat;
     byte nextDateFormat;
+    byte revocationDate[MAX_DATE_SIZE]; /* ASN-formatted revocation time (if REVOKED) */
+    word32 revocationDateSz;            /* Size of revocation date */
+    enum WC_CRL_Reason revocationReason; /* Reason for revocation */
     OcspResponderCertStatus* next;
 };
 
