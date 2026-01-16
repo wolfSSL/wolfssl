@@ -30432,6 +30432,195 @@ int ParseExtKeyUsageStr(const char* value, byte* extKeyUsage, void* heap)
 
 #endif /* WOLFSSL_ASN_PARSE_KEYUSAGE */
 
+#if defined(WOLFSSL_CERT_GEN) || defined(HAVE_OCSP_RESPONDER)
+/* Make signature from buffer (sz), write to sig (sigSz) */
+static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, word32 sz,
+    byte* sig, word32 sigSz, RsaKey* rsaKey, ecc_key* eccKey,
+    ed25519_key* ed25519Key, ed448_key* ed448Key, falcon_key* falconKey,
+    dilithium_key* dilithiumKey, sphincs_key* sphincsKey, WC_RNG* rng,
+    word32 sigAlgoType, void* heap)
+{
+    int digestSz = 0, typeH = 0, ret = 0;
+
+    (void)digestSz;
+    (void)typeH;
+    (void)buf;
+    (void)sz;
+    (void)sig;
+    (void)sigSz;
+    (void)rsaKey;
+    (void)eccKey;
+    (void)ed25519Key;
+    (void)ed448Key;
+    (void)falconKey;
+    (void)dilithiumKey;
+    (void)sphincsKey;
+    (void)rng;
+    (void)heap;
+
+    switch (certSignCtx->state) {
+    case CERTSIGN_STATE_BEGIN:
+    case CERTSIGN_STATE_DIGEST:
+
+        certSignCtx->state = CERTSIGN_STATE_DIGEST;
+    #ifndef WOLFSSL_NO_MALLOC
+        certSignCtx->digest = (byte*)XMALLOC(WC_MAX_DIGEST_SIZE, heap,
+            DYNAMIC_TYPE_TMP_BUFFER);
+        if (certSignCtx->digest == NULL) {
+            ret = MEMORY_E; goto exit_ms;
+        }
+    #endif
+
+        ret = HashForSignature(buf, sz, sigAlgoType, certSignCtx->digest,
+                               &typeH, &digestSz, 0, NULL,
+                               INVALID_DEVID);
+        /* set next state, since WC_PENDING_E rentry for these are not "call again" */
+        certSignCtx->state = CERTSIGN_STATE_ENCODE;
+        if (ret != 0) {
+            goto exit_ms;
+        }
+        FALL_THROUGH;
+
+    case CERTSIGN_STATE_ENCODE:
+    #ifndef NO_RSA
+        if (rsaKey) {
+        #ifndef WOLFSSL_NO_MALLOC
+            certSignCtx->encSig = (byte*)XMALLOC(MAX_DER_DIGEST_SZ, heap,
+                DYNAMIC_TYPE_TMP_BUFFER);
+            if (certSignCtx->encSig == NULL) {
+                ret = MEMORY_E; goto exit_ms;
+            }
+        #endif
+
+            /* signature */
+            certSignCtx->encSigSz = (int)wc_EncodeSignature(certSignCtx->encSig,
+                                  certSignCtx->digest, (word32)digestSz, typeH);
+        }
+    #endif /* !NO_RSA */
+        FALL_THROUGH;
+
+    case CERTSIGN_STATE_DO:
+        certSignCtx->state = CERTSIGN_STATE_DO;
+        ret = -1; /* default to error, reassigned to ALGO_ID_E below. */
+
+    #if !defined(NO_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
+        if (rsaKey) {
+            /* signature */
+            ret = wc_RsaSSL_Sign(certSignCtx->encSig,
+                                 (word32)certSignCtx->encSigSz,
+                                 sig, sigSz, rsaKey, rng);
+        }
+    #endif /* !NO_RSA */
+
+    #if defined(HAVE_ECC) && defined(HAVE_ECC_SIGN)
+        if (!rsaKey && eccKey) {
+            word32 outSz = sigSz;
+
+            ret = wc_ecc_sign_hash(certSignCtx->digest, (word32)digestSz,
+                                   sig, &outSz, rng, eccKey);
+            if (ret == 0)
+                ret = (int)outSz;
+        }
+    #endif /* HAVE_ECC && HAVE_ECC_SIGN */
+
+    #if defined(HAVE_ED25519) && defined(HAVE_ED25519_SIGN)
+        if (!rsaKey && !eccKey && ed25519Key) {
+            word32 outSz = sigSz;
+
+            ret = wc_ed25519_sign_msg(buf, sz, sig, &outSz, ed25519Key);
+            if (ret == 0)
+                ret = (int)outSz;
+        }
+    #endif /* HAVE_ED25519 && HAVE_ED25519_SIGN */
+
+    #if defined(HAVE_ED448) && defined(HAVE_ED448_SIGN)
+        if (!rsaKey && !eccKey && !ed25519Key && ed448Key) {
+            word32 outSz = sigSz;
+
+            ret = wc_ed448_sign_msg(buf, sz, sig, &outSz, ed448Key, NULL, 0);
+            if (ret == 0)
+                ret = (int)outSz;
+        }
+    #endif /* HAVE_ED448 && HAVE_ED448_SIGN */
+
+    #if defined(HAVE_FALCON)
+        if (!rsaKey && !eccKey && !ed25519Key && !ed448Key && falconKey) {
+            word32 outSz = sigSz;
+            ret = wc_falcon_sign_msg(buf, sz, sig, &outSz, falconKey, rng);
+            if (ret == 0)
+                ret = outSz;
+        }
+    #endif /* HAVE_FALCON */
+    #if defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_SIGN)
+        if (!rsaKey && !eccKey && !ed25519Key && !ed448Key && !falconKey &&
+            dilithiumKey) {
+            word32 outSz = sigSz;
+            #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+            if ((dilithiumKey->params->level == WC_ML_DSA_44_DRAFT) ||
+                    (dilithiumKey->params->level == WC_ML_DSA_65_DRAFT) ||
+                    (dilithiumKey->params->level == WC_ML_DSA_87_DRAFT)) {
+                ret = wc_dilithium_sign_msg(buf, sz, sig, &outSz, dilithiumKey,
+                    rng);
+                if (ret == 0)
+                    ret = outSz;
+            }
+            else
+            #endif
+            {
+                ret = wc_dilithium_sign_ctx_msg(NULL, 0, buf, sz, sig,
+                    &outSz, dilithiumKey, rng);
+                if (ret == 0)
+                    ret = outSz;
+            }
+        }
+    #endif /* HAVE_DILITHIUM && !WOLFSSL_DILITHIUM_NO_SIGN */
+    #if defined(HAVE_SPHINCS)
+        if (!rsaKey && !eccKey && !ed25519Key && !ed448Key && !falconKey &&
+            !dilithiumKey && sphincsKey) {
+            word32 outSz = sigSz;
+            ret = wc_sphincs_sign_msg(buf, sz, sig, &outSz, sphincsKey, rng);
+            if (ret == 0)
+                ret = outSz;
+        }
+    #endif /* HAVE_SPHINCS */
+
+        if (ret == -1)
+            ret = ALGO_ID_E;
+
+        break;
+    }
+
+exit_ms:
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+        return ret;
+    }
+#endif
+
+#ifndef WOLFSSL_NO_MALLOC
+#ifndef NO_RSA
+    if (rsaKey) {
+        XFREE(certSignCtx->encSig, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        certSignCtx->encSig = NULL;
+    }
+#endif /* !NO_RSA */
+
+    XFREE(certSignCtx->digest, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    certSignCtx->digest = NULL;
+#endif /* !WOLFSSL_NO_MALLOC */
+
+    /* reset state */
+    certSignCtx->state = CERTSIGN_STATE_BEGIN;
+
+    if (ret < 0) {
+        WOLFSSL_ERROR_VERBOSE(ret);
+    }
+
+    return ret;
+}
+#endif /* WOLFSSL_CERT_GEN || HAVE_OCSP_RESPONDER */
+
 #ifdef WOLFSSL_CERT_GEN
 /* Encodes one attribute of the name (issuer/subject)
  * call we_EncodeName_ex with 0x16, IA5String for email type
@@ -32159,195 +32348,6 @@ static int WriteCertBody(DerCert* der, byte* buf)
     return (int)idx;
 }
 #endif /* !WOLFSSL_ASN_TEMPLATE */
-
-
-/* Make signature from buffer (sz), write to sig (sigSz) */
-static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, word32 sz,
-    byte* sig, word32 sigSz, RsaKey* rsaKey, ecc_key* eccKey,
-    ed25519_key* ed25519Key, ed448_key* ed448Key, falcon_key* falconKey,
-    dilithium_key* dilithiumKey, sphincs_key* sphincsKey, WC_RNG* rng,
-    word32 sigAlgoType, void* heap)
-{
-    int digestSz = 0, typeH = 0, ret = 0;
-
-    (void)digestSz;
-    (void)typeH;
-    (void)buf;
-    (void)sz;
-    (void)sig;
-    (void)sigSz;
-    (void)rsaKey;
-    (void)eccKey;
-    (void)ed25519Key;
-    (void)ed448Key;
-    (void)falconKey;
-    (void)dilithiumKey;
-    (void)sphincsKey;
-    (void)rng;
-    (void)heap;
-
-    switch (certSignCtx->state) {
-    case CERTSIGN_STATE_BEGIN:
-    case CERTSIGN_STATE_DIGEST:
-
-        certSignCtx->state = CERTSIGN_STATE_DIGEST;
-    #ifndef WOLFSSL_NO_MALLOC
-        certSignCtx->digest = (byte*)XMALLOC(WC_MAX_DIGEST_SIZE, heap,
-            DYNAMIC_TYPE_TMP_BUFFER);
-        if (certSignCtx->digest == NULL) {
-            ret = MEMORY_E; goto exit_ms;
-        }
-    #endif
-
-        ret = HashForSignature(buf, sz, sigAlgoType, certSignCtx->digest,
-                               &typeH, &digestSz, 0, NULL,
-                               INVALID_DEVID);
-        /* set next state, since WC_PENDING_E rentry for these are not "call again" */
-        certSignCtx->state = CERTSIGN_STATE_ENCODE;
-        if (ret != 0) {
-            goto exit_ms;
-        }
-        FALL_THROUGH;
-
-    case CERTSIGN_STATE_ENCODE:
-    #ifndef NO_RSA
-        if (rsaKey) {
-        #ifndef WOLFSSL_NO_MALLOC
-            certSignCtx->encSig = (byte*)XMALLOC(MAX_DER_DIGEST_SZ, heap,
-                DYNAMIC_TYPE_TMP_BUFFER);
-            if (certSignCtx->encSig == NULL) {
-                ret = MEMORY_E; goto exit_ms;
-            }
-        #endif
-
-            /* signature */
-            certSignCtx->encSigSz = (int)wc_EncodeSignature(certSignCtx->encSig,
-                                  certSignCtx->digest, (word32)digestSz, typeH);
-        }
-    #endif /* !NO_RSA */
-        FALL_THROUGH;
-
-    case CERTSIGN_STATE_DO:
-        certSignCtx->state = CERTSIGN_STATE_DO;
-        ret = -1; /* default to error, reassigned to ALGO_ID_E below. */
-
-    #if !defined(NO_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
-        if (rsaKey) {
-            /* signature */
-            ret = wc_RsaSSL_Sign(certSignCtx->encSig,
-                                 (word32)certSignCtx->encSigSz,
-                                 sig, sigSz, rsaKey, rng);
-        }
-    #endif /* !NO_RSA */
-
-    #if defined(HAVE_ECC) && defined(HAVE_ECC_SIGN)
-        if (!rsaKey && eccKey) {
-            word32 outSz = sigSz;
-
-            ret = wc_ecc_sign_hash(certSignCtx->digest, (word32)digestSz,
-                                   sig, &outSz, rng, eccKey);
-            if (ret == 0)
-                ret = (int)outSz;
-        }
-    #endif /* HAVE_ECC && HAVE_ECC_SIGN */
-
-    #if defined(HAVE_ED25519) && defined(HAVE_ED25519_SIGN)
-        if (!rsaKey && !eccKey && ed25519Key) {
-            word32 outSz = sigSz;
-
-            ret = wc_ed25519_sign_msg(buf, sz, sig, &outSz, ed25519Key);
-            if (ret == 0)
-                ret = (int)outSz;
-        }
-    #endif /* HAVE_ED25519 && HAVE_ED25519_SIGN */
-
-    #if defined(HAVE_ED448) && defined(HAVE_ED448_SIGN)
-        if (!rsaKey && !eccKey && !ed25519Key && ed448Key) {
-            word32 outSz = sigSz;
-
-            ret = wc_ed448_sign_msg(buf, sz, sig, &outSz, ed448Key, NULL, 0);
-            if (ret == 0)
-                ret = (int)outSz;
-        }
-    #endif /* HAVE_ED448 && HAVE_ED448_SIGN */
-
-    #if defined(HAVE_FALCON)
-        if (!rsaKey && !eccKey && !ed25519Key && !ed448Key && falconKey) {
-            word32 outSz = sigSz;
-            ret = wc_falcon_sign_msg(buf, sz, sig, &outSz, falconKey, rng);
-            if (ret == 0)
-                ret = outSz;
-        }
-    #endif /* HAVE_FALCON */
-    #if defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_SIGN)
-        if (!rsaKey && !eccKey && !ed25519Key && !ed448Key && !falconKey &&
-            dilithiumKey) {
-            word32 outSz = sigSz;
-            #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
-            if ((dilithiumKey->params->level == WC_ML_DSA_44_DRAFT) ||
-                    (dilithiumKey->params->level == WC_ML_DSA_65_DRAFT) ||
-                    (dilithiumKey->params->level == WC_ML_DSA_87_DRAFT)) {
-                ret = wc_dilithium_sign_msg(buf, sz, sig, &outSz, dilithiumKey,
-                    rng);
-                if (ret == 0)
-                    ret = outSz;
-            }
-            else
-            #endif
-            {
-                ret = wc_dilithium_sign_ctx_msg(NULL, 0, buf, sz, sig,
-                    &outSz, dilithiumKey, rng);
-                if (ret == 0)
-                    ret = outSz;
-            }
-        }
-    #endif /* HAVE_DILITHIUM && !WOLFSSL_DILITHIUM_NO_SIGN */
-    #if defined(HAVE_SPHINCS)
-        if (!rsaKey && !eccKey && !ed25519Key && !ed448Key && !falconKey &&
-            !dilithiumKey && sphincsKey) {
-            word32 outSz = sigSz;
-            ret = wc_sphincs_sign_msg(buf, sz, sig, &outSz, sphincsKey, rng);
-            if (ret == 0)
-                ret = outSz;
-        }
-    #endif /* HAVE_SPHINCS */
-
-        if (ret == -1)
-            ret = ALGO_ID_E;
-
-        break;
-    }
-
-exit_ms:
-
-#ifdef WOLFSSL_ASYNC_CRYPT
-    if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-        return ret;
-    }
-#endif
-
-#ifndef WOLFSSL_NO_MALLOC
-#ifndef NO_RSA
-    if (rsaKey) {
-        XFREE(certSignCtx->encSig, heap, DYNAMIC_TYPE_TMP_BUFFER);
-        certSignCtx->encSig = NULL;
-    }
-#endif /* !NO_RSA */
-
-    XFREE(certSignCtx->digest, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    certSignCtx->digest = NULL;
-#endif /* !WOLFSSL_NO_MALLOC */
-
-    /* reset state */
-    certSignCtx->state = CERTSIGN_STATE_BEGIN;
-
-    if (ret < 0) {
-        WOLFSSL_ERROR_VERBOSE(ret);
-    }
-
-    return ret;
-}
-
 
 #ifdef WOLFSSL_ASN_TEMPLATE
 /* Generate a random integer value of at most len bytes.
