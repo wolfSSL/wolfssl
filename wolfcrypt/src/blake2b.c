@@ -517,7 +517,7 @@ int wc_Blake2bFinal(Blake2b* b2b, byte* final, word32 requestSz)
 }
 
 
-int wc_Blake2bHmacInit(Blake2b * b2b, const byte * key, size_t key_len)
+int wc_Blake2bHmacInit(Blake2b* b2b, const byte* key, size_t key_len)
 {
     byte x_key[BLAKE2B_BLOCKBYTES];
     int i;
@@ -550,7 +550,7 @@ int wc_Blake2bHmacInit(Blake2b * b2b, const byte * key, size_t key_len)
     return ret;
 }
 
-int wc_Blake2bHmacUpdate(Blake2b * b2b, const byte * in, size_t in_len)
+int wc_Blake2bHmacUpdate(Blake2b* b2b, const byte* in, size_t in_len)
 {
     if (in == NULL)
         return BAD_FUNC_ARG;
@@ -558,8 +558,8 @@ int wc_Blake2bHmacUpdate(Blake2b * b2b, const byte * in, size_t in_len)
     return wc_Blake2bUpdate(b2b, in, (word32)in_len);
 }
 
-int wc_Blake2bHmacFinal(Blake2b * b2b, const byte * key, size_t key_len,
-        byte * out, size_t out_len)
+int wc_Blake2bHmacFinal(Blake2b* b2b, const byte* key, size_t key_len,
+        byte* out, size_t out_len)
 {
     byte x_key[BLAKE2B_BLOCKBYTES];
     int i;
@@ -602,9 +602,9 @@ int wc_Blake2bHmacFinal(Blake2b * b2b, const byte * key, size_t key_len,
     return ret;
 }
 
-int wc_Blake2bHmac(const byte * in, size_t in_len,
-        const byte * key, size_t key_len,
-        byte * out, size_t out_len)
+int wc_Blake2bHmac(const byte* in, size_t in_len,
+        const byte* key, size_t key_len,
+        byte* out, size_t out_len)
 {
     Blake2b state;
     int ret;

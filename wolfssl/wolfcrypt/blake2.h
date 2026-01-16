@@ -88,16 +88,16 @@ WOLFSSL_API int wc_InitBlake2b_WithKey(Blake2b* b2b, word32 digestSz,
                                        const byte *key, word32 keylen);
 WOLFSSL_API int wc_Blake2bUpdate(Blake2b* b2b, const byte* data, word32 sz);
 WOLFSSL_API int wc_Blake2bFinal(Blake2b* b2b, byte* final, word32 requestSz);
-WOLFSSL_API int wc_Blake2bHmacInit(Blake2b * b2b,
-        const byte * key, size_t key_len);
-WOLFSSL_API int wc_Blake2bHmacUpdate(Blake2b * b2b,
-        const byte * in, size_t in_len);
-WOLFSSL_API int wc_Blake2bHmacFinal(Blake2b * b2b,
-        const byte * key, size_t key_len,
-        byte * out, size_t out_len);
-WOLFSSL_API int wc_Blake2bHmac(const byte * in, size_t in_len,
-        const byte * key, size_t key_len,
-        byte * out, size_t out_len);
+WOLFSSL_API int wc_Blake2bHmacInit(Blake2b* b2b,
+        const byte* key, size_t key_len);
+WOLFSSL_API int wc_Blake2bHmacUpdate(Blake2b* b2b,
+        const byte* in, size_t in_len);
+WOLFSSL_API int wc_Blake2bHmacFinal(Blake2b* b2b,
+        const byte* key, size_t key_len,
+        byte* out, size_t out_len);
+WOLFSSL_API int wc_Blake2bHmac(const byte* in, size_t in_len,
+        const byte* key, size_t key_len,
+        byte* out, size_t out_len);
 #endif
 
 #ifdef HAVE_BLAKE2S
@@ -106,16 +106,16 @@ WOLFSSL_API int wc_InitBlake2s_WithKey(Blake2s* b2s, word32 digestSz,
                                        const byte *key, word32 keylen);
 WOLFSSL_API int wc_Blake2sUpdate(Blake2s* b2s, const byte* data, word32 sz);
 WOLFSSL_API int wc_Blake2sFinal(Blake2s* b2s, byte* final, word32 requestSz);
-WOLFSSL_API int wc_Blake2sHmacInit(Blake2s * b2s,
-        const byte * key, size_t key_len);
-WOLFSSL_API int wc_Blake2sHmacUpdate(Blake2s * b2s,
-        const byte * in, size_t in_len);
-WOLFSSL_API int wc_Blake2sHmacFinal(Blake2s * b2s,
-        const byte * key, size_t key_len,
-        byte * out, size_t out_len);
-WOLFSSL_API int wc_Blake2sHmac(const byte * in, size_t in_len,
-        const byte * key, size_t key_len,
-        byte * out, size_t out_len);
+WOLFSSL_API int wc_Blake2sHmacInit(Blake2s* b2s,
+        const byte* key, size_t key_len);
+WOLFSSL_API int wc_Blake2sHmacUpdate(Blake2s* b2s,
+        const byte* in, size_t in_len);
+WOLFSSL_API int wc_Blake2sHmacFinal(Blake2s* b2s,
+        const byte* key, size_t key_len,
+        byte* out, size_t out_len);
+WOLFSSL_API int wc_Blake2sHmac(const byte* in, size_t in_len,
+        const byte* key, size_t key_len,
+        byte* out, size_t out_len);
 #endif
 
 
