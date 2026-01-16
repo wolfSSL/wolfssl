@@ -22,7 +22,7 @@
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifdef WOLFSSL_RISCV_ASM
-#if !defined(NO_SHA512) || defined(WOLFSSL_SHA384)
+#if defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)
 
 #if FIPS_VERSION3_LT(6,0,0) && defined(HAVE_FIPS)
     #undef HAVE_FIPS
@@ -984,7 +984,7 @@ static WC_INLINE void Sha512Final(wc_Sha512* sha512, byte* hash, int hashLen)
 }
 
 
-#ifndef NO_SHA512
+#ifdef WOLFSSL_SHA512
 
 /* Initialize SHA-512 object for hashing.
  *
@@ -1494,7 +1494,7 @@ int wc_Sha512_256Transform(wc_Sha512* sha512, const unsigned char* data)
 
 #endif /* !HAVE_FIPS && !HAVE_SELFTEST */
 
-#endif /* !NO_SHA512 */
+#endif /* WOLFSSL_SHA512 */
 
 
 #ifdef WOLFSSL_SHA384
@@ -1737,5 +1737,5 @@ int wc_Sha384Copy(wc_Sha384* src, wc_Sha384* dst)
 
 #endif /* WOLFSSL_SHA384 */
 
-#endif /* !NO_SHA512 || WOLFSSL_SHA384 */
+#endif /* WOLFSSL_SHA512 || WOLFSSL_SHA384 */
 #endif /* WOLFSSL_RISCV_ASM */
