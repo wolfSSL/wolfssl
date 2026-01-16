@@ -1126,7 +1126,15 @@ int test_ocsp_responder(void)
     /* Generate OCSP response */
     ExpectIntEQ(wc_OcspResponder_WriteResponse(responder, reqBuf, reqSz,
                                                respBuf, &respSz),
-                NOT_COMPILED_IN);  /* Expected until full response generation is implemented */
+                0);
+
+    /* Check response */
+    {
+        WOLFSSL_OCSP* ocsp = NULL;
+        ExpectNotNull(ocsp = wc_NewOCSP(cm));
+        ExpectIntEQ(wc_CheckCertOcspResponse(ocsp, &serverCert, respBuf, respSz, NULL), 0);
+        wc_FreeOCSP(ocsp);
+    }
 
     /* Cleanup */
     wc_OcspRequest_free(clientReq);

@@ -693,6 +693,7 @@ WOLFSSL_LOCAL void SetASN_OID(ASNSetData *dataASN, int oid, int oidType);
 /* Set the data items below node to not be encoded.
  *
  * @param [in] dataASN  Dynamic ASN data item.
+ * @param [in] asn      ASN template item.
  * @param [in] node     Node who's children should not be encoded.
  * @param [in] dataASNLen Number of items in dataASN.
  */
@@ -710,6 +711,7 @@ WOLFSSL_LOCAL void SetASN_OID(ASNSetData *dataASN, int oid, int oidType);
 /* Set the node and all nodes below to not be encoded.
  *
  * @param [in] dataASN  Dynamic ASN data item.
+ * @param [in] asn      ASN template item.
  * @param [in] node     Node which should not be encoded. Child nodes will
  *                      also not be encoded.
  * @param [in] dataASNLen Number of items in dataASN.
@@ -2397,9 +2399,11 @@ WOLFSSL_LOCAL int GetTimeString(byte* date, int format, char* buf, int len,
                                 int dateLen);
 #endif
 #if !defined(NO_ASN_TIME) && !defined(USER_TIME) && \
-    !defined(TIME_OVERRIDES) && (defined(OPENSSL_EXTRA) || defined(HAVE_PKCS7))
+    !defined(TIME_OVERRIDES) && (defined(OPENSSL_EXTRA) || \
+            defined(HAVE_PKCS7) || defined(HAVE_OCSP_RESPONDER))
 WOLFSSL_LOCAL int GetFormattedTime(void* currTime, byte* buf, word32 len);
 WOLFSSL_LOCAL int GetAsnTimeString(void* currTime, byte* buf, word32 len);
+WOLFSSL_LOCAL int GetFormattedTime_ex(void* currTime, byte* buf, word32 len, byte format);
 #endif
 WOLFSSL_LOCAL int ExtractDate(const unsigned char* date, unsigned char format,
                                 wolfssl_tm* certTime, int* idx, int len);
@@ -2679,7 +2683,9 @@ struct CertStatus {
     int status;
 
     byte thisDate[MAX_DATE_SIZE];
+    byte thisDateSz;
     byte nextDate[MAX_DATE_SIZE];
+    byte nextDateSz;
     byte thisDateFormat;
     byte nextDateFormat;
 #ifdef WOLFSSL_OCSP_PARSE_STATUS
@@ -2759,6 +2765,7 @@ struct OcspResponse {
     byte    producedDate[MAX_DATE_SIZE];
                              /* Date at which this response was signed */
     byte    producedDateFormat; /* format of the producedDate */
+    byte    producedDateSz;
 
     byte*   cert;
     word32  certSz;
@@ -2806,6 +2813,8 @@ struct OcspRequest {
 WOLFSSL_LOCAL void InitOcspResponse(OcspResponse* resp, OcspEntry* single,
                      CertStatus* status, byte* source, word32 inSz, void* heap);
 WOLFSSL_LOCAL void FreeOcspResponse(OcspResponse* resp);
+WOLFSSL_LOCAL int OcspResponseEncode(OcspResponse* resp, byte* out, word32* outSz,
+        RsaKey* rsaKey, ecc_key* eccKey, WC_RNG* rng);
 WOLFSSL_LOCAL int OcspResponseDecode(OcspResponse* resp, void* cm, void* heap,
                                      int noVerifyCert, int noVerifySignature);
 
