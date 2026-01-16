@@ -4863,6 +4863,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha256_test(void)
 #endif
 
     XMEMSET(&shaCopy, 0, sizeof(shaCopy));
+#ifndef NO_WOLFSSL_SHA256_INTERLEAVE
+    XMEMSET(&i_shaCopy, 0, sizeof(i_shaCopy));
+#endif
 
     for (i = 0; i < times; ++i) {
         ret = wc_Sha256Update(&sha, (byte*)test_sha[i].input,
