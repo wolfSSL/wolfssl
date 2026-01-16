@@ -2833,6 +2833,46 @@ WOLFSSL_LOCAL int  CompareOcspReqResp(OcspRequest* req, OcspResponse* resp);
 WOLFSSL_LOCAL int OcspDecodeCertID(const byte* input, word32* inOutIdx, word32 inSz,
                  OcspEntry* entry);
 
+#ifdef HAVE_OCSP_RESPONDER
+/* Certificate status entry for a single certificate */
+typedef struct OcspResponderCertStatus OcspResponderCertStatus;
+struct OcspResponderCertStatus {
+    byte serial[EXTERNAL_SERIAL_SIZE];
+    int serialSz;
+    int status;                      /* CERT_GOOD, CERT_REVOKED, CERT_UNKNOWN */
+    byte thisDate[MAX_DATE_SIZE];
+    byte nextDate[MAX_DATE_SIZE];
+    byte thisDateFormat;
+    byte nextDateFormat;
+    OcspResponderCertStatus* next;
+};
+
+/* CA entry with its certificates and key */
+typedef struct OcspResponderCa OcspResponderCa;
+struct OcspResponderCa {
+    DecodedCert* cert;               /* CA certificate */
+    byte* certDer;                   /* DER encoded certificate */
+    word32 certDerSz;
+    
+    void* key;                       /* CA private key for signing */
+    enum Key_Sum keyType;            /* Type of key */
+    
+    byte issuerHash[KEYID_SIZE];     /* Hash of CA's subject DN */
+    byte issuerKeyHash[KEYID_SIZE];  /* Hash of CA's public key */
+    
+    OcspResponderCertStatus* statuses; /* List of certificate statuses for this CA */
+    
+    OcspResponderCa* next;           /* Next CA in list */
+};
+
+typedef struct OcspResponder OcspResponder;
+struct OcspResponder {
+    OcspResponderCa* caList;         /* List of CAs this responder handles */
+    WC_RNG rng;                      /* RNG for signing responses */
+    void* heap;
+};
+#endif /* HAVE_OCSP_RESPONDER */
+
 #endif /* HAVE_OCSP */
 
 

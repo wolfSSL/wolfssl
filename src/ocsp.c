@@ -2160,6 +2160,487 @@ int wolfSSL_OCSP_check_nonce(OcspRequest* req, WOLFSSL_OCSP_BASICRESP* bs)
 
 #endif /* OPENSSL_ALL */
 
+#ifdef HAVE_OCSP_RESPONDER
+
+/* Free a CA entry and all its resources */
+static void FreeOcspResponderCa(OcspResponderCa* ca, void* heap)
+{
+    OcspResponderCertStatus* status;
+    OcspResponderCertStatus* nextStatus;
+    
+    if (ca == NULL)
+        return;
+    
+    /* Free certificate */
+    if (ca->cert != NULL) {
+        wc_FreeDecodedCert(ca->cert);
+        XFREE(ca->cert, heap, DYNAMIC_TYPE_OCSP);
+    }
+    
+    if (ca->certDer != NULL) {
+        XFREE(ca->certDer, heap, DYNAMIC_TYPE_OCSP);
+    }
+    
+    /* Free private key */
+    if (ca->key != NULL) {
+    #ifndef NO_RSA
+        if (ca->keyType == RSAk) {
+            wc_FreeRsaKey((RsaKey*)ca->key);
+            XFREE(ca->key, heap, DYNAMIC_TYPE_RSA);
+        }
+    #endif
+    #ifdef HAVE_ECC
+        if (ca->keyType == ECDSAk) {
+            wc_ecc_free((ecc_key*)ca->key);
+            XFREE(ca->key, heap, DYNAMIC_TYPE_ECC);
+        }
+    #endif
+    }
+    
+    /* Free certificate status list */
+    status = ca->statuses;
+    while (status != NULL) {
+        nextStatus = status->next;
+        XFREE(status, heap, DYNAMIC_TYPE_OCSP);
+        status = nextStatus;
+    }
+    
+    XFREE(ca, heap, DYNAMIC_TYPE_OCSP);
+}
+
+/* Allocate and initialize an OCSP Responder */
+OcspResponder* wc_OcspResponder_new(void* heap)
+{
+    OcspResponder* responder;
+    
+    WOLFSSL_ENTER("wc_OcspResponder_new");
+    
+    responder = (OcspResponder*)XMALLOC(sizeof(OcspResponder), heap, 
+                                         DYNAMIC_TYPE_OCSP);
+    if (responder == NULL)
+        return NULL;
+    
+    XMEMSET(responder, 0, sizeof(OcspResponder));
+    responder->heap = heap;
+
+    if (wc_InitRng(&responder->rng) != 0) {
+        XFREE(responder, heap, DYNAMIC_TYPE_OCSP);
+        return NULL;
+    }
+
+    return responder;
+}
+
+/* Free an OCSP Responder */
+void wc_OcspResponder_free(OcspResponder* responder)
+{
+    OcspResponderCa* ca;
+    OcspResponderCa* nextCa;
+    
+    WOLFSSL_ENTER("wc_OcspResponder_free");
+    
+    if (responder == NULL)
+        return;
+    
+    /* Free all CAs */
+    ca = responder->caList;
+    while (ca != NULL) {
+        nextCa = ca->next;
+        FreeOcspResponderCa(ca, responder->heap);
+        ca = nextCa;
+    }
+    
+    wc_FreeRng(&responder->rng);
+    XFREE(responder, responder->heap, DYNAMIC_TYPE_OCSP);
+}
+
+/* Add a CA that this responder can respond for (DER format only) */
+int wc_OcspResponder_AddCA(OcspResponder* responder,
+    const byte* certDer, word32 certDerSz,
+    const byte* keyDer, word32 keyDerSz)
+{
+    int ret = 0;
+    OcspResponderCa* ca = NULL;
+    DecodedCert* decoded = NULL;
+    byte* derCert = NULL;
+    word32 idx = 0;
+    
+    WOLFSSL_ENTER("wc_OcspResponder_AddCA");
+    
+    if (responder == NULL || certDer == NULL || certDerSz == 0 ||
+        keyDer == NULL || keyDerSz == 0)
+        return BAD_FUNC_ARG;
+    
+    /* Allocate CA structure */
+    ca = (OcspResponderCa*)XMALLOC(sizeof(OcspResponderCa), responder->heap,
+                                   DYNAMIC_TYPE_OCSP);
+    if (ca == NULL)
+        return MEMORY_E;
+    
+    XMEMSET(ca, 0, sizeof(OcspResponderCa));
+    
+    /* Copy certificate DER */
+    derCert = (byte*)XMALLOC(certDerSz, responder->heap, DYNAMIC_TYPE_OCSP);
+    if (derCert == NULL) {
+        XFREE(ca, responder->heap, DYNAMIC_TYPE_OCSP);
+        return MEMORY_E;
+    }
+    XMEMCPY(derCert, certDer, certDerSz);
+    
+    /* Parse certificate */
+    decoded = (DecodedCert*)XMALLOC(sizeof(DecodedCert), responder->heap,
+                                    DYNAMIC_TYPE_OCSP);
+    if (decoded == NULL) {
+        XFREE(derCert, responder->heap, DYNAMIC_TYPE_OCSP);
+        XFREE(ca, responder->heap, DYNAMIC_TYPE_OCSP);
+        return MEMORY_E;
+    }
+    
+    wc_InitDecodedCert(decoded, derCert, certDerSz, responder->heap);
+    ret = wc_ParseCert(decoded, CERT_TYPE, 0, NULL);
+    if (ret != 0) {
+        wc_FreeDecodedCert(decoded);
+        XFREE(decoded, responder->heap, DYNAMIC_TYPE_OCSP);
+        XFREE(derCert, responder->heap, DYNAMIC_TYPE_OCSP);
+        XFREE(ca, responder->heap, DYNAMIC_TYPE_OCSP);
+        return ret;
+    }
+
+    ret = wc_CheckPrivateKeyCert(keyDer, keyDerSz, decoded, 1, responder->heap);
+    if (ret != 1) {
+        wc_FreeDecodedCert(decoded);
+        XFREE(decoded, responder->heap, DYNAMIC_TYPE_OCSP);
+        XFREE(derCert, responder->heap, DYNAMIC_TYPE_OCSP);
+        XFREE(ca, responder->heap, DYNAMIC_TYPE_OCSP);
+        return ret == 0 ? BAD_FUNC_ARG : ret;
+    }
+
+    ca->cert = decoded;
+    ca->certDer = derCert;
+    ca->certDerSz = certDerSz;
+    
+    /* Store CA's subject hashes (CA is the issuer of certs it signs) */
+    XMEMCPY(ca->issuerHash, decoded->subjectHash, KEYID_SIZE);
+    XMEMCPY(ca->issuerKeyHash, decoded->subjectKeyHash, KEYID_SIZE);
+    
+    /* Load the private key */
+#ifndef NO_RSA
+    if (decoded->keyOID == RSAk) {
+        RsaKey* rsaKey = (RsaKey*)XMALLOC(sizeof(RsaKey), responder->heap,
+                                          DYNAMIC_TYPE_RSA);
+        if (rsaKey == NULL) {
+            FreeOcspResponderCa(ca, responder->heap);
+            return MEMORY_E;
+        }
+        
+        ret = wc_InitRsaKey(rsaKey, responder->heap);
+        if (ret == 0) {
+            idx = 0;
+            ret = wc_RsaPrivateKeyDecode(keyDer, &idx, rsaKey, keyDerSz);
+        }
+        
+        if (ret != 0) {
+            wc_FreeRsaKey(rsaKey);
+            XFREE(rsaKey, responder->heap, DYNAMIC_TYPE_RSA);
+            FreeOcspResponderCa(ca, responder->heap);
+            return ret;
+        }
+        
+        ca->key = rsaKey;
+        ca->keyType = RSAk;
+    }
+    else
+#endif
+#ifdef HAVE_ECC
+    if (decoded->keyOID == ECDSAk) {
+        ecc_key* eccKey = (ecc_key*)XMALLOC(sizeof(ecc_key), responder->heap,
+                                            DYNAMIC_TYPE_ECC);
+        if (eccKey == NULL) {
+            FreeOcspResponderCa(ca, responder->heap);
+            return MEMORY_E;
+        }
+        
+        ret = wc_ecc_init_ex(eccKey, responder->heap, INVALID_DEVID);
+        if (ret == 0) {
+            idx = 0;
+            ret = wc_EccPrivateKeyDecode(keyDer, &idx, eccKey, keyDerSz);
+        }
+        
+        if (ret != 0) {
+            wc_ecc_free(eccKey);
+            XFREE(eccKey, responder->heap, DYNAMIC_TYPE_ECC);
+            FreeOcspResponderCa(ca, responder->heap);
+            return ret;
+        }
+        
+        ca->key = eccKey;
+        ca->keyType = ECDSAk;
+    }
+    else
+#endif
+    {
+        FreeOcspResponderCa(ca, responder->heap);
+        return NOT_COMPILED_IN;
+    }
+    
+    /* Add CA to list */
+    ca->next = responder->caList;
+    responder->caList = ca;
+    
+    return 0;
+}
+
+/* Find CA by comparing cert DER */
+/* Find CA by issuer hashes from request */
+static OcspResponderCa* FindCaByHashes(OcspResponder* responder,
+    const byte* issuerHash, const byte* issuerKeyHash)
+{
+    OcspResponderCa* ca = responder->caList;
+    
+    while (ca != NULL) {
+        if (XMEMCMP(ca->issuerHash, issuerHash, KEYID_SIZE) == 0 &&
+            XMEMCMP(ca->issuerKeyHash, issuerKeyHash, KEYID_SIZE) == 0) {
+            return ca;
+        }
+        ca = ca->next;
+    }
+    
+    return NULL;
+}
+
+/* Find certificate status in a CA */
+static OcspResponderCertStatus* FindCertStatus(OcspResponderCa* ca,
+    const byte* serial, word32 serialSz)
+{
+    OcspResponderCertStatus* status = ca->statuses;
+    
+    while (status != NULL) {
+        if (status->serialSz == (int)serialSz &&
+            XMEMCMP(status->serial, serial, serialSz) == 0) {
+            return status;
+        }
+        status = status->next;
+    }
+    
+    return NULL;
+}
+
+/* Find CA by subject string */
+static OcspResponderCa* FindCaBySubject(OcspResponder* responder,
+    const char* caSubject, word32 caSubjectSz)
+{
+    OcspResponderCa* ca = responder->caList;
+    
+    while (ca != NULL) {
+        word32 subjectLen = (word32)XSTRLEN(ca->cert->subject);
+        if (subjectLen == caSubjectSz &&
+            XMEMCMP(ca->cert->subject, caSubject, caSubjectSz) == 0) {
+            return ca;
+        }
+        ca = ca->next;
+    }
+    
+    return NULL;
+}
+
+/* Add a certificate status for a specific CA */
+int wc_OcspResponder_SetCertStatus(OcspResponder* responder,
+    const char* caSubject, word32 caSubjectSz,
+    const byte* serial, word32 serialSz, int status,
+    const byte* thisUpdate, const byte* nextUpdate)
+{
+    OcspResponderCa* ca;
+    OcspResponderCertStatus* certStatus;
+    
+    WOLFSSL_ENTER("wc_OcspResponder_SetCertStatus");
+    
+    if (responder == NULL || caSubject == NULL || caSubjectSz == 0 ||
+        serial == NULL || serialSz == 0 || serialSz > EXTERNAL_SERIAL_SIZE)
+        return BAD_FUNC_ARG;
+    
+    if (status != CERT_GOOD && status != CERT_REVOKED && 
+        status != CERT_UNKNOWN)
+        return BAD_FUNC_ARG;
+    
+    /* Find the CA */
+    ca = FindCaBySubject(responder, caSubject, caSubjectSz);
+    if (ca == NULL)
+        return ASN_NO_SIGNER_E;
+    
+    /* Check if status already exists for this serial */
+    certStatus = FindCertStatus(ca, serial, serialSz);
+    if (certStatus != NULL) {
+        /* Update existing status */
+        certStatus->status = status;
+    }
+    else {
+        /* Allocate new status entry */
+        certStatus = (OcspResponderCertStatus*)XMALLOC(
+            sizeof(OcspResponderCertStatus), responder->heap, DYNAMIC_TYPE_OCSP);
+        if (certStatus == NULL)
+            return MEMORY_E;
+        
+        XMEMSET(certStatus, 0, sizeof(OcspResponderCertStatus));
+        XMEMCPY(certStatus->serial, serial, serialSz);
+        certStatus->serialSz = serialSz;
+        certStatus->status = status;
+        
+        /* Add to CA's status list */
+        certStatus->next = ca->statuses;
+        ca->statuses = certStatus;
+    }
+    
+    /* For now, use empty dates if not provided */
+    certStatus->thisDateFormat = ASN_GENERALIZED_TIME;
+    certStatus->nextDateFormat = ASN_GENERALIZED_TIME;
+    
+    (void)thisUpdate;
+    (void)nextUpdate;
+    
+    return 0;
+}
+
+static int OcspResponse_WriteResponse(OcspResponder* responder, byte* response,
+        word32* responseSz, OcspResponderCa* ca,
+        OcspResponderCertStatus* certStatus)
+{
+    OcspResponse resp;
+    CertStatus status;
+    OcspEntry entry;
+    int ret = 0;
+    time_t tm;
+    RsaKey* rsaKey = NULL;
+    ecc_key* eccKey = NULL;
+
+    WOLFSSL_ENTER("OcspResponse_WriteResponse");
+
+    (void)ca;
+
+    if (response == NULL || responseSz == NULL || ca == NULL ||
+        certStatus == NULL || certStatus->serialSz > EXTERNAL_SERIAL_SIZE)
+        return BAD_FUNC_ARG;
+
+    InitOcspResponse(&resp, &entry, &status, NULL, 0, responder->heap);
+
+    resp.responseStatus = OCSP_SUCCESSFUL;
+
+    status.status = certStatus->status;
+
+    XMEMCPY(status.serial, certStatus->serial, certStatus->serialSz);
+    status.serialSz = (byte)certStatus->serialSz;
+
+    tm = wc_Time(0);
+    ret = GetFormattedTime_ex(&tm, status.thisDate, sizeof(status.thisDate),
+            ASN_GENERALIZED_TIME);
+    if (ret <= 0) {
+        WOLFSSL_MSG("Failed to format thisUpdate time");
+        FreeOcspResponse(&resp);
+        return ret;
+    }
+    XMEMCPY(resp.producedDate, status.thisDate, ret);
+    resp.producedDateSz = status.thisDateSz = (byte)(ret);
+    resp.producedDateFormat = status.thisDateFormat = ASN_GENERALIZED_TIME;
+
+    /* Only support sha-1 hashes for now */
+    wc_static_assert(KEYID_SIZE == WC_SHA_DIGEST_SIZE);
+    entry.hashAlgoOID = SHAh;
+    XMEMCPY(entry.issuerHash, ca->issuerHash, KEYID_SIZE);
+    XMEMCPY(entry.issuerKeyHash, ca->issuerKeyHash, KEYID_SIZE);
+
+    resp.responderIdType = OCSP_RESPONDER_ID_KEY;
+    XMEMCPY(resp.responderId.keyHash, ca->issuerKeyHash, KEYID_SIZE);
+
+    /* TODO allow user to set algo */
+    if (ca->keyType == RSAk) {
+        rsaKey = (RsaKey*)ca->key;
+        resp.sigOID = CTC_SHA256wRSA;
+    }
+    else {
+        eccKey = (ecc_key*)ca->key;
+        resp.sigOID = CTC_SHA256wECDSA;
+    }
+
+    ret = OcspResponseEncode(&resp, response, responseSz, rsaKey, eccKey,
+            &responder->rng);
+    if (ret != 0) {
+        WOLFSSL_MSG("Failed to encode OCSP response");
+        FreeOcspResponse(&resp);
+        return ret;
+    }
+
+    FreeOcspResponse(&resp);
+    return ret;
+}
+
+/* Generate OCSP response for a request */
+int wc_OcspResponder_WriteResponse(OcspResponder* responder,
+    const byte* request, word32 requestSz,
+    byte* response, word32* responseSz)
+{
+    int ret = 0;
+    OcspRequest req;
+    OcspResponderCa* ca = NULL;
+    OcspResponderCertStatus* certStatus = NULL;
+
+    WOLFSSL_ENTER("wc_OcspResponder_WriteResponse");
+
+    if (responder == NULL || request == NULL || requestSz == 0)
+        return BAD_FUNC_ARG;
+
+    XMEMSET(&req, 0, sizeof(OcspRequest));
+
+    /* Decode the OCSP request */
+    ret = DecodeOcspRequest(&req, request, requestSz);
+    if (ret != 0) {
+        WOLFSSL_MSG("Failed to decode OCSP request");
+        return ret;
+    }
+
+    /* Find the CA by issuer hashes */
+    ca = FindCaByHashes(responder, req.issuerHash, req.issuerKeyHash);
+    if (ca == NULL) {
+        WOLFSSL_MSG("No matching CA found for request");
+        FreeOcspRequest(&req);
+        return ASN_NO_SIGNER_E;
+    }
+
+    /* Find the certificate status */
+    certStatus = FindCertStatus(ca, req.serial, req.serialSz);
+    if (certStatus == NULL) {
+        WOLFSSL_MSG("No status configured for requested certificate");
+        FreeOcspRequest(&req);
+        return OCSP_CERT_UNKNOWN;
+    }
+
+    WOLFSSL_MSG("Found CA and certificate status");
+
+    ret = OcspResponse_WriteResponse(responder, response, responseSz, ca,
+            certStatus);
+    if (ret != 0) {
+        WOLFSSL_MSG("Failed to write OCSP response");
+        FreeOcspRequest(&req);
+        return ret;
+    }
+    
+    FreeOcspRequest(&req);
+    return ret;
+}
+
+/* Helper functions for testing */
+int wc_InitOcspRequest(OcspRequest* req, DecodedCert* cert,
+                                    byte useNonce, void* heap)
+{
+    return InitOcspRequest(req, cert, useNonce, heap);
+}
+
+int wc_EncodeOcspRequest(OcspRequest* req, byte* output,
+                                      word32 size)
+{
+    return EncodeOcspRequest(req, output, size);
+}
+
+#endif /* HAVE_OCSP_RESPONDER */
+
 #else /* HAVE_OCSP */
 
 

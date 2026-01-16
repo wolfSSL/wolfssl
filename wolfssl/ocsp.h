@@ -87,6 +87,11 @@ WOLFSSL_API int wc_CheckCertOcspResponse(WOLFSSL_OCSP *ocsp, DecodedCert *cert,
 WOLFSSL_API OcspRequest* wc_OcspRequest_new(void* heap);
 WOLFSSL_API void wc_OcspRequest_free(OcspRequest* request);
 
+WOLFSSL_API int wc_InitOcspRequest(OcspRequest* req, DecodedCert* cert,
+                                    byte useNonce, void* heap);
+WOLFSSL_API int wc_EncodeOcspRequest(OcspRequest* req, byte* output,
+                                      word32 size);
+
 WOLFSSL_API OcspResponse* wc_OcspResponse_new(void* heap);
 WOLFSSL_API void wc_OcspResponse_free(OcspResponse* response);
 
@@ -183,6 +188,28 @@ WOLFSSL_API int wolfSSL_OCSP_request_add1_nonce(OcspRequest* req,
 WOLFSSL_API int wolfSSL_OCSP_check_nonce(OcspRequest* req,
         WOLFSSL_OCSP_BASICRESP* bs);
 #endif /* OPENSSL_EXTRA */
+
+#ifdef HAVE_OCSP_RESPONDER
+/* OCSP Responder API */
+WOLFSSL_API OcspResponder* wc_OcspResponder_new(void* heap);
+WOLFSSL_API void wc_OcspResponder_free(OcspResponder* responder);
+
+/* Add a CA that this responder can respond for (DER format only) */
+WOLFSSL_API int wc_OcspResponder_AddCA(OcspResponder* responder,
+    const byte* certDer, word32 certDerSz,
+    const byte* keyDer, word32 keyDerSz);
+
+/* Add a certificate status for a specific CA */
+WOLFSSL_API int wc_OcspResponder_SetCertStatus(OcspResponder* responder,
+    const char* caSubject, word32 caSubjectSz,
+    const byte* serial, word32 serialSz, int status,
+    const byte* thisUpdate, const byte* nextUpdate);
+
+/* Generate OCSP response for a request */
+WOLFSSL_API int wc_OcspResponder_WriteResponse(OcspResponder* responder,
+    const byte* request, word32 requestSz,
+    byte* response, word32* responseSz);
+#endif /* HAVE_OCSP_RESPONDER */
 
 
 #ifdef __cplusplus
