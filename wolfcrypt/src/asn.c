@@ -996,8 +996,9 @@ int SetASN_Items(const ASNItem* asn, ASNSetData *data, int count, byte* output)
                 }
                 else {
                     /* Dump in the DER encoded data. */
-                    XMEMCPY(out + idx, data[i].data.buffer.data,
-                            data[i].data.buffer.length);
+                    /* Allow data to come from output buffer. */
+                    XMEMMOVE(out + idx, data[i].data.buffer.data,
+                             data[i].data.buffer.length);
                 }
                 break;
 
@@ -39778,8 +39779,6 @@ static int EncodeBasicOcspResponse(OcspResponse* resp, byte* out, word32* outSz,
     if (ret == 0) {
         SetASN_OID(&dataASN[OCSPBASICRESPASN_IDX_SIGALGO_OID], resp->sigOID,
                 oidSigType);
-        SetASN_Buffer(&dataASN[OCSPBASICRESPASN_IDX_SIGNATURE], NULL,
-                sigSz);
         if (resp->sigParams != NULL && resp->sigParamsSz != 0) {
             SetASN_Buffer(&dataASN[OCSPBASICRESPASN_IDX_SIGNATURE_PARAMS],
                 resp->sigParams, resp->sigParamsSz);
@@ -39798,42 +39797,52 @@ static int EncodeBasicOcspResponse(OcspResponse* resp, byte* out, word32* outSz,
                 OCSPBASICRESPASN_IDX_CERTS,
                 ocspBasicRespASN_Length);
         }
-        SetASN_ReplaceBuffer(&dataASN[OCSPBASICRESPASN_IDX_TBS_SEQ], NULL,
-                respDataSz);
-        /* Calculate size of encoding. */
-        ret = SizeASN_Items(ocspBasicRespASN, dataASN, ocspBasicRespASN_Length,
-                &sz);
-    }
-    /* Check buffer big enough for encoding if supplied. */
-    if (ret == 0 && out != NULL && sz > (int)*outSz) {
-        ret = BUFFER_E;
-    }
-    if (ret == 0 && out != NULL) {
-        if (SetASN_Items(ocspBasicRespASN, dataASN, ocspBasicRespASN_Length,
-                out) != sz)
-            ret = ASN_PARSE_E;
-        if (ret == 0) {
-            ret = EncodeResponseData(resp,
-                (byte*)dataASN[OCSPBASICRESPASN_IDX_TBS_SEQ].data.buffer.data,
-                &respDataSz);
+        if (out == NULL) {
+            /* Calculate size of encoding. */
+            SetASN_ReplaceBuffer(&dataASN[OCSPBASICRESPASN_IDX_TBS_SEQ], NULL,
+                    respDataSz);
+            SetASN_Buffer(&dataASN[OCSPBASICRESPASN_IDX_SIGNATURE], NULL,
+                    sigSz);
+            ret = SizeASN_Items(ocspBasicRespASN, dataASN,
+                    ocspBasicRespASN_Length, &sz);
         }
-        if (ret == 0) {
-            CertSignCtx certSignCtx;
-            XMEMSET(&certSignCtx, 0, sizeof(CertSignCtx));
-            ret = MakeSignature(&certSignCtx,
-                dataASN[OCSPBASICRESPASN_IDX_TBS_SEQ].data.buffer.data,
-                respDataSz,
-                (byte*)dataASN[OCSPBASICRESPASN_IDX_SIGNATURE].data.buffer.data,
-                sigSz, rsaKey, eccKey, NULL, NULL, NULL, NULL, NULL, rng,
-                resp->sigOID, resp->heap);
-            if (ret > 0) {
-                if (ret == (int)sigSz)
+        else {
+            /* The real ECC signature might differ from the size returned by
+             * wc_ecc_sig_size. We handle this by placing the signature at
+             * the end of the buffer and then moving it into place. */
+            byte* respData = out + (*outSz - respDataSz - sigSz);
+            byte* sigData = out + (*outSz - sigSz);
+            if (respDataSz + sigSz > *outSz)
+                ret = BUFFER_E;
+            if (ret == 0)
+                ret = EncodeResponseData(resp, respData, &respDataSz);
+            if (ret == 0) {
+                CertSignCtx certSignCtx;
+                XMEMSET(&certSignCtx, 0, sizeof(CertSignCtx));
+                ret = MakeSignature(&certSignCtx, respData, respDataSz,
+                        sigData, sigSz, rsaKey, eccKey, NULL, NULL, NULL, NULL,
+                        NULL, rng, resp->sigOID, resp->heap);
+                if (ret > 0) {
+                    sigSz = (word32)ret;
                     ret = 0;
+                }
                 else
-                    ret = ASN_PARSE_E; /* TODO adjust sizes (may happen with ecc) */
+                    ret = ret == 0 ? WC_FAILURE : ret;
             }
-            else
-                ret = ret == 0 ? WC_FAILURE : ret;
+            if (ret == 0) {
+                SetASN_ReplaceBuffer(&dataASN[OCSPBASICRESPASN_IDX_TBS_SEQ],
+                        respData, respDataSz);
+                SetASN_Buffer(&dataASN[OCSPBASICRESPASN_IDX_SIGNATURE],
+                        sigData, sigSz);
+                /* Re-calculate size of encoding. */
+                ret = SizeASN_Items(ocspBasicRespASN, dataASN,
+                        ocspBasicRespASN_Length, &sz);
+            }
+            if (ret == 0) {
+                if (SetASN_Items(ocspBasicRespASN, dataASN, ocspBasicRespASN_Length,
+                        out) != sz)
+                    ret = ASN_PARSE_E;
+            }
         }
     }
 
@@ -40159,49 +40168,64 @@ int OcspResponseEncode(OcspResponse* resp, byte* out, word32* outSz,
 
     CALLOC_ASNSETDATA(dataASN, ocspResponseASN_Length, ret, resp->heap);
 
+    if (ret == 0) {
+        SetASN_Int8Bit(&dataASN[OCSPRESPONSEASN_IDX_STATUS],
+                resp->responseStatus);
+    }
     if (ret == 0 && resp->responseStatus == OCSP_SUCCESSFUL) {
+        SetASN_OID(&dataASN[OCSPRESPONSEASN_IDX_BYTES_TYPE], OCSP_BASIC_OID,
+                oidOcspType);
+
         basicRespSz = *outSz;
         ret = EncodeBasicOcspResponse(resp, NULL, &basicRespSz, rsaKey, eccKey,
                 rng);
-    }
-    if (ret == 0) {
-        SetASN_Int8Bit(&dataASN[OCSPRESPONSEASN_IDX_STATUS],
-                (byte)resp->responseStatus);
-        if (resp->responseStatus == OCSP_SUCCESSFUL) {
-            SetASN_OID(&dataASN[OCSPRESPONSEASN_IDX_BYTES_TYPE], OCSP_BASIC_OID,
-                    oidOcspType);
+        if (ret == 0 && out == NULL) {
             SetASN_Buffer(&dataASN[OCSPRESPONSEASN_IDX_BYTES_VAL], NULL,
                     basicRespSz);
+            ret = SizeASN_Items(ocspResponseASN, dataASN,
+                    ocspResponseASN_Length, &sz);
         }
-        else {
-            SetASNItem_NoOutNode(dataASN, ocspResponseASN,
-                OCSPRESPONSEASN_IDX_BYTES,
-                ocspResponseASN_Length);
+        else if (ret == 0 && out != NULL) {
+            /* The size of the basic response may change because of the
+             * signature encoding. */
+            byte* basicResp = out + (*outSz - basicRespSz);
+            if (basicRespSz > *outSz)
+                ret = BUFFER_E;
+            if (ret == 0) {
+                ret = EncodeBasicOcspResponse(resp, basicResp,
+                        &basicRespSz, rsaKey, eccKey, rng);
+            }
+            if (ret == 0) {
+                SetASN_Buffer(&dataASN[OCSPRESPONSEASN_IDX_BYTES_VAL],
+                        basicResp, basicRespSz);
+                ret = SizeASN_Items(ocspResponseASN, dataASN,
+                        ocspResponseASN_Length, &sz);
+            }
+            if (ret == 0) {
+                if (SetASN_Items(ocspResponseASN, dataASN,
+                        ocspResponseASN_Length, out) != sz)
+                    ret = ASN_PARSE_E;
+            }
         }
-        /* Calculate size of encoding. */
+
+    }
+    else if (ret == 0 && resp->responseStatus != OCSP_SUCCESSFUL) {
+        SetASNItem_NoOutNode(dataASN, ocspResponseASN,
+            OCSPRESPONSEASN_IDX_BYTES,
+            ocspResponseASN_Length);
         ret = SizeASN_Items(ocspResponseASN, dataASN, ocspResponseASN_Length,
                 &sz);
-    }
-    /* Check buffer big enough for encoding if supplied. */
-    if (ret == 0 && out != NULL && sz > (int)*outSz) {
-        ret = BUFFER_E;
-    }
-    if (ret == 0 && out != NULL) {
-        if (SetASN_Items(ocspResponseASN, dataASN, ocspResponseASN_Length,
-                out) != sz)
-            ret = ASN_PARSE_E;
-        if (ret == 0 && resp->responseStatus == OCSP_SUCCESSFUL) {
-            word32 outBasicRespSz = basicRespSz;
-            ret = EncodeBasicOcspResponse(resp,
-                 (byte*)dataASN[OCSPRESPONSEASN_IDX_BYTES_VAL].data.buffer.data,
-                 &outBasicRespSz, rsaKey, eccKey, rng);
-            if (outBasicRespSz != basicRespSz)
-                ret = ASN_PARSE_E; /* TODO adjust sizes (may happen with ecc) */
+        if (ret == 0 && out != NULL && sz > (int)*outSz)
+            ret = BUFFER_E;
+        if (ret == 0 && out != NULL) {
+            if (SetASN_Items(ocspResponseASN, dataASN, ocspResponseASN_Length,
+                    out) != sz)
+                ret = ASN_PARSE_E;
         }
     }
 
     if (ret == 0)
-        *outSz = sz;
+        *outSz = (word32)sz;
     FREE_ASNSETDATA(dataASN, resp->heap);
     return ret;
 #endif

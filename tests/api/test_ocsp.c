@@ -1069,6 +1069,7 @@ static int ocspResponderTest_Run(OcspResponderTestConfig* config)
 
     XMEMSET(&targetCert, 0, sizeof(targetCert));
     XMEMSET(&caCert, 0, sizeof(caCert));
+    XMEMSET(respBuf, 0, sizeof(respBuf));
     
     /* Create certificate manager */
     ExpectNotNull(cm = wolfSSL_CertManagerNew());
@@ -1186,35 +1187,35 @@ int test_ocsp_responder(void)
             OCSP_CERT_UNKNOWN,
             "RSA server cert - UNKNOWN status"
         },
-//#ifdef HAVE_ECC
-//        {
-//            "./certs/ca-ecc-cert.der",
-//            "./certs/ca-ecc-key.der",
-//            "./certs/server-ecc.der",
-//            CERT_GOOD,
-//            0, 0,
-//            0,
-//            "ECC server cert - GOOD status"
-//        },
-//        {
-//            "./certs/ca-ecc-cert.der",
-//            "./certs/ca-ecc-key.der",
-//            "./certs/server-ecc.der",
-//            CERT_REVOKED,
-//            now, CRL_REASON_AFFILIATION_CHANGED,
-//            OCSP_CERT_REVOKED,
-//            "ECC server cert - REVOKED status"
-//        },
-//        {
-//            "./certs/ca-ecc-cert.der",
-//            "./certs/ca-ecc-key.der",
-//            "./certs/client-ecc-cert.der",
-//            CERT_GOOD,
-//            0, 0,
-//            0,
-//            "ECC client cert - GOOD status"
-//        },
-//#endif
+#ifdef HAVE_ECC
+        {
+            "./certs/ca-ecc-cert.der",
+            "./certs/ca-ecc-key.der",
+            "./certs/server-ecc.der",
+            CERT_GOOD,
+            0, 0,
+            0,
+            "ECC server cert - GOOD status"
+        },
+        {
+            "./certs/ca-ecc-cert.der",
+            "./certs/ca-ecc-key.der",
+            "./certs/server-ecc.der",
+            CERT_REVOKED,
+            now, CRL_REASON_AFFILIATION_CHANGED,
+            OCSP_CERT_REVOKED,
+            "ECC server cert - REVOKED status"
+        },
+        {
+            "./certs/ca-ecc-cert.der",
+            "./certs/ca-ecc-key.der",
+            "./certs/server-ecc.der",
+            CERT_UNKNOWN,
+            0, 0,
+            OCSP_CERT_UNKNOWN,
+            "ECC server cert - UNKNOWN status"
+        }
+#endif
     };
     int i;
     int numTests = (int)(sizeof(configs) / sizeof(configs[0]));
