@@ -1177,6 +1177,15 @@ int test_ocsp_responder(void)
             OCSP_CERT_REVOKED,
             "RSA server cert - REVOKED status"
         },
+        {
+            "./certs/ca-cert.der",
+            "./certs/ca-key.der",
+            "./certs/server-cert.der",
+            CERT_UNKNOWN,
+            0, 0,
+            OCSP_CERT_UNKNOWN,
+            "RSA server cert - UNKNOWN status"
+        },
 //        {
 //            "./certs/ca-cert.der",
 //            "./certs/ca-key.der",

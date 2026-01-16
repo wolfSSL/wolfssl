@@ -38692,8 +38692,6 @@ static int EncodeSingleResponse(OcspEntry* single, byte* out, word32* outSz,
             SetASNItem_NoOutNode(dataASN, singleResponseASN,
                     SINGLERESPONSEASN_IDX_CS_REVOKED,
                     singleResponseASN_Length);
-            /* TODO: Add unknown reason */
-            ret = BAD_FUNC_ARG;
         }
         else {
             ret = BAD_FUNC_ARG;
