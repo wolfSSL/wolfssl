@@ -161,8 +161,10 @@ int test_wolfSSL_MD5_Transform(void)
     ExpectIntEQ(MD5_Transform(NULL, (const byte*)&input1), 0);
     ExpectIntEQ(MD5_Transform(&md5.compat, NULL), 0);
     ExpectIntEQ(wc_Md5Transform(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Md5Transform(NULL, (const byte*)&input1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Md5Transform(&md5.native, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Md5Transform(NULL, (const byte*)&input1),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Md5Transform(&md5.native, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     /* Init MD5 CTX */
     ExpectIntEQ(wolfSSL_MD5_Init(&md5.compat), 1);
@@ -359,8 +361,10 @@ int test_wolfSSL_SHA_Transform(void)
     ExpectIntEQ(SHA1_Transform(NULL, (const byte*)&input1), 0);
     ExpectIntEQ(SHA1_Transform(&sha.compat, NULL), 0);
     ExpectIntEQ(wc_ShaTransform(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_ShaTransform(NULL, (const byte*)&input1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_ShaTransform(&sha.native, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_ShaTransform(NULL, (const byte*)&input1),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_ShaTransform(&sha.native, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     /* Init SHA CTX */
     ExpectIntEQ(SHA_Init(&sha.compat), 1);
@@ -500,8 +504,10 @@ int test_wolfSSL_SHA256_Transform(void)
     ExpectIntEQ(SHA256_Transform(NULL, (const byte*)&input1), 0);
     ExpectIntEQ(SHA256_Transform(&sha256.compat, NULL), 0);
     ExpectIntEQ(wc_Sha256Transform(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha256Transform(NULL, (const byte*)&input1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha256Transform(&sha256.native, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Sha256Transform(NULL, (const byte*)&input1),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Sha256Transform(&sha256.native, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     /* Init SHA256 CTX */
     ExpectIntEQ(SHA256_Init(&sha256.compat), 1);
@@ -574,8 +580,10 @@ int test_wolfSSL_SHA512_Transform(void)
     ExpectIntEQ(SHA512_Transform(NULL, (const byte*)&input1), 0);
     ExpectIntEQ(SHA512_Transform(&sha512.compat, NULL), 0);
     ExpectIntEQ(wc_Sha512Transform(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha512Transform(NULL, (const byte*)&input1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha512Transform(&sha512.native, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Sha512Transform(NULL, (const byte*)&input1),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Sha512Transform(&sha512.native, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     /* Init SHA512 CTX */
     ExpectIntEQ(wolfSSL_SHA512_Init(&sha512.compat), 1);
@@ -584,8 +592,8 @@ int test_wolfSSL_SHA512_Transform(void)
     sLen = (word32)XSTRLEN((char*)input1);
     XMEMCPY(local, input1, sLen);
     ExpectIntEQ(SHA512_Transform(&sha512.compat, (const byte*)&local[0]), 1);
-    ExpectIntEQ(XMEMCMP(sha512.native.digest, output1,
-                                                    WC_SHA512_DIGEST_SIZE), 0);
+    ExpectIntEQ(XMEMCMP(sha512.native.digest, output1, WC_SHA512_DIGEST_SIZE),
+        0);
     ExpectIntEQ(SHA512_Final(local, &sha512.compat), 1); /* frees resources */
 
     /* Init SHA512 CTX */
@@ -594,8 +602,8 @@ int test_wolfSSL_SHA512_Transform(void)
     XMEMSET(local, 0, WC_SHA512_BLOCK_SIZE);
     XMEMCPY(local, input2, sLen);
     ExpectIntEQ(SHA512_Transform(&sha512.compat, (const byte*)&local[0]), 1);
-    ExpectIntEQ(XMEMCMP(sha512.native.digest, output2,
-                                                    WC_SHA512_DIGEST_SIZE), 0);
+    ExpectIntEQ(XMEMCMP(sha512.native.digest, output2, WC_SHA512_DIGEST_SIZE),
+        0);
     ExpectIntEQ(SHA512_Final(local, &sha512.compat), 1); /* frees resources */
 
     (void)input1;
@@ -643,10 +651,12 @@ int test_wolfSSL_SHA512_224_Transform(void)
     ExpectIntEQ(SHA512_224_Transform(NULL, NULL), 0);
     ExpectIntEQ(SHA512_224_Transform(NULL, (const byte*)&input1), 0);
     ExpectIntEQ(SHA512_224_Transform(&sha512.compat, NULL), 0);
-    ExpectIntEQ(wc_Sha512_224Transform(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Sha512_224Transform(NULL, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_Sha512_224Transform(NULL, (const byte*)&input1),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha512_224Transform(&sha512.native, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Sha512_224Transform(&sha512.native, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     /* Init SHA512 CTX */
     ExpectIntEQ(wolfSSL_SHA512_224_Init(&sha512.compat), 1);
@@ -716,10 +726,12 @@ int test_wolfSSL_SHA512_256_Transform(void)
     ExpectIntEQ(SHA512_256_Transform(NULL, NULL), 0);
     ExpectIntEQ(SHA512_256_Transform(NULL, (const byte*)&input1), 0);
     ExpectIntEQ(SHA512_256_Transform(&sha512.compat, NULL), 0);
-    ExpectIntEQ(wc_Sha512_256Transform(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Sha512_256Transform(NULL, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_Sha512_256Transform(NULL, (const byte*)&input1),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha512_256Transform(&sha512.native, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Sha512_256Transform(&sha512.native, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     /* Init SHA512 CTX */
     ExpectIntEQ(wolfSSL_SHA512_256_Init(&sha512.compat), 1);

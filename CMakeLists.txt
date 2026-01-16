@@ -2739,6 +2739,13 @@ if(WOLFSSL_EXAMPLES)
         tests/api/test_ossl_x509_str.c
         tests/api/test_ossl_x509_lu.c
         tests/api/test_ossl_pem.c
+        tests/api/test_ossl_rand.c
+        tests/api/test_ossl_obj.c
+        tests/api/test_ossl_p7p12.c
+        tests/api/test_evp_digest.c
+        tests/api/test_evp_cipher.c
+        tests/api/test_evp_pkey.c
+        tests/api/test_certman.c
         tests/api/test_tls13.c
         tests/srp.c
         tests/suites.c
