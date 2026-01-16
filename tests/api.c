@@ -19903,9 +19903,8 @@ static int test_MakeCertWith0Ser(void)
     cert.isCA       = 0;
     cert.sigType    = CTC_SHA256wECDSA;
 
-#ifdef WOLFSSL_CERT_EXT
-    cert.keyUsage |= KEYUSE_KEY_CERT_SIGN;
-#endif
+    /* Note: KEYUSE_KEY_CERT_SIGN is not set here because it's only valid for
+     * CA certificates. This test creates a non-CA certificate (isCA=0). */
 
     /* set serial number to 0 */
     cert.serialSz  = 1;
