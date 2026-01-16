@@ -1027,121 +1027,205 @@ int test_ocsp_tls_cert_cb(void)
 }
 #endif
 
-int test_ocsp_responder(void)
+#if defined(HAVE_OCSP_RESPONDER) && !defined(NO_SHA) && !defined(NO_RSA)
+/* Structure to hold test configuration */
+typedef struct {
+    const char* caCertPath;
+    const char* caKeyPath;
+    const char* targetCertPath;
+    int certStatus;
+    int expectedResult;
+    const char* testName;
+} OcspResponderTestConfig;
+
+/* Helper function to run a single OCSP responder test configuration */
+static int ocspResponderTest_Run(OcspResponderTestConfig* config)
 {
     EXPECT_DECLS;
-#if defined(HAVE_OCSP_RESPONDER) && !defined(NO_SHA) && !defined(NO_RSA)
     OcspResponder* responder = NULL;
     OcspRequest* clientReq = NULL;
-    DecodedCert serverCert;
+    DecodedCert targetCert;
     DecodedCert caCert;
     WOLFSSL_CERT_MANAGER* cm = NULL;
     byte caCertDer[4096];
     byte caKeyDer[4096];
-    byte serverCertDer[4096];
+    byte targetCertDer[4096];
     byte respBuf[1024];
     word32 caCertSz = sizeof(caCertDer);
     word32 caKeyDerSz = sizeof(caKeyDer);
-    word32 serverCertSz = sizeof(serverCertDer);
+    word32 targetCertSz = sizeof(targetCertDer);
     word32 respSz = sizeof(respBuf);
     byte reqBuf[1024];
     int reqSz = 0;
+    const char* caSubject;
+    word32 caSubjectSz;
+    const byte* serial;
+    word32 serialSz;
     XFILE f = XBADFILE;
-    
-    WOLFSSL_ENTER("test_ocsp_responder");
 
-    XMEMSET(&serverCert, 0, sizeof(serverCert));
+    printf("\nRunning OCSP Responder Test: %s\n", config->testName);
+
+    XMEMSET(&targetCert, 0, sizeof(targetCert));
     XMEMSET(&caCert, 0, sizeof(caCert));
-    XMEMSET(&caCertDer, 0, sizeof(caCertDer));
-    XMEMSET(&caKeyDer, 0, sizeof(caKeyDer));
-    XMEMSET(&serverCertDer, 0, sizeof(serverCertDer));
-
+    
     /* Create certificate manager */
     ExpectNotNull(cm = wolfSSL_CertManagerNew());
-    
+
     /* Load CA certificate */
-    ExpectTrue((f = XFOPEN("./certs/ca-cert.der", "rb")) != XBADFILE);
+    ExpectTrue((f = XFOPEN(config->caCertPath, "rb")) != XBADFILE);
     ExpectIntGT(caCertSz = (word32)XFREAD(caCertDer, 1,
                                           caCertSz, f), 0);
     XFCLOSE(f);
     f = XBADFILE;
-    
-    /* Load CA into certificate manager */
     ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, caCertDer, caCertSz,
                                                 WOLFSSL_FILETYPE_ASN1),
                 WOLFSSL_SUCCESS);
-    
+
     wc_InitDecodedCert(&caCert, caCertDer, caCertSz, NULL);
     ExpectIntEQ(wc_ParseCert(&caCert, CERT_TYPE, 0, NULL), 0);
 
     /* Load CA private key */
-    ExpectTrue((f = XFOPEN("./certs/ca-key.der", "rb")) != XBADFILE);
-    ExpectIntGT(caKeyDerSz = (word32)XFREAD(caKeyDer, 1, caKeyDerSz, f), 0);
+    ExpectTrue((f = XFOPEN(config->caKeyPath, "rb")) != XBADFILE);
+    ExpectIntGT(caKeyDerSz = (word32)XFREAD(caKeyDer, 1,
+                                          caKeyDerSz, f), 0);
     XFCLOSE(f);
     f = XBADFILE;
 
-    /* Load server certificate */
-    ExpectTrue((f = XFOPEN("./certs/server-cert.der", "rb")) != XBADFILE);
-    ExpectIntGT(serverCertSz = (word32)XFREAD(serverCertDer, 1,
-                                              serverCertSz, f), 0);
+    /* Load target certificate */
+    ExpectTrue((f = XFOPEN(config->targetCertPath, "rb")) != XBADFILE);
+    ExpectIntGT(targetCertSz = (word32)XFREAD(targetCertDer, 1,
+                                          targetCertSz, f), 0);
     XFCLOSE(f);
     f = XBADFILE;
-
-    /* Parse server certificate with certificate manager to populate issuerKeyHash */
-    wc_InitDecodedCert(&serverCert, serverCertDer, serverCertSz, NULL);
-    ExpectIntEQ(wc_ParseCert(&serverCert, CERT_TYPE, 0, cm), 0);
-
-    /* Create OCSP request from server certificate */
+    
+    /* Parse target certificate */
+    wc_InitDecodedCert(&targetCert, targetCertDer, targetCertSz, NULL);
+    ExpectIntEQ(wc_ParseCert(&targetCert, CERT_TYPE, 0, cm), 0);
+    
+    /* Create OCSP request from target certificate */
     ExpectNotNull(clientReq = wc_OcspRequest_new(NULL));
-    ExpectIntEQ(wc_InitOcspRequest(clientReq, &serverCert, 0, NULL), 0);
-    ExpectIntGT(reqSz = wc_EncodeOcspRequest(clientReq, reqBuf, sizeof(reqBuf)), 
-                0);
-
+    ExpectIntEQ(wc_InitOcspRequest(clientReq, &targetCert, 0, NULL), 0);
+    ExpectIntGT(reqSz = wc_EncodeOcspRequest(clientReq, reqBuf, 
+                                              sizeof(reqBuf)), 0);
+    
     /* Create OCSP Responder */
     ExpectNotNull(responder = wc_OcspResponder_new(NULL));
     
-    /* Add CA to responder (DER format only) */
+    /* Add CA to responder */
     ExpectIntEQ(wc_OcspResponder_AddCA(responder, caCertDer, caCertSz,
-                                       caKeyDer, caKeyDerSz, RSAk), 0);
-
-    /* Set certificate status as good for the server cert */
-    {
-        const char* caSubject;
-        word32 caSubjectSz;
-        const byte* serial;
-        word32 serialSz;
-        
-        ExpectNotNull(caSubject = wc_GetDecodedCertSubject(&caCert, &caSubjectSz));
-        ExpectIntGT(caSubjectSz, 0);
-        ExpectNotNull(serial = wc_GetDecodedCertSerial(&serverCert, &serialSz));
-        ExpectIntGT(serialSz, 0);
-        
-        ExpectIntEQ(wc_OcspResponder_SetCertStatus(responder,
-                                                   caSubject, caSubjectSz,
-                                                   serial, serialSz,
-                                                   CERT_GOOD,
-                                                   NULL, NULL), 0);
-    }
-
+                                       caKeyDer, caKeyDerSz), 0);
+    
+    /* Set certificate status */
+    ExpectNotNull(caSubject = wc_GetDecodedCertSubject(&caCert, &caSubjectSz));
+    ExpectIntGT(caSubjectSz, 0);
+    ExpectNotNull(serial = wc_GetDecodedCertSerial(&targetCert, &serialSz));
+    ExpectIntGT(serialSz, 0);
+    
+    ExpectIntEQ(wc_OcspResponder_SetCertStatus(responder,
+                                               caSubject, caSubjectSz,
+                                               serial, serialSz,
+                                               config->certStatus,
+                                               NULL, NULL), 0);
+    
     /* Generate OCSP response */
     ExpectIntEQ(wc_OcspResponder_WriteResponse(responder, reqBuf, reqSz,
-                                               respBuf, &respSz),
-                0);
-
-    /* Check response */
+                                               respBuf, &respSz), 0);
+    
+    /* Verify response matches expected result */
     {
         WOLFSSL_OCSP* ocsp = NULL;
         ExpectNotNull(ocsp = wc_NewOCSP(cm));
-        ExpectIntEQ(wc_CheckCertOcspResponse(ocsp, &serverCert, respBuf, respSz, NULL), 0);
+        ExpectIntEQ(wc_CheckCertOcspResponse(ocsp, &targetCert, respBuf,
+                respSz, NULL), config->expectedResult);
         wc_FreeOCSP(ocsp);
     }
-
+    
     /* Cleanup */
     wc_OcspRequest_free(clientReq);
     wc_OcspResponder_free(responder);
-    wc_FreeDecodedCert(&serverCert);
+    wc_FreeDecodedCert(&targetCert);
     wc_FreeDecodedCert(&caCert);
     wolfSSL_CertManagerFree(cm);
-#endif
+    
     return EXPECT_RESULT();
 }
+
+int test_ocsp_responder(void)
+{
+    EXPECT_DECLS;
+    OcspResponderTestConfig configs[] = {
+        {
+            "./certs/ca-cert.der",
+            "./certs/ca-key.der",
+            "./certs/server-cert.der",
+            CERT_GOOD,
+            0,
+            "RSA server cert - GOOD status"
+        },
+        {
+            "./certs/ca-cert.der",
+            "./certs/ca-key.der",
+            "./certs/server-cert.der",
+            CERT_REVOKED,
+            OCSP_CERT_REVOKED,
+            "RSA server cert - REVOKED status"
+        },
+        {
+            "./certs/ca-cert.der",
+            "./certs/ca-key.der",
+            "./certs/client-cert.der",
+            CERT_GOOD,
+            0,
+            "RSA client cert - GOOD status"
+        },
+        {
+            "./certs/ca-cert.der",
+            "./certs/ca-key.der",
+            "./certs/client-cert.der",
+            CERT_REVOKED,
+            OCSP_CERT_REVOKED,
+            "RSA client cert - REVOKED status"
+        },
+#ifdef HAVE_ECC
+        {
+            "./certs/ca-ecc-cert.der",
+            "./certs/ca-ecc-key.der",
+            "./certs/server-ecc.der",
+            CERT_GOOD,
+            0,
+            "ECC server cert - GOOD status"
+        },
+        {
+            "./certs/ca-ecc-cert.der",
+            "./certs/ca-ecc-key.der",
+            "./certs/server-ecc.der",
+            CERT_REVOKED,
+            OCSP_CERT_REVOKED,
+            "ECC server cert - REVOKED status"
+        },
+        {
+            "./certs/ca-ecc-cert.der",
+            "./certs/ca-ecc-key.der",
+            "./certs/client-ecc-cert.der",
+            CERT_GOOD,
+            0,
+            "ECC client cert - GOOD status"
+        },
+#endif
+    };
+    int i;
+    int numTests = (int)(sizeof(configs) / sizeof(configs[0]));
+    
+    /* Run each test configuration */
+    for (i = 0; i < numTests; i++) {
+        ExpectIntEQ(ocspResponderTest_Run(&configs[i]), TEST_SUCCESS);
+    }
+
+    return EXPECT_RESULT();
+}
+#else
+int test_ocsp_responder(void)
+{
+    return TEST_SKIPPED;
+}
+#endif /* HAVE_OCSP_RESPONDER && !NO_SHA && !NO_RSA */
