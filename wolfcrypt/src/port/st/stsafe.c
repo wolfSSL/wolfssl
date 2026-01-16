@@ -283,6 +283,10 @@ static int stsafe_create_key(stsafe_slot_t* pSlot, stsafe_curve_id_t curve_id,
     stse_ReturnCode_t ret;
     stsafe_slot_t slot = STSAFE_KEY_SLOT_1; /* Use dedicated key slot for persistent keys */
 
+    if (pPubKeyRaw == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
     /* Generate key pair - public key is X||Y concatenated
      * Note: stse_generate_ecc_key_pair expects stse_ecc_key_type_t,
      * but stsafe_curve_id_t values match stse_ecc_key_type_t enum values */
@@ -340,6 +344,10 @@ static int stsafe_sign(stsafe_slot_t slot, stsafe_curve_id_t curve_id,
     stse_ReturnCode_t ret;
     int key_sz = stsafe_get_key_size(curve_id);
 
+    if (pHash == NULL || pSigRS == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
     /* Sign hash - output is R || S concatenated */
     ret = stse_ecc_generate_signature(&g_stse_handler, slot, curve_id,
         pHash, (uint16_t)key_sz, pSigRS);
@@ -363,6 +371,11 @@ static int stsafe_verify(stsafe_curve_id_t curve_id, uint8_t* pHash,
     int key_sz = stsafe_get_key_size(curve_id);
     uint8_t pubKey[STSAFE_MAX_PUBKEY_RAW_LEN];
     uint8_t validity = 0;
+
+    if (pHash == NULL || pSigRS == NULL || pPubKeyX == NULL ||
+        pPubKeyY == NULL || pResult == NULL) {
+        return BAD_FUNC_ARG;
+    }
 
     /* Combine X and Y into single buffer (X||Y) */
     XMEMCPY(pubKey, pPubKeyX, key_sz);
@@ -401,6 +414,11 @@ static int stsafe_shared_secret(stsafe_slot_t slot, stsafe_curve_id_t curve_id,
     stse_ReturnCode_t ret;
     int key_sz = stsafe_get_key_size(curve_id);
     uint8_t peerPubKey[STSAFE_MAX_PUBKEY_RAW_LEN];
+
+    if (pPubKeyX == NULL || pPubKeyY == NULL || pSharedSecret == NULL ||
+        pSharedSecretLen == NULL) {
+        return BAD_FUNC_ARG;
+    }
 
     /* Combine peer X and Y (X||Y format) */
     XMEMCPY(peerPubKey, pPubKeyX, key_sz);
@@ -1558,22 +1576,19 @@ int wolfSSL_STSAFE_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
                     pubKeyRaw);
                 if (ret != STSE_OK) {
                     STSAFE_INTERFACE_PRINTF("stse_generate_ecc_key_pair (slot 1) error: %d\n", ret);
-                    rc = (int)ret;
+                    rc = WC_HW_E;
                 } else {
                     rc = STSAFE_A_OK;
-                }
-                if (rc != STSAFE_A_OK) {
-                    rc = WC_HW_E;
                 }
 #else
                 /* Legacy A100/A110 uses slot-based key generation */
                 rc = stsafe_create_key(&slot, curve_id, pubKeyRaw);
-#endif
                 if (rc != STSAFE_A_OK) {
                     STSAFE_INTERFACE_PRINTF("stsafe_create_key error: %d\n",
                         rc);
                     rc = WC_HW_E;
                 }
+#endif
             }
 
             if (rc == 0) {
