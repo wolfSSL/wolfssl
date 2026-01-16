@@ -1186,24 +1186,6 @@ int test_ocsp_responder(void)
             OCSP_CERT_UNKNOWN,
             "RSA server cert - UNKNOWN status"
         },
-//        {
-//            "./certs/ca-cert.der",
-//            "./certs/ca-key.der",
-//            "./certs/client-cert.der",
-//            CERT_GOOD,
-//            0, 0,
-//            0,
-//            "RSA client cert - GOOD status"
-//        },
-//        {
-//            "./certs/ca-cert.der",
-//            "./certs/ca-key.der",
-//            "./certs/client-cert.der",
-//            CERT_REVOKED,
-//            now, CRL_REASON_SUPERSEDED,  /* Revoked - superseded */
-//            OCSP_CERT_REVOKED,
-//            "RSA client cert - REVOKED status"
-//        },
 //#ifdef HAVE_ECC
 //        {
 //            "./certs/ca-ecc-cert.der",
