@@ -1879,7 +1879,7 @@ int wolfSSL_STSAFE_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
 
                         ret = stse_generate_ecc_key_pair(&g_stse_handler, slot,
                             (stse_ecc_key_type_t)curve_id,
-                            STSAFEA_EPHEMERAL_KEY_USAGE_LIMIT,
+                            STSAFE_EPHEMERAL_KEY_USAGE_LIMIT,
                             ephemeralPubKey);
                         if (ret != STSE_OK) {
                             STSAFE_INTERFACE_PRINTF("stse_generate_ecc_key_pair (ephemeral for ECDH) error: %d\n", ret);
