@@ -39114,10 +39114,11 @@ static int DecodeOcspRespExtensions(byte* source, word32* ioIndex,
 
     /* Step through all extensions. */
     while ((ret == 0) && (idx < maxIdx)) {
+        byte isCrit = 0;
         /* Clear dynamic data, set OID type to expect. */
         XMEMSET(dataASN, 0, sizeof(*dataASN) * certExtASN_Length);
         GetASN_OID(&dataASN[CERTEXTASN_IDX_OID], oidOcspType);
-        /* TODO: check criticality. */
+        GetASN_Boolean(&dataASN[CERTEXTASN_IDX_CRIT], &isCrit);
         /* Decode OCSP response extension. */
         ret = GetASN_Items(certExtASN, dataASN, certExtASN_Length, 0,
                            source, &idx, sz);
@@ -39134,6 +39135,9 @@ static int DecodeOcspRespExtensions(byte* source, word32* ioIndex,
                     resp->nonce = source + idx;
                     resp->nonceSz = length;
                 }
+            }
+            else if (isCrit) {
+                ret = ASN_PARSE_E;
             }
             /* Ignore all other extension types. */
 
