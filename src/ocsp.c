@@ -2481,16 +2481,18 @@ static int OcspResponse_WriteResponse(OcspResponder* responder, byte* response,
     time_t tm;
     RsaKey* rsaKey = NULL;
     ecc_key* eccKey = NULL;
+    int respInited = 0;
 
     WOLFSSL_ENTER("OcspResponse_WriteResponse");
 
-    (void)ca;
-
     if (responseSz == NULL || ca == NULL || certStatus == NULL ||
-            certStatus->serialSz > EXTERNAL_SERIAL_SIZE)
-        return BAD_FUNC_ARG;
+            certStatus->serialSz > EXTERNAL_SERIAL_SIZE) {
+        ret = BAD_FUNC_ARG;
+        goto out;
+    }
 
     InitOcspResponse(&resp, &entry, &status, NULL, 0, responder->heap);
+    respInited = 1;
 
     resp.responseStatus = OCSP_SUCCESSFUL;
 
@@ -2512,8 +2514,7 @@ static int OcspResponse_WriteResponse(OcspResponder* responder, byte* response,
             ASN_GENERALIZED_TIME);
     if (ret <= 0) {
         WOLFSSL_MSG("Failed to format thisUpdate time");
-        FreeOcspResponse(&resp);
-        return ret;
+        goto out;
     }
     XMEMCPY(resp.producedDate, status.thisDate, ret);
     resp.producedDateSz = status.thisDateSz = (byte)(ret);
@@ -2542,11 +2543,12 @@ static int OcspResponse_WriteResponse(OcspResponder* responder, byte* response,
             &responder->rng);
     if (ret != 0) {
         WOLFSSL_MSG("Failed to encode OCSP response");
-        FreeOcspResponse(&resp);
-        return ret;
+        goto out;
     }
 
-    FreeOcspResponse(&resp);
+out:
+    if (respInited)
+        FreeOcspResponse(&resp);
     return ret;
 }
 
