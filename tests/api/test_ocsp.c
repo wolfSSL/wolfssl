@@ -1036,6 +1036,7 @@ typedef struct {
     enum Ocsp_Cert_Status certStatus;
     time_t revocationTime;               /* Used when status is CERT_REVOKED */
     enum WC_CRL_Reason revocationReason; /* Used when status is CERT_REVOKED */
+    word32 validityPeriod;               /* Used when status is CERT_GOOD */
     int expectedResult;
     const char* testName;
 } OcspResponderTestConfig;
@@ -1128,7 +1129,8 @@ static int ocspResponderTest_Run(OcspResponderTestConfig* config)
                                                serial, serialSz,
                                                config->certStatus,
                                                config->revocationTime,
-                                               config->revocationReason), 0);
+                                               config->revocationReason,
+                                               config->validityPeriod), 0);
     
     /* Get required response size */
     ExpectIntEQ(wc_OcspResponder_WriteResponse(responder, reqBuf, reqSz,
@@ -1173,6 +1175,7 @@ int test_ocsp_responder(void)
             "./certs/server-cert.der",
             CERT_GOOD,
             0, 0,  /* revocationTime, revocationReason (not used for GOOD) */
+            86400, /* validityPeriod - 24 hours */
             0,
             "RSA server cert - GOOD status"
         },
@@ -1182,6 +1185,7 @@ int test_ocsp_responder(void)
             "./certs/server-cert.der",
             CERT_REVOKED,
             now, CRL_REASON_KEY_COMPROMISE,  /* Revoked due to key compromise */
+            0,     /* validityPeriod (not used for REVOKED) */
             OCSP_CERT_REVOKED,
             "RSA server cert - REVOKED status"
         },
@@ -1191,6 +1195,7 @@ int test_ocsp_responder(void)
             "./certs/server-cert.der",
             CERT_UNKNOWN,
             0, 0,
+            0,     /* validityPeriod (not used for UNKNOWN) */
             OCSP_CERT_UNKNOWN,
             "RSA server cert - UNKNOWN status"
         },
@@ -1201,6 +1206,7 @@ int test_ocsp_responder(void)
             "./certs/server-ecc.der",
             CERT_GOOD,
             0, 0,
+            86400, /* validityPeriod - 24 hours */
             0,
             "ECC server cert - GOOD status"
         },
@@ -1210,6 +1216,7 @@ int test_ocsp_responder(void)
             "./certs/server-ecc.der",
             CERT_REVOKED,
             now, CRL_REASON_AFFILIATION_CHANGED,
+            0,     /* validityPeriod (not used for REVOKED) */
             OCSP_CERT_REVOKED,
             "ECC server cert - REVOKED status"
         },
@@ -1219,6 +1226,7 @@ int test_ocsp_responder(void)
             "./certs/server-ecc.der",
             CERT_UNKNOWN,
             0, 0,
+            0,     /* validityPeriod (not used for UNKNOWN) */
             OCSP_CERT_UNKNOWN,
             "ECC server cert - UNKNOWN status"
         }

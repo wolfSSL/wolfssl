@@ -2388,7 +2388,8 @@ static OcspResponderCa* FindCaBySubject(OcspResponder* responder,
 int wc_OcspResponder_SetCertStatus(OcspResponder* responder,
     const char* caSubject, word32 caSubjectSz,
     const byte* serial, word32 serialSz, enum Ocsp_Cert_Status status,
-    time_t revocationTime, enum WC_CRL_Reason revocationReason)
+    time_t revocationTime, enum WC_CRL_Reason revocationReason,
+    word32 validityPeriod)
 {
     OcspResponderCa* ca = NULL;
     OcspResponderCertStatus* certStatus = NULL;
@@ -2417,6 +2418,11 @@ int wc_OcspResponder_SetCertStatus(OcspResponder* responder,
             goto out;
     }
     
+    if (status == CERT_GOOD && validityPeriod == 0)
+        goto out;
+    if (status != CERT_GOOD && validityPeriod != 0)
+        goto out;
+    
     /* Find the CA */
     ca = FindCaBySubject(responder, caSubject, caSubjectSz);
     if (ca == NULL) {
@@ -2441,6 +2447,7 @@ int wc_OcspResponder_SetCertStatus(OcspResponder* responder,
     }
 
     certStatus->status = status;
+    certStatus->validityPeriod = 0;
     if (status == CERT_REVOKED) {
         ret = GetFormattedTime_ex(&revocationTime, certStatus->revocationDate,
             sizeof(certStatus->revocationDate), ASN_GENERALIZED_TIME);
@@ -2451,9 +2458,9 @@ int wc_OcspResponder_SetCertStatus(OcspResponder* responder,
         certStatus->revocationDateSz = (word32)ret;
         certStatus->revocationReason = revocationReason;
     }
-    
-    certStatus->thisDateFormat = ASN_GENERALIZED_TIME;
-    certStatus->nextDateFormat = ASN_GENERALIZED_TIME;
+    else if (status == CERT_GOOD) {
+        certStatus->validityPeriod = validityPeriod;
+    }
 
     if (isNew) {
         /* Add to CA's status list */
@@ -2478,7 +2485,7 @@ static int OcspResponse_WriteResponse(OcspResponder* responder, byte* response,
     CertStatus status;
     OcspEntry entry;
     int ret = 0;
-    time_t tm;
+    time_t now;
     RsaKey* rsaKey = NULL;
     ecc_key* eccKey = NULL;
     int respInited = 0;
@@ -2509,8 +2516,8 @@ static int OcspResponse_WriteResponse(OcspResponder* responder, byte* response,
         status.revocationReason = (byte)certStatus->revocationReason;
     }
 
-    tm = wc_Time(NULL);
-    ret = GetFormattedTime_ex(&tm, status.thisDate, sizeof(status.thisDate),
+    now = wc_Time(NULL);
+    ret = GetFormattedTime_ex(&now, status.thisDate, sizeof(status.thisDate),
             ASN_GENERALIZED_TIME);
     if (ret <= 0) {
         WOLFSSL_MSG("Failed to format thisUpdate time");
@@ -2519,6 +2526,19 @@ static int OcspResponse_WriteResponse(OcspResponder* responder, byte* response,
     XMEMCPY(resp.producedDate, status.thisDate, ret);
     resp.producedDateSz = status.thisDateSz = (byte)(ret);
     resp.producedDateFormat = status.thisDateFormat = ASN_GENERALIZED_TIME;
+
+    /* Set nextUpdate if validity period is specified (for CERT_GOOD) */
+    if (certStatus->status == CERT_GOOD && certStatus->validityPeriod > 0) {
+        time_t nextTime = now + (time_t)certStatus->validityPeriod;
+        ret = GetFormattedTime_ex(&nextTime, status.nextDate,
+                sizeof(status.nextDate), ASN_GENERALIZED_TIME);
+        if (ret <= 0) {
+            WOLFSSL_MSG("Failed to format nextUpdate time");
+            goto out;
+        }
+        status.nextDateSz = (byte)ret;
+        status.nextDateFormat = ASN_GENERALIZED_TIME;
+    }
 
     /* Only support sha-1 hashes for now */
     wc_static_assert((int)KEYID_SIZE == (int)WC_SHA_DIGEST_SIZE);
@@ -2546,6 +2566,7 @@ static int OcspResponse_WriteResponse(OcspResponder* responder, byte* response,
         goto out;
     }
 
+    ret = 0;
 out:
     if (respInited)
         FreeOcspResponse(&resp);

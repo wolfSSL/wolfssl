@@ -2857,14 +2857,11 @@ typedef struct OcspResponderCertStatus OcspResponderCertStatus;
 struct OcspResponderCertStatus {
     byte serial[EXTERNAL_SERIAL_SIZE];
     int serialSz;
-    enum Ocsp_Cert_Status status;    /* CERT_GOOD, CERT_REVOKED, CERT_UNKNOWN */
-    byte thisDate[MAX_DATE_SIZE];
-    byte nextDate[MAX_DATE_SIZE];
-    byte thisDateFormat;
-    byte nextDateFormat;
-    byte revocationDate[MAX_DATE_SIZE]; /* ASN-formatted revocation time (if REVOKED) */
-    word32 revocationDateSz;            /* Size of revocation date */
+    enum Ocsp_Cert_Status status;        /* CERT_GOOD, CERT_REVOKED, CERT_UNKNOWN */
+    byte revocationDate[MAX_DATE_SIZE];  /* ASN-formatted revocation time (if REVOKED) */
+    word32 revocationDateSz;             /* Size of revocation date */
     enum WC_CRL_Reason revocationReason; /* Reason for revocation */
+    word32 validityPeriod;               /* Validity period in seconds (for CERT_GOOD) */
     OcspResponderCertStatus* next;
 };
 

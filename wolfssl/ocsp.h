@@ -203,7 +203,8 @@ WOLFSSL_API int wc_OcspResponder_AddCA(OcspResponder* responder,
 WOLFSSL_API int wc_OcspResponder_SetCertStatus(OcspResponder* responder,
     const char* caSubject, word32 caSubjectSz,
     const byte* serial, word32 serialSz, enum Ocsp_Cert_Status status,
-    time_t revocationTime, enum WC_CRL_Reason revocationReason);
+    time_t revocationTime, enum WC_CRL_Reason revocationReason,
+    word32 validityPeriod);
 
 /* Generate OCSP response for a request */
 WOLFSSL_API int wc_OcspResponder_WriteResponse(OcspResponder* responder,

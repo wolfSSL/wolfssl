@@ -38642,8 +38642,10 @@ static int EncodeSingleResponse(OcspEntry* single, byte* out, word32* outSz,
             single->status->thisDateSz == 0 ||
             single->status->thisDateSz > MAX_DATE_SIZE ||
             single->status->thisDateFormat != ASN_GENERALIZED_TIME ||
-            /* TODO add support */
-            single->status->nextDateSz > 0 ||
+            /* nextDate is optional but if set, must be valid */
+            single->status->nextDateSz > MAX_DATE_SIZE ||
+            (single->status->nextDateSz > 0 &&
+             single->status->nextDateFormat != ASN_GENERALIZED_TIME) ||
             outSz == NULL) {
         return BAD_FUNC_ARG;
     }
@@ -38702,10 +38704,18 @@ static int EncodeSingleResponse(OcspEntry* single, byte* out, word32* outSz,
         SetASN_Buffer(&dataASN[SINGLERESPONSEASN_IDX_THISUPDATE_GT],
                 single->status->thisDate,
                 single->status->thisDateSz);
-        /* TODO add nextUpdate and singleExtensions support */
-        SetASNItem_NoOutNode(dataASN, singleResponseASN,
-                SINGLERESPONSEASN_IDX_NEXTUPDATE,
-                singleResponseASN_Length);
+        /* Handle optional nextUpdate */
+        if (single->status->nextDateSz > 0) {
+            SetASN_Buffer(&dataASN[SINGLERESPONSEASN_IDX_NEXTUPDATE_GT],
+                    single->status->nextDate,
+                    single->status->nextDateSz);
+        }
+        else {
+            SetASNItem_NoOutNode(dataASN, singleResponseASN,
+                    SINGLERESPONSEASN_IDX_NEXTUPDATE,
+                    singleResponseASN_Length);
+        }
+        /* TODO add singleExtensions support */
         SetASNItem_NoOutNode(dataASN, singleResponseASN,
                 SINGLERESPONSEASN_IDX_EXT,
                 singleResponseASN_Length);
