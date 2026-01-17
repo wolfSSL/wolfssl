@@ -2198,46 +2198,39 @@ static void FreeOcspResponderCa(OcspResponderCa* ca, void* heap)
 OcspResponder* wc_OcspResponder_new(void* heap)
 {
     OcspResponder* responder;
-    
+
     WOLFSSL_ENTER("wc_OcspResponder_new");
-    
+
     responder = (OcspResponder*)XMALLOC(sizeof(OcspResponder), heap, 
                                          DYNAMIC_TYPE_OCSP);
-    if (responder == NULL)
-        return NULL;
-    
-    XMEMSET(responder, 0, sizeof(OcspResponder));
-    responder->heap = heap;
-
-    if (wc_InitRng(&responder->rng) != 0) {
-        XFREE(responder, heap, DYNAMIC_TYPE_OCSP);
-        return NULL;
+    if (responder != NULL) {
+        XMEMSET(responder, 0, sizeof(OcspResponder));
+        responder->heap = heap;
+        if (wc_InitRng(&responder->rng) != 0) {
+            XFREE(responder, heap, DYNAMIC_TYPE_OCSP);
+            responder = NULL;
+        }
     }
-
     return responder;
 }
 
 /* Free an OCSP Responder */
 void wc_OcspResponder_free(OcspResponder* responder)
 {
-    OcspResponderCa* ca;
-    OcspResponderCa* nextCa;
-    
     WOLFSSL_ENTER("wc_OcspResponder_free");
-    
-    if (responder == NULL)
-        return;
-    
-    /* Free all CAs */
-    ca = responder->caList;
-    while (ca != NULL) {
-        nextCa = ca->next;
-        FreeOcspResponderCa(ca, responder->heap);
-        ca = nextCa;
+    if (responder != NULL) {
+        OcspResponderCa* ca;
+        OcspResponderCa* nextCa;
+        /* Free all CAs */
+        ca = responder->caList;
+        while (ca != NULL) {
+            nextCa = ca->next;
+            FreeOcspResponderCa(ca, responder->heap);
+            ca = nextCa;
+        }
+        wc_FreeRng(&responder->rng);
+        XFREE(responder, responder->heap, DYNAMIC_TYPE_OCSP);
     }
-    
-    wc_FreeRng(&responder->rng);
-    XFREE(responder, responder->heap, DYNAMIC_TYPE_OCSP);
 }
 
 /* Add a CA that this responder can respond for (DER format only) */
@@ -2245,9 +2238,10 @@ int wc_OcspResponder_AddCA(OcspResponder* responder,
     const byte* certDer, word32 certDerSz,
     const byte* keyDer, word32 keyDerSz)
 {
-    int ret = 0;
+    int ret = -1;
     OcspResponderCa* ca = NULL;
     DecodedCert* decoded = NULL;
+    word32 keyOID = 0;
     
     WOLFSSL_ENTER("wc_OcspResponder_AddCA");
     
@@ -2258,90 +2252,83 @@ int wc_OcspResponder_AddCA(OcspResponder* responder,
     /* Allocate CA structure */
     ca = (OcspResponderCa*)XMALLOC(sizeof(OcspResponderCa), responder->heap,
                                    DYNAMIC_TYPE_OCSP);
-    if (ca == NULL)
-        return MEMORY_E;
-    
+    if (ca == NULL) {
+        ret = MEMORY_E;
+        goto out;
+    }
     XMEMSET(ca, 0, sizeof(OcspResponderCa));
     
     /* Parse certificate */
     decoded = (DecodedCert*)XMALLOC(sizeof(DecodedCert), responder->heap,
                                     DYNAMIC_TYPE_OCSP);
     if (decoded == NULL) {
-        XFREE(ca, responder->heap, DYNAMIC_TYPE_OCSP);
-        return MEMORY_E;
+        ret = MEMORY_E;
+        goto out;
     }
     
     wc_InitDecodedCert(decoded, certDer, certDerSz, responder->heap);
     ret = wc_ParseCert(decoded, CERT_TYPE, 0, NULL);
-    if (ret != 0) {
-        wc_FreeDecodedCert(decoded);
-        XFREE(decoded, responder->heap, DYNAMIC_TYPE_OCSP);
-        XFREE(ca, responder->heap, DYNAMIC_TYPE_OCSP);
-        return ret;
-    }
+    if (ret != 0)
+        goto out;
 
     ret = wc_CheckPrivateKeyCert(keyDer, keyDerSz, decoded, 1, responder->heap);
     if (ret != 1) {
-        wc_FreeDecodedCert(decoded);
-        XFREE(decoded, responder->heap, DYNAMIC_TYPE_OCSP);
-        XFREE(ca, responder->heap, DYNAMIC_TYPE_OCSP);
-        return ret == 0 ? BAD_FUNC_ARG : ret;
+        ret = (ret == 0) ? BAD_FUNC_ARG : ret;
+        goto out;
     }
 
     /* Extract necessary info from decoded cert */
     XMEMCPY(ca->subject, decoded->subject, WC_ASN_NAME_MAX);
     XMEMCPY(ca->issuerHash, decoded->subjectHash, KEYID_SIZE);
     XMEMCPY(ca->issuerKeyHash, decoded->subjectKeyHash, KEYID_SIZE);
+    keyOID = decoded->keyOID;
     
     /* Load the private key */
 #ifndef NO_RSA
-    if (decoded->keyOID == RSAk) {
+    if (keyOID == RSAk) {
         ret = wc_InitRsaKey(&ca->key.rsa, responder->heap);
         if (ret == 0) {
             word32 idx = 0;
+            ca->keyType = RSAk;
             ret = wc_RsaPrivateKeyDecode(keyDer, &idx, &ca->key.rsa, keyDerSz);
         }
-        if (ret != 0) {
-            wc_FreeRsaKey(&ca->key.rsa);
-            XFREE(ca, responder->heap, DYNAMIC_TYPE_OCSP);
-            wc_FreeDecodedCert(decoded);
-            XFREE(decoded, responder->heap, DYNAMIC_TYPE_OCSP);
-            return ret;
-        }
+        if (ret != 0)
+            goto out;
     }
     else
 #endif
 #ifdef HAVE_ECC
-    if (decoded->keyOID == ECDSAk) {
+    if (keyOID == ECDSAk) {
         ret = wc_ecc_init_ex(&ca->key.ecc, responder->heap, INVALID_DEVID);
         if (ret == 0) {
             word32 idx = 0;
+            ca->keyType = ECDSAk;
             ret = wc_EccPrivateKeyDecode(keyDer, &idx, &ca->key.ecc, keyDerSz);
         }
-        if (ret != 0) {
-            wc_ecc_free(&ca->key.ecc);
-            XFREE(ca, responder->heap, DYNAMIC_TYPE_OCSP);
-            wc_FreeDecodedCert(decoded);
-            XFREE(decoded, responder->heap, DYNAMIC_TYPE_OCSP);
-            return ret;
-        }
+        if (ret != 0)
+            goto out;
     }
     else
 #endif
     {
-        XFREE(ca, responder->heap, DYNAMIC_TYPE_OCSP);
-        return NOT_COMPILED_IN;
+        ret = NOT_COMPILED_IN;
+        goto out;
     }
-    ca->keyType = decoded->keyOID;
     
     /* Add CA to list */
     ca->next = responder->caList;
     responder->caList = ca;
+    ca = NULL; /* Ownership transferred */
+    ret = 0;
 
-    wc_FreeDecodedCert(decoded);
-    XFREE(decoded, responder->heap, DYNAMIC_TYPE_OCSP);
-    
-    return 0;
+out:
+    if (decoded != NULL) {
+        FreeDecodedCert(decoded);
+        XFREE(decoded, responder->heap, DYNAMIC_TYPE_OCSP);
+    }
+    if (ca != NULL)
+        FreeOcspResponderCa(ca, responder->heap);
+    return ret;
 }
 
 /* Find CA by comparing cert DER */
@@ -2401,93 +2388,86 @@ static OcspResponderCa* FindCaBySubject(OcspResponder* responder,
 int wc_OcspResponder_SetCertStatus(OcspResponder* responder,
     const char* caSubject, word32 caSubjectSz,
     const byte* serial, word32 serialSz, enum Ocsp_Cert_Status status,
-    const byte* thisUpdate, const byte* nextUpdate,
     time_t revocationTime, enum WC_CRL_Reason revocationReason)
 {
-    OcspResponderCa* ca;
-    OcspResponderCertStatus* certStatus;
-    int ret = 0;
+    OcspResponderCa* ca = NULL;
+    OcspResponderCertStatus* certStatus = NULL;
+    int ret = BAD_FUNC_ARG;
+    int isNew = 0;
     
     WOLFSSL_ENTER("wc_OcspResponder_SetCertStatus");
     
     if (responder == NULL || caSubject == NULL || caSubjectSz == 0 ||
         serial == NULL || serialSz == 0 || serialSz > EXTERNAL_SERIAL_SIZE)
-        return BAD_FUNC_ARG;
+        goto out;
     
     if (status != CERT_GOOD && status != CERT_REVOKED && 
         status != CERT_UNKNOWN)
-        return BAD_FUNC_ARG;
+        goto out;
     
     /* Validate revocation parameters when status is REVOKED */
     if (status == CERT_REVOKED) {
         if (revocationTime <= 0)
-            return BAD_FUNC_ARG;
+            goto out;
         if (revocationReason < CRL_REASON_UNSPECIFIED || 
             revocationReason > CRL_REASON_AA_COMPROMISE)
-            return BAD_FUNC_ARG;
+            goto out;
         /* Skip value 7 which is not used */
         if (revocationReason == 7)
-            return BAD_FUNC_ARG;
+            goto out;
     }
     
     /* Find the CA */
     ca = FindCaBySubject(responder, caSubject, caSubjectSz);
-    if (ca == NULL)
-        return ASN_NO_SIGNER_E;
+    if (ca == NULL) {
+        ret = ASN_NO_SIGNER_E;
+        goto out;
+    }
     
     /* Check if status already exists for this serial */
     certStatus = FindCertStatus(ca, serial, serialSz);
-    if (certStatus != NULL) {
-        /* Update existing status */
-        certStatus->status = status;
-        if (status == CERT_REVOKED) {
-            ret = GetFormattedTime_ex(&revocationTime, certStatus->revocationDate,
-                sizeof(certStatus->revocationDate), ASN_GENERALIZED_TIME);
-            if (ret <= 0) {
-                WOLFSSL_MSG("Failed to format revocation time");
-                return ret;
-            }
-            certStatus->revocationDateSz = (word32)ret;
-            certStatus->revocationReason = revocationReason;
-        }
-    }
-    else {
+    if (certStatus == NULL) {
         /* Allocate new status entry */
         certStatus = (OcspResponderCertStatus*)XMALLOC(
             sizeof(OcspResponderCertStatus), responder->heap, DYNAMIC_TYPE_OCSP);
-        if (certStatus == NULL)
-            return MEMORY_E;
-        
+        if (certStatus == NULL) {
+            ret = MEMORY_E;
+            goto out;
+        }
         XMEMSET(certStatus, 0, sizeof(OcspResponderCertStatus));
         XMEMCPY(certStatus->serial, serial, serialSz);
         certStatus->serialSz = serialSz;
-        certStatus->status = status;
-        
-        if (status == CERT_REVOKED) {
-            ret = GetFormattedTime_ex(&revocationTime, certStatus->revocationDate,
-                sizeof(certStatus->revocationDate), ASN_GENERALIZED_TIME);
-            if (ret <= 0) {
-                WOLFSSL_MSG("Failed to format revocation time");
-                XFREE(certStatus, responder->heap, DYNAMIC_TYPE_OCSP);
-                return ret;
-            }
-            certStatus->revocationDateSz = (word32)ret;
-            certStatus->revocationReason = revocationReason;
+        isNew = 1;
+    }
+
+    certStatus->status = status;
+    if (status == CERT_REVOKED) {
+        ret = GetFormattedTime_ex(&revocationTime, certStatus->revocationDate,
+            sizeof(certStatus->revocationDate), ASN_GENERALIZED_TIME);
+        if (ret <= 0) {
+            WOLFSSL_MSG("Failed to format revocation time");
+            goto out;
         }
-        
+        certStatus->revocationDateSz = (word32)ret;
+        certStatus->revocationReason = revocationReason;
+    }
+    
+    certStatus->thisDateFormat = ASN_GENERALIZED_TIME;
+    certStatus->nextDateFormat = ASN_GENERALIZED_TIME;
+
+    if (isNew) {
         /* Add to CA's status list */
         certStatus->next = ca->statuses;
         ca->statuses = certStatus;
+        certStatus = NULL; /* Ownership transferred */
     }
+    ret = 0;
+
+out:
+    if (isNew && certStatus != NULL)
+        XFREE(certStatus, responder->heap, DYNAMIC_TYPE_OCSP);
     
-    /* For now, use empty dates if not provided */
-    certStatus->thisDateFormat = ASN_GENERALIZED_TIME;
-    certStatus->nextDateFormat = ASN_GENERALIZED_TIME;
-    
-    (void)thisUpdate;
-    (void)nextUpdate;
-    
-    return 0;
+    return ret;
 }
 
 static int OcspResponse_WriteResponse(OcspResponder* responder, byte* response,

@@ -1127,7 +1127,6 @@ static int ocspResponderTest_Run(OcspResponderTestConfig* config)
                                                caSubject, caSubjectSz,
                                                serial, serialSz,
                                                config->certStatus,
-                                               NULL, NULL,
                                                config->revocationTime,
                                                config->revocationReason), 0);
     
