@@ -2871,9 +2871,7 @@ struct OcspResponderCertStatus {
 /* CA entry with its certificates and key */
 typedef struct OcspResponderCa OcspResponderCa;
 struct OcspResponderCa {
-    DecodedCert* cert;               /* CA certificate */
-    byte* certDer;                   /* DER encoded certificate */
-    word32 certDerSz;
+    char subject[WC_ASN_NAME_MAX];   /* CA subject name for lookup */
     
     union {
         struct RsaKey rsa;

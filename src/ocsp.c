@@ -2171,16 +2171,6 @@ static void FreeOcspResponderCa(OcspResponderCa* ca, void* heap)
     if (ca == NULL)
         return;
     
-    /* Free certificate */
-    if (ca->cert != NULL) {
-        wc_FreeDecodedCert(ca->cert);
-        XFREE(ca->cert, heap, DYNAMIC_TYPE_OCSP);
-    }
-    
-    if (ca->certDer != NULL) {
-        XFREE(ca->certDer, heap, DYNAMIC_TYPE_OCSP);
-    }
-    
     /* Free private key */
 #ifndef NO_RSA
     if (ca->keyType == RSAk) {
@@ -2258,7 +2248,6 @@ int wc_OcspResponder_AddCA(OcspResponder* responder,
     int ret = 0;
     OcspResponderCa* ca = NULL;
     DecodedCert* decoded = NULL;
-    byte* derCert = NULL;
     
     WOLFSSL_ENTER("wc_OcspResponder_AddCA");
     
@@ -2274,29 +2263,19 @@ int wc_OcspResponder_AddCA(OcspResponder* responder,
     
     XMEMSET(ca, 0, sizeof(OcspResponderCa));
     
-    /* Copy certificate DER */
-    derCert = (byte*)XMALLOC(certDerSz, responder->heap, DYNAMIC_TYPE_OCSP);
-    if (derCert == NULL) {
-        XFREE(ca, responder->heap, DYNAMIC_TYPE_OCSP);
-        return MEMORY_E;
-    }
-    XMEMCPY(derCert, certDer, certDerSz);
-    
     /* Parse certificate */
     decoded = (DecodedCert*)XMALLOC(sizeof(DecodedCert), responder->heap,
                                     DYNAMIC_TYPE_OCSP);
     if (decoded == NULL) {
-        XFREE(derCert, responder->heap, DYNAMIC_TYPE_OCSP);
         XFREE(ca, responder->heap, DYNAMIC_TYPE_OCSP);
         return MEMORY_E;
     }
     
-    wc_InitDecodedCert(decoded, derCert, certDerSz, responder->heap);
+    wc_InitDecodedCert(decoded, certDer, certDerSz, responder->heap);
     ret = wc_ParseCert(decoded, CERT_TYPE, 0, NULL);
     if (ret != 0) {
         wc_FreeDecodedCert(decoded);
         XFREE(decoded, responder->heap, DYNAMIC_TYPE_OCSP);
-        XFREE(derCert, responder->heap, DYNAMIC_TYPE_OCSP);
         XFREE(ca, responder->heap, DYNAMIC_TYPE_OCSP);
         return ret;
     }
@@ -2305,16 +2284,12 @@ int wc_OcspResponder_AddCA(OcspResponder* responder,
     if (ret != 1) {
         wc_FreeDecodedCert(decoded);
         XFREE(decoded, responder->heap, DYNAMIC_TYPE_OCSP);
-        XFREE(derCert, responder->heap, DYNAMIC_TYPE_OCSP);
         XFREE(ca, responder->heap, DYNAMIC_TYPE_OCSP);
         return ret == 0 ? BAD_FUNC_ARG : ret;
     }
 
-    ca->cert = decoded;
-    ca->certDer = derCert;
-    ca->certDerSz = certDerSz;
-    
-    /* Store CA's subject hashes (CA is the issuer of certs it signs) */
+    /* Extract necessary info from decoded cert */
+    XMEMCPY(ca->subject, decoded->subject, WC_ASN_NAME_MAX);
     XMEMCPY(ca->issuerHash, decoded->subjectHash, KEYID_SIZE);
     XMEMCPY(ca->issuerKeyHash, decoded->subjectKeyHash, KEYID_SIZE);
     
@@ -2328,7 +2303,9 @@ int wc_OcspResponder_AddCA(OcspResponder* responder,
         }
         if (ret != 0) {
             wc_FreeRsaKey(&ca->key.rsa);
-            FreeOcspResponderCa(ca, responder->heap);
+            XFREE(ca, responder->heap, DYNAMIC_TYPE_OCSP);
+            wc_FreeDecodedCert(decoded);
+            XFREE(decoded, responder->heap, DYNAMIC_TYPE_OCSP);
             return ret;
         }
     }
@@ -2343,14 +2320,16 @@ int wc_OcspResponder_AddCA(OcspResponder* responder,
         }
         if (ret != 0) {
             wc_ecc_free(&ca->key.ecc);
-            FreeOcspResponderCa(ca, responder->heap);
+            XFREE(ca, responder->heap, DYNAMIC_TYPE_OCSP);
+            wc_FreeDecodedCert(decoded);
+            XFREE(decoded, responder->heap, DYNAMIC_TYPE_OCSP);
             return ret;
         }
     }
     else
 #endif
     {
-        FreeOcspResponderCa(ca, responder->heap);
+        XFREE(ca, responder->heap, DYNAMIC_TYPE_OCSP);
         return NOT_COMPILED_IN;
     }
     ca->keyType = decoded->keyOID;
@@ -2358,6 +2337,9 @@ int wc_OcspResponder_AddCA(OcspResponder* responder,
     /* Add CA to list */
     ca->next = responder->caList;
     responder->caList = ca;
+
+    wc_FreeDecodedCert(decoded);
+    XFREE(decoded, responder->heap, DYNAMIC_TYPE_OCSP);
     
     return 0;
 }
@@ -2404,9 +2386,9 @@ static OcspResponderCa* FindCaBySubject(OcspResponder* responder,
     OcspResponderCa* ca = responder->caList;
     
     while (ca != NULL) {
-        word32 subjectLen = (word32)XSTRLEN(ca->cert->subject);
+        word32 subjectLen = (word32)XSTRLEN(ca->subject);
         if (subjectLen == caSubjectSz &&
-            XMEMCMP(ca->cert->subject, caSubject, caSubjectSz) == 0) {
+            XMEMCMP(ca->subject, caSubject, caSubjectSz) == 0) {
             return ca;
         }
         ca = ca->next;
