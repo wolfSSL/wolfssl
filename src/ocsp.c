@@ -2561,11 +2561,14 @@ int wc_OcspResponder_WriteResponse(OcspResponder* responder,
     OcspRequest req;
     OcspResponderCa* ca = NULL;
     OcspResponderCertStatus* certStatus = NULL;
+    int reqInited = 0;
 
     WOLFSSL_ENTER("wc_OcspResponder_WriteResponse");
 
-    if (responder == NULL || request == NULL || requestSz == 0)
-        return BAD_FUNC_ARG;
+    if (responder == NULL || request == NULL || requestSz == 0) {
+        ret = BAD_FUNC_ARG;
+        goto out;
+    }
 
     XMEMSET(&req, 0, sizeof(OcspRequest));
 
@@ -2573,23 +2576,24 @@ int wc_OcspResponder_WriteResponse(OcspResponder* responder,
     ret = DecodeOcspRequest(&req, request, requestSz);
     if (ret != 0) {
         WOLFSSL_MSG("Failed to decode OCSP request");
-        return ret;
+        goto out;
     }
+    reqInited = 1;
 
     /* Find the CA by issuer hashes */
     ca = FindCaByHashes(responder, req.issuerHash, req.issuerKeyHash);
     if (ca == NULL) {
         WOLFSSL_MSG("No matching CA found for request");
-        FreeOcspRequest(&req);
-        return ASN_NO_SIGNER_E;
+        ret = ASN_NO_SIGNER_E;
+        goto out;
     }
 
     /* Find the certificate status */
     certStatus = FindCertStatus(ca, req.serial, req.serialSz);
     if (certStatus == NULL) {
         WOLFSSL_MSG("No status configured for requested certificate");
-        FreeOcspRequest(&req);
-        return OCSP_CERT_UNKNOWN;
+        ret = OCSP_CERT_UNKNOWN;
+        goto out;
     }
 
     WOLFSSL_MSG("Found CA and certificate status");
@@ -2598,11 +2602,13 @@ int wc_OcspResponder_WriteResponse(OcspResponder* responder,
             certStatus);
     if (ret != 0) {
         WOLFSSL_MSG("Failed to write OCSP response");
-        FreeOcspRequest(&req);
-        return ret;
+        goto out;
     }
-    
-    FreeOcspRequest(&req);
+
+    ret = 0;
+out:
+    if (reqInited)
+        FreeOcspRequest(&req);
     return ret;
 }
 
