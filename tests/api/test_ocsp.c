@@ -1034,8 +1034,8 @@ typedef struct {
     const char* caKeyPath;
     const char* targetCertPath;
     enum Ocsp_Cert_Status certStatus;
-    time_t revocationTime;       /* Used when status is CERT_REVOKED */
-    enum WC_CRL_Reason revocationReason;        /* Used when status is CERT_REVOKED */
+    time_t revocationTime;               /* Used when status is CERT_REVOKED */
+    enum WC_CRL_Reason revocationReason; /* Used when status is CERT_REVOKED */
     int expectedResult;
     const char* testName;
 } OcspResponderTestConfig;
@@ -1052,11 +1052,11 @@ static int ocspResponderTest_Run(OcspResponderTestConfig* config)
     byte caCertDer[4096];
     byte caKeyDer[4096];
     byte targetCertDer[4096];
-    byte respBuf[1024];
+    byte* respBuf = NULL;
     word32 caCertSz = sizeof(caCertDer);
     word32 caKeyDerSz = sizeof(caKeyDer);
     word32 targetCertSz = sizeof(targetCertDer);
-    word32 respSz = sizeof(respBuf);
+    word32 respSz = 0;
     byte reqBuf[1024];
     int reqSz = 0;
     const char* caSubject;
@@ -1069,7 +1069,6 @@ static int ocspResponderTest_Run(OcspResponderTestConfig* config)
 
     XMEMSET(&targetCert, 0, sizeof(targetCert));
     XMEMSET(&caCert, 0, sizeof(caCert));
-    XMEMSET(respBuf, 0, sizeof(respBuf));
     
     /* Create certificate manager */
     ExpectNotNull(cm = wolfSSL_CertManagerNew());
@@ -1132,6 +1131,14 @@ static int ocspResponderTest_Run(OcspResponderTestConfig* config)
                                                config->revocationTime,
                                                config->revocationReason), 0);
     
+    /* Get required response size */
+    ExpectIntEQ(wc_OcspResponder_WriteResponse(responder, reqBuf, reqSz,
+                                               NULL, &respSz), 0);
+
+    /* Allocate response buffer */
+    ExpectNotNull(respBuf = (byte*)XMALLOC(respSz, NULL,
+            DYNAMIC_TYPE_TMP_BUFFER));
+
     /* Generate OCSP response */
     ExpectIntEQ(wc_OcspResponder_WriteResponse(responder, reqBuf, reqSz,
                                                respBuf, &respSz), 0);
@@ -1146,6 +1153,7 @@ static int ocspResponderTest_Run(OcspResponderTestConfig* config)
     }
     
     /* Cleanup */
+    XFREE(respBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     wc_OcspRequest_free(clientReq);
     wc_OcspResponder_free(responder);
     wc_FreeDecodedCert(&targetCert);

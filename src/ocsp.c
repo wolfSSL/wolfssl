@@ -2552,8 +2552,8 @@ static int OcspResponse_WriteResponse(OcspResponder* responder, byte* response,
 
     (void)ca;
 
-    if (response == NULL || responseSz == NULL || ca == NULL ||
-        certStatus == NULL || certStatus->serialSz > EXTERNAL_SERIAL_SIZE)
+    if (responseSz == NULL || ca == NULL || certStatus == NULL ||
+            certStatus->serialSz > EXTERNAL_SERIAL_SIZE)
         return BAD_FUNC_ARG;
 
     InitOcspResponse(&resp, &entry, &status, NULL, 0, responder->heap);
