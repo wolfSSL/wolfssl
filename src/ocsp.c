@@ -2183,6 +2183,11 @@ static void FreeOcspResponderCa(OcspResponderCa* ca, void* heap)
     }
 #endif
     
+    /* Free certificate DER if allocated */
+    if (ca->certDer != NULL) {
+        XFREE(ca->certDer, heap, DYNAMIC_TYPE_OCSP);
+    }
+    
     /* Free certificate status list */
     status = ca->statuses;
     while (status != NULL) {
@@ -2195,7 +2200,7 @@ static void FreeOcspResponderCa(OcspResponderCa* ca, void* heap)
 }
 
 /* Allocate and initialize an OCSP Responder */
-OcspResponder* wc_OcspResponder_new(void* heap)
+OcspResponder* wc_OcspResponder_new(void* heap, int sendCerts)
 {
     OcspResponder* responder;
 
@@ -2206,6 +2211,7 @@ OcspResponder* wc_OcspResponder_new(void* heap)
     if (responder != NULL) {
         XMEMSET(responder, 0, sizeof(OcspResponder));
         responder->heap = heap;
+        responder->sendCerts = sendCerts ? 1 : 0;
         if (wc_InitRng(&responder->rng) != 0) {
             XFREE(responder, heap, DYNAMIC_TYPE_OCSP);
             responder = NULL;
@@ -2282,6 +2288,17 @@ int wc_OcspResponder_AddCA(OcspResponder* responder,
     XMEMCPY(ca->issuerHash, decoded->subjectHash, KEYID_SIZE);
     XMEMCPY(ca->issuerKeyHash, decoded->subjectKeyHash, KEYID_SIZE);
     keyOID = decoded->keyOID;
+    
+    /* Store raw certificate DER if sendCerts is enabled */
+    if (responder->sendCerts) {
+        ca->certDer = (byte*)XMALLOC(certDerSz, responder->heap, DYNAMIC_TYPE_OCSP);
+        if (ca->certDer == NULL) {
+            ret = MEMORY_E;
+            goto out;
+        }
+        XMEMCPY(ca->certDer, certDer, certDerSz);
+        ca->certDerSz = certDerSz;
+    }
     
     /* Load the private key */
 #ifndef NO_RSA
@@ -2538,6 +2555,12 @@ static int OcspResponse_WriteResponse(OcspResponder* responder, byte* response,
         }
         status.nextDateSz = (byte)ret;
         status.nextDateFormat = ASN_GENERALIZED_TIME;
+    }
+
+    /* Set certificate if sendCerts is enabled */
+    if (responder->sendCerts && ca->certDer != NULL) {
+        resp.cert = ca->certDer;
+        resp.certSz = ca->certDerSz;
     }
 
     /* Only support sha-1 hashes for now */

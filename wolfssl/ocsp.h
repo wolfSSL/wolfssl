@@ -191,7 +191,7 @@ WOLFSSL_API int wolfSSL_OCSP_check_nonce(OcspRequest* req,
 
 #ifdef HAVE_OCSP_RESPONDER
 /* OCSP Responder API */
-WOLFSSL_API OcspResponder* wc_OcspResponder_new(void* heap);
+WOLFSSL_API OcspResponder* wc_OcspResponder_new(void* heap, int sendCerts);
 WOLFSSL_API void wc_OcspResponder_free(OcspResponder* responder);
 
 /* Add a CA that this responder can respond for (DER format only) */

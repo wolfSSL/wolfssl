@@ -1042,7 +1042,7 @@ typedef struct {
 } OcspResponderTestConfig;
 
 /* Helper function to run a single OCSP responder test configuration */
-static int ocspResponderTest_Run(OcspResponderTestConfig* config)
+static int ocspResponderTest_Run(OcspResponderTestConfig* config, int sendCerts)
 {
     EXPECT_DECLS;
     OcspResponder* responder = NULL;
@@ -1066,7 +1066,8 @@ static int ocspResponderTest_Run(OcspResponderTestConfig* config)
     word32 serialSz;
     XFILE f = XBADFILE;
 
-    printf("\nRunning OCSP Responder Test: %s\n", config->testName);
+    printf("\nRunning OCSP Responder Test: %s (sendCerts=%d)\n", 
+           config->testName, sendCerts);
 
     XMEMSET(&targetCert, 0, sizeof(targetCert));
     XMEMSET(&caCert, 0, sizeof(caCert));
@@ -1112,7 +1113,7 @@ static int ocspResponderTest_Run(OcspResponderTestConfig* config)
                                               sizeof(reqBuf)), 0);
     
     /* Create OCSP Responder */
-    ExpectNotNull(responder = wc_OcspResponder_new(NULL));
+    ExpectNotNull(responder = wc_OcspResponder_new(NULL, sendCerts));
     
     /* Add CA to responder */
     ExpectIntEQ(wc_OcspResponder_AddCA(responder, caCertDer, caCertSz,
@@ -1235,9 +1236,10 @@ int test_ocsp_responder(void)
     int i;
     int numTests = (int)(sizeof(configs) / sizeof(configs[0]));
     
-    /* Run each test configuration */
+    /* Run each test configuration twice: once without certs, once with certs */
     for (i = 0; i < numTests; i++) {
-        ExpectIntEQ(ocspResponderTest_Run(&configs[i]), TEST_SUCCESS);
+        ExpectIntEQ(ocspResponderTest_Run(&configs[i], 0), TEST_SUCCESS);
+        ExpectIntEQ(ocspResponderTest_Run(&configs[i], 1), TEST_SUCCESS);
     }
 
     return EXPECT_RESULT();

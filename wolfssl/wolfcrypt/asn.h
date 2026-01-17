@@ -2878,7 +2878,10 @@ struct OcspResponderCa {
     
     byte issuerHash[KEYID_SIZE];     /* Hash of CA's subject DN */
     byte issuerKeyHash[KEYID_SIZE];  /* Hash of CA's public key */
-    
+
+    byte* certDer;                   /* Raw DER certificate (if sendCerts enabled) */
+    word32 certDerSz;                /* Size of certificate DER */
+
     OcspResponderCertStatus* statuses; /* List of certificate statuses for this CA */
     
     OcspResponderCa* next;           /* Next CA in list */
@@ -2887,8 +2890,9 @@ struct OcspResponderCa {
 typedef struct OcspResponder OcspResponder;
 struct OcspResponder {
     OcspResponderCa* caList;         /* List of CAs this responder handles */
-    WC_RNG rng;                      /* RNG for signing responses */
     void* heap;
+    WC_RNG rng;                      /* RNG for signing responses */
+    WC_BITFIELD sendCerts:1;         /* Whether to include CA in responses */
 };
 #endif /* HAVE_OCSP_RESPONDER */
 
