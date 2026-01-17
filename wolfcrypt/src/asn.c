@@ -39513,6 +39513,7 @@ static int DecodeResponseData(byte* source, word32* ioIndex,
         if (ret == 0) {
             /* Decode SingleResponse into OcspEntry. */
             ret = DecodeSingleResponse(source, &idx,
+                /* max index is start of next item */
                 dataASN[OCSPRESPDATAASN_IDX_RESPEXT].offset,
                 (int)dataASN[OCSPRESPDATAASN_IDX_RESP].length, single);
             /* single->used set on successful decode. */
