@@ -16219,23 +16219,31 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     }
                     #endif
 
+                    #if defined(__APPLE__) && defined(WOLFSSL_SYS_CA_CERTS)
+                    /* If we can't validate the peer cert chain against the CAs
+                     * loaded into wolfSSL, try to validate against the system
+                     * certificates using Apple's native trust APIs BEFORE
+                     * calling the verify callback so the callback sees the
+                     * correct validation result */
+                    if ((ret == WC_NO_ERR_TRACE(ASN_NO_SIGNER_E)) &&
+                        (ssl->ctx->doAppleNativeCertValidationFlag)) {
+                        if (DoAppleNativeCertValidation(ssl, args->certs,
+                                                             args->totalCerts)) {
+                            WOLFSSL_MSG("Apple native cert chain validation "
+                                        "SUCCESS");
+                            ret = 0;
+                        }
+                        else {
+                            WOLFSSL_MSG("Apple native cert chain validation "
+                                        "FAIL");
+                        }
+                    }
+                    #endif /* defined(__APPLE__) && defined(WOLFSSL_SYS_CA_CERTS) */
+
                     /* Do verify callback. */
                     args->leafVerifyErr = ret =
                             DoVerifyCallback(SSL_CM(ssl), ssl, ret, args);
 
-                    #if defined(__APPLE__) && defined(WOLFSSL_SYS_CA_CERTS)
-                    /* Disregard failure to verify peer cert, as we will verify
-                     * the whole chain with the native API later */
-                    if (ssl->ctx->doAppleNativeCertValidationFlag) {
-                        WOLFSSL_MSG("\tApple native CA validation override"
-                                    " available, will continue");
-                        /* check if fatal error */
-                        args->fatal = (args->verifyErr) ? 1 : 0;
-                        if (args->fatal)
-                            DoCertFatalAlert(ssl, ret);
-                    }
-                    else
-                    #endif/*defined(__APPLE__)&& defined(WOLFSSL_SYS_CA_CERTS)*/
                     if (ret != 0) {
                         WOLFSSL_MSG("\tfatal cert error");
                         args->fatal = 1;
@@ -17003,23 +17011,6 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 WOLFSSL_ERROR_VERBOSE(ret);
             }
         #endif
-
-        #if defined(__APPLE__) && defined(WOLFSSL_SYS_CA_CERTS)
-            /* If we can't validate the peer cert chain against the CAs loaded
-             * into wolfSSL, try to validate against the system certificates
-             * using Apple's native trust APIs */
-            if ((ret == WC_NO_ERR_TRACE(ASN_NO_SIGNER_E)) &&
-                (ssl->ctx->doAppleNativeCertValidationFlag)) {
-                if (DoAppleNativeCertValidation(ssl, args->certs,
-                                                     args->totalCerts)) {
-                    WOLFSSL_MSG("Apple native cert chain validation SUCCESS");
-                    ret = 0;
-                }
-                else {
-                    WOLFSSL_MSG("Apple native cert chain validation FAIL");
-                }
-            }
-        #endif /* defined(__APPLE__) && defined(WOLFSSL_SYS_CA_CERTS) */
 
             /* Do leaf verify callback when it wasn't called yet */
             if (ret == 0 || ret != args->leafVerifyErr)
@@ -42037,12 +42028,17 @@ static int DoAppleNativeCertValidation(WOLFSSL*                   ssl,
             kCFAllocatorDefault, (const char*)ssl->buffers.domainName.buffer,
             kCFStringEncodingUTF8);
     }
-    if (hostname != NULL) {
-        policy = SecPolicyCreateSSL(true, hostname);
+
+    /* If we're the client, we're validating the server's cert - use server
+     * policy (true). If we're the server, we're validating the client's cert -
+     * use client policy (false). Hostname validation only applies to server
+     * certs. */
+    {
+        int isServerCert = (ssl->options.side == WOLFSSL_CLIENT_END);
+        policy = SecPolicyCreateSSL(isServerCert,
+                                    isServerCert ? hostname : NULL);
     }
-    else {
-        policy = SecPolicyCreateSSL(true, NULL);
-    }
+
     status = SecTrustCreateWithCertificates(certArray, policy, &trust);
     if (status != errSecSuccess) {
         WOLFSSL_MSG_EX("Error creating trust object, "
