@@ -2182,20 +2182,16 @@ static void FreeOcspResponderCa(OcspResponderCa* ca, void* heap)
     }
     
     /* Free private key */
-    if (ca->key != NULL) {
-    #ifndef NO_RSA
-        if (ca->keyType == RSAk) {
-            wc_FreeRsaKey((RsaKey*)ca->key);
-            XFREE(ca->key, heap, DYNAMIC_TYPE_RSA);
-        }
-    #endif
-    #ifdef HAVE_ECC
-        if (ca->keyType == ECDSAk) {
-            wc_ecc_free((ecc_key*)ca->key);
-            XFREE(ca->key, heap, DYNAMIC_TYPE_ECC);
-        }
-    #endif
+#ifndef NO_RSA
+    if (ca->keyType == RSAk) {
+        wc_FreeRsaKey(&ca->key.rsa);
     }
+#endif
+#ifdef HAVE_ECC
+    if (ca->keyType == ECDSAk) {
+        wc_ecc_free(&ca->key.ecc);
+    }
+#endif
     
     /* Free certificate status list */
     status = ca->statuses;
@@ -2263,7 +2259,6 @@ int wc_OcspResponder_AddCA(OcspResponder* responder,
     OcspResponderCa* ca = NULL;
     DecodedCert* decoded = NULL;
     byte* derCert = NULL;
-    word32 idx = 0;
     
     WOLFSSL_ENTER("wc_OcspResponder_AddCA");
     
@@ -2326,55 +2321,31 @@ int wc_OcspResponder_AddCA(OcspResponder* responder,
     /* Load the private key */
 #ifndef NO_RSA
     if (decoded->keyOID == RSAk) {
-        RsaKey* rsaKey = (RsaKey*)XMALLOC(sizeof(RsaKey), responder->heap,
-                                          DYNAMIC_TYPE_RSA);
-        if (rsaKey == NULL) {
-            FreeOcspResponderCa(ca, responder->heap);
-            return MEMORY_E;
-        }
-        
-        ret = wc_InitRsaKey(rsaKey, responder->heap);
+        ret = wc_InitRsaKey(&ca->key.rsa, responder->heap);
         if (ret == 0) {
-            idx = 0;
-            ret = wc_RsaPrivateKeyDecode(keyDer, &idx, rsaKey, keyDerSz);
+            word32 idx = 0;
+            ret = wc_RsaPrivateKeyDecode(keyDer, &idx, &ca->key.rsa, keyDerSz);
         }
-        
         if (ret != 0) {
-            wc_FreeRsaKey(rsaKey);
-            XFREE(rsaKey, responder->heap, DYNAMIC_TYPE_RSA);
+            wc_FreeRsaKey(&ca->key.rsa);
             FreeOcspResponderCa(ca, responder->heap);
             return ret;
         }
-        
-        ca->key = rsaKey;
-        ca->keyType = RSAk;
     }
     else
 #endif
 #ifdef HAVE_ECC
     if (decoded->keyOID == ECDSAk) {
-        ecc_key* eccKey = (ecc_key*)XMALLOC(sizeof(ecc_key), responder->heap,
-                                            DYNAMIC_TYPE_ECC);
-        if (eccKey == NULL) {
-            FreeOcspResponderCa(ca, responder->heap);
-            return MEMORY_E;
-        }
-        
-        ret = wc_ecc_init_ex(eccKey, responder->heap, INVALID_DEVID);
+        ret = wc_ecc_init_ex(&ca->key.ecc, responder->heap, INVALID_DEVID);
         if (ret == 0) {
-            idx = 0;
-            ret = wc_EccPrivateKeyDecode(keyDer, &idx, eccKey, keyDerSz);
+            word32 idx = 0;
+            ret = wc_EccPrivateKeyDecode(keyDer, &idx, &ca->key.ecc, keyDerSz);
         }
-        
         if (ret != 0) {
-            wc_ecc_free(eccKey);
-            XFREE(eccKey, responder->heap, DYNAMIC_TYPE_ECC);
+            wc_ecc_free(&ca->key.ecc);
             FreeOcspResponderCa(ca, responder->heap);
             return ret;
         }
-        
-        ca->key = eccKey;
-        ca->keyType = ECDSAk;
     }
     else
 #endif
@@ -2382,6 +2353,7 @@ int wc_OcspResponder_AddCA(OcspResponder* responder,
         FreeOcspResponderCa(ca, responder->heap);
         return NOT_COMPILED_IN;
     }
+    ca->keyType = decoded->keyOID;
     
     /* Add CA to list */
     ca->next = responder->caList;
@@ -2596,11 +2568,11 @@ static int OcspResponse_WriteResponse(OcspResponder* responder, byte* response,
 
     /* TODO allow user to set algo */
     if (ca->keyType == RSAk) {
-        rsaKey = (RsaKey*)ca->key;
+        rsaKey = &ca->key.rsa;
         resp.sigOID = CTC_SHA256wRSA;
     }
     else {
-        eccKey = (ecc_key*)ca->key;
+        eccKey = &ca->key.ecc;
         resp.sigOID = CTC_SHA256wECDSA;
     }
 

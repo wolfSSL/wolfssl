@@ -2875,7 +2875,10 @@ struct OcspResponderCa {
     byte* certDer;                   /* DER encoded certificate */
     word32 certDerSz;
     
-    void* key;                       /* CA private key for signing */
+    union {
+        struct RsaKey rsa;
+        struct ecc_key ecc;
+    } key;                           /* CA private key for signing */
     enum Key_Sum keyType;            /* Type of key */
     
     byte issuerHash[KEYID_SIZE];     /* Hash of CA's subject DN */
