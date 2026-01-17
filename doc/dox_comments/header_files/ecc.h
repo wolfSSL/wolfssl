@@ -543,12 +543,12 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
     \ingroup ECC
 
     \brief This function verifies the ECC signature of a hash to ensure
-    authenticity. It returns the answer through stat, with 1 corresponding
+    authenticity. It returns the answer through res, with 1 corresponding
     to a valid signature, and 0 corresponding to an invalid signature.
 
     \return 0 Returned upon successfully performing the signature
     verification. Note: This does not mean that the signature is verified.
-    The authenticity information is stored instead in stat
+    The authenticity information is stored instead in res
     \return BAD_FUNC_ARG Returned any of the input parameters evaluate to NULL
     \return MEMORY_E Returned if there is an error allocating memory
     \return MP_INIT_E  may be returned if there is an error while computing
@@ -579,7 +579,7 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
     \param hash pointer to the buffer containing the hash of the message
     verified
     \param hashlen length of the hash of the message verified
-    \param stat pointer to the result of the verification. 1 indicates the
+    \param res pointer to the result of the verification. 1 indicates the
     message was successfully verified
     \param key pointer to a public ECC key with which to verify the signature
 
@@ -605,14 +605,14 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
 */
 
 int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
-                    word32 hashlen, int* stat, ecc_key* key);
+                    word32 hashlen, int* res, ecc_key* key);
 
 /*!
     \ingroup ECC
 
-    \brief Verify an ECC signature.  Result is written to stat.
+    \brief Verify an ECC signature.  Result is written to res.
     1 is valid, 0 is invalid.
-    Note: Do not use the return value to test for valid.  Only use stat.
+    Note: Do not use the return value to test for valid.  Only use res.
 
     \return MP_OKAY If successful (even if the signature is not valid)
     \return ECC_BAD_ARG_E Returns if arguments are null or if
@@ -623,20 +623,20 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
     \param s The signature S component to verify
     \param hash The hash (message digest) that was signed
     \param hashlen The length of the hash (octets)
-    \param stat Result of signature, 1==valid, 0==invalid
+    \param res Result of signature, 1==valid, 0==invalid
     \param key The corresponding public ECC key
 
     _Example_
     \code
     mp_int r;
     mp_int s;
-    int stat;
+    int res;
     byte hash[] = { Some hash }
     ecc_key key;
 
-    if(wc_ecc_verify_hash_ex(&r, &s, hash, hashlen, &stat, &key) == MP_OKAY)
+    if(wc_ecc_verify_hash_ex(&r, &s, hash, hashlen, &res, &key) == MP_OKAY)
     {
-        // Check stat
+        // Check res
     }
     \endcode
 
@@ -644,7 +644,7 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
 */
 
 int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
-                          word32 hashlen, int* stat, ecc_key* key);
+                          word32 hashlen, int* res, ecc_key* key);
 
 /*!
     \ingroup ECC
@@ -983,6 +983,7 @@ int wc_ecc_point_is_at_infinity(ecc_point *p);
     \param k The multiplicand.
     \param G Base point to multiply.
     \param R Destination of product.
+    \param a ECC curve parameter a.
     \param modulus The modulus for the curve.
     \param map If non-zero maps the point back to affine coordinates,
     otherwise it's left in jacobian-montgomery form.
@@ -997,7 +998,10 @@ int wc_ecc_point_is_at_infinity(ecc_point *p);
     // Setup other arguments
     mp_int multiplicand;
     mp_int modulus;
+    mp_int a;
     int map;
+    int rc;
+    rc = wc_ecc_mulmod(&multiplicand, base, destination, &a, &modulus, map);
     \endcode
 
     \sa none
@@ -1779,7 +1783,7 @@ int wc_ecc_ctx_set_algo(ecEncCtx* ctx, byte encAlgo, byte kdfAlgo,
     \sa wc_ecc_ctx_set_kdf_salt
 */
 
-const byte* wc_ecc_ctx_get_own_salt(ecEncCtx*);
+const byte* wc_ecc_ctx_get_own_salt(ecEncCtx* ctx);
 
 /*!
     \ingroup ECC
