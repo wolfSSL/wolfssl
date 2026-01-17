@@ -163,12 +163,19 @@ int wc_InitCmac_ex(Cmac* cmac, const byte* key, word32 keySz,
             byte l[WC_AES_BLOCK_SIZE];
 
             XMEMSET(l, 0, WC_AES_BLOCK_SIZE);
+#ifndef HAVE_SELFTEST
             ret = wc_AesEncryptDirect(&cmac->aes, l, l);
             if (ret == 0) {
                 ShiftAndXorRb(cmac->k1, l);
                 ShiftAndXorRb(cmac->k2, cmac->k1);
                 ForceZero(l, WC_AES_BLOCK_SIZE);
             }
+#else
+            wc_AesEncryptDirect(&cmac->aes, l, l);
+            ShiftAndXorRb(cmac->k1, l);
+            ShiftAndXorRb(cmac->k2, cmac->k1);
+            ForceZero(l, WC_AES_BLOCK_SIZE);
+#endif
         }
         break;
 #endif /* !NO_AES && WOLFSSL_AES_DIRECT */
@@ -233,12 +240,19 @@ int wc_CmacUpdate(Cmac* cmac, const byte* in, word32 inSz)
                 if (cmac->totalSz != 0) {
                     xorbuf(cmac->buffer, cmac->digest, WC_AES_BLOCK_SIZE);
                 }
+#ifndef HAVE_SELFTEST
                 ret = wc_AesEncryptDirect(&cmac->aes, cmac->digest,
                         cmac->buffer);
                 if (ret == 0) {
                     cmac->totalSz += WC_AES_BLOCK_SIZE;
                     cmac->bufferSz = 0;
                 }
+#else
+                wc_AesEncryptDirect(&cmac->aes, cmac->digest,
+                        cmac->buffer);
+                cmac->totalSz += WC_AES_BLOCK_SIZE;
+                cmac->bufferSz = 0;
+#endif
             }
         }
     }; break;
@@ -332,10 +346,15 @@ int wc_CmacFinalNoFree(Cmac* cmac, byte* out, word32* outSz)
             }
             xorbuf(cmac->buffer, cmac->digest, WC_AES_BLOCK_SIZE);
             xorbuf(cmac->buffer, subKey, WC_AES_BLOCK_SIZE);
+#ifndef HAVE_SELFTEST
             ret = wc_AesEncryptDirect(&cmac->aes, cmac->digest, cmac->buffer);
             if (ret == 0) {
                 XMEMCPY(out, cmac->digest, *outSz);
             }
+#else
+            wc_AesEncryptDirect(&cmac->aes, cmac->digest, cmac->buffer);
+            XMEMCPY(out, cmac->digest, *outSz);
+#endif
         }; break;
     #endif /* !NO_AES && WOLFSSL_AES_DIRECT */
         default:
