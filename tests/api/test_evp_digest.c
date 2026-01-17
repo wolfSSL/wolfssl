@@ -140,7 +140,6 @@ int test_wolfSSL_EVP_sm3(void)
     ExpectIntEQ(sz, WC_SM3_DIGEST_SIZE);
     for (chunk = 1; chunk <= WC_SM3_BLOCK_SIZE + 1; chunk++) {
         for (i = 0; i + chunk <= (word32)sizeof(data); i += chunk) {
-        for (i = 0; i + chunk <= (word32)sizeof(data); i += chunk) {
             ExpectIntEQ(EVP_DigestUpdate(mdCtx, data + i, chunk),
                 WOLFSSL_SUCCESS);
         }
