@@ -120,12 +120,12 @@ static int stsafe_get_key_size(stsafe_curve_id_t curve_id)
 {
     switch (curve_id) {
         case STSAFE_ECC_CURVE_P256:
-    #ifdef STSAFE_ECC_CURVE_BP256
+    #if defined(HAVE_ECC_BRAINPOOL) && defined(STSE_CONF_ECC_BRAINPOOL_P_256)
         case STSAFE_ECC_CURVE_BP256:
     #endif
             return 32;
         case STSAFE_ECC_CURVE_P384:
-    #ifdef STSAFE_ECC_CURVE_BP384
+    #if defined(HAVE_ECC_BRAINPOOL) && defined(STSE_CONF_ECC_BRAINPOOL_P_384)
         case STSAFE_ECC_CURVE_BP384:
     #endif
             return 48;
@@ -145,11 +145,11 @@ static stsafe_curve_id_t stsafe_get_ecc_curve_id(int ecc_curve)
             return STSAFE_ECC_CURVE_P256;
         case ECC_SECP384R1:
             return STSAFE_ECC_CURVE_P384;
-    #if defined(HAVE_ECC_BRAINPOOL) && defined(STSAFE_ECC_CURVE_BP256)
+    #if defined(HAVE_ECC_BRAINPOOL) && defined(STSE_CONF_ECC_BRAINPOOL_P_256)
         case ECC_BRAINPOOLP256R1:
             return STSAFE_ECC_CURVE_BP256;
     #endif
-    #if defined(HAVE_ECC_BRAINPOOL) && defined(STSAFE_ECC_CURVE_BP384)
+    #if defined(HAVE_ECC_BRAINPOOL) && defined(STSE_CONF_ECC_BRAINPOOL_P_384)
         case ECC_BRAINPOOLP384R1:
             return STSAFE_ECC_CURVE_BP384;
     #endif
@@ -170,11 +170,11 @@ static int stsafe_get_ecc_curve(stsafe_curve_id_t curve_id)
             return ECC_SECP256R1;
         case STSAFE_ECC_CURVE_P384:
             return ECC_SECP384R1;
-    #if defined(HAVE_ECC_BRAINPOOL) && defined(STSAFE_ECC_CURVE_BP256)
+    #if defined(HAVE_ECC_BRAINPOOL) && defined(STSE_CONF_ECC_BRAINPOOL_P_256)
         case STSAFE_ECC_CURVE_BP256:
             return ECC_BRAINPOOLP256R1;
     #endif
-    #if defined(HAVE_ECC_BRAINPOOL) && defined(STSAFE_ECC_CURVE_BP384)
+    #if defined(HAVE_ECC_BRAINPOOL) && defined(STSE_CONF_ECC_BRAINPOOL_P_384)
         case STSAFE_ECC_CURVE_BP384:
             return ECC_BRAINPOOLP384R1;
     #endif
@@ -413,12 +413,24 @@ static int stsafe_shared_secret(stsafe_slot_t slot, stsafe_curve_id_t curve_id,
     int rc = STSAFE_A_OK;
     stse_ReturnCode_t ret;
     int key_sz = stsafe_get_key_size(curve_id);
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    uint8_t* peerPubKey = NULL;
+#else
     uint8_t peerPubKey[STSAFE_MAX_PUBKEY_RAW_LEN];
+#endif
 
     if (pPubKeyX == NULL || pPubKeyY == NULL || pSharedSecret == NULL ||
         pSharedSecretLen == NULL) {
         return BAD_FUNC_ARG;
     }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    peerPubKey = (uint8_t*)XMALLOC(STSAFE_MAX_PUBKEY_RAW_LEN, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (peerPubKey == NULL) {
+        return MEMORY_E;
+    }
+#endif
 
     /* Combine peer X and Y (X||Y format) */
     XMEMCPY(peerPubKey, pPubKeyX, key_sz);
@@ -441,6 +453,10 @@ static int stsafe_shared_secret(stsafe_slot_t slot, stsafe_curve_id_t curve_id,
         *pSharedSecretLen = (int32_t)key_sz;
     }
 
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    XFREE(peerPubKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
     return rc;
 }
 
@@ -458,12 +474,24 @@ static int stsafe_shared_secret_ecdhe(stsafe_curve_id_t curve_id,
     int rc = STSAFE_A_OK;
     stse_ReturnCode_t ret;
     int key_sz = stsafe_get_key_size(curve_id);
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    uint8_t* peerPubKey = NULL;
+#else
     uint8_t peerPubKey[STSAFE_MAX_PUBKEY_RAW_LEN];
+#endif
 
     if (pPubKeyX == NULL || pPubKeyY == NULL || pSharedSecret == NULL ||
         pSharedSecretLen == NULL || key_sz == 0) {
         return BAD_FUNC_ARG;
     }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    peerPubKey = (uint8_t*)XMALLOC(STSAFE_MAX_PUBKEY_RAW_LEN, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (peerPubKey == NULL) {
+        return MEMORY_E;
+    }
+#endif
 
     /* Combine peer X and Y (X||Y format) */
     XMEMCPY(peerPubKey, pPubKeyX, key_sz);
@@ -482,6 +510,10 @@ static int stsafe_shared_secret_ecdhe(stsafe_curve_id_t curve_id,
     if (rc == STSAFE_A_OK) {
         *pSharedSecretLen = (int32_t)key_sz;
     }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    XFREE(peerPubKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return rc;
 }
@@ -1820,7 +1852,14 @@ int wolfSSL_STSAFE_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
                     curve_id = stsafe_get_ecc_curve_id(ecc_curve);
                     /* Note: STSAFE_ECC_CURVE_P256 is 0, so we can't use STSAFE_DEFAULT_CURVE check.
                      * Instead, verify the curve_id is valid by checking it's one of the supported curves */
-                    if (curve_id != STSAFE_ECC_CURVE_P256 && curve_id != STSAFE_ECC_CURVE_P384) {
+                    if (curve_id != STSAFE_ECC_CURVE_P256 && curve_id != STSAFE_ECC_CURVE_P384
+                    #if defined(HAVE_ECC_BRAINPOOL) && defined(STSE_CONF_ECC_BRAINPOOL_P_256)
+                        && curve_id != STSAFE_ECC_CURVE_BP256
+                    #endif
+                    #if defined(HAVE_ECC_BRAINPOOL) && defined(STSE_CONF_ECC_BRAINPOOL_P_384)
+                        && curve_id != STSAFE_ECC_CURVE_BP384
+                    #endif
+                    ) {
                         rc = BAD_FUNC_ARG;
                     }
                 }
@@ -1873,35 +1912,52 @@ int wolfSSL_STSAFE_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
                          * existing key in ephemeral slot, so for bidirectional ECDH, both keys
                          * should be generated in ephemeral slot from the start. */
                         stse_ReturnCode_t ret;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+                        byte* ephemeralPubKey = NULL;
+#else
                         byte ephemeralPubKey[STSAFE_MAX_PUBKEY_RAW_LEN];
+#endif
                         int key_sz = stsafe_get_key_size(curve_id);
                         slot = STSAFE_KEY_SLOT_EPHEMERAL;
 
-                        ret = stse_generate_ecc_key_pair(&g_stse_handler, slot,
-                            (stse_ecc_key_type_t)curve_id,
-                            STSAFE_EPHEMERAL_KEY_USAGE_LIMIT,
-                            ephemeralPubKey);
-                        if (ret != STSE_OK) {
-                            STSAFE_INTERFACE_PRINTF("stse_generate_ecc_key_pair (ephemeral for ECDH) error: %d\n", ret);
-                            rc = (int)ret;
-                        } else {
-                            WOLFSSL_MSG("STSAFE: Generated ephemeral key for ECDH");
-                            /* Update devCtx to reflect ephemeral slot for this key */
-                            if (info->pk.ecdh.private_key != NULL) {
-                                info->pk.ecdh.private_key->devCtx = STSAFE_SLOT_TO_DEVCXT(slot);
-                            }
-                            /* Update the public key in the key structure to match the new ephemeral key */
-                            if (info->pk.ecdh.private_key != NULL && rc == 0) {
-                                void* saved_devCtx = info->pk.ecdh.private_key->devCtx;
-                                rc = wc_ecc_import_unsigned(info->pk.ecdh.private_key,
-                                    ephemeralPubKey, &ephemeralPubKey[key_sz],
-                                    NULL, ecc_curve);
-                                /* Restore devCtx in case import cleared it */
-                                if (saved_devCtx != NULL && info->pk.ecdh.private_key->devCtx != saved_devCtx) {
-                                    info->pk.ecdh.private_key->devCtx = saved_devCtx;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+                        ephemeralPubKey = (byte*)XMALLOC(STSAFE_MAX_PUBKEY_RAW_LEN, NULL,
+                            DYNAMIC_TYPE_TMP_BUFFER);
+                        if (ephemeralPubKey == NULL) {
+                            rc = MEMORY_E;
+                        }
+#endif
+
+                        if (rc == 0) {
+                            ret = stse_generate_ecc_key_pair(&g_stse_handler, slot,
+                                (stse_ecc_key_type_t)curve_id,
+                                STSAFE_EPHEMERAL_KEY_USAGE_LIMIT,
+                                ephemeralPubKey);
+                            if (ret != STSE_OK) {
+                                STSAFE_INTERFACE_PRINTF("stse_generate_ecc_key_pair (ephemeral for ECDH) error: %d\n", ret);
+                                rc = (int)ret;
+                            } else {
+                                WOLFSSL_MSG("STSAFE: Generated ephemeral key for ECDH");
+                                /* Update devCtx to reflect ephemeral slot for this key */
+                                if (info->pk.ecdh.private_key != NULL) {
+                                    info->pk.ecdh.private_key->devCtx = STSAFE_SLOT_TO_DEVCXT(slot);
+                                }
+                                /* Update the public key in the key structure to match the new ephemeral key */
+                                if (info->pk.ecdh.private_key != NULL && rc == 0) {
+                                    void* saved_devCtx = info->pk.ecdh.private_key->devCtx;
+                                    rc = wc_ecc_import_unsigned(info->pk.ecdh.private_key,
+                                        ephemeralPubKey, &ephemeralPubKey[key_sz],
+                                        NULL, ecc_curve);
+                                    /* Restore devCtx in case import cleared it */
+                                    if (saved_devCtx != NULL && info->pk.ecdh.private_key->devCtx != saved_devCtx) {
+                                        info->pk.ecdh.private_key->devCtx = saved_devCtx;
+                                    }
                                 }
                             }
                         }
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+                        XFREE(ephemeralPubKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 #else /* WOLFSSL_STSAFEA100 */
                         /* For A100/A110, ephemeral key generation in ECDH callback
                          * is not supported. Keys must be generated in ephemeral slot

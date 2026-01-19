@@ -77,12 +77,14 @@
     /* Curve ID mappings - values depend on stse_conf.h settings!
      * With only NIST P-256 and P-384 enabled:
      *   STSE_ECC_KT_NIST_P_256 = 0, STSE_ECC_KT_NIST_P_384 = 1
-     * NOTE: If other curves are enabled, these values change! */
+     * NOTE: If other curves are enabled, these values change!
+     *
+     * Compile-time static assertions and runtime checks in stsafe_interface_init()
+     * verify that these constants match the actual STSE_ECC_KT enum values. */
     #define STSAFE_ECC_CURVE_P256       0  /* STSE_ECC_KT_NIST_P_256 */
     #define STSAFE_ECC_CURVE_P384       1  /* STSE_ECC_KT_NIST_P_384 */
-    /* Brainpool curves - only defined when enabled in stse_conf.h */
-    /* #define STSAFE_ECC_CURVE_BP256   2 */  /* STSE_ECC_KT_BP_P_256 */
-    /* #define STSAFE_ECC_CURVE_BP384   3 */  /* STSE_ECC_KT_BP_P_384 */
+    #define STSAFE_ECC_CURVE_BP256      2  /* STSE_ECC_KT_BP_P_256 */
+    #define STSAFE_ECC_CURVE_BP384      3  /* STSE_ECC_KT_BP_P_384 */
 
     /* Slot mappings */
     #define STSAFE_KEY_SLOT_0           0
