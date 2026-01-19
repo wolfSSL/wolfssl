@@ -537,8 +537,10 @@ int wc_Blake2bHmacInit(Blake2b* b2b, const byte* key, size_t key_len)
         XMEMSET(x_key + key_len, 0, BLAKE2B_BLOCKBYTES - key_len);
     }
 
-    for (i = 0; i < BLAKE2B_BLOCKBYTES; ++i)
-        x_key[i] ^= 0x36U;
+    if (ret == 0) {
+        for (i = 0; i < BLAKE2B_BLOCKBYTES; ++i)
+            x_key[i] ^= 0x36U;
+    }
 
     if (ret == 0)
         ret = wc_InitBlake2b(b2b, BLAKE2B_OUTBYTES);
@@ -582,8 +584,10 @@ int wc_Blake2bHmacFinal(Blake2b* b2b, const byte* key, size_t key_len,
         XMEMSET(x_key + key_len, 0, BLAKE2B_BLOCKBYTES - key_len);
     }
 
-    for (i = 0; i < BLAKE2B_BLOCKBYTES; ++i)
-        x_key[i] ^= 0x5CU;
+    if (ret == 0) {
+        for (i = 0; i < BLAKE2B_BLOCKBYTES; ++i)
+            x_key[i] ^= 0x5CU;
+    }
 
     if (ret == 0)
         ret = wc_Blake2bFinal(b2b, out, 0);
