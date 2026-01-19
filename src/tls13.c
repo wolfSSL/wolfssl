@@ -5677,7 +5677,7 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif
                 ) {
             SendAlert(ssl, alert_fatal, illegal_parameter);
-            return DUPLICATE_MSG_E;
+            return EXT_MISSING;
         }
 
         ssl->options.tls1_3 = 1;
