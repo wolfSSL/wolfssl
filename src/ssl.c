@@ -9984,7 +9984,7 @@ int wolfSSL_dtls_get_current_timeout(WOLFSSL* ssl)
  */
 int wolfSSL_dtls13_use_quick_timeout(WOLFSSL* ssl)
 {
-    return ssl->dtls13FastTimeout;
+    return ssl != NULL && ssl->dtls13FastTimeout;
 }
 
 /*
