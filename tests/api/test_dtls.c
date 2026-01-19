@@ -2493,6 +2493,8 @@ int test_dtls_mtu_split_messages(void)
 /* Test DTLS 1.3 minimum retransmission interval. This test calls
  * wolfSSL_dtls_got_timeout() to simulate timeouts and verify that
  * retransmissions are spaced at least DTLS13_MIN_RTX_INTERVAL apart.
+ * This tests relies on timing of the retransmission logic so it may be
+ * flaky on very slow systems.
  */
 int test_dtls13_min_rtx_interval(void)
 {
@@ -2541,7 +2543,8 @@ int test_dtls13_min_rtx_interval(void)
         ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_s), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_s), WOLFSSL_SUCCESS);
     /* Save the message count to make sure no new messages are sent */
-    ExpectIntGE(c_msg_count = test_ctx.c_msg_count, 2);
+    ExpectIntGE(test_ctx.c_msg_count, 2);
+    c_msg_count = test_ctx.c_msg_count;
 
     /* Second timeout. This one should not trigger a retransmission */
     if (wolfSSL_dtls13_use_quick_timeout(ssl_s))
