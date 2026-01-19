@@ -3313,6 +3313,23 @@ static WC_INLINE void AddSuiteHashSigAlgo(byte* hashSigAlgo, byte macAlgo,
         }
         else
 #endif
+#ifdef HAVE_ECC_BRAINPOOL
+        if (sigAlgo == ecc_brainpool_sa_algo) {
+            if (macAlgo == sha512_mac) {
+                ADD_HASH_SIG_ALGO(hashSigAlgo, inOutIdx, NEW_SA_MAJOR,
+                    ECDSA_BRAINPOOLP512R1TLS13_SHA512_MINOR);
+            }
+            else if (macAlgo == sha384_mac) {
+                ADD_HASH_SIG_ALGO(hashSigAlgo, inOutIdx, NEW_SA_MAJOR,
+                    ECDSA_BRAINPOOLP384R1TLS13_SHA384_MINOR);
+            }
+            else if (macAlgo == sha256_mac) {
+                ADD_HASH_SIG_ALGO(hashSigAlgo, inOutIdx, NEW_SA_MAJOR,
+                    ECDSA_BRAINPOOLP256R1TLS13_SHA256_MINOR);
+            }
+        }
+        else
+#endif
         {
             ADD_HASH_SIG_ALGO(hashSigAlgo, inOutIdx, macAlgo, sigAlgo);
         }
@@ -3320,11 +3337,12 @@ static WC_INLINE void AddSuiteHashSigAlgo(byte* hashSigAlgo, byte macAlgo,
 }
 
 void InitSuitesHashSigAlgo(byte* hashSigAlgo, int haveSig, int tls1_2,
-    int keySz, word16* len)
+    int tls1_3, int keySz, word16* len)
 {
     word16 idx = 0;
 
     (void)tls1_2;
+    (void)tls1_3;
     (void)keySz;
 
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
@@ -3333,14 +3351,32 @@ void InitSuitesHashSigAlgo(byte* hashSigAlgo, int haveSig, int tls1_2,
     #ifdef WOLFSSL_SHA512
         AddSuiteHashSigAlgo(hashSigAlgo, sha512_mac, ecc_dsa_sa_algo, keySz,
             &idx);
+    #ifdef HAVE_ECC_BRAINPOOL
+        if (tls1_3) {
+            AddSuiteHashSigAlgo(hashSigAlgo, sha512_mac, ecc_brainpool_sa_algo,
+                keySz, &idx);
+        }
+    #endif
     #endif
     #ifdef WOLFSSL_SHA384
         AddSuiteHashSigAlgo(hashSigAlgo, sha384_mac, ecc_dsa_sa_algo, keySz,
             &idx);
+    #ifdef HAVE_ECC_BRAINPOOL
+        if (tls1_3) {
+            AddSuiteHashSigAlgo(hashSigAlgo, sha384_mac, ecc_brainpool_sa_algo,
+                keySz, &idx);
+        }
+    #endif
     #endif
     #ifndef NO_SHA256
         AddSuiteHashSigAlgo(hashSigAlgo, sha256_mac, ecc_dsa_sa_algo, keySz,
             &idx);
+    #ifdef HAVE_ECC_BRAINPOOL
+        if (tls1_3) {
+            AddSuiteHashSigAlgo(hashSigAlgo, sha256_mac, ecc_brainpool_sa_algo,
+                keySz, &idx);
+        }
+    #endif
     #endif
     #if !defined(NO_SHA) && (!defined(NO_OLD_TLS) || \
                                             defined(WOLFSSL_ALLOW_TLS_SHA1))
@@ -3465,9 +3501,7 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
     word16 idx = 0;
     int    tls    = pv.major == SSLv3_MAJOR && pv.minor >= TLSv1_MINOR;
     int    tls1_2 = pv.major == SSLv3_MAJOR && pv.minor >= TLSv1_2_MINOR;
-#ifdef WOLFSSL_TLS13
     int    tls1_3 = IsAtLeastTLSv1_3(pv);
-#endif
     int    dtls   = 0;
     int    haveRSAsig = 1;
 
@@ -3484,6 +3518,7 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
 
     (void)tls;  /* shut up compiler */
     (void)tls1_2;
+    (void)tls1_3;
     (void)dtls;
     (void)haveDH;
     (void)havePSK;
@@ -4511,8 +4546,8 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
     suites->suiteSz = idx;
 
     if (suites->hashSigAlgoSz == 0) {
-        InitSuitesHashSigAlgo(suites->hashSigAlgo, SIG_ALL, tls1_2, keySz,
-            &suites->hashSigAlgoSz);
+        InitSuitesHashSigAlgo(suites->hashSigAlgo, SIG_ALL, tls1_2, tls1_3,
+            keySz, &suites->hashSigAlgoSz);
     }
 
     /* Moved to the end as we set some of the vars but never use them */
@@ -4569,6 +4604,22 @@ void DecodeSigAlg(const byte* input, byte* hashAlgo, byte* hsType)
             if (input[1] >= pss_sha256 && input[1] <= pss_sha512) {
                 *hsType   = rsa_pss_pss_algo;
                 *hashAlgo = PSS_PSS_HASH_TO_MAC(input[1]);
+            }
+            else
+    #endif
+    #ifdef HAVE_ECC_BRAINPOOL
+            /* RFC 8734 TLS 1.3 Brainpool curves */
+            if (input[1] == ECDSA_BRAINPOOLP256R1TLS13_SHA256_MINOR) {
+                *hsType = ecc_brainpool_sa_algo;
+                *hashAlgo = sha256_mac;
+            }
+            else if (input[1] == ECDSA_BRAINPOOLP384R1TLS13_SHA384_MINOR) {
+                *hsType = ecc_brainpool_sa_algo;
+                *hashAlgo = sha384_mac;
+            }
+            else if (input[1] == ECDSA_BRAINPOOLP512R1TLS13_SHA512_MINOR) {
+                *hsType = ecc_brainpool_sa_algo;
+                *hashAlgo = sha512_mac;
             }
             else
     #endif
@@ -28273,6 +28324,7 @@ static int ParseCipherList(Suites* suites,
     word16    haveSHA1         = 1; /* allowed by default if compiled in */
     word16    haveRC4          = 1; /* allowed by default if compiled in */
 #endif
+    int       tls1_3        = 0;
     const int suiteSz       = GetCipherNamesSize();
     const char* next        = list;
 
@@ -28598,6 +28650,7 @@ static int ParseCipherList(Suites* suites,
                          (cipher_names[i].cipherSuite0 == ECC_BYTE &&
                           (cipher_names[i].cipherSuite == TLS_SHA256_SHA256 ||
                            cipher_names[i].cipherSuite == TLS_SHA384_SHA384))) {
+                    tls1_3 = 1;
                 #ifndef NO_RSA
                     haveSig |= SIG_RSA;
                 #endif
@@ -28701,8 +28754,8 @@ static int ParseCipherList(Suites* suites,
     #endif
         {
             suites->suiteSz   = (word16)idx;
-            InitSuitesHashSigAlgo(suites->hashSigAlgo, haveSig, 1, keySz,
-                                  &suites->hashSigAlgoSz);
+            InitSuitesHashSigAlgo(suites->hashSigAlgo, haveSig, 1, tls1_3,
+                                  keySz, &suites->hashSigAlgoSz);
         }
 
 #ifdef HAVE_RENEGOTIATION_INDICATION
@@ -28775,6 +28828,7 @@ int SetCipherListFromBytes(WOLFSSL_CTX* ctx, Suites* suites, const byte* list,
     int haveFalconSig    = 0;
     int haveDilithiumSig = 0;
     int haveAnon         = 0;
+    int tls1_3           = 0;
 
     if (suites == NULL || list == NULL) {
         WOLFSSL_MSG("SetCipherListFromBytes parameter error");
@@ -28834,6 +28888,7 @@ int SetCipherListFromBytes(WOLFSSL_CTX* ctx, Suites* suites, const byte* list,
               secondByte == TLS_SHA384_SHA384)) ||
             (firstByte == CIPHER_BYTE && (secondByte == TLS_SM4_GCM_SM3 ||
               secondByte == TLS_SM4_CCM_SM3))) {
+            tls1_3 = 1;
         #ifndef NO_RSA
             haveRSAsig = 1;
         #endif
@@ -28885,8 +28940,8 @@ int SetCipherListFromBytes(WOLFSSL_CTX* ctx, Suites* suites, const byte* list,
         haveSig |= haveFalconSig ? SIG_FALCON : 0;
         haveSig |= haveDilithiumSig ? SIG_DILITHIUM : 0;
         haveSig |= haveAnon ? SIG_ANON : 0;
-        InitSuitesHashSigAlgo(suites->hashSigAlgo, haveSig, 1, keySz,
-            &suites->hashSigAlgoSz);
+        InitSuitesHashSigAlgo(suites->hashSigAlgo, haveSig, 1, tls1_3,
+            keySz, &suites->hashSigAlgoSz);
 #ifdef HAVE_RENEGOTIATION_INDICATION
         if (ctx->method->side == WOLFSSL_CLIENT_END) {
             if (suites->suiteSz > WOLFSSL_MAX_SUITE_SZ - 2) {
@@ -29067,7 +29122,7 @@ int SetSuitesHashSigAlgo(Suites* suites, const char* list)
 
 #endif /* OPENSSL_EXTRA */
 
-#if !defined(NO_WOLFSSL_SERVER) || !defined(NO_CERTS)
+#if !defined(NO_TLS) && (!defined(NO_WOLFSSL_SERVER) || !defined(NO_CERTS))
 static int MatchSigAlgo(WOLFSSL* ssl, int sigAlgo)
 {
 #ifdef HAVE_ED25519
@@ -29133,6 +29188,41 @@ static int MatchSigAlgo(WOLFSSL* ssl, int sigAlgo)
         /* TLS 1.2 and below - RSA-PSS allowed. */
         if (sigAlgo == rsa_pss_sa_algo)
             return 1;
+    }
+#endif
+#ifdef HAVE_ECC_BRAINPOOL
+    if ((ssl->pkCurveOID == ECC_BRAINPOOLP256R1_OID) ||
+        (ssl->pkCurveOID == ECC_BRAINPOOLP384R1_OID) ||
+        (ssl->pkCurveOID == ECC_BRAINPOOLP512R1_OID)) {
+        if (IsAtLeastTLSv1_3(ssl->version)) {
+            /* Certificate has an ECC Brainpool key, only match with the
+             * specified ECDSA brainpool signature algorithms for TLS 1.3 */
+            return sigAlgo == ecc_brainpool_sa_algo;
+        }
+        else {
+            /* Certificate has an ECC Brainpool key, match with ECDSA in TLS 1.2
+             * case, but only when the related Brainpool curve is present in
+             * the supported_groups extension. */
+            if (ssl->pkCurveOID == ECC_BRAINPOOLP256R1_OID &&
+                    TLSX_SupportedCurve_IsSupported(ssl,
+                                                 WOLFSSL_ECC_BRAINPOOLP256R1)) {
+                return sigAlgo == ecc_dsa_sa_algo;
+            }
+            else if (ssl->pkCurveOID == ECC_BRAINPOOLP384R1_OID &&
+                     TLSX_SupportedCurve_IsSupported(ssl,
+                                                 WOLFSSL_ECC_BRAINPOOLP384R1)) {
+                return sigAlgo == ecc_dsa_sa_algo;
+            }
+            else if (ssl->pkCurveOID == ECC_BRAINPOOLP512R1_OID &&
+                     TLSX_SupportedCurve_IsSupported(ssl,
+                                                 WOLFSSL_ECC_BRAINPOOLP512R1)) {
+                return sigAlgo == ecc_dsa_sa_algo;
+            }
+            else {
+                /* Curve not supported in supported_groups extension. */
+                return 0;
+            }
+        }
     }
 #endif
     /* Signature algorithm matches certificate. */
@@ -29299,6 +29389,15 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz,
             break;
         }
     #endif /* HAVE_DILITHIUM */
+    #if defined(HAVE_ECC_BRAINPOOL)
+        if (ssl->pkCurveOID == ECC_BRAINPOOLP256R1_OID ||
+            ssl->pkCurveOID == ECC_BRAINPOOLP384R1_OID ||
+            ssl->pkCurveOID == ECC_BRAINPOOLP512R1_OID) {
+            /* Matched ECC Brainpool. Set sigAlgo to "normal" ECDSA here
+             * for compatibility with TLS 1.2. */
+            sigAlgo = ecc_dsa_sa_algo;
+        }
+    #endif
 
     #if defined(WOLFSSL_ECDSA_MATCH_HASH) && defined(USE_ECDSA_KEYSZ_HASH_ALGO)
         #error "WOLFSSL_ECDSA_MATCH_HASH and USE_ECDSA_KEYSZ_HASH_ALGO cannot "
@@ -29439,7 +29538,7 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz,
 
     return ret;
 }
-#endif /* !defined(NO_WOLFSSL_SERVER) || !defined(NO_CERTS) */
+#endif /* !NO_TLS && (!defined(NO_WOLFSSL_SERVER) || !defined(NO_CERTS)) */
 
 #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
 

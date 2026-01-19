@@ -5332,6 +5332,31 @@ int TLSX_SupportedFFDHE_Set(WOLFSSL* ssl)
 }
 #endif /* HAVE_FFDHE && !WOLFSSL_NO_TLS12 */
 
+/* Check if the given curve is present in the supported groups extension.
+ *
+ * ssl             SSL/TLS object.
+ * name            The curve name to check.
+ * returns 1 if present, 0 otherwise.
+ */
+int TLSX_SupportedCurve_IsSupported(WOLFSSL* ssl, word16 name)
+{
+    TLSX* extension;
+    SupportedCurve* curve;
+
+    extension = TLSX_Find(ssl->extensions, TLSX_SUPPORTED_GROUPS);
+    if (extension == NULL)
+        return 0;
+
+    curve = (SupportedCurve*)extension->data;
+    while (curve != NULL) {
+        if (curve->name == name)
+            return 1;
+        curve = curve->next;
+    }
+
+    return 0;
+}
+
 #endif /* !NO_WOLFSSL_SERVER */
 
 #if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_SERVER_GROUPS_EXT)

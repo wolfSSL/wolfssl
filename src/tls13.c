@@ -7786,12 +7786,12 @@ static int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx,
         return SIDE_ERROR;
 
     /* Get the length of the hashSigAlgo buffer */
-    InitSuitesHashSigAlgo(NULL, SIG_ALL, 1, ssl->buffers.keySz,
+    InitSuitesHashSigAlgo(NULL, SIG_ALL, 1, 1, ssl->buffers.keySz,
         &hashSigAlgoSz);
     sa = TLSX_SignatureAlgorithms_New(ssl, hashSigAlgoSz, ssl->heap);
     if (sa == NULL)
         return MEMORY_ERROR;
-    InitSuitesHashSigAlgo(sa->hashSigAlgo, SIG_ALL, 1, ssl->buffers.keySz,
+    InitSuitesHashSigAlgo(sa->hashSigAlgo, SIG_ALL, 1, 1, ssl->buffers.keySz,
         &hashSigAlgoSz);
     ret = TLSX_Push(&ssl->extensions, TLSX_SIGNATURE_ALGORITHMS, sa, ssl->heap);
     if (ret != 0) {
@@ -7898,8 +7898,22 @@ static WC_INLINE void EncodeSigAlg(const WOLFSSL * ssl, byte hashAlgo, byte hsTy
     switch (hsType) {
 #ifdef HAVE_ECC
         case ecc_dsa_sa_algo:
-            output[0] = hashAlgo;
-            output[1] = ecc_dsa_sa_algo;
+            if (ssl->pkCurveOID == ECC_BRAINPOOLP256R1_OID) {
+                output[0] = NEW_SA_MAJOR;
+                output[1] = ECDSA_BRAINPOOLP256R1TLS13_SHA256_MINOR;
+            }
+            else if (ssl->pkCurveOID == ECC_BRAINPOOLP384R1_OID) {
+                output[0] = NEW_SA_MAJOR;
+                output[1] = ECDSA_BRAINPOOLP384R1TLS13_SHA384_MINOR;
+            }
+            else if (ssl->pkCurveOID == ECC_BRAINPOOLP512R1_OID) {
+                output[0] = NEW_SA_MAJOR;
+                output[1] = ECDSA_BRAINPOOLP512R1TLS13_SHA512_MINOR;
+            }
+            else {
+                output[0] = hashAlgo;
+                output[1] = ecc_dsa_sa_algo;
+            }
             break;
 #endif
 #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
@@ -8068,16 +8082,19 @@ static enum wc_MACAlgorithm GetNewSAHashAlgo(int typeIn)
     switch (typeIn) {
         case RSA_PSS_RSAE_SHA256_MINOR:
         case RSA_PSS_PSS_SHA256_MINOR:
+        case ECDSA_BRAINPOOLP256R1TLS13_SHA256_MINOR:
             return sha256_mac;
 
         case RSA_PSS_RSAE_SHA384_MINOR:
         case RSA_PSS_PSS_SHA384_MINOR:
+        case ECDSA_BRAINPOOLP384R1TLS13_SHA384_MINOR:
             return sha384_mac;
 
         case RSA_PSS_RSAE_SHA512_MINOR:
         case RSA_PSS_PSS_SHA512_MINOR:
         case ED25519_SA_MINOR:
         case ED448_SA_MINOR:
+        case ECDSA_BRAINPOOLP512R1TLS13_SHA512_MINOR:
             return sha512_mac;
         default:
             return no_mac;
@@ -8132,6 +8149,13 @@ static WC_INLINE int DecodeTls13SigAlg(byte* input, byte* hashAlgo,
             else if (input[1] == ED448_SA_MINOR) {
                 *hsType = ed448_sa_algo;
                 /* Hash performed as part of sign/verify operation. */
+            }
+    #endif
+    #ifdef HAVE_ECC_BRAINPOOL
+            else if ((input[1] == ECDSA_BRAINPOOLP256R1TLS13_SHA256_MINOR) ||
+                     (input[1] == ECDSA_BRAINPOOLP384R1TLS13_SHA384_MINOR) ||
+                     (input[1] == ECDSA_BRAINPOOLP512R1TLS13_SHA512_MINOR)) {
+                *hsType = ecc_dsa_sa_algo;
             }
     #endif
             else
@@ -10564,17 +10588,12 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
         #ifdef HAVE_ECC
             if ((ssl->options.peerSigAlgo == ecc_dsa_sa_algo) &&
                 (ssl->peerEccDsaKeyPresent)) {
-            #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
-                if (ssl->options.peerSigAlgo != sm2_sa_algo)
-            #endif
-                {
-                    ret = CreateECCEncodedSig(args->sigData,
-                        args->sigDataSz, ssl->options.peerHashAlgo);
-                    if (ret < 0)
-                        goto exit_dcv;
-                    args->sigDataSz = (word16)ret;
-                    ret = 0;
-                }
+                ret = CreateECCEncodedSig(args->sigData,
+                    args->sigDataSz, ssl->options.peerHashAlgo);
+                if (ret < 0)
+                    goto exit_dcv;
+                args->sigDataSz = (word16)ret;
+                ret = 0;
             }
 
         #ifdef WOLFSSL_DUAL_ALG_CERTS

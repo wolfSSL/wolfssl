@@ -1761,6 +1761,9 @@ enum Misc {
     RSA_PSS_PSS_SHA256_MINOR = 0x09,
     RSA_PSS_PSS_SHA384_MINOR = 0x0A,
     RSA_PSS_PSS_SHA512_MINOR = 0x0B,
+    ECDSA_BRAINPOOLP256R1TLS13_SHA256_MINOR = 0x1A,
+    ECDSA_BRAINPOOLP384R1TLS13_SHA384_MINOR = 0x1B,
+    ECDSA_BRAINPOOLP512R1TLS13_SHA512_MINOR = 0x1C,
 
     ED25519_SA_MAJOR    = 8,   /* Most significant byte for ED25519 */
     ED25519_SA_MINOR    = 7,   /* Least significant byte for ED25519 */
@@ -1884,7 +1887,7 @@ WOLFSSL_LOCAL int NamedGroupIsPqcHybrid(int group);
      */
     #define WOLFSSL_MAX_SIGALGO 128
 #else
-    #define WOLFSSL_MAX_SIGALGO 38
+    #define WOLFSSL_MAX_SIGALGO 44
 #endif
 #endif
 
@@ -2378,7 +2381,8 @@ typedef struct CipherSuite {
     #define InitSuitesHashSigAlgo wolfSSL_InitSuitesHashSigAlgo
 #endif
 WOLFSSL_TEST_VIS void InitSuitesHashSigAlgo(byte* hashSigAlgo, int have,
-                                       int tls1_2, int keySz, word16* len);
+                                       int tls1_2, int tls1_3, int keySz,
+                                       word16* len);
 WOLFSSL_LOCAL int AllocateCtxSuites(WOLFSSL_CTX* ctx);
 WOLFSSL_LOCAL int AllocateSuites(WOLFSSL* ssl);
 WOLFSSL_LOCAL void InitSuites(Suites* suites, ProtocolVersion pv, int keySz,
@@ -3399,6 +3403,7 @@ WOLFSSL_LOCAL int TLSX_ValidateSupportedCurves(const WOLFSSL* ssl, byte first,
                                                byte second, word32* ecdhCurveOID);
 WOLFSSL_LOCAL int TLSX_SupportedCurve_CheckPriority(WOLFSSL* ssl);
 WOLFSSL_LOCAL int TLSX_SupportedFFDHE_Set(WOLFSSL* ssl);
+WOLFSSL_LOCAL int TLSX_SupportedCurve_IsSupported(WOLFSSL* ssl, word16 name);
 #endif
 WOLFSSL_LOCAL int TLSX_SupportedCurve_Preferred(WOLFSSL* ssl,
                                                             int checkSupported);
@@ -4316,6 +4321,7 @@ enum SignatureAlgorithm {
     dilithium_level5_sa_algo     = 16,
     sm2_sa_algo                  = 17,
     any_sa_algo                  = 18,
+    ecc_brainpool_sa_algo        = 19,
     invalid_sa_algo              = 255
 };
 

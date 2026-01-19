@@ -16091,7 +16091,7 @@ static int test_wolfSSL_sigalg_info(void)
     word16 idx = 0;
     int allSigAlgs = SIG_ECDSA | SIG_RSA | SIG_SM2 | SIG_FALCON | SIG_DILITHIUM;
 
-    InitSuitesHashSigAlgo(hashSigAlgo, allSigAlgs, 1, 0xFFFFFFFF, &len);
+    InitSuitesHashSigAlgo(hashSigAlgo, allSigAlgs, 1, 1, 0xFFFFFFFF, &len);
     for (idx = 0; idx < len; idx += 2) {
         int hashAlgo = 0;
         int sigAlgo = 0;
@@ -16103,7 +16103,7 @@ static int test_wolfSSL_sigalg_info(void)
         ExpectIntNE(sigAlgo, 0);
     }
 
-    InitSuitesHashSigAlgo(hashSigAlgo, allSigAlgs | SIG_ANON, 1,
+    InitSuitesHashSigAlgo(hashSigAlgo, allSigAlgs | SIG_ANON, 1, 1,
             0xFFFFFFFF, &len);
     for (idx = 0; idx < len; idx += 2) {
         int hashAlgo = 0;
@@ -29192,7 +29192,13 @@ static int test_certreq_sighash_algos(void)
             maxIdx = idx + (int)len;
             for (; idx < maxIdx && EXPECT_SUCCESS(); idx += OPAQUE16_LEN) {
                 if (test_ctx.c_buff[idx+1] == ED25519_SA_MINOR ||
-                        test_ctx.c_buff[idx+1] == ED448_SA_MINOR)
+                        test_ctx.c_buff[idx+1] == ED448_SA_MINOR ||
+                        test_ctx.c_buff[idx+1] ==
+                                      ECDSA_BRAINPOOLP256R1TLS13_SHA256_MINOR ||
+                        test_ctx.c_buff[idx+1] ==
+                                      ECDSA_BRAINPOOLP384R1TLS13_SHA384_MINOR ||
+                        test_ctx.c_buff[idx+1] ==
+                                      ECDSA_BRAINPOOLP512R1TLS13_SHA512_MINOR)
                     ExpectIntEQ(test_ctx.c_buff[idx], NEW_SA_MAJOR);
                 else
                     ExpectIntEQ(test_ctx.c_buff[idx+1], ecc_dsa_sa_algo);

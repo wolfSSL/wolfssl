@@ -12442,6 +12442,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             *sigAlgo = DSAk;
             break;
         case ecc_dsa_sa_algo:
+        case ecc_brainpool_sa_algo:
             *sigAlgo = ECDSAk;
             break;
         case rsa_pss_sa_algo:
@@ -18367,6 +18368,7 @@ static int SaToNid(byte sa, int* nid)
             *nid = WC_NID_dsa;
             break;
         case ecc_dsa_sa_algo:
+        case ecc_brainpool_sa_algo:
             *nid = WC_NID_X9_62_id_ecPublicKey;
             break;
         case rsa_pss_sa_algo:
