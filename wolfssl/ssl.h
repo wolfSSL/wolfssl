@@ -270,9 +270,19 @@ typedef struct WOLFSSL_BY_DIR       WOLFSSL_BY_DIR;
 /* redeclare guard */
 #define WOLFSSL_TYPES_DEFINED
 
+#ifdef __cplusplus
+    }  /* extern "C" */
+#endif
+
+#include <wolfssl/wolfio.h>
+
 /* The WOLFSSL_RSA type is required in all build configurations. */
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 #include <wolfssl/openssl/rsa.h>
+#endif
+
+#ifdef __cplusplus
+    extern "C" {
 #endif
 
 #ifndef WC_RNG_TYPE_DEFINED /* guard on redeclaration */
