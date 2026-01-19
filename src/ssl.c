@@ -3741,6 +3741,9 @@ static int isValidCurveGroup(word16 name)
         case WOLFSSL_ECC_SM2P256V1:
         case WOLFSSL_ECC_X25519:
         case WOLFSSL_ECC_X448:
+        case WOLFSSL_ECC_BRAINPOOLP256R1TLS13:
+        case WOLFSSL_ECC_BRAINPOOLP384R1TLS13:
+        case WOLFSSL_ECC_BRAINPOOLP512R1TLS13:
 
         case WOLFSSL_FFDHE_2048:
         case WOLFSSL_FFDHE_3072:
