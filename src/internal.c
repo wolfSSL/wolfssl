@@ -15608,14 +15608,14 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 /* Empty certificate message. */
                 if ((ssl->options.side == WOLFSSL_SERVER_END) &&
                     (ssl->options.mutualAuth || (ssl->options.failNoCert &&
-                                             IsAtLeastTLSv1_3(ssl->version)))) {
+                                             IsAtLeastTLSv1_2(ssl)))) {
                     WOLFSSL_MSG("No peer cert from Client");
                     ret = NO_PEER_CERT;
                     WOLFSSL_ERROR_VERBOSE(ret);
                     DoCertFatalAlert(ssl, ret);
                 }
                 else if ((ssl->options.side == WOLFSSL_CLIENT_END) &&
-                         IsAtLeastTLSv1_3(ssl->version)) {
+                         IsAtLeastTLSv1_2(ssl)) {
                     WOLFSSL_MSG("No peer cert from Server");
                     ret = NO_PEER_CERT;
                     WOLFSSL_ERROR_VERBOSE(ret);
