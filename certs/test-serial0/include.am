@@ -6,8 +6,15 @@ dist_doc_DATA+= certs/test-serial0/README.md
 
 EXTRA_DIST+= certs/test-serial0/generate_certs.sh \
              certs/test-serial0/root_serial0.pem \
+             certs/test-serial0/root_serial0_key.pem \
              certs/test-serial0/root.pem \
+             certs/test-serial0/root_key.pem \
              certs/test-serial0/ee_serial0.pem \
+             certs/test-serial0/ee_serial0.csr \
+             certs/test-serial0/ee_serial0_key.pem \
              certs/test-serial0/ee_normal.pem \
-             certs/test-serial0/selfsigned_nonca_serial0.pem
+             certs/test-serial0/ee_normal.csr \
+             certs/test-serial0/ee_normal_key.pem \
+             certs/test-serial0/selfsigned_nonca_serial0.pem \
+             certs/test-serial0/selfsigned_nonca_serial0_key.pem
 
