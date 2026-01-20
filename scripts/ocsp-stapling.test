@@ -119,6 +119,29 @@ remove_single_rF(){
     fi
 }
 
+retry_with_backoff() {
+    local max_attempts=$1
+    shift
+    local attempt=1
+    local delay=1
+    local status=0
+
+    while :; do
+        "$@"
+        status=$?
+        if [ $status -eq 0 ]; then
+            return 0
+        fi
+        if [ $attempt -ge $max_attempts ]; then
+            return $status
+        fi
+        printf '%s\n' "Retry $attempt/$max_attempts failed, backing off ${delay}s..."
+        sleep $delay
+        attempt=$((attempt + 1))
+        delay=$((delay * 2))
+    done
+}
+
 #create a configure file for cert generation with the port 0 solution
 create_new_cnf() {
     printf '%s\n' "Random Port Selected: $1"
@@ -304,7 +327,7 @@ server=login.live.com
 ca=./certs/external/ca_collection.pem
 
 if [[ "$V4V6" == "4" ]]; then
-    ./examples/client/client -C -h $server -p 443 -A $ca -g -W 1
+    retry_with_backoff 3 ./examples/client/client -C -h $server -p 443 -A $ca -g -W 1
     RESULT=$?
     [ $RESULT -ne 0 ] && echo -e "\n\nClient connection failed" && exit 1
 else
