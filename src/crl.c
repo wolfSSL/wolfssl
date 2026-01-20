@@ -1127,6 +1127,22 @@ WOLFSSL_X509_CRL* wolfSSL_X509_CRL_dup(const WOLFSSL_X509_CRL* crl)
     return ret;
 }
 
+int wolfSSL_X509_CRL_up_ref(WOLFSSL_X509_CRL* crl)
+{
+    if (crl) {
+        int ret;
+        wolfSSL_RefInc(&crl->ref, &ret);
+        if (ret != 0) {
+            WOLFSSL_MSG("Failed to lock x509 mutex");
+            return WOLFSSL_FAILURE;
+        }
+
+        return WOLFSSL_SUCCESS;
+    }
+
+    return WOLFSSL_FAILURE;
+}
+
 /* returns WOLFSSL_SUCCESS on success. Does not take ownership of newcrl */
 int wolfSSL_X509_STORE_add_crl(WOLFSSL_X509_STORE *store, WOLFSSL_X509_CRL *newcrl)
 {

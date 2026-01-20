@@ -4393,6 +4393,14 @@ WOLFSSL_STACK* wolfSSL_sk_X509_CRL_new(void)
     return s;
 }
 
+WOLFSSL_STACK* wolfSSL_sk_X509_CRL_new_null(void)
+{
+    WOLFSSL_STACK* s = wolfSSL_sk_new_null();
+    if (s != NULL)
+        s->type = STACK_TYPE_X509_CRL;
+    return s;
+}
+
 void wolfSSL_sk_X509_CRL_pop_free(WOLF_STACK_OF(WOLFSSL_X509_CRL)* sk,
     void (*f) (WOLFSSL_X509_CRL*))
 {

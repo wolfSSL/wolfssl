@@ -622,11 +622,13 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define X509_chain_up_ref               wolfSSL_X509_chain_up_ref
 
 #define sk_X509_CRL_new                 wolfSSL_sk_X509_CRL_new
+#define sk_X509_CRL_new_null            wolfSSL_sk_X509_CRL_new_null
 #define sk_X509_CRL_pop_free            wolfSSL_sk_X509_CRL_pop_free
 #define sk_X509_CRL_free                wolfSSL_sk_X509_CRL_free
 #define sk_X509_CRL_push                wolfSSL_sk_X509_CRL_push
 #define sk_X509_CRL_value               wolfSSL_sk_X509_CRL_value
 #define sk_X509_CRL_num                 wolfSSL_sk_X509_CRL_num
+#define sk_X509_CRL_dup                 wolfSSL_sk_dup
 
 #define sk_X509_OBJECT_new              wolfSSL_sk_X509_OBJECT_new
 #define sk_X509_OBJECT_free             wolfSSL_sk_X509_OBJECT_free
@@ -807,6 +809,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define PEM_read_X509_CRL               wolfSSL_PEM_read_X509_CRL
 
 #define X509_CRL_dup                    wolfSSL_X509_CRL_dup
+#define X509_CRL_up_ref                 wolfSSL_X509_CRL_up_ref
 #define X509_CRL_free                   wolfSSL_X509_CRL_free
 #define X509_CRL_get_lastUpdate         wolfSSL_X509_CRL_get_lastUpdate
 #define X509_CRL_get0_lastUpdate        wolfSSL_X509_CRL_get_lastUpdate
