@@ -448,8 +448,24 @@ static int wolfssl_sk_dup_data(WOLFSSL_STACK* dst, WOLFSSL_STACK* src)
                 break;
             }
             break;
+        case STACK_TYPE_X509_CRL:
+#if defined(OPENSSL_EXTRA) && defined(HAVE_CRL)
+            if (src->data.crl == NULL) {
+                break;
+            }
+            dst->data.crl = wolfSSL_X509_CRL_dup(src->data.crl);
+            if (dst->data.crl == NULL) {
+                WOLFSSL_MSG("wolfSSL_X509_CRL_dup error");
+                err = 1;
+                break;
+            }
+#else
+            WOLFSSL_MSG("CRL support not enabled");
+            err = 1;
+#endif
+            break;
         case STACK_TYPE_X509_OBJ:
-        #if defined(OPENSSL_ALL)
+#if defined(OPENSSL_ALL)
             if (src->data.x509_obj == NULL) {
                 break;
             }
@@ -460,8 +476,11 @@ static int wolfssl_sk_dup_data(WOLFSSL_STACK* dst, WOLFSSL_STACK* src)
                 err = 1;
                 break;
             }
+#else
+            WOLFSSL_MSG("OPENSSL_ALL support not enabled");
+            err = 1;
+#endif
             break;
-        #endif
         case STACK_TYPE_BIO:
         case STACK_TYPE_STRING:
         case STACK_TYPE_ACCESS_DESCRIPTION:
@@ -475,7 +494,6 @@ static int wolfssl_sk_dup_data(WOLFSSL_STACK* dst, WOLFSSL_STACK* src)
         case STACK_TYPE_BY_DIR_entry:
         case STACK_TYPE_BY_DIR_hash:
         case STACK_TYPE_DIST_POINT:
-        case STACK_TYPE_X509_CRL:
         case STACK_TYPE_GENERAL_SUBTREE:
         default:
             WOLFSSL_MSG("Unsupported stack type");
@@ -488,7 +506,8 @@ static int wolfssl_sk_dup_data(WOLFSSL_STACK* dst, WOLFSSL_STACK* src)
 
 /* Duplicate the stack of nodes.
  *
- * TODO: OpenSSL does a shallow copy but we have wolfSSL_shallow_sk_dup().
+ * OpenSSL does a shallow copy but we map to wolfSSL_shallow_sk_dup()
+ * when we want a shallow copy.
  *
  * Data is copied/duplicated - deep copy.
  *
@@ -683,7 +702,7 @@ void* wolfSSL_sk_value(const WOLFSSL_STACK* sk, int i)
 #if (!defined(NO_CERTS) && (defined(OPENSSL_EXTRA) || \
      defined(WOLFSSL_WPAS_SMALL))) || defined(WOLFSSL_QT) || \
      defined(OPENSSL_ALL)
-/* Put the data into a node at the top of the stack.
+/* Put the data into a node at the end of the list.
  *
  * @param [in, out] stack  Stack of objects.
  * @param [in]      data   Data to store in stack.
@@ -698,7 +717,7 @@ int wolfSSL_sk_push(WOLFSSL_STACK* stack, const void *data)
     return wolfSSL_sk_insert(stack, data, -1);
 }
 
-/* Put the data into a node at an index in the stack.
+/* Put the data into a node at an index in the list.
  *
  * @param [in, out] stack  Stack of objects.
  * @param [in]      data   Data to store in stack.

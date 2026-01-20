@@ -20574,7 +20574,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
 #ifdef WC_DRBG_BANKREF
     WC_ALLOC_VAR_EX(rng, WC_RNG, 1, HEAP_HINT,
                     DYNAMIC_TYPE_TMP_BUFFER,
-                    return WC_TEST_RET_ENC_EC(MEMORY_E));
+                    ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out));
     XMEMSET(rng, 0, sizeof(*rng));
 #endif
 
