@@ -11913,6 +11913,7 @@ static WOLFSSL_X509 *loadX509orX509REQFromPemBio(WOLFSSL_BIO *bp,
     int pemSz;
     long  i = 0, l, footerSz;
     const char* footer = NULL;
+    int streaming = 0;  /* Flag to indicate if source is streaming (FIFO) */
 
     WOLFSSL_ENTER("loadX509orX509REQFromPemBio");
 
@@ -11922,13 +11923,10 @@ static WOLFSSL_X509 *loadX509orX509REQFromPemBio(WOLFSSL_BIO *bp,
     }
 
     if ((l = wolfSSL_BIO_get_len(bp)) <= 0) {
-        /* No certificate in buffer */
-#if defined (WOLFSSL_HAPROXY)
-        WOLFSSL_ERROR(PEM_R_NO_START_LINE);
-#else
-        WOLFSSL_ERROR(ASN_NO_PEM_HEADER);
-#endif
-        return NULL;
+        /* No certificate size available - could be FIFO or other streaming
+         * source. Use MAX_X509_SIZE as initial buffer, will resize if needed. */
+        l = MAX_X509_SIZE;
+        streaming = 1;
     }
 
     pemSz = (int)l;
@@ -11949,24 +11947,68 @@ static WOLFSSL_X509 *loadX509orX509REQFromPemBio(WOLFSSL_BIO *bp,
      */
     while ((l = wolfSSL_BIO_read(bp, (char *)&pem[i], 1)) == 1) {
         i++;
+
+        /* Check if buffer is full and we're reading from streaming source */
+        if (i >= pemSz && streaming) {
+            /* Double the buffer size for streaming sources */
+            int newSz = pemSz * 2;
+            unsigned char* newPem;
+
+            /* Sanity check: don't grow beyond reasonable limit */
+            if (newSz > MAX_X509_SIZE * 16) {
+                WOLFSSL_MSG("PEM data too large for streaming source");
+                XFREE(pem, 0, DYNAMIC_TYPE_PEM);
+                return NULL;
+            }
+
+            newPem = (unsigned char*)XMALLOC(newSz, 0, DYNAMIC_TYPE_PEM);
+            if (newPem == NULL) {
+                WOLFSSL_MSG("Failed to resize PEM buffer");
+                XFREE(pem, 0, DYNAMIC_TYPE_PEM);
+                return NULL;
+            }
+
+            XMEMCPY(newPem, pem, pemSz);
+            XMEMSET(newPem + pemSz, 0, newSz - pemSz);
+            XFREE(pem, 0, DYNAMIC_TYPE_PEM);
+            pem = newPem;
+            pemSz = newSz;
+        }
+        else if (i >= pemSz) {
+            /* Buffer full for non-streaming source - this shouldn't happen */
+            WOLFSSL_MSG("PEM buffer overflow");
+            XFREE(pem, 0, DYNAMIC_TYPE_PEM);
+            return NULL;
+        }
+
         if (i > footerSz && XMEMCMP((char *)&pem[i-footerSz], footer,
                 footerSz) == 0) {
-            if (wolfSSL_BIO_read(bp, (char *)&pem[i], 1) == 1) {
+            if (i < pemSz && wolfSSL_BIO_read(bp, (char *)&pem[i], 1) == 1) {
                 /* attempt to read newline following footer */
                 i++;
-                if (pem[i-1] == '\r') {
+                if (i < pemSz && pem[i-1] == '\r') {
                     /* found \r , Windows line ending is \r\n so try to read one
                      * more byte for \n, ignoring return value */
-                    (void)wolfSSL_BIO_read(bp, (char *)&pem[i++], 1);
+                    if (i < pemSz) {
+                        (void)wolfSSL_BIO_read(bp, (char *)&pem[i++], 1);
+                    }
                 }
             }
             break;
         }
     }
-    if (l == 0)
+    if (l == 0) {
         WOLFSSL_ERROR(ASN_NO_PEM_HEADER);
+        if (i == 0) {
+            /* No data read at all - empty source */
+            XFREE(pem, 0, DYNAMIC_TYPE_PEM);
+            return NULL;
+        }
+    }
     if (i > pemSz) {
         WOLFSSL_MSG("Error parsing PEM");
+        XFREE(pem, 0, DYNAMIC_TYPE_PEM);
+        return NULL;
     }
     else {
         pemSz = (int)i;
@@ -12015,22 +12057,67 @@ static WOLFSSL_X509 *loadX509orX509REQFromPemBio(WOLFSSL_BIO *bp,
         }
 
         if ((pemSz = wolfSSL_BIO_get_len(bp)) <= 0) {
-            /* No certificate in buffer */
-            WOLFSSL_ERROR(ASN_NO_PEM_HEADER);
-            return NULL;
+            /* No certificate size available - could be FIFO or other streaming
+             * source. Use MAX_X509_SIZE as initial buffer, read in loop. */
+            int totalRead = 0;
+            int readSz;
+
+            pemSz = MAX_X509_SIZE;
+            pem = (unsigned char*)XMALLOC(pemSz, 0, DYNAMIC_TYPE_PEM);
+            if (pem == NULL) {
+                return NULL;
+            }
+
+            /* Read from streaming source until EOF or buffer full */
+            while ((readSz = wolfSSL_BIO_read(bp, pem + totalRead,
+                                              pemSz - totalRead)) > 0) {
+                totalRead += readSz;
+
+                /* If buffer is full, try to grow it */
+                if (totalRead >= pemSz) {
+                    int newSz = pemSz * 2;
+                    unsigned char* newPem;
+
+                    /* Sanity check */
+                    if (newSz > MAX_X509_SIZE * 16) {
+                        WOLFSSL_MSG("PEM data too large for streaming source");
+                        XFREE(pem, NULL, DYNAMIC_TYPE_PEM);
+                        return NULL;
+                    }
+
+                    newPem = (unsigned char*)XMALLOC(newSz, 0, DYNAMIC_TYPE_PEM);
+                    if (newPem == NULL) {
+                        XFREE(pem, NULL, DYNAMIC_TYPE_PEM);
+                        return NULL;
+                    }
+
+                    XMEMCPY(newPem, pem, pemSz);
+                    XFREE(pem, NULL, DYNAMIC_TYPE_PEM);
+                    pem = newPem;
+                    pemSz = newSz;
+                }
+            }
+
+            pemSz = totalRead;
+            if (pemSz <= 0) {
+                XFREE(pem, NULL, DYNAMIC_TYPE_PEM);
+                return NULL;
+            }
         }
+        else {
+            /* Known size - allocate and read */
+            pem = (unsigned char*)XMALLOC(pemSz, 0, DYNAMIC_TYPE_PEM);
+            if (pem == NULL) {
+                return NULL;
+            }
 
-        pem   = (unsigned char*)XMALLOC(pemSz, 0, DYNAMIC_TYPE_PEM);
+            XMEMSET(pem, 0, pemSz);
 
-        if (pem == NULL) {
-            return NULL;
-        }
-
-        XMEMSET(pem, 0, pemSz);
-
-        if (wolfSSL_BIO_read(bp, pem, pemSz) != pemSz) {
-            XFREE(pem, NULL, DYNAMIC_TYPE_PEM);
-            return NULL;
+            pemSz = wolfSSL_BIO_read(bp, pem, pemSz);
+            if (pemSz <= 0) {
+                XFREE(pem, NULL, DYNAMIC_TYPE_PEM);
+                return NULL;
+            }
         }
 
         x509 = wolfSSL_X509_ACERT_load_certificate_buffer(pem, pemSz,
@@ -12136,16 +12223,60 @@ WOLFSSL_X509 *wolfSSL_PEM_read_bio_X509_REQ(WOLFSSL_BIO *bp, WOLFSSL_X509 **x,
         WOLFSSL_X509_CRL* crl = NULL;
 
         if ((pemSz = wolfSSL_BIO_get_len(bp)) <= 0) {
-            goto err;
-        }
+            /* No certificate size available - could be FIFO or other streaming
+             * source. Use MAX_X509_SIZE as initial buffer, read in loop. */
+            int totalRead = 0;
+            int readSz;
 
-        pem = (unsigned char*)XMALLOC(pemSz, 0, DYNAMIC_TYPE_PEM);
-        if (pem == NULL) {
-            goto err;
-        }
+            pemSz = MAX_X509_SIZE;
+            pem = (unsigned char*)XMALLOC(pemSz, 0, DYNAMIC_TYPE_PEM);
+            if (pem == NULL) {
+                goto err;
+            }
 
-        if (wolfSSL_BIO_read(bp, pem, pemSz) != pemSz) {
-            goto err;
+            /* Read from streaming source until EOF or buffer full */
+            while ((readSz = wolfSSL_BIO_read(bp, pem + totalRead,
+                                              pemSz - totalRead)) > 0) {
+                totalRead += readSz;
+
+                /* If buffer is full, try to grow it */
+                if (totalRead >= pemSz) {
+                    int newSz = pemSz * 2;
+                    unsigned char* newPem;
+
+                    /* Sanity check */
+                    if (newSz > MAX_X509_SIZE * 16) {
+                        goto err;
+                    }
+
+                    newPem = (unsigned char*)XMALLOC(newSz, 0, DYNAMIC_TYPE_PEM);
+                    if (newPem == NULL) {
+                        goto err;
+                    }
+
+                    XMEMCPY(newPem, pem, pemSz);
+                    XFREE(pem, 0, DYNAMIC_TYPE_PEM);
+                    pem = newPem;
+                    pemSz = newSz;
+                }
+            }
+
+            pemSz = totalRead;
+            if (pemSz <= 0) {
+                goto err;
+            }
+        }
+        else {
+            /* Known size - allocate and read */
+            pem = (unsigned char*)XMALLOC(pemSz, 0, DYNAMIC_TYPE_PEM);
+            if (pem == NULL) {
+                goto err;
+            }
+
+            pemSz = wolfSSL_BIO_read(bp, pem, pemSz);
+            if (pemSz <= 0) {
+                goto err;
+            }
         }
 
         if ((PemToDer(pem, pemSz, CRL_TYPE, &der, NULL, NULL, NULL)) < 0) {
@@ -12157,6 +12288,9 @@ WOLFSSL_X509 *wolfSSL_PEM_read_bio_X509_REQ(WOLFSSL_BIO *bp, WOLFSSL_X509 **x,
         }
 
 err:
+        if (pemSz == 0) {
+            WOLFSSL_ERROR(ASN_NO_PEM_HEADER);
+        }
         XFREE(pem, 0, DYNAMIC_TYPE_PEM);
         if (der != NULL) {
             FreeDer(&der);
