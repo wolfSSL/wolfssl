@@ -29,14 +29,14 @@ package WolfSSL with SPARK_Mode is
    Success : constant Subprogram_Result;
    --  Indicates success for some functions.
    --  Do not use, unless you know what you do.
-   
+
    Failure : constant Subprogram_Result;
-   --  Indicates failure for some functions.
-   --  Do not use, unless you know what you do.   
+   --  Inidcates failure for some functions.
+   --  Do not use, unless you know what you do.
 
    Exception_Error : constant := -1234567;
    --  Indicates an exception was raised during a subprogram call.
-   
+
    function Initialize return Subprogram_Result;
    --  Initializes the wolfSSL library for use. Must be called once per
    --  application and before any other call to the library.
@@ -47,7 +47,7 @@ package WolfSSL with SPARK_Mode is
    --  used by the library.
 
    subtype unsigned is Interfaces.C.unsigned;
-      
+
    subtype Byte_Type  is Interfaces.C.char;
    subtype Byte_Index is Interfaces.C.size_t range 0 .. 16_000;
    subtype Byte_Array is Interfaces.C.char_array;
@@ -68,7 +68,7 @@ package WolfSSL with SPARK_Mode is
 
    type Method_Type is limited private with
      Annotate => (GNATprove, Ownership, "Needs_Reclamation");
-     
+
    function Is_Valid (Method : Method_Type) return Boolean with
       Annotate => (GNATprove, Ownership, "Needs_Reclamation");
    --  Annotation added for GNATprove ownership analysis.
@@ -313,7 +313,7 @@ package WolfSSL with SPARK_Mode is
    --  of a file. The buffer is provided by the Input argument.
    --  Format specifies the format type of the buffer; ASN1 or PEM.
    --  Please see the examples for proper usage.
-   
+
    function Attach (Ssl    : WolfSSL_Type;
                     Socket : Integer)
                     return Subprogram_Result with
@@ -516,31 +516,31 @@ package WolfSSL with SPARK_Mode is
    --  Returns the value of the defined MAX_ERROR_SZ integer
    --  in wolfssl/wolfcrypt/error.h.
 
-   type RNG_Key_Type is limited private with
+   type RNG_Type is limited private with
      Annotate => (GNATprove, Ownership, "Needs_Reclamation");
 
-   function Is_Valid (Key : RNG_Key_Type) return Boolean with
+   function Is_Valid (Key : RNG_Type) return Boolean with
       Annotate => (GNATprove, Ownership, "Needs_Reclamation");
    --  Indicates if the RNG has successfully been initialized.
    --  Annotation added for GNATprove ownership analysis.
-   --    https://docs.adacore.com/spark2014-docs/html/ug/en/appendix/additional_annotate_pragmas.html#annotation-for-enforcing-ownership-checking-on-a-private-type 
-   
-   procedure Create_RNG (Key    : in out RNG_Key_Type;
+   --    https://docs.adacore.com/spark2014-docs/html/ug/en/appendix/additional_annotate_pragmas.html#annotation-for-enforcing-ownership-checking-on-a-private-type
+
+   procedure Create_RNG (Key    : in out RNG_Type;
                          Result : out Integer) with
      Pre => not Is_Valid (Key),
      Post => (if Result = 0 then Is_Valid (Key));
    --  If successful Result = 0.
-   
-   procedure Free_RNG (Key : in out RNG_Key_Type) with
+
+   procedure Free_RNG (Key : in out RNG_Type) with
      Pre => Is_Valid (Key),
      Post => not Is_Valid (Key);
    --  Frees resources associated with RNG and releases the underlying C object.
-   
-   procedure RNG_Generate_Block (RNG    : RNG_Key_Type;
+
+   procedure RNG_Generate_Block (RNG    : RNG_Type;
                                  Output : out Byte_Array;
                                  Result : out Integer) with
      Pre => Is_Valid (RNG);
-   
+
    type HMAC_Hash is (MD5, SHA, SHA256, SHA384, SHA512, SHA3_224,
                       SHA3_256, SHA3_384, SHA3_512);
 
@@ -551,7 +551,7 @@ package WolfSSL with SPARK_Mode is
                      Key_Length : Positive;
                      HMAC       : HMAC_Hash;
                      Result     : out Integer);
-   
+
    type RSA_Key_Type is limited private with
      Annotate => (GNATprove, Ownership, "Needs_Reclamation");
 
@@ -560,7 +560,7 @@ package WolfSSL with SPARK_Mode is
    --  Indicates if the RSA has successfully been initialized.
    --  Annotation added for GNATprove ownership analysis.
    --    https://docs.adacore.com/spark2014-docs/html/ug/en/appendix/additional_annotate_pragmas.html#annotation-for-enforcing-ownership-checking-on-a-private-type
-   
+
    procedure Create_RSA (Key    : in out RSA_Key_Type;
                          Result : out Integer) with
      Pre => not Is_Valid (Key),
@@ -571,7 +571,7 @@ package WolfSSL with SPARK_Mode is
      Pre => Is_Valid (Key),
      Post => not Is_Valid (Key);
    --  Frees resources associated with RSA and releases the underlying C object.
-   
+
    procedure Rsa_Public_Key_Decode (Input : Byte_Array;
                                     Index : in out Byte_Index;
                                     Key   : in out RSA_Key_Type;
@@ -599,20 +599,20 @@ package WolfSSL with SPARK_Mode is
    --        one public and one private key.
 
    procedure Rsa_Set_RNG (Key    : in out Rsa_Key_Type;
-                          RNG    : in out RNG_Key_Type;
-                          Result : out Integer);   
+                          RNG    : in out RNG_Type;
+                          Result : out Integer);
 
    procedure Rsa_SSL_Sign (Input  : Byte_Array;
                            Output : in out Byte_Array;
                            RSA    : in out RSA_Key_Type;
-                           RNG    : in out RNG_Key_Type;
+                           RNG    : in out RNG_Type;
                            Result : out Integer) with
      Pre => Is_Valid (RSA) and Is_Valid (RNG);
    --  The Output buffer must have the same size as the RSA key.
    --  If successful Result = 0.
    --  If Result < 0, then failure.
    --  If Result > 0, then Success and is the size of the RSA key in bytes.
-   
+
    procedure Rsa_SSL_Verify (Input  : Byte_Array;
                              Output : in out Byte_Array;
                              RSA    : in out RSA_Key_Type;
@@ -621,19 +621,19 @@ package WolfSSL with SPARK_Mode is
    --  If Result < 0, then failure.
    --  If Result > 0, then digital signature in Input
    --                 successfully verified.
-   
+
    procedure RSA_Public_Encrypt (Input  : Byte_Array;
                                  Output : in out Byte_Array;
                                  Index  :    out Byte_Index;
                                  RSA    : in out RSA_Key_Type;
-                                 RNG    : in out RNG_Key_Type;
+                                 RNG    : in out RNG_Type;
                                  Result :    out Integer) with
      Pre => Is_Valid (RSA);
    --  This function encrypts a message from Input and stores the result
    --  in Output. It requires an initialized public key and a random
    --  number generator. As a side effect, this function will return
    --  the bytes written to Output in Index.
-   
+
    procedure RSA_Private_Decrypt (Input  : Byte_Array;
                                   Output : in out Byte_Array;
                                   Index  :    out Byte_Index;
@@ -670,20 +670,20 @@ package WolfSSL with SPARK_Mode is
    --  If successful Result = 0.
 
    subtype SHA256_As_String is String (1 .. 64);
-   
+
    subtype SHA256_Hash is Byte_Array (1 .. 32);
-   
+
    procedure Finalize_SHA256 (SHA256 : in out SHA256_Type;
                               Hash   : out SHA256_Hash;
                               Text   : out SHA256_As_String;
                               Result : out Integer) with
      Pre => Is_Valid (SHA256);
    --  If successful Result = 0.
-   
+
    type Device_Identifier is new Integer;
-   
+
    function Invalid_Device return Device_Identifier;
-   
+
    type AES_Type is limited private with
      Annotate => (GNATprove, Ownership, "Needs_Reclamation");
 
@@ -718,14 +718,14 @@ package WolfSSL with SPARK_Mode is
                          IV  : Byte_Array;
                          Result : out Integer) with
      Pre => Is_Valid (AES);
-   
+
    procedure AES_Set_Cbc_Encrypt (AES : AES_Type;
                                   Output : out Byte_Array;
                                   Input : Byte_Array;
                                   Size : Integer;
                                   Result : out Integer) with
      Pre => Is_Valid (AES);
-   
+
    procedure AES_Set_Cbc_Decrypt (AES : AES_Type;
                                   Output : out Byte_Array;
                                   Input : Byte_Array;
@@ -734,7 +734,7 @@ package WolfSSL with SPARK_Mode is
      Pre => Is_Valid (AES);
 
    --  (Removed duplicate AES_Free declaration)
-   
+
 private
    pragma SPARK_Mode (Off);
 
@@ -744,8 +744,8 @@ private
    pragma No_Strict_Aliasing (chars_ptr);
    --  Since this type is used for external interfacing, with the pointer
    --  coming from who knows where, it seems a good idea to turn off any
-   --  strict aliasing assumptions for this type.   
-   
+   --  strict aliasing assumptions for this type.
+
    subtype int is Interfaces.C.int; use type int;
 
    type Opaque_Method  is limited null record;
@@ -810,7 +810,7 @@ private
    --  Footprint run-time. The constants exposed here in the Ada binding
    --  have valid values defined in the WolfSSL library but the compiler
    --  cannot know this since the values become known during run-time.
-   
+
    Verify_None : constant Mode_Type := Mode_Type (WolfSSL_Verify_None);
    Verify_Peer : constant Mode_Type := Mode_Type (WolfSSL_Verify_Peer);
 
@@ -852,7 +852,7 @@ private
    --  propagation if this code is compiled with the Zero
    --  Footprint run-time. The constants exposed here in the Ada binding
    --  have valid values defined in the WolfSSL library but the compiler
-   --  cannot know this since the values become known during run-time.   
+   --  cannot know this since the values become known during run-time.
    Format_Asn1 : constant File_Format :=
      File_Format (WolfSSL_Filetype_Asn1);
 
@@ -862,7 +862,7 @@ private
    Format_Default : constant File_Format :=
      File_Format (WolfSSL_Filetype_Default);
    pragma Warnings (On, "pragma Restrictions (No_Exception_Propagation)");
-   
+
    function Get_WolfSSL_Success return int with
      Convention    => C,
      External_Name => "get_wolfssl_success",
@@ -880,7 +880,7 @@ private
 
    Failure : constant Subprogram_Result :=
      Subprogram_Result (Get_WolfSSL_Failure);
-      
+
    function Get_WolfSSL_Error_Want_Read return int with
      Convention    => C,
      External_Name => "get_wolfssl_error_want_read",
@@ -897,16 +897,16 @@ private
    Error_Want_Write : constant Error_Code :=
      Error_Code (Get_WolfSSL_Error_Want_Write);
 
-   type Opaque_RNG is limited null record;  
-   type RNG_Key_Type is access Opaque_RNG with Convention => C;   
-   
-   type Opaque_RSA is limited null record;  
+   type Opaque_RNG is limited null record;
+   type RNG_Type is access Opaque_RNG with Convention => C;
+
+   type Opaque_RSA is limited null record;
    type RSA_Key_Type is access Opaque_RSA with Convention => C;
-   
-   type Opaque_Sha256 is limited null record;  
+
+   type Opaque_Sha256 is limited null record;
    type SHA256_Type is access Opaque_Sha256 with Convention => C;
-   
+
    type Opaque_AES is limited null record;
-   type AES_Type is access Opaque_AES with Convention => C;   
-   
+   type AES_Type is access Opaque_AES with Convention => C;
+
 end WolfSSL;

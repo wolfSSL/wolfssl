@@ -829,24 +829,24 @@ package body WolfSSL is
       return Natural (Get_WolfSSL_Max_Error_Size);
    end Max_Error_Size;
 
-   function Is_Valid (Key : RNG_Key_Type) return Boolean is
+   function Is_Valid (Key : RNG_Type) return Boolean is
    begin
       return Key /= null;
    end Is_Valid;
 
-   function Ada_New_RNG return RNG_Key_Type with
+   function Ada_New_RNG return RNG_Type with
      Convention    => C,
      External_Name => "ada_new_rng",
      Import        => True;
 
-   procedure Ada_Free_RNG (Key : in RNG_Key_Type) with
+   procedure Ada_Free_RNG (Key : in RNG_Type) with
      Convention    => C,
      External_Name => "ada_free_rng",
      Import        => True;
 
 
 
-   procedure Free_RNG (Key : in out RNG_Key_Type) is
+   procedure Free_RNG (Key : in out RNG_Type) is
    begin
       if Key = null then
          return;
@@ -859,7 +859,7 @@ package body WolfSSL is
       Key := null;
    end Free_RNG;
 
-   procedure Create_RNG (Key    : in out RNG_Key_Type;
+   procedure Create_RNG (Key    : in out RNG_Type;
                          Result : out Integer) is
    begin
       declare
@@ -882,14 +882,14 @@ package body WolfSSL is
          Result := Exception_Error;
    end Create_RNG;
 
-   function WC_RNG_Generate_Block (RNG    : not null RNG_Key_Type;
+   function WC_RNG_Generate_Block (RNG    : not null RNG_Type;
                                    Output : out Byte_Array;
                                    Size   : int) return int with
      Convention    => C,
      External_Name => "wc_RNG_GenerateBlock",
      Import        => True;
 
-   procedure RNG_Generate_Block (RNG    : RNG_Key_Type;
+   procedure RNG_Generate_Block (RNG    : RNG_Type;
                                  Output : out Byte_Array;
                                  Result : out Integer) is
    begin
@@ -1007,13 +1007,13 @@ package body WolfSSL is
    end PBKDF2;
 
    function Ada_RSA_Set_RNG (Key : not null RSA_Key_Type;
-                             RNG : not null RNG_Key_Type) return int with
+                             RNG : not null RNG_Type) return int with
      Convention    => C,
      External_Name => "ada_RsaSetRNG",
      Import        => True;
 
    procedure Rsa_Set_RNG (Key    : in out Rsa_Key_Type;
-                          RNG    : in out RNG_Key_Type;
+                          RNG    : in out RNG_Type;
                           Result : out Integer) is
    begin
       declare
@@ -1139,7 +1139,7 @@ package body WolfSSL is
                           Output     : in out Byte_Array;
                           Out_Length : int;
                           RSA        : not null RSA_Key_Type;
-                          RNG        : not null RNG_Key_Type)
+                          RNG        : not null RNG_Type)
                           return int with
      Convention    => C,
      External_Name => "wc_RsaSSL_Sign",
@@ -1148,7 +1148,7 @@ package body WolfSSL is
    procedure Rsa_SSL_Sign (Input  : Byte_Array;
                            Output : in out Byte_Array;
                            RSA    : in out RSA_Key_Type;
-                           RNG    : in out RNG_Key_Type;
+                           RNG    : in out RNG_Type;
                            Result : out Integer) is
    begin
       declare
@@ -1202,7 +1202,7 @@ package body WolfSSL is
                                    Output     : in out Byte_Array;
                                    Out_Length : int;
                                    RSA        : not null RSA_Key_Type;
-                                   RNG        : not null RNG_Key_Type)
+                                   RNG        : not null RNG_Type)
                                    return int with
      Convention    => C,
      External_Name => "wc_RsaPublicEncrypt",
@@ -1212,7 +1212,7 @@ package body WolfSSL is
                                  Output : in out Byte_Array;
                                  Index  :    out Byte_Index;
                                  RSA    : in out RSA_Key_Type;
-                                 RNG    : in out RNG_Key_Type;
+                                 RNG    : in out RNG_Type;
                                  Result : out Integer) is
    begin
       Index := 0;

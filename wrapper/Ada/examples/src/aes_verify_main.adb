@@ -2,9 +2,9 @@ with Ada.Text_IO;
 with Ada.Integer_Text_IO;
 with WolfSSL;
 procedure AES_Verify_Main is
-   
+
    use type WolfSSL.Byte_Type;
-   
+
    procedure Put (Text : String) renames Ada.Text_IO.Put;
 
    procedure Put (Value : Integer) is
@@ -16,21 +16,21 @@ procedure AES_Verify_Main is
    begin
       Ada.Text_IO.New_Line;
    end New_Line;
-   
-   type Unsigned_8 is mod 2 ** 8;   
-   
+
+   type Unsigned_8 is mod 2 ** 8;
+
    function To_C (Value : Unsigned_8) return WolfSSL.Byte_Type is
    begin
       return WolfSSL.Byte_Type'Val (Value);
    end To_C;
-   
-   RNG : WolfSSL.RNG_Key_Type;
-   
-   
+
+   RNG : WolfSSL.RNG_Type;
+
+
    Salt_Size : constant := 8;
-   
+
    Salt : WolfSSL.Byte_Array (1 .. 8);
-   
+
    AES : WolfSSL.AES_Type;
    R : Integer;
    Pad : Integer := 3;
@@ -56,7 +56,7 @@ begin
       Cleanup;
       return;
    end if;
-   
+
    WolfSSL.RNG_Generate_Block (RNG    => RNG,
                                Output => Salt,
                                Result => R);
@@ -66,13 +66,13 @@ begin
       Cleanup;
       return;
    end if;
-   
+
    if Pad = 0 then
       Salt (1) := To_C (0);
    elsif Salt (1) = To_C (0) then
       Salt (1) := To_C (1);
    end if;
-   
+
    --  Create_AES signature no longer requires Index when AES objects are
    --  dynamically allocated.
    WolfSSL.Create_AES (Device => WolfSSL.Invalid_Device,

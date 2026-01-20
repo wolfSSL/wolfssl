@@ -7,16 +7,16 @@ with WolfSSL;
 --  Successful verification of RSA based digital signature.
 --  Successfully encrypted and decrypted using RSA.
 procedure Rsa_Verify_Main is
-   
+
    use type WolfSSL.Byte_Array;
-   
+
    type Unsigned_8 is mod 2 ** 8;
-      
+
    function To_C (Value : Unsigned_8) return WolfSSL.Byte_Type is
    begin
       return WolfSSL.Byte_Type'Val (Value);
    end To_C;
-   
+
    --  RSA public key to verify with.
    Rsa_Public_key_2048 : constant WolfSSL.Byte_Array :=
      (To_C (16#30#), To_C (16#82#), To_C (16#01#), To_C (16#22#), To_C (16#30#),
@@ -320,45 +320,45 @@ procedure Rsa_Verify_Main is
      To_C (16#45#), To_C (16#5D#), To_C (16#13#), To_C (16#39#), To_C (16#65#),
      To_C (16#42#), To_C (16#46#), To_C (16#A1#), To_C (16#9F#), To_C (16#CD#),
      To_C (16#F5#), To_C (16#BF#));
-   
+
    procedure Put (Text : String) renames Ada.Text_IO.Put;
 
    procedure Put (Value : Integer) is
    begin
       Ada.Integer_Text_IO.Put (Value);
    end Put;
-      
+
    procedure New_Line is
    begin
       Ada.Text_IO.New_Line;
    end New_Line;
 
    use type WolfSSL.Subprogram_Result;
-   
+
    Original_AES_Key : constant WolfSSL.Byte_Array (1 .. 32) :=
      "Thisismyfakeaeskeythatis32bytes!";
 
    Digital_Signature_Of_AES_Key : WolfSSL.Byte_Array (1 .. 256);
 
    Decrypted_Digital_Signature : WolfSSL.Byte_Array (1 .. 256);
-   
+
    Encrypted : WolfSSL.Byte_Array (1 .. 1_024);
    --  Actually only needs to be at least 256 bytes.
    --  The purpose is to store the Original_AES_Key encrypted.
-   
+
    Decrypted : WolfSSL.Byte_Array (1 .. 1_024);
    --  Actually only needs to be at least 32 bytes.
    --  The purpose is to store the Original_AES_Key after
    --  first being encrypted and then decrypted.
    --  After the process, this byte array should contain the same
    --  contents as Original_AES_KEY.
-   
+
    Hash : WolfSSL.SHA256_Hash;
    SHA256 : WolfSSL.SHA256_Type;
    R : Integer;
 
-   RNG : WolfSSL.RNG_Key_Type;
-   
+   RNG : WolfSSL.RNG_Type;
+
    RSA_Encrypt_Key : WolfSSL.RSA_Key_Type;
    RSA_Decrypt_Key : WolfSSL.RSA_Key_Type;
    Index : WolfSSL.Byte_Index;
@@ -388,7 +388,7 @@ begin
       Cleanup;
       return;
    end if;
-   
+
    WolfSSL.Create_RSA (Key    => RSA_Encrypt_Key,
                        Result => R);
    if R /= 0 then
@@ -397,7 +397,7 @@ begin
       Cleanup;
       return;
    end if;
-   
+
    WolfSSL.Rsa_Set_RNG (Key    => RSA_Encrypt_Key,
                         RNG    => RNG,
                         Result => R);
@@ -407,7 +407,7 @@ begin
       Cleanup;
       return;
    end if;
-   
+
    Index := Client_Private_Key_2048'First;
    WolfSSL.Rsa_Private_Key_Decode (Input  => Client_Private_Key_2048,
                                    Index  => Index,
@@ -434,7 +434,7 @@ begin
       Cleanup;
       return;
    end if;
-   
+
    WolfSSL.Create_RSA (Key    => RSA_Decrypt_Key,
                        Result => R);
    if R /= 0 then
@@ -457,7 +457,7 @@ begin
       Cleanup;
       return;
    end if;
-   
+
    WolfSSL.Rsa_SSL_Verify (Input  => Digital_Signature_Of_AES_Key,
                            Output => Decrypted_Digital_Signature,
                            RSA    => RSA_Decrypt_Key,
@@ -471,13 +471,13 @@ begin
    end if;
    Put ("Successful verification of RSA based digital signature.");
    New_Line;
-   
+
    WolfSSL.RSA_Public_Encrypt (Input  => Original_AES_Key,
                                Output => Encrypted,
                                Index  => Index,
                                RSA    => RSA_Decrypt_Key,
                                RNG    => RNG,
-                               Result => R);     
+                               Result => R);
    if R < 0 then
       Put ("Failed to encrypt the original AES key");
       Put (R);
@@ -485,7 +485,7 @@ begin
       Cleanup;
       return;
    end if;
-   
+
    WolfSSL.RSA_Private_Decrypt (Input  => Encrypted (1 .. Index),
                                 Output => Decrypted,
                                 Index  => Index,
@@ -498,7 +498,7 @@ begin
       Cleanup;
       return;
    end if;
-   
+
    if Integer (Index) /= 32 then
       Put ("Decryption of the encrypted original AES key, wrong size");
       New_Line;

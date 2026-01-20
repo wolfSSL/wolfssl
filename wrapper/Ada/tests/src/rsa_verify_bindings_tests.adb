@@ -331,7 +331,7 @@ package body RSA_Verify_Bindings_Tests is
    procedure Test_RSA_Sign_Verify_And_Encrypt_Decrypt (F : in out Fixture) is
       pragma Unreferenced (F);
 
-      RNG             : WolfSSL.RNG_Key_Type;
+      RNG             : WolfSSL.RNG_Type;
       RSA_Encrypt_Key : WolfSSL.RSA_Key_Type;
       RSA_Decrypt_Key : WolfSSL.RSA_Key_Type;
 
