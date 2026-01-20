@@ -23,6 +23,9 @@
 
 #ifndef WOLFSSL_OBJ_MAC_H_
 #define WOLFSSL_OBJ_MAC_H_
+/* include SN_xxx definitions from asn.h */
+#include <wolfssl/wolfcrypt/asn.h>
+
 #ifdef __cplusplus
     extern "C" {
 #endif

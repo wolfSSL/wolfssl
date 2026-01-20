@@ -37,7 +37,8 @@ that can be serialized and deserialized in a cross-platform way.
 #include <wolfssl/wolfcrypt/types.h>
 
 #if !defined(NO_ASN) || !defined(NO_PWDBASED)
-
+/* included openssl/obj_mac.h directly for SN_xxx definitions */
+#if !defined(WOLFSSL_OBJ_MAC_H_)
 #if !defined(NO_ASN_TIME) && defined(NO_TIME_H)
     #define NO_ASN_TIME /* backwards compatibility with NO_TIME_H */
 #endif
@@ -880,8 +881,10 @@ extern const WOLFSSL_ObjectInfo wolfssl_object_info[];
 #else
     #define WC_MAX_CERT_VERIFY_SZ 1024 /* max default  */
 #endif
-
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+#endif /* !NO_ASN */
+#endif /* !WOLFSSL_OBJ_MAC_H_ */
+#if defined(WOLFSSL_OBJ_MAC_H_) || \
+    defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 /* short names */
 #define WC_SN_md4        "MD4"
 #define WC_SN_md5        "MD5"
@@ -1178,8 +1181,9 @@ extern const WOLFSSL_ObjectInfo wolfssl_object_info[];
 
 #endif /* !OPENSSL_COEXIST */
 
-#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
-
+#endif /* WOLFSSL_OBJ_MAC_H_ || OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+#if !defined(WOLFSSL_OBJ_MAC_H_)
+#if !defined(NO_ASN)
 enum ECC_TYPES
 {
     ECC_PREFIX_0 = 160,
@@ -2998,6 +3002,7 @@ enum PKCSTypes {
     } /* extern "C" */
 #endif
 
+#endif /* WOLFSSL_OBJ_MAC_H_ */
 #endif /* !NO_ASN || !NO_PWDBASED */
 
 #endif /* WOLF_CRYPT_ASN_H */
