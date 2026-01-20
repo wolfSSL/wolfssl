@@ -922,6 +922,7 @@ L_AES_set_encrypt_key_end:
 	POP	{r4, r5, r6, r7, r8, r9, r10, pc}
 	/* Cycle Count = 340 */
 	.size	AES_set_encrypt_key,.-AES_set_encrypt_key
+#ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
 	.text
 	.align	4
 	.globl	AES_encrypt_block
@@ -1138,6 +1139,7 @@ L_AES_encrypt_block_nr:
 	POP	{pc}
 	/* Cycle Count = 285 */
 	.size	AES_encrypt_block,.-AES_encrypt_block
+#endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
 #if defined(HAVE_AES_CBC) || defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || \
     defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
 	.text
@@ -1190,7 +1192,217 @@ L_AES_ECB_encrypt_loop_block_256:
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
 	MOV	r1, #0x6
+#ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
 	BL	AES_encrypt_block
+#else
+L_AES_ECB_encrypt_block_nr_256:
+	UBFX	r8, r5, #16, #8
+	LSR	r11, r4, #24
+	UBFX	lr, r6, #8, #8
+	UBFX	r2, r7, #0, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r9, r6, #16, #8
+	EOR	r8, r8, r11, ROR #24
+	LSR	r11, r5, #24
+	EOR	r8, r8, lr, ROR #8
+	UBFX	lr, r7, #8, #8
+	EOR	r8, r8, r2, ROR #16
+	UBFX	r2, r4, #0, #8
+	LDR	r9, [r0, r9, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r10, r7, #16, #8
+	EOR	r9, r9, r11, ROR #24
+	LSR	r11, r6, #24
+	EOR	r9, r9, lr, ROR #8
+	UBFX	lr, r4, #8, #8
+	EOR	r9, r9, r2, ROR #16
+	UBFX	r2, r5, #0, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r6, r6, #0, #8
+	EOR	r10, r10, r11, ROR #24
+	UBFX	r11, r4, #16, #8
+	EOR	r10, r10, lr, ROR #8
+	LSR	lr, r7, #24
+	EOR	r10, r10, r2, ROR #16
+	UBFX	r2, r5, #8, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r6, ROR #24
+	LDM	r3!, {r4, r5, r6, r7}
+	EOR	r11, r11, lr, ROR #24
+	EOR	r11, r11, r2, ROR #8
+	/*   XOR in Key Schedule */
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	UBFX	r4, r9, #16, #8
+	LSR	r7, r8, #24
+	UBFX	lr, r10, #8, #8
+	UBFX	r2, r11, #0, #8
+	LDR	r4, [r0, r4, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r5, r10, #16, #8
+	EOR	r4, r4, r7, ROR #24
+	LSR	r7, r9, #24
+	EOR	r4, r4, lr, ROR #8
+	UBFX	lr, r11, #8, #8
+	EOR	r4, r4, r2, ROR #16
+	UBFX	r2, r8, #0, #8
+	LDR	r5, [r0, r5, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r6, r11, #16, #8
+	EOR	r5, r5, r7, ROR #24
+	LSR	r7, r10, #24
+	EOR	r5, r5, lr, ROR #8
+	UBFX	lr, r8, #8, #8
+	EOR	r5, r5, r2, ROR #16
+	UBFX	r2, r9, #0, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r10, r10, #0, #8
+	EOR	r6, r6, r7, ROR #24
+	UBFX	r7, r8, #16, #8
+	EOR	r6, r6, lr, ROR #8
+	LSR	lr, r11, #24
+	EOR	r6, r6, r2, ROR #16
+	UBFX	r2, r9, #8, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r10, ROR #24
+	LDM	r3!, {r8, r9, r10, r11}
+	EOR	r7, r7, lr, ROR #24
+	EOR	r7, r7, r2, ROR #8
+	/*   XOR in Key Schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+	SUBS	r1, r1, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BNE	L_AES_ECB_encrypt_block_nr_256
+#else
+	BNE.W	L_AES_ECB_encrypt_block_nr_256
+#endif
+	UBFX	r8, r5, #16, #8
+	LSR	r11, r4, #24
+	UBFX	lr, r6, #8, #8
+	UBFX	r2, r7, #0, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r9, r6, #16, #8
+	EOR	r8, r8, r11, ROR #24
+	LSR	r11, r5, #24
+	EOR	r8, r8, lr, ROR #8
+	UBFX	lr, r7, #8, #8
+	EOR	r8, r8, r2, ROR #16
+	UBFX	r2, r4, #0, #8
+	LDR	r9, [r0, r9, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r10, r7, #16, #8
+	EOR	r9, r9, r11, ROR #24
+	LSR	r11, r6, #24
+	EOR	r9, r9, lr, ROR #8
+	UBFX	lr, r4, #8, #8
+	EOR	r9, r9, r2, ROR #16
+	UBFX	r2, r5, #0, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r6, r6, #0, #8
+	EOR	r10, r10, r11, ROR #24
+	UBFX	r11, r4, #16, #8
+	EOR	r10, r10, lr, ROR #8
+	LSR	lr, r7, #24
+	EOR	r10, r10, r2, ROR #16
+	UBFX	r2, r5, #8, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r6, ROR #24
+	LDM	r3!, {r4, r5, r6, r7}
+	EOR	r11, r11, lr, ROR #24
+	EOR	r11, r11, r2, ROR #8
+	/*   XOR in Key Schedule */
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	UBFX	r4, r11, #0, #8
+	UBFX	r7, r10, #8, #8
+	UBFX	lr, r9, #16, #8
+	LSR	r2, r8, #24
+	LDRB	r4, [r0, r4, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	UBFX	r5, r8, #0, #8
+	EOR	r4, r4, r7, LSL #8
+	UBFX	r7, r11, #8, #8
+	EOR	r4, r4, lr, LSL #16
+	UBFX	lr, r10, #16, #8
+	EOR	r4, r4, r2, LSL #24
+	LSR	r2, r9, #24
+	LDRB	r5, [r0, r5, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	UBFX	r6, r9, #0, #8
+	EOR	r5, r5, r7, LSL #8
+	UBFX	r7, r8, #8, #8
+	EOR	r5, r5, lr, LSL #16
+	UBFX	lr, r11, #16, #8
+	EOR	r5, r5, r2, LSL #24
+	LSR	r2, r10, #24
+	LDRB	r6, [r0, r6, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	LSR	r11, r11, #24
+	EOR	r6, r6, r7, LSL #8
+	UBFX	r7, r10, #0, #8
+	EOR	r6, r6, lr, LSL #16
+	UBFX	lr, r9, #8, #8
+	EOR	r6, r6, r2, LSL #24
+	UBFX	r2, r8, #16, #8
+	LDRB	r11, [r0, r11, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r11, LSL #16
+	LDM	r3, {r8, r9, r10, r11}
+	EOR	r7, r7, lr, LSL #8
+	EOR	r7, r7, r2, LSL #16
+	/*   XOR in Key Schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+#endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
 	POP	{r1, r2, lr}
 	LDR	r3, [sp]
 	REV	r4, r4
@@ -1232,7 +1444,217 @@ L_AES_ECB_encrypt_loop_block_192:
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
 	MOV	r1, #0x5
+#ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
 	BL	AES_encrypt_block
+#else
+L_AES_ECB_encrypt_block_nr_192:
+	UBFX	r8, r5, #16, #8
+	LSR	r11, r4, #24
+	UBFX	lr, r6, #8, #8
+	UBFX	r2, r7, #0, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r9, r6, #16, #8
+	EOR	r8, r8, r11, ROR #24
+	LSR	r11, r5, #24
+	EOR	r8, r8, lr, ROR #8
+	UBFX	lr, r7, #8, #8
+	EOR	r8, r8, r2, ROR #16
+	UBFX	r2, r4, #0, #8
+	LDR	r9, [r0, r9, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r10, r7, #16, #8
+	EOR	r9, r9, r11, ROR #24
+	LSR	r11, r6, #24
+	EOR	r9, r9, lr, ROR #8
+	UBFX	lr, r4, #8, #8
+	EOR	r9, r9, r2, ROR #16
+	UBFX	r2, r5, #0, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r6, r6, #0, #8
+	EOR	r10, r10, r11, ROR #24
+	UBFX	r11, r4, #16, #8
+	EOR	r10, r10, lr, ROR #8
+	LSR	lr, r7, #24
+	EOR	r10, r10, r2, ROR #16
+	UBFX	r2, r5, #8, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r6, ROR #24
+	LDM	r3!, {r4, r5, r6, r7}
+	EOR	r11, r11, lr, ROR #24
+	EOR	r11, r11, r2, ROR #8
+	/*   XOR in Key Schedule */
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	UBFX	r4, r9, #16, #8
+	LSR	r7, r8, #24
+	UBFX	lr, r10, #8, #8
+	UBFX	r2, r11, #0, #8
+	LDR	r4, [r0, r4, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r5, r10, #16, #8
+	EOR	r4, r4, r7, ROR #24
+	LSR	r7, r9, #24
+	EOR	r4, r4, lr, ROR #8
+	UBFX	lr, r11, #8, #8
+	EOR	r4, r4, r2, ROR #16
+	UBFX	r2, r8, #0, #8
+	LDR	r5, [r0, r5, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r6, r11, #16, #8
+	EOR	r5, r5, r7, ROR #24
+	LSR	r7, r10, #24
+	EOR	r5, r5, lr, ROR #8
+	UBFX	lr, r8, #8, #8
+	EOR	r5, r5, r2, ROR #16
+	UBFX	r2, r9, #0, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r10, r10, #0, #8
+	EOR	r6, r6, r7, ROR #24
+	UBFX	r7, r8, #16, #8
+	EOR	r6, r6, lr, ROR #8
+	LSR	lr, r11, #24
+	EOR	r6, r6, r2, ROR #16
+	UBFX	r2, r9, #8, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r10, ROR #24
+	LDM	r3!, {r8, r9, r10, r11}
+	EOR	r7, r7, lr, ROR #24
+	EOR	r7, r7, r2, ROR #8
+	/*   XOR in Key Schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+	SUBS	r1, r1, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BNE	L_AES_ECB_encrypt_block_nr_192
+#else
+	BNE.W	L_AES_ECB_encrypt_block_nr_192
+#endif
+	UBFX	r8, r5, #16, #8
+	LSR	r11, r4, #24
+	UBFX	lr, r6, #8, #8
+	UBFX	r2, r7, #0, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r9, r6, #16, #8
+	EOR	r8, r8, r11, ROR #24
+	LSR	r11, r5, #24
+	EOR	r8, r8, lr, ROR #8
+	UBFX	lr, r7, #8, #8
+	EOR	r8, r8, r2, ROR #16
+	UBFX	r2, r4, #0, #8
+	LDR	r9, [r0, r9, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r10, r7, #16, #8
+	EOR	r9, r9, r11, ROR #24
+	LSR	r11, r6, #24
+	EOR	r9, r9, lr, ROR #8
+	UBFX	lr, r4, #8, #8
+	EOR	r9, r9, r2, ROR #16
+	UBFX	r2, r5, #0, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r6, r6, #0, #8
+	EOR	r10, r10, r11, ROR #24
+	UBFX	r11, r4, #16, #8
+	EOR	r10, r10, lr, ROR #8
+	LSR	lr, r7, #24
+	EOR	r10, r10, r2, ROR #16
+	UBFX	r2, r5, #8, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r6, ROR #24
+	LDM	r3!, {r4, r5, r6, r7}
+	EOR	r11, r11, lr, ROR #24
+	EOR	r11, r11, r2, ROR #8
+	/*   XOR in Key Schedule */
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	UBFX	r4, r11, #0, #8
+	UBFX	r7, r10, #8, #8
+	UBFX	lr, r9, #16, #8
+	LSR	r2, r8, #24
+	LDRB	r4, [r0, r4, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	UBFX	r5, r8, #0, #8
+	EOR	r4, r4, r7, LSL #8
+	UBFX	r7, r11, #8, #8
+	EOR	r4, r4, lr, LSL #16
+	UBFX	lr, r10, #16, #8
+	EOR	r4, r4, r2, LSL #24
+	LSR	r2, r9, #24
+	LDRB	r5, [r0, r5, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	UBFX	r6, r9, #0, #8
+	EOR	r5, r5, r7, LSL #8
+	UBFX	r7, r8, #8, #8
+	EOR	r5, r5, lr, LSL #16
+	UBFX	lr, r11, #16, #8
+	EOR	r5, r5, r2, LSL #24
+	LSR	r2, r10, #24
+	LDRB	r6, [r0, r6, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	LSR	r11, r11, #24
+	EOR	r6, r6, r7, LSL #8
+	UBFX	r7, r10, #0, #8
+	EOR	r6, r6, lr, LSL #16
+	UBFX	lr, r9, #8, #8
+	EOR	r6, r6, r2, LSL #24
+	UBFX	r2, r8, #16, #8
+	LDRB	r11, [r0, r11, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r11, LSL #16
+	LDM	r3, {r8, r9, r10, r11}
+	EOR	r7, r7, lr, LSL #8
+	EOR	r7, r7, r2, LSL #16
+	/*   XOR in Key Schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+#endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
 	POP	{r1, r2, lr}
 	LDR	r3, [sp]
 	REV	r4, r4
@@ -1274,7 +1696,217 @@ L_AES_ECB_encrypt_loop_block_128:
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
 	MOV	r1, #0x4
+#ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
 	BL	AES_encrypt_block
+#else
+L_AES_ECB_encrypt_block_nr_128:
+	UBFX	r8, r5, #16, #8
+	LSR	r11, r4, #24
+	UBFX	lr, r6, #8, #8
+	UBFX	r2, r7, #0, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r9, r6, #16, #8
+	EOR	r8, r8, r11, ROR #24
+	LSR	r11, r5, #24
+	EOR	r8, r8, lr, ROR #8
+	UBFX	lr, r7, #8, #8
+	EOR	r8, r8, r2, ROR #16
+	UBFX	r2, r4, #0, #8
+	LDR	r9, [r0, r9, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r10, r7, #16, #8
+	EOR	r9, r9, r11, ROR #24
+	LSR	r11, r6, #24
+	EOR	r9, r9, lr, ROR #8
+	UBFX	lr, r4, #8, #8
+	EOR	r9, r9, r2, ROR #16
+	UBFX	r2, r5, #0, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r6, r6, #0, #8
+	EOR	r10, r10, r11, ROR #24
+	UBFX	r11, r4, #16, #8
+	EOR	r10, r10, lr, ROR #8
+	LSR	lr, r7, #24
+	EOR	r10, r10, r2, ROR #16
+	UBFX	r2, r5, #8, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r6, ROR #24
+	LDM	r3!, {r4, r5, r6, r7}
+	EOR	r11, r11, lr, ROR #24
+	EOR	r11, r11, r2, ROR #8
+	/*   XOR in Key Schedule */
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	UBFX	r4, r9, #16, #8
+	LSR	r7, r8, #24
+	UBFX	lr, r10, #8, #8
+	UBFX	r2, r11, #0, #8
+	LDR	r4, [r0, r4, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r5, r10, #16, #8
+	EOR	r4, r4, r7, ROR #24
+	LSR	r7, r9, #24
+	EOR	r4, r4, lr, ROR #8
+	UBFX	lr, r11, #8, #8
+	EOR	r4, r4, r2, ROR #16
+	UBFX	r2, r8, #0, #8
+	LDR	r5, [r0, r5, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r6, r11, #16, #8
+	EOR	r5, r5, r7, ROR #24
+	LSR	r7, r10, #24
+	EOR	r5, r5, lr, ROR #8
+	UBFX	lr, r8, #8, #8
+	EOR	r5, r5, r2, ROR #16
+	UBFX	r2, r9, #0, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r10, r10, #0, #8
+	EOR	r6, r6, r7, ROR #24
+	UBFX	r7, r8, #16, #8
+	EOR	r6, r6, lr, ROR #8
+	LSR	lr, r11, #24
+	EOR	r6, r6, r2, ROR #16
+	UBFX	r2, r9, #8, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r10, ROR #24
+	LDM	r3!, {r8, r9, r10, r11}
+	EOR	r7, r7, lr, ROR #24
+	EOR	r7, r7, r2, ROR #8
+	/*   XOR in Key Schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+	SUBS	r1, r1, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BNE	L_AES_ECB_encrypt_block_nr_128
+#else
+	BNE.W	L_AES_ECB_encrypt_block_nr_128
+#endif
+	UBFX	r8, r5, #16, #8
+	LSR	r11, r4, #24
+	UBFX	lr, r6, #8, #8
+	UBFX	r2, r7, #0, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r9, r6, #16, #8
+	EOR	r8, r8, r11, ROR #24
+	LSR	r11, r5, #24
+	EOR	r8, r8, lr, ROR #8
+	UBFX	lr, r7, #8, #8
+	EOR	r8, r8, r2, ROR #16
+	UBFX	r2, r4, #0, #8
+	LDR	r9, [r0, r9, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r10, r7, #16, #8
+	EOR	r9, r9, r11, ROR #24
+	LSR	r11, r6, #24
+	EOR	r9, r9, lr, ROR #8
+	UBFX	lr, r4, #8, #8
+	EOR	r9, r9, r2, ROR #16
+	UBFX	r2, r5, #0, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r6, r6, #0, #8
+	EOR	r10, r10, r11, ROR #24
+	UBFX	r11, r4, #16, #8
+	EOR	r10, r10, lr, ROR #8
+	LSR	lr, r7, #24
+	EOR	r10, r10, r2, ROR #16
+	UBFX	r2, r5, #8, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r6, ROR #24
+	LDM	r3!, {r4, r5, r6, r7}
+	EOR	r11, r11, lr, ROR #24
+	EOR	r11, r11, r2, ROR #8
+	/*   XOR in Key Schedule */
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	UBFX	r4, r11, #0, #8
+	UBFX	r7, r10, #8, #8
+	UBFX	lr, r9, #16, #8
+	LSR	r2, r8, #24
+	LDRB	r4, [r0, r4, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	UBFX	r5, r8, #0, #8
+	EOR	r4, r4, r7, LSL #8
+	UBFX	r7, r11, #8, #8
+	EOR	r4, r4, lr, LSL #16
+	UBFX	lr, r10, #16, #8
+	EOR	r4, r4, r2, LSL #24
+	LSR	r2, r9, #24
+	LDRB	r5, [r0, r5, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	UBFX	r6, r9, #0, #8
+	EOR	r5, r5, r7, LSL #8
+	UBFX	r7, r8, #8, #8
+	EOR	r5, r5, lr, LSL #16
+	UBFX	lr, r11, #16, #8
+	EOR	r5, r5, r2, LSL #24
+	LSR	r2, r10, #24
+	LDRB	r6, [r0, r6, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	LSR	r11, r11, #24
+	EOR	r6, r6, r7, LSL #8
+	UBFX	r7, r10, #0, #8
+	EOR	r6, r6, lr, LSL #16
+	UBFX	lr, r9, #8, #8
+	EOR	r6, r6, r2, LSL #24
+	UBFX	r2, r8, #16, #8
+	LDRB	r11, [r0, r11, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r11, LSL #16
+	LDM	r3, {r8, r9, r10, r11}
+	EOR	r7, r7, lr, LSL #8
+	EOR	r7, r7, r2, LSL #16
+	/*   XOR in Key Schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+#endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
 	POP	{r1, r2, lr}
 	LDR	r3, [sp]
 	REV	r4, r4
@@ -1296,7 +1928,7 @@ L_AES_ECB_encrypt_loop_block_128:
 L_AES_ECB_encrypt_end:
 	POP	{r3}
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-	/* Cycle Count = 212 */
+	/* Cycle Count = 1055 */
 	.size	AES_ECB_encrypt,.-AES_ECB_encrypt
 #endif /* HAVE_AESCCM || HAVE_AESGCM || WOLFSSL_AES_DIRECT ||
         * WOLFSSL_AES_COUNTER || HAVE_AES_ECB */
@@ -1346,7 +1978,217 @@ L_AES_CBC_encrypt_loop_block_256:
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
 	MOV	r1, #0x6
+#ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
 	BL	AES_encrypt_block
+#else
+L_AES_CBC_encrypt_block_nr_256:
+	UBFX	r8, r5, #16, #8
+	LSR	r11, r4, #24
+	UBFX	lr, r6, #8, #8
+	UBFX	r2, r7, #0, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r9, r6, #16, #8
+	EOR	r8, r8, r11, ROR #24
+	LSR	r11, r5, #24
+	EOR	r8, r8, lr, ROR #8
+	UBFX	lr, r7, #8, #8
+	EOR	r8, r8, r2, ROR #16
+	UBFX	r2, r4, #0, #8
+	LDR	r9, [r0, r9, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r10, r7, #16, #8
+	EOR	r9, r9, r11, ROR #24
+	LSR	r11, r6, #24
+	EOR	r9, r9, lr, ROR #8
+	UBFX	lr, r4, #8, #8
+	EOR	r9, r9, r2, ROR #16
+	UBFX	r2, r5, #0, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r6, r6, #0, #8
+	EOR	r10, r10, r11, ROR #24
+	UBFX	r11, r4, #16, #8
+	EOR	r10, r10, lr, ROR #8
+	LSR	lr, r7, #24
+	EOR	r10, r10, r2, ROR #16
+	UBFX	r2, r5, #8, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r6, ROR #24
+	LDM	r3!, {r4, r5, r6, r7}
+	EOR	r11, r11, lr, ROR #24
+	EOR	r11, r11, r2, ROR #8
+	/*   XOR in Key Schedule */
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	UBFX	r4, r9, #16, #8
+	LSR	r7, r8, #24
+	UBFX	lr, r10, #8, #8
+	UBFX	r2, r11, #0, #8
+	LDR	r4, [r0, r4, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r5, r10, #16, #8
+	EOR	r4, r4, r7, ROR #24
+	LSR	r7, r9, #24
+	EOR	r4, r4, lr, ROR #8
+	UBFX	lr, r11, #8, #8
+	EOR	r4, r4, r2, ROR #16
+	UBFX	r2, r8, #0, #8
+	LDR	r5, [r0, r5, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r6, r11, #16, #8
+	EOR	r5, r5, r7, ROR #24
+	LSR	r7, r10, #24
+	EOR	r5, r5, lr, ROR #8
+	UBFX	lr, r8, #8, #8
+	EOR	r5, r5, r2, ROR #16
+	UBFX	r2, r9, #0, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r10, r10, #0, #8
+	EOR	r6, r6, r7, ROR #24
+	UBFX	r7, r8, #16, #8
+	EOR	r6, r6, lr, ROR #8
+	LSR	lr, r11, #24
+	EOR	r6, r6, r2, ROR #16
+	UBFX	r2, r9, #8, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r10, ROR #24
+	LDM	r3!, {r8, r9, r10, r11}
+	EOR	r7, r7, lr, ROR #24
+	EOR	r7, r7, r2, ROR #8
+	/*   XOR in Key Schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+	SUBS	r1, r1, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BNE	L_AES_CBC_encrypt_block_nr_256
+#else
+	BNE.W	L_AES_CBC_encrypt_block_nr_256
+#endif
+	UBFX	r8, r5, #16, #8
+	LSR	r11, r4, #24
+	UBFX	lr, r6, #8, #8
+	UBFX	r2, r7, #0, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r9, r6, #16, #8
+	EOR	r8, r8, r11, ROR #24
+	LSR	r11, r5, #24
+	EOR	r8, r8, lr, ROR #8
+	UBFX	lr, r7, #8, #8
+	EOR	r8, r8, r2, ROR #16
+	UBFX	r2, r4, #0, #8
+	LDR	r9, [r0, r9, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r10, r7, #16, #8
+	EOR	r9, r9, r11, ROR #24
+	LSR	r11, r6, #24
+	EOR	r9, r9, lr, ROR #8
+	UBFX	lr, r4, #8, #8
+	EOR	r9, r9, r2, ROR #16
+	UBFX	r2, r5, #0, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r6, r6, #0, #8
+	EOR	r10, r10, r11, ROR #24
+	UBFX	r11, r4, #16, #8
+	EOR	r10, r10, lr, ROR #8
+	LSR	lr, r7, #24
+	EOR	r10, r10, r2, ROR #16
+	UBFX	r2, r5, #8, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r6, ROR #24
+	LDM	r3!, {r4, r5, r6, r7}
+	EOR	r11, r11, lr, ROR #24
+	EOR	r11, r11, r2, ROR #8
+	/*   XOR in Key Schedule */
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	UBFX	r4, r11, #0, #8
+	UBFX	r7, r10, #8, #8
+	UBFX	lr, r9, #16, #8
+	LSR	r2, r8, #24
+	LDRB	r4, [r0, r4, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	UBFX	r5, r8, #0, #8
+	EOR	r4, r4, r7, LSL #8
+	UBFX	r7, r11, #8, #8
+	EOR	r4, r4, lr, LSL #16
+	UBFX	lr, r10, #16, #8
+	EOR	r4, r4, r2, LSL #24
+	LSR	r2, r9, #24
+	LDRB	r5, [r0, r5, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	UBFX	r6, r9, #0, #8
+	EOR	r5, r5, r7, LSL #8
+	UBFX	r7, r8, #8, #8
+	EOR	r5, r5, lr, LSL #16
+	UBFX	lr, r11, #16, #8
+	EOR	r5, r5, r2, LSL #24
+	LSR	r2, r10, #24
+	LDRB	r6, [r0, r6, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	LSR	r11, r11, #24
+	EOR	r6, r6, r7, LSL #8
+	UBFX	r7, r10, #0, #8
+	EOR	r6, r6, lr, LSL #16
+	UBFX	lr, r9, #8, #8
+	EOR	r6, r6, r2, LSL #24
+	UBFX	r2, r8, #16, #8
+	LDRB	r11, [r0, r11, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r11, LSL #16
+	LDM	r3, {r8, r9, r10, r11}
+	EOR	r7, r7, lr, LSL #8
+	EOR	r7, r7, r2, LSL #16
+	/*   XOR in Key Schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+#endif /* WOLFSSL_ARMASM_AES_BLOCK_INLINE */
 	POP	{r1, r2, lr}
 	LDR	r3, [sp]
 	REV	r4, r4
@@ -1392,7 +2234,217 @@ L_AES_CBC_encrypt_loop_block_192:
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
 	MOV	r1, #0x5
+#ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
 	BL	AES_encrypt_block
+#else
+L_AES_CBC_encrypt_block_nr_192:
+	UBFX	r8, r5, #16, #8
+	LSR	r11, r4, #24
+	UBFX	lr, r6, #8, #8
+	UBFX	r2, r7, #0, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r9, r6, #16, #8
+	EOR	r8, r8, r11, ROR #24
+	LSR	r11, r5, #24
+	EOR	r8, r8, lr, ROR #8
+	UBFX	lr, r7, #8, #8
+	EOR	r8, r8, r2, ROR #16
+	UBFX	r2, r4, #0, #8
+	LDR	r9, [r0, r9, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r10, r7, #16, #8
+	EOR	r9, r9, r11, ROR #24
+	LSR	r11, r6, #24
+	EOR	r9, r9, lr, ROR #8
+	UBFX	lr, r4, #8, #8
+	EOR	r9, r9, r2, ROR #16
+	UBFX	r2, r5, #0, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r6, r6, #0, #8
+	EOR	r10, r10, r11, ROR #24
+	UBFX	r11, r4, #16, #8
+	EOR	r10, r10, lr, ROR #8
+	LSR	lr, r7, #24
+	EOR	r10, r10, r2, ROR #16
+	UBFX	r2, r5, #8, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r6, ROR #24
+	LDM	r3!, {r4, r5, r6, r7}
+	EOR	r11, r11, lr, ROR #24
+	EOR	r11, r11, r2, ROR #8
+	/*   XOR in Key Schedule */
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	UBFX	r4, r9, #16, #8
+	LSR	r7, r8, #24
+	UBFX	lr, r10, #8, #8
+	UBFX	r2, r11, #0, #8
+	LDR	r4, [r0, r4, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r5, r10, #16, #8
+	EOR	r4, r4, r7, ROR #24
+	LSR	r7, r9, #24
+	EOR	r4, r4, lr, ROR #8
+	UBFX	lr, r11, #8, #8
+	EOR	r4, r4, r2, ROR #16
+	UBFX	r2, r8, #0, #8
+	LDR	r5, [r0, r5, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r6, r11, #16, #8
+	EOR	r5, r5, r7, ROR #24
+	LSR	r7, r10, #24
+	EOR	r5, r5, lr, ROR #8
+	UBFX	lr, r8, #8, #8
+	EOR	r5, r5, r2, ROR #16
+	UBFX	r2, r9, #0, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r10, r10, #0, #8
+	EOR	r6, r6, r7, ROR #24
+	UBFX	r7, r8, #16, #8
+	EOR	r6, r6, lr, ROR #8
+	LSR	lr, r11, #24
+	EOR	r6, r6, r2, ROR #16
+	UBFX	r2, r9, #8, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r10, ROR #24
+	LDM	r3!, {r8, r9, r10, r11}
+	EOR	r7, r7, lr, ROR #24
+	EOR	r7, r7, r2, ROR #8
+	/*   XOR in Key Schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+	SUBS	r1, r1, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BNE	L_AES_CBC_encrypt_block_nr_192
+#else
+	BNE.W	L_AES_CBC_encrypt_block_nr_192
+#endif
+	UBFX	r8, r5, #16, #8
+	LSR	r11, r4, #24
+	UBFX	lr, r6, #8, #8
+	UBFX	r2, r7, #0, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r9, r6, #16, #8
+	EOR	r8, r8, r11, ROR #24
+	LSR	r11, r5, #24
+	EOR	r8, r8, lr, ROR #8
+	UBFX	lr, r7, #8, #8
+	EOR	r8, r8, r2, ROR #16
+	UBFX	r2, r4, #0, #8
+	LDR	r9, [r0, r9, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r10, r7, #16, #8
+	EOR	r9, r9, r11, ROR #24
+	LSR	r11, r6, #24
+	EOR	r9, r9, lr, ROR #8
+	UBFX	lr, r4, #8, #8
+	EOR	r9, r9, r2, ROR #16
+	UBFX	r2, r5, #0, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r6, r6, #0, #8
+	EOR	r10, r10, r11, ROR #24
+	UBFX	r11, r4, #16, #8
+	EOR	r10, r10, lr, ROR #8
+	LSR	lr, r7, #24
+	EOR	r10, r10, r2, ROR #16
+	UBFX	r2, r5, #8, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r6, ROR #24
+	LDM	r3!, {r4, r5, r6, r7}
+	EOR	r11, r11, lr, ROR #24
+	EOR	r11, r11, r2, ROR #8
+	/*   XOR in Key Schedule */
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	UBFX	r4, r11, #0, #8
+	UBFX	r7, r10, #8, #8
+	UBFX	lr, r9, #16, #8
+	LSR	r2, r8, #24
+	LDRB	r4, [r0, r4, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	UBFX	r5, r8, #0, #8
+	EOR	r4, r4, r7, LSL #8
+	UBFX	r7, r11, #8, #8
+	EOR	r4, r4, lr, LSL #16
+	UBFX	lr, r10, #16, #8
+	EOR	r4, r4, r2, LSL #24
+	LSR	r2, r9, #24
+	LDRB	r5, [r0, r5, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	UBFX	r6, r9, #0, #8
+	EOR	r5, r5, r7, LSL #8
+	UBFX	r7, r8, #8, #8
+	EOR	r5, r5, lr, LSL #16
+	UBFX	lr, r11, #16, #8
+	EOR	r5, r5, r2, LSL #24
+	LSR	r2, r10, #24
+	LDRB	r6, [r0, r6, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	LSR	r11, r11, #24
+	EOR	r6, r6, r7, LSL #8
+	UBFX	r7, r10, #0, #8
+	EOR	r6, r6, lr, LSL #16
+	UBFX	lr, r9, #8, #8
+	EOR	r6, r6, r2, LSL #24
+	UBFX	r2, r8, #16, #8
+	LDRB	r11, [r0, r11, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r11, LSL #16
+	LDM	r3, {r8, r9, r10, r11}
+	EOR	r7, r7, lr, LSL #8
+	EOR	r7, r7, r2, LSL #16
+	/*   XOR in Key Schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+#endif /* WOLFSSL_ARMASM_AES_BLOCK_INLINE */
 	POP	{r1, r2, lr}
 	LDR	r3, [sp]
 	REV	r4, r4
@@ -1438,7 +2490,217 @@ L_AES_CBC_encrypt_loop_block_128:
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
 	MOV	r1, #0x4
+#ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
 	BL	AES_encrypt_block
+#else
+L_AES_CBC_encrypt_block_nr_128:
+	UBFX	r8, r5, #16, #8
+	LSR	r11, r4, #24
+	UBFX	lr, r6, #8, #8
+	UBFX	r2, r7, #0, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r9, r6, #16, #8
+	EOR	r8, r8, r11, ROR #24
+	LSR	r11, r5, #24
+	EOR	r8, r8, lr, ROR #8
+	UBFX	lr, r7, #8, #8
+	EOR	r8, r8, r2, ROR #16
+	UBFX	r2, r4, #0, #8
+	LDR	r9, [r0, r9, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r10, r7, #16, #8
+	EOR	r9, r9, r11, ROR #24
+	LSR	r11, r6, #24
+	EOR	r9, r9, lr, ROR #8
+	UBFX	lr, r4, #8, #8
+	EOR	r9, r9, r2, ROR #16
+	UBFX	r2, r5, #0, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r6, r6, #0, #8
+	EOR	r10, r10, r11, ROR #24
+	UBFX	r11, r4, #16, #8
+	EOR	r10, r10, lr, ROR #8
+	LSR	lr, r7, #24
+	EOR	r10, r10, r2, ROR #16
+	UBFX	r2, r5, #8, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r6, ROR #24
+	LDM	r3!, {r4, r5, r6, r7}
+	EOR	r11, r11, lr, ROR #24
+	EOR	r11, r11, r2, ROR #8
+	/*   XOR in Key Schedule */
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	UBFX	r4, r9, #16, #8
+	LSR	r7, r8, #24
+	UBFX	lr, r10, #8, #8
+	UBFX	r2, r11, #0, #8
+	LDR	r4, [r0, r4, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r5, r10, #16, #8
+	EOR	r4, r4, r7, ROR #24
+	LSR	r7, r9, #24
+	EOR	r4, r4, lr, ROR #8
+	UBFX	lr, r11, #8, #8
+	EOR	r4, r4, r2, ROR #16
+	UBFX	r2, r8, #0, #8
+	LDR	r5, [r0, r5, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r6, r11, #16, #8
+	EOR	r5, r5, r7, ROR #24
+	LSR	r7, r10, #24
+	EOR	r5, r5, lr, ROR #8
+	UBFX	lr, r8, #8, #8
+	EOR	r5, r5, r2, ROR #16
+	UBFX	r2, r9, #0, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r10, r10, #0, #8
+	EOR	r6, r6, r7, ROR #24
+	UBFX	r7, r8, #16, #8
+	EOR	r6, r6, lr, ROR #8
+	LSR	lr, r11, #24
+	EOR	r6, r6, r2, ROR #16
+	UBFX	r2, r9, #8, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r10, ROR #24
+	LDM	r3!, {r8, r9, r10, r11}
+	EOR	r7, r7, lr, ROR #24
+	EOR	r7, r7, r2, ROR #8
+	/*   XOR in Key Schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+	SUBS	r1, r1, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BNE	L_AES_CBC_encrypt_block_nr_128
+#else
+	BNE.W	L_AES_CBC_encrypt_block_nr_128
+#endif
+	UBFX	r8, r5, #16, #8
+	LSR	r11, r4, #24
+	UBFX	lr, r6, #8, #8
+	UBFX	r2, r7, #0, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r9, r6, #16, #8
+	EOR	r8, r8, r11, ROR #24
+	LSR	r11, r5, #24
+	EOR	r8, r8, lr, ROR #8
+	UBFX	lr, r7, #8, #8
+	EOR	r8, r8, r2, ROR #16
+	UBFX	r2, r4, #0, #8
+	LDR	r9, [r0, r9, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r10, r7, #16, #8
+	EOR	r9, r9, r11, ROR #24
+	LSR	r11, r6, #24
+	EOR	r9, r9, lr, ROR #8
+	UBFX	lr, r4, #8, #8
+	EOR	r9, r9, r2, ROR #16
+	UBFX	r2, r5, #0, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r6, r6, #0, #8
+	EOR	r10, r10, r11, ROR #24
+	UBFX	r11, r4, #16, #8
+	EOR	r10, r10, lr, ROR #8
+	LSR	lr, r7, #24
+	EOR	r10, r10, r2, ROR #16
+	UBFX	r2, r5, #8, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r6, ROR #24
+	LDM	r3!, {r4, r5, r6, r7}
+	EOR	r11, r11, lr, ROR #24
+	EOR	r11, r11, r2, ROR #8
+	/*   XOR in Key Schedule */
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	UBFX	r4, r11, #0, #8
+	UBFX	r7, r10, #8, #8
+	UBFX	lr, r9, #16, #8
+	LSR	r2, r8, #24
+	LDRB	r4, [r0, r4, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	UBFX	r5, r8, #0, #8
+	EOR	r4, r4, r7, LSL #8
+	UBFX	r7, r11, #8, #8
+	EOR	r4, r4, lr, LSL #16
+	UBFX	lr, r10, #16, #8
+	EOR	r4, r4, r2, LSL #24
+	LSR	r2, r9, #24
+	LDRB	r5, [r0, r5, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	UBFX	r6, r9, #0, #8
+	EOR	r5, r5, r7, LSL #8
+	UBFX	r7, r8, #8, #8
+	EOR	r5, r5, lr, LSL #16
+	UBFX	lr, r11, #16, #8
+	EOR	r5, r5, r2, LSL #24
+	LSR	r2, r10, #24
+	LDRB	r6, [r0, r6, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	LSR	r11, r11, #24
+	EOR	r6, r6, r7, LSL #8
+	UBFX	r7, r10, #0, #8
+	EOR	r6, r6, lr, LSL #16
+	UBFX	lr, r9, #8, #8
+	EOR	r6, r6, r2, LSL #24
+	UBFX	r2, r8, #16, #8
+	LDRB	r11, [r0, r11, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r11, LSL #16
+	LDM	r3, {r8, r9, r10, r11}
+	EOR	r7, r7, lr, LSL #8
+	EOR	r7, r7, r2, LSL #16
+	/*   XOR in Key Schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+#endif /* WOLFSSL_ARMASM_AES_BLOCK_INLINE */
 	POP	{r1, r2, lr}
 	LDR	r3, [sp]
 	REV	r4, r4
@@ -1461,10 +2723,16 @@ L_AES_CBC_encrypt_end:
 	POP	{r3, r9}
 	STM	r9, {r4, r5, r6, r7}
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-	/* Cycle Count = 238 */
+	/* Cycle Count = 1081 */
 	.size	AES_CBC_encrypt,.-AES_CBC_encrypt
 #endif /* HAVE_AES_CBC */
 #ifdef WOLFSSL_AES_COUNTER
+	.text
+	.type	L_AES_Thumb2_te_ctr, %object
+	.size	L_AES_Thumb2_te_ctr, 12
+	.align	4
+L_AES_Thumb2_te_ctr:
+	.word	L_AES_Thumb2_te_data
 	.text
 	.align	4
 	.globl	AES_CTR_encrypt
@@ -1474,7 +2742,7 @@ AES_CTR_encrypt:
 	LDR	r12, [sp, #36]
 	LDR	r8, [sp, #40]
 	MOV	lr, r0
-	LDR	r0, L_AES_Thumb2_te_ecb
+	LDR	r0, L_AES_Thumb2_te_ctr
 	LDM	r8, {r4, r5, r6, r7}
 	REV	r4, r4
 	REV	r5, r5
@@ -1509,7 +2777,217 @@ L_AES_CTR_encrypt_loop_block_256:
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
 	MOV	r1, #0x6
+#ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
 	BL	AES_encrypt_block
+#else
+L_AES_CTR_encrypt_block_nr_256:
+	UBFX	r8, r5, #16, #8
+	LSR	r11, r4, #24
+	UBFX	lr, r6, #8, #8
+	UBFX	r2, r7, #0, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r9, r6, #16, #8
+	EOR	r8, r8, r11, ROR #24
+	LSR	r11, r5, #24
+	EOR	r8, r8, lr, ROR #8
+	UBFX	lr, r7, #8, #8
+	EOR	r8, r8, r2, ROR #16
+	UBFX	r2, r4, #0, #8
+	LDR	r9, [r0, r9, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r10, r7, #16, #8
+	EOR	r9, r9, r11, ROR #24
+	LSR	r11, r6, #24
+	EOR	r9, r9, lr, ROR #8
+	UBFX	lr, r4, #8, #8
+	EOR	r9, r9, r2, ROR #16
+	UBFX	r2, r5, #0, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r6, r6, #0, #8
+	EOR	r10, r10, r11, ROR #24
+	UBFX	r11, r4, #16, #8
+	EOR	r10, r10, lr, ROR #8
+	LSR	lr, r7, #24
+	EOR	r10, r10, r2, ROR #16
+	UBFX	r2, r5, #8, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r6, ROR #24
+	LDM	r3!, {r4, r5, r6, r7}
+	EOR	r11, r11, lr, ROR #24
+	EOR	r11, r11, r2, ROR #8
+	/*   XOR in Key Schedule */
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	UBFX	r4, r9, #16, #8
+	LSR	r7, r8, #24
+	UBFX	lr, r10, #8, #8
+	UBFX	r2, r11, #0, #8
+	LDR	r4, [r0, r4, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r5, r10, #16, #8
+	EOR	r4, r4, r7, ROR #24
+	LSR	r7, r9, #24
+	EOR	r4, r4, lr, ROR #8
+	UBFX	lr, r11, #8, #8
+	EOR	r4, r4, r2, ROR #16
+	UBFX	r2, r8, #0, #8
+	LDR	r5, [r0, r5, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r6, r11, #16, #8
+	EOR	r5, r5, r7, ROR #24
+	LSR	r7, r10, #24
+	EOR	r5, r5, lr, ROR #8
+	UBFX	lr, r8, #8, #8
+	EOR	r5, r5, r2, ROR #16
+	UBFX	r2, r9, #0, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r10, r10, #0, #8
+	EOR	r6, r6, r7, ROR #24
+	UBFX	r7, r8, #16, #8
+	EOR	r6, r6, lr, ROR #8
+	LSR	lr, r11, #24
+	EOR	r6, r6, r2, ROR #16
+	UBFX	r2, r9, #8, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r10, ROR #24
+	LDM	r3!, {r8, r9, r10, r11}
+	EOR	r7, r7, lr, ROR #24
+	EOR	r7, r7, r2, ROR #8
+	/*   XOR in Key Schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+	SUBS	r1, r1, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BNE	L_AES_CTR_encrypt_block_nr_256
+#else
+	BNE.W	L_AES_CTR_encrypt_block_nr_256
+#endif
+	UBFX	r8, r5, #16, #8
+	LSR	r11, r4, #24
+	UBFX	lr, r6, #8, #8
+	UBFX	r2, r7, #0, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r9, r6, #16, #8
+	EOR	r8, r8, r11, ROR #24
+	LSR	r11, r5, #24
+	EOR	r8, r8, lr, ROR #8
+	UBFX	lr, r7, #8, #8
+	EOR	r8, r8, r2, ROR #16
+	UBFX	r2, r4, #0, #8
+	LDR	r9, [r0, r9, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r10, r7, #16, #8
+	EOR	r9, r9, r11, ROR #24
+	LSR	r11, r6, #24
+	EOR	r9, r9, lr, ROR #8
+	UBFX	lr, r4, #8, #8
+	EOR	r9, r9, r2, ROR #16
+	UBFX	r2, r5, #0, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r6, r6, #0, #8
+	EOR	r10, r10, r11, ROR #24
+	UBFX	r11, r4, #16, #8
+	EOR	r10, r10, lr, ROR #8
+	LSR	lr, r7, #24
+	EOR	r10, r10, r2, ROR #16
+	UBFX	r2, r5, #8, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r6, ROR #24
+	LDM	r3!, {r4, r5, r6, r7}
+	EOR	r11, r11, lr, ROR #24
+	EOR	r11, r11, r2, ROR #8
+	/*   XOR in Key Schedule */
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	UBFX	r4, r11, #0, #8
+	UBFX	r7, r10, #8, #8
+	UBFX	lr, r9, #16, #8
+	LSR	r2, r8, #24
+	LDRB	r4, [r0, r4, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	UBFX	r5, r8, #0, #8
+	EOR	r4, r4, r7, LSL #8
+	UBFX	r7, r11, #8, #8
+	EOR	r4, r4, lr, LSL #16
+	UBFX	lr, r10, #16, #8
+	EOR	r4, r4, r2, LSL #24
+	LSR	r2, r9, #24
+	LDRB	r5, [r0, r5, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	UBFX	r6, r9, #0, #8
+	EOR	r5, r5, r7, LSL #8
+	UBFX	r7, r8, #8, #8
+	EOR	r5, r5, lr, LSL #16
+	UBFX	lr, r11, #16, #8
+	EOR	r5, r5, r2, LSL #24
+	LSR	r2, r10, #24
+	LDRB	r6, [r0, r6, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	LSR	r11, r11, #24
+	EOR	r6, r6, r7, LSL #8
+	UBFX	r7, r10, #0, #8
+	EOR	r6, r6, lr, LSL #16
+	UBFX	lr, r9, #8, #8
+	EOR	r6, r6, r2, LSL #24
+	UBFX	r2, r8, #16, #8
+	LDRB	r11, [r0, r11, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r11, LSL #16
+	LDM	r3, {r8, r9, r10, r11}
+	EOR	r7, r7, lr, LSL #8
+	EOR	r7, r7, r2, LSL #16
+	/*   XOR in Key Schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+#endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
 	POP	{r1, r2, lr}
 	LDR	r3, [sp]
 	REV	r4, r4
@@ -1559,7 +3037,217 @@ L_AES_CTR_encrypt_loop_block_192:
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
 	MOV	r1, #0x5
+#ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
 	BL	AES_encrypt_block
+#else
+L_AES_CTR_encrypt_block_nr_192:
+	UBFX	r8, r5, #16, #8
+	LSR	r11, r4, #24
+	UBFX	lr, r6, #8, #8
+	UBFX	r2, r7, #0, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r9, r6, #16, #8
+	EOR	r8, r8, r11, ROR #24
+	LSR	r11, r5, #24
+	EOR	r8, r8, lr, ROR #8
+	UBFX	lr, r7, #8, #8
+	EOR	r8, r8, r2, ROR #16
+	UBFX	r2, r4, #0, #8
+	LDR	r9, [r0, r9, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r10, r7, #16, #8
+	EOR	r9, r9, r11, ROR #24
+	LSR	r11, r6, #24
+	EOR	r9, r9, lr, ROR #8
+	UBFX	lr, r4, #8, #8
+	EOR	r9, r9, r2, ROR #16
+	UBFX	r2, r5, #0, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r6, r6, #0, #8
+	EOR	r10, r10, r11, ROR #24
+	UBFX	r11, r4, #16, #8
+	EOR	r10, r10, lr, ROR #8
+	LSR	lr, r7, #24
+	EOR	r10, r10, r2, ROR #16
+	UBFX	r2, r5, #8, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r6, ROR #24
+	LDM	r3!, {r4, r5, r6, r7}
+	EOR	r11, r11, lr, ROR #24
+	EOR	r11, r11, r2, ROR #8
+	/*   XOR in Key Schedule */
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	UBFX	r4, r9, #16, #8
+	LSR	r7, r8, #24
+	UBFX	lr, r10, #8, #8
+	UBFX	r2, r11, #0, #8
+	LDR	r4, [r0, r4, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r5, r10, #16, #8
+	EOR	r4, r4, r7, ROR #24
+	LSR	r7, r9, #24
+	EOR	r4, r4, lr, ROR #8
+	UBFX	lr, r11, #8, #8
+	EOR	r4, r4, r2, ROR #16
+	UBFX	r2, r8, #0, #8
+	LDR	r5, [r0, r5, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r6, r11, #16, #8
+	EOR	r5, r5, r7, ROR #24
+	LSR	r7, r10, #24
+	EOR	r5, r5, lr, ROR #8
+	UBFX	lr, r8, #8, #8
+	EOR	r5, r5, r2, ROR #16
+	UBFX	r2, r9, #0, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r10, r10, #0, #8
+	EOR	r6, r6, r7, ROR #24
+	UBFX	r7, r8, #16, #8
+	EOR	r6, r6, lr, ROR #8
+	LSR	lr, r11, #24
+	EOR	r6, r6, r2, ROR #16
+	UBFX	r2, r9, #8, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r10, ROR #24
+	LDM	r3!, {r8, r9, r10, r11}
+	EOR	r7, r7, lr, ROR #24
+	EOR	r7, r7, r2, ROR #8
+	/*   XOR in Key Schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+	SUBS	r1, r1, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BNE	L_AES_CTR_encrypt_block_nr_192
+#else
+	BNE.W	L_AES_CTR_encrypt_block_nr_192
+#endif
+	UBFX	r8, r5, #16, #8
+	LSR	r11, r4, #24
+	UBFX	lr, r6, #8, #8
+	UBFX	r2, r7, #0, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r9, r6, #16, #8
+	EOR	r8, r8, r11, ROR #24
+	LSR	r11, r5, #24
+	EOR	r8, r8, lr, ROR #8
+	UBFX	lr, r7, #8, #8
+	EOR	r8, r8, r2, ROR #16
+	UBFX	r2, r4, #0, #8
+	LDR	r9, [r0, r9, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r10, r7, #16, #8
+	EOR	r9, r9, r11, ROR #24
+	LSR	r11, r6, #24
+	EOR	r9, r9, lr, ROR #8
+	UBFX	lr, r4, #8, #8
+	EOR	r9, r9, r2, ROR #16
+	UBFX	r2, r5, #0, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r6, r6, #0, #8
+	EOR	r10, r10, r11, ROR #24
+	UBFX	r11, r4, #16, #8
+	EOR	r10, r10, lr, ROR #8
+	LSR	lr, r7, #24
+	EOR	r10, r10, r2, ROR #16
+	UBFX	r2, r5, #8, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r6, ROR #24
+	LDM	r3!, {r4, r5, r6, r7}
+	EOR	r11, r11, lr, ROR #24
+	EOR	r11, r11, r2, ROR #8
+	/*   XOR in Key Schedule */
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	UBFX	r4, r11, #0, #8
+	UBFX	r7, r10, #8, #8
+	UBFX	lr, r9, #16, #8
+	LSR	r2, r8, #24
+	LDRB	r4, [r0, r4, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	UBFX	r5, r8, #0, #8
+	EOR	r4, r4, r7, LSL #8
+	UBFX	r7, r11, #8, #8
+	EOR	r4, r4, lr, LSL #16
+	UBFX	lr, r10, #16, #8
+	EOR	r4, r4, r2, LSL #24
+	LSR	r2, r9, #24
+	LDRB	r5, [r0, r5, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	UBFX	r6, r9, #0, #8
+	EOR	r5, r5, r7, LSL #8
+	UBFX	r7, r8, #8, #8
+	EOR	r5, r5, lr, LSL #16
+	UBFX	lr, r11, #16, #8
+	EOR	r5, r5, r2, LSL #24
+	LSR	r2, r10, #24
+	LDRB	r6, [r0, r6, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	LSR	r11, r11, #24
+	EOR	r6, r6, r7, LSL #8
+	UBFX	r7, r10, #0, #8
+	EOR	r6, r6, lr, LSL #16
+	UBFX	lr, r9, #8, #8
+	EOR	r6, r6, r2, LSL #24
+	UBFX	r2, r8, #16, #8
+	LDRB	r11, [r0, r11, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r11, LSL #16
+	LDM	r3, {r8, r9, r10, r11}
+	EOR	r7, r7, lr, LSL #8
+	EOR	r7, r7, r2, LSL #16
+	/*   XOR in Key Schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+#endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
 	POP	{r1, r2, lr}
 	LDR	r3, [sp]
 	REV	r4, r4
@@ -1609,7 +3297,217 @@ L_AES_CTR_encrypt_loop_block_128:
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
 	MOV	r1, #0x4
+#ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
 	BL	AES_encrypt_block
+#else
+L_AES_CTR_encrypt_block_nr_128:
+	UBFX	r8, r5, #16, #8
+	LSR	r11, r4, #24
+	UBFX	lr, r6, #8, #8
+	UBFX	r2, r7, #0, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r9, r6, #16, #8
+	EOR	r8, r8, r11, ROR #24
+	LSR	r11, r5, #24
+	EOR	r8, r8, lr, ROR #8
+	UBFX	lr, r7, #8, #8
+	EOR	r8, r8, r2, ROR #16
+	UBFX	r2, r4, #0, #8
+	LDR	r9, [r0, r9, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r10, r7, #16, #8
+	EOR	r9, r9, r11, ROR #24
+	LSR	r11, r6, #24
+	EOR	r9, r9, lr, ROR #8
+	UBFX	lr, r4, #8, #8
+	EOR	r9, r9, r2, ROR #16
+	UBFX	r2, r5, #0, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r6, r6, #0, #8
+	EOR	r10, r10, r11, ROR #24
+	UBFX	r11, r4, #16, #8
+	EOR	r10, r10, lr, ROR #8
+	LSR	lr, r7, #24
+	EOR	r10, r10, r2, ROR #16
+	UBFX	r2, r5, #8, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r6, ROR #24
+	LDM	r3!, {r4, r5, r6, r7}
+	EOR	r11, r11, lr, ROR #24
+	EOR	r11, r11, r2, ROR #8
+	/*   XOR in Key Schedule */
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	UBFX	r4, r9, #16, #8
+	LSR	r7, r8, #24
+	UBFX	lr, r10, #8, #8
+	UBFX	r2, r11, #0, #8
+	LDR	r4, [r0, r4, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r5, r10, #16, #8
+	EOR	r4, r4, r7, ROR #24
+	LSR	r7, r9, #24
+	EOR	r4, r4, lr, ROR #8
+	UBFX	lr, r11, #8, #8
+	EOR	r4, r4, r2, ROR #16
+	UBFX	r2, r8, #0, #8
+	LDR	r5, [r0, r5, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r6, r11, #16, #8
+	EOR	r5, r5, r7, ROR #24
+	LSR	r7, r10, #24
+	EOR	r5, r5, lr, ROR #8
+	UBFX	lr, r8, #8, #8
+	EOR	r5, r5, r2, ROR #16
+	UBFX	r2, r9, #0, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r10, r10, #0, #8
+	EOR	r6, r6, r7, ROR #24
+	UBFX	r7, r8, #16, #8
+	EOR	r6, r6, lr, ROR #8
+	LSR	lr, r11, #24
+	EOR	r6, r6, r2, ROR #16
+	UBFX	r2, r9, #8, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r10, ROR #24
+	LDM	r3!, {r8, r9, r10, r11}
+	EOR	r7, r7, lr, ROR #24
+	EOR	r7, r7, r2, ROR #8
+	/*   XOR in Key Schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+	SUBS	r1, r1, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BNE	L_AES_CTR_encrypt_block_nr_128
+#else
+	BNE.W	L_AES_CTR_encrypt_block_nr_128
+#endif
+	UBFX	r8, r5, #16, #8
+	LSR	r11, r4, #24
+	UBFX	lr, r6, #8, #8
+	UBFX	r2, r7, #0, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r9, r6, #16, #8
+	EOR	r8, r8, r11, ROR #24
+	LSR	r11, r5, #24
+	EOR	r8, r8, lr, ROR #8
+	UBFX	lr, r7, #8, #8
+	EOR	r8, r8, r2, ROR #16
+	UBFX	r2, r4, #0, #8
+	LDR	r9, [r0, r9, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r10, r7, #16, #8
+	EOR	r9, r9, r11, ROR #24
+	LSR	r11, r6, #24
+	EOR	r9, r9, lr, ROR #8
+	UBFX	lr, r4, #8, #8
+	EOR	r9, r9, r2, ROR #16
+	UBFX	r2, r5, #0, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r6, r6, #0, #8
+	EOR	r10, r10, r11, ROR #24
+	UBFX	r11, r4, #16, #8
+	EOR	r10, r10, lr, ROR #8
+	LSR	lr, r7, #24
+	EOR	r10, r10, r2, ROR #16
+	UBFX	r2, r5, #8, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r6, ROR #24
+	LDM	r3!, {r4, r5, r6, r7}
+	EOR	r11, r11, lr, ROR #24
+	EOR	r11, r11, r2, ROR #8
+	/*   XOR in Key Schedule */
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	UBFX	r4, r11, #0, #8
+	UBFX	r7, r10, #8, #8
+	UBFX	lr, r9, #16, #8
+	LSR	r2, r8, #24
+	LDRB	r4, [r0, r4, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	UBFX	r5, r8, #0, #8
+	EOR	r4, r4, r7, LSL #8
+	UBFX	r7, r11, #8, #8
+	EOR	r4, r4, lr, LSL #16
+	UBFX	lr, r10, #16, #8
+	EOR	r4, r4, r2, LSL #24
+	LSR	r2, r9, #24
+	LDRB	r5, [r0, r5, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	UBFX	r6, r9, #0, #8
+	EOR	r5, r5, r7, LSL #8
+	UBFX	r7, r8, #8, #8
+	EOR	r5, r5, lr, LSL #16
+	UBFX	lr, r11, #16, #8
+	EOR	r5, r5, r2, LSL #24
+	LSR	r2, r10, #24
+	LDRB	r6, [r0, r6, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	LSR	r11, r11, #24
+	EOR	r6, r6, r7, LSL #8
+	UBFX	r7, r10, #0, #8
+	EOR	r6, r6, lr, LSL #16
+	UBFX	lr, r9, #8, #8
+	EOR	r6, r6, r2, LSL #24
+	UBFX	r2, r8, #16, #8
+	LDRB	r11, [r0, r11, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r11, LSL #16
+	LDM	r3, {r8, r9, r10, r11}
+	EOR	r7, r7, lr, LSL #8
+	EOR	r7, r7, r2, LSL #16
+	/*   XOR in Key Schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+#endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
 	POP	{r1, r2, lr}
 	LDR	r3, [sp]
 	REV	r4, r4
@@ -1646,12 +3544,13 @@ L_AES_CTR_encrypt_end:
 	REV	r7, r7
 	STM	r8, {r4, r5, r6, r7}
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-	/* Cycle Count = 293 */
+	/* Cycle Count = 1136 */
 	.size	AES_CTR_encrypt,.-AES_CTR_encrypt
 #endif /* WOLFSSL_AES_COUNTER */
 #ifdef HAVE_AES_DECRYPT
 #if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || \
     defined(HAVE_AES_CBC) || defined(HAVE_AES_ECB)
+#ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
 	.text
 	.align	4
 	.globl	AES_decrypt_block
@@ -1868,6 +3767,7 @@ L_AES_decrypt_block_nr:
 	POP	{pc}
 	/* Cycle Count = 285 */
 	.size	AES_decrypt_block,.-AES_decrypt_block
+#endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
 	.text
 	.type	L_AES_Thumb2_td_ecb, %object
 	.size	L_AES_Thumb2_td_ecb, 12
@@ -2176,7 +4076,217 @@ L_AES_ECB_decrypt_loop_block_256:
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
 	MOV	r1, #0x6
+#ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
 	BL	AES_decrypt_block
+#else
+L_AES_ECB_decrypt_block_nr_256:
+	UBFX	r8, r7, #16, #8
+	LSR	r11, r4, #24
+	UBFX	r12, r6, #8, #8
+	UBFX	lr, r5, #0, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r9, r4, #16, #8
+	EOR	r8, r8, r11, ROR #24
+	LSR	r11, r5, #24
+	EOR	r8, r8, r12, ROR #8
+	UBFX	r12, r7, #8, #8
+	EOR	r8, r8, lr, ROR #16
+	UBFX	lr, r6, #0, #8
+	LDR	r9, [r0, r9, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r10, r5, #16, #8
+	EOR	r9, r9, r11, ROR #24
+	LSR	r11, r6, #24
+	EOR	r9, r9, r12, ROR #8
+	UBFX	r12, r4, #8, #8
+	EOR	r9, r9, lr, ROR #16
+	UBFX	lr, r7, #0, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r4, r4, #0, #8
+	EOR	r10, r10, r11, ROR #24
+	UBFX	r11, r6, #16, #8
+	EOR	r10, r10, r12, ROR #8
+	LSR	r12, r7, #24
+	EOR	r10, r10, lr, ROR #16
+	UBFX	lr, r5, #8, #8
+	LDR	r4, [r0, r4, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	EOR	r12, r12, r4, ROR #24
+	LDM	r3!, {r4, r5, r6, r7}
+	EOR	r11, r11, lr, ROR #8
+	EOR	r11, r11, r12, ROR #24
+	/*   XOR in Key Schedule */
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	UBFX	r4, r11, #16, #8
+	LSR	r7, r8, #24
+	UBFX	r12, r10, #8, #8
+	UBFX	lr, r9, #0, #8
+	LDR	r4, [r0, r4, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r5, r8, #16, #8
+	EOR	r4, r4, r7, ROR #24
+	LSR	r7, r9, #24
+	EOR	r4, r4, r12, ROR #8
+	UBFX	r12, r11, #8, #8
+	EOR	r4, r4, lr, ROR #16
+	UBFX	lr, r10, #0, #8
+	LDR	r5, [r0, r5, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r6, r9, #16, #8
+	EOR	r5, r5, r7, ROR #24
+	LSR	r7, r10, #24
+	EOR	r5, r5, r12, ROR #8
+	UBFX	r12, r8, #8, #8
+	EOR	r5, r5, lr, ROR #16
+	UBFX	lr, r11, #0, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r8, r8, #0, #8
+	EOR	r6, r6, r7, ROR #24
+	UBFX	r7, r10, #16, #8
+	EOR	r6, r6, r12, ROR #8
+	LSR	r12, r11, #24
+	EOR	r6, r6, lr, ROR #16
+	UBFX	lr, r9, #8, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	EOR	r12, r12, r8, ROR #24
+	LDM	r3!, {r8, r9, r10, r11}
+	EOR	r7, r7, lr, ROR #8
+	EOR	r7, r7, r12, ROR #24
+	/*   XOR in Key Schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+	SUBS	r1, r1, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BNE	L_AES_ECB_decrypt_block_nr_256
+#else
+	BNE.W	L_AES_ECB_decrypt_block_nr_256
+#endif
+	UBFX	r8, r7, #16, #8
+	LSR	r11, r4, #24
+	UBFX	r12, r6, #8, #8
+	UBFX	lr, r5, #0, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r9, r4, #16, #8
+	EOR	r8, r8, r11, ROR #24
+	LSR	r11, r5, #24
+	EOR	r8, r8, r12, ROR #8
+	UBFX	r12, r7, #8, #8
+	EOR	r8, r8, lr, ROR #16
+	UBFX	lr, r6, #0, #8
+	LDR	r9, [r0, r9, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r10, r5, #16, #8
+	EOR	r9, r9, r11, ROR #24
+	LSR	r11, r6, #24
+	EOR	r9, r9, r12, ROR #8
+	UBFX	r12, r4, #8, #8
+	EOR	r9, r9, lr, ROR #16
+	UBFX	lr, r7, #0, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r4, r4, #0, #8
+	EOR	r10, r10, r11, ROR #24
+	UBFX	r11, r6, #16, #8
+	EOR	r10, r10, r12, ROR #8
+	LSR	r12, r7, #24
+	EOR	r10, r10, lr, ROR #16
+	UBFX	lr, r5, #8, #8
+	LDR	r4, [r0, r4, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	EOR	r12, r12, r4, ROR #24
+	LDM	r3!, {r4, r5, r6, r7}
+	EOR	r11, r11, lr, ROR #8
+	EOR	r11, r11, r12, ROR #24
+	/*   XOR in Key Schedule */
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	UBFX	r4, r9, #0, #8
+	UBFX	r7, r10, #8, #8
+	UBFX	r12, r11, #16, #8
+	LSR	lr, r8, #24
+	LDRB	r4, [r2, r4]
+	LDRB	r7, [r2, r7]
+	LDRB	r12, [r2, r12]
+	LDRB	lr, [r2, lr]
+	UBFX	r5, r10, #0, #8
+	EOR	r4, r4, r7, LSL #8
+	UBFX	r7, r11, #8, #8
+	EOR	r4, r4, r12, LSL #16
+	UBFX	r12, r8, #16, #8
+	EOR	r4, r4, lr, LSL #24
+	LSR	lr, r9, #24
+	LDRB	r7, [r2, r7]
+	LDRB	lr, [r2, lr]
+	LDRB	r5, [r2, r5]
+	LDRB	r12, [r2, r12]
+	UBFX	r6, r11, #0, #8
+	EOR	r5, r5, r7, LSL #8
+	UBFX	r7, r8, #8, #8
+	EOR	r5, r5, r12, LSL #16
+	UBFX	r12, r9, #16, #8
+	EOR	r5, r5, lr, LSL #24
+	LSR	lr, r10, #24
+	LDRB	r7, [r2, r7]
+	LDRB	lr, [r2, lr]
+	LDRB	r6, [r2, r6]
+	LDRB	r12, [r2, r12]
+	LSR	r11, r11, #24
+	EOR	r6, r6, r7, LSL #8
+	UBFX	r7, r8, #0, #8
+	EOR	r6, r6, r12, LSL #16
+	UBFX	r12, r9, #8, #8
+	EOR	r6, r6, lr, LSL #24
+	UBFX	lr, r10, #16, #8
+	LDRB	r11, [r2, r11]
+	LDRB	r12, [r2, r12]
+	LDRB	r7, [r2, r7]
+	LDRB	lr, [r2, lr]
+	EOR	r12, r12, r11, LSL #16
+	LDM	r3, {r8, r9, r10, r11}
+	EOR	r7, r7, r12, LSL #8
+	EOR	r7, r7, lr, LSL #16
+	/*   XOR in Key Schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+#endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
 	POP	{r1, r3, r12, lr}
 	REV	r4, r4
 	REV	r5, r5
@@ -2217,7 +4327,217 @@ L_AES_ECB_decrypt_loop_block_192:
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
 	MOV	r1, #0x5
+#ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
 	BL	AES_decrypt_block
+#else
+L_AES_ECB_decrypt_block_nr_192:
+	UBFX	r8, r7, #16, #8
+	LSR	r11, r4, #24
+	UBFX	r12, r6, #8, #8
+	UBFX	lr, r5, #0, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r9, r4, #16, #8
+	EOR	r8, r8, r11, ROR #24
+	LSR	r11, r5, #24
+	EOR	r8, r8, r12, ROR #8
+	UBFX	r12, r7, #8, #8
+	EOR	r8, r8, lr, ROR #16
+	UBFX	lr, r6, #0, #8
+	LDR	r9, [r0, r9, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r10, r5, #16, #8
+	EOR	r9, r9, r11, ROR #24
+	LSR	r11, r6, #24
+	EOR	r9, r9, r12, ROR #8
+	UBFX	r12, r4, #8, #8
+	EOR	r9, r9, lr, ROR #16
+	UBFX	lr, r7, #0, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r4, r4, #0, #8
+	EOR	r10, r10, r11, ROR #24
+	UBFX	r11, r6, #16, #8
+	EOR	r10, r10, r12, ROR #8
+	LSR	r12, r7, #24
+	EOR	r10, r10, lr, ROR #16
+	UBFX	lr, r5, #8, #8
+	LDR	r4, [r0, r4, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	EOR	r12, r12, r4, ROR #24
+	LDM	r3!, {r4, r5, r6, r7}
+	EOR	r11, r11, lr, ROR #8
+	EOR	r11, r11, r12, ROR #24
+	/*   XOR in Key Schedule */
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	UBFX	r4, r11, #16, #8
+	LSR	r7, r8, #24
+	UBFX	r12, r10, #8, #8
+	UBFX	lr, r9, #0, #8
+	LDR	r4, [r0, r4, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r5, r8, #16, #8
+	EOR	r4, r4, r7, ROR #24
+	LSR	r7, r9, #24
+	EOR	r4, r4, r12, ROR #8
+	UBFX	r12, r11, #8, #8
+	EOR	r4, r4, lr, ROR #16
+	UBFX	lr, r10, #0, #8
+	LDR	r5, [r0, r5, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r6, r9, #16, #8
+	EOR	r5, r5, r7, ROR #24
+	LSR	r7, r10, #24
+	EOR	r5, r5, r12, ROR #8
+	UBFX	r12, r8, #8, #8
+	EOR	r5, r5, lr, ROR #16
+	UBFX	lr, r11, #0, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r8, r8, #0, #8
+	EOR	r6, r6, r7, ROR #24
+	UBFX	r7, r10, #16, #8
+	EOR	r6, r6, r12, ROR #8
+	LSR	r12, r11, #24
+	EOR	r6, r6, lr, ROR #16
+	UBFX	lr, r9, #8, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	EOR	r12, r12, r8, ROR #24
+	LDM	r3!, {r8, r9, r10, r11}
+	EOR	r7, r7, lr, ROR #8
+	EOR	r7, r7, r12, ROR #24
+	/*   XOR in Key Schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+	SUBS	r1, r1, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BNE	L_AES_ECB_decrypt_block_nr_192
+#else
+	BNE.W	L_AES_ECB_decrypt_block_nr_192
+#endif
+	UBFX	r8, r7, #16, #8
+	LSR	r11, r4, #24
+	UBFX	r12, r6, #8, #8
+	UBFX	lr, r5, #0, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r9, r4, #16, #8
+	EOR	r8, r8, r11, ROR #24
+	LSR	r11, r5, #24
+	EOR	r8, r8, r12, ROR #8
+	UBFX	r12, r7, #8, #8
+	EOR	r8, r8, lr, ROR #16
+	UBFX	lr, r6, #0, #8
+	LDR	r9, [r0, r9, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r10, r5, #16, #8
+	EOR	r9, r9, r11, ROR #24
+	LSR	r11, r6, #24
+	EOR	r9, r9, r12, ROR #8
+	UBFX	r12, r4, #8, #8
+	EOR	r9, r9, lr, ROR #16
+	UBFX	lr, r7, #0, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r4, r4, #0, #8
+	EOR	r10, r10, r11, ROR #24
+	UBFX	r11, r6, #16, #8
+	EOR	r10, r10, r12, ROR #8
+	LSR	r12, r7, #24
+	EOR	r10, r10, lr, ROR #16
+	UBFX	lr, r5, #8, #8
+	LDR	r4, [r0, r4, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	EOR	r12, r12, r4, ROR #24
+	LDM	r3!, {r4, r5, r6, r7}
+	EOR	r11, r11, lr, ROR #8
+	EOR	r11, r11, r12, ROR #24
+	/*   XOR in Key Schedule */
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	UBFX	r4, r9, #0, #8
+	UBFX	r7, r10, #8, #8
+	UBFX	r12, r11, #16, #8
+	LSR	lr, r8, #24
+	LDRB	r4, [r2, r4]
+	LDRB	r7, [r2, r7]
+	LDRB	r12, [r2, r12]
+	LDRB	lr, [r2, lr]
+	UBFX	r5, r10, #0, #8
+	EOR	r4, r4, r7, LSL #8
+	UBFX	r7, r11, #8, #8
+	EOR	r4, r4, r12, LSL #16
+	UBFX	r12, r8, #16, #8
+	EOR	r4, r4, lr, LSL #24
+	LSR	lr, r9, #24
+	LDRB	r7, [r2, r7]
+	LDRB	lr, [r2, lr]
+	LDRB	r5, [r2, r5]
+	LDRB	r12, [r2, r12]
+	UBFX	r6, r11, #0, #8
+	EOR	r5, r5, r7, LSL #8
+	UBFX	r7, r8, #8, #8
+	EOR	r5, r5, r12, LSL #16
+	UBFX	r12, r9, #16, #8
+	EOR	r5, r5, lr, LSL #24
+	LSR	lr, r10, #24
+	LDRB	r7, [r2, r7]
+	LDRB	lr, [r2, lr]
+	LDRB	r6, [r2, r6]
+	LDRB	r12, [r2, r12]
+	LSR	r11, r11, #24
+	EOR	r6, r6, r7, LSL #8
+	UBFX	r7, r8, #0, #8
+	EOR	r6, r6, r12, LSL #16
+	UBFX	r12, r9, #8, #8
+	EOR	r6, r6, lr, LSL #24
+	UBFX	lr, r10, #16, #8
+	LDRB	r11, [r2, r11]
+	LDRB	r12, [r2, r12]
+	LDRB	r7, [r2, r7]
+	LDRB	lr, [r2, lr]
+	EOR	r12, r12, r11, LSL #16
+	LDM	r3, {r8, r9, r10, r11}
+	EOR	r7, r7, r12, LSL #8
+	EOR	r7, r7, lr, LSL #16
+	/*   XOR in Key Schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+#endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
 	POP	{r1, r3, r12, lr}
 	REV	r4, r4
 	REV	r5, r5
@@ -2258,7 +4578,217 @@ L_AES_ECB_decrypt_loop_block_128:
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
 	MOV	r1, #0x4
+#ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
 	BL	AES_decrypt_block
+#else
+L_AES_ECB_decrypt_block_nr_128:
+	UBFX	r8, r7, #16, #8
+	LSR	r11, r4, #24
+	UBFX	r12, r6, #8, #8
+	UBFX	lr, r5, #0, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r9, r4, #16, #8
+	EOR	r8, r8, r11, ROR #24
+	LSR	r11, r5, #24
+	EOR	r8, r8, r12, ROR #8
+	UBFX	r12, r7, #8, #8
+	EOR	r8, r8, lr, ROR #16
+	UBFX	lr, r6, #0, #8
+	LDR	r9, [r0, r9, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r10, r5, #16, #8
+	EOR	r9, r9, r11, ROR #24
+	LSR	r11, r6, #24
+	EOR	r9, r9, r12, ROR #8
+	UBFX	r12, r4, #8, #8
+	EOR	r9, r9, lr, ROR #16
+	UBFX	lr, r7, #0, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r4, r4, #0, #8
+	EOR	r10, r10, r11, ROR #24
+	UBFX	r11, r6, #16, #8
+	EOR	r10, r10, r12, ROR #8
+	LSR	r12, r7, #24
+	EOR	r10, r10, lr, ROR #16
+	UBFX	lr, r5, #8, #8
+	LDR	r4, [r0, r4, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	EOR	r12, r12, r4, ROR #24
+	LDM	r3!, {r4, r5, r6, r7}
+	EOR	r11, r11, lr, ROR #8
+	EOR	r11, r11, r12, ROR #24
+	/*   XOR in Key Schedule */
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	UBFX	r4, r11, #16, #8
+	LSR	r7, r8, #24
+	UBFX	r12, r10, #8, #8
+	UBFX	lr, r9, #0, #8
+	LDR	r4, [r0, r4, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r5, r8, #16, #8
+	EOR	r4, r4, r7, ROR #24
+	LSR	r7, r9, #24
+	EOR	r4, r4, r12, ROR #8
+	UBFX	r12, r11, #8, #8
+	EOR	r4, r4, lr, ROR #16
+	UBFX	lr, r10, #0, #8
+	LDR	r5, [r0, r5, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r6, r9, #16, #8
+	EOR	r5, r5, r7, ROR #24
+	LSR	r7, r10, #24
+	EOR	r5, r5, r12, ROR #8
+	UBFX	r12, r8, #8, #8
+	EOR	r5, r5, lr, ROR #16
+	UBFX	lr, r11, #0, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r8, r8, #0, #8
+	EOR	r6, r6, r7, ROR #24
+	UBFX	r7, r10, #16, #8
+	EOR	r6, r6, r12, ROR #8
+	LSR	r12, r11, #24
+	EOR	r6, r6, lr, ROR #16
+	UBFX	lr, r9, #8, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	EOR	r12, r12, r8, ROR #24
+	LDM	r3!, {r8, r9, r10, r11}
+	EOR	r7, r7, lr, ROR #8
+	EOR	r7, r7, r12, ROR #24
+	/*   XOR in Key Schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+	SUBS	r1, r1, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BNE	L_AES_ECB_decrypt_block_nr_128
+#else
+	BNE.W	L_AES_ECB_decrypt_block_nr_128
+#endif
+	UBFX	r8, r7, #16, #8
+	LSR	r11, r4, #24
+	UBFX	r12, r6, #8, #8
+	UBFX	lr, r5, #0, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r9, r4, #16, #8
+	EOR	r8, r8, r11, ROR #24
+	LSR	r11, r5, #24
+	EOR	r8, r8, r12, ROR #8
+	UBFX	r12, r7, #8, #8
+	EOR	r8, r8, lr, ROR #16
+	UBFX	lr, r6, #0, #8
+	LDR	r9, [r0, r9, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r10, r5, #16, #8
+	EOR	r9, r9, r11, ROR #24
+	LSR	r11, r6, #24
+	EOR	r9, r9, r12, ROR #8
+	UBFX	r12, r4, #8, #8
+	EOR	r9, r9, lr, ROR #16
+	UBFX	lr, r7, #0, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r4, r4, #0, #8
+	EOR	r10, r10, r11, ROR #24
+	UBFX	r11, r6, #16, #8
+	EOR	r10, r10, r12, ROR #8
+	LSR	r12, r7, #24
+	EOR	r10, r10, lr, ROR #16
+	UBFX	lr, r5, #8, #8
+	LDR	r4, [r0, r4, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	EOR	r12, r12, r4, ROR #24
+	LDM	r3!, {r4, r5, r6, r7}
+	EOR	r11, r11, lr, ROR #8
+	EOR	r11, r11, r12, ROR #24
+	/*   XOR in Key Schedule */
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	UBFX	r4, r9, #0, #8
+	UBFX	r7, r10, #8, #8
+	UBFX	r12, r11, #16, #8
+	LSR	lr, r8, #24
+	LDRB	r4, [r2, r4]
+	LDRB	r7, [r2, r7]
+	LDRB	r12, [r2, r12]
+	LDRB	lr, [r2, lr]
+	UBFX	r5, r10, #0, #8
+	EOR	r4, r4, r7, LSL #8
+	UBFX	r7, r11, #8, #8
+	EOR	r4, r4, r12, LSL #16
+	UBFX	r12, r8, #16, #8
+	EOR	r4, r4, lr, LSL #24
+	LSR	lr, r9, #24
+	LDRB	r7, [r2, r7]
+	LDRB	lr, [r2, lr]
+	LDRB	r5, [r2, r5]
+	LDRB	r12, [r2, r12]
+	UBFX	r6, r11, #0, #8
+	EOR	r5, r5, r7, LSL #8
+	UBFX	r7, r8, #8, #8
+	EOR	r5, r5, r12, LSL #16
+	UBFX	r12, r9, #16, #8
+	EOR	r5, r5, lr, LSL #24
+	LSR	lr, r10, #24
+	LDRB	r7, [r2, r7]
+	LDRB	lr, [r2, lr]
+	LDRB	r6, [r2, r6]
+	LDRB	r12, [r2, r12]
+	LSR	r11, r11, #24
+	EOR	r6, r6, r7, LSL #8
+	UBFX	r7, r8, #0, #8
+	EOR	r6, r6, r12, LSL #16
+	UBFX	r12, r9, #8, #8
+	EOR	r6, r6, lr, LSL #24
+	UBFX	lr, r10, #16, #8
+	LDRB	r11, [r2, r11]
+	LDRB	r12, [r2, r12]
+	LDRB	r7, [r2, r7]
+	LDRB	lr, [r2, lr]
+	EOR	r12, r12, r11, LSL #16
+	LDM	r3, {r8, r9, r10, r11}
+	EOR	r7, r7, r12, LSL #8
+	EOR	r7, r7, lr, LSL #16
+	/*   XOR in Key Schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+#endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
 	POP	{r1, r3, r12, lr}
 	REV	r4, r4
 	REV	r5, r5
@@ -2278,7 +4808,7 @@ L_AES_ECB_decrypt_loop_block_128:
 #endif
 L_AES_ECB_decrypt_end:
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-	/* Cycle Count = 210 */
+	/* Cycle Count = 1053 */
 	.size	AES_ECB_decrypt,.-AES_ECB_decrypt
 #endif /* WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER || defined(HAVE_AES_ECB) */
 #ifdef HAVE_AES_CBC
@@ -2327,7 +4857,217 @@ L_AES_CBC_decrypt_loop_block_256:
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
 	MOV	r1, #0x6
+#ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
 	BL	AES_decrypt_block
+#else
+L_AES_CBC_decrypt_block_nr_256_odd:
+	UBFX	r8, r7, #16, #8
+	LSR	r11, r4, #24
+	UBFX	r12, r6, #8, #8
+	UBFX	lr, r5, #0, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r9, r4, #16, #8
+	EOR	r8, r8, r11, ROR #24
+	LSR	r11, r5, #24
+	EOR	r8, r8, r12, ROR #8
+	UBFX	r12, r7, #8, #8
+	EOR	r8, r8, lr, ROR #16
+	UBFX	lr, r6, #0, #8
+	LDR	r9, [r0, r9, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r10, r5, #16, #8
+	EOR	r9, r9, r11, ROR #24
+	LSR	r11, r6, #24
+	EOR	r9, r9, r12, ROR #8
+	UBFX	r12, r4, #8, #8
+	EOR	r9, r9, lr, ROR #16
+	UBFX	lr, r7, #0, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r4, r4, #0, #8
+	EOR	r10, r10, r11, ROR #24
+	UBFX	r11, r6, #16, #8
+	EOR	r10, r10, r12, ROR #8
+	LSR	r12, r7, #24
+	EOR	r10, r10, lr, ROR #16
+	UBFX	lr, r5, #8, #8
+	LDR	r4, [r0, r4, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	EOR	r12, r12, r4, ROR #24
+	LDM	r3!, {r4, r5, r6, r7}
+	EOR	r11, r11, lr, ROR #8
+	EOR	r11, r11, r12, ROR #24
+	/*   XOR in Key Schedule */
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	UBFX	r4, r11, #16, #8
+	LSR	r7, r8, #24
+	UBFX	r12, r10, #8, #8
+	UBFX	lr, r9, #0, #8
+	LDR	r4, [r0, r4, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r5, r8, #16, #8
+	EOR	r4, r4, r7, ROR #24
+	LSR	r7, r9, #24
+	EOR	r4, r4, r12, ROR #8
+	UBFX	r12, r11, #8, #8
+	EOR	r4, r4, lr, ROR #16
+	UBFX	lr, r10, #0, #8
+	LDR	r5, [r0, r5, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r6, r9, #16, #8
+	EOR	r5, r5, r7, ROR #24
+	LSR	r7, r10, #24
+	EOR	r5, r5, r12, ROR #8
+	UBFX	r12, r8, #8, #8
+	EOR	r5, r5, lr, ROR #16
+	UBFX	lr, r11, #0, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r8, r8, #0, #8
+	EOR	r6, r6, r7, ROR #24
+	UBFX	r7, r10, #16, #8
+	EOR	r6, r6, r12, ROR #8
+	LSR	r12, r11, #24
+	EOR	r6, r6, lr, ROR #16
+	UBFX	lr, r9, #8, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	EOR	r12, r12, r8, ROR #24
+	LDM	r3!, {r8, r9, r10, r11}
+	EOR	r7, r7, lr, ROR #8
+	EOR	r7, r7, r12, ROR #24
+	/*   XOR in Key Schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+	SUBS	r1, r1, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BNE	L_AES_CBC_decrypt_block_nr_256_odd
+#else
+	BNE.W	L_AES_CBC_decrypt_block_nr_256_odd
+#endif
+	UBFX	r8, r7, #16, #8
+	LSR	r11, r4, #24
+	UBFX	r12, r6, #8, #8
+	UBFX	lr, r5, #0, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r9, r4, #16, #8
+	EOR	r8, r8, r11, ROR #24
+	LSR	r11, r5, #24
+	EOR	r8, r8, r12, ROR #8
+	UBFX	r12, r7, #8, #8
+	EOR	r8, r8, lr, ROR #16
+	UBFX	lr, r6, #0, #8
+	LDR	r9, [r0, r9, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r10, r5, #16, #8
+	EOR	r9, r9, r11, ROR #24
+	LSR	r11, r6, #24
+	EOR	r9, r9, r12, ROR #8
+	UBFX	r12, r4, #8, #8
+	EOR	r9, r9, lr, ROR #16
+	UBFX	lr, r7, #0, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r4, r4, #0, #8
+	EOR	r10, r10, r11, ROR #24
+	UBFX	r11, r6, #16, #8
+	EOR	r10, r10, r12, ROR #8
+	LSR	r12, r7, #24
+	EOR	r10, r10, lr, ROR #16
+	UBFX	lr, r5, #8, #8
+	LDR	r4, [r0, r4, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	EOR	r12, r12, r4, ROR #24
+	LDM	r3!, {r4, r5, r6, r7}
+	EOR	r11, r11, lr, ROR #8
+	EOR	r11, r11, r12, ROR #24
+	/*   XOR in Key Schedule */
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	UBFX	r4, r9, #0, #8
+	UBFX	r7, r10, #8, #8
+	UBFX	r12, r11, #16, #8
+	LSR	lr, r8, #24
+	LDRB	r4, [r2, r4]
+	LDRB	r7, [r2, r7]
+	LDRB	r12, [r2, r12]
+	LDRB	lr, [r2, lr]
+	UBFX	r5, r10, #0, #8
+	EOR	r4, r4, r7, LSL #8
+	UBFX	r7, r11, #8, #8
+	EOR	r4, r4, r12, LSL #16
+	UBFX	r12, r8, #16, #8
+	EOR	r4, r4, lr, LSL #24
+	LSR	lr, r9, #24
+	LDRB	r7, [r2, r7]
+	LDRB	lr, [r2, lr]
+	LDRB	r5, [r2, r5]
+	LDRB	r12, [r2, r12]
+	UBFX	r6, r11, #0, #8
+	EOR	r5, r5, r7, LSL #8
+	UBFX	r7, r8, #8, #8
+	EOR	r5, r5, r12, LSL #16
+	UBFX	r12, r9, #16, #8
+	EOR	r5, r5, lr, LSL #24
+	LSR	lr, r10, #24
+	LDRB	r7, [r2, r7]
+	LDRB	lr, [r2, lr]
+	LDRB	r6, [r2, r6]
+	LDRB	r12, [r2, r12]
+	LSR	r11, r11, #24
+	EOR	r6, r6, r7, LSL #8
+	UBFX	r7, r8, #0, #8
+	EOR	r6, r6, r12, LSL #16
+	UBFX	r12, r9, #8, #8
+	EOR	r6, r6, lr, LSL #24
+	UBFX	lr, r10, #16, #8
+	LDRB	r11, [r2, r11]
+	LDRB	r12, [r2, r12]
+	LDRB	r7, [r2, r7]
+	LDRB	lr, [r2, lr]
+	EOR	r12, r12, r11, LSL #16
+	LDM	r3, {r8, r9, r10, r11}
+	EOR	r7, r7, r12, LSL #8
+	EOR	r7, r7, lr, LSL #16
+	/*   XOR in Key Schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+#endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
 	LDR	lr, [sp, #16]
 	REV	r4, r4
 	REV	r5, r5
@@ -2371,7 +5111,217 @@ L_AES_CBC_decrypt_loop_block_256:
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
 	MOV	r1, #0x6
+#ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
 	BL	AES_decrypt_block
+#else
+L_AES_CBC_decrypt_block_nr_256_even:
+	UBFX	r8, r7, #16, #8
+	LSR	r11, r4, #24
+	UBFX	r12, r6, #8, #8
+	UBFX	lr, r5, #0, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r9, r4, #16, #8
+	EOR	r8, r8, r11, ROR #24
+	LSR	r11, r5, #24
+	EOR	r8, r8, r12, ROR #8
+	UBFX	r12, r7, #8, #8
+	EOR	r8, r8, lr, ROR #16
+	UBFX	lr, r6, #0, #8
+	LDR	r9, [r0, r9, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r10, r5, #16, #8
+	EOR	r9, r9, r11, ROR #24
+	LSR	r11, r6, #24
+	EOR	r9, r9, r12, ROR #8
+	UBFX	r12, r4, #8, #8
+	EOR	r9, r9, lr, ROR #16
+	UBFX	lr, r7, #0, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r4, r4, #0, #8
+	EOR	r10, r10, r11, ROR #24
+	UBFX	r11, r6, #16, #8
+	EOR	r10, r10, r12, ROR #8
+	LSR	r12, r7, #24
+	EOR	r10, r10, lr, ROR #16
+	UBFX	lr, r5, #8, #8
+	LDR	r4, [r0, r4, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	EOR	r12, r12, r4, ROR #24
+	LDM	r3!, {r4, r5, r6, r7}
+	EOR	r11, r11, lr, ROR #8
+	EOR	r11, r11, r12, ROR #24
+	/*   XOR in Key Schedule */
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	UBFX	r4, r11, #16, #8
+	LSR	r7, r8, #24
+	UBFX	r12, r10, #8, #8
+	UBFX	lr, r9, #0, #8
+	LDR	r4, [r0, r4, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r5, r8, #16, #8
+	EOR	r4, r4, r7, ROR #24
+	LSR	r7, r9, #24
+	EOR	r4, r4, r12, ROR #8
+	UBFX	r12, r11, #8, #8
+	EOR	r4, r4, lr, ROR #16
+	UBFX	lr, r10, #0, #8
+	LDR	r5, [r0, r5, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r6, r9, #16, #8
+	EOR	r5, r5, r7, ROR #24
+	LSR	r7, r10, #24
+	EOR	r5, r5, r12, ROR #8
+	UBFX	r12, r8, #8, #8
+	EOR	r5, r5, lr, ROR #16
+	UBFX	lr, r11, #0, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r8, r8, #0, #8
+	EOR	r6, r6, r7, ROR #24
+	UBFX	r7, r10, #16, #8
+	EOR	r6, r6, r12, ROR #8
+	LSR	r12, r11, #24
+	EOR	r6, r6, lr, ROR #16
+	UBFX	lr, r9, #8, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	EOR	r12, r12, r8, ROR #24
+	LDM	r3!, {r8, r9, r10, r11}
+	EOR	r7, r7, lr, ROR #8
+	EOR	r7, r7, r12, ROR #24
+	/*   XOR in Key Schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+	SUBS	r1, r1, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BNE	L_AES_CBC_decrypt_block_nr_256_even
+#else
+	BNE.W	L_AES_CBC_decrypt_block_nr_256_even
+#endif
+	UBFX	r8, r7, #16, #8
+	LSR	r11, r4, #24
+	UBFX	r12, r6, #8, #8
+	UBFX	lr, r5, #0, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r9, r4, #16, #8
+	EOR	r8, r8, r11, ROR #24
+	LSR	r11, r5, #24
+	EOR	r8, r8, r12, ROR #8
+	UBFX	r12, r7, #8, #8
+	EOR	r8, r8, lr, ROR #16
+	UBFX	lr, r6, #0, #8
+	LDR	r9, [r0, r9, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r10, r5, #16, #8
+	EOR	r9, r9, r11, ROR #24
+	LSR	r11, r6, #24
+	EOR	r9, r9, r12, ROR #8
+	UBFX	r12, r4, #8, #8
+	EOR	r9, r9, lr, ROR #16
+	UBFX	lr, r7, #0, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r4, r4, #0, #8
+	EOR	r10, r10, r11, ROR #24
+	UBFX	r11, r6, #16, #8
+	EOR	r10, r10, r12, ROR #8
+	LSR	r12, r7, #24
+	EOR	r10, r10, lr, ROR #16
+	UBFX	lr, r5, #8, #8
+	LDR	r4, [r0, r4, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	EOR	r12, r12, r4, ROR #24
+	LDM	r3!, {r4, r5, r6, r7}
+	EOR	r11, r11, lr, ROR #8
+	EOR	r11, r11, r12, ROR #24
+	/*   XOR in Key Schedule */
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	UBFX	r4, r9, #0, #8
+	UBFX	r7, r10, #8, #8
+	UBFX	r12, r11, #16, #8
+	LSR	lr, r8, #24
+	LDRB	r4, [r2, r4]
+	LDRB	r7, [r2, r7]
+	LDRB	r12, [r2, r12]
+	LDRB	lr, [r2, lr]
+	UBFX	r5, r10, #0, #8
+	EOR	r4, r4, r7, LSL #8
+	UBFX	r7, r11, #8, #8
+	EOR	r4, r4, r12, LSL #16
+	UBFX	r12, r8, #16, #8
+	EOR	r4, r4, lr, LSL #24
+	LSR	lr, r9, #24
+	LDRB	r7, [r2, r7]
+	LDRB	lr, [r2, lr]
+	LDRB	r5, [r2, r5]
+	LDRB	r12, [r2, r12]
+	UBFX	r6, r11, #0, #8
+	EOR	r5, r5, r7, LSL #8
+	UBFX	r7, r8, #8, #8
+	EOR	r5, r5, r12, LSL #16
+	UBFX	r12, r9, #16, #8
+	EOR	r5, r5, lr, LSL #24
+	LSR	lr, r10, #24
+	LDRB	r7, [r2, r7]
+	LDRB	lr, [r2, lr]
+	LDRB	r6, [r2, r6]
+	LDRB	r12, [r2, r12]
+	LSR	r11, r11, #24
+	EOR	r6, r6, r7, LSL #8
+	UBFX	r7, r8, #0, #8
+	EOR	r6, r6, r12, LSL #16
+	UBFX	r12, r9, #8, #8
+	EOR	r6, r6, lr, LSL #24
+	UBFX	lr, r10, #16, #8
+	LDRB	r11, [r2, r11]
+	LDRB	r12, [r2, r12]
+	LDRB	r7, [r2, r7]
+	LDRB	lr, [r2, lr]
+	EOR	r12, r12, r11, LSL #16
+	LDM	r3, {r8, r9, r10, r11}
+	EOR	r7, r7, r12, LSL #8
+	EOR	r7, r7, lr, LSL #16
+	/*   XOR in Key Schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+#endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
 	LDR	lr, [sp, #16]
 	REV	r4, r4
 	REV	r5, r5
@@ -2422,7 +5372,217 @@ L_AES_CBC_decrypt_loop_block_192:
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
 	MOV	r1, #0x5
+#ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
 	BL	AES_decrypt_block
+#else
+L_AES_CBC_decrypt_block_nr_192_odd:
+	UBFX	r8, r7, #16, #8
+	LSR	r11, r4, #24
+	UBFX	r12, r6, #8, #8
+	UBFX	lr, r5, #0, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r9, r4, #16, #8
+	EOR	r8, r8, r11, ROR #24
+	LSR	r11, r5, #24
+	EOR	r8, r8, r12, ROR #8
+	UBFX	r12, r7, #8, #8
+	EOR	r8, r8, lr, ROR #16
+	UBFX	lr, r6, #0, #8
+	LDR	r9, [r0, r9, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r10, r5, #16, #8
+	EOR	r9, r9, r11, ROR #24
+	LSR	r11, r6, #24
+	EOR	r9, r9, r12, ROR #8
+	UBFX	r12, r4, #8, #8
+	EOR	r9, r9, lr, ROR #16
+	UBFX	lr, r7, #0, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r4, r4, #0, #8
+	EOR	r10, r10, r11, ROR #24
+	UBFX	r11, r6, #16, #8
+	EOR	r10, r10, r12, ROR #8
+	LSR	r12, r7, #24
+	EOR	r10, r10, lr, ROR #16
+	UBFX	lr, r5, #8, #8
+	LDR	r4, [r0, r4, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	EOR	r12, r12, r4, ROR #24
+	LDM	r3!, {r4, r5, r6, r7}
+	EOR	r11, r11, lr, ROR #8
+	EOR	r11, r11, r12, ROR #24
+	/*   XOR in Key Schedule */
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	UBFX	r4, r11, #16, #8
+	LSR	r7, r8, #24
+	UBFX	r12, r10, #8, #8
+	UBFX	lr, r9, #0, #8
+	LDR	r4, [r0, r4, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r5, r8, #16, #8
+	EOR	r4, r4, r7, ROR #24
+	LSR	r7, r9, #24
+	EOR	r4, r4, r12, ROR #8
+	UBFX	r12, r11, #8, #8
+	EOR	r4, r4, lr, ROR #16
+	UBFX	lr, r10, #0, #8
+	LDR	r5, [r0, r5, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r6, r9, #16, #8
+	EOR	r5, r5, r7, ROR #24
+	LSR	r7, r10, #24
+	EOR	r5, r5, r12, ROR #8
+	UBFX	r12, r8, #8, #8
+	EOR	r5, r5, lr, ROR #16
+	UBFX	lr, r11, #0, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r8, r8, #0, #8
+	EOR	r6, r6, r7, ROR #24
+	UBFX	r7, r10, #16, #8
+	EOR	r6, r6, r12, ROR #8
+	LSR	r12, r11, #24
+	EOR	r6, r6, lr, ROR #16
+	UBFX	lr, r9, #8, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	EOR	r12, r12, r8, ROR #24
+	LDM	r3!, {r8, r9, r10, r11}
+	EOR	r7, r7, lr, ROR #8
+	EOR	r7, r7, r12, ROR #24
+	/*   XOR in Key Schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+	SUBS	r1, r1, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BNE	L_AES_CBC_decrypt_block_nr_192_odd
+#else
+	BNE.W	L_AES_CBC_decrypt_block_nr_192_odd
+#endif
+	UBFX	r8, r7, #16, #8
+	LSR	r11, r4, #24
+	UBFX	r12, r6, #8, #8
+	UBFX	lr, r5, #0, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r9, r4, #16, #8
+	EOR	r8, r8, r11, ROR #24
+	LSR	r11, r5, #24
+	EOR	r8, r8, r12, ROR #8
+	UBFX	r12, r7, #8, #8
+	EOR	r8, r8, lr, ROR #16
+	UBFX	lr, r6, #0, #8
+	LDR	r9, [r0, r9, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r10, r5, #16, #8
+	EOR	r9, r9, r11, ROR #24
+	LSR	r11, r6, #24
+	EOR	r9, r9, r12, ROR #8
+	UBFX	r12, r4, #8, #8
+	EOR	r9, r9, lr, ROR #16
+	UBFX	lr, r7, #0, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r4, r4, #0, #8
+	EOR	r10, r10, r11, ROR #24
+	UBFX	r11, r6, #16, #8
+	EOR	r10, r10, r12, ROR #8
+	LSR	r12, r7, #24
+	EOR	r10, r10, lr, ROR #16
+	UBFX	lr, r5, #8, #8
+	LDR	r4, [r0, r4, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	EOR	r12, r12, r4, ROR #24
+	LDM	r3!, {r4, r5, r6, r7}
+	EOR	r11, r11, lr, ROR #8
+	EOR	r11, r11, r12, ROR #24
+	/*   XOR in Key Schedule */
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	UBFX	r4, r9, #0, #8
+	UBFX	r7, r10, #8, #8
+	UBFX	r12, r11, #16, #8
+	LSR	lr, r8, #24
+	LDRB	r4, [r2, r4]
+	LDRB	r7, [r2, r7]
+	LDRB	r12, [r2, r12]
+	LDRB	lr, [r2, lr]
+	UBFX	r5, r10, #0, #8
+	EOR	r4, r4, r7, LSL #8
+	UBFX	r7, r11, #8, #8
+	EOR	r4, r4, r12, LSL #16
+	UBFX	r12, r8, #16, #8
+	EOR	r4, r4, lr, LSL #24
+	LSR	lr, r9, #24
+	LDRB	r7, [r2, r7]
+	LDRB	lr, [r2, lr]
+	LDRB	r5, [r2, r5]
+	LDRB	r12, [r2, r12]
+	UBFX	r6, r11, #0, #8
+	EOR	r5, r5, r7, LSL #8
+	UBFX	r7, r8, #8, #8
+	EOR	r5, r5, r12, LSL #16
+	UBFX	r12, r9, #16, #8
+	EOR	r5, r5, lr, LSL #24
+	LSR	lr, r10, #24
+	LDRB	r7, [r2, r7]
+	LDRB	lr, [r2, lr]
+	LDRB	r6, [r2, r6]
+	LDRB	r12, [r2, r12]
+	LSR	r11, r11, #24
+	EOR	r6, r6, r7, LSL #8
+	UBFX	r7, r8, #0, #8
+	EOR	r6, r6, r12, LSL #16
+	UBFX	r12, r9, #8, #8
+	EOR	r6, r6, lr, LSL #24
+	UBFX	lr, r10, #16, #8
+	LDRB	r11, [r2, r11]
+	LDRB	r12, [r2, r12]
+	LDRB	r7, [r2, r7]
+	LDRB	lr, [r2, lr]
+	EOR	r12, r12, r11, LSL #16
+	LDM	r3, {r8, r9, r10, r11}
+	EOR	r7, r7, r12, LSL #8
+	EOR	r7, r7, lr, LSL #16
+	/*   XOR in Key Schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+#endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
 	LDR	lr, [sp, #16]
 	REV	r4, r4
 	REV	r5, r5
@@ -2466,7 +5626,217 @@ L_AES_CBC_decrypt_loop_block_192:
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
 	MOV	r1, #0x5
+#ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
 	BL	AES_decrypt_block
+#else
+L_AES_CBC_decrypt_block_nr_192_even:
+	UBFX	r8, r7, #16, #8
+	LSR	r11, r4, #24
+	UBFX	r12, r6, #8, #8
+	UBFX	lr, r5, #0, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r9, r4, #16, #8
+	EOR	r8, r8, r11, ROR #24
+	LSR	r11, r5, #24
+	EOR	r8, r8, r12, ROR #8
+	UBFX	r12, r7, #8, #8
+	EOR	r8, r8, lr, ROR #16
+	UBFX	lr, r6, #0, #8
+	LDR	r9, [r0, r9, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r10, r5, #16, #8
+	EOR	r9, r9, r11, ROR #24
+	LSR	r11, r6, #24
+	EOR	r9, r9, r12, ROR #8
+	UBFX	r12, r4, #8, #8
+	EOR	r9, r9, lr, ROR #16
+	UBFX	lr, r7, #0, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r4, r4, #0, #8
+	EOR	r10, r10, r11, ROR #24
+	UBFX	r11, r6, #16, #8
+	EOR	r10, r10, r12, ROR #8
+	LSR	r12, r7, #24
+	EOR	r10, r10, lr, ROR #16
+	UBFX	lr, r5, #8, #8
+	LDR	r4, [r0, r4, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	EOR	r12, r12, r4, ROR #24
+	LDM	r3!, {r4, r5, r6, r7}
+	EOR	r11, r11, lr, ROR #8
+	EOR	r11, r11, r12, ROR #24
+	/*   XOR in Key Schedule */
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	UBFX	r4, r11, #16, #8
+	LSR	r7, r8, #24
+	UBFX	r12, r10, #8, #8
+	UBFX	lr, r9, #0, #8
+	LDR	r4, [r0, r4, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r5, r8, #16, #8
+	EOR	r4, r4, r7, ROR #24
+	LSR	r7, r9, #24
+	EOR	r4, r4, r12, ROR #8
+	UBFX	r12, r11, #8, #8
+	EOR	r4, r4, lr, ROR #16
+	UBFX	lr, r10, #0, #8
+	LDR	r5, [r0, r5, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r6, r9, #16, #8
+	EOR	r5, r5, r7, ROR #24
+	LSR	r7, r10, #24
+	EOR	r5, r5, r12, ROR #8
+	UBFX	r12, r8, #8, #8
+	EOR	r5, r5, lr, ROR #16
+	UBFX	lr, r11, #0, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r8, r8, #0, #8
+	EOR	r6, r6, r7, ROR #24
+	UBFX	r7, r10, #16, #8
+	EOR	r6, r6, r12, ROR #8
+	LSR	r12, r11, #24
+	EOR	r6, r6, lr, ROR #16
+	UBFX	lr, r9, #8, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	EOR	r12, r12, r8, ROR #24
+	LDM	r3!, {r8, r9, r10, r11}
+	EOR	r7, r7, lr, ROR #8
+	EOR	r7, r7, r12, ROR #24
+	/*   XOR in Key Schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+	SUBS	r1, r1, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BNE	L_AES_CBC_decrypt_block_nr_192_even
+#else
+	BNE.W	L_AES_CBC_decrypt_block_nr_192_even
+#endif
+	UBFX	r8, r7, #16, #8
+	LSR	r11, r4, #24
+	UBFX	r12, r6, #8, #8
+	UBFX	lr, r5, #0, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r9, r4, #16, #8
+	EOR	r8, r8, r11, ROR #24
+	LSR	r11, r5, #24
+	EOR	r8, r8, r12, ROR #8
+	UBFX	r12, r7, #8, #8
+	EOR	r8, r8, lr, ROR #16
+	UBFX	lr, r6, #0, #8
+	LDR	r9, [r0, r9, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r10, r5, #16, #8
+	EOR	r9, r9, r11, ROR #24
+	LSR	r11, r6, #24
+	EOR	r9, r9, r12, ROR #8
+	UBFX	r12, r4, #8, #8
+	EOR	r9, r9, lr, ROR #16
+	UBFX	lr, r7, #0, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r4, r4, #0, #8
+	EOR	r10, r10, r11, ROR #24
+	UBFX	r11, r6, #16, #8
+	EOR	r10, r10, r12, ROR #8
+	LSR	r12, r7, #24
+	EOR	r10, r10, lr, ROR #16
+	UBFX	lr, r5, #8, #8
+	LDR	r4, [r0, r4, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	EOR	r12, r12, r4, ROR #24
+	LDM	r3!, {r4, r5, r6, r7}
+	EOR	r11, r11, lr, ROR #8
+	EOR	r11, r11, r12, ROR #24
+	/*   XOR in Key Schedule */
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	UBFX	r4, r9, #0, #8
+	UBFX	r7, r10, #8, #8
+	UBFX	r12, r11, #16, #8
+	LSR	lr, r8, #24
+	LDRB	r4, [r2, r4]
+	LDRB	r7, [r2, r7]
+	LDRB	r12, [r2, r12]
+	LDRB	lr, [r2, lr]
+	UBFX	r5, r10, #0, #8
+	EOR	r4, r4, r7, LSL #8
+	UBFX	r7, r11, #8, #8
+	EOR	r4, r4, r12, LSL #16
+	UBFX	r12, r8, #16, #8
+	EOR	r4, r4, lr, LSL #24
+	LSR	lr, r9, #24
+	LDRB	r7, [r2, r7]
+	LDRB	lr, [r2, lr]
+	LDRB	r5, [r2, r5]
+	LDRB	r12, [r2, r12]
+	UBFX	r6, r11, #0, #8
+	EOR	r5, r5, r7, LSL #8
+	UBFX	r7, r8, #8, #8
+	EOR	r5, r5, r12, LSL #16
+	UBFX	r12, r9, #16, #8
+	EOR	r5, r5, lr, LSL #24
+	LSR	lr, r10, #24
+	LDRB	r7, [r2, r7]
+	LDRB	lr, [r2, lr]
+	LDRB	r6, [r2, r6]
+	LDRB	r12, [r2, r12]
+	LSR	r11, r11, #24
+	EOR	r6, r6, r7, LSL #8
+	UBFX	r7, r8, #0, #8
+	EOR	r6, r6, r12, LSL #16
+	UBFX	r12, r9, #8, #8
+	EOR	r6, r6, lr, LSL #24
+	UBFX	lr, r10, #16, #8
+	LDRB	r11, [r2, r11]
+	LDRB	r12, [r2, r12]
+	LDRB	r7, [r2, r7]
+	LDRB	lr, [r2, lr]
+	EOR	r12, r12, r11, LSL #16
+	LDM	r3, {r8, r9, r10, r11}
+	EOR	r7, r7, r12, LSL #8
+	EOR	r7, r7, lr, LSL #16
+	/*   XOR in Key Schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+#endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
 	LDR	lr, [sp, #16]
 	REV	r4, r4
 	REV	r5, r5
@@ -2517,7 +5887,217 @@ L_AES_CBC_decrypt_loop_block_128:
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
 	MOV	r1, #0x4
+#ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
 	BL	AES_decrypt_block
+#else
+L_AES_CBC_decrypt_block_nr_128_odd:
+	UBFX	r8, r7, #16, #8
+	LSR	r11, r4, #24
+	UBFX	r12, r6, #8, #8
+	UBFX	lr, r5, #0, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r9, r4, #16, #8
+	EOR	r8, r8, r11, ROR #24
+	LSR	r11, r5, #24
+	EOR	r8, r8, r12, ROR #8
+	UBFX	r12, r7, #8, #8
+	EOR	r8, r8, lr, ROR #16
+	UBFX	lr, r6, #0, #8
+	LDR	r9, [r0, r9, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r10, r5, #16, #8
+	EOR	r9, r9, r11, ROR #24
+	LSR	r11, r6, #24
+	EOR	r9, r9, r12, ROR #8
+	UBFX	r12, r4, #8, #8
+	EOR	r9, r9, lr, ROR #16
+	UBFX	lr, r7, #0, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r4, r4, #0, #8
+	EOR	r10, r10, r11, ROR #24
+	UBFX	r11, r6, #16, #8
+	EOR	r10, r10, r12, ROR #8
+	LSR	r12, r7, #24
+	EOR	r10, r10, lr, ROR #16
+	UBFX	lr, r5, #8, #8
+	LDR	r4, [r0, r4, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	EOR	r12, r12, r4, ROR #24
+	LDM	r3!, {r4, r5, r6, r7}
+	EOR	r11, r11, lr, ROR #8
+	EOR	r11, r11, r12, ROR #24
+	/*   XOR in Key Schedule */
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	UBFX	r4, r11, #16, #8
+	LSR	r7, r8, #24
+	UBFX	r12, r10, #8, #8
+	UBFX	lr, r9, #0, #8
+	LDR	r4, [r0, r4, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r5, r8, #16, #8
+	EOR	r4, r4, r7, ROR #24
+	LSR	r7, r9, #24
+	EOR	r4, r4, r12, ROR #8
+	UBFX	r12, r11, #8, #8
+	EOR	r4, r4, lr, ROR #16
+	UBFX	lr, r10, #0, #8
+	LDR	r5, [r0, r5, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r6, r9, #16, #8
+	EOR	r5, r5, r7, ROR #24
+	LSR	r7, r10, #24
+	EOR	r5, r5, r12, ROR #8
+	UBFX	r12, r8, #8, #8
+	EOR	r5, r5, lr, ROR #16
+	UBFX	lr, r11, #0, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r8, r8, #0, #8
+	EOR	r6, r6, r7, ROR #24
+	UBFX	r7, r10, #16, #8
+	EOR	r6, r6, r12, ROR #8
+	LSR	r12, r11, #24
+	EOR	r6, r6, lr, ROR #16
+	UBFX	lr, r9, #8, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	EOR	r12, r12, r8, ROR #24
+	LDM	r3!, {r8, r9, r10, r11}
+	EOR	r7, r7, lr, ROR #8
+	EOR	r7, r7, r12, ROR #24
+	/*   XOR in Key Schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+	SUBS	r1, r1, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BNE	L_AES_CBC_decrypt_block_nr_128_odd
+#else
+	BNE.W	L_AES_CBC_decrypt_block_nr_128_odd
+#endif
+	UBFX	r8, r7, #16, #8
+	LSR	r11, r4, #24
+	UBFX	r12, r6, #8, #8
+	UBFX	lr, r5, #0, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r9, r4, #16, #8
+	EOR	r8, r8, r11, ROR #24
+	LSR	r11, r5, #24
+	EOR	r8, r8, r12, ROR #8
+	UBFX	r12, r7, #8, #8
+	EOR	r8, r8, lr, ROR #16
+	UBFX	lr, r6, #0, #8
+	LDR	r9, [r0, r9, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r10, r5, #16, #8
+	EOR	r9, r9, r11, ROR #24
+	LSR	r11, r6, #24
+	EOR	r9, r9, r12, ROR #8
+	UBFX	r12, r4, #8, #8
+	EOR	r9, r9, lr, ROR #16
+	UBFX	lr, r7, #0, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r4, r4, #0, #8
+	EOR	r10, r10, r11, ROR #24
+	UBFX	r11, r6, #16, #8
+	EOR	r10, r10, r12, ROR #8
+	LSR	r12, r7, #24
+	EOR	r10, r10, lr, ROR #16
+	UBFX	lr, r5, #8, #8
+	LDR	r4, [r0, r4, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	EOR	r12, r12, r4, ROR #24
+	LDM	r3!, {r4, r5, r6, r7}
+	EOR	r11, r11, lr, ROR #8
+	EOR	r11, r11, r12, ROR #24
+	/*   XOR in Key Schedule */
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	UBFX	r4, r9, #0, #8
+	UBFX	r7, r10, #8, #8
+	UBFX	r12, r11, #16, #8
+	LSR	lr, r8, #24
+	LDRB	r4, [r2, r4]
+	LDRB	r7, [r2, r7]
+	LDRB	r12, [r2, r12]
+	LDRB	lr, [r2, lr]
+	UBFX	r5, r10, #0, #8
+	EOR	r4, r4, r7, LSL #8
+	UBFX	r7, r11, #8, #8
+	EOR	r4, r4, r12, LSL #16
+	UBFX	r12, r8, #16, #8
+	EOR	r4, r4, lr, LSL #24
+	LSR	lr, r9, #24
+	LDRB	r7, [r2, r7]
+	LDRB	lr, [r2, lr]
+	LDRB	r5, [r2, r5]
+	LDRB	r12, [r2, r12]
+	UBFX	r6, r11, #0, #8
+	EOR	r5, r5, r7, LSL #8
+	UBFX	r7, r8, #8, #8
+	EOR	r5, r5, r12, LSL #16
+	UBFX	r12, r9, #16, #8
+	EOR	r5, r5, lr, LSL #24
+	LSR	lr, r10, #24
+	LDRB	r7, [r2, r7]
+	LDRB	lr, [r2, lr]
+	LDRB	r6, [r2, r6]
+	LDRB	r12, [r2, r12]
+	LSR	r11, r11, #24
+	EOR	r6, r6, r7, LSL #8
+	UBFX	r7, r8, #0, #8
+	EOR	r6, r6, r12, LSL #16
+	UBFX	r12, r9, #8, #8
+	EOR	r6, r6, lr, LSL #24
+	UBFX	lr, r10, #16, #8
+	LDRB	r11, [r2, r11]
+	LDRB	r12, [r2, r12]
+	LDRB	r7, [r2, r7]
+	LDRB	lr, [r2, lr]
+	EOR	r12, r12, r11, LSL #16
+	LDM	r3, {r8, r9, r10, r11}
+	EOR	r7, r7, r12, LSL #8
+	EOR	r7, r7, lr, LSL #16
+	/*   XOR in Key Schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+#endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
 	LDR	lr, [sp, #16]
 	REV	r4, r4
 	REV	r5, r5
@@ -2561,7 +6141,217 @@ L_AES_CBC_decrypt_loop_block_128:
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
 	MOV	r1, #0x4
+#ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
 	BL	AES_decrypt_block
+#else
+L_AES_CBC_decrypt_block_nr_128_even:
+	UBFX	r8, r7, #16, #8
+	LSR	r11, r4, #24
+	UBFX	r12, r6, #8, #8
+	UBFX	lr, r5, #0, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r9, r4, #16, #8
+	EOR	r8, r8, r11, ROR #24
+	LSR	r11, r5, #24
+	EOR	r8, r8, r12, ROR #8
+	UBFX	r12, r7, #8, #8
+	EOR	r8, r8, lr, ROR #16
+	UBFX	lr, r6, #0, #8
+	LDR	r9, [r0, r9, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r10, r5, #16, #8
+	EOR	r9, r9, r11, ROR #24
+	LSR	r11, r6, #24
+	EOR	r9, r9, r12, ROR #8
+	UBFX	r12, r4, #8, #8
+	EOR	r9, r9, lr, ROR #16
+	UBFX	lr, r7, #0, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r4, r4, #0, #8
+	EOR	r10, r10, r11, ROR #24
+	UBFX	r11, r6, #16, #8
+	EOR	r10, r10, r12, ROR #8
+	LSR	r12, r7, #24
+	EOR	r10, r10, lr, ROR #16
+	UBFX	lr, r5, #8, #8
+	LDR	r4, [r0, r4, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	EOR	r12, r12, r4, ROR #24
+	LDM	r3!, {r4, r5, r6, r7}
+	EOR	r11, r11, lr, ROR #8
+	EOR	r11, r11, r12, ROR #24
+	/*   XOR in Key Schedule */
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	UBFX	r4, r11, #16, #8
+	LSR	r7, r8, #24
+	UBFX	r12, r10, #8, #8
+	UBFX	lr, r9, #0, #8
+	LDR	r4, [r0, r4, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r5, r8, #16, #8
+	EOR	r4, r4, r7, ROR #24
+	LSR	r7, r9, #24
+	EOR	r4, r4, r12, ROR #8
+	UBFX	r12, r11, #8, #8
+	EOR	r4, r4, lr, ROR #16
+	UBFX	lr, r10, #0, #8
+	LDR	r5, [r0, r5, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r6, r9, #16, #8
+	EOR	r5, r5, r7, ROR #24
+	LSR	r7, r10, #24
+	EOR	r5, r5, r12, ROR #8
+	UBFX	r12, r8, #8, #8
+	EOR	r5, r5, lr, ROR #16
+	UBFX	lr, r11, #0, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r8, r8, #0, #8
+	EOR	r6, r6, r7, ROR #24
+	UBFX	r7, r10, #16, #8
+	EOR	r6, r6, r12, ROR #8
+	LSR	r12, r11, #24
+	EOR	r6, r6, lr, ROR #16
+	UBFX	lr, r9, #8, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	EOR	r12, r12, r8, ROR #24
+	LDM	r3!, {r8, r9, r10, r11}
+	EOR	r7, r7, lr, ROR #8
+	EOR	r7, r7, r12, ROR #24
+	/*   XOR in Key Schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+	SUBS	r1, r1, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BNE	L_AES_CBC_decrypt_block_nr_128_even
+#else
+	BNE.W	L_AES_CBC_decrypt_block_nr_128_even
+#endif
+	UBFX	r8, r7, #16, #8
+	LSR	r11, r4, #24
+	UBFX	r12, r6, #8, #8
+	UBFX	lr, r5, #0, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r9, r4, #16, #8
+	EOR	r8, r8, r11, ROR #24
+	LSR	r11, r5, #24
+	EOR	r8, r8, r12, ROR #8
+	UBFX	r12, r7, #8, #8
+	EOR	r8, r8, lr, ROR #16
+	UBFX	lr, r6, #0, #8
+	LDR	r9, [r0, r9, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r10, r5, #16, #8
+	EOR	r9, r9, r11, ROR #24
+	LSR	r11, r6, #24
+	EOR	r9, r9, r12, ROR #8
+	UBFX	r12, r4, #8, #8
+	EOR	r9, r9, lr, ROR #16
+	UBFX	lr, r7, #0, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	UBFX	r4, r4, #0, #8
+	EOR	r10, r10, r11, ROR #24
+	UBFX	r11, r6, #16, #8
+	EOR	r10, r10, r12, ROR #8
+	LSR	r12, r7, #24
+	EOR	r10, r10, lr, ROR #16
+	UBFX	lr, r5, #8, #8
+	LDR	r4, [r0, r4, LSL #2]
+	LDR	r12, [r0, r12, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	EOR	r12, r12, r4, ROR #24
+	LDM	r3!, {r4, r5, r6, r7}
+	EOR	r11, r11, lr, ROR #8
+	EOR	r11, r11, r12, ROR #24
+	/*   XOR in Key Schedule */
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	UBFX	r4, r9, #0, #8
+	UBFX	r7, r10, #8, #8
+	UBFX	r12, r11, #16, #8
+	LSR	lr, r8, #24
+	LDRB	r4, [r2, r4]
+	LDRB	r7, [r2, r7]
+	LDRB	r12, [r2, r12]
+	LDRB	lr, [r2, lr]
+	UBFX	r5, r10, #0, #8
+	EOR	r4, r4, r7, LSL #8
+	UBFX	r7, r11, #8, #8
+	EOR	r4, r4, r12, LSL #16
+	UBFX	r12, r8, #16, #8
+	EOR	r4, r4, lr, LSL #24
+	LSR	lr, r9, #24
+	LDRB	r7, [r2, r7]
+	LDRB	lr, [r2, lr]
+	LDRB	r5, [r2, r5]
+	LDRB	r12, [r2, r12]
+	UBFX	r6, r11, #0, #8
+	EOR	r5, r5, r7, LSL #8
+	UBFX	r7, r8, #8, #8
+	EOR	r5, r5, r12, LSL #16
+	UBFX	r12, r9, #16, #8
+	EOR	r5, r5, lr, LSL #24
+	LSR	lr, r10, #24
+	LDRB	r7, [r2, r7]
+	LDRB	lr, [r2, lr]
+	LDRB	r6, [r2, r6]
+	LDRB	r12, [r2, r12]
+	LSR	r11, r11, #24
+	EOR	r6, r6, r7, LSL #8
+	UBFX	r7, r8, #0, #8
+	EOR	r6, r6, r12, LSL #16
+	UBFX	r12, r9, #8, #8
+	EOR	r6, r6, lr, LSL #24
+	UBFX	lr, r10, #16, #8
+	LDRB	r11, [r2, r11]
+	LDRB	r12, [r2, r12]
+	LDRB	r7, [r2, r7]
+	LDRB	lr, [r2, lr]
+	EOR	r12, r12, r11, LSL #16
+	LDM	r3, {r8, r9, r10, r11}
+	EOR	r7, r7, r12, LSL #8
+	EOR	r7, r7, lr, LSL #16
+	/*   XOR in Key Schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+#endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
 	LDR	lr, [sp, #16]
 	REV	r4, r4
 	REV	r5, r5
@@ -2601,7 +6391,7 @@ L_AES_CBC_decrypt_end_odd:
 L_AES_CBC_decrypt_end:
 	POP	{r3, r4}
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-	/* Cycle Count = 518 */
+	/* Cycle Count = 2204 */
 	.size	AES_CBC_decrypt,.-AES_CBC_decrypt
 #endif /* HAVE_AES_CBC */
 #endif /* WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER || HAVE_AES_CBC
@@ -3236,7 +7026,217 @@ L_AES_GCM_encrypt_loop_block_256:
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
 	MOV	r1, #0x6
+#ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
 	BL	AES_encrypt_block
+#else
+L_AES_GCM_encrypt_block_nr_256:
+	UBFX	r8, r5, #16, #8
+	LSR	r11, r4, #24
+	UBFX	lr, r6, #8, #8
+	UBFX	r2, r7, #0, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r9, r6, #16, #8
+	EOR	r8, r8, r11, ROR #24
+	LSR	r11, r5, #24
+	EOR	r8, r8, lr, ROR #8
+	UBFX	lr, r7, #8, #8
+	EOR	r8, r8, r2, ROR #16
+	UBFX	r2, r4, #0, #8
+	LDR	r9, [r0, r9, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r10, r7, #16, #8
+	EOR	r9, r9, r11, ROR #24
+	LSR	r11, r6, #24
+	EOR	r9, r9, lr, ROR #8
+	UBFX	lr, r4, #8, #8
+	EOR	r9, r9, r2, ROR #16
+	UBFX	r2, r5, #0, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r6, r6, #0, #8
+	EOR	r10, r10, r11, ROR #24
+	UBFX	r11, r4, #16, #8
+	EOR	r10, r10, lr, ROR #8
+	LSR	lr, r7, #24
+	EOR	r10, r10, r2, ROR #16
+	UBFX	r2, r5, #8, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r6, ROR #24
+	LDM	r3!, {r4, r5, r6, r7}
+	EOR	r11, r11, lr, ROR #24
+	EOR	r11, r11, r2, ROR #8
+	/*   XOR in Key Schedule */
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	UBFX	r4, r9, #16, #8
+	LSR	r7, r8, #24
+	UBFX	lr, r10, #8, #8
+	UBFX	r2, r11, #0, #8
+	LDR	r4, [r0, r4, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r5, r10, #16, #8
+	EOR	r4, r4, r7, ROR #24
+	LSR	r7, r9, #24
+	EOR	r4, r4, lr, ROR #8
+	UBFX	lr, r11, #8, #8
+	EOR	r4, r4, r2, ROR #16
+	UBFX	r2, r8, #0, #8
+	LDR	r5, [r0, r5, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r6, r11, #16, #8
+	EOR	r5, r5, r7, ROR #24
+	LSR	r7, r10, #24
+	EOR	r5, r5, lr, ROR #8
+	UBFX	lr, r8, #8, #8
+	EOR	r5, r5, r2, ROR #16
+	UBFX	r2, r9, #0, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r10, r10, #0, #8
+	EOR	r6, r6, r7, ROR #24
+	UBFX	r7, r8, #16, #8
+	EOR	r6, r6, lr, ROR #8
+	LSR	lr, r11, #24
+	EOR	r6, r6, r2, ROR #16
+	UBFX	r2, r9, #8, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r10, ROR #24
+	LDM	r3!, {r8, r9, r10, r11}
+	EOR	r7, r7, lr, ROR #24
+	EOR	r7, r7, r2, ROR #8
+	/*   XOR in Key Schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+	SUBS	r1, r1, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BNE	L_AES_GCM_encrypt_block_nr_256
+#else
+	BNE.W	L_AES_GCM_encrypt_block_nr_256
+#endif
+	UBFX	r8, r5, #16, #8
+	LSR	r11, r4, #24
+	UBFX	lr, r6, #8, #8
+	UBFX	r2, r7, #0, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r9, r6, #16, #8
+	EOR	r8, r8, r11, ROR #24
+	LSR	r11, r5, #24
+	EOR	r8, r8, lr, ROR #8
+	UBFX	lr, r7, #8, #8
+	EOR	r8, r8, r2, ROR #16
+	UBFX	r2, r4, #0, #8
+	LDR	r9, [r0, r9, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r10, r7, #16, #8
+	EOR	r9, r9, r11, ROR #24
+	LSR	r11, r6, #24
+	EOR	r9, r9, lr, ROR #8
+	UBFX	lr, r4, #8, #8
+	EOR	r9, r9, r2, ROR #16
+	UBFX	r2, r5, #0, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r6, r6, #0, #8
+	EOR	r10, r10, r11, ROR #24
+	UBFX	r11, r4, #16, #8
+	EOR	r10, r10, lr, ROR #8
+	LSR	lr, r7, #24
+	EOR	r10, r10, r2, ROR #16
+	UBFX	r2, r5, #8, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r6, ROR #24
+	LDM	r3!, {r4, r5, r6, r7}
+	EOR	r11, r11, lr, ROR #24
+	EOR	r11, r11, r2, ROR #8
+	/*   XOR in Key Schedule */
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	UBFX	r4, r11, #0, #8
+	UBFX	r7, r10, #8, #8
+	UBFX	lr, r9, #16, #8
+	LSR	r2, r8, #24
+	LDRB	r4, [r0, r4, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	UBFX	r5, r8, #0, #8
+	EOR	r4, r4, r7, LSL #8
+	UBFX	r7, r11, #8, #8
+	EOR	r4, r4, lr, LSL #16
+	UBFX	lr, r10, #16, #8
+	EOR	r4, r4, r2, LSL #24
+	LSR	r2, r9, #24
+	LDRB	r5, [r0, r5, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	UBFX	r6, r9, #0, #8
+	EOR	r5, r5, r7, LSL #8
+	UBFX	r7, r8, #8, #8
+	EOR	r5, r5, lr, LSL #16
+	UBFX	lr, r11, #16, #8
+	EOR	r5, r5, r2, LSL #24
+	LSR	r2, r10, #24
+	LDRB	r6, [r0, r6, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	LSR	r11, r11, #24
+	EOR	r6, r6, r7, LSL #8
+	UBFX	r7, r10, #0, #8
+	EOR	r6, r6, lr, LSL #16
+	UBFX	lr, r9, #8, #8
+	EOR	r6, r6, r2, LSL #24
+	UBFX	r2, r8, #16, #8
+	LDRB	r11, [r0, r11, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r11, LSL #16
+	LDM	r3, {r8, r9, r10, r11}
+	EOR	r7, r7, lr, LSL #8
+	EOR	r7, r7, r2, LSL #16
+	/*   XOR in Key Schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+#endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
 	POP	{r1, r2, lr}
 	LDR	r3, [sp]
 	REV	r4, r4
@@ -3283,7 +7283,217 @@ L_AES_GCM_encrypt_loop_block_192:
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
 	MOV	r1, #0x5
+#ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
 	BL	AES_encrypt_block
+#else
+L_AES_GCM_encrypt_block_nr_192:
+	UBFX	r8, r5, #16, #8
+	LSR	r11, r4, #24
+	UBFX	lr, r6, #8, #8
+	UBFX	r2, r7, #0, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r9, r6, #16, #8
+	EOR	r8, r8, r11, ROR #24
+	LSR	r11, r5, #24
+	EOR	r8, r8, lr, ROR #8
+	UBFX	lr, r7, #8, #8
+	EOR	r8, r8, r2, ROR #16
+	UBFX	r2, r4, #0, #8
+	LDR	r9, [r0, r9, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r10, r7, #16, #8
+	EOR	r9, r9, r11, ROR #24
+	LSR	r11, r6, #24
+	EOR	r9, r9, lr, ROR #8
+	UBFX	lr, r4, #8, #8
+	EOR	r9, r9, r2, ROR #16
+	UBFX	r2, r5, #0, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r6, r6, #0, #8
+	EOR	r10, r10, r11, ROR #24
+	UBFX	r11, r4, #16, #8
+	EOR	r10, r10, lr, ROR #8
+	LSR	lr, r7, #24
+	EOR	r10, r10, r2, ROR #16
+	UBFX	r2, r5, #8, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r6, ROR #24
+	LDM	r3!, {r4, r5, r6, r7}
+	EOR	r11, r11, lr, ROR #24
+	EOR	r11, r11, r2, ROR #8
+	/*   XOR in Key Schedule */
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	UBFX	r4, r9, #16, #8
+	LSR	r7, r8, #24
+	UBFX	lr, r10, #8, #8
+	UBFX	r2, r11, #0, #8
+	LDR	r4, [r0, r4, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r5, r10, #16, #8
+	EOR	r4, r4, r7, ROR #24
+	LSR	r7, r9, #24
+	EOR	r4, r4, lr, ROR #8
+	UBFX	lr, r11, #8, #8
+	EOR	r4, r4, r2, ROR #16
+	UBFX	r2, r8, #0, #8
+	LDR	r5, [r0, r5, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r6, r11, #16, #8
+	EOR	r5, r5, r7, ROR #24
+	LSR	r7, r10, #24
+	EOR	r5, r5, lr, ROR #8
+	UBFX	lr, r8, #8, #8
+	EOR	r5, r5, r2, ROR #16
+	UBFX	r2, r9, #0, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r10, r10, #0, #8
+	EOR	r6, r6, r7, ROR #24
+	UBFX	r7, r8, #16, #8
+	EOR	r6, r6, lr, ROR #8
+	LSR	lr, r11, #24
+	EOR	r6, r6, r2, ROR #16
+	UBFX	r2, r9, #8, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r10, ROR #24
+	LDM	r3!, {r8, r9, r10, r11}
+	EOR	r7, r7, lr, ROR #24
+	EOR	r7, r7, r2, ROR #8
+	/*   XOR in Key Schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+	SUBS	r1, r1, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BNE	L_AES_GCM_encrypt_block_nr_192
+#else
+	BNE.W	L_AES_GCM_encrypt_block_nr_192
+#endif
+	UBFX	r8, r5, #16, #8
+	LSR	r11, r4, #24
+	UBFX	lr, r6, #8, #8
+	UBFX	r2, r7, #0, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r9, r6, #16, #8
+	EOR	r8, r8, r11, ROR #24
+	LSR	r11, r5, #24
+	EOR	r8, r8, lr, ROR #8
+	UBFX	lr, r7, #8, #8
+	EOR	r8, r8, r2, ROR #16
+	UBFX	r2, r4, #0, #8
+	LDR	r9, [r0, r9, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r10, r7, #16, #8
+	EOR	r9, r9, r11, ROR #24
+	LSR	r11, r6, #24
+	EOR	r9, r9, lr, ROR #8
+	UBFX	lr, r4, #8, #8
+	EOR	r9, r9, r2, ROR #16
+	UBFX	r2, r5, #0, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r6, r6, #0, #8
+	EOR	r10, r10, r11, ROR #24
+	UBFX	r11, r4, #16, #8
+	EOR	r10, r10, lr, ROR #8
+	LSR	lr, r7, #24
+	EOR	r10, r10, r2, ROR #16
+	UBFX	r2, r5, #8, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r6, ROR #24
+	LDM	r3!, {r4, r5, r6, r7}
+	EOR	r11, r11, lr, ROR #24
+	EOR	r11, r11, r2, ROR #8
+	/*   XOR in Key Schedule */
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	UBFX	r4, r11, #0, #8
+	UBFX	r7, r10, #8, #8
+	UBFX	lr, r9, #16, #8
+	LSR	r2, r8, #24
+	LDRB	r4, [r0, r4, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	UBFX	r5, r8, #0, #8
+	EOR	r4, r4, r7, LSL #8
+	UBFX	r7, r11, #8, #8
+	EOR	r4, r4, lr, LSL #16
+	UBFX	lr, r10, #16, #8
+	EOR	r4, r4, r2, LSL #24
+	LSR	r2, r9, #24
+	LDRB	r5, [r0, r5, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	UBFX	r6, r9, #0, #8
+	EOR	r5, r5, r7, LSL #8
+	UBFX	r7, r8, #8, #8
+	EOR	r5, r5, lr, LSL #16
+	UBFX	lr, r11, #16, #8
+	EOR	r5, r5, r2, LSL #24
+	LSR	r2, r10, #24
+	LDRB	r6, [r0, r6, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	LSR	r11, r11, #24
+	EOR	r6, r6, r7, LSL #8
+	UBFX	r7, r10, #0, #8
+	EOR	r6, r6, lr, LSL #16
+	UBFX	lr, r9, #8, #8
+	EOR	r6, r6, r2, LSL #24
+	UBFX	r2, r8, #16, #8
+	LDRB	r11, [r0, r11, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r11, LSL #16
+	LDM	r3, {r8, r9, r10, r11}
+	EOR	r7, r7, lr, LSL #8
+	EOR	r7, r7, r2, LSL #16
+	/*   XOR in Key Schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+#endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
 	POP	{r1, r2, lr}
 	LDR	r3, [sp]
 	REV	r4, r4
@@ -3330,7 +7540,217 @@ L_AES_GCM_encrypt_loop_block_128:
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
 	MOV	r1, #0x4
+#ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
 	BL	AES_encrypt_block
+#else
+L_AES_GCM_encrypt_block_nr_128:
+	UBFX	r8, r5, #16, #8
+	LSR	r11, r4, #24
+	UBFX	lr, r6, #8, #8
+	UBFX	r2, r7, #0, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r9, r6, #16, #8
+	EOR	r8, r8, r11, ROR #24
+	LSR	r11, r5, #24
+	EOR	r8, r8, lr, ROR #8
+	UBFX	lr, r7, #8, #8
+	EOR	r8, r8, r2, ROR #16
+	UBFX	r2, r4, #0, #8
+	LDR	r9, [r0, r9, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r10, r7, #16, #8
+	EOR	r9, r9, r11, ROR #24
+	LSR	r11, r6, #24
+	EOR	r9, r9, lr, ROR #8
+	UBFX	lr, r4, #8, #8
+	EOR	r9, r9, r2, ROR #16
+	UBFX	r2, r5, #0, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r6, r6, #0, #8
+	EOR	r10, r10, r11, ROR #24
+	UBFX	r11, r4, #16, #8
+	EOR	r10, r10, lr, ROR #8
+	LSR	lr, r7, #24
+	EOR	r10, r10, r2, ROR #16
+	UBFX	r2, r5, #8, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r6, ROR #24
+	LDM	r3!, {r4, r5, r6, r7}
+	EOR	r11, r11, lr, ROR #24
+	EOR	r11, r11, r2, ROR #8
+	/*   XOR in Key Schedule */
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	UBFX	r4, r9, #16, #8
+	LSR	r7, r8, #24
+	UBFX	lr, r10, #8, #8
+	UBFX	r2, r11, #0, #8
+	LDR	r4, [r0, r4, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r5, r10, #16, #8
+	EOR	r4, r4, r7, ROR #24
+	LSR	r7, r9, #24
+	EOR	r4, r4, lr, ROR #8
+	UBFX	lr, r11, #8, #8
+	EOR	r4, r4, r2, ROR #16
+	UBFX	r2, r8, #0, #8
+	LDR	r5, [r0, r5, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r6, r11, #16, #8
+	EOR	r5, r5, r7, ROR #24
+	LSR	r7, r10, #24
+	EOR	r5, r5, lr, ROR #8
+	UBFX	lr, r8, #8, #8
+	EOR	r5, r5, r2, ROR #16
+	UBFX	r2, r9, #0, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r10, r10, #0, #8
+	EOR	r6, r6, r7, ROR #24
+	UBFX	r7, r8, #16, #8
+	EOR	r6, r6, lr, ROR #8
+	LSR	lr, r11, #24
+	EOR	r6, r6, r2, ROR #16
+	UBFX	r2, r9, #8, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r10, ROR #24
+	LDM	r3!, {r8, r9, r10, r11}
+	EOR	r7, r7, lr, ROR #24
+	EOR	r7, r7, r2, ROR #8
+	/*   XOR in Key Schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+	SUBS	r1, r1, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BNE	L_AES_GCM_encrypt_block_nr_128
+#else
+	BNE.W	L_AES_GCM_encrypt_block_nr_128
+#endif
+	UBFX	r8, r5, #16, #8
+	LSR	r11, r4, #24
+	UBFX	lr, r6, #8, #8
+	UBFX	r2, r7, #0, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r9, r6, #16, #8
+	EOR	r8, r8, r11, ROR #24
+	LSR	r11, r5, #24
+	EOR	r8, r8, lr, ROR #8
+	UBFX	lr, r7, #8, #8
+	EOR	r8, r8, r2, ROR #16
+	UBFX	r2, r4, #0, #8
+	LDR	r9, [r0, r9, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r10, r7, #16, #8
+	EOR	r9, r9, r11, ROR #24
+	LSR	r11, r6, #24
+	EOR	r9, r9, lr, ROR #8
+	UBFX	lr, r4, #8, #8
+	EOR	r9, r9, r2, ROR #16
+	UBFX	r2, r5, #0, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r6, r6, #0, #8
+	EOR	r10, r10, r11, ROR #24
+	UBFX	r11, r4, #16, #8
+	EOR	r10, r10, lr, ROR #8
+	LSR	lr, r7, #24
+	EOR	r10, r10, r2, ROR #16
+	UBFX	r2, r5, #8, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r6, ROR #24
+	LDM	r3!, {r4, r5, r6, r7}
+	EOR	r11, r11, lr, ROR #24
+	EOR	r11, r11, r2, ROR #8
+	/*   XOR in Key Schedule */
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	UBFX	r4, r11, #0, #8
+	UBFX	r7, r10, #8, #8
+	UBFX	lr, r9, #16, #8
+	LSR	r2, r8, #24
+	LDRB	r4, [r0, r4, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	UBFX	r5, r8, #0, #8
+	EOR	r4, r4, r7, LSL #8
+	UBFX	r7, r11, #8, #8
+	EOR	r4, r4, lr, LSL #16
+	UBFX	lr, r10, #16, #8
+	EOR	r4, r4, r2, LSL #24
+	LSR	r2, r9, #24
+	LDRB	r5, [r0, r5, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	UBFX	r6, r9, #0, #8
+	EOR	r5, r5, r7, LSL #8
+	UBFX	r7, r8, #8, #8
+	EOR	r5, r5, lr, LSL #16
+	UBFX	lr, r11, #16, #8
+	EOR	r5, r5, r2, LSL #24
+	LSR	r2, r10, #24
+	LDRB	r6, [r0, r6, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	LSR	r11, r11, #24
+	EOR	r6, r6, r7, LSL #8
+	UBFX	r7, r10, #0, #8
+	EOR	r6, r6, lr, LSL #16
+	UBFX	lr, r9, #8, #8
+	EOR	r6, r6, r2, LSL #24
+	UBFX	r2, r8, #16, #8
+	LDRB	r11, [r0, r11, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r11, LSL #16
+	LDM	r3, {r8, r9, r10, r11}
+	EOR	r7, r7, lr, LSL #8
+	EOR	r7, r7, r2, LSL #16
+	/*   XOR in Key Schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+#endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
 	POP	{r1, r2, lr}
 	LDR	r3, [sp]
 	REV	r4, r4
@@ -3367,7 +7787,7 @@ L_AES_GCM_encrypt_end:
 	REV	r7, r7
 	STM	r8, {r4, r5, r6, r7}
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-	/* Cycle Count = 275 */
+	/* Cycle Count = 1118 */
 	.size	AES_GCM_encrypt,.-AES_GCM_encrypt
 #endif /* HAVE_AESGCM */
 #endif /* !NO_AES */

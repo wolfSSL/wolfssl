@@ -110,7 +110,9 @@ typedef struct Dtls13RecordPlaintextHeader {
    supported. */
 #define DTLS13_UNIFIED_HEADER_SIZE 5
 #define DTLS13_MIN_CIPHERTEXT 16
-#define DTLS13_MIN_RTX_INTERVAL 1
+#ifndef DTLS13_MIN_RTX_INTERVAL
+#define DTLS13_MIN_RTX_INTERVAL (DTLS_TIMEOUT_INIT * 1000)
+#endif
 
 #ifndef NO_WOLFSSL_CLIENT
 WOLFSSL_METHOD* wolfDTLSv1_3_client_method_ex(void* heap)
@@ -978,7 +980,8 @@ static int Dtls13SendOneFragmentRtx(WOLFSSL* ssl,
 static int Dtls13SendFragmentedInternal(WOLFSSL* ssl)
 {
     int fragLength, rlHeaderLength;
-    int remainingSize, maxFragment;
+    word32 remainingSize;
+    int maxFragment;
     int recordLength, outputSz;
     byte isEncrypted;
     byte* output;
@@ -988,16 +991,19 @@ static int Dtls13SendFragmentedInternal(WOLFSSL* ssl)
         (enum HandShakeType)ssl->dtls13FragHandshakeType);
     rlHeaderLength = Dtls13GetRlHeaderLength(ssl, isEncrypted);
     maxFragment = wolfssl_local_GetMaxPlaintextSize(ssl);
-
+    if (maxFragment <= DTLS_HANDSHAKE_HEADER_SZ ||
+            maxFragment > MAX_RECORD_SIZE ||
+            ssl->dtls13FragOffset > ssl->dtls13MessageLength) {
+        Dtls13FreeFragmentsBuffer(ssl);
+        return BUFFER_E;
+    }
     remainingSize = ssl->dtls13MessageLength - ssl->dtls13FragOffset;
 
     while (remainingSize > 0) {
 
         fragLength = maxFragment - DTLS_HANDSHAKE_HEADER_SZ;
-
-        if (fragLength > remainingSize) {
-            fragLength = remainingSize;
-        }
+        if (fragLength > (int)remainingSize)
+            fragLength = (int)remainingSize;
 
         recordLength = fragLength + rlHeaderLength + DTLS_HANDSHAKE_HEADER_SZ;
         outputSz = wolfssl_local_GetRecordSize(ssl,
@@ -1041,7 +1047,7 @@ static int Dtls13SendFragmentedInternal(WOLFSSL* ssl)
         }
 
         ssl->dtls13FragOffset += fragLength;
-        remainingSize -= fragLength;
+        remainingSize -= (word32)fragLength;
     }
 
     /* we sent all fragments */
@@ -1566,21 +1572,24 @@ static int Dtls13RtxSendBuffered(WOLFSSL* ssl)
     int isLast;
     int sendSz;
 #ifndef NO_ASN_TIME
+#ifdef WOLFSSL_32BIT_MILLI_TIME
     word32 now;
+#else
+    sword64 now;
+#endif
 #endif
     int ret;
 
     WOLFSSL_ENTER("Dtls13RtxSendBuffered");
 
 #ifndef NO_ASN_TIME
-    now = LowResTimer();
+    now = TimeNowInMilliseconds();
     if (now - ssl->dtls13Rtx.lastRtx < DTLS13_MIN_RTX_INTERVAL) {
 #ifdef WOLFSSL_DEBUG_TLS
         WOLFSSL_MSG("Avoid too fast retransmission");
 #endif /* WOLFSSL_DEBUG_TLS */
         return 0;
     }
-
     ssl->dtls13Rtx.lastRtx = now;
 #endif
 

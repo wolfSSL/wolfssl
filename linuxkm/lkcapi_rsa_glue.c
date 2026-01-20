@@ -27,6 +27,10 @@
     #error lkcapi_rsa_glue.c included in non-LINUXKM_LKCAPI_REGISTER project.
 #endif
 
+#ifndef RHEL_RELEASE_VERSION
+    #define RHEL_RELEASE_VERSION(a, b) (((a) << 8) + (b))
+#endif
+
 #if !defined(NO_RSA)
     #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
          (defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_RSA))) && \
@@ -630,14 +634,13 @@ out:
 static inline int km_rsa_ctx_init_rng(struct km_rsa_ctx * ctx) {
     switch (ctx->rng.status) {
     case WC_DRBG_OK:
+#ifdef WC_RNG_BANK_SUPPORT
+    case WC_DRBG_BANKREF:
+#endif
         return 0;
     case WC_DRBG_NOT_INIT:
     {
-        int err;
-        if (WOLFSSL_ATOMIC_LOAD(linuxkm_lkcapi_registering_now))
-            err = LKCAPI_INITRNG_FOR_SELFTEST(&ctx->rng);
-        else
-            err = wc_InitRng(&ctx->rng);
+        int err = LKCAPI_INITRNG(&ctx->rng);
         if (err) {
             pr_err("%s: init rng returned: %d\n", WOLFKM_RSA_DRIVER, err);
             if (err == WC_NO_ERR_TRACE(MEMORY_E))
@@ -2101,7 +2104,7 @@ static int linuxkm_test_rsa_driver(const char * driver, int nbits)
     memset(&rng, 0, sizeof(rng));
     memset(key, 0, sizeof(RsaKey));
 
-    ret = LKCAPI_INITRNG_FOR_SELFTEST(&rng);
+    ret = LKCAPI_INITRNG(&rng);
 
     if (ret) {
         pr_err("error: init rng returned: %d\n", ret);
@@ -2347,6 +2350,14 @@ static int linuxkm_test_rsa_driver(const char * driver, int nbits)
 
     memset(dec, 0, key_len);
     ret = crypto_akcipher_decrypt(req);
+   #if defined(RHEL_RELEASE_CODE) && \
+              (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9, 6))
+    if (ret == -ENOSYS) {
+        pr_info("info: ignoring failure from crypto_akcipher_decrypt (disabled by RHEL policy)\n");
+        test_rc = 0;
+        goto test_rsa_end;
+    }
+    #endif
     if (ret) {
         pr_err("error: crypto_akcipher_decrypt returned: %d\n", ret);
         goto test_rsa_end;
@@ -2471,7 +2482,7 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
     memset(&rng, 0, sizeof(rng));
     memset(key, 0, sizeof(RsaKey));
 
-    ret = LKCAPI_INITRNG_FOR_SELFTEST(&rng);
+    ret = LKCAPI_INITRNG(&rng);
     if (ret) {
         pr_err("error: init rng returned: %d\n", ret);
         goto test_pkcs1_end;
@@ -2721,6 +2732,14 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
     akcipher_request_set_crypt(req, &src, &dst, hash_len, key_len);
 
     ret = crypto_akcipher_sign(req);
+    #if defined(RHEL_RELEASE_CODE) && \
+               (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9, 6))
+    if (ret == -ENOSYS) {
+        pr_info("info: ignoring failure from crypto_akcipher_sign (disabled by RHEL policy)\n");
+        test_rc = 0;
+        goto test_pkcs1_end;
+    }
+    #endif
     if (ret) {
         pr_err("error: crypto_akcipher_sign returned: %d\n", ret);
         test_rc = BAD_FUNC_ARG;
@@ -2847,6 +2866,14 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
     }
 
     ret = crypto_akcipher_decrypt(req);
+    #if defined(RHEL_RELEASE_CODE) && \
+               (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9, 6))
+    if (ret == -ENOSYS) {
+        pr_info("info: ignoring failure from crypto_akcipher_decrypt (disabled by RHEL policy)\n");
+        test_rc = 0;
+        goto test_pkcs1_end;
+    }
+    #endif
     if (ret) {
         pr_err("error: crypto_akcipher_decrypt returned: %d\n", ret);
         test_rc = BAD_FUNC_ARG;
@@ -2979,7 +3006,7 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
     memset(&rng, 0, sizeof(rng));
     memset(key, 0, sizeof(RsaKey));
 
-    ret = LKCAPI_INITRNG_FOR_SELFTEST(&rng);
+    ret = LKCAPI_INITRNG(&rng);
     if (ret) {
         pr_err("error: init rng returned: %d\n", ret);
         goto test_pkcs1_end;

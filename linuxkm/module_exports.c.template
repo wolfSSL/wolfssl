@@ -66,6 +66,9 @@
         #include <wolfssl/wolfcrypt/wolfentropy.h>
     #endif
     #include <wolfssl/wolfcrypt/random.h>
+    #ifdef WC_RNG_BANK_SUPPORT
+        #include <wolfssl/wolfcrypt/rng_bank.h>
+    #endif
 #endif
 #include <wolfssl/wolfcrypt/coding.h>
 #include <wolfssl/wolfcrypt/signature.h>

@@ -431,6 +431,8 @@
           (WOLFSSL_FIPS_VERSION2_CODE >= WOLFSSL_MAKE_FIPS_VERSION(major,minor))
 #define FIPS_VERSION_GT(major,minor) \
            (WOLFSSL_FIPS_VERSION2_CODE > WOLFSSL_MAKE_FIPS_VERSION(major,minor))
+#define FIPS_VERSION_NE(major,minor) \
+          (WOLFSSL_FIPS_VERSION2_CODE != WOLFSSL_MAKE_FIPS_VERSION(major,minor))
 
 #define FIPS_VERSION3_LT(major,minor,patch) \
     (WOLFSSL_FIPS_VERSION_CODE < WOLFSSL_MAKE_FIPS_VERSION3(major,minor,patch))
@@ -2592,6 +2594,10 @@ extern void uITRON4_free(void *p) ;
 #endif /*(WOLFSSL_APACHE_MYNEWT)*/
 
 #ifdef WOLFSSL_ZEPHYR
+    #ifdef __cplusplus
+        }  /* extern "C" */
+    #endif
+
     #include <version.h>
 #if KERNEL_VERSION_NUMBER >= 0x30100
     #include <zephyr/kernel.h>
@@ -2603,6 +2609,10 @@ extern void uITRON4_free(void *p) ;
     #include <sys/util.h>
 #endif
     #include <stdlib.h>
+
+    #ifdef __cplusplus
+        extern "C" {
+    #endif
 
     #define WOLFSSL_DH_CONST
     #define NO_WRITEV
@@ -2942,8 +2952,7 @@ extern void uITRON4_free(void *p) ;
 /* Determine when mp_add_d is required. */
 #if !defined(NO_PWDBASED) || defined(WOLFSSL_KEY_GEN) || !defined(NO_DH) || \
     !defined(NO_DSA) || defined(HAVE_ECC) || \
-    (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
-    defined(OPENSSL_EXTRA)
+    !defined(NO_RSA) || defined(OPENSSL_EXTRA)
     #define WOLFSSL_SP_ADD_D
 #endif
 
@@ -3681,9 +3690,6 @@ extern void uITRON4_free(void *p) ;
     #ifndef WOLFSSL_KERNEL_MODE
         #define WOLFSSL_KERNEL_MODE
     #endif
-    #ifndef WOLFSSL_API_PREFIX_MAP
-        #define WOLFSSL_API_PREFIX_MAP
-    #endif
     #if defined(WOLFSSL_LINUXKM_VERBOSE_DEBUG) && \
         !defined(WOLFSSL_KERNEL_VERBOSE_DEBUG)
         #define WOLFSSL_KERNEL_VERBOSE_DEBUG
@@ -3716,19 +3722,9 @@ extern void uITRON4_free(void *p) ;
     #ifndef USE_WOLF_STRTOK
         #define USE_WOLF_STRTOK
     #endif
-    #ifndef WOLFSSL_OLD_PRIME_CHECK
-        #define WOLFSSL_OLD_PRIME_CHECK
-    #endif
     #ifdef LINUXKM_LKCAPI_REGISTER
         #ifndef WC_TEST_EXPORT_SUBTESTS
             #define WC_TEST_EXPORT_SUBTESTS
-        #endif
-    #endif
-    #ifndef WOLFSSL_TEST_SUBROUTINE
-        #ifdef WC_TEST_EXPORT_SUBTESTS
-            #define WOLFSSL_TEST_SUBROUTINE
-        #else
-            #define WOLFSSL_TEST_SUBROUTINE static
         #endif
     #endif
     #undef HAVE_PTHREAD
@@ -3791,21 +3787,6 @@ extern void uITRON4_free(void *p) ;
         #undef HAVE_PUBLIC_FFDHE
     #endif
 
-    #ifndef NO_OLD_WC_NAMES
-        #define NO_OLD_WC_NAMES
-    #endif
-    #ifndef NO_OLD_SHA_NAMES
-        #define NO_OLD_SHA_NAMES
-    #endif
-    #ifndef NO_OLD_MD5_NAME
-        #define NO_OLD_MD5_NAME
-    #endif
-    #ifndef OPENSSL_COEXIST
-        #define OPENSSL_COEXIST
-    #endif
-    #ifndef NO_OLD_SSL_NAMES
-        #define NO_OLD_SSL_NAMES
-    #endif
     #undef WOLFSSL_MIN_AUTH_TAG_SZ
     #define WOLFSSL_MIN_AUTH_TAG_SZ 4
 
@@ -3815,22 +3796,10 @@ extern void uITRON4_free(void *p) ;
          */
         #define WOLFSSL_ASN_INT_LEAD_0_ANY
     #endif
-
-    #if !defined(WC_RESEED_INTERVAL) && defined(LINUXKM_LKCAPI_REGISTER)
-        /* If installing handlers, use the maximum reseed interval allowed by
-         * NIST SP 800-90A Rev. 1, to avoid unnecessary delays in DRBG
-         * generation.
-         */
-        #if defined(HAVE_FIPS) && FIPS_VERSION_LT(6,0)
-            #define WC_RESEED_INTERVAL UINT_MAX
-        #else
-            #define WC_RESEED_INTERVAL (((word64)1UL)<<48UL)
-        #endif
-    #endif
     #if defined(__aarch64__) && !defined(WOLFSSL_AARCH64_PRIVILEGE_MODE)
         #define WOLFSSL_AARCH64_PRIVILEGE_MODE
     #endif
-#endif
+#endif /* WOLFSSL_LINUXKM */
 
 /* FreeBSD Kernel Module */
 #ifdef WOLFSSL_BSDKM
@@ -3870,16 +3839,6 @@ extern void uITRON4_free(void *p) ;
     #ifndef USE_WOLF_STRTOK
         #define USE_WOLF_STRTOK
     #endif
-    #ifndef WOLFSSL_OLD_PRIME_CHECK
-        #define WOLFSSL_OLD_PRIME_CHECK
-    #endif
-    #ifndef WOLFSSL_TEST_SUBROUTINE
-        #ifndef NO_CRYPT_TEST
-            #define WOLFSSL_TEST_SUBROUTINE
-        #else
-            #define WOLFSSL_TEST_SUBROUTINE static
-        #endif
-    #endif
     /* bsdkm uses kernel headers, included in bsdkm_wc_port.h. */
     #undef HAVE_PTHREAD
     #undef HAVE_STRINGS_H
@@ -3910,6 +3869,19 @@ extern void uITRON4_free(void *p) ;
         #define WOLFSSL_SP_DIV_WORD_HALF
     #endif
 
+    /* FreeBSD kernel defines its own min, max functions in sys/libkern.h */
+    #undef  WOLFSSL_HAVE_MIN
+    #define WOLFSSL_HAVE_MIN
+
+    #undef  WOLFSSL_HAVE_MAX
+    #define WOLFSSL_HAVE_MAX
+#endif /* WOLFSSL_BSDKM */
+
+/* Common setup for kernel mode builds */
+#ifdef WOLFSSL_KERNEL_MODE
+    #ifndef WOLFSSL_API_PREFIX_MAP
+        #define WOLFSSL_API_PREFIX_MAP
+    #endif
     #ifndef NO_OLD_WC_NAMES
         #define NO_OLD_WC_NAMES
     #endif
@@ -3926,13 +3898,36 @@ extern void uITRON4_free(void *p) ;
         #define NO_OLD_SSL_NAMES
     #endif
 
-    /* FreeBSD kernel defines its own min, max functions in sys/libkern.h */
-    #undef  WOLFSSL_HAVE_MIN
-    #define WOLFSSL_HAVE_MIN
+    #ifndef WOLFSSL_TEST_SUBROUTINE
+        #ifdef WC_TEST_EXPORT_SUBTESTS
+            #define WOLFSSL_TEST_SUBROUTINE
+        #else
+            #define WOLFSSL_TEST_SUBROUTINE static
+        #endif
+    #endif
 
-    #undef  WOLFSSL_HAVE_MAX
-    #define WOLFSSL_HAVE_MAX
-#endif
+    #if !defined(WOLFSSL_OLD_PRIME_CHECK) && \
+        !defined(WOLFSSL_NEW_PRIME_CHECK) && !defined(HAVE_FIPS)
+        #define WOLFSSL_OLD_PRIME_CHECK
+    #endif
+
+    #ifndef WC_RESEED_INTERVAL
+        /* In kernel mode, use the maximum reseed interval allowed by
+         * NIST SP 800-90A Rev. 1, to avoid unnecessary delays in DRBG
+         * generation.
+         */
+        #if defined(HAVE_FIPS) && \
+            FIPS_VERSION_LT(6,0) && FIPS_VERSION3_NE(5,2,4)
+            #define WC_RESEED_INTERVAL UINT_MAX
+        #else
+            #define WC_RESEED_INTERVAL (((word64)1UL)<<48UL)
+        #endif
+    #endif
+
+    #if !defined(WC_NO_VERBOSE_RNG) && !defined(WC_VERBOSE_RNG)
+        #define WC_VERBOSE_RNG
+    #endif
+#endif /* WOLFSSL_KERNEL_MODE */
 
 #if defined(WC_SYM_RELOC_TABLES) && defined(HAVE_FIPS) && \
     !defined(WC_PIE_RELOC_TABLES)

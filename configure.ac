@@ -830,6 +830,11 @@ then
     AM_CFLAGS="$AM_CFLAGS -DXMALLOC_OVERRIDE -DWOLFCRYPT_ONLY"
     AM_CFLAGS="$AM_CFLAGS -DNO_ASN_TIME"
 
+    if test "$ax_enable_debug" = "yes"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_BSDKM_VERBOSE_DEBUG"
+        AM_CFLAGS="$AM_CFLAGS -DNO_WOLFSSL_DEBUG_CERTS"
+    fi
+
     if test "$KERNEL_ROOT" = ""; then
         AC_PATH_DEFAULT_BSDKM_SOURCE
         KERNEL_ROOT="$DEFAULT_BSDKM_ROOT"
@@ -1428,6 +1433,7 @@ then
     test "$enable_md5" = "" && enable_md5=yes
     test "$enable_anon" = "" && enable_anon=yes
     test "$enable_ssh" = "" && test "$enable_hmac" != "no" && enable_ssh=yes
+    test "$enable_rng_bank" = "" && enable_rng_bank=yes
 
     # the compiler optimizer generates a weird out-of-bounds bss reference for
     # find_hole() in the FP_ECC implementation.
@@ -2206,6 +2212,19 @@ AC_ARG_ENABLE([rng],
 if test "$ENABLED_RNG" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DWC_NO_RNG"
+fi
+
+AC_ARG_ENABLE([rng-bank],
+    [AS_HELP_STRING([--enable-rng-bank],[Enable compiling and using RNG banks (default: disabled)])],
+    [ ENABLED_RNG_BANK=$enableval ],
+    [ ENABLED_RNG_BANK=$KERNEL_MODE_DEFAULTS ]
+    )
+
+if test "$ENABLED_RNG_BANK" = "yes"
+then
+    AS_IF([test "$ENABLED_RNG" = "no"],
+    AC_MSG_ERROR([--enable-rng-bank requires --enable-rng]))
+    AM_CFLAGS="$AM_CFLAGS -DWC_RNG_BANK_SUPPORT"
 fi
 
 
@@ -3389,6 +3408,13 @@ then
             ENABLED_ARMASM_CRYPTO=no
             ;;
         sha256-small)
+            case $host_cpu in
+            *arm*)
+                ;;
+            *)
+                AC_MSG_ERROR([SHA256 small option only available on 32-bit ARM CPU.])
+                break;;
+            esac
             ENABLED_ARMASM_SHA256_SMALL=yes
             ;;
         sha512-crypto | sha3-crypto)
@@ -3458,8 +3484,25 @@ then
             esac
             ENABLED_ARMASM_BARRIER_DETECT=yes
             ;;
+        aes-block-dup)
+            case $host_cpu in
+            *arm*)
+                ;;
+            *)
+                AC_MSG_ERROR([AES assembly option only available on 32-bit ARM CPU.])
+                break;;
+            esac
+            ENABLED_ARMASM_AES_BLOCK_INLINE=yes
+            ;;
         *)
-            AC_MSG_ERROR([Invalid choice of ARM asm inclusions (yes, sha512-crypto, sha3-crypto): $ENABLED_ARMASM.])
+            case $host_cpu in
+            *aarch64*)
+                AC_MSG_ERROR([Invalid choice of ARM asm inclusions (yes, inline, no-crypto, sha512-crypto, sha3-crypto, no-sha512-crypto, no-sha3-crypto, barrier-sb, barrier-detect): $ENABLED_ARMASM.])
+                break;;
+            *arm*)
+                AC_MSG_ERROR([Invalid choice of ARM asm inclusions (yes, inline, no-crypto, sha256-small, aes-block-dup): $ENABLED_ARMASM.])
+                break;;
+            esac
             break;;
         esac
     done
@@ -3624,6 +3667,9 @@ fi
 if test "$ENABLED_ARMASM_INLINE" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM_INLINE"
 fi
+if test "$ENABLED_ARMASM_AES_BLOCK_INLINE" = "yes"; then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM_AES_BLOCK_INLINE"
+fi
 
 # RISC-V Assembly
 AC_ARG_ENABLE([riscv-asm],
@@ -3721,6 +3767,9 @@ then
       inline)
         ENABLED_PPC32_ASM_INLINE=yes
         ;;
+      inline-reg)
+        ENABLED_PPC32_ASM_INLINE_REG=yes
+        ;;
       small)
         ENABLED_PPC32_ASM_SMALL=yes
         ;;
@@ -3738,7 +3787,7 @@ then
     AC_MSG_NOTICE([32-bit PowerPC assembly for SHA-256])
     ENABLED_PPC32_ASM=yes
 fi
-if test "$ENABLED_PPC32_ASM_INLINE" = "yes"; then
+if test "$ENABLED_PPC32_ASM_INLINE" = "yes" || test "$ENABLED_PPC32_ASM_INLINE_REG" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PPC32_ASM_INLINE"
 else
     AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_PPC32_ASM"
@@ -3954,10 +4003,15 @@ then
 fi
 
 # AMD RDSEED
-AC_ARG_ENABLE([amdrand],
-    [AS_HELP_STRING([--enable-amdrand],[Enable AMD rdseed as preferred RNG seeding source (default: disabled)])],
+AC_ARG_ENABLE([amdrdseed],
+    [AS_HELP_STRING([--enable-amdrdseed],[Enable AMD rdseed as preferred RNG seeding source (default: disabled)])],
     [ ENABLED_AMDRDSEED=$enableval ],
     [ ENABLED_AMDRDSEED=no ]
+    )
+
+AC_ARG_ENABLE([amdrand],
+    [AS_HELP_STRING([--enable-amdrand],[Enable AMD rdseed as preferred RNG seeding source (default: disabled)])],
+    [ ENABLED_AMDRDSEED=$enableval ]
     )
 
 if test "$ENABLED_AMDRDSEED" = "yes"
@@ -7835,7 +7889,7 @@ fi
 if test "$ENABLED_HAPROXY" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAPROXY -DOPENSSL_COMPATIBLE_DEFAULTS"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SIGNER_DER_CERT"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SIGNER_DER_CERT -DWOLFSSL_KEEP_RNG_SEED_FD_OPEN"
     # --enable-all defines its own DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS
     if test -z "$DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS"
     then
@@ -10287,6 +10341,12 @@ then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CURVE25519_USE_ED25519"
         AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_CURVE25519_USE_ED25519"
     fi
+    if test "$ENABLED_CURVE25519" = "not-ed"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CURVE25519_NOT_USE_ED25519"
+        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_CURVE25519_NOT_USE_ED25519"
+    fi
+
 
     AM_CFLAGS="$AM_CFLAGS -DHAVE_CURVE25519"
     AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_CURVE25519"
@@ -10861,6 +10921,11 @@ fi
 LIB_SOCKET_NSL
 AX_HARDEN_CC_COMPILER_FLAGS
 
+# -Wdeprecated-enum-enum-conversion is on by default in C++20, but conflicts with
+# our use of enum constructs to define fungible constants.
+AX_CHECK_COMPILE_FLAG([-Werror -Wno-deprecated-enum-enum-conversion],
+  [AX_APPEND_FLAG([-Wno-deprecated-enum-enum-conversion], [AM_CFLAGS])])
+
 case $host_os in
     mingw*)
         # if mingw then link to ws2_32 for sockets, and crypt32
@@ -11006,6 +11071,7 @@ AM_CONDITIONAL([BUILD_ARM_64],[test "$ENABLED_ARM_64" = "yes"  || test "$ENABLED
 AM_CONDITIONAL([BUILD_RISCV_ASM],[test "x$ENABLED_RISCV_ASM" = "xyes"])
 AM_CONDITIONAL([BUILD_PPC32_ASM],[test "x$ENABLED_PPC32_ASM" = "xyes"])
 AM_CONDITIONAL([BUILD_PPC32_ASM_INLINE],[test "x$ENABLED_PPC32_ASM_INLINE" = "xyes"])
+AM_CONDITIONAL([BUILD_PPC32_ASM_INLINE_REG],[test "x$ENABLED_PPC32_ASM_INLINE_REG" = "xyes"])
 AM_CONDITIONAL([BUILD_XILINX],[test "x$ENABLED_XILINX" = "xyes"])
 AM_CONDITIONAL([BUILD_AESNI],[test "x$ENABLED_AESNI" = "xyes"])
 AM_CONDITIONAL([BUILD_INTELASM],[test "x$ENABLED_INTELASM" = "xyes"])
@@ -11042,6 +11108,7 @@ AM_CONDITIONAL([BUILD_ECCSI],[test "x$ENABLED_ECCSI" = "xyes" || test "x$ENABLED
 AM_CONDITIONAL([BUILD_SAKKE],[test "x$ENABLED_SAKKE" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_MEMORY],[test "x$ENABLED_MEMORY" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_MEMUSE],[test "x$ENABLED_ENTROPY_MEMUSE" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_RNG_BANK],[test "$ENABLED_RNG_BANK" = "yes" || test "$ENABLED_USERSETTINGS" = "yes"])
 AM_CONDITIONAL([BUILD_RSA],[test "x$ENABLED_RSA" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_DH],[test "x$ENABLED_DH" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_ASN],[test "x$ENABLED_ASN" != "xno" || test "x$ENABLED_RSA" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
@@ -11676,6 +11743,10 @@ echo "   * RISC-V ASM                  $ENABLED_RISCV_ASM"
 if test "$ENABLED_PPC32_ASM_INLINE" = "yes"
 then
     ENABLED_PPC32_ASM="inline C"
+fi
+if test "$ENABLED_PPC32_ASM_INLINE_REG" = "yes"
+then
+    ENABLED_PPC32_ASM="inline C Reg"
 fi
 echo "   * PPC32 ASM                   $ENABLED_PPC32_ASM"
 echo "   * Write duplicate:            $ENABLED_WRITEDUP"

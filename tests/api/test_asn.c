@@ -23,6 +23,8 @@
 
 #include <tests/api/test_asn.h>
 
+#include <wolfssl/wolfcrypt/asn.h>
+
 #if defined(WC_ENABLE_ASYM_KEY_EXPORT) && defined(HAVE_ED25519)
 static int test_SetAsymKeyDer_once(byte* privKey, word32 privKeySz, byte* pubKey,
     word32 pubKeySz, byte* trueDer, word32 trueDerSz)
@@ -635,6 +637,153 @@ int test_wc_IndexSequenceOf(void)
 
     ExpectIntEQ(wc_IndexSequenceOf(empty_seq, sizeof(empty_seq), 0U, &element, &elementSz), WC_NO_ERR_TRACE(BAD_INDEX_E));
 #endif
+
+    return EXPECT_RESULT();
+}
+
+int test_wolfssl_local_MatchBaseName(void)
+{
+    EXPECT_DECLS;
+
+#if !defined(NO_CERTS) && !defined(NO_ASN) && !defined(IGNORE_NAME_CONSTRAINTS)
+    /*
+     * Tests for DNS type (ASN_DNS_TYPE = 0x02)
+     */
+
+    /* Positive tests - should match */
+    /* Exact match */
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_DNS_TYPE,
+                "domain.com", 10, "domain.com", 10), 1);
+    /* Case insensitive match */
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_DNS_TYPE,
+                "DOMAIN.COM", 10, "domain.com", 10), 1);
+    /* Subdomain match (RFC 5280: adding labels to the left) */
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_DNS_TYPE,
+                "sub.domain.com", 14, "domain.com", 10), 1);
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_DNS_TYPE,
+                "a.b.domain.com", 14, "domain.com", 10), 1);
+    /* Leading dot constraint with subdomain (not RFC 5280 compliant for DNS,
+     * but kept for backwards compatibility) */
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_DNS_TYPE,
+                "sub.domain.com", 14, ".domain.com", 11), 1);
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_DNS_TYPE,
+                "a.b.domain.com", 14, ".domain.com", 11), 1);
+
+    /* Negative tests - should NOT match */
+    /* Bug #3: fakedomain.com should NOT match domain.com (no dot boundary) */
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_DNS_TYPE,
+                "fakedomain.com", 14, "domain.com", 10), 0);
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_DNS_TYPE,
+                "notdomain.com", 13, "domain.com", 10), 0);
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_DNS_TYPE,
+                "xexample.com", 12, "example.com", 11), 0);
+    /* Bug #3: fakedomain.com should NOT match .domain.com */
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_DNS_TYPE,
+                "fakedomain.com", 14, ".domain.com", 11), 0);
+    /* domain.com should NOT match .domain.com (leading dot requires subdomain) */
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_DNS_TYPE,
+                "domain.com", 10, ".domain.com", 11), 0);
+    /* Different domain */
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_DNS_TYPE,
+                "other.com", 9, "domain.com", 10), 0);
+    /* Name starting with dot */
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_DNS_TYPE,
+                ".domain.com", 11, "domain.com", 10), 0);
+
+    /*
+     * Tests for email type (ASN_RFC822_TYPE = 0x01)
+     */
+
+    /* Positive tests - should match */
+    /* Exact email match */
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE,
+                "user@domain.com", 15, "user@domain.com", 15), 1);
+    /* Email with domain constraint (leading dot) - subdomain present */
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE,
+                "user@sub.domain.com", 19, ".domain.com", 11), 1);
+    /* Email with domain constraint (no leading dot) - exact domain */
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE,
+                "user@domain.com", 15, "domain.com", 10), 1);
+
+    /* Negative tests - should NOT match */
+    /* user@domain.com should NOT match .domain.com (subdomain required) */
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE,
+                "user@domain.com", 15, ".domain.com", 11), 0);
+    /* user@sub.domain.com should NOT match domain.com (exact domain only) */
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE,
+                "user@sub.domain.com", 19, "domain.com", 10), 0);
+    /* @ at start is invalid */
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE,
+                "@domain.com", 11, ".domain.com", 11), 0);
+    /* @ at end is invalid */
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE,
+                "user@", 5, ".domain.com", 11), 0);
+    /* double @ is invalid */
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE,
+                "user@@domain.com", 16, ".domain.com", 11), 0);
+    /* multiple @ is invalid */
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE,
+                "user@domain@extra.com", 21, ".domain.com", 11), 0);
+    /* No @ in email name */
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE,
+                "userdomain.com", 14, ".domain.com", 11), 0);
+    /* Email domain doesn't match constraint */
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE,
+                "user@other.com", 14, ".domain.com", 11), 0);
+    /* Email suffix without dot boundary (fakedomain) */
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE,
+                "user@fakedomain.com", 19, ".domain.com", 11), 0);
+    /* Base constraint with invalid @ position */
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE,
+                "user@domain.com", 15, "@domain.com", 11), 0);
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE,
+                "user@domain.com", 15, "user@", 5), 0);
+
+    /*
+     * Tests for directory type (ASN_DIR_TYPE = 0x04)
+     */
+
+    /* Positive tests - should match */
+    /* Exact match */
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_DIR_TYPE,
+                "CN=test", 7, "CN=test", 7), 1);
+    /* Prefix match (name longer than base) */
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_DIR_TYPE,
+                "CN=test,O=org", 13, "CN=test", 7), 1);
+
+    /* Negative tests - should NOT match */
+    /* Different content */
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_DIR_TYPE,
+                "CN=other", 8, "CN=test", 7), 0);
+    /* Case sensitive for directory */
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_DIR_TYPE,
+                "CN=TEST", 7, "CN=test", 7), 0);
+
+    /*
+     * Edge cases and error handling
+     */
+
+    /* NULL pointers */
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_DNS_TYPE,
+                NULL, 10, "domain.com", 10), 0);
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_DNS_TYPE,
+                "domain.com", 10, NULL, 10), 0);
+    /* Empty/zero size */
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_DNS_TYPE,
+                "", 0, "domain.com", 10), 0);
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_DNS_TYPE,
+                "domain.com", 10, "", 0), 0);
+    /* Invalid type */
+    ExpectIntEQ(wolfssl_local_MatchBaseName(0xFF,
+                "domain.com", 10, "domain.com", 10), 0);
+    /* Name starting with dot */
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_DNS_TYPE,
+                ".", 1, ".", 1), 0);
+    /* Name shorter than base */
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_DNS_TYPE,
+                "a.com", 5, "domain.com", 10), 0);
+
+#endif /* !NO_CERTS && !NO_ASN && !IGNORE_NAME_CONSTRAINTS */
 
     return EXPECT_RESULT();
 }

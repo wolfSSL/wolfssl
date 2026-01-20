@@ -4194,7 +4194,7 @@ char* wolfSSL_ASN1_TIME_to_string(WOLFSSL_ASN1_TIME* t, char* buf, int len)
     }
 
     /* Get time as human readable string. */
-    if ((buf != NULL) && !GetTimeString(t->data, t->type, buf, len)) {
+    if ((buf != NULL) && !GetTimeString(t->data, t->type, buf, len, t->length)) {
         buf = NULL;
     }
 

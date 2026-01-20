@@ -775,7 +775,9 @@ WC_MISC_STATIC WC_INLINE void ctMaskCopy(byte mask, byte* dst, byte* src,
 #if !defined(WOLFSSL_NO_CT_OPS) && !defined(WOLFSSL_NO_CT_MAX_MIN) && \
     defined(WORD64_AVAILABLE)
         volatile word32 gte_mask = (word32)ctMaskWord32GTE(a, b);
-        return (a & ~gte_mask) | (b & gte_mask);
+        word32 r = (a & ~gte_mask);
+        r |= (b & gte_mask);
+        return r;
 #else /* WOLFSSL_NO_CT_OPS */
         return a > b ? b : a;
 #endif /* WOLFSSL_NO_CT_OPS */

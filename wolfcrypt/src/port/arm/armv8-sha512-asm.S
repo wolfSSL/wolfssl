@@ -165,14 +165,14 @@ _Transform_Sha512_Len_neon:
 	add  x3, x3, :lo12:L_SHA512_transform_neon_len_k
 #else
 	adrp x3, L_SHA512_transform_neon_len_k@PAGE
-	add  x3, x3, :lo12:L_SHA512_transform_neon_len_k@PAGEOFF
+	add  x3, x3, L_SHA512_transform_neon_len_k@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 	adrp x27, L_SHA512_transform_neon_len_r8
 	add  x27, x27, :lo12:L_SHA512_transform_neon_len_r8
 #else
 	adrp x27, L_SHA512_transform_neon_len_r8@PAGE
-	add  x27, x27, :lo12:L_SHA512_transform_neon_len_r8@PAGEOFF
+	add  x27, x27, L_SHA512_transform_neon_len_r8@PAGEOFF
 #endif /* __APPLE__ */
 	ld1	{v11.16b}, [x27]
 	# Load digest into working vars
@@ -1202,7 +1202,7 @@ _Transform_Sha512_Len_crypto:
 	add  x4, x4, :lo12:L_SHA512_trans_crypto_len_k
 #else
 	adrp x4, L_SHA512_trans_crypto_len_k@PAGE
-	add  x4, x4, :lo12:L_SHA512_trans_crypto_len_k@PAGEOFF
+	add  x4, x4, L_SHA512_trans_crypto_len_k@PAGEOFF
 #endif /* __APPLE__ */
 #ifdef __APPLE__
 .arch_extension sha3

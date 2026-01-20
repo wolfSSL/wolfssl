@@ -6074,4 +6074,27 @@ void mlkem_to_bytes(byte* b, sword16* p, int k)
     }
 }
 
+/**
+ * Check the public key values are smaller than the modulus.
+ *
+ * @param [in] pub  Public key - vector.
+ * @param [in] k    Number of polynomials in vector.
+ * @return  0 when all values are in range.
+ * @return  PUBLIC_KEY_E when at least one value is out of range.
+ */
+int mlkem_check_public(sword16* pub, int k)
+{
+    int ret = 0;
+    int i;
+
+    for (i = 0; i < k * MLKEM_N; i++) {
+        if (pub[i] >= MLKEM_Q) {
+            ret = PUBLIC_KEY_E;
+            break;
+        }
+    }
+
+    return ret;
+}
+
 #endif /* WOLFSSL_WC_MLKEM */

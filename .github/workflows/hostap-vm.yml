@@ -80,7 +80,7 @@ jobs:
 
       - name: Checkout hostap
         if: steps.cache.outputs.cache-hit != 'true'
-        run: git clone git://w1.fi/hostap.git hostap
+        run: git clone https://w1.fi/hostap.git hostap
 
   build_uml_linux:
     name: Build UML (UserMode Linux)

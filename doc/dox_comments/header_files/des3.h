@@ -330,3 +330,124 @@ int  wc_Des3_CbcEncrypt(Des3* des, byte* out,
 */
 int  wc_Des3_CbcDecrypt(Des3* des, byte* out,
                                     const byte* in,word32 sz);
+
+/*!
+    \ingroup 3DES
+    \brief This function decrypts the input ciphertext and stores the
+    resulting plaintext in the output buffer. It uses DES encryption
+    with Electronic Codebook (ECB) mode. Warning: In nearly all use
+    cases ECB mode is considered to be less secure. Please avoid using
+    ECB APIs directly whenever possible.
+
+    \return 0 On successfully decrypting the given ciphertext
+
+    \param des pointer to the Des structure to use for decryption
+    \param out pointer to the buffer in which to store the decrypted
+    plaintext
+    \param in pointer to the input buffer containing the ciphertext
+    \param sz length of the ciphertext to decrypt
+
+    _Example_
+    \code
+    Des dec;
+    byte cipher[]; // ciphertext to decrypt
+    byte plain[sizeof(cipher)];
+
+    wc_Des_SetKey(&dec, key, iv, DES_DECRYPTION);
+    if (wc_Des_EcbDecrypt(&dec, plain, cipher, sizeof(cipher)) != 0) {
+        // error decrypting message
+    }
+    \endcode
+
+    \sa wc_Des_SetKey
+    \sa wc_Des_EcbEncrypt
+*/
+int wc_Des_EcbDecrypt(Des* des, byte* out, const byte* in, word32 sz);
+
+/*!
+    \ingroup 3DES
+    \brief This function decrypts the input ciphertext and stores the
+    resulting plaintext in the output buffer. It uses Triple DES (3DES)
+    encryption with Electronic Codebook (ECB) mode. Warning: In nearly
+    all use cases ECB mode is considered to be less secure. Please
+    avoid using ECB APIs directly whenever possible.
+
+    \return 0 On successfully decrypting the given ciphertext
+
+    \param des pointer to the Des3 structure to use for decryption
+    \param out pointer to the buffer in which to store the decrypted
+    plaintext
+    \param in pointer to the input buffer containing the ciphertext
+    \param sz length of the ciphertext to decrypt
+
+    _Example_
+    \code
+    Des3 dec;
+    byte cipher[]; // ciphertext to decrypt
+    byte plain[sizeof(cipher)];
+
+    wc_Des3_SetKey(&dec, key, iv, DES_DECRYPTION);
+    if (wc_Des3_EcbDecrypt(&dec, plain, cipher, sizeof(cipher)) != 0) {
+        // error decrypting message
+    }
+    \endcode
+
+    \sa wc_Des3_SetKey
+    \sa wc_Des3_EcbEncrypt
+*/
+int wc_Des3_EcbDecrypt(Des3* des, byte* out, const byte* in, word32 sz);
+
+/*!
+    \ingroup 3DES
+    \brief This function initializes a Des3 structure for use with
+    hardware acceleration and custom memory management. This is an
+    extended version of the standard initialization that allows
+    specification of heap hints and device IDs.
+
+    \return 0 On successfully initializing the Des3 structure
+    \return BAD_FUNC_ARG If des3 is NULL
+
+    \param des3 pointer to the Des3 structure to initialize
+    \param heap pointer to heap hint for memory allocation (can be NULL)
+    \param devId device ID for hardware acceleration (use INVALID_DEVID
+    for software only)
+
+    _Example_
+    \code
+    Des3 des;
+    void* heap = NULL;
+    int devId = INVALID_DEVID;
+
+    if (wc_Des3Init(&des, heap, devId) != 0) {
+        // error initializing Des3 structure
+    }
+    \endcode
+
+    \sa wc_Des3_SetKey
+    \sa wc_Des3Free
+*/
+int wc_Des3Init(Des3* des3, void* heap, int devId);
+
+/*!
+    \ingroup 3DES
+    \brief This function frees a Des3 structure and releases any
+    resources allocated for it. This should be called when finished
+    using the Des3 structure to prevent memory leaks.
+
+    \return none No returns.
+
+    \param des3 pointer to the Des3 structure to free
+
+    _Example_
+    \code
+    Des3 des;
+    wc_Des3Init(&des, NULL, INVALID_DEVID);
+    wc_Des3_SetKey(&des, key, iv, DES_ENCRYPTION);
+    // use des for encryption/decryption
+    wc_Des3Free(&des);
+    \endcode
+
+    \sa wc_Des3Init
+    \sa wc_Des3_SetKey
+*/
+void wc_Des3Free(Des3* des3);

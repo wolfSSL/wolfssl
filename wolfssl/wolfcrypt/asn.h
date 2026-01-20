@@ -946,29 +946,91 @@ extern const WOLFSSL_ObjectInfo wolfssl_object_info[];
 #define WC_NID_tlsfeature TLS_FEATURE_OID              /* id-pe 24 */
 #define WC_NID_buildingName 1494
 
+#define WC_SN_dnQualifier "dnQualifier"
+#define WC_LN_dnQualifier "dnQualifier"
 #define WC_NID_dnQualifier 174              /* 2.5.4.46 */
+
+#define WC_SN_commonName "CN"
+#define WC_LN_commonName "commonName"
 #define WC_NID_commonName 14                /* CN Changed to not conflict
-                                    * with PBE_SHA1_DES3 */
+                                             * with PBE_SHA1_DES3 */
+#define WC_LN_name "name"
+#define WC_SN_name "name"
 #define WC_NID_name 173                     /* N , OID = 2.5.4.41 */
+
+#define WC_LN_surname "surname"
+#define WC_SN_surname "SN"
 #define WC_NID_surname 0x04                 /* SN */
+
+#define WC_LN_serialNumber "serialNumber"
 #define WC_NID_serialNumber 0x05            /* serialNumber */
+
+#define WC_LN_countryName "countryName"
+#define WC_SN_countryName "C"
 #define WC_NID_countryName 0x06             /* C  */
+
+#define WC_LN_localityName "localityName"
+#define WC_SN_localityName "L"
 #define WC_NID_localityName 0x07            /* L  */
+
+#define WC_LN_stateOrProvinceName "stateOrProvinceName"
+#define WC_SN_stateOrProvinceName "ST"
 #define WC_NID_stateOrProvinceName 0x08     /* ST */
+
+#define WC_LN_streetAddress "streetAddress"
+#define WC_SN_streetAddress "street"
 #define WC_NID_streetAddress ASN_STREET_ADDR  /* street */
+
+#define WC_LN_organizationName "organizationName"
+#define WC_SN_organizationName "O"
 #define WC_NID_organizationName 0x0a        /* O  */
+
+#define WC_LN_organizationalUnitName "organizationalUnitName"
+#define WC_SN_organizationalUnitName "OU"
 #define WC_NID_organizationalUnitName 0x0b  /* OU */
+
+#define WC_LN_jurisdictionCountryName "jurisdictionCountryName"
+#define WC_SN_jurisdictionCountryName "jurisdictionC"
 #define WC_NID_jurisdictionCountryName 0xc
+
+#define WC_LN_jurisdictionStateOrProvinceName "jurisdictionStateOrProvinceName"
+#define WC_SN_jurisdictionStateOrProvinceName "jurisdictionST"
 #define WC_NID_jurisdictionStateOrProvinceName 0xd
+
+#define WC_LN_businessCategory "businessCategory"
 #define WC_NID_businessCategory ASN_BUS_CAT
+
+#define WC_SN_domainComponent "DC"
+#define WC_LN_domainComponent "domainComponent"
 #define WC_NID_domainComponent ASN_DOMAIN_COMPONENT
+
+#define WC_LN_postalCode "postalCode"
 #define WC_NID_postalCode ASN_POSTAL_CODE   /* postalCode */
+
+#define WC_SN_rfc822Mailbox "mail"
+#define WC_LN_rfc822Mailbox "rfc822Mailbox"
 #define WC_NID_rfc822Mailbox 460
+
+#define WC_SN_favouriteDrink "coldBrew"
+#define WC_LN_favouriteDrink "favouriteDrink"
 #define WC_NID_favouriteDrink 462
+
+#define WC_SN_userId "UID"
+#define WC_LN_userId "userId"
 #define WC_NID_userId 458
+
+#define WC_LN_registeredAddress "registeredAddress"
 #define WC_NID_registeredAddress 870
+
+#define WC_LN_emailAddress "emailAddress"
 #define WC_NID_emailAddress 0x30            /* emailAddress */
+
+#define WC_SN_id_on_dnsSRV "id-on-dnsSRV"
+#define WC_LN_id_on_dnsSRV "SRVName"
 #define WC_NID_id_on_dnsSRV 82              /* 1.3.6.1.5.5.7.8.7 */
+
+#define WC_SN_ms_upn "msUPN"
+#define WC_LN_ms_upn "Microsoft User Principal Name"
 #define WC_NID_ms_upn UPN_OID               /* 1.3.6.1.4.1.311.20.2.3 */
 
 #define WC_NID_X9_62_prime_field 406        /* 1.2.840.10045.1.1 */
@@ -1021,27 +1083,91 @@ extern const WOLFSSL_ObjectInfo wolfssl_object_info[];
 #define NID_tlsfeature WC_NID_tlsfeature
 #define NID_buildingName WC_NID_buildingName
 
+#define SN_dnQualifier WC_SN_dnQualifier
+#define LN_dnQualifier WC_LN_dnQualifier
 #define NID_dnQualifier WC_NID_dnQualifier
+
+#define SN_commonName WC_SN_commonName
+#define LN_commonName WC_LN_commonName
 #define NID_commonName WC_NID_commonName
+
+#define LN_name WC_LN_name
+#define SN_name WC_SN_name
 #define NID_name WC_NID_name
+
+#define LN_surname WC_LN_surname
+#define SN_surname WC_SN_surname
 #define NID_surname WC_NID_surname
+
+#define LN_serialNumber WC_LN_serialNumber
 #define NID_serialNumber WC_NID_serialNumber
+
+#define LN_countryName WC_LN_countryName
+#define SN_countryName WC_SN_countryName
 #define NID_countryName WC_NID_countryName
+
+#define LN_localityName WC_LN_localityName
+#define SN_localityName WC_SN_localityName
 #define NID_localityName WC_NID_localityName
+
+#define LN_stateOrProvinceName WC_LN_stateOrProvinceName
+#define SN_stateOrProvinceName WC_SN_stateOrProvinceName
 #define NID_stateOrProvinceName WC_NID_stateOrProvinceName
+
+#define LN_streetAddress WC_LN_streetAddress
+#define SN_streetAddress WC_SN_streetAddress
 #define NID_streetAddress WC_NID_streetAddress
+
+#define LN_organizationName WC_LN_organizationName
+#define SN_organizationName WC_SN_organizationName
 #define NID_organizationName WC_NID_organizationName
+
+#define LN_organizationalUnitName WC_LN_organizationalUnitName
+#define SN_organizationalUnitName WC_SN_organizationalUnitName
 #define NID_organizationalUnitName WC_NID_organizationalUnitName
+
+#define LN_jurisdictionCountryName WC_LN_jurisdictionCountryName
+#define SN_jurisdictionCountryName WC_SN_jurisdictionCountryName
 #define NID_jurisdictionCountryName WC_NID_jurisdictionCountryName
+
+#define LN_jurisdictionStateOrProvinceName WC_LN_jurisdictionStateOrProvinceName
+#define SN_jurisdictionStateOrProvinceName WC_SN_jurisdictionStateOrProvinceName
 #define NID_jurisdictionStateOrProvinceName WC_NID_jurisdictionStateOrProvinceName
+
+#define LN_businessCategory WC_LN_businessCategory
 #define NID_businessCategory WC_NID_businessCategory
+
+#define SN_domainComponent WC_SN_domainComponent
+#define LN_domainComponent WC_LN_domainComponent
 #define NID_domainComponent WC_NID_domainComponent
+
+#define LN_postalCode WC_LN_postalCode
 #define NID_postalCode WC_NID_postalCode
+
+#define SN_rfc822Mailbox WC_SN_rfc822Mailbox
+#define LN_rfc822Mailbox WC_LN_rfc822Mailbox
 #define NID_rfc822Mailbox WC_NID_rfc822Mailbox
+
+#define SN_favouriteDrink WC_SN_favouriteDrink
+#define LN_favouriteDrink WC_LN_favouriteDrink
 #define NID_favouriteDrink WC_NID_favouriteDrink
+
+#define SN_userId WC_SN_userId
+#define LN_userId WC_LN_userId
 #define NID_userId WC_NID_userId
+
+#define LN_registeredAddress WC_LN_registeredAddress
+#define NID_registeredAddress WC_NID_registeredAddress
+
+#define LN_emailAddress WC_LN_emailAddress
 #define NID_emailAddress WC_NID_emailAddress
+
+#define SN_id_on_dnsSRV WC_SN_id_on_dnsSRV
+#define LN_id_on_dnsSRV WC_LN_id_on_dnsSRV
 #define NID_id_on_dnsSRV WC_NID_id_on_dnsSRV
+
+#define SN_ms_upn WC_SN_ms_upn
+#define LN_ms_upn WC_LN_ms_upn
 #define NID_ms_upn WC_NID_ms_upn
 
 #define NID_X9_62_prime_field WC_NID_X9_62_prime_field
@@ -2244,7 +2370,8 @@ WOLFSSL_LOCAL int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID,
 
 typedef struct tm wolfssl_tm;
 #ifdef WOLFSSL_ASN_TIME_STRING
-WOLFSSL_LOCAL int GetTimeString(byte* date, int format, char* buf, int len);
+WOLFSSL_LOCAL int GetTimeString(byte* date, int format, char* buf, int len,
+                                int dateLen);
 #endif
 #if !defined(NO_ASN_TIME) && !defined(USER_TIME) && \
     !defined(TIME_OVERRIDES) && (defined(OPENSSL_EXTRA) || defined(HAVE_PKCS7))
@@ -2252,12 +2379,13 @@ WOLFSSL_LOCAL int GetFormattedTime(void* currTime, byte* buf, word32 len);
 WOLFSSL_LOCAL int GetAsnTimeString(void* currTime, byte* buf, word32 len);
 #endif
 WOLFSSL_LOCAL int ExtractDate(const unsigned char* date, unsigned char format,
-                                                 wolfssl_tm* certTime, int* idx);
+                                wolfssl_tm* certTime, int* idx, int len);
 WOLFSSL_LOCAL int DateGreaterThan(const struct tm* a, const struct tm* b);
-WOLFSSL_LOCAL int wc_ValidateDate(const byte* date, byte format, int dateType);
+WOLFSSL_LOCAL int wc_ValidateDate(const byte* date, byte format, int dateType,
+                                  int len);
 #ifndef NO_ASN_TIME
 WOLFSSL_LOCAL int wc_ValidateDateWithTime(const byte* date, byte format,
-    int dateType, time_t checkTime);
+    int dateType, time_t checkTime, int len);
 #endif
 WOLFSSL_TEST_VIS int wc_AsnSetSkipDateCheck(int skip_p);
 WOLFSSL_LOCAL int wc_AsnGetSkipDateCheck(void);
@@ -2691,6 +2819,8 @@ struct RevokedCert {
 #define CRL_MAX_NUM_SZ 20 /* RFC5280 states that CRL number can be up to 20 */
 #endif                    /* octets long */
 
+#define CRL_MAX_NUM_HEX_STR_SZ (CRL_MAX_NUM_SZ * 2 + 1)
+#define CRL_MAX_NUM_SZ_BITS    (CRL_MAX_NUM_SZ * CHAR_BIT)
 
 typedef struct DecodedCRL DecodedCRL;
 
@@ -2704,7 +2834,7 @@ struct DecodedCRL {
     word32  sigParamsLength;         /* length of signature parameters   */
 #endif
     byte*   signature;               /* pointer into raw source, not owned */
-    byte    crlNumber[CRL_MAX_NUM_SZ];      /* CRL number extension */
+    char    crlNumber[CRL_MAX_NUM_HEX_STR_SZ];      /* CRL number extension */
     byte    issuerHash[SIGNER_DIGEST_SIZE]; /* issuer name hash          */
     byte    crlHash[SIGNER_DIGEST_SIZE]; /* raw crl data hash            */
     byte    lastDate[MAX_DATE_SIZE]; /* last date updated  */
@@ -2786,6 +2916,12 @@ WOLFSSL_LOCAL int  VerifyX509Acert(const byte* cert, word32 certSz,
                                    int pubKeyOID, void * heap);
 #endif /* WOLFSSL_ACERT */
 
+
+#ifndef IGNORE_NAME_CONSTRAINTS
+WOLFSSL_TEST_VIS int  wolfssl_local_MatchBaseName(int type, const char* name,
+                                                  int nameSz, const char* base,
+                                                  int baseSz);
+#endif
 
 #if ((defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)) \
     || (defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_IMPORT)) \

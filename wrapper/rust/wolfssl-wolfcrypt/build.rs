@@ -126,8 +126,20 @@ fn scan_cfg() -> Result<()> {
     check_cfg(&binding, "wc_AesXtsInit", "aes_xts");
     check_cfg(&binding, "wc_AesXtsEncryptInit", "aes_xts_stream");
 
+    /* blake2 */
+    check_cfg(&binding, "wc_InitBlake2b", "blake2b");
+    check_cfg(&binding, "wc_InitBlake2s", "blake2s");
+
+    /* chacha20_poly1305 */
+    check_cfg(&binding, "wc_ChaCha20Poly1305_Encrypt", "chacha20_poly1305");
+    check_cfg(&binding, "wc_XChaCha20Poly1305_Encrypt", "xchacha20_poly1305");
+
     /* cmac */
     check_cfg(&binding, "wc_InitCmac", "cmac");
+
+    /* curve25519 */
+    check_cfg(&binding, "wc_curve25519_make_pub", "curve25519");
+    check_cfg(&binding, "wc_curve25519_make_pub_blind", "curve25519_blinding");
 
     /* dh */
     check_cfg(&binding, "wc_InitDhKey", "dh");

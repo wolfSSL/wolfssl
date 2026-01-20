@@ -138,7 +138,7 @@ static int InitCRL_Entry(CRL_Entry* crle, DecodedCRL* dcrl, const byte* buff,
     crle->totalCerts = dcrl->totalCerts;
     crle->crlNumberSet = dcrl->crlNumberSet;
     if (crle->crlNumberSet) {
-        XMEMCPY(crle->crlNumber, dcrl->crlNumber, CRL_MAX_NUM_SZ);
+        XMEMCPY(crle->crlNumber, dcrl->crlNumber, sizeof(crle->crlNumber));
     }
     crle->verified = verified;
     if (!verified) {
@@ -446,7 +446,8 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
         #endif
             {
             #if !defined(NO_ASN_TIME) && !defined(WOLFSSL_NO_CRL_DATE_CHECK)
-                if (!XVALIDATE_DATE(crle->nextDate,crle->nextDateFormat, ASN_AFTER)) {
+                if (!XVALIDATE_DATE(crle->nextDate, crle->nextDateFormat,
+                                   ASN_AFTER, MAX_DATE_SIZE)) {
                     WOLFSSL_MSG("CRL next date is no longer valid");
                     nextDateValid = 0;
                 }
@@ -596,7 +597,7 @@ static void SetCrlInfo(CRL_Entry* entry, CrlInfo *info)
     info->nextDateFormat = entry->nextDateFormat;
     info->crlNumberSet = entry->crlNumberSet;
     if (info->crlNumberSet)
-        XMEMCPY(info->crlNumber, entry->crlNumber, CRL_MAX_NUM_SZ);
+        XMEMCPY(info->crlNumber, entry->crlNumber, sizeof(entry->crlNumber));
 }
 
 static void SetCrlInfoFromDecoded(DecodedCRL* entry, CrlInfo *info)
@@ -611,7 +612,7 @@ static void SetCrlInfoFromDecoded(DecodedCRL* entry, CrlInfo *info)
     info->nextDateFormat = entry->nextDateFormat;
     info->crlNumberSet = entry->crlNumberSet;
     if (info->crlNumberSet)
-        XMEMCPY(info->crlNumber, entry->crlNumber, CRL_MAX_NUM_SZ);
+        XMEMCPY(info->crlNumber, entry->crlNumber, sizeof(entry->crlNumber));
 }
 #endif
 
@@ -621,14 +622,14 @@ static void SetCrlInfoFromDecoded(DecodedCRL* entry, CrlInfo *info)
 static int CompareCRLnumber(CRL_Entry* prev, CRL_Entry* curr)
 {
     int ret = 0;
-    DECL_MP_INT_SIZE_DYN(prev_num, CRL_MAX_NUM_SZ * CHAR_BIT,
-                                   CRL_MAX_NUM_SZ * CHAR_BIT);
-    DECL_MP_INT_SIZE_DYN(curr_num, CRL_MAX_NUM_SZ * CHAR_BIT,
-                                   CRL_MAX_NUM_SZ * CHAR_BIT);
+    DECL_MP_INT_SIZE_DYN(prev_num, CRL_MAX_NUM_SZ_BITS,
+                                   CRL_MAX_NUM_SZ_BITS);
+    DECL_MP_INT_SIZE_DYN(curr_num, CRL_MAX_NUM_SZ_BITS,
+                                   CRL_MAX_NUM_SZ_BITS);
 
-    NEW_MP_INT_SIZE(prev_num, CRL_MAX_NUM_SZ * CHAR_BIT, NULL,
+    NEW_MP_INT_SIZE(prev_num, CRL_MAX_NUM_SZ_BITS, NULL,
                                    DYNAMIC_TYPE_TMP_BUFFER);
-    NEW_MP_INT_SIZE(curr_num, CRL_MAX_NUM_SZ * CHAR_BIT, NULL,
+    NEW_MP_INT_SIZE(curr_num, CRL_MAX_NUM_SZ_BITS, NULL,
                                    DYNAMIC_TYPE_TMP_BUFFER);
 #ifdef MP_INT_SIZE_CHECK_NULL
     if ((prev_num == NULL) || (curr_num == NULL)) {
@@ -636,9 +637,9 @@ static int CompareCRLnumber(CRL_Entry* prev, CRL_Entry* curr)
     }
 #endif
 
-    if (ret == 0 && ((INIT_MP_INT_SIZE(prev_num, CRL_MAX_NUM_SZ * CHAR_BIT)
+    if (ret == 0 && ((INIT_MP_INT_SIZE(prev_num, CRL_MAX_NUM_SZ_BITS)
                 != MP_OKAY) || (INIT_MP_INT_SIZE(curr_num,
-                CRL_MAX_NUM_SZ * CHAR_BIT)) != MP_OKAY)) {
+                CRL_MAX_NUM_SZ_BITS)) != MP_OKAY)) {
         ret = MP_INIT_E;
     }
 
@@ -658,11 +659,10 @@ static int CompareCRLnumber(CRL_Entry* prev, CRL_Entry* curr)
     return ret;
 }
 
-/* Add Decoded CRL, 0 on success */
-static int AddCRL(WOLFSSL_CRL* crl, DecodedCRL* dcrl, const byte* buff,
-                  int verified)
+/* Add or replace a decoded CRL, 0 on success */
+static int AddCRL(WOLFSSL_CRL* crl, DecodedCRL* dcrl, CRL_Entry* crle,
+                  const byte* buff, int verified)
 {
-    CRL_Entry* crle = NULL;
     CRL_Entry* curr = NULL;
     CRL_Entry* prev = NULL;
 #ifdef HAVE_CRL_UPDATE_CB
@@ -676,25 +676,13 @@ static int AddCRL(WOLFSSL_CRL* crl, DecodedCRL* dcrl, const byte* buff,
     if (crl == NULL)
         return WOLFSSL_FATAL_ERROR;
 
-    crle = crl->currentEntry;
-
-    if (crle == NULL) {
-        crle = CRL_Entry_new(crl->heap);
-        if (crle == NULL) {
-            WOLFSSL_MSG("alloc CRL Entry failed");
-            return MEMORY_E;
-        }
-    }
-
     if (InitCRL_Entry(crle, dcrl, buff, verified, crl->heap) < 0) {
         WOLFSSL_MSG("Init CRL Entry failed");
-        CRL_Entry_free(crle, crl->heap);
         return WOLFSSL_FATAL_ERROR;
     }
 
     if (wc_LockRwLock_Wr(&crl->crlLock) != 0) {
         WOLFSSL_MSG("wc_LockRwLock_Wr failed");
-        CRL_Entry_free(crle, crl->heap);
         return BAD_MUTEX_E;
     }
 
@@ -705,15 +693,16 @@ static int AddCRL(WOLFSSL_CRL* crl, DecodedCRL* dcrl, const byte* buff,
              * authoritative than the existing entry */
             if (ret == MP_LT || ret == MP_EQ) {
                 WOLFSSL_MSG("Same or newer CRL entry already exists");
-                CRL_Entry_free(crle, crl->heap);
                 wc_UnLockRwLock(&crl->crlLock);
                 return DUPE_ENTRY_E;
             }
             else if (ret < 0) {
                 WOLFSSL_MSG("Error comparing CRL Numbers");
+                wc_UnLockRwLock(&crl->crlLock);
                 return ret;
             }
 
+            /* Insert the new entry after the current entry. */
             crle->next = curr->next;
             if (prev != NULL) {
                 prev->next = crle;
@@ -730,22 +719,21 @@ static int AddCRL(WOLFSSL_CRL* crl, DecodedCRL* dcrl, const byte* buff,
             }
 #endif
 
+            /* Remove the current entry which was replaced */
+            CRL_Entry_free(curr, crl->heap);
+
             break;
         }
         prev = curr;
     }
 
-    if (curr != NULL) {
-        CRL_Entry_free(curr, crl->heap);
-    }
-    else {
+    if (curr == NULL) {
+        /* No replacement occurred, prepend the new entry. */
         crle->next = crl->crlList;
         crl->crlList = crle;
     }
-    wc_UnLockRwLock(&crl->crlLock);
-    /* Avoid heap-use-after-free after crl->crlList is released */
-    crl->currentEntry = NULL;
 
+    wc_UnLockRwLock(&crl->crlLock);
     return 0;
 }
 
@@ -809,12 +797,14 @@ int BufferLoadCRL(WOLFSSL_CRL* crl, const byte* buff, long sz, int type,
         crl->currentEntry = NULL;
     }
     else {
-        ret = AddCRL(crl, dcrl, myBuffer,
+        ret = AddCRL(crl, dcrl, crl->currentEntry, myBuffer,
                      ret != WC_NO_ERR_TRACE(ASN_CRL_NO_SIGNER_E));
         if (ret != 0) {
             WOLFSSL_MSG_CERT_LOG("AddCRL error");
-            crl->currentEntry = NULL;
+            CRL_Entry_free(crl->currentEntry, crl->heap);
         }
+        /* Entry now is in the list, or has been freed due to error */
+        crl->currentEntry = NULL;
     }
 
     FreeDecodedCRL(dcrl);
@@ -825,6 +815,7 @@ int BufferLoadCRL(WOLFSSL_CRL* crl, const byte* buff, long sz, int type,
 
     return ret ? ret : WOLFSSL_SUCCESS; /* convert 0 to WOLFSSL_SUCCESS */
 }
+
 
 #ifdef HAVE_CRL_UPDATE_CB
 /* Fill out CRL info structure, WOLFSSL_SUCCESS on ok */
