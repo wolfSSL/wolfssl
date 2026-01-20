@@ -9399,8 +9399,14 @@ static int TLSX_KeyShare_ProcessEcc_ex(WOLFSSL* ssl,
 
         /* Point is validated by import function. */
         if (ret == 0) {
-            ret = wc_ecc_import_x963_ex(keyShareEntry->ke, keyShareEntry->keLen,
-                                ssl->peerEccKey, curveId);
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+            ret = wc_ecc_import_x963_ex2(keyShareEntry->ke,
+                keyShareEntry->keLen, ssl->peerEccKey, curveId, 1);
+#else
+            /* FIPS has validation define on. */
+            ret = wc_ecc_import_x963_ex(keyShareEntry->ke,
+                keyShareEntry->keLen, ssl->peerEccKey, curveId);
+#endif
             if (ret != 0) {
                 ret = ECC_PEERKEY_ERROR;
                 WOLFSSL_ERROR_VERBOSE(ret);
