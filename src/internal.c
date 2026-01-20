@@ -2253,6 +2253,9 @@ int InitSSL_Side(WOLFSSL* ssl, word16 side)
     }
 #endif /* WOLFSSL_DTLS && !NO_WOLFSSL_SERVER */
 
+    /* Forcefully reinitialize suites here as the side may have changed. */
+    FreeSuites(ssl);
+    AllocateSuites(ssl);
     return InitSSL_Suites(ssl);
 }
 #endif /* OPENSSL_EXTRA || WOLFSSL_EITHER_SIDE ||
