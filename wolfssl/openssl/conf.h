@@ -24,12 +24,12 @@
 #ifndef WOLFSSL_conf_H_
 #define WOLFSSL_conf_H_
 
+#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/version.h>
+
 #ifdef __cplusplus
     extern "C" {
 #endif
-
-#include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/version.h>
 
 typedef struct WOLFSSL_CONF_VALUE {
     char *section;
@@ -37,8 +37,16 @@ typedef struct WOLFSSL_CONF_VALUE {
     char *value;
 } WOLFSSL_CONF_VALUE;
 
+#ifdef  __cplusplus
+} /* extern "C" */
+#endif
+
 /* ssl.h requires WOLFSSL_CONF_VALUE */
 #include <wolfssl/ssl.h>
+
+#ifdef __cplusplus
+    extern "C" {
+#endif
 
 typedef struct WOLFSSL_CONF {
     void *meth_data;

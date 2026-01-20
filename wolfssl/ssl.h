@@ -270,11 +270,19 @@ typedef struct WOLFSSL_BY_DIR       WOLFSSL_BY_DIR;
 /* redeclare guard */
 #define WOLFSSL_TYPES_DEFINED
 
+#ifdef __cplusplus
+    }  /* extern "C" */
+#endif
+
 #include <wolfssl/wolfio.h>
 
 /* The WOLFSSL_RSA type is required in all build configurations. */
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 #include <wolfssl/openssl/rsa.h>
+#endif
+
+#ifdef __cplusplus
+    extern "C" {
 #endif
 
 #ifndef WC_RNG_TYPE_DEFINED /* guard on redeclaration */
@@ -2157,12 +2165,6 @@ WOLFSSL_API int wolfSSL_BIO_set_mem_buf(WOLFSSL_BIO* bio, WOLFSSL_BUF_MEM* bufMe
                                         int closeFlag);
 #endif
 WOLFSSL_API int wolfSSL_BIO_get_len(WOLFSSL_BIO *bio);
-
-#ifdef WOLFSSL_HAVE_BIO_ADDR
-WOLFSSL_API WOLFSSL_BIO_ADDR *wolfSSL_BIO_ADDR_new(void);
-WOLFSSL_API void wolfSSL_BIO_ADDR_free(WOLFSSL_BIO_ADDR *addr);
-WOLFSSL_API void wolfSSL_BIO_ADDR_clear(WOLFSSL_BIO_ADDR *addr);
-#endif /* WOLFSSL_HAVE_BIO_ADDR */
 
 #endif /* !NO_BIO */
 

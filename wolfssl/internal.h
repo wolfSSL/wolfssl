@@ -5774,7 +5774,11 @@ typedef struct Dtls13Rtx {
     Dtls13RtxRecord *rtxRecords;
     Dtls13RtxRecord **rtxRecordTailPtr;
     Dtls13RecordNumber *seenRecords;
+#ifdef WOLFSSL_32BIT_MILLI_TIME
     word32 lastRtx;
+#else
+    sword64 lastRtx;
+#endif
     byte triggeredRtxs; /* Unused? */
     byte sendAcks;
     byte retransmit;
@@ -6826,7 +6830,8 @@ WOLFSSL_LOCAL word32 MacSize(const WOLFSSL* ssl);
 
     WOLFSSL_LOCAL void WriteSEQ(WOLFSSL* ssl, int verifyOrder, byte* out);
 
-#if defined(WOLFSSL_TLS13) && (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK))
+#if defined(WOLFSSL_TLS13) && (defined(HAVE_SESSION_TICKET) || \
+        !defined(NO_PSK) || defined(WOLFSSL_DTLS13))
 #ifdef WOLFSSL_32BIT_MILLI_TIME
     WOLFSSL_LOCAL word32 TimeNowInMilliseconds(void);
 #else

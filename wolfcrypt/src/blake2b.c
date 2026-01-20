@@ -37,6 +37,12 @@
 
 #include <wolfssl/wolfcrypt/blake2.h>
 #include <wolfssl/wolfcrypt/blake2-impl.h>
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #define WOLFSSL_MISC_INCLUDED
+    #include <wolfcrypt/src/misc.c>
+#endif
 
 static const word64 blake2b_IV[8] =
 {
@@ -511,7 +517,111 @@ int wc_Blake2bFinal(Blake2b* b2b, byte* final, word32 requestSz)
 }
 
 
-/* end CTaoCrypt API */
+int wc_Blake2bHmacInit(Blake2b* b2b, const byte* key, size_t key_len)
+{
+    byte x_key[BLAKE2B_BLOCKBYTES];
+    int i;
+    int ret = 0;
+
+    if (key == NULL)
+        return BAD_FUNC_ARG;
+
+    if (key_len > BLAKE2B_BLOCKBYTES) {
+        ret = wc_InitBlake2b(b2b, BLAKE2B_OUTBYTES);
+        if (ret == 0)
+            ret = wc_Blake2bUpdate(b2b, key, (word32)key_len);
+        if (ret == 0)
+            ret = wc_Blake2bFinal(b2b, x_key, 0);
+    } else {
+        XMEMCPY(x_key, key, key_len);
+        XMEMSET(x_key + key_len, 0, BLAKE2B_BLOCKBYTES - key_len);
+    }
+
+    if (ret == 0) {
+        for (i = 0; i < BLAKE2B_BLOCKBYTES; ++i)
+            x_key[i] ^= 0x36U;
+    }
+
+    if (ret == 0)
+        ret = wc_InitBlake2b(b2b, BLAKE2B_OUTBYTES);
+    if (ret == 0)
+        ret = wc_Blake2bUpdate(b2b, x_key, BLAKE2B_BLOCKBYTES);
+
+    ForceZero(x_key, sizeof(x_key));
+
+    return ret;
+}
+
+int wc_Blake2bHmacUpdate(Blake2b* b2b, const byte* in, size_t in_len)
+{
+    if (in == NULL)
+        return BAD_FUNC_ARG;
+
+    return wc_Blake2bUpdate(b2b, in, (word32)in_len);
+}
+
+int wc_Blake2bHmacFinal(Blake2b* b2b, const byte* key, size_t key_len,
+        byte* out, size_t out_len)
+{
+    byte x_key[BLAKE2B_BLOCKBYTES];
+    int i;
+    int ret = 0;
+
+    if (key == NULL)
+        return BAD_FUNC_ARG;
+
+    if (out_len != BLAKE2B_OUTBYTES)
+        return BUFFER_E;
+
+    if (key_len > BLAKE2B_BLOCKBYTES) {
+        ret = wc_InitBlake2b(b2b, BLAKE2B_OUTBYTES);
+        if (ret == 0)
+            ret = wc_Blake2bUpdate(b2b, key, (word32)key_len);
+        if (ret == 0)
+            ret = wc_Blake2bFinal(b2b, x_key, 0);
+    } else {
+        XMEMCPY(x_key, key, key_len);
+        XMEMSET(x_key + key_len, 0, BLAKE2B_BLOCKBYTES - key_len);
+    }
+
+    if (ret == 0) {
+        for (i = 0; i < BLAKE2B_BLOCKBYTES; ++i)
+            x_key[i] ^= 0x5CU;
+    }
+
+    if (ret == 0)
+        ret = wc_Blake2bFinal(b2b, out, 0);
+
+    if (ret == 0)
+        ret = wc_InitBlake2b(b2b, BLAKE2B_OUTBYTES);
+    if (ret == 0)
+        ret = wc_Blake2bUpdate(b2b, x_key, BLAKE2B_BLOCKBYTES);
+    if (ret == 0)
+        ret = wc_Blake2bUpdate(b2b, out, BLAKE2B_OUTBYTES);
+    if (ret == 0)
+        ret = wc_Blake2bFinal(b2b, out, 0);
+
+    ForceZero(x_key, sizeof(x_key));
+
+    return ret;
+}
+
+int wc_Blake2bHmac(const byte* in, size_t in_len,
+        const byte* key, size_t key_len,
+        byte* out, size_t out_len)
+{
+    Blake2b state;
+    int ret;
+
+    ret = wc_Blake2bHmacInit(&state, key, key_len);
+    if (ret == 0)
+        ret = wc_Blake2bHmacUpdate(&state, in, in_len);
+    if (ret == 0)
+        ret = wc_Blake2bHmacFinal(&state, key, key_len, out, out_len);
+
+    return ret;
+}
+
+/* end wolfCrypt API */
 
 #endif  /* HAVE_BLAKE2 */
-

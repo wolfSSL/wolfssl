@@ -110,7 +110,9 @@ typedef struct Dtls13RecordPlaintextHeader {
    supported. */
 #define DTLS13_UNIFIED_HEADER_SIZE 5
 #define DTLS13_MIN_CIPHERTEXT 16
-#define DTLS13_MIN_RTX_INTERVAL 1
+#ifndef DTLS13_MIN_RTX_INTERVAL
+#define DTLS13_MIN_RTX_INTERVAL (DTLS_TIMEOUT_INIT * 1000)
+#endif
 
 #ifndef NO_WOLFSSL_CLIENT
 WOLFSSL_METHOD* wolfDTLSv1_3_client_method_ex(void* heap)
@@ -1570,21 +1572,24 @@ static int Dtls13RtxSendBuffered(WOLFSSL* ssl)
     int isLast;
     int sendSz;
 #ifndef NO_ASN_TIME
+#ifdef WOLFSSL_32BIT_MILLI_TIME
     word32 now;
+#else
+    sword64 now;
+#endif
 #endif
     int ret;
 
     WOLFSSL_ENTER("Dtls13RtxSendBuffered");
 
 #ifndef NO_ASN_TIME
-    now = LowResTimer();
+    now = TimeNowInMilliseconds();
     if (now - ssl->dtls13Rtx.lastRtx < DTLS13_MIN_RTX_INTERVAL) {
 #ifdef WOLFSSL_DEBUG_TLS
         WOLFSSL_MSG("Avoid too fast retransmission");
 #endif /* WOLFSSL_DEBUG_TLS */
         return 0;
     }
-
     ssl->dtls13Rtx.lastRtx = now;
 #endif
 
