@@ -319,7 +319,7 @@ package body WolfSSL is
          for I in File'Range loop
             F (F'First + Byte_Index (I - File'First)) := Byte_Type (File (I));
          end loop;
-         F (F'Last) := Byte_Type'Val (0);
+         F (F'Last) := nul;
          Result := Use_Private_Key_File (Ctx, F, int (Format));
          return Subprogram_Result (Result);
       end;
