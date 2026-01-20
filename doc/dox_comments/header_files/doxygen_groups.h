@@ -198,6 +198,8 @@
     \defgroup MD2 Algorithms - MD2
     \defgroup MD4 Algorithms - MD4
     \defgroup MD5 Algorithms - MD5
+    \defgroup MLDSA Algorithms - ML-DSA
+    \defgroup MLKEM Algorithms - ML-KEM
     \defgroup PKCS7 Algorithms - PKCS7
     \defgroup PKCS11 Algorithms - PKCS11
     \defgroup Password Algorithms - Password Based

@@ -49,6 +49,8 @@
         <li>\ref MD2</li>
         <li>\ref MD4</li>
         <li>\ref MD5</li>
+        <li>\ref MLDSA</li>
+        <li>\ref MLKEM</li>
         <li>\ref Password</li>
         <li>\ref PKCS7</li>
         <li>\ref PKCS11</li>
@@ -74,4 +76,3 @@
     - \ref SAKKE_RSK
     - \ref SAKKE_Operations
 */
-
