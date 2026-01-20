@@ -176,6 +176,9 @@ pub struct BLAKE2bHmac {
 
 #[cfg(blake2b_hmac)]
 impl BLAKE2bHmac {
+    /// HMAC-BLAKE2b digest size.
+    pub const DIGEST_SIZE: usize = sys::WC_BLAKE2B_DIGEST_SIZE as usize;
+
     /// Build a new BLAKE2bHmac instance.
     ///
     /// # Parameters
@@ -264,7 +267,7 @@ impl BLAKE2bHmac {
     /// let mut mac = [0u8; 64];
     /// hmac_blake2b.finalize(&key, &mut mac).expect("Error with finalize()");
     /// ```
-    pub fn finalize(&mut self, key: &[u8], mac: &mut [u8]) -> Result<(), i32> {
+    pub fn finalize(&mut self, key: &[u8], mac: &mut [u8; Self::DIGEST_SIZE]) -> Result<(), i32> {
         let rc = unsafe {
             sys::wc_Blake2bHmacFinal(&mut self.wc_blake2b,
                 key.as_ptr(), key.len(), mac.as_mut_ptr(), mac.len())
@@ -282,13 +285,14 @@ impl BLAKE2bHmac {
     ///
     /// * `data`: Input data to create MAC from.
     /// * `key`: Key to use for MAC creation.
-    /// * `out`: Buffer in which to store the computed MAC.
+    /// * `out`: Buffer in which to store the computed MAC. It must be 64 bytes
+    ///   long.
     ///
     /// # Returns
     ///
     /// Returns either Ok(()) on success or Err(e) containing the wolfSSL
     /// library error code value.
-    pub fn hmac(data: &[u8], key: &[u8], out: &mut [u8]) -> Result<(), i32> {
+    pub fn hmac(data: &[u8], key: &[u8], out: &mut [u8; Self::DIGEST_SIZE]) -> Result<(), i32> {
         let rc = unsafe {
             sys::wc_Blake2bHmac(data.as_ptr(), data.len(), key.as_ptr(),
                 key.len(), out.as_mut_ptr(), out.len())
@@ -449,6 +453,9 @@ pub struct BLAKE2sHmac {
 
 #[cfg(blake2s_hmac)]
 impl BLAKE2sHmac {
+    /// HMAC-BLAKE2s digest size.
+    pub const DIGEST_SIZE: usize = sys::WC_BLAKE2S_DIGEST_SIZE as usize;
+
     /// Build a new BLAKE2sHmac instance.
     ///
     /// # Parameters
@@ -537,7 +544,7 @@ impl BLAKE2sHmac {
     /// let mut mac = [0u8; 32];
     /// hmac_blake2s.finalize(&key, &mut mac).expect("Error with finalize()");
     /// ```
-    pub fn finalize(&mut self, key: &[u8], mac: &mut [u8]) -> Result<(), i32> {
+    pub fn finalize(&mut self, key: &[u8], mac: &mut [u8; Self::DIGEST_SIZE]) -> Result<(), i32> {
         let rc = unsafe {
             sys::wc_Blake2sHmacFinal(&mut self.wc_blake2s,
                 key.as_ptr(), key.len(), mac.as_mut_ptr(), mac.len())
@@ -555,13 +562,14 @@ impl BLAKE2sHmac {
     ///
     /// * `data`: Input data to create MAC from.
     /// * `key`: Key to use for MAC creation.
-    /// * `out`: Buffer in which to store the computed MAC.
+    /// * `out`: Buffer in which to store the computed MAC. It must be 32 bytes
+    ///   long.
     ///
     /// # Returns
     ///
     /// Returns either Ok(()) on success or Err(e) containing the wolfSSL
     /// library error code value.
-    pub fn hmac(data: &[u8], key: &[u8], out: &mut [u8]) -> Result<(), i32> {
+    pub fn hmac(data: &[u8], key: &[u8], out: &mut [u8; Self::DIGEST_SIZE]) -> Result<(), i32> {
         let rc = unsafe {
             sys::wc_Blake2sHmac(data.as_ptr(), data.len(), key.as_ptr(),
                 key.len(), out.as_mut_ptr(), out.len())
