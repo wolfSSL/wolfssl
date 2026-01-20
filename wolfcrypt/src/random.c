@@ -754,7 +754,7 @@ int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
     word32 seedIdx = 0;
     word32 scratchSz = 0;
 
-    if (seed == NULL || seedSz < sizeof(word32))
+    if (seed == NULL || seedSz < SEED_BLOCK_SZ)
         return BAD_FUNC_ARG;
 
     scratchSz = min(SEED_BLOCK_SZ, seedSz - SEED_BLOCK_SZ);
