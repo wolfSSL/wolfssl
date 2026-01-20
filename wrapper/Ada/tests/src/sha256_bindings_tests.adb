@@ -11,63 +11,9 @@ package body SHA256_Bindings_Tests is
    --  Helpers
    ----------------------------------------------------------------------------
 
-   procedure Assert_Text_Matches_Hash
-     (Hash : WolfSSL.SHA256_Hash;
-      Text : WolfSSL.SHA256_As_String;
-      Msg  : String);
-
    procedure Compute_SHA256
      (Input  : WolfSSL.Byte_Array;
       Hash   : out WolfSSL.SHA256_Hash;
-      Text   : out WolfSSL.SHA256_As_String;
-      Result : out Integer);
-
-   procedure Assert_Text_Matches_Hash
-     (Hash : WolfSSL.SHA256_Hash;
-      Text : WolfSSL.SHA256_As_String;
-      Msg  : String)
-   is
-      use type WolfSSL.Byte_Array;
-
-      Expected : constant WolfSSL.Byte_Array := Test_Support.Hex_Bytes (Text);
-      Actual   : WolfSSL.Byte_Array (Expected'Range);
-      H        : WolfSSL.Byte_Index := Hash'First;
-   begin
-      --  Copy bytes out of the hash into the expected-range buffer.
-      --  Do not assume Hash and Expected share the same index range.
-      for I in Actual'Range loop
-         Actual (I) := Hash (H);
-         H := WolfSSL.Byte_Index'Succ (H);
-      end loop;
-      AUnit.Assertions.Assert
-        (Text'Length = 64,
-         Msg & ": expected 64 hex chars, got" & Integer'Image (Text'Length));
-
-      --  `Finalize_SHA256` should generate uppercase hex, validate that expectation.
-      for J in Text'Range loop
-         declare
-            C : constant Character := Text (J);
-         begin
-            if C in '0' .. '9' or else C in 'A' .. 'F' then
-               null;
-            else
-               AUnit.Assertions.Assert
-                 (False,
-                  Msg & ": expected uppercase hex at pos" &
-                    Integer'Image (J));
-            end if;
-         end;
-      end loop;
-
-      AUnit.Assertions.Assert
-        (Actual = Expected,
-         Msg & ": Text/Hash mismatch");
-   end Assert_Text_Matches_Hash;
-
-   procedure Compute_SHA256
-     (Input  : WolfSSL.Byte_Array;
-      Hash   : out WolfSSL.SHA256_Hash;
-      Text   : out WolfSSL.SHA256_As_String;
       Result : out Integer)
    is
       SHA256 : WolfSSL.SHA256_Type;
@@ -90,7 +36,6 @@ package body SHA256_Bindings_Tests is
       WolfSSL.Finalize_SHA256
         (SHA256 => SHA256,
          Hash   => Hash,
-         Text   => Text,
          Result => R);
 
       Result := R;
@@ -106,53 +51,67 @@ package body SHA256_Bindings_Tests is
       pragma Unreferenced (F);
 
       Hash : WolfSSL.SHA256_Hash;
-      Text : WolfSSL.SHA256_As_String;
       R    : Integer;
 
       Input : constant WolfSSL.Byte_Array := Test_Support.Bytes ("asdf");
 
-      Expected_Text : constant WolfSSL.SHA256_As_String :=
-        Test_Support.SHA256_Text
-          ("F0E4C2F76C58916EC258F246851BEA091D14D4247A2FC3E18694461B1816E13B");
+      Expected_Hash : constant WolfSSL.Byte_Array :=
+        Test_Support.Hex_Bytes
+          (Test_Support.SHA256_Text
+             ("F0E4C2F76C58916EC258F246851BEA091D14D4247A2FC3E18694461B1816E13B"));
    begin
-      Compute_SHA256 (Input => Input, Hash => Hash, Text => Text, Result => R);
+      Compute_SHA256 (Input => Input, Hash => Hash, Result => R);
 
       Test_Support.Assert_Success (R, "SHA256(asdf)");
 
-      AUnit.Assertions.Assert
-        (Text = Expected_Text,
-         "SHA256('asdf') hex mismatch. Got: " & Text);
-
-      Assert_Text_Matches_Hash
-        (Hash => Hash, Text => Text, Msg => "SHA256('asdf')");
+      --  Compare the hash bytes
+      declare
+         use type WolfSSL.Byte_Array;
+         Hash_Bytes : WolfSSL.Byte_Array (1 .. 32);
+         J : WolfSSL.Byte_Index := 1;
+      begin
+         for I in Hash'Range loop
+            Hash_Bytes (J) := Hash (I);
+            J := WolfSSL.Byte_Index'Succ (J);
+         end loop;
+         AUnit.Assertions.Assert
+           (Hash_Bytes = Expected_Hash,
+            "SHA256('asdf') hash mismatch");
+      end;
    end Test_SHA256_Asdf_Known_Vector;
 
    procedure Test_SHA256_Empty_Message (F : in out Fixture) is
       pragma Unreferenced (F);
 
       Hash : WolfSSL.SHA256_Hash;
-      Text : WolfSSL.SHA256_As_String;
       R    : Integer;
 
       --  Represent empty input as a null range, matching the existing test style.
       Empty : constant WolfSSL.Byte_Array := (1 .. 0 => <>);
 
-      Expected_Text : constant WolfSSL.SHA256_As_String :=
-        Test_Support.SHA256_Text
-          ("E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855");
+      Expected_Hash : constant WolfSSL.Byte_Array :=
+        Test_Support.Hex_Bytes
+          (Test_Support.SHA256_Text
+             ("E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"));
    begin
-      Compute_SHA256 (Input => Empty, Hash => Hash, Text => Text, Result => R);
+      Compute_SHA256 (Input => Empty, Hash => Hash, Result => R);
 
       Test_Support.Assert_Success (R, "SHA256(empty)");
 
-      AUnit.Assertions.Assert
-        (Text = Expected_Text,
-         "SHA256('') hex mismatch. Got: " & Text);
-
-      Assert_Text_Matches_Hash
-        (Hash => Hash,
-         Text => Text,
-         Msg  => "SHA256('')");
+      --  Compare the hash bytes
+      declare
+         use type WolfSSL.Byte_Array;
+         Hash_Bytes : WolfSSL.Byte_Array (1 .. 32);
+         J : WolfSSL.Byte_Index := 1;
+      begin
+         for I in Hash'Range loop
+            Hash_Bytes (J) := Hash (I);
+            J := WolfSSL.Byte_Index'Succ (J);
+         end loop;
+         AUnit.Assertions.Assert
+           (Hash_Bytes = Expected_Hash,
+            "SHA256('') hash mismatch");
+      end;
    end Test_SHA256_Empty_Message;
 
    ----------------------------------------------------------------------------

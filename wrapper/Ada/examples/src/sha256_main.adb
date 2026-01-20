@@ -18,7 +18,6 @@ procedure SHA256_Main is
                               4 => 'f');
    SHA256 : WolfSSL.SHA256_Type;
    R : Integer;
-   S : WolfSSL.SHA256_As_String;
 begin
    WolfSSL.Create_SHA256 (SHA256 => SHA256, Result => R);
    if R /= 0 then
@@ -34,10 +33,9 @@ begin
    end if;
    WolfSSL.Finalize_SHA256 (SHA256 => SHA256,
                             Hash   => Hash,
-                            Text   => S,
                             Result => R);
    if R = 0 then
-      Put (S);
+      Put ("SHA256 hash computed successfully");
       New_Line;
    else
       Put ("Finalization of SHA256 instance failed");

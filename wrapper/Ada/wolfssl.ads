@@ -675,7 +675,6 @@ package WolfSSL with SPARK_Mode is
 
    procedure Finalize_SHA256 (SHA256 : in out SHA256_Type;
                               Hash   : out SHA256_Hash;
-                              Text   : out SHA256_As_String;
                               Result : out Integer) with
      Pre => Is_Valid (SHA256);
    --  If successful Result = 0.

@@ -1367,26 +1367,11 @@ package body WolfSSL is
 
    procedure Finalize_SHA256 (SHA256 : in out SHA256_Type;
                               Hash   : out SHA256_Hash;
-                              Text   : out SHA256_As_String;
                               Result : out Integer) is
-      subtype Unsigned_8 is Interfaces.Unsigned_8;
-
-      use type Unsigned_8;
-
       R : int;
-      Hex_Chars : constant array (Unsigned_8 range 0 .. 15) of Character :=
-        "0123456789ABCDEF";
-      I : Integer;
-      C : Integer;
    begin
       R := SHA256_Final (SHA256, Hash);
       Result := Integer (R);
-      for Index in Positive range 1 .. 32 loop
-         I := 2 * (Index - 1) + 1;
-         C := Interfaces.C.char'Pos (Hash (size_t (Index)));
-         Text (I+0) := Hex_Chars ((Unsigned_8 (C) and 16#F0#) / 16);
-         Text (I+1) := Hex_Chars (Unsigned_8 (C) and 16#0F#);
-      end loop;
    exception
       when others =>
          Result := Exception_Error;
