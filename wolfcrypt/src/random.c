@@ -1942,29 +1942,32 @@ static int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output, word32 sz)
     if (!IS_INTEL_RDSEED(intel_flags))
         return -1;
 
+    /* Note, access to rdseed_sanity_status is benignly racey on multithreaded
+     * targets.
+     */
     if (rdseed_sanity_status == 0) {
-        static word64 sanity_words[2] = {0, 0};
+        word64 sanity_word1 = 0, sanity_word2 = 0;
 
-        ret = IntelRDseed64_r(&sanity_words[0]);
+        ret = IntelRDseed64_r(&sanity_word1);
         if (ret != 0)
             return ret;
 
-        ret = IntelRDseed64_r(&sanity_words[1]);
+        ret = IntelRDseed64_r(&sanity_word2);
         if (ret != 0)
             return ret;
 
-        if (sanity_words[0] == sanity_words[1]) {
-            ret = IntelRDseed64_r(&sanity_words[0]);
+        if (sanity_word1 == sanity_word2) {
+            ret = IntelRDseed64_r(&sanity_word1);
             if (ret != 0)
                 return ret;
 
-            if (sanity_words[0] == sanity_words[1]) {
-                rdseed_sanity_status = -1;
+            if (sanity_word1 == sanity_word2) {
 #ifdef WC_VERBOSE_RNG
                 WOLFSSL_DEBUG_PRINTF(
-                    "WARNING: RDSEED disabled due to repeating word 0x%lx -- "
-                    "check CPU microcode version.", sanity_words[1]);
+                    "WARNING: disabling RDSEED due to repeating word 0x%lx -- "
+                    "check CPU microcode version.", sanity_word2);
 #endif
+                rdseed_sanity_status = -1;
                 return -1;
             }
         }

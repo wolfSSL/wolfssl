@@ -378,10 +378,10 @@
 #endif
 
 /* Ensure WC_VERBOSE_RNG is set when DEBUG_WOLFSSL is enabled, unless expressly
- * requested otherwise.
+ * requested otherwise.  Relies on a working WOLFSSL_DEBUG_PRINTF.
  */
-#if defined(DEBUG_WOLFSSL) && !defined(WC_NO_VERBOSE_RNG) && \
-    !defined(WC_VERBOSE_RNG)
+#if defined(DEBUG_WOLFSSL) && defined(WOLFSSL_DEBUG_PRINTF) && \
+    !defined(WC_NO_VERBOSE_RNG) && !defined(WC_VERBOSE_RNG)
     #define WC_VERBOSE_RNG
 #endif
 
