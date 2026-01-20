@@ -288,7 +288,6 @@ impl BLAKE2bHmac {
     ///
     /// Returns either Ok(()) on success or Err(e) containing the wolfSSL
     /// library error code value.
-    #[cfg(blake2b_hmac)]
     pub fn hmac(data: &[u8], key: &[u8], out: &mut [u8]) -> Result<(), i32> {
         let rc = unsafe {
             sys::wc_Blake2bHmac(data.as_ptr(), data.len(), key.as_ptr(),
@@ -562,7 +561,6 @@ impl BLAKE2sHmac {
     ///
     /// Returns either Ok(()) on success or Err(e) containing the wolfSSL
     /// library error code value.
-    #[cfg(blake2s_hmac)]
     pub fn hmac(data: &[u8], key: &[u8], out: &mut [u8]) -> Result<(), i32> {
         let rc = unsafe {
             sys::wc_Blake2sHmac(data.as_ptr(), data.len(), key.as_ptr(),
