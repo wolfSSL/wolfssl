@@ -1279,16 +1279,6 @@ enum {
 #endif
 #endif /* NO_DH */
 
-#ifndef MAX_PSK_ID_LEN
-    /* max psk identity/hint supported */
-    #if defined(WOLFSSL_TLS13)
-        /* OpenSSL has a 1472 byte session ticket */
-        #define MAX_PSK_ID_LEN 1536
-    #else
-        #define MAX_PSK_ID_LEN 128
-    #endif
-#endif
-
 #ifndef MAX_PSK_KEY_LEN
     #define MAX_PSK_KEY_LEN 64
 #endif
@@ -2046,6 +2036,7 @@ WOLFSSL_LOCAL int NamedGroupIsPqcHybrid(int group);
 #define MAX_ENCRYPT_SZ ENCRYPT_LEN
 
 #define WOLFSSL_ASSERT_EQ(x, y) wc_static_assert((x) == (y))
+#define WOLFSSL_ASSERT_GE(x, y) wc_static_assert((x) >= (y))
 
 #define WOLFSSL_ASSERT_SIZEOF_GE(x, y) wc_static_assert(sizeof(x) >= sizeof(y))
 
@@ -3463,6 +3454,11 @@ WOLFSSL_LOCAL int TLSX_AddEmptyRenegotiationInfo(TLSX** extensions, void* heap);
 #endif /* HAVE_SECURE_RENEGOTIATION */
 
 #ifdef HAVE_SESSION_TICKET
+/* Max peer cert size for ticket: 2KB is reasonable for most RSA/ECC certs */
+#ifndef MAX_TICKET_PEER_CERT_SZ
+#define MAX_TICKET_PEER_CERT_SZ 2048
+#endif
+
 /* Our ticket format. All members need to be a byte or array of byte to
  * avoid alignment issues */
 typedef struct InternalTicket {
@@ -3488,21 +3484,40 @@ typedef struct InternalTicket {
     byte            sessionCtxSz;          /* sessionCtx length        */
     byte            sessionCtx[ID_LEN];    /* app specific context id */
 #endif /* OPENSSL_EXTRA */
+#if defined(OPENSSL_ALL) && defined(KEEP_PEER_CERT) && \
+    !defined(NO_CERT_IN_TICKET)
+    byte            peerCertLen[OPAQUE16_LEN]; /* peer cert length */
+    byte            peerCert[]; /* peer certificate DER - variable length */
+#endif
 } InternalTicket;
 
+/* Base size of InternalTicket without the variable-length peerCert field */
+#define WOLFSSL_INTERNAL_TICKET_BASE_SZ  (sizeof(InternalTicket))
+
+/* Minimum internal ticket length (no peer cert) */
 #ifndef WOLFSSL_TICKET_ENC_CBC_HMAC
-    #define WOLFSSL_INTERNAL_TICKET_LEN     sizeof(InternalTicket)
+    #define WOLFSSL_INTERNAL_TICKET_LEN     WOLFSSL_INTERNAL_TICKET_BASE_SZ
 #else
     #define WOLFSSL_INTERNAL_TICKET_LEN     \
-        (((sizeof(InternalTicket) + 15) / 16) * 16)
+        (((WOLFSSL_INTERNAL_TICKET_BASE_SZ + 15) / 16) * 16)
+#endif
+
+/* Maximum internal ticket length (with max peer cert) */
+#if defined(OPENSSL_ALL) && defined(KEEP_PEER_CERT) && \
+    !defined(NO_CERT_IN_TICKET)
+    #define WOLFSSL_INTERNAL_TICKET_MAX_SZ  \
+        (WOLFSSL_INTERNAL_TICKET_BASE_SZ + MAX_TICKET_PEER_CERT_SZ)
+#else
+    #define WOLFSSL_INTERNAL_TICKET_MAX_SZ  WOLFSSL_INTERNAL_TICKET_BASE_SZ
 #endif
 
 #ifndef WOLFSSL_TICKET_EXTRA_PADDING_SZ
 #define WOLFSSL_TICKET_EXTRA_PADDING_SZ 32
 #endif
 
+/* Maximum encrypted ticket size */
 #define WOLFSSL_TICKET_ENC_SZ \
-    (sizeof(InternalTicket) + WOLFSSL_TICKET_EXTRA_PADDING_SZ)
+    (WOLFSSL_INTERNAL_TICKET_MAX_SZ + WOLFSSL_TICKET_EXTRA_PADDING_SZ)
 
 /* RFC 5077 defines this for session tickets. All members need to be a byte or
  * array of byte to avoid alignment issues */
@@ -3510,14 +3525,18 @@ typedef struct ExternalTicket {
     byte key_name[WOLFSSL_TICKET_NAME_SZ];  /* key context name - 16 */
     byte iv[WOLFSSL_TICKET_IV_SZ];          /* this ticket's iv - 16 */
     byte enc_len[OPAQUE16_LEN];             /* encrypted length - 2 */
-    byte enc_ticket[WOLFSSL_TICKET_ENC_SZ];
-                                            /* encrypted internal ticket */
-    byte mac[WOLFSSL_TICKET_MAC_SZ];        /* total mac - 32 */
+    byte enc_ticket[];                      /* encrypted ticket - var length
+                                             *   + total mac - 32 */
 } ExternalTicket;
 
-/* Cast to int to reduce amount of casts in code */
-#define SESSION_TICKET_LEN ((int)sizeof(ExternalTicket))
-#define WOLFSSL_TICKET_FIXED_SZ (SESSION_TICKET_LEN - WOLFSSL_TICKET_ENC_SZ)
+/* Fixed portion of external ticket (key_name + iv + enc_len) */
+#define WOLFSSL_TICKET_FIXED_SZ  \
+    (WOLFSSL_TICKET_NAME_SZ + WOLFSSL_TICKET_IV_SZ + OPAQUE16_LEN + \
+        WOLFSSL_TICKET_MAC_SZ)
+
+/* Maximum session ticket length */
+#define SESSION_TICKET_LEN  \
+    ((int)(WOLFSSL_TICKET_FIXED_SZ + WOLFSSL_TICKET_ENC_SZ))
 
 typedef struct SessionTicket {
     word32 lifetime;
@@ -3558,6 +3577,20 @@ WOLFSSL_LOCAL SessionTicket* TLSX_SessionTicket_Create(word32 lifetime,
 WOLFSSL_LOCAL void TLSX_SessionTicket_Free(SessionTicket* ticket, void* heap);
 
 #endif /* HAVE_SESSION_TICKET */
+
+#ifndef MAX_PSK_ID_LEN
+    /* max psk identity/hint supported */
+    #if defined(WOLFSSL_TLS13)
+        #ifdef SESSION_TICKET_LEN
+            #define MAX_PSK_ID_LEN SESSION_TICKET_LEN
+        #else
+            /* Previous value. Use as fallback for when tickets are disabled. */
+            #define MAX_PSK_ID_LEN 1536
+        #endif
+    #else
+        #define MAX_PSK_ID_LEN 128
+    #endif
+#endif
 
 #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
 int TLSX_EncryptThenMac_Respond(WOLFSSL* ssl);
@@ -6411,12 +6444,20 @@ struct SystemCryptoPolicy {
  * for the caller to find so we clear the last error.
  */
 #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_HAVE_ERROR_QUEUE)
-#define CLEAR_ASN_NO_PEM_HEADER_ERROR(err)                  \
-    (err) = wolfSSL_ERR_peek_last_error();                  \
-    if (wolfSSL_ERR_GET_LIB(err) == WOLFSSL_ERR_LIB_PEM &&  \
-            wolfSSL_ERR_GET_REASON(err) == -WOLFSSL_PEM_R_NO_START_LINE_E) {   \
-        wc_RemoveErrorNode(-1);                             \
-    }
+#define CLEAR_ASN_NO_PEM_HEADER_ERROR(err)                                     \
+do {                                                                           \
+    (err) = wolfSSL_ERR_peek_last_error();                                     \
+    if (wolfSSL_ERR_GET_LIB(err) == WOLFSSL_ERR_LIB_PEM &&                     \
+        wolfSSL_ERR_GET_REASON(err) == -WOLFSSL_PEM_R_NO_START_LINE_E) {       \
+        unsigned long peekErr;                                                 \
+        do {                                                                   \
+            wc_RemoveErrorNode(-1);                                            \
+            peekErr = wolfSSL_ERR_peek_last_error();                           \
+        } while (wolfSSL_ERR_GET_LIB(peekErr) == WOLFSSL_ERR_LIB_PEM &&        \
+                 wolfSSL_ERR_GET_REASON(peekErr) ==                            \
+                                              -WOLFSSL_PEM_R_NO_START_LINE_E); \
+    }                                                                          \
+} while(0)
 #else
 #define CLEAR_ASN_NO_PEM_HEADER_ERROR(err) (void)(err);
 #endif

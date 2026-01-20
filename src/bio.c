@@ -1938,6 +1938,8 @@ int wolfSSL_BIO_get_len(WOLFSSL_BIO *bio)
             len = BAD_FUNC_ARG;
         if (len == 0) {
             len = wolfssl_file_len(file, &memSz);
+            if (len == WC_NO_ERR_TRACE(WOLFSSL_BAD_FILETYPE))
+                len = 0;
         }
         if (len == 0) {
             len = (int)memSz;

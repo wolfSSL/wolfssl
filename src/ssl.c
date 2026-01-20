@@ -15523,6 +15523,8 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         ssl->buffers.weOwnKey = 1;
     }
     else {
+        if (ssl->buffers.key != NULL && ssl->buffers.weOwnKey)
+            FreeDer(&ssl->buffers.key);
         ssl->buffers.key      = ctx->privateKey;
     }
 #else
