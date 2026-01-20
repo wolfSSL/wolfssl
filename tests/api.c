@@ -15548,6 +15548,104 @@ static int test_GENERAL_NAME_set0_othername(void)
     return EXPECT_RESULT();
 }
 
+/* Test RID (Registered ID) GENERAL_NAME creation and freeing */
+static int test_RID_GENERAL_NAME_free(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_ALL) && defined(WOLFSSL_RID_ALT_NAME)
+    /* RID OID: 1.2.3.4.5 in DER */
+    const unsigned char ridData[] = { 0x06, 0x04, 0x2a, 0x03, 0x04, 0x05 };
+    const unsigned char* p = ridData;
+    GENERAL_NAME* gn = NULL;
+    GENERAL_NAMES* gns = NULL;
+    ASN1_OBJECT* ridObj = NULL;
+
+    /* Create RID ASN1_OBJECT from DER */
+    ExpectNotNull(ridObj = wolfSSL_d2i_ASN1_OBJECT(NULL, &p, sizeof(ridData)));
+
+    /* Create GENERAL_NAME and set up as RID */
+    ExpectNotNull(gn = GENERAL_NAME_new());
+    if (gn != NULL) {
+        /* GENERAL_NAME_new allocates ia5, must free before using as RID */
+        gn->type = GEN_RID;
+        wolfSSL_ASN1_STRING_free(gn->d.ia5);
+        gn->d.ia5 = NULL;
+        gn->d.registeredID = ridObj;
+        ridObj = NULL; /* gn owns */
+    }
+    if (EXPECT_FAIL()) {
+        wolfSSL_ASN1_OBJECT_free(ridObj);
+    }
+
+    /* Add to stack */
+    ExpectNotNull(gns = sk_GENERAL_NAME_new(NULL));
+    ExpectIntEQ(sk_GENERAL_NAME_push(gns, gn), 1);
+    if (EXPECT_FAIL()) {
+        GENERAL_NAME_free(gn);
+        gn = NULL;
+    }
+
+    /* Verify RID is set up correctly */
+    ExpectNotNull(gn = sk_GENERAL_NAME_value(gns, 0));
+    ExpectIntEQ(gn->type, GEN_RID);
+    ExpectNotNull(gn->d.registeredID);
+
+    /* Free via sk_GENERAL_NAME_pop_free, exercises type_free for RID */
+    sk_GENERAL_NAME_pop_free(gns, GENERAL_NAME_free);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test RID (Registered ID) SAN parsing via X509_get_ext_d2i().
+ * Uses rid-cert.der which contains a RID SAN with OID 1.2.3.4.5. This tests
+ * that ASN_RID_TYPE case in wolfSSL_X509_get_ext_d2i() frees ia5 before
+ * allocating registeredID. */
+static int test_RID_X509_get_ext_d2i(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_ALL) && defined(WOLFSSL_RID_ALT_NAME) && \
+    !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+    int i;
+    int numNames;
+    int foundRID = 0;
+    const char* ridCert = "./certs/rid-cert.der";
+    X509* x509 = NULL;
+    GENERAL_NAMES* gns = NULL;
+    GENERAL_NAME* gn = NULL;
+    XFILE f = XBADFILE;
+
+    ExpectTrue((f = XFOPEN(ridCert, "rb")) != XBADFILE);
+    ExpectNotNull(x509 = d2i_X509_fp(f, NULL));
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+        f = XBADFILE;
+    }
+
+    /* Get SANs, will exercise ASN_RID_TYPE case */
+    ExpectNotNull(gns = (GENERAL_NAMES*)X509_get_ext_d2i(x509,
+        NID_subject_alt_name, NULL, NULL));
+
+    /* rid-cert.der contains: UPN, RID (1.2.3.4.5), DNS, URI, othername */
+    numNames = sk_GENERAL_NAME_num(gns);
+    ExpectIntGE(numNames, 2);
+
+    for (i = 0; i < numNames; i++) {
+        gn = sk_GENERAL_NAME_value(gns, i);
+        if (gn != NULL && gn->type == GEN_RID) {
+            ExpectNotNull(gn->d.registeredID);
+            foundRID = 1;
+            break;
+        }
+    }
+    ExpectIntEQ(foundRID, 1);
+
+    /* Free via sk_GENERAL_NAME_pop_free, exercises type_free for RID */
+    sk_GENERAL_NAME_pop_free(gns, GENERAL_NAME_free);
+    X509_free(x509);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Note the lack of wolfSSL_ prefix...this is a compatibility layer test. */
 static int test_othername_and_SID_ext(void)
 {
@@ -31205,6 +31303,8 @@ TEST_CASE testCases[] = {
     TEST_OSSL_X509_LOOKUP_DECLS,
 
     TEST_DECL(test_GENERAL_NAME_set0_othername),
+    TEST_DECL(test_RID_GENERAL_NAME_free),
+    TEST_DECL(test_RID_X509_get_ext_d2i),
     TEST_DECL(test_othername_and_SID_ext),
     TEST_DECL(test_wolfSSL_dup_CA_list),
     /* OpenSSL sk_X509 API test */
