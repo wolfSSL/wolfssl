@@ -23,6 +23,7 @@ EXTRA_DIST += m4/ax_linuxkm.m4 \
 	      linuxkm/wolfcrypt.lds \
 	      linuxkm/patches/5.10.17/WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS-5v10v17.patch \
 	      linuxkm/patches/5.10.236/WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS-5v10v236.patch \
+	      linuxkm/patches/5.14.0-570.58.1.el9_6/WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS-5v14-570v58v1-el9_6.patch \
 	      linuxkm/patches/5.15/WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS-5v15.patch \
 	      linuxkm/patches/5.17/WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS-5v17.patch \
 	      linuxkm/patches/5.17-ubuntu-jammy-tegra/WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS-5v17-ubuntu-jammy-tegra.patch \
