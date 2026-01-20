@@ -1935,11 +1935,45 @@ static int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output, word32 sz)
 {
     int ret;
     word64 rndTmp;
+    static int rdseed_sanity_status = 0;
 
     (void)os;
 
     if (!IS_INTEL_RDSEED(intel_flags))
         return -1;
+
+    if (rdseed_sanity_status == 0) {
+        static word64 sanity_words[2] = {0, 0};
+
+        ret = IntelRDseed64_r(&sanity_words[0]);
+        if (ret != 0)
+            return ret;
+
+        ret = IntelRDseed64_r(&sanity_words[1]);
+        if (ret != 0)
+            return ret;
+
+        if (sanity_words[0] == sanity_words[1]) {
+            ret = IntelRDseed64_r(&sanity_words[0]);
+            if (ret != 0)
+                return ret;
+
+            if (sanity_words[0] == sanity_words[1]) {
+                rdseed_sanity_status = -1;
+#ifdef WC_VERBOSE_RNG
+                WOLFSSL_DEBUG_PRINTF(
+                    "WARNING: RDSEED disabled due to repeating word 0x%lx -- "
+                    "check CPU microcode version.", sanity_words[1]);
+#endif
+                return -1;
+            }
+        }
+
+        rdseed_sanity_status = 1;
+    }
+    else if (rdseed_sanity_status < 0) {
+        return -1;
+    }
 
     for (; (sz / sizeof(word64)) > 0; sz -= sizeof(word64),
                                                     output += sizeof(word64)) {
