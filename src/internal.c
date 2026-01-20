@@ -21209,13 +21209,11 @@ static byte MaskMac(const byte* data, int sz, int macSz, byte* expMac)
     int i, j;
     int r = 0;
     unsigned char mac[WC_MAX_DIGEST_SIZE];
-    volatile int scanStart = sz - 1 - TLS_MAX_PAD_SZ - macSz;
+    int scanStart = sz - 1 - TLS_MAX_PAD_SZ - macSz;
     volatile int macEnd = sz - 1 - data[sz - 1];
-    volatile int macStart = macEnd - macSz;
+    int macStart = macEnd - macSz;
     volatile int maskScanStart;
     volatile int maskMacStart;
-    volatile unsigned char started;
-    volatile unsigned char notEnded;
     unsigned char good = 0;
 
     maskScanStart = ctMaskIntGTE(scanStart, 0);
@@ -21225,22 +21223,31 @@ static byte MaskMac(const byte* data, int sz, int macSz, byte* expMac)
 
     /* Div on Intel has different speeds depending on value.
      * Use a bitwise AND or mod a specific value (converted to mul). */
-    if ((macSz & (macSz - 1)) == 0)
-        r = (macSz - (scanStart - macStart)) & (macSz - 1);
+    if ((macSz & (macSz - 1)) == 0) {
+        r = macSz - scanStart;
+        r += macStart;
+        r &= (macSz - 1);
+    }
 #ifndef NO_SHA
-    else if (macSz == WC_SHA_DIGEST_SIZE)
-        r = (macSz - (scanStart - macStart)) % WC_SHA_DIGEST_SIZE;
+    else if (macSz == WC_SHA_DIGEST_SIZE) {
+        r = macSz - scanStart;
+        r += macStart;
+        r %= WC_SHA_DIGEST_SIZE;
+    }
 #endif
 #ifdef WOLFSSL_SHA384
-    else if (macSz == WC_SHA384_DIGEST_SIZE)
-        r = (macSz - (scanStart - macStart)) % WC_SHA384_DIGEST_SIZE;
+    else if (macSz == WC_SHA384_DIGEST_SIZE) {
+        r = macSz - scanStart;
+        r += macStart;
+        r %= WC_SHA384_DIGEST_SIZE;
+    }
 #endif
 
     XMEMSET(mac, 0, (size_t)(macSz));
     for (i = scanStart; i < sz; i += macSz) {
         for (j = 0; j < macSz && j + i < sz; j++) {
-            started = ctMaskGTE(i + j, macStart);
-            notEnded = ctMaskLT(i + j, macEnd);
+            unsigned char started = ctMaskGTE(i + j, macStart);
+            unsigned char notEnded = ctMaskLT(i + j, macEnd);
             mac[j] |= started & notEnded & data[i + j];
         }
     }
