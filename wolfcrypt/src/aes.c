@@ -4101,9 +4101,15 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
     int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
         const byte* iv, int dir)
     {
+        if (aes == NULL || userKey == NULL) {
+            return BAD_FUNC_ARG;
+        }
+        if (keylen > sizeof(aes->key)) {
+            return BAD_FUNC_ARG;
+        }
+
         return wc_AesSetKeyLocal(aes, userKey, keylen, iv, dir, 1);
     }
-
 
     int wc_AesSetKeyDirect(Aes* aes, const byte* userKey, word32 keylen,
                         const byte* iv, int dir)
@@ -5282,7 +5288,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         {
             int ret;
 
-            if (aes == NULL)
+            if (aes == NULL || out == NULL || in == NULL)
                 return BAD_FUNC_ARG;
             VECTOR_REGISTERS_PUSH;
             ret = wc_AesEncrypt(aes, in, out);
