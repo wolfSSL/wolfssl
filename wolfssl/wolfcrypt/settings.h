@@ -2139,6 +2139,12 @@ extern void uITRON4_free(void *p) ;
 
 #endif /* WOLFSSL_MAXQ1065 || WOLFSSL_MAXQ108X */
 
+/* Combined STSAFE macro - enables when either A100 or A120 is defined */
+#if defined(WOLFSSL_STSAFEA100) || defined(WOLFSSL_STSAFEA120)
+    #undef  WOLFSSL_STSAFE
+    #define WOLFSSL_STSAFE
+#endif
+
 #if defined(WOLFSSL_STM32F2)  || defined(WOLFSSL_STM32F4)   || \
     defined(WOLFSSL_STM32F7)  || defined(WOLFSSL_STM32F1)   || \
     defined(WOLFSSL_STM32L4)  || defined(WOLFSSL_STM32L5)   || \
