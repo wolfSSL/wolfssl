@@ -369,10 +369,20 @@
     #warning "No configuration for wolfSSL detected, check header order"
 #endif
 
-/* Ensure WOLFSSL_DEBUG_CERTS is always set when DEBUG_WOLFSSL is enabled */
-#ifdef DEBUG_WOLFSSL
-    #undef  WOLFSSL_DEBUG_CERTS
+/* Ensure WOLFSSL_DEBUG_CERTS is set when DEBUG_WOLFSSL is enabled, unless
+ * expressly requested otherwise.
+ */
+#if defined(DEBUG_WOLFSSL) && !defined(WOLFSSL_NO_DEBUG_CERTS) && \
+    !defined(WOLFSSL_DEBUG_CERTS)
     #define WOLFSSL_DEBUG_CERTS
+#endif
+
+/* Ensure WC_VERBOSE_RNG is set when DEBUG_WOLFSSL is enabled, unless expressly
+ * requested otherwise.  Relies on a working WOLFSSL_DEBUG_PRINTF.
+ */
+#if defined(DEBUG_WOLFSSL) && defined(WOLFSSL_DEBUG_PRINTF) && \
+    !defined(WC_NO_VERBOSE_RNG) && !defined(WC_VERBOSE_RNG)
+    #define WC_VERBOSE_RNG
 #endif
 
 #include <wolfssl/wolfcrypt/visibility.h>
