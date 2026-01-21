@@ -235,14 +235,14 @@ typedef int (wc_pem_password_cb)(char* passwd, int sz, int rw, void* userdata);
 
 #ifdef WOLFSSL_CERT_SIGN_CB
 /*!
-    \ingroup CertManager 
+    \ingroup CertManager
     \brief Callback function type for certificate/CSR signing.
-    
+
     This callback allows external signing implementations (e.g., TPM, HSM)
     to sign certificates and CSRs without requiring the crypto callback
     infrastructure. This is particularly useful for FIPS compliance where
     offloading wolfCrypt operations is not acceptable.
-    
+
     \param in Data to sign. For RSA, this is the DER-encoded digest
               (DigestInfo structure with algorithm identifier). For ECC,
               this is the raw hash to sign.
@@ -253,20 +253,20 @@ typedef int (wc_pem_password_cb)(char* passwd, int sz, int rw, void* userdata);
                    CTC_SHA256wECDSA).
     \param keyType Key type (RSA_TYPE, ECC_TYPE, etc.).
     \param ctx User-provided context pointer for callback state.
-    
+
     \return 0 on success.
     \return Negative error code on failure (BAD_FUNC_ARG, MEMORY_E, etc.).
-    
+
     \sa wc_SignCert_cb
     \sa wc_SignCert_ex
-    
+
     _Example_
     \code
-    int mySignCallback(const byte* in, word32 inLen, byte* out, 
+    int mySignCallback(const byte* in, word32 inLen, byte* out,
                        word32* outLen, int sigAlgo, int keyType, void* ctx)
     {
         MySignCtx* myCtx = (MySignCtx*)ctx;
-        // Perform signing using external device/HSM
+        /* Perform signing using external device/HSM */
         return myDevice_Sign(myCtx->device, in, inLen, out, outLen);
     }
     \endcode
@@ -555,20 +555,20 @@ WOLFSSL_API int wc_SignCert_ex(int requestSz, int sType, byte* buf,
 WOLFSSL_API int wc_SignCert(int requestSz, int sType, byte* buf, word32 buffSz,
                             RsaKey* rsaKey, ecc_key* eccKey, WC_RNG* rng);
 /*!
-    \ingroup CertManager 
+    \ingroup CertManager
     \brief Sign a certificate or CSR using a callback function.
-    
-    This function signs a certificate or Certificate Signing Request (CSR) 
+
+    This function signs a certificate or Certificate Signing Request (CSR)
     using a user-provided signing callback. This allows external signing
     implementations (e.g., TPM, HSM) without requiring the crypto callback
     infrastructure, making it suitable for FIPS-compliant applications.
-    
+
     The function performs the following:
     1. Hashes the certificate/CSR body according to the signature algorithm
     2. Encodes the hash (RSA) or prepares it for signing (ECC)
     3. Calls the user-provided callback to perform the actual signing
     4. Encodes the signature into the certificate/CSR DER structure
-    
+
     \param requestSz Size of the certificate body to sign (from Cert.bodySz).
     \param sType Signature algorithm type (e.g., CTC_SHA256wRSA,
                  CTC_SHA256wECDSA).
@@ -578,34 +578,34 @@ WOLFSSL_API int wc_SignCert(int requestSz, int sType, byte* buf, word32 buffSz,
     \param signCb User-provided signing callback function.
     \param signCtx Context pointer passed to the signing callback.
     \param rng Random number generator (may be NULL if not needed).
-    
+
     \return Size of the signed certificate/CSR on success.
     \return BAD_FUNC_ARG if signCb is NULL or other parameters are invalid.
     \return BUFFER_E if the buffer is too small for the signed certificate.
     \return MEMORY_E if memory allocation fails.
     \return Negative error code on other failures.
-    
+
     \sa wc_SignCertCb
     \sa wc_SignCert
     \sa wc_SignCert_ex
     \sa wc_MakeCert
     \sa wc_MakeCertReq
-    
+
     _Example_
     \code
     Cert cert;
     byte derBuf[4096];
     int derSz;
     MySignCtx myCtx;
-    
-    // Initialize cert and set subject, etc.
+
+    /* Initialize cert and set subject, etc. */
     wc_InitCert(&cert);
-    // ... set cert fields ...
-    
-    // Make certificate body
+    /* ... set cert fields ... */
+
+    /* Make certificate body */
     derSz = wc_MakeCert(&cert, derBuf, sizeof(derBuf), NULL, NULL, &rng);
-    
-    // Sign using callback
+
+    /* Sign using callback */
     derSz = wc_SignCert_cb(cert.bodySz, cert.sigType, derBuf, sizeof(derBuf),
                            RSA_TYPE, mySignCallback, &myCtx, &rng);
     if (derSz > 0) {

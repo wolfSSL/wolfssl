@@ -19625,7 +19625,7 @@ static int mockSignCb(const byte* in, word32 inLen, byte* out, word32* outLen,
     int ret = 0;
     MockSignCtx* signCtx = (MockSignCtx*)ctx;
 
-    if (signCtx == NULL || signCtx->key == NULL || in == NULL || 
+    if (signCtx == NULL || signCtx->key == NULL || in == NULL ||
         out == NULL || outLen == NULL) {
         return BAD_FUNC_ARG;
     }
@@ -19636,7 +19636,7 @@ static int mockSignCb(const byte* in, word32 inLen, byte* out, word32* outLen,
     if (keyType == RSA_TYPE) {
         RsaKey* rsaKey = (RsaKey*)signCtx->key;
         word32 outSz = *outLen;
-        
+
         /* For RSA, input is DER-encoded digest (DigestInfo structure) */
         ret = wc_RsaSSL_Sign(in, inLen, out, outSz, rsaKey, signCtx->rng);
         if (ret > 0) {
@@ -19650,7 +19650,7 @@ static int mockSignCb(const byte* in, word32 inLen, byte* out, word32* outLen,
     if (keyType == ECC_TYPE) {
         ecc_key* eccKey = (ecc_key*)signCtx->key;
         word32 outSz = *outLen;
-        
+
         /* For ECC, input is raw hash, sign it (RNG required for ECDSA k value) */
         ret = wc_ecc_sign_hash(in, inLen, out, &outSz, signCtx->rng, eccKey);
         if (ret == 0) {
@@ -19705,11 +19705,11 @@ static int test_wc_SignCert_cb(void)
 
     /* Make cert body */
     ExpectIntGT(wc_MakeCert(&cert, der, FOURK_BUF, NULL, &key, &rng), 0);
-    
+
     /* Setup signing context with key and RNG */
     signCtx.key = &key;
     signCtx.rng = &rng;
-    
+
     /* Sign using callback API */
     ExpectIntGT(derSize = wc_SignCert_cb(cert.bodySz, cert.sigType, der,
         FOURK_BUF, ECC_TYPE, mockSignCb, &signCtx, &rng), 0);
