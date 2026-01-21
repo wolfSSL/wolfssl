@@ -17,7 +17,7 @@ jobs:
     name: Build wolfSSL
     # Just to keep it the same as the testing target
     if: github.repository_owner == 'wolfssl'
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Build wolfSSL
         uses: wolfSSL/actions-build-autotools-project@v1
@@ -48,7 +48,7 @@ jobs:
           - ref: 1.6.22
     name: ${{ matrix.ref }}
     if: github.repository_owner == 'wolfssl'
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: build_wolfssl
     steps:
       - name: Download lib

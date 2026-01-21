@@ -28,7 +28,7 @@ jobs:
     # This should be a safe limit for the tests to run.
     timeout-minutes: 30
     if: github.repository_owner == 'wolfssl'
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     name: ${{ matrix.config }}
     steps:
     - name: Download fil-c release

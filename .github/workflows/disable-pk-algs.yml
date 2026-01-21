@@ -36,7 +36,7 @@ jobs:
         ]
     name: make check
     if: github.repository_owner == 'wolfssl'
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 6
     steps:
