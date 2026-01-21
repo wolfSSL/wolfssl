@@ -4833,6 +4833,16 @@ void FreeX509(WOLFSSL_X509* x509)
         FreeAltNames(x509->altNames, x509->heap);
         x509->altNames = NULL;
     }
+    #ifndef IGNORE_NAME_CONSTRAINTS
+    if (x509->permittedNames) {
+        FreeNameSubtrees(x509->permittedNames, x509->heap);
+        x509->permittedNames = NULL;
+    }
+    if (x509->excludedNames) {
+        FreeNameSubtrees(x509->excludedNames, x509->heap);
+        x509->excludedNames = NULL;
+    }
+    #endif
 
     #ifdef WOLFSSL_DUAL_ALG_CERTS
     XFREE(x509->sapkiDer, x509->heap, DYNAMIC_TYPE_X509_EXT);
@@ -13325,6 +13335,62 @@ static void AddSessionCertToChain(WOLFSSL_X509_CHAIN* chain,
         * OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL ||
         * WOLFSSL_ACERT */
 
+#if (defined(KEEP_PEER_CERT) || defined(SESSION_CERTS) || \
+     defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+    !defined(IGNORE_NAME_CONSTRAINTS)
+/* Duplicate a Base_entry */
+static Base_entry* BaseEntryDup(Base_entry* from, void* heap)
+{
+    Base_entry* entry;
+
+    if (from == NULL) {
+        return NULL;
+    }
+
+    entry = (Base_entry*)XMALLOC(sizeof(Base_entry), heap,
+                                 DYNAMIC_TYPE_ALTNAME);
+    if (entry == NULL) {
+        return NULL;
+    }
+    XMEMSET(entry, 0, sizeof(Base_entry));
+
+    entry->name = (char*)XMALLOC((word32)from->nameSz + 1, heap,
+                                 DYNAMIC_TYPE_ALTNAME);
+    if (entry->name == NULL) {
+        XFREE(entry, heap, DYNAMIC_TYPE_ALTNAME);
+        return NULL;
+    }
+    XMEMCPY(entry->name, from->name, (word32)from->nameSz);
+    entry->name[from->nameSz] = '\0';
+    entry->nameSz = from->nameSz;
+    entry->type = from->type;
+
+    return entry;
+}
+
+/* Copy a Base_entry list */
+static int CopyBaseEntry(Base_entry** to, Base_entry* from, void* heap)
+{
+    Base_entry** next = to;
+
+    if (to == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    for (; from != NULL; from = from->next) {
+        Base_entry* entry = BaseEntryDup(from, heap);
+        if (entry == NULL) {
+            WOLFSSL_MSG("BaseEntryDup failed");
+            return MEMORY_E;
+        }
+        *next = entry;
+        next = &entry->next;
+    }
+
+    return 0;
+}
+#endif /* (KEEP_PEER_CERT || SESSION_CERTS || OPENSSL_EXTRA ||
+        *  OPENSSL_EXTRA_X509_SMALL) && !IGNORE_NAME_CONSTRAINTS */
 
 #if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS) || \
     defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
@@ -13660,6 +13726,23 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
     }
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
     x509->altNamesNext   = x509->altNames;  /* index hint */
+
+#ifndef IGNORE_NAME_CONSTRAINTS
+    /* copy name constraints from dCert to X509 */
+    if (dCert->permittedNames != NULL) {
+        if (CopyBaseEntry(&x509->permittedNames, dCert->permittedNames,
+                          x509->heap) != 0) {
+            return MEMORY_E;
+        }
+    }
+    if (dCert->excludedNames != NULL) {
+        if (CopyBaseEntry(&x509->excludedNames, dCert->excludedNames,
+                          x509->heap) != 0) {
+            return MEMORY_E;
+        }
+    }
+    x509->nameConstraintCrit = dCert->extNameConstraintCrit;
+#endif /* !IGNORE_NAME_CONSTRAINTS */
 
     x509->isCa = dCert->isCA;
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)

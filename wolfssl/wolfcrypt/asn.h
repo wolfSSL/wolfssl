@@ -2925,6 +2925,9 @@ WOLFSSL_LOCAL int  VerifyX509Acert(const byte* cert, word32 certSz,
 WOLFSSL_TEST_VIS int  wolfssl_local_MatchBaseName(int type, const char* name,
                                                   int nameSz, const char* base,
                                                   int baseSz);
+WOLFSSL_TEST_VIS int  wolfssl_local_MatchIpSubnet(const byte* ip, int ipSz,
+                                                  const byte* constraint,
+                                                  int constraintSz);
 #endif
 
 #if ((defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)) \

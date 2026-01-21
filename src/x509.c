@@ -2218,6 +2218,160 @@ out:
 
 #endif /* OPENSSL_ALL || OPENSSL_EXTRA */
 
+#if defined(OPENSSL_EXTRA) && !defined(IGNORE_NAME_CONSTRAINTS) && \
+    !defined(WOLFSSL_LINUXKM)
+/*
+ * Convert a Base_entry linked list to a STACK of GENERAL_SUBTREE.
+ *
+ * Base_entry stores name constraint data from DecodedCert. This function
+ * converts it to GENERAL_SUBTREE format.
+ *
+ * Supported types: ASN_DNS_TYPE, ASN_RFC822_TYPE, ASN_DIR_TYPE, ASN_IP_TYPE,
+ *                  ASN_URI_TYPE
+ *
+ * Returns 0 on success, negative on error.
+ */
+static int ConvertBaseEntryToSubtreeStack(Base_entry* list, WOLFSSL_STACK* sk,
+                                          void* heap)
+{
+    Base_entry* entry = list;
+    WOLFSSL_GENERAL_SUBTREE* subtree = NULL;
+    WOLFSSL_GENERAL_NAME* gn = NULL;
+    (void)heap;
+
+    while (entry != NULL) {
+
+        if (entry->type != ASN_DNS_TYPE && entry->type != ASN_RFC822_TYPE &&
+            entry->type != ASN_DIR_TYPE && entry->type != ASN_IP_TYPE &&
+            entry->type != ASN_URI_TYPE) {
+            entry = entry->next;
+            continue;
+        }
+
+        /* Allocate subtree and general name */
+        subtree = (WOLFSSL_GENERAL_SUBTREE*)XMALLOC(
+            sizeof(WOLFSSL_GENERAL_SUBTREE), heap, DYNAMIC_TYPE_OPENSSL);
+        if (subtree == NULL) {
+            WOLFSSL_MSG("Failed to allocate GENERAL_SUBTREE");
+            return MEMORY_E;
+        }
+        XMEMSET(subtree, 0, sizeof(WOLFSSL_GENERAL_SUBTREE));
+
+        gn = wolfSSL_GENERAL_NAME_new();
+        if (gn == NULL) {
+            WOLFSSL_MSG("Failed to allocate GENERAL_NAME");
+            XFREE(subtree, heap, DYNAMIC_TYPE_OPENSSL);
+            return MEMORY_E;
+        }
+
+        /* Free default ia5 string allocated by GENERAL_NAME_new */
+        wolfSSL_ASN1_STRING_free(gn->d.ia5);
+        gn->d.ia5 = NULL;
+
+        switch (entry->type) {
+            case ASN_DNS_TYPE:
+            case ASN_RFC822_TYPE:
+            case ASN_URI_TYPE:
+            {
+                if (entry->type == ASN_DNS_TYPE) {
+                    gn->type = WOLFSSL_GEN_DNS;
+                }
+                else if (entry->type == ASN_RFC822_TYPE) {
+                    gn->type = WOLFSSL_GEN_EMAIL;
+                }
+                else {
+                    gn->type = WOLFSSL_GEN_URI;
+                }
+                gn->d.ia5 = wolfSSL_ASN1_STRING_new();
+                if (gn->d.ia5 == NULL) {
+                    WOLFSSL_MSG("Failed to allocate ASN1_STRING");
+                    wolfSSL_GENERAL_NAME_free(gn);
+                    XFREE(subtree, heap, DYNAMIC_TYPE_OPENSSL);
+                    return MEMORY_E;
+                }
+                if (wolfSSL_ASN1_STRING_set(gn->d.ia5, entry->name,
+                        entry->nameSz) != WOLFSSL_SUCCESS) {
+                    WOLFSSL_MSG("Failed to set ASN1_STRING");
+                    wolfSSL_GENERAL_NAME_free(gn);
+                    XFREE(subtree, heap, DYNAMIC_TYPE_OPENSSL);
+                    return MEMORY_E;
+                }
+                gn->d.ia5->type = WOLFSSL_V_ASN1_IA5STRING;
+                break;
+            }
+
+            case ASN_DIR_TYPE:
+            {
+                byte* seqBuf = NULL;
+                unsigned char* p = NULL;
+                int seqLen = 0;
+
+                /* Wrap in SEQUENCE and parse as X509_NAME */
+                gn->type = WOLFSSL_GEN_DIRNAME;
+                seqBuf = (byte*)XMALLOC((word32)entry->nameSz + MAX_SEQ_SZ,
+                                        heap, DYNAMIC_TYPE_TMP_BUFFER);
+                if (seqBuf == NULL) {
+                    WOLFSSL_MSG("Failed to allocate sequence buffer");
+                    wolfSSL_GENERAL_NAME_free(gn);
+                    XFREE(subtree, heap, DYNAMIC_TYPE_OPENSSL);
+                    return MEMORY_E;
+                }
+
+                seqLen = SetSequence(entry->nameSz, seqBuf);
+                XMEMCPY(seqBuf + seqLen, entry->name, entry->nameSz);
+
+                p = seqBuf;
+                gn->d.directoryName = wolfSSL_d2i_X509_NAME(NULL, &p,
+                    (long)entry->nameSz + seqLen);
+                XFREE(seqBuf, heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+                if (gn->d.directoryName == NULL) {
+                    WOLFSSL_MSG("Failed to parse directoryName");
+                    wolfSSL_GENERAL_NAME_free(gn);
+                    XFREE(subtree, heap, DYNAMIC_TYPE_OPENSSL);
+                    return ASN_PARSE_E;
+                }
+                break;
+            }
+
+            case ASN_IP_TYPE:
+            {
+                /* For IP address, store raw bytes as OCTET_STRING. */
+                gn->type = WOLFSSL_GEN_IPADD;
+                gn->d.iPAddress = wolfSSL_ASN1_STRING_new();
+                if (gn->d.iPAddress == NULL) {
+                    WOLFSSL_MSG("Failed to allocate ASN1_STRING for IP");
+                    wolfSSL_GENERAL_NAME_free(gn);
+                    XFREE(subtree, heap, DYNAMIC_TYPE_OPENSSL);
+                    return MEMORY_E;
+                }
+                if (wolfSSL_ASN1_STRING_set(gn->d.iPAddress, entry->name,
+                        entry->nameSz) != WOLFSSL_SUCCESS) {
+                    WOLFSSL_MSG("Failed to set IP ASN1_STRING");
+                    wolfSSL_GENERAL_NAME_free(gn);
+                    XFREE(subtree, heap, DYNAMIC_TYPE_OPENSSL);
+                    return MEMORY_E;
+                }
+                gn->d.iPAddress->type = WOLFSSL_V_ASN1_OCTET_STRING;
+                break;
+            }
+        }
+
+        subtree->base = gn;
+
+        if (wolfSSL_sk_push(sk, subtree) <= 0) {
+            WOLFSSL_MSG("Failed to push subtree onto stack");
+            wolfSSL_GENERAL_NAME_free(gn);
+            XFREE(subtree, heap, DYNAMIC_TYPE_OPENSSL);
+            return MEMORY_E;
+        }
+        entry = entry->next;
+    }
+
+    return 0;
+}
+#endif /* OPENSSL_EXTRA && !IGNORE_NAME_CONSTRAINTS && !WOLFSSL_LINUXKM */
+
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 /* Looks for the extension matching the passed in nid
  *
@@ -2720,9 +2874,70 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
             }
             break;
 
+    #if defined(OPENSSL_EXTRA) && !defined(IGNORE_NAME_CONSTRAINTS) && \
+        !defined(WOLFSSL_LINUXKM)
         case NAME_CONS_OID:
-            WOLFSSL_MSG("Name Constraint OID extension not supported");
-            break;
+        {
+            WOLFSSL_NAME_CONSTRAINTS* nc = NULL;
+
+            /* Check if name constraints exist in stored X509 */
+            if (x509->permittedNames == NULL && x509->excludedNames == NULL) {
+                WOLFSSL_MSG("No Name Constraints set");
+                break;
+            }
+
+            if (c != NULL) {
+                *c = x509->nameConstraintCrit;
+            }
+
+            nc = (WOLFSSL_NAME_CONSTRAINTS*)XMALLOC(
+                sizeof(WOLFSSL_NAME_CONSTRAINTS), x509->heap,
+                DYNAMIC_TYPE_OPENSSL);
+            if (nc == NULL) {
+                WOLFSSL_MSG("Failed to allocate NAME_CONSTRAINTS");
+                break;
+            }
+            XMEMSET(nc, 0, sizeof(WOLFSSL_NAME_CONSTRAINTS));
+
+            /* Convert permitted names */
+            if (x509->permittedNames != NULL) {
+                nc->permittedSubtrees = wolfSSL_sk_new_null();
+                if (nc->permittedSubtrees == NULL) {
+                    WOLFSSL_MSG("Failed to allocate permitted stack");
+                    wolfSSL_NAME_CONSTRAINTS_free(nc);
+                    break;
+                }
+                nc->permittedSubtrees->type = STACK_TYPE_GENERAL_SUBTREE;
+
+                if (ConvertBaseEntryToSubtreeStack(x509->permittedNames,
+                        nc->permittedSubtrees, x509->heap) != 0) {
+                    WOLFSSL_MSG("Failed to convert permitted names");
+                    wolfSSL_NAME_CONSTRAINTS_free(nc);
+                    break;
+                }
+            }
+
+            /* Convert excluded names */
+            if (x509->excludedNames != NULL) {
+                nc->excludedSubtrees = wolfSSL_sk_new_null();
+                if (nc->excludedSubtrees == NULL) {
+                    WOLFSSL_MSG("Failed to allocate excluded stack");
+                    wolfSSL_NAME_CONSTRAINTS_free(nc);
+                    break;
+                }
+                nc->excludedSubtrees->type = STACK_TYPE_GENERAL_SUBTREE;
+
+                if (ConvertBaseEntryToSubtreeStack(x509->excludedNames,
+                        nc->excludedSubtrees, x509->heap) != 0) {
+                    WOLFSSL_MSG("Failed to convert excluded names");
+                    wolfSSL_NAME_CONSTRAINTS_free(nc);
+                    break;
+                }
+            }
+
+            return nc;
+        }
+    #endif /* OPENSSL_EXTRA && !IGNORE_NAME_CONSTRAINTS && !WOLFSSL_LINUXKM */
 
         case PRIV_KEY_USAGE_PERIOD_OID:
             WOLFSSL_MSG("Private Key Usage Period extension not supported");
@@ -5111,6 +5326,373 @@ void wolfSSL_EXTENDED_KEY_USAGE_free(WOLFSSL_STACK * sk)
 
     wolfSSL_sk_X509_pop_free(sk, NULL);
 }
+
+#if !defined(IGNORE_NAME_CONSTRAINTS) && !defined(WOLFSSL_LINUXKM)
+/*
+ * Allocate and initialize an empty GENERAL_SUBTREE structure.
+ * Returns NULL on allocation failure.
+ */
+WOLFSSL_GENERAL_SUBTREE* wolfSSL_GENERAL_SUBTREE_new(void)
+{
+    WOLFSSL_GENERAL_SUBTREE* subtree;
+
+    WOLFSSL_ENTER("wolfSSL_GENERAL_SUBTREE_new");
+
+    subtree = (WOLFSSL_GENERAL_SUBTREE*)XMALLOC(sizeof(WOLFSSL_GENERAL_SUBTREE),
+                                                NULL, DYNAMIC_TYPE_OPENSSL);
+    if (subtree == NULL) {
+        WOLFSSL_MSG("Failed to allocate GENERAL_SUBTREE");
+        return NULL;
+    }
+    XMEMSET(subtree, 0, sizeof(WOLFSSL_GENERAL_SUBTREE));
+    return subtree;
+}
+
+/*
+ * Create an empty NAME_CONSTRAINTS structure.
+ * Returns NULL on allocation failure.
+ */
+WOLFSSL_NAME_CONSTRAINTS* wolfSSL_NAME_CONSTRAINTS_new(void)
+{
+    WOLFSSL_NAME_CONSTRAINTS* nc;
+
+    WOLFSSL_ENTER("wolfSSL_NAME_CONSTRAINTS_new");
+
+    nc = (WOLFSSL_NAME_CONSTRAINTS*)XMALLOC(sizeof(WOLFSSL_NAME_CONSTRAINTS),
+                                            NULL, DYNAMIC_TYPE_OPENSSL);
+    if (nc == NULL) {
+        WOLFSSL_MSG("Failed to allocate NAME_CONSTRAINTS");
+        return NULL;
+    }
+    XMEMSET(nc, 0, sizeof(WOLFSSL_NAME_CONSTRAINTS));
+    return nc;
+}
+
+/* Free a GENERAL_SUBTREE and its contents. */
+void wolfSSL_GENERAL_SUBTREE_free(WOLFSSL_GENERAL_SUBTREE* subtree)
+{
+    if (subtree == NULL) {
+        return;
+    }
+    wolfSSL_GENERAL_NAME_free(subtree->base);
+    XFREE(subtree, NULL, DYNAMIC_TYPE_OPENSSL);
+}
+
+/* Free a NAME_CONSTRAINTS structure and all its contents. */
+void wolfSSL_NAME_CONSTRAINTS_free(WOLFSSL_NAME_CONSTRAINTS* nc)
+{
+    WOLFSSL_ENTER("wolfSSL_NAME_CONSTRAINTS_free");
+
+    if (nc == NULL) {
+        return;
+    }
+
+    if (nc->permittedSubtrees != NULL) {
+        wolfSSL_sk_pop_free(nc->permittedSubtrees,
+            (wolfSSL_sk_freefunc)wolfSSL_GENERAL_SUBTREE_free);
+    }
+
+    if (nc->excludedSubtrees != NULL) {
+        wolfSSL_sk_pop_free(nc->excludedSubtrees,
+            (wolfSSL_sk_freefunc)wolfSSL_GENERAL_SUBTREE_free);
+    }
+
+    XFREE(nc, NULL, DYNAMIC_TYPE_OPENSSL);
+}
+
+/* Get number of items in GENERAL_SUBTREE stack. */
+int wolfSSL_sk_GENERAL_SUBTREE_num(const WOLFSSL_STACK* sk)
+{
+    WOLFSSL_ENTER("wolfSSL_sk_GENERAL_SUBTREE_num");
+
+    return wolfSSL_sk_num(sk);
+}
+
+/* Get GENERAL_SUBTREE at index from stack. */
+WOLFSSL_GENERAL_SUBTREE* wolfSSL_sk_GENERAL_SUBTREE_value(
+    const WOLFSSL_STACK* sk, int idx)
+{
+    WOLFSSL_ENTER("wolfSSL_sk_GENERAL_SUBTREE_value");
+
+    return (WOLFSSL_GENERAL_SUBTREE*)wolfSSL_sk_value(sk, idx);
+}
+
+/* Check IP address string matches constraint.
+ *
+ * name: IP address string (ex "192.168.1.50")
+ * nameSz: length of name string
+ * gn: GENERAL_NAME containing IP constraint (IP + mask bytes)
+ *
+ * Return 1 on match, otherwise 0
+ */
+static int MatchIpName(const char* name, int nameSz, WOLFSSL_GENERAL_NAME* gn)
+{
+    int ipLen = 0;
+    int constraintLen;
+    char ipStr[WOLFSSL_MAX_IPSTR];
+    unsigned char ipBytes[16]; /* Max 16 bytes for IPv6 */
+    const unsigned char* constraintData;
+
+    if (name == NULL || nameSz <= 0 || gn == NULL || gn->d.iPAddress == NULL) {
+        return 0;
+    }
+
+    constraintData = wolfSSL_ASN1_STRING_get0_data(gn->d.iPAddress);
+    constraintLen = wolfSSL_ASN1_STRING_length(gn->d.iPAddress);
+    if (constraintData == NULL || constraintLen <= 0) {
+        return 0;
+    }
+
+    /* Null-terminate IP string */
+    if (nameSz >= (int)sizeof(ipStr)) {
+        return 0;
+    }
+    XMEMCPY(ipStr, name, nameSz);
+    ipStr[nameSz] = '\0';
+
+    /* IPv4 constraint 8 bytes (IP + mask),
+     * IPv6 constraint 32 bytes (IP + mask) */
+    if (constraintLen == 8) {
+        if (XINET_PTON(WOLFSSL_IP4, ipStr, ipBytes) == 1) {
+            ipLen = 4;
+        }
+    }
+    else if (constraintLen == 32) {
+        if (XINET_PTON(WOLFSSL_IP6, ipStr, ipBytes) == 1) {
+            ipLen = 16;
+        }
+    }
+
+    if (ipLen == 0) {
+        return 0;
+    }
+
+    return wolfssl_local_MatchIpSubnet(ipBytes, ipLen,
+        constraintData, constraintLen);
+}
+
+/* Extract host from URI for name constraint matching.
+ * URI format: scheme://[userinfo@]host[:port][/path][?query][#fragment]
+ * IPv6 literals are enclosed in brackets: scheme://[ipv6addr]:port/path
+ * Returns pointer to host start and sets hostLen, or NULL on failure. */
+static const char* ExtractHostFromUri(const char* uri, int uriLen, int* hostLen)
+{
+    const char* hostStart;
+    const char* hostEnd;
+    const char* p;
+    const char* uriEnd = uri + uriLen;
+
+    if (uri == NULL || uriLen <= 0 || hostLen == NULL) {
+        return NULL;
+    }
+
+    /* Find "://" to skip scheme */
+    hostStart = NULL;
+    for (p = uri; p < uriEnd - 2; p++) {
+        if (p[0] == ':' && p[1] == '/' && p[2] == '/') {
+            hostStart = p + 3;
+            break;
+        }
+    }
+    if (hostStart == NULL || hostStart >= uriEnd) {
+        return NULL;
+    }
+
+    /* Skip userinfo if present (look for @ before any /, ?, #)
+     * userinfo can contain ':' (ex: user:pass@host), don't stop at ':'
+     * For IPv6, also don't stop at '[' in userinfo */
+    for (p = hostStart; p < uriEnd; p++) {
+        if (*p == '@') {
+            hostStart = p + 1;
+            break;
+        }
+        if (*p == '/' || *p == '?' || *p == '#') {
+            /* No userinfo found */
+            break;
+        }
+        /* If '[' before '@', found IPv6 literal, not userinfo */
+        if (*p == '[') {
+            break;
+        }
+    }
+    if (hostStart >= uriEnd) {
+        return NULL;
+    }
+
+    /* Check for IPv6 literal */
+    if (*hostStart == '[') {
+        /* Find closing bracket, skip opening one */
+        hostStart++;
+        hostEnd = hostStart;
+        while (hostEnd < uriEnd && *hostEnd != ']') {
+            hostEnd++;
+        }
+        if (hostEnd >= uriEnd) {
+            /* No closing bracket found, malformed */
+            return NULL;
+        }
+        /* hostEnd points to closing bracket, extract content between */
+        *hostLen = (int)(hostEnd - hostStart);
+        if (*hostLen <= 0) {
+            return NULL;
+        }
+        return hostStart;
+    }
+
+    /* Regular hostname, find end */
+    hostEnd = hostStart;
+    while (hostEnd < uriEnd && *hostEnd != ':' && *hostEnd != '/' &&
+           *hostEnd != '?' && *hostEnd != '#') {
+        hostEnd++;
+    }
+
+    *hostLen = (int)(hostEnd - hostStart);
+    if (*hostLen <= 0) {
+        return NULL;
+    }
+
+    return hostStart;
+}
+
+/* Helper to check if name string matches a single GENERAL_NAME constraint.
+ * Returns 1 if matches, 0 if not. */
+static int MatchNameConstraint(int type, const char* name, int nameSz,
+    WOLFSSL_GENERAL_NAME* gn)
+{
+    const char* baseStr;
+    int baseLen;
+
+    if (gn == NULL || gn->type != type) {
+        return 0;
+    }
+
+    switch (type) {
+        case WOLFSSL_GEN_IPADD:
+            return MatchIpName(name, nameSz, gn);
+
+        case WOLFSSL_GEN_DNS:
+        case WOLFSSL_GEN_EMAIL:
+        case WOLFSSL_GEN_URI:
+            if (gn->d.ia5 == NULL) {
+                return 0;
+            }
+            baseStr = (const char*)wolfSSL_ASN1_STRING_get0_data(gn->d.ia5);
+            baseLen = wolfSSL_ASN1_STRING_length(gn->d.ia5);
+            if (baseStr == NULL || baseLen <= 0) {
+                return 0;
+            }
+
+            if (type == WOLFSSL_GEN_EMAIL) {
+                return wolfssl_local_MatchBaseName(ASN_RFC822_TYPE, name,
+                    nameSz, baseStr, baseLen);
+            }
+            else if (type == WOLFSSL_GEN_URI) {
+                const char* host;
+                int hostLen;
+
+                /* For URI, extract host and match against DNS-style */
+                host = ExtractHostFromUri(name, nameSz, &hostLen);
+                if (host == NULL) {
+                    return 0;
+                }
+                return wolfssl_local_MatchBaseName(ASN_DNS_TYPE, host, hostLen,
+                    baseStr, baseLen);
+            }
+            else {
+                /* WOLFSSL_GEN_DNS uses DNS-style matching */
+                return wolfssl_local_MatchBaseName(ASN_DNS_TYPE, name, nameSz,
+                    baseStr, baseLen);
+            }
+
+        default:
+            /* Unsupported type */
+            return 0;
+    }
+}
+
+/*
+ * Check if a name string satisfies given name constraints.
+ *
+ * nc: NAME_CONSTRAINTS struct containing permitted/excluded subtrees
+ * type: GeneralName type (WOLFSSL_GEN_DNS, WOLFSSL_GEN_EMAIL, etc.)
+ * name: The name string to check
+ * nameSz: Length of name string
+ *
+ * Returns 1 if name satisfies constraints (permitted and not excluded),
+ * otherwise 0 if name does not satisfy constraints or on error
+ *
+ * A name satisfies constraints if permitted subtrees exist for the type,
+ * name matches at least one, and name does not match any excluded subtree.
+ */
+int wolfSSL_NAME_CONSTRAINTS_check_name(WOLFSSL_NAME_CONSTRAINTS* nc,
+    int type, const char* name, int nameSz)
+{
+    int i, num;
+    int hasPermittedType = 0;
+    int matchedPermitted = 0;
+    WOLFSSL_GENERAL_SUBTREE* subtree;
+    WOLFSSL_GENERAL_NAME* gn;
+
+    WOLFSSL_ENTER("wolfSSL_NAME_CONSTRAINTS_check_name");
+
+    if (nc == NULL || name == NULL || nameSz <= 0) {
+        WOLFSSL_MSG("Bad argument to NAME_CONSTRAINTS_check_name");
+        return 0;
+    }
+
+    /* Check permitted subtrees */
+    if (nc->permittedSubtrees != NULL) {
+        num = wolfSSL_sk_GENERAL_SUBTREE_num(nc->permittedSubtrees);
+        for (i = 0; i < num; i++) {
+            subtree = wolfSSL_sk_GENERAL_SUBTREE_value(
+                nc->permittedSubtrees, i);
+            if (subtree == NULL || subtree->base == NULL) {
+                continue;
+            }
+
+            gn = subtree->base;
+            if (gn->type != type) {
+                continue;
+            }
+            hasPermittedType = 1;
+
+            if (MatchNameConstraint(type, name, nameSz, gn)) {
+                matchedPermitted = 1;
+                break;
+            }
+        }
+    }
+
+    /* If permitted constraints exist for this type but none matched, fail */
+    if (hasPermittedType && !matchedPermitted) {
+        WOLFSSL_MSG("Name not in permitted subtrees");
+        return 0;
+    }
+
+    /* Check excluded subtrees */
+    if (nc->excludedSubtrees != NULL) {
+        num = wolfSSL_sk_GENERAL_SUBTREE_num(nc->excludedSubtrees);
+        for (i = 0; i < num; i++) {
+            subtree = wolfSSL_sk_GENERAL_SUBTREE_value(nc->excludedSubtrees, i);
+            if (subtree == NULL || subtree->base == NULL) {
+                continue;
+            }
+
+            gn = subtree->base;
+            if (gn->type != type) {
+                continue;
+            }
+
+            if (MatchNameConstraint(type, name, nameSz, gn)) {
+                WOLFSSL_MSG("Name in excluded subtrees");
+                return 0;
+            }
+        }
+    }
+
+    return 1;
+}
+#endif /* !IGNORE_NAME_CONSTRAINTS && !WOLFSSL_LINUXKM */
 
 #if defined(OPENSSL_ALL) && !defined(NO_BIO)
 /* Outputs name string of the given WOLFSSL_GENERAL_NAME_OBJECT to WOLFSSL_BIO.
