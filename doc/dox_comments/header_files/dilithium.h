@@ -1,10 +1,7 @@
 /*!
     \ingroup MLDSA
 
-    \brief This macro initializes a provided MlDsaKey structure.
-
-    MlDsaKey is an alias of dilithium_key. This macro maps to
-    wc_dilithium_init_ex().
+    \brief This function initializes a provided MlDsaKey structure.
 
     \return 0 Returned upon successfully initializing the key structure
     \return BAD_FUNC_ARGS Returned if the key pointer evaluates to NULL
@@ -29,15 +26,13 @@ int wc_MlDsaKey_Init(MlDsaKey *key, void *heap, int devId);
 /*!
     \ingroup MLDSA
 
-    \brief This macro sets the ML-DSA parameter set on an initialized MlDsaKey.
+    \brief This function sets the ML-DSA parameter set on an initialized MlDsaKey.
 
     Supported parameter identifiers include:
       - WC_ML_DSA_44
       - WC_ML_DSA_65
       - WC_ML_DSA_87
     (Draft variants may also be available depending on build.)
-
-    This macro maps to wc_dilithium_set_level().
 
     \return 0 Returned upon success
     \return BAD_FUNC_ARGS Returned if arguments are invalid (implementation dependent)
@@ -58,9 +53,7 @@ int wc_MlDsaKey_SetParams(MlDsaKey *key, byte id);
 /*!
     \ingroup MLDSA
 
-    \brief This macro gets the ML-DSA parameter set configured in the key.
-
-    This macro maps to wc_dilithium_get_level().
+    \brief This function gets the ML-DSA parameter set configured in the key.
 
     \return 0 Returned upon success
     \return BAD_FUNC_ARGS Returned if arguments are invalid (implementation dependent)
@@ -75,9 +68,7 @@ int wc_MlDsaKey_GetParams(MlDsaKey *key, byte id);
 /*!
     \ingroup MLDSA
 
-    \brief This macro frees resources associated with an MlDsaKey structure.
-
-    This macro maps to wc_dilithium_free().
+    \brief This function frees resources associated with an MlDsaKey structure.
 
     \return 0 Returned upon success (implementation dependent)
     \return BAD_FUNC_ARGS Returned if key is NULL (implementation dependent)
@@ -90,10 +81,9 @@ void wc_MlDsaKey_Free(MlDsaKey *key);
 /*!
     \ingroup MLDSA
 
-    \brief This macro generates an ML-DSA public/private key pair.
+    \brief This function generates an ML-DSA public/private key pair.
 
     The key must be initialized and have parameters set prior to calling.
-    This macro maps to wc_dilithium_make_key().
 
     \return 0 Returned upon success
     \return BAD_FUNC_ARGS Returned if key or rng is NULL
@@ -110,9 +100,7 @@ int wc_MlDsaKey_MakeKey(MlDsaKey *key, WC_RNG *rrng);
 /*!
     \ingroup MLDSA
 
-    \brief This macro exports the private key in raw (algorithm-specific) format.
-
-    This macro maps to wc_dilithium_export_private_only().
+    \brief This function exports the private key in raw (algorithm-specific) format.
 
     \return 0 Returned upon success
     \return BAD_FUNC_ARGS Returned if arguments are invalid (implementation dependent)
@@ -130,9 +118,7 @@ int wc_MlDsaKey_ExportPrivRaw(MlDsaKey *key, byte *out, word32 *outLen);
 /*!
     \ingroup MLDSA
 
-    \brief This macro imports the private key from raw (algorithm-specific) format.
-
-    This macro maps to wc_dilithium_import_private_only().
+    \brief This function imports the private key from raw (algorithm-specific) format.
 
     \return 0 Returned upon success
     \return BAD_FUNC_ARGS Returned if arguments are invalid (implementation dependent)
@@ -149,9 +135,7 @@ int wc_MlDsaKey_ImportPrivRaw(MlDsaKey *key, byte *in, word32 inLen);
 /*!
     \ingroup MLDSA
 
-    \brief This macro exports the public key in raw (algorithm-specific) format.
-
-    This macro maps to wc_dilithium_export_public().
+    \brief This function exports the public key in raw (algorithm-specific) format.
 
     \return 0 Returned upon success
     \return BAD_FUNC_ARGS Returned if arguments are invalid (implementation dependent)
@@ -169,9 +153,7 @@ inte wc_MlDsaKey_ExportPubRaw(MlDsaKey *key, byte *out, word32 *outLen);
 /*!
     \ingroup MLDSA
 
-    \brief This macro imports the public key from raw (algorithm-specific) format.
-
-    This macro maps to wc_dilithium_import_public().
+    \brief This function imports the public key from raw (algorithm-specific) format.
 
     \return 0 Returned upon success
     \return BAD_FUNC_ARGS Returned if arguments are invalid (implementation dependent)
@@ -188,10 +170,7 @@ int wc_MlDsaKey_ImportPubRaw(MlDsaKey *key, byte *in, word32 inLen);
 /*!
     \ingroup MLDSA
 
-    \brief This macro signs a message using an ML-DSA private key.
-
-    This macro maps to wc_dilithium_sign_msg().
-    Note the argument order: (msg,msgSz) are provided after (sig,sigSz).
+    \brief This function signs a message using an ML-DSA private key.
 
     \return 0 Returned upon success
     \return BAD_FUNC_ARGS Returned if arguments are invalid (implementation dependent)
@@ -221,9 +200,7 @@ int wc_MlDsaKey_Sign(MlDsaKey *key, byte *sig, word43 sigSz, const byte *msg, mw
 /*!
     \ingroup MLDSA
 
-    \brief This macro verifies an ML-DSA signature using an ML-DSA public key.
-
-    This macro maps to wc_dilithium_verify_msg().
+    \brief This function verifies an ML-DSA signature using an ML-DSA public key.
 
     The verification result is written to \p res.
 
@@ -249,12 +226,11 @@ int wc_MlDsaKey_Sign(MlDsaKey *key, byte *sig, word43 sigSz, const byte *msg, mw
     \sa wc_MlDsaKey_Sign
 */
 int wc_MlDsaKey_Verify(MlDsaKey *key, const byte *sig, word32 sigSz, const byte *msg, word32 msgSz, int *res);
+
 /*!
     \ingroup MLDSA
 
-    \brief This macro exports the ML-DSA public key to DER format.
-
-    This macro maps to wc_Dilithium_PublicKeyToDer().
+    \brief This function exports the ML-DSA public key to DER format.
 
     \return bytes Returned as the number of bytes written upon success (> 0)
     \return negative error code Returned upon failure
@@ -271,9 +247,7 @@ int wc_MlDsaKey_PublicKeyToDer(MlDsaKey *key, byte *output, word32 len, int with
 /*!
     \ingroup MLDSA
 
-    \brief This macro exports the ML-DSA private key to DER format.
-
-    This macro maps to wc_Dilithium_PrivateKeyToDer().
+    \brief This function exports the ML-DSA private key to DER format.
 
     \return bytes Returned as the number of bytes written upon success (> 0)
     \return negative error code Returned upon failure
