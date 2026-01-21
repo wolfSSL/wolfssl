@@ -5401,14 +5401,25 @@ static WOLFSSL_X509* loadX509orX509REQFromBuffer(
     /* ready to be decoded. */
     if (der != NULL && der->buffer != NULL) {
         WC_DECLARE_VAR(cert, DecodedCert, 1, 0);
+        /* For TRUSTED_CERT_TYPE, the DER buffer contains the certificate
+         * followed by auxiliary trust info. ParseCertRelative expects CERT_TYPE
+         * and will parse only the certificate portion, ignoring the rest. */
+        int parseType = (type == TRUSTED_CERT_TYPE) ? CERT_TYPE : type;
 
         WC_ALLOC_VAR_EX(cert, DecodedCert, 1, NULL, DYNAMIC_TYPE_DCERT,
             ret=MEMORY_ERROR);
         if (WC_VAR_OK(cert))
         {
             InitDecodedCert(cert, der->buffer, der->length, NULL);
-            ret = ParseCertRelative(cert, type, 0, NULL, NULL);
+            ret = ParseCertRelative(cert, parseType, 0, NULL, NULL);
             if (ret == 0) {
+                /* For TRUSTED_CERT_TYPE, truncate the DER buffer to exclude
+                 * auxiliary trust data. ParseCertRelative sets srcIdx to the
+                 * end of the certificate, so we adjust cert->maxIdx accordingly. */
+                if (type == TRUSTED_CERT_TYPE && cert->srcIdx < cert->maxIdx) {
+                    cert->maxIdx = cert->srcIdx;
+                }
+
                 x509 = (WOLFSSL_X509*)XMALLOC(sizeof(WOLFSSL_X509), NULL,
                                                              DYNAMIC_TYPE_X509);
                 if (x509 != NULL) {
@@ -11917,7 +11928,8 @@ static WOLFSSL_X509 *loadX509orX509REQFromPemBio(WOLFSSL_BIO *bp,
 
     WOLFSSL_ENTER("loadX509orX509REQFromPemBio");
 
-    if (bp == NULL || (type != CERT_TYPE && type != CERTREQ_TYPE)) {
+    if (bp == NULL || (type != CERT_TYPE && type != CERTREQ_TYPE &&
+                       type != TRUSTED_CERT_TYPE)) {
         WOLFSSL_LEAVE("wolfSSL_PEM_read_bio_X509", BAD_FUNC_ARG);
         return NULL;
     }
@@ -11974,7 +11986,7 @@ static WOLFSSL_X509 *loadX509orX509REQFromPemBio(WOLFSSL_BIO *bp,
             pem = newPem;
             pemSz = newSz;
         }
-        else if (i >= pemSz) {
+        else if (i > pemSz) {
             /* Buffer full for non-streaming source - this shouldn't happen */
             WOLFSSL_MSG("PEM buffer overflow");
             XFREE(pem, 0, DYNAMIC_TYPE_PEM);
@@ -11997,13 +12009,8 @@ static WOLFSSL_X509 *loadX509orX509REQFromPemBio(WOLFSSL_BIO *bp,
             break;
         }
     }
-    if (l == 0) {
+    if (l == 0 && i == 0) {
         WOLFSSL_ERROR(ASN_NO_PEM_HEADER);
-        if (i == 0) {
-            /* No data read at all - empty source */
-            XFREE(pem, 0, DYNAMIC_TYPE_PEM);
-            return NULL;
-        }
     }
     if (i > pemSz) {
         WOLFSSL_MSG("Error parsing PEM");
@@ -12018,6 +12025,12 @@ static WOLFSSL_X509 *loadX509orX509REQFromPemBio(WOLFSSL_BIO *bp,
                 CERTREQ_TYPE, cb, u);
         else
     #endif
+        /* Use TRUSTED_CERT_TYPE if input was TRUSTED CERTIFICATE format,
+         * otherwise use CERT_TYPE for regular certificates */
+        if (type == TRUSTED_CERT_TYPE)
+            x509 = loadX509orX509REQFromBuffer(pem, pemSz, WOLFSSL_FILETYPE_PEM,
+                TRUSTED_CERT_TYPE, cb, u);
+        else
             x509 = loadX509orX509REQFromBuffer(pem, pemSz, WOLFSSL_FILETYPE_PEM,
                 CERT_TYPE, cb, u);
     }
@@ -12157,14 +12170,15 @@ static WOLFSSL_X509 *loadX509orX509REQFromPemBio(WOLFSSL_BIO *bp,
                                WOLFSSL_X509 **x, wc_pem_password_cb *cb,
                                void *u)
     {
-        WOLFSSL_ENTER("wolfSSL_PEM_read_bio_X509");
+        WOLFSSL_ENTER("wolfSSL_PEM_read_bio_X509_AUX");
 
         /* AUX info is; trusted/rejected uses, friendly name, private key id,
          * and potentially a stack of "other" info. wolfSSL does not store
          * friendly name or private key id yet in WOLFSSL_X509 for human
          * readability and does not support extra trusted/rejected uses for
-         * root CA. */
-        return wolfSSL_PEM_read_bio_X509(bp, x, cb, u);
+         * root CA. Use TRUSTED_CERT_TYPE to properly parse TRUSTED CERTIFICATE
+         * format and strip auxiliary data. */
+        return loadX509orX509REQFromPemBio(bp, x, cb, u, TRUSTED_CERT_TYPE);
     }
 
 #ifdef WOLFSSL_CERT_REQ
