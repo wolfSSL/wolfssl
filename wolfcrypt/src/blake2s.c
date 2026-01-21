@@ -528,7 +528,9 @@ int wc_Blake2sHmacInit(Blake2s* b2s, const byte* key, size_t key_len)
             ret = wc_Blake2sFinal(b2s, x_key, 0);
     } else {
         XMEMCPY(x_key, key, key_len);
-        XMEMSET(x_key + key_len, 0, BLAKE2S_BLOCKBYTES - key_len);
+        if (key_len < BLAKE2S_BLOCKBYTES) {
+            XMEMSET(x_key + key_len, 0, BLAKE2S_BLOCKBYTES - key_len);
+        }
     }
 
     if (ret == 0) {
@@ -575,7 +577,9 @@ int wc_Blake2sHmacFinal(Blake2s* b2s, const byte* key, size_t key_len,
             ret = wc_Blake2sFinal(b2s, x_key, 0);
     } else {
         XMEMCPY(x_key, key, key_len);
-        XMEMSET(x_key + key_len, 0, BLAKE2S_BLOCKBYTES - key_len);
+        if (key_len < BLAKE2S_BLOCKBYTES) {
+            XMEMSET(x_key + key_len, 0, BLAKE2S_BLOCKBYTES - key_len);
+        }
     }
 
     if (ret == 0) {
