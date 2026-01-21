@@ -451,7 +451,8 @@ static int wolfssl_sk_dup_data(WOLFSSL_STACK* dst, WOLFSSL_STACK* src)
 
 /* Duplicate the stack of nodes.
  *
- * TODO: OpenSSL does a shallow copy but we have wolfSSL_shallow_sk_dup().
+ * OpenSSL does a shallow copy but we map to wolfSSL_shallow_sk_dup()
+ * when we want a shallow copy.
  *
  * Data is copied/duplicated - deep copy.
  *
