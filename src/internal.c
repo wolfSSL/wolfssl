@@ -29812,7 +29812,7 @@ static int DecodePrivateKey_ex(WOLFSSL *ssl, byte keyType, const DerBuffer* key,
         }
     }
 
-#ifdef WOLF_PRIVATE_KEY_ID
+#if defined(WOLF_PRIVATE_KEY_ID) && !defined(NO_CHECK_PRIVATE_KEY)
     if (keyDevId != INVALID_DEVID && (keyIdSet || keyLabelSet)) {
         /* Set hsType */
         if (keyType == rsa_sa_algo)
