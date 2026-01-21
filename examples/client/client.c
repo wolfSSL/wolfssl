@@ -1040,12 +1040,16 @@ static int ClientRead(WOLFSSL* ssl, char* reply, int replyLen, int mustRead,
     int ret, err;
     char buffer[WOLFSSL_MAX_ERROR_SZ];
     double start = current_time(1), elapsed;
+    int wantReadLoops = 0;
 
     do {
         err = 0; /* reset error */
         ret = wolfSSL_read(ssl, reply, replyLen);
         if (ret <= 0) {
             err = wolfSSL_get_error(ssl, 0);
+            fprintf(stderr,
+                    "DEBUG ClientRead: ret=%d err=%d mustRead=%d str=%s\n",
+                    ret, err, mustRead, str);
         #ifdef WOLFSSL_ASYNC_CRYPT
             if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
                 ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
@@ -1071,6 +1075,7 @@ static int ClientRead(WOLFSSL* ssl, char* reply, int replyLen, int mustRead,
         if (mustRead &&
             (err == WOLFSSL_ERROR_WANT_READ
              || err == WOLFSSL_ERROR_WANT_WRITE)) {
+            wantReadLoops++;
             elapsed = current_time(0) - start;
             if (elapsed > MAX_NON_BLOCK_SEC) {
                 LOG_ERROR("Nonblocking read timeout\n");
@@ -1089,6 +1094,9 @@ static int ClientRead(WOLFSSL* ssl, char* reply, int replyLen, int mustRead,
         reply[ret] = 0; /* null terminate */
         printf("%s%s\n", str, reply);
     }
+    fprintf(stderr,
+            "DEBUG ClientRead done: ret=%d err=%d mustRead=%d str=%s loops=%d\n",
+            ret, err, mustRead, str, wantReadLoops);
 
     return err;
 }
@@ -1098,6 +1106,9 @@ static int ClientWriteRead(WOLFSSL* ssl, const char* msg, int msgSz,
         const char* str, int exitWithRet)
 {
     int ret = 0;
+    fprintf(stderr,
+            "DEBUG ClientWriteRead: msgSz=%d mustRead=%d str=%s\n",
+            msgSz, mustRead, str);
 
     do {
         ret = ClientWrite(ssl, msg, msgSz, str, exitWithRet);
@@ -4775,6 +4786,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             XMEMCPY(msg, kResumeMsg, (size_t)msgSz);
         }
 
+        fprintf(stderr,
+                "DEBUG resume ClientWriteRead: sendGET=%d mustRead=%d msgSz=%d\n",
+                sendGET, sendGET, msgSz);
         (void)ClientWriteRead(sslResume, msg, msgSz, reply, sizeof(reply)-1,
                 sendGET, " resume", 0);
 
