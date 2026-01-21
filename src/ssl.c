@@ -12058,7 +12058,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         if (ssl->buffers.weOwnKey) {
             WOLFSSL_MSG("Unloading key");
-            ForceZero(ssl->buffers.key->buffer, ssl->buffers.key->length);
+            if (ssl->buffers.key != NULL && ssl->buffers.key->buffer != NULL)
+                ForceZero(ssl->buffers.key->buffer, ssl->buffers.key->length);
             FreeDer(&ssl->buffers.key);
         #ifdef WOLFSSL_BLIND_PRIVATE_KEY
             FreeDer(&ssl->buffers.keyMask);
@@ -12069,7 +12070,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 #ifdef WOLFSSL_DUAL_ALG_CERTS
         if (ssl->buffers.weOwnAltKey) {
             WOLFSSL_MSG("Unloading alt key");
-            ForceZero(ssl->buffers.altKey->buffer, ssl->buffers.altKey->length);
+            if (ssl->buffers.altKey != NULL && ssl->buffers.altKey->buffer != NULL)
+                ForceZero(ssl->buffers.altKey->buffer, ssl->buffers.altKey->length);
             FreeDer(&ssl->buffers.altKey);
         #ifdef WOLFSSL_BLIND_PRIVATE_KEY
             FreeDer(&ssl->buffers.altKeyMask);
@@ -20953,6 +20955,8 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         ssl->buffers.weOwnKey = 1;
     }
     else {
+        if (ssl->buffers.key != NULL && ssl->buffers.weOwnKey)
+            FreeDer(&ssl->buffers.key);
         ssl->buffers.key      = ctx->privateKey;
     }
 #else
