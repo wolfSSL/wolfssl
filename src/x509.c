@@ -11953,6 +11953,17 @@ static WOLFSSL_X509 *loadX509orX509REQFromPemBio(WOLFSSL_BIO *bp,
         return NULL;
     }
     footerSz = (long)XSTRLEN(footer);
+    
+    /* For TRUSTED_CERT_TYPE, also prepare to check for regular CERT footer
+     * as the file might contain regular certificates instead of TRUSTED format */
+    const char* altFooter = NULL;
+    long altFooterSz = 0;
+    if (type == TRUSTED_CERT_TYPE) {
+        wc_PemGetHeaderFooter(CERT_TYPE, NULL, &altFooter);
+        if (altFooter != NULL) {
+            altFooterSz = (long)XSTRLEN(altFooter);
+        }
+    }
 
     /* TODO: Inefficient
      * reading in one byte at a time until see the footer
@@ -11993,8 +12004,19 @@ static WOLFSSL_X509 *loadX509orX509REQFromPemBio(WOLFSSL_BIO *bp,
             return NULL;
         }
 
+        /* Check for the expected footer OR alternate footer (for TRUSTED_CERT_TYPE) */
+        int foundFooter = 0;
         if (i > footerSz && XMEMCMP((char *)&pem[i-footerSz], footer,
                 footerSz) == 0) {
+            foundFooter = 1;
+        }
+        else if (altFooter && i > altFooterSz && 
+                 XMEMCMP((char *)&pem[i-altFooterSz], altFooter,
+                         altFooterSz) == 0) {
+            foundFooter = 1;
+        }
+        
+        if (foundFooter) {
             if (i < pemSz && wolfSSL_BIO_read(bp, (char *)&pem[i], 1) == 1) {
                 /* attempt to read newline following footer */
                 i++;
