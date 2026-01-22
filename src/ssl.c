@@ -17128,7 +17128,15 @@ long wolfSSL_set_options(WOLFSSL* ssl, long op)
         if (AllocateSuites(ssl) != 0)
             return 0;
         if (!ssl->suites->setSuites) {
-            InitSuites(ssl->suites, ssl->version, keySz, haveRSA,
+            /* Client side won't set DH params, so it needs haveDH set to TRUE. */
+            if (ssl->options.side == WOLFSSL_CLIENT_END)
+                InitSuites(ssl->suites, ssl->version, keySz, haveRSA,
+                       havePSK, TRUE, ssl->options.haveECDSAsig,
+                       ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
+                       ssl->options.useAnon,
+                       TRUE, TRUE, TRUE, TRUE, ssl->options.side);
+            else
+                InitSuites(ssl->suites, ssl->version, keySz, haveRSA,
                        havePSK, ssl->options.haveDH, ssl->options.haveECDSAsig,
                        ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
                        ssl->options.useAnon,
