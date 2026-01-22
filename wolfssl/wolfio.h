@@ -1003,7 +1003,7 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
             #define XINET_PTON(a,b,c)   *(unsigned *)(c) = inet_addr((b))
         #endif
     #elif defined(USE_WINDOWS_API) /* Windows-friendly definition */
-        #if defined(__MINGW64__) && !defined(UNICODE)
+        #if (defined(__MINGW32__) || defined(__MINGW64__)) && !defined(UNICODE)
             #define XINET_PTON(a,b,c)   InetPton((a),(b),(c))
         #else
             #define XINET_PTON(a,b,c)   InetPton((a),(PCWSTR)(b),(c))
