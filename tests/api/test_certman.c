@@ -232,7 +232,8 @@ int test_wolfSSL_CertManagerAPI(void)
     return EXPECT_RESULT();
 }
 
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS)
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_RSA)
 static int test_cm_load_ca_buffer(const byte* cert_buf, size_t cert_sz,
     int file_type)
 {
@@ -377,7 +378,8 @@ static int test_cm_load_ca_file_ex(const char* ca_cert_file, word32 flags)
 int test_wolfSSL_CertManagerLoadCABuffer(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS)
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_RSA)
 #if defined(WOLFSSL_PEM_TO_DER)
     const char* ca_cert = "./certs/ca-cert.pem";
     const char* ca_expired_cert = "./certs/test/expired/expired-ca.pem";
@@ -414,7 +416,8 @@ int test_wolfSSL_CertManagerLoadCABuffer(void)
 int test_wolfSSL_CertManagerLoadCABuffer_ex(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS)
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_RSA)
 #if defined(WOLFSSL_PEM_TO_DER)
     const char* ca_cert = "./certs/ca-cert.pem";
     const char* ca_expired_cert = "./certs/test/expired/expired-ca.pem";
@@ -458,7 +461,8 @@ int test_wolfSSL_CertManagerLoadCABufferType(void)
     EXPECT_DECLS;
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
     !defined(NO_RSA) && !defined(NO_SHA256) && \
-    !defined(WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION)
+    !defined(WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_RSA)
 #if defined(WOLFSSL_PEM_TO_DER)
     const char* ca_cert = "./certs/ca-cert.pem";
     const char* int1_cert = "./certs/intermediate/ca-int-cert.pem";

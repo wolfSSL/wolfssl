@@ -35,7 +35,8 @@ extern const char* currentTestName;
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
     (!defined(NO_RSA) || defined(HAVE_RPK)) && \
     !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
-    (!defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_TLS13))
+    (!defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_TLS13)) && \
+    !defined(WC_TEST_SKIP_RSA) && !defined(WC_TEST_SKIP_ECC)
 #define HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES
 #define TEST_MEMIO_BUF_SZ (64 * 1024)
 #define TEST_MEMIO_MAX_MSGS 32

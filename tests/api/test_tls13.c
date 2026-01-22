@@ -49,7 +49,7 @@ static       char earlyDataBuffer[1];
 int test_tls13_apis(void)
 {
     EXPECT_DECLS;
-#ifdef WOLFSSL_TLS13
+#if defined(WOLFSSL_TLS13) && !defined(WC_TEST_SKIP_ECC)
 #if defined(HAVE_SUPPORTED_CURVES) && defined(HAVE_ECC) && \
     (!defined(NO_WOLFSSL_SERVER) || !defined(NO_WOLFSSL_CLIENT))
     int          ret;
@@ -829,7 +829,7 @@ int test_tls13_apis(void)
     wolfSSL_CTX_free(clientTls12Ctx);
 #endif
 #endif
-#endif /* WOLFSSL_TLS13 */
+#endif /* WOLFSSL_TLS13 && !defined(WC_TEST_SKIP_ECC) */
 
     return EXPECT_RESULT();
 }
@@ -2645,7 +2645,7 @@ int test_tls13_ks_missing(void)
 }
 
 #if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_CLIENT) && \
-    defined(HAVE_ECC)
+    defined(HAVE_ECC) && !defined(WC_TEST_SKIP_ECC)
 /* Called when writing. */
 static int DESend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 {
@@ -2682,7 +2682,7 @@ int test_tls13_duplicate_extension(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_CLIENT) && \
-    defined(HAVE_ECC)
+    defined(HAVE_ECC) && !defined(WC_TEST_SKIP_ECC)
     WOLFSSL_CTX *ctx = NULL;
     WOLFSSL *ssl = NULL;
     byte serverHello[] = {
@@ -2740,7 +2740,7 @@ int test_key_share_mismatch(void)
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
     defined(HAVE_SUPPORTED_CURVES) && defined(HAVE_ECC) && \
-    defined(BUILD_TLS_AES_128_GCM_SHA256)
+    !defined(WC_TEST_SKIP_ECC) && defined(BUILD_TLS_AES_128_GCM_SHA256)
     /* Taken from payload in https://github.com/wolfSSL/wolfssl/issues/9362 */
     const byte ch1_bin[] = {
         0x16, 0x03, 0x03, 0x00, 0x96, 0x01, 0x00, 0x00, 0x92, 0x03, 0x03, 0x01,
@@ -2817,7 +2817,8 @@ int test_key_share_mismatch(void)
 
 
 #if defined(WOLFSSL_TLS13) && !defined(NO_RSA) && defined(HAVE_ECC) && \
-    defined(HAVE_AESGCM) && !defined(NO_WOLFSSL_SERVER)
+    !defined(WC_TEST_SKIP_ECC) && defined(HAVE_AESGCM) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(WC_TEST_SKIP_RSA)
 /* Called when writing. */
 static int Tls13PTASend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 {
@@ -2865,7 +2866,8 @@ int test_tls13_plaintext_alert(void)
     EXPECT_DECLS;
 
 #if defined(WOLFSSL_TLS13) && !defined(NO_RSA) && defined(HAVE_ECC) && \
-    defined(HAVE_AESGCM) && !defined(NO_WOLFSSL_SERVER)
+    !defined(WC_TEST_SKIP_ECC) && defined(HAVE_AESGCM) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(WC_TEST_SKIP_RSA)
     byte clientMsgs[] = {
         /* Client Hello */
         0x16, 0x03, 0x03, 0x01, 0x9b, 0x01, 0x00, 0x01,
@@ -3043,4 +3045,3 @@ int test_tls13_plaintext_alert(void)
 
     return EXPECT_RESULT();
 }
-

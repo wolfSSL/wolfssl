@@ -360,7 +360,8 @@
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
     !defined(NO_RSA) && \
     !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
-    !defined(WOLFSSL_TIRTOS)
+    !defined(WOLFSSL_TIRTOS) && \
+    !defined(WC_TEST_SKIP_RSA) && !defined(WC_TEST_SKIP_ECC)
     #define HAVE_SSL_MEMIO_TESTS_DEPENDENCIES
 #endif
 #ifdef HAVE_SSL_MEMIO_TESTS_DEPENDENCIES
@@ -443,7 +444,8 @@ int test_wolfSSL_client_server_nofail_memio(test_ssl_cbf* client_cb,
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
     !defined(NO_RSA)        && !defined(SINGLE_THREADED) && \
-    !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT)
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(WC_TEST_SKIP_RSA)
     #define HAVE_IO_TESTS_DEPENDENCIES
 #endif
 

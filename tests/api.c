@@ -252,7 +252,8 @@
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
     !defined(NO_RSA) && \
     !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
-    !defined(WOLFSSL_TIRTOS)
+    !defined(WOLFSSL_TIRTOS) && \
+    !defined(WC_TEST_SKIP_RSA) && !defined(WC_TEST_SKIP_ECC)
     #define HAVE_SSL_MEMIO_TESTS_DEPENDENCIES
 #endif
 
@@ -5980,6 +5981,7 @@ done:
 /* Generic TLS client / server with callbacks for API unit tests
  * Used by SNI / ALPN / crypto callback helper functions */
 #if defined(HAVE_IO_TESTS_DEPENDENCIES) && \
+    !defined(WC_TEST_SKIP_ECC) && \
     (defined(HAVE_SNI) || defined(HAVE_ALPN) || defined(WOLF_CRYPTO_CB) || \
      defined(HAVE_ALPN_PROTOS_SUPPORT)) || defined(WOLFSSL_STATIC_MEMORY)
     #define ENABLE_TLS_CALLBACK_TEST
@@ -6399,7 +6401,7 @@ cleanup:
 static int test_wolfSSL_read_write(void)
 {
     EXPECT_DECLS;
-#ifndef NO_SHA256
+#if !defined(NO_SHA256) && !defined(WC_TEST_SKIP_ECC)
     /* The unit testing for read and write shall happen simultaneously, since
      * one can't do anything with one without the other. (Except for a failure
      * test case.) This function will call all the others that will set up,
@@ -6466,6 +6468,7 @@ static int test_wolfSSL_read_write(void)
 static int test_wolfSSL_read_write_ex(void)
 {
     EXPECT_DECLS;
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
     WOLFSSL_CTX *ctx_c = NULL;
     WOLFSSL_CTX *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL;
@@ -6500,6 +6503,9 @@ static int test_wolfSSL_read_write_ex(void)
     wolfSSL_CTX_free(ctx_c);
     wolfSSL_CTX_free(ctx_s);
     return TEST_SUCCESS;
+#else
+    return EXPECT_RESULT();
+#endif
 }
 
 static int test_wolfSSL_reuse_WOLFSSLobj(void)
@@ -8539,6 +8545,7 @@ static int test_wolfSSL_UseSNI_params(void)
     return EXPECT_RESULT();
 }
 
+#if defined(ENABLE_TLS_CALLBACK_TEST)
 /* BEGIN of connection tests callbacks */
 static void use_SNI_at_ctx(WOLFSSL_CTX* ctx)
 {
@@ -8641,12 +8648,14 @@ static void verify_FATAL_ERROR_on_client(WOLFSSL* ssl)
 {
     AssertIntEQ(WC_NO_ERR_TRACE(FATAL_ERROR), wolfSSL_get_error(ssl, 0));
 }
+#endif /* ENABLE_TLS_CALLBACK_TEST */
 /* END of connection tests callbacks */
 
 static int test_wolfSSL_UseSNI_connection(void)
 {
     int res = TEST_SKIPPED;
-#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(ENABLE_TLS_CALLBACK_TEST)
     callback_functions client_cb;
     callback_functions server_cb;
     size_t i;
@@ -24864,7 +24873,9 @@ static int test_SSL_CIPHER_get_xxx(void)
     return EXPECT_RESULT();
 }
 
-#if defined(WOLF_CRYPTO_CB) && defined(HAVE_IO_TESTS_DEPENDENCIES)
+#if defined(WOLF_CRYPTO_CB) && defined(HAVE_IO_TESTS_DEPENDENCIES) && \
+defined(ENABLE_TLS_CALLBACK_TEST) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
+!defined(WOLF_CRYPTO_CB_ONLY_RSA)
 
 static int load_pem_key_file_as_der(const char* privKeyFile, DerBuffer** pDer,
     int* keyFormat)
@@ -25575,7 +25586,8 @@ static int test_wc_CryptoCb_TLS(int tlsVer,
 static int test_wc_CryptoCb(void)
 {
     EXPECT_DECLS;
-#ifdef WOLF_CRYPTO_CB
+#if defined(WOLF_CRYPTO_CB) && defined(ENABLE_TLS_CALLBACK_TEST) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_RSA)
     /* TODO: Add crypto callback API tests */
 
 #ifdef HAVE_IO_TESTS_DEPENDENCIES
@@ -29292,9 +29304,9 @@ static int test_certreq_sighash_algos(void)
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     !defined(WOLFSSL_MAX_STRENGTH) && defined(HAVE_ECC) && \
-    !defined(NO_SHA256) && defined(WOLFSSL_SHA384) && \
-    defined(WOLFSSL_AES_256) && defined(HAVE_AES_CBC) && \
-    !defined(WOLFSSL_NO_TLS12)
+    !defined(WC_TEST_SKIP_ECC) && !defined(NO_SHA256) && \
+    defined(WOLFSSL_SHA384) && defined(WOLFSSL_AES_256) && \
+    defined(HAVE_AES_CBC) && !defined(WOLFSSL_NO_TLS12)
     WOLFSSL_CTX *ctx_c = NULL;
     WOLFSSL_CTX *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL;

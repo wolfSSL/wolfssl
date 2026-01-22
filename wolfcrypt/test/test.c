@@ -726,7 +726,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t scrypt_test(void);
     #if defined(USE_CERT_BUFFERS_256) && !defined(WOLFSSL_ATECC508A) && \
         !defined(WOLFSSL_ATECC608A) && !defined(NO_ECC256) && \
         defined(HAVE_ECC_VERIFY) && defined(HAVE_ECC_SIGN) && \
-        !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(NO_ECC_SECP)
+        !defined(WC_TEST_SKIP_ECC) && !defined(NO_ECC_SECP)
         /* skip for ATECC508/608A, cannot import private key buffers */
         WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test_buffers(void);
     #endif
@@ -2676,7 +2676,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
     else
         TEST_PASS("OPENSSL (PKEY1) passed!\n");
 
-    #if !defined(WOLF_CRYPTO_CB_ONLY_RSA) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    #if !defined(WC_TEST_SKIP_RSA) && !defined(WC_TEST_SKIP_ECC)
     if ( (ret = openssl_evpSig_test()) != 0)
         TEST_FAIL("OPENSSL (EVP Sign/Verify) test failed!\n", ret);
     else
@@ -2701,7 +2701,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
     #if defined(USE_CERT_BUFFERS_256) && !defined(WOLFSSL_ATECC508A) && \
         !defined(WOLFSSL_ATECC608A) && !defined(NO_ECC256) && \
         defined(HAVE_ECC_VERIFY) && defined(HAVE_ECC_SIGN) && \
-        !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(NO_ECC_SECP)
+        !defined(WC_TEST_SKIP_ECC) && !defined(NO_ECC_SECP)
         /* skip for ATECC508/608A, cannot import private key buffers */
         if ( (ret = ecc_test_buffers()) != 0)
             TEST_FAIL("ECC buffer test failed!\n", ret);
@@ -2946,6 +2946,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 #endif
 
 #if defined(WOLF_CRYPTO_CB) && !defined(WC_TEST_NO_CRYPTOCB_SW_TEST) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_RSA) && \
     !(defined(HAVE_INTEL_QAT_SYNC) || defined(HAVE_CAVIUM_OCTEON_SYNC) || \
       defined(WOLFSSL_QNX_CAAM) || defined(HAVE_RENESAS_SYNC))
     if ( (ret = cryptocb_test()) != 0)
@@ -21292,12 +21293,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t memory_test(void)
         #endif
     #endif
     #if defined(HAVE_ECC_KEY_EXPORT) && !defined(WC_NO_RNG) && \
-        !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(NO_ASN_CRYPT)
+        !defined(WC_TEST_SKIP_ECC) && !defined(NO_ASN_CRYPT)
         static const char* eccCaKeyPemFile  = CERT_WRITE_TEMP_DIR "ecc-key.pem";
         static const char* eccPubKeyDerFile = CERT_WRITE_TEMP_DIR "ecc-public-key.der";
         static const char* eccCaKeyTempFile = CERT_WRITE_TEMP_DIR "ecc-key.der";
     #if defined(HAVE_PKCS8) && !defined(WC_NO_RNG) && \
-       !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+       !defined(WC_TEST_SKIP_ECC)
         static const char* eccPkcs8KeyDerFile = CERT_WRITE_TEMP_DIR "ecc-key-pkcs8.der";
     #endif
     #endif /* HAVE_ECC_KEY_EXPORT */
@@ -22215,7 +22216,7 @@ static wc_test_ret_t rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG
     if (ret != 0)
 #elif defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
     /* async may not require RNG */
-    #if defined(WOLF_CRYPTO_CB_ONLY_RSA)
+    #if defined(WC_TEST_SKIP_RSA)
     if (ret != WC_NO_ERR_TRACE(NO_VALID_DEVID))
     #else
     if (ret != 0 && ret != WC_NO_ERR_TRACE(MISSING_RNG_E))
@@ -22268,7 +22269,7 @@ static wc_test_ret_t rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG
     if (ret != WC_NO_ERR_TRACE(SIG_TYPE_E))
         return WC_TEST_RET_ENC_EC(ret);
 #endif
-#if defined(WOLF_CRYPTO_CB_ONLY_RSA)
+#if defined(WC_TEST_SKIP_RSA)
     return 0;
 #endif
     /* Use APIs. */
@@ -22728,7 +22729,7 @@ done:
     !defined(WC_NO_RNG)
 /* Need to create known good signatures to test with this. */
 #if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
-!defined(WOLF_CRYPTO_CB_ONLY_RSA)
+!defined(WC_TEST_SKIP_RSA)
 static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
 {
     byte             digest[WC_MAX_DIGEST_SIZE];
@@ -24086,7 +24087,7 @@ static wc_test_ret_t rsa_keygen_test(WC_RNG* rng)
     int    keySz = 2048;
 #endif
 
-#ifdef WOLF_CRYPTO_CB_ONLY_RSA
+#ifdef WC_TEST_SKIP_RSA
     if (devId == INVALID_DEVID) {
         /* must call keygen with devId */
         return 0;
@@ -24184,7 +24185,7 @@ exit_rsa:
 #if !defined(WC_NO_RSA_OAEP) && !defined(WC_NO_RNG) && \
     (!defined(HAVE_FIPS) || \
       (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))) \
-      && !defined(WOLF_CRYPTO_CB_ONLY_RSA)
+      && !defined(WC_TEST_SKIP_RSA)
 static wc_test_ret_t rsa_oaep_padding_test(RsaKey* key, WC_RNG* rng)
 {
     wc_test_ret_t ret = 0;
@@ -24721,7 +24722,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
 #endif
 
 #if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
-    !defined(WC_NO_RNG) && !defined(WOLF_CRYPTO_CB_ONLY_RSA)
+    !defined(WC_NO_RNG) && !defined(WC_TEST_SKIP_RSA)
     do {
 #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
@@ -24834,7 +24835,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
 
 #if !defined(WC_NO_RNG) && !defined(WC_NO_RSA_OAEP) && \
     !defined(WOLFSSL_RSA_VERIFY_ONLY) && defined(WOLFSSL_PUBLIC_MP) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_RSA)
+    !defined(WC_TEST_SKIP_RSA)
     idx = (word32)ret;
     XMEMSET(plain, 0, plainSz);
     do {
@@ -24881,7 +24882,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
     #if !defined(WC_NO_RSA_OAEP) && !defined(WC_NO_RNG)
     #if (!defined(HAVE_FIPS) || \
          (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))) \
-         && !defined(WOLF_CRYPTO_CB_ONLY_RSA)
+         && !defined(WC_TEST_SKIP_RSA)
     ret = rsa_oaep_padding_test(key, &rng);
     if (ret != 0)
         goto exit_rsa;
@@ -25138,7 +25139,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
     !defined(WC_NO_RNG)
 /* Need to create known good signatures to test with this. */
 #if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_RSA)
+    !defined(WC_TEST_SKIP_RSA)
     ret = rsa_pss_test(&rng, key);
     if (ret != 0)
         goto exit_rsa;
@@ -32158,7 +32159,7 @@ typedef struct eccVector {
     word32      sSz;
 } eccVector;
 
-#if !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+#if !defined(WC_TEST_SKIP_ECC)
 static wc_test_ret_t ecc_test_vector_item(const eccVector* vector)
 {
     wc_test_ret_t ret = 0;
@@ -32520,7 +32521,7 @@ static wc_test_ret_t ecc_test_vector(int keySize)
 
     return 0;
 }
-#endif /* WOLF_CRYPTO_CB_ONLY_ECC */
+#endif /* WC_TEST_SKIP_ECC */
 
 #if defined(HAVE_ECC_SIGN) && \
     (defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
@@ -33234,7 +33235,7 @@ static wc_test_ret_t ecc_test_make_pub(WC_RNG* rng)
 #else
     ecc_key key[1];
 #if defined(HAVE_ECC_DHE) && defined(HAVE_ECC_KEY_EXPORT) && !defined(WC_NO_RNG) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    !defined(WC_TEST_SKIP_ECC)
     ecc_key pub[1];
 #endif
     byte exportBuf[ECC_BUFSIZE];
@@ -33385,7 +33386,7 @@ static wc_test_ret_t ecc_test_make_pub(WC_RNG* rng)
 
 #if defined(HAVE_ECC_SIGN) && (!defined(ECC_TIMING_RESISTANT) || \
     (defined(ECC_TIMING_RESISTANT) && !defined(WC_NO_RNG))) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(HAVE_ECC_DETERMINISTIC_K)
+    !defined(WC_TEST_SKIP_ECC) && !defined(HAVE_ECC_DETERMINISTIC_K)
     tmpSz = ECC_BUFSIZE;
     ret = 0;
     do {
@@ -33454,7 +33455,7 @@ static wc_test_ret_t ecc_test_make_pub(WC_RNG* rng)
     }
 #endif /* WOLFSSL_QNX_CAAM */
 
-#ifndef WOLF_CRYPTO_CB_ONLY_ECC
+#ifndef WC_TEST_SKIP_ECC
     /* make public key for shared secret */
     wc_ecc_init_ex(pub, HEAP_HINT, devId);
     ret = wc_ecc_make_key(rng, ECC_KEYGEN_SIZE, pub);
@@ -33490,7 +33491,7 @@ static wc_test_ret_t ecc_test_make_pub(WC_RNG* rng)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
     TEST_SLEEP();
 #endif /* HAVE_ECC_DHE && HAVE_ECC_KEY_EXPORT && !WC_NO_RNG */
-#endif /* WOLF_CRYPTO_CB_ONLY_ECC */
+#endif /* WC_TEST_SKIP_ECC */
     ret = 0;
 
 done:
@@ -33516,7 +33517,7 @@ done:
 }
 
 #if defined(HAVE_ECC_KEY_EXPORT) && !defined(NO_ASN_CRYPT) && \
-   !defined(WC_NO_RNG) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+   !defined(WC_NO_RNG) && !defined(WC_TEST_SKIP_ECC)
 static wc_test_ret_t ecc_test_key_decode(WC_RNG* rng, int keySize)
 {
     wc_test_ret_t ret;
@@ -33597,7 +33598,7 @@ static wc_test_ret_t ecc_test_key_decode(WC_RNG* rng, int keySize)
 #endif /* HAVE_ECC_KEY_IMPORT */
 
 #if defined(HAVE_ECC_KEY_EXPORT) && !defined(NO_ASN_CRYPT) && \
-   !defined(WC_NO_RNG) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+   !defined(WC_NO_RNG) && !defined(WC_TEST_SKIP_ECC)
 static wc_test_ret_t ecc_test_key_gen(WC_RNG* rng, int keySize)
 {
     wc_test_ret_t ret = 0;
@@ -33817,7 +33818,7 @@ static wc_test_ret_t ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerif
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &userA->asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
-#ifdef WOLF_CRYPTO_CB_ONLY_ECC
+#ifdef WC_TEST_SKIP_ECC
     if (ret == WC_NO_ERR_TRACE(NO_VALID_DEVID)) {
         ret = 0;
         goto done; /* no software case */
@@ -34185,7 +34186,7 @@ static wc_test_ret_t ecc_test_curve(WC_RNG* rng, int keySize, int curve_id)
             return ret;
         }
     }
-#ifndef WOLF_CRYPTO_CB_ONLY_ECC
+#ifndef WC_TEST_SKIP_ECC
 #if FIPS_VERSION3_GE(6,0,0)
   skip_A:
 #endif
@@ -34232,14 +34233,14 @@ static wc_test_ret_t ecc_test_curve(WC_RNG* rng, int keySize, int curve_id)
 #if FIPS_VERSION3_GE(6,0,0)
   skip_B:
 #endif
-#endif /* WOLF_CRYPTO_CB_ONLY_ECC */
+#endif /* WC_TEST_SKIP_ECC */
     return 0;
 }
 
 #if (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
     defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT) && \
-    !defined(WOLFSSL_NO_MALLOC) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    !defined(WOLFSSL_NO_MALLOC) && !defined(WC_TEST_SKIP_ECC)
 static wc_test_ret_t ecc_point_test(void)
 {
     wc_test_ret_t ret;
@@ -34468,7 +34469,7 @@ done:
 }
 #endif /* !WOLFSSL_ATECC508A && HAVE_ECC_KEY_IMPORT && HAVE_ECC_KEY_EXPORT */
 
-#if !defined(NO_SIG_WRAPPER) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
+#if !defined(NO_SIG_WRAPPER) && !defined(WC_TEST_SKIP_ECC) && \
     !defined(NO_ECC_SIGN)
 static wc_test_ret_t ecc_sig_test(WC_RNG* rng, ecc_key* key)
 {
@@ -34527,7 +34528,7 @@ static wc_test_ret_t ecc_sig_test(WC_RNG* rng, ecc_key* key)
 #endif
 
 #if defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT) && \
-   !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+   !defined(WC_TEST_SKIP_ECC)
 
 static wc_test_ret_t ecc_exp_imp_test(ecc_key* key)
 {
@@ -34724,6 +34725,9 @@ done:
 }
 #endif
 
+/* must be disabled under WOLF_CRYPTO_CB_ONLY_ECC as it uses
+* wc_ecc_shared_secret_ex that is not defined when
+* WOLF_CRYPTO_CB_ONLY_ECC is set */
 #if defined(HAVE_ECC_DHE) && !defined(WC_NO_RNG) && \
     !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_ATECC508A) && \
     !defined(WOLFSSL_ATECC608A) && !defined(PLUTON_CRYPTO_ECC) && \
@@ -34805,7 +34809,7 @@ static wc_test_ret_t ecc_def_curve_test(WC_RNG *rng)
     ret = wc_ecc_set_flags(key, 0);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
-#ifndef WOLF_CRYPTO_CB_ONLY_ECC
+#ifndef WC_TEST_SKIP_ECC
 #ifndef WC_NO_RNG
     ret = wc_ecc_make_key(rng, ECC_KEYGEN_SIZE, key);
     #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -34874,7 +34878,7 @@ static wc_test_ret_t ecc_def_curve_test(WC_RNG *rng)
         goto done;
 #endif
 #if defined(HAVE_ECC_KEY_IMPORT) && !defined(WOLFSSL_VALIDATE_ECC_IMPORT) && \
-    !defined(WOLFSSL_CRYPTOCELL)
+    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
     ret = ecc_mulmod_test(key);
     if (ret < 0)
         goto done;
@@ -34883,7 +34887,7 @@ static wc_test_ret_t ecc_def_curve_test(WC_RNG *rng)
 #else
    (void)rng;
    (void)idx;
-#endif /* WOLF_CRYPTO_CB_ONLY_ECC */
+#endif /* WC_TEST_SKIP_ECC */
 done:
 
     wc_ecc_free(key);
@@ -36038,7 +36042,7 @@ exit:
 #endif /* WOLFSSL_CERT_GEN */
 
 #if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
-    !defined(WOLFSSL_NO_MALLOC) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
+    !defined(WOLFSSL_NO_MALLOC) && !defined(WC_TEST_SKIP_ECC) && \
     (!defined(NO_ECC_SECP) || defined(WOLFSSL_CUSTOM_CURVES))
 /* Test for the wc_ecc_key_new() and wc_ecc_key_free() functions. */
 static wc_test_ret_t ecc_test_allocator(WC_RNG* rng)
@@ -36701,7 +36705,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test(void)
     }
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
     defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT) && \
-    !defined(WOLFSSL_NO_MALLOC) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    !defined(WOLFSSL_NO_MALLOC) && !defined(WC_TEST_SKIP_ECC)
     ret = ecc_point_test();
     if (ret < 0) {
         goto done;
@@ -36852,7 +36856,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test(void)
     }
 #endif
 #if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && !defined(WOLFSSL_NO_MALLOC) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && (!defined(NO_ECC_SECP) || \
+    !defined(WC_TEST_SKIP_ECC) && (!defined(NO_ECC_SECP) || \
     defined(WOLFSSL_CUSTOM_CURVES))
     ret = ecc_test_allocator(&rng);
     if (ret != 0) {
@@ -37694,7 +37698,7 @@ done:
 #if defined(USE_CERT_BUFFERS_256) && !defined(WOLFSSL_ATECC508A) && \
     !defined(WOLFSSL_ATECC608A) && !defined(NO_ECC256) && \
     defined(HAVE_ECC_VERIFY) && defined(HAVE_ECC_SIGN) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(NO_ECC_SECP)
+    !defined(WC_TEST_SKIP_ECC) && !defined(NO_ECC_SECP)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test_buffers(void)
 {
     size_t bytes;
@@ -61838,6 +61842,7 @@ typedef struct {
 } myCryptoDevCtx;
 
 #ifdef WOLF_CRYPTO_CB_ONLY_RSA
+#define CRYPTO_CB_ONLY_RSA_TEST_BYTES 512
 /* Testing rsa cb when CB_ONLY_RSA is enabled
  * When CB_ONLY_RSA is enabled, software imple. is not available.
  *
@@ -61911,6 +61916,7 @@ static wc_test_ret_t rsa_onlycb_test(myCryptoDevCtx *ctx)
 #elif defined(USE_CERT_BUFFERS_4096)
     XMEMCPY(tmp, client_key_der_4096, (size_t)sizeof_client_key_der_4096);
 #elif !defined(NO_FILESYSTEM)
+    (void)clientCert;
     file = XFOPEN(clientKey, "rb");
     if (!file) {
         ret = WC_TEST_RET_ENC_ERRNO;
@@ -62373,7 +62379,7 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
         if (info->pk.type == WC_PK_TYPE_RSA) {
             /* set devId to invalid, so software is used */
             info->pk.rsa.key->devId = INVALID_DEVID;
-            #if defined(WOLF_CRYPTO_CB_ONLY_RSA)
+            #if defined(WC_TEST_SKIP_RSA)
             #ifdef DEBUG_WOLFSSL
             printf("CryptoDevCb: exampleVar %d\n", myCtx->exampleVar);
             #endif
@@ -62407,7 +62413,7 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     #ifdef WOLFSSL_KEY_GEN
         else if (info->pk.type == WC_PK_TYPE_RSA_KEYGEN) {
             info->pk.rsakg.key->devId = INVALID_DEVID;
-            #if defined(WOLF_CRYPTO_CB_ONLY_RSA)
+            #if defined(WC_TEST_SKIP_RSA)
             #ifdef DEBUG_WOLFSSL
             printf("CryptoDevCb: exampleVar %d\n", myCtx->exampleVar);
             #endif
@@ -63407,7 +63413,9 @@ static int myCryptoCbFind(int currentId, int algoType)
 #endif /* WOLF_CRYPTO_CB_FIND */
 
 
-#if !defined(WC_TEST_NO_CRYPTOCB_SW_TEST)
+#if !defined(WC_TEST_NO_CRYPTOCB_SW_TEST) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_RSA)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
 {
     wc_test_ret_t ret = 0;
@@ -63436,7 +63444,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
         ret = rsa_test();
     PRIVATE_KEY_LOCK();
 #endif
-#if defined(WOLF_CRYPTO_CB_ONLY_RSA)
+#if defined(WC_TEST_SKIP_RSA)
     PRIVATE_KEY_UNLOCK();
     if (ret == 0)
         ret = rsa_onlycb_test(&myCtx);
@@ -63552,7 +63560,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
 
     return ret;
 }
-#endif /* ! WC_TEST_NO_CRYPTOCB_SW_TEST */
+#endif /* ! WC_TEST_NO_CRYPTOCB_SW_TEST && ! WOLF_CRYPTO_CB_ONLY */
 #endif /* WOLF_CRYPTO_CB */
 
 #ifdef WOLFSSL_CERT_PIV

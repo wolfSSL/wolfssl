@@ -205,7 +205,8 @@ int test_wc_ecc_get_curve_id_from_dp_params(void)
 int test_wc_ecc_make_key(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_ECC) && !defined(WC_NO_RNG)
+#if defined(HAVE_ECC) && !defined(WC_TEST_SKIP_ECC) && \
+    !defined(WC_NO_RNG)
     ecc_key key;
     WC_RNG  rng;
     int     ret;
@@ -264,7 +265,8 @@ int test_wc_ecc_init(void)
 int test_wc_ecc_check_key(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_ECC) && !defined(WC_NO_RNG)
+#if defined(HAVE_ECC) && !defined(WC_TEST_SKIP_ECC) && \
+    !defined(WC_NO_RNG)
     ecc_key key;
     WC_RNG  rng;
     int     ret;
@@ -330,7 +332,8 @@ int test_wc_ecc_get_generator(void)
 int test_wc_ecc_size(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_ECC) && !defined(WC_NO_RNG)
+#if defined(HAVE_ECC) && !defined(WC_TEST_SKIP_ECC) && \
+    !defined(WC_NO_RNG)
     WC_RNG      rng;
     ecc_key     key;
     int         ret;
@@ -386,8 +389,8 @@ int test_wc_ecc_params(void)
 int test_wc_ecc_signVerify_hash(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_ECC) && defined(HAVE_ECC_SIGN) && !defined(NO_ASN) && \
-    !defined(WC_NO_RNG)
+#if defined(HAVE_ECC) && !defined(WC_TEST_SKIP_ECC) && \
+    defined(HAVE_ECC_SIGN) && !defined(NO_ASN) && !defined(WC_NO_RNG)
     ecc_key key;
     WC_RNG  rng;
     int     ret;
@@ -483,7 +486,8 @@ int test_wc_ecc_signVerify_hash(void)
 int test_wc_ecc_shared_secret(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_ECC) && defined(HAVE_ECC_DHE) && !defined(WC_NO_RNG)
+#if defined(HAVE_ECC) && !defined(WC_TEST_SKIP_ECC) && \
+    defined(HAVE_ECC_DHE) && !defined(WC_NO_RNG)
     ecc_key     key;
     ecc_key     pubKey;
     WC_RNG      rng;
@@ -584,7 +588,8 @@ int test_wc_ecc_shared_secret(void)
 int test_wc_ecc_export_x963(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT) && !defined(WC_NO_RNG)
+#if defined(HAVE_ECC) && !defined(WC_TEST_SKIP_ECC) && \
+    defined(HAVE_ECC_KEY_EXPORT) && !defined(WC_NO_RNG)
     ecc_key key;
     WC_RNG  rng;
     byte    out[ECC_ASN963_MAX_BUF_SZ];
@@ -638,7 +643,8 @@ int test_wc_ecc_export_x963(void)
 int test_wc_ecc_export_x963_ex(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT) && !defined(WC_NO_RNG)
+#if defined(HAVE_ECC) && !defined(WC_TEST_SKIP_ECC) && \
+    defined(HAVE_ECC_KEY_EXPORT) && !defined(WC_NO_RNG)
     ecc_key key;
     WC_RNG  rng;
     int     ret;
@@ -718,8 +724,9 @@ int test_wc_ecc_export_x963_ex(void)
 int test_wc_ecc_import_x963(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_IMPORT) && \
-    defined(HAVE_ECC_KEY_EXPORT) && !defined(WC_NO_RNG)
+#if defined(HAVE_ECC) && !defined(WC_TEST_SKIP_ECC) && \
+    defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT) && \
+    !defined(WC_NO_RNG)
     ecc_key pubKey;
     ecc_key key;
     WC_RNG  rng;
@@ -778,8 +785,9 @@ int test_wc_ecc_import_x963(void)
 int test_wc_ecc_import_private_key(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_IMPORT) && \
-    defined(HAVE_ECC_KEY_EXPORT) && !defined(WC_NO_RNG)
+#if defined(HAVE_ECC) && !defined(WC_TEST_SKIP_ECC) && \
+    defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT) && \
+    !defined(WC_NO_RNG)
     ecc_key key;
     ecc_key keyImp;
     WC_RNG  rng;
@@ -837,7 +845,8 @@ int test_wc_ecc_import_private_key(void)
 int test_wc_ecc_export_private_only(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT) && !defined(WC_NO_RNG)
+#if defined(HAVE_ECC) && !defined(WC_TEST_SKIP_ECC) && \
+    defined(HAVE_ECC_KEY_EXPORT) && !defined(WC_NO_RNG)
     ecc_key key;
     WC_RNG  rng;
     byte    out[ECC_PRIV_KEY_BUF];
@@ -1080,7 +1089,8 @@ int test_wc_ecc_import_unsigned(void)
 int test_wc_ecc_sig_size(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_ECC) && !defined(WC_NO_RNG)
+#if defined(HAVE_ECC) && !defined(WC_TEST_SKIP_ECC) && \
+    !defined(WC_NO_RNG)
     ecc_key key;
     WC_RNG  rng;
     int     keySz = KEY16;
@@ -1712,7 +1722,8 @@ int test_wc_ecc_mulmod(void)
 int test_wc_ecc_is_valid_idx(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_ECC) && !defined(WC_NO_RNG)
+#if defined(HAVE_ECC) && !defined(WC_TEST_SKIP_ECC) && \
+    !defined(WC_NO_RNG)
     ecc_key key;
     WC_RNG  rng;
     int     ret;
@@ -1772,7 +1783,8 @@ int test_wc_ecc_get_curve_id_from_oid(void)
 int test_wc_ecc_sig_size_calc(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_ECC) && !defined(WC_NO_RNG) && !defined(HAVE_SELFTEST)
+#if defined(HAVE_ECC) && !defined(WC_TEST_SKIP_ECC) && \
+    !defined(WC_NO_RNG) && !defined(HAVE_SELFTEST)
     ecc_key key;
     WC_RNG  rng;
     int     sz = 0;
@@ -1811,7 +1823,8 @@ int test_wc_ecc_sig_size_calc(void)
 int test_wc_EccPrivateKeyToDer(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT) && !defined(WC_NO_RNG)
+#if defined(HAVE_ECC) && !defined(WC_TEST_SKIP_ECC) && \
+    defined(HAVE_ECC_KEY_EXPORT) && !defined(WC_NO_RNG)
     byte    output[ONEK_BUF];
     ecc_key eccKey;
     WC_RNG  rng;
@@ -1871,4 +1884,3 @@ int test_wc_EccPrivateKeyToDer(void)
 #endif
     return EXPECT_RESULT();
 } /* End test_wc_EccPrivateKeyToDer */
-

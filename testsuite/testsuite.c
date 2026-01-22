@@ -61,7 +61,8 @@ void file_test(const char* file, byte* check);
 #endif
 
 #if !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
-    !defined(NO_TLS)
+    !defined(NO_TLS) && !defined(WC_TEST_SKIP_RSA) && \
+    !defined(WC_TEST_SKIP_ECC)
 
 #ifdef HAVE_STACK_SIZE
 static THREAD_RETURN simple_test(func_args *args);
@@ -115,7 +116,7 @@ int testsuite_test(int argc, char** argv)
 {
 #if !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
     !defined(NO_TLS) && \
-    (!defined(WOLF_CRYPTO_CB_ONLY_RSA) && !defined(WOLF_CRYPTO_CB_ONLY_ECC))
+    (!defined(WC_TEST_SKIP_RSA) && !defined(WC_TEST_SKIP_ECC))
     func_args server_args;
 
     tcp_ready ready;
@@ -423,7 +424,7 @@ cleanup:
 
 #if !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
     !defined(NO_TLS) && \
-   (!defined(WOLF_CRYPTO_CB_ONLY_RSA) && !defined(WOLF_CRYPTO_CB_ONLY_ECC))
+   (!defined(WC_TEST_SKIP_RSA) && !defined(WC_TEST_SKIP_ECC))
 /* Perform a basic TLS handshake.
  *
  * First connection to echo a file.

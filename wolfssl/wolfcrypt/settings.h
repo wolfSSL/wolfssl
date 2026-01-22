@@ -4251,6 +4251,16 @@ extern void uITRON4_free(void *p) ;
     #define WOLF_CRYPTO_CB
 #endif
 
+/* Skip RSA tests when software is compiled out and no default device is configured */
+#if defined(WOLF_CRYPTO_CB_ONLY_RSA) && !defined(WC_USE_DEVID)
+    #define WC_TEST_SKIP_RSA
+#endif
+
+/* Skip ECC tests when software is compiled out and no default device is configured */
+#if defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WC_USE_DEVID)
+    #define WC_TEST_SKIP_ECC
+#endif
+
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_NO_SIGALG)
     #error TLS 1.3 requires the Signature Algorithms extension to be enabled
 #endif
