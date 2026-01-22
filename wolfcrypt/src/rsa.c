@@ -3393,12 +3393,17 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
     #elif defined(WOLFSSL_MICROCHIP_TA100)
         if (rsa_type == RSA_PUBLIC_ENCRYPT &&
                                             pad_value == RSA_BLOCK_TYPE_2) {
-
-            return wc_Microchip_rsa_encrypt(in, inLen, out, outLen, key);
+            if (key->uKeyH != 0) {
+                return wc_Microchip_rsa_encrypt(in, inLen, out, outLen, key);
+            }
+            return WC_HW_E;
         }
         else if (rsa_type == RSA_PRIVATE_ENCRYPT &&
                                          pad_value == RSA_BLOCK_TYPE_1) {
-            return wc_Microchip_rsa_sign(in, inLen, out, outLen, key);
+            if (key->rKeyH != 0) {
+                return wc_Microchip_rsa_sign(in, inLen, out, outLen, key);
+            }
+            return WC_HW_E;
         }
     #elif defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_NO_RSA)
         if (rsa_type == RSA_PUBLIC_ENCRYPT && pad_value == RSA_BLOCK_TYPE_2) {
@@ -3565,13 +3570,18 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
     #elif defined(WOLFSSL_MICROCHIP_TA100)
         if (rsa_type == RSA_PRIVATE_DECRYPT &&
                                             pad_value == RSA_BLOCK_TYPE_2) {
-
-            return wc_Microchip_rsa_decrypt(in, inLen, out, outLen, key);
+            if (key->rKeyH != 0) {
+                return wc_Microchip_rsa_decrypt(in, inLen, out, outLen, key);
+            }
+            return WC_HW_E;
         }
         else if (rsa_type == RSA_PUBLIC_DECRYPT &&
                                          pad_value == RSA_BLOCK_TYPE_1) {
-            int tmp;
-            return wc_Microchip_rsa_verify(in, inLen, out, outLen, key, &tmp);
+            if (key->uKeyH != 0) {
+                int tmp;
+                return wc_Microchip_rsa_verify(in, inLen, out, outLen, key, &tmp);
+            }
+            return WC_HW_E;
         }
     #elif defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_NO_RSA)
         if (rsa_type == RSA_PRIVATE_DECRYPT && pad_value == RSA_BLOCK_TYPE_2) {
@@ -4422,6 +4432,12 @@ int wc_RsaEncryptSize(const RsaKey* key)
     }
 
     ret = mp_unsigned_bin_size(&key->n);
+
+#if defined(WOLFSSL_MICROCHIP_TA100)
+    if (ret == 0 && (key->rKeyH != 0 || key->uKeyH != 0)) {
+        ret = 2048 / 8;
+    }
+#endif
 
 #ifdef WOLF_CRYPTO_CB
     if (ret == 0 && key->devId != INVALID_DEVID) {

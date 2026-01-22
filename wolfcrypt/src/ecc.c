@@ -4708,7 +4708,8 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
     defined(WOLFSSL_MICROCHIP_TA100)
    /* For SECP256R1 use hardware */
-   if (private_key->dp->id == ECC_SECP256R1) {
+   if (private_key->dp->id == ECC_SECP256R1 &&
+       private_key->slot != ATECC_INVALID_SLOT) {
        err = atmel_ecc_create_pms(private_key->slot, public_key->pubkey_raw, out);
        *outlen = private_key->dp->size;
    }
@@ -5616,6 +5617,21 @@ int wc_ecc_make_pub_ex(ecc_key* key, ecc_point* pubOut, WC_RNG* rng)
     return err;
 }
 
+#if defined(WOLFSSL_MICROCHIP_TA100)
+static WC_INLINE int ta100_curve_id_for_key(const ecc_key* key)
+{
+    if (key != NULL && key->dp != NULL) {
+        switch (key->dp->size) {
+            case 28: return ECC_SECP224R1;
+            case 32: return ECC_SECP256R1;
+            case 48: return ECC_SECP384R1;
+            default: return key->dp->id;
+        }
+    }
+    return ECC_CURVE_DEF;
+}
+#endif
+
 
 static int _ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
         int curve_id, int flags)
@@ -5712,12 +5728,17 @@ static int _ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
         key->dp->id == ECC_SECP256K1 ||
         key->dp->id == ECC_BRAINPOOLP256R1) { /* supports more than ECC256R1 curve */
 #else
-    if (key->dp->id == ECC_SECP256R1) {
+    if (key->dp->id == ECC_SECP256R1 ||
+        key->dp->id == ECC_SECP224R1 ||
+        key->dp->id == ECC_SECP384R1 ||
+        key->dp->id == ECC_SECP256K1 ||
+        key->dp->id == ECC_BRAINPOOLP256R1) {
 #endif
        key->type = ECC_PRIVATEKEY;
        if (key->slot == ATECC_INVALID_SLOT)
            key->slot = atmel_ecc_alloc(ATMEL_SLOT_ECDHE);
-       err = atmel_ecc_create_key(key->slot, curve_id, key->pubkey_raw);
+       err = atmel_ecc_create_key(key->slot, ta100_curve_id_for_key(key),
+           key->pubkey_raw);
 
        /* populate key->pubkey */
        if (err == 0
@@ -5726,7 +5747,7 @@ static int _ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
        #endif
        ) {
            err = mp_read_unsigned_bin(key->pubkey.x, key->pubkey_raw,
-                                      ECC_MAX_CRYPTO_HW_SIZE);
+                                      (word32)key->dp->size);
        }
        if (err == 0
        #ifdef ALT_ECC_SIZE
@@ -5734,8 +5755,8 @@ static int _ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
        #endif
        ) {
            err = mp_read_unsigned_bin(key->pubkey.y,
-                                      key->pubkey_raw + ECC_MAX_CRYPTO_HW_SIZE,
-                                      ECC_MAX_CRYPTO_HW_SIZE);
+                                      key->pubkey_raw + key->dp->size,
+                                      (word32)key->dp->size);
        }
    }
    else {
@@ -6210,6 +6231,14 @@ int wc_ecc_init_ex(ecc_key* key, void* heap, int devId)
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
     defined(WOLFSSL_MICROCHIP_TA100)
     key->slot = ATECC_INVALID_SLOT;
+#ifdef WOLFSSL_MICROCHIP_TA100
+    /* TA100 needs pubkey initialized to populate after genkey */
+    ret = mp_init_multi(key->pubkey.x, key->pubkey.y, key->pubkey.z,
+                        NULL, NULL, NULL);
+    if (ret != MP_OKAY) {
+        return MEMORY_E;
+    }
+#endif
 #else
 #if defined(WOLFSSL_KCAPI_ECC)
     key->handle = NULL;
@@ -6451,9 +6480,22 @@ static int wc_ecc_sign_hash_hw(const byte* in, word32 inlen,
 
     #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
          defined(WOLFSSL_MICROCHIP_TA100)
+#if defined(WOLFSSL_MICROCHIP_TA100)
+        if (ta100_curve_id_for_key(key) == ECC_SECP256R1) {
+            (void)inlen;
+            /* Sign: Result is 32-bytes of R then 32-bytes of S */
+            err = atmel_ecc_sign(key->slot, in, out);
+        }
+        else {
+            /* Sign: Result is raw R||S */
+            err = atmel_ecc_sign_ex(key->slot, ta100_curve_id_for_key(key),
+                in, inlen, out);
+        }
+#else
         (void)inlen;
         /* Sign: Result is 32-bytes of R then 32-bytes of S */
         err = atmel_ecc_sign(key->slot, in, out);
+#endif
 
         if (err != 0) {
            return err;
@@ -9291,8 +9333,22 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
     }
 #endif /* WOLFSSL_SE050 */
 
-#if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
-    defined(WOLFSSL_MICROCHIP_TA100)
+#if defined(WOLFSSL_MICROCHIP_TA100)
+    if (ta100_curve_id_for_key(key) == ECC_SECP256R1) {
+        err = atmel_ecc_verify(hash, sigRS, key->pubkey_raw, res);
+        if (err != 0) {
+            return err;
+        }
+        (void)hashlen;
+    }
+    else {
+        err = atmel_ecc_verify_ex(hash, hashlen, sigRS, key->pubkey_raw,
+            keySz * 2, ta100_curve_id_for_key(key), res);
+        if (err != 0) {
+           return err;
+        }
+    }
+#elif defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
     err = atmel_ecc_verify(hash, sigRS, key->pubkey_raw, res);
     if (err != 0) {
        return err;

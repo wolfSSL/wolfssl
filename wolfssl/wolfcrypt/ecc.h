@@ -176,8 +176,11 @@ enum {
     ECC_MAX_SIG_SIZE= ((MAX_ECC_BYTES * 2) + ECC_MAX_PAD_SZ + SIG_HEADER_SZ),
 
     /* max crypto hardware size */
-#if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
-    defined(WOLFSSL_MICROCHIP_TA100)
+#if defined(WOLFSSL_MICROCHIP_TA100)
+    /* TA100 supports up to P-384 */
+    ECC_MAX_CRYPTO_HW_SIZE = 48,
+    ECC_MAX_CRYPTO_HW_PUBKEY_SIZE = (ECC_MAX_CRYPTO_HW_SIZE*2),
+#elif defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
     ECC_MAX_CRYPTO_HW_SIZE = ATECC_KEY_SIZE, /* from port/atmel/atmel.h */
     ECC_MAX_CRYPTO_HW_PUBKEY_SIZE = (ATECC_KEY_SIZE*2),
 #elif defined(PLUTON_CRYPTO_ECC)
