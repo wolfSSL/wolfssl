@@ -937,6 +937,9 @@ static int Hmac_UpdateFinal_CT(Hmac* hmac, byte* digest, const byte* in,
     word32       realLen;
     byte         extraBlock;
 
+    if (macLen <= 0 || macLen > (int)sizeof(hmac->innerHash))
+        return BAD_FUNC_ARG;
+
     switch (hmac->macType) {
     #ifndef NO_SHA
         case WC_SHA:
@@ -6972,8 +6975,10 @@ int TLSX_SupportedVersions_Parse(const WOLFSSL* ssl, const byte* input,
         int set = 0;
 
         /* Must contain a length and at least one version. */
-        if (length < OPAQUE8_LEN + OPAQUE16_LEN || (length & 1) != 1)
+        if (length < OPAQUE8_LEN + OPAQUE16_LEN || (length & 1) != 1
+            || length > MAX_SV_EXT_LEN) {
             return BUFFER_ERROR;
+        }
 
         len = *input;
 
@@ -9963,10 +9968,13 @@ int TLSX_KeyShare_Parse_ClientHello(const WOLFSSL* ssl,
     if (length < OPAQUE16_LEN)
         return BUFFER_ERROR;
 
-    /* ClientHello contains zero or more key share entries. */
+    /* ClientHello contains zero or more key share entries. Limits extension
+     * length to 2^16-1 and subtracting 4 bytes for header size per RFC 8446 */
     ato16(input, &len);
-    if (len != length - OPAQUE16_LEN)
+    if ((len != length - OPAQUE16_LEN) ||
+         length > (MAX_EXT_DATA_LEN - HELLO_EXT_SZ)) {
         return BUFFER_ERROR;
+    }
     offset += OPAQUE16_LEN;
 
     while (offset < (int)length) {
@@ -11607,7 +11615,7 @@ static int TLSX_PreSharedKey_Parse(WOLFSSL* ssl, const byte* input,
         /* Find the list of identities sent to server. */
         extension = TLSX_Find(ssl->extensions, TLSX_PRE_SHARED_KEY);
         if (extension == NULL)
-            return PSK_KEY_ERROR;
+            return INCOMPLETE_DATA;
         list = (PreSharedKey*)extension->data;
 
         /* Mark the identity as chosen. */
@@ -16538,11 +16546,51 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
 #if defined(HAVE_RPK)
             case TLSX_CLIENT_CERTIFICATE_TYPE:
                 WOLFSSL_MSG("Client Certificate Type extension received");
+#if defined(WOLFSSL_TLS13)
+                /* RFC 8446, Section 4.2 (Extensions), client_certificate_type
+                   and server_certificate_type MUST be sent in ClientHello(CH)
+                   or EncryptedExtensions(EE) */
+                if (IsAtLeastTLSv1_3(ssl->version)) {
+                    if (msgType != client_hello &&
+                        msgType != encrypted_extensions) {
+                        WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
+                        return EXT_NOT_ALLOWED;
+                    }
+                }
+                else
+#endif
+                {
+                    /* TLS 1.2: allowed in CH and SH (RFC 7250) */
+                    if (msgType != client_hello &&
+                        msgType != server_hello) {
+                        WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
+                        return EXT_NOT_ALLOWED;
+                    }
+                }
                 ret = CCT_PARSE(ssl, input + offset, size, msgType);
                 break;
 
             case TLSX_SERVER_CERTIFICATE_TYPE:
                 WOLFSSL_MSG("Server Certificate Type extension received");
+#if defined(WOLFSSL_TLS13)
+                /* RFC 8446, Section 4.2 (Extensions) */
+                if (IsAtLeastTLSv1_3(ssl->version)) {
+                    if (msgType != client_hello &&
+                        msgType != encrypted_extensions) {
+                        WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
+                        return EXT_NOT_ALLOWED;
+                    }
+                }
+                else
+#endif
+                {
+                    /* TLS 1.2: allowed in CH and SH (RFC 7250) */
+                    if (msgType != client_hello &&
+                        msgType != server_hello) {
+                        WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
+                        return EXT_NOT_ALLOWED;
+                    }
+                }
                 ret = SCT_PARSE(ssl, input + offset, size, msgType);
                 break;
 #endif /* HAVE_RPK */

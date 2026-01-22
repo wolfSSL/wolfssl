@@ -474,7 +474,7 @@ _poly1305_set_key:
 	add  x2, x2, :lo12:L_poly1305_set_key_arm64_clamp
 #else
 	adrp x2, L_poly1305_set_key_arm64_clamp@PAGE
-	add  x2, x2, :lo12:L_poly1305_set_key_arm64_clamp@PAGEOFF
+	add  x2, x2, L_poly1305_set_key_arm64_clamp@PAGEOFF
 #endif /* __APPLE__ */
 	# Load key and pad.
 	ldp	x11, x12, [x1]

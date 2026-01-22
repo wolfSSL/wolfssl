@@ -13211,7 +13211,8 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int outLen,
     if (ret == 0) {
         /* Calculate the size of the encoded public point. */
         PRIVATE_KEY_UNLOCK();
-    #if defined(HAVE_COMP_KEY) && defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+    #if defined(HAVE_COMP_KEY) && \
+    (defined(HAVE_SELFTEST) || (defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)))
         /* in earlier versions of FIPS the get length functionality is not
          * available with compressed keys */
         pubSz = key->dp ? key->dp->size : MAX_ECC_BYTES;
@@ -16271,8 +16272,38 @@ static WC_INLINE int GetTime_Long(long* value, const byte* date, int* idx)
  * Reminder: idx is incremented in each call to GetTime()
  * Return 0 on failure, 1 for success.  */
 int ExtractDate(const unsigned char* date, unsigned char format,
-                struct tm* certTime, int* idx)
+                struct tm* certTime, int* idx, int len)
 {
+    int i = *idx;
+
+    /* Validate date string length based on format. Can not assume null
+     * terminated strings. Must check for the 'Z'.
+     * Subtract 2; one for zero indexing and one to exclude null terminator
+     * built into macro values. */
+    if (format == ASN_UTC_TIME) {
+        /* UTCTime format requires YYMMDDHHMMSSZ (13 chars). */
+        /* Bounds check: ensure we have enough data before accessing. */
+        if (len < i + ASN_UTC_TIME_SIZE - 1) {
+            return 0;
+        }
+        if (date[i + ASN_UTC_TIME_SIZE - 2] != 'Z') {
+            return 0;
+        }
+    }
+    else if (format == ASN_GENERALIZED_TIME) {
+        /* GeneralizedTime format requires YYYYMMDDHHMMSSZ (15 chars). */
+        /* Bounds check: ensure we have enough data before accessing. */
+        if (len < i + ASN_GENERALIZED_TIME_SIZE - 1) {
+            return 0;
+        }
+        if (date[ i + ASN_GENERALIZED_TIME_SIZE - 2] != 'Z') {
+            return 0;
+        }
+    }
+    else {
+        return 0;
+    }
+
     XMEMSET(certTime, 0, sizeof(struct tm));
 
     /* Get the first two bytes of the year (century) */
@@ -16341,12 +16372,12 @@ int ExtractDate(const unsigned char* date, unsigned char format,
 
 
 #ifdef WOLFSSL_ASN_TIME_STRING
-int GetTimeString(byte* date, int format, char* buf, int len)
+int GetTimeString(byte* date, int format, char* buf, int len, int dateLen)
 {
     struct tm t;
     int idx = 0;
 
-    if (!ExtractDate(date, (unsigned char)format, &t, &idx)) {
+    if (!ExtractDate(date, (unsigned char)format, &t, &idx, dateLen)) {
         return 0;
     }
 
@@ -16576,13 +16607,13 @@ static WC_INLINE int DateLessThan(const struct tm* a, const struct tm* b)
 /* date = ASN.1 raw */
 /* format = ASN_UTC_TIME or ASN_GENERALIZED_TIME */
 /* dateType = ASN_AFTER or ASN_BEFORE */
-int wc_ValidateDate(const byte* date, byte format, int dateType)
+int wc_ValidateDate(const byte* date, byte format, int dateType, int len)
 {
-    return wc_ValidateDateWithTime(date, format, dateType, 0);
+    return wc_ValidateDateWithTime(date, format, dateType, 0, len);
 }
 
 int wc_ValidateDateWithTime(const byte* date, byte format, int dateType,
-    time_t checkTime)
+    time_t checkTime, int len)
 {
     time_t ltime;
     struct tm  certTime;
@@ -16631,7 +16662,7 @@ int wc_ValidateDateWithTime(const byte* date, byte format, int dateType,
     }
 #endif
 
-    if (!ExtractDate(date, format, &certTime, &i)) {
+    if (!ExtractDate(date, format, &certTime, &i, len)) {
         WOLFSSL_MSG("Error extracting the date");
         return 0;
     }
@@ -16853,7 +16884,7 @@ static int GetDate(DecodedCert* cert, int dateType, int verify, int maxIdx)
 #ifndef NO_ASN_TIME_CHECK
     if (verify != NO_VERIFY && verify != VERIFY_SKIP_DATE &&
             (! AsnSkipDateCheck) &&
-            !XVALIDATE_DATE(date, format, dateType)) {
+            !XVALIDATE_DATE(date, format, dateType, length)) {
         if (dateType == ASN_BEFORE) {
             WOLFSSL_ERROR_VERBOSE(ASN_BEFORE_DATE_E);
             return ASN_BEFORE_DATE_E;
@@ -16911,7 +16942,7 @@ int wc_GetDateAsCalendarTime(const byte* date, int length, byte format,
 {
     int idx = 0;
     (void)length;
-    if (!ExtractDate(date, format, timearg, &idx))
+    if (!ExtractDate(date, format, timearg, &idx, length))
         return ASN_TIME_E;
     return 0;
 }
@@ -19285,8 +19316,8 @@ exit_cs:
 
 #ifndef IGNORE_NAME_CONSTRAINTS
 
-static int MatchBaseName(int type, const char* name, int nameSz,
-                         const char* base, int baseSz)
+int wolfssl_local_MatchBaseName(int type, const char* name, int nameSz,
+    const char* base, int baseSz)
 {
     if (base == NULL || baseSz <= 0 || name == NULL || nameSz <= 0 ||
             name[0] == '.' || nameSz < baseSz ||
@@ -19303,6 +19334,8 @@ static int MatchBaseName(int type, const char* name, int nameSz,
     if (type == ASN_RFC822_TYPE) {
         const char* p = NULL;
         int count = 0;
+        int baseIsEmail = 0;
+        int atPos = -1;
 
         if (base[0] != '.') {
             p = base;
@@ -19314,25 +19347,36 @@ static int MatchBaseName(int type, const char* name, int nameSz,
                 p++;
             }
 
-            /* No '@' in base, reset p to NULL */
-            if (count >= baseSz)
-                p = NULL;
+            if (count < baseSz) {
+                /* '@' found in base - validate it's not at start/end and only one */
+                if (count == 0 || count == baseSz - 1)
+                    return 0; /* '@' at start or end of base is invalid */
+                baseIsEmail = 1;
+            }
         }
 
-        if (p == NULL) {
-            /* Base isn't an email address, it is a domain name,
-             * wind the name forward one character past its '@'. */
-            p = name;
-            count = 0;
-            while (*p != '@' && count < baseSz) {
-                count++;
-                p++;
+        /* verify that name is a valid email address, store @ position */
+        p = name;
+        count = 0;
+        while (count < nameSz) {
+            if (*p == '@') {
+                if (atPos >= 0)
+                    return 0; /* Multiple '@' in name is invalid */
+                atPos = count;
             }
+            count++;
+            p++;
+        }
 
-            if (count < baseSz && *p == '@') {
-                name = p + 1;
-                nameSz -= count + 1;
-            }
+        /* Validate '@' exists and is not at start or end */
+        if (atPos < 0 || atPos == 0 || atPos == nameSz - 1)
+            return 0;
+
+        if (!baseIsEmail) {
+            /* Base isn't an email address but a domain or host.
+             * wind the name forward one character past its '@'. */
+            name = name + atPos + 1;
+            nameSz -= atPos + 1;
         }
     }
 
@@ -19340,12 +19384,23 @@ static int MatchBaseName(int type, const char* name, int nameSz,
      * "...Any DNS name that can be constructed by simply adding zero or more
      *  labels to the left-hand side of the name satisfies the name constraint."
      * i.e www.host.example.com works for host.example.com name constraint and
-     * host1.example.com does not. */
+     * host1.example.com does not.
+     *
+     * Note: For DNS type, RFC 5280 does not allow leading dot in constraint.
+     * However, we accept it here for backwards compatibility. */
     if (type == ASN_DNS_TYPE || (type == ASN_RFC822_TYPE && base[0] == '.')) {
         int szAdjust = nameSz - baseSz;
+        /* Check dot boundary: if there's a prefix and base doesn't start with
+         * '.', the character before the matched suffix must be '.'.
+         * When base starts with '.', the dot is included in the comparison. */
+        if (szAdjust > 0 && base[0] != '.' && name[szAdjust - 1] != '.')
+            return 0;
         name += szAdjust;
         nameSz -= szAdjust;
     }
+
+    if (nameSz != baseSz)
+        return 0;
 
     while (nameSz > 0) {
         if (XTOLOWER((unsigned char)*name) !=
@@ -19378,8 +19433,8 @@ static int PermittedListOk(DNS_entry* name, Base_entry* dnsList, byte nameType)
         if (current->type == nameType) {
             need = 1; /* restriction on permitted names is set for this type */
             if (name->len >= current->nameSz &&
-                MatchBaseName(nameType, name->name, name->len,
-                              current->name, current->nameSz)) {
+                wolfssl_local_MatchBaseName(nameType, name->name, name->len,
+                                            current->name, current->nameSz)) {
                 match = 1; /* found the current name in the permitted list*/
                 break;
             }
@@ -19409,8 +19464,8 @@ static int IsInExcludedList(DNS_entry* name, Base_entry* dnsList, byte nameType)
     while (current != NULL) {
         if (current->type == nameType) {
             if (name->len >= current->nameSz &&
-                MatchBaseName(nameType, name->name, name->len,
-                              current->name, current->nameSz)) {
+                wolfssl_local_MatchBaseName(nameType, name->name, name->len,
+                                            current->name, current->nameSz)) {
                 ret = 1;
                 break;
             }
@@ -21359,6 +21414,9 @@ static int DecodeAuthKeyIdInternal(const byte* input, word32 sz,
         /* Get the hash or hash of the hash if wrong size. */
         ret = GetHashId(extAuthKeyId, (int)extAuthKeyIdSz, cert->extAuthKeyId,
                         HashIdAlg(cert->signatureOID));
+    }
+    else {
+        cert->extAuthKeyIdSet = 0;
     }
 
 #ifdef WOLFSSL_AKID_NAME
@@ -23590,7 +23648,8 @@ static int CheckDate(ASNGetData *dataASN, int dateType)
 #ifndef NO_ASN_TIME_CHECK
     /* Check date is a valid string and ASN_BEFORE or ASN_AFTER now. */
     if ((ret == 0) && (! AsnSkipDateCheck)) {
-        if (!XVALIDATE_DATE(dataASN->data.ref.data, dataASN->tag, dateType)) {
+        if (!XVALIDATE_DATE(dataASN->data.ref.data, dataASN->tag, dateType,
+                            (int)dataASN->data.ref.length)) {
             if (dateType == ASN_BEFORE) {
                 ret = ASN_BEFORE_DATE_E;
             }
@@ -27605,8 +27664,8 @@ static int KeyPemToDerPassCb(char* passwd, int sz, int rw, void* userdata)
     if (userdata == NULL)
         return 0;
 
-    XSTRNCPY(passwd, (char*)userdata, (size_t)sz);
-    return (int)min((word32)sz, (word32)XSTRLEN((char*)userdata));
+    XSTRLCPY(passwd, (char*)userdata, (size_t)sz);
+    return (int)min((word32)(sz - 1), (word32)XSTRLEN((char*)userdata));
 }
 #endif
 
@@ -38381,7 +38440,7 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
 #ifndef NO_ASN_TIME_CHECK
 #ifndef WOLFSSL_NO_OCSP_DATE_CHECK
     if ((! AsnSkipDateCheck) && !XVALIDATE_DATE(single->status->thisDate,
-        single->status->thisDateFormat, ASN_BEFORE))
+        single->status->thisDateFormat, ASN_BEFORE, MAX_DATE_SIZE))
         return ASN_BEFORE_DATE_E;
 #endif
 #endif
@@ -38419,7 +38478,7 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
 #ifndef WOLFSSL_NO_OCSP_DATE_CHECK
         if ((! AsnSkipDateCheck) &&
             !XVALIDATE_DATE(single->status->nextDate,
-                            single->status->nextDateFormat, ASN_AFTER))
+                            single->status->nextDateFormat, ASN_AFTER, MAX_DATE_SIZE))
             return ASN_AFTER_DATE_E;
 #endif
 #endif
@@ -38493,7 +38552,8 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
     #if !defined(NO_ASN_TIME_CHECK) && !defined(WOLFSSL_NO_OCSP_DATE_CHECK)
         /* Check date is a valid string and ASN_BEFORE now. */
         if ((! AsnSkipDateCheck) &&
-            !XVALIDATE_DATE(cs->thisDate, ASN_GENERALIZED_TIME, ASN_BEFORE))
+            !XVALIDATE_DATE(cs->thisDate, ASN_GENERALIZED_TIME, ASN_BEFORE,
+                            MAX_DATE_SIZE))
         {
             ret = ASN_BEFORE_DATE_E;
         }
@@ -38518,7 +38578,8 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
     #if !defined(NO_ASN_TIME_CHECK) && !defined(WOLFSSL_NO_OCSP_DATE_CHECK)
         /* Check date is a valid string and ASN_AFTER now. */
         if ((! AsnSkipDateCheck) &&
-            !XVALIDATE_DATE(cs->nextDate, ASN_GENERALIZED_TIME, ASN_AFTER))
+            !XVALIDATE_DATE(cs->nextDate, ASN_GENERALIZED_TIME, ASN_AFTER,
+                            MAX_DATE_SIZE))
         {
             ret = ASN_AFTER_DATE_E;
         }
@@ -40605,7 +40666,8 @@ static int ParseCRL_CertList(RevokedCert* rcert, DecodedCRL* dcrl,
 #if !defined(NO_ASN_TIME) && !defined(WOLFSSL_NO_CRL_DATE_CHECK)
         if (verify != NO_VERIFY &&
             (! AsnSkipDateCheck) &&
-            !XVALIDATE_DATE(dcrl->nextDate, dcrl->nextDateFormat, ASN_AFTER)) {
+            !XVALIDATE_DATE(dcrl->nextDate, dcrl->nextDateFormat, ASN_AFTER,
+                            MAX_DATE_SIZE)) {
             WOLFSSL_MSG("CRL after date is no longer valid");
             WOLFSSL_ERROR_VERBOSE(CRL_CERT_DATE_ERR);
             return CRL_CERT_DATE_ERR;
@@ -40714,6 +40776,7 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf,
         word32* inOutIdx, word32 sz)
 {
     int length;
+    int needed;
     word32 idx;
     word32 ext_bound; /* boundary index for the sequence of extensions */
     word32 oid;
@@ -40799,9 +40862,9 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf,
                     return ret;
                 }
                 else {
-                    DECL_MP_INT_SIZE_DYN(m, CRL_MAX_NUM_SZ * CHAR_BIT,
-                                   CRL_MAX_NUM_SZ * CHAR_BIT);
-                    NEW_MP_INT_SIZE(m, CRL_MAX_NUM_SZ * CHAR_BIT, NULL,
+                    DECL_MP_INT_SIZE_DYN(m, CRL_MAX_NUM_SZ_BITS,
+                                   CRL_MAX_NUM_SZ_BITS);
+                    NEW_MP_INT_SIZE(m, CRL_MAX_NUM_SZ_BITS, NULL,
                                    DYNAMIC_TYPE_TMP_BUFFER);
                 #ifdef MP_INT_SIZE_CHECK_NULL
                     if (m == NULL) {
@@ -40819,7 +40882,15 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf,
 
                     if (ret != MP_OKAY)
                         ret = BUFFER_E;
-
+                    /* Check CRL number size
+                     * if it exceeds CRL_MAX_NUM_SZ(octets)
+                     * and CRL_MAX_NUM_HEX_STR_SZ(hex string)
+                     */
+                    if (((needed = mp_unsigned_bin_size(m)) > CRL_MAX_NUM_SZ) ||
+                        ((needed * 2 + 1) > CRL_MAX_NUM_HEX_STR_SZ)) {
+                        WOLFSSL_MSG("CRL number exceeds limitation.");
+                        ret = BUFFER_E;
+                    }
                     if (ret == MP_OKAY && mp_toradix(m, (char*)dcrl->crlNumber,
                                 MP_RADIX_HEX) != MP_OKAY)
                         ret = BUFFER_E;
@@ -40857,6 +40928,7 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32 idx,
         word32 maxIdx)
 {
     DECL_ASNGETDATA(dataASN, certExtASN_Length);
+    int needed;
     int ret = 0;
     /* Track if we've seen these extensions already */
     word32 seenAuthKey = 0;
@@ -40917,9 +40989,9 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32 idx,
                 #endif
                 }
                 else if (oid == CRL_NUMBER_OID) {
-                    DECL_MP_INT_SIZE_DYN(m, CRL_MAX_NUM_SZ * CHAR_BIT,
-                                   CRL_MAX_NUM_SZ * CHAR_BIT);
-                    NEW_MP_INT_SIZE(m, CRL_MAX_NUM_SZ * CHAR_BIT, NULL,
+                    DECL_MP_INT_SIZE_DYN(m, CRL_MAX_NUM_SZ_BITS,
+                                   CRL_MAX_NUM_SZ_BITS);
+                    NEW_MP_INT_SIZE(m, CRL_MAX_NUM_SZ_BITS, NULL,
                                    DYNAMIC_TYPE_TMP_BUFFER);
 
                 #ifdef MP_INT_SIZE_CHECK_NULL
@@ -40936,7 +41008,15 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32 idx,
                     if (ret == 0) {
                         ret = GetInt(m, buf, &localIdx, maxIdx);
                     }
-
+                    /* Check CRL number size
+                     * if it exceeds CRL_MAX_NUM_SZ(octets)
+                     * and CRL_MAX_NUM_HEX_STR_SZ(hex string)
+                     */
+                    if (((needed = mp_unsigned_bin_size(m)) > CRL_MAX_NUM_SZ) ||
+                        ((needed * 2 + 1) > CRL_MAX_NUM_HEX_STR_SZ)) {
+                        WOLFSSL_MSG("CRL number exceeds limitation.");
+                        ret = BUFFER_E;
+                    }
                     if (ret == 0 && mp_toradix(m, (char*)dcrl->crlNumber,
                                  MP_RADIX_HEX) != MP_OKAY)
                         ret = BUFFER_E;
@@ -41267,7 +41347,8 @@ end:
             /* Next date was set, so validate it. */
             if (verify != NO_VERIFY &&
                 (! AsnSkipDateCheck) &&
-                 !XVALIDATE_DATE(dcrl->nextDate, dcrl->nextDateFormat, ASN_AFTER)) {
+                 !XVALIDATE_DATE(dcrl->nextDate, dcrl->nextDateFormat, ASN_AFTER,
+                            MAX_DATE_SIZE)) {
                 WOLFSSL_MSG("CRL after date is no longer valid");
                 ret = CRL_CERT_DATE_ERR;
                 WOLFSSL_ERROR_VERBOSE(ret);

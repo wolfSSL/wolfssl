@@ -8,8 +8,8 @@ standard operating environments as well because of its royalty-free pricing
 and excellent cross platform support. wolfSSL supports industry standards up
 to the current [TLS 1.3](https://www.wolfssl.com/tls13) and DTLS 1.3, is up to
 20 times smaller than OpenSSL, and offers progressive ciphers such as ChaCha20,
-Curve25519, Blake2b and Post-Quantum TLS 1.3 groups. User benchmarking and
-feedback reports dramatically better performance when using wolfSSL over
+Curve25519, BLAKE2b/BLAKE2s and Post-Quantum TLS 1.3 groups. User benchmarking
+and feedback reports dramatically better performance when using wolfSSL over
 OpenSSL.
 
 wolfSSL is powered by the wolfCrypt cryptography library. Two versions of

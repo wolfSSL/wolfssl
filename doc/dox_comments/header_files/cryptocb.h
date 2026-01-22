@@ -109,3 +109,74 @@ int  wc_CryptoCb_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void* ctx);
     \sa wolfSSL_CTX_SetDevId
 */
 void wc_CryptoCb_UnRegisterDevice(int devId);
+
+/*!
+    \ingroup CryptoCb
+    \brief This function returns the default device ID for crypto
+    callbacks. This is useful when you want to get the device ID that
+    was set as the default for the library.
+
+    \return The default device ID, or INVALID_DEVID if no default is set.
+
+    _Example_
+    \code
+    int devId = wc_CryptoCb_DefaultDevID();
+    if (devId != INVALID_DEVID) {
+        // default device ID is set
+    }
+    \endcode
+
+    \sa wc_CryptoCb_RegisterDevice
+    \sa wc_CryptoCb_UnRegisterDevice
+*/
+int wc_CryptoCb_DefaultDevID(void);
+
+/*!
+    \ingroup CryptoCb
+    \brief This function sets a callback for finding crypto devices.
+    The callback is invoked when a device ID needs to be resolved to
+    a device context. This is useful for dynamic device management.
+
+    \return none No returns.
+
+    \param cb callback function with prototype:
+    typedef void* (*CryptoDevCallbackFind)(int devId);
+
+    _Example_
+    \code
+    void* myDeviceFindCb(int devId) {
+        // lookup device context by ID
+        return deviceContext;
+    }
+
+    wc_CryptoCb_SetDeviceFindCb(myDeviceFindCb);
+    \endcode
+
+    \sa wc_CryptoCb_RegisterDevice
+*/
+void wc_CryptoCb_SetDeviceFindCb(CryptoDevCallbackFind cb);
+
+/*!
+    \ingroup CryptoCb
+    \brief This function converts a wc_CryptoInfo structure to a
+    human-readable string for debugging purposes. The string is printed
+    to stdout and describes the cryptographic operation being performed.
+
+    \return none No returns.
+
+    \param info pointer to the wc_CryptoInfo structure to convert
+
+    _Example_
+    \code
+    int myCryptoCb(int devId, wc_CryptoInfo* info, void* ctx) {
+        // print debug info about the operation
+        wc_CryptoCb_InfoString(info);
+
+        // handle the operation
+        return CRYPTOCB_UNAVAILABLE;
+    }
+    \endcode
+
+    \sa wc_CryptoCb_RegisterDevice
+*/
+void wc_CryptoCb_InfoString(wc_CryptoInfo* info);

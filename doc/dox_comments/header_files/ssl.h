@@ -14430,6 +14430,8 @@ int  wolfSSL_set_max_early_data(WOLFSSL* ssl, unsigned int sz);
     \return BAD_FUNC_ARG if a pointer parameter is NULL, sz is less than 0 or
     not using TLSv1.3.
     \return SIDE_ERROR if called with a server.
+    \return BAD_STATE_E if invoked without a valid session or without a valid
+    PSK cb
     \return WOLFSSL_FATAL_ERROR if the connection is not made.
     \return the amount of early data written in bytes if successful.
 

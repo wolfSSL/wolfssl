@@ -1665,7 +1665,7 @@ end:
     return ret;
 }
 
-#if (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK))
+#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK) || defined(WOLFSSL_DTLS13)
 #ifdef WOLFSSL_32BIT_MILLI_TIME
 #ifndef NO_ASN_TIME
 #if defined(USER_TICKS)
@@ -2264,7 +2264,7 @@ end:
      */
 #endif /* !NO_ASN_TIME */
 #endif /* WOLFSSL_32BIT_MILLI_TIME */
-#endif /* HAVE_SESSION_TICKET || !NO_PSK */
+#endif /* HAVE_SESSION_TICKET || !NO_PSK || WOLFSSL_DTLS13 */
 
 /* Add record layer header to message.
  *
@@ -4322,6 +4322,26 @@ typedef struct Sch13Args {
 #endif
 } Sch13Args;
 
+#ifdef WOLFSSL_EARLY_DATA
+/* Check if early data can potentially be sent.
+ * Returns 1 if early data is possible, 0 otherwise.
+ */
+static int EarlyDataPossible(WOLFSSL* ssl)
+{
+    /* Need session resumption OR PSK callback configured */
+    if (ssl->options.resuming) {
+        return 1;
+    }
+#ifndef NO_PSK
+    if (ssl->options.client_psk_tls13_cb != NULL ||
+        ssl->options.client_psk_cb != NULL) {
+        return 1;
+    }
+#endif
+    return 0;
+}
+#endif /* WOLFSSL_EARLY_DATA */
+
 int SendTls13ClientHello(WOLFSSL* ssl)
 {
     int ret;
@@ -4461,14 +4481,8 @@ int SendTls13ClientHello(WOLFSSL* ssl)
     case TLS_ASYNC_FINALIZE:
     {
 #ifdef WOLFSSL_EARLY_DATA
-    #ifndef NO_PSK
-        if (!ssl->options.resuming &&
-                                     ssl->options.client_psk_tls13_cb == NULL &&
-                                     ssl->options.client_psk_cb == NULL)
-    #else
-        if (!ssl->options.resuming)
-    #endif
-            ssl->earlyData = no_early_data;
+    if (!EarlyDataPossible(ssl))
+        ssl->earlyData = no_early_data;
     if (ssl->options.serverState == SERVER_HELLO_RETRY_REQUEST_COMPLETE)
         ssl->earlyData = no_early_data;
     if (ssl->earlyData == no_early_data)
@@ -5663,7 +5677,7 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif
                 ) {
             SendAlert(ssl, alert_fatal, illegal_parameter);
-            return DUPLICATE_MSG_E;
+            return EXT_MISSING;
         }
 
         ssl->options.tls1_3 = 1;
@@ -5744,15 +5758,13 @@ static int DoTls13EncryptedExtensions(WOLFSSL* ssl, const byte* input,
         if (ext == NULL || !ext->val)
             ssl->earlyData = no_early_data;
     }
-#endif
 
-#ifdef WOLFSSL_EARLY_DATA
     if (ssl->earlyData == no_early_data) {
         ret = SetKeysSide(ssl, ENCRYPT_SIDE_ONLY);
         if (ret != 0)
             return ret;
     }
-#endif
+#endif /* WOLFSSL_EARLY_DATA */
 
     ssl->options.serverState = SERVER_ENCRYPTED_EXTENSIONS_COMPLETE;
 
@@ -9285,10 +9297,13 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
 
                     /* Swap keys */
                     ssl->buffers.key     = ssl->buffers.altKey;
+                    ssl->buffers.weOwnKey = ssl->buffers.weOwnAltKey;
+
                 #ifdef WOLFSSL_BLIND_PRIVATE_KEY
                     ssl->buffers.keyMask = ssl->buffers.altKeyMask;
+                    /* Unblind the alternative key before decoding */
+                    wolfssl_priv_der_blind_toggle(ssl->buffers.key, ssl->buffers.keyMask);
                 #endif
-                    ssl->buffers.weOwnKey = ssl->buffers.weOwnAltKey;
                 }
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
                 ret = DecodePrivateKey(ssl, &args->sigLen);
@@ -9356,7 +9371,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                 /* The native was already decoded. Now we need to do the
                  * alternative. Note that no swap was done because this case is
                  * both native and alternative, not just alternative. */
-                if (ssl->ctx->altPrivateKey == NULL) {
+                if (ssl->buffers.altKey == NULL) {
                     ERROR_OUT(NO_PRIVATE_KEY, exit_scv);
                 }
 
@@ -10295,8 +10310,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
             args->idx += OPAQUE16_LEN;
 
             /* Signature data. */
-            if ((args->idx - args->begin) + args->sz > totalSz ||
-                                                       args->sz > ENCRYPT_LEN) {
+            if ((args->idx - args->begin) + args->sz > totalSz) {
                 ERROR_OUT(BUFFER_ERROR, exit_dcv);
             }
 
@@ -11384,7 +11398,7 @@ static int SendTls13Finished(WOLFSSL* ssl)
         if ((ret = SetKeysSide(ssl, ENCRYPT_SIDE_ONLY)) != 0)
             return ret;
 
-#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+#if defined(HAVE_SESSION_TICKET)
         ret = DeriveResumptionSecret(ssl, ssl->session->masterSecret);
         if (ret != 0)
             return ret;
@@ -13086,7 +13100,7 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     #endif /* NO_WOLFSSL_CLIENT */
 
 #ifndef NO_WOLFSSL_SERVER
-    #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+    #if defined(HAVE_SESSION_TICKET)
         if (ssl->options.side == WOLFSSL_SERVER_END && type == finished) {
             ret = DeriveResumptionSecret(ssl, ssl->session->masterSecret);
             if (ret != 0)
@@ -14978,8 +14992,9 @@ int wolfSSL_get_max_early_data(WOLFSSL* ssl)
  * sz     The size of the early data in bytes.
  * outSz  The number of early data bytes written.
  * returns BAD_FUNC_ARG when: ssl, data or outSz is NULL; sz is negative;
- * or not using TLS v1.3. SIDE ERROR when not a server. Otherwise the number of
- * early data bytes written.
+ * or not using TLS v1.3. SIDE ERROR when not a server. BAD_STATE_E if invoked
+ * without a valid session or without a valid PSK CB.
+ * Otherwise the number of early data bytes written.
  */
 int wolfSSL_write_early_data(WOLFSSL* ssl, const void* data, int sz, int* outSz)
 {
@@ -14996,8 +15011,15 @@ int wolfSSL_write_early_data(WOLFSSL* ssl, const void* data, int sz, int* outSz)
     if (ssl->options.side == WOLFSSL_SERVER_END)
         return SIDE_ERROR;
 
+    /* Early data requires PSK or session resumption */
+    if (!EarlyDataPossible(ssl)) {
+        return BAD_STATE_E;
+    }
+
     if (ssl->options.handShakeState == NULL_STATE) {
-        if (ssl->error != WC_NO_ERR_TRACE(WC_PENDING_E))
+        /* avoid re-setting ssl->earlyData if we re-enter the function because
+         * of WC_PENDING_E, WANT_WRITE or WANT_READ */
+        if (ssl->error == 0)
             ssl->earlyData = expecting_early_data;
         ret = wolfSSL_connect_TLSv13(ssl);
         if (ret != WOLFSSL_SUCCESS)

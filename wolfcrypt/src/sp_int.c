@@ -5579,7 +5579,7 @@ int sp_abs(const sp_int* a, sp_int* r)
 #endif /* WOLFSSL_SP_INT_NEGATIVE */
 
 #if defined(WOLFSSL_SP_MATH_ALL) || !defined(NO_DH) || defined(HAVE_ECC) || \
-    (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY))
+    !defined(NO_RSA)
 /* Compare absolute value of two multi-precision numbers.
  *
  * @param [in] a  SP integer.
@@ -5662,9 +5662,7 @@ int sp_cmp_mag(const sp_int* a, const sp_int* b)
 #endif
 
 #if defined(WOLFSSL_SP_MATH_ALL) || defined(HAVE_ECC) || !defined(NO_DSA) || \
-    defined(OPENSSL_EXTRA) || !defined(NO_DH) || \
-    (!defined(NO_RSA) && (!defined(WOLFSSL_RSA_VERIFY_ONLY) || \
-     defined(WOLFSSL_KEY_GEN)))
+    defined(OPENSSL_EXTRA) || !defined(NO_DH) || !defined(NO_RSA)
 /* Compare two multi-precision numbers.
  *
  * Assumes a and b are not NULL.
@@ -5706,9 +5704,8 @@ static int _sp_cmp(const sp_int* a, const sp_int* b)
 }
 #endif
 
-#if (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
-    !defined(NO_DSA) || defined(HAVE_ECC) || !defined(NO_DH) || \
-    defined(WOLFSSL_SP_MATH_ALL)
+#if !defined(NO_RSA) || !defined(NO_DSA) || defined(HAVE_ECC) || \
+    !defined(NO_DH) || defined(WOLFSSL_SP_MATH_ALL)
 /* Compare two multi-precision numbers.
  *
  * Pointers are compared such that NULL is less than not NULL.
@@ -6197,9 +6194,8 @@ int sp_set_int(sp_int* a, unsigned long n)
 }
 #endif /* WOLFSSL_SP_MATH_ALL || !NO_RSA  */
 
-#if defined(WOLFSSL_SP_MATH_ALL) || \
-    (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
-    !defined(NO_DH) || defined(HAVE_ECC)
+#if defined(WOLFSSL_SP_MATH_ALL) || !defined(NO_RSA) || !defined(NO_DH) || \
+    defined(HAVE_ECC)
 /* Compare a one digit number with a multi-precision number.
  *
  * When a is NULL, MP_LT is returned.
@@ -18258,14 +18254,14 @@ int sp_to_unsigned_bin_len_ct(const sp_int* a, byte* out, int outSz)
         /* Start at the end of the buffer - least significant byte. */
         int j;
         unsigned int i;
-        volatile sp_int_digit mask = (sp_int_digit)-1;
+        byte mask = (byte)-1;
         sp_int_digit d;
 
         /* Put each digit in. */
         i = 0;
         for (j = outSz - 1; j >= 0; ) {
             unsigned int b;
-            volatile unsigned int notFull = (i < (unsigned int)a->used - 1);
+            volatile byte notFull = ctMaskLT((int)i, (int)a->used - 1);
 
             d = a->dp[i];
             /* Place each byte of a digit into the buffer. */
@@ -18273,7 +18269,7 @@ int sp_to_unsigned_bin_len_ct(const sp_int* a, byte* out, int outSz)
                 out[j--] = (byte)(d & mask);
                 d >>= 8;
             }
-            mask &= (sp_int_digit)(-(int)notFull);
+            mask &= notFull;
             i += (unsigned int)(1 & mask);
         }
     }

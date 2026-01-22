@@ -4,5 +4,6 @@
 
 EXTRA_DIST += m4/ax_bsdkm.m4 \
 	      bsdkm/Makefile \
+	      bsdkm/README.md \
 	      bsdkm/wolfkmod.c \
 	      bsdkm/bsdkm_wc_port.h

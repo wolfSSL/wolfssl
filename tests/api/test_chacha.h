@@ -26,9 +26,11 @@
 
 int test_wc_Chacha_SetKey(void);
 int test_wc_Chacha_Process(void);
+int test_wc_Chacha_Process_Chunking(void);
 
-#define TEST_CHACHA_DECLS                               \
-    TEST_DECL_GROUP("chacha", test_wc_Chacha_SetKey),   \
-    TEST_DECL_GROUP("chacha", test_wc_Chacha_Process)
+#define TEST_CHACHA_DECLS                                       \
+    TEST_DECL_GROUP("chacha", test_wc_Chacha_SetKey),           \
+    TEST_DECL_GROUP("chacha", test_wc_Chacha_Process),          \
+    TEST_DECL_GROUP("chacha", test_wc_Chacha_Process_Chunking)
 
 #endif /* WOLFCRYPT_TEST_CHACHA_H */

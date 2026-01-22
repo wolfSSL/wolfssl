@@ -58,7 +58,8 @@ int test_wolfSSL_BIO_gets(void)
     /* try with bad args */
     ExpectNull(bio = BIO_new_mem_buf(NULL, sizeof(msg)));
 #ifdef OPENSSL_ALL
-    ExpectIntEQ(BIO_set_mem_buf(bio, NULL, BIO_NOCLOSE), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(BIO_set_mem_buf(bio, NULL, BIO_NOCLOSE),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #endif
 
     /* try with real msg */
@@ -594,7 +595,8 @@ int test_wolfSSL_BIO_tls(void)
 int test_wolfSSL_BIO_datagram(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_BIO) && defined(WOLFSSL_DTLS) && defined(WOLFSSL_HAVE_BIO_ADDR) && defined(OPENSSL_EXTRA)
+#if !defined(NO_BIO) && defined(WOLFSSL_DTLS) && \
+    defined(WOLFSSL_HAVE_BIO_ADDR) && defined(OPENSSL_EXTRA)
     int ret;
     SOCKET_T fd1 = SOCKET_INVALID, fd2 = SOCKET_INVALID;
     WOLFSSL_BIO *bio1 = NULL, *bio2 = NULL;
@@ -636,7 +638,8 @@ int test_wolfSSL_BIO_datagram(void)
         sin1.sin_port = 0;
         slen = (socklen_t)sizeof(sin1);
         ExpectIntEQ(bind(fd1, (const struct sockaddr *)&sin1, slen), 0);
-        ExpectIntEQ(setsockopt(fd1, SOL_SOCKET, SO_RCVTIMEO, (const char *)&timeout, sizeof(timeout)), 0);
+        ExpectIntEQ(setsockopt(fd1, SOL_SOCKET, SO_RCVTIMEO,
+            (const char *)&timeout, sizeof(timeout)), 0);
         ExpectIntEQ(getsockname(fd1, (struct sockaddr *)&sin1, &slen), 0);
     }
 
@@ -646,7 +649,8 @@ int test_wolfSSL_BIO_datagram(void)
         sin2.sin_port = 0;
         slen = (socklen_t)sizeof(sin2);
         ExpectIntEQ(bind(fd2, (const struct sockaddr *)&sin2, slen), 0);
-        ExpectIntEQ(setsockopt(fd2, SOL_SOCKET, SO_RCVTIMEO, (const char *)&timeout, sizeof(timeout)), 0);
+        ExpectIntEQ(setsockopt(fd2, SOL_SOCKET, SO_RCVTIMEO,
+            (const char *)&timeout, sizeof(timeout)), 0);
         ExpectIntEQ(getsockname(fd2, (struct sockaddr *)&sin2, &slen), 0);
     }
 
@@ -661,15 +665,19 @@ int test_wolfSSL_BIO_datagram(void)
     }
 
     if (EXPECT_SUCCESS()) {
-        /* for OpenSSL compatibility, direct copying of sockaddrs into BIO_ADDRs must work right. */
+        /* for OpenSSL compatibility, direct copying of sockaddrs into BIO_ADDRs
+         * must work right. */
         XMEMCPY(&bio_addr2->sa_in, &sin2, sizeof(sin2));
-        ExpectIntEQ((int)wolfSSL_BIO_ctrl(bio1, BIO_CTRL_DGRAM_SET_PEER, 0, bio_addr2), WOLFSSL_SUCCESS);
+        ExpectIntEQ((int)wolfSSL_BIO_ctrl(bio1, BIO_CTRL_DGRAM_SET_PEER, 0,
+            bio_addr2), WOLFSSL_SUCCESS);
         wolfSSL_BIO_ADDR_clear(bio_addr2);
     }
 
     test_msg_recvd[0] = 0;
-    ExpectIntEQ(wolfSSL_BIO_write(bio1, test_msg, sizeof(test_msg)), (int)sizeof(test_msg));
-    ExpectIntEQ(wolfSSL_BIO_read(bio2, test_msg_recvd, sizeof(test_msg_recvd)), (int)sizeof(test_msg));
+    ExpectIntEQ(wolfSSL_BIO_write(bio1, test_msg, sizeof(test_msg)),
+        (int)sizeof(test_msg));
+    ExpectIntEQ(wolfSSL_BIO_read(bio2, test_msg_recvd, sizeof(test_msg_recvd)),
+        (int)sizeof(test_msg));
     ExpectIntEQ(XMEMCMP(test_msg_recvd, test_msg, sizeof(test_msg)), 0);
 
 #ifdef WOLFSSL_BIO_HAVE_FLOW_STATS
@@ -682,58 +690,76 @@ int test_wolfSSL_BIO_datagram(void)
      */
 
     test_msg_recvd[0] = 0;
-    ExpectIntEQ(wolfSSL_BIO_write(bio2, test_msg, sizeof(test_msg)), (int)sizeof(test_msg));
-    ExpectIntEQ(wolfSSL_BIO_read(bio1, test_msg_recvd, sizeof(test_msg_recvd)), (int)sizeof(test_msg));
+    ExpectIntEQ(wolfSSL_BIO_write(bio2, test_msg, sizeof(test_msg)),
+        (int)sizeof(test_msg));
+    ExpectIntEQ(wolfSSL_BIO_read(bio1, test_msg_recvd, sizeof(test_msg_recvd)),
+        (int)sizeof(test_msg));
     ExpectIntEQ(XMEMCMP(test_msg_recvd, test_msg, sizeof(test_msg)), 0);
 
-    ExpectIntEQ(wolfSSL_BIO_read(bio1, test_msg_recvd, sizeof(test_msg_recvd)), WOLFSSL_BIO_ERROR);
+    ExpectIntEQ(wolfSSL_BIO_read(bio1, test_msg_recvd, sizeof(test_msg_recvd)),
+        WOLFSSL_BIO_ERROR);
     ExpectIntNE(BIO_should_retry(bio1), 0);
 
-    ExpectIntEQ(wolfSSL_BIO_read(bio2, test_msg_recvd, sizeof(test_msg_recvd)), WOLFSSL_BIO_ERROR);
+    ExpectIntEQ(wolfSSL_BIO_read(bio2, test_msg_recvd, sizeof(test_msg_recvd)),
+        WOLFSSL_BIO_ERROR);
     ExpectIntNE(BIO_should_retry(bio2), 0);
 
     /* now "connect" the sockets. */
 
-    ExpectIntEQ(connect(fd1, (const struct sockaddr *)&sin2, (socklen_t)sizeof(sin2)), 0);
-    ExpectIntEQ(connect(fd2, (const struct sockaddr *)&sin1, (socklen_t)sizeof(sin1)), 0);
+    ExpectIntEQ(connect(fd1, (const struct sockaddr *)&sin2,
+        (socklen_t)sizeof(sin2)), 0);
+    ExpectIntEQ(connect(fd2, (const struct sockaddr *)&sin1,
+        (socklen_t)sizeof(sin1)), 0);
 
     if (EXPECT_SUCCESS()) {
         XMEMCPY(&bio_addr2->sa_in, &sin2, sizeof(sin2));
-        ExpectIntEQ((int)wolfSSL_BIO_ctrl(bio1, BIO_CTRL_DGRAM_SET_CONNECTED, 0, bio_addr2), WOLFSSL_SUCCESS);
+        ExpectIntEQ((int)wolfSSL_BIO_ctrl(bio1, BIO_CTRL_DGRAM_SET_CONNECTED, 0,
+            bio_addr2), WOLFSSL_SUCCESS);
         wolfSSL_BIO_ADDR_clear(bio_addr2);
     }
 
     if (EXPECT_SUCCESS()) {
         XMEMCPY(&bio_addr1->sa_in, &sin1, sizeof(sin1));
-        ExpectIntEQ((int)wolfSSL_BIO_ctrl(bio2, BIO_CTRL_DGRAM_SET_CONNECTED, 0, bio_addr1), WOLFSSL_SUCCESS);
+        ExpectIntEQ((int)wolfSSL_BIO_ctrl(bio2, BIO_CTRL_DGRAM_SET_CONNECTED, 0,
+            bio_addr1), WOLFSSL_SUCCESS);
         wolfSSL_BIO_ADDR_clear(bio_addr1);
     }
 
     test_msg_recvd[0] = 0;
-    ExpectIntEQ(wolfSSL_BIO_write(bio2, test_msg, sizeof(test_msg)), (int)sizeof(test_msg));
-    ExpectIntEQ(wolfSSL_BIO_read(bio1, test_msg_recvd, sizeof(test_msg_recvd)), (int)sizeof(test_msg));
+    ExpectIntEQ(wolfSSL_BIO_write(bio2, test_msg, sizeof(test_msg)),
+        (int)sizeof(test_msg));
+    ExpectIntEQ(wolfSSL_BIO_read(bio1, test_msg_recvd, sizeof(test_msg_recvd)),
+        (int)sizeof(test_msg));
     ExpectIntEQ(XMEMCMP(test_msg_recvd, test_msg, sizeof(test_msg)), 0);
 
     test_msg_recvd[0] = 0;
-    ExpectIntEQ(wolfSSL_BIO_write(bio1, test_msg, sizeof(test_msg)), (int)sizeof(test_msg));
-    ExpectIntEQ(wolfSSL_BIO_read(bio2, test_msg_recvd, sizeof(test_msg_recvd)), (int)sizeof(test_msg));
+    ExpectIntEQ(wolfSSL_BIO_write(bio1, test_msg, sizeof(test_msg)),
+        (int)sizeof(test_msg));
+    ExpectIntEQ(wolfSSL_BIO_read(bio2, test_msg_recvd, sizeof(test_msg_recvd)),
+        (int)sizeof(test_msg));
     ExpectIntEQ(XMEMCMP(test_msg_recvd, test_msg, sizeof(test_msg)), 0);
 
 #ifdef __linux__
     /* now "disconnect" the sockets and attempt transmits expected to fail. */
 
     sin1.sin_family = AF_UNSPEC;
-    ExpectIntEQ(connect(fd1, (const struct sockaddr *)&sin1, (socklen_t)sizeof(sin1)), 0);
-    ExpectIntEQ(connect(fd2, (const struct sockaddr *)&sin1, (socklen_t)sizeof(sin1)), 0);
+    ExpectIntEQ(connect(fd1, (const struct sockaddr *)&sin1,
+        (socklen_t)sizeof(sin1)), 0);
+    ExpectIntEQ(connect(fd2, (const struct sockaddr *)&sin1,
+        (socklen_t)sizeof(sin1)), 0);
     sin1.sin_family = AF_INET;
 
-    ExpectIntEQ((int)wolfSSL_BIO_ctrl(bio1, BIO_CTRL_DGRAM_SET_CONNECTED, 0, NULL), WOLFSSL_SUCCESS);
-    ExpectIntEQ((int)wolfSSL_BIO_ctrl(bio2, BIO_CTRL_DGRAM_SET_CONNECTED, 0, NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ((int)wolfSSL_BIO_ctrl(bio1, BIO_CTRL_DGRAM_SET_CONNECTED, 0,
+        NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ((int)wolfSSL_BIO_ctrl(bio2, BIO_CTRL_DGRAM_SET_CONNECTED, 0,
+        NULL), WOLFSSL_SUCCESS);
 
     if (EXPECT_SUCCESS()) {
-        sin2.sin_addr.s_addr = htonl(0xc0a8c0a8); /* 192.168.192.168 -- invalid for loopback interface. */
+        /* 192.168.192.168 -- invalid for loopback interface. */
+        sin2.sin_addr.s_addr = htonl(0xc0a8c0a8);
         XMEMCPY(&bio_addr2->sa_in, &sin2, sizeof(sin2));
-        ExpectIntEQ((int)wolfSSL_BIO_ctrl(bio1, BIO_CTRL_DGRAM_SET_PEER, 0, bio_addr2), WOLFSSL_SUCCESS);
+        ExpectIntEQ((int)wolfSSL_BIO_ctrl(bio1, BIO_CTRL_DGRAM_SET_PEER, 0,
+            bio_addr2), WOLFSSL_SUCCESS);
         wolfSSL_BIO_ADDR_clear(bio_addr2);
     }
 
@@ -796,7 +822,8 @@ static THREAD_RETURN WOLFSSL_THREAD test_wolfSSL_BIO_accept_client(void* args)
 
     (void)args;
 
-    AssertIntGT(snprintf(connectAddr, sizeof(connectAddr), "%s:%d", wolfSSLIP, wolfSSLPort), 0);
+    AssertIntGT(snprintf(connectAddr, sizeof(connectAddr), "%s:%d", wolfSSLIP,
+        wolfSSLPort), 0);
     clientBio = BIO_new_connect(connectAddr);
     AssertNotNull(clientBio);
     AssertIntEQ(BIO_do_connect(clientBio), 1);
@@ -804,7 +831,8 @@ static THREAD_RETURN WOLFSSL_THREAD test_wolfSSL_BIO_accept_client(void* args)
     AssertNotNull(ctx);
     sslClient = SSL_new(ctx);
     AssertNotNull(sslClient);
-    AssertIntEQ(wolfSSL_CTX_load_verify_locations(ctx, caCertFile, 0), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CTX_load_verify_locations(ctx, caCertFile, 0),
+        WOLFSSL_SUCCESS);
     SSL_set_bio(sslClient, clientBio, clientBio);
     AssertIntEQ(SSL_connect(sslClient), 1);
 
@@ -1152,6 +1180,288 @@ int test_wolfSSL_BIO_get_len(void)
     ExpectNotNull(bio = BIO_new_fd(STDERR_FILENO, BIO_NOCLOSE));
     ExpectIntEQ(wolfSSL_BIO_get_len(bio), WC_NO_ERR_TRACE(WOLFSSL_BAD_FILE));
     BIO_free(bio);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(OPENSSL_EXTRA) && !defined(NO_BIO)
+static long bioCallback(BIO *bio, int cmd, const char* argp, int argi,
+                 long argl, long ret)
+{
+    (void)bio;
+    (void)cmd;
+    (void)argp;
+    (void)argi;
+    (void)argl;
+    return ret;
+}
+#endif
+
+int test_wolfSSL_BIO(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_BIO)
+    const unsigned char* p = NULL;
+    byte buff[20];
+    BIO* bio1 = NULL;
+    BIO* bio2 = NULL;
+    BIO* bio3 = NULL;
+    char* bufPt = NULL;
+    int i;
+
+    for (i = 0; i < 20; i++) {
+        buff[i] = i;
+    }
+    /* test BIO_free with NULL */
+    ExpectIntEQ(BIO_free(NULL), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+
+    /* Creating and testing type BIO_s_bio */
+    ExpectNotNull(bio1 = BIO_new(BIO_s_bio()));
+    ExpectNotNull(bio2 = BIO_new(BIO_s_bio()));
+    ExpectNotNull(bio3 = BIO_new(BIO_s_bio()));
+
+    /* read/write before set up */
+    ExpectIntEQ(BIO_read(bio1, buff, 2),  WOLFSSL_BIO_UNSET);
+    ExpectIntEQ(BIO_write(bio1, buff, 2), WOLFSSL_BIO_UNSET);
+
+    ExpectIntEQ(BIO_set_nbio(bio1, 1), 1);
+    ExpectIntEQ(BIO_set_write_buf_size(bio1, 20), WOLFSSL_SUCCESS);
+    ExpectIntEQ(BIO_set_write_buf_size(bio2, 8),  WOLFSSL_SUCCESS);
+    ExpectIntEQ(BIO_make_bio_pair(bio1, bio2),    WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(BIO_nwrite(bio1, &bufPt, 10), 10);
+    ExpectNotNull(XMEMCPY(bufPt, buff, 10));
+    ExpectIntEQ(BIO_write(bio1, buff + 10, 10), 10);
+    /* write buffer full */
+    ExpectIntEQ(BIO_write(bio1, buff, 10), WOLFSSL_BIO_ERROR);
+    ExpectIntEQ(BIO_flush(bio1), WOLFSSL_SUCCESS);
+    ExpectIntEQ((int)BIO_ctrl_pending(bio1), 0);
+
+    /* write the other direction with pair */
+    ExpectIntEQ((int)BIO_nwrite(bio2, &bufPt, 10), 8);
+    ExpectNotNull(XMEMCPY(bufPt, buff, 8));
+    ExpectIntEQ(BIO_write(bio2, buff, 10), WOLFSSL_BIO_ERROR);
+
+    /* try read */
+    ExpectIntEQ((int)BIO_ctrl_pending(bio1), 8);
+    ExpectIntEQ((int)BIO_ctrl_pending(bio2), 20);
+
+    /* try read using ctrl function */
+    ExpectIntEQ((int)BIO_ctrl(bio1, BIO_CTRL_WPENDING, 0, NULL), 8);
+    ExpectIntEQ((int)BIO_ctrl(bio1, BIO_CTRL_PENDING, 0, NULL), 8);
+    ExpectIntEQ((int)BIO_ctrl(bio2, BIO_CTRL_WPENDING, 0, NULL), 20);
+    ExpectIntEQ((int)BIO_ctrl(bio2, BIO_CTRL_PENDING, 0, NULL), 20);
+
+    ExpectIntEQ(BIO_nread(bio2, &bufPt, (int)BIO_ctrl_pending(bio2)), 20);
+    for (i = 0; i < 20; i++) {
+        ExpectIntEQ((int)bufPt[i], i);
+    }
+    ExpectIntEQ(BIO_nread(bio2, &bufPt, 1), 0);
+    ExpectIntEQ(BIO_nread(bio1, &bufPt, (int)BIO_ctrl_pending(bio1)), 8);
+    for (i = 0; i < 8; i++) {
+        ExpectIntEQ((int)bufPt[i], i);
+    }
+    ExpectIntEQ(BIO_nread(bio1, &bufPt, 1), 0);
+    ExpectIntEQ(BIO_ctrl_reset_read_request(bio1), 1);
+
+    /* new pair */
+    ExpectIntEQ(BIO_make_bio_pair(bio1, bio3),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    BIO_free(bio2); /* free bio2 and automatically remove from pair */
+    bio2 = NULL;
+    ExpectIntEQ(BIO_make_bio_pair(bio1, bio3), WOLFSSL_SUCCESS);
+    ExpectIntEQ((int)BIO_ctrl_pending(bio3), 0);
+    ExpectIntEQ(BIO_nread(bio3, &bufPt, 10), 0);
+
+    /* test wrap around... */
+    ExpectIntEQ(BIO_reset(bio1), 1);
+    ExpectIntEQ(BIO_reset(bio3), 1);
+
+    /* fill write buffer, read only small amount then write again */
+    ExpectIntEQ(BIO_nwrite(bio1, &bufPt, 20), 20);
+    ExpectNotNull(XMEMCPY(bufPt, buff, 20));
+    ExpectIntEQ(BIO_nread(bio3, &bufPt, 4), 4);
+    for (i = 0; i < 4; i++) {
+        ExpectIntEQ(bufPt[i], i);
+    }
+
+    /* try writing over read index */
+    ExpectIntEQ(BIO_nwrite(bio1, &bufPt, 5), 4);
+    ExpectNotNull(XMEMSET(bufPt, 0, 4));
+    ExpectIntEQ((int)BIO_ctrl_pending(bio3), 20);
+
+    /* read and write 0 bytes */
+    ExpectIntEQ(BIO_nread(bio3, &bufPt, 0), 0);
+    ExpectIntEQ(BIO_nwrite(bio1, &bufPt, 0), 0);
+
+    /* should read only to end of write buffer then need to read again */
+    ExpectIntEQ(BIO_nread(bio3, &bufPt, 20), 16);
+    for (i = 0; i < 16; i++) {
+        ExpectIntEQ(bufPt[i], buff[4 + i]);
+    }
+
+    ExpectIntEQ(BIO_nread(bio3, NULL, 0), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    ExpectIntEQ(BIO_nread0(bio3, &bufPt), 4);
+    for (i = 0; i < 4; i++) {
+        ExpectIntEQ(bufPt[i], 0);
+    }
+
+    /* read index should not have advanced with nread0 */
+    ExpectIntEQ(BIO_nread(bio3, &bufPt, 5), 4);
+    for (i = 0; i < 4; i++) {
+        ExpectIntEQ(bufPt[i], 0);
+    }
+
+    /* write and fill up buffer checking reset of index state */
+    ExpectIntEQ(BIO_nwrite(bio1, &bufPt, 20), 20);
+    ExpectNotNull(XMEMCPY(bufPt, buff, 20));
+
+    /* test reset on data in bio1 write buffer */
+    ExpectIntEQ(BIO_reset(bio1), 1);
+    ExpectIntEQ((int)BIO_ctrl_pending(bio3), 0);
+    ExpectIntEQ(BIO_nread(bio3, &bufPt, 3), 0);
+    ExpectIntEQ(BIO_nwrite(bio1, &bufPt, 20), 20);
+    ExpectIntEQ((int)BIO_ctrl(bio1, BIO_CTRL_INFO, 0, &p), 20);
+    ExpectNotNull(p);
+    ExpectNotNull(XMEMCPY(bufPt, buff, 20));
+    ExpectIntEQ(BIO_nread(bio3, &bufPt, 6), 6);
+    for (i = 0; i < 6; i++) {
+        ExpectIntEQ(bufPt[i], i);
+    }
+
+    /* test case of writing twice with offset read index */
+    ExpectIntEQ(BIO_nwrite(bio1, &bufPt, 3), 3);
+    ExpectIntEQ(BIO_nwrite(bio1, &bufPt, 4), 3); /* try overwriting */
+    ExpectIntEQ(BIO_nwrite(bio1, &bufPt, 4), WOLFSSL_BIO_ERROR);
+    ExpectIntEQ(BIO_nread(bio3, &bufPt, 0), 0);
+    ExpectIntEQ(BIO_nwrite(bio1, &bufPt, 4), WOLFSSL_BIO_ERROR);
+    ExpectIntEQ(BIO_nread(bio3, &bufPt, 1), 1);
+    ExpectIntEQ(BIO_nwrite(bio1, &bufPt, 4), 1);
+    ExpectIntEQ(BIO_nwrite(bio1, &bufPt, 4), WOLFSSL_BIO_ERROR);
+
+    BIO_free(bio1);
+    bio1 = NULL;
+    BIO_free(bio3);
+    bio3 = NULL;
+
+    #if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO)
+    {
+        BIO* bioA = NULL;
+        BIO* bioB = NULL;
+        ExpectIntEQ(BIO_new_bio_pair(NULL, 256, NULL, 256),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(BIO_new_bio_pair(&bioA, 256, &bioB, 256), WOLFSSL_SUCCESS);
+        BIO_free(bioA);
+        bioA = NULL;
+        BIO_free(bioB);
+        bioB = NULL;
+    }
+    #endif /* OPENSSL_ALL || WOLFSSL_ASIO */
+
+    /* BIOs with file pointers */
+    #if !defined(NO_FILESYSTEM)
+    {
+        XFILE f1 = XBADFILE;
+        XFILE f2 = XBADFILE;
+        BIO*  f_bio1 = NULL;
+        BIO*  f_bio2 = NULL;
+        unsigned char cert[300];
+        char testFile[] = "tests/bio_write_test.txt";
+        char msg[]      = "bio_write_test.txt contains the first 300 bytes of "
+                          "certs/server-cert.pem\n"
+                          "created by tests/unit.test\n\n";
+
+        ExpectNotNull(f_bio1 = BIO_new(BIO_s_file()));
+        ExpectNotNull(f_bio2 = BIO_new(BIO_s_file()));
+
+        /* Failure due to wrong BIO type */
+        ExpectIntEQ((int)BIO_set_mem_eof_return(f_bio1, -1), 0);
+        ExpectIntEQ((int)BIO_set_mem_eof_return(NULL, -1),   0);
+
+        ExpectTrue((f1 = XFOPEN(svrCertFile, "rb+")) != XBADFILE);
+        ExpectIntEQ((int)BIO_set_fp(f_bio1, f1, BIO_CLOSE), WOLFSSL_SUCCESS);
+        ExpectIntEQ(BIO_write_filename(f_bio2, testFile),
+                WOLFSSL_SUCCESS);
+
+        ExpectIntEQ(BIO_read(f_bio1, cert, sizeof(cert)), sizeof(cert));
+        ExpectIntEQ(BIO_tell(f_bio1),sizeof(cert));
+        ExpectIntEQ(BIO_write(f_bio2, msg, sizeof(msg)), sizeof(msg));
+        ExpectIntEQ(BIO_tell(f_bio2),sizeof(msg));
+        ExpectIntEQ(BIO_write(f_bio2, cert, sizeof(cert)), sizeof(cert));
+        ExpectIntEQ(BIO_tell(f_bio2),sizeof(cert) + sizeof(msg));
+
+        ExpectIntEQ((int)BIO_get_fp(f_bio2, &f2), WOLFSSL_SUCCESS);
+        ExpectIntEQ(BIO_reset(f_bio2), 1);
+        ExpectIntEQ(BIO_tell(NULL),-1);
+        ExpectIntEQ(BIO_tell(f_bio2),0);
+        ExpectIntEQ(BIO_seek(f_bio2, 4), 0);
+        ExpectIntEQ(BIO_tell(f_bio2),4);
+
+        BIO_free(f_bio1);
+        f_bio1 = NULL;
+        BIO_free(f_bio2);
+        f_bio2 = NULL;
+
+        ExpectNotNull(f_bio1 = BIO_new_file(svrCertFile, "rb+"));
+        ExpectIntEQ((int)BIO_set_mem_eof_return(f_bio1, -1), 0);
+        ExpectIntEQ(BIO_read(f_bio1, cert, sizeof(cert)), sizeof(cert));
+        BIO_free(f_bio1);
+        f_bio1 = NULL;
+    }
+    #endif /* !defined(NO_FILESYSTEM) */
+
+    /* BIO info callback */
+    {
+        const char* testArg = "test";
+        BIO* cb_bio = NULL;
+        ExpectNotNull(cb_bio = BIO_new(BIO_s_mem()));
+
+        BIO_set_callback(cb_bio, bioCallback);
+        ExpectNotNull(BIO_get_callback(cb_bio));
+        BIO_set_callback(cb_bio, NULL);
+        ExpectNull(BIO_get_callback(cb_bio));
+
+        BIO_set_callback_arg(cb_bio, (char*)testArg);
+        ExpectStrEQ(BIO_get_callback_arg(cb_bio), testArg);
+        ExpectNull(BIO_get_callback_arg(NULL));
+
+        BIO_free(cb_bio);
+        cb_bio = NULL;
+    }
+
+    /* BIO_vfree */
+    ExpectNotNull(bio1 = BIO_new(BIO_s_bio()));
+    BIO_vfree(NULL);
+    BIO_vfree(bio1);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_BIO_BIO_ring_read(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_ALL) && !defined(NO_BIO)
+    BIO* bio1 = NULL;
+    BIO* bio2 = NULL;
+    byte data[50];
+    byte tmp[50];
+
+    XMEMSET(data, 42, sizeof(data));
+
+
+    ExpectIntEQ(BIO_new_bio_pair(&bio1, sizeof(data), &bio2, sizeof(data)),
+            SSL_SUCCESS);
+
+    ExpectIntEQ(BIO_write(bio1, data, 40), 40);
+    ExpectIntEQ(BIO_read(bio1, tmp, 20), -1);
+    ExpectIntEQ(BIO_read(bio2, tmp, 20), 20);
+    ExpectBufEQ(tmp, data, 20);
+    ExpectIntEQ(BIO_write(bio1, data, 20), 20);
+    ExpectIntEQ(BIO_read(bio2, tmp, 40), 40);
+    ExpectBufEQ(tmp, data, 40);
+
+    BIO_free(bio1);
+    BIO_free(bio2);
 #endif
     return EXPECT_RESULT();
 }

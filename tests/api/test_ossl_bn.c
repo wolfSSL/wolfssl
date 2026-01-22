@@ -217,14 +217,16 @@ int test_wolfSSL_BN_init(void)
     ExpectIntEQ(BN_set_word(&cv, 5), SSL_SUCCESS);
 
     /* a^b mod c = */
-    ExpectIntEQ(BN_mod_exp(&dv, NULL, &bv, &cv, NULL), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    ExpectIntEQ(BN_mod_exp(&dv, NULL, &bv, &cv, NULL),
+                WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
     ExpectIntEQ(BN_mod_exp(&dv, ap, &bv, &cv, NULL), WOLFSSL_SUCCESS);
 
     /* check result  3^2 mod 5 */
     ExpectIntEQ(BN_get_word(&dv), 4);
 
     /* a*b mod c = */
-    ExpectIntEQ(BN_mod_mul(&dv, NULL, &bv, &cv, NULL), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    ExpectIntEQ(BN_mod_mul(&dv, NULL, &bv, &cv, NULL),
+                WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
     ExpectIntEQ(BN_mod_mul(&dv, ap, &bv, &cv, NULL), SSL_SUCCESS);
 
     /* check result  3*2 mod 5 */
@@ -1027,7 +1029,8 @@ int test_wolfSSL_BN_prime(void)
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && !defined(NO_ASN) && \
     !defined(OPENSSL_EXTRA_NO_BN) && !defined(WOLFSSL_SP_MATH)
-#if defined(WOLFSSL_KEY_GEN) && (!defined(NO_RSA) || !defined(NO_DH) || !defined(NO_DSA))
+#if defined(WOLFSSL_KEY_GEN) && (!defined(NO_RSA) || !defined(NO_DH) || \
+    !defined(NO_DSA))
     BIGNUM* a = NULL;
     BIGNUM* add = NULL;
     BIGNUM* rem = NULL;

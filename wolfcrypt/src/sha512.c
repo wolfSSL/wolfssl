@@ -867,6 +867,7 @@ static int InitSha512_Family(wc_Sha512* sha512, void* heap, int devId,
         return BAD_FUNC_ARG;
     }
 
+    XMEMSET(sha512, 0, sizeof(*sha512));
 
     sha512->heap = heap;
 #ifdef WOLFSSL_SMALL_STACK_CACHE
@@ -884,26 +885,33 @@ static int InitSha512_Family(wc_Sha512* sha512, void* heap, int devId,
     sha512->devCtx = NULL;
 #endif
 
-    /* call the initialization function pointed to by initfp */
-    ret = initfp(sha512);
-    if (ret != 0)
-        return ret;
-
 #ifdef WOLFSSL_HASH_KEEP
     sha512->msg  = NULL;
-    sha512->len  = 0;
-    sha512->used = 0;
 #endif
 
+    /* call the initialization function pointed to by initfp */
+    ret = initfp(sha512);
+
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA512)
-    ret = wolfAsync_DevCtxInit(&sha512->asyncDev,
+    if (ret == 0) {
+        ret = wolfAsync_DevCtxInit(&sha512->asyncDev,
                         WOLFSSL_ASYNC_MARKER_SHA512, sha512->heap, devId);
+    }
 #else
     (void)devId;
 #endif /* WOLFSSL_ASYNC_CRYPT */
 #ifdef WOLFSSL_IMXRT1170_CAAM
-     ret = wc_CAAM_HashInit(&sha512->hndl, &sha512->ctx, WC_HASH_TYPE_SHA512);
+    if (ret == 0)
+        ret = wc_CAAM_HashInit(&sha512->hndl, &sha512->ctx, WC_HASH_TYPE_SHA512);
 #endif
+
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+    if (ret != 0) {
+        XFREE(sha512->W, sha512->heap, DYNAMIC_TYPE_DIGEST);
+        sha512->W = NULL;
+    }
+#endif
+
     return ret;
 } /* InitSha512_Family */
 

@@ -52,6 +52,11 @@
     #define FOURK_BUF 4096
 #endif
 
+#if !defined(NO_RSA) && !defined(NO_SHA) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_CERTS) && \
+    (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH))
+    #define HAVE_CERT_CHAIN_VALIDATION
+#endif
 
 #ifndef NO_RSA
 #define GEN_BUF  294

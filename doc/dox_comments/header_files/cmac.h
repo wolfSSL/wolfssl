@@ -206,3 +206,82 @@ int wc_AesCmacVerify(const byte* check, word32 checkSz,
     \endcode
 */
 int wc_CMAC_Grow(Cmac* cmac, const byte* in, int inSz);
+
+/*!
+    \ingroup CMAC
+    \brief Single shot AES-CMAC generation with extended parameters
+    including heap and device ID.
+
+    \return 0 on success
+    \return BAD_FUNC_ARG if parameters are invalid
+
+    \param cmac Pointer to Cmac structure (can be NULL for one-shot)
+    \param out Buffer to store MAC output
+    \param outSz Pointer to output size (in/out)
+    \param in Input data to authenticate
+    \param inSz Length of input data
+    \param key AES key
+    \param keySz Key size (16, 24, or 32 bytes)
+    \param heap Heap hint for memory allocation (can be NULL)
+    \param devId Device ID for hardware acceleration (use
+    INVALID_DEVID for software)
+
+    _Example_
+    \code
+    byte mac[AES_BLOCK_SIZE];
+    word32 macSz = sizeof(mac);
+    byte key[16], msg[64];
+
+    int ret = wc_AesCmacGenerate_ex(NULL, mac, &macSz, msg,
+                                    sizeof(msg), key, sizeof(key),
+                                    NULL, INVALID_DEVID);
+    \endcode
+
+    \sa wc_AesCmacGenerate
+    \sa wc_AesCmacVerify_ex
+*/
+int wc_AesCmacGenerate_ex(Cmac *cmac, byte* out, word32* outSz,
+                          const byte* in, word32 inSz,
+                          const byte* key, word32 keySz,
+                          void* heap, int devId);
+
+/*!
+    \ingroup CMAC
+    \brief Single shot AES-CMAC verification with extended parameters
+    including heap and device ID.
+
+    \return 0 on success
+    \return BAD_FUNC_ARG if parameters are invalid
+    \return MAC_CMP_FAILED_E if MAC verification fails
+
+    \param cmac Pointer to Cmac structure (can be NULL for one-shot)
+    \param check Expected MAC value to verify
+    \param checkSz Size of expected MAC
+    \param in Input data to authenticate
+    \param inSz Length of input data
+    \param key AES key
+    \param keySz Key size (16, 24, or 32 bytes)
+    \param heap Heap hint for memory allocation (can be NULL)
+    \param devId Device ID for hardware acceleration (use
+    INVALID_DEVID for software)
+
+    _Example_
+    \code
+    byte mac[AES_BLOCK_SIZE];
+    byte key[16], msg[64];
+
+    int ret = wc_AesCmacVerify_ex(NULL, mac, sizeof(mac), msg,
+                                  sizeof(msg), key, sizeof(key),
+                                  NULL, INVALID_DEVID);
+    if (ret == MAC_CMP_FAILED_E) {
+        // MAC verification failed
+    }
+    \endcode
+
+    \sa wc_AesCmacVerify
+    \sa wc_AesCmacGenerate_ex
+*/
+int wc_AesCmacVerify_ex(Cmac* cmac, const byte* check, word32 checkSz,
+                       const byte* in, word32 inSz,
+                       const byte* key, word32 keySz,
+                       void* heap, int devId);

@@ -766,3 +766,37 @@ int wc_curve448_export_key_raw_ex(curve448_key* key,
 */
 
 int wc_curve448_size(curve448_key* key);
+
+/*!
+    \ingroup Curve448
+    \brief This function generates a Curve448 public key from a given
+    private key. It computes the public key by performing scalar
+    multiplication of the base point with the private key.
+
+    \return 0 On success.
+    \return ECC_BAD_ARG_E If public_size is not CURVE448_PUB_KEY_SIZE or
+    if private_size is not CURVE448_KEY_SIZE.
+    \return BAD_FUNC_ARG If pub or priv is NULL.
+
+    \param public_size size of the public key buffer (must be 56 bytes)
+    \param pub pointer to buffer to store the generated public key
+    \param private_size size of the private key (must be 56 bytes)
+    \param priv pointer to the private key buffer
+
+    _Example_
+    \code
+    byte priv[CURVE448_KEY_SIZE] = { }; // private key
+    byte pub[CURVE448_PUB_KEY_SIZE];
+
+    int ret = wc_curve448_make_pub(CURVE448_PUB_KEY_SIZE, pub,
+                                    CURVE448_KEY_SIZE, priv);
+    if (ret != 0) {
+        // error generating public key
+    }
+    \endcode
+
+    \sa wc_curve448_make_key
+    \sa wc_curve448_import_private
+*/
+int wc_curve448_make_pub(int public_size, byte* pub, int private_size,
+                         const byte* priv);

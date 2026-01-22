@@ -749,10 +749,7 @@ static int km_ffdhe_init(struct crypto_kpp *tfm, int name, word32 nbits)
     ctx->name = name;
     ctx->nbits = nbits;
 
-    if (WOLFSSL_ATOMIC_LOAD(linuxkm_lkcapi_registering_now))
-        err = LKCAPI_INITRNG_FOR_SELFTEST(&ctx->rng);
-    else
-        err = wc_InitRng(&ctx->rng);
+    err = LKCAPI_INITRNG(&ctx->rng);
     if (err) {
         #ifdef WOLFKM_DEBUG_DH
         pr_err("%s: init rng returned: %d\n", WOLFKM_DH_DRIVER, err);
