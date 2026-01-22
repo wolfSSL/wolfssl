@@ -1,0 +1,51 @@
+name: CryptoCB Only Tests
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  make_check:
+    strategy:
+      fail-fast: false
+      matrix:
+        config: [
+        # tests skipping tests in CI
+          '--enable-cryptocb CFLAGS="-DNO_SESSION_CACHE -DWOLF_CRYPTO_CB_ONLY_RSA"',
+          '--enable-cryptocb CFLAGS="-DNO_SESSION_CACHE -DWOLF_CRYPTO_CB_ONLY_ECC"',
+          '--enable-cryptocb CFLAGS="-DNO_SESSION_CACHE -DWOLF_CRYPTO_CB_ONLY_ECC -DWOLF_CRYPTO_CB_ONLY_RSA"',
+        # tests using external crypto device provider
+          '--enable-cryptocb --enable-cryptocb-test-provider CFLAGS="-DNO_SESSION_CACHE -DWOLF_CRYPTO_CB_ONLY_ECC"',
+          '--enable-cryptocb --enable-cryptocb-test-provider CFLAGS="-DNO_SESSION_CACHE -DWOLF_CRYPTO_CB_ONLY_RSA"',
+          '--enable-cryptocb --enable-cryptocb-test-provider CFLAGS="-DNO_SESSION_CACHE -DWOLF_CRYPTO_CB_ONLY_ECC -DWOLF_CRYPTO_CB_ONLY_RSA"',
+        ]
+    name: make check
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-22.04
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        name: Checkout wolfSSL
+
+      - name: Test wolfSSL CryptoCB Only
+        run: |
+          ./autogen.sh
+          ./configure ${{ matrix.config }}
+          make -j 4
+          make check
+
+      - name: Print errors
+        if: ${{ failure() }}
+        run: |
+          if [ -f test-suite.log ] ; then
+            cat test-suite.log
+          fi
