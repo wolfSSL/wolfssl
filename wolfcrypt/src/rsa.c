@@ -3792,7 +3792,7 @@ int wc_RsaPrivateDecryptInline(byte* in, word32 inLen, byte** out, RsaKey* key)
 {
     WC_RNG* rng;
     int ret;
-#ifdef WC_RSA_BLINDING
+#if defined(WC_RSA_BLINDING) && !defined(WC_NO_RNG)
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
@@ -3816,7 +3816,7 @@ int wc_RsaPrivateDecryptInline_ex(byte* in, word32 inLen, byte** out,
 {
     WC_RNG* rng;
     int ret;
-#ifdef WC_RSA_BLINDING
+#if defined(WC_RSA_BLINDING) && !defined(WC_NO_RNG)
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
@@ -3839,7 +3839,7 @@ int wc_RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out,
 {
     WC_RNG* rng;
     int ret;
-#ifdef WC_RSA_BLINDING
+#if defined(WC_RSA_BLINDING) && !defined(WC_NO_RNG)
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
@@ -3863,7 +3863,7 @@ int wc_RsaPrivateDecrypt_ex(const byte* in, word32 inLen, byte* out,
 {
     WC_RNG* rng;
     int ret;
-#ifdef WC_RSA_BLINDING
+#if defined(WC_RSA_BLINDING) && !defined(WC_NO_RNG)
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
@@ -3886,7 +3886,7 @@ int wc_RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out, RsaKey* key)
 {
     WC_RNG* rng;
     int ret;
-#ifdef WC_RSA_BLINDING
+#if defined(WC_RSA_BLINDING) && !defined(WC_NO_RNG)
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
@@ -3931,7 +3931,7 @@ int  wc_RsaSSL_Verify_ex2(const byte* in, word32 inLen, byte* out, word32 outLen
         return BAD_FUNC_ARG;
     }
 
-#ifdef WC_RSA_BLINDING
+#if defined(WC_RSA_BLINDING) && !defined(WC_NO_RNG)
     rng = key->rng;
 #else
     rng = NULL;
@@ -3997,7 +3997,7 @@ int wc_RsaPSS_VerifyInline_ex(byte* in, word32 inLen, byte** out,
 {
     WC_RNG* rng;
     int ret;
-#ifdef WC_RSA_BLINDING
+#if defined(WC_RSA_BLINDING) && !defined(WC_NO_RNG)
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
@@ -4055,7 +4055,7 @@ int wc_RsaPSS_Verify_ex(const byte* in, word32 inLen, byte* out, word32 outLen,
 {
     WC_RNG* rng;
     int ret;
-#ifdef WC_RSA_BLINDING
+#if defined(WC_RSA_BLINDING) && !defined(WC_NO_RNG)
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }

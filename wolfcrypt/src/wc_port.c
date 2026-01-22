@@ -68,7 +68,7 @@
 #if defined(WOLFSSL_RENESAS_RX64_HASH)
     #include <wolfssl/wolfcrypt/port/Renesas/renesas-rx64-hw-crypt.h>
 #endif
-#if defined(WOLFSSL_STSAFEA100)
+#ifdef WOLFSSL_STSAFE
     #include <wolfssl/wolfcrypt/port/st/stsafe.h>
 #endif
 
@@ -303,8 +303,12 @@ int wolfCrypt_Init(void)
             return ret;
         }
     #endif
-    #if defined(WOLFSSL_STSAFEA100)
-        stsafe_interface_init();
+    #ifdef WOLFSSL_STSAFE
+        ret = stsafe_interface_init();
+        if (ret != 0) {
+            WOLFSSL_MSG("STSAFE init failed");
+            return ret;
+        }
     #endif
     #if defined(WOLFSSL_TROPIC01)
         ret = Tropic01_Init();

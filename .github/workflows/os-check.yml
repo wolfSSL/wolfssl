@@ -17,7 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-22.04, macos-latest ]
+        os: [ ubuntu-24.04, macos-latest ]
         config: [
           # Add new configs here
           '',
@@ -87,7 +87,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-22.04, macos-latest ]
+        os: [ ubuntu-24.04, macos-latest ]
         user-settings: [
           # Add new user_settings.h here
           'examples/configs/user_settings_all.h',
@@ -109,7 +109,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-22.04, macos-latest ]
+        os: [ ubuntu-24.04, macos-latest ]
         user-settings: [
           # Add new user_settings.h here
           'examples/configs/user_settings_eccnonblock.h',
@@ -140,7 +140,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-22.04, macos-latest ]
+        os: [ ubuntu-24.04, macos-latest ]
     name: make user_setting.h (with sed)
     if: github.repository_owner == 'wolfssl'
     runs-on: ${{ matrix.os }}

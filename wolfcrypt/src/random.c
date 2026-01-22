@@ -752,12 +752,18 @@ int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
 
     /* Check the seed for duplicate words. */
     word32 seedIdx = 0;
-    word32 scratchSz = min(SEED_BLOCK_SZ, seedSz - SEED_BLOCK_SZ);
+    word32 scratchSz = 0;
+
+    if (seed == NULL || seedSz < SEED_BLOCK_SZ)
+        return BAD_FUNC_ARG;
+
+    scratchSz = min(SEED_BLOCK_SZ, seedSz - SEED_BLOCK_SZ);
 
     while (seedIdx < seedSz - SEED_BLOCK_SZ) {
         if (ConstantCompare(seed + seedIdx,
                             seed + seedIdx + scratchSz,
                             (int)scratchSz) == 0) {
+
             ret = DRBG_CONT_FAILURE;
         }
         seedIdx += SEED_BLOCK_SZ;
@@ -1935,11 +1941,48 @@ static int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output, word32 sz)
 {
     int ret;
     word64 rndTmp;
+    static int rdseed_sanity_status = 0;
 
     (void)os;
 
     if (!IS_INTEL_RDSEED(intel_flags))
         return -1;
+
+    /* Note, access to rdseed_sanity_status is benignly racey on multithreaded
+     * targets.
+     */
+    if (rdseed_sanity_status == 0) {
+        word64 sanity_word1 = 0, sanity_word2 = 0;
+
+        ret = IntelRDseed64_r(&sanity_word1);
+        if (ret != 0)
+            return ret;
+
+        ret = IntelRDseed64_r(&sanity_word2);
+        if (ret != 0)
+            return ret;
+
+        if (sanity_word1 == sanity_word2) {
+            ret = IntelRDseed64_r(&sanity_word1);
+            if (ret != 0)
+                return ret;
+
+            if (sanity_word1 == sanity_word2) {
+#ifdef WC_VERBOSE_RNG
+                WOLFSSL_DEBUG_PRINTF(
+                    "WARNING: disabling RDSEED due to repeating word 0x%lx -- "
+                    "check CPU microcode version.", sanity_word2);
+#endif
+                rdseed_sanity_status = -1;
+                return -1;
+            }
+        }
+
+        rdseed_sanity_status = 1;
+    }
+    else if (rdseed_sanity_status < 0) {
+        return -1;
+    }
 
     for (; (sz / sizeof(word64)) > 0; sz -= sizeof(word64),
                                                     output += sizeof(word64)) {

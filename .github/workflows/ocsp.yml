@@ -16,7 +16,7 @@ jobs:
   ocsp_stapling:
     name: ocsp stapling
     if: github.repository_owner == 'wolfssl'
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: Checkout wolfSSL

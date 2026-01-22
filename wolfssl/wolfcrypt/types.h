@@ -307,8 +307,11 @@ typedef const char wcchar[];
 #endif
 
 #if defined(WORD64_AVAILABLE) && !defined(WC_16BIT_CPU)
-    /* These platforms have 64-bit CPU registers.  */
-    #if (defined(__alpha__) || defined(__ia64__) || defined(_ARCH_PPC64) || \
+    #if defined(WC_64BIT_CPU)
+        /* explicitly configured for 64 bit. */
+    #elif defined(WC_32BIT_CPU)
+        /* explicitly configured for 32 bit. */
+    #elif (defined(__alpha__) || defined(__ia64__) || defined(_ARCH_PPC64) || \
         (defined(__mips64) && \
          ((defined(_ABI64) && (_MIPS_SIM == _ABI64)) || \
           (defined(_ABIO64) && (_MIPS_SIM == _ABIO64)))) || \
@@ -317,6 +320,7 @@ typedef const char wcchar[];
         (defined(__riscv_xlen) && (__riscv_xlen == 64)) || defined(_M_ARM64) || \
         defined(__aarch64__) || defined(__ppc64__) || \
         (defined(__DCC__) && (defined(__LP64) || defined(__LP64__)))
+        /* The above platforms have 64-bit CPU registers. */
         #define WC_64BIT_CPU
     #elif (defined(sun) || defined(__sun)) && \
           (defined(LP64) || defined(_LP64))

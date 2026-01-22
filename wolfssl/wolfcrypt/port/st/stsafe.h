@@ -23,6 +23,7 @@
 #define _WOLFPORT_STSAFE_H_
 
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/ecc.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
@@ -34,22 +35,135 @@
 #include <wolfssl/ssl.h>
 #endif
 
-#ifdef WOLFSSL_STSAFEA100
+#ifdef WOLFSSL_STSAFE
 
-/* The wolf STSAFE interface layer */
-/* Please contact wolfSSL for the STSAFE port files */
-#include "stsafe_interface.h"
+/* -------------------------------------------------------------------------- */
+/* External Interface Support (Backwards Compatibility)                       */
+/* -------------------------------------------------------------------------- */
+
+/* Define WOLFSSL_STSAFE_INTERFACE_EXTERNAL to use an external stsafe_
+ * interface.h file that provides customer-specific implementations.
+ * This maintains backwards compatibility with older integrations that
+ * used a separate interface file.
+ *
+ * When NOT set (the default): All code is self-contained in stsafe.c using
+ * the appropriate SDK (STSELib for A120, STSAFE-A1xx SDK for A100/A110).
+ *
+ * When defined: Include customer-provided stsafe_interface.h which must define:
+ *   - stsafe_curve_id_t, stsafe_slot_t types
+ *   - STSAFE_ECC_CURVE_P256, STSAFE_ECC_CURVE_P384 macros
+ *   - STSAFE_KEY_SLOT_0, STSAFE_KEY_SLOT_1, STSAFE_KEY_SLOT_EPHEMERAL macros
+ *   - STSAFE_A_OK return code macro
+ *   - STSAFE_MAX_KEY_LEN, STSAFE_MAX_PUBKEY_RAW_LEN, STSAFE_MAX_SIG_LEN macros
+ *   - Function prototypes for interface functions (see stsafe.c)
+ */
+#ifdef WOLFSSL_STSAFE_INTERFACE_EXTERNAL
+    #include "stsafe_interface.h"
+#else
+
+/* -------------------------------------------------------------------------- */
+/* STSAFE SDK Type Abstractions                                               */
+/* -------------------------------------------------------------------------- */
+
+#ifdef WOLFSSL_STSAFEA120
+    /* STSAFE-A120 uses STSELib (open source BSD-3) */
+    /* Note: stselib.h is included in stsafe.c to avoid warnings in headers */
+
+    /* Type mappings for STSELib - using byte for curve ID to avoid
+     * including full STSELib headers which have strict-prototype warnings */
+    typedef byte                 stsafe_curve_id_t;
+    typedef byte                 stsafe_slot_t;
+
+    /* Curve ID mappings - values depend on stse_conf.h settings!
+     * With only NIST P-256 and P-384 enabled:
+     *   STSE_ECC_KT_NIST_P_256 = 0, STSE_ECC_KT_NIST_P_384 = 1
+     * NOTE: If other curves are enabled, these values change!
+     *
+     * Compile-time static assertions and runtime checks in stsafe_interface_init()
+     * verify that these constants match the actual STSE_ECC_KT enum values. */
+    #define STSAFE_ECC_CURVE_P256       0  /* STSE_ECC_KT_NIST_P_256 */
+    #define STSAFE_ECC_CURVE_P384       1  /* STSE_ECC_KT_NIST_P_384 */
+    #define STSAFE_ECC_CURVE_BP256      2  /* STSE_ECC_KT_BP_P_256 */
+    #define STSAFE_ECC_CURVE_BP384      3  /* STSE_ECC_KT_BP_P_384 */
+
+    /* Slot mappings */
+    #define STSAFE_KEY_SLOT_0           0
+    #define STSAFE_KEY_SLOT_1           1
+    #define STSAFE_KEY_SLOT_EPHEMERAL   0xFF
+
+    /* Return codes */
+    #define STSAFE_A_OK                 0  /* STSE_OK */
+
+    /* Key usage limits */
+    #define STSAFE_PERSISTENT_KEY_USAGE_LIMIT  255  /* Usage limit for persistent keys in slot 1 */
+    #define STSAFE_EPHEMERAL_KEY_USAGE_LIMIT   1    /* Usage limit for ephemeral keys in slot 0xFF */
+
+    /* Hash types - must match stse_hash_algorithm_t values in STSELib */
+    #define STSAFE_HASH_SHA256          0  /* STSE_SHA_256 */
+    #define STSAFE_HASH_SHA384          1  /* STSE_SHA_384 */
+
+#else /* WOLFSSL_STSAFEA100 */
+    /* STSAFE-A100/A110 uses legacy ST STSAFE-A1xx SDK */
+    /* User must provide path to STSAFE-A1xx SDK headers */
+    #include <stsafe_a_types.h>
+
+    /* Type mappings for legacy SDK */
+    typedef StSafeA_CurveId       stsafe_curve_id_t;
+    typedef StSafeA_KeySlotNumber stsafe_slot_t;
+
+    /* Curve ID mappings */
+    #define STSAFE_ECC_CURVE_P256       STSAFE_A_NIST_P_256
+    #define STSAFE_ECC_CURVE_P384       STSAFE_A_NIST_P_384
+    #define STSAFE_ECC_CURVE_BP256      STSAFE_A_BRAINPOOL_P_256
+    #define STSAFE_ECC_CURVE_BP384      STSAFE_A_BRAINPOOL_P_384
+
+    /* Slot mappings */
+    #define STSAFE_KEY_SLOT_0           STSAFE_A_SLOT_0
+    #define STSAFE_KEY_SLOT_1           STSAFE_A_SLOT_1
+    #define STSAFE_KEY_SLOT_EPHEMERAL   STSAFE_A_SLOT_EPHEMERAL
+
+    /* Return codes - STSAFE_A_OK already defined in SDK */
+
+    /* Hash types */
+    #define STSAFE_HASH_SHA256          STSAFE_A_SHA_256
+    #define STSAFE_HASH_SHA384          STSAFE_A_SHA_384
+
+#endif /* WOLFSSL_STSAFEA120 */
+
+/* -------------------------------------------------------------------------- */
+/* Common Definitions                                                         */
+/* -------------------------------------------------------------------------- */
 
 #ifndef STSAFE_MAX_KEY_LEN
-    #define STSAFE_MAX_KEY_LEN ((uint32_t)48) /* for up to 384-bit keys */
+    #define STSAFE_MAX_KEY_LEN          48  /* for up to 384-bit keys */
 #endif
 #ifndef STSAFE_MAX_PUBKEY_RAW_LEN
-    #define STSAFE_MAX_PUBKEY_RAW_LEN ((uint32_t)STSAFE_MAX_KEY_LEN * 2) /* x/y */
+    #define STSAFE_MAX_PUBKEY_RAW_LEN   (STSAFE_MAX_KEY_LEN * 2) /* x/y */
 #endif
 #ifndef STSAFE_MAX_SIG_LEN
-    #define STSAFE_MAX_SIG_LEN ((uint32_t)STSAFE_MAX_KEY_LEN * 2) /* r/s */
+    #define STSAFE_MAX_SIG_LEN          (STSAFE_MAX_KEY_LEN * 2) /* r/s */
 #endif
 
+/* Default I2C address */
+#ifndef STSAFE_I2C_ADDR
+    #define STSAFE_I2C_ADDR             0x20
+#endif
+
+/* Default curve mode (for signing operations) */
+#ifndef STSAFE_DEFAULT_CURVE
+    #define STSAFE_DEFAULT_CURVE        STSAFE_ECC_CURVE_P256
+#endif
+
+#endif /* !WOLFSSL_STSAFE_INTERFACE_EXTERNAL */
+
+/* -------------------------------------------------------------------------- */
+/* Public API Functions                                                       */
+/* -------------------------------------------------------------------------- */
+
+/* Initialize STSAFE device - called automatically by wolfCrypt_Init() */
+WOLFSSL_API int stsafe_interface_init(void);
+
+/* Load device certificate from STSAFE secure storage */
 WOLFSSL_API int SSL_STSAFE_LoadDeviceCertificate(byte** pRawCertificate,
     word32* pRawCertificateLen);
 
@@ -94,6 +208,6 @@ WOLFSSL_API int wolfSSL_STSAFE_CryptoDevCb(int devId, wc_CryptoInfo* info,
 
 #endif /* WOLF_CRYPTO_CB */
 
-#endif /* WOLFSSL_STSAFEA100 */
+#endif /* WOLFSSL_STSAFE */
 
 #endif /* _WOLFPORT_STSAFE_H_ */
