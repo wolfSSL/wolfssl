@@ -23947,6 +23947,13 @@ static wc_test_ret_t rsa_flatten_test(RsaKey* key)
         ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), exit_rsa_flatten);
 #endif
 
+#ifdef WOLFSSL_MICROCHIP_TA100
+    /* TA100 keys are hardware-only; flattening isn't supported. */
+    if (key != NULL && (key->rKeyH != 0 || key->uKeyH != 0)) {
+        return 0;
+    }
+#endif
+
     /* Parameter Validation testing. */
     ret = wc_RsaFlattenPublicKey(NULL, e, &eSz, n, &nSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
@@ -24017,6 +24024,13 @@ static wc_test_ret_t rsa_export_key_test(RsaKey* key)
     word32 pSz = RSA_TEST_BYTES/2;
     word32 qSz = RSA_TEST_BYTES/2;
     word32 zero = 0;
+
+#ifdef WOLFSSL_MICROCHIP_TA100
+    /* TA100 keys are hardware-only; exporting components is not supported. */
+    if (key != NULL && (key->rKeyH != 0 || key->uKeyH != 0)) {
+        return 0;
+    }
+#endif
 
 #if !defined(WOLFSSL_NO_MALLOC)
     n = (byte*)XMALLOC(RSA_TEST_BYTES, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -24723,6 +24737,7 @@ static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
     const char       inStr[] = TEST_STRING;
     word32           inLen   = (word32)TEST_STRING_SZ;
     word32           outSz;
+    word32           sigSz;
     word32           plainSz;
     word32           digestSz;
     int              i, j;
@@ -24733,6 +24748,10 @@ static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
     int              len;
 #endif
     byte*            plain;
+#ifdef WOLFSSL_MICROCHIP_TA100
+    int              mgf[]   = { WC_MGF1SHA256 };
+    enum wc_HashType hash[]  = { WC_HASH_TYPE_SHA256 };
+#else
     int              mgf[]   = {
 #ifndef NO_SHA
                                  WC_MGF1SHA1,
@@ -24767,6 +24786,7 @@ static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
                                  WC_HASH_TYPE_SHA512,
 #endif
                                };
+#endif /* WOLFSSL_MICROCHIP_TA100 */
 
     WC_DECLARE_VAR(in, byte, RSA_TEST_BYTES, HEAP_HINT);
     WC_DECLARE_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
@@ -24810,11 +24830,29 @@ static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
             if (ret <= 0)
                 ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_pss);
             outSz = (word32)ret;
+            /* Preserve signature length for TA100 verify. */
+            sigSz = outSz;
 
             XMEMCPY(sig, out, outSz);
             plain = NULL;
             TEST_SLEEP();
 
+#if defined(WOLFSSL_MICROCHIP_TA100)
+            do {
+            #if defined(WOLFSSL_ASYNC_CRYPT)
+                ret = wc_AsyncWait(ret, &key->asyncDev,
+                    WC_ASYNC_FLAG_CALL_AGAIN);
+            #endif
+                if (ret >= 0) {
+                    ret = wc_RsaPSS_VerifyCheck(sig, sigSz, out, outSz,
+                        digest, digestSz, hash[j], mgf[i], key);
+                }
+            } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
+            if (ret <= 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_pss);
+            /* TA100 PSS verify done; skip remaining software-only variants. */
+            return 0;
+#else
             do {
             #if defined(WOLFSSL_ASYNC_CRYPT)
                 ret = wc_AsyncWait(ret, &key->asyncDev,
@@ -24843,6 +24881,7 @@ static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
 #endif
             if (ret != 0)
                 ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_pss);
+#endif /* WOLFSSL_MICROCHIP_TA100 */
 
 #ifdef RSA_PSS_TEST_WRONG_PARAMS
             for (k = 0; k < (int)(sizeof(mgf)/sizeof(*mgf)); k++) {
@@ -26738,13 +26777,21 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
     }
 #endif
 #endif
+#ifdef WOLFSSL_MICROCHIP_TA100
+    /* TA100 RSA tests are limited to PSS verify/sign with HW keys. */
+    goto ta100_rsa_pss_only;
+#endif
 #endif /* WOLFSSL_KEY_GEN && WOLFSSL_MICROCHIP_TA100 */
 
 #ifndef NO_SIG_WRAPPER
 #ifndef NO_SHA256
+    #if !defined(WOLFSSL_MICROCHIP_TA100)
     ret = rsa_sig_test(key, sizeof *key, modLen, &rng);
     if (ret != 0)
         goto exit_rsa;
+    #else
+    (void)modLen;
+    #endif /* !WOLFSSL_MICROCHIP_TA100 */
 #else /* NO_SHA256 */
     (void)modLen;
 #endif /* NO_SHA256 */
@@ -26773,6 +26820,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
 #endif
+#ifndef WOLFSSL_MICROCHIP_TA100
     do {
 #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
@@ -26794,6 +26842,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
     if (ret < 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
     TEST_SLEEP();
+#endif /* !WOLFSSL_MICROCHIP_TA100 */
 
 #ifdef WC_RSA_BLINDING
     {
@@ -26839,18 +26888,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit_rsa);
     }
     TEST_SLEEP();
-
-    do {
-#if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-#endif
-        if (ret >= 0) {
-            ret = wc_RsaSSL_Sign(in, inLen, out, outSz, key, &rng);
-        }
-    } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
-    if (ret < 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
-    TEST_SLEEP();
+#endif /* !WOLFSSL_MICROCHIP_TA100 */
 
 #elif defined(WOLFSSL_PUBLIC_MP)
     {
@@ -27203,6 +27241,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
     }
 #endif /* WOLFSSL_CERT_REQ */
 #endif /* WOLFSSL_CERT_GEN */
+
+#ifdef WOLFSSL_MICROCHIP_TA100
+ta100_rsa_pss_only:
+#endif
 
 #if defined(WC_RSA_PSS) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,0)) && \
