@@ -648,6 +648,21 @@ static uint8_t getCurveType(int curve_id)
     }
 }
 #endif /* WOLFSSL_MICROCHIP_TA100 */
+
+#ifdef WOLFSSL_MICROCHIP_TA100
+static int getCurveSizeBytes(int curve_id)
+{
+    switch (curve_id) {
+        case ECC_SECP224R1: return 28;
+        case ECC_SECP256R1: return 32;
+        case ECC_SECP384R1: return 48;
+        case ECC_SECP256K1: return 32;
+        case ECC_BRAINPOOLP256R1: return 32;
+        case ECC_CURVE_DEF: return 32;
+        default: return -1;
+    }
+}
+#endif /* WOLFSSL_MICROCHIP_TA100 */
 int atmel_ecc_create_key(int slotId, int curve_id, byte* peerKey)
 {
     int ret;
@@ -665,9 +680,55 @@ int atmel_ecc_create_key(int slotId, int curve_id, byte* peerKey)
 
 #endif
     /* generate new ephemeral key on device */
+#ifdef WOLFSSL_MICROCHIP_TA100
+    #if defined(TA100_ECC_TRACE)
+    printf("[TA100] atmel_ecc_create_key: slot=%d curve_id=%d curve_size=%d curve_type=%d\r\n",
+        slotId, curve_id, getCurveSizeBytes(curve_id), getCurveType(curve_id));
+#endif
+    {
+        ATCA_STATUS status;
+        ta_element_attributes_t key_attr;
+        uint8_t is_valid = 0;
+        int curve_size = getCurveSizeBytes(curve_id);
+        int curve_type = getCurveType(curve_id);
+        size_t pubkey_len = (size_t)(curve_size * 2);
+
+        if (curve_size <= 0 || curve_type == MICROCHIP_INVALID_ECC)
+            return NOT_COMPILED_IN;
+
+        status = talib_is_handle_valid(atcab_get_device(),
+            (uint32_t)MAP_TO_HANDLE(slotId), &is_valid);
+        if (status == ATCA_SUCCESS && is_valid == 0x01) {
+            status = talib_delete_handle(atcab_get_device(),
+                (uint32_t)MAP_TO_HANDLE(slotId));
+        }
+        if (status != ATCA_SUCCESS)
+            return atmel_ecc_translate_err(status);
+
+        status = talib_handle_init_private_key(&key_attr,
+            (uint8_t)curve_type, TA_ALG_MODE_ECC_ECDSA,
+            TA_PROP_SIGN_INT_EXT_DIGEST, TA_PROP_KEY_AGREEMENT_OUT_BUFF);
+        if (status != ATCA_SUCCESS)
+            return atmel_ecc_translate_err(status);
+
+        ta100_fix_property_endian(&key_attr);
+        status = talib_create_element_with_handle(atcab_get_device(),
+            (uint32_t)MAP_TO_HANDLE(slotId), &key_attr);
+        if (status != ATCA_SUCCESS)
+            return atmel_ecc_translate_err(status);
+
+        status = talib_genkey_base(atcab_get_device(), TA_KEYGEN_MODE_NEWKEY,
+            (uint32_t)MAP_TO_HANDLE(slotId), peerKey, &pubkey_len);
+        #if defined(TA100_ECC_TRACE)
+        printf("[TA100] atmel_ecc_create_key: genkey status=%d pubkey_len=%u\r\n",
+            status, (unsigned)pubkey_len);
+#endif
+        return atmel_ecc_translate_err(status);
+    }
+#endif
+
     ret = atcab_genkey(MAP_TO_HANDLE(slotId), peerKey);
-    ret = atmel_ecc_translate_err(ret);
-    return ret;
+    return atmel_ecc_translate_err(ret);
 }
 
 int atmel_ecc_sign(int slotId, const byte* message, byte* signature)
@@ -691,6 +752,111 @@ int atmel_ecc_verify(const byte* message, const byte* signature,
         *pVerified = (int)verified;
     return ret;
 }
+
+#ifdef WOLFSSL_MICROCHIP_TA100
+int atmel_ecc_sign_ex(int slotId, int curve_id, const byte* message,
+    word32 message_len, byte* signature)
+{
+    int ret;
+    int curve_size = getCurveSizeBytes(curve_id);
+    int curve_type = getCurveType(curve_id);
+    uint16_t sign_size;
+    const byte* msg = message;
+    uint16_t msg_len;
+    byte tmp_msg[TA_SIGN_P384_MSG_SIZE];
+    byte tmp_sig[TA_SIGN_P384_SIG_SIZE];
+
+    if (curve_size <= 0 || curve_type == MICROCHIP_INVALID_ECC)
+        return NOT_COMPILED_IN;
+
+    sign_size = (uint16_t)(curve_size * 2);
+    if (sign_size > sizeof(tmp_sig))
+        return BAD_FUNC_ARG;
+    msg_len = (uint16_t)message_len;
+    if (msg_len != (uint16_t)curve_size) {
+        if (msg_len > (uint16_t)curve_size) {
+            msg_len = (uint16_t)curve_size;
+        } else {
+            XMEMSET(tmp_msg, 0, (word32)curve_size);
+            XMEMCPY(tmp_msg + (curve_size - msg_len), message, msg_len);
+            msg = tmp_msg;
+            msg_len = (uint16_t)curve_size;
+        }
+    }
+    #if defined(TA100_ECC_TRACE)
+    printf("[TA100] atmel_ecc_sign_ex: curve_size=%d msg_len=%u\r\n",
+        curve_size, (unsigned)msg_len);
+    #endif
+    ret = talib_sign_external(atcab_get_device(), (uint8_t)curve_type,
+        MAP_TO_HANDLE(slotId), TA_HANDLE_INPUT_BUFFER, msg,
+        msg_len, tmp_sig, &sign_size);
+
+    if (ret != ATCA_SUCCESS)
+        return atmel_ecc_translate_err(ret);
+
+    /* Always return raw R||S, each padded to curve size */
+    XMEMSET(signature, 0, (word32)(curve_size * 2));
+    if (sign_size == (uint16_t)(curve_size * 2)) {
+        XMEMCPY(signature, tmp_sig, sign_size);
+    }
+    else if ((sign_size % 2) == 0 && sign_size < (uint16_t)(curve_size * 2)) {
+        uint16_t half = (uint16_t)(sign_size / 2);
+        if (half > (uint16_t)curve_size)
+            return BAD_FUNC_ARG;
+        XMEMCPY(signature + (curve_size - half), tmp_sig, half);
+        XMEMCPY(signature + curve_size + (curve_size - half),
+            tmp_sig + half, half);
+    }
+    else {
+        return ASN_PARSE_E;
+    }
+
+    return 0;
+}
+
+int atmel_ecc_verify_ex(const byte* message, word32 message_len,
+    const byte* signature, const byte* pubkey, word32 pubkey_len,
+    int curve_id, int* pVerified)
+{
+    int ret;
+    int curve_size = getCurveSizeBytes(curve_id);
+    int curve_type = getCurveType(curve_id);
+    uint16_t sig_len;
+    const byte* msg = message;
+    uint16_t msg_len;
+    byte tmp_msg[TA_VERIFY_P384_MSG_SIZE];
+    bool verified = false;
+
+    if (curve_size <= 0 || curve_type == MICROCHIP_INVALID_ECC)
+        return NOT_COMPILED_IN;
+
+    sig_len = (uint16_t)(curve_size * 2);
+    msg_len = (uint16_t)message_len;
+    if (msg_len != (uint16_t)curve_size) {
+        if (msg_len > (uint16_t)curve_size) {
+            msg_len = (uint16_t)curve_size;
+        } else {
+            XMEMSET(tmp_msg, 0, (word32)curve_size);
+            XMEMCPY(tmp_msg + (curve_size - msg_len), message, msg_len);
+            msg = tmp_msg;
+            msg_len = (uint16_t)curve_size;
+        }
+    }
+    #if defined(TA100_ECC_TRACE)
+    printf("[TA100] atmel_ecc_verify_ex: curve_size=%d msg_len=%u\r\n",
+        curve_size, (unsigned)msg_len);
+    #endif
+    ret = talib_verify(atcab_get_device(), (uint8_t)curve_type,
+        TA_HANDLE_INPUT_BUFFER, TA_HANDLE_INPUT_BUFFER, signature, sig_len,
+        msg, msg_len, pubkey, (uint16_t)pubkey_len,
+        &verified);
+
+    ret = atmel_ecc_translate_err(ret);
+    if (pVerified)
+        *pVerified = (int)verified;
+    return ret;
+}
+#endif /* WOLFSSL_MICROCHIP_TA100 */
 
 #endif /* HAVE_ECC */
 #endif /* WOLFSSL_ATECC508A || WOLFSSL_ATECC608A || WOLFSSL_MICROCHIP_TA100 */
@@ -1335,7 +1501,11 @@ int atcatls_sign_certificate_cb(WOLFSSL* ssl, const byte* in, unsigned int inSz,
         return WC_HW_WAIT_E;
 
     /* We can only sign with P-256 */
+#ifdef WOLFSSL_MICROCHIP_TA100
+    ret = atmel_ecc_sign_ex(slotId, ECC_SECP256R1, in, inSz, sigRs);
+#else
     ret = atmel_ecc_sign(MAP_TO_HANDLE(slotId), in, sigRs);
+#endif
     if (ret != ATCA_SUCCESS) {
         ret = WC_HW_E; goto exit;
     }

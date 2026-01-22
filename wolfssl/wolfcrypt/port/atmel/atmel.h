@@ -137,6 +137,13 @@ int  atmel_ecc_create_key(int slotId, int curve_id, byte* peerKey);
 int  atmel_ecc_sign(int slotId, const byte* message, byte* signature);
 int  atmel_ecc_verify(const byte* message, const byte* signature,
     const byte* pubkey, int* pVerified);
+#if defined(WOLFSSL_MICROCHIP_TA100)
+int  atmel_ecc_sign_ex(int slotId, int curve_id, const byte* message,
+    word32 message_len, byte* signature);
+int  atmel_ecc_verify_ex(const byte* message, word32 message_len,
+    const byte* signature, const byte* pubkey, word32 pubkey_len,
+    int curve_id, int* pVerified);
+#endif
 #endif /* HAVE_ECC */
 #endif /* WOLFSSL_ATECC508A */
 
@@ -162,6 +169,7 @@ WOLFSSL_LOCAL int wc_Microchip_aes_set_key(Aes* aes, const byte* key,
 WOLFSSL_LOCAL void wc_Microchip_aes_free(Aes* aes);
 #endif /* !NO_AES && HAVE_AESGCM */
 #ifndef NO_RSA
+typedef struct RsaKey RsaKey;
 WOLFSSL_LOCAL int wc_Microchip_rsa_create_key(RsaKey* key, int size, long e);
 WOLFSSL_LOCAL void wc_Microchip_rsa_free(RsaKey* key);
 WOLFSSL_LOCAL int wc_Microchip_rsa_sign(const byte* in, word32 inLen, byte* out,
