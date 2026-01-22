@@ -2138,6 +2138,12 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         sha224->devId = devId;
         sha224->devCtx = NULL;
     #endif
+    #ifdef MAX3266X_SHA_CB
+        ret = wc_MXC_TPU_SHA_Init(&(sha224->mxcCtx));
+        if (ret != 0) {
+            return ret;
+        }
+    #endif
     #if defined(WOLFSSL_USE_ESP32_CRYPT_HASH_HW)
         #if defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA224)
         /* We know this is a fresh, uninitialized item, so set to INIT */
