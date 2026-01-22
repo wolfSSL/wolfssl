@@ -14921,6 +14921,23 @@ WOLFSSL_X509* wolfSSL_get_certificate(WOLFSSL* ssl)
 
     if (ssl->buffers.weOwnCert) {
         if (ssl->ourCert == NULL) {
+            /* Check if ctx has ourCert set - if so, use it instead of creating
+             * a new X509. This maintains pointer compatibility with
+             * applications (like nginx OCSP stapling) that use the X509 pointer
+             * from SSL_CTX_use_certificate as a lookup key. */
+            if (ssl->ctx != NULL && ssl->ctx->ourCert != NULL) {
+                /* Compare cert buffers to make sure they are the same */
+                if (ssl->buffers.certificate == NULL ||
+                    ssl->buffers.certificate->buffer == NULL ||
+                   (ssl->buffers.certificate->length ==
+                    ssl->ctx->certificate->length &&
+                    XMEMCMP(ssl->buffers.certificate->buffer,
+                             ssl->ctx->certificate->buffer,
+                             ssl->buffers.certificate->length) == 0)) {
+                    ssl->ourCert = ssl->ctx->ourCert;
+                    return ssl->ctx->ourCert;
+                }
+            }
             if (ssl->buffers.certificate == NULL) {
                 WOLFSSL_MSG("Certificate buffer not set!");
                 return NULL;
