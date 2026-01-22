@@ -31,7 +31,7 @@ package WolfSSL with SPARK_Mode is
    --  Do not use, unless you know what you do.
 
    Failure : constant Subprogram_Result;
-   --  Inidcates failure for some functions.
+   --  Indicates failure for some functions.
    --  Do not use, unless you know what you do.
 
    Exception_Error : constant := -1234567;
