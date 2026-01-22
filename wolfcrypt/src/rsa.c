@@ -3401,6 +3401,9 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
         else if (rsa_type == RSA_PRIVATE_ENCRYPT &&
                                          pad_value == RSA_BLOCK_TYPE_1) {
             if (key->rKeyH != 0) {
+                if (pad_type != WC_RSA_PSS_PAD) {
+                    return WC_HW_E;
+                }
                 return wc_Microchip_rsa_sign(in, inLen, out, outLen, key);
             }
             return WC_HW_E;
@@ -3578,6 +3581,9 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
         else if (rsa_type == RSA_PUBLIC_DECRYPT &&
                                          pad_value == RSA_BLOCK_TYPE_1) {
             if (key->uKeyH != 0) {
+                if (pad_type != WC_RSA_PSS_PAD) {
+                    return WC_HW_E;
+                }
                 int tmp;
                 return wc_Microchip_rsa_verify(in, inLen, out, outLen, key, &tmp);
             }
@@ -4277,6 +4283,17 @@ int wc_RsaPSS_VerifyCheckInline(byte* in, word32 inLen, byte** out,
                            enum wc_HashType hash, int mgf, RsaKey* key)
 {
     int ret = 0, verify, saltLen, hLen, bits = 0;
+#ifdef WOLFSSL_MICROCHIP_TA100
+    if (key != NULL && key->uKeyH != 0) {
+        int verified = 0;
+        ret = wc_Microchip_rsa_verify(digest, digestLen, in, inLen, key,
+                                      &verified);
+        if (ret != 0) {
+            return ret;
+        }
+        return verified ? (int)inLen : SIG_VERIFY_E;
+    }
+#endif
 
     hLen = wc_HashGetDigestSize(hash);
     if (hLen < 0)
@@ -4326,6 +4343,17 @@ int wc_RsaPSS_VerifyCheck(const byte* in, word32 inLen, byte* out, word32 outLen
                           RsaKey* key)
 {
     int ret = 0, verify, saltLen, hLen, bits = 0;
+#ifdef WOLFSSL_MICROCHIP_TA100
+    if (key != NULL && key->uKeyH != 0) {
+        int verified = 0;
+        ret = wc_Microchip_rsa_verify(digest, digestLen, (byte*)in, inLen,
+                                      key, &verified);
+        if (ret != 0) {
+            return ret;
+        }
+        return verified ? (int)inLen : SIG_VERIFY_E;
+    }
+#endif
 
     hLen = wc_HashGetDigestSize(hash);
     if (hLen < 0)

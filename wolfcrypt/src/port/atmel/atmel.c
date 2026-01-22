@@ -880,7 +880,7 @@ int wc_Microchip_rsa_create_key(struct RsaKey* key, int size, long e)
 
     /* Private key for signing AND decryption */
     ret = talib_handle_init_private_key(&rKeyA, TA_KEY_TYPE_RSA2048,
-            TA_ALG_MODE_RSA_SSA_1_5, TA_PROP_SIGN_INT_EXT_DIGEST,
+            TA_ALG_MODE_RSA_SSA_PSS, TA_PROP_SIGN_INT_EXT_DIGEST,
             TA_PROP_KEY_AGREEMENT_OUT_BUFF);
     if (ret != ATCA_SUCCESS)
         return WC_HW_E;
@@ -893,7 +893,7 @@ int wc_Microchip_rsa_create_key(struct RsaKey* key, int size, long e)
 
     /* Public key - use 0, 0 for encryption support! */
     ret = talib_handle_init_public_key(&uKeyA, TA_KEY_TYPE_RSA2048,
-            TA_ALG_MODE_RSA_SSA_1_5, 0, 0);
+            TA_ALG_MODE_RSA_SSA_PSS, 0, 0);
     if (ret != ATCA_SUCCESS)
         return WC_HW_E;
 
@@ -958,24 +958,28 @@ int wc_Microchip_rsa_sign(const byte* in, word32 inLen, byte* out, word32 outLen
 {
     int ret;
     uint16_t sign_size = (uint16_t)outLen;
-    byte hash_data[WC_SHA256_DIGEST_SIZE];
 
     if (in == NULL || out == NULL || key == NULL) {
         return BAD_FUNC_ARG;
     }
 
-    /* Hash the input message */
-    ret = wc_Sha256Hash(in, inLen, hash_data);
-    if (ret != 0) {
-        return ret;
+    /* TA100 expects a digest for RSA sign. */
+    if (inLen != WC_SHA256_DIGEST_SIZE) {
+        return BAD_FUNC_ARG;
     }
 
     /* Sign using the signing private key handle */
-    ret = talib_sign_external(atcab_get_device(), WOLFSSL_TA_KEY_TYPE_RSA,
-                              key->rKeyH, TA_HANDLE_INPUT_BUFFER, hash_data,
-                              WC_SHA256_DIGEST_SIZE, out, &sign_size);
+    ret = talib_sign_external(atcab_get_device(),
+                              (uint8_t)(TA_SIGN_MODE_EXTERNAL_MSG |
+                                        WOLFSSL_TA_KEY_TYPE_RSA),
+                              key->rKeyH, TA_HANDLE_INPUT_BUFFER, in,
+                              (uint16_t)inLen, out, &sign_size);
 
-    return atmel_ecc_translate_err(ret);
+    ret = atmel_ecc_translate_err(ret);
+    if (ret == 0) {
+        return (int)sign_size;
+    }
+    return ret;
 }
 
 
@@ -984,22 +988,20 @@ int wc_Microchip_rsa_verify(const byte* in, word32 inLen, byte* sig, word32 sigL
 {
     int ret;
     bool verified = false;
-    byte hash_data[WC_SHA256_DIGEST_SIZE];
 
     if (in == NULL || sig == NULL || key == NULL) {
         return BAD_FUNC_ARG;
     }
 
-    /* Hash the input message */
-    ret = wc_Sha256Hash(in, inLen, hash_data);
-    if (ret != 0) {
-        return ret;
+    /* TA100 expects a digest for RSA verify. */
+    if (inLen != WC_SHA256_DIGEST_SIZE) {
+        return BAD_FUNC_ARG;
     }
 
     /* Verify using the verification public key handle */
     ret = talib_verify(atcab_get_device(), WOLFSSL_TA_KEY_TYPE_RSA,
                        TA_HANDLE_INPUT_BUFFER, key->uKeyH, sig,
-                       sigLen, hash_data, WC_SHA256_DIGEST_SIZE, NULL,
+                       sigLen, in, (uint16_t)inLen, NULL,
                        sigLen, &verified);
 
     ret = atmel_ecc_translate_err(ret);
