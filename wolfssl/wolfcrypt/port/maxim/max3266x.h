@@ -33,6 +33,8 @@
 /* Some extra conditions when using callbacks */
 #if defined(WOLF_CRYPTO_CB)
     #define MAX3266X_CB
+    #define WOLF_CRYPTO_CB_COPY /* Enable copy callback for deep copy */
+    #define WOLF_CRYPTO_CB_FREE /* Enable free callback for proper cleanup */
     #ifdef MAX3266X_MATH
         #error Cannot have MAX3266X_MATH and MAX3266X_CB
     #endif
