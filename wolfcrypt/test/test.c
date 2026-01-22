@@ -22396,7 +22396,12 @@ static wc_test_ret_t rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG
     #if defined(WOLF_CRYPTO_CB_ONLY_RSA)
     if (ret != WC_NO_ERR_TRACE(NO_VALID_DEVID))
     #else
+    #if defined(WOLFSSL_MICROCHIP_TA100)
+    if (ret != 0 && ret != WC_NO_ERR_TRACE(MISSING_RNG_E) &&
+            ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+    #else
     if (ret != 0 && ret != WC_NO_ERR_TRACE(MISSING_RNG_E))
+    #endif
     #endif
 #elif defined(HAVE_FIPS) || !defined(WC_RSA_BLINDING)
     /* FIPS140 implementation does not do blinding */
@@ -22406,6 +22411,9 @@ static wc_test_ret_t rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG
 #elif defined(WOLFSSL_CRYPTOCELL) || defined(WOLFSSL_SE050)
     /* RNG is handled by hardware */
     if (ret != 0)
+#elif defined(WOLFSSL_MICROCHIP_TA100)
+    /* TA100 path doesn't require RNG, but may report BAD_FUNC_ARG on NULL RNG. */
+    if (ret != 0 && ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
 #else
     if (ret != WC_NO_ERR_TRACE(MISSING_RNG_E))
 #endif
@@ -24898,6 +24906,25 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
 #endif
+
+#if defined(WOLFSSL_KEY_GEN) && defined(WOLFSSL_MICROCHIP_TA100)
+    /* Use TA100-generated key handles for RSA HW tests. */
+    wc_FreeRsaKey(key);
+    ret = wc_InitRsaKey_ex(key, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
+    ret = wc_MakeRsaKey(key, 2048, WC_RSA_EXPONENT, &rng);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
+#ifndef NO_SIG_WRAPPER
+    modLen = wc_RsaEncryptSize(key);
+#if defined(WOLFSSL_MICROCHIP_TA100)
+    if (modLen <= 0 && (key->rKeyH != 0 || key->uKeyH != 0)) {
+        modLen = 256;
+    }
+#endif
+#endif
+#endif /* WOLFSSL_KEY_GEN && WOLFSSL_MICROCHIP_TA100 */
 
 #ifndef NO_SIG_WRAPPER
 #ifndef NO_SHA256
