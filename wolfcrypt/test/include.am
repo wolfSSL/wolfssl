@@ -10,6 +10,9 @@ check_PROGRAMS+= wolfcrypt/test/testwolfcrypt
 endif
 noinst_PROGRAMS+= wolfcrypt/test/testwolfcrypt
 wolfcrypt_test_testwolfcrypt_SOURCES      = wolfcrypt/test/test.c
+if BUILD_CRYPTO_CB_TEST_PROVIDER
+wolfcrypt_test_testwolfcrypt_SOURCES += tests/cryptocb-provider/cryptocb_loader.c
+endif
 wolfcrypt_test_testwolfcrypt_LDADD        = src/libwolfssl@LIBSUFFIX@.la $(LIB_STATIC_ADD)
 wolfcrypt_test_testwolfcrypt_DEPENDENCIES = src/libwolfssl@LIBSUFFIX@.la
 noinst_HEADERS += wolfcrypt/test/test.h wolfcrypt/test/test_paths.h.in
@@ -22,6 +25,9 @@ wolfcrypt_test_libwolfcrypttest_la_SOURCES      = wolfcrypt/test/test.c
 wolfcrypt_test_libwolfcrypttest_la_CPPFLAGS     = -DNO_MAIN_DRIVER
 wolfcrypt_test_libwolfcrypttest_la_LIBADD       = src/libwolfssl@LIBSUFFIX@.la
 wolfcrypt_test_libwolfcrypttest_la_DEPENDENCIES = src/libwolfssl@LIBSUFFIX@.la
+if BUILD_CRYPTO_CB_TEST_PROVIDER
+wolfcrypt_test_libwolfcrypttest_la_SOURCES      += tests/cryptocb-provider/cryptocb_loader.c
+endif
 endif
 
 EXTRA_DIST += wolfcrypt/test/test.sln
@@ -32,3 +38,4 @@ EXTRA_DIST += wolfcrypt/test/test-VS2022.vcxproj.user
 
 EXTRA_DIST += wolfcrypt/test/README.md
 DISTCLEANFILES+= wolfcrypt/test/.libs/testwolfcrypt
+

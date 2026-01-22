@@ -1,0 +1,20 @@
+# included from Top Level Makefile.am
+# All paths should be given relative to the root
+
+if BUILD_CRYPTO_CB_TEST_PROVIDER
+# Build the provider by invoking the simple Makefile
+noinst_DATA += tests/cryptocb-provider/libcryptocbprovider.so
+
+tests/cryptocb-provider/libcryptocbprovider.so: tests/cryptocb-provider/cryptocb_loader.c tests/cryptocb-provider/cryptocb_provider.c tests/cryptocb-provider/cryptocb_provider.h tests/cryptocb-provider/Makefile
+	$(MAKE) -C tests/cryptocb-provider WOLFSSL_DIR=$(abs_top_srcdir)
+
+CLEANFILES += tests/cryptocb-provider/libcryptocbprovider.so
+endif
+
+EXTRA_DIST += tests/cryptocb-provider/README.md
+EXTRA_DIST += tests/cryptocb-provider/user_settings.h
+EXTRA_DIST += tests/cryptocb-provider/cryptocb_provider.h
+EXTRA_DIST += tests/cryptocb-provider/cryptocb_provider.c
+EXTRA_DIST += tests/cryptocb-provider/cryptocb_loader.h
+EXTRA_DIST += tests/cryptocb-provider/cryptocb_loader.c
+EXTRA_DIST += tests/cryptocb-provider/Makefile

@@ -458,6 +458,9 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
     #if defined(WOLFSSL_MAX3266X) || defined(WOLFSSL_MAX3266X_OLD)
         #include <wolfssl/wolfcrypt/port/maxim/max3266x-cryptocb.h>
     #endif
+    #ifdef WOLF_CRYPTO_CB_TEST_PROVIDER
+        #include "tests/cryptocb-provider/cryptocb_loader.h"
+    #endif
 #endif
 
 #ifdef _MSC_VER
@@ -2027,6 +2030,12 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         printf("Couldn't get the Renesas device ID\n");
     }
 #endif
+#ifdef WOLF_CRYPTO_CB_TEST_PROVIDER
+    devId = wc_CryptoCb_InitTestCryptoCbProvider();
+    if (devId == INVALID_DEVID) {
+        printf("Couldn't init the external crypto provider\n");
+    }
+#endif
 #endif
 
 #if defined(WOLF_CRYPTO_CB) && !defined(HAVE_HASHDRBG) && \
@@ -2971,6 +2980,9 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 #endif
 #ifdef HAVE_RENESAS_SYNC
     wc_CryptoCb_CleanupRenesasCmn(&devId);
+#endif
+#ifdef WOLF_CRYPTO_CB_TEST_PROVIDER
+    wc_CryptoCb_CleanupTestCryptoCbProvider();
 #endif
 #endif
 

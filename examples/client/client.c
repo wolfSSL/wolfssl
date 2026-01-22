@@ -56,6 +56,10 @@ static const char *wolfsentry_config_path = NULL;
 #include <examples/client/client.h>
 #include <wolfssl/error-ssl.h>
 
+#if defined(WOLF_CRYPTO_CB_TEST_PROVIDER)
+#include "tests/cryptocb-provider/cryptocb_loader.h"
+#endif
+
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
 
 
@@ -76,7 +80,7 @@ static const char *wolfsentry_config_path = NULL;
     #include <wolfssl/wolfcrypt/ecc.h>
 #endif
 
-#ifdef WOLFSSL_ASYNC_CRYPT
+#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB_TEST_PROVIDER)
     static int devId = INVALID_DEVID;
 #endif
 
@@ -3670,6 +3674,13 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     wolfSSL_CTX_SetDevId(ctx, devId);
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
+#ifdef WOLF_CRYPTO_CB_TEST_PROVIDER
+    devId = wc_CryptoCb_InitTestCryptoCbProvider();
+    if (devId < 0) {
+        err_sys("CryptoCb provider init failed");
+    }
+    wolfSSL_CTX_SetDevId(ctx, devId);
+#endif /* WOLF_CRYPTO_CB_TEST_PROVIDER */
 #ifdef HAVE_SNI
     if (sniHostName) {
         if (wolfSSL_CTX_UseSNI(ctx, WOLFSSL_SNI_HOST_NAME, sniHostName,
@@ -4944,6 +4955,10 @@ exit:
 #endif
 #else
         fprintf(stderr, "Client not compiled in!\n");
+#endif
+
+#ifdef WOLF_CRYPTO_CB_TEST_PROVIDER
+        wc_CryptoCb_CleanupTestCryptoCbProvider();
 #endif
         wolfSSL_Cleanup();
 

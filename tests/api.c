@@ -158,6 +158,9 @@
     #include "wolfssl/internal.h"
 #endif
 
+#if defined(WOLF_CRYPTO_CB_TEST_PROVIDER)
+#include "cryptocb-provider/cryptocb_loader.h"
+#endif /* WOLF_CRYPTO_CB_TEST_PROVIDER */
 /* include misc.c here regardless of NO_INLINE, because misc.c implementations
  * have default (hidden) visibility, and in the absence of visibility, it's
  * benign to mask out the library implementation.
@@ -32098,6 +32101,9 @@ int ApiTest(void)
     }
     #endif
 
+#ifdef WOLF_CRYPTO_CB_TEST_PROVIDER
+    testDevId = wc_CryptoCb_InitTestCryptoCbProvider();
+#endif
     #ifdef WOLFSSL_DUMP_MEMIO_STREAM
     if (res == 0) {
         if (create_tmp_dir(tmpDirName, sizeof(tmpDirName) - 1) == NULL) {
@@ -32186,6 +32192,10 @@ int ApiTest(void)
 #if defined(HAVE_ECC) && defined(FP_ECC) && defined(HAVE_THREAD_LS) \
                       && (defined(NO_MAIN_DRIVER) || defined(HAVE_STACK_SIZE))
     wc_ecc_fp_free();  /* free per thread cache */
+#endif
+
+#ifdef WOLF_CRYPTO_CB_TEST_PROVIDER
+    wc_CryptoCb_CleanupTestCryptoCbProvider();
 #endif
 
     #ifdef WOLFCRYPT_ONLY

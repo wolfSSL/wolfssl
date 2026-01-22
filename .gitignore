@@ -470,3 +470,4 @@ wolfssl/debug-trace-error-codes.h
 wolfssl/debug-untrace-error-codes.h
 
 AGENTS.md
+tests/cryptocb-provider/libcryptocbprovider.so

@@ -9598,6 +9598,21 @@ then
         AM_CFLAGS="$AM_CFLAGS -DWC_TEST_NO_CRYPTOCB_SW_TEST"
 fi
 
+# Enable building the test crypto callback provider
+AC_ARG_ENABLE([cryptocb-test-provider],
+    [AS_HELP_STRING([--enable-cryptocb-test-provider],
+        [Build the test crypto callback provider library (default: disabled)])],
+    [ ENABLED_CRYPTOCB_TEST_PROVIDER=$enableval ],
+    [ ENABLED_CRYPTOCB_TEST_PROVIDER=no ]
+)
+
+if test "x$ENABLED_CRYPTOCB_TEST_PROVIDER" = "xyes"; then
+    if test "x$ENABLED_CRYPTOCB" != "xyes"; then
+        AC_MSG_ERROR([--enable-cryptocb-test-provider requires --enable-cryptocb])
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_CB_TEST_PROVIDER"
+fi
+
 # Crypto Callbacks Utils (Copy/Free/etc)
 AC_ARG_ENABLE([cryptocbutils],
     [AS_HELP_STRING([--enable-cryptocbutils@<:@=copy,free,...@:>@],
@@ -11169,6 +11184,7 @@ AM_CONDITIONAL([BUILD_TESTS],[test "x$ENABLED_EXAMPLES" = "xyes"])
 AM_CONDITIONAL([BUILD_THREADED_EXAMPLES],[test "x$ENABLED_SINGLETHREADED" = "xno" && test "x$ENABLED_EXAMPLES" = "xyes" && test "x$ENABLED_LEANTLS" = "xno"])
 AM_CONDITIONAL([BUILD_WOLFCRYPT_TESTS],[test "x$ENABLED_CRYPT_TESTS" = "xyes"])
 AM_CONDITIONAL([BUILD_WOLFCRYPT_TESTS_LIBS],[test "x$ENABLED_CRYPT_TESTS_LIBS" = "xyes"])
+AM_CONDITIONAL([BUILD_CRYPTO_CB_TEST_PROVIDER],[test "x$ENABLED_CRYPTOCB_TEST_PROVIDER" = "xyes"])
 AM_CONDITIONAL([BUILD_LIBZ],[test "x$ENABLED_LIBZ" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_PKCS11],[test "x$ENABLED_PKCS11" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_PKCS12],[test "x$ENABLED_PKCS12" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])

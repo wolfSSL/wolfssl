@@ -75,6 +75,10 @@ static const char *wolfsentry_config_path = NULL;
 
 #include "examples/server/server.h"
 
+#if defined(WOLF_CRYPTO_CB_TEST_PROVIDER)
+#include "tests/cryptocb-provider/cryptocb_loader.h"
+#endif
+
 #if !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
 
 #if defined(WOLFSSL_TLS13) && ( \
@@ -111,7 +115,7 @@ static struct group_info group_id_to_text[] = {
 };
 #endif /* CAN_FORCE_CURVE && HAVE_ECC */
 
-#ifdef WOLFSSL_ASYNC_CRYPT
+#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB_TEST_PROVIDER)
     static int devId = INVALID_DEVID;
 #endif
 
@@ -3088,6 +3092,13 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     wolfSSL_CTX_SetDevId(ctx, devId);
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
+#ifdef WOLF_CRYPTO_CB_TEST_PROVIDER
+    devId = wc_CryptoCb_InitTestCryptoCbProvider();
+    if (devId < 0) {
+        err_sys_ex(runWithErrors, "CryptoCb provider init failed");
+    }
+    wolfSSL_CTX_SetDevId(ctx, devId);
+#endif /* WOLF_CRYPTO_CB_TEST_PROVIDER */
 #ifdef WOLFSSL_TLS13
     if (noPskDheKe)
         wolfSSL_CTX_no_dhe_psk(ctx);
@@ -4110,6 +4121,9 @@ exit:
         fprintf(stderr, "Server not compiled in!\n");
 #endif
 
+#ifdef WOLF_CRYPTO_CB_TEST_PROVIDER
+        wc_CryptoCb_CleanupTestCryptoCbProvider();
+#endif
         wolfSSL_Cleanup();
         FreeTcpReady(&ready);
 
