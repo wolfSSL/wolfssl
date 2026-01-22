@@ -29,6 +29,7 @@
 
 #include <stdint.h>
 #include <stdarg.h>
+#include <stdio.h>
 
 #include <wolfssl/wolfcrypt/wolfmath.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
@@ -245,7 +246,16 @@ int wc_MxcShaCryptoCb(wc_CryptoInfo* info)
 int wc_MxcCryptoCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 {
     int ret;
+#ifdef MAX3266X_SHA_CB
+    int savedDevId;
+    wc_MXC_Sha *srcMxcCtx;
+    wc_MXC_Sha *dstMxcCtx;
+    int *srcDevId;
+    int *dstDevId;
+    word32 copySize;
+#endif
     (void)ctx;
+    (void)devIdArg;
 
     if (info == NULL) {
         return BAD_FUNC_ARG;
@@ -264,6 +274,132 @@ int wc_MxcCryptoCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
         case WC_ALGO_TYPE_HASH:
             MAX3266X_MSG("Using MXC SHA HW Callback:");
             ret = wc_MxcShaCryptoCb(info); /* Determine SHA HW or SW */
+            break;
+        case WC_ALGO_TYPE_COPY:
+            MAX3266X_MSG("Using MXC Copy Callback:");
+            if (info->copy.algo == WC_ALGO_TYPE_HASH) {
+                srcMxcCtx = NULL;
+                dstMxcCtx = NULL;
+                srcDevId = NULL;
+                dstDevId = NULL;
+                copySize = 0;
+                /* Get pointers and size based on hash type */
+                switch (info->copy.type) {
+                #ifndef NO_SHA
+                    case WC_HASH_TYPE_SHA:
+                        srcMxcCtx = &((wc_Sha*)info->copy.src)->mxcCtx;
+                        dstMxcCtx = &((wc_Sha*)info->copy.dst)->mxcCtx;
+                        srcDevId = &((wc_Sha*)info->copy.src)->devId;
+                        dstDevId = &((wc_Sha*)info->copy.dst)->devId;
+                        copySize = sizeof(wc_Sha);
+                        break;
+                #endif
+                #ifdef WOLFSSL_SHA224
+                    case WC_HASH_TYPE_SHA224:
+                        srcMxcCtx = &((wc_Sha224*)info->copy.src)->mxcCtx;
+                        dstMxcCtx = &((wc_Sha224*)info->copy.dst)->mxcCtx;
+                        srcDevId = &((wc_Sha224*)info->copy.src)->devId;
+                        dstDevId = &((wc_Sha224*)info->copy.dst)->devId;
+                        copySize = sizeof(wc_Sha224);
+                        break;
+                #endif
+                #ifndef NO_SHA256
+                    case WC_HASH_TYPE_SHA256:
+                        srcMxcCtx = &((wc_Sha256*)info->copy.src)->mxcCtx;
+                        dstMxcCtx = &((wc_Sha256*)info->copy.dst)->mxcCtx;
+                        srcDevId = &((wc_Sha256*)info->copy.src)->devId;
+                        dstDevId = &((wc_Sha256*)info->copy.dst)->devId;
+                        copySize = sizeof(wc_Sha256);
+                        break;
+                #endif
+                #ifdef WOLFSSL_SHA384
+                    case WC_HASH_TYPE_SHA384:
+                        srcMxcCtx = &((wc_Sha384*)info->copy.src)->mxcCtx;
+                        dstMxcCtx = &((wc_Sha384*)info->copy.dst)->mxcCtx;
+                        srcDevId = &((wc_Sha384*)info->copy.src)->devId;
+                        dstDevId = &((wc_Sha384*)info->copy.dst)->devId;
+                        copySize = sizeof(wc_Sha384);
+                        break;
+                #endif
+                #ifdef WOLFSSL_SHA512
+                    case WC_HASH_TYPE_SHA512:
+                        srcMxcCtx = &((wc_Sha512*)info->copy.src)->mxcCtx;
+                        dstMxcCtx = &((wc_Sha512*)info->copy.dst)->mxcCtx;
+                        srcDevId = &((wc_Sha512*)info->copy.src)->devId;
+                        dstDevId = &((wc_Sha512*)info->copy.dst)->devId;
+                        copySize = sizeof(wc_Sha512);
+                        break;
+                #endif
+                    default:
+                        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+                }
+                /* Software copy */
+                savedDevId = *srcDevId;
+                XMEMCPY(info->copy.dst, info->copy.src, copySize);
+                *dstDevId = savedDevId;
+                /* Hardware copy - handles shallow copy from XMEMCPY */
+                ret = wc_MXC_TPU_SHA_Copy(srcMxcCtx, dstMxcCtx);
+            }
+            else {
+                ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+            }
+            break;
+        case WC_ALGO_TYPE_FREE:
+            MAX3266X_MSG("Using MXC Free Callback:");
+            if (info->free.algo == WC_ALGO_TYPE_HASH) {
+                dstMxcCtx = NULL;
+                dstDevId = NULL;
+                copySize = 0;
+                /* Get pointers and size based on hash type */
+                switch (info->free.type) {
+                #ifndef NO_SHA
+                    case WC_HASH_TYPE_SHA:
+                        dstMxcCtx = &((wc_Sha*)info->free.obj)->mxcCtx;
+                        dstDevId = &((wc_Sha*)info->free.obj)->devId;
+                        copySize = sizeof(wc_Sha);
+                        break;
+                #endif
+                #ifdef WOLFSSL_SHA224
+                    case WC_HASH_TYPE_SHA224:
+                        dstMxcCtx = &((wc_Sha224*)info->free.obj)->mxcCtx;
+                        dstDevId = &((wc_Sha224*)info->free.obj)->devId;
+                        copySize = sizeof(wc_Sha224);
+                        break;
+                #endif
+                #ifndef NO_SHA256
+                    case WC_HASH_TYPE_SHA256:
+                        dstMxcCtx = &((wc_Sha256*)info->free.obj)->mxcCtx;
+                        dstDevId = &((wc_Sha256*)info->free.obj)->devId;
+                        copySize = sizeof(wc_Sha256);
+                        break;
+                #endif
+                #ifdef WOLFSSL_SHA384
+                    case WC_HASH_TYPE_SHA384:
+                        dstMxcCtx = &((wc_Sha384*)info->free.obj)->mxcCtx;
+                        dstDevId = &((wc_Sha384*)info->free.obj)->devId;
+                        copySize = sizeof(wc_Sha384);
+                        break;
+                #endif
+                #ifdef WOLFSSL_SHA512
+                    case WC_HASH_TYPE_SHA512:
+                        dstMxcCtx = &((wc_Sha512*)info->free.obj)->mxcCtx;
+                        dstDevId = &((wc_Sha512*)info->free.obj)->devId;
+                        copySize = sizeof(wc_Sha512);
+                        break;
+                #endif
+                    default:
+                        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+                }
+                /* Hardware free */
+                wc_MXC_TPU_SHA_Free(dstMxcCtx);
+                /* Software free */
+                *dstDevId = INVALID_DEVID;
+                ForceZero(info->free.obj, copySize);
+                ret = 0;
+            }
+            else {
+                ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+            }
             break;
 #endif /* MAX3266X_SHA_CB */
         default:
@@ -708,18 +844,42 @@ int wc_MXC_TPU_SHA_Copy(wc_MXC_Sha* src, wc_MXC_Sha* dst)
     if (src == NULL || dst == NULL) {
         return BAD_FUNC_ARG;
     }
+
+    /* Handle case where src has no data */
+    if (src->msg == NULL || src->size == 0) {
+        /* Free dst if it has different data, then zero it */
+        if (dst->msg != NULL && dst->msg != src->msg) {
+            wc_MXC_TPU_SHA_Free(dst);
+        }
+        else {
+            dst->msg = NULL;
+            dst->used = 0;
+            dst->size = 0;
+        }
+        return 0;
+    }
+
+    /* Only free dst if it points to different memory than src */
+    if (dst->msg != NULL && dst->msg != src->msg) {
+        wc_MXC_TPU_SHA_Free(dst);
+    }
+    else {
+        /* Reset dst without freeing (would free src's buffer) */
+        dst->msg = NULL;
+        dst->used = 0;
+        dst->size = 0;
+    }
+
+    /* Allocate new buffer for dst */
+    dst->msg = (unsigned char*)XMALLOC(src->size, NULL,
+                                        DYNAMIC_TYPE_TMP_BUFFER);
+    if (dst->msg == NULL) {
+        return MEMORY_E;
+    }
+
+    XMEMCPY(dst->msg, src->msg, src->used);
     dst->used = src->used;
     dst->size = src->size;
-    if (dst->msg == src->msg && src->msg != 0) {
-        /* Allocate new memory for dst->msg if it points to the same location */
-        /* as src->msg */
-        dst->msg = (unsigned char*)XMALLOC(src->size, NULL,
-                                            DYNAMIC_TYPE_TMP_BUFFER);
-        if (dst->msg == NULL) {
-            return MEMORY_E; /* Handle memory allocation failure */
-        }
-    }
-    XMEMCPY(dst->msg, src->msg, src->size);
     return 0;
 }
 
@@ -727,12 +887,15 @@ int wc_MXC_TPU_SHA_Copy(wc_MXC_Sha* src, wc_MXC_Sha* dst)
 /* returns void to match other wc_Sha*Free api */
 void wc_MXC_TPU_SHA_Free(wc_MXC_Sha* hash)
 {
-    if (hash == NULL) {
-        return; /* Hash Struct is Null already, dont edit potentially */
-                /* undefined memory */
+    /* Securely zero the buffer before freeing */
+    if (hash->msg != NULL) {
+        ForceZero(hash->msg, hash->size);
+        XFREE(hash->msg, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
-    XFREE(hash->msg, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    wc_MXC_TPU_SHA_Init(hash); /* sets hash->msg to null + zero's attributes */
+    /* Reset struct members to initial state */
+    hash->msg = NULL;
+    hash->used = 0;
+    hash->size = 0;
     return;
 }
 
