@@ -124,6 +124,14 @@ int wc_SignatureGetSize(enum wc_SignatureType sig_type,
                 sig_len = wc_RsaEncryptSize((RsaKey*)(wc_ptr_t)key);
 #else
                 sig_len = wc_RsaEncryptSize((const RsaKey*)key);
+#if defined(WOLFSSL_MICROCHIP_TA100)
+                if (sig_len <= 0) {
+                    const RsaKey* r = (const RsaKey*)key;
+                    /* TA100 handles imply a 2048-bit RSA key. */
+                    if (r->rKeyH != 0 || r->uKeyH != 0) {
+                        sig_len = 256;
+                    }
+                }
 #endif
             }
             else {
