@@ -16018,7 +16018,7 @@ void wolfSSL_CTX_set_default_passwd_cb_userdata(WOLFSSL_CTX* ctx,
 
     \sa wolfSSL_set_scr_check_enabled
 */
-byte wolfSSL_get_scr_check_enabled(WOLFSSL* ssl);
+int wolfSSL_get_scr_check_enabled(const WOLFSSL* ssl);
 
 /*!
     \ingroup Setup

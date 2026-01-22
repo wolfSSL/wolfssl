@@ -4733,7 +4733,7 @@ WOLFSSL_API long wolfSSL_SSL_get_secure_renegotiation_support(WOLFSSL* ssl);
 
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12) && \
     defined(WOLFSSL_HARDEN_TLS) && !defined(WOLFSSL_HARDEN_TLS_NO_SCR_CHECK)
-WOLFSSL_API int wolfSSL_get_scr_check_enabled(WOLFSSL* ssl);
+WOLFSSL_API int wolfSSL_get_scr_check_enabled(const WOLFSSL* ssl);
 WOLFSSL_API int wolfSSL_set_scr_check_enabled(WOLFSSL* ssl, byte enabled);
 #endif
 
