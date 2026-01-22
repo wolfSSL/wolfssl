@@ -569,7 +569,7 @@
  * the footer "-----END ML_DSA_LEVEL5 PRIVATE KEY-----" */
 #define DILITHIUM_MAX_BOTH_KEY_PEM_SIZE DILITHIUM_LEVEL3_BOTH_KEY_PEM_SIZE
 
-#else
+#elif !defined(WOLFSSL_NO_ML_DSA_44)
 
 #define DILITHIUM_MAX_KEY_SIZE     DILITHIUM_LEVEL2_KEY_SIZE
 #define DILITHIUM_MAX_SIG_SIZE     DILITHIUM_LEVEL2_SIG_SIZE
@@ -582,6 +582,10 @@
 /* PEM size with the header "-----BEGIN ML_DSA_LEVEL5 PRIVATE KEY-----" and
  * the footer "-----END ML_DSA_LEVEL5 PRIVATE KEY-----" */
 #define DILITHIUM_MAX_BOTH_KEY_PEM_SIZE DILITHIUM_LEVEL2_BOTH_KEY_PEM_SIZE
+
+#else
+
+#error ML-DSA: All levels disabled.
 
 #endif
 
@@ -676,8 +680,8 @@
 /* PEM size with the header "-----BEGIN ML_DSA_LEVEL5 PRIVATE KEY-----" and
  * the footer "-----END ML_DSA_LEVEL5 PRIVATE KEY-----" */
 #define DILITHIUM_MAX_BOTH_KEY_PEM_SIZE DILITHIUM_LEVEL5_BOTH_KEY_PEM_SIZE
-#endif
 
+#endif /* HAVE_LIBOQS */
 
 
 #ifdef WOLF_PRIVATE_KEY_ID
