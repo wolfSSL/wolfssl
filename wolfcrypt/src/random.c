@@ -794,7 +794,7 @@ int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
     int rctFailed = 0;
     int aptFailed = 0;
 
-    if (seed == NULL || seedSz == 0) {
+    if (seed == NULL || seedSz < SEED_BLOCK_SZ) {
         return BAD_FUNC_ARG;
     }
 
