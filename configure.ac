@@ -314,6 +314,11 @@ AC_ARG_ENABLE([32bit],
     [ ENABLED_32BIT=no ]
     )
 
+if test "$ENABLED_32BIT" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWC_32BIT_CPU"
+fi
+
 # 16-bit compiler support
 AC_ARG_ENABLE([16bit],
     [AS_HELP_STRING([--enable-16bit],[Enables 16-bit support (default: disabled)])],
@@ -941,9 +946,21 @@ AC_ARG_ENABLE([fasthugemath],
     [ ENABLED_FASTHUGEMATH=no ]
     )
 
+# ssl bump build
+AC_ARG_ENABLE([bump],
+    [AS_HELP_STRING([--enable-bump],[Enable SSL Bump build (default: disabled)])],
+    [ ENABLED_BUMP=$enableval ],
+    [ ENABLED_BUMP=no ]
+    )
+
 if test "$ENABLED_BUMP" = "yes"
 then
-    ENABLED_FASTHUGEMATH="yes"
+    AM_CFLAGS="$AM_CFLAGS -DLARGE_STATIC_BUFFERS -DWOLFSSL_CERT_GEN -DWOLFSSL_KEY_GEN -DHUGE_SESSION_CACHE -DWOLFSSL_DER_LOAD -DWOLFSSL_ALT_NAMES -DWOLFSSL_TEST_CERT"
+    DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS=4096
+    if test "$ENABLED_SP_MATH" = "no" && test "$ENABLED_SP_MATH_ALL" = "no"
+    then
+        ENABLED_FASTHUGEMATH="yes"
+    fi
 fi
 
 if test "$ENABLED_FASTHUGEMATH" = "yes"
@@ -951,7 +968,8 @@ then
     ENABLED_FASTMATH="yes"
 fi
 
-if test "$host_cpu" = "x86_64" || test "$host_cpu" = "amd64"
+if (test "$host_cpu" = "x86_64" || test "$host_cpu" = "amd64") &&
+    test "$ENABLED_32BIT" != "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_X86_64_BUILD"
 fi
@@ -2488,13 +2506,6 @@ AC_ARG_ENABLE([qt],
     [ ENABLED_QT=no ]
     )
 
-# ssl bump build
-AC_ARG_ENABLE([bump],
-    [AS_HELP_STRING([--enable-bump],[Enable SSL Bump build (default: disabled)])],
-    [ ENABLED_BUMP=$enableval ],
-    [ ENABLED_BUMP=no ]
-    )
-
 # SNIFFER
 AC_ARG_ENABLE([sniffer],
    [AS_HELP_STRING([--enable-sniffer],[Enable wolfSSL sniffer support (default: disabled)])],
@@ -2797,14 +2808,6 @@ if test "$ENABLED_FORTRESS" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DFORTRESS -DWOLFSSL_ALWAYS_VERIFY_CB -DWOLFSSL_AES_COUNTER -DWOLFSSL_AES_DIRECT -DWOLFSSL_DER_LOAD -DWOLFSSL_KEY_GEN"
 fi
-
-
-if test "$ENABLED_BUMP" = "yes"
-then
-    AM_CFLAGS="$AM_CFLAGS -DLARGE_STATIC_BUFFERS -DWOLFSSL_CERT_GEN -DWOLFSSL_KEY_GEN -DHUGE_SESSION_CACHE -DWOLFSSL_DER_LOAD -DWOLFSSL_ALT_NAMES -DWOLFSSL_TEST_CERT"
-    DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS=4096
-fi
-
 
 # lean TLS build (TLS 1.2 client only (no client auth), ECC256, AES128 and SHA256 w/o Shamir)
 AC_ARG_ENABLE([leantls],
