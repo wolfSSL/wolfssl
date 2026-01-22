@@ -10855,7 +10855,7 @@ then
     # Replace all options and just use WOLFSSL_USER_SETTINGS and
     # WOLFSSL_USER_SETTINGS_ASM.
     AM_CFLAGS="-DWOLFSSL_USER_SETTINGS -DWOLFSSL_USER_SETTINGS_ASM"
-    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_USER_SETTINGS -DWOLFSSL_USER_SETTINGS_ASM"
+    AM_CCASFLAGS="-DWOLFSSL_USER_SETTINGS -DWOLFSSL_USER_SETTINGS_ASM"
 
     # Generate assembly-safe user_settings_asm.h (just preprocessor directives
     # from user_settings.h).
