@@ -5117,11 +5117,16 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
         }
 #endif
 #if defined(WOLFSSL_MICROCHIP_TA100) && defined(WOLFSSL_MICROCHIP_AESGCM)
-        ret = wc_Microchip_aes_set_key(aes, userKey, keylen, iv, dir);
-        if (ret == 0) {
+        if (keylen == TA_KEY_TYPE_AES128_SIZE) {
+            ret = wc_Microchip_aes_set_key(aes, userKey, keylen, iv, dir);
+            if (ret != 0) {
+                return ret;
+            }
             ret = wc_AesSetIV(aes, iv);
+            if (ret != 0) {
+                return ret;
+            }
         }
-        return ret;
 #endif
         XMEMCPY(aes->key, userKey, keylen);
 
@@ -9910,11 +9915,20 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         authIn, authInSz);
 #endif
 #if defined(WOLFSSL_MICROCHIP_TA100) && defined(WOLFSSL_MICROCHIP_AESGCM)
-    return wc_Microchip_AesGcmEncrypt(
-        aes, out, in, sz,
-        iv, ivSz,
-        authTag, authTagSz,
-        authIn, authInSz);
+#ifndef TA_AES_GCM_MAX_DATA_SIZE
+    #define TA_AES_GCM_MAX_DATA_SIZE 996u
+#endif
+    if (aes != NULL &&
+        aes->keylen == TA_KEY_TYPE_AES128_SIZE &&
+        ivSz == TA_AES_GCM_IV_LENGTH &&
+        authTagSz == TA_AES_GCM_TAG_LENGTH &&
+        (authInSz + sz) <= TA_AES_GCM_MAX_DATA_SIZE) {
+        return wc_Microchip_AesGcmEncrypt(
+            aes, out, in, sz,
+            iv, ivSz,
+            authTag, authTagSz,
+            authIn, authInSz);
+    }
 #endif
 #ifdef STM32_CRYPTO_AES_GCM
     return wc_AesGcmEncrypt_STM32(
@@ -10641,9 +10655,18 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
 #endif
 #if defined(WOLFSSL_MICROCHIP_TA100) && defined(WOLFSSL_MICROCHIP_AESGCM)
-    return wc_Microchip_AesGcmDecrypt(
-        aes, out, in, sz, iv, ivSz,
-        authTag, authTagSz, authIn, authInSz);
+#ifndef TA_AES_GCM_MAX_DATA_SIZE
+    #define TA_AES_GCM_MAX_DATA_SIZE 996u
+#endif
+    if (aes != NULL &&
+        aes->keylen == TA_KEY_TYPE_AES128_SIZE &&
+        ivSz == TA_AES_GCM_IV_LENGTH &&
+        authTagSz == TA_AES_GCM_TAG_LENGTH &&
+        (authInSz + sz) <= TA_AES_GCM_MAX_DATA_SIZE) {
+        return wc_Microchip_AesGcmDecrypt(
+            aes, out, in, sz, iv, ivSz,
+            authTag, authTagSz, authIn, authInSz);
+    }
 #endif
 
 #ifdef STM32_CRYPTO_AES_GCM
