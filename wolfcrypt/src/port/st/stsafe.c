@@ -273,8 +273,12 @@ int stsafe_interface_init(void)
 
 /**
  * \brief Generate ECC key pair on STSAFE-A120
- * \details Uses dedicated key slot (slot 1) for persistent keys.
+ * \details Uses dedicated key slot for persistent keys (typically slot 0 or 1).
  *          For ephemeral ECDHE keys, use stsafe_create_ecdhe_key() instead.
+ *
+ *          Note: For ECDH operations on persistent slots, the key must be generated
+ *          with appropriate usage settings. Per ST FAE: slot 0xFF with usage_limit=1
+ *          is recommended for ephemeral ECDH (key establishment mode).
  */
 static int stsafe_create_key(stsafe_slot_t slot, stsafe_curve_id_t curve_id,
                              uint8_t* pPubKeyRaw)
@@ -288,7 +292,11 @@ static int stsafe_create_key(stsafe_slot_t slot, stsafe_curve_id_t curve_id,
 
     /* Generate key pair - public key is X||Y concatenated
      * Note: stse_generate_ecc_key_pair expects stse_ecc_key_type_t,
-     * but stsafe_curve_id_t values match stse_ecc_key_type_t enum values */
+     * but stsafe_curve_id_t values match stse_ecc_key_type_t enum values.
+     *
+     * For persistent keys: usage_limit=255 allows multiple operations (signing)
+     * For ephemeral keys (slot 0xFF): usage_limit=1 for key establishment mode
+     */
     ret = stse_generate_ecc_key_pair(&g_stse_handler, slot,
         (stse_ecc_key_type_t)curve_id,
         STSAFE_PERSISTENT_KEY_USAGE_LIMIT,
@@ -303,10 +311,11 @@ static int stsafe_create_key(stsafe_slot_t slot, stsafe_curve_id_t curve_id,
 
 /**
  * \brief Generate ECDHE ephemeral key pair on STSAFE-A120
- * \details Uses stse_generate_ECDHE_key_pair() which generates truly
- *          ephemeral keys (not stored in slots). The private key remains
- *          in STSE internal memory for use with shared secret computation.
- *          Public key is returned in X||Y format (same as stse_generate_ecc_key_pair).
+ * \details Uses stse_generate_ecc_key_pair() with slot 0xFF (ephemeral slot)
+ *          and usage_limit=1 for key establishment mode.
+ *          Per ST FAE recommendation: slot 0xFF must be used with mode of
+ *          operation = key establishment and usage limit = 1 for ECDH operations.
+ *          Public key is returned in X||Y format.
  */
 static int stsafe_create_ecdhe_key(stsafe_curve_id_t curve_id,
                                     uint8_t* pPubKeyRaw)
@@ -318,11 +327,15 @@ static int stsafe_create_ecdhe_key(stsafe_curve_id_t curve_id,
         return BAD_FUNC_ARG;
     }
 
-    /* Generate ECDHE ephemeral key pair - public key returned as X||Y */
-    ret = stse_generate_ECDHE_key_pair(&g_stse_handler,
-        (stse_ecc_key_type_t)curve_id, pPubKeyRaw);
+    /* Generate ephemeral key pair in slot 0xFF with usage_limit=1
+     * This configures the key for key establishment mode */
+    ret = stse_generate_ecc_key_pair(&g_stse_handler,
+        STSAFE_KEY_SLOT_EPHEMERAL,  /* slot 0xFF */
+        (stse_ecc_key_type_t)curve_id,
+        STSAFE_EPHEMERAL_KEY_USAGE_LIMIT,  /* usage_limit = 1 */
+        pPubKeyRaw);
     if (ret != STSE_OK) {
-        STSAFE_INTERFACE_PRINTF("stse_generate_ECDHE_key_pair error: %d\n", ret);
+        STSAFE_INTERFACE_PRINTF("stse_generate_ecc_key_pair (ephemeral) error: %d\n", ret);
         rc = (int)ret;
     }
 
@@ -1535,22 +1548,27 @@ int wolfSSL_STSAFE_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
                 curve_id = stsafe_get_ecc_curve_id(ecc_curve);
                 key_sz = stsafe_get_key_size(curve_id);
 
-                /* For A120, generate keys in slot 1 (persistent slot) by default for ECDSA signing.
-                 * For ECDH operations, the key slot from devCtx will be used directly.
-                 * If ECDH is required, keys should be generated in the ephemeral slot from the start. */
+                /* For A120: Use ephemeral slot (0xFF) for ECDH/ECDHE operations.
+                 * Use persistent slots (0-4) for ECDSA signing operations.
+                 * Note: Persistent slots require key establishment to be enabled
+                 * in their mode of operation flags via put_attribute command. */
 #ifdef WOLFSSL_STSAFEA120
-                /* Retrieve slot from devCtx if available, otherwise use default */
-                slot = STSAFE_KEY_SLOT_1; /* Default fallback */
+                /* Check if this is for ECDH by looking at devCtx hint */
                 if (info->pk.eckg.key != NULL && info->pk.eckg.key->devCtx != NULL) {
                     slot = STSAFE_DEVCXT_TO_SLOT(info->pk.eckg.key->devCtx);
+                } else {
+                    /* Default: Use slot 1 for ECDSA signing */
+                    slot = STSAFE_KEY_SLOT_1;
                 }
 
                 STSAFE_INTERFACE_PRINTF("STSAFE: KeyGen slot %d, curve_id %d\n",
                     slot, curve_id);
 
+                /* Always use ephemeral slot (0xFF) for ECDH operations */
                 if (slot == STSAFE_KEY_SLOT_EPHEMERAL) {
                     rc = stsafe_create_ecdhe_key(curve_id, pubKeyRaw);
                 } else {
+                    /* Persistent slot for signing */
                     rc = stsafe_create_key(slot, curve_id, pubKeyRaw);
                 }
                 if (rc != STSE_OK) {
