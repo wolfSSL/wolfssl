@@ -146,6 +146,7 @@ int  atmel_ecc_verify(const byte* message, const byte* signature,
     defined(WOLFSSL_MICROCHIP_AESGCM)
 #include <wolfssl/wolfcrypt/aes.h>
 
+WOLFSSL_API int wc_Microchip_SetAesGcmHandle(uint16_t handle);
 WOLFSSL_LOCAL int wc_Microchip_AesGcmEncrypt(Aes* aes, byte* out,
                             const byte* in, word32 sz,
                             const byte* iv, word32 ivSz,
