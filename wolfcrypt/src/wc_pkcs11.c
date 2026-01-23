@@ -483,8 +483,13 @@ int wc_Pkcs11_Initialize_v3(Pkcs11Dev* dev, const char* library,
     CK_C_INITIALIZE_ARGS args;
     CK_VERSION_PTR       version_ptr = NULL;
 
-    if (dev == NULL || library == NULL)
+    if (dev == NULL)
         ret = BAD_FUNC_ARG;
+
+#if !defined(HAVE_PKCS11_STATIC) && !defined(HAVE_PKCS11_V3_STATIC)
+    if (library == NULL)
+        ret = BAD_FUNC_ARG;
+#endif
 
     if (ret == 0) {
         dev->heap = heap;
@@ -508,6 +513,10 @@ int wc_Pkcs11_Initialize_v3(Pkcs11Dev* dev, const char* library,
             else if (*version == WC_PCKS11VERSION_3_1) {
                 pkcs11_version.major = 3;
                 pkcs11_version.minor = 1;
+            }
+            else if (*version == WC_PCKS11VERSION_3_2) {
+                pkcs11_version.major = 3;
+                pkcs11_version.minor = 2;
             }
             version_ptr = &pkcs11_version;
         }
@@ -535,6 +544,10 @@ int wc_Pkcs11_Initialize_v3(Pkcs11Dev* dev, const char* library,
             else if (version_ptr->major == 3 &&
                         version_ptr->minor == 1) {
                 dev->version = WC_PCKS11VERSION_3_1;
+            }
+            else if (version_ptr->major == 3 &&
+                        version_ptr->minor == 2) {
+                dev->version = WC_PCKS11VERSION_3_2;
             }
             else {
                 WOLFSSL_MSG_EX("Unsupported PKCS#11 version: %d.%d",
@@ -603,6 +616,10 @@ int wc_Pkcs11_Initialize_v3(Pkcs11Dev* dev, const char* library,
                         pkcs11_version.major = 3;
                         pkcs11_version.minor = 1;
                     }
+                    else if (*version == WC_PCKS11VERSION_3_2) {
+                        pkcs11_version.major = 3;
+                        pkcs11_version.minor = 2;
+                    }
                     version_ptr = &pkcs11_version;
                 }
                 else {
@@ -628,6 +645,10 @@ int wc_Pkcs11_Initialize_v3(Pkcs11Dev* dev, const char* library,
                     else if (version_ptr->major == 3 &&
                              version_ptr->minor == 1) {
                         dev->version = WC_PCKS11VERSION_3_1;
+                    }
+                    else if (version_ptr->major == 3 &&
+                             version_ptr->minor == 2) {
+                        dev->version = WC_PCKS11VERSION_3_2;
                     }
                     else {
                         WOLFSSL_MSG_EX("Unsupported PKCS#11 version: %d.%d",

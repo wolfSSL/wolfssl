@@ -42,6 +42,7 @@ enum Pkcs11InterfaceVersionType {
     WC_PCKS11VERSION_2_40,
     WC_PCKS11VERSION_3_0,
     WC_PCKS11VERSION_3_1,
+    WC_PCKS11VERSION_3_2,
 };
 
 typedef struct Pkcs11Dev {
