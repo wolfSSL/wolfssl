@@ -1461,7 +1461,7 @@ static WC_INLINE word16 TLSX_ToSemaphore(word16 type)
         case TLSX_ECH: /* 0xfe0d */
             return 65;
 #endif
-#ifdef WOLFSSL_DUAL_ALG_CERTS
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_DUAL_ALG_CERTS)
         case TLSX_CKS:
             return 66;
 #endif
@@ -13792,7 +13792,7 @@ void TLSX_FreeAll(TLSX* list, void* heap)
                 ECH_FREE((WOLFSSL_ECH*)extension->data, heap);
                 break;
 #endif
-#ifdef WOLFSSL_DUAL_ALG_CERTS
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_DUAL_ALG_CERTS)
             case TLSX_CKS:
                 WOLFSSL_MSG("CKS extension free");
                 /* nothing to do */
@@ -13838,7 +13838,7 @@ static int TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType,
         length += HELLO_EXT_TYPE_SZ + OPAQUE16_LEN;
 
         switch (extension->type) {
-#ifdef WOLFSSL_DUAL_ALG_CERTS
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_DUAL_ALG_CERTS)
             case TLSX_CKS:
                 length += ((WOLFSSL*)extension->data)->sigSpecSz ;
                 break;
@@ -14037,7 +14037,7 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
 
         /* extension data should be written internally. */
         switch (extension->type) {
-#ifdef WOLFSSL_DUAL_ALG_CERTS
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_DUAL_ALG_CERTS)
             case TLSX_CKS:
                 WOLFSSL_MSG("CKS extension to write");
                 offset += CKS_WRITE(((WOLFSSL*)extension->data),
@@ -14750,7 +14750,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
             }
         }
 #endif
-#ifdef WOLFSSL_DUAL_ALG_CERTS
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_DUAL_ALG_CERTS)
         if ((IsAtLeastTLSv1_3(ssl->version)) && (ssl->sigSpec != NULL)) {
             WOLFSSL_MSG("Adding CKS extension");
             if ((ret = TLSX_UseCKS(&ssl->extensions, ssl, ssl->heap)) != 0) {
@@ -16106,7 +16106,7 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
         #ifdef WOLFSSL_QUIC
             || (type == TLSX_KEY_QUIC_TP_PARAMS_DRAFT)
         #endif
-        #ifdef WOLFSSL_DUAL_ALG_CERTS
+        #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_DUAL_ALG_CERTS)
             || (type == TLSX_CKS)
         #endif
             )
@@ -16259,7 +16259,7 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
                 ret = EC_PARSE(ssl, input + offset, size, isRequest,
                         &ssl->extensions);
                 break;
-#ifdef WOLFSSL_DUAL_ALG_CERTS
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_DUAL_ALG_CERTS)
             case TLSX_CKS:
                 WOLFSSL_MSG("CKS extension received");
                 if (msgType != client_hello &&

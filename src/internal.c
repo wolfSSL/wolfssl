@@ -7175,6 +7175,7 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
         if (ret != 0) {
             return ret;
         }
+        ret = WOLFSSL_SUCCESS;
     }
 #endif
     ssl->buffers.keyType  = ctx->privateKeyType;
