@@ -1108,7 +1108,7 @@ static int ocspResponderTest_Run(OcspResponderTestConfig* config, int sendCerts)
     
     /* Create OCSP request from target certificate */
     ExpectNotNull(clientReq = wc_OcspRequest_new(NULL));
-    ExpectIntEQ(wc_InitOcspRequest(clientReq, &targetCert, 0, NULL), 0);
+    ExpectIntEQ(wc_InitOcspRequest(clientReq, &targetCert, 1, NULL), 0);
     ExpectIntGT(reqSz = wc_EncodeOcspRequest(clientReq, reqBuf, 
                                               sizeof(reqBuf)), 0);
     

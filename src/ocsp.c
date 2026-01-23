@@ -2496,7 +2496,7 @@ out:
 
 static int OcspResponse_WriteResponse(OcspResponder* responder, byte* response,
         word32* responseSz, OcspResponderCa* ca,
-        OcspResponderCertStatus* certStatus)
+        OcspResponderCertStatus* certStatus, OcspRequest* req)
 {
     OcspResponse resp;
     CertStatus status;
@@ -2561,6 +2561,12 @@ static int OcspResponse_WriteResponse(OcspResponder* responder, byte* response,
     if (responder->sendCerts && ca->certDer != NULL) {
         resp.cert = ca->certDer;
         resp.certSz = ca->certDerSz;
+    }
+
+    /* Copy nonce from request to response if present */
+    if (req != NULL && req->nonceSz > 0) {
+        resp.nonce = req->nonce;
+        resp.nonceSz = req->nonceSz;
     }
 
     /* Only support sha-1 hashes for now */
@@ -2643,7 +2649,7 @@ int wc_OcspResponder_WriteResponse(OcspResponder* responder,
     WOLFSSL_MSG("Found CA and certificate status");
 
     ret = OcspResponse_WriteResponse(responder, response, responseSz, ca,
-            certStatus);
+            certStatus, &req);
     if (ret != 0) {
         WOLFSSL_MSG("Failed to write OCSP response");
         goto out;

@@ -39155,6 +39155,82 @@ static int DecodeOcspRespExtensions(byte* source, word32* ioIndex,
 }
 
 #ifdef WOLFSSL_ASN_TEMPLATE
+/* ASN.1 template for OCSP nonce extension.
+ * RFC 6960, 4.4.1 - Nonce
+ * X.509: RFC 5280, 4.1 - Basic Certificate Fields. (Extension)
+ */
+static const ASNItem ocspNonceExtASN[] = {
+/* SEQ       */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+                                     /* Extension */
+/* EXT       */     { 1, ASN_SEQUENCE, 1, 1, 0 },
+                                        /* extnId */
+/* EXT_OID   */        {2, ASN_OBJECT_ID, 0, 0, 0 },
+                                        /* critical not encoded. */
+                                        /* extnValue */
+/* EXT_VAL   */        {2, ASN_OCTET_STRING, 0, 1, 0 },
+                                               /* nonce */
+/* EXT_NONCE */            {3, ASN_OCTET_STRING, 0, 0, 0 },
+};
+enum {
+    OCSPNONCEEXTASN_IDX_SEQ = 0,
+    OCSPNONCEEXTASN_IDX_EXT,
+    OCSPNONCEEXTASN_IDX_EXT_OID,
+    OCSPNONCEEXTASN_IDX_EXT_VAL,
+    OCSPNONCEEXTASN_IDX_EXT_NONCE,
+};
+
+/* Number of items in ASN.1 template for OCSP nonce extension. */
+#define ocspNonceExtASN_Length (sizeof(ocspNonceExtASN) / sizeof(ASNItem))
+#endif /* WOLFSSL_ASN_TEMPLATE */
+
+/* Encode OCSP response extensions (currently only nonce) */
+static int EncodeOcspRespExtensions(OcspResponse* resp, byte* out,
+        word32* outSz)
+{
+#ifndef WOLFSSL_ASN_TEMPLATE
+    (void)resp;
+    (void)output;
+    (void)size;
+    /* Encoding ocsp responses not supported in legacy ASN parsing */
+    return NOT_COMPILED_IN;
+#else
+    DECL_ASNSETDATA(dataASN, ocspNonceExtASN_Length);
+    int sz = 0;
+    int ret = 0;
+
+    if (resp == NULL || outSz == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    CALLOC_ASNSETDATA(dataASN, ocspNonceExtASN_Length, ret, resp->heap);
+
+    if (ret == 0) {
+        SetASN_OID(&dataASN[OCSPNONCEEXTASN_IDX_EXT_OID], OCSP_NONCE_OID,
+                oidOcspType);
+        SetASN_Buffer(&dataASN[OCSPNONCEEXTASN_IDX_EXT_NONCE],
+                resp->nonce, resp->nonceSz);
+        /* Calculate size of encoding. */
+        ret = SizeASN_Items(ocspNonceExtASN, dataASN,
+                ocspNonceExtASN_Length, &sz);
+    }
+    /* Check buffer big enough for encoding if supplied. */
+    if (ret == 0 && out != NULL && sz > (int)*outSz) {
+        ret = BUFFER_E;
+    }
+    if (ret == 0 && out != NULL) {
+        if (SetASN_Items(ocspNonceExtASN, dataASN, ocspNonceExtASN_Length,
+                out) != sz)
+            ret = ASN_PARSE_E;
+    }
+    if (ret == 0)
+        *outSz = sz;
+
+    FREE_ASNSETDATA(dataASN, resp->heap);
+    return ret;
+#endif
+}
+
+#ifdef WOLFSSL_ASN_TEMPLATE
 /* ASN.1 template for OCSP ResponseData.
  * RFC 6960, 4.2.1 - ASN.1 Specification of the OCSP Response
  */
@@ -39206,6 +39282,7 @@ static int EncodeResponseData(OcspResponse* resp, byte* out, word32* outSz)
     int ret = 0;
     int sz = 0;
     word32 respListSz = 0;
+    word32 respExtSz = 0;
     OcspEntry* single = NULL;
 
     if (resp == NULL || outSz == NULL) {
@@ -39253,13 +39330,24 @@ static int EncodeResponseData(OcspResponse* resp, byte* out, word32* outSz)
             ret = BAD_FUNC_ARG;
     }
     if (ret == 0) {
+        /* Encode responseExtensions if nonce is present */
+        if (resp->nonceSz > 0) {
+            ret = EncodeOcspRespExtensions(resp, NULL, &respExtSz);
+            if (ret == 0 && respExtSz > 0) {
+                SetASN_Buffer(&dataASN[OCSPRESPDATAASN_IDX_RESPEXT],
+                        NULL, respExtSz);
+            }
+        }
+        else {
+            SetASNItem_NoOutNode(dataASN, ocspRespDataASN,
+                    OCSPRESPDATAASN_IDX_RESPEXT,
+                    ocspRespDataASN_Length);
+        }
+    }
+    if (ret == 0) {
         SetASN_Int8Bit(&dataASN[OCSPRESPDATAASN_IDX_VER], 0);
         SetASN_Buffer(&dataASN[OCSPRESPDATAASN_IDX_RESP], NULL,
                 respListSz);
-        /* TODO add responseExtensions support */
-        SetASNItem_NoOutNode(dataASN, ocspRespDataASN,
-                OCSPRESPDATAASN_IDX_RESPEXT,
-                ocspRespDataASN_Length);
         /* Calculate size of encoding. */
         ret = SizeASN_Items(ocspRespDataASN, dataASN, ocspRespDataASN_Length,
                 &sz);
@@ -39285,6 +39373,12 @@ static int EncodeResponseData(OcspResponse* resp, byte* out, word32* outSz)
         }
         if (ret == 0 && respListSz != 0)
             ret = ASN_PARSE_E;
+        /* Encode response extensions if buffer was allocated */
+        if (ret == 0 && respExtSz > 0) {
+            ret = EncodeOcspRespExtensions(resp,
+                   (byte*)dataASN[OCSPRESPDATAASN_IDX_RESPEXT].data.buffer.data,
+                   &respExtSz);
+        }
     }
     if (ret == 0)
         *outSz = sz;
@@ -40373,35 +40467,6 @@ int OcspResponseDecode(OcspResponse* resp, void* cm, void* heap,
 #endif /* WOLFSSL_ASN_TEMPLATE */
 }
 
-#ifdef WOLFSSL_ASN_TEMPLATE
-/* ASN.1 template for OCSP nonce extension.
- * RFC 6960, 4.4.1 - Nonce
- * X.509: RFC 5280, 4.1 - Basic Certificate Fields. (Extension)
- */
-static const ASNItem ocspNonceExtASN[] = {
-/* SEQ       */ { 0, ASN_SEQUENCE, 1, 1, 0 },
-                                     /* Extension */
-/* EXT       */     { 1, ASN_SEQUENCE, 1, 1, 0 },
-                                        /* extnId */
-/* EXT_OID   */        {2, ASN_OBJECT_ID, 0, 0, 0 },
-                                        /* critical not encoded. */
-                                        /* extnValue */
-/* EXT_VAL   */        {2, ASN_OCTET_STRING, 0, 1, 0 },
-                                               /* nonce */
-/* EXT_NONCE */            {3, ASN_OCTET_STRING, 0, 0, 0 },
-};
-enum {
-    OCSPNONCEEXTASN_IDX_SEQ = 0,
-    OCSPNONCEEXTASN_IDX_EXT,
-    OCSPNONCEEXTASN_IDX_EXT_OID,
-    OCSPNONCEEXTASN_IDX_EXT_VAL,
-    OCSPNONCEEXTASN_IDX_EXT_NONCE,
-};
-
-/* Number of items in ASN.1 template for OCSP nonce extension. */
-#define ocspNonceExtASN_Length (sizeof(ocspNonceExtASN) / sizeof(ASNItem))
-#endif /* WOLFSSL_ASN_TEMPLATE */
-
 word32 EncodeOcspRequestExtensions(OcspRequest* req, byte* output, word32 size)
 {
     const byte NonceObjId[] = { 0x2b, 0x06, 0x01, 0x05, 0x05, 0x07,
@@ -40702,6 +40767,85 @@ int EncodeOcspRequest(OcspRequest* req, byte* output, word32 size)
 
 #ifdef HAVE_OCSP_RESPONDER
 
+#ifdef WOLFSSL_ASN_TEMPLATE
+/* Decode OCSP request extensions.
+ * RFC 6960, 4.1.1 - ASN.1 Specification of the OCSP Request
+ *
+ * @param [in]      source  Buffer containing encoded extensions (inside [2]).
+ * @param [in]      sz      Length of buffer in bytes.
+ * @param [in, out] req     OCSP request object to store nonce.
+ * @return  0 on success.
+ * @return  ASN_PARSE_E when data is malformed.
+ */
+static int DecodeOcspReqExtensions(const byte* source, word32 sz,
+                                   OcspRequest* req)
+{
+    DECL_ASNGETDATA(dataASN, certExtASN_Length);
+    int ret = 0;
+    word32 idx = 0;
+    word32 maxIdx;
+    int seqLen;
+
+    WOLFSSL_ENTER("DecodeOcspReqExtensions");
+
+    /* Skip the outer SEQUENCE that wraps all extensions */
+    if (GetSequence(source, &idx, &seqLen, sz) < 0) {
+        return ASN_PARSE_E;
+    }
+    maxIdx = idx + (word32)seqLen;
+
+    CALLOC_ASNGETDATA(dataASN, certExtASN_Length, ret, req->heap);
+
+    /* Step through all extensions. */
+    while ((ret == 0) && (idx < maxIdx)) {
+        byte isCrit = 0;
+        /* Clear dynamic data, set OID type to expect. */
+        XMEMSET(dataASN, 0, sizeof(*dataASN) * certExtASN_Length);
+        GetASN_OID(&dataASN[CERTEXTASN_IDX_OID], oidOcspType);
+        GetASN_Boolean(&dataASN[CERTEXTASN_IDX_CRIT], &isCrit);
+        /* Decode extension. */
+        ret = GetASN_Items(certExtASN, dataASN, certExtASN_Length, 0,
+                           source, &idx, sz);
+        if (ret == 0) {
+            word32 oid = dataASN[CERTEXTASN_IDX_OID].data.oid.sum;
+            int length = (int)dataASN[CERTEXTASN_IDX_VAL].length;
+
+            if (oid == OCSP_NONCE_OID) {
+                /* Extract nonce data - get data inside inner OCTET_STRING */
+                ret = GetOctetString(source, &idx, &length, sz);
+                if (ret >= 0) {
+                    ret = 0;
+                    if (length <= (int)sizeof(req->nonce)) {
+                        XMEMCPY(req->nonce, source + idx, (size_t)length);
+                        req->nonceSz = length;
+                    }
+                    else {
+                        /* Nonce too large */
+                        ret = BUFFER_E;
+                    }
+                }
+            }
+            else if (isCrit) {
+                /* Unknown critical extension - fail */
+                ret = ASN_PARSE_E;
+            }
+            /* Ignore all other extension types. */
+
+            /* Skip over rest of extension. */
+            idx += (word32)length;
+        }
+    }
+
+    /* Ensure all extension data was consumed */
+    if (ret == 0 && idx != maxIdx) {
+        ret = ASN_PARSE_E;
+    }
+
+    FREE_ASNGETDATA(dataASN, req->heap);
+    return ret;
+}
+#endif /* WOLFSSL_ASN_TEMPLATE */
+
 int DecodeOcspRequest(OcspRequest* req, const byte* input, word32 size)
 {
 #ifndef WOLFSSL_ASN_TEMPLATE
@@ -40748,9 +40892,12 @@ int DecodeOcspRequest(OcspRequest* req, const byte* input, word32 size)
             ret = ASN_PARSE_E;
     }
     if (ret == 0) {
-        /* Optional extensions not supported yet */
+        /* Parse optional extensions */
         if (dataASN[OCSPREQUESTASN_IDX_TBS_REQEXT].data.ref.data != NULL) {
-            ret = NOT_COMPILED_IN;
+            ret = DecodeOcspReqExtensions(
+                dataASN[OCSPREQUESTASN_IDX_TBS_REQEXT].data.ref.data,
+                dataASN[OCSPREQUESTASN_IDX_TBS_REQEXT].data.ref.length,
+                req);
         }
     }
     if (ret == 0) {
