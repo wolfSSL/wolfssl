@@ -2054,7 +2054,8 @@ static int test_wolfSSL_CTX_set_cipher_list_bytes(void)
 
 #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_TLS13) && \
     !defined(WOLFSSL_NO_TLS12) && \
-    (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER))
+    (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && \
+    ((!defined(NO_RSA) && defined(HAVE_ECC)) || !defined(NO_ERROR_STRINGS))
 /* Helper function to check if TLS 1.3 suites exist in the suites list */
 static int suites_has_tls13(const byte* suites, word16 suiteSz)
 {
@@ -2087,7 +2088,7 @@ static int test_wolfSSL_set_cipher_list_tls12_keeps_tls13(void)
 #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_TLS13) && \
     !defined(WOLFSSL_NO_TLS12) && \
     (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && \
-    defined(HAVE_ECC)
+    defined(HAVE_ECC) && !defined(NO_RSA)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
 
@@ -2121,7 +2122,8 @@ static int test_wolfSSL_set_cipher_list_tls13_keeps_tls12(void)
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_TLS13) && \
     !defined(WOLFSSL_NO_TLS12) && \
-    (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER))
+    (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && \
+    !defined(NO_ERROR_STRINGS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
 
@@ -2156,7 +2158,7 @@ static int test_wolfSSL_set_cipher_list_tls12_with_version(void)
 #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_TLS13) && \
     !defined(WOLFSSL_NO_TLS12) && \
     (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && \
-    defined(HAVE_ECC)
+    defined(HAVE_ECC) && !defined(NO_RSA)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
 
@@ -2195,7 +2197,8 @@ static int test_wolfSSL_set_cipher_list_tls13_with_version(void)
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_TLS13) && \
     !defined(WOLFSSL_NO_TLS12) && \
-    (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER))
+    (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && \
+    !defined(NO_ERROR_STRINGS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
 
