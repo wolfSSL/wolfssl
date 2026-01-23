@@ -4572,9 +4572,14 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_SHAKE256
 #endif
 
-/* SHAKE - Not allowed in FIPS v5.2 or older */
-#if defined(WOLFSSL_SHA3) && (defined(HAVE_SELFTEST) || \
-    (defined(HAVE_FIPS) && FIPS_VERSION_LE(5,2)))
+/* SHAKE - Not allowed in FIPS v5.2 or older, or selftest without PQC.
+ * Exception: Allow SHAKE in selftest when MLKEM (Kyber) or Dilithium
+ * is enabled.
+ */
+#if defined(WOLFSSL_SHA3) && \
+    ((defined(HAVE_FIPS) && FIPS_VERSION_LE(5,2)) || \
+     (defined(HAVE_SELFTEST) && \
+      !defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_WC_DILITHIUM)))
     #undef  WOLFSSL_NO_SHAKE128
     #define WOLFSSL_NO_SHAKE128
     #undef  WOLFSSL_NO_SHAKE256
