@@ -31093,7 +31093,7 @@ TEST_CASE testCases[] = {
     TEST_CHACHA_DECLS,
     /* Poly1305 */
     TEST_POLY1305_DECLS,
-    /* Chacha20-Poly1305 */
+    /* Chacha20-Poly1305 and Xchacha20-Poly1305 */
     TEST_CHACHA20_POLY1305_DECLS,
     /* Camellia */
     TEST_CAMELLIA_DECLS,
