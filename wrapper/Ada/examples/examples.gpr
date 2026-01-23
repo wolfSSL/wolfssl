@@ -1,0 +1,46 @@
+with "config/examples_config.gpr";
+with "../wolfssl.gpr";
+
+project Examples is
+   type OS_Kind is ("Windows", "Linux_Or_Mac");
+
+   OS : OS_Kind := external ("OS", "Linux_Or_Mac");
+
+   for Languages use ("Ada");
+
+   for Source_Dirs use ("src");
+
+   for Object_Dir use "obj";
+
+   for Main use ("tls_server_main.adb",
+                 "tls_client_main.adb",
+                 "sha256_main.adb",
+                 "rsa_verify_main.adb",
+                 "aes_verify_main.adb");
+
+   package Naming is
+      for Spec_Suffix ("C") use ".h";
+   end Naming;
+
+   package Compiler is
+      for Switches ("Ada") use ("-g");
+   end Compiler;
+
+   package Linker is
+      case OS is
+         when "Windows" =>
+            for Switches ("Ada") use
+               ("-lm",         --  To include the math library (used by WolfSSL).
+                "-lcrypt32");  --  Needed on Windows.
+
+         when "Linux_Or_Mac" =>
+            for Switches ("Ada") use
+               ("-lm");  --  To include the math library (used by WolfSSL).
+      end case;
+   end Linker;
+
+   package Binder is
+      for Switches ("Ada") use ("-Es");  --  To include stack traces.
+   end Binder;
+
+end Examples;
