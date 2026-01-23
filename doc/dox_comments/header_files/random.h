@@ -476,7 +476,7 @@ int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz);
 
     \return 0 If valid
     \return BAD_FUNC_ARG If seed is NULL
-    \return RNG_FAILURE_E Validation failed
+    \return ENTROPY_RT_E || ENTROPY_APT_E  Validation failed
 
     \param seed Seed to test
     \param seedSz Seed size
