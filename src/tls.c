@@ -4407,6 +4407,7 @@ static int TLSX_IsGroupSupported(int namedGroup)
         #endif /* !NO_ECC_SECP */
         #ifdef HAVE_ECC_BRAINPOOL
         case WOLFSSL_ECC_BRAINPOOLP256R1:
+        case WOLFSSL_ECC_BRAINPOOLP256R1TLS13:
             break;
         #endif
         #ifdef WOLFSSL_SM2
@@ -4429,6 +4430,7 @@ static int TLSX_IsGroupSupported(int namedGroup)
         #endif /* !NO_ECC_SECP */
         #ifdef HAVE_ECC_BRAINPOOL
         case WOLFSSL_ECC_BRAINPOOLP384R1:
+        case WOLFSSL_ECC_BRAINPOOLP384R1TLS13:
             break;
         #endif
     #endif
@@ -4475,6 +4477,7 @@ static int TLSX_IsGroupSupported(int namedGroup)
     #if (defined(HAVE_ECC512) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 512
         #ifdef HAVE_ECC_BRAINPOOL
         case WOLFSSL_ECC_BRAINPOOLP512R1:
+        case WOLFSSL_ECC_BRAINPOOLP512R1TLS13:
             break;
         #endif
     #endif
@@ -5328,6 +5331,31 @@ int TLSX_SupportedFFDHE_Set(WOLFSSL* ssl)
     return ret;
 }
 #endif /* HAVE_FFDHE && !WOLFSSL_NO_TLS12 */
+
+/* Check if the given curve is present in the supported groups extension.
+ *
+ * ssl             SSL/TLS object.
+ * name            The curve name to check.
+ * returns 1 if present, 0 otherwise.
+ */
+int TLSX_SupportedCurve_IsSupported(WOLFSSL* ssl, word16 name)
+{
+    TLSX* extension;
+    SupportedCurve* curve;
+
+    extension = TLSX_Find(ssl->extensions, TLSX_SUPPORTED_GROUPS);
+    if (extension == NULL)
+        return 0;
+
+    curve = (SupportedCurve*)extension->data;
+    while (curve != NULL) {
+        if (curve->name == name)
+            return 1;
+        curve = curve->next;
+    }
+
+    return 0;
+}
 
 #endif /* !NO_WOLFSSL_SERVER */
 
@@ -8154,7 +8182,13 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
             curveId = ECC_SM2P256V1;
             keySize = 32;
             break;
-        #endif /* !NO_ECC_SECP */
+        #endif /* !WOLFSSL_SM2 */
+        #ifdef HAVE_ECC_BRAINPOOL
+        case WOLFSSL_ECC_BRAINPOOLP256R1TLS13:
+            curveId = ECC_BRAINPOOLP256R1;
+            keySize = 32;
+            break;
+        #endif /* HAVE_ECC_BRAINPOOL */
     #endif
     #if (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 384
         #ifndef NO_ECC_SECP
@@ -8163,6 +8197,20 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
             keySize = 48;
             break;
         #endif /* !NO_ECC_SECP */
+        #ifdef HAVE_ECC_BRAINPOOL
+        case WOLFSSL_ECC_BRAINPOOLP384R1TLS13:
+            curveId = ECC_BRAINPOOLP384R1;
+            keySize = 48;
+            break;
+        #endif /* HAVE_ECC_BRAINPOOL */
+    #endif
+    #if (defined(HAVE_ECC512) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 512
+        #ifdef HAVE_ECC_BRAINPOOL
+        case WOLFSSL_ECC_BRAINPOOLP512R1TLS13:
+            curveId = ECC_BRAINPOOLP512R1;
+            keySize = 64;
+            break;
+        #endif /* HAVE_ECC_BRAINPOOL */
     #endif
     #if (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 521
         #ifndef NO_ECC_SECP
@@ -9273,7 +9321,12 @@ static int TLSX_KeyShare_ProcessEcc_ex(WOLFSSL* ssl,
         case WOLFSSL_ECC_SM2P256V1:
             curveId = ECC_SM2P256V1;
             break;
-        #endif
+        #endif /* WOLFSSL_SM2 */
+        #ifdef HAVE_ECC_BRAINPOOL
+        case WOLFSSL_ECC_BRAINPOOLP256R1TLS13:
+            curveId = ECC_BRAINPOOLP256R1;
+            break;
+        #endif /* HAVE_ECC_BRAINPOOL */
     #endif
     #if (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 384
         #ifndef NO_ECC_SECP
@@ -9281,6 +9334,18 @@ static int TLSX_KeyShare_ProcessEcc_ex(WOLFSSL* ssl,
             curveId = ECC_SECP384R1;
             break;
         #endif /* !NO_ECC_SECP */
+        #ifdef HAVE_ECC_BRAINPOOL
+        case WOLFSSL_ECC_BRAINPOOLP384R1TLS13:
+            curveId = ECC_BRAINPOOLP384R1;
+            break;
+        #endif /* HAVE_ECC_BRAINPOOL */
+    #endif
+    #if (defined(HAVE_ECC512) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 512
+        #ifdef HAVE_ECC_BRAINPOOL
+        case WOLFSSL_ECC_BRAINPOOLP512R1TLS13:
+            curveId = ECC_BRAINPOOLP512R1;
+            break;
+        #endif /* HAVE_ECC_BRAINPOOL */
     #endif
     #if (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 521
         #ifndef NO_ECC_SECP
@@ -10631,6 +10696,9 @@ static const word16 preferredGroup[] = {
 #if !defined(HAVE_FIPS) && defined(WOLFSSL_SM2)
     WOLFSSL_ECC_SM2P256V1,
 #endif
+#if defined(HAVE_ECC_BRAINPOOL)
+    WOLFSSL_ECC_BRAINPOOLP256R1TLS13,
+#endif
 #endif
 #if defined(HAVE_CURVE25519) && ECC_MIN_KEY_SZ <= 256
     WOLFSSL_ECC_X25519,
@@ -10641,10 +10709,17 @@ static const word16 preferredGroup[] = {
 #if defined(HAVE_ECC) && (!defined(NO_ECC384) || \
     defined(HAVE_ALL_CURVES)) && !defined(NO_ECC_SECP) && ECC_MIN_KEY_SZ <= 384
     WOLFSSL_ECC_SECP384R1,
+#if defined(HAVE_ECC_BRAINPOOL)
+    WOLFSSL_ECC_BRAINPOOLP384R1TLS13,
+#endif
 #endif
 #if defined(HAVE_ECC) && (!defined(NO_ECC521) || \
     defined(HAVE_ALL_CURVES)) && !defined(NO_ECC_SECP) && ECC_MIN_KEY_SZ <= 521
     WOLFSSL_ECC_SECP521R1,
+#endif
+#if defined(HAVE_ECC) && defined(HAVE_ECC512) && \
+    defined(HAVE_ECC_BRAINPOOL) && ECC_MIN_KEY_SZ <= 512
+    WOLFSSL_ECC_BRAINPOOLP512R1TLS13,
 #endif
 #if defined(HAVE_FFDHE_2048)
     WOLFSSL_FFDHE_2048,
@@ -14227,9 +14302,27 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
         #endif
         #if (defined(HAVE_ECC512) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 512
             #ifdef HAVE_ECC_BRAINPOOL
-                ret = TLSX_UseSupportedCurve(extensions,
-                                        WOLFSSL_ECC_BRAINPOOLP512R1, ssl->heap);
-                if (ret != WOLFSSL_SUCCESS) return ret;
+                if (IsAtLeastTLSv1_3(ssl->version)) {
+                    /* TLS 1.3 BrainpoolP512 curve */
+                    ret = TLSX_UseSupportedCurve(extensions,
+                                WOLFSSL_ECC_BRAINPOOLP512R1TLS13, ssl->heap);
+                    if (ret != WOLFSSL_SUCCESS) return ret;
+
+                    /* If TLS 1.2 is allowed, also add the TLS 1.2 curve */
+                    if (ssl->options.downgrade &&
+                        (ssl->options.minDowngrade <= TLSv1_2_MINOR ||
+                         ssl->options.minDowngrade <= DTLSv1_2_MINOR)) {
+                        ret = TLSX_UseSupportedCurve(extensions,
+                                    WOLFSSL_ECC_BRAINPOOLP512R1, ssl->heap);
+                        if (ret != WOLFSSL_SUCCESS) return ret;
+                    }
+                }
+                else {
+                    /* TLS 1.2 only */
+                    ret = TLSX_UseSupportedCurve(extensions,
+                        WOLFSSL_ECC_BRAINPOOLP512R1, ssl->heap);
+                    if (ret != WOLFSSL_SUCCESS) return ret;
+                }
             #endif
         #endif
         #if (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 384
@@ -14239,9 +14332,27 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
                 if (ret != WOLFSSL_SUCCESS) return ret;
             #endif
             #ifdef HAVE_ECC_BRAINPOOL
-                ret = TLSX_UseSupportedCurve(extensions,
-                                        WOLFSSL_ECC_BRAINPOOLP384R1, ssl->heap);
-                if (ret != WOLFSSL_SUCCESS) return ret;
+                if (IsAtLeastTLSv1_3(ssl->version)) {
+                    /* TLS 1.3 BrainpoolP384 curve */
+                    ret = TLSX_UseSupportedCurve(extensions,
+                                WOLFSSL_ECC_BRAINPOOLP384R1TLS13, ssl->heap);
+                    if (ret != WOLFSSL_SUCCESS) return ret;
+
+                    /* If TLS 1.2 is allowed, also add the TLS 1.2 curve */
+                    if (ssl->options.downgrade &&
+                        (ssl->options.minDowngrade <= TLSv1_2_MINOR ||
+                         ssl->options.minDowngrade <= DTLSv1_2_MINOR)) {
+                        ret = TLSX_UseSupportedCurve(extensions,
+                                    WOLFSSL_ECC_BRAINPOOLP384R1, ssl->heap);
+                        if (ret != WOLFSSL_SUCCESS) return ret;
+                    }
+                }
+                else {
+                    /* TLS 1.2 only */
+                    ret = TLSX_UseSupportedCurve(extensions,
+                        WOLFSSL_ECC_BRAINPOOLP384R1, ssl->heap);
+                    if (ret != WOLFSSL_SUCCESS) return ret;
+                }
             #endif
         #endif
 #endif /* HAVE_ECC */
@@ -14267,9 +14378,27 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
                 if (ret != WOLFSSL_SUCCESS) return ret;
             #endif
             #ifdef HAVE_ECC_BRAINPOOL
-                ret = TLSX_UseSupportedCurve(extensions,
-                                        WOLFSSL_ECC_BRAINPOOLP256R1, ssl->heap);
-                if (ret != WOLFSSL_SUCCESS) return ret;
+                if (IsAtLeastTLSv1_3(ssl->version)) {
+                    /* TLS 1.3 BrainpoolP256 curve */
+                    ret = TLSX_UseSupportedCurve(extensions,
+                                            WOLFSSL_ECC_BRAINPOOLP256R1TLS13, ssl->heap);
+                    if (ret != WOLFSSL_SUCCESS) return ret;
+
+                    /* If TLS 1.2 is allowed, also add the TLS 1.2 curve */
+                    if (ssl->options.downgrade &&
+                        (ssl->options.minDowngrade <= TLSv1_2_MINOR ||
+                         ssl->options.minDowngrade <= DTLSv1_2_MINOR)) {
+                        ret = TLSX_UseSupportedCurve(extensions,
+                                    WOLFSSL_ECC_BRAINPOOLP256R1, ssl->heap);
+                        if (ret != WOLFSSL_SUCCESS) return ret;
+                    }
+                }
+                else {
+                    /* TLS 1.2 only */
+                    ret = TLSX_UseSupportedCurve(extensions,
+                        WOLFSSL_ECC_BRAINPOOLP256R1, ssl->heap);
+                    if (ret != WOLFSSL_SUCCESS) return ret;
+                }
             #endif
             #ifdef WOLFSSL_SM2
                 ret = TLSX_UseSupportedCurve(extensions,

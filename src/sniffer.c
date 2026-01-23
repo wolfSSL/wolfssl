@@ -3364,6 +3364,11 @@ static int ProcessKeyShare(KeyShareInfo* info, const byte* input, int len,
                 info->curve_id = ECC_SM2P256V1;
                 break;
             #endif /* WOLFSSL_SM2 */
+            #ifdef HAVE_ECC_BRAINPOOL
+            case WOLFSSL_ECC_BRAINPOOLP256R1TLS13:
+                info->curve_id = ECC_BRAINPOOLP256R1;
+                break;
+            #endif /* HAVE_ECC_BRAINPOOL */
         #endif
         #if defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)
             #ifndef NO_ECC_SECP
@@ -3371,6 +3376,18 @@ static int ProcessKeyShare(KeyShareInfo* info, const byte* input, int len,
                 info->curve_id = ECC_SECP384R1;
                 break;
             #endif /* !NO_ECC_SECP */
+            #ifdef HAVE_ECC_BRAINPOOL
+            case WOLFSSL_ECC_BRAINPOOLP384R1TLS13:
+                info->curve_id = ECC_BRAINPOOLP384R1;
+                break;
+            #endif /* HAVE_ECC_BRAINPOOL */
+        #endif
+        #if defined(HAVE_ECC512) || defined(HAVE_ALL_CURVES)
+            #ifdef HAVE_ECC_BRAINPOOL
+            case WOLFSSL_ECC_BRAINPOOLP512R1TLS13:
+                info->curve_id = ECC_BRAINPOOLP512R1;
+                break;
+            #endif /* HAVE_ECC_BRAINPOOL */
         #endif
         #if defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)
             #ifndef NO_ECC_SECP

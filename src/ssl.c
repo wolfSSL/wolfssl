@@ -3741,6 +3741,9 @@ static int isValidCurveGroup(word16 name)
         case WOLFSSL_ECC_SM2P256V1:
         case WOLFSSL_ECC_X25519:
         case WOLFSSL_ECC_X448:
+        case WOLFSSL_ECC_BRAINPOOLP256R1TLS13:
+        case WOLFSSL_ECC_BRAINPOOLP384R1TLS13:
+        case WOLFSSL_ECC_BRAINPOOLP512R1TLS13:
 
         case WOLFSSL_FFDHE_2048:
         case WOLFSSL_FFDHE_3072:
@@ -12439,6 +12442,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             *sigAlgo = DSAk;
             break;
         case ecc_dsa_sa_algo:
+        case ecc_brainpool_sa_algo:
             *sigAlgo = ECDSAk;
             break;
         case rsa_pss_sa_algo:
@@ -18364,6 +18368,7 @@ static int SaToNid(byte sa, int* nid)
             *nid = WC_NID_dsa;
             break;
         case ecc_dsa_sa_algo:
+        case ecc_brainpool_sa_algo:
             *nid = WC_NID_X9_62_id_ecPublicKey;
             break;
         case rsa_pss_sa_algo:
