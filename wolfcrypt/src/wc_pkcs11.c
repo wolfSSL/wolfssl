@@ -432,7 +432,7 @@ static void pkcs11_val(const char* op, CK_ULONG val)
  */
 int wc_Pkcs11_Initialize(Pkcs11Dev* dev, const char* library, void* heap)
 {
-    return wc_Pkcs11_Initialize_ex(dev, library, heap, NULL);
+    return wc_Pkcs11_Initialize_v3(dev, library, heap, NULL, NULL, NULL);
 }
 
 /**
@@ -452,51 +452,248 @@ int wc_Pkcs11_Initialize(Pkcs11Dev* dev, const char* library, void* heap)
 int wc_Pkcs11_Initialize_ex(Pkcs11Dev* dev, const char* library, void* heap,
                             CK_RV* rvp)
 {
+    return wc_Pkcs11_Initialize_v3(dev, library, heap, NULL, NULL, rvp);
+}
+
+/**
+ * Load library, get function list and initialize PKCS#11.
+ *
+ * @param  [in]     dev           Device object.
+ * @param  [in]     library       Library name including path.
+ * @param  [in]     heap          Heap hint.
+ * @param  [in,out] version       On in, desired version of interface.
+ *                                On out, actual obtained version of interface.
+ * @param  [in]     interfaceName Name of the interface to use.
+ * @param  [out]    rvp           PKCS#11 return value. Last return value seen.
+ *                              May be NULL.
+ * @return  BAD_FUNC_ARG when dev or library are NULL pointers.
+ * @return  BAD_PATH_ERROR when dynamic library cannot be opened.
+ * @return  WC_INIT_E when the initialization PKCS#11 fails.
+ * @return  WC_HW_E when unable to get PKCS#11 function list.
+ * @return  0 on success.
+ */
+int wc_Pkcs11_Initialize_v3(Pkcs11Dev* dev, const char* library,
+    void* heap, int* version, const char* interfaceName, CK_RV* rvp)
+{
     int                  ret = 0;
     CK_RV                rv = CKR_OK;
-#ifndef HAVE_PKCS11_STATIC
+#if !defined(HAVE_PKCS11_STATIC) && !defined(HAVE_PKCS11_V3_STATIC)
     void*                func;
 #endif
     CK_C_INITIALIZE_ARGS args;
+    CK_VERSION_PTR       version_ptr = NULL;
 
     if (dev == NULL || library == NULL)
         ret = BAD_FUNC_ARG;
 
     if (ret == 0) {
         dev->heap = heap;
-#ifndef HAVE_PKCS11_STATIC
+#if defined(HAVE_PKCS11_V3_STATIC)
+        CK_INTERFACE_PTR interface = NULL;
+        CK_VERSION pkcs11_version = {0, 0};
+
+        if (version != NULL) {
+            if (*version == WC_PCKS11VERSION_2_20) {
+                pkcs11_version.major = 2;
+                pkcs11_version.minor = 20;
+            }
+            else if (*version == WC_PCKS11VERSION_2_20) {
+                pkcs11_version.major = 2;
+                pkcs11_version.minor = 40;
+            }
+            else if (*version == WC_PCKS11VERSION_3_0) {
+                pkcs11_version.major = 3;
+                pkcs11_version.minor = 0;
+            }
+            else if (*version == WC_PCKS11VERSION_3_1) {
+                pkcs11_version.major = 3;
+                pkcs11_version.minor = 1;
+            }
+            version_ptr = &pkcs11_version;
+        }
+        else {
+            version_ptr = NULL;
+        }
+
+        rv = C_GetInterface((CK_UTF8CHAR_PTR) interfaceName, version_ptr,
+                            &interface, 0);
+
+        if (rv == CKR_OK) {
+            dev->func = interface->pFunctionList;
+            version_ptr = (CK_VERSION_PTR) interface->pFunctionList;
+            if (version_ptr->major == 2 && version_ptr->minor == 20) {
+                dev->version = WC_PCKS11VERSION_2_20;
+            }
+            else if (version_ptr->major == 2 &&
+                        version_ptr->minor == 40) {
+                dev->version = WC_PCKS11VERSION_2_40;
+            }
+            else if (version_ptr->major == 3 &&
+                        version_ptr->minor == 0) {
+                dev->version = WC_PCKS11VERSION_3_0;
+            }
+            else if (version_ptr->major == 3 &&
+                        version_ptr->minor == 1) {
+                dev->version = WC_PCKS11VERSION_3_1;
+            }
+            else {
+                WOLFSSL_MSG_EX("Unsupported PKCS#11 version: %d.%d",
+                                version_ptr->major, version_ptr->minor);
+                ret = WC_HW_E;
+            }
+        }
+        else {
+            PKCS11_RV("CK_C_GetInterface", rv);
+            ret = WC_HW_E;
+        }
+#elif defined(HAVE_PKCS11_STATIC)
+        rv = C_GetFunctionList(&dev->func);
+        if (rv == CKR_OK) {
+            version_ptr = (CK_VERSION_PTR) dev->func;
+            if (version_ptr->major == 2 &&
+                version_ptr->minor == 20) {
+                dev->version = WC_PCKS11VERSION_2_20;
+            }
+            else if (version_ptr->major == 2 &&
+                    version_ptr->minor == 40) {
+                dev->version = WC_PCKS11VERSION_2_40;
+            }
+            else {
+                WOLFSSL_MSG_EX("Unsupported PKCS#11 version: %d.%d",
+                                version_ptr->major,
+                                version_ptr->minor);
+                ret = WC_HW_E;
+            }
+        }
+        else {
+            PKCS11_RV("CK_C_GetFunctionList", rv);
+            ret = WC_HW_E;
+        }
+#else
+        /* Load dynamic library */
         dev->dlHandle = dlopen(library, RTLD_NOW | RTLD_LOCAL);
         if (dev->dlHandle == NULL) {
             WOLFSSL_MSG(dlerror());
             ret = BAD_PATH_ERROR;
         }
+
+        if (ret == 0) {
+            /* Check if the library supports PKCS#11 version 3.0 (or above) by
+             * looking for the C_GetInterface method (only present for >= V3.0).
+             */
+            func = dlsym(dev->dlHandle, "C_GetInterface");
+            if (func != NULL) {
+                /* Function is present, use it */
+                CK_INTERFACE_PTR interface = NULL;
+                CK_VERSION pkcs11_version = {0, 0};
+                if (version != NULL) {
+                    if (*version == WC_PCKS11VERSION_2_20) {
+                        pkcs11_version.major = 2;
+                        pkcs11_version.minor = 20;
+                    }
+                    else if (*version == WC_PCKS11VERSION_2_40) {
+                        pkcs11_version.major = 2;
+                        pkcs11_version.minor = 40;
+                    }
+                    else if (*version == WC_PCKS11VERSION_3_0) {
+                        pkcs11_version.major = 3;
+                        pkcs11_version.minor = 0;
+                    }
+                    else if (*version == WC_PCKS11VERSION_3_1) {
+                        pkcs11_version.major = 3;
+                        pkcs11_version.minor = 1;
+                    }
+                    version_ptr = &pkcs11_version;
+                }
+                else {
+                    version_ptr = NULL;
+                }
+
+                rv = ((CK_C_GetInterface)func)((CK_UTF8CHAR_PTR) interfaceName,
+                                               version_ptr, &interface, 0);
+                if (rv == CKR_OK) {
+                    dev->func = interface->pFunctionList;
+                    version_ptr = (CK_VERSION_PTR) interface->pFunctionList;
+                    if (version_ptr->major == 2 && version_ptr->minor == 20) {
+                        dev->version = WC_PCKS11VERSION_2_20;
+                    }
+                    else if (version_ptr->major == 2 &&
+                             version_ptr->minor == 40) {
+                        dev->version = WC_PCKS11VERSION_2_40;
+                    }
+                    else if (version_ptr->major == 3 &&
+                             version_ptr->minor == 0) {
+                        dev->version = WC_PCKS11VERSION_3_0;
+                    }
+                    else if (version_ptr->major == 3 &&
+                             version_ptr->minor == 1) {
+                        dev->version = WC_PCKS11VERSION_3_1;
+                    }
+                    else {
+                        WOLFSSL_MSG_EX("Unsupported PKCS#11 version: %d.%d",
+                                       version_ptr->major, version_ptr->minor);
+                        ret = WC_HW_E;
+                    }
+                }
+                else {
+                    PKCS11_RV("CK_C_GetInterface", rv);
+                    ret = WC_HW_E;
+                }
+            }
+            else {
+                /* Function not present, try a 2.x library by looking for
+                * C_GetFunctionList. */
+                func = dlsym(dev->dlHandle, "C_GetFunctionList");
+                if (func == NULL) {
+            #if defined(_WIN32)
+                    WOLFSSL_MSG_EX("GetProcAddress(): %d", GetLastError());
+            #else
+                    WOLFSSL_MSG(dlerror());
+            #endif
+                    ret = WC_HW_E;
+                }
+                if (ret == 0) {
+                    rv = ((CK_C_GetFunctionList)func)(&dev->func);
+                    if (rv == CKR_OK) {
+                        version_ptr = (CK_VERSION_PTR) dev->func;
+                        if (version_ptr->major == 2 &&
+                            version_ptr->minor == 20) {
+                            dev->version = WC_PCKS11VERSION_2_20;
+                        }
+                        else if (version_ptr->major == 2 &&
+                                version_ptr->minor == 40) {
+                            dev->version = WC_PCKS11VERSION_2_40;
+                        }
+                        else {
+                            WOLFSSL_MSG_EX("Unsupported PKCS#11 version: %d.%d",
+                                           version_ptr->major,
+                                           version_ptr->minor);
+                            ret = WC_HW_E;
+                        }
+                    }
+                    else {
+                        PKCS11_RV("CK_C_GetFunctionList", rv);
+                        ret = WC_HW_E;
+                    }
+                }
+            }
+        }
+#endif
     }
 
-    if (ret == 0) {
-        dev->func = NULL;
-        func = dlsym(dev->dlHandle, "C_GetFunctionList");
-        if (func == NULL) {
-            WOLFSSL_MSG(dlerror());
-            ret = WC_HW_E;
-        }
-    }
-    if (ret == 0) {
-        rv = ((CK_C_GetFunctionList)func)(&dev->func);
-#else
-        rv = C_GetFunctionList(&dev->func);
-#endif
-        if (rv != CKR_OK) {
-            PKCS11_RV("CK_C_GetFunctionList", ret);
-            ret = WC_HW_E;
-        }
-    }
+    if (ret == 0 && version != NULL)
+        *version = dev->version;
 
     if (ret == 0) {
         XMEMSET(&args, 0x00, sizeof(args));
         args.flags = CKF_OS_LOCKING_OK;
         rv = dev->func->C_Initialize(&args);
-        if (rv != CKR_OK) {
-            PKCS11_RV("C_Initialize", ret);
+        if (rv == CKR_CRYPTOKI_ALREADY_INITIALIZED) {
+            WOLFSSL_MSG("PKCS#11 already initialized");
+            rv = CKR_OK;
+        }
+        else if (rv != CKR_OK) {
+            PKCS11_RV("C_Initialize", rv);
             ret = WC_INIT_E;
         }
     }
@@ -520,7 +717,7 @@ int wc_Pkcs11_Initialize_ex(Pkcs11Dev* dev, const char* library, void* heap,
 void wc_Pkcs11_Finalize(Pkcs11Dev* dev)
 {
     if (dev != NULL
-#ifndef HAVE_PKCS11_STATIC
+#if !defined(HAVE_PKCS11_STATIC) && !defined(HAVE_PKCS11_V3_STATIC)
         && dev->dlHandle != NULL
 #endif
         ) {
@@ -528,7 +725,7 @@ void wc_Pkcs11_Finalize(Pkcs11Dev* dev)
             dev->func->C_Finalize(NULL);
             dev->func = NULL;
         }
-#ifndef HAVE_PKCS11_STATIC
+#if !defined(HAVE_PKCS11_STATIC) && !defined(HAVE_PKCS11_V3_STATIC)
         dlclose(dev->dlHandle);
         dev->dlHandle = NULL;
 #endif
@@ -633,6 +830,7 @@ static int Pkcs11Token_Init(Pkcs11Token* token, Pkcs11Dev* dev, int slotId,
         token->userPin = NULL_PTR;
         token->userPinSz = 0;
         token->userPinLogin = 0;
+        token->version = dev->version;
     }
 
     XFREE(slot, dev->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -809,6 +1007,7 @@ static int Pkcs11OpenSession(Pkcs11Token* token, Pkcs11Session* session,
     if (ret == 0) {
         session->func = token->func;
         session->slotId = token->slotId;
+        session->version = token->version;
     }
 
     return ret;

@@ -37,13 +37,20 @@
     extern "C" {
 #endif
 
+enum Pkcs11InterfaceVersionType {
+    WC_PCKS11VERSION_2_20,
+    WC_PCKS11VERSION_2_40,
+    WC_PCKS11VERSION_3_0,
+    WC_PCKS11VERSION_3_1,
+};
 
 typedef struct Pkcs11Dev {
-#ifndef HAVE_PKCS11_STATIC
+#if !defined(HAVE_PKCS11_STATIC) && !defined(HAVE_PKCS11_V3_STATIC)
     void*             dlHandle;         /* Handle to library  */
 #endif
     CK_FUNCTION_LIST* func;             /* Array of functions */
     void*             heap;
+    int               version;          /* Pkcs11InterfaceVersionType */
 } Pkcs11Dev;
 
 typedef struct Pkcs11Token {
@@ -53,12 +60,14 @@ typedef struct Pkcs11Token {
     CK_UTF8CHAR_PTR   userPin;          /* User's PIN to login with           */
     CK_ULONG          userPinSz;        /* Size of user's PIN in bytes        */
     byte              userPinLogin:1;   /* Login with User's PIN              */
+    int               version;          /* Pkcs11InterfaceVersionType         */
 } Pkcs11Token;
 
 typedef struct Pkcs11Session {
     CK_FUNCTION_LIST* func;             /* Table of PKCS#11 function from lib */
     CK_SLOT_ID        slotId;           /* Id of slot to use                  */
     CK_SESSION_HANDLE handle;           /* Handle to active session           */
+    int               version;          /* Pkcs11InterfaceVersionType         */
 } Pkcs11Session;
 
 /* Types of keys that can be stored. */
@@ -74,6 +83,8 @@ WOLFSSL_API int wc_Pkcs11_Initialize(Pkcs11Dev* dev, const char* library,
                                      void* heap);
 WOLFSSL_API int wc_Pkcs11_Initialize_ex(Pkcs11Dev* dev, const char* library,
                                         void* heap, CK_RV* rvp);
+WOLFSSL_API int wc_Pkcs11_Initialize_v3(Pkcs11Dev* dev, const char* library,
+    void* heap, int* version, const char* interfaceName, CK_RV* rvp);
 WOLFSSL_API void wc_Pkcs11_Finalize(Pkcs11Dev* dev);
 
 WOLFSSL_API int wc_Pkcs11Token_Init(Pkcs11Token* token, Pkcs11Dev* dev,
