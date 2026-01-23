@@ -297,6 +297,8 @@ enum {
 #ifdef WOLFSSL_QNX_CAAM
 #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
 int testDevId = WOLFSSL_CAAM_DEVID;
+#elif defined(WC_USE_DEVID)
+int testDevId = WC_USE_DEVID;
 #else
 int testDevId = INVALID_DEVID;
 #endif
@@ -4445,6 +4447,7 @@ int test_ssl_memio_setup(test_ssl_memio_ctx *ctx)
     }
     wolfSSL_SetIORecv(ctx->c_ctx, test_ssl_memio_read_cb);
     wolfSSL_SetIOSend(ctx->c_ctx, test_ssl_memio_write_cb);
+    wolfSSL_CTX_SetDevId(ctx->c_ctx, testDevId);
 #ifdef WOLFSSL_ENCRYPTED_KEYS
     wolfSSL_CTX_set_default_passwd_cb(ctx->c_ctx, PasswordCallBack);
 #endif
@@ -4525,6 +4528,8 @@ int test_ssl_memio_setup(test_ssl_memio_ctx *ctx)
     }
     wolfSSL_SetIORecv(ctx->s_ctx, test_ssl_memio_read_cb);
     wolfSSL_SetIOSend(ctx->s_ctx, test_ssl_memio_write_cb);
+    wolfSSL_CTX_SetDevId(ctx->s_ctx, testDevId);
+
     wolfSSL_CTX_set_verify(ctx->s_ctx, WOLFSSL_VERIFY_PEER |
         WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, 0);
     if (ctx->s_cb.caPemFile == NULL)
@@ -5013,6 +5018,8 @@ THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
         signal_ready(opts->signal);
         goto done;
     }
+    if (cbf != NULL)
+        wolfSSL_CTX_SetDevId(ctx, cbf->devId);
 
     if (cbf == NULL || !cbf->ticNoInit) {
 #if defined(HAVE_SESSION_TICKET) && \
@@ -5503,6 +5510,9 @@ int test_client_nofail(void* args, cbType cb)
         }
         ctx = wolfSSL_CTX_new(method);
     }
+
+    if (cbf != NULL)
+        wolfSSL_CTX_SetDevId(ctx, cbf->devId);
 
     if (cbf != NULL)
         doUdp = cbf->doUdp;
@@ -6412,10 +6422,12 @@ static int test_wolfSSL_read_write(void)
     tcp_ready ready;
     func_args client_args;
     func_args server_args;
+    callback_functions cbf;
     THREAD_TYPE serverThread;
 
     XMEMSET(&client_args, 0, sizeof(func_args));
     XMEMSET(&server_args, 0, sizeof(func_args));
+    XMEMSET(&cbf, 0, sizeof(callback_functions));
 #ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
 #endif
@@ -6428,8 +6440,11 @@ static int test_wolfSSL_read_write(void)
     ready.port = GetRandomPort();
 #endif
 
+    cbf.devId = testDevId;
     server_args.signal = &ready;
     client_args.signal = &ready;
+    server_args.callbacks = &cbf;
+    client_args.callbacks = &cbf;
 
     start_thread(test_server_nofail, &server_args, &serverThread);
     wait_tcp_ready(&server_args);
@@ -16240,6 +16255,7 @@ static int test_wolfSSL_SESSION(void)
     SOCKET_T sockfd;
     tcp_ready ready;
     func_args server_args;
+    callback_functions cbf;
     THREAD_TYPE serverThread;
     char msg[80];
     const char* sendGET = "GET";
@@ -16253,6 +16269,7 @@ static int test_wolfSSL_SESSION(void)
 #else
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
 #endif
+    wolfSSL_CTX_SetDevId(ctx, testDevId);
 
     ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx, cliCertFile,
         CERT_FILETYPE));
@@ -16269,6 +16286,9 @@ static int test_wolfSSL_SESSION(void)
 #endif
 
     XMEMSET(&server_args, 0, sizeof(func_args));
+    XMEMSET(&cbf, 0, sizeof(callback_functions));
+    cbf.devId = testDevId;
+    server_args.callbacks = &cbf;
 #ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
 #endif
@@ -24899,6 +24919,7 @@ static int test_CryptoCb_Func(int thisDevId, wc_CryptoInfo* info, void* ctx)
                 case RSA_PRIVATE_DECRYPT:
                 {
                     RsaKey key;
+                    int rngDevId = INVALID_DEVID;
 
                     /* perform software based RSA private op */
                 #ifdef DEBUG_WOLFSSL
@@ -24913,14 +24934,22 @@ static int test_CryptoCb_Func(int thisDevId, wc_CryptoInfo* info, void* ctx)
                     ret = wc_InitRsaKey(&key, HEAP_HINT);
                     if (ret == 0) {
                         word32 keyIdx = 0;
+                        key.devId = INVALID_DEVID;
                         /* load RSA private key and perform private transform */
                         ret = wc_RsaPrivateKeyDecode(pDer->buffer, &keyIdx,
                             &key, pDer->length);
                         if (ret == 0) {
+                            if (info->pk.rsa.rng != NULL) {
+                                rngDevId = info->pk.rsa.rng->devId;
+                                info->pk.rsa.rng->devId = INVALID_DEVID;
+                            }
                             ret = wc_RsaFunction(
                                 info->pk.rsa.in, info->pk.rsa.inLen,
                                 info->pk.rsa.out, info->pk.rsa.outLen,
                                 info->pk.rsa.type, &key, info->pk.rsa.rng);
+                            if (info->pk.rsa.rng != NULL) {
+                                info->pk.rsa.rng->devId = rngDevId;
+                            }
                         }
                         else {
                             /* if decode fails, then fall-back to software based crypto */
@@ -24966,6 +24995,7 @@ static int test_CryptoCb_Func(int thisDevId, wc_CryptoInfo* info, void* ctx)
             ret = wc_InitRsaKey(&key, HEAP_HINT);
             if (ret == 0) {
                 word32 keyIdx = 0;
+                key.devId = INVALID_DEVID;
                 /* load RSA private key and perform private transform */
                 ret = wc_RsaPrivateKeyDecode(pDer->buffer, &keyIdx,
                     &key, pDer->length);
@@ -24973,19 +25003,35 @@ static int test_CryptoCb_Func(int thisDevId, wc_CryptoInfo* info, void* ctx)
             /* Perform RSA operation */
             if ((ret == 0) && (info->pk.type == WC_PK_TYPE_RSA_PKCS)) {
             #if !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
+                int rngDevId = INVALID_DEVID;
+                if (info->pk.rsa.rng != NULL) {
+                    rngDevId = info->pk.rsa.rng->devId;
+                    info->pk.rsa.rng->devId = INVALID_DEVID;
+                }
                 ret = wc_RsaSSL_Sign(info->pk.rsa.in, info->pk.rsa.inLen,
                     info->pk.rsa.out, *info->pk.rsa.outLen, &key,
                     info->pk.rsa.rng);
+                if (info->pk.rsa.rng != NULL) {
+                    info->pk.rsa.rng->devId = rngDevId;
+                }
             #else
                 ret = CRYPTOCB_UNAVAILABLE;
             #endif
             }
             if ((ret == 0) && (info->pk.type == WC_PK_TYPE_RSA_PSS)) {
             #ifdef WC_RSA_PSS
+                int rngDevId = INVALID_DEVID;
+                if (info->pk.rsa.rng != NULL) {
+                    rngDevId = info->pk.rsa.rng->devId;
+                    info->pk.rsa.rng->devId = INVALID_DEVID;
+                }
                 ret = wc_RsaPSS_Sign_ex(info->pk.rsa.in, info->pk.rsa.inLen,
                     info->pk.rsa.out, *info->pk.rsa.outLen,
                     info->pk.rsa.padding->hash, info->pk.rsa.padding->mgf,
                     info->pk.rsa.padding->saltLen, &key, info->pk.rsa.rng);
+                if (info->pk.rsa.rng != NULL) {
+                    info->pk.rsa.rng->devId = rngDevId;
+                }
             #else
                 ret = CRYPTOCB_UNAVAILABLE;
             #endif
@@ -25047,14 +25093,23 @@ static int test_CryptoCb_Func(int thisDevId, wc_CryptoInfo* info, void* ctx)
             ret = wc_ecc_init(&key);
             if (ret == 0) {
                 word32 keyIdx = 0;
+                key.devId = INVALID_DEVID;
                 /* load ECC private key and perform private transform */
                 ret = wc_EccPrivateKeyDecode(pDer->buffer, &keyIdx,
                     &key, pDer->length);
                 if (ret == 0) {
+                    int rngDevId = INVALID_DEVID;
+                    if (info->pk.eccsign.rng != NULL) {
+                        rngDevId = info->pk.eccsign.rng->devId;
+                        info->pk.eccsign.rng->devId = INVALID_DEVID;
+                    }
                     ret = wc_ecc_sign_hash(
                         info->pk.eccsign.in, info->pk.eccsign.inlen,
                         info->pk.eccsign.out, info->pk.eccsign.outlen,
                         info->pk.eccsign.rng, &key);
+                    if (info->pk.eccsign.rng != NULL) {
+                        info->pk.eccsign.rng->devId = rngDevId;
+                    }
                 }
                 else {
                     /* if decode fails, then fall-back to software based crypto */
@@ -25088,6 +25143,7 @@ static int test_CryptoCb_Func(int thisDevId, wc_CryptoInfo* info, void* ctx)
             ret = wc_ed25519_init(&key);
             if (ret == 0) {
                 word32 keyIdx = 0;
+                key.devId = INVALID_DEVID;
                 /* load ED25519 private key and perform private transform */
                 ret = wc_Ed25519PrivateKeyDecode(pDer->buffer, &keyIdx,
                     &key, pDer->length);

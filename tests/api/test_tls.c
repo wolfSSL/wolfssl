@@ -648,6 +648,9 @@ int test_tls12_bad_cv_sig_alg(void)
     wolfSSL_SetIORecv(ctx, CsRecv);
     /* No where to send to - dummy sender. */
     wolfSSL_SetIOSend(ctx, CsSend);
+#ifdef WC_USE_DEVID
+    wolfSSL_CTX_SetDevId(ctx, WC_USE_DEVID);
+#endif /* WC_USE_DEVID */
 
     ExpectNotNull(ssl = wolfSSL_new(ctx));
     msg.buffer = clientMsgs;

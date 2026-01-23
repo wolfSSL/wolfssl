@@ -33535,7 +33535,7 @@ static wc_test_ret_t ecc_test_key_decode(WC_RNG* rng, int keySize)
         ERROR_OUT(MEMORY_E, done);
 #endif
 
-    ret = wc_ecc_init(eccKey);
+    ret = wc_ecc_init_ex(eccKey, HEAP_HINT, devId);
     if (ret != 0) {
         goto done;
     }
@@ -33555,7 +33555,7 @@ static wc_test_ret_t ecc_test_key_decode(WC_RNG* rng, int keySize)
     }
     tmpSz = (word32)ret;
 
-    ret = wc_ecc_init(eccKey);
+    ret = wc_ecc_init_ex(eccKey, HEAP_HINT, devId);
     if (ret != 0) {
         goto done;
     }
@@ -33566,7 +33566,7 @@ static wc_test_ret_t ecc_test_key_decode(WC_RNG* rng, int keySize)
     }
     wc_ecc_free(eccKey);
 
-    ret = wc_ecc_init(eccKey);
+    ret = wc_ecc_init_ex(eccKey, HEAP_HINT, devId);
     if (ret != 0) {
         goto done;
     }
@@ -36053,6 +36053,9 @@ static wc_test_ret_t ecc_test_allocator(WC_RNG* rng)
     if (key == NULL) {
         ERROR_OUT(WC_TEST_RET_ENC_ERRNO, exit);
     }
+#ifdef WOLF_CRYPTO_CB
+    key->devId = devId;
+#endif
 
 #ifndef WC_NO_RNG
     ret = wc_ecc_make_key(rng, ECC_KEYGEN_SIZE, key);

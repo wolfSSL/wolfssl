@@ -231,6 +231,10 @@ int test_memio_setup_ex(struct test_memio_ctx *ctx,
         *ctx_c = wolfSSL_CTX_new(method_c());
         if (*ctx_c == NULL)
             return -1;
+
+#if defined(WC_USE_DEVID)
+        wolfSSL_CTX_SetDevId(*ctx_c, WC_USE_DEVID);
+#endif
 #ifndef NO_CERTS
         if (caCert == NULL) {
             ret = wolfSSL_CTX_load_verify_locations(*ctx_c, caCertFile, 0);
@@ -266,6 +270,9 @@ int test_memio_setup_ex(struct test_memio_ctx *ctx,
             }
             return -1;
         }
+#if defined(WC_USE_DEVID)
+    wolfSSL_CTX_SetDevId(*ctx_s, WC_USE_DEVID);
+#endif
 #ifndef NO_CERTS
         if (serverKey == NULL) {
             ret = wolfSSL_CTX_use_PrivateKey_file(*ctx_s, svrKeyFile,

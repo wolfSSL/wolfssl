@@ -213,7 +213,7 @@ int test_wc_ecc_make_key(void)
     XMEMSET(&key, 0, sizeof(ecc_key));
     XMEMSET(&rng, 0, sizeof(WC_RNG));
 
-    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_ecc_init_ex(&key, HEAP_HINT, testDevId), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ret = wc_ecc_make_key(&rng, KEY14, &key);
 #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -249,7 +249,7 @@ int test_wc_ecc_init(void)
 
     XMEMSET(&key, 0, sizeof(ecc_key));
 
-    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_ecc_init_ex(&key, HEAP_HINT, testDevId), 0);
     /* Pass in bad args. */
     ExpectIntEQ(wc_ecc_init(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
@@ -272,7 +272,7 @@ int test_wc_ecc_check_key(void)
     XMEMSET(&rng, 0, sizeof(rng));
     XMEMSET(&key, 0, sizeof(key));
 
-    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_ecc_init_ex(&key, HEAP_HINT, testDevId), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ret = wc_ecc_make_key(&rng, KEY14, &key);
 #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -338,7 +338,7 @@ int test_wc_ecc_size(void)
     XMEMSET(&key, 0, sizeof(ecc_key));
     XMEMSET(&rng, 0, sizeof(WC_RNG));
 
-    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_ecc_init_ex(&key, HEAP_HINT, testDevId), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ret = wc_ecc_make_key(&rng, KEY14, &key);
 #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -407,7 +407,7 @@ int test_wc_ecc_signVerify_hash(void)
     XMEMSET(adjustedSig, 0, ECC_BUFSIZE+1);
 
     /* Init structs. */
-    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_ecc_init_ex(&key, HEAP_HINT, testDevId), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ret = wc_ecc_make_key(&rng, KEY14, &key);
 #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -519,8 +519,8 @@ int test_wc_ecc_shared_secret(void)
     XMEMSET(&rng, 0, sizeof(WC_RNG));
     XMEMSET(out, 0, keySz);
 
-    ExpectIntEQ(wc_ecc_init(&key), 0);
-    ExpectIntEQ(wc_ecc_init(&pubKey), 0);
+    ExpectIntEQ(wc_ecc_init_ex(&key, HEAP_HINT, testDevId), 0);
+    ExpectIntEQ(wc_ecc_init_ex(&pubKey, HEAP_HINT, testDevId), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
 
 #if !defined(NO_ECC256)
@@ -598,7 +598,7 @@ int test_wc_ecc_export_x963(void)
     XMEMSET(&rng, 0, sizeof(WC_RNG));
     XMEMSET(out, 0, outlen);
 
-    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_ecc_init_ex(&key, HEAP_HINT, testDevId), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ret = wc_ecc_make_key(&rng, KEY20, &key);
 #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -654,7 +654,7 @@ int test_wc_ecc_export_x963_ex(void)
     XMEMSET(out, 0, outlen);
     PRIVATE_KEY_UNLOCK();
 
-    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_ecc_init_ex(&key, HEAP_HINT, testDevId), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ret = wc_ecc_make_key(&rng, KEY64, &key);
 #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -733,8 +733,8 @@ int test_wc_ecc_import_x963(void)
     XMEMSET(&rng, 0, sizeof(WC_RNG));
     XMEMSET(x963, 0, x963Len);
 
-    ExpectIntEQ(wc_ecc_init(&pubKey), 0);
-    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_ecc_init_ex(&pubKey, HEAP_HINT, testDevId), 0);
+    ExpectIntEQ(wc_ecc_init_ex(&key, HEAP_HINT, testDevId), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
 #if FIPS_VERSION3_GE(6,0,0)
     ret = wc_ecc_make_key(&rng, KEY32, &key);
@@ -797,8 +797,8 @@ int test_wc_ecc_import_private_key(void)
     XMEMSET(x963Key, 0, x963KeySz);
     PRIVATE_KEY_UNLOCK();
 
-    ExpectIntEQ(wc_ecc_init(&key), 0);
-    ExpectIntEQ(wc_ecc_init(&keyImp), 0);
+    ExpectIntEQ(wc_ecc_init_ex(&key, HEAP_HINT, testDevId), 0);
+    ExpectIntEQ(wc_ecc_init_ex(&keyImp, HEAP_HINT, testDevId), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ret = wc_ecc_make_key(&rng, KEY48, &key);
 #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -850,7 +850,7 @@ int test_wc_ecc_export_private_only(void)
     XMEMSET(out, 0, outlen);
     PRIVATE_KEY_UNLOCK();
 
-    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_ecc_init_ex(&key, HEAP_HINT, testDevId), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ret = wc_ecc_make_key(&rng, KEY32, &key);
 #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -960,7 +960,7 @@ int test_wc_ecc_import_raw(void)
 
     XMEMSET(&key, 0, sizeof(ecc_key));
 
-    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_ecc_init_ex(&key, HEAP_HINT, testDevId), 0);
 
     /* Test good import */
     ExpectIntEQ(wc_ecc_import_raw(&key, qx, qy, d, curveName), 0);
@@ -1049,7 +1049,7 @@ int test_wc_ecc_import_unsigned(void)
 
     XMEMSET(&key, 0, sizeof(ecc_key));
 
-    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_ecc_init_ex(&key, HEAP_HINT, testDevId), 0);
 
     ExpectIntEQ(wc_ecc_import_unsigned(&key, (byte*)qx, (byte*)qy, (byte*)d,
         curveId), 0);
@@ -1089,7 +1089,7 @@ int test_wc_ecc_sig_size(void)
     XMEMSET(&rng, 0, sizeof(rng));
     XMEMSET(&key, 0, sizeof(key));
 
-    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_ecc_init_ex(&key, HEAP_HINT, testDevId), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ret = wc_ecc_make_key(&rng, keySz, &key);
 #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -1275,21 +1275,21 @@ int test_wc_ecc_encryptDecrypt(void)
     XMEMSET(&tmpKey, 0, sizeof(ecc_key));
 
     ExpectIntEQ(wc_InitRng(&rng), 0);
-    ExpectIntEQ(wc_ecc_init(&cliKey), 0);
+    ExpectIntEQ(wc_ecc_init_ex(&cliKey, HEAP_HINT, testDevId), 0);
     ret = wc_ecc_make_key(&rng, keySz, &cliKey);
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &cliKey.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     ExpectIntEQ(ret, 0);
 
-    ExpectIntEQ(wc_ecc_init(&srvKey), 0);
+    ExpectIntEQ(wc_ecc_init_ex(&srvKey, HEAP_HINT, testDevId), 0);
     ret = wc_ecc_make_key(&rng, keySz, &srvKey);
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &srvKey.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     ExpectIntEQ(ret, 0);
 
-    ExpectIntEQ(wc_ecc_init(&tmpKey), 0);
+    ExpectIntEQ(wc_ecc_init_ex(&tmpKey, HEAP_HINT, testDevId), 0);
 
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
@@ -1387,7 +1387,7 @@ int test_wc_ecc_pointFns(void)
     XMEMSET(&rng, 0, sizeof(WC_RNG));
 
     ExpectIntEQ(wc_InitRng(&rng), 0);
-    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_ecc_init_ex(&key, HEAP_HINT, testDevId), 0);
     ret = wc_ecc_make_key(&rng, keySz, &key);
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
@@ -1496,7 +1496,7 @@ int test_wc_ecc_shared_secret_ssh(void)
     PRIVATE_KEY_UNLOCK();
 
     /* Make keys */
-    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_ecc_init_ex(&key, HEAP_HINT, testDevId), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ret = wc_ecc_make_key(&rng, keySz, &key);
 #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -1505,7 +1505,7 @@ int test_wc_ecc_shared_secret_ssh(void)
     ExpectIntEQ(ret, 0);
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
 
-    ExpectIntEQ(wc_ecc_init(&key2), 0);
+    ExpectIntEQ(wc_ecc_init_ex(&key2, HEAP_HINT, testDevId), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ret = wc_ecc_make_key(&rng, key2Sz, &key2);
 #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -1579,7 +1579,7 @@ int test_wc_ecc_verify_hash_ex(void)
     /* Initialize r, s and z. */
     ExpectIntEQ(mp_init_multi(&r, &s, &z, NULL, NULL, NULL), MP_OKAY);
 
-    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_ecc_init_ex(&key, HEAP_HINT, testDevId), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ret = wc_ecc_make_key(&rng, keySz, &key);
 #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -1661,9 +1661,9 @@ int test_wc_ecc_mulmod(void)
     XMEMSET(&key3, 0, sizeof(ecc_key));
     XMEMSET(&rng, 0, sizeof(WC_RNG));
 
-    ExpectIntEQ(wc_ecc_init(&key1), 0);
-    ExpectIntEQ(wc_ecc_init(&key2), 0);
-    ExpectIntEQ(wc_ecc_init(&key3), 0);
+    ExpectIntEQ(wc_ecc_init_ex(&key1, HEAP_HINT, testDevId), 0);
+    ExpectIntEQ(wc_ecc_init_ex(&key2, HEAP_HINT, testDevId), 0);
+    ExpectIntEQ(wc_ecc_init_ex(&key3, HEAP_HINT, testDevId), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ret = wc_ecc_make_key(&rng, KEY32, &key1);
 #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -1722,7 +1722,7 @@ int test_wc_ecc_is_valid_idx(void)
     XMEMSET(&key, 0, sizeof(ecc_key));
     XMEMSET(&rng, 0, sizeof(WC_RNG));
 
-    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_ecc_init_ex(&key, HEAP_HINT, testDevId), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ret = wc_ecc_make_key(&rng, 32, &key);
 #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -1781,7 +1781,7 @@ int test_wc_ecc_sig_size_calc(void)
     XMEMSET(&key, 0, sizeof(ecc_key));
     XMEMSET(&rng, 0, sizeof(WC_RNG));
 
-    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_ecc_init_ex(&key, HEAP_HINT, testDevId), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ret = wc_ecc_make_key(&rng, 16, &key);
 #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -1824,7 +1824,7 @@ int test_wc_EccPrivateKeyToDer(void)
     PRIVATE_KEY_UNLOCK();
 
     ExpectIntEQ(wc_InitRng(&rng), 0);
-    ExpectIntEQ(wc_ecc_init(&eccKey), 0);
+    ExpectIntEQ(wc_ecc_init_ex(&eccKey, HEAP_HINT, testDevId), 0);
     ret = wc_ecc_make_key(&rng, KEY14, &eccKey);
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &eccKey.asyncDev, WC_ASYNC_FLAG_NONE);

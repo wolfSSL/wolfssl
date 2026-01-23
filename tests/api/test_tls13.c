@@ -195,10 +195,16 @@ int test_tls13_apis(void)
 #ifndef WOLFSSL_NO_TLS12
 #ifndef NO_WOLFSSL_CLIENT
     clientTls12Ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
+#ifdef WC_USE_DEVID
+    wolfSSL_CTX_SetDevId(clientTls12Ctx, WC_USE_DEVID);
+#endif
     clientTls12Ssl = wolfSSL_new(clientTls12Ctx);
 #endif
 #ifndef NO_WOLFSSL_SERVER
     serverTls12Ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method());
+#ifdef WC_USE_DEVID
+    wolfSSL_CTX_SetDevId(serverTls12Ctx, WC_USE_DEVID);
+#endif
 #if !defined(NO_CERTS)
     #if !defined(NO_FILESYSTEM)
     wolfSSL_CTX_use_certificate_chain_file(serverTls12Ctx, ourCert);
@@ -223,10 +229,16 @@ int test_tls13_apis(void)
 
 #ifndef NO_WOLFSSL_CLIENT
     clientCtx = wolfSSL_CTX_new(wolfTLSv1_3_client_method());
+#ifdef WC_USE_DEVID
+    wolfSSL_CTX_SetDevId(clientCtx, WC_USE_DEVID);
+#endif
     clientSsl = wolfSSL_new(clientCtx);
 #endif
 #ifndef NO_WOLFSSL_SERVER
     serverCtx = wolfSSL_CTX_new(wolfTLSv1_3_server_method());
+#ifdef WC_USE_DEVID
+    wolfSSL_CTX_SetDevId(serverCtx, WC_USE_DEVID);
+#endif
 #if !defined(NO_CERTS)
     /* ignore load failures, since we just need the server to have a cert set */
     #if !defined(NO_FILESYSTEM)
@@ -946,6 +958,9 @@ int test_tls13_cipher_suites(void)
 
     /* Set up wolfSSL context. */
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+#ifdef WC_USE_DEVID
+    wolfSSL_CTX_SetDevId(ctx, WC_USE_DEVID);
+#endif
     ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx, eccCertFile,
         CERT_FILETYPE));
     ExpectTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, eccKeyFile,
@@ -2538,6 +2553,9 @@ int test_tls13_sg_missing(void)
 
     /* Set up wolfSSL context. */
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+#ifdef WC_USE_DEVID
+    wolfSSL_CTX_SetDevId(ctx, WC_USE_DEVID);
+#endif
     ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx, eccCertFile,
         CERT_FILETYPE));
     ExpectTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, eccKeyFile,
@@ -2597,6 +2615,9 @@ int test_tls13_ks_missing(void)
 
     /* Set up wolfSSL context. */
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+#ifdef WC_USE_DEVID
+    wolfSSL_CTX_SetDevId(ctx, WC_USE_DEVID);
+#endif
     ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx, eccCertFile,
         CERT_FILETYPE));
     ExpectTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, eccKeyFile,
@@ -2688,6 +2709,9 @@ int test_tls13_duplicate_extension(void)
 
     /* Set up wolfSSL context. */
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+#ifdef WC_USE_DEVID
+    wolfSSL_CTX_SetDevId(ctx, WC_USE_DEVID);
+#endif
     /* Read from 'msg'. */
     wolfSSL_SetIORecv(ctx, DERecv);
     /* No where to send to - dummy sender. */
@@ -2908,6 +2932,9 @@ int test_tls13_plaintext_alert(void)
 
     /* Set up wolfSSL context. */
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+#ifdef WC_USE_DEVID
+    wolfSSL_CTX_SetDevId(ctx, WC_USE_DEVID);
+#endif
     ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
         CERT_FILETYPE));
     ExpectTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
@@ -2955,6 +2982,9 @@ int test_tls13_plaintext_alert(void)
     wolfSSL_SetIOSend(ctx, Tls13PTASend);
 
     ExpectNotNull(ssl = wolfSSL_new(ctx));
+#ifdef WC_USE_DEVID
+    wolfSSL_SetDevId(ssl, WC_USE_DEVID);
+#endif
     msg.buffer = clientMsgs;
     msg.length = (unsigned int)sizeof(clientMsgs) - 1;
     clientMsgs[sizeof(clientMsgs) - 1] = WOLFSSL_ALERT_COUNT_MAX - 1;
@@ -2976,6 +3006,9 @@ int test_tls13_plaintext_alert(void)
 
     /* Set up wolfSSL context. */
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+#ifdef WC_USE_DEVID
+    wolfSSL_CTX_SetDevId(ctx, WC_USE_DEVID);
+#endif
     ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
         CERT_FILETYPE));
     ExpectTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
