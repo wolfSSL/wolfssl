@@ -2253,6 +2253,16 @@ int InitSSL_Side(WOLFSSL* ssl, word16 side)
     }
 #endif /* WOLFSSL_DTLS && !NO_WOLFSSL_SERVER */
 
+    /* Forcefully reinitialize suites here as the side may have changed,
+     * unless the user has explicitly set cipher suites.
+     * Two separate checks to ensure suites are always allocated, to avoid
+     * failing suites == NULL check in InitSSL_Suites. */
+    if (ssl->suites && !ssl->suites->setSuites) {
+        FreeSuites(ssl);
+    }
+    if (!ssl->suites) {
+        AllocateSuites(ssl);
+    }
     return InitSSL_Suites(ssl);
 }
 #endif /* OPENSSL_EXTRA || WOLFSSL_EITHER_SIDE ||
