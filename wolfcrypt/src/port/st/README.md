@@ -160,11 +160,21 @@ wolfSTSAFE_CryptoCb_Ctx stsafeCtx;
 stsafeCtx.devId = WOLF_STSAFE_DEVID;
 wc_CryptoCb_RegisterDevice(WOLF_STSAFE_DEVID, wolfSSL_STSAFE_CryptoDevCb, &stsafeCtx);
 
-/* Use with ECC operations */
+/* For ECDSA signing operations (uses persistent slot 1) */
 ecc_key key;
 wc_ecc_init_ex(&key, NULL, WOLF_STSAFE_DEVID);
-/* ECC operations will now use STSAFE hardware */
+wc_ecc_make_key_ex(&rng, 32, &key, ECC_SECP256R1);
+/* Sign operations will use STSAFE hardware */
+
+/* For ECDH operations (uses ephemeral slot 0xFF) */
+ecc_key ecdh_key;
+wc_ecc_init_ex(&ecdh_key, NULL, WOLF_STSAFE_DEVID);
+ecdh_key.devCtx = (void*)(uintptr_t)STSAFE_KEY_SLOT_EPHEMERAL;  /* Configure for ECDH */
+wc_ecc_make_key_ex(&rng, 32, &ecdh_key, ECC_SECP256R1);
+/* ECDH shared secret computation will use STSAFE hardware */
 ```
+
+**Note for STSAFE-A120**: ECDH operations require keys generated in the ephemeral slot (0xFF) which has key establishment enabled by default. Set `key.devCtx = (void*)(uintptr_t)STSAFE_KEY_SLOT_EPHEMERAL;` to configure keys for ECDH before generation. Persistent slots (0-4) require explicit configuration via `put_attribute` command to enable key establishment.
 
 ### Implementation Details
 
