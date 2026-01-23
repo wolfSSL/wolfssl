@@ -34,6 +34,7 @@ extern "C" {
 
 
 #define CK_INVALID_HANDLE                     0UL
+#define CK_UNAVAILABLE_INFORMATION            (~0UL)
 
 #define CKN_SURRENDER                         0UL
 

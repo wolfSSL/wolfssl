@@ -4157,6 +4157,8 @@ int wolfSSL_CTX_use_PrivateKey_Id(WOLFSSL_CTX* ctx, const unsigned char* id,
 {
     int ret = 1;
 
+    WOLFSSL_ENTER("wolfSSL_CTX_use_PrivateKey_Id");
+
     /* Dispose of old private key and allocate and copy in id. */
     FreeDer(&ctx->privateKey);
     if (AllocCopyDer(&ctx->privateKey, id, (word32)sz, PRIVATEKEY_TYPE,
@@ -4182,6 +4184,7 @@ int wolfSSL_CTX_use_PrivateKey_Id(WOLFSSL_CTX* ctx, const unsigned char* id,
     #endif
     }
 
+    WOLFSSL_LEAVE("wolfSSL_CTX_use_PrivateKey_Id", ret);
     return ret;
 }
 
@@ -4198,12 +4201,17 @@ int wolfSSL_CTX_use_PrivateKey_Id(WOLFSSL_CTX* ctx, const unsigned char* id,
 int wolfSSL_CTX_use_PrivateKey_id(WOLFSSL_CTX* ctx, const unsigned char* id,
     long sz, int devId, long keySz)
 {
-    int ret = wolfSSL_CTX_use_PrivateKey_Id(ctx, id, sz, devId);
+    int ret;
+
+    WOLFSSL_ENTER("wolfSSL_CTX_use_PrivateKey_id");
+
+    ret = wolfSSL_CTX_use_PrivateKey_Id(ctx, id, sz, devId);
     if (ret == 1) {
         /* Set the key size which normally is calculated during decoding. */
         ctx->privateKeySz = (int)keySz;
     }
 
+    WOLFSSL_LEAVE("wolfSSL_CTX_use_PrivateKey_id", ret);
     return ret;
 }
 
@@ -4220,6 +4228,8 @@ int wolfSSL_CTX_use_PrivateKey_Label(WOLFSSL_CTX* ctx, const char* label,
 {
     int ret = 1;
     word32 sz = (word32)XSTRLEN(label) + 1;
+
+    WOLFSSL_ENTER("wolfSSL_CTX_use_PrivateKey_Label");
 
     /* Dispose of old private key and allocate and copy in label. */
     FreeDer(&ctx->privateKey);
@@ -4246,6 +4256,7 @@ int wolfSSL_CTX_use_PrivateKey_Label(WOLFSSL_CTX* ctx, const char* label,
     #endif
     }
 
+    WOLFSSL_LEAVE("wolfSSL_CTX_use_PrivateKey_Label", ret);
     return ret;
 }
 
@@ -4254,6 +4265,8 @@ int wolfSSL_CTX_use_AltPrivateKey_Id(WOLFSSL_CTX* ctx, const unsigned char* id,
     long sz, int devId)
 {
     int ret = 1;
+
+    WOLFSSL_ENTER("wolfSSL_CTX_use_AltPrivateKey_Id");
 
     if ((ctx == NULL) || (id == NULL)) {
         ret = 0;
@@ -4277,17 +4290,23 @@ int wolfSSL_CTX_use_AltPrivateKey_Id(WOLFSSL_CTX* ctx, const unsigned char* id,
         }
     }
 
+    WOLFSSL_LEAVE("wolfSSL_CTX_use_AltPrivateKey_Id", ret);
     return ret;
 }
 
 int wolfSSL_CTX_use_AltPrivateKey_id(WOLFSSL_CTX* ctx, const unsigned char* id,
     long sz, int devId, long keySz)
 {
-    int ret = wolfSSL_CTX_use_AltPrivateKey_Id(ctx, id, sz, devId);
+    int ret;
+
+    WOLFSSL_ENTER("wolfSSL_CTX_use_AltPrivateKey_id");
+
+    ret = wolfSSL_CTX_use_AltPrivateKey_Id(ctx, id, sz, devId);
     if (ret == 1) {
         ctx->altPrivateKeySz = (word32)keySz;
     }
 
+    WOLFSSL_LEAVE("wolfSSL_CTX_use_AltPrivateKey_id", ret);
     return ret;
 }
 
@@ -4296,6 +4315,8 @@ int wolfSSL_CTX_use_AltPrivateKey_Label(WOLFSSL_CTX* ctx, const char* label,
 {
     int ret = 1;
     word32 sz;
+
+    WOLFSSL_ENTER("wolfSSL_CTX_use_AltPrivateKey_Label");
 
     if ((ctx == NULL) || (label == NULL)) {
         ret = 0;
@@ -4320,6 +4341,7 @@ int wolfSSL_CTX_use_AltPrivateKey_Label(WOLFSSL_CTX* ctx, const char* label,
         }
     }
 
+    WOLFSSL_LEAVE("wolfSSL_CTX_use_AltPrivateKey_Label", ret);
     return ret;
 }
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
