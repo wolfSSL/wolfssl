@@ -8623,8 +8623,6 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
     /* try to free the ech hashes in case we errored out */
     ssl->hsHashes = ssl->hsHashesEch;
     FreeHandshakeHashes(ssl);
-    ssl->hsHashes = ssl->hsHashesEchInner;
-    FreeHandshakeHashes(ssl);
 #endif
     XFREE(ssl->buffers.domainName.buffer, ssl->heap, DYNAMIC_TYPE_DOMAIN);
 

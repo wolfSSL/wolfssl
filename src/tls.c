@@ -13554,6 +13554,8 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
     }
     /* HRR with special confirmation */
     else if (msgType == hello_retry_request && ssl->options.useEch) {
+        /* TODO: confirmation may not exist -> segfault? */
+        printf("\n\ngot special confirmation\n\n\n");
         /* length must be 8 */
         if (size != ECH_ACCEPT_CONFIRMATION_SZ)
             return BAD_FUNC_ARG;
@@ -14391,6 +14393,7 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
                 WOLFSSL_MSG("ECH extension to write");
                 ret = ECH_WRITE((WOLFSSL_ECH*)extension->data, msgType,
                     output + offset, &offset);
+                fprintf(stderr, "\t\thit this\n");
                 break;
 #endif
             default:
