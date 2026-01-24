@@ -46,6 +46,7 @@
     #endif
 
     #include <linux/version.h>
+    #include <linux/inet.h>
 
     #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 16, 0)
         #error Unsupported kernel.

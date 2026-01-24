@@ -34,6 +34,9 @@
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     #include <wolfssl/openssl/x509v3.h>
 #endif
+#ifdef OPENSSL_EXTRA
+    #include <wolfssl/wolfio.h>
+#endif
 
 #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
 unsigned int wolfSSL_X509_get_extension_flags(WOLFSSL_X509* x509)
@@ -2840,8 +2843,31 @@ int wolfSSL_X509_add_altname(WOLFSSL_X509* x509, const char* name, int type)
         return WOLFSSL_SUCCESS;
 
     if (type == ASN_IP_TYPE) {
-        WOLFSSL_MSG("Type not supported, use wolfSSL_X509_add_altname_ex");
+#ifdef WOLFSSL_IP_ALT_NAME
+        byte ip4[4];
+        byte ip6[16];
+        int ptonRet;
+
+        /* Check if this is an ip4 address */
+        ptonRet = XINET_PTON(WOLFSSL_IP4, name, ip4);
+        if (ptonRet == 1) {
+            return wolfSSL_X509_add_altname_ex(x509, (const char*)ip4, 4,
+                type);
+        }
+
+        /* Check for ip6 */
+        ptonRet = XINET_PTON(WOLFSSL_IP6, name, ip6);
+        if (ptonRet == 1) {
+            return wolfSSL_X509_add_altname_ex(x509, (const char*)ip6, 16,
+                type);
+        }
+
+        WOLFSSL_MSG("IP address parse failed");
         return WOLFSSL_FAILURE;
+#else
+        WOLFSSL_MSG("WOLFSSL_IP_ALT_NAME not enabled");
+        return WOLFSSL_FAILURE;
+#endif
     }
 
     return wolfSSL_X509_add_altname_ex(x509, name, nameSz, type);
@@ -9447,6 +9473,156 @@ int wolfSSL_i2d_X509_CRL(WOLFSSL_X509_CRL* crl, unsigned char** out)
 }
 #endif /* HAVE_CRL && OPENSSL_EXTRA */
 
+#if defined(WOLFSSL_CERT_EXT) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
+/* Set CRL Distribution Points from pre-encoded DER.
+ *
+ * x509  - Certificate to modify
+ * der   - Pre-encoded CRLDistributionPoints DER
+ * derSz - Size of DER in bytes
+ *
+ * Returns WOLFSSL_SUCCESS or WOLFSSL_FAILURE
+ */
+int wolfSSL_X509_CRL_set_dist_points(WOLFSSL_X509* x509,
+    const unsigned char* der, int derSz)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_CRL_set_dist_points");
+
+    if (x509 == NULL || der == NULL || derSz <= 0) {
+        return WOLFSSL_FAILURE;
+    }
+
+    if (x509->rawCRLInfo != NULL) {
+        XFREE(x509->rawCRLInfo, x509->heap, DYNAMIC_TYPE_X509_EXT);
+    }
+    x509->rawCRLInfo = (byte*)XMALLOC((word32)derSz, x509->heap,
+                                       DYNAMIC_TYPE_X509_EXT);
+    if (x509->rawCRLInfo == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    XMEMCPY(x509->rawCRLInfo, der, (word32)derSz);
+    x509->rawCRLInfoSz = derSz;
+    x509->CRLdistSet = 1;
+
+    return WOLFSSL_SUCCESS;
+}
+
+/* Add CRL Distribution Point URI.
+ * Encodes URI into proper CRLDistributionPoints DER format.
+ *
+ * x509     - Certificate to modify
+ * uri      - URI string (e.g., "http://crl.example.com/ca.crl")
+ * critical - Whether extension is critical
+ *
+ * Returns WOLFSSL_SUCCESS or WOLFSSL_FAILURE
+ */
+int wolfSSL_X509_CRL_add_dist_point(WOLFSSL_X509* x509,
+    const char* uri, int critical)
+{
+    int uriLen;
+    byte* derBuf = NULL;
+    int derSz;
+    int idx;
+    int ret = WOLFSSL_SUCCESS;
+
+    WOLFSSL_ENTER("wolfSSL_X509_CRL_add_dist_point");
+
+    if (x509 == NULL || uri == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    uriLen = (int)XSTRLEN(uri);
+    if (uriLen == 0 || uriLen >= 128) {
+        /* Current implementation limited to URIs < 128 bytes */
+        WOLFSSL_MSG("URI too long or empty");
+        return WOLFSSL_FAILURE;
+    }
+
+    /*
+     * Encode CRL Distribution Points in DER format:
+     * CRLDistributionPoints ::= SEQUENCE OF DistributionPoint
+     * DistributionPoint ::= SEQUENCE {
+     *     distributionPoint [0] EXPLICIT DistributionPointName OPTIONAL
+     * }
+     * DistributionPointName ::= CHOICE {
+     *     fullName [0] IMPLICIT GeneralNames
+     * }
+     * GeneralNames ::= SEQUENCE OF GeneralName
+     * GeneralName ::= [6] IMPLICIT IA5String (uniformResourceIdentifier)
+     */
+
+    /* Allocate buffer for DER encoding */
+    derSz = uriLen + 20; /* URI + tags + length bytes */
+    derBuf = (byte*)XMALLOC((word32)derSz, x509->heap, DYNAMIC_TYPE_X509_EXT);
+    if (derBuf == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    /* Build from inside out, starting from end of buffer */
+    idx = derSz;
+
+    /* Copy URI string */
+    idx -= uriLen;
+    XMEMCPY(derBuf + idx, uri, (word32)uriLen);
+
+    /* [6] IMPLICIT IA5String tag for URI (context-specific, primitive) */
+    idx--;
+    derBuf[idx] = (byte)uriLen;
+    idx--;
+    derBuf[idx] = (ASN_CONTEXT_SPECIFIC | 6); /* [6] tag */
+
+    /* [0] IMPLICIT wrapper for GeneralNames (constructed) */
+    {
+        int innerLen = derSz - idx;
+        idx--;
+        derBuf[idx] = (byte)innerLen;
+        idx--;
+        derBuf[idx] = (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED);
+    }
+
+    /* [0] EXPLICIT wrapper for distributionPoint */
+    {
+        int innerLen = derSz - idx;
+        idx--;
+        derBuf[idx] = (byte)innerLen;
+        idx--;
+        derBuf[idx] = (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED);
+    }
+
+    /* SEQUENCE for DistributionPoint */
+    {
+        int innerLen = derSz - idx;
+        idx--;
+        derBuf[idx] = (byte)innerLen;
+        idx--;
+        derBuf[idx] = (ASN_SEQUENCE | ASN_CONSTRUCTED);
+    }
+
+    /* SEQUENCE for CRLDistributionPoints (outer) */
+    {
+        int innerLen = derSz - idx;
+        idx--;
+        derBuf[idx] = (byte)innerLen;
+        idx--;
+        derBuf[idx] = (ASN_SEQUENCE | ASN_CONSTRUCTED);
+    }
+
+    /* Store the encoded CRL info in x509 */
+    {
+        int finalSz = derSz - idx;
+        ret = wolfSSL_X509_CRL_set_dist_points(x509, derBuf + idx, finalSz);
+        if (ret == WOLFSSL_SUCCESS && critical) {
+            x509->CRLdistCrit = 1;
+        }
+    }
+
+    XFREE(derBuf, x509->heap, DYNAMIC_TYPE_X509_EXT);
+
+    return ret;
+}
+#endif /* WOLFSSL_CERT_EXT && (OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL) */
+
 #ifdef OPENSSL_EXTRA
 
 
@@ -15022,6 +15198,183 @@ int wolfSSL_X509_set_version(WOLFSSL_X509* x509, long v)
 
     return WOLFSSL_SUCCESS;
 }
+
+#ifdef WOLFSSL_CERT_EXT
+/* Set Subject Key Identifier from raw bytes.
+ *
+ * x509  - Certificate to modify
+ * skid  - Raw SKID bytes
+ * skidSz - Size of SKID in bytes
+ *
+ * Returns WOLFSSL_SUCCESS or WOLFSSL_FAILURE
+ */
+int wolfSSL_X509_set_subject_key_id(WOLFSSL_X509* x509,
+    const unsigned char* skid, int skidSz)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_set_subject_key_id");
+
+    if (x509 == NULL || skid == NULL || skidSz <= 0) {
+        return WOLFSSL_FAILURE;
+    }
+
+    /* Allocate/reallocate memory for subjKeyId */
+    if (x509->subjKeyId == NULL || (int)x509->subjKeyIdSz < skidSz) {
+        if (x509->subjKeyId != NULL) {
+            XFREE(x509->subjKeyId, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        }
+        x509->subjKeyId = (byte*)XMALLOC((word32)skidSz, x509->heap,
+                                          DYNAMIC_TYPE_X509_EXT);
+        if (x509->subjKeyId == NULL) {
+            return WOLFSSL_FAILURE;
+        }
+    }
+
+    XMEMCPY(x509->subjKeyId, skid, (word32)skidSz);
+    x509->subjKeyIdSz = (word32)skidSz;
+    x509->subjKeyIdSet = 1;
+
+    return WOLFSSL_SUCCESS;
+}
+
+#ifndef NO_SHA
+/* Set Subject Key Identifier by computing SHA-1 hash of the public key.
+ *
+ * x509 - Certificate to modify (must have public key set)
+ *
+ * Returns WOLFSSL_SUCCESS or WOLFSSL_FAILURE
+ */
+int wolfSSL_X509_set_subject_key_id_ex(WOLFSSL_X509* x509)
+{
+    byte hash[WC_SHA_DIGEST_SIZE];
+    int ret;
+
+    WOLFSSL_ENTER("wolfSSL_X509_set_subject_key_id_ex");
+
+    if (x509 == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    /* Check if public key has been set */
+    if (x509->pubKey.buffer == NULL || x509->pubKey.length == 0) {
+        WOLFSSL_MSG("Public key not set");
+        return WOLFSSL_FAILURE;
+    }
+
+    /* Compute SHA-1 hash of the public key */
+    ret = wc_ShaHash(x509->pubKey.buffer, x509->pubKey.length, hash);
+    if (ret != 0) {
+        WOLFSSL_MSG("wc_ShaHash failed");
+        return WOLFSSL_FAILURE;
+    }
+
+    return wolfSSL_X509_set_subject_key_id(x509, hash, WC_SHA_DIGEST_SIZE);
+}
+#endif /* !NO_SHA */
+
+/* Set Authority Key Identifier from raw bytes.
+ *
+ * x509   - Certificate to modify
+ * akid   - Raw AKID bytes
+ * akidSz - Size of AKID in bytes
+ *
+ * Returns WOLFSSL_SUCCESS or WOLFSSL_FAILURE
+ */
+int wolfSSL_X509_set_authority_key_id(WOLFSSL_X509* x509,
+    const unsigned char* akid, int akidSz)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_set_authority_key_id");
+
+    if (x509 == NULL || akid == NULL || akidSz <= 0) {
+        return WOLFSSL_FAILURE;
+    }
+
+    /* Allocate/reallocate memory for authKeyIdSrc */
+    if (x509->authKeyIdSrc == NULL || (int)x509->authKeyIdSrcSz < akidSz) {
+        if (x509->authKeyIdSrc != NULL) {
+            XFREE(x509->authKeyIdSrc, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        }
+        x509->authKeyIdSrc = (byte*)XMALLOC((word32)akidSz, x509->heap,
+                                             DYNAMIC_TYPE_X509_EXT);
+        if (x509->authKeyIdSrc == NULL) {
+            return WOLFSSL_FAILURE;
+        }
+    }
+
+    XMEMCPY(x509->authKeyIdSrc, akid, (word32)akidSz);
+    x509->authKeyIdSrcSz = (word32)akidSz;
+    x509->authKeyId = x509->authKeyIdSrc;
+    x509->authKeyIdSz = (word32)akidSz;
+    x509->authKeyIdSet = 1;
+
+    return WOLFSSL_SUCCESS;
+}
+
+#ifndef NO_SHA
+/* Set Authority Key Identifier from issuer certificate.
+ * Extracts SKID from issuer (or computes from issuer's public key).
+ *
+ * x509   - Certificate to modify
+ * issuer - Issuer certificate
+ *
+ * Returns WOLFSSL_SUCCESS or WOLFSSL_FAILURE
+ */
+int wolfSSL_X509_set_authority_key_id_ex(WOLFSSL_X509* x509,
+    WOLFSSL_X509* issuer)
+{
+    byte hash[WC_SHA_DIGEST_SIZE];
+    int ret;
+
+    WOLFSSL_ENTER("wolfSSL_X509_set_authority_key_id_ex");
+
+    if (x509 == NULL || issuer == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    /* First try to use issuer's SKID if it's set */
+    if (issuer->subjKeyIdSet && issuer->subjKeyId != NULL &&
+        issuer->subjKeyIdSz > 0) {
+        return wolfSSL_X509_set_authority_key_id(x509, issuer->subjKeyId,
+                                                  (int)issuer->subjKeyIdSz);
+    }
+
+    /* Otherwise compute from issuer's public key */
+    if (issuer->pubKey.buffer == NULL || issuer->pubKey.length == 0) {
+        WOLFSSL_MSG("Issuer public key not available");
+        return WOLFSSL_FAILURE;
+    }
+
+    ret = wc_ShaHash(issuer->pubKey.buffer, issuer->pubKey.length, hash);
+    if (ret != 0) {
+        WOLFSSL_MSG("wc_ShaHash failed");
+        return WOLFSSL_FAILURE;
+    }
+
+    return wolfSSL_X509_set_authority_key_id(x509, hash, WC_SHA_DIGEST_SIZE);
+}
+#endif /* !NO_SHA */
+#endif /* WOLFSSL_CERT_EXT */
+
+#ifndef IGNORE_NETSCAPE_CERT_TYPE
+/* Set Netscape Certificate Type extension.
+ *
+ * x509       - Certificate to modify
+ * nsCertType - Bitwise OR of NS_SSL_CLIENT, NS_SSL_SERVER, etc.
+ *
+ * Returns WOLFSSL_SUCCESS or WOLFSSL_FAILURE
+ */
+int wolfSSL_X509_set_ns_cert_type(WOLFSSL_X509* x509, int nsCertType)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_set_ns_cert_type");
+
+    if (x509 == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    x509->nsCertType = (byte)nsCertType;
+
+    return WOLFSSL_SUCCESS;
+}
+#endif /* !IGNORE_NETSCAPE_CERT_TYPE */
 
 #endif /* (OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL) && WOLFSSL_CERT_GEN */
 
