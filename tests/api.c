@@ -17959,6 +17959,88 @@ static int test_wolfSSL_X509_SEP(void)
     return EXPECT_RESULT();
 }
 
+/* Test wolfSSL_X509_set_* extension functions */
+static int test_wolfSSL_X509_set_extensions(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS)
+    WOLFSSL_X509* x509 = NULL;
+#ifdef WOLFSSL_CERT_EXT
+    byte skid[20] = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20};
+    byte akid[20] = {20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1};
+#endif
+#ifndef IGNORE_NETSCAPE_CERT_TYPE
+    int nsCertType = 0;
+#endif
+
+    ExpectNotNull(x509 = wolfSSL_X509_new());
+
+#ifdef WOLFSSL_CERT_EXT
+    /* Test wolfSSL_X509_set_subject_key_id */
+    ExpectIntEQ(wolfSSL_X509_set_subject_key_id(NULL, skid, sizeof(skid)),
+                WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_X509_set_subject_key_id(x509, NULL, sizeof(skid)),
+                WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_X509_set_subject_key_id(x509, skid, 0),
+                WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_X509_set_subject_key_id(x509, skid, sizeof(skid)),
+                WOLFSSL_SUCCESS);
+
+    /* Test wolfSSL_X509_set_authority_key_id */
+    ExpectIntEQ(wolfSSL_X509_set_authority_key_id(NULL, akid, sizeof(akid)),
+                WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_X509_set_authority_key_id(x509, NULL, sizeof(akid)),
+                WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_X509_set_authority_key_id(x509, akid, 0),
+                WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_X509_set_authority_key_id(x509, akid, sizeof(akid)),
+                WOLFSSL_SUCCESS);
+
+    /* Test wolfSSL_X509_CRL_add_dist_point */
+    ExpectIntEQ(wolfSSL_X509_CRL_add_dist_point(NULL,
+                "http://crl.example.com/ca.crl", 0), WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_X509_CRL_add_dist_point(x509, NULL, 0),
+                WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_X509_CRL_add_dist_point(x509,
+                "http://crl.example.com/ca.crl", 0), WOLFSSL_SUCCESS);
+
+    /* Test wolfSSL_X509_CRL_set_dist_points with raw DER */
+    {
+        /* Simple CRL DP DER encoding for "http://example.com/crl" */
+        byte crlDer[] = {
+            0x30, 0x1d, /* SEQUENCE (outer) */
+            0x30, 0x1b, /* SEQUENCE (DistributionPoint) */
+            0xa0, 0x19, /* [0] EXPLICIT */
+            0xa0, 0x17, /* [0] IMPLICIT GeneralNames */
+            0x86, 0x15, /* [6] URI */
+            'h','t','t','p',':','/','/','e','x','a','m','p','l','e','.','c',
+            'o','m','/','c','r','l'
+        };
+        ExpectIntEQ(wolfSSL_X509_CRL_set_dist_points(NULL, crlDer,
+                    sizeof(crlDer)), WOLFSSL_FAILURE);
+        ExpectIntEQ(wolfSSL_X509_CRL_set_dist_points(x509, NULL,
+                    sizeof(crlDer)), WOLFSSL_FAILURE);
+        ExpectIntEQ(wolfSSL_X509_CRL_set_dist_points(x509, crlDer, 0),
+                    WOLFSSL_FAILURE);
+        ExpectIntEQ(wolfSSL_X509_CRL_set_dist_points(x509, crlDer,
+                    sizeof(crlDer)), WOLFSSL_SUCCESS);
+    }
+#endif /* WOLFSSL_CERT_EXT */
+
+#ifndef IGNORE_NETSCAPE_CERT_TYPE
+    /* Test wolfSSL_X509_set_ns_cert_type */
+    nsCertType = WC_NS_SSL_CLIENT | WC_NS_SSL_SERVER;
+    ExpectIntEQ(wolfSSL_X509_set_ns_cert_type(NULL, nsCertType),
+                WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_X509_set_ns_cert_type(x509, nsCertType),
+                WOLFSSL_SUCCESS);
+#endif
+
+    wolfSSL_X509_free(x509);
+#endif /* OPENSSL_EXTRA && !NO_CERTS */
+    return EXPECT_RESULT();
+}
+
 static int test_wolfSSL_OpenSSL_add_all_algorithms(void)
 {
     EXPECT_DECLS;
@@ -32307,6 +32389,7 @@ TEST_CASE testCases[] = {
 
     TEST_DECL(test_wolfSSL_X509_ALGOR_get0),
     TEST_DECL(test_wolfSSL_X509_SEP),
+    TEST_DECL(test_wolfSSL_X509_set_extensions),
     TEST_DECL(test_wolfSSL_X509_CRL),
 #ifndef NO_BIO
     TEST_DECL(test_wolfSSL_X509_print),

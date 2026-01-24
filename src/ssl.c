@@ -11509,7 +11509,6 @@ void wolfSSL_set_dynlock_destroy_callback(
     (void)f;
 }
 
-
 /* Sets the DNS hostname to name.
  * Hostname is cleared if name is NULL or empty. */
 int wolfSSL_set1_host(WOLFSSL * ssl, const char* name)
