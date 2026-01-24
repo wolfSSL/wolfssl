@@ -20,6 +20,9 @@ tests_unit_test_SOURCES = \
 if BUILD_WOLFCRYPT_TESTS
 tests_unit_test_SOURCES += wolfcrypt/test/test.c
 endif
+if BUILD_CRYPTO_CB_TEST_PROVIDER
+tests_unit_test_SOURCES += tests/cryptocb-provider/cryptocb_loader.c
+endif
 
 tests_unit_test_CFLAGS       = -DNO_MAIN_DRIVER $(AM_CFLAGS) $(WOLFSENTRY_INCLUDE)
 tests_unit_test_LDADD        = src/libwolfssl@LIBSUFFIX@.la $(LIB_STATIC_ADD) $(WOLFSENTRY_LIB)

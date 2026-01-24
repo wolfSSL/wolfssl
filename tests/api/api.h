@@ -54,7 +54,8 @@
 
 #if !defined(NO_RSA) && !defined(NO_SHA) && !defined(NO_FILESYSTEM) && \
     !defined(NO_CERTS) && \
-    (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH))
+    (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_RSA)
     #define HAVE_CERT_CHAIN_VALIDATION
 #endif
 

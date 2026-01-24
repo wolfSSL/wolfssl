@@ -158,6 +158,9 @@
     #include "wolfssl/internal.h"
 #endif
 
+#if defined(WOLF_CRYPTO_CB_TEST_PROVIDER)
+#include "cryptocb-provider/cryptocb_loader.h"
+#endif /* WOLF_CRYPTO_CB_TEST_PROVIDER */
 /* include misc.c here regardless of NO_INLINE, because misc.c implementations
  * have default (hidden) visibility, and in the absence of visibility, it's
  * benign to mask out the library implementation.
@@ -252,7 +255,8 @@
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
     !defined(NO_RSA) && \
     !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
-    !defined(WOLFSSL_TIRTOS)
+    !defined(WOLFSSL_TIRTOS) && \
+    !defined(WC_TEST_SKIP_RSA) && !defined(WC_TEST_SKIP_ECC)
     #define HAVE_SSL_MEMIO_TESTS_DEPENDENCIES
 #endif
 
@@ -297,6 +301,8 @@ enum {
 #ifdef WOLFSSL_QNX_CAAM
 #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
 int testDevId = WOLFSSL_CAAM_DEVID;
+#elif defined(WC_USE_DEVID)
+int testDevId = WC_USE_DEVID;
 #else
 int testDevId = INVALID_DEVID;
 #endif
@@ -4445,6 +4451,7 @@ int test_ssl_memio_setup(test_ssl_memio_ctx *ctx)
     }
     wolfSSL_SetIORecv(ctx->c_ctx, test_ssl_memio_read_cb);
     wolfSSL_SetIOSend(ctx->c_ctx, test_ssl_memio_write_cb);
+    wolfSSL_CTX_SetDevId(ctx->c_ctx, testDevId);
 #ifdef WOLFSSL_ENCRYPTED_KEYS
     wolfSSL_CTX_set_default_passwd_cb(ctx->c_ctx, PasswordCallBack);
 #endif
@@ -4525,6 +4532,8 @@ int test_ssl_memio_setup(test_ssl_memio_ctx *ctx)
     }
     wolfSSL_SetIORecv(ctx->s_ctx, test_ssl_memio_read_cb);
     wolfSSL_SetIOSend(ctx->s_ctx, test_ssl_memio_write_cb);
+    wolfSSL_CTX_SetDevId(ctx->s_ctx, testDevId);
+
     wolfSSL_CTX_set_verify(ctx->s_ctx, WOLFSSL_VERIFY_PEER |
         WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, 0);
     if (ctx->s_cb.caPemFile == NULL)
@@ -5013,6 +5022,8 @@ THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
         signal_ready(opts->signal);
         goto done;
     }
+    if (cbf != NULL)
+        wolfSSL_CTX_SetDevId(ctx, cbf->devId);
 
     if (cbf == NULL || !cbf->ticNoInit) {
 #if defined(HAVE_SESSION_TICKET) && \
@@ -5505,6 +5516,9 @@ int test_client_nofail(void* args, cbType cb)
     }
 
     if (cbf != NULL)
+        wolfSSL_CTX_SetDevId(ctx, cbf->devId);
+
+    if (cbf != NULL)
         doUdp = cbf->doUdp;
 
 #ifdef WOLFSSL_ENCRYPTED_KEYS
@@ -5970,6 +5984,7 @@ done:
 /* Generic TLS client / server with callbacks for API unit tests
  * Used by SNI / ALPN / crypto callback helper functions */
 #if defined(HAVE_IO_TESTS_DEPENDENCIES) && \
+    !defined(WC_TEST_SKIP_ECC) && \
     (defined(HAVE_SNI) || defined(HAVE_ALPN) || defined(WOLF_CRYPTO_CB) || \
      defined(HAVE_ALPN_PROTOS_SUPPORT)) || defined(WOLFSSL_STATIC_MEMORY)
     #define ENABLE_TLS_CALLBACK_TEST
@@ -6389,7 +6404,7 @@ cleanup:
 static int test_wolfSSL_read_write(void)
 {
     EXPECT_DECLS;
-#ifndef NO_SHA256
+#if !defined(NO_SHA256) && !defined(WC_TEST_SKIP_ECC)
     /* The unit testing for read and write shall happen simultaneously, since
      * one can't do anything with one without the other. (Except for a failure
      * test case.) This function will call all the others that will set up,
@@ -6412,10 +6427,12 @@ static int test_wolfSSL_read_write(void)
     tcp_ready ready;
     func_args client_args;
     func_args server_args;
+    callback_functions cbf;
     THREAD_TYPE serverThread;
 
     XMEMSET(&client_args, 0, sizeof(func_args));
     XMEMSET(&server_args, 0, sizeof(func_args));
+    XMEMSET(&cbf, 0, sizeof(callback_functions));
 #ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
 #endif
@@ -6428,8 +6445,11 @@ static int test_wolfSSL_read_write(void)
     ready.port = GetRandomPort();
 #endif
 
+    cbf.devId = testDevId;
     server_args.signal = &ready;
     client_args.signal = &ready;
+    server_args.callbacks = &cbf;
+    client_args.callbacks = &cbf;
 
     start_thread(test_server_nofail, &server_args, &serverThread);
     wait_tcp_ready(&server_args);
@@ -6451,6 +6471,7 @@ static int test_wolfSSL_read_write(void)
 static int test_wolfSSL_read_write_ex(void)
 {
     EXPECT_DECLS;
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
     WOLFSSL_CTX *ctx_c = NULL;
     WOLFSSL_CTX *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL;
@@ -6485,6 +6506,9 @@ static int test_wolfSSL_read_write_ex(void)
     wolfSSL_CTX_free(ctx_c);
     wolfSSL_CTX_free(ctx_s);
     return TEST_SUCCESS;
+#else
+    return EXPECT_RESULT();
+#endif
 }
 
 static int test_wolfSSL_reuse_WOLFSSLobj(void)
@@ -8524,6 +8548,7 @@ static int test_wolfSSL_UseSNI_params(void)
     return EXPECT_RESULT();
 }
 
+#if defined(ENABLE_TLS_CALLBACK_TEST)
 /* BEGIN of connection tests callbacks */
 static void use_SNI_at_ctx(WOLFSSL_CTX* ctx)
 {
@@ -8626,12 +8651,14 @@ static void verify_FATAL_ERROR_on_client(WOLFSSL* ssl)
 {
     AssertIntEQ(WC_NO_ERR_TRACE(FATAL_ERROR), wolfSSL_get_error(ssl, 0));
 }
+#endif /* ENABLE_TLS_CALLBACK_TEST */
 /* END of connection tests callbacks */
 
 static int test_wolfSSL_UseSNI_connection(void)
 {
     int res = TEST_SKIPPED;
-#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(ENABLE_TLS_CALLBACK_TEST)
     callback_functions client_cb;
     callback_functions server_cb;
     size_t i;
@@ -16240,6 +16267,7 @@ static int test_wolfSSL_SESSION(void)
     SOCKET_T sockfd;
     tcp_ready ready;
     func_args server_args;
+    callback_functions cbf;
     THREAD_TYPE serverThread;
     char msg[80];
     const char* sendGET = "GET";
@@ -16253,6 +16281,7 @@ static int test_wolfSSL_SESSION(void)
 #else
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
 #endif
+    wolfSSL_CTX_SetDevId(ctx, testDevId);
 
     ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx, cliCertFile,
         CERT_FILETYPE));
@@ -16269,6 +16298,9 @@ static int test_wolfSSL_SESSION(void)
 #endif
 
     XMEMSET(&server_args, 0, sizeof(func_args));
+    XMEMSET(&cbf, 0, sizeof(callback_functions));
+    cbf.devId = testDevId;
+    server_args.callbacks = &cbf;
 #ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
 #endif
@@ -24844,7 +24876,9 @@ static int test_SSL_CIPHER_get_xxx(void)
     return EXPECT_RESULT();
 }
 
-#if defined(WOLF_CRYPTO_CB) && defined(HAVE_IO_TESTS_DEPENDENCIES)
+#if defined(WOLF_CRYPTO_CB) && defined(HAVE_IO_TESTS_DEPENDENCIES) && \
+defined(ENABLE_TLS_CALLBACK_TEST) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
+!defined(WOLF_CRYPTO_CB_ONLY_RSA)
 
 static int load_pem_key_file_as_der(const char* privKeyFile, DerBuffer** pDer,
     int* keyFormat)
@@ -24899,6 +24933,7 @@ static int test_CryptoCb_Func(int thisDevId, wc_CryptoInfo* info, void* ctx)
                 case RSA_PRIVATE_DECRYPT:
                 {
                     RsaKey key;
+                    int rngDevId = INVALID_DEVID;
 
                     /* perform software based RSA private op */
                 #ifdef DEBUG_WOLFSSL
@@ -24913,14 +24948,22 @@ static int test_CryptoCb_Func(int thisDevId, wc_CryptoInfo* info, void* ctx)
                     ret = wc_InitRsaKey(&key, HEAP_HINT);
                     if (ret == 0) {
                         word32 keyIdx = 0;
+                        key.devId = INVALID_DEVID;
                         /* load RSA private key and perform private transform */
                         ret = wc_RsaPrivateKeyDecode(pDer->buffer, &keyIdx,
                             &key, pDer->length);
                         if (ret == 0) {
+                            if (info->pk.rsa.rng != NULL) {
+                                rngDevId = info->pk.rsa.rng->devId;
+                                info->pk.rsa.rng->devId = INVALID_DEVID;
+                            }
                             ret = wc_RsaFunction(
                                 info->pk.rsa.in, info->pk.rsa.inLen,
                                 info->pk.rsa.out, info->pk.rsa.outLen,
                                 info->pk.rsa.type, &key, info->pk.rsa.rng);
+                            if (info->pk.rsa.rng != NULL) {
+                                info->pk.rsa.rng->devId = rngDevId;
+                            }
                         }
                         else {
                             /* if decode fails, then fall-back to software based crypto */
@@ -24966,6 +25009,7 @@ static int test_CryptoCb_Func(int thisDevId, wc_CryptoInfo* info, void* ctx)
             ret = wc_InitRsaKey(&key, HEAP_HINT);
             if (ret == 0) {
                 word32 keyIdx = 0;
+                key.devId = INVALID_DEVID;
                 /* load RSA private key and perform private transform */
                 ret = wc_RsaPrivateKeyDecode(pDer->buffer, &keyIdx,
                     &key, pDer->length);
@@ -24973,19 +25017,35 @@ static int test_CryptoCb_Func(int thisDevId, wc_CryptoInfo* info, void* ctx)
             /* Perform RSA operation */
             if ((ret == 0) && (info->pk.type == WC_PK_TYPE_RSA_PKCS)) {
             #if !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
+                int rngDevId = INVALID_DEVID;
+                if (info->pk.rsa.rng != NULL) {
+                    rngDevId = info->pk.rsa.rng->devId;
+                    info->pk.rsa.rng->devId = INVALID_DEVID;
+                }
                 ret = wc_RsaSSL_Sign(info->pk.rsa.in, info->pk.rsa.inLen,
                     info->pk.rsa.out, *info->pk.rsa.outLen, &key,
                     info->pk.rsa.rng);
+                if (info->pk.rsa.rng != NULL) {
+                    info->pk.rsa.rng->devId = rngDevId;
+                }
             #else
                 ret = CRYPTOCB_UNAVAILABLE;
             #endif
             }
             if ((ret == 0) && (info->pk.type == WC_PK_TYPE_RSA_PSS)) {
             #ifdef WC_RSA_PSS
+                int rngDevId = INVALID_DEVID;
+                if (info->pk.rsa.rng != NULL) {
+                    rngDevId = info->pk.rsa.rng->devId;
+                    info->pk.rsa.rng->devId = INVALID_DEVID;
+                }
                 ret = wc_RsaPSS_Sign_ex(info->pk.rsa.in, info->pk.rsa.inLen,
                     info->pk.rsa.out, *info->pk.rsa.outLen,
                     info->pk.rsa.padding->hash, info->pk.rsa.padding->mgf,
                     info->pk.rsa.padding->saltLen, &key, info->pk.rsa.rng);
+                if (info->pk.rsa.rng != NULL) {
+                    info->pk.rsa.rng->devId = rngDevId;
+                }
             #else
                 ret = CRYPTOCB_UNAVAILABLE;
             #endif
@@ -25047,14 +25107,23 @@ static int test_CryptoCb_Func(int thisDevId, wc_CryptoInfo* info, void* ctx)
             ret = wc_ecc_init(&key);
             if (ret == 0) {
                 word32 keyIdx = 0;
+                key.devId = INVALID_DEVID;
                 /* load ECC private key and perform private transform */
                 ret = wc_EccPrivateKeyDecode(pDer->buffer, &keyIdx,
                     &key, pDer->length);
                 if (ret == 0) {
+                    int rngDevId = INVALID_DEVID;
+                    if (info->pk.eccsign.rng != NULL) {
+                        rngDevId = info->pk.eccsign.rng->devId;
+                        info->pk.eccsign.rng->devId = INVALID_DEVID;
+                    }
                     ret = wc_ecc_sign_hash(
                         info->pk.eccsign.in, info->pk.eccsign.inlen,
                         info->pk.eccsign.out, info->pk.eccsign.outlen,
                         info->pk.eccsign.rng, &key);
+                    if (info->pk.eccsign.rng != NULL) {
+                        info->pk.eccsign.rng->devId = rngDevId;
+                    }
                 }
                 else {
                     /* if decode fails, then fall-back to software based crypto */
@@ -25088,6 +25157,7 @@ static int test_CryptoCb_Func(int thisDevId, wc_CryptoInfo* info, void* ctx)
             ret = wc_ed25519_init(&key);
             if (ret == 0) {
                 word32 keyIdx = 0;
+                key.devId = INVALID_DEVID;
                 /* load ED25519 private key and perform private transform */
                 ret = wc_Ed25519PrivateKeyDecode(pDer->buffer, &keyIdx,
                     &key, pDer->length);
@@ -25519,7 +25589,8 @@ static int test_wc_CryptoCb_TLS(int tlsVer,
 static int test_wc_CryptoCb(void)
 {
     EXPECT_DECLS;
-#ifdef WOLF_CRYPTO_CB
+#if defined(WOLF_CRYPTO_CB) && defined(ENABLE_TLS_CALLBACK_TEST) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_RSA)
     /* TODO: Add crypto callback API tests */
 
 #ifdef HAVE_IO_TESTS_DEPENDENCIES
@@ -29236,9 +29307,9 @@ static int test_certreq_sighash_algos(void)
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     !defined(WOLFSSL_MAX_STRENGTH) && defined(HAVE_ECC) && \
-    !defined(NO_SHA256) && defined(WOLFSSL_SHA384) && \
-    defined(WOLFSSL_AES_256) && defined(HAVE_AES_CBC) && \
-    !defined(WOLFSSL_NO_TLS12)
+    !defined(WC_TEST_SKIP_ECC) && !defined(NO_SHA256) && \
+    defined(WOLFSSL_SHA384) && defined(WOLFSSL_AES_256) && \
+    defined(HAVE_AES_CBC) && !defined(WOLFSSL_NO_TLS12)
     WOLFSSL_CTX *ctx_c = NULL;
     WOLFSSL_CTX *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL;
@@ -32018,21 +32089,21 @@ int ApiTest(void)
     printf(" Begin API Tests\n");
     fflush(stdout);
 
-    /* we must perform init and cleanup if not all tests are running */
-    if (!testAll) {
     #ifdef WOLFCRYPT_ONLY
-        if (wolfCrypt_Init() != 0) {
-            printf("wolfCrypt Initialization failed\n");
-            res = 1;
-        }
-    #else
-        if (wolfSSL_Init() != WOLFSSL_SUCCESS) {
-            printf("wolfSSL Initialization failed\n");
-            res = 1;
-        }
-    #endif
+    if (wolfCrypt_Init() != 0) {
+        printf("wolfCrypt Initialization failed\n");
+        res = 1;
     }
+    #else
+    if (wolfSSL_Init() != WOLFSSL_SUCCESS) {
+        printf("wolfSSL Initialization failed\n");
+        res = 1;
+    }
+    #endif
 
+#ifdef WOLF_CRYPTO_CB_TEST_PROVIDER
+    testDevId = wc_CryptoCb_InitTestCryptoCbProvider();
+#endif
     #ifdef WOLFSSL_DUMP_MEMIO_STREAM
     if (res == 0) {
         if (create_tmp_dir(tmpDirName, sizeof(tmpDirName) - 1) == NULL) {
@@ -32123,13 +32194,15 @@ int ApiTest(void)
     wc_ecc_fp_free();  /* free per thread cache */
 #endif
 
-    if (!testAll) {
+#ifdef WOLF_CRYPTO_CB_TEST_PROVIDER
+    wc_CryptoCb_CleanupTestCryptoCbProvider();
+#endif
+
     #ifdef WOLFCRYPT_ONLY
-        wolfCrypt_Cleanup();
+    wolfCrypt_Cleanup();
     #else
-        wolfSSL_Cleanup();
+    wolfSSL_Cleanup();
     #endif
-    }
 
     (void)testDevId;
 

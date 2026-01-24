@@ -176,6 +176,7 @@ include wolfcrypt/test/include.am
 include examples/include.am
 include testsuite/include.am
 include tests/include.am
+include tests/cryptocb-provider/include.am
 include sslSniffer/sslSnifferTest/include.am
 include debian/include.am
 include rpm/include.am

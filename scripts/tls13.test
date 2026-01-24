@@ -113,6 +113,13 @@ if [ $? -eq 0 ]; then
     exit 0
 fi
 
+# Skip when build only supports ECC via crypto callbacks.
+grep -F -e 'WOLF_CRYPTO_CB_ONLY_ECC' ./wolfssl/options.h >/dev/null
+if [ $? -eq 0 ]; then
+    echo "Skipping tls13.test: WOLF_CRYPTO_CB_ONLY_ECC is defined" 1>&2
+    exit 77
+fi
+
 # Usual TLS v1.3 server / TLS v1.3 client.
 echo -e "\n\nTLS v1.3 server with TLS v1.3 client"
 port=0

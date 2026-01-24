@@ -7,6 +7,9 @@ if BUILD_EXAMPLE_SERVERS
 noinst_PROGRAMS += examples/echoserver/echoserver
 noinst_HEADERS += examples/echoserver/echoserver.h
 examples_echoserver_echoserver_SOURCES      = examples/echoserver/echoserver.c
+if BUILD_CRYPTO_CB_TEST_PROVIDER
+examples_echoserver_echoserver_SOURCES     += tests/cryptocb-provider/cryptocb_loader.c
+endif
 examples_echoserver_echoserver_LDADD        = src/libwolfssl@LIBSUFFIX@.la $(LIB_STATIC_ADD)
 examples_echoserver_echoserver_DEPENDENCIES = src/libwolfssl@LIBSUFFIX@.la
 endif

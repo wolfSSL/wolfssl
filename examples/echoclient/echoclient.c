@@ -53,6 +53,10 @@
 
 #include <examples/echoclient/echoclient.h>
 
+#if defined(WOLF_CRYPTO_CB_TEST_PROVIDER)
+#include "tests/cryptocb-provider/cryptocb_loader.h"
+#endif
+
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
 
 
@@ -65,7 +69,7 @@
 #include <wolfssl/certs_test.h>
 #endif
 
-#ifdef WOLFSSL_ASYNC_CRYPT
+#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB_TEST_PROVIDER)
     static int devId = INVALID_DEVID;
 #endif
 
@@ -223,6 +227,14 @@ void echoclient_test(void* args)
     wolfSSL_CTX_SetDevId(ctx, devId);
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
+#ifdef WOLF_CRYPTO_CB_TEST_PROVIDER
+    devId = wc_CryptoCb_InitTestCryptoCbProvider();
+    if (devId < 0) {
+        err_sys("CryptoCb provider init failed");
+    }
+    wolfSSL_CTX_SetDevId(ctx, devId);
+#endif /* WOLF_CRYPTO_CB_TEST_PROVIDER */
+
     ssl = SSL_new(ctx);
     tcp_connect(&sockfd, wolfSSLIP, port, 0, 0, ssl);
 
@@ -285,6 +297,10 @@ void echoclient_test(void* args)
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     wolfAsync_DevClose(&devId);
+#endif
+
+#ifdef WOLF_CRYPTO_CB_TEST_PROVIDER
+    wc_CryptoCb_CleanupTestCryptoCbProvider();
 #endif
 
     LIBCALL_CHECK_RET(fflush(fout));

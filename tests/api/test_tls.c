@@ -299,7 +299,7 @@ int test_tls_certreq_order(void)
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     !defined(WOLFSSL_NO_TLS12) && defined(HAVE_AESGCM) && \
     defined(WOLFSSL_AES_256) && defined(WOLFSSL_SHA384) && !defined(NO_RSA) && \
-    defined(HAVE_ECC)
+    defined(HAVE_ECC) && !defined(WC_TEST_SKIP_ECC)
     /* This test checks that a certificate request message
      * received before server certificate message is properly detected.
      */
@@ -346,7 +346,8 @@ int test_tls_certreq_order(void)
 }
 
 #if !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA) && defined(HAVE_ECC) && \
-    !defined(NO_WOLFSSL_SERVER)
+    !defined(WC_TEST_SKIP_ECC) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(WC_TEST_SKIP_RSA)
 /* Called when writing. */
 static int CsSend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 {
@@ -382,7 +383,8 @@ int test_tls12_bad_cv_sig_alg(void)
 {
     EXPECT_DECLS;
 #if !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA) && defined(HAVE_ECC) && \
-    !defined(NO_WOLFSSL_SERVER)
+    !defined(WC_TEST_SKIP_ECC) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(WC_TEST_SKIP_RSA)
     byte clientMsgs[] = {
         /* Client Hello */
         0x16, 0x03, 0x03, 0x00, 0xe7,
@@ -648,6 +650,9 @@ int test_tls12_bad_cv_sig_alg(void)
     wolfSSL_SetIORecv(ctx, CsRecv);
     /* No where to send to - dummy sender. */
     wolfSSL_SetIOSend(ctx, CsSend);
+#ifdef WC_USE_DEVID
+    wolfSSL_CTX_SetDevId(ctx, WC_USE_DEVID);
+#endif /* WC_USE_DEVID */
 
     ExpectNotNull(ssl = wolfSSL_new(ctx));
     msg.buffer = clientMsgs;
@@ -665,4 +670,3 @@ int test_tls12_bad_cv_sig_alg(void)
 #endif
     return EXPECT_RESULT();
 }
-

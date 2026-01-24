@@ -7,6 +7,9 @@ if BUILD_EXAMPLE_SERVERS
 noinst_PROGRAMS += examples/server/server
 noinst_HEADERS += examples/server/server.h
 examples_server_server_SOURCES      = examples/server/server.c
+if BUILD_CRYPTO_CB_TEST_PROVIDER
+examples_server_server_SOURCES     += tests/cryptocb-provider/cryptocb_loader.c
+endif
 examples_server_server_LDADD        = src/libwolfssl@LIBSUFFIX@.la $(LIB_STATIC_ADD) $(WOLFSENTRY_LIB)
 examples_server_server_DEPENDENCIES = src/libwolfssl@LIBSUFFIX@.la
 examples_server_server_CFLAGS = $(WOLFSENTRY_INCLUDE) $(AM_CFLAGS)

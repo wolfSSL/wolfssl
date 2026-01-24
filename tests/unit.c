@@ -318,7 +318,9 @@ int unit_test(int argc, char** argv)
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
     !defined(NO_TLS) && \
     !defined(SINGLE_THREADED) && \
-    defined(WOLFSSL_PEM_TO_DER)
+    defined(WOLFSSL_PEM_TO_DER) && \
+    !defined(WC_TEST_SKIP_RSA) && \
+    !defined(WC_TEST_SKIP_ECC)
     if ((ret = SuiteTest(argc, argv)) != 0) {
         fprintf(stderr, "suite test failed with %d\n", ret);
         goto exit;

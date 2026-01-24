@@ -4251,6 +4251,29 @@ extern void uITRON4_free(void *p) ;
     #define WOLF_CRYPTO_CB
 #endif
 
+#if defined(WOLF_CRYPTO_CB_TEST_PROVIDER)
+#if !defined(__linux__)
+#error "WOLF_CRYPTO_CB_TEST_PROVIDER is only supported on Linux"
+#endif
+#if defined(WOLFSSL_ASYNC_CRYPT)
+#error "WOLF_CRYPTO_CB_TEST_PROVIDER is not supported with WOLFSSL_ASYNC_CRYPT"
+#endif
+#define WOLF_CRYPTO_CB_TEST_PROVIDER_ID 0x43425056  /* 'CBPV' */
+#ifndef WC_USE_DEVID
+#define WC_USE_DEVID WOLF_CRYPTO_CB_TEST_PROVIDER_ID
+#endif
+#endif /* WOLF_CRYPTO_CB_TEST_PROVIDER */
+
+/* Skip RSA tests when software is compiled out and no default device is configured */
+#if defined(WOLF_CRYPTO_CB_ONLY_RSA) && !defined(WC_USE_DEVID)
+    #define WC_TEST_SKIP_RSA
+#endif
+
+/* Skip ECC tests when software is compiled out and no default device is configured */
+#if defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WC_USE_DEVID)
+    #define WC_TEST_SKIP_ECC
+#endif
+
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_NO_SIGALG)
     #error TLS 1.3 requires the Signature Algorithms extension to be enabled
 #endif
