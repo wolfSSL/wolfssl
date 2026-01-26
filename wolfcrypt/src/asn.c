@@ -32013,7 +32013,7 @@ static int InternalSignCb(const byte* in, word32 inLen,
     byte* out, word32* outLen, int sigAlgo, int keyType, void* ctx)
 {
     InternalSignCtx* signCtx = (InternalSignCtx*)ctx;
-    int ret = ALGO_ID_E;
+    int ret = WC_NO_ERR_TRACE(ALGO_ID_E);
 
     (void)sigAlgo; /* Algorithm determined by key type */
 
@@ -32086,7 +32086,7 @@ static int InternalSignCb(const byte* in, word32 inLen,
 #endif /* WOLFSSL_CERT_GEN || WOLFSSL_CERT_REQ */
 
 
-/* Make signature from buffer (sz), write to sig (sigSz) 
+/* Make signature from buffer (sz), write to sig (sigSz)
  * This function now uses MakeSignatureCb internally for RSA and ECC,
  * eliminating code duplication. Ed25519, Ed448, and post-quantum algorithms
  * still use direct signing since they sign messages, not hashes. */
@@ -32097,7 +32097,7 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, word32 sz,
     word32 sigAlgoType, void* heap)
 {
     int ret = 0;
-    
+
     (void)buf;
     (void)sz;
     (void)sig;
@@ -32116,13 +32116,13 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, word32 sz,
     if (rsaKey || eccKey) {
         InternalSignCtx signCtx;
         int keyType;
-        
+
         /* Setup internal signing context */
         XMEMSET(&signCtx, 0, sizeof(signCtx));
         signCtx.rsaKey = rsaKey;
         signCtx.eccKey = eccKey;
         signCtx.rng = rng;
-        
+
         /* Determine key type */
         if (rsaKey) {
             keyType = RSA_TYPE;
@@ -32134,7 +32134,7 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, word32 sz,
             ret = BAD_FUNC_ARG;
             goto exit_ms;
         }
-        
+
         /* Use unified callback path */
         ret = MakeSignatureCb(certSignCtx, buf, sz, sig, sigSz,
                              (int)sigAlgoType, keyType,

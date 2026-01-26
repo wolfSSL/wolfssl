@@ -266,7 +266,6 @@ typedef int (wc_pem_password_cb)(char* passwd, int sz, int rw, void* userdata);
                        word32* outLen, int sigAlgo, int keyType, void* ctx)
     {
         MySignCtx* myCtx = (MySignCtx*)ctx;
-        // Perform signing using external device/HSM
         return myDevice_Sign(myCtx->device, in, inLen, out, outLen);
     }
     \endcode
@@ -598,14 +597,10 @@ WOLFSSL_API int wc_SignCert(int requestSz, int sType, byte* buf, word32 buffSz,
     int derSz;
     MySignCtx myCtx;
 
-    // Initialize cert and set subject, etc.
     wc_InitCert(&cert);
-    // ... set cert fields ...
 
-    // Make certificate body
     derSz = wc_MakeCert(&cert, derBuf, sizeof(derBuf), NULL, NULL, &rng);
 
-    // Sign using callback
     derSz = wc_SignCert_cb(cert.bodySz, cert.sigType, derBuf, sizeof(derBuf),
                            RSA_TYPE, mySignCallback, &myCtx, &rng);
     if (derSz > 0) {
