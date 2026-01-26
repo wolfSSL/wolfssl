@@ -16,6 +16,9 @@
     all the generated build options. This file needs to be included in your application
     before any other wolfSSL headers. Optionally your application can define
     WOLFSSL_USE_OPTIONS_H to do this automatically.
+    Note: Building with configure also installs CMake package files under
+    $(libdir)/cmake/wolfssl to support find_package(wolfssl). You can disable this
+    with ./configure --disable-cmake-install.
 
 2. Building on iOS
 

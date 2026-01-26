@@ -1,0 +1,41 @@
+name: WolfSSL CMake Autoconf Interworking Test
+
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+jobs:
+  build:
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-latest
+
+    steps:
+# pull wolfSSL
+    - uses: actions/checkout@v4
+
+# install cmake and autotools
+    - name: Install cmake
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake autoconf automake libtool
+
+# build and install wolfssl via autotools for CMake consumer test
+    - name: Build wolfssl with autotools
+      run: |
+        ./autogen.sh
+        ./configure --prefix="$GITHUB_WORKSPACE/install-autoconf" --enable-all
+        make -j $(nproc)
+        make install
+
+# CMake consumer test using the autotools install
+    - name: CMake consumer test (autotools install)
+      run: |
+        mkdir -p cmake/consumer/build
+        cd cmake/consumer/build
+        cmake -DCMAKE_PREFIX_PATH="$GITHUB_WORKSPACE/install-autoconf" ..
+        cmake --build .
+        ./wolfssl_consumer
+        cd ..
+        rm -rf build

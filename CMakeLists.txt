@@ -427,6 +427,18 @@ if(WOLFSSL_DTLS_CID)
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_DTLS_CID")
 endif()
 
+# DTLS 1.3 Fragment ClientHello
+add_option("WOLFSSL_DTLS_CH_FRAG"
+    "Enable wolfSSL DTLS 1.3 Fragment ClientHello (default: disabled)"
+    "no" "yes;no")
+
+if(WOLFSSL_DTLS_CH_FRAG)
+    if(NOT WOLFSSL_DTLS13)
+        message(FATAL_ERROR "DTLS 1.3 Fragment ClientHello is supported only for DTLSv1.3")
+    endif()
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_DTLS_CH_FRAG")
+endif()
+
 # RNG
 add_option("WOLFSSL_RNG"
     "Enable compiling and using RNG (default: enabled)"
@@ -511,9 +523,6 @@ if(WOLFSSL_WOLFSSH)
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_WOLFSSH")
 endif()
 
-if(WOLFSSL_WOLFSSH OR WOLFSSL_WPAS)
-    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_PUBLIC_MP")
-endif()
 
 # TODO: - DTLS-SCTP
 #       - DTLS multicast
@@ -881,6 +890,27 @@ add_option("WOLFSSL_AESOFB"
     "Enable wolfSSL AES-OFB support (default: disabled)"
     "no" "yes;no")
 
+# AES-ECB
+add_option("WOLFSSL_AESECB"
+    "Enable wolfSSL AES-ECB support (default: disabled)"
+    "no" "yes;no")
+
+if(WOLFSSL_AESECB)
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_AES_ECB")
+endif()
+
+# AES-CTS
+add_option("WOLFSSL_AESCTS"
+    "Enable wolfSSL AES-CTS support (default: disabled)"
+    "no" "yes;no")
+
+if(WOLFSSL_AESCTS)
+    if(NOT WOLFSSL_AESCBC)
+        message(FATAL_ERROR "AES-CTS requires AES-CBC.")
+    endif()
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_AES_CTS")
+endif()
+
 # TODO: - AES-GCM stream
 #       - AES-ARM
 #       - Xilinx hardened crypto
@@ -1080,7 +1110,7 @@ if(WOLFSSL_ECCSI)
         message(FATAL_ERROR "cannot enable ECCSI without enabling ECC.")
     endif()
 
-    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFCRYPT_HAVE_ECCSI -DWOLFSSL_PUBLIC_MP")
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFCRYPT_HAVE_ECCSI")
 endif()
 
 # SAKKE
@@ -1103,6 +1133,18 @@ add_option("WOLFSSL_SIPHASH"
 
 if(WOLFSSL_SIPHASH)
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SIPHASH")
+endif()
+
+add_option("WOLFSSL_PUBLIC_MP"
+    "Enable public MP API (default: disabled)"
+    "no" "yes;no")
+
+if(WOLFSSL_WOLFSSH OR WOLFSSL_WPAS OR WOLFSSL_ECCSI)
+    override_cache(WOLFSSL_PUBLIC_MP "yes")
+endif()
+
+if(WOLFSSL_PUBLIC_MP)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_PUBLIC_MP")
 endif()
 
 # TODO: - Compressed key
@@ -1310,6 +1352,15 @@ else()
     endif()
 endif()
 
+# RSA Direct
+add_option("WOLFSSL_WC_RSA_DIRECT"
+    "Enable RSA Direct (default: disabled)"
+    "no" "yes;no")
+
+if(WOLFSSL_RSA AND WOLFSSL_WC_RSA_DIRECT)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWC_RSA_DIRECT")
+endif()
+
 # OAEP
 add_option("WOLFSSL_OAEP"
     "Enable RSA OAEP (default: enabled)"
@@ -1434,6 +1485,12 @@ if(NOT WOLFSSL_AES)
     endif()
     if(WOLFSSL_AESCTR)
         message(FATAL_ERROR "AESCTR requires AES.")
+    endif()
+    if(WOLFSSL_AESECB)
+        message(FATAL_ERROR "AES-ECB requires AES.")
+    endif()
+    if(WOLFSSL_AESCTS)
+        message(FATAL_ERROR "AES-CTS requires AES.")
     endif()
 else()
     if(WOLFSSL_LEAN_PSK)
@@ -2196,13 +2253,14 @@ if(WOLFSSL_AESOFB)
 endif()
 
 if(WOLFSSL_TPM)
-    override_cache(WOLFSSL_KEYGEN   "yes")
-    override_cache(WOLFSSL_CERTGEN  "yes")
-    override_cache(WOLFSSL_CRYPTOCB "yes")
-    override_cache(WOLFSSL_CERTREQ  "yes")
-    override_cache(WOLFSSL_CERTEXT  "yes")
-    override_cache(WOLFSSL_PKCS7    "yes")
-    override_cache(WOLFSSL_AESCFB   "yes")
+    override_cache(WOLFSSL_KEYGEN    "yes")
+    override_cache(WOLFSSL_CERTGEN   "yes")
+    override_cache(WOLFSSL_CRYPTOCB  "yes")
+    override_cache(WOLFSSL_CERTREQ   "yes")
+    override_cache(WOLFSSL_CERTEXT   "yes")
+    override_cache(WOLFSSL_PKCS7     "yes")
+    override_cache(WOLFSSL_AESCFB    "yes")
+    override_cache(WOLFSSL_PUBLIC_MP "yes")
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_ALLOW_ENCODING_CA_FALSE")
 endif()
 
@@ -2600,7 +2658,7 @@ target_compile_definitions(wolfssl PRIVATE "BUILDING_WOLFSSL")
 if(${BUILD_SHARED_LIBS})
     target_compile_definitions(wolfssl PUBLIC "WOLFSSL_DLL")
 endif()
-target_compile_definitions(wolfssl PUBLIC ${WOLFSSL_DEFINITIONS})
+target_compile_definitions(wolfssl PRIVATE ${WOLFSSL_DEFINITIONS})
 
 ####################################################
 # Include Directories
@@ -2663,6 +2721,7 @@ if(WOLFSSL_EXAMPLES)
     add_executable(client
         ${CMAKE_CURRENT_SOURCE_DIR}/examples/client/client.c)
     target_link_libraries(client wolfssl)
+    target_compile_definitions(client PRIVATE ${WOLFSSL_DEFINITIONS})
     set_property(TARGET client
                  PROPERTY RUNTIME_OUTPUT_DIRECTORY
                  ${WOLFSSL_OUTPUT_BASE}/examples/client)
@@ -2671,6 +2730,7 @@ if(WOLFSSL_EXAMPLES)
     add_executable(server
         ${CMAKE_CURRENT_SOURCE_DIR}/examples/server/server.c)
     target_link_libraries(server wolfssl)
+    target_compile_definitions(server PRIVATE ${WOLFSSL_DEFINITIONS})
     set_property(TARGET server
                  PROPERTY RUNTIME_OUTPUT_DIRECTORY
                  ${WOLFSSL_OUTPUT_BASE}/examples/server)
@@ -2681,6 +2741,7 @@ if(WOLFSSL_EXAMPLES)
     target_include_directories(echoclient PRIVATE
         ${CMAKE_CURRENT_BINARY_DIR})
     target_link_libraries(echoclient wolfssl)
+    target_compile_definitions(echoclient PRIVATE ${WOLFSSL_DEFINITIONS})
     set_property(TARGET echoclient
                  PROPERTY RUNTIME_OUTPUT_DIRECTORY
                  ${WOLFSSL_OUTPUT_BASE}/examples/echoclient)
@@ -2691,6 +2752,7 @@ if(WOLFSSL_EXAMPLES)
     target_include_directories(echoserver PRIVATE
         ${CMAKE_CURRENT_BINARY_DIR})
     target_link_libraries(echoserver wolfssl)
+    target_compile_definitions(echoserver PRIVATE ${WOLFSSL_DEFINITIONS})
     set_property(TARGET echoserver
                  PROPERTY RUNTIME_OUTPUT_DIRECTORY
                  ${WOLFSSL_OUTPUT_BASE}/examples/echoserver)
@@ -2700,6 +2762,7 @@ if(WOLFSSL_EXAMPLES)
         add_executable(tls_bench
             ${CMAKE_CURRENT_SOURCE_DIR}/examples/benchmark/tls_bench.c)
         target_link_libraries(tls_bench wolfssl)
+        target_compile_definitions(tls_bench PRIVATE ${WOLFSSL_DEFINITIONS})
         if(CMAKE_USE_PTHREADS_INIT)
             target_link_libraries(tls_bench Threads::Threads)
         endif()
@@ -2804,6 +2867,7 @@ if(WOLFSSL_EXAMPLES)
         ${CMAKE_CURRENT_BINARY_DIR})
     target_compile_options(unit_test PUBLIC "-DNO_MAIN_DRIVER")
     target_link_libraries(unit_test wolfssl)
+    target_compile_definitions(unit_test PRIVATE ${WOLFSSL_DEFINITIONS})
     if(CMAKE_USE_PTHREADS_INIT)
         target_link_libraries(unit_test Threads::Threads)
     endif()
@@ -2829,6 +2893,7 @@ if(WOLFSSL_CRYPT_TESTS)
             ${CMAKE_CURRENT_SOURCE_DIR}/wolfcrypt/test/test.c)
         set_target_properties(wolfcrypttest_lib PROPERTIES OUTPUT_NAME "wolfcrypttest")
         target_link_libraries(wolfcrypttest_lib wolfssl)
+        target_compile_definitions(wolfcrypttest_lib PRIVATE ${WOLFSSL_DEFINITIONS})
         target_compile_options(wolfcrypttest_lib PRIVATE "-DNO_MAIN_DRIVER")
         if(WOLFSSL_CRYPT_TESTS_HELP)
             target_compile_options(wolfcrypttest_lib PRIVATE "-DHAVE_WOLFCRYPT_TEST_OPTIONS")
@@ -2839,6 +2904,7 @@ if(WOLFSSL_CRYPT_TESTS)
             ${CMAKE_CURRENT_SOURCE_DIR}/wolfcrypt/benchmark/benchmark.c)
         set_target_properties(wolfcryptbench_lib PROPERTIES OUTPUT_NAME "wolfcryptbench")
         target_link_libraries(wolfcryptbench_lib wolfssl)
+        target_compile_definitions(wolfcryptbench_lib PRIVATE ${WOLFSSL_DEFINITIONS})
         target_compile_options(wolfcryptbench_lib PRIVATE "-DNO_MAIN_DRIVER")
     endif()
 
@@ -2846,6 +2912,7 @@ if(WOLFSSL_CRYPT_TESTS)
     add_executable(wolfcrypttest
         ${CMAKE_CURRENT_SOURCE_DIR}/wolfcrypt/test/test.c)
     target_link_libraries(wolfcrypttest wolfssl)
+    target_compile_definitions(wolfcrypttest PRIVATE ${WOLFSSL_DEFINITIONS})
     set_property(TARGET wolfcrypttest
                  PROPERTY RUNTIME_OUTPUT_DIRECTORY
                  ${WOLFSSL_OUTPUT_BASE}/wolfcrypt/test)
@@ -2865,6 +2932,7 @@ if(WOLFSSL_CRYPT_TESTS)
     target_include_directories(wolfcryptbench PRIVATE
         ${CMAKE_CURRENT_BINARY_DIR})
     target_link_libraries(wolfcryptbench wolfssl)
+    target_compile_definitions(wolfcryptbench PRIVATE ${WOLFSSL_DEFINITIONS})
     set_property(TARGET wolfcryptbench
                  PROPERTY RUNTIME_OUTPUT_DIRECTORY
                  ${WOLFSSL_OUTPUT_BASE}/wolfcrypt/benchmark)
@@ -3019,9 +3087,9 @@ if(WOLFSSL_INSTALL)
     # Install the library
     install(TARGETS wolfssl
             EXPORT wolfssl-targets
-            LIBRARY DESTINATION lib
-            ARCHIVE DESTINATION lib
-            RUNTIME DESTINATION bin
+            LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
             )
     # Install the headers
     install(DIRECTORY ${WOLFSSL_OUTPUT_BASE}/wolfssl/

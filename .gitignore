@@ -41,6 +41,9 @@ tags
 .tags*
 cyassl-config
 wolfssl-config
+cmake/wolfssl-config.cmake
+cmake/wolfssl-config-version.cmake
+cmake/wolfssl-targets.cmake
 cyassl.sublime*
 fips.h
 fips.c
