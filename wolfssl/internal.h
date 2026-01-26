@@ -6344,6 +6344,10 @@ struct WOLFSSL {
 #if defined(WOLFSSL_SYS_CRYPTO_POLICY)
     int secLevel; /* The security level of system-wide crypto policy. */
 #endif /* WOLFSSL_SYS_CRYPTO_POLICY */
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(WOLFSSL_HARDEN_TLS) && !defined(WOLFSSL_HARDEN_TLS_NO_SCR_CHECK)
+    WC_BITFIELD          scr_check_enabled:1;  /* enable/disable SCR check */
+#endif
 };
 
 #if defined(WOLFSSL_SYS_CRYPTO_POLICY)
