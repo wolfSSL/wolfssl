@@ -224,6 +224,10 @@ typedef struct WOLFSSL_NAME_CONSTRAINTS NAME_CONSTRAINTS;
 #define X509V3_EXT_print          wolfSSL_X509V3_EXT_print
 #define X509V3_EXT_conf_nid       wolfSSL_X509V3_EXT_conf_nid
 #define X509V3_set_ctx            wolfSSL_X509V3_set_ctx
+#define X509_get1_ocsp            wolfSSL_X509_get1_ocsp
+#ifdef WOLFSSL_ASN_CA_ISSUER
+#define X509_get1_ca_issuers      wolfSSL_X509_get1_ca_issuers
+#endif /* WOLFSSL_ASN_CA_ISSUER */
 #ifndef NO_WOLFSSL_STUB
 #define X509V3_set_nconf(ctx, conf) WC_DO_NOTHING
 #define X509V3_EXT_cleanup()      WC_DO_NOTHING

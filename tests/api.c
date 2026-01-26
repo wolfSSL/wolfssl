@@ -19199,6 +19199,31 @@ static int test_wolfSSL_OCSP_REQ_CTX(void)
     return EXPECT_RESULT();
 }
 
+static int test_wolfSSL_X509_get1_ca_issuers(void)
+{
+    EXPECT_DECLS;
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) || \
+    defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)) && \
+    defined(WOLFSSL_ASN_CA_ISSUER) && !defined(NO_FILESYSTEM)
+    X509* cert = NULL;
+    STACK_OF(WOLFSSL_STRING) *skStr = NULL;
+    WOLFSSL_STRING url = NULL;
+    const char* expected = "http://example.com/ca.pem";
+
+    ExpectNull(wolfSSL_X509_get1_ca_issuers(NULL));
+    ExpectNotNull(cert = wolfSSL_X509_load_certificate_file(
+            "certs/aia/ca-issuers-cert.pem", WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(skStr = wolfSSL_X509_get1_ca_issuers(cert));
+    ExpectIntEQ(wolfSSL_sk_WOLFSSL_STRING_num(skStr), 1);
+    ExpectNotNull(url = wolfSSL_sk_WOLFSSL_STRING_value(skStr, 0));
+    ExpectIntEQ(XSTRCMP(url, expected), 0);
+
+    wolfSSL_X509_email_free(skStr);
+    wolfSSL_X509_free(cert);
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_no_op_functions(void)
 {
     EXPECT_DECLS;
@@ -31666,6 +31691,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_OCSP_resp_get0),
     TEST_DECL(test_wolfSSL_OCSP_parse_url),
     TEST_DECL(test_wolfSSL_OCSP_REQ_CTX),
+    TEST_DECL(test_wolfSSL_X509_get1_ca_issuers),
 
     TEST_DECL(test_wolfSSL_PEM_read),
 

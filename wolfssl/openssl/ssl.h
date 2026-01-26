@@ -565,6 +565,9 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define X509_get_ex_data                wolfSSL_X509_get_ex_data
 #define X509_set_ex_data                wolfSSL_X509_set_ex_data
 #define X509_get1_ocsp                  wolfSSL_X509_get1_ocsp
+#ifdef WOLFSSL_ASN_CA_ISSUER
+#define X509_get1_ca_issuers            wolfSSL_X509_get1_ca_issuers
+#endif /* WOLFSSL_ASN_CA_ISSUER */
 #define X509_get_version                wolfSSL_X509_get_version
 #define X509_get_signature_nid          wolfSSL_X509_get_signature_nid
 #define X509_set_subject_name           wolfSSL_X509_set_subject_name

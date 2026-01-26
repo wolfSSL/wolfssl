@@ -15021,6 +15021,34 @@ WOLF_STACK_OF(WOLFSSL_STRING) *wolfSSL_X509_get1_ocsp(WOLFSSL_X509 *x)
     return list;
 }
 
+#ifdef WOLFSSL_ASN_CA_ISSUER
+WOLF_STACK_OF(WOLFSSL_STRING) *wolfSSL_X509_get1_ca_issuers(WOLFSSL_X509 *x)
+{
+    WOLFSSL_STACK* list = NULL;
+    char*          url;
+
+    if (x == NULL || x->authInfoCaIssuerSz == 0)
+        return NULL;
+
+    list = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK) +
+                                   x->authInfoCaIssuerSz + 1,
+                                   NULL, DYNAMIC_TYPE_OPENSSL);
+    if (list == NULL)
+        return NULL;
+
+    url = (char*)list;
+    url += sizeof(WOLFSSL_STACK);
+    XMEMCPY(url, x->authInfoCaIssuer, x->authInfoCaIssuerSz);
+    url[x->authInfoCaIssuerSz] = '\0';
+
+    list->data.string = url;
+    list->next = NULL;
+    list->num = 1;
+
+    return list;
+}
+#endif /* WOLFSSL_ASN_CA_ISSUER */
+
 int wolfSSL_X509_check_issued(WOLFSSL_X509 *issuer, WOLFSSL_X509 *subject)
 {
     WOLFSSL_X509_NAME *issuerName = wolfSSL_X509_get_issuer_name(subject);
