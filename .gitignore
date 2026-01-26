@@ -239,12 +239,17 @@ linuxkm/linuxkm
 linuxkm/src
 linuxkm/patches/src
 *.nds
+
+# Generated during FreeBSD kernel module build.
 bsdkm/export_syms
 bsdkm/i386
 bsdkm/libwolfssl.ko
 bsdkm/machine
 bsdkm/opt_global.h
 bsdkm/x86
+bsdkm/bus_if.h
+bsdkm/cryptodev_if.h
+bsdkm/device_if.h
 
 # autotools generated
 scripts/unit.test

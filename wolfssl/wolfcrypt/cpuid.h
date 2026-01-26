@@ -122,7 +122,11 @@ typedef word32 cpuid_flags_t;
      * accurate.
      */
     static WC_INLINE int cpuid_get_flags_atomic(cpuid_flags_atomic_t *flags) {
+        #ifdef WOLFSSL_BSDKM
+        if (WOLFSSL_ATOMIC_LOAD_UINT(*flags) == WC_CPUID_INITIALIZER) {
+        #else
         if (WOLFSSL_ATOMIC_LOAD(*flags) == WC_CPUID_INITIALIZER) {
+        #endif /* WOLFSSL_BSDKM */
             cpuid_flags_t old_cpuid_flags = WC_CPUID_INITIALIZER;
             return wolfSSL_Atomic_Uint_CompareExchange
                 (flags, &old_cpuid_flags, cpuid_get_flags());

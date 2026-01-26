@@ -7466,6 +7466,7 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 #if defined(GCM_TABLE) || defined(GCM_TABLE_4BIT)
 #if defined(WOLFSSL_AESNI) && defined(GCM_TABLE_4BIT)
         if (aes->use_aesni) {
+            VECTOR_REGISTERS_PUSH;
     #if defined(WC_C_DYNAMIC_FALLBACK)
         #ifdef HAVE_INTEL_AVX2
             if (IS_INTEL_AVX2(intel_flags)) {
@@ -7483,6 +7484,7 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
                 GCM_generate_m0_aesni(aes->gcm.H, (byte*)aes->gcm.M0);
             }
     #endif
+            VECTOR_REGISTERS_POP;
         }
         else
 #endif
