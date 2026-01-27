@@ -11009,6 +11009,8 @@ int wc_RsaPublicKeyDecode_ex(const byte* input, word32* inOutIdx, word32 inSz,
 #ifndef WOLFSSL_ASN_TEMPLATE
     int ret = 0;
     int length = 0;
+    int firstLen = 0;
+    word32 seqEndIdx = 0;
 #if defined(OPENSSL_EXTRA) || defined(RSA_DECODE_EXTRA)
     word32 localIdx;
     byte   tag;
@@ -11066,16 +11068,19 @@ int wc_RsaPublicKeyDecode_ex(const byte* input, word32* inOutIdx, word32 inSz,
     }
 #endif /* OPENSSL_EXTRA */
 
+    /* Calculate where the sequence should end for public key validation */
+    seqEndIdx = *inOutIdx + (word32)length;
+
     /* Get modulus */
-    ret = GetASNInt(input, inOutIdx, &length, inSz);
+    ret = GetASNInt(input, inOutIdx, &firstLen, inSz);
     if (ret < 0) {
         return ASN_RSA_KEY_E;
     }
     if (nSz)
-        *nSz = (word32)length;
+        *nSz = (word32)firstLen;
     if (n)
         *n = &input[*inOutIdx];
-    *inOutIdx += (word32)length;
+    *inOutIdx += (word32)firstLen;
 
     /* Get exponent */
     ret = GetASNInt(input, inOutIdx, &length, inSz);
@@ -11087,6 +11092,18 @@ int wc_RsaPublicKeyDecode_ex(const byte* input, word32* inOutIdx, word32 inSz,
     if (e)
         *e = &input[*inOutIdx];
     *inOutIdx += (word32)length;
+
+    /* Detect if this is an RSA private key being passed as public key.
+     * An RSA private key has: version (small), modulus (large), exponent,
+     * followed by more integers (d, p, q, etc.).
+     * An RSA public key has: modulus (large), exponent, and nothing more.
+     * If the first integer is small (like version 0) AND there is more data
+     * remaining in the sequence, this is likely a private key. */
+    if (firstLen <= MAX_VERSION_SZ && *inOutIdx < seqEndIdx) {
+        /* First integer is small and there's more data - looks like
+         * version field of a private key, not a modulus */
+        return ASN_RSA_KEY_E;
+    }
 
     return ret;
 #else
@@ -11157,6 +11174,21 @@ int wc_RsaPublicKeyDecode_ex(const byte* input, word32* inOutIdx, word32 inSz,
         }
     }
 #endif
+    if (ret == 0) {
+        /* Detect if this is an RSA private key being passed as public key.
+         * An RSA private key has: version (small int), modulus, exponent, ...
+         * An RSA public key has: modulus (large int), exponent, nothing more.
+         * If the first integer is small (like version 0) and there's more data
+         * after what we consumed, this is likely a private key. */
+        word32 nLen = dataASN[RSAPUBLICKEYASN_IDX_PUBKEY_RSA_N].data.ref.length;
+        if (nLen <= MAX_VERSION_SZ && *inOutIdx < inSz) {
+            /* Check if next byte could be an INTEGER tag - indicating more
+             * fields like in a private key structure */
+            if (input[*inOutIdx] == ASN_INTEGER) {
+                ret = ASN_RSA_KEY_E;
+            }
+        }
+    }
     if (ret == 0) {
         /* Return the buffers and lengths asked for. */
         if (n != NULL) {

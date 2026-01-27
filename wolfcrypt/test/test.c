@@ -22717,6 +22717,22 @@ static wc_test_ret_t rsa_decode_test(RsaKey* keyPub)
         goto done;
     }
 
+#ifdef USE_CERT_BUFFERS_2048
+    /* Test that public key decode rejects a private key */
+    wc_FreeRsaKey(keyPub);
+    ret = wc_InitRsaKey(keyPub, NULL);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    inOutIdx = 0;
+    ret = wc_RsaPublicKeyDecode(client_key_der_2048, &inOutIdx, keyPub,
+                                sizeof_client_key_der_2048);
+    if (ret != WC_NO_ERR_TRACE(ASN_RSA_KEY_E)) {
+        ret = WC_TEST_RET_ENC_EC(ret);
+        goto done;
+    }
+    ret = 0; /* success - public key decode correctly rejected private key */
+#endif
+
 done:
     wc_FreeRsaKey(keyPub);
     return ret;
