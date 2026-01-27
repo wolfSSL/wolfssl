@@ -2052,6 +2052,171 @@ static int test_wolfSSL_CTX_set_cipher_list_bytes(void)
     return EXPECT_RESULT();
 }
 
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_TLS13) && \
+    !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(HAVE_RENEGOTIATION_INDICATION) && \
+    defined(HAVE_AESGCM) && \
+    ((!defined(NO_RSA) && defined(HAVE_ECC)) || !defined(NO_ERROR_STRINGS))
+/* Helper function to check if TLS 1.3 suites exist in the suites list */
+static int suites_has_tls13(const byte* suites, word16 suiteSz)
+{
+    word16 i;
+    for (i = 0; i < suiteSz; i += 2) {
+        if (suites[i] == 0x13) { /* TLS13_BYTE */
+            return 1;
+        }
+    }
+    return 0;
+}
+
+/* Helper function to check if TLS 1.2 (non-1.3) suites exist in the suites list */
+static int suites_has_tls12(const byte* suites, word16 suiteSz)
+{
+    word16 i;
+    for (i = 0; i < suiteSz; i += 2) {
+        if (suites[i] != 0x13) { /* Not TLS13_BYTE */
+            return 1;
+        }
+    }
+    return 0;
+}
+#endif
+
+/* Test 1: SSLv23 + set TLS 1.2 cipher -> TLS 1.3 suites should still be there */
+static int test_wolfSSL_set_cipher_list_tls12_keeps_tls13(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_TLS13) && \
+    !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(HAVE_RENEGOTIATION_INDICATION) && \
+    defined(HAVE_AESGCM) && defined(HAVE_ECC) && !defined(NO_RSA)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* Set only a TLS 1.2 cipher suite */
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl, "ECDHE-RSA-AES128-GCM-SHA256"),
+                WOLFSSL_SUCCESS);
+
+    /* TLS 1.3 suites should still be present (downgrade is enabled) */
+    ExpectNotNull(ssl->suites);
+    ExpectTrue(suites_has_tls13(ssl->suites->suites, ssl->suites->suiteSz));
+    /* The TLS 1.2 suite we set should also be there */
+    ExpectTrue(suites_has_tls12(ssl->suites->suites, ssl->suites->suiteSz));
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test 2: SSLv23 + set TLS 1.3 cipher -> TLS 1.2 suites should still be there */
+static int test_wolfSSL_set_cipher_list_tls13_keeps_tls12(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_TLS13) && \
+    !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(HAVE_RENEGOTIATION_INDICATION) && \
+    defined(HAVE_AESGCM) && !defined(NO_ERROR_STRINGS)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* Set only a TLS 1.3 cipher suite */
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl, "TLS_AES_128_GCM_SHA256"),
+                WOLFSSL_SUCCESS);
+
+    /* TLS 1.2 suites should still be present (downgrade is enabled) */
+    ExpectNotNull(ssl->suites);
+    ExpectTrue(suites_has_tls12(ssl->suites->suites, ssl->suites->suiteSz));
+    /* The TLS 1.3 suite we set should also be there */
+    ExpectTrue(suites_has_tls13(ssl->suites->suites, ssl->suites->suiteSz));
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test 3: SSLv23 + SetVersion(TLS 1.2) + set TLS 1.2 cipher -> only that cipher */
+static int test_wolfSSL_set_cipher_list_tls12_with_version(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_TLS13) && \
+    !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(HAVE_RENEGOTIATION_INDICATION) && \
+    defined(HAVE_AESGCM) && defined(HAVE_ECC) && !defined(NO_RSA)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* Set protocol version to TLS 1.2 (this disables downgrade) */
+    ExpectIntEQ(wolfSSL_SetVersion(ssl, WOLFSSL_TLSV1_2), WOLFSSL_SUCCESS);
+
+    /* Set only a TLS 1.2 cipher suite */
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl, "ECDHE-RSA-AES128-GCM-SHA256"),
+                WOLFSSL_SUCCESS);
+
+    /* Should have only TLS 1.2 suites (no TLS 1.3) since downgrade is disabled */
+    ExpectNotNull(ssl->suites);
+    ExpectFalse(suites_has_tls13(ssl->suites->suites, ssl->suites->suiteSz));
+    /* Should have the TLS 1.2 suite we set */
+    ExpectTrue(suites_has_tls12(ssl->suites->suites, ssl->suites->suiteSz));
+    /* Should have exactly one cipher suite (2 bytes) */
+    ExpectIntEQ(ssl->suites->suiteSz, 2);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test 4: SSLv23 + SetVersion(TLS 1.3) + set TLS 1.3 cipher -> only that cipher */
+static int test_wolfSSL_set_cipher_list_tls13_with_version(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_TLS13) && \
+    !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(HAVE_RENEGOTIATION_INDICATION) && \
+    defined(HAVE_AESGCM) && !defined(NO_ERROR_STRINGS)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* Set protocol version to TLS 1.3 (this disables downgrade) */
+    ExpectIntEQ(wolfSSL_SetVersion(ssl, WOLFSSL_TLSV1_3), WOLFSSL_SUCCESS);
+
+    /* Set only a TLS 1.3 cipher suite */
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl, "TLS_AES_128_GCM_SHA256"),
+                WOLFSSL_SUCCESS);
+
+    /* Should have only TLS 1.3 suites (no TLS 1.2) since downgrade is disabled */
+    ExpectNotNull(ssl->suites);
+    ExpectFalse(suites_has_tls12(ssl->suites->suites, ssl->suites->suiteSz));
+    /* Should have the TLS 1.3 suite we set */
+    ExpectTrue(suites_has_tls13(ssl->suites->suites, ssl->suites->suiteSz));
+    /* Should have exactly one cipher suite (2 bytes) */
+    ExpectIntEQ(ssl->suites->suiteSz, 2);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 
 static int test_wolfSSL_CTX_use_certificate(void)
 {
@@ -31638,6 +31803,10 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_SSL_CIPHER_get_xxx),
     TEST_DECL(test_wolfSSL_ERR_strings),
     TEST_DECL(test_wolfSSL_CTX_set_cipher_list_bytes),
+    TEST_DECL(test_wolfSSL_set_cipher_list_tls12_keeps_tls13),
+    TEST_DECL(test_wolfSSL_set_cipher_list_tls13_keeps_tls12),
+    TEST_DECL(test_wolfSSL_set_cipher_list_tls12_with_version),
+    TEST_DECL(test_wolfSSL_set_cipher_list_tls13_with_version),
     TEST_DECL(test_wolfSSL_CTX_use_certificate),
     TEST_DECL(test_wolfSSL_CTX_use_certificate_file),
     TEST_DECL(test_wolfSSL_CTX_use_certificate_buffer),

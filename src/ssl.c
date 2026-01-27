@@ -5514,6 +5514,8 @@ int wolfSSL_SetVersion(WOLFSSL* ssl, int version)
             return BAD_FUNC_ARG;
     }
 
+    ssl->options.downgrade = 0;
+
     #ifdef NO_RSA
         haveRSA = 0;
     #endif
@@ -9737,7 +9739,15 @@ static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
      *   - SSL_CTX_set_ciphersuites for setting TLS 1.3 suites
      * Since we direct both API here we attempt to provide API compatibility. If
      * we only get suites from <= 1.2 or == 1.3 then we will only update those
-     * suites and keep the suites from the other group. */
+     * suites and keep the suites from the other group.
+     * If downgrade is disabled, skip preserving the other group's suites. */
+    if ((ssl != NULL && !ssl->options.downgrade) ||
+        (ctx != NULL && !ctx->method->downgrade)) {
+        /* Downgrade disabled - don't preserve other group's suites */
+        WC_FREE_VAR_EX(suitesCpy, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return ret;
+    }
+
     for (i = 0; i < suitesCpySz &&
                 suites->suiteSz <= (WOLFSSL_MAX_SUITE_SZ - SUITE_LEN); i += 2) {
         /* Check for duplicates */
