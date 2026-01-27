@@ -4779,6 +4779,196 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif /* HAVE_ENTROPY_MEMUSE */
 
+/* ---------------------------------------------------------------------------*/
+/* Configuration validation rules                                             */
+/* These enforce build constraints across all platforms                        */
+/* ---------------------------------------------------------------------------*/
+
+/* Mutual Exclusivity Rules */
+#if defined(WOLFSSL_SP_MATH) && defined(WOLFSSL_SP_MATH_ALL)
+    #error "WOLFSSL_SP_MATH and WOLFSSL_SP_MATH_ALL are incompatible"
+#endif
+#if defined(WOLFCRYPT_ONLY) && defined(OPENSSL_ALL)
+    #error "WOLFCRYPT_ONLY and OPENSSL_ALL are mutually incompatible"
+#endif
+#if defined(WOLFSSL_MAX_STRENGTH) && defined(WOLFSSL_LEANPSK)
+    #error "Cannot use Max Strength and Lean PSK at the same time"
+#endif
+#if defined(WOLFSSL_HAVE_WOLFSCEP) && defined(WOLFSSL_LEANTLS)
+    #error "Cannot use SCEP and Lean TLS at the same time"
+#endif
+#if defined(WOLFSSL_MAX_STRENGTH) && defined(WOLFSSL_ALLOW_SSLV3)
+    #error "Cannot use Max Strength and SSLv3 at the same time"
+#endif
+
+/* Dependency Rules (Feature X requires Feature Y) */
+#if defined(WOLFSSL_SHA224) && defined(NO_SHA256)
+    #error "SHA-224 requires SHA-256"
+#endif
+#if defined(WOLFSSL_SM2) && !defined(HAVE_ECC)
+    #error "SM2 requires ECC"
+#endif
+#if defined(HAVE_ECC_BRAINPOOL) && !defined(WOLFSSL_CUSTOM_CURVES)
+    #error "Brainpool curves require WOLFSSL_CUSTOM_CURVES"
+#endif
+#if defined(FP_ECC) && !defined(HAVE_ECC)
+    #error "FP_ECC requires ECC"
+#endif
+#if defined(HAVE_ECC_ENCRYPT) && !defined(HAVE_ECC)
+    #error "ECC encrypt requires ECC"
+#endif
+#if defined(HAVE_ECC_ENCRYPT) && !defined(HAVE_HKDF)
+    #error "ECC encrypt requires HKDF"
+#endif
+#if defined(WOLFCRYPT_HAVE_ECCSI) && !defined(HAVE_ECC)
+    #error "ECCSI requires ECC"
+#endif
+#if defined(WOLFCRYPT_HAVE_SAKKE) && !defined(HAVE_ECC)
+    #error "SAKKE requires ECC"
+#endif
+#if !defined(WOLFCRYPT_ONLY) && defined(HAVE_ANON) && defined(NO_DH)
+    #error "Anonymous ciphers require DH"
+#endif
+#if defined(FORTRESS) && defined(NO_AES)
+    #error "Fortress requires AES"
+#endif
+#if defined(HAVE_AESGCM) && defined(NO_AES)
+    #error "AES-GCM requires AES"
+#endif
+#if defined(HAVE_AESCCM) && defined(NO_AES)
+    #error "AES-CCM requires AES"
+#endif
+#if defined(WOLFSSL_AES_COUNTER) && defined(NO_AES)
+    #error "AES-CTR requires AES"
+#endif
+#if defined(HAVE_ED448) && !defined(WOLFSSL_SHA512)
+    #error "ED448 requires SHA-512"
+#endif
+#if defined(WOLFSSL_SHAKE128) && !defined(WOLFSSL_SHA3)
+    #error "SHAKE128 requires SHA-3"
+#endif
+#if defined(WOLFSSL_SHAKE256) && !defined(WOLFSSL_SHA3)
+    #error "SHAKE256 requires SHA-3"
+#endif
+#if defined(HAVE_XCHACHA) && !defined(HAVE_CHACHA)
+    #error "XChaCha requires ChaCha"
+#endif
+#if !defined(WOLFCRYPT_ONLY) && defined(WOLFSSL_REQUIRE_FFDHE) && \
+    defined(NO_DH)
+    #error "FFDHE-only requires DH"
+#endif
+#if !defined(WOLFCRYPT_ONLY) && defined(WOLFSSL_REQUIRE_FFDHE) && \
+    !defined(HAVE_SUPPORTED_CURVES)
+    #error "FFDHE-only requires Supported Curves extension"
+#endif
+#if defined(HAVE_SCRYPT) && defined(NO_PWDBASED)
+    #error "scrypt requires pwdbased"
+#endif
+#if defined(HAVE_OCSP) && defined(NO_ASN)
+    #error "OCSP requires ASN"
+#endif
+#if defined(HAVE_SMIME) && defined(NO_ASN)
+    #error "S/MIME requires ASN"
+#endif
+#if defined(HAVE_OCSP) && defined(NO_RSA) && !defined(HAVE_ECC)
+    #error "OCSP requires RSA or ECC"
+#endif
+#if defined(HAVE_PKCS7) && defined(NO_RSA) && !defined(HAVE_ECC)
+    #error "PKCS7 requires RSA or ECC"
+#endif
+#if defined(HAVE_PKCS7) && defined(NO_SHA) && defined(NO_SHA256)
+    #error "PKCS7 requires SHA or SHA-256"
+#endif
+#if defined(WOLFSSL_HAVE_WOLFSCEP) && defined(NO_AES) && defined(NO_DES3)
+    #error "SCEP requires AES or 3DES"
+#endif
+#if !defined(WOLFCRYPT_ONLY) && defined(WOLFSSL_SNIFFER) && \
+    defined(NO_RSA) && !defined(HAVE_ECC) && !defined(HAVE_CURVE25519)
+    #error "Sniffer requires RSA, ECC, or Curve25519"
+#endif
+#if !defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
+    defined(NO_ASN) && !defined(WOLFCRYPT_ONLY)
+    #error "RSA requires ASN"
+#endif
+#if !defined(NO_DSA) && defined(NO_ASN)
+    #error "DSA requires ASN"
+#endif
+#if !defined(WOLFCRYPT_ONLY) && defined(NO_PSK) && defined(NO_ASN)
+    #error "Please enable PSK if disabling ASN"
+#endif
+#if defined(WOLFSSL_WOLFSSH) && defined(NO_HMAC)
+    #error "WOLFSSH requires HMAC"
+#endif
+
+/* Conflicting Feature Rules */
+#if defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_SP_MATH_ALL)
+    #if defined(WOLFSSL_CUSTOM_CURVES)
+        #error "Cannot use single precision math and custom curves"
+    #endif
+    #if !defined(NO_DSA)
+        #error "Cannot use single precision math and DSA"
+    #endif
+    #if defined(WOLFCRYPT_HAVE_SRP)
+        #error "Cannot use single precision math and SRP"
+    #endif
+#endif
+#if defined(USE_INTEGER_HEAP_MATH) && defined(WOLFSSL_STATIC_MEMORY)
+    #error "Heap math is incompatible with static memory"
+#endif
+#if defined(WC_16BIT_CPU) && \
+    (defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL))
+    #error "16-bit build is not available with SP math"
+#endif
+
+/* Streaming Feature Rules */
+#if defined(WOLFSSL_AESGCM_STREAM) && !defined(HAVE_AESGCM)
+    #error "AES-GCM streaming requires AES-GCM"
+#endif
+#if defined(WOLFSSL_AESXTS_STREAM) && !defined(WOLFSSL_AES_XTS)
+    #error "AES-XTS streaming requires AES-XTS"
+#endif
+#if defined(WOLFSSL_ED25519_STREAMING_VERIFY) && !defined(HAVE_ED25519)
+    #error "ED25519 streaming verify requires ED25519"
+#endif
+#if defined(WOLFSSL_ED448_STREAMING_VERIFY) && !defined(HAVE_ED448)
+    #error "ED448 streaming verify requires ED448"
+#endif
+
+/* QUIC Rules */
+#if !defined(WOLFCRYPT_ONLY) && defined(WOLFSSL_QUIC) && \
+    !defined(WOLFSSL_TLS13)
+    #error "QUIC requires TLS 1.3"
+#endif
+#if !defined(WOLFCRYPT_ONLY) && defined(WOLFSSL_QUIC) && \
+    !defined(HAVE_AESGCM)
+    #error "QUIC requires AES-GCM"
+#endif
+
+/* Crypto Callback Rules */
+#if defined(WC_TEST_NO_CRYPTOCB_SW_TEST) && !defined(WOLF_CRYPTO_CB)
+    #error "Crypto callback SW test requires WOLF_CRYPTO_CB"
+#endif
+#if (defined(WOLF_CRYPTO_CB_COPY) || defined(WOLF_CRYPTO_CB_FREE)) && \
+    !defined(WOLF_CRYPTO_CB)
+    #error "Crypto callback utilities require WOLF_CRYPTO_CB"
+#endif
+
+/* Early Data / Session Rules */
+#if !defined(WOLFCRYPT_ONLY) && defined(WOLFSSL_EARLY_DATA) && \
+    !defined(WOLFSSL_TLS13)
+    #error "Early data requires TLS 1.3"
+#endif
+#if !defined(WOLFCRYPT_ONLY) && defined(WOLFSSL_EARLY_DATA) && \
+    !defined(HAVE_SESSION_TICKET) && defined(NO_PSK)
+    #error "Early data requires session tickets or PSK"
+#endif
+
+/* DES3 TLS Suite Rule */
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_DES3_TLS_SUITES) && \
+    defined(NO_DES3)
+    #error "DES3 TLS suites require DES3"
+#endif
+
 #if defined(NO_WOLFSSL_CLIENT) && defined(NO_WOLFSSL_SERVER) && \
     !defined(WOLFCRYPT_ONLY) && !defined(NO_TLS)
 #error "If TLS is enabled please make sure either client or server is enabled."
