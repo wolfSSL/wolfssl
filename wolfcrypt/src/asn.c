@@ -19403,9 +19403,9 @@ int wolfssl_local_MatchBaseName(int type, const char* name, int nameSz,
         return 0;
 
     while (nameSz > 0) {
-        if (XTOLOWER((unsigned char)*name) !=
-                                               XTOLOWER((unsigned char)*base))
+        if (XTOLOWER((unsigned char)*name) != XTOLOWER((unsigned char)*base)) {
             return 0;
+        }
         name++;
         base++;
         nameSz--;
@@ -19414,6 +19414,42 @@ int wolfssl_local_MatchBaseName(int type, const char* name, int nameSz,
     return 1;
 }
 
+/* Check if IP address matches a name constraint.
+ * IP name constraints contain IP address and subnet mask.
+ * IPv4: ip is 4 bytes, constraint is 8 bytes (4 IP + 4 mask)
+ * IPv6: ip is 16 bytes, constraint is 32 bytes (16 IP + 16 mask)
+ *
+ * ip: IP address bytes
+ * ipSz: length of ip
+ * constraint: constraint bytes (IP + mask)
+ * constraintSz: length of constraint
+ *
+ * return 1 if IP matches constraint, otherwise 0
+ */
+int wolfssl_local_MatchIpSubnet(const byte* ip, int ipSz,
+    const byte* constraint, int constraintSz)
+{
+    int i;
+    int match = 1;
+
+    if (ip == NULL || constraint == NULL || ipSz <= 0 || constraintSz <= 0) {
+        return 0;
+    }
+
+    /* Constraint should be 2x address length (IP + mask) */
+    if (constraintSz != ipSz * 2) {
+        return 0;
+    }
+
+    for (i = 0; i < ipSz; i++) {
+        if ((ip[i] & constraint[ipSz + i]) !=
+            (constraint[i] & constraint[ipSz + i])) {
+            match = 0;
+        }
+    }
+
+    return match;
+}
 
 /* Search through the list to find if the name is permitted.
  * name     The DNS name to search for
@@ -19432,7 +19468,16 @@ static int PermittedListOk(DNS_entry* name, Base_entry* dnsList, byte nameType)
     while (current != NULL) {
         if (current->type == nameType) {
             need = 1; /* restriction on permitted names is set for this type */
-            if (name->len >= current->nameSz &&
+            if (nameType == ASN_IP_TYPE) {
+                /* IP address uses subnet matching (IP + mask) */
+                if (wolfssl_local_MatchIpSubnet((const byte*)name->name,
+                        name->len, (const byte*)current->name,
+                        current->nameSz)) {
+                    match = 1;
+                    break;
+                }
+            }
+            else if (name->len >= current->nameSz &&
                 wolfssl_local_MatchBaseName(nameType, name->name, name->len,
                                             current->name, current->nameSz)) {
                 match = 1; /* found the current name in the permitted list*/
@@ -19463,7 +19508,16 @@ static int IsInExcludedList(DNS_entry* name, Base_entry* dnsList, byte nameType)
 
     while (current != NULL) {
         if (current->type == nameType) {
-            if (name->len >= current->nameSz &&
+            if (nameType == ASN_IP_TYPE) {
+                /* IP address uses subnet matching (IP + mask) */
+                if (wolfssl_local_MatchIpSubnet((const byte*)name->name,
+                        name->len, (const byte*)current->name,
+                        current->nameSz)) {
+                    ret = 1;
+                    break;
+                }
+            }
+            else if (name->len >= current->nameSz &&
                 wolfssl_local_MatchBaseName(nameType, name->name, name->len,
                                             current->name, current->nameSz)) {
                 ret = 1;
@@ -19479,7 +19533,8 @@ static int IsInExcludedList(DNS_entry* name, Base_entry* dnsList, byte nameType)
 
 static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
 {
-    const byte nameTypes[] = {ASN_RFC822_TYPE, ASN_DNS_TYPE, ASN_DIR_TYPE};
+    const byte nameTypes[] = {ASN_RFC822_TYPE, ASN_DNS_TYPE, ASN_DIR_TYPE,
+                              ASN_IP_TYPE};
     int i;
 
     if (signer == NULL || cert == NULL)
@@ -19498,6 +19553,10 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
             case ASN_DNS_TYPE:
                 /* Should it also consider CN in subject? It could use
                  * subjectDnsName too */
+                name = cert->altNames;
+                break;
+            case ASN_IP_TYPE:
+                /* IP addresses are stored in altNames with type ASN_IP_TYPE */
                 name = cert->altNames;
                 break;
             case ASN_RFC822_TYPE:
@@ -19544,15 +19603,20 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
         }
 
         while (name != NULL) {
-            if (IsInExcludedList(name, signer->excludedNames, nameType) == 1) {
-                WOLFSSL_MSG("Excluded name was found!");
-                return 0;
-            }
+            /* Only check entries that match the current nameType. */
+            if (name->type == nameType) {
+                if (IsInExcludedList(name, signer->excludedNames,
+                        nameType) == 1) {
+                    WOLFSSL_MSG("Excluded name was found!");
+                    return 0;
+                }
 
-            /* Check against the permitted list */
-            if (PermittedListOk(name, signer->permittedNames, nameType) != 1) {
-                WOLFSSL_MSG("Permitted name was not found!");
-                return 0;
+                /* Check against the permitted list */
+                if (PermittedListOk(name, signer->permittedNames,
+                        nameType) != 1) {
+                    WOLFSSL_MSG("Permitted name was not found!");
+                    return 0;
+                }
             }
 
             name = name->next;
@@ -22021,7 +22085,8 @@ static int DecodeSubtree(const byte* input, word32 sz, Base_entry** head,
         bType = (byte)(b & ASN_TYPE_MASK);
 
         if (bType == ASN_DNS_TYPE || bType == ASN_RFC822_TYPE ||
-                                                        bType == ASN_DIR_TYPE) {
+            bType == ASN_DIR_TYPE || bType == ASN_IP_TYPE ||
+            bType == ASN_URI_TYPE) {
             Base_entry* entry;
 
             /* if constructed has leading sequence */
@@ -22099,7 +22164,9 @@ static int DecodeSubtree(const byte* input, word32 sz, Base_entry** head,
             /* Check GeneralName tag is one of the types we can handle. */
             if (t == (ASN_CONTEXT_SPECIFIC | ASN_DNS_TYPE) ||
                 t == (ASN_CONTEXT_SPECIFIC | ASN_RFC822_TYPE) ||
-                t == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | ASN_DIR_TYPE)) {
+                t == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | ASN_DIR_TYPE) ||
+                t == (ASN_CONTEXT_SPECIFIC | ASN_IP_TYPE) ||
+                t == (ASN_CONTEXT_SPECIFIC | ASN_URI_TYPE)) {
                 /* Parse the general name and store a new entry. */
                 ret = DecodeSubtreeGeneralName(input +
                     GetASNItem_DataIdx(dataASN[SUBTREEASN_IDX_BASE], input),

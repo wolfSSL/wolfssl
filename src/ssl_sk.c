@@ -168,6 +168,7 @@ static void* wolfssl_sk_node_get_data(WOLFSSL_STACK* node, int no_static)
         case STACK_TYPE_X509_OBJ:
         case STACK_TYPE_DIST_POINT:
         case STACK_TYPE_X509_CRL:
+        case STACK_TYPE_GENERAL_SUBTREE:
         default:
             ret = node->data.generic;
             break;
@@ -212,6 +213,7 @@ static void wolfssl_sk_node_set_data(WOLFSSL_STACK* node, WOLF_STACK_TYPE type,
         case STACK_TYPE_X509_OBJ:
         case STACK_TYPE_DIST_POINT:
         case STACK_TYPE_X509_CRL:
+        case STACK_TYPE_GENERAL_SUBTREE:
         default:
             node->data.generic = (void*)data;
 #ifdef OPENSSL_ALL
@@ -430,6 +432,7 @@ static int wolfssl_sk_dup_data(WOLFSSL_STACK* dst, WOLFSSL_STACK* src)
         case STACK_TYPE_BY_DIR_hash:
         case STACK_TYPE_DIST_POINT:
         case STACK_TYPE_X509_CRL:
+        case STACK_TYPE_GENERAL_SUBTREE:
         default:
             WOLFSSL_MSG("Unsupported stack type");
             err = 1;
@@ -622,6 +625,7 @@ void* wolfSSL_sk_value(const WOLFSSL_STACK* sk, int i)
             case STACK_TYPE_X509_OBJ:
             case STACK_TYPE_DIST_POINT:
             case STACK_TYPE_X509_CRL:
+            case STACK_TYPE_GENERAL_SUBTREE:
             default:
                 val = sk->data.generic;
                 break;
@@ -805,6 +809,12 @@ static wolfSSL_sk_freefunc wolfssl_sk_get_free_func(WOLF_STACK_TYPE type)
             break;
         case STACK_TYPE_GEN_NAME:
             func = (wolfSSL_sk_freefunc)wolfSSL_GENERAL_NAME_free;
+            break;
+        case STACK_TYPE_GENERAL_SUBTREE:
+        #if defined(OPENSSL_EXTRA) && !defined(IGNORE_NAME_CONSTRAINTS) && \
+            !defined(WOLFSSL_LINUXKM)
+            func = (wolfSSL_sk_freefunc)wolfSSL_GENERAL_SUBTREE_free;
+        #endif
             break;
         case STACK_TYPE_STRING:
         #if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \

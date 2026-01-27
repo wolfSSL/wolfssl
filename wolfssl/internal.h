@@ -5259,6 +5259,7 @@ typedef enum {
     STACK_TYPE_X509_CRL           = 16,
     STACK_TYPE_X509_NAME_ENTRY    = 17,
     STACK_TYPE_X509_REQ_ATTR      = 18,
+    STACK_TYPE_GENERAL_SUBTREE    = 19,
 } WOLF_STACK_TYPE;
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
@@ -5287,6 +5288,7 @@ struct WOLFSSL_STACK {
         void*                  generic;
         char*                  string;
         WOLFSSL_GENERAL_NAME*  gn;
+        WOLFSSL_GENERAL_SUBTREE* subtree;
         WOLFSSL_BY_DIR_entry*  dir_entry;
         WOLFSSL_BY_DIR_HASH*   dir_hash;
         WOLFSSL_X509_OBJECT*   x509_obj;
@@ -5327,6 +5329,9 @@ struct WOLFSSL_X509_NAME {
 
 #ifdef NO_ASN
     typedef struct DNS_entry DNS_entry;
+    #ifndef IGNORE_NAME_CONSTRAINTS
+        typedef struct Base_entry Base_entry;
+    #endif
 #endif
 
 struct WOLFSSL_X509 {
@@ -5355,6 +5360,11 @@ struct WOLFSSL_X509 {
     buffer           sig;
     int              sigOID;
     DNS_entry*       altNames;                       /* alt names list */
+#ifndef IGNORE_NAME_CONSTRAINTS
+    Base_entry*      permittedNames;                 /* name constraints */
+    Base_entry*      excludedNames;
+    byte             nameConstraintCrit:1;
+#endif
     buffer           pubKey;
     int              pubKeyOID;
     DNS_entry*       altNamesNext;                   /* hint for retrieval */

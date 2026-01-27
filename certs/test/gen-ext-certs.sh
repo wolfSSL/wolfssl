@@ -81,7 +81,7 @@ rm -f ./certs/test/cert-ext-mnc.pem
 
 
 OUT=certs/test/cert-ext-ncdns
-KEYFILE=certs/test/cert-ext-nc-key.der
+KEYFILE=certs/test/cert-ext-ncdns-key.der
 CONFIG=certs/test/cert-ext-ncdns.cfg
 tee >$CONFIG <<EOF
 [ req ]
@@ -108,11 +108,68 @@ nsComment       = "Testing name constraints"
 EOF
 gen_cert
 rm -f ./certs/test/cert-ext-ncdns.cfg
-rm -f ./certs/test/cert-ext-ncdns.pem
 
-OUT=certs/test/cert-ext-ncmixed
-KEYFILE=certs/test/cert-ext-ncmixed-key.der
-CONFIG=certs/test/cert-ext-ncmixed.cfg
+OUT=certs/test/cert-ext-nc-combined
+KEYFILE=certs/test/cert-ext-nc-combined-key.der
+CONFIG=certs/test/cert-ext-nc-combined.cfg
+tee >$CONFIG <<EOF
+[ req ]
+distinguished_name = req_distinguished_name
+prompt             = no
+x509_extensions    = v3_ca
+
+[ req_distinguished_name ]
+C             = US
+ST            = Montana
+L             = Bozeman
+O             = wolfSSL Inc
+OU            = Dev and Testing
+CN            = www.wolfssl.com
+
+[ v3_ca ]
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid:always,issuer
+basicConstraints = critical, CA:true, pathlen:0
+keyUsage = critical, digitalSignature, cRLSign, keyCertSign
+nameConstraints = critical,permitted;URI:.wolfssl.com,permitted;DNS:.wolfssl.com
+nsComment       = "Testing combined URI and DNS name constraints"
+
+EOF
+gen_cert
+rm -f ./certs/test/cert-ext-nc-combined.cfg
+
+OUT=certs/test/cert-ext-ncmulti
+KEYFILE=certs/test/cert-ext-ncmulti-key.der
+CONFIG=certs/test/cert-ext-ncmulti.cfg
+tee >$CONFIG <<EOF
+[ req ]
+distinguished_name = req_distinguished_name
+prompt             = no
+x509_extensions    = v3_ca
+
+[ req_distinguished_name ]
+C             = US
+ST            = Montana
+L             = Bozeman
+O             = wolfSSL Inc
+OU            = Dev and Testing
+CN            = www.wolfssl.com
+
+[ v3_ca ]
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid:always,issuer
+basicConstraints = critical, CA:true, pathlen:0
+keyUsage = critical, digitalSignature, cRLSign, keyCertSign
+nameConstraints = critical,permitted;DNS:.example.com,permitted;email:.example.com,excluded;DNS:.blocked.example.com,excluded;email:.blocked.example.com
+nsComment       = "Testing mixed permitted and excluded name constraints"
+
+EOF
+gen_cert
+rm -f ./certs/test/cert-ext-ncmulti.cfg
+
+OUT=certs/test/cert-ext-ncip
+KEYFILE=certs/test/cert-ext-ncip-key.der
+CONFIG=certs/test/cert-ext-ncip.cfg
 tee >$CONFIG <<EOF
 [ req ]
 distinguished_name = req_distinguished_name
@@ -132,13 +189,12 @@ subjectKeyIdentifier = hash
 authorityKeyIdentifier = keyid:always,issuer
 basicConstraints = critical, CA:true, pathlen:0
 keyUsage = critical, digitalSignature, cRLSign, keyCertSign
-nameConstraints = critical,permitted;DNS:example, permitted;email:.wolfssl.com
-nsComment       = "Testing name constraints"
+nameConstraints = critical,permitted;IP:192.168.1.0/255.255.255.0
+nsComment       = "Testing IP name constraints"
 
 EOF
 gen_cert
-rm -f ./certs/test/cert-ext-ncmixed.cfg
-rm -f ./certs/test/cert-ext-ncmixed.pem
+rm -f ./certs/test/cert-ext-ncip.cfg
 
 OUT=certs/test/cert-ext-ia
 KEYFILE=certs/test/cert-ext-ia-key.der

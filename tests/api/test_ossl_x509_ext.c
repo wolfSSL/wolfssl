@@ -1549,3 +1549,727 @@ int test_wolfSSL_X509V3_EXT_print(void)
     return EXPECT_RESULT();
 }
 
+/*
+ * Test retrieving Name Constraints extension via X509_get_ext_d2i.
+ * Tests basic retrieval of permitted and excluded subtrees, stack operations
+ * (num, value), GENERAL_NAME type and data extraction, free functions.
+ */
+int test_wolfSSL_X509_get_ext_d2i_name_constraints(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_RSA) && !defined(IGNORE_NAME_CONSTRAINTS)
+    XFILE f = XBADFILE;
+    X509* x509 = NULL;
+    NAME_CONSTRAINTS* nc = NULL;
+    GENERAL_SUBTREE* subtree = NULL;
+    GENERAL_NAME* gn = NULL;
+    int numPermitted = 0;
+    int numExcluded = 0;
+    int critical = -1;
+
+    /* Test NULL input handling */
+    ExpectNull(X509_get_ext_d2i(NULL, NID_name_constraints, NULL, NULL));
+
+    /* Test certificate without name constraints
+     * server-cert.pem does not have name constraints extension */
+    ExpectTrue((f = XFOPEN("./certs/server-cert.pem", "rb")) != XBADFILE);
+    ExpectNotNull(x509 = PEM_read_X509(f, NULL, NULL, NULL));
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+        f = XBADFILE;
+    }
+
+    /* Should return NULL for certificate without name constraints */
+    nc = (NAME_CONSTRAINTS*)X509_get_ext_d2i(x509, NID_name_constraints,
+                                             &critical, NULL);
+    ExpectNull(nc);
+    X509_free(x509);
+    x509 = NULL;
+
+    /* Test certificate with permitted email name constraint.
+     * cert-ext-nc.pem has nameConstraints with permitted email */
+    ExpectTrue((f = XFOPEN("./certs/test/cert-ext-nc.pem", "rb")) != XBADFILE);
+    ExpectNotNull(x509 = PEM_read_X509(f, NULL, NULL, NULL));
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+        f = XBADFILE;
+    }
+
+    critical = -1;
+    nc = (NAME_CONSTRAINTS*)X509_get_ext_d2i(x509, NID_name_constraints,
+                                             &critical, NULL);
+    ExpectNotNull(nc);
+
+    /* Verify critical flag is set (cert marks it critical) */
+    ExpectIntEQ(critical, 1);
+
+    /* Check permitted subtrees */
+    if (nc != NULL) {
+        ExpectNotNull(nc->permittedSubtrees);
+        if (nc->permittedSubtrees != NULL) {
+            numPermitted = sk_GENERAL_SUBTREE_num(nc->permittedSubtrees);
+            ExpectIntGT(numPermitted, 0);
+
+            /* Get first permitted subtree */
+            subtree = sk_GENERAL_SUBTREE_value(nc->permittedSubtrees, 0);
+            ExpectNotNull(subtree);
+            if (subtree != NULL) {
+                ExpectNotNull(subtree->base);
+                if (subtree->base != NULL) {
+                    /* Check GENERAL_NAME type is GEN_EMAIL */
+                    gn = subtree->base;
+                    ExpectIntEQ(gn->type, GEN_EMAIL);
+
+                    /* Verify email constraint value */
+                    ExpectNotNull(gn->d.ia5);
+                    if (gn->d.ia5 != NULL) {
+                        ExpectNotNull(gn->d.ia5->data);
+                        ExpectIntGT(gn->d.ia5->length, 0);
+                    }
+                }
+            }
+        }
+
+        /* Check excluded subtrees, should be NULL or empty */
+        if (nc->excludedSubtrees != NULL) {
+            numExcluded = sk_GENERAL_SUBTREE_num(nc->excludedSubtrees);
+            ExpectIntEQ(numExcluded, 0);
+        }
+
+        /* Test out of bounds access */
+        if (nc->permittedSubtrees != NULL) {
+            ExpectNull(sk_GENERAL_SUBTREE_value(nc->permittedSubtrees, 100));
+        }
+    }
+
+    /* Test NULL stack handling, wolfSSL returns 0 */
+    ExpectIntEQ(sk_GENERAL_SUBTREE_num(NULL), 0);
+    ExpectNull(sk_GENERAL_SUBTREE_value(NULL, 0));
+
+    NAME_CONSTRAINTS_free(nc);
+    nc = NULL;
+    X509_free(x509);
+    x509 = NULL;
+
+    /* Test free functions with NULL */
+    NAME_CONSTRAINTS_free(NULL);
+    wolfSSL_GENERAL_SUBTREE_free(NULL);
+
+#endif /* OPENSSL_EXTRA && !NO_FILESYSTEM && !NO_CERTS && !NO_RSA &&
+        * !IGNORE_NAME_CONSTRAINTS */
+    return EXPECT_RESULT();
+}
+
+/*
+ * Test sk_GENERAL_SUBTREE_num and sk_GENERAL_SUBTREE_value functions.
+ */
+int test_wolfSSL_sk_GENERAL_SUBTREE(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_RSA) && !defined(IGNORE_NAME_CONSTRAINTS)
+    XFILE f = XBADFILE;
+    X509* x509 = NULL;
+    NAME_CONSTRAINTS* nc = NULL;
+    GENERAL_SUBTREE* subtree = NULL;
+    int num = 0;
+    int i;
+
+    /* Load certificate with name constraints (cert-ext-nc.pem has 1 email) */
+    ExpectTrue((f = XFOPEN("./certs/test/cert-ext-nc.pem", "rb")) != XBADFILE);
+    ExpectNotNull(x509 = PEM_read_X509(f, NULL, NULL, NULL));
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+        f = XBADFILE;
+    }
+
+    nc = (NAME_CONSTRAINTS*)X509_get_ext_d2i(x509, NID_name_constraints,
+                                             NULL, NULL);
+    ExpectNotNull(nc);
+
+    if (nc != NULL) {
+        ExpectNotNull(nc->permittedSubtrees);
+        if (nc->permittedSubtrees != NULL) {
+            /* Test sk_GENERAL_SUBTREE_num */
+            num = sk_GENERAL_SUBTREE_num(nc->permittedSubtrees);
+            ExpectIntGT(num, 0);
+
+            /* Test sk_GENERAL_SUBTREE_value with valid indices */
+            for (i = 0; i < num && i < 10; i++) {
+                subtree = sk_GENERAL_SUBTREE_value(nc->permittedSubtrees, i);
+                ExpectNotNull(subtree);
+                if (subtree != NULL) {
+                    ExpectNotNull(subtree->base);
+                }
+            }
+
+            /* Test sk_GENERAL_SUBTREE_value at boundaries */
+            ExpectNotNull(sk_GENERAL_SUBTREE_value(nc->permittedSubtrees, 0));
+            if (num > 0) {
+                ExpectNotNull(sk_GENERAL_SUBTREE_value(nc->permittedSubtrees,
+                                                       num - 1));
+            }
+
+            /* Test invalid indices (out of bounds) */
+            ExpectNull(sk_GENERAL_SUBTREE_value(nc->permittedSubtrees, num));
+            ExpectNull(sk_GENERAL_SUBTREE_value(nc->permittedSubtrees,
+                                                num + 1));
+            ExpectNull(sk_GENERAL_SUBTREE_value(nc->permittedSubtrees, 10000));
+        }
+    }
+
+    /* Test NULL stack - wolfSSL returns 0 */
+    ExpectIntEQ(sk_GENERAL_SUBTREE_num(NULL), 0);
+    ExpectNull(sk_GENERAL_SUBTREE_value(NULL, 0));
+
+    NAME_CONSTRAINTS_free(nc);
+    X509_free(x509);
+
+#endif /* OPENSSL_EXTRA && !NO_FILESYSTEM && !NO_CERTS && !NO_RSA &&
+        * !IGNORE_NAME_CONSTRAINTS */
+    return EXPECT_RESULT();
+}
+
+/*
+ * Test GENERAL_NAME types in Name Constraints.
+ * Verify that different GENERAL_NAME types (DNS, EMAIL, DIRNAME) are properly
+ * extracted from name constraints.
+ */
+int test_wolfSSL_NAME_CONSTRAINTS_types(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_RSA) && !defined(IGNORE_NAME_CONSTRAINTS)
+    XFILE f = XBADFILE;
+    X509* x509 = NULL;
+    NAME_CONSTRAINTS* nc = NULL;
+    GENERAL_SUBTREE* subtree = NULL;
+    GENERAL_NAME* gn = NULL;
+
+    /* Test EMAIL type constraint from cert-ext-nc.pem */
+    ExpectTrue((f = XFOPEN("./certs/test/cert-ext-nc.pem", "rb")) != XBADFILE);
+    ExpectNotNull(x509 = PEM_read_X509(f, NULL, NULL, NULL));
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+        f = XBADFILE;
+    }
+
+    nc = (NAME_CONSTRAINTS*)X509_get_ext_d2i(x509, NID_name_constraints,
+                                             NULL, NULL);
+    ExpectNotNull(nc);
+    if (EXPECT_SUCCESS()) {
+        ExpectNotNull(nc->permittedSubtrees);
+    }
+    if (EXPECT_SUCCESS()) {
+        subtree = sk_GENERAL_SUBTREE_value(nc->permittedSubtrees, 0);
+        ExpectNotNull(subtree);
+    }
+    if (EXPECT_SUCCESS()) {
+        ExpectNotNull(subtree->base);
+    }
+    if (EXPECT_SUCCESS()) {
+        gn = subtree->base;
+        ExpectIntEQ(gn->type, GEN_EMAIL);
+        ExpectNotNull(gn->d.ia5);
+    }
+    if (EXPECT_SUCCESS()) {
+        ExpectNotNull(gn->d.ia5->data);
+        ExpectIntGT(gn->d.ia5->length, 0);
+    }
+    if (EXPECT_SUCCESS()) {
+        /* Constraint should contain "wolfssl.com" */
+        ExpectNotNull(XSTRSTR((const char*)gn->d.ia5->data, "wolfssl.com"));
+    }
+
+    NAME_CONSTRAINTS_free(nc);
+    X509_free(x509);
+
+#endif /* OPENSSL_EXTRA && !NO_FILESYSTEM && !NO_CERTS && !NO_RSA &&
+        * !IGNORE_NAME_CONSTRAINTS */
+    return EXPECT_RESULT();
+}
+
+/*
+ * Test URI type in Name Constraints. Verifies that GEN_URI type name
+ * constraints are properly extracted and stored as IA5STRING.
+ */
+int test_wolfSSL_NAME_CONSTRAINTS_uri(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_RSA) && !defined(IGNORE_NAME_CONSTRAINTS)
+    XFILE f = XBADFILE;
+    X509* x509 = NULL;
+    NAME_CONSTRAINTS* nc = NULL;
+    GENERAL_SUBTREE* subtree = NULL;
+    GENERAL_NAME* gn = NULL;
+    int i;
+    int numSubtrees;
+    int foundUri = 0;
+
+    /* Test URI type constraint from cert-ext-nc-combined.pem
+     * This cert has both URI and DNS constraints */
+    ExpectTrue((f = XFOPEN("./certs/test/cert-ext-nc-combined.pem", "rb"))
+                    != XBADFILE);
+    ExpectNotNull(x509 = PEM_read_X509(f, NULL, NULL, NULL));
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+        f = XBADFILE;
+    }
+
+    nc = (NAME_CONSTRAINTS*)X509_get_ext_d2i(x509, NID_name_constraints,
+                                             NULL, NULL);
+    ExpectNotNull(nc);
+    if (EXPECT_SUCCESS()) {
+        ExpectNotNull(nc->permittedSubtrees);
+    }
+    /* Find the URI constraint by iterating through subtrees
+     * (wolfSSL may store them in a different order than in the cert) */
+    if (EXPECT_SUCCESS()) {
+        numSubtrees = sk_GENERAL_SUBTREE_num(nc->permittedSubtrees);
+        for (i = 0; i < numSubtrees; i++) {
+            subtree = sk_GENERAL_SUBTREE_value(nc->permittedSubtrees, i);
+            if (subtree != NULL && subtree->base != NULL &&
+                subtree->base->type == GEN_URI) {
+                gn = subtree->base;
+                foundUri = 1;
+                break;
+            }
+        }
+        ExpectIntEQ(foundUri, 1);
+    }
+    if (EXPECT_SUCCESS() && foundUri) {
+        ExpectNotNull(gn->d.ia5);
+    }
+    if (EXPECT_SUCCESS() && foundUri) {
+        ExpectNotNull(gn->d.ia5->data);
+        ExpectIntGT(gn->d.ia5->length, 0);
+    }
+    if (EXPECT_SUCCESS() && foundUri) {
+        /* Constraint should contain "wolfssl.com" */
+        ExpectNotNull(XSTRSTR((const char*)gn->d.ia5->data, "wolfssl.com"));
+    }
+
+    /* Test URI constraint matching with NAME_CONSTRAINTS_check_name
+     * Constraint is ".wolfssl.com" (leading dot), matches subdomains only */
+    if (EXPECT_SUCCESS()) {
+        /* Full URIs with subdomain hosts - should match */
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_URI,
+            "https://www.wolfssl.com/path", 28), 1);
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_URI,
+            "http://sub.wolfssl.com", 22), 1);
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_URI,
+            "https://a.b.c.wolfssl.com:8080/path?q=1", 39), 1);
+
+        /* Exact domain, should not match .wolfssl.com per RFC 5280 */
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_URI,
+            "https://wolfssl.com/", 20), 0);
+
+        /* Different domains, should not match */
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_URI,
+            "https://www.example.com/", 24), 0);
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_URI,
+            "https://fakewolfssl.com/", 24), 0);
+
+        /* URI with userinfo, should extract host correctly */
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_URI,
+            "https://user@www.wolfssl.com/", 29), 1);
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_URI,
+            "https://user:pass@www.wolfssl.com/path", 38), 1);
+
+        /* IPv6 literal URIs, host extracted without brackets.
+         * These don't match .wolfssl.com constraint (different host type) */
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_URI,
+            "https://[::1]:8080/path", 23), 0);
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_URI,
+            "https://[2001:db8::1]/", 22), 0);
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_URI,
+            "https://[fe80::1%25eth0]:443/", 29), 0);
+
+        /* IPv6 with userinfo */
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_URI,
+            "https://user@[::1]:8080/", 24), 0);
+
+        /* Malformed IPv6 (missing closing bracket), should fail */
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_URI,
+            "https://[::1/path", 17), 0);
+
+        /* Invalid URIs, should fail */
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_URI,
+            "not-a-uri", 9), 0);
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_URI,
+            "://no-scheme", 12), 0);
+    }
+
+    NAME_CONSTRAINTS_free(nc);
+    X509_free(x509);
+
+#endif /* OPENSSL_EXTRA && !NO_FILESYSTEM && !NO_CERTS && !NO_RSA &&
+        * !IGNORE_NAME_CONSTRAINTS */
+    return EXPECT_RESULT();
+}
+
+/*
+ * Test IP address type in Name Constraints.
+ * Verifies that GEN_IPADD type name constraints are properly extracted
+ * and contain the raw IP bytes in OCTET_STRING format.
+ * Format: [IP bytes][subnet mask bytes] (8 bytes for IPv4, 32 for IPv6)
+ */
+int test_wolfSSL_NAME_CONSTRAINTS_ipaddr(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_RSA) && !defined(IGNORE_NAME_CONSTRAINTS)
+    XFILE f = XBADFILE;
+    X509* x509 = NULL;
+    NAME_CONSTRAINTS* nc = NULL;
+    GENERAL_SUBTREE* subtree = NULL;
+    GENERAL_NAME* gn = NULL;
+    int numPermitted = 0;
+    int critical = -1;
+
+    /* Test IP address type constraint from cert-ext-ncip.pem
+     * This cert has permitted IP: 192.168.1.0/255.255.255.0 */
+    if ((f = XFOPEN("./certs/test/cert-ext-ncip.pem", "rb")) == XBADFILE) {
+        return TEST_SKIPPED;
+    }
+    x509 = PEM_read_X509(f, NULL, NULL, NULL);
+    XFCLOSE(f);
+    f = XBADFILE;
+
+    if (x509 == NULL) {
+        /* Certificate may fail to load due to constraints, skip */
+        return TEST_SKIPPED;
+    }
+
+    critical = -1;
+    nc = (NAME_CONSTRAINTS*)X509_get_ext_d2i(x509, NID_name_constraints,
+                                             &critical, NULL);
+    ExpectNotNull(nc);
+
+    /* Verify critical flag is set */
+    ExpectIntEQ(critical, 1);
+
+    if (EXPECT_SUCCESS()) {
+        ExpectNotNull(nc->permittedSubtrees);
+    }
+    if (EXPECT_SUCCESS()) {
+        numPermitted = sk_GENERAL_SUBTREE_num(nc->permittedSubtrees);
+        ExpectIntEQ(numPermitted, 1);
+        subtree = sk_GENERAL_SUBTREE_value(nc->permittedSubtrees, 0);
+        ExpectNotNull(subtree);
+    }
+    if (EXPECT_SUCCESS()) {
+        ExpectNotNull(subtree->base);
+    }
+    if (EXPECT_SUCCESS()) {
+        gn = subtree->base;
+        /* Verify GENERAL_NAME type is GEN_IPADD */
+        ExpectIntEQ(gn->type, GEN_IPADD);
+        /* Verify IP data is stored in d.ip as OCTET_STRING */
+        ExpectNotNull(gn->d.ip);
+    }
+    if (EXPECT_SUCCESS()) {
+        ExpectNotNull(gn->d.ip->data);
+        /* IPv4 constraint: 4 bytes IP + 4 bytes mask = 8 */
+        ExpectIntEQ(gn->d.ip->length, 8);
+    }
+    if (EXPECT_SUCCESS()) {
+        /* Verify the IP address bytes (192.168.1.0) */
+        ExpectIntEQ((unsigned char)gn->d.ip->data[0], 192);
+        ExpectIntEQ((unsigned char)gn->d.ip->data[1], 168);
+        ExpectIntEQ((unsigned char)gn->d.ip->data[2], 1);
+        ExpectIntEQ((unsigned char)gn->d.ip->data[3], 0);
+        /* Verify the subnet mask bytes (255.255.255.0) */
+        ExpectIntEQ((unsigned char)gn->d.ip->data[4], 255);
+        ExpectIntEQ((unsigned char)gn->d.ip->data[5], 255);
+        ExpectIntEQ((unsigned char)gn->d.ip->data[6], 255);
+        ExpectIntEQ((unsigned char)gn->d.ip->data[7], 0);
+    }
+    if (EXPECT_SUCCESS() && nc->excludedSubtrees != NULL) {
+        /* Excluded subtrees should be empty */
+        ExpectIntEQ(sk_GENERAL_SUBTREE_num(nc->excludedSubtrees), 0);
+    }
+
+    NAME_CONSTRAINTS_free(nc);
+    X509_free(x509);
+
+#endif /* OPENSSL_EXTRA && !NO_FILESYSTEM && !NO_CERTS && !NO_RSA &&
+        * !IGNORE_NAME_CONSTRAINTS */
+    return EXPECT_RESULT();
+}
+
+/*
+ * Test wolfSSL_NAME_CONSTRAINTS_check_name() function, checking individual
+ * names against name constraints.
+ */
+int test_wolfSSL_NAME_CONSTRAINTS_check_name(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_RSA) && !defined(IGNORE_NAME_CONSTRAINTS)
+    XFILE f = XBADFILE;
+    X509* x509 = NULL;
+    NAME_CONSTRAINTS* nc = NULL;
+
+    /* Test email constraint checking with cert-ext-nc.pem
+     * This cert has permitted email for .wolfssl.com (subdomains only) */
+    ExpectTrue((f = XFOPEN("./certs/test/cert-ext-nc.pem", "rb")) != XBADFILE);
+    ExpectNotNull(x509 = PEM_read_X509(f, NULL, NULL, NULL));
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+        f = XBADFILE;
+    }
+
+    nc = (NAME_CONSTRAINTS*)X509_get_ext_d2i(x509, NID_name_constraints,
+                                             NULL, NULL);
+    ExpectNotNull(nc);
+
+    if (EXPECT_SUCCESS()) {
+        /* Constraint is ".wolfssl.com" (leading dot). Per RFC 5280, this
+         * matches emails where domain ends with  ".wolfssl.com" (subdomains
+         * only), not the exact domain. */
+
+        /* Subdomain emails, should match .wolfssl.com */
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_EMAIL,
+            "test@sub.wolfssl.com", 20), 1);
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_EMAIL,
+            "user@mail.wolfssl.com", 21), 1);
+        /* Deeper subdomain, should also match */
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_EMAIL,
+            "admin@a.b.c.wolfssl.com", 23), 1);
+
+        /* Exact domain, should not match .wolfssl.com per RFC */
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_EMAIL,
+            "user@wolfssl.com", 16), 0);
+
+        /* Different domains, should not match */
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_EMAIL,
+            "user@other.com", 14), 0);
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_EMAIL,
+            "user@notwolfssl.com", 19), 0);
+        /* Suffix that doesn't have dot boundary */
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_EMAIL,
+            "user@fakewolfssl.com", 20), 0);
+
+        /* Test DNS names, no DNS constraint, so all should pass */
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_DNS,
+            "www.example.com", 15), 1);
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_DNS,
+            "any.domain.org", 14), 1);
+
+        /* Test NULL/invalid arguments */
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(NULL, GEN_EMAIL,
+            "user@wolfssl.com", 16), 0);
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_EMAIL,
+            NULL, 16), 0);
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_EMAIL,
+            "user@wolfssl.com", 0), 0);
+        /* Invalid email format (no @) */
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_EMAIL,
+            "invalid-email", 13), 0);
+        /* @ at start */
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_EMAIL,
+            "@wolfssl.com", 12), 0);
+        /* @ at end */
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_EMAIL,
+            "user@", 5), 0);
+    }
+
+    NAME_CONSTRAINTS_free(nc);
+    X509_free(x509);
+    x509 = NULL;
+    nc = NULL;
+
+    /* Test IP address constraint checking with cert-ext-ncip.pem
+     * This cert has permitted IP 192.168.1.0/255.255.255.0 */
+    if ((f = XFOPEN("./certs/test/cert-ext-ncip.pem", "rb")) == XBADFILE) {
+        return TEST_SKIPPED;
+    }
+    x509 = PEM_read_X509(f, NULL, NULL, NULL);
+    XFCLOSE(f);
+    f = XBADFILE;
+
+    if (x509 == NULL) {
+        return TEST_SKIPPED;
+    }
+
+    nc = (NAME_CONSTRAINTS*)X509_get_ext_d2i(x509, NID_name_constraints,
+                                             NULL, NULL);
+    ExpectNotNull(nc);
+
+    if (EXPECT_SUCCESS()) {
+        /* Test permitted IPs, within 192.168.1.0/24 subnet */
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_IPADD,
+            "192.168.1.1", 11), 1);
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_IPADD,
+            "192.168.1.50", 12), 1);
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_IPADD,
+            "192.168.1.254", 13), 1);
+
+        /* Test non-permitted IPs, outside 192.168.1.0/24 subnet */
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_IPADD,
+            "192.168.2.1", 11), 0);
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_IPADD,
+            "10.0.0.1", 8), 0);
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_IPADD,
+            "8.8.8.8", 7), 0);
+
+        /* Test invalid IP format */
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_IPADD,
+            "invalid", 7), 0);
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_IPADD,
+            "256.1.1.1", 9), 0);
+    }
+
+    NAME_CONSTRAINTS_free(nc);
+    X509_free(x509);
+
+#endif /* OPENSSL_EXTRA && !NO_FILESYSTEM && !NO_CERTS && !NO_RSA &&
+        * !IGNORE_NAME_CONSTRAINTS */
+    return EXPECT_RESULT();
+}
+
+/*
+ * Test DNS type name constraint checking with leading dot (subdomain matching).
+ * Uses cert-ext-nc-combined.pem which has permitted;DNS:.wolfssl.com
+ */
+int test_wolfSSL_NAME_CONSTRAINTS_dns(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_RSA) && !defined(IGNORE_NAME_CONSTRAINTS)
+    XFILE f = XBADFILE;
+    X509* x509 = NULL;
+    NAME_CONSTRAINTS* nc = NULL;
+
+    /* Test DNS constraint checking with cert-ext-nc-combined.pem
+     * This cert has permitted DNS for .wolfssl.com (subdomains only) */
+    f = XFOPEN("./certs/test/cert-ext-nc-combined.pem", "rb");
+    if (f == XBADFILE) {
+        return TEST_SKIPPED;
+    }
+    x509 = PEM_read_X509(f, NULL, NULL, NULL);
+    XFCLOSE(f);
+    f = XBADFILE;
+
+    if (x509 == NULL) {
+        return TEST_SKIPPED;
+    }
+
+    nc = (NAME_CONSTRAINTS*)X509_get_ext_d2i(x509, NID_name_constraints,
+                                             NULL, NULL);
+    ExpectNotNull(nc);
+
+    if (EXPECT_SUCCESS()) {
+        /* Constraint is ".wolfssl.com" (leading dot). Per RFC 5280, this
+         * matches DNS names that end with ".wolfssl.com" (subdomains only). */
+
+        /* Subdomain DNS names, should match */
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_DNS,
+            "www.wolfssl.com", 15), 1);
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_DNS,
+            "mail.wolfssl.com", 16), 1);
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_DNS,
+            "a.b.c.wolfssl.com", 17), 1);
+
+        /* Exact domain, should not match .wolfssl.com per RFC */
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_DNS,
+            "wolfssl.com", 11), 0);
+
+        /* Different domains, should not match */
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_DNS,
+            "www.example.com", 15), 0);
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_DNS,
+            "fakewolfssl.com", 15), 0);
+    }
+
+    NAME_CONSTRAINTS_free(nc);
+    X509_free(x509);
+
+#endif /* OPENSSL_EXTRA && !NO_FILESYSTEM && !NO_CERTS && !NO_RSA &&
+        * !IGNORE_NAME_CONSTRAINTS */
+    return EXPECT_RESULT();
+}
+
+/*
+ * Test excluded name constraints.
+ * Uses cert-ext-ncmulti.pem which has:
+ *   permitted;DNS:.example.com, permitted;email:.example.com
+ *   excluded;DNS:.blocked.example.com, excluded;email:.blocked.example.com
+ */
+int test_wolfSSL_NAME_CONSTRAINTS_excluded(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_RSA) && !defined(IGNORE_NAME_CONSTRAINTS)
+    XFILE f = XBADFILE;
+    X509* x509 = NULL;
+    NAME_CONSTRAINTS* nc = NULL;
+
+    /* Test excluded constraint checking with cert-ext-ncmulti.pem
+     * This cert permits .example.com but excludes .blocked.example.com */
+    if ((f = XFOPEN("./certs/test/cert-ext-ncmulti.pem", "rb")) == XBADFILE) {
+        return TEST_SKIPPED;
+    }
+    x509 = PEM_read_X509(f, NULL, NULL, NULL);
+    XFCLOSE(f);
+    f = XBADFILE;
+
+    if (x509 == NULL) {
+        return TEST_SKIPPED;
+    }
+
+    nc = (NAME_CONSTRAINTS*)X509_get_ext_d2i(x509, NID_name_constraints,
+                                             NULL, NULL);
+    ExpectNotNull(nc);
+
+    if (EXPECT_SUCCESS()) {
+        /* Verify both permitted and excluded subtrees are populated */
+        ExpectNotNull(nc->permittedSubtrees);
+        ExpectNotNull(nc->excludedSubtrees);
+        ExpectIntGT(sk_GENERAL_SUBTREE_num(nc->excludedSubtrees), 0);
+    }
+
+    if (EXPECT_SUCCESS()) {
+        /* Permitted .example.com subdomains should be allowed */
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_DNS,
+            "www.example.com", 15), 1);
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_DNS,
+            "mail.example.com", 16), 1);
+
+        /* Excluded .blocked.example.com, subdomains should be blocked */
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_DNS,
+            "www.blocked.example.com", 23), 0);
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_DNS,
+            "sub.blocked.example.com", 23), 0);
+
+        /* blocked.example.com is permitted because
+         * .blocked.example.com (with leading dot) only matches subdomains
+         * per RFC 5280, and it still matches the permitted .example.com
+         * constraint */
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_DNS,
+            "blocked.example.com", 19), 1);
+
+        /* Domains outside permitted .example.com should not be allowed */
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_DNS,
+            "www.wolfssl.com", 15), 0);
+
+        /* Permitted email .example.com subdomains should be allowed */
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_EMAIL,
+            "user@www.example.com", 20), 1);
+
+        /* Excluded email .blocked.example.com, should be blocked */
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_EMAIL,
+            "user@www.blocked.example.com", 28), 0);
+    }
+
+    NAME_CONSTRAINTS_free(nc);
+    X509_free(x509);
+
+#endif /* OPENSSL_EXTRA && !NO_FILESYSTEM && !NO_CERTS && !NO_RSA &&
+        * !IGNORE_NAME_CONSTRAINTS */
+    return EXPECT_RESULT();
+}
+
