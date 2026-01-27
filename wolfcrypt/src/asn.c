@@ -34343,7 +34343,7 @@ int wc_SignCert_cb(int requestSz, int sType, byte* buf, word32 buffSz,
     CertSignCtx certSignCtx_lcl;
     CertSignCtx* certSignCtx = &certSignCtx_lcl;
 
-    if (signCb == NULL) {
+    if (signCb == NULL || buf == NULL) {
         return BAD_FUNC_ARG;
     }
 
@@ -34364,6 +34364,14 @@ int wc_SignCert_cb(int requestSz, int sType, byte* buf, word32 buffSz,
     sigSz = MakeSignatureCb(certSignCtx, buf, (word32)requestSz,
         certSignCtx->sig, MAX_ENCODED_SIG_SZ, sType, keyType,
         signCb, signCtx, rng, NULL);
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    if (sigSz == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+        /* Not free'ing certSignCtx->sig here because it could still be in use
+         * with async operations. */
+        return sigSz;
+    }
+#endif
 
     if (sigSz >= 0) {
         if (requestSz + MAX_SEQ_SZ * 2 + sigSz > (int)buffSz) {
