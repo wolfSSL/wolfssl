@@ -132,6 +132,19 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     }
 #endif
 
+/* TLS-safe default:
+ * When TLS is enabled, AES-GCM must always retain software fallback.
+ * CryptoCB may accelerate, but must not remove fallback implicitly.
+ */
+#if !defined(NO_TLS)
+    #define WOLFSSL_AES_GCM_TLS_SAFE
+#endif
+
+#if defined(WOLF_CRYPTO_CB_AES_SETKEY) && !defined(WOLFSSL_AES_GCM_TLS_SAFE)
+    #pragma message("AES-GCM full offload enabled (TLS disabled). " \
+                    "CryptoCB callbacks must handle all GCM operations.")
+#endif
+
 /* Define AES implementation includes and functions */
 #if defined(STM32_CRYPTO)
      /* STM32F2/F4/F7/L4/L5/H7/WB55 hardware AES support for ECB, CBC, CTR and GCM modes */
@@ -4341,6 +4354,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
     int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
             const byte* iv, int dir)
     {
+        int ret;
         if ((aes == NULL) || (userKey == NULL)) {
             return BAD_FUNC_ARG;
         }
@@ -4365,10 +4379,45 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
 
     #ifdef WOLF_CRYPTO_CB
         if (aes->devId != INVALID_DEVID) {
+        #ifdef WOLF_CRYPTO_CB_AES_SETKEY
+            ret = wc_CryptoCb_AesSetKey(aes, userKey, keylen);
+
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+                if (ret != 0) {
+                    aes->devCtx = NULL;
+                    return ret;
+                }
+
+                /* Callback succeeded - full GCM offload assumed */
+                aes->keylen = (int)keylen;
+
+            #ifdef WOLFSSL_AES_GCM_TLS_SAFE
+                WOLFSSL_MSG("CryptoCB AES SetKey succeeded, TLS-safe fallback retained");
+                if (keylen > sizeof(aes->devKey)) {
+                    aes->devCtx = NULL;
+                    return BAD_FUNC_ARG;
+                }
+                XMEMCPY(aes->devKey, userKey, keylen);
+                goto cryptocb_aes_setkey_fallback;
+            #else
+                WOLFSSL_MSG("CryptoCB AES SetKey succeeded, full offload (crypto-only)");
+                if (iv != NULL) {
+                    XMEMCPY(aes->reg, iv, WC_AES_BLOCK_SIZE);
+                } else {
+                    XMEMSET(aes->reg, 0, WC_AES_BLOCK_SIZE);
+                }
+                return 0;
+            #endif
+            }
+            /* CRYPTOCB_UNAVAILABLE: continue to software */
+        cryptocb_aes_setkey_fallback: (void)0;
+        #else
+            /* Standard CryptoCB path - copy key to devKey */
             if (keylen > sizeof(aes->devKey)) {
                 return BAD_FUNC_ARG;
             }
             XMEMCPY(aes->devKey, userKey, keylen);
+        #endif
         }
     #endif
 
@@ -4791,6 +4840,49 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
             return BAD_FUNC_ARG;
         }
 
+    #ifdef WOLF_CRYPTO_CB
+        if (aes->devId != INVALID_DEVID) {
+        #ifdef WOLF_CRYPTO_CB_AES_SETKEY
+            ret = wc_CryptoCb_AesSetKey(aes, userKey, keylen);
+
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+                if (ret != 0) {
+                    aes->devCtx = NULL;
+                    return ret;
+                }
+
+                /* Callback succeeded - full GCM offload assumed */
+                aes->keylen = (int)keylen;
+
+            #ifdef WOLFSSL_AES_GCM_TLS_SAFE
+                WOLFSSL_MSG("CryptoCB AES SetKey succeeded, TLS-safe fallback retained");
+                if (keylen > sizeof(aes->devKey)) {
+                    aes->devCtx = NULL;
+                    return BAD_FUNC_ARG;
+                }
+                XMEMCPY(aes->devKey, userKey, keylen);
+                goto cryptocb_aes_setkey_fallback;
+            #else
+                WOLFSSL_MSG("CryptoCB AES SetKey succeeded, full offload (crypto-only)");
+                if (iv != NULL) {
+                    XMEMCPY(aes->reg, iv, WC_AES_BLOCK_SIZE);
+                } else {
+                    XMEMSET(aes->reg, 0, WC_AES_BLOCK_SIZE);
+                }
+                return 0;
+            #endif
+            }
+            /* CRYPTOCB_UNAVAILABLE: continue to software */
+        #ifdef WOLFSSL_AES_GCM_TLS_SAFE
+        cryptocb_aes_setkey_fallback: (void)0;
+        #endif
+        #else
+            /* Copy key to devKey for standard CryptoCB path */
+            XMEMCPY(aes->devKey, userKey, keylen);
+        #endif
+        }
+    #endif
+
     #ifdef WOLFSSL_MAXQ10XX_CRYPTO
         if (wc_MAXQ10XX_AesSetKey(aes, userKey, keylen) != 0) {
             return WC_HW_E;
@@ -4861,10 +4953,16 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
         if (aes->devId != INVALID_DEVID)
         #endif
         {
-            if (keylen > sizeof(aes->devKey)) {
-                return BAD_FUNC_ARG;
+        #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_AES_SETKEY)
+            /* Skip devKey copy if CryptoCB handled key import */
+            if (aes->devCtx == NULL)
+        #endif
+            {
+                if (keylen > sizeof(aes->devKey)) {
+                    return BAD_FUNC_ARG;
+                }
+                XMEMCPY(aes->devKey, userKey, keylen);
             }
-            XMEMCPY(aes->devKey, userKey, keylen);
         }
     #endif
 
@@ -7455,14 +7553,35 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 #else
 #if !defined(FREESCALE_LTC_AES_GCM) && !defined(WOLFSSL_PSOC6_CRYPTO)
     if (ret == 0) {
-        VECTOR_REGISTERS_PUSH;
-        /* AES-NI code generates its own H value, but generate it here too, to
-         * assure pure-C fallback is always usable.
-         */
-        ret = wc_AesEncrypt(aes, iv, aes->gcm.H);
-        VECTOR_REGISTERS_POP;
+#ifdef WOLF_CRYPTO_CB_AES_SETKEY
+    #ifdef WOLFSSL_AES_GCM_TLS_SAFE
+        /* TLS-safe: always generate H table for fallback */
+    #else
+        if (aes->devId != INVALID_DEVID && aes->devCtx != NULL) {
+            /* Full offload: skip H table generation */
+        }
+        else
+    #endif
+#endif
+        {
+            VECTOR_REGISTERS_PUSH;
+            /* Generate H = AES_Encrypt(key, 0^128) for GHASH */
+            ret = wc_AesEncrypt(aes, iv, aes->gcm.H);
+            VECTOR_REGISTERS_POP;
+        }
     }
     if (ret == 0) {
+#ifdef WOLF_CRYPTO_CB_AES_SETKEY
+    #ifdef WOLFSSL_AES_GCM_TLS_SAFE
+        /* TLS-safe: always generate M0 table for fallback */
+    #else
+        if (aes->devId != INVALID_DEVID && aes->devCtx != NULL) {
+            /* Full offload: skip M0 table generation */
+        }
+        else
+    #endif
+#endif
+        {
 #if defined(GCM_TABLE) || defined(GCM_TABLE_4BIT)
 #if defined(WOLFSSL_AESNI) && defined(GCM_TABLE_4BIT)
         if (aes->use_aesni) {
@@ -7490,6 +7609,7 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
             GenerateM0(&aes->gcm);
         }
 #endif /* GCM_TABLE || GCM_TABLE_4BIT */
+        }
     }
 #endif /* !FREESCALE_LTC_AES_GCM && !WOLFSSL_PSOC6_CRYPTO */
 #endif
@@ -7500,7 +7620,19 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 
 #ifdef WOLF_CRYPTO_CB
     if (aes->devId != INVALID_DEVID) {
-        XMEMCPY(aes->devKey, key, len);
+    #ifdef WOLF_CRYPTO_CB_AES_SETKEY
+    #if !defined(WOLFSSL_AES_GCM_TLS_SAFE)
+        /* In CryptoCB key import mode, key is in device - devKey not used */
+        if (aes->devCtx != NULL) {
+            /* Key handled by CryptoCB device */
+        }
+        else
+    #endif
+    #endif
+        {
+            /* Copy key to devKey for standard CryptoCB path or TLS-safe fallback */
+            XMEMCPY(aes->devKey, key, len);
+        }
     }
 #endif
 
@@ -13299,6 +13431,7 @@ int wc_AesInit(Aes* aes, void* heap, int devId)
 
 #if defined(WOLF_CRYPTO_CB) || defined(WOLFSSL_STM32U5_DHUK)
     aes->devId = devId;
+    aes->devCtx = NULL;
 #else
     (void)devId;
 #endif
@@ -13380,10 +13513,6 @@ int wc_AesInit_Label(Aes* aes, const char* label, void* heap, int devId)
 /* Free Aes resources */
 void wc_AesFree(Aes* aes)
 {
-#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
-    int ret = 0;
-#endif
-
     if (aes == NULL) {
         return;
     }
@@ -13393,19 +13522,17 @@ void wc_AesFree(Aes* aes)
     if (aes->devId != INVALID_DEVID)
     #endif
     {
-        ret = wc_CryptoCb_Free(aes->devId, WC_ALGO_TYPE_CIPHER,
-                         WC_CIPHER_AES, (void*)aes);
-        /* If they want the standard free, they can call it themselves */
-        /* via their callback setting devId to INVALID_DEVID */
-        /* otherwise assume the callback handled it */
+        int ret = wc_CryptoCb_Free(aes->devId, WC_ALGO_TYPE_CIPHER,
+                                   WC_CIPHER_AES, aes);
+    #ifdef WOLF_CRYPTO_CB_AES_SETKEY
+        aes->devCtx = NULL;  /* Clear device context handle */
+    #endif
+        /* If callback wants standard free, it can set devId to INVALID_DEVID.
+         * Otherwise assume the callback handled cleanup. */
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return;
         /* fall-through when unavailable */
     }
-
-    /* silence compiler warning */
-    (void)ret;
-
 #endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_FREE */
 
 #ifdef WC_DEBUG_CIPHER_LIFECYCLE
