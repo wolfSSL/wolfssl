@@ -29,7 +29,6 @@
 
 #include <stdint.h>
 #include <stdarg.h>
-#include <stdio.h>
 
 #include <wolfssl/wolfcrypt/wolfmath.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
@@ -887,6 +886,10 @@ int wc_MXC_TPU_SHA_Copy(wc_MXC_Sha* src, wc_MXC_Sha* dst)
 /* returns void to match other wc_Sha*Free api */
 void wc_MXC_TPU_SHA_Free(wc_MXC_Sha* hash)
 {
+    if (hash == NULL) {
+        return; /* Hash Struct is Null already, dont edit potentially */
+                /* undefined memory by accident */
+    }
     /* Securely zero the buffer before freeing */
     if (hash->msg != NULL) {
         ForceZero(hash->msg, hash->size);
