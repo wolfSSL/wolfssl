@@ -1106,7 +1106,19 @@ int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
         return ret;
 
     sha256->heap = heap;
+#ifdef WOLF_CRYPTO_CB
+    sha256->devId = devId;
+    sha256->devCtx = NULL;
+#else
     (void)devId;
+#endif
+
+#ifdef MAX3266X_SHA_CB
+    ret = wc_MXC_TPU_SHA_Init(&(sha256->mxcCtx));
+    if (ret != 0) {
+        return ret;
+    }
+#endif
 
     #ifdef WOLFSSL_SMALL_STACK_CACHE
     sha256->W = NULL;
