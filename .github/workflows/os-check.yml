@@ -70,6 +70,7 @@ jobs:
           '--enable-all --enable-certgencache',
           '--enable-sessionexport --enable-dtls --enable-dtls13',
           '--enable-sessionexport',
+          '--disable-examples CPPFLAGS=-DWOLFSSL_NO_MALLOC',
         ]
     name: make check
     if: github.repository_owner == 'wolfssl'

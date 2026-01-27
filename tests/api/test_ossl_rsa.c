@@ -402,12 +402,11 @@ int test_wolfSSL_RSA_DER(void)
 
     for (i = 0; tbl[i].der != NULL; i++)
     {
-        /* Passing in pointer results in pointer moving. */
+        /* d2i_RSAPublicKey should fail when given private key DER.
+         * wc_RsaPublicKeyDecode correctly rejects private key format. */
         buff = tbl[i].der;
-        ExpectNotNull(d2i_RSAPublicKey(&rsa, &buff, tbl[i].sz));
-        ExpectNotNull(rsa);
-        RSA_free(rsa);
-        rsa = NULL;
+        ExpectNull(d2i_RSAPublicKey(&rsa, &buff, tbl[i].sz));
+        ExpectNull(rsa);
     }
     for (i = 0; tbl[i].der != NULL; i++)
     {

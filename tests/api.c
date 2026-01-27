@@ -16971,12 +16971,13 @@ static int test_wolfSSL_d2i_PrivateKeys_bio(void)
 
         RSA_free(rsa);
         rsa = NULL;
+        /* d2i_RSA_PUBKEY_bio should fail when given private key DER.
+         * wc_RsaPublicKeyDecode correctly rejects private key format. */
         ExpectIntGT(BIO_write(bio, client_key_der_2048,
                     sizeof_client_key_der_2048), 0);
-        ExpectNotNull(d2i_RSA_PUBKEY_bio(bio, &rsa));
+        ExpectNull(d2i_RSA_PUBKEY_bio(bio, &rsa));
         (void)BIO_reset(bio);
 
-        RSA_free(rsa);
         rsa = RSA_new();
         ExpectIntEQ(wolfSSL_i2d_RSAPrivateKey(rsa, NULL), 0);
 #endif /* USE_CERT_BUFFERS_2048 WOLFSSL_KEY_GEN */
