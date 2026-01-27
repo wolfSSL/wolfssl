@@ -31981,15 +31981,6 @@ static int WriteCertBody(DerCert* der, byte* buf)
 
 
 #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_REQ)
-/* Internal typedef for callback signature - must match wc_SignCertCb in asn_public.h
- * This fallback is needed when WOLFSSL_CERT_SIGN_CB is not defined but
- * MakeSignatureCb is still used internally by the refactored MakeSignature. */
-#ifndef WOLFSSL_CERT_SIGN_CB
-typedef int (*wc_SignCertCb)(const byte* in, word32 inLen,
-                             byte* out, word32* outLen,
-                             int sigAlgo, int keyType, void* ctx);
-#endif
-
 /* Forward declaration for internal use */
 static int MakeSignatureCb(CertSignCtx* certSignCtx, const byte* buf,
     word32 sz, byte* sig, word32 sigSz, int sigAlgoType, int keyType,

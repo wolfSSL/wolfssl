@@ -233,7 +233,6 @@ typedef int (wc_pem_password_cb)(char* passwd, int sz, int rw, void* userdata);
 #define pem_password_cb wc_pem_password_cb
 #endif
 
-#ifdef WOLFSSL_CERT_SIGN_CB
 /*!
     \ingroup CertManager
     \brief Callback function type for certificate/CSR signing.
@@ -273,7 +272,6 @@ typedef int (wc_pem_password_cb)(char* passwd, int sz, int rw, void* userdata);
 typedef int (*wc_SignCertCb)(const byte* in, word32 inLen,
                              byte* out, word32* outLen,
                              int sigAlgo, int keyType, void* ctx);
-#endif /* WOLFSSL_CERT_SIGN_CB */
 
 typedef struct EncryptedInfo {
     long     consumed;         /* tracks PEM bytes consumed */
