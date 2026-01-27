@@ -38780,6 +38780,41 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         XMEMCPY(it->sessionCtx, ssl->sessionCtx, ID_LEN);
 #endif
 
+#if defined(OPENSSL_ALL) && defined(KEEP_PEER_CERT) && \
+    !defined(NO_CERT_IN_TICKET)
+        /* Store peer certificate in ticket for session resumption.
+         * Try ssl->peerCert first, then ssl->session->chain as fallback. */
+        {
+            const byte* certDer = NULL;
+            word32 certDerSz = 0;
+            
+            if (ssl->peerCert.derCert != NULL &&
+                    ssl->peerCert.derCert->length > 0) {
+                /* Use current peer certificate */
+                certDer = ssl->peerCert.derCert->buffer;
+                certDerSz = ssl->peerCert.derCert->length;
+            }
+#ifdef SESSION_CERTS
+            else if (ssl->session->chain.count > 0) {
+                /* Use peer certificate from session chain */
+                certDer = ssl->session->chain.certs[0].buffer;
+                certDerSz = ssl->session->chain.certs[0].length;
+            }
+#endif
+            
+            if (certDer != NULL && certDerSz > 0 &&
+                    certDerSz <= MAX_TICKET_PEER_CERT_SZ) {
+                c16toa((word16)certDerSz, it->peerCertLen);
+                XMEMCPY(it->peerCert, certDer, certDerSz);
+            }
+            else {
+                if (certDerSz > MAX_TICKET_PEER_CERT_SZ)
+                    WOLFSSL_MSG("Peer cert too large for ticket, skipping");
+                c16toa(0, it->peerCertLen);
+            }
+        }
+#endif
+
 #ifdef WOLFSSL_TICKET_HAVE_ID
         {
             const byte* id = NULL;
@@ -39159,6 +39194,49 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             ato16(it->namedGroup, &ssl->session->namedGroup);
 #endif
         }
+
+#if defined(OPENSSL_ALL) && defined(KEEP_PEER_CERT) && \
+    !defined(NO_CERT_IN_TICKET)
+        /* Restore peer certificate from ticket to session chain and peerCert */
+        {
+            word16 peerCertLen = 0;
+            ato16(it->peerCertLen, &peerCertLen);
+            
+            if (peerCertLen > 0 && peerCertLen <= MAX_TICKET_PEER_CERT_SZ) {
+#ifdef SESSION_CERTS
+                /* Clear existing chain and add the peer certificate */
+                ssl->session->chain.count = 0;
+                AddSessionCertToChain(&ssl->session->chain, 
+                                      it->peerCert, peerCertLen);
+#endif
+                /* Also decode into ssl->peerCert for direct access */
+                {
+                    int ret;
+                    DecodedCert* dCert;
+                    
+                    dCert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), ssl->heap,
+                                                   DYNAMIC_TYPE_DCERT);
+                    if (dCert != NULL) {
+                        InitDecodedCert(dCert, it->peerCert, peerCertLen, ssl->heap);
+                        ret = ParseCertRelative(dCert, CERT_TYPE, 0, NULL, NULL);
+                        if (ret == 0) {
+                            FreeX509(&ssl->peerCert);
+                            InitX509(&ssl->peerCert, 0, ssl->heap);
+                            ret = CopyDecodedToX509(&ssl->peerCert, dCert);
+                            if (ret != 0) {
+                                /* Failed to copy - clear peerCert */
+                                FreeX509(&ssl->peerCert);
+                                InitX509(&ssl->peerCert, 0, ssl->heap);
+                            }
+                        }
+                        FreeDecodedCert(dCert);
+                        XFREE(dCert, ssl->heap, DYNAMIC_TYPE_DCERT);
+                    }
+                }
+            }
+        }
+#endif
+
         ssl->version.minor = it->pv.minor;
     }
 
@@ -39203,6 +39281,23 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #ifdef OPENSSL_EXTRA
         it->sessionCtxSz = sess->sessionCtxSz;
         XMEMCPY(it->sessionCtx, sess->sessionCtx, sess->sessionCtxSz);
+#endif
+#if defined(OPENSSL_ALL) && defined(KEEP_PEER_CERT) && \
+    defined(SESSION_CERTS) && !defined(NO_CERT_IN_TICKET)
+        /* Store peer certificate from session chain */
+        if (sess->chain.count > 0) {
+            word32 certLen = sess->chain.certs[0].length;
+            if (certLen <= MAX_TICKET_PEER_CERT_SZ) {
+                c16toa((word16)certLen, it->peerCertLen);
+                XMEMCPY(it->peerCert, sess->chain.certs[0].buffer, certLen);
+            }
+            else {
+                c16toa(0, it->peerCertLen);
+            }
+        }
+        else {
+            c16toa(0, it->peerCertLen);
+        }
 #endif
     }
 

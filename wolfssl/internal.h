@@ -3446,6 +3446,11 @@ WOLFSSL_LOCAL int TLSX_AddEmptyRenegotiationInfo(TLSX** extensions, void* heap);
 #endif /* HAVE_SECURE_RENEGOTIATION */
 
 #ifdef HAVE_SESSION_TICKET
+/* Max peer cert size for ticket: 1KB is reasonable for most RSA/ECC certs */
+#ifndef MAX_TICKET_PEER_CERT_SZ
+#define MAX_TICKET_PEER_CERT_SZ 1024
+#endif
+
 /* Our ticket format. All members need to be a byte or array of byte to
  * avoid alignment issues */
 typedef struct InternalTicket {
@@ -3471,6 +3476,11 @@ typedef struct InternalTicket {
     byte            sessionCtxSz;          /* sessionCtx length        */
     byte            sessionCtx[ID_LEN];    /* app specific context id */
 #endif /* OPENSSL_EXTRA */
+#if defined(OPENSSL_ALL) && defined(KEEP_PEER_CERT) && \
+    !defined(NO_CERT_IN_TICKET)
+    byte            peerCertLen[OPAQUE16_LEN]; /* peer cert length */
+    byte            peerCert[MAX_TICKET_PEER_CERT_SZ]; /* peer certificate DER */
+#endif
 } InternalTicket;
 
 #ifndef WOLFSSL_TICKET_ENC_CBC_HMAC
@@ -6365,12 +6375,20 @@ struct SystemCryptoPolicy {
  * for the caller to find so we clear the last error.
  */
 #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_HAVE_ERROR_QUEUE)
-#define CLEAR_ASN_NO_PEM_HEADER_ERROR(err)                  \
-    (err) = wolfSSL_ERR_peek_last_error();                  \
-    if (wolfSSL_ERR_GET_LIB(err) == WOLFSSL_ERR_LIB_PEM &&  \
-            wolfSSL_ERR_GET_REASON(err) == -WOLFSSL_PEM_R_NO_START_LINE_E) {   \
-        wc_RemoveErrorNode(-1);                             \
-    }
+#define CLEAR_ASN_NO_PEM_HEADER_ERROR(err)                                     \
+do {                                                                           \
+    (err) = wolfSSL_ERR_peek_last_error();                                     \
+    if (wolfSSL_ERR_GET_LIB(err) == WOLFSSL_ERR_LIB_PEM &&                     \
+        wolfSSL_ERR_GET_REASON(err) == -WOLFSSL_PEM_R_NO_START_LINE_E) {       \
+        unsigned long peekErr;                                                 \
+        do {                                                                   \
+            wc_RemoveErrorNode(-1);                                            \
+            peekErr = wolfSSL_ERR_peek_last_error();                           \
+        } while (wolfSSL_ERR_GET_LIB(peekErr) == WOLFSSL_ERR_LIB_PEM &&        \
+                 wolfSSL_ERR_GET_REASON(peekErr) ==                            \
+                                              -WOLFSSL_PEM_R_NO_START_LINE_E); \
+    }                                                                          \
+} while(0)
 #else
 #define CLEAR_ASN_NO_PEM_HEADER_ERROR(err) (void)(err);
 #endif

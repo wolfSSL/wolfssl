@@ -402,6 +402,17 @@ static int wolfssl_sk_dup_data(WOLFSSL_STACK* dst, WOLFSSL_STACK* src)
                 break;
             }
             break;
+        case STACK_TYPE_X509_CRL:
+            if (src->data.crl == NULL) {
+                break;
+            }
+            dst->data.crl = wolfSSL_X509_CRL_dup(src->data.crl);
+            if (dst->data.crl == NULL) {
+                WOLFSSL_MSG("wolfSSL_X509_CRL_dup error");
+                err = 1;
+                break;
+            }
+            break;
         case STACK_TYPE_X509_OBJ:
         #if defined(OPENSSL_ALL)
             if (src->data.x509_obj == NULL) {
@@ -429,7 +440,6 @@ static int wolfssl_sk_dup_data(WOLFSSL_STACK* dst, WOLFSSL_STACK* src)
         case STACK_TYPE_BY_DIR_entry:
         case STACK_TYPE_BY_DIR_hash:
         case STACK_TYPE_DIST_POINT:
-        case STACK_TYPE_X509_CRL:
         default:
             WOLFSSL_MSG("Unsupported stack type");
             err = 1;
@@ -441,7 +451,8 @@ static int wolfssl_sk_dup_data(WOLFSSL_STACK* dst, WOLFSSL_STACK* src)
 
 /* Duplicate the stack of nodes.
  *
- * TODO: OpenSSL does a shallow copy but we have wolfSSL_shallow_sk_dup().
+ * OpenSSL does a shallow copy but we map to wolfSSL_shallow_sk_dup()
+ * when we want a shallow copy.
  *
  * Data is copied/duplicated - deep copy.
  *
