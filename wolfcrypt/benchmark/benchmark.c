@@ -1995,15 +1995,11 @@ static const char* bench_result_words3[][5] = {
     #pragma warning(disable: 4996)
 #endif
 
-#if defined(WOLFSSL_BSDKM)
-        int64_t current_time(int reset);
+#ifdef WOLFSSL_CURRTIME_REMAP
+    #define current_time WOLFSSL_CURRTIME_REMAP
 #else
-    #ifdef WOLFSSL_CURRTIME_REMAP
-        #define current_time WOLFSSL_CURRTIME_REMAP
-    #else
-        double current_time(int reset);
-    #endif
-#endif /* WOLFSSL_BSDKM */
+    double current_time(int reset);
+#endif
 
 #ifdef LINUX_RUSAGE_UTIME
     static void check_for_excessive_stime(const char *algo,
@@ -16031,7 +16027,7 @@ void bench_sphincsKeySign(byte level, byte optim)
 #elif defined(WOLFSSL_BSDKM)
 
     #include <sys/timex.h>
-    int64_t current_time(int reset)
+    double current_time(int reset)
     {
         (void)reset;
         struct timespec ts;
@@ -16039,7 +16035,7 @@ void bench_sphincsKeySign(byte level, byte optim)
 
         getnanouptime(&ts);
         result = (int64_t) ts.tv_sec + (int64_t) ts.tv_nsec / NANOSECOND;
-        return result;
+        return (double)result;
     }
 
 #elif defined(WOLFSSL_GAISLER_BCC)

@@ -117,7 +117,6 @@ extern struct malloc_type M_WOLFSSL[1];
         #define WOLFSSL_USE_SAVE_VECTOR_REGISTERS
     #endif
 
-
     #define SAVE_VECTOR_REGISTERS(fail_clause) {                             \
         int _svr_ret = wolfkmod_vecreg_save(0);                              \
         if (_svr_ret != 0) {                                                 \

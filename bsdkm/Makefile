@@ -1,11 +1,10 @@
-# wolfssl kernel module name and source, and root dir.
+# wolfssl kernel module name and main source, and wolfssl root dir.
 KMOD        = libwolfssl
 SRCS        = wolfkmod.c
 WOLFSSL_DIR = ../
 
-CFLAGS+=-I${WOLFSSL_DIR}
-CFLAGS+=-DWOLFSSL_IGNORE_FILE_WARN -DHAVE_CONFIG_H -DNO_MAIN_DRIVER
-
+CFLAGS += -I${WOLFSSL_DIR}
+CFLAGS += -DWOLFSSL_IGNORE_FILE_WARN -DHAVE_CONFIG_H -DNO_MAIN_DRIVER
 #
 # debug options
 #   verbose printing:
@@ -13,6 +12,9 @@ CFLAGS+=-DWOLFSSL_IGNORE_FILE_WARN -DHAVE_CONFIG_H -DNO_MAIN_DRIVER
 #
 #   print memory mallocs / frees:
 #   CFLAGS += -DWOLFSSL_BSDKM_MEMORY_DEBUG
+#
+#   print fpu_kern_enter / leave:
+#   CFLAGS += WOLFSSL_BSDKM_FPU_DEBUG
 #
 CFLAGS += $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS)
 
@@ -37,7 +39,7 @@ WOLFSSL_OBJS != echo ${src_libwolfssl_la_OBJECTS} | \
 # wolfcrypt benchmark
 .if ${ENABLED_KERNEL_BENCHMARKS} == "yes"
     WOLFSSL_OBJS += ${WOLFSSL_DIR}/wolfcrypt/benchmark/benchmark.o
-    CFLAGS+=-DWOLFSSL_NO_FLOAT_FMT
+    CFLAGS += -DWOLFSSL_NO_FLOAT_FMT
 .endif
 
 OBJS += ${WOLFSSL_OBJS}
@@ -58,27 +60,42 @@ OBJS += ${WOLFSSL_OBJS}
 .endif
 .include "${SYSDIR}/conf/kmod.mk"
 
-# To use aesni in FreeBSD kernel we need to adjust build flags.
-# See these for reference:
+#
+# To use aesni and friends in FreeBSD kernel we need to adjust build flags.
+# See these kernel makefiles for reference:
 #   - /usr/src/sys/modules/aesni/Makefile
 #   - /usr/src/sys/conf/kern.mk
-.if ${ENABLED_ASM} == "yes"
-  CFLAGS.aes.c += -msse -msse2 -msse4.1 -maes -mpclmul -mavx -mavx2
+#
+WOLFKMOD_SIMD_BASE = -msse -msse2 -msse4.1
+WOLFKMOD_SIMD_AES  = -maes -mpclmul
+WOLFKMOD_SIMD_AVX  = -mavx -mavx2
+
+.if ${ENABLED_AESNI} == "yes"
+  CFLAGS.aes.c += ${WOLFKMOD_SIMD_BASE}
+  CFLAGS.aes.c += ${WOLFKMOD_SIMD_AES}
+.if ${ENABLED_AESNI_WITH_AVX} == "yes"
+  CFLAGS.aes.c += ${WOLFKMOD_SIMD_AVX}
+.endif # ENABLED_AESNI_WITH_AVX #
   CFLAGS.aes.c := ${CFLAGS.aes.c:N-nostdinc}
   CFLAGS.aes.c += -I${SYSDIR}/../contrib/llvm-project/clang/lib/Headers
+.PATH: ${SYSDIR}/../contrib/llvm-project/clang/lib/Headers
+.endif # ENABLED_AESNI
 
-  CFLAGS.poly1305.c += -msse -msse2 -msse4.1 -maes -mpclmul
-  CFLAGS.poly1305.c := ${CFLAGS.aes.c:N-nostdinc}
-  CFLAGS.poly1305.c += -I${SYSDIR}/../contrib/llvm-project/clang/lib/Headers
+.if ${ENABLED_ASM} == "yes"
+.for f in chacha dilithium poly1305 sha sha256 sha3 sha512
+  CFLAGS.${f}.c += ${WOLFKMOD_SIMD_BASE}
+  CFLAGS.${f}.c += ${WOLFKMOD_SIMD_AVX}
+  CFLAGS.${f}.c := ${CFLAGS.${f}.c:N-nostdinc}
+  CFLAGS.${f}.c += -I${SYSDIR}/../contrib/llvm-project/clang/lib/Headers
+.endfor
 
-  CFLAGS.chacha.c += -msse -msse2 -msse4.1 -maes -mpclmul
-  CFLAGS.chacha.c := ${CFLAGS.aes.c:N-nostdinc}
-  CFLAGS.chacha.c += -I${SYSDIR}/../contrib/llvm-project/clang/lib/Headers
+.PATH: ${SYSDIR}/../contrib/llvm-project/clang/lib/Headers
+.endif # ENABLED_ASM == "yes"
 
-  CFLAGS.sha.c += -msse -msse2 -msse4.1 -maes -mpclmul -mavx -mavx2
-  CFLAGS.sha256.c += -msse -msse2 -msse4.1 -maes -mpclmul -mavx -mavx2
-  CFLAGS.benchmark.c += -msse -msse2 -msse4.1 -maes -mpclmul -mavx -mavx2
-  CFLAGS.benchmark.c := ${CFLAGS.aes.c:N-nostdinc}
+# wolfcrypt benchmark always needs simd for the floating point timings.
+.if ${ENABLED_KERNEL_BENCHMARKS} == "yes"
+  CFLAGS.benchmark.c += ${WOLFKMOD_SIMD_BASE}
+  CFLAGS.benchmark.c := ${CFLAGS.benchmark.c:N-nostdinc}
   CFLAGS.benchmark.c += -I${SYSDIR}/../contrib/llvm-project/clang/lib/Headers
   .PATH: ${SYSDIR}/../contrib/llvm-project/clang/lib/Headers
 .endif
