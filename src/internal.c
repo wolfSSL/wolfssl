@@ -211,7 +211,8 @@ int writeAeadAuthData(WOLFSSL* ssl, word16 sz, byte type, byte* additional,
     static int _DtlsCheckWindow(WOLFSSL* ssl);
 #endif
 
-#if defined(__APPLE__) && defined(WOLFSSL_SYS_CA_CERTS)
+#if defined(__APPLE__) && defined(WOLFSSL_SYS_CA_CERTS) && \
+    (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH))
 #include <Security/SecCertificate.h>
 #include <Security/SecTrust.h>
 #include <Security/SecPolicy.h>
@@ -4922,7 +4923,8 @@ void FreeX509(WOLFSSL_X509* x509)
 }
 
 
-#if !defined(NO_WOLFSSL_SERVER) || !defined(NO_WOLFSSL_CLIENT)
+#if !defined(NO_WOLFSSL_SERVER) || (!defined(NO_WOLFSSL_CLIENT) && \
+    !defined(WOLFSSL_NO_CLIENT_AUTH))
 #if !defined(WOLFSSL_NO_TLS12)
 /* Encode the signature algorithm into buffer.
  *
@@ -10772,9 +10774,11 @@ static void AddHeaders(byte* output, word32 length, byte type, WOLFSSL* ssl)
 
 
 #ifndef WOLFSSL_NO_TLS12
-#if !defined(NO_CERTS) && (!defined(NO_WOLFSSL_SERVER) || \
-                           !defined(WOLFSSL_NO_CLIENT_AUTH)) || \
-                           defined(WOLFSSL_DTLS)
+#if (!defined(NO_CERTS) && (!defined(NO_WOLFSSL_SERVER) || \
+                            !defined(WOLFSSL_NO_CLIENT_AUTH))) || \
+    ((!defined(NO_WOLFSSL_SERVER) || \
+      (!defined(NO_WOLFSSL_CLIENT) && !defined(NO_CERTS) && \
+       !defined(WOLFSSL_NO_CLIENT_AUTH))) && defined(WOLFSSL_DTLS))
 static void AddFragHeaders(byte* output, word32 fragSz, word32 fragOffset,
                            word32 length, byte type, WOLFSSL* ssl)
 {
@@ -10792,7 +10796,7 @@ static void AddFragHeaders(byte* output, word32 fragSz, word32 fragOffset,
     AddRecordHeader(output, fragSz + lengthAdj, handshake, ssl, CUR_ORDER);
     AddHandShakeHeader(output + outputAdj, length, fragOffset, fragSz, type, ssl);
 }
-#endif /* NO_CERTS */
+#endif
 
 #if !defined(NO_WOLFSSL_SERVER) || \
     (!defined(NO_WOLFSSL_CLIENT) && !defined(NO_CERTS) && \
@@ -13347,7 +13351,8 @@ int CheckIPAddr(DecodedCert* dCert, const char* ipasc)
 }
 
 
-#ifdef SESSION_CERTS
+#if defined(SESSION_CERTS) && (!defined(NO_WOLFSSL_CLIENT) || \
+    !defined(WOLFSSL_NO_CLIENT_AUTH))
 static void AddSessionCertToChain(WOLFSSL_X509_CHAIN* chain,
     byte* certBuf, word32 certSz)
 {
@@ -14134,9 +14139,10 @@ int CopyDecodedAcertToX509(WOLFSSL_X509_ACERT* x509, DecodedAcert* dAcert)
 }
 #endif /* WOLFSSL_ACERT */
 
-
 #if (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
      defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)) && !defined(WOLFSSL_NO_TLS12)
+#if !defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)
+#ifndef NO_WOLFSSL_SERVER
 static int CsrDoStatusVerifyCb(WOLFSSL* ssl, byte* input, word32 inputSz, word32 idx,
         int ret)
 {
@@ -14159,6 +14165,7 @@ static int CsrDoStatusVerifyCb(WOLFSSL* ssl, byte* input, word32 inputSz, word32
     }
     return ret;
 }
+#endif
 
 static int ProcessCSR_ex(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                       word32 status_length, int idx)
@@ -14263,7 +14270,9 @@ static int ProcessCSR_ex(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         else if (response->single->status->status != CERT_GOOD)
             ret = BAD_CERTIFICATE_STATUS_ERROR;
 
+#ifndef NO_WOLFSSL_SERVER
         ret = CsrDoStatusVerifyCb(ssl, input + *inOutIdx, status_length, idx, ret);
+#endif
     }
 
     *inOutIdx += status_length;
@@ -14285,6 +14294,7 @@ static int ProcessCSR(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 {
     return ProcessCSR_ex(ssl, input, inOutIdx, status_length, 0);
 }
+#endif
 #endif
 
 
@@ -17398,8 +17408,10 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     /* only frees 'single' if single->isDynamic is set */
                     FreeOcspResponse(response);
 
-                    ret = CsrDoStatusVerifyCb(ssl, input + *inOutIdx, status_length,
-                                        idx, ret);
+               #ifndef NO_WOLFSSL_SERVER
+                    ret = CsrDoStatusVerifyCb(ssl, input + *inOutIdx,
+                                              status_length, idx, ret);
+               #endif
                     if (ret == 0 && idx == 0) /* server cert must be OK */
                         endCertificateOK = 1;
 
@@ -25554,12 +25566,14 @@ int SendCertificateStatus(WOLFSSL* ssl)
     status_type = status_type ? status_type : ssl->status_request_v2;
 #endif
 
+#ifndef NO_WOLFSSL_SERVER
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
     defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
     if (SSL_CM(ssl)->ocsp_stapling != NULL &&
             SSL_CM(ssl)->ocsp_stapling->statusCb != NULL) {
         return BuildCertificateStatusWithStatusCB(ssl, status_type);
     }
+#endif
 #endif
 
     switch (status_type) {
@@ -30725,6 +30739,36 @@ static int DhSetKey(WOLFSSL* ssl)
 }
 #endif /* !NO_DH */
 
+#if !defined(NO_TLS) && !defined(WOLFSSL_NO_TLS12) && !defined(NO_PSK)
+static void MakePSKPreMasterSecret(Arrays* arrays, byte use_psk_key)
+{
+    byte* pms = arrays->preMasterSecret;
+    word16 sz = 0;
+
+    /* sz + (use_psk_key ? sz 0s : sz unaltered) + length of psk + psk */
+    if (!use_psk_key) {
+        sz = (word16)arrays->preMasterSz;
+        c16toa(sz, pms);
+        pms += OPAQUE16_LEN + sz;
+    }
+    if ((int)arrays->psk_keySz > 0) {
+        if (use_psk_key) {
+            sz = (word16)arrays->psk_keySz;
+            c16toa(sz, pms);
+            pms += OPAQUE16_LEN;
+            XMEMSET(pms, 0, sz);
+            pms += sz;
+        }
+        c16toa(arrays->psk_keySz, pms);
+        pms += OPAQUE16_LEN;
+        XMEMCPY(pms, arrays->psk_key, arrays->psk_keySz);
+        arrays->preMasterSz = sz + arrays->psk_keySz + OPAQUE16_LEN * 2;
+        ForceZero(arrays->psk_key, arrays->psk_keySz);
+    }
+    arrays->psk_keySz = 0; /* no further need */
+}
+#endif
+
 /* client only parts */
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
 
@@ -33150,59 +33194,6 @@ static int EcExportHsKey(WOLFSSL* ssl, byte* out, word32* len)
 }
 #endif /*HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448*/
 
-#ifndef NO_PSK
-static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
-{
-    int ret = 0;
-    /* Use the PSK hint to look up the PSK and add it to the
-     * preMasterSecret here. */
-    ssl->arrays->psk_keySz = ssl->options.server_psk_cb(ssl,
-        ssl->arrays->client_identity, ssl->arrays->psk_key,
-        MAX_PSK_KEY_LEN);
-
-    if (ssl->arrays->psk_keySz == 0 ||
-        (ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN &&
-    (int)ssl->arrays->psk_keySz != WC_NO_ERR_TRACE(USE_HW_PSK))) {
-    #if defined(WOLFSSL_EXTRA_ALERTS) || defined(WOLFSSL_PSK_IDENTITY_ALERT)
-        SendAlert(ssl, alert_fatal, unknown_psk_identity);
-    #endif
-        ret = 1;
-    }
-    if (ret == 0)
-        /* Pre-shared Key for peer authentication. */
-        ssl->options.peerAuthGood = 1;
-    return ret;
-}
-
-static void MakePSKPreMasterSecret(Arrays* arrays, byte use_psk_key)
-{
-    byte* pms = arrays->preMasterSecret;
-    word16 sz = 0;
-
-    /* sz + (use_psk_key ? sz 0s : sz unaltered) + length of psk + psk */
-    if (!use_psk_key) {
-        sz = (word16)arrays->preMasterSz;
-        c16toa(sz, pms);
-        pms += OPAQUE16_LEN + sz;
-    }
-    if ((int)arrays->psk_keySz > 0) {
-        if (use_psk_key) {
-            sz = (word16)arrays->psk_keySz;
-            c16toa(sz, pms);
-            pms += OPAQUE16_LEN;
-            XMEMSET(pms, 0, sz);
-            pms += sz;
-        }
-        c16toa(arrays->psk_keySz, pms);
-        pms += OPAQUE16_LEN;
-        XMEMCPY(pms, arrays->psk_key, arrays->psk_keySz);
-        arrays->preMasterSz = sz + arrays->psk_keySz + OPAQUE16_LEN * 2;
-        ForceZero(arrays->psk_key, arrays->psk_keySz);
-    }
-    arrays->psk_keySz = 0; /* no further need */
-}
-#endif /*!NO_PSK*/
-
 #if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
 static int EcMakeKey(WOLFSSL* ssl)
 {
@@ -35084,9 +35075,35 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         return MATCH_SUITE_ERROR;
     }
 
+
 #if !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
 
 #ifndef WOLFSSL_NO_TLS12
+
+#ifndef NO_PSK
+static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
+{
+    int ret = 0;
+    /* Use the PSK hint to look up the PSK and add it to the
+     * preMasterSecret here. */
+    ssl->arrays->psk_keySz = ssl->options.server_psk_cb(ssl,
+        ssl->arrays->client_identity, ssl->arrays->psk_key,
+        MAX_PSK_KEY_LEN);
+
+    if (ssl->arrays->psk_keySz == 0 ||
+        (ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN &&
+    (int)ssl->arrays->psk_keySz != WC_NO_ERR_TRACE(USE_HW_PSK))) {
+    #if defined(WOLFSSL_EXTRA_ALERTS) || defined(WOLFSSL_PSK_IDENTITY_ALERT)
+        SendAlert(ssl, alert_fatal, unknown_psk_identity);
+    #endif
+        ret = 1;
+    }
+    if (ret == 0)
+        /* Pre-shared Key for peer authentication. */
+        ssl->options.peerAuthGood = 1;
+    return ret;
+}
+#endif /* NO_PSK */
 
     static int getSessionID(WOLFSSL* ssl)
     {
@@ -42055,7 +42072,8 @@ int wolfSSL_sk_BY_DIR_entry_push(WOLF_STACK_OF(WOLFSSL_BY_DIR_entry)* sk,
 
 #endif /* OPENSSL_ALL && !NO_FILESYSTEM && !NO_FILESYSTEM */
 
-#if defined(__APPLE__) && defined(WOLFSSL_SYS_CA_CERTS)
+#if defined(__APPLE__) && defined(WOLFSSL_SYS_CA_CERTS) && \
+    (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH))
 
 /*
  * Converts a DER formatted certificate to a SecCertificateRef
@@ -42401,7 +42419,8 @@ int wolfSSL_TestAppleNativeCertValidation_AppendCA(WOLFSSL_CTX* ctx,
 }
 #endif /* WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION */
 
-#endif /* defined(__APPLE__) && defined(WOLFSSL_SYS_CA_CERTS) */
+#endif /* __APPLE__ && WOLFSSL_SYS_CA_CERTS && (!NO_WOLFSSL_CLIENT) ||
+        * !WOLFSSL_NO_CLIENT_AUTH) */
 
 /* Do not try to process error for async, non blocking io, and app_read */
 void wolfssl_local_MaybeCheckAlertOnErr(WOLFSSL* ssl, int err)

@@ -3747,6 +3747,36 @@ static byte helloRetryRequestRandom[] = {
 };
 #endif
 
+#ifdef HAVE_ECH
+/* returns the index of the first supported cipher suite, -1 if none */
+int EchConfigGetSupportedCipherSuite(WOLFSSL_EchConfig* config)
+{
+    int i, j, supported = 0;
+
+    for (i = 0; i < config->numCipherSuites; i++) {
+        supported = 0;
+
+        for (j = 0; j < HPKE_SUPPORTED_KDF_LEN; j++) {
+            if (config->cipherSuites[i].kdfId == hpkeSupportedKdf[j])
+                break;
+        }
+
+        if (j < HPKE_SUPPORTED_KDF_LEN)
+            for (j = 0; j < HPKE_SUPPORTED_AEAD_LEN; j++) {
+                if (config->cipherSuites[i].aeadId == hpkeSupportedAead[j]) {
+                    supported = 1;
+                    break;
+                }
+            }
+
+        if (supported)
+            return i;
+    }
+
+    return WOLFSSL_FATAL_ERROR;
+}
+#endif
+
 #ifndef NO_WOLFSSL_CLIENT
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
 #if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_PSK_ONE_ID) && \
@@ -4166,34 +4196,6 @@ static int WritePSKBinders(WOLFSSL* ssl, byte* output, word32 idx)
 #endif
 
 #if defined(HAVE_ECH)
-/* returns the index of the first supported cipher suite, -1 if none */
-int EchConfigGetSupportedCipherSuite(WOLFSSL_EchConfig* config)
-{
-    int i, j, supported = 0;
-
-    for (i = 0; i < config->numCipherSuites; i++) {
-        supported = 0;
-
-        for (j = 0; j < HPKE_SUPPORTED_KDF_LEN; j++) {
-            if (config->cipherSuites[i].kdfId == hpkeSupportedKdf[j])
-                break;
-        }
-
-        if (j < HPKE_SUPPORTED_KDF_LEN)
-            for (j = 0; j < HPKE_SUPPORTED_AEAD_LEN; j++) {
-                if (config->cipherSuites[i].aeadId == hpkeSupportedAead[j]) {
-                    supported = 1;
-                    break;
-                }
-            }
-
-        if (supported)
-            return i;
-    }
-
-    return WOLFSSL_FATAL_ERROR;
-}
-
 /* returns status after we hash the ech inner */
 static int EchHashHelloInner(WOLFSSL* ssl, WOLFSSL_ECH* ech)
 {
@@ -4963,105 +4965,6 @@ static int EchCheckAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
     /* set hsHashesEch to NULL to avoid double free */
     ssl->hsHashesEch = NULL;
     /* swap to tmp, will be inner if accepted, hsHashes if rejected */
-    ssl->hsHashes = tmpHashes;
-    return ret;
-}
-
-/* replace the last acceptance field for either sever hello or hrr with the ech
- * acceptance parameter, return status */
-static int EchWriteAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
-    byte* output, int acceptOffset, int helloSz, byte msgType)
-{
-    int ret = 0;
-    int digestType = 0;
-    int digestSize = 0;
-    HS_Hashes* tmpHashes = NULL;
-    byte zeros[WC_MAX_DIGEST_SIZE];
-    byte transcriptEchConf[WC_MAX_DIGEST_SIZE];
-    byte expandLabelPrk[WC_MAX_DIGEST_SIZE];
-    XMEMSET(zeros, 0, sizeof(zeros));
-    XMEMSET(transcriptEchConf, 0, sizeof(transcriptEchConf));
-    XMEMSET(expandLabelPrk, 0, sizeof(expandLabelPrk));
-    /* store so we can restore regardless of the outcome */
-    tmpHashes = ssl->hsHashes;
-    ssl->hsHashes = ssl->hsHashesEch;
-    /* hash up to the acceptOffset */
-    ret = HashRaw(ssl, output, acceptOffset);
-    /* hash 8 zeros */
-    if (ret == 0)
-       ret = HashRaw(ssl, zeros, ECH_ACCEPT_CONFIRMATION_SZ);
-    /* hash the rest of the hello */
-    if (ret == 0) {
-        ret = HashRaw(ssl, output + acceptOffset + ECH_ACCEPT_CONFIRMATION_SZ,
-            helloSz - (acceptOffset + ECH_ACCEPT_CONFIRMATION_SZ));
-    }
-    /* get the modified transcript hash */
-    if (ret == 0)
-        ret = GetMsgHash(ssl, transcriptEchConf);
-    if (ret > 0)
-        ret = 0;
-    /* pick the right type and size based on mac_algorithm */
-    if (ret == 0) {
-        switch (ssl->specs.mac_algorithm) {
-#ifndef NO_SHA256
-            case sha256_mac:
-                digestType = WC_SHA256;
-                digestSize = WC_SHA256_DIGEST_SIZE;
-                break;
-#endif /* !NO_SHA256 */
-#ifdef WOLFSSL_SHA384
-            case sha384_mac:
-                digestType = WC_SHA384;
-                digestSize = WC_SHA384_DIGEST_SIZE;
-                break;
-#endif /* WOLFSSL_SHA384 */
-#ifdef WOLFSSL_TLS13_SHA512
-            case sha512_mac:
-                digestType = WC_SHA512;
-                digestSize = WC_SHA512_DIGEST_SIZE;
-                break;
-#endif /* WOLFSSL_TLS13_SHA512 */
-#ifdef WOLFSSL_SM3
-            case sm3_mac:
-                digestType = WC_SM3;
-                digestSize = WC_SM3_DIGEST_SIZE;
-                break;
-#endif /* WOLFSSL_SM3 */
-            default:
-                ret = WOLFSSL_FATAL_ERROR;
-                break;
-        }
-    }
-    /* extract clientRandom with a key of all zeros */
-    if (ret == 0) {
-        PRIVATE_KEY_UNLOCK();
-    #if !defined(HAVE_FIPS) || \
-        (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(6,0))
-        ret = wc_HKDF_Extract_ex(digestType, zeros, (word32)digestSize,
-            ssl->arrays->clientRandom, RAN_LEN, expandLabelPrk,
-            ssl->heap, ssl->devId);
-    #else
-        ret = wc_HKDF_Extract(digestType, zeros, digestSize,
-            ssl->arrays->clientRandom, RAN_LEN, expandLabelPrk);
-    #endif
-        PRIVATE_KEY_LOCK();
-    }
-    /* tls expand with the confirmation label */
-    if (ret == 0) {
-        PRIVATE_KEY_UNLOCK();
-        ret = Tls13HKDFExpandKeyLabel(ssl, output + acceptOffset,
-            ECH_ACCEPT_CONFIRMATION_SZ, expandLabelPrk, (word32)digestSize,
-            tls13ProtocolLabel, TLS13_PROTOCOL_LABEL_SZ, label, labelSz,
-            transcriptEchConf, (word32)digestSize, digestType,
-            WOLFSSL_SERVER_END);
-        PRIVATE_KEY_LOCK();
-    }
-    /* mark that ech was accepted */
-    if (ret == 0 && msgType != hello_retry_request)
-        ssl->options.echAccepted = 1;
-    /* free hsHashesEch, if this is an HRR we will start at client hello 2*/
-    FreeHandshakeHashes(ssl);
-    ssl->hsHashesEch = NULL;
     ssl->hsHashes = tmpHashes;
     return ret;
 }
@@ -7374,6 +7277,107 @@ exit_dch:
     return ret;
 }
 
+#ifdef HAVE_ECH
+/* replace the last acceptance field for either sever hello or hrr with the ech
+ * acceptance parameter, return status */
+static int EchWriteAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
+    byte* output, int acceptOffset, int helloSz, byte msgType)
+{
+    int ret = 0;
+    int digestType = 0;
+    int digestSize = 0;
+    HS_Hashes* tmpHashes = NULL;
+    byte zeros[WC_MAX_DIGEST_SIZE];
+    byte transcriptEchConf[WC_MAX_DIGEST_SIZE];
+    byte expandLabelPrk[WC_MAX_DIGEST_SIZE];
+    XMEMSET(zeros, 0, sizeof(zeros));
+    XMEMSET(transcriptEchConf, 0, sizeof(transcriptEchConf));
+    XMEMSET(expandLabelPrk, 0, sizeof(expandLabelPrk));
+    /* store so we can restore regardless of the outcome */
+    tmpHashes = ssl->hsHashes;
+    ssl->hsHashes = ssl->hsHashesEch;
+    /* hash up to the acceptOffset */
+    ret = HashRaw(ssl, output, acceptOffset);
+    /* hash 8 zeros */
+    if (ret == 0)
+       ret = HashRaw(ssl, zeros, ECH_ACCEPT_CONFIRMATION_SZ);
+    /* hash the rest of the hello */
+    if (ret == 0) {
+        ret = HashRaw(ssl, output + acceptOffset + ECH_ACCEPT_CONFIRMATION_SZ,
+            helloSz - (acceptOffset + ECH_ACCEPT_CONFIRMATION_SZ));
+    }
+    /* get the modified transcript hash */
+    if (ret == 0)
+        ret = GetMsgHash(ssl, transcriptEchConf);
+    if (ret > 0)
+        ret = 0;
+    /* pick the right type and size based on mac_algorithm */
+    if (ret == 0) {
+        switch (ssl->specs.mac_algorithm) {
+#ifndef NO_SHA256
+            case sha256_mac:
+                digestType = WC_SHA256;
+                digestSize = WC_SHA256_DIGEST_SIZE;
+                break;
+#endif /* !NO_SHA256 */
+#ifdef WOLFSSL_SHA384
+            case sha384_mac:
+                digestType = WC_SHA384;
+                digestSize = WC_SHA384_DIGEST_SIZE;
+                break;
+#endif /* WOLFSSL_SHA384 */
+#ifdef WOLFSSL_TLS13_SHA512
+            case sha512_mac:
+                digestType = WC_SHA512;
+                digestSize = WC_SHA512_DIGEST_SIZE;
+                break;
+#endif /* WOLFSSL_TLS13_SHA512 */
+#ifdef WOLFSSL_SM3
+            case sm3_mac:
+                digestType = WC_SM3;
+                digestSize = WC_SM3_DIGEST_SIZE;
+                break;
+#endif /* WOLFSSL_SM3 */
+            default:
+                ret = WOLFSSL_FATAL_ERROR;
+                break;
+        }
+    }
+    /* extract clientRandom with a key of all zeros */
+    if (ret == 0) {
+        PRIVATE_KEY_UNLOCK();
+    #if !defined(HAVE_FIPS) || \
+        (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(6,0))
+        ret = wc_HKDF_Extract_ex(digestType, zeros, (word32)digestSize,
+            ssl->arrays->clientRandom, RAN_LEN, expandLabelPrk,
+            ssl->heap, ssl->devId);
+    #else
+        ret = wc_HKDF_Extract(digestType, zeros, digestSize,
+            ssl->arrays->clientRandom, RAN_LEN, expandLabelPrk);
+    #endif
+        PRIVATE_KEY_LOCK();
+    }
+    /* tls expand with the confirmation label */
+    if (ret == 0) {
+        PRIVATE_KEY_UNLOCK();
+        ret = Tls13HKDFExpandKeyLabel(ssl, output + acceptOffset,
+            ECH_ACCEPT_CONFIRMATION_SZ, expandLabelPrk, (word32)digestSize,
+            tls13ProtocolLabel, TLS13_PROTOCOL_LABEL_SZ, label, labelSz,
+            transcriptEchConf, (word32)digestSize, digestType,
+            WOLFSSL_SERVER_END);
+        PRIVATE_KEY_LOCK();
+    }
+    /* mark that ech was accepted */
+    if (ret == 0 && msgType != hello_retry_request)
+        ssl->options.echAccepted = 1;
+    /* free hsHashesEch, if this is an HRR we will start at client hello 2*/
+    FreeHandshakeHashes(ssl);
+    ssl->hsHashesEch = NULL;
+    ssl->hsHashes = tmpHashes;
+    return ret;
+}
+#endif
+
 /* Send TLS v1.3 ServerHello message to client.
  * Only a server will send this message.
  *
@@ -7884,15 +7888,17 @@ static int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx,
 #endif /* NO_WOLFSSL_SERVER */
 
 #ifndef NO_CERTS
-#if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
-    defined(HAVE_ED448) || defined(HAVE_FALCON) || defined(HAVE_DILITHIUM)
+#if (!defined(NO_WOLFSSL_SERVER) || !defined(WOLFSSL_NO_CLIENT_AUTH)) && \
+    (!defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
+     defined(HAVE_ED448) || defined(HAVE_FALCON) || defined(HAVE_DILITHIUM))
 /* Encode the signature algorithm into buffer.
  *
  * hashalgo  The hash algorithm.
  * hsType   The signature type.
  * output    The buffer to encode into.
  */
-static WC_INLINE void EncodeSigAlg(const WOLFSSL * ssl, byte hashAlgo, byte hsType, byte* output)
+static WC_INLINE void EncodeSigAlg(const WOLFSSL * ssl, byte hashAlgo,
+    byte hsType, byte* output)
 {
     (void)ssl;
     switch (hsType) {
@@ -7987,7 +7993,10 @@ static WC_INLINE void EncodeSigAlg(const WOLFSSL * ssl, byte hashAlgo, byte hsTy
             break;
     }
 }
+#endif
 
+#if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
+    defined(HAVE_ED448) || defined(HAVE_FALCON) || defined(HAVE_DILITHIUM)
 #ifdef WOLFSSL_DUAL_ALG_CERTS
 /* These match up with what the OQS team has defined. */
 #define HYBRID_SA_MAJOR 0xFE
@@ -12766,7 +12775,7 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     int ret = 0, tmp;
     word32 inIdx = *inOutIdx;
     int alertType;
-#if defined(HAVE_ECH)
+#if defined(HAVE_ECH) && !defined(NO_WOLFSSL_SERVER)
     TLSX* echX = NULL;
     word32 echInOutIdx;
 #endif

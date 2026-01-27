@@ -3403,8 +3403,8 @@ WOLFSSL_LOCAL int TLSX_ValidateSupportedCurves(const WOLFSSL* ssl, byte first,
                                                byte second, word32* ecdhCurveOID);
 WOLFSSL_LOCAL int TLSX_SupportedCurve_CheckPriority(WOLFSSL* ssl);
 WOLFSSL_LOCAL int TLSX_SupportedFFDHE_Set(WOLFSSL* ssl);
-WOLFSSL_LOCAL int TLSX_SupportedCurve_IsSupported(WOLFSSL* ssl, word16 name);
 #endif
+WOLFSSL_LOCAL int TLSX_SupportedCurve_IsSupported(WOLFSSL* ssl, word16 name);
 WOLFSSL_LOCAL int TLSX_SupportedCurve_Preferred(WOLFSSL* ssl,
                                                             int checkSupported);
 WOLFSSL_LOCAL int TLSX_SupportedCurve_Parse(const WOLFSSL* ssl,

@@ -6878,7 +6878,7 @@ static void test_wolfSSL_CTX_add_session_on_result(WOLFSSL* ssl)
         AssertIntEQ(wolfSSL_CTX_up_ref(wolfSSL_get_SSL_CTX(ssl)),
                 WOLFSSL_SUCCESS);
     }
-#ifdef SESSION_CERTS
+#if defined(SESSION_CERTS) && !defined(WOLFSSL_NO_CLIENT_AUTH)
 #ifndef WOLFSSL_TICKET_HAVE_ID
     if (wolfSSL_version(ssl) != TLS1_3_VERSION &&
             wolfSSL_session_reused(ssl))
@@ -6898,7 +6898,7 @@ static void test_wolfSSL_CTX_add_session_on_result(WOLFSSL* ssl)
         AssertNotNull(SSL_SESSION_get0_peer(*sess));
     #endif
     }
-#endif /* SESSION_CERTS */
+#endif /* SESSION_CERTS && !WOLFSSL_NO_CLIENT_AUTH */
 }
 
 static void test_wolfSSL_CTX_add_session_ssl_ready(WOLFSSL* ssl)
@@ -7281,7 +7281,7 @@ static int twcase_server_sess_ctx_pre_shutdown(WOLFSSL* ssl)
         ExpectIntEQ(wolfSSL_CTX_up_ref(wolfSSL_get_SSL_CTX(ssl)),
                     WOLFSSL_SUCCESS);
     }
-#ifdef SESSION_CERTS
+#if defined(SESSION_CERTS) && !defined(WOLFSSL_NO_CLIENT_AUTH)
 #ifndef WOLFSSL_TICKET_HAVE_ID
     if (wolfSSL_version(ssl) != TLS1_3_VERSION &&
             wolfSSL_session_reused(ssl))
@@ -7316,7 +7316,7 @@ static int twcase_client_sess_ctx_pre_shutdown(WOLFSSL* ssl)
         ExpectIntEQ(wolfSSL_session_reused(ssl), 1);
     }
 
-#ifdef SESSION_CERTS
+#if defined(SESSION_CERTS) && !defined(WOLFSSL_NO_CLIENT_AUTH)
 #ifndef WOLFSSL_TICKET_HAVE_ID
     if (wolfSSL_version(ssl) != TLS1_3_VERSION &&
             wolfSSL_session_reused(ssl))
@@ -9057,10 +9057,9 @@ static int test_wolfSSL_UseMaxFragment(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_MAX_FRAGMENT) && !defined(NO_CERTS) && \
-    !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    !defined(NO_FILESYSTEM) && !defined(NO_RSA) && !defined(NO_WOLFSSL_CLIENT)
 
-#if !defined(NO_TLS) && \
-    (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER))
+#if !defined(NO_TLS)
   #ifndef NO_WOLFSSL_SERVER
     WOLFSSL_CTX* ctx = wolfSSL_CTX_new(wolfSSLv23_server_method());
   #else
@@ -9187,6 +9186,7 @@ static int test_wolfSSL_UseTruncatedHMAC(void)
 
     ExpectNotNull(ssl = wolfSSL_new(ctx));
 
+#ifndef NO_WOLFSSL_CLIENT
     /* error cases */
     ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_UseTruncatedHMAC(NULL));
     ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_UseTruncatedHMAC(NULL));
@@ -9194,6 +9194,7 @@ static int test_wolfSSL_UseTruncatedHMAC(void)
     /* success case */
     ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_UseTruncatedHMAC(ctx));
     ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_UseTruncatedHMAC(ssl));
+#endif
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
@@ -10854,7 +10855,8 @@ static int test_wolfSSL_mcast(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_MULTICAST) && \
-    (defined(WOLFSSL_TLS13) || defined(WOLFSSL_SNIFFER))
+    (defined(WOLFSSL_TLS13) || defined(WOLFSSL_SNIFFER)) && \
+    !defined(NO_WOLFSSL_CLIENT)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte preMasterSecret[512];
@@ -17572,7 +17574,8 @@ static int test_wolfSSL_verify_mode(void)
     EXPECT_DECLS;
 #if !defined(NO_RSA) && !defined(NO_TLS) && (defined(OPENSSL_ALL) || \
     defined(HAVE_STUNNEL) || defined(WOLFSSL_MYSQL_COMPATIBLE) || \
-    defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY))
+    defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)) && \
+    !defined(NO_WOLFSSL_CLIENT)
     WOLFSSL*     ssl = NULL;
     WOLFSSL_CTX* ctx = NULL;
 
@@ -17849,7 +17852,7 @@ static int test_wolfSSL_OPENSSL_hexstr2buf(void)
 static int test_wolfSSL_sk_CIPHER_description(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_RSA) && !defined(NO_TLS)
+#if !defined(NO_RSA) && !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT)
     const long flags = SSL_OP_NO_SSLv2 | SSL_OP_NO_COMPRESSION;
     int i;
     int numCiphers = 0;
@@ -17911,7 +17914,7 @@ static int test_wolfSSL_sk_CIPHER_description(void)
 static int test_wolfSSL_get_ciphers_compat(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_RSA) && !defined(NO_TLS)
+#if !defined(NO_RSA) && !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT)
     const SSL_METHOD *method = NULL;
     const char certPath[] = "./certs/client-cert.pem";
     STACK_OF(SSL_CIPHER) *supportedCiphers = NULL;
@@ -27744,7 +27747,7 @@ static int test_override_alt_cert_chain(void)
 static int test_rpk_set_xxx_cert_type(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_RPK) && !defined(NO_TLS)
+#if defined(HAVE_RPK) && !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT)
 
     char ctype[MAX_CLIENT_CERT_TYPE_CNT + 1];   /* prepare bigger buffer */
     WOLFSSL_CTX* ctx = NULL;
@@ -30120,6 +30123,7 @@ static int test_dtls13_missing_finished_server(void)
 }
 
 
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
 static int test_self_signed_stapling_client_v1_ctx_ready(WOLFSSL_CTX* ctx)
 {
@@ -30160,12 +30164,14 @@ static int test_self_signed_stapling_server_ctx_ready(WOLFSSL_CTX* ctx)
     return EXPECT_RESULT();
 }
 #endif
+#endif
 
 static int test_self_signed_stapling(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
- || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+#if (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+     defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)) && \
+     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
     test_ssl_cbf client_cbf;
     test_ssl_cbf server_cbf;
     size_t i;
@@ -31840,7 +31846,8 @@ TEST_CASE testCases[] = {
 
 #if defined(WOLFSSL_TICKET_NONCE_MALLOC) && defined(HAVE_SESSION_TICKET)       \
     && defined(WOLFSSL_TLS13) &&                                               \
-    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
+    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))\
+    && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
     TEST_DECL(test_ticket_nonce_malloc),
 #endif
     TEST_DECL(test_ticket_ret_create),

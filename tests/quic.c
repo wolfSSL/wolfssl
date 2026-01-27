@@ -64,6 +64,7 @@ static int dummy_set_encryption_secrets(WOLFSSL *ssl,
     return 1;
 }
 
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
 static int dummy_set_encryption_secrets_fail(WOLFSSL *ssl,
                                              WOLFSSL_ENCRYPTION_LEVEL level,
                                              const uint8_t *read_secret,
@@ -76,6 +77,7 @@ static int dummy_set_encryption_secrets_fail(WOLFSSL *ssl,
            write_secret? "yes" : "no");
     return 0;
 }
+#endif
 
 static int dummy_add_handshake_data(WOLFSSL *ssl,
                                     WOLFSSL_ENCRYPTION_LEVEL level,
@@ -115,20 +117,32 @@ static WOLFSSL_QUIC_METHOD null_method = {
 
 static ctx_setups valids[] = {
 #ifdef WOLFSSL_TLS13
+#ifndef NO_WOLFSSL_SERVER
     { "TLSv1.3 server", wolfTLSv1_3_server_method, 1},
+#endif
+#ifndef NO_WOLFSSL_CLIENT
     { "TLSv1.3 client", wolfTLSv1_3_client_method, 0},
+#endif
 #endif
     { NULL, NULL, 0}
 };
 
 static ctx_setups invalids[] = {
 #ifndef WOLFSSL_NO_TLS12
+#ifndef NO_WOLFSSL_SERVER
     { "TLSv1.2 server", wolfTLSv1_2_server_method, 1},
+#endif
+#ifndef NO_WOLFSSL_CLIENT
     { "TLSv1.2 client", wolfTLSv1_2_client_method, 0},
 #endif
+#endif
 #ifndef NO_OLD_TLS
+#ifndef NO_WOLFSSL_SERVER
     { "TLSv1.1 server", wolfTLSv1_1_server_method, 1},
+#endif
+#ifndef NO_WOLFSSL_CLIENT
     { "TLSv1.1 client", wolfTLSv1_1_client_method, 0},
+#endif
 #endif
     { NULL, NULL, 0}
 };
@@ -244,20 +258,7 @@ static int test_set_quic_method(void) {
     return EXPECT_RESULT();
 }
 
-static size_t fake_record(byte rtype, word32 rlen, uint8_t *rec)
-{
-    rec[0] = (uint8_t)rtype;
-    c32to24(rlen, rec+1);
-    return rlen + 4;
-}
-
-static size_t shift_record(uint8_t *rec, size_t len, size_t written)
-{
-    len -= written;
-    XMEMMOVE(rec, rec+written, len);
-    return len;
-}
-
+#if !defined(NO_WOLFSSL_CLIENT)
 static void dump_buffer(const char *name, const byte *p, size_t len, int indent)
 {
     size_t i = 0;
@@ -275,6 +276,22 @@ static void dump_buffer(const char *name, const byte *p, size_t len, int indent)
         i++;
     }
     printf("\n%*s};\n", indent, " ");
+}
+#endif
+
+#ifndef NO_WOLFSSL_CLIENT
+static size_t fake_record(byte rtype, word32 rlen, uint8_t *rec)
+{
+    rec[0] = (uint8_t)rtype;
+    c32to24(rlen, rec+1);
+    return rlen + 4;
+}
+
+static size_t shift_record(uint8_t *rec, size_t len, size_t written)
+{
+    len -= written;
+    XMEMMOVE(rec, rec+written, len);
+    return len;
 }
 
 static void dump_ssl_buffers(WOLFSSL *ssl, FILE *fp)
@@ -505,12 +522,14 @@ static WOLFSSL_QUIC_METHOD ctx_method = {
     ctx_send_alert,
 };
 
+#if !defined(NO_WOLFSSL_SERVER)
 static WOLFSSL_QUIC_METHOD ctx_method_fail = {
     dummy_set_encryption_secrets_fail,
     ctx_add_handshake_data,
     ctx_flush_flight,
     ctx_send_alert,
 };
+#endif
 
 static void QuicTestContext_init(QuicTestContext *tctx, WOLFSSL_CTX *ctx,
                                  const char *name, int verbose)
@@ -542,6 +561,7 @@ static void QuicTestContext_init(QuicTestContext *tctx, WOLFSSL_CTX *ctx,
     (void)ctx_method;
 }
 
+#if !defined(NO_WOLFSSL_SERVER)
 static void QuicTestContext_init_fail_cb(QuicTestContext *tctx, WOLFSSL_CTX *ctx,
                                  const char *name, int verbose)
 {
@@ -571,6 +591,7 @@ static void QuicTestContext_init_fail_cb(QuicTestContext *tctx, WOLFSSL_CTX *ctx
     }
     (void)ctx_method;
 }
+#endif
 
 static void QuicTestContext_free(QuicTestContext *tctx)
 {
@@ -703,6 +724,7 @@ static void check_handshake_record(const byte *data, size_t data_len,
     *prlen = rlen + HANDSHAKE_HEADER_SZ;
 }
 
+#if !defined(NO_WOLFSSL_SERVER)
 static void ext_dump(const byte *data, size_t data_len, int indent)
 {
     size_t idx = 0;
@@ -720,6 +742,7 @@ static void ext_dump(const byte *data, size_t data_len, int indent)
         idx += 2 + 2 + len16;
     }
 }
+#endif
 
 static const byte *ext_find(const byte *data, size_t data_len, int ext_type)
 {
@@ -742,6 +765,7 @@ static int ext_has(const byte *data, size_t data_len, int ext_type)
     return ext_find(data, data_len,ext_type) != NULL;
 }
 
+#if !defined(NO_WOLFSSL_SERVER)
 static void ext_equals(const byte *data, size_t data_len, int ext_type,
                        const byte *exp_data, size_t exp_len)
 {
@@ -800,6 +824,7 @@ static void check_quic_client_hello(const byte *data, size_t data_len,
         dump_buffer("", data, data_len, indent);
     }
 }
+#endif
 
 static void check_quic_client_hello_tp(OutputBuffer *out, int tp_v1,
                                        int tp_draft)
@@ -829,6 +854,7 @@ static void check_quic_client_hello_tp(OutputBuffer *out, int tp_v1,
     AssertTrue(!ext_has(exts, exts_len, TLSX_KEY_QUIC_TP_PARAMS_DRAFT) == !tp_draft);
 }
 
+#if !defined(NO_WOLFSSL_SERVER)
 static void check_secrets(QuicTestContext *ctx, WOLFSSL_ENCRYPTION_LEVEL level,
                           size_t rx_len, size_t tx_len)
 {
@@ -1195,6 +1221,7 @@ static void QuicConversation_fail(QuicConversation *conv)
 }
 
 #endif /* HAVE_SESSION_TICKET */
+#endif
 
 static int test_quic_client_hello(int verbose) {
     EXPECT_DECLS;
@@ -1252,7 +1279,9 @@ static int test_quic_client_hello(int verbose) {
 
     return EXPECT_RESULT();
 }
+#endif /* !NO_WOLFSSL_CLIENT */
 
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
 static int test_quic_server_hello(int verbose) {
     EXPECT_DECLS;
     WOLFSSL_CTX * ctx_c = NULL;
@@ -1883,6 +1912,7 @@ static int test_quic_session_export(int verbose)
     return EXPECT_RESULT();
 }
 #endif /* WOLFSSL_SESSION_EXPORT */
+#endif /* !NO_WOLFSSL_CLIENT && !NO_WOLFSSL_SERVER */
 
 #endif /* WOLFSSL_QUIC */
 
@@ -1891,7 +1921,9 @@ int QuicTest(void)
 {
     int ret = 0;
 #ifdef WOLFSSL_QUIC
+#ifndef NO_WOLFSSL_CLIENT
     int verbose = 0;
+#endif
 
     if (wolfSSL_Init() != WOLFSSL_SUCCESS) {
         printf("wolfSSL_Init() failed in QuicTest().");
@@ -1901,9 +1933,12 @@ int QuicTest(void)
     printf(" Begin QUIC Tests\n");
 
     if ((ret = test_set_quic_method()) != TEST_SUCCESS) goto leave;
+#ifndef NO_WOLFSSL_CLIENT
     if ((ret = test_provide_quic_data()) != TEST_SUCCESS) goto leave;
     if ((ret = test_quic_crypt()) != TEST_SUCCESS) goto leave;
     if ((ret = test_quic_client_hello(verbose)) != TEST_SUCCESS) goto leave;
+#endif
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
     if ((ret = test_quic_server_hello(verbose)) != TEST_SUCCESS) goto leave;
     if ((ret = test_quic_server_hello_fail(verbose)) != TEST_SUCCESS) goto leave;
 #ifdef REALLY_HAVE_ALPN_AND_SNI
@@ -1917,6 +1952,7 @@ int QuicTest(void)
 #endif /* WOLFSSL_EARLY_DATA */
     if ((ret = test_quic_session_export(verbose)) != TEST_SUCCESS) goto leave;
 #endif /* HAVE_SESSION_TICKET */
+#endif
 
 leave:
     if (ret != TEST_SUCCESS) {

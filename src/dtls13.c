@@ -1849,7 +1849,7 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
     isComplete = isFirst && fragLength == messageLength;
 
     if (!isComplete && !Dtls13AcceptFragmented(ssl, (enum HandShakeType)handshakeType)) {
-#ifdef WOLFSSL_DTLS_CH_FRAG
+#if defined(WOLFSSL_DTLS_CH_FRAG) && !defined(NO_WOLFSSL_SERVER)
         byte tls13 = 0;
         /* check if the first CH fragment contains a valid cookie */
         if (ssl->options.dtls13ChFrag && !ssl->options.dtlsStateful &&

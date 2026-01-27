@@ -497,20 +497,29 @@ int test_wolfSSL_CertManagerLoadCABufferType(void)
         (sword32)ca_cert_sz, CERT_FILETYPE, 0,
         WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS, WOLFSSL_USER_CA),
         WOLFSSL_SUCCESS);
+#if (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)) || \
+    defined(OPENSSL_EXTRA)
     ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, int1_cert_buf,
         int1_cert_sz, CERT_FILETYPE), WOLFSSL_SUCCESS);
+#endif
     ExpectIntEQ(wolfSSL_CertManagerLoadCABufferType(cm, int1_cert_buf,
         (sword32)int1_cert_sz, CERT_FILETYPE, 0,
         WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS, WOLFSSL_USER_INTER),
         WOLFSSL_SUCCESS);
+#if (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)) || \
+    defined(OPENSSL_EXTRA)
     ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, int2_cert_buf,
         int2_cert_sz, CERT_FILETYPE), WOLFSSL_SUCCESS);
+#endif
     ExpectIntEQ(wolfSSL_CertManagerLoadCABufferType(cm, int2_cert_buf,
         (sword32)int2_cert_sz, CERT_FILETYPE, 0,
         WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS, WOLFSSL_USER_INTER),
         WOLFSSL_SUCCESS);
+#if (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)) || \
+    defined(OPENSSL_EXTRA)
     ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, client_cert_buf,
         client_cert_sz, CERT_FILETYPE), WOLFSSL_SUCCESS);
+#endif
     ExpectIntEQ(wolfSSL_CertManagerLoadCABufferType(cm, client_cert_buf,
         (sword32)client_cert_sz, CERT_FILETYPE, 0,
         WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS, WOLFSSL_USER_INTER),
@@ -521,25 +530,34 @@ int test_wolfSSL_CertManagerLoadCABufferType(void)
 
     /* Intermediate certs have been unloaded, but CA cert is still
        loaded.  Expect first level intermediate to verify, rest to fail. */
+#if (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)) || \
+    defined(OPENSSL_EXTRA)
     ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, int1_cert_buf,
         int1_cert_sz, CERT_FILETYPE), WOLFSSL_SUCCESS);
     ExpectIntNE(wolfSSL_CertManagerVerifyBuffer(cm, int2_cert_buf,
         int2_cert_sz, CERT_FILETYPE), WOLFSSL_SUCCESS);
     ExpectIntNE(wolfSSL_CertManagerVerifyBuffer(cm, client_cert_buf,
         client_cert_sz, CERT_FILETYPE), WOLFSSL_SUCCESS);
+#endif
 
     ExpectIntEQ(wolfSSL_CertManagerLoadCABufferType(cm, int1_cert_buf,
         (sword32)int1_cert_sz, CERT_FILETYPE, 0,
         WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS, WOLFSSL_TEMP_CA),
         WOLFSSL_SUCCESS);
+#if (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)) || \
+    defined(OPENSSL_EXTRA)
     ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, int2_cert_buf,
         int2_cert_sz, CERT_FILETYPE), WOLFSSL_SUCCESS);
+#endif
     ExpectIntEQ(wolfSSL_CertManagerLoadCABufferType(cm, int2_cert_buf,
         (sword32)int2_cert_sz, CERT_FILETYPE, 0,
         WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS, WOLFSSL_CHAIN_CA),
         WOLFSSL_SUCCESS);
+#if (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)) || \
+    defined(OPENSSL_EXTRA)
     ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, client_cert_buf,
         client_cert_sz, CERT_FILETYPE), WOLFSSL_SUCCESS);
+#endif
     ExpectIntEQ(wolfSSL_CertManagerLoadCABufferType(cm, client_cert_buf,
         (sword32)client_cert_sz, CERT_FILETYPE, 0,
         WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS, WOLFSSL_USER_INTER),
@@ -547,39 +565,51 @@ int test_wolfSSL_CertManagerLoadCABufferType(void)
 
     ExpectIntEQ(wolfSSL_CertManagerUnloadTypeCerts(cm, WOLFSSL_USER_INTER),
         WOLFSSL_SUCCESS);
+#if (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)) || \
+    defined(OPENSSL_EXTRA)
     ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, int1_cert_buf,
         int1_cert_sz, CERT_FILETYPE), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, int2_cert_buf,
         int2_cert_sz, CERT_FILETYPE), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, client_cert_buf,
         client_cert_sz, CERT_FILETYPE), WOLFSSL_SUCCESS);
+#endif
 
     ExpectIntEQ(wolfSSL_CertManagerUnloadTypeCerts(cm, WOLFSSL_CHAIN_CA),
         WOLFSSL_SUCCESS);
+#if (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)) || \
+    defined(OPENSSL_EXTRA)
     ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, int1_cert_buf,
         int1_cert_sz, CERT_FILETYPE), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, int2_cert_buf,
         int2_cert_sz, CERT_FILETYPE), WOLFSSL_SUCCESS);
     ExpectIntNE(wolfSSL_CertManagerVerifyBuffer(cm, client_cert_buf,
         client_cert_sz, CERT_FILETYPE), WOLFSSL_SUCCESS);
+#endif
 
     ExpectIntEQ(wolfSSL_CertManagerUnloadTypeCerts(cm, WOLFSSL_TEMP_CA),
         WOLFSSL_SUCCESS);
+#if (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)) || \
+    defined(OPENSSL_EXTRA)
     ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, int1_cert_buf,
         int1_cert_sz, CERT_FILETYPE), WOLFSSL_SUCCESS);
     ExpectIntNE(wolfSSL_CertManagerVerifyBuffer(cm, int2_cert_buf,
         int2_cert_sz, CERT_FILETYPE), WOLFSSL_SUCCESS);
     ExpectIntNE(wolfSSL_CertManagerVerifyBuffer(cm, client_cert_buf,
         client_cert_sz, CERT_FILETYPE), WOLFSSL_SUCCESS);
+#endif
 
     ExpectIntEQ(wolfSSL_CertManagerUnloadTypeCerts(cm, WOLFSSL_USER_CA),
         WOLFSSL_SUCCESS);
+#if (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)) || \
+    defined(OPENSSL_EXTRA)
     ExpectIntNE(wolfSSL_CertManagerVerifyBuffer(cm, int1_cert_buf,
         int1_cert_sz, CERT_FILETYPE), WOLFSSL_SUCCESS);
     ExpectIntNE(wolfSSL_CertManagerVerifyBuffer(cm, int2_cert_buf,
         int2_cert_sz, CERT_FILETYPE), WOLFSSL_SUCCESS);
     ExpectIntNE(wolfSSL_CertManagerVerifyBuffer(cm, client_cert_buf,
         client_cert_sz, CERT_FILETYPE), WOLFSSL_SUCCESS);
+#endif
 
     if (cm)
         wolfSSL_CertManagerFree(cm);

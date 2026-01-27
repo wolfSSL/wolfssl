@@ -770,11 +770,13 @@ static int ProcessBufferTryDecodeEd448(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
                 WOLFSSL_MSG("ED448 private key too small");
                 ret = ECC_KEY_SIZE_E;
             }
+        #if !defined(WOLFSSL_NO_CLIENT_AUTH) && !defined(NO_ED448_CLIENT_AUTH)
             if (ssl != NULL) {
                 /* Ed448 requires caching enabled for tracking message
                  * hash used in EdDSA_Update for signing */
                 ssl->options.cacheMessages = 1;
             }
+        #endif
         }
         /* Not an Ed448 key but check whether we know what it is. */
         else if (*keyFormat == 0) {
