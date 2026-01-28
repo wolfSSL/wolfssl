@@ -2685,7 +2685,7 @@ static WC_INLINE void bench_stats_start(int* count, double* start)
 
 #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS)
     #define bench_stats_start(count, start) do {                               \
-        SAVE_VECTOR_REGISTERS(WOLFSSL_DEBUG_PRINTF(                                          \
+        SAVE_VECTOR_REGISTERS(WOLFSSL_DEBUG_PRINTF(                            \
             "ERROR: SAVE_VECTOR_REGISTERS failed for benchmark run.");         \
                               return; );                                       \
         bench_stats_start(count, start);                                       \

@@ -142,12 +142,14 @@ int wolfkmod_vecreg_save(int flags_unused)
     if (is_fpu_kern_thread(0)) {
         /* kernel fpu threads are special, do nothing. They own a
          * persistent, dedicated fpu context. */
+        #if defined(WOLFSSL_BSDKM_FPU_DEBUG)
         printf("info: wolfkmod_vecreg_save: is fpu kern thread\n");
+        #endif
         return (0);
     }
 
     if (curthread->td_pcb->pcb_flags & PCB_KERNFPU) {
-        /* fpu context already active. check td_tid and
+        /* kern fpu is active for this thread. check td_tid and
          * increment nesting level. */
         lwpid_t td_tid = wolfkmod_fpu_get_tid();
         if (td_tid != curthread->td_tid) {
@@ -158,7 +160,7 @@ int wolfkmod_vecreg_save(int flags_unused)
         fpu_states[PCPU_GET(cpuid)].nest++;
     }
     else {
-        /* fpu context not active, call fpu_kern_enter().
+        /* kern fpu not active for this thread, call fpu_kern_enter().
          * after calling fpu_kern_enter():
          *   - kernel fpu is enabled
          *   - migration is disabled
@@ -190,14 +192,18 @@ void wolfkmod_vecreg_restore(void)
     if (is_fpu_kern_thread(0)) {
         /* kernel fpu threads are special, do nothing. They own a
          * persistent, dedicated fpu context. */
+        #if defined(WOLFSSL_BSDKM_FPU_DEBUG)
         printf("info: wolfkmod_vecreg_restore: is fpu kern thread\n");
+        #endif
         return;
     }
 
     if (curthread->td_pcb->pcb_flags & PCB_KERNFPU) {
-        if (fpu_states[PCPU_GET(cpuid)].td_tid != curthread->td_tid) {
-            printf("error: wolfkmod_vecreg_restore: got tid = %d, expected %d\n",
-                   fpu_states[PCPU_GET(cpuid)].td_tid, curthread->td_tid);
+        /* kern fpu is active for this thread. check tid and nesting level. */
+        lwpid_t td_tid = wolfkmod_fpu_get_tid();
+        if (td_tid != curthread->td_tid) {
+            printf("error: wolfkmod_vecreg_restore: got tid = %d, "
+                   "expected %d\n", td_tid, curthread->td_tid);
             return;
         }
 
@@ -206,7 +212,7 @@ void wolfkmod_vecreg_restore(void)
             fpu_states[PCPU_GET(cpuid)].nest--;
         }
 
-        /* if last level, zero the thread id and call fpu_kern_leave */
+        /* if last level, zero the thread id then call fpu_kern_leave */
         if (fpu_states[PCPU_GET(cpuid)].nest == 0) {
             fpu_states[PCPU_GET(cpuid)].td_tid = 0;
             wolfkmod_fpu_kern_leave();

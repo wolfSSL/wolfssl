@@ -10,7 +10,7 @@ Supported features:
 - crypto acceleration: AES-NI, AVX, etc.
 
 Planned features:
-- kernel opencrypto driver registration.
+- kernel opencrypto driver registration (supported for internal testing presently).
 - full wolfSSL in kernel (kernel TLS).
 
 ## Building and Installing
@@ -44,10 +44,12 @@ sudo kldunload libwolfssl
 
 ### options
 
-| freebsdkm option                 | description                              |
-| :------------------------------- | :--------------------------------------- |
-| --with-bsd-export-syms=LIST      | Export list of symbols as global. <br>. Options are 'all', 'none', or <br> comma separated list of symbols. |
-| --with-kernel-source=PATH        | Path to kernel tree root (default `/usr/src/sys`) |
+| freebsdkm option                   | description                              |
+| :--------------------------------- | :--------------------------------------- |
+| --with-bsd-export-syms=LIST        | Export list of symbols as global. <br>. Options are 'all', 'none', or <br> comma separated list of symbols. |
+| --with-kernel-source=PATH          | Path to kernel tree root (default `/usr/src/sys`) |
+| --enable-kernel-benchmarks         | Run wolfcrypt benchmark at module load    |
+| --enable-freebsdkm-crypto-register | Register with the FreeBSD kernel opencrypto <br>framework (preliminary, for testing) |
 
 ### FIPS
 

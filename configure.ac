@@ -832,16 +832,11 @@ AC_ARG_WITH([bsd-export-syms],
 
 if test "x$ENABLED_BSDKM" = "xyes"
 then
-    #AX_SIMD_CC_COMPILER_FLAGS
-    # wolfcrypt only for now.
+    # note: bsdkm is wolfcrypt only for now.
     HAVE_KERNEL_MODE=yes
     KERNEL_MODE_DEFAULTS=yes
     ENABLED_NO_LIBRARY=yes
     ENABLED_BENCHMARK=no
-
-    # todo: remove, leaving for notes for now.
-    #ENABLED_ASM=no
-    #AM_CFLAGS="$AM_CFLAGS -DTFM_NO_ASM -DWOLFSSL_NO_ASM"
 
     output_objdir="$(realpath "$output_objdir")/bsdkm"
 
@@ -862,7 +857,6 @@ then
     fi
     AC_SUBST([KERNEL_ROOT])
     AC_SUBST([BSDKM_EXPORT_SYMS])
-
 fi
 
 if test "x$ENABLED_BSDKM_REGISTER" = "xyes"
