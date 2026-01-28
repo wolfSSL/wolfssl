@@ -215,14 +215,16 @@ static int wolfkmod_cleanup(void)
     if (error != 0) {
         printf("error: wolfCrypt_Cleanup failed: %s\n",
                wc_GetErrorString(error));
-        return (ECANCELED);
+        error = ECANCELED;
+        goto wolfkmod_cleanup_out;
     }
     #else
     error = wolfSSL_Cleanup();
     if (error != WOLFSSL_SUCCESS) {
         printf("error: wolfSSL_Cleanup failed: %s\n",
                wc_GetErrorString(error));
-        return (ECANCELED);
+        error = ECANCELED;
+        goto wolfkmod_cleanup_out;
     }
     #endif /* WOLFCRYPT_ONLY */
 
@@ -230,12 +232,14 @@ static int wolfkmod_cleanup(void)
     printf("info: libwolfssl " LIBWOLFSSL_VERSION_STRING
            " cleanup complete.\n");
     #endif /* WOLFSSL_BSDKM_VERBOSE_DEBUG */
+    error = 0;
 
+wolfkmod_cleanup_out:
     #if defined(WOLFSSL_AESNI) || defined(WOLFSSL_KERNEL_BENCHMARKS)
     wolfkmod_vecreg_exit();
     #endif /* WOLFSSL_AESNI || WOLFSSL_KERNEL_BENCHMARKS*/
 
-    return (0);
+    return (error);
 }
 
 #if !defined(BSDKM_CRYPTO_REGISTER)
@@ -554,9 +558,9 @@ static int wolfkdriv_probesession(device_t dev,
     return (error);
 }
 
-static int wolfkdriv_newsession_cipher(device_t dev,
-                                       wolfkdriv_session_t * session,
-                                       const struct crypto_session_params *csp)
+static int wolfkdriv_newsession_aes(device_t dev,
+                                    wolfkdriv_session_t * session,
+                                    const struct crypto_session_params *csp)
 {
     int error = 0;
     int klen = csp->csp_cipher_klen; /* key len in bytes */
@@ -624,7 +628,7 @@ static int wolfkdriv_newsession(device_t dev, crypto_session_t cses,
         break;
     case CSP_MODE_CIPHER:
     case CSP_MODE_AEAD:
-        error = wolfkdriv_newsession_cipher(dev, session, csp);
+        error = wolfkdriv_newsession_aes(dev, session, csp);
         break;
     default:
         __assert_unreachable();
@@ -638,9 +642,6 @@ static int wolfkdriv_newsession(device_t dev, crypto_session_t cses,
     return (error);
 }
 
-/*
- *
- */
 static void
 wolfkdriv_freesession(device_t dev, crypto_session_t cses)
 {
@@ -659,9 +660,6 @@ wolfkdriv_freesession(device_t dev, crypto_session_t cses)
     return;
 }
 
-/*
- *
- */
 static int wolfkdriv_cbc_work(device_t dev, wolfkdriv_session_t * session,
                               struct cryptop * crp,
                               const struct crypto_session_params * csp)
@@ -812,9 +810,6 @@ cbc_work_out:
     return (error);
 }
 
-/*
- * todo: skeleton implementation, finish.
- */
 static int wolfkdriv_gcm_work(device_t dev, wolfkdriv_session_t * session,
                               struct cryptop * crp,
                               const struct crypto_session_params * csp)
@@ -1056,7 +1051,7 @@ static driver_t wolfkdriv_driver = {
     .size = sizeof(struct wolfkdriv_softc),
 };
 
-/* note: on x86, software-only drivers usually attach to nexus bus. */
+/* on x86, software-only drivers usually attach to nexus bus. */
 DRIVER_MODULE(libwolfssl, nexus, wolfkdriv_driver, NULL, NULL);
 #endif /* BSDKM_CRYPTO_REGISTER */
 

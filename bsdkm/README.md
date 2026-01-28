@@ -7,9 +7,9 @@ other loadable modules to link to wolfCrypt.
 Supported features:
 - wolfCrypt in kernel.
 - FIPS-wolfcrypt.
+- crypto acceleration: AES-NI, AVX, etc.
 
 Planned features:
-- crypto acceleration: AES-NI, AVX, etc.
 - kernel opencrypto driver registration.
 - full wolfSSL in kernel (kernel TLS).
 
