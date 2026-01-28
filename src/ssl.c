@@ -15184,6 +15184,11 @@ const char* wolfSSL_lib_version(void)
     return LIBWOLFSSL_VERSION_STRING;
 }
 
+const char* wolfSSL_lib_git_hash(void)
+{
+    return LIBWOLFSSL_GIT_HASH;
+}
+
 #ifdef OPENSSL_EXTRA
 #if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
 const char* wolfSSL_OpenSSL_version(int a)
