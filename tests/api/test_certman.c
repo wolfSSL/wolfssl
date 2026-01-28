@@ -976,9 +976,14 @@ int test_wolfSSL_CertManagerNameConstraint2(void)
         WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_X509_add_altname(x509, "", ASN_DIR_TYPE),
         WOLFSSL_SUCCESS);
-    /* IP not supported. */
+    /* IP not supported unless WOLFSSL_IP_ALT_NAME is enabled. */
+#ifdef WOLFSSL_IP_ALT_NAME
+    ExpectIntEQ(wolfSSL_X509_add_altname(x509, "127.0.0.1", ASN_IP_TYPE),
+        WOLFSSL_SUCCESS);
+#else
     ExpectIntEQ(wolfSSL_X509_add_altname(x509, "127.0.0.1", ASN_IP_TYPE),
         WOLFSSL_FAILURE);
+#endif
 
     /* add in matching DIR alt name and resign */
     wolfSSL_X509_add_altname_ex(x509, altName, sizeof(altName), ASN_DIR_TYPE);
@@ -2397,4 +2402,3 @@ int test_various_pathlen_chains(void)
 #endif
     return EXPECT_RESULT();
 }
-
