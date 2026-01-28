@@ -59,15 +59,15 @@ make
 */
 
 
-#ifndef WOLF_USER_SETTINGS_TPM_H
-#define WOLF_USER_SETTINGS_TPM_H
+#ifndef WOLFSSL_USER_SETTINGS_H
+#define WOLFSSL_USER_SETTINGS_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/* enable for low resource options */
-#if 0
+/* Enable for low resource options (smaller, no TLS) */
+#if 0 /* Low resource mode */
     #define USE_LOW_RESOURCE
 #endif
 
@@ -121,7 +121,7 @@ extern "C" {
 #endif
 
 /* Asymmetric */
-#if 1 /* RSA - needed to encrypt salt */
+#if 1 /* RSA - needed for TPM salt encryption */
     #undef  NO_RSA
     #ifdef USE_LOW_RESOURCE
         #define WOLFSSL_RSA_PUBLIC_ONLY
@@ -131,7 +131,7 @@ extern "C" {
 #else
     #define NO_RSA
 #endif
-#if 1 /* ECC - needed for encrypt ECC salt */
+#if 1 /* ECC - needed for TPM ECC operations */
     #define HAVE_ECC
     #define ECC_USER_CURVES /* default to only SECP256R1 */
 #endif
@@ -223,4 +223,4 @@ extern "C" {
 }
 #endif
 
-#endif /* WOLF_USER_SETTINGS_TPM_H */
+#endif /* WOLFSSL_USER_SETTINGS_H */

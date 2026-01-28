@@ -373,7 +373,7 @@ int CheckOcspResponse(WOLFSSL_OCSP *ocsp, byte *response, int responseSz,
 #endif
     InitOcspResponse(ocspResponse, newSingle, newStatus, response,
                      (word32)responseSz, ocsp->cm->heap);
-#if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && !defined(NO_TLS)
     if (ocspRequest != NULL && ocspRequest->ssl != NULL &&
            TLSX_CSR2_IsMulti(((WOLFSSL*)ocspRequest->ssl)->extensions)) {
         ocspResponse->pendingCAs = TLSX_CSR2_GetPendingSigners(((WOLFSSL*)ocspRequest->ssl)->extensions);
