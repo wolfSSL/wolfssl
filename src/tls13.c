@@ -257,7 +257,6 @@ static int Tls13HKDFExpandKeyLabel(WOLFSSL* ssl, byte* okm, word32 okmLen,
 #endif
 
 #if !defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(6,0))
-    printf("Running this\n");
     ret = wc_Tls13_HKDF_Expand_Label_ex(okm, okmLen, prk, prkLen,
                                       protocol, protocolLen,
                                       label, labelLen,
@@ -5646,10 +5645,8 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         if (args->extMsgType == hello_retry_request) {
             args->acceptOffset =
                 (word32)(((WOLFSSL_ECH*)args->echX->data)->confBuf - input);
-            printf("\n\n\nCONFBUF %p\n", ((WOLFSSL_ECH*)args->echX->data)->confBuf);
             args->acceptLabel = (byte*)echHrrAcceptConfirmationLabel;
             args->acceptLabelSz = ECH_HRR_ACCEPT_CONFIRMATION_LABEL_SZ;
-            printf("\n\nHELLO RETRY REQUEST\n\n\n");
         }
         else {
             args->acceptLabel = (byte*)echAcceptConfirmationLabel;
@@ -5657,7 +5654,6 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
         /* check acceptance */
         if (ret == 0) {
-            printf("inOutIdx %d  acceptOffset %d\n", *inOutIdx, args->acceptOffset);
             ret = EchCheckAcceptance(ssl, args->acceptLabel,
                 args->acceptLabelSz, input, args->acceptOffset, helloSz);
         }
@@ -5727,7 +5723,6 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         ssl->options.tls1_3 = 1;
         ssl->options.serverState = SERVER_HELLO_RETRY_REQUEST_COMPLETE;
 
-        printf("\n\n\nRestarting HASH\n\n\n\n");
         ret = RestartHandshakeHash(ssl);
     }
 
@@ -12982,19 +12977,11 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         return OUT_OF_ORDER_E;
     }
 
-    if (ssl->options.echAccepted == 1) {
-        printf("\n\n\nHIGH LEVEL - ECH ACCEPTED\n\n\n\n");
-    }
-    else {
-        printf("\n\n\nHIGH LEVEL - ECH REJECTED\n\n\n\n");
-    }
-
     /* above checks handshake state */
     switch (type) {
 #ifndef NO_WOLFSSL_CLIENT
     /* Messages only received by client. */
     case server_hello:
-        printf("\n\n\nProcessing SERVER HELLO\n\n\n\n");
         WOLFSSL_MSG("processing server hello");
         ret = DoTls13ServerHello(ssl, input, inOutIdx, size, &type);
     #if !defined(WOLFSSL_NO_CLIENT_AUTH) && \
@@ -13144,14 +13131,6 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         ret = UNKNOWN_HANDSHAKE_TYPE;
         break;
     }
-
-    if (ssl->options.echAccepted == 1) {
-        printf("\n\n\nHIGH LEVEL 2 - ECH ACCEPTED\n\n\n\n");
-    }
-    else {
-        printf("\n\n\nHIGH LEVEL 2 - ECH REJECTED\n\n\n\n");
-    }
-
 
 #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_ASYNC_IO)
     /* if async, offset index so this msg will be processed again */

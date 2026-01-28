@@ -13554,8 +13554,6 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
     }
     /* HRR with special confirmation */
     else if (msgType == hello_retry_request && ssl->options.useEch) {
-        /* TODO: confirmation may not exist -> segfault? */
-        printf("\n\ngot special confirmation\n\n\n");
         /* length must be 8 */
         if (size != ECH_ACCEPT_CONFIRMATION_SZ)
             return BAD_FUNC_ARG;
@@ -14393,7 +14391,6 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
                 WOLFSSL_MSG("ECH extension to write");
                 ret = ECH_WRITE((WOLFSSL_ECH*)extension->data, msgType,
                     output + offset, &offset);
-                fprintf(stderr, "\t\thit this\n");
                 break;
 #endif
             default:
@@ -16929,6 +16926,18 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
         ret = SNI_VERIFY_PARSE(ssl, isRequest);
     if (ret == 0)
         ret = TCA_VERIFY_PARSE(ssl, isRequest);
+
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
+    /* If client used ECH, server HRR must include ECH confirmation */
+    if (ret == 0 && msgType == hello_retry_request && ssl->options.useEch == 1) {
+        TLSX* echX = TLSX_Find(ssl->extensions, TLSX_ECH);
+        if (echX == NULL || ((WOLFSSL_ECH*)echX->data)->confBuf == NULL) {
+            WOLFSSL_MSG("ECH used but HRR missing ECH confirmation");
+            WOLFSSL_ERROR_VERBOSE(EXT_MISSING);
+            ret = EXT_MISSING;
+        }
+    }
+#endif
 
     WOLFSSL_LEAVE("Leaving TLSX_Parse", ret);
     return ret;
