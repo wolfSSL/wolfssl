@@ -18066,6 +18066,12 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
                 WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
                 return OUT_OF_ORDER_E;
             }
+            if (!ssl->options.resuming && ssl->options.verifyPeer &&
+                    !ssl->options.usingPSK_cipher &&
+                    !ssl->options.usingAnon_cipher &&
+                    !ssl->msgsReceived.got_certificate) {
+                return OUT_OF_ORDER_E;
+            }
             if (ssl->msgsReceived.got_certificate_verify||
                     ssl->msgsReceived.got_change_cipher ||
                     ssl->msgsReceived.got_finished) {
