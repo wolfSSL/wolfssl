@@ -15063,7 +15063,7 @@ PRAGMA_GCC_DIAG_POP
             return ret;
     #endif
     }
-#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && !defined(NO_TLS)
     if (verify != NO_VERIFY && TLSX_CSR2_IsMulti(ssl->extensions)) {
         extraSigners = TLSX_CSR2_GetPendingSigners(ssl->extensions);
     }
@@ -15840,6 +15840,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         /* If we are processing OCSP staples then always
                          * initialize the corresponding request. */
                         int ocspRet = 0;
+                    #ifndef NO_TLS
                     #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
                         addToPendingCAs = 0;
                         if (ssl->options.side == WOLFSSL_CLIENT_END &&
@@ -15864,6 +15865,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         }
                         else
                     #endif
+                    #endif /* NO_TLS */
                         if (ret == 0 && SSL_CM(ssl)->ocspEnabled &&
                                             SSL_CM(ssl)->ocspCheckAll) {
                             WOLFSSL_MSG("Doing Non Leaf OCSP check");
@@ -16365,6 +16367,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     WOLFSSL_MSG("Checking if ocsp needed");
 
                     if (ssl->options.side == WOLFSSL_CLIENT_END) {
+                #ifndef NO_TLS
                 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
                         if (ssl->status_request) {
                             args->fatal = (TLSX_CSR_InitRequest_ex(
@@ -16397,6 +16400,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             WOLFSSL_MSG("\tHave status request v2");
                         }
                 #endif /* HAVE_CERTIFICATE_STATUS_REQUEST_V2 */
+                #endif /* !NO_TLS */
                     }
 
                 #ifdef HAVE_OCSP
@@ -17217,8 +17221,8 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         return BUFFER_ERROR;
 
     switch (status_type) {
-
-    #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
+    #ifndef NO_TLS
+    #if (defined(HAVE_CERTIFICATE_STATUS_REQUEST) && !defined(NO_TLS)) \
      || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
 
         /* WOLFSSL_CSR_OCSP overlaps with WOLFSSL_CSR2_OCSP */
@@ -17332,6 +17336,7 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         break;
 
     #endif
+    #endif /* !NO_TLS */
 
         default:
             ret = BUFFER_ERROR;

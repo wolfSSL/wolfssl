@@ -111,15 +111,24 @@ jobs:
       matrix:
         os: [ ubuntu-24.04, macos-latest ]
         user-settings: [
-          # Add new user_settings.h here
+          # Add new user_settings.h here (alphabetical order)
+          'examples/configs/user_settings_ca.h',
+          'examples/configs/user_settings_dtls13.h',
           'examples/configs/user_settings_EBSnet.h',
           'examples/configs/user_settings_eccnonblock.h',
           'examples/configs/user_settings_min_ecc.h',
+          'examples/configs/user_settings_openssl_compat.h',
+          'examples/configs/user_settings_pkcs7.h',
+          'examples/configs/user_settings_rsa_only.h',
           'examples/configs/user_settings_template.h',
           'examples/configs/user_settings_tls12.h',
+          'examples/configs/user_settings_tls13.h',
           'examples/configs/user_settings_wolfboot_keytools.h',
           'examples/configs/user_settings_wolfssh.h',
           'examples/configs/user_settings_wolftpm.h',
+          # Not included (require special setup):
+          # - user_settings_pq.h: Requires --enable-experimental
+          # - user_settings_baremetal.h: Requires static memory, custom platform
         ]
     name: make user_setting.h (testwolfcrypt only)
     if: github.repository_owner == 'wolfssl'
