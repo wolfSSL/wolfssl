@@ -4591,6 +4591,19 @@ then
 fi
 
 
+# CERT SIGN CALLBACK
+AC_ARG_ENABLE([certsigncb],
+    [AS_HELP_STRING([--enable-certsigncb],[Enable cert signing callback API for TPM/HSM (default: disabled)])],
+    [ ENABLED_CERTSIGNCB=$enableval ],
+    [ ENABLED_CERTSIGNCB=no ]
+    )
+
+if test "$ENABLED_CERTSIGNCB" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_SIGN_CB"
+fi
+
+
 # SEP
 AC_ARG_ENABLE([sep],
     [AS_HELP_STRING([--enable-sep],[Enable sep extensions (default: disabled)])],
