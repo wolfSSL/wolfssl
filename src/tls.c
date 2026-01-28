@@ -1064,7 +1064,8 @@ static int Hmac_UpdateFinal_CT(Hmac* hmac, byte* digest, const byte* in,
             hashBlock[j] = b;
         }
 
-        ret = Hmac_HashUpdate(hmac, hashBlock, (word32)blockSz); /* cppcheck-suppress uninitvar */
+        /* cppcheck-suppress uninitvar */
+        ret = Hmac_HashUpdate(hmac, hashBlock, (word32)blockSz);
         if (ret != 0)
             return ret;
         ret = Hmac_HashFinalRaw(hmac, hashBlock);
@@ -3477,8 +3478,7 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     word16 size = 0;
 #endif
 
-#if !defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER) \
-    && defined(WOLFSSL_TLS13)
+#if !defined(NO_WOLFSSL_CLIENT)
     OcspRequest* request;
     TLSX* extension;
     CertificateStatusRequest* csr;
@@ -5331,6 +5331,7 @@ int TLSX_SupportedFFDHE_Set(WOLFSSL* ssl)
     return ret;
 }
 #endif /* HAVE_FFDHE && !WOLFSSL_NO_TLS12 */
+#endif /* !NO_WOLFSSL_SERVER */
 
 /* Check if the given curve is present in the supported groups extension.
  *
@@ -5356,8 +5357,6 @@ int TLSX_SupportedCurve_IsSupported(WOLFSSL* ssl, word16 name)
 
     return 0;
 }
-
-#endif /* !NO_WOLFSSL_SERVER */
 
 #if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_SERVER_GROUPS_EXT)
 /* Return the preferred group.
@@ -6525,6 +6524,7 @@ typedef struct TlsxSrtp {
     word16 ids; /* selected bits */
 } TlsxSrtp;
 
+#ifndef NO_WOLFSSL_SERVER
 static int TLSX_UseSRTP_GetSize(TlsxSrtp *srtp)
 {
     /*   SRTP Profile Len (2)
@@ -6532,6 +6532,7 @@ static int TLSX_UseSRTP_GetSize(TlsxSrtp *srtp)
      *   MKI (master key id) Length */
     return (OPAQUE16_LEN + (srtp->profileCount * OPAQUE16_LEN) + 1);
 }
+#endif
 
 static TlsxSrtp* TLSX_UseSRTP_New(word16 ids, void* heap)
 {
@@ -6562,6 +6563,7 @@ static void TLSX_UseSRTP_Free(TlsxSrtp *srtp, void* heap)
     (void)heap;
 }
 
+#ifndef NO_WOLFSSL_SERVER
 static int TLSX_UseSRTP_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     byte isRequest)
 {
@@ -6569,10 +6571,8 @@ static int TLSX_UseSRTP_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     word16 profile_len = 0;
     word16 profile_value = 0;
     word16 offset = 0;
-#ifndef NO_WOLFSSL_SERVER
     int i;
     TlsxSrtp* srtp = NULL;
-#endif
 
     if (length < OPAQUE16_LEN) {
         return BUFFER_ERROR;
@@ -6600,7 +6600,6 @@ static int TLSX_UseSRTP_Parse(WOLFSSL* ssl, const byte* input, word16 length,
         }
 #endif
     }
-#ifndef NO_WOLFSSL_SERVER
     else {
         /* parse remainder one profile at a time, looking for match in CTX */
         ret = 0;
@@ -6643,7 +6642,6 @@ static int TLSX_UseSRTP_Parse(WOLFSSL* ssl, const byte* input, word16 length,
         ssl->dtlsSrtpId = 0;
         TLSX_UseSRTP_Free(srtp, ssl->heap);
     }
-#endif
     (void)profile_len;
 
     return ret;
@@ -6669,6 +6667,7 @@ static word16 TLSX_UseSRTP_Write(TlsxSrtp* srtp, byte* output)
 
     return offset;
 }
+#endif
 
 static int TLSX_UseSRTP(TLSX** extensions, word16 profiles, void* heap)
 {

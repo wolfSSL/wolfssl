@@ -71,6 +71,16 @@ jobs:
           '--enable-sessionexport --enable-dtls --enable-dtls13',
           '--enable-sessionexport',
           '--disable-examples CPPFLAGS=-DWOLFSSL_NO_MALLOC',
+          'CPPFLAGS=-DNO_WOLFSSL_CLIENT',
+          'CPPFLAGS=-DNO_WOLFSSL_SERVER',
+          'CPPFLAGS=-DWOLFSSL_NO_CLIENT_AUTH',
+          'CPPFLAGS=''-DNO_WOLFSSL_CLIENT -DWOLFSSL_NO_CLIENT_AUTH''',
+          'CPPFLAGS=''-DNO_WOLFSSL_SERVER -DWOLFSSL_NO_CLIENT_AUTH''',
+          '--enable-all CPPFLAGS=-DNO_WOLFSSL_CLIENT',
+          '--enable-all CPPFLAGS=-DNO_WOLFSSL_SERVER',
+          '--enable-all CPPFLAGS=-DWOLFSSL_NO_CLIENT_AUTH',
+          '--enable-all CPPFLAGS=''-DNO_WOLFSSL_CLIENT -DWOLFSSL_NO_CLIENT_AUTH''',
+          '--enable-all CPPFLAGS=''-DNO_WOLFSSL_SERVER -DWOLFSSL_NO_CLIENT_AUTH''',
         ]
     name: make check
     if: github.repository_owner == 'wolfssl'

@@ -12347,7 +12347,7 @@ int wc_AesGcmDecryptFinal(Aes* aes, const byte* authTag, word32 authTagSz)
         {
             ALIGN32 byte calcTag[WC_AES_BLOCK_SIZE];
             /* Calculate authentication tag. */
-            ret = AesGcmFinal_C(aes, calcTag, authTagSz);
+            ret = AesGcmFinal_C(aes, calcTag, WC_AES_BLOCK_SIZE);
             if (ret == 0) {
                 /* Check calculated tag matches the one passed in. */
                 if (ConstantCompare(authTag, calcTag, (int)authTagSz) != 0) {

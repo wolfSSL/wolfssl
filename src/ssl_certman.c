@@ -716,7 +716,8 @@ void wolfSSL_CertManagerSetUnknownExtCallback(WOLFSSL_CERT_MANAGER* cm,
 }
 #endif /* WC_ASN_UNKNOWN_EXT_CB */
 
-#if !defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)
+#if (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)) || \
+    defined(OPENSSL_EXTRA)
 /* Verify the certificate.
  *
  * Uses the verification callback if available.
@@ -796,7 +797,8 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
 
     (void)fatal;
 
-#ifndef NO_WOLFSSL_CM_VERIFY
+#if !defined(NO_WOLFSSL_CM_VERIFY) && \
+    (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH))
     /* Use callback to perform verification too if available. */
     if ((!fatal) && cm->verifyCallback) {
         WC_DECLARE_VAR(args, ProcPeerCertArgs, 1, 0);
@@ -884,11 +886,12 @@ int wolfSSL_CertManagerVerifyBuffer(WOLFSSL_CERT_MANAGER* cm,
 
     return ret;
 }
-#endif /* !NO_WOLFSSL_CLIENT || !WOLFSSL_NO_CLIENT_AUTH */
+#endif /* (!NO_WOLFSSL_CLIENT || !WOLFSSL_NO_CLIENT_AUTH) || OPENSSL_EXTRA */
 
 #ifndef NO_FILESYSTEM
 
-#if !defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)
+#if (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)) || \
+    defined(OPENSSL_EXTRA)
 /* Verify the certificate loaded from a file.
  *
  * Uses the verification callback if available.

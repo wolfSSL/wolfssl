@@ -3666,6 +3666,7 @@ int wolfSSL_CTX_UseTruncatedHMAC(WOLFSSL_CTX* ctx)
 #endif /* NO_WOLFSSL_CLIENT */
 #endif /* HAVE_TRUNCATED_HMAC */
 
+#ifndef NO_WOLFSSL_CLIENT
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
 
 int wolfSSL_UseOCSPStapling(WOLFSSL* ssl, byte status_type, byte options)
@@ -3717,6 +3718,7 @@ int wolfSSL_CTX_UseOCSPStaplingV2(WOLFSSL_CTX* ctx, byte status_type,
 }
 
 #endif /* HAVE_CERTIFICATE_STATUS_REQUEST_V2 */
+#endif /* !NO_WOLFSSL_CLIENT */
 
 /* Elliptic Curves */
 #if defined(HAVE_SUPPORTED_CURVES)
@@ -22208,6 +22210,7 @@ int wolfSSL_set_tlsext_status_ocsp_resp_multi(WOLFSSL* ssl, unsigned char *resp,
     return WOLFSSL_SUCCESS;
 }
 
+#ifndef NO_WOLFSSL_SERVER
 void wolfSSL_CTX_set_ocsp_status_verify_cb(WOLFSSL_CTX* ctx,
         ocspVerifyStatusCb cb, void* cbArg)
 {
@@ -22216,6 +22219,7 @@ void wolfSSL_CTX_set_ocsp_status_verify_cb(WOLFSSL_CTX* ctx,
         ctx->ocspStatusVerifyCbArg = cbArg;
     }
 }
+#endif
 #endif
 
 #if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \

@@ -24,6 +24,22 @@ if [[ -z "${RETRIES_REMAINING-}" ]]; then
     export RETRIES_REMAINING=2
 fi
 
+[ ! -x ./examples/client/client ] && printf '\n\n%s\n' "Client doesn't exist" \
+                                  && exit 1
+
+[ ! -x ./examples/server/server ] && printf '\n\n%s\n' "Server doesn't exist" \
+                                  && exit 1
+
+if ! ./examples/client/client | grep "Client not compiled in!" ; then
+    echo 'skipping crl-revoked.test because client not compiled in.' 1>&2
+    exit 77
+fi
+
+if ! ./examples/server/server | grep "Server not compiled in!" ; then
+    echo 'skipping crl-revoked.test because server not compiled in.' 1>&2
+    exit 77
+fi
+
 if ! ./examples/client/client -V | grep -q 4; then
     tls13=no
 

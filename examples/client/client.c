@@ -1209,8 +1209,10 @@ static const char* client_usage_msg[][79] = {
 #endif
         "-l <str>    Cipher suite list (: delimited)\n",                /* 8 */
 #ifndef NO_CERTS
+#ifndef WOLFSSL_NO_CLIENT_AUTH
         "-c <file>   Certificate file,           default",              /* 9 */
         "-k <file>   Key file,                   default",              /* 10 */
+#endif
         "-A <file>   Certificate Authority file, default",              /* 11 */
 #endif
 #ifndef NO_DH
@@ -1261,7 +1263,7 @@ static const char* client_usage_msg[][79] = {
         "            The string parameter is optional.\n",              /* 29 */
 #endif
         "-f          Fewer packets/group messages\n",                   /* 30 */
-#ifndef NO_CERTS
+#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CLIENT_AUTH)
         "-x          Disable client cert/key loading\n",                /* 31 */
 #endif
         "-X          Driven by eXternal test case\n",                   /* 32 */
@@ -1329,7 +1331,8 @@ static const char* client_usage_msg[][79] = {
 #ifdef HAVE_CURVE25519
         "-t          Use X25519 for key exchange\n",                    /* 56 */
 #endif
-#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH) && \
+    !defined(WOLFSSL_NO_CLIENT_AUTH)
         "-Q          Support requesting certificate post-handshake\n",  /* 57 */
 #endif
 #ifdef WOLFSSL_EARLY_DATA
@@ -1467,8 +1470,10 @@ static const char* client_usage_msg[][79] = {
 #endif
         "-l <str>    暗号スイートリスト (区切り文字 :)\n",               /* 8 */
 #ifndef NO_CERTS
+#ifndef WOLFSSL_NO_CLIENT_AUTH
         "-c <file>   証明書ファイル,  既定値",                           /* 9 */
         "-k <file>   鍵ファイル,      既定値",                          /* 10 */
+#endif
         "-A <file>   認証局ファイル,  既定値",                          /* 11 */
 #endif
 #ifndef NO_DH
@@ -1518,7 +1523,7 @@ static const char* client_usage_msg[][79] = {
         "-i <str>    クライアント主導のネゴシエーションを強制する\n",   /* 29 */
 #endif
         "-f          より少ないパケット/グループメッセージを使用する\n",/* 30 */
-#ifndef NO_CERTS
+#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CLIENT_AUTH)
         "-x          クライアントの証明書/鍵のロードを無効する\n",      /* 31 */
 #endif
         "-X          外部テスト・ケースにより動作する\n",               /* 32 */
@@ -1589,7 +1594,8 @@ static const char* client_usage_msg[][79] = {
 #ifdef HAVE_CURVE25519
         "-t          X25519を鍵交換に使用する\n",                       /* 56 */
 #endif
-#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH) && \
+    !defined(WOLFSSL_NO_CLIENT_AUTH)
         "-Q          ポストハンドシェークの証明要求をサポートする\n",   /* 57 */
 #endif
 #ifdef WOLFSSL_EARLY_DATA
@@ -1766,8 +1772,10 @@ static void Usage(void)
 #endif
     printf("%s", msg[++msgid]); /* -l */
 #ifndef NO_CERTS
+#ifndef WOLFSSL_NO_CLIENT_AUTH
     printf("%s %s\n", msg[++msgid], cliCertFile); /* -c */
     printf("%s %s\n", msg[++msgid], cliKeyFile);  /* -k */
+#endif
     printf("%s %s\n", msg[++msgid], caCertFile);  /* -A */
 #endif
 #ifndef NO_DH
@@ -1805,7 +1813,7 @@ static void Usage(void)
     printf("%s", msg[++msgid]); /* -i */
 #endif
     printf("%s", msg[++msgid]); /* -f */
-#ifndef NO_CERTS
+#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CLIENT_AUTH)
     printf("%s", msg[++msgid]); /* -x */
 #endif
     printf("%s", msg[++msgid]); /* -X */
@@ -1868,7 +1876,8 @@ static void Usage(void)
 #ifdef HAVE_CURVE25519
     printf("%s", msg[++msgid]); /* -t */
 #endif
-#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH) && \
+    !defined(WOLFSSL_NO_CLIENT_AUTH)
     printf("%s", msg[++msgid]); /* -Q */
 #endif
 #ifdef WOLFSSL_EARLY_DATA
@@ -2823,7 +2832,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
             case 'Q' :
                 #if defined(WOLFSSL_TLS13) && \
-                                            defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+                    defined(WOLFSSL_POST_HANDSHAKE_AUTH) && \
+                    !defined(WOLFSSL_NO_CLIENT_AUTH)
                     postHandAuth = 1;
                 #endif
                 break;
