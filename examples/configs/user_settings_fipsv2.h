@@ -112,4 +112,4 @@ extern "C" {
 }
 #endif
 
-#endif /* WOLFSSL_OPTIONS_H */
+#endif /* WOLFSSL_USER_SETTINGS_H */

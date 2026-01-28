@@ -104,8 +104,8 @@ extern "C" {
 #define WOLFSSL_SP_MATH /* forces only single precision */
 
 /* Hashing */
-#define WOLFSL_SHA512
-#define WOLFSL_SHA384
+#define WOLFSSL_SHA512
+#define WOLFSSL_SHA384
 #undef NO_SHA256
 
 /* Debugging */

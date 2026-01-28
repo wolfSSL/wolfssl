@@ -112,12 +112,14 @@ jobs:
         os: [ ubuntu-24.04, macos-latest ]
         user-settings: [
           # Add new user_settings.h here
+          'examples/configs/user_settings_EBSnet.h',
           'examples/configs/user_settings_eccnonblock.h',
           'examples/configs/user_settings_min_ecc.h',
-          'examples/configs/user_settings_wolfboot_keytools.h',
-          'examples/configs/user_settings_wolftpm.h',
-          'examples/configs/user_settings_wolfssh.h',
+          'examples/configs/user_settings_template.h',
           'examples/configs/user_settings_tls12.h',
+          'examples/configs/user_settings_wolfboot_keytools.h',
+          'examples/configs/user_settings_wolfssh.h',
+          'examples/configs/user_settings_wolftpm.h',
         ]
     name: make user_setting.h (testwolfcrypt only)
     if: github.repository_owner == 'wolfssl'
