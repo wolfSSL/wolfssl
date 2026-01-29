@@ -19,63 +19,94 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-/* should be renamed to user_settings.h for customer use
- * generated from configure options:
- * ./configure \
-    --enable-cryptonly --enable-ecc --enable-sp \
-    --disable-rsa --disable-dh --disable-sha3 --disable-sha224 --disable-md5 \
-    --disable-sha --disable-pkcs12 --disable-memory \
-    --disable-chacha --disable-poly1305 --disable-sha512 --disable-sha384 \
-    --disable-aesgcm --disable-aescbc --disable-aes --disable-rng \
-    CFLAGS="-DNO_SIG_WRAPPER -DWOLFSSL_PUBLIC_MP -DECC_USER_CURVES \
-        -DNO_ECC_SIGN -DNO_ECC_DHE -DNO_ECC_KEY_EXPORT"
+/* Minimal ECC and SHA-256 only (no TLS, no RSA, no AES)
  *
- * Cleaned up by David Garske
+ * Derived from:
+ * ./configure \
+ *   --enable-cryptonly --enable-ecc --enable-sp \
+ *   --disable-rsa --disable-dh --disable-sha3 \
+ *   --disable-sha224 --disable-md5 \
+ *   --disable-sha --disable-pkcs12 --disable-memory \
+ *   --disable-chacha --disable-poly1305 \
+ *   --disable-sha512 --disable-sha384 \
+ *   --disable-aesgcm --disable-aescbc \
+ *   --disable-aes --disable-rng \
+ *   CFLAGS="-DNO_SIG_WRAPPER -DWOLFSSL_PUBLIC_MP \
+ *       -DECC_USER_CURVES"
+ *
+ * Build and test:
+ * cp ./examples/configs/user_settings_min_ecc.h \
+ *     user_settings.h
+ * ./configure --enable-usersettings --disable-examples
+ * make
+ * ./wolfcrypt/test/testwolfcrypt
  */
 
 
 #ifndef WOLFSSL_USER_SETTINGS_H
 #define WOLFSSL_USER_SETTINGS_H
 
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/* WolfCrypt Only (no TLS) */
-#define WOLFCRYPT_ONLY
+/* ------------------------------------------------- */
+/* Platform */
+/* ------------------------------------------------- */
+#define WOLFCRYPT_ONLY /* No TLS, wolfCrypt only */
 
 /* Endianness - defaults to little endian */
 #ifdef __BIG_ENDIAN__
     #define BIG_ENDIAN_ORDER
 #endif
 
-/* Expose the math mp_ API's */
-#define WOLFSSL_PUBLIC_MP
+#define WOLFSSL_PUBLIC_MP /* Expose mp_ math API's */
 
-/* Use single precision math only */
+/* ------------------------------------------------- */
+/* Math */
+/* ------------------------------------------------- */
 #define WOLFSSL_SP
 #define WOLFSSL_SP_SMALL
 #define WOLFSSL_SP_MATH
 #define WOLFSSL_HAVE_SP_ECC
 
-/* Enable Timing Resistance */
+/* ------------------------------------------------- */
+/* Timing Resistance */
+/* ------------------------------------------------- */
 #define TFM_TIMING_RESISTANT
 #define ECC_TIMING_RESISTANT
 
-/* Enable ECC */
+/* ------------------------------------------------- */
+/* ECC */
+/* ------------------------------------------------- */
 #define HAVE_ECC
-#define ECC_USER_CURVES /* Only 256-Bit Curves */
-//#define ECC_SHAMIR
+#define ECC_USER_CURVES /* Only P-256 by default */
+#if 0 /* ECC Shamir - faster but more code/memory */
+    #define ECC_SHAMIR
+#endif
 
-/* Optional Feature Disables */
-#define NO_SIG_WRAPPER
-//#define NO_ECC_KEY_EXPORT
-//#define NO_ECC_DHE
-//#define NO_ECC_SIGN
-//#define NO_ECC_VERIFY
+/* ECC Feature Options */
+#if 0 /* Disable ECC key export */
+    #define NO_ECC_KEY_EXPORT
+#endif
+#if 0 /* Disable ECDHE key agreement */
+    #define NO_ECC_DHE
+#endif
+#if 0 /* Disable ECC sign */
+    #define NO_ECC_SIGN
+#endif
+#if 0 /* Disable ECC verify */
+    #define NO_ECC_VERIFY
+#endif
 
-/* Disable Algorithms */
+/* ------------------------------------------------- */
+/* Hashing */
+/* ------------------------------------------------- */
+/* SHA-256 enabled by default */
+
+/* ------------------------------------------------- */
+/* Disabled Algorithms */
+/* ------------------------------------------------- */
 #define NO_AES
 #define NO_AES_CBC
 #define NO_DES3
@@ -89,17 +120,30 @@ extern "C" {
 #define NO_PWDBASED
 #define NO_PKCS12
 #define NO_PKCS8
-//#define WC_NO_RNG
+#define NO_SIG_WRAPPER
 
-/* Disable Features */
-//#define NO_ASN
-//#define NO_CERTS
+/* ------------------------------------------------- */
+/* Disabled Features */
+/* ------------------------------------------------- */
 #define NO_WOLFSSL_MEMORY
 #define WOLFSSL_NO_PEM
-//#define NO_CODING
 #define NO_PSK
-#ifndef DEBUG_WOLFSSL
+#if 0 /* Disable ASN.1 / certificates */
+    #define NO_ASN
+    #define NO_CERTS
+    #define NO_CODING
+#endif
+#if 0 /* Disable RNG (ECC verify only) */
+    #define WC_NO_RNG
+#endif
+
+/* ------------------------------------------------- */
+/* Debugging */
+/* ------------------------------------------------- */
+#if 0 /* Enable debug logging */
     #define DEBUG_WOLFSSL
+#endif
+#if 1 /* Disable error strings to save flash */
     #define NO_ERROR_STRINGS
 #endif
 

@@ -3198,8 +3198,9 @@ WOLFSSL_LOCAL int TLSX_Append(TLSX** list, TLSX_Type type,
    || defined(HAVE_SECURE_RENEGOTIATION)          \
    || defined(HAVE_SERVER_RENEGOTIATION_INFO)
 
+#ifndef NO_TLS
 #error Using TLS extensions requires HAVE_TLS_EXTENSIONS to be defined.
-
+#endif
 #endif /* HAVE_TLS_EXTENSIONS */
 
 /** Server Name Indication - RFC 6066 (session 3) */

@@ -47,6 +47,8 @@ extern "C" {
 #define NO_MD4
 #define NO_MD5
 #define NO_DES3
+#define NO_DES3_TLS_SUITES
+#define NO_OLD_TLS
 
 #ifdef __cplusplus
 }
