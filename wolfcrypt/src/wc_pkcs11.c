@@ -3325,12 +3325,14 @@ static int Pkcs11ECDSA_Sign(Pkcs11Session* session, wc_CryptoInfo* info)
 static int Pkcs11ECDSA_Verify(Pkcs11Session* session, wc_CryptoInfo* info)
 {
     int                    ret = 0;
+    int                    sessionKey = 0;
     CK_RV                  rv;
     CK_MECHANISM           mech;
     CK_MECHANISM_INFO      mechInfo;
     CK_OBJECT_HANDLE       publicKey = NULL_PTR;
     unsigned char*         sig = NULL;
-    word32                 sz = info->pk.eccverify.key->dp->size;
+    ecc_key*               key = info->pk.eccverify.key;
+    word32                 sz = key->dp->size;
 
     /* Check operation is supported. */
     rv = session->func->C_GetMechanismInfo(session->slotId, CKM_ECDSA,
@@ -3346,12 +3348,32 @@ static int Pkcs11ECDSA_Verify(Pkcs11Session* session, wc_CryptoInfo* info)
     if (ret == 0) {
         WOLFSSL_MSG("PKCS#11: EC Verification Operation");
 
-        ret = Pkcs11CreateEccPublicKey(&publicKey, session,
-                                            info->pk.eccverify.key, CKA_VERIFY);
+        if (key->labelLen > 0) {
+            ret = Pkcs11FindKeyByLabel(&publicKey, CKO_PUBLIC_KEY, CKK_EC,
+                                       session, key->label, key->labelLen);
+            if (ret == 0 && key->dp == NULL) {
+                ret = Pkcs11GetEccParams(session, publicKey, key);
+            }
+        }
+        else if (key->idLen > 0) {
+            ret = Pkcs11FindKeyById(&publicKey, CKO_PUBLIC_KEY, CKK_EC,
+                                    session, key->id, key->idLen);
+            if (ret == 0 && key->dp == NULL) {
+                ret = Pkcs11GetEccParams(session, publicKey, key);
+            }
+        }
+        else if (!mp_iszero(key->pubkey.x)) {
+            ret = Pkcs11CreateEccPublicKey(&publicKey, session, key,
+                                           CKA_VERIFY);
+            sessionKey = 1;
+        }
+        else
+            ret = Pkcs11FindEccKey(&publicKey, CKO_PUBLIC_KEY, session,
+                                   info->pk.eccsign.key, CKA_VERIFY);
     }
 
     if (ret == 0) {
-        sig = (unsigned char *)XMALLOC(sz * 2, info->pk.eccverify.key->heap,
+        sig = (unsigned char *)XMALLOC(sz * 2, key->heap,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
         if (sig == NULL)
             ret = MEMORY_E;
@@ -3388,7 +3410,7 @@ static int Pkcs11ECDSA_Verify(Pkcs11Session* session, wc_CryptoInfo* info)
             *info->pk.eccverify.res = 1;
     }
 
-    if (publicKey != NULL_PTR)
+    if (sessionKey && publicKey != NULL_PTR)
         session->func->C_DestroyObject(session->handle, publicKey);
 
     if (sig != NULL)
