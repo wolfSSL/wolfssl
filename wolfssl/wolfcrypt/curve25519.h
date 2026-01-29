@@ -74,6 +74,32 @@ typedef struct ECPoint {
     #define WC_CURVE25519KEY_TYPE_DEFINED
 #endif
 
+#ifdef WC_X25519_NONBLOCK
+
+typedef struct fe_inv__distinct_nb_ctx_t {
+    int state;
+    byte s[F25519_SIZE];
+    int i;
+} fe_inv__distinct_nb_ctx_t;
+
+typedef struct x25519_nb_ctx_t {
+    /* state for curve25519 operation */
+    int state;
+    /* state for shared secret */
+    int ssState;
+    int i;
+    /* Current point: P_m */
+    byte xm[F25519_SIZE];
+    byte zm[F25519_SIZE];
+    /* Predecessor: P_(m-1) */
+    byte xm1[F25519_SIZE];
+    byte zm1[F25519_SIZE];
+    fe_inv__distinct_nb_ctx_t inv_distinct_nb_ctx;
+    ECPoint o; /* point for shared secret */
+} x25519_nb_ctx_t;
+
+#endif /* WC_X25519_NONBLOCK */
+
 /* A CURVE25519 Key */
 struct curve25519_key {
     int idx;            /* Index into the ecc_sets[] for the parameters of
@@ -99,6 +125,10 @@ struct curve25519_key {
     word32 keyId;
     byte   keyIdSet;
 #endif
+
+#ifdef WC_X25519_NONBLOCK
+    x25519_nb_ctx_t* nbCtx;
+#endif /* WC_X25519_NONBLOCK */
 
     /* bit fields */
     WC_BITFIELD pubSet:1;
@@ -136,6 +166,25 @@ int wc_curve25519_make_priv(WC_RNG* rng, int keysize, byte* priv);
 
 WOLFSSL_API
 int wc_curve25519_make_key(WC_RNG* rng, int keysize, curve25519_key* key);
+
+#ifdef WC_X25519_NONBLOCK
+
+/*!
+    \brief Enable non-blocking support for X25519 operations on a key.
+           When enabled, wc_curve25519_make_key() and wc_curve25519_shared_secret()
+           will return FP_WOULDBLOCK during operation, allowing the caller to
+           yield and resume. Requires WC_X25519_NONBLOCK and CURVE25519_SMALL.
+
+    \param key   Pointer to curve25519_key structure to configure
+    \param ctx   Pointer to x25519_nb_ctx_t context for state tracking,
+                 or NULL to disable non-blocking mode
+
+    \return 0 on success, BAD_FUNC_ARG if key is NULL
+*/
+WOLFSSL_API
+int wc_curve25519_set_nonblock(curve25519_key* key, x25519_nb_ctx_t* ctx);
+
+#endif /* WC_X25519_NONBLOCK */
 
 WOLFSSL_API
 int wc_curve25519_shared_secret(curve25519_key* private_key,
