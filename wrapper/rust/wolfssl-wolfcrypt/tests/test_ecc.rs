@@ -197,6 +197,8 @@ fn test_ecc_import_export_private() {
     let mut ecc2 = ECC::import_private_key(&d, x963, None, None).expect("Error with import_private_key()");
     let valid = ecc2.verify_hash(&signature, &hash).expect("Error with verify_hash()");
     assert_eq!(valid, true);
+
+    ECC::import_private_key(&d, &[], None, None).expect("Error with import_private_key()");
 }
 
 #[test]
@@ -221,6 +223,8 @@ fn test_ecc_import_export_private_ex() {
     let mut ecc2 = ECC::import_private_key_ex(&d, x963, curve_id, None, None).expect("Error with import_private_key_ex()");
     let valid = ecc2.verify_hash(&signature, &hash).expect("Error with verify_hash()");
     assert_eq!(valid, true);
+
+    ECC::import_private_key_ex(&d, &[], curve_id, None, None).expect("Error with import_private_key_ex()");
 }
 
 #[test]

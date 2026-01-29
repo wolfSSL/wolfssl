@@ -711,10 +711,11 @@ impl ECC {
         }
         let mut wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
         let priv_size = priv_buf.len() as u32;
+        let pub_ptr = if pub_buf.len() == 0 {core::ptr::null()} else {pub_buf.as_ptr()};
         let pub_size = pub_buf.len() as u32;
         let rc = unsafe {
             sys::wc_ecc_import_private_key(priv_buf.as_ptr(), priv_size,
-                pub_buf.as_ptr(), pub_size, &mut wc_ecc_key)
+                pub_ptr, pub_size, &mut wc_ecc_key)
         };
         if rc != 0 {
             return Err(rc);
@@ -784,10 +785,11 @@ impl ECC {
         }
         let mut wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
         let priv_size = priv_buf.len() as u32;
+        let pub_ptr = if pub_buf.len() == 0 {core::ptr::null()} else {pub_buf.as_ptr()};
         let pub_size = pub_buf.len() as u32;
         let rc = unsafe {
             sys::wc_ecc_import_private_key_ex(priv_buf.as_ptr(), priv_size,
-                pub_buf.as_ptr(), pub_size, &mut wc_ecc_key, curve_id)
+                pub_ptr, pub_size, &mut wc_ecc_key, curve_id)
         };
         if rc != 0 {
             return Err(rc);
