@@ -20,7 +20,7 @@
  */
 
 /* Bare metal configuration for systems without an OS.
- * No filesystem, no malloc (static memory), minimal footprint.
+ * No filesystem, no malloc, static memory, minimal footprint.
  * Suitable for deeply embedded systems and bootloaders.
  *
  * Build and test:
