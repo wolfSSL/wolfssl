@@ -7460,37 +7460,40 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
          * assure pure-C fallback is always usable.
          */
         ret = wc_AesEncrypt(aes, iv, aes->gcm.H);
+
+        if (ret == 0) {
+    #if defined(GCM_TABLE) || defined(GCM_TABLE_4BIT)
+    #if defined(WOLFSSL_AESNI) && defined(GCM_TABLE_4BIT)
+            if (aes->use_aesni) {
+        #if defined(WC_C_DYNAMIC_FALLBACK)
+            #ifdef HAVE_INTEL_AVX2
+                if (IS_INTEL_AVX2(intel_flags)) {
+                    GCM_generate_m0_avx2(aes->gcm.H, (byte*)aes->gcm.M0);
+                }
+                else
+            #endif
+            #if defined(HAVE_INTEL_AVX1)
+                if (IS_INTEL_AVX1(intel_flags)) {
+                    GCM_generate_m0_avx1(aes->gcm.H, (byte*)aes->gcm.M0);
+                }
+                else
+            #endif
+                {
+                    GCM_generate_m0_aesni(aes->gcm.H, (byte*)aes->gcm.M0);
+                }
+        #endif
+            }
+            else
+    #endif
+            {
+                GenerateM0(&aes->gcm);
+            }
+    #endif /* GCM_TABLE || GCM_TABLE_4BIT */
+        }
+
         VECTOR_REGISTERS_POP;
     }
-    if (ret == 0) {
-#if defined(GCM_TABLE) || defined(GCM_TABLE_4BIT)
-#if defined(WOLFSSL_AESNI) && defined(GCM_TABLE_4BIT)
-        if (aes->use_aesni) {
-    #if defined(WC_C_DYNAMIC_FALLBACK)
-        #ifdef HAVE_INTEL_AVX2
-            if (IS_INTEL_AVX2(intel_flags)) {
-                GCM_generate_m0_avx2(aes->gcm.H, (byte*)aes->gcm.M0);
-            }
-            else
-        #endif
-        #if defined(HAVE_INTEL_AVX1)
-            if (IS_INTEL_AVX1(intel_flags)) {
-                GCM_generate_m0_avx1(aes->gcm.H, (byte*)aes->gcm.M0);
-            }
-            else
-        #endif
-            {
-                GCM_generate_m0_aesni(aes->gcm.H, (byte*)aes->gcm.M0);
-            }
-    #endif
-        }
-        else
-#endif
-        {
-            GenerateM0(&aes->gcm);
-        }
-#endif /* GCM_TABLE || GCM_TABLE_4BIT */
-    }
+
 #endif /* !FREESCALE_LTC_AES_GCM && !WOLFSSL_PSOC6_CRYPTO */
 #endif
 
