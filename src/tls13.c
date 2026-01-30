@@ -13058,7 +13058,6 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             if (echX != NULL &&
                 ((WOLFSSL_ECH*)echX->data)->state == ECH_WRITE_NONE) {
                 byte copyRandom = ((WOLFSSL_ECH*)echX->data)->innerCount == 0;
-
                 /* reset the inOutIdx to the outer start */
                 *inOutIdx = echInOutIdx;
                 /* call again with the inner hello */
