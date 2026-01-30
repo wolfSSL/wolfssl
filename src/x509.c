@@ -2218,8 +2218,7 @@ out:
 
 #endif /* OPENSSL_ALL || OPENSSL_EXTRA */
 
-#if defined(OPENSSL_EXTRA) && !defined(IGNORE_NAME_CONSTRAINTS) && \
-    !defined(WOLFSSL_LINUXKM)
+#if defined(OPENSSL_EXTRA) && !defined(IGNORE_NAME_CONSTRAINTS)
 /*
  * Convert a Base_entry linked list to a STACK of GENERAL_SUBTREE.
  *
@@ -2370,7 +2369,7 @@ static int ConvertBaseEntryToSubtreeStack(Base_entry* list, WOLFSSL_STACK* sk,
 
     return 0;
 }
-#endif /* OPENSSL_EXTRA && !IGNORE_NAME_CONSTRAINTS && !WOLFSSL_LINUXKM */
+#endif /* OPENSSL_EXTRA && !IGNORE_NAME_CONSTRAINTS */
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 /* Looks for the extension matching the passed in nid
@@ -2874,8 +2873,7 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
             }
             break;
 
-    #if defined(OPENSSL_EXTRA) && !defined(IGNORE_NAME_CONSTRAINTS) && \
-        !defined(WOLFSSL_LINUXKM)
+    #if defined(OPENSSL_EXTRA) && !defined(IGNORE_NAME_CONSTRAINTS)
         case NAME_CONS_OID:
         {
             WOLFSSL_NAME_CONSTRAINTS* nc = NULL;
@@ -2937,7 +2935,7 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
 
             return nc;
         }
-    #endif /* OPENSSL_EXTRA && !IGNORE_NAME_CONSTRAINTS && !WOLFSSL_LINUXKM */
+    #endif /* OPENSSL_EXTRA && !IGNORE_NAME_CONSTRAINTS */
 
         case PRIV_KEY_USAGE_PERIOD_OID:
             WOLFSSL_MSG("Private Key Usage Period extension not supported");
@@ -5327,7 +5325,7 @@ void wolfSSL_EXTENDED_KEY_USAGE_free(WOLFSSL_STACK * sk)
     wolfSSL_sk_X509_pop_free(sk, NULL);
 }
 
-#if !defined(IGNORE_NAME_CONSTRAINTS) && !defined(WOLFSSL_LINUXKM)
+#if !defined(IGNORE_NAME_CONSTRAINTS)
 /*
  * Allocate and initialize an empty GENERAL_SUBTREE structure.
  * Returns NULL on allocation failure.
@@ -5480,11 +5478,13 @@ static const char* ExtractHostFromUri(const char* uri, int uriLen, int* hostLen)
     const char* hostStart;
     const char* hostEnd;
     const char* p;
-    const char* uriEnd = uri + uriLen;
+    const char* uriEnd;
 
     if (uri == NULL || uriLen <= 0 || hostLen == NULL) {
         return NULL;
     }
+
+    uriEnd = uri + uriLen;
 
     /* Find "://" to skip scheme */
     hostStart = NULL;
@@ -5692,7 +5692,7 @@ int wolfSSL_NAME_CONSTRAINTS_check_name(WOLFSSL_NAME_CONSTRAINTS* nc,
 
     return 1;
 }
-#endif /* !IGNORE_NAME_CONSTRAINTS && !WOLFSSL_LINUXKM */
+#endif /* !IGNORE_NAME_CONSTRAINTS */
 
 #if defined(OPENSSL_ALL) && !defined(NO_BIO)
 /* Outputs name string of the given WOLFSSL_GENERAL_NAME_OBJECT to WOLFSSL_BIO.

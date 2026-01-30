@@ -811,8 +811,7 @@ static wolfSSL_sk_freefunc wolfssl_sk_get_free_func(WOLF_STACK_TYPE type)
             func = (wolfSSL_sk_freefunc)wolfSSL_GENERAL_NAME_free;
             break;
         case STACK_TYPE_GENERAL_SUBTREE:
-        #if defined(OPENSSL_EXTRA) && !defined(IGNORE_NAME_CONSTRAINTS) && \
-            !defined(WOLFSSL_LINUXKM)
+        #if defined(OPENSSL_EXTRA) && !defined(IGNORE_NAME_CONSTRAINTS)
             func = (wolfSSL_sk_freefunc)wolfSSL_GENERAL_SUBTREE_free;
         #endif
             break;
