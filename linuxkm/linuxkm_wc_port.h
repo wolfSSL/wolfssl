@@ -485,8 +485,29 @@
     #include <linux/net.h>
     #ifndef WOLFCRYPT_ONLY
         #include <linux/inet.h>
-    #endif
-#endif
+        static inline int wc_linuxkm_inet_pton(int af, const char *src, void *dst)
+        {
+            int ret;
+
+            if (!src || !dst)
+                return -EFAULT;
+
+            switch (af) {
+            case AF_INET:
+                ret = in4_pton(src, -1, (u8 *)dst, '\0', NULL);
+                return ret == 1 ? 1 : 0;
+
+            case AF_INET6:
+                ret = in6_pton(src, -1, (u8 *)dst, '\0', NULL);
+                return ret == 1 ? 1 : 0;
+
+            default:
+                return -EAFNOSUPPORT;
+            }
+        }
+        #define XINET_PTON(af, src, dst) wc_linuxkm_inet_pton(af, src, dst)
+    #endif /* !WOLFCRYPT_ONLY */
+#endif /* !WC_CONTAINERIZE_THIS */
 
     #include <linux/slab.h>
     #include <linux/sched.h>
@@ -1785,29 +1806,5 @@
 #else
     #define WC_DUMP_BACKTRACE_NONDEBUG dump_stack()
 #endif
-
-#if !defined(WOLFCRYPT_ONLY) && !defined(WC_CONTAINERIZE_THIS)
-static inline int wc_linuxkm_inet_pton(int af, const char *src, void *dst)
-{
-    int ret;
-
-    if (!src || !dst)
-        return -EFAULT;
-
-    switch (af) {
-    case AF_INET:
-        ret = in4_pton(src, -1, (u8 *)dst, '\0', NULL);
-        return ret == 1 ? 1 : 0;
-
-    case AF_INET6:
-        ret = in6_pton(src, -1, (u8 *)dst, '\0', NULL);
-        return ret == 1 ? 1 : 0;
-
-    default:
-        return -EAFNOSUPPORT;
-    }
-}
-#define XINET_PTON(af, src, dst) wc_linuxkm_inet_pton(af, src, dst)
-#endif /* !WOLFCRYPT_ONLY && !WC_CONTAINERIZE_THIS */
 
 #endif /* LINUXKM_WC_PORT_H */
