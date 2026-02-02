@@ -47,6 +47,11 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 
 #include <wolfssl/wolfcrypt/aes.h>
 
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wlanguage-extension-token"
+#endif
+
 #ifdef WOLFSSL_AESNI
 #include <wmmintrin.h>
 #include <emmintrin.h>
@@ -17141,5 +17146,8 @@ int wc_AesCtsDecryptFinal(Aes* aes, byte* out, word32* outSz)
 
 #endif /* WOLFSSL_AES_CTS */
 
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
 
 #endif /* !NO_AES */

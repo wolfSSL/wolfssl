@@ -147,7 +147,7 @@ int  wc_PKCS7_EncodeData(wc_PKCS7* pkcs7, byte* output,
 
     \brief This function builds the PKCS7 signed data content type, encoding
     the PKCS7 structure into a buffer containing a parsable PKCS7
-    signed data packet.
+    signed data packet. For RSA-PSS signers (WC_RSA_PSS), see \ref PKCS7_RSA_PSS.
 
     \return Success On successfully encoding the PKCS7 data into the buffer,
     returns the index parsed up to in the PKCS7 structure. This index also

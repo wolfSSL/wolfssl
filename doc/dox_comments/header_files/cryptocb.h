@@ -52,6 +52,18 @@
                 }
             }
         #endif
+        #if defined(WC_RSA_PSS) && !defined(NO_RSA)
+            if (info->pk.type == WC_PK_TYPE_RSA_PSS) {
+                /* RSA-PSS sign/verify (e.g. PKCS#7 SignedData, X.509).
+                 * Uses info->pk.rsa (in/inLen = digest, out/outLen = signature,
+                 * key, rng). With WOLF_CRYPTO_CB_RSA_PAD, info->pk.rsa.padding
+                 * supplies hash and salt length. */
+                ret = wc_RsaFunction(info->pk.rsa.in, info->pk.rsa.inLen,
+                    info->pk.rsa.out, info->pk.rsa.outLen, info->pk.rsa.type,
+                    info->pk.rsa.key, info->pk.rsa.rng);
+                break;
+            }
+        #endif
         #ifdef HAVE_ECC
             if (info->pk.type == WC_PK_TYPE_ECDSA_SIGN) {
                 // ECDSA

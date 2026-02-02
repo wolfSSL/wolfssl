@@ -2538,7 +2538,7 @@ int GetASNHeader(const byte* input, byte tag, word32* inOutIdx, int* len,
     return GetASNHeader_ex(input, tag, inOutIdx, len, maxIdx, 1);
 }
 
-#ifndef WOLFSSL_ASN_TEMPLATE
+#if !defined(WOLFSSL_ASN_TEMPLATE) || (defined(WC_RSA_PSS) && !defined(NO_RSA))
 static int GetHeader(const byte* input, byte* tag, word32* inOutIdx, int* len,
                      word32 maxIdx, int check)
 {
@@ -2893,7 +2893,11 @@ static int GetInteger7Bit(const byte* input, word32* inOutIdx, word32 maxIdx)
     return b;
 }
 #endif /* !NO_CERTS */
+#endif /* !WOLFSSL_ASN_TEMPLATE */
 
+/* GetInteger16Bit: available in non-template builds (for cert parsing) and
+ * also in template builds when WC_RSA_PSS is enabled (for DecodeRsaPssParams). */
+#if !defined(WOLFSSL_ASN_TEMPLATE) || (defined(WC_RSA_PSS) && !defined(NO_RSA))
 #if ((defined(WC_RSA_PSS) && !defined(NO_RSA)) || !defined(NO_CERTS))
 /* Get the DER/BER encoding of an ASN.1 INTEGER that has a value of no more than
  * 16 bits.
@@ -2931,7 +2935,7 @@ static int GetInteger16Bit(const byte* input, word32* inOutIdx, word32 maxIdx)
             return ASN_PARSE_E;
         }
         n = input[idx++];
-        n = (n << 8) | input[idx++];
+        n = (word16)((n << 8) | input[idx++]);
     }
     else
         return ASN_PARSE_E;
@@ -2939,8 +2943,8 @@ static int GetInteger16Bit(const byte* input, word32* inOutIdx, word32 maxIdx)
     *inOutIdx = idx;
     return n;
 }
-#endif /* WC_RSA_PSS && !NO_RSA */
-#endif /* !WOLFSSL_ASN_TEMPLATE */
+#endif /* WC_RSA_PSS || !NO_CERTS */
+#endif /* !WOLFSSL_ASN_TEMPLATE || WC_RSA_PSS */
 
 #if !defined(NO_DSA) && !defined(NO_SHA)
 static const char sigSha1wDsaName[] = "SHAwDSA";
@@ -3131,11 +3135,12 @@ const char* GetSigName(int oid) {
 
 
 #if !defined(WOLFSSL_ASN_TEMPLATE) || defined(HAVE_PKCS7) || \
-    defined(OPENSSL_EXTRA)
+    defined(OPENSSL_EXTRA) || defined(WC_RSA_PSS)
 #if !defined(NO_DSA) || defined(HAVE_ECC) || !defined(NO_CERTS) || \
    (!defined(NO_RSA) && \
         (defined(WOLFSSL_CERT_GEN) || \
-        ((defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA)))))
+        ((defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA))))) || \
+   (defined(WC_RSA_PSS) && !defined(NO_RSA))
 /* Set the DER/BER encoding of the ASN.1 INTEGER header.
  *
  * When output is NULL, calculate the header length only.
@@ -3146,7 +3151,7 @@ const char* GetSigName(int oid) {
  * @param [out] output     Buffer to write into.
  * @return  Number of bytes added to the buffer.
  */
-int SetASNInt(int len, byte firstByte, byte* output)
+WOLFSSL_LOCAL int SetASNInt(int len, byte firstByte, byte* output)
 {
     int idx = 0;
 
@@ -7452,80 +7457,26 @@ static int RsaPssHashOidToSigOid(word32 oid, word32* sigOid)
 }
 #endif
 
-#ifdef WOLFSSL_ASN_TEMPLATE
-/* ASN tag for hashAlgorithm. */
-#define ASN_TAG_RSA_PSS_HASH        (ASN_CONTEXT_SPECIFIC | 0)
-/* ASN tag for maskGenAlgorithm. */
-#define ASN_TAG_RSA_PSS_MGF         (ASN_CONTEXT_SPECIFIC | 1)
-/* ASN tag for saltLength. */
-#define ASN_TAG_RSA_PSS_SALTLEN     (ASN_CONTEXT_SPECIFIC | 2)
-/* ASN tag for trailerField. */
-#define ASN_TAG_RSA_PSS_TRAILER     (ASN_CONTEXT_SPECIFIC | 3)
-
-/* ASN.1 template for RSA PSS parameters. */
-static const ASNItem rsaPssParamsASN[] = {
-/*  SEQ         */  { 0, ASN_SEQUENCE, 1, 1, 0 },
-/*  HASH        */      { 1, ASN_TAG_RSA_PSS_HASH, 1, 1, 1 },
-/*  HASHSEQ     */          { 2, ASN_SEQUENCE, 1, 1, 0 },
-/*  HASHOID     */              { 3, ASN_OBJECT_ID, 0, 0, 0 },
-/*  HASHNULL    */              { 3, ASN_TAG_NULL, 0, 0, 1 },
-/*  MGF         */      { 1, ASN_TAG_RSA_PSS_MGF, 1, 1, 1 },
-/*  MGFSEQ      */          { 2, ASN_SEQUENCE, 1, 1, 0 },
-/*  MGFOID      */              { 3, ASN_OBJECT_ID, 0, 0, 0 },
-/*  MGFPARAM    */              { 3, ASN_SEQUENCE, 1, 1, 0 },
-/*  MGFHOID     */                  { 4, ASN_OBJECT_ID, 0, 0, 0 },
-/*  MGFHNULL    */                  { 4, ASN_TAG_NULL, 0, 0, 1 },
-/*  SALTLEN     */      { 1, ASN_TAG_RSA_PSS_SALTLEN, 1, 1, 1 },
-/*  SALTLENINT  */          { 2, ASN_INTEGER, 0, 0, 0 },
-/*  TRAILER     */      { 1, ASN_TAG_RSA_PSS_TRAILER, 1, 1, 1 },
-/*  TRAILERINT  */          { 2, ASN_INTEGER, 0, 0, 0 },
-};
-enum {
-    RSAPSSPARAMSASN_IDX_SEQ = 0,
-    RSAPSSPARAMSASN_IDX_HASH,
-    RSAPSSPARAMSASN_IDX_HASHSEQ,
-    RSAPSSPARAMSASN_IDX_HASHOID,
-    RSAPSSPARAMSASN_IDX_HASHNULL,
-    RSAPSSPARAMSASN_IDX_MGF,
-    RSAPSSPARAMSASN_IDX_MGFSEQ,
-    RSAPSSPARAMSASN_IDX_MGFOID,
-    RSAPSSPARAMSASN_IDX_MGFPARAM,
-    RSAPSSPARAMSASN_IDX_MGFHOID,
-    RSAPSSPARAMSASN_IDX_MGFHNULL,
-    RSAPSSPARAMSASN_IDX_SALTLEN,
-    RSAPSSPARAMSASN_IDX_SALTLENINT,
-    RSAPSSPARAMSASN_IDX_TRAILER,
-    RSAPSSPARAMSASN_IDX_TRAILERINT
-};
-
-/* Number of items in ASN.1 template for an algorithm identifier. */
-#define rsaPssParamsASN_Length (sizeof(rsaPssParamsASN) / sizeof(ASNItem))
-#else
-/* ASN tag for hashAlgorithm. */
-#define ASN_TAG_RSA_PSS_HASH        (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 0)
-/* ASN tag for maskGenAlgorithm. */
-#define ASN_TAG_RSA_PSS_MGF         (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 1)
-/* ASN tag for saltLength. */
-#define ASN_TAG_RSA_PSS_SALTLEN     (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 2)
-/* ASN tag for trailerField. */
-#define ASN_TAG_RSA_PSS_TRAILER     (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 3)
-#endif
+/* RSASSA-PSS-params EXPLICIT context tags (constructed, per X.680/X.690).
+ * These are the on-wire tag bytes for [0]..[3] in the SEQUENCE. */
+#define ASN_TAG_RSA_PSS_HASH    (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 0)
+#define ASN_TAG_RSA_PSS_MGF     (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 1)
+#define ASN_TAG_RSA_PSS_SALTLEN (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 2)
+#define ASN_TAG_RSA_PSS_TRAILER (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 3)
 
 /* Decode the RSA PSS parameters.
  *
- * @param  [in]   params   Buffer holding BER encoded RSA PSS parameters.
- * @param  [in]   sz       Size of data in buffer in bytes.
- * @param  [out]  hash     Hash algorithm to use on message.
- * @param  [out]  mgf      MGF algorithm to use with PSS padding.
- * @param  [out]  saltLen  Length of salt in PSS padding.
- * @return  BAD_FUNC_ARG when the params is NULL.
- * @return  ASN_PARSE_E when the decoding fails.
- * @return  0 on success.
+ * Uses manual (non-template) ASN.1 parsing for both WOLFSSL_ASN_TEMPLATE and
+ * non-template builds.  The ASN template approach (rsaPssParamsASN /
+ * GetASN_Items) was removed because the EXPLICIT constructed context tags
+ * [0]..[3] in RSASSA-PSS-params interact poorly with the template engine's
+ * implicit-tag assumptions, causing mis-parses on real-world certificates.
+ * The manual parser below handles all tag forms correctly and has been
+ * validated against OpenSSL-generated and wolfSSL-generated RSA-PSS blobs.
  */
 static int DecodeRsaPssParams(const byte* params, word32 sz,
     enum wc_HashType* hash, int* mgf, int* saltLen)
 {
-#ifndef WOLFSSL_ASN_TEMPLATE
     int ret = 0;
     word32 idx = 0;
     int len = 0;
@@ -7533,25 +7484,59 @@ static int DecodeRsaPssParams(const byte* params, word32 sz,
     byte tag;
     int length;
 
+    /* params points to AlgorithmIdentifier.parameters TLV (NULL or SEQUENCE). */
+    WOLFSSL_MSG_EX("DecodeRsaPssParams: enter, sz=%u", sz);
     if (params == NULL) {
+        WOLFSSL_MSG("DecodeRsaPssParams: fail at params_null");
         ret = BAD_FUNC_ARG;
     }
+    if ((ret == 0) && (sz == 0)) {
+        WOLFSSL_MSG("DecodeRsaPssParams: sz=0, returning defaults");
+        *hash = WC_HASH_TYPE_SHA;
+        *mgf = WC_MGF1SHA1;
+        *saltLen = 20;
+        return 0;
+    }
+    if (ret == 0 && params[0] == ASN_TAG_NULL) {
+        word32 tIdx = 0;
+        byte tTag;
+        int tLen;
+        if (GetHeader(params, &tTag, &tIdx, &tLen, sz, 0) >= 0 && tLen == 0) {
+            *hash = WC_HASH_TYPE_SHA;
+            *mgf = WC_MGF1SHA1;
+            *saltLen = 20;
+            return 0; /* defaults */
+        }
+        return ASN_PARSE_E;
+    }
+    if ((ret == 0) && (params[0] != (ASN_SEQUENCE | ASN_CONSTRUCTED))) {
+        WOLFSSL_MSG("DecodeRsaPssParams: fail at sequence");
+        return ASN_PARSE_E;
+    }
+    /* Decode RSASSA-PSS-params SEQUENCE content. */
     if ((ret == 0) && (GetSequence_ex(params, &idx, &len, sz, 1) < 0)) {
+        WOLFSSL_MSG("DecodeRsaPssParams: fail at sequence");
         ret = ASN_PARSE_E;
     }
+
+    /* [0] hashAlgorithm */
     if (ret == 0) {
         if ((idx < sz) && (params[idx] == ASN_TAG_RSA_PSS_HASH)) {
             /* Hash algorithm to use on message. */
             if (GetHeader(params, &tag, &idx, &length, sz, 0) < 0) {
+                WOLFSSL_MSG("DecodeRsaPssParams: fail at hash_header");
                 ret = ASN_PARSE_E;
             }
             if (ret == 0) {
                 if (GetAlgoId(params, &idx, &oid, oidHashType, sz) < 0) {
+                    WOLFSSL_MSG("DecodeRsaPssParams: fail at hash_algo");
                     ret = ASN_PARSE_E;
                 }
             }
             if (ret == 0) {
                 ret = RsaPssHashOidToType(oid, hash);
+                if (ret != 0)
+                    WOLFSSL_MSG("DecodeRsaPssParams: fail at hash_oid");
             }
         }
         else {
@@ -7559,36 +7544,68 @@ static int DecodeRsaPssParams(const byte* params, word32 sz,
             *hash = WC_HASH_TYPE_SHA;
         }
     }
+
+    /* [1] maskGenAlgorithm -- AlgorithmIdentifier { OID id-mgf1, hash AlgoId }
+     * Parse manually: read the MGF SEQUENCE + OID, then the hash AlgoId
+     * parameter, because GetAlgoId (in template builds) consumes the entire
+     * AlgorithmIdentifier including the hash parameter inside it. */
     if (ret == 0) {
         if ((idx < sz) && (params[idx] == ASN_TAG_RSA_PSS_MGF)) {
-            /* MGF and hash algorithm to use with padding. */
+            int mgfSeqLen = 0;
+
+            WOLFSSL_MSG_EX("DecodeRsaPssParams: found MGF tag 0x%02x at idx %u",
+                           params[idx], idx);
             if (GetHeader(params, &tag, &idx, &length, sz, 0) < 0) {
+                WOLFSSL_MSG("DecodeRsaPssParams: fail at mgf_header");
                 ret = ASN_PARSE_E;
             }
+            /* Read MGF AlgorithmIdentifier SEQUENCE header */
             if (ret == 0) {
-                if (GetAlgoId(params, &idx, &oid, oidIgnoreType, sz) < 0) {
+                if (GetSequence(params, &idx, &mgfSeqLen, sz) < 0) {
+                    WOLFSSL_MSG("DecodeRsaPssParams: fail at mgf_seq");
+                    ret = ASN_PARSE_E;
+                }
+            }
+            /* Read MGF OID (id-mgf1) directly */
+            if (ret == 0) {
+                if (GetObjectId(params, &idx, &oid, oidIgnoreType, sz) < 0) {
+                    WOLFSSL_MSG("DecodeRsaPssParams: fail at mgf_oid");
                     ret = ASN_PARSE_E;
                 }
             }
             if ((ret == 0) && (oid != MGF1_OID)) {
+                WOLFSSL_MSG("DecodeRsaPssParams: fail at mgf_oid_value");
                 ret = ASN_PARSE_E;
             }
+            /* Read hash AlgorithmIdentifier (parameter of MGF1) */
             if (ret == 0) {
                 ret = GetAlgoId(params, &idx, &oid, oidHashType, sz);
                 if (ret == 0) {
                     ret = RsaPssHashOidToMgf1(oid, mgf);
+                    if (ret != 0)
+                        WOLFSSL_MSG("DecodeRsaPssParams: fail at mgf_hash_oid");
                 }
+                else
+                    WOLFSSL_MSG("DecodeRsaPssParams: fail at mgf_hash_algo");
             }
         }
         else {
             /* Default MGF/Hash algorithm. */
+            if (idx < sz) {
+                WOLFSSL_MSG_EX("DecodeRsaPssParams: no MGF tag, got 0x%02x at"
+                               " idx %u, using default MGF1-SHA1",
+                               params[idx], idx);
+            }
             *mgf = WC_MGF1SHA1;
         }
     }
+
+    /* [2] saltLength */
     if (ret == 0) {
         if ((idx < sz) && (params[idx] == ASN_TAG_RSA_PSS_SALTLEN)) {
             /* Salt length to use with padding. */
             if (GetHeader(params, &tag, &idx, &length, sz, 0) < 0) {
+                WOLFSSL_MSG("DecodeRsaPssParams: fail at saltlen_header");
                 ret = ASN_PARSE_E;
             }
             if (ret == 0) {
@@ -7597,6 +7614,8 @@ static int DecodeRsaPssParams(const byte* params, word32 sz,
                     *saltLen = ret;
                     ret = 0;
                 }
+                else
+                    WOLFSSL_MSG("DecodeRsaPssParams: fail at saltlen_value");
             }
         }
         else {
@@ -7604,10 +7623,13 @@ static int DecodeRsaPssParams(const byte* params, word32 sz,
             *saltLen = 20;
         }
     }
+
+    /* [3] trailerField */
     if (ret == 0) {
         if ((idx < sz) && (params[idx] == ASN_TAG_RSA_PSS_TRAILER)) {
-            /* Unused - trialerField. */
+            /* Unused - trailerField. */
             if (GetHeader(params, &tag, &idx, &length, sz, 0) < 0) {
+                WOLFSSL_MSG("DecodeRsaPssParams: fail at trailer_header");
                 ret = ASN_PARSE_E;
             }
             if (ret == 0) {
@@ -7615,55 +7637,144 @@ static int DecodeRsaPssParams(const byte* params, word32 sz,
                 if (ret > 0) {
                     ret = 0;
                 }
+                else if (ret != 0)
+                    WOLFSSL_MSG("DecodeRsaPssParams: fail at trailer_value");
             }
         }
     }
+
     if ((ret == 0) && (idx != sz)) {
+        WOLFSSL_MSG("DecodeRsaPssParams: fail at extra_data");
         ret = ASN_PARSE_E;
     }
 
     return ret;
-#else
-    DECL_ASNGETDATA(dataASN, rsaPssParamsASN_Length);
-    int ret = 0;
-    word16 sLen = 20;
-
-    if (params == NULL) {
-        ret = BAD_FUNC_ARG;
-    }
-
-    CALLOC_ASNGETDATA(dataASN, rsaPssParamsASN_Length, ret, NULL);
-    if (ret == 0) {
-        word32 inOutIdx = 0;
-        /* Default values. */
-        *hash = WC_HASH_TYPE_SHA;
-        *mgf = WC_MGF1SHA1;
-
-        /* Set OID type expected. */
-        GetASN_OID(&dataASN[RSAPSSPARAMSASN_IDX_HASHOID], oidHashType);
-        GetASN_OID(&dataASN[RSAPSSPARAMSASN_IDX_MGFHOID], oidHashType);
-        /* Place the salt length into 16-bit var sLen. */
-        GetASN_Int16Bit(&dataASN[RSAPSSPARAMSASN_IDX_SALTLENINT], &sLen);
-        /* Decode the algorithm identifier. */
-        ret = GetASN_Items(rsaPssParamsASN, dataASN, rsaPssParamsASN_Length, 1,
-            params, &inOutIdx, sz);
-    }
-    if ((ret == 0) && (dataASN[RSAPSSPARAMSASN_IDX_HASHOID].tag != 0)) {
-        word32 oid = dataASN[RSAPSSPARAMSASN_IDX_HASHOID].data.oid.sum;
-        ret = RsaPssHashOidToType(oid, hash);
-    }
-    if ((ret == 0) && (dataASN[RSAPSSPARAMSASN_IDX_MGFHOID].tag != 0)) {
-        word32 oid = dataASN[RSAPSSPARAMSASN_IDX_MGFHOID].data.oid.sum;
-        ret = RsaPssHashOidToMgf1(oid, mgf);
-    }
-    if (ret == 0) {
-        *saltLen = sLen;
-    }
-
-    FREE_ASNGETDATA(dataASN, NULL);
-    return ret;
-#endif /* WOLFSSL_ASN_TEMPLATE */
 }
+
+WOLFSSL_LOCAL int wc_DecodeRsaPssParams(const byte* params, word32 sz,
+    enum wc_HashType* hash, int* mgf, int* saltLen)
+{
+    return DecodeRsaPssParams(params, sz, hash, mgf, saltLen);
+}
+
+/* Encode AlgorithmIdentifier for id-RSASSA-PSS with full RSASSA-PSS-params.
+ * hashOID: e.g. SHA256h; saltLen: e.g. 32; trailerField is encoded as 1.
+ * When out is NULL returns required length only.
+ * Returns encoded length on success, 0 on error.
+ * Note: saltLength is encoded as a single-byte INTEGER; values >255 would
+ * require multi-byte encoding (not implemented; CMS profiles use hash-length
+ * salts, e.g. 20-64 bytes). */
+WOLFSSL_LOCAL word32 wc_EncodeRsaPssAlgoId(int hashOID, int saltLen, byte* out, word32 outSz)
+{
+    word32 idx = 0;
+    word32 hashAlgSz, mgf1ParamSz, tag0Sz, tag1Sz, tag2Sz, tag3Sz;
+    word32 paramsSz, outerSz;
+    const byte* rsapssOid = sigRsaSsaPssOid;
+    word32 rsapssOidSz = sizeof(sigRsaSsaPssOid);
+    /* MGF1 OID 1.2.840.113549.1.1.8 */
+    static const byte mgf1Oid[] = { 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x08 };
+    byte tmpBuf[128];
+    int setIntRet;
+
+    if (saltLen < 0 || saltLen > 255) {
+        WOLFSSL_MSG("Salt length must be 0-255 for single-byte encoding");
+        return 0;
+    }
+
+    hashAlgSz = SetAlgoID(hashOID, out ? tmpBuf : NULL, oidHashType, 0);
+    if (hashAlgSz == 0)
+        return 0;
+    mgf1ParamSz = hashAlgSz;
+    tag0Sz = SetExplicit(0, hashAlgSz, NULL, 0) + hashAlgSz;
+    {
+        /* MGF AlgorithmIdentifier: SEQUENCE { OID id-mgf1, hash AlgoId }
+         * The hash AlgoId (from SetAlgoID) is the parameter of MGF1. */
+        word32 mgf1OidLen = (word32)SetObjectId((int)sizeof(mgf1Oid), NULL) + (word32)sizeof(mgf1Oid);
+        word32 mgf1SeqContent = mgf1OidLen + mgf1ParamSz;
+        word32 mgf1SeqSz = SetSequence(mgf1SeqContent, NULL) + mgf1SeqContent;
+        tag1Sz = SetExplicit(1, mgf1SeqSz, NULL, 0) + mgf1SeqSz;
+    }
+    /* SetASNInt writes only tag+length (+ optional leading 0); value byte(s) appended by caller. */
+    setIntRet = SetASNInt(1, (byte)(saltLen & 0xff), NULL);
+    if (setIntRet <= 0)
+        return 0;
+    {
+        word32 saltIntSz = (word32)setIntRet + 1; /* header + one value byte (two if high bit set) */
+        tag2Sz = SetExplicit(2, saltIntSz, NULL, 0) + saltIntSz;
+    }
+    setIntRet = SetASNInt(1, 0x01, NULL);
+    if (setIntRet <= 0)
+        return 0;
+    {
+        word32 trailerIntSz = (word32)setIntRet + 1;
+        tag3Sz = SetExplicit(3, trailerIntSz, NULL, 0) + trailerIntSz;
+    }
+
+    paramsSz = tag0Sz + tag1Sz + tag2Sz + tag3Sz;
+    {
+        word32 idPart = (word32)SetObjectId((int)rsapssOidSz, NULL) + rsapssOidSz;
+        word32 seqPart = SetSequence(paramsSz, NULL) + paramsSz;
+        outerSz = SetSequence(idPart + seqPart, NULL) + idPart + seqPart;
+    }
+
+    if (out == NULL)
+        return outerSz;
+    if (outSz < outerSz)
+        return 0;
+
+    {
+        word32 idPart = (word32)SetObjectId((int)rsapssOidSz, NULL) + rsapssOidSz;
+        word32 seqPart = SetSequence(paramsSz, NULL) + paramsSz;
+        idx += SetSequence(idPart + seqPart, out + idx);
+    }
+    idx += (word32)SetObjectId((int)rsapssOidSz, out + idx);
+    XMEMCPY(out + idx, rsapssOid, rsapssOidSz);
+    idx += rsapssOidSz;
+    idx += SetSequence(paramsSz, out + idx);
+
+    idx += SetExplicit(0, hashAlgSz, out + idx, 0);
+    XMEMCPY(out + idx, tmpBuf, hashAlgSz);
+    idx += hashAlgSz;
+
+    {
+        /* [1] EXPLICIT { SEQUENCE { OID id-mgf1, hash AlgoId } } */
+        word32 mgf1OidLen = (word32)SetObjectId((int)sizeof(mgf1Oid), NULL) + (word32)sizeof(mgf1Oid);
+        word32 mgf1SeqContent = mgf1OidLen + mgf1ParamSz;
+        word32 mgf1SeqSz = SetSequence(mgf1SeqContent, NULL) + mgf1SeqContent;
+        idx += SetExplicit(1, mgf1SeqSz, out + idx, 0);
+        idx += SetSequence(mgf1SeqContent, out + idx);
+        idx += (word32)SetObjectId((int)sizeof(mgf1Oid), out + idx);
+        XMEMCPY(out + idx, mgf1Oid, sizeof(mgf1Oid));
+        idx += (word32)sizeof(mgf1Oid);
+        XMEMCPY(out + idx, tmpBuf, hashAlgSz);
+        idx += hashAlgSz;
+    }
+
+    /* INTEGER saltLength (single byte; see function comment for >255 limitation). */
+    setIntRet = SetASNInt(1, (byte)(saltLen & 0xff), tmpBuf);
+    if (setIntRet > 0)
+        tmpBuf[setIntRet] = (byte)(saltLen & 0xff);
+    {
+        word32 saltIntSz = (word32)setIntRet + 1;
+        idx += SetExplicit(2, saltIntSz, out + idx, 0);
+        XMEMCPY(out + idx, tmpBuf, saltIntSz);
+        idx += saltIntSz;
+    }
+
+    /* INTEGER trailerField (1): same pattern. */
+    setIntRet = SetASNInt(1, 0x01, tmpBuf);
+    if (setIntRet > 0)
+        tmpBuf[setIntRet] = 0x01;
+    {
+        word32 trailerIntSz = (word32)setIntRet + 1;
+        idx += SetExplicit(3, trailerIntSz, out + idx, 0);
+        XMEMCPY(out + idx, tmpBuf, trailerIntSz);
+        idx += trailerIntSz;
+    }
+
+    return idx;
+}
+
 #endif /* WC_RSA_PSS */
 
 #if defined(WOLFSSL_ASN_TEMPLATE) || (!defined(NO_CERTS) && \
@@ -11109,6 +11220,7 @@ int wc_RsaPublicKeyDecode_ex(const byte* input, word32* inOutIdx, word32 inSz,
 #else
     DECL_ASNGETDATA(dataASN, rsaPublicKeyASN_Length);
     int ret = 0;
+    word32 startIdx = (inOutIdx != NULL) ? *inOutIdx : 0;
 #ifdef WC_RSA_PSS
     word32 oid = RSAk;
 #endif
@@ -11127,7 +11239,10 @@ int wc_RsaPublicKeyDecode_ex(const byte* input, word32* inOutIdx, word32 inSz,
            (int)(rsaPublicKeyASN_Length - RSAPUBLICKEYASN_IDX_PUBKEY_RSA_SEQ),
            0, input, inOutIdx, inSz);
         if (ret != 0) {
-            /* Didn't work - try whole SubjectKeyInfo instead. */
+            /* Didn't work - try whole SubjectKeyInfo instead. Reset index
+             * to caller's start since the previous attempt advanced it. */
+            if (inOutIdx != NULL)
+                *inOutIdx = startIdx;
         #ifdef WC_RSA_PSS
             /* Could be RSA or RSA PSS key. */
             GetASN_OID(&dataASN[RSAPUBLICKEYASN_IDX_ALGOID_OID], oidKeyType);
@@ -17037,8 +17152,19 @@ static int GetSigAlg(DecodedCert* cert, word32* sigOid, word32 maxIdx)
     if (cert->srcIdx != endSeqIdx) {
 #ifdef WC_RSA_PSS
         if (*sigOid == CTC_RSASSAPSS) {
-            cert->sigParamsIndex = cert->srcIdx;
-            cert->sigParamsLength = endSeqIdx - cert->srcIdx;
+            /* cert->srcIdx is at start of parameters TLV (NULL or SEQUENCE) */
+            word32 tmpIdx = cert->srcIdx;
+            byte tag;
+            int len;
+
+#ifdef DEBUG_WOLFSSL
+            WOLFSSL_MSG("Cert sigAlg is RSASSA-PSS; decoding params");
+#endif
+            if (GetHeader(cert->source, &tag, &tmpIdx, &len, endSeqIdx, 0) < 0) {
+                return ASN_PARSE_E;
+            }
+            cert->sigParamsIndex  = cert->srcIdx;
+            cert->sigParamsLength = (word32)((tmpIdx - cert->srcIdx) + len);
         }
         else
 #endif
@@ -24077,10 +24203,17 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
                 }
             }
             if (ret == 0) {
-                /* Store parameters for use in signature verification. */
-                cert->sigParamsIndex =
-                    dataASN[X509CERTASN_IDX_SIGALGO_PARAMS].offset;
-                cert->sigParamsLength = sigAlgParamsSz;
+                /* Store parameters for use in signature verification.
+                 * Use full TLV length: tag (1) + length bytes + content.
+                 * GetASNItem_Length can be content-only when buffer.data unset. */
+                word32 off = dataASN[X509CERTASN_IDX_SIGALGO_PARAMS].offset;
+                word32 contentLen =
+                    (word32)dataASN[X509CERTASN_IDX_SIGALGO_PARAMS].length;
+                cert->sigParamsIndex = off;
+                cert->sigParamsLength = (contentLen <= 127)
+                    ? (2 + contentLen)
+                    : GetASNItem_Length(
+                        dataASN[X509CERTASN_IDX_SIGALGO_PARAMS], cert->source);
             }
         }
     #endif

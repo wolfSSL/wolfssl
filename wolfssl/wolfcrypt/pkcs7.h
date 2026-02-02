@@ -388,6 +388,14 @@ struct wc_PKCS7 {
     CallbackEccSignRawDigest eccSignRawDigestCb;
 #endif
 
+#if defined(WC_RSA_PSS) && !defined(NO_RSA)
+    /* Decoded from SignerInfo.signatureAlgorithm.parameters (id-RSASSA-PSS).
+     * Used on verify; -1 when not applicable. */
+    int pssSaltLen;   /* salt length from RSASSA-PSS-params; -1 if N/A */
+    int pssHashType;  /* wc_HashType from RSASSA-PSS-params; -1 if N/A */
+    int pssMgf;       /* MGF from RSASSA-PSS-params (e.g. WC_MGF1SHA256); -1 if N/A */
+#endif
+
     /* !! NEW DATA MEMBERS MUST BE ADDED AT END !! */
 };
 
