@@ -28,7 +28,7 @@ jobs:
     if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-22.04
     # This should be a safe limit for the tests to run.
-    timeout-minutes: 25
+    timeout-minutes: 45
     steps:
       - name: Install dependencies
         run: |

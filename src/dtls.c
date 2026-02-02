@@ -822,8 +822,36 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch)
         ret = TLSX_KeyShare_SetSupported(ssl, &parsedExts);
         if (ret != 0)
             goto dtls13_cleanup;
+
+#ifdef WOLFSSL_DTLS_CH_FRAG
+        {
+            /* Get the chosen group. If ret == 0 here, we are sure that the
+            * extension is present. */
+            TLSX* ksExt = TLSX_Find(parsedExts, TLSX_KEY_SHARE);
+            KeyShareEntry* kse = (KeyShareEntry*)ksExt->data;
+            if (WOLFSSL_NAMED_GROUP_IS_PQC(kse->group) ||
+                WOLFSSL_NAMED_GROUP_IS_PQC_HYBRID(kse->group)) {
+                /* Allow fragmentation of the second ClientHello due to the
+                * large PQC key share. */
+                wolfSSL_dtls13_allow_ch_frag((WOLFSSL*)ssl, 1);
+            }
+        }
+#endif
     }
     else {
+#ifdef WOLFSSL_DTLS_CH_FRAG
+        /* Get the chosen group. */
+        TLSX* ksExt = TLSX_Find(parsedExts, TLSX_KEY_SHARE);
+        if (ksExt != NULL) {
+            KeyShareEntry* kse = (KeyShareEntry*)ksExt->data;
+            if (kse != NULL && (WOLFSSL_NAMED_GROUP_IS_PQC(kse->group) ||
+                                WOLFSSL_NAMED_GROUP_IS_PQC_HYBRID(kse->group))){
+                /* Allow fragmentation of the second ClientHello due to the
+                 * large PQC key share. */
+                wolfSSL_dtls13_allow_ch_frag((WOLFSSL*)ssl, 1);
+            }
+        }
+#endif
         /* Need to remove the keyshare ext if we found a common group
          * and are not doing curve negotiation. */
         TLSX_Remove(&parsedExts, TLSX_KEY_SHARE, ssl->heap);
