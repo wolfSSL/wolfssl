@@ -102,13 +102,19 @@ int test_tls13_apis(void)
     #else
                                WOLFSSL_KYBER_LEVEL5
     #endif
-#else
+#elif !defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE)
     #ifndef WOLFSSL_NO_ML_KEM_512
                                WOLFSSL_ML_KEM_512
     #elif !defined(WOLFSSL_NO_ML_KEM_768)
                                WOLFSSL_ML_KEM_768
     #else
                                WOLFSSL_ML_KEM_1024
+    #endif
+#else
+    #ifndef WOLFSSL_NO_ML_KEM_768
+                               WOLFSSL_SECP256R1MLKEM768
+    #else
+                               WOLFSSL_ECC_SECP256R1
     #endif
 #endif
 #else
@@ -150,12 +156,16 @@ int test_tls13_apis(void)
             ":P256_KYBER_LEVEL5"
     #endif
 #else
-    #ifndef WOLFSSL_NO_KYBER512
+    #if !defined(WOLFSSL_NO_ML_KEM_512) && defined(WOLFSSL_EXTRA_PQC_HYBRIDS)
             ":SecP256r1MLKEM512"
-    #elif !defined(WOLFSSL_NO_KYBER768)
-            ":SecP384r1MLKEM768"
-    #else
-            ":SecP521r1MLKEM1024"
+    #elif !defined(WOLFSSL_NO_ML_KEM_768) && defined(WOLFSSL_PQC_HYBRIDS)
+            ":SecP256r1MLKEM768"
+    #elif !defined(WOLFSSL_NO_ML_KEM_1024) && \
+                                       !defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE)
+            ":ML_KEM_1024"
+    #elif !defined(WOLFSSL_NO_ML_KEM_768) && \
+                                       !defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE)
+            ":ML_KEM_768"
     #endif
 #endif
 #endif
@@ -173,7 +183,7 @@ int test_tls13_apis(void)
     #else
             ":KYBER_LEVEL5"
     #endif
-#else
+#elif !defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE)
     #ifndef WOLFSSL_NO_KYBER512
             ":ML_KEM_512"
     #elif !defined(WOLFSSL_NO_KYBER768)
@@ -188,7 +198,11 @@ int test_tls13_apis(void)
 #if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_MALLOC) && \
     !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
     !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
-    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE) && \
+    defined(HAVE_SUPPORTED_CURVES) && \
+    (!defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE) || \
+    (defined(HAVE_CURVE25519) && !defined(WOLFSSL_NO_ML_KEM_768)) || \
+    (defined(HAVE_ECC) && !defined(WOLFSSL_NO_ML_KEM_768)))
     int mlkemLevel;
 #endif
 
@@ -351,14 +365,25 @@ int test_tls13_apis(void)
 #if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_MALLOC) && \
     !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
     !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
-    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE) && \
+    (!defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE) || \
+     (defined(HAVE_CURVE25519) && !defined(WOLFSSL_NO_ML_KEM_768)) || \
+     (defined(HAVE_ECC) && !defined(WOLFSSL_NO_ML_KEM_768)))
 #ifndef WOLFSSL_NO_ML_KEM
+#ifndef WOLFSSL_TLS_NO_MLKEM_STANDALONE
 #ifndef WOLFSSL_NO_ML_KEM_768
     mlkemLevel = WOLFSSL_ML_KEM_768;
 #elif !defined(WOLFSSL_NO_ML_KEM_1024)
     mlkemLevel = WOLFSSL_ML_KEM_1024;
 #else
     mlkemLevel = WOLFSSL_ML_KEM_512;
+#endif
+#else
+#if defined(HAVE_CURVE25519) && !defined(WOLFSSL_NO_ML_KEM_768)
+    mlkemLevel = WOLFSSL_X25519MLKEM768;
+#elif defined(HAVE_ECC) && !defined(WOLFSSL_NO_ML_KEM_768)
+    mlkemLevel = WOLFSSL_SECP256R1MLKEM768;
+#endif
 #endif
 #else
 #ifndef WOLFSSL_NO_KYBER768
@@ -1919,9 +1944,13 @@ int test_tls13_rpk_handshake(void)
 #if defined(HAVE_IO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
     defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
     !defined(WOLFSSL_MLKEM_NO_DECAPSULATE) && \
-    !defined(WOLFSSL_MLKEM_NO_MAKE_KEY)
+    !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
+    (!defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE) || \
+     (defined(HAVE_CURVE25519) && !defined(WOLFSSL_NO_ML_KEM_768)) || \
+     (defined(HAVE_ECC) && !defined(WOLFSSL_NO_ML_KEM_768)))
 static void test_tls13_pq_groups_ctx_ready(WOLFSSL_CTX* ctx)
 {
+#ifndef WOLFSSL_TLS_NO_MLKEM_STANDALONE
 #ifndef WOLFSSL_NO_ML_KEM_1024
 #ifdef WOLFSSL_MLKEM_KYBER
     int group = WOLFSSL_KYBER_LEVEL5;
@@ -1941,12 +1970,18 @@ static void test_tls13_pq_groups_ctx_ready(WOLFSSL_CTX* ctx)
     int group = WOLFSSL_ML_KEM_512;
 #endif /* WOLFSSL_MLKEM_KYBER */
 #endif
+#elif defined(HAVE_ECC) && !defined(WOLFSSL_NO_ML_KEM_768)
+    int group = WOLFSSL_SECP256R1MLKEM768;
+#elif defined(HAVE_CURVE25519) && !defined(WOLFSSL_NO_ML_KEM_768)
+    int group = WOLFSSL_X25519MLKEM768;
+#endif
 
     AssertIntEQ(wolfSSL_CTX_set_groups(ctx, &group, 1), WOLFSSL_SUCCESS);
 }
 
 static void test_tls13_pq_groups_on_result(WOLFSSL* ssl)
 {
+#ifndef WOLFSSL_TLS_NO_MLKEM_STANDALONE
 #ifndef WOLFSSL_NO_ML_KEM_1024
 #ifdef WOLFSSL_MLKEM_KYBER
     AssertStrEQ(wolfSSL_get_curve_name(ssl), "KYBER_LEVEL5");
@@ -1966,6 +2001,11 @@ static void test_tls13_pq_groups_on_result(WOLFSSL* ssl)
     AssertStrEQ(wolfSSL_get_curve_name(ssl), "ML_KEM_512");
 #endif /* WOLFSSL_MLKEM_KYBER */
 #endif
+#elif defined(HAVE_ECC) && !defined(WOLFSSL_NO_ML_KEM_768)
+    AssertStrEQ(wolfSSL_get_curve_name(ssl), "SecP256r1MLKEM768");
+#elif defined(HAVE_CURVE25519) && !defined(WOLFSSL_NO_ML_KEM_768)
+    AssertStrEQ(wolfSSL_get_curve_name(ssl), "X25519MLKEM768");
+#endif
 }
 #endif
 
@@ -1975,7 +2015,10 @@ int test_tls13_pq_groups(void)
 #if defined(HAVE_IO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
     defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
     !defined(WOLFSSL_MLKEM_NO_DECAPSULATE) && \
-    !defined(WOLFSSL_MLKEM_NO_MAKE_KEY)
+    !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
+    (!defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE) || \
+     (defined(HAVE_CURVE25519) && !defined(WOLFSSL_NO_ML_KEM_768)) || \
+     (defined(HAVE_ECC) && !defined(WOLFSSL_NO_ML_KEM_768)))
     callback_functions func_cb_client;
     callback_functions func_cb_server;
 
@@ -2159,6 +2202,25 @@ int test_tls13_early_data(void)
 
         ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
                 &ssl_s, params[i].client_meth, params[i].server_meth), 0);
+
+        if (params[i].isUdp) {
+            /* Early data is incompatible with HRR usage. Hence, we have to make
+             * sure a group is negotiated that does not cause a fragemented CH.
+             */
+            int group[1] = {
+            #ifdef HAVE_ECC
+                WOLFSSL_ECC_SECP256R1,
+            #elif defined(HAVE_CURVE25519)
+                WOLFSSL_ECC_X25519,
+            #elif defined(HAVE_CURVE448)
+                WOLFSSL_ECC_X448,
+            #elif defined(HAVE_FFDHE_2048)
+                WOLFSSL_FFDHE_2048,
+            #endif
+            };
+            ExpectIntEQ(wolfSSL_set_groups(ssl_c, group, 1), WOLFSSL_SUCCESS);
+            ExpectIntEQ(wolfSSL_set_groups(ssl_s, group, 1), WOLFSSL_SUCCESS);
+        }
 
         /* Get a ticket so that we can do 0-RTT on the next connection */
         ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);

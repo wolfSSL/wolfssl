@@ -180,7 +180,8 @@ static int IsKyberLevelAvailable(const char* line)
         begin += 6;
         end = XSTRSTR(begin, " ");
 
-    #ifndef WOLFSSL_NO_ML_KEM
+#ifndef WOLFSSL_NO_ML_KEM
+    #ifndef WOLFSSL_TLS_NO_MLKEM_STANDALONE
         if ((size_t)end - (size_t)begin == 10) {
         #ifndef WOLFSSL_NO_ML_KEM_512
             if (XSTRNCMP(begin, "ML_KEM_512", 10) == 0) {
@@ -200,8 +201,71 @@ static int IsKyberLevelAvailable(const char* line)
             }
         }
         #endif
-    #endif
-    #ifdef WOLFSSL_MLKEM_KYBER
+    #endif /* !WOLFSSL_TLS_NO_MLKEM_STANDALONE */
+
+    #ifdef WOLFSSL_PQC_HYBRIDS
+        #if !defined(WOLFSSL_NO_ML_KEM_768) && defined(HAVE_ECC)
+        if ((size_t)end - (size_t)begin == 17) {
+            if (XSTRNCMP(begin, "SecP256r1MLKEM768", 17) == 0) {
+                available = 1;
+            }
+        }
+        #endif /* !WOLFSSL_NO_ML_KEM_768 && HAVE_ECC */
+        #if !defined(WOLFSSL_NO_ML_KEM_768) && defined(HAVE_CURVE25519)
+        if ((size_t)end - (size_t)begin == 14) {
+            if (XSTRNCMP(begin, "X25519MLKEM768", 14) == 0) {
+                available = 1;
+            }
+        }
+        #endif /* !WOLFSSL_NO_ML_KEM_768 && HAVE_CURVE25519 */
+        #if !defined(WOLFSSL_NO_ML_KEM_1024) && defined(HAVE_ECC384)
+        if ((size_t)end - (size_t)begin == 18) {
+            if (XSTRNCMP(begin, "SecP384r1MLKEM1024", 18) == 0) {
+                available = 1;
+            }
+        }
+        #endif /* !WOLFSSL_NO_ML_KEM_1024 */
+    #endif /* WOLFSSL_PQC_HYBRIDS */
+
+    #ifdef WOLFSSL_EXTRA_PQC_HYBRIDS
+        #if !defined(WOLFSSL_NO_ML_KEM_512) && defined(HAVE_ECC)
+        if ((size_t)end - (size_t)begin == 17) {
+            if (XSTRNCMP(begin, "SecP256r1MLKEM512", 17) == 0) {
+                available = 1;
+            }
+        }
+        #endif /* !WOLFSSL_NO_ML_KEM_512 && HAVE_ECC */
+        #if !defined(WOLFSSL_NO_ML_KEM_512) && defined(HAVE_CURVE25519)
+        if ((size_t)end - (size_t)begin == 14) {
+            if (XSTRNCMP(begin, "X25519MLKEM512", 14) == 0) {
+                available = 1;
+            }
+        }
+        #endif /* !WOLFSSL_NO_ML_KEM_512 && HAVE_CURVE25519 */
+        #if !defined(WOLFSSL_NO_ML_KEM_768) && defined(HAVE_ECC384)
+        if ((size_t)end - (size_t)begin == 17) {
+            if (XSTRNCMP(begin, "SecP384r1MLKEM768", 17) == 0) {
+                available = 1;
+            }
+        }
+        #endif /* !WOLFSSL_NO_ML_KEM_768 && HAVE_ECC384 */
+        #if !defined(WOLFSSL_NO_ML_KEM_768) && defined(HAVE_CURVE448)
+        if ((size_t)end - (size_t)begin == 12) {
+            if (XSTRNCMP(begin, "X448MLKEM768", 12) == 0) {
+                available = 1;
+            }
+        }
+        #endif /* !WOLFSSL_NO_ML_KEM_768 && HAVE_CURVE448 */
+        #if !defined(WOLFSSL_NO_ML_KEM_1024) && defined(HAVE_ECC521)
+        if ((size_t)end - (size_t)begin == 18) {
+            if (XSTRNCMP(begin, "SecP521r1MLKEM1024", 18) == 0) {
+                available = 1;
+            }
+        }
+        #endif /* !WOLFSSL_NO_ML_KEM_1024 */
+    #endif /* WOLFSSL_EXTRA_PQC_HYBRIDS */
+#endif /* !WOLFSSL_NO_ML_KEM */
+#ifdef WOLFSSL_MLKEM_KYBER
         if ((size_t)end - (size_t)begin == 12) {
         #ifndef WOLFSSL_NO_KYBER512
             if (XSTRNCMP(begin, "KYBER_LEVEL1", 12) == 0) {
@@ -219,7 +283,8 @@ static int IsKyberLevelAvailable(const char* line)
             }
         #endif
         }
-    #endif
+#endif /* WOLFSSL_MLKEM_KYBER */
+        (void) end;
     }
 
 #if defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
@@ -910,7 +975,7 @@ int SuiteTest(int argc, char** argv)
     char* myArgv[3];
 
 #ifdef WOLFSSL_STATIC_MEMORY
-    byte memory[200000];
+    byte memory[320000];
 #endif
 
     printf(" Begin Cipher Suite Tests\n");
@@ -1024,8 +1089,9 @@ int SuiteTest(int argc, char** argv)
     }
     #endif
     #ifdef HAVE_PQC
-    /* add TLSv13 pq tests */
-    XSTRLCPY(argv0[1], "tests/test-tls13-pq.conf", sizeof(argv0[1]));
+    #ifndef WOLFSSL_TLS_NO_MLKEM_STANDALONE
+    /* add TLSv13 pq standalone tests */
+    XSTRLCPY(argv0[1], "tests/test-tls13-pq-standalone.conf", sizeof(argv0[1]));
     printf("starting TLSv13 post-quantum groups tests\n");
     test_harness(&args);
     if (args.return_code != 0) {
@@ -1033,6 +1099,8 @@ int SuiteTest(int argc, char** argv)
         args.return_code = EXIT_FAILURE;
         goto exit;
     }
+    #endif /* !WOLFSSL_TLS_NO_MLKEM_STANDALONE */
+    #ifdef WOLFSSL_PQC_HYBRIDS
     /* add TLSv13 pq hybrid tests */
     XSTRLCPY(argv0[1], "tests/test-tls13-pq-hybrid.conf", sizeof(argv0[1]));
     printf("starting TLSv13 post-quantum groups tests\n");
@@ -1042,10 +1110,23 @@ int SuiteTest(int argc, char** argv)
         args.return_code = EXIT_FAILURE;
         goto exit;
     }
+    #endif /* WOLFSSL_PQC_HYBRIDS */
+    #ifdef WOLFSSL_EXTRA_PQC_HYBRIDS
+    /* add TLSv13 pq extra hybrid tests */
+    XSTRLCPY(argv0[1], "tests/test-tls13-pq-hybrid-extra.conf", sizeof(argv0[1]));
+    printf("starting TLSv13 post-quantum groups tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+    #endif
     #endif
     #if defined(HAVE_PQC) && defined(WOLFSSL_DTLS13)
-    /* add DTLSv13 pq tests */
-    XSTRLCPY(argv0[1], "tests/test-dtls13-pq.conf", sizeof(argv0[1]));
+    #ifndef WOLFSSL_TLS_NO_MLKEM_STANDALONE
+    /* add DTLSv13 pq standalone tests */
+    XSTRLCPY(argv0[1], "tests/test-dtls13-pq-standalone.conf", sizeof(argv0[1]));
     printf("starting DTLSv13 post-quantum groups tests\n");
     test_harness(&args);
     if (args.return_code != 0) {
@@ -1053,8 +1134,10 @@ int SuiteTest(int argc, char** argv)
         args.return_code = EXIT_FAILURE;
         goto exit;
     }
-    /* add DTLSv13 pq hybrid tests */
-    XSTRLCPY(argv0[1], "tests/test-dtls13-pq-hybrid.conf", sizeof(argv0[1]));
+    #endif /* !WOLFSSL_TLS_NO_MLKEM_STANDALONE */
+    #ifdef WOLFSSL_EXTRA_PQC_HYBRIDS
+    /* add DTLSv13 pq extra hybrid tests */
+    XSTRLCPY(argv0[1], "tests/test-dtls13-pq-hybrid-extra.conf", sizeof(argv0[1]));
     printf("starting DTLSv13 post-quantum 2 groups tests\n");
     test_harness(&args);
     if (args.return_code != 0) {
@@ -1062,9 +1145,11 @@ int SuiteTest(int argc, char** argv)
         args.return_code = EXIT_FAILURE;
         goto exit;
     }
+    #endif
     #ifdef WOLFSSL_DTLS_CH_FRAG
-    /* add DTLSv13 pq frag tests */
-    XSTRLCPY(argv0[1], "tests/test-dtls13-pq-frag.conf", sizeof(argv0[1]));
+    #ifndef WOLFSSL_TLS_NO_MLKEM_STANDALONE
+    /* add DTLSv13 pq standalone frag tests */
+    XSTRLCPY(argv0[1], "tests/test-dtls13-pq-standalone-frag.conf", sizeof(argv0[1]));
     printf("starting DTLSv13 post-quantum groups tests with fragmentation\n");
     test_harness(&args);
     if (args.return_code != 0) {
@@ -1072,6 +1157,8 @@ int SuiteTest(int argc, char** argv)
         args.return_code = EXIT_FAILURE;
         goto exit;
     }
+    #endif /* !WOLFSSL_TLS_NO_MLKEM_STANDALONE */
+    #ifdef WOLFSSL_PQC_HYBRIDS
     /* add DTLSv13 pq hybrid frag tests */
     XSTRLCPY(argv0[1], "tests/test-dtls13-pq-hybrid-frag.conf", sizeof(argv0[1]));
     printf("starting DTLSv13 post-quantum 2 groups tests with fragmentation\n");
@@ -1081,6 +1168,18 @@ int SuiteTest(int argc, char** argv)
         args.return_code = EXIT_FAILURE;
         goto exit;
     }
+    #endif /* WOLFSSL_PQC_HYBRIDS */
+    #ifdef WOLFSSL_EXTRA_PQC_HYBRIDS
+    /* add DTLSv13 pq extra hybrid frag tests */
+    XSTRLCPY(argv0[1], "tests/test-dtls13-pq-hybrid-extra-frag.conf", sizeof(argv0[1]));
+    printf("starting DTLSv13 post-quantum 2 groups tests with fragmentation\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+    #endif
     #endif
     #endif
 #endif

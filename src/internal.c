@@ -2251,6 +2251,15 @@ int InitSSL_Side(WOLFSSL* ssl, word16 side)
             WOLFSSL_MSG("DTLS Cookie Secret error");
             return ret;
         }
+    #if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_SEND_HRR_COOKIE)
+        if (IsAtLeastTLSv1_3(ssl->version)) {
+            ret = wolfSSL_send_hrr_cookie(ssl, NULL, 0);
+            if (ret != WOLFSSL_SUCCESS) {
+                WOLFSSL_MSG("DTLS1.3 Cookie secret error");
+                return ret;
+            }
+        }
+    #endif /* WOLFSSL_DTLS13 && WOLFSSL_SEND_HRR_COOKIE */
     }
 #endif /* WOLFSSL_DTLS && !NO_WOLFSSL_SERVER */
 
@@ -35087,21 +35096,28 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     /* Returns 1 when the given group is a PQC hybrid group, 0 otherwise. */
     int NamedGroupIsPqcHybrid(int group)
     {
+    #if defined(WOLFSSL_PQC_HYBRIDS) || defined(WOLFSSL_EXTRA_PQC_HYBRIDS) || \
+        defined(WOLFSSL_MLKEM_KYBER)
+
         switch (group) {
         #ifndef WOLFSSL_NO_ML_KEM
+            #ifdef WOLFSSL_PQC_HYBRIDS
             case WOLFSSL_SECP256R1MLKEM768:
             case WOLFSSL_X25519MLKEM768:
             case WOLFSSL_SECP384R1MLKEM1024:
+            #endif /* WOLFSSL_PQC_HYBRIDS */
+            #ifdef WOLFSSL_EXTRA_PQC_HYBRIDS
             case WOLFSSL_SECP256R1MLKEM512:
             case WOLFSSL_SECP384R1MLKEM768:
             case WOLFSSL_SECP521R1MLKEM1024:
             case WOLFSSL_X25519MLKEM512:
             case WOLFSSL_X448MLKEM768:
-#ifdef WOLFSSL_ML_KEM_USE_OLD_IDS
+            #ifdef WOLFSSL_ML_KEM_USE_OLD_IDS
             case WOLFSSL_P256_ML_KEM_512_OLD:
             case WOLFSSL_P384_ML_KEM_768_OLD:
             case WOLFSSL_P521_ML_KEM_1024_OLD:
-#endif
+            #endif
+            #endif /* WOLFSSL_EXTRA_PQC_HYBRIDS */
         #endif
         #ifdef WOLFSSL_MLKEM_KYBER
             case WOLFSSL_P256_KYBER_LEVEL3:
@@ -35116,6 +35132,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             default:
                 return 0;
         }
+    #else
+        (void)group;
+        return 0;
+    #endif
     }
 #endif /* WOLFSSL_HAVE_MLKEM */
 

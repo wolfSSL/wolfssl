@@ -7133,7 +7133,16 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         KeyShareEntry* serverKSE = (KeyShareEntry*)extension->data;
         if (serverKSE != NULL &&
             serverKSE->lastRet == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-            ret = TLSX_KeyShare_GenKey(ssl, serverKSE);
+    #if defined(WOLFSSL_HAVE_MLKEM)
+            if (WOLFSSL_NAMED_GROUP_IS_PQC_HYBRID(serverKSE->group)) {
+                ret = TLSX_KeyShare_HandlePqcHybridKeyServer(ssl, serverKSE,
+                        serverKSE->ke, serverKSE->keLen);
+            }
+            else
+    #endif
+            {
+                ret = TLSX_KeyShare_GenKey(ssl, serverKSE);
+            }
             if (ret != 0)
                 goto exit_dch;
         }
@@ -13862,6 +13871,12 @@ int wolfSSL_UseKeyShare(WOLFSSL* ssl, word16 group)
     (void)ret;
     (void)group;
 #else
+    /* Check if the group is supported. */
+    if (!TLSX_IsGroupSupported(group)) {
+        WOLFSSL_MSG("Group not supported.");
+        return BAD_FUNC_ARG;
+    }
+
     ret = TLSX_KeyShare_Use(ssl, group, 0, NULL, NULL, &ssl->extensions);
     if (ret != 0)
         return ret;

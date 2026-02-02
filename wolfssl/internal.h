@@ -3414,6 +3414,7 @@ WOLFSSL_LOCAL int TLSX_UseSupportedCurve(TLSX** extensions, word16 name,
 
 WOLFSSL_LOCAL int TLSX_UsePointFormat(TLSX** extensions, byte point,
                                                                     void* heap);
+WOLFSSL_LOCAL int TLSX_IsGroupSupported(int namedGroup);
 
 #ifndef NO_WOLFSSL_SERVER
 WOLFSSL_LOCAL int TLSX_ValidateSupportedCurves(const WOLFSSL* ssl, byte first,
@@ -3622,6 +3623,8 @@ WOLFSSL_LOCAL int TLSX_KeyShare_Parse(WOLFSSL* ssl, const byte* input,
         word16 length, byte msgType);
 WOLFSSL_LOCAL int TLSX_KeyShare_Parse_ClientHello(const WOLFSSL* ssl,
         const byte* input, word16 length, TLSX** extensions);
+WOLFSSL_LOCAL int TLSX_KeyShare_HandlePqcHybridKeyServer(WOLFSSL* ssl,
+        KeyShareEntry* keyShareEntry, byte* data, word16 len);
 #ifdef WOLFSSL_DUAL_ALG_CERTS
 WOLFSSL_LOCAL int TLSX_CKS_Parse(WOLFSSL* ssl, byte* input,
                                  word16 length, TLSX** extensions);

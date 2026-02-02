@@ -258,7 +258,8 @@
 #endif
 
 #if defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFCRYPT_ONLY)
-    #if (defined(HAVE_ECC) && !defined(ALT_ECC_SIZE)) || defined(SESSION_CERTS)
+    #if (defined(HAVE_ECC) && !defined(ALT_ECC_SIZE)) || \
+        defined(SESSION_CERTS) || defined(WOLFSSL_HAVE_MLKEM)
         #ifdef OPENSSL_EXTRA
             #define TEST_TLS_STATIC_MEMSZ (400000)
         #else
@@ -29160,6 +29161,9 @@ static int test_dtls13_bad_epoch_ch(void)
     /* resend the CH */
     ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_c), WOLFSSL_SUCCESS);
 
+    /* Re-enable HRR cookie to account for potential CH fragmentation */
+    ExpectIntEQ(wolfSSL_send_hrr_cookie(ssl_s, NULL, 0), WOLFSSL_SUCCESS);
+
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
 
     wolfSSL_free(ssl_c);
@@ -29752,6 +29756,10 @@ static int test_TLSX_CA_NAMES_bad_extension(void)
         0x0d, 0x00, 0x00, 0x11, 0x00, 0x00, 0x0d, 0x00, 0x2f, 0x00, 0x06, 0x00,
         0x04, 0x00, 0x03, 0x30, 0x00, 0x13, 0x94, 0x00, 0x06, 0x00, 0x04, 0x02
     };
+    int groups[2] = {
+        WOLFSSL_ECC_SECP256R1,
+        WOLFSSL_ECC_SECP521R1,
+    };
     int i = 0;
 
     for (i = 0; i < 2; i++) {
@@ -29773,6 +29781,9 @@ static int test_TLSX_CA_NAMES_bad_extension(void)
                     sizeof(shBadCaNamesExt2)), 0);
                 break;
         }
+
+        /* Ensure the correct groups are used for the test */
+        ExpectIntEQ(wolfSSL_set_groups(ssl_c, groups, 2), WOLFSSL_SUCCESS);
 
         ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
 #ifndef WOLFSSL_DISABLE_EARLY_SANITY_CHECKS
@@ -30707,7 +30718,7 @@ static int test_dtls13_frag_ch_pq(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
-    && defined(WOLFSSL_DTLS_CH_FRAG) && defined(HAVE_LIBOQS)
+    && defined(WOLFSSL_DTLS_CH_FRAG) && defined(WOLFSSL_HAVE_MLKEM)
     WOLFSSL_CTX *ctx_c = NULL;
     WOLFSSL_CTX *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL;
@@ -30716,11 +30727,23 @@ static int test_dtls13_frag_ch_pq(void)
     const char *test_str = "test";
     int test_str_size;
     byte buf[255];
-#ifdef WOLFSSL_MLKEM_KYBER
+#if !defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE)
+#if defined(WOLFSSL_MLKEM_KYBER)
     int group = WOLFSSL_KYBER_LEVEL5;
+    const char *group_name = "KYBER_LEVEL5";
 #else
     int group = WOLFSSL_ML_KEM_1024;
+    const char *group_name = "ML_KEM_1024";
 #endif
+#elif defined(WOLFSSL_PQC_HYBRIDS)
+#if defined(HAVE_CURVE25519)
+    int group = WOLFSSL_X25519MLKEM768;
+    const char *group_name = "X25519MLKEM768";
+#else
+    int group = WOLFSSL_SECP256R1MLKEM768;
+    const char *group_name = "SecP256r1MLKEM768";
+#endif
+#endif /* WOLFSSL_TLS_NO_MLKEM_STANDALONE */
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
@@ -30730,13 +30753,8 @@ static int test_dtls13_frag_ch_pq(void)
     ExpectIntEQ(wolfSSL_UseKeyShare(ssl_c, group), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_dtls13_allow_ch_frag(ssl_s, 1), WOLFSSL_SUCCESS);
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
-#ifdef WOLFSSL_MLKEM_KYBER
-    ExpectStrEQ(wolfSSL_get_curve_name(ssl_c), "KYBER_LEVEL5");
-    ExpectStrEQ(wolfSSL_get_curve_name(ssl_s), "KYBER_LEVEL5");
-#else
-    ExpectStrEQ(wolfSSL_get_curve_name(ssl_c), "ML_KEM_1024");
-    ExpectStrEQ(wolfSSL_get_curve_name(ssl_s), "ML_KEM_1024");
-#endif
+    ExpectStrEQ(wolfSSL_get_curve_name(ssl_c), group_name);
+    ExpectStrEQ(wolfSSL_get_curve_name(ssl_s), group_name);
     test_str_size = XSTRLEN("test") + 1;
     ExpectIntEQ(wolfSSL_write(ssl_c, test_str, test_str_size), test_str_size);
     ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf)), test_str_size);

@@ -333,9 +333,21 @@ extern "C" {
 #define NO_MD4
 #define NO_MD5
 //#define NO_DES3 /* Necessary for pkcs12 tests */
-#define WOLFSSL_NO_SHAKE128
-#define WOLFSSL_NO_SHAKE256
 
+/* PQC ML-KEM */
+#if defined(CONFIG_WOLFSSL_MLKEM)
+    #define WOLFSSL_HAVE_MLKEM
+    #define WOLFSSL_WC_MLKEM
+    #define WOLFSSL_MLKEM_NO_LARGE_CODE
+    #define WOLFSSL_MLKEM_SMALL
+    #define WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM
+    #define WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
+    #define WOLFSSL_SHAKE128
+    #define WOLFSSL_SHAKE256
+#else
+    #define WOLFSSL_NO_SHAKE128
+    #define WOLFSSL_NO_SHAKE256
+#endif
 
 
 /* ------------------------------------------------------------------------- */

@@ -4512,13 +4512,18 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC
 #endif
 
-#if defined(HAVE_PQC) && defined(WOLFSSL_DTLS13) && \
-    !defined(WOLFSSL_DTLS_CH_FRAG)
-#warning "Using DTLS 1.3 + pqc without WOLFSSL_DTLS_CH_FRAG will probably" \
-         "fail.Use --enable-dtls-frag-ch to enable it."
+#if defined(HAVE_PQC) && defined(WOLFSSL_HAVE_MLKEM) && \
+    defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_DTLS_CH_FRAG)
+#define WOLFSSL_DTLS_CH_FRAG
 #endif
 #if !defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS_CH_FRAG)
 #error "WOLFSSL_DTLS_CH_FRAG only works with DTLS 1.3"
+#endif
+
+#if defined(HAVE_PQC) && defined(WOLFSSL_HAVE_MLKEM) && \
+    !defined(WOLFSSL_PQC_HYBRIDS) && defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE)
+#error "Neither PQ/T hybrid combinations nor ML-KEM as standalone TLS key "
+    "exchange are enabled"
 #endif
 
 /* SRTP requires DTLS */

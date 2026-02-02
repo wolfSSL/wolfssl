@@ -85,6 +85,11 @@ config WOLFSSL_PSK
   help
     Enable PSK support
 
+config WOLFSSL_MLKEM
+  bool "wolfSSL PQC ML-KEM support"
+  help
+    Enable PQC ML-KEM support for Key Exchange
+
 config WOLFSSL_MAX_FRAGMENT_LEN
   int
   default 3
