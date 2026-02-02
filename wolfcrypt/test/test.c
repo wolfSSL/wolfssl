@@ -31783,6 +31783,8 @@ typedef struct Srtp_Kdf_Tv {
     word32 ksSz;
 } Srtp_Kdf_Tv;
 
+#define SRTP_KDF_LONG_KEY   5000
+
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t srtpkdf_test(void)
 {
     wc_test_ret_t ret = 0;
@@ -32034,6 +32036,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t srtpkdf_test(void)
     unsigned char keyE[32];
     unsigned char keyA[20];
     unsigned char keyS[14];
+#ifndef BENCH_EMBEDDED
+    WC_DECLARE_VAR(keyELong, byte, SRTP_KDF_LONG_KEY, HEAP_HINT);
+    WC_DECLARE_VAR(keyALong, byte, SRTP_KDF_LONG_KEY, HEAP_HINT);
+    WC_DECLARE_VAR(keySLong, byte, SRTP_KDF_LONG_KEY, HEAP_HINT);
+#endif
+
+#ifndef BENCH_EMBEDDED
+    WC_ALLOC_VAR(keyELong, byte, SRTP_KDF_LONG_KEY, HEAP_HINT);
+    WC_ALLOC_VAR(keyALong, byte, SRTP_KDF_LONG_KEY, HEAP_HINT);
+    WC_ALLOC_VAR(keySLong, byte, SRTP_KDF_LONG_KEY, HEAP_HINT);
+#endif
+
     WOLFSSL_ENTER("srtpkdf_test");
 
     for (i = 0; (ret == 0) && (i < SRTP_TV_CNT); i++) {
@@ -32283,6 +32297,30 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t srtpkdf_test(void)
         if (idx != i)
             return WC_TEST_RET_ENC_NC;
     }
+
+#ifndef BENCH_EMBEDDED
+    /* Check that long messages can be created. */
+    ret = wc_SRTP_KDF(tv[0].key, tv[0].keySz, tv[0].salt, tv[0].saltSz,
+        tv[0].kdfIdx, tv[0].index_c, keyELong, SRTP_KDF_LONG_KEY, keyALong,
+        SRTP_KDF_LONG_KEY, keySLong, SRTP_KDF_LONG_KEY);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    /* Check that two bytes of counter are being used. */
+    if (XMEMCMP(keyELong, keyELong + 4096, SRTP_KDF_LONG_KEY - 4096) == 0) {
+        return WC_TEST_RET_ENC_NC;
+    }
+    if (XMEMCMP(keyELong, keyALong + 4096, SRTP_KDF_LONG_KEY - 4096) == 0) {
+        return WC_TEST_RET_ENC_NC;
+    }
+    if (XMEMCMP(keyELong, keySLong + 4096, SRTP_KDF_LONG_KEY - 4096) == 0) {
+        return WC_TEST_RET_ENC_NC;
+    }
+
+    WC_FREE_VAR(keyELong, HEAP_HINT);
+    WC_FREE_VAR(keyALong, HEAP_HINT);
+    WC_FREE_VAR(keySLong, HEAP_HINT);
+#endif
 
     return 0;
 }
