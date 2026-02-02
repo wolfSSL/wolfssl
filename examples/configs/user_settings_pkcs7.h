@@ -115,6 +115,7 @@ extern "C" {
     #undef NO_RSA
     #define WOLFSSL_KEY_GEN
     #define WC_RSA_NO_PADDING
+    #define WC_RSA_PSS  /* RSA-PSS SignedData (id-RSASSA-PSS); see PKCS7_RSA_PSS */
 #else
     #define NO_RSA
 #endif
