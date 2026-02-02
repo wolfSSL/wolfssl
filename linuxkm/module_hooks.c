@@ -459,6 +459,20 @@ static int wolfssl_init(void)
 {
     int ret;
 
+#ifdef WC_LINUXKM_TEST_INET_PTON
+    {
+        const char *src;
+        byte dst[16] = { };
+        int pton_ret;
+        src = "1.2.3.4";
+        pton_ret = wc_linuxkm_inet_pton(AF_INET, src, dst);
+        printf("pton_ret=%d src=%s dst=%d.%d.%d.%d\n", pton_ret, src, (int)dst[0], (int)dst[1], (int)dst[2], (int)dst[3]);
+        src = "89ab::cdef";
+        pton_ret = wc_linuxkm_inet_pton(AF_INET6, src, dst);
+        printf("pton_ret=%d src=%s dst=%02x%02x::%02x%02x\n", pton_ret, src, (int)dst[0], (int)dst[1], (int)dst[14], (int)dst[15]);
+    }
+#endif /* WC_LINUXKM_TEST_INET_PTON */
+
 #ifdef HAVE_FIPS
     /* The compiled-in verifycore must be the right length, else the module
      * geometry will change when the correct value is passed in, destabilizing
@@ -570,7 +584,7 @@ static int wolfssl_init(void)
                     canon_buf, &cur_reloc_index);
             if (progress <= 0) {
                 pr_err("ERROR: progress=%ld from WOLFSSL_TEXT_SEGMENT_CANONICALIZER() at offset %x (text=%x-%x).\n",
-                       progress,
+                       (long)progress,
                        (unsigned)(uintptr_t)text_p,
                        (unsigned)(uintptr_t)__wc_text_start,
                        (unsigned)(uintptr_t)__wc_text_end);
@@ -588,23 +602,23 @@ static int wolfssl_init(void)
          * the true module start address, which is potentially useful to an
          * attacker.
          */
-        pr_info("wolfCrypt segment hashes (spans): text 0x%x (%lu), rodata 0x%x (%lu), offset %c0x%lx, canon text 0x%x\n",
-                text_hash, (uintptr_t)__wc_text_end - (uintptr_t)__wc_text_start,
-                rodata_hash, __wc_rodata_end - __wc_rodata_start,
+        pr_info("wolfCrypt segment hashes (spans): text 0x%x (%llu), rodata 0x%x (%llu), offset %c0x%llx, canon text 0x%x\n",
+                text_hash, (unsigned long long)((uintptr_t)__wc_text_end - (uintptr_t)__wc_text_start),
+                rodata_hash, (unsigned long long)((uintptr_t)__wc_rodata_end - (uintptr_t)__wc_rodata_start),
                 (uintptr_t)__wc_text_start < (uintptr_t)&__wc_rodata_start[0] ? '+' : '-',
-                (uintptr_t)__wc_text_start < (uintptr_t)&__wc_rodata_start[0] ? (uintptr_t)&__wc_rodata_start[0] - (uintptr_t)__wc_text_start : (uintptr_t)__wc_text_start - (uintptr_t)&__wc_rodata_start[0],
+                (uintptr_t)__wc_text_start < (uintptr_t)&__wc_rodata_start[0] ? (unsigned long long)((uintptr_t)&__wc_rodata_start[0] - (uintptr_t)__wc_text_start) : (unsigned long long)((uintptr_t)__wc_text_start - (uintptr_t)&__wc_rodata_start[0]),
                 stabilized_text_hash);
 
-        pr_info("wolfCrypt segments: text=%x-%x, rodata=%x-%x, "
-                "rwdata=%x-%x, bss=%x-%x\n",
-                (unsigned)(uintptr_t)__wc_text_start,
-                (unsigned)(uintptr_t)__wc_text_end,
-                (unsigned)(uintptr_t)__wc_rodata_start,
-                (unsigned)(uintptr_t)__wc_rodata_end,
-                (unsigned)(uintptr_t)__wc_rwdata_start,
-                (unsigned)(uintptr_t)__wc_rwdata_end,
-                (unsigned)(uintptr_t)__wc_bss_start,
-                (unsigned)(uintptr_t)__wc_bss_end);
+        pr_info("wolfCrypt segments: text=%llx-%llx, rodata=%llx-%llx, "
+                "rwdata=%llx-%llx, bss=%llx-%llx\n",
+                (unsigned long long)(uintptr_t)__wc_text_start,
+                (unsigned long long)(uintptr_t)__wc_text_end,
+                (unsigned long long)(uintptr_t)__wc_rodata_start,
+                (unsigned long long)(uintptr_t)__wc_rodata_end,
+                (unsigned long long)(uintptr_t)__wc_rwdata_start,
+                (unsigned long long)(uintptr_t)__wc_rwdata_end,
+                (unsigned long long)(uintptr_t)__wc_bss_start,
+                (unsigned long long)(uintptr_t)__wc_bss_end);
 
         pr_info("whole-segment relocation normalizations: text=%d, rodata=%d, rwdata=%d, bss=%d, other=%d\n",
                 total_text_r, total_rodata_r, total_rwdata_r, total_bss_r, total_other_r);
@@ -878,14 +892,41 @@ MODULE_VERSION(LIBWOLFSSL_VERSION_STRING);
 
 #ifdef WC_SYM_RELOC_TABLES
 
-#define WC_TEXT_TAG (0x0 << 29)
-#define WC_RODATA_TAG (0x1U << 29)
-#define WC_RWDATA_TAG (0x2U << 29)
-#define WC_BSS_TAG (0x3U << 29)
-#define WC_OTHER_TAG (0x4U << 29)
-
-#define WC_RELOC_TAG_MASK (0x7U << 29)
-#define WC_RELOC_OFFSET_MASK (~WC_RELOC_TAG_MASK)
+static const struct reloc_layout_ent {
+    const char *name;
+    word64 mask;
+    word64 width;
+    word64 is_signed:1;
+    word64 is_relative:1;
+    word64 is_pages:1;
+    word64 is_pair_lo:1;
+    word64 is_pair_hi:1;
+} reloc_layouts[] = {
+    [WC_R_X86_64_32]                  = { "R_X86_64_32",                                                ~0UL, 32, .is_signed = 0, .is_relative = 0 },
+    [WC_R_X86_64_32S]                 = { "R_X86_64_32S",                                               ~0UL, 32, .is_signed = 1, .is_relative = 0 },
+    [WC_R_X86_64_64]                  = { "R_X86_64_64",                                                ~0UL, 64, .is_signed = 0, .is_relative = 0 },
+    [WC_R_X86_64_PC32]                = { "R_X86_64_PC32",                                              ~0UL, 32, .is_signed = 1, .is_relative = 1 },
+    [WC_R_X86_64_PLT32]               = { "R_X86_64_PLT32",                                             ~0UL, 32, .is_signed = 1, .is_relative = 1 },
+    [WC_R_AARCH64_ABS32]              = { "R_AARCH64_ABS32",                                            ~0UL, 32, .is_signed = 1, .is_relative = 0, .is_pages = 0, .is_pair_lo = 0, .is_pair_hi = 0 },
+    [WC_R_AARCH64_ABS64]              = { "R_AARCH64_ABS64",                                            ~0UL, 64, .is_signed = 1, .is_relative = 0, .is_pages = 0, .is_pair_lo = 0, .is_pair_hi = 0 },
+    [WC_R_AARCH64_ADD_ABS_LO12_NC]    = { "R_AARCH64_ADD_ABS_LO12_NC",    0b00000000001111111111110000000000, 32, .is_signed = 0, .is_relative = 0, .is_pages = 0, .is_pair_lo = 1, .is_pair_hi = 0 },
+    [WC_R_AARCH64_ADR_PREL_PG_HI21]   = { "R_AARCH64_ADR_PREL_PG_HI21",   0b01100000111111111111111111100000, 32, .is_signed = 1, .is_relative = 1, .is_pages = 1, .is_pair_lo = 0, .is_pair_hi = 1 },
+    [WC_R_AARCH64_CALL26]             = { "R_AARCH64_CALL26",             0b00000011111111111111111111111111, 32, .is_signed = 1, .is_relative = 1, .is_pages = 0, .is_pair_lo = 0, .is_pair_hi = 0 },
+    [WC_R_AARCH64_JUMP26]             = { "R_AARCH64_JUMP26",             0b00000011111111111111111111111111, 32, .is_signed = 1, .is_relative = 1, .is_pages = 0, .is_pair_lo = 0, .is_pair_hi = 0 },
+    [WC_R_AARCH64_LDST8_ABS_LO12_NC]  = { "R_AARCH64_LDST8_ABS_LO12_NC",  0b00000000001111111111110000000000, 32, .is_signed = 0, .is_relative = 0, .is_pages = 0, .is_pair_lo = 1, .is_pair_hi = 0 },
+    [WC_R_AARCH64_LDST16_ABS_LO12_NC] = { "R_AARCH64_LDST16_ABS_LO12_NC", 0b00000000001111111111110000000000, 32, .is_signed = 0, .is_relative = 0, .is_pages = 0, .is_pair_lo = 1, .is_pair_hi = 0 },
+    [WC_R_AARCH64_LDST32_ABS_LO12_NC] = { "R_AARCH64_LDST32_ABS_LO12_NC", 0b00000000001111111111110000000000, 32, .is_signed = 0, .is_relative = 0, .is_pages = 0, .is_pair_lo = 1, .is_pair_hi = 0 },
+    [WC_R_AARCH64_LDST64_ABS_LO12_NC] = { "R_AARCH64_LDST64_ABS_LO12_NC", 0b00000000001111111111110000000000, 32, .is_signed = 0, .is_relative = 0, .is_pages = 0, .is_pair_lo = 1, .is_pair_hi = 0 },
+    [WC_R_AARCH64_PREL32]             = { "R_AARCH64_PREL32",                                           ~0UL, 32, .is_signed = 1, .is_relative = 1, .is_pages = 0, .is_pair_lo = 0, .is_pair_hi = 0 },
+    [WC_R_ARM_ABS32]                  = { "R_ARM_ABS32",                                                ~0UL, 32, .is_signed = 0, .is_relative = 0, .is_pages = 0, .is_pair_lo = 0, .is_pair_hi = 0 },
+    [WC_R_ARM_PREL31]                 = { "R_ARM_PREL31",                 0b01111111111111111111111111111111, 32, .is_signed = 1, .is_relative = 1, .is_pages = 0, .is_pair_lo = 0, .is_pair_hi = 0 },
+    [WC_R_ARM_REL32]                  = { "R_ARM_REL32",                                                ~0UL, 32, .is_signed = 1, .is_relative = 1, .is_pages = 0, .is_pair_lo = 0, .is_pair_hi = 0 },
+    [WC_R_ARM_THM_CALL]               = { "R_ARM_THM_CALL",               0b00000111111111110010111111111111, 32, .is_signed = 1, .is_relative = 1, .is_pages = 0, .is_pair_lo = 0, .is_pair_hi = 0 },
+    [WC_R_ARM_THM_JUMP24]             = { "R_ARM_THM_JUMP24",             0b00000111111111110010111111111111, 32, .is_signed = 1, .is_relative = 1, .is_pages = 0, .is_pair_lo = 0, .is_pair_hi = 0 },
+    [WC_R_ARM_THM_JUMP11]             = { "R_ARM_THM_JUMP11",             0b00000000000000000000011111111111, 16, .is_signed = 1, .is_relative = 1, .is_pages = 0, .is_pair_lo = 0, .is_pair_hi = 0 },
+    [WC_R_ARM_THM_MOVT_ABS]           = { "R_ARM_THM_MOVT_ABS",           0b00000100000011110111000011111111, 32, .is_signed = 0, .is_relative = 0, .is_pages = 0, .is_pair_lo = 0, .is_pair_hi = 1 },
+    [WC_R_ARM_THM_MOVW_ABS_NC]        = { "R_ARM_THM_MOVW_ABS_NC",        0b00000100000011110111000011111111, 32, .is_signed = 0, .is_relative = 0, .is_pages = 0, .is_pair_lo = 1, .is_pair_hi = 0 }
+    };
 
 static inline long find_reloc_tab_offset(size_t text_in_offset) {
     long ret;
@@ -902,7 +943,7 @@ static inline long find_reloc_tab_offset(size_t text_in_offset) {
 #endif
         return -1;
     }
-    if (text_in_offset >= (size_t)(wc_linuxkm_pie_reloc_tab[wc_linuxkm_pie_reloc_tab_length - 1] & WC_RELOC_OFFSET_MASK)) {
+    if (text_in_offset >= (size_t)wc_linuxkm_pie_reloc_tab[wc_linuxkm_pie_reloc_tab_length - 1].offset) {
 #ifdef DEBUG_LINUXKM_PIE_SUPPORT
         pr_err("ERROR: %s failed at L %d.\n", __FUNCTION__, __LINE__);
 #endif
@@ -913,20 +954,20 @@ static inline long find_reloc_tab_offset(size_t text_in_offset) {
          hop;
          hop >>= 1)
     {
-        if (text_in_offset == (size_t)(wc_linuxkm_pie_reloc_tab[ret] & WC_RELOC_OFFSET_MASK))
+        if (text_in_offset == (size_t)wc_linuxkm_pie_reloc_tab[ret].offset)
             break;
-        else if (text_in_offset > (size_t)(wc_linuxkm_pie_reloc_tab[ret] & WC_RELOC_OFFSET_MASK))
+        else if (text_in_offset > (size_t)wc_linuxkm_pie_reloc_tab[ret].offset)
             ret += hop;
         else if (ret)
             ret -= hop;
     }
 
     while ((ret < (long)wc_linuxkm_pie_reloc_tab_length - 1) &&
-           ((size_t)(wc_linuxkm_pie_reloc_tab[ret] & WC_RELOC_OFFSET_MASK) < text_in_offset))
+           ((size_t)wc_linuxkm_pie_reloc_tab[ret].offset < text_in_offset))
         ++ret;
 
     while ((ret > 0) &&
-           ((size_t)(wc_linuxkm_pie_reloc_tab[ret - 1] & WC_RELOC_OFFSET_MASK) >= text_in_offset))
+           ((size_t)wc_linuxkm_pie_reloc_tab[ret - 1].offset >= text_in_offset))
         --ret;
 
 #ifdef DEBUG_LINUXKM_PIE_SUPPORT
@@ -950,9 +991,9 @@ ssize_t wc_linuxkm_normalize_relocations(
 {
     ssize_t i;
     size_t text_in_offset;
-    size_t last_reloc; /* for error-checking order in wc_linuxkm_pie_reloc_tab[] */
+    const struct wc_linuxkm_pie_reloc_tab_ent *last_reloc; /* for error-checking order in wc_linuxkm_pie_reloc_tab[] */
 #ifdef DEBUG_LINUXKM_PIE_SUPPORT
-    int n_text_r = 0, n_rodata_r = 0, n_rwdata_r = 0, n_bss_r = 0, n_other_r = 0;
+    int n_text_r = 0, n_rodata_r = 0, n_rwdata_r = 0, n_bss_r = 0, n_other_r = 0, n_oob_r = 0;
 #endif
 
     if ((text_in_len == 0) ||
@@ -960,12 +1001,12 @@ ssize_t wc_linuxkm_normalize_relocations(
         ((uintptr_t)(text_in + text_in_len) > (uintptr_t)__wc_text_end))
     {
 #ifdef DEBUG_LINUXKM_PIE_SUPPORT
-        pr_err("ERROR: %s returning -1 at L %d with span %x-%x versus segment %x-%x.\n",
+        pr_err("ERROR: %s returning -1 at L %d with span %llx-%llx versus segment %llx-%llx.\n",
                __FUNCTION__, __LINE__,
-               (unsigned)(uintptr_t)text_in,
-               (unsigned)(uintptr_t)(text_in + text_in_len),
-               (unsigned)(uintptr_t)__wc_text_start,
-               (unsigned)(uintptr_t)__wc_text_end);
+               (unsigned long long)(uintptr_t)text_in,
+               (unsigned long long)(uintptr_t)(text_in + text_in_len),
+               (unsigned long long)(uintptr_t)__wc_text_start,
+               (unsigned long long)(uintptr_t)__wc_text_end);
 #endif
         return -1;
     }
@@ -980,157 +1021,337 @@ ssize_t wc_linuxkm_normalize_relocations(
     if (i == -1)
         i = find_reloc_tab_offset(text_in_offset);
 
-    if (i < 0) {
+    if (i < 0)
         return i;
-    }
 
     WC_SANITIZE_DISABLE();
     memcpy(text_out, text_in, text_in_len);
     WC_SANITIZE_ENABLE();
 
-    for (last_reloc = wc_linuxkm_pie_reloc_tab[i > 0 ? i-1 : 0];
+    for (last_reloc = &wc_linuxkm_pie_reloc_tab[i > 0 ? i-1 : 0];
          (size_t)i < wc_linuxkm_pie_reloc_tab_length - 1;
          ++i)
     {
-        size_t next_reloc = wc_linuxkm_pie_reloc_tab[i];
-        unsigned int reloc_tag;
-        int reloc_buf;
+        const struct wc_linuxkm_pie_reloc_tab_ent *next_reloc = &wc_linuxkm_pie_reloc_tab[i];
+        enum wc_reloc_dest_segment dest_seg;
+        uintptr_t seg_beg;
 #ifdef DEBUG_LINUXKM_PIE_SUPPORT
-        uintptr_t abs_ptr;
+        uintptr_t seg_end;
+        const char *seg_name;
 #endif
+        word64 reloc_buf = 0;
+        const struct reloc_layout_ent *layout;
+        unsigned int next_reloc_rel;
 
-        if ((last_reloc & WC_RELOC_OFFSET_MASK) > (next_reloc & WC_RELOC_OFFSET_MASK)) {
-            pr_err("BUG: out-of-order offset found at wc_linuxkm_pie_reloc_tab[%zd]: %zu > %zu\n",
-                   i, last_reloc & WC_RELOC_OFFSET_MASK, next_reloc & WC_RELOC_OFFSET_MASK);
+        if (next_reloc->dest_segment == WC_R_SEG_NONE) {
+            pr_err("BUG: missing dest segment for relocation at wc_linuxkm_pie_reloc_tab[%zd]\n", i);
+            continue;
+        }
+
+        if (last_reloc->offset > next_reloc->offset) {
+            pr_err("BUG: out-of-order offset found at wc_linuxkm_pie_reloc_tab[%zd]: %u > %u\n",
+                   i, last_reloc->offset, next_reloc->offset);
             return -1;
         }
+
         last_reloc = next_reloc;
 
-        reloc_tag = next_reloc & WC_RELOC_TAG_MASK;
-        next_reloc &= WC_RELOC_OFFSET_MASK;
-        next_reloc -= text_in_offset;
+        if (next_reloc->reloc_type >= (sizeof reloc_layouts / sizeof reloc_layouts[0])) {
+            pr_err("BUG: unknown relocation type %u found at wc_linuxkm_pie_reloc_tab[%zd]\n",
+                   next_reloc->reloc_type, i);
+                return -1;
+        }
 
-        if (next_reloc >= text_in_len) {
+        layout = &reloc_layouts[next_reloc->reloc_type];
+
+        switch (layout->width) {
+        case 32:
+        case 64:
+        case 16:
+            break;
+        default:
+            pr_err("BUG: unexpected relocation width %llu found at wc_linuxkm_pie_reloc_tab[%lld], reloc type %u\n",
+                   (unsigned long long)layout->width, (long long)i, next_reloc->reloc_type);
+            return -1;
+        }
+
+        /* provisionally assign the destination segment from the reloc record --
+         * it may wind up getting overridden later if things don't go as
+         * expected.
+         */
+        dest_seg = next_reloc->dest_segment;
+
+        /* next_reloc_rel is the offset of the relocation relative to the start
+         * of the current text chunk (text_in).  i.e., text_in + next_reloc_rel
+         * is the start of the relocation.
+         */
+        next_reloc_rel = next_reloc->offset - text_in_offset;
+
+        if (next_reloc_rel >= text_in_len) {
             /* no more relocations in this buffer. */
             break;
         }
-        if (next_reloc > text_in_len - sizeof reloc_buf) {
+
+        if (next_reloc_rel > text_in_len - layout->width) {
             /* relocation straddles buffer at end -- caller will try again with
              * that relocation at the start.
              */
-            text_in_len = next_reloc;
+            text_in_len = next_reloc_rel;
             break;
         }
 
-        /* set reloc_buf to the relative address from the live text segment. */
-        reloc_buf = (int)get_unaligned((int32_t *)&text_out[next_reloc]);
-
-#ifdef DEBUG_LINUXKM_PIE_SUPPORT
-        /* when debugging runtime segment consistency, for the various data
-         * segments, recognize dest addrs a few bytes outside the segment -- the
-         * compiler occasionally generates these, e.g. __wc_rwdata_start - 1 in
-         * DoInCoreCheck() in kernel 6.1 build of FIPS v5, __wc_bss_start - 4 in
-         * kernel 4.4, and __wc_rodata_end + 26 in kernel 6.18.
-         *
-         * abs_ptr is the absolute address referred to by the relocation.  we
-         * need this in order to identify the target segment of the relocation,
-         * thereby allowing us to use the correct normalization tag and
-         * corrective offset for the relocation.
-         *
-         * start with the absolute address of the start of the current text
-         * segment span, add to that the offset of the relocation at issue,
-         * yielding the absolute address of the relocation, then add the
-         * contents of the relocation that we loaded above.
-         *
-         * the +4 accounts for the disp32 field size, as RIP points to the next
-         * instruction byte per the x86_64 ABI.
+        /* set reloc_buf to the address bits from the live text segment.  on
+         * ARM, this will often also pull in some opcode bits, which we mask out.
          */
-        #ifndef LINUXKM_PIE_DATA_SLOP_MARGIN
-            #define LINUXKM_PIE_DATA_SLOP_MARGIN 0x20
-        #endif
-
-        abs_ptr = (uintptr_t)text_in + next_reloc + 4 + reloc_buf;
-#endif /* DEBUG_LINUXKM_PIE_SUPPORT */
-
-        switch (reloc_tag) {
-        case WC_TEXT_TAG:
-#ifdef DEBUG_LINUXKM_PIE_SUPPORT
-            if ((abs_ptr >= (uintptr_t)__wc_text_start) &&
-                (abs_ptr <= (uintptr_t)__wc_text_end))
-                ++n_text_r;
-            else {
-                reloc_tag = WC_OTHER_TAG;
+        if (layout->is_signed) {
+            /* Note, the intermediate cast to sword64 is necessary to
+             * sign-extend the value to 64 bits before unsigned
+             * reinterpretation.  Normalization later relies on this.
+             */
+            switch (layout->width) {
+            case 32:
+                reloc_buf = (word64)(sword64)(get_unaligned((sword32 *)&text_out[next_reloc_rel]) & (sword32)layout->mask);
+                break;
+            case 64:
+                reloc_buf = (word64)(sword64)(get_unaligned((sword64 *)&text_out[next_reloc_rel]) & (sword64)layout->mask);
+                break;
+            case 16:
+                reloc_buf = (word64)(sword64)(get_unaligned((sword16 *)&text_out[next_reloc_rel]) & (sword16)layout->mask);
                 break;
             }
-#endif
-            /* internal references in the .wolfcrypt.text segment don't need
-             * normalization.
-             */
-            continue;
-        case WC_RODATA_TAG:
-#ifdef DEBUG_LINUXKM_PIE_SUPPORT
-            if ((abs_ptr >= (uintptr_t)__wc_rodata_start - LINUXKM_PIE_DATA_SLOP_MARGIN) &&
-                (abs_ptr <= (uintptr_t)__wc_rodata_end + LINUXKM_PIE_DATA_SLOP_MARGIN))
-                ++n_rodata_r;
-            else
-                reloc_tag = WC_OTHER_TAG;
-#endif
-            reloc_buf -= (int)((uintptr_t)__wc_rodata_start - 1 -
-                               (uintptr_t)__wc_text_start);
-            reloc_buf ^= WC_RODATA_TAG;
+        }
+        else {
+            switch (layout->width) {
+            case 32:
+                reloc_buf = (word64)(get_unaligned((word32 *)&text_out[next_reloc_rel]) & (word32)layout->mask);
+                break;
+            case 64:
+                reloc_buf = (word64)(get_unaligned((word64 *)&text_out[next_reloc_rel]) & layout->mask);
+                break;
+            case 16:
+                reloc_buf = (word64)(get_unaligned((word16 *)&text_out[next_reloc_rel]) & (word16)layout->mask);
+                break;
+            }
+        }
+
+        switch (dest_seg) {
+        case WC_R_SEG_TEXT:
+            seg_beg = (uintptr_t)__wc_text_start;
+            #ifdef DEBUG_LINUXKM_PIE_SUPPORT
+            seg_end = (uintptr_t)__wc_text_end;
+            seg_name = "text";
+            ++n_text_r;
+            #endif
             break;
-        case WC_RWDATA_TAG:
-#ifdef DEBUG_LINUXKM_PIE_SUPPORT
-            if ((abs_ptr >= (uintptr_t)__wc_rwdata_start - LINUXKM_PIE_DATA_SLOP_MARGIN) &&
-                (abs_ptr <= (uintptr_t)__wc_rwdata_end + LINUXKM_PIE_DATA_SLOP_MARGIN))
-                ++n_rwdata_r;
-            else
-                reloc_tag = WC_OTHER_TAG;
-#endif
-            reloc_buf -= (int)((uintptr_t)__wc_rwdata_start - 1 -
-                               (uintptr_t)__wc_text_start);
-            reloc_buf ^= WC_RWDATA_TAG;
+        case WC_R_SEG_RODATA:
+            seg_beg = (uintptr_t)__wc_rodata_start;
+            #ifdef DEBUG_LINUXKM_PIE_SUPPORT
+            seg_end = (uintptr_t)__wc_rodata_end;
+            seg_name = "rodata";
+            ++n_rodata_r;
+            #endif
             break;
-        case WC_BSS_TAG:
-#ifdef DEBUG_LINUXKM_PIE_SUPPORT
-            if ((abs_ptr >= (uintptr_t)__wc_bss_start - LINUXKM_PIE_DATA_SLOP_MARGIN) &&
-                (abs_ptr <= (uintptr_t)__wc_bss_end + LINUXKM_PIE_DATA_SLOP_MARGIN))
-                ++n_bss_r;
-            else
-                reloc_tag = WC_OTHER_TAG;
-#endif
-            reloc_buf -= (int)((uintptr_t)__wc_bss_start - 1 -
-                               (uintptr_t)__wc_text_start);
-            reloc_buf ^= WC_BSS_TAG;
+        case WC_R_SEG_RWDATA:
+            seg_beg = (uintptr_t)__wc_rwdata_start;
+            #ifdef DEBUG_LINUXKM_PIE_SUPPORT
+            seg_end = (uintptr_t)__wc_rwdata_end;
+            seg_name = "data";
+            ++n_rwdata_r;
+            #endif
+            break;
+        case WC_R_SEG_BSS:
+            seg_beg = (uintptr_t)__wc_bss_start;
+            #ifdef DEBUG_LINUXKM_PIE_SUPPORT
+            seg_end = (uintptr_t)__wc_bss_end;
+            seg_name = "bss";
+            ++n_bss_r;
+            #endif
+            break;
+        default:
+        case WC_R_SEG_NONE:
+            dest_seg = WC_R_SEG_OTHER;
+            FALL_THROUGH;
+        case WC_R_SEG_OTHER:
+            seg_beg = 0;
+            #ifdef DEBUG_LINUXKM_PIE_SUPPORT
+            seg_end = 0;
+            seg_name = "other";
+            #endif
             break;
         }
-        if (reloc_tag == WC_OTHER_TAG) {
+
+#ifdef CONFIG_X86
+        {
+            switch (next_reloc->reloc_type) {
+            case WC_R_X86_64_PC32:
+            case WC_R_X86_64_PLT32:
+            case WC_R_X86_64_32:
+            case WC_R_X86_64_32S:
+            case WC_R_X86_64_64:
+                break;
+            default:
+#ifdef DEBUG_LINUXKM_PIE_SUPPORT
+                pr_notice("BUG: unexpected non-x86 relocation type %u in reloc record %zu, text offset 0x%x\n",
+                          (unsigned)next_reloc->reloc_type, i, wc_linuxkm_pie_reloc_tab[i].offset);
+                ++n_oob_r;
+#endif
+                dest_seg = WC_R_SEG_OTHER;
+            }
+
+            if (dest_seg != WC_R_SEG_OTHER) {
+#ifdef DEBUG_LINUXKM_PIE_SUPPORT
+                word64 raw_dest_addr = reloc_buf;
+#endif
+
+                if (layout->is_relative) {
+                    /* the +(layout->width / 8) (i.e. 4) accounts for the disp32
+                     * field size, as RIP points to the next instruction byte
+                     * per the x86_64 ABI.
+                     */
+                    reloc_buf = reloc_buf + (uintptr_t)next_reloc->offset + ((uintptr_t)layout->width / 8UL) - (seg_beg - (uintptr_t)__wc_text_start);
+                }
+                else
+                    reloc_buf -= seg_beg;
+
+#ifdef DEBUG_LINUXKM_PIE_SUPPORT
+                /* For the various data segments, recognize dest addrs a few bytes
+                 * outside the segment -- the compiler occasionally generates these,
+                 * e.g. __wc_rwdata_start - 1 in DoInCoreCheck() in kernel 6.1 build
+                 * of FIPS v5, __wc_bss_start - 4 in kernel 4.4, and __wc_rodata_end
+                 * + 26 in kernel 6.18.
+                 */
+                #ifndef LINUXKM_PIE_DATA_SLOP_MARGIN
+                    #define LINUXKM_PIE_DATA_SLOP_MARGIN 0x20
+                #endif
+
+                if ((dest_seg == WC_R_SEG_TEXT) ?
+                    (reloc_buf > seg_end - seg_beg) :
+                    (reloc_buf + LINUXKM_PIE_DATA_SLOP_MARGIN > (seg_end - seg_beg) + (LINUXKM_PIE_DATA_SLOP_MARGIN * 2)))
+                {
+                    ++n_oob_r;
+                    pr_notice("WARNING: normalized value is out of bounds (%s0x%lx) at index %ld, text offset 0x%x, reloc type %s, "
+                              "dest seg .%s_wolfcrypt, offset from text to dest segment %s0x%lx, raw dest addr %s0x%lx, "
+                              "seg span 0x%lx - 0x%lx, seg size 0x%lx, text base 0x%lx\n",
+                              (sword64)reloc_buf < 0 ? "-" : "",
+                              (sword64)reloc_buf < 0 ? -reloc_buf : reloc_buf,
+                              i,
+                              next_reloc->offset,
+                              layout->name,
+                              seg_name,
+                              seg_beg < (uintptr_t)__wc_text_start ? "-" : "+",
+                              seg_beg < (uintptr_t)__wc_text_start ? (word64)(uintptr_t)__wc_text_start - seg_beg : seg_beg - (word64)(uintptr_t)__wc_text_start,
+                              (layout->is_signed && ((sword64)raw_dest_addr < 0)) ? "-" : "",
+                              (layout->is_signed && ((sword64)raw_dest_addr < 0)) ? (word64)-(sword64)raw_dest_addr : raw_dest_addr,
+                              (word64)seg_beg,
+                              (word64)seg_end,
+                              (word64)(seg_end - seg_beg),
+                              (word64)(uintptr_t)__wc_text_start);
+                }
+#endif
+            }
+        } /* end CONFIG_X86 */
+
+#elif defined(CONFIG_ARM)
+        {
+            switch (next_reloc->reloc_type) {
+            case WC_R_ARM_ABS32:
+            case WC_R_ARM_PREL31:
+            case WC_R_ARM_REL32:
+            case WC_R_ARM_THM_CALL:
+            case WC_R_ARM_THM_JUMP11:
+            case WC_R_ARM_THM_JUMP24:
+            case WC_R_ARM_THM_MOVT_ABS:
+            case WC_R_ARM_THM_MOVW_ABS_NC:
+                break;
+            default:
+#ifdef DEBUG_LINUXKM_PIE_SUPPORT
+                pr_notice("BUG: unexpected non-ARM32 relocation type %u in reloc record %u, text offset 0x%x\n",
+                          (unsigned)next_reloc->reloc_type, i, wc_linuxkm_pie_reloc_tab[i].offset);
+                ++n_oob_r;
+#endif
+                dest_seg = WC_R_SEG_OTHER;
+            }
+
+            /* Don't attempt to reconstruct ARM destination addresses -- just
+             * normalize to zero.  They can be reconstructed using the
+             * parameters in reloc_layouts[] but it's very fidgety.
+             */
+            reloc_buf = 0;
+        } /* end CONFIG_ARM */
+
+#elif defined(CONFIG_ARM64)
+        {
+            switch (next_reloc->reloc_type) {
+            case WC_R_AARCH64_ABS32:
+            case WC_R_AARCH64_ABS64:
+            case WC_R_AARCH64_ADD_ABS_LO12_NC:
+            case WC_R_AARCH64_ADR_PREL_PG_HI21:
+            case WC_R_AARCH64_CALL26:
+            case WC_R_AARCH64_JUMP26:
+            case WC_R_AARCH64_LDST16_ABS_LO12_NC:
+            case WC_R_AARCH64_LDST32_ABS_LO12_NC:
+            case WC_R_AARCH64_LDST64_ABS_LO12_NC:
+            case WC_R_AARCH64_LDST8_ABS_LO12_NC:
+            case WC_R_AARCH64_PREL32:
+                break;
+            default:
+#ifdef DEBUG_LINUXKM_PIE_SUPPORT
+                pr_notice("BUG: unexpected non-ARM64 relocation type %u in reloc record %ld, text offset 0x%x\n",
+                          (unsigned)next_reloc->reloc_type, i, wc_linuxkm_pie_reloc_tab[i].offset);
+                ++n_oob_r;
+#endif
+                dest_seg = WC_R_SEG_OTHER;
+            }
+
+            /* Don't attempt to reconstruct ARM destination addresses -- just
+             * normalize to zero.  They can be reconstructed using the
+             * parameters in reloc_layouts[] but it's very fidgety.
+             */
+            reloc_buf = 0;
+        } /* end CONFIG_ARM64 */
+
+#else
+
+        #warning Building WC_SYM_RELOC_TABLES without arch-specific handling.
+
+        dest_seg = WC_R_SEG_OTHER;
+        reloc_buf = 0;
+
+#endif
+
+        if (dest_seg == WC_R_SEG_OTHER) {
             /* relocation referring to non-wolfcrypt segment -- these can only
              * be stabilized by zeroing them.
              */
-            reloc_buf = WC_OTHER_TAG;
+            reloc_buf = 0;
+
 #ifdef DEBUG_LINUXKM_PIE_SUPPORT
             ++n_other_r;
             /* we're currently only handling 32 bit relocations (R_X86_64_PLT32
              * and R_X86_64_PC32) so the top half of the word64 is padding we
              * can lop off for rendering.
              */
-            pr_notice("found non-wolfcrypt relocation at text offset 0x%x to "
-                      "addr 0x%x, text=%x-%x, rodata=%x-%x, "
-                      "rwdata=%x-%x, bss=%x-%x\n",
-                      wc_linuxkm_pie_reloc_tab[i] & WC_RELOC_OFFSET_MASK,
-                      (unsigned)(uintptr_t)abs_ptr,
-                      (unsigned)(uintptr_t)__wc_text_start,
-                      (unsigned)(uintptr_t)__wc_text_end,
-                      (unsigned)(uintptr_t)__wc_rodata_start,
-                      (unsigned)(uintptr_t)__wc_rodata_end,
-                      (unsigned)(uintptr_t)__wc_rwdata_start,
-                      (unsigned)(uintptr_t)__wc_rwdata_end,
-                      (unsigned)(uintptr_t)__wc_bss_start,
-                      (unsigned)(uintptr_t)__wc_bss_end);
+            pr_notice("found non-wolfcrypt relocation at index %lld, text offset 0x%x.\n",
+                      (long long)i, wc_linuxkm_pie_reloc_tab[i].offset);
 #endif
         }
-        put_unaligned((u32)reloc_buf, (int32_t *)&text_out[next_reloc]);
+
+        /* xor in a label identifying the dest segment and reloc type. */
+        reloc_buf ^= dest_seg << (layout->width - WC_RELOC_DEST_SEGMENT_BITS);
+        reloc_buf ^= next_reloc->reloc_type << (layout->width - (WC_RELOC_DEST_SEGMENT_BITS + WC_RELOC_TYPE_BITS));
+
+        /* write the modified reloc_buf to the destination buffer. */
+        switch (layout->width) {
+        case 32:
+            put_unaligned((u32)reloc_buf, (u32 *)&text_out[next_reloc_rel]);
+            break;
+        case 64:
+            put_unaligned(reloc_buf, (u64 *)&text_out[next_reloc_rel]);
+            break;
+        case 16:
+            put_unaligned((u16)reloc_buf, (u16 *)&text_out[next_reloc_rel]);
+            break;
+        }
     }
 
 #ifdef DEBUG_LINUXKM_PIE_SUPPORT
@@ -1140,11 +1361,11 @@ ssize_t wc_linuxkm_normalize_relocations(
     total_bss_r += n_bss_r;
     total_other_r += n_other_r;
 
-    if (n_other_r > 0)
-        pr_notice("text_in=%x relocs=%d/%d/%d/%d/%d ret = %zu\n",
-                  (unsigned)(uintptr_t)text_in, n_text_r, n_rodata_r,
-                  n_rwdata_r, n_bss_r, n_other_r,
-                  text_in_len);
+    if ((n_other_r > 0) || (n_oob_r > 0))
+        pr_notice("text_in=%llx relocs=%d/%d/%d/%d/%d/%d ret = %llu\n",
+                  (unsigned long long)(uintptr_t)text_in, n_text_r, n_rodata_r,
+                  n_rwdata_r, n_bss_r, n_other_r, n_oob_r,
+                  (unsigned long long)text_in_len);
 #endif
 
     if (cur_index_p)

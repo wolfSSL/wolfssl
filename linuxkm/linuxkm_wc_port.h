@@ -483,7 +483,31 @@
 #ifndef WC_CONTAINERIZE_THIS
     #include <linux/kthread.h>
     #include <linux/net.h>
-#endif
+    #ifndef WOLFCRYPT_ONLY
+        #include <linux/inet.h>
+        static inline int wc_linuxkm_inet_pton(int af, const char *src, void *dst)
+        {
+            int ret;
+
+            if (!src || !dst)
+                return -EFAULT;
+
+            switch (af) {
+            case AF_INET:
+                ret = in4_pton(src, -1, (u8 *)dst, '\0', NULL);
+                return ret == 1 ? 1 : 0;
+
+            case AF_INET6:
+                ret = in6_pton(src, -1, (u8 *)dst, '\0', NULL);
+                return ret == 1 ? 1 : 0;
+
+            default:
+                return -EAFNOSUPPORT;
+            }
+        }
+        #define XINET_PTON(af, src, dst) wc_linuxkm_inet_pton(af, src, dst)
+    #endif /* !WOLFCRYPT_ONLY */
+#endif /* !WC_CONTAINERIZE_THIS */
 
     #include <linux/slab.h>
     #include <linux/sched.h>
@@ -815,7 +839,52 @@
         __wc_bss_start[],
         __wc_bss_end[];
 
-    extern const unsigned int wc_linuxkm_pie_reloc_tab[];
+    struct wc_linuxkm_pie_reloc_tab_ent {
+        unsigned int offset;
+    #define WC_RELOC_DEST_SEGMENT_BITS 3
+        unsigned int dest_segment:WC_RELOC_DEST_SEGMENT_BITS;
+    #define WC_RELOC_TYPE_BITS 5
+        unsigned int reloc_type:WC_RELOC_TYPE_BITS;
+    };
+
+    enum wc_reloc_dest_segment {
+        WC_R_SEG_NONE = 0,
+        WC_R_SEG_TEXT,
+        WC_R_SEG_RODATA,
+        WC_R_SEG_RWDATA,
+        WC_R_SEG_BSS,
+        WC_R_SEG_OTHER
+    };
+
+    enum wc_reloc_type {
+        WC_R_NONE = 0,
+        WC_R_X86_64_32,
+        WC_R_X86_64_32S,
+        WC_R_X86_64_64,
+        WC_R_X86_64_PC32,
+        WC_R_X86_64_PLT32,
+        WC_R_AARCH64_ABS32,
+        WC_R_AARCH64_ABS64,
+        WC_R_AARCH64_ADD_ABS_LO12_NC,
+        WC_R_AARCH64_ADR_PREL_PG_HI21,
+        WC_R_AARCH64_CALL26,
+        WC_R_AARCH64_JUMP26,
+        WC_R_AARCH64_LDST8_ABS_LO12_NC,
+        WC_R_AARCH64_LDST16_ABS_LO12_NC,
+        WC_R_AARCH64_LDST32_ABS_LO12_NC,
+        WC_R_AARCH64_LDST64_ABS_LO12_NC,
+        WC_R_AARCH64_PREL32,
+        WC_R_ARM_ABS32,
+        WC_R_ARM_PREL31,
+        WC_R_ARM_REL32,
+        WC_R_ARM_THM_CALL,
+        WC_R_ARM_THM_JUMP11,
+        WC_R_ARM_THM_JUMP24,
+        WC_R_ARM_THM_MOVT_ABS,
+        WC_R_ARM_THM_MOVW_ABS_NC
+    };
+
+    extern const struct wc_linuxkm_pie_reloc_tab_ent wc_linuxkm_pie_reloc_tab[];
     extern const unsigned long wc_linuxkm_pie_reloc_tab_length;
     extern ssize_t wc_linuxkm_normalize_relocations(
         const u8 *text_in,
