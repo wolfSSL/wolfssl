@@ -61,13 +61,13 @@ static inline time_t wolfkmod_time(time_t * tloc) {
 #define WOLFSSL_DEBUG_PRINTF_FN printf
 
 /* str and char utility functions */
-#define XATOI(s) ({                                         \
-      char * endptr = NULL;                                 \
-      long   _xatoi_ret = strtol(s, &endptr, 10);           \
-      if ((s) == endptr || *endptr != '\0') {               \
-        _xatoi_ret = 0;                                     \
-      }                                                     \
-      (int)_xatoi_ret;                                      \
+#define XATOI(s) ({                                                          \
+      char * endptr = NULL;                                                  \
+      long   _xatoi_ret = strtol(s, &endptr, 10);                            \
+      if ((s) == endptr || *endptr != '\0') {                                \
+        _xatoi_ret = 0;                                                      \
+      }                                                                      \
+      (int)_xatoi_ret;                                                       \
 })
 
 #if !defined(XMALLOC_OVERRIDE)
@@ -102,6 +102,33 @@ extern struct malloc_type M_WOLFSSL[1];
         if(_xp) free(_xp, M_WOLFSSL);                                        \
     })
 #endif /* WOLFSSL_BSDKM_DEBUG_MEMORY */
+
+
+#if defined(WOLFSSL_AESNI) || defined(WOLFSSL_KERNEL_BENCHMARKS)
+    int  wolfkmod_vecreg_init(void);
+    void wolfkmod_vecreg_exit(void);
+    int  wolfkmod_vecreg_save(int flags_unused);
+    void wolfkmod_vecreg_restore(void);
+    /* wrapper defines for FPU_KERN(9).
+     * /usr/src/sys/amd64/amd64/fpu.c
+     * /usr/src/sys/amd64/include/pcb.h
+     * */
+    #ifndef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
+        #define WOLFSSL_USE_SAVE_VECTOR_REGISTERS
+    #endif
+
+    #define SAVE_VECTOR_REGISTERS(fail_clause) {                             \
+        int _svr_ret = wolfkmod_vecreg_save(0);                              \
+        if (_svr_ret != 0) {                                                 \
+            fail_clause                                                      \
+        }                                                                    \
+    }
+
+    #define SAVE_VECTOR_REGISTERS2() wolfkmod_vecreg_save(0)
+
+    #define RESTORE_VECTOR_REGISTERS() wolfkmod_vecreg_restore()
+
+#endif /* WOLFSSL_AESNI || WOLFSSL_KERNEL_BENCHMARKS */
 
 #if !defined(SINGLE_THREADED)
     #define WC_MUTEX_OPS_INLINE
@@ -149,7 +176,8 @@ extern struct malloc_type M_WOLFSSL[1];
     typedef volatile int          wolfSSL_Atomic_Int;
     typedef volatile unsigned int wolfSSL_Atomic_Uint;
     #define WOLFSSL_ATOMIC_INITIALIZER(x) (x)
-    #define WOLFSSL_ATOMIC_LOAD(x)  (int)atomic_load_acq_int(&(x))
+    #define WOLFSSL_ATOMIC_LOAD(x) (int)atomic_load_acq_int(&(x))
+    #define WOLFSSL_ATOMIC_LOAD_UINT(x) atomic_load_acq_int(&(x))
     #define WOLFSSL_ATOMIC_STORE(x, v)  atomic_store_rel_int(&(x), (v))
     #define WOLFSSL_ATOMIC_OPS
 
