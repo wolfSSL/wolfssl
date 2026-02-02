@@ -709,61 +709,78 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
     #ifdef HAVE_PQC
             groups[count] = 0;
     #ifndef WOLFSSL_NO_ML_KEM
-        #ifndef WOLFSSL_NO_ML_KEM_512
+        #if !defined(WOLFSSL_NO_ML_KEM_512) && \
+                                       !defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE)
             if (XSTRCMP(pqcAlg, "ML_KEM_512") == 0) {
                 groups[count] = WOLFSSL_ML_KEM_512;
             }
             else
         #endif
-        #ifndef WOLFSSL_NO_ML_KEM_768
+        #if !defined(WOLFSSL_NO_ML_KEM_768) && \
+                                       !defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE)
             if (XSTRCMP(pqcAlg, "ML_KEM_768") == 0) {
                 groups[count] = WOLFSSL_ML_KEM_768;
             }
             else
         #endif
-        #ifndef WOLFSSL_NO_ML_KEM_1024
+        #if !defined(WOLFSSL_NO_ML_KEM_1024) && \
+                                       !defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE)
             if (XSTRCMP(pqcAlg, "ML_KEM_1024") == 0) {
                 groups[count] = WOLFSSL_ML_KEM_1024;
             }
             else
         #endif
-        #ifndef WOLFSSL_NO_ML_KEM_512
+        #if !defined(WOLFSSL_NO_ML_KEM_512) && \
+                                       defined(WOLFSSL_EXTRA_PQC_HYBRIDS)
             if (XSTRCMP(pqcAlg, "SecP256r1MLKEM512") == 0) {
                 groups[count] = WOLFSSL_SECP256R1MLKEM512;
             }
             else
         #endif
         #ifndef WOLFSSL_NO_ML_KEM_768
+            #ifdef WOLFSSL_EXTRA_PQC_HYBRIDS
             if (XSTRCMP(pqcAlg, "SecP384r1MLKEM768") == 0) {
                 groups[count] = WOLFSSL_SECP384R1MLKEM768;
             }
-            else if (XSTRCMP(pqcAlg, "SecP256r1MLKEM768") == 0) {
+            else
+            #endif /* WOLFSSL_EXTRA_PQC_HYBRIDS */
+            #ifdef WOLFSSL_PQC_HYBRIDS
+            if (XSTRCMP(pqcAlg, "SecP256r1MLKEM768") == 0) {
                 groups[count] = WOLFSSL_SECP256R1MLKEM768;
             }
             else
+            #endif /* WOLFSSL_PQC_HYBRIDS */
         #endif
         #ifndef WOLFSSL_NO_ML_KEM_1024
+            #ifdef WOLFSSL_EXTRA_PQC_HYBRIDS
             if (XSTRCMP(pqcAlg, "SecP521r1MLKEM1024") == 0) {
                 groups[count] = WOLFSSL_SECP521R1MLKEM1024;
             }
-            else if (XSTRCMP(pqcAlg, "SecP384r1MLKEM1024") == 0) {
+            else
+            #endif /* WOLFSSL_EXTRA_PQC_HYBRIDS */
+            #ifdef WOLFSSL_PQC_HYBRIDS
+            if (XSTRCMP(pqcAlg, "SecP384r1MLKEM1024") == 0) {
                 groups[count] = WOLFSSL_SECP384R1MLKEM1024;
             }
             else
+            #endif /* WOLFSSL_PQC_HYBRIDS */
         #endif
-        #if !defined(WOLFSSL_NO_ML_KEM_512) && defined(HAVE_CURVE25519)
+        #if !defined(WOLFSSL_NO_ML_KEM_512) && defined(HAVE_CURVE25519) && \
+                                       defined(WOLFSSL_EXTRA_PQC_HYBRIDS)
             if (XSTRCMP(pqcAlg, "X25519MLKEM512") == 0) {
                 groups[count] = WOLFSSL_X25519MLKEM512;
             }
             else
         #endif
-        #if !defined(WOLFSSL_NO_ML_KEM_768) && defined(HAVE_CURVE25519)
+        #if !defined(WOLFSSL_NO_ML_KEM_768) && defined(HAVE_CURVE25519) && \
+            defined(WOLFSSL_PQC_HYBRIDS)
             if (XSTRCMP(pqcAlg, "X25519MLKEM768") == 0) {
                 groups[count] = WOLFSSL_X25519MLKEM768;
             }
             else
         #endif
-        #if !defined(WOLFSSL_NO_ML_KEM_768) && defined(HAVE_CURVE448)
+        #if !defined(WOLFSSL_NO_ML_KEM_768) && defined(HAVE_CURVE448) && \
+                                       defined(WOLFSSL_EXTRA_PQC_HYBRIDS)
             if (XSTRCMP(pqcAlg, "X448MLKEM768") == 0) {
                 groups[count] = WOLFSSL_X448MLKEM768;
             }
@@ -837,14 +854,21 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
                 err_sys("invalid post-quantum KEM specified");
             }
             else {
-                if (wolfSSL_UseKeyShare(ssl, groups[count]) == WOLFSSL_SUCCESS) {
-                    printf("Using Post-Quantum KEM: %s\n", pqcAlg);
-                    count++;
-                }
-                else {
-                    groups[count] = 0;
-                    err_sys("unable to use post-quantum algorithm");
-                }
+                do {
+                    ret = wolfSSL_UseKeyShare(ssl, groups[count]);
+                    if (ret == WOLFSSL_SUCCESS) {
+                        printf("Using Post-Quantum KEM: %s\n", pqcAlg);
+                        count++;
+                    }
+                #ifdef WOLFSSL_ASYNC_CRYPT
+                    else if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
+                        wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
+                #endif
+                    else {
+                        groups[count] = 0;
+                        err_sys("unable to use post-quantum algorithm");
+                    }
+                } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
             }
     #endif
         }
@@ -1741,8 +1765,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     /* Note: Actual memory used is much less, this is the entire buffer buckets,
      * which is partitioned into pools of common sizes. To adjust the buckets
      * sizes see WOLFMEM_BUCKETS in memory.h */
-    #if (defined(HAVE_ECC) && !defined(ALT_ECC_SIZE)) \
-        || defined(SESSION_CERTS)
+    #if (defined(HAVE_ECC) && !defined(ALT_ECC_SIZE)) || \
+        defined(SESSION_CERTS) || defined(WOLFSSL_HAVE_MLKEM)
         /* big enough to handle most cases including session certs */
         #if !defined(WOLFSSL_NO_CLIENT_AUTH) && \
                ((defined(HAVE_ED25519) && !defined(NO_ED25519_CLIENT_AUTH)) || \

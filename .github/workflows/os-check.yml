@@ -38,6 +38,12 @@ jobs:
           '--enable-experimental --enable-kyber --enable-dtls --enable-dtls13
              --enable-dtls-frag-ch',
           '--enable-all --enable-dtls13 --enable-dtls-frag-ch',
+          '--enable-all --enable-dtls13 --enable-dtls-frag-ch --disable-mlkem',
+          '--enable-all --enable-dtls13 --enable-dtls-frag-ch
+           --enable-tls-mlkem-standalone',
+          '--enable-all --enable-dtls13 --enable-dtls-frag-ch
+           --enable-tls-mlkem-standalone --enable-experimental
+           --enable-extra-pqc-hybrids',
           '--enable-dtls --enable-dtls13 --enable-dtls-frag-ch
            --enable-dtls-mtu',
           '--enable-dtls --enable-dtlscid --enable-dtls13 --enable-secure-renegotiation

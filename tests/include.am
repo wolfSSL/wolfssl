@@ -33,12 +33,14 @@ EXTRA_DIST += tests/unit.h \
               tests/test-tls13-down.conf \
               tests/test-tls13-ecc.conf \
               tests/test-tls13-psk.conf \
-              tests/test-tls13-pq.conf \
+              tests/test-tls13-pq-standalone.conf \
               tests/test-tls13-pq-hybrid.conf \
-              tests/test-dtls13-pq.conf \
-              tests/test-dtls13-pq-frag.conf \
-              tests/test-dtls13-pq-hybrid.conf \
+              tests/test-tls13-pq-hybrid-extra.conf \
+              tests/test-dtls13-pq-standalone.conf \
+              tests/test-dtls13-pq-standalone-frag.conf \
               tests/test-dtls13-pq-hybrid-frag.conf \
+              tests/test-dtls13-pq-hybrid-extra.conf \
+              tests/test-dtls13-pq-hybrid-extra-frag.conf \
               tests/test-psk.conf \
               tests/test-psk-no-id.conf \
               tests/test-psk-no-id-sha2.conf \

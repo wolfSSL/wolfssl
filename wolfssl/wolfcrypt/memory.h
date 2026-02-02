@@ -175,15 +175,25 @@ WOLFSSL_API int wolfSSL_GetAllocators(wolfSSL_Malloc_cb* mf,
                     #define WOLFMEM_BUCKETS 64,128,256,512,1024,8192,32768,\
                                             65536,LARGEST_MEM_BUCKET
                 #endif
+            #elif defined(WOLFSSL_HAVE_MLKEM)
+                /* extra storage in structs for multiple attributes and order */
+                #define WOLFMEM_BUCKETS 64,128,256,512,1024,2432,4096,8192,\
+                                        LARGEST_MEM_BUCKET
             #else
                 /* default size of chunks of memory to separate into */
                 #define WOLFMEM_BUCKETS 64,128,256,512,1024,2432,3456,4544,\
                                         LARGEST_MEM_BUCKET
             #endif
         #elif defined(OPENSSL_EXTRA)
-            /* extra storage in structs for multiple attributes and order */
-            #define WOLFMEM_BUCKETS 64,128,256,512,1024,2432,3360,4480,\
-                                    LARGEST_MEM_BUCKET
+            #ifdef WOLFSSL_HAVE_MLKEM
+                /* extra storage in structs for multiple attributes and order */
+                #define WOLFMEM_BUCKETS 64,128,256,512,1024,2432,4096,8192,\
+                                        LARGEST_MEM_BUCKET
+            #else
+                /* extra storage in structs for multiple attributes and order */
+                #define WOLFMEM_BUCKETS 64,128,256,512,1024,2432,3360,4480,\
+                                        LARGEST_MEM_BUCKET
+            #endif
         #elif defined(WOLFSSL_CERT_EXT)
             #define WOLFMEM_BUCKETS 64,128,256,512,1024,2432,3456,4544,\
                                     LARGEST_MEM_BUCKET
@@ -204,7 +214,7 @@ WOLFSSL_API int wolfSSL_GetAllocators(wolfSSL_Malloc_cb* mf,
                 #define WOLFMEM_DIST    30,10,8,15,8,10,8,5,1
             #endif
         #elif !defined(WOLFSSL_STATIC_MEMORY_SMALL)
-            #define WOLFMEM_DIST    49,10,6,14,5,6,9,1,1
+            #define WOLFMEM_DIST    49,10,6,14,5,6,16,1,1
         #else
             /* Low resource and not RSA */
             #define WOLFMEM_DIST    29, 7,6, 9,4,4,0,0,0
