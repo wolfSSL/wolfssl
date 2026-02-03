@@ -1900,7 +1900,7 @@ wc_test_ret_t wolfcrypt_test(void* args)
     heap_baselineBytes = wolfCrypt_heap_peakBytes_checkpoint();
 #endif
 
-#ifdef WC_RNG_SEED_CB
+#if defined(WC_RNG_SEED_CB) && !defined(WC_NO_HASHDRBG)
         wc_SetSeed_Cb(WC_GENERATE_SEED_DEFAULT);
 #endif
 
