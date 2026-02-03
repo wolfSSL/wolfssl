@@ -13402,6 +13402,7 @@ static int TLSX_ExpandEchOuterExtensions(WOLFSSL* ssl, WOLFSSL_ECH* ech,
     void* heap)
 {
     int ret = 0;
+    int headerSz;
     const byte* innerCh;
     word32 innerChLen;
     const byte* outerCh;
@@ -13429,7 +13430,14 @@ static int TLSX_ExpandEchOuterExtensions(WOLFSSL* ssl, WOLFSSL_ECH* ech,
     if (ech == NULL || ech->innerClientHello == NULL || ech->aad == NULL)
         return BAD_FUNC_ARG;
 
-    innerCh = ech->innerClientHello + HANDSHAKE_HEADER_SZ;
+#ifdef WOLFSSL_DTLS13
+    headerSz = ssl->options.dtls ? DTLS13_HANDSHAKE_HEADER_SZ :
+                                   HANDSHAKE_HEADER_SZ;
+#else
+    headerSz = HANDSHAKE_HEADER_SZ;
+#endif
+
+    innerCh = ech->innerClientHello + headerSz;
     innerChLen = ech->innerClientHelloLen;
     outerCh = ech->aad;
     outerChLen = ech->aadLen;
@@ -13518,8 +13526,8 @@ static int TLSX_ExpandEchOuterExtensions(WOLFSSL* ssl, WOLFSSL_ECH* ech,
         return ret;
     }
     else {
-        newInnerCh = (byte*)XMALLOC(newInnerChLen + HANDSHAKE_HEADER_SZ, heap,
-            DYNAMIC_TYPE_TMP_BUFFER);
+        newInnerCh = (byte*)XMALLOC(newInnerChLen + headerSz, heap,
+                                    DYNAMIC_TYPE_TMP_BUFFER);
         if (newInnerCh == NULL)
             return MEMORY_E;
     }
@@ -13529,7 +13537,7 @@ static int TLSX_ExpandEchOuterExtensions(WOLFSSL* ssl, WOLFSSL_ECH* ech,
      * AddTls13HandShakeHeader() in DoTls13ClientHello(). */
 
     /* copy everything up to EchOuterExtensions */
-    newInnerChRef = newInnerCh + HANDSHAKE_HEADER_SZ;
+    newInnerChRef = newInnerCh + headerSz;
     copyLen = OPAQUE16_LEN + RAN_LEN;
     XMEMCPY(newInnerChRef, innerCh, copyLen);
     newInnerChRef += copyLen;
