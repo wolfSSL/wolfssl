@@ -53,6 +53,19 @@ int test_wc_AesEaxDecryptAuth(void);
 
 int test_wc_GmacSetKey(void);
 int test_wc_GmacUpdate(void);
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_AES_SETKEY) && \
+    !defined(NO_AES) && defined(HAVE_AESGCM)
+int test_wc_CryptoCb_AesSetKey(void);
+int test_wc_CryptoCb_AesGcm_EncryptDecrypt(void);
+#endif
+
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_AES_SETKEY) && \
+    !defined(NO_AES) && defined(HAVE_AESGCM)
+#define TEST_CRYPTOCB_AES_SETKEY_DECL , TEST_DECL_GROUP("aes", test_wc_CryptoCb_AesSetKey), \
+                                        TEST_DECL_GROUP("aes", test_wc_CryptoCb_AesGcm_EncryptDecrypt)
+#else
+#define TEST_CRYPTOCB_AES_SETKEY_DECL
+#endif
 
 #define TEST_AES_DECLS                                          \
     TEST_DECL_GROUP("aes", test_wc_AesSetKey),                  \
@@ -74,7 +87,8 @@ int test_wc_GmacUpdate(void);
     TEST_DECL_GROUP("aes", test_wc_AesCcmEncryptDecrypt),       \
     TEST_DECL_GROUP("aes", test_wc_AesXtsSetKey),               \
     TEST_DECL_GROUP("aes", test_wc_AesXtsEncryptDecrypt_Sizes), \
-    TEST_DECL_GROUP("aes", test_wc_AesXtsEncryptDecrypt)
+    TEST_DECL_GROUP("aes", test_wc_AesXtsEncryptDecrypt) \
+    TEST_CRYPTOCB_AES_SETKEY_DECL
 
 #if defined(WOLFSSL_AES_EAX) && defined(WOLFSSL_AES_256) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
