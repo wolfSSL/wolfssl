@@ -434,7 +434,11 @@ int wc_MlKemKey_MakeKeyWithRandom(MlKemKey* key, const unsigned char* rand,
 {
     byte buf[2 * WC_ML_KEM_SYM_SZ + 1];
     byte* rho = buf;
+#ifndef WC_MLKEM_FAULT_HARDEN
     byte* sigma = buf + WC_ML_KEM_SYM_SZ;
+#else
+    byte sigma[WC_ML_KEM_SYM_SZ + 1];
+#endif
 #ifndef WOLFSSL_NO_MALLOC
     sword16* e = NULL;
 #else
@@ -565,6 +569,17 @@ int wc_MlKemKey_MakeKeyWithRandom(MlKemKey* key, const unsigned char* rand,
         }
 #endif
     }
+#ifdef WC_MLKEM_FAULT_HARDEN
+    if (ret == 0) {
+        XMEMCPY(sigma, buf + WC_ML_KEM_SYM_SZ, WC_ML_KEM_SYM_SZ);
+        if (XMEMCMP(sigma, rho, WC_ML_KEM_SYM_SZ) == 0) {
+            ret = BAD_COND_E;
+        }
+        if (XMEMCMP(sigma, rho + WC_ML_KEM_SYM_SZ, WC_ML_KEM_SYM_SZ) != 0) {
+            ret = BAD_COND_E;
+        }
+    }
+#endif
     if (ret == 0) {
         const byte* z = rand + WC_ML_KEM_SYM_SZ;
         s = key->priv;

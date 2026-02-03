@@ -595,7 +595,7 @@ static word64 Load64BitLittleEndian(const byte* a)
 
     return n;
 }
-#elif defined(WC_SHA3_HARDEN)
+#elif defined(WC_SHA3_FAULT_HARDEN)
 static WC_INLINE word64 Load64Unaligned(const unsigned char *a)
 {
 #ifdef WC_64BIT_CPU
@@ -712,9 +712,9 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
 {
     word32 i;
     word32 blocks;
-#ifdef WC_SHA3_HARDEN
-    byte check = 0;
-    byte total_check = 0;
+#ifdef WC_SHA3_FAULT_HARDEN
+    word32 check = 0;
+    word32 total_check = 0;
 #endif
 
 #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(USE_INTEL_SPEEDUP)
@@ -732,11 +732,11 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
         t = &sha3->t[sha3->i];
         for (i = 0; i < l; i++) {
             t[i] = data[i];
-    #ifdef WC_SHA3_HARDEN
+    #ifdef WC_SHA3_FAULT_HARDEN
             check++;
     #endif
         }
-    #ifdef WC_SHA3_HARDEN
+    #ifdef WC_SHA3_FAULT_HARDEN
         if (check != l) {
             return BAD_COND_E;
         }
@@ -747,16 +747,16 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
         sha3->i = (byte)(sha3->i + i);
 
         if (sha3->i == p * 8) {
-    #if !defined(BIG_ENDIAN_ORDER) && !defined(WC_SHA3_HARDEN)
+    #if !defined(BIG_ENDIAN_ORDER) && !defined(WC_SHA3_FAULT_HARDEN)
             xorbuf(sha3->s, sha3->t, (word32)(p * 8));
     #else
             for (i = 0; i < p; i++) {
                 sha3->s[i] ^= Load64BitLittleEndian(sha3->t + 8 * i);
-            #ifdef WC_SHA3_HARDEN
+            #ifdef WC_SHA3_FAULT_HARDEN
                 check++;
             #endif
             }
-        #ifdef WC_SHA3_HARDEN
+        #ifdef WC_SHA3_FAULT_HARDEN
             if (check != p + l) {
                 return BAD_COND_E;
             }
@@ -780,20 +780,20 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
         blocks = 0;
     }
     #endif
-#ifdef WC_SHA3_HARDEN
+#ifdef WC_SHA3_FAULT_HARDEN
     total_check += blocks * p;
 #endif
     for (; blocks > 0; blocks--) {
-#if !defined(BIG_ENDIAN_ORDER) && !defined(WC_SHA3_HARDEN)
+#if !defined(BIG_ENDIAN_ORDER) && !defined(WC_SHA3_FAULT_HARDEN)
         xorbuf(sha3->s, data, (word32)(p * 8));
 #else
         for (i = 0; i < p; i++) {
             sha3->s[i] ^= Load64Unaligned(data + 8 * i);
-        #ifdef WC_SHA3_HARDEN
+        #ifdef WC_SHA3_FAULT_HARDEN
             check++;
         #endif
         }
-    #ifdef WC_SHA3_HARDEN
+    #ifdef WC_SHA3_FAULT_HARDEN
         if (check != total_check - ((blocks - 1) * p)) {
             return BAD_COND_E;
         }
@@ -807,7 +807,7 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
         len -= p * 8U;
         data += p * 8U;
     }
-#ifdef WC_SHA3_HARDEN
+#ifdef WC_SHA3_FAULT_HARDEN
     if (check != total_check) {
         return BAD_COND_E;
     }
@@ -837,14 +837,14 @@ static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, byte p, word32 l)
 {
     word32 rate = p * 8U;
     word32 j;
-#if defined(BIG_ENDIAN_ORDER) || defined(WC_SHA3_HARDEN)
+#if defined(BIG_ENDIAN_ORDER) || defined(WC_SHA3_FAULT_HARDEN)
     word32 i;
 #endif
-#ifdef WC_SHA3_HARDEN
+#ifdef WC_SHA3_FAULT_HARDEN
     int check = 0;
 #endif
 
-#if !defined(BIG_ENDIAN_ORDER) && !defined(WC_SHA3_HARDEN)
+#if !defined(BIG_ENDIAN_ORDER) && !defined(WC_SHA3_FAULT_HARDEN)
     xorbuf(sha3->s, sha3->t, sha3->i);
 #ifdef WOLFSSL_HASH_FLAGS
     if ((p == WC_SHA3_256_COUNT) && (sha3->flags & WC_HASH_SHA3_KECCAK256)) {
@@ -867,11 +867,11 @@ static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, byte p, word32 l)
     }
     for (i = 0; i < p; i++) {
         sha3->s[i] ^= Load64BitLittleEndian(sha3->t + 8 * i);
-    #ifdef WC_SHA3_HARDEN
+    #ifdef WC_SHA3_FAULT_HARDEN
         check++;
     #endif
     }
-#ifdef WC_SHA3_HARDEN
+#ifdef WC_SHA3_FAULT_HARDEN
     if (check != p) {
         return BAD_COND_E;
     }

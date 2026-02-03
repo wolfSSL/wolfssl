@@ -8138,6 +8138,9 @@ static int dilithium_sign_with_seed_mu(dilithium_key* key,
     sword32* ct0 = NULL;
     byte priv_rand_seed[DILITHIUM_Y_SEED_SZ];
     byte* h = sig + params->lambda / 4 + params->zEncSz;
+#ifdef WC_MLDSA_FAULT_HARDEN
+   sword32* y_check;
+#endif
 
     /* Check the signature buffer isn't too small. */
     if (*sigLen < params->sigSz) {
@@ -8202,6 +8205,9 @@ static int dilithium_sign_with_seed_mu(dilithium_key* key,
             ret = MEMORY_E;
         }
         else {
+        #ifdef WC_MLDSA_FAULT_HARDEN
+            y_check = y;
+        #endif
             w0  = y   + params->s1Sz / sizeof(*y);
             w1  = w0  + params->s2Sz / sizeof(*w0);
             c   = w1  + params->s2Sz / sizeof(*w1);
@@ -8270,6 +8276,12 @@ static int dilithium_sign_with_seed_mu(dilithium_key* key,
             {
                 /* Step 13: NTT-1(A o NTT(y)) */
                 XMEMCPY(y_ntt, y, params->s1Sz);
+            #ifdef WC_MLDSA_FAULT_HARDEN
+                if (y_check != y) {
+                    valid = 0;
+                    ret = BAD_COND_E;
+                }
+            #endif
                 dilithium_vec_ntt_full(y_ntt, params->l);
                 dilithium_matrix_mul(w, a, y_ntt, params->k, params->l);
                 dilithium_vec_invntt_full(w, params->k);
@@ -8411,6 +8423,9 @@ static int dilithium_sign_with_seed_mu(dilithium_key* key,
     byte maxK = (byte)min(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC_A,
         params->k);
 #endif
+#ifdef WC_MLDSA_FAULT_HARDEN
+    sword32* y_check;
+#endif
 
     /* Check the signature buffer isn't too small. */
     if ((ret == 0) && (*sigLen < params->sigSz)) {
@@ -8442,6 +8457,9 @@ static int dilithium_sign_with_seed_mu(dilithium_key* key,
             ret = MEMORY_E;
         }
         else {
+        #ifdef WC_MLDSA_FAULT_HARDEN
+            y_check = y;
+        #endif
             w0     = y  + params->s1Sz / sizeof(*y_ntt);
             w1     = w0 + params->s2Sz / sizeof(*w0);
             blocks = (byte*)(w1 + params->s2Sz / sizeof(*w1));
@@ -8557,6 +8575,16 @@ static int dilithium_sign_with_seed_mu(dilithium_key* key,
             #else
                 sword32* y_ntt_t = y_ntt;
             #endif
+            #ifdef WC_MLDSA_FAULT_HARDEN
+                sword32* yt_check = yt;
+            #endif
+            #ifdef WC_MLDSA_FAULT_HARDEN
+                if (y_check != y) {
+                    valid = 0;
+                    ret = BAD_COND_E;
+                    break;
+                }
+            #endif
 
                 /* Put r/i into buffer to be hashed. */
                 aseed[DILITHIUM_PUB_SEED_SZ + 1] = r;
@@ -8571,6 +8599,12 @@ static int dilithium_sign_with_seed_mu(dilithium_key* key,
                         break;
                     }
                     XMEMCPY(y_ntt_t, yt, DILITHIUM_POLY_SIZE);
+                #ifdef WC_MLDSA_FAULT_HARDEN
+                    if (yt_check + s * DILITHIUM_N != yt) {
+                        ret = BAD_COND_E;
+                        break;
+                    }
+                #endif
                     dilithium_ntt_full(y_ntt_t);
                     /* Matrix multiply. */
                 #ifndef WOLFSSL_DILITHIUM_SMALL_MEM_POLY64
@@ -8668,6 +8702,9 @@ static int dilithium_sign_with_seed_mu(dilithium_key* key,
                 #endif
                     /* Next polynomial. */
                     yt += DILITHIUM_N;
+                }
+                if (ret != 0) {
+                    break;
                 }
             #ifdef WOLFSSL_DILITHIUM_SMALL_MEM_POLY64
                 for (e = 0; e < DILITHIUM_N; e++) {
