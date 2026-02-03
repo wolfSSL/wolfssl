@@ -1,5 +1,7 @@
 #![cfg(rsa)]
 
+mod common;
+
 #[cfg(any(all(sha256, random, rsa_pss), random, rsa_direct))]
 use std::fs;
 #[cfg(random)]
@@ -10,6 +12,8 @@ use wolfssl_wolfcrypt::rsa::*;
 #[test]
 #[cfg(rsa_keygen)]
 fn test_rsa_generate() {
+    common::setup();
+
     let mut rng = RNG::new().expect("Error creating RNG");
     let mut rsa = RSA::generate(2048, 65537, &mut rng).expect("Error with generate()");
     rsa.check().expect("Error with check()");

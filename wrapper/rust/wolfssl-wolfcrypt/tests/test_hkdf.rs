@@ -1,11 +1,15 @@
 #![cfg(hkdf)]
 
+mod common;
+
 use wolfssl_wolfcrypt::hkdf::*;
 use wolfssl_wolfcrypt::hmac::HMAC;
 use wolfssl_wolfcrypt::sha::SHA256;
 
 #[test]
 fn test_hkdf_extract_expand() {
+    common::setup();
+
     let ikm = b"MyPassword0";
     let salt = b"12345678ABCDEFGH";
     let mut extract_out = [0u8; SHA256::DIGEST_SIZE];
@@ -26,6 +30,8 @@ fn test_hkdf_extract_expand() {
 
 #[test]
 fn test_hkdf_one_shot() {
+    common::setup();
+
     let ikm = b"MyPassword0";
     let salt = b"12345678ABCDEFGH";
     let info = b"0";

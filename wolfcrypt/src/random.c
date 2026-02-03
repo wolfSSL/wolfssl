@@ -1147,7 +1147,7 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
         rng->drbg_scratch = NULL;
     #endif
     }
-    /* else swc_RNG_HealthTestLocal was successful */
+    /* else wc_RNG_HealthTestLocal was successful */
 
     if (ret == DRBG_SUCCESS) {
 #ifdef WOLFSSL_CHECK_MEM_ZERO
