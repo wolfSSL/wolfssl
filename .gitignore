@@ -386,6 +386,7 @@ IDE/**/DerivedData
 CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
+!cmake/Config.cmake.in
 
 # GDB Settings
 \.gdbinit
