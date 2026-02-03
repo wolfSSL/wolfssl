@@ -18,24 +18,39 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+
+/*
+ *                      Attention maintainers:
+ *
+ *  This code is mostly mirrored between client and server examples.
+ *
+ *                  Please apply any updates to both.
+ */
 #include "sdkconfig.h"
 #include "main.h"
 
 /* ESP specific */
-#include <nvs_flash.h>
 #include <esp_log.h>
 #include <esp_event.h>
+#include <nvs_flash.h>
 
 /* wolfSSL */
-/* Always include wolfcrypt/settings.h before any other wolfSSL file.    */
-/* Reminder: settings.h pulls in user_settings.h; don't include it here. */
-#ifdef WOLFSSL_USER_SETTINGS
+/* The wolfSSL user_settings.h is automatically included by settings.h file.
+ * Never explicitly include wolfSSL user_settings.h in any source file.
+ * The settings.h should also be listed above wolfssl library include files. */
+#if defined(WOLFSSL_USER_SETTINGS)
     #include <wolfssl/wolfcrypt/settings.h>
     #ifndef WOLFSSL_ESPIDF
         #warning "Problem with wolfSSL user_settings."
         #warning "Check components/wolfssl/include"
     #endif
+    #include <wolfssl/wolfcrypt/logging.h>
     #include <wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h>
+    #include <wolfssl/wolfcrypt/port/Espressif/esp-sdk-lib.h>
+    #if defined(CONFIG_WOLFSSL_CERTIFICATE_BUNDLE) && \
+                CONFIG_WOLFSSL_CERTIFICATE_BUNDLE
+        #include <wolfssl/wolfcrypt/port/Espressif/esp_crt_bundle.h>
+    #endif
 #else
     /* Define WOLFSSL_USER_SETTINGS project wide for settings.h to include   */
     /* wolfSSL user settings in ./components/wolfssl/include/user_settings.h */
@@ -43,16 +58,34 @@
     CFLAGS +=-DWOLFSSL_USER_SETTINGS"
 #endif
 
-/* this project */
+/* Hardware; include after other libraries,
+ * particularly after freeRTOS from settings.h */
+#include <driver/uart.h>
+
+#define THIS_MONITOR_UART_RX_BUFFER_SIZE 200
+
+#ifdef CONFIG_ESP8266_XTAL_FREQ_26
+    /* 26MHz crystal: 74880 bps */
+    #define THIS_MONITOR_UART_BAUD_DATE 74880
+#else
+    /* 40MHz crystal: 115200 bps */
+    #define THIS_MONITOR_UART_BAUD_DATE 115200
+#endif
+
+/* This project */
+#include "main.h"
 #include "server-tls.h"
-#include "time_helper.h"
 
 #ifdef CONFIG_IDF_TARGET_ESP32H2
-    /* There's no WiFi on ESP32-H2.
+    /* There's no WiFi on ESP32-H2, no esp_eth.h in protocol_examples_common.h
      * For wired ethernet, see:
      * https://github.com/wolfSSL/wolfssl-examples/tree/master/ESP32/TLS13-ENC28J60-client */
 #else
-    #include "wifi_connect.h"
+    /* See CONFIG_WOLFSSL_EXAMPLE_NAME_TLS_CLIENT that defines
+     * USE_WOLFSSL_ESP_SDK_WIFI */
+    #include "protocol_examples_common.h" /* example connect */
+    #include <wolfssl/wolfcrypt/port/Espressif/esp-sdk-lib.h>
+
     /*
      * Note ModBus TCP cannot be disabled on ESP8266 tos-sdk/v3.4
      * See https://github.com/espressif/esp-modbus/issues/2
@@ -131,22 +164,60 @@ void my_atmel_free(int slotId)
 /* Entry for FreeRTOS */
 void app_main(void)
 {
+    uart_config_t uart_config = {
+        .baud_rate = THIS_MONITOR_UART_BAUD_DATE,
+        .data_bits = UART_DATA_8_BITS,
+        .parity    = UART_PARITY_DISABLE,
+        .stop_bits = UART_STOP_BITS_1,
+    };
     esp_err_t ret = 0;
-#ifndef SINGLE_THREADED
-    int this_heap = 0;
-    #ifdef INCLUDE_uxTaskGetStackHighWaterMark
-        int stack_start = 0;
-    #endif
+#if !defined(SINGLE_THREADED) && INCLUDE_uxTaskGetStackHighWaterMark
+    int stack_start = 0;
 #endif
+#if !defined(SINGLE_THREADED)
+    int this_heap = 0;
+#endif
+#ifdef DEBUG_WOLFSSL
+    /* Turn debugging on or off: */
+    /* wolfSSL_Debugging_ON();   */
+    /* wolfSSL_Debugging_OFF();  */
+#endif
+
+#if !defined(CONFIG_WOLFSSL_EXAMPLE_NAME_TLS_SERVER)
+    ESP_LOGW(TAG, "Warning: Example wolfSSL misconfigured? Check menuconfig.");
+#endif
+    /* uart_set_pin(UART_NUM_0, TX_PIN, RX_PIN,
+     *              UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE); */
+
+    /* Some targets may need to have UART speed set, such as ESP8266 */
+    ESP_LOGI(TAG, "UART init");
+    uart_param_config(UART_NUM_0, &uart_config);
+    uart_driver_install(UART_NUM_0,
+                        THIS_MONITOR_UART_RX_BUFFER_SIZE, 0, 0, NULL, 0);
+    /* Startup delay only for pretty align of startup config: I (nnnn) items */
+    vTaskDelay(500 / portTICK_PERIOD_MS);
+
     ESP_LOGI(TAG, "---------------- wolfSSL TLS Server Example ------------");
     ESP_LOGI(TAG, "--------------------------------------------------------");
     ESP_LOGI(TAG, "--------------------------------------------------------");
     ESP_LOGI(TAG, "---------------------- BEGIN MAIN ----------------------");
     ESP_LOGI(TAG, "--------------------------------------------------------");
     ESP_LOGI(TAG, "--------------------------------------------------------");
-#if !defined(CONFIG_WOLFSSL_EXAMPLE_NAME_TLS_SERVER)
-    ESP_LOGW(TAG, "Warning: Example wolfSSL misconfigured? Check menuconfig.");
+#ifdef HAVE_WOLFCRYPT_WARMUP
+    /* Unless disabled, we'll try to allocate known, long-term heap early
+     * in an attempt to minimize later fragmentation */
+    ESP_ERROR_CHECK(esp_sdk_wolfssl_warmup());
 #endif
+#ifdef WOLFSSL_ESP_NO_WATCHDOG
+    ESP_LOGW(TAG, "Found WOLFSSL_ESP_NO_WATCHDOG, disabling...");
+    esp_DisableWatchdog();
+#endif
+#if defined(HAVE_VERSION_EXTENDED_INFO)
+    esp_ShowExtendedSystemInfo();
+#else
+    ESP_LOGW(TAG, "HAVE_VERSION_EXTENDED_INFO not defined");
+#endif
+
 #if defined(ESP_SDK_MEM_LIB_VERSION) && defined(DEBUG_WOLFSSL)
     sdk_init_meminfo();
 #endif
@@ -184,29 +255,33 @@ void app_main(void)
     #endif /* INCLUDE_uxTaskGetStackHighWaterMark */
 #endif /* SINGLE_THREADED */
 
-#ifdef HAVE_VERSION_EXTENDED_INFO
-    esp_ShowExtendedSystemInfo();
-#endif
-#ifdef DEBUG_WOLFSSL
-    wolfSSL_Debugging_OFF();
-#endif
 #ifdef CONFIG_IDF_TARGET_ESP32H2
     ESP_LOGE(TAG, "No WiFi on the ESP32-H2 and ethernet not yet supported");
     while (1) {
         vTaskDelay(60000);
     }
 #endif
-    /* Set time for cert validation.
-     * Some lwIP APIs, including SNTP functions, are not thread safe. */
-    ret = set_time(); /* need to setup NTP before WiFi */
+
+    ESP_LOGI(TAG, "nvs flash init..");
+    ret = nvs_flash_init();
 
     /* Optionally erase flash */
-    /* ESP_ERROR_CHECK(nvs_flash_erase()); */
+#if defined(ESP_ERR_NVS_NO_FREE_PAGES) && defined(ESP_ERR_NVS_NEW_VERSION_FOUND)
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_LOGI(TAG, "nvs flash erase..");
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        ESP_LOGI(TAG, "nvs flash erase..");
+        ret = nvs_flash_init();
+    }
+    else {
+        ESP_LOGW(TAG, "nvs flash NOT erased");
+    }
+#else
+    ESP_LOGW(TAG, "nvs flash not initialized");
+#endif
 
 #ifdef FOUND_PROTOCOL_EXAMPLES_DIR
     ESP_LOGI(TAG, "FOUND_PROTOCOL_EXAMPLES_DIR active, using example code.");
-    ESP_ERROR_CHECK(nvs_flash_init());
-
     #if defined(CONFIG_IDF_TARGET_ESP32H2)
         ESP_LOGE(TAG, "There's no WiFi on ESP32-H2.");
     #else
@@ -220,13 +295,47 @@ void app_main(void)
             #define CONFIG_EXAMPLE_WIFI_SSID "myssid"
             ESP_LOGW(TAG, "WARNING: CONFIG_EXAMPLE_WIFI_SSID not defined.");
         #endif
-        ESP_ERROR_CHECK(esp_netif_init());
-        ESP_ERROR_CHECK(esp_event_loop_create_default());
-        ESP_ERROR_CHECK(example_connect());
+        #ifdef DEBUG_WOLFSSL
+            /* Anytime we are debugging, also debug WiFi */
+            esp_log_level_set("wifi", ESP_LOG_VERBOSE);
+            esp_log_level_set("wpa",  ESP_LOG_VERBOSE);
+        #endif
+        #if defined(USE_WOLFSSL_ESP_SDK_WIFI)
+            #if defined(ESP_SDK_WIFI_LIB_VERSION) && \
+                       (ESP_SDK_WIFI_LIB_VERSION > 1)
+                esp_sdk_wifi_lib_init();
+                ret = esp_sdk_wifi_init_sta();
+            #else
+                ESP_LOGE(TAG, "A newer version of wolfSSL is needed");
+                ret = ESP_FAIL;
+            #endif
+            if (ret == ESP_OK) {
+                ESP_LOGI(TAG, "WiFi connect success!");
+            }
+            else {
+                ESP_LOGI(TAG, "ERROR: WiFi connect failed!");
+                while (1) {
+                    vTaskDelay(10000 / portTICK_PERIOD_MS);
+                }
+            }
+            esp_sdk_wifi_show_ip();
+        #else
+            ESP_LOGI(TAG, "esp netif init...");
+            ESP_ERROR_CHECK(esp_netif_init());
+            ESP_LOGI(TAG, "esp event loop create default...");
+            ESP_ERROR_CHECK(esp_event_loop_create_default());
+            #if defined(CONFIG_IDF_TARGET_ESP32H2)
+                ESP_LOGI(TAG, "There's no WiFi on the ESP32-H2");
+                while (1) {
+                    vTaskDelay(pdMS_TO_TICKS(1000));
+                }
+            #else
+                ESP_LOGI(TAG, "example connect...");
+                ESP_ERROR_CHECK(example_connect());
+            #endif
+        #endif
     #endif
 #else
-    ESP_ERROR_CHECK(nvs_flash_init());
-
     /* Initialize NVS */
     ret = nvs_flash_init();
     #if defined(CONFIG_IDF_TARGET_ESP8266)
@@ -253,25 +362,34 @@ void app_main(void)
     #else
         /* Initialize WiFi */
         ESP_LOGI(TAG, "ESP_WIFI_MODE_STA");
-        ret = wifi_init_sta();
-        while (ret != 0) {
+        ret = esp_sdk_wifi_init_sta();
+        while (ret != ESP_OK) {
             ESP_LOGI(TAG, "Waiting...");
             vTaskDelay(60000 / portTICK_PERIOD_MS);
             ESP_LOGI(TAG, "Trying WiFi again...");
-            ret = wifi_init_sta();
+            ret = esp_sdk_wifi_init_sta();
         }
     #endif /* else not CONFIG_IDF_TARGET_ESP32H2 */
 #endif /* else FOUND_PROTOCOL_EXAMPLES_DIR not found */
 
+    /* Set time for cert validation.
+     * Some lwIP APIs, including SNTP functions, are not thread safe. */
+    ret = set_time(); /* need to setup NTP before WiFi */
+
     /* Once we are connected to the network, start & wait for NTP time */
     ret = set_time_wait_for_ntp();
 
-    if (ret < -1) {
-        /* a value of -1 means there was no NTP server, so no need to wait */
-        ESP_LOGI(TAG, "Waiting 10 more seconds for NTP to complete." );
-        vTaskDelay(10000 / portTICK_PERIOD_MS); /* brute-force solution */
-        esp_show_current_datetime();
-    }
+    switch (ret) {
+        case ESP_OK:
+            break;
+        case ESP_ERR_TIMEOUT:
+            ESP_LOGI(TAG, "Waiting 10 more seconds for NTP to complete." );
+            vTaskDelay(10000 / portTICK_PERIOD_MS); /* brute-force solution */
+            esp_show_current_datetime();
+            break;
+        default:
+            ESP_LOGE(TAG, "set_time_wait_for_ntp error %d", ret);
+    } /* switch ret values */
 
 #if defined(SINGLE_THREADED)
     /* just call the task */
@@ -286,33 +404,29 @@ void app_main(void)
                    CONFIG_ESP_MAIN_TASK_STACK_SIZE
                    - (uxTaskGetStackHighWaterMark(NULL))
             );
-    ESP_LOGI(TAG, "Starting TLS Server task...\n");
+    ESP_LOGI(TAG, "Starting TLS Server task...");
     ESP_LOGI(TAG, "main tls_smp_client_init heap @ %p = %d",
                   &this_heap, this_heap);
 
-
-
     tls_smp_server_init(args); /* NULL will use the DEFAULT_PORT value */
+#endif
+
+#ifdef INCLUDE_uxTaskGetStackHighWaterMark
+    ESP_LOGI(TAG, "Stack HWM: %d", uxTaskGetStackHighWaterMark(NULL));
+
+    ESP_LOGI(TAG, "Stack used: %d", CONFIG_ESP_MAIN_TASK_STACK_SIZE
+                                    - (uxTaskGetStackHighWaterMark(NULL) ));
 #endif
 
     /* Done */
 #ifdef SINGLE_THREADED
     ESP_LOGV(TAG, "\n\nDone!\n\n");
-    while (1);
-#else
-    ESP_LOGV(TAG, "\n\nvTaskDelete...\n\n");
-    vTaskDelete(NULL);
-    /* done */
     while (1) {
-        ESP_LOGV(TAG, "\n\nLoop...\n\n");
-    #ifdef INCLUDE_uxTaskGetStackHighWaterMark
-        ESP_LOGI(TAG, "Stack HWM: %d", uxTaskGetStackHighWaterMark(NULL));
-
-        ESP_LOGI(TAG, "Stack used: %d", CONFIG_ESP_MAIN_TASK_STACK_SIZE
-                                        - (uxTaskGetStackHighWaterMark(NULL) ));
-    #endif
         vTaskDelay(60000);
-    } /* done while */
+    }
+#else
+    ESP_LOGI(TAG, "vTaskDelete main()");
+    vTaskDelete(NULL);
 #endif /* else not SINGLE_THREADED */
 
 } /* app_main */

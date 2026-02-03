@@ -1,11 +1,40 @@
+# sdkconfig.defaults
+
+# Copyright (C) 2006-2025 wolfSSL Inc.
+#
+# This file is part of wolfSSL.
+#
+# wolfSSL is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# wolfSSL is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
+
 # Set the known example app config to template example (see user_settings.h)
 CONFIG_WOLFSSL_EXAMPLE_NAME_BENCHMARK=y
+
+# ------------- BEGIN COMMON SECTION -------------
 
 # CONFIG_EXAMPLE_WIFI_SSID="myssid"
 # CONFIG_EXAMPLE_WIFI_PASSWORD="mypassword"
 
+CONFIG_EXAMPLE_CONNECT_IPV6=n
+CONFIG_LWIP_IPV6=n
+
+# Colorization disabled by default in IDF V6+
+CONFIG_LOG_COLORS=y
+
 # Some wolfSSL helpers
 CONFIG_USE_WOLFSSL_ESP_SDK_TIME=y
+CONFIG_LWIP_SNTP_MAX_SERVERS=3
 
 # sdkconfig.defaults for ESP8266 + ESP32
 # See separate sdkconfig.defaults.esp8266
@@ -148,10 +177,6 @@ CONFIG_COMPILER_STACK_CHECK=y
 # CONFIG_COMPILER_DISABLE_GCC12_WARNINGS is not set
 # CONFIG_COMPILER_DUMP_RTL_FILES is not set
 # end of Compiler options
-
-# We don't know that the min is actually v2,
-# but this is the earliest tested.
-CONFIG_ESP32C3_REV_MIN_2=y
 
 #
 # Partition Table

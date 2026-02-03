@@ -4,7 +4,8 @@
 # wolfssl benchmark test
 #
 message(STATUS "Begin wolfSSL main CMakeLists.txt")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWOLFSSL_USER_SETTINGS")
+set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -DWOLFSSL_USER_SETTINGS")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWOLFSSL_USER_SETTINGS")
 
 if (idf_target STREQUAL "esp8266" OR IDF_TARGET STREQUAL "esp8266" OR IDF_VERSION_MAJOR VERSION_LESS "5.0")
     # `driver` component not available for ESP8266
@@ -20,9 +21,6 @@ if(WIN32)
 endif()
 if(CMAKE_HOST_UNIX)
     message(STATUS "Detected UNIX")
-endif()
-if(APPLE)
-    message(STATUS "Detected APPLE")
 endif()
 if(CMAKE_HOST_UNIX AND (NOT APPLE) AND EXISTS "/proc/sys/fs/binfmt_misc/WSLInterop")
     # Windows-specific configuration here
