@@ -13414,10 +13414,20 @@ static int TLSX_ECH_GetSize(WOLFSSL_ECH* ech, byte msgType)
     return (int)size;
 }
 
-/* locate the given extension type, use the extOffset to start off after where a
- * previous call to this function ended */
-static const byte* EchFindOuterExtension(const byte* outerCh, word32 chLen,
-    word16 extType, word16* extLen, word16* extOffset,
+/* Locate the given extension type, use the extOffset to start off after where a
+ * previous call to this function ended
+ *
+ * outerCh          The outer ClientHello buffer.
+ * chLen            Outer ClientHello length.
+ * extType          Extension type to look for.
+ * extLen           Out parameter, length of found extension.
+ * extOffset        Offset into outer ClientHello to look for extension from.
+ * extensionsStart  Start of outer ClientHello extensions.
+ * extensionsLen    Length of outer ClientHello extensions.
+ * returns 0 on success and otherwise failure.
+ */
+static const byte* TLSX_ECH_FindOuterExtension(const byte* outerCh,
+    word32 chLen, word16 extType, word16* extLen, word16* extOffset,
     word16* extensionsStart, word16* extensionsLen)
 {
     word32 idx = *extOffset;
@@ -13479,10 +13489,19 @@ static const byte* EchFindOuterExtension(const byte* outerCh, word32 chLen,
     return NULL;
 }
 
-/* if newInnerCh is NULL, validate ordering and existence of references
- *  - updates newInnerChLen with total length of selected extensions
- * if not NULL, copy extensions into the provided buffer */
-static int EchCopyOuterExtensions(const byte* outerCh, word32 outerChLen,
+/* If newinnerCh is NULL, validate ordering and existence of references
+ *   - updates newInnerChLen with total length of selected extensions
+ * If newinnerCh in not NULL, copy extensions into newInnerCh
+ *
+ * outerCh          The outer ClientHello buffer.
+ * outerChLen       Outer ClientHello length.
+ * newInnerCh       The inner ClientHello buffer.
+ * newInnerChLen    Inner ClientHello length.
+ * numOuterRefs     Number of references described by OuterExtensions extension.
+ * numOuterTypes    References described by OuterExtensions extension.
+ * returns 0 on success and otherwise failure.
+ */
+static int TLSX_ECH_CopyOuterExtensions(const byte* outerCh, word32 outerChLen,
     byte** newInnerCh, word32* newInnerChLen,
     word16 numOuterRefs, const byte* outerRefTypes)
 {
@@ -13506,9 +13525,9 @@ static int EchCopyOuterExtensions(const byte* outerCh, word32 outerChLen,
                 break;
             }
 
-            outerExtData = EchFindOuterExtension(outerCh, outerChLen,
-                refType, &outerExtLen, &outerExtOffset,
-                &extsStart, &extsLen);
+            outerExtData = TLSX_ECH_FindOuterExtension(outerCh, outerChLen,
+                                refType, &outerExtLen, &outerExtOffset,
+                                &extsStart, &extsLen);
 
             if (outerExtData == NULL) {
                 WOLFSSL_MSG("ECH: referenced extension not in outer CH");
@@ -13525,9 +13544,9 @@ static int EchCopyOuterExtensions(const byte* outerCh, word32 outerChLen,
         while (numOuterRefs-- > 0) {
             ato16(outerRefTypes, &refType);
 
-            outerExtData = EchFindOuterExtension(outerCh, outerChLen,
-                refType, &outerExtLen, &outerExtOffset,
-                &extsStart, &extsLen);
+            outerExtData = TLSX_ECH_FindOuterExtension(outerCh, outerChLen,
+                                refType, &outerExtLen, &outerExtOffset,
+                                &extsStart, &extsLen);
 
             if (outerExtData == NULL) {
                 ret = INVALID_PARAMETER;
@@ -13544,13 +13563,21 @@ static int EchCopyOuterExtensions(const byte* outerCh, word32 outerChLen,
     return ret;
 }
 
-/* expand ech_outer_extensions in the inner ClientHello by copying referenced
- * extensions from the outer ClientHello
+/* Expand ech_outer_extensions in the inner ClientHello by copying referenced
+ * extensions from the outer ClientHello.
+ * If the sessionID exists in the outer ClientHello then also copy that into the
+ * expanded inner ClientHello.
+ *
+ * ssl      SSL/TLS object.
+ * ech      ECH object.
+ * heap     Heap hint.
+ * returns 0 on success and otherwise failure.
  */
-static int TLSX_ExpandEchOuterExtensions(WOLFSSL* ssl, WOLFSSL_ECH* ech,
+static int TLSX_ECH_ExpandOuterExtensions(WOLFSSL* ssl, WOLFSSL_ECH* ech,
     void* heap)
 {
     int ret = 0;
+    int headerSz;
     const byte* innerCh;
     word32 innerChLen;
     const byte* outerCh;
@@ -13578,7 +13605,14 @@ static int TLSX_ExpandEchOuterExtensions(WOLFSSL* ssl, WOLFSSL_ECH* ech,
     if (ech == NULL || ech->innerClientHello == NULL || ech->aad == NULL)
         return BAD_FUNC_ARG;
 
-    innerCh = ech->innerClientHello + HANDSHAKE_HEADER_SZ;
+#ifdef WOLFSSL_DTLS13
+    headerSz = ssl->options.dtls ? DTLS13_HANDSHAKE_HEADER_SZ :
+                                   HANDSHAKE_HEADER_SZ;
+#else
+    headerSz = HANDSHAKE_HEADER_SZ;
+#endif
+
+    innerCh = ech->innerClientHello + headerSz;
     innerChLen = ech->innerClientHelloLen;
     outerCh = ech->aad;
     outerChLen = ech->aadLen;
@@ -13649,8 +13683,8 @@ static int TLSX_ExpandEchOuterExtensions(WOLFSSL* ssl, WOLFSSL_ECH* ech,
             outerRefTypes = innerCh + idx + 1;
             numOuterRefs = outerExtListLen / OPAQUE16_LEN;
 
-            ret = EchCopyOuterExtensions(outerCh, outerChLen, NULL, &extraSize,
-                numOuterRefs, outerRefTypes);
+            ret = TLSX_ECH_CopyOuterExtensions(outerCh, outerChLen, NULL,
+                    &extraSize, numOuterRefs, outerRefTypes);
             if (ret != 0)
                 return ret;
         }
@@ -13659,7 +13693,7 @@ static int TLSX_ExpandEchOuterExtensions(WOLFSSL* ssl, WOLFSSL_ECH* ech,
     }
 
     newInnerChLen = innerChLen - echOuterExtLen + extraSize - sessionIdLen +
-                                                      ssl->session->sessionIDSz;
+                        ssl->session->sessionIDSz;
 
     if (!foundEchOuter && sessionIdLen == ssl->session->sessionIDSz) {
         /* no extensions + no sessionID to copy */
@@ -13667,8 +13701,8 @@ static int TLSX_ExpandEchOuterExtensions(WOLFSSL* ssl, WOLFSSL_ECH* ech,
         return ret;
     }
     else {
-        newInnerCh = (byte*)XMALLOC(newInnerChLen + HANDSHAKE_HEADER_SZ, heap,
-            DYNAMIC_TYPE_TMP_BUFFER);
+        newInnerCh = (byte*)XMALLOC(newInnerChLen + headerSz, heap,
+                                    DYNAMIC_TYPE_TMP_BUFFER);
         if (newInnerCh == NULL)
             return MEMORY_E;
     }
@@ -13678,7 +13712,7 @@ static int TLSX_ExpandEchOuterExtensions(WOLFSSL* ssl, WOLFSSL_ECH* ech,
      * AddTls13HandShakeHeader() in DoTls13ClientHello(). */
 
     /* copy everything up to EchOuterExtensions */
-    newInnerChRef = newInnerCh + HANDSHAKE_HEADER_SZ;
+    newInnerChRef = newInnerCh + headerSz;
     copyLen = OPAQUE16_LEN + RAN_LEN;
     XMEMCPY(newInnerChRef, innerCh, copyLen);
     newInnerChRef += copyLen;
@@ -13700,24 +13734,22 @@ static int TLSX_ExpandEchOuterExtensions(WOLFSSL* ssl, WOLFSSL_ECH* ech,
     }
     else {
         copyLen = echOuterExtIdx - OPAQUE16_LEN - RAN_LEN - OPAQUE8_LEN -
-            sessionIdLen;
+                sessionIdLen;
         XMEMCPY(newInnerChRef, innerCh + OPAQUE16_LEN + RAN_LEN + OPAQUE8_LEN +
-            sessionIdLen, copyLen);
+                sessionIdLen, copyLen);
         newInnerChRef += copyLen;
 
         /* update extensions length in the new ClientHello */
-        innerExtIdx = innerExtIdx - sessionIdLen + ssl->session->sessionIDSz;
         c16toa(innerExtLen - echOuterExtLen + (word16)extraSize,
-                newInnerChRef - OPAQUE16_LEN);
+               newInnerChRef - OPAQUE16_LEN);
 
-        /* insert expanded extensions from outer ClientHello */
-        ret = EchCopyOuterExtensions(outerCh, outerChLen, &newInnerChRef,
+        ret = TLSX_ECH_CopyOuterExtensions(outerCh, outerChLen, &newInnerChRef,
                 &newInnerChLen, numOuterRefs, outerRefTypes);
         if (ret == 0) {
             /* copy remaining extensions after ech_outer_extensions */
             copyLen = innerChLen - (echOuterExtIdx + echOuterExtLen);
             XMEMCPY(newInnerChRef, innerCh + echOuterExtIdx + echOuterExtLen,
-                                                                       copyLen);
+                    copyLen);
 
             WOLFSSL_MSG("ECH: expanded ech_outer_extensions successfully");
         }
@@ -13972,13 +14004,7 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
                 echConfig = echConfig->next;
             }
         }
-        /* if we failed to extract, set state to retry configs */
-        if (ret != 0) {
-            XFREE(ech->innerClientHello, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            ech->innerClientHello = NULL;
-            ech->state = ECH_WRITE_RETRY_CONFIGS;
-        }
-        else {
+        if (ret == 0) {
             i = 0;
             /* decrement until before the padding */
             while (ech->innerClientHello[ech->innerClientHelloLen +
@@ -13988,15 +14014,15 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
             /* subtract the length of the padding from the length */
             ech->innerClientHelloLen -= i;
 
-            /* expand EchOuterExtensions if present */
-            ret = TLSX_ExpandEchOuterExtensions(ssl, ech, ssl->heap);
-            if (ret != 0) {
-                WOLFSSL_MSG_EX("ECH: failed to expand EchOuterExtensions");
-                XFREE(ech->innerClientHello, ssl->heap,
-                    DYNAMIC_TYPE_TMP_BUFFER);
-                ech->innerClientHello = NULL;
-                ech->state = ECH_WRITE_RETRY_CONFIGS;
-            }
+            /* expand EchOuterExtensions if present
+             * and, if it exists, copy sessionID from outer hello */
+            ret = TLSX_ECH_ExpandOuterExtensions(ssl, ech, ssl->heap);
+        }
+        /* if we failed to extract/expand, set state to retry configs */
+        if (ret != 0) {
+            XFREE(ech->innerClientHello, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            ech->innerClientHello = NULL;
+            ech->state = ECH_WRITE_RETRY_CONFIGS;
         }
         XFREE(aadCopy, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
         return 0;
