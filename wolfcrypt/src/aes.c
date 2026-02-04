@@ -4341,7 +4341,6 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
     int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
             const byte* iv, int dir)
     {
-        int ret;
         if ((aes == NULL) || (userKey == NULL)) {
             return BAD_FUNC_ARG;
         }
@@ -4367,7 +4366,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
     #ifdef WOLF_CRYPTO_CB
         if (aes->devId != INVALID_DEVID) {
         #ifdef WOLF_CRYPTO_CB_AES_SETKEY
-            ret = wc_CryptoCb_AesSetKey(aes, userKey, keylen);
+            int ret = wc_CryptoCb_AesSetKey(aes, userKey, keylen);
             if (ret == 0) {
                 /* Callback succeeded - SE owns the key */
                 aes->keylen = (int)keylen;
