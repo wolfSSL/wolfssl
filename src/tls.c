@@ -9894,7 +9894,7 @@ static int TLSX_KeyShareEntry_Parse(const WOLFSSL* ssl, const byte* input,
     ato16(&input[offset], &keLen);
     offset += OPAQUE16_LEN;
     if (keLen == 0)
-        return INVALID_PARAMETER;
+        return BUFFER_ERROR;
     if (keLen > length - offset)
         return BUFFER_ERROR;
 
