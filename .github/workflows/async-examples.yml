@@ -1,0 +1,93 @@
+name: Async Examples
+
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  async_examples:
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        name: Checkout wolfSSL
+
+      - name: Build async examples (no configure)
+        run: |
+          make -C examples/async clean
+          make -C examples/async
+
+      - name: Run async examples
+        run: |
+          set -euo pipefail
+
+          MIN_PENDING=100
+
+          run_pair() {
+            local label="$1"
+            shift
+            local args="$*"
+            local ready="/tmp/wolfssl_async_ready_${label}"
+            rm -f "$ready"
+
+            WOLFSSL_ASYNC_READYFILE="$ready" \
+              ./examples/async/async_server $args \
+              > "/tmp/async_server_${label}.log" 2>&1 &
+            local pid=$!
+
+            WOLFSSL_ASYNC_READYFILE="$ready" \
+              ./examples/async/async_client $args 127.0.0.1 11111 \
+              > "/tmp/async_client_${label}.log" 2>&1
+            local rc=$?
+
+            kill "$pid" >/dev/null 2>&1 || true
+            wait "$pid" >/dev/null 2>&1 || true
+
+            if [ "$rc" -ne 0 ]; then
+              echo "FAIL: $label (exit=$rc)"
+              return 1
+            fi
+
+            # Validate WC_PENDING_E count is a proper value
+            local count
+            count=$(awk '/WC_PENDING_E count:/ {print $NF}' \
+              "/tmp/async_client_${label}.log")
+            if [ -z "$count" ] || [ "$count" -lt "$MIN_PENDING" ]; then
+              echo "FAIL: $label - WC_PENDING_E count too low:" \
+                "${count:-missing} (expected >= $MIN_PENDING)"
+              return 1
+            fi
+            echo "PASS: $label (WC_PENDING_E: $count)"
+            return 0
+          }
+
+          # TLS 1.3
+          run_pair ecc_tls13              --ecc
+          run_pair x25519_tls13           --x25519
+
+          # TLS 1.2
+          run_pair ecc_tls12              --tls12 --ecc
+          run_pair x25519_tls12           --tls12 --x25519
+
+          # BELOW ARE NOT WORKING YET
+          # TLS 1.3 mutual auth
+          #run_pair ecc_tls13_mutual       --mutual --ecc
+          #run_pair x25519_tls13_mutual    --mutual --x25519
+
+
+      - name: Print async logs
+        if: ${{ failure() }}
+        run: |
+          for f in /tmp/async_server_*.log /tmp/async_client_*.log; do
+            if [ -f "$f" ]; then
+              echo "==> $f"
+              cat "$f"
+            fi
+          done

@@ -59,6 +59,7 @@
 
 #include <wolfssl/ssl.h>  /* compatibility layer */
 #include <wolfssl/error-ssl.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
 
 #include <wolfssl/test.h>
 #include <tests/utils.h>
@@ -4811,8 +4812,11 @@ int test_ssl_memio_do_handshake(test_ssl_memio_ctx* ctx, int max_rounds,
             }
             else {
                 err = wolfSSL_get_error(ctx->c_ssl, ret);
-                if (err != WOLFSSL_ERROR_WANT_READ &&
-                    err != WOLFSSL_ERROR_WANT_WRITE) {
+                if (err == WC_NO_ERR_TRACE(MP_WOULDBLOCK)) {
+                    /* retry non-blocking math */
+                }
+                else if (err != WOLFSSL_ERROR_WANT_READ &&
+                         err != WOLFSSL_ERROR_WANT_WRITE) {
                     char buff[WOLFSSL_MAX_ERROR_SZ];
                     fprintf(stderr, "error = %d, %s\n", err,
                         wolfSSL_ERR_error_string((word32)err, buff));
@@ -4833,8 +4837,11 @@ int test_ssl_memio_do_handshake(test_ssl_memio_ctx* ctx, int max_rounds,
             }
             else {
                 err = wolfSSL_get_error(ctx->s_ssl, ret);
-                if (err != WOLFSSL_ERROR_WANT_READ &&
-                    err != WOLFSSL_ERROR_WANT_WRITE) {
+                if (err == WC_NO_ERR_TRACE(MP_WOULDBLOCK)) {
+                    /* retry non-blocking math */
+                }
+                else if (err != WOLFSSL_ERROR_WANT_READ &&
+                         err != WOLFSSL_ERROR_WANT_WRITE) {
                     char buff[WOLFSSL_MAX_ERROR_SZ];
                     fprintf(stderr, "error = %d, %s\n", err,
                         wolfSSL_ERR_error_string((word32)err, buff));

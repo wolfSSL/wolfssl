@@ -179,6 +179,256 @@ int curve25519(byte *result, const byte *n, const byte *p)
     fe_normalize(result);
     return 0;
 }
+
+#ifdef WC_X25519_NONBLOCK
+
+int fe_inv__distinct_nb(byte *r, const byte *x, fe_inv__distinct_nb_ctx_t* ctx)
+{
+    int ret = FP_WOULDBLOCK;
+
+    switch (ctx->state) {
+        case 0:
+            fe_mul__distinct(ctx->s, x, x);
+            fe_mul__distinct(r, ctx->s, x);
+            ctx->i = 0;
+            ctx->subState = 0;
+            ctx->state = 1;
+            break;
+        case 1:
+            if (ctx->i < 248) {
+                if (ctx->subState == 0) {
+                    fe_mul__distinct(ctx->s, r, r);
+                    ctx->subState = 1;
+                }
+                else {
+                    fe_mul__distinct(r, ctx->s, x);
+                    ctx->subState = 0;
+                    ++(ctx->i);
+                }
+            }
+            else {
+                ctx->state = 2;
+                ctx->subState = 0;
+            }
+            break;
+        case 2:
+            switch (ctx->subState) {
+                case 0:
+                    fe_mul__distinct(ctx->s, r, r);
+                    ctx->subState = 1;
+                    break;
+                case 1:
+                    fe_mul__distinct(r, ctx->s, ctx->s);
+                    ctx->subState = 2;
+                    break;
+                case 2:
+                    fe_mul__distinct(ctx->s, r, x);
+                    ctx->subState = 3;
+                    break;
+                case 3:
+                    fe_mul__distinct(r, ctx->s, ctx->s);
+                    ctx->subState = 4;
+                    break;
+                case 4:
+                    fe_mul__distinct(ctx->s, r, r);
+                    ctx->subState = 5;
+                    break;
+                case 5:
+                    fe_mul__distinct(r, ctx->s, x);
+                    ctx->subState = 6;
+                    break;
+                case 6:
+                    fe_mul__distinct(ctx->s, r, r);
+                    ctx->subState = 7;
+                    break;
+                case 7:
+                    fe_mul__distinct(r, ctx->s, x);
+                    ret = 0;
+                    break;
+                default:
+                    ctx->subState = 0;
+                    break;
+            }
+            break;
+    }
+
+    if (ret == 0) {
+        XMEMSET(ctx, 0, sizeof(fe_inv__distinct_nb_ctx_t));
+    }
+
+    return ret;
+}
+
+
+int curve25519_nb(byte *result, const byte *n, const byte *p,
+    struct x25519_nb_ctx_t* ctx)
+{
+    int ret = FP_WOULDBLOCK;
+
+    switch (ctx->state) {
+        case 0:
+            XMEMSET(ctx->zm, 0, sizeof(ctx->zm));
+            ctx->zm[0] = 1;
+            XMEMSET(ctx->xm1, 0, sizeof(ctx->xm1));
+            ctx->xm1[0] = 1;
+            XMEMSET(ctx->zm1, 0, sizeof(ctx->zm1));
+            lm_copy(ctx->xm, p);
+            ctx->i = 253;
+            ctx->subState = 0;
+            ctx->state = 1;
+            break;
+        case 1:
+            if (ctx->i >= 0) {
+                switch (ctx->subState) {
+                    case 0:
+                        ctx->bit = (n[ctx->i >> 3] >> (ctx->i & 7)) & 1;
+                        /* Diffadd step 1 */
+                        lm_add(ctx->a, ctx->xm, ctx->zm);
+                        lm_sub(ctx->b, ctx->xm1, ctx->zm1);
+                        fe_mul__distinct(ctx->da, ctx->a, ctx->b);
+                        ctx->subState = 1;
+                        break;
+                    case 1:
+                        /* Diffadd step 2 */
+                        lm_sub(ctx->b, ctx->xm, ctx->zm);
+                        lm_add(ctx->a, ctx->xm1, ctx->zm1);
+                        fe_mul__distinct(ctx->cb, ctx->a, ctx->b);
+                        ctx->subState = 2;
+                        break;
+                    case 2:
+                        /* Diffadd step 3 */
+                        lm_add(ctx->a, ctx->da, ctx->cb);
+                        fe_mul__distinct(ctx->b, ctx->a, ctx->a);
+                        ctx->subState = 3;
+                        break;
+                    case 3:
+                        /* Diffadd step 4 */
+                        fe_mul__distinct(ctx->xm1, f25519_one, ctx->b);
+                        ctx->subState = 4;
+                        break;
+                    case 4:
+                        /* Diffadd step 5 */
+                        lm_sub(ctx->a, ctx->da, ctx->cb);
+                        fe_mul__distinct(ctx->b, ctx->a, ctx->a);
+                        ctx->subState = 5;
+                        break;
+                    case 5:
+                        /* Diffadd step 6 */
+                        fe_mul__distinct(ctx->zm1, p, ctx->b);
+                        ctx->subState = 6;
+                        break;
+                    case 6:
+                        /* Double step 1 */
+                        fe_mul__distinct(ctx->x1sq, ctx->xm, ctx->xm);
+                        ctx->subState = 7;
+                        break;
+                    case 7:
+                        /* Double step 2 */
+                        fe_mul__distinct(ctx->z1sq, ctx->zm, ctx->zm);
+                        ctx->subState = 8;
+                        break;
+                    case 8:
+                        /* Double step 3 */
+                        fe_mul__distinct(ctx->x1z1, ctx->xm, ctx->zm);
+                        ctx->subState = 9;
+                        break;
+                    case 9:
+                        /* Double step 4 */
+                        lm_sub(ctx->a, ctx->x1sq, ctx->z1sq);
+                        fe_mul__distinct(ctx->xm, ctx->a, ctx->a);
+                        ctx->subState = 10;
+                        break;
+                    case 10:
+                        /* Double step 5 */
+                        fe_mul_c(ctx->a, ctx->x1z1, 486662);
+                        lm_add(ctx->a, ctx->x1sq, ctx->a);
+                        lm_add(ctx->a, ctx->z1sq, ctx->a);
+                        fe_mul__distinct(ctx->x1sq, ctx->x1z1, ctx->a);
+                        ctx->subState = 11;
+                        break;
+                    case 11:
+                        fe_mul_c(ctx->zm, ctx->x1sq, 4);
+                        ctx->subState = 12;
+                        break;
+                    case 12:
+                        /* Diffadd2 step 1 */
+                        lm_add(ctx->a, ctx->xm, ctx->zm);
+                        lm_sub(ctx->b, p, f25519_one);
+                        fe_mul__distinct(ctx->da, ctx->a, ctx->b);
+                        ctx->subState = 13;
+                        break;
+                    case 13:
+                        /* Diffadd2 step 2 */
+                        lm_sub(ctx->b, ctx->xm, ctx->zm);
+                        lm_add(ctx->a, p, f25519_one);
+                        fe_mul__distinct(ctx->cb, ctx->a, ctx->b);
+                        ctx->subState = 14;
+                        break;
+                    case 14:
+                        /* Diffadd2 step 3 */
+                        lm_add(ctx->a, ctx->da, ctx->cb);
+                        fe_mul__distinct(ctx->b, ctx->a, ctx->a);
+                        ctx->subState = 15;
+                        break;
+                    case 15:
+                        /* Diffadd2 step 4 */
+                        fe_mul__distinct(ctx->xms, ctx->zm1, ctx->b);
+                        ctx->subState = 16;
+                        break;
+                    case 16:
+                        /* Diffadd2 step 5 */
+                        lm_sub(ctx->a, ctx->da, ctx->cb);
+                        fe_mul__distinct(ctx->b, ctx->a, ctx->a);
+                        ctx->subState = 17;
+                        break;
+                    case 17:
+                        /* Diffadd2 step 6 */
+                        fe_mul__distinct(ctx->zms, ctx->xm1, ctx->b);
+                        ctx->subState = 18;
+                        break;
+                    case 18:
+                        /* Select:
+                         *   bit = 1 --> (P_(2m+1), P_(2m))
+                         *   bit = 0 --> (P_(2m), P_(2m-1))
+                         */
+                        fe_select(ctx->xm1, ctx->xm1, ctx->xm, ctx->bit);
+                        fe_select(ctx->zm1, ctx->zm1, ctx->zm, ctx->bit);
+                        fe_select(ctx->xm, ctx->xm, ctx->xms, ctx->bit);
+                        fe_select(ctx->zm, ctx->zm, ctx->zms, ctx->bit);
+                        --(ctx->i);
+                        ctx->subState = 0;
+                        break;
+                    default:
+                        ctx->subState = 0;
+                        break;
+                }
+            }
+            else {
+                ctx->state = 2;
+            }
+            break;
+        case 2:
+            /* Freeze out of projective coordinates */
+            if (fe_inv__distinct_nb(ctx->zm1, ctx->zm,
+                                    &ctx->inv_distinct_nb_ctx) == 0) {
+                ctx->state = 3;
+            }
+            break;
+        case 3:
+            fe_mul__distinct(result, ctx->zm1, ctx->xm);
+            fe_normalize(result);
+            ret = 0;
+            break;
+    }
+
+    if (ret == 0) {
+        XMEMSET(ctx, 0, sizeof(x25519_nb_ctx_t));
+    }
+
+    return ret;
+}
+#endif /* WC_X25519_NONBLOCK */
+
 #endif /* !FREESCALE_LTC_ECC */
 #endif /* CURVE25519_SMALL */
 
