@@ -400,6 +400,8 @@ extern "C" {
 #cmakedefine WOLFSSL_HAVE_XMSS
 #undef WOLFSSL_WC_XMSS
 #cmakedefine WOLFSSL_WC_XMSS
+#undef HAVE_SECRET_CALLBACK
+#cmakedefine HAVE_SECRET_CALLBACK
 
 #ifdef __cplusplus
 }
