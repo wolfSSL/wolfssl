@@ -19199,6 +19199,109 @@ static int test_wolfSSL_OCSP_REQ_CTX(void)
     return EXPECT_RESULT();
 }
 
+static int test_wolfSSL_X509_get1_ca_issuers(void)
+{
+    EXPECT_DECLS;
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) || \
+    defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)) && \
+    defined(WOLFSSL_ASN_CA_ISSUER) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_RSA)
+    X509* cert = NULL;
+    STACK_OF(WOLFSSL_STRING) *skStr = NULL;
+    WOLFSSL_STRING url = NULL;
+    const char* expected = "http://example.com/ca.pem";
+
+    ExpectNull(wolfSSL_X509_get1_ca_issuers(NULL));
+    ExpectNotNull(cert = wolfSSL_X509_load_certificate_file(
+            "certs/aia/ca-issuers-cert.pem", WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(skStr = wolfSSL_X509_get1_ca_issuers(cert));
+    ExpectIntEQ(wolfSSL_sk_WOLFSSL_STRING_num(skStr), 1);
+    ExpectNotNull(url = wolfSSL_sk_WOLFSSL_STRING_value(skStr, 0));
+    ExpectIntEQ(XSTRCMP(url, expected), 0);
+
+    wolfSSL_X509_email_free(skStr);
+    wolfSSL_X509_free(cert);
+#endif
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_X509_get1_aia_multi(void)
+{
+    EXPECT_DECLS;
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) || \
+    defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)) && \
+    defined(WOLFSSL_ASN_CA_ISSUER) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_RSA)
+    X509* cert = NULL;
+    STACK_OF(WOLFSSL_STRING) *ocsp = NULL;
+    STACK_OF(WOLFSSL_STRING) *ca = NULL;
+    const char* ocspExp1 = "http://127.0.0.1:22221";
+    const char* ocspExp2 = "http://127.0.0.1:22222";
+    const char* caExp1 = "http://www.wolfssl.com/ca.pem";
+    const char* caExp2 = "https://www.wolfssl.com/ca2.pem";
+    int i;
+    int ocspFound1 = 0, ocspFound2 = 0;
+    int caFound1 = 0, caFound2 = 0;
+
+    ExpectNotNull(cert = wolfSSL_X509_load_certificate_file(
+            "certs/aia/multi-aia-cert.pem", WOLFSSL_FILETYPE_PEM));
+    ExpectIntEQ(wolfSSL_X509_get_aia_overflow(cert), 0);
+
+    ExpectNotNull(ocsp = wolfSSL_X509_get1_ocsp(cert));
+    ExpectIntEQ(wolfSSL_sk_WOLFSSL_STRING_num(ocsp), 2);
+    for (i = 0; i < wolfSSL_sk_WOLFSSL_STRING_num(ocsp); i++) {
+        WOLFSSL_STRING url = wolfSSL_sk_WOLFSSL_STRING_value(ocsp, i);
+        if (url == NULL)
+            continue;
+        if (XSTRCMP(url, ocspExp1) == 0) ocspFound1 = 1;
+        if (XSTRCMP(url, ocspExp2) == 0) ocspFound2 = 1;
+    }
+    ExpectIntEQ(ocspFound1, 1);
+    ExpectIntEQ(ocspFound2, 1);
+
+    ExpectNotNull(ca = wolfSSL_X509_get1_ca_issuers(cert));
+    ExpectIntEQ(wolfSSL_sk_WOLFSSL_STRING_num(ca), 2);
+    for (i = 0; i < wolfSSL_sk_WOLFSSL_STRING_num(ca); i++) {
+        WOLFSSL_STRING url = wolfSSL_sk_WOLFSSL_STRING_value(ca, i);
+        if (url == NULL)
+            continue;
+        if (XSTRCMP(url, caExp1) == 0) caFound1 = 1;
+        if (XSTRCMP(url, caExp2) == 0) caFound2 = 1;
+    }
+    ExpectIntEQ(caFound1, 1);
+    ExpectIntEQ(caFound2, 1);
+
+    wolfSSL_X509_email_free(ocsp);
+    wolfSSL_X509_email_free(ca);
+    wolfSSL_X509_free(cert);
+#endif
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_X509_get1_aia_overflow(void)
+{
+    EXPECT_DECLS;
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) || \
+    defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    X509* cert = NULL;
+    STACK_OF(WOLFSSL_STRING) *ocsp = NULL;
+    int count;
+
+    ExpectNotNull(cert = wolfSSL_X509_load_certificate_file(
+            "certs/aia/overflow-aia-cert.pem", WOLFSSL_FILETYPE_PEM));
+
+    ExpectNotNull(ocsp = wolfSSL_X509_get1_ocsp(cert));
+    count = wolfSSL_sk_WOLFSSL_STRING_num(ocsp);
+    ExpectIntEQ(count, 8);
+    ExpectIntEQ(wolfSSL_X509_get_aia_overflow(cert), 1);
+
+    wolfSSL_X509_email_free(ocsp);
+    wolfSSL_X509_free(cert);
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_no_op_functions(void)
 {
     EXPECT_DECLS;
@@ -31666,6 +31769,9 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_OCSP_resp_get0),
     TEST_DECL(test_wolfSSL_OCSP_parse_url),
     TEST_DECL(test_wolfSSL_OCSP_REQ_CTX),
+    TEST_DECL(test_wolfSSL_X509_get1_ca_issuers),
+    TEST_DECL(test_wolfSSL_X509_get1_aia_multi),
+    TEST_DECL(test_wolfSSL_X509_get1_aia_overflow),
 
     TEST_DECL(test_wolfSSL_PEM_read),
 

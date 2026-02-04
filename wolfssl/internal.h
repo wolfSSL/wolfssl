@@ -5335,6 +5335,19 @@ struct WOLFSSL_X509_NAME {
     #endif
 #endif
 
+#ifndef WOLFSSL_AIA_ENTRY_DEFINED
+#ifndef WOLFSSL_MAX_AIA_ENTRIES
+    #define WOLFSSL_MAX_AIA_ENTRIES 8
+#endif
+
+#define WOLFSSL_AIA_ENTRY_DEFINED
+typedef struct WOLFSSL_AIA_ENTRY {
+    word32      method; /* AIA method OID sum (e.g., AIA_OCSP_OID). */
+    const byte* uri;    /* Pointer into cert DER for the URI. */
+    word32      uriSz;  /* Length of URI data. */
+} WOLFSSL_AIA_ENTRY;
+#endif /* WOLFSSL_AIA_ENTRY_DEFINED */
+
 struct WOLFSSL_X509 {
     int              version;
     int              serialSz;
@@ -5405,6 +5418,9 @@ struct WOLFSSL_X509 {
     byte*            authInfoCaIssuer;
     int              authInfoCaIssuerSz;
 #endif
+    WOLFSSL_AIA_ENTRY authInfoList[WOLFSSL_MAX_AIA_ENTRIES];
+    byte             authInfoListSz:7;
+    byte             authInfoListOverflow:1;
     word32           pathLength;
     word16           keyUsage;
     int              rawCRLInfoSz;

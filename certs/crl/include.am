@@ -22,7 +22,9 @@ EXTRA_DIST += \
 EXTRA_DIST += \
 		certs/crl/crl.revoked \
 		certs/crl/extra-crls/ca-int-cert-revoked.pem \
-		certs/crl/extra-crls/general-server-crl.pem
+		certs/crl/extra-crls/general-server-crl.pem \
+		certs/crl/extra-crls/large_crlnum.pem \
+		certs/crl/extra-crls/large_crlnum2.pem
 
 # Intermediate cert CRL's
 EXTRA_DIST += \

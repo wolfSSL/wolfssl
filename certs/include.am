@@ -86,6 +86,11 @@ EXTRA_DIST += \
              certs/dsa2048.pem
 
 EXTRA_DIST += \
+             certs/aia/ca-issuers-cert.pem \
+             certs/aia/multi-aia-cert.pem \
+             certs/aia/overflow-aia-cert.pem
+
+EXTRA_DIST += \
              certs/ca-key.der \
              certs/ca-cert.der \
              certs/client-cert.der \
@@ -154,4 +159,3 @@ include certs/sphincs/include.am
 include certs/rpk/include.am
 include certs/acert/include.am
 include certs/mldsa/include.am
-

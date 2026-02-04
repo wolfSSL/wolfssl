@@ -470,3 +470,6 @@ wolfssl/debug-trace-error-codes.h
 wolfssl/debug-untrace-error-codes.h
 
 AGENTS.md
+
+# Code navigation files
+compile_commands.json
