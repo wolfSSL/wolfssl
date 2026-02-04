@@ -2226,6 +2226,8 @@ typedef enum MimeStatus
     #define GetShortInt wc_GetShortInt
     #define SetShortInt wc_SetShortInt
     #define GetLength wc_GetLength
+    #define SetLength wc_SetLength
+    #define SetSequence wc_SetSequence
     #define GetASNInt wc_GetASNInt
     #define GetASNTag wc_GetASNTag
     #define SetAlgoID wc_SetAlgoID
