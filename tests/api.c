@@ -20041,6 +20041,20 @@ static int mockSignCb(const byte* in, word32 inLen, byte* out, word32* outLen,
 
     return ret;
 }
+
+/* Mock callback that always returns an error for testing */
+static int mockSignCbError(const byte* in, word32 inLen, byte* out,
+                           word32* outLen, int sigAlgo, int keyType, void* ctx)
+{
+    (void)in;
+    (void)inLen;
+    (void)out;
+    (void)outLen;
+    (void)sigAlgo;
+    (void)keyType;
+    (void)ctx;
+    return BAD_STATE_E; /* Return an error */
+}
 #endif
 
 #ifdef WOLFSSL_CERT_SIGN_CB
@@ -20058,12 +20072,14 @@ static int test_wc_SignCert_cb(void)
         WC_RNG rng;
         ecc_key key;
         MockSignCtx signCtx;
+        DecodedCert decodedCert;
         int ret;
 
         XMEMSET(&rng, 0, sizeof(WC_RNG));
         XMEMSET(&key, 0, sizeof(ecc_key));
         XMEMSET(&cert, 0, sizeof(Cert));
         XMEMSET(&signCtx, 0, sizeof(MockSignCtx));
+        XMEMSET(&decodedCert, 0, sizeof(DecodedCert));
 
         ExpectIntEQ(wc_InitRng(&rng), 0);
         ExpectIntEQ(wc_ecc_init(&key), 0);
@@ -20097,9 +20113,37 @@ static int test_wc_SignCert_cb(void)
         /* Verify the certificate was created properly */
         ExpectIntGT(derSize, 0);
 
+        /* Parse the certificate and verify it's well-formed */
+        if (EXPECT_SUCCESS()) {
+            wc_InitDecodedCert(&decodedCert, der, (word32)derSize, NULL);
+            ExpectIntEQ(wc_ParseCert(&decodedCert, CERT_TYPE, NO_VERIFY, NULL),
+                0);
+            /* Verify signature algorithm matches what we set */
+            ExpectIntEQ(decodedCert.signatureOID, CTC_SHA256wECDSA);
+            wc_FreeDecodedCert(&decodedCert);
+        }
+
         /* Test error cases */
+        /* NULL callback */
         ExpectIntEQ(wc_SignCert_cb(cert.bodySz, cert.sigType, der,
             FOURK_BUF, ECC_TYPE, NULL, &signCtx, &rng), BAD_FUNC_ARG);
+        /* NULL buffer */
+        ExpectIntEQ(wc_SignCert_cb(cert.bodySz, cert.sigType, NULL,
+            FOURK_BUF, ECC_TYPE, mockSignCb, &signCtx, &rng), BAD_FUNC_ARG);
+        /* Zero buffer size */
+        ExpectIntEQ(wc_SignCert_cb(cert.bodySz, cert.sigType, der,
+            0, ECC_TYPE, mockSignCb, &signCtx, &rng), BAD_FUNC_ARG);
+        /* Negative requestSz - should return the negative value */
+        ExpectIntLT(wc_SignCert_cb(-1, cert.sigType, der,
+            FOURK_BUF, ECC_TYPE, mockSignCb, &signCtx, &rng), 0);
+        /* Callback returning error */
+        ExpectIntEQ(wc_SignCert_cb(cert.bodySz, cert.sigType, der,
+            FOURK_BUF, ECC_TYPE, mockSignCbError, &signCtx, &rng), BAD_STATE_E);
+    #ifndef NO_RSA
+        /* Invalid keyType for ECC signature */
+        ExpectIntEQ(wc_SignCert_cb(cert.bodySz, cert.sigType, der,
+            FOURK_BUF, ED25519_TYPE, mockSignCb, &signCtx, &rng), BAD_FUNC_ARG);
+    #endif
 
         ret = wc_ecc_free(&key);
         ExpectIntEQ(ret, 0);
@@ -20117,12 +20161,14 @@ static int test_wc_SignCert_cb(void)
         WC_RNG rng;
         RsaKey key;
         MockSignCtx signCtx;
+        DecodedCert decodedCert;
         int ret;
 
         XMEMSET(&rng, 0, sizeof(WC_RNG));
         XMEMSET(&key, 0, sizeof(RsaKey));
         XMEMSET(&cert, 0, sizeof(Cert));
         XMEMSET(&signCtx, 0, sizeof(MockSignCtx));
+        XMEMSET(&decodedCert, 0, sizeof(DecodedCert));
 
         ExpectIntEQ(wc_InitRng(&rng), 0);
         ExpectIntEQ(wc_InitRsaKey(&key, NULL), 0);
@@ -20156,9 +20202,34 @@ static int test_wc_SignCert_cb(void)
         /* Verify the certificate was created properly */
         ExpectIntGT(derSize, 0);
 
-        /* Test error case - NULL callback */
+        /* Parse the certificate and verify it's well-formed */
+        if (EXPECT_SUCCESS()) {
+            wc_InitDecodedCert(&decodedCert, der, (word32)derSize, NULL);
+            ExpectIntEQ(wc_ParseCert(&decodedCert, CERT_TYPE, NO_VERIFY, NULL),
+                0);
+            /* Verify signature algorithm matches what we set */
+            ExpectIntEQ(decodedCert.signatureOID, CTC_SHA256wRSA);
+            wc_FreeDecodedCert(&decodedCert);
+        }
+
+        /* Test error cases */
+        /* NULL callback */
         ExpectIntEQ(wc_SignCert_cb(cert.bodySz, cert.sigType, der,
             FOURK_BUF, RSA_TYPE, NULL, &signCtx, &rng), BAD_FUNC_ARG);
+        /* NULL buffer */
+        ExpectIntEQ(wc_SignCert_cb(cert.bodySz, cert.sigType, NULL,
+            FOURK_BUF, RSA_TYPE, mockSignCb, &signCtx, &rng), BAD_FUNC_ARG);
+        /* Zero buffer size */
+        ExpectIntEQ(wc_SignCert_cb(cert.bodySz, cert.sigType, der,
+            0, RSA_TYPE, mockSignCb, &signCtx, &rng), BAD_FUNC_ARG);
+        /* Callback returning error */
+        ExpectIntEQ(wc_SignCert_cb(cert.bodySz, cert.sigType, der,
+            FOURK_BUF, RSA_TYPE, mockSignCbError, &signCtx, &rng), BAD_STATE_E);
+    #ifdef HAVE_ECC
+        /* Invalid keyType */
+        ExpectIntEQ(wc_SignCert_cb(cert.bodySz, cert.sigType, der,
+            FOURK_BUF, ED448_TYPE, mockSignCb, &signCtx, &rng), BAD_FUNC_ARG);
+    #endif
 
         ret = wc_FreeRsaKey(&key);
         ExpectIntEQ(ret, 0);

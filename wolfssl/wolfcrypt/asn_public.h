@@ -250,7 +250,7 @@ typedef int (wc_pem_password_cb)(char* passwd, int sz, int rw, void* userdata);
     \param outLen Input: size of output buffer. Output: actual signature size.
     \param sigAlgo Signature algorithm identifier (e.g., CTC_SHA256wRSA,
                    CTC_SHA256wECDSA).
-    \param keyType Key type (RSA_TYPE, ECC_TYPE, etc.).
+    \param keyType Key type (RSA_TYPE or ECC_TYPE only).
     \param ctx User-provided context pointer for callback state.
 
     \return 0 on success.

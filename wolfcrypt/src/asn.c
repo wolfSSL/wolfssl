@@ -32112,46 +32112,46 @@ static int InternalSignCb(const byte* in, word32 inLen,
             ret = 0;
         }
     }
+    else
 #endif /* !NO_RSA && !WOLFSSL_RSA_PUBLIC_ONLY && !WOLFSSL_RSA_VERIFY_ONLY */
-
 #if defined(HAVE_ECC) && defined(HAVE_ECC_SIGN)
     if (keyType == ECC_TYPE && signCtx->key) {
         /* For ECC, input is the raw hash */
         ret = wc_ecc_sign_hash(in, inLen, out, outLen,
                                signCtx->rng, (ecc_key*)signCtx->key);
     }
+    else
 #endif /* HAVE_ECC && HAVE_ECC_SIGN */
-
 #if defined(HAVE_ED25519) && defined(HAVE_ED25519_SIGN)
     if (keyType == ED25519_TYPE && signCtx->key) {
         /* Ed25519 signs messages, not hashes - cannot use callback path */
         ret = SIG_TYPE_E;
     }
+    else
 #endif /* HAVE_ED25519 && HAVE_ED25519_SIGN */
-
 #if defined(HAVE_ED448) && defined(HAVE_ED448_SIGN)
     if (keyType == ED448_TYPE && signCtx->key) {
         /* Ed448 signs messages, not hashes - cannot use callback path */
         ret = SIG_TYPE_E;
     }
+    else
 #endif /* HAVE_ED448 && HAVE_ED448_SIGN */
-
 #if defined(HAVE_FALCON)
     if ((keyType == FALCON_LEVEL1_TYPE || keyType == FALCON_LEVEL5_TYPE) &&
         signCtx->key) {
         /* Falcon signs messages, not hashes - cannot use callback path */
         ret = SIG_TYPE_E;
     }
+    else
 #endif /* HAVE_FALCON */
-
 #if defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_SIGN)
     if ((keyType == DILITHIUM_LEVEL2_TYPE || keyType == DILITHIUM_LEVEL3_TYPE ||
         keyType == DILITHIUM_LEVEL5_TYPE) && signCtx->key) {
         /* Dilithium signs messages, not hashes - cannot use callback path */
         ret = SIG_TYPE_E;
     }
+    else
 #endif /* HAVE_DILITHIUM && !WOLFSSL_DILITHIUM_NO_SIGN */
-
 #if defined(HAVE_SPHINCS)
     if ((keyType == SPHINCS_FAST_LEVEL1_TYPE || keyType == SPHINCS_FAST_LEVEL3_TYPE ||
         keyType == SPHINCS_FAST_LEVEL5_TYPE || keyType == SPHINCS_SMALL_LEVEL1_TYPE ||
@@ -32160,7 +32160,17 @@ static int InternalSignCb(const byte* in, word32 inLen,
         /* Sphincs signs messages, not hashes - cannot use callback path */
         ret = SIG_TYPE_E;
     }
+    else
 #endif /* HAVE_SPHINCS */
+    {
+        /* Unhandled key type */
+        (void)in;
+        (void)inLen;
+        (void)out;
+        (void)outLen;
+        (void)keyType;
+        (void)signCtx;
+    }
 
     return ret;
 }
@@ -34004,12 +34014,32 @@ static int MakeSignatureCb(CertSignCtx* certSignCtx, const byte* buf,
     word32 sz, byte* sig, word32 sigSz, int sigAlgoType, int keyType,
     wc_SignCertCb signCb, void* signCtx, WC_RNG* rng, void* heap)
 {
-    int digestSz = 0, typeH = 0, ret = 0;
+    int ret = 0;
     word32 outLen;
 
     (void)rng;
 #ifdef WOLFSSL_NO_MALLOC
     (void)heap;
+#endif
+
+    /* Validate keyType - only RSA and ECC are supported for callback signing.
+     * Ed25519, Ed448, and post-quantum algorithms sign messages directly,
+     * not hashes, so they cannot use the callback path. */
+#if !defined(NO_RSA) && defined(HAVE_ECC)
+    if (keyType != RSA_TYPE && keyType != ECC_TYPE) {
+        return BAD_FUNC_ARG;
+    }
+#elif !defined(NO_RSA)
+    if (keyType != RSA_TYPE) {
+        return BAD_FUNC_ARG;
+    }
+#elif defined(HAVE_ECC)
+    if (keyType != ECC_TYPE) {
+        return BAD_FUNC_ARG;
+    }
+#else
+    (void)keyType;
+    return NOT_COMPILED_IN;
 #endif
 
     switch (certSignCtx->state) {
@@ -34025,7 +34055,8 @@ static int MakeSignatureCb(CertSignCtx* certSignCtx, const byte* buf,
         }
 #endif
         ret = HashForSignature(buf, sz, (word32)sigAlgoType, certSignCtx->digest,
-                               &typeH, &digestSz, 0, NULL, INVALID_DEVID);
+                               &certSignCtx->typeH, &certSignCtx->digestSz, 0,
+                               NULL, INVALID_DEVID);
         certSignCtx->state = CERTSIGN_STATE_ENCODE;
         if (ret != 0) {
             goto exit_ms;
@@ -34044,8 +34075,10 @@ static int MakeSignatureCb(CertSignCtx* certSignCtx, const byte* buf,
                 goto exit_ms;
             }
 #endif
+            /* typeH was stored in certSignCtx by HashForSignature */
             certSignCtx->encSigSz = (int)wc_EncodeSignature(certSignCtx->encSig,
-                certSignCtx->digest, (word32)digestSz, typeH);
+                certSignCtx->digest, (word32)certSignCtx->digestSz,
+                certSignCtx->typeH);
         }
 #endif /* !NO_RSA */
         FALL_THROUGH;
@@ -34065,9 +34098,16 @@ static int MakeSignatureCb(CertSignCtx* certSignCtx, const byte* buf,
 #endif /* !NO_RSA */
         {
             /* ECC: pass raw hash */
-            ret = signCb(certSignCtx->digest, (word32)digestSz,
+            ret = signCb(certSignCtx->digest, (word32)certSignCtx->digestSz,
                          sig, &outLen, sigAlgoType, keyType, signCtx);
         }
+
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        /* If callback returns WC_PENDING_E, preserve state for re-entry */
+        if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+            return ret;
+        }
+    #endif
 
         if (ret == 0) {
             ret = (int)outLen;
@@ -34089,6 +34129,8 @@ exit_ms:
 
     /* reset state */
     certSignCtx->state = CERTSIGN_STATE_BEGIN;
+    certSignCtx->digestSz = 0;
+    certSignCtx->typeH = 0;
 
     if (ret < 0) {
         WOLFSSL_ERROR_VERBOSE(ret);
@@ -34402,16 +34444,22 @@ int wc_SignCert(int requestSz, int sType, byte* buf, word32 buffSz,
  * This allows external signing implementations (e.g., TPM, HSM)
  * without requiring the crypto callback infrastructure.
  *
+ * NOTE: This function does NOT support async crypto (WOLFSSL_ASYNC_CRYPT).
+ * The certSignCtx is local to this function and cannot persist across
+ * async re-entry. Use wc_SignCert or wc_SignCert_ex for async operations.
+ *
  * @param [in]     requestSz Size of certificate body to sign.
  * @param [in]     sType     The signature type.
  * @param [in,out] buf       Der buffer to sign.
  * @param [in]     buffSz    Der buffer size.
- * @param [in]     keyType   The type of key.
+ * @param [in]     keyType   The type of key (RSA_TYPE or ECC_TYPE only).
  * @param [in]     signCb    User signing callback.
  * @param [in]     signCtx   Context passed to callback.
  * @param [in]     rng       Random number generator (may be NULL).
  *
  * @return  Size of signature on success.
+ * @return  BAD_FUNC_ARG if signCb or buf is NULL, buffSz is 0, or invalid
+ *          keyType.
  * @return  < 0 on error
  */
 #ifdef WOLFSSL_CERT_SIGN_CB
@@ -34423,9 +34471,28 @@ int wc_SignCert_cb(int requestSz, int sType, byte* buf, word32 buffSz,
     CertSignCtx certSignCtx_lcl;
     CertSignCtx* certSignCtx = &certSignCtx_lcl;
 
-    if (signCb == NULL || buf == NULL) {
+    /* Validate parameters */
+    if (signCb == NULL || buf == NULL || buffSz == 0) {
         return BAD_FUNC_ARG;
     }
+
+    /* Validate keyType - only RSA and ECC supported */
+#if !defined(NO_RSA) && defined(HAVE_ECC)
+    if (keyType != RSA_TYPE && keyType != ECC_TYPE) {
+        return BAD_FUNC_ARG;
+    }
+#elif !defined(NO_RSA)
+    if (keyType != RSA_TYPE) {
+        return BAD_FUNC_ARG;
+    }
+#elif defined(HAVE_ECC)
+    if (keyType != ECC_TYPE) {
+        return BAD_FUNC_ARG;
+    }
+#else
+    (void)keyType;
+    return NOT_COMPILED_IN;
+#endif
 
     XMEMSET(certSignCtx, 0, sizeof(*certSignCtx));
 
@@ -34447,13 +34514,23 @@ int wc_SignCert_cb(int requestSz, int sType, byte* buf, word32 buffSz,
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     if (sigSz == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-        /* Not free'ing certSignCtx->sig here because it could still be in use
-         * with async operations. */
-        return sigSz;
+        /* Async crypto not supported with wc_SignCert_cb because certSignCtx
+         * is local and cannot persist across re-entry. Clean up and return
+         * error. */
+    #ifndef WOLFSSL_NO_MALLOC
+        XFREE(certSignCtx->sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        certSignCtx->sig = NULL;
+    #endif
+        return NOT_COMPILED_IN;
     }
 #endif
 
     if (sigSz >= 0) {
+        /* Check buffer has room for signature structure. This is an estimate
+         * using MAX_SEQ_SZ * 2 to account for sequence headers and algorithm
+         * identifier overhead. For precise sizing, call AddSignature with
+         * NULL buffer first, but this estimate matches the existing pattern
+         * used in SignCert. */
         if (requestSz + MAX_SEQ_SZ * 2 + sigSz > (int)buffSz) {
             sigSz = BUFFER_E;
         }

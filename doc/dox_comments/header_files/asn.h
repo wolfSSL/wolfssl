@@ -253,18 +253,29 @@ int wc_DhPublicKeyDecode(const byte* input, word32* inOutIdx, DhKey* key,
     3. Calls the user-provided callback to perform the actual signing
     4. Encodes the signature into the certificate/CSR DER structure
 
+    NOTE: Only RSA and ECC key types are supported. Ed25519, Ed448, and
+    post-quantum algorithms (Falcon, Dilithium, SPHINCS+) sign messages
+    directly rather than hashes, so they cannot use this callback-based API.
+    Use wc_SignCert_ex for those algorithms.
+
+    NOTE: This function does NOT support async crypto (WOLFSSL_ASYNC_CRYPT).
+    The internal context is local to this function and cannot persist across
+    async re-entry.
+
     \param requestSz Size of the certificate body to sign (from Cert.bodySz).
     \param sType Signature algorithm type (e.g., CTC_SHA256wRSA,
                  CTC_SHA256wECDSA).
     \param buf Buffer containing the certificate/CSR DER data to sign.
     \param buffSz Total size of the buffer (must be large enough for signature).
-    \param keyType Type of key used for signing (RSA_TYPE, ECC_TYPE, etc.).
+    \param keyType Type of key used for signing. Only RSA_TYPE and ECC_TYPE
+                   are supported.
     \param signCb User-provided signing callback function.
     \param signCtx Context pointer passed to the signing callback.
     \param rng Random number generator (may be NULL if not needed).
 
     \return Size of the signed certificate/CSR on success.
-    \return BAD_FUNC_ARG if signCb is NULL or other parameters are invalid.
+    \return BAD_FUNC_ARG if signCb or buf is NULL, buffSz is 0, or keyType
+            is not RSA_TYPE or ECC_TYPE.
     \return BUFFER_E if the buffer is too small for the signed certificate.
     \return MEMORY_E if memory allocation fails.
     \return Negative error code on other failures.
