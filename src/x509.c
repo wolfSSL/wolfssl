@@ -14986,50 +14986,38 @@ int wolfSSL_X509_NAME_digest(const WOLFSSL_X509_NAME *name,
 
 void wolfSSL_X509_email_free(WOLF_STACK_OF(WOLFSSL_STRING) *sk)
 {
-    WOLFSSL_STACK *curr;
-
-    while (sk != NULL) {
-        curr = sk;
-        sk = sk->next;
-
-        XFREE(curr, NULL, DYNAMIC_TYPE_OPENSSL);
-    }
+    wolfSSL_sk_pop_free(sk, NULL);
 }
 
-static WOLFSSL_STACK* x509_aia_append_string(WOLFSSL_STACK** head,
+static int x509_aia_append_string(WOLFSSL_STACK** head,
     const byte* uri, word32 uriSz)
 {
     WOLFSSL_STACK* node;
     char*          url;
 
-    node = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK) + uriSz + 1, NULL,
-            DYNAMIC_TYPE_OPENSSL);
-    if (node == NULL)
-        return NULL;
+    url = (char*)XMALLOC(uriSz + 1, NULL, DYNAMIC_TYPE_OPENSSL);
+    if (url == NULL)
+        return WOLFSSL_FAILURE;
 
-    url = (char*)node;
-    url += sizeof(WOLFSSL_STACK);
     XMEMCPY(url, uri, uriSz);
     url[uriSz] = '\0';
 
+    node = wolfSSL_sk_new_node(*head != NULL ? (*head)->heap : NULL);
+    if (node == NULL) {
+        XFREE(url, NULL, DYNAMIC_TYPE_OPENSSL);
+        return WOLFSSL_FAILURE;
+    }
+
+    node->type = STACK_TYPE_STRING;
     node->data.string = url;
-    node->next = NULL;
-    node->num = 1;
 
-    if (*head == NULL) {
-        *head = node;
-    }
-    else {
-        WOLFSSL_STACK* cur = *head;
-        while (cur->next != NULL) {
-            cur->num++;
-            cur = cur->next;
-        }
-        cur->num++;
-        cur->next = node;
+    if (wolfSSL_sk_push_back_node(head, node) != WOLFSSL_SUCCESS) {
+        XFREE(url, NULL, DYNAMIC_TYPE_OPENSSL);
+        wolfSSL_sk_free_node(node);
+        return WOLFSSL_FAILURE;
     }
 
-    return node;
+    return WOLFSSL_SUCCESS;
 }
 
 static WOLFSSL_STACK* x509_get1_aia_by_method(WOLFSSL_X509* x, word32 method,
@@ -15041,8 +15029,8 @@ static WOLFSSL_STACK* x509_get1_aia_by_method(WOLFSSL_X509* x, word32 method,
     if (x == NULL)
         return NULL;
 
-    /* Build from multi-entry list when available; otherwise fall back to the
-     * legacy single-entry fields to preserve previous behavior. */
+    /* Collect matching URIs from the multi-entry list into a new stack;
+     * fall back to the legacy single-entry field for compatibility. */
     if (x->authInfoListSz > 0) {
         for (i = 0; i < x->authInfoListSz; i++) {
             if (x->authInfoList[i].method != method ||
@@ -15052,15 +15040,16 @@ static WOLFSSL_STACK* x509_get1_aia_by_method(WOLFSSL_X509* x, word32 method,
             }
 
             if (x509_aia_append_string(&head, x->authInfoList[i].uri,
-                    x->authInfoList[i].uriSz) == NULL) {
-                wolfSSL_X509_email_free(head);
+                    x->authInfoList[i].uriSz) != WOLFSSL_SUCCESS) {
+                wolfSSL_sk_pop_free(head, NULL);
                 return NULL;
             }
         }
     }
     if (head == NULL && fallback != NULL && fallbackSz > 0) {
-        if (x509_aia_append_string(&head, fallback, (word32)fallbackSz) == NULL) {
-            wolfSSL_X509_email_free(head);
+        if (x509_aia_append_string(&head, fallback, (word32)fallbackSz)
+                != WOLFSSL_SUCCESS) {
+            wolfSSL_sk_pop_free(head, NULL);
             return NULL;
         }
     }
