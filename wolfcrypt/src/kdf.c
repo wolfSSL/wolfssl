@@ -896,8 +896,7 @@ static void wc_srtp_kdf_first_block(const byte* salt, word32 saltSz, int kdrIdx,
         block[i] = 0;
     }
     XMEMCPY(block + WC_SRTP_MAX_SALT - saltSz, salt, saltSz);
-    block[WC_SRTP_MAX_SALT] = 0;
-    /* block[15] is counter. */
+    /* block[14-15] are counter. */
 
     /* When kdrIdx is -1, don't XOR in index. */
     if (kdrIdx >= 0) {
@@ -947,6 +946,7 @@ static int wc_srtp_kdf_derive_key(byte* block, int idxSz, byte label,
     block[WC_SRTP_MAX_SALT - idxSz - 1] ^= label;
     for (i = 0; (ret == 0) && (i < blocks); i++) {
         /* Set counter. */
+        block[14] = (byte)(i >> 8);
         block[15] = (byte)i;
         /* Encrypt block into key buffer. */
         ret = wc_AesEcbEncrypt(aes, key, block, WC_AES_BLOCK_SIZE);
@@ -959,6 +959,7 @@ static int wc_srtp_kdf_derive_key(byte* block, int idxSz, byte label,
     if ((ret == 0) && (keySz > 0)) {
         byte enc[WC_AES_BLOCK_SIZE];
         /* Set counter. */
+        block[14] = (byte)(i >> 8);
         block[15] = (byte)i;
         /* Encrypt block into temporary. */
         ret = wc_AesEcbEncrypt(aes, enc, block, WC_AES_BLOCK_SIZE);
