@@ -15002,8 +15002,9 @@ static WOLFSSL_STACK* x509_aia_append_string(WOLFSSL_STACK** head,
     WOLFSSL_STACK* node;
     char*          url;
 
-    node = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK) + uriSz + 1, NULL,
-            DYNAMIC_TYPE_OPENSSL);
+    node = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK) + uriSz + 1,
+                                   *head ? (*head)->heap : NULL,
+                                   DYNAMIC_TYPE_OPENSSL);
     if (node == NULL)
         return NULL;
 
@@ -15012,9 +15013,11 @@ static WOLFSSL_STACK* x509_aia_append_string(WOLFSSL_STACK** head,
     XMEMCPY(url, uri, uriSz);
     url[uriSz] = '\0';
 
+    node->heap = *head ? (*head)->heap : NULL;
     node->data.string = url;
     node->next = NULL;
     node->num = 1;
+    node->type = STACK_TYPE_STRING;
 
     if (*head == NULL) {
         *head = node;

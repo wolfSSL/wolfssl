@@ -2075,8 +2075,8 @@ struct DecodedCert {
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
 
     WOLFSSL_AIA_ENTRY extAuthInfoList[WOLFSSL_MAX_AIA_ENTRIES];
-    byte    extAuthInfoListSz:7;
-    byte    extAuthInfoListOverflow:1;
+    WC_BITFIELD extAuthInfoListSz:7;
+    WC_BITFIELD extAuthInfoListOverflow:1;
 };
 
 #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
