@@ -1785,6 +1785,17 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define WC_GENERATE_SEED_DEFAULT wc_GenerateSeed
 #endif
 
+#if defined(WOLFSSL_FLEXIBLE_ARRAY_SIZE)
+    /* keep override value. */
+#elif defined(__STRICT_ANSI__)
+    #define WOLFSSL_FLEXIBLE_ARRAY_SIZE 1
+#elif defined(__GNUC__) && !defined(__clang__)
+    #define WOLFSSL_FLEXIBLE_ARRAY_SIZE
+    /*!< \brief Value appropriate as a size for an array that will be allocated to a variable size.  Built-in value usually works. */
+#else
+    #define WOLFSSL_FLEXIBLE_ARRAY_SIZE 0
+#endif
+
 #ifdef __cplusplus
     }  /* extern "C" */
 #endif
