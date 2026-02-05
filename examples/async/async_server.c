@@ -191,6 +191,13 @@ int server_async_test(int argc, char** argv)
     int wouldblock_count = 0;
     int pending_count = 0;
 #endif
+#ifdef WOLFSSL_STATIC_MEMORY
+    static byte memory[300000];
+    static byte memoryIO[34500];
+    #if !defined(WOLFSSL_STATIC_MEMORY_LEAN)
+    WOLFSSL_MEM_CONN_STATS ssl_stats;
+    #endif
+#endif
 
     /* declare wolfSSL objects */
     WOLFSSL_CTX* ctx = NULL;
@@ -279,12 +286,36 @@ int server_async_test(int argc, char** argv)
 #endif
 
     /* Create and initialize WOLFSSL_CTX */
-#ifndef WOLFSSL_NO_TLS12
+#ifdef WOLFSSL_STATIC_MEMORY
+    {
+        wolfSSL_method_func method;
+    #ifndef WOLFSSL_NO_TLS12
+        if (tls12)
+            method = wolfTLSv1_2_server_method_ex;
+        else
+    #endif
+            method = wolfSSLv23_server_method_ex;
+        if (wolfSSL_CTX_load_static_memory(&ctx, method, memory,
+                sizeof(memory), 0, 1) != WOLFSSL_SUCCESS) {
+            fprintf(stderr, "ERROR: unable to load static memory\n");
+            goto exit;
+        }
+        if (wolfSSL_CTX_load_static_memory(&ctx, NULL, memoryIO,
+                sizeof(memoryIO),
+                WOLFMEM_IO_POOL_FIXED | WOLFMEM_TRACK_STATS, 1)
+                != WOLFSSL_SUCCESS) {
+            fprintf(stderr, "ERROR: unable to load static IO memory\n");
+            goto exit;
+        }
+    }
+#else
+    #ifndef WOLFSSL_NO_TLS12
     if (tls12)
         ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method());
     else
-#endif
+    #endif
         ctx = wolfSSL_CTX_new(wolfSSLv23_server_method());
+#endif /* WOLFSSL_STATIC_MEMORY */
     if (ctx == NULL) {
         fprintf(stderr, "ERROR: failed to create WOLFSSL_CTX\n");
         ret = -1;
@@ -535,6 +566,21 @@ int server_async_test(int argc, char** argv)
 #endif
 
         /* Cleanup after this connection */
+#if defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY_LEAN)
+        if (ssl != NULL &&
+                wolfSSL_is_static_memory(ssl, &ssl_stats) == 1) {
+            fprintf(stderr, "peak connection memory = %d\n",
+                ssl_stats.peakMem);
+            fprintf(stderr, "current memory in use  = %d\n",
+                ssl_stats.curMem);
+            fprintf(stderr, "peak connection allocs = %d\n",
+                ssl_stats.peakAlloc);
+            fprintf(stderr, "total connection allocs   = %d\n",
+                ssl_stats.totalAlloc);
+            fprintf(stderr, "total connection frees    = %d\n",
+                ssl_stats.totalFr);
+        }
+#endif
         wolfSSL_shutdown(ssl);
         if (ssl) {
             wolfSSL_free(ssl);
