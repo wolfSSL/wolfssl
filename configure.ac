@@ -1383,13 +1383,13 @@ then
     esac
 fi
 
-# 32 bit armasm and RISC-V asm don't yet support WOLFSSL_AESGCM_STREAM.  Disable
+# RISC-V asm doesn't yet support WOLFSSL_AESGCM_STREAM.  Disable
 # implicit activation, and error on explicit activation.
-if test "$enable_riscv_asm" = "yes" || (test "$enable_armasm" = "yes" && test "$host_cpu" != "aarch64" && test "$host_cpu" != "aarch64_be")
+if test "$enable_riscv_asm" = "yes"
 then
     if test "$enable_aesgcm_stream" = "yes"
     then
-        AC_MSG_ERROR([32 bit armasm and RISC-V asm don't yet support WOLFSSL_AESGCM_STREAM.])
+        AC_MSG_ERROR([RISC-V asm doesn't yet support WOLFSSL_AESGCM_STREAM.])
     fi
     enable_aesgcm_stream=no
 fi
@@ -10689,11 +10689,9 @@ then
     if test "$ENABLED_AESGCM" = "no"
     then
         AC_MSG_ERROR([AES-GCM streaming is enabled but AES-GCM is disabled.])
-    elif test "$ENABLED_RISCV_ASM" = "yes" || \
-         (test "$ENABLED_ARMASM" = "yes" && \
-          test "$host_cpu" != "aarch64" && test "$host_cpu" != "aarch64_be")
+    elif test "$ENABLED_RISCV_ASM" = "yes"
     then
-        AC_MSG_ERROR([32 bit armasm and RISC-V asm don't yet support WOLFSSL_AESGCM_STREAM.])
+        AC_MSG_ERROR([RISC-V asm doesn't yet support WOLFSSL_AESGCM_STREAM.])
     else
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AESGCM_STREAM"
         AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_AESGCM_STREAM"

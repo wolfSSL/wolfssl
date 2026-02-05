@@ -30,6 +30,22 @@
     #error SHA* WC_LINUXKM_C_FALLBACK_IN_SHIMS is not currently supported.
 #endif
 
+#ifdef NO_LINUXKM_DRBG_GET_RANDOM_BYTES
+    #undef LINUXKM_DRBG_GET_RANDOM_BYTES
+/* setup for LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT is in linuxkm_wc_port.h */
+#elif defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT) && \
+    (defined(WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS) || \
+     defined(WOLFSSL_LINUXKM_USE_GET_RANDOM_KPROBES))
+    #ifndef LINUXKM_DRBG_GET_RANDOM_BYTES
+        #define LINUXKM_DRBG_GET_RANDOM_BYTES
+    #endif
+#else
+    #ifdef LINUXKM_DRBG_GET_RANDOM_BYTES
+        #error LINUXKM_DRBG_GET_RANDOM_BYTES configured with no callback model configured.
+        #undef LINUXKM_DRBG_GET_RANDOM_BYTES
+    #endif
+#endif
+
 #include <wolfssl/wolfcrypt/sha.h>
 #include <wolfssl/wolfcrypt/hmac.h>
 
@@ -94,7 +110,14 @@
  * exhaustion.  A caller that really needs PR can pass in seed data in its call
  * to our rng_alg.generate() implementation.
  */
-#define WOLFKM_STDRNG_DRIVER ("sha2-256-drbg-nopr" WOLFKM_SHA_DRIVER_SUFFIX)
+#ifdef LINUXKM_DRBG_GET_RANDOM_BYTES
+    #define WOLFKM_STDRNG_DRIVER ("sha2-256-drbg-nopr" \
+                                  WOLFKM_DRIVER_SUFFIX_BASE \
+                                  "-with-global-replace")
+#else
+    #define WOLFKM_STDRNG_DRIVER ("sha2-256-drbg-nopr" \
+                                  WOLFKM_DRIVER_SUFFIX_BASE)
+#endif
 
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA_ALL
     #define LINUXKM_LKCAPI_REGISTER_SHA1
@@ -388,7 +411,7 @@
 #else
     #if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_DRBG) && \
         !defined(LINUXKM_LKCAPI_DONT_REGISTER_HASH_DRBG)
-        #error Config conflict: target kernel has CONFIG_CRYPTO_SHA3, but module is missing WOLFSSL_SHA3
+        #error Config conflict: target kernel has CONFIG_CRYPTO_DRBG, but module is missing HAVE_HASHDRBG
     #endif
     #undef LINUXKM_LKCAPI_REGISTER_HASH_DRBG
 #endif
@@ -1256,20 +1279,6 @@ static struct rng_alg wc_linuxkm_drbg = {
     }
 };
 static int wc_linuxkm_drbg_loaded = 0;
-
-#ifdef NO_LINUXKM_DRBG_GET_RANDOM_BYTES
-    #undef LINUXKM_DRBG_GET_RANDOM_BYTES
-#elif defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT) && \
-    (defined(WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS) || defined(WOLFSSL_LINUXKM_USE_GET_RANDOM_KPROBES))
-    #ifndef LINUXKM_DRBG_GET_RANDOM_BYTES
-        #define LINUXKM_DRBG_GET_RANDOM_BYTES
-    #endif
-#else
-    #ifdef LINUXKM_DRBG_GET_RANDOM_BYTES
-        #error LINUXKM_DRBG_GET_RANDOM_BYTES configured with no callback model configured.
-        #undef LINUXKM_DRBG_GET_RANDOM_BYTES
-    #endif
-#endif
 
 #ifdef LINUXKM_DRBG_GET_RANDOM_BYTES
 
