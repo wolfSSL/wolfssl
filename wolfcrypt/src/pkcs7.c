@@ -1794,6 +1794,16 @@ static int wc_PKCS7_ImportRSA(wc_PKCS7* pkcs7, RsaKey* privKey)
             }
         #endif
         }
+    #ifdef HAVE_PKCS7_RSA_RAW_SIGN_CALLBACK
+        else if (pkcs7->rsaSignRawDigestCb != NULL && pkcs7->publicKeySz > 0) {
+            /* When using raw sign callback (e.g., HSM/secure element), private
+             * key may not be available. Use public key from signer certificate
+             * for signature size calculation. */
+            idx = 0;
+            ret = wc_RsaPublicKeyDecode(pkcs7->publicKey, &idx, privKey,
+                                        pkcs7->publicKeySz);
+        }
+    #endif
         else if (pkcs7->devId == INVALID_DEVID) {
             ret = BAD_FUNC_ARG;
         }
@@ -1874,6 +1884,16 @@ static int wc_PKCS7_ImportECC(wc_PKCS7* pkcs7, ecc_key* privKey)
             }
         #endif
         }
+    #ifdef HAVE_PKCS7_ECC_RAW_SIGN_CALLBACK
+        else if (pkcs7->eccSignRawDigestCb != NULL && pkcs7->publicKeySz > 0) {
+            /* When using raw sign callback (e.g., HSM/secure element), private
+             * key may not be available. Use public key from signer certificate
+             * for signature size calculation. */
+            idx = 0;
+            ret = wc_EccPublicKeyDecode(pkcs7->publicKey, &idx, privKey,
+                                        pkcs7->publicKeySz);
+        }
+    #endif
         else if (pkcs7->devId == INVALID_DEVID) {
             ret = BAD_FUNC_ARG;
         }
@@ -2398,6 +2418,28 @@ static int wc_PKCS7_SignedDataBuildSignature(wc_PKCS7* pkcs7,
 
 #ifdef HAVE_ECC
         case ECDSAk:
+        #ifdef HAVE_PKCS7_ECC_RAW_SIGN_CALLBACK
+            if (pkcs7->eccSignRawDigestCb != NULL) {
+                /* get hash OID */
+                int eccHashOID = wc_HashGetOID(esd->hashType);
+                if (eccHashOID < 0) {
+                    ret = eccHashOID;
+                    break;
+                }
+
+                /* user signing plain digest */
+                ret = pkcs7->eccSignRawDigestCb(pkcs7,
+                           esd->contentAttribsDigest, hashSz,
+                           esd->encContentDigest, sizeof(esd->encContentDigest),
+                           pkcs7->privateKey, pkcs7->privateKeySz, pkcs7->devId,
+                           eccHashOID);
+                /* validate return value doesn't exceed buffer size */
+                if (ret > 0 && (word32)ret > sizeof(esd->encContentDigest)) {
+                    ret = BUFFER_E;
+                }
+                break;
+            }
+        #endif
             /* CMS with ECDSA does not sign DigestInfo structure
              * like PKCS#7 with RSA does */
             ret = wc_PKCS7_EcdsaSign(pkcs7, esd->contentAttribsDigest,
@@ -3985,6 +4027,30 @@ int wc_PKCS7_SetRsaSignRawDigestCb(wc_PKCS7* pkcs7, CallbackRsaSignRawDigest cb)
     return 0;
 }
 #endif
+
+#endif /* NO_RSA */
+
+
+#ifdef HAVE_ECC
+
+#ifdef HAVE_PKCS7_ECC_RAW_SIGN_CALLBACK
+/* register raw ECC sign digest callback */
+int wc_PKCS7_SetEccSignRawDigestCb(wc_PKCS7* pkcs7, CallbackEccSignRawDigest cb)
+{
+    if (pkcs7 == NULL || cb == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    pkcs7->eccSignRawDigestCb = cb;
+
+    return 0;
+}
+#endif
+
+#endif /* HAVE_ECC */
+
+
+#ifndef NO_RSA
 
 /* returns size of signature put into out, negative on error */
 static int wc_PKCS7_RsaVerify(wc_PKCS7* pkcs7, byte* sig, int sigSz,
