@@ -51,6 +51,7 @@ $(OBJDIR)/%.o: $(WOLFSSL_TOP)/%.c
 $(OBJDIR)/wolfcrypt/src/ecc_fp.o: CFLAGS += -Wno-pedantic
 $(OBJDIR)/wolfcrypt/src/fips.o: CFLAGS += -Wno-pedantic
 $(OBJDIR)/wolfcrypt/src/fips_test.o: CFLAGS += -Wno-pedantic
+$(OBJDIR)/wolfcrypt/src/fipsv2.o: CFLAGS += -Wno-pedantic
 $(OBJDIR)/wolfcrypt/src/selftest.o: CFLAGS += -Wno-pedantic
 $(OBJDIR)/wolfcrypt/src/wolfcrypt_first.o: CFLAGS += -Wno-pedantic
 $(OBJDIR)/wolfcrypt/src/wolfcrypt_last.o: CFLAGS += -Wno-pedantic

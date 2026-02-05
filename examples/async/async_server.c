@@ -316,11 +316,12 @@ int server_async_test(int argc, char** argv)
         }
 
         if (mutual) {
-            ret = wolfSSL_CTX_load_verify_buffer(ctx, ca_ed25519_cert,
-                sizeof_ca_ed25519_cert, WOLFSSL_FILETYPE_ASN1);
+            /* client-ed25519 is self-signed, so load it as its own CA */
+            ret = wolfSSL_CTX_load_verify_buffer(ctx, client_ed25519_cert,
+                sizeof_client_ed25519_cert, WOLFSSL_FILETYPE_ASN1);
             if (ret != WOLFSSL_SUCCESS) {
                 fprintf(stderr,
-                    "ERROR: failed to load ED25519 CA cert.\n");
+                    "ERROR: failed to load ED25519 client CA cert.\n");
                 goto exit;
             }
         }
@@ -345,10 +346,12 @@ int server_async_test(int argc, char** argv)
         }
 
         if (mutual) {
-            ret = wolfSSL_CTX_load_verify_buffer(ctx, ca_ecc_cert_der_256,
-                sizeof_ca_ecc_cert_der_256, WOLFSSL_FILETYPE_ASN1);
+            /* client-ecc-cert is self-signed, so load it as its own CA */
+            ret = wolfSSL_CTX_load_verify_buffer(ctx, cliecc_cert_der_256,
+                sizeof_cliecc_cert_der_256, WOLFSSL_FILETYPE_ASN1);
             if (ret != WOLFSSL_SUCCESS) {
-                fprintf(stderr, "ERROR: failed to load ECC CA cert.\n");
+                fprintf(stderr,
+                    "ERROR: failed to load ECC client CA cert.\n");
                 goto exit;
             }
         }
