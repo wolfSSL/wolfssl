@@ -1,5 +1,7 @@
 #![cfg(any(kdf_srtp, all(hmac, any(kdf_pbkdf2, kdf_ssh, kdf_tls13))))]
 
+mod common;
+
 #[cfg(all(hmac, any(kdf_pbkdf2, kdf_tls13)))]
 use wolfssl_wolfcrypt::hmac::HMAC;
 use wolfssl_wolfcrypt::kdf::*;
@@ -9,6 +11,8 @@ use wolfssl_wolfcrypt::sha::SHA256;
 #[test]
 #[cfg(all(hmac, kdf_pbkdf2))]
 fn test_pbkdf2() {
+    common::setup();
+
     let password = b"passwordpassword";
     let salt = [0x78u8, 0x57, 0x8E, 0x5a, 0x5d, 0x63, 0xcb, 0x06];
     let iterations = 2048;
@@ -50,6 +54,8 @@ fn test_pkcs12_pbkdf() {
 #[test]
 #[cfg(all(hmac, kdf_tls13))]
 fn test_tls13_hkdf_extract_expand() {
+    common::setup();
+
     let hash_hello1 = [
         0x63u8, 0x83, 0x58, 0xab, 0x36, 0xcd, 0x0c, 0xf3,
         0x26, 0x07, 0xb5, 0x5f, 0x0b, 0x8b, 0x45, 0xd6,
@@ -84,6 +90,8 @@ fn test_tls13_hkdf_extract_expand() {
 #[test]
 #[cfg(all(hmac, kdf_ssh))]
 fn test_ssh_kdf() {
+    common::setup();
+
     let ssh_kdf_set3_k = [
         0x6Au8, 0xC3, 0x82, 0xEA, 0xAC, 0xA0, 0x93, 0xE1,
         0x25, 0xE2, 0x5C, 0x24, 0xBE, 0xBC, 0x84, 0x64,
@@ -146,6 +154,8 @@ fn test_ssh_kdf() {
 #[test]
 #[cfg(kdf_srtp)]
 fn test_srtp_kdf() {
+    common::setup();
+
     let key = [
         0xc4u8, 0x80, 0x9f, 0x6d, 0x36, 0x98, 0x88, 0x72,
         0x8e, 0x26, 0xad, 0xb5, 0x32, 0x12, 0x98, 0x90
@@ -194,6 +204,8 @@ fn test_srtp_kdf() {
 #[test]
 #[cfg(kdf_srtp)]
 fn test_srtcp_kdf() {
+    common::setup();
+
     let key = [
         0xc4u8, 0x80, 0x9f, 0x6d, 0x36, 0x98, 0x88, 0x72,
         0x8e, 0x26, 0xad, 0xb5, 0x32, 0x12, 0x98, 0x90

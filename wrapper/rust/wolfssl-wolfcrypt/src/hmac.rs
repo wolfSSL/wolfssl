@@ -38,7 +38,9 @@ impl HMAC {
     pub const TYPE_SHA: i32 = sys::wc_HashType_WC_HASH_TYPE_SHA as i32;
     pub const TYPE_SHA256: i32 = sys::wc_HashType_WC_HASH_TYPE_SHA256 as i32;
     pub const TYPE_SHA512: i32 = sys::wc_HashType_WC_HASH_TYPE_SHA512 as i32;
+    #[cfg(sha512_224)]
     pub const TYPE_SHA512_224: i32 = sys::wc_HashType_WC_HASH_TYPE_SHA512_224 as i32;
+    #[cfg(sha512_256)]
     pub const TYPE_SHA512_256: i32 = sys::wc_HashType_WC_HASH_TYPE_SHA512_256 as i32;
     pub const TYPE_SHA384: i32 = sys::wc_HashType_WC_HASH_TYPE_SHA384 as i32;
     pub const TYPE_SHA224: i32 = sys::wc_HashType_WC_HASH_TYPE_SHA224 as i32;

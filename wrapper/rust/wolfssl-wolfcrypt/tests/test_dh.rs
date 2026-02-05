@@ -1,5 +1,7 @@
 #![cfg(dh)]
 
+mod common;
+
 #[cfg(any(all(dh_keygen, dh_ffdhe_2048), random))]
 use wolfssl_wolfcrypt::dh::DH;
 #[cfg(random)]
@@ -31,6 +33,7 @@ fn test_dh_named_parameters() {
 #[test]
 #[cfg(all(dh_keygen, random))]
 fn test_generate_params() {
+    common::setup();
     let mut rng = RNG::new().expect("Error with RNG::new()");
     let mut dh = DH::generate(&mut rng, 2048).expect("Error with generate()");
 
@@ -75,6 +78,7 @@ fn test_generate_key_pair() {
 #[test]
 #[cfg(random)]
 fn test_dh_checks() {
+    common::setup();
     let p = [
         0xc5u8, 0x7c, 0xa2, 0x4f, 0x4b, 0xd6, 0x8c, 0x3c,
         0xda, 0xc7, 0xba, 0xaa, 0xea, 0x2e, 0x5c, 0x1e,

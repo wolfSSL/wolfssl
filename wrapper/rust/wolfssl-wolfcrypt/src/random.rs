@@ -87,6 +87,15 @@ impl RNG {
     /// A Result which is Ok(RNG) on success or an Err containing the wolfSSL
     /// library return code on failure.
     pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+        #[cfg(fips)]
+        {
+            let rc = unsafe {
+                sys::wc_SetSeed_Cb_fips(Some(sys::wc_GenerateSeed))
+            };
+            if rc != 0 {
+                return Err(rc);
+            }
+        }
         let mut rng: MaybeUninit<RNG> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
@@ -137,6 +146,15 @@ impl RNG {
     /// A Result which is Ok(RNG) on success or an Err containing the wolfSSL
     /// library return code on failure.
     pub fn new_with_nonce_ex<T>(nonce: &mut [T], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+        #[cfg(fips)]
+        {
+            let rc = unsafe {
+                sys::wc_SetSeed_Cb_fips(Some(sys::wc_GenerateSeed))
+            };
+            if rc != 0 {
+                return Err(rc);
+            }
+        }
         let ptr = nonce.as_mut_ptr() as *mut u8;
         let size: u32 = size_of_val(nonce) as u32;
         let mut rng: MaybeUninit<RNG> = MaybeUninit::uninit();

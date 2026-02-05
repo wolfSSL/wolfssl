@@ -30,6 +30,7 @@ pub mod dh;
 pub mod ecc;
 pub mod ed25519;
 pub mod ed448;
+pub mod fips;
 pub mod hkdf;
 pub mod hmac;
 pub mod kdf;
