@@ -13839,7 +13839,18 @@ static int StoreEccKey(DecodedCert* cert, const byte* source, word32* srcIdx,
             ret = ASN_PARSE_E;
     #endif
         }
-
+    #if defined(WOLFSSL_RENESAS_FSPSM_TLS) || defined(WOLFSSL_RENESAS_TSIP_TLS)
+        cert->sigCtx.CertAtt.pubkey_n_start =
+           cert->sigCtx.CertAtt.pubkey_e_start =
+            GetASNItem_DataIdx(
+                dataASN[ECCCERTKEYASN_IDX_SUBJPUBKEY], source) + 1;
+        cert->sigCtx.CertAtt.pubkey_n_len =
+            ((dataASN[ECCCERTKEYASN_IDX_SUBJPUBKEY].data.ref.length - 1) >> 1);
+        cert->sigCtx.CertAtt.pubkey_e_start +=
+                cert->sigCtx.CertAtt.pubkey_n_len;
+        cert->sigCtx.CertAtt.pubkey_e_len   =
+                cert->sigCtx.CertAtt.pubkey_n_len;
+    #endif
     #ifdef WOLFSSL_MAXQ10XX_TLS
         cert->publicKeyIndex =
             GetASNItem_DataIdx(dataASN[ECCCERTKEYASN_IDX_SUBJPUBKEY], source)
