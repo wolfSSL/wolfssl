@@ -123,9 +123,18 @@ then
     AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_EXPERIMENTAL_SETTINGS"
 fi
 
+# Kernel module benchmark
+ENABLED_KERNEL_BENCHMARKS=""
+AC_ARG_ENABLE([kernel-benchmarks],
+    [AS_HELP_STRING([--enable-kernel-benchmarks],[Enable crypto benchmarking autorun at module load time for kernel module (default: disabled)])],
+    [ENABLED_KERNEL_BENCHMARKS=$enableval])
+if test "$ENABLED_KERNEL_BENCHMARKS" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KERNEL_BENCHMARKS"
+fi
+AC_SUBST([ENABLED_KERNEL_BENCHMARKS])
 
 # Linux Kernel Module options (more options later)
-
 AC_ARG_ENABLE([linuxkm],
     [AS_HELP_STRING([--enable-linuxkm],[Enable Linux Kernel Module (default: disabled)])],
     [ENABLED_LINUXKM=$enableval],
@@ -143,6 +152,12 @@ AC_ARG_ENABLE([freebsdkm],
     [AS_HELP_STRING([--enable-freebsdkm],[Enable FreeBSD Kernel Module (default: disabled)])],
     [ENABLED_BSDKM=$enableval],
     [ENABLED_BSDKM=no]
+    )
+
+AC_ARG_ENABLE([freebsdkm-crypto-register],
+    [AS_HELP_STRING([--enable-freebsdkm-crypto-register],[Register wolfCrypt implementations with the FreeBSD kernel opencrypto framework. (default: disabled)])],
+    [ENABLED_BSDKM_REGISTER=$enableval],
+    [ENABLED_BSDKM_REGISTER=no]
     )
 
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stddef.h time.h sys/ioctl.h sys/socket.h sys/time.h errno.h sys/un.h ctype.h sys/random.h])
@@ -727,10 +742,8 @@ AC_SUBST([ENABLED_LINUXKM_PIE])
 
 AC_ARG_ENABLE([linuxkm-benchmarks],
     [AS_HELP_STRING([--enable-linuxkm-benchmarks],[Enable crypto benchmarking autorun at module load time for Linux kernel module (default: disabled)])],
-    [ENABLED_KERNEL_BENCHMARKS=$enableval],
-    [ENABLED_KERNEL_BENCHMARKS=no]
-    )
-if test "$ENABLED_KERNEL_BENCHMARKS" = "yes"
+    [ENABLED_KERNEL_BENCHMARKS=$enableval])
+if test "$ENABLED_LINUXKM" = "yes" && test "$ENABLED_KERNEL_BENCHMARKS" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LINUXKM_BENCHMARKS"
 fi
@@ -819,17 +832,15 @@ AC_ARG_WITH([bsd-export-syms],
 
 if test "x$ENABLED_BSDKM" = "xyes"
 then
-    # wolfcrypt only, no-asm supported for now.
+    # note: bsdkm is wolfcrypt only for now.
     HAVE_KERNEL_MODE=yes
     KERNEL_MODE_DEFAULTS=yes
     ENABLED_NO_LIBRARY=yes
     ENABLED_BENCHMARK=no
-    ENABLED_ASM=no
 
     output_objdir="$(realpath "$output_objdir")/bsdkm"
 
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_BSDKM -DWC_SIPHASH_NO_ASM"
-    AM_CFLAGS="$AM_CFLAGS -DTFM_NO_ASM -DWOLFSSL_NO_ASM"
     AM_CFLAGS="$AM_CFLAGS -DNO_DEV_RANDOM -DNO_WRITEV -DNO_STDIO_FILESYSTEM"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_SOCK -DWOLFSSL_USER_IO"
     AM_CFLAGS="$AM_CFLAGS -DXMALLOC_OVERRIDE -DWOLFCRYPT_ONLY"
@@ -846,7 +857,16 @@ then
     fi
     AC_SUBST([KERNEL_ROOT])
     AC_SUBST([BSDKM_EXPORT_SYMS])
+fi
 
+if test "x$ENABLED_BSDKM_REGISTER" = "xyes"
+then
+    if test "$ENABLED_AESGCM" != "no" && test "$ENABLED_AESGCM_STREAM" = "no" && test "$enable_aesgcm_stream" != "no" && (test "$ENABLED_FIPS" = "no" || test $HAVE_FIPS_VERSION -ge 6); then
+        ENABLED_AESGCM_STREAM=yes
+    fi
+
+    AM_CFLAGS="$AM_CFLAGS -DBSDKM_CRYPTO_REGISTER"
+    AC_SUBST([ENABLED_BSDKM_REGISTER])
 fi
 # end FreeBSD configure
 
@@ -3969,6 +3989,8 @@ then
         ENABLED_X86_ASM=yes
     fi
 fi
+AC_SUBST([ENABLED_AESNI])
+AC_SUBST([ENABLED_AESNI_WITH_AVX])
 
 AC_ARG_ENABLE([aligndata],
     [AS_HELP_STRING([--enable-aligndata],[align data for ciphers (default: enabled)])],
