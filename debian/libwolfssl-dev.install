@@ -2,5 +2,6 @@ usr/include/
 usr/lib/*/libwolfssl.so
 usr/lib/*/libwolfssl.a
 usr/lib/*/pkgconfig/wolfssl.pc
+usr/lib/*/cmake/wolfssl/*
 usr/bin/wolfssl-config
 usr/share/doc/wolfssl/

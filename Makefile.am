@@ -78,6 +78,9 @@ CLEANFILES+= ecc-key.der \
              pkcs7encryptedDataDES3.der \
              pkcs7encryptedDataDES.der \
              pkcs7envelopedDataAES256CBC_ECDH.der \
+             cmake/wolfssl-config.cmake \
+             cmake/wolfssl-config-version.cmake \
+             cmake/wolfssl-targets.cmake \
              pkcs7envelopedDataAES128CBC_ECDH_SHA1KDF.der \
              pkcs7envelopedDataAES256CBC_ECDH_SHA256KDF.der \
              pkcs7envelopedDataAES256CBC_ECDH_SHA512KDF.der \

@@ -13,7 +13,7 @@ jobs:
 
     steps:
 # pull wolfSSL
-    - uses: actions/checkout@master
+    - uses: actions/checkout@v4
 
 # install cmake
     - name: Install cmake
@@ -21,24 +21,16 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y cmake
 
-# pull wolfssl
-    - name: Checkout wolfssl
-      uses: actions/checkout@master
-      with:
-        repository: wolfssl/wolfssl
-        path: wolfssl
-
 # build wolfssl
     - name: Build wolfssl
-      working-directory: ./wolfssl
       run: |
         mkdir build
         cd build
         cmake -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON -DWOLFSSL_INSTALL=yes -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/install" \
             -DWOLFSSL_16BIT:BOOL=no -DWOLFSSL_32BIT:BOOL=no -DWOLFSSL_AES:BOOL=yes \
-            -DWOLFSSL_AESCBC:BOOL=yes -DWOLFSSL_AESCCM:BOOL=yes -DWOLFSSL_AESCFB:BOOL=yes \
+            -DWOLFSSL_AESCBC:BOOL=yes -DWOLFSSL_AESCCM:BOOL=yes -DWOLFSSL_AESCFB:BOOL=yes -DWOLFSSL_AESECB:BOOL=yes \
             -DWOLFSSL_AESCTR:BOOL=yes -DWOLFSSL_AESGCM:STRING=yes -DWOLFSSL_AESKEYWRAP:BOOL=yes \
-            -DWOLFSSL_AESOFB:BOOL=yes -DWOLFSSL_AESSIV:BOOL=yes -DWOLFSSL_ALIGN_DATA:BOOL=yes \
+            -DWOLFSSL_AESOFB:BOOL=yes -DWOLFSSL_AESCTS:BOOL=yes -DWOLFSSL_AESSIV:BOOL=yes -DWOLFSSL_ALIGN_DATA:BOOL=yes \
             -DWOLFSSL_ALPN:BOOL=ON -DWOLFSSL_ALT_CERT_CHAINS:BOOL=ON -DWOLFSSL_ARC4:BOOL=yes \
             -DWOLFSSL_ARIA:BOOL=no -DWOLFSSL_ASIO:BOOL=no -DWOLFSSL_ASM:BOOL=yes -DWOLFSSL_ASN:BOOL=yes \
             -DWOLFSSL_ASYNC_THREADS:BOOL=no -DWOLFSSL_BASE64_ENCODE:BOOL=yes -DWOLFSSL_CAAM:BOOL=no \
@@ -51,7 +43,7 @@ jobs:
             -DWOLFSSL_CURVE448:STRING=yes -DWOLFSSL_DEBUG:BOOL=yes -DWOLFSSL_DES3:BOOL=ON \
             -DWOLFSSL_DES3_TLS_SUITES:BOOL=no -DWOLFSSL_DH:STRING=yes -DWOLFSSL_DH_DEFAULT_PARAMS:BOOL=yes \
             -DWOLFSSL_DSA:BOOL=yes -DWOLFSSL_DTLS:BOOL=ON -DWOLFSSL_DTLS13:BOOL=yes \
-            -DWOLFSSL_DTLS_CID:BOOL=yes -DWOLFSSL_ECC:STRING=yes \
+            -DWOLFSSL_DTLS_CID:BOOL=yes -DWOLFSSL_DTLS_CH_FRAG:BOOL=yes -DWOLFSSL_ECC:STRING=yes \
             -DWOLFSSL_ECCCUSTCURVES:STRING=all -DWOLFSSL_ECCSHAMIR:BOOL=yes \
             -DWOLFSSL_ECH:BOOL=yes -DWOLFSSL_ED25519:BOOL=yes -DWOLFSSL_ED448:STRING=yes \
             -DWOLFSSL_ENCKEYS:BOOL=yes -DWOLFSSL_ENC_THEN_MAC:BOOL=yes -DWOLFSSL_ERROR_QUEUE:BOOL=yes \
@@ -80,7 +72,7 @@ jobs:
             -DWOLFSSL_MLKEM=1 -DWOLFSSL_LMS=1 -DWOLFSSL_LMSSHA256192=1 -DWOLFSSL_EXPERIMENTAL=1 \
             -DWOLFSSL_X963KDF:BOOL=yes -DWOLFSSL_DILITHIUM:BOOL=yes -DWOLFSSL_PKCS11:BOOL=yes \
             -DWOLFSSL_ECCSI:BOOL=yes -DWOLFSSL_SAKKE:BOOL=yes -DWOLFSSL_SIPHASH:BOOL=yes \
-            -DCMAKE_C_FLAGS="-DWOLFSSL_DTLS_CH_FRAG" \
+            -DWOLFSSL_WC_RSA_DIRECT:BOOL=yes -DWOLFSSL_PUBLIC_MP:BOOL=yes \
             ..
         cmake --build .
         ctest -j $(nproc)
@@ -92,7 +84,6 @@ jobs:
 
 # build "lean-tls" wolfssl
     - name: Build wolfssl with lean-tls
-      working-directory: ./wolfssl
       run: |
         mkdir build
         cd build
@@ -108,7 +99,6 @@ jobs:
 
 # CMake build with user_settings.h
     - name: Build wolfssl with user_settings.h
-      working-directory: ./wolfssl
       run: |
         mkdir build
         cp examples/configs/user_settings_all.h ./build/user_settings.h

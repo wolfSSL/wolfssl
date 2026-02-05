@@ -33,6 +33,13 @@ m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])
 
 AC_ARG_PROGRAM
 
+# Optional CMake package install (enabled by default)
+AC_ARG_ENABLE([cmake-install],
+    [AS_HELP_STRING([--disable-cmake-install],[Disable installation of CMake package files])],
+    [ ENABLED_CMAKE_INSTALL=$enableval ],
+    [ ENABLED_CMAKE_INSTALL=yes ])
+AM_CONDITIONAL([CMAKE_INSTALL],[test "x$ENABLED_CMAKE_INSTALL" = "xyes"])
+
 AC_CONFIG_HEADERS([config.h:config.in])
 
 LT_PREREQ([2.4.2])
@@ -2081,9 +2088,11 @@ AC_ARG_ENABLE([singlethreaded],
     [ ENABLED_SINGLETHREADED=$enableval ],
     [ ENABLED_SINGLETHREADED=no ])
 
+WOLFSSL_HAVE_PTHREAD=0
 AS_IF([ test "x$ENABLED_SINGLETHREADED" = "xno" ],[
        AX_PTHREAD([
                    AC_DEFINE([HAVE_PTHREAD], [1], [Define if you have POSIX threads libraries and header files.])
+                   WOLFSSL_HAVE_PTHREAD=1
                    # If AX_PTHREAD is adding -Qunused-arguments, need to prepend with -Xcompiler libtool will use it. Newer
                    # versions of clang don't need the -Q flag when using pthreads.
                    AS_CASE([$PTHREAD_CFLAGS],[-Qunused-arguments*],[PTHREAD_CFLAGS="-Xcompiler $PTHREAD_CFLAGS"])
@@ -11283,6 +11292,26 @@ AC_SUBST([LIB_ADD])
 AC_SUBST([LIB_STATIC_ADD])
 AC_SUBST([LIBM])
 AC_SUBST([PC_LIBS_PRIVATE])
+AC_SUBST([WOLFSSL_HAVE_PTHREAD])
+HAVE_PTHREAD=$WOLFSSL_HAVE_PTHREAD
+AC_SUBST([HAVE_PTHREAD])
+PACKAGE_INIT=''
+AC_SUBST([PACKAGE_INIT])
+WOLFSSL_PREFIX_ABS=$prefix
+if test "x$WOLFSSL_PREFIX_ABS" = "xNONE"; then
+    WOLFSSL_PREFIX_ABS=$ac_default_prefix
+fi
+WOLFSSL_EXEC_PREFIX_ABS=$exec_prefix
+if test "x$WOLFSSL_EXEC_PREFIX_ABS" = "xNONE"; then
+    WOLFSSL_EXEC_PREFIX_ABS=$WOLFSSL_PREFIX_ABS
+fi
+prefix=$WOLFSSL_PREFIX_ABS
+exec_prefix=$WOLFSSL_EXEC_PREFIX_ABS
+eval WOLFSSL_LIBDIR_ABS=\"$libdir\"
+eval WOLFSSL_INCLUDEDIR_ABS=\"$includedir\"
+AC_SUBST([WOLFSSL_PREFIX_ABS])
+AC_SUBST([WOLFSSL_LIBDIR_ABS])
+AC_SUBST([WOLFSSL_INCLUDEDIR_ABS])
 
 # FINAL
 AC_CONFIG_FILES([stamp-h], [echo timestamp > stamp-h])
@@ -11295,6 +11324,12 @@ AC_CONFIG_FILES([Makefile
         rpm/spec
         wolfcrypt/test/test_paths.h
         ])
+AS_IF([ test "x$ENABLED_CMAKE_INSTALL" = "xyes" ],[
+AC_CONFIG_FILES([cmake/wolfssl-config.cmake:cmake/Config.cmake.in
+        cmake/wolfssl-config-version.cmake:cmake/wolfssl-config-version.cmake.in
+        cmake/wolfssl-targets.cmake:cmake/wolfssl-targets.cmake.in
+        ])
+])
 AC_CONFIG_FILES([scripts/unit.test],[chmod +x scripts/unit.test])
 AC_CONFIG_FILES([debian/rules],[chmod +x debian/rules])
 
