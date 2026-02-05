@@ -490,6 +490,9 @@ static int rsaSignRawDigestCb(PKCS7* pkcs7, byte* digest, word32 digestSz,
 /* ECC sign raw digest callback
  * This callback demonstrates HSM/secure element use case where the private
  * key is not passed through PKCS7 structure but obtained independently.
+ * Note: This example callback is hash-agnostic and will work with any
+ * hash algorithm. The hashOID parameter can be used to validate or select
+ * different signing behavior if needed.
  */
 static int eccSignRawDigestCb(PKCS7* pkcs7, byte* digest, word32 digestSz,
                               byte* out, word32 outSz, byte* privateKey,
@@ -498,7 +501,11 @@ static int eccSignRawDigestCb(PKCS7* pkcs7, byte* digest, word32 digestSz,
     int ret;
     word32 idx = 0;
     word32 sigSz = outSz;
-    ecc_key ecc;
+#ifdef WOLFSSL_SMALL_STACK
+    ecc_key* ecc = NULL;
+#else
+    ecc_key ecc[1];
+#endif
 
     /* privateKey may be NULL in HSM/secure element use case - we load it
      * independently in this callback to simulate that scenario */
@@ -510,15 +517,25 @@ static int eccSignRawDigestCb(PKCS7* pkcs7, byte* digest, word32 digestSz,
         return -1;
     }
 
+#ifdef WOLFSSL_SMALL_STACK
+    ecc = (ecc_key*)XMALLOC(sizeof(ecc_key), pkcs7->heap, DYNAMIC_TYPE_ECC);
+    if (ecc == NULL) {
+        return MEMORY_E;
+    }
+#endif
+
     /* set up ECC key */
-    ret = wc_ecc_init_ex(&ecc, pkcs7->heap, devid);
+    ret = wc_ecc_init_ex(ecc, pkcs7->heap, devid);
     if (ret != 0) {
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(ecc, pkcs7->heap, DYNAMIC_TYPE_ECC);
+    #endif
         return ret;
     }
 
     /* Load key from test buffer - simulates HSM/secure element access */
 #if defined(USE_CERT_BUFFERS_256)
-    ret = wc_EccPrivateKeyDecode(ecc_clikey_der_256, &idx, &ecc,
+    ret = wc_EccPrivateKeyDecode(ecc_clikey_der_256, &idx, ecc,
                                  sizeof_ecc_clikey_der_256);
 #else
     {
@@ -528,28 +545,37 @@ static int eccSignRawDigestCb(PKCS7* pkcs7, byte* digest, word32 digestSz,
 
         fp = XFOPEN("./certs/client-ecc-key.der", "rb");
         if (fp == XBADFILE) {
-            wc_ecc_free(&ecc);
+            wc_ecc_free(ecc);
+        #ifdef WOLFSSL_SMALL_STACK
+            XFREE(ecc, pkcs7->heap, DYNAMIC_TYPE_ECC);
+        #endif
             return -1;
         }
         keySz = (int)XFREAD(keyBuf, 1, sizeof(keyBuf), fp);
         XFCLOSE(fp);
         if (keySz <= 0) {
-            wc_ecc_free(&ecc);
+            wc_ecc_free(ecc);
+        #ifdef WOLFSSL_SMALL_STACK
+            XFREE(ecc, pkcs7->heap, DYNAMIC_TYPE_ECC);
+        #endif
             return -1;
         }
-        ret = wc_EccPrivateKeyDecode(keyBuf, &idx, &ecc, (word32)keySz);
+        ret = wc_EccPrivateKeyDecode(keyBuf, &idx, ecc, (word32)keySz);
     }
 #endif
 
     /* sign digest */
     if (ret == 0) {
-        ret = wc_ecc_sign_hash(digest, digestSz, out, &sigSz, pkcs7->rng, &ecc);
+        ret = wc_ecc_sign_hash(digest, digestSz, out, &sigSz, pkcs7->rng, ecc);
         if (ret == 0) {
             ret = (int)sigSz;
         }
     }
 
-    wc_ecc_free(&ecc);
+    wc_ecc_free(ecc);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(ecc, pkcs7->heap, DYNAMIC_TYPE_ECC);
+#endif
 
     return ret;
 }

@@ -2422,6 +2422,10 @@ static int wc_PKCS7_SignedDataBuildSignature(wc_PKCS7* pkcs7,
             if (pkcs7->eccSignRawDigestCb != NULL) {
                 /* get hash OID */
                 int eccHashOID = wc_HashGetOID(esd->hashType);
+                if (eccHashOID < 0) {
+                    ret = eccHashOID;
+                    break;
+                }
 
                 /* user signing plain digest */
                 ret = pkcs7->eccSignRawDigestCb(pkcs7,
@@ -2429,6 +2433,10 @@ static int wc_PKCS7_SignedDataBuildSignature(wc_PKCS7* pkcs7,
                            esd->encContentDigest, sizeof(esd->encContentDigest),
                            pkcs7->privateKey, pkcs7->privateKeySz, pkcs7->devId,
                            eccHashOID);
+                /* validate return value doesn't exceed buffer size */
+                if (ret > 0 && (word32)ret > sizeof(esd->encContentDigest)) {
+                    ret = BUFFER_E;
+                }
                 break;
             }
         #endif
