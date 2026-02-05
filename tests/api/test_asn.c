@@ -804,12 +804,12 @@ int test_SerialNumber0_RootCA(void)
     const char* rootNormalFile = "./certs/test-serial0/root.pem";
     const char* eeSerial0File = "./certs/test-serial0/ee_serial0.pem";
     const char* eeNormalFile = "./certs/test-serial0/ee_normal.pem";
-    const char* selfSignedNonCASerial0File = 
+    const char* selfSignedNonCASerial0File =
         "./certs/test-serial0/selfsigned_nonca_serial0.pem";
 
     /* Test 1: Root CA with serial 0 should load successfully */
     ExpectNotNull(cm = wolfSSL_CertManagerNew());
-    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, rootSerial0File, NULL), 
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, rootSerial0File, NULL),
                 WOLFSSL_SUCCESS);
     if (cm != NULL) {
         wolfSSL_CertManagerFree(cm);
@@ -818,26 +818,26 @@ int test_SerialNumber0_RootCA(void)
 
     /* Test 2: Normal root CA (serial != 0) should load successfully */
     ExpectNotNull(cm = wolfSSL_CertManagerNew());
-    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, rootNormalFile, NULL), 
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, rootNormalFile, NULL),
                 WOLFSSL_SUCCESS);
-    
+
     /* Test 3: End-entity cert with serial 0 should be rejected during verify */
-    ExpectIntNE(wolfSSL_CertManagerVerify(cm, eeSerial0File, 
+    ExpectIntNE(wolfSSL_CertManagerVerify(cm, eeSerial0File,
                 WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
-    
+
     if (cm != NULL) {
         wolfSSL_CertManagerFree(cm);
         cm = NULL;
     }
 
-    /* Test 4: Normal end-entity cert signed by root CA with serial 0 
+    /* Test 4: Normal end-entity cert signed by root CA with serial 0
      * should verify successfully */
     ExpectNotNull(cm = wolfSSL_CertManagerNew());
-    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, rootSerial0File, NULL), 
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, rootSerial0File, NULL),
                 WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CertManagerVerify(cm, eeNormalFile, 
+    ExpectIntEQ(wolfSSL_CertManagerVerify(cm, eeNormalFile,
                 WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
-    
+
     if (cm != NULL) {
         wolfSSL_CertManagerFree(cm);
         cm = NULL;
@@ -845,16 +845,16 @@ int test_SerialNumber0_RootCA(void)
 
     /* Test 5: Self-signed non-CA certificate with serial 0 should be rejected */
     ExpectNotNull(cm = wolfSSL_CertManagerNew());
-    ExpectIntNE(wolfSSL_CertManagerLoadCA(cm, selfSignedNonCASerial0File, NULL), 
+    ExpectIntNE(wolfSSL_CertManagerLoadCA(cm, selfSignedNonCASerial0File, NULL),
                 WOLFSSL_SUCCESS);
-    
+
     if (cm != NULL) {
         wolfSSL_CertManagerFree(cm);
         cm = NULL;
     }
-#endif /* !WOLFSSL_NO_ASN_STRICT && !WOLFSSL_PYTHON && 
+#endif /* !WOLFSSL_NO_ASN_STRICT && !WOLFSSL_PYTHON &&
           !WOLFSSL_ASN_ALLOW_0_SERIAL */
-#endif /* !NO_CERTS && !NO_FILESYSTEM && !NO_RSA && WOLFSSL_CERT_GEN && 
+#endif /* !NO_CERTS && !NO_FILESYSTEM && !NO_RSA && WOLFSSL_CERT_GEN &&
           WOLFSSL_CERT_EXT */
 
     return EXPECT_RESULT();
