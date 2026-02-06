@@ -51,7 +51,7 @@ static int check_cert_key_dev(word32 keyOID, byte* privKey, word32 privSz,
     const byte* pubKey, word32 pubSz, int label, int id, void* heap, int devId)
 {
     int ret = 0;
-    int type;
+    int type = 0;
     void *pkey = NULL;
 
     if (privKey == NULL) {
@@ -84,14 +84,12 @@ static int check_cert_key_dev(word32 keyOID, byte* privKey, word32 privSz,
                 type = DYNAMIC_TYPE_DILITHIUM;
                 break;
     #endif
-        #if defined(HAVE_FALCON)
+    #if defined(HAVE_FALCON)
             case FALCON_LEVEL1k:
             case FALCON_LEVEL5k:
                 type = DYNAMIC_TYPE_FALCON;
                 break;
-        #endif
-            default:
-                type = 0;
+    #endif
         }
 
         ret = CreateDevPrivateKey(&pkey, privKey, privSz, type, label, id, heap,
@@ -108,12 +106,12 @@ static int check_cert_key_dev(word32 keyOID, byte* privKey, word32 privSz,
                 ret = wc_CryptoCb_RsaCheckPrivKey((RsaKey*)pkey, pubKey, pubSz);
                 break;
     #endif
-        #ifdef HAVE_ECC
+    #ifdef HAVE_ECC
             case ECDSAk:
                 ret = wc_CryptoCb_EccCheckPrivKey((ecc_key*)pkey, pubKey,
                     pubSz);
                 break;
-        #endif
+    #endif
     #if defined(HAVE_DILITHIUM)
             case ML_DSA_LEVEL2k:
             case ML_DSA_LEVEL3k:
@@ -127,13 +125,13 @@ static int check_cert_key_dev(word32 keyOID, byte* privKey, word32 privSz,
                     WC_PQC_SIG_TYPE_DILITHIUM, pubKey, pubSz);
                 break;
     #endif
-        #if defined(HAVE_FALCON)
+    #if defined(HAVE_FALCON)
             case FALCON_LEVEL1k:
             case FALCON_LEVEL5k:
                 ret = wc_CryptoCb_PqcSignatureCheckPrivKey(pkey,
                     WC_PQC_SIG_TYPE_FALCON, pubKey, pubSz);
                 break;
-        #endif
+    #endif
             default:
                 ret = 0;
         }
@@ -146,31 +144,31 @@ static int check_cert_key_dev(word32 keyOID, byte* privKey, word32 privSz,
 #endif
 
     switch (keyOID) {
-#ifndef NO_RSA
+    #ifndef NO_RSA
         case RSAk:
-    #ifdef WC_RSA_PSS
+        #ifdef WC_RSA_PSS
         case RSAPSSk:
-    #endif
+        #endif
             wc_FreeRsaKey((RsaKey*)pkey);
             break;
-#endif
+    #endif
     #ifdef HAVE_ECC
         case ECDSAk:
             wc_ecc_free((ecc_key*)pkey);
             break;
     #endif
-#if defined(HAVE_DILITHIUM)
+    #if defined(HAVE_DILITHIUM)
         case ML_DSA_LEVEL2k:
         case ML_DSA_LEVEL3k:
         case ML_DSA_LEVEL5k:
-    #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+        #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
         case DILITHIUM_LEVEL2k:
         case DILITHIUM_LEVEL3k:
         case DILITHIUM_LEVEL5k:
-    #endif
+        #endif
             wc_dilithium_free((dilithium_key*)pkey);
             break;
-#endif
+    #endif
     #if defined(HAVE_FALCON)
         case FALCON_LEVEL1k:
         case FALCON_LEVEL5k:

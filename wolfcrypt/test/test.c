@@ -31783,7 +31783,10 @@ typedef struct Srtp_Kdf_Tv {
     word32 ksSz;
 } Srtp_Kdf_Tv;
 
-#define SRTP_KDF_LONG_KEY   5000
+#if !defined(BENCH_EMBEDDED) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    #define SRTP_KDF_LONG_KEY 5000
+#endif
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t srtpkdf_test(void)
 {
@@ -32036,13 +32039,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t srtpkdf_test(void)
     unsigned char keyE[32];
     unsigned char keyA[20];
     unsigned char keyS[14];
-#ifndef BENCH_EMBEDDED
+#ifdef SRTP_KDF_LONG_KEY
     WC_DECLARE_VAR(keyELong, byte, SRTP_KDF_LONG_KEY, HEAP_HINT);
     WC_DECLARE_VAR(keyALong, byte, SRTP_KDF_LONG_KEY, HEAP_HINT);
     WC_DECLARE_VAR(keySLong, byte, SRTP_KDF_LONG_KEY, HEAP_HINT);
 #endif
 
-#ifndef BENCH_EMBEDDED
+#ifdef SRTP_KDF_LONG_KEY
     WC_ALLOC_VAR(keyELong, byte, SRTP_KDF_LONG_KEY, HEAP_HINT);
     WC_ALLOC_VAR(keyALong, byte, SRTP_KDF_LONG_KEY, HEAP_HINT);
     WC_ALLOC_VAR(keySLong, byte, SRTP_KDF_LONG_KEY, HEAP_HINT);
@@ -32071,73 +32074,73 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t srtpkdf_test(void)
             tv[i].kdfIdx, tv[i].index, keyE, tv[i].keSz, keyA, tv[i].kaSz,
             keyS, tv[i].ksSz);
         if (ret != 0)
-            return WC_TEST_RET_ENC_EC(ret);
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
         if (XMEMCMP(keyE, tv[i].ke, tv[i].keSz) != 0)
-            return WC_TEST_RET_ENC_NC;
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
         if (XMEMCMP(keyA, tv[i].ka, tv[i].kaSz) != 0)
-            return WC_TEST_RET_ENC_NC;
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
         if (XMEMCMP(keyS, tv[i].ks, tv[i].ksSz) != 0)
-            return WC_TEST_RET_ENC_NC;
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
         ret = wc_SRTP_KDF_label(tv[i].key, tv[i].keySz, tv[i].salt,
             tv[i].saltSz, tv[i].kdfIdx, tv[i].index, WC_SRTP_LABEL_ENCRYPTION,
             keyE, tv[i].keSz);
         if (ret != 0)
-            return WC_TEST_RET_ENC_EC(ret);
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
         if (XMEMCMP(keyE, tv[i].ke, tv[i].keSz) != 0)
-            return WC_TEST_RET_ENC_NC;
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
         ret = wc_SRTP_KDF_label(tv[i].key, tv[i].keySz, tv[i].salt,
             tv[i].saltSz, tv[i].kdfIdx, tv[i].index, WC_SRTP_LABEL_MSG_AUTH,
             keyA, tv[i].kaSz);
         if (ret != 0)
-            return WC_TEST_RET_ENC_EC(ret);
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
         if (XMEMCMP(keyA, tv[i].ka, tv[i].kaSz) != 0)
-            return WC_TEST_RET_ENC_NC;
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
         ret = wc_SRTP_KDF_label(tv[i].key, tv[i].keySz, tv[i].salt,
             tv[i].saltSz, tv[i].kdfIdx, tv[i].index, WC_SRTP_LABEL_SALT, keyS,
             tv[i].ksSz);
         if (ret != 0)
-            return WC_TEST_RET_ENC_EC(ret);
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
         if (XMEMCMP(keyS, tv[i].ks, tv[i].ksSz) != 0)
-            return WC_TEST_RET_ENC_NC;
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
         ret = wc_SRTCP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, tv[i].saltSz,
             tv[i].kdfIdx, tv[i].index_c, keyE, tv[i].keSz, keyA, tv[i].kaSz,
             keyS, tv[i].ksSz);
         if (ret != 0)
-            return WC_TEST_RET_ENC_EC(ret);
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
         if (XMEMCMP(keyE, tv[i].ke_c, tv[i].keSz) != 0)
-            return WC_TEST_RET_ENC_NC;
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
         if (XMEMCMP(keyA, tv[i].ka_c, tv[i].kaSz) != 0)
-            return WC_TEST_RET_ENC_NC;
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
         if (XMEMCMP(keyS, tv[i].ks_c, tv[i].ksSz) != 0)
-            return WC_TEST_RET_ENC_NC;
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
         ret = wc_SRTCP_KDF_label(tv[i].key, tv[i].keySz, tv[i].salt,
             tv[i].saltSz, tv[i].kdfIdx, tv[i].index_c,
             WC_SRTCP_LABEL_ENCRYPTION, keyE, tv[i].keSz);
         if (ret != 0)
-            return WC_TEST_RET_ENC_EC(ret);
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
         if (XMEMCMP(keyE, tv[i].ke_c, tv[i].keSz) != 0)
-            return WC_TEST_RET_ENC_NC;
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
         ret = wc_SRTCP_KDF_label(tv[i].key, tv[i].keySz, tv[i].salt,
             tv[i].saltSz, tv[i].kdfIdx, tv[i].index_c, WC_SRTCP_LABEL_MSG_AUTH,
             keyA, tv[i].kaSz);
         if (ret != 0)
-            return WC_TEST_RET_ENC_EC(ret);
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
         if (XMEMCMP(keyA, tv[i].ka_c, tv[i].kaSz) != 0)
-            return WC_TEST_RET_ENC_NC;
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
         ret = wc_SRTCP_KDF_label(tv[i].key, tv[i].keySz, tv[i].salt,
             tv[i].saltSz, tv[i].kdfIdx, tv[i].index_c, WC_SRTCP_LABEL_SALT,
             keyS, tv[i].ksSz);
         if (ret != 0)
-            return WC_TEST_RET_ENC_EC(ret);
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
         if (XMEMCMP(keyS, tv[i].ks_c, tv[i].ksSz) != 0)
-            return WC_TEST_RET_ENC_NC;
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     }
 
 #ifdef WOLFSSL_AES_128
@@ -32151,115 +32154,115 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t srtpkdf_test(void)
         tv[i].kdfIdx, tv[i].index, keyE, tv[i].keSz, keyA, tv[i].kaSz,
         keyS, tv[i].ksSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     ret = wc_SRTCP_KDF(tv[i].key, 33, tv[i].salt, tv[i].saltSz,
         tv[i].kdfIdx, tv[i].index_c, keyE, tv[i].keSz, keyA, tv[i].kaSz,
         keyS, tv[i].ksSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     ret = wc_SRTP_KDF(tv[i].key, 15, tv[i].salt, tv[i].saltSz,
         tv[i].kdfIdx, tv[i].index, keyE, tv[i].keSz, keyA, tv[i].kaSz,
         keyS, tv[i].ksSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     ret = wc_SRTCP_KDF(tv[i].key, 15, tv[i].salt, tv[i].saltSz,
         tv[i].kdfIdx, tv[i].index_c, keyE, tv[i].keSz, keyA, tv[i].kaSz,
         keyS, tv[i].ksSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     ret = wc_SRTP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, 15,
         tv[i].kdfIdx, tv[i].index, keyE, tv[i].keSz, keyA, tv[i].kaSz,
         keyS, tv[i].ksSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     ret = wc_SRTCP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, 15,
         tv[i].kdfIdx, tv[i].index_c, keyE, tv[i].keSz, keyA, tv[i].kaSz,
         keyS, tv[i].ksSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     ret = wc_SRTP_KDF(NULL, tv[i].keySz, tv[i].salt, tv[i].saltSz,
         tv[i].kdfIdx, tv[i].index, keyE, tv[i].keSz, keyA, tv[i].kaSz,
         keyS, tv[i].ksSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     ret = wc_SRTCP_KDF(NULL, tv[i].keySz, tv[i].salt, tv[i].saltSz,
         tv[i].kdfIdx, tv[i].index_c, keyE, tv[i].keSz, keyA, tv[i].kaSz,
         keyS, tv[i].ksSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     ret = wc_SRTP_KDF(tv[i].key, tv[i].keySz, NULL, tv[i].saltSz,
             tv[i].kdfIdx, tv[i].index, keyE, tv[i].keSz, keyA, tv[i].kaSz,
             keyS, tv[i].ksSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     ret = wc_SRTCP_KDF(tv[i].key, tv[i].keySz, NULL, tv[i].saltSz,
         tv[i].kdfIdx, tv[i].index_c, keyE, tv[i].keSz, keyA, tv[i].kaSz,
         keyS, tv[i].ksSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     ret = wc_SRTP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, tv[i].saltSz,
         25, tv[i].index, keyE, tv[i].keSz, keyA, tv[i].kaSz,
         keyS, tv[i].ksSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     ret = wc_SRTCP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, tv[i].saltSz,
         25, tv[i].index_c, keyE, tv[i].keSz, keyA, tv[i].kaSz,
         keyS, tv[i].ksSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     ret = wc_SRTP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, tv[i].saltSz,
         -2, tv[i].index, keyE, tv[i].keSz, keyA, tv[i].kaSz,
         keyS, tv[i].ksSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     ret = wc_SRTCP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, tv[i].saltSz,
         -2, tv[i].index_c, keyE, tv[i].keSz, keyA, tv[i].kaSz,
         keyS, tv[i].ksSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     ret = wc_SRTP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, tv[i].saltSz,
         tv[i].kdfIdx, tv[i].index, NULL, tv[i].keSz, keyA, tv[i].kaSz,
         keyS, tv[i].ksSz);
     if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     ret = wc_SRTCP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, tv[i].saltSz,
         tv[i].kdfIdx, tv[i].index_c, NULL, tv[i].keSz, keyA, tv[i].kaSz,
         keyS, tv[i].ksSz);
     if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     ret = wc_SRTP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, tv[i].saltSz,
         tv[i].kdfIdx, tv[i].index, keyE, tv[i].keSz, NULL, tv[i].kaSz,
         keyS, tv[i].ksSz);
     if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     ret = wc_SRTCP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, tv[i].saltSz,
         tv[i].kdfIdx, tv[i].index_c, keyE, tv[i].keSz, NULL, tv[i].kaSz,
         keyS, tv[i].ksSz);
     if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     ret = wc_SRTP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, tv[i].saltSz,
         tv[i].kdfIdx, tv[i].index, keyE, tv[i].keSz, keyA, tv[i].kaSz,
         NULL, tv[i].ksSz);
     if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     ret = wc_SRTCP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, tv[i].saltSz,
         tv[i].kdfIdx, tv[i].index_c, keyE, tv[i].keSz, keyA, tv[i].kaSz,
         NULL, tv[i].ksSz);
     if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     idx = wc_SRTP_KDF_kdr_to_idx(0);
     if (idx != -1)
-        return WC_TEST_RET_ENC_NC;
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     for (i = 0; i < 32; i++) {
         word32 kdr = 1U << i;
 
@@ -32271,13 +32274,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t srtpkdf_test(void)
                                   keyA, tv[i].kaSz, keyS, tv[i].ksSz,
                                   WC_SRTCP_48BIT_IDX);
             if (ret != 0)
-                return WC_TEST_RET_ENC_EC(ret);
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
             if (XMEMCMP(keyE, srtcpKe_48_1, tv[i].keSz) != 0)
-                return WC_TEST_RET_ENC_NC;
+                ERROR_OUT(WC_TEST_RET_ENC_NC, out);
             if (XMEMCMP(keyA, srtcpKa_48_1, tv[i].kaSz) != 0)
-                return WC_TEST_RET_ENC_NC;
+                ERROR_OUT(WC_TEST_RET_ENC_NC, out);
             if (XMEMCMP(keyS, srtcpKs_48_1, tv[i].ksSz) != 0)
-                return WC_TEST_RET_ENC_NC;
+                ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
             ret = wc_SRTCP_KDF_ex(mk48_2, (word32)sizeof(mk48_2),
                                   ms48_2, (word32)sizeof(ms48_2),
@@ -32285,44 +32288,48 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t srtpkdf_test(void)
                                   keyA, tv[i].kaSz, keyS, tv[i].ksSz,
                                   WC_SRTCP_48BIT_IDX);
             if (ret != 0)
-                return WC_TEST_RET_ENC_EC(ret);
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
             if (XMEMCMP(keyE, srtcpKe_48_2, tv[i].keSz) != 0)
-                return WC_TEST_RET_ENC_NC;
+                ERROR_OUT(WC_TEST_RET_ENC_NC, out);
             if (XMEMCMP(keyA, srtcpKa_48_2, tv[i].kaSz) != 0)
-                return WC_TEST_RET_ENC_NC;
+                ERROR_OUT(WC_TEST_RET_ENC_NC, out);
             if (XMEMCMP(keyS, srtcpKs_48_2, tv[i].ksSz) != 0)
-                return WC_TEST_RET_ENC_NC;
+                ERROR_OUT(WC_TEST_RET_ENC_NC, out);
         }
         idx = wc_SRTP_KDF_kdr_to_idx(kdr);
         if (idx != i)
-            return WC_TEST_RET_ENC_NC;
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     }
 
-#ifndef BENCH_EMBEDDED
+#ifdef SRTP_KDF_LONG_KEY
     /* Check that long messages can be created. */
     ret = wc_SRTP_KDF(tv[0].key, tv[0].keySz, tv[0].salt, tv[0].saltSz,
         tv[0].kdfIdx, tv[0].index_c, keyELong, SRTP_KDF_LONG_KEY, keyALong,
         SRTP_KDF_LONG_KEY, keySLong, SRTP_KDF_LONG_KEY);
     if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     /* Check that two bytes of counter are being used. */
     if (XMEMCMP(keyELong, keyELong + 4096, SRTP_KDF_LONG_KEY - 4096) == 0) {
-        return WC_TEST_RET_ENC_NC;
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     }
     if (XMEMCMP(keyELong, keyALong + 4096, SRTP_KDF_LONG_KEY - 4096) == 0) {
-        return WC_TEST_RET_ENC_NC;
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     }
     if (XMEMCMP(keyELong, keySLong + 4096, SRTP_KDF_LONG_KEY - 4096) == 0) {
-        return WC_TEST_RET_ENC_NC;
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     }
+#endif /* SRTP_KDF_LONG_KEY */
 
+out:
+
+#ifdef SRTP_KDF_LONG_KEY
     WC_FREE_VAR(keyELong, HEAP_HINT);
     WC_FREE_VAR(keyALong, HEAP_HINT);
     WC_FREE_VAR(keySLong, HEAP_HINT);
 #endif
 
-    return 0;
+    return ret;
 }
 #endif
 
