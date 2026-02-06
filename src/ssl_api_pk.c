@@ -51,7 +51,7 @@ static int check_cert_key_dev(word32 keyOID, byte* privKey, word32 privSz,
     const byte* pubKey, word32 pubSz, int label, int id, void* heap, int devId)
 {
     int ret = 0;
-    int type;
+    int type = 0;
     void *pkey = NULL;
 
     if (privKey == NULL) {
