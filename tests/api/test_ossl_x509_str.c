@@ -36,9 +36,8 @@
 #include <tests/api/api.h>
 #include <tests/api/test_ossl_x509_str.h>
 
-#if defined(OPENSSL_ALL) && \
-        !defined(NO_RSA) && !defined(NO_FILESYSTEM)
-
+#if defined(OPENSSL_ALL) && !defined(NO_RSA) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_ASN_TIME)
 static int last_errcodes[10];
 static int last_errdepths[10];
 static int err_index = 0;
@@ -187,8 +186,7 @@ int test_wolfSSL_X509_STORE_check_time(void)
     wolfSSL_X509_free(cert);
     cert = NULL;
 
-#if defined(OPENSSL_ALL) && \
-        !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+#if defined(OPENSSL_ALL) && !defined(NO_RSA) && !defined(NO_FILESYSTEM)
 
     err_index = 0;
 

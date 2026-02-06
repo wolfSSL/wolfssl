@@ -4990,6 +4990,10 @@ extern void uITRON4_free(void *p) ;
 #error "If TLS is enabled please make sure either client or server is enabled."
 #endif
 
+#if defined(WC_RNG_BANK_SUPPORT) && defined(NO_ASN_TIME)
+    #undef WC_RNG_BANK_SUPPORT
+#endif
+
 #ifdef __cplusplus
     }   /* extern "C" */
 #endif
