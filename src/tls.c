@@ -9225,8 +9225,10 @@ static int TLSX_KeyShare_ProcessX25519_ex(WOLFSSL* ssl,
             }
         #endif
         }
-        /* On CALL_AGAIN re-entry: shared secret is already computed,
-         * ret stays 0, proceed to cleanup */
+        /* On CALL_AGAIN re-entry (lastRet == PENDING): the block above
+         * is skipped entirely, so wc_curve25519_shared_secret_ex is not
+         * called again. ret stays 0 from initialization, and execution
+         * falls through to the cleanup code below. */
     }
 
     /* done with key share, release resources */

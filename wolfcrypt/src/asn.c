@@ -18487,6 +18487,8 @@ int ConfirmSignature(SignatureCtx* sigCtx,
 
                         ret = wc_ecc_set_nonblock(sigCtx->key.ecc, nbCtx);
                         if (ret != 0) {
+                            XFREE(nbCtx, sigCtx->heap,
+                                DYNAMIC_TYPE_TMP_BUFFER);
                             goto exit_cs;
                         }
                     }

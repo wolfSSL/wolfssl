@@ -38615,6 +38615,7 @@ static int x25519_nonblock_test(WC_RNG* rng)
     ret = wc_curve25519_set_nonblock(&userA, &nbCtx);
     if (ret != 0) {
         printf("wc_curve25519_set_nonblock 1 %d\n", ret);
+        wc_curve25519_free(&userA);
         return -10723;
     }
     count = 0;
@@ -38624,6 +38625,7 @@ static int x25519_nonblock_test(WC_RNG* rng)
     } while (ret == FP_WOULDBLOCK);
     if (ret != 0) {
         printf("wc_curve25519_make_key_nb 1 %d\n", ret);
+        wc_curve25519_free(&userA);
         return -10724;
     }
 #if defined(DEBUG_WOLFSSL) || defined(WOLFSSL_DEBUG_NONBLOCK)
@@ -38640,6 +38642,8 @@ static int x25519_nonblock_test(WC_RNG* rng)
     ret = wc_curve25519_set_nonblock(&userB, &nbCtx);
     if (ret != 0) {
         printf("wc_curve25519_set_nonblock 2 %d\n", ret);
+        wc_curve25519_free(&userA);
+        wc_curve25519_free(&userB);
         return -10725;
     }
     count = 0;
@@ -38649,6 +38653,8 @@ static int x25519_nonblock_test(WC_RNG* rng)
     } while (ret == FP_WOULDBLOCK);
     if (ret != 0) {
         printf("wc_curve25519_make_key_nb 2 %d\n", ret);
+        wc_curve25519_free(&userA);
+        wc_curve25519_free(&userB);
         return -10726;
     }
 
@@ -38659,6 +38665,8 @@ static int x25519_nonblock_test(WC_RNG* rng)
     } while (ret == FP_WOULDBLOCK);
     if (ret != 0) {
         printf("wc_curve25519_shared_secret_nb 1 %d\n", ret);
+        wc_curve25519_free(&userA);
+        wc_curve25519_free(&userB);
         return -10727;
     }
 
@@ -38671,6 +38679,8 @@ static int x25519_nonblock_test(WC_RNG* rng)
     while (ret == FP_WOULDBLOCK);
     if (ret != 0) {
         printf("wc_curve25519_shared_secret_nb 2 %d\n", ret);
+        wc_curve25519_free(&userA);
+        wc_curve25519_free(&userB);
         return -10728;
     }
 #if defined(DEBUG_WOLFSSL) || defined(WOLFSSL_DEBUG_NONBLOCK)
@@ -38680,10 +38690,14 @@ static int x25519_nonblock_test(WC_RNG* rng)
 
     /* compare shared secret keys to test they are the same */
     if (y != x) {
+        wc_curve25519_free(&userA);
+        wc_curve25519_free(&userB);
         return -10729;
     }
 
     if (XMEMCMP(sharedA, sharedB, x) != 0) {
+        wc_curve25519_free(&userA);
+        wc_curve25519_free(&userB);
         return -10730;
     }
 #endif /* HAVE_CURVE25519_SHARED_SECRET */
