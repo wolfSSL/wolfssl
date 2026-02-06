@@ -18474,17 +18474,22 @@ int ConfirmSignature(SignatureCtx* sigCtx,
                     }
             #if defined(WC_ECC_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
                 defined(WC_ASYNC_ENABLE_ECC)
-                    nbCtx = (ecc_nb_ctx_t*)XMALLOC(sizeof(ecc_nb_ctx_t),
-                                sigCtx->heap, DYNAMIC_TYPE_TMP_BUFFER);
-                    if (nbCtx == NULL) {
-                        ERROR_OUT(MEMORY_E, exit_cs);
-                    }
+                    /* Only set non-blocking context when async device is
+                     * active. With INVALID_DEVID there is no async loop to
+                     * retry on FP_WOULDBLOCK, so let the WC_ECC_NONBLOCK_ONLY
+                     * blocking fallback handle it instead. */
+                    if (sigCtx->devId != INVALID_DEVID) {
+                        nbCtx = (ecc_nb_ctx_t*)XMALLOC(sizeof(ecc_nb_ctx_t),
+                                    sigCtx->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                        if (nbCtx == NULL) {
+                            ERROR_OUT(MEMORY_E, exit_cs);
+                        }
 
-                    ret = wc_ecc_set_nonblock(sigCtx->key.ecc, nbCtx);
-                    if (ret != 0) {
-                        goto exit_cs;
+                        ret = wc_ecc_set_nonblock(sigCtx->key.ecc, nbCtx);
+                        if (ret != 0) {
+                            goto exit_cs;
+                        }
                     }
-
             #endif /* WC_ECC_NONBLOCK && WOLFSSL_ASYNC_CRYPT_SW &&
                       WC_ASYNC_ENABLE_ECC */
                     ret = wc_EccPublicKeyDecode(key, &idx, sigCtx->key.ecc,
