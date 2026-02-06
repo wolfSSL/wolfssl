@@ -78,6 +78,9 @@ CLEANFILES+= ecc-key.der \
              pkcs7encryptedDataDES3.der \
              pkcs7encryptedDataDES.der \
              pkcs7envelopedDataAES256CBC_ECDH.der \
+             cmake/wolfssl-config.cmake \
+             cmake/wolfssl-config-version.cmake \
+             cmake/wolfssl-targets.cmake \
              pkcs7envelopedDataAES128CBC_ECDH_SHA1KDF.der \
              pkcs7envelopedDataAES256CBC_ECDH_SHA256KDF.der \
              pkcs7envelopedDataAES256CBC_ECDH_SHA512KDF.der \
@@ -247,8 +250,9 @@ if BUILD_BSDKM
         EXTRA_CFLAGS EXTRA_CPPFLAGS EXTRA_CCASFLAGS EXTRA_LDFLAGS \
         AM_CPPFLAGS CPPFLAGS AM_CFLAGS CFLAGS \
         AM_CCASFLAGS CCASFLAGS \
-        src_libwolfssl_la_OBJECTS ENABLED_CRYPT_TESTS
-
+        src_libwolfssl_la_OBJECTS ENABLED_CRYPT_TESTS ENABLED_BSDKM_REGISTER \
+        ENABLED_ASM ENABLED_INTELASM ENABLED_AESNI ENABLED_AESNI_WITH_AVX \
+        ENABLED_KERNEL_BENCHMARKS
 endif
 
 

@@ -545,9 +545,10 @@
          * to assure that calls to get_random_bytes() in random.c are gated out
          * (they would recurse, potentially infinitely).
          */
-        #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) && \
-             !defined(LINUXKM_LKCAPI_DONT_REGISTER_HASH_DRBG) && \
-             !defined(LINUXKM_LKCAPI_DONT_REGISTER_HASH_DRBG_DEFAULT)) && \
+        #if defined(LINUXKM_LKCAPI_REGISTER_ALL) && \
+            !defined(LINUXKM_LKCAPI_DONT_REGISTER_HASH_DRBG) && \
+            !defined(LINUXKM_LKCAPI_DONT_REGISTER_HASH_DRBG_DEFAULT) && \
+            !defined(NO_LINUXKM_DRBG_GET_RANDOM_BYTES) && \
             !defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT)
             #define LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
         #endif

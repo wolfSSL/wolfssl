@@ -1537,6 +1537,36 @@ int wc_CryptoCb_AesEcbDecrypt(Aes* aes, byte* out,
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
 #endif /* HAVE_AES_ECB */
+
+#ifdef WOLF_CRYPTO_CB_AES_SETKEY
+int wc_CryptoCb_AesSetKey(Aes* aes, const byte* key, word32 keySz)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    if (aes == NULL || key == NULL)
+        return BAD_FUNC_ARG;
+
+    if (aes->devId == INVALID_DEVID)
+        return CRYPTOCB_UNAVAILABLE;
+
+    /* locate registered callback */
+    dev = wc_CryptoCb_FindDevice(aes->devId, WC_ALGO_TYPE_CIPHER);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_CIPHER;
+        cryptoInfo.cipher.type = WC_CIPHER_AES;
+        cryptoInfo.cipher.aessetkey.aes = aes;
+        cryptoInfo.cipher.aessetkey.key = key;
+        cryptoInfo.cipher.aessetkey.keySz = keySz;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+#endif /* WOLF_CRYPTO_CB_AES_SETKEY */
 #endif /* !NO_AES */
 
 #ifndef NO_DES3

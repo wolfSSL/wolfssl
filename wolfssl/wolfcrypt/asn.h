@@ -1702,6 +1702,19 @@ typedef struct TrustedPeerCert TrustedPeerCert;
 #endif /* WOLFSSL_TRUST_PEER_CERT */
 typedef struct SignatureCtx SignatureCtx;
 
+#ifndef WOLFSSL_AIA_ENTRY_DEFINED
+#ifndef WOLFSSL_MAX_AIA_ENTRIES
+    #define WOLFSSL_MAX_AIA_ENTRIES 8
+#endif
+
+#define WOLFSSL_AIA_ENTRY_DEFINED
+typedef struct WOLFSSL_AIA_ENTRY {
+    word32      method; /* AIA method OID sum (e.g., AIA_OCSP_OID). */
+    const byte* uri;    /* Pointer into cert DER for the URI. */
+    word32      uriSz;  /* Length of URI data. */
+} WOLFSSL_AIA_ENTRY;
+#endif /* WOLFSSL_AIA_ENTRY_DEFINED */
+
 #ifdef WC_ASN_UNKNOWN_EXT_CB
 typedef int (*wc_UnknownExtCallback)(const word16* oid, word32 oidSz, int crit,
                                      const unsigned char* der, word32 derSz);
@@ -2060,6 +2073,10 @@ struct DecodedCert {
     WC_BITFIELD extAltSigAlgCrit:1;
     WC_BITFIELD extAltSigValCrit:1;
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
+
+    WOLFSSL_AIA_ENTRY extAuthInfoList[WOLFSSL_MAX_AIA_ENTRIES];
+    WC_BITFIELD extAuthInfoListSz:7;
+    WC_BITFIELD extAuthInfoListOverflow:1;
 };
 
 #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
@@ -2209,6 +2226,8 @@ typedef enum MimeStatus
     #define GetShortInt wc_GetShortInt
     #define SetShortInt wc_SetShortInt
     #define GetLength wc_GetLength
+    #define SetLength wc_SetLength
+    #define SetSequence wc_SetSequence
     #define GetASNInt wc_GetASNInt
     #define GetASNTag wc_GetASNTag
     #define SetAlgoID wc_SetAlgoID
@@ -2468,11 +2487,11 @@ WOLFSSL_LOCAL word32 SetASNImplicit(byte tag,byte number, word32 len,
 WOLFSSL_LOCAL word32 SetASNExplicit(byte number, word32 len, byte* output);
 WOLFSSL_LOCAL word32 SetASNSet(word32 len, byte* output);
 
-WOLFSSL_LOCAL word32 SetLength(word32 length, byte* output);
+WOLFSSL_ASN_API word32 SetLength(word32 length, byte* output);
 WOLFSSL_LOCAL word32 SetLengthEx(word32 length, byte* output, byte isIndef);
 WOLFSSL_LOCAL word32 SetHeader(byte tag, word32 len, byte* output,
                                byte isIndef);
-WOLFSSL_LOCAL word32 SetSequence(word32 len, byte* output);
+WOLFSSL_ASN_API word32 SetSequence(word32 len, byte* output);
 WOLFSSL_LOCAL word32 SetSequenceEx(word32 len, byte* output, byte isIndef);
 WOLFSSL_LOCAL word32 SetIndefEnd(byte* output);
 WOLFSSL_LOCAL word32 SetOctetString(word32 len, byte* output);

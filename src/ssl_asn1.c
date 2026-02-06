@@ -3334,7 +3334,8 @@ const char* wolfSSL_ASN1_tag2str(int tag)
     const char* str = "(unknown)";
 
     /* Clear negative flag. */
-    if ((tag == WOLFSSL_V_ASN1_NEG_INTEGER) || (tag == WOLFSSL_V_ASN1_NEG_ENUMERATED)) {
+    if ((tag == WOLFSSL_V_ASN1_NEG_INTEGER) ||
+            (tag == WOLFSSL_V_ASN1_NEG_ENUMERATED)) {
         tag &= ~WOLFSSL_V_ASN1_NEG;
     }
     /* Check for known basic types. */
@@ -4194,7 +4195,8 @@ char* wolfSSL_ASN1_TIME_to_string(WOLFSSL_ASN1_TIME* t, char* buf, int len)
     }
 
     /* Get time as human readable string. */
-    if ((buf != NULL) && !GetTimeString(t->data, t->type, buf, len, t->length)) {
+    if ((buf != NULL) && !GetTimeString(t->data, t->type, buf, len,
+           t->length)) {
         buf = NULL;
     }
 
@@ -4717,9 +4719,11 @@ void wolfSSL_ASN1_TYPE_set(WOLFSSL_ASN1_TYPE *a, int type, void *value)
 
 int wolfSSL_ASN1_TYPE_get(const WOLFSSL_ASN1_TYPE *a)
 {
-    if (a != NULL && (a->type == WOLFSSL_V_ASN1_BOOLEAN || a->type == WOLFSSL_V_ASN1_NULL
-            || a->value.ptr != NULL))
+    if (a != NULL && (a->type == WOLFSSL_V_ASN1_BOOLEAN ||
+                      a->type == WOLFSSL_V_ASN1_NULL    ||
+                      a->value.ptr != NULL)) {
         return a->type;
+    }
     return 0;
 }
 

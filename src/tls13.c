@@ -5497,8 +5497,8 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     suite[1] = ssl->options.cipherSuite;
     if (!FindSuiteSSL(ssl, suite)) {
         WOLFSSL_MSG("Cipher suite not supported on client");
-        WOLFSSL_ERROR_VERBOSE(MATCH_SUITE_ERROR);
-        return MATCH_SUITE_ERROR;
+        WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
+        return INVALID_PARAMETER;
     }
 
 #if defined(HAVE_ECH)

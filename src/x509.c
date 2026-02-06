@@ -14986,40 +14986,108 @@ int wolfSSL_X509_NAME_digest(const WOLFSSL_X509_NAME *name,
 
 void wolfSSL_X509_email_free(WOLF_STACK_OF(WOLFSSL_STRING) *sk)
 {
-    WOLFSSL_STACK *curr;
+    wolfSSL_sk_pop_free(sk, NULL);
+}
 
-    while (sk != NULL) {
-        curr = sk;
-        sk = sk->next;
+static int x509_aia_append_string(WOLFSSL_STACK** head,
+    const byte* uri, word32 uriSz)
+{
+    WOLFSSL_STACK* node;
+    char*          url;
 
-        XFREE(curr, NULL, DYNAMIC_TYPE_OPENSSL);
+    url = (char*)XMALLOC(uriSz + 1, NULL, DYNAMIC_TYPE_OPENSSL);
+    if (url == NULL)
+        return WOLFSSL_FAILURE;
+
+    XMEMCPY(url, uri, uriSz);
+    url[uriSz] = '\0';
+
+    node = wolfSSL_sk_new_node(*head != NULL ? (*head)->heap : NULL);
+    if (node == NULL) {
+        XFREE(url, NULL, DYNAMIC_TYPE_OPENSSL);
+        return WOLFSSL_FAILURE;
     }
+
+    node->type = STACK_TYPE_STRING;
+    node->data.string = url;
+
+    if (wolfSSL_sk_push_back_node(head, node) != WOLFSSL_SUCCESS) {
+        XFREE(url, NULL, DYNAMIC_TYPE_OPENSSL);
+        wolfSSL_sk_free_node(node);
+        return WOLFSSL_FAILURE;
+    }
+
+    return WOLFSSL_SUCCESS;
+}
+
+static WOLFSSL_STACK* x509_get1_aia_by_method(WOLFSSL_X509* x, word32 method,
+    const byte* fallback, int fallbackSz)
+{
+    WOLFSSL_STACK* head = NULL;
+    int i;
+
+    if (x == NULL)
+        return NULL;
+
+    /* Collect matching URIs from the multi-entry list into a new stack;
+     * fall back to the legacy single-entry field for compatibility. */
+    if (x->authInfoListSz > 0) {
+        for (i = 0; i < x->authInfoListSz; i++) {
+            if (x->authInfoList[i].method != method ||
+                    x->authInfoList[i].uri == NULL ||
+                    x->authInfoList[i].uriSz == 0) {
+                continue;
+            }
+
+            if (x509_aia_append_string(&head, x->authInfoList[i].uri,
+                    x->authInfoList[i].uriSz) != WOLFSSL_SUCCESS) {
+                wolfSSL_sk_pop_free(head, NULL);
+                return NULL;
+            }
+        }
+    }
+    if (head == NULL && fallback != NULL && fallbackSz > 0) {
+        if (x509_aia_append_string(&head, fallback, (word32)fallbackSz)
+                != WOLFSSL_SUCCESS) {
+            wolfSSL_sk_pop_free(head, NULL);
+            return NULL;
+        }
+    }
+
+    return head;
 }
 
 WOLF_STACK_OF(WOLFSSL_STRING) *wolfSSL_X509_get1_ocsp(WOLFSSL_X509 *x)
 {
-    WOLFSSL_STACK* list = NULL;
-    char*          url;
-
-    if (x == NULL || x->authInfoSz == 0)
+    if (x == NULL)
         return NULL;
-
-    list = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK) + x->authInfoSz + 1,
-                                   NULL, DYNAMIC_TYPE_OPENSSL);
-    if (list == NULL)
-        return NULL;
-
-    url = (char*)list;
-    url += sizeof(WOLFSSL_STACK);
-    XMEMCPY(url, x->authInfo, x->authInfoSz);
-    url[x->authInfoSz] = '\0';
-
-    list->data.string = url;
-    list->next = NULL;
-    list->num = 1;
-
-    return list;
+    return x509_get1_aia_by_method(x, AIA_OCSP_OID, x->authInfo, x->authInfoSz);
 }
+
+int wolfSSL_X509_get_aia_overflow(WOLFSSL_X509 *x)
+{
+    int overflow = 0;
+
+    WOLFSSL_ENTER("wolfSSL_X509_get_aia_overflow");
+
+    if (x != NULL) {
+        overflow = x->authInfoListOverflow;
+    }
+
+    WOLFSSL_LEAVE("wolfSSL_X509_get_aia_overflow", overflow);
+
+    return overflow;
+}
+
+#ifdef WOLFSSL_ASN_CA_ISSUER
+WOLF_STACK_OF(WOLFSSL_STRING) *wolfSSL_X509_get1_ca_issuers(WOLFSSL_X509 *x)
+{
+    if (x == NULL)
+        return NULL;
+    return x509_get1_aia_by_method(x, AIA_CA_ISSUER_OID, x->authInfoCaIssuer,
+            x->authInfoCaIssuerSz);
+}
+#endif /* WOLFSSL_ASN_CA_ISSUER */
 
 int wolfSSL_X509_check_issued(WOLFSSL_X509 *issuer, WOLFSSL_X509 *subject)
 {

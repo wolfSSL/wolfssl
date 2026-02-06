@@ -259,6 +259,50 @@ int wolfSSL_sk_push_node(WOLFSSL_STACK** stack, WOLFSSL_STACK* node)
     return ret;
 }
 
+/* Pushes the node onto the back of the stack.
+ *
+ * If *stack is NULL, node becomes the head.
+ *
+ * @param [in, out] stack  Stack of nodes.
+ * @param [in]      node   Node to append.
+ *
+ * @return WOLFSSL_SUCCESS on success
+ * @return WOLFSSL_FAILURE when stack or node is NULL.
+ */
+int wolfSSL_sk_push_back_node(WOLFSSL_STACK** stack, WOLFSSL_STACK* node)
+{
+    int ret = WOLFSSL_SUCCESS;
+
+    /* Validate parameters. */
+    if (stack == NULL || node == NULL) {
+        ret = WOLFSSL_FAILURE;
+    }
+    if (ret == WOLFSSL_SUCCESS) {
+        node->next = NULL;
+        /* Tail node has num of 1, indicating 1 node till the end */
+        node->num = 1;
+
+        if (*stack == NULL) {
+            /* First node. */
+            *stack = node;
+        }
+        else {
+            /* Walk to the end and append.  Each node's num field holds the
+             * count of nodes from that node to the tail (inclusive), so
+             * every existing node's num increases by one. */
+            WOLFSSL_STACK* cur = *stack;
+            while (cur->next != NULL) {
+                cur->num++;
+                cur = cur->next;
+            }
+            cur->num++;
+            cur->next = node;
+        }
+    }
+
+    return ret;
+}
+
 /* Removes the node at the index from the stack and returns data.
  *
  * This is an internal API.

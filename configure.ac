@@ -33,6 +33,13 @@ m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])
 
 AC_ARG_PROGRAM
 
+# Optional CMake package install (enabled by default)
+AC_ARG_ENABLE([cmake-install],
+    [AS_HELP_STRING([--disable-cmake-install],[Disable installation of CMake package files])],
+    [ ENABLED_CMAKE_INSTALL=$enableval ],
+    [ ENABLED_CMAKE_INSTALL=yes ])
+AM_CONDITIONAL([CMAKE_INSTALL],[test "x$ENABLED_CMAKE_INSTALL" = "xyes"])
+
 AC_CONFIG_HEADERS([config.h:config.in])
 
 LT_PREREQ([2.4.2])
@@ -123,9 +130,18 @@ then
     AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_EXPERIMENTAL_SETTINGS"
 fi
 
+# Kernel module benchmark
+ENABLED_KERNEL_BENCHMARKS=""
+AC_ARG_ENABLE([kernel-benchmarks],
+    [AS_HELP_STRING([--enable-kernel-benchmarks],[Enable crypto benchmarking autorun at module load time for kernel module (default: disabled)])],
+    [ENABLED_KERNEL_BENCHMARKS=$enableval])
+if test "$ENABLED_KERNEL_BENCHMARKS" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KERNEL_BENCHMARKS"
+fi
+AC_SUBST([ENABLED_KERNEL_BENCHMARKS])
 
 # Linux Kernel Module options (more options later)
-
 AC_ARG_ENABLE([linuxkm],
     [AS_HELP_STRING([--enable-linuxkm],[Enable Linux Kernel Module (default: disabled)])],
     [ENABLED_LINUXKM=$enableval],
@@ -143,6 +159,12 @@ AC_ARG_ENABLE([freebsdkm],
     [AS_HELP_STRING([--enable-freebsdkm],[Enable FreeBSD Kernel Module (default: disabled)])],
     [ENABLED_BSDKM=$enableval],
     [ENABLED_BSDKM=no]
+    )
+
+AC_ARG_ENABLE([freebsdkm-crypto-register],
+    [AS_HELP_STRING([--enable-freebsdkm-crypto-register],[Register wolfCrypt implementations with the FreeBSD kernel opencrypto framework. (default: disabled)])],
+    [ENABLED_BSDKM_REGISTER=$enableval],
+    [ENABLED_BSDKM_REGISTER=no]
     )
 
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stddef.h time.h sys/ioctl.h sys/socket.h sys/time.h errno.h sys/un.h ctype.h sys/random.h])
@@ -727,10 +749,8 @@ AC_SUBST([ENABLED_LINUXKM_PIE])
 
 AC_ARG_ENABLE([linuxkm-benchmarks],
     [AS_HELP_STRING([--enable-linuxkm-benchmarks],[Enable crypto benchmarking autorun at module load time for Linux kernel module (default: disabled)])],
-    [ENABLED_KERNEL_BENCHMARKS=$enableval],
-    [ENABLED_KERNEL_BENCHMARKS=no]
-    )
-if test "$ENABLED_KERNEL_BENCHMARKS" = "yes"
+    [ENABLED_KERNEL_BENCHMARKS=$enableval])
+if test "$ENABLED_LINUXKM" = "yes" && test "$ENABLED_KERNEL_BENCHMARKS" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LINUXKM_BENCHMARKS"
 fi
@@ -819,17 +839,15 @@ AC_ARG_WITH([bsd-export-syms],
 
 if test "x$ENABLED_BSDKM" = "xyes"
 then
-    # wolfcrypt only, no-asm supported for now.
+    # note: bsdkm is wolfcrypt only for now.
     HAVE_KERNEL_MODE=yes
     KERNEL_MODE_DEFAULTS=yes
     ENABLED_NO_LIBRARY=yes
     ENABLED_BENCHMARK=no
-    ENABLED_ASM=no
 
     output_objdir="$(realpath "$output_objdir")/bsdkm"
 
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_BSDKM -DWC_SIPHASH_NO_ASM"
-    AM_CFLAGS="$AM_CFLAGS -DTFM_NO_ASM -DWOLFSSL_NO_ASM"
     AM_CFLAGS="$AM_CFLAGS -DNO_DEV_RANDOM -DNO_WRITEV -DNO_STDIO_FILESYSTEM"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_SOCK -DWOLFSSL_USER_IO"
     AM_CFLAGS="$AM_CFLAGS -DXMALLOC_OVERRIDE -DWOLFCRYPT_ONLY"
@@ -846,7 +864,16 @@ then
     fi
     AC_SUBST([KERNEL_ROOT])
     AC_SUBST([BSDKM_EXPORT_SYMS])
+fi
 
+if test "x$ENABLED_BSDKM_REGISTER" = "xyes"
+then
+    if test "$ENABLED_AESGCM" != "no" && test "$ENABLED_AESGCM_STREAM" = "no" && test "$enable_aesgcm_stream" != "no" && (test "$ENABLED_FIPS" = "no" || test $HAVE_FIPS_VERSION -ge 6); then
+        ENABLED_AESGCM_STREAM=yes
+    fi
+
+    AM_CFLAGS="$AM_CFLAGS -DBSDKM_CRYPTO_REGISTER"
+    AC_SUBST([ENABLED_BSDKM_REGISTER])
 fi
 # end FreeBSD configure
 
@@ -1383,13 +1410,13 @@ then
     esac
 fi
 
-# 32 bit armasm and RISC-V asm don't yet support WOLFSSL_AESGCM_STREAM.  Disable
+# RISC-V asm doesn't yet support WOLFSSL_AESGCM_STREAM.  Disable
 # implicit activation, and error on explicit activation.
-if test "$enable_riscv_asm" = "yes" || (test "$enable_armasm" = "yes" && test "$host_cpu" != "aarch64" && test "$host_cpu" != "aarch64_be")
+if test "$enable_riscv_asm" = "yes"
 then
     if test "$enable_aesgcm_stream" = "yes"
     then
-        AC_MSG_ERROR([32 bit armasm and RISC-V asm don't yet support WOLFSSL_AESGCM_STREAM.])
+        AC_MSG_ERROR([RISC-V asm doesn't yet support WOLFSSL_AESGCM_STREAM.])
     fi
     enable_aesgcm_stream=no
 fi
@@ -2061,9 +2088,11 @@ AC_ARG_ENABLE([singlethreaded],
     [ ENABLED_SINGLETHREADED=$enableval ],
     [ ENABLED_SINGLETHREADED=no ])
 
+WOLFSSL_HAVE_PTHREAD=0
 AS_IF([ test "x$ENABLED_SINGLETHREADED" = "xno" ],[
        AX_PTHREAD([
                    AC_DEFINE([HAVE_PTHREAD], [1], [Define if you have POSIX threads libraries and header files.])
+                   WOLFSSL_HAVE_PTHREAD=1
                    # If AX_PTHREAD is adding -Qunused-arguments, need to prepend with -Xcompiler libtool will use it. Newer
                    # versions of clang don't need the -Q flag when using pthreads.
                    AS_CASE([$PTHREAD_CFLAGS],[-Qunused-arguments*],[PTHREAD_CFLAGS="-Xcompiler $PTHREAD_CFLAGS"])
@@ -3969,6 +3998,8 @@ then
         ENABLED_X86_ASM=yes
     fi
 fi
+AC_SUBST([ENABLED_AESNI])
+AC_SUBST([ENABLED_AESNI_WITH_AVX])
 
 AC_ARG_ENABLE([aligndata],
     [AS_HELP_STRING([--enable-aligndata],[align data for ciphers (default: enabled)])],
@@ -10689,11 +10720,9 @@ then
     if test "$ENABLED_AESGCM" = "no"
     then
         AC_MSG_ERROR([AES-GCM streaming is enabled but AES-GCM is disabled.])
-    elif test "$ENABLED_RISCV_ASM" = "yes" || \
-         (test "$ENABLED_ARMASM" = "yes" && \
-          test "$host_cpu" != "aarch64" && test "$host_cpu" != "aarch64_be")
+    elif test "$ENABLED_RISCV_ASM" = "yes"
     then
-        AC_MSG_ERROR([32 bit armasm and RISC-V asm don't yet support WOLFSSL_AESGCM_STREAM.])
+        AC_MSG_ERROR([RISC-V asm doesn't yet support WOLFSSL_AESGCM_STREAM.])
     else
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AESGCM_STREAM"
         AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_AESGCM_STREAM"
@@ -11263,6 +11292,26 @@ AC_SUBST([LIB_ADD])
 AC_SUBST([LIB_STATIC_ADD])
 AC_SUBST([LIBM])
 AC_SUBST([PC_LIBS_PRIVATE])
+AC_SUBST([WOLFSSL_HAVE_PTHREAD])
+HAVE_PTHREAD=$WOLFSSL_HAVE_PTHREAD
+AC_SUBST([HAVE_PTHREAD])
+PACKAGE_INIT=''
+AC_SUBST([PACKAGE_INIT])
+WOLFSSL_PREFIX_ABS=$prefix
+if test "x$WOLFSSL_PREFIX_ABS" = "xNONE"; then
+    WOLFSSL_PREFIX_ABS=$ac_default_prefix
+fi
+WOLFSSL_EXEC_PREFIX_ABS=$exec_prefix
+if test "x$WOLFSSL_EXEC_PREFIX_ABS" = "xNONE"; then
+    WOLFSSL_EXEC_PREFIX_ABS=$WOLFSSL_PREFIX_ABS
+fi
+prefix=$WOLFSSL_PREFIX_ABS
+exec_prefix=$WOLFSSL_EXEC_PREFIX_ABS
+eval WOLFSSL_LIBDIR_ABS=\"$libdir\"
+eval WOLFSSL_INCLUDEDIR_ABS=\"$includedir\"
+AC_SUBST([WOLFSSL_PREFIX_ABS])
+AC_SUBST([WOLFSSL_LIBDIR_ABS])
+AC_SUBST([WOLFSSL_INCLUDEDIR_ABS])
 
 # FINAL
 AC_CONFIG_FILES([stamp-h], [echo timestamp > stamp-h])
@@ -11275,6 +11324,12 @@ AC_CONFIG_FILES([Makefile
         rpm/spec
         wolfcrypt/test/test_paths.h
         ])
+AS_IF([ test "x$ENABLED_CMAKE_INSTALL" = "xyes" ],[
+AC_CONFIG_FILES([cmake/wolfssl-config.cmake:cmake/Config.cmake.in
+        cmake/wolfssl-config-version.cmake:cmake/wolfssl-config-version.cmake.in
+        cmake/wolfssl-targets.cmake:cmake/wolfssl-targets.cmake.in
+        ])
+])
 AC_CONFIG_FILES([scripts/unit.test],[chmod +x scripts/unit.test])
 AC_CONFIG_FILES([debian/rules],[chmod +x debian/rules])
 

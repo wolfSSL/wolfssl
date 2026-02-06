@@ -1,7 +1,19 @@
 EXTRA_DIST += cmake/README.md
 EXTRA_DIST += cmake/Config.cmake.in
+EXTRA_DIST += cmake/wolfssl-config-version.cmake.in
+EXTRA_DIST += cmake/wolfssl-targets.cmake.in
+EXTRA_DIST += cmake/consumer/CMakeLists.txt
+EXTRA_DIST += cmake/consumer/main.c
+EXTRA_DIST += cmake/consumer/README.md
 EXTRA_DIST += cmake/config.in
 EXTRA_DIST += cmake/functions.cmake
 EXTRA_DIST += cmake/options.h.in
 EXTRA_DIST += cmake/modules/FindARIA.cmake
 EXTRA_DIST += cmake/modules/FindOQS.cmake
+
+if CMAKE_INSTALL
+cmakedir = $(libdir)/cmake/wolfssl
+cmake_DATA = cmake/wolfssl-config.cmake \
+             cmake/wolfssl-config-version.cmake \
+             cmake/wolfssl-targets.cmake
+endif

@@ -41,6 +41,9 @@ tags
 .tags*
 cyassl-config
 wolfssl-config
+cmake/wolfssl-config.cmake
+cmake/wolfssl-config-version.cmake
+cmake/wolfssl-targets.cmake
 cyassl.sublime*
 fips.h
 fips.c
@@ -239,12 +242,17 @@ linuxkm/linuxkm
 linuxkm/src
 linuxkm/patches/src
 *.nds
+
+# Generated during FreeBSD kernel module build.
 bsdkm/export_syms
 bsdkm/i386
 bsdkm/libwolfssl.ko
 bsdkm/machine
 bsdkm/opt_global.h
 bsdkm/x86
+bsdkm/bus_if.h
+bsdkm/cryptodev_if.h
+bsdkm/device_if.h
 
 # autotools generated
 scripts/unit.test
@@ -386,6 +394,7 @@ IDE/**/DerivedData
 CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
+!cmake/Config.cmake.in
 
 # GDB Settings
 \.gdbinit
@@ -470,3 +479,6 @@ wolfssl/debug-trace-error-codes.h
 wolfssl/debug-untrace-error-codes.h
 
 AGENTS.md
+
+# Code navigation files
+compile_commands.json

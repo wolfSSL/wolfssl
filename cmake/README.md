@@ -3,6 +3,9 @@
 This directory contains some supplementary functions for the [CMakeLists.txt](../CMakeLists.txt) in the root.
 
 See also cmake notes in the [INSTALL](../INSTALL) documentation file.
+When building with autoconf/automake, CMake package files are installed by default
+under $(libdir)/cmake/wolfssl to support find_package(wolfssl). Disable with
+./configure --disable-cmake-install.
 
 If new CMake build options are added `cmake/options.h.in` must also be updated.
 
@@ -55,5 +58,4 @@ See the Microsoft [CMakeSettings.json schema reference](https://learn.microsoft.
   * Custom output directories
   * Specific environment variables
   * *UI-related tweaks
-
 

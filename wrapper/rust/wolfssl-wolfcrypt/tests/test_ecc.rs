@@ -1,5 +1,7 @@
 #![cfg(ecc)]
 
+mod common;
+
 #[cfg(any(all(ecc_import, ecc_export, ecc_sign, ecc_verify, random), random))]
 use std::fs;
 use wolfssl_wolfcrypt::ecc::*;
@@ -128,6 +130,8 @@ fn test_ecc_import_export_sign_verify() {
 #[test]
 #[cfg(all(ecc_dh, random))]
 fn test_ecc_shared_secret() {
+    common::setup();
+
     let mut rng = RNG::new().expect("Failed to create RNG");
     let mut ecc0 = ECC::generate(32, &mut rng, None, None).expect("Error with generate()");
     let mut ecc1 = ECC::generate(32, &mut rng, None, None).expect("Error with generate()");
@@ -152,6 +156,8 @@ fn test_ecc_shared_secret() {
 #[test]
 #[cfg(all(ecc_export, random))]
 fn test_ecc_export() {
+    common::setup();
+
     let mut rng = RNG::new().expect("Failed to create RNG");
     let mut ecc = ECC::generate(32, &mut rng, None, None).expect("Error with generate()");
     let mut qx = [0u8; 32];
@@ -166,6 +172,8 @@ fn test_ecc_export() {
 #[test]
 #[cfg(all(ecc_export, random))]
 fn test_ecc_export_ex() {
+    common::setup();
+
     let mut rng = RNG::new().expect("Failed to create RNG");
     let mut ecc = ECC::generate(32, &mut rng, None, None).expect("Error with generate()");
     let mut qx = [0u8; 32];
@@ -180,6 +188,8 @@ fn test_ecc_export_ex() {
 #[test]
 #[cfg(all(ecc_import, ecc_export, ecc_sign, ecc_verify, random))]
 fn test_ecc_import_export_private() {
+    common::setup();
+
     let mut rng = RNG::new().expect("Failed to create RNG");
     let mut ecc = ECC::generate(32, &mut rng, None, None).expect("Error with generate()");
     let hash = [0x42u8; 32];
@@ -204,6 +214,8 @@ fn test_ecc_import_export_private() {
 #[test]
 #[cfg(all(ecc_import, ecc_export, ecc_sign, ecc_verify, random))]
 fn test_ecc_import_export_private_ex() {
+    common::setup();
+
     let mut rng = RNG::new().expect("Failed to create RNG");
     let curve_id = ECC::SECP256R1;
     let curve_size = ECC::get_curve_size_from_id(curve_id).expect("Error with get_curve_size_from_id()");
@@ -242,6 +254,8 @@ fn test_ecc_export_public() {
 #[test]
 #[cfg(all(ecc_import, ecc_export, ecc_sign, ecc_verify, random))]
 fn test_ecc_import_unsigned() {
+    common::setup();
+
     let mut rng = RNG::new().expect("Failed to create RNG");
     let curve_id = ECC::SECP256R1;
     let curve_size = ECC::get_curve_size_from_id(curve_id).expect("Error with get_curve_size_from_id()");

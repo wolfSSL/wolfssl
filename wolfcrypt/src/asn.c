@@ -13839,7 +13839,18 @@ static int StoreEccKey(DecodedCert* cert, const byte* source, word32* srcIdx,
             ret = ASN_PARSE_E;
     #endif
         }
-
+    #if defined(WOLFSSL_RENESAS_FSPSM_TLS) || defined(WOLFSSL_RENESAS_TSIP_TLS)
+        cert->sigCtx.CertAtt.pubkey_n_start =
+           cert->sigCtx.CertAtt.pubkey_e_start =
+            GetASNItem_DataIdx(
+                dataASN[ECCCERTKEYASN_IDX_SUBJPUBKEY], source) + 1;
+        cert->sigCtx.CertAtt.pubkey_n_len =
+            ((dataASN[ECCCERTKEYASN_IDX_SUBJPUBKEY].data.ref.length - 1) >> 1);
+        cert->sigCtx.CertAtt.pubkey_e_start +=
+                cert->sigCtx.CertAtt.pubkey_n_len;
+        cert->sigCtx.CertAtt.pubkey_e_len   =
+                cert->sigCtx.CertAtt.pubkey_n_len;
+    #endif
     #ifdef WOLFSSL_MAXQ10XX_TLS
         cert->publicKeyIndex =
             GetASNItem_DataIdx(dataASN[ECCCERTKEYASN_IDX_SUBJPUBKEY], source)
@@ -21195,6 +21206,7 @@ static int DecodeAuthInfo(const byte* input, word32 sz, DecodedCert* cert)
     int length = 0;
     byte b = 0;
     word32 oid;
+    int aiaIdx;
 
     WOLFSSL_ENTER("DecodeAuthInfo");
 
@@ -21219,14 +21231,29 @@ static int DecodeAuthInfo(const byte* input, word32 sz, DecodedCert* cert)
         if (GetLength(input, &idx, &length, sz) < 0)
             return ASN_PARSE_E;
 
-        /* Set ocsp entry */
+        if (b == GENERALNAME_URI) {
+            /* Add to AIA list if space. */
+            aiaIdx = cert->extAuthInfoListSz;
+            if (aiaIdx < WOLFSSL_MAX_AIA_ENTRIES) {
+                cert->extAuthInfoList[aiaIdx].method = oid;
+                cert->extAuthInfoList[aiaIdx].uri = input + idx;
+                cert->extAuthInfoList[aiaIdx].uriSz = (word32)length;
+                cert->extAuthInfoListSz++;
+            }
+            else {
+                cert->extAuthInfoListOverflow = 1;
+                WOLFSSL_MSG("AIA list overflow");
+            }
+        }
+
+        /* Set first ocsp entry */
         if (b == GENERALNAME_URI && oid == AIA_OCSP_OID &&
                 cert->extAuthInfo == NULL) {
             cert->extAuthInfoSz = length;
             cert->extAuthInfo = input + idx;
         }
     #ifdef WOLFSSL_ASN_CA_ISSUER
-        /* Set CaIssuers entry */
+        /* Set first CaIssuers entry */
         else if ((b == GENERALNAME_URI) && oid == AIA_CA_ISSUER_OID &&
                 cert->extAuthInfoCaIssuer == NULL)
         {
@@ -21242,6 +21269,7 @@ static int DecodeAuthInfo(const byte* input, word32 sz, DecodedCert* cert)
     word32 idx = 0;
     int length = 0;
     int ret    = 0;
+    int aiaIdx;
 
     WOLFSSL_ENTER("DecodeAuthInfo");
 
@@ -21263,27 +21291,41 @@ static int DecodeAuthInfo(const byte* input, word32 sz, DecodedCert* cert)
         if (ret == 0) {
             word32 sz32;
 
-            /* Check we have OCSP and URI. */
-            if ((dataASN[ACCESSDESCASN_IDX_METH].data.oid.sum == AIA_OCSP_OID) &&
-                    (dataASN[ACCESSDESCASN_IDX_LOC].tag == GENERALNAME_URI) &&
-                    (cert->extAuthInfo == NULL)) {
-                /* Store URI for OCSP lookup. */
-                GetASN_GetConstRef(&dataASN[ACCESSDESCASN_IDX_LOC],
-                        &cert->extAuthInfo, &sz32);
-                cert->extAuthInfoSz = (int)sz32;
+            if (dataASN[ACCESSDESCASN_IDX_LOC].tag == GENERALNAME_URI) {
+                const byte* uri = NULL;
+
+                GetASN_GetConstRef(&dataASN[ACCESSDESCASN_IDX_LOC], &uri, &sz32);
+
+                /* Add to AIA list if space. */
+                aiaIdx = cert->extAuthInfoListSz;
+                if (aiaIdx < WOLFSSL_MAX_AIA_ENTRIES) {
+                    cert->extAuthInfoList[aiaIdx].method =
+                        dataASN[ACCESSDESCASN_IDX_METH].data.oid.sum;
+                    cert->extAuthInfoList[aiaIdx].uri = uri;
+                    cert->extAuthInfoList[aiaIdx].uriSz = sz32;
+                    cert->extAuthInfoListSz++;
+                }
+                else {
+                    cert->extAuthInfoListOverflow = 1;
+                    WOLFSSL_MSG("AIA list overflow");
+                }
+
+                /* Set first OCSP entry. */
+                if ((dataASN[ACCESSDESCASN_IDX_METH].data.oid.sum ==
+                            AIA_OCSP_OID) && (cert->extAuthInfo == NULL)) {
+                    cert->extAuthInfo = uri;
+                    cert->extAuthInfoSz = (int)sz32;
+                }
+            #ifdef WOLFSSL_ASN_CA_ISSUER
+                /* Set first CA Issuer entry. */
+                else if ((dataASN[ACCESSDESCASN_IDX_METH].data.oid.sum ==
+                            AIA_CA_ISSUER_OID) &&
+                        (cert->extAuthInfoCaIssuer == NULL)) {
+                    cert->extAuthInfoCaIssuer = uri;
+                    cert->extAuthInfoCaIssuerSz = (int)sz32;
+                }
+            #endif
             }
-        #ifdef WOLFSSL_ASN_CA_ISSUER
-            /* Check we have CA Issuer and URI. */
-            else if ((dataASN[ACCESSDESCASN_IDX_METH].data.oid.sum ==
-                        AIA_CA_ISSUER_OID) &&
-                    (dataASN[ACCESSDESCASN_IDX_LOC].tag == GENERALNAME_URI) &&
-                    (cert->extAuthInfoCaIssuer == NULL)) {
-                /* Set CaIssuers entry */
-                GetASN_GetConstRef(&dataASN[ACCESSDESCASN_IDX_LOC],
-                        &cert->extAuthInfoCaIssuer, &sz32);
-                cert->extAuthInfoCaIssuerSz = (int)sz32;
-            }
-        #endif
             /* Otherwise skip. */
         }
     }
