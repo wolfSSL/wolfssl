@@ -2226,6 +2226,8 @@ typedef enum MimeStatus
     #define GetShortInt wc_GetShortInt
     #define SetShortInt wc_SetShortInt
     #define GetLength wc_GetLength
+    #define SetLength wc_SetLength
+    #define SetSequence wc_SetSequence
     #define GetASNInt wc_GetASNInt
     #define GetASNTag wc_GetASNTag
     #define SetAlgoID wc_SetAlgoID
@@ -2485,11 +2487,11 @@ WOLFSSL_LOCAL word32 SetASNImplicit(byte tag,byte number, word32 len,
 WOLFSSL_LOCAL word32 SetASNExplicit(byte number, word32 len, byte* output);
 WOLFSSL_LOCAL word32 SetASNSet(word32 len, byte* output);
 
-WOLFSSL_LOCAL word32 SetLength(word32 length, byte* output);
+WOLFSSL_ASN_API word32 SetLength(word32 length, byte* output);
 WOLFSSL_LOCAL word32 SetLengthEx(word32 length, byte* output, byte isIndef);
 WOLFSSL_LOCAL word32 SetHeader(byte tag, word32 len, byte* output,
                                byte isIndef);
-WOLFSSL_LOCAL word32 SetSequence(word32 len, byte* output);
+WOLFSSL_ASN_API word32 SetSequence(word32 len, byte* output);
 WOLFSSL_LOCAL word32 SetSequenceEx(word32 len, byte* output, byte isIndef);
 WOLFSSL_LOCAL word32 SetIndefEnd(byte* output);
 WOLFSSL_LOCAL word32 SetOctetString(word32 len, byte* output);

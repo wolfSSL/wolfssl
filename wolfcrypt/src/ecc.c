@@ -13214,7 +13214,7 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
             err = add_entry(idx1, A);
          }
       }
-      if (err == MP_OKAY && idx1 != -1) {
+      if (err == MP_OKAY && idx1 != -1 && fp_cache[idx1].lru_count < (INT_MAX-1)) {
          /* increment LRU */
          ++(fp_cache[idx1].lru_count);
       }
@@ -13231,7 +13231,7 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
          }
       }
 
-      if (err == MP_OKAY && idx2 != -1) {
+      if (err == MP_OKAY && idx2 != -1 && fp_cache[idx2].lru_count < (INT_MAX-1)) {
          /* increment LRU */
          ++(fp_cache[idx2].lru_count);
       }
@@ -13368,7 +13368,7 @@ int wc_ecc_mulmod_ex(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
          if (idx >= 0)
             err = add_entry(idx, G);
       }
-      if (err == MP_OKAY && idx >= 0) {
+      if (err == MP_OKAY && idx >= 0 && fp_cache[idx].lru_count < (INT_MAX-1)) {
          /* increment LRU */
          ++(fp_cache[idx].lru_count);
       }
@@ -13539,7 +13539,7 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
          if (idx >= 0)
             err = add_entry(idx, G);
       }
-      if (err == MP_OKAY && idx >= 0) {
+      if (err == MP_OKAY && idx >= 0 && fp_cache[idx].lru_count < (INT_MAX-1)) {
          /* increment LRU */
          ++(fp_cache[idx].lru_count);
       }
