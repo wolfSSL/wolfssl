@@ -663,8 +663,9 @@ int wolfSSL_CTX_SetTmpEC_DHE_Sz(WOLFSSL_CTX* ctx, word16 sz)
         if (sz < ECC_MINSIZE) {
             ret = BAD_FUNC_ARG;
         }
+        else
     #endif
-        else if (sz > ECC_MAXSIZE) {
+        if (sz > ECC_MAXSIZE) {
             ret = BAD_FUNC_ARG;
         }
         else {

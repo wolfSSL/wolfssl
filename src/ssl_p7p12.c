@@ -1206,12 +1206,14 @@ PKCS7* wolfSSL_SMIME_read_PKCS7(WOLFSSL_BIO* in,
                 /* If line endings were added, the initial length may be
                  * exceeded. */
                 if ((canonPos + canonLineLen) >= canonSize) {
+                    char* newCanonSection;
                     canonSize = canonPos + canonLineLen;
-                    canonSection = (char*)XREALLOC(canonSection, canonSize,
+                    newCanonSection = (char*)XREALLOC(canonSection, canonSize,
                                                    NULL, DYNAMIC_TYPE_PKCS7);
-                    if (canonSection == NULL) {
+                    if (newCanonSection == NULL) {
                         goto error;
                     }
+                    canonSection = newCanonSection;
                 }
                 XMEMCPY(&canonSection[canonPos], canonLine,
                         (int)canonLineLen - 1);
