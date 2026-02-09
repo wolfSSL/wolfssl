@@ -2,6 +2,19 @@
 
 # rsapss.test
 
+[ ! -x ./examples/client/client ] && printf '\n\n%s\n' "Client doesn't exist" \
+                                  && exit 1
+
+if ./examples/client/client -? 2>&1 | grep "Client not compiled in!" ; then
+    echo 'skipping rsapss.test because client not compiled in.' 1>&2
+    exit 77
+fi
+
+if ./examples/server/server -? 2>&1 | grep "Server not compiled in!" ; then
+    echo 'skipping rsapss.test because server not compiled in.' 1>&2
+    exit 77
+fi
+
 if ! ./examples/client/client -V | grep -q 4; then
     echo "skipping because TLS 1.3 not enabled in this build"
     exit 0
