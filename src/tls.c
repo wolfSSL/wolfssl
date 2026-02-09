@@ -8008,8 +8008,12 @@ static int TLSX_KeyShare_GenX25519Key(WOLFSSL *ssl, KeyShareEntry* kse)
             key = (curve25519_key*)kse->key;
             kse->keyLen = CURVE25519_KEYSIZE;
         }
-    #if defined(WC_X25519_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW)
-        if (ret == 0) {
+    #if defined(WC_X25519_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+        defined(WC_ASYNC_ENABLE_X25519)
+        /* Only set non-blocking context when async device is active. With
+         * INVALID_DEVID there is no async loop to retry on FP_WOULDBLOCK, so
+         * skip non-blocking setup and use blocking mode instead. */
+        if (ret == 0 && ssl->devId != INVALID_DEVID) {
             x25519_nb_ctx_t* nbCtx = (x25519_nb_ctx_t*)XMALLOC(
                 sizeof(x25519_nb_ctx_t), ssl->heap,
                 DYNAMIC_TYPE_TMP_BUFFER);
@@ -8018,9 +8022,13 @@ static int TLSX_KeyShare_GenX25519Key(WOLFSSL *ssl, KeyShareEntry* kse)
             }
             else {
                 ret = wc_curve25519_set_nonblock(key, nbCtx);
+                if (ret != 0) {
+                    XFREE(nbCtx, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                }
             }
         }
-    #endif /* WC_X25519_NONBLOCK && WOLFSSL_ASYNC_CRYPT_SW */
+    #endif /* WC_X25519_NONBLOCK && WOLFSSL_ASYNC_CRYPT_SW &&
+              WC_ASYNC_ENABLE_X25519 */
         if (ret == 0) {
         #ifdef WOLFSSL_STATIC_EPHEMERAL
             ret = wolfSSL_StaticEphemeralKeyLoad(ssl, WC_PK_TYPE_CURVE25519, kse->key);

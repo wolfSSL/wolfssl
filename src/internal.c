@@ -8338,7 +8338,10 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
             ret = wc_ecc_init_ex(eccKey, ssl->heap, ssl->devId);
         #if defined(WC_ECC_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
             defined(WC_ASYNC_ENABLE_ECC)
-            if (ret == 0) {
+            /* Only set non-blocking context when async device is active. With
+             * INVALID_DEVID there is no async loop to retry on FP_WOULDBLOCK, so
+             * let the WC_ECC_NONBLOCK_ONLY blocking fallback handle it instead. */
+            if (ret == 0 && ssl->devId != INVALID_DEVID) {
                 eccNbCtx = (ecc_nb_ctx_t*)XMALLOC(sizeof(ecc_nb_ctx_t),
                                eccKey->heap, DYNAMIC_TYPE_TMP_BUFFER);
                 if (eccNbCtx == NULL) {
@@ -8365,8 +8368,12 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
         case DYNAMIC_TYPE_CURVE25519:
             x25519Key = (curve25519_key*)*pKey;
             ret = wc_curve25519_init_ex(x25519Key, ssl->heap, ssl->devId);
-        #if defined(WC_X25519_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW)
-            if (ret == 0) {
+        #if defined(WC_X25519_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+            defined(WC_ASYNC_ENABLE_X25519)
+            /* Only set non-blocking context when async device is active. With
+             * INVALID_DEVID there is no async loop to retry on FP_WOULDBLOCK, so
+             * skip non-blocking setup and use blocking mode instead. */
+            if (ret == 0 && ssl->devId != INVALID_DEVID) {
                 x25519NbCtx = (x25519_nb_ctx_t*)XMALLOC(sizeof(x25519_nb_ctx_t),
                                   ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
                 if (x25519NbCtx == NULL) {
@@ -8379,7 +8386,8 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
                     }
                 }
             }
-        #endif /* WC_X25519_NONBLOCK && WOLFSSL_ASYNC_CRYPT_SW */
+        #endif /* WC_X25519_NONBLOCK && WOLFSSL_ASYNC_CRYPT_SW &&
+                  WC_ASYNC_ENABLE_X25519 */
             break;
     #endif /* HAVE_CURVE25519 */
     #ifdef HAVE_ED448
