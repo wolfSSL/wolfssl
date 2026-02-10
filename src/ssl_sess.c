@@ -2827,12 +2827,20 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
         goto end;
     }
     s->chain.count = data[idx++];
+    if (s->chain.count > MAX_CHAIN_DEPTH) {
+        ret = BUFFER_ERROR;
+        goto end;
+    }
     for (j = 0; j < s->chain.count; j++) {
         if (i - idx < OPAQUE16_LEN) {
             ret = BUFFER_ERROR;
             goto end;
         }
         ato16(data + idx, &length); idx += OPAQUE16_LEN;
+        if (length > MAX_X509_SIZE) {
+            ret = BUFFER_ERROR;
+            goto end;
+        }
         s->chain.certs[j].length = length;
         if (i - idx < length) {
             ret = BUFFER_ERROR;
