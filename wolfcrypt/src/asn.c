@@ -38467,7 +38467,8 @@ enum {
 
 #ifdef HAVE_OCSP_RESPONDER
 
-static int EncodeCertID(OcspEntry* entry, byte* out, word32* outSz)
+WC_MAYBE_UNUSED static int EncodeCertID(OcspEntry* entry, byte* out,
+        word32* outSz)
 {
 #ifndef WOLFSSL_ASN_TEMPLATE
     (void)entry;
@@ -38487,7 +38488,7 @@ static int EncodeCertID(OcspEntry* entry, byte* out, word32* outSz)
 
     WOLFSSL_ENTER("EncodeCertID");
 
-    CALLOC_ASNGETDATA(dataASN, certidasn_Length, ret, NULL);
+    CALLOC_ASNSETDATA(dataASN, certidasn_Length, ret, NULL);
 
     if (ret == 0) {
         SetASN_OID(&dataASN[CERTIDASN_IDX_CID_HASHALGO_OID],
@@ -38510,7 +38511,7 @@ static int EncodeCertID(OcspEntry* entry, byte* out, word32* outSz)
     if (ret == 0)
         *outSz = sz;
 
-    FREE_ASNGETDATA(dataASN, NULL);
+    FREE_ASNSETDATA(dataASN, NULL);
     return ret;
 #endif
 }
@@ -38620,13 +38621,14 @@ int OcspDecodeCertID(const byte *input, word32 *inOutIdx, word32 inSz,
 
 #ifdef HAVE_OCSP_RESPONDER
 
-static int EncodeSingleResponse(OcspEntry* single, byte* out, word32* outSz,
-        void* heap)
+WC_MAYBE_UNUSED static int EncodeSingleResponse(OcspEntry* single, byte* out,
+        word32* outSz, void* heap)
 {
 #ifndef WOLFSSL_ASN_TEMPLATE
     (void)single;
     (void)out;
     (void)outSz;
+    (void)heap;
     /* Encoding ocsp responses not supported in legacy ASN parsing */
     return NOT_COMPILED_IN;
 #else
@@ -39184,13 +39186,13 @@ enum {
 #endif /* WOLFSSL_ASN_TEMPLATE */
 
 /* Encode OCSP response extensions (currently only nonce) */
-static int EncodeOcspRespExtensions(OcspResponse* resp, byte* out,
-        word32* outSz)
+WC_MAYBE_UNUSED static int EncodeOcspRespExtensions(OcspResponse* resp,
+        byte* out, word32* outSz)
 {
 #ifndef WOLFSSL_ASN_TEMPLATE
     (void)resp;
-    (void)output;
-    (void)size;
+    (void)out;
+    (void)outSz;
     /* Encoding ocsp responses not supported in legacy ASN parsing */
     return NOT_COMPILED_IN;
 #else
@@ -39269,7 +39271,8 @@ enum {
 
 #ifdef HAVE_OCSP_RESPONDER
 
-static int EncodeResponseData(OcspResponse* resp, byte* out, word32* outSz)
+WC_MAYBE_UNUSED static int EncodeResponseData(OcspResponse* resp, byte* out,
+        word32* outSz)
 {
 #ifndef WOLFSSL_ASN_TEMPLATE
     (void)resp;
@@ -39843,13 +39846,16 @@ err:
 
 #ifdef HAVE_OCSP_RESPONDER
 
-static int EncodeBasicOcspResponse(OcspResponse* resp, byte* out, word32* outSz,
-        RsaKey* rsaKey, ecc_key* eccKey, WC_RNG* rng)
+WC_MAYBE_UNUSED static int EncodeBasicOcspResponse(OcspResponse* resp,
+        byte* out, word32* outSz, RsaKey* rsaKey, ecc_key* eccKey, WC_RNG* rng)
 {
 #ifndef WOLFSSL_ASN_TEMPLATE
     (void)resp;
     (void)out;
     (void)outSz;
+    (void)rsaKey;
+    (void)eccKey;
+    (void)rng;
     /* Encoding ocsp responses not supported in legacy ASN parsing */
     return NOT_COMPILED_IN;
 #else
@@ -40149,19 +40155,23 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
     }
 #endif
     if (ret == 0 && !noVerifySignature && !sigValid) {
-        SignatureCtx sigCtx;
-        /* Initialize the signature context. */
-        InitSignatureCtx(&sigCtx, heap, INVALID_DEVID);
-
-        /* TODO: ConfirmSignature is blocking here */
-        /* Check the signature of the response CA public key. */
-        sigValid = ConfirmSignature(&sigCtx, resp->response,
-            resp->responseSz, ca->publicKey, ca->pubKeySize, ca->keyOID,
-            resp->sig, resp->sigSz, resp->sigOID, resp->sigParams,
-            resp->sigParamsSz, NULL);
-        if (sigValid != 0) {
-            WOLFSSL_MSG("\tOCSP Confirm signature failed");
-            ret = ASN_OCSP_CONFIRM_E;
+        /* Extra NULL check to satisfy compiler */
+        if (ca == NULL)
+            ret = ASN_NO_SIGNER_E;
+        if (ret == 0) {
+            SignatureCtx sigCtx;
+            /* Initialize the signature context. */
+            InitSignatureCtx(&sigCtx, heap, INVALID_DEVID);
+            /* TODO: ConfirmSignature is blocking here */
+            /* Check the signature of the response CA public key. */
+            sigValid = ConfirmSignature(&sigCtx, resp->response,
+                resp->responseSz, ca->publicKey, ca->pubKeySize, ca->keyOID,
+                resp->sig, resp->sigSz, resp->sigOID, resp->sigParams,
+                resp->sigParamsSz, NULL);
+            if (sigValid != 0) {
+                WOLFSSL_MSG("\tOCSP Confirm signature failed");
+                ret = ASN_OCSP_CONFIRM_E;
+            }
         }
     }
     if (ret == 0) {
@@ -40261,6 +40271,9 @@ int OcspResponseEncode(OcspResponse* resp, byte* out, word32* outSz,
     (void)resp;
     (void)out;
     (void)outSz;
+    (void)rsaKey;
+    (void)eccKey;
+    (void)rng;
     /* Encoding ocsp responses not supported in legacy ASN parsing */
     return NOT_COMPILED_IN;
 #else

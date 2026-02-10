@@ -1066,12 +1066,12 @@ static int ocspResponderTest_Run(OcspResponderTestConfig* config, int sendCerts)
     word32 serialSz;
     XFILE f = XBADFILE;
 
-    printf("\nRunning OCSP Responder Test: %s (sendCerts=%d)\n", 
+    printf("\nRunning OCSP Responder Test: %s (sendCerts=%d)\n",
            config->testName, sendCerts);
 
     XMEMSET(&targetCert, 0, sizeof(targetCert));
     XMEMSET(&caCert, 0, sizeof(caCert));
-    
+
     /* Create certificate manager */
     ExpectNotNull(cm = wolfSSL_CertManagerNew());
 
@@ -1079,8 +1079,10 @@ static int ocspResponderTest_Run(OcspResponderTestConfig* config, int sendCerts)
     ExpectTrue((f = XFOPEN(config->caCertPath, "rb")) != XBADFILE);
     ExpectIntGT(caCertSz = (word32)XFREAD(caCertDer, 1,
                                           caCertSz, f), 0);
-    XFCLOSE(f);
-    f = XBADFILE;
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+        f = XBADFILE;
+    }
     ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, caCertDer, caCertSz,
                                                 WOLFSSL_FILETYPE_ASN1),
                 WOLFSSL_SUCCESS);
@@ -1092,39 +1094,43 @@ static int ocspResponderTest_Run(OcspResponderTestConfig* config, int sendCerts)
     ExpectTrue((f = XFOPEN(config->caKeyPath, "rb")) != XBADFILE);
     ExpectIntGT(caKeyDerSz = (word32)XFREAD(caKeyDer, 1,
                                           caKeyDerSz, f), 0);
-    XFCLOSE(f);
-    f = XBADFILE;
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+        f = XBADFILE;
+    }
 
     /* Load target certificate */
     ExpectTrue((f = XFOPEN(config->targetCertPath, "rb")) != XBADFILE);
     ExpectIntGT(targetCertSz = (word32)XFREAD(targetCertDer, 1,
                                           targetCertSz, f), 0);
-    XFCLOSE(f);
-    f = XBADFILE;
-    
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+        f = XBADFILE;
+    }
+
     /* Parse target certificate */
     wc_InitDecodedCert(&targetCert, targetCertDer, targetCertSz, NULL);
     ExpectIntEQ(wc_ParseCert(&targetCert, CERT_TYPE, 0, cm), 0);
-    
+
     /* Create OCSP request from target certificate */
     ExpectNotNull(clientReq = wc_OcspRequest_new(NULL));
     ExpectIntEQ(wc_InitOcspRequest(clientReq, &targetCert, 1, NULL), 0);
-    ExpectIntGT(reqSz = wc_EncodeOcspRequest(clientReq, reqBuf, 
+    ExpectIntGT(reqSz = wc_EncodeOcspRequest(clientReq, reqBuf,
                                               sizeof(reqBuf)), 0);
-    
+
     /* Create OCSP Responder */
     ExpectNotNull(responder = wc_OcspResponder_new(NULL, sendCerts));
-    
+
     /* Add CA to responder */
     ExpectIntEQ(wc_OcspResponder_AddCA(responder, caCertDer, caCertSz,
                                        caKeyDer, caKeyDerSz), 0);
-    
+
     /* Set certificate status */
     ExpectNotNull(caSubject = wc_GetDecodedCertSubject(&caCert, &caSubjectSz));
     ExpectIntGT(caSubjectSz, 0);
     ExpectNotNull(serial = wc_GetDecodedCertSerial(&targetCert, &serialSz));
     ExpectIntGT(serialSz, 0);
-    
+
     ExpectIntEQ(wc_OcspResponder_SetCertStatus(responder,
                                                caSubject, caSubjectSz,
                                                serial, serialSz,
@@ -1132,7 +1138,7 @@ static int ocspResponderTest_Run(OcspResponderTestConfig* config, int sendCerts)
                                                config->revocationTime,
                                                config->revocationReason,
                                                config->validityPeriod), 0);
-    
+
     /* Get required response size */
     ExpectIntEQ(wc_OcspResponder_WriteResponse(responder, reqBuf, reqSz,
                                                NULL, &respSz), 0);
@@ -1144,7 +1150,7 @@ static int ocspResponderTest_Run(OcspResponderTestConfig* config, int sendCerts)
     /* Generate OCSP response */
     ExpectIntEQ(wc_OcspResponder_WriteResponse(responder, reqBuf, reqSz,
                                                respBuf, &respSz), 0);
-    
+
     /* Verify response matches expected result */
     {
         WOLFSSL_OCSP* ocsp = NULL;
@@ -1153,7 +1159,7 @@ static int ocspResponderTest_Run(OcspResponderTestConfig* config, int sendCerts)
                 respSz, NULL), config->expectedResult);
         wc_FreeOCSP(ocsp);
     }
-    
+
     /* Cleanup */
     XFREE(respBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     wc_OcspRequest_free(clientReq);
@@ -1161,7 +1167,7 @@ static int ocspResponderTest_Run(OcspResponderTestConfig* config, int sendCerts)
     wc_FreeDecodedCert(&targetCert);
     wc_FreeDecodedCert(&caCert);
     wolfSSL_CertManagerFree(cm);
-    
+
     return EXPECT_RESULT();
 }
 
@@ -1235,7 +1241,7 @@ int test_ocsp_responder(void)
     };
     int i;
     int numTests = (int)(sizeof(configs) / sizeof(configs[0]));
-    
+
     /* Run each test configuration twice: once without certs, once with certs */
     for (i = 0; i < numTests; i++) {
         ExpectIntEQ(ocspResponderTest_Run(&configs[i], 0), TEST_SUCCESS);

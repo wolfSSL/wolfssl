@@ -2418,7 +2418,7 @@ int wc_OcspResponder_SetCertStatus(OcspResponder* responder,
 {
     OcspResponderCa* ca = NULL;
     OcspResponderCertStatus* certStatus = NULL;
-    int ret = BAD_FUNC_ARG;
+    int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
     int isNew = 0;
 
     WOLFSSL_ENTER("wc_OcspResponder_SetCertStatus");
@@ -2515,6 +2515,8 @@ static int OcspResponse_WriteResponse(OcspResponder* responder, byte* response,
     ecc_key* eccKey = NULL;
     int respInited = 0;
 
+    wc_static_assert((int)KEYID_SIZE == (int)WC_SHA_DIGEST_SIZE);
+
     WOLFSSL_ENTER("OcspResponse_WriteResponse");
 
     if (responseSz == NULL || ca == NULL || certStatus == NULL ||
@@ -2578,7 +2580,6 @@ static int OcspResponse_WriteResponse(OcspResponder* responder, byte* response,
     }
 
     /* Only support sha-1 hashes for now */
-    wc_static_assert((int)KEYID_SIZE == (int)WC_SHA_DIGEST_SIZE);
     entry.hashAlgoOID = SHAh;
     XMEMCPY(entry.issuerHash, ca->issuerHash, KEYID_SIZE);
     XMEMCPY(entry.issuerKeyHash, ca->issuerKeyHash, KEYID_SIZE);

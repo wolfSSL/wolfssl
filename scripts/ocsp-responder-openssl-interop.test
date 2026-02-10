@@ -123,7 +123,7 @@ query_ocsp() {
 }
 
 ########################################################################
-# Start responders — one per CA/index-file pair
+# Start responders - one per CA/index-file pair
 ########################################################################
 
 # Responder 1: intermediate1-ca (server1=valid, server2=revoked)

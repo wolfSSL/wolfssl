@@ -167,48 +167,48 @@ create_new_cnf() {
     printf '%s\n' "Random Ports Selected: $1 $2 $3 $4"
 
     cat <<- EOF > $test_cnf
-	#
-	# openssl configuration file for OCSP certificates
-	#
+    #
+    # openssl configuration file for OCSP certificates
+    #
 
-	# Extensions to add to a certificate request (intermediate1-ca)
-	[ v3_req1 ]
-	basicConstraints       = CA:false
-	subjectKeyIdentifier   = hash
-	authorityKeyIdentifier = keyid:always,issuer:always
-	keyUsage               = nonRepudiation, digitalSignature, keyEncipherment
-	authorityInfoAccess    = OCSP;URI:http://127.0.0.1:$1
+    # Extensions to add to a certificate request (intermediate1-ca)
+    [ v3_req1 ]
+    basicConstraints       = CA:false
+    subjectKeyIdentifier   = hash
+    authorityKeyIdentifier = keyid:always,issuer:always
+    keyUsage               = nonRepudiation, digitalSignature, keyEncipherment
+    authorityInfoAccess    = OCSP;URI:http://127.0.0.1:$1
 
-	# Extensions to add to a certificate request (intermediate2-ca)
-	[ v3_req2 ]
-	basicConstraints       = CA:false
-	subjectKeyIdentifier   = hash
-	authorityKeyIdentifier = keyid:always,issuer:always
-	keyUsage               = nonRepudiation, digitalSignature, keyEncipherment
-	authorityInfoAccess    = OCSP;URI:http://127.0.0.1:$2
+    # Extensions to add to a certificate request (intermediate2-ca)
+    [ v3_req2 ]
+    basicConstraints       = CA:false
+    subjectKeyIdentifier   = hash
+    authorityKeyIdentifier = keyid:always,issuer:always
+    keyUsage               = nonRepudiation, digitalSignature, keyEncipherment
+    authorityInfoAccess    = OCSP;URI:http://127.0.0.1:$2
 
-	# Extensions to add to a certificate request (intermediate3-ca)
-	[ v3_req3 ]
-	basicConstraints       = CA:false
-	subjectKeyIdentifier   = hash
-	authorityKeyIdentifier = keyid:always,issuer:always
-	keyUsage               = nonRepudiation, digitalSignature, keyEncipherment
-	authorityInfoAccess    = OCSP;URI:http://127.0.0.1:$3
+    # Extensions to add to a certificate request (intermediate3-ca)
+    [ v3_req3 ]
+    basicConstraints       = CA:false
+    subjectKeyIdentifier   = hash
+    authorityKeyIdentifier = keyid:always,issuer:always
+    keyUsage               = nonRepudiation, digitalSignature, keyEncipherment
+    authorityInfoAccess    = OCSP;URI:http://127.0.0.1:$3
 
-	# Extensions for a typical CA
-	[ v3_ca ]
-	basicConstraints       = CA:true
-	subjectKeyIdentifier   = hash
-	authorityKeyIdentifier = keyid:always,issuer:always
-	keyUsage               = keyCertSign, cRLSign
-	authorityInfoAccess    = OCSP;URI:http://127.0.0.1:$4
+    # Extensions for a typical CA
+    [ v3_ca ]
+    basicConstraints       = CA:true
+    subjectKeyIdentifier   = hash
+    authorityKeyIdentifier = keyid:always,issuer:always
+    keyUsage               = keyCertSign, cRLSign
+    authorityInfoAccess    = OCSP;URI:http://127.0.0.1:$4
 
-	# OCSP extensions.
-	[ v3_ocsp ]
-	basicConstraints       = CA:false
-	subjectKeyIdentifier   = hash
-	authorityKeyIdentifier = keyid:always,issuer:always
-	extendedKeyUsage       = OCSPSigning
+    # OCSP extensions.
+    [ v3_ocsp ]
+    basicConstraints       = CA:false
+    subjectKeyIdentifier   = hash
+    authorityKeyIdentifier = keyid:always,issuer:always
+    extendedKeyUsage       = OCSPSigning
 EOF
 
     mv $test_cnf $CERT_DIR/$test_cnf

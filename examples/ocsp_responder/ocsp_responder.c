@@ -29,6 +29,10 @@
     #include <wolfssl/options.h>
 #endif
 #include <wolfssl/wolfcrypt/settings.h>
+
+#undef TEST_OPENSSL_COEXIST /* can't use this option with this example */
+#undef OPENSSL_COEXIST /* can't use this option with this example */
+
 #include <wolfssl/ssl.h>
 #include <wolfssl/ocsp.h>
 #include <wolfssl/test.h>
@@ -62,9 +66,9 @@ char* myoptarg = NULL;
     #include <errno.h>
     #define SOCKET_T int
 #ifndef INVALID_SOCKET
-    #define INVALID_SOCKET -1
+    #define INVALID_SOCKET (-1)
 #endif
-    #define SOCKET_ERROR -1
+    #define SOCKET_ERROR (-1)
 #endif
 
 /* Default values */
@@ -498,7 +502,7 @@ static int RecvHttpRequest(SOCKET_T fd, byte* buf, int bufSz)
 }
 
 /* Parse HTTP request and extract OCSP request body */
-static int ParseHttpRequest(const byte* httpReq, int httpReqSz, 
+static int ParseHttpRequest(const byte* httpReq, int httpReqSz,
                             const byte** body, int* bodySz,
                             char* path, int pathSz)
 {
@@ -635,16 +639,16 @@ THREAD_RETURN WOLFSSL_THREAD ocsp_responder_test(void* args)
     DecodedCert caCert;
     SOCKET_T sockfd = INVALID_SOCKET;
     SOCKET_T clientfd = INVALID_SOCKET;
-    
+
     byte* caCertDer = NULL;
     word32 caCertDerSz = 0;
     byte* caKeyDer = NULL;
     word32 caKeyDerSz = 0;
-    
+
     byte httpBuf[MAX_REQUEST_SIZE];
     byte respBuf[MAX_RESPONSE_SIZE];
     word32 respSz;
-    
+
     int requestsProcessed = 0;
     word32 caSubjectSz = 0;
 
@@ -848,12 +852,12 @@ THREAD_RETURN WOLFSSL_THREAD ocsp_responder_test(void* args)
         if (ret != 0) {
             enum Ocsp_Response_Status errStatus;
             LOG_ERROR("Error generating OCSP response: %d\n", ret);
-            
+
             /* Generate appropriate OCSP error response */
             errStatus = MapErrorToOcspStatus(ret);
             respSz = sizeof(respBuf);
             ret = wc_OcspResponder_WriteErrorResponse(errStatus, respBuf, &respSz);
-            
+
             if (ret != 0) {
                 /* If we can't even encode an error response, send HTTP error */
                 LOG_ERROR("Error encoding OCSP error response: %d\n", ret);
@@ -861,7 +865,7 @@ THREAD_RETURN WOLFSSL_THREAD ocsp_responder_test(void* args)
                 close(clientfd);
                 continue;
             }
-            
+
             if (opts.verbose) {
                 printf("Generated OCSP error response (status=%d): %d bytes\n",
                        errStatus, respSz);
@@ -894,9 +898,9 @@ cleanup:
         close(clientfd);
     if (sockfd != INVALID_SOCKET)
         close(sockfd);
-    
+
     wc_FreeDecodedCert(&caCert);
-    
+
     if (responder)
         wc_OcspResponder_free(responder);
     if (indexEntries)

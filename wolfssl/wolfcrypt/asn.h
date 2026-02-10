@@ -2746,7 +2746,7 @@ struct OcspEntry
 enum responderIdType {
     OCSP_RESPONDER_ID_INVALID = 0,
     OCSP_RESPONDER_ID_NAME = 1,
-    OCSP_RESPONDER_ID_KEY  = 2,
+    OCSP_RESPONDER_ID_KEY  = 2
 };
 /* TODO: Long-term, it would be helpful if we made this struct and other OCSP
          structs conform to the ASN spec as described in RFC 6960. It will help
@@ -2869,13 +2869,13 @@ struct OcspResponderCertStatus {
 typedef struct OcspResponderCa OcspResponderCa;
 struct OcspResponderCa {
     char subject[WC_ASN_NAME_MAX];   /* CA subject name for lookup */
-    
+
     union {
         struct RsaKey rsa;
         struct ecc_key ecc;
     } key;                           /* CA private key for signing */
     enum Key_Sum keyType;            /* Type of key */
-    
+
     byte issuerHash[KEYID_SIZE];     /* Hash of CA's subject DN */
     byte issuerKeyHash[KEYID_SIZE];  /* Hash of CA's public key */
 
@@ -2883,7 +2883,7 @@ struct OcspResponderCa {
     word32 certDerSz;                /* Size of certificate DER */
 
     OcspResponderCertStatus* statuses; /* List of certificate statuses for this CA */
-    
+
     OcspResponderCa* next;           /* Next CA in list */
 };
 
