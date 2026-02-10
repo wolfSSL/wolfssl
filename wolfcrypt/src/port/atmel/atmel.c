@@ -1227,7 +1227,11 @@ int atmel_init(void)
             }
             #ifdef WOLFSSL_MICROCHIP_TA100
                 /* create handles for TA100 */
-                atmel_createHandles();
+                status = atmel_createHandles();
+                if (status != ATCA_SUCCESS) {
+                    WOLFSSL_MSG("Failed to create TA100 handles");
+                    return WC_HW_E;
+                }
             #endif
         }
 
