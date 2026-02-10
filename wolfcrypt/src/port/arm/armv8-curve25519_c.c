@@ -471,7 +471,7 @@ void fe_cmov_table(fe* r, fe* base, signed char b)
     );
 }
 
-void fe_invert_nct(word64* r, const word64* a)
+void fe_invert_nct(fe r, const fe a)
 {
     __asm__ __volatile__ (
         "mov	x19, #-19\n\t"

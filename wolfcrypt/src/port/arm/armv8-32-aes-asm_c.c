@@ -17300,6 +17300,8 @@ WC_OMIT_FRAME_POINTER void AES_decrypt_block(const word32* td, int nr,
 
 #endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
 static const word32* L_AES_ARM32_td_ecb = L_AES_ARM32_td_data;
+#if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || \
+        defined(HAVE_AES_ECB)
 static const byte L_AES_ARM32_ecb_td4[] = {
     0x52, 0x09, 0x6a, 0xd5, 0x30, 0x36, 0xa5, 0x38,
     0xbf, 0x40, 0xa3, 0x9e, 0x81, 0xf3, 0xd7, 0xfb,
@@ -17335,8 +17337,6 @@ static const byte L_AES_ARM32_ecb_td4[] = {
     0xe1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0c, 0x7d,
 };
 
-#if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || \
-        defined(HAVE_AES_ECB)
 void AES_ECB_decrypt(const unsigned char* in_p, unsigned char* out_p,
     unsigned long len_p, const unsigned char* ks_p, int nr_p);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
