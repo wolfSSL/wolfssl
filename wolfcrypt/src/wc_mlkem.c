@@ -368,6 +368,7 @@ int wc_MlKemKey_Free(MlKemKey* key)
  */
 int wc_MlKemKey_MakeKey(MlKemKey* key, WC_RNG* rng)
 {
+#ifndef WC_NO_RNG
     int ret = 0;
     unsigned char rand[WC_ML_KEM_MAKEKEY_RAND_SZ];
 
@@ -397,6 +398,11 @@ int wc_MlKemKey_MakeKey(MlKemKey* key, WC_RNG* rng)
 
     /* Step 4: return ret != 0 on falsum or internal key generation failure. */
     return ret;
+#else
+    (void)key;
+    (void)rng;
+    return NOT_COMPILED_IN;
+#endif /* WC_NO_RNG */
 }
 
 /**
@@ -516,16 +522,16 @@ int wc_MlKemKey_MakeKeyWithRandom(MlKemKey* key, const unsigned char* rand,
 #ifndef WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM
 #ifndef WOLFSSL_MLKEM_CACHE_A
         /* e (v) | a (m) */
-        e = (sword16*)XMALLOC((k + 1) * k * MLKEM_N * sizeof(sword16),
+        e = (sword16*)XMALLOC((size_t)((k + 1) * k * MLKEM_N) * sizeof(sword16),
             key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #else
         /* e (v) */
-        e = (sword16*)XMALLOC(k * MLKEM_N * sizeof(sword16),
+        e = (sword16*)XMALLOC((size_t)(k * MLKEM_N) * sizeof(sword16),
             key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 #else
         /* e (v) */
-        e = (sword16*)XMALLOC(k * MLKEM_N * sizeof(sword16),
+        e = (sword16*)XMALLOC((size_t)(k * MLKEM_N) * sizeof(sword16),
             key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
         if (e == NULL) {
@@ -557,7 +563,7 @@ int wc_MlKemKey_MakeKeyWithRandom(MlKemKey* key, const unsigned char* rand,
 #endif
 #ifndef WOLFSSL_NO_ML_KEM
         {
-            buf[0] = k;
+            buf[0] = (byte)k;
             /* Expand 33 bytes of random to 32.
              * Alg 13: Step 1: (rho,sigma) <- G(d||k)
              */
@@ -849,7 +855,7 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c)
         /* Generate noise using PRF.
          * Steps 9-17: generate y, e_1, e_2
          */
-        ret = mlkem_get_noise(&key->prf, k, y, e1, e2, r);
+        ret = mlkem_get_noise(&key->prf, (int)k, y, e1, e2, r);
     }
     #ifdef WOLFSSL_MLKEM_CACHE_A
     if ((ret == 0) && ((key->flags & MLKEM_FLAG_A_SET) != 0)) {
@@ -870,7 +876,7 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c)
     if (ret == 0) {
         /* Generate the transposed matrix.
          *   Step 4-8: generate matrix A_hat */
-        ret = mlkem_gen_matrix(&key->prf, a, k, key->pubSeed, 1);
+        ret = mlkem_gen_matrix(&key->prf, a, (int)k, key->pubSeed, 1);
     }
     if (ret == 0) {
         /* Assign remaining allocated dynamic memory to pointers.
@@ -880,7 +886,7 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c)
 
         /* Perform encapsulation maths.
          *   Steps 18-19, 21: calculate u and v */
-        mlkem_encapsulate(key->pub, u, v, a, y, e1, e2, mu, k);
+        mlkem_encapsulate(key->pub, u, v, a, y, e1, e2, mu, (int)k);
     }
 #else /* WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM */
     if (ret == 0) {
@@ -892,7 +898,7 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c)
         mlkem_prf_init(&key->prf);
         /* Generate noise using PRF.
          * Steps 9-12: generate y */
-        ret = mlkem_get_noise(&key->prf, k, y, NULL, NULL, r);
+        ret = mlkem_get_noise(&key->prf, (int)k, y, NULL, NULL, r);
     }
     if (ret == 0) {
         /* Assign remaining allocated dynamic memory to pointers.
@@ -903,7 +909,7 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c)
         /* Perform encapsulation maths.
          *   Steps 13-17: generate e_1 and e_2
          *   Steps 18-19, 21: calculate u and v */
-        ret = mlkem_encapsulate_seeds(key->pub, &key->prf, u, a, y, k, m,
+        ret = mlkem_encapsulate_seeds(key->pub, &key->prf, u, a, y, (int)k, m,
             key->pubSeed, r);
     }
 #endif /* WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM */
@@ -1026,6 +1032,7 @@ static int wc_mlkemkey_check_h(MlKemKey* key)
 int wc_MlKemKey_Encapsulate(MlKemKey* key, unsigned char* c, unsigned char* k,
     WC_RNG* rng)
 {
+#ifndef WC_NO_RNG
     int ret = 0;
     unsigned char m[WC_ML_KEM_ENC_RAND_SZ];
 
@@ -1050,6 +1057,13 @@ int wc_MlKemKey_Encapsulate(MlKemKey* key, unsigned char* c, unsigned char* k,
 
     /* Step 3: return ret != 0 on falsum or internal key generation failure. */
     return ret;
+#else
+    (void)key;
+    (void)c;
+    (void)k;
+    (void)rng;
+    return NOT_COMPILED_IN;
+#endif /* WC_NO_RNG */
 }
 
 /**
@@ -1358,7 +1372,7 @@ static MLKEM_NOINLINE int mlkemkey_decapsulate(MlKemKey* key, byte* m,
 
         /* Decapsulate the cipher text into polynomial.
          * Step 6: w <- v' - InvNTT(s_hat_trans o NTT(u')) */
-        mlkem_decapsulate(key->priv, w, u, v, k);
+        mlkem_decapsulate(key->priv, w, u, v, (int)k);
 
         /* Convert the polynomial into a array of bytes (message).
          * Step 7: m <- ByteEncode_1(Compress_1(w)) */
@@ -1516,7 +1530,7 @@ int wc_MlKemKey_Decapsulate(MlKemKey* key, unsigned char* ss,
     }
     if (ret == 0) {
         /* Compare generated cipher text with that passed in. */
-        fail = mlkem_cmp(ct, cmp, ctSz);
+        fail = mlkem_cmp(ct, cmp, (int)ctSz);
 
 #if defined(WOLFSSL_MLKEM_KYBER) && !defined(WOLFSSL_NO_ML_KEM)
         if (key->type & MLKEM_KYBER)
@@ -1545,7 +1559,7 @@ int wc_MlKemKey_Decapsulate(MlKemKey* key, unsigned char* ss,
             if (ret == 0) {
                /* Set secret to kr or fake secret on comparison failure. */
                for (i = 0; i < WC_ML_KEM_SYM_SZ; i++) {
-                   ss[i] = kr[i] ^ ((kr[i] ^ msg[i]) & fail);
+                   ss[i] = (byte)(kr[i] ^ ((kr[i] ^ msg[i]) & fail));
                }
             }
         }
@@ -1586,7 +1600,7 @@ static void mlkemkey_decode_public(sword16* pub, byte* pubSeed, const byte* p,
 
     /* Decode public key that is vector of polynomials.
      * Step 2: t <- ByteDecode_12(ek_PKE[0 : 384k]) */
-    mlkem_from_bytes(pub, p, k);
+    mlkem_from_bytes(pub, p, (int)k);
     p += k * WC_ML_KEM_POLY_SIZE;
 
     /* Read public key seed.
@@ -1702,7 +1716,7 @@ int wc_MlKemKey_DecodePrivateKey(MlKemKey* key, const unsigned char* in,
         /* Decode private key that is vector of polynomials.
          * Alg 18 Step 1: dk_PKE <- dk[0 : 384k]
          * Alg 15 Step 5: s_hat <- ByteDecode_12(dk_PKE) */
-        mlkem_from_bytes(key->priv, p, k);
+        mlkem_from_bytes(key->priv, p, (int)k);
         p += k * WC_ML_KEM_POLY_SIZE;
 
         /* Decode the public key that is after the private key. */
@@ -1811,7 +1825,7 @@ int wc_MlKemKey_DecodePublicKey(MlKemKey* key, const unsigned char* in,
 
     if (ret == 0) {
         mlkemkey_decode_public(key->pub, key->pubSeed, p, k);
-        ret = mlkem_check_public(key->pub, k);
+        ret = mlkem_check_public(key->pub, (int)k);
     }
     if (ret == 0) {
         /* Calculate public hash. */
@@ -2056,7 +2070,7 @@ int wc_MlKemKey_EncodePrivateKey(MlKemKey* key, unsigned char* out, word32 len)
 
     if (ret == 0) {
         /* Encode private key that is vector of polynomials. */
-        mlkem_to_bytes(p, key->priv, k);
+        mlkem_to_bytes(p, key->priv, (int)k);
         p += WC_ML_KEM_POLY_SIZE * k;
 
         /* Encode public key. */
@@ -2173,7 +2187,7 @@ int wc_MlKemKey_EncodePublicKey(MlKemKey* key, unsigned char* out, word32 len)
         int i;
 
         /* Encode public key polynomial by polynomial. */
-        mlkem_to_bytes(p, key->pub, k);
+        mlkem_to_bytes(p, key->pub, (int)k);
         p += k * WC_ML_KEM_POLY_SIZE;
 
         /* Append public seed. */

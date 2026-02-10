@@ -1746,6 +1746,9 @@ do
   small)
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLKEM_SMALL"
     ;;
+  no-large-code)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLKEM_NO_LARGE_CODE"
+    ;;
   cache-a)
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLKEM_CACHE_A"
     ;;
