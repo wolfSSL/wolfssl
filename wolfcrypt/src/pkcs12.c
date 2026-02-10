@@ -509,6 +509,7 @@ exit_gsd:
     if (ret != 0) {
         if (mac) {
             XFREE(mac->digest, pkcs12->heap, DYNAMIC_TYPE_DIGEST);
+            XFREE(mac->salt, pkcs12->heap, DYNAMIC_TYPE_SALT);
             XFREE(mac, pkcs12->heap, DYNAMIC_TYPE_PKCS);
         }
     }
