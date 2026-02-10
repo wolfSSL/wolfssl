@@ -22952,7 +22952,9 @@ static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
     const char       inStr[] = TEST_STRING;
     word32           inLen   = (word32)TEST_STRING_SZ;
     word32           outSz;
+#ifdef WOLFSSL_MICROCHIP_TA100
     word32           sigSz;
+#endif
     word32           plainSz;
     word32           digestSz;
     int              i, j;
@@ -23045,8 +23047,10 @@ static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
             if (ret <= 0)
                 ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_pss);
             outSz = (word32)ret;
+#ifdef WOLFSSL_MICROCHIP_TA100
             /* Preserve signature length for TA100 verify. */
             sigSz = outSz;
+#endif
 
             XMEMCPY(sig, out, outSz);
             plain = NULL;
