@@ -2723,7 +2723,8 @@ int test_evp_cipher_aead_aad_overflow(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && !defined(NO_AES) && defined(HAVE_AESGCM) && \
-    defined(WOLFSSL_AES_256) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    defined(WOLFSSL_AES_256) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && \
+    !defined(WOLFSSL_AESGCM_STREAM)
 
     WOLFSSL_EVP_CIPHER_CTX *ctx = NULL;
     byte key[32] = {0};
