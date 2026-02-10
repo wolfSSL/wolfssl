@@ -2702,3 +2702,81 @@ int test_wolfSSL_EVP_mdc2(void)
     return EXPECT_RESULT();
 }
 
+/* Test for integer overflow in EVP AEAD AAD accumulation.
+ *
+ * wolfSSL_EVP_CipherUpdate_GCM_AAD (and the CCM/ARIA variants) compute
+ * allocation sizes as (ctx->authInSz + inl) where both operands are int.
+ * Repeated AAD calls can accumulate authInSz to a value where adding inl
+ * overflows the signed int sum. The overflowed value is then cast to size_t
+ * for XMALLOC/XREALLOC, producing either:
+ *   - A huge allocation on 64-bit (masking the bug as MEMORY_E), or
+ *   - A potential heap buffer overflow on 32-bit if the wrapped size is small
+ *     enough to succeed but the subsequent XMEMCPY uses the original large
+ *     authInSz offset.
+ *
+ * This test simulates the overflow condition by directly setting authInSz near
+ * INT_MAX after legitimate initialization, then calling EVP_EncryptUpdate with
+ * AAD that triggers the overflow. A properly-fixed implementation should detect
+ * the overflow and return WOLFSSL_FAILURE before attempting the allocation.
+ */
+int test_evp_cipher_aead_aad_overflow(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_AES) && defined(HAVE_AESGCM) && \
+    defined(WOLFSSL_AES_256) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+
+    WOLFSSL_EVP_CIPHER_CTX *ctx = NULL;
+    byte key[32] = {0};
+    byte iv[12] = {0};
+    byte aad[32] = {0};
+    int outl = 0;
+    int savedAuthInSz;
+
+    /* Initialize AES-256-GCM encryption context */
+    ctx = EVP_CIPHER_CTX_new();
+    ExpectNotNull(ctx);
+    ExpectIntEQ(WOLFSSL_SUCCESS, EVP_EncryptInit_ex(ctx, EVP_aes_256_gcm(),
+        NULL, key, iv));
+
+    /* Feed a small legitimate AAD to allocate authIn */
+    ExpectIntEQ(WOLFSSL_SUCCESS, EVP_EncryptUpdate(ctx, NULL, &outl, aad, 16));
+
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(ctx->authInSz, 16);
+
+        /* Simulate accumulated AAD near INT_MAX.
+         * In a real attack scenario, an attacker controlling AAD input to a
+         * server could accumulate authInSz toward INT_MAX through many calls.
+         * We set it directly to avoid needing ~2GB of actual allocations.
+         */
+        savedAuthInSz = ctx->authInSz;
+        ctx->authInSz = INT_MAX - 16;
+
+        /* Attempt AAD update that causes overflow:
+         *   (INT_MAX - 16) + 32 = INT_MAX + 16
+         * This overflows signed int (undefined behavior in C). The result:
+         *   - As signed int: wraps to INT_MIN + 15 (on 2's complement)
+         *   - Cast to size_t on 64-bit: ~0xFFFFFFFF8000000F (huge)
+         *   - Cast to size_t on 32-bit: ~0x8000000F (~2GB)
+         *
+         * With no overflow check, the code proceeds to XREALLOC with the
+         * wrapped size. On 64-bit this fails (MEMORY_E), accidentally
+         * preventing corruption. On 32-bit, if the allocation succeeds,
+         * XMEMCPY writes at offset (INT_MAX - 16) into the buffer, causing
+         * heap corruption.
+         */
+        ExpectIntNE(WOLFSSL_SUCCESS,
+            EVP_EncryptUpdate(ctx, NULL, &outl, aad, 32));
+
+        /* Restore authInSz so cleanup doesn't operate on corrupted state */
+        if (ctx != NULL)
+            ctx->authInSz = savedAuthInSz;
+    }
+
+    EVP_CIPHER_CTX_free(ctx);
+
+#endif /* OPENSSL_EXTRA && HAVE_AESGCM && WOLFSSL_AES_256 */
+    return EXPECT_RESULT();
+}
+
+
