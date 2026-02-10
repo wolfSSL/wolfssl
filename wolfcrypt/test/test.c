@@ -34493,10 +34493,6 @@ done:
     WC_FREE_VAR(sig, HEAP_HINT);
     WC_FREE_VAR(digest, HEAP_HINT);
 #endif
-#if defined(WOLFSSL_MICROCHIP_TA100)
-    atmel_ecc_free(ATMEL_SLOT_ECDHE_ALICE);
-    atmel_ecc_free(ATMEL_SLOT_ECDHE_BOB);
-#endif
     (void)keySize;
     (void)curve_id;
     (void)rng;

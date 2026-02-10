@@ -229,7 +229,7 @@ struct RsaKey {
 #if defined(WOLFSSL_MICROCHIP_TA100)
     uint16_t  rKeyH;        /* private key handle */
     uint16_t  uKeyH;        /* public key handle */
-    byte uKey[TA_KEY_TYPE_RSA2048_SIZE]; /* public key */
+    byte uKey[WOLFSSL_TA_KEY_TYPE_RSA_SIZE]; /* public key */
 #endif
 #ifdef WOLF_CRYPTO_CB
     void* devCtx;
@@ -505,4 +505,3 @@ WOLFSSL_API int wc_RsaPrivateKeyDecodeRaw(const byte* n, word32 nSz,
 
 #endif /* NO_RSA */
 #endif /* WOLF_CRYPT_RSA_H */
-

@@ -4463,7 +4463,7 @@ int wc_RsaEncryptSize(const RsaKey* key)
 
 #if defined(WOLFSSL_MICROCHIP_TA100)
     if (ret == 0 && (key->rKeyH != 0 || key->uKeyH != 0)) {
-        ret = 2048 / 8;
+        ret = WOLFSSL_TA_KEY_TYPE_RSA_SIZE;
     }
 #endif
 

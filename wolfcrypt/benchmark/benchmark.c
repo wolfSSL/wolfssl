@@ -12385,10 +12385,6 @@ exit:
     WC_FREE_ARRAY(sig, BENCH_MAX_PENDING, HEAP_HINT);
     WC_FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
 #endif
-#if defined(WOLFSSL_MICROCHIP_TA100)
-    atmel_ecc_free(ATMEL_SLOT_ECDHE_ALICE);
-    atmel_ecc_free(ATMEL_SLOT_ECDHE_BOB);
-#endif
     (void)useDeviceID;
     (void)pending;
     (void)x;

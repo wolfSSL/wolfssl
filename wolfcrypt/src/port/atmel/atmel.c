@@ -210,7 +210,11 @@ static ATCAIfaceCfg* gCfg = &config_atmel_device[WOLFSSL_ATCA_DEVICE_NO];
     #ifndef SHARED_DATA_ADDR
         #define SHARED_DATA_ADDR 0x8006
     #endif
-        #define MAP_TO_HANDLE(value) (SHARED_DATA_ADDR + (value))
+    /* ECC key handles must not overlap shared-data handles. */
+    #ifndef TA100_ECC_HANDLE_BASE
+        #define TA100_ECC_HANDLE_BASE 0x9000
+    #endif
+        #define MAP_TO_HANDLE(value) (TA100_ECC_HANDLE_BASE + (value))
     /* TA100 uses separate handle range for symmetric keys (AES/HMAC) */
     #ifndef TA100_AES_HANDLE
         #define TA100_AES_HANDLE 0x8106
@@ -1377,8 +1381,7 @@ int atcatls_create_pms_cb(WOLFSSL* ssl, ecc_key* otherKey,
             tmpKey.slot = slotId;
 
             /* generate new ephemeral key on device */
-            ret = atmel_ecc_create_key(MAP_TO_HANDLE(slotId), otherKey->dp->id,
-                                                     peerKey);
+            ret = atmel_ecc_create_key(slotId, otherKey->dp->id, peerKey);
             if (ret != ATCA_SUCCESS) {
                 goto exit;
             }
