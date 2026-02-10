@@ -16493,6 +16493,90 @@ static int test_wolfSSL_sigalg_info(void)
     return EXPECT_RESULT();
 }
 
+static int test_wolfSSL_d2i_SSL_SESSION_bounds_check(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_EXT_CACHE) && \
+    defined(SESSION_CERTS)
+    WOLFSSL_SESSION* sess = NULL;
+    WOLFSSL_SESSION* restored = NULL;
+    unsigned char* sessDer = NULL;
+    unsigned char* modData = NULL;
+    const unsigned char* ptr = NULL;
+    unsigned char* pp = NULL;
+    int sz = 0;
+    int idx = 0;
+    int sessionIDSz = 0;
+    int altIDLen = 0;
+    int chainOffset = 0;
+    int newLen = 0;
+    word16 oversized = 0;
+
+    /* Create and serialize a valid empty session to learn the format */
+    ExpectNotNull(sess = wolfSSL_SESSION_new());
+    ExpectIntGT((sz = wolfSSL_i2d_SSL_SESSION(sess, NULL)), 0);
+    ExpectNotNull(sessDer = (unsigned char*)XMALLOC(sz, NULL,
+        DYNAMIC_TYPE_OPENSSL));
+    pp = sessDer;
+    ExpectIntGT(wolfSSL_i2d_SSL_SESSION(sess, &pp), 0);
+    wolfSSL_SESSION_free(sess);
+    sess = NULL;
+
+    /* Calculate offset to chain.count field:
+     *   side(1) + bornOn(4) + timeout(4) + sessionIDSz(1) + sessionID(var)
+     *   + masterSecret(SECRET_LEN=48) + haveEMS(1) + altIDLen(1) + altID(var)
+     */
+    idx = 1 + 4 + 4;
+    if (EXPECT_SUCCESS()) {
+        sessionIDSz = sessDer[idx++];
+        idx += sessionIDSz + SECRET_LEN + 1;
+        altIDLen = sessDer[idx++];
+        if (altIDLen == ID_LEN)
+            idx += ID_LEN;
+        chainOffset = idx;
+    }
+
+    /*
+     * The deserialization must reject this with a BUFFER_ERROR (return NULL).
+     */
+    newLen = chainOffset + 1 + 50;
+    ExpectNotNull(modData = (unsigned char*)XMALLOC(newLen, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(modData, sessDer, chainOffset);
+        modData[chainOffset] = MAX_CHAIN_DEPTH + 1;
+        XMEMSET(modData + chainOffset + 1, 0, newLen - chainOffset - 1);
+    }
+    ptr = modData;
+    ExpectNull(restored = wolfSSL_d2i_SSL_SESSION(NULL, &ptr, (long)newLen));
+    XFREE(modData, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    modData = NULL;
+
+    /*
+     * chain.count is valid (1), but the cert length field is too large.
+     */
+    newLen = chainOffset + 1 + 2 + 100;
+    ExpectNotNull(modData = (unsigned char*)XMALLOC(newLen, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(modData, sessDer, chainOffset);
+        idx = chainOffset;
+        modData[idx++] = 1;  /* chain.count = 1 */
+        oversized = MAX_X509_SIZE + 1;
+        modData[idx++] = (byte)(oversized >> 8);
+        modData[idx++] = (byte)(oversized & 0xFF);
+        XMEMSET(modData + idx, 0xCC, newLen - idx);
+    }
+    ptr = modData;
+    ExpectNull(restored = wolfSSL_d2i_SSL_SESSION(NULL, &ptr, (long)newLen));
+    XFREE(modData, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    modData = NULL;
+
+    XFREE(sessDer, NULL, DYNAMIC_TYPE_OPENSSL);
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_wolfSSL_SESSION(void)
 {
     EXPECT_DECLS;
@@ -31747,6 +31831,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_ciphersuite_auth),
     TEST_DECL(test_wolfSSL_sigalg_info),
     /* Can't memory test as tcp_connect aborts. */
+    TEST_DECL(test_wolfSSL_d2i_SSL_SESSION_bounds_check),
     TEST_DECL(test_wolfSSL_SESSION),
     TEST_DECL(test_wolfSSL_SESSION_expire_downgrade),
     TEST_DECL(test_wolfSSL_CTX_sess_set_remove_cb),
