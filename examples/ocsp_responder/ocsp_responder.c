@@ -600,6 +600,24 @@ static int SendHttpError(SOCKET_T clientfd, int statusCode, const char* statusMs
     return (sent == len) ? 0 : -1;
 }
 
+/* Map error codes to OCSP response status */
+static enum Ocsp_Response_Status MapErrorToOcspStatus(int err)
+{
+    switch (err) {
+        case ASN_PARSE_E:
+            return OCSP_MALFORMED_REQUEST;
+        case ASN_SIG_HASH_E:
+            /* Unsupported hash algorithm */
+            return OCSP_INTERNAL_ERROR;
+        case ASN_NO_SIGNER_E:
+            return OCSP_UNAUTHORIZED;
+        case OCSP_CERT_UNKNOWN:
+            return OCSP_UNAUTHORIZED;
+        default:
+            return OCSP_INTERNAL_ERROR;
+    }
+}
+
 /* Main OCSP responder function */
 THREAD_RETURN WOLFSSL_THREAD ocsp_responder_test(void* args)
 {
@@ -826,12 +844,26 @@ THREAD_RETURN WOLFSSL_THREAD ocsp_responder_test(void* args)
                                               respBuf, &respSz);
 
         if (ret != 0) {
+            enum Ocsp_Response_Status errStatus;
             LOG_ERROR("Error generating OCSP response: %d\n", ret);
-            /* Try to send an OCSP error response */
-            /* For now, just send HTTP error */
-            SendHttpError(clientfd, 500, "Internal Server Error");
-            close(clientfd);
-            continue;
+            
+            /* Generate appropriate OCSP error response */
+            errStatus = MapErrorToOcspStatus(ret);
+            respSz = sizeof(respBuf);
+            ret = wc_OcspResponder_WriteErrorResponse(errStatus, respBuf, &respSz);
+            
+            if (ret != 0) {
+                /* If we can't even encode an error response, send HTTP error */
+                LOG_ERROR("Error encoding OCSP error response: %d\n", ret);
+                SendHttpError(clientfd, 500, "Internal Server Error");
+                close(clientfd);
+                continue;
+            }
+            
+            if (opts.verbose) {
+                printf("Generated OCSP error response (status=%d): %d bytes\n",
+                       errStatus, respSz);
+            }
         }
 
         if (opts.verbose) {

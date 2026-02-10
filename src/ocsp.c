@@ -2670,6 +2670,59 @@ out:
     return ret;
 }
 
+int wc_OcspResponder_WriteErrorResponse(enum Ocsp_Response_Status status,
+    byte* response, word32* responseSz)
+{
+    int ret = 0;
+    OcspResponse resp;
+    int respInited = 0;
+
+    WOLFSSL_ENTER("wc_OcspResponder_WriteErrorResponse");
+
+    if (responseSz == NULL) {
+        ret = BAD_FUNC_ARG;
+        goto out;
+    }
+
+    /* Validate status - OCSP_SUCCESSFUL is not allowed for error responses */
+    if (status == OCSP_SUCCESSFUL) {
+        WOLFSSL_MSG("OCSP_SUCCESSFUL is not a valid error status");
+        ret = BAD_FUNC_ARG;
+        goto out;
+    }
+
+    /* Validate that status is a known enumeration value */
+    if (status != OCSP_MALFORMED_REQUEST &&
+        status != OCSP_INTERNAL_ERROR &&
+        status != OCSP_TRY_LATER &&
+        status != OCSP_SIG_REQUIRED &&
+        status != OCSP_UNAUTHORIZED) {
+        WOLFSSL_MSG("Invalid OCSP response status");
+        ret = BAD_FUNC_ARG;
+        goto out;
+    }
+
+    /* Initialize a minimal OCSP response structure */
+    InitOcspResponse(&resp, NULL, NULL, NULL, 0, NULL);
+    respInited = 1;
+
+    /* Set the error status */
+    resp.responseStatus = (byte)status;
+
+    /* Encode the error response (no responseBytes, just status) */
+    ret = OcspResponseEncode(&resp, response, responseSz, NULL, NULL, NULL);
+    if (ret != 0) {
+        WOLFSSL_MSG("Failed to encode OCSP error response");
+        goto out;
+    }
+
+    ret = 0;
+out:
+    if (respInited)
+        FreeOcspResponse(&resp);
+    return ret;
+}
+
 /* Helper functions for testing */
 int wc_InitOcspRequest(OcspRequest* req, DecodedCert* cert,
                                     byte useNonce, void* heap)

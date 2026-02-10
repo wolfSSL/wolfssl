@@ -210,6 +210,9 @@ WOLFSSL_API int wc_OcspResponder_SetCertStatus(OcspResponder* responder,
 WOLFSSL_API int wc_OcspResponder_WriteResponse(OcspResponder* responder,
     const byte* request, word32 requestSz,
     byte* response, word32* responseSz);
+WOLFSSL_API int wc_OcspResponder_WriteErrorResponse(
+    enum Ocsp_Response_Status status,
+    byte* response, word32* responseSz);
 #endif /* HAVE_OCSP_RESPONDER */
 
 

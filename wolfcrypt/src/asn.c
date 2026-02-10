@@ -40578,6 +40578,8 @@ static const ASNItem ocspRequestASN[] = {
                                                                   /* hashAlgorithm */
 /* TBS_REQ_HASH      */                        { 5, ASN_SEQUENCE, 1, 1, 0 },
 /* TBS_REQ_HASH_OID  */                            { 6, ASN_OBJECT_ID, 0, 0, 0 },
+                                                                  /* optional NULL params */
+/* TBS_REQ_HASH_NULL */                            { 6, ASN_TAG_NULL, 0, 0, 1 },
                                                                   /* issuerNameHash */
 /* TBS_REQ_ISSUER    */                        { 5, ASN_OCTET_STRING, 0, 0, 0 },
                                                                   /* issuerKeyHash */
@@ -40597,6 +40599,7 @@ enum {
     OCSPREQUESTASN_IDX_TBS_REQ_CID,
     OCSPREQUESTASN_IDX_TBS_REQ_HASH,
     OCSPREQUESTASN_IDX_TBS_REQ_HASH_OID,
+    OCSPREQUESTASN_IDX_TBS_REQ_HASH_NULL,
     OCSPREQUESTASN_IDX_TBS_REQ_ISSUER,
     OCSPREQUESTASN_IDX_TBS_REQ_ISSUERKEY,
     OCSPREQUESTASN_IDX_TBS_REQ_SERIAL,
@@ -40869,7 +40872,7 @@ int DecodeOcspRequest(OcspRequest* req, const byte* input, word32 size)
     CALLOC_ASNGETDATA(dataASN, ocspRequestASN_Length, ret, req->heap);
 
     if (ret == 0) {
-        GetASN_OID(&dataASN[OCSPREQUESTASN_IDX_TBS_REQ_HASH_OID], oidOcspType);
+        GetASN_OID(&dataASN[OCSPREQUESTASN_IDX_TBS_REQ_HASH_OID], oidHashType);
         GetASN_Buffer(&dataASN[OCSPREQUESTASN_IDX_TBS_REQ_ISSUER],
                 req->issuerHash, &issuerHashSz);
         GetASN_Buffer(&dataASN[OCSPREQUESTASN_IDX_TBS_REQ_ISSUERKEY],
