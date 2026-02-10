@@ -235,9 +235,9 @@ static void mlkem_ntt(sword16* r)
                 sword16 t = MLKEM_MONT_RED(p);
                 sword16 rj = r[j];
                 /* Step 9 */
-                r[j + len] = rj - t;
+                r[j + len] = (sword16)(rj - t);
                 /* Step 10 */
-                r[j] = rj + t;
+                r[j] = (sword16)(rj + t);
             }
         }
     }
@@ -258,8 +258,8 @@ static void mlkem_ntt(sword16* r)
         sword32 p = (sword32)zeta * r[j + MLKEM_N / 2];
         sword16 t = MLKEM_MONT_RED(p);
         sword16 rj = r[j];
-        r[j + MLKEM_N / 2] = rj - t;
-        r[j] = rj + t;
+        r[j + MLKEM_N / 2] = (sword16)(rj - t);
+        r[j] = (sword16)(rj + t);
     }
     for (len = MLKEM_N / 4; len >= 2; len >>= 1) {
         for (start = 0; start < MLKEM_N; start = j + len) {
@@ -268,8 +268,8 @@ static void mlkem_ntt(sword16* r)
                 sword32 p = (sword32)zeta * r[j + len];
                 sword16 t = MLKEM_MONT_RED(p);
                 sword16 rj = r[j];
-                r[j + len] = rj - t;
-                r[j] = rj + t;
+                r[j + len] = (sword16)(rj - t);
+                r[j] = (sword16)(rj + t);
             }
         }
     }
@@ -389,27 +389,27 @@ static void mlkem_ntt(sword16* r)
         t1 = MLKEM_MONT_RED((sword32)zeta128 * r5);
         t2 = MLKEM_MONT_RED((sword32)zeta128 * r6);
         t3 = MLKEM_MONT_RED((sword32)zeta128 * r7);
-        r4 = r0 - t0;
-        r5 = r1 - t1;
-        r6 = r2 - t2;
-        r7 = r3 - t3;
-        r0 += t0;
-        r1 += t1;
-        r2 += t2;
-        r3 += t3;
+        r4 = (sword16)(r0 - t0);
+        r5 = (sword16)(r1 - t1);
+        r6 = (sword16)(r2 - t2);
+        r7 = (sword16)(r3 - t3);
+        r0 = (sword16)(r0 + t0);
+        r1 = (sword16)(r1 + t1);
+        r2 = (sword16)(r2 + t2);
+        r3 = (sword16)(r3 + t3);
 
         t0 = MLKEM_MONT_RED((sword32)zeta64_0 * r2);
         t1 = MLKEM_MONT_RED((sword32)zeta64_0 * r3);
         t2 = MLKEM_MONT_RED((sword32)zeta64_1 * r6);
         t3 = MLKEM_MONT_RED((sword32)zeta64_1 * r7);
-        r2 = r0 - t0;
-        r3 = r1 - t1;
-        r6 = r4 - t2;
-        r7 = r5 - t3;
-        r0 += t0;
-        r1 += t1;
-        r4 += t2;
-        r5 += t3;
+        r2 = (sword16)(r0 - t0);
+        r3 = (sword16)(r1 - t1);
+        r6 = (sword16)(r4 - t2);
+        r7 = (sword16)(r5 - t3);
+        r0 = (sword16)(r0 + t0);
+        r1 = (sword16)(r1 + t1);
+        r4 = (sword16)(r4 + t2);
+        r5 = (sword16)(r5 + t3);
 
         r[j +   0] = r0;
         r[j +  32] = r1;
@@ -423,7 +423,7 @@ static void mlkem_ntt(sword16* r)
 
     /* len = 32,16,8 */
     for (j = 0; j < MLKEM_N; j += 64) {
-        int i;
+        unsigned int i;
         sword16 zeta32   = zetas[ 4 + j / 64 + 0];
         sword16 zeta16_0 = zetas[ 8 + j / 32 + 0];
         sword16 zeta16_1 = zetas[ 8 + j / 32 + 1];
@@ -445,40 +445,40 @@ static void mlkem_ntt(sword16* r)
             t1 = MLKEM_MONT_RED((sword32)zeta32 * r5);
             t2 = MLKEM_MONT_RED((sword32)zeta32 * r6);
             t3 = MLKEM_MONT_RED((sword32)zeta32 * r7);
-            r4 = r0 - t0;
-            r5 = r1 - t1;
-            r6 = r2 - t2;
-            r7 = r3 - t3;
-            r0 += t0;
-            r1 += t1;
-            r2 += t2;
-            r3 += t3;
+            r4 = (sword16)(r0 - t0);
+            r5 = (sword16)(r1 - t1);
+            r6 = (sword16)(r2 - t2);
+            r7 = (sword16)(r3 - t3);
+            r0 = (sword16)(r0 + t0);
+            r1 = (sword16)(r1 + t1);
+            r2 = (sword16)(r2 + t2);
+            r3 = (sword16)(r3 + t3);
 
             t0 = MLKEM_MONT_RED((sword32)zeta16_0 * r2);
             t1 = MLKEM_MONT_RED((sword32)zeta16_0 * r3);
             t2 = MLKEM_MONT_RED((sword32)zeta16_1 * r6);
             t3 = MLKEM_MONT_RED((sword32)zeta16_1 * r7);
-            r2 = r0 - t0;
-            r3 = r1 - t1;
-            r6 = r4 - t2;
-            r7 = r5 - t3;
-            r0 += t0;
-            r1 += t1;
-            r4 += t2;
-            r5 += t3;
+            r2 = (sword16)(r0 - t0);
+            r3 = (sword16)(r1 - t1);
+            r6 = (sword16)(r4 - t2);
+            r7 = (sword16)(r5 - t3);
+            r0 = (sword16)(r0 + t0);
+            r1 = (sword16)(r1 + t1);
+            r4 = (sword16)(r4 + t2);
+            r5 = (sword16)(r5 + t3);
 
             t0 = MLKEM_MONT_RED((sword32)zeta8_0 * r1);
             t1 = MLKEM_MONT_RED((sword32)zeta8_1 * r3);
             t2 = MLKEM_MONT_RED((sword32)zeta8_2 * r5);
             t3 = MLKEM_MONT_RED((sword32)zeta8_3 * r7);
-            r1 = r0 - t0;
-            r3 = r2 - t1;
-            r5 = r4 - t2;
-            r7 = r6 - t3;
-            r0 += t0;
-            r2 += t1;
-            r4 += t2;
-            r6 += t3;
+            r1 = (sword16)(r0 - t0);
+            r3 = (sword16)(r2 - t1);
+            r5 = (sword16)(r4 - t2);
+            r7 = (sword16)(r6 - t3);
+            r0 = (sword16)(r0 + t0);
+            r2 = (sword16)(r2 + t1);
+            r4 = (sword16)(r4 + t2);
+            r6 = (sword16)(r6 + t3);
 
             r[j + i +  0] = r0;
             r[j + i +  8] = r1;
@@ -509,27 +509,27 @@ static void mlkem_ntt(sword16* r)
         t1 = MLKEM_MONT_RED((sword32)zeta4 * r5);
         t2 = MLKEM_MONT_RED((sword32)zeta4 * r6);
         t3 = MLKEM_MONT_RED((sword32)zeta4 * r7);
-        r4 = r0 - t0;
-        r5 = r1 - t1;
-        r6 = r2 - t2;
-        r7 = r3 - t3;
-        r0 += t0;
-        r1 += t1;
-        r2 += t2;
-        r3 += t3;
+        r4 = (sword16)(r0 - t0);
+        r5 = (sword16)(r1 - t1);
+        r6 = (sword16)(r2 - t2);
+        r7 = (sword16)(r3 - t3);
+        r0 = (sword16)(r0 + t0);
+        r1 = (sword16)(r1 + t1);
+        r2 = (sword16)(r2 + t2);
+        r3 = (sword16)(r3 + t3);
 
         t0 = MLKEM_MONT_RED((sword32)zeta2_0 * r2);
         t1 = MLKEM_MONT_RED((sword32)zeta2_0 * r3);
         t2 = MLKEM_MONT_RED((sword32)zeta2_1 * r6);
         t3 = MLKEM_MONT_RED((sword32)zeta2_1 * r7);
-        r2 = r0 - t0;
-        r3 = r1 - t1;
-        r6 = r4 - t2;
-        r7 = r5 - t3;
-        r0 += t0;
-        r1 += t1;
-        r4 += t2;
-        r5 += t3;
+        r2 = (sword16)(r0 - t0);
+        r3 = (sword16)(r1 - t1);
+        r6 = (sword16)(r4 - t2);
+        r7 = (sword16)(r5 - t3);
+        r0 = (sword16)(r0 + t0);
+        r1 = (sword16)(r1 + t1);
+        r4 = (sword16)(r4 + t2);
+        r5 = (sword16)(r5 + t3);
 
         r[j + 0] = MLKEM_BARRETT_RED(r0);
         r[j + 1] = MLKEM_BARRETT_RED(r1);
@@ -612,10 +612,10 @@ static void mlkem_invntt(sword16* r)
                 sword16 rj = r[j];
                 sword16 rjl = r[j + len];
                 /* Step 9 */
-                sword16 t = rj + rjl;
+                sword16 t = (sword16)(rj + rjl);
                 r[j] = MLKEM_BARRETT_RED(t);
                 /* Step 10 */
-                rjl = rj - rjl;
+                rjl = (sword16)(rj - rjl);
                 p = (sword32)zeta * rjl;
                 r[j + len] = MLKEM_MONT_RED(p);
             }
@@ -645,9 +645,9 @@ static void mlkem_invntt(sword16* r)
                 sword32 p;
                 sword16 rj = r[j];
                 sword16 rjl = r[j + len];
-                sword16 t = rj + rjl;
+                sword16 t = (sword16)(rj + rjl);
                 r[j] = MLKEM_BARRETT_RED(t);
-                rjl = rj - rjl;
+                rjl = (sword16)(rj - rjl);
                 p = (sword32)zeta * rjl;
                 r[j + len] = MLKEM_MONT_RED(p);
             }
@@ -660,10 +660,10 @@ static void mlkem_invntt(sword16* r)
         sword32 p;
         sword16 rj = r[j];
         sword16 rjl = r[j + MLKEM_N / 2];
-        sword16 t = rj + rjl;
-        rjl = rj - rjl;
+        sword16 t = (sword16)(rj + rjl);
+        rjl = (sword16)(rj - rjl);
         p = (sword32)zeta * rjl;
-        r[j] = t;
+        r[j] = (sword16)t;
         r[j + MLKEM_N / 2] = MLKEM_MONT_RED(p);
 
         p = (sword32)zeta2 * r[j];
@@ -818,10 +818,10 @@ static void mlkem_invntt(sword16* r)
         t2 = MLKEM_MONT_RED(p);
         p = (sword32)zeta2_1 * (sword16)(r5 - r7);
         t3 = MLKEM_MONT_RED(p);
-        r0 += r2;
-        r1 += r3;
-        r4 += r6;
-        r5 += r7;
+        r0 = (sword16)(r0 + r2);
+        r1 = (sword16)(r1 + r3);
+        r4 = (sword16)(r4 + r6);
+        r5 = (sword16)(r5 + r7);
         r2 = t0;
         r3 = t1;
         r6 = t2;
@@ -835,10 +835,10 @@ static void mlkem_invntt(sword16* r)
         t2 = MLKEM_MONT_RED(p);
         p = (sword32)zeta4 * (sword16)(r3 - r7);
         t3 = MLKEM_MONT_RED(p);
-        r0 += r4;
-        r1 += r5;
-        r2 += r6;
-        r3 += r7;
+        r0 = (sword16)(r0 + r4);
+        r1 = (sword16)(r1 + r5);
+        r2 = (sword16)(r2 + r6);
+        r3 = (sword16)(r3 + r7);
         r4 = t0;
         r5 = t1;
         r6 = t2;
@@ -855,7 +855,7 @@ static void mlkem_invntt(sword16* r)
     }
 
     for (j = 0; j < MLKEM_N; j += 64) {
-        int i;
+        unsigned int i;
         sword16 zeta8_0  = zetas_inv[ 96 + j / 16 + 0];
         sword16 zeta8_1  = zetas_inv[ 96 + j / 16 + 1];
         sword16 zeta8_2  = zetas_inv[ 96 + j / 16 + 2];
@@ -898,10 +898,10 @@ static void mlkem_invntt(sword16* r)
             t2 = MLKEM_MONT_RED(p);
             p = (sword32)zeta16_1 * (sword16)(r5 - r7);
             t3 = MLKEM_MONT_RED(p);
-            r0 += r2;
-            r1 += r3;
-            r4 += r6;
-            r5 += r7;
+            r0 = (sword16)(r0 + r2);
+            r1 = (sword16)(r1 + r3);
+            r4 = (sword16)(r4 + r6);
+            r5 = (sword16)(r5 + r7);
             r2 = t0;
             r3 = t1;
             r6 = t2;
@@ -915,10 +915,10 @@ static void mlkem_invntt(sword16* r)
             t2 = MLKEM_MONT_RED(p);
             p = (sword32)zeta32 * (sword16)(r3 - r7);
             t3 = MLKEM_MONT_RED(p);
-            r0 += r4;
-            r1 += r5;
-            r2 += r6;
-            r3 += r7;
+            r0 = (sword16)(r0 + r4);
+            r1 = (sword16)(r1 + r5);
+            r2 = (sword16)(r2 + r6);
+            r3 = (sword16)(r3 + r7);
             r4 = t0;
             r5 = t1;
             r6 = t2;
@@ -974,10 +974,10 @@ static void mlkem_invntt(sword16* r)
         t2 = MLKEM_MONT_RED(p);
         p = (sword32)zeta128 * (sword16)(r3 - r7);
         t3 = MLKEM_MONT_RED(p);
-        r0 += r4;
-        r1 += r5;
-        r2 += r6;
-        r3 += r7;
+        r0 = (sword16)(r0 + r4);
+        r1 = (sword16)(r1 + r5);
+        r2 = (sword16)(r2 + r6);
+        r3 = (sword16)(r3 + r7);
         r4 = t0;
         r5 = t1;
         r6 = t2;
@@ -1081,29 +1081,36 @@ static void mlkem_basemul_mont(sword16* r, const sword16* a, const sword16* b)
     for (i = 0; i < MLKEM_N; i += 4, zeta++) {
         /* Step 2 */
         mlkem_basemul(r + i + 0, a + i + 0, b + i + 0,  zeta[0]);
-        mlkem_basemul(r + i + 2, a + i + 2, b + i + 2, -zeta[0]);
+        mlkem_basemul(r + i + 2, a + i + 2, b + i + 2,
+            (sword16)(-zeta[0]));
     }
 #elif defined(WOLFSSL_MLKEM_NO_LARGE_CODE)
     /* Four multiplications per loop. */
     unsigned int i;
     for (i = 0; i < MLKEM_N; i += 8, zeta += 2) {
         mlkem_basemul(r + i + 0, a + i + 0, b + i + 0,  zeta[0]);
-        mlkem_basemul(r + i + 2, a + i + 2, b + i + 2, -zeta[0]);
+        mlkem_basemul(r + i + 2, a + i + 2, b + i + 2,
+            (sword16)(-zeta[0]));
         mlkem_basemul(r + i + 4, a + i + 4, b + i + 4,  zeta[1]);
-        mlkem_basemul(r + i + 6, a + i + 6, b + i + 6, -zeta[1]);
+        mlkem_basemul(r + i + 6, a + i + 6, b + i + 6,
+            (sword16)(-zeta[1]));
     }
 #else
     /* Eight multiplications per loop. */
     unsigned int i;
     for (i = 0; i < MLKEM_N; i += 16, zeta += 4) {
         mlkem_basemul(r + i +  0, a + i +  0, b + i +  0,  zeta[0]);
-        mlkem_basemul(r + i +  2, a + i +  2, b + i +  2, -zeta[0]);
+        mlkem_basemul(r + i +  2, a + i +  2, b + i +  2,
+            (sword16)(-zeta[0]));
         mlkem_basemul(r + i +  4, a + i +  4, b + i +  4,  zeta[1]);
-        mlkem_basemul(r + i +  6, a + i +  6, b + i +  6, -zeta[1]);
+        mlkem_basemul(r + i +  6, a + i +  6, b + i +  6,
+            (sword16)(-zeta[1]));
         mlkem_basemul(r + i +  8, a + i +  8, b + i +  8,  zeta[2]);
-        mlkem_basemul(r + i + 10, a + i + 10, b + i + 10, -zeta[2]);
+        mlkem_basemul(r + i + 10, a + i + 10, b + i + 10,
+            (sword16)(-zeta[2]));
         mlkem_basemul(r + i + 12, a + i + 12, b + i + 12,  zeta[3]);
-        mlkem_basemul(r + i + 14, a + i + 14, b + i + 14, -zeta[3]);
+        mlkem_basemul(r + i + 14, a + i + 14, b + i + 14,
+            (sword16)(-zeta[3]));
     }
 #endif
 }
@@ -1137,12 +1144,12 @@ static void mlkem_basemul_mont_add(sword16* r, const sword16* a,
         sword16 t2[2];
 
         mlkem_basemul(t0, a + i + 0, b + i + 0,  zeta[0]);
-        mlkem_basemul(t2, a + i + 2, b + i + 2, -zeta[0]);
+        mlkem_basemul(t2, a + i + 2, b + i + 2, (sword16)(-zeta[0]));
 
-        r[i + 0] += t0[0];
-        r[i + 1] += t0[1];
-        r[i + 2] += t2[0];
-        r[i + 3] += t2[1];
+        r[i + 0] = (sword16)(r[i + 0] + t0[0]);
+        r[i + 1] = (sword16)(r[i + 1] + t0[1]);
+        r[i + 2] = (sword16)(r[i + 2] + t2[0]);
+        r[i + 3] = (sword16)(r[i + 3] + t2[1]);
     }
 #elif defined(WOLFSSL_MLKEM_NO_LARGE_CODE)
     /* Four multiplications per loop. */
@@ -1154,18 +1161,18 @@ static void mlkem_basemul_mont_add(sword16* r, const sword16* a,
         sword16 t6[2];
 
         mlkem_basemul(t0, a + i + 0, b + i + 0,  zeta[0]);
-        mlkem_basemul(t2, a + i + 2, b + i + 2, -zeta[0]);
+        mlkem_basemul(t2, a + i + 2, b + i + 2, (sword16)(-zeta[0]));
         mlkem_basemul(t4, a + i + 4, b + i + 4,  zeta[1]);
-        mlkem_basemul(t6, a + i + 6, b + i + 6, -zeta[1]);
+        mlkem_basemul(t6, a + i + 6, b + i + 6, (sword16)(-zeta[1]));
 
-        r[i + 0] += t0[0];
-        r[i + 1] += t0[1];
-        r[i + 2] += t2[0];
-        r[i + 3] += t2[1];
-        r[i + 4] += t4[0];
-        r[i + 5] += t4[1];
-        r[i + 6] += t6[0];
-        r[i + 7] += t6[1];
+        r[i + 0] = (sword16)(r[i + 0] + t0[0]);
+        r[i + 1] = (sword16)(r[i + 1] + t0[1]);
+        r[i + 2] = (sword16)(r[i + 2] + t2[0]);
+        r[i + 3] = (sword16)(r[i + 3] + t2[1]);
+        r[i + 4] = (sword16)(r[i + 4] + t4[0]);
+        r[i + 5] = (sword16)(r[i + 5] + t4[1]);
+        r[i + 6] = (sword16)(r[i + 6] + t6[0]);
+        r[i + 7] = (sword16)(r[i + 7] + t6[1]);
     }
 #else
     /* Eight multiplications per loop. */
@@ -1181,30 +1188,30 @@ static void mlkem_basemul_mont_add(sword16* r, const sword16* a,
         sword16 t14[2];
 
         mlkem_basemul(t0, a + i + 0, b + i + 0,  zeta[0]);
-        mlkem_basemul(t2, a + i + 2, b + i + 2, -zeta[0]);
+        mlkem_basemul(t2, a + i + 2, b + i + 2, (sword16)(-zeta[0]));
         mlkem_basemul(t4, a + i + 4, b + i + 4,  zeta[1]);
-        mlkem_basemul(t6, a + i + 6, b + i + 6, -zeta[1]);
+        mlkem_basemul(t6, a + i + 6, b + i + 6, (sword16)(-zeta[1]));
         mlkem_basemul(t8, a + i + 8, b + i + 8,  zeta[2]);
-        mlkem_basemul(t10, a + i + 10, b + i + 10, -zeta[2]);
+        mlkem_basemul(t10, a + i + 10, b + i + 10, (sword16)(-zeta[2]));
         mlkem_basemul(t12, a + i + 12, b + i + 12,  zeta[3]);
-        mlkem_basemul(t14, a + i + 14, b + i + 14, -zeta[3]);
+        mlkem_basemul(t14, a + i + 14, b + i + 14, (sword16)(-zeta[3]));
 
-        r[i + 0] += t0[0];
-        r[i + 1] += t0[1];
-        r[i + 2] += t2[0];
-        r[i + 3] += t2[1];
-        r[i + 4] += t4[0];
-        r[i + 5] += t4[1];
-        r[i + 6] += t6[0];
-        r[i + 7] += t6[1];
-        r[i + 8] += t8[0];
-        r[i + 9] += t8[1];
-        r[i + 10] += t10[0];
-        r[i + 11] += t10[1];
-        r[i + 12] += t12[0];
-        r[i + 13] += t12[1];
-        r[i + 14] += t14[0];
-        r[i + 15] += t14[1];
+        r[i + 0] = (sword16)(r[i + 0] + t0[0]);
+        r[i + 1] = (sword16)(r[i + 1] + t0[1]);
+        r[i + 2] = (sword16)(r[i + 2] + t2[0]);
+        r[i + 3] = (sword16)(r[i + 3] + t2[1]);
+        r[i + 4] = (sword16)(r[i + 4] + t4[0]);
+        r[i + 5] = (sword16)(r[i + 5] + t4[1]);
+        r[i + 6] = (sword16)(r[i + 6] + t6[0]);
+        r[i + 7] = (sword16)(r[i + 7] + t6[1]);
+        r[i + 8] = (sword16)(r[i + 8] + t8[0]);
+        r[i + 9] = (sword16)(r[i + 9] + t8[1]);
+        r[i + 10] = (sword16)(r[i + 10] + t10[0]);
+        r[i + 11] = (sword16)(r[i + 11] + t10[1]);
+        r[i + 12] = (sword16)(r[i + 12] + t12[0]);
+        r[i + 13] = (sword16)(r[i + 13] + t12[1]);
+        r[i + 14] = (sword16)(r[i + 14] + t14[0]);
+        r[i + 15] = (sword16)(r[i + 15] + t14[1]);
     }
 #endif
 }
@@ -1622,27 +1629,27 @@ static void mlkem_ntt_add_to(sword16* r, sword16* a)
         t1 = MLKEM_MONT_RED((sword32)zeta128 * r5);
         t2 = MLKEM_MONT_RED((sword32)zeta128 * r6);
         t3 = MLKEM_MONT_RED((sword32)zeta128 * r7);
-        r4 = r0 - t0;
-        r5 = r1 - t1;
-        r6 = r2 - t2;
-        r7 = r3 - t3;
-        r0 += t0;
-        r1 += t1;
-        r2 += t2;
-        r3 += t3;
+        r4 = (sword16)(r0 - t0);
+        r5 = (sword16)(r1 - t1);
+        r6 = (sword16)(r2 - t2);
+        r7 = (sword16)(r3 - t3);
+        r0 = (sword16)(r0 + t0);
+        r1 = (sword16)(r1 + t1);
+        r2 = (sword16)(r2 + t2);
+        r3 = (sword16)(r3 + t3);
 
         t0 = MLKEM_MONT_RED((sword32)zeta64_0 * r2);
         t1 = MLKEM_MONT_RED((sword32)zeta64_0 * r3);
         t2 = MLKEM_MONT_RED((sword32)zeta64_1 * r6);
         t3 = MLKEM_MONT_RED((sword32)zeta64_1 * r7);
-        r2 = r0 - t0;
-        r3 = r1 - t1;
-        r6 = r4 - t2;
-        r7 = r5 - t3;
-        r0 += t0;
-        r1 += t1;
-        r4 += t2;
-        r5 += t3;
+        r2 = (sword16)(r0 - t0);
+        r3 = (sword16)(r1 - t1);
+        r6 = (sword16)(r4 - t2);
+        r7 = (sword16)(r5 - t3);
+        r0 = (sword16)(r0 + t0);
+        r1 = (sword16)(r1 + t1);
+        r4 = (sword16)(r4 + t2);
+        r5 = (sword16)(r5 + t3);
 
         r[j +   0] = r0;
         r[j +  32] = r1;
@@ -1656,7 +1663,7 @@ static void mlkem_ntt_add_to(sword16* r, sword16* a)
 
     /* len = 32,16,8 */
     for (j = 0; j < MLKEM_N; j += 64) {
-        int i;
+        unsigned int i;
         sword16 zeta32   = zetas[ 4 + j / 64 + 0];
         sword16 zeta16_0 = zetas[ 8 + j / 32 + 0];
         sword16 zeta16_1 = zetas[ 8 + j / 32 + 1];
@@ -1678,40 +1685,40 @@ static void mlkem_ntt_add_to(sword16* r, sword16* a)
             t1 = MLKEM_MONT_RED((sword32)zeta32 * r5);
             t2 = MLKEM_MONT_RED((sword32)zeta32 * r6);
             t3 = MLKEM_MONT_RED((sword32)zeta32 * r7);
-            r4 = r0 - t0;
-            r5 = r1 - t1;
-            r6 = r2 - t2;
-            r7 = r3 - t3;
-            r0 += t0;
-            r1 += t1;
-            r2 += t2;
-            r3 += t3;
+            r4 = (sword16)(r0 - t0);
+            r5 = (sword16)(r1 - t1);
+            r6 = (sword16)(r2 - t2);
+            r7 = (sword16)(r3 - t3);
+            r0 = (sword16)(r0 + t0);
+            r1 = (sword16)(r1 + t1);
+            r2 = (sword16)(r2 + t2);
+            r3 = (sword16)(r3 + t3);
 
             t0 = MLKEM_MONT_RED((sword32)zeta16_0 * r2);
             t1 = MLKEM_MONT_RED((sword32)zeta16_0 * r3);
             t2 = MLKEM_MONT_RED((sword32)zeta16_1 * r6);
             t3 = MLKEM_MONT_RED((sword32)zeta16_1 * r7);
-            r2 = r0 - t0;
-            r3 = r1 - t1;
-            r6 = r4 - t2;
-            r7 = r5 - t3;
-            r0 += t0;
-            r1 += t1;
-            r4 += t2;
-            r5 += t3;
+            r2 = (sword16)(r0 - t0);
+            r3 = (sword16)(r1 - t1);
+            r6 = (sword16)(r4 - t2);
+            r7 = (sword16)(r5 - t3);
+            r0 = (sword16)(r0 + t0);
+            r1 = (sword16)(r1 + t1);
+            r4 = (sword16)(r4 + t2);
+            r5 = (sword16)(r5 + t3);
 
             t0 = MLKEM_MONT_RED((sword32)zeta8_0 * r1);
             t1 = MLKEM_MONT_RED((sword32)zeta8_1 * r3);
             t2 = MLKEM_MONT_RED((sword32)zeta8_2 * r5);
             t3 = MLKEM_MONT_RED((sword32)zeta8_3 * r7);
-            r1 = r0 - t0;
-            r3 = r2 - t1;
-            r5 = r4 - t2;
-            r7 = r6 - t3;
-            r0 += t0;
-            r2 += t1;
-            r4 += t2;
-            r6 += t3;
+            r1 = (sword16)(r0 - t0);
+            r3 = (sword16)(r2 - t1);
+            r5 = (sword16)(r4 - t2);
+            r7 = (sword16)(r6 - t3);
+            r0 = (sword16)(r0 + t0);
+            r2 = (sword16)(r2 + t1);
+            r4 = (sword16)(r4 + t2);
+            r6 = (sword16)(r6 + t3);
 
             r[j + i +  0] = r0;
             r[j + i +  8] = r1;
@@ -1742,36 +1749,36 @@ static void mlkem_ntt_add_to(sword16* r, sword16* a)
         t1 = MLKEM_MONT_RED((sword32)zeta4 * r5);
         t2 = MLKEM_MONT_RED((sword32)zeta4 * r6);
         t3 = MLKEM_MONT_RED((sword32)zeta4 * r7);
-        r4 = r0 - t0;
-        r5 = r1 - t1;
-        r6 = r2 - t2;
-        r7 = r3 - t3;
-        r0 += t0;
-        r1 += t1;
-        r2 += t2;
-        r3 += t3;
+        r4 = (sword16)(r0 - t0);
+        r5 = (sword16)(r1 - t1);
+        r6 = (sword16)(r2 - t2);
+        r7 = (sword16)(r3 - t3);
+        r0 = (sword16)(r0 + t0);
+        r1 = (sword16)(r1 + t1);
+        r2 = (sword16)(r2 + t2);
+        r3 = (sword16)(r3 + t3);
 
         t0 = MLKEM_MONT_RED((sword32)zeta2_0 * r2);
         t1 = MLKEM_MONT_RED((sword32)zeta2_0 * r3);
         t2 = MLKEM_MONT_RED((sword32)zeta2_1 * r6);
         t3 = MLKEM_MONT_RED((sword32)zeta2_1 * r7);
-        r2 = r0 - t0;
-        r3 = r1 - t1;
-        r6 = r4 - t2;
-        r7 = r5 - t3;
-        r0 += t0;
-        r1 += t1;
-        r4 += t2;
-        r5 += t3;
+        r2 = (sword16)(r0 - t0);
+        r3 = (sword16)(r1 - t1);
+        r6 = (sword16)(r4 - t2);
+        r7 = (sword16)(r5 - t3);
+        r0 = (sword16)(r0 + t0);
+        r1 = (sword16)(r1 + t1);
+        r4 = (sword16)(r4 + t2);
+        r5 = (sword16)(r5 + t3);
 
-        r0 += a[j + 0];
-        r1 += a[j + 1];
-        r2 += a[j + 2];
-        r3 += a[j + 3];
-        r4 += a[j + 4];
-        r5 += a[j + 5];
-        r6 += a[j + 6];
-        r7 += a[j + 7];
+        r0 = (sword16)(r0 + a[j + 0]);
+        r1 = (sword16)(r1 + a[j + 1]);
+        r2 = (sword16)(r2 + a[j + 2]);
+        r3 = (sword16)(r3 + a[j + 3]);
+        r4 = (sword16)(r4 + a[j + 4]);
+        r5 = (sword16)(r5 + a[j + 5]);
+        r6 = (sword16)(r6 + a[j + 6]);
+        r7 = (sword16)(r7 + a[j + 7]);
 
         a[j + 0] = MLKEM_BARRETT_RED(r0);
         a[j + 1] = MLKEM_BARRETT_RED(r1);
@@ -1805,22 +1812,23 @@ static void mlkem_ntt_add_to(sword16* r, sword16* a)
 static void mlkem_keygen_c(sword16* s, sword16* t, sword16* e, const sword16* a,
     int k)
 {
-    int i;
+    unsigned int i;
+    unsigned int uk = (unsigned int)k;
 
     /* Transform private key. All of result used in public key calculation
      * Step 16: s_hat = NTT(s) */
-    for (i = 0; i < k; ++i) {
+    for (i = 0; i < uk; ++i) {
         mlkem_ntt(s + i * MLKEM_N);
     }
 
     /* For each polynomial in the vectors.
      * Step 17, Step 18: Calculate public from A_hat, s_hat and e_hat. */
-    for (i = 0; i < k; ++i) {
+    for (i = 0; i < uk; ++i) {
         unsigned int j;
 
         /* Multiply a by private into public polynomial.
          * Step 18: ... A_hat o s_hat ... */
-        mlkem_pointwise_acc_mont(t + i * MLKEM_N, a + i * k * MLKEM_N, s, k);
+        mlkem_pointwise_acc_mont(t + i * MLKEM_N, a + i * uk * MLKEM_N, s, uk);
         /* Convert public polynomial to Montgomery form.
          * Step 18: ... MontRed(A_hat o s_hat) ... */
         for (j = 0; j < MLKEM_N; ++j) {
@@ -1834,7 +1842,7 @@ static void mlkem_keygen_c(sword16* s, sword16* t, sword16* e, const sword16* a,
         /* Add errors to public key and reduce.
          * Step 18: t_hat = BarrettRed(MontRed(A_hat o s_hat) + e_hat) */
         for (j = 0; j < MLKEM_N; ++j) {
-            sword16 n = t[i * MLKEM_N + j] + e[i * MLKEM_N + j];
+            sword16 n = (sword16)(t[i * MLKEM_N + j] + e[i * MLKEM_N + j]);
             t[i * MLKEM_N + j] = MLKEM_BARRETT_RED(n);
         }
 #else
@@ -1985,37 +1993,46 @@ static void mlkem_encapsulate_c(const sword16* pub, sword16* u, sword16* v,
     const sword16* a, sword16* y, const sword16* e1, const sword16* e2,
     const sword16* m, int k)
 {
-    int i;
+    unsigned int i;
+    unsigned int uk = (unsigned int)k;
 
     /* Transform y. All of result used in calculation of u and v. */
-    for (i = 0; i < k; ++i) {
+    for (i = 0; i < uk; ++i) {
         mlkem_ntt(y + i * MLKEM_N);
     }
 
     /* For each polynomial in the vectors. */
-    for (i = 0; i < k; ++i) {
+    for (i = 0; i < uk; ++i) {
         unsigned int j;
 
         /* Multiply at by y into u polynomial. */
-        mlkem_pointwise_acc_mont(u + i * MLKEM_N, a + i * k * MLKEM_N, y, k);
+        mlkem_pointwise_acc_mont(u + i * MLKEM_N, a + i * uk * MLKEM_N, y, uk);
         /* Inverse transform u polynomial. */
         mlkem_invntt(u + i * MLKEM_N);
         /* Add errors to u and reduce. */
 #if defined(WOLFSSL_MLKEM_SMALL) || defined(WOLFSSL_MLKEM_NO_LARGE_CODE)
         for (j = 0; j < MLKEM_N; ++j) {
-            sword16 t = u[i * MLKEM_N + j] + e1[i * MLKEM_N + j];
+            sword16 t = (sword16)(u[i * MLKEM_N + j] + e1[i * MLKEM_N + j]);
             u[i * MLKEM_N + j] = MLKEM_BARRETT_RED(t);
         }
 #else
         for (j = 0; j < MLKEM_N; j += 8) {
-            sword16 t0 = u[i * MLKEM_N + j + 0] + e1[i * MLKEM_N + j + 0];
-            sword16 t1 = u[i * MLKEM_N + j + 1] + e1[i * MLKEM_N + j + 1];
-            sword16 t2 = u[i * MLKEM_N + j + 2] + e1[i * MLKEM_N + j + 2];
-            sword16 t3 = u[i * MLKEM_N + j + 3] + e1[i * MLKEM_N + j + 3];
-            sword16 t4 = u[i * MLKEM_N + j + 4] + e1[i * MLKEM_N + j + 4];
-            sword16 t5 = u[i * MLKEM_N + j + 5] + e1[i * MLKEM_N + j + 5];
-            sword16 t6 = u[i * MLKEM_N + j + 6] + e1[i * MLKEM_N + j + 6];
-            sword16 t7 = u[i * MLKEM_N + j + 7] + e1[i * MLKEM_N + j + 7];
+            sword16 t0 = (sword16)(u[i * MLKEM_N + j + 0] +
+                e1[i * MLKEM_N + j + 0]);
+            sword16 t1 = (sword16)(u[i * MLKEM_N + j + 1] +
+                e1[i * MLKEM_N + j + 1]);
+            sword16 t2 = (sword16)(u[i * MLKEM_N + j + 2] +
+                e1[i * MLKEM_N + j + 2]);
+            sword16 t3 = (sword16)(u[i * MLKEM_N + j + 3] +
+                e1[i * MLKEM_N + j + 3]);
+            sword16 t4 = (sword16)(u[i * MLKEM_N + j + 4] +
+                e1[i * MLKEM_N + j + 4]);
+            sword16 t5 = (sword16)(u[i * MLKEM_N + j + 5] +
+                e1[i * MLKEM_N + j + 5]);
+            sword16 t6 = (sword16)(u[i * MLKEM_N + j + 6] +
+                e1[i * MLKEM_N + j + 6]);
+            sword16 t7 = (sword16)(u[i * MLKEM_N + j + 7] +
+                e1[i * MLKEM_N + j + 7]);
             u[i * MLKEM_N + j + 0] = MLKEM_BARRETT_RED(t0);
             u[i * MLKEM_N + j + 1] = MLKEM_BARRETT_RED(t1);
             u[i * MLKEM_N + j + 2] = MLKEM_BARRETT_RED(t2);
@@ -2029,12 +2046,12 @@ static void mlkem_encapsulate_c(const sword16* pub, sword16* u, sword16* v,
     }
 
     /* Multiply public key by y into v polynomial. */
-    mlkem_pointwise_acc_mont(v, pub, y, k);
+    mlkem_pointwise_acc_mont(v, pub, y, uk);
     /* Inverse transform v. */
     mlkem_invntt(v);
     /* Add errors and message to v and reduce. */
     for (i = 0; i < MLKEM_N; ++i) {
-        sword16 t = v[i] + e2[i] + m[i];
+        sword16 t = (sword16)(v[i] + e2[i] + m[i]);
         v[i] = MLKEM_BARRETT_RED(t);
     }
 }
@@ -2209,24 +2226,25 @@ int mlkem_encapsulate_seeds(const sword16* pub, MLKEM_PRF_T* prf, sword16* u,
 static void mlkem_decapsulate_c(const sword16* s, sword16* w, sword16* u,
     const sword16* v, int k)
 {
-    int i;
+    unsigned int i;
+    unsigned int uk = (unsigned int)k;
 
     /* Transform u. All of result used in calculation of w.
      * Step 6: ... NTT(u') */
-    for (i = 0; i < k; ++i) {
+    for (i = 0; i < uk; ++i) {
         mlkem_ntt(u + i * MLKEM_N);
     }
 
     /* Multiply private key by u into w polynomial.
      * Step 6: ... s_hat_trans o NTT(u') */
-    mlkem_pointwise_acc_mont(w, s, u, k);
+    mlkem_pointwise_acc_mont(w, s, u, uk);
     /* Inverse transform w.
      * Step 6: ... InvNTT(s_hat_trans o NTT(u')) */
     mlkem_invntt(w);
     /* Subtract errors (in w) out of v and reduce into w.
      * Step 6: w <- v' - InvNTT(s_hat_trans o NTT(u')) */
     for (i = 0; i < MLKEM_N; ++i) {
-        sword16 t = v[i] - w[i];
+        sword16 t = (sword16)(v[i] - w[i]);
         w[i] = MLKEM_BARRETT_RED(t);
     }
 }
@@ -2424,10 +2442,14 @@ static int mlkem_gen_matrix_k3_avx2(sword16* a, byte* seed, int transposed)
     for (k = 0; k < 2; k++) {
         for (i = 0; i < 4; i++) {
             if (!transposed) {
-                state[4*4 + i] = 0x1f0000 + (((k*4+i)/3) << 8) + ((k*4+i)%3);
+                state[4*4 + i] = (word64)0x1f0000U +
+                    (word64)(word32)((((k * 4 + i) / 3) << 8) +
+                        ((k * 4 + i) % 3));
             }
             else {
-                state[4*4 + i] = 0x1f0000 + (((k*4+i)%3) << 8) + ((k*4+i)/3);
+                state[4*4 + i] = (word64)0x1f0000U +
+                    (word64)(word32)((((k * 4 + i) % 3) << 8) +
+                        ((k * 4 + i) / 3));
             }
         }
 
@@ -2577,10 +2599,12 @@ static int mlkem_gen_matrix_k4_avx2(sword16* a, byte* seed, int transposed)
     for (k = 0; k < 4; k++) {
         for (i = 0; i < 4; i++) {
             if (!transposed) {
-                state[4*4 + i] = 0x1f0000 + (k << 8) + i;
+                state[4*4 + i] = (word64)0x1f0000U +
+                    (word64)(word32)((k << 8) + i);
             }
             else {
-                state[4*4 + i] = 0x1f0000 + (i << 8) + k;
+                state[4*4 + i] = (word64)0x1f0000U +
+                    (word64)(word32)((i << 8) + k);
             }
         }
 
@@ -2881,7 +2905,7 @@ static int mlkem_xof_absorb(wc_Shake* shake128, byte* seed, int len)
 
     ret = wc_InitShake128(shake128, NULL, INVALID_DEVID);
     if (ret == 0) {
-        ret = wc_Shake128_Absorb(shake128, seed, len);
+        ret = wc_Shake128_Absorb(shake128, seed, (word32)len);
     }
 
     return ret;
@@ -2899,7 +2923,7 @@ static int mlkem_xof_absorb(wc_Shake* shake128, byte* seed, int len)
  */
 static int mlkem_xof_squeezeblocks(wc_Shake* shake128, byte* out, int blocks)
 {
-    return wc_Shake128_SqueezeBlocks(shake128, out, blocks);
+    return wc_Shake128_SqueezeBlocks(shake128, out, (word32)blocks);
 }
 #endif
 
@@ -3453,13 +3477,13 @@ static int mlkem_gen_matrix_c(MLKEM_PRF_T* prf, sword16* a, int k, byte* seed,
         for (j = 0; (ret == 0) && (j < k); j++) {
             if (transposed) {
                 /* Alg 14, Step 6: .. rho||i||j ... */
-                extSeed[WC_ML_KEM_SYM_SZ + 0] = i;
-                extSeed[WC_ML_KEM_SYM_SZ + 1] = j;
+                extSeed[WC_ML_KEM_SYM_SZ + 0] = (byte)i;
+                extSeed[WC_ML_KEM_SYM_SZ + 1] = (byte)j;
             }
             else {
                 /* Alg 13, Step 5: .. rho||j||i ... */
-                extSeed[WC_ML_KEM_SYM_SZ + 0] = j;
-                extSeed[WC_ML_KEM_SYM_SZ + 1] = i;
+                extSeed[WC_ML_KEM_SYM_SZ + 0] = (byte)j;
+                extSeed[WC_ML_KEM_SYM_SZ + 1] = (byte)i;
             }
             /* Absorb the index specific seed.
              * Alg 7, Step 1-2 */
@@ -3655,13 +3679,13 @@ static int mlkem_gen_matrix_i(MLKEM_PRF_T* prf, sword16* a, int k, byte* seed,
     for (j = 0; (ret == 0) && (j < k); j++) {
         if (transposed) {
             /* Alg 14, Step 6: .. rho||i||j ... */
-            extSeed[WC_ML_KEM_SYM_SZ + 0] = i;
-            extSeed[WC_ML_KEM_SYM_SZ + 1] = j;
+            extSeed[WC_ML_KEM_SYM_SZ + 0] = (byte)i;
+            extSeed[WC_ML_KEM_SYM_SZ + 1] = (byte)j;
         }
         else {
             /* Alg 13, Step 5: .. rho||j||i ... */
-            extSeed[WC_ML_KEM_SYM_SZ + 0] = j;
-            extSeed[WC_ML_KEM_SYM_SZ + 1] = i;
+            extSeed[WC_ML_KEM_SYM_SZ + 0] = (byte)j;
+            extSeed[WC_ML_KEM_SYM_SZ + 1] = (byte)i;
         }
         /* Absorb the index specific seed.
          * Alg 7, Step 1-2 */
@@ -3716,8 +3740,8 @@ static int mlkem_gen_matrix_i(MLKEM_PRF_T* prf, sword16* a, int k, byte* seed,
  * @return  Difference of the two values with range 0..2.
  */
 #define ETA2_SUB(d, i) \
-    (((sword16)(((d) >> ((i) * 4 + 0)) & 0x3)) - \
-     ((sword16)(((d) >> ((i) * 4 + 2)) & 0x3)))
+    (sword16)(((sword16)(((d) >> ((i) * 4 + 0)) & 0x3)) - \
+              ((sword16)(((d) >> ((i) * 4 + 2)) & 0x3)))
 
 /* Compute polynomial with coefficients distributed according to a centered
  * binomial distribution with parameter eta2 from uniform random bytes.
@@ -3832,8 +3856,8 @@ static void mlkem_cbd_eta2(sword16* p, const byte* r)
  * @return  Difference of the two values with range 0..3.
  */
 #define ETA3_SUB(d, i) \
-    (((sword16)(((d) >> ((i) * 6 + 0)) & 0x7)) - \
-     ((sword16)(((d) >> ((i) * 6 + 3)) & 0x7)))
+    (sword16)(((sword16)(((d) >> ((i) * 6 + 0)) & 0x7)) - \
+              ((sword16)(((d) >> ((i) * 6 + 3)) & 0x7)))
 
 /* Compute polynomial with coefficients distributed according to a centered
  * binomial distribution with parameter eta3 from uniform random bytes.
@@ -4093,7 +4117,8 @@ static void mlkem_get_noise_x4_eta2_avx2(byte* rand, byte* seed, byte o)
     word64 state[25 * 4];
 
     for (i = 0; i < 4; i++) {
-        state[4*4 + i] = 0x1f00 + i + o;
+        state[4*4 + i] = (word64)0x1f00U + (word64)(word32)i +
+            (word64)(word32)o;
     }
 
     sha3_256_blocksx4_seed_avx2(state, seed);
@@ -4554,7 +4579,8 @@ static int mlkem_get_noise_c(MLKEM_PRF_T* prf, int k, sword16* vec1, int eta1,
     /* Generate noise as private key. */
     for (i = 0; (ret == 0) && (i < k); i++) {
         /* Generate noise for each dimension of vector. */
-        ret = mlkem_get_noise_eta1_c(prf, vec1 + i * MLKEM_N, seed, eta1);
+        ret = mlkem_get_noise_eta1_c(prf, vec1 + i * MLKEM_N, seed,
+            (byte)eta1);
         /* Increment value of appended byte. */
         seed[WC_ML_KEM_SYM_SZ]++;
     }
@@ -4562,13 +4588,14 @@ static int mlkem_get_noise_c(MLKEM_PRF_T* prf, int k, sword16* vec1, int eta1,
         /* Generate noise for error. */
         for (i = 0; (ret == 0) && (i < k); i++) {
             /* Generate noise for each dimension of vector. */
-            ret = mlkem_get_noise_eta1_c(prf, vec2 + i * MLKEM_N, seed, eta2);
+            ret = mlkem_get_noise_eta1_c(prf, vec2 + i * MLKEM_N, seed,
+                (byte)eta2);
             /* Increment value of appended byte. */
             seed[WC_ML_KEM_SYM_SZ]++;
         }
     }
     else {
-        seed[WC_ML_KEM_SYM_SZ] = 2 * k;
+        seed[WC_ML_KEM_SYM_SZ] = (byte)(2 * k);
     }
     if ((ret == 0) && (poly != NULL)) {
         /* Generating random error polynomial. */
@@ -4728,7 +4755,7 @@ static int mlkem_cmp_c(const byte* a, const byte* b, int sz)
     for (i = 0; i < sz; i++) {
         r |= a[i] ^ b[i];
     }
-    return 0 - ((-(word32)r) >> 31);
+    return (int)(0 - ((-(word32)r) >> 31));
 }
 #endif
 
@@ -4777,9 +4804,10 @@ static MLKEM_NOINLINE void mlkem_csubq_c(sword16* p)
     unsigned int i;
 
     for (i = 0; i < MLKEM_N; ++i) {
-        sword16 t = p[i] - MLKEM_Q;
+        sword16 t = (sword16)(p[i] - MLKEM_Q);
         /* When top bit set, -ve number - need to add q back. */
-        p[i] = (sword16)((word16)(-((word16)t >> 15)) & MLKEM_Q) + t;
+        p[i] = (sword16)(((word16)(-((word16)t >> 15)) & MLKEM_Q) +
+            (word16)t);
     }
 }
 
@@ -4899,8 +4927,9 @@ static MLKEM_NOINLINE void mlkem_csubq_c(sword16* p)
  * @return  Compressed value.
  */
 #define TO_COMP_WORD_10(v, i, j, k) \
-    ((((MLKEM_V54 << 10) * (v)[(i) * MLKEM_N + (j) + (k)]) + \
-      MLKEM_V54_HALF) >> 54)
+    (word16)(((((word64)(MLKEM_V54 << 10)) * \
+               (word64)(word16)((v)[(i) * MLKEM_N + (j) + (k)])) + \
+              MLKEM_V54_HALF) >> 54)
 
 /* Compress value to 11 bits.
  *
@@ -4916,8 +4945,9 @@ static MLKEM_NOINLINE void mlkem_csubq_c(sword16* p)
  * @return  Compressed value.
  */
 #define TO_COMP_WORD_11(v, i, j, k) \
-    ((((MLKEM_V53 << 11) * (v)[(i) * MLKEM_N + (j) + (k)]) + \
-      MLKEM_V53_HALF) >> 53)
+    (word16)(((((word64)(MLKEM_V53 << 11)) * \
+               (word64)(word16)((v)[(i) * MLKEM_N + (j) + (k)])) + \
+              MLKEM_V53_HALF) >> 53)
 
 #endif /* CONV_WITH_DIV */
 
@@ -4966,17 +4996,17 @@ static void mlkem_vec_compress_10_c(byte* r, sword16* v, unsigned int k)
             r[ 4] = (t[3] >> 2);
         #else
             /* Compress four polynomial values to 10 bits each. */
-            sword16 t0 = TO_COMP_WORD_10(v, i, j, 0);
-            sword16 t1 = TO_COMP_WORD_10(v, i, j, 1);
-            sword16 t2 = TO_COMP_WORD_10(v, i, j, 2);
-            sword16 t3 = TO_COMP_WORD_10(v, i, j, 3);
+            word16 t0 = TO_COMP_WORD_10(v, i, j, 0);
+            word16 t1 = TO_COMP_WORD_10(v, i, j, 1);
+            word16 t2 = TO_COMP_WORD_10(v, i, j, 2);
+            word16 t3 = TO_COMP_WORD_10(v, i, j, 3);
 
             /* Pack four 10-bit values into byte array. */
-            r[ 0] = (t0 >> 0);
-            r[ 1] = (t0 >> 8) | (t1 << 2);
-            r[ 2] = (t1 >> 6) | (t2 << 4);
-            r[ 3] = (t2 >> 4) | (t3 << 6);
-            r[ 4] = (t3 >> 2);
+            r[ 0] = (byte)(t0 >> 0);
+            r[ 1] = (byte)((t0 >> 8) | (t1 << 2));
+            r[ 2] = (byte)((t1 >> 6) | (t2 << 4));
+            r[ 3] = (byte)((t2 >> 4) | (t3 << 6));
+            r[ 4] = (byte)(t3 >> 2);
         #endif
 
             /* Move over set bytes. */
@@ -4986,35 +5016,35 @@ static void mlkem_vec_compress_10_c(byte* r, sword16* v, unsigned int k)
         /* Each 16 polynomial coefficients. */
         for (j = 0; j < MLKEM_N; j += 16) {
             /* Compress four polynomial values to 10 bits each. */
-            sword16 t0  = TO_COMP_WORD_10(v, i, j, 0);
-            sword16 t1  = TO_COMP_WORD_10(v, i, j, 1);
-            sword16 t2  = TO_COMP_WORD_10(v, i, j, 2);
-            sword16 t3  = TO_COMP_WORD_10(v, i, j, 3);
-            sword16 t4  = TO_COMP_WORD_10(v, i, j, 4);
-            sword16 t5  = TO_COMP_WORD_10(v, i, j, 5);
-            sword16 t6  = TO_COMP_WORD_10(v, i, j, 6);
-            sword16 t7  = TO_COMP_WORD_10(v, i, j, 7);
-            sword16 t8  = TO_COMP_WORD_10(v, i, j, 8);
-            sword16 t9  = TO_COMP_WORD_10(v, i, j, 9);
-            sword16 t10 = TO_COMP_WORD_10(v, i, j, 10);
-            sword16 t11 = TO_COMP_WORD_10(v, i, j, 11);
-            sword16 t12 = TO_COMP_WORD_10(v, i, j, 12);
-            sword16 t13 = TO_COMP_WORD_10(v, i, j, 13);
-            sword16 t14 = TO_COMP_WORD_10(v, i, j, 14);
-            sword16 t15 = TO_COMP_WORD_10(v, i, j, 15);
+            word16 t0  = TO_COMP_WORD_10(v, i, j, 0);
+            word16 t1  = TO_COMP_WORD_10(v, i, j, 1);
+            word16 t2  = TO_COMP_WORD_10(v, i, j, 2);
+            word16 t3  = TO_COMP_WORD_10(v, i, j, 3);
+            word16 t4  = TO_COMP_WORD_10(v, i, j, 4);
+            word16 t5  = TO_COMP_WORD_10(v, i, j, 5);
+            word16 t6  = TO_COMP_WORD_10(v, i, j, 6);
+            word16 t7  = TO_COMP_WORD_10(v, i, j, 7);
+            word16 t8  = TO_COMP_WORD_10(v, i, j, 8);
+            word16 t9  = TO_COMP_WORD_10(v, i, j, 9);
+            word16 t10 = TO_COMP_WORD_10(v, i, j, 10);
+            word16 t11 = TO_COMP_WORD_10(v, i, j, 11);
+            word16 t12 = TO_COMP_WORD_10(v, i, j, 12);
+            word16 t13 = TO_COMP_WORD_10(v, i, j, 13);
+            word16 t14 = TO_COMP_WORD_10(v, i, j, 14);
+            word16 t15 = TO_COMP_WORD_10(v, i, j, 15);
 
             word32* r32 = (word32*)r;
             /* Pack sixteen 10-bit values into byte array. */
-            r32[0] =  t0        | ((word32)t1  << 10) | ((word32)t2  << 20) |
-                                  ((word32)t3  << 30);
-            r32[1] = (t3  >> 2) | ((word32)t4  <<  8) | ((word32)t5  << 18) |
-                                  ((word32)t6  << 28);
-            r32[2] = (t6  >> 4) | ((word32)t7  <<  6) | ((word32)t8  << 16) |
-                                  ((word32)t9  << 26);
-            r32[3] = (t9  >> 6) | ((word32)t10 <<  4) | ((word32)t11 << 14) |
-                                  ((word32)t12 << 24);
-            r32[4] = (t12 >> 8) | ((word32)t13 <<  2) | ((word32)t14 << 12) |
-                                  ((word32)t15 << 22);
+            r32[0] = (word32)t0 | ((word32)t1  << 10) |
+                     ((word32)t2 << 20) | ((word32)t3 << 30);
+            r32[1] = (word32)(t3  >> 2) | ((word32)t4  <<  8) |
+                     ((word32)t5 << 18) | ((word32)t6 << 28);
+            r32[2] = (word32)(t6  >> 4) | ((word32)t7  <<  6) |
+                     ((word32)t8 << 16) | ((word32)t9 << 26);
+            r32[3] = (word32)(t9  >> 6) | ((word32)t10 <<  4) |
+                     ((word32)t11 << 14) | ((word32)t12 << 24);
+            r32[4] = (word32)(t12 >> 8) | ((word32)t13 <<  2) |
+                     ((word32)t14 << 12) | ((word32)t15 << 22);
 
             /* Move over set bytes. */
             r += 20;
@@ -5035,7 +5065,7 @@ void mlkem_vec_compress_10(byte* r, sword16* v, unsigned int k)
 {
 #ifdef USE_INTEL_SPEEDUP
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-        mlkem_compress_10_avx2(r, v, k);
+        mlkem_compress_10_avx2(r, v, (int)k);
         RESTORE_VECTOR_REGISTERS();
     }
     else
@@ -5073,47 +5103,47 @@ static void mlkem_vec_compress_11_c(byte* r, sword16* v)
         /* Each 8 polynomial coefficients. */
         for (j = 0; j < MLKEM_N; j += 8) {
         #ifdef WOLFSSL_MLKEM_SMALL
-            sword16 t[8];
+            word16 t[8];
             /* Compress eight polynomial values to 11 bits each. */
             for (k = 0; k < 8; k++) {
                 t[k] = TO_COMP_WORD_11(v, i, j, k);
             }
 
             /* Pack eight 11-bit values into byte array. */
-            r[ 0] = (t[0] >>  0);
-            r[ 1] = (t[0] >>  8) | (t[1] << 3);
-            r[ 2] = (t[1] >>  5) | (t[2] << 6);
-            r[ 3] = (t[2] >>  2);
-            r[ 4] = (t[2] >> 10) | (t[3] << 1);
-            r[ 5] = (t[3] >>  7) | (t[4] << 4);
-            r[ 6] = (t[4] >>  4) | (t[5] << 7);
-            r[ 7] = (t[5] >>  1);
-            r[ 8] = (t[5] >>  9) | (t[6] << 2);
-            r[ 9] = (t[6] >>  6) | (t[7] << 5);
-            r[10] = (t[7] >>  3);
+            r[ 0] = (byte)(t[0] >>  0);
+            r[ 1] = (byte)((t[0] >>  8) | (t[1] << 3));
+            r[ 2] = (byte)((t[1] >>  5) | (t[2] << 6));
+            r[ 3] = (byte)(t[2] >>  2);
+            r[ 4] = (byte)((t[2] >> 10) | (t[3] << 1));
+            r[ 5] = (byte)((t[3] >>  7) | (t[4] << 4));
+            r[ 6] = (byte)((t[4] >>  4) | (t[5] << 7));
+            r[ 7] = (byte)(t[5] >>  1);
+            r[ 8] = (byte)((t[5] >>  9) | (t[6] << 2));
+            r[ 9] = (byte)((t[6] >>  6) | (t[7] << 5));
+            r[10] = (byte)(t[7] >>  3);
         #else
             /* Compress eight polynomial values to 11 bits each. */
-            sword16 t0 = TO_COMP_WORD_11(v, i, j, 0);
-            sword16 t1 = TO_COMP_WORD_11(v, i, j, 1);
-            sword16 t2 = TO_COMP_WORD_11(v, i, j, 2);
-            sword16 t3 = TO_COMP_WORD_11(v, i, j, 3);
-            sword16 t4 = TO_COMP_WORD_11(v, i, j, 4);
-            sword16 t5 = TO_COMP_WORD_11(v, i, j, 5);
-            sword16 t6 = TO_COMP_WORD_11(v, i, j, 6);
-            sword16 t7 = TO_COMP_WORD_11(v, i, j, 7);
+            word16 t0 = TO_COMP_WORD_11(v, i, j, 0);
+            word16 t1 = TO_COMP_WORD_11(v, i, j, 1);
+            word16 t2 = TO_COMP_WORD_11(v, i, j, 2);
+            word16 t3 = TO_COMP_WORD_11(v, i, j, 3);
+            word16 t4 = TO_COMP_WORD_11(v, i, j, 4);
+            word16 t5 = TO_COMP_WORD_11(v, i, j, 5);
+            word16 t6 = TO_COMP_WORD_11(v, i, j, 6);
+            word16 t7 = TO_COMP_WORD_11(v, i, j, 7);
 
             /* Pack eight 11-bit values into byte array. */
-            r[ 0] = (t0 >>  0);
-            r[ 1] = (t0 >>  8) | (t1 << 3);
-            r[ 2] = (t1 >>  5) | (t2 << 6);
-            r[ 3] = (t2 >>  2);
-            r[ 4] = (t2 >> 10) | (t3 << 1);
-            r[ 5] = (t3 >>  7) | (t4 << 4);
-            r[ 6] = (t4 >>  4) | (t5 << 7);
-            r[ 7] = (t5 >>  1);
-            r[ 8] = (t5 >>  9) | (t6 << 2);
-            r[ 9] = (t6 >>  6) | (t7 << 5);
-            r[10] = (t7 >>  3);
+            r[ 0] = (byte)(t0 >>  0);
+            r[ 1] = (byte)((t0 >>  8) | (t1 << 3));
+            r[ 2] = (byte)((t1 >>  5) | (t2 << 6));
+            r[ 3] = (byte)(t2 >>  2);
+            r[ 4] = (byte)((t2 >> 10) | (t3 << 1));
+            r[ 5] = (byte)((t3 >>  7) | (t4 << 4));
+            r[ 6] = (byte)((t4 >>  4) | (t5 << 7));
+            r[ 7] = (byte)(t5 >>  1);
+            r[ 8] = (byte)((t5 >>  9) | (t6 << 2));
+            r[ 9] = (byte)((t6 >>  6) | (t7 << 5));
+            r[10] = (byte)(t7 >>  3);
         #endif
 
             /* Move over set bytes. */
@@ -5159,7 +5189,7 @@ void mlkem_vec_compress_11(byte* r, sword16* v)
  */
 #define DECOMP_10(v, i, j, k, t) \
     v[(i) * MLKEM_N + 4 * (j) + (k)] = \
-        (word16)((((word32)((t) & 0x3ff) * MLKEM_Q) + 512) >> 10)
+        (sword16)((((word32)((t) & 0x3ff) * MLKEM_Q) + 512) >> 10)
 
 /* Decompress an 11 bit value.
  *
@@ -5174,7 +5204,7 @@ void mlkem_vec_compress_11(byte* r, sword16* v)
  */
 #define DECOMP_11(v, i, j, k, t) \
     v[(i) * MLKEM_N + 8 * (j) + (k)] = \
-        (word16)((((word32)((t) & 0x7ff) * MLKEM_Q) + 1024) >> 11)
+        (sword16)((((word32)((t) & 0x7ff) * MLKEM_Q) + 1024) >> 11)
 
 #if defined(WOLFSSL_KYBER512) || defined(WOLFSSL_WC_ML_KEM_512) || \
     defined(WOLFSSL_KYBER768) || defined(WOLFSSL_WC_ML_KEM_768)
@@ -5201,10 +5231,10 @@ static void mlkem_vec_decompress_10_c(sword16* v, const byte* b, unsigned int k)
         #ifdef WOLFSSL_MLKEM_SMALL
             word16 t[4];
             /* Extract out 4 values of 10 bits each. */
-            t[0] = (b[0] >> 0) | ((word16)b[ 1] << 8);
-            t[1] = (b[1] >> 2) | ((word16)b[ 2] << 6);
-            t[2] = (b[2] >> 4) | ((word16)b[ 3] << 4);
-            t[3] = (b[3] >> 6) | ((word16)b[ 4] << 2);
+            t[0] = (word16)((b[0] >> 0) | ((word16)b[ 1] << 8));
+            t[1] = (word16)((b[1] >> 2) | ((word16)b[ 2] << 6));
+            t[2] = (word16)((b[2] >> 4) | ((word16)b[ 3] << 4));
+            t[3] = (word16)((b[3] >> 6) | ((word16)b[ 4] << 2));
             b += 5;
 
             /* Decompress 4 values. */
@@ -5213,10 +5243,10 @@ static void mlkem_vec_decompress_10_c(sword16* v, const byte* b, unsigned int k)
             }
         #else
             /* Extract out 4 values of 10 bits each. */
-            sword16 t0 = (b[0] >> 0) | ((word16)b[ 1] << 8);
-            sword16 t1 = (b[1] >> 2) | ((word16)b[ 2] << 6);
-            sword16 t2 = (b[2] >> 4) | ((word16)b[ 3] << 4);
-            sword16 t3 = (b[3] >> 6) | ((word16)b[ 4] << 2);
+            word16 t0 = (word16)((b[0] >> 0) | ((word16)b[ 1] << 8));
+            word16 t1 = (word16)((b[1] >> 2) | ((word16)b[ 2] << 6));
+            word16 t2 = (word16)((b[2] >> 4) | ((word16)b[ 3] << 4));
+            word16 t3 = (word16)((b[3] >> 6) | ((word16)b[ 4] << 2));
             b += 5;
 
             /* Decompress 4 values. */
@@ -5241,7 +5271,7 @@ void mlkem_vec_decompress_10(sword16* v, const byte* b, unsigned int k)
 {
 #ifdef USE_INTEL_SPEEDUP
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-        mlkem_decompress_10_avx2(v, b, k);
+        mlkem_decompress_10_avx2(v, b, (int)k);
         RESTORE_VECTOR_REGISTERS();
     }
     else
@@ -5274,16 +5304,16 @@ static void mlkem_vec_decompress_11_c(sword16* v, const byte* b)
         #ifdef WOLFSSL_MLKEM_SMALL
             word16 t[8];
             /* Extract out 8 values of 11 bits each. */
-            t[0] = (b[0] >> 0) | ((word16)b[ 1] << 8);
-            t[1] = (b[1] >> 3) | ((word16)b[ 2] << 5);
-            t[2] = (b[2] >> 6) | ((word16)b[ 3] << 2) |
-                   ((word16)b[4] << 10);
-            t[3] = (b[4] >> 1) | ((word16)b[ 5] << 7);
-            t[4] = (b[5] >> 4) | ((word16)b[ 6] << 4);
-            t[5] = (b[6] >> 7) | ((word16)b[ 7] << 1) |
-                   ((word16)b[8] <<  9);
-            t[6] = (b[8] >> 2) | ((word16)b[ 9] << 6);
-            t[7] = (b[9] >> 5) | ((word16)b[10] << 3);
+            t[0] = (word16)((b[0] >> 0) | ((word16)b[ 1] << 8));
+            t[1] = (word16)((b[1] >> 3) | ((word16)b[ 2] << 5));
+            t[2] = (word16)((b[2] >> 6) | ((word16)b[ 3] << 2) |
+                   ((word16)b[4] << 10));
+            t[3] = (word16)((b[4] >> 1) | ((word16)b[ 5] << 7));
+            t[4] = (word16)((b[5] >> 4) | ((word16)b[ 6] << 4));
+            t[5] = (word16)((b[6] >> 7) | ((word16)b[ 7] << 1) |
+                   ((word16)b[8] <<  9));
+            t[6] = (word16)((b[8] >> 2) | ((word16)b[ 9] << 6));
+            t[7] = (word16)((b[9] >> 5) | ((word16)b[10] << 3));
             b += 11;
 
             /* Decompress 8 values. */
@@ -5292,16 +5322,16 @@ static void mlkem_vec_decompress_11_c(sword16* v, const byte* b)
             }
         #else
             /* Extract out 8 values of 11 bits each. */
-            sword16 t0 = (b[0] >> 0) | ((word16)b[ 1] << 8);
-            sword16 t1 = (b[1] >> 3) | ((word16)b[ 2] << 5);
-            sword16 t2 = (b[2] >> 6) | ((word16)b[ 3] << 2) |
-                   ((word16)b[4] << 10);
-            sword16 t3 = (b[4] >> 1) | ((word16)b[ 5] << 7);
-            sword16 t4 = (b[5] >> 4) | ((word16)b[ 6] << 4);
-            sword16 t5 = (b[6] >> 7) | ((word16)b[ 7] << 1) |
-                   ((word16)b[8] <<  9);
-            sword16 t6 = (b[8] >> 2) | ((word16)b[ 9] << 6);
-            sword16 t7 = (b[9] >> 5) | ((word16)b[10] << 3);
+            word16 t0 = (word16)((b[0] >> 0) | ((word16)b[ 1] << 8));
+            word16 t1 = (word16)((b[1] >> 3) | ((word16)b[ 2] << 5));
+            word16 t2 = (word16)((b[2] >> 6) | ((word16)b[ 3] << 2) |
+                   ((word16)b[4] << 10));
+            word16 t3 = (word16)((b[4] >> 1) | ((word16)b[ 5] << 7));
+            word16 t4 = (word16)((b[5] >> 4) | ((word16)b[ 6] << 4));
+            word16 t5 = (word16)((b[6] >> 7) | ((word16)b[ 7] << 1) |
+                   ((word16)b[8] <<  9));
+            word16 t6 = (word16)((b[8] >> 2) | ((word16)b[ 9] << 6));
+            word16 t7 = (word16)((b[9] >> 5) | ((word16)b[10] << 3));
             b += 11;
 
             /* Decompress 8 values. */
@@ -5411,7 +5441,8 @@ void mlkem_vec_decompress_11(sword16* v, const byte* b)
  * @return  Compressed value.
  */
 #define TO_COMP_WORD_4(p, i, j) \
-    ((((MLKEM_V28 << 4) * (p)[(i) + (j)]) + MLKEM_V28_HALF) >> 28)
+    (byte)(((((MLKEM_V28 << 4) * (word32)(word16)((p)[(i) + (j)])) + \
+              MLKEM_V28_HALF) >> 28))
 
 /* Compress value to 5 bits.
  *
@@ -5425,7 +5456,8 @@ void mlkem_vec_decompress_11(sword16* v, const byte* b)
  * @return  Compressed value.
  */
 #define TO_COMP_WORD_5(p, i, j) \
-    ((((MLKEM_V27 << 5) * (p)[(i) + (j)]) + MLKEM_V27_HALF) >> 27)
+    (byte)(((((MLKEM_V27 << 5) * (word32)(word16)((p)[(i) + (j)])) + \
+              MLKEM_V27_HALF) >> 27))
 
 #endif /* CONV_WITH_DIV */
 
@@ -5460,10 +5492,10 @@ static void mlkem_compress_4_c(byte* b, sword16* p)
             t[j] = TO_COMP_WORD_4(p, i, j);
         }
 
-        b[0] = t[0] | (t[1] << 4);
-        b[1] = t[2] | (t[3] << 4);
-        b[2] = t[4] | (t[5] << 4);
-        b[3] = t[6] | (t[7] << 4);
+        b[0] = (byte)(t[0] | (t[1] << 4));
+        b[1] = (byte)(t[2] | (t[3] << 4));
+        b[2] = (byte)(t[4] | (t[5] << 4));
+        b[3] = (byte)(t[6] | (t[7] << 4));
     #else
         /* Compress eight polynomial values to 4 bits each. */
         byte t0 = TO_COMP_WORD_4(p, i, 0);
@@ -5476,10 +5508,10 @@ static void mlkem_compress_4_c(byte* b, sword16* p)
         byte t7 = TO_COMP_WORD_4(p, i, 7);
 
         /* Pack eight 4-bit values into byte array. */
-        b[0] = t0 | (t1 << 4);
-        b[1] = t2 | (t3 << 4);
-        b[2] = t4 | (t5 << 4);
-        b[3] = t6 | (t7 << 4);
+        b[0] = (byte)(t0 | (t1 << 4));
+        b[1] = (byte)(t2 | (t3 << 4));
+        b[2] = (byte)(t4 | (t5 << 4));
+        b[3] = (byte)(t6 | (t7 << 4));
     #endif
 
         /* Move over set bytes. */
@@ -5536,11 +5568,11 @@ static void mlkem_compress_5_c(byte* b, sword16* p)
         }
 
         /* Pack 5 bits into byte array. */
-        b[0] = (t[0] >> 0) | (t[1] << 5);
-        b[1] = (t[1] >> 3) | (t[2] << 2) | (t[3] << 7);
-        b[2] = (t[3] >> 1) | (t[4] << 4);
-        b[3] = (t[4] >> 4) | (t[5] << 1) | (t[6] << 6);
-        b[4] = (t[6] >> 2) | (t[7] << 3);
+        b[0] = (byte)((t[0] >> 0) | (t[1] << 5));
+        b[1] = (byte)((t[1] >> 3) | (t[2] << 2) | (t[3] << 7));
+        b[2] = (byte)((t[3] >> 1) | (t[4] << 4));
+        b[3] = (byte)((t[4] >> 4) | (t[5] << 1) | (t[6] << 6));
+        b[4] = (byte)((t[6] >> 2) | (t[7] << 3));
     #else
         /* Compress eight polynomial values to 5 bits each. */
         byte t0 = TO_COMP_WORD_5(p, i, 0);
@@ -5553,11 +5585,11 @@ static void mlkem_compress_5_c(byte* b, sword16* p)
         byte t7 = TO_COMP_WORD_5(p, i, 7);
 
         /* Pack eight 5-bit values into byte array. */
-        b[0] = (t0 >> 0) | (t1 << 5);
-        b[1] = (t1 >> 3) | (t2 << 2) | (t3 << 7);
-        b[2] = (t3 >> 1) | (t4 << 4);
-        b[3] = (t4 >> 4) | (t5 << 1) | (t6 << 6);
-        b[4] = (t6 >> 2) | (t7 << 3);
+        b[0] = (byte)((t0 >> 0) | (t1 << 5));
+        b[1] = (byte)((t1 >> 3) | (t2 << 2) | (t3 << 7));
+        b[2] = (byte)((t3 >> 1) | (t4 << 4));
+        b[3] = (byte)((t4 >> 4) | (t5 << 1) | (t6 << 6));
+        b[4] = (byte)((t6 >> 2) | (t7 << 3));
     #endif
 
         /* Move over set bytes. */
@@ -5600,7 +5632,7 @@ void mlkem_compress_5(byte* b, sword16* p)
  * @return  Decompressed value.
  */
 #define DECOMP_4(p, i, j, t) \
-    p[(i) + (j)] = ((word16)((t) * MLKEM_Q) + 8) >> 4
+    p[(i) + (j)] = (sword16)(((word16)((t) * MLKEM_Q) + 8) >> 4)
 
 /* Decompress a 5 bit value.
  *
@@ -5613,7 +5645,7 @@ void mlkem_compress_5(byte* b, sword16* p)
  * @return  Decompressed value.
  */
 #define DECOMP_5(p, i, j, t) \
-    p[(i) + (j)] = (((word32)((t) & 0x1f) * MLKEM_Q) + 16) >> 5
+    p[(i) + (j)] = (sword16)((((word32)((t) & 0x1f) * MLKEM_Q) + 16) >> 5)
 
 #if defined(WOLFSSL_KYBER512) || defined(WOLFSSL_WC_ML_KEM_512) || \
     defined(WOLFSSL_KYBER768) || defined(WOLFSSL_WC_ML_KEM_768)
@@ -5678,12 +5710,12 @@ static void mlkem_decompress_5_c(sword16* p, const byte* b)
 
         /* Extract out 8 values of 5 bits each. */
         t[0] = (b[0] >> 0);
-        t[1] = (b[0] >> 5) | (b[1] << 3);
+        t[1] = (byte)((b[0] >> 5) | (b[1] << 3));
         t[2] = (b[1] >> 2);
-        t[3] = (b[1] >> 7) | (b[2] << 1);
-        t[4] = (b[2] >> 4) | (b[3] << 4);
+        t[3] = (byte)((b[1] >> 7) | (b[2] << 1));
+        t[4] = (byte)((b[2] >> 4) | (b[3] << 4));
         t[5] = (b[3] >> 1);
-        t[6] = (b[3] >> 6) | (b[4] << 2);
+        t[6] = (byte)((b[3] >> 6) | (b[4] << 2));
         t[7] = (b[4] >> 3);
         b += 5;
 
@@ -5694,12 +5726,12 @@ static void mlkem_decompress_5_c(sword16* p, const byte* b)
     #else
         /* Extract out 8 values of 5 bits each. */
         byte t0 = (b[0] >> 0);
-        byte t1 = (b[0] >> 5) | (b[1] << 3);
+        byte t1 = (byte)((b[0] >> 5) | (b[1] << 3));
         byte t2 = (b[1] >> 2);
-        byte t3 = (b[1] >> 7) | (b[2] << 1);
-        byte t4 = (b[2] >> 4) | (b[3] << 4);
+        byte t3 = (byte)((b[1] >> 7) | (b[2] << 1));
+        byte t4 = (byte)((b[2] >> 4) | (b[3] << 4));
         byte t5 = (b[3] >> 1);
-        byte t6 = (b[3] >> 6) | (b[4] << 2);
+        byte t6 = (byte)((b[3] >> 6) | (b[4] << 2));
         byte t7 = (b[4] >> 3);
         b += 5;
 
@@ -5853,8 +5885,11 @@ void mlkem_from_msg(sword16* p, const byte* msg)
  * @param  [in]   j   Index of bit in byte.
  */
 #define TO_MSG_BIT(m, p, i, j) \
-    (m)[i] |= ((word32)((MLKEM_V31_2 * (p)[8 * (i) + (j)]) + \
-                        MLKEM_V31_HALF) >> 31) << (j)
+    do { \
+        word32 _t = ((((word32)(word16)((p)[8 * (i) + (j)])) * MLKEM_V31_2) + \
+                     MLKEM_V31_HALF) >> 31; \
+        (m)[i] = (byte)((m)[i] | (byte)((_t & 1U) << (j))); \
+    } while (0)
 
 #endif /* CONV_WITH_DIV */
 
@@ -6031,11 +6066,11 @@ static void mlkem_to_bytes_c(byte* b, sword16* p, int k)
         /* All values are now positive. */
 
         for (i = 0; i < MLKEM_N / 2; i++) {
-            word16 t0 = p[2 * i];
-            word16 t1 = p[2 * i + 1];
-            b[3 * i + 0] = (t0 >> 0);
-            b[3 * i + 1] = (t0 >> 8) | t1 << 4;
-            b[3 * i + 2] = (t1 >> 4);
+            word16 t0 = (word16)p[2 * i];
+            word16 t1 = (word16)p[2 * i + 1];
+            b[3 * i + 0] = (byte)(t0 >> 0);
+            b[3 * i + 1] = (byte)((t0 >> 8) | (t1 << 4));
+            b[3 * i + 2] = (byte)(t1 >> 4);
         }
         p += MLKEM_N;
         b += WC_ML_KEM_POLY_SIZE;
