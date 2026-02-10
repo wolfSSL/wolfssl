@@ -98,6 +98,36 @@ ATECC508A HW accelerated implementation:
 
 ### Microchip Trust Anchor TA100 ECC/RSA
 
+## TA100 Support Notes
+
+The TA100 integration uses Microchip CryptoAuthLib TALIB APIs and supports
+ECC P-256 and RSA (2048 or 3072 depending on build options). This port is
+built against CryptoAuthLib v3.6.0. TA100 uses
+device handles rather than ATECC slot addresses; wolfSSL maps ECC slots to
+TA100 handles internally and uses a dedicated symmetric key handle for AES-GCM.
+
+Key points:
+* TA100 support is enabled via `WOLFSSL_MICROCHIP_TA100` and CryptoAuthLib
+  must be built with TA100 support enabled (`ATCA_TA100_SUPPORT`).
+* RSA key size selection uses `WOLFSSL_SP_NO_2048` / `WOLFSSL_SP_NO_3072`
+  to choose `WOLFSSL_TA_KEY_TYPE_RSA` and `WOLFSSL_TA_KEY_TYPE_RSA_SIZE`.
+* AES-GCM support requires `WOLFSSL_MICROCHIP_AESGCM` and CryptoAuthLib
+  TA100 AES-GCM support (`ATCA_TA100_AES_AUTH_SUPPORT`).
+
+### TA100 Auto-Lock Option
+
+By default, wolfSSL does **not** lock the TA100 setup/data zone when setting
+an AES key. If you want to lock the setup/data zone automatically after the
+AES key is loaded, define:
+
+`WOLFSSL_TA100_AUTO_LOCK=1`
+
+This gates the call to `talib_lock_setup()` inside
+`wc_Microchip_aes_set_key()` in `wolfcrypt/src/port/atmel/atmel.c`.
+Because locking is a one-way operation on real hardware, this option is
+disabled by default and should only be enabled in a controlled provisioning
+flow.
+
 rm -rf build-shared
 cmake -S . -B build-shared \
   -DCMAKE_BUILD_TYPE=Debug \

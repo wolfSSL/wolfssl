@@ -1898,12 +1898,14 @@ int wc_Microchip_aes_set_key(Aes* aes, const byte* key, word32 keylen,
     status = talib_aes_gcm_keyload(atcab_get_device(), aes->key_id, 0);
     CHECK_STATUS(status);
 
+#if WOLFSSL_TA100_AUTO_LOCK
     /* Test if data zone is locked */
     status = talib_is_setup_locked(atcab_get_device(), &is_locked);
     if (!is_locked) {
         status = talib_lock_setup(atcab_get_device());
         CHECK_STATUS(status);
     }
+#endif
 
     return atmel_ecc_translate_err(status);
 }

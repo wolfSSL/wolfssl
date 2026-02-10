@@ -149,6 +149,10 @@ int  atmel_ecc_verify_ex(const byte* message, word32 message_len,
 
 #if defined(WOLFSSL_MICROCHIP_TA100)
 
+#ifndef WOLFSSL_TA100_AUTO_LOCK
+    #define WOLFSSL_TA100_AUTO_LOCK 0
+#endif
+
 #if !defined(NO_AES) && defined(HAVE_AESGCM) && \
     defined(WOLFSSL_MICROCHIP_AESGCM)
 #include <wolfssl/wolfcrypt/aes.h>
