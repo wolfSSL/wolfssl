@@ -5559,7 +5559,8 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
             ssl->options.pskNegotiated == 0 &&
     #endif
-            ssl->session->namedGroup == 0) {
+            (ssl->session->namedGroup == 0 ||
+             ssl->options.shSentKeyShare == 0)) {
             return EXT_MISSING;
         }
 

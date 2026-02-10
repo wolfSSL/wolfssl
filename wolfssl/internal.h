@@ -5107,6 +5107,7 @@ struct Options {
     word16            hrrSentCookie:1;    /* HRR sent with cookie */
 #endif
     word16            hrrSentKeyShare:1;  /* HRR sent with key share */
+    word16            shSentKeyShare:1;   /* SH sent with key share */
 #endif
     word16            returnOnGoodCh:1;
     word16            disableRead:1;

@@ -10094,6 +10094,8 @@ int TLSX_KeyShare_Parse(WOLFSSL* ssl, const byte* input, word16 length,
         if (length < OPAQUE16_LEN)
             return BUFFER_ERROR;
 
+        ssl->options.shSentKeyShare = 1;
+
         /* The data is the named group the server wants to use. */
         ato16(input, &group);
 
