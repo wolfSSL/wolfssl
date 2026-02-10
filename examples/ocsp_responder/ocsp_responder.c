@@ -61,7 +61,9 @@ char* myoptarg = NULL;
     #include <fcntl.h>
     #include <errno.h>
     #define SOCKET_T int
+#ifndef INVALID_SOCKET
     #define INVALID_SOCKET -1
+#endif
     #define SOCKET_ERROR -1
 #endif
 

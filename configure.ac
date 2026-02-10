@@ -1457,6 +1457,7 @@ then
     test "$enable_ocsp" = "" && enable_ocsp=yes
     test "$enable_ocspstapling" = "" && test "$enable_ocsp" != "no" && enable_ocspstapling=yes
     test "$enable_ocspstapling2" = "" && test "$enable_ocsp" != "no" && enable_ocspstapling2=yes
+    test "$enable_ocsp_responder" = "" && enable_ocsp_responder=yes
     test "$enable_crl" = "" && enable_crl=yes
     test "$enable_supportedcurves" = "" && enable_supportedcurves=yes
     test "$enable_tlsx" = "" && enable_tlsx=yes
