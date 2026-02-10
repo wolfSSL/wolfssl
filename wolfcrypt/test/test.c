@@ -25062,6 +25062,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit_rsa);
     }
     TEST_SLEEP();
+
+    do {
+#if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+#endif
+        if (ret >= 0) {
+            ret = wc_RsaSSL_Sign(in, inLen, out, outSz, key, &rng);
+        }
+    } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
+    if (ret < 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
+    TEST_SLEEP();
 #endif /* !WOLFSSL_MICROCHIP_TA100 */
 
 #elif defined(WOLFSSL_PUBLIC_MP)
