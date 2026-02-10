@@ -12,3 +12,6 @@ tags = ["ssl", "tls", "embedded", "spark"]
 
 [configuration.variables]
 STATIC_PSK = {type = "Boolean", default = false}
+
+[[depends-on]]
+gnatprove = "^13.2.1"

@@ -1,6 +1,6 @@
 -- wolfssl.adb
 --
--- Copyright (C) 2006-2023 wolfSSL Inc.
+-- Copyright (C) 2006-2025 wolfSSL Inc.
 --
 -- This file is part of wolfSSL.
 --
@@ -20,12 +20,6 @@
 --
 
 with Ada.Unchecked_Conversion;
-pragma Warnings (Off, "* is an internal GNAT unit");
-with GNAT.Sockets.Thin_Common;
-pragma Warnings (On, "* is an internal GNAT unit");
-with Interfaces.C.Extensions;
-with Interfaces.C.Strings;
-with System;
 
 package body WolfSSL is
 
@@ -34,7 +28,11 @@ package body WolfSSL is
    subtype long is Interfaces.C.long;
    subtype unsigned_long is Interfaces.C.unsigned_long;
 
-   WOLFSSL_SUCCESS : constant int := Get_WolfSSL_Success;
+   --  The first value in the Byte_Type range (Byte_Type'First),
+   --  used as the null byte (0).
+   nul : constant Byte_Type := Byte_Type'First;
+
+   --  WOLFSSL_SUCCESS : constant int := Get_WolfSSL_Success;
 
    function Initialize_WolfSSL return int with
      Convention    => C,
@@ -61,6 +59,11 @@ package body WolfSSL is
    function Is_Valid (Context : Context_Type) return Boolean is
    begin
       return Context /= null;
+   end Is_Valid;
+
+   function Is_Valid (Method : Method_Type) return Boolean is
+   begin
+      return Method /= null;
    end Is_Valid;
 
    function WolfTLSv1_2_Server_Method return Method_Type with
@@ -147,10 +150,11 @@ package body WolfSSL is
                              return Context_Type with
      Convention => C, External_Name => "wolfSSL_CTX_new", Import => True;
 
-   procedure Create_Context (Method  : Method_Type;
+   procedure Create_Context (Method  : in out Method_Type;
                              Context : out Context_Type) is
    begin
       Context := WolfSSL_CTX_new (Method);
+      Method := null;
    end Create_Context;
 
    procedure WolfSSL_CTX_free (Context : Context_Type) with
@@ -158,7 +162,9 @@ package body WolfSSL is
 
    procedure Free (Context : in out Context_Type) is
    begin
-      WolfSSL_CTX_free (Context);
+      if Context /= null then
+         WolfSSL_CTX_free (Context);
+      end if;
       Context := null;
    end Free;
 
@@ -214,24 +220,32 @@ package body WolfSSL is
 
    procedure Set_Verify (Context : Context_Type;
                          Mode    : Mode_Type) is
+      pragma Warnings (Off, "pragma Restrictions (No_Exception_Propagation)");
+      --  The values that Set_Verify may be called with have first
+      --  been int values, then converted into Mode_Type values and
+      --  here they are converted back to int. This can never fail
+      --  unless there is hardware failure or cosmic radiation has
+      --  done a bit flip.
+      V : constant int := int (Mode);
+      pragma Warnings (On, "pragma Restrictions (No_Exception_Propagation)");
    begin
       WolfSSL_CTX_Set_Verify (Context  => Context,
-                              Mode     => int (Mode),
+                              Mode     => V,
                               Callback => null);
    end Set_Verify;
 
-   function WolfSSL_Get_Verify(Context : Context_Type) return int with
+   function WolfSSL_Get_Verify (Context : Context_Type) return int with
      Convention    => C,
      External_Name => "wolfSSL_CTX_get_verify_mode",
      Import        => True;
 
    function Get_Verify (Context : Context_Type) return Mode_Type is
    begin
-      return Mode_Type (WolfSSL_Get_Verify(Context));
+      return Mode_Type (WolfSSL_Get_Verify (Context));
    end Get_Verify;
 
    function Use_Certificate_File (Context : Context_Type;
-                                  File    : char_array;
+                                  File    : Byte_Array;
                                   Format  : int)
                                   return int with
      Convention    => C,
@@ -242,30 +256,35 @@ package body WolfSSL is
                                   File    : String;
                                   Format  : File_Format)
                                   return Subprogram_Result is
-      Ctx : constant Context_Type := Context;
-      C : size_t;
-      F : char_array (1 .. File'Length + 1);
-      Result : int;
    begin
-      Interfaces.C.To_C (Item       => File,
-                         Target     => F,
-                         Count      => C,
-                         Append_Nul => True);
-      Result := Use_Certificate_File (Ctx, F (1 .. C), int (Format));
-      return Subprogram_Result (Result);
+      declare
+         Ctx : constant Context_Type := Context;
+         F : Byte_Array (1 .. File'Length + 1);
+         Result : int;
+      begin
+         for I in File'Range loop
+            F (F'First + Byte_Index (I - File'First)) := Byte_Type (File (I));
+         end loop;
+         F (F'Last) := nul;
+         Result := Use_Certificate_File (Ctx, F, int (Format));
+         return Subprogram_Result (Result);
+      end;
+   exception
+      when others =>
+         return Exception_Error;
    end Use_Certificate_File;
 
    function Use_Certificate_Buffer (Context : Context_Type;
-                                    Input   : char_array;
+                                    Input   : Byte_Array;
                                     Size    : long;
                                     Format  : int)
                                     return int with
-      Convention    => C,
-      External_Name => "wolfSSL_CTX_use_certificate_buffer",
-      Import        => True;
+     Convention    => C,
+     External_Name => "wolfSSL_CTX_use_certificate_buffer",
+     Import        => True;
 
    function Use_Certificate_Buffer (Context : Context_Type;
-                                    Input   : char_array;
+                                    Input   : Byte_Array;
                                     Format  : File_Format)
                                     return Subprogram_Result is
       Result : int;
@@ -273,10 +292,13 @@ package body WolfSSL is
       Result := Use_Certificate_Buffer (Context, Input,
                                         Input'Length, int (Format));
       return Subprogram_Result (Result);
+   exception
+      when others =>
+         return Exception_Error;
    end Use_Certificate_Buffer;
 
    function Use_Private_Key_File (Context : Context_Type;
-                                  File    : char_array;
+                                  File    : Byte_Array;
                                   Format  : int)
                                   return int with
      Convention    => C,
@@ -287,21 +309,26 @@ package body WolfSSL is
                                   File    : String;
                                   Format  : File_Format)
                                   return Subprogram_Result is
-      Ctx : constant Context_Type := Context;
-      C : size_t;
-      F : char_array (1 .. File'Length + 1);
-      Result : int;
    begin
-      Interfaces.C.To_C (Item       => File,
-                         Target     => F,
-                         Count      => C,
-                         Append_Nul => True);
-      Result := Use_Private_Key_File (Ctx, F (1 .. C), int (Format));
-      return Subprogram_Result (Result);
+      declare
+         Ctx : constant Context_Type := Context;
+         F : Byte_Array (1 .. File'Length + 1);
+         Result : int;
+      begin
+         for I in File'Range loop
+            F (F'First + Byte_Index (I - File'First)) := Byte_Type (File (I));
+         end loop;
+         F (F'Last) := nul;
+         Result := Use_Private_Key_File (Ctx, F, int (Format));
+         return Subprogram_Result (Result);
+      end;
+   exception
+      when others =>
+         return Exception_Error;
    end Use_Private_Key_File;
 
    function Use_Private_Key_Buffer (Context : Context_Type;
-                                    Input   : char_array;
+                                    Input   : Byte_Array;
                                     Size    : long;
                                     Format  : int)
                                     return int with
@@ -318,15 +345,18 @@ package body WolfSSL is
       Result := Use_Private_Key_Buffer (Context, Input,
                                         Input'Length, int (Format));
       return Subprogram_Result (Result);
+   exception
+      when others =>
+         return Exception_Error;
    end Use_Private_Key_Buffer;
 
    function Load_Verify_Locations1
-      (Context : Context_Type;
-       File    : char_array;
-       Path    : char_array) return int with
-      Convention    => C,
-      External_Name => "wolfSSL_CTX_load_verify_locations",
-      Import        => True;
+     (Context : Context_Type;
+      File    : Byte_Array;
+      Path    : Byte_Array) return int with
+     Convention    => C,
+     External_Name => "wolfSSL_CTX_load_verify_locations",
+     Import        => True;
    --  This function loads PEM-formatted CA certificate files into
    --  the SSL context (WOLFSSL_CTX). These certificates will be treated
    --  as trusted root certificates and used to verify certs received
@@ -343,87 +373,86 @@ package body WolfSSL is
    --  attempt to load all files in the directory. This function expects
    --  PEM formatted CERT_TYPE file with header "--BEGIN CERTIFICATE--".
 
-   subtype char_array_ptr is Interfaces.C.Strings.char_array_access;
-
    function Load_Verify_Locations2
-      (Context : Context_Type;
-       File    : char_array;
-       Path    : char_array_ptr) return int with
-      Convention    => C,
-      External_Name => "wolfSSL_CTX_load_verify_locations",
-      Import        => True;
+     (Context : Context_Type;
+      File    : Byte_Array;
+      Path    : access Interfaces.C.char) return int with
+     Convention    => C,
+     External_Name => "wolfSSL_CTX_load_verify_locations",
+     Import        => True;
 
    function Load_Verify_Locations3
-      (Context : Context_Type;
-       File    : char_array_ptr;
-       Path    : char_array) return int with
-      Convention    => C,
-      External_Name => "wolfSSL_CTX_load_verify_locations",
-      Import        => True;
+     (Context : Context_Type;
+      File    : access Interfaces.C.char;
+      Path    : Byte_Array) return int with
+     Convention    => C,
+     External_Name => "wolfSSL_CTX_load_verify_locations",
+     Import        => True;
 
    function Load_Verify_Locations4
-      (Context : Context_Type;
-       File    : char_array_ptr;
-       Path    : char_array_ptr) return int with
-      Convention    => C,
-      External_Name => "wolfSSL_CTX_load_verify_locations",
-      Import        => True;
+     (Context : Context_Type;
+      File    : access Interfaces.C.char;
+      Path    : access Interfaces.C.char) return int with
+     Convention    => C,
+     External_Name => "wolfSSL_CTX_load_verify_locations",
+     Import        => True;
 
    function Load_Verify_Locations (Context : Context_Type;
                                    File    : String;
                                    Path    : String)
                                    return Subprogram_Result is
-      Ctx : constant Context_Type := Context;
-      FC : size_t;  -- File Count, specifies the characters used in F.
-      F : aliased char_array := (1 .. File'Length + 1 => '#');
-
-      PC : size_t;  -- Path Count, specifies the characters used in P.
-      P : aliased char_array := (1 .. Path'Length + 1 => '#');
-
-      Result : int;
    begin
-      if File = "" then
-         if Path = "" then
-            Result := Load_Verify_Locations4 (Ctx, null, null);
+      declare
+         Ctx : constant Context_Type := Context;
+         F : aliased Byte_Array := (1 .. File'Length + 1 => '#');
+         P : aliased Byte_Array := (1 .. Path'Length + 1 => '#');
+         Result : int;
+      begin
+         if File = "" then
+            if Path = "" then
+               Result := Load_Verify_Locations4 (Ctx, null, null);
+            else
+               for I in Path'Range loop
+                  P (P'First + Byte_Index (I - Path'First)) :=
+                    Byte_Type (Path (I));
+               end loop;
+               P (P'Last) := nul;
+               Result := Load_Verify_Locations3 (Ctx, null, P);
+            end if;
          else
-            Interfaces.C.To_C (Item       => Path,
-                               Target     => P,
-                               Count      => PC,
-                               Append_Nul => True);
-            Result := Load_Verify_Locations3 (Ctx, null, P);
+            for I in File'Range loop
+               F (F'First + Byte_Index (I - File'First)) :=
+                 Byte_Type (File (I));
+            end loop;
+            F (F'Last) := nul;
+            if Path = "" then
+               Result := Load_Verify_Locations2 (Ctx, F, null);
+            else
+               for I in Path'Range loop
+                  P (P'First + Byte_Index (I - Path'First)) :=
+                    Byte_Type (Path (I));
+               end loop;
+               P (P'Last) := nul;
+               Result := Load_Verify_Locations1 (Context => Ctx,
+                                                 File    => F,
+                                                 Path    => P);
+            end if;
          end if;
-      else
-         Interfaces.C.To_C (Item       => File,
-                            Target     => F,
-                            Count      => FC,
-                            Append_Nul => True);
-         if Path = "" then
-            Result := Load_Verify_Locations2 (Ctx, F, null);
-         else
-            Interfaces.C.To_C (Item       => Path,
-                               Target     => P,
-                               Count      => PC,
-                               Append_Nul => True);
-            Interfaces.C.To_C (Item       => Path,
-                               Target     => P,
-                               Count      => PC,
-                               Append_Nul => True);
-            Result := Load_Verify_Locations1 (Context => Ctx,
-                                              File    => F,
-                                              Path    => P);
-         end if;
-      end if;
-      return Subprogram_Result (Result);
+         return Subprogram_Result (Result);
+      end;
+   exception
+      when others =>
+         return Exception_Error;
    end Load_Verify_Locations;
 
    function Load_Verify_Buffer
-      (Context : Context_Type;
-       Input   : char_array;
-       Size    : int;
-       Format  : int) return int with
-      Convention    => C,
-      External_Name => "wolfSSL_CTX_load_verify_buffer",
-      Import        => True;
+     (Context : Context_Type;
+      Input   : Byte_Array;
+      Size    : int;
+      Format  : int) return int with
+     Convention    => C,
+     External_Name => "wolfSSL_CTX_load_verify_buffer",
+     Import        => True;
 
    function Load_Verify_Buffer (Context : Context_Type;
                                 Input   : Byte_Array;
@@ -432,10 +461,13 @@ package body WolfSSL is
       Result : int;
    begin
       Result := Load_Verify_Buffer (Context => Context,
-                                     Input   => Input,
-                                     Size    => Input'Length,
-                                     Format  => int(Format));
+                                    Input   => Input,
+                                    Size    => Input'Length,
+                                    Format  => int(Format));
       return Subprogram_Result (Result);
+   exception
+      when others =>
+         return Exception_Error;
    end Load_Verify_Buffer;
 
    function Is_Valid (Ssl : WolfSSL_Type) return Boolean is
@@ -456,7 +488,7 @@ package body WolfSSL is
    end Create_WolfSSL;
 
    function Use_Certificate_File (Ssl     : WolfSSL_Type;
-                                  File    : char_array;
+                                  File    : Byte_Array;
                                   Format  : int)
                                   return int with
      Convention    => C,
@@ -467,29 +499,35 @@ package body WolfSSL is
                                   File    : String;
                                   Format  : File_Format)
                                   return Subprogram_Result is
-      C : size_t;
-      F : char_array (1 .. File'Length + 1);
-      Result : int;
    begin
-      Interfaces.C.To_C (Item       => File,
-                         Target     => F,
-                         Count      => C,
-                         Append_Nul => True);
-      Result := Use_Certificate_File (Ssl, F (1 .. C), int (Format));
-      return Subprogram_Result (Result);
+      declare
+         F : Byte_Array (1 .. File'Length + 1);
+         Result : int;
+      begin
+         for I in File'Range loop
+            F (F'First + Byte_Index (I - File'First)) :=
+              Byte_Type (File (I));
+         end loop;
+         F (F'Last) := nul;
+         Result := Use_Certificate_File (Ssl, F, int (Format));
+         return Subprogram_Result (Result);
+      end;
+   exception
+      when others =>
+         return Exception_Error;
    end Use_Certificate_File;
 
    function Use_Certificate_Buffer (Ssl     : WolfSSL_Type;
-                                    Input   : char_array;
+                                    Input   : Byte_Array;
                                     Size    : long;
                                     Format  : int)
                                     return int with
-      Convention    => C,
-      External_Name => "wolfSSL_use_certificate_buffer",
-      Import        => True;
+     Convention    => C,
+     External_Name => "wolfSSL_use_certificate_buffer",
+     Import        => True;
 
    function Use_Certificate_Buffer (Ssl     : WolfSSL_Type;
-                                    Input   : char_array;
+                                    Input   : Byte_Array;
                                     Format  : File_Format)
                                     return Subprogram_Result is
       Result : int;
@@ -497,34 +535,42 @@ package body WolfSSL is
       Result := Use_Certificate_Buffer (Ssl, Input,
                                         Input'Length, int (Format));
       return Subprogram_Result (Result);
+   exception
+      when others =>
+         return Exception_Error;
    end Use_Certificate_Buffer;
 
    function Use_Private_Key_File (Ssl     : WolfSSL_Type;
-                                  File    : char_array;
+                                  File    : Byte_Array;
                                   Format  : int)
-                                   return int with
-      Convention    => C,
-      External_Name => "wolfSSL_use_PrivateKey_file",
-      Import        => True;
+                                  return int with
+     Convention    => C,
+     External_Name => "wolfSSL_use_PrivateKey_file",
+     Import        => True;
 
    function Use_Private_Key_File (Ssl     : WolfSSL_Type;
                                   File    : String;
                                   Format  : File_Format)
                                   return Subprogram_Result is
-      C : size_t;
-      F : char_array (1 .. File'Length + 1);
-      Result : int;
    begin
-      Interfaces.C.To_C (Item       => File,
-                         Target     => F,
-                         Count      => C,
-                         Append_Nul => True);
-      Result := Use_Private_Key_File (Ssl, F (1 .. C), int (Format));
-      return Subprogram_Result (Result);
+      declare
+         F : Byte_Array (1 .. File'Length + 1);
+         Result : int;
+      begin
+         for I in File'Range loop
+            F (F'First + Byte_Index (I - File'First)) := Byte_Type (File (I));
+         end loop;
+         F (F'Last) := nul;
+         Result := Use_Private_Key_File (Ssl, F, int (Format));
+         return Subprogram_Result (Result);
+      end;
+   exception
+      when others =>
+         return Exception_Error;
    end Use_Private_Key_File;
 
    function Use_Private_Key_Buffer (Ssl     : WolfSSL_Type;
-                                    Input   : char_array;
+                                    Input   : Byte_Array;
                                     Size    : long;
                                     Format  : int)
                                     return int with
@@ -541,87 +587,10 @@ package body WolfSSL is
       Result := Use_Private_Key_Buffer (Ssl, Input,
                                         Input'Length, int (Format));
       return Subprogram_Result (Result);
+   exception
+      when others =>
+         return Exception_Error;
    end Use_Private_Key_Buffer;
-
-   function WolfSSL_DTLS_Set_Peer
-     (ssl    : WolfSSL_Type;
-      peer   : GNAT.Sockets.Thin_Common.Sockaddr_Access;
-      peerSz : Interfaces.C.unsigned)
-      return int with
-     Convention    => C,
-     External_Name => "wolfSSL_dtls_set_peer",
-     Import        => True;
-
-   function DTLS_Set_Peer
-     (Ssl     : WolfSSL_Type;
-      Address : GNAT.Sockets.Sock_Addr_Type)
-      return Subprogram_Result is
-
-      Sin    : aliased GNAT.Sockets.Thin_Common.Sockaddr;
-      Length : Interfaces.C.int;
-
-   begin
-
-      GNAT.Sockets.Thin_Common.Set_Address
-        (Sin     => Sin'Unchecked_Access,
-         Address => Address,
-         Length  => Length);
-
-      pragma Assert (Length >= 0);
-
-      return
-        Subprogram_Result
-          (WolfSSL_DTLS_Set_Peer
-             (ssl    => Ssl,
-              peer   => Sin'Unchecked_Access,
-              peerSz => Interfaces.C.unsigned (Length)));
-
-   end DTLS_Set_Peer;
-
-   procedure WolfSSL_Set_Psk_Client_Callback
-     (Ssl : WolfSSL_Type;
-      Cb  : PSK_Client_Callback)
-   with
-     Convention    => C,
-     External_Name => "wolfSSL_set_psk_client_callback",
-     Import        => True;
-
-   procedure Set_PSK_Client_Callback
-     (Ssl      : WolfSSL_Type;
-      Callback : PSK_Client_Callback) is
-   begin
-      WolfSSL_Set_Psk_Client_Callback (Ssl, Callback);
-   end Set_PSK_Client_Callback;
-
-   procedure WolfSSL_Set_Psk_Server_Callback
-     (Ssl : WolfSSL_Type;
-      Cb  : PSK_Server_Callback)
-   with
-     Convention    => C,
-     External_Name => "wolfSSL_set_psk_server_callback",
-     Import        => True;
-
-   procedure Set_PSK_Server_Callback
-       (Ssl      : WolfSSL_Type;
-        Callback : PSK_Server_Callback) is
-   begin
-      WolfSSL_Set_Psk_Server_Callback (Ssl, Callback);
-   end Set_PSK_Server_Callback;
-
-   procedure WolfSSL_CTX_Set_Psk_Server_Callback
-     (Ctx : Context_Type;
-      Cb  : PSK_Server_Callback)
-   with
-     Convention    => C,
-     External_Name => "wolfSSL_CTX_set_psk_server_callback",
-     Import        => True;
-
-   procedure Set_Context_PSK_Server_Callback
-       (Context  : Context_Type;
-        Callback : PSK_Server_Callback) is
-   begin
-      WolfSSL_CTX_Set_Psk_Server_Callback (Context, Callback);
-   end Set_Context_PSK_Server_Callback;
 
    function WolfSSL_Set_Fd (Ssl : WolfSSL_Type; Fd : int) return int with
      Convention    => C,
@@ -631,15 +600,15 @@ package body WolfSSL is
    function Attach (Ssl    : WolfSSL_Type;
                     Socket : Integer)
                     return Subprogram_Result is
-      Result : int := WolfSSL_Set_Fd (Ssl, int (Socket));
+      Result : constant int := WolfSSL_Set_Fd (Ssl, int (Socket));
    begin
       return Subprogram_Result (Result);
    end Attach;
 
    procedure WolfSSL_Keep_Arrays (Ssl : WolfSSL_Type) with
-      Convention    => C,
-      External_Name => "wolfSSL_KeepArrays",
-      Import        => True;
+     Convention    => C,
+     External_Name => "wolfSSL_KeepArrays",
+     Import        => True;
 
    procedure Keep_Arrays (Ssl : WolfSSL_Type) is
    begin
@@ -653,7 +622,7 @@ package body WolfSSL is
 
    function Accept_Connection (Ssl : WolfSSL_Type)
                                return Subprogram_Result is
-      Result : int := WolfSSL_Accept (Ssl);
+      Result : constant int := WolfSSL_Accept (Ssl);
    begin
       return Subprogram_Result (Result);
    end Accept_Connection;
@@ -669,7 +638,7 @@ package body WolfSSL is
    end Free_Arrays;
 
    function WolfSSL_Read (Ssl  : WolfSSL_Type;
-                          Data : out char_array;
+                          Data : out Byte_Array;
                           Sz   : int) return int with
      Convention    => C,
      External_Name => "wolfSSL_read",
@@ -704,41 +673,60 @@ package body WolfSSL is
    --  and and the application needs to call wolfSSL_read() again.
    --  Use wolfSSL_get_error() to get a specific error code.
 
-   function Read (Ssl : WolfSSL_Type) return Read_Result is
-      Data   : char_array (1 .. Byte_Index'Last);
-      Size   : int;
+   procedure Read (Ssl : WolfSSL_Type;
+                   Result : out Read_Result) is
    begin
-      Size := WolfSSL_Read (Ssl, Data, int (Byte_Index'Last));
-      if Size <= 0 then
-         return (Success => False,
+      Result := (Success => False,  --  In case of exception.
                  Last    => 0,
-                 Code    => Subprogram_Result (Size));
-      else
-         return (Success => True,
-                 Last    => Byte_Index (Size),
-                 Buffer  => Data (1 .. Byte_Index (Size)));
-      end if;
+                 Code    => Subprogram_Result (Exception_Error));
+      declare
+         Data   : Byte_Array (1 .. Byte_Index'Last);
+         Size   : int;
+      begin
+         Size := WolfSSL_Read (Ssl, Data, int (Byte_Index'Last));
+         if Size <= 0 then
+            Result := (Success => False,
+                       Last    => 0,
+                       Code    => Subprogram_Result (Size));
+         else
+            Result := (Success => True,
+                       Last    => Byte_Index (Size),
+                       Buffer  => Data (1 .. Byte_Index (Size)));
+         end if;
+      end;
+   exception
+      when others =>
+         null;
    end Read;
 
    function WolfSSL_Write (Ssl  : WolfSSL_Type;
-                           Data : char_array;
+                           Data : Byte_Array;
                            Sz   : int) return int with
      Convention    => C,
      External_Name => "wolfSSL_write",
      Import        => True;
 
-   function Write (Ssl  : WolfSSL_Type;
-                   Data : Byte_Array) return Write_Result is
-      Size   : constant int := Data'Length;
-      Result : int;
+   procedure Write (Ssl  : WolfSSL_Type;
+                    Data : Byte_Array;
+                    Result : out Write_Result) is
    begin
-      Result := WolfSSL_Write (Ssl, Data, Size);
-      if Result > 0 then
-         return (Success       => True,
-                 Bytes_Written => Byte_Index (Result));
-      else
-         return (Success => False, Code => Subprogram_Result (Result));
-      end if;
+      Result := (Success => False,
+                 Code    => Subprogram_Result (Exception_Error));
+      declare
+         Size   : constant int := Data'Length;
+         R : int;
+      begin
+         R := WolfSSL_Write (Ssl, Data, Size);
+         if R > 0 then
+            Result := (Success       => True,
+                       Bytes_Written => Byte_Index (R));
+         else
+            Result := (Success => False, Code => Subprogram_Result (R));
+         end if;
+      end;
+   exception
+      when others =>
+         null;
    end Write;
 
    function WolfSSL_Shutdown (Ssl : WolfSSL_Type) return int with
@@ -753,9 +741,9 @@ package body WolfSSL is
    end Shutdown;
 
    function WolfSSL_Connect (Ssl : WolfSSL_Type) return int with
-      Convention    => C,
-      External_Name => "wolfSSL_connect",
-      Import        => True;
+     Convention    => C,
+     External_Name => "wolfSSL_connect",
+     Import        => True;
 
    function Connect (Ssl : WolfSSL_Type) return Subprogram_Result is
       Result : constant int := WolfSSL_Connect (Ssl);
@@ -764,9 +752,9 @@ package body WolfSSL is
    end Connect;
 
    procedure WolfSSL_Free (Ssl : WolfSSL_Type) with
-      Convention    => C,
-      External_Name => "wolfSSL_free",
-      Import        => True;
+     Convention    => C,
+     External_Name => "wolfSSL_free",
+     Import        => True;
 
    procedure Free (Ssl : in out WolfSSL_Type) is
    begin
@@ -778,9 +766,9 @@ package body WolfSSL is
 
    function WolfSSL_Get_Error (Ssl : WolfSSL_Type;
                                Ret : int) return int with
-      Convention    => C,
-      External_Name => "wolfSSL_get_error",
-      Import        => True;
+     Convention    => C,
+     External_Name => "wolfSSL_get_error",
+     Import        => True;
 
    function Get_Error (Ssl    : WolfSSL_Type;
                        Result : Subprogram_Result) return Error_Code is
@@ -791,29 +779,43 @@ package body WolfSSL is
    procedure WolfSSL_Error_String (Error : unsigned_long;
                                    Data  : out Byte_Array;
                                    Size  : unsigned_long) with
-      Convention    => C,
-      External_Name => "wolfSSL_ERR_error_string_n",
-      Import        => True;
+     Convention    => C,
+     External_Name => "wolfSSL_ERR_error_string_n",
+     Import        => True;
 
-   function Error (Code : Error_Code) return Error_Message is
-      S : String (1 .. Error_Message_Index'Last);
-      B : Byte_Array (1 .. size_t (Error_Message_Index'Last));
-      C : Natural;
+   procedure Error (Code    : in  Error_Code;
+                    Message : in out Error_Message) is
+      use type Byte_Type;
       -- Use unchecked conversion instead of type conversion to mimic C style
       -- conversion from int to unsigned long, avoiding the Ada overflow check.
       function To_Unsigned_Long is new Ada.Unchecked_Conversion
-         (Source => long,
-          Target => unsigned_long);
+        (Source => long,
+         Target => unsigned_long);
    begin
-      WolfSSL_Error_String (Error => To_Unsigned_Long (long (Code)),
-                            Data  => B,
-                            Size  => To_Unsigned_Long (long (B'Last)));
-      Interfaces.C.To_Ada (Item     => B,
-                           Target   => S,
-                           Count    => C,
-                           Trim_Nul => True);
-      return (Last => C,
-              Text => S (1 .. C));
+      declare
+         S : String (1 .. Error_Message_Index'Last);
+         B : Byte_Array (1 .. size_t (Error_Message_Index'Last));
+         L : Positive;
+      begin
+         WolfSSL_Error_String (Error => To_Unsigned_Long (long (Code)),
+                               Data  => B,
+                               Size  => To_Unsigned_Long (long (B'Last)));
+         for I in B'Range loop
+            L := S'First + Natural (I - B'First);
+            S (L) := Character (B (I));
+            exit when B (I) = nul;
+         end loop;
+         if S (L) = Character (nul) then
+            Message := (Last => L - 1,
+                        Text => S (1 .. L - 1));
+         else
+            Message := (Last => L,
+                        Text => S (1 .. L));
+         end if;
+      end;
+   exception
+      when others =>
+         null;
    end Error;
 
    function Get_WolfSSL_Max_Error_Size return int with
@@ -826,4 +828,725 @@ package body WolfSSL is
       return Natural (Get_WolfSSL_Max_Error_Size);
    end Max_Error_Size;
 
+   function Is_Valid (Key : RNG_Type) return Boolean is
+   begin
+      return Key /= null;
+   end Is_Valid;
+
+   function Ada_New_RNG return RNG_Type with
+     Convention    => C,
+     External_Name => "ada_new_rng",
+     Import        => True;
+
+   procedure Ada_Free_RNG (Key : in RNG_Type) with
+     Convention    => C,
+     External_Name => "ada_free_rng",
+     Import        => True;
+
+
+
+   procedure Free_RNG (Key : in out RNG_Type) is
+   begin
+      if Key = null then
+         return;
+      end if;
+
+      --  wc_rng_free() already calls wc_FreeRng() internally.
+      Ada_Free_RNG (Key);
+
+      --  Prevent accidental double-free and make Is_Valid return False.
+      Key := null;
+   end Free_RNG;
+
+   procedure Create_RNG (Key    : in out RNG_Type;
+                         Result : out Integer) is
+   begin
+      declare
+         R : int;
+      begin
+         --  Allocate RNG using the C wrapper, which internally calls
+         --  wc_rng_new(NULL, 0, NULL) as required.
+         Key := Ada_New_RNG;
+
+         if Key = null then
+            Result := Exception_Error;
+            return;
+         end if;
+
+         --  wc_rng_new() already calls wc_InitRng() internally, so no extra init.
+         Result := 0;
+      end;
+   exception
+      when others =>
+         Result := Exception_Error;
+   end Create_RNG;
+
+   function WC_RNG_Generate_Block (RNG    : not null RNG_Type;
+                                   Output : out Byte_Array;
+                                   Size   : int) return int with
+     Convention    => C,
+     External_Name => "wc_RNG_GenerateBlock",
+     Import        => True;
+
+   procedure RNG_Generate_Block (RNG    : RNG_Type;
+                                 Output : out Byte_Array;
+                                 Result : out Integer) is
+   begin
+      declare
+         R : int;
+      begin
+         R := WC_RNG_Generate_Block (RNG, Output, Output'Length);
+         Result := Integer (R);
+      end;
+   exception
+      when others =>
+         Result := Exception_Error;
+   end RNG_Generate_Block;
+
+   type Unsigned_8 is mod 2 ** 8;
+
+   function To_C (Value : Unsigned_8) return WolfSSL.Byte_Type is
+   begin
+      return WolfSSL.Byte_Type'Val (Value);
+   end To_C;
+
+   function WC_PBKDF2 (Output     : out Byte_Array;
+                       Password   : Byte_Array;
+                       P_Length   : int;
+                       Salt       : Byte_Array;
+                       S_Length   : int;
+                       Iterations : int;
+                       Key_Length : int;
+                       Hash_Type  : int) return int with
+     Convention    => C,
+     External_Name => "wc_PBKDF2",
+     Import        => True;
+
+   function Ada_MD5 return int with
+     Convention    => C,
+     External_Name => "ada_md5",
+     Import        => True;
+
+   function Ada_SHA return int with
+     Convention    => C,
+     External_Name => "ada_sha",
+     Import        => True;
+
+   function Ada_SHA256 return int with
+     Convention    => C,
+     External_Name => "ada_sha256",
+     Import        => True;
+
+   function Ada_SHA384 return int with
+     Convention    => C,
+     External_Name => "ada_sha384",
+     Import        => True;
+
+   function Ada_SHA512 return int with
+     Convention    => C,
+     External_Name => "ada_sha512",
+     Import        => True;
+
+   function Ada_SHA3_224 return int with
+     Convention    => C,
+     External_Name => "ada_sha3_224",
+     Import        => True;
+
+   function Ada_SHA3_256 return int with
+     Convention    => C,
+     External_Name => "ada_sha3_256",
+     Import        => True;
+
+   function Ada_SHA3_384 return int with
+     Convention    => C,
+     External_Name => "ada_sha3_384",
+     Import        => True;
+
+   function Ada_SHA3_512 return int with
+     Convention    => C,
+     External_Name => "ada_sha3_512",
+     Import        => True;
+
+   procedure PBKDF2 (Output     : out Byte_Array;
+                     Password   : Byte_Array;
+                     Salt       : Byte_Array;
+                     Iterations : Positive;
+                     Key_Length : Positive;
+                     HMAC       : HMAC_Hash;
+                     Result     : out Integer) is
+   begin
+      declare
+         R : int;
+         H : int;
+      begin
+         case HMAC is
+            when MD5      => H := Ada_MD5;
+            when SHA      => H := Ada_SHA;
+            when SHA256   => H := Ada_SHA256;
+            when SHA384   => H := Ada_SHA384;
+            when SHA512   => H := Ada_SHA512;
+            when SHA3_224 => H := Ada_SHA3_224;
+            when SHA3_256 => H := Ada_SHA3_256;
+            when SHA3_384 => H := Ada_SHA3_384;
+            when SHA3_512 => H := Ada_SHA3_512;
+         end case;
+         R := WC_PBKDF2 (Output     => Output,
+                         Password   => Password,
+                         P_Length   => Password'Length,
+                         Salt       => Salt,
+                         S_Length   => Salt'Length,
+                         Iterations => int (Iterations),
+                         Key_Length => int (Key_Length),
+                         Hash_Type  => H);
+         Result := Integer (R);
+      end;
+   exception
+      when others =>
+         Result := Exception_Error;
+   end PBKDF2;
+
+   function Ada_RSA_Set_RNG (Key : not null RSA_Key_Type;
+                             RNG : not null RNG_Type) return int with
+     Convention    => C,
+     External_Name => "ada_RsaSetRNG",
+     Import        => True;
+
+   procedure Rsa_Set_RNG (Key    : in out Rsa_Key_Type;
+                          RNG    : in out RNG_Type;
+                          Result : out Integer) is
+   begin
+      declare
+         R : int;
+      begin
+         R := Ada_RSA_Set_RNG (Key, RNG);
+         Result := Integer (R);
+      end;
+   exception
+      when others =>
+         Result := Exception_Error;
+   end Rsa_Set_RNG;
+
+   function Is_Valid (Key : RSA_Key_Type) return Boolean is
+   begin
+      return Key /= null;
+   end Is_Valid;
+
+   function Ada_New_RSA return RSA_Key_Type with
+     Convention    => C,
+     External_Name => "ada_new_rsa",
+     Import        => True;
+
+   procedure Ada_Free_RSA (Key : in RSA_Key_Type) with
+     Convention    => C,
+     External_Name => "ada_free_rsa",
+     Import        => True;
+
+   procedure Free_RSA (Key : in out RSA_Key_Type) is
+   begin
+      if Key = null then
+         return;
+      end if;
+
+      --  wc_DeleteRsaKey() already calls wc_FreeRsaKey() internally.
+      Ada_Free_RSA (Key);
+
+      --  Prevent accidental double-free and make Is_Valid return False.
+      Key := null;
+   end Free_RSA;
+
+   procedure Create_RSA (Key    : in out RSA_Key_Type;
+                         Result : out Integer) is
+   begin
+      --  Allocate and initialize RSA key using the C wrapper.
+      --  The wrapper uses wc_NewRsaKey() and returns NULL on failure.
+      Key := Ada_New_RSA;
+
+      if Key = null then
+         Result := Exception_Error;
+         return;
+      end if;
+
+      --  wc_NewRsaKey() already calls wc_InitRsaKey_ex() internally.
+      Result := 0;
+
+   exception
+      when others =>
+         --  Avoid leaking the dynamically allocated RSA key on failure.
+         if Key /= null then
+            Ada_Free_RSA (Key);
+            Key := null;
+         end if;
+         Result := Exception_Error;
+   end Create_RSA;
+
+   function RSA_Public_Key_Decode (Input : Byte_Array;
+                                   Index : in out int;
+                                   Key   : not null RSA_Key_Type;
+                                   Size  : int) return int with
+     Convention    => C,
+     External_Name => "wc_RsaPublicKeyDecode",
+     Import        => True;
+
+   procedure Rsa_Public_Key_Decode (Input : Byte_Array;
+                                    Index : in out Byte_Index;
+                                    Key   : in out RSA_Key_Type;
+                                    Size  : Integer;
+                                    Result : out Integer) is
+   begin
+      declare
+         I : aliased int := int (Index);
+         R : constant int :=
+           RSA_Public_Key_Decode (Input, I, Key, int (Size));
+      begin
+         Index := WolfSSL.Byte_Index (I);
+         Result := Integer (R);
+      end;
+   exception
+      when others =>
+         Result := Exception_Error;
+   end Rsa_Public_Key_Decode;
+
+   function RSA_Private_Key_Decode (Input : Byte_Array;
+                                    Index : in out int;
+                                    Key   : not null RSA_Key_Type;
+                                    Size  : int) return int with
+     Convention    => C,
+     External_Name => "wc_RsaPrivateKeyDecode",
+     Import        => True;
+
+   procedure Rsa_Private_Key_Decode (Input : Byte_Array;
+                                     Index : in out Byte_Index;
+                                     Key   : in out RSA_Key_Type;
+                                     Size  : Integer;
+                                     Result : out Integer) is
+   begin
+      declare
+         I : aliased int := int (Index);
+         R : constant int :=
+           RSA_Private_Key_Decode (Input, I, Key, int (Size));
+      begin
+         Index := WolfSSL.Byte_Index (I);
+         Result := Integer (R);
+      end;
+   exception
+      when others =>
+         Result := Exception_Error;
+   end Rsa_Private_Key_Decode;
+
+   function RSA_SSL_Sign (Input      : Byte_Array;
+                          In_Length  : int;
+                          Output     : in out Byte_Array;
+                          Out_Length : int;
+                          RSA        : not null RSA_Key_Type;
+                          RNG        : not null RNG_Type)
+                          return int with
+     Convention    => C,
+     External_Name => "wc_RsaSSL_Sign",
+     Import        => True;
+
+   procedure Rsa_SSL_Sign (Input  : Byte_Array;
+                           Output : in out Byte_Array;
+                           RSA    : in out RSA_Key_Type;
+                           RNG    : in out RNG_Type;
+                           Result : out Integer) is
+   begin
+      declare
+         R : constant int :=
+           RSA_SSL_Sign (Input,
+                         Input'Length,
+                         Output,
+                         Output'Length,
+                         RSA,
+                         RNG);
+      begin
+         Result := Integer (R);
+      end;
+   exception
+      when others =>
+         Result := Exception_Error;
+   end Rsa_SSL_Sign;
+
+   function WC_RSA_SSL_Verify (Input      : Byte_Array;
+                               In_Length  : int;
+                               Output     : in out Byte_Array;
+                               Out_Length : int;
+                               RSA        : not null RSA_Key_Type)
+                               return int with
+     Convention    => C,
+     External_Name => "wc_RsaSSL_Verify",
+     Import        => True;
+
+   procedure Rsa_SSL_Verify (Input  : Byte_Array;
+                             Output : in out Byte_Array;
+                             RSA    : in out RSA_Key_Type;
+                             Result : out Integer) is
+   begin
+      declare
+         R : constant int :=
+           WC_RSA_SSL_Verify (Input,
+                              Input'Length,
+                              Output,
+                              Output'Length,
+                              RSA);
+      begin
+         Result := Integer (R);
+      end;
+   exception
+      when others =>
+         Result := Exception_Error;
+   end Rsa_SSL_Verify;
+
+   function WC_RSA_Public_Encrypt (Input      : Byte_Array;
+                                   In_Length  : int;
+                                   Output     : in out Byte_Array;
+                                   Out_Length : int;
+                                   RSA        : not null RSA_Key_Type;
+                                   RNG        : not null RNG_Type)
+                                   return int with
+     Convention    => C,
+     External_Name => "wc_RsaPublicEncrypt",
+     Import        => True;
+
+   procedure RSA_Public_Encrypt (Input  : Byte_Array;
+                                 Output : in out Byte_Array;
+                                 Index  :    out Byte_Index;
+                                 RSA    : in out RSA_Key_Type;
+                                 RNG    : in out RNG_Type;
+                                 Result : out Integer) is
+   begin
+      Index := 0;
+      declare
+         R : constant int :=
+           WC_RSA_Public_Encrypt (Input,
+                                  Input'Length,
+                                  Output,
+                                  Output'Length,
+                                  RSA,
+                                  RNG);
+      begin
+         Result := Integer (R);
+         if Result >= 0 then
+            Index := Byte_Index (Result);
+         end if;
+      end;
+   exception
+      when others =>
+         Result := Exception_Error;
+   end RSA_Public_Encrypt;
+
+   function WC_RSA_Private_Decrypt (Input      : Byte_Array;
+                                    In_Length  : int;
+                                    Output     : in out Byte_Array;
+                                    Out_Length : int;
+                                    RSA        : not null RSA_Key_Type)
+                                    return int with
+     Convention    => C,
+     External_Name => "wc_RsaPrivateDecrypt",
+     Import        => True;
+
+   procedure RSA_Private_Decrypt (Input  : Byte_Array;
+                                  Output : in out Byte_Array;
+                                  Index  :    out Byte_Index;
+                                  RSA    : in out RSA_Key_Type;
+                                  Result :    out Integer) is
+   begin
+      Index := 0;
+      declare
+         R : constant int :=
+           WC_RSA_Private_Decrypt (Input,
+                                   Input'Length,
+                                   Output,
+                                   Output'Length,
+                                   RSA);
+      begin
+         Result := Integer (R);
+         if Result >= 0 then
+            Index := Byte_Index (Result);
+         end if;
+      end;
+   exception
+      when others =>
+         Result := Exception_Error;
+   end RSA_Private_Decrypt;
+
+   function Init_SHA256 (SHA256 : not null Sha256_Type) return int with
+     Convention    => C,
+     External_Name => "wc_InitSha256",
+     Import        => True;
+
+   function SHA256_Update (SHA256 : not null Sha256_Type;
+                           Byte   : Byte_Array;
+                           Length : int) return int with
+     Convention    => C,
+     External_Name => "wc_Sha256Update",
+     Import        => True;
+
+   function SHA256_Final (SHA256 : not null Sha256_Type;
+                          Hash   : out Byte_Array) return int with
+     Convention    => C,
+     External_Name => "wc_Sha256Final",
+     Import        => True;
+
+   function Is_Valid (SHA256 : SHA256_Type) return Boolean is
+   begin
+      return SHA256 /= null;
+   end Is_Valid;
+
+   function Ada_New_SHA256 return SHA256_Type with
+     Convention    => C,
+     External_Name => "ada_new_sha256",
+     Import        => True;
+
+   procedure Ada_Free_SHA256 (SHA256 : in SHA256_Type) with
+     Convention    => C,
+     External_Name => "ada_free_sha256",
+     Import        => True;
+
+   procedure Free_SHA256 (SHA256 : in out SHA256_Type) is
+      --  Ensure any internal wolfCrypt resources are released (hardware locks,
+      --  etc.) before releasing the object storage itself.
+      procedure WC_Sha256_Free (SHA256 : not null SHA256_Type) with
+        Convention    => C,
+        External_Name => "wc_Sha256Free",
+        Import        => True;
+   begin
+      if SHA256 = null then
+         return;
+      end if;
+
+      WC_Sha256_Free (SHA256);
+      Ada_Free_SHA256 (SHA256);
+
+      --  Prevent accidental double-free and make Is_Valid return False.
+      SHA256 := null;
+   end Free_SHA256;
+
+   procedure Create_SHA256 (SHA256 : in out SHA256_Type;
+                            Result : out Integer) is
+   begin
+      declare
+         R : int;
+      begin
+         SHA256 := Ada_New_SHA256;
+
+         if SHA256 = null then
+            Result := Exception_Error;
+            return;
+         end if;
+
+         R := Init_SHA256 (SHA256);
+         Result := Integer (R);
+
+         if Result /= 0 then
+            --  Avoid leaking the dynamically allocated SHA256 on init failure.
+            --  Also clear the handle to prevent accidental double-free by caller.
+            Ada_Free_SHA256 (SHA256);
+            SHA256 := null;
+         end if;
+      end;
+   exception
+      when others =>
+         Result := Exception_Error;
+   end Create_SHA256;
+
+   procedure Update_SHA256 (SHA256 : in out SHA256_Type;
+                            Byte   : Byte_Array;
+                            Result : out Integer) is
+   begin
+      declare
+         R : int;
+      begin
+         R := SHA256_Update (SHA256, Byte, Byte'Length);
+         Result := Integer (R);
+      end;
+   exception
+      when others =>
+         Result := Exception_Error;
+   end Update_SHA256;
+
+   procedure Finalize_SHA256 (SHA256 : in out SHA256_Type;
+                              Hash   : out SHA256_Hash;
+                              Result : out Integer) is
+      R : int;
+   begin
+      R := SHA256_Final (SHA256, Hash);
+      Result := Integer (R);
+   exception
+      when others =>
+         Result := Exception_Error;
+   end Finalize_SHA256;
+
+   function WC_Get_Invalid_Device_Identifier return int with
+     Convention    => C,
+     External_Name => "get_wolfssl_invalid_devid",
+     Import        => True;
+
+   function Invalid_Device return Device_Identifier is
+   begin
+      return Device_Identifier (WC_Get_Invalid_Device_Identifier);
+   end Invalid_Device;
+
+   function Is_Valid (AES : AES_Type) return Boolean is
+   begin
+      return AES /= null;
+   end Is_Valid;
+
+   function Ada_New_AES (Device : int)
+                         return AES_Type with
+     Convention    => C,
+     External_Name => "ada_new_aes",
+     Import        => True;
+
+   procedure Ada_Free_AES (AES : in AES_Type) with
+     Convention    => C,
+     External_Name => "ada_free_aes",
+     Import        => True;
+
+   procedure Create_AES (Device : Device_Identifier;
+                         AES    : in out AES_Type;
+                         Result : out Integer) is
+   begin
+      declare
+         R : int;
+      begin
+         --  Allocate and initialize AES using the C wrapper.
+         --  The wrapper is expected to call wc_AesNew(NULL, devId, &ret) and
+         --  return NULL on failure.
+         AES := Ada_New_AES (int (Device));
+
+         if AES = null then
+            Result := Exception_Error;
+            return;
+         end if;
+
+         --  wc_AesNew() already calls wc_AesInit() internally, so no extra init.
+         Result := 0;
+      end;
+   exception
+      when others =>
+         --  Avoid leaking the dynamically allocated AES on failure.
+         if AES /= null then
+            Ada_Free_AES (AES);
+            AES := null;
+         end if;
+         Result := Exception_Error;
+   end Create_AES;
+
+   function AES_Set_Key (AES : not null AES_Type;
+                         Key : Byte_Array;
+                         Length : int;
+                         IV : Byte_Array;
+                         Dir : int) return int with
+     Convention    => C,
+     External_Name => "wc_AesSetKey",
+     Import        => True;
+
+   procedure AES_Set_Key (AES    : AES_Type;
+                          Key    : Byte_Array;
+                          Length : Integer;
+                          IV     : Byte_Array;
+                          Dir    : Integer;
+                          Result : out Integer) is
+   begin
+      declare
+         R : int;
+      begin
+         R := AES_Set_Key (AES, Key, int (Length), IV, int (Dir));
+         Result := Integer (R);
+      end;
+   exception
+      when others =>
+         Result := Exception_Error;
+   end AES_Set_Key;
+
+   function AES_Set_IV (AES : not null AES_Type;
+                        IV : Byte_Array) return int with
+     Convention    => C,
+     External_Name => "wc_AesSetIV",
+     Import        => True;
+
+   procedure AES_Set_IV (AES : AES_Type;
+                         IV  : Byte_Array;
+                         Result : out Integer) is
+   begin
+      declare
+         R : int;
+      begin
+         R := AES_Set_IV (AES, IV);
+         Result := Integer (R);
+      end;
+   exception
+      when others =>
+         Result := Exception_Error;
+   end AES_Set_IV;
+
+   function AES_Set_Cbc_Encrypt (AES : not null AES_Type;
+                                 Output : out Byte_Array;
+                                 Input : Byte_Array;
+                                 Size : int) return int with
+     Convention    => C,
+     External_Name => "wc_AesCbcEncrypt",
+     Import        => True;
+
+   procedure AES_Set_Cbc_Encrypt (AES : AES_Type;
+                                  Output : out Byte_Array;
+                                  Input : Byte_Array;
+                                  Size : Integer;
+                                  Result : out Integer) is
+   begin
+      declare
+         R : int;
+      begin
+         R := AES_Set_Cbc_Encrypt (AES, Output, Input, int (Size));
+         Result := Integer (R);
+      end;
+   exception
+      when others =>
+         Result := Exception_Error;
+   end AES_Set_Cbc_Encrypt;
+
+   function AES_Set_Cbc_Decrypt (AES : not null AES_Type;
+                                 Output : out Byte_Array;
+                                 Input : Byte_Array;
+                                 Size : int) return int with
+     Convention    => C,
+     External_Name => "wc_AesCbcDecrypt",
+     Import        => True;
+
+   procedure AES_Set_Cbc_Decrypt (AES : AES_Type;
+                                  Output : out Byte_Array;
+                                  Input : Byte_Array;
+                                  Size : Integer;
+                                  Result : out Integer) is
+   begin
+      declare
+         R : int;
+      begin
+         R := AES_Set_Cbc_Decrypt (AES, Output, Input, int (Size));
+         Result := Integer (R);
+      end;
+   exception
+      when others =>
+         Result := Exception_Error;
+   end AES_Set_Cbc_Decrypt;
+
+   procedure AES_Free (AES : in out AES_Type;
+                       Result : out Integer) is
+   begin
+      if AES = null then
+         Result := Exception_Error;
+         return;
+      end if;
+
+      --  wc_AesDelete() already calls wc_AesFree() internally.
+      Ada_Free_AES (AES);
+      AES := null;
+      Result := 0;
+   exception
+      when others =>
+         Result := Exception_Error;
+   end AES_Free;
+
+begin
+   null;
 end WolfSSL;
