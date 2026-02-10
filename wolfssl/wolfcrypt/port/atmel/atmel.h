@@ -185,11 +185,11 @@ WOLFSSL_LOCAL int wc_Microchip_rsa_decrypt(const byte* in, word32 inLen,
 #ifndef WOLFSSL_SP_NO_2048
     #define WOLFSSL_TA_KEY_TYPE_RSA TA_KEY_TYPE_RSA2048
     #define WOLFSSL_TA_KEY_TYPE_RSA_SIZE TA_KEY_TYPE_RSA2048_SIZE
-#elif WOLFSSL_SP_NO_3072
+#elif !defined(WOLFSSL_SP_NO_3072)
     #define WOLFSSL_TA_KEY_TYPE_RSA TA_KEY_TYPE_RSA3072
     #define WOLFSSL_TA_KEY_TYPE_RSA_SIZE TA_KEY_TYPE_RSA3072_SIZE
 #else
-    #error Microchip requires enabling 2048 or 3072 RSA.*/
+    #error Microchip requires enabling 2048 or 3072 RSA.
 #endif
 
 #endif /* NO_RSA */

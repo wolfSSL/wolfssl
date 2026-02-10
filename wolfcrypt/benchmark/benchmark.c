@@ -818,7 +818,6 @@ static WC_INLINE void bench_append_memory_info(char* buffer, size_t size,
 
 #define TEST_STRING    "Everyone gets Friday off."
 #define TEST_STRING_SZ 25
-
 /* Bit values for each algorithm that is able to be benchmarked.
  * Common grouping of algorithms also.
  * Each algorithm has a unique value for its type e.g. cipher.
