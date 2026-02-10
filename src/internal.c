@@ -8191,8 +8191,8 @@ void FreeKey(WOLFSSL* ssl, int type, void** pKey)
             case DYNAMIC_TYPE_CURVE25519:
             #if defined(WC_X25519_NONBLOCK) && \
                 defined(WOLFSSL_ASYNC_CRYPT_SW)
-                if (((curve25519_key*)*pKey)->nbCtx != NULL) {
-                    XFREE(((curve25519_key*)*pKey)->nbCtx, ssl->heap,
+                if (((curve25519_key*)*pKey)->nb_ctx != NULL) {
+                    XFREE(((curve25519_key*)*pKey)->nb_ctx, ssl->heap,
                           DYNAMIC_TYPE_TMP_BUFFER);
                 }
             #endif

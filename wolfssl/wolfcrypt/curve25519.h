@@ -141,7 +141,7 @@ struct curve25519_key {
 #endif
 
 #ifdef WC_X25519_NONBLOCK
-    x25519_nb_ctx_t* nbCtx;
+    x25519_nb_ctx_t* nb_ctx;
 #endif /* WC_X25519_NONBLOCK */
 
     /* bit fields */

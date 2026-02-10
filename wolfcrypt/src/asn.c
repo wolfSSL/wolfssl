@@ -18456,7 +18456,7 @@ int ConfirmSignature(SignatureCtx* sigCtx,
                     word32 idx = 0;
             #if defined(WC_ECC_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
                 defined(WC_ASYNC_ENABLE_ECC)
-                    ecc_nb_ctx_t* nbCtx;
+                    ecc_nb_ctx_t* nb_ctx;
             #endif /* WC_ECC_NONBLOCK && WOLFSSL_ASYNC_CRYPT_SW &&
                       WC_ASYNC_ENABLE_ECC */
 
@@ -18479,15 +18479,15 @@ int ConfirmSignature(SignatureCtx* sigCtx,
                      * retry on FP_WOULDBLOCK, so let the WC_ECC_NONBLOCK_ONLY
                      * blocking fallback handle it instead. */
                     if (sigCtx->devId != INVALID_DEVID) {
-                        nbCtx = (ecc_nb_ctx_t*)XMALLOC(sizeof(ecc_nb_ctx_t),
+                        nb_ctx = (ecc_nb_ctx_t*)XMALLOC(sizeof(ecc_nb_ctx_t),
                                     sigCtx->heap, DYNAMIC_TYPE_TMP_BUFFER);
-                        if (nbCtx == NULL) {
+                        if (nb_ctx == NULL) {
                             ERROR_OUT(MEMORY_E, exit_cs);
                         }
 
-                        ret = wc_ecc_set_nonblock(sigCtx->key.ecc, nbCtx);
+                        ret = wc_ecc_set_nonblock(sigCtx->key.ecc, nb_ctx);
                         if (ret != 0) {
-                            XFREE(nbCtx, sigCtx->heap,
+                            XFREE(nb_ctx, sigCtx->heap,
                                 DYNAMIC_TYPE_TMP_BUFFER);
                             goto exit_cs;
                         }

@@ -459,13 +459,13 @@ static int wc_curve25519_make_pub_nb(curve25519_key* key)
     if (key == NULL) {
         ret = BAD_FUNC_ARG;
     }
-    else if (key->nbCtx == NULL) {
+    else if (key->nb_ctx == NULL) {
         WOLFSSL_MSG("wc_curve25519_make_pub_nb called with NULL non-blocking "
             "context.");
         ret = BAD_FUNC_ARG;
     }
 
-    if (ret == 0 && key->nbCtx->state == 0) {
+    if (ret == 0 && key->nb_ctx->state == 0) {
         /* check clamping */
         ret = curve25519_priv_clamp_check(key->k);
         if (ret == 0) {
@@ -474,7 +474,7 @@ static int wc_curve25519_make_pub_nb(curve25519_key* key)
     }
     if (ret == 0) {
         ret = curve25519_nb(key->p.point, key->k, (byte*)kCurve25519BasePoint,
-                  key->nbCtx);
+                  key->nb_ctx);
     }
 
     return ret;
@@ -488,13 +488,13 @@ static int wc_curve25519_make_key_nb(WC_RNG* rng, int keysize,
     if (key == NULL || rng == NULL) {
         ret = BAD_FUNC_ARG;
     }
-    else if (key->nbCtx == NULL) {
+    else if (key->nb_ctx == NULL) {
         WOLFSSL_MSG("wc_curve25519_make_key_nb called with NULL non-blocking "
             "context.");
         ret = BAD_FUNC_ARG;
     }
 
-    if (ret == 0 && key->nbCtx->state == 0) {
+    if (ret == 0 && key->nb_ctx->state == 0) {
         ret = wc_curve25519_make_priv(rng, keysize, key->k);
         if (ret == 0) {
             key->privSet = 1;
@@ -512,19 +512,19 @@ static int wc_curve25519_make_key_nb(WC_RNG* rng, int keysize,
 
 int wc_curve25519_set_nonblock(curve25519_key* key, x25519_nb_ctx_t* ctx)
 {
-    int ret = 0;
-
-    if (key != NULL) {
-        if (ctx != NULL) {
-            XMEMSET(ctx, 0, sizeof(x25519_nb_ctx_t));
-        }
-        key->nbCtx = ctx;
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
     }
-    else {
-        ret = BAD_FUNC_ARG;
+    /* If a different context is already set, clear it before replacing.
+     * The caller is responsible for freeing any heap-allocated context. */
+    if (key->nb_ctx != NULL && key->nb_ctx != ctx) {
+        XMEMSET(key->nb_ctx, 0, sizeof(x25519_nb_ctx_t));
     }
-
-    return ret;
+    if (ctx != NULL) {
+        XMEMSET(ctx, 0, sizeof(x25519_nb_ctx_t));
+    }
+    key->nb_ctx = ctx;
+    return 0;
 }
 
 #endif /* WC_X25519_NONBLOCK */
@@ -567,7 +567,7 @@ int wc_curve25519_make_key(WC_RNG* rng, int keysize, curve25519_key* key)
 #ifdef WOLFSSL_SE050
     ret = se050_curve25519_create_key(key, keysize);
 #elif defined(WC_X25519_NONBLOCK)
-    if (key->nbCtx != NULL) {
+    if (key->nb_ctx != NULL) {
         ret = wc_curve25519_make_key_nb(rng, keysize, key);
     }
     else
@@ -612,17 +612,17 @@ static int wc_curve25519_shared_secret_nb(curve25519_key* privKey,
 {
     int ret = FP_WOULDBLOCK;
 
-    switch (privKey->nbCtx->ssState) {
+    switch (privKey->nb_ctx->ssState) {
         case 0:
-            XMEMSET(&privKey->nbCtx->o, 0, sizeof(privKey->nbCtx->o));
-            privKey->nbCtx->ssState = 1;
+            XMEMSET(&privKey->nb_ctx->o, 0, sizeof(privKey->nb_ctx->o));
+            privKey->nb_ctx->ssState = 1;
             break;
         case 1:
-            ret = curve25519_nb(privKey->nbCtx->o.point, privKey->k,
-                      pubKey->p.point, privKey->nbCtx);
+            ret = curve25519_nb(privKey->nb_ctx->o.point, privKey->k,
+                      pubKey->p.point, privKey->nb_ctx);
             if (ret == 0) {
                 ret = FP_WOULDBLOCK;
-                privKey->nbCtx->ssState = 2;
+                privKey->nb_ctx->ssState = 2;
             }
             break;
         case 2:
@@ -632,7 +632,7 @@ static int wc_curve25519_shared_secret_nb(curve25519_key* privKey,
                 byte t = 0;
 
                 for (i = 0; i < CURVE25519_KEYSIZE; i++) {
-                    t |= privKey->nbCtx->o.point[i];
+                    t |= privKey->nb_ctx->o.point[i];
                 }
                 if (t == 0) {
                     ret = ECC_OUT_OF_RANGE_E;
@@ -640,7 +640,7 @@ static int wc_curve25519_shared_secret_nb(curve25519_key* privKey,
                 else
         #endif /* WOLFSSL_ECDHX_SHARED_NOT_ZERO */
                 {
-                    curve25519_copy_point(out, privKey->nbCtx->o.point, endian);
+                    curve25519_copy_point(out, privKey->nb_ctx->o.point, endian);
                     *outlen = CURVE25519_KEYSIZE;
                     ret = 0;
                 }
@@ -651,7 +651,7 @@ static int wc_curve25519_shared_secret_nb(curve25519_key* privKey,
     }
 
     if (ret != FP_WOULDBLOCK) {
-        XMEMSET(privKey->nbCtx, 0, sizeof(x25519_nb_ctx_t));
+        XMEMSET(privKey->nb_ctx, 0, sizeof(x25519_nb_ctx_t));
     }
 
     return ret;
@@ -714,7 +714,7 @@ int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
 #endif /* WOLFSSL_ASYNC_CRYPT && WC_ASYNC_ENABLE_X25519 &&
         * WOLFSSL_ASYNC_CRYPT_SW */
 
-    if (private_key->nbCtx != NULL) {
+    if (private_key->nb_ctx != NULL) {
         ret = wc_curve25519_shared_secret_nb(private_key, public_key, out,
                   outlen, endian);
     }

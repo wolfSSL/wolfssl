@@ -38594,7 +38594,7 @@ static wc_test_ret_t curve255519_der_test(void)
 static int x25519_nonblock_test(WC_RNG* rng)
 {
     int ret = 0;
-    x25519_nb_ctx_t nbCtx;
+    x25519_nb_ctx_t nb_ctx;
     curve25519_key userA;
     curve25519_key userB;
 #ifdef HAVE_CURVE25519_SHARED_SECRET
@@ -38605,14 +38605,14 @@ static int x25519_nonblock_test(WC_RNG* rng)
 #endif
     int count;
 
-    XMEMSET(&nbCtx, 0, sizeof(nbCtx));
+    XMEMSET(&nb_ctx, 0, sizeof(nb_ctx));
 
     ret = wc_curve25519_init(&userA);
     if (ret != 0) {
         printf("wc_curve25519_init 1 %d\n", ret);
         return -10722;
     }
-    ret = wc_curve25519_set_nonblock(&userA, &nbCtx);
+    ret = wc_curve25519_set_nonblock(&userA, &nb_ctx);
     if (ret != 0) {
         printf("wc_curve25519_set_nonblock 1 %d\n", ret);
         wc_curve25519_free(&userA);
@@ -38639,7 +38639,7 @@ static int x25519_nonblock_test(WC_RNG* rng)
         wc_curve25519_free(&userA);
         return -10724;
     }
-    ret = wc_curve25519_set_nonblock(&userB, &nbCtx);
+    ret = wc_curve25519_set_nonblock(&userB, &nb_ctx);
     if (ret != 0) {
         printf("wc_curve25519_set_nonblock 2 %d\n", ret);
         wc_curve25519_free(&userA);

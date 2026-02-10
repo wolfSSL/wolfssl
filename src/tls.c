@@ -8014,16 +8014,16 @@ static int TLSX_KeyShare_GenX25519Key(WOLFSSL *ssl, KeyShareEntry* kse)
          * INVALID_DEVID there is no async loop to retry on FP_WOULDBLOCK, so
          * skip non-blocking setup and use blocking mode instead. */
         if (ret == 0 && ssl->devId != INVALID_DEVID) {
-            x25519_nb_ctx_t* nbCtx = (x25519_nb_ctx_t*)XMALLOC(
+            x25519_nb_ctx_t* nb_ctx = (x25519_nb_ctx_t*)XMALLOC(
                 sizeof(x25519_nb_ctx_t), ssl->heap,
                 DYNAMIC_TYPE_TMP_BUFFER);
-            if (nbCtx == NULL) {
+            if (nb_ctx == NULL) {
                 ret = MEMORY_E;
             }
             else {
-                ret = wc_curve25519_set_nonblock(key, nbCtx);
+                ret = wc_curve25519_set_nonblock(key, nb_ctx);
                 if (ret != 0) {
-                    XFREE(nbCtx, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                    XFREE(nb_ctx, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
                 }
             }
         }
@@ -8088,8 +8088,8 @@ static int TLSX_KeyShare_GenX25519Key(WOLFSSL *ssl, KeyShareEntry* kse)
         kse->pubKey = NULL;
         if (key != NULL) {
         #if defined(WC_X25519_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW)
-            if (key->nbCtx != NULL) {
-                XFREE(key->nbCtx, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            if (key->nb_ctx != NULL) {
+                XFREE(key->nb_ctx, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
             }
         #endif
             wc_curve25519_free(key);
@@ -8278,6 +8278,28 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
 
         /* Initialize an ECC key struct for the ephemeral key */
         ret = wc_ecc_init_ex((ecc_key*)kse->key, ssl->heap, ssl->devId);
+
+    #if defined(WC_ECC_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+        defined(WC_ASYNC_ENABLE_ECC)
+        /* Only set non-blocking context when async device is active. With
+         * INVALID_DEVID there is no async loop to retry on FP_WOULDBLOCK, so
+         * skip non-blocking setup and use blocking mode instead. */
+        if (ret == 0 && ssl->devId != INVALID_DEVID) {
+            ecc_nb_ctx_t* eccNbCtx = (ecc_nb_ctx_t*)XMALLOC(
+                sizeof(ecc_nb_ctx_t), ssl->heap,
+                DYNAMIC_TYPE_TMP_BUFFER);
+            if (eccNbCtx == NULL) {
+                ret = MEMORY_E;
+            }
+            else {
+                ret = wc_ecc_set_nonblock((ecc_key*)kse->key, eccNbCtx);
+                if (ret != 0) {
+                    XFREE(eccNbCtx, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                }
+            }
+        }
+    #endif /* WC_ECC_NONBLOCK && WOLFSSL_ASYNC_CRYPT_SW &&
+              WC_ASYNC_ENABLE_ECC */
 
         if (ret == 0) {
             kse->keyLen = keySize;
@@ -8852,8 +8874,8 @@ static void TLSX_KeyShare_FreeAll(KeyShareEntry* list, void* heap)
 #ifdef HAVE_CURVE25519
         #if defined(WC_X25519_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW)
             if (current->key != NULL &&
-                    ((curve25519_key*)current->key)->nbCtx != NULL) {
-                XFREE(((curve25519_key*)current->key)->nbCtx, heap,
+                    ((curve25519_key*)current->key)->nb_ctx != NULL) {
+                XFREE(((curve25519_key*)current->key)->nb_ctx, heap,
                     DYNAMIC_TYPE_TMP_BUFFER);
             }
         #endif
@@ -8900,6 +8922,15 @@ static void TLSX_KeyShare_FreeAll(KeyShareEntry* list, void* heap)
             }
             else {
             #ifdef HAVE_ECC
+                #if defined(WC_ECC_NONBLOCK) && \
+                    defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+                    defined(WC_ASYNC_ENABLE_ECC)
+                if (current->key != NULL &&
+                        ((ecc_key*)current->key)->nb_ctx != NULL) {
+                    XFREE(((ecc_key*)current->key)->nb_ctx, heap,
+                        DYNAMIC_TYPE_TMP_BUFFER);
+                }
+                #endif
                 wc_ecc_free((ecc_key*)current->key);
             #endif
             }
@@ -8907,6 +8938,14 @@ static void TLSX_KeyShare_FreeAll(KeyShareEntry* list, void* heap)
 #endif
         else {
 #ifdef HAVE_ECC
+        #if defined(WC_ECC_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+            defined(WC_ASYNC_ENABLE_ECC)
+            if (current->key != NULL &&
+                    ((ecc_key*)current->key)->nb_ctx != NULL) {
+                XFREE(((ecc_key*)current->key)->nb_ctx, heap,
+                    DYNAMIC_TYPE_TMP_BUFFER);
+            }
+        #endif
             wc_ecc_free((ecc_key*)current->key);
 #endif
         }
@@ -9248,8 +9287,8 @@ static int TLSX_KeyShare_ProcessX25519_ex(WOLFSSL* ssl,
     }
     if (keyShareEntry->key != NULL) {
     #if defined(WC_X25519_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW)
-        if (((curve25519_key*)keyShareEntry->key)->nbCtx != NULL) {
-            XFREE(((curve25519_key*)keyShareEntry->key)->nbCtx, ssl->heap,
+        if (((curve25519_key*)keyShareEntry->key)->nb_ctx != NULL) {
+            XFREE(((curve25519_key*)keyShareEntry->key)->nb_ctx, ssl->heap,
                 DYNAMIC_TYPE_TMP_BUFFER);
         }
     #endif
