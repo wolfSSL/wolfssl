@@ -22232,69 +22232,6 @@ static int test_wolfSSL_PEM_read(void)
     return EXPECT_RESULT();
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#ifndef NO_BIO
-
-
-
-#endif /* !NO_BIO */
-
-
-
-
-
-#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
-    defined(WOLFSSL_LOCAL_X509_STORE) && \
-    (defined(OPENSSL_ALL) || defined(WOLFSSL_QT)) && defined(HAVE_CRL)
-
-
-
-
-#ifndef NO_WOLFSSL_STUB
-
-#endif
-
-
-
-
-
-
-#endif
-
-/* This test mimics the usage of the CRL provider in gRPC */
-
-
 static int test_wolfSSL_dup_CA_list(void)
 {
     int res = TEST_SKIPPED;
