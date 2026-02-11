@@ -6602,6 +6602,9 @@ AS_CASE([$ENABLED_SELFTEST],
         SELFTEST_VERSION="v1"
     ])
 
+AS_IF([test "x$ENABLED_SELFTEST" = "xyes" && test ! -s "${srcdir}/wolfcrypt/src/selftest.c"],
+    [AC_MSG_ERROR([selftest.c is missing, --enable-selftest requires the CAVP selftest source])])
+
 AS_CASE([$SELFTEST_VERSION],
     ["v2"],[
         AM_CFLAGS="$AM_CFLAGS -DHAVE_SELFTEST -DHAVE_SELFTEST_VERSION=2 -DHAVE_PUBLIC_FFDHE"
