@@ -3,8 +3,13 @@
 [ ! -x ./examples/client/client ] && printf '\n\n%s\n' "Client doesn't exist" \
                                   && exit 1
 
-if ! ./examples/client/client | grep "Client not compiled in!" ; then
+if ./examples/client/client -? 2>&1 | grep "Client not compiled in!" ; then
     echo 'skipping crl-revoked.test because client not compiled in.' 1>&2
+    exit 77
+fi
+
+if ./examples/server/server -? 2>&1 | grep "Server not compiled in!" ; then
+    echo 'skipping crl-revoked.test because server not compiled in.' 1>&2
     exit 77
 fi
 

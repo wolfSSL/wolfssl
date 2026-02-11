@@ -16,6 +16,19 @@ DO_DELAY_TEST=${DO_DELAY_TEST:-0}
 
 #set -x # enable debug output
 
+[ ! -x ./examples/client/client ] && printf '\n\n%s\n' "Client doesn't exist" \
+                                  && exit 1
+
+if ./examples/client/client -? 2>&1 | grep "Client not compiled in!" ; then
+    echo 'skipping dtls.test because client not compiled in.' 1>&2
+    exit 77
+fi
+
+if ./examples/server/server -? 2>&1 | grep "Server not compiled in!" ; then
+    echo 'skipping dtls.test because server not compiled in.' 1>&2
+    exit 77
+fi
+
 # bwrap execution environment to avoid port conflicts
 if [ "${AM_BWRAPPED-}" != "yes" ]; then
     bwrap_path="$(command -v bwrap)"

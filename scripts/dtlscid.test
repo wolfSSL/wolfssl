@@ -9,13 +9,13 @@
 [ ! -x ./examples/server/server ] && printf '\n\n%s\n' "Server doesn't exist" \
                                   && exit 0
 
-if ! ./examples/client/client | grep "Client not compiled in!" ; then
-    echo 'skipping crl-revoked.test because client not compiled in.' 1>&2
+if ./examples/client/client -? 2>&1 | grep "Client not compiled in!" ; then
+    echo 'skipping dtlscid.test because client not compiled in.' 1>&2
     exit 77
 fi
 
-if ! ./examples/server/server | grep "Server not compiled in!" ; then
-    echo 'skipping crl-revoked.test because server not compiled in.' 1>&2
+if ./examples/server/server -? 2>&1 | grep "Server not compiled in!" ; then
+    echo 'skipping dtlscid.test because server not compiled in.' 1>&2
     exit 77
 fi
 

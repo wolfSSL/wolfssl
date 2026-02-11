@@ -2,6 +2,19 @@
 
 #benchmark.test
 
+[ ! -x ./examples/client/client ] && printf '\n\n%s\n' "Client doesn't exist" \
+                                  && exit 1
+
+if ./examples/client/client -? 2>&1 | grep "Client not compiled in!" ; then
+    echo 'skipping benchmark.test because client not compiled in.' 1>&2
+    exit 77
+fi
+
+if ./examples/server/server -? 2>&1 | grep "Server not compiled in!" ; then
+    echo 'skipping benchmark.test because server not compiled in.' 1>&2
+    exit 77
+fi
+
 if [ "$#" -lt 2 ]; then
     echo "Usage: $0 [mode] [num] [clientargs] [serverargs]" >&2
     echo "    [mode]: 1=Connection Rate (TPS), 2=Throughput Bytes" >&2
