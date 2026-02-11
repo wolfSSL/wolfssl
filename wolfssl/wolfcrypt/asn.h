@@ -2871,8 +2871,12 @@ struct OcspResponderCa {
     char subject[WC_ASN_NAME_MAX];   /* CA subject name for lookup */
 
     union {
+#ifndef NO_RSA
         struct RsaKey rsa;
+#endif
+#ifdef HAVE_ECC
         struct ecc_key ecc;
+#endif
     } key;                           /* CA private key for signing */
     enum Key_Sum keyType;            /* Type of key */
 
