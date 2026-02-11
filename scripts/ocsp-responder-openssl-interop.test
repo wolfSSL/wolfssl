@@ -71,11 +71,16 @@ generate_port() {
 }
 
 resp_pids=""
+resp_logs=""
 
 cleanup() {
     for p in $resp_pids; do
         kill $p 2>/dev/null
         wait $p 2>/dev/null
+    done
+    # Clean up log files
+    for log in $resp_logs; do
+        rm -f "$log" 2>/dev/null
     done
 }
 trap cleanup EXIT INT TERM
@@ -83,6 +88,18 @@ trap cleanup EXIT INT TERM
 tests_run=0
 tests_passed=0
 tests_failed=0
+
+print_responder_logs() {
+    echo "--- Responder Logs ---"
+    for log in $resp_logs; do
+        if [ -f "$log" ]; then
+            echo "=== $(basename $log) ==="
+            tail -50 "$log"
+            echo
+        fi
+    done
+    echo "----------------------"
+}
 
 # query_ocsp ISSUER_CERT CERT_TO_CHECK PORT EXPECTED_STATUS DESCRIPTION
 query_ocsp() {
@@ -119,6 +136,7 @@ query_ocsp() {
         echo "--- openssl output ---"
         echo "$output" | tail -20
         echo "----------------------"
+        print_responder_logs
     fi
 }
 
@@ -128,37 +146,49 @@ query_ocsp() {
 
 # Responder 1: intermediate1-ca (server1=valid, server2=revoked)
 generate_port; port1=$port
-$OCSP_RESPONDER -p $port1 \
+log1=$(mktemp /tmp/ocsp_resp1.XXXXXX)
+resp_logs="$resp_logs $log1"
+$OCSP_RESPONDER -p $port1 -v \
     -c $OCSP_DIR/intermediate1-ca-cert.pem \
     -k $OCSP_DIR/intermediate1-ca-key.pem \
-    -i $OCSP_DIR/index-intermediate1-ca-issued-certs.txt &
+    -i $OCSP_DIR/index-intermediate1-ca-issued-certs.txt \
+    > "$log1" 2>&1 &
 pid1=$!
 resp_pids="$resp_pids $pid1"
 
 # Responder 2: intermediate2-ca (server3=valid, server4=revoked)
 generate_port; port2=$port
-$OCSP_RESPONDER -p $port2 \
+log2=$(mktemp /tmp/ocsp_resp2.XXXXXX)
+resp_logs="$resp_logs $log2"
+$OCSP_RESPONDER -p $port2 -v \
     -c $OCSP_DIR/intermediate2-ca-cert.pem \
     -k $OCSP_DIR/intermediate2-ca-key.pem \
-    -i $OCSP_DIR/index-intermediate2-ca-issued-certs.txt &
+    -i $OCSP_DIR/index-intermediate2-ca-issued-certs.txt \
+    > "$log2" 2>&1 &
 pid2=$!
 resp_pids="$resp_pids $pid2"
 
 # Responder 3: intermediate3-ca (server5=valid)
 generate_port; port3=$port
-$OCSP_RESPONDER -p $port3 \
+log3=$(mktemp /tmp/ocsp_resp3.XXXXXX)
+resp_logs="$resp_logs $log3"
+$OCSP_RESPONDER -p $port3 -v \
     -c $OCSP_DIR/intermediate3-ca-cert.pem \
     -k $OCSP_DIR/intermediate3-ca-key.pem \
-    -i $OCSP_DIR/index-intermediate3-ca-issued-certs.txt &
+    -i $OCSP_DIR/index-intermediate3-ca-issued-certs.txt \
+    > "$log3" 2>&1 &
 pid3=$!
 resp_pids="$resp_pids $pid3"
 
 # Responder 4: root-ca (intermediate CAs: 1=valid, 2=valid, 3=revoked)
 generate_port; port4=$port
-$OCSP_RESPONDER -p $port4 \
+log4=$(mktemp /tmp/ocsp_resp4.XXXXXX)
+resp_logs="$resp_logs $log4"
+$OCSP_RESPONDER -p $port4 -v \
     -c $OCSP_DIR/root-ca-cert.pem \
     -k $OCSP_DIR/root-ca-key.pem \
-    -i $OCSP_DIR/index-ca-and-intermediate-cas.txt &
+    -i $OCSP_DIR/index-ca-and-intermediate-cas.txt \
+    > "$log4" 2>&1 &
 pid4=$!
 resp_pids="$resp_pids $pid4"
 
@@ -297,6 +327,7 @@ else
     echo "--- openssl output ---"
     echo "$output" | tail -20
     echo "----------------------"
+    print_responder_logs
 fi
 
 # Test 2: Multiple requests in one OCSP request (should fail with OCSP error)
@@ -324,6 +355,7 @@ else
     echo "--- openssl output ---"
     echo "$output" | tail -20
     echo "----------------------"
+    print_responder_logs
 fi
 
 echo
