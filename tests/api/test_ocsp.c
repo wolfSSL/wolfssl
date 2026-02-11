@@ -1027,7 +1027,8 @@ int test_ocsp_tls_cert_cb(void)
 }
 #endif
 
-#if defined(HAVE_OCSP_RESPONDER) && !defined(NO_SHA) && !defined(NO_RSA)
+#if defined(HAVE_OCSP_RESPONDER) && defined(WOLFSSL_ASN_TEMPLATE) && \
+    !defined(NO_SHA) && !defined(NO_RSA)
 /* Structure to hold test configuration */
 typedef struct {
     const char* caCertPath;
@@ -1181,7 +1182,7 @@ int test_ocsp_responder(void)
             "./certs/ca-key.der",
             "./certs/server-cert.der",
             CERT_GOOD,
-            0, 0,  /* revocationTime, revocationReason (not used for GOOD) */
+            0, CRL_REASON_UNSPECIFIED,
             86400, /* validityPeriod - 24 hours */
             0,
             "RSA server cert - GOOD status"
@@ -1201,7 +1202,7 @@ int test_ocsp_responder(void)
             "./certs/ca-key.der",
             "./certs/server-cert.der",
             CERT_UNKNOWN,
-            0, 0,
+            0, CRL_REASON_UNSPECIFIED,
             0,     /* validityPeriod (not used for UNKNOWN) */
             OCSP_CERT_UNKNOWN,
             "RSA server cert - UNKNOWN status"
@@ -1212,7 +1213,7 @@ int test_ocsp_responder(void)
             "./certs/ca-ecc-key.der",
             "./certs/server-ecc.der",
             CERT_GOOD,
-            0, 0,
+            0, CRL_REASON_UNSPECIFIED,
             86400, /* validityPeriod - 24 hours */
             0,
             "ECC server cert - GOOD status"
@@ -1232,7 +1233,7 @@ int test_ocsp_responder(void)
             "./certs/ca-ecc-key.der",
             "./certs/server-ecc.der",
             CERT_UNKNOWN,
-            0, 0,
+            0, CRL_REASON_UNSPECIFIED,
             0,     /* validityPeriod (not used for UNKNOWN) */
             OCSP_CERT_UNKNOWN,
             "ECC server cert - UNKNOWN status"

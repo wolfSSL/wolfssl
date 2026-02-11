@@ -4998,6 +4998,9 @@ extern void uITRON4_free(void *p) ;
     #ifndef HAVE_OCSP
         #error "HAVE_OCSP_RESPONDER requires HAVE_OCSP"
     #endif
+    #ifndef WOLFSSL_ASN_TEMPLATE
+        #error "HAVE_OCSP_RESPONDER requires WOLFSSL_ASN_TEMPLATE"
+    #endif
 #endif
 
 #ifdef __cplusplus

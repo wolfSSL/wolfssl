@@ -8495,7 +8495,8 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
     (void)tmpAlgId;
 #endif
 
-    CALLOC_ASNSETDATA(dataASN, pkcs8KeyASN_Length-1, ret, NULL);
+    if (ret == 0)
+        CALLOC_ASNSETDATA(dataASN, pkcs8KeyASN_Length-1, ret, NULL);
 
     if (ret == 0) {
         /* Only support default PKCS #8 format - v0. */
@@ -10383,7 +10384,8 @@ static int EncryptContentPBES2(byte* input, word32 inputSz, byte* out,
         &blockSz) < 0) {
         ret = ASN_INPUT_E;
     }
-    CALLOC_ASNSETDATA(dataASN, p8EncPbes2ASN_Length, ret, heap);
+    if (ret == 0)
+        CALLOC_ASNSETDATA(dataASN, p8EncPbes2ASN_Length, ret, heap);
 
     if (ret == 0) {
         /* Setup data to go into encoding including PBE algorithm, salt,
@@ -10748,8 +10750,8 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
         return EncryptContentPBES2(input, inputSz, out, outSz, password,
             passwordSz, encAlgId, salt, saltSz, itt, hmacOid, rng, heap);
     }
-
-    CALLOC_ASNSETDATA(dataASN, p8EncPbes1ASN_Length, ret, heap);
+    if (ret == 0)
+        CALLOC_ASNSETDATA(dataASN, p8EncPbes1ASN_Length, ret, heap);
 
     if (ret == 0) {
         /* Setup data to go into encoding including PBE algorithm, salt,
@@ -11526,11 +11528,13 @@ int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32 inSz)
         ret = BAD_FUNC_ARG;
     }
 
+    if (ret == 0) {
 #ifdef WOLFSSL_DH_EXTRA
-    ALLOC_ASNGETDATA(dataASN, dhKeyPkcs8ASN_Length, ret, key->heap);
+        ALLOC_ASNGETDATA(dataASN, dhKeyPkcs8ASN_Length, ret, key->heap);
 #else
-    ALLOC_ASNGETDATA(dataASN, dhParamASN_Length, ret, key->heap);
+        ALLOC_ASNGETDATA(dataASN, dhParamASN_Length, ret, key->heap);
 #endif
+    }
 
     if (ret == 0) {
         /* Initialize data and set mp_ints to hold p and g. */
@@ -12289,7 +12293,8 @@ int wc_DsaPrivateKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
         ret = BAD_FUNC_ARG;
     }
 
-    CALLOC_ASNGETDATA(dataASN, dsaKeyASN_Length, ret, key->heap);
+    if (ret == 0)
+        CALLOC_ASNGETDATA(dataASN, dsaKeyASN_Length, ret, key->heap);
 
     if (ret == 0) {
         int i;
@@ -12527,7 +12532,8 @@ int wc_SetDsaPublicKey(byte* output, DsaKey* key, int outLen, int with_header)
         ret = BAD_FUNC_ARG;
     }
 
-    CALLOC_ASNSETDATA(dataASN, dsaPubKeyASN_Length, ret, key->heap);
+    if (ret == 0)
+        CALLOC_ASNSETDATA(dataASN, dsaPubKeyASN_Length, ret, key->heap);
 
     if (ret == 0) {
         if (with_header) {
@@ -12679,8 +12685,8 @@ static int DsaKeyIntsToDer(DsaKey* key, byte* output, word32* inLen,
     if ((ret == 0) && (ints > DSA_INTS)) {
         ret = BAD_FUNC_ARG;
     }
-
-    CALLOC_ASNSETDATA(dataASN, dsaKeyASN_Length, ret, key->heap);
+    if (ret == 0)
+        CALLOC_ASNSETDATA(dataASN, dsaKeyASN_Length, ret, key->heap);
 
     if (ret == 0) {
         int i;
@@ -28441,7 +28447,8 @@ static int SetRsaPublicKey(byte* output, RsaKey* key, int outLen,
         ret = BAD_FUNC_ARG;
     }
 
-    CALLOC_ASNSETDATA(dataASN, rsaPublicKeyASN_Length, ret, key->heap);
+    if (ret == 0)
+        CALLOC_ASNSETDATA(dataASN, rsaPublicKeyASN_Length, ret, key->heap);
 
     if (ret == 0) {
         if (!with_header) {
@@ -28661,7 +28668,8 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
         ret = BAD_FUNC_ARG;
     }
 
-    CALLOC_ASNSETDATA(dataASN, rsaKeyASN_Length, ret, key->heap);
+    if (ret == 0)
+        CALLOC_ASNSETDATA(dataASN, rsaKeyASN_Length, ret, key->heap);
 
     if (ret == 0) {
         /* Set the version. */
@@ -37100,8 +37108,8 @@ int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 *inLen,
     if ((ret == 0) && curveIn && (key->dp == NULL)) {
         ret = BAD_FUNC_ARG;
     }
-
-    CALLOC_ASNSETDATA(dataASN, eccKeyASN_Length, ret, key->heap);
+    if (ret == 0)
+        CALLOC_ASNSETDATA(dataASN, eccKeyASN_Length, ret, key->heap);
 
     if (ret == 0) {
         /* Private key size is the curve size. */

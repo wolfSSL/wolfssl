@@ -1045,21 +1045,26 @@ do
         # Enable all ASN features
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASN_ALL"
         ENABLED_ASN=yes
+        ASN_IMPL=template
         ;;
     template | yes)
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASN_TEMPLATE"
         ENABLED_ASN=yes
+        ASN_IMPL=template
         ;;
     original)
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASN_ORIGINAL"
+        ASN_IMPL=original
         ;;
     nocrypt)
         AM_CFLAGS="$AM_CFLAGS -DNO_ASN_CRYPT"
         enable_pwdbased=no
+        ASN_IMPL=template
         ;;
     no)
         AM_CFLAGS="$AM_CFLAGS -DNO_ASN -DNO_ASN_CRYPT"
         enable_pwdbased=no
+        ASN_IMPL=no
         ;;
     *)
         AC_MSG_ERROR([Invalid asn option. Valid are: all, template/yes, original, nocrypt or no. Seen: $ENABLED_ASN.])
@@ -1457,7 +1462,7 @@ then
     test "$enable_ocsp" = "" && enable_ocsp=yes
     test "$enable_ocspstapling" = "" && test "$enable_ocsp" != "no" && enable_ocspstapling=yes
     test "$enable_ocspstapling2" = "" && test "$enable_ocsp" != "no" && enable_ocspstapling2=yes
-    test "$enable_ocsp_responder" = "" && enable_ocsp_responder=yes
+    test "$enable_ocsp_responder" = "" && test "$ASN_IMPL" = "template" && enable_ocsp_responder=yes
     test "$enable_crl" = "" && enable_crl=yes
     test "$enable_supportedcurves" = "" && enable_supportedcurves=yes
     test "$enable_tlsx" = "" && enable_tlsx=yes
