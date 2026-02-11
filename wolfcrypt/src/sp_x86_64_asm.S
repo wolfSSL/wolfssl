@@ -66736,7 +66736,11 @@ _sp_521_get_point_33_9:
         movq	$0x01, %r12
         movq	$0x01, %rax
         movd	%edx, %xmm13
+#ifndef SP_ALIGN_16
         addq	$0x1b8, %rsi
+#else
+        addq	$0x1c0, %rsi
+#endif /* !SP_ALIGN_16 */
         movd	%eax, %xmm15
         movq	$32, %rax
         pshufd	$0x00, %xmm15, %xmm15
@@ -66767,7 +66771,11 @@ L_521_get_point_33_9_start_1:
         movq	64(%rsi), %r8
         movdqu	144(%rsi), %xmm10
         movdqu	160(%rsi), %xmm11
+#ifndef SP_ALIGN_16
         addq	$0x1b8, %rsi
+#else
+        addq	$0x1c0, %rsi
+#endif /* !SP_ALIGN_16 */
         pand	%xmm12, %xmm6
         pand	%xmm12, %xmm7
         pand	%xmm12, %xmm8
@@ -66794,7 +66802,11 @@ L_521_get_point_33_9_start_1:
         movq	$0x01, %r12
         movq	$0x01, %rax
         movd	%edx, %xmm13
+#ifndef SP_ALIGN_16
         subq	$0x3700, %rsi
+#else
+        subq	$0x1b800, %rsi
+#endif /* !SP_ALIGN_16 */
         movd	%eax, %xmm15
         movq	$32, %rax
         pshufd	$0x00, %xmm15, %xmm15
@@ -66826,7 +66838,11 @@ L_521_get_point_33_9_start_2:
         movdqu	320(%rsi), %xmm10
         movdqu	336(%rsi), %xmm11
         movq	352(%rsi), %r9
+#ifndef SP_ALIGN_16
         addq	$0x1b8, %rsi
+#else
+        addq	$0x1c0, %rsi
+#endif /* !SP_ALIGN_16 */
         pand	%xmm12, %xmm6
         pand	%xmm12, %xmm7
         pand	%xmm12, %xmm8
@@ -66883,7 +66899,11 @@ _sp_521_get_point_33_avx2_9:
         movq	$0x01, %r14
         movq	$0x01, %rax
         movd	%edx, %xmm13
+#ifndef SP_ALIGN_16
         addq	$0x1b8, %rsi
+#else
+        addq	$0x1c0, %rsi
+#endif /* !SP_ALIGN_16 */
         movd	%eax, %xmm15
         movq	$32, %rax
         vpxor	%ymm14, %ymm14, %ymm14
@@ -66916,7 +66936,11 @@ L_521_get_point_33_avx2_9_start:
         movq	64(%rsi), %r11
         movq	208(%rsi), %r12
         movq	352(%rsi), %r13
+#ifndef SP_ALIGN_16
         addq	$0x1b8, %rsi
+#else
+        addq	$0x1c0, %rsi
+#endif /* !SP_ALIGN_16 */
         vpand	%ymm12, %ymm6, %ymm6
         vpand	%ymm12, %ymm7, %ymm7
         vpand	%ymm12, %ymm8, %ymm8
