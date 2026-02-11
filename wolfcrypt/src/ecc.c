@@ -55,7 +55,7 @@ Possible ECC enable options:
  * WOLFSSL_ECC_CURVE_STATIC:                                    default off (on for windows)
  *                      For the ECC curve parameters `ecc_set_type` use fixed
  *                      array for hex string
- * WC_ECC_NONBLOCK:     Enable non-blocking support for sign/verify.
+ * WC_ECC_NONBLOCK:     Enable non-blocking support for sign/verify/keygen/secret.
  *                      Requires SP with WOLFSSL_SP_NONBLOCK
  * WC_ECC_NONBLOCK_ONLY Enable the non-blocking function only, no fall-back to
  *                      normal blocking API's
@@ -15627,12 +15627,18 @@ int wc_ecc_get_key_id(ecc_key* key, word32* keyId)
 /* Enable ECC support for non-blocking operations */
 int wc_ecc_set_nonblock(ecc_key *key, ecc_nb_ctx_t* ctx)
 {
-    if (key) {
-        if (ctx) {
-            XMEMSET(ctx, 0, sizeof(ecc_nb_ctx_t));
-        }
-        key->nb_ctx = ctx;
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
     }
+    /* If a different context is already set, clear it before replacing.
+     * The caller is responsible for freeing any heap-allocated context. */
+    if (key->nb_ctx != NULL && key->nb_ctx != ctx) {
+        XMEMSET(key->nb_ctx, 0, sizeof(ecc_nb_ctx_t));
+    }
+    if (ctx != NULL) {
+        XMEMSET(ctx, 0, sizeof(ecc_nb_ctx_t));
+    }
+    key->nb_ctx = ctx;
     return 0;
 }
 #endif /* WC_ECC_NONBLOCK */

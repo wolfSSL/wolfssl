@@ -15,10 +15,22 @@ Tested with:
 * `./configure --enable-asynccrypt --enable-pkcallbacks --disable-rsa --enable-ecc`
 
 ```
-make
-./examples/async/async_server
-./examples/async/async_client 127.0.0.1
+make -C examples/async
+./examples/async/async_server --ecc
+./examples/async/async_client --ecc 127.0.0.1 11111
+./examples/async/async_client --x25519 ecc256.badssl.com 443
 ```
+
+Optional ready-file sync (CI-friendly, avoids sleeps):
+```
+export WOLFSSL_ASYNC_READYFILE=/tmp/wolfssl_async_ready
+./examples/async/async_server --ecc
+WOLFSSL_ASYNC_READYFILE=/tmp/wolfssl_async_ready ./examples/async/async_client --ecc 127.0.0.1 11111
+```
+
+Porting the TCP/IP stack:
+Define `NET_USER_HEADER` to include your network shim and provide the
+`NET_*` macros plus `NET_IO_SEND_CB` / `NET_IO_RECV_CB`.
 
 ## Asynchronous Cryptography Design
 

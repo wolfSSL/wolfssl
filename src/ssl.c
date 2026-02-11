@@ -31,6 +31,7 @@
 
 #include <wolfssl/internal.h>
 #include <wolfssl/error-ssl.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/coding.h>
 #include <wolfssl/wolfcrypt/kdf.h>
 #ifdef NO_INLINE
@@ -3904,6 +3905,10 @@ int wolfSSL_get_error(WOLFSSL* ssl, int ret)
         return WOLFSSL_ERROR_SYSCALL;           /* convert to OpenSSL type */
     else if (ssl->error == WC_NO_ERR_TRACE(SOCKET_PEER_CLOSED_E))
         return WOLFSSL_ERROR_SYSCALL;           /* convert to OpenSSL type */
+#endif
+#ifdef WOLFSSL_ASYNC_CRYPT
+    else if (ssl->error == WC_NO_ERR_TRACE(MP_WOULDBLOCK))
+        return WC_PENDING_E;                    /* map non-blocking crypto */
 #endif
     return ssl->error;
 }

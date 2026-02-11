@@ -12,6 +12,7 @@ Example wolfSSL configuration file templates for use when autoconf is not availa
 * `user_settings_espressif.h`: Example configuration for Espressif ESP32. See also [wolfSSL/IDE/Espressif](https://github.com/wolfSSL/wolfssl/tree/master/IDE/Espressif).
 * `user_settings_fipsv2.h`: The FIPS v2 (3389) 140-2 certificate build options.
 * `user_settings_fipsv5.h`: The FIPS v5 (ready) 140-3 build options. Equivalent to `./configure --enable-fips=v5-dev`.
+* `user_settings_curve25519nonblock.h`: Example Curve25519 (X25519) non-blocking configuration.
 * `user_settings_min_ecc.h`: Minimal ECC and SHA-256 only (no TLS). For ECC verify only add `NO_ECC_SIGN`.
 * `user_settings_platformio.h`: An example for PlatformIO library. See also [platformio/wolfssl](https://registry.platformio.org/libraries/wolfssl/wolfssl).
 * `user_settings_stm32.h`: Example configuration file generated from the wolfSSL STM32 Cube pack.

@@ -40,10 +40,10 @@ my @fileList_ecc = (
 # Used with HAVE_ED25519 define.
 my @fileList_ed = (
         [ "./certs/ed25519/server-ed25519.der",     "server_ed25519_cert" ],
-        [ "./certs/ed25519/server-ed25519-key.der", "server_ed25519_key" ],
+        [ "./certs/ed25519/server-ed25519-priv.der", "server_ed25519_key" ],
         [ "./certs/ed25519/ca-ed25519.der",         "ca_ed25519_cert" ],
         [ "./certs/ed25519/client-ed25519.der",     "client_ed25519_cert" ],
-        [ "./certs/ed25519/client-ed25519-key.der", "client_ed25519_key" ]
+        [ "./certs/ed25519/client-ed25519-priv.der", "client_ed25519_key" ]
         );
 
 # x25519 keys and certs

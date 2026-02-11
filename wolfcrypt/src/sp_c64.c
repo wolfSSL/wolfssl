@@ -20599,15 +20599,15 @@ static int sp_256_proj_point_add_5_nb(sp_ecc_ctx_t* sp_ctx, sp_point_256* r,
     int err = FP_WOULDBLOCK;
     sp_256_proj_point_add_5_ctx* ctx = (sp_256_proj_point_add_5_ctx*)sp_ctx->data;
 
+    typedef char ctx_size_test[sizeof(sp_256_proj_point_add_5_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
     /* Ensure only the first point is the same as the result. */
     if (q == r) {
         const sp_point_256* a = p;
         p = q;
         q = a;
     }
-
-    typedef char ctx_size_test[sizeof(sp_256_proj_point_add_5_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
-    (void)sizeof(ctx_size_test);
 
     switch (ctx->state) {
     case 0: /* INIT */
@@ -27087,15 +27087,15 @@ static int sp_384_proj_point_add_7_nb(sp_ecc_ctx_t* sp_ctx, sp_point_384* r,
     int err = FP_WOULDBLOCK;
     sp_384_proj_point_add_7_ctx* ctx = (sp_384_proj_point_add_7_ctx*)sp_ctx->data;
 
+    typedef char ctx_size_test[sizeof(sp_384_proj_point_add_7_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
     /* Ensure only the first point is the same as the result. */
     if (q == r) {
         const sp_point_384* a = p;
         p = q;
         q = a;
     }
-
-    typedef char ctx_size_test[sizeof(sp_384_proj_point_add_7_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
-    (void)sizeof(ctx_size_test);
 
     switch (ctx->state) {
     case 0: /* INIT */
@@ -34191,15 +34191,15 @@ static int sp_521_proj_point_add_9_nb(sp_ecc_ctx_t* sp_ctx, sp_point_521* r,
     int err = FP_WOULDBLOCK;
     sp_521_proj_point_add_9_ctx* ctx = (sp_521_proj_point_add_9_ctx*)sp_ctx->data;
 
+    typedef char ctx_size_test[sizeof(sp_521_proj_point_add_9_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
     /* Ensure only the first point is the same as the result. */
     if (q == r) {
         const sp_point_521* a = p;
         p = q;
         q = a;
     }
-
-    typedef char ctx_size_test[sizeof(sp_521_proj_point_add_9_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
-    (void)sizeof(ctx_size_test);
 
     switch (ctx->state) {
     case 0: /* INIT */
@@ -41643,15 +41643,15 @@ static int sp_1024_proj_point_add_18_nb(sp_ecc_ctx_t* sp_ctx, sp_point_1024* r,
     int err = FP_WOULDBLOCK;
     sp_1024_proj_point_add_18_ctx* ctx = (sp_1024_proj_point_add_18_ctx*)sp_ctx->data;
 
+    typedef char ctx_size_test[sizeof(sp_1024_proj_point_add_18_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
     /* Ensure only the first point is the same as the result. */
     if (q == r) {
         const sp_point_1024* a = p;
         p = q;
         q = a;
     }
-
-    typedef char ctx_size_test[sizeof(sp_1024_proj_point_add_18_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
-    (void)sizeof(ctx_size_test);
 
     switch (ctx->state) {
     case 0: /* INIT */

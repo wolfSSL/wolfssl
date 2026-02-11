@@ -6,6 +6,7 @@ EXTRA_DIST += examples/configs/user_settings_all.h
 EXTRA_DIST += examples/configs/user_settings_arduino.h
 EXTRA_DIST += examples/configs/user_settings_baremetal.h
 EXTRA_DIST += examples/configs/user_settings_ca.h
+EXTRA_DIST += examples/configs/user_settings_curve25519nonblock.h
 EXTRA_DIST += examples/configs/user_settings_dtls13.h
 EXTRA_DIST += examples/configs/user_settings_EBSnet.h
 EXTRA_DIST += examples/configs/user_settings_eccnonblock.h
