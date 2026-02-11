@@ -64,6 +64,7 @@ char* myoptarg = NULL;
     #include <unistd.h>
     #include <fcntl.h>
     #include <errno.h>
+    #include <signal.h>
     #define SOCKET_T int
 #ifndef INVALID_SOCKET
     #define INVALID_SOCKET (-1)
@@ -81,6 +82,17 @@ char* myoptarg = NULL;
 
 /* Simple logging macro */
 #define LOG_ERROR(...) fprintf(stderr, __VA_ARGS__)
+
+#ifndef _WIN32
+/* Signal handler flag */
+static volatile int got_signal = 0;
+
+static void sig_handler(int sig)
+{
+    (void)sig;
+    got_signal = 1;
+}
+#endif
 
 /* Index file entry structure */
 typedef struct IndexEntry {
@@ -797,8 +809,21 @@ THREAD_RETURN WOLFSSL_THREAD ocsp_responder_test(void* args)
     }
     printf("OCSP Responder listening on port %d\n", opts.port);
 
+#ifndef _WIN32
+    /* Install signal handlers for clean shutdown */
+    signal(SIGTERM, sig_handler);
+    signal(SIGINT, sig_handler);
+    if (opts.verbose) {
+        printf("Signal handlers installed\n");
+    }
+#endif
+
     /* Main loop */
-    while (opts.nrequests == 0 || requestsProcessed < opts.nrequests) {
+    while ((opts.nrequests == 0 || requestsProcessed < opts.nrequests)
+#ifndef _WIN32
+           && !got_signal
+#endif
+          ) {
         struct sockaddr_in clientAddr;
         socklen_t clientAddrLen = sizeof(clientAddr);
         int recvLen;
