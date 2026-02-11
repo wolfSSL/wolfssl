@@ -7049,8 +7049,6 @@ AC_ARG_ENABLE([ocsp-responder],
 
 if test "x$ENABLED_OCSP_RESPONDER" = "xyes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP_RESPONDER"
-
     # Requires OCSP make sure on
     if test "x$ENABLED_OCSP" = "xno"
     then
@@ -10335,6 +10333,13 @@ then
 
     AM_CFLAGS="$AM_CFLAGS -DHAVE_OID_ENCODING -DWOLFSSL_NO_ASN_STRICT"
 
+    # OCSP responder
+    if test "$ENABLED_OCSP" = "no"; then
+        ENABLED_OCSP="yes"
+    fi
+    if test "$ENABLED_OCSP_RESPONDER" = "no"; then
+        ENABLED_OCSP_RESPONDER="yes"
+    fi
 fi
 
 if test "$ENABLED_STRONGSWAN" = "yes"; then
@@ -10588,6 +10593,9 @@ AS_IF([test "x$ENABLED_CERTEXT" = "xyes"],
 
 AS_IF([test "x$ENABLED_OCSP" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP"])
+
+AS_IF([test "x$ENABLED_OCSP_RESPONDER" = "xyes"],
+      [AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP_RESPONDER"])
 
 if test "$ENABLED_OCSP" = "yes"
 then
