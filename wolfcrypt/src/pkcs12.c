@@ -509,6 +509,7 @@ exit_gsd:
     if (ret != 0) {
         if (mac) {
             XFREE(mac->digest, pkcs12->heap, DYNAMIC_TYPE_DIGEST);
+            XFREE(mac->salt, pkcs12->heap, DYNAMIC_TYPE_SALT);
             XFREE(mac, pkcs12->heap, DYNAMIC_TYPE_PKCS);
         }
     }
@@ -1134,6 +1135,7 @@ static byte* PKCS12_ConcatenateContent(WC_PKCS12* pkcs12,byte* mergedData,
 {
     byte* oldContent;
     word32 oldContentSz;
+    word32 newSz;
 
     (void)pkcs12;
 
@@ -1145,14 +1147,19 @@ static byte* PKCS12_ConcatenateContent(WC_PKCS12* pkcs12,byte* mergedData,
     oldContentSz = *mergedSz;
 
     /* re-allocate new buffer to fit appended data */
-    mergedData = (byte*)XMALLOC(oldContentSz + inSz, pkcs12->heap,
+    if (WC_SAFE_SUM_WORD32(oldContentSz, inSz, newSz) == 0) {
+        XFREE(oldContent, pkcs12->heap, DYNAMIC_TYPE_PKCS);
+        return NULL;
+    }
+
+    mergedData = (byte*)XMALLOC(newSz, pkcs12->heap,
             DYNAMIC_TYPE_PKCS);
     if (mergedData != NULL) {
         if (oldContent != NULL) {
             XMEMCPY(mergedData, oldContent, oldContentSz);
         }
         XMEMCPY(mergedData + oldContentSz, in, inSz);
-        *mergedSz += inSz;
+        *mergedSz = newSz;
     }
     XFREE(oldContent, pkcs12->heap, DYNAMIC_TYPE_PKCS);
 
