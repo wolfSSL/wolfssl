@@ -85,6 +85,25 @@ if ./examples/client/client -? 2>&1 | grep -q 'DTLSv1.2'; then
     dtls12=yes
 fi
 
+# Detect OCSP stapling version support (check independently)
+stapling_v1=no
+stapling_v2=no
+if ./examples/client/client '-#' | grep -q 'HAVE_CERTIFICATE_STATUS_REQUEST[^_]'; then
+    stapling_v1=yes
+fi
+if ./examples/client/client '-#' | grep -q 'HAVE_CERTIFICATE_STATUS_REQUEST_V2'; then
+    stapling_v2=yes
+fi
+
+# Skip entire test if no stapling support at all
+if [ "$stapling_v1" == "no" ] && [ "$stapling_v2" == "no" ]; then
+    echo 'skipping ocsp-stapling-with-wolfssl-responder.test because OCSP stapling not compiled in.' 1>&2
+    exit 77
+fi
+
+printf '%s\n' "OCSP Stapling v1 support: $stapling_v1"
+printf '%s\n' "OCSP Stapling v2 support: $stapling_v2"
+
 # IPv6 detection
 if nc -h 2>&1 | fgrep -q -i ipv6; then
     IPV6_SUPPORTED=yes
@@ -261,7 +280,7 @@ cleanup()
     done
     remove_ready_file
     rm -f $CERT_DIR/$test_cnf
-    
+
     # Print responder logs on failure
     if [ "$exit_status" -ne 0 ]; then
         printf '\n\n%s\n' "Test failed, printing responder logs..."
@@ -282,7 +301,7 @@ cleanup()
             cat "$responder_log4"
         fi
     fi
-    
+
     rm -f "$responder_log1" "$responder_log2" "$responder_log3" "$responder_log4"
     cd "$PARENTDIR" || return 1
     rm -r "$WORKSPACE" || return 1
@@ -420,226 +439,236 @@ printf '\n\n%s\n\n' "All wolfSSL OCSP responders started successfully!"
 # v1 STAPLING TESTS (server1/server2 issued by intermediate1-ca)
 ########################################################################
 
-printf '%s\n\n' "============ v1 STAPLING TESTS ================================"
+if [ "$stapling_v1" == "yes" ]; then
+    printf '%s\n\n' "============ v1 STAPLING TESTS ================================"
 
-printf '%s\n\n' "------------- TEST CASE 1 SHOULD PASS -------------------------"
-# client test against our own server - GOOD CERT
-./examples/server/server -c certs/ocsp/server1-cert.pem \
-                         -k certs/ocsp/server1-key.pem -R $ready_file5 \
-                         -p $port5 &
-server_pid5=$!
-wait_for_readyFile $ready_file5 $server_pid5 $port5
-./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -p $port5
-RESULT=$?
-[ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection 1 failed" && exit 1
-printf '%s\n\n' "Test PASSED!"
-
-printf '%s\n\n' "------------- TEST CASE 2 SHOULD REVOKE -----------------------"
-# client test against our own server - REVOKED CERT
-remove_single_rF $ready_file5
-./examples/server/server -c certs/ocsp/server2-cert.pem \
-                         -k certs/ocsp/server2-key.pem -R $ready_file5 \
-                         -p $port5 &
-server_pid5=$!
-wait_for_readyFile $ready_file5 $server_pid5 $port5
-sleep 0.1
-./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -p $port5
-RESULT=$?
-[ $RESULT -ne 1 ] && printf '\n\n%s\n' "Client connection 2 succeeded $RESULT" \
-                  && exit 1
-printf '%s\n\n' "Test successfully REVOKED!"
-
-wait $server_pid5 2>/dev/null
-
-if [ "$tls13" == "yes" ]; then
-    printf '%s\n\n' "------------- TEST CASE 3 TLS13 SHOULD PASS -----------------"
+    printf '%s\n\n' "------------- TEST CASE 1 SHOULD PASS -------------------------"
     # client test against our own server - GOOD CERT
-    remove_single_rF $ready_file5
     ./examples/server/server -c certs/ocsp/server1-cert.pem \
-                             -k certs/ocsp/server1-key.pem -v 4 \
-                             -R $ready_file5 -p $port5 &
+                             -k certs/ocsp/server1-key.pem -R $ready_file5 \
+                             -p $port5 &
     server_pid5=$!
     wait_for_readyFile $ready_file5 $server_pid5 $port5
-    ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 -F 1 \
-                             -p $port5
+    ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -p $port5
     RESULT=$?
-    [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection 3 failed" && exit 1
+    [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection 1 failed" && exit 1
     printf '%s\n\n' "Test PASSED!"
 
-    printf '%s\n\n' "------------- TEST CASE 4 TLS13 MUST-STAPLE SHOULD PASS -----"
-    # client test against our own server, must staple - GOOD CERT
-    remove_single_rF $ready_file5
-    ./examples/server/server -c certs/ocsp/server1-cert.pem \
-                             -k certs/ocsp/server1-key.pem -v 4 \
-                             -R $ready_file5 -p $port5 &
-    server_pid5=$!
-    wait_for_readyFile $ready_file5 $server_pid5 $port5
-    ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1m -v 4 -F 1 \
-                             -p $port5
-    RESULT=$?
-    [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection 4 failed" && exit 1
-    printf '%s\n\n' "Test PASSED!"
-
-    printf '%s\n\n' "------------- TEST CASE 5 TLS13 SHOULD REVOKE ---------------"
+    printf '%s\n\n' "------------- TEST CASE 2 SHOULD REVOKE -----------------------"
     # client test against our own server - REVOKED CERT
     remove_single_rF $ready_file5
     ./examples/server/server -c certs/ocsp/server2-cert.pem \
-                             -k certs/ocsp/server2-key.pem -v 4 \
-                             -R $ready_file5 -p $port5 &
+                             -k certs/ocsp/server2-key.pem -R $ready_file5 \
+                             -p $port5 &
     server_pid5=$!
     wait_for_readyFile $ready_file5 $server_pid5 $port5
-    ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 -F 1 \
-                             -p $port5
+    sleep 0.1
+    ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -p $port5
     RESULT=$?
-    [ $RESULT -ne 1 ] && \
-                      printf '\n\n%s\n' "Client connection 5 succeeded $RESULT" \
+    [ $RESULT -ne 1 ] && printf '\n\n%s\n' "Client connection 2 succeeded $RESULT" \
                       && exit 1
     printf '%s\n\n' "Test successfully REVOKED!"
+
     wait $server_pid5 2>/dev/null
-fi
 
-# DTLS 1.2 v1 test
-if [[ "$dtls12" == "yes" ]]; then
-    printf '%s\n\n' "------------- TEST CASE DTLS12-1 SHOULD PASS ----------------"
-    remove_single_rF $ready_file5
-    ./examples/server/server -c certs/ocsp/server1-cert.pem -R $ready_file5 \
-                             -k certs/ocsp/server1-key.pem -u -v 3 \
-                             -p $port5 &
-    server_pid5=$!
-    sleep 0.2
-    ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -u -v 3 \
-                             -W 1 -p $port5
-    RESULT=$?
-    [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client DTLS12 connection failed" && exit 1
-    printf '%s\n\n' "Test PASSED!"
-fi
+    if [ "$tls13" == "yes" ]; then
+        printf '%s\n\n' "------------- TEST CASE 3 TLS13 SHOULD PASS -----------------"
+        # client test against our own server - GOOD CERT
+        remove_single_rF $ready_file5
+        ./examples/server/server -c certs/ocsp/server1-cert.pem \
+                                 -k certs/ocsp/server1-key.pem -v 4 \
+                                 -R $ready_file5 -p $port5 &
+        server_pid5=$!
+        wait_for_readyFile $ready_file5 $server_pid5 $port5
+        ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 -F 1 \
+                                 -p $port5
+        RESULT=$?
+        [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection 3 failed" && exit 1
+        printf '%s\n\n' "Test PASSED!"
 
-# DTLS 1.3 v1 test
-if [ "$dtls13" == "yes" ]; then
-    printf '%s\n\n' "------------- TEST CASE DTLS13-1 SHOULD PASS ----------------"
-    remove_single_rF $ready_file5
-    ./examples/server/server -c certs/ocsp/server1-cert.pem -R $ready_file5 \
-                             -k certs/ocsp/server1-key.pem -u -v 4 \
-                             -p $port5 &
-    server_pid5=$!
-    sleep 0.2
-    ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -u -v 4 \
-                             -W 1 -p $port5
-    RESULT=$?
-    [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client DTLS13 connection failed" && exit 1
-    printf '%s\n\n' "Test PASSED!"
+        printf '%s\n\n' "------------- TEST CASE 4 TLS13 MUST-STAPLE SHOULD PASS -----"
+        # client test against our own server, must staple - GOOD CERT
+        remove_single_rF $ready_file5
+        ./examples/server/server -c certs/ocsp/server1-cert.pem \
+                                 -k certs/ocsp/server1-key.pem -v 4 \
+                                 -R $ready_file5 -p $port5 &
+        server_pid5=$!
+        wait_for_readyFile $ready_file5 $server_pid5 $port5
+        ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1m -v 4 -F 1 \
+                                 -p $port5
+        RESULT=$?
+        [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection 4 failed" && exit 1
+        printf '%s\n\n' "Test PASSED!"
+
+        printf '%s\n\n' "------------- TEST CASE 5 TLS13 SHOULD REVOKE ---------------"
+        # client test against our own server - REVOKED CERT
+        remove_single_rF $ready_file5
+        ./examples/server/server -c certs/ocsp/server2-cert.pem \
+                                 -k certs/ocsp/server2-key.pem -v 4 \
+                                 -R $ready_file5 -p $port5 &
+        server_pid5=$!
+        wait_for_readyFile $ready_file5 $server_pid5 $port5
+        ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 -F 1 \
+                                 -p $port5
+        RESULT=$?
+        [ $RESULT -ne 1 ] && \
+                          printf '\n\n%s\n' "Client connection 5 succeeded $RESULT" \
+                          && exit 1
+        printf '%s\n\n' "Test successfully REVOKED!"
+        wait $server_pid5 2>/dev/null
+    fi
+
+    # DTLS 1.2 v1 test
+    if [[ "$dtls12" == "yes" ]]; then
+        printf '%s\n\n' "------------- TEST CASE DTLS12-1 SHOULD PASS ----------------"
+        remove_single_rF $ready_file5
+        ./examples/server/server -c certs/ocsp/server1-cert.pem -R $ready_file5 \
+                                 -k certs/ocsp/server1-key.pem -u -v 3 \
+                                 -p $port5 &
+        server_pid5=$!
+        sleep 0.2
+        ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -u -v 3 \
+                                 -W 1 -p $port5
+        RESULT=$?
+        [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client DTLS12 connection failed" && exit 1
+        printf '%s\n\n' "Test PASSED!"
+    fi
+
+    # DTLS 1.3 v1 test
+    if [ "$dtls13" == "yes" ]; then
+        printf '%s\n\n' "------------- TEST CASE DTLS13-1 SHOULD PASS ----------------"
+        remove_single_rF $ready_file5
+        ./examples/server/server -c certs/ocsp/server1-cert.pem -R $ready_file5 \
+                                 -k certs/ocsp/server1-key.pem -u -v 4 \
+                                 -p $port5 &
+        server_pid5=$!
+        sleep 0.2
+        ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -u -v 4 \
+                                 -W 1 -p $port5
+        RESULT=$?
+        [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client DTLS13 connection failed" && exit 1
+        printf '%s\n\n' "Test PASSED!"
+fi
+else
+    printf '%s\n\n' "============ v1 STAPLING TESTS ================================"
+    printf '%s\n\n' "Skipping v1 stapling tests - HAVE_CERTIFICATE_STATUS_REQUEST not compiled in"
 fi
 
 ########################################################################
 # v2 STAPLING TESTS (server3/server4/server5 with multiple CAs)
 ########################################################################
 
-printf '%s\n\n' "============ v2 STAPLING TESTS ================================"
+if [ "$stapling_v2" == "yes" ]; then
+    printf '%s\n\n' "============ v2 STAPLING TESTS ================================"
 
-printf '%s\n\n' "------------- TEST CASE V2-1 SHOULD PASS ----------------------"
-# client test against our own server - GOOD CERTS
-remove_single_rF $ready_file5
-./examples/server/server -c certs/ocsp/server3-cert.pem \
-                         -k certs/ocsp/server3-key.pem -R $ready_file5 \
-                         -p $port5 &
-server_pid5=$!
-wait_for_readyFile $ready_file5 $server_pid5 $port5
-./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 2 -v 3 \
-                         -p $port5
-RESULT=$?
-[ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection V2-1 failed" && exit 1
-printf '%s\n\n' "Test PASSED!"
-
-printf '%s\n\n' "------------- TEST CASE V2-2 SHOULD PASS ----------------------"
-remove_single_rF $ready_file5
-./examples/server/server -c certs/ocsp/server3-cert.pem \
-                         -k certs/ocsp/server3-key.pem -R $ready_file5 \
-                         -p $port5 &
-server_pid5=$!
-wait_for_readyFile $ready_file5 $server_pid5 $port5
-./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 3 -v 3 \
-                         -p $port5
-RESULT=$?
-[ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection V2-2 failed" && exit 1
-printf '%s\n\n' "Test PASSED!"
-
-printf '%s\n\n' "------------- TEST CASE V2-3 SHOULD REVOKE --------------------"
-# client test against our own server - REVOKED SERVER CERT
-remove_single_rF $ready_file5
-./examples/server/server -c certs/ocsp/server4-cert.pem \
-                         -k certs/ocsp/server4-key.pem -R $ready_file5 \
-                         -p $port5 &
-server_pid5=$!
-wait_for_readyFile $ready_file5 $server_pid5 $port5
-./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 2 -v 3 \
-                         -p $port5
-RESULT=$?
-[ $RESULT -ne 1 ] && printf '\n\n%s\n' "Client connection V2-3 succeeded $RESULT" && exit 1
-printf '%s\n\n' "Test successfully REVOKED!"
-wait $server_pid5 2>/dev/null
-
-printf '%s\n\n' "------------- TEST CASE V2-4 SHOULD REVOKE --------------------"
-remove_single_rF $ready_file5
-./examples/server/server -c certs/ocsp/server4-cert.pem \
-                         -k certs/ocsp/server4-key.pem -R $ready_file5 \
-                         -p $port5 &
-sleep 0.1
-./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 3 -v 3 \
-                         -p $port5
-RESULT=$?
-[ $RESULT -ne 1 ] && printf '\n\n%s\n' "Client connection V2-4 succeeded $RESULT" && exit 1
-printf '%s\n\n' "Test successfully REVOKED!"
-wait $server_pid5 2>/dev/null
-
-printf '%s\n\n' "------------- TEST CASE V2-5 SHOULD PASS ----------------------"
-# client test against our own server - REVOKED INTERMEDIATE CERT
-remove_single_rF $ready_file5
-./examples/server/server -c certs/ocsp/server5-cert.pem \
-                         -k certs/ocsp/server5-key.pem -R $ready_file5 \
-                         -p $port5 &
-server_pid5=$!
-wait_for_readyFile $ready_file5 $server_pid5 $port5
-./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 2 -v 3 \
-                         -p $port5
-RESULT=$?
-[ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection V2-5 failed $RESULT" && exit 1
-printf '%s\n\n' "Test PASSED!"
-
-printf '%s\n\n' "------------- TEST CASE V2-6 SHOULD REVOKE --------------------"
-remove_single_rF $ready_file5
-./examples/server/server -c certs/ocsp/server5-cert.pem \
-                         -k certs/ocsp/server5-key.pem -R $ready_file5 \
-                         -p $port5 &
-server_pid5=$!
-wait_for_readyFile $ready_file5 $server_pid5 $port5
-./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 3 -v 3 \
-                         -p $port5
-RESULT=$?
-[ $RESULT -ne 1 ] && printf '\n\n%s\n' "Client connection V2-6 succeeded $RESULT" && exit 1
-printf '%s\n\n' "Test successfully REVOKED!"
-wait $server_pid5 2>/dev/null
-
-# DTLS 1.2 v2 test
-if [[ "$dtls12" == "yes" ]]; then
-    printf '%s\n\n' "------------- TEST CASE DTLS12-V2 SHOULD PASS ----------------"
+    printf '%s\n\n' "------------- TEST CASE V2-1 SHOULD PASS ----------------------"
+    # client test against our own server - GOOD CERTS
     remove_single_rF $ready_file5
     ./examples/server/server -c certs/ocsp/server3-cert.pem \
                              -k certs/ocsp/server3-key.pem -R $ready_file5 \
-                             -p $port5 -u -v 3 &
+                             -p $port5 &
     server_pid5=$!
-    sleep 0.2
-    ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 2 -u -v 3 \
+    wait_for_readyFile $ready_file5 $server_pid5 $port5
+    ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 2 -v 3 \
                              -p $port5
     RESULT=$?
-    [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client DTLS12 v2 connection failed" && exit 1
+    [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection V2-1 failed" && exit 1
     printf '%s\n\n' "Test PASSED!"
+
+    printf '%s\n\n' "------------- TEST CASE V2-2 SHOULD PASS ----------------------"
+    remove_single_rF $ready_file5
+    ./examples/server/server -c certs/ocsp/server3-cert.pem \
+                             -k certs/ocsp/server3-key.pem -R $ready_file5 \
+                             -p $port5 &
+    server_pid5=$!
+    wait_for_readyFile $ready_file5 $server_pid5 $port5
+    ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 3 -v 3 \
+                             -p $port5
+    RESULT=$?
+    [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection V2-2 failed" && exit 1
+    printf '%s\n\n' "Test PASSED!"
+
+    printf '%s\n\n' "------------- TEST CASE V2-3 SHOULD REVOKE --------------------"
+    # client test against our own server - REVOKED SERVER CERT
+    remove_single_rF $ready_file5
+    ./examples/server/server -c certs/ocsp/server4-cert.pem \
+                             -k certs/ocsp/server4-key.pem -R $ready_file5 \
+                             -p $port5 &
+    server_pid5=$!
+    wait_for_readyFile $ready_file5 $server_pid5 $port5
+    ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 2 -v 3 \
+                             -p $port5
+    RESULT=$?
+    [ $RESULT -ne 1 ] && printf '\n\n%s\n' "Client connection V2-3 succeeded $RESULT" && exit 1
+    printf '%s\n\n' "Test successfully REVOKED!"
+    wait $server_pid5 2>/dev/null
+
+    printf '%s\n\n' "------------- TEST CASE V2-4 SHOULD REVOKE --------------------"
+    remove_single_rF $ready_file5
+    ./examples/server/server -c certs/ocsp/server4-cert.pem \
+                             -k certs/ocsp/server4-key.pem -R $ready_file5 \
+                             -p $port5 &
+    sleep 0.1
+    ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 3 -v 3 \
+                             -p $port5
+    RESULT=$?
+    [ $RESULT -ne 1 ] && printf '\n\n%s\n' "Client connection V2-4 succeeded $RESULT" && exit 1
+    printf '%s\n\n' "Test successfully REVOKED!"
+    wait $server_pid5 2>/dev/null
+
+    printf '%s\n\n' "------------- TEST CASE V2-5 SHOULD PASS ----------------------"
+    # client test against our own server - REVOKED INTERMEDIATE CERT
+    remove_single_rF $ready_file5
+    ./examples/server/server -c certs/ocsp/server5-cert.pem \
+                             -k certs/ocsp/server5-key.pem -R $ready_file5 \
+                             -p $port5 &
+    server_pid5=$!
+    wait_for_readyFile $ready_file5 $server_pid5 $port5
+    ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 2 -v 3 \
+                             -p $port5
+    RESULT=$?
+    [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection V2-5 failed $RESULT" && exit 1
+    printf '%s\n\n' "Test PASSED!"
+
+    printf '%s\n\n' "------------- TEST CASE V2-6 SHOULD REVOKE --------------------"
+    remove_single_rF $ready_file5
+    ./examples/server/server -c certs/ocsp/server5-cert.pem \
+                             -k certs/ocsp/server5-key.pem -R $ready_file5 \
+                             -p $port5 &
+    server_pid5=$!
+    wait_for_readyFile $ready_file5 $server_pid5 $port5
+    ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 3 -v 3 \
+                             -p $port5
+    RESULT=$?
+    [ $RESULT -ne 1 ] && printf '\n\n%s\n' "Client connection V2-6 succeeded $RESULT" && exit 1
+    printf '%s\n\n' "Test successfully REVOKED!"
+    wait $server_pid5 2>/dev/null
+
+        # DTLS 1.2 v2 test
+        if [[ "$dtls12" == "yes" ]]; then
+            printf '%s\n\n' "------------- TEST CASE DTLS12-V2 SHOULD PASS ----------------"
+            remove_single_rF $ready_file5
+            ./examples/server/server -c certs/ocsp/server3-cert.pem \
+                                     -k certs/ocsp/server3-key.pem -R $ready_file5 \
+                                     -p $port5 -u -v 3 &
+            server_pid5=$!
+            sleep 0.2
+            ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 2 -u -v 3 \
+                                     -p $port5
+            RESULT=$?
+            [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client DTLS12 v2 connection failed" && exit 1
+            printf '%s\n\n' "Test PASSED!"
+    fi
+else
+    printf '%s\n\n' "============ v2 STAPLING TESTS ================================"
+    printf '%s\n\n' "Skipping v2 stapling tests - HAVE_CERTIFICATE_STATUS_REQUEST_V2 not compiled in"
 fi
 
 ########################################################################
 # TLS 1.3 MULTI-STAPLING TESTS
 ########################################################################
 
-if [ "$tls13" == "yes" ]; then
+if [ "$tls13" == "yes" ] && [ "$stapling_v1" == "yes" ]; then
     printf '%s\n\n' "============ TLS 1.3 MULTI-STAPLING TESTS ===================="
 
     printf '%s\n\n' "------------- TEST CASE T13-1 SHOULD PASS --------------------"
@@ -685,35 +714,38 @@ if [ "$tls13" == "yes" ]; then
     [ $RESULT -ne 1 ] && printf '\n\n%s\n' "Client connection T13-3 succeeded $RESULT" && exit 1
     printf '%s\n\n' "Test successfully REVOKED!"
     wait $server_pid5 2>/dev/null
-fi
 
-# DTLS 1.3 multi-stapling tests
-if [ "$dtls13" == "yes" ]; then
-    printf '%s\n\n' "------------- TEST CASE DTLS13-V2 SHOULD PASS ----------------"
-    remove_single_rF $ready_file5
-    ./examples/server/server -c certs/ocsp/server3-cert.pem \
-                             -k certs/ocsp/server3-key.pem -R $ready_file5 \
-                             -p $port5 -u -v 4 &
-    server_pid5=$!
-    sleep 0.2
-    ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -u -v 4 \
-                             -p $port5
-    RESULT=$?
-    [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client DTLS13 connection failed" && exit 1
-    printf '%s\n\n' "Test PASSED!"
+    # DTLS 1.3 multi-stapling tests
+    if [ "$dtls13" == "yes" ]; then
+        printf '%s\n\n' "------------- TEST CASE DTLS13-V2 SHOULD PASS ----------------"
+        remove_single_rF $ready_file5
+        ./examples/server/server -c certs/ocsp/server3-cert.pem \
+                                 -k certs/ocsp/server3-key.pem -R $ready_file5 \
+                                 -p $port5 -u -v 4 &
+        server_pid5=$!
+        sleep 0.2
+        ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -u -v 4 \
+                                 -p $port5
+        RESULT=$?
+        [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client DTLS13 connection failed" && exit 1
+        printf '%s\n\n' "Test PASSED!"
 
-    printf '%s\n\n' "------------- TEST CASE DTLS13-V2-REVOKE SHOULD REVOKE -------"
-    remove_single_rF $ready_file5
-    ./examples/server/server -c certs/ocsp/server4-cert.pem \
-                             -k certs/ocsp/server4-key.pem -R $ready_file5 \
-                             -p $port5 -v 4 &
-    server_pid5=$!
-    sleep 0.2
-    ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 \
-                             -p $port5
-    RESULT=$?
-    [ $RESULT -ne 1 ] && printf '\n\n%s\n' "Client DTLS13 connection succeeded $RESULT" && exit 1
-    printf '%s\n\n' "Test successfully REVOKED!"
+        printf '%s\n\n' "------------- TEST CASE DTLS13-V2-REVOKE SHOULD REVOKE -------"
+        remove_single_rF $ready_file5
+        ./examples/server/server -c certs/ocsp/server4-cert.pem \
+                                 -k certs/ocsp/server4-key.pem -R $ready_file5 \
+                                 -p $port5 -v 4 &
+        server_pid5=$!
+        sleep 0.2
+        ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 \
+                                 -p $port5
+        RESULT=$?
+        [ $RESULT -ne 1 ] && printf '\n\n%s\n' "Client DTLS13 connection succeeded $RESULT" && exit 1
+        printf '%s\n\n' "Test successfully REVOKED!"
+    fi
+elif [ "$tls13" == "yes" ] || [ "$dtls13" == "yes" ]; then
+    printf '%s\n\n' "============ TLS 1.3 MULTI-STAPLING TESTS ===================="
+    printf '%s\n\n' "Skipping TLS 1.3 multi-stapling tests - HAVE_CERTIFICATE_STATUS_REQUEST not compiled in"
 fi
 
 printf '%s\n\n' "------------------- TESTS COMPLETE ---------------------------"
