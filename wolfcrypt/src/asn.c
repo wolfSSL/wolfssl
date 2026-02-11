@@ -11433,6 +11433,9 @@ int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32 inSz)
     if (inOutIdx == NULL)
         return BAD_FUNC_ARG;
 
+    if (key == NULL)
+        return BAD_FUNC_ARG;
+
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
 
@@ -11579,7 +11582,7 @@ int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32 inSz)
 #endif
     }
 
-    FREE_ASNGETDATA(dataASN, key->heap);
+    FREE_ASNGETDATA(dataASN, key != NULL ? key->heap : NULL);
     return ret;
 #endif /* WOLFSSL_ASN_TEMPLATE */
 }
@@ -12331,7 +12334,7 @@ int wc_DsaPrivateKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
         key->type = DSA_PRIVATE;
     }
 
-    FREE_ASNGETDATA(dataASN, key->heap);
+    FREE_ASNGETDATA(dataASN, key != NULL ? key->heap : NULL);
     return ret;
 #endif
 }
@@ -12572,7 +12575,7 @@ int wc_SetDsaPublicKey(byte* output, DsaKey* key, int outLen, int with_header)
         ret = SetASN_Items(data, dataASN, count, output);
     }
 
-    FREE_ASNSETDATA(dataASN, key->heap);
+    FREE_ASNSETDATA(dataASN, key != NULL ? key->heap : NULL);
     return ret;
 #endif /* WOLFSSL_ASN_TEMPLATE */
 }
@@ -28481,7 +28484,7 @@ static int SetRsaPublicKey(byte* output, RsaKey* key, int outLen,
         ret = sz;
     }
 
-    FREE_ASNSETDATA(dataASN, key->heap);
+    FREE_ASNSETDATA(dataASN, key != NULL ? key->heap : NULL);
     return ret;
 #endif /* WOLFSSL_ASN_TEMPLATE */
 }
@@ -28696,7 +28699,7 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
         ret = sz;
     }
 
-    FREE_ASNSETDATA(dataASN, key->heap);
+    FREE_ASNSETDATA(dataASN, key != NULL ? key->heap : NULL);
     return ret;
 #endif
 }
