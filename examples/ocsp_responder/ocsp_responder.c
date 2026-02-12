@@ -81,7 +81,13 @@ char* myoptarg = NULL;
 #define MAX_CERTS         16
 
 /* Simple logging macro */
-#define LOG_ERROR(...) fprintf(stderr, __VA_ARGS__)
+#define LOG_ERROR(...)                                                         \
+    do {                                                                       \
+        if (got_signal)                                                        \
+            fprintf(stderr, "Shutdown requested, exiting loop\n");             \
+        else                                                                   \
+            fprintf(stderr, __VA_ARGS__);                                      \
+    } while (0)
 
 #ifndef _WIN32
 /* Signal handler flag */
@@ -811,8 +817,14 @@ THREAD_RETURN WOLFSSL_THREAD ocsp_responder_test(void* args)
 
 #ifndef _WIN32
     /* Install signal handlers for clean shutdown */
-    signal(SIGTERM, sig_handler);
-    signal(SIGINT, sig_handler);
+    {
+        struct sigaction sa;
+        memset(&sa, 0, sizeof(sa));
+        sa.sa_handler = sig_handler;
+        /* Do NOT set SA_RESTART so accept() is interrupted */
+        sigaction(SIGTERM, &sa, NULL);
+        sigaction(SIGINT, &sa, NULL);
+    }
     if (opts.verbose) {
         printf("Signal handlers installed\n");
     }
