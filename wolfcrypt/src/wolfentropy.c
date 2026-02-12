@@ -155,6 +155,20 @@ static WC_INLINE word64 Entropy_TimeHiRes(void)
     QueryPerformanceCounter(&count);
     return (word64)(count.QuadPart);
 }
+#elif !defined(ENTROPY_MEMUSE_THREAD) && defined(__arm__)
+/* Get time counter from arch_sys_counter clocksource.
+ *
+ * @return  64-bit timer count.
+ */
+static WC_INLINE word64 Entropy_TimeHiRes(void)
+{
+    word32 lo, hi;
+    __asm__ __volatile__ (
+        "mrrc p15, 1, %[lo], %[hi], c14"
+        : [lo] "=r"(lo), [hi] "=r"(hi)
+    );
+    return ((word64)hi << 32) | lo;
+}
 #elif defined(WOLFSSL_THREAD_NO_JOIN)
 
 /* Start and stop thread that counts as a proxy for time counter. */
