@@ -40,6 +40,8 @@ extern "C" {
 /* ------------------------------------------------------------------------- */
 /* Platform */
 /* ------------------------------------------------------------------------- */
+#define WOLFSSL_HAVE_MIN /* Zephyr provides min() in sys/util.h */
+#define WOLFSSL_HAVE_MAX /* Zephyr provides max() in sys/util.h */
 #define WOLFSSL_GENERAL_ALIGNMENT 4 /* platform requires 32-bit alignment on uint32_t */
 #define SIZEOF_LONG_LONG 8          /* long long is 8 bytes / 64-bit */
 //#define WOLFSSL_NO_ASM /* optionally disable inline assembly support */
