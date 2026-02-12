@@ -792,8 +792,7 @@ int test_SerialNumber0_RootCA(void)
 {
     EXPECT_DECLS;
 
-#if !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && !defined(NO_RSA) && \
-    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT)
+#if !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && !defined(NO_RSA)
     /* Test that root CA certificates with serial number 0 are accepted,
      * while non-root certificates with serial 0 are rejected (issue #8615) */
 
@@ -854,8 +853,7 @@ int test_SerialNumber0_RootCA(void)
     }
 #endif /* !WOLFSSL_NO_ASN_STRICT && !WOLFSSL_PYTHON &&
           !WOLFSSL_ASN_ALLOW_0_SERIAL */
-#endif /* !NO_CERTS && !NO_FILESYSTEM && !NO_RSA && WOLFSSL_CERT_GEN &&
-          WOLFSSL_CERT_EXT */
+#endif /* !NO_CERTS && !NO_FILESYSTEM && !NO_RSA */
 
     return EXPECT_RESULT();
 }

@@ -4,7 +4,7 @@
 
 dist_doc_DATA+= certs/test-serial0/README.md
 
-EXTRA_DIST+= certs/test-serial0/generate_certs.sh \
+EXTRA_DIST += certs/test-serial0/generate_certs.sh \
              certs/test-serial0/root_serial0.pem \
              certs/test-serial0/root_serial0_key.pem \
              certs/test-serial0/root.pem \
