@@ -32439,8 +32439,15 @@ static int GetEcDiffieHellmanKea(WOLFSSL *ssl,
     }
 
     curveId = wc_ecc_get_oid((word32) curveOid, NULL, NULL);
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    if (wc_ecc_import_x963_ex2(input + args->idx, length,
+                               ssl->peerEccKey, curveId, 1) != 0)
+#else
+    /* FIPS has validation define on. */
     if (wc_ecc_import_x963_ex(input + args->idx, length,
-                              ssl->peerEccKey, curveId) != 0) {
+                              ssl->peerEccKey, curveId) != 0)
+#endif
+    {
 #ifdef WOLFSSL_EXTRA_ALERTS
         SendAlert(ssl, alert_fatal, illegal_parameter);
 #endif
@@ -40723,9 +40730,17 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
             if (ret != 0)
                 return ret;
         }
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+        if (wc_ecc_import_x963_ex2(input + args->idx, args->length,
+                ssl->peerEccKey, kea == ecdhe_psk_kea ? ssl->eccTempKey->dp->id
+                                                      : private_key->dp->id, 1))
+#else
+        /* FIPS has validation define on. */
         if (wc_ecc_import_x963_ex(input + args->idx, args->length,
-                 ssl->peerEccKey, kea == ecdhe_psk_kea ? ssl->eccTempKey->dp->id
-                                                       : private_key->dp->id)) {
+                ssl->peerEccKey, kea == ecdhe_psk_kea ? ssl->eccTempKey->dp->id
+                                                      : private_key->dp->id))
+#endif
+        {
         #ifdef WOLFSSL_EXTRA_ALERTS
             SendAlert(ssl, alert_fatal, illegal_parameter);
         #endif

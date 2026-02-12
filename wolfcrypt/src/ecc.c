@@ -10636,8 +10636,8 @@ int wc_ecc_check_key(ecc_key* key)
 
 #ifdef HAVE_ECC_KEY_IMPORT
 /* import public ECC key in ANSI X9.63 format */
-int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
-                          int curve_id)
+int wc_ecc_import_x963_ex2(const byte* in, word32 inLen, ecc_key* key,
+                           int curve_id, int untrusted)
 {
     int err = MP_OKAY;
 #ifdef HAVE_COMP_KEY
@@ -10922,6 +10922,25 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
     if (err == MP_OKAY)
         err = wc_ecc_check_key(key);
 #endif
+#if (!defined(WOLFSSL_VALIDATE_ECC_IMPORT) || \
+     !defined(HAVE_ECC_CHECK_PUBKEY_ORDER)) && \
+     !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+     !defined(WOLFSSL_CRYPTOCELL) && \
+     (!defined(WOLF_CRYPTO_CB_ONLY_ECC) || defined(WOLFSSL_QNX_CAAM) || \
+       defined(WOLFSSL_IMXRT1170_CAAM))
+    if (untrusted) {
+        /* Only do quick checks. */
+        if ((err == MP_OKAY) && wc_ecc_point_is_at_infinity(&key->pubkey)) {
+            err = ECC_INF_E;
+        }
+    #ifdef USE_ECC_B_PARAM
+        if ((err == MP_OKAY) && (key->idx != ECC_CUSTOM_IDX))  {
+            err = wc_ecc_point_is_on_curve(&key->pubkey, key->idx);
+        }
+    #endif /* USE_ECC_B_PARAM */
+    }
+#endif
+    (void)untrusted;
 
 #ifdef WOLFSSL_MAXQ10XX_CRYPTO
     if (err == MP_OKAY) {
@@ -10939,6 +10958,13 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
     RESTORE_VECTOR_REGISTERS();
 
     return err;
+}
+
+/* import public ECC key in ANSI X9.63 format */
+int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
+                          int curve_id)
+{
+    return wc_ecc_import_x963_ex2(in, inLen, key, curve_id, 0);
 }
 
 WOLFSSL_ABI
