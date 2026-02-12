@@ -124,6 +124,7 @@ typedef struct {
     const char* certFile;
     const char* keyFile;
     const char* indexFile;
+    const char* readyFile;
     int nrequests;
     int verbose;
     int sendCerts;
@@ -142,6 +143,7 @@ static void Usage(void)
     LOG_MSG("  -c <file>    CA certificate\n");
     LOG_MSG("  -k <file>    CA private key\n");
     LOG_MSG("  -i <file>    Index file for cert status\n");
+    LOG_MSG("  -R <file>    Ready file for external monitor\n");
     LOG_MSG("  -n <num>     Exit after n requests\n");
     LOG_MSG("  -v           Verbose\n");
     LOG_MSG("  -x           Exclude certs from response\n");
@@ -445,52 +447,6 @@ static int PopulateResponderFromIndex(OcspResponder* responder, IndexEntry* inde
     return count;
 }
 
-/* Create TCP server socket */
-static SOCKET_T CreateServerSocket(word16 port)
-{
-    SOCKET_T sockfd;
-    struct sockaddr_in addr;
-    int yes = 1;
-
-#ifdef _WIN32
-    WSADATA wsaData;
-    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
-        LOG_ERROR("WSAStartup failed\n");
-        return INVALID_SOCKET;
-    }
-#endif
-
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd == INVALID_SOCKET) {
-        LOG_ERROR("socket() failed\n");
-        return INVALID_SOCKET;
-    }
-
-    /* Allow reuse */
-    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, (const char*)&yes, sizeof(yes)) < 0) {
-        LOG_ERROR("setsockopt() failed\n");
-    }
-
-    XMEMSET(&addr, 0, sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = INADDR_ANY;
-    addr.sin_port = htons(port);
-
-    if (bind(sockfd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
-        LOG_ERROR("bind() failed\n");
-        close(sockfd);
-        return INVALID_SOCKET;
-    }
-
-    if (listen(sockfd, 5) < 0) {
-        LOG_ERROR("listen() failed\n");
-        close(sockfd);
-        return INVALID_SOCKET;
-    }
-
-    return sockfd;
-}
-
 /* Receive a complete HTTP request, looping until the full body arrives */
 static int RecvHttpRequest(SOCKET_T fd, byte* buf, int bufSz)
 {
@@ -688,9 +644,10 @@ THREAD_RETURN WOLFSSL_THREAD ocsp_responder_test(void* args)
     opts.nrequests = 0;
     opts.verbose = 0;
     opts.sendCerts = 1;
+    opts.readyFile = NULL;
 
     /* Parse command line arguments */
-    while ((ch = mygetopt_long(argc, argv, "?p:c:k:i:n:vx", long_options, 0)) != -1) {
+    while ((ch = mygetopt_long(argc, argv, "?p:c:k:i:R:n:vx", long_options, 0)) != -1) {
         switch (ch) {
             case '?':
                 Usage();
@@ -707,6 +664,9 @@ THREAD_RETURN WOLFSSL_THREAD ocsp_responder_test(void* args)
                 break;
             case 'i':
                 opts.indexFile = myoptarg;
+                break;
+            case 'R':
+                opts.readyFile = myoptarg;
                 break;
             case 'n':
                 opts.nrequests = atoi(myoptarg);
@@ -813,14 +773,23 @@ THREAD_RETURN WOLFSSL_THREAD ocsp_responder_test(void* args)
         }
     }
 
-    /* Create server socket */
-    sockfd = CreateServerSocket(opts.port);
-    if (sockfd == INVALID_SOCKET) {
-        LOG_ERROR("Error creating server socket on port %d\n", opts.port);
-        ret = -1;
-        goto cleanup;
+    /* Create and listen on server socket */
+    tcp_listen(&sockfd, &opts.port, 1, 0, 0);
+
+    /* Write ready file if requested */
+    if (opts.readyFile != NULL) {
+        XFILE rf = XFOPEN(opts.readyFile, "w");
+        if (rf != NULL) {
+            fprintf(rf, "%d\n", (int)opts.port);
+            fclose(rf);
+            if (opts.verbose) {
+                LOG_MSG("Ready file created: %s\n", opts.readyFile);
+            }
+        }
+        else {
+            LOG_ERROR("Warning: Failed to create ready file: %s\n", opts.readyFile);
+        }
     }
-    LOG_MSG("OCSP Responder listening on port %d\n", opts.port);
 
 #ifndef _WIN32
     /* Install signal handlers for clean shutdown */

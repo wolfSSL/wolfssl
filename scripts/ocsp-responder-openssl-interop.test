@@ -72,6 +72,7 @@ generate_port() {
 
 resp_pids=""
 resp_logs=""
+ready_files=""
 
 cleanup() {
     for p in $resp_pids; do
@@ -81,6 +82,10 @@ cleanup() {
     # Clean up log files
     for log in $resp_logs; do
         rm -f "$log" 2>/dev/null
+    done
+    # Clean up ready files
+    for rf in $ready_files; do
+        rm -f "$rf" 2>/dev/null
     done
 }
 trap cleanup EXIT INT TERM
@@ -99,6 +104,30 @@ print_responder_logs() {
         fi
     done
     echo "----------------------"
+}
+
+# wait_for_ready_file READY_FILE PID PORT
+wait_for_ready_file() {
+    local ready_file="$1"
+    local pid="$2"
+    local port="$3"
+    local counter=0
+
+    while [ ! -s "$ready_file" ] && [ "$counter" -lt 20 ]; do
+        if ! kill -0 "$pid" 2>/dev/null; then
+            echo "ERROR: Responder pid $pid for port $port exited before creating ready file" 1>&2
+            print_responder_logs
+            exit 1
+        fi
+        sleep 0.1
+        counter=$((counter + 1))
+    done
+
+    if [ ! -s "$ready_file" ]; then
+        echo "ERROR: Ready file $ready_file not created after 2 seconds" 1>&2
+        print_responder_logs
+        exit 1
+    fi
 }
 
 # query_ocsp ISSUER_CERT CERT_TO_CHECK PORT EXPECTED_STATUS DESCRIPTION
@@ -148,7 +177,9 @@ query_ocsp() {
 generate_port; port1=$port
 log1=$(mktemp /tmp/ocsp_resp1.XXXXXX)
 resp_logs="$resp_logs $log1"
-$OCSP_RESPONDER -p $port1 -v \
+ready1=$(mktemp /tmp/ocsp_ready1.XXXXXX)
+ready_files="$ready_files $ready1"
+$OCSP_RESPONDER -p $port1 -v -R "$ready1" \
     -c $OCSP_DIR/intermediate1-ca-cert.pem \
     -k $OCSP_DIR/intermediate1-ca-key.pem \
     -i $OCSP_DIR/index-intermediate1-ca-issued-certs.txt \
@@ -160,7 +191,9 @@ resp_pids="$resp_pids $pid1"
 generate_port; port2=$port
 log2=$(mktemp /tmp/ocsp_resp2.XXXXXX)
 resp_logs="$resp_logs $log2"
-$OCSP_RESPONDER -p $port2 -v \
+ready2=$(mktemp /tmp/ocsp_ready2.XXXXXX)
+ready_files="$ready_files $ready2"
+$OCSP_RESPONDER -p $port2 -v -R "$ready2" \
     -c $OCSP_DIR/intermediate2-ca-cert.pem \
     -k $OCSP_DIR/intermediate2-ca-key.pem \
     -i $OCSP_DIR/index-intermediate2-ca-issued-certs.txt \
@@ -172,7 +205,9 @@ resp_pids="$resp_pids $pid2"
 generate_port; port3=$port
 log3=$(mktemp /tmp/ocsp_resp3.XXXXXX)
 resp_logs="$resp_logs $log3"
-$OCSP_RESPONDER -p $port3 -v \
+ready3=$(mktemp /tmp/ocsp_ready3.XXXXXX)
+ready_files="$ready_files $ready3"
+$OCSP_RESPONDER -p $port3 -v -R "$ready3" \
     -c $OCSP_DIR/intermediate3-ca-cert.pem \
     -k $OCSP_DIR/intermediate3-ca-key.pem \
     -i $OCSP_DIR/index-intermediate3-ca-issued-certs.txt \
@@ -184,7 +219,9 @@ resp_pids="$resp_pids $pid3"
 generate_port; port4=$port
 log4=$(mktemp /tmp/ocsp_resp4.XXXXXX)
 resp_logs="$resp_logs $log4"
-$OCSP_RESPONDER -p $port4 -v \
+ready4=$(mktemp /tmp/ocsp_ready4.XXXXXX)
+ready_files="$ready_files $ready4"
+$OCSP_RESPONDER -p $port4 -v -R "$ready4" \
     -c $OCSP_DIR/root-ca-cert.pem \
     -k $OCSP_DIR/root-ca-key.pem \
     -i $OCSP_DIR/index-ca-and-intermediate-cas.txt \
@@ -198,15 +235,13 @@ echo "  Responder 2 (intermediate2-ca): port $port2, pid $pid2"
 echo "  Responder 3 (intermediate3-ca): port $port3, pid $pid3"
 echo "  Responder 4 (root-ca):          port $port4, pid $pid4"
 
-sleep 0.1
+# Wait for all responders to be ready
+wait_for_ready_file "$ready1" "$pid1" "$port1"
+wait_for_ready_file "$ready2" "$pid2" "$port2"
+wait_for_ready_file "$ready3" "$pid3" "$port3"
+wait_for_ready_file "$ready4" "$pid4" "$port4"
 
-# Verify all responders are running
-for p in $resp_pids; do
-    if ! kill -0 "$p" 2>/dev/null; then
-        echo "FATAL: Responder pid $p failed to start" 1>&2
-        exit 1
-    fi
-done
+echo "All responders ready"
 
 echo "All responders running."
 echo

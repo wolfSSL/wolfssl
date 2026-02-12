@@ -141,11 +141,19 @@ ready_file2="$WORKSPACE"/wolf_ocsp_wr_readyF2$$
 ready_file3="$WORKSPACE"/wolf_ocsp_wr_readyF3$$
 ready_file4="$WORKSPACE"/wolf_ocsp_wr_readyF4$$
 ready_file5="$WORKSPACE"/wolf_ocsp_wr_readyF5$$
+ready_file_resp1="$WORKSPACE"/wolf_ocsp_resp_readyF1$$
+ready_file_resp2="$WORKSPACE"/wolf_ocsp_resp_readyF2$$
+ready_file_resp3="$WORKSPACE"/wolf_ocsp_resp_readyF3$$
+ready_file_resp4="$WORKSPACE"/wolf_ocsp_resp_readyF4$$
 printf '%s\n' "ready file 1:  $ready_file1"
 printf '%s\n' "ready file 2:  $ready_file2"
 printf '%s\n' "ready file 3:  $ready_file3"
 printf '%s\n' "ready file 4:  $ready_file4"
 printf '%s\n' "ready file 5:  $ready_file5"
+printf '%s\n' "ready file resp 1:  $ready_file_resp1"
+printf '%s\n' "ready file resp 2:  $ready_file_resp2"
+printf '%s\n' "ready file resp 3:  $ready_file_resp3"
+printf '%s\n' "ready file resp 4:  $ready_file_resp4"
 
 # Create temporary log files for responder output
 responder_log1=$(mktemp)
@@ -399,39 +407,42 @@ printf '%s\n' "-----------------------------------"
 ./examples/client/client -p $port4
 create_new_cnf $port1 $port2 $port3 $port4
 
-sleep 0.1
-
 # Start wolfSSL OCSP responders (CA signs responses directly)
 printf '%s\n' "Starting wolfSSL OCSP responders..."
 
 # Responder 1: intermediate1-ca (for server1, server2)
-$OCSP_RESPONDER -v -p $port1 \
+$OCSP_RESPONDER -v -p $port1 -R "$ready_file_resp1" \
     -i certs/ocsp/index-intermediate1-ca-issued-certs.txt \
     -c certs/ocsp/intermediate1-ca-cert.pem \
     -k certs/ocsp/intermediate1-ca-key.pem > "$responder_log1" 2>&1 &
+resp_pid1=$!
 
 # Responder 2: intermediate2-ca (for server3, server4)
-$OCSP_RESPONDER -v -p $port2 \
+$OCSP_RESPONDER -v -p $port2 -R "$ready_file_resp2" \
     -i certs/ocsp/index-intermediate2-ca-issued-certs.txt \
     -c certs/ocsp/intermediate2-ca-cert.pem \
     -k certs/ocsp/intermediate2-ca-key.pem > "$responder_log2" 2>&1 &
+resp_pid2=$!
 
 # Responder 3: intermediate3-ca (for server5)
-$OCSP_RESPONDER -v -p $port3 \
+$OCSP_RESPONDER -v -p $port3 -R "$ready_file_resp3" \
     -i certs/ocsp/index-intermediate3-ca-issued-certs.txt \
     -c certs/ocsp/intermediate3-ca-cert.pem \
     -k certs/ocsp/intermediate3-ca-key.pem > "$responder_log3" 2>&1 &
+resp_pid3=$!
 
 # Responder 4: root-ca (for intermediate CA certs)
-$OCSP_RESPONDER -v -p $port4 \
+$OCSP_RESPONDER -v -p $port4 -R "$ready_file_resp4" \
     -i certs/ocsp/index-ca-and-intermediate-cas.txt \
     -c certs/ocsp/root-ca-cert.pem \
     -k certs/ocsp/root-ca-key.pem > "$responder_log4" 2>&1 &
+resp_pid4=$!
 
-sleep 0.5
-# "jobs" is not portable for posix. Must use bash interpreter!
-[ $(jobs -r | wc -l) -ne 4 ] && \
-    printf '\n\n%s\n' "Setup wolfSSL OCSP responders failed" && exit 1
+# Wait for all responders to be ready
+wait_for_readyFile "$ready_file_resp1" "$resp_pid1" "$port1"
+wait_for_readyFile "$ready_file_resp2" "$resp_pid2" "$port2"
+wait_for_readyFile "$ready_file_resp3" "$resp_pid3" "$port3"
+wait_for_readyFile "$ready_file_resp4" "$resp_pid4" "$port4"
 
 printf '\n\n%s\n\n' "All wolfSSL OCSP responders started successfully!"
 
