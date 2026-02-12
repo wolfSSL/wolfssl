@@ -48,6 +48,10 @@
     #include <wolfssl/wolfcrypt/ecc.h>   /* wc_ecc_fp_free */
 #endif
 
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
+    #include <wolfssl/wolfcrypt/coding.h>
+#endif
+
 #ifdef WOLFSSL_WOLFSENTRY_HOOKS
 #include <wolfsentry/wolfsentry.h>
 #if !defined(NO_FILESYSTEM) && !defined(WOLFSENTRY_NO_JSON)
@@ -73,7 +77,11 @@ static const char *wolfsentry_config_path = NULL;
 #include <wolfssl/test.h>
 #include <wolfssl/error-ssl.h>
 
-#include "examples/server/server.h"
+#ifdef USE_FLAT_TEST_H
+    #include "server.h"
+#else
+    #include "examples/server/server.h"
+#endif
 
 #if !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
 
@@ -911,7 +919,7 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
 /*  4. add the same message into Japanese section         */
 /*     (will be translated later)                         */
 /*  5. add printf() into suitable position of Usage()     */
-static const char* server_usage_msg[][66] = {
+static const char* server_usage_msg[][69] = {
     /* English */
     {
         " NOTE: All files relative to wolfSSL home dir\n",               /* 0 */
@@ -1108,10 +1116,15 @@ static const char* server_usage_msg[][66] = {
 #ifdef WOLFSSL_SYS_CRYPTO_POLICY
         "--crypto-policy  <path to crypto policy file>\n", /* 66 */
 #endif
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
+        "--ech <name>  Generate Encrypted Client Hello config with "
+            "public name <name>\n",
+                                                                        /* 67 */
+#endif
         "\n"
            "For simpler wolfSSL TLS server examples, visit\n"
            "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n",
-                                                                        /* 67 */
+                                                                        /* 68 */
         NULL,
     },
 #ifndef NO_MULTIBYTE_PRINT
@@ -1487,6 +1500,9 @@ static void Usage(void)
 #ifdef WOLFSSL_DUAL_ALG_CERTS
     printf("%s", msg[++msgId]);     /* --altPrivKey */
 #endif
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
+    printf("%s", msg[++msgId]);     /* --ech */
+#endif
     printf("%s", msg[++msgId]);     /* Examples repo link */
 }
 
@@ -1609,6 +1625,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #if defined(WOLFSSL_SYS_CRYPTO_POLICY)
         { "crypto-policy", 1, 268 },
 #endif /* WOLFSSL_SYS_CRYPTO_POLICY */
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
+        { "ech", 1, 269 },
+#endif
         { 0, 0, 0 }
     };
 #endif
@@ -1684,6 +1703,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 
 #ifdef HAVE_SNI
     char*  sniHostName = NULL;
+#endif
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
+    char*  echPublicName = NULL;
 #endif
 
 #ifdef HAVE_TRUSTED_CA
@@ -2513,6 +2535,11 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 policy = myoptarg;
 #endif /* WOLFSSL_SYS_CRYPTO_POLICY */
                 break;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
+            case 269:
+                echPublicName = myoptarg;
+                break;
+#endif
 
         case -1:
             default:
@@ -3071,6 +3098,32 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         if (wolfSSL_CTX_UseSNI(ctx, WOLFSSL_SNI_HOST_NAME, sniHostName,
                     (word16) XSTRLEN(sniHostName)) != WOLFSSL_SUCCESS)
             err_sys_ex(runWithErrors, "UseSNI failed");
+#endif
+
+#ifdef HAVE_ECH
+    if (echPublicName != NULL) {
+        byte echConfig[512];
+        word32 echConfigLen = sizeof(echConfig);
+        char echConfigBase64[512];
+        word32 echConfigBase64Len = sizeof(echConfigBase64);
+
+        if (wolfSSL_CTX_GenerateEchConfig(ctx, echPublicName, 0, 0, 0)
+                != WOLFSSL_SUCCESS) {
+            err_sys_ex(runWithErrors, "GenerateEchConfig failed");
+        }
+        if (wolfSSL_CTX_GetEchConfigs(ctx, echConfig, &echConfigLen)
+                != WOLFSSL_SUCCESS) {
+            err_sys_ex(runWithErrors, "GetEchConfigs failed");
+        }
+        if (Base64_Encode_NoNl(echConfig, echConfigLen, (byte*)echConfigBase64,
+                    &echConfigBase64Len) != 0) {
+            err_sys_ex(runWithErrors, "Base64_Encode_NoNl failed");
+        }
+        else {
+            echConfigBase64[echConfigBase64Len] = '\0';
+            printf("ECH config (base64): %s\n", echConfigBase64);
+        }
+    }
 #endif
 
 #ifdef USE_WINDOWS_API

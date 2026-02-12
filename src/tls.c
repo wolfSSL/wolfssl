@@ -2233,9 +2233,10 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     byte type;
     byte matched;
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
+    TLSX* echX = NULL;
     WOLFSSL_ECH* ech = NULL;
     WOLFSSL_EchConfig* workingConfig;
-    TLSX* echX;
+    word16 privateNameLen;
 #endif
 #endif /* !NO_WOLFSSL_SERVER */
     TLSX *extension = TLSX_Find(ssl->extensions, TLSX_SERVER_NAME);
@@ -2267,7 +2268,22 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     }
 
 #ifndef NO_WOLFSSL_SERVER
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
+    if (!ssl->options.disableECH) {
+        echX = TLSX_Find(ssl->extensions, TLSX_ECH);
+        if (echX != NULL) {
+            ech = (WOLFSSL_ECH*)(echX->data);
+        }
+    }
+#endif
+
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
+    if ((!extension || !extension->data) ||
+            (ech != NULL && ech->sniState == ECH_INNER_SNI &&
+             ech->privateName == NULL)) {
+#else
     if (!extension || !extension->data) {
+#endif
         /* This will keep SNI even though TLSX_UseSNI has not been called.
          * Enable it so that the received sni is available to functions
          * that use a custom callback when SNI is received.
@@ -2315,24 +2331,52 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     if (!cacheOnly && !(sni = TLSX_SNI_Find((SNI*)extension->data, type)))
         return 0; /* not using this type of SNI. */
 
-#ifdef WOLFSSL_TLS13
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
+    if (ech != NULL && ech->sniState == ECH_INNER_SNI){
+        /* SNI status is carried over from processing the outer hello so it is
+        * necessary to clear it before processing the inner hello */
+        ech->sniState = ECH_INNER_SNI_ATTEMPT;
+        if (sni != NULL){
+            sni->status = WOLFSSL_SNI_NO_MATCH;
+        }
+    }
+    else if (ech != NULL && ech->sniState == ECH_OUTER_SNI &&
+            ech->privateName == NULL && sni != NULL){
+        /* save the private SNI before it is overwritten by the public SNI */
+        privateNameLen = (word16)XSTRLEN(sni->data.host_name) + 1;
+        ech->privateName = (char*)XMALLOC(privateNameLen, ssl->heap,
+            DYNAMIC_TYPE_TMP_BUFFER);
+        if (ech->privateName == NULL)
+            return MEMORY_E;
+        XMEMCPY((char*)ech->privateName, sni->data.host_name,
+            privateNameLen);
+    }
+#endif
+
+#if defined(WOLFSSL_TLS13)
     /* Don't process the second ClientHello SNI extension if there
      * was problems with the first.
      */
-    if (!cacheOnly && sni->status != 0)
+    if (!cacheOnly && sni->status != WOLFSSL_SNI_NO_MATCH)
         return 0;
 #endif
-    matched = cacheOnly || (XSTRLEN(sni->data.host_name) == size &&
-         XSTRNCMP(sni->data.host_name, (const char*)input + offset, size) == 0);
+
+#if defined(HAVE_ECH)
+    if (ech != NULL && ech->sniState == ECH_INNER_SNI_ATTEMPT) {
+        matched = cacheOnly || (XSTRLEN(ech->privateName) == size &&
+            XSTRNCMP(ech->privateName, (const char*)input + offset, size) == 0);
+    }
+    else
+#endif
+    {
+        matched = cacheOnly || (XSTRLEN(sni->data.host_name) == size &&
+            XSTRNCMP(sni->data.host_name, (const char*)input + offset,
+                                                                    size) == 0);
+    }
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
-    echX = TLSX_Find(ssl->extensions, TLSX_ECH);
-    if (echX != NULL)
-        ech = (WOLFSSL_ECH*)(echX->data);
-
-    if (!matched && ech != NULL) {
+    if (!matched && ech != NULL && ech->sniState == ECH_OUTER_SNI) {
         workingConfig = ech->echConfig;
-
         while (workingConfig != NULL) {
             matched = XSTRLEN(workingConfig->publicName) == size &&
                 XSTRNCMP(workingConfig->publicName,
@@ -2350,6 +2394,7 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, const byte* input, word16 length,
         int matchStat;
         int r = TLSX_UseSNI(&ssl->extensions, type, input + offset, size,
                                                                      ssl->heap);
+
         if (r != WOLFSSL_SUCCESS)
             return r; /* throws error. */
 
@@ -13893,12 +13938,12 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
     byte* aadCopy;
     byte* readBuf_p = (byte*)readBuf;
     WOLFSSL_MSG("TLSX_ECH_Parse");
-    if (size == 0)
-        return BAD_FUNC_ARG;
     if (ssl->options.disableECH) {
         WOLFSSL_MSG("TLSX_ECH_Parse: ECH disabled. Ignoring.");
         return 0;
     }
+    if (size == 0)
+        return BAD_FUNC_ARG;
     /* retry configs */
     if (msgType == encrypted_extensions) {
         ret = wolfSSL_SetEchConfigs(ssl, readBuf, size);
@@ -13907,7 +13952,8 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
             ret = 0;
     }
     /* HRR with special confirmation */
-    else if (msgType == hello_retry_request && ssl->options.useEch) {
+    else if (msgType == hello_retry_request && ssl->echConfigs != NULL &&
+            !ssl->options.disableECH) {
         /* length must be 8 */
         if (size != ECH_ACCEPT_CONFIRMATION_SZ)
             return BAD_FUNC_ARG;
@@ -14007,6 +14053,7 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
         if (ret == 0) {
             i = 0;
             /* decrement until before the padding */
+            /* TODO: verify padding is 0, abort with illegal_parameter */
             while (ech->innerClientHello[ech->innerClientHelloLen +
                 HANDSHAKE_HEADER_SZ - i - 1] != ECH_TYPE_INNER) {
                 i++;
@@ -14042,6 +14089,8 @@ static void TLSX_ECH_Free(WOLFSSL_ECH* ech, void* heap)
         XFREE(ech->hpke, heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (ech->hpkeContext != NULL)
         XFREE(ech->hpkeContext, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (ech->privateName != NULL)
+        XFREE((char*)ech->privateName, heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     XFREE(ech, heap, DYNAMIC_TYPE_TMP_BUFFER);
     (void)heap;
@@ -15821,7 +15870,7 @@ int TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, word32* pLength)
     }
     #endif
 #if defined(HAVE_ECH)
-    if (ssl->options.useEch == 1 && !ssl->options.disableECH
+    if (ssl->echConfigs != NULL && !ssl->options.disableECH
             && msgType == client_hello) {
         ret = TLSX_GetSizeWithEch(ssl, semaphore, msgType, &length);
         if (ret != 0)
@@ -16007,7 +16056,7 @@ int TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType, word32* pOffset)
     #endif
 #endif
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
-    if (ssl->options.useEch == 1 && !ssl->options.disableECH
+    if (ssl->echConfigs != NULL && !ssl->options.disableECH
             && msgType == client_hello) {
         ret = TLSX_WriteWithEch(ssl, output, semaphore,
                          msgType, &offset);
@@ -17287,7 +17336,8 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
     /* If client used ECH, server HRR must include ECH confirmation */
-    if (ret == 0 && msgType == hello_retry_request && ssl->options.useEch == 1) {
+    if (ret == 0 && msgType == hello_retry_request && ssl->echConfigs != NULL &&
+            !ssl->options.disableECH) {
         TLSX* echX = TLSX_Find(ssl->extensions, TLSX_ECH);
         if (echX == NULL || ((WOLFSSL_ECH*)echX->data)->confBuf == NULL) {
             WOLFSSL_MSG("ECH used but HRR missing ECH confirmation");

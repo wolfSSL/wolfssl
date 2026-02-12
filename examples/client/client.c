@@ -52,9 +52,13 @@ static const char *wolfsentry_config_path = NULL;
 #endif
 
 #include <wolfssl/test.h>
-
-#include <examples/client/client.h>
 #include <wolfssl/error-ssl.h>
+
+#ifdef USE_FLAT_TEST_H
+    #include "client.h"
+#else
+    #include "examples/client/client.h"
+#endif
 
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
 
@@ -1171,7 +1175,7 @@ static int ClientWriteRead(WOLFSSL* ssl, const char* msg, int msgSz,
 /*  4. add the same message into Japanese section         */
 /*     (will be translated later)                         */
 /*  5. add printf() into suitable position of Usage()     */
-static const char* client_usage_msg[][79] = {
+static const char* client_usage_msg[][80] = {
     /* English */
     {
         " NOTE: All files relative to wolfSSL home dir\n",          /* 0 */
@@ -1426,9 +1430,14 @@ static const char* client_usage_msg[][79] = {
 #ifdef HAVE_ECC_BRAINPOOL
         "--bpKs  Use Brainpool ECC group for key share\n",             /* 77 */
 #endif
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
+        "--ech <base64>  Use Encrypted Client Hello with base64 encoded "
+            "ECH configs\n",
+                                                                        /* 78 */
+#endif
         "\n"
            "For simpler wolfSSL TLS client examples, visit\n"
-           "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 78 */
+           "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 79 */
         NULL,
     },
 #ifndef NO_MULTIBYTE_PRINT
@@ -1932,6 +1941,9 @@ static void Usage(void)
 #ifdef HAVE_ECC_BRAINPOOL
     printf("%s", msg[++msgid]); /* --bpKs */
 #endif
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
+    printf("%s", msg[++msgid]); /* --ech */
+#endif
     printf("%s", msg[++msgid]); /* --files-are-der */
     printf("%s", msg[++msgid]); /* Documentation Hint */
 }
@@ -2120,6 +2132,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #ifdef HAVE_ECC_BRAINPOOL
         { "bpKs", 0, 270 },
 #endif
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
+        { "ech", 1, 271 },
+#endif
         { 0, 0, 0 }
     };
 #endif
@@ -2186,6 +2201,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 #ifdef HAVE_SNI
     char*  sniHostName = NULL;
+#endif
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
+    char*  echConfigs64 = NULL;
 #endif
 #ifdef HAVE_TRUSTED_CA
     int trustedCaKeyId = 0;
@@ -3011,6 +3029,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                     defined(HAVE_SUPPORTED_CURVES)
                 onlyKeyShare = 2;
             #endif
+                break;
+#endif
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
+            case 271:
+                echConfigs64 = myoptarg;
                 break;
 #endif
 
@@ -3877,6 +3900,16 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         wolfSSL_CTX_free(ctx); ctx = NULL;
         err_sys("unable to get SSL object");
     }
+
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
+    if (echConfigs64 != NULL) {
+        if (wolfSSL_SetEchConfigsBase64(ssl, echConfigs64,
+                (word32)XSTRLEN(echConfigs64)) != WOLFSSL_SUCCESS) {
+            wolfSSL_CTX_free(ctx); ctx = NULL;
+            err_sys("SetEchConfigsBase64 failed");
+        }
+    }
+#endif
 
 #ifdef WOLFSSL_DUAL_ALG_CERTS
     if (!wolfSSL_UseCKS(ssl, cks_order, sizeof(cks_order))) {

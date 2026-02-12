@@ -36,7 +36,6 @@ int wolfSSL_CTX_GenerateEchConfig(WOLFSSL_CTX* ctx, const char* publicName,
     int ret = 0;
     word16 encLen = DHKEM_X25519_ENC_LEN;
     WOLFSSL_EchConfig* newConfig;
-    WOLFSSL_EchConfig* parentConfig;
 #ifdef WOLFSSL_SMALL_STACK
     Hpke* hpke = NULL;
     WC_RNG* rng;
@@ -67,7 +66,9 @@ int wolfSSL_CTX_GenerateEchConfig(WOLFSSL_CTX* ctx, const char* publicName,
     else
         XMEMSET(newConfig, 0, sizeof(WOLFSSL_EchConfig));
 
-    /* set random config id */
+    /* set random configId */
+    /* TODO: if an equal configId is found should the old config be removed from
+     * the LL? Prevents growth beyond 255+ items */
     if (ret == 0)
         ret = wc_RNG_GenerateByte(rng, &newConfig->configId);
 
@@ -143,17 +144,14 @@ int wolfSSL_CTX_GenerateEchConfig(WOLFSSL_CTX* ctx, const char* publicName,
         }
     }
     else {
-        parentConfig = ctx->echConfigs;
-
-        if (parentConfig == NULL) {
+        /* insert new configs at beginning of LL as preference should be given
+         * to the most recently generated configs */
+        if (ctx->echConfigs == NULL) {
             ctx->echConfigs = newConfig;
         }
         else {
-            while (parentConfig->next != NULL) {
-                parentConfig = parentConfig->next;
-            }
-
-            parentConfig->next = newConfig;
+            newConfig->next = ctx->echConfigs;
+            ctx->echConfigs = newConfig;
         }
     }
 
@@ -246,7 +244,7 @@ void wolfSSL_CTX_SetEchEnable(WOLFSSL_CTX* ctx, byte enable)
 
 /* set the ech config from base64 for our client ssl object, base64 is the
  * format ech configs are sent using dns records */
-int wolfSSL_SetEchConfigsBase64(WOLFSSL* ssl, char* echConfigs64,
+int wolfSSL_SetEchConfigsBase64(WOLFSSL* ssl, const char* echConfigs64,
     word32 echConfigs64Len)
 {
     int ret = 0;
@@ -257,7 +255,7 @@ int wolfSSL_SetEchConfigsBase64(WOLFSSL* ssl, char* echConfigs64,
         return BAD_FUNC_ARG;
 
     /* already have ech configs */
-    if (ssl->options.useEch == 1) {
+    if (ssl->echConfigs != NULL) {
         return WOLFSSL_FATAL_ERROR;
     }
 
@@ -270,7 +268,7 @@ int wolfSSL_SetEchConfigsBase64(WOLFSSL* ssl, char* echConfigs64,
     decodedConfigs[decodedLen - 1] = 0;
 
     /* decode the echConfigs */
-    ret = Base64_Decode((byte*)echConfigs64, echConfigs64Len,
+    ret = Base64_Decode((const byte*)echConfigs64, echConfigs64Len,
       decodedConfigs, &decodedLen);
 
     if (ret != 0) {
@@ -296,7 +294,7 @@ int wolfSSL_SetEchConfigs(WOLFSSL* ssl, const byte* echConfigs,
         return BAD_FUNC_ARG;
 
     /* already have ech configs */
-    if (ssl->options.useEch == 1) {
+    if (ssl->echConfigs != NULL) {
         return WOLFSSL_FATAL_ERROR;
     }
 
@@ -305,7 +303,6 @@ int wolfSSL_SetEchConfigs(WOLFSSL* ssl, const byte* echConfigs,
 
     /* if we found valid configs */
     if (ret == 0) {
-        ssl->options.useEch = 1;
         return WOLFSSL_SUCCESS;
     }
 
@@ -468,7 +465,7 @@ int wolfSSL_GetEchConfigs(WOLFSSL* ssl, byte* output, word32* outputLen)
         return BAD_FUNC_ARG;
 
     /* if we don't have ech configs */
-    if (ssl->options.useEch != 1) {
+    if (ssl->echConfigs == NULL) {
         return WOLFSSL_FATAL_ERROR;
     }
 
