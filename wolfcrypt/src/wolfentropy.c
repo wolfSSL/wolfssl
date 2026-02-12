@@ -131,7 +131,8 @@ static WC_INLINE word64 Entropy_TimeHiRes(void)
 
     return cnt;
 }
-#elif !defined(ENTROPY_MEMUSE_THREAD) && (_POSIX_C_SOURCE >= 199309L)
+#elif !defined(ENTROPY_MEMUSE_THREAD) && defined(_POSIX_C_SOURCE) && \
+    (_POSIX_C_SOURCE >= 199309L)
 /* Get the high resolution time counter.
  *
  * @return  64-bit time that is the nanoseconds of current time.
