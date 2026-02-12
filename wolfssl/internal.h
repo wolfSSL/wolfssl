@@ -3100,6 +3100,13 @@ typedef enum {
     ECH_PARSED_INTERNAL,
 } EchState;
 
+typedef enum {
+    ECH_OUTER_SNI,
+    ECH_INNER_SNI,
+    ECH_INNER_SNI_ATTEMPT,
+    ECH_SNI_DONE,
+} EchStateSNI;
+
 typedef struct EchCipherSuite {
     word16 kdfId;
     word16 aeadId;
@@ -3122,6 +3129,7 @@ typedef struct WOLFSSL_ECH {
     Hpke* hpke;
     HpkeBaseContext* hpkeContext;
     const byte* aad;
+    const char* privateName;
     void* ephemeralKey;
     WOLFSSL_EchConfig* echConfig;
     byte* innerClientHello;
@@ -3134,6 +3142,7 @@ typedef struct WOLFSSL_ECH {
     word16 kemId;
     word16 encLen;
     EchState state;
+    EchStateSNI sniState;
     byte type;
     byte configId;
     byte enc[HPKE_Npk_MAX];
@@ -5153,7 +5162,6 @@ struct Options {
     word16            useDtlsCID:1;
 #endif /* WOLFSSL_DTLS_CID */
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
-    word16            useEch:1;
     word16            echAccepted:1;
     byte              disableECH:1;           /* Did the user disable ech */
 #endif

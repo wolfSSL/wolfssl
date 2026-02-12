@@ -8634,10 +8634,9 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
     ForceZero(&ssl->serverSecret, sizeof(ssl->serverSecret));
 
 #if defined(HAVE_ECH)
-    if (ssl->options.useEch == 1) {
+    if (ssl->echConfigs != NULL) {
         FreeEchConfigs(ssl->echConfigs, ssl->heap);
         ssl->echConfigs = NULL;
-        ssl->options.useEch = 0;
     }
 #endif /* HAVE_ECH */
 #endif /* WOLFSSL_TLS13 */
