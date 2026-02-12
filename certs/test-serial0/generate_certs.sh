@@ -16,7 +16,7 @@ echo "==================================================="
 echo ""
 echo "[1/5] Creating Root CA with serial number 0..."
 openssl req -x509 -newkey rsa:2048 -keyout root_serial0_key.pem -out root_serial0.pem \
-    -days 3650 -nodes -subj "/CN=Test Root CA Serial 0/O=wolfSSL Test/C=US" \
+    -days 36500 -nodes -subj "/CN=Test Root CA Serial 0/O=wolfSSL Test/C=US" \
     -set_serial 0 \
     -addext "basicConstraints=critical,CA:TRUE" \
     -addext "keyUsage=critical,keyCertSign,cRLSign"
@@ -28,7 +28,7 @@ openssl x509 -in root_serial0.pem -noout -serial
 echo ""
 echo "[2/5] Creating normal Root CA with serial number 1..."
 openssl req -x509 -newkey rsa:2048 -keyout root_key.pem -out root.pem \
-    -days 3650 -nodes -subj "/CN=Test Root CA Normal/O=wolfSSL Test/C=US" \
+    -days 36500 -nodes -subj "/CN=Test Root CA Normal/O=wolfSSL Test/C=US" \
     -set_serial 1 \
     -addext "basicConstraints=critical,CA:TRUE" \
     -addext "keyUsage=critical,keyCertSign,cRLSign"
@@ -43,7 +43,7 @@ openssl req -newkey rsa:2048 -keyout ee_serial0_key.pem -out ee_serial0.csr -nod
     -subj "/CN=End Entity Serial 0/O=wolfSSL Test/C=US"
 
 openssl x509 -req -in ee_serial0.csr -CA root.pem -CAkey root_key.pem \
-    -out ee_serial0.pem -days 365 -set_serial 0 \
+    -out ee_serial0.pem -days 3650 -set_serial 0 \
     -extfile <(echo "basicConstraints=CA:FALSE
 keyUsage=digitalSignature,keyEncipherment
 extendedKeyUsage=serverAuth,clientAuth")
@@ -58,7 +58,7 @@ openssl req -newkey rsa:2048 -keyout ee_normal_key.pem -out ee_normal.csr -nodes
     -subj "/CN=End Entity Normal/O=wolfSSL Test/C=US"
 
 openssl x509 -req -in ee_normal.csr -CA root_serial0.pem -CAkey root_serial0_key.pem \
-    -out ee_normal.pem -days 365 -set_serial 100 \
+    -out ee_normal.pem -days 3650 -set_serial 100 \
     -extfile <(echo "basicConstraints=CA:FALSE
 keyUsage=digitalSignature,keyEncipherment
 extendedKeyUsage=serverAuth,clientAuth")
@@ -70,7 +70,7 @@ openssl x509 -in ee_normal.pem -noout -serial
 echo ""
 echo "[5/5] Creating self-signed non-CA certificate with serial number 0..."
 openssl req -x509 -newkey rsa:2048 -keyout selfsigned_nonca_serial0_key.pem \
-    -out selfsigned_nonca_serial0.pem -days 365 -nodes \
+    -out selfsigned_nonca_serial0.pem -days 3650 -nodes \
     -subj "/CN=Self-Signed Non-CA Serial 0/O=wolfSSL Test/C=US" \
     -set_serial 0 \
     -addext "basicConstraints=CA:FALSE" \
