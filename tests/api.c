@@ -21634,6 +21634,23 @@ static int test_EccSigFailure_cm(void)
 #endif /* !NO_RSA || HAVE_ECC */
 #endif /* NO_CERTS */
 
+static int test_wc_CheckPrivateKey_RSA_pub_only(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_RSA) && !defined(NO_ASN_CRYPT) && \
+    !defined(NO_CHECK_PRIVATE_KEY) && \
+    (defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(WOLFSSL_RSA_VERIFY_ONLY))
+    /* With RSA public-only or verify-only, wc_CheckPrivateKey should return
+     * NOT_COMPILED_IN for RSA key types since private key operations are not
+     * available. */
+    ExpectIntEQ(wc_CheckPrivateKey(server_key_der_2048,
+        sizeof_server_key_der_2048, server_cert_der_2048,
+        sizeof_server_cert_der_2048, RSAk, NULL),
+        WC_NO_ERR_TRACE(NOT_COMPILED_IN));
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(HAVE_PK_CALLBACKS) && !defined(WOLFSSL_NO_TLS12)
 #if !defined(NO_FILESYSTEM) && !defined(NO_DH) && \
         !defined(NO_AES) && defined(HAVE_AES_CBC) && \
@@ -32683,6 +32700,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_EccSigFailure_cm),
     TEST_DECL(test_RsaSigFailure_cm),
 #endif
+    TEST_DECL(test_wc_CheckPrivateKey_RSA_pub_only),
 
     /* PKCS8 testing */
     TEST_DECL(test_wolfSSL_no_password_cb),
