@@ -89,6 +89,13 @@ char* myoptarg = NULL;
             fprintf(stderr, __VA_ARGS__);                                      \
     } while (0)
 
+
+#define LOG_MSG(...)                                                           \
+    do {                                                                       \
+        printf(__VA_ARGS__);                                                   \
+        fflush(stdout);                                                        \
+    } while(0)
+
 #ifndef _WIN32
 /* Signal handler flag */
 static volatile int got_signal = 0;
@@ -127,17 +134,17 @@ typedef struct {
 /* Usage help */
 static void Usage(void)
 {
-    printf("OCSP Responder Example\n\n");
-    printf("Usage: ocsp_responder [options]\n\n");
-    printf("Options:\n");
-    printf("  -?           Help\n");
-    printf("  -p <num>     Port (default %d)\n", DEFAULT_PORT);
-    printf("  -c <file>    CA certificate\n");
-    printf("  -k <file>    CA private key\n");
-    printf("  -i <file>    Index file for cert status\n");
-    printf("  -n <num>     Exit after n requests\n");
-    printf("  -v           Verbose\n");
-    printf("  -x           Exclude certs from response\n");
+    LOG_MSG("OCSP Responder Example\n\n");
+    LOG_MSG("Usage: ocsp_responder [options]\n\n");
+    LOG_MSG("Options:\n");
+    LOG_MSG("  -?           Help\n");
+    LOG_MSG("  -p <num>     Port (default %d)\n", DEFAULT_PORT);
+    LOG_MSG("  -c <file>    CA certificate\n");
+    LOG_MSG("  -k <file>    CA private key\n");
+    LOG_MSG("  -i <file>    Index file for cert status\n");
+    LOG_MSG("  -n <num>     Exit after n requests\n");
+    LOG_MSG("  -v           Verbose\n");
+    LOG_MSG("  -x           Exclude certs from response\n");
 }
 
 /* Load file into buffer, auto-detect PEM vs DER */
@@ -739,7 +746,7 @@ THREAD_RETURN WOLFSSL_THREAD ocsp_responder_test(void* args)
         goto cleanup;
     }
     if (opts.verbose) {
-        printf("Loaded CA certificate: %s (%d bytes)\n", opts.certFile, caCertDerSz);
+        LOG_MSG("Loaded CA certificate: %s (%d bytes)\n", opts.certFile, caCertDerSz);
     }
 
     /* Load CA key */
@@ -750,7 +757,7 @@ THREAD_RETURN WOLFSSL_THREAD ocsp_responder_test(void* args)
         goto cleanup;
     }
     if (opts.verbose) {
-        printf("Loaded CA key: %s (%d bytes)\n", opts.keyFile, caKeyDerSz);
+        LOG_MSG("Loaded CA key: %s (%d bytes)\n", opts.keyFile, caKeyDerSz);
     }
 
     /* Parse CA certificate to get subject */
@@ -772,7 +779,7 @@ THREAD_RETURN WOLFSSL_THREAD ocsp_responder_test(void* args)
             LOG_ERROR("Warning: Could not parse index file: %s\n", opts.indexFile);
         }
         else if (opts.verbose) {
-            printf("Loaded index file: %s\n", opts.indexFile);
+            LOG_MSG("Loaded index file: %s\n", opts.indexFile);
         }
     }
 
@@ -792,7 +799,7 @@ THREAD_RETURN WOLFSSL_THREAD ocsp_responder_test(void* args)
         goto cleanup;
     }
     if (opts.verbose) {
-        printf("Added CA to responder\n");
+        LOG_MSG("Added CA to responder\n");
     }
 
     /* Populate responder with certificate statuses from index */
@@ -802,7 +809,7 @@ THREAD_RETURN WOLFSSL_THREAD ocsp_responder_test(void* args)
             LOG_ERROR("Error populating responder from index: %d\n", statusCount);
         }
         else if (opts.verbose) {
-            printf("Populated responder with %d certificate statuses\n", statusCount);
+            LOG_MSG("Populated responder with %d certificate statuses\n", statusCount);
         }
     }
 
@@ -813,7 +820,7 @@ THREAD_RETURN WOLFSSL_THREAD ocsp_responder_test(void* args)
         ret = -1;
         goto cleanup;
     }
-    printf("OCSP Responder listening on port %d\n", opts.port);
+    LOG_MSG("OCSP Responder listening on port %d\n", opts.port);
 
 #ifndef _WIN32
     /* Install signal handlers for clean shutdown */
@@ -826,7 +833,7 @@ THREAD_RETURN WOLFSSL_THREAD ocsp_responder_test(void* args)
         sigaction(SIGINT, &sa, NULL);
     }
     if (opts.verbose) {
-        printf("Signal handlers installed\n");
+        LOG_MSG("Signal handlers installed\n");
     }
 #endif
 
@@ -851,7 +858,7 @@ THREAD_RETURN WOLFSSL_THREAD ocsp_responder_test(void* args)
         }
 
         if (opts.verbose) {
-            printf("Connection from %s:%d\n",
+            LOG_MSG("Connection from %s:%d\n",
                    inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port));
         }
 
@@ -865,7 +872,7 @@ THREAD_RETURN WOLFSSL_THREAD ocsp_responder_test(void* args)
         httpBuf[recvLen] = '\0';
 
         if (opts.verbose) {
-            printf("Received %d bytes\n", recvLen);
+            LOG_MSG("Received %d bytes\n", recvLen);
         }
 
         /* Parse HTTP request */
@@ -878,7 +885,7 @@ THREAD_RETURN WOLFSSL_THREAD ocsp_responder_test(void* args)
         }
 
         if (opts.verbose) {
-            printf("OCSP request: %d bytes, path: %s\n", ocspReqSz, path);
+            LOG_MSG("OCSP request: %d bytes, path: %s\n", ocspReqSz, path);
         }
 
         /* Process OCSP request and generate response */
@@ -904,13 +911,13 @@ THREAD_RETURN WOLFSSL_THREAD ocsp_responder_test(void* args)
             }
 
             if (opts.verbose) {
-                printf("Generated OCSP error response (status=%d): %d bytes\n",
+                LOG_MSG("Generated OCSP error response (status=%d): %d bytes\n",
                        errStatus, respSz);
             }
         }
 
         if (opts.verbose) {
-            printf("Generated OCSP response: %d bytes\n", respSz);
+            LOG_MSG("Generated OCSP response: %d bytes\n", respSz);
         }
 
         /* Send HTTP response */
@@ -924,7 +931,7 @@ THREAD_RETURN WOLFSSL_THREAD ocsp_responder_test(void* args)
         requestsProcessed++;
 
         if (opts.verbose) {
-            printf("Processed request %d\n", requestsProcessed);
+            LOG_MSG("Processed request %d\n", requestsProcessed);
         }
     }
 

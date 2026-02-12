@@ -94,7 +94,7 @@ print_responder_logs() {
     for log in $resp_logs; do
         if [ -f "$log" ]; then
             echo "=== $(basename $log) ==="
-            tail -50 "$log"
+            cat "$log"
             echo
         fi
     done
@@ -134,7 +134,7 @@ query_ocsp() {
                "$expected" "$status" "$rc"
         tests_failed=$((tests_failed+1))
         echo "--- openssl output ---"
-        echo "$output" | tail -20
+        echo "$output"
         echo "----------------------"
         print_responder_logs
     fi
@@ -201,7 +201,7 @@ echo "  Responder 4 (root-ca):          port $port4, pid $pid4"
 sleep 0.1
 
 # Verify all responders are running
-for p in $pid1 $pid2 $pid3 $pid4; do
+for p in $resp_pids; do
     if ! kill -0 "$p" 2>/dev/null; then
         echo "FATAL: Responder pid $p failed to start" 1>&2
         exit 1
@@ -325,7 +325,7 @@ else
     printf "FAILED (expected OCSP internalerror, got rc: %d)\n" "$rc"
     tests_failed=$((tests_failed+1))
     echo "--- openssl output ---"
-    echo "$output" | tail -20
+    echo "$output"
     echo "----------------------"
     print_responder_logs
 fi
@@ -353,7 +353,7 @@ else
     printf "FAILED (expected OCSP malformedrequest, got rc: %d)\n" "$rc"
     tests_failed=$((tests_failed+1))
     echo "--- openssl output ---"
-    echo "$output" | tail -20
+    echo "$output"
     echo "----------------------"
     print_responder_logs
 fi
