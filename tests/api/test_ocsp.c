@@ -1061,10 +1061,10 @@ static int ocspResponderTest_Run(OcspResponderTestConfig* config, int sendCerts)
     word32 respSz = 0;
     byte reqBuf[1024];
     int reqSz = 0;
-    const char* caSubject;
-    word32 caSubjectSz;
-    const byte* serial;
-    word32 serialSz;
+    const char* caSubject = NULL;
+    word32 caSubjectSz = 0;
+    const byte* serial = NULL;
+    word32 serialSz = 0;
     XFILE f = XBADFILE;
 
     printf("\nRunning OCSP Responder Test: %s (sendCerts=%d)\n",
