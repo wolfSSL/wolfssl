@@ -112,8 +112,8 @@ void bench_eccEncrypt(int curveId);
 void bench_sm2(int useDeviceID);
 void bench_curve25519KeyGen(int useDeviceID);
 void bench_curve25519KeyAgree(int useDeviceID);
-void bench_ed25519KeyGen(void);
-void bench_ed25519KeySign(void);
+void bench_ed25519KeyGen(int useDeviceID);
+void bench_ed25519KeySign(int useDeviceID);
 void bench_curve448KeyGen(void);
 void bench_curve448KeyAgree(void);
 void bench_ed448KeyGen(void);
@@ -144,4 +144,3 @@ void bench_stats_print(void);
 
 
 #endif /* WOLFCRYPT_BENCHMARK_H */
-
