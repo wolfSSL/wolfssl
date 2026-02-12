@@ -186,6 +186,13 @@ if(CONFIG_WOLFSSL)
 
         target_compile_definitions(wolfSSL INTERFACE WOLFSSL_ZEPHYR)
         target_compile_definitions(wolfSSL INTERFACE WOLFSSL_USER_SETTINGS)
+
+    # Zephyr >= 4.1 provides min()/max() macros in sys/util.h that collide
+    # with wolfSSL's static inline definitions in misc.c
+    if(KERNEL_VERSION_MAJOR GREATER_EQUAL 5 OR
+       (KERNEL_VERSION_MAJOR EQUAL 4 AND KERNEL_VERSION_MINOR GREATER_EQUAL 1))
+      target_compile_definitions(wolfSSL INTERFACE WOLFSSL_HAVE_MIN_MAX)
+    endif()
     if(CONFIG_WOLFSSL_DEBUG)
       target_compile_definitions(wolfSSL INTERFACE DEBUG_WOLFSSL)
       zephyr_library_compile_options(-g3 -O0)
