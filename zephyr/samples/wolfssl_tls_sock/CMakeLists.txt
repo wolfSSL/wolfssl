@@ -1,4 +1,22 @@
 cmake_minimum_required(VERSION 3.13.1)
+
+# Select version-specific Kconfig fragment before loading Zephyr
+if(EXISTS $ENV{ZEPHYR_BASE}/VERSION)
+    file(READ $ENV{ZEPHYR_BASE}/VERSION zephyr_version_file)
+    string(REGEX MATCH "VERSION_MAJOR = ([0-9]+)" _ ${zephyr_version_file})
+    set(ZEPHYR_VER_MAJOR ${CMAKE_MATCH_1})
+    string(REGEX MATCH "VERSION_MINOR = ([0-9]+)" _ ${zephyr_version_file})
+    set(ZEPHYR_VER_MINOR ${CMAKE_MATCH_1})
+endif()
+
+if(ZEPHYR_VER_MAJOR GREATER_EQUAL 5)
+    set(EXTRA_CONF_FILE ${CMAKE_CURRENT_SOURCE_DIR}/zephyr_v4.1.conf)
+elseif(ZEPHYR_VER_MAJOR EQUAL 4 AND ZEPHYR_VER_MINOR GREATER_EQUAL 1)
+    set(EXTRA_CONF_FILE ${CMAKE_CURRENT_SOURCE_DIR}/zephyr_v4.1.conf)
+else()
+    set(EXTRA_CONF_FILE ${CMAKE_CURRENT_SOURCE_DIR}/zephyr_legacy.conf)
+endif()
+
 include($ENV{ZEPHYR_BASE}/cmake/app/boilerplate.cmake NO_POLICY_SCOPE)
 project(wolfssl_tls_sock)
 
