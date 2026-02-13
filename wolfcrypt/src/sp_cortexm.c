@@ -8884,6 +8884,7 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, const mp_int* em,
 }
 
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
+#if !defined(SP_RSA_PRIVATE_EXP_D) && !defined(RSA_LOW_MEM)
 #ifdef WOLFSSL_SP_SMALL
 /* Conditionally add a and b using the mask m.
  * m is -1 to add and 0 when not.
@@ -9089,6 +9090,7 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_2048_cond_add_32(sp_digit* r,
 }
 
 #endif /* WOLFSSL_SP_SMALL */
+#endif /* !SP_RSA_PRIVATE_EXP_D && !RSA_LOW_MEM */
 /* RSA private key operation.
  *
  * in      Array of bytes representing the number to exponentiate, base.
@@ -21488,6 +21490,7 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, const mp_int* em,
 }
 
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
+#if !defined(SP_RSA_PRIVATE_EXP_D) && !defined(RSA_LOW_MEM)
 #ifdef WOLFSSL_SP_SMALL
 /* Conditionally add a and b using the mask m.
  * m is -1 to add and 0 when not.
@@ -21749,6 +21752,7 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_3072_cond_add_48(sp_digit* r,
 }
 
 #endif /* WOLFSSL_SP_SMALL */
+#endif /* !SP_RSA_PRIVATE_EXP_D && !RSA_LOW_MEM */
 /* RSA private key operation.
  *
  * in      Array of bytes representing the number to exponentiate, base.
@@ -29835,6 +29839,7 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, const mp_int* em,
 }
 
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
+#if !defined(SP_RSA_PRIVATE_EXP_D) && !defined(RSA_LOW_MEM)
 #ifdef WOLFSSL_SP_SMALL
 /* Conditionally add a and b using the mask m.
  * m is -1 to add and 0 when not.
@@ -30152,6 +30157,7 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_4096_cond_add_64(sp_digit* r,
 }
 
 #endif /* WOLFSSL_SP_SMALL */
+#endif /* !SP_RSA_PRIVATE_EXP_D && !RSA_LOW_MEM */
 /* RSA private key operation.
  *
  * in      Array of bytes representing the number to exponentiate, base.
