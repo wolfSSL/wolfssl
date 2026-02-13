@@ -303,8 +303,21 @@
         #if KERNEL_VERSION_NUMBER >= 0x30100
             #include <zephyr/kernel.h>
             #ifndef CONFIG_ARCH_POSIX
-                #include <zephyr/posix/posix_types.h>
-                #include <zephyr/posix/pthread.h>
+                #ifdef __has_include
+                    #if __has_include(<zephyr/posix/posix_types.h>)
+                        #include <zephyr/posix/posix_types.h>
+                    #else
+                        #include <sys/types.h>
+                    #endif
+                    #if __has_include(<zephyr/posix/pthread.h>)
+                        #include <zephyr/posix/pthread.h>
+                    #else
+                        #include <pthread.h>
+                    #endif
+                #else
+                    #include <zephyr/posix/posix_types.h>
+                    #include <zephyr/posix/pthread.h>
+                #endif
             #endif
         #else
             #include <kernel.h>
@@ -1514,7 +1527,15 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #endif
     #ifndef _POSIX_C_SOURCE
         #if KERNEL_VERSION_NUMBER >= 0x30100
-            #include <zephyr/posix/time.h>
+            #ifdef __has_include
+                #if __has_include(<zephyr/posix/time.h>)
+                    #include <zephyr/posix/time.h>
+                #else
+                    #include <time.h>
+                #endif
+            #else
+                #include <zephyr/posix/time.h>
+            #endif
         #else
             #include <posix/time.h>
         #endif
