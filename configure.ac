@@ -1045,21 +1045,26 @@ do
         # Enable all ASN features
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASN_ALL"
         ENABLED_ASN=yes
+        ASN_IMPL=template
         ;;
     template | yes)
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASN_TEMPLATE"
         ENABLED_ASN=yes
+        ASN_IMPL=template
         ;;
     original)
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASN_ORIGINAL"
+        ASN_IMPL=original
         ;;
     nocrypt)
         AM_CFLAGS="$AM_CFLAGS -DNO_ASN_CRYPT"
         enable_pwdbased=no
+        ASN_IMPL=template
         ;;
     no)
         AM_CFLAGS="$AM_CFLAGS -DNO_ASN -DNO_ASN_CRYPT"
         enable_pwdbased=no
+        ASN_IMPL=no
         ;;
     *)
         AC_MSG_ERROR([Invalid asn option. Valid are: all, template/yes, original, nocrypt or no. Seen: $ENABLED_ASN.])
@@ -1457,6 +1462,7 @@ then
     test "$enable_ocsp" = "" && enable_ocsp=yes
     test "$enable_ocspstapling" = "" && test "$enable_ocsp" != "no" && enable_ocspstapling=yes
     test "$enable_ocspstapling2" = "" && test "$enable_ocsp" != "no" && enable_ocspstapling2=yes
+    test "$enable_ocsp_responder" = "" && test "$ASN_IMPL" = "template" && enable_ocsp_responder=yes
     test "$enable_crl" = "" && enable_crl=yes
     test "$enable_supportedcurves" = "" && enable_supportedcurves=yes
     test "$enable_tlsx" = "" && enable_tlsx=yes
@@ -6967,19 +6973,6 @@ AC_ARG_ENABLE([ocsp],
     [ ENABLED_OCSP=no ]
     )
 
-if test "$ENABLED_OCSP" = "yes"
-then
-    # check openssl command tool for testing ocsp
-    AC_CHECK_PROG([HAVE_OPENSSL_CMD],[openssl],[yes],[no])
-
-    if test "$HAVE_OPENSSL_CMD" = "yes"
-    then
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_OPENSSL_CMD"
-    else
-        AC_MSG_WARN([openssl command line tool not available for testing ocsp])
-    fi
-fi
-
 
 # Certificate Status Request : a.k.a. OCSP Stapling
 AC_ARG_ENABLE([ocspstapling],
@@ -7047,6 +7040,21 @@ then
     fi
 fi
 
+
+AC_ARG_ENABLE([ocsp-responder],
+    [AS_HELP_STRING([--enable-ocsp-responder],[Enable OCSP Responder (default: disabled)])],
+    [ ENABLED_OCSP_RESPONDER=$enableval ],
+    [ ENABLED_OCSP_RESPONDER=no ]
+    )
+
+if test "x$ENABLED_OCSP_RESPONDER" = "xyes"
+then
+    # Requires OCSP make sure on
+    if test "x$ENABLED_OCSP" = "xno"
+    then
+        ENABLED_OCSP="yes"
+    fi
+fi
 
 # CRL
 AC_ARG_ENABLE([crl],
@@ -10325,6 +10333,13 @@ then
 
     AM_CFLAGS="$AM_CFLAGS -DHAVE_OID_ENCODING -DWOLFSSL_NO_ASN_STRICT"
 
+    # OCSP responder
+    if test "$ENABLED_OCSP" = "no"; then
+        ENABLED_OCSP="yes"
+    fi
+    if test "$ENABLED_OCSP_RESPONDER" = "no"; then
+        ENABLED_OCSP_RESPONDER="yes"
+    fi
 fi
 
 if test "$ENABLED_STRONGSWAN" = "yes"; then
@@ -10578,6 +10593,22 @@ AS_IF([test "x$ENABLED_CERTEXT" = "xyes"],
 
 AS_IF([test "x$ENABLED_OCSP" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP"])
+
+AS_IF([test "x$ENABLED_OCSP_RESPONDER" = "xyes"],
+      [AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP_RESPONDER"])
+
+if test "$ENABLED_OCSP" = "yes"
+then
+    # check openssl command tool for testing ocsp
+    AC_CHECK_PROG([HAVE_OPENSSL_CMD],[openssl],[yes],[no])
+
+    if test "$HAVE_OPENSSL_CMD" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_OPENSSL_CMD"
+    else
+        AC_MSG_WARN([openssl command line tool not available for testing ocsp])
+    fi
+fi
 
 AS_IF([test "x$ENABLED_STRONGSWAN" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LOG_PRINTF -DWOLFSSL_PUBLIC_MP -DHAVE_EX_DATA"
@@ -11209,6 +11240,7 @@ AM_CONDITIONAL([BUILD_HEAPMATH],[test "x$ENABLED_HEAPMATH" = "xyes" || test "x$E
 AM_CONDITIONAL([BUILD_EXAMPLE_SERVERS],[test "x$ENABLED_EXAMPLES" = "xyes" && test "x$ENABLED_LEANTLS" = "xno"])
 AM_CONDITIONAL([BUILD_EXAMPLE_CLIENTS],[test "x$ENABLED_EXAMPLES" = "xyes"])
 AM_CONDITIONAL([BUILD_EXAMPLE_ASN1],[test "x$ENABLED_EXAMPLES" = "xyes" && test "x$ENABLED_ASN_PRINT" = "xyes" && test "$ENABLED_ASN" != "no"])
+AM_CONDITIONAL([BUILD_OCSP_RESPONDER],[test "x$ENABLED_EXAMPLES" = "xyes" && test "x$ENABLED_OCSP_RESPONDER" = "xyes"])
 AM_CONDITIONAL([BUILD_TESTS],[test "x$ENABLED_EXAMPLES" = "xyes"])
 AM_CONDITIONAL([BUILD_THREADED_EXAMPLES],[test "x$ENABLED_SINGLETHREADED" = "xno" && test "x$ENABLED_EXAMPLES" = "xyes" && test "x$ENABLED_LEANTLS" = "xno"])
 AM_CONDITIONAL([BUILD_WOLFCRYPT_TESTS],[test "x$ENABLED_CRYPT_TESTS" = "xyes"])
