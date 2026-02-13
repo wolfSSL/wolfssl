@@ -294,12 +294,16 @@
         #endif
         #if KERNEL_VERSION_NUMBER >= 0x30100
             #include <zephyr/kernel.h>
-            #include <zephyr/posix/posix_types.h>
-            #include <zephyr/posix/pthread.h>
+            #ifndef CONFIG_ARCH_POSIX
+                #include <zephyr/posix/posix_types.h>
+                #include <zephyr/posix/pthread.h>
+            #endif
         #else
             #include <kernel.h>
-            #include <posix/posix_types.h>
-            #include <posix/pthread.h>
+            #ifndef CONFIG_ARCH_POSIX
+                #include <posix/posix_types.h>
+                #include <posix/pthread.h>
+            #endif
         #endif
     #endif
 

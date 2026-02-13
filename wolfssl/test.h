@@ -209,9 +209,10 @@
         #endif
     #endif
     #define SOCKET_T int
-    #define SOL_SOCKET 1
     #define WOLFSSL_USE_GETADDRINFO
 
+    #if !defined(CONFIG_POSIX_API)
+    #define SOL_SOCKET 1
     static unsigned long inet_addr(const char *cp)
     {
         unsigned int a[4]; unsigned long ret;
@@ -227,6 +228,7 @@
         ret = ((a[3]<<24) + (a[2]<<16) + (a[1]<<8) + a[0]) ;
         return(ret) ;
     }
+    #endif
 #elif defined(NETOS)
     #include <string.h>
     #include <sys/types.h>
