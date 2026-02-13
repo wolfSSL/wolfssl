@@ -202,10 +202,33 @@
     #if KERNEL_VERSION_NUMBER >= 0x30100
         #include <zephyr/net/socket.h>
         #ifdef CONFIG_POSIX_API
-            #include <zephyr/posix/poll.h>
-            #include <zephyr/posix/netdb.h>
-            #include <zephyr/posix/sys/socket.h>
-            #include <zephyr/posix/sys/select.h>
+            #ifdef __has_include
+                #if __has_include(<zephyr/posix/poll.h>)
+                    #include <zephyr/posix/poll.h>
+                #else
+                    #include <poll.h>
+                #endif
+                #if __has_include(<zephyr/posix/netdb.h>)
+                    #include <zephyr/posix/netdb.h>
+                #else
+                    #include <netdb.h>
+                #endif
+                #if __has_include(<zephyr/posix/sys/socket.h>)
+                    #include <zephyr/posix/sys/socket.h>
+                #else
+                    #include <sys/socket.h>
+                #endif
+                #if __has_include(<zephyr/posix/sys/select.h>)
+                    #include <zephyr/posix/sys/select.h>
+                #else
+                    #include <sys/select.h>
+                #endif
+            #else
+                #include <zephyr/posix/poll.h>
+                #include <zephyr/posix/netdb.h>
+                #include <zephyr/posix/sys/socket.h>
+                #include <zephyr/posix/sys/select.h>
+            #endif
         #endif
     #else
         #include <net/socket.h>
