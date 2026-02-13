@@ -5019,7 +5019,7 @@ int wolfSSL_i2d_ECDSA_SIG(const WOLFSSL_ECDSA_SIG *sig, unsigned char **pp)
         #ifdef WOLFSSL_I2D_ECDSA_SIG_ALLOC
         if ((pp != NULL) && (*pp == NULL)) {
             *pp = (unsigned char *)XMALLOC(len, NULL, DYNAMIC_TYPE_OPENSSL);
-            if (*pp != NULL) {
+            if (*pp == NULL) {
                 WOLFSSL_MSG("malloc error");
                 return 0;
             }
