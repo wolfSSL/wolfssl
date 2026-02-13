@@ -32128,23 +32128,120 @@ static int WriteCertBody(DerCert* der, byte* buf)
 #endif /* !WOLFSSL_ASN_TEMPLATE */
 
 
-/* Make signature from buffer (sz), write to sig (sigSz) */
+#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_REQ)
+/* Forward declaration for internal use */
+static int MakeSignatureCb(CertSignCtx* certSignCtx, const byte* buf,
+    word32 sz, byte* sig, word32 sigSz, int sigAlgoType, int keyType,
+    wc_SignCertCb signCb, void* signCtx, WC_RNG* rng, void* heap);
+
+/* Internal context for default signing operations (when no callback provided) */
+typedef struct {
+    void* key;
+    int keyType;
+    WC_RNG* rng;
+} InternalSignCtx;
+
+/* Internal signing callback that uses wolfCrypt APIs
+ * This is used by MakeSignature to delegate to MakeSignatureCb internally */
+static int InternalSignCb(const byte* in, word32 inLen,
+    byte* out, word32* outLen, int sigAlgo, int keyType, void* ctx)
+{
+    InternalSignCtx* signCtx = (InternalSignCtx*)ctx;
+    int ret = WC_NO_ERR_TRACE(ALGO_ID_E);
+
+    (void)sigAlgo; /* Algorithm determined by key type */
+
+#if !defined(NO_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
+    if (keyType == RSA_TYPE && signCtx->key) {
+        /* For RSA, input is already encoded digest */
+        ret = wc_RsaSSL_Sign(in, inLen, out, *outLen,
+                             (RsaKey*)signCtx->key, signCtx->rng);
+        if (ret > 0) {
+            *outLen = (word32)ret;
+            ret = 0;
+        }
+    }
+    else
+#endif /* !NO_RSA && !WOLFSSL_RSA_PUBLIC_ONLY && !WOLFSSL_RSA_VERIFY_ONLY */
+#if defined(HAVE_ECC) && defined(HAVE_ECC_SIGN)
+    if (keyType == ECC_TYPE && signCtx->key) {
+        /* For ECC, input is the raw hash */
+        ret = wc_ecc_sign_hash(in, inLen, out, outLen,
+                               signCtx->rng, (ecc_key*)signCtx->key);
+    }
+    else
+#endif /* HAVE_ECC && HAVE_ECC_SIGN */
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_SIGN)
+    if (keyType == ED25519_TYPE && signCtx->key) {
+        /* Ed25519 signs messages, not hashes - cannot use callback path */
+        ret = SIG_TYPE_E;
+    }
+    else
+#endif /* HAVE_ED25519 && HAVE_ED25519_SIGN */
+#if defined(HAVE_ED448) && defined(HAVE_ED448_SIGN)
+    if (keyType == ED448_TYPE && signCtx->key) {
+        /* Ed448 signs messages, not hashes - cannot use callback path */
+        ret = SIG_TYPE_E;
+    }
+    else
+#endif /* HAVE_ED448 && HAVE_ED448_SIGN */
+#if defined(HAVE_FALCON)
+    if ((keyType == FALCON_LEVEL1_TYPE || keyType == FALCON_LEVEL5_TYPE) &&
+        signCtx->key) {
+        /* Falcon signs messages, not hashes - cannot use callback path */
+        ret = SIG_TYPE_E;
+    }
+    else
+#endif /* HAVE_FALCON */
+#if defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_SIGN)
+    if ((keyType == DILITHIUM_LEVEL2_TYPE || keyType == DILITHIUM_LEVEL3_TYPE ||
+        keyType == DILITHIUM_LEVEL5_TYPE) && signCtx->key) {
+        /* Dilithium signs messages, not hashes - cannot use callback path */
+        ret = SIG_TYPE_E;
+    }
+    else
+#endif /* HAVE_DILITHIUM && !WOLFSSL_DILITHIUM_NO_SIGN */
+#if defined(HAVE_SPHINCS)
+    if ((keyType == SPHINCS_FAST_LEVEL1_TYPE || keyType == SPHINCS_FAST_LEVEL3_TYPE ||
+        keyType == SPHINCS_FAST_LEVEL5_TYPE || keyType == SPHINCS_SMALL_LEVEL1_TYPE ||
+        keyType == SPHINCS_SMALL_LEVEL3_TYPE || keyType == SPHINCS_SMALL_LEVEL5_TYPE) &&
+        signCtx->key) {
+        /* Sphincs signs messages, not hashes - cannot use callback path */
+        ret = SIG_TYPE_E;
+    }
+    else
+#endif /* HAVE_SPHINCS */
+    {
+        /* Unhandled key type */
+        (void)in;
+        (void)inLen;
+        (void)out;
+        (void)outLen;
+        (void)keyType;
+        (void)signCtx;
+    }
+
+    return ret;
+}
+#endif /* WOLFSSL_CERT_GEN || WOLFSSL_CERT_REQ */
+
+
+/* Make signature from buffer (sz), write to sig (sigSz)
+ * This function now uses MakeSignatureCb internally for RSA and ECC,
+ * eliminating code duplication. Ed25519, Ed448, and post-quantum algorithms
+ * still use direct signing since they sign messages, not hashes. */
 static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, word32 sz,
     byte* sig, word32 sigSz, RsaKey* rsaKey, ecc_key* eccKey,
     ed25519_key* ed25519Key, ed448_key* ed448Key, falcon_key* falconKey,
     dilithium_key* dilithiumKey, sphincs_key* sphincsKey, WC_RNG* rng,
     word32 sigAlgoType, void* heap)
 {
-    int digestSz = 0, typeH = 0, ret = 0;
+    int ret = 0;
 
-    (void)digestSz;
-    (void)typeH;
     (void)buf;
     (void)sz;
     (void)sig;
     (void)sigSz;
-    (void)rsaKey;
-    (void)eccKey;
     (void)ed25519Key;
     (void)ed448Key;
     (void)falconKey;
@@ -32153,161 +32250,104 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, word32 sz,
     (void)rng;
     (void)heap;
 
-    switch (certSignCtx->state) {
-    case CERTSIGN_STATE_BEGIN:
-    case CERTSIGN_STATE_DIGEST:
+    /* For RSA and ECC, use the callback path to eliminate duplication */
+#if (!defined(NO_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+    (defined(HAVE_ECC) && defined(HAVE_ECC_SIGN))
+    if (rsaKey || eccKey) {
+        InternalSignCtx signCtx;
 
-        certSignCtx->state = CERTSIGN_STATE_DIGEST;
-    #ifndef WOLFSSL_NO_MALLOC
-        certSignCtx->digest = (byte*)XMALLOC(WC_MAX_DIGEST_SIZE, heap,
-            DYNAMIC_TYPE_TMP_BUFFER);
-        if (certSignCtx->digest == NULL) {
-            ret = MEMORY_E; goto exit_ms;
+        /* Setup internal signing context */
+        XMEMSET(&signCtx, 0, sizeof(signCtx));
+        signCtx.rng = rng;
+
+        /* Determine key type and set key pointer */
+        if (rsaKey) {
+            signCtx.key = rsaKey;
+            signCtx.keyType = RSA_TYPE;
         }
-    #endif
-
-        ret = HashForSignature(buf, sz, sigAlgoType, certSignCtx->digest,
-                               &typeH, &digestSz, 0, NULL,
-                               INVALID_DEVID);
-        /* set next state, since WC_PENDING_E rentry for these are not "call again" */
-        certSignCtx->state = CERTSIGN_STATE_ENCODE;
-        if (ret != 0) {
+        else if (eccKey) {
+            signCtx.key = eccKey;
+            signCtx.keyType = ECC_TYPE;
+        }
+        else {
+            ret = BAD_FUNC_ARG;
             goto exit_ms;
         }
-        FALL_THROUGH;
 
-    case CERTSIGN_STATE_ENCODE:
-    #ifndef NO_RSA
-        if (rsaKey) {
-        #ifndef WOLFSSL_NO_MALLOC
-            certSignCtx->encSig = (byte*)XMALLOC(MAX_DER_DIGEST_SZ, heap,
-                DYNAMIC_TYPE_TMP_BUFFER);
-            if (certSignCtx->encSig == NULL) {
-                ret = MEMORY_E; goto exit_ms;
-            }
-        #endif
-
-            /* signature */
-            certSignCtx->encSigSz = (int)wc_EncodeSignature(certSignCtx->encSig,
-                                  certSignCtx->digest, (word32)digestSz, typeH);
-        }
-    #endif /* !NO_RSA */
-        FALL_THROUGH;
-
-    case CERTSIGN_STATE_DO:
-        certSignCtx->state = CERTSIGN_STATE_DO;
-        ret = -1; /* default to error, reassigned to ALGO_ID_E below. */
-
-    #if !defined(NO_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
-        if (rsaKey) {
-            /* signature */
-            ret = wc_RsaSSL_Sign(certSignCtx->encSig,
-                                 (word32)certSignCtx->encSigSz,
-                                 sig, sigSz, rsaKey, rng);
-        }
-    #endif /* !NO_RSA */
-
-    #if defined(HAVE_ECC) && defined(HAVE_ECC_SIGN)
-        if (!rsaKey && eccKey) {
-            word32 outSz = sigSz;
-
-            ret = wc_ecc_sign_hash(certSignCtx->digest, (word32)digestSz,
-                                   sig, &outSz, rng, eccKey);
-            if (ret == 0)
-                ret = (int)outSz;
-        }
-    #endif /* HAVE_ECC && HAVE_ECC_SIGN */
-
-    #if defined(HAVE_ED25519) && defined(HAVE_ED25519_SIGN)
-        if (!rsaKey && !eccKey && ed25519Key) {
-            word32 outSz = sigSz;
-
-            ret = wc_ed25519_sign_msg(buf, sz, sig, &outSz, ed25519Key);
-            if (ret == 0)
-                ret = (int)outSz;
-        }
-    #endif /* HAVE_ED25519 && HAVE_ED25519_SIGN */
-
-    #if defined(HAVE_ED448) && defined(HAVE_ED448_SIGN)
-        if (!rsaKey && !eccKey && !ed25519Key && ed448Key) {
-            word32 outSz = sigSz;
-
-            ret = wc_ed448_sign_msg(buf, sz, sig, &outSz, ed448Key, NULL, 0);
-            if (ret == 0)
-                ret = (int)outSz;
-        }
-    #endif /* HAVE_ED448 && HAVE_ED448_SIGN */
-
-    #if defined(HAVE_FALCON)
-        if (!rsaKey && !eccKey && !ed25519Key && !ed448Key && falconKey) {
-            word32 outSz = sigSz;
-            ret = wc_falcon_sign_msg(buf, sz, sig, &outSz, falconKey, rng);
-            if (ret == 0)
-                ret = outSz;
-        }
-    #endif /* HAVE_FALCON */
-    #if defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_SIGN)
-        if (!rsaKey && !eccKey && !ed25519Key && !ed448Key && !falconKey &&
-            dilithiumKey) {
-            word32 outSz = sigSz;
-            #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
-            if ((dilithiumKey->params->level == WC_ML_DSA_44_DRAFT) ||
-                    (dilithiumKey->params->level == WC_ML_DSA_65_DRAFT) ||
-                    (dilithiumKey->params->level == WC_ML_DSA_87_DRAFT)) {
-                ret = wc_dilithium_sign_msg(buf, sz, sig, &outSz, dilithiumKey,
-                    rng);
-                if (ret == 0)
-                    ret = outSz;
-            }
-            else
-            #endif
-            {
-                ret = wc_dilithium_sign_ctx_msg(NULL, 0, buf, sz, sig,
-                    &outSz, dilithiumKey, rng);
-                if (ret == 0)
-                    ret = outSz;
-            }
-        }
-    #endif /* HAVE_DILITHIUM && !WOLFSSL_DILITHIUM_NO_SIGN */
-    #if defined(HAVE_SPHINCS)
-        if (!rsaKey && !eccKey && !ed25519Key && !ed448Key && !falconKey &&
-            !dilithiumKey && sphincsKey) {
-            word32 outSz = sigSz;
-            ret = wc_sphincs_sign_msg(buf, sz, sig, &outSz, sphincsKey, rng);
-            if (ret == 0)
-                ret = outSz;
-        }
-    #endif /* HAVE_SPHINCS */
-
-        if (ret == -1)
-            ret = ALGO_ID_E;
-
-        break;
-    }
-
-exit_ms:
-
-#ifdef WOLFSSL_ASYNC_CRYPT
-    if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-        return ret;
+        /* Use unified callback path */
+        ret = MakeSignatureCb(certSignCtx, buf, sz, sig, sigSz,
+                             (int)sigAlgoType, signCtx.keyType,
+                             InternalSignCb, &signCtx, rng, heap);
+        goto exit_ms;
     }
 #endif
 
-#ifndef WOLFSSL_NO_MALLOC
-#ifndef NO_RSA
-    if (rsaKey) {
-        XFREE(certSignCtx->encSig, heap, DYNAMIC_TYPE_TMP_BUFFER);
-        certSignCtx->encSig = NULL;
+    /* Ed25519, Ed448, and post-quantum algorithms sign messages (not hashes),
+     * so they cannot use the callback path. Keep original implementation. */
+    ret = -1; /* default to error, reassigned to ALGO_ID_E below. */
+
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_SIGN)
+    if (ed25519Key) {
+        word32 outSz = sigSz;
+        ret = wc_ed25519_sign_msg(buf, sz, sig, &outSz, ed25519Key);
+        if (ret == 0)
+            ret = (int)outSz;
     }
-#endif /* !NO_RSA */
+#endif /* HAVE_ED25519 && HAVE_ED25519_SIGN */
 
-    XFREE(certSignCtx->digest, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    certSignCtx->digest = NULL;
-#endif /* !WOLFSSL_NO_MALLOC */
+#if defined(HAVE_ED448) && defined(HAVE_ED448_SIGN)
+    if (ed448Key) {
+        word32 outSz = sigSz;
+        ret = wc_ed448_sign_msg(buf, sz, sig, &outSz, ed448Key, NULL, 0);
+        if (ret == 0)
+            ret = (int)outSz;
+    }
+#endif /* HAVE_ED448 && HAVE_ED448_SIGN */
 
-    /* reset state */
-    certSignCtx->state = CERTSIGN_STATE_BEGIN;
+#if defined(HAVE_FALCON)
+    if (falconKey) {
+        word32 outSz = sigSz;
+        ret = wc_falcon_sign_msg(buf, sz, sig, &outSz, falconKey, rng);
+        if (ret == 0)
+            ret = outSz;
+    }
+#endif /* HAVE_FALCON */
 
+#if defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_SIGN)
+    if (dilithiumKey) {
+        word32 outSz = sigSz;
+        #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+        if ((dilithiumKey->params->level == WC_ML_DSA_44_DRAFT) ||
+                (dilithiumKey->params->level == WC_ML_DSA_65_DRAFT) ||
+                (dilithiumKey->params->level == WC_ML_DSA_87_DRAFT)) {
+            ret = wc_dilithium_sign_msg(buf, sz, sig, &outSz, dilithiumKey, rng);
+            if (ret == 0)
+                ret = outSz;
+        }
+        else
+        #endif
+        {
+            ret = wc_dilithium_sign_ctx_msg(NULL, 0, buf, sz, sig,
+                &outSz, dilithiumKey, rng);
+            if (ret == 0)
+                ret = outSz;
+        }
+    }
+#endif /* HAVE_DILITHIUM && !WOLFSSL_DILITHIUM_NO_SIGN */
+
+#if defined(HAVE_SPHINCS)
+    if (sphincsKey) {
+        word32 outSz = sigSz;
+        ret = wc_sphincs_sign_msg(buf, sz, sig, &outSz, sphincsKey, rng);
+        if (ret == 0)
+            ret = outSz;
+    }
+#endif /* HAVE_SPHINCS */
+
+    if (ret == -1)
+        ret = ALGO_ID_E;
+
+exit_ms:
     if (ret < 0) {
         WOLFSSL_ERROR_VERBOSE(ret);
     }
@@ -34013,6 +34053,144 @@ int wc_MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
 #endif /* WOLFSSL_CERT_REQ */
 
 
+
+#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_REQ)
+/* Internal function to create signature using callback
+ * This allows external signing implementations (e.g., TPM, HSM) without
+ * requiring the crypto callback infrastructure.
+ */
+static int MakeSignatureCb(CertSignCtx* certSignCtx, const byte* buf,
+    word32 sz, byte* sig, word32 sigSz, int sigAlgoType, int keyType,
+    wc_SignCertCb signCb, void* signCtx, WC_RNG* rng, void* heap)
+{
+    int ret = 0;
+    word32 outLen;
+
+    (void)rng;
+#ifdef WOLFSSL_NO_MALLOC
+    (void)heap;
+#endif
+
+    /* Validate keyType - only RSA and ECC are supported for callback signing.
+     * Ed25519, Ed448, and post-quantum algorithms sign messages directly,
+     * not hashes, so they cannot use the callback path. */
+#if !defined(NO_RSA) && defined(HAVE_ECC)
+    if (keyType != RSA_TYPE && keyType != ECC_TYPE) {
+        return BAD_FUNC_ARG;
+    }
+#elif !defined(NO_RSA)
+    if (keyType != RSA_TYPE) {
+        return BAD_FUNC_ARG;
+    }
+#elif defined(HAVE_ECC)
+    if (keyType != ECC_TYPE) {
+        return BAD_FUNC_ARG;
+    }
+#else
+    (void)keyType;
+    return NOT_COMPILED_IN;
+#endif
+
+    switch (certSignCtx->state) {
+    case CERTSIGN_STATE_BEGIN:
+    case CERTSIGN_STATE_DIGEST:
+        certSignCtx->state = CERTSIGN_STATE_DIGEST;
+#ifndef WOLFSSL_NO_MALLOC
+        certSignCtx->digest = (byte*)XMALLOC(WC_MAX_DIGEST_SIZE, heap,
+            DYNAMIC_TYPE_TMP_BUFFER);
+        if (certSignCtx->digest == NULL) {
+            ret = MEMORY_E;
+            goto exit_ms;
+        }
+#endif
+        ret = HashForSignature(buf, sz, (word32)sigAlgoType, certSignCtx->digest,
+                               &certSignCtx->typeH, &certSignCtx->digestSz, 0,
+                               NULL, INVALID_DEVID);
+        certSignCtx->state = CERTSIGN_STATE_ENCODE;
+        if (ret != 0) {
+            goto exit_ms;
+        }
+        FALL_THROUGH;
+
+    case CERTSIGN_STATE_ENCODE:
+        /* For RSA, encode the digest with algorithm identifier */
+#ifndef NO_RSA
+        if (keyType == RSA_TYPE) {
+#ifndef WOLFSSL_NO_MALLOC
+            certSignCtx->encSig = (byte*)XMALLOC(MAX_DER_DIGEST_SZ, heap,
+                DYNAMIC_TYPE_TMP_BUFFER);
+            if (certSignCtx->encSig == NULL) {
+                ret = MEMORY_E;
+                goto exit_ms;
+            }
+#endif
+            /* typeH was stored in certSignCtx by HashForSignature */
+            certSignCtx->encSigSz = (int)wc_EncodeSignature(certSignCtx->encSig,
+                certSignCtx->digest, (word32)certSignCtx->digestSz,
+                certSignCtx->typeH);
+        }
+#endif /* !NO_RSA */
+        FALL_THROUGH;
+
+    case CERTSIGN_STATE_DO:
+        certSignCtx->state = CERTSIGN_STATE_DO;
+        outLen = sigSz;
+
+        /* Call the user-provided signing callback */
+#ifndef NO_RSA
+        if (keyType == RSA_TYPE) {
+            /* RSA: pass encoded digest */
+            ret = signCb(certSignCtx->encSig, (word32)certSignCtx->encSigSz,
+                         sig, &outLen, sigAlgoType, keyType, signCtx);
+        }
+        else
+#endif /* !NO_RSA */
+        {
+            /* ECC: pass raw hash */
+            ret = signCb(certSignCtx->digest, (word32)certSignCtx->digestSz,
+                         sig, &outLen, sigAlgoType, keyType, signCtx);
+        }
+
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        /* If callback returns WC_PENDING_E, preserve state for re-entry */
+        if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+            return ret;
+        }
+    #endif
+
+        if (ret == 0) {
+            ret = (int)outLen;
+        }
+        break;
+    }
+
+exit_ms:
+#ifndef WOLFSSL_NO_MALLOC
+#ifndef NO_RSA
+    if (keyType == RSA_TYPE) {
+        XFREE(certSignCtx->encSig, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        certSignCtx->encSig = NULL;
+    }
+#endif /* !NO_RSA */
+    XFREE(certSignCtx->digest, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    certSignCtx->digest = NULL;
+#endif
+
+    /* reset state */
+    certSignCtx->state = CERTSIGN_STATE_BEGIN;
+    certSignCtx->digestSz = 0;
+    certSignCtx->typeH = 0;
+
+    if (ret < 0) {
+        WOLFSSL_ERROR_VERBOSE(ret);
+    }
+
+    return ret;
+}
+#endif /* WOLFSSL_CERT_GEN || WOLFSSL_CERT_REQ */
+
+
+
 static int SignCert(int requestSz, int sType, byte* buf, word32 buffSz,
                     RsaKey* rsaKey, ecc_key* eccKey, ed25519_key* ed25519Key,
                     ed448_key* ed448Key, falcon_key* falconKey,
@@ -34310,6 +34488,116 @@ int wc_SignCert(int requestSz, int sType, byte* buf, word32 buffSz,
     return SignCert(requestSz, sType, buf, buffSz, rsaKey, eccKey, NULL, NULL,
                     NULL, NULL, NULL, rng);
 }
+
+/* Sign certificate/CSR using a callback function
+ * This allows external signing implementations (e.g., TPM, HSM)
+ * without requiring the crypto callback infrastructure.
+ *
+ * NOTE: This function does NOT support async crypto (WOLFSSL_ASYNC_CRYPT).
+ * The certSignCtx is local to this function and cannot persist across
+ * async re-entry. Use wc_SignCert or wc_SignCert_ex for async operations.
+ *
+ * @param [in]     requestSz Size of certificate body to sign.
+ * @param [in]     sType     The signature type.
+ * @param [in,out] buf       Der buffer to sign.
+ * @param [in]     buffSz    Der buffer size.
+ * @param [in]     keyType   The type of key (RSA_TYPE or ECC_TYPE only).
+ * @param [in]     signCb    User signing callback.
+ * @param [in]     signCtx   Context passed to callback.
+ * @param [in]     rng       Random number generator (may be NULL).
+ *
+ * @return  Size of signature on success.
+ * @return  BAD_FUNC_ARG if signCb or buf is NULL, buffSz is 0, or invalid
+ *          keyType.
+ * @return  < 0 on error
+ */
+#ifdef WOLFSSL_CERT_SIGN_CB
+int wc_SignCert_cb(int requestSz, int sType, byte* buf, word32 buffSz,
+                   int keyType, wc_SignCertCb signCb, void* signCtx,
+                   WC_RNG* rng)
+{
+    int sigSz = 0;
+    CertSignCtx certSignCtx_lcl;
+    CertSignCtx* certSignCtx = &certSignCtx_lcl;
+
+    /* Validate parameters */
+    if (signCb == NULL || buf == NULL || buffSz == 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* Validate keyType - only RSA and ECC supported */
+#if !defined(NO_RSA) && defined(HAVE_ECC)
+    if (keyType != RSA_TYPE && keyType != ECC_TYPE) {
+        return BAD_FUNC_ARG;
+    }
+#elif !defined(NO_RSA)
+    if (keyType != RSA_TYPE) {
+        return BAD_FUNC_ARG;
+    }
+#elif defined(HAVE_ECC)
+    if (keyType != ECC_TYPE) {
+        return BAD_FUNC_ARG;
+    }
+#else
+    (void)keyType;
+    return NOT_COMPILED_IN;
+#endif
+
+    XMEMSET(certSignCtx, 0, sizeof(*certSignCtx));
+
+    if (requestSz < 0) {
+        return requestSz;
+    }
+
+#ifndef WOLFSSL_NO_MALLOC
+    certSignCtx->sig = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (certSignCtx->sig == NULL) {
+        return MEMORY_E;
+    }
+#endif
+
+    sigSz = MakeSignatureCb(certSignCtx, buf, (word32)requestSz,
+        certSignCtx->sig, MAX_ENCODED_SIG_SZ, sType, keyType,
+        signCb, signCtx, rng, NULL);
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    if (sigSz == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+        /* Async crypto not supported with wc_SignCert_cb because certSignCtx
+         * is local and cannot persist across re-entry. Clean up and return
+         * error. */
+    #ifndef WOLFSSL_NO_MALLOC
+        XFREE(certSignCtx->sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        certSignCtx->sig = NULL;
+    #endif
+        return NOT_COMPILED_IN;
+    }
+#endif
+
+    if (sigSz >= 0) {
+        /* Check buffer has room for signature structure. This is an estimate
+         * using MAX_SEQ_SZ * 2 to account for sequence headers and algorithm
+         * identifier overhead. For precise sizing, call AddSignature with
+         * NULL buffer first, but this estimate matches the existing pattern
+         * used in SignCert. */
+        if (requestSz + MAX_SEQ_SZ * 2 + sigSz > (int)buffSz) {
+            sigSz = BUFFER_E;
+        }
+        else {
+            sigSz = AddSignature(buf, requestSz, certSignCtx->sig, sigSz, sType);
+        }
+    }
+
+#ifndef WOLFSSL_NO_MALLOC
+    XFREE(certSignCtx->sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    certSignCtx->sig = NULL;
+#endif
+
+    return sigSz;
+}
+#endif /* WOLFSSL_CERT_SIGN_CB */
+
+
 
 
 WOLFSSL_ABI

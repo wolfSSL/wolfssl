@@ -233,6 +233,46 @@ typedef int (wc_pem_password_cb)(char* passwd, int sz, int rw, void* userdata);
 #define pem_password_cb wc_pem_password_cb
 #endif
 
+/*!
+    \ingroup CertManager
+    \brief Callback function type for certificate/CSR signing.
+
+    This callback allows external signing implementations (e.g., TPM, HSM)
+    to sign certificates and CSRs without requiring the crypto callback
+    infrastructure. This is particularly useful for FIPS compliance where
+    offloading wolfCrypt operations is not acceptable.
+
+    \param in Data to sign. For RSA, this is the DER-encoded digest
+              (DigestInfo structure with algorithm identifier). For ECC,
+              this is the raw hash to sign.
+    \param inLen Length of data to sign in bytes.
+    \param out Output buffer for the signature.
+    \param outLen Input: size of output buffer. Output: actual signature size.
+    \param sigAlgo Signature algorithm identifier (e.g., CTC_SHA256wRSA,
+                   CTC_SHA256wECDSA).
+    \param keyType Key type (RSA_TYPE or ECC_TYPE only).
+    \param ctx User-provided context pointer for callback state.
+
+    \return 0 on success.
+    \return Negative error code on failure (BAD_FUNC_ARG, MEMORY_E, etc.).
+
+    \sa wc_SignCert_cb
+    \sa wc_SignCert_ex
+
+    _Example_
+    \code
+    int mySignCallback(const byte* in, word32 inLen, byte* out,
+                       word32* outLen, int sigAlgo, int keyType, void* ctx)
+    {
+        MySignCtx* myCtx = (MySignCtx*)ctx;
+        return myDevice_Sign(myCtx->device, in, inLen, out, outLen);
+    }
+    \endcode
+*/
+typedef int (*wc_SignCertCb)(const byte* in, word32 inLen,
+                             byte* out, word32* outLen,
+                             int sigAlgo, int keyType, void* ctx);
+
 typedef struct EncryptedInfo {
     long     consumed;         /* tracks PEM bytes consumed */
 
@@ -511,6 +551,12 @@ WOLFSSL_API int wc_SignCert_ex(int requestSz, int sType, byte* buf,
                                WC_RNG* rng);
 WOLFSSL_API int wc_SignCert(int requestSz, int sType, byte* buf, word32 buffSz,
                             RsaKey* rsaKey, ecc_key* eccKey, WC_RNG* rng);
+#ifdef WOLFSSL_CERT_SIGN_CB
+WOLFSSL_API int wc_SignCert_cb(int requestSz, int sType, byte* buf,
+                               word32 buffSz, int keyType,
+                               wc_SignCertCb signCb, void* signCtx,
+                               WC_RNG* rng);
+#endif /* WOLFSSL_CERT_SIGN_CB */
 #ifdef WOLFSSL_DUAL_ALG_CERTS
 WOLFSSL_API int wc_MakeSigWithBitStr(byte *sig, int sigSz, int sType, byte* buf,
                                      word32 bufSz, int keyType, void* key,

@@ -2398,6 +2398,8 @@ enum Max_ASN {
         #ifndef NO_RSA
         int encSigSz;
         #endif
+        int digestSz;
+        int typeH; /* Hash algorithm type for encoding */
         int state; /* enum CertSignState */
     } CertSignCtx;
 
