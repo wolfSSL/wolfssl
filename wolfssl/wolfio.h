@@ -180,7 +180,15 @@
             }  /* extern "C" */
         #endif
 
-        #include <version.h>
+        #ifdef __has_include
+            #if __has_include(<zephyr/version.h>)
+                #include <zephyr/version.h>
+            #else
+                #include <version.h>
+            #endif
+        #else
+            #include <version.h>
+        #endif
         #if KERNEL_VERSION_NUMBER >= 0x30100
             #include <zephyr/net/socket.h>
             #ifdef CONFIG_POSIX_API

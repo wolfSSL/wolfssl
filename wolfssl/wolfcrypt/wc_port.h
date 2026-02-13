@@ -287,7 +287,15 @@
         }  /* extern "C" */
     #endif
 
-    #include <version.h>
+    #ifdef __has_include
+        #if __has_include(<zephyr/version.h>)
+            #include <zephyr/version.h>
+        #else
+            #include <version.h>
+        #endif
+    #else
+        #include <version.h>
+    #endif
     #ifndef SINGLE_THREADED
         #if !defined(CONFIG_PTHREAD_IPC) && !defined(CONFIG_POSIX_THREADS)
             #error "Threading needs CONFIG_PTHREAD_IPC / CONFIG_POSIX_THREADS"
@@ -1495,7 +1503,15 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
         }  /* extern "C" */
     #endif
 
-    #include <version.h>
+    #ifdef __has_include
+        #if __has_include(<zephyr/version.h>)
+            #include <zephyr/version.h>
+        #else
+            #include <version.h>
+        #endif
+    #else
+        #include <version.h>
+    #endif
     #ifndef _POSIX_C_SOURCE
         #if KERNEL_VERSION_NUMBER >= 0x30100
             #include <zephyr/posix/time.h>
