@@ -230,7 +230,15 @@ static int wolfssl_file_len(XFILE fp, long* fileSz)
         /* Get file offset at end of file. */
         curr = (long)XFTELL(fp);
         if (curr < 0) {
-            ret = WOLFSSL_BAD_FILE;
+#ifdef ESPIPE
+            if (errno == ESPIPE) {
+                WOLFSSL_ERROR_MSG("wolfssl_file_len: file is a pipe");
+                *fileSz = 0;
+                ret = WOLFSSL_BAD_FILETYPE;
+            }
+            else
+#endif
+                ret = WOLFSSL_BAD_FILE;
         }
     }
     /* Move to end of file. */
