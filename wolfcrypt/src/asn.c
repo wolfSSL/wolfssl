@@ -40910,7 +40910,7 @@ int DecodeOcspRequest(OcspRequest* req, const byte* input, word32 size)
             ret = ASN_PARSE_E;
     }
     if (ret == 0) {
-        /* For now support only SHA-1 */
+        /* TODO support other HashAlgorithm than SHA-1 */
         if (dataASN[OCSPREQUESTASN_IDX_TBS_REQ_HASH_OID].data.oid.sum != SHAh)
             ret = ASN_SIG_HASH_E;
     }
