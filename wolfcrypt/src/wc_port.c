@@ -4000,11 +4000,7 @@ time_t z_time(time_t * timer)
 
     /* Fallback to uptime since boot. This works for relative times, but
      * not for ASN.1 date validation */
-#ifdef _POSIX_C_SOURCE
     if (clock_gettime(CLOCK_REALTIME, &ts) == 0)
-#else
-    if (sys_clock_gettime(SYS_CLOCK_REALTIME, &ts) == 0)
-#endif
         if (timer != NULL)
             *timer = ts.tv_sec;
 

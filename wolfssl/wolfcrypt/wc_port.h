@@ -1543,6 +1543,14 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
         #include <time.h>
     #endif
 
+    #ifndef CLOCK_REALTIME
+        #ifdef SYS_CLOCK_REALTIME
+            #define CLOCK_REALTIME  SYS_CLOCK_REALTIME
+            #define clock_gettime   sys_clock_gettime
+            #define clock_settime   sys_clock_settime
+        #endif
+    #endif
+
     #if defined(CONFIG_RTC)
         #if defined(CONFIG_PICOLIBC) || defined(CONFIG_NEWLIB_LIBC)
             #include <zephyr/drivers/rtc.h>
