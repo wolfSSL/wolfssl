@@ -2307,6 +2307,24 @@ WOLFSSL_API WOLFSSL_ASN1_TIME* wolfSSL_X509_get_notAfter(const WOLFSSL_X509* x50
 WOLFSSL_API int wolfSSL_X509_set_serialNumber(WOLFSSL_X509* x509,
         WOLFSSL_ASN1_INTEGER* s);
 WOLFSSL_API int wolfSSL_X509_set_version(WOLFSSL_X509* x509, long v);
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+#ifdef WOLFSSL_CERT_EXT
+WOLFSSL_API int wolfSSL_X509_set_subject_key_id(WOLFSSL_X509* x509,
+        const unsigned char* skid, int skidSz);
+#ifndef NO_SHA
+WOLFSSL_API int wolfSSL_X509_set_subject_key_id_ex(WOLFSSL_X509* x509);
+#endif
+WOLFSSL_API int wolfSSL_X509_set_authority_key_id(WOLFSSL_X509* x509,
+        const unsigned char* akid, int akidSz);
+#ifndef NO_SHA
+WOLFSSL_API int wolfSSL_X509_set_authority_key_id_ex(WOLFSSL_X509* x509,
+        WOLFSSL_X509* issuer);
+#endif
+#endif /* WOLFSSL_CERT_EXT */
+#ifndef IGNORE_NETSCAPE_CERT_TYPE
+WOLFSSL_API int wolfSSL_X509_set_ns_cert_type(WOLFSSL_X509* x509, int nsCertType);
+#endif
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 WOLFSSL_API int wolfSSL_X509_sign(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey,
         const WOLFSSL_EVP_MD* md);
 WOLFSSL_API int wolfSSL_X509_sign_ctx(WOLFSSL_X509 *x509, WOLFSSL_EVP_MD_CTX *ctx);
@@ -3515,6 +3533,13 @@ WOLFSSL_API int wolfSSL_X509_CRL_sign(WOLFSSL_X509_CRL* crl,
 WOLFSSL_API int wolfSSL_i2d_X509_CRL(WOLFSSL_X509_CRL* crl,
                                      unsigned char** out);
 #endif /* HAVE_CRL && OPENSSL_EXTRA */
+#if defined(WOLFSSL_CERT_EXT) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
+WOLFSSL_API int wolfSSL_X509_CRL_set_dist_points(WOLFSSL_X509* x509,
+        const unsigned char* der, int derSz);
+WOLFSSL_API int wolfSSL_X509_CRL_add_dist_point(WOLFSSL_X509* x509,
+        const char* uri, int critical);
+#endif /* WOLFSSL_CERT_EXT && (OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL) */
 
 #if defined(WOLFSSL_ACERT) && \
    (defined(OPENSSL_EXTRA_X509_SMALL) || defined(OPENSSL_EXTRA))

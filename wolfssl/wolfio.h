@@ -1012,6 +1012,10 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
         #define XINET_PTON(a,b,c,d) inet_pton((a),(b),(c),(d))
     #elif defined(WOLFSSL_ZEPHYR)
         #define XINET_PTON(a,b,c)   zsock_inet_pton((a),(b),(c))
+    #elif defined(WOLFSSL_LINUXKM)
+        #define XINET_PTON(a,b,c) \
+            (((a) == WOLFSSL_IP4) ? in4_pton((b), -1, (u8*)(c), -1, NULL) : \
+             ((a) == WOLFSSL_IP6) ? in6_pton((b), -1, (u8*)(c), -1, NULL) : 0)
     #else
         #define XINET_PTON(a,b,c)   inet_pton((a),(b),(c))
     #endif
