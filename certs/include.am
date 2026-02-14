@@ -32,7 +32,9 @@ EXTRA_DIST += \
              certs/ecc-client-keyPub.pem \
              certs/empty-issuer-cert.pem \
              certs/client-ecc-cert.pem \
+             certs/client-ecc-ca-cert.pem \
              certs/client-ca.pem \
+             certs/client-ca-cert.pem \
              certs/dh2048.pem \
              certs/server-cert.pem \
              certs/server-ecc.pem \
@@ -96,6 +98,8 @@ EXTRA_DIST += \
              certs/client-cert.der \
              certs/client-key.der \
              certs/client-ecc-cert.der \
+             certs/client-ecc-ca-cert.der \
+             certs/client-ca-cert.der \
              certs/client-keyPub.der \
              certs/client-keyPub.pem \
              certs/dh2048.der \

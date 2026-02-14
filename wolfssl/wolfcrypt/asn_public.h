@@ -639,6 +639,20 @@ WOLFSSL_API int wc_SetCustomExtension(Cert *cert, int critical, const char *oid,
 
 #endif /* WOLFSSL_CERT_EXT */
 
+#if defined(WOLFSSL_CERT_GEN) && defined(HAVE_CRL)
+/* CRL Generation functions */
+struct RevokedCert; /* forward declaration */
+WOLFSSL_API int wc_MakeCRL_ex(const byte* issuerDer, word32 issuerSz,
+                  const byte* lastDate, byte lastDateFmt,
+                  const byte* nextDate, byte nextDateFmt,
+                  struct RevokedCert* certs, const byte* crlNumber,
+                  word32 crlNumberSz, int sigType, int version,
+                  byte* output, word32 outputSz);
+WOLFSSL_API int wc_SignCRL_ex(const byte* tbsBuf, int tbsSz, int sType,
+                  byte* buf, word32 bufSz,
+                  RsaKey* rsaKey, ecc_key* eccKey, WC_RNG* rng);
+#endif /* WOLFSSL_CERT_GEN && HAVE_CRL */
+
 WOLFSSL_API int wc_GetDateInfo(const byte* certDate, int certDateSz,
     const byte** date, byte* format, int* length);
 #ifndef NO_ASN_TIME

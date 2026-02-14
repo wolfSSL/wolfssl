@@ -631,6 +631,7 @@ static word32 SizeASNLength(word32 length)
 #define ASNIntMSBSet(asn, data_a, i)                  \
     (((asn)[i].tag == ASN_INTEGER) &&                 \
       ((data_a)[i].data.buffer.data != NULL &&        \
+      ((data_a)[i].data.buffer.length > 0) &&         \
       ((data_a)[i].data.buffer.data[0] & 0x80) == 0x80))
 
 
@@ -3131,11 +3132,10 @@ const char* GetSigName(int oid) {
 
 
 #if !defined(WOLFSSL_ASN_TEMPLATE) || defined(HAVE_PKCS7) || \
-    defined(OPENSSL_EXTRA)
+    defined(OPENSSL_EXTRA) || defined(WOLFSSL_CERT_GEN)
 #if !defined(NO_DSA) || defined(HAVE_ECC) || !defined(NO_CERTS) || \
-   (!defined(NO_RSA) && \
-        (defined(WOLFSSL_CERT_GEN) || \
-        ((defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA)))))
+    defined(WOLFSSL_CERT_GEN) || \
+   (!defined(NO_RSA) && (defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA)))
 /* Set the DER/BER encoding of the ASN.1 INTEGER header.
  *
  * When output is NULL, calculate the header length only.
@@ -41832,6 +41832,418 @@ end:
     return ret;
 #endif /* WOLFSSL_ASN_TEMPLATE */
 }
+
+#ifdef WOLFSSL_CERT_GEN
+/* Encode a date as ASN.1 (UTC or GeneralizedTime).
+ * Returns length written to output (including tag and length bytes).
+ * If output is NULL, just returns the required size.
+ */
+static word32 EncodeCrlDate(byte* output, const byte* date, byte format)
+{
+    word32 idx = 0;
+    word32 dateLen;
+
+    /* Determine date length based on format */
+    if (format == ASN_UTC_TIME) {
+        dateLen = ASN_UTC_TIME_SIZE - 1; /* exclude null terminator */
+    }
+    else if (format == ASN_GENERALIZED_TIME) {
+        dateLen = ASN_GENERALIZED_TIME_SIZE - 1;
+    }
+    else {
+        return 0; /* unsupported format */
+    }
+
+    if (output != NULL) {
+        output[idx] = format;
+    }
+    idx++;
+
+    if (output != NULL) {
+        idx += SetLength(dateLen, output + idx);
+        XMEMCPY(output + idx, date, dateLen);
+    }
+    else {
+        idx += SetLength(dateLen, NULL);
+    }
+    idx += dateLen;
+
+    return idx;
+}
+
+/* Encode a serial number as ASN.1 INTEGER.
+ * Similar to SetSerialNumber but always available.
+ */
+static int EncodeCrlSerial(const byte* sn, word32 snSz, byte* output,
+                            word32 outputSz)
+{
+    int i;
+    int snSzInt = (int)snSz;
+    const byte* snPtr = sn;
+
+    if (sn == NULL || snSzInt < 0)
+        return BAD_FUNC_ARG;
+
+    /* remove leading zeros */
+    while (snSzInt > 0 && snPtr[0] == 0) {
+        snSzInt--;
+        snPtr++;
+    }
+    /* Serial numbers must be non-negative; allow zero for tolerance */
+    if (snSzInt == 0) {
+        i = SetASNInt(1, 0x00, output);
+        if (1 > (int)outputSz - i) {
+            return BUFFER_E;
+        }
+        if (output != NULL) {
+            output[i] = 0x00;
+        }
+        return i + 1;
+    }
+
+    i = SetASNInt(snSzInt, snPtr[0], NULL);
+    /* sanity check number of bytes to copy */
+    if (snSzInt > (int)outputSz - i || snSzInt <= 0) {
+        return BUFFER_E;
+    }
+
+    if (output != NULL) {
+        /* write out ASN.1 Integer */
+        (void)SetASNInt(snSzInt, snPtr[0], output);
+        XMEMCPY(output + i, snPtr, (size_t)snSzInt);
+    }
+
+    return i + snSzInt;
+}
+
+/* Encode a single revoked certificate entry.
+ * Returns length written to output.
+ */
+static word32 EncodeRevokedCert(byte* output, const RevokedCert* rc)
+{
+    word32 idx = 0;
+    word32 snSz, dateSz, seqSz;
+    byte snBuf[MAX_SN_SZ];
+    byte dateBuf[MAX_DATE_SIZE + 2]; /* tag + length + data */
+    byte seqBuf[MAX_SEQ_SZ];
+
+    /* Encode serial number */
+    snSz = (word32)EncodeCrlSerial(rc->serialNumber, (word32)rc->serialSz,
+                                   snBuf, sizeof(snBuf));
+    if ((int)snSz < 0)
+        return 0;
+
+    /* Encode revocation date */
+    dateSz = EncodeCrlDate(dateBuf, rc->revDate, rc->revDateFormat);
+    if (dateSz == 0)
+        return 0;
+
+    /* Wrap in SEQUENCE */
+    seqSz = SetSequence(snSz + dateSz, seqBuf);
+
+    if (output != NULL) {
+        XMEMCPY(output + idx, seqBuf, seqSz);
+        idx += seqSz;
+        XMEMCPY(output + idx, snBuf, snSz);
+        idx += snSz;
+        XMEMCPY(output + idx, dateBuf, dateSz);
+        idx += dateSz;
+    }
+    else {
+        idx = seqSz + snSz + dateSz;
+    }
+
+    return idx;
+}
+
+/* Encode the CRL Number extension.
+ * Returns length written to output.
+ */
+static word32 EncodeCrlNumberExt(byte* output, const byte* crlNum,
+                                  word32 crlNumSz)
+{
+    word32 idx = 0;
+    word32 oidSz, intSz, octetSz, seqSz;
+    byte seqBuf[MAX_SEQ_SZ];
+    byte octetBuf[MAX_OCTET_STR_SZ];
+    byte intBuf[MAX_SN_SZ];
+
+    /* CRL Number OID: 2.5.29.20 */
+    static const byte crlNumOid[] = { 0x06, 0x03, 0x55, 0x1d, 0x14 };
+    oidSz = sizeof(crlNumOid);
+
+    /* Encode the INTEGER for CRL number */
+    intSz = (word32)EncodeCrlSerial(crlNum, crlNumSz, intBuf, sizeof(intBuf));
+    if ((int)intSz < 0)
+        return 0;
+
+    /* Wrap INTEGER in OCTET STRING */
+    octetSz = SetOctetString(intSz, octetBuf);
+
+    /* Wrap in extension SEQUENCE */
+    seqSz = SetSequence(oidSz + octetSz + intSz, seqBuf);
+
+    if (output != NULL) {
+        XMEMCPY(output + idx, seqBuf, seqSz);
+        idx += seqSz;
+        XMEMCPY(output + idx, crlNumOid, oidSz);
+        idx += oidSz;
+        XMEMCPY(output + idx, octetBuf, octetSz);
+        idx += octetSz;
+        XMEMCPY(output + idx, intBuf, intSz);
+        idx += intSz;
+    }
+    else {
+        idx = seqSz + oidSz + octetSz + intSz;
+    }
+
+    return idx;
+}
+
+/* Build CRL TBSCertList from fields.
+ * issuerDer: DER-encoded issuer Name
+ * issuerSz: size of issuer DER
+ * lastDate/lastDateFmt: thisUpdate time and format
+ * nextDate/nextDateFmt: nextUpdate time and format
+ * certs: linked list of revoked certificates (may be NULL)
+ * crlNumber/crlNumberSz: CRL number extension data (may be NULL)
+ * sigType: signature algorithm type (e.g., CTC_SHA256wRSA)
+ * version: CRL version (1 or 2; 2 required for extensions)
+ * output: buffer to write TBS (NULL to calculate size)
+ * outputSz: size of output buffer
+ *
+ * Returns: size of TBS on success, negative error code on failure
+ */
+int wc_MakeCRL_ex(const byte* issuerDer, word32 issuerSz,
+                  const byte* lastDate, byte lastDateFmt,
+                  const byte* nextDate, byte nextDateFmt,
+                  RevokedCert* certs, const byte* crlNumber, word32 crlNumberSz,
+                  int sigType, int version, byte* output, word32 outputSz)
+{
+    word32 idx = 0;
+    word32 tbsContentSz = 0;
+    word32 versionSz = 0, algoSz = 0, lastDateSz = 0, nextDateSz = 0;
+    word32 revokedSz = 0, extSz = 0, extSeqSz = 0, extCtxSz = 0;
+    word32 tbsSeqSz;
+    byte tbsSeqBuf[MAX_SEQ_SZ];
+    byte versionBuf[MAX_VERSION_SZ];
+    byte algoBuf[MAX_ALGO_SZ];
+    byte lastDateBuf[MAX_DATE_SIZE + 2];
+    byte nextDateBuf[MAX_DATE_SIZE + 2];
+    byte revokedSeqBuf[MAX_SEQ_SZ];
+    byte extSeqBuf[MAX_SEQ_SZ];
+    byte extCtxBuf[MAX_SEQ_SZ + 1]; /* context tag + length */
+    RevokedCert* rc;
+
+    if (issuerDer == NULL || issuerSz == 0 || lastDate == NULL)
+        return BAD_FUNC_ARG;
+
+    /* Version: only include if v2 (version = 2 means value 1 in ASN.1) */
+    if (version >= 2) {
+        versionSz = (word32)SetMyVersion(version - 1, versionBuf, FALSE);
+    }
+
+    /* Signature AlgorithmIdentifier */
+    algoSz = SetAlgoID(sigType, algoBuf, oidSigType, 0);
+    if (algoSz == 0)
+        return ALGO_ID_E;
+
+    /* thisUpdate */
+    lastDateSz = EncodeCrlDate(lastDateBuf, lastDate, lastDateFmt);
+    if (lastDateSz == 0)
+        return ASN_DATE_SZ_E;
+
+    /* nextUpdate (optional) */
+    if (nextDate != NULL && nextDateFmt != 0) {
+        nextDateSz = EncodeCrlDate(nextDateBuf, nextDate, nextDateFmt);
+    }
+
+    /* revokedCertificates (optional) */
+    if (certs != NULL) {
+        word32 contentSz = 0;
+        /* First pass: calculate size */
+        for (rc = certs; rc != NULL; rc = rc->next) {
+            word32 entrySz = EncodeRevokedCert(NULL, rc);
+            if (entrySz == 0)
+                return ASN_PARSE_E;
+            contentSz += entrySz;
+        }
+        revokedSz = SetSequence(contentSz, revokedSeqBuf) + contentSz;
+    }
+
+    /* crlExtensions (optional) - CRL Number */
+    if (crlNumber != NULL && crlNumberSz > 0 && version >= 2) {
+        word32 crlNumExtSz = EncodeCrlNumberExt(NULL, crlNumber, crlNumberSz);
+        if (crlNumExtSz > 0) {
+            extSeqSz = SetSequence(crlNumExtSz, extSeqBuf);
+            /* Context tag [0] EXPLICIT */
+            extCtxBuf[0] = (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0);
+            extCtxSz = 1 + SetLength(extSeqSz + crlNumExtSz, extCtxBuf + 1);
+            extSz = extCtxSz + extSeqSz + crlNumExtSz;
+        }
+    }
+
+    /* Calculate total TBS content size */
+    tbsContentSz = versionSz + algoSz + issuerSz + lastDateSz + nextDateSz +
+                   revokedSz + extSz;
+
+    /* TBS SEQUENCE header */
+    tbsSeqSz = SetSequence(tbsContentSz, tbsSeqBuf);
+
+    /* Check buffer size */
+    if (output != NULL && (tbsSeqSz + tbsContentSz > outputSz))
+        return BUFFER_E;
+
+    /* If output is NULL, just return required size */
+    if (output == NULL)
+        return (int)(tbsSeqSz + tbsContentSz);
+
+    /* Encode TBS */
+    idx = 0;
+
+    /* TBS SEQUENCE header */
+    XMEMCPY(output + idx, tbsSeqBuf, tbsSeqSz);
+    idx += tbsSeqSz;
+
+    /* Version (optional) */
+    if (versionSz > 0) {
+        XMEMCPY(output + idx, versionBuf, versionSz);
+        idx += versionSz;
+    }
+
+    /* Signature AlgorithmIdentifier */
+    XMEMCPY(output + idx, algoBuf, algoSz);
+    idx += algoSz;
+
+    /* Issuer Name */
+    XMEMCPY(output + idx, issuerDer, issuerSz);
+    idx += issuerSz;
+
+    /* thisUpdate */
+    XMEMCPY(output + idx, lastDateBuf, lastDateSz);
+    idx += lastDateSz;
+
+    /* nextUpdate (optional) */
+    if (nextDateSz > 0) {
+        XMEMCPY(output + idx, nextDateBuf, nextDateSz);
+        idx += nextDateSz;
+    }
+
+    /* revokedCertificates (optional) */
+    if (revokedSz > 0) {
+        word32 contentSz = 0;
+        for (rc = certs; rc != NULL; rc = rc->next) {
+            contentSz += EncodeRevokedCert(NULL, rc);
+        }
+        idx += SetSequence(contentSz, output + idx);
+        for (rc = certs; rc != NULL; rc = rc->next) {
+            idx += EncodeRevokedCert(output + idx, rc);
+        }
+    }
+
+    /* crlExtensions (optional) */
+    if (extSz > 0) {
+        word32 crlNumExtSz = EncodeCrlNumberExt(NULL, crlNumber, crlNumberSz);
+        /* Context tag [0] */
+        output[idx++] = (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0);
+        idx += SetLength(extSeqSz + crlNumExtSz, output + idx);
+        /* Extensions SEQUENCE */
+        idx += SetSequence(crlNumExtSz, output + idx);
+        /* CRL Number extension */
+        idx += EncodeCrlNumberExt(output + idx, crlNumber, crlNumberSz);
+    }
+
+    return (int)idx;
+}
+
+/* Sign a CRL TBS and produce complete CRL DER.
+ * tbsBuf: contains the TBS at the beginning
+ * tbsSz: size of TBS in tbsBuf
+ * sType: signature type (e.g., CTC_SHA256wRSA)
+ * buf: output buffer for complete CRL. May be the same as tbsBuf.
+ * bufSz: size of output buffer
+ * rsaKey/eccKey: signing key (one must be non-NULL)
+ * rng: random number generator
+ *
+ * Returns: size of complete CRL on success, negative error on failure
+ */
+int wc_SignCRL_ex(const byte* tbsBuf, int tbsSz, int sType,
+                  byte* buf, word32 bufSz,
+                  RsaKey* rsaKey, ecc_key* eccKey, WC_RNG* rng)
+{
+    int ret;
+    int sigSz;
+    CertSignCtx  certSignCtx_lcl;
+    CertSignCtx* certSignCtx = &certSignCtx_lcl;
+    void* heap = NULL;
+
+    if (tbsBuf == NULL || tbsSz <= 0 || buf == NULL || rng == NULL)
+        return BAD_FUNC_ARG;
+    if (rsaKey == NULL && eccKey == NULL)
+        return BAD_FUNC_ARG;
+
+    XMEMSET(certSignCtx, 0, sizeof(*certSignCtx));
+
+    if (rsaKey != NULL) {
+        heap = rsaKey->heap;
+    }
+#ifdef HAVE_ECC
+    else if (eccKey != NULL) {
+        heap = eccKey->heap;
+    }
+#endif
+
+    /* Copy TBS to output buffer first */
+    if ((word32)tbsSz > bufSz)
+        return BUFFER_E;
+    XMEMCPY(buf, tbsBuf, (size_t)tbsSz);
+
+#ifndef WOLFSSL_NO_MALLOC
+    certSignCtx->sig = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ, heap,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (certSignCtx->sig == NULL)
+        return MEMORY_E;
+    /* Initialize first byte to avoid static analysis warnings about using
+     * uninitialized memory if MakeSignature fails before writing sig. */
+    certSignCtx->sig[0] = 0;
+#endif
+
+    /* Create signature */
+    sigSz = MakeSignature(certSignCtx, buf, (word32)tbsSz, certSignCtx->sig,
+                          MAX_ENCODED_SIG_SZ, rsaKey, eccKey, NULL, NULL, NULL,
+                          NULL, NULL, rng, (word32)sType, heap);
+    if (sigSz < 0) {
+#ifndef WOLFSSL_NO_MALLOC
+        XFREE(certSignCtx->sig, heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return sigSz;
+    }
+
+    /* Ensure output buffer is large enough for signature wrapper */
+    ret = AddSignature(NULL, tbsSz, certSignCtx->sig, sigSz, sType);
+    if (ret < 0) {
+#ifndef WOLFSSL_NO_MALLOC
+        XFREE(certSignCtx->sig, heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return ret;
+    }
+    if ((word32)ret > bufSz) {
+#ifndef WOLFSSL_NO_MALLOC
+        XFREE(certSignCtx->sig, heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return BUFFER_E;
+    }
+
+    /* Add signature algorithm and signature to buffer */
+    ret = AddSignature(buf, tbsSz, certSignCtx->sig, sigSz, sType);
+
+#ifndef WOLFSSL_NO_MALLOC
+    XFREE(certSignCtx->sig, heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return ret;
+}
+#endif /* WOLFSSL_CERT_GEN */
 
 #endif /* HAVE_CRL */
 

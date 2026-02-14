@@ -804,10 +804,13 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 
 #define d2i_X509_CRL                    wolfSSL_d2i_X509_CRL
 #define d2i_X509_CRL_fp                 wolfSSL_d2i_X509_CRL_fp
+#define i2d_X509_CRL                    wolfSSL_i2d_X509_CRL
 #define PEM_read_X509_CRL               wolfSSL_PEM_read_X509_CRL
 
+#define X509_CRL_new                    wolfSSL_X509_CRL_new
 #define X509_CRL_dup                    wolfSSL_X509_CRL_dup
 #define X509_CRL_free                   wolfSSL_X509_CRL_free
+#define X509_CRL_sign                   wolfSSL_X509_CRL_sign
 #define X509_CRL_get_lastUpdate         wolfSSL_X509_CRL_get_lastUpdate
 #define X509_CRL_get0_lastUpdate        wolfSSL_X509_CRL_get_lastUpdate
 #define X509_CRL_get_nextUpdate         wolfSSL_X509_CRL_get_nextUpdate
@@ -817,6 +820,14 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define X509_CRL_get_issuer             wolfSSL_X509_CRL_get_issuer_name
 #define X509_CRL_get_signature_nid      wolfSSL_X509_CRL_get_signature_nid
 #define X509_CRL_get_version            wolfSSL_X509_CRL_version
+#define X509_CRL_set_lastUpdate         wolfSSL_X509_CRL_set_lastUpdate
+#define X509_CRL_set1_lastUpdate        wolfSSL_X509_CRL_set_lastUpdate
+#define X509_CRL_set_nextUpdate         wolfSSL_X509_CRL_set_nextUpdate
+#define X509_CRL_set1_nextUpdate        wolfSSL_X509_CRL_set_nextUpdate
+#define X509_CRL_set_issuer_name        wolfSSL_X509_CRL_set_issuer_name
+#define X509_CRL_set_version            wolfSSL_X509_CRL_set_version
+#define X509_CRL_get0_signature         wolfSSL_X509_CRL_get_signature
+#define X509_CRL_get_signature_nid      wolfSSL_X509_CRL_get_signature_nid
 #define X509_load_crl_file              wolfSSL_X509_load_crl_file
 
 #define X509_ACERT_new                  wolfSSL_X509_ACERT_new

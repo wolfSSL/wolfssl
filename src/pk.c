@@ -48,7 +48,7 @@
 #define ASN_LEN_SIZE(l)             \
     (((l) < 128) ? 1 : (((l) < 256) ? 2 : 3))
 
-#if defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 
 #ifndef NO_ASN
 
@@ -112,7 +112,7 @@ static int pem_mem_to_der(const char* pem, int pemSz, wc_pem_password_cb* cb,
 }
 #endif
 
-#if !defined(NO_RSA) || !defined(WOLFCRYPT_ONLY)
+#if defined(OPENSSL_EXTRA) && (!defined(NO_RSA) || !defined(WOLFCRYPT_ONLY))
 #ifndef NO_BIO
 /* Read PEM data from a BIO and decode to DER in a new buffer.
  *
@@ -291,9 +291,10 @@ static int der_write_to_bio_as_pem(const unsigned char* der, int derSz,
 #endif
 #endif
 
-#if (!defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)) || \
+#if defined(OPENSSL_EXTRA) && \
+    ((!defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)) || \
      (!defined(NO_DH) && defined(WOLFSSL_DH_EXTRA)) || \
-     (defined(HAVE_ECC) && defined(WOLFSSL_KEY_GEN))
+     (defined(HAVE_ECC) && defined(WOLFSSL_KEY_GEN)))
 #if !defined(NO_FILESYSTEM)
 /* Write the DER data as PEM into file pointer.
  *
@@ -327,7 +328,8 @@ static int der_write_to_file_as_pem(const unsigned char* der, int derSz,
 #endif
 #endif
 
-#if defined(WOLFSSL_KEY_GEN) && defined(WOLFSSL_PEM_TO_DER)
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_KEY_GEN) && \
+    defined(WOLFSSL_PEM_TO_DER)
 /* Encrypt private key into PEM format.
  *
  * DER is encrypted in place.
@@ -449,10 +451,10 @@ int EncryptDerKey(byte *der, int *derSz, const WOLFSSL_EVP_CIPHER* cipher,
     WC_FREE_VAR_EX(info, NULL, DYNAMIC_TYPE_ENCRYPTEDINFO);
     return ret == 0;
 }
-#endif /* WOLFSSL_KEY_GEN || WOLFSSL_PEM_TO_DER */
+#endif /* OPENSSL_EXTRA && WOLFSSL_KEY_GEN && WOLFSSL_PEM_TO_DER */
 
 
-#if defined(WOLFSSL_KEY_GEN) && \
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_KEY_GEN) && \
     (defined(WOLFSSL_PEM_TO_DER) || defined(WOLFSSL_DER_TO_PEM)) && \
     (!defined(NO_RSA) || defined(HAVE_ECC))
 /* Encrypt the DER in PEM format.
@@ -681,7 +683,8 @@ static int pk_bn_field_print_fp(XFILE fp, int indent, const char* field,
 #endif /* !NO_CERTS && XFPRINTF && !NO_FILESYSTEM && !NO_STDIO_FILESYSTEM &&
         * (!NO_DSA || !NO_RSA || HAVE_ECC) */
 
-#if defined(XSNPRINTF) && !defined(NO_BIO) && !defined(NO_RSA)
+#if defined(OPENSSL_EXTRA) && defined(XSNPRINTF) && !defined(NO_BIO) && \
+    !defined(NO_RSA)
 /* snprintf() must be available */
 
 /* Maximum number of extra indent spaces on each line. */
@@ -890,7 +893,7 @@ static int wolfssl_print_number(WOLFSSL_BIO* bio, mp_int* num, const char* name,
     return ret;
 }
 
-#endif /* XSNPRINTF && !NO_BIO && !NO_RSA */
+#endif /* OPENSSL_EXTRA && XSNPRINTF && !NO_BIO && !NO_RSA */
 
 #endif /* OPENSSL_EXTRA */
 
@@ -7306,4 +7309,3 @@ int wolfSSL_PEM_write_PKCS8PrivateKey(XFILE f, WOLFSSL_EVP_PKEY* pkey,
  ******************************************************************************/
 
 #endif /* !WOLFSSL_PK_INCLUDED */
-

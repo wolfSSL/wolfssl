@@ -107,6 +107,10 @@ ecc-key.der
 ecc-key.pem
 certreq.der
 certreq.pem
+crlRsaOut.pem
+crlRsaOut.der
+crlEccOut.pem
+crlEccOut.der
 pkcs7cert.der
 pkcs7authEnvelopedDataAES128GCM.der
 pkcs7authEnvelopedDataAES128GCM_ECDH_SHA1KDF.der
