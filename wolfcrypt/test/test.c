@@ -3061,11 +3061,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         struct timespec utctime;
         utctime.tv_sec = 1521725159; /* dummy time: 2018-03-22T13:25:59+00:00 */
         utctime.tv_nsec = 0;
-#ifdef _POSIX_C_SOURCE
         clock_settime(CLOCK_REALTIME, &utctime);
-#else
-        sys_clock_settime(SYS_CLOCK_REALTIME, &utctime);
-#endif
 #endif
 #ifdef DEVKITPRO
         void *framebuffer;

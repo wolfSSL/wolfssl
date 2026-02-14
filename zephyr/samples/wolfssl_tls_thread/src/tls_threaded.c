@@ -587,11 +587,7 @@ int main()
     struct timespec utctime;
     utctime.tv_sec = 1658510212; /* Friday, July 22, 2022 5:16:52 PM GMT */
     utctime.tv_nsec = 0;
-#ifdef _POSIX_C_SOURCE
     clock_settime(CLOCK_REALTIME, &utctime);
-#else
-    sys_clock_settime(SYS_CLOCK_REALTIME, &utctime);
-#endif
 
 #ifdef HAVE_FIPS
     wolfCrypt_SetCb_fips(myFipsCb);
