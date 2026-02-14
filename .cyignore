@@ -7,6 +7,7 @@ $(SEARCH_wolfssl)/mplabx
 $(SEARCH_wolfssl)/mqx
 $(SEARCH_wolfssl)/tirtos
 $(SEARCH_wolfssl)/tests
+$(SEARCH_wolfssl)/sslSniffer
 $(SEARCH_wolfssl)/testsuite
 $(SEARCH_wolfssl)/wolfcrypt/src/port/autosar
 $(SEARCH_wolfssl)/zephyr
