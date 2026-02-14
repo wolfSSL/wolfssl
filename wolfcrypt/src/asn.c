@@ -8565,6 +8565,9 @@ int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
         || ks == RSAPSSk
     #endif
         ) {
+    #if defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(WOLFSSL_RSA_VERIFY_ONLY)
+        ret = NOT_COMPILED_IN;
+    #else
     #ifdef WOLFSSL_SMALL_STACK
         RsaKey* a;
         RsaKey* b = NULL;
@@ -8619,6 +8622,7 @@ int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
         wc_FreeRsaKey(a);
         WC_FREE_VAR_EX(b, NULL, DYNAMIC_TYPE_RSA);
         WC_FREE_VAR_EX(a, NULL, DYNAMIC_TYPE_RSA);
+    #endif /* !WOLFSSL_RSA_PUBLIC_ONLY && !WOLFSSL_RSA_VERIFY_ONLY */
     }
     else
     #endif /* !NO_RSA && !NO_ASN_CRYPT */
