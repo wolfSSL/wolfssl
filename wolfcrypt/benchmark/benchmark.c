@@ -4425,10 +4425,22 @@ static void* benchmarks_do(void* args)
 #endif
 
 #ifdef HAVE_ED25519
-    if (bench_all || (bench_asym_algs & BENCH_ED25519_KEYGEN))
-        bench_ed25519KeyGen();
-    if (bench_all || (bench_asym_algs & BENCH_ED25519_SIGN))
-        bench_ed25519KeySign();
+    if (bench_all || (bench_asym_algs & BENCH_ED25519_KEYGEN)) {
+    #ifndef NO_SW_BENCH
+        bench_ed25519KeyGen(0);
+    #endif
+    #ifdef BENCH_DEVID
+        bench_ed25519KeyGen(1);
+    #endif
+    }
+    if (bench_all || (bench_asym_algs & BENCH_ED25519_SIGN)) {
+    #ifndef NO_SW_BENCH
+        bench_ed25519KeySign(0);
+    #endif
+    #ifdef BENCH_DEVID
+        bench_ed25519KeySign(1);
+    #endif
+    }
 #endif
 
 #ifdef HAVE_CURVE448
@@ -12995,12 +13007,15 @@ exit:
 #endif /* HAVE_CURVE25519 */
 
 #ifdef HAVE_ED25519
-void bench_ed25519KeyGen(void)
+void bench_ed25519KeyGen(int useDeviceID)
 {
+#ifndef HAVE_ED25519_MAKE_KEY
+    (void)useDeviceID;
+#endif
 #ifdef HAVE_ED25519_MAKE_KEY
     ed25519_key genKey;
     double start;
-    int    i, count;
+    int    ret = 0, i, count;
     const char**desc = bench_desc_words[lng_index];
     DECLARE_MULTI_VALUE_STATS_VARS()
 
@@ -13010,9 +13025,19 @@ void bench_ed25519KeyGen(void)
     bench_stats_start(&count, &start);
     do {
         for (i = 0; i < genTimes; i++) {
-            wc_ed25519_init(&genKey);
-            (void)wc_ed25519_make_key(&gRng, 32, &genKey);
+            ret = wc_ed25519_init_ex(&genKey, HEAP_HINT,
+                useDeviceID ? devId : INVALID_DEVID);
+            if (ret != 0) {
+                printf("wc_ed25519_init_ex failed: %d\n", ret);
+                break;
+            }
+
+            ret = wc_ed25519_make_key(&gRng, 32, &genKey);
             wc_ed25519_free(&genKey);
+            if (ret != 0) {
+                printf("wc_ed25519_make_key failed: %d\n", ret);
+                break;
+            }
             RECORD_MULTI_VALUE_STATS();
         }
         count += i;
@@ -13022,7 +13047,8 @@ void bench_ed25519KeyGen(void)
 #endif
        );
 
-    bench_stats_asym_finish("ED", 25519, desc[2], 0, count, start, 0);
+    bench_stats_asym_finish("ED", 25519, desc[2], useDeviceID, count, start,
+        ret);
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
@@ -13030,11 +13056,9 @@ void bench_ed25519KeyGen(void)
 }
 
 
-void bench_ed25519KeySign(void)
+void bench_ed25519KeySign(int useDeviceID)
 {
-#ifdef HAVE_ED25519_MAKE_KEY
-    int    ret;
-#endif
+    int    ret = 0;
     ed25519_key genKey;
 #ifdef HAVE_ED25519_SIGN
     double start;
@@ -13048,7 +13072,12 @@ void bench_ed25519KeySign(void)
 
     bench_stats_prepare();
 
-    wc_ed25519_init(&genKey);
+    ret = wc_ed25519_init_ex(&genKey, HEAP_HINT,
+        useDeviceID ? devId : INVALID_DEVID);
+    if (ret != 0) {
+        printf("wc_ed25519_init_ex failed: %d\n", ret);
+        return;
+    }
 
 #ifdef HAVE_ED25519_MAKE_KEY
     ret = wc_ed25519_make_key(&gRng, ED25519_KEY_SIZE, &genKey);
@@ -13082,7 +13111,8 @@ void bench_ed25519KeySign(void)
        );
 
 exit_ed_sign:
-    bench_stats_asym_finish("ED", 25519, desc[4], 0, count, start, ret);
+    bench_stats_asym_finish("ED", 25519, desc[4], useDeviceID, count, start,
+        ret);
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
@@ -13110,7 +13140,8 @@ exit_ed_sign:
        );
 
 exit_ed_verify:
-    bench_stats_asym_finish("ED", 25519, desc[5], 0, count, start, ret);
+    bench_stats_asym_finish("ED", 25519, desc[5], useDeviceID, count, start,
+        ret);
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
