@@ -131,7 +131,8 @@ static WC_INLINE word64 Entropy_TimeHiRes(void)
 
     return cnt;
 }
-#elif !defined(ENTROPY_MEMUSE_THREAD) && (_POSIX_C_SOURCE >= 199309L)
+#elif !defined(ENTROPY_MEMUSE_THREAD) && defined(_POSIX_C_SOURCE) && \
+    (_POSIX_C_SOURCE >= 199309L)
 /* Get the high resolution time counter.
  *
  * @return  64-bit time that is the nanoseconds of current time.
@@ -154,6 +155,20 @@ static WC_INLINE word64 Entropy_TimeHiRes(void)
     LARGE_INTEGER count;
     QueryPerformanceCounter(&count);
     return (word64)(count.QuadPart);
+}
+#elif !defined(ENTROPY_MEMUSE_THREAD) && defined(__arm__)
+/* Get time counter from arch_sys_counter clocksource.
+ *
+ * @return  64-bit timer count.
+ */
+static WC_INLINE word64 Entropy_TimeHiRes(void)
+{
+    word32 lo, hi;
+    __asm__ __volatile__ (
+        "mrrc p15, 1, %[lo], %[hi], c14"
+        : [lo] "=r"(lo), [hi] "=r"(hi)
+    );
+    return ((word64)hi << 32) | lo;
 }
 #elif defined(WOLFSSL_THREAD_NO_JOIN)
 
