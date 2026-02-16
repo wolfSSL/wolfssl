@@ -825,6 +825,7 @@ int BufferLoadCRL(WOLFSSL_CRL* crl, const byte* buff, long sz, int type,
  */
 int BufferStoreCRL(WOLFSSL_CRL* crl, byte* buff, long* inOutSz, int type)
 {
+    int ret = 0;
     CRL_Entry* ent = NULL;
     const byte* tbs = NULL;
     word32 tbsSz = 0;
@@ -850,7 +851,8 @@ int BufferStoreCRL(WOLFSSL_CRL* crl, byte* buff, long* inOutSz, int type)
 
     outSz = *inOutSz;
 
-    /* Access the first CRL entry. */
+    /* Access the first CRL entry. Lock is held until encoding is complete
+     * to prevent the entry from being freed by another thread. */
     if (wc_LockRwLock_Rd(&crl->crlLock) != 0) {
         WOLFSSL_MSG("wc_LockRwLock_Rd failed");
         return BAD_MUTEX_E;
@@ -867,59 +869,63 @@ int BufferStoreCRL(WOLFSSL_CRL* crl, byte* buff, long* inOutSz, int type)
         sigParamsSz = ent->sigParamsSz;
 #endif
     }
-    wc_UnLockRwLock(&crl->crlLock);
 
     if (ent == NULL || tbs == NULL || tbsSz == 0 || sig == NULL || sigSz == 0) {
         WOLFSSL_MSG("CRL entry missing toBeSigned/signature data");
-        return BAD_FUNC_ARG;
+        ret = BAD_FUNC_ARG;
     }
 
     /* Calculate encoded lengths for AlgorithmIdentifier. */
+    if (ret == 0) {
 #ifdef WC_RSA_PSS
-    if (sigParams != NULL && sigParamsSz > 0) {
-        /* OID + explicit parameters inside SEQUENCE */
-        word32 oidSz = 0;
-        word32 idLen;
-        const byte* oid = OidFromId(sigOID, oidSigType, &oidSz);
-        if (oid == NULL) {
-            WOLFSSL_MSG("Unknown signature OID for CRL");
-            return WOLFSSL_FATAL_ERROR;
+        if (sigParams != NULL && sigParamsSz > 0) {
+            /* OID + explicit parameters inside SEQUENCE */
+            word32 oidSz = 0;
+            word32 idLen;
+            const byte* oid = OidFromId(sigOID, oidSigType, &oidSz);
+            if (oid == NULL) {
+                WOLFSSL_MSG("Unknown signature OID for CRL");
+                ret = WOLFSSL_FATAL_ERROR;
+            }
+            else {
+                /* OBJECT IDENTIFIER header */
+                idLen = (word32)SetObjectId((int)oidSz, NULL);
+                algoLen = SetSequence(idLen + oidSz + sigParamsSz, NULL)
+                        + idLen + oidSz + sigParamsSz;
+            }
         }
-        /* OBJECT IDENTIFIER header */
-        idLen = (word32)SetObjectId((int)oidSz, NULL);
-        algoLen = SetSequence(idLen + oidSz + sigParamsSz, NULL)
-                + idLen + oidSz + sigParamsSz;
-    }
-    else
+        else
 #endif
-    {
-        algoLen = SetAlgoID((int)sigOID, NULL, oidSigType, 0);
-        if (algoLen == 0) {
-            WOLFSSL_MSG("SetAlgoID failed");
-            return WOLFSSL_FATAL_ERROR;
+        {
+            algoLen = SetAlgoID((int)sigOID, NULL, oidSigType, 0);
+            if (algoLen == 0) {
+                WOLFSSL_MSG("SetAlgoID failed");
+                ret = WOLFSSL_FATAL_ERROR;
+            }
         }
     }
 
-    /* BIT STRING header for signature */
-    bitHdrLen = SetBitString(sigSz, 0, NULL);
+    if (ret == 0) {
+        /* BIT STRING header for signature */
+        bitHdrLen = SetBitString(sigSz, 0, NULL);
 
-    /* Compute total DER size. */
-    totalContentLen = tbsSz + algoLen + bitHdrLen + sigSz;
-    outerHdrLen = SetSequence(totalContentLen, NULL);
-    derNeeded = outerHdrLen + totalContentLen;
+        /* Compute total DER size. */
+        totalContentLen = tbsSz + algoLen + bitHdrLen + sigSz;
+        outerHdrLen = SetSequence(totalContentLen, NULL);
+        derNeeded = outerHdrLen + totalContentLen;
+    }
 
-    if (type == WOLFSSL_FILETYPE_ASN1) {
+    if (ret == 0 && type == WOLFSSL_FILETYPE_ASN1) {
         if (buff == NULL) {
             *inOutSz = (long)derNeeded;
-            return WOLFSSL_SUCCESS;
+            ret = WOLFSSL_SUCCESS;
         }
-        if ((long)derNeeded > outSz) {
+        else if ((long)derNeeded > outSz) {
             WOLFSSL_MSG("Output buffer too small for DER CRL");
-            return BUFFER_E;
+            ret = BUFFER_E;
         }
-
-        /* Encode DER CRL directly into caller buffer. */
-        {
+        else {
+            /* Encode DER CRL directly into caller buffer. */
             word32 pos = 0;
 #ifdef WC_RSA_PSS
             word32 oidSz = 0;
@@ -938,18 +944,20 @@ int BufferStoreCRL(WOLFSSL_CRL* crl, byte* buff, long* inOutSz, int type)
                 oid = OidFromId(sigOID, oidSigType, &oidSz);
                 if (oid == NULL) {
                     WOLFSSL_MSG("Unknown signature OID for CRL");
-                    return WOLFSSL_FATAL_ERROR;
+                    ret = WOLFSSL_FATAL_ERROR;
                 }
-                /* SEQUENCE header for AlgorithmIdentifier */
-                pos += SetSequence((word32)SetObjectId((int)oidSz, NULL) +
-                                   oidSz + sigParamsSz, buff + pos);
-                /* OBJECT IDENTIFIER header and content */
-                pos += (word32)SetObjectId((int)oidSz, buff + pos);
-                XMEMCPY(buff + pos, oid, oidSz);
-                pos += oidSz;
-                /* Parameters as captured (already DER encoded) */
-                XMEMCPY(buff + pos, sigParams, sigParamsSz);
-                pos += sigParamsSz;
+                else {
+                    /* SEQUENCE header for AlgorithmIdentifier */
+                    pos += SetSequence((word32)SetObjectId((int)oidSz, NULL) +
+                                       oidSz + sigParamsSz, buff + pos);
+                    /* OBJECT IDENTIFIER header and content */
+                    pos += (word32)SetObjectId((int)oidSz, buff + pos);
+                    XMEMCPY(buff + pos, oid, oidSz);
+                    pos += oidSz;
+                    /* Parameters as captured (already DER encoded) */
+                    XMEMCPY(buff + pos, sigParams, sigParamsSz);
+                    pos += sigParamsSz;
+                }
             }
             else
 #endif
@@ -957,26 +965,29 @@ int BufferStoreCRL(WOLFSSL_CRL* crl, byte* buff, long* inOutSz, int type)
                 pos += SetAlgoID((int)sigOID, buff + pos, oidSigType, 0);
             }
 
-            /* signature BIT STRING and bytes */
-            pos += SetBitString(sigSz, 0, buff + pos);
-            XMEMCPY(buff + pos, sig, sigSz);
+            if (ret == 0) {
+                /* signature BIT STRING and bytes */
+                pos += SetBitString(sigSz, 0, buff + pos);
+                XMEMCPY(buff + pos, sig, sigSz);
+
+                *inOutSz = (long)derNeeded;
+                ret = WOLFSSL_SUCCESS;
+            }
             (void)pos; /* pos not used after this point */
         }
-
-        *inOutSz = (long)derNeeded;
-        return WOLFSSL_SUCCESS;
     }
 #ifdef WOLFSSL_DER_TO_PEM
-    else if (type == WOLFSSL_FILETYPE_PEM) {
+    else if (ret == 0 && type == WOLFSSL_FILETYPE_PEM) {
         byte* derTmp = NULL;
         int pemSz;
         /* Build DER first in a temporary buffer. */
         derTmp = (byte*)XMALLOC(derNeeded, crl->heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (derTmp == NULL) {
-            return MEMORY_E;
+            ret = MEMORY_E;
         }
-        /* Encode DER CRL into temporary buffer. */
-        {
+
+        if (ret == 0) {
+            /* Encode DER CRL into temporary buffer. */
             word32 pos = 0;
 #ifdef WC_RSA_PSS
             word32 oidSz = 0;
@@ -989,56 +1000,63 @@ int BufferStoreCRL(WOLFSSL_CRL* crl, byte* buff, long* inOutSz, int type)
             if (sigParams != NULL && sigParamsSz > 0) {
                 oid = OidFromId(sigOID, oidSigType, &oidSz);
                 if (oid == NULL) {
-                    XFREE(derTmp, crl->heap, DYNAMIC_TYPE_TMP_BUFFER);
-                    return WOLFSSL_FATAL_ERROR;
+                    ret = WOLFSSL_FATAL_ERROR;
                 }
-                pos += SetSequence((word32)SetObjectId((int)oidSz, NULL) +
-                                   oidSz + sigParamsSz, derTmp + pos);
-                pos += (word32)SetObjectId((int)oidSz, derTmp + pos);
-                XMEMCPY(derTmp + pos, oid, oidSz);
-                pos += oidSz;
-                XMEMCPY(derTmp + pos, sigParams, sigParamsSz);
-                pos += sigParamsSz;
+                else {
+                    pos += SetSequence((word32)SetObjectId((int)oidSz, NULL) +
+                                       oidSz + sigParamsSz, derTmp + pos);
+                    pos += (word32)SetObjectId((int)oidSz, derTmp + pos);
+                    XMEMCPY(derTmp + pos, oid, oidSz);
+                    pos += oidSz;
+                    XMEMCPY(derTmp + pos, sigParams, sigParamsSz);
+                    pos += sigParamsSz;
+                }
             }
             else
 #endif
             {
                 pos += SetAlgoID((int)sigOID, derTmp + pos, oidSigType, 0);
             }
-            pos += SetBitString(sigSz, 0, derTmp + pos);
-            XMEMCPY(derTmp + pos, sig, sigSz);
+            if (ret == 0) {
+                pos += SetBitString(sigSz, 0, derTmp + pos);
+                XMEMCPY(derTmp + pos, sig, sigSz);
+            }
             (void)pos; /* pos not used after this point */
         }
 
         /* Determine required PEM size. */
-        pemSz = wc_DerToPemEx(derTmp, derNeeded, NULL, 0, NULL, CRL_TYPE);
-        if (pemSz < 0) {
-            XFREE(derTmp, crl->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            return WOLFSSL_FATAL_ERROR;
+        if (ret == 0) {
+            pemSz = wc_DerToPemEx(derTmp, derNeeded, NULL, 0, NULL, CRL_TYPE);
+            if (pemSz < 0) {
+                ret = WOLFSSL_FATAL_ERROR;
+            }
+            else if (buff == NULL) {
+                *inOutSz = pemSz;
+                ret = WOLFSSL_SUCCESS;
+            }
+            else if (outSz < pemSz) {
+                WOLFSSL_MSG("Output buffer too small for PEM CRL");
+                ret = BUFFER_E;
+            }
+            else if (wc_DerToPemEx(derTmp, derNeeded, buff, (word32)pemSz,
+                                   NULL, CRL_TYPE) < 0) {
+                ret = WOLFSSL_FATAL_ERROR;
+            }
+            else {
+                *inOutSz = pemSz;
+                ret = WOLFSSL_SUCCESS;
+            }
         }
-        if (buff == NULL) {
-            *inOutSz = pemSz;
-            XFREE(derTmp, crl->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            return WOLFSSL_SUCCESS;
-        }
-        if (outSz < pemSz) {
-            XFREE(derTmp, crl->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            WOLFSSL_MSG("Output buffer too small for PEM CRL");
-            return BUFFER_E;
-        }
-        if (wc_DerToPemEx(derTmp, derNeeded, buff, (word32)pemSz, NULL,
-                          CRL_TYPE) < 0) {
-            XFREE(derTmp, crl->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            return WOLFSSL_FATAL_ERROR;
-        }
-        *inOutSz = pemSz;
+
         XFREE(derTmp, crl->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        return WOLFSSL_SUCCESS;
     }
 #endif /* WOLFSSL_DER_TO_PEM */
-    else {
-        return BAD_FUNC_ARG;
+    else if (ret == 0) {
+        ret = BAD_FUNC_ARG;
     }
+
+    wc_UnLockRwLock(&crl->crlLock);
+    return ret;
 }
 
 #ifdef HAVE_CRL_UPDATE_CB

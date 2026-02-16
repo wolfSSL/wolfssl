@@ -95,12 +95,8 @@ check_crl() {
         -CRLfile "$crl" \
         "$revoked_cert" 2>&1) || verify_rc=$?
     verify_rc=${verify_rc:-0}
-    # Normalize to avoid case/CR differences and accept common OpenSSL error
-    # formats (some builds report only an error code).
-    verify_out_norm=$(printf '%s' "$verify_out" | tr '[:upper:]' '[:lower:]' | \
-        tr -d '\r')
-    if ! echo "$verify_out_norm" | grep -q "revoked" && \
-        ! echo "$verify_out_norm" | grep -q "error 23"; then
+    # Avoid pipefail/SIGPIPE false negatives with `grep -q` in a pipeline.
+    if ! grep -qi "revoked" <<< "$verify_out"; then
         echo "expected revoked verification failure for $label CRL"
         echo "$verify_out"
         return 1
