@@ -7894,7 +7894,7 @@ int wc_ecc_free(ecc_key* key)
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
     if (key->devId != INVALID_DEVID) {
         wc_CryptoCb_Free(key->devId, WC_ALGO_TYPE_PK,
-                         WC_PK_TYPE_EC_KEYGEN, key);
+                         WC_PK_TYPE_EC_KEYGEN, 0, key);
     }
 #endif
 

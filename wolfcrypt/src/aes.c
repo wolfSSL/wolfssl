@@ -13601,7 +13601,7 @@ void wc_AesFree(Aes* aes)
     #endif
     {
         int ret = wc_CryptoCb_Free(aes->devId, WC_ALGO_TYPE_CIPHER,
-                                   WC_CIPHER_AES, aes);
+                                   WC_CIPHER_AES, 0, aes);
     #ifdef WOLF_CRYPTO_CB_AES_SETKEY
         aes->devCtx = NULL;  /* Clear device context handle */
     #endif

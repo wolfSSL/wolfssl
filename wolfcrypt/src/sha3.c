@@ -1252,7 +1252,7 @@ static void wc_Sha3Free(wc_Sha3* sha3)
     #endif
     {
         ret = wc_CryptoCb_Free(sha3->devId, WC_ALGO_TYPE_HASH,
-                         sha3->hashType, (void*)sha3);
+                         sha3->hashType, 0, (void*)sha3);
         /* If they want the standard free, they can call it themselves */
         /* via their callback setting devId to INVALID_DEVID */
         /* otherwise assume the callback handled it */

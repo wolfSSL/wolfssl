@@ -488,6 +488,7 @@ typedef struct wc_CryptoInfo {
     struct {      /* uses wc_AlgoType=WC_ALGO_TYPE_FREE */
         int algo; /* enum wc_AlgoType - HASH, CIPHER, etc */
         int type; /* For HASH: wc_HashType, CIPHER: wc_CipherType */
+        int subType; /* For PQC: wc_PqcKemType, wc_PqcSignatureType */
         void *obj; /* Object structure to free */
     } free;
 #endif /* WOLF_CRYPTO_CB_FREE */
@@ -768,7 +769,8 @@ WOLFSSL_LOCAL int wc_CryptoCb_Copy(int devId, int algo, int type, void* src,
                                     void* dst);
 #endif /* WOLF_CRYPTO_CB_COPY */
 #ifdef WOLF_CRYPTO_CB_FREE
-WOLFSSL_LOCAL int wc_CryptoCb_Free(int devId, int algo, int type, void* obj);
+WOLFSSL_LOCAL int wc_CryptoCb_Free(int devId, int algo, int type, int subType,
+    void* obj);
 #endif /* WOLF_CRYPTO_CB_FREE */
 
 #endif /* WOLF_CRYPTO_CB */
