@@ -2994,6 +2994,7 @@ static int Pkcs11ECDH(Pkcs11Session* session, wc_CryptoInfo* info)
 {
     int                    ret = 0;
     int                    sessionKey = 0;
+    int                    destroyPrivKey = 0;
     unsigned char*         point = NULL;
     word32                 pointLen;
     CK_RV                  rv;
@@ -3038,6 +3039,11 @@ static int Pkcs11ECDH(Pkcs11Session* session, wc_CryptoInfo* info)
         else {
             ret = Pkcs11FindEccKey(&privateKey, CKO_PRIVATE_KEY, session,
                                           info->pk.ecdh.public_key, CKA_DERIVE);
+            if (ret == 0) {
+                /* Key found by public key match is likely ephemeral (e.g. from
+                 * Pkcs11EcKeyGen for ECDHE), clean it up after use. */
+                destroyPrivKey = 1;
+            }
         }
     }
     if (ret == 0) {
@@ -3085,8 +3091,23 @@ static int Pkcs11ECDH(Pkcs11Session* session, wc_CryptoInfo* info)
                                                           info->pk.ecdh.outlen);
     }
 
-    if (sessionKey)
+    if (secret != CK_INVALID_HANDLE)
+        session->func->C_DestroyObject(session->handle, secret);
+
+    if (sessionKey) {
         session->func->C_DestroyObject(session->handle, privateKey);
+    }
+    else if (destroyPrivKey && privateKey != NULL_PTR) {
+        /* Only destroy if the key is a non-persistent session object */
+        CK_BBOOL isToken = CK_FALSE;
+        CK_ATTRIBUTE tokenTmpl[] = {
+            { CKA_TOKEN, &isToken, sizeof(isToken) },
+        };
+        if (session->func->C_GetAttributeValue(session->handle, privateKey,
+                tokenTmpl, 1) == CKR_OK && isToken == CK_FALSE) {
+            session->func->C_DestroyObject(session->handle, privateKey);
+        }
+    }
 
     if (point != NULL)
         XFREE(point, info->pk.ecdh.public_key->heap, DYNAMIC_TYPE_ECC_BUFFER);
