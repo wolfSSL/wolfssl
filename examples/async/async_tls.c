@@ -23,8 +23,10 @@
     #include <config.h>
 #endif
 
-#ifndef WOLFSSL_USER_SETTINGS
-#include <wolfssl/options.h>
+#ifdef WOLFSSL_USER_SETTINGS
+    #include "user_settings.h"
+#else
+    #include <wolfssl/options.h>
 #endif
 #include "examples/async/async_tls.h"
 #include <wolfssl/ssl.h>
