@@ -27,6 +27,8 @@ $(SEARCH_wolfssl)/wolfcrypt/src/sm3_asm.S
 $(SEARCH_wolfssl)/wolfcrypt/src/sp_x86_64_asm.S
 $(SEARCH_wolfssl)/wolfcrypt/src/sp_sm2_x86_64_asm.S
 $(SEARCH_wolfssl)/wolfcrypt/src/wc_kyber_asm.S
+$(SEARCH_wolfssl)/wolfcrypt/src/wc_mldsa_asm.S
+$(SEARCH_wolfssl)/wolfcrypt/src/wc_mlkem_asm.S
 
 $(SEARCH_wolfssl)/wolfcrypt/src/port/arm/armv8-32-aes-asm.S
 $(SEARCH_wolfssl)/wolfcrypt/src/port/arm/armv8-32-curve25519.S
