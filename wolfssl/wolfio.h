@@ -176,6 +176,10 @@
         #include <lwip-socket.h>
         #include <errno.h>
     #elif defined(WOLFSSL_ZEPHYR)
+        #ifdef __cplusplus
+            }  /* extern "C" */
+        #endif
+
         #include <version.h>
         #if KERNEL_VERSION_NUMBER >= 0x30100
             #include <zephyr/net/socket.h>
@@ -187,6 +191,10 @@
             #ifdef CONFIG_POSIX_API
                 #include <posix/sys/socket.h>
             #endif
+        #endif
+
+        #ifdef __cplusplus
+            extern "C" {
         #endif
     #elif defined(MICROCHIP_PIC32)
         #include <sys/errno.h>
@@ -533,7 +541,11 @@
         typedef struct hostent          HOSTENT;
     #endif /* HAVE_SOCKADDR */
 
-    #if defined(HAVE_GETADDRINFO)
+    #if defined(WOLFSSL_ZEPHYR)
+        typedef struct zsock_addrinfo   ADDRINFO;
+        #define getaddrinfo             zsock_getaddrinfo
+        #define freeaddrinfo            zsock_freeaddrinfo
+    #elif defined(HAVE_GETADDRINFO)
         typedef struct addrinfo         ADDRINFO;
     #endif
 #endif /* WOLFSSL_NO_SOCK */
@@ -572,6 +584,10 @@ union WOLFSSL_BIO_ADDR {
 };
 
 typedef union WOLFSSL_BIO_ADDR WOLFSSL_BIO_ADDR;
+
+WOLFSSL_API WOLFSSL_BIO_ADDR *wolfSSL_BIO_ADDR_new(void);
+WOLFSSL_API void wolfSSL_BIO_ADDR_free(WOLFSSL_BIO_ADDR *addr);
+WOLFSSL_API void wolfSSL_BIO_ADDR_clear(WOLFSSL_BIO_ADDR *addr);
 
 #if defined(WOLFSSL_DTLS) && defined(OPENSSL_EXTRA)
 WOLFSSL_API  int wolfIO_SendTo(SOCKET_T sd, WOLFSSL_BIO_ADDR *addr, char *buf, int sz, int wrFlags);
@@ -987,13 +1003,15 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
             #define XINET_PTON(a,b,c)   *(unsigned *)(c) = inet_addr((b))
         #endif
     #elif defined(USE_WINDOWS_API) /* Windows-friendly definition */
-        #if defined(__MINGW64__) && !defined(UNICODE)
+        #if (defined(__MINGW32__) || defined(__MINGW64__)) && !defined(UNICODE)
             #define XINET_PTON(a,b,c)   InetPton((a),(b),(c))
         #else
             #define XINET_PTON(a,b,c)   InetPton((a),(PCWSTR)(b),(c))
         #endif
     #elif defined(FREESCALE_MQX)
         #define XINET_PTON(a,b,c,d) inet_pton((a),(b),(c),(d))
+    #elif defined(WOLFSSL_ZEPHYR)
+        #define XINET_PTON(a,b,c)   zsock_inet_pton((a),(b),(c))
     #else
         #define XINET_PTON(a,b,c)   inet_pton((a),(b),(c))
     #endif

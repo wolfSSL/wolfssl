@@ -307,8 +307,11 @@ typedef const char wcchar[];
 #endif
 
 #if defined(WORD64_AVAILABLE) && !defined(WC_16BIT_CPU)
-    /* These platforms have 64-bit CPU registers.  */
-    #if (defined(__alpha__) || defined(__ia64__) || defined(_ARCH_PPC64) || \
+    #if defined(WC_64BIT_CPU)
+        /* explicitly configured for 64 bit. */
+    #elif defined(WC_32BIT_CPU)
+        /* explicitly configured for 32 bit. */
+    #elif (defined(__alpha__) || defined(__ia64__) || defined(_ARCH_PPC64) || \
         (defined(__mips64) && \
          ((defined(_ABI64) && (_MIPS_SIM == _ABI64)) || \
           (defined(_ABIO64) && (_MIPS_SIM == _ABIO64)))) || \
@@ -317,6 +320,7 @@ typedef const char wcchar[];
         (defined(__riscv_xlen) && (__riscv_xlen == 64)) || defined(_M_ARM64) || \
         defined(__aarch64__) || defined(__ppc64__) || \
         (defined(__DCC__) && (defined(__LP64) || defined(__LP64__)))
+        /* The above platforms have 64-bit CPU registers. */
         #define WC_64BIT_CPU
     #elif (defined(sun) || defined(__sun)) && \
           (defined(LP64) || defined(_LP64))
@@ -1357,6 +1361,7 @@ enum {
     DYNAMIC_TYPE_X509_ACERT   = 103,
     DYNAMIC_TYPE_OS_BUF       = 104,
     DYNAMIC_TYPE_ASCON        = 105,
+    DYNAMIC_TYPE_SHA          = 106,
     DYNAMIC_TYPE_SNIFFER_SERVER       = 1000,
     DYNAMIC_TYPE_SNIFFER_SESSION      = 1001,
     DYNAMIC_TYPE_SNIFFER_PB           = 1002,
@@ -1435,7 +1440,19 @@ enum wc_HashType {
     WC_HASH_TYPE_SHA3_512 = 13,
     WC_HASH_TYPE_BLAKE2B = 14,
     WC_HASH_TYPE_BLAKE2S = 19,
+#ifdef WOLFSSL_SHAKE128
+    WC_HASH_TYPE_SHAKE128 = 20,
+#endif
+#ifdef WOLFSSL_SHAKE256
+    WC_HASH_TYPE_SHAKE256 = 21,
+#endif
+#if defined(WOLFSSL_SHAKE256)
+    WC_HASH_TYPE_MAX = WC_HASH_TYPE_SHAKE256,
+#elif defined(WOLFSSL_SHAKE128)
+    WC_HASH_TYPE_MAX = WC_HASH_TYPE_SHAKE128,
+#else
     WC_HASH_TYPE_MAX = WC_HASH_TYPE_BLAKE2S,
+#endif
     #ifndef WOLFSSL_NOSHA512_224
         #define WOLFSSL_NOSHA512_224
     #endif
@@ -2089,7 +2106,9 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
     #define wc_static_assert(expr) struct wc_static_assert_dummy_struct
     #define wc_static_assert2(expr, msg) wc_static_assert(expr)
 #elif !defined(wc_static_assert)
-    #if defined(WOLFSSL_HAVE_ASSERT_H) && !defined(WOLFSSL_NO_ASSERT_H)
+    #if !defined(WOLFSSL_NO_ASSERT_H) && (defined(WOLFSSL_HAVE_ASSERT_H) || \
+        (defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)) || \
+        (defined(__cplusplus) && (__cplusplus >= 201103L)))
         #include <assert.h>
     #endif
     #if (defined(__cplusplus) && (__cplusplus >= 201703L)) || \
@@ -2379,6 +2398,8 @@ enum Max_ASN {
         #ifndef NO_RSA
         int encSigSz;
         #endif
+        int digestSz;
+        int typeH; /* Hash algorithm type for encoding */
         int state; /* enum CertSignState */
     } CertSignCtx;
 

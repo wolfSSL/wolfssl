@@ -1761,6 +1761,9 @@ enum Misc {
     RSA_PSS_PSS_SHA256_MINOR = 0x09,
     RSA_PSS_PSS_SHA384_MINOR = 0x0A,
     RSA_PSS_PSS_SHA512_MINOR = 0x0B,
+    ECDSA_BRAINPOOLP256R1TLS13_SHA256_MINOR = 0x1A,
+    ECDSA_BRAINPOOLP384R1TLS13_SHA384_MINOR = 0x1B,
+    ECDSA_BRAINPOOLP512R1TLS13_SHA512_MINOR = 0x1C,
 
     ED25519_SA_MAJOR    = 8,   /* Most significant byte for ED25519 */
     ED25519_SA_MINOR    = 7,   /* Least significant byte for ED25519 */
@@ -1884,7 +1887,7 @@ WOLFSSL_LOCAL int NamedGroupIsPqcHybrid(int group);
      */
     #define WOLFSSL_MAX_SIGALGO 128
 #else
-    #define WOLFSSL_MAX_SIGALGO 38
+    #define WOLFSSL_MAX_SIGALGO 44
 #endif
 #endif
 
@@ -2378,7 +2381,8 @@ typedef struct CipherSuite {
     #define InitSuitesHashSigAlgo wolfSSL_InitSuitesHashSigAlgo
 #endif
 WOLFSSL_TEST_VIS void InitSuitesHashSigAlgo(byte* hashSigAlgo, int have,
-                                       int tls1_2, int keySz, word16* len);
+                                       int tls1_2, int tls1_3, int keySz,
+                                       word16* len);
 WOLFSSL_LOCAL int AllocateCtxSuites(WOLFSSL_CTX* ctx);
 WOLFSSL_LOCAL int AllocateSuites(WOLFSSL* ssl);
 WOLFSSL_LOCAL void InitSuites(Suites* suites, ProtocolVersion pv, int keySz,
@@ -3194,8 +3198,9 @@ WOLFSSL_LOCAL int TLSX_Append(TLSX** list, TLSX_Type type,
    || defined(HAVE_SECURE_RENEGOTIATION)          \
    || defined(HAVE_SERVER_RENEGOTIATION_INFO)
 
+#ifndef NO_TLS
 #error Using TLS extensions requires HAVE_TLS_EXTENSIONS to be defined.
-
+#endif
 #endif /* HAVE_TLS_EXTENSIONS */
 
 /** Server Name Indication - RFC 6066 (session 3) */
@@ -3400,6 +3405,7 @@ WOLFSSL_LOCAL int TLSX_ValidateSupportedCurves(const WOLFSSL* ssl, byte first,
 WOLFSSL_LOCAL int TLSX_SupportedCurve_CheckPriority(WOLFSSL* ssl);
 WOLFSSL_LOCAL int TLSX_SupportedFFDHE_Set(WOLFSSL* ssl);
 #endif
+WOLFSSL_LOCAL int TLSX_SupportedCurve_IsSupported(WOLFSSL* ssl, word16 name);
 WOLFSSL_LOCAL int TLSX_SupportedCurve_Preferred(WOLFSSL* ssl,
                                                             int checkSupported);
 WOLFSSL_LOCAL int TLSX_SupportedCurve_Parse(const WOLFSSL* ssl,
@@ -4316,6 +4322,7 @@ enum SignatureAlgorithm {
     dilithium_level5_sa_algo     = 16,
     sm2_sa_algo                  = 17,
     any_sa_algo                  = 18,
+    ecc_brainpool_sa_algo        = 19,
     invalid_sa_algo              = 255
 };
 
@@ -5100,6 +5107,7 @@ struct Options {
     word16            hrrSentCookie:1;    /* HRR sent with cookie */
 #endif
     word16            hrrSentKeyShare:1;  /* HRR sent with key share */
+    word16            shSentKeyShare:1;   /* SH sent with key share */
 #endif
     word16            returnOnGoodCh:1;
     word16            disableRead:1;
@@ -5253,6 +5261,7 @@ typedef enum {
     STACK_TYPE_X509_CRL           = 16,
     STACK_TYPE_X509_NAME_ENTRY    = 17,
     STACK_TYPE_X509_REQ_ATTR      = 18,
+    STACK_TYPE_GENERAL_SUBTREE    = 19,
 } WOLF_STACK_TYPE;
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
@@ -5281,6 +5290,7 @@ struct WOLFSSL_STACK {
         void*                  generic;
         char*                  string;
         WOLFSSL_GENERAL_NAME*  gn;
+        WOLFSSL_GENERAL_SUBTREE* subtree;
         WOLFSSL_BY_DIR_entry*  dir_entry;
         WOLFSSL_BY_DIR_HASH*   dir_hash;
         WOLFSSL_X509_OBJECT*   x509_obj;
@@ -5321,7 +5331,23 @@ struct WOLFSSL_X509_NAME {
 
 #ifdef NO_ASN
     typedef struct DNS_entry DNS_entry;
+    #ifndef IGNORE_NAME_CONSTRAINTS
+        typedef struct Base_entry Base_entry;
+    #endif
 #endif
+
+#ifndef WOLFSSL_AIA_ENTRY_DEFINED
+#ifndef WOLFSSL_MAX_AIA_ENTRIES
+    #define WOLFSSL_MAX_AIA_ENTRIES 8
+#endif
+
+#define WOLFSSL_AIA_ENTRY_DEFINED
+typedef struct WOLFSSL_AIA_ENTRY {
+    word32      method; /* AIA method OID sum (e.g., AIA_OCSP_OID). */
+    const byte* uri;    /* Pointer into cert DER for the URI. */
+    word32      uriSz;  /* Length of URI data. */
+} WOLFSSL_AIA_ENTRY;
+#endif /* WOLFSSL_AIA_ENTRY_DEFINED */
 
 struct WOLFSSL_X509 {
     int              version;
@@ -5349,6 +5375,11 @@ struct WOLFSSL_X509 {
     buffer           sig;
     int              sigOID;
     DNS_entry*       altNames;                       /* alt names list */
+#ifndef IGNORE_NAME_CONSTRAINTS
+    Base_entry*      permittedNames;                 /* name constraints */
+    Base_entry*      excludedNames;
+    byte             nameConstraintCrit:1;
+#endif
     buffer           pubKey;
     int              pubKeyOID;
     DNS_entry*       altNamesNext;                   /* hint for retrieval */
@@ -5388,6 +5419,9 @@ struct WOLFSSL_X509 {
     byte*            authInfoCaIssuer;
     int              authInfoCaIssuerSz;
 #endif
+    WOLFSSL_AIA_ENTRY authInfoList[WOLFSSL_MAX_AIA_ENTRIES];
+    byte             authInfoListSz:7;
+    byte             authInfoListOverflow:1;
     word32           pathLength;
     word16           keyUsage;
     int              rawCRLInfoSz;
@@ -5447,7 +5481,9 @@ struct WOLFSSL_X509 {
 #endif /* WOLFSSL_CERT_REQ || WOLFSSL_CERT_GEN */
     WOLFSSL_X509_NAME issuer;
     WOLFSSL_X509_NAME subject;
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_WPAS)
+#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || \
+    defined(OPENSSL_EXTRA_X509_SMALL) || defined(WOLFSSL_APACHE_HTTPD) || \
+    defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_WPAS)
     WOLFSSL_X509_ALGOR algor;
     WOLFSSL_X509_PUBKEY key;
 #endif
@@ -6338,6 +6374,10 @@ struct WOLFSSL {
 #if defined(WOLFSSL_SYS_CRYPTO_POLICY)
     int secLevel; /* The security level of system-wide crypto policy. */
 #endif /* WOLFSSL_SYS_CRYPTO_POLICY */
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(WOLFSSL_HARDEN_TLS) && !defined(WOLFSSL_HARDEN_TLS_NO_SCR_CHECK)
+    WC_BITFIELD          scr_check_enabled:1;  /* enable/disable SCR check */
+#endif
 };
 
 #if defined(WOLFSSL_SYS_CRYPTO_POLICY)

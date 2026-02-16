@@ -168,6 +168,7 @@ static void* wolfssl_sk_node_get_data(WOLFSSL_STACK* node, int no_static)
         case STACK_TYPE_X509_OBJ:
         case STACK_TYPE_DIST_POINT:
         case STACK_TYPE_X509_CRL:
+        case STACK_TYPE_GENERAL_SUBTREE:
         default:
             ret = node->data.generic;
             break;
@@ -212,6 +213,7 @@ static void wolfssl_sk_node_set_data(WOLFSSL_STACK* node, WOLF_STACK_TYPE type,
         case STACK_TYPE_X509_OBJ:
         case STACK_TYPE_DIST_POINT:
         case STACK_TYPE_X509_CRL:
+        case STACK_TYPE_GENERAL_SUBTREE:
         default:
             node->data.generic = (void*)data;
 #ifdef OPENSSL_ALL
@@ -252,6 +254,50 @@ int wolfSSL_sk_push_node(WOLFSSL_STACK** stack, WOLFSSL_STACK* node)
         }
         /* Return new start. */
         *stack = node;
+    }
+
+    return ret;
+}
+
+/* Pushes the node onto the back of the stack.
+ *
+ * If *stack is NULL, node becomes the head.
+ *
+ * @param [in, out] stack  Stack of nodes.
+ * @param [in]      node   Node to append.
+ *
+ * @return WOLFSSL_SUCCESS on success
+ * @return WOLFSSL_FAILURE when stack or node is NULL.
+ */
+int wolfSSL_sk_push_back_node(WOLFSSL_STACK** stack, WOLFSSL_STACK* node)
+{
+    int ret = WOLFSSL_SUCCESS;
+
+    /* Validate parameters. */
+    if (stack == NULL || node == NULL) {
+        ret = WOLFSSL_FAILURE;
+    }
+    if (ret == WOLFSSL_SUCCESS) {
+        node->next = NULL;
+        /* Tail node has num of 1, indicating 1 node till the end */
+        node->num = 1;
+
+        if (*stack == NULL) {
+            /* First node. */
+            *stack = node;
+        }
+        else {
+            /* Walk to the end and append.  Each node's num field holds the
+             * count of nodes from that node to the tail (inclusive), so
+             * every existing node's num increases by one. */
+            WOLFSSL_STACK* cur = *stack;
+            while (cur->next != NULL) {
+                cur->num++;
+                cur = cur->next;
+            }
+            cur->num++;
+            cur->next = node;
+        }
     }
 
     return ret;
@@ -430,6 +476,7 @@ static int wolfssl_sk_dup_data(WOLFSSL_STACK* dst, WOLFSSL_STACK* src)
         case STACK_TYPE_BY_DIR_hash:
         case STACK_TYPE_DIST_POINT:
         case STACK_TYPE_X509_CRL:
+        case STACK_TYPE_GENERAL_SUBTREE:
         default:
             WOLFSSL_MSG("Unsupported stack type");
             err = 1;
@@ -622,6 +669,7 @@ void* wolfSSL_sk_value(const WOLFSSL_STACK* sk, int i)
             case STACK_TYPE_X509_OBJ:
             case STACK_TYPE_DIST_POINT:
             case STACK_TYPE_X509_CRL:
+            case STACK_TYPE_GENERAL_SUBTREE:
             default:
                 val = sk->data.generic;
                 break;
@@ -805,6 +853,11 @@ static wolfSSL_sk_freefunc wolfssl_sk_get_free_func(WOLF_STACK_TYPE type)
             break;
         case STACK_TYPE_GEN_NAME:
             func = (wolfSSL_sk_freefunc)wolfSSL_GENERAL_NAME_free;
+            break;
+        case STACK_TYPE_GENERAL_SUBTREE:
+        #if defined(OPENSSL_EXTRA) && !defined(IGNORE_NAME_CONSTRAINTS)
+            func = (wolfSSL_sk_freefunc)wolfSSL_GENERAL_SUBTREE_free;
+        #endif
             break;
         case STACK_TYPE_STRING:
         #if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \

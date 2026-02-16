@@ -1118,7 +1118,8 @@ int test_tls13_bad_psk_binder(void)
 }
 
 
-#if defined(HAVE_RPK) && !defined(NO_TLS)
+#if defined(HAVE_RPK) && !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER)
 
 #define svrRpkCertFile     "./certs/rpk/server-cert-rpk.der"
 #define clntRpkCertFile    "./certs/rpk/client-cert-rpk.der"
@@ -1225,13 +1226,15 @@ static WC_INLINE int test_rpk_memio_setup(
 
     return 0;
 }
-#endif /* HAVE_RPK && !NO_TLS */
+#endif /* HAVE_RPK && !NO_TLS && !NO_WOLFSSL_CLIENT && !NO_WOLFSSL_SERVER */
 
 
 int test_tls13_rpk_handshake(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_RPK) && (!defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_TLS13))
+#if defined(HAVE_RPK) && \
+    (!defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_TLS13)) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
 #ifdef WOLFSSL_TLS13
     int ret = 0;
 #endif
@@ -2081,9 +2084,15 @@ static int test_tls13_mock_wantwrite_cb(WOLFSSL* ssl, char* data, int sz,
     void* ctx)
 {
     struct test_tls13_wwrite_ctx *wwctx = (struct test_tls13_wwrite_ctx *)ctx;
-    wwctx->want_write = !wwctx->want_write;
-    if (wwctx->want_write) {
-        return WOLFSSL_CBIO_ERR_WANT_WRITE;
+#ifdef WOLFSSL_TLS13_MIDDLEBOX_COMPAT
+    /* Write ChangeCipherSpec message. */
+    if (data[0] != 0x14)
+#endif
+    {
+        wwctx->want_write = !wwctx->want_write;
+        if (wwctx->want_write) {
+            return WOLFSSL_CBIO_ERR_WANT_WRITE;
+        }
     }
     return test_memio_write_cb(ssl, data, sz, wwctx->test_ctx);
 }

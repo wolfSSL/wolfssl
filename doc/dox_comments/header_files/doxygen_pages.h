@@ -76,3 +76,26 @@
     - \ref SAKKE_RSK
     - \ref SAKKE_Operations
 */
+/*!
+    \page AES_CryptoCB_KeyImport AES CryptoCB Key Import
+
+    When enabled via WOLF_CRYPTO_CB_AES_SETKEY, wolfSSL invokes a CryptoCB
+    callback during AES key setup. The callback behavior determines the mode:
+
+    **If callback returns 0 (success):**
+    - Key is imported to Secure Element/HSM
+    - Key is NOT copied to wolfSSL RAM (true key isolation)
+    - GCM tables are NOT generated (full hardware offload)
+    - All subsequent AES operations route through CryptoCB
+
+    **If callback returns CRYPTOCB_UNAVAILABLE:**
+    - SE doesn't support key import
+    - Normal software AES path is used
+    - Key is copied to devKey for CryptoCB encrypt/decrypt acceleration
+
+    This mode is compatible with Secure Elements and hardware-backed
+    key storage and is intended for protecting TLS traffic keys.
+
+    \sa wc_CryptoCb_AesSetKey
+    \sa \ref Crypto Callbacks
+*/

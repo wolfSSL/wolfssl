@@ -377,6 +377,13 @@ typedef struct wc_CryptoInfo {
                 word32      sz;
             } des3;
         #endif
+        #if !defined(NO_AES) && defined(WOLF_CRYPTO_CB_AES_SETKEY)
+            struct {
+                Aes*        aes;
+                const byte* key;
+                word32      keySz;
+            } aessetkey;
+        #endif
             void* ctx;
 #ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
         };
@@ -678,6 +685,9 @@ WOLFSSL_LOCAL int wc_CryptoCb_AesEcbEncrypt(Aes* aes, byte* out,
 WOLFSSL_LOCAL int wc_CryptoCb_AesEcbDecrypt(Aes* aes, byte* out,
                                const byte* in, word32 sz);
 #endif /* HAVE_AES_ECB */
+#ifdef WOLF_CRYPTO_CB_AES_SETKEY
+WOLFSSL_API int wc_CryptoCb_AesSetKey(Aes* aes, const byte* key, word32 keySz);
+#endif /* WOLF_CRYPTO_CB_AES_SETKEY */
 #endif /* !NO_AES */
 
 #ifndef NO_DES3

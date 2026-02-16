@@ -2093,7 +2093,7 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     \return 0 Returned upon successfully setting the callback context the input message
 
     \param key pointer to the ecc_key object
-    \param ctx pointer to ecc_nb_ctx_t structure with stack data cache for SP
+    \param ctx pointer to ecc nb_ctx_t structure with stack data cache for SP
 
     _Example_
     \code

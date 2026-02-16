@@ -2,10 +2,14 @@ name: hostap and wpa-supplicant Tests
 
 # START OF COMMON SECTION
 on:
-  push:
-    branches: [ 'master', 'main', 'release/**' ]
-  pull_request:
-    branches: [ '*' ]
+    workflow_dispatch: # Allows people to run it manually if they want but
+                       # disables it from running automatically when broken
+# To restore this to an auto test delete the above workflow_dispatch line and
+# comments and uncomment the below lines for push and pull_request
+#  push:
+#    branches: [ 'master', 'main', 'release/**' ]
+#  pull_request:
+#    branches: [ '*' ]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

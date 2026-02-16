@@ -16847,6 +16847,7 @@ L_AES_decrypt_block_nr:
 	.align	4
 L_AES_ARM32_td_ecb:
 	.word	L_AES_ARM32_td_data
+#if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || defined(HAVE_AES_ECB)
 	.text
 	.type	L_AES_ARM32_ecb_td4, %object
 	.size	L_AES_ARM32_ecb_td4, 256
@@ -17108,7 +17109,6 @@ L_AES_ARM32_ecb_td4:
 	.byte	0x21
 	.byte	0xc
 	.byte	0x7d
-#if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || defined(HAVE_AES_ECB)
 	.text
 	.align	4
 	.globl	AES_ECB_decrypt

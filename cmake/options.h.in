@@ -270,6 +270,10 @@ extern "C" {
 #cmakedefine WOLFSSL_AES_OFB
 #undef WOLFSSL_AES_SIV
 #cmakedefine WOLFSSL_AES_SIV
+#undef HAVE_AES_ECB
+#cmakedefine HAVE_AES_ECB
+#undef WOLFSSL_AES_CTS
+#cmakedefine WOLFSSL_AES_CTS
 #undef WOLFSSL_ALT_CERT_CHAINS
 #cmakedefine WOLFSSL_ALT_CERT_CHAINS
 #undef WOLFSSL_APPLE_NATIVE_CERT_VALIDATION
@@ -302,6 +306,8 @@ extern "C" {
 #cmakedefine WOLFSSL_DTLS_CID
 #undef WOLFSSL_DTLS13
 #cmakedefine WOLFSSL_DTLS13
+#undef WOLFSSL_DTLS_CH_FRAG
+#cmakedefine WOLFSSL_DTLS_CH_FRAG
 #undef WOLFSSL_EITHER_SIDE
 #cmakedefine WOLFSSL_EITHER_SIDE
 #undef WOLFSSL_ENCRYPTED_KEYS
@@ -400,6 +406,8 @@ extern "C" {
 #cmakedefine WOLFSSL_HAVE_XMSS
 #undef WOLFSSL_WC_XMSS
 #cmakedefine WOLFSSL_WC_XMSS
+#undef WC_RSA_DIRECT
+#cmakedefine WC_RSA_DIRECT
 
 #ifdef __cplusplus
 }

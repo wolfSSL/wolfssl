@@ -35850,22 +35850,23 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_sub_8(sp_digit* r,
     register sp_digit* r __asm__ ("r0") = (sp_digit*)r_p;
     register const sp_digit* a __asm__ ("r1") = (const sp_digit*)a_p;
     register const sp_digit* b __asm__ ("r2") = (const sp_digit*)b_p;
+    register const sp_digit* m __asm__ ("r3") = (const sp_digit*)m_p;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "MOV	lr, #0x0\n\t"
         "LDM	%[a], {r5, r6, r7, r8, r9, r10, r11, r12}\n\t"
         "LDM	%[b]!, {r3, r4}\n\t"
-        "SUBS	r5, r5, r3\n\t"
+        "SUBS	r5, r5, %[m]\n\t"
         "SBCS	r6, r6, r4\n\t"
         "LDM	%[b]!, {r3, r4}\n\t"
-        "SBCS	r7, r7, r3\n\t"
+        "SBCS	r7, r7, %[m]\n\t"
         "SBCS	r8, r8, r4\n\t"
         "LDM	%[b]!, {r3, r4}\n\t"
-        "SBCS	r9, r9, r3\n\t"
+        "SBCS	r9, r9, %[m]\n\t"
         "SBCS	r10, r10, r4\n\t"
         "LDM	%[b]!, {r3, r4}\n\t"
-        "SBCS	r11, r11, r3\n\t"
+        "SBCS	r11, r11, %[m]\n\t"
         "SBCS	r12, r12, r4\n\t"
         "SBC	lr, lr, #0x0\n\t"
         "ADDS	r5, r5, lr\n\t"
@@ -35886,16 +35887,11 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_sub_8(sp_digit* r,
         "ADCS	r11, r11, lr, LSR #31\n\t"
         "ADC	r12, r12, lr\n\t"
         "STM	%[r], {r5, r6, r7, r8, r9, r10, r11, r12}\n\t"
-        : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
+        : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
         :
-        : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
-            "r11", "r12", "lr"
+        : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
+            "r12", "lr"
     );
-#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-    (void)m_p;
-#else
-    (void)m;
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 /* Divide the number by 2 mod the modulus (prime). (r = a / 2 % m)
@@ -36307,15 +36303,15 @@ static int sp_256_proj_point_add_8_nb(sp_ecc_ctx_t* sp_ctx, sp_point_256* r,
     int err = FP_WOULDBLOCK;
     sp_256_proj_point_add_8_ctx* ctx = (sp_256_proj_point_add_8_ctx*)sp_ctx->data;
 
+    typedef char ctx_size_test[sizeof(sp_256_proj_point_add_8_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
     /* Ensure only the first point is the same as the result. */
     if (q == r) {
         const sp_point_256* a = p;
         p = q;
         q = a;
     }
-
-    typedef char ctx_size_test[sizeof(sp_256_proj_point_add_8_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
-    (void)sizeof(ctx_size_test);
 
     switch (ctx->state) {
     case 0: /* INIT */
@@ -45717,7 +45713,7 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_384_mont_sub_12(sp_digit* r,
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
-        "MOV	r3, #0x0\n\t"
+        "MOV	%[m], #0x0\n\t"
         "LDM	%[a]!, {r8, r9, r10, r11}\n\t"
         "LDM	%[b]!, {r4, r5, r6, r7}\n\t"
         "SUBS	r8, r8, r4\n\t"
@@ -45739,47 +45735,47 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_384_mont_sub_12(sp_digit* r,
         "SBCS	r10, r10, r6\n\t"
         "SBCS	r11, r11, r7\n\t"
         "STM	%[r]!, {r8, r9, r10, r11}\n\t"
-        "SBC	r3, r3, #0x0\n\t"
+        "SBC	%[m], %[m], #0x0\n\t"
         "SUB	%[r], %[r], #0x30\n\t"
-        "LSR	r12, r3, #1\n\t"
+        "LSR	r12, %[m], #1\n\t"
         "LDM	%[r], {r8, r9, r10, r11}\n\t"
-        "ADDS	r8, r8, r3\n\t"
+        "ADDS	r8, r8, %[m]\n\t"
         "ADCS	r9, r9, #0x0\n\t"
         "ADCS	r10, r10, #0x0\n\t"
-        "ADCS	r11, r11, r3\n\t"
+        "ADCS	r11, r11, %[m]\n\t"
         "STM	%[r]!, {r8, r9, r10, r11}\n\t"
         "LDM	%[r], {r8, r9, r10, r11}\n\t"
         "ADCS	r8, r8, r12, LSL #1\n\t"
-        "ADCS	r9, r9, r3\n\t"
-        "ADCS	r10, r10, r3\n\t"
-        "ADCS	r11, r11, r3\n\t"
+        "ADCS	r9, r9, %[m]\n\t"
+        "ADCS	r10, r10, %[m]\n\t"
+        "ADCS	r11, r11, %[m]\n\t"
         "STM	%[r]!, {r8, r9, r10, r11}\n\t"
         "LDM	%[r], {r8, r9, r10, r11}\n\t"
-        "ADCS	r8, r8, r3\n\t"
-        "ADCS	r9, r9, r3\n\t"
-        "ADCS	r10, r10, r3\n\t"
-        "ADCS	r11, r11, r3\n\t"
+        "ADCS	r8, r8, %[m]\n\t"
+        "ADCS	r9, r9, %[m]\n\t"
+        "ADCS	r10, r10, %[m]\n\t"
+        "ADCS	r11, r11, %[m]\n\t"
         "STM	%[r]!, {r8, r9, r10, r11}\n\t"
-        "ADC	r3, r3, #0x0\n\t"
+        "ADC	%[m], %[m], #0x0\n\t"
         "SUB	%[r], %[r], #0x30\n\t"
-        "LSR	r12, r3, #1\n\t"
+        "LSR	r12, %[m], #1\n\t"
         "LDM	%[r], {r8, r9, r10, r11}\n\t"
-        "ADDS	r8, r8, r3\n\t"
+        "ADDS	r8, r8, %[m]\n\t"
         "ADCS	r9, r9, #0x0\n\t"
         "ADCS	r10, r10, #0x0\n\t"
-        "ADCS	r11, r11, r3\n\t"
+        "ADCS	r11, r11, %[m]\n\t"
         "STM	%[r]!, {r8, r9, r10, r11}\n\t"
         "LDM	%[r], {r8, r9, r10, r11}\n\t"
         "ADCS	r8, r8, r12, LSL #1\n\t"
-        "ADCS	r9, r9, r3\n\t"
-        "ADCS	r10, r10, r3\n\t"
-        "ADCS	r11, r11, r3\n\t"
+        "ADCS	r9, r9, %[m]\n\t"
+        "ADCS	r10, r10, %[m]\n\t"
+        "ADCS	r11, r11, %[m]\n\t"
         "STM	%[r]!, {r8, r9, r10, r11}\n\t"
         "LDM	%[r], {r8, r9, r10, r11}\n\t"
-        "ADCS	r8, r8, r3\n\t"
-        "ADCS	r9, r9, r3\n\t"
-        "ADCS	r10, r10, r3\n\t"
-        "ADC	r11, r11, r3\n\t"
+        "ADCS	r8, r8, %[m]\n\t"
+        "ADCS	r9, r9, %[m]\n\t"
+        "ADCS	r10, r10, %[m]\n\t"
+        "ADC	r11, r11, %[m]\n\t"
         "STM	%[r]!, {r8, r9, r10, r11}\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
         :
@@ -46218,15 +46214,15 @@ static int sp_384_proj_point_add_12_nb(sp_ecc_ctx_t* sp_ctx, sp_point_384* r,
     int err = FP_WOULDBLOCK;
     sp_384_proj_point_add_12_ctx* ctx = (sp_384_proj_point_add_12_ctx*)sp_ctx->data;
 
+    typedef char ctx_size_test[sizeof(sp_384_proj_point_add_12_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
     /* Ensure only the first point is the same as the result. */
     if (q == r) {
         const sp_point_384* a = p;
         p = q;
         q = a;
     }
-
-    typedef char ctx_size_test[sizeof(sp_384_proj_point_add_12_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
-    (void)sizeof(ctx_size_test);
 
     switch (ctx->state) {
     case 0: /* INIT */
@@ -57482,10 +57478,11 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_521_mont_sub_17(sp_digit* r,
     register sp_digit* r __asm__ ("r0") = (sp_digit*)r_p;
     register const sp_digit* a __asm__ ("r1") = (const sp_digit*)a_p;
     register const sp_digit* b __asm__ ("r2") = (const sp_digit*)b_p;
+    register const sp_digit* m __asm__ ("r3") = (const sp_digit*)m_p;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
-        "MOV	r3, #0x0\n\t"
+        "MOV	%[m], #0x0\n\t"
         "LDM	%[a]!, {r8, r9, r10, r11}\n\t"
         "LDM	%[b]!, {r4, r5, r6, r7}\n\t"
         "SUBS	r8, r8, r4\n\t"
@@ -57518,13 +57515,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_521_mont_sub_17(sp_digit* r,
         "LDM	%[b]!, {r4}\n\t"
         "SBCS	r8, r8, r4\n\t"
         "MOV	r12, #0x1ff\n\t"
-        "ASR	r3, r8, #9\n\t"
+        "ASR	%[m], r8, #9\n\t"
         "AND	r8, r8, r12\n\t"
-        "neg	r3, r3\n\t"
+        "neg	%[m], %[m]\n\t"
         "STM	%[r]!, {r8}\n\t"
         "SUB	%[r], %[r], #0x44\n\t"
         "LDM	%[r], {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
-        "SUBS	r4, r4, r3\n\t"
+        "SUBS	r4, r4, %[m]\n\t"
         "SBCS	r5, r5, #0x0\n\t"
         "SBCS	r6, r6, #0x0\n\t"
         "SBCS	r7, r7, #0x0\n\t"
@@ -57546,16 +57543,11 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_521_mont_sub_17(sp_digit* r,
         "LDM	%[r], {r4}\n\t"
         "SBCS	r4, r4, #0x0\n\t"
         "STM	%[r]!, {r4}\n\t"
-        : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
+        : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
         :
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
-            "r3", "r12"
+            "r12"
     );
-#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-    (void)m_p;
-#else
-    (void)m;
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -58009,15 +58001,15 @@ static int sp_521_proj_point_add_17_nb(sp_ecc_ctx_t* sp_ctx, sp_point_521* r,
     int err = FP_WOULDBLOCK;
     sp_521_proj_point_add_17_ctx* ctx = (sp_521_proj_point_add_17_ctx*)sp_ctx->data;
 
+    typedef char ctx_size_test[sizeof(sp_521_proj_point_add_17_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
     /* Ensure only the first point is the same as the result. */
     if (q == r) {
         const sp_point_521* a = p;
         p = q;
         q = a;
     }
-
-    typedef char ctx_size_test[sizeof(sp_521_proj_point_add_17_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
-    (void)sizeof(ctx_size_test);
 
     switch (ctx->state) {
     case 0: /* INIT */
@@ -72548,15 +72540,15 @@ static int sp_1024_proj_point_add_32_nb(sp_ecc_ctx_t* sp_ctx, sp_point_1024* r,
     int err = FP_WOULDBLOCK;
     sp_1024_proj_point_add_32_ctx* ctx = (sp_1024_proj_point_add_32_ctx*)sp_ctx->data;
 
+    typedef char ctx_size_test[sizeof(sp_1024_proj_point_add_32_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
     /* Ensure only the first point is the same as the result. */
     if (q == r) {
         const sp_point_1024* a = p;
         p = q;
         q = a;
     }
-
-    typedef char ctx_size_test[sizeof(sp_1024_proj_point_add_32_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
-    (void)sizeof(ctx_size_test);
 
     switch (ctx->state) {
     case 0: /* INIT */

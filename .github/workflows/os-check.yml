@@ -17,7 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-22.04, macos-latest ]
+        os: [ ubuntu-24.04, macos-latest ]
         config: [
           # Add new configs here
           '',
@@ -70,6 +70,22 @@ jobs:
           '--enable-all --enable-certgencache',
           '--enable-sessionexport --enable-dtls --enable-dtls13',
           '--enable-sessionexport',
+          '--enable-cryptocb --enable-aesgcm CPPFLAGS="-DWOLF_CRYPTO_CB_AES_SETKEY -DWOLF_CRYPTO_CB_FREE"',
+          '--disable-tls --enable-cryptocb --enable-aesgcm CPPFLAGS="-DWOLF_CRYPTO_CB_AES_SETKEY -DWOLF_CRYPTO_CB_FREE"',
+          '--enable-cryptocb --enable-aesgcm CPPFLAGS="-DWOLF_CRYPTO_CB_AES_SETKEY"',
+          '--disable-examples CPPFLAGS=-DWOLFSSL_NO_MALLOC',
+          'CPPFLAGS=-DNO_WOLFSSL_CLIENT',
+          'CPPFLAGS=-DNO_WOLFSSL_SERVER',
+          'CPPFLAGS=-DWOLFSSL_NO_CLIENT_AUTH',
+          'CPPFLAGS=''-DNO_WOLFSSL_CLIENT -DWOLFSSL_NO_CLIENT_AUTH''',
+          'CPPFLAGS=''-DNO_WOLFSSL_SERVER -DWOLFSSL_NO_CLIENT_AUTH''',
+          '--enable-all CPPFLAGS=-DNO_WOLFSSL_CLIENT',
+          '--enable-all CPPFLAGS=-DNO_WOLFSSL_SERVER',
+          '--enable-all CPPFLAGS=-DWOLFSSL_NO_CLIENT_AUTH',
+          '--enable-all CPPFLAGS=''-DNO_WOLFSSL_CLIENT -DWOLFSSL_NO_CLIENT_AUTH''',
+          '--enable-all CPPFLAGS=''-DNO_WOLFSSL_SERVER -DWOLFSSL_NO_CLIENT_AUTH''',
+          '--enable-curve25519=nonblock --enable-ecc=nonblock --enable-sp=yes,nonblock CPPFLAGS="-DWOLFSSL_PUBLIC_MP -DWOLFSSL_DEBUG_NONBLOCK"',
+          '--enable-certreq --enable-certext --enable-certgen --disable-secure-renegotiation-info CPPFLAGS="-DNO_TLS"',
         ]
     name: make check
     if: github.repository_owner == 'wolfssl'
@@ -87,7 +103,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-22.04, macos-latest ]
+        os: [ ubuntu-24.04, macos-latest ]
         user-settings: [
           # Add new user_settings.h here
           'examples/configs/user_settings_all.h',
@@ -109,15 +125,27 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-22.04, macos-latest ]
+        os: [ ubuntu-24.04, macos-latest ]
         user-settings: [
-          # Add new user_settings.h here
+          # Add new user_settings.h here (alphabetical order)
+          'examples/configs/user_settings_ca.h',
+          'examples/configs/user_settings_dtls13.h',
+          'examples/configs/user_settings_EBSnet.h',
           'examples/configs/user_settings_eccnonblock.h',
+          'examples/configs/user_settings_curve25519nonblock.h',
           'examples/configs/user_settings_min_ecc.h',
-          'examples/configs/user_settings_wolfboot_keytools.h',
-          'examples/configs/user_settings_wolftpm.h',
-          'examples/configs/user_settings_wolfssh.h',
+          'examples/configs/user_settings_openssl_compat.h',
+          'examples/configs/user_settings_pkcs7.h',
+          'examples/configs/user_settings_rsa_only.h',
+          'examples/configs/user_settings_template.h',
           'examples/configs/user_settings_tls12.h',
+          'examples/configs/user_settings_tls13.h',
+          'examples/configs/user_settings_wolfboot_keytools.h',
+          'examples/configs/user_settings_wolfssh.h',
+          'examples/configs/user_settings_wolftpm.h',
+          # Not included (require special setup):
+          # - user_settings_pq.h: Requires --enable-experimental
+          # - user_settings_baremetal.h: Requires static memory, custom platform
         ]
     name: make user_setting.h (testwolfcrypt only)
     if: github.repository_owner == 'wolfssl'
@@ -140,7 +168,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-22.04, macos-latest ]
+        os: [ ubuntu-24.04, macos-latest ]
     name: make user_setting.h (with sed)
     if: github.repository_owner == 'wolfssl'
     runs-on: ${{ matrix.os }}

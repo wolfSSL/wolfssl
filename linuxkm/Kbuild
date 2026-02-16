@@ -147,9 +147,15 @@ ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
     $(WOLFCRYPT_PIE_FILES): ccflags-y += $(PIE_FLAGS)
     $(WOLFCRYPT_PIE_FILES): ccflags-remove-y += -pg \
         $(call cc-option,-ftrivial-auto-var-init=zero)
-    ifdef FORCE_GLOBAL_OBJTOOL_OFF
-        undefine CONFIG_OBJTOOL
-    endif
+endif
+
+# On some kernels/configs, objtool runs and warns on the linked libwolfssl.o,
+# ignoring the below "OBJECT_FILES_NON_STANDARD := y" annotations.  This
+# mechanism, activated with "make KBUILD_EXTRA_FLAGS=FORCE_GLOBAL_OBJTOOL_OFF=1",
+# inhibits objtool completely.  This may be necessary on modules compiled with
+# assembly accelerations and/or ENABLED_LINUXKM_PIE.
+ifdef FORCE_GLOBAL_OBJTOOL_OFF
+    undefine CONFIG_OBJTOOL
 endif
 
 ifdef KERNEL_EXTRA_CFLAGS_REMOVE

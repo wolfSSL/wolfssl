@@ -321,6 +321,45 @@ keyUsage=critical, digitalSignature, keyCertSign, cRLSign
 [ crl_dist_points ]
 crlDistributionPoints=URI:http://www.wolfssl.com/crl.pem
 
+# AIA test certs
+[ aia_ca_issuers ]
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid:always,issuer:always
+basicConstraints=critical,CA:true
+authorityInfoAccess=@aia_ca_issuers_info
+
+[ aia_ca_issuers_info ]
+caIssuers;URI.0=http://example.com/ca.pem
+
+[ aia_multi ]
+subjectKeyIdentifier=hash
+basicConstraints=CA:true
+keyUsage=digitalSignature, keyCertSign
+authorityInfoAccess=@aia_multi_info
+
+[ aia_multi_info ]
+OCSP;URI.0=http://127.0.0.1:22221
+OCSP;URI.1=http://127.0.0.1:22222
+caIssuers;URI.0=http://www.wolfssl.com/ca.pem
+caIssuers;URI.1=https://www.wolfssl.com/ca2.pem
+
+[ aia_overflow ]
+subjectKeyIdentifier=hash
+basicConstraints=CA:true
+keyUsage=digitalSignature, keyCertSign
+authorityInfoAccess=@aia_overflow_info
+
+[ aia_overflow_info ]
+OCSP;URI.0=http://127.0.0.1:22220
+OCSP;URI.1=http://127.0.0.1:22221
+OCSP;URI.2=http://127.0.0.1:22222
+OCSP;URI.3=http://127.0.0.1:22223
+OCSP;URI.4=http://127.0.0.1:22224
+OCSP;URI.5=http://127.0.0.1:22225
+OCSP;URI.6=http://127.0.0.1:22226
+OCSP;URI.7=http://127.0.0.1:22227
+OCSP;URI.8=http://127.0.0.1:22228
+
 #tsa default
 [ tsa ]
 default_tsa = tsa_config1
@@ -403,5 +442,4 @@ RID.1 = 1.2.3.4.5
 DNS.1 = www.example.org
 URI.1 = https://www.wolfssl.com/
 otherName.2 = 2.16.840.1.101.3.6.6;FORMAT:HEX,OCT:D1:38:10:D8:28:AF:2C:10:84:35:15:A1:68:58:28:AF:02:10:86:A2:84:E7:39:C3:EB
-
 

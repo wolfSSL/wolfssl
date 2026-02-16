@@ -18,7 +18,9 @@ if BUILD_RSA
 if BUILD_CRL
 # make revoked test rely on completion of resume test
 dist_noinst_SCRIPTS+= scripts/crl-revoked.test
+dist_noinst_SCRIPTS+= scripts/crl-gen-openssl.test
 scripts/crl-revoked.log: scripts/resume.log
+scripts/crl-gen-openssl.log: scripts/crl-revoked.log
 endif
 
 # arrange to serialize ocsp.test, ocsp-stapling.test, ocsp-stapling-with-ca-as-responder.test, ocsp-stapling2.test, and testsuite,

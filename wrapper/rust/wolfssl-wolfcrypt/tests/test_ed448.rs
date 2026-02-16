@@ -1,11 +1,15 @@
 #![cfg(ed448)]
 
+mod common;
+
 use wolfssl_wolfcrypt::random::RNG;
 use wolfssl_wolfcrypt::ed448::*;
 
 #[test]
 #[cfg(all(ed448_import, ed448_export))]
 fn test_make_public() {
+    common::setup();
+
     let mut rng = RNG::new().expect("Error creating RNG");
     let ed = Ed448::generate(&mut rng).expect("Error with generate()");
     let mut private = [0u8; Ed448::KEY_SIZE];
@@ -214,6 +218,8 @@ fn test_ph_sign_verify() {
 #[test]
 #[cfg(all(ed448_import, ed448_export))]
 fn test_import_export() {
+    common::setup();
+
     let mut rng = RNG::new().expect("Error creating RNG");
     let ed = Ed448::generate(&mut rng).expect("Error with generate()");
 

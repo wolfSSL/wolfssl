@@ -313,7 +313,8 @@ int wc_XChaCha20Poly1305_Init(
     byte authKey[CHACHA20_POLY1305_AEAD_KEYSIZE];
     int ret;
 
-    if ((ad == NULL) || (nonce == NULL) || (key == NULL))
+    if ((aead == NULL) || (ad == NULL && ad_len > 0) || (nonce == NULL) ||
+        (key == NULL))
         return BAD_FUNC_ARG;
 
     if ((key_len != CHACHA20_POLY1305_AEAD_KEYSIZE) ||

@@ -21,6 +21,10 @@
 #                       1024/client-cert.pem
 #                       server-ecc-comp.pem
 #                       client-ca.pem
+#                       client-ca-cert.der
+#                       client-ca-cert.pem
+#                       client-ecc-ca-cert.der
+#                       client-ecc-ca-cert.pem
 #                       test/digsigku.pem
 #                       ecc-privOnlyCert.pem
 #                       client-uri-cert.pem
@@ -31,6 +35,9 @@
 #                       fpki-cert.der
 #                       fpki-certpol-cert.der
 #                       rid-cert.der
+#                       aia/ca-issuers-cert.pem
+#                       aia/multi-aia-cert.pem
+#                       aia/overflow-aia-cert.pem
 # updates the following crls:
 #                       crl/cliCrl.pem
 #                       crl/crl.pem
@@ -289,6 +296,60 @@ run_renewcerts(){
     openssl x509 -in ca-cert.pem -text > tmp.pem
     check_result $? "Step 3"
     mv tmp.pem ca-cert.pem
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+    ############################################################
+    ########## update AIA test certs ###########################
+    ############################################################
+    echo "Updating AIA test certs"
+    echo ""
+    mkdir -p aia
+
+    echo "Updating aia/ca-issuers-cert.pem"
+    echo ""
+    openssl req -new -newkey rsa:2048 -nodes -keyout aia/ca-issuers-key.pem -subj "/CN=wolfssl-aia-test" -out aia/ca-issuers-cert.csr
+    check_result $? "Step AIA-1"
+
+    openssl x509 -req -in aia/ca-issuers-cert.csr -days 365 -extfile wolfssl.cnf -extensions aia_ca_issuers -signkey aia/ca-issuers-key.pem -out aia/ca-issuers-cert.pem
+    check_result $? "Step AIA-2"
+    rm aia/ca-issuers-cert.csr
+
+    openssl x509 -in aia/ca-issuers-cert.pem -text > tmp.pem
+    check_result $? "Step AIA-3"
+    mv tmp.pem aia/ca-issuers-cert.pem
+    rm aia/ca-issuers-key.pem
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+
+    echo "Updating aia/multi-aia-cert.pem"
+    echo ""
+    openssl req -new -newkey rsa:2048 -nodes -keyout aia/multi-aia-key.pem -subj "/CN=wolfssl-aia-multi-test" -out aia/multi-aia-cert.csr
+    check_result $? "Step AIA-4"
+
+    openssl x509 -req -in aia/multi-aia-cert.csr -days 365 -extfile wolfssl.cnf -extensions aia_multi -signkey aia/multi-aia-key.pem -out aia/multi-aia-cert.pem
+    check_result $? "Step AIA-5"
+    rm aia/multi-aia-cert.csr
+
+    openssl x509 -in aia/multi-aia-cert.pem -text > tmp.pem
+    check_result $? "Step AIA-6"
+    mv tmp.pem aia/multi-aia-cert.pem
+    rm aia/multi-aia-key.pem
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+
+    echo "Updating aia/overflow-aia-cert.pem"
+    echo ""
+    openssl req -new -newkey rsa:2048 -nodes -keyout aia/overflow-aia-key.pem -subj "/CN=wolfssl-aia-overflow-test" -out aia/overflow-aia-cert.csr
+    check_result $? "Step AIA-7"
+
+    openssl x509 -req -in aia/overflow-aia-cert.csr -days 365 -extfile wolfssl.cnf -extensions aia_overflow -signkey aia/overflow-aia-key.pem -out aia/overflow-aia-cert.pem
+    check_result $? "Step AIA-8"
+    rm aia/overflow-aia-cert.csr
+
+    openssl x509 -in aia/overflow-aia-cert.pem -text > tmp.pem
+    check_result $? "Step AIA-9"
+    mv tmp.pem aia/overflow-aia-cert.pem
+    rm aia/overflow-aia-key.pem
     echo "End of section"
     echo "---------------------------------------------------------------------"
     ############################################################
@@ -893,6 +954,73 @@ run_renewcerts(){
     openssl smime -encrypt -binary -aes-256-cbc -in ./client-key.pem  -out ./test-multiple-recipients.p7b -outform DER ./client-cert.pem ./server-cert.pem
     check_result $? ""
 
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+
+    ############################################################
+    ########## update and sign client-ca-cert.pem ##############
+    ############################################################
+    echo "Updating client-ca-cert.pem"
+    echo ""
+    cat > client-ca-ext.cnf <<'EOF'
+[ client_ca ]
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid:always,issuer:always
+basicConstraints=critical, CA:FALSE
+keyUsage=critical, digitalSignature, keyEncipherment
+extendedKeyUsage=clientAuth
+EOF
+    check_result $? "Step 1"
+
+    #pipe the following arguments to openssl req...
+    echo -e "US\\nMontana\\nBozeman\\nwolfSSL_2048\\nProgramming-2048\\n" \
+        "www.wolfssl.com\\ninfo@wolfssl.com\\n.\\n.\\n" | \
+        openssl req -new -key client-key.pem -config ./wolfssl.cnf -nodes \
+        > client-ca-cert-req.pem
+    check_result $? "Step 2"
+
+    openssl x509 -req -in client-ca-cert-req.pem -extfile client-ca-ext.cnf \
+        -extensions client_ca -days 1000 -CA ca-cert.pem -CAkey ca-key.pem \
+        -set_serial 0x1235 > client-ca-cert.pem
+    check_result $? "Step 3"
+    rm client-ca-cert-req.pem
+
+    openssl x509 -in client-ca-cert.pem -text > tmp.pem
+    check_result $? "Step 4"
+    mv tmp.pem client-ca-cert.pem
+
+    openssl x509 -inform PEM -in client-ca-cert.pem -outform DER \
+        -out client-ca-cert.der
+    check_result $? "Step 5"
+    rm client-ca-ext.cnf
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+
+    ############################################################
+    ####### update and sign client-ecc-ca-cert.pem #############
+    ############################################################
+    echo "Updating client-ecc-ca-cert.pem"
+    echo ""
+    #pipe the following arguments to openssl req...
+    echo -e "US\\nOregon\\nSalem\\nClient ECC\\nFast\\nwww.wolfssl.com\\n" \
+        "info@wolfssl.com\\n.\\n.\\n" | \
+        openssl req -new -key ecc-client-key.pem -config ./wolfssl.cnf -nodes \
+        > client-ecc-ca-cert-req.pem
+    check_result $? "Step 1"
+
+    openssl x509 -req -in client-ecc-ca-cert-req.pem -extfile wolfssl.cnf \
+        -extensions client_ecc -days 1000 -CA ca-ecc-cert.pem \
+        -CAkey ca-ecc-key.pem -set_serial 0x1234 > client-ecc-ca-cert.pem
+    check_result $? "Step 2"
+    rm client-ecc-ca-cert-req.pem
+
+    openssl x509 -in client-ecc-ca-cert.pem -text > tmp.pem
+    check_result $? "Step 3"
+    mv tmp.pem client-ecc-ca-cert.pem
+
+    openssl x509 -inform PEM -in client-ecc-ca-cert.pem -outform DER \
+        -out client-ecc-ca-cert.der
+    check_result $? "Step 4"
     echo "End of section"
     echo "---------------------------------------------------------------------"
 

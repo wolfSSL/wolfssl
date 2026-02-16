@@ -19,6 +19,7 @@ fn main() {
 /// Returns `Ok(())` if successful, or an error if any step fails.
 fn run_build() -> Result<()> {
     generate_bindings()?;
+    generate_fips_aliases()?;
     setup_wolfssl_link()?;
     scan_cfg()?;
     Ok(())
@@ -64,6 +65,79 @@ fn generate_bindings() -> Result<()> {
         })
 }
 
+/// Generate FIPS symbol aliases.
+///
+/// Since Rust can't use fips.h's #defines which map the "regular" wc function
+/// name to the _fips variant, and since bindgen has only seen the _fips
+/// variant, we will generate aliases that allow the non-_fips variant function
+/// name to be called without the _fips prefix by Rust sources in a manner
+/// similar to which C sources would be able to call the non-_fips variant
+/// function name.
+///
+/// Returns `Ok(())` if successful, or an error if generation fails.
+fn generate_fips_aliases() -> Result<()> {
+    let binding = read_file(bindings_path())?;
+    let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
+    let aliases_path = out_dir.join("fips_aliases.rs");
+
+    let mut aliases = String::new();
+
+    // Find all _fips symbol names
+    let fips_sym_re = Regex::new(r"pub fn (wc_\w+)_fips\s*\(").unwrap();
+
+    for cap in fips_sym_re.captures_iter(&binding) {
+        let mut base_name = &cap[1];
+        let fips_name = format!("{}_fips", base_name);
+
+        // Exception mappings: (standard_name, fips_name)
+        // For cases where FIPS name doesn't follow the simple <name>_fips pattern
+        let exceptions: &[(&str, &str)] = &[
+            // _ex suffix changed to Ex before _fips
+            ("wc_InitRsaKey_ex", "wc_InitRsaKeyEx_fips"),
+            ("wc_RsaPublicEncrypt_ex", "wc_RsaPublicEncryptEx_fips"),
+            ("wc_RsaPrivateDecryptInline_ex", "wc_RsaPrivateDecryptInlineEx_fips"),
+            ("wc_RsaPrivateDecrypt_ex", "wc_RsaPrivateDecryptEx_fips"),
+            ("wc_RsaPSS_Sign_ex", "wc_RsaPSS_SignEx_fips"),
+            ("wc_RsaPSS_VerifyInline_ex", "wc_RsaPSS_VerifyInlineEx_fips"),
+            ("wc_RsaPSS_Verify_ex", "wc_RsaPSS_VerifyEx_fips"),
+            ("wc_RsaPSS_CheckPadding_ex", "wc_RsaPSS_CheckPaddingEx_fips"),
+            ("wc_DhSetKey_ex", "wc_DhSetKeyEx_fips"),
+            ("wc_DhCheckPubKey_ex", "wc_DhCheckPubKeyEx_fips"),
+            ("wc_DhCheckPrivKey_ex", "wc_DhCheckPrivKeyEx_fips"),
+
+            // Name change
+            ("wc_PRF_TLS", "wc_PRF_TLSv12_fips"),
+        ];
+
+        // Handle exceptions
+        for (exc_base_name, exc_fips_name) in exceptions {
+            if fips_name == *exc_fips_name {
+                base_name = exc_base_name;
+                break;
+            }
+        }
+
+        // Check if the non-_fips version exists in bindings
+        let non_fips_pattern = format!(r"pub fn {}\s*\(", regex::escape(base_name));
+        let non_fips_re = Regex::new(&non_fips_pattern).unwrap();
+
+        if non_fips_re.is_match(&binding) {
+            // Add any new known names defined with both a _fips suffix and not
+            // here. Warn if any new ones are discovered.
+            if base_name != "wc_AesGcmEncrypt" {
+                println!("cargo:warning=Skipping FIPS symbols alias for {}", base_name);
+            }
+        } else {
+            // Only alias if the base name doesn't already exist
+            aliases.push_str(&format!("pub use {} as {};\n", fips_name, base_name));
+        }
+    }
+
+    fs::write(&aliases_path, aliases)?;
+
+    Ok(())
+}
+
 /// Instruct cargo to link against wolfssl C library
 ///
 /// Returns `Ok(())` if successful, or an error if any step fails.
@@ -93,7 +167,7 @@ fn read_file(path: String) -> Result<String> {
 }
 
 fn check_cfg(binding: &str, function_name: &str, cfg_name: &str) {
-    let pattern = format!(r"\b{}\b", function_name);
+    let pattern = format!(r"\b{}(_fips)?\b", function_name);
     let re = match Regex::new(&pattern) {
         Ok(r) => r,
         Err(e) => {
@@ -128,7 +202,9 @@ fn scan_cfg() -> Result<()> {
 
     /* blake2 */
     check_cfg(&binding, "wc_InitBlake2b", "blake2b");
+    check_cfg(&binding, "wc_Blake2bHmac", "blake2b_hmac");
     check_cfg(&binding, "wc_InitBlake2s", "blake2s");
+    check_cfg(&binding, "wc_Blake2sHmac", "blake2s_hmac");
 
     /* chacha20_poly1305 */
     check_cfg(&binding, "wc_ChaCha20Poly1305_Encrypt", "chacha20_poly1305");
@@ -179,6 +255,9 @@ fn scan_cfg() -> Result<()> {
     check_cfg(&binding, "wc_ed448_verify_msg_ex", "ed448_verify");
     check_cfg(&binding, "wc_ed448_verify_msg_init", "ed448_streaming_verify");
 
+    /* fips */
+    check_cfg(&binding, "wc_SetSeed_Cb_fips", "fips");
+
     /* hkdf */
     check_cfg(&binding, "wc_HKDF_Extract_ex", "hkdf");
 
@@ -211,6 +290,8 @@ fn scan_cfg() -> Result<()> {
     check_cfg(&binding, "wc_InitSha256", "sha256");
     check_cfg(&binding, "wc_InitSha384", "sha384");
     check_cfg(&binding, "wc_InitSha512", "sha512");
+    check_cfg(&binding, "wc_HashType_WC_HASH_TYPE_SHA512_224", "sha512_224");
+    check_cfg(&binding, "wc_HashType_WC_HASH_TYPE_SHA512_256", "sha512_256");
     check_cfg(&binding, "wc_InitSha3_224", "sha3");
     check_cfg(&binding, "wc_InitShake128", "shake128");
     check_cfg(&binding, "wc_InitShake256", "shake256");

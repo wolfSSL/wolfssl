@@ -88,6 +88,10 @@ fi
 if [ $? -eq 0 ]; then
     exit 0
 fi
+./examples/client/client '-?' 2>&1 | grep -- 'Disable client cert/key loading'
+if [ $? -eq 0 ]; then
+    CLIENT_AUTH_ENABLED=1
+fi
 
 # Usual psk server / psk client. This use case is tested in
 # tests/unit.test and is used here for just checking if PSK is enabled
@@ -144,19 +148,21 @@ if [ $? -ne 0 ]; then
     fi
     echo ""
 
-    # check fail if no auth, psk server with non psk client
-    echo "Checking fail when not sending peer cert"
-    port=0
-    ./examples/server/server -j -R "$ready_file" -p $port &
-    server_pid=$!
-    create_port
-    ./examples/client/client -x -p $port
-    RESULT=$?
-    remove_ready_file
-    if [ $RESULT -eq 0 ]; then
-        echo -e "\n\nClient connected when supposed to fail"
-        do_cleanup
-        exit 1
+    if [ "$CLIENT_AUTH_ENABLED" != "" ]; then
+        # check fail if no auth, psk server with non psk client
+        echo "Checking fail when not sending peer cert"
+        port=0
+        ./examples/server/server -j -R "$ready_file" -p $port &
+        server_pid=$!
+        create_port
+        ./examples/client/client -x -p $port
+        RESULT=$?
+        remove_ready_file
+        if [ $RESULT -eq 0 ]; then
+            echo -e "\n\nClient connected when supposed to fail"
+            do_cleanup
+            exit 1
+        fi
     fi
 fi
 

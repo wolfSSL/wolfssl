@@ -91,6 +91,7 @@
 
 /* Disable Algorithms */
 #define NO_DES3
+#define NO_DES3_TLS_SUITES
 #define NO_DSA
 #define NO_RC4
 #define NO_MD4

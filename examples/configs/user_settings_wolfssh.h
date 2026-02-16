@@ -46,8 +46,8 @@ wolfSSH:
 make
 */
 
-#ifndef WOLFSSL_USER_SETTINGS_SSH_H
-#define WOLFSSL_USER_SETTINGS_SSH_H
+#ifndef WOLFSSL_USER_SETTINGS_H
+#define WOLFSSL_USER_SETTINGS_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -211,4 +211,4 @@ extern "C" {
 #endif
 
 
-#endif /* WOLFSSL_USER_SETTINGS_SSH_H */
+#endif /* WOLFSSL_USER_SETTINGS_H */

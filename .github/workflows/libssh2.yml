@@ -67,16 +67,21 @@ jobs:
           ref: libssh2-${{ matrix.ref }}
           path: libssh2
 
+      - name: Update libssh2 test to use a stable version of debian
+        working-directory: libssh2
+        run: |
+            sed -i 's/testing-slim/oldstable-slim/' tests/openssh_server/Dockerfile
+
       - name: Build libssh2
         working-directory: libssh2
         run: |
           autoreconf -fi
           ./configure --with-crypto=wolfssl --with-libwolfssl-prefix=$GITHUB_WORKSPACE/build-dir
+          make -j
 
-      - name: Update libssh2 test to use a stable version of debian
+      - name: Pre-build Docker image to avoid concurrent docker build race
         working-directory: libssh2
-        run: |
-            sed -i 's/testing-slim/oldstable-slim/' tests/openssh_server/Dockerfile
+        run: docker build -t libssh2/openssh_server tests/openssh_server
 
       - name: Run libssh2 tests
         working-directory: libssh2
@@ -85,6 +90,6 @@ jobs:
       - name: Confirm libssh2 built with wolfSSL
         run: ldd libssh2/src/.libs/libssh2.so | grep wolfssl
 
-      - name: print server logs
+      - name: print test logs
         if: ${{ failure() }}
         run: tail -n +1 libssh2/tests/*.log

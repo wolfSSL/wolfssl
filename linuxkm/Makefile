@@ -148,7 +148,7 @@ GENERATE_RELOC_TAB := $(AWK) '								\
 	    bad_relocs=0;								\
 	    print "\#include <wolfssl/wolfcrypt/libwolfssl_sources.h>";			\
 	    printf("%s\n    ",								\
-		"WOLFSSL_LOCAL const unsigned int wc_linuxkm_pie_reloc_tab[] = { ");	\
+		"WOLFSSL_LOCAL const struct wc_linuxkm_pie_reloc_tab_ent wc_linuxkm_pie_reloc_tab[] = { ");	\
 	    if ("SECTION_MAP" in ENVIRON) {						\
 		while (getline <ENVIRON["SECTION_MAP"] > 0)				\
 		    section_map[$$1] = $$2;						\
@@ -177,36 +177,36 @@ GENERATE_RELOC_TAB := $(AWK) '								\
 		if (section) {								\
 		    switch (section) {							\
 		    case ".text_wolfcrypt":						\
-			section_tag = 0;						\
+			section_tag = "WC_R_SEG_TEXT";					\
 			break;								\
 		    case ".rodata_wolfcrypt":						\
-			section_tag = 1;						\
+			section_tag = "WC_R_SEG_RODATA";				\
 			break;								\
 		    case ".data_wolfcrypt":						\
-			section_tag = 2;						\
+			section_tag = "WC_R_SEG_RWDATA";				\
 			break;								\
 		    case ".bss_wolfcrypt":						\
-			section_tag = 3;						\
+			section_tag = "WC_R_SEG_BSS";					\
 			break;								\
 		    default:								\
 			print "Unexpected section:\n" $$0 >"/dev/stderr";		\
 			++bad_relocs;							\
-			section_tag = 4;						\
+			section_tag = "WC_R_SEG_OTHER";					\
 		    }									\
 		} else {								\
 		    print "Unresolvable symbol reference for relocation:\n" $$0 >"/dev/stderr";\
 		    ++bad_relocs;							\
-		    section_tag = 4;							\
+		    section_tag = "WC_R_SEG_OTHER";					\
 		}									\
+		reloc_type = $$3;							\
 		if (strtonum("0x" gensub("^0*","",1,$$1)) >= lshift(1, 29)) {		\
 		    print "Relocation offset overflow:" >"/dev/stderr";			\
 		    print >"/dev/stderr";						\
 		    exit(1);								\
 		}									\
-		printf("0x%xU%s",							\
-		       or(strtonum("0x" gensub("^0*","",1,$$1)),			\
-			  lshift(section_tag, 29)),					\
-		       ((++n%8) ? ", " : ",\n	 "));					\
+		printf("    { .offset = 0x%xU, .dest_segment = %s, .reloc_type = WC_%s },\n", \
+		       strtonum("0x" gensub("^0*","",1,$$1)),				\
+		       section_tag, reloc_type);					\
 	    }										\
 	}										\
 	END {										\
@@ -214,7 +214,8 @@ GENERATE_RELOC_TAB := $(AWK) '								\
 		print "Found " bad_relocs " unresolvable relocations." >"/dev/stderr";	\
 		exit(1);								\
 	    }										\
-	    print "~0U };\nWOLFSSL_LOCAL const unsigned long wc_linuxkm_pie_reloc_tab_length = sizeof wc_linuxkm_pie_reloc_tab / sizeof wc_linuxkm_pie_reloc_tab[0];";\
+	    print "    { .offset = ~0U, .dest_segment = WC_R_SEG_NONE, .reloc_type = WC_R_NONE } };"; \
+            print "WOLFSSL_LOCAL const unsigned long wc_linuxkm_pie_reloc_tab_length = sizeof wc_linuxkm_pie_reloc_tab / sizeof wc_linuxkm_pie_reloc_tab[0];"; \
 	}'
 
 ifeq "$(V)" "1"

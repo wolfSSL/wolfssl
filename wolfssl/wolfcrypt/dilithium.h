@@ -541,6 +541,54 @@
 #endif /* LITTLE_ENDIAN_ORDER && WOLFSSL_DILITHIUM_ALIGNMENT == 0 */
 #endif
 
+#ifndef WOLFSSL_NO_ML_DSA_87
+
+#define DILITHIUM_MAX_KEY_SIZE     DILITHIUM_LEVEL5_KEY_SIZE
+#define DILITHIUM_MAX_SIG_SIZE     DILITHIUM_LEVEL5_SIG_SIZE
+#define DILITHIUM_MAX_PUB_KEY_SIZE DILITHIUM_LEVEL5_PUB_KEY_SIZE
+#define DILITHIUM_MAX_PRV_KEY_SIZE DILITHIUM_LEVEL5_PRV_KEY_SIZE
+/* Buffer sizes large enough to store exported DER encoded keys */
+#define DILITHIUM_MAX_PUB_KEY_DER_SIZE DILITHIUM_LEVEL5_PUB_KEY_DER_SIZE
+#define DILITHIUM_MAX_PRV_KEY_DER_SIZE DILITHIUM_LEVEL5_PRV_KEY_DER_SIZE
+#define DILITHIUM_MAX_BOTH_KEY_DER_SIZE DILITHIUM_LEVEL5_BOTH_KEY_DER_SIZE
+/* PEM size with the header "-----BEGIN ML_DSA_LEVEL5 PRIVATE KEY-----" and
+ * the footer "-----END ML_DSA_LEVEL5 PRIVATE KEY-----" */
+#define DILITHIUM_MAX_BOTH_KEY_PEM_SIZE DILITHIUM_LEVEL5_BOTH_KEY_PEM_SIZE
+
+#elif !defined(WOLFSSL_NO_ML_DSA_65)
+
+#define DILITHIUM_MAX_KEY_SIZE     DILITHIUM_LEVEL3_KEY_SIZE
+#define DILITHIUM_MAX_SIG_SIZE     DILITHIUM_LEVEL3_SIG_SIZE
+#define DILITHIUM_MAX_PUB_KEY_SIZE DILITHIUM_LEVEL3_PUB_KEY_SIZE
+#define DILITHIUM_MAX_PRV_KEY_SIZE DILITHIUM_LEVEL3_PRV_KEY_SIZE
+/* Buffer sizes large enough to store exported DER encoded keys */
+#define DILITHIUM_MAX_PUB_KEY_DER_SIZE DILITHIUM_LEVEL3_PUB_KEY_DER_SIZE
+#define DILITHIUM_MAX_PRV_KEY_DER_SIZE DILITHIUM_LEVEL3_PRV_KEY_DER_SIZE
+#define DILITHIUM_MAX_BOTH_KEY_DER_SIZE DILITHIUM_LEVEL3_BOTH_KEY_DER_SIZE
+/* PEM size with the header "-----BEGIN ML_DSA_LEVEL5 PRIVATE KEY-----" and
+ * the footer "-----END ML_DSA_LEVEL5 PRIVATE KEY-----" */
+#define DILITHIUM_MAX_BOTH_KEY_PEM_SIZE DILITHIUM_LEVEL3_BOTH_KEY_PEM_SIZE
+
+#elif !defined(WOLFSSL_NO_ML_DSA_44)
+
+#define DILITHIUM_MAX_KEY_SIZE     DILITHIUM_LEVEL2_KEY_SIZE
+#define DILITHIUM_MAX_SIG_SIZE     DILITHIUM_LEVEL2_SIG_SIZE
+#define DILITHIUM_MAX_PUB_KEY_SIZE DILITHIUM_LEVEL2_PUB_KEY_SIZE
+#define DILITHIUM_MAX_PRV_KEY_SIZE DILITHIUM_LEVEL2_PRV_KEY_SIZE
+/* Buffer sizes large enough to store exported DER encoded keys */
+#define DILITHIUM_MAX_PUB_KEY_DER_SIZE DILITHIUM_LEVEL2_PUB_KEY_DER_SIZE
+#define DILITHIUM_MAX_PRV_KEY_DER_SIZE DILITHIUM_LEVEL2_PRV_KEY_DER_SIZE
+#define DILITHIUM_MAX_BOTH_KEY_DER_SIZE DILITHIUM_LEVEL2_BOTH_KEY_DER_SIZE
+/* PEM size with the header "-----BEGIN ML_DSA_LEVEL5 PRIVATE KEY-----" and
+ * the footer "-----END ML_DSA_LEVEL5 PRIVATE KEY-----" */
+#define DILITHIUM_MAX_BOTH_KEY_PEM_SIZE DILITHIUM_LEVEL2_BOTH_KEY_PEM_SIZE
+
+#else
+
+#error ML-DSA: All levels disabled.
+
+#endif
+
 #elif defined(HAVE_LIBOQS)
 
 #define DILITHIUM_LEVEL2_KEY_SIZE     OQS_SIG_ml_dsa_44_ipd_length_secret_key
@@ -621,8 +669,6 @@
  * the footer "-----END ML_DSA_LEVEL5 PRIVATE KEY-----" */
 #define ML_DSA_LEVEL5_BOTH_KEY_PEM_SIZE DILITHIUM_LEVEL5_BOTH_KEY_PEM_SIZE
 
-#endif
-
 #define DILITHIUM_MAX_KEY_SIZE     DILITHIUM_LEVEL5_KEY_SIZE
 #define DILITHIUM_MAX_SIG_SIZE     DILITHIUM_LEVEL5_SIG_SIZE
 #define DILITHIUM_MAX_PUB_KEY_SIZE DILITHIUM_LEVEL5_PUB_KEY_SIZE
@@ -634,6 +680,8 @@
 /* PEM size with the header "-----BEGIN ML_DSA_LEVEL5 PRIVATE KEY-----" and
  * the footer "-----END ML_DSA_LEVEL5 PRIVATE KEY-----" */
 #define DILITHIUM_MAX_BOTH_KEY_PEM_SIZE DILITHIUM_LEVEL5_BOTH_KEY_PEM_SIZE
+
+#endif /* HAVE_LIBOQS */
 
 
 #ifdef WOLF_PRIVATE_KEY_ID
@@ -1014,33 +1062,37 @@ WOLFSSL_LOCAL void wc_mldsa_poly_make_pos_avx2(sword32* a);
 #define MlDsaKey  dilithium_key
 
 
-#define wc_MlDsaKey_Init(key, heap, devId)                      \
+#define wc_MlDsaKey_Init(key, heap, devId)                                     \
     wc_dilithium_init_ex(key, heap, devId)
-#define wc_MlDsaKey_SetParams(key, id)                          \
+#define wc_MlDsaKey_SetParams(key, id)                                         \
     wc_dilithium_set_level(key, id)
-#define wc_MlDsaKey_GetParams(key, id)                          \
+#define wc_MlDsaKey_GetParams(key, id)                                         \
     wc_dilithium_get_level(key, id)
-#define wc_MlDsaKey_MakeKey(key, rng)                           \
+#define wc_MlDsaKey_MakeKey(key, rng)                                          \
     wc_dilithium_make_key(key, rng)
-#define wc_MlDsaKey_ExportPrivRaw(key, out, outLen)             \
+#define wc_MlDsaKey_ExportPrivRaw(key, out, outLen)                            \
     wc_dilithium_export_private_only(key, out, outLen)
-#define wc_MlDsaKey_ImportPrivRaw(key, in, inLen)               \
+#define wc_MlDsaKey_ImportPrivRaw(key, in, inLen)                              \
     wc_dilithium_import_private_only(in, inLen, key)
-#define wc_MlDsaKey_Sign(key, sig, sigSz, msg, msgSz, rng)      \
+#define wc_MlDsaKey_Sign(key, sig, sigSz, msg, msgSz, rng)                     \
     wc_dilithium_sign_msg(msg, msgSz, sig, sigSz, key, rng)
-#define wc_MlDsaKey_Free(key)                                   \
+#define wc_MlDsaKey_SignCtx(key, ctx, ctxSz, sig, sigSz, msg, msgSz, rng)      \
+    wc_dilithium_sign_ctx_msg(ctx, ctxSz, msg, msgSz, sig, sigSz, key, rng)
+#define wc_MlDsaKey_Free(key)                                                  \
     wc_dilithium_free(key)
-#define wc_MlDsaKey_ExportPubRaw(key, out, outLen)              \
+#define wc_MlDsaKey_ExportPubRaw(key, out, outLen)                             \
     wc_dilithium_export_public(key, out, outLen)
-#define wc_MlDsaKey_ImportPubRaw(key, in, inLen)                \
+#define wc_MlDsaKey_ImportPubRaw(key, in, inLen)                               \
     wc_dilithium_import_public(in, inLen, key)
-#define wc_MlDsaKey_Verify(key, sig, sigSz, msg, msgSz, res)    \
+#define wc_MlDsaKey_Verify(key, sig, sigSz, msg, msgSz, res)                   \
     wc_dilithium_verify_msg(sig, sigSz, msg, msgSz, res, key)
+#define wc_MlDsaKey_VerifyCtx(key, sig, sigSz, ctx, ctxSz, msg, msgSz, res)    \
+    wc_dilithium_verify_msg_ctx(sig, sigSz, ctx, ctxSz, msg, msgSz, res, key)
 
-#define wc_MlDsaKey_PublicKeyToDer(key, output, len, withAlg)   \
+#define wc_MlDsaKey_PublicKeyToDer(key, output, len, withAlg)                  \
     wc_Dilithium_PublicKeyToDer(key, output, len, withAlg)
 
-#define wc_MlDsaKey_PrivateKeyToDer(key, output, len)           \
+#define wc_MlDsaKey_PrivateKeyToDer(key, output, len)                          \
     wc_Dilithium_PrivateKeyToDer(key, output, len)
 
 

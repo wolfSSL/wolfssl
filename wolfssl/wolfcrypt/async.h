@@ -81,6 +81,10 @@ struct WC_ASYNC_DEV;
         ASYNC_SW_DES3_CBC_ENCRYPT = 13,
         ASYNC_SW_DES3_CBC_DECRYPT = 14,
 #endif /* !NO_DES3 */
+#ifdef HAVE_CURVE25519
+        ASYNC_SW_X25519_MAKE = 15,
+        ASYNC_SW_X25519_SHARED_SEC = 16,
+#endif /* HAVE_CURVE25519 */
     };
 
 #ifdef HAVE_ECC
@@ -179,6 +183,21 @@ struct WC_ASYNC_DEV;
     };
 #endif /* !NO_DES3 */
 
+#ifdef HAVE_CURVE25519
+    struct AsyncCryptX25519Make {
+        void* rng; /* WC_RNG */
+        void* key; /* curve25519_key */
+        int size;
+    };
+    struct AsyncCryptX25519SharedSec {
+        void* priv; /* curve25519_key */
+        void* pub; /* curve25519_key */
+        byte* out;
+        word32* outLen;
+        int endian;
+    };
+#endif /* HAVE_CURVE25519 */
+
     #ifdef __CC_ARM
         #pragma push
         #pragma anon_unions
@@ -211,6 +230,10 @@ struct WC_ASYNC_DEV;
     #ifndef NO_DES3
         struct AsyncCryptSwDes des;
     #endif /* !NO_DES3 */
+    #ifdef HAVE_CURVE25519
+        struct AsyncCryptX25519Make x25519Make;
+        struct AsyncCryptX25519SharedSec x25519SharedSec;
+    #endif /* HAVE_CURVE25519 */
     #ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
         }; /* union */
     #endif
@@ -288,6 +311,9 @@ struct WC_ASYNC_DEV;
     #ifndef WC_ASYNC_NO_DH
         #define WC_ASYNC_ENABLE_DH
     #endif
+    #ifndef WC_ASYNC_NO_X25519
+        #define WC_ASYNC_ENABLE_X25519
+    #endif
 #endif /* WC_ASYNC_NO_PKI */
 #ifndef WC_ASYNC_NO_HASH
     #ifndef WC_ASYNC_NO_SHA512
@@ -337,6 +363,7 @@ struct WC_ASYNC_DEV;
 #define WOLFSSL_ASYNC_MARKER_MD5    0xBEEF000D
 #define WOLFSSL_ASYNC_MARKER_DH     0xBEEF000E
 #define WOLFSSL_ASYNC_MARKER_SHA3   0xBEEF000F
+#define WOLFSSL_ASYNC_MARKER_X25519 0xBEEF0010
 
 
 /* event flags (bit mask) */

@@ -210,14 +210,14 @@ extern "C" {
 #define WOLFSSL_SHAKE256
 #define WOLFSSL_SHA3
 #define WOLFSSL_HASH_FLAGS /* enable hash flag API's */
-#define WOLFSSL_SHAKE256
 
 /* Additional Algorithms */
 #define HAVE_HASHDRBG
 #define HAVE_CURVE25519
 #define HAVE_ED25519
+#define ED25519_SMALL
 #define WOLFSSL_ED25519_STREAMING_VERIFY
-#define CURVED25519_SMALL
+#define CURVE25519_SMALL
 #define HAVE_ED448
 #define WOLFSSL_ED448_STREAMING_VERIFY
 #define HAVE_CURVE448

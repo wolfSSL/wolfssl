@@ -3071,8 +3071,8 @@ void wolfSSL_AES_decrypt(const unsigned char* input, unsigned char* output,
         WOLFSSL_MSG("Null argument passed in");
     }
     else
-#if !defined(HAVE_SELFTEST) && \
-    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION3_GE(5,3,0)))
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
+    (defined(FIPS_VERSION_GE) && FIPS_VERSION3_GE(5,3,0)))
     /* Decrypt a block with wolfCrypt AES. */
     if (wc_AesDecryptDirect((Aes*)key, output, input) != 0) {
         WOLFSSL_MSG("wc_AesDecryptDirect failed");
@@ -3203,7 +3203,8 @@ void wolfSSL_AES_cbc_encrypt(const unsigned char *in, unsigned char* out,
  *                   AES_ENCRPT for encryption, AES_DECRYPTION for decryption.
  */
 void wolfSSL_AES_cfb128_encrypt(const unsigned char *in, unsigned char* out,
-    size_t len, WOLFSSL_AES_KEY *key, unsigned char* iv, int* num, const int enc)
+    size_t len, WOLFSSL_AES_KEY *key, unsigned char* iv, int* num,
+    const int enc)
 {
 #ifndef WOLFSSL_AES_CFB
     WOLFSSL_MSG("CFB mode not enabled please use macro WOLFSSL_AES_CFB");
@@ -3435,13 +3436,15 @@ size_t wolfSSL_CRYPTO_cts128_decrypt(const unsigned char *in,
          * Use 0 buffer as IV to do straight decryption.
          * This places the Cn-1 block at lastBlk */
         XMEMSET(lastBlk, 0, WOLFSSL_CTS128_BLOCK_SZ);
-        (*cbc)(in, prevBlk, WOLFSSL_CTS128_BLOCK_SZ, key, lastBlk, AES_DECRYPTION);
+        (*cbc)(in, prevBlk, WOLFSSL_CTS128_BLOCK_SZ, key, lastBlk,
+            AES_DECRYPTION);
         /* RFC2040: Append the tail (BB minus Ln) bytes of Xn to Cn
          *          to create En. */
         XMEMCPY(prevBlk, in + WOLFSSL_CTS128_BLOCK_SZ, lastBlkLen);
         /* Cn and Cn-1 can now be decrypted */
         (*cbc)(prevBlk, out, WOLFSSL_CTS128_BLOCK_SZ, key, iv, AES_DECRYPTION);
-        (*cbc)(lastBlk, lastBlk, WOLFSSL_CTS128_BLOCK_SZ, key, iv, AES_DECRYPTION);
+        (*cbc)(lastBlk, lastBlk, WOLFSSL_CTS128_BLOCK_SZ, key, iv,
+            AES_DECRYPTION);
         XMEMCPY(out + WOLFSSL_CTS128_BLOCK_SZ, lastBlk, lastBlkLen);
     }
 

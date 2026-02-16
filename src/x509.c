@@ -571,7 +571,6 @@ static int wolfssl_dns_entry_othername_to_gn(DNS_entry* dns,
         tag = WOLFSSL_V_ASN1_SEQUENCE;
     }
 
-
     /* Create a WOLFSSL_ASN1_STRING from the DER. */
     str = wolfSSL_ASN1_STRING_type_new(tag);
     if (str == NULL) {
@@ -584,15 +583,23 @@ static int wolfssl_dns_entry_othername_to_gn(DNS_entry* dns,
     if (type == NULL)
         goto err;
     wolfSSL_ASN1_TYPE_set(type, tag, str);
+    str = NULL; /* type now owns str */
+
+    if (wolfSSL_GENERAL_NAME_set_type(gn, WOLFSSL_GEN_OTHERNAME)
+            != WOLFSSL_SUCCESS) {
+        goto err;
+    }
 
     /* Store the object and string in general name. */
     gn->d.otherName->type_id = obj;
     gn->d.otherName->value = type;
+    type = NULL; /* gn->d.otherName owns type */
 
     ret = 1;
 err:
     if (ret != 1) {
         wolfSSL_ASN1_OBJECT_free(obj);
+        wolfSSL_ASN1_TYPE_free(type);
         wolfSSL_ASN1_STRING_free(str);
     }
     return ret;
@@ -602,13 +609,13 @@ err:
 #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
 static int DNS_to_GENERAL_NAME(WOLFSSL_GENERAL_NAME* gn, DNS_entry* dns)
 {
-    gn->type = dns->type;
-    switch (gn->type) {
+    switch (dns->type) {
         case WOLFSSL_GEN_OTHERNAME:
-                if (!wolfssl_dns_entry_othername_to_gn(dns, gn)) {
-                    WOLFSSL_MSG("OTHERNAME set failed");
-                    return WOLFSSL_FAILURE;
-                }
+            /* Sets gn->type internally */
+            if (!wolfssl_dns_entry_othername_to_gn(dns, gn)) {
+                WOLFSSL_MSG("OTHERNAME set failed");
+                return WOLFSSL_FAILURE;
+            }
             break;
 
         case WOLFSSL_GEN_EMAIL:
@@ -616,16 +623,18 @@ static int DNS_to_GENERAL_NAME(WOLFSSL_GENERAL_NAME* gn, DNS_entry* dns)
         case WOLFSSL_GEN_URI:
         case WOLFSSL_GEN_IPADD:
         case WOLFSSL_GEN_IA5:
-                gn->d.ia5->length = dns->len;
-                if (wolfSSL_ASN1_STRING_set(gn->d.ia5, dns->name,
-                        gn->d.ia5->length) != WOLFSSL_SUCCESS) {
-                    WOLFSSL_MSG("ASN1_STRING_set failed");
-                    return WOLFSSL_FAILURE;
-                }
-                break;
+            gn->type = dns->type;
+            gn->d.ia5->length = dns->len;
+            if (wolfSSL_ASN1_STRING_set(gn->d.ia5, dns->name,
+                    gn->d.ia5->length) != WOLFSSL_SUCCESS) {
+                WOLFSSL_MSG("ASN1_STRING_set failed");
+                return WOLFSSL_FAILURE;
+            }
+            break;
 
 
         case WOLFSSL_GEN_DIRNAME:
+            gn->type = dns->type;
             /* wolfSSL_GENERAL_NAME_new() mallocs this by default */
             wolfSSL_ASN1_STRING_free(gn->d.ia5);
             gn->d.ia5 = NULL;
@@ -636,6 +645,7 @@ static int DNS_to_GENERAL_NAME(WOLFSSL_GENERAL_NAME* gn, DNS_entry* dns)
 
 #ifdef WOLFSSL_RID_ALT_NAME
         case WOLFSSL_GEN_RID:
+            gn->type = dns->type;
             /* wolfSSL_GENERAL_NAME_new() mallocs this by default */
             wolfSSL_ASN1_STRING_free(gn->d.ia5);
             gn->d.ia5 = NULL;
@@ -2208,6 +2218,159 @@ out:
 
 #endif /* OPENSSL_ALL || OPENSSL_EXTRA */
 
+#if defined(OPENSSL_EXTRA) && !defined(IGNORE_NAME_CONSTRAINTS)
+/*
+ * Convert a Base_entry linked list to a STACK of GENERAL_SUBTREE.
+ *
+ * Base_entry stores name constraint data from DecodedCert. This function
+ * converts it to GENERAL_SUBTREE format.
+ *
+ * Supported types: ASN_DNS_TYPE, ASN_RFC822_TYPE, ASN_DIR_TYPE, ASN_IP_TYPE,
+ *                  ASN_URI_TYPE
+ *
+ * Returns 0 on success, negative on error.
+ */
+static int ConvertBaseEntryToSubtreeStack(Base_entry* list, WOLFSSL_STACK* sk,
+                                          void* heap)
+{
+    Base_entry* entry = list;
+    WOLFSSL_GENERAL_SUBTREE* subtree = NULL;
+    WOLFSSL_GENERAL_NAME* gn = NULL;
+    (void)heap;
+
+    while (entry != NULL) {
+
+        if (entry->type != ASN_DNS_TYPE && entry->type != ASN_RFC822_TYPE &&
+            entry->type != ASN_DIR_TYPE && entry->type != ASN_IP_TYPE &&
+            entry->type != ASN_URI_TYPE) {
+            entry = entry->next;
+            continue;
+        }
+
+        /* Allocate subtree and general name */
+        subtree = (WOLFSSL_GENERAL_SUBTREE*)XMALLOC(
+            sizeof(WOLFSSL_GENERAL_SUBTREE), heap, DYNAMIC_TYPE_OPENSSL);
+        if (subtree == NULL) {
+            WOLFSSL_MSG("Failed to allocate GENERAL_SUBTREE");
+            return MEMORY_E;
+        }
+        XMEMSET(subtree, 0, sizeof(WOLFSSL_GENERAL_SUBTREE));
+
+        gn = wolfSSL_GENERAL_NAME_new();
+        if (gn == NULL) {
+            WOLFSSL_MSG("Failed to allocate GENERAL_NAME");
+            XFREE(subtree, heap, DYNAMIC_TYPE_OPENSSL);
+            return MEMORY_E;
+        }
+
+        /* Free default ia5 string allocated by GENERAL_NAME_new */
+        wolfSSL_ASN1_STRING_free(gn->d.ia5);
+        gn->d.ia5 = NULL;
+
+        switch (entry->type) {
+            case ASN_DNS_TYPE:
+            case ASN_RFC822_TYPE:
+            case ASN_URI_TYPE:
+            {
+                if (entry->type == ASN_DNS_TYPE) {
+                    gn->type = WOLFSSL_GEN_DNS;
+                }
+                else if (entry->type == ASN_RFC822_TYPE) {
+                    gn->type = WOLFSSL_GEN_EMAIL;
+                }
+                else {
+                    gn->type = WOLFSSL_GEN_URI;
+                }
+                gn->d.ia5 = wolfSSL_ASN1_STRING_new();
+                if (gn->d.ia5 == NULL) {
+                    WOLFSSL_MSG("Failed to allocate ASN1_STRING");
+                    wolfSSL_GENERAL_NAME_free(gn);
+                    XFREE(subtree, heap, DYNAMIC_TYPE_OPENSSL);
+                    return MEMORY_E;
+                }
+                if (wolfSSL_ASN1_STRING_set(gn->d.ia5, entry->name,
+                        entry->nameSz) != WOLFSSL_SUCCESS) {
+                    WOLFSSL_MSG("Failed to set ASN1_STRING");
+                    wolfSSL_GENERAL_NAME_free(gn);
+                    XFREE(subtree, heap, DYNAMIC_TYPE_OPENSSL);
+                    return MEMORY_E;
+                }
+                gn->d.ia5->type = WOLFSSL_V_ASN1_IA5STRING;
+                break;
+            }
+
+            case ASN_DIR_TYPE:
+            {
+                byte* seqBuf = NULL;
+                unsigned char* p = NULL;
+                int seqLen = 0;
+
+                /* Wrap in SEQUENCE and parse as X509_NAME */
+                gn->type = WOLFSSL_GEN_DIRNAME;
+                seqBuf = (byte*)XMALLOC((word32)entry->nameSz + MAX_SEQ_SZ,
+                                        heap, DYNAMIC_TYPE_TMP_BUFFER);
+                if (seqBuf == NULL) {
+                    WOLFSSL_MSG("Failed to allocate sequence buffer");
+                    wolfSSL_GENERAL_NAME_free(gn);
+                    XFREE(subtree, heap, DYNAMIC_TYPE_OPENSSL);
+                    return MEMORY_E;
+                }
+
+                seqLen = SetSequence(entry->nameSz, seqBuf);
+                XMEMCPY(seqBuf + seqLen, entry->name, entry->nameSz);
+
+                p = seqBuf;
+                gn->d.directoryName = wolfSSL_d2i_X509_NAME(NULL, &p,
+                    (long)entry->nameSz + seqLen);
+                XFREE(seqBuf, heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+                if (gn->d.directoryName == NULL) {
+                    WOLFSSL_MSG("Failed to parse directoryName");
+                    wolfSSL_GENERAL_NAME_free(gn);
+                    XFREE(subtree, heap, DYNAMIC_TYPE_OPENSSL);
+                    return ASN_PARSE_E;
+                }
+                break;
+            }
+
+            case ASN_IP_TYPE:
+            {
+                /* For IP address, store raw bytes as OCTET_STRING. */
+                gn->type = WOLFSSL_GEN_IPADD;
+                gn->d.iPAddress = wolfSSL_ASN1_STRING_new();
+                if (gn->d.iPAddress == NULL) {
+                    WOLFSSL_MSG("Failed to allocate ASN1_STRING for IP");
+                    wolfSSL_GENERAL_NAME_free(gn);
+                    XFREE(subtree, heap, DYNAMIC_TYPE_OPENSSL);
+                    return MEMORY_E;
+                }
+                if (wolfSSL_ASN1_STRING_set(gn->d.iPAddress, entry->name,
+                        entry->nameSz) != WOLFSSL_SUCCESS) {
+                    WOLFSSL_MSG("Failed to set IP ASN1_STRING");
+                    wolfSSL_GENERAL_NAME_free(gn);
+                    XFREE(subtree, heap, DYNAMIC_TYPE_OPENSSL);
+                    return MEMORY_E;
+                }
+                gn->d.iPAddress->type = WOLFSSL_V_ASN1_OCTET_STRING;
+                break;
+            }
+        }
+
+        subtree->base = gn;
+
+        if (wolfSSL_sk_push(sk, subtree) <= 0) {
+            WOLFSSL_MSG("Failed to push subtree onto stack");
+            wolfSSL_GENERAL_NAME_free(gn);
+            XFREE(subtree, heap, DYNAMIC_TYPE_OPENSSL);
+            return MEMORY_E;
+        }
+        entry = entry->next;
+    }
+
+    return 0;
+}
+#endif /* OPENSSL_EXTRA && !IGNORE_NAME_CONSTRAINTS */
+
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 /* Looks for the extension matching the passed in nid
  *
@@ -2310,9 +2473,9 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
                         goto err;
                     }
 
-                    gn->type = dns->type;
-                    switch (gn->type) {
+                    switch (dns->type) {
                         case ASN_DIR_TYPE:
+                            gn->type = dns->type;
                             {
                                 int localIdx = 0;
                                 unsigned char* n = (unsigned char*)XMALLOC(
@@ -2336,12 +2499,14 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
                             break;
 
                         case ASN_OTHER_TYPE:
+                            /* gn->type set internally */
                             if (!wolfssl_dns_entry_othername_to_gn(dns, gn)) {
                                 goto err;
                             }
                             break;
 
                         case ASN_IP_TYPE:
+                            gn->type = dns->type;
                             if (wolfSSL_ASN1_STRING_set(gn->d.iPAddress,
                                     dns->name, dns->len) != WOLFSSL_SUCCESS) {
                                 WOLFSSL_MSG("ASN1_STRING_set failed");
@@ -2350,7 +2515,35 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
                             gn->d.iPAddress->type = WOLFSSL_V_ASN1_OCTET_STRING;
                             break;
 
+                    #ifdef WOLFSSL_RID_ALT_NAME
+                        case ASN_RID_TYPE:
+                            gn->type = dns->type;
+                            /* Free ia5 before using union for registeredID */
+                            wolfSSL_ASN1_STRING_free(gn->d.ia5);
+                            gn->d.ia5 = NULL;
+
+                            gn->d.registeredID = wolfSSL_ASN1_OBJECT_new();
+                            if (gn->d.registeredID == NULL) {
+                                goto err;
+                            }
+                            gn->d.registeredID->obj =
+                                (const unsigned char*)XMALLOC(dns->len,
+                                    gn->d.registeredID->heap, DYNAMIC_TYPE_ASN1);
+                            if (gn->d.registeredID->obj == NULL) {
+                                goto err;
+                            }
+                            gn->d.registeredID->dynamic |=
+                                WOLFSSL_ASN1_DYNAMIC_DATA;
+                            XMEMCPY((byte*)gn->d.registeredID->obj,
+                                dns->ridString, dns->len);
+                            gn->d.registeredID->objSz = dns->len;
+                            gn->d.registeredID->grp = oidCertExtType;
+                            gn->d.registeredID->nid = WC_NID_registeredAddress;
+                            break;
+                    #endif /* WOLFSSL_RID_ALT_NAME */
+
                         default:
+                            gn->type = dns->type;
                             if (wolfSSL_ASN1_STRING_set(gn->d.dNSName,
                                     dns->name, dns->len) != WOLFSSL_SUCCESS) {
                                 WOLFSSL_MSG("ASN1_STRING_set failed");
@@ -2680,9 +2873,69 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
             }
             break;
 
+    #if defined(OPENSSL_EXTRA) && !defined(IGNORE_NAME_CONSTRAINTS)
         case NAME_CONS_OID:
-            WOLFSSL_MSG("Name Constraint OID extension not supported");
-            break;
+        {
+            WOLFSSL_NAME_CONSTRAINTS* nc = NULL;
+
+            /* Check if name constraints exist in stored X509 */
+            if (x509->permittedNames == NULL && x509->excludedNames == NULL) {
+                WOLFSSL_MSG("No Name Constraints set");
+                break;
+            }
+
+            if (c != NULL) {
+                *c = x509->nameConstraintCrit;
+            }
+
+            nc = (WOLFSSL_NAME_CONSTRAINTS*)XMALLOC(
+                sizeof(WOLFSSL_NAME_CONSTRAINTS), x509->heap,
+                DYNAMIC_TYPE_OPENSSL);
+            if (nc == NULL) {
+                WOLFSSL_MSG("Failed to allocate NAME_CONSTRAINTS");
+                break;
+            }
+            XMEMSET(nc, 0, sizeof(WOLFSSL_NAME_CONSTRAINTS));
+
+            /* Convert permitted names */
+            if (x509->permittedNames != NULL) {
+                nc->permittedSubtrees = wolfSSL_sk_new_null();
+                if (nc->permittedSubtrees == NULL) {
+                    WOLFSSL_MSG("Failed to allocate permitted stack");
+                    wolfSSL_NAME_CONSTRAINTS_free(nc);
+                    break;
+                }
+                nc->permittedSubtrees->type = STACK_TYPE_GENERAL_SUBTREE;
+
+                if (ConvertBaseEntryToSubtreeStack(x509->permittedNames,
+                        nc->permittedSubtrees, x509->heap) != 0) {
+                    WOLFSSL_MSG("Failed to convert permitted names");
+                    wolfSSL_NAME_CONSTRAINTS_free(nc);
+                    break;
+                }
+            }
+
+            /* Convert excluded names */
+            if (x509->excludedNames != NULL) {
+                nc->excludedSubtrees = wolfSSL_sk_new_null();
+                if (nc->excludedSubtrees == NULL) {
+                    WOLFSSL_MSG("Failed to allocate excluded stack");
+                    wolfSSL_NAME_CONSTRAINTS_free(nc);
+                    break;
+                }
+                nc->excludedSubtrees->type = STACK_TYPE_GENERAL_SUBTREE;
+
+                if (ConvertBaseEntryToSubtreeStack(x509->excludedNames,
+                        nc->excludedSubtrees, x509->heap) != 0) {
+                    WOLFSSL_MSG("Failed to convert excluded names");
+                    wolfSSL_NAME_CONSTRAINTS_free(nc);
+                    break;
+                }
+            }
+
+            return nc;
+        }
+    #endif /* OPENSSL_EXTRA && !IGNORE_NAME_CONSTRAINTS */
 
         case PRIV_KEY_USAGE_PERIOD_OID:
             WOLFSSL_MSG("Private Key Usage Period extension not supported");
@@ -4643,7 +4896,12 @@ int wolfSSL_GENERAL_NAME_set0_othername(WOLFSSL_GENERAL_NAME* gen,
         return WOLFSSL_FAILURE;
     }
 
-    gen->type = WOLFSSL_GEN_OTHERNAME;
+    if (wolfSSL_GENERAL_NAME_set_type(gen, WOLFSSL_GEN_OTHERNAME)
+            != WOLFSSL_SUCCESS) {
+        wolfSSL_ASN1_OBJECT_free(x);
+        return WOLFSSL_FAILURE;
+    }
+
     gen->d.otherName->type_id = x;
     gen->d.otherName->value = value;
     return WOLFSSL_SUCCESS;
@@ -4975,6 +5233,16 @@ int wolfSSL_GENERAL_NAME_set_type(WOLFSSL_GENERAL_NAME* name, int typ)
                 if (name->d.uniformResourceIdentifier == NULL)
                     ret = MEMORY_E;
                 break;
+            case WOLFSSL_GEN_OTHERNAME:
+                name->d.otherName = (WOLFSSL_ASN1_OTHERNAME*)XMALLOC(
+                    sizeof(WOLFSSL_ASN1_OTHERNAME), NULL, DYNAMIC_TYPE_ASN1);
+                if (name->d.otherName == NULL) {
+                    ret = MEMORY_E;
+                }
+                else {
+                    XMEMSET(name->d.otherName, 0, sizeof(WOLFSSL_ASN1_OTHERNAME));
+                }
+                break;
             default:
                 name->type = WOLFSSL_GEN_IA5;
                 name->d.ia5 = wolfSSL_ASN1_STRING_new();
@@ -5056,6 +5324,375 @@ void wolfSSL_EXTENDED_KEY_USAGE_free(WOLFSSL_STACK * sk)
 
     wolfSSL_sk_X509_pop_free(sk, NULL);
 }
+
+#if !defined(IGNORE_NAME_CONSTRAINTS)
+/*
+ * Allocate and initialize an empty GENERAL_SUBTREE structure.
+ * Returns NULL on allocation failure.
+ */
+WOLFSSL_GENERAL_SUBTREE* wolfSSL_GENERAL_SUBTREE_new(void)
+{
+    WOLFSSL_GENERAL_SUBTREE* subtree;
+
+    WOLFSSL_ENTER("wolfSSL_GENERAL_SUBTREE_new");
+
+    subtree = (WOLFSSL_GENERAL_SUBTREE*)XMALLOC(sizeof(WOLFSSL_GENERAL_SUBTREE),
+                                                NULL, DYNAMIC_TYPE_OPENSSL);
+    if (subtree == NULL) {
+        WOLFSSL_MSG("Failed to allocate GENERAL_SUBTREE");
+        return NULL;
+    }
+    XMEMSET(subtree, 0, sizeof(WOLFSSL_GENERAL_SUBTREE));
+    return subtree;
+}
+
+/*
+ * Create an empty NAME_CONSTRAINTS structure.
+ * Returns NULL on allocation failure.
+ */
+WOLFSSL_NAME_CONSTRAINTS* wolfSSL_NAME_CONSTRAINTS_new(void)
+{
+    WOLFSSL_NAME_CONSTRAINTS* nc;
+
+    WOLFSSL_ENTER("wolfSSL_NAME_CONSTRAINTS_new");
+
+    nc = (WOLFSSL_NAME_CONSTRAINTS*)XMALLOC(sizeof(WOLFSSL_NAME_CONSTRAINTS),
+                                            NULL, DYNAMIC_TYPE_OPENSSL);
+    if (nc == NULL) {
+        WOLFSSL_MSG("Failed to allocate NAME_CONSTRAINTS");
+        return NULL;
+    }
+    XMEMSET(nc, 0, sizeof(WOLFSSL_NAME_CONSTRAINTS));
+    return nc;
+}
+
+/* Free a GENERAL_SUBTREE and its contents. */
+void wolfSSL_GENERAL_SUBTREE_free(WOLFSSL_GENERAL_SUBTREE* subtree)
+{
+    if (subtree == NULL) {
+        return;
+    }
+    wolfSSL_GENERAL_NAME_free(subtree->base);
+    XFREE(subtree, NULL, DYNAMIC_TYPE_OPENSSL);
+}
+
+/* Free a NAME_CONSTRAINTS structure and all its contents. */
+void wolfSSL_NAME_CONSTRAINTS_free(WOLFSSL_NAME_CONSTRAINTS* nc)
+{
+    WOLFSSL_ENTER("wolfSSL_NAME_CONSTRAINTS_free");
+
+    if (nc == NULL) {
+        return;
+    }
+
+    if (nc->permittedSubtrees != NULL) {
+        wolfSSL_sk_pop_free(nc->permittedSubtrees,
+            (wolfSSL_sk_freefunc)wolfSSL_GENERAL_SUBTREE_free);
+    }
+
+    if (nc->excludedSubtrees != NULL) {
+        wolfSSL_sk_pop_free(nc->excludedSubtrees,
+            (wolfSSL_sk_freefunc)wolfSSL_GENERAL_SUBTREE_free);
+    }
+
+    XFREE(nc, NULL, DYNAMIC_TYPE_OPENSSL);
+}
+
+/* Get number of items in GENERAL_SUBTREE stack. */
+int wolfSSL_sk_GENERAL_SUBTREE_num(const WOLFSSL_STACK* sk)
+{
+    WOLFSSL_ENTER("wolfSSL_sk_GENERAL_SUBTREE_num");
+
+    return wolfSSL_sk_num(sk);
+}
+
+/* Get GENERAL_SUBTREE at index from stack. */
+WOLFSSL_GENERAL_SUBTREE* wolfSSL_sk_GENERAL_SUBTREE_value(
+    const WOLFSSL_STACK* sk, int idx)
+{
+    WOLFSSL_ENTER("wolfSSL_sk_GENERAL_SUBTREE_value");
+
+    return (WOLFSSL_GENERAL_SUBTREE*)wolfSSL_sk_value(sk, idx);
+}
+
+/* Check IP address string matches constraint.
+ *
+ * name: IP address string (ex "192.168.1.50")
+ * nameSz: length of name string
+ * gn: GENERAL_NAME containing IP constraint (IP + mask bytes)
+ *
+ * Return 1 on match, otherwise 0
+ */
+static int MatchIpName(const char* name, int nameSz, WOLFSSL_GENERAL_NAME* gn)
+{
+    int ipLen = 0;
+    int constraintLen;
+    char ipStr[WOLFSSL_MAX_IPSTR];
+    unsigned char ipBytes[16]; /* Max 16 bytes for IPv6 */
+    const unsigned char* constraintData;
+
+    if (name == NULL || nameSz <= 0 || gn == NULL || gn->d.iPAddress == NULL) {
+        return 0;
+    }
+
+    constraintData = wolfSSL_ASN1_STRING_get0_data(gn->d.iPAddress);
+    constraintLen = wolfSSL_ASN1_STRING_length(gn->d.iPAddress);
+    if (constraintData == NULL || constraintLen <= 0) {
+        return 0;
+    }
+
+    /* Null-terminate IP string */
+    if (nameSz >= (int)sizeof(ipStr)) {
+        return 0;
+    }
+    XMEMCPY(ipStr, name, nameSz);
+    ipStr[nameSz] = '\0';
+
+    /* IPv4 constraint 8 bytes (IP + mask),
+     * IPv6 constraint 32 bytes (IP + mask) */
+    if (constraintLen == 8) {
+        if (XINET_PTON(WOLFSSL_IP4, ipStr, ipBytes) == 1) {
+            ipLen = 4;
+        }
+    }
+    else if (constraintLen == 32) {
+        if (XINET_PTON(WOLFSSL_IP6, ipStr, ipBytes) == 1) {
+            ipLen = 16;
+        }
+    }
+
+    if (ipLen == 0) {
+        return 0;
+    }
+
+    return wolfssl_local_MatchIpSubnet(ipBytes, ipLen,
+        constraintData, constraintLen);
+}
+
+/* Extract host from URI for name constraint matching.
+ * URI format: scheme://[userinfo@]host[:port][/path][?query][#fragment]
+ * IPv6 literals are enclosed in brackets: scheme://[ipv6addr]:port/path
+ * Returns pointer to host start and sets hostLen, or NULL on failure. */
+static const char* ExtractHostFromUri(const char* uri, int uriLen, int* hostLen)
+{
+    const char* hostStart;
+    const char* hostEnd;
+    const char* p;
+    const char* uriEnd;
+
+    if (uri == NULL || uriLen <= 0 || hostLen == NULL) {
+        return NULL;
+    }
+
+    uriEnd = uri + uriLen;
+
+    /* Find "://" to skip scheme */
+    hostStart = NULL;
+    for (p = uri; p < uriEnd - 2; p++) {
+        if (p[0] == ':' && p[1] == '/' && p[2] == '/') {
+            hostStart = p + 3;
+            break;
+        }
+    }
+    if (hostStart == NULL || hostStart >= uriEnd) {
+        return NULL;
+    }
+
+    /* Skip userinfo if present (look for @ before any /, ?, #)
+     * userinfo can contain ':' (ex: user:pass@host), don't stop at ':'
+     * For IPv6, also don't stop at '[' in userinfo */
+    for (p = hostStart; p < uriEnd; p++) {
+        if (*p == '@') {
+            hostStart = p + 1;
+            break;
+        }
+        if (*p == '/' || *p == '?' || *p == '#') {
+            /* No userinfo found */
+            break;
+        }
+        /* If '[' before '@', found IPv6 literal, not userinfo */
+        if (*p == '[') {
+            break;
+        }
+    }
+    if (hostStart >= uriEnd) {
+        return NULL;
+    }
+
+    /* Check for IPv6 literal */
+    if (*hostStart == '[') {
+        /* Find closing bracket, skip opening one */
+        hostStart++;
+        hostEnd = hostStart;
+        while (hostEnd < uriEnd && *hostEnd != ']') {
+            hostEnd++;
+        }
+        if (hostEnd >= uriEnd) {
+            /* No closing bracket found, malformed */
+            return NULL;
+        }
+        /* hostEnd points to closing bracket, extract content between */
+        *hostLen = (int)(hostEnd - hostStart);
+        if (*hostLen <= 0) {
+            return NULL;
+        }
+        return hostStart;
+    }
+
+    /* Regular hostname, find end */
+    hostEnd = hostStart;
+    while (hostEnd < uriEnd && *hostEnd != ':' && *hostEnd != '/' &&
+           *hostEnd != '?' && *hostEnd != '#') {
+        hostEnd++;
+    }
+
+    *hostLen = (int)(hostEnd - hostStart);
+    if (*hostLen <= 0) {
+        return NULL;
+    }
+
+    return hostStart;
+}
+
+/* Helper to check if name string matches a single GENERAL_NAME constraint.
+ * Returns 1 if matches, 0 if not. */
+static int MatchNameConstraint(int type, const char* name, int nameSz,
+    WOLFSSL_GENERAL_NAME* gn)
+{
+    const char* baseStr;
+    int baseLen;
+
+    if (gn == NULL || gn->type != type) {
+        return 0;
+    }
+
+    switch (type) {
+        case WOLFSSL_GEN_IPADD:
+            return MatchIpName(name, nameSz, gn);
+
+        case WOLFSSL_GEN_DNS:
+        case WOLFSSL_GEN_EMAIL:
+        case WOLFSSL_GEN_URI:
+            if (gn->d.ia5 == NULL) {
+                return 0;
+            }
+            baseStr = (const char*)wolfSSL_ASN1_STRING_get0_data(gn->d.ia5);
+            baseLen = wolfSSL_ASN1_STRING_length(gn->d.ia5);
+            if (baseStr == NULL || baseLen <= 0) {
+                return 0;
+            }
+
+            if (type == WOLFSSL_GEN_EMAIL) {
+                return wolfssl_local_MatchBaseName(ASN_RFC822_TYPE, name,
+                    nameSz, baseStr, baseLen);
+            }
+            else if (type == WOLFSSL_GEN_URI) {
+                const char* host;
+                int hostLen;
+
+                /* For URI, extract host and match against DNS-style */
+                host = ExtractHostFromUri(name, nameSz, &hostLen);
+                if (host == NULL) {
+                    return 0;
+                }
+                return wolfssl_local_MatchBaseName(ASN_DNS_TYPE, host, hostLen,
+                    baseStr, baseLen);
+            }
+            else {
+                /* WOLFSSL_GEN_DNS uses DNS-style matching */
+                return wolfssl_local_MatchBaseName(ASN_DNS_TYPE, name, nameSz,
+                    baseStr, baseLen);
+            }
+
+        default:
+            /* Unsupported type */
+            return 0;
+    }
+}
+
+/*
+ * Check if a name string satisfies given name constraints.
+ *
+ * nc: NAME_CONSTRAINTS struct containing permitted/excluded subtrees
+ * type: GeneralName type (WOLFSSL_GEN_DNS, WOLFSSL_GEN_EMAIL, etc.)
+ * name: The name string to check
+ * nameSz: Length of name string
+ *
+ * Returns 1 if name satisfies constraints (permitted and not excluded),
+ * otherwise 0 if name does not satisfy constraints or on error
+ *
+ * A name satisfies constraints if permitted subtrees exist for the type,
+ * name matches at least one, and name does not match any excluded subtree.
+ */
+int wolfSSL_NAME_CONSTRAINTS_check_name(WOLFSSL_NAME_CONSTRAINTS* nc,
+    int type, const char* name, int nameSz)
+{
+    int i, num;
+    int hasPermittedType = 0;
+    int matchedPermitted = 0;
+    WOLFSSL_GENERAL_SUBTREE* subtree;
+    WOLFSSL_GENERAL_NAME* gn;
+
+    WOLFSSL_ENTER("wolfSSL_NAME_CONSTRAINTS_check_name");
+
+    if (nc == NULL || name == NULL || nameSz <= 0) {
+        WOLFSSL_MSG("Bad argument to NAME_CONSTRAINTS_check_name");
+        return 0;
+    }
+
+    /* Check permitted subtrees */
+    if (nc->permittedSubtrees != NULL) {
+        num = wolfSSL_sk_GENERAL_SUBTREE_num(nc->permittedSubtrees);
+        for (i = 0; i < num; i++) {
+            subtree = wolfSSL_sk_GENERAL_SUBTREE_value(
+                nc->permittedSubtrees, i);
+            if (subtree == NULL || subtree->base == NULL) {
+                continue;
+            }
+
+            gn = subtree->base;
+            if (gn->type != type) {
+                continue;
+            }
+            hasPermittedType = 1;
+
+            if (MatchNameConstraint(type, name, nameSz, gn)) {
+                matchedPermitted = 1;
+                break;
+            }
+        }
+    }
+
+    /* If permitted constraints exist for this type but none matched, fail */
+    if (hasPermittedType && !matchedPermitted) {
+        WOLFSSL_MSG("Name not in permitted subtrees");
+        return 0;
+    }
+
+    /* Check excluded subtrees */
+    if (nc->excludedSubtrees != NULL) {
+        num = wolfSSL_sk_GENERAL_SUBTREE_num(nc->excludedSubtrees);
+        for (i = 0; i < num; i++) {
+            subtree = wolfSSL_sk_GENERAL_SUBTREE_value(nc->excludedSubtrees, i);
+            if (subtree == NULL || subtree->base == NULL) {
+                continue;
+            }
+
+            gn = subtree->base;
+            if (gn->type != type) {
+                continue;
+            }
+
+            if (MatchNameConstraint(type, name, nameSz, gn)) {
+                WOLFSSL_MSG("Name in excluded subtrees");
+                return 0;
+            }
+        }
+    }
+
+    return 1;
+}
+#endif /* !IGNORE_NAME_CONSTRAINTS */
 
 #if defined(OPENSSL_ALL) && !defined(NO_BIO)
 /* Outputs name string of the given WOLFSSL_GENERAL_NAME_OBJECT to WOLFSSL_BIO.
@@ -8655,12 +9292,37 @@ WOLFSSL_X509_CRL* wolfSSL_d2i_X509_CRL(WOLFSSL_X509_CRL** crl,
  * return X509_NAME*  on success
  * return NULL on failure
  */
-WOLFSSL_X509_NAME* wolfSSL_X509_CRL_get_issuer_name(WOLFSSL_X509_CRL* crl)
+WOLFSSL_X509_NAME* wolfSSL_X509_CRL_get_issuer_name(const WOLFSSL_X509_CRL* crl)
 {
     if (crl == NULL || crl->crlList == NULL)
         return NULL;
 
     return crl->crlList->issuer;
+}
+
+/* Set issuer name of CRL
+ * return WOLFSSL_SUCCESS on success
+ * return WOLFSSL_FAILURE on failure
+ */
+int wolfSSL_X509_CRL_set_issuer_name(WOLFSSL_X509_CRL* crl,
+                                     const WOLFSSL_X509_NAME* name)
+{
+    WOLFSSL_X509_NAME* newName;
+
+    if (crl == NULL || crl->crlList == NULL || name == NULL)
+        return WOLFSSL_FAILURE;
+
+    newName = wolfSSL_X509_NAME_dup(name);
+    if (newName == NULL)
+        return WOLFSSL_FAILURE;
+
+    if (crl->crlList->issuer != NULL) {
+        FreeX509Name(crl->crlList->issuer);
+        XFREE(crl->crlList->issuer, crl->heap, DYNAMIC_TYPE_X509);
+    }
+    crl->crlList->issuer = newName;
+
+    return WOLFSSL_SUCCESS;
 }
 
 /* Retrieve version from CRL
@@ -8675,6 +9337,27 @@ int wolfSSL_X509_CRL_version(WOLFSSL_X509_CRL* crl)
     return crl->crlList->version;
 }
 
+/* Set version of CRL
+ * Caller passes the RFC 5280 value: 0 for v1, 1 for v2.
+ * Internally wolfSSL stores version + 1 (v1 = 1, v2 = 2) to match
+ * what ParseCRL produces, so apply the same normalization here.
+ * return WOLFSSL_SUCCESS on success
+ * return WOLFSSL_FAILURE on failure
+ */
+int wolfSSL_X509_CRL_set_version(WOLFSSL_X509_CRL* crl, long version)
+{
+    if (crl == NULL || crl->crlList == NULL)
+        return WOLFSSL_FAILURE;
+
+    /* Only v1 (0) and v2 (1) are defined by RFC 5280. */
+    if (version < 0 || version > 1)
+        return WOLFSSL_FAILURE;
+
+    /* Store as version + 1 to match internal convention. */
+    crl->crlList->version = (int)version + 1;
+    return WOLFSSL_SUCCESS;
+}
+
 /* Retrieve sig OID from CRL
  * return OID on success
  * return 0 on failure
@@ -8687,6 +9370,20 @@ int wolfSSL_X509_CRL_get_signature_type(WOLFSSL_X509_CRL* crl)
     return crl->crlList->signatureOID;
 }
 
+/* Set signature type of CRL
+ * return WOLFSSL_SUCCESS on success
+ * return WOLFSSL_FAILURE on failure
+ */
+int wolfSSL_X509_CRL_set_signature_type(WOLFSSL_X509_CRL* crl,
+                                        int signatureType)
+{
+    if (crl == NULL || crl->crlList == NULL)
+        return WOLFSSL_FAILURE;
+
+    crl->crlList->signatureOID = signatureType;
+    return WOLFSSL_SUCCESS;
+}
+
 /* Retrieve sig NID from CRL
  * return NID on success
  * return 0 on failure
@@ -8697,6 +9394,19 @@ int wolfSSL_X509_CRL_get_signature_nid(const WOLFSSL_X509_CRL* crl)
         return 0;
 
     return oid2nid(crl->crlList->signatureOID, oidSigType);
+}
+
+/* Set signature NID of CRL
+ * return OID on success
+ * return negative value on failure
+ */
+int wolfSSL_X509_CRL_set_signature_nid(WOLFSSL_X509_CRL* crl, int nid)
+{
+    if (crl == NULL || crl->crlList == NULL || nid <= 0)
+        return BAD_FUNC_ARG;
+
+    crl->crlList->signatureOID = nid2oid(nid, oidSigType);
+    return WOLFSSL_SUCCESS;
 }
 
 /* Retrieve signature from CRL
@@ -8722,6 +9432,45 @@ int wolfSSL_X509_CRL_get_signature(WOLFSSL_X509_CRL* crl,
     }
     *bufSz = (int)crl->crlList->signatureSz;
 
+    return WOLFSSL_SUCCESS;
+}
+
+int wolfSSL_X509_CRL_set_signature(WOLFSSL_X509_CRL* crl,
+    unsigned char* buf, int bufSz)
+{
+    byte* newSig;
+
+    if (crl == NULL || crl->crlList == NULL || buf == NULL || bufSz <= 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* Ensure signature buffer is allocated and large enough. */
+    if (crl->crlList->signature == NULL) {
+        crl->crlList->signature = (byte*)XMALLOC((word32)bufSz, crl->heap,
+                                                 DYNAMIC_TYPE_CRL_ENTRY);
+        if (crl->crlList->signature == NULL) {
+            return MEMORY_E;
+        }
+        crl->crlList->signatureSz = (word32)bufSz;
+    }
+    else if ((word32)bufSz > crl->crlList->signatureSz) {
+        newSig = (byte*)XMALLOC((word32)bufSz, crl->heap,
+                                DYNAMIC_TYPE_CRL_ENTRY);
+        if (newSig == NULL) {
+            return MEMORY_E;
+        }
+        XFREE(crl->crlList->signature, crl->heap, DYNAMIC_TYPE_CRL_ENTRY);
+        crl->crlList->signature = newSig;
+        crl->crlList->signatureSz = (word32)bufSz;
+    }
+    else {
+        /* Reuse existing buffer, clear contents in case new signature
+         * is smaller. Note that we do not shrink the buffer. */
+        XMEMSET(crl->crlList->signature, 0, crl->crlList->signatureSz);
+    }
+
+    XMEMCPY(crl->crlList->signature, buf, bufSz);
+    crl->crlList->signatureSz = (word32)bufSz;
     return WOLFSSL_SUCCESS;
 }
 
@@ -9206,8 +9955,17 @@ WOLFSSL_ASN1_TIME* wolfSSL_X509_CRL_get_lastUpdate(WOLFSSL_X509_CRL* crl)
         (crl->crlList->lastDateAsn1.data[0] != 0)) {
         return &crl->crlList->lastDateAsn1;
     }
-    else
-        return NULL;
+    return NULL;
+}
+
+int wolfSSL_X509_CRL_set_lastUpdate(WOLFSSL_X509_CRL* crl,
+                                    const WOLFSSL_ASN1_TIME* time)
+{
+    if (crl != NULL && crl->crlList != NULL && time != NULL) {
+        crl->crlList->lastDateAsn1 = *time;
+        return WOLFSSL_SUCCESS;
+    }
+    return WOLFSSL_FAILURE;
 }
 
 WOLFSSL_ASN1_TIME* wolfSSL_X509_CRL_get_nextUpdate(WOLFSSL_X509_CRL* crl)
@@ -9216,8 +9974,17 @@ WOLFSSL_ASN1_TIME* wolfSSL_X509_CRL_get_nextUpdate(WOLFSSL_X509_CRL* crl)
         (crl->crlList->nextDateAsn1.data[0] != 0)) {
         return &crl->crlList->nextDateAsn1;
     }
-    else
-        return NULL;
+    return NULL;
+}
+
+int wolfSSL_X509_CRL_set_nextUpdate(WOLFSSL_X509_CRL* crl,
+                                    const WOLFSSL_ASN1_TIME* time)
+{
+    if (crl != NULL && crl->crlList != NULL && time != NULL) {
+        crl->crlList->nextDateAsn1 = *time;
+        return WOLFSSL_SUCCESS;
+    }
+    return WOLFSSL_FAILURE;
 }
 
 #ifndef NO_WOLFSSL_STUB
@@ -9229,6 +9996,70 @@ int wolfSSL_X509_CRL_verify(WOLFSSL_X509_CRL* crl, WOLFSSL_EVP_PKEY* key)
     return 0;
 }
 #endif
+
+/* Encode CRL to DER format in memory.
+ *
+ * If *out is NULL, allocates memory and returns it via *out.
+ * If *out is not NULL, writes DER data starting at *out.
+ *
+ * @param crl  CRL to encode
+ * @param out  Pointer to output buffer pointer
+ * @return     Size of DER encoding on success, negative on failure
+ */
+int wolfSSL_i2d_X509_CRL(WOLFSSL_X509_CRL* crl, unsigned char** out)
+{
+    int ret;
+    long derSz = 0;
+    byte* der = NULL;
+    int alloced = 0;
+
+    WOLFSSL_ENTER("wolfSSL_i2d_X509_CRL");
+
+    if (crl == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* Get required size */
+    ret = BufferStoreCRL(crl, NULL, &derSz, WOLFSSL_FILETYPE_ASN1);
+    if (ret != WOLFSSL_SUCCESS || derSz <= 0) {
+        WOLFSSL_MSG("BufferStoreCRL failed to get size");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (out == NULL) {
+        /* Just return size */
+        return (int)derSz;
+    }
+
+    if (*out == NULL) {
+        /* Allocate output buffer */
+        der = (byte*)XMALLOC((size_t)derSz, NULL, DYNAMIC_TYPE_OPENSSL);
+        if (der == NULL) {
+            WOLFSSL_MSG("Memory allocation failed");
+            return MEMORY_E;
+        }
+        alloced = 1;
+    }
+    else {
+        der = *out;
+    }
+
+    /* Encode CRL to DER */
+    ret = BufferStoreCRL(crl, der, &derSz, WOLFSSL_FILETYPE_ASN1);
+    if (ret != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("BufferStoreCRL failed to encode");
+        if (alloced) {
+            XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
+        }
+        return WOLFSSL_FAILURE;
+    }
+
+    if (alloced) {
+        *out = der;
+    }
+
+    return (int)derSz;
+}
 #endif /* HAVE_CRL && OPENSSL_EXTRA */
 
 #ifdef OPENSSL_EXTRA
@@ -9809,10 +10640,11 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_X509_get_serialNumber(WOLFSSL_X509* x509)
 
 #endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD) \
-    || defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_WPAS)
+#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || \
+    defined(WOLFSSL_APACHE_HTTPD) || defined(WOLFSSL_HAPROXY) || \
+    defined(WOLFSSL_WPAS)
 WOLFSSL_X509_ALGOR* wolfSSL_X509_ALGOR_new(void)
 {
     WOLFSSL_X509_ALGOR* ret;
@@ -10227,10 +11059,11 @@ error:
     return WOLFSSL_FAILURE;
 }
 
-#endif /* OPENSSL_ALL || WOLFSSL_APACHE_HTTPD || WOLFSSL_HAPROXY ||
-        * WOLFSSL_WPAS */
+#endif /* OPENSSL_ALL || OPENSSL_EXTRA || WOLFSSL_APACHE_HTTPD ||
+        * WOLFSSL_HAPROXY || WOLFSSL_WPAS */
 
-#if !defined(NO_CERTS) && !defined(NO_ASN) && !defined(NO_PWDBASED)
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_ASN) && \
+    !defined(NO_PWDBASED)
 
 int wolfSSL_i2d_X509_PUBKEY(WOLFSSL_X509_PUBKEY* x509_PubKey,
     unsigned char** der)
@@ -10240,9 +11073,9 @@ int wolfSSL_i2d_X509_PUBKEY(WOLFSSL_X509_PUBKEY* x509_PubKey,
     return wolfSSL_i2d_PublicKey(x509_PubKey->pkey, der);
 }
 
-#endif /* !NO_CERTS && !NO_ASN && !NO_PWDBASED */
+#endif /* OPENSSL_EXTRA && !NO_CERTS && !NO_ASN && !NO_PWDBASED */
 
-#endif /* OPENSSL_EXTRA */
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 WOLFSSL_BASIC_CONSTRAINTS* wolfSSL_BASIC_CONSTRAINTS_new(void)
@@ -10393,7 +11226,7 @@ WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* wolfSSL_sk_X509_OBJECT_deep_copy(
 
     /* Creates a duplicate of a WOLFSSL_X509_NAME structure.
        Returns a new WOLFSSL_X509_NAME structure or NULL on failure */
-    WOLFSSL_X509_NAME* wolfSSL_X509_NAME_dup(WOLFSSL_X509_NAME *name)
+    WOLFSSL_X509_NAME* wolfSSL_X509_NAME_dup(const WOLFSSL_X509_NAME *name)
     {
         WOLFSSL_X509_NAME* copy = NULL;
 
@@ -12272,6 +13105,19 @@ WOLFSSL_X509_CRL* wolfSSL_PEM_read_X509_CRL(XFILE fp,
     return (WOLFSSL_X509_CRL* )wolfSSL_PEM_read_X509_ex(fp, (void **)crl, cb, u,
          CRL_TYPE);
 }
+
+/* Convert CRL to DER or PEM format.
+ * Returns WOLFSSL_SUCCESS on success, negative on failure.
+ * The caller is responsible for freeing the buffer using XFREE.
+ */
+int wolfSSL_write_X509_CRL(WOLFSSL_X509_CRL* crl, const char* path, int type)
+{
+    int ret;
+    WOLFSSL_ENTER("wolfSSL_write_X509_CRL");
+    ret = StoreCRL(crl, path, type);
+    WOLFSSL_LEAVE("wolfSSL_write_X509_CRL", ret);
+    return ret;
+}
 #endif
 
 #ifdef WOLFSSL_CERT_GEN
@@ -12956,7 +13802,7 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
         else {
             /* iterate through and find first open spot */
             for (i = 0; i < MAX_NAME_ENTRIES; i++) {
-                if (name->entry[i].set != 1) { /* not set so overwritten */
+                if (name->entry[i].set == 0) { /* not set so overwritten */
                     WOLFSSL_MSG("Found place for name entry");
                     break;
                 }
@@ -12998,6 +13844,15 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
                 name->entrySz--;
             return WOLFSSL_FAILURE;
         }
+
+#ifdef WOLFSSL_PYTHON
+        /* Set name index for OpenSSL stack index position and so Python can
+         * generate tuples/sets from the list. */
+        for (i = 0; i < MAX_NAME_ENTRIES; i++) {
+            if (name->entry[i].set != 0)
+                name->entry[i].set = i + 1;
+        }
+#endif
 
         if (RebuildFullName(name) != 0)
             return WOLFSSL_FAILURE;
@@ -13070,6 +13925,17 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
             return NULL;
         }
         name->entry[loc].set = 0;
+#ifdef WOLFSSL_PYTHON
+        {
+            int i;
+            /* Set name index for OpenSSL stack index position and so Python can
+            * generate tuples/sets from the list. */
+            for (i = 0; i < MAX_NAME_ENTRIES; i++) {
+                if (name->entry[i].set != 0)
+                    name->entry[i].set = i + 1;
+            }
+        }
+#endif
         return ret;
     }
 
@@ -13120,7 +13986,7 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
     /* returns a pointer to the internal entry at location 'loc' on success,
      * a null pointer is returned in fail cases */
     WOLFSSL_X509_NAME_ENTRY *wolfSSL_X509_NAME_get_entry(
-                                             WOLFSSL_X509_NAME *name, int loc)
+                                        const WOLFSSL_X509_NAME *name, int loc)
     {
 #ifdef WOLFSSL_DEBUG_OPENSSL
         WOLFSSL_ENTER("wolfSSL_X509_NAME_get_entry");
@@ -13136,15 +14002,7 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
         }
 
         if (name->entry[loc].set) {
-#ifdef WOLFSSL_PYTHON
-            /* "set" is not only flag use, but also stack index position use in
-            *  OpenSSL. Python makes tuple based on this number. Therefore,
-            *  updating "set" by position + 1. "plus 1" means to avoid "not set"
-            *  zero.
-            */
-            name->entry[loc].set = loc + 1;
-#endif
-            return &name->entry[loc];
+            return (WOLFSSL_X509_NAME_ENTRY*)&name->entry[loc];
         }
         else {
             return NULL;
@@ -14349,40 +15207,108 @@ int wolfSSL_X509_NAME_digest(const WOLFSSL_X509_NAME *name,
 
 void wolfSSL_X509_email_free(WOLF_STACK_OF(WOLFSSL_STRING) *sk)
 {
-    WOLFSSL_STACK *curr;
+    wolfSSL_sk_pop_free(sk, NULL);
+}
 
-    while (sk != NULL) {
-        curr = sk;
-        sk = sk->next;
+static int x509_aia_append_string(WOLFSSL_STACK** head,
+    const byte* uri, word32 uriSz)
+{
+    WOLFSSL_STACK* node;
+    char*          url;
 
-        XFREE(curr, NULL, DYNAMIC_TYPE_OPENSSL);
+    url = (char*)XMALLOC(uriSz + 1, NULL, DYNAMIC_TYPE_OPENSSL);
+    if (url == NULL)
+        return WOLFSSL_FAILURE;
+
+    XMEMCPY(url, uri, uriSz);
+    url[uriSz] = '\0';
+
+    node = wolfSSL_sk_new_node(*head != NULL ? (*head)->heap : NULL);
+    if (node == NULL) {
+        XFREE(url, NULL, DYNAMIC_TYPE_OPENSSL);
+        return WOLFSSL_FAILURE;
     }
+
+    node->type = STACK_TYPE_STRING;
+    node->data.string = url;
+
+    if (wolfSSL_sk_push_back_node(head, node) != WOLFSSL_SUCCESS) {
+        XFREE(url, NULL, DYNAMIC_TYPE_OPENSSL);
+        wolfSSL_sk_free_node(node);
+        return WOLFSSL_FAILURE;
+    }
+
+    return WOLFSSL_SUCCESS;
+}
+
+static WOLFSSL_STACK* x509_get1_aia_by_method(WOLFSSL_X509* x, word32 method,
+    const byte* fallback, int fallbackSz)
+{
+    WOLFSSL_STACK* head = NULL;
+    int i;
+
+    if (x == NULL)
+        return NULL;
+
+    /* Collect matching URIs from the multi-entry list into a new stack;
+     * fall back to the legacy single-entry field for compatibility. */
+    if (x->authInfoListSz > 0) {
+        for (i = 0; i < x->authInfoListSz; i++) {
+            if (x->authInfoList[i].method != method ||
+                    x->authInfoList[i].uri == NULL ||
+                    x->authInfoList[i].uriSz == 0) {
+                continue;
+            }
+
+            if (x509_aia_append_string(&head, x->authInfoList[i].uri,
+                    x->authInfoList[i].uriSz) != WOLFSSL_SUCCESS) {
+                wolfSSL_sk_pop_free(head, NULL);
+                return NULL;
+            }
+        }
+    }
+    if (head == NULL && fallback != NULL && fallbackSz > 0) {
+        if (x509_aia_append_string(&head, fallback, (word32)fallbackSz)
+                != WOLFSSL_SUCCESS) {
+            wolfSSL_sk_pop_free(head, NULL);
+            return NULL;
+        }
+    }
+
+    return head;
 }
 
 WOLF_STACK_OF(WOLFSSL_STRING) *wolfSSL_X509_get1_ocsp(WOLFSSL_X509 *x)
 {
-    WOLFSSL_STACK* list = NULL;
-    char*          url;
-
-    if (x == NULL || x->authInfoSz == 0)
+    if (x == NULL)
         return NULL;
-
-    list = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK) + x->authInfoSz + 1,
-                                   NULL, DYNAMIC_TYPE_OPENSSL);
-    if (list == NULL)
-        return NULL;
-
-    url = (char*)list;
-    url += sizeof(WOLFSSL_STACK);
-    XMEMCPY(url, x->authInfo, x->authInfoSz);
-    url[x->authInfoSz] = '\0';
-
-    list->data.string = url;
-    list->next = NULL;
-    list->num = 1;
-
-    return list;
+    return x509_get1_aia_by_method(x, AIA_OCSP_OID, x->authInfo, x->authInfoSz);
 }
+
+int wolfSSL_X509_get_aia_overflow(WOLFSSL_X509 *x)
+{
+    int overflow = 0;
+
+    WOLFSSL_ENTER("wolfSSL_X509_get_aia_overflow");
+
+    if (x != NULL) {
+        overflow = x->authInfoListOverflow;
+    }
+
+    WOLFSSL_LEAVE("wolfSSL_X509_get_aia_overflow", overflow);
+
+    return overflow;
+}
+
+#ifdef WOLFSSL_ASN_CA_ISSUER
+WOLF_STACK_OF(WOLFSSL_STRING) *wolfSSL_X509_get1_ca_issuers(WOLFSSL_X509 *x)
+{
+    if (x == NULL)
+        return NULL;
+    return x509_get1_aia_by_method(x, AIA_CA_ISSUER_OID, x->authInfoCaIssuer,
+            x->authInfoCaIssuerSz);
+}
+#endif /* WOLFSSL_ASN_CA_ISSUER */
 
 int wolfSSL_X509_check_issued(WOLFSSL_X509 *issuer, WOLFSSL_X509 *subject)
 {
@@ -14542,7 +15468,7 @@ int wolfSSL_sk_X509_OBJECT_push(WOLFSSL_STACK* sk, WOLFSSL_X509_OBJECT* obj)
 /* unlike wolfSSL_X509_NAME_dup this does not malloc a duplicate, only deep
  * copy. "to" is expected to be a fresh blank name, if not pointers could be
  * lost */
-int wolfSSL_X509_NAME_copy(WOLFSSL_X509_NAME* from, WOLFSSL_X509_NAME* to)
+int wolfSSL_X509_NAME_copy(const WOLFSSL_X509_NAME* from, WOLFSSL_X509_NAME* to)
 {
     int i;
 

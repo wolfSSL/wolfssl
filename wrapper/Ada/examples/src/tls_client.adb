@@ -28,6 +28,8 @@ with Interfaces.C.Strings;
 
 with SPARK_Terminal;
 
+with WolfSSL.Full_Runtime;
+
 package body Tls_Client with SPARK_Mode is
 
    use type WolfSSL.Mode_Type;
@@ -41,7 +43,7 @@ package body Tls_Client with SPARK_Mode is
 
    subtype Byte_Type is WolfSSL.Byte_Type;
 
-   subtype chars_ptr is WolfSSL.chars_ptr;
+   subtype chars_ptr is WolfSSL.Full_Runtime.chars_ptr;
    subtype unsigned is WolfSSL.unsigned;
 
    package Natural_IO is new Ada.Text_IO.Integer_IO (Natural);
@@ -168,9 +170,9 @@ package body Tls_Client with SPARK_Mode is
 
    Any_Inet_Addr : Inet_Addr_Type renames SPARK_Sockets.Any_Inet_Addr;
 
-   CERT_FILE : constant String := "../../certs/client-cert.pem";
-   KEY_FILE  : constant String := "../../certs/client-key.pem";
-   CA_FILE   : constant String := "../../certs/ca-cert.pem";
+   CERT_FILE : constant String := "../../../certs/client-cert.pem";
+   KEY_FILE  : constant String := "../../../certs/client-key.pem";
+   CA_FILE   : constant String := "../../../certs/ca-cert.pem";
 
    subtype Byte_Array is WolfSSL.Byte_Array;
 
@@ -268,17 +270,30 @@ package body Tls_Client with SPARK_Mode is
       end if;
 
       --  Create and initialize WOLFSSL_CTX.
-      WolfSSL.Create_Context
-        (Method  =>
-           (if DTLS then
-               WolfSSL.DTLSv1_3_Client_Method
-            else
-               WolfSSL.TLSv1_3_Client_Method),
-         Context => Ctx);
+      if DTLS then
+         declare
+            Method : WolfSSL.Method_Type :=
+              WolfSSL.DTLSv1_3_Client_Method;
+         begin
+            pragma Warnings (Off, """Method"" is set by ""Create_Context"" but not used after the call");
+            WolfSSL.Create_Context (Method => Method, Context => Ctx);
+            pragma Warnings (On, """Method"" is set by ""Create_Context"" but not used after the call");
+         end;
+      else
+         declare
+            Method : WolfSSL.Method_Type :=
+              WolfSSL.TLSv1_3_Client_Method;
+         begin
+            pragma Warnings (Off, """Method"" is set by ""Create_Context"" but not used after the call");
+            WolfSSL.Create_Context (Method => Method, Context => Ctx);
+            pragma Warnings (On, """Method"" is set by ""Create_Context"" but not used after the call");
+         end;
+      end if;
 
       if not WolfSSL.Is_Valid (Ctx) then
          Put_Line ("ERROR: failed to create WOLFSSL_CTX.");
          SPARK_Sockets.Close_Socket (C);
+         WolfSSL.Free (Context => Ctx);
          Set (Exit_Status_Failure);
          return;
       end if;
@@ -341,6 +356,7 @@ package body Tls_Client with SPARK_Mode is
       if not WolfSSL.Is_Valid (Ssl) then
          Put_Line ("ERROR: failed to create WOLFSSL object.");
          SPARK_Sockets.Close_Socket (C);
+         WolfSSL.Free (Ssl);
          WolfSSL.Free (Context => Ctx);
          Set (Exit_Status_Failure);
          return;
@@ -348,14 +364,14 @@ package body Tls_Client with SPARK_Mode is
 
       if PSK then
          --  Use PSK for authentication.
-         WolfSSL.Set_PSK_Client_Callback
+         WolfSSL.Full_Runtime.Set_PSK_Client_Callback
            (Ssl      => Ssl,
             Callback => PSK_Client_Callback'Access);
       end if;
 
       if DTLS then
-         Result := WolfSSL.DTLS_Set_Peer(Ssl     => Ssl,
-                                         Address => A);
+         Result := WolfSSL.Full_Runtime.DTLS_Set_Peer(Ssl     => Ssl,
+                                                      Address => A);
          if Result /= Success then
             Put_Line ("ERROR: Failed to set the DTLS peer.");
             SPARK_Sockets.Close_Socket (C);
@@ -394,8 +410,9 @@ package body Tls_Client with SPARK_Mode is
       SPARK_Sockets.To_C (Item       => Text (1 .. Last),
                           Target     => D,
                           Count      => Count);
-      Output := WolfSSL.Write (Ssl  => Ssl,
-                               Data => D (1 .. Count));
+      WolfSSL.Write (Ssl    => Ssl,
+                     Data   => D (1 .. Count),
+                     Result => Output);
       if not Output.Success then
          Put ("ERROR: write failure");
          New_Line;
@@ -419,24 +436,18 @@ package body Tls_Client with SPARK_Mode is
          return;
       end if;
 
-      Input := WolfSSL.Read (Ssl);
-      if not Input.Success then
-         Put_Line ("Read error.");
+      WolfSSL.Read (Ssl => Ssl, Result => Input);
+      if not Input.Success or Input.Last > Text'Length then
+         Put_Line ("Read error or response too long.");
          Set (Exit_Status_Failure);
          SPARK_Sockets.Close_Socket (C);
          WolfSSL.Free (Ssl);
          WolfSSL.Free (Context => Ctx);
          return;
       end if;
-      if Input.Buffer'Length > Text'Length then
-         SPARK_Sockets.To_Ada (Item     => Input.Buffer (1 .. 200),
-                               Target   => Text,
-                               Count    => Last);
-      else
-         SPARK_Sockets.To_Ada (Item     => Input.Buffer,
-                               Target   => Text,
-                               Count    => Last);
-      end if;
+      SPARK_Sockets.To_Ada (Item     => Input.Buffer,
+                            Target   => Text,
+                            Count    => Last);
       Put ("Server: ");
       Put (Text (1 .. Last));
       New_Line;

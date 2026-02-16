@@ -28,7 +28,8 @@
 #elif defined(WOLFCRYPT_ONLY)
 #else
 
-#if defined(OPENSSL_EXTRA) || defined(HAVE_CURL)
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+    defined(HAVE_CURL)
 
 #if !defined(HAVE_PKCS7) && \
       ((defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && \
@@ -745,6 +746,10 @@ static int wolfSSL_EVP_CipherUpdate_GCM_AAD(WOLFSSL_EVP_CIPHER_CTX *ctx,
         const unsigned char *in, int inl) {
     if (in && inl > 0) {
         byte* tmp;
+        if (inl > INT_MAX - ctx->authInSz) {
+            WOLFSSL_MSG("AuthIn overflow");
+            return BAD_FUNC_ARG;
+        }
     #ifdef WOLFSSL_NO_REALLOC
         tmp = (byte*)XMALLOC((size_t)(ctx->authInSz + inl), NULL,
                 DYNAMIC_TYPE_OPENSSL);
@@ -789,6 +794,9 @@ static int wolfSSL_EVP_CipherUpdate_GCM(WOLFSSL_EVP_CIPHER_CTX *ctx,
             /* Buffer input for one-shot API */
             if (inl > 0) {
                 byte* tmp;
+                if ((int)inl > INT_MAX - ctx->authBufferLen) {
+                    return MEMORY_E;
+                }
             #ifdef WOLFSSL_NO_REALLOC
                 tmp = (byte*)XMALLOC((size_t)(ctx->authBufferLen + inl), NULL,
                         DYNAMIC_TYPE_OPENSSL);
@@ -872,6 +880,10 @@ static int wolfSSL_EVP_CipherUpdate_CCM_AAD(WOLFSSL_EVP_CIPHER_CTX *ctx,
         const unsigned char *in, int inl) {
     if (in && inl > 0) {
         byte* tmp;
+        if (inl > INT_MAX - ctx->authInSz) {
+            WOLFSSL_MSG("AuthIn overflow");
+            return BAD_FUNC_ARG;
+        }
     #ifdef WOLFSSL_NO_REALLOC
         tmp = (byte*)XMALLOC((size_t)(ctx->authInSz + inl), NULL,
                 DYNAMIC_TYPE_OPENSSL);
@@ -908,6 +920,9 @@ static int wolfSSL_EVP_CipherUpdate_CCM(WOLFSSL_EVP_CIPHER_CTX *ctx,
         /* Buffer input for one-shot API */
         if (inl > 0) {
             byte* tmp;
+            if (inl > INT_MAX - ctx->authBufferLen) {
+                return MEMORY_E;
+            }
         #ifdef WOLFSSL_NO_REALLOC
             tmp = (byte*)XMALLOC((size_t)(ctx->authBufferLen + inl), NULL,
                     DYNAMIC_TYPE_OPENSSL);
@@ -951,8 +966,12 @@ static int wolfSSL_EVP_CipherUpdate_AriaGCM_AAD(WOLFSSL_EVP_CIPHER_CTX *ctx,
 {
     if (in && inl > 0) {
         byte* tmp;
+        if (inl > INT_MAX - ctx->authInSz) {
+            WOLFSSL_MSG("AuthIn overflow");
+            return BAD_FUNC_ARG;
+        }
     #ifdef WOLFSSL_NO_REALLOC
-        tmp = (byte*)XMALLOC((size_t)ctx->authInSz + inl, NULL,
+        tmp = (byte*)XMALLOC((size_t)(ctx->authInSz + inl), NULL,
                 DYNAMIC_TYPE_OPENSSL);
         if (tmp != NULL) {
             XMEMCPY(tmp, ctx->authIn, (size_t)ctx->authInSz);
@@ -961,7 +980,7 @@ static int wolfSSL_EVP_CipherUpdate_AriaGCM_AAD(WOLFSSL_EVP_CIPHER_CTX *ctx,
         }
     #else
         tmp = (byte*)XREALLOC(ctx->authIn,
-                (size_t)ctx->authInSz + inl, NULL, DYNAMIC_TYPE_OPENSSL);
+                (size_t)(ctx->authInSz + inl), NULL, DYNAMIC_TYPE_OPENSSL);
     #endif
         if (tmp) {
             ctx->authIn = tmp;

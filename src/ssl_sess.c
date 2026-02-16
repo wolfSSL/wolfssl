@@ -968,7 +968,8 @@ WOLFSSL_SESSION* wolfSSL_GetSessionClient(WOLFSSL* ssl, const byte* id, int len)
     }
 
     /* start from most recently used */
-    count = (int)min((word32)ClientCache[row].totalCount, CLIENT_SESSIONS_PER_ROW);
+    count = (int)min((word32)ClientCache[row].totalCount,
+        CLIENT_SESSIONS_PER_ROW);
     idx = ClientCache[row].nextIdx - 1;
     if (idx < 0 || idx >= CLIENT_SESSIONS_PER_ROW) {
         /* if back to front, the previous was end */
@@ -997,7 +998,8 @@ WOLFSSL_SESSION* wolfSSL_GetSessionClient(WOLFSSL* ssl, const byte* id, int len)
 #else
         current = &sessRow->Sessions[clSess[idx].serverIdx];
 #endif
-        if (current && XMEMCMP(current->serverID, id, (unsigned long)len) == 0) {
+        if (current && XMEMCMP(current->serverID, id,
+                                                     (unsigned long)len) == 0) {
             WOLFSSL_MSG("Found a serverid match for client");
             if (LowResTimer() < (current->bornOn + current->timeout)) {
                 WOLFSSL_MSG("Session valid");
@@ -1265,8 +1267,8 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
 #endif
         if (output->ticketLenAlloc)
             XFREE(output->ticket, output->heap, DYNAMIC_TYPE_SESSION_TICK);
-        output->ticket = tmpTicket; /* cppcheck-suppress autoVariables
-                                     */
+        /* cppcheck-suppress autoVariables */
+        output->ticket = tmpTicket;
         output->ticketLenAlloc = PREALLOC_SESSION_TICKET_LEN;
         output->ticketLen = 0;
         tmpBufSet = 1;
@@ -1394,7 +1396,8 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
             output->ticketLen = 0;
         }
         if (error == WOLFSSL_SUCCESS) {
-            XMEMCPY(output->ticket, tmpTicket, output->ticketLen); /* cppcheck-suppress uninitvar */
+            /* cppcheck-suppress uninitvar */
+            XMEMCPY(output->ticket, tmpTicket, output->ticketLen);
         }
     }
     WC_FREE_VAR_EX(tmpTicket, output->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -1839,8 +1842,9 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
     if (SESSION_ROW_WR_LOCK(sessRow) != 0) {
     #ifdef HAVE_SESSION_TICKET
         XFREE(ticBuff, NULL, DYNAMIC_TYPE_SESSION_TICK);
-    #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TICKET_NONCE_MALLOC) &&          \
-    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
+    #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TICKET_NONCE_MALLOC) && \
+        (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && \
+                                 FIPS_VERSION_GE(5,3)))
         XFREE(preallocNonce, addSession->heap, DYNAMIC_TYPE_SESSION_TICK);
     #endif
     #endif
@@ -1879,8 +1883,9 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
         if (cacheSession == NULL) {
         #ifdef HAVE_SESSION_TICKET
             XFREE(ticBuff, NULL, DYNAMIC_TYPE_SESSION_TICK);
-        #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TICKET_NONCE_MALLOC) &&          \
-        (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
+        #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TICKET_NONCE_MALLOC) && \
+            (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && \
+                                     FIPS_VERSION_GE(5,3)))
             XFREE(preallocNonce, addSession->heap, DYNAMIC_TYPE_SESSION_TICK);
         #endif
         #endif
@@ -2028,8 +2033,8 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
 
 #ifndef NO_CLIENT_CACHE
     if (ret == 0 && clientCacheEntry != NULL) {
-        ClientSession* clientCache = AddSessionToClientCache(side, row, (int)idx,
-                addSession->serverID, addSession->idLen, id, useTicket);
+        ClientSession* clientCache = AddSessionToClientCache(side, row,
+            (int)idx, addSession->serverID, addSession->idLen, id, useTicket);
         if (clientCache != NULL)
             *clientCacheEntry = clientCache;
     }
@@ -2822,12 +2827,20 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
         goto end;
     }
     s->chain.count = data[idx++];
+    if (s->chain.count > MAX_CHAIN_DEPTH) {
+        ret = BUFFER_ERROR;
+        goto end;
+    }
     for (j = 0; j < s->chain.count; j++) {
         if (i - idx < OPAQUE16_LEN) {
             ret = BUFFER_ERROR;
             goto end;
         }
         ato16(data + idx, &length); idx += OPAQUE16_LEN;
+        if (length > MAX_X509_SIZE) {
+            ret = BUFFER_ERROR;
+            goto end;
+        }
         s->chain.certs[j].length = length;
         if (i - idx < length) {
             ret = BUFFER_ERROR;
@@ -4088,7 +4101,8 @@ void wolfSSL_FreeSession(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* session)
     ForceZero(session->sessionID, ID_LEN);
 
     if (session->type == WOLFSSL_SESSION_TYPE_HEAP) {
-        XFREE(session, session->heap, DYNAMIC_TYPE_SESSION); /* // NOLINT(clang-analyzer-unix.Malloc) */
+        /* // NOLINTNEXTLINE(clang-analyzer-unix.Malloc) */
+        XFREE(session, session->heap, DYNAMIC_TYPE_SESSION);
     }
 }
 

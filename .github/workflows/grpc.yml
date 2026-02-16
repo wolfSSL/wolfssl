@@ -17,7 +17,7 @@ jobs:
     name: Build wolfSSL
     if: github.repository_owner == 'wolfssl'
     # Just to keep it the same as the testing target
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 10
     steps:
@@ -52,7 +52,7 @@ jobs:
               h2_ssl_cert_test h2_ssl_session_reuse_test
     name: ${{ matrix.ref }}
     if: github.repository_owner == 'wolfssl'
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 30
     needs: build_wolfssl

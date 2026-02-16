@@ -196,3 +196,42 @@ int test_wc_PKCS12_create(void)
     return EXPECT_RESULT();
 }
 
+int test_wc_d2i_PKCS12_bad_mac_salt(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_ASN) && !defined(NO_PWDBASED) && defined(HAVE_PKCS12) \
+    && !defined(NO_FILESYSTEM) && !defined(NO_RSA) \
+    && !defined(NO_AES) && !defined(NO_SHA) && !defined(NO_SHA256)
+    WC_PKCS12* pkcs12 = NULL;
+    unsigned char der[FOURK_BUF * 2];
+    int derSz = 0;
+    const char p12_f[] = "./certs/test-servercert.p12";
+    XFILE f = XBADFILE;
+    int i;
+    int found = 0;
+
+    ExpectTrue((f = XFOPEN(p12_f, "rb")) != XBADFILE);
+    ExpectIntGT(derSz = (int)XFREAD(der, 1, sizeof(der), f), 0);
+    if (f != XBADFILE)
+        XFCLOSE(f);
+
+    /* Scan backward within the last 100 bytes to find the MAC salt
+     * OCTET STRING (tag 0x04, length 0x08 for a typical 8-byte salt).
+     * Corrupt its length so that saltSz + curIdx > totalSz, triggering
+     * the error path in GetSignData() after salt allocation. */
+    for (i = derSz - 2; i >= 0 && i >= derSz - 100; i--) {
+        if (der[i] == 0x04 && der[i + 1] == 0x08) {
+            der[i + 1] = 0xFF;
+            found = 1;
+            break;
+        }
+    }
+    ExpectIntEQ(found, 1);
+
+    ExpectNotNull(pkcs12 = wc_PKCS12_new());
+    ExpectIntNE(wc_d2i_PKCS12(der, (word32)derSz, pkcs12), 0);
+    wc_PKCS12_free(pkcs12);
+#endif
+    return EXPECT_RESULT();
+}
+

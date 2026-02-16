@@ -341,7 +341,6 @@ static int test_crl_monitor(void)
     for (i = 0; i < CRL_MONITOR_TEST_ROUNDS; i++) {
         int expectFail;
         if (i % 2 == 0) {
-
             /* succeed on even rounds */
             (void)XSNPRINTF(buf, sizeof(buf), "%s/%s", tmpDir, "crl.pem");
             if (STAGE_FILE("certs/crl/crl.pem", buf) != 0) {
@@ -384,7 +383,11 @@ static int test_crl_monitor(void)
                 fprintf(stderr, "[%d] Failed to remove file %s\n", i, buf);
                 goto cleanup;
             }
+        #ifndef WOLFSSL_NO_CLIENT_AUTH
             expectFail = 1;
+        #else
+            expectFail = 0;
+        #endif
         }
         /* Give server a moment to register the file change */
         XSLEEP_MS(100);

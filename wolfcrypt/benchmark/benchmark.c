@@ -2683,9 +2683,9 @@ static WC_INLINE void bench_stats_start(int* count, double* start)
 #endif
 }
 
-#ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
+#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS)
     #define bench_stats_start(count, start) do {                               \
-        SAVE_VECTOR_REGISTERS(pr_err(                                          \
+        SAVE_VECTOR_REGISTERS(WOLFSSL_DEBUG_PRINTF(                            \
             "ERROR: SAVE_VECTOR_REGISTERS failed for benchmark run.");         \
                               return; );                                       \
         bench_stats_start(count, start);                                       \
@@ -3161,7 +3161,7 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
     (void)useDeviceID;
     (void)ret;
 
-#ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
+#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS)
     RESTORE_VECTOR_REGISTERS();
 #elif defined(WOLFSSL_LINUXKM)
     kernel_fpu_end();
@@ -3559,7 +3559,7 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
     (void)useDeviceID;
     (void)ret;
 
-#ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
+#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS)
     RESTORE_VECTOR_REGISTERS();
 #elif defined(WOLFSSL_LINUXKM)
     kernel_fpu_end();
@@ -16022,6 +16022,20 @@ void bench_sphincsKeySign(byte level, byte optim)
         (void)reset;
         u64 ns = ktime_get_ns();
         return (double)ns / 1000000000.0;
+    }
+
+#elif defined(WOLFSSL_BSDKM)
+
+    #include <sys/timex.h>
+    double current_time(int reset)
+    {
+        (void)reset;
+        struct timespec ts;
+        int64_t result = 0;
+
+        getnanouptime(&ts);
+        result = (int64_t) ts.tv_sec + (int64_t) ts.tv_nsec / NANOSECOND;
+        return (double)result;
     }
 
 #elif defined(WOLFSSL_GAISLER_BCC)

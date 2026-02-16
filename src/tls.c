@@ -1064,7 +1064,8 @@ static int Hmac_UpdateFinal_CT(Hmac* hmac, byte* digest, const byte* in,
             hashBlock[j] = b;
         }
 
-        ret = Hmac_HashUpdate(hmac, hashBlock, (word32)blockSz); /* cppcheck-suppress uninitvar */
+        /* cppcheck-suppress uninitvar */
+        ret = Hmac_HashUpdate(hmac, hashBlock, (word32)blockSz);
         if (ret != 0)
             return ret;
         ret = Hmac_HashFinalRaw(hmac, hashBlock);
@@ -1461,7 +1462,7 @@ static WC_INLINE word16 TLSX_ToSemaphore(word16 type)
         case TLSX_ECH: /* 0xfe0d */
             return 65;
 #endif
-#ifdef WOLFSSL_DUAL_ALG_CERTS
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_DUAL_ALG_CERTS)
         case TLSX_CKS:
             return 66;
 #endif
@@ -3477,8 +3478,7 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     word16 size = 0;
 #endif
 
-#if !defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER) \
-    && defined(WOLFSSL_TLS13)
+#if !defined(NO_WOLFSSL_CLIENT)
     OcspRequest* request;
     TLSX* extension;
     CertificateStatusRequest* csr;
@@ -4407,6 +4407,7 @@ static int TLSX_IsGroupSupported(int namedGroup)
         #endif /* !NO_ECC_SECP */
         #ifdef HAVE_ECC_BRAINPOOL
         case WOLFSSL_ECC_BRAINPOOLP256R1:
+        case WOLFSSL_ECC_BRAINPOOLP256R1TLS13:
             break;
         #endif
         #ifdef WOLFSSL_SM2
@@ -4429,6 +4430,7 @@ static int TLSX_IsGroupSupported(int namedGroup)
         #endif /* !NO_ECC_SECP */
         #ifdef HAVE_ECC_BRAINPOOL
         case WOLFSSL_ECC_BRAINPOOLP384R1:
+        case WOLFSSL_ECC_BRAINPOOLP384R1TLS13:
             break;
         #endif
     #endif
@@ -4475,6 +4477,7 @@ static int TLSX_IsGroupSupported(int namedGroup)
     #if (defined(HAVE_ECC512) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 512
         #ifdef HAVE_ECC_BRAINPOOL
         case WOLFSSL_ECC_BRAINPOOLP512R1:
+        case WOLFSSL_ECC_BRAINPOOLP512R1TLS13:
             break;
         #endif
     #endif
@@ -5328,8 +5331,32 @@ int TLSX_SupportedFFDHE_Set(WOLFSSL* ssl)
     return ret;
 }
 #endif /* HAVE_FFDHE && !WOLFSSL_NO_TLS12 */
-
 #endif /* !NO_WOLFSSL_SERVER */
+
+/* Check if the given curve is present in the supported groups extension.
+ *
+ * ssl             SSL/TLS object.
+ * name            The curve name to check.
+ * returns 1 if present, 0 otherwise.
+ */
+int TLSX_SupportedCurve_IsSupported(WOLFSSL* ssl, word16 name)
+{
+    TLSX* extension;
+    SupportedCurve* curve;
+
+    extension = TLSX_Find(ssl->extensions, TLSX_SUPPORTED_GROUPS);
+    if (extension == NULL)
+        return 0;
+
+    curve = (SupportedCurve*)extension->data;
+    while (curve != NULL) {
+        if (curve->name == name)
+            return 1;
+        curve = curve->next;
+    }
+
+    return 0;
+}
 
 #if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_SERVER_GROUPS_EXT)
 /* Return the preferred group.
@@ -6497,6 +6524,7 @@ typedef struct TlsxSrtp {
     word16 ids; /* selected bits */
 } TlsxSrtp;
 
+#ifndef NO_WOLFSSL_SERVER
 static int TLSX_UseSRTP_GetSize(TlsxSrtp *srtp)
 {
     /*   SRTP Profile Len (2)
@@ -6504,6 +6532,7 @@ static int TLSX_UseSRTP_GetSize(TlsxSrtp *srtp)
      *   MKI (master key id) Length */
     return (OPAQUE16_LEN + (srtp->profileCount * OPAQUE16_LEN) + 1);
 }
+#endif
 
 static TlsxSrtp* TLSX_UseSRTP_New(word16 ids, void* heap)
 {
@@ -6534,6 +6563,7 @@ static void TLSX_UseSRTP_Free(TlsxSrtp *srtp, void* heap)
     (void)heap;
 }
 
+#ifndef NO_WOLFSSL_SERVER
 static int TLSX_UseSRTP_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     byte isRequest)
 {
@@ -6541,10 +6571,8 @@ static int TLSX_UseSRTP_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     word16 profile_len = 0;
     word16 profile_value = 0;
     word16 offset = 0;
-#ifndef NO_WOLFSSL_SERVER
     int i;
     TlsxSrtp* srtp = NULL;
-#endif
 
     if (length < OPAQUE16_LEN) {
         return BUFFER_ERROR;
@@ -6572,7 +6600,6 @@ static int TLSX_UseSRTP_Parse(WOLFSSL* ssl, const byte* input, word16 length,
         }
 #endif
     }
-#ifndef NO_WOLFSSL_SERVER
     else {
         /* parse remainder one profile at a time, looking for match in CTX */
         ret = 0;
@@ -6615,7 +6642,6 @@ static int TLSX_UseSRTP_Parse(WOLFSSL* ssl, const byte* input, word16 length,
         ssl->dtlsSrtpId = 0;
         TLSX_UseSRTP_Free(srtp, ssl->heap);
     }
-#endif
     (void)profile_len;
 
     return ret;
@@ -6641,6 +6667,7 @@ static word16 TLSX_UseSRTP_Write(TlsxSrtp* srtp, byte* output)
 
     return offset;
 }
+#endif
 
 static int TLSX_UseSRTP(TLSX** extensions, word16 profiles, void* heap)
 {
@@ -7975,18 +8002,54 @@ static int TLSX_KeyShare_GenX25519Key(WOLFSSL *ssl, KeyShareEntry* kse)
 
         /* Make an Curve25519 key. */
         ret = wc_curve25519_init_ex((curve25519_key*)kse->key, ssl->heap,
-            INVALID_DEVID);
+            ssl->devId);
         if (ret == 0) {
             /* setting "key" means okay to call wc_curve25519_free */
             key = (curve25519_key*)kse->key;
             kse->keyLen = CURVE25519_KEYSIZE;
-
+        }
+    #if defined(WC_X25519_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+        defined(WC_ASYNC_ENABLE_X25519)
+        /* Only set non-blocking context when async device is active. With
+         * INVALID_DEVID there is no async loop to retry on FP_WOULDBLOCK, so
+         * skip non-blocking setup and use blocking mode instead. */
+        if (ret == 0 && ssl->devId != INVALID_DEVID) {
+            x25519_nb_ctx_t* nb_ctx = (x25519_nb_ctx_t*)XMALLOC(
+                sizeof(x25519_nb_ctx_t), ssl->heap,
+                DYNAMIC_TYPE_TMP_BUFFER);
+            if (nb_ctx == NULL) {
+                ret = MEMORY_E;
+            }
+            else {
+                ret = wc_curve25519_set_nonblock(key, nb_ctx);
+                if (ret != 0) {
+                    XFREE(nb_ctx, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                }
+            }
+        }
+    #endif /* WC_X25519_NONBLOCK && WOLFSSL_ASYNC_CRYPT_SW &&
+              WC_ASYNC_ENABLE_X25519 */
+        if (ret == 0) {
         #ifdef WOLFSSL_STATIC_EPHEMERAL
             ret = wolfSSL_StaticEphemeralKeyLoad(ssl, WC_PK_TYPE_CURVE25519, kse->key);
-            if (ret != 0)
+            if (ret != 0) /* on failure, fallback to local key generation */
         #endif
             {
+            #ifdef WOLFSSL_ASYNC_CRYPT
+                /* initialize event */
+                ret = wolfSSL_AsyncInit(ssl, &key->asyncDev,
+                    WC_ASYNC_FLAG_NONE);
+                if (ret != 0)
+                    return ret;
+            #endif
                 ret = wc_curve25519_make_key(ssl->rng, CURVE25519_KEYSIZE, key);
+
+                /* Handle async pending response */
+            #ifdef WOLFSSL_ASYNC_CRYPT
+                if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+                    return wolfSSL_AsyncPush(ssl, &key->asyncDev);
+                }
+            #endif /* WOLFSSL_ASYNC_CRYPT */
             }
         }
     }
@@ -8023,8 +8086,14 @@ static int TLSX_KeyShare_GenX25519Key(WOLFSSL *ssl, KeyShareEntry* kse)
         /* Data owned by key share entry otherwise. */
         XFREE(kse->pubKey, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         kse->pubKey = NULL;
-        if (key != NULL)
+        if (key != NULL) {
+        #if defined(WC_X25519_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW)
+            if (key->nb_ctx != NULL) {
+                XFREE(key->nb_ctx, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            }
+        #endif
             wc_curve25519_free(key);
+        }
         XFREE(kse->key, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
         kse->key = NULL;
     }
@@ -8154,7 +8223,13 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
             curveId = ECC_SM2P256V1;
             keySize = 32;
             break;
-        #endif /* !NO_ECC_SECP */
+        #endif /* !WOLFSSL_SM2 */
+        #ifdef HAVE_ECC_BRAINPOOL
+        case WOLFSSL_ECC_BRAINPOOLP256R1TLS13:
+            curveId = ECC_BRAINPOOLP256R1;
+            keySize = 32;
+            break;
+        #endif /* HAVE_ECC_BRAINPOOL */
     #endif
     #if (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 384
         #ifndef NO_ECC_SECP
@@ -8163,6 +8238,20 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
             keySize = 48;
             break;
         #endif /* !NO_ECC_SECP */
+        #ifdef HAVE_ECC_BRAINPOOL
+        case WOLFSSL_ECC_BRAINPOOLP384R1TLS13:
+            curveId = ECC_BRAINPOOLP384R1;
+            keySize = 48;
+            break;
+        #endif /* HAVE_ECC_BRAINPOOL */
+    #endif
+    #if (defined(HAVE_ECC512) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 512
+        #ifdef HAVE_ECC_BRAINPOOL
+        case WOLFSSL_ECC_BRAINPOOLP512R1TLS13:
+            curveId = ECC_BRAINPOOLP512R1;
+            keySize = 64;
+            break;
+        #endif /* HAVE_ECC_BRAINPOOL */
     #endif
     #if (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 521
         #ifndef NO_ECC_SECP
@@ -8189,6 +8278,28 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
 
         /* Initialize an ECC key struct for the ephemeral key */
         ret = wc_ecc_init_ex((ecc_key*)kse->key, ssl->heap, ssl->devId);
+
+    #if defined(WC_ECC_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+        defined(WC_ASYNC_ENABLE_ECC)
+        /* Only set non-blocking context when async device is active. With
+         * INVALID_DEVID there is no async loop to retry on FP_WOULDBLOCK, so
+         * skip non-blocking setup and use blocking mode instead. */
+        if (ret == 0 && ssl->devId != INVALID_DEVID) {
+            ecc_nb_ctx_t* eccNbCtx = (ecc_nb_ctx_t*)XMALLOC(
+                sizeof(ecc_nb_ctx_t), ssl->heap,
+                DYNAMIC_TYPE_TMP_BUFFER);
+            if (eccNbCtx == NULL) {
+                ret = MEMORY_E;
+            }
+            else {
+                ret = wc_ecc_set_nonblock((ecc_key*)kse->key, eccNbCtx);
+                if (ret != 0) {
+                    XFREE(eccNbCtx, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                }
+            }
+        }
+    #endif /* WC_ECC_NONBLOCK && WOLFSSL_ASYNC_CRYPT_SW &&
+              WC_ASYNC_ENABLE_ECC */
 
         if (ret == 0) {
             kse->keyLen = keySize;
@@ -8761,6 +8872,13 @@ static void TLSX_KeyShare_FreeAll(KeyShareEntry* list, void* heap)
         }
         else if (current->group == WOLFSSL_ECC_X25519) {
 #ifdef HAVE_CURVE25519
+        #if defined(WC_X25519_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW)
+            if (current->key != NULL &&
+                    ((curve25519_key*)current->key)->nb_ctx != NULL) {
+                XFREE(((curve25519_key*)current->key)->nb_ctx, heap,
+                    DYNAMIC_TYPE_TMP_BUFFER);
+            }
+        #endif
             wc_curve25519_free((curve25519_key*)current->key);
 #endif
         }
@@ -8804,6 +8922,15 @@ static void TLSX_KeyShare_FreeAll(KeyShareEntry* list, void* heap)
             }
             else {
             #ifdef HAVE_ECC
+                #if defined(WC_ECC_NONBLOCK) && \
+                    defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+                    defined(WC_ASYNC_ENABLE_ECC)
+                if (current->key != NULL &&
+                        ((ecc_key*)current->key)->nb_ctx != NULL) {
+                    XFREE(((ecc_key*)current->key)->nb_ctx, heap,
+                        DYNAMIC_TYPE_TMP_BUFFER);
+                }
+                #endif
                 wc_ecc_free((ecc_key*)current->key);
             #endif
             }
@@ -8811,6 +8938,14 @@ static void TLSX_KeyShare_FreeAll(KeyShareEntry* list, void* heap)
 #endif
         else {
 #ifdef HAVE_ECC
+        #if defined(WC_ECC_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+            defined(WC_ASYNC_ENABLE_ECC)
+            if (current->key != NULL &&
+                    ((ecc_key*)current->key)->nb_ctx != NULL) {
+                XFREE(((ecc_key*)current->key)->nb_ctx, heap,
+                    DYNAMIC_TYPE_TMP_BUFFER);
+            }
+        #endif
             wc_ecc_free((ecc_key*)current->key);
 #endif
         }
@@ -9054,67 +9189,113 @@ static int TLSX_KeyShare_ProcessX25519_ex(WOLFSSL* ssl,
                                           unsigned char* ssOutput,
                                           word32* ssOutSz)
 {
-    int ret;
+    int ret = 0;
 
 #ifdef HAVE_CURVE25519
     curve25519_key* key = (curve25519_key*)keyShareEntry->key;
-    curve25519_key* peerX25519Key;
 
-#ifdef HAVE_ECC
-    if (ssl->peerEccKey != NULL) {
-        wc_ecc_free(ssl->peerEccKey);
-        ssl->peerEccKey = NULL;
-        ssl->peerEccKeyPresent = 0;
-    }
+#ifdef WOLFSSL_ASYNC_CRYPT
+    if (keyShareEntry->lastRet == 0) /* don't enter here if WC_PENDING_E */
 #endif
+    {
+    #ifdef HAVE_ECC
+        if (ssl->peerEccKey != NULL) {
+            wc_ecc_free(ssl->peerEccKey);
+            ssl->peerEccKey = NULL;
+            ssl->peerEccKeyPresent = 0;
+        }
+    #endif
 
-    peerX25519Key = (curve25519_key*)XMALLOC(sizeof(curve25519_key), ssl->heap,
-                                                             DYNAMIC_TYPE_TLSX);
-    if (peerX25519Key == NULL) {
-        WOLFSSL_MSG("PeerEccKey Memory error");
-        return MEMORY_ERROR;
-    }
-    ret = wc_curve25519_init(peerX25519Key);
-    if (ret != 0) {
-        XFREE(peerX25519Key, ssl->heap, DYNAMIC_TYPE_TLSX);
-        return ret;
-    }
-#ifdef WOLFSSL_DEBUG_TLS
-    WOLFSSL_MSG("Peer Curve25519 Key");
-    WOLFSSL_BUFFER(keyShareEntry->ke, keyShareEntry->keLen);
-#endif
+        ssl->peerX25519Key = (curve25519_key*)XMALLOC(sizeof(curve25519_key),
+                                        ssl->heap, DYNAMIC_TYPE_TLSX);
+        if (ssl->peerX25519Key == NULL) {
+            WOLFSSL_MSG("PeerX25519Key Memory error");
+            return MEMORY_ERROR;
+        }
+        ret = wc_curve25519_init(ssl->peerX25519Key);
+        if (ret != 0) {
+            XFREE(ssl->peerX25519Key, ssl->heap, DYNAMIC_TYPE_TLSX);
+            ssl->peerX25519Key = NULL;
+            return ret;
+        }
+    #ifdef WOLFSSL_DEBUG_TLS
+        WOLFSSL_MSG("Peer Curve25519 Key");
+        WOLFSSL_BUFFER(keyShareEntry->ke, keyShareEntry->keLen);
+    #endif
 
-    if (wc_curve25519_check_public(keyShareEntry->ke, keyShareEntry->keLen,
+        if (wc_curve25519_check_public(keyShareEntry->ke, keyShareEntry->keLen,
                                                   EC25519_LITTLE_ENDIAN) != 0) {
-        ret = ECC_PEERKEY_ERROR;
-        WOLFSSL_ERROR_VERBOSE(ret);
-    }
-
-    if (ret == 0) {
-        if (wc_curve25519_import_public_ex(keyShareEntry->ke,
-                                            keyShareEntry->keLen, peerX25519Key,
-                                            EC25519_LITTLE_ENDIAN) != 0) {
             ret = ECC_PEERKEY_ERROR;
             WOLFSSL_ERROR_VERBOSE(ret);
         }
+
+        if (ret == 0) {
+            if (wc_curve25519_import_public_ex(keyShareEntry->ke,
+                                        keyShareEntry->keLen,
+                                        ssl->peerX25519Key,
+                                        EC25519_LITTLE_ENDIAN) != 0) {
+                ret = ECC_PEERKEY_ERROR;
+                WOLFSSL_ERROR_VERBOSE(ret);
+            }
+        }
+
+        if (ret == 0) {
+            ssl->ecdhCurveOID = ECC_X25519_OID;
+            ssl->peerX25519KeyPresent = 1;
+        }
     }
 
+    if (ret == 0 && key == NULL)
+        ret = BAD_FUNC_ARG;
     if (ret == 0) {
-        ssl->ecdhCurveOID = ECC_X25519_OID;
     #ifdef WOLFSSL_CURVE25519_BLINDING
         ret = wc_curve25519_set_rng(key, ssl->rng);
     }
     if (ret == 0) {
     #endif
-        ret = wc_curve25519_shared_secret_ex(key, peerX25519Key,
-                    ssOutput, ssOutSz, EC25519_LITTLE_ENDIAN);
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        if (keyShareEntry->lastRet != WC_NO_ERR_TRACE(WC_PENDING_E))
+    #endif
+        {
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            /* initialize event */
+            ret = wolfSSL_AsyncInit(ssl, &key->asyncDev,
+                WC_ASYNC_FLAG_CALL_AGAIN);
+            if (ret != 0)
+                return ret;
+        #endif
+            ret = wc_curve25519_shared_secret_ex(key, ssl->peerX25519Key,
+                        ssOutput, ssOutSz, EC25519_LITTLE_ENDIAN);
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+                return wolfSSL_AsyncPush(ssl, &key->asyncDev);
+            }
+        #endif
+        }
+        /* On CALL_AGAIN re-entry (lastRet == PENDING): the block above
+         * is skipped entirely, so wc_curve25519_shared_secret_ex is not
+         * called again. ret stays 0 from initialization, and execution
+         * falls through to the cleanup code below. */
     }
 
-    wc_curve25519_free(peerX25519Key);
-    XFREE(peerX25519Key, ssl->heap, DYNAMIC_TYPE_TLSX);
-    wc_curve25519_free((curve25519_key*)keyShareEntry->key);
-    XFREE(keyShareEntry->key, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
-    keyShareEntry->key = NULL;
+    /* done with key share, release resources */
+    if (ssl->peerX25519Key != NULL) {
+        wc_curve25519_free(ssl->peerX25519Key);
+        XFREE(ssl->peerX25519Key, ssl->heap, DYNAMIC_TYPE_TLSX);
+        ssl->peerX25519Key = NULL;
+        ssl->peerX25519KeyPresent = 0;
+    }
+    if (keyShareEntry->key != NULL) {
+    #if defined(WC_X25519_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW)
+        if (((curve25519_key*)keyShareEntry->key)->nb_ctx != NULL) {
+            XFREE(((curve25519_key*)keyShareEntry->key)->nb_ctx, ssl->heap,
+                DYNAMIC_TYPE_TMP_BUFFER);
+        }
+    #endif
+        wc_curve25519_free((curve25519_key*)keyShareEntry->key);
+        XFREE(keyShareEntry->key, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
+        keyShareEntry->key = NULL;
+    }
     XFREE(keyShareEntry->ke, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
     keyShareEntry->ke = NULL;
 #else
@@ -9273,7 +9454,12 @@ static int TLSX_KeyShare_ProcessEcc_ex(WOLFSSL* ssl,
         case WOLFSSL_ECC_SM2P256V1:
             curveId = ECC_SM2P256V1;
             break;
-        #endif
+        #endif /* WOLFSSL_SM2 */
+        #ifdef HAVE_ECC_BRAINPOOL
+        case WOLFSSL_ECC_BRAINPOOLP256R1TLS13:
+            curveId = ECC_BRAINPOOLP256R1;
+            break;
+        #endif /* HAVE_ECC_BRAINPOOL */
     #endif
     #if (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 384
         #ifndef NO_ECC_SECP
@@ -9281,6 +9467,18 @@ static int TLSX_KeyShare_ProcessEcc_ex(WOLFSSL* ssl,
             curveId = ECC_SECP384R1;
             break;
         #endif /* !NO_ECC_SECP */
+        #ifdef HAVE_ECC_BRAINPOOL
+        case WOLFSSL_ECC_BRAINPOOLP384R1TLS13:
+            curveId = ECC_BRAINPOOLP384R1;
+            break;
+        #endif /* HAVE_ECC_BRAINPOOL */
+    #endif
+    #if (defined(HAVE_ECC512) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 512
+        #ifdef HAVE_ECC_BRAINPOOL
+        case WOLFSSL_ECC_BRAINPOOLP512R1TLS13:
+            curveId = ECC_BRAINPOOLP512R1;
+            break;
+        #endif /* HAVE_ECC_BRAINPOOL */
     #endif
     #if (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 521
         #ifndef NO_ECC_SECP
@@ -9335,8 +9533,14 @@ static int TLSX_KeyShare_ProcessEcc_ex(WOLFSSL* ssl,
 
         /* Point is validated by import function. */
         if (ret == 0) {
-            ret = wc_ecc_import_x963_ex(keyShareEntry->ke, keyShareEntry->keLen,
-                                ssl->peerEccKey, curveId);
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+            ret = wc_ecc_import_x963_ex2(keyShareEntry->ke,
+                keyShareEntry->keLen, ssl->peerEccKey, curveId, 1);
+#else
+            /* FIPS has validation define on. */
+            ret = wc_ecc_import_x963_ex(keyShareEntry->ke,
+                keyShareEntry->keLen, ssl->peerEccKey, curveId);
+#endif
             if (ret != 0) {
                 ret = ECC_PEERKEY_ERROR;
                 WOLFSSL_ERROR_VERBOSE(ret);
@@ -9830,7 +10034,7 @@ static int TLSX_KeyShareEntry_Parse(const WOLFSSL* ssl, const byte* input,
     ato16(&input[offset], &keLen);
     offset += OPAQUE16_LEN;
     if (keLen == 0)
-        return INVALID_PARAMETER;
+        return BUFFER_ERROR;
     if (keLen > length - offset)
         return BUFFER_ERROR;
 
@@ -10029,6 +10233,8 @@ int TLSX_KeyShare_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 
         if (length < OPAQUE16_LEN)
             return BUFFER_ERROR;
+
+        ssl->options.shSentKeyShare = 1;
 
         /* The data is the named group the server wants to use. */
         ato16(input, &group);
@@ -10631,6 +10837,9 @@ static const word16 preferredGroup[] = {
 #if !defined(HAVE_FIPS) && defined(WOLFSSL_SM2)
     WOLFSSL_ECC_SM2P256V1,
 #endif
+#if defined(HAVE_ECC_BRAINPOOL)
+    WOLFSSL_ECC_BRAINPOOLP256R1TLS13,
+#endif
 #endif
 #if defined(HAVE_CURVE25519) && ECC_MIN_KEY_SZ <= 256
     WOLFSSL_ECC_X25519,
@@ -10641,10 +10850,17 @@ static const word16 preferredGroup[] = {
 #if defined(HAVE_ECC) && (!defined(NO_ECC384) || \
     defined(HAVE_ALL_CURVES)) && !defined(NO_ECC_SECP) && ECC_MIN_KEY_SZ <= 384
     WOLFSSL_ECC_SECP384R1,
+#if defined(HAVE_ECC_BRAINPOOL)
+    WOLFSSL_ECC_BRAINPOOLP384R1TLS13,
+#endif
 #endif
 #if defined(HAVE_ECC) && (!defined(NO_ECC521) || \
     defined(HAVE_ALL_CURVES)) && !defined(NO_ECC_SECP) && ECC_MIN_KEY_SZ <= 521
     WOLFSSL_ECC_SECP521R1,
+#endif
+#if defined(HAVE_ECC) && defined(HAVE_ECC512) && \
+    defined(HAVE_ECC_BRAINPOOL) && ECC_MIN_KEY_SZ <= 512
+    WOLFSSL_ECC_BRAINPOOLP512R1TLS13,
 #endif
 #if defined(HAVE_FFDHE_2048)
     WOLFSSL_FFDHE_2048,
@@ -13717,7 +13933,7 @@ void TLSX_FreeAll(TLSX* list, void* heap)
                 ECH_FREE((WOLFSSL_ECH*)extension->data, heap);
                 break;
 #endif
-#ifdef WOLFSSL_DUAL_ALG_CERTS
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_DUAL_ALG_CERTS)
             case TLSX_CKS:
                 WOLFSSL_MSG("CKS extension free");
                 /* nothing to do */
@@ -13763,7 +13979,7 @@ static int TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType,
         length += HELLO_EXT_TYPE_SZ + OPAQUE16_LEN;
 
         switch (extension->type) {
-#ifdef WOLFSSL_DUAL_ALG_CERTS
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_DUAL_ALG_CERTS)
             case TLSX_CKS:
                 length += ((WOLFSSL*)extension->data)->sigSpecSz ;
                 break;
@@ -13962,7 +14178,7 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
 
         /* extension data should be written internally. */
         switch (extension->type) {
-#ifdef WOLFSSL_DUAL_ALG_CERTS
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_DUAL_ALG_CERTS)
             case TLSX_CKS:
                 WOLFSSL_MSG("CKS extension to write");
                 offset += CKS_WRITE(((WOLFSSL*)extension->data),
@@ -14227,9 +14443,27 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
         #endif
         #if (defined(HAVE_ECC512) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 512
             #ifdef HAVE_ECC_BRAINPOOL
-                ret = TLSX_UseSupportedCurve(extensions,
-                                        WOLFSSL_ECC_BRAINPOOLP512R1, ssl->heap);
-                if (ret != WOLFSSL_SUCCESS) return ret;
+                if (IsAtLeastTLSv1_3(ssl->version)) {
+                    /* TLS 1.3 BrainpoolP512 curve */
+                    ret = TLSX_UseSupportedCurve(extensions,
+                                WOLFSSL_ECC_BRAINPOOLP512R1TLS13, ssl->heap);
+                    if (ret != WOLFSSL_SUCCESS) return ret;
+
+                    /* If TLS 1.2 is allowed, also add the TLS 1.2 curve */
+                    if (ssl->options.downgrade &&
+                        (ssl->options.minDowngrade <= TLSv1_2_MINOR ||
+                         ssl->options.minDowngrade <= DTLSv1_2_MINOR)) {
+                        ret = TLSX_UseSupportedCurve(extensions,
+                                    WOLFSSL_ECC_BRAINPOOLP512R1, ssl->heap);
+                        if (ret != WOLFSSL_SUCCESS) return ret;
+                    }
+                }
+                else {
+                    /* TLS 1.2 only */
+                    ret = TLSX_UseSupportedCurve(extensions,
+                        WOLFSSL_ECC_BRAINPOOLP512R1, ssl->heap);
+                    if (ret != WOLFSSL_SUCCESS) return ret;
+                }
             #endif
         #endif
         #if (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 384
@@ -14239,9 +14473,27 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
                 if (ret != WOLFSSL_SUCCESS) return ret;
             #endif
             #ifdef HAVE_ECC_BRAINPOOL
-                ret = TLSX_UseSupportedCurve(extensions,
-                                        WOLFSSL_ECC_BRAINPOOLP384R1, ssl->heap);
-                if (ret != WOLFSSL_SUCCESS) return ret;
+                if (IsAtLeastTLSv1_3(ssl->version)) {
+                    /* TLS 1.3 BrainpoolP384 curve */
+                    ret = TLSX_UseSupportedCurve(extensions,
+                                WOLFSSL_ECC_BRAINPOOLP384R1TLS13, ssl->heap);
+                    if (ret != WOLFSSL_SUCCESS) return ret;
+
+                    /* If TLS 1.2 is allowed, also add the TLS 1.2 curve */
+                    if (ssl->options.downgrade &&
+                        (ssl->options.minDowngrade <= TLSv1_2_MINOR ||
+                         ssl->options.minDowngrade <= DTLSv1_2_MINOR)) {
+                        ret = TLSX_UseSupportedCurve(extensions,
+                                    WOLFSSL_ECC_BRAINPOOLP384R1, ssl->heap);
+                        if (ret != WOLFSSL_SUCCESS) return ret;
+                    }
+                }
+                else {
+                    /* TLS 1.2 only */
+                    ret = TLSX_UseSupportedCurve(extensions,
+                        WOLFSSL_ECC_BRAINPOOLP384R1, ssl->heap);
+                    if (ret != WOLFSSL_SUCCESS) return ret;
+                }
             #endif
         #endif
 #endif /* HAVE_ECC */
@@ -14267,9 +14519,27 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
                 if (ret != WOLFSSL_SUCCESS) return ret;
             #endif
             #ifdef HAVE_ECC_BRAINPOOL
-                ret = TLSX_UseSupportedCurve(extensions,
-                                        WOLFSSL_ECC_BRAINPOOLP256R1, ssl->heap);
-                if (ret != WOLFSSL_SUCCESS) return ret;
+                if (IsAtLeastTLSv1_3(ssl->version)) {
+                    /* TLS 1.3 BrainpoolP256 curve */
+                    ret = TLSX_UseSupportedCurve(extensions,
+                                            WOLFSSL_ECC_BRAINPOOLP256R1TLS13, ssl->heap);
+                    if (ret != WOLFSSL_SUCCESS) return ret;
+
+                    /* If TLS 1.2 is allowed, also add the TLS 1.2 curve */
+                    if (ssl->options.downgrade &&
+                        (ssl->options.minDowngrade <= TLSv1_2_MINOR ||
+                         ssl->options.minDowngrade <= DTLSv1_2_MINOR)) {
+                        ret = TLSX_UseSupportedCurve(extensions,
+                                    WOLFSSL_ECC_BRAINPOOLP256R1, ssl->heap);
+                        if (ret != WOLFSSL_SUCCESS) return ret;
+                    }
+                }
+                else {
+                    /* TLS 1.2 only */
+                    ret = TLSX_UseSupportedCurve(extensions,
+                        WOLFSSL_ECC_BRAINPOOLP256R1, ssl->heap);
+                    if (ret != WOLFSSL_SUCCESS) return ret;
+                }
             #endif
             #ifdef WOLFSSL_SM2
                 ret = TLSX_UseSupportedCurve(extensions,
@@ -14621,7 +14891,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
             }
         }
 #endif
-#ifdef WOLFSSL_DUAL_ALG_CERTS
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_DUAL_ALG_CERTS)
         if ((IsAtLeastTLSv1_3(ssl->version)) && (ssl->sigSpec != NULL)) {
             WOLFSSL_MSG("Adding CKS extension");
             if ((ret = TLSX_UseCKS(&ssl->extensions, ssl, ssl->heap)) != 0) {
@@ -15977,7 +16247,7 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
         #ifdef WOLFSSL_QUIC
             || (type == TLSX_KEY_QUIC_TP_PARAMS_DRAFT)
         #endif
-        #ifdef WOLFSSL_DUAL_ALG_CERTS
+        #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_DUAL_ALG_CERTS)
             || (type == TLSX_CKS)
         #endif
             )
@@ -16130,7 +16400,7 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
                 ret = EC_PARSE(ssl, input + offset, size, isRequest,
                         &ssl->extensions);
                 break;
-#ifdef WOLFSSL_DUAL_ALG_CERTS
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_DUAL_ALG_CERTS)
             case TLSX_CKS:
                 WOLFSSL_MSG("CKS extension received");
                 if (msgType != client_hello &&

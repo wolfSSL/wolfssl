@@ -865,6 +865,21 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_siv_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_eax_test(void);
 #endif /* WOLFSSL_AES_EAX */
 
+#ifdef REALLY_LONG_DRBG_CONTINUOUS_TEST
+    #ifdef WOLFSSL_PTHREADS
+        #include <wolfssl/wolfcrypt/wolfevent.h>
+        #include <wolfssl/wolfcrypt/types.h>
+    #endif
+    /* Prototypes */
+    void print_result(const char* test_name, int passed, int *all_passed);
+    WOLFSSL_TEST_SUBROUTINE wc_test_ret_t test_basic_rng(void);
+    WOLFSSL_TEST_SUBROUTINE wc_test_ret_t test_multiple_rngs(void);
+    WOLFSSL_TEST_SUBROUTINE wc_test_ret_t test_stress_rng(unsigned long iterations);
+    WOLFSSL_TEST_SUBROUTINE wc_test_ret_t test_reinit_rng(void);
+    WOLFSSL_TEST_SUBROUTINE wc_test_ret_t test_fips_status(void);
+    WOLFSSL_TEST_SUBROUTINE wc_test_ret_t drbg_continuous_main(void);
+#endif
+
 /* General big buffer size for many tests. */
 #define FOURK_BUF 4096
 
@@ -1008,9 +1023,15 @@ typedef struct func_args {
 /* Kernel modules implement and install their own FIPS callback with similar
  * functionality.
  */
+#ifdef REALLY_LONG_DRBG_CONTINUOUS_TEST
+    int only_run_cb_once = 1;
+#endif
 #if defined(HAVE_FIPS) && !defined(WOLFSSL_KERNEL_MODE)
 static void myFipsCb(int ok, int err, const char* hash)
 {
+#ifdef REALLY_LONG_DRBG_CONTINUOUS_TEST
+    if (only_run_cb_once == 1) {
+#endif
     printf("in my Fips callback, ok = %d, err = %d\n", ok, err);
     printf("message = %s\n", wc_GetErrorString(err));
     printf("hash = %s\n", hash);
@@ -1019,6 +1040,14 @@ static void myFipsCb(int ok, int err, const char* hash)
         printf("In core integrity hash check failure, copy above hash\n");
         printf("into verifyCore[] in fips_test.c and rebuild\n");
     }
+#ifdef REALLY_LONG_DRBG_CONTINUOUS_TEST
+        only_run_cb_once = 0;
+    } else {
+        (void) ok;
+        (void) err;
+        (void) hash;
+    }
+#endif
 }
 #endif /* HAVE_FIPS && !WOLFSSL_KERNEL_MODE */
 
@@ -19844,6 +19873,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t XChaCha20Poly1305_test(void) {
     };
 
     wc_test_ret_t ret;
+    ChaChaPoly_Aead aead;
 
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
@@ -19885,6 +19915,177 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t XChaCha20Poly1305_test(void) {
 
     if (XMEMCMP(buf2, Plaintext, sizeof Plaintext))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    /* Test wc_XChaCha20Poly1305_Init bad parameters */
+    ret = wc_XChaCha20Poly1305_Init(NULL, AAD, sizeof AAD,
+                                    IV, sizeof IV,
+                                    Key, sizeof Key, 1);
+    if (ret == 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_XChaCha20Poly1305_Init(&aead, AAD, sizeof AAD,
+                                    NULL, sizeof IV,
+                                    Key, sizeof Key, 1);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_XChaCha20Poly1305_Init(&aead, AAD, sizeof AAD,
+                                    IV, sizeof IV,
+                                    NULL, sizeof Key, 1);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* Wrong nonce size (12 instead of 24) */
+    ret = wc_XChaCha20Poly1305_Init(&aead, AAD, sizeof AAD,
+                                    IV, CHACHA20_POLY1305_AEAD_IV_SIZE,
+                                    Key, sizeof Key, 1);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* Wrong key size (16 instead of 32) */
+    ret = wc_XChaCha20Poly1305_Init(&aead, AAD, sizeof AAD,
+                                    IV, sizeof IV,
+                                    Key, 16, 1);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* Test wc_XChaCha20Poly1305_Encrypt bad parameters */
+    ret = wc_XChaCha20Poly1305_Encrypt(NULL, sizeof Ciphertext + sizeof Tag,
+                                       Plaintext, sizeof Plaintext,
+                                       AAD, sizeof AAD,
+                                       IV, sizeof IV,
+                                       Key, sizeof Key);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_XChaCha20Poly1305_Encrypt(buf1, sizeof Ciphertext + sizeof Tag,
+                                       NULL, sizeof Plaintext,
+                                       AAD, sizeof AAD,
+                                       IV, sizeof IV,
+                                       Key, sizeof Key);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_XChaCha20Poly1305_Encrypt(buf1, sizeof Ciphertext + sizeof Tag,
+                                       Plaintext, sizeof Plaintext,
+                                       NULL, sizeof AAD,
+                                       IV, sizeof IV,
+                                       Key, sizeof Key);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_XChaCha20Poly1305_Encrypt(buf1, sizeof Ciphertext + sizeof Tag,
+                                       Plaintext, sizeof Plaintext,
+                                       AAD, sizeof AAD,
+                                       NULL, sizeof IV,
+                                       Key, sizeof Key);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_XChaCha20Poly1305_Encrypt(buf1, sizeof Ciphertext + sizeof Tag,
+                                       Plaintext, sizeof Plaintext,
+                                       AAD, sizeof AAD,
+                                       IV, sizeof IV,
+                                       NULL, sizeof Key);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* Wrong nonce size (12 instead of 24) */
+    ret = wc_XChaCha20Poly1305_Encrypt(buf1, sizeof Ciphertext + sizeof Tag,
+                                       Plaintext, sizeof Plaintext,
+                                       AAD, sizeof AAD,
+                                       IV, CHACHA20_POLY1305_AEAD_IV_SIZE,
+                                       Key, sizeof Key);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* Wrong key size (16 instead of 32) */
+    ret = wc_XChaCha20Poly1305_Encrypt(buf1, sizeof Ciphertext + sizeof Tag,
+                                       Plaintext, sizeof Plaintext,
+                                       AAD, sizeof AAD,
+                                       IV, sizeof IV,
+                                       Key, 16);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* Insufficient buffer space */
+    ret = wc_XChaCha20Poly1305_Encrypt(buf1, sizeof Plaintext,
+                                       Plaintext, sizeof Plaintext,
+                                       AAD, sizeof AAD,
+                                       IV, sizeof IV,
+                                       Key, sizeof Key);
+    if (ret != WC_NO_ERR_TRACE(BUFFER_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* Test wc_XChaCha20Poly1305_Decrypt bad parameters */
+    ret = wc_XChaCha20Poly1305_Decrypt(NULL, sizeof Plaintext,
+                                       buf1, sizeof Ciphertext + sizeof Tag,
+                                       AAD, sizeof AAD,
+                                       IV, sizeof IV,
+                                       Key, sizeof Key);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_XChaCha20Poly1305_Decrypt(buf2, sizeof Plaintext,
+                                       NULL, sizeof Ciphertext + sizeof Tag,
+                                       AAD, sizeof AAD,
+                                       IV, sizeof IV,
+                                       Key, sizeof Key);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_XChaCha20Poly1305_Decrypt(buf2, sizeof Plaintext,
+                                       buf1, sizeof Ciphertext + sizeof Tag,
+                                       NULL, sizeof AAD,
+                                       IV, sizeof IV,
+                                       Key, sizeof Key);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_XChaCha20Poly1305_Decrypt(buf2, sizeof Plaintext,
+                                       buf1, sizeof Ciphertext + sizeof Tag,
+                                       AAD, sizeof AAD,
+                                       NULL, sizeof IV,
+                                       Key, sizeof Key);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_XChaCha20Poly1305_Decrypt(buf2, sizeof Plaintext,
+                                       buf1, sizeof Ciphertext + sizeof Tag,
+                                       AAD, sizeof AAD,
+                                       IV, sizeof IV,
+                                       NULL, sizeof Key);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* Wrong nonce size (12 instead of 24) */
+    ret = wc_XChaCha20Poly1305_Decrypt(buf2, sizeof Plaintext,
+                                       buf1, sizeof Ciphertext + sizeof Tag,
+                                       AAD, sizeof AAD,
+                                       IV, CHACHA20_POLY1305_AEAD_IV_SIZE,
+                                       Key, sizeof Key);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* Wrong key size (16 instead of 32) */
+    ret = wc_XChaCha20Poly1305_Decrypt(buf2, sizeof Plaintext,
+                                       buf1, sizeof Ciphertext + sizeof Tag,
+                                       AAD, sizeof AAD,
+                                       IV, sizeof IV,
+                                       Key, 16);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* Insufficient buffer space */
+    ret = wc_XChaCha20Poly1305_Decrypt(buf2, sizeof Plaintext - 1,
+                                       buf1, sizeof Ciphertext + sizeof Tag,
+                                       AAD, sizeof AAD,
+                                       IV, sizeof IV,
+                                       Key, sizeof Key);
+    if (ret != WC_NO_ERR_TRACE(BUFFER_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = 0;
 
   out:
 
@@ -20040,6 +20241,10 @@ static wc_test_ret_t random_rng_test(void)
         if (ret != 0)
             return ret;
     }
+#endif
+
+#ifdef REALLY_LONG_DRBG_CONTINUOUS_TEST
+    ret = drbg_continuous_main();
 #endif
 
     return ret;
@@ -22683,6 +22888,22 @@ static wc_test_ret_t rsa_decode_test(RsaKey* keyPub)
         ret = WC_TEST_RET_ENC_NC;
         goto done;
     }
+
+#ifdef USE_CERT_BUFFERS_2048
+    /* Test that public key decode rejects a private key */
+    wc_FreeRsaKey(keyPub);
+    ret = wc_InitRsaKey(keyPub, NULL);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    inOutIdx = 0;
+    ret = wc_RsaPublicKeyDecode(client_key_der_2048, &inOutIdx, keyPub,
+                                sizeof_client_key_der_2048);
+    if (ret != WC_NO_ERR_TRACE(ASN_RSA_KEY_E)) {
+        ret = WC_TEST_RET_ENC_EC(ret);
+        goto done;
+    }
+    ret = 0; /* success - public key decode correctly rejected private key */
+#endif
 
 done:
     wc_FreeRsaKey(keyPub);
@@ -31562,6 +31783,11 @@ typedef struct Srtp_Kdf_Tv {
     word32 ksSz;
 } Srtp_Kdf_Tv;
 
+#if !defined(BENCH_EMBEDDED) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    #define SRTP_KDF_LONG_KEY 5000
+#endif
+
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t srtpkdf_test(void)
 {
     wc_test_ret_t ret = 0;
@@ -31813,6 +32039,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t srtpkdf_test(void)
     unsigned char keyE[32];
     unsigned char keyA[20];
     unsigned char keyS[14];
+#ifdef SRTP_KDF_LONG_KEY
+    WC_DECLARE_VAR(keyELong, byte, SRTP_KDF_LONG_KEY, HEAP_HINT);
+    WC_DECLARE_VAR(keyALong, byte, SRTP_KDF_LONG_KEY, HEAP_HINT);
+    WC_DECLARE_VAR(keySLong, byte, SRTP_KDF_LONG_KEY, HEAP_HINT);
+#endif
+
+#ifdef SRTP_KDF_LONG_KEY
+    WC_ALLOC_VAR(keyELong, byte, SRTP_KDF_LONG_KEY, HEAP_HINT);
+    WC_ALLOC_VAR(keyALong, byte, SRTP_KDF_LONG_KEY, HEAP_HINT);
+    WC_ALLOC_VAR(keySLong, byte, SRTP_KDF_LONG_KEY, HEAP_HINT);
+#endif
+
     WOLFSSL_ENTER("srtpkdf_test");
 
     for (i = 0; (ret == 0) && (i < SRTP_TV_CNT); i++) {
@@ -31836,73 +32074,73 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t srtpkdf_test(void)
             tv[i].kdfIdx, tv[i].index, keyE, tv[i].keSz, keyA, tv[i].kaSz,
             keyS, tv[i].ksSz);
         if (ret != 0)
-            return WC_TEST_RET_ENC_EC(ret);
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
         if (XMEMCMP(keyE, tv[i].ke, tv[i].keSz) != 0)
-            return WC_TEST_RET_ENC_NC;
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
         if (XMEMCMP(keyA, tv[i].ka, tv[i].kaSz) != 0)
-            return WC_TEST_RET_ENC_NC;
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
         if (XMEMCMP(keyS, tv[i].ks, tv[i].ksSz) != 0)
-            return WC_TEST_RET_ENC_NC;
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
         ret = wc_SRTP_KDF_label(tv[i].key, tv[i].keySz, tv[i].salt,
             tv[i].saltSz, tv[i].kdfIdx, tv[i].index, WC_SRTP_LABEL_ENCRYPTION,
             keyE, tv[i].keSz);
         if (ret != 0)
-            return WC_TEST_RET_ENC_EC(ret);
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
         if (XMEMCMP(keyE, tv[i].ke, tv[i].keSz) != 0)
-            return WC_TEST_RET_ENC_NC;
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
         ret = wc_SRTP_KDF_label(tv[i].key, tv[i].keySz, tv[i].salt,
             tv[i].saltSz, tv[i].kdfIdx, tv[i].index, WC_SRTP_LABEL_MSG_AUTH,
             keyA, tv[i].kaSz);
         if (ret != 0)
-            return WC_TEST_RET_ENC_EC(ret);
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
         if (XMEMCMP(keyA, tv[i].ka, tv[i].kaSz) != 0)
-            return WC_TEST_RET_ENC_NC;
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
         ret = wc_SRTP_KDF_label(tv[i].key, tv[i].keySz, tv[i].salt,
             tv[i].saltSz, tv[i].kdfIdx, tv[i].index, WC_SRTP_LABEL_SALT, keyS,
             tv[i].ksSz);
         if (ret != 0)
-            return WC_TEST_RET_ENC_EC(ret);
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
         if (XMEMCMP(keyS, tv[i].ks, tv[i].ksSz) != 0)
-            return WC_TEST_RET_ENC_NC;
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
         ret = wc_SRTCP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, tv[i].saltSz,
             tv[i].kdfIdx, tv[i].index_c, keyE, tv[i].keSz, keyA, tv[i].kaSz,
             keyS, tv[i].ksSz);
         if (ret != 0)
-            return WC_TEST_RET_ENC_EC(ret);
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
         if (XMEMCMP(keyE, tv[i].ke_c, tv[i].keSz) != 0)
-            return WC_TEST_RET_ENC_NC;
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
         if (XMEMCMP(keyA, tv[i].ka_c, tv[i].kaSz) != 0)
-            return WC_TEST_RET_ENC_NC;
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
         if (XMEMCMP(keyS, tv[i].ks_c, tv[i].ksSz) != 0)
-            return WC_TEST_RET_ENC_NC;
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
         ret = wc_SRTCP_KDF_label(tv[i].key, tv[i].keySz, tv[i].salt,
             tv[i].saltSz, tv[i].kdfIdx, tv[i].index_c,
             WC_SRTCP_LABEL_ENCRYPTION, keyE, tv[i].keSz);
         if (ret != 0)
-            return WC_TEST_RET_ENC_EC(ret);
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
         if (XMEMCMP(keyE, tv[i].ke_c, tv[i].keSz) != 0)
-            return WC_TEST_RET_ENC_NC;
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
         ret = wc_SRTCP_KDF_label(tv[i].key, tv[i].keySz, tv[i].salt,
             tv[i].saltSz, tv[i].kdfIdx, tv[i].index_c, WC_SRTCP_LABEL_MSG_AUTH,
             keyA, tv[i].kaSz);
         if (ret != 0)
-            return WC_TEST_RET_ENC_EC(ret);
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
         if (XMEMCMP(keyA, tv[i].ka_c, tv[i].kaSz) != 0)
-            return WC_TEST_RET_ENC_NC;
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
         ret = wc_SRTCP_KDF_label(tv[i].key, tv[i].keySz, tv[i].salt,
             tv[i].saltSz, tv[i].kdfIdx, tv[i].index_c, WC_SRTCP_LABEL_SALT,
             keyS, tv[i].ksSz);
         if (ret != 0)
-            return WC_TEST_RET_ENC_EC(ret);
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
         if (XMEMCMP(keyS, tv[i].ks_c, tv[i].ksSz) != 0)
-            return WC_TEST_RET_ENC_NC;
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     }
 
 #ifdef WOLFSSL_AES_128
@@ -31916,115 +32154,115 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t srtpkdf_test(void)
         tv[i].kdfIdx, tv[i].index, keyE, tv[i].keSz, keyA, tv[i].kaSz,
         keyS, tv[i].ksSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     ret = wc_SRTCP_KDF(tv[i].key, 33, tv[i].salt, tv[i].saltSz,
         tv[i].kdfIdx, tv[i].index_c, keyE, tv[i].keSz, keyA, tv[i].kaSz,
         keyS, tv[i].ksSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     ret = wc_SRTP_KDF(tv[i].key, 15, tv[i].salt, tv[i].saltSz,
         tv[i].kdfIdx, tv[i].index, keyE, tv[i].keSz, keyA, tv[i].kaSz,
         keyS, tv[i].ksSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     ret = wc_SRTCP_KDF(tv[i].key, 15, tv[i].salt, tv[i].saltSz,
         tv[i].kdfIdx, tv[i].index_c, keyE, tv[i].keSz, keyA, tv[i].kaSz,
         keyS, tv[i].ksSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     ret = wc_SRTP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, 15,
         tv[i].kdfIdx, tv[i].index, keyE, tv[i].keSz, keyA, tv[i].kaSz,
         keyS, tv[i].ksSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     ret = wc_SRTCP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, 15,
         tv[i].kdfIdx, tv[i].index_c, keyE, tv[i].keSz, keyA, tv[i].kaSz,
         keyS, tv[i].ksSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     ret = wc_SRTP_KDF(NULL, tv[i].keySz, tv[i].salt, tv[i].saltSz,
         tv[i].kdfIdx, tv[i].index, keyE, tv[i].keSz, keyA, tv[i].kaSz,
         keyS, tv[i].ksSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     ret = wc_SRTCP_KDF(NULL, tv[i].keySz, tv[i].salt, tv[i].saltSz,
         tv[i].kdfIdx, tv[i].index_c, keyE, tv[i].keSz, keyA, tv[i].kaSz,
         keyS, tv[i].ksSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     ret = wc_SRTP_KDF(tv[i].key, tv[i].keySz, NULL, tv[i].saltSz,
             tv[i].kdfIdx, tv[i].index, keyE, tv[i].keSz, keyA, tv[i].kaSz,
             keyS, tv[i].ksSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     ret = wc_SRTCP_KDF(tv[i].key, tv[i].keySz, NULL, tv[i].saltSz,
         tv[i].kdfIdx, tv[i].index_c, keyE, tv[i].keSz, keyA, tv[i].kaSz,
         keyS, tv[i].ksSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     ret = wc_SRTP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, tv[i].saltSz,
         25, tv[i].index, keyE, tv[i].keSz, keyA, tv[i].kaSz,
         keyS, tv[i].ksSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     ret = wc_SRTCP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, tv[i].saltSz,
         25, tv[i].index_c, keyE, tv[i].keSz, keyA, tv[i].kaSz,
         keyS, tv[i].ksSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     ret = wc_SRTP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, tv[i].saltSz,
         -2, tv[i].index, keyE, tv[i].keSz, keyA, tv[i].kaSz,
         keyS, tv[i].ksSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     ret = wc_SRTCP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, tv[i].saltSz,
         -2, tv[i].index_c, keyE, tv[i].keSz, keyA, tv[i].kaSz,
         keyS, tv[i].ksSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     ret = wc_SRTP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, tv[i].saltSz,
         tv[i].kdfIdx, tv[i].index, NULL, tv[i].keSz, keyA, tv[i].kaSz,
         keyS, tv[i].ksSz);
     if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     ret = wc_SRTCP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, tv[i].saltSz,
         tv[i].kdfIdx, tv[i].index_c, NULL, tv[i].keSz, keyA, tv[i].kaSz,
         keyS, tv[i].ksSz);
     if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     ret = wc_SRTP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, tv[i].saltSz,
         tv[i].kdfIdx, tv[i].index, keyE, tv[i].keSz, NULL, tv[i].kaSz,
         keyS, tv[i].ksSz);
     if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     ret = wc_SRTCP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, tv[i].saltSz,
         tv[i].kdfIdx, tv[i].index_c, keyE, tv[i].keSz, NULL, tv[i].kaSz,
         keyS, tv[i].ksSz);
     if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     ret = wc_SRTP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, tv[i].saltSz,
         tv[i].kdfIdx, tv[i].index, keyE, tv[i].keSz, keyA, tv[i].kaSz,
         NULL, tv[i].ksSz);
     if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     ret = wc_SRTCP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, tv[i].saltSz,
         tv[i].kdfIdx, tv[i].index_c, keyE, tv[i].keSz, keyA, tv[i].kaSz,
         NULL, tv[i].ksSz);
     if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     idx = wc_SRTP_KDF_kdr_to_idx(0);
     if (idx != -1)
-        return WC_TEST_RET_ENC_NC;
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     for (i = 0; i < 32; i++) {
         word32 kdr = 1U << i;
 
@@ -32036,13 +32274,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t srtpkdf_test(void)
                                   keyA, tv[i].kaSz, keyS, tv[i].ksSz,
                                   WC_SRTCP_48BIT_IDX);
             if (ret != 0)
-                return WC_TEST_RET_ENC_EC(ret);
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
             if (XMEMCMP(keyE, srtcpKe_48_1, tv[i].keSz) != 0)
-                return WC_TEST_RET_ENC_NC;
+                ERROR_OUT(WC_TEST_RET_ENC_NC, out);
             if (XMEMCMP(keyA, srtcpKa_48_1, tv[i].kaSz) != 0)
-                return WC_TEST_RET_ENC_NC;
+                ERROR_OUT(WC_TEST_RET_ENC_NC, out);
             if (XMEMCMP(keyS, srtcpKs_48_1, tv[i].ksSz) != 0)
-                return WC_TEST_RET_ENC_NC;
+                ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
             ret = wc_SRTCP_KDF_ex(mk48_2, (word32)sizeof(mk48_2),
                                   ms48_2, (word32)sizeof(ms48_2),
@@ -32050,20 +32288,48 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t srtpkdf_test(void)
                                   keyA, tv[i].kaSz, keyS, tv[i].ksSz,
                                   WC_SRTCP_48BIT_IDX);
             if (ret != 0)
-                return WC_TEST_RET_ENC_EC(ret);
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
             if (XMEMCMP(keyE, srtcpKe_48_2, tv[i].keSz) != 0)
-                return WC_TEST_RET_ENC_NC;
+                ERROR_OUT(WC_TEST_RET_ENC_NC, out);
             if (XMEMCMP(keyA, srtcpKa_48_2, tv[i].kaSz) != 0)
-                return WC_TEST_RET_ENC_NC;
+                ERROR_OUT(WC_TEST_RET_ENC_NC, out);
             if (XMEMCMP(keyS, srtcpKs_48_2, tv[i].ksSz) != 0)
-                return WC_TEST_RET_ENC_NC;
+                ERROR_OUT(WC_TEST_RET_ENC_NC, out);
         }
         idx = wc_SRTP_KDF_kdr_to_idx(kdr);
         if (idx != i)
-            return WC_TEST_RET_ENC_NC;
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     }
 
-    return 0;
+#ifdef SRTP_KDF_LONG_KEY
+    /* Check that long messages can be created. */
+    ret = wc_SRTP_KDF(tv[0].key, tv[0].keySz, tv[0].salt, tv[0].saltSz,
+        tv[0].kdfIdx, tv[0].index_c, keyELong, SRTP_KDF_LONG_KEY, keyALong,
+        SRTP_KDF_LONG_KEY, keySLong, SRTP_KDF_LONG_KEY);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* Check that two bytes of counter are being used. */
+    if (XMEMCMP(keyELong, keyELong + 4096, SRTP_KDF_LONG_KEY - 4096) == 0) {
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    }
+    if (XMEMCMP(keyELong, keyALong + 4096, SRTP_KDF_LONG_KEY - 4096) == 0) {
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    }
+    if (XMEMCMP(keyELong, keySLong + 4096, SRTP_KDF_LONG_KEY - 4096) == 0) {
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    }
+#endif /* SRTP_KDF_LONG_KEY */
+
+out:
+
+#ifdef SRTP_KDF_LONG_KEY
+    WC_FREE_VAR(keyELong, HEAP_HINT);
+    WC_FREE_VAR(keyALong, HEAP_HINT);
+    WC_FREE_VAR(keySLong, HEAP_HINT);
+#endif
+
+    return ret;
 }
 #endif
 
@@ -37981,7 +38247,12 @@ static wc_test_ret_t curve25519_overflow_test(WC_RNG* rng)
         /* test against known test vector */
         XMEMSET(shared, 0, sizeof(shared));
         y = sizeof(shared);
-        if (wc_curve25519_shared_secret(&userA, &userA, shared, &y) != 0) {
+        ret = wc_curve25519_shared_secret(&userA, &userA, shared, &y);
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
+            ret = wc_AsyncWait(ret, &userA.asyncDev, WC_ASYNC_FLAG_NONE);
+    #endif
+        if (ret != 0) {
             ret = WC_TEST_RET_ENC_I(i); break;
         }
 
@@ -38359,6 +38630,131 @@ static wc_test_ret_t curve255519_der_test(void)
 }
 #endif /* !NO_ASN && HAVE_CURVE25519_KEY_EXPORT && HAVE_CURVE25519_KEY_IMPORT */
 
+#ifdef WC_X25519_NONBLOCK
+/* build and test with:
+ * ./configure --enable-curve25519=nonblock CFLAGS="-DWOLFSSL_DEBUG_NONBLOCK"
+ * make
+ * ./wolfcrypt/test/testwolfcrypt
+ */
+static int x25519_nonblock_test(WC_RNG* rng)
+{
+    int ret = 0;
+    x25519_nb_ctx_t nb_ctx;
+    curve25519_key userA;
+    curve25519_key userB;
+#ifdef HAVE_CURVE25519_SHARED_SECRET
+    byte    sharedA[32];
+    byte    sharedB[32];
+    word32  x;
+    word32  y;
+#endif
+    int count;
+
+    XMEMSET(&nb_ctx, 0, sizeof(nb_ctx));
+
+    ret = wc_curve25519_init(&userA);
+    if (ret != 0) {
+        printf("wc_curve25519_init 1 %d\n", ret);
+        return -10722;
+    }
+    ret = wc_curve25519_set_nonblock(&userA, &nb_ctx);
+    if (ret != 0) {
+        printf("wc_curve25519_set_nonblock 1 %d\n", ret);
+        wc_curve25519_free(&userA);
+        return -10723;
+    }
+    count = 0;
+    do {
+        ret = wc_curve25519_make_key(rng, 32, &userA);
+        count++;
+    } while (ret == FP_WOULDBLOCK);
+    if (ret != 0) {
+        printf("wc_curve25519_make_key_nb 1 %d\n", ret);
+        wc_curve25519_free(&userA);
+        return -10724;
+    }
+#if defined(DEBUG_WOLFSSL) || defined(WOLFSSL_DEBUG_NONBLOCK)
+    /* CURVE25519 non-block key gen: 5335 times */
+    printf("CURVE25519 non-block key gen: %d times\n", count);
+#endif
+
+    ret = wc_curve25519_init(&userB);
+    if (ret != 0) {
+        printf("wc_curve25519_init 2 %d\n", ret);
+        wc_curve25519_free(&userA);
+        return -10724;
+    }
+    ret = wc_curve25519_set_nonblock(&userB, &nb_ctx);
+    if (ret != 0) {
+        printf("wc_curve25519_set_nonblock 2 %d\n", ret);
+        wc_curve25519_free(&userA);
+        wc_curve25519_free(&userB);
+        return -10725;
+    }
+    count = 0;
+    do {
+        ret = wc_curve25519_make_key(rng, 32, &userB);
+        count++;
+    } while (ret == FP_WOULDBLOCK);
+    if (ret != 0) {
+        printf("wc_curve25519_make_key_nb 2 %d\n", ret);
+        wc_curve25519_free(&userA);
+        wc_curve25519_free(&userB);
+        return -10726;
+    }
+
+#ifdef HAVE_CURVE25519_SHARED_SECRET
+    x = sizeof(sharedA);
+    do {
+        ret = wc_curve25519_shared_secret(&userA, &userB, sharedA, &x);
+    } while (ret == FP_WOULDBLOCK);
+    if (ret != 0) {
+        printf("wc_curve25519_shared_secret_nb 1 %d\n", ret);
+        wc_curve25519_free(&userA);
+        wc_curve25519_free(&userB);
+        return -10727;
+    }
+
+    y = sizeof(sharedB);
+    count = 0;
+    do {
+        ret = wc_curve25519_shared_secret(&userB, &userA, sharedB, &y);
+        count++;
+    }
+    while (ret == FP_WOULDBLOCK);
+    if (ret != 0) {
+        printf("wc_curve25519_shared_secret_nb 2 %d\n", ret);
+        wc_curve25519_free(&userA);
+        wc_curve25519_free(&userB);
+        return -10728;
+    }
+#if defined(DEBUG_WOLFSSL) || defined(WOLFSSL_DEBUG_NONBLOCK)
+    /* CURVE25519 non-block shared secret: 5337 times */
+    printf("CURVE25519 non-block shared secret: %d times\n", count);
+#endif
+
+    /* compare shared secret keys to test they are the same */
+    if (y != x) {
+        wc_curve25519_free(&userA);
+        wc_curve25519_free(&userB);
+        return -10729;
+    }
+
+    if (XMEMCMP(sharedA, sharedB, x) != 0) {
+        wc_curve25519_free(&userA);
+        wc_curve25519_free(&userB);
+        return -10730;
+    }
+#endif /* HAVE_CURVE25519_SHARED_SECRET */
+
+    wc_curve25519_free(&userA);
+    wc_curve25519_free(&userB);
+
+    return 0;
+}
+
+#endif /* WC_X25519_NONBLOCK */
+
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t curve25519_test(void)
 {
     WC_RNG  rng;
@@ -38460,23 +38856,41 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t curve25519_test(void)
 
     /* make curve25519 keys */
     ret = wc_curve25519_make_key(&rng, 32, userA);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
+        ret = wc_AsyncWait(ret, &userA->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), cleanup);
 
     ret = wc_curve25519_make_key(&rng, 32, userB);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
+        ret = wc_AsyncWait(ret, &userB->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), cleanup);
 
 #ifdef HAVE_CURVE25519_SHARED_SECRET
     /* find shared secret key */
     x = sizeof(sharedA);
-    if ((ret = wc_curve25519_shared_secret(userA, userB, sharedA, &x)) != 0) {
+    ret = wc_curve25519_shared_secret(userA, userB, sharedA, &x);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
+        ret = wc_AsyncWait(ret, &userA->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0) {
         printf("wc_curve25519_shared_secret 1 failed\n");
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), cleanup);
     }
 
     y = sizeof(sharedB);
-    if ((ret = wc_curve25519_shared_secret(userB, userA, sharedB, &y)) != 0) {
+    ret = wc_curve25519_shared_secret(userB, userA, sharedB, &y);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
+        ret = wc_AsyncWait(ret, &userB->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0) {
         printf("wc_curve25519_shared_secret 2 failed\n");
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), cleanup);
     }
@@ -38508,7 +38922,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t curve25519_test(void)
     /* test shared key after importing a public key */
     XMEMSET(sharedB, 0, sizeof(sharedB));
     y = sizeof(sharedB);
-    if (wc_curve25519_shared_secret(userB, pubKey, sharedB, &y) != 0) {
+    ret = wc_curve25519_shared_secret(userB, pubKey, sharedB, &y);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
+        ret = wc_AsyncWait(ret, &userB->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0) {
         ERROR_OUT(WC_TEST_RET_ENC_NC, cleanup);
     }
 
@@ -38530,6 +38949,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t curve25519_test(void)
     XMEMSET(sharedB, 0, sizeof(sharedB));
     y = sizeof(sharedB);
     ret = wc_curve25519_shared_secret(userA, userB, sharedB, &y);
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+    if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
+        ret = wc_AsyncWait(ret, &userA->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), cleanup);
 
@@ -38540,6 +38963,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t curve25519_test(void)
     XMEMSET(sharedB, 0, sizeof(sharedB));
     y = sizeof(sharedB);
     ret = wc_curve25519_shared_secret(userB, userA, sharedB, &y);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
+        ret = wc_AsyncWait(ret, &userB->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), cleanup);
 
@@ -38559,16 +38986,28 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t curve25519_test(void)
 #endif
 
     ret = wc_curve25519_make_key(&rng, 32, userB);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
+        ret = wc_AsyncWait(ret, &userB->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), cleanup);
 
     x = sizeof(sharedA);
     ret = wc_curve25519_shared_secret(userA, userB, sharedA, &x);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
+        ret = wc_AsyncWait(ret, &userA->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), cleanup);
 
     y = sizeof(sharedB);
     ret = wc_curve25519_shared_secret(userB, userA, sharedB, &y);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
+        ret = wc_AsyncWait(ret, &userB->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), cleanup);
 
@@ -38593,6 +39032,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t curve25519_test(void)
     if (ret != 0)
         goto cleanup;
 #endif
+
+#ifdef WC_X25519_NONBLOCK
+    ret = x25519_nonblock_test(&rng);
+    if (ret != 0) {
+        goto cleanup;
+    }
+#endif /* WC_X25519_NONBLOCK */
 
 cleanup:
 
@@ -63871,6 +64317,483 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_siv_test(void)
     return 0;
 }
 #endif
+
+#ifdef REALLY_LONG_DRBG_CONTINUOUS_TEST
+    /* Test configuration */
+    #define STRESS_TEST_ITERATIONS  4000000000UL  /* 100 million iterations */
+    #define PROGRESS_INTERVAL       10000000UL   /* Report every 10M */
+    #define BUFFER_SIZE             32
+
+    /* Color codes for output */
+    #define COLOR_GREEN   "\033[0;32m"
+    #define COLOR_RED     "\033[0;31m"
+    #define COLOR_YELLOW  "\033[0;33m"
+    #define COLOR_RESET   "\033[0m"
+
+    void print_result(const char* test_name, int passed, int *all_passed)
+    {
+        printf("[%s] %s\n",
+               (passed == 0) ? COLOR_GREEN "PASS" COLOR_RESET :
+                        COLOR_RED "FAIL" COLOR_RESET,
+                        test_name);
+        if (passed != 0) {
+            printf("Test result was %d\n", passed);
+            *all_passed = 0;
+        }
+    }
+
+    /* Test 1: Basic RNG functionality */
+    WOLFSSL_TEST_SUBROUTINE wc_test_ret_t test_basic_rng(void)
+    {
+        WC_RNG rng;
+        byte buffer[BUFFER_SIZE];
+        int ret = 0;
+
+        printf("--- Test 1: Basic RNG Functionality ---\n");
+
+        ret = wc_InitRng(&rng);
+        if (ret != 0) {
+            printf("ERROR: wc_InitRng failed with code %d: %s\n",
+                   ret, wc_GetErrorString(ret));
+            return ret;
+        }
+
+        /* Generate some random bytes */
+        ret = wc_RNG_GenerateBlock(&rng, buffer, BUFFER_SIZE);
+        if (ret != 0) {
+            printf("ERROR: wc_RNG_GenerateBlock failed with code %d: %s\n",
+                   ret, wc_GetErrorString(ret));
+            wc_FreeRng(&rng);
+            return ret;
+        }
+
+        /* Check that buffer is not all zeros */
+        int all_zeros = 1;
+        for (int i = 0; i < BUFFER_SIZE; i++) {
+            if (buffer[i] != 0) {
+                all_zeros = 0;
+                break;
+            }
+        }
+
+        if (all_zeros) {
+            printf("ERROR: RNG generated all zeros\n");
+            wc_FreeRng(&rng);
+            return DRBG_CONT_FIPS_E;
+        }
+
+        printf("Generated %d random bytes successfully\n", BUFFER_SIZE);
+        ret = wc_FreeRng(&rng);
+
+        return ret;
+    }
+
+    /* Test 2: Multiple RNG instances */
+    WOLFSSL_TEST_SUBROUTINE wc_test_ret_t test_multiple_rngs(void)
+    {
+        #define NUM_RNGS 100
+        WC_RNG rngs[NUM_RNGS];
+        byte buffers[NUM_RNGS][BUFFER_SIZE];
+        int ret = 0;
+        int i, j;
+        int all_same = 1;
+
+        printf("\n--- Test 2: Multiple RNG Instances ---\n");
+
+        /* Initialize all RNGs */
+        for (i = 0; i < NUM_RNGS; i++) {
+            ret = wc_InitRng(&rngs[i]);
+            if (ret != 0) {
+                printf("ERROR: wc_InitRng[%d] failed with code %d\n", i, ret);
+                /* Clean up any initialized RNGs */
+                for (j = 0; j < i; j++) {
+                    wc_FreeRng(&rngs[j]);
+                }
+                return ret;
+            }
+        }
+
+        /* Generate random data from all RNGs */
+        for (i = 0; i < NUM_RNGS; i++) {
+            ret = wc_RNG_GenerateBlock(&rngs[i], buffers[i], BUFFER_SIZE);
+            if (ret != 0) {
+                printf("ERROR: wc_RNG_GenerateBlock[%d] failed with code %d\n",
+                            i, ret);
+                for (j = 0; j < NUM_RNGS; j++) {
+                    wc_FreeRng(&rngs[j]);
+                }
+                return ret;
+            }
+        }
+
+        /* Verify outputs are different (not all the same) */
+        for (i = 1; i < NUM_RNGS; i++) {
+            if (memcmp(buffers[0], buffers[i], BUFFER_SIZE) != 0) {
+                all_same = 0;
+                break;
+            }
+        }
+
+        if (all_same) {
+            printf("WARNING: All RNG outputs are identical (unexpected)\n");
+        }
+
+        /* Clean up */
+        for (i = 0; i < NUM_RNGS; i++) {
+            wc_FreeRng(&rngs[i]);
+        }
+
+        if (ret == 0) {
+            printf("Successfully operated %d RNG instances concurrently\n",
+                            NUM_RNGS);
+        } else {
+            printf("Experienced failure %d\n", ret);
+        }
+
+        return ret;
+    }
+
+    /* Test 3: Stress test - run many iterations to detect false positives */
+    WOLFSSL_TEST_SUBROUTINE wc_test_ret_t test_stress_rng(
+                            unsigned long iterations)
+    {
+        WC_RNG rng;
+        byte buffer[BUFFER_SIZE];
+        int ret = 0;
+        unsigned long i;
+        unsigned long errors = 0;
+
+        printf("\n--- Test 5: Stress Test (%lu iterations) ---\n", iterations);
+        printf("Verifies no false positive continuous test failures occur.\n");
+
+        ret = wc_InitRng(&rng);
+        if (ret != 0) {
+            printf("ERROR: wc_InitRng failed with code %d\n", ret);
+            return ret;
+        }
+
+        for (i = 0; i < iterations; i++) {
+            ret = wc_RNG_GenerateBlock(&rng, buffer, BUFFER_SIZE);
+
+            if (ret != 0 ) {
+                printf("\n" COLOR_RED "ERROR: error at iteration %lu"
+                       COLOR_RESET "\n", i);
+                errors++;
+            }
+
+            /* Progress reporting */
+            if ((i + 1) % PROGRESS_INTERVAL == 0) {
+                printf("  Progress: %lu iterations (%.1f%%)...\r",
+                       i + 1, (double)(i + 1) / iterations * 100.0);
+                fflush(stdout);
+            }
+        }
+
+        printf("\n");
+
+        wc_FreeRng(&rng);
+
+        if (errors == 0) {
+            printf(COLOR_GREEN "Completed %lu iterations, no false positives!"
+                   COLOR_RESET "\n", iterations);
+            return 0;
+        } else {
+            printf(COLOR_RED "Test failed with %lu errors" COLOR_RESET "\n",
+                    errors);
+            return ret;
+        }
+    }
+
+    /* Test 4: Reinitialize RNG multiple times */
+#ifndef WOLFSSL_PTHREADS
+    WOLFSSL_TEST_SUBROUTINE wc_test_ret_t test_reinit_rng(void)
+    {
+        WC_RNG rng;
+        byte buffer[BUFFER_SIZE];
+        int ret = 0;
+        unsigned long i;
+        unsigned long REINIT_COUNT = STRESS_TEST_ITERATIONS;
+
+        printf("\n--- Test 4: RNG Reinitialization Test ---\n");
+
+        for (i = 0; i < REINIT_COUNT; i++) {
+            ret = wc_InitRng(&rng);
+            if (ret != 0) {
+#if defined(HAVE_FIPS) && defined(VERBOSE_STRESS_TEST)
+/* SUPER noisy default on when not FIPS and off when FIPS */
+                printf("ERROR: wc_InitRng failed at iteration %lu with code "
+                       "%d\n", i, ret);
+#endif
+                return ret;
+            }
+
+            ret = wc_RNG_GenerateBlock(&rng, buffer, BUFFER_SIZE);
+            if (ret != 0) {
+#if defined(HAVE_FIPS) && defined(VERBOSE_STRESS_TEST)
+/* SUPER noisy default on when not FIPS and off when FIPS */
+                printf("ERROR: wc_RNG_GenerateBlock failed at iteration %lu "
+                       "with code %d\n", i, ret);
+#endif
+                wc_FreeRng(&rng);
+                return ret;
+            }
+
+            wc_FreeRng(&rng);
+        }
+
+        printf("Successfully reinitialized RNG %lu times\n", REINIT_COUNT);
+
+        return 0;
+    }
+#else
+    /* RNG ReInit Test Configuration
+     *
+     * You can override these at compile time with -DNUM_THREADS=X
+     * or use one of the predefined test profiles below:
+     *
+     * Profile A (Default - Aggressive): 40 threads x 100M = 4B iterations
+     *   - Expected ~30 statistical false positives
+     *   - High entropy source stress
+     *   - Total entropy demand: ~528 GB
+     *
+     * Profile B (Moderate): 4 threads x 1M = 4M iterations
+     *   - Expected ~0.03 statistical false positives (unlikely to see any)
+     *   - Moderate entropy source stress
+     *   - Compile with: -DRNG_TEST_PROFILE=2
+     *
+     * Profile C (Single-threaded): 1 thread x 100M = 100M iterations
+     *   - Expected ~0.75 statistical false positives
+     *   - Tests for false positives without threading stress
+     *   - Compile with: -DRNG_TEST_PROFILE=3
+     */
+
+    #if defined(RNG_TEST_PROFILE) && (RNG_TEST_PROFILE == 2)
+        /* Profile B: Moderate test - reduced entropy stress */
+        #ifndef NUM_THREADS
+            #define NUM_THREADS 4
+        #endif
+        #ifndef ITERATIONS_PER_THREAD
+            /* Only testing 400 million, expect 1 or 0 failures */
+            #define ITERATIONS_PER_THREAD 1000000
+        #endif
+    #elif defined(RNG_TEST_PROFILE) && (RNG_TEST_PROFILE == 3)
+        /* Profile C: Single-threaded stress - no thread contention */
+        #ifndef NUM_THREADS
+            #define NUM_THREADS 1
+        #endif
+        #ifndef ITERATIONS_PER_THREAD
+            /* Test 4 billion with no thread contention and less likely to
+             * deplete entropy pool, expect 0 failures */
+            #define ITERATIONS_PER_THREAD 4000000000
+        #endif
+    #else
+        /* Profile A (Default): Aggressive multi-threaded test */
+        #ifndef NUM_THREADS
+            #define NUM_THREADS 40
+        #endif
+        #ifndef ITERATIONS_PER_THREAD
+            /* Test 4 billion with high probability of entropy depletion.
+             * expect many failures (30+ threads failing) */
+            #define ITERATIONS_PER_THREAD 100000000
+        #endif
+    #endif
+
+    struct worker_args {
+        int id;
+        unsigned long iterations;
+        int result;
+        unsigned long  succCnt;
+    };
+
+    static THREAD_RETURN WOLFSSL_THREAD reinit_worker(void *args)
+    {
+        struct worker_args* wa = (struct worker_args*)args;
+        WC_RNG rng;
+        byte buffer[BUFFER_SIZE];
+        int ret = 0;
+        unsigned long i;
+
+        for (i = 0; i < wa->iterations; i++) {
+            ret = wc_InitRng(&rng);
+            if (ret != 0) {
+#if defined(HAVE_FIPS) && defined(VERBOSE_STRESS_TEST)
+/* SUPER noisy default on when not FIPS and off when FIPS */
+                printf("ERROR: wc_InitRng failed at iteration %lu with code "
+                       "%d\n", i, ret);
+#endif
+                wa->result = ret;
+                wa->succCnt -= 1;
+            }
+
+            ret = wc_RNG_GenerateBlock(&rng, buffer, BUFFER_SIZE);
+            if (ret != 0) {
+#if defined(HAVE_FIPS) && defined(VERBOSE_STRESS_TEST)
+/* SUPER noisy default on when not FIPS and off when FIPS */
+                printf("ERROR: wc_RNG_GenerateBlock failed at iteration %lu "
+                       "with code %d\n", i, ret);
+#endif
+                wc_FreeRng(&rng);
+                wa->result = ret;
+            }
+
+            (void) wc_FreeRng(&rng);
+        }
+        wa->result = 0;
+        WOLFSSL_RETURN_FROM_THREAD(0);
+    }
+
+    WOLFSSL_TEST_SUBROUTINE wc_test_ret_t test_reinit_rng(void)
+    {
+        THREAD_TYPE threads[NUM_THREADS];
+        struct worker_args args[NUM_THREADS];
+        int i, ret = 0;
+        int succT = NUM_THREADS, failT = 0;
+        unsigned long totalCnt, totalSuccCnt = 0;
+        unsigned long total_iterations = (unsigned long)NUM_THREADS *
+                            ITERATIONS_PER_THREAD;
+
+        totalCnt = (unsigned long) ITERATIONS_PER_THREAD *
+                            (unsigned long) NUM_THREADS;
+        printf("\n--- Test 4: RNG ReInit Test (multi-threaded) ---\n");
+        printf("Configuration: %d threads x %lu iterations = %lu total\n",
+               NUM_THREADS, (unsigned long)ITERATIONS_PER_THREAD,
+               total_iterations);
+        #if defined(RNG_TEST_PROFILE)
+            printf("Test Profile: %d ", RNG_TEST_PROFILE);
+            #if RNG_TEST_PROFILE == 2
+                printf("(Moderate - reduced entropy stress)\n");
+            #elif RNG_TEST_PROFILE == 3
+                printf("(Single-threaded stress test)\n");
+            #else
+                printf("(Custom)\n");
+            #endif
+        #else
+            printf("Test Profile: Default (Aggressive multi-threaded)\n");
+        #endif
+        printf("Expected statistical false positive rate: ~%.2f failures\n",
+               (double)total_iterations * 32.0 / 4294967296.0);
+
+        for (i = 0; i < NUM_THREADS; i++) {
+            args[i].id = i;
+            args[i].iterations = ITERATIONS_PER_THREAD;
+            args[i].succCnt = ITERATIONS_PER_THREAD;
+            ret = wolfSSL_NewThread(&threads[i], &reinit_worker, &args[i]);
+            if (ret != 0) {
+                printf("ERROR: Failed to create thread %d\n", i);
+                goto drbg_cont_end;
+            }
+        }
+
+        for (i = 0; i < NUM_THREADS; i++) {
+            wolfSSL_JoinThread(threads[i]);
+        }
+
+        for (i = 0; i < NUM_THREADS; i++) {
+            if (args[i].result == 0) {
+                printf("Thread %d Succeeded\n", i);
+            } else {
+                succT -= 1;
+                failT += 1;
+                printf("Thread %d failed\n", i);
+            }
+            totalSuccCnt += args[i].succCnt;
+        }
+
+drbg_cont_end:
+        printf("Reinitialized RNG %lu times across %d threads\n",
+                            total_iterations, NUM_THREADS);
+        printf("Experienced %d thread failures and %d thread successes\n",
+                            failT, succT);
+        if (totalCnt == totalSuccCnt) {
+            printf("All %lu API calls succeeded\n", totalSuccCnt);
+        } else {
+            printf("%lu/%lu API calls failed\n", totalCnt - totalSuccCnt,
+                            totalCnt);
+        }
+        return failT;
+    }
+#endif /* !WOLFSSL_PTHREADS */
+
+    /* Test 5: FIPS status check */
+    WOLFSSL_TEST_SUBROUTINE wc_test_ret_t test_fips_status(void)
+    {
+    #ifdef HAVE_FIPS
+        int status;
+
+        printf("\n--- Test 3: FIPS Status Check ---\n");
+
+        status = wolfCrypt_GetStatus_fips();
+
+        printf("FIPS Module Status: %d\n", status);
+
+        if (status != 0) {
+            printf(COLOR_YELLOW "WARNING: FIPS module not OK state (status=%d)"
+                   COLOR_RESET "\n", status);
+            return -1;
+        } else {
+            printf(COLOR_GREEN "FIPS module in OK state" COLOR_RESET "\n");
+            return 0;
+        }
+    #else
+        printf("\n--- Test 3: FIPS Status Check ---\n");
+        printf(COLOR_YELLOW "SKIPPED: FIPS not enabled" COLOR_RESET "\n");
+        return 0;  /* Not a failure, just skipped */
+    #endif
+    }
+
+    WOLFSSL_TEST_SUBROUTINE wc_test_ret_t drbg_continuous_main(void)
+    {
+        int all_passed = 1;
+        unsigned long stress_iterations = STRESS_TEST_ITERATIONS;
+
+        printf("===============================================\n");
+        printf("DRBG Continuous Test Validation Suite\n");
+        printf("===============================================\n");
+
+    #ifdef HAVE_FIPS
+        printf("FIPS Build: YES\n");
+        printf("FIPS Version: %s\n", wolfCrypt_GetVersion_fips());
+    #else
+        printf("FIPS Build: NO\n");
+    #endif
+        printf("\n");
+
+        /* Run tests */
+        /* Test 1 */
+        print_result("Basic RNG Functionality", test_basic_rng(), &all_passed);
+
+        /* Test 2 */
+        print_result("Multiple RNG Instances", test_multiple_rngs(),
+                            &all_passed);
+
+        /* Test 3 */
+        print_result("FIPS Status Check", test_fips_status(), &all_passed);
+
+        /* Test 4 */
+        print_result("RNG Reinitialization", test_reinit_rng(), &all_passed);
+
+        /* Stress test (takes longest) */
+        /* Test 5 */
+        print_result("Stress Test (No False Positives)",
+                            test_stress_rng(stress_iterations), &all_passed);
+
+        /* Test 3 - ReRun after the heavy stress tests */
+        print_result("FIPS Status Check", test_fips_status(), &all_passed);
+
+        /* Summary */
+        printf("\n===============================================\n");
+        if (all_passed) {
+            printf(COLOR_GREEN "ALL TESTS PASSED" COLOR_RESET "\n");
+            printf("The DRBG continuous test fix is working correctly.\n");
+        } else {
+            printf(COLOR_RED "SOME TESTS FAILED" COLOR_RESET "\n");
+            printf("Please review the errors above.\n");
+        }
+        printf("===============================================\n");
+
+        return all_passed ? 0 : 1;
+    }
+#endif /* REALLY_LONG_DRBG_CONTINUOUS_TEST */
 
 #undef ERROR_OUT
 

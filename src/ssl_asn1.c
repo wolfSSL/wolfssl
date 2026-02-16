@@ -722,7 +722,8 @@ void* wolfSSL_ASN1_item_d2i(void** dst, const byte **src, long len,
  * ASN1_BIT_STRING APIs
  ******************************************************************************/
 
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+    defined(WOLFSSL_WPAS_SMALL)
 /* Create a new ASN.1 BIT_STRING object.
  *
  * @return  ASN.1 BIT_STRING object on success.
@@ -3334,7 +3335,8 @@ const char* wolfSSL_ASN1_tag2str(int tag)
     const char* str = "(unknown)";
 
     /* Clear negative flag. */
-    if ((tag == WOLFSSL_V_ASN1_NEG_INTEGER) || (tag == WOLFSSL_V_ASN1_NEG_ENUMERATED)) {
+    if ((tag == WOLFSSL_V_ASN1_NEG_INTEGER) ||
+            (tag == WOLFSSL_V_ASN1_NEG_ENUMERATED)) {
         tag &= ~WOLFSSL_V_ASN1_NEG;
     }
     /* Check for known basic types. */
@@ -4194,7 +4196,8 @@ char* wolfSSL_ASN1_TIME_to_string(WOLFSSL_ASN1_TIME* t, char* buf, int len)
     }
 
     /* Get time as human readable string. */
-    if ((buf != NULL) && !GetTimeString(t->data, t->type, buf, len, t->length)) {
+    if ((buf != NULL) && !GetTimeString(t->data, t->type, buf, len,
+           t->length)) {
         buf = NULL;
     }
 
@@ -4549,7 +4552,8 @@ int wolfSSL_ASN1_UTCTIME_print(WOLFSSL_BIO* bio, const WOLFSSL_ASN1_UTCTIME* a)
  * ASN1_TYPE APIs
  ******************************************************************************/
 
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
+#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || \
+    defined(OPENSSL_EXTRA_X509_SMALL) || defined(WOLFSSL_WPAS_SMALL)
 
 /**
  * Allocate a new ASN.1 TYPE object.
@@ -4623,6 +4627,11 @@ void wolfSSL_ASN1_TYPE_free(WOLFSSL_ASN1_TYPE* at)
     XFREE(at, NULL, DYNAMIC_TYPE_OPENSSL);
 }
 
+#endif /* OPENSSL_ALL || OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL ||
+          WOLFSSL_WPAS_SMALL */
+
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
+
 int wolfSSL_i2d_ASN1_TYPE(WOLFSSL_ASN1_TYPE* at, unsigned char** pp)
 {
     int ret = WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR);
@@ -4660,8 +4669,8 @@ int wolfSSL_i2d_ASN1_TYPE(WOLFSSL_ASN1_TYPE* at, unsigned char** pp)
 
 #endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
-#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS) || \
-    defined(WOLFSSL_WPAS_SMALL)
+#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || \
+    defined(OPENSSL_EXTRA_X509_SMALL) || defined(WOLFSSL_WPAS_SMALL)
 /**
  * Set ASN.1 TYPE object with a type and value.
  *
@@ -4717,15 +4726,17 @@ void wolfSSL_ASN1_TYPE_set(WOLFSSL_ASN1_TYPE *a, int type, void *value)
 
 int wolfSSL_ASN1_TYPE_get(const WOLFSSL_ASN1_TYPE *a)
 {
-    if (a != NULL && (a->type == WOLFSSL_V_ASN1_BOOLEAN || a->type == WOLFSSL_V_ASN1_NULL
-            || a->value.ptr != NULL))
+    if (a != NULL && (a->type == WOLFSSL_V_ASN1_BOOLEAN ||
+                      a->type == WOLFSSL_V_ASN1_NULL    ||
+                      a->value.ptr != NULL)) {
         return a->type;
+    }
     return 0;
 }
 
-#endif /* OPENSSL_ALL || OPENSSL_EXTRA || WOLFSSL_WPAS */
+#endif /* OPENSSL_ALL || OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL ||
+          WOLFSSL_WPAS_SMALL */
 
 #endif /* !NO_ASN */
 
 #endif /* !WOLFSSL_SSL_ASN1_INCLUDED */
-

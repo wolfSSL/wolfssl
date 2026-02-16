@@ -21,6 +21,7 @@
 
 #include <tests/unit.h>
 #include <tests/utils.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
 
 #ifdef HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES
 
@@ -182,9 +183,16 @@ int test_memio_do_handshake(WOLFSSL *ssl_c, WOLFSSL *ssl_s,
             }
             else {
                 err = wolfSSL_get_error(ssl_c, ret);
-                if (err != WOLFSSL_ERROR_WANT_READ &&
-                    err != WOLFSSL_ERROR_WANT_WRITE)
+                if (err == WC_NO_ERR_TRACE(MP_WOULDBLOCK)) {
+                    /* retry non-blocking math */
+                }
+                else if (err != WOLFSSL_ERROR_WANT_READ &&
+                         err != WOLFSSL_ERROR_WANT_WRITE) {
+                    char buff[WOLFSSL_MAX_ERROR_SZ];
+                    fprintf(stderr, "memio client error = %d, %s\n", err,
+                        wolfSSL_ERR_error_string((word32)err, buff));
                     return -1;
+                }
             }
         }
         if (!hs_s) {
@@ -196,9 +204,16 @@ int test_memio_do_handshake(WOLFSSL *ssl_c, WOLFSSL *ssl_s,
             }
             else {
                 err = wolfSSL_get_error(ssl_s, ret);
-                if (err != WOLFSSL_ERROR_WANT_READ &&
-                    err != WOLFSSL_ERROR_WANT_WRITE)
+                if (err == WC_NO_ERR_TRACE(MP_WOULDBLOCK)) {
+                    /* retry non-blocking math */
+                }
+                else if (err != WOLFSSL_ERROR_WANT_READ &&
+                         err != WOLFSSL_ERROR_WANT_WRITE) {
+                    char buff[WOLFSSL_MAX_ERROR_SZ];
+                    fprintf(stderr, "memio server error = %d, %s\n", err,
+                        wolfSSL_ERR_error_string((word32)err, buff));
                     return -1;
+                }
             }
         }
         handshake_complete = hs_c && hs_s;
@@ -792,4 +807,3 @@ void DEBUG_WRITE_DER(const byte* der, int derSz, const char* fileName)
     }
 }
 #endif
-
