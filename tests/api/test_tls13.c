@@ -2845,6 +2845,86 @@ static int Tls13PTARecv(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 }
 #endif
 
+/* Test that when a TLS 1.3 client sends a ClientHello with an empty
+ * legacy_session_id (indicating no middlebox compatibility), the server
+ * should NOT send a ChangeCipherSpec message. Per RFC 8446 Appendix D.4,
+ * the server only sends CCS if the client's ClientHello contains a
+ * non-empty session_id.
+ *
+ * This test reproduces the bug reported in GitHub issue #9156 where
+ * wolfSSL server always sends CCS when compiled with
+ * WOLFSSL_TLS13_MIDDLEBOX_COMPAT, regardless of the client's session_id.
+ */
+int test_tls13_middlebox_compat_empty_session_id(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TLS13_MIDDLEBOX_COMPAT) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    int i;
+    int found_ccs = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    /* Disable middlebox compatibility on the client so it sends an empty
+     * legacy_session_id in ClientHello. The server should respect this and
+     * NOT send a ChangeCipherSpec. */
+    if (EXPECT_SUCCESS()) {
+        ssl_c->options.tls13MiddleBoxCompat = 0;
+    }
+
+    /* Client sends ClientHello with empty session ID */
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c,
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)), WOLFSSL_ERROR_WANT_READ);
+
+    /* Server processes ClientHello and sends its flight:
+     * ServerHello, EncryptedExtensions, Certificate, CertVerify, Finished
+     * (and potentially an unwanted CCS) */
+    ExpectIntNE(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s,
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)), WOLFSSL_ERROR_WANT_READ);
+
+    /* Now examine the server's output (stored in c_buff, since the server
+     * writes to the client's read buffer). Scan through TLS records looking
+     * for a ChangeCipherSpec record (content type 0x14 = 20). */
+    if (EXPECT_SUCCESS()) {
+        i = 0;
+        while (i + 5 <= test_ctx.c_len) {
+            byte content_type = test_ctx.c_buff[i];
+            int record_len = (test_ctx.c_buff[i + 3] << 8) |
+                              test_ctx.c_buff[i + 4];
+
+            if (content_type == 20) { /* change_cipher_spec */
+                found_ccs = 1;
+                break;
+            }
+
+            /* Move to next TLS record: 5 byte header + payload */
+            i += 5 + record_len;
+        }
+    }
+
+    /* The server should NOT have sent CCS since the client's ClientHello
+     * had an empty legacy_session_id. If found_ccs is 1, this demonstrates
+     * the bug from issue #9156. */
+    ExpectIntEQ(found_ccs, 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_tls13_plaintext_alert(void)
 {
     EXPECT_DECLS;

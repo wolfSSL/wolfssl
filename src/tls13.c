@@ -6859,6 +6859,14 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         XMEMCPY(ssl->session->sessionID, input + args->idx, sessIdSz);
     args->idx += sessIdSz;
 
+#ifdef WOLFSSL_TLS13_MIDDLEBOX_COMPAT
+    /* RFC 8446 Appendix D.4: server MUST only send CCS if the client's
+     * ClientHello contains a non-empty legacy_session_id. */
+    if (sessIdSz == 0) {
+        ssl->options.tls13MiddleBoxCompat = 0;
+    }
+#endif
+
 #ifdef WOLFSSL_DTLS13
     /* legacy_cookie */
     if (ssl->options.dtls) {
