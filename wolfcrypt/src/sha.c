@@ -1062,7 +1062,7 @@ void wc_ShaFree(wc_Sha* sha)
     #endif
     {
         ret = wc_CryptoCb_Free(sha->devId, WC_ALGO_TYPE_HASH,
-                         WC_HASH_TYPE_SHA, (void*)sha);
+                         WC_HASH_TYPE_SHA, 0, (void*)sha);
         /* If they want the standard free, they can call it themselves */
         /* via their callback setting devId to INVALID_DEVID */
         /* otherwise assume the callback handled it */
