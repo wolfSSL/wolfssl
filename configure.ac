@@ -8144,6 +8144,13 @@ then
         ENABLED_OCSP="yes"
     fi
 
+    # Requires CSR for wolfSSL_set_tlsext_status_ocsp_resp
+    if test "x$ENABLED_CERTIFICATE_STATUS_REQUEST" = "xno"
+    then
+        ENABLED_CERTIFICATE_STATUS_REQUEST="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_CERTIFICATE_STATUS_REQUEST"
+    fi
+
     # Requires ALPN
     if test "x$ENABLED_ALPN" = "xno"
     then
@@ -8166,6 +8173,8 @@ then
 
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HITCH -DHAVE_EX_DATA -DWOLFSSL_SIGNER_DER_CERT"
     AM_CFLAGS="$AM_CFLAGS -DOPENSSL_COMPATIBLE_DEFAULTS -DWOLFSSL_CIPHER_INTERNALNAME"
+    # wolfSSL inclusion of assert.h conflicts with hitch's assert definition
+    AM_CFLAGS="$AM_CFLAGS -DWC_NO_STATIC_ASSERT"
 fi
 
 if test "$ENABLED_MEMCACHED" = "yes"
