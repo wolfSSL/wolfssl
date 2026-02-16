@@ -7680,7 +7680,7 @@ static void sp_3072_to_bin_112(sp_digit* r, byte* a)
     }
 }
 
-#if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
+#if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)
 /* Normalize the values in each word to 28 bits.
  *
  * a  Array of sp_digit to normalize.
@@ -7707,7 +7707,7 @@ static void sp_3072_norm_56(sp_digit* a)
     a[55] += a[54] >> 28; a[54] &= 0xfffffff;
 }
 
-#endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
+#endif /* WOLFSSL_HAVE_SP_RSA || WOLFSSL_HAVE_SP_DH */
 /* Normalize the values in each word to 28 bits.
  *
  * a  Array of sp_digit to normalize.
@@ -14531,7 +14531,7 @@ static void sp_4096_to_bin_162(sp_digit* r, byte* a)
     }
 }
 
-#if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
+#if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)
 #if defined(WOLFSSL_HAVE_SP_RSA) && !defined(SP_RSA_PRIVATE_EXP_D)
 /* Normalize the values in each word to 26 bits.
  *
@@ -14553,7 +14553,7 @@ static void sp_4096_norm_81(sp_digit* a)
 }
 
 #endif /* WOLFSSL_HAVE_SP_RSA & !SP_RSA_PRIVATE_EXP_D */
-#endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
+#endif /* WOLFSSL_HAVE_SP_RSA || WOLFSSL_HAVE_SP_DH */
 /* Normalize the values in each word to 26 bits.
  *
  * a  Array of sp_digit to normalize.
