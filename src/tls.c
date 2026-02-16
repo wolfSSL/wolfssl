@@ -4490,6 +4490,7 @@ static int TLSX_IsGroupSupported(int namedGroup)
         #if defined(HAVE_CURVE25519) && ECC_MIN_KEY_SZ <= 256
             case WOLFSSL_X25519MLKEM512:
         #endif
+            break;
         #endif
         #ifndef WOLFSSL_NO_ML_KEM_768
             case WOLFSSL_ML_KEM_768:
@@ -4501,6 +4502,7 @@ static int TLSX_IsGroupSupported(int namedGroup)
         #if defined(HAVE_CURVE448) && ECC_MIN_KEY_SZ <= 448
             case WOLFSSL_X448MLKEM768:
         #endif
+            break;
         #endif
         #ifndef WOLFSSL_NO_ML_KEM_1024
             case WOLFSSL_ML_KEM_1024:
