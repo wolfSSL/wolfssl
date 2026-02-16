@@ -409,12 +409,12 @@ int wc_curve448_check_public(const byte* pub, word32 pubSz, int endian)
                 return ECC_BAD_ARG_E;
             }
             if ((i == 27) && (pub[i] == 0xfe)) {
-                for (++i; i < CURVE448_PUB_KEY_SIZE - 1; i--) {
+                for (++i; i < CURVE448_PUB_KEY_SIZE - 1; i++) {
                     if (pub[i] != 0xff) {
                         break;
                     }
                 }
-                if ((i == CURVE448_PUB_KEY_SIZE) && (pub[i] >= 0xfe)) {
+                if ((i == CURVE448_PUB_KEY_SIZE - 1) && (pub[i] >= 0xfe)) {
                     return ECC_BAD_ARG_E;
                 }
             }
