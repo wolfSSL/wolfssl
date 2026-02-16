@@ -11294,6 +11294,7 @@ static WC_INLINE int GrowAnOutputBuffer(WOLFSSL* ssl,
 #else
     const byte align = WOLFSSL_GENERAL_ALIGNMENT;
 #endif
+    word32 newSz = 0;
 
 #if WOLFSSL_GENERAL_ALIGNMENT > 0
     /* the encrypted data will be offset from the front of the buffer by
@@ -11304,8 +11305,13 @@ static WC_INLINE int GrowAnOutputBuffer(WOLFSSL* ssl,
         align *= 2;
 #endif
 
-    tmp = (byte*)XMALLOC(size + outputBuffer->length + align,
-                             ssl->heap, DYNAMIC_TYPE_OUT_BUFFER);
+    if (!WC_SAFE_SUM_WORD32(outputBuffer->length, (word32)size, newSz))
+        return BUFFER_E;
+#if WOLFSSL_GENERAL_ALIGNMENT > 0
+    if (!WC_SAFE_SUM_WORD32(newSz, align, newSz))
+        return BUFFER_E;
+#endif
+    tmp = (byte*)XMALLOC(newSz, ssl->heap, DYNAMIC_TYPE_OUT_BUFFER);
     WOLFSSL_MSG("growing output buffer");
 
     if (tmp == NULL)
@@ -11318,7 +11324,7 @@ static WC_INLINE int GrowAnOutputBuffer(WOLFSSL* ssl,
 #ifdef WOLFSSL_STATIC_MEMORY
     /* can be from IO memory pool which does not need copy if same buffer */
     if (outputBuffer->length && tmp == outputBuffer->buffer) {
-        outputBuffer->bufferSize = size + outputBuffer->length;
+        outputBuffer->bufferSize = newSz - align;
         return 0;
     }
 #endif
@@ -11339,7 +11345,7 @@ static WC_INLINE int GrowAnOutputBuffer(WOLFSSL* ssl,
 
     outputBuffer->buffer = tmp;
     outputBuffer->dynamicFlag = 1;
-    outputBuffer->bufferSize = size + outputBuffer->length;
+    outputBuffer->bufferSize = newSz - align;
     return 0;
 }
 #endif

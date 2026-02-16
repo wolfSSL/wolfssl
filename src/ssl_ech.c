@@ -580,6 +580,10 @@ int SetEchConfigsEx(WOLFSSL_EchConfig** outputConfigs, void* heap,
         ato16(echConfig, &hpkePubkeyLen);
         echConfig += 2;
         /* hpke public_key */
+        if (hpkePubkeyLen > HPKE_Npk_MAX) {
+            ret = BUFFER_E;
+            break;
+        }
         XMEMCPY(workingConfig->receiverPubkey, echConfig, hpkePubkeyLen);
         echConfig += hpkePubkeyLen;
         /* cipherSuitesLen */

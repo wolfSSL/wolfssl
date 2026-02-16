@@ -2146,8 +2146,13 @@ static int CheckIp6Hdr(Ip6Hdr* iphdr, IpInfo* info, int length, char* error)
             exthdrsz += hdrsz;
             exthdr = (Ip6ExtHdr*)((byte*)exthdr + hdrsz);
         }
-        while (exthdr->next_header != TCP_PROTOCOL &&
+        while (exthdrsz < length &&
+                exthdr->next_header != TCP_PROTOCOL &&
                 exthdr->next_header != NO_NEXT_HEADER);
+        if (exthdrsz >= length) {
+            SetError(PACKET_HDR_SHORT_STR, error, NULL, 0);
+            return WOLFSSL_FATAL_ERROR;
+        }
     }
 
 #ifndef WOLFSSL_SNIFFER_WATCH
@@ -4571,6 +4576,10 @@ static int DoHandShake(const byte* input, int* sslBytes,
 
 #ifdef HAVE_MAX_FRAGMENT
     if (session->tlsFragBuf) {
+        if (session->tlsFragOffset + rhSize > session->tlsFragSize) {
+            SetError(HANDSHAKE_INPUT_STR, error, session, FATAL_ERROR_STATE);
+            return WOLFSSL_FATAL_ERROR;
+        }
         XMEMCPY(session->tlsFragBuf + session->tlsFragOffset, input, rhSize);
         session->tlsFragOffset += rhSize;
         *sslBytes -= rhSize;
@@ -4625,6 +4634,10 @@ static int DoHandShake(const byte* input, int* sslBytes,
             *sslBytes += HANDSHAKE_HEADER_SZ;
         }
 
+        if (session->tlsFragOffset + rhSize > session->tlsFragSize) {
+            SetError(HANDSHAKE_INPUT_STR, error, session, FATAL_ERROR_STATE);
+            return WOLFSSL_FATAL_ERROR;
+        }
         XMEMCPY(session->tlsFragBuf + session->tlsFragOffset, input, rhSize);
         session->tlsFragOffset += rhSize;
         *sslBytes -= rhSize;
@@ -5622,7 +5635,7 @@ static int AddToReassembly(byte from, word32 seq, const byte* sslFrame,
         if (end >= curr->begin)
             end = curr->begin - 1;
 
-        if (MaxRecoveryMemory -1 &&
+        if (MaxRecoveryMemory != -1 &&
                       (int)(*reassemblyMemory + sslBytes) > MaxRecoveryMemory) {
             SetError(REASSEMBLY_MAX_STR, error, session, FATAL_ERROR_STATE);
             return WOLFSSL_FATAL_ERROR;
