@@ -36,10 +36,10 @@
 #include <stdint.h>
 #include <string.h>
 
-#include <wolfssl/wolfcrypt/port/cypress/psoc6_crypto.h>
-#include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
+#include <wolfssl/wolfcrypt/port/cypress/psoc6_crypto.h>
+#include <wolfssl/wolfcrypt/random.h>
 
 #include "cy_crypto_core_hw_v2.h"
 #include "cy_crypto_core_mem.h"
@@ -54,8 +54,19 @@
 #include "cy_crypto_common.h"
 #include "cy_crypto_core_aes.h"
 #include "cy_crypto_core_aes_v2.h"
-
 #endif /* NO_AES */
+
+#ifndef NO_SHA256
+#include "wolfssl/wolfcrypt/sha256.h"
+#endif
+
+#ifdef WOLFSSL_SHA3
+#include "wolfssl/wolfcrypt/sha3.h"
+#endif
+
+#if defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)
+#include "wolfssl/wolfcrypt/sha512.h"
+#endif
 
 #if defined(PSOC6_HASH_SHA3)
 
@@ -1102,7 +1113,10 @@ int wc_Psoc6_Aes_SetKey(Aes* aes, const byte* userKey, word32 len,
     /* Store key information in wolfSSL structure */
     aes->keylen = len;
     aes->rounds = len / 4 + 6;
-    aes->left   = 0;
+
+#if defined(WOLFSSL_AES_CFB)
+    aes->left = 0;
+#endif
 
     XMEMCPY(aes->key, userKey, len);
 
