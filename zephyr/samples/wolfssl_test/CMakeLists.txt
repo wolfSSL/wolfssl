@@ -12,10 +12,10 @@ endif()
 if(ZEPHYR_VER_MAJOR GREATER_EQUAL 4 OR
    (ZEPHYR_VER_MAJOR EQUAL 3 AND
     ZEPHYR_VER_MINOR GREATER 5))
-    set(EXTRA_CONF_FILE
+    set(OVERLAY_CONFIG
         ${CMAKE_CURRENT_SOURCE_DIR}/zephyr_v4.1.conf)
 else()
-    set(EXTRA_CONF_FILE
+    set(OVERLAY_CONFIG
         ${CMAKE_CURRENT_SOURCE_DIR}/zephyr_legacy.conf)
 endif()
 
