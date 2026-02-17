@@ -2317,7 +2317,7 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, const mp_int* em,
 
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
 #if !defined(SP_RSA_PRIVATE_EXP_D) && !defined(RSA_LOW_MEM)
-#endif /* !SP_RSA_PRIVATE_EXP_D & !RSA_LOW_MEM */
+#endif /* !SP_RSA_PRIVATE_EXP_D && !RSA_LOW_MEM */
 /* RSA private key operation.
  *
  * in      Array of bytes representing the number to exponentiate, base.
@@ -5564,7 +5564,7 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, const mp_int* em,
 
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
 #if !defined(SP_RSA_PRIVATE_EXP_D) && !defined(RSA_LOW_MEM)
-#endif /* !SP_RSA_PRIVATE_EXP_D & !RSA_LOW_MEM */
+#endif /* !SP_RSA_PRIVATE_EXP_D && !RSA_LOW_MEM */
 /* RSA private key operation.
  *
  * in      Array of bytes representing the number to exponentiate, base.
@@ -8494,7 +8494,7 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, const mp_int* em,
 
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
 #if !defined(SP_RSA_PRIVATE_EXP_D) && !defined(RSA_LOW_MEM)
-#endif /* !SP_RSA_PRIVATE_EXP_D & !RSA_LOW_MEM */
+#endif /* !SP_RSA_PRIVATE_EXP_D && !RSA_LOW_MEM */
 /* RSA private key operation.
  *
  * in      Array of bytes representing the number to exponentiate, base.
@@ -11890,7 +11890,7 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, const mp_int* em,
 
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
 #if !defined(SP_RSA_PRIVATE_EXP_D) && !defined(RSA_LOW_MEM)
-#endif /* !SP_RSA_PRIVATE_EXP_D & !RSA_LOW_MEM */
+#endif /* !SP_RSA_PRIVATE_EXP_D && !RSA_LOW_MEM */
 /* RSA private key operation.
  *
  * in      Array of bytes representing the number to exponentiate, base.
@@ -14857,7 +14857,7 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, const mp_int* em,
 
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
 #if !defined(SP_RSA_PRIVATE_EXP_D) && !defined(RSA_LOW_MEM)
-#endif /* !SP_RSA_PRIVATE_EXP_D & !RSA_LOW_MEM */
+#endif /* !SP_RSA_PRIVATE_EXP_D && !RSA_LOW_MEM */
 /* RSA private key operation.
  *
  * in      Array of bytes representing the number to exponentiate, base.
@@ -18350,7 +18350,7 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, const mp_int* em,
 
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
 #if !defined(SP_RSA_PRIVATE_EXP_D) && !defined(RSA_LOW_MEM)
-#endif /* !SP_RSA_PRIVATE_EXP_D & !RSA_LOW_MEM */
+#endif /* !SP_RSA_PRIVATE_EXP_D && !RSA_LOW_MEM */
 /* RSA private key operation.
  *
  * in      Array of bytes representing the number to exponentiate, base.
