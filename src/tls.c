@@ -2849,9 +2849,14 @@ static TCA* TLSX_TCA_Find(TCA *list, byte type, const byte* id, word16 idSz)
 {
     TCA* tca = list;
 
-    while (tca && tca->type != type && type != WOLFSSL_TRUSTED_CA_PRE_AGREED &&
-           idSz != tca->idSz && !XMEMCMP(id, tca->id, idSz))
+    while (tca) {
+        if (type == WOLFSSL_TRUSTED_CA_PRE_AGREED)
+            break;
+        if (tca->type == type && idSz == tca->idSz &&
+                XMEMCMP(id, tca->id, idSz) == 0)
+            break;
         tca = tca->next;
+    }
 
     return tca;
 }
