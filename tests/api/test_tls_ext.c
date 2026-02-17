@@ -323,6 +323,9 @@ static int certificate_authorities_server_cb(WOLFSSL *ssl, void *_arg) {
 }
 #endif
 
+#if defined(HAVE_TRUSTED_CA) && !defined(NO_SHA) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT)
 /* Walk the TLSX list to find an extension by type. Avoids calling the
  * WOLFSSL_LOCAL TLSX_Find which is not available in shared library builds. */
 static TLSX* test_TLSX_find_ext(TLSX* list, TLSX_Type type)
@@ -334,6 +337,7 @@ static TLSX* test_TLSX_find_ext(TLSX* list, TLSX_Type type)
     }
     return NULL;
 }
+#endif
 
 int test_TLSX_TCA_Find(void)
 {
