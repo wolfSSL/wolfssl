@@ -160,12 +160,8 @@ int test_tls13_apis(void)
             ":SecP256r1MLKEM512"
     #elif !defined(WOLFSSL_NO_ML_KEM_768) && defined(WOLFSSL_PQC_HYBRIDS)
             ":SecP256r1MLKEM768"
-    #elif !defined(WOLFSSL_NO_ML_KEM_1024) && \
-                                       !defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE)
-            ":ML_KEM_1024"
-    #elif !defined(WOLFSSL_NO_ML_KEM_768) && \
-                                       !defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE)
-            ":ML_KEM_768"
+    #elif !defined(WOLFSSL_NO_ML_KEM_1024) && defined(WOLFSSL_PQC_HYBRIDS)
+            ":SecP384r1MLKEM1024"
     #endif
 #endif
 #endif
@@ -184,11 +180,11 @@ int test_tls13_apis(void)
             ":KYBER_LEVEL5"
     #endif
 #elif !defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE)
-    #ifndef WOLFSSL_NO_KYBER512
+    #if !defined(WOLFSSL_NO_ML_KEM_512)
             ":ML_KEM_512"
-    #elif !defined(WOLFSSL_NO_KYBER768)
+    #elif !defined(WOLFSSL_NO_ML_KEM_768)
             ":ML_KEM_768"
-    #else
+    #elif !defined(WOLFSSL_NO_ML_KEM_1024)
             ":ML_KEM_1024"
     #endif
 #endif

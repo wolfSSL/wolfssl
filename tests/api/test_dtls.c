@@ -1619,15 +1619,23 @@ int test_dtls_rtx_across_epoch_change(void)
      *into two messages */
     int helloMsgCount = 2;
     int groups[2] = {
-    #if defined(HAVE_CURVE25519) && defined(WOLFSSL_PQC_HYBRIDS)
+    #if defined(HAVE_CURVE25519) && defined(WOLFSSL_PQC_HYBRIDS) && \
+        !defined(WOLFSSL_NO_ML_KEM_768)
         WOLFSSL_X25519MLKEM768,
-    #elif defined(HAVE_ECC) && defined(WOLFSSL_PQC_HYBRIDS)
+    #elif defined(HAVE_ECC) && defined(WOLFSSL_PQC_HYBRIDS) && \
+        !defined(WOLFSSL_NO_ML_KEM_768)
         WOLFSSL_SECP256R1MLKEM768,
+    #elif defined(HAVE_ECC) && defined(WOLFSSL_PQC_HYBRIDS) && \
+        !defined(WOLFSSL_NO_ML_KEM_1024)
+        WOLFSSL_SECP384R1MLKEM1024,
     #elif !defined(WOLFSSL_NO_ML_KEM_1024) && \
                                        !defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE)
         WOLFSSL_ML_KEM_1024,
-    #else
+    #elif !defined(WOLFSSL_NO_ML_KEM_768) && \
+                                       !defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE)
         WOLFSSL_ML_KEM_768,
+    #else
+        WOLFSSL_ML_KEM_512,
     #endif
         WOLFSSL_ECC_SECP256R1,
     };
