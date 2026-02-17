@@ -1307,6 +1307,78 @@ int wc_HmacInit_Label(Hmac* hmac, const char* label, void* heap, int devId)
 }
 #endif /* WOLF_PRIVATE_KEY_ID */
 
+/* Free hash state. */
+static void HmacFreeHash(int macType, wc_HmacHash* hash)
+{
+    switch (macType) {
+    #ifndef NO_MD5
+        case WC_MD5:
+            wc_Md5Free(&hash->md5);
+            break;
+    #endif /* !NO_MD5 */
+
+    #ifndef NO_SHA
+        case WC_SHA:
+            wc_ShaFree(&hash->sha);
+            break;
+    #endif /* !NO_SHA */
+
+    #ifdef WOLFSSL_SHA224
+        case WC_SHA224:
+            wc_Sha224Free(&hash->sha224);
+            break;
+    #endif /* WOLFSSL_SHA224 */
+    #ifndef NO_SHA256
+        case WC_SHA256:
+            wc_Sha256Free(&hash->sha256);
+            break;
+    #endif /* !NO_SHA256 */
+
+    #ifdef WOLFSSL_SHA384
+        case WC_SHA384:
+            wc_Sha384Free(&hash->sha384);
+            break;
+    #endif /* WOLFSSL_SHA384 */
+    #ifdef WOLFSSL_SHA512
+        case WC_SHA512:
+            wc_Sha512Free(&hash->sha512);
+            break;
+    #endif /* WOLFSSL_SHA512 */
+
+    #ifdef WOLFSSL_SHA3
+    #ifndef WOLFSSL_NOSHA3_224
+        case WC_SHA3_224:
+            wc_Sha3_224_Free(&hash->sha3);
+            break;
+    #endif
+    #ifndef WOLFSSL_NOSHA3_256
+        case WC_SHA3_256:
+            wc_Sha3_256_Free(&hash->sha3);
+            break;
+    #endif
+    #ifndef WOLFSSL_NOSHA3_384
+        case WC_SHA3_384:
+            wc_Sha3_384_Free(&hash->sha3);
+            break;
+    #endif
+    #ifndef WOLFSSL_NOSHA3_512
+        case WC_SHA3_512:
+            wc_Sha3_512_Free(&hash->sha3);
+            break;
+    #endif
+    #endif /* WOLFSSL_SHA3 */
+
+    #ifdef WOLFSSL_SM3
+        case WC_SM3:
+            wc_Sm3Free(&hash->sm3);
+            break;
+    #endif
+
+        default:
+            break;
+    }
+}
+
 /* Free Hmac from use with async device */
 void wc_HmacFree(Hmac* hmac)
 {
@@ -1328,117 +1400,11 @@ void wc_HmacFree(Hmac* hmac)
     wolfAsync_DevCtxFree(&hmac->asyncDev, WOLFSSL_ASYNC_MARKER_HMAC);
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
-    switch (hmac->macType) {
-    #ifndef NO_MD5
-        case WC_MD5:
-            wc_Md5Free(&hmac->hash.md5);
-        #ifdef WOLFSSL_HMAC_COPY_HASH
-            wc_Md5Free(&hmac->i_hash.md5);
-            wc_Md5Free(&hmac->o_hash.md5);
-        #endif
-            break;
-    #endif /* !NO_MD5 */
-
-    #ifndef NO_SHA
-        case WC_SHA:
-            wc_ShaFree(&hmac->hash.sha);
-        #ifdef WOLFSSL_HMAC_COPY_HASH
-            wc_ShaFree(&hmac->i_hash.sha);
-            wc_ShaFree(&hmac->o_hash.sha);
-        #endif
-            break;
-    #endif /* !NO_SHA */
-
-    #ifdef WOLFSSL_SHA224
-        case WC_SHA224:
-            wc_Sha224Free(&hmac->hash.sha224);
-        #ifdef WOLFSSL_HMAC_COPY_HASH
-            wc_Sha224Free(&hmac->i_hash.sha224);
-            wc_Sha224Free(&hmac->o_hash.sha224);
-        #endif
-            break;
-    #endif /* WOLFSSL_SHA224 */
-    #ifndef NO_SHA256
-        case WC_SHA256:
-            wc_Sha256Free(&hmac->hash.sha256);
-        #ifdef WOLFSSL_HMAC_COPY_HASH
-            wc_Sha256Free(&hmac->i_hash.sha256);
-            wc_Sha256Free(&hmac->o_hash.sha256);
-        #endif
-            break;
-    #endif /* !NO_SHA256 */
-
-    #ifdef WOLFSSL_SHA384
-        case WC_SHA384:
-            wc_Sha384Free(&hmac->hash.sha384);
-        #ifdef WOLFSSL_HMAC_COPY_HASH
-            wc_Sha384Free(&hmac->i_hash.sha384);
-            wc_Sha384Free(&hmac->o_hash.sha384);
-        #endif
-            break;
-    #endif /* WOLFSSL_SHA384 */
-    #ifdef WOLFSSL_SHA512
-        case WC_SHA512:
-            wc_Sha512Free(&hmac->hash.sha512);
-        #ifdef WOLFSSL_HMAC_COPY_HASH
-            wc_Sha512Free(&hmac->i_hash.sha512);
-            wc_Sha512Free(&hmac->o_hash.sha512);
-        #endif
-            break;
-    #endif /* WOLFSSL_SHA512 */
-
-    #ifdef WOLFSSL_SHA3
-    #ifndef WOLFSSL_NOSHA3_224
-        case WC_SHA3_224:
-            wc_Sha3_224_Free(&hmac->hash.sha3);
-        #ifdef WOLFSSL_HMAC_COPY_HASH
-            wc_Sha3_224_Free(&hmac->i_hash.sha3);
-            wc_Sha3_224_Free(&hmac->o_hash.sha3);
-        #endif
-            break;
-    #endif
-    #ifndef WOLFSSL_NOSHA3_256
-        case WC_SHA3_256:
-            wc_Sha3_256_Free(&hmac->hash.sha3);
-        #ifdef WOLFSSL_HMAC_COPY_HASH
-            wc_Sha3_256_Free(&hmac->i_hash.sha3);
-            wc_Sha3_256_Free(&hmac->o_hash.sha3);
-        #endif
-            break;
-    #endif
-    #ifndef WOLFSSL_NOSHA3_384
-        case WC_SHA3_384:
-            wc_Sha3_384_Free(&hmac->hash.sha3);
-        #ifdef WOLFSSL_HMAC_COPY_HASH
-            wc_Sha3_384_Free(&hmac->i_hash.sha3);
-            wc_Sha3_384_Free(&hmac->o_hash.sha3);
-        #endif
-            break;
-    #endif
-    #ifndef WOLFSSL_NOSHA3_512
-        case WC_SHA3_512:
-            wc_Sha3_512_Free(&hmac->hash.sha3);
-        #ifdef WOLFSSL_HMAC_COPY_HASH
-            wc_Sha3_512_Free(&hmac->i_hash.sha3);
-            wc_Sha3_512_Free(&hmac->o_hash.sha3);
-        #endif
-            break;
-    #endif
-    #endif /* WOLFSSL_SHA3 */
-
-    #ifdef WOLFSSL_SM3
-        case WC_SM3:
-            wc_Sm3Free(&hmac->hash.sm3);
-        #ifdef WOLFSSL_HMAC_COPY_HASH
-            wc_Sm3Free(&hmac->i_hash.sm3);
-            wc_Sm3Free(&hmac->o_hash.sm3);
-        #endif
-            break;
-    #endif
-
-        default:
-            break;
-    }
+    HmacFreeHash(hmac->macType, &hmac->hash);
+#ifdef WOLFSSL_HMAC_COPY_HASH
+    HmacFreeHash(hmac->macType, &hmac->i_hash);
+    HmacFreeHash(hmac->macType, &hmac->o_hash);
+#endif
 
     ForceZero(hmac, sizeof(*hmac));
 }
