@@ -853,8 +853,8 @@ int wc_fspsm_generateSessionKey(WOLFSSL *ssl,
                     SCE_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 ||
                 cbInfo->internal->cipher ==
                     SCE_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256) {
-                enc->aes->nonceSz = AEAD_MAX_IMP_SZ;
-                dec->aes->nonceSz = AEAD_MAX_IMP_SZ;
+                enc->aes->nonceSz = AEAD_NONCE_SZ;
+                dec->aes->nonceSz = AEAD_NONCE_SZ;
              }
              enc->aes->devId = devId;
              dec->aes->devId = devId;

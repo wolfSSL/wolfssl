@@ -1239,7 +1239,7 @@ int GetCipherSpec(word16 side, byte cipherSuite0, byte cipherSuite,
         specs->static_ecdh           = 0;
         specs->key_size              = WC_SHA256_DIGEST_SIZE;
         specs->block_size            = 0;
-        specs->iv_size               = HMAC_NONCE_SZ;
+        specs->iv_size               = WC_SHA256_DIGEST_SIZE;
         specs->aead_mac_size         = WC_SHA256_DIGEST_SIZE;
 
         break;
@@ -1257,7 +1257,7 @@ int GetCipherSpec(word16 side, byte cipherSuite0, byte cipherSuite,
         specs->static_ecdh           = 0;
         specs->key_size              = WC_SHA384_DIGEST_SIZE;
         specs->block_size            = 0;
-        specs->iv_size               = HMAC_NONCE_SZ;
+        specs->iv_size               = WC_SHA384_DIGEST_SIZE;
         specs->aead_mac_size         = WC_SHA384_DIGEST_SIZE;
 
         break;
@@ -2827,7 +2827,7 @@ int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)))
                 if (!tls13) {
                     CcmRet = wc_AesCcmSetNonce(enc->aes, keys->client_write_IV,
-                            AEAD_MAX_IMP_SZ);
+                            AEAD_NONCE_SZ);
                     if (CcmRet != 0) return CcmRet;
                 }
 #endif
@@ -2856,7 +2856,7 @@ int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)))
                 if (!tls13) {
                     CcmRet = wc_AesCcmSetNonce(enc->aes, keys->server_write_IV,
-                            AEAD_MAX_IMP_SZ);
+                            AEAD_NONCE_SZ);
                     if (CcmRet != 0) return CcmRet;
                 }
 #endif
@@ -3357,14 +3357,14 @@ int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
             if (side == WOLFSSL_CLIENT_END) {
                 if (enc) {
                     XMEMCPY(keys->aead_enc_imp_IV, keys->client_write_IV,
-                            HMAC_NONCE_SZ);
+                            specs->iv_size);
                     hmacRet = wc_HmacSetKey(enc->hmac, hashType,
                                        keys->client_write_key, specs->key_size);
                     if (hmacRet != 0) return hmacRet;
                 }
                 if (dec) {
                     XMEMCPY(keys->aead_dec_imp_IV, keys->server_write_IV,
-                            HMAC_NONCE_SZ);
+                            specs->iv_size);
                     hmacRet = wc_HmacSetKey(dec->hmac, hashType,
                                        keys->server_write_key, specs->key_size);
                     if (hmacRet != 0) return hmacRet;
@@ -3373,14 +3373,14 @@ int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
             else {
                 if (enc) {
                     XMEMCPY(keys->aead_enc_imp_IV, keys->server_write_IV,
-                            HMAC_NONCE_SZ);
+                            specs->iv_size);
                     hmacRet = wc_HmacSetKey(enc->hmac, hashType,
                                        keys->server_write_key, specs->key_size);
                     if (hmacRet != 0) return hmacRet;
                 }
                 if (dec) {
                     XMEMCPY(keys->aead_dec_imp_IV, keys->client_write_IV,
-                            HMAC_NONCE_SZ);
+                            specs->iv_size);
                     hmacRet = wc_HmacSetKey(dec->hmac, hashType,
                                        keys->client_write_key, specs->key_size);
                     if (hmacRet != 0) return hmacRet;
