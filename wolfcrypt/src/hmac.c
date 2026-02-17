@@ -1406,7 +1406,9 @@ void wc_HmacFree(Hmac* hmac)
     HmacFreeHash(hmac->macType, &hmac->o_hash);
 #endif
 
-    ForceZero(hmac, sizeof(*hmac));
+    ForceZero(hmac->ipad, sizeof(hmac->ipad));
+    ForceZero(hmac->opad, sizeof(hmac->opad));
+    ForceZero(hmac->innerHash, sizeof(hmac->innerHash));
 }
 #endif /* WOLFSSL_KCAPI_HMAC */
 

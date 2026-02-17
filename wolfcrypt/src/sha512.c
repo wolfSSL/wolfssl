@@ -1688,7 +1688,13 @@ void wc_Sha512Free(wc_Sha512* sha512)
     wc_Psoc6_Sha_Free();
 #endif
 
+#if !defined(PSOC6_HASH_SHA2)
+    ForceZero(sha512->buffer, sizeof(sha512->buffer));
+    if (!(sha512->hiLen == 0 && sha512->loLen == 0))
+        ForceZero(sha512->digest, sizeof(sha512->digest));
+#else
     ForceZero(sha512, sizeof(*sha512));
+#endif
 }
 #endif
 
@@ -2176,7 +2182,13 @@ void wc_Sha384Free(wc_Sha384* sha384)
     wc_MXC_TPU_SHA_Free(&(sha384->mxcCtx));
 #endif
 
+#if !defined(PSOC6_HASH_SHA2)
+    ForceZero(sha384->buffer, sizeof(sha384->buffer));
+    if (!(sha384->hiLen == 0 && sha384->loLen == 0))
+        ForceZero(sha384->digest, sizeof(sha384->digest));
+#else
     ForceZero(sha384, sizeof(*sha384));
+#endif
 }
 
 #endif
