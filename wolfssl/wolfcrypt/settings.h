@@ -2668,12 +2668,13 @@ extern void uITRON4_free(void *p) ;
     #define setsockopt  zsock_setsockopt
     #define getsockopt  zsock_getsockopt
     #define shutdown    zsock_shutdown
-    #define close       zsock_close
-    #define poll        zsock_poll
     #define getpeername zsock_getpeername
     #define getsockname zsock_getsockname
-    #define inet_pton   zsock_inet_pton
-    #define inet_ntop   zsock_inet_ntop
+    /* Note: close, poll, inet_pton, inet_ntop are NOT remapped here.
+     * They are general POSIX functions still declared in Zephyr's POSIX
+     * headers; redefining them conflicts with __syscall declarations in
+     * <zephyr/net/socket.h>. close is handled via CloseSocket in wolfio.h,
+     * inet_pton/inet_ntop via XINET_PTON/XINET_NTOP in wolfio.h. */
     #else
     /* Zephyr < 4.1: define CONFIG_NET_SOCKETS_POSIX_NAMES so that
      * <net/socket.h> provides the POSIX name remapping macros. */
