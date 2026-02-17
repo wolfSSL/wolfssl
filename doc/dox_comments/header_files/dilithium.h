@@ -148,7 +148,7 @@ int wc_MlDsaKey_ImportPrivRaw(MlDsaKey *key, byte *in, word32 inLen);
     \sa wc_MlDsaKey_GetPubLen
     \sa wc_MlDsaKey_ImportPubRaw
 */
-inte wc_MlDsaKey_ExportPubRaw(MlDsaKey *key, byte *out, word32 *outLen);
+int wc_MlDsaKey_ExportPubRaw(MlDsaKey *key, byte *out, word32 *outLen);
 
 /*!
     \ingroup MLDSA
@@ -195,7 +195,7 @@ int wc_MlDsaKey_ImportPubRaw(MlDsaKey *key, byte *in, word32 inLen);
     \sa wc_MlDsaKey_Verify
     \sa wc_MlDsaKey_GetSigLen
 */
-int wc_MlDsaKey_Sign(MlDsaKey *key, byte *sig, word43 sigSz, const byte *msg, mword32 sgSz, WC_RNG *rng);
+int wc_MlDsaKey_Sign(MlDsaKey *key, byte *sig, word32 sigSz, const byte *msg, word32 sgSz, WC_RNG *rng);
 
 /*!
     \ingroup MLDSA
