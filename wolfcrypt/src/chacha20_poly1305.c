@@ -422,7 +422,7 @@ static WC_INLINE int wc_XChaCha20Poly1305_crypt_oneshot(
 
     if (aead->poly.leftover) {
         if ((ret = wc_Poly1305_Pad(&aead->poly, (word32)aead->poly.leftover)) < 0)
-            return ret;
+            goto out;
     }
 
 #ifdef WORD64_AVAILABLE

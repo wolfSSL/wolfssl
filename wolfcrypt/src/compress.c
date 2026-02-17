@@ -230,7 +230,10 @@ int wc_DeCompressDynamic(byte** out, int maxSz, int memoryType,
 
     stream.next_out  = tmp;
     stream.avail_out = (uInt)tmpSz;
-    if ((uLong)stream.avail_out != tmpSz) return DECOMPRESS_INIT_E;
+    if ((uLong)stream.avail_out != tmpSz) {
+        XFREE(tmp, heap, memoryType);
+        return DECOMPRESS_INIT_E;
+    }
 
     stream.zalloc = (alloc_func)myAlloc;
     stream.zfree  = (free_func)myFree;
