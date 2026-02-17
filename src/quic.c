@@ -72,7 +72,7 @@ static QuicRecord *quic_record_make(WOLFSSL *ssl,
 
     qr = (QuicRecord*)XMALLOC(sizeof(*qr), ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (qr) {
-        memset(qr, 0, sizeof(*qr));
+        XMEMSET(qr, 0, sizeof(*qr));
         qr->level = level;
         if (level == wolfssl_encryption_early_data) {
             qr->capacity = qr->len = (word32)len;
