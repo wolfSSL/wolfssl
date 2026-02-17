@@ -1752,7 +1752,7 @@ enum Misc {
     ECDHE_SIZE          = 32,  /* ECDHE server size defaults to 256 bit */
 #endif
     MAX_EXPORT_ECC_SZ   = 256, /* Export ANSI X9.62 max future size */
-    MAX_CURVE_NAME_SZ   = 18,  /* Maximum size of curve name string */
+    MAX_CURVE_NAME_SZ   = 20,  /* Maximum size of curve name string */
 
     NEW_SA_MAJOR        = 8,   /* Most significant byte used with new sig algos */
     RSA_PSS_RSAE_SHA256_MINOR = 0x04,

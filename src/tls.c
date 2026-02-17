@@ -4492,14 +4492,15 @@ int TLSX_IsGroupSupported(int namedGroup)
         #ifndef WOLFSSL_NO_ML_KEM_512
             #ifndef WOLFSSL_TLS_NO_MLKEM_STANDALONE
             case WOLFSSL_ML_KEM_512:
+                break;
             #endif /* !WOLFSSL_TLS_NO_MLKEM_STANDALONE */
             #ifdef WOLFSSL_EXTRA_PQC_HYBRIDS
             case WOLFSSL_SECP256R1MLKEM512:
             #if defined(HAVE_CURVE25519) && ECC_MIN_KEY_SZ <= 256
             case WOLFSSL_X25519MLKEM512:
             #endif /* HAVE_CURVE25519 */
-            #endif /* WOLFSSL_EXTRA_PQC_HYBRIDS */
                 break;
+            #endif /* WOLFSSL_EXTRA_PQC_HYBRIDS */
         #endif /* WOLFSSL_NO_ML_KEM_512 */
         #ifndef WOLFSSL_NO_ML_KEM_768
             #ifndef WOLFSSL_TLS_NO_MLKEM_STANDALONE
@@ -8486,9 +8487,8 @@ static int mlkem_id2type(int id, int *type)
 #endif
 
 #if defined(WOLFSSL_NO_ML_KEM_768) && defined(WOLFSSL_NO_ML_KEM_1024) && \
-    !defined(WOLFSSL_EXTRA_PQC_HYBRIDS)
-    #error "Non-experimental PQC hybrid combinations require either "
-           "ML-KEM 768 or ML-KEM 1024"
+    defined(WOLFSSL_PQC_HYBRIDS)
+    #error "PQC hybrid combinations require either ML-KEM 768 or ML-KEM 1024"
 #endif
 
 /* Structures and objects needed for hybrid key exchanges using both classic
@@ -10913,11 +10913,18 @@ int TLSX_KeyShare_Use(const WOLFSSL* ssl, word16 group, word16 len, byte* data,
 #if !defined(WOLFSSL_ASYNC_CRYPT)
     if (ssl->options.side == WOLFSSL_SERVER_END &&
              WOLFSSL_NAMED_GROUP_IS_PQC_HYBRID(group)) {
-        ret = TLSX_KeyShare_HandlePqcHybridKeyServer((WOLFSSL*)ssl,
-                                                     keyShareEntry,
-                                                     data, len);
-        if (ret != 0)
-            return ret;
+        if (TLSX_IsGroupSupported(group)) {
+            ret = TLSX_KeyShare_HandlePqcHybridKeyServer((WOLFSSL*)ssl,
+                                                        keyShareEntry,
+                                                        data, len);
+            if (ret != 0)
+                return ret;
+        }
+        else {
+            XFREE(keyShareEntry->ke, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+            keyShareEntry->ke = NULL;
+            keyShareEntry->keLen = 0;
+        }
     }
     else
 #endif

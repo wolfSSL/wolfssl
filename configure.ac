@@ -1864,14 +1864,20 @@ then
     if test "$ENABLED_MLKEM" = "no"
     then
         ENABLED_PQC_HYBRIDS=no
+    elif test "$ENABLED_MLKEM768" = "" && test "$ENABLED_MLKEM1024" = ""; then
+        AC_MSG_NOTICE([PQC hybrid combinations require either ML-KEM 768 or ML-KEM 1024, but both disabled.])
+        ENABLED_PQC_HYBRIDS=no
     else
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PQC_HYBRIDS"
     fi
 fi
 
-if test "$ENABLED_MLKEM" = "yes"  && test "$ENABLED_TLS13" = "yes" && test "$ENABLED_PQC_HYBRIDS" = "no" && test "$ENABLED_MLKEM_STANDALONE" = "no"
+if test "$ENABLED_MLKEM" != "no"
 then
-    AC_MSG_ERROR([Both hybrid PQ/T and standalone ML-KEM are disabled, so no PQC hybrid combinations will be available.])
+    if test "$ENABLED_PQC_HYBRIDS" = "no" && test "$ENABLED_MLKEM_STANDALONE" = "no" && test "$ENABLED_CRYPTONLY" = "no"
+    then
+        AC_MSG_ERROR([Both hybrid PQ/T and standalone ML-KEM are disabled, so no PQC hybrid combinations will be available.])
+    fi
 fi
 
 # Extra PQ/T Hybrid combinations
