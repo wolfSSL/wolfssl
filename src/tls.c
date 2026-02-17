@@ -10878,11 +10878,18 @@ int TLSX_KeyShare_Use(const WOLFSSL* ssl, word16 group, word16 len, byte* data,
     }
     else if (ssl->options.side == WOLFSSL_SERVER_END &&
              WOLFSSL_NAMED_GROUP_IS_PQC_HYBRID(group)) {
-        ret = TLSX_KeyShare_HandlePqcHybridKeyServer((WOLFSSL*)ssl,
-                                                     keyShareEntry,
-                                                     data, len);
-        if (ret != 0)
-            return ret;
+        if (TLSX_IsGroupSupported(group)) {
+            ret = TLSX_KeyShare_HandlePqcHybridKeyServer((WOLFSSL*)ssl,
+                                                         keyShareEntry,
+                                                         data, len);
+            if (ret != 0)
+                return ret;
+        }
+        else {
+            XFREE(keyShareEntry->ke, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+            keyShareEntry->ke = NULL;
+            keyShareEntry->keLen = 0;
+        }
     }
     else
 #endif
