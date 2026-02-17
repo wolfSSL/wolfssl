@@ -2650,8 +2650,36 @@ extern void uITRON4_free(void *p) ;
     void *z_realloc(void *ptr, size_t size);
     #define realloc   z_realloc
 
+    #if KERNEL_VERSION_NUMBER >= 0x40100
+    /* Zephyr >= 4.1 removed CONFIG_NET_SOCKETS_POSIX_NAMES and the
+     * corresponding macro block in <zephyr/net/socket.h>.
+     * Define our own compile-time remapping to zsock_* so that wolfSSL
+     * always calls Zephyr's network stack directly, avoiding host-libc
+     * symbol conflicts on native_sim. */
+    #define socket      zsock_socket
+    #define bind        zsock_bind
+    #define connect     zsock_connect
+    #define listen      zsock_listen
+    #define accept      zsock_accept
+    #define send        zsock_send
+    #define recv        zsock_recv
+    #define sendto      zsock_sendto
+    #define recvfrom    zsock_recvfrom
+    #define setsockopt  zsock_setsockopt
+    #define getsockopt  zsock_getsockopt
+    #define shutdown    zsock_shutdown
+    #define close       zsock_close
+    #define poll        zsock_poll
+    #define getpeername zsock_getpeername
+    #define getsockname zsock_getsockname
+    #define inet_pton   zsock_inet_pton
+    #define inet_ntop   zsock_inet_ntop
+    #else
+    /* Zephyr < 4.1: define CONFIG_NET_SOCKETS_POSIX_NAMES so that
+     * <net/socket.h> provides the POSIX name remapping macros. */
     #if !defined(CONFIG_NET_SOCKETS_POSIX_NAMES) && !defined(CONFIG_POSIX_API)
     #define CONFIG_NET_SOCKETS_POSIX_NAMES
+    #endif
     #endif
 #endif /* WOLFSSL_ZEPHYR */
 
