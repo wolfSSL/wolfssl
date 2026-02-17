@@ -1196,7 +1196,8 @@ then
     test "$enable_session_ticket" = "" && enable_session_ticket=yes
     test "$enable_earlydata" = "" && enable_earlydata=yes
     test "$enable_rpk" = "" && enable_rpk=yes
-    test "$enable_writedup" = "" && enable_writedup=yes
+    # writedup and secure renegotiation cannot both be on
+    test "$enable_writedup" = "" && test "$enable_secure_renegotiation" != "yes" && enable_writedup=yes
 
     if test "$KERNEL_MODE_DEFAULTS" != "yes"
     then
