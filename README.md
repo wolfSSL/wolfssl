@@ -12,6 +12,8 @@ Curve25519, BLAKE2b/BLAKE2s and Post-Quantum TLS 1.3 groups. User benchmarking
 and feedback reports dramatically better performance when using wolfSSL over
 OpenSSL.
 
+testing regularly
+
 wolfSSL is powered by the wolfCrypt cryptography library. Two versions of
 wolfCrypt have been FIPS 140-2 validated (Certificate #2425 and
 certificate #3389). FIPS 140-3 validated (Certificate #4718). For additional
