@@ -1880,15 +1880,17 @@ static WARN_UNUSED_RESULT word32 inv_col_mul(
 static WARN_UNUSED_RESULT WC_INLINE word32 PreFetchTe(void)
 {
 #ifndef WOLFSSL_AES_TOUCH_LINES
-    word32 x = 0;
-    int i,j;
+    volatile word32 x = 0;
+    int i;
+    int j;
 
     for (i = 0; i < 4; i++) {
         /* 256 elements, each one is 4 bytes */
-        for (j = 0; j < 256; j += WC_CACHE_LINE_SZ/4) {
+        for (j = 0; j < 256; j += WC_CACHE_LINE_SZ / 4) {
             x &= Te[i][j];
         }
     }
+
     return x;
 #else
     return 0;
@@ -1899,12 +1901,13 @@ static WARN_UNUSED_RESULT WC_INLINE word32 PreFetchTe(void)
 static WARN_UNUSED_RESULT WC_INLINE word32 PreFetchSBox(void)
 {
 #ifndef WOLFSSL_AES_TOUCH_LINES
-    word32 x = 0;
+    volatile word32 x = 0;
     int i;
 
     for (i = 0; i < 256; i += WC_CACHE_LINE_SZ/4) {
         x &= Tsbox[i];
     }
+
     return x;
 #else
     return 0;
@@ -3168,15 +3171,17 @@ static WARN_UNUSED_RESULT int wc_AesEncrypt(
 /* load 4 Td Tables into cache by cache line stride */
 static WARN_UNUSED_RESULT WC_INLINE word32 PreFetchTd(void)
 {
-    word32 x = 0;
-    int i,j;
+    volatile word32 x = 0;
+    int i;
+    int j;
 
     for (i = 0; i < 4; i++) {
         /* 256 elements, each one is 4 bytes */
-        for (j = 0; j < 256; j += WC_CACHE_LINE_SZ/4) {
+        for (j = 0; j < 256; j += WC_CACHE_LINE_SZ / 4) {
             x &= Td[i][j];
         }
     }
+
     return x;
 }
 #endif /* !WOLFSSL_AES_SMALL_TABLES */
@@ -3185,12 +3190,13 @@ static WARN_UNUSED_RESULT WC_INLINE word32 PreFetchTd(void)
 static WARN_UNUSED_RESULT WC_INLINE word32 PreFetchTd4(void)
 {
 #ifndef WOLFSSL_AES_TOUCH_LINES
-    word32 x = 0;
+    volatile word32 x = 0;
     int i;
 
     for (i = 0; i < 256; i += WC_CACHE_LINE_SZ) {
         x &= (word32)Td4[i];
     }
+
     return x;
 #else
     return 0;
