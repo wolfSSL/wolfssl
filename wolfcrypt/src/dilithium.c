@@ -9953,19 +9953,17 @@ static int oqs_dilithium_sign_msg(const byte* msg, word32 msgLen, byte* sig,
 
     if (ret == 0) {
         ret = wolfSSL_liboqsRngMutexLock(rng);
+        if (ret == 0) {
+            if (OQS_SIG_sign(oqssig, sig, &localOutLen, msg, msgLen, key->k)
+                == OQS_ERROR) {
+                ret = BAD_FUNC_ARG;
+            }
+        }
+        if (ret == 0) {
+            *sigLen = (word32)localOutLen;
+        }
+        wolfSSL_liboqsRngMutexUnlock();
     }
-
-    if ((ret == 0) &&
-        (OQS_SIG_sign(oqssig, sig, &localOutLen, msg, msgLen, key->k)
-         == OQS_ERROR)) {
-        ret = BAD_FUNC_ARG;
-    }
-
-    if (ret == 0) {
-        *sigLen = (word32)localOutLen;
-    }
-
-    wolfSSL_liboqsRngMutexUnlock();
 
     if (oqssig != NULL) {
         OQS_SIG_free(oqssig);

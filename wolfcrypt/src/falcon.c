@@ -98,10 +98,6 @@ int wc_falcon_sign_msg(const byte* in, word32 inLen,
         }
     }
 
-    if ((ret == 0) && (oqssig == NULL)) {
-        ret = BUFFER_E;
-    }
-
     /* check and set up out length */
     if (ret == 0) {
         if ((key->level == 1) && (*outLen < FALCON_LEVEL1_SIG_SIZE)) {
@@ -117,19 +113,17 @@ int wc_falcon_sign_msg(const byte* in, word32 inLen,
 
     if (ret == 0) {
         ret = wolfSSL_liboqsRngMutexLock(rng);
+        if (ret == 0) {
+            if (OQS_SIG_sign(oqssig, out, &localOutLen, in, inLen, key->k)
+                == OQS_ERROR) {
+                ret = BAD_FUNC_ARG;
+            }
+        }
+        if (ret == 0) {
+            *outLen = (word32)localOutLen;
+        }
+        wolfSSL_liboqsRngMutexUnlock();
     }
-
-    if ((ret == 0) &&
-        (OQS_SIG_sign(oqssig, out, &localOutLen, in, inLen, key->k)
-         == OQS_ERROR)) {
-        ret = BAD_FUNC_ARG;
-    }
-
-    if (ret == 0) {
-        *outLen = (word32)localOutLen;
-    }
-
-    wolfSSL_liboqsRngMutexUnlock();
 
     if (oqssig != NULL) {
         OQS_SIG_free(oqssig);
@@ -194,10 +188,6 @@ int wc_falcon_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
         if (oqssig == NULL) {
             ret = SIG_TYPE_E;
         }
-    }
-
-    if ((ret == 0) && (oqssig == NULL)) {
-        ret = BUFFER_E;
     }
 
     if ((ret == 0) &&
