@@ -639,6 +639,11 @@ WOLFSSL_API  int wolfIO_RecvFrom(SOCKET_T sd, WOLFSSL_BIO_ADDR *addr, char *buf,
         #define CloseSocket(s) closesocket(s)
     #endif
     #define StartTCP() WC_DO_NOTHING
+#elif defined(WOLFSSL_ZEPHYR) && KERNEL_VERSION_NUMBER >= 0x40100
+    #ifndef CloseSocket
+        #define CloseSocket(s) zsock_close(s)
+    #endif
+    #define StartTCP() WC_DO_NOTHING
 #else
     #ifndef CloseSocket
         #define CloseSocket(s) close(s)
