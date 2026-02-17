@@ -93,7 +93,7 @@ typedef struct Dtls13RecordPlaintextHeader {
 #define DTLS13_SEQ_8_LEN 1
 
 /* fixed bits mask to detect unified header  */
-#define DTLS13_FIXED_BITS_MASK (0x111 << 5)
+#define DTLS13_FIXED_BITS_MASK (0x7 << 5)
 /* fixed bits value to detect unified header  */
 #define DTLS13_FIXED_BITS (0x1 << 5)
 /* ConnectionID present bit in the unified header flags */
