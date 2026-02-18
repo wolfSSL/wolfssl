@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
 check_result(){
     if [ $1 -ne 0 ]; then
         echo "Failed at \"$2\", Abort"
@@ -7,6 +9,15 @@ check_result(){
     else
         echo "Step Succeeded!"
     fi
+}
+
+# OpenSSL 3.x encodes SM2 keys using the generic id-ecPublicKey OID instead of
+# the SM2-specific OID.  fix_sm2_spki.py patches the SubjectPublicKeyInfo
+# algorithm OID back to SM2 and re-signs the certificate.
+fix_sm2_oid(){
+    # $1 = cert PEM, $2 = signing key PEM
+    python3 "${SCRIPT_DIR}/fix_sm2_spki.py" "$1" "$2" "$1"
+    check_result $? "Fix SM2 SPKI OID in $1"
 }
 
 openssl pkey -in root-sm2-priv.pem -noout >/dev/null 2>&1
@@ -29,6 +40,7 @@ check_result $? "Generate request"
 openssl x509 -req -in root-sm2.csr -days 1000 -extfile ../renewcerts/wolfssl.cnf -extensions ca_ecc_cert -signkey root-sm2-priv.pem -out root-sm2.pem
 check_result $? "Generate certificate"
 rm root-sm2.csr
+fix_sm2_oid root-sm2.pem root-sm2-priv.pem
 
 openssl x509 -in root-sm2.pem -outform DER > root-sm2.der
 check_result $? "Convert to DER"
@@ -50,6 +62,7 @@ check_result $? "Generate request"
 openssl x509 -req -in ca-sm2.csr -days 1000 -extfile ../renewcerts/wolfssl.cnf -extensions ca_ecc_cert -CA root-sm2.pem -CAkey root-sm2-priv.pem -set_serial 01 -out ca-sm2.pem
 check_result $? "Generate certificate"
 rm ca-sm2.csr
+fix_sm2_oid ca-sm2.pem root-sm2-priv.pem
 
 openssl x509 -in ca-sm2.pem -outform DER > ca-sm2.der
 check_result $? "Convert to DER"
@@ -71,6 +84,7 @@ check_result $? "Generate request"
 openssl x509 -req -in self-sm2.csr -days 1000 -extfile ../renewcerts/wolfssl.cnf -extensions ca_ecc_cert -signkey self-sm2-priv.pem -out self-sm2-cert.pem
 check_result $? "Generate certificate"
 rm self-sm2.csr
+fix_sm2_oid self-sm2-cert.pem self-sm2-priv.pem
 
 openssl x509 -in self-sm2-cert.pem -text > tmp.pem
 check_result $? "Add text"
@@ -90,6 +104,7 @@ check_result $? "Generate request"
 openssl x509 -req -in server-sm2.csr -days 1000 -extfile ../renewcerts/wolfssl.cnf -extensions server_ecc -CA ca-sm2.pem -CAkey ca-sm2-priv.pem -set_serial 01 -out server-sm2-cert.pem
 check_result $? "Generate certificate"
 rm server-sm2.csr
+fix_sm2_oid server-sm2-cert.pem ca-sm2-priv.pem
 
 openssl x509 -in server-sm2-cert.pem -outform DER > server-sm2-cert.der
 check_result $? "Convert to DER"
@@ -113,6 +128,7 @@ check_result $? "Generate request"
 openssl x509 -req -in client-sm2.csr -days 1000 -extfile ../renewcerts/wolfssl.cnf -extensions wolfssl_opts -signkey client-sm2-priv.pem -out client-sm2.pem
 check_result $? "Generate certificate"
 rm client-sm2.csr
+fix_sm2_oid client-sm2.pem client-sm2-priv.pem
 
 openssl x509 -in client-sm2.pem -outform DER > client-sm2.der
 check_result $? "Convert to DER"
