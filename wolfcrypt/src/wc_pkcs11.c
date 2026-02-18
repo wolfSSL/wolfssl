@@ -4741,28 +4741,27 @@ int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
             ret = NOT_COMPILED_IN;
     #endif
         }
-        else
-            ret = NOT_COMPILED_IN;
-    }
-#ifdef WOLF_CRYPTO_CB_FREE
-    else if (info->algo_type == WC_ALGO_TYPE_FREE) {
+        else if (info->algo_type == WC_ALGO_TYPE_FREE) {
     #ifdef HAVE_ECC
-        if (info->free.algo == WC_ALGO_TYPE_PK &&
-            info->free.type == WC_PK_TYPE_EC_KEYGEN) {
-            ecc_key* key = (ecc_key*)info->free.obj;
-            if (key != NULL && key->devCtx != NULL) {
-                if (token->handle != NULL_PTR) {
-                    CK_OBJECT_HANDLE handle =
-                        (CK_OBJECT_HANDLE)(uintptr_t)key->devCtx;
-                    token->func->C_DestroyObject(token->handle, handle);
+            if (info->free.algo == WC_ALGO_TYPE_PK &&
+                info->free.type == WC_PK_TYPE_EC_KEYGEN) {
+                ecc_key* key = (ecc_key*)info->free.obj;
+                if (key != NULL && key->devCtx != NULL) {
+                    if (token->handle != NULL_PTR) {
+                        CK_OBJECT_HANDLE handle =
+                            (CK_OBJECT_HANDLE)(uintptr_t)key->devCtx;
+                        token->func->C_DestroyObject(token->handle, handle);
+                    }
+                    key->devCtx = NULL;
                 }
-                key->devCtx = NULL;
+                ret = 0;
             }
-            ret = 0;
-        }
     #endif
+        }
+        else {
+            ret = NOT_COMPILED_IN;
+        }
     }
-#endif /* WOLF_CRYPTO_CB_FREE */
 
     return ret;
 }
