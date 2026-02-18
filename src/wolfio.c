@@ -384,8 +384,8 @@ int SslBioSend(WOLFSSL* ssl, char *buf, int sz, void *ctx)
         }
 
         /* If retry and write flags are set, return WANT_WRITE */
-        if ((ssl->biord->flags & WOLFSSL_BIO_FLAG_WRITE) &&
-            (ssl->biord->flags & WOLFSSL_BIO_FLAG_RETRY)) {
+        if ((ssl->biowr->flags & WOLFSSL_BIO_FLAG_WRITE) &&
+            (ssl->biowr->flags & WOLFSSL_BIO_FLAG_RETRY)) {
             return WOLFSSL_CBIO_ERR_WANT_WRITE;
         }
 
