@@ -7331,7 +7331,6 @@ static void dilithium_poly_red(sword32* a)
     }
 }
 
-#ifndef WOLFSSL_DILITHIUM_SIGN_SMALL_MEM
 /* Modulo reduce values in polynomials of vector. Range (-2^31)..(2^31-1).
  *
  * @param [in, out] a  Vector of polynomials.
@@ -7346,7 +7345,6 @@ static void dilithium_vec_red(sword32* a, byte l)
         a += DILITHIUM_N;
     }
 }
-#endif /*  WOLFSSL_DILITHIUM_SIGN_SMALL_MEM*/
 #endif /* !WOLFSSL_DILITHIUM_NO_SIGN */
 
 #if (!defined(WOLFSSL_DILITHIUM_NO_SIGN) || \
@@ -7724,6 +7722,9 @@ static int dilithium_make_key_from_seed(dilithium_key* key, const byte* seed)
         /* Step 5: t <- NTT-1(A_circum o NTT(s1)) + s2 */
         dilithium_vec_ntt_small_full(s1, params->l);
         dilithium_matrix_mul(t, a, s1, params->k, params->l);
+    #ifdef WOLFSSL_DILITHIUM_SMALL
+        dilithium_vec_red(t, params->k);
+    #endif
         dilithium_vec_invntt_full(t, params->k);
         dilithium_vec_add(t, s2, params->k);
 
@@ -8272,6 +8273,9 @@ static int dilithium_sign_with_seed_mu(dilithium_key* key,
                 XMEMCPY(y_ntt, y, params->s1Sz);
                 dilithium_vec_ntt_full(y_ntt, params->l);
                 dilithium_matrix_mul(w, a, y_ntt, params->k, params->l);
+            #ifdef WOLFSSL_DILITHIUM_SMALL
+                dilithium_vec_red(w, params->k);
+            #endif
                 dilithium_vec_invntt_full(w, params->k);
                 /* Step 14, Step 22: Make values positive and decompose. */
                 dilithium_vec_make_pos(w, params->k);
@@ -8535,6 +8539,9 @@ static int dilithium_sign_with_seed_mu(dilithium_key* key,
             XMEMCPY(y_ntt, y, params->s1Sz);
             dilithium_vec_ntt_full(y_ntt, params->l);
             dilithium_matrix_mul(w, a, y_ntt, maxK, params->l);
+        #ifdef WOLFSSL_DILITHIUM_SMALL
+            dilithium_vec_red(w, params->k);
+        #endif
             dilithium_vec_invntt_full(w, maxK);
             /* Step 14, Step 22: Make values positive and decompose. */
             dilithium_vec_make_pos(w, maxK);
@@ -9433,6 +9440,9 @@ static int dilithium_verify_mu(dilithium_key* key, const byte* mu,
         /* Step 10: w = NTT-1(A o NTT(z) - NTT(c) o NTT(t1)) */
         dilithium_vec_ntt_full(z, params->l);
         dilithium_matrix_mul(w, a, z, params->k, params->l);
+    #ifdef WOLFSSL_DILITHIUM_SMALL
+        dilithium_vec_red(w, params->k);
+    #endif
         dilithium_ntt_small_full(c);
         dilithium_vec_mul(t1c, c, t1, params->k);
         dilithium_vec_sub(w, t1c, params->k);
@@ -11178,6 +11188,9 @@ int wc_dilithium_check_key(dilithium_key* key)
         /* Calcaluate t = NTT-1(A o NTT(s1)) + s2 */
         dilithium_vec_ntt_small_full(s1, params->l);
         dilithium_matrix_mul(t, a, s1, params->k, params->l);
+    #ifdef WOLFSSL_DILITHIUM_SMALL
+        dilithium_vec_red(t, params->k);
+    #endif
         dilithium_vec_invntt_full(t, params->k);
         dilithium_vec_add(t, s2, params->k);
         /* Subtract t0 from t. */
