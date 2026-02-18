@@ -28,6 +28,11 @@ Encryption Standard (AES) functionality.
 use crate::sys;
 use std::mem::{size_of_val, MaybeUninit};
 
+#[cfg(aes_wc_block_size)]
+pub const AES_BLOCK_SIZE: usize = sys::WC_AES_BLOCK_SIZE as usize;
+#[cfg(not(aes_wc_block_size))]
+pub const AES_BLOCK_SIZE: usize = sys::AES_BLOCK_SIZE as usize;
+
 /// AES Cipher Block Chaining (CBC) mode.
 ///
 /// # Example
@@ -91,7 +96,7 @@ impl CBC {
 
     fn init(&mut self, key: &[u8], iv: &[u8], dir: i32) -> Result<(), i32> {
         let key_size = key.len() as u32;
-        if iv.len() as u32 != sys::WC_AES_BLOCK_SIZE {
+        if iv.len() != AES_BLOCK_SIZE {
             return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
         let rc = unsafe {
@@ -506,7 +511,7 @@ impl CFB {
     /// library return code on failure.
     pub fn init(&mut self, key: &[u8], iv: &[u8]) -> Result<(), i32> {
         let key_size = key.len() as u32;
-        if iv.len() as u32 != sys::WC_AES_BLOCK_SIZE {
+        if iv.len() != AES_BLOCK_SIZE {
             return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
         let rc = unsafe {
@@ -812,7 +817,7 @@ impl CTR {
     /// library return code on failure.
     pub fn init(&mut self, key: &[u8], iv: &[u8]) -> Result<(), i32> {
         let key_size = key.len() as u32;
-        if iv.len() as u32 != sys::WC_AES_BLOCK_SIZE {
+        if iv.len() != AES_BLOCK_SIZE {
             return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
         let rc = unsafe {
@@ -1769,7 +1774,7 @@ impl OFB {
     /// library return code on failure.
     pub fn init(&mut self, key: &[u8], iv: &[u8]) -> Result<(), i32> {
         let key_size = key.len() as u32;
-        if iv.len() as u32 != sys::WC_AES_BLOCK_SIZE {
+        if iv.len() != AES_BLOCK_SIZE {
             return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
         let rc = unsafe {
