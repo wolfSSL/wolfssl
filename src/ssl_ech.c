@@ -48,6 +48,10 @@ int wolfSSL_CTX_GenerateEchConfig(WOLFSSL_CTX* ctx, const char* publicName,
     if (ctx == NULL || publicName == NULL)
         return BAD_FUNC_ARG;
 
+    /* ECH spec limits public_name to 255 bytes (1-byte length prefix) */
+    if (XSTRLEN(publicName) > 255)
+        return BAD_FUNC_ARG;
+
     WC_ALLOC_VAR_EX(rng, WC_RNG, 1, ctx->heap, DYNAMIC_TYPE_RNG,
         return MEMORY_E);
     ret = wc_InitRng(rng);
@@ -313,9 +317,15 @@ int GetEchConfig(WOLFSSL_EchConfig* config, byte* output, word32* outputLen)
 {
     int i;
     word16 totalLen = 0;
+    word16 publicNameLen;
 
     if (config == NULL || (output == NULL && outputLen == NULL))
         return BAD_FUNC_ARG;
+
+    /* ECH spec limits public_name to 255 bytes (1-byte length prefix) */
+    if (config->publicName == NULL || XSTRLEN(config->publicName) > 255)
+        return BAD_FUNC_ARG;
+    publicNameLen = (word16)XSTRLEN(config->publicName);
 
     /* 2 for version */
     totalLen += 2;
@@ -355,7 +365,7 @@ int GetEchConfig(WOLFSSL_EchConfig* config, byte* output, word32* outputLen)
     totalLen += 2;
 
     /* public name */
-    totalLen += XSTRLEN(config->publicName);
+    totalLen += publicNameLen;
     /* trailing zeros */
     totalLen += 2;
 
@@ -435,13 +445,12 @@ int GetEchConfig(WOLFSSL_EchConfig* config, byte* output, word32* outputLen)
     output++;
 
     /* publicName len */
-    *output = XSTRLEN(config->publicName);
+    *output = (byte)publicNameLen;
     output++;
 
     /* publicName */
-    XMEMCPY(output, config->publicName,
-        XSTRLEN(config->publicName));
-    output += XSTRLEN(config->publicName);
+    XMEMCPY(output, config->publicName, publicNameLen);
+    output += publicNameLen;
 
     /* terminating zeros */
     c16toa(0, output);

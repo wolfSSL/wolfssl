@@ -184,13 +184,14 @@ static word32 add_rec_header(byte* output, word32 length, byte type)
 
 static sword32 quic_record_transfer(QuicRecord* qr, byte* buf, word32 sz)
 {
-    word32 len = qr->end - qr->start;
+    word32 len;
     word32 offset = 0;
     word32 rlen;
 
-    if (len <= 0) {
+    if (qr->end <= qr->start) {
         return 0;
     }
+    len = qr->end - qr->start;
 
     /* We check if the buf is at least RECORD_HEADER_SZ */
     if (sz < RECORD_HEADER_SZ) {
