@@ -1,0 +1,63 @@
+name: wolfSM Tests
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  make_check:
+    strategy:
+      fail-fast: false
+      matrix:
+        config: [
+          # Core SM TLS cipher suites
+          '--enable-sm2 --enable-sm3 --enable-sm4-gcm --enable-sm4-ccm --enable-sha3',
+          # All SM4 modes
+          '--enable-sm2 --enable-sm3 --enable-sm4-ecb --enable-sm4-cbc --enable-sm4-ctr --enable-sm4-gcm --enable-sm4-ccm --enable-sha3',
+          # SM + all features integration test
+          '--enable-all --enable-sm2 --enable-sm3 --enable-sm4-ecb --enable-sm4-cbc --enable-sm4-ctr --enable-sm4-gcm --enable-sm4-ccm',
+        ]
+    name: make check
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        name: Checkout wolfSSL
+
+      - uses: actions/checkout@v4
+        name: Checkout wolfsm
+        with:
+          repository: wolfssl/wolfsm
+          path: wolfsm
+
+      - name: Install wolfsm
+        working-directory: wolfsm
+        run: ./install.sh $GITHUB_WORKSPACE
+
+      - name: Test wolfSSL with wolfSM
+        run: |
+          ./autogen.sh
+          ./configure ${{ matrix.config }}
+          make
+          make check
+
+      - name: Print errors
+        if: ${{ failure() }}
+        run: |
+          for file in scripts/*.log
+          do
+              if [ -f "$file" ]; then
+                  echo "${file}:"
+                  cat "$file"
+                  echo "========================================================================"
+              fi
+          done
