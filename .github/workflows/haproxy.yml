@@ -82,12 +82,12 @@ jobs:
       working-directory: build-dir/haproxy-${{matrix.haproxy_ref}}
       run: make clean && make TARGET=linux-glibc USE_OPENSSL_WOLFSSL=1 SSL_LIB=$GITHUB_WORKSPACE/build-dir/lib SSL_INC=$GITHUB_WORKSPACE/build-dir/include ADDLIB=-Wl,-rpath,$GITHUB_WORKSPACE/build-dir/lib CFLAGS="-fsanitize=address" LDFLAGS="-fsanitize=address"
 
-      # wlallemand/VTest used in v3.1.0 is no longer available
-    - name: Patch build-vtest.sh for v3.1.0
-      if: matrix.haproxy_ref == 'v3.1.0'
+      # VTest2 has moved off GitHub; use the last known good tag
+    - name: Patch build-vtest.sh for VTest2 migration
       working-directory: build-dir/haproxy-${{ matrix.haproxy_ref }}/scripts
       run: |
-        sed -i 's|https://github.com/wlallemand/VTest/archive/refs/heads/haproxy-sd_notify.tar.gz|https://github.com/vtest/VTest2/archive/main.tar.gz|' build-vtest.sh
+        sed -i 's|https://github.com/wlallemand/VTest/archive/refs/heads/haproxy-sd_notify.tar.gz|https://github.com/vtest/VTest2/archive/refs/tags/last.tar.gz|' build-vtest.sh
+        sed -i 's|https://github.com/vtest/VTest2/archive/main.tar.gz|https://github.com/vtest/VTest2/archive/refs/tags/last.tar.gz|' build-vtest.sh
 
     - name: Build haproxy vtest
       working-directory: build-dir/haproxy-${{matrix.haproxy_ref}}
