@@ -4962,6 +4962,9 @@ extern void uITRON4_free(void *p) ;
            " (WC_TEST_NO_CRYPTOCB_SW_TEST)" \
            " requires WOLF_CRYPTO_CB"
 #endif
+#if defined(HAVE_PKCS11) && !defined(WOLF_CRYPTO_CB_FREE)
+    #define WOLF_CRYPTO_CB_FREE
+#endif
 #if (defined(WOLF_CRYPTO_CB_COPY) || defined(WOLF_CRYPTO_CB_FREE)) && \
     !defined(WOLF_CRYPTO_CB)
     #error "Crypto callback utilities" \

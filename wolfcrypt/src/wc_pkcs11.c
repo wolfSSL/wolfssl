@@ -2923,8 +2923,12 @@ static int Pkcs11EcKeyGen(Pkcs11Session* session, wc_CryptoInfo* info)
 
     if (pubKey != NULL_PTR)
         session->func->C_DestroyObject(session->handle, pubKey);
-    if (ret != 0 && privKey != NULL_PTR)
+    if (ret == 0 && privKey != NULL_PTR) {
+        key->devCtx = (void*)(uintptr_t)privKey;
+    }
+    else if (ret != 0 && privKey != NULL_PTR) {
         session->func->C_DestroyObject(session->handle, privKey);
+    }
 
     return ret;
 }
@@ -3020,7 +3024,11 @@ static int Pkcs11ECDH(Pkcs11Session* session, wc_CryptoInfo* info)
     if (ret == 0) {
         WOLFSSL_MSG("PKCS#11: EC Key Derivation Operation");
 
-        if ((sessionKey = !mp_iszero(
+        if (info->pk.ecdh.private_key->devCtx != NULL) {
+            privateKey = (CK_OBJECT_HANDLE)(uintptr_t)
+                         info->pk.ecdh.private_key->devCtx;
+        }
+        else if ((sessionKey = !mp_iszero(
                 wc_ecc_key_get_priv(info->pk.ecdh.private_key))))
             ret = Pkcs11CreateEccPrivateKey(&privateKey, session,
                                          info->pk.ecdh.private_key, CKA_DERIVE);
@@ -3085,7 +3093,10 @@ static int Pkcs11ECDH(Pkcs11Session* session, wc_CryptoInfo* info)
                                                           info->pk.ecdh.outlen);
     }
 
-    if (sessionKey)
+    if (secret != CK_INVALID_HANDLE)
+        session->func->C_DestroyObject(session->handle, secret);
+
+    if (sessionKey && privateKey != NULL_PTR)
         session->func->C_DestroyObject(session->handle, privateKey);
 
     if (point != NULL)
@@ -3314,7 +3325,11 @@ static int Pkcs11ECDSA_Sign(Pkcs11Session* session, wc_CryptoInfo* info)
     if (ret == 0) {
         WOLFSSL_MSG("PKCS#11: EC Signing Operation");
 
-        if ((sessionKey = !mp_iszero(
+        if (info->pk.eccsign.key->devCtx != NULL) {
+            privateKey = (CK_OBJECT_HANDLE)(uintptr_t)
+                         info->pk.eccsign.key->devCtx;
+        }
+        else if ((sessionKey = !mp_iszero(
                 wc_ecc_key_get_priv(info->pk.eccsign.key))))
             ret = Pkcs11CreateEccPrivateKey(&privateKey, session,
                                                 info->pk.eccsign.key, CKA_SIGN);
@@ -3378,7 +3393,7 @@ static int Pkcs11ECDSA_Sign(Pkcs11Session* session, wc_CryptoInfo* info)
                                                          sz);
     }
 
-    if (sessionKey)
+    if (sessionKey && privateKey != NULL_PTR)
         session->func->C_DestroyObject(session->handle, privateKey);
 
     return ret;
@@ -4726,8 +4741,26 @@ int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
             ret = NOT_COMPILED_IN;
     #endif
         }
-        else
+        else if (info->algo_type == WC_ALGO_TYPE_FREE) {
+    #ifdef HAVE_ECC
+            if (info->free.algo == WC_ALGO_TYPE_PK &&
+                info->free.type == WC_PK_TYPE_EC_KEYGEN) {
+                ecc_key* key = (ecc_key*)info->free.obj;
+                if (key != NULL && key->devCtx != NULL) {
+                    if (token->handle != NULL_PTR) {
+                        CK_OBJECT_HANDLE handle =
+                            (CK_OBJECT_HANDLE)(uintptr_t)key->devCtx;
+                        token->func->C_DestroyObject(token->handle, handle);
+                    }
+                    key->devCtx = NULL;
+                }
+                ret = 0;
+            }
+    #endif
+        }
+        else {
             ret = NOT_COMPILED_IN;
+        }
     }
 
     return ret;

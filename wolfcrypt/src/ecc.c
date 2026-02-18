@@ -7891,6 +7891,13 @@ int wc_ecc_free(ecc_key* key)
         return 0;
     }
 
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
+    if (key->devId != INVALID_DEVID) {
+        wc_CryptoCb_Free(key->devId, WC_ALGO_TYPE_PK,
+                         WC_PK_TYPE_EC_KEYGEN, key);
+    }
+#endif
+
 #if defined(WOLFSSL_ECDSA_SET_K) || defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP) || \
     defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
     defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)
