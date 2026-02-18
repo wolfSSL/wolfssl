@@ -20332,8 +20332,10 @@ static WC_INLINE int EncryptDo(WOLFSSL* ssl, byte* out, const byte* input,
                     out + sz - ssl->specs.aead_mac_size,
                     ssl->specs.aead_mac_size
                     );
-            if (ret != 0)
+            if (ret != 0) {
+                XFREE(outBuf, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
                 break;
+            }
             XMEMCPY(out,
                     ssl->encrypt.nonce + AESGCM_IMP_IV_SZ, AESGCM_EXP_IV_SZ);
             XMEMCPY(out + AESGCM_EXP_IV_SZ,outBuf,sz - AESGCM_EXP_IV_SZ);
@@ -20805,8 +20807,10 @@ static WC_INLINE int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
                                 (byte *)input + sz - ssl->specs.aead_mac_size,
                                 ssl->specs.aead_mac_size
                                 );
-            if (ret != 0)
+            if (ret != 0) {
+                XFREE(outBuf, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
                 break;
+            }
             XMEMCPY(plain + AESGCM_EXP_IV_SZ,
                     outBuf,
                     sz - AESGCM_EXP_IV_SZ - ssl->specs.aead_mac_size);
