@@ -20832,7 +20832,7 @@ static WC_INLINE int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
         case wolfssl_sm4_cbc:
         #ifdef WOLFSSL_ASYNC_CRYPT
             /* initialize event */
-            ret = wolfSSL_AsyncInit(ssl, &ssl->decrypt.aes->asyncDev,
+            ret = wolfSSL_AsyncInit(ssl, &ssl->decrypt.sm4->asyncDev,
                 WC_ASYNC_FLAG_CALL_AGAIN);
             if (ret != 0)
                 break;
@@ -20840,7 +20840,7 @@ static WC_INLINE int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
             ret = wc_Sm4CbcDecrypt(ssl->decrypt.sm4, plain, input, sz);
         #ifdef WOLFSSL_ASYNC_CRYPT
             if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-                ret = wolfSSL_AsyncPush(ssl, &ssl->decrypt.aes->asyncDev);
+                ret = wolfSSL_AsyncPush(ssl, &ssl->decrypt.sm4->asyncDev);
             }
         #endif
             break;
