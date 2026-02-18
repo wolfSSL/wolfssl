@@ -24113,25 +24113,6 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
         }
     }
 
-#if !defined(WOLFSSL_NO_ASN_STRICT) && !defined(WOLFSSL_PYTHON) && \
-    !defined(WOLFSSL_ASN_ALLOW_0_SERIAL)
-    /* Defense-in-depth: reject serial number 0 for non-root certificates.
-     * RFC 5280 section 4.1.2.2 requires positive serial numbers.
-     * Allow serial 0 for self-signed CA certs (root CAs) since some legacy
-     * root CAs have serial 0. The primary enforcement with stricter type
-     * checking is in ParseCertRelative(). */
-    if ((ret == 0) && (cert->serialSz == 1) && (cert->serial[0] == 0)) {
-        if (!(cert->isCA && cert->selfSigned)
-#ifdef WOLFSSL_CERT_REQ
-            && !cert->isCSR
-#endif
-        ) {
-            WOLFSSL_MSG("Error serial number of 0 for non-root certificate");
-            ret = ASN_PARSE_E;
-        }
-    }
-#endif
-
     if ((ret == 0) && (!done) && (badDate != 0)) {
         /* Parsed whole certificate fine but return any date errors. */
         ret = badDate;
@@ -25823,7 +25804,8 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
          * are explicitly trusted and some legacy root CAs in real-world
          * trust stores have serial number 0. */
         if ((ret == 0) && (cert->serialSz == 1) && (cert->serial[0] == 0)) {
-            if (!(type == CA_TYPE && cert->isCA && cert->selfSigned)
+            if (!((type == CA_TYPE || type == TRUSTED_PEER_TYPE) &&
+                  cert->isCA && cert->selfSigned)
 #ifdef WOLFSSL_CERT_REQ
                 && !cert->isCSR
 #endif

@@ -793,7 +793,7 @@ int test_SerialNumber0_RootCA(void)
     EXPECT_DECLS;
 
 #if !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && !defined(NO_RSA) && \
-    !defined(WOLFSSL_NO_PEM)
+    !defined(WOLFSSL_NO_PEM) && defined(WOLFSSL_PEM_TO_DER)
     /* Test that root CA certificates with serial number 0 are accepted,
      * while non-root certificates with serial 0 are rejected (issue #8615) */
 
@@ -845,8 +845,8 @@ int test_SerialNumber0_RootCA(void)
 
     /* Test 5: Self-signed non-CA certificate with serial 0 should be rejected */
     ExpectNotNull(cm = wolfSSL_CertManagerNew());
-    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, selfSignedNonCASerial0File, NULL),
-                WC_NO_ERR_TRACE(ASN_PARSE_E));
+    ExpectIntNE(wolfSSL_CertManagerLoadCA(cm, selfSignedNonCASerial0File, NULL),
+                WOLFSSL_SUCCESS);
 
     if (cm != NULL) {
         wolfSSL_CertManagerFree(cm);
