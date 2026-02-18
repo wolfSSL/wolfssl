@@ -32270,13 +32270,9 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, word32 sz,
             signCtx.key = rsaKey;
             signCtx.keyType = RSA_TYPE;
         }
-        else if (eccKey) {
+        else {
             signCtx.key = eccKey;
             signCtx.keyType = ECC_TYPE;
-        }
-        else {
-            ret = BAD_FUNC_ARG;
-            goto exit_ms;
         }
 
         /* Use unified callback path */
