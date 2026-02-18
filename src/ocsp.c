@@ -950,7 +950,8 @@ static int OcspRespIdMatches(OcspResponse* resp, const byte* NameHash,
                    SIGNER_DIGEST_SIZE) == 0;
     }
     else if (resp->responderIdType == OCSP_RESPONDER_ID_KEY) {
-        return XMEMCMP(keyHash, resp->responderId.keyHash, KEYID_SIZE) == 0;
+        return XMEMCMP(keyHash, resp->responderId.keyHash,
+                   OCSP_RESPONDER_ID_KEY_SZ) == 0;
     }
 
     return 0;

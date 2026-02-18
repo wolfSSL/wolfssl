@@ -18967,8 +18967,9 @@ int ConfirmSignature(SignatureCtx* sigCtx,
                 {
                 #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
                     if (sigOID == CTC_SM3wSM2) {
+                        /* OpenSSL creates signature without CERT_SIG_ID. */
                         ret = wc_ecc_sm2_create_digest(CERT_SIG_ID,
-                            CERT_SIG_ID_SZ, buf, bufSz, WC_HASH_TYPE_SM3,
+                            0, buf, bufSz, WC_HASH_TYPE_SM3,
                             sigCtx->digest, WC_SM3_DIGEST_SIZE,
                             sigCtx->key.ecc);
                         if (ret == 0) {
@@ -39572,8 +39573,9 @@ static int OcspRespIdMatch(OcspResponse *resp, const byte *NameHash,
         return XMEMCMP(NameHash, resp->responderId.nameHash,
             SIGNER_DIGEST_SIZE) == 0;
     /* OCSP_RESPONDER_ID_KEY */
-    return ((int)KEYID_SIZE == OCSP_RESPONDER_ID_KEY_SZ) &&
-        XMEMCMP(keyHash, resp->responderId.keyHash, KEYID_SIZE) == 0;
+    return (KEYID_SIZE >= OCSP_RESPONDER_ID_KEY_SZ) &&
+        XMEMCMP(keyHash, resp->responderId.keyHash,
+            OCSP_RESPONDER_ID_KEY_SZ) == 0;
 }
 
 #ifndef WOLFSSL_NO_OCSP_ISSUER_CHECK
@@ -39612,8 +39614,15 @@ static Signer *OcspFindSigner(OcspResponse *resp, WOLFSSL_CERT_MANAGER *cm)
         if (s)
             return s;
     }
-    else if ((int)KEYID_SIZE == OCSP_RESPONDER_ID_KEY_SZ) {
-        s = GetCAByKeyHash(cm, resp->responderId.keyHash);
+    else if (KEYID_SIZE >= OCSP_RESPONDER_ID_KEY_SZ) {
+        /* Responder key hash is OCSP_RESPONDER_ID_KEY_SZ bytes (SHA-1 per
+         * RFC 6960) but lookup functions compare KEYID_SIZE bytes. Zero-pad
+         * to avoid buffer over-read when KEYID_SIZE > OCSP_RESPONDER_ID_KEY_SZ
+         * (e.g. when SM2/SM3 is enabled). */
+        byte keyHash[KEYID_SIZE];
+        XMEMSET(keyHash, 0, KEYID_SIZE);
+        XMEMCPY(keyHash, resp->responderId.keyHash, OCSP_RESPONDER_ID_KEY_SZ);
+        s = GetCAByKeyHash(cm, keyHash);
         if (s)
             return s;
     }
@@ -39626,8 +39635,11 @@ static Signer *OcspFindSigner(OcspResponse *resp, WOLFSSL_CERT_MANAGER *cm)
         if (s)
             return s;
     }
-    else {
-        s = findSignerByKeyHash(resp->pendingCAs, resp->responderId.keyHash);
+    else if (KEYID_SIZE >= OCSP_RESPONDER_ID_KEY_SZ) {
+        byte keyHash[KEYID_SIZE];
+        XMEMSET(keyHash, 0, KEYID_SIZE);
+        XMEMCPY(keyHash, resp->responderId.keyHash, OCSP_RESPONDER_ID_KEY_SZ);
+        s = findSignerByKeyHash(resp->pendingCAs, keyHash);
         if (s)
             return s;
     }

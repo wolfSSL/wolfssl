@@ -20332,8 +20332,10 @@ static WC_INLINE int EncryptDo(WOLFSSL* ssl, byte* out, const byte* input,
                     out + sz - ssl->specs.aead_mac_size,
                     ssl->specs.aead_mac_size
                     );
-            if (ret != 0)
+            if (ret != 0) {
+                XFREE(outBuf, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
                 break;
+            }
             XMEMCPY(out,
                     ssl->encrypt.nonce + AESGCM_IMP_IV_SZ, AESGCM_EXP_IV_SZ);
             XMEMCPY(out + AESGCM_EXP_IV_SZ,outBuf,sz - AESGCM_EXP_IV_SZ);
@@ -20805,8 +20807,10 @@ static WC_INLINE int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
                                 (byte *)input + sz - ssl->specs.aead_mac_size,
                                 ssl->specs.aead_mac_size
                                 );
-            if (ret != 0)
+            if (ret != 0) {
+                XFREE(outBuf, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
                 break;
+            }
             XMEMCPY(plain + AESGCM_EXP_IV_SZ,
                     outBuf,
                     sz - AESGCM_EXP_IV_SZ - ssl->specs.aead_mac_size);
@@ -20832,7 +20836,7 @@ static WC_INLINE int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
         case wolfssl_sm4_cbc:
         #ifdef WOLFSSL_ASYNC_CRYPT
             /* initialize event */
-            ret = wolfSSL_AsyncInit(ssl, &ssl->decrypt.aes->asyncDev,
+            ret = wolfSSL_AsyncInit(ssl, &ssl->decrypt.sm4->asyncDev,
                 WC_ASYNC_FLAG_CALL_AGAIN);
             if (ret != 0)
                 break;
@@ -20840,7 +20844,7 @@ static WC_INLINE int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
             ret = wc_Sm4CbcDecrypt(ssl->decrypt.sm4, plain, input, sz);
         #ifdef WOLFSSL_ASYNC_CRYPT
             if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-                ret = wolfSSL_AsyncPush(ssl, &ssl->decrypt.aes->asyncDev);
+                ret = wolfSSL_AsyncPush(ssl, &ssl->decrypt.sm4->asyncDev);
             }
         #endif
             break;
@@ -40111,7 +40115,7 @@ static int TicketEncDec(byte* key, int keyLen, byte* iv, byte* aad, int aadSz,
         }
         if (ret == 0) {
             ret = wc_Sm4GcmDecrypt(sm4, in, out, inLen, iv, GCM_NONCE_MID_SZ,
-                                   tag, SM$_BLOCK_SIZE, aad, aadSz);
+                                   tag, SM4_BLOCK_SIZE, aad, aadSz);
         }
         wc_Sm4Free(sm4);
     }

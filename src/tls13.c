@@ -3116,7 +3116,7 @@ int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz,
                 case wolfssl_sm4_gcm:
                     nonceSz = SM4_GCM_NONCE_SZ;
                     ret = wc_Sm4GcmDecrypt(ssl->decrypt.sm4, output, input,
-                        dataSz, ssl->decrypt.nonce, nonceSz, output + dataSz,
+                        dataSz, ssl->decrypt.nonce, nonceSz, input + dataSz,
                         macSz, aad, aadSz);
                     break;
             #endif
@@ -3125,7 +3125,7 @@ int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz,
                 case wolfssl_sm4_ccm:
                     nonceSz = SM4_CCM_NONCE_SZ;
                     ret = wc_Sm4CcmDecrypt(ssl->decrypt.sm4, output, input,
-                        dataSz, ssl->decrypt.nonce, nonceSz, output + dataSz,
+                        dataSz, ssl->decrypt.nonce, nonceSz, input + dataSz,
                         macSz, aad, aadSz);
                     break;
             #endif
