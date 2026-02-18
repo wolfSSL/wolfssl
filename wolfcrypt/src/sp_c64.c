@@ -134,14 +134,20 @@
 #define SP_PRINT_INT(var, name)                       \
     fprintf(stderr, name "=%d\n", var)
 
-#if ((defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)) && \
-     ((!defined(WC_NO_CACHE_RESISTANT) && \
-       (defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH))) || \
-      (defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_FAST_MODEXP))) && \
-    !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || (defined(WOLFSSL_SP_SMALL) && \
+#if defined(WOLFSSL_SP_SMALL) && \
     defined(WOLFSSL_HAVE_SP_ECC) && (!defined(WOLFSSL_SP_NO_256) || \
     defined(WOLFSSL_SP_384) || defined(WOLFSSL_SP_521) || \
-    defined(WOLFSSL_SP_1024)))
+    defined(WOLFSSL_SP_1024))
+    #define NEED_ADDR_MASK
+#endif
+#if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)
+    #if !defined(WC_NO_CACHE_RESISTANT) && \
+        (defined(WOLFSSL_HAVE_SP_DH) || !defined(WOLFSSL_RSA_PUBLIC_ONLY))
+        #define NEED_ADDR_MASK
+    #endif
+#endif
+
+#ifdef NEED_ADDR_MASK
 /* Mask for address to obfuscate which of the two address will be used. */
 static const size_t addr_mask[2] = { 0, (size_t)-1 };
 #endif
@@ -15686,7 +15692,7 @@ static void sp_4096_to_bin_78(sp_digit* r, byte* a)
     }
 }
 
-#if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
+#if (defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
 #if defined(WOLFSSL_HAVE_SP_RSA) && !defined(SP_RSA_PRIVATE_EXP_D)
 /* Normalize the values in each word to 53 bits.
  *
@@ -15714,7 +15720,11 @@ static void sp_4096_norm_39(sp_digit* a)
 }
 
 #endif /* WOLFSSL_HAVE_SP_RSA & !SP_RSA_PRIVATE_EXP_D */
-#endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
+#endif /* (WOLFSSL_HAVE_SP_RSA || WOLFSSL_HAVE_SP_DH) && !WOLFSSL_RSA_PUBLIC_ONLY */
+#if (defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+#if defined(WOLFSSL_HAVE_SP_RSA) && !defined(SP_RSA_PRIVATE_EXP_D)
+#endif /* WOLFSSL_HAVE_SP_RSA & !SP_RSA_PRIVATE_EXP_D */
+#endif /* (WOLFSSL_HAVE_SP_RSA || WOLFSSL_HAVE_SP_DH) && !WOLFSSL_RSA_PUBLIC_ONLY */
 /* Normalize the values in each word to 53 bits.
  *
  * a  Array of sp_digit to normalize.
