@@ -16,7 +16,7 @@ echo "==================================================="
 echo ""
 echo "[1/5] Creating Root CA with serial number 0..."
 openssl req -x509 -newkey rsa:2048 -keyout root_serial0_key.pem -out root_serial0.pem \
-    -days 36500 -nodes -subj "/CN=Test Root CA Serial 0/O=wolfSSL Test/C=US" \
+    -days 7300 -nodes -subj "/CN=Test Root CA Serial 0/O=wolfSSL Test/C=US" \
     -set_serial 0 \
     -addext "basicConstraints=critical,CA:TRUE" \
     -addext "keyUsage=critical,keyCertSign,cRLSign"
@@ -28,7 +28,7 @@ openssl x509 -in root_serial0.pem -noout -serial
 echo ""
 echo "[2/5] Creating normal Root CA with serial number 1..."
 openssl req -x509 -newkey rsa:2048 -keyout root_key.pem -out root.pem \
-    -days 36500 -nodes -subj "/CN=Test Root CA Normal/O=wolfSSL Test/C=US" \
+    -days 7300 -nodes -subj "/CN=Test Root CA Normal/O=wolfSSL Test/C=US" \
     -set_serial 1 \
     -addext "basicConstraints=critical,CA:TRUE" \
     -addext "keyUsage=critical,keyCertSign,cRLSign"
