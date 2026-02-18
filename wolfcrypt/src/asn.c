@@ -18967,8 +18967,9 @@ int ConfirmSignature(SignatureCtx* sigCtx,
                 {
                 #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
                     if (sigOID == CTC_SM3wSM2) {
+                        /* OpenSSL creates signature without CERT_SIG_ID. */
                         ret = wc_ecc_sm2_create_digest(CERT_SIG_ID,
-                            CERT_SIG_ID_SZ, buf, bufSz, WC_HASH_TYPE_SM3,
+                            0, buf, bufSz, WC_HASH_TYPE_SM3,
                             sigCtx->digest, WC_SM3_DIGEST_SIZE,
                             sigCtx->key.ecc);
                         if (ret == 0) {
