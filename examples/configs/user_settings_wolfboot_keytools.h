@@ -3,7 +3,7 @@
  * wolfCrypt build settings for wolfBoot keygen and signing tool
  * Enabled via WOLFSSL_USER_SETTINGS.
  *
- * Copyright (C) 2006-2025 wolfSSL Inc.
+ * Copyright (C) 2006-2026 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *

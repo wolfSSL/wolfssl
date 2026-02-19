@@ -1,7 +1,7 @@
 /* x86_vecreg.c -- logic to save and restore vector registers
  *                 on amd64 in FreeBSD kernel.
  *
- * Copyright (C) 2006-2025 wolfSSL Inc.
+ * Copyright (C) 2006-2026 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
