@@ -1868,7 +1868,15 @@ WOLFSSL_LOCAL int NamedGroupIsPqcHybrid(int group);
 #endif
 
 /* Set max implicit IV size for AEAD cipher suites */
-#define AEAD_MAX_IMP_SZ 12
+#if defined(WOLFSSL_TLS13) && defined(HAVE_NULL_CIPHER) && defined(WOLFSSL_SHA384)
+    /* Integrity-only cipher suites use IV size equal to hash output size */
+    #define AEAD_MAX_IMP_SZ 48
+#elif defined(WOLFSSL_TLS13) && defined(HAVE_NULL_CIPHER) && !defined(NO_SHA256)
+    /* Integrity-only cipher suites use IV size equal to hash output size */
+    #define AEAD_MAX_IMP_SZ 32
+#else
+    #define AEAD_MAX_IMP_SZ 12
+#endif
 
 /* Set max explicit IV size for AEAD cipher suites */
 #define AEAD_MAX_EXP_SZ 8
@@ -2853,7 +2861,15 @@ struct WOLFSSL_BIO {
 WOLFSSL_LOCAL socklen_t wolfSSL_BIO_ADDR_size(const WOLFSSL_BIO_ADDR *addr);
 #endif
 
-#define MAX_WRITE_IV_SZ 16 /* max size of client/server write_IV */
+#if defined(WOLFSSL_TLS13) && defined(HAVE_NULL_CIPHER) && defined(WOLFSSL_SHA384)
+    /* Integrity-only cipher suites use IV size equal to hash output size */
+    #define MAX_WRITE_IV_SZ 48
+#elif defined(WOLFSSL_TLS13) && defined(HAVE_NULL_CIPHER) && !defined(NO_SHA256)
+    /* Integrity-only cipher suites use IV size equal to hash output size */
+    #define MAX_WRITE_IV_SZ 32
+#else
+    #define MAX_WRITE_IV_SZ 16 /* max size of client/server write_IV */
+#endif
 
 /* keys and secrets
  * keep as a constant size (no additional ifdefs) for session export */

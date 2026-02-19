@@ -2426,9 +2426,13 @@ static WC_INLINE void WriteSEQTls13(WOLFSSL* ssl, int verifyOrder, byte* out)
  * order  The side on which the message is to be or was sent.
  */
 static WC_INLINE void BuildTls13Nonce(WOLFSSL* ssl, byte* nonce, const byte* iv,
-                                   int order)
+                                   int ivSz, int order)
 {
-    int seq_offset = AEAD_NONCE_SZ - SEQ_SZ;
+    int seq_offset;
+    /* Ensure minimum nonce size for standard AEAD ciphers */
+    if (ivSz < AEAD_NONCE_SZ)
+        ivSz = AEAD_NONCE_SZ;
+    seq_offset = ivSz - SEQ_SZ;
     /* The nonce is the IV with the sequence XORed into the last bytes. */
     WriteSEQTls13(ssl, order, nonce + seq_offset);
     XMEMCPY(nonce, iv, seq_offset);
@@ -2521,7 +2525,7 @@ static int Tls13IntegrityOnly_Encrypt(WOLFSSL* ssl, byte* output,
     int ret;
 
     /* HMAC: nonce | aad | input  */
-    ret = wc_HmacUpdate(ssl->encrypt.hmac, nonce, HMAC_NONCE_SZ);
+    ret = wc_HmacUpdate(ssl->encrypt.hmac, nonce, ssl->specs.iv_size);
     if (ret == 0)
         ret = wc_HmacUpdate(ssl->encrypt.hmac, aad, aadSz);
     if (ret == 0)
@@ -2604,12 +2608,12 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
 
         #ifdef CIPHER_NONCE
             if (ssl->encrypt.nonce == NULL) {
-                ssl->encrypt.nonce = (byte*)XMALLOC(AEAD_NONCE_SZ,
+                ssl->encrypt.nonce = (byte*)XMALLOC(AEAD_MAX_IMP_SZ,
                                                 ssl->heap, DYNAMIC_TYPE_CIPHER);
             #ifdef WOLFSSL_CHECK_MEM_ZERO
                 if (ssl->encrypt.nonce != NULL) {
                     wc_MemZero_Add("EncryptTls13 nonce", ssl->encrypt.nonce,
-                        AEAD_NONCE_SZ);
+                        ssl->specs.iv_size);
                 }
             #endif
             }
@@ -2617,7 +2621,7 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
                 return MEMORY_E;
 
             BuildTls13Nonce(ssl, ssl->encrypt.nonce, ssl->keys.aead_enc_imp_IV,
-                            CUR_ORDER);
+                            ssl->specs.iv_size, CUR_ORDER);
         #endif
 
             /* Advance state and proceed */
@@ -2799,7 +2803,7 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
         #endif
 
         #ifdef CIPHER_NONCE
-            ForceZero(ssl->encrypt.nonce, AEAD_NONCE_SZ);
+            ForceZero(ssl->encrypt.nonce, ssl->specs.iv_size);
         #endif
 
             break;
@@ -2913,7 +2917,7 @@ static int Tls13IntegrityOnly_Decrypt(WOLFSSL* ssl, byte* output,
     byte hmac[WC_MAX_DIGEST_SIZE];
 
     /* HMAC: nonce | aad | input  */
-    ret = wc_HmacUpdate(ssl->decrypt.hmac, nonce, HMAC_NONCE_SZ);
+    ret = wc_HmacUpdate(ssl->decrypt.hmac, nonce, ssl->specs.iv_size);
     if (ret == 0)
         ret = wc_HmacUpdate(ssl->decrypt.hmac, aad, aadSz);
     if (ret == 0)
@@ -3005,12 +3009,12 @@ int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz,
 
         #ifdef CIPHER_NONCE
             if (ssl->decrypt.nonce == NULL) {
-                ssl->decrypt.nonce = (byte*)XMALLOC(AEAD_NONCE_SZ,
+                ssl->decrypt.nonce = (byte*)XMALLOC(AEAD_MAX_IMP_SZ,
                                                 ssl->heap, DYNAMIC_TYPE_CIPHER);
             #ifdef WOLFSSL_CHECK_MEM_ZERO
                 if (ssl->decrypt.nonce != NULL) {
                     wc_MemZero_Add("DecryptTls13 nonce", ssl->decrypt.nonce,
-                        AEAD_NONCE_SZ);
+                        ssl->specs.iv_size);
                 }
             #endif
             }
@@ -3018,7 +3022,7 @@ int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz,
                 return MEMORY_E;
 
             BuildTls13Nonce(ssl, ssl->decrypt.nonce, ssl->keys.aead_dec_imp_IV,
-                            PEER_ORDER);
+                            ssl->specs.iv_size, PEER_ORDER);
         #endif
 
             /* Advance state and proceed */
@@ -3171,7 +3175,7 @@ int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz,
         #endif
 
         #ifdef CIPHER_NONCE
-            ForceZero(ssl->decrypt.nonce, AEAD_NONCE_SZ);
+            ForceZero(ssl->decrypt.nonce, ssl->specs.iv_size);
         #endif
 
             break;

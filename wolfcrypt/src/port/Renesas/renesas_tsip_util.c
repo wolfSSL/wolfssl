@@ -3276,8 +3276,8 @@ int wc_tsip_generateSessionKey(
                             R_TSIP_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 ||
                 ctx->internal->tsip_cipher ==
                             R_TSIP_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256) {
-                enc->aes->nonceSz = AEAD_MAX_IMP_SZ;
-                dec->aes->nonceSz = AEAD_MAX_IMP_SZ;
+                enc->aes->nonceSz = AEAD_NONCE_SZ;
+                dec->aes->nonceSz = AEAD_NONCE_SZ;
             }
 
             enc->aes->devId = devId;

@@ -387,6 +387,13 @@ do_openssl_client() {
         openssl_caCert1="-CAfile"
         openssl_caCert2="$caCert"
     fi
+    # Integrity-only cipher suites require SECLEVEL=0 to allow NULL encryption
+    openssl_seclevel=""
+    if [ "$tls13_integrity_only" = "yes" ]
+    then
+        openssl_seclevel="-cipher ALL:@SECLEVEL=0"
+    fi
+
     if [ "$tls13_cipher" = "" ]
     then
         echo "#"
@@ -394,8 +401,8 @@ do_openssl_client() {
         echo "Hello" | eval "$OPENSSL s_client -connect localhost:$port -reconnect -legacy_renegotiation -cipher $cmpSuite $openssl_version $openssl_psk $openssl_cert1 \"$openssl_cert2\" $openssl_key1 \"$openssl_key2\" $openssl_caCert1 \"$openssl_caCert2\""
     else
         echo "#"
-        echo "# $OPENSSL s_client -connect localhost:$port -reconnect -legacy_renegotiation -ciphersuites=$cmpSuite $openssl_version $openssl_psk $openssl_cert1 \"$openssl_cert2\" $openssl_key1 \"$openssl_key2\" $openssl_caCert1 \"$openssl_caCert2\""
-        echo "Hello" | eval "$OPENSSL s_client -connect localhost:$port -reconnect -legacy_renegotiation -ciphersuites=$cmpSuite $openssl_version $openssl_psk $openssl_cert1 \"$openssl_cert2\" $openssl_key1 \"$openssl_key2\" $openssl_caCert1 \"$openssl_caCert2\""
+        echo "# $OPENSSL s_client -connect localhost:$port -reconnect -legacy_renegotiation -ciphersuites=$cmpSuite $openssl_seclevel $openssl_version $openssl_psk $openssl_cert1 \"$openssl_cert2\" $openssl_key1 \"$openssl_key2\" $openssl_caCert1 \"$openssl_caCert2\""
+        echo "Hello" | eval "$OPENSSL s_client -connect localhost:$port -reconnect -legacy_renegotiation -ciphersuites=$cmpSuite $openssl_seclevel $openssl_version $openssl_psk $openssl_cert1 \"$openssl_cert2\" $openssl_key1 \"$openssl_key2\" $openssl_caCert1 \"$openssl_caCert2\""
     fi
 
     client_result=$?
@@ -941,8 +948,9 @@ do
         echo -e "trying wolfSSL cipher suite $wolfSuite"
         wolf_temp_cases_total=$((wolf_temp_cases_total + 1))
         open_temp_cases_total=$((open_temp_cases_total + 1))
-        matchSuite=0;
+        matchSuite=0
         tls13_suite=
+        tls13_integrity_only=
 
         case $wolfSuite in
         "TLS13-AES128-GCM-SHA256")
@@ -966,10 +974,22 @@ do
             tls13_suite="yes"
             ;;
         "TLS13-SHA256-SHA256")
-            continue
+            cmpSuite="TLS_SHA256_SHA256"
+            tls13_suite="yes"
+            tls13_integrity_only="yes"
+            # OpenSSL does not enable TLS_SHA256_SHA256 in openssl ciphers
+            # output by default, but it can be specified with -ciphersuite as
+            # done in do_openssl_client()
+            matchSuite=1
             ;;
         "TLS13-SHA384-SHA384")
-            continue
+            cmpSuite="TLS_SHA384_SHA384"
+            tls13_suite="yes"
+            tls13_integrity_only="yes"
+            # OpenSSL does not enable TLS_SHA256_SHA256 in openssl ciphers
+            # output by default, but it can be specified with -ciphersuite as
+            # done in do_openssl_client()
+            matchSuite=1
             ;;
         "TLS13-"*)
             echo -e "Suite = $wolfSuite not recognized!"
@@ -982,35 +1002,38 @@ do
             ;;
         esac
 
-        case ":$openssl_ciphers:" in *":$cmpSuite:"*) # add extra : for edge cases
-            case "$cmpSuite" in
-            "TLS_"*)
-                if [ "$version" != "4" -a "$version" != "d" ]
-                then
-                    echo -e "TLS 1.3 cipher suite but not TLS 1.3 protocol"
-                    matchSuite=0
-                else
-                    echo -e "Matched to OpenSSL suite support"
-                    matchSuite=1
-                fi
-                ;;
-            *)
-                if [ "$version" = "d" -a "$wolfdowngrade" = "4" ]
-                then
-                    echo -e "Not TLS 1.3 cipher suite but TLS 1.3 downgrade"
-                    matchSuite=0
-                elif [ "$version" != "4" ]
-                then
-                    echo -e "Matched to OpenSSL suite support"
-                    matchSuite=1
-                else
-                    echo -e "Not TLS 1.3 cipher suite but TLS 1.3 protocol"
-                    matchSuite=0
-                fi
+        if [ $matchSuite = 0 ]
+        then
+            case ":$openssl_ciphers:" in *":$cmpSuite:"*) # add extra : for edge cases
+                case "$cmpSuite" in
+                "TLS_"*)
+                    if [ "$version" != "4" -a "$version" != "d" ]
+                    then
+                        echo -e "TLS 1.3 cipher suite but not TLS 1.3 protocol"
+                        matchSuite=0
+                    else
+                        echo -e "Matched to OpenSSL suite support"
+                        matchSuite=1
+                    fi
+                    ;;
+                *)
+                    if [ "$version" = "d" -a "$wolfdowngrade" = "4" ]
+                    then
+                        echo -e "Not TLS 1.3 cipher suite but TLS 1.3 downgrade"
+                        matchSuite=0
+                    elif [ "$version" != "4" ]
+                    then
+                        echo -e "Matched to OpenSSL suite support"
+                        matchSuite=1
+                    else
+                        echo -e "Not TLS 1.3 cipher suite but TLS 1.3 protocol"
+                        matchSuite=0
+                    fi
+                    ;;
+                esac
                 ;;
             esac
-            ;;
-        esac
+        fi
 
         if [ $matchSuite = 0 ]
         then
@@ -1130,6 +1153,80 @@ do
                 continue
             fi
             tls13_cipher=yes
+            # Integrity-only cipher suites (NULL encryption)
+            if [ "$tls13_integrity_only" = "yes" ]
+            then
+                # Only run integrity-only tests with TLS 1.3 (version 4)
+                if [ "$version" != "4" ]
+                then
+                    tls13_cipher=
+                    tls13_integrity_only=
+                    continue
+                fi
+
+                # Integrity-only cipher suites require OpenSSL 3.4 or later
+                $OPENSSL version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 | \
+                    awk -F. '{if ($1 > 3 || ($1 == 3 && $2 >= 4)) exit 1; else exit 0;}'
+                if [ $? -eq 0 ]
+                then
+                    echo -e "OpenSSL version too old for integrity-only ciphers, skipping"
+                    tls13_cipher=
+                    tls13_integrity_only=
+                    continue
+                fi
+
+                # Test with RSA certs if available
+                if [ $openssl_pid != $no_pid -a "$wolf_rsa" != "" ]
+                then
+                    cert="${CERT_DIR}/client-cert.pem"
+                    key="${CERT_DIR}/client-key.pem"
+                    caCert="${CERT_DIR}/ca-cert.pem"
+
+                    # Start a dedicated OpenSSL server for integrity-only tests
+                    generate_port
+                    integrity_openssl_port=$port
+                    $OPENSSL s_server -accept $integrity_openssl_port -cert "${CERT_DIR}/server-cert.pem" -key "${CERT_DIR}/server-key.pem" -quiet -CAfile "${CERT_DIR}/client-cert.pem" -www -cipher "ALL:eNULL:@SECLEVEL=0" -ciphersuites "$cmpSuite" -verify 10 -verify_return_error &
+                    integrity_openssl_pid=$!
+                    sleep 0.1
+
+                    port=$integrity_openssl_port
+                    do_wolfssl_client
+
+                    # Kill the dedicated server
+                    kill $integrity_openssl_pid 2>/dev/null
+
+                    port=$wolfssl_port
+                    do_openssl_client
+                fi
+                # Test with ECC certs if available
+                if [ $ecdsa_openssl_pid != $no_pid -a "$wolf_ecc" != "" ]
+                then
+                    cert="${CERT_DIR}/client-ecc-cert.pem"
+                    key="${CERT_DIR}/ecc-client-key.pem"
+                    caCert="${CERT_DIR}/ca-ecc-cert.pem"
+
+                    # Start a dedicated OpenSSL server for integrity-only tests (ECC)
+                    generate_port
+                    integrity_openssl_port=$port
+                    $OPENSSL s_server -accept $integrity_openssl_port -cert "${CERT_DIR}/server-ecc.pem" -key "${CERT_DIR}/ecc-key.pem" -quiet -CAfile "${CERT_DIR}/client-ecc-cert.pem" -www -cipher "ALL:eNULL:@SECLEVEL=0" -ciphersuites "$cmpSuite" -verify 10 -verify_return_error &
+                    integrity_openssl_pid=$!
+                    sleep 0.1
+
+                    wolf_temp_cases_total=$((wolf_temp_cases_total + 1))
+                    port=$integrity_openssl_port
+                    do_wolfssl_client
+
+                    # Kill the dedicated server
+                    kill $integrity_openssl_pid 2>/dev/null
+
+                    open_temp_cases_total=$((open_temp_cases_total + 1))
+                    port=$ecdsa_wolfssl_port
+                    do_openssl_client
+                fi
+                tls13_cipher=
+                tls13_integrity_only=
+                continue
+            fi
             # RSA
             if [ $openssl_pid != $no_pid -a "$ecdhe_avail" = "yes" ]
             then
