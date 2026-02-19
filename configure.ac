@@ -415,6 +415,9 @@ AC_ARG_ENABLE([fips],
     [ENABLED_FIPS=$enableval],
     [ENABLED_FIPS="no"])
 
+FIPS_FLAVOR="$ENABLED_FIPS"
+AC_SUBST([FIPS_FLAVOR])
+
 # wolfProvider Options
 AC_ARG_ENABLE([wolfprovider],
     [AS_HELP_STRING([--enable-wolfprovider],[Enable wolfProvider options (default: disabled)])],
@@ -1463,7 +1466,6 @@ then
     test "$enable_pwdbased" = "" && enable_pwdbased=yes
     test "$enable_aeskeywrap" = "" && enable_aeskeywrap=yes
     test "$enable_x963kdf" = "" && enable_x963kdf=yes
-    test "$enable_scrypt" = "" && test "$enable_hmac" != "no" && enable_scrypt=yes
     test "$enable_indef" = "" && enable_indef=yes
     test "$enable_enckeys" = "" && enable_enckeys=yes
     test "$enable_hashflags" = "" && enable_hashflags=yes
@@ -1480,11 +1482,11 @@ then
     test "$enable_ssh" = "" && test "$enable_hmac" != "no" && enable_ssh=yes
     test "$enable_rng_bank" = "" && enable_rng_bank=yes
 
-    # the compiler optimizer generates a weird out-of-bounds bss reference for
-    # find_hole() in the FP_ECC implementation.
-    if test "$ENABLED_LINUXKM_PIE" != yes
+    if test "$KERNEL_MODE_DEFAULTS" != "yes"
     then
-        test "$enable_fpecc" = "" && test "$enable_ecc" != "no" && enable_fpecc=yes
+        # Scrypt is excluded from kernel module builds (unless explicitly
+        # enabled) because of its excessive memory requirements.
+        test "$enable_scrypt" = "" && test "$enable_hmac" != "no" && enable_scrypt=yes
     fi
 
     if test "x$FIPS_VERSION" != "xv1"

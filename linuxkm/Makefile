@@ -21,7 +21,11 @@
 .ONESHELL:
 SHELL=bash
 
-all: libwolfssl.ko libwolfssl.ko.signed
+ifndef LIBWOLFSSL_NAME
+    LIBWOLFSSL_NAME := libwolfssl
+endif
+
+all: $(LIBWOLFSSL_NAME).ko $(LIBWOLFSSL_NAME).ko.signed
 
 ifndef MODULE_TOP
     MODULE_TOP=$(CURDIR)
@@ -147,8 +151,9 @@ GENERATE_RELOC_TAB := $(AWK) '								\
 	    n=0;									\
 	    bad_relocs=0;								\
 	    print "\#include <wolfssl/wolfcrypt/libwolfssl_sources.h>";			\
+	    print "\#include <wolfssl/wolfcrypt/memory.h>";				\
 	    printf("%s\n    ",								\
-		"WOLFSSL_LOCAL const struct wc_linuxkm_pie_reloc_tab_ent wc_linuxkm_pie_reloc_tab[] = { ");	\
+		"WOLFSSL_LOCAL const struct wc_reloc_table_ent wc_linuxkm_pie_reloc_tab[] = { ");	\
 	    if ("SECTION_MAP" in ENVIRON) {						\
 		while (getline <ENVIRON["SECTION_MAP"] > 0)				\
 		    section_map[$$1] = $$2;						\
@@ -204,8 +209,10 @@ GENERATE_RELOC_TAB := $(AWK) '								\
 		    print >"/dev/stderr";						\
 		    exit(1);								\
 		}									\
-		printf("    { .offset = 0x%xU, .dest_segment = %s, .reloc_type = WC_%s },\n", \
-		       strtonum("0x" gensub("^0*","",1,$$1)),				\
+		printf("    { .offset = 0x%xU, .dest_offset = 0x%xU, .dest_addend = %+d, .dest_segment = %s, .reloc_type = WC_%s },\n", \
+		       strtonum("0x" $$1),						\
+		       strtonum("0x" $$4),						\
+		       $$6 strtonum("0x" $$7),						\
 		       section_tag, reloc_type);					\
 	    }										\
 	}										\
@@ -214,8 +221,8 @@ GENERATE_RELOC_TAB := $(AWK) '								\
 		print "Found " bad_relocs " unresolvable relocations." >"/dev/stderr";	\
 		exit(1);								\
 	    }										\
-	    print "    { .offset = ~0U, .dest_segment = WC_R_SEG_NONE, .reloc_type = WC_R_NONE } };"; \
-            print "WOLFSSL_LOCAL const unsigned long wc_linuxkm_pie_reloc_tab_length = sizeof wc_linuxkm_pie_reloc_tab / sizeof wc_linuxkm_pie_reloc_tab[0];"; \
+	    print "    { .offset = ~0U, .dest_offset = ~0U, .dest_addend = 0, .dest_segment = WC_R_SEG_NONE, .reloc_type = WC_R_NONE } };"; \
+	    print "WOLFSSL_LOCAL const unsigned int wc_linuxkm_pie_reloc_tab_length = (unsigned int)(sizeof wc_linuxkm_pie_reloc_tab / sizeof wc_linuxkm_pie_reloc_tab[0]);"; \
 	}'
 
 ifeq "$(V)" "1"
@@ -225,8 +232,8 @@ endif
 # This rule is .PHONY because it doesn't actually build the module -- Kbuild
 # does, and we always need to call Kbuild to enforce rebuild for dependencies
 # and config changes.
-.PHONY: libwolfssl.ko
-libwolfssl.ko:
+.PHONY: $(LIBWOLFSSL_NAME).ko
+$(LIBWOLFSSL_NAME).ko:
 	@set -e
 	@[[ '$(V)' == 1 ]] && { echo 'MODULE_TOP = "$(MODULE_TOP)"';
 	echo 'SRC_TOP = "$(SRC_TOP)"';
@@ -303,7 +310,7 @@ else
 endif
 
 .PHONY: module-update-fips-hash
-module-update-fips-hash: libwolfssl.ko
+module-update-fips-hash: $(LIBWOLFSSL_NAME).ko
 	@set -e
 	@if test -z '$(FIPS_HASH)'; then echo '	 $$FIPS_HASH is unset' >&2; exit 1; fi
 	@if [[ ! '$(FIPS_HASH)' =~ [0-9a-fA-F]{64} ]]; then echo '  $$FIPS_HASH is malformed' >&2; exit 1; fi
@@ -320,9 +327,64 @@ module-update-fips-hash: libwolfssl.ko
 	if [[ '$(FIPS_HASH)' == "$$current_verifyCore" ]]; then echo '	Supplied FIPS_HASH matches existing verifyCore -- no update needed.'; exit 0; fi; \
 	echo -n '$(FIPS_HASH)' | dd bs=1 conv=notrunc of="$<" seek=$$verifyCore_offset count=64 status=none && \
 	echo "	FIPS verifyCore updated successfully." && \
-	if [[ -f libwolfssl.ko.signed ]]; then $(MAKE) -C . libwolfssl.ko.signed; fi
+            if [[ -f '$(LIBWOLFSSL_NAME).ko.signed' ]]; then $(MAKE) -C . '$(LIBWOLFSSL_NAME).ko.signed'; fi
 
-libwolfssl.ko.signed: libwolfssl.ko
+
+# linuxkm-fips-hash implements offline (no-load) FIPS hash calculation and graft-in.
+#
+# libwolfssl.so is built from the same sources as the kernel module, with the
+# same FIPS setting, then used with linuxkm-fips-hash to calculate and overwrite
+# the hash in libwolfssl.ko.  Finally, the module is [re]signed.
+#
+# Note that libwolfssl.so has to be built from a hierarchy of symlinks, to avoid
+# depending on changes/config in the source directory.  Also, aside from
+# FIPS_FLAVOR, inherited configuration settings in the environment are cleansed.
+
+libwolfssl-user-build/src/.libs/libwolfssl.so:
+	@set -e
+	@$(RM) -rf '$(MODULE_TOP)/libwolfssl-user-build'
+	@mkdir '$(MODULE_TOP)/libwolfssl-user-build'
+	@cd '$(MODULE_TOP)/libwolfssl-user-build'
+	@pushd '$(SRC_TOP)' >/dev/null
+	@echo -n 'Populating tree of symlinks...'
+	@readarray -d '' -t srcfiles < <(find examples src support tests testsuite wolfcrypt wolfssl configure *.in build-aux debian rpm scripts certs doc mcapi cmake linuxkm/*.[ch] \( -name options.h -o -name user_settings\* \) -prune -o \( ! -type d \) \( -name '*.[chsSi]' -o -name configure -o -name '*.in' -o -name \*.sh -o -path support/\* -o -path build-aux/\* -o -path debian/\* -o -path rpm/\* -o -path scripts/\* -o -path certs/\* -o -path doc/\* -o -path mcapi/\* -o -path cmake/\* \) -print0)
+	@popd >/dev/null
+	@for file in "$${srcfiles[@]}"; do if [[ ! -e "$$file" ]]; then mkdir -p "$$(dirname "$$file")" && cp --no-dereference --symbolic-link --no-clobber '$(SRC_TOP)'/"$$file" "$$file"; fi; done
+	@echo ' done.'
+	@echo '__attribute__ ((visibility("default"))) extern const char coreKey[];' > user_settings.h
+	@echo > user_settings_asm.h
+	@echo -n 'Configuring libwolfssl.so...'
+	@unset WOLFSSL_CFLAGS WOLFCRYPT_PIE_FILES ASFLAGS_FPUSIMD_ENABLE ASFLAGS_FPU_DISABLE_SIMD_ENABLE src_libwolfssl_la_OBJECTS WOLFSSL_ASFLAGS AM_CFLAGS WOLFSSL_OBJ_FILES ENABLED_LINUXKM_LKCAPI_REGISTER EXTRA_LDFLAGS CC LD
+	@./configure --quiet --disable-jobserver --enable-cryptonly --enable-fips="$$FIPS_FLAVOR" CFLAGS='-DWC_SYM_RELOC_TABLES_SUPPORT -DWOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE -DWOLFSSL_USER_SETTINGS -DWOLFSSL_USER_SETTINGS_ASM'
+	@echo ' done.'
+	@echo -n 'Compiling and linking libwolfssl.so...'
+	@$(MAKE) >/dev/null
+	@echo ' done.'
+	@echo -n 'Fixing FIPS hash...'
+	@userhash=$$(wolfcrypt/test/testwolfcrypt 2>&1 | sed -n -E 's/^hash = (.+)$$/\1/p')
+	@if [[ -z "$$userhash" ]]; then echo ' FIPS hash not found!' >&2; exit 1; fi
+	@find wolfcrypt/src -name '*fips_test*o' -delete
+	@$(MAKE) EXTRA_CFLAGS=-DWOLFCRYPT_FIPS_CORE_HASH_VALUE="$$userhash"
+	@echo ' done.'
+
+linuxkm-fips-hash: libwolfssl-user-build/src/.libs/libwolfssl.so linuxkm-fips-hash.c
+	@echo -n 'Compiling linuxkm-fips-hash...'
+# note direct invocation of cc -- we are compiling for the build host, not the target host.
+	@cc -I'$(MODULE_TOP)/libwolfssl-user-build' -o linuxkm-fips-hash linuxkm/linuxkm-fips-hash.c -L '$(MODULE_TOP)/libwolfssl-user-build/src/.libs' -Wl,-rpath-link='$(MODULE_TOP)/libwolfssl-user-build/src/.libs' -Wl,-rpath='$(MODULE_TOP)/libwolfssl-user-build/src/.libs' -lwolfssl
+	@echo ' done.'
+
+.PHONY: module-with-matching-fips-hash
+module-with-matching-fips-hash: $(LIBWOLFSSL_NAME).ko linuxkm-fips-hash
+	@set -e
+	./linuxkm-fips-hash-wrapper.sh "$<"
+	$(MAKE) -C . '$(LIBWOLFSSL_NAME).ko.signed'
+
+.PHONY: module-with-matching-fips-hash-no-sign
+module-with-matching-fips-hash-no-sign: $(LIBWOLFSSL_NAME).ko linuxkm-fips-hash
+	@set -e
+	./linuxkm-fips-hash-wrapper.sh "$<"
+
+$(LIBWOLFSSL_NAME).ko.signed: $(LIBWOLFSSL_NAME).ko
 ifdef FORCE_NO_MODULE_SIG
 	@echo 'Skipping module signature operation because FORCE_NO_MODULE_SIG.'
 else
@@ -371,6 +433,8 @@ clean:
 	$(RM) -rf '$(MODULE_TOP)/linuxkm'
 	$(RM) -rf '$(MODULE_TOP)/wolfcrypt'
 	$(RM) -rf '$(MODULE_TOP)/src'
+	$(RM) -rf '$(MODULE_TOP)/libwolfssl-user-build'
+	$(RM) -f '$(MODULE_TOP)/linuxkm-fips-hash'
 
 .PHONY: check
 check:

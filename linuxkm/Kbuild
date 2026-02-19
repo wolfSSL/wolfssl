@@ -49,7 +49,11 @@ else ifeq "$(KERNEL_ARCH)" "arm"
     WOLFSSL_CFLAGS += -fno-optimize-sibling-calls -Os
 endif
 
-obj-m := libwolfssl.o
+ifndef LIBWOLFSSL_NAME
+    LIBWOLFSSL_NAME := libwolfssl
+endif
+
+obj-m := $(LIBWOLFSSL_NAME).o
 
 WOLFSSL_OBJ_TARGETS := $(patsubst %, $(obj)/%, $(WOLFSSL_OBJ_FILES))
 
@@ -88,10 +92,10 @@ ifndef KERNEL_THREAD_STACK_SIZE
 endif
 MAX_STACK_FRAME_SIZE=$(shell echo $$(( $(KERNEL_THREAD_STACK_SIZE) / 4)))
 
-libwolfssl-y := $(WOLFSSL_OBJ_FILES) linuxkm/module_hooks.o linuxkm/module_exports.o
+$(LIBWOLFSSL_NAME)-y := $(WOLFSSL_OBJ_FILES) linuxkm/module_hooks.o linuxkm/module_exports.o
 
 ifeq "$(FIPS_OPTEST)" "1"
-libwolfssl-y += linuxkm/optest-140-3/linuxkm_optest_wrapper.o
+    $(LIBWOLFSSL_NAME)-y += linuxkm/optest-140-3/linuxkm_optest_wrapper.o
 endif
 
 WOLFSSL_CFLAGS_NO_VECTOR_INSNS := $(CFLAGS_SIMD_DISABLE) $(CFLAGS_FPU_DISABLE)
@@ -162,7 +166,7 @@ ifdef KERNEL_EXTRA_CFLAGS_REMOVE
     ccflags-remove-y += $(KERNEL_EXTRA_CFLAGS_REMOVE)
 endif
 
-$(obj)/libwolfssl.mod.o: ccflags-y := $(PIE_SUPPORT_FLAGS)
+$(obj)/$(LIBWOLFSSL_NAME).mod.o: ccflags-y := $(PIE_SUPPORT_FLAGS)
 $(obj)/wolfcrypt/test/test.o: ccflags-y += -DNO_MAIN_DRIVER -DWOLFSSL_NO_OPTIONS_H
 $(obj)/wolfcrypt/src/aes.o: ccflags-y := $(WOLFSSL_CFLAGS) $(WOLFSSL_CFLAGS_YES_VECTOR_INSNS) $(PIE_FLAGS) $(PIE_SUPPORT_FLAGS)
 $(obj)/wolfcrypt/benchmark/benchmark.o: ccflags-y := $(WOLFSSL_CFLAGS) $(CFLAGS_FPU_ENABLE) $(CFLAGS_SIMD_ENABLE) $(PIE_SUPPORT_FLAGS) -DNO_MAIN_FUNCTION -DWOLFSSL_NO_OPTIONS_H
@@ -331,15 +335,19 @@ endif
 # auto-generate the exported symbol list, leveraging the WOLFSSL_API visibility tags.
 # exclude symbols that don't match wc_* or wolf*.
 EXPORT_SYMBOL := EXPORT_SYMBOL_NS_GPL
+ifndef WOLFSSL_NS
+    WOLFSSL_NS := WOLFSSL
+endif
 $(obj)/linuxkm/module_exports.c: $(src)/module_exports.c.template $(WOLFSSL_OBJ_TARGETS) $(obj)/linuxkm/module_hooks.o
 	@$(RENAME_PIE_TEXT_AND_DATA_SECTIONS)
 	@cp $< $@ || exit $$?
 	if [[ "$${VERSION}" -gt 6 || ("$${VERSION}" -eq 6 && "$${PATCHLEVEL}" -ge 13) ]]; then
 	    # use ASCII octal escape to avoid syntax disruption in the awk script.
-	    ns='\042WOLFSSL\042'
+	    ns='\042$(WOLFSSL_NS)\042'
 	else
-	    ns='WOLFSSL'
+	    ns='$(WOLFSSL_NS)'
 	fi
+ifndef NO_EXPORTS
 	$(READELF) --symbols --wide $(filter %.o,$^) |
 		$(AWK) '/^ *[0-9]+: / {
 		  if ($$8 !~ /^(wc_|wolf|WOLF|TLSX_)/){next;}
@@ -348,5 +356,6 @@ $(obj)/linuxkm/module_exports.c: $(src)/module_exports.c.template $(WOLFSSL_OBJ_
 		  }
 		}' >> $@ || exit $$?
 	echo -e "#ifndef NO_CRYPT_TEST\n$(EXPORT_SYMBOL)(wolfcrypt_test, $${ns});\n#endif" >> $@
+endif
 
 clean-files := linuxkm src wolfcrypt

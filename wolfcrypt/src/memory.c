@@ -1827,6 +1827,7 @@ WOLFSSL_LOCAL int SAVE_VECTOR_REGISTERS2_fuzzer(void) {
 
 #endif /* DEBUG_VECTOR_REGISTER_ACCESS_FUZZING */
 
-#ifdef WOLFSSL_LINUXKM
-    #include "../../linuxkm/linuxkm_memory.c"
+#if defined(WOLFSSL_LINUXKM) || defined(WC_SYM_RELOC_TABLES) || \
+    defined(WC_SYM_RELOC_TABLES_SUPPORT)
+    #include "linuxkm/linuxkm_memory.c"
 #endif

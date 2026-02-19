@@ -3956,6 +3956,11 @@ extern void uITRON4_free(void *p) ;
     #if !defined(WC_NO_VERBOSE_RNG) && !defined(WC_VERBOSE_RNG)
         #define WC_VERBOSE_RNG
     #endif
+
+    #if WOLFSSL_GENERAL_ALIGNMENT < SIZEOF_LONG
+        #undef WOLFSSL_GENERAL_ALIGNMENT
+        #define WOLFSSL_GENERAL_ALIGNMENT SIZEOF_LONG
+    #endif
 #endif /* WOLFSSL_KERNEL_MODE */
 
 #if defined(WC_SYM_RELOC_TABLES) && defined(HAVE_FIPS) && \
@@ -4269,6 +4274,10 @@ extern void uITRON4_free(void *p) ;
 
 #ifndef NO_WOLFSSL_BASE64_DECODE
     #define WOLFSSL_BASE64_DECODE
+#endif
+
+#if defined(WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE) && !defined(WOLFSSL_BASE16)
+    #define WOLFSSL_BASE16
 #endif
 
 #if defined(FORTRESS) && !defined(HAVE_EX_DATA)

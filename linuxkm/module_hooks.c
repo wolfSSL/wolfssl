@@ -36,6 +36,9 @@
     #ifdef USE_CONTESTMUTEX
         #error USE_CONTESTMUTEX is incompatible with WOLFSSL_LINUXKM
     #endif
+    #ifdef WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE
+        #include <wolfssl/wolfcrypt/hmac.h>
+    #endif
     #include <wolfssl/wolfcrypt/fips_test.h>
 #endif
 #if !defined(NO_CRYPT_TEST) || defined(LINUXKM_LKCAPI_REGISTER)
@@ -88,8 +91,30 @@ static int libwolfssl_cleanup(void) {
     return ret;
 }
 
-#if defined(HAVE_FIPS) && (FIPS_VERSION3_GE(6,0,0) || defined(WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE))
-extern char verifyCore[WC_SHA256_DIGEST_SIZE*2 + 1];
+#ifdef HAVE_FIPS
+    /* failsafe definitions for FIPS <5.3 */
+    #ifndef FIPS_IN_CORE_DIGEST_SIZE
+        #ifndef NO_SHA256
+            #define FIPS_IN_CORE_DIGEST_SIZE WC_SHA256_DIGEST_SIZE
+            #define FIPS_IN_CORE_HASH_TYPE   WC_SHA256
+        #elif defined(WOLFSSL_SHA384)
+            #define FIPS_IN_CORE_DIGEST_SIZE WC_SHA384_DIGEST_SIZE
+            #define FIPS_IN_CORE_HASH_TYPE   WC_SHA384
+        #else
+            #error Unsupported FIPS hash alg.
+        #endif
+    #endif
+
+    #ifndef FIPS_IN_CORE_KEY_SZ
+        #define FIPS_IN_CORE_KEY_SZ FIPS_IN_CORE_DIGEST_SIZE
+    #endif
+    #ifndef FIPS_IN_CORE_VERIFY_SZ
+        #define FIPS_IN_CORE_VERIFY_SZ FIPS_IN_CORE_DIGEST_SIZE
+    #endif
+
+    #if FIPS_VERSION3_GE(6,0,0) || defined(WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE)
+        extern char verifyCore[FIPS_IN_CORE_DIGEST_SIZE*2 + 1];
+    #endif
 #endif
 
 #ifdef WC_SYM_RELOC_TABLES
@@ -111,8 +136,9 @@ static unsigned int hash_span(const u8 *start, const u8 *end, unsigned int sum) 
     return sum;
 }
 
-static int total_text_r = 0, total_rodata_r = 0, total_rwdata_r = 0,
-    total_bss_r = 0, total_other_r = 0;
+#ifdef WC_SYM_RELOC_TABLES
+struct wc_reloc_counts reloc_counts = {};
+#endif
 
 #endif /* DEBUG_LINUXKM_PIE_SUPPORT */
 
@@ -445,6 +471,9 @@ int wc_linuxkm_GenerateSeed_IntelRD(struct OS_Seed* os, byte* output, word32 sz)
     extern int linuxkm_op_test_1(int argc, const char* argv[]);
     extern int linuxkm_op_test_wrapper(void);
     static wolfSSL_Atomic_Int *conTestFailure_ptr = NULL;
+    #ifdef HAVE_WC_FIPS_OPTEST_CONTESTFAILURE_EXPORT
+        WOLFSSL_API extern wolfSSL_Atomic_Int wc_fips_optest_conTestFailure;
+    #endif
     static ssize_t FIPS_optest_trig_handler(struct kobject *kobj, struct kobj_attribute *attr,
                                        const char *buf, size_t count);
     static struct kobj_attribute FIPS_optest_trig_attr = __ATTR(FIPS_optest_run_code, 0220, NULL, FIPS_optest_trig_handler);
@@ -458,6 +487,21 @@ static int wolfssl_init(void)
 #endif
 {
     int ret;
+
+    #ifdef WC_LINUXKM_HAVE_STACK_DEBUG
+    {
+        unsigned long stack_usage;
+        stack_usage = wc_linuxkm_stack_current();
+        pr_info("STACK INFO: usage at entry to wolfssl_init(): %lu of %lu total\n", stack_usage, THREAD_SIZE);
+        wc_linuxkm_stack_hwm_prepare(0xee);
+    }
+    #endif
+
+#ifdef WC_SYM_RELOC_TABLES
+    ret = set_up_wolfssl_linuxkm_pie_redirect_table();
+    if (ret < 0)
+        return ret;
+#endif
 
 #ifdef WC_LINUXKM_TEST_INET_PTON
     {
@@ -497,38 +541,16 @@ static int wolfssl_init(void)
 #if defined(CONFIG_HAVE_KPROBES) && (defined(DEBUG_LINUXKM_PIE_SUPPORT) || defined(WOLFSSL_LINUXKM_VERBOSE_DEBUG))
             pr_err("INFO: couldn't get verifyCore_ptr -- skipping verifyCore length check.\n");
 #endif
-            verifyCore_len = WC_SHA256_DIGEST_SIZE*2;
+            verifyCore_len = FIPS_IN_CORE_DIGEST_SIZE*2;
         }
 #endif
-        if (verifyCore_len != WC_SHA256_DIGEST_SIZE*2) {
-            pr_err("ERROR: compile-time FIPS hash is the wrong length (expected %d hex digits, got %zu).\n", WC_SHA256_DIGEST_SIZE*2, verifyCore_len);
+        if (verifyCore_len != FIPS_IN_CORE_DIGEST_SIZE*2) {
+            pr_err("ERROR: compile-time FIPS hash is the wrong length (expected %d hex digits, got %zu).\n", FIPS_IN_CORE_DIGEST_SIZE*2, verifyCore_len);
             return -ECANCELED;
         }
     }
 
-#ifdef WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE
-#ifdef CONFIG_MODULE_SIG
-    if (THIS_MODULE->sig_ok == false) {
-        pr_err("ERROR: wolfSSL module load aborted -- bad or missing module signature with FIPS dynamic hash.\n");
-        return -ECANCELED;
-    }
-#endif
-    ret = updateFipsHash();
-    if (ret < 0) {
-        pr_err("ERROR: wolfSSL module load aborted -- updateFipsHash: %s\n",wc_GetErrorString(ret));
-        return -ECANCELED;
-    }
-#endif /* WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE */
-
-#endif /* HAVE_FIPS */
-
 #ifdef WC_SYM_RELOC_TABLES
-    ret = set_up_wolfssl_linuxkm_pie_redirect_table();
-    if (ret < 0)
-        return ret;
-#endif
-
-#if defined(HAVE_FIPS) && defined(WC_SYM_RELOC_TABLES)
     if (((uintptr_t)__wc_text_start > (uintptr_t)wolfCrypt_FIPS_first) ||
         ((uintptr_t)__wc_text_end < (uintptr_t)wolfCrypt_FIPS_last) ||
         ((uintptr_t)__wc_rodata_start > (uintptr_t)wolfCrypt_FIPS_ro_start) ||
@@ -538,6 +560,32 @@ static int wolfssl_init(void)
         return -ECANCELED;
     }
 #endif
+
+#ifdef WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE
+#ifdef CONFIG_MODULE_SIG
+    if (THIS_MODULE->sig_ok == false) {
+        pr_err("ERROR: wolfSSL module load aborted -- bad or missing module signature with FIPS dynamic hash.\n");
+        return -ECANCELED;
+    }
+#endif
+    #if defined(WC_SYM_RELOC_TABLES) && defined(DEBUG_LINUXKM_PIE_SUPPORT)
+    reloc_counts.text = reloc_counts.rodata = reloc_counts.rwdata = reloc_counts.bss =
+        reloc_counts.other = 0;
+    #endif
+    ret = updateFipsHash();
+    if (ret < 0) {
+        pr_err("ERROR: wolfSSL module load aborted -- updateFipsHash: %s\n",wc_GetErrorString(ret));
+        return -ECANCELED;
+    }
+
+    #if defined(WC_SYM_RELOC_TABLES) && defined(DEBUG_LINUXKM_PIE_SUPPORT)
+    pr_info("FIPS-bounded relocation normalizations from updateFipsHash(): text=%d, rodata=%d, rwdata=%d, bss=%d, other=%d\n",
+            reloc_counts.text, reloc_counts.rodata, reloc_counts.rwdata, reloc_counts.bss, reloc_counts.other);
+    #endif
+
+#endif /* WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE */
+
+#endif /* HAVE_FIPS */
 
 #if defined(WC_SYM_RELOC_TABLES) && defined(DEBUG_LINUXKM_PIE_SUPPORT)
 
@@ -572,8 +620,8 @@ static int wolfssl_init(void)
             return -ECANCELED;
         }
 
-        total_text_r = total_rodata_r = total_rwdata_r = total_bss_r =
-            total_other_r = 0;
+        reloc_counts.text = reloc_counts.rodata = reloc_counts.rwdata = reloc_counts.bss =
+            reloc_counts.other = 0;
 
         while (text_p < (const u8 *)__wc_text_end) {
             ssize_t progress =
@@ -621,10 +669,20 @@ static int wolfssl_init(void)
                 (unsigned long long)(uintptr_t)__wc_bss_end);
 
         pr_info("whole-segment relocation normalizations: text=%d, rodata=%d, rwdata=%d, bss=%d, other=%d\n",
-                total_text_r, total_rodata_r, total_rwdata_r, total_bss_r, total_other_r);
+                reloc_counts.text, reloc_counts.rodata, reloc_counts.rwdata, reloc_counts.bss, reloc_counts.other);
     }
 
 #endif /* WC_SYM_RELOC_TABLES && DEBUG_LINUXKM_PIE_SUPPORT */
+
+#ifdef WC_LINUXKM_HAVE_STACK_DEBUG
+    {
+        unsigned long stack_usage;
+        stack_usage = wc_linuxkm_stack_hwm_measure_rel(0xee);
+        pr_info("STACK INFO: rel usage by wolfssl_init() initial setup: %lu\n", stack_usage);
+        /* shush up false stack HWM reading by kernel: */
+        wc_linuxkm_stack_hwm_prepare(0);
+    }
+#endif
 
 #ifdef HAVE_FIPS
     ret = wolfCrypt_SetCb_fips(lkmFipsCb);
@@ -634,8 +692,8 @@ static int wolfssl_init(void)
     }
 
 #if defined(WC_SYM_RELOC_TABLES) && defined(DEBUG_LINUXKM_PIE_SUPPORT)
-    total_text_r = total_rodata_r = total_rwdata_r = total_bss_r =
-        total_other_r = 0;
+    reloc_counts.text = reloc_counts.rodata = reloc_counts.rwdata = reloc_counts.bss =
+        reloc_counts.other = 0;
 #endif
 
     if (WC_SIG_IGNORE_BEGIN() >= 0) {
@@ -647,7 +705,7 @@ static int wolfssl_init(void)
 
 #if defined(WC_SYM_RELOC_TABLES) && defined(DEBUG_LINUXKM_PIE_SUPPORT)
     pr_info("FIPS-bounded relocation normalizations: text=%d, rodata=%d, rwdata=%d, bss=%d, other=%d\n",
-            total_text_r, total_rodata_r, total_rwdata_r, total_bss_r, total_other_r);
+            reloc_counts.text, reloc_counts.rodata, reloc_counts.rwdata, reloc_counts.bss, reloc_counts.other);
 #endif
 
     ret = wolfCrypt_GetStatus_fips();
@@ -729,11 +787,15 @@ static int wolfssl_init(void)
 #endif /* HAVE_FIPS && FIPS_VERSION3_GT(5,2,0) */
 
 #ifdef FIPS_OPTEST
+    #ifdef HAVE_WC_FIPS_OPTEST_CONTESTFAILURE_EXPORT
+    conTestFailure_ptr = &wc_fips_optest_conTestFailure;
+    #else
     conTestFailure_ptr = (wolfSSL_Atomic_Int *)my_kallsyms_lookup_name("conTestFailure");
     if (conTestFailure_ptr == NULL) {
         pr_err("ERROR: couldn't obtain conTestFailure_ptr.\n");
         return -ECANCELED;
     }
+    #endif
 
     ret = linuxkm_lkcapi_sysfs_install_node(&FIPS_optest_trig_attr, &installed_sysfs_FIPS_optest_trig_files);
     if (ret != 0) {
@@ -742,7 +804,25 @@ static int wolfssl_init(void)
     }
 
 #ifdef FIPS_OPTEST_FULL_RUN_AT_MODULE_INIT
+
+    #ifdef WC_LINUXKM_HAVE_STACK_DEBUG
+    {
+        unsigned long stack_usage;
+        stack_usage = wc_linuxkm_stack_current();
+        pr_info("STACK INFO: usage at call to linuxkm_op_test_wrapper(): %lu of %lu total\n", stack_usage, THREAD_SIZE);
+        wc_linuxkm_stack_hwm_prepare(0xee);
+    #endif
+
     (void)linuxkm_op_test_wrapper();
+
+    #ifdef WC_LINUXKM_HAVE_STACK_DEBUG
+        stack_usage = wc_linuxkm_stack_hwm_measure_rel(0xee);
+        pr_info("STACK INFO: rel usage by linuxkm_op_test_wrapper(): %lu\n", stack_usage);
+        /* shush up false stack HWM reading by kernel: */
+        wc_linuxkm_stack_hwm_prepare(0);
+    }
+    #endif
+
     WOLFSSL_ATOMIC_STORE(*conTestFailure_ptr, 0);
     for (i = 0; i < FIPS_CAST_COUNT; ++i)
         fipsCastStatus_put(i, FIPS_CAST_STATE_INIT);
@@ -765,7 +845,21 @@ static int wolfssl_init(void)
 #endif /* FIPS_OPTEST */
 
 #ifndef NO_CRYPT_TEST
-    ret = wolfcrypt_test(NULL);
+    #ifdef WC_LINUXKM_HAVE_STACK_DEBUG
+    {
+        unsigned long stack_usage;
+        stack_usage = wc_linuxkm_stack_current();
+        pr_info("STACK INFO: usage at call to wolfcrypt_test(): %lu of %lu total\n", stack_usage, THREAD_SIZE);
+        wc_linuxkm_stack_hwm_prepare(0xee);
+    #endif
+        ret = wolfcrypt_test(NULL);
+    #ifdef WC_LINUXKM_HAVE_STACK_DEBUG
+        stack_usage = wc_linuxkm_stack_hwm_measure_rel(0xee);
+        pr_info("STACK INFO: rel usage by wolfcrypt_test(): %lu\n", stack_usage);
+        /* shush up false stack HWM reading by kernel: */
+        wc_linuxkm_stack_hwm_prepare(0);
+    }
+    #endif
     if (ret < 0) {
         pr_err("ERROR: wolfcrypt self-test failed with return code %d.\n", ret);
         (void)libwolfssl_cleanup();
@@ -791,7 +885,21 @@ static int wolfssl_init(void)
         return -ECANCELED;
     }
 #else /* !LINUXKM_LKCAPI_REGISTER_ONLY_ON_COMMAND */
-    ret = linuxkm_lkcapi_register();
+    #ifdef WC_LINUXKM_HAVE_STACK_DEBUG
+    {
+        unsigned long stack_usage;
+        stack_usage = wc_linuxkm_stack_current();
+        pr_info("STACK INFO: usage at call to linuxkm_lkcapi_register(): %lu of %lu total\n", stack_usage, THREAD_SIZE);
+        wc_linuxkm_stack_hwm_prepare(0xee);
+    #endif
+        ret = linuxkm_lkcapi_register();
+    #ifdef WC_LINUXKM_HAVE_STACK_DEBUG
+        stack_usage = wc_linuxkm_stack_hwm_measure_rel(0xee);
+        pr_info("STACK INFO: rel usage by linuxkm_lkcapi_register(): %lu\n", stack_usage);
+        /* shush up false stack HWM reading by kernel: */
+        wc_linuxkm_stack_hwm_prepare(0);
+    }
+    #endif
 
     if (ret) {
         pr_err("ERROR: linuxkm_lkcapi_register() failed with return code %d.\n", ret);
@@ -808,7 +916,21 @@ static int wolfssl_init(void)
 #endif
 
 #ifdef WOLFSSL_LINUXKM_BENCHMARKS
-    wolfcrypt_benchmark_main(0, (char**)NULL);
+    #ifdef WC_LINUXKM_HAVE_STACK_DEBUG
+    {
+        unsigned long stack_usage;
+        stack_usage = wc_linuxkm_stack_current();
+        pr_info("STACK INFO: usage at call to wolfcrypt_benchmark_main(): %lu of %lu total\n", stack_usage, THREAD_SIZE);
+        wc_linuxkm_stack_hwm_prepare(0xee);
+    #endif
+        wolfcrypt_benchmark_main(0, (char**)NULL);
+    #ifdef WC_LINUXKM_HAVE_STACK_DEBUG
+        stack_usage = wc_linuxkm_stack_hwm_measure_rel(0xee);
+        pr_info("STACK INFO: rel usage by wolfcrypt_benchmark_main(): %lu\n", stack_usage);
+        /* shush up false stack HWM reading by kernel: */
+        wc_linuxkm_stack_hwm_prepare(0);
+    }
+    #endif
 #endif
 
 #ifdef WOLFCRYPT_ONLY
@@ -892,96 +1014,47 @@ MODULE_VERSION(LIBWOLFSSL_VERSION_STRING);
 
 #ifdef WC_SYM_RELOC_TABLES
 
-static const struct reloc_layout_ent {
-    const char *name;
-    word64 mask;
-    word64 width;
-    word64 is_signed:1;
-    word64 is_relative:1;
-    word64 is_pages:1;
-    word64 is_pair_lo:1;
-    word64 is_pair_hi:1;
-} reloc_layouts[] = {
-    [WC_R_X86_64_32]                  = { "R_X86_64_32",                                                ~0UL, 32, .is_signed = 0, .is_relative = 0 },
-    [WC_R_X86_64_32S]                 = { "R_X86_64_32S",                                               ~0UL, 32, .is_signed = 1, .is_relative = 0 },
-    [WC_R_X86_64_64]                  = { "R_X86_64_64",                                                ~0UL, 64, .is_signed = 0, .is_relative = 0 },
-    [WC_R_X86_64_PC32]                = { "R_X86_64_PC32",                                              ~0UL, 32, .is_signed = 1, .is_relative = 1 },
-    [WC_R_X86_64_PLT32]               = { "R_X86_64_PLT32",                                             ~0UL, 32, .is_signed = 1, .is_relative = 1 },
-    [WC_R_AARCH64_ABS32]              = { "R_AARCH64_ABS32",                                            ~0UL, 32, .is_signed = 1, .is_relative = 0, .is_pages = 0, .is_pair_lo = 0, .is_pair_hi = 0 },
-    [WC_R_AARCH64_ABS64]              = { "R_AARCH64_ABS64",                                            ~0UL, 64, .is_signed = 1, .is_relative = 0, .is_pages = 0, .is_pair_lo = 0, .is_pair_hi = 0 },
-    [WC_R_AARCH64_ADD_ABS_LO12_NC]    = { "R_AARCH64_ADD_ABS_LO12_NC",    0b00000000001111111111110000000000, 32, .is_signed = 0, .is_relative = 0, .is_pages = 0, .is_pair_lo = 1, .is_pair_hi = 0 },
-    [WC_R_AARCH64_ADR_PREL_PG_HI21]   = { "R_AARCH64_ADR_PREL_PG_HI21",   0b01100000111111111111111111100000, 32, .is_signed = 1, .is_relative = 1, .is_pages = 1, .is_pair_lo = 0, .is_pair_hi = 1 },
-    [WC_R_AARCH64_CALL26]             = { "R_AARCH64_CALL26",             0b00000011111111111111111111111111, 32, .is_signed = 1, .is_relative = 1, .is_pages = 0, .is_pair_lo = 0, .is_pair_hi = 0 },
-    [WC_R_AARCH64_JUMP26]             = { "R_AARCH64_JUMP26",             0b00000011111111111111111111111111, 32, .is_signed = 1, .is_relative = 1, .is_pages = 0, .is_pair_lo = 0, .is_pair_hi = 0 },
-    [WC_R_AARCH64_LDST8_ABS_LO12_NC]  = { "R_AARCH64_LDST8_ABS_LO12_NC",  0b00000000001111111111110000000000, 32, .is_signed = 0, .is_relative = 0, .is_pages = 0, .is_pair_lo = 1, .is_pair_hi = 0 },
-    [WC_R_AARCH64_LDST16_ABS_LO12_NC] = { "R_AARCH64_LDST16_ABS_LO12_NC", 0b00000000001111111111110000000000, 32, .is_signed = 0, .is_relative = 0, .is_pages = 0, .is_pair_lo = 1, .is_pair_hi = 0 },
-    [WC_R_AARCH64_LDST32_ABS_LO12_NC] = { "R_AARCH64_LDST32_ABS_LO12_NC", 0b00000000001111111111110000000000, 32, .is_signed = 0, .is_relative = 0, .is_pages = 0, .is_pair_lo = 1, .is_pair_hi = 0 },
-    [WC_R_AARCH64_LDST64_ABS_LO12_NC] = { "R_AARCH64_LDST64_ABS_LO12_NC", 0b00000000001111111111110000000000, 32, .is_signed = 0, .is_relative = 0, .is_pages = 0, .is_pair_lo = 1, .is_pair_hi = 0 },
-    [WC_R_AARCH64_PREL32]             = { "R_AARCH64_PREL32",                                           ~0UL, 32, .is_signed = 1, .is_relative = 1, .is_pages = 0, .is_pair_lo = 0, .is_pair_hi = 0 },
-    [WC_R_ARM_ABS32]                  = { "R_ARM_ABS32",                                                ~0UL, 32, .is_signed = 0, .is_relative = 0, .is_pages = 0, .is_pair_lo = 0, .is_pair_hi = 0 },
-    [WC_R_ARM_PREL31]                 = { "R_ARM_PREL31",                 0b01111111111111111111111111111111, 32, .is_signed = 1, .is_relative = 1, .is_pages = 0, .is_pair_lo = 0, .is_pair_hi = 0 },
-    [WC_R_ARM_REL32]                  = { "R_ARM_REL32",                                                ~0UL, 32, .is_signed = 1, .is_relative = 1, .is_pages = 0, .is_pair_lo = 0, .is_pair_hi = 0 },
-    [WC_R_ARM_THM_CALL]               = { "R_ARM_THM_CALL",               0b00000111111111110010111111111111, 32, .is_signed = 1, .is_relative = 1, .is_pages = 0, .is_pair_lo = 0, .is_pair_hi = 0 },
-    [WC_R_ARM_THM_JUMP24]             = { "R_ARM_THM_JUMP24",             0b00000111111111110010111111111111, 32, .is_signed = 1, .is_relative = 1, .is_pages = 0, .is_pair_lo = 0, .is_pair_hi = 0 },
-    [WC_R_ARM_THM_JUMP11]             = { "R_ARM_THM_JUMP11",             0b00000000000000000000011111111111, 16, .is_signed = 1, .is_relative = 1, .is_pages = 0, .is_pair_lo = 0, .is_pair_hi = 0 },
-    [WC_R_ARM_THM_MOVT_ABS]           = { "R_ARM_THM_MOVT_ABS",           0b00000100000011110111000011111111, 32, .is_signed = 0, .is_relative = 0, .is_pages = 0, .is_pair_lo = 0, .is_pair_hi = 1 },
-    [WC_R_ARM_THM_MOVW_ABS_NC]        = { "R_ARM_THM_MOVW_ABS_NC",        0b00000100000011110111000011111111, 32, .is_signed = 0, .is_relative = 0, .is_pages = 0, .is_pair_lo = 1, .is_pair_hi = 0 }
-    };
+extern const struct wc_reloc_table_ent wc_linuxkm_pie_reloc_tab[];
+extern const unsigned int wc_linuxkm_pie_reloc_tab_length;
 
-static inline long find_reloc_tab_offset(size_t text_in_offset) {
-    long ret;
-    unsigned long hop;
-    if (wc_linuxkm_pie_reloc_tab_length <= 1) {
-#ifdef DEBUG_LINUXKM_PIE_SUPPORT
-        pr_err("ERROR: %s failed at L %d.\n", __FUNCTION__, __LINE__);
-#endif
-        return -1;
-    }
-    if (text_in_offset >= (size_t)((uintptr_t)__wc_text_end - (uintptr_t)__wc_text_start)) {
-#ifdef DEBUG_LINUXKM_PIE_SUPPORT
-        pr_err("ERROR: %s failed at L %d.\n", __FUNCTION__, __LINE__);
-#endif
-        return -1;
-    }
-    if (text_in_offset >= (size_t)wc_linuxkm_pie_reloc_tab[wc_linuxkm_pie_reloc_tab_length - 1].offset) {
-#ifdef DEBUG_LINUXKM_PIE_SUPPORT
-        pr_err("ERROR: %s failed at L %d.\n", __FUNCTION__, __LINE__);
-#endif
-        return -1;
-    }
-    for (ret = 0,
-             hop = wc_linuxkm_pie_reloc_tab_length >> 1;
-         hop;
-         hop >>= 1)
-    {
-        if (text_in_offset == (size_t)wc_linuxkm_pie_reloc_tab[ret].offset)
-            break;
-        else if (text_in_offset > (size_t)wc_linuxkm_pie_reloc_tab[ret].offset)
-            ret += hop;
-        else if (ret)
-            ret -= hop;
-    }
-
-    while ((ret < (long)wc_linuxkm_pie_reloc_tab_length - 1) &&
-           ((size_t)wc_linuxkm_pie_reloc_tab[ret].offset < text_in_offset))
-        ++ret;
-
-    while ((ret > 0) &&
-           ((size_t)wc_linuxkm_pie_reloc_tab[ret - 1].offset >= text_in_offset))
-        --ret;
-
-#ifdef DEBUG_LINUXKM_PIE_SUPPORT
-    if (ret < 0)
-        pr_err("ERROR: %s returning %ld at L %d.\n", __FUNCTION__, ret, __LINE__);
-#endif
-    return ret;
-}
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0)
-#include <linux/unaligned.h>
+static const struct wc_reloc_table_segments seg_map = {
+    .start = 0, .end = 0,
+    .text_start = (size_t)(uintptr_t)__wc_text_start,
+    .text_end = (size_t)(uintptr_t)__wc_text_end,
+    .reloc_tab_start = (size_t)(uintptr_t)wc_linuxkm_pie_reloc_tab,
+    .reloc_tab_end = 0,
+    .reloc_tab_len_start = (size_t)(uintptr_t)&wc_linuxkm_pie_reloc_tab_length,
+    .reloc_tab_len_end = 0,
+#ifdef HAVE_FIPS
+#ifdef WC_USE_PIE_FENCEPOSTS_FOR_FIPS
+    .fips_text_start = (size_t)(uintptr_t)__wc_text_start,
+    .fips_text_end = (size_t)(uintptr_t)__wc_text_end,
 #else
-#include <asm-generic/unaligned.h>
+    .fips_text_start = (size_t)(uintptr_t)wolfCrypt_FIPS_first,
+    .fips_text_end = (size_t)(uintptr_t)wolfCrypt_FIPS_last,
 #endif
+#endif /* HAVE_FIPS */
+    .rodata_start = (size_t)(uintptr_t)__wc_rodata_start,
+    .rodata_end = (size_t)(uintptr_t)__wc_rodata_end,
+#ifdef HAVE_FIPS
+#ifdef WC_USE_PIE_FENCEPOSTS_FOR_FIPS
+    .fips_rodata_start = (size_t)(uintptr_t)__wc_rodata_start,
+    .fips_rodata_end = (size_t)(uintptr_t)__wc_rodata_end,
+#else
+    .fips_rodata_start = (size_t)(uintptr_t)wolfCrypt_FIPS_ro_start,
+    .fips_rodata_end = (size_t)(uintptr_t)wolfCrypt_FIPS_ro_end,
+#endif
+    #if FIPS_VERSION3_GE(6,0,0) || defined(WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE)
+    .verifyCore_start = (uintptr_t)verifyCore,
+    .verifyCore_end = (uintptr_t)verifyCore + FIPS_IN_CORE_DIGEST_SIZE*2 + 1,
+    #endif
+#endif /* HAVE_FIPS */
+    .data_start = (size_t)(uintptr_t)__wc_rwdata_start,
+    .data_end = (size_t)(uintptr_t)__wc_rwdata_end,
+    .bss_start = (size_t)(uintptr_t)__wc_bss_start,
+    .bss_end = (size_t)(uintptr_t)__wc_bss_end,
+    .text_is_live = 1
+};
 
 ssize_t wc_linuxkm_normalize_relocations(
     const u8 *text_in,
@@ -989,390 +1062,42 @@ ssize_t wc_linuxkm_normalize_relocations(
     u8 *text_out,
     ssize_t *cur_index_p)
 {
-    ssize_t i;
-    size_t text_in_offset;
-    const struct wc_linuxkm_pie_reloc_tab_ent *last_reloc; /* for error-checking order in wc_linuxkm_pie_reloc_tab[] */
+    return wc_reloc_normalize_text(text_in, text_in_len, text_out, cur_index_p, &seg_map,
 #ifdef DEBUG_LINUXKM_PIE_SUPPORT
-    int n_text_r = 0, n_rodata_r = 0, n_rwdata_r = 0, n_bss_r = 0, n_other_r = 0, n_oob_r = 0;
-#endif
-
-    if ((text_in_len == 0) ||
-        ((uintptr_t)text_in < (uintptr_t)__wc_text_start) ||
-        ((uintptr_t)(text_in + text_in_len) > (uintptr_t)__wc_text_end))
-    {
-#ifdef DEBUG_LINUXKM_PIE_SUPPORT
-        pr_err("ERROR: %s returning -1 at L %d with span %llx-%llx versus segment %llx-%llx.\n",
-               __FUNCTION__, __LINE__,
-               (unsigned long long)(uintptr_t)text_in,
-               (unsigned long long)(uintptr_t)(text_in + text_in_len),
-               (unsigned long long)(uintptr_t)__wc_text_start,
-               (unsigned long long)(uintptr_t)__wc_text_end);
-#endif
-        return -1;
-    }
-
-    text_in_offset = (uintptr_t)text_in - (uintptr_t)__wc_text_start;
-
-    if (cur_index_p)
-        i = *cur_index_p;
-    else
-        i = -1;
-
-    if (i == -1)
-        i = find_reloc_tab_offset(text_in_offset);
-
-    if (i < 0)
-        return i;
-
-    WC_SANITIZE_DISABLE();
-    memcpy(text_out, text_in, text_in_len);
-    WC_SANITIZE_ENABLE();
-
-    for (last_reloc = &wc_linuxkm_pie_reloc_tab[i > 0 ? i-1 : 0];
-         (size_t)i < wc_linuxkm_pie_reloc_tab_length - 1;
-         ++i)
-    {
-        const struct wc_linuxkm_pie_reloc_tab_ent *next_reloc = &wc_linuxkm_pie_reloc_tab[i];
-        enum wc_reloc_dest_segment dest_seg;
-        uintptr_t seg_beg;
-#ifdef DEBUG_LINUXKM_PIE_SUPPORT
-        uintptr_t seg_end;
-        const char *seg_name;
-#endif
-        word64 reloc_buf = 0;
-        const struct reloc_layout_ent *layout;
-        unsigned int next_reloc_rel;
-
-        if (next_reloc->dest_segment == WC_R_SEG_NONE) {
-            pr_err("BUG: missing dest segment for relocation at wc_linuxkm_pie_reloc_tab[%zd]\n", i);
-            continue;
-        }
-
-        if (last_reloc->offset > next_reloc->offset) {
-            pr_err("BUG: out-of-order offset found at wc_linuxkm_pie_reloc_tab[%zd]: %u > %u\n",
-                   i, last_reloc->offset, next_reloc->offset);
-            return -1;
-        }
-
-        last_reloc = next_reloc;
-
-        if (next_reloc->reloc_type >= (sizeof reloc_layouts / sizeof reloc_layouts[0])) {
-            pr_err("BUG: unknown relocation type %u found at wc_linuxkm_pie_reloc_tab[%zd]\n",
-                   next_reloc->reloc_type, i);
-                return -1;
-        }
-
-        layout = &reloc_layouts[next_reloc->reloc_type];
-
-        switch (layout->width) {
-        case 32:
-        case 64:
-        case 16:
-            break;
-        default:
-            pr_err("BUG: unexpected relocation width %llu found at wc_linuxkm_pie_reloc_tab[%lld], reloc type %u\n",
-                   (unsigned long long)layout->width, (long long)i, next_reloc->reloc_type);
-            return -1;
-        }
-
-        /* provisionally assign the destination segment from the reloc record --
-         * it may wind up getting overridden later if things don't go as
-         * expected.
-         */
-        dest_seg = next_reloc->dest_segment;
-
-        /* next_reloc_rel is the offset of the relocation relative to the start
-         * of the current text chunk (text_in).  i.e., text_in + next_reloc_rel
-         * is the start of the relocation.
-         */
-        next_reloc_rel = next_reloc->offset - text_in_offset;
-
-        if (next_reloc_rel >= text_in_len) {
-            /* no more relocations in this buffer. */
-            break;
-        }
-
-        if (next_reloc_rel > text_in_len - layout->width) {
-            /* relocation straddles buffer at end -- caller will try again with
-             * that relocation at the start.
-             */
-            text_in_len = next_reloc_rel;
-            break;
-        }
-
-        /* set reloc_buf to the address bits from the live text segment.  on
-         * ARM, this will often also pull in some opcode bits, which we mask out.
-         */
-        if (layout->is_signed) {
-            /* Note, the intermediate cast to sword64 is necessary to
-             * sign-extend the value to 64 bits before unsigned
-             * reinterpretation.  Normalization later relies on this.
-             */
-            switch (layout->width) {
-            case 32:
-                reloc_buf = (word64)(sword64)(get_unaligned((sword32 *)&text_out[next_reloc_rel]) & (sword32)layout->mask);
-                break;
-            case 64:
-                reloc_buf = (word64)(sword64)(get_unaligned((sword64 *)&text_out[next_reloc_rel]) & (sword64)layout->mask);
-                break;
-            case 16:
-                reloc_buf = (word64)(sword64)(get_unaligned((sword16 *)&text_out[next_reloc_rel]) & (sword16)layout->mask);
-                break;
-            }
-        }
-        else {
-            switch (layout->width) {
-            case 32:
-                reloc_buf = (word64)(get_unaligned((word32 *)&text_out[next_reloc_rel]) & (word32)layout->mask);
-                break;
-            case 64:
-                reloc_buf = (word64)(get_unaligned((word64 *)&text_out[next_reloc_rel]) & layout->mask);
-                break;
-            case 16:
-                reloc_buf = (word64)(get_unaligned((word16 *)&text_out[next_reloc_rel]) & (word16)layout->mask);
-                break;
-            }
-        }
-
-        switch (dest_seg) {
-        case WC_R_SEG_TEXT:
-            seg_beg = (uintptr_t)__wc_text_start;
-            #ifdef DEBUG_LINUXKM_PIE_SUPPORT
-            seg_end = (uintptr_t)__wc_text_end;
-            seg_name = "text";
-            ++n_text_r;
-            #endif
-            break;
-        case WC_R_SEG_RODATA:
-            seg_beg = (uintptr_t)__wc_rodata_start;
-            #ifdef DEBUG_LINUXKM_PIE_SUPPORT
-            seg_end = (uintptr_t)__wc_rodata_end;
-            seg_name = "rodata";
-            ++n_rodata_r;
-            #endif
-            break;
-        case WC_R_SEG_RWDATA:
-            seg_beg = (uintptr_t)__wc_rwdata_start;
-            #ifdef DEBUG_LINUXKM_PIE_SUPPORT
-            seg_end = (uintptr_t)__wc_rwdata_end;
-            seg_name = "data";
-            ++n_rwdata_r;
-            #endif
-            break;
-        case WC_R_SEG_BSS:
-            seg_beg = (uintptr_t)__wc_bss_start;
-            #ifdef DEBUG_LINUXKM_PIE_SUPPORT
-            seg_end = (uintptr_t)__wc_bss_end;
-            seg_name = "bss";
-            ++n_bss_r;
-            #endif
-            break;
-        default:
-        case WC_R_SEG_NONE:
-            dest_seg = WC_R_SEG_OTHER;
-            FALL_THROUGH;
-        case WC_R_SEG_OTHER:
-            seg_beg = 0;
-            #ifdef DEBUG_LINUXKM_PIE_SUPPORT
-            seg_end = 0;
-            seg_name = "other";
-            #endif
-            break;
-        }
-
-#ifdef CONFIG_X86
-        {
-            switch (next_reloc->reloc_type) {
-            case WC_R_X86_64_PC32:
-            case WC_R_X86_64_PLT32:
-            case WC_R_X86_64_32:
-            case WC_R_X86_64_32S:
-            case WC_R_X86_64_64:
-                break;
-            default:
-#ifdef DEBUG_LINUXKM_PIE_SUPPORT
-                pr_notice("BUG: unexpected non-x86 relocation type %u in reloc record %zu, text offset 0x%x\n",
-                          (unsigned)next_reloc->reloc_type, i, wc_linuxkm_pie_reloc_tab[i].offset);
-                ++n_oob_r;
-#endif
-                dest_seg = WC_R_SEG_OTHER;
-            }
-
-            if (dest_seg != WC_R_SEG_OTHER) {
-#ifdef DEBUG_LINUXKM_PIE_SUPPORT
-                word64 raw_dest_addr = reloc_buf;
-#endif
-
-                if (layout->is_relative) {
-                    /* the +(layout->width / 8) (i.e. 4) accounts for the disp32
-                     * field size, as RIP points to the next instruction byte
-                     * per the x86_64 ABI.
-                     */
-                    reloc_buf = reloc_buf + (uintptr_t)next_reloc->offset + ((uintptr_t)layout->width / 8UL) - (seg_beg - (uintptr_t)__wc_text_start);
-                }
-                else
-                    reloc_buf -= seg_beg;
-
-#ifdef DEBUG_LINUXKM_PIE_SUPPORT
-                /* For the various data segments, recognize dest addrs a few bytes
-                 * outside the segment -- the compiler occasionally generates these,
-                 * e.g. __wc_rwdata_start - 1 in DoInCoreCheck() in kernel 6.1 build
-                 * of FIPS v5, __wc_bss_start - 4 in kernel 4.4, and __wc_rodata_end
-                 * + 26 in kernel 6.18.
-                 */
-                #ifndef LINUXKM_PIE_DATA_SLOP_MARGIN
-                    #define LINUXKM_PIE_DATA_SLOP_MARGIN 0x20
-                #endif
-
-                if ((dest_seg == WC_R_SEG_TEXT) ?
-                    (reloc_buf > seg_end - seg_beg) :
-                    (reloc_buf + LINUXKM_PIE_DATA_SLOP_MARGIN > (seg_end - seg_beg) + (LINUXKM_PIE_DATA_SLOP_MARGIN * 2)))
-                {
-                    ++n_oob_r;
-                    pr_notice("WARNING: normalized value is out of bounds (%s0x%lx) at index %ld, text offset 0x%x, reloc type %s, "
-                              "dest seg .%s_wolfcrypt, offset from text to dest segment %s0x%lx, raw dest addr %s0x%lx, "
-                              "seg span 0x%lx - 0x%lx, seg size 0x%lx, text base 0x%lx\n",
-                              (sword64)reloc_buf < 0 ? "-" : "",
-                              (sword64)reloc_buf < 0 ? -reloc_buf : reloc_buf,
-                              i,
-                              next_reloc->offset,
-                              layout->name,
-                              seg_name,
-                              seg_beg < (uintptr_t)__wc_text_start ? "-" : "+",
-                              seg_beg < (uintptr_t)__wc_text_start ? (word64)(uintptr_t)__wc_text_start - seg_beg : seg_beg - (word64)(uintptr_t)__wc_text_start,
-                              (layout->is_signed && ((sword64)raw_dest_addr < 0)) ? "-" : "",
-                              (layout->is_signed && ((sword64)raw_dest_addr < 0)) ? (word64)-(sword64)raw_dest_addr : raw_dest_addr,
-                              (word64)seg_beg,
-                              (word64)seg_end,
-                              (word64)(seg_end - seg_beg),
-                              (word64)(uintptr_t)__wc_text_start);
-                }
-#endif
-            }
-        } /* end CONFIG_X86 */
-
-#elif defined(CONFIG_ARM)
-        {
-            switch (next_reloc->reloc_type) {
-            case WC_R_ARM_ABS32:
-            case WC_R_ARM_PREL31:
-            case WC_R_ARM_REL32:
-            case WC_R_ARM_THM_CALL:
-            case WC_R_ARM_THM_JUMP11:
-            case WC_R_ARM_THM_JUMP24:
-            case WC_R_ARM_THM_MOVT_ABS:
-            case WC_R_ARM_THM_MOVW_ABS_NC:
-                break;
-            default:
-#ifdef DEBUG_LINUXKM_PIE_SUPPORT
-                pr_notice("BUG: unexpected non-ARM32 relocation type %u in reloc record %u, text offset 0x%x\n",
-                          (unsigned)next_reloc->reloc_type, i, wc_linuxkm_pie_reloc_tab[i].offset);
-                ++n_oob_r;
-#endif
-                dest_seg = WC_R_SEG_OTHER;
-            }
-
-            /* Don't attempt to reconstruct ARM destination addresses -- just
-             * normalize to zero.  They can be reconstructed using the
-             * parameters in reloc_layouts[] but it's very fidgety.
-             */
-            reloc_buf = 0;
-        } /* end CONFIG_ARM */
-
-#elif defined(CONFIG_ARM64)
-        {
-            switch (next_reloc->reloc_type) {
-            case WC_R_AARCH64_ABS32:
-            case WC_R_AARCH64_ABS64:
-            case WC_R_AARCH64_ADD_ABS_LO12_NC:
-            case WC_R_AARCH64_ADR_PREL_PG_HI21:
-            case WC_R_AARCH64_CALL26:
-            case WC_R_AARCH64_JUMP26:
-            case WC_R_AARCH64_LDST16_ABS_LO12_NC:
-            case WC_R_AARCH64_LDST32_ABS_LO12_NC:
-            case WC_R_AARCH64_LDST64_ABS_LO12_NC:
-            case WC_R_AARCH64_LDST8_ABS_LO12_NC:
-            case WC_R_AARCH64_PREL32:
-                break;
-            default:
-#ifdef DEBUG_LINUXKM_PIE_SUPPORT
-                pr_notice("BUG: unexpected non-ARM64 relocation type %u in reloc record %ld, text offset 0x%x\n",
-                          (unsigned)next_reloc->reloc_type, i, wc_linuxkm_pie_reloc_tab[i].offset);
-                ++n_oob_r;
-#endif
-                dest_seg = WC_R_SEG_OTHER;
-            }
-
-            /* Don't attempt to reconstruct ARM destination addresses -- just
-             * normalize to zero.  They can be reconstructed using the
-             * parameters in reloc_layouts[] but it's very fidgety.
-             */
-            reloc_buf = 0;
-        } /* end CONFIG_ARM64 */
-
+                                   &reloc_counts
 #else
-
-        #warning Building WC_SYM_RELOC_TABLES without arch-specific handling.
-
-        dest_seg = WC_R_SEG_OTHER;
-        reloc_buf = 0;
-
+                                   NULL
 #endif
-
-        if (dest_seg == WC_R_SEG_OTHER) {
-            /* relocation referring to non-wolfcrypt segment -- these can only
-             * be stabilized by zeroing them.
-             */
-            reloc_buf = 0;
-
-#ifdef DEBUG_LINUXKM_PIE_SUPPORT
-            ++n_other_r;
-            /* we're currently only handling 32 bit relocations (R_X86_64_PLT32
-             * and R_X86_64_PC32) so the top half of the word64 is padding we
-             * can lop off for rendering.
-             */
-            pr_notice("found non-wolfcrypt relocation at index %lld, text offset 0x%x.\n",
-                      (long long)i, wc_linuxkm_pie_reloc_tab[i].offset);
-#endif
-        }
-
-        /* xor in a label identifying the dest segment and reloc type. */
-        reloc_buf ^= dest_seg << (layout->width - WC_RELOC_DEST_SEGMENT_BITS);
-        reloc_buf ^= next_reloc->reloc_type << (layout->width - (WC_RELOC_DEST_SEGMENT_BITS + WC_RELOC_TYPE_BITS));
-
-        /* write the modified reloc_buf to the destination buffer. */
-        switch (layout->width) {
-        case 32:
-            put_unaligned((u32)reloc_buf, (u32 *)&text_out[next_reloc_rel]);
-            break;
-        case 64:
-            put_unaligned(reloc_buf, (u64 *)&text_out[next_reloc_rel]);
-            break;
-        case 16:
-            put_unaligned((u16)reloc_buf, (u16 *)&text_out[next_reloc_rel]);
-            break;
-        }
-    }
-
-#ifdef DEBUG_LINUXKM_PIE_SUPPORT
-    total_text_r += n_text_r;
-    total_rodata_r += n_rodata_r;
-    total_rwdata_r += n_rwdata_r;
-    total_bss_r += n_bss_r;
-    total_other_r += n_other_r;
-
-    if ((n_other_r > 0) || (n_oob_r > 0))
-        pr_notice("text_in=%llx relocs=%d/%d/%d/%d/%d/%d ret = %llu\n",
-                  (unsigned long long)(uintptr_t)text_in, n_text_r, n_rodata_r,
-                  n_rwdata_r, n_bss_r, n_other_r, n_oob_r,
-                  (unsigned long long)text_in_len);
-#endif
-
-    if (cur_index_p)
-        *cur_index_p = i;
-
-    return (ssize_t)text_in_len;
+        );
 }
+
+#elif defined(HAVE_FIPS)
+
+static const struct wc_reloc_table_segments seg_map = {
+    .start = 0, .end = 0,
+#ifdef WC_USE_PIE_FENCEPOSTS_FOR_FIPS
+    .fips_text_start = (size_t)(uintptr_t)__wc_text_start,
+    .fips_text_end = (size_t)(uintptr_t)__wc_text_end,
+#else
+    .fips_text_start = (size_t)(uintptr_t)wolfCrypt_FIPS_first,
+    .fips_text_end = (size_t)(uintptr_t)wolfCrypt_FIPS_last,
+#endif
+#ifdef WC_USE_PIE_FENCEPOSTS_FOR_FIPS
+    .fips_rodata_start = (size_t)(uintptr_t)__wc_rodata_start,
+    .fips_rodata_end = (size_t)(uintptr_t)__wc_rodata_end,
+#else
+    .fips_rodata_start = (size_t)(uintptr_t)wolfCrypt_FIPS_ro_start,
+    .fips_rodata_end = (size_t)(uintptr_t)wolfCrypt_FIPS_ro_end,
+#endif
+    #if FIPS_VERSION3_GE(6,0,0) || defined(WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE)
+    .verifyCore_start = (uintptr_t)verifyCore,
+    .verifyCore_end = (uintptr_t)verifyCore + FIPS_IN_CORE_DIGEST_SIZE*2 + 1
+    #endif
+};
+
+#endif /* !WC_SYM_RELOC_TABLES && HAVE_FIPS */
+
+#ifdef WC_SYM_RELOC_TABLES
 
 /* get_current() is an inline or macro, depending on the target -- sidestep the
  * whole issue with a wrapper func.
@@ -1395,8 +1120,10 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
         0,
         sizeof wolfssl_linuxkm_pie_redirect_table);
 
+#ifdef HAVE_FIPS
     wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_normalize_relocations =
         wc_linuxkm_normalize_relocations;
+#endif
 
 #ifndef __ARCH_MEMCMP_NO_REDIRECT
     wolfssl_linuxkm_pie_redirect_table.memcmp = memcmp;
@@ -1730,6 +1457,11 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
     wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_check_for_intr_signals = wc_linuxkm_check_for_intr_signals;
     wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_relax_long_loop = wc_linuxkm_relax_long_loop;
 
+#ifdef CONFIG_KASAN
+    wolfssl_linuxkm_pie_redirect_table.kasan_disable_current = kasan_disable_current;
+    wolfssl_linuxkm_pie_redirect_table.kasan_enable_current = kasan_enable_current;
+#endif
+
     /* runtime assert that the table has no null slots after initialization. */
     {
         unsigned long *i;
@@ -1762,93 +1494,110 @@ PRAGMA_GCC("GCC diagnostic ignored \"-Wunused-parameter\"")
 #include <crypto/hash.h>
 PRAGMA_GCC_DIAG_POP
 
-extern const char coreKey[WC_SHA256_DIGEST_SIZE*2 + 1];
+/* failsafe definitions for FIPS <5.3 */
+#ifndef FIPS_IN_CORE_DIGEST_SIZE
+    #ifndef NO_SHA256
+        #define FIPS_IN_CORE_DIGEST_SIZE 32
+        #define FIPS_IN_CORE_HASH_TYPE   WC_SHA256
+        #define FIPS_IN_CORE_KEY_SZ      32
+        #define FIPS_IN_CORE_VERIFY_SZ   FIPS_IN_CORE_KEY_SZ
+    #elif defined(WOLFSSL_SHA384)
+        #define FIPS_IN_CORE_DIGEST_SIZE 48
+        #define FIPS_IN_CORE_HASH_TYPE   WC_SHA384
+        #define FIPS_IN_CORE_KEY_SZ      48
+        #define FIPS_IN_CORE_VERIFY_SZ   FIPS_IN_CORE_KEY_SZ
+    #else
+        #error Unsupported FIPS hash alg.
+    #endif
+#endif
+
+extern const char coreKey[FIPS_IN_CORE_KEY_SZ*2 + 1];
 extern const unsigned int wolfCrypt_FIPS_ro_start[];
 extern const unsigned int wolfCrypt_FIPS_ro_end[];
 
-#define FIPS_IN_CORE_KEY_SZ 32
-#define FIPS_IN_CORE_VERIFY_SZ FIPS_IN_CORE_KEY_SZ
-typedef int (*fips_address_function)(void);
-#define MAX_FIPS_DATA_SZ 10000000
-#define MAX_FIPS_CODE_SZ 10000000
-extern int GenBase16_Hash(const byte* in, int length, char* out, int outSz);
+static int linux_fips_hmac_setkey(struct shash_desc *desc, const byte *key, word32 key_len) {
+    int ret = crypto_shash_setkey(desc->tfm, key, key_len);
+    if (ret) {
+        pr_err("ERROR: crypto_ahash_setkey failed: err %d\n", ret);
+        return BAD_STATE_E;
+    }
+
+    ret = crypto_shash_init(desc);
+    if (ret) {
+        pr_err("ERROR: crypto_shash_init failed: err %d\n", ret);
+        return BAD_STATE_E;
+    }
+    return 0;
+}
+static int linux_fips_hmac_update(struct shash_desc *desc, const byte *in, word32 in_len) {
+    int ret = crypto_shash_update(desc, in, in_len);
+    if (ret) {
+        pr_err("ERROR: crypto_shash_update failed: err %d\n", ret);
+        return BAD_STATE_E;
+    }
+    else
+        return 0;
+}
+static int linux_fips_hmac_final(struct shash_desc *desc, byte *out, word32 out_sz) {
+    int ret;
+
+    (void)out_sz;
+
+    ret = crypto_shash_final(desc, out);
+    if (ret) {
+        pr_err("ERROR: crypto_shash_final failed: err %d\n", ret);
+        return BAD_STATE_E;
+    }
+    else
+        return 0;
+}
 
 static int updateFipsHash(void)
 {
     struct crypto_shash *tfm = NULL;
     struct shash_desc *desc = NULL;
-    word32 verifySz  = FIPS_IN_CORE_VERIFY_SZ;
-    word32 binCoreSz  = FIPS_IN_CORE_KEY_SZ;
     int ret;
-    byte *hash = NULL;
-    char *base16_hash = NULL;
-    byte *binCoreKey = NULL;
-    byte *binVerify = NULL;
+    word32 verifyCore_size = XSTRLEN(verifyCore) + 1;
+    char *old_verifyCore = XMALLOC(verifyCore_size, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
-#ifdef WC_USE_PIE_FENCEPOSTS_FOR_FIPS
-    fips_address_function first = __wc_text_start;
-    fips_address_function last  = __wc_text_end;
-    char* start = (char*)__wc_rodata_start;
-    char* end   = (char*)__wc_rodata_end;
-#else
-    fips_address_function first = wolfCrypt_FIPS_first;
-    fips_address_function last  = wolfCrypt_FIPS_last;
-    char* start = (char*)wolfCrypt_FIPS_ro_start;
-    char* end   = (char*)wolfCrypt_FIPS_ro_end;
-#endif
+    if (old_verifyCore == NULL)
+        return MEMORY_E;
+    XMEMCPY(old_verifyCore, verifyCore, verifyCore_size);
 
-    unsigned long code_sz = (unsigned long)last - (unsigned long)first;
-    unsigned long data_sz = (unsigned long)end - (unsigned long)start;
+    wc_static_assert(((unsigned)FIPS_IN_CORE_HASH_TYPE == (unsigned)WC_SHA256) ||
+                     ((unsigned)FIPS_IN_CORE_HASH_TYPE == (unsigned)WC_SHA384) ||
+                     ((unsigned)FIPS_IN_CORE_HASH_TYPE == (unsigned)WC_SHA512) ||
+                     ((unsigned)FIPS_IN_CORE_HASH_TYPE == (unsigned)WC_SHA3_256) ||
+                     ((unsigned)FIPS_IN_CORE_HASH_TYPE == (unsigned)WC_SHA3_384) ||
+                     ((unsigned)FIPS_IN_CORE_HASH_TYPE == (unsigned)WC_SHA3_512));
 
-    if (data_sz == 0 || data_sz > MAX_FIPS_DATA_SZ)
-        return BAD_FUNC_ARG;  /* bad fips data size */
-
-    if (code_sz == 0 || code_sz > MAX_FIPS_CODE_SZ)
-        return BAD_FUNC_ARG;  /* bad fips code size */
-
-    hash = XMALLOC(WC_SHA256_DIGEST_SIZE, 0, DYNAMIC_TYPE_TMP_BUFFER);
-    if (hash == NULL) {
-        ret = MEMORY_E;
-        goto out;
-    }
-    base16_hash = XMALLOC(WC_SHA256_DIGEST_SIZE*2 + 1, 0, DYNAMIC_TYPE_TMP_BUFFER);
-    if (base16_hash == NULL) {
-        ret = MEMORY_E;
-        goto out;
-    }
-    binCoreKey = XMALLOC(binCoreSz, 0, DYNAMIC_TYPE_TMP_BUFFER);
-    if (binCoreKey == NULL) {
-        ret = MEMORY_E;
-        goto out;
-    }
-    binVerify = XMALLOC(verifySz, 0, DYNAMIC_TYPE_TMP_BUFFER);
-    if (binVerify == NULL) {
-        ret = MEMORY_E;
-        goto out;
+    switch ((unsigned)FIPS_IN_CORE_HASH_TYPE) {
+    case (unsigned)WC_SHA256:
+        tfm = crypto_alloc_shash("hmac(sha256)", 0, 0);
+        break;
+    case (unsigned)WC_SHA384:
+        tfm = crypto_alloc_shash("hmac(sha384)", 0, 0);
+        break;
+    case (unsigned)WC_SHA512:
+        tfm = crypto_alloc_shash("hmac(sha512)", 0, 0);
+        break;
+    case (unsigned)WC_SHA3_256:
+        tfm = crypto_alloc_shash("hmac(sha3-256)", 0, 0);
+        break;
+    case (unsigned)WC_SHA3_384:
+        tfm = crypto_alloc_shash("hmac(sha3-384)", 0, 0);
+        break;
+    case (unsigned)WC_SHA3_512:
+        tfm = crypto_alloc_shash("hmac(sha3-512)", 0, 0);
+        break;
     }
 
-    {
-        word32 base16_out_len = binCoreSz;
-        ret = Base16_Decode((const byte *)coreKey, sizeof coreKey - 1, binCoreKey, &base16_out_len);
-        if (ret != 0) {
-            pr_err("ERROR: Base16_Decode for coreKey: %s\n", wc_GetErrorString(ret));
-            goto out;
-        }
-        if (base16_out_len != binCoreSz) {
-            pr_err("ERROR: unexpected output length %u for coreKey from Base16_Decode.\n",base16_out_len);
-            ret = BAD_STATE_E;
-            goto out;
-        }
-    }
-
-    tfm = crypto_alloc_shash("hmac(sha256)", 0, 0);
     if (IS_ERR(tfm)) {
         if (PTR_ERR(tfm) == -ENOMEM) {
             pr_err("ERROR: crypto_alloc_shash failed: out of memory\n");
             ret = MEMORY_E;
         } else if (PTR_ERR(tfm) == -ENOENT) {
-            pr_err("ERROR: crypto_alloc_shash failed: kernel is missing hmac(sha256) implementation\n");
-            pr_err("ERROR: check for CONFIG_CRYPTO_SHA256 and CONFIG_CRYPTO_HMAC.\n");
+            pr_err("ERROR: crypto_alloc_shash failed: target kernel is missing algorithm implementation for hash type %u\n", FIPS_IN_CORE_HASH_TYPE);
             ret = NOT_COMPILED_IN;
         } else {
             pr_err("ERROR: crypto_alloc_shash failed with ret %ld\n",PTR_ERR(tfm));
@@ -1869,124 +1618,38 @@ static int updateFipsHash(void)
         XMEMSET(desc, 0, desc_size);
     }
 
-    ret = crypto_shash_setkey(tfm, binCoreKey, binCoreSz);
-    if (ret) {
-        pr_err("ERROR: crypto_ahash_setkey failed: err %d\n", ret);
-        ret = BAD_STATE_E;
-        goto out;
-    }
-
     desc->tfm = tfm;
-    ret = crypto_shash_init(desc);
-    if (ret) {
-        pr_err("ERROR: crypto_shash_init failed: err %d\n", ret);
-        ret = BAD_STATE_E;
-        goto out;
-    }
 
-#if defined(WOLFSSL_LINUXKM) && defined(WC_SYM_RELOC_TABLES)
-    {
-        ssize_t cur_reloc_index = -1;
-        const byte *text_p = (const byte *)first;
-        byte *buf = XMALLOC(8192, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-
-        if (! buf) {
-            pr_err("ERROR: malloc failed in updateFipsHash()\n");
-            ret = MEMORY_E;
-            goto out;
-        }
-
-        while (text_p < (const byte *)last) {
-            ssize_t progress = wc_linuxkm_normalize_relocations(
-                text_p,
-                min(8192, (word32)((const byte *)last - text_p)),
-                buf,
-                &cur_reloc_index);
-            if (progress < 0) {
-                ret = IN_CORE_FIPS_E;
-                break;
-            }
-            ret = crypto_shash_update(desc, buf, (word32)progress);
-            if (ret)
-                break;
-            text_p += progress;
-        }
-
-        XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
-
-    WC_SANITIZE_DISABLE();
+    ret = wc_fips_generate_hash(
+        &seg_map,
+        FIPS_IN_CORE_DIGEST_SIZE,
+        coreKey,
+        desc,
+        (wc_fips_verifyCore_hmac_setkey_fn)linux_fips_hmac_setkey,
+        (wc_fips_verifyCore_hmac_update_fn)linux_fips_hmac_update,
+        (wc_fips_verifyCore_hmac_final_fn)linux_fips_hmac_final,
+        verifyCore,
+        &verifyCore_size,
+#if defined(DEBUG_LINUXKM_PIE_SUPPORT) && defined(WC_SYM_RELOC_TABLES)
+        &reloc_counts
 #else
-    WC_SANITIZE_DISABLE();
-    ret = crypto_shash_update(desc, (byte *)(wc_ptr_t)first, (word32)code_sz);
-#endif /* !WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE */
+        NULL
+#endif
+        );
 
-    if (ret) {
-        pr_err("ERROR: crypto_shash_update failed: err %d\n", ret);
-        ret = BAD_STATE_E;
-        WC_SANITIZE_ENABLE();
+    if (ret < 0)
         goto out;
-    }
 
-    /* don't hash verifyCore or changing verifyCore will change hash */
-    if (verifyCore >= start && verifyCore < end) {
-        data_sz = (unsigned long)verifyCore - (unsigned long)start;
-        ret = crypto_shash_update(desc, (byte*)start, (word32)data_sz);
-        if (ret) {
-                pr_err("ERROR: crypto_shash_update failed: err %d\n", ret);
-                ret = BAD_STATE_E;
-                goto out;
-        }
-        start   = (char*)verifyCore + sizeof(verifyCore);
-        data_sz = (unsigned long)end - (unsigned long)start;
-    }
-    ret = crypto_shash_update(desc, (byte*)start, (word32)data_sz);
-    if (ret) {
-        pr_err("ERROR: crypto_shash_update failed: err %d\n", ret);
-        ret = BAD_STATE_E;
-        WC_SANITIZE_ENABLE();
-        goto out;
-    }
-
-    WC_SANITIZE_ENABLE();
-
-    ret = crypto_shash_final(desc, hash);
-    if (ret) {
-        pr_err("ERROR: crypto_shash_final failed: err %d\n", ret);
-        ret = BAD_STATE_E;
-        goto out;
-    }
-
-    ret = GenBase16_Hash(hash, WC_SHA256_DIGEST_SIZE, base16_hash, WC_SHA256_DIGEST_SIZE*2 + 1);
-    if (ret != 0) {
-        pr_err("ERROR: GenBase16_Hash failed: %s\n", wc_GetErrorString(ret));
-        goto out;
-    }
-
-    {
-        word32 base16_out_len = verifySz;
-        ret = Base16_Decode((const byte *)verifyCore, sizeof verifyCore - 1, binVerify, &base16_out_len);
-        if (ret != 0) {
-            pr_err("ERROR: Base16_Decode for verifyCore: %s\n", wc_GetErrorString(ret));
-            goto out;
-        }
-        if (base16_out_len != binCoreSz) {
-            pr_err("ERROR: unexpected output length %u for verifyCore from Base16_Decode.\n",base16_out_len);
-            ret = BAD_STATE_E;
-            goto out;
-        }
-    }
-
-    if (XMEMCMP(hash, binVerify, WC_SHA256_DIGEST_SIZE) == 0) {
+    if (strcmp(old_verifyCore, verifyCore) == 0) {
 #if defined(DEBUG_LINUXKM_PIE_SUPPORT) || defined(WOLFSSL_LINUXKM_VERBOSE_DEBUG)
         pr_info("updateFipsHash: verifyCore already matches [%s]\n", verifyCore);
 #else
         pr_info("updateFipsHash: verifyCore already matches.\n");
 #endif
-    } else {
-        XMEMCPY(verifyCore, base16_hash, WC_SHA256_DIGEST_SIZE*2 + 1);
+    }
+    else {
 #if defined(DEBUG_LINUXKM_PIE_SUPPORT) || defined(WOLFSSL_LINUXKM_VERBOSE_DEBUG)
-        pr_info("updateFipsHash: verifyCore updated [%s].\n", base16_hash);
+        pr_info("updateFipsHash: verifyCore updated [%s].\n", verifyCore);
 #else
         pr_info("updateFipsHash: verifyCore updated.\n");
 #endif
@@ -1999,10 +1662,7 @@ static int updateFipsHash(void)
     if (tfm != NULL)
         crypto_free_shash(tfm);
     XFREE(desc, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(hash, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(base16_hash, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(binCoreKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(binVerify, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(old_verifyCore, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -2135,7 +1795,23 @@ static ssize_t FIPS_optest_trig_handler(struct kobject *kobj, struct kobj_attrib
 
     printf("OK, testing code %s\n", code_buf);
 
+    #ifdef WC_LINUXKM_HAVE_STACK_DEBUG
+    {
+        unsigned long stack_usage;
+        stack_usage = wc_linuxkm_stack_current();
+        pr_info("STACK INFO: usage at call to linuxkm_op_test_1(): %lu of %lu total\n", stack_usage, THREAD_SIZE);
+        wc_linuxkm_stack_hwm_prepare(0xee);
+    #endif
+
     ret = linuxkm_op_test_1(argc, &argv[0]);
+
+    #ifdef WC_LINUXKM_HAVE_STACK_DEBUG
+        stack_usage = wc_linuxkm_stack_hwm_measure_rel(0xee);
+        pr_info("STACK INFO: rel usage by linuxkm_op_test_1(): %lu\n", stack_usage);
+        /* shush up false stack HWM reading by kernel: */
+        wc_linuxkm_stack_hwm_prepare(0);
+    }
+    #endif
 
     printf("ret of op_test = %d\n", ret);
 
