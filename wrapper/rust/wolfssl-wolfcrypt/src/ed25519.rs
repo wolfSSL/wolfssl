@@ -27,7 +27,7 @@ This module provides a Rust wrapper for the wolfCrypt library's EdDSA Curve
 
 use crate::sys;
 use crate::random::RNG;
-use std::mem::MaybeUninit;
+use core::mem::MaybeUninit;
 
 /// The `Ed25519` struct manages the lifecycle of a wolfSSL `ed25519_key`
 /// object.
@@ -97,7 +97,7 @@ impl Ed25519 {
     /// let mut rng = RNG::new().expect("Error creating RNG");
     /// let ed = Ed25519::generate_ex(&mut rng, None, None).expect("Error with generate_ex()");
     /// ```
-    pub fn generate_ex(rng: &mut RNG, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn generate_ex(rng: &mut RNG, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut ws_key: MaybeUninit<sys::ed25519_key> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
@@ -165,7 +165,7 @@ impl Ed25519 {
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
     /// let ed = Ed25519::new_ex(None, None).expect("Error with new()");
     /// ```
-    pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_ex(heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut ws_key: MaybeUninit<sys::ed25519_key> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,

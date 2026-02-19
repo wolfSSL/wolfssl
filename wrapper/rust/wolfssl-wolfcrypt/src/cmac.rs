@@ -26,7 +26,7 @@ Message Authentication Code (CMAC) functionality.
 #![cfg(cmac)]
 
 use crate::sys;
-use std::mem::MaybeUninit;
+use core::mem::MaybeUninit;
 
 /// The `CMAC` struct manages the lifecycle of a wolfSSL `Cmac` object.
 ///
@@ -133,7 +133,7 @@ impl CMAC {
     /// ];
     /// let mut cmac = CMAC::new_ex(&key, None, None).expect("Error with new_ex()");
     /// ```
-    pub fn new_ex(key: &[u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_ex(key: &[u8], heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let key_size = key.len() as u32;
         let mut ws_cmac: MaybeUninit<sys::Cmac> = MaybeUninit::uninit();
         let typ = sys::CmacType_WC_CMAC_AES as i32;
@@ -242,7 +242,7 @@ impl CMAC {
     /// }
     /// ```
     #[cfg(aes)]
-    pub fn generate_ex(&mut self, key: &[u8], data: &[u8], dout: &mut [u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
+    pub fn generate_ex(&mut self, key: &[u8], data: &[u8], dout: &mut [u8], heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
         let key_size = key.len() as u32;
         let data_size = data.len() as u32;
         let mut dout_size = dout.len() as u32;
@@ -384,7 +384,7 @@ impl CMAC {
     /// }
     /// ```
     #[cfg(aes)]
-    pub fn verify_ex(&mut self, key: &[u8], data: &[u8], check: &[u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<bool, i32> {
+    pub fn verify_ex(&mut self, key: &[u8], data: &[u8], check: &[u8], heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<bool, i32> {
         let key_size = key.len() as u32;
         let data_size = data.len() as u32;
         let check_size = check.len() as u32;

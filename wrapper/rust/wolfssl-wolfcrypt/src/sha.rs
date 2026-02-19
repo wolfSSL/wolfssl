@@ -24,7 +24,7 @@ Algorithm (SHA) functionality.
 */
 
 use crate::sys;
-use std::mem::MaybeUninit;
+use core::mem::MaybeUninit;
 
 /// Context for SHA-1 computation.
 #[cfg(sha)]
@@ -72,7 +72,7 @@ impl SHA {
     /// use wolfssl_wolfcrypt::sha::SHA;
     /// let sha = SHA::new_ex(None, None).expect("Error with new_ex()");
     /// ```
-    pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_ex(heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_sha: MaybeUninit<sys::wc_Sha> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
@@ -135,7 +135,7 @@ impl SHA {
     /// let mut sha = SHA::new().expect("Error with new()");
     /// sha.init_ex(None, None).expect("Error with init_ex()");
     /// ```
-    pub fn init_ex(&mut self, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
+    pub fn init_ex(&mut self, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
@@ -275,7 +275,7 @@ impl SHA224 {
     /// use wolfssl_wolfcrypt::sha::SHA224;
     /// let sha = SHA224::new_ex(None, None).expect("Error with new_ex()");
     /// ```
-    pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_ex(heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_sha224: MaybeUninit<sys::wc_Sha224> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
@@ -338,7 +338,7 @@ impl SHA224 {
     /// let mut sha = SHA224::new().expect("Error with new()");
     /// sha.init_ex(None, None).expect("Error with init_ex()");
     /// ```
-    pub fn init_ex(&mut self, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
+    pub fn init_ex(&mut self, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
@@ -478,7 +478,7 @@ impl SHA256 {
     /// use wolfssl_wolfcrypt::sha::SHA256;
     /// let sha = SHA256::new_ex(None, None).expect("Error with new_ex()");
     /// ```
-    pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_ex(heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_sha256: MaybeUninit<sys::wc_Sha256> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
@@ -541,7 +541,7 @@ impl SHA256 {
     /// let mut sha = SHA256::new().expect("Error with new()");
     /// sha.init_ex(None, None).expect("Error with init_ex()");
     /// ```
-    pub fn init_ex(&mut self, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
+    pub fn init_ex(&mut self, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
@@ -681,7 +681,7 @@ impl SHA384 {
     /// use wolfssl_wolfcrypt::sha::SHA384;
     /// let sha = SHA384::new_ex(None, None).expect("Error with new_ex()");
     /// ```
-    pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_ex(heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_sha384: MaybeUninit<sys::wc_Sha384> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
@@ -744,7 +744,7 @@ impl SHA384 {
     /// let mut sha = SHA384::new().expect("Error with new()");
     /// sha.init_ex(None, None).expect("Error with init_ex()");
     /// ```
-    pub fn init_ex(&mut self, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
+    pub fn init_ex(&mut self, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
@@ -884,7 +884,7 @@ impl SHA512 {
     /// use wolfssl_wolfcrypt::sha::SHA512;
     /// let sha = SHA512::new_ex(None, None).expect("Error with new_ex()");
     /// ```
-    pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_ex(heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_sha512: MaybeUninit<sys::wc_Sha512> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
@@ -947,7 +947,7 @@ impl SHA512 {
     /// let mut sha = SHA512::new().expect("Error with new()");
     /// sha.init_ex(None, None).expect("Error with init_ex()");
     /// ```
-    pub fn init_ex(&mut self, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
+    pub fn init_ex(&mut self, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
@@ -1087,7 +1087,7 @@ impl SHA3_224 {
     /// use wolfssl_wolfcrypt::sha::SHA3_224;
     /// let sha = SHA3_224::new_ex(None, None).expect("Error with new_ex()");
     /// ```
-    pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_ex(heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_sha3: MaybeUninit<sys::wc_Sha3> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
@@ -1150,7 +1150,7 @@ impl SHA3_224 {
     /// let mut sha = SHA3_224::new().expect("Error with new()");
     /// sha.init_ex(None, None).expect("Error with init_ex()");
     /// ```
-    pub fn init_ex(&mut self, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
+    pub fn init_ex(&mut self, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
@@ -1290,7 +1290,7 @@ impl SHA3_256 {
     /// use wolfssl_wolfcrypt::sha::SHA3_256;
     /// let sha = SHA3_256::new_ex(None, None).expect("Error with new_ex()");
     /// ```
-    pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_ex(heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_sha3: MaybeUninit<sys::wc_Sha3> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
@@ -1353,7 +1353,7 @@ impl SHA3_256 {
     /// let mut sha = SHA3_256::new().expect("Error with new()");
     /// sha.init_ex(None, None).expect("Error with init_ex()");
     /// ```
-    pub fn init_ex(&mut self, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
+    pub fn init_ex(&mut self, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
@@ -1493,7 +1493,7 @@ impl SHA3_384 {
     /// use wolfssl_wolfcrypt::sha::SHA3_384;
     /// let sha = SHA3_384::new_ex(None, None).expect("Error with new_ex()");
     /// ```
-    pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_ex(heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_sha3: MaybeUninit<sys::wc_Sha3> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
@@ -1556,7 +1556,7 @@ impl SHA3_384 {
     /// let mut sha = SHA3_384::new().expect("Error with new()");
     /// sha.init_ex(None, None).expect("Error with init_ex()");
     /// ```
-    pub fn init_ex(&mut self, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
+    pub fn init_ex(&mut self, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
@@ -1696,7 +1696,7 @@ impl SHA3_512 {
     /// use wolfssl_wolfcrypt::sha::SHA3_512;
     /// let sha = SHA3_512::new_ex(None, None).expect("Error with new_ex()");
     /// ```
-    pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_ex(heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_sha3: MaybeUninit<sys::wc_Sha3> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
@@ -1759,7 +1759,7 @@ impl SHA3_512 {
     /// let mut sha = SHA3_512::new().expect("Error with new()");
     /// sha.init_ex(None, None).expect("Error with init_ex()");
     /// ```
-    pub fn init_ex(&mut self, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
+    pub fn init_ex(&mut self, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
@@ -1899,7 +1899,7 @@ impl SHAKE128 {
     /// use wolfssl_wolfcrypt::sha::SHAKE128;
     /// let sha = SHAKE128::new_ex(None, None).expect("Error with new_ex()");
     /// ```
-    pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_ex(heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_shake: MaybeUninit<sys::wc_Shake> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
@@ -1964,7 +1964,7 @@ impl SHAKE128 {
     /// let mut sha = SHAKE128::new().expect("Error with new()");
     /// sha.init_ex(None, None).expect("Error with init_ex()");
     /// ```
-    pub fn init_ex(&mut self, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
+    pub fn init_ex(&mut self, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
@@ -2169,7 +2169,7 @@ impl SHAKE256 {
     /// use wolfssl_wolfcrypt::sha::SHAKE256;
     /// let sha = SHAKE256::new_ex(None, None).expect("Error with new_ex()");
     /// ```
-    pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_ex(heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_shake: MaybeUninit<sys::wc_Shake> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
@@ -2234,7 +2234,7 @@ impl SHAKE256 {
     /// let mut sha = SHAKE256::new().expect("Error with new()");
     /// sha.init_ex(None, None).expect("Error with init_ex()");
     /// ```
-    pub fn init_ex(&mut self, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
+    pub fn init_ex(&mut self, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),

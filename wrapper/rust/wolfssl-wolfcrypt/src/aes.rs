@@ -26,7 +26,7 @@ Encryption Standard (AES) functionality.
 #![cfg(aes)]
 
 use crate::sys;
-use std::mem::{size_of_val, MaybeUninit};
+use core::mem::{size_of_val, MaybeUninit};
 
 #[cfg(aes_wc_block_size)]
 pub const AES_BLOCK_SIZE: usize = sys::WC_AES_BLOCK_SIZE as usize;
@@ -88,7 +88,7 @@ impl CBC {
     ///
     /// A Result which is Ok(CBC) on success or an Err containing the wolfSSL
     /// library return code on failure.
-    pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_ex(heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let ws_aes = new_ws_aes(heap, dev_id)?;
         let cbc = CBC {ws_aes};
         Ok(cbc)
@@ -292,7 +292,7 @@ impl CCM {
     ///
     /// A Result which is Ok(CCM) on success or an Err containing the wolfSSL
     /// library return code on failure.
-    pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_ex(heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let ws_aes = new_ws_aes(heap, dev_id)?;
         let ccm = CCM {ws_aes};
         Ok(ccm)
@@ -487,7 +487,7 @@ impl CFB {
     ///
     /// A Result which is Ok(CFB) on success or an Err containing the wolfSSL
     /// library return code on failure.
-    pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_ex(heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let ws_aes = new_ws_aes(heap, dev_id)?;
         let cfb = CFB {ws_aes};
         Ok(cfb)
@@ -794,7 +794,7 @@ impl CTR {
     ///
     /// A Result which is Ok(CTR) on success or an Err containing the wolfSSL
     /// library return code on failure.
-    pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_ex(heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let ws_aes = new_ws_aes(heap, dev_id)?;
         let ctr = CTR {ws_aes};
         Ok(ctr)
@@ -1075,7 +1075,7 @@ impl ECB {
     ///
     /// A Result which is Ok(ECB) on success or an Err containing the wolfSSL
     /// library return code on failure.
-    pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_ex(heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let ws_aes = new_ws_aes(heap, dev_id)?;
         let ecb = ECB {ws_aes};
         Ok(ecb)
@@ -1276,7 +1276,7 @@ impl GCM {
     ///
     /// A Result which is Ok(GCM) on success or an Err containing the wolfSSL
     /// library return code on failure.
-    pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_ex(heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let ws_aes = new_ws_aes(heap, dev_id)?;
         let gcm = GCM {ws_aes};
         Ok(gcm)
@@ -1499,7 +1499,7 @@ impl GCMStream {
     ///
     /// A Result which is Ok(GCMStream) on success or an Err containing the
     /// wolfSSL library return code on failure.
-    pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_ex(heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let ws_aes = new_ws_aes(heap, dev_id)?;
         let gcmstream = GCMStream {ws_aes};
         Ok(gcmstream)
@@ -1751,7 +1751,7 @@ impl OFB {
     ///
     /// A Result which is Ok(OFB) on success or an Err containing the wolfSSL
     /// library return code on failure.
-    pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_ex(heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let ws_aes = new_ws_aes(heap, dev_id)?;
         let ofb = OFB {ws_aes};
         Ok(ofb)
@@ -1945,7 +1945,7 @@ impl XTS {
     ///
     /// A Result which is Ok(XTS) on success or an Err containing the wolfSSL
     /// library return code on failure.
-    pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_ex(heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let ws_xtsaes = new_ws_xtsaes(heap, dev_id)?;
         let xts = XTS {ws_xtsaes};
         Ok(xts)
@@ -2307,7 +2307,7 @@ impl XTSStream {
     ///
     /// A Result which is Ok(XTSStream) on success or an Err containing the
     /// wolfSSL library return code on failure.
-    pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_ex(heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let ws_xtsaes = new_ws_xtsaes(heap, dev_id)?;
         let ws_xtsaesstreamdata: MaybeUninit<sys::XtsAesStreamData> = MaybeUninit::uninit();
         let ws_xtsaesstreamdata = unsafe { ws_xtsaesstreamdata.assume_init() };
@@ -2533,7 +2533,7 @@ impl Drop for XTSStream {
     }
 }
 
-fn new_ws_aes(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<sys::Aes, i32> {
+fn new_ws_aes(heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<sys::Aes, i32> {
     let heap = match heap {
         Some(heap) => heap,
         None => core::ptr::null_mut(),
@@ -2554,7 +2554,7 @@ fn new_ws_aes(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> R
 }
 
 #[cfg(any(aes_xts, aes_xts_stream))]
-fn new_ws_xtsaes(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<sys::XtsAes, i32> {
+fn new_ws_xtsaes(heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<sys::XtsAes, i32> {
     let heap = match heap {
         Some(heap) => heap,
         None => core::ptr::null_mut(),

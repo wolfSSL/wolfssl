@@ -45,7 +45,7 @@ rng.generate_block(&mut buffer).expect("Failed to generate a block");
 #![cfg(random)]
 
 use crate::sys;
-use std::mem::{size_of_val, MaybeUninit};
+use core::mem::{size_of_val, MaybeUninit};
 
 /// A cryptographically secure random number generator based on the wolfSSL
 /// library.
@@ -86,7 +86,7 @@ impl RNG {
     ///
     /// A Result which is Ok(RNG) on success or an Err containing the wolfSSL
     /// library return code on failure.
-    pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_ex(heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         #[cfg(fips)]
         {
             let rc = unsafe {
@@ -145,7 +145,7 @@ impl RNG {
     ///
     /// A Result which is Ok(RNG) on success or an Err containing the wolfSSL
     /// library return code on failure.
-    pub fn new_with_nonce_ex<T>(nonce: &mut [T], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_with_nonce_ex<T>(nonce: &mut [T], heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         #[cfg(fips)]
         {
             let rc = unsafe {
@@ -237,7 +237,7 @@ impl RNG {
     /// RNG::health_test_ex(Some(&nonce), &seed_a, Some(&seed_b), &mut output, None, None).expect("Error with health_test_ex()");
     /// ```
     #[cfg(random_hashdrbg)]
-    pub fn health_test_ex(nonce: Option<&[u8]>, seed_a: &[u8], seed_b: Option<&[u8]>, output: &mut [u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
+    pub fn health_test_ex(nonce: Option<&[u8]>, seed_a: &[u8], seed_b: Option<&[u8]>, output: &mut [u8], heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
         let mut nonce_ptr = core::ptr::null();
         let mut nonce_size = 0u32;
         if let Some(nonce) = nonce {

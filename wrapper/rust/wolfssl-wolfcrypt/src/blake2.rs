@@ -26,7 +26,7 @@ functionality.
 #![cfg(any(blake2b, blake2s))]
 
 use crate::sys;
-use std::mem::MaybeUninit;
+use core::mem::MaybeUninit;
 
 /// Context for BLAKE2b computation.
 #[cfg(blake2b)]

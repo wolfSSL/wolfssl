@@ -31,12 +31,12 @@ wolfSSL `ecc_key` object. It ensures proper initialization and deallocation.
 use crate::sys;
 #[cfg(random)]
 use crate::random::RNG;
-use std::mem::{MaybeUninit};
+use core::mem::{MaybeUninit};
 
 /// Rust wrapper for wolfSSL `ecc_point` object.
 pub struct ECCPoint {
     wc_ecc_point: *mut sys::ecc_point,
-    heap: *mut std::os::raw::c_void,
+    heap: *mut core::ffi::c_void,
 }
 
 impl ECCPoint {
@@ -71,7 +71,7 @@ impl ECCPoint {
     /// }
     /// ```
     #[cfg(ecc_import)]
-    pub fn import_der(din: &[u8], curve_id: i32, heap: Option<*mut std::os::raw::c_void>) -> Result<Self, i32> {
+    pub fn import_der(din: &[u8], curve_id: i32, heap: Option<*mut core::ffi::c_void>) -> Result<Self, i32> {
         let curve_idx = unsafe { sys::wc_ecc_get_curve_idx(curve_id) };
         if curve_idx < 0 {
             return Err(curve_idx);
@@ -129,7 +129,7 @@ impl ECCPoint {
     /// }
     /// ```
     #[cfg(ecc_import)]
-    pub fn import_der_ex(din: &[u8], curve_id: i32, short_key_size: i32, heap: Option<*mut std::os::raw::c_void>) -> Result<Self, i32> {
+    pub fn import_der_ex(din: &[u8], curve_id: i32, short_key_size: i32, heap: Option<*mut core::ffi::c_void>) -> Result<Self, i32> {
         let curve_idx = unsafe { sys::wc_ecc_get_curve_idx(curve_id) };
         if curve_idx < 0 {
             return Err(curve_idx);
@@ -251,6 +251,7 @@ impl ECCPoint {
     /// # Example
     ///
     /// ```rust
+    /// # extern crate std;
     /// #[cfg(random)]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -401,6 +402,7 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
+    /// # extern crate std;
     /// #[cfg(random)]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -411,7 +413,7 @@ impl ECC {
     /// }
     /// ```
     #[cfg(random)]
-    pub fn generate(size: i32, rng: &mut RNG, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn generate(size: i32, rng: &mut RNG, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
@@ -456,6 +458,7 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
+    /// # extern crate std;
     /// #[cfg(random)]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -468,7 +471,7 @@ impl ECC {
     /// }
     /// ```
     #[cfg(random)]
-    pub fn generate_ex(size: i32, rng: &mut RNG, curve_id: i32, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn generate_ex(size: i32, rng: &mut RNG, curve_id: i32, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
@@ -514,6 +517,7 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
+    /// # extern crate std;
     /// #[cfg(random)]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -526,7 +530,7 @@ impl ECC {
     /// }
     /// ```
     #[cfg(random)]
-    pub fn generate_ex2(size: i32, rng: &mut RNG, curve_id: i32, flags: i32, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn generate_ex2(size: i32, rng: &mut RNG, curve_id: i32, flags: i32, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
@@ -566,6 +570,7 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
+    /// # extern crate std;
     /// #[cfg(random)]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -601,6 +606,7 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
+    /// # extern crate std;
     /// #[cfg(random)]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -612,7 +618,7 @@ impl ECC {
     /// let mut ecc = ECC::import_der(&der, None, None).expect("Error with import_der()");
     /// }
     /// ```
-    pub fn import_der(der: &[u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn import_der(der: &[u8], heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
@@ -655,6 +661,7 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
+    /// # extern crate std;
     /// #[cfg(random)]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -674,7 +681,7 @@ impl ECC {
     /// let mut ecc = ECC::import_public_der(&der, None, None).expect("Error with import_public_der()");
     /// }
     /// ```
-    pub fn import_public_der(der: &[u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn import_public_der(der: &[u8], heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
@@ -743,7 +750,7 @@ impl ECC {
     /// }
     /// ```
     #[cfg(ecc_import)]
-    pub fn import_private_key(priv_buf: &[u8], pub_buf: &[u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn import_private_key(priv_buf: &[u8], pub_buf: &[u8], heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
@@ -817,7 +824,7 @@ impl ECC {
     /// }
     /// ```
     #[cfg(ecc_import)]
-    pub fn import_private_key_ex(priv_buf: &[u8], pub_buf: &[u8], curve_id: i32, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn import_private_key_ex(priv_buf: &[u8], pub_buf: &[u8], curve_id: i32, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
@@ -876,7 +883,7 @@ impl ECC {
     /// }
     /// ```
     #[cfg(ecc_import)]
-    pub fn import_raw(qx: &[u8], qy: &[u8], d: &[u8], curve_name: &[u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn import_raw(qx: &[u8], qy: &[u8], d: &[u8], curve_name: &[u8], heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
@@ -936,7 +943,7 @@ impl ECC {
     /// }
     /// ```
     #[cfg(ecc_import)]
-    pub fn import_raw_ex(qx: &[u8], qy: &[u8], d: &[u8], curve_id: i32, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn import_raw_ex(qx: &[u8], qy: &[u8], d: &[u8], curve_id: i32, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
@@ -1004,7 +1011,7 @@ impl ECC {
     /// }
     /// ```
     #[cfg(ecc_import)]
-    pub fn import_unsigned(qx: &[u8], qy: &[u8], d: &[u8], curve_id: i32, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn import_unsigned(qx: &[u8], qy: &[u8], d: &[u8], curve_id: i32, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
@@ -1062,7 +1069,7 @@ impl ECC {
     /// }
     /// ```
     #[cfg(ecc_import)]
-    pub fn import_x963(din: &[u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<ECC, i32> {
+    pub fn import_x963(din: &[u8], heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<ECC, i32> {
         let din_size = din.len() as u32;
         let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
         let heap = match heap {
@@ -1126,7 +1133,7 @@ impl ECC {
     /// }
     /// ```
     #[cfg(ecc_import)]
-    pub fn import_x963_ex(din: &[u8], curve_id: i32, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<ECC, i32> {
+    pub fn import_x963_ex(din: &[u8], curve_id: i32, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<ECC, i32> {
         let din_size = din.len() as u32;
         let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
         let heap = match heap {
@@ -1172,6 +1179,7 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
+    /// # extern crate std;
     /// #[cfg(random)]
     /// {
     /// use std::fs;
@@ -1238,6 +1246,7 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
+    /// # extern crate std;
     /// #[cfg(random)]
     /// {
     /// use std::fs;
@@ -1290,6 +1299,7 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
+    /// # extern crate std;
     /// #[cfg(random)]
     /// {
     /// use std::fs;
@@ -1339,6 +1349,7 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
+    /// # extern crate std;
     /// #[cfg(random)]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -1643,6 +1654,7 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
+    /// # extern crate std;
     /// #[cfg(random)]
     /// {
     /// use std::fs;
@@ -1686,6 +1698,7 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
+    /// # extern crate std;
     /// #[cfg(random)]
     /// {
     /// use std::fs;
@@ -1699,7 +1712,7 @@ impl ECC {
     /// }
     /// ```
     #[cfg(random)]
-    pub fn make_pub_to_point(&mut self, rng: Option<&mut RNG>, heap: Option<*mut std::os::raw::c_void>) -> Result<ECCPoint, i32> {
+    pub fn make_pub_to_point(&mut self, rng: Option<&mut RNG>, heap: Option<*mut core::ffi::c_void>) -> Result<ECCPoint, i32> {
         let rng_ptr = match rng {
             Some(rng) => &mut rng.wc_rng,
             None => core::ptr::null_mut(),
@@ -1741,6 +1754,7 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
+    /// # extern crate std;
     /// #[cfg(random)]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;

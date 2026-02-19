@@ -55,6 +55,7 @@ fn generate_bindings() -> Result<()> {
         .header("headers.h")
         .clang_arg(format!("-I{}", wolfssl_base_dir()?))
         .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
+        .use_core()
         .generate()
         .map_err(|_| io::Error::other("Failed to generate bindings"))?;
 

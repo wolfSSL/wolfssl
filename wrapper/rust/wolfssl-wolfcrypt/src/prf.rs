@@ -119,7 +119,7 @@ pub fn prf(secret: &[u8], seed: &[u8], hash_type: i32, dout: &mut [u8]) -> Resul
 /// prf_ex(&secret, &seed, PRF_HASH_SHA384, None, None, &mut out).expect("Error with prf_ex()");
 /// }
 /// ```
-pub fn prf_ex(secret: &[u8], seed: &[u8], hash_type: i32, heap: Option<*mut ::std::os::raw::c_void>, dev_id: Option<i32>, dout: &mut [u8]) -> Result<(), i32> {
+pub fn prf_ex(secret: &[u8], seed: &[u8], hash_type: i32, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>, dout: &mut [u8]) -> Result<(), i32> {
     let secret_size = secret.len() as u32;
     let seed_size = seed.len() as u32;
     let dout_size = dout.len() as u32;

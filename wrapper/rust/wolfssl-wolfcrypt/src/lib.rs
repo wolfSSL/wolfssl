@@ -18,6 +18,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#![no_std]
+
 /* bindgen-generated bindings to the C library */
 pub mod sys;
 
