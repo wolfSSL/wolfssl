@@ -45,7 +45,8 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y autoconf automake libtool gcc make jq psmisc
+          sudo apt-get install -y build-essential autoconf automake libtool jq psmisc || \
+          sudo apt-get install -y build-essential autoconf automake libtool jq
 
       - name: Pull TLS-Anvil Docker image
         run: docker pull ghcr.io/tls-attacker/tlsanvil:latest
@@ -70,11 +71,16 @@ jobs:
               echo "| | Count |"
               echo "|---|---|"
               jq -r '
-                "| Total    | \(.Score.Total     // "N/A") |",
-                "| Passed   | \(.Score.Succeeded // "N/A") |",
-                "| Failed   | \(.Score.Failed    // "N/A") |",
-                "| Disabled | \(.Score.Disabled  // "N/A") |"
+                "| Total             | \(.TotalTests              // "N/A") |",
+                "| Strictly Passed   | \(.StrictlySucceededTests  // "N/A") |",
+                "| Conceptually OK   | \(.ConceptuallySucceededTests // "N/A") |",
+                "| Partially Failed  | \(.PartiallyFailedTests    // "N/A") |",
+                "| Fully Failed      | \(.FullyFailedTests         // "N/A") |",
+                "| Disabled          | \(.DisabledTests            // "N/A") |"
               ' "$REPORT" 2>/dev/null || echo "| (could not parse report.json) | — |"
+              echo ""
+              echo "**Category scores:**"
+              jq -r '.Score | to_entries[] | "- \(.key): \(.value)%"' "$REPORT" 2>/dev/null || true
             else
               echo "No report.json found — check step logs for errors."
             fi
