@@ -955,8 +955,11 @@ int test_SerialNumber0_RootCA(void)
                 WOLFSSL_SUCCESS);
 
     /* Test 3: End-entity cert with serial 0 should be rejected during verify */
+#if (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)) || \
+    defined(OPENSSL_EXTRA)
     ExpectIntEQ(wolfSSL_CertManagerVerify(cm, eeSerial0File,
                 WOLFSSL_FILETYPE_PEM), WC_NO_ERR_TRACE(ASN_PARSE_E));
+#endif
 
     if (cm != NULL) {
         wolfSSL_CertManagerFree(cm);
@@ -965,6 +968,8 @@ int test_SerialNumber0_RootCA(void)
 
     /* Test 4: Normal end-entity cert signed by root CA with serial 0
      * should verify successfully */
+#if (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)) || \
+    defined(OPENSSL_EXTRA)
     ExpectNotNull(cm = wolfSSL_CertManagerNew());
     ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, rootSerial0File, NULL),
                 WOLFSSL_SUCCESS);
@@ -975,6 +980,7 @@ int test_SerialNumber0_RootCA(void)
         wolfSSL_CertManagerFree(cm);
         cm = NULL;
     }
+#endif
 
     /* Test 5: Self-signed non-CA certificate with serial 0 should be rejected */
     ExpectNotNull(cm = wolfSSL_CertManagerNew());
