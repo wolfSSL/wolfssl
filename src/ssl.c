@@ -15671,7 +15671,7 @@ int wolfSSL_CTX_set_servername_arg(WOLFSSL_CTX* ctx, void* arg)
 int wolfSSL_CRYPTO_memcmp(const void *a, const void *b, size_t size)
 {
     if (!a || !b)
-        return 0;
+        return -1;
     return ConstantCompare((const byte*)a, (const byte*)b, (int)size);
 }
 
