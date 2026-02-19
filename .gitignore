@@ -70,6 +70,7 @@ examples/sctp/sctp-client
 examples/sctp/sctp-client-dtls
 examples/asn1/asn1
 examples/pem/pem
+examples/ocsp_responder/ocsp_responder
 server_ready
 snifftest
 output
