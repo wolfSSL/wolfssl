@@ -156,10 +156,12 @@ impl HMAC {
     /// # Example
     ///
     /// ```rust
+    /// #![cfg(hmac_setkey_ex)]
     /// use wolfssl_wolfcrypt::hmac::HMAC;
     /// let key = [0x42u8; 3];
     /// let mut hmac = HMAC::new_allow_short_key(HMAC::TYPE_SHA256, &key).expect("Error with new_allow_short_key()");
     /// ```
+    #[cfg(hmac_setkey_ex)]
     pub fn new_allow_short_key(typ: i32, key: &[u8]) -> Result<Self, i32> {
         Self::new_allow_short_key_ex(typ, key, None, None)
     }
@@ -182,10 +184,12 @@ impl HMAC {
     /// # Example
     ///
     /// ```rust
+    /// #![cfg(hmac_setkey_ex)]
     /// use wolfssl_wolfcrypt::hmac::HMAC;
     /// let key = [0x42u8; 3];
     /// let mut hmac = HMAC::new_allow_short_key_ex(HMAC::TYPE_SHA256, &key, None, None).expect("Error with new_allow_short_key_ex()");
     /// ```
+    #[cfg(hmac_setkey_ex)]
     pub fn new_allow_short_key_ex(typ: i32, key: &[u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let key_size = key.len() as u32;
         let mut wc_hmac: MaybeUninit<sys::Hmac> = MaybeUninit::uninit();

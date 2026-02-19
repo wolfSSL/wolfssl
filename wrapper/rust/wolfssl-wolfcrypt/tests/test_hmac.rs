@@ -33,6 +33,13 @@ fn test_hmac_sha256() {
     ];
 
     for i in 0..keys.len() {
+        #[cfg(not(hmac_setkey_ex))]
+        if keys[i].len() < 14 {
+            continue;
+        }
+        #[cfg(not(hmac_setkey_ex))]
+        let mut hmac = HMAC::new(HMAC::TYPE_SHA256, keys[i]).expect("Error with new()");
+        #[cfg(hmac_setkey_ex)]
         let mut hmac =
             if keys[i].len() < 14 {
                 HMAC::new_allow_short_key(HMAC::TYPE_SHA256, keys[i]).expect("Error with new_allow_short_key()")
