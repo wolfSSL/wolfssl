@@ -131,15 +131,33 @@ then
 fi
 
 # Kernel module benchmark
-ENABLED_KERNEL_BENCHMARKS=""
 AC_ARG_ENABLE([kernel-benchmarks],
     [AS_HELP_STRING([--enable-kernel-benchmarks],[Enable crypto benchmarking autorun at module load time for kernel module (default: disabled)])],
-    [ENABLED_KERNEL_BENCHMARKS=$enableval])
+    [ENABLED_KERNEL_BENCHMARKS=$enableval],
+    [ENABLED_KERNEL_BENCHMARKS="no"])
 if test "$ENABLED_KERNEL_BENCHMARKS" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KERNEL_BENCHMARKS"
 fi
 AC_SUBST([ENABLED_KERNEL_BENCHMARKS])
+
+AC_ARG_ENABLE([kernel-verbose-debug],
+    [AS_HELP_STRING([--enable-kernel-verbose-debug],[Enable supplementary runtime debugging messages for kernel module (default: disabled)])],
+    [ENABLED_KERNEL_VERBOSE_DEBUG=$enableval],
+    [ENABLED_KERNEL_VERBOSE_DEBUG="no"])
+if test "$ENABLED_KERNEL_VERBOSE_DEBUG" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KERNEL_VERBOSE_DEBUG"
+fi
+
+AC_ARG_ENABLE([kernel-stack-debug],
+    [AS_HELP_STRING([--enable-kernel-stack-debug],[Enable runtime reporting of stack usage in kernel module (default: disabled)])],
+    [ENABLED_KERNEL_STACK_DEBUG=$enableval],
+    [ENABLED_KERNEL_STACK_DEBUG="no"])
+if test "$ENABLED_KERNEL_STACK_DEBUG" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KERNEL_STACK_DEBUG"
+fi
 
 # Linux Kernel Module options (more options later)
 AC_ARG_ENABLE([linuxkm],

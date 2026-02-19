@@ -78,6 +78,8 @@ struct __attribute__((packed)) wc_reloc_table_ent {
 
 #if defined(WC_SYM_RELOC_TABLES) || defined(WC_SYM_RELOC_TABLES_SUPPORT)
 
+/* full ELF fencepost representation, to allow wc_reloc_normalize_text() */
+
 struct wc_reloc_table_segments {
     unsigned long start;
     unsigned long end;
@@ -163,6 +165,10 @@ struct wc_reloc_counts {
 };
 
 #elif defined(HAVE_FIPS)
+
+/* barebones FIPS fencepost representation -- no provision for
+ * wc_reloc_normalize_text()
+ */
 
 struct wc_reloc_table_segments {
     unsigned long start;

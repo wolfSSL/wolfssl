@@ -21,6 +21,14 @@
 .ONESHELL:
 SHELL=bash
 
+ifeq "$(quiet)" "silent_"
+    QFLAG := --quiet
+else ifeq "$(V)" "1"
+    VFLAG := --verbose
+else
+    QFLAG := --quiet
+endif
+
 ifndef LIBWOLFSSL_NAME
     LIBWOLFSSL_NAME := libwolfssl
 endif
@@ -355,34 +363,35 @@ libwolfssl-user-build/src/.libs/libwolfssl.so:
 	@echo > user_settings_asm.h
 	@echo -n 'Configuring libwolfssl.so...'
 	@unset WOLFSSL_CFLAGS WOLFCRYPT_PIE_FILES ASFLAGS_FPUSIMD_ENABLE ASFLAGS_FPU_DISABLE_SIMD_ENABLE src_libwolfssl_la_OBJECTS WOLFSSL_ASFLAGS AM_CFLAGS WOLFSSL_OBJ_FILES ENABLED_LINUXKM_LKCAPI_REGISTER EXTRA_LDFLAGS CC LD
-	@./configure --quiet --disable-jobserver --enable-cryptonly --enable-fips="$$FIPS_FLAVOR" CFLAGS='-DWC_SYM_RELOC_TABLES_SUPPORT -DWOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE -DWOLFSSL_USER_SETTINGS -DWOLFSSL_USER_SETTINGS_ASM'
+	@./configure $(QFLAG) $(VFLAG) --disable-jobserver --enable-cryptonly --enable-fips="$$FIPS_FLAVOR" CFLAGS='-DWC_SYM_RELOC_TABLES_SUPPORT -DWOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE -DWOLFSSL_USER_SETTINGS -DWOLFSSL_USER_SETTINGS_ASM'
 	@echo ' done.'
 	@echo -n 'Compiling and linking libwolfssl.so...'
-	@$(MAKE) >/dev/null
+	+$(MAKE) $(QFLAG) >/dev/null
 	@echo ' done.'
 	@echo -n 'Fixing FIPS hash...'
 	@userhash=$$(wolfcrypt/test/testwolfcrypt 2>&1 | sed -n -E 's/^hash = (.+)$$/\1/p')
 	@if [[ -z "$$userhash" ]]; then echo ' FIPS hash not found!' >&2; exit 1; fi
 	@find wolfcrypt/src -name '*fips_test*o' -delete
-	@$(MAKE) EXTRA_CFLAGS=-DWOLFCRYPT_FIPS_CORE_HASH_VALUE="$$userhash"
+	+$(MAKE) $(QFLAG) EXTRA_CFLAGS=-DWOLFCRYPT_FIPS_CORE_HASH_VALUE="$$userhash"
 	@echo ' done.'
 
 linuxkm-fips-hash: libwolfssl-user-build/src/.libs/libwolfssl.so linuxkm-fips-hash.c
+	@set -e
 	@echo -n 'Compiling linuxkm-fips-hash...'
 # note direct invocation of cc -- we are compiling for the build host, not the target host.
-	@cc -I'$(MODULE_TOP)/libwolfssl-user-build' -o linuxkm-fips-hash linuxkm/linuxkm-fips-hash.c -L '$(MODULE_TOP)/libwolfssl-user-build/src/.libs' -Wl,-rpath-link='$(MODULE_TOP)/libwolfssl-user-build/src/.libs' -Wl,-rpath='$(MODULE_TOP)/libwolfssl-user-build/src/.libs' -lwolfssl
+	@cc -Wall -Wextra -O2 -I'$(MODULE_TOP)/libwolfssl-user-build' -o linuxkm-fips-hash linuxkm/linuxkm-fips-hash.c -L '$(MODULE_TOP)/libwolfssl-user-build/src/.libs' -Wl,-rpath-link='$(MODULE_TOP)/libwolfssl-user-build/src/.libs' -Wl,-rpath='$(MODULE_TOP)/libwolfssl-user-build/src/.libs' -lwolfssl
 	@echo ' done.'
 
 .PHONY: module-with-matching-fips-hash
 module-with-matching-fips-hash: $(LIBWOLFSSL_NAME).ko linuxkm-fips-hash
 	@set -e
-	./linuxkm-fips-hash-wrapper.sh "$<"
-	$(MAKE) -C . '$(LIBWOLFSSL_NAME).ko.signed'
+	@./linuxkm-fips-hash-wrapper.sh "$<" $(QFLAG) $(VFLAG)
+	+$(MAKE) $(QFLAG) -C . '$(LIBWOLFSSL_NAME).ko.signed'
 
 .PHONY: module-with-matching-fips-hash-no-sign
 module-with-matching-fips-hash-no-sign: $(LIBWOLFSSL_NAME).ko linuxkm-fips-hash
 	@set -e
-	./linuxkm-fips-hash-wrapper.sh "$<"
+	@./linuxkm-fips-hash-wrapper.sh "$<"
 
 $(LIBWOLFSSL_NAME).ko.signed: $(LIBWOLFSSL_NAME).ko
 ifdef FORCE_NO_MODULE_SIG

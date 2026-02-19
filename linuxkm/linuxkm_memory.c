@@ -513,6 +513,25 @@ ssize_t wc_reloc_normalize_text(
     #define FIPS_IN_CORE_VERIFY_SZ FIPS_IN_CORE_DIGEST_SIZE
 #endif
 
+/* wc_fips_generate_hash() is the high level entry point to the supplementary
+ * FIPS integrity hash calculation facility, used for offline hash calculation
+ * (particularly for kernel module builds), and for the
+ * WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE mechanism in the kernel module.
+ *
+ * The seg_map describes the layout of the module, including its precomputed
+ * relocation table and its FIPS fenceposts.  For
+ * WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE, seg_map is a static const in
+ * module_hooks.c, but for offline calculation, readelf is used in
+ * linuxkm-fips-hash-wrapper.sh to extract the values to pass to
+ * linuxkm-fips-hash.
+ *
+ * The HMAC callback pointers are generic, but have wolfCrypt-like argument
+ * structure -- for live WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE calls, they
+ * point to wrappers around native Linux kernel implementations, but for
+ * linuxkm-fips-hash, they point to wrappers around native wolfCrypt
+ * implementations.
+ */
+
 int wc_fips_generate_hash(
     const struct wc_reloc_table_segments *seg_map,
     word32 digest_size,

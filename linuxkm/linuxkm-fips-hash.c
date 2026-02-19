@@ -1,3 +1,29 @@
+/* linuxkm-fips-hash.c
+ *
+ * A utility to compute the correct FIPS integrity hash for a fully linked
+ * libwolfssl.ko kernel module, and to optionally update the module in place.
+ *
+ * Copyright (C) 2006-2026 wolfSSL Inc.
+ *
+ * This file is part of wolfSSL.
+ *
+ * wolfSSL is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * wolfSSL is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
+ */
+
+/* See linuxkm-fips-hash-wrapper.sh for argument setup example. */
+
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
@@ -31,7 +57,6 @@
     #define FIPS_IN_CORE_VERIFY_SZ FIPS_IN_CORE_DIGEST_SIZE
 #endif
 
-static const char *user_coreKey;
 #ifdef WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE
 extern const char coreKey[FIPS_IN_CORE_KEY_SZ*2 + 1];
 #endif
@@ -67,10 +92,10 @@ int main(int argc, char **argv)
     char new_verifyCore[new_verifyCore_size];
     const char *progname = strchr(argv[0], '/') ? strrchr(argv[0], '/') + 1 : argv[0];
     const char *mod_path = NULL;
+    const char *user_coreKey = NULL;
     int mod_fd;
     struct stat st;
-    byte *mod_map = NULL;
-    word32 reloc_tab_len;
+    byte *mod_map = MAP_FAILED;
     struct wc_reloc_counts reloc_counts;
     int inplace = 0;
     int quiet = 0;
@@ -248,11 +273,11 @@ int main(int argc, char **argv)
     }
 
     if ((seg_map.reloc_tab_start >= seg_map.reloc_tab_end) ||
-        (seg_map.reloc_tab_end >= st.st_size) ||
+        (seg_map.reloc_tab_end >= (unsigned long)st.st_size) ||
         (seg_map.reloc_tab_len_start >= seg_map.reloc_tab_len_end) ||
-        (seg_map.reloc_tab_len_end >= st.st_size))
+        (seg_map.reloc_tab_len_end >= (unsigned long)st.st_size))
     {
-        fprintf(stderr, "%s: supplied reloc_tab fencepost(s) are out of bounds.\n", progname, mod_path, st.st_size);
+        fprintf(stderr, "%s: supplied reloc_tab fencepost(s) are out of bounds for supplied module %s with length %lu.\n", progname, mod_path, (unsigned long)st.st_size);
         exit(1);
     }
 
@@ -294,6 +319,7 @@ int main(int argc, char **argv)
 
     if (seg_map.verifyCore_end - seg_map.verifyCore_start != new_verifyCore_size) {
         fprintf(stderr, "%s: unexpected verifyCore length %zu.\n", progname, (size_t)(seg_map.verifyCore_end - seg_map.verifyCore_start));
+        ret = -1;
         goto out;
     }
 
@@ -302,7 +328,7 @@ int main(int argc, char **argv)
     ret = wc_fips_generate_hash(
         &seg_map,
         FIPS_IN_CORE_DIGEST_SIZE,
-        coreKey,
+        user_coreKey,
         &hmac,
         (wc_fips_verifyCore_hmac_setkey_fn)hmac_setkey_cb,
         (wc_fips_verifyCore_hmac_update_fn)hmac_update_cb,
@@ -322,6 +348,7 @@ int main(int argc, char **argv)
 
     if (new_verifyCore_size < sizeof new_verifyCore) {
         fprintf(stderr, "%s: wc_fips_generate_hash() returned unexpected verifyCore length %u.\n", progname, new_verifyCore_size);
+        ret = -1;
         goto out;
     }
 
@@ -338,17 +365,35 @@ int main(int argc, char **argv)
             fprintf(stderr, "%s: munmap: %m\n", progname);
             exit(1);
         }
+        mod_map = MAP_FAILED;
         ret = close(mod_fd);
         if (ret < 0) {
             fprintf(stderr, "%s: close: %m\n", progname);
             exit(1);
         }
+        mod_fd = -1;
         printf("FIPS integrity hash updated successfully.\n");
     }
 
   out:
 
     wc_HmacFree(&hmac);
+    wolfCrypt_Cleanup();
+
+    if (mod_map != MAP_FAILED) {
+        if (munmap(mod_map, st.st_size) < 0) {
+            fprintf(stderr, "%s: munmap: %m\n", progname);
+            if (ret == 0)
+                ret = -1;
+        }
+    }
+    if (mod_fd >= 0) {
+        if (close(mod_fd) < 0) {
+            fprintf(stderr, "%s: close: %m\n", progname);
+            if (ret == 0)
+                ret = -1;
+        }
+    }
 
     if (ret)
         exit(1);

@@ -1518,7 +1518,7 @@ extern const unsigned int wolfCrypt_FIPS_ro_end[];
 static int linux_fips_hmac_setkey(struct shash_desc *desc, const byte *key, word32 key_len) {
     int ret = crypto_shash_setkey(desc->tfm, key, key_len);
     if (ret) {
-        pr_err("ERROR: crypto_ahash_setkey failed: err %d\n", ret);
+        pr_err("ERROR: crypto_shash_setkey failed: err %d\n", ret);
         return BAD_STATE_E;
     }
 

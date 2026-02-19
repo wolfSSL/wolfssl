@@ -24,6 +24,10 @@
 #ifndef LINUXKM_WC_PORT_H
 #define LINUXKM_WC_PORT_H
 
+    #if defined(WOLFSSL_KERNEL_VERBOSE_DEBUG) && !defined(WOLFSSL_LINUXKM_VERBOSE_DEBUG)
+        #define WOLFSSL_LINUXKM_VERBOSE_DEBUG
+    #endif
+
     #include <linux/version.h>
 
     #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 16, 0)
@@ -1439,7 +1443,7 @@
 
     #endif /* WC_SYM_RELOC_TABLES */
 
-#ifdef WC_LINUXKM_STACK_DEBUG
+#if defined(WOLFSSL_KERNEL_STACK_DEBUG) || defined(WC_LINUXKM_STACK_DEBUG)
 
     #ifndef CONFIG_THREAD_INFO_IN_TASK
         #error WC_LINUXKM_STACK_DEBUG requires CONFIG_THREAD_INFO_IN_TASK
