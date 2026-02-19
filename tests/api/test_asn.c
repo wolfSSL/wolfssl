@@ -802,8 +802,6 @@ int test_SerialNumber0_RootCA(void)
     WOLFSSL_CERT_MANAGER* cm = NULL;
     const char* rootSerial0File = "./certs/test-serial0/root_serial0.pem";
     const char* rootNormalFile = "./certs/test-serial0/root.pem";
-    const char* eeSerial0File = "./certs/test-serial0/ee_serial0.pem";
-    const char* eeNormalFile = "./certs/test-serial0/ee_normal.pem";
     const char* selfSignedNonCASerial0File =
         "./certs/test-serial0/selfsigned_nonca_serial0.pem";
 
@@ -821,31 +819,34 @@ int test_SerialNumber0_RootCA(void)
     ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, rootNormalFile, NULL),
                 WOLFSSL_SUCCESS);
 
-    /* Test 3: End-entity cert with serial 0 should be rejected during verify */
 #if (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)) || \
     defined(OPENSSL_EXTRA)
-    ExpectIntEQ(wolfSSL_CertManagerVerify(cm, eeSerial0File,
-                WOLFSSL_FILETYPE_PEM), WC_NO_ERR_TRACE(ASN_PARSE_E));
-#endif
+    {
+        const char* eeSerial0File = "./certs/test-serial0/ee_serial0.pem";
+        const char* eeNormalFile = "./certs/test-serial0/ee_normal.pem";
 
-    if (cm != NULL) {
-        wolfSSL_CertManagerFree(cm);
-        cm = NULL;
-    }
+        /* Test 3: End-entity cert with serial 0 should be rejected during
+         * verify */
+        ExpectIntEQ(wolfSSL_CertManagerVerify(cm, eeSerial0File,
+                    WOLFSSL_FILETYPE_PEM), WC_NO_ERR_TRACE(ASN_PARSE_E));
 
-    /* Test 4: Normal end-entity cert signed by root CA with serial 0
-     * should verify successfully */
-#if (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)) || \
-    defined(OPENSSL_EXTRA)
-    ExpectNotNull(cm = wolfSSL_CertManagerNew());
-    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, rootSerial0File, NULL),
-                WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CertManagerVerify(cm, eeNormalFile,
-                WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+        if (cm != NULL) {
+            wolfSSL_CertManagerFree(cm);
+            cm = NULL;
+        }
 
-    if (cm != NULL) {
-        wolfSSL_CertManagerFree(cm);
-        cm = NULL;
+        /* Test 4: Normal end-entity cert signed by root CA with serial 0
+         * should verify successfully */
+        ExpectNotNull(cm = wolfSSL_CertManagerNew());
+        ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, rootSerial0File, NULL),
+                    WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CertManagerVerify(cm, eeNormalFile,
+                    WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+
+        if (cm != NULL) {
+            wolfSSL_CertManagerFree(cm);
+            cm = NULL;
+        }
     }
 #endif
 
