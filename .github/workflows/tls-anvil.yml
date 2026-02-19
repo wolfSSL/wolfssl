@@ -77,12 +77,12 @@ jobs:
                 "| Partially Failed  | \(.PartiallyFailedTests    // "N/A") |",
                 "| Fully Failed      | \(.FullyFailedTests         // "N/A") |",
                 "| Disabled          | \(.DisabledTests            // "N/A") |"
-              ' "$REPORT" 2>/dev/null || echo "| (could not parse report.json) | — |"
+              ' "$REPORT" 2>/dev/null || echo "| (could not parse report.json) | - |"
               echo ""
               echo "**Category scores:**"
               jq -r '.Score | to_entries[] | "- \(.key): \(.value)%"' "$REPORT" 2>/dev/null || true
             else
-              echo "No report.json found — check step logs for errors."
+              echo "No report.json found - check step logs for errors."
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
