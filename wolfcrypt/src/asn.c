@@ -9300,7 +9300,7 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
         if (falcon == NULL)
             return MEMORY_E;
 
-        if (wc_falcon_init(falcon) != 0) {
+        if (wc_falcon_init(falcon) == 0) {
             tmpIdx = 0;
             if (wc_falcon_set_level(falcon, 1) == 0) {
                 if (wc_Falcon_PrivateKeyDecode(key, &tmpIdx, falcon, keySz)
@@ -9387,7 +9387,7 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
         if (sphincs == NULL)
             return MEMORY_E;
 
-        if (wc_sphincs_init(sphincs) != 0) {
+        if (wc_sphincs_init(sphincs) == 0) {
             tmpIdx = 0;
             if (wc_sphincs_set_level_and_optim(sphincs, 1, FAST_VARIANT)
                 == 0) {
