@@ -3642,7 +3642,7 @@ static int test_wolfSSL_CTX_use_certificate_chain_buffer_format(void)
     wolfSSL_CTX_free(ctx);
 #ifndef NO_FILESYSTEM
     if (buf != NULL) {
-        free(buf);
+        XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #endif
 #endif
@@ -11683,7 +11683,7 @@ static int test_wc_PemToDer(void)
     pDer = NULL;
 
     if (cert_buf != NULL) {
-        free(cert_buf);
+        XFREE(cert_buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         cert_buf = NULL;
     }
 
@@ -11695,7 +11695,7 @@ static int test_wc_PemToDer(void)
     pDer = NULL;
 
     if (cert_buf != NULL) {
-        free(cert_buf);
+        XFREE(cert_buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         cert_buf = NULL;
     }
 
@@ -11717,7 +11717,7 @@ static int test_wc_PemToDer(void)
     #endif
         wc_FreeDer(&pDer);
         if (cert_buf != NULL)
-            free(cert_buf);
+            XFREE(cert_buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #endif
 #endif
@@ -11774,7 +11774,7 @@ static int test_wc_CertPemToDer(void)
     if (cert_der != NULL)
         free(cert_der);
     if (cert_buf != NULL)
-        free(cert_buf);
+        XFREE(cert_buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     return EXPECT_RESULT();
 }
@@ -11888,7 +11888,7 @@ static int test_wc_PubKeyPemToDer(void)
     }
 
     if (cert_buf != NULL) {
-        free(cert_buf);
+        XFREE(cert_buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #endif
     return EXPECT_RESULT();
@@ -12277,7 +12277,7 @@ static int test_wc_CheckCertSigPubKey(void)
     if (cert_der != NULL)
         free(cert_der);
     if (cert_buf != NULL)
-        free(cert_buf);
+        XFREE(cert_buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     return EXPECT_RESULT();
 }
@@ -18879,7 +18879,7 @@ static int test_wolfSSL_d2i_and_i2d_PublicKey_ecc(void)
     const unsigned char* p;
     unsigned char *der = NULL;
     unsigned char *tmp = NULL;
-    int derLen;
+    int derLen = 0;
     unsigned char pub_buf[65];
     unsigned char pub_spki_buf[91];
     const int pub_len = 65;
@@ -18989,7 +18989,7 @@ static int test_wolfSSL_d2i_and_i2d_DSAparams(void)
     };
     int derInLen = sizeof(derIn);
     byte* derOut = NULL;
-    int derOutLen;
+    int derOutLen = 0;
     byte* p = derIn;
 
     /* Check that params can be successfully decoded. */
@@ -21867,9 +21867,9 @@ static int test_RsaSigFailure_cm(void)
 #endif
     }
 
-    /* load_file() uses malloc. */
+    /* load_file() uses XMALLOC. */
     if (cert_buf != NULL) {
-        free(cert_buf);
+        XFREE(cert_buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #endif /* !NO_RSA */
     return EXPECT_RESULT();
@@ -21908,9 +21908,9 @@ static int test_EccSigFailure_cm(void)
 #endif
     }
 
-    /* load_file() uses malloc. */
+    /* load_file() uses XMALLOC. */
     if (cert_buf != NULL) {
-        free(cert_buf);
+        XFREE(cert_buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #ifdef FP_ECC
     wc_ecc_fp_free();
@@ -26343,7 +26343,7 @@ static int load_pem_key_file_as_der(const char* privKeyFile, DerBuffer** pDer,
     }
 
     if (key_buf != NULL) {
-        free(key_buf); key_buf = NULL;
+        XFREE(key_buf, NULL, DYNAMIC_TYPE_TMP_BUFFER); key_buf = NULL;
     }
     (void)encInfo; /* not used in this test */
 
@@ -33290,6 +33290,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_ocsp_response_parsing),
     TEST_DECL(test_ocsp_certid_enc_dec),
     TEST_DECL(test_ocsp_tls_cert_cb),
+    TEST_DECL(test_ocsp_responder),
     TEST_TLS_DECLS,
     TEST_DECL(test_wc_DhSetNamedKey),
     /* This test needs to stay at the end to clean up any caches allocated. */

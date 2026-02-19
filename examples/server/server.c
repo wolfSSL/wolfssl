@@ -3621,14 +3621,16 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             err = SSL_get_error(ssl, 0);
             LOG_ERROR("SSL_accept error %d, %s\n", err,
                                             ERR_error_string((unsigned long)err, buffer));
-            if (!exitWithRet) {
-                err_sys_ex(runWithErrors, "SSL_accept failed");
-            } else {
-                /* cleanup */
+            if (exitWithRet || !runWithErrors) {
+                /* cleanup before exit */
                 SSL_free(ssl); ssl = NULL;
                 SSL_CTX_free(ctx); ctx = NULL;
                 CloseSocket(clientfd);
                 CloseSocket(sockfd);
+            }
+            if (!exitWithRet) {
+                err_sys_ex(runWithErrors, "SSL_accept failed");
+            } else {
                 ((func_args*)args)->return_code = err;
                 goto exit;
             }

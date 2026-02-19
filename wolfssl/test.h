@@ -2334,7 +2334,7 @@ static WC_INLINE void OCSPRespFreeCb(void* ioCtx, unsigned char* response)
         LIBCALL_CHECK_RET(XFSEEK(lFile, 0, XSEEK_SET));
         if (fileSz  > 0) {
             *bufLen = (size_t)fileSz;
-            *buf = (byte*)malloc(*bufLen);
+            *buf = (byte*)XMALLOC(*bufLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             if (*buf == NULL) {
                 ret = MEMORY_E;
                 fprintf(stderr,
@@ -2399,7 +2399,7 @@ static WC_INLINE void OCSPRespFreeCb(void* ioCtx, unsigned char* response)
         }
 
         if (buff)
-            free(buff);
+            XFREE(buff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
     static WC_INLINE void load_ssl_buffer(WOLFSSL* ssl, const char* fname, int type)
@@ -2441,7 +2441,7 @@ static WC_INLINE void OCSPRespFreeCb(void* ioCtx, unsigned char* response)
         }
 
         if (buff)
-            free(buff);
+            XFREE(buff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
     #ifdef TEST_PK_PRIVKEY
@@ -2457,18 +2457,18 @@ static WC_INLINE void OCSPRespFreeCb(void* ioCtx, unsigned char* response)
 
         *derBuf = (byte*)malloc(bufLen);
         if (*derBuf == NULL) {
-            free(buf);
+            XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             return MEMORY_E;
         }
 
         ret = wc_KeyPemToDer(buf, (word32)bufLen, *derBuf, (word32)bufLen, NULL);
         if (ret < 0) {
-            free(buf);
+            XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             free(*derBuf);
             return ret;
         }
         *derLen = ret;
-        free(buf);
+        XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
         return 0;
     }

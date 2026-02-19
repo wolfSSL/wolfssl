@@ -2048,6 +2048,7 @@ WOLFSSL_LOCAL int NamedGroupIsPqcHybrid(int group);
 #define WOLFSSL_ASSERT_EQ(x, y) wc_static_assert((x) == (y))
 
 #define WOLFSSL_ASSERT_SIZEOF_GE(x, y) wc_static_assert(sizeof(x) >= sizeof(y))
+#define WOLFSSL_ASSERT_SIZEOF_EQ(x, y) wc_static_assert(sizeof(x) == sizeof(y))
 
 /* states. Adding state before HANDSHAKE_DONE will break session importing */
 enum states {

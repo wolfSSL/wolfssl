@@ -9070,10 +9070,11 @@ static int SendTls13Certificate(WOLFSSL* ssl)
 
                 if (extIdx != 0 && extIdx < MAX_CERT_EXTENSIONS &&
                     ssl->buffers.certExts[extIdx] != NULL &&
-                                offset == len + extSz[extIdx])
+                                offset == len + extSz[extIdx]) {
                     FreeDer(&ssl->buffers.certExts[extIdx]);
-                /* for next chain cert */
-                len += extSz[extIdx] - OPAQUE16_LEN;
+                    /* for next chain cert */
+                    len += extSz[extIdx] - OPAQUE16_LEN;
+                }
             }
         }
 

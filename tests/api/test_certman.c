@@ -269,7 +269,7 @@ static int test_cm_load_ca_file(const char* ca_cert_file)
 
         if (ret == WOLFSSL_SUCCESS) {
             /* test including null terminator in length */
-            byte* tmp = (byte*)realloc(cert_buf, cert_sz+1);
+            byte* tmp = (byte*)XREALLOC(cert_buf, cert_sz+1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             if (tmp == NULL) {
                 ret = MEMORY_E;
             }
@@ -297,7 +297,7 @@ static int test_cm_load_ca_file(const char* ca_cert_file)
     #endif
 
     }
-    free(cert_buf);
+    XFREE(cert_buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -339,7 +339,7 @@ static int test_cm_load_ca_file_ex(const char* ca_cert_file, word32 flags)
 
         if (ret == WOLFSSL_SUCCESS) {
             /* test including null terminator in length */
-            byte* tmp = (byte*)realloc(cert_buf, cert_sz+1);
+            byte* tmp = (byte*)XREALLOC(cert_buf, cert_sz+1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             if (tmp == NULL) {
                 ret = MEMORY_E;
             }
@@ -367,7 +367,7 @@ static int test_cm_load_ca_file_ex(const char* ca_cert_file, word32 flags)
     #endif
 
     }
-    free(cert_buf);
+    XFREE(cert_buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -614,13 +614,13 @@ int test_wolfSSL_CertManagerLoadCABufferType(void)
     if (cm)
         wolfSSL_CertManagerFree(cm);
     if (ca_cert_buf)
-        free(ca_cert_buf);
+        XFREE(ca_cert_buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (int1_cert_buf)
-        free(int1_cert_buf);
+        XFREE(int1_cert_buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (int2_cert_buf)
-        free(int2_cert_buf);
+        XFREE(int2_cert_buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (client_cert_buf)
-        free(client_cert_buf);
+        XFREE(client_cert_buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
     return EXPECT_RESULT();
