@@ -3775,10 +3775,18 @@ extern void uITRON4_free(void *p) ;
         #define WOLFSSL_NO_GETPID
     #endif /* WOLFSSL_NO_GETPID */
     #ifndef SIZEOF_LONG
-        #define SIZEOF_LONG         8
+        #ifdef __SIZEOF_LONG__
+            #define SIZEOF_LONG __SIZEOF_LONG__
+        #else
+            #define SIZEOF_LONG         8
+        #endif
     #endif
     #ifndef SIZEOF_LONG_LONG
-        #define SIZEOF_LONG_LONG    8
+        #ifdef __SIZEOF_LONG_LONG__
+            #define SIZEOF_LONG_LONG __SIZEOF_LONG_LONG__
+        #else
+            #define SIZEOF_LONG_LONG    8
+        #endif
     #endif
     #define CHAR_BIT            8
     #ifndef WOLFSSL_SP_DIV_64
