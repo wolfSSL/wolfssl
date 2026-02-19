@@ -162,12 +162,13 @@ static void wc_Stm32_Hash_SaveContext(STM32_HASH_Context* ctx)
 #endif
 }
 
-static void wc_Stm32_Hash_RestoreContext(STM32_HASH_Context* ctx, int algo)
+static void wc_Stm32_Hash_RestoreContext(STM32_HASH_Context* ctx, word32 algo,
+    word32 mode)
 {
     int i;
 
     if (ctx->HASH_CR == 0) {
-        /* init content */
+        /* init context */
 
     #if defined(HASH_IMR_DINIE) && defined(HASH_IMR_DCIE)
         /* Disable IRQ's - wolfSSL does not use the HASH/RNG IRQ
@@ -175,37 +176,31 @@ static void wc_Stm32_Hash_RestoreContext(STM32_HASH_Context* ctx, int algo)
         HASH->IMR &= ~(HASH_IMR_DINIE | HASH_IMR_DCIE);
     #endif
 
-        /* reset the control register */
-        HASH->CR &= ~(HASH_CR_ALGO | HASH_CR_MODE | HASH_CR_DATATYPE
-        #ifdef HASH_CR_LKEY
-            | HASH_CR_LKEY
-        #endif
-        );
-
-        /* configure algorithm, mode and data type */
-        HASH->CR |= (algo | HASH_ALGOMODE_HASH | HASH_DATATYPE_8B);
-
-        /* reset HASH processor */
-        HASH->CR |= HASH_CR_INIT;
+        /* Configure algorithm, mode, data type and initialize HASH processor.
+         * INIT must be written in the same register write as ALGO because
+         * setting INIT resets ALGO bits to their default value (MD5). */
+        HASH->CR = (algo | mode | HASH_DATATYPE_8B | HASH_CR_INIT);
 
         /* by default mark all bits valid */
         wc_Stm32_Hash_NumValidBits(0);
 
 #ifdef DEBUG_STM32_HASH
-        printf("STM Init algo %x\n", algo);
+        printf("STM Init algo %x, mode %x, CR %lx, SR %lx\n",
+            (unsigned int)algo, (unsigned int)mode,
+            HASH->CR, HASH->SR);
 #endif
     }
     else {
         /* restore context registers */
         HASH->IMR = ctx->HASH_IMR;
         HASH->STR = ctx->HASH_STR;
-        HASH->CR = ctx->HASH_CR;
 #ifdef STM32_HASH_SHA3
         HASH->SHA3CFGR = ctx->SHA3CFGR;
 #endif
 
-        /* Initialize the hash processor */
-        HASH->CR |= HASH_CR_INIT;
+        /* Restore CR with INIT in a single write - setting INIT resets ALGO
+         * bits, so we must include the saved CR value in the same write. */
+        HASH->CR = ctx->HASH_CR | HASH_CR_INIT;
 
         /* continue restoring context registers */
         for (i=0; i<HASH_CR_SIZE; i++) {
@@ -363,7 +358,7 @@ int wc_Stm32_Hash_Update(STM32_HASH_Context* stmCtx, word32 algo,
     STM32_HASH_CLOCK_ENABLE(stmCtx);
 
     /* restore hash context or init as new hash */
-    wc_Stm32_Hash_RestoreContext(stmCtx, algo);
+    wc_Stm32_Hash_RestoreContext(stmCtx, algo, HASH_ALGOMODE_HASH);
 
     /* write blocks to FIFO */
     while (len) {
@@ -417,7 +412,7 @@ int wc_Stm32_Hash_Final(STM32_HASH_Context* stmCtx, word32 algo,
     STM32_HASH_CLOCK_ENABLE(stmCtx);
 
     /* restore hash context or init as new hash */
-    wc_Stm32_Hash_RestoreContext(stmCtx, algo);
+    wc_Stm32_Hash_RestoreContext(stmCtx, algo, HASH_ALGOMODE_HASH);
 
     /* finish reading any trailing bytes into FIFO */
     if (stmCtx->buffLen > 0) {
@@ -443,6 +438,203 @@ int wc_Stm32_Hash_Final(STM32_HASH_Context* stmCtx, word32 algo,
 
     return ret;
 }
+
+#if defined(STM32_HMAC) && !defined(NO_HMAC)
+
+/* STM32 Port HMAC Functions */
+#include <wolfssl/wolfcrypt/hmac.h>
+
+int wc_Stm32_Hmac_GetAlgoInfo(int macType, word32* algo, word32* blockSize,
+    word32* digestSize)
+{
+    int ret = 0;
+
+    switch (macType) {
+    #if !defined(NO_MD5) && !defined(STM32_NOMD5)
+        case WC_MD5:
+            if (algo)       *algo = HASH_AlgoSelection_MD5;
+            if (blockSize)  *blockSize = WC_MD5_BLOCK_SIZE;
+            if (digestSize) *digestSize = WC_MD5_DIGEST_SIZE;
+            break;
+    #endif
+    #ifndef NO_SHA
+        case WC_SHA:
+            if (algo)       *algo = HASH_AlgoSelection_SHA1;
+            if (blockSize)  *blockSize = WC_SHA_BLOCK_SIZE;
+            if (digestSize) *digestSize = WC_SHA_DIGEST_SIZE;
+            break;
+    #endif
+    #ifdef WOLFSSL_SHA224
+        case WC_SHA224:
+            if (algo)       *algo = HASH_AlgoSelection_SHA224;
+            if (blockSize)  *blockSize = WC_SHA224_BLOCK_SIZE;
+            if (digestSize) *digestSize = WC_SHA224_DIGEST_SIZE;
+            break;
+    #endif
+    #ifndef NO_SHA256
+        case WC_SHA256:
+            if (algo)       *algo = HASH_AlgoSelection_SHA256;
+            if (blockSize)  *blockSize = WC_SHA256_BLOCK_SIZE;
+            if (digestSize) *digestSize = WC_SHA256_DIGEST_SIZE;
+            break;
+    #endif
+    #if defined(STM32_HASH_SHA384) && defined(WOLFSSL_SHA384)
+        case WC_SHA384:
+            if (algo)       *algo = HASH_ALGOSELECTION_SHA384;
+            if (blockSize)  *blockSize = WC_SHA384_BLOCK_SIZE;
+            if (digestSize) *digestSize = WC_SHA384_DIGEST_SIZE;
+            break;
+    #endif
+    #if defined(STM32_HASH_SHA512) && defined(WOLFSSL_SHA512)
+        case WC_SHA512:
+            if (algo)       *algo = HASH_ALGOSELECTION_SHA512;
+            if (blockSize)  *blockSize = WC_SHA512_BLOCK_SIZE;
+            if (digestSize) *digestSize = WC_SHA512_DIGEST_SIZE;
+            break;
+    #endif
+        default:
+            ret = BAD_FUNC_ARG;
+            break;
+    }
+
+    return ret;
+}
+
+static void wc_Stm32_Hmac_FeedKey(const byte* key, word32 keySz)
+{
+    word32 i, blocks;
+    word32 tmp;
+
+    /* feed key words into HASH->DIN */
+    blocks = keySz / STM32_HASH_REG_SIZE;
+    for (i = 0; i < blocks; i++) {
+        XMEMCPY(&tmp, key + (i * STM32_HASH_REG_SIZE), STM32_HASH_REG_SIZE);
+        HASH->DIN = tmp;
+    }
+    /* handle remaining bytes in last partial word */
+    if (keySz % STM32_HASH_REG_SIZE) {
+        tmp = 0;
+        XMEMCPY(&tmp, key + (blocks * STM32_HASH_REG_SIZE),
+            keySz % STM32_HASH_REG_SIZE);
+        HASH->DIN = tmp;
+    }
+
+#ifdef DEBUG_STM32_HASH
+    printf("STM HMAC FeedKey %d bytes\n", (int)keySz);
+#endif
+}
+
+
+/* STM32 HMAC Exposed Functions */
+
+int wc_Stm32_Hmac_SetKey(STM32_HASH_Context* stmCtx, int macType,
+    const byte* key, word32 keySz)
+{
+    int ret;
+    word32 algo, blockSize, digestSize;
+    word32 mode;
+
+    if (stmCtx == NULL || key == NULL)
+        return BAD_FUNC_ARG;
+
+    ret = wc_Stm32_Hmac_GetAlgoInfo(macType, &algo, &blockSize, &digestSize);
+    if (ret != 0)
+        return ret;
+
+#ifdef DEBUG_STM32_HASH
+    printf("STM HMAC SetKey: macType %d, keySz %d\n", macType, (int)keySz);
+#endif
+
+    /* clear context for fresh HMAC */
+    wc_Stm32_Hash_Init(stmCtx);
+
+    /* turn on hash clock */
+    STM32_HASH_CLOCK_ENABLE(stmCtx);
+
+    /* initialize hardware for HMAC mode.
+     * Keys are always pre-hashed in software before reaching this point
+     * (see hmac.c), so keySz will always be <= blockSize here. */
+    mode = HASH_ALGOMODE_HMAC;
+    wc_Stm32_Hash_RestoreContext(stmCtx, algo, mode);
+
+    /* Phase 1: Feed key into HASH->DIN */
+    wc_Stm32_Hmac_FeedKey(key, keySz);
+
+    /* set number of valid bits in last word and trigger DCAL */
+    wc_Stm32_Hash_NumValidBits(keySz);
+    HASH->STR |= HASH_STR_DCAL;
+
+    /* wait for data input ready (phase 1 complete) */
+    ret = wc_Stm32_Hash_WaitDataReady(stmCtx);
+
+    if (ret == 0) {
+        /* save context for context switching */
+        wc_Stm32_Hash_SaveContext(stmCtx);
+    }
+
+    /* turn off hash clock */
+    STM32_HASH_CLOCK_DISABLE(stmCtx);
+
+    return ret;
+}
+
+int wc_Stm32_Hmac_Final(STM32_HASH_Context* stmCtx, word32 algo,
+    const byte* key, word32 keySz, byte* hash, word32 digestSize)
+{
+    int ret;
+
+    if (stmCtx == NULL || key == NULL || hash == NULL)
+        return BAD_FUNC_ARG;
+
+#ifdef DEBUG_STM32_HASH
+    printf("STM HMAC Final: algo %x, keySz %d, buffLen %d, fifoBytes %d\n",
+        (unsigned int)algo, (int)keySz, (int)stmCtx->buffLen,
+        (int)stmCtx->fifoBytes);
+#endif
+
+    /* turn on hash clock */
+    STM32_HASH_CLOCK_ENABLE(stmCtx);
+
+    /* restore HMAC context */
+    wc_Stm32_Hash_RestoreContext(stmCtx, algo, HASH_ALGOMODE_HMAC);
+
+    /* finish reading any trailing bytes into FIFO */
+    if (stmCtx->buffLen > 0) {
+        wc_Stm32_Hash_Data(stmCtx, stmCtx->buffLen);
+    }
+
+    /* Phase 2 complete: set valid bits and trigger DCAL */
+    wc_Stm32_Hash_NumValidBits(stmCtx->loLen + stmCtx->buffLen);
+    HASH->STR |= HASH_STR_DCAL;
+
+    /* wait for data input ready (phase 2 complete, ready for phase 3) */
+    ret = wc_Stm32_Hash_WaitDataReady(stmCtx);
+    if (ret != 0) {
+        STM32_HASH_CLOCK_DISABLE(stmCtx);
+        return ret;
+    }
+
+    /* Phase 3: Feed key again into HASH->DIN */
+    wc_Stm32_Hmac_FeedKey(key, keySz);
+
+    /* set valid bits for key and trigger DCAL */
+    wc_Stm32_Hash_NumValidBits(keySz);
+    HASH->STR |= HASH_STR_DCAL;
+
+    /* wait for hash done (digest computation complete) */
+    ret = wc_Stm32_Hash_WaitCalcComp(stmCtx);
+    if (ret == 0) {
+        /* read message digest */
+        wc_Stm32_Hash_GetDigest(hash, digestSize);
+    }
+
+    /* turn off hash clock */
+    STM32_HASH_CLOCK_DISABLE(stmCtx);
+
+    return ret;
+}
+
+#endif /* STM32_HMAC && !NO_HMAC */
 
 #endif /* STM32_HASH */
 

@@ -2192,6 +2192,10 @@ extern void uITRON4_free(void *p) ;
         #undef  STM32_HASH
         #define STM32_HASH
     #endif
+    #ifndef NO_STM32_HMAC
+        #undef  STM32_HMAC
+        #define STM32_HMAC
+    #endif
     #if !defined(__GNUC__) && !defined(__ICCARM__)
         #define KEIL_INTRINSICS
     #endif
