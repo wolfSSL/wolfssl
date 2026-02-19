@@ -103,7 +103,10 @@ int main(int argc, char **argv)
 
     static const struct option long_options[] = {
 #define FENCEPOST_OPT_FLAG (1U << 30)
-#define FENCEPOST_OPT(x) { .name = #x, .has_arg = required_argument, .flag = NULL, .val = FENCEPOST_OPT_FLAG | offsetof(typeof(seg_map), x) }
+#define FENCEPOST_OPT(x) { .name = #x,                   \
+                           .has_arg = required_argument, \
+                           .flag = NULL,                 \
+                           .val = FENCEPOST_OPT_FLAG | offsetof(typeof(seg_map), x) }
         FENCEPOST_OPT(text_start),
         FENCEPOST_OPT(text_end),
         FENCEPOST_OPT(reloc_tab_start),
@@ -133,7 +136,8 @@ int main(int argc, char **argv)
 
     ret = wolfCrypt_Init();
     if (ret < 0) {
-        fprintf(stderr, "%s: wolfCrypt_Init() failed: %s.\n", progname, wc_GetErrorString(ret));
+        fprintf(stderr, "%s: wolfCrypt_Init() failed: %s.\n",
+                progname, wc_GetErrorString(ret));
         exit(1);
     }
 
@@ -148,7 +152,8 @@ int main(int argc, char **argv)
             c &= ~FENCEPOST_OPT_FLAG;
             *((unsigned long *)((byte *)&seg_map + c)) = strtoul(optarg, &eptr, 0);
             if (*eptr != '\0') {
-                fprintf(stderr, "%s: %s: supplied arg \"%s\" isn't a valid number.\n", progname, long_options[option_index].name, optarg);
+                fprintf(stderr, "%s: %s: supplied arg \"%s\" isn't a valid number.\n",
+                        progname, long_options[option_index].name, optarg);
                 exit(1);
             }
             continue;
@@ -223,7 +228,8 @@ int main(int argc, char **argv)
         (seg_map.fips_rodata_start != ~0UL) ||
         (seg_map.fips_rodata_end != ~0UL))
     {
-        fprintf(stderr, "%s: note, ignoring explicit FIPS fenceposts because WC_USE_PIE_FENCEPOSTS_FOR_FIPS.\n", progname);
+        fprintf(stderr, "%s: note, ignoring explicit FIPS fenceposts "
+                "because WC_USE_PIE_FENCEPOSTS_FOR_FIPS.\n", progname);
     }
 
     seg_map.fips_text_start = seg_map.text_start;
@@ -251,7 +257,8 @@ int main(int argc, char **argv)
         (seg_map.bss_start == ~0UL) ||
         (seg_map.bss_end == ~0UL))
     {
-        fprintf(stderr, "%s: segment fencepost(s) missing.  Try --help.\n", progname);
+        fprintf(stderr, "%s: segment fencepost(s) missing.  Try --help.\n",
+                progname);
         exit(1);
     }
 
@@ -277,13 +284,18 @@ int main(int argc, char **argv)
         (seg_map.reloc_tab_len_start >= seg_map.reloc_tab_len_end) ||
         (seg_map.reloc_tab_len_end >= (unsigned long)st.st_size))
     {
-        fprintf(stderr, "%s: supplied reloc_tab fencepost(s) are out of bounds for supplied module %s with length %lu.\n", progname, mod_path, (unsigned long)st.st_size);
+        fprintf(stderr, "%s: supplied reloc_tab fencepost(s) are out of bounds "
+                "for supplied module %s with length %lu.\n",
+                progname, mod_path, (unsigned long)st.st_size);
         exit(1);
     }
 
-    mod_map = (byte *)mmap(NULL, st.st_size, inplace ? PROT_READ | PROT_WRITE : PROT_READ, MAP_SHARED | MAP_POPULATE, mod_fd, 0);
+    mod_map = (byte *)mmap(NULL, st.st_size,
+                           inplace ? PROT_READ | PROT_WRITE : PROT_READ,
+                           MAP_SHARED | MAP_POPULATE, mod_fd, 0);
     if (mod_map == MAP_FAILED) {
-        fprintf(stderr, "%s: mmap() of %s, length %zu: %m.\n", progname, mod_path, st.st_size);
+        fprintf(stderr, "%s: mmap() of %s, length %zu: %m.\n",
+                progname, mod_path, st.st_size);
         exit(1);
     }
 
@@ -313,12 +325,14 @@ int main(int argc, char **argv)
 
     ret = wc_HmacInit(&hmac, NULL, INVALID_DEVID);
     if (ret != 0) {
-        fprintf(stderr, "%s: wc_HmacInit() failed: %s.\n", progname, wc_GetErrorString(ret));
+        fprintf(stderr, "%s: wc_HmacInit() failed: %s.\n",
+                progname, wc_GetErrorString(ret));
         exit(1);
     }
 
     if (seg_map.verifyCore_end - seg_map.verifyCore_start != new_verifyCore_size) {
-        fprintf(stderr, "%s: unexpected verifyCore length %zu.\n", progname, (size_t)(seg_map.verifyCore_end - seg_map.verifyCore_start));
+        fprintf(stderr, "%s: unexpected verifyCore length %zu.\n",
+        progname, (size_t)(seg_map.verifyCore_end - seg_map.verifyCore_start));
         ret = -1;
         goto out;
     }
@@ -338,16 +352,22 @@ int main(int argc, char **argv)
         &reloc_counts);
 
     if (ret < 0) {
-        fprintf(stderr, "%s: wc_fips_generate_hash() failed: %s.\n", progname, wc_GetErrorString(ret));
+        fprintf(stderr, "%s: wc_fips_generate_hash() failed: %s.\n",
+                progname, wc_GetErrorString(ret));
         goto out;
     }
 
     if (verbose)
-        fprintf(inplace ? stdout : stderr, "FIPS-bounded relocation normalizations: text=%d, rodata=%d, rwdata=%d, bss=%d, other=%d\n",
-                reloc_counts.text, reloc_counts.rodata, reloc_counts.rwdata, reloc_counts.bss, reloc_counts.other);
+        fprintf(inplace ? stdout : stderr,
+                "FIPS-bounded relocation normalizations: text=%d, rodata=%d, "
+                "rwdata=%d, bss=%d, other=%d\n",
+                reloc_counts.text, reloc_counts.rodata, reloc_counts.rwdata,
+                reloc_counts.bss, reloc_counts.other);
 
     if (new_verifyCore_size < sizeof new_verifyCore) {
-        fprintf(stderr, "%s: wc_fips_generate_hash() returned unexpected verifyCore length %u.\n", progname, new_verifyCore_size);
+        fprintf(stderr, "%s: wc_fips_generate_hash() returned unexpected "
+                        "verifyCore length %u.\n",
+                        progname, new_verifyCore_size);
         ret = -1;
         goto out;
     }
@@ -359,7 +379,8 @@ int main(int argc, char **argv)
         fprintf(stderr, "%s: note, verifyCore already matches.\n", progname);
     }
     else if (inplace) {
-        XMEMCPY((void *)seg_map.verifyCore_start, new_verifyCore, new_verifyCore_size);
+        XMEMCPY((void *)seg_map.verifyCore_start, new_verifyCore,
+                new_verifyCore_size);
         ret = munmap(mod_map, st.st_size);
         if (ret < 0) {
             fprintf(stderr, "%s: munmap: %m\n", progname);
