@@ -62,12 +62,7 @@ extern const char coreKey[FIPS_IN_CORE_KEY_SZ*2 + 1];
 #endif
 
 static int hmac_setkey_cb(Hmac *hmac, const byte *key, word32 key_len) {
-    int ret;
-
-    ret = wc_HmacSetKey(hmac, FIPS_IN_CORE_HASH_TYPE, key, key_len);
-    if (ret != 0)
-        return ret;
-    return 0;
+    return wc_HmacSetKey(hmac, FIPS_IN_CORE_HASH_TYPE, key, key_len);
 }
 
 static int hmac_update_cb(Hmac *hmac, const byte *in, word32 in_len) {
@@ -89,7 +84,7 @@ int main(int argc, char **argv)
     int ret;
     struct wc_reloc_table_segments seg_map = WC_RELOC_TABLE_SEGMENTS_INITIALIZER;
     word32 new_verifyCore_size = FIPS_IN_CORE_DIGEST_SIZE*2 + 1;
-    char new_verifyCore[new_verifyCore_size];
+    char new_verifyCore[FIPS_IN_CORE_DIGEST_SIZE*2 + 1];
     const char *progname = strchr(argv[0], '/') ? strrchr(argv[0], '/') + 1 : argv[0];
     const char *mod_path = NULL;
     const char *user_coreKey = NULL;
@@ -133,13 +128,6 @@ int main(int argc, char **argv)
         { "help", no_argument, NULL, 'h' },
         { }
     };
-
-    ret = wolfCrypt_Init();
-    if (ret < 0) {
-        fprintf(stderr, "%s: wolfCrypt_Init() failed: %s.\n",
-                progname, wc_GetErrorString(ret));
-        exit(1);
-    }
 
     for (;;) {
         int option_index = 0;
@@ -292,7 +280,8 @@ int main(int argc, char **argv)
 
     mod_map = (byte *)mmap(NULL, st.st_size,
                            inplace ? PROT_READ | PROT_WRITE : PROT_READ,
-                           MAP_SHARED | MAP_POPULATE, mod_fd, 0);
+                           (inplace ? MAP_SHARED : MAP_PRIVATE) | MAP_POPULATE,
+                           mod_fd, 0);
     if (mod_map == MAP_FAILED) {
         fprintf(stderr, "%s: mmap() of %s, length %zu: %m.\n",
                 progname, mod_path, st.st_size);
@@ -322,6 +311,13 @@ int main(int argc, char **argv)
     seg_map.data_end += (unsigned long)mod_map;
     seg_map.bss_start += (unsigned long)mod_map;
     seg_map.bss_end += (unsigned long)mod_map;
+
+    ret = wolfCrypt_Init();
+    if (ret < 0) {
+        fprintf(stderr, "%s: wolfCrypt_Init() failed: %s.\n",
+                progname, wc_GetErrorString(ret));
+        exit(1);
+    }
 
     ret = wc_HmacInit(&hmac, NULL, INVALID_DEVID);
     if (ret != 0) {

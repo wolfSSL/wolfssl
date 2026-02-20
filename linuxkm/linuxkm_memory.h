@@ -200,6 +200,10 @@ struct wc_reloc_counts {
 
 #if defined(WC_SYM_RELOC_TABLES) || defined(WC_SYM_RELOC_TABLES_SUPPORT)
 
+#ifndef WOLFSSL_TEXT_SEGMENT_CANONICALIZER_BUFSIZ
+    #define WOLFSSL_TEXT_SEGMENT_CANONICALIZER_BUFSIZ 8192
+#endif
+
 WOLFSSL_API ssize_t wc_reloc_normalize_text(
     const byte *text_in,
     size_t text_in_len,

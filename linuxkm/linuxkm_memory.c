@@ -730,7 +730,7 @@ int wc_fips_generate_hash(
     {
         ssize_t cur_reloc_index = -1;
         const byte *text_p = (const byte *)seg_map->fips_text_start;
-        byte *buf = XMALLOC(8192, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        byte *buf = XMALLOC(WOLFSSL_TEXT_SEGMENT_CANONICALIZER_BUFSIZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
         if (! buf) {
             ret = MEMORY_E;
@@ -744,7 +744,7 @@ int wc_fips_generate_hash(
              */
             ssize_t progress = wc_reloc_normalize_text(
                 text_p,
-                min(8192, (word32)((const byte *)seg_map->fips_text_end - text_p)),
+                min(WOLFSSL_TEXT_SEGMENT_CANONICALIZER_BUFSIZ, (word32)((const byte *)seg_map->fips_text_end - text_p)),
                 buf,
                 &cur_reloc_index,
                 seg_map,
