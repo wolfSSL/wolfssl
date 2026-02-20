@@ -1,0 +1,96 @@
+name: TLS-Anvil RFC Compliance
+
+on:
+  schedule:
+    # Nightly at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      strength:
+        description: 'TLS-Anvil test strength (1=quick, 2=medium, 3=full)'
+        default: '1'
+        required: false
+        type: choice
+        options: ['1', '2', '3']
+
+jobs:
+  tls-anvil:
+    name: ${{ matrix.test-name }}
+    # Only run from the wolfssl org to avoid burning forks' CI minutes
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - test-name: tls12-server
+            mode: server
+            extra-flags: '--disable-tls13'
+          - test-name: tls13-server
+            mode: server
+            extra-flags: '--enable-tls13'
+          - test-name: tls12-client
+            mode: client
+            extra-flags: '--disable-tls13'
+          - test-name: tls13-client
+            mode: client
+            extra-flags: '--enable-tls13'
+
+    steps:
+      - name: Checkout wolfSSL
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y build-essential autoconf automake libtool jq psmisc || \
+          sudo apt-get install -y build-essential autoconf automake libtool jq
+
+      - name: Pull TLS-Anvil Docker image
+        run: docker pull ghcr.io/tls-attacker/tlsanvil:latest
+
+      - name: Run TLS-Anvil (${{ matrix.test-name }})
+        env:
+          TLS_ANVIL_TEST_NAME: ${{ matrix.test-name }}
+          TLS_ANVIL_STRENGTH: ${{ inputs.strength || '1' }}
+        run: |
+          bash .github/scripts/tls-anvil-test.sh \
+            "${{ matrix.mode }}" \
+            "${{ matrix.extra-flags }}"
+
+      - name: Summarize results
+        if: always()
+        run: |
+          REPORT="tls-anvil-results/report.json"
+          {
+            echo "## TLS-Anvil: ${{ matrix.test-name }}"
+            echo ""
+            if [[ -f "$REPORT" ]]; then
+              echo "| | Count |"
+              echo "|---|---|"
+              jq -r '
+                "| Total             | \(.TotalTests              // "N/A") |",
+                "| Strictly Passed   | \(.StrictlySucceededTests  // "N/A") |",
+                "| Conceptually OK   | \(.ConceptuallySucceededTests // "N/A") |",
+                "| Partially Failed  | \(.PartiallyFailedTests    // "N/A") |",
+                "| Fully Failed      | \(.FullyFailedTests         // "N/A") |",
+                "| Disabled          | \(.DisabledTests            // "N/A") |"
+              ' "$REPORT" 2>/dev/null || echo "| (could not parse report.json) | - |"
+              echo ""
+              echo "**Category scores:**"
+              jq -r '.Score | to_entries[] | "- \(.key): \(.value)%"' "$REPORT" 2>/dev/null || true
+            else
+              echo "No report.json found - check step logs for errors."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tls-anvil-results-${{ matrix.test-name }}
+          path: tls-anvil-results/
+          retention-days: 30
+          if-no-files-found: warn
