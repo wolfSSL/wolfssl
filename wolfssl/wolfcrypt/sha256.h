@@ -215,9 +215,6 @@ struct wc_Sha256 {
 #ifdef WOLFSSL_DEVCRYPTO_HASH
     WC_CRYPTODEV ctx;
 #endif
-#if defined(MAX3266X_SHA_CB) || defined(MAX3266X_SHA)
-    wc_MXC_Sha mxcCtx;
-#endif
 #if defined(WOLFSSL_DEVCRYPTO_HASH) || defined(WOLFSSL_HASH_KEEP)
     byte*  msg;
     word32 used;

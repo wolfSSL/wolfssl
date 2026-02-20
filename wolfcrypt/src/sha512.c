@@ -887,6 +887,8 @@ static int InitSha512_Family(wc_Sha512* sha512, void* heap, int devId,
 
 #ifdef WOLFSSL_HASH_KEEP
     sha512->msg  = NULL;
+    sha512->len  = 0;
+    sha512->used = 0;
 #endif
 
     /* call the initialization function pointed to by initfp */
@@ -927,11 +929,6 @@ int wc_InitSha512_ex(wc_Sha512* sha512, void* heap, int devId)
     sha512->ctx.mode = ESP32_SHA_INIT;
 #endif
 
-#ifdef MAX3266X_SHA_CB
-    if (wc_MXC_TPU_SHA_Init(&(sha512->mxcCtx)) != 0){
-        return BAD_FUNC_ARG;
-    }
-#endif
 
     return InitSha512_Family(sha512, heap, devId, InitSha512);
 }
@@ -1676,9 +1673,6 @@ void wc_Sha512Free(wc_Sha512* sha512)
     }
 #endif
 
-#ifdef MAX3266X_SHA_CB
-    wc_MXC_TPU_SHA_Free(&(sha512->mxcCtx));
-#endif
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA512)
     wolfAsync_DevCtxFree(&sha512->asyncDev, WOLFSSL_ASYNC_MARKER_SHA512);
@@ -2062,12 +2056,6 @@ int wc_InitSha384_ex(wc_Sha384* sha384, void* heap, int devId)
     sha384->ctx.mode = ESP32_SHA_INIT;
 #endif
 
-#ifdef MAX3266X_SHA_CB
-    ret = wc_MXC_TPU_SHA_Init(&(sha384->mxcCtx));
-    if (ret != 0) {
-        return ret;
-    }
-#endif
 
     ret = InitSha384(sha384);
     if (ret != 0) {
@@ -2172,9 +2160,6 @@ void wc_Sha384Free(wc_Sha384* sha384)
     }
 #endif
 
-#ifdef MAX3266X_SHA_CB
-    wc_MXC_TPU_SHA_Free(&(sha384->mxcCtx));
-#endif
 
     ForceZero(sha384, sizeof(*sha384));
 }
@@ -2310,12 +2295,6 @@ int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst)
     }
 #endif
 
-#ifdef MAX3266X_SHA_CB
-    ret = wc_MXC_TPU_SHA_Copy(&(src->mxcCtx), &(dst->mxcCtx));
-    if (ret != 0) {
-        return ret;
-    }
-#endif
 
 #if defined(PSOC6_HASH_SHA2)
     wc_Psoc6_Sha1_Sha2_Init(dst, WC_PSOC6_SHA512, 0);
@@ -2750,12 +2729,6 @@ int wc_Sha384Copy(wc_Sha384* src, wc_Sha384* dst)
     }
 #endif
 
-#ifdef MAX3266X_SHA_CB
-    ret = wc_MXC_TPU_SHA_Copy(&(src->mxcCtx), &(dst->mxcCtx));
-    if (ret != 0) {
-        return ret;
-    }
-#endif
 
 #if defined(PSOC6_HASH_SHA2)
     wc_Psoc6_Sha1_Sha2_Init(dst, WC_PSOC6_SHA384, 0);
