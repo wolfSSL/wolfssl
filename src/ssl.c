@@ -12924,6 +12924,12 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
     #ifdef WOLFSSL_SM3
         { WC_NID_sm3, SM3h, oidHashType, "SM3", "sm3"},
     #endif
+    #ifdef WOLFSSL_SHAKE128
+        { WC_NID_shake128, SHAKE128h, oidHashType, "SHAKE128", "shake128"},
+    #endif
+    #ifdef WOLFSSL_SHAKE256
+        { WC_NID_shake256, SHAKE256h, oidHashType, "SHAKE256", "shake256"},
+    #endif
         /* oidSigType */
     #ifndef NO_DSA
         #ifndef NO_SHA
