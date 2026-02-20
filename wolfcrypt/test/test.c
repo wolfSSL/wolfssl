@@ -60083,7 +60083,7 @@ static wc_test_ret_t mp_test_shbd(mp_int* a, mp_int* b, WC_RNG* rng)
 
 #ifndef WOLFSSL_SP_MATH
     for (i = 0; i < 10; i++) {
-        for (j = 1; j < (DIGIT_BIT + 7) / 8 * 3; j++) {
+        for (j = 1; j < WC_BITS_TO_BYTES(DIGIT_BIT) * 3; j++) {
             ret = randNum(a, j, rng, NULL);
             if (ret != MP_OKAY)
                 return WC_TEST_RET_ENC_EC(ret);
@@ -60104,7 +60104,7 @@ static wc_test_ret_t mp_test_shbd(mp_int* a, mp_int* b, WC_RNG* rng)
 #endif
 
     for (i = 0; i < 10; i++) {
-        for (j = 1; j < (DIGIT_BIT + 7) / 8 * 3; j++) {
+        for (j = 1; j < WC_BITS_TO_BYTES(DIGIT_BIT) * 3; j++) {
             ret = randNum(a, j, rng, NULL);
             if (ret != MP_OKAY)
                 return WC_TEST_RET_ENC_EC(ret);
@@ -60182,11 +60182,11 @@ static wc_test_ret_t mp_test_div(mp_int* a, mp_int* d, mp_int* r, mp_int* rem,
         return WC_TEST_RET_ENC_EC(ret);
 
     for (i = 0; i < 100; i++) {
-        for (j = 1; j < (DIGIT_BIT + 7) / 8 * 2; j++) {
+        for (j = 1; j < WC_BITS_TO_BYTES(DIGIT_BIT) * 2; j++) {
             ret = randNum(d, j, rng, NULL);
             if (ret != MP_OKAY)
                 return WC_TEST_RET_ENC_EC(ret);
-            for (k = 1; k < (DIGIT_BIT + 7) / 8 * 2 + 1; k++) {
+            for (k = 1; k < WC_BITS_TO_BYTES(DIGIT_BIT) * 2 + 1; k++) {
                 ret = randNum(a, k, rng, NULL);
                 if (ret != MP_OKAY)
                     return WC_TEST_RET_ENC_EC(ret);
@@ -60210,7 +60210,7 @@ static wc_test_ret_t mp_test_div(mp_int* a, mp_int* d, mp_int* r, mp_int* rem,
         }
     }
 
-    ret = randNum(d, (DIGIT_BIT + 7) / 8 * 2, rng, NULL);
+    ret = randNum(d, WC_BITS_TO_BYTES(DIGIT_BIT) * 2, rng, NULL);
     if (ret != MP_OKAY)
         return WC_TEST_RET_ENC_EC(ret);
     mp_add(d, d, a);

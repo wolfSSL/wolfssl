@@ -237,7 +237,9 @@ ssize_t wc_reloc_normalize_text(
             break;
         }
 
-        if (next_reloc_rel > text_in_len - layout->width) {
+        if ((text_in_len < WC_BITS_TO_BYTES(layout->width)) ||
+            (next_reloc_rel > text_in_len - WC_BITS_TO_BYTES(layout->width)))
+        {
             /* relocation straddles buffer at end -- caller will try again with
              * that relocation at the start.
              */
@@ -586,29 +588,40 @@ int wc_fips_generate_hash(
         return BAD_FUNC_ARG;
     }
 
-    if (seg_map->end > 0) {
+    if (seg_map->start > 0) {
         if ((seg_map->fips_text_start < seg_map->start) ||
-            (seg_map->fips_text_end >= seg_map->end) ||
             (seg_map->fips_rodata_start < seg_map->start) ||
+            (seg_map->verifyCore_start < seg_map->start)
+#if defined(WC_SYM_RELOC_TABLES) || defined(WC_SYM_RELOC_TABLES_SUPPORT)
+            ||
+            (seg_map->reloc_tab_start < seg_map->start) ||
+            (seg_map->reloc_tab_len_start < seg_map->start) ||
+            (seg_map->text_start < seg_map->start) ||
+            (seg_map->rodata_start < seg_map->start) ||
+            (seg_map->data_start < seg_map->start) ||
+            (seg_map->bss_start < seg_map->start)
+#endif
+            )
+        {
+            RELOC_DEBUG_PRINTF("assert failed.\n");
+            return BUFFER_E;
+        }
+    }
+
+    if (seg_map->end > 0) {
+        if ((seg_map->fips_text_end > seg_map->end) ||
             (seg_map->fips_rodata_end > seg_map->end) ||
-            (seg_map->verifyCore_start < seg_map->start) ||
-            (seg_map->verifyCore_end >= seg_map->end)
+            (seg_map->verifyCore_end > seg_map->end)
 #if defined(WC_SYM_RELOC_TABLES) || defined(WC_SYM_RELOC_TABLES_SUPPORT)
             ||
             ((seg_map->reloc_tab_end != 0) &&
-             ((seg_map->reloc_tab_start < seg_map->start) ||
-              (seg_map->reloc_tab_end >= seg_map->end))) ||
+             (seg_map->reloc_tab_end > seg_map->end)) ||
             ((seg_map->reloc_tab_len_end != 0) &&
-             ((seg_map->reloc_tab_len_start < seg_map->start) ||
-              (seg_map->reloc_tab_len_end >= seg_map->end))) ||
-            (seg_map->text_start < seg_map->start) ||
-            (seg_map->text_end >= seg_map->end) ||
-            (seg_map->rodata_start < seg_map->start) ||
-            (seg_map->rodata_end >= seg_map->end) ||
-            (seg_map->data_start < seg_map->start) ||
-            (seg_map->data_end >= seg_map->end) ||
-            (seg_map->bss_start < seg_map->start) ||
-            (seg_map->bss_end >= seg_map->end)
+             (seg_map->reloc_tab_len_end > seg_map->end)) ||
+            (seg_map->text_end > seg_map->end) ||
+            (seg_map->rodata_end > seg_map->end) ||
+            (seg_map->data_end > seg_map->end) ||
+            (seg_map->bss_end > seg_map->end)
 #endif
             )
         {

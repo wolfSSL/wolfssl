@@ -2300,7 +2300,7 @@ enum Max_ASN {
     MAX_ENCODED_SIG_SZ  = FP_MAX_BITS / 8,
 #elif (defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_MATH)) && \
     defined(SP_INT_BITS)
-    MAX_ENCODED_SIG_SZ  = (SP_INT_BITS + 7) / 8,
+    MAX_ENCODED_SIG_SZ  = WC_BITS_TO_BYTES(SP_INT_BITS),
 #elif defined(WOLFSSL_HAPROXY)
     MAX_ENCODED_SIG_SZ  = 1024,    /* Supports 8192 bit keys */
 #else

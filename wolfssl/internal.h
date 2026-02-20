@@ -1260,7 +1260,7 @@ enum {
     #elif (defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_MATH)) && \
            defined(SP_INT_BITS)
         /* SP implementation supports numbers of SP_INT_BITS bits. */
-        #define WOLFSSL_MAX_DHKEY_BITS  (((SP_INT_BITS + 7) / 8) * 8)
+        #define WOLFSSL_MAX_DHKEY_BITS  WC_BITS_FULL_BYTES(SP_INT_BITS)
     #else
         #define WOLFSSL_MAX_DHKEY_BITS  4096
     #endif

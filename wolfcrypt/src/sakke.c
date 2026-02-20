@@ -2510,7 +2510,7 @@ int wc_GetSakkeAuthSize(SakkeKey* key, word16* authSz)
         err = sakke_load_params(key);
     }
     if (err == 0) {
-        word16 n = (word16)((mp_count_bits(&key->params.prime) + 7) / 8);
+        word16 n = (word16)WC_BITS_TO_BYTES(mp_count_bits(&key->params.prime));
         *authSz = (word16)(1 + 2 * n);
     }
 
@@ -6709,7 +6709,7 @@ int wc_MakeSakkeEncapsulatedSSV(SakkeKey* key, enum wc_HashType hashType,
         err = sakke_load_params(key);
     }
     if (err == 0) {
-        n = (word16)((mp_count_bits(&key->params.prime) + 7) / 8);
+        n = (word16)WC_BITS_TO_BYTES(mp_count_bits(&key->params.prime));
 
         /* Uncompressed point */
         outSz = (word16)(1 + 2 * n);
@@ -6807,7 +6807,7 @@ int wc_GenerateSakkeSSV(SakkeKey* key, WC_RNG* rng, byte* ssv, word16* ssvSz)
         err = sakke_load_params(key);
     }
     if (err == 0) {
-        n = (word16)((mp_count_bits(&key->params.prime) + 7) / 8);
+        n = (word16)WC_BITS_TO_BYTES(mp_count_bits(&key->params.prime));
 
         if ((ssv != NULL) && (*ssvSz > n)) {
             err = BAD_FUNC_ARG;
@@ -6886,7 +6886,7 @@ int wc_DeriveSakkeSSV(SakkeKey* key, enum wc_HashType hashType, byte* ssv,
         err = sakke_load_params(key);
     }
     if (err == 0) {
-        n = (word16)((mp_count_bits(&key->params.prime) + 7) / 8);
+        n = (word16)WC_BITS_TO_BYTES(mp_count_bits(&key->params.prime));
 
         if (authSz != 2 * n + 1) {
             err = BAD_FUNC_ARG;

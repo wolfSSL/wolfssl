@@ -130,7 +130,7 @@ struct wc_reloc_table_segments {
     .data_start = ~0UL,                       \
     .data_end = ~0UL,                         \
     .bss_start = ~0UL,                        \
-    .bss_end = 0,                             \
+    .bss_end = ~0UL,                          \
     .text_is_live = 0                         \
 }
 
@@ -150,7 +150,7 @@ struct wc_reloc_table_segments {
     .data_start = ~0UL,                       \
     .data_end = ~0UL,                         \
     .bss_start = ~0UL,                        \
-    .bss_end = 0,                             \
+    .bss_end = ~0UL,                          \
     .text_is_live = 0                         \
 }
 
