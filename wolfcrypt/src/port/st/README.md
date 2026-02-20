@@ -41,6 +41,7 @@ To disable portions of the hardware acceleration you can optionally define:
 #define NO_STM32_RNG
 #define NO_STM32_CRYPTO
 #define NO_STM32_HASH
+#define NO_STM32_HMAC
 ```
 
 ### Coding
