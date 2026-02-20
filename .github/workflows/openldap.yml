@@ -49,6 +49,8 @@ jobs:
             git_ref: OPENLDAP_REL_ENG_2_5_13
           - osp_ref: 2.6.7
             git_ref: OPENLDAP_REL_ENG_2_6_7
+          - osp_ref: 2.6.9
+            git_ref: OPENLDAP_REL_ENG_2_6_9
     name: ${{ matrix.osp_ref }}
     if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-24.04
