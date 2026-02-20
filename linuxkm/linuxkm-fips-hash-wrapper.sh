@@ -26,7 +26,27 @@ set -o noclobber -o nounset -o pipefail -o errexit
 mod_path=$1
 shift
 
-readarray -t fenceposts < <(readelf --wide --sections --symbols "$mod_path" | awk '
+# require Gnu Awk, for strtonum().
+
+if [[ -v AWK ]] && ! "$AWK" --version 2>&1 | grep -F -q 'GNU Awk'; then
+    unset AWK
+fi
+
+if [[ ! -v AWK ]]; then
+    if command -v gawk >/dev/null; then
+        AWK='gawk'
+    else
+        AWK='awk'
+    fi
+fi
+
+if ! "$AWK" --version 2>&1 | grep -F -q 'GNU Awk'; then
+    echo "Couldn't find required GNU Awk executable." >&2
+    exit 1
+fi
+
+# shellcheck disable=SC2016 # using $AWK instead of awk confuses shellcheck.
+readarray -t fenceposts < <(readelf --wide --sections --symbols "$mod_path" | "$AWK" '
 BEGIN {
     fips_fenceposts["wc_linuxkm_pie_reloc_tab"] = "reloc_tab_start";
     fips_fenceposts["wc_linuxkm_pie_reloc_tab_length"] = "reloc_tab_len_start";
