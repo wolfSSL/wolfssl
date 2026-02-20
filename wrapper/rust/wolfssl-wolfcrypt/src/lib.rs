@@ -29,6 +29,7 @@ pub mod chacha20_poly1305;
 pub mod cmac;
 pub mod curve25519;
 pub mod dh;
+pub mod dilithium;
 pub mod ecc;
 pub mod ed25519;
 pub mod ed448;
