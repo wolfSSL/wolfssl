@@ -730,7 +730,9 @@ int test_wc_dilithium_pub_from_priv(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_DILITHIUM) && defined(WOLFSSL_WC_DILITHIUM) && \
-    defined(WOLFSSL_DILITHIUM_PRIVATE_KEY) && defined(WOLFSSL_DILITHIUM_PUBLIC_KEY)
+    defined(WOLFSSL_DILITHIUM_PRIVATE_KEY) && \
+    defined(WOLFSSL_DILITHIUM_PUBLIC_KEY) && \
+    !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY)
     dilithium_key* key = NULL;
     dilithium_key* importKey = NULL;
     WC_RNG rng;
@@ -739,7 +741,9 @@ int test_wc_dilithium_pub_from_priv(void)
     byte* pubKey = NULL;
     word32 pubKeyLen = DILITHIUM_MAX_PUB_KEY_SIZE;
     byte* origPub = NULL;
+#if !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY)
     word32 origPubLen = DILITHIUM_MAX_PUB_KEY_SIZE;
+#endif
     int ret;
 
     key = (dilithium_key*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -761,7 +765,9 @@ int test_wc_dilithium_pub_from_priv(void)
     if (importKey != NULL) XMEMSET(importKey, 0, sizeof(*importKey));
     XMEMSET(&rng, 0, sizeof(WC_RNG));
 
+#if !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY)
     ExpectIntEQ(wc_InitRng(&rng), 0);
+#endif
     ExpectIntEQ(wc_dilithium_init(key), 0);
 
 #ifndef WOLFSSL_NO_ML_DSA_44
@@ -823,7 +829,9 @@ int test_wc_dilithium_pub_from_priv(void)
 
     wc_dilithium_free(importKey);
     wc_dilithium_free(key);
+#if !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY)
     wc_FreeRng(&rng);
+#endif
 
     XFREE(pubKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(origPub, NULL, DYNAMIC_TYPE_TMP_BUFFER);
