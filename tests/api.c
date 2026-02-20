@@ -20548,10 +20548,12 @@ static int test_sk_X509(void)
         ExpectNotNull(s = wolfSSL_sk_X509_new(NULL));
         ExpectIntEQ(sk_X509_num(s), 0);
         sk_X509_pop_free(s, NULL);
+        s = NULL;
 
         ExpectNotNull(s = sk_X509_new_null());
         ExpectIntEQ(sk_X509_num(s), 0);
         sk_X509_pop_free(s, NULL);
+        s = NULL;
 
         ExpectNotNull(s = sk_X509_new_null());
 
