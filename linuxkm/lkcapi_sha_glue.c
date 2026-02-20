@@ -110,12 +110,29 @@
  * exhaustion.  A caller that really needs PR can pass in seed data in its call
  * to our rng_alg.generate() implementation.
  */
+
+#ifdef HAVE_ENTROPY_MEMUSE
+    #define WOLFKM_STDRNG_WOLFENTROPY "-wolfentropy"
+#else
+    #define WOLFKM_STDRNG_WOLFENTROPY ""
+#endif
+
+#if defined(HAVE_INTEL_RDSEED) || defined(HAVE_AMD_RDSEED)
+    #define WOLFKM_STDRNG_RDSEED "-rdseed"
+#else
+    #define WOLFKM_STDRNG_RDSEED ""
+#endif
+
 #ifdef LINUXKM_DRBG_GET_RANDOM_BYTES
     #define WOLFKM_STDRNG_DRIVER ("sha2-256-drbg-nopr" \
+                                  WOLFKM_STDRNG_WOLFENTROPY \
+                                  WOLFKM_STDRNG_RDSEED \
                                   WOLFKM_DRIVER_SUFFIX_BASE \
                                   "-with-global-replace")
 #else
     #define WOLFKM_STDRNG_DRIVER ("sha2-256-drbg-nopr" \
+                                  WOLFKM_STDRNG_WOLFENTROPY \
+                                  WOLFKM_STDRNG_RDSEED \
                                   WOLFKM_DRIVER_SUFFIX_BASE)
 #endif
 
