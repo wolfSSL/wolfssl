@@ -28,7 +28,7 @@ functionality.
 #[cfg(random)]
 use crate::random::RNG;
 use crate::sys;
-use std::mem::MaybeUninit;
+use core::mem::MaybeUninit;
 
 pub struct Curve25519Key {
     wc_key: sys::curve25519_key,

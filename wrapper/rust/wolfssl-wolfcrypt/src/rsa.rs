@@ -28,6 +28,7 @@ wolfSSL `RsaKey` object. It ensures proper initialization and deallocation.
 # Examples
 
 ```rust
+# extern crate std;
 #[cfg(random)]
 {
 use std::fs;
@@ -61,7 +62,7 @@ assert_eq!(plain_out[0..dec_len], *plain);
 use crate::sys;
 #[cfg(random)]
 use crate::random::RNG;
-use std::mem::{MaybeUninit};
+use core::mem::{MaybeUninit};
 
 /// The `RSA` struct manages the lifecycle of a wolfSSL `RsaKey` object.
 ///
@@ -141,6 +142,7 @@ impl RSA {
     /// # Example
     ///
     /// ```rust
+    /// # extern crate std;
     /// #[cfg(random)]
     /// {
     /// use std::fs;
@@ -188,6 +190,7 @@ impl RSA {
     /// # Example
     ///
     /// ```rust
+    /// # extern crate std;
     /// #[cfg(random)]
     /// {
     /// use std::fs;
@@ -214,7 +217,7 @@ impl RSA {
     /// assert_eq!(plain_out[0..dec_len], *plain);
     /// }
     /// ```
-    pub fn new_from_der_ex(der: &[u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_from_der_ex(der: &[u8], heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_rsakey: MaybeUninit<sys::RsaKey> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
@@ -256,6 +259,7 @@ impl RSA {
     /// # Example
     ///
     /// ```rust
+    /// # extern crate std;
     /// #[cfg(random)]
     /// {
     /// use std::fs;
@@ -303,6 +307,7 @@ impl RSA {
     /// # Example
     ///
     /// ```rust
+    /// # extern crate std;
     /// #[cfg(random)]
     /// {
     /// use std::fs;
@@ -329,7 +334,7 @@ impl RSA {
     /// assert_eq!(plain_out[0..dec_len], *plain);
     /// }
     /// ```
-    pub fn new_public_from_der_ex(der: &[u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_public_from_der_ex(der: &[u8], heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_rsakey: MaybeUninit<sys::RsaKey> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
@@ -444,7 +449,7 @@ impl RSA {
     /// }
     /// ```
     #[cfg(all(random, rsa_keygen))]
-    pub fn generate_ex(size: i32, e: i32, rng: &mut RNG, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn generate_ex(size: i32, e: i32, rng: &mut RNG, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_rsakey: MaybeUninit<sys::RsaKey> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
@@ -671,6 +676,7 @@ impl RSA {
     /// # Example
     ///
     /// ```rust
+    /// # extern crate std;
     /// #[cfg(random)]
     /// {
     /// use std::fs;
@@ -729,6 +735,7 @@ impl RSA {
     /// # Example
     ///
     /// ```rust
+    /// # extern crate std;
     /// #[cfg(random)]
     /// {
     /// use std::fs;
@@ -1117,6 +1124,7 @@ impl RSA {
     /// # Example
     ///
     /// ```rust
+    /// # extern crate std;
     /// #[cfg(random)]
     /// {
     /// use std::fs;
@@ -1172,6 +1180,7 @@ impl RSA {
     /// # Example
     ///
     /// ```rust
+    /// # extern crate std;
     /// #[cfg(random)]
     /// {
     /// use std::fs;
@@ -1233,6 +1242,7 @@ impl RSA {
     /// # Example
     ///
     /// ```rust
+    /// # extern crate std;
     /// #[cfg(random)]
     /// {
     /// use std::fs;

@@ -31,7 +31,7 @@ wolfSSL `DhKey` object. It ensures proper initialization and deallocation.
 use crate::sys;
 #[cfg(random)]
 use crate::random::RNG;
-use std::mem::{MaybeUninit};
+use core::mem::{MaybeUninit};
 
 pub struct DH {
     wc_dhkey: sys::DhKey,
@@ -218,7 +218,7 @@ impl DH {
     /// }
     /// ```
     #[cfg(all(dh_keygen, random))]
-    pub fn generate_ex(rng: &mut RNG, modulus_size: i32, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn generate_ex(rng: &mut RNG, modulus_size: i32, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_dhkey: MaybeUninit<sys::DhKey> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
@@ -345,7 +345,7 @@ impl DH {
     /// let mut dh = DH::new_named_ex(DH::FFDHE_2048, None, None).expect("Error with new_named_ex()");
     /// }
     /// ```
-    pub fn new_named_ex(name: i32, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_named_ex(name: i32, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_dhkey: MaybeUninit<sys::DhKey> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
@@ -555,7 +555,7 @@ impl DH {
     /// let dh = DH::new_from_pg_ex(&p, &g, None, None).expect("Error with new_from_pg_ex()");
     /// }
     /// ```
-    pub fn new_from_pg_ex(p: &[u8], g: &[u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_from_pg_ex(p: &[u8], g: &[u8], heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let p_size = p.len() as u32;
         let g_size = g.len() as u32;
         let mut wc_dhkey: MaybeUninit<sys::DhKey> = MaybeUninit::uninit();
@@ -783,7 +783,7 @@ impl DH {
     /// let dh = DH::new_from_pgq_ex(&p, &g, &q, None, None).expect("Error with new_from_pgq_ex()");
     /// }
     /// ```
-    pub fn new_from_pgq_ex(p: &[u8], g: &[u8], q: &[u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_from_pgq_ex(p: &[u8], g: &[u8], q: &[u8], heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let p_size = p.len() as u32;
         let g_size = g.len() as u32;
         let q_size = q.len() as u32;
@@ -1023,7 +1023,7 @@ impl DH {
     /// }
     /// ```
     #[cfg(random)]
-    pub fn new_from_pgq_with_check_ex(p: &[u8], g: &[u8], q: &[u8], trusted: i32, rng: &mut RNG, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_from_pgq_with_check_ex(p: &[u8], g: &[u8], q: &[u8], trusted: i32, rng: &mut RNG, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let p_size = p.len() as u32;
         let g_size = g.len() as u32;
         let q_size = q.len() as u32;

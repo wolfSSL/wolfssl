@@ -125,7 +125,7 @@ pub fn pbkdf2(password: &[u8], salt: &[u8], iterations: i32, typ: i32, out: &mut
 /// }
 /// ```
 #[cfg(kdf_pbkdf2)]
-pub fn pbkdf2_ex(password: &[u8], salt: &[u8], iterations: i32, typ: i32, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>, out: &mut [u8]) -> Result<(), i32> {
+pub fn pbkdf2_ex(password: &[u8], salt: &[u8], iterations: i32, typ: i32, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>, out: &mut [u8]) -> Result<(), i32> {
     let password_size = password.len() as i32;
     let salt_size = salt.len() as i32;
     let out_size = out.len() as i32;
@@ -247,7 +247,7 @@ pub fn pkcs12_pbkdf(password: &[u8], salt: &[u8], iterations: i32, typ: i32, id:
 /// }
 /// ```
 #[cfg(kdf_pkcs12)]
-pub fn pkcs12_pbkdf_ex(password: &[u8], salt: &[u8], iterations: i32, typ: i32, id: i32, heap: Option<*mut std::os::raw::c_void>, out: &mut [u8]) -> Result<(), i32> {
+pub fn pkcs12_pbkdf_ex(password: &[u8], salt: &[u8], iterations: i32, typ: i32, id: i32, heap: Option<*mut core::ffi::c_void>, out: &mut [u8]) -> Result<(), i32> {
     let password_size = password.len() as i32;
     let salt_size = salt.len() as i32;
     let out_size = out.len() as i32;
@@ -330,7 +330,7 @@ pub fn tls13_hkdf_extract(typ: i32, salt: Option<&[u8]>, key: Option<&mut [u8]>,
 /// }
 /// ```
 #[cfg(all(hmac, kdf_tls13))]
-pub fn tls13_hkdf_extract_ex(typ: i32, salt: Option<&[u8]>, key: Option<&mut [u8]>, out: &mut [u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
+pub fn tls13_hkdf_extract_ex(typ: i32, salt: Option<&[u8]>, key: Option<&mut [u8]>, out: &mut [u8], heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
     let mut salt_ptr = core::ptr::null();
     let mut salt_size = 0u32;
     if let Some(salt) = salt {
@@ -473,7 +473,7 @@ pub fn tls13_hkdf_expand_label(typ: i32, key: &[u8], protocol: &[u8], label: &[u
 /// ```
 #[cfg(all(hmac, kdf_tls13))]
 #[allow(clippy::too_many_arguments)]
-pub fn tls13_hkdf_expand_label_ex(typ: i32, key: &[u8], protocol: &[u8], label: &[u8], info: &[u8], out: &mut [u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
+pub fn tls13_hkdf_expand_label_ex(typ: i32, key: &[u8], protocol: &[u8], label: &[u8], info: &[u8], out: &mut [u8], heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
     let key_size = key.len() as u32;
     let protocol_size = protocol.len() as u32;
     let label_size = label.len() as u32;

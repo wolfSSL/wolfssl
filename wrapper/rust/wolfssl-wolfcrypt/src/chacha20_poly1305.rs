@@ -26,7 +26,7 @@ ChaCha20-Poly1305 functionality.
 #![cfg(chacha20_poly1305)]
 
 use crate::sys;
-use std::mem::MaybeUninit;
+use core::mem::MaybeUninit;
 
 pub struct ChaCha20Poly1305 {
     wc_ccp: sys::ChaChaPoly_Aead,
