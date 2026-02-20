@@ -921,7 +921,6 @@ endif()
 #       - Linux dev crpyto calls
 #       - Camellia
 #       - MD2
-#       - NULL cipher
 #       - RIPEMD
 #       - BLAKE2
 
@@ -1915,6 +1914,8 @@ add_option(WOLFSSL_AESKEYWRAP ${WOLFSSL_AESKEYWRAP_HELP_STRING} "no" "yes;no")
 set(WOLFSSL_X963KDF_HELP_STRING "Enable X9.63 KDF support (default: disabled)")
 add_option(WOLFSSL_X963KDF ${WOLFSSL_X963KDF_HELP_STRING} "no" "yes;no")
 
+set(WOLFSSL_NULL_CIPHER_HELP_STRING "Enable NULL cipher support (default: disabled)")
+add_option(WOLFSSL_NULL_CIPHER ${WOLFSSL_NULL_CIPHER_HELP_STRING} "no" "yes;no")
 
 # Encrypt-then-mac
 add_option("WOLFSSL_ENC_THEN_MAC"
@@ -2306,6 +2307,10 @@ if(WOLFSSL_AESKEYWRAP)
         "-DHAVE_AES_KEYWRAP"
         "-DWOLFSSL_AES_DIRECT"
         )
+endif()
+
+if(WOLFSSL_NULL_CIPHER)
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_NULL_CIPHER")
 endif()
 
 # Hybrid Public Key Encryption (RFC9180)
