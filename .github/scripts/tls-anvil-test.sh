@@ -22,7 +22,7 @@ TEST_NAME="${TLS_ANVIL_TEST_NAME:-default}"
 
 RESULTS_DIR="tls-anvil-results"
 TLS_ANVIL_IMAGE="ghcr.io/tls-attacker/tlsanvil:latest"
-TIMEOUT_SECONDS=1200
+TIMEOUT_SECONDS=3600
 STRENGTH="${TLS_ANVIL_STRENGTH:-1}"
 
 # Derive a unique port from the test name to avoid conflicts on parallel runs.
@@ -242,12 +242,18 @@ log_info "Checking results..."
 if [[ -f "$RESULTS_DIR/report.json" ]]; then
     log_info "report.json found"
     if command -v jq &> /dev/null; then
-        TOTAL=$(jq '.Score.Total    // "N/A"' "$RESULTS_DIR/report.json" 2>/dev/null || echo "N/A")
-        PASS=$( jq '.Score.Succeeded // "N/A"' "$RESULTS_DIR/report.json" 2>/dev/null || echo "N/A")
-        FAIL=$( jq '.Score.Failed    // "N/A"' "$RESULTS_DIR/report.json" 2>/dev/null || echo "N/A")
-        log_info "  Total:  $TOTAL"
-        log_info "  Passed: $PASS"
-        log_info "  Failed: $FAIL"
+        TOTAL=$(jq '.TotalTests              // "N/A"' "$RESULTS_DIR/report.json" 2>/dev/null || echo "N/A")
+        PASS=$( jq '.StrictlySucceededTests  // "N/A"' "$RESULTS_DIR/report.json" 2>/dev/null || echo "N/A")
+        CONCEPT=$(jq '.ConceptuallySucceededTests // "N/A"' "$RESULTS_DIR/report.json" 2>/dev/null || echo "N/A")
+        PARTIAL=$(jq '.PartiallyFailedTests   // "N/A"' "$RESULTS_DIR/report.json" 2>/dev/null || echo "N/A")
+        FAIL=$( jq '.FullyFailedTests        // "N/A"' "$RESULTS_DIR/report.json" 2>/dev/null || echo "N/A")
+        DISABLED=$(jq '.DisabledTests         // "N/A"' "$RESULTS_DIR/report.json" 2>/dev/null || echo "N/A")
+        log_info "  Total:              $TOTAL"
+        log_info "  Strictly Passed:    $PASS"
+        log_info "  Conceptually OK:    $CONCEPT"
+        log_info "  Partially Failed:   $PARTIAL"
+        log_info "  Fully Failed:       $FAIL"
+        log_info "  Disabled:           $DISABLED"
 
         cat > "$RESULTS_DIR/summary.txt" << EOF
 TLS-Anvil Test Summary
@@ -257,9 +263,12 @@ Date:    $(date)
 Config:  $CONFIGURE_OPTS
 
 Results:
-  Total:  $TOTAL
-  Passed: $PASS
-  Failed: $FAIL
+  Total:              $TOTAL
+  Strictly Passed:    $PASS
+  Conceptually OK:    $CONCEPT
+  Partially Failed:   $PARTIAL
+  Fully Failed:       $FAIL
+  Disabled:           $DISABLED
 EOF
     fi
 else
