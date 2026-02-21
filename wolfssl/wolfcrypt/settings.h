@@ -63,6 +63,9 @@
     #include <wolfssl/options.h>
 #endif
 
+#define WC_BITS_TO_BYTES(x) (((x) + 7) >> 3)
+#define WC_BITS_FULL_BYTES(x) (WC_BITS_TO_BYTES(x) << 3)
+
 /* Uncomment next line if using IPHONE */
 /* #define IPHONE */
 
@@ -3956,6 +3959,11 @@ extern void uITRON4_free(void *p) ;
     #if !defined(WC_NO_VERBOSE_RNG) && !defined(WC_VERBOSE_RNG)
         #define WC_VERBOSE_RNG
     #endif
+
+    #if WOLFSSL_GENERAL_ALIGNMENT < SIZEOF_LONG
+        #undef WOLFSSL_GENERAL_ALIGNMENT
+        #define WOLFSSL_GENERAL_ALIGNMENT SIZEOF_LONG
+    #endif
 #endif /* WOLFSSL_KERNEL_MODE */
 
 #if defined(WC_SYM_RELOC_TABLES) && defined(HAVE_FIPS) && \
@@ -4271,6 +4279,10 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_BASE64_DECODE
 #endif
 
+#if defined(WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE) && !defined(WOLFSSL_BASE16)
+    #define WOLFSSL_BASE16
+#endif
+
 #if defined(FORTRESS) && !defined(HAVE_EX_DATA)
     #define HAVE_EX_DATA
 #endif
@@ -4382,7 +4394,7 @@ extern void uITRON4_free(void *p) ;
         #endif
     #elif defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_MATH)
         /* SP implementation supports numbers of SP_INT_BITS bits. */
-        #define DH_MAX_SIZE    (((SP_INT_BITS + 7) / 8) * 8)
+        #define DH_MAX_SIZE    WC_BITS_FULL_BYTES(SP_INT_BITS)
         #if defined(WOLFSSL_MYSQL_COMPATIBLE) && DH_MAX_SIZE < 8192
             #error "MySQL needs SP_INT_BITS at least at 8192"
         #endif

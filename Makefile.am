@@ -225,13 +225,20 @@ if BUILD_LINUXKM
         CFLAGS_FPU_DISABLE CFLAGS_FPU_ENABLE CFLAGS_SIMD_DISABLE CFLAGS_SIMD_ENABLE \
         CFLAGS_AUTO_VECTORIZE_DISABLE CFLAGS_AUTO_VECTORIZE_ENABLE \
         ASFLAGS_FPU_DISABLE_SIMD_ENABLE ASFLAGS_FPU_ENABLE_SIMD_DISABLE \
-        ASFLAGS_FPUSIMD_DISABLE ASFLAGS_FPUSIMD_ENABLE ENABLED_KERNEL_BENCHMARKS
+        ASFLAGS_FPUSIMD_DISABLE ASFLAGS_FPUSIMD_ENABLE ENABLED_KERNEL_BENCHMARKS \
+        FIPS_FLAVOR
 
 module:
 	+$(MAKE) -C linuxkm libwolfssl.ko
 
 module-update-fips-hash:
 	+$(MAKE) -C linuxkm module-update-fips-hash
+
+module-with-matching-fips-hash:
+	+$(MAKE) -C linuxkm module-with-matching-fips-hash
+
+module-with-matching-fips-hash-no-sign:
+	+$(MAKE) -C linuxkm module-with-matching-fips-hash-no-sign
 
 clean_module:
 	+$(MAKE) -C linuxkm clean

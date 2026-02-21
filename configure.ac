@@ -131,15 +131,33 @@ then
 fi
 
 # Kernel module benchmark
-ENABLED_KERNEL_BENCHMARKS=""
 AC_ARG_ENABLE([kernel-benchmarks],
     [AS_HELP_STRING([--enable-kernel-benchmarks],[Enable crypto benchmarking autorun at module load time for kernel module (default: disabled)])],
-    [ENABLED_KERNEL_BENCHMARKS=$enableval])
+    [ENABLED_KERNEL_BENCHMARKS=$enableval],
+    [ENABLED_KERNEL_BENCHMARKS="no"])
 if test "$ENABLED_KERNEL_BENCHMARKS" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KERNEL_BENCHMARKS"
 fi
 AC_SUBST([ENABLED_KERNEL_BENCHMARKS])
+
+AC_ARG_ENABLE([kernel-verbose-debug],
+    [AS_HELP_STRING([--enable-kernel-verbose-debug],[Enable supplementary runtime debugging messages for kernel module (default: disabled)])],
+    [ENABLED_KERNEL_VERBOSE_DEBUG=$enableval],
+    [ENABLED_KERNEL_VERBOSE_DEBUG="no"])
+if test "$ENABLED_KERNEL_VERBOSE_DEBUG" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KERNEL_VERBOSE_DEBUG"
+fi
+
+AC_ARG_ENABLE([kernel-stack-debug],
+    [AS_HELP_STRING([--enable-kernel-stack-debug],[Enable runtime reporting of stack usage in kernel module (default: disabled)])],
+    [ENABLED_KERNEL_STACK_DEBUG=$enableval],
+    [ENABLED_KERNEL_STACK_DEBUG="no"])
+if test "$ENABLED_KERNEL_STACK_DEBUG" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KERNEL_STACK_DEBUG"
+fi
 
 # Linux Kernel Module options (more options later)
 AC_ARG_ENABLE([linuxkm],
@@ -414,6 +432,9 @@ AC_ARG_ENABLE([fips],
     [AS_HELP_STRING([--enable-fips],[Enable FIPS 140-2, Will NOT work w/o FIPS license (default: disabled)])],
     [ENABLED_FIPS=$enableval],
     [ENABLED_FIPS="no"])
+
+FIPS_FLAVOR="$ENABLED_FIPS"
+AC_SUBST([FIPS_FLAVOR])
 
 # wolfProvider Options
 AC_ARG_ENABLE([wolfprovider],
@@ -1463,7 +1484,6 @@ then
     test "$enable_pwdbased" = "" && enable_pwdbased=yes
     test "$enable_aeskeywrap" = "" && enable_aeskeywrap=yes
     test "$enable_x963kdf" = "" && enable_x963kdf=yes
-    test "$enable_scrypt" = "" && test "$enable_hmac" != "no" && enable_scrypt=yes
     test "$enable_indef" = "" && enable_indef=yes
     test "$enable_enckeys" = "" && enable_enckeys=yes
     test "$enable_hashflags" = "" && enable_hashflags=yes
@@ -1480,11 +1500,11 @@ then
     test "$enable_ssh" = "" && test "$enable_hmac" != "no" && enable_ssh=yes
     test "$enable_rng_bank" = "" && enable_rng_bank=yes
 
-    # the compiler optimizer generates a weird out-of-bounds bss reference for
-    # find_hole() in the FP_ECC implementation.
-    if test "$ENABLED_LINUXKM_PIE" != yes
+    if test "$KERNEL_MODE_DEFAULTS" != "yes"
     then
-        test "$enable_fpecc" = "" && test "$enable_ecc" != "no" && enable_fpecc=yes
+        # Scrypt is excluded from kernel module builds (unless explicitly
+        # enabled) because of its excessive memory requirements.
+        test "$enable_scrypt" = "" && test "$enable_hmac" != "no" && enable_scrypt=yes
     fi
 
     if test "x$FIPS_VERSION" != "xv1"

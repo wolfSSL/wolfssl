@@ -855,7 +855,7 @@ extern const WOLFSSL_ObjectInfo wolfssl_object_info[];
             #define WC_MAX_RSA_BITS    (FP_MAX_BITS / 2)
         #elif defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_MATH)
             /* SP implementation supports numbers of SP_INT_BITS bits. */
-            #define WC_MAX_RSA_BITS    (((SP_INT_BITS + 7) / 8) * 8)
+            #define WC_MAX_RSA_BITS    WC_BITS_FULL_BYTES(SP_INT_BITS)
         #else
             /* Integer maths is dynamic but we only go up to 4096 bits. */
             #define WC_MAX_RSA_BITS 4096

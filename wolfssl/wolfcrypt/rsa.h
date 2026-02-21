@@ -119,7 +119,7 @@ RSA keys can be used to encrypt, decrypt, sign and verify data.
         #endif
     #elif defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_MATH)
         /* SP implementation supports numbers of SP_INT_BITS bits. */
-        #define RSA_MAX_SIZE    (((SP_INT_BITS + 7) / 8) * 8)
+        #define RSA_MAX_SIZE    WC_BITS_FULL_BYTES(SP_INT_BITS)
         #if defined(WOLFSSL_MYSQL_COMPATIBLE) && RSA_MAX_SIZE < 8192
             #error "MySQL needs SP_INT_BITS at least at 8192"
         #endif

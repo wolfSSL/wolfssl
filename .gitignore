@@ -245,6 +245,8 @@ linuxkm/linuxkm/get_thread_size
 linuxkm/linuxkm
 linuxkm/src
 linuxkm/patches/src
+linuxkm/libwolfssl-user-build
+linuxkm/linuxkm-fips-hash
 *.nds
 
 # Generated during FreeBSD kernel module build.

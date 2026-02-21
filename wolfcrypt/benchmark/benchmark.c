@@ -2285,7 +2285,7 @@ static const char* bench_result_words2[][6] = {
     #warning Large/Unalligned AuthSz could result in errors with /dev/crypto
 #endif
 
-/* use kB instead of mB for embedded benchmarking */
+/* use kB instead of MB for embedded benchmarking */
 #ifdef BENCH_EMBEDDED
     #ifndef BENCH_NTIMES
     #define BENCH_NTIMES 2
@@ -9088,6 +9088,10 @@ void bench_cmac(int useDeviceID)
 #endif /* WOLFSSL_CMAC */
 
 #ifdef HAVE_SCRYPT
+
+#ifdef WOLFSSL_KERNEL_MODE
+    #error wc_scrypt benchmarking with cost 14 is not kernel-compatible (requires 16 MB contiguous allocation)
+#endif
 
 void bench_scrypt(void)
 {

@@ -24,25 +24,8 @@
 #ifndef LINUXKM_WC_PORT_H
 #define LINUXKM_WC_PORT_H
 
-    /*
-         * CRITICAL: Disable ARM64 LSE atomics for out-of-tree modules.
-         *
-         * When CONFIG_ARM64_LSE_ATOMICS is enabled, the kernel uses static keys
-         * (jump labels) in system_uses_lse_atomics() to choose between LSE and
-         * LL/SC atomic implementations at runtime. These static keys generate
-         * asm goto statements that reference .jump_table section symbols which
-         * cannot be resolved in out-of-tree modules, causing:
-         *   "error: impossible constraint in 'asm'"
-         *
-         * By undefining CONFIG_ARM64_LSE_ATOMICS here (before any kernel headers
-         * that use atomics are included), we force use of the LL/SC fallback path
-         * which works correctly in out-of-tree modules.
-         *
-         * This must appear BEFORE #include <linux/version.h> because that header
-         * may transitively include headers that use atomics.
-         */
-    #ifdef CONFIG_ARM64_LSE_ATOMICS
-    #undef CONFIG_ARM64_LSE_ATOMICS
+    #if defined(WOLFSSL_KERNEL_VERBOSE_DEBUG) && !defined(WOLFSSL_LINUXKM_VERBOSE_DEBUG)
+        #define WOLFSSL_LINUXKM_VERBOSE_DEBUG
     #endif
 
     #include <linux/version.h>
@@ -322,6 +305,22 @@
         #define queued_spin_lock_slowpath my__queued_spin_lock_slowpath
     #endif
 
+    /*
+     * Disable ARM64 LSE atomics for out-of-tree modules.
+     *
+     * When CONFIG_ARM64_LSE_ATOMICS is enabled, the kernel uses static keys
+     * (jump labels) in system_uses_lse_atomics() to choose between LSE and
+     * LL/SC atomic implementations at runtime. These static keys generate
+     * asm goto statements that reference .jump_table section symbols which
+     * cannot be resolved in out-of-tree modules, causing:
+     *   "error: impossible constraint in 'asm'"
+     *
+     * By undefining CONFIG_ARM64_LSE_ATOMICS here (before any kernel headers
+     * that use atomics are included), we force use of the LL/SC fallback path
+     * which works correctly in out-of-tree modules.
+     */
+    #undef CONFIG_ARM64_LSE_ATOMICS
+
     #include <linux/kernel.h>
     #include <linux/ctype.h>
 
@@ -511,6 +510,10 @@
 
     #include <linux/slab.h>
     #include <linux/sched.h>
+    #if __has_include(<linux/sched/task_stack.h>)
+        /* for task_stack_page() */
+        #include <linux/sched/task_stack.h>
+    #endif
     #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0)
         /* for signal_pending() */
         #include <linux/sched/signal.h>
@@ -816,12 +819,6 @@
 
     #ifdef WC_SYM_RELOC_TABLES
 
-    #ifndef WOLFSSL_TEXT_SEGMENT_CANONICALIZER
-        #define WOLFSSL_TEXT_SEGMENT_CANONICALIZER(text_in, text_in_len, text_out, cur_index_p) \
-            wc_linuxkm_normalize_relocations(text_in, text_in_len, text_out, cur_index_p)
-        #define WOLFSSL_TEXT_SEGMENT_CANONICALIZER_BUFSIZ 8192
-    #endif
-
     extern __attribute__((error("uncallable fencepost"))) int __wc_text_start(void);
     extern __attribute__((error("uncallable fencepost"))) int __wc_text_end(void);
     #ifdef HAVE_FIPS
@@ -840,58 +837,17 @@
         __wc_bss_start[],
         __wc_bss_end[];
 
-    struct wc_linuxkm_pie_reloc_tab_ent {
-        unsigned int offset;
-    #define WC_RELOC_DEST_SEGMENT_BITS 3
-        unsigned int dest_segment:WC_RELOC_DEST_SEGMENT_BITS;
-    #define WC_RELOC_TYPE_BITS 5
-        unsigned int reloc_type:WC_RELOC_TYPE_BITS;
-    };
-
-    enum wc_reloc_dest_segment {
-        WC_R_SEG_NONE = 0,
-        WC_R_SEG_TEXT,
-        WC_R_SEG_RODATA,
-        WC_R_SEG_RWDATA,
-        WC_R_SEG_BSS,
-        WC_R_SEG_OTHER
-    };
-
-    enum wc_reloc_type {
-        WC_R_NONE = 0,
-        WC_R_X86_64_32,
-        WC_R_X86_64_32S,
-        WC_R_X86_64_64,
-        WC_R_X86_64_PC32,
-        WC_R_X86_64_PLT32,
-        WC_R_AARCH64_ABS32,
-        WC_R_AARCH64_ABS64,
-        WC_R_AARCH64_ADD_ABS_LO12_NC,
-        WC_R_AARCH64_ADR_PREL_PG_HI21,
-        WC_R_AARCH64_CALL26,
-        WC_R_AARCH64_JUMP26,
-        WC_R_AARCH64_LDST8_ABS_LO12_NC,
-        WC_R_AARCH64_LDST16_ABS_LO12_NC,
-        WC_R_AARCH64_LDST32_ABS_LO12_NC,
-        WC_R_AARCH64_LDST64_ABS_LO12_NC,
-        WC_R_AARCH64_PREL32,
-        WC_R_ARM_ABS32,
-        WC_R_ARM_PREL31,
-        WC_R_ARM_REL32,
-        WC_R_ARM_THM_CALL,
-        WC_R_ARM_THM_JUMP11,
-        WC_R_ARM_THM_JUMP24,
-        WC_R_ARM_THM_MOVT_ABS,
-        WC_R_ARM_THM_MOVW_ABS_NC
-    };
-
-    extern const struct wc_linuxkm_pie_reloc_tab_ent wc_linuxkm_pie_reloc_tab[];
-    extern const unsigned long wc_linuxkm_pie_reloc_tab_length;
     extern ssize_t wc_linuxkm_normalize_relocations(
         const u8 *text_in,
         size_t text_in_len,
         u8 *text_out,
         ssize_t *cur_index_p);
+
+    #ifndef WOLFSSL_TEXT_SEGMENT_CANONICALIZER
+        #define WOLFSSL_TEXT_SEGMENT_CANONICALIZER(text_in, text_in_len, text_out, cur_index_p) \
+            wc_linuxkm_normalize_relocations(text_in, text_in_len, text_out, cur_index_p)
+        #define WOLFSSL_TEXT_SEGMENT_CANONICALIZER_BUFSIZ 8192
+    #endif
 
 #ifdef CONFIG_MIPS
     #undef __ARCH_MEMCMP_NO_REDIRECT
@@ -900,7 +856,9 @@
 #endif
 
     struct wolfssl_linuxkm_pie_redirect_table {
+    #ifdef HAVE_FIPS
         typeof(wc_linuxkm_normalize_relocations) *wc_linuxkm_normalize_relocations;
+    #endif
 
     #ifndef __ARCH_MEMCMP_NO_REDIRECT
         typeof(memcmp) *memcmp;
@@ -1184,6 +1142,11 @@
         typeof(wc_linuxkm_check_for_intr_signals) *wc_linuxkm_check_for_intr_signals;
         typeof(wc_linuxkm_relax_long_loop) *wc_linuxkm_relax_long_loop;
 
+        #ifdef CONFIG_KASAN
+            typeof(kasan_disable_current) *kasan_disable_current;
+            typeof(kasan_enable_current) *kasan_enable_current;
+        #endif
+
         const void *_last_slot;
     };
 
@@ -1226,8 +1189,10 @@
 
     #ifdef WC_CONTAINERIZE_THIS
 
-    #define wc_linuxkm_normalize_relocations \
-        WC_PIE_INDIRECT_SYM(wc_linuxkm_normalize_relocations)
+    #ifdef HAVE_FIPS
+        #define wc_linuxkm_normalize_relocations \
+            WC_PIE_INDIRECT_SYM(wc_linuxkm_normalize_relocations)
+    #endif
 
     #ifndef __ARCH_MEMCMP_NO_REDIRECT
         #define memcmp WC_PIE_INDIRECT_SYM(memcmp)
@@ -1469,9 +1434,142 @@
     #define wc_linuxkm_check_for_intr_signals WC_PIE_INDIRECT_SYM(wc_linuxkm_check_for_intr_signals)
     #define wc_linuxkm_relax_long_loop WC_PIE_INDIRECT_SYM(wc_linuxkm_relax_long_loop)
 
+    #ifdef CONFIG_KASAN
+        #define kasan_disable_current WC_PIE_INDIRECT_SYM(kasan_disable_current)
+        #define kasan_enable_current WC_PIE_INDIRECT_SYM(kasan_enable_current)
+    #endif
+
     #endif /* WC_CONTAINERIZE_THIS */
 
     #endif /* WC_SYM_RELOC_TABLES */
+
+#if defined(WOLFSSL_KERNEL_STACK_DEBUG) || defined(WC_LINUXKM_STACK_DEBUG)
+
+    #ifndef CONFIG_THREAD_INFO_IN_TASK
+        #error WC_LINUXKM_STACK_DEBUG requires CONFIG_THREAD_INFO_IN_TASK
+    #endif
+    #ifdef CONFIG_STACK_GROWSUP
+        #error WC_LINUXKM_STACK_DEBUG requires !CONFIG_STACK_GROWSUP
+    #endif
+
+    static __always_inline unsigned long wc_linuxkm_stack_bottom(void) {
+        void *ret = task_stack_page(get_current());
+        return (unsigned long)(uintptr_t)ret;
+    }
+
+    static __always_inline unsigned long wc_linuxkm_stack_top(void) {
+        return wc_linuxkm_stack_bottom() + THREAD_SIZE;
+    }
+
+    #if defined(CONFIG_X86)
+
+    static __always_inline unsigned long wc_linuxkm_stack_current(void) {
+        unsigned long rsp;
+
+        asm volatile("mov %%rsp, %0" : "=r" (rsp));
+        return wc_linuxkm_stack_top() - rsp;
+    }
+
+    static __always_inline unsigned long wc_linuxkm_stack_left(void) {
+        unsigned long rsp;
+        asm volatile("mov %%rsp, %0" : "=r" (rsp));
+        return rsp - wc_linuxkm_stack_bottom();
+    }
+
+    #define WC_LINUXKM_HAVE_STACK_DEBUG
+
+    #elif defined(CONFIG_ARM64)
+
+    static __always_inline unsigned long wc_linuxkm_stack_current(void) {
+        unsigned long sp;
+        asm volatile("mov %0, sp" : "=r" (sp));
+        return wc_linuxkm_stack_top() - sp;
+    }
+
+    static __always_inline unsigned long wc_linuxkm_stack_left(void) {
+        unsigned long sp;
+        asm volatile("mov %0, sp" : "=r" (sp));
+        return sp - wc_linuxkm_stack_bottom();
+    }
+
+    #define WC_LINUXKM_HAVE_STACK_DEBUG
+
+    #elif defined(CONFIG_ARM)
+
+    static __always_inline unsigned long wc_linuxkm_stack_current(void) {
+        unsigned long sp;
+        asm volatile("mov %0, sp" : "=r" (sp));
+        return wc_linuxkm_stack_top() - sp;
+    }
+
+    static __always_inline unsigned long wc_linuxkm_stack_left(void) {
+        unsigned long sp;
+        asm volatile("mov %0, sp" : "=r" (sp));
+        return sp - wc_linuxkm_stack_bottom();
+    }
+
+    #define WC_LINUXKM_HAVE_STACK_DEBUG
+
+    #endif /* CONFIG_ARM */
+
+    #ifndef WC_LINUXKM_HAVE_STACK_DEBUG
+        #error WC_LINUXKM_STACK_DEBUG implementation missing for target.
+    #endif
+
+    /* An unsigned long STACK_END_MAGIC is stored at the bottom of the stack.
+     * Additionally, though the kernel stack doesn't have a red zone, it
+     * nonetheless uses some bytes below the current stack pointer and mayhem
+     * ensues immediately if it's overwritten.
+     */
+    #ifndef WC_KERNEL_STACK_MARGIN_BOTTOM
+        #define WC_KERNEL_STACK_MARGIN_BOTTOM sizeof(unsigned long)
+    #endif
+    #ifndef WC_KERNEL_STACK_MARGIN_TOP
+        #define WC_KERNEL_STACK_MARGIN_TOP 8
+    #endif
+
+    static __always_inline void wc_linuxkm_stack_hwm_prepare(unsigned char sentinel) {
+        unsigned long s = wc_linuxkm_stack_bottom();
+        unsigned long z;
+        unsigned long flags;
+
+        if (*(unsigned long *)s != STACK_END_MAGIC)
+            pr_err("ERROR: bottom of stack is not STACK_END_MAGIC.\n");
+
+        local_irq_save(flags);
+        kasan_disable_current();
+        z = wc_linuxkm_stack_left();
+        if (z > WC_KERNEL_STACK_MARGIN_BOTTOM + WC_KERNEL_STACK_MARGIN_TOP)
+            memset((void *)(s + WC_KERNEL_STACK_MARGIN_BOTTOM), sentinel,
+                   z - (WC_KERNEL_STACK_MARGIN_BOTTOM + WC_KERNEL_STACK_MARGIN_TOP));
+        kasan_enable_current();
+        local_irq_restore(flags);
+        if (z <= WC_KERNEL_STACK_MARGIN_BOTTOM + WC_KERNEL_STACK_MARGIN_TOP)
+            pr_err("ERROR: wc_linuxkm_stack_hwm_prepare() called with only %lu bytes of stack left, "
+                   "versus margin %zu.\n", z, WC_KERNEL_STACK_MARGIN_BOTTOM + WC_KERNEL_STACK_MARGIN_TOP);
+    }
+    static __always_inline unsigned long wc_linuxkm_stack_hwm_measure_rel(unsigned char sentinel) {
+        unsigned long s = wc_linuxkm_stack_bottom();
+        unsigned long z = wc_linuxkm_stack_left();
+        unsigned char *i;
+        if (z <= WC_KERNEL_STACK_MARGIN_BOTTOM + WC_KERNEL_STACK_MARGIN_TOP)
+            return (unsigned long)-1;
+        kasan_disable_current();
+        for (i = (unsigned char *)s + WC_KERNEL_STACK_MARGIN_BOTTOM;
+             i < ((unsigned char *)s + z) && (*i == sentinel);
+             ++i);
+        kasan_enable_current();
+        return z - ((unsigned long)i - s);
+    }
+    static __always_inline unsigned long wc_linuxkm_stack_hwm_measure_total(unsigned char sentinel) {
+        unsigned long rel = wc_linuxkm_stack_hwm_measure_rel(sentinel);
+        if (rel == (unsigned long)-1)
+            return rel;
+        else
+            return rel + wc_linuxkm_stack_current();
+    }
+
+#endif /* WC_LINUXKM_STACK_DEBUG */
 
     /* remove this multifariously conflicting macro, picked up from
      * Linux arch/<arch>/include/asm/current.h.
