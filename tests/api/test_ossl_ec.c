@@ -428,6 +428,7 @@ int test_wolfSSL_EC_POINT(void)
         X, Y, ctx), 0);
 
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && \
     !defined(HAVE_SELFTEST) && !defined(WOLFSSL_SP_MATH) && \
     !defined(WOLF_CRYPTO_CB_ONLY_ECC)
     ExpectIntEQ(EC_POINT_add(NULL, NULL, NULL, NULL, ctx), 0);
@@ -514,6 +515,7 @@ int test_wolfSSL_EC_POINT(void)
     ExpectIntEQ(EC_POINT_invert(group, new_point, ctx), 1);
 
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && \
     !defined(HAVE_SELFTEST) && !defined(WOLFSSL_SP_MATH) && \
     !defined(WOLF_CRYPTO_CB_ONLY_ECC)
     {
@@ -788,6 +790,7 @@ int test_wolfSSL_SPAKE(void)
 
 #if defined(OPENSSL_EXTRA) && defined(HAVE_ECC) && !defined(WOLFSSL_ATECC508A) \
     && !defined(WOLFSSL_ATECC608A) && !defined(HAVE_SELFTEST) && \
+       !defined(WOLFSSL_MICROCHIP_TA100) && \
        !defined(WOLFSSL_SP_MATH) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
     BIGNUM* x = NULL; /* kdc priv */
     BIGNUM* y = NULL; /* client priv */

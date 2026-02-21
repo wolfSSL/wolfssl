@@ -111,6 +111,15 @@ int wc_SignatureGetSize(enum wc_SignatureType sig_type,
             /* Sanity check that void* key is at least RsaKey in size */
             if (key_len >= sizeof(RsaKey)) {
                 sig_len = wc_RsaEncryptSize((RsaKey*)key);
+#if defined(WOLFSSL_MICROCHIP_TA100)
+                if (sig_len <= 0) {
+                    const RsaKey* r = (const RsaKey*)key;
+                    /* TA100 handles imply a hardware RSA key. */
+                    if (r->rKeyH != 0 || r->uKeyH != 0) {
+                        sig_len = WOLFSSL_TA_KEY_TYPE_RSA_SIZE;
+                    }
+                }
+#endif
             }
             else {
                 WOLFSSL_MSG("wc_SignatureGetSize: Invalid RsaKey key size");

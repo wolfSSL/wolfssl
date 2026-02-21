@@ -96,5 +96,105 @@ ATECC508A HW accelerated implementation:
 `EC-DSA   sign   time     293.400 milliseconds, avg over 5 iterations, 17.065 ops/sec`
 `EC-DSA   verify time     208.400 milliseconds, avg over 5 iterations, 24.038 ops/sec`
 
+### Microchip Trust Anchor TA100 ECC/RSA
+
+## TA100 Support Notes
+
+The TA100 integration uses Microchip CryptoAuthLib TALIB APIs and supports
+ECC P-256 and RSA (2048 or 3072 depending on build options). This port is
+built against CryptoAuthLib v3.6.0. TA100 uses
+device handles rather than ATECC slot addresses; wolfSSL maps ECC slots to
+TA100 handles internally and uses a dedicated symmetric key handle for AES-GCM.
+
+Key points:
+* TA100 support is enabled via `WOLFSSL_MICROCHIP_TA100` and CryptoAuthLib
+  must be built with TA100 support enabled (`ATCA_TA100_SUPPORT`).
+* RSA key size selection uses `WOLFSSL_SP_NO_2048` / `WOLFSSL_SP_NO_3072`
+  to choose `WOLFSSL_TA_KEY_TYPE_RSA` and `WOLFSSL_TA_KEY_TYPE_RSA_SIZE`.
+* AES-GCM support requires `WOLFSSL_MICROCHIP_AESGCM` and CryptoAuthLib
+  TA100 AES-GCM support (`ATCA_TA100_AES_AUTH_SUPPORT`).
+
+### TA100 Auto-Lock Option
+
+By default, wolfSSL does **not** lock the TA100 setup/data zone when setting
+an AES key. If you want to lock the setup/data zone automatically after the
+AES key is loaded, define:
+
+`WOLFSSL_TA100_AUTO_LOCK=1`
+
+This gates the call to `talib_lock_setup()` inside
+`wc_Microchip_aes_set_key()` in `wolfcrypt/src/port/atmel/atmel.c`.
+Because locking is a one-way operation on real hardware, this option is
+disabled by default and should only be enabled in a controlled provisioning
+flow.
+
+rm -rf build-shared
+cmake -S . -B build-shared \
+  -DCMAKE_BUILD_TYPE=Debug \
+  -DATCA_BUILD_SHARED_LIBS=ON \
+  -DATCA_HAL_SPI=ON \
+  -DATCA_PRINTF=ON \
+  -DATCA_TA100_SUPPORT=ON \
+  -DATCA_TA100_AES_AUTH_SUPPORT=ON \
+  -DATCA_TA100_FCE_SUPPORT=ON \
+  -DATCA_WOLFSSL=ON \
+  -DBUILD_TESTS=ON
+cmake --build build-shared -j
+sudo cmake --install build-shared
+sudo ldconfig
+
+`./configure CFLAGS="-DWOLFSSL_CMAC -DHAVE_PK_CALLBACKS -DWOLFSSL_ATECC508A_NOIDLE -DECC_USER_CURVES -DWOLFSSL_ATECC_NO_ECDH_ENC -DWOLFSSL_ATECC_DEBUG" --enable-cmac --enable-microchip=100 --with-cryptoauthlib`
+
+Supported Features:
+RSA 2048 keygen/sign/verify
+ECC-P256 keygen/sign/verify/shared secret
+
+WOLFSSL_MICROCHIP_AESGCM can be used to enable AES-GCM but
+AESGCM support is not yet available for TA100 in both
+cryptauthlib-v3.3.3_397871.zip and cryptauthlib-v3.6.0_443271.zip.
+
+
+```
+ $ lscpu -e
+CPU SOCKET CORE L1d:L1i:L2 ONLINE    MAXMHZ   MINMHZ
+  0      0    0 0:0:0         yes 1800.0000 600.0000
+  1      0    1 1:1:0         yes 1800.0000 600.0000
+  2      0    2 2:2:0         yes 1800.0000 600.0000
+  3      0    3 3:3:0         yes 1800.0000 600.0000
+
+$ uname -a
+Linux raspberrypi 6.1.21-v8+ #1642 SMP PREEMPT Mon Apr  3 17:24:16 BST 2023 aarch64 GNU/Linux
+
+Software:
+------------------------------------------------------------------------------
+ wolfSSL version 5.6.0
+------------------------------------------------------------------------------
+Math:     Multi-Precision: Wolf(SP) word-size=64 bits=4096 sp_int.c
+wolfCrypt Benchmark (block bytes 1048576, min 1.0 sec each)
+Benchmarks:
+
+RSA     2048  key gen         2 ops took 1.113 sec, avg 556.332 ms, 1.797 ops/sec
+RSA     2048     sign       200 ops took 1.891 sec, avg 9.455 ms, 105.766 ops/sec
+RSA     2048   verify      6900 ops took 1.011 sec, avg 0.147 ms, 6824.614 ops/sec
+
+ECC   [      SECP256R1]   256  key gen       700 ops took 1.065 sec, avg 1.522 ms, 657.067 ops/sec
+ECDHE [      SECP256R1]   256    agree       700 ops took 1.016 sec, avg 1.451 ms, 689.240 ops/sec
+ECDSA [      SECP256R1]   256     sign       700 ops took 1.049 sec, avg 1.499 ms, 667.097 ops/sec
+ECDSA [      SECP256R1]   256   verify      1000 ops took 1.001 sec, avg 1.001 ms, 998.930 ops/sec
+
+
+Hardware Microchip TA100 with SPI:
+
+Benchmarks:
+RSA     2048  key gen   HW      1 ops took 12.190 sec, avg 12190.346 ms, 0.082 ops/sec
+RSA     2048     sign   HW    100 ops took 14.006 sec, avg 140.062 ms, 7.140 ops/sec
+RSA     2048   verify   HW    100 ops took 13.168 sec, avg 131.679 ms, 7.594 ops/sec
+
+ECC   [      SECP256R1]   256  key gen       100 ops took 6.790 sec, avg 67.898 ms, 14.728 ops/sec
+ECDHE [      SECP256R1]   256    agree       100 ops took 2.413 sec, avg 24.126 ms, 41.449 ops/sec
+ECDSA [      SECP256R1]   256     sign       100 ops took 1.832 sec, avg 18.317 ms, 54.594 ops/sec
+ECDSA [      SECP256R1]   256   verify       100 ops took 2.120 sec, avg 21.198 ms, 47.175 ops/sec
+
+```
 
 For details see our [wolfSSL Atmel ATECC508/608A](https://wolfssl.com/wolfSSL/wolfssl-atmel.html) page.

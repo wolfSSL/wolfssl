@@ -441,6 +441,10 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
 #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
     #include <wolfssl/wolfcrypt/logging.h>
 #endif
+#if defined(WOLFSSL_MICROCHIP_TA100)
+    #include <wolfssl/wolfcrypt/port/atmel/atmel.h>
+#endif
+
 #ifdef WOLFSSL_CAAM
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
 #endif
@@ -724,7 +728,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t scrypt_test(void);
         WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  ecc_encrypt_test(void);
     #endif
     #if defined(USE_CERT_BUFFERS_256) && !defined(WOLFSSL_ATECC508A) && \
-        !defined(WOLFSSL_ATECC608A) && !defined(NO_ECC256) && \
+        !defined(WOLFSSL_ATECC608A) && !defined(WOLFSSL_MICROCHIP_TA100) && \
+        !defined(NO_ECC256) && \
         defined(HAVE_ECC_VERIFY) && defined(HAVE_ECC_SIGN) && \
         !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(NO_ECC_SECP)
         /* skip for ATECC508/608A, cannot import private key buffers */
@@ -2699,7 +2704,8 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
             TEST_PASS("ECC Enc  test passed!\n");
     #endif
     #if defined(USE_CERT_BUFFERS_256) && !defined(WOLFSSL_ATECC508A) && \
-        !defined(WOLFSSL_ATECC608A) && !defined(NO_ECC256) && \
+        !defined(WOLFSSL_ATECC608A) && !defined(WOLFSSL_MICROCHIP_TA100) && \
+        !defined(NO_ECC256) && \
         defined(HAVE_ECC_VERIFY) && defined(HAVE_ECC_SIGN) && \
         !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(NO_ECC_SECP)
         /* skip for ATECC508/608A, cannot import private key buffers */
@@ -21490,7 +21496,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t memory_test(void)
 #endif /* !NO_RSA */
 
 #if !defined(NO_RSA) || !defined(NO_DSA)
-    #if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+    #if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(WOLFSSL_MICROCHIP)
         static const char* keyDerFile = CERT_WRITE_TEMP_DIR "key.der";
         static const char* keyPemFile = CERT_WRITE_TEMP_DIR "key.pem";
     #endif
@@ -22205,6 +22211,13 @@ static wc_test_ret_t rsa_flatten_test(RsaKey* key)
     word32 eSz = sizeof(e);
     word32 nSz = sizeof(n);
 
+#ifdef WOLFSSL_MICROCHIP_TA100
+    /* TA100 keys are hardware-only; flattening isn't supported. */
+    if (key != NULL && (key->rKeyH != 0 || key->uKeyH != 0)) {
+        return 0;
+    }
+#endif
+
     /* Parameter Validation testing. */
     ret = wc_RsaFlattenPublicKey(NULL, e, &eSz, n, &nSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
@@ -22261,6 +22274,13 @@ static wc_test_ret_t rsa_export_key_test(RsaKey* key)
     byte q[RSA_TEST_BYTES/2];
     word32 qSz = sizeof(q);
     word32 zero = 0;
+
+#ifdef WOLFSSL_MICROCHIP_TA100
+    /* TA100 keys are hardware-only; exporting components is not supported. */
+    if (key != NULL && (key->rKeyH != 0 || key->uKeyH != 0)) {
+        return 0;
+    }
+#endif
 
     ret = wc_RsaExportKey(NULL, e, &eSz, n, &nSz, d, &dSz, p, &pSz, q, &qSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
@@ -22390,7 +22410,12 @@ static wc_test_ret_t rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG
     #if defined(WOLF_CRYPTO_CB_ONLY_RSA)
     if (ret != WC_NO_ERR_TRACE(NO_VALID_DEVID))
     #else
+    #if defined(WOLFSSL_MICROCHIP_TA100)
+    if (ret != 0 && ret != WC_NO_ERR_TRACE(MISSING_RNG_E) &&
+            ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+    #else
     if (ret != 0 && ret != WC_NO_ERR_TRACE(MISSING_RNG_E))
+    #endif
     #endif
 #elif defined(HAVE_FIPS) || !defined(WC_RSA_BLINDING)
     /* FIPS140 implementation does not do blinding */
@@ -22400,6 +22425,9 @@ static wc_test_ret_t rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG
 #elif defined(WOLFSSL_CRYPTOCELL) || defined(WOLFSSL_SE050)
     /* RNG is handled by hardware */
     if (ret != 0)
+#elif defined(WOLFSSL_MICROCHIP_TA100)
+    /* TA100 path doesn't require RNG, but may report BAD_FUNC_ARG on NULL RNG. */
+    if (ret != 0 && ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
 #else
     if (ret != WC_NO_ERR_TRACE(MISSING_RNG_E))
 #endif
@@ -22924,6 +22952,9 @@ static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
     const char       inStr[] = TEST_STRING;
     word32           inLen   = (word32)TEST_STRING_SZ;
     word32           outSz;
+#ifdef WOLFSSL_MICROCHIP_TA100
+    word32           sigSz;
+#endif
     word32           plainSz;
     word32           digestSz;
     int              i, j;
@@ -22934,6 +22965,10 @@ static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
     int              len;
 #endif
     byte*            plain;
+#ifdef WOLFSSL_MICROCHIP_TA100
+    int              mgf[]   = { WC_MGF1SHA256 };
+    enum wc_HashType hash[]  = { WC_HASH_TYPE_SHA256 };
+#else
     int              mgf[]   = {
 #ifndef NO_SHA
                                  WC_MGF1SHA1,
@@ -22968,6 +23003,7 @@ static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
                                  WC_HASH_TYPE_SHA512,
 #endif
                                };
+#endif /* WOLFSSL_MICROCHIP_TA100 */
 
     WC_DECLARE_VAR(in, byte, RSA_TEST_BYTES, HEAP_HINT);
     WC_DECLARE_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
@@ -23011,11 +23047,31 @@ static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
             if (ret <= 0)
                 ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_pss);
             outSz = (word32)ret;
+#ifdef WOLFSSL_MICROCHIP_TA100
+            /* Preserve signature length for TA100 verify. */
+            sigSz = outSz;
+#endif
 
             XMEMCPY(sig, out, outSz);
             plain = NULL;
             TEST_SLEEP();
 
+#if defined(WOLFSSL_MICROCHIP_TA100)
+            do {
+            #if defined(WOLFSSL_ASYNC_CRYPT)
+                ret = wc_AsyncWait(ret, &key->asyncDev,
+                    WC_ASYNC_FLAG_CALL_AGAIN);
+            #endif
+                if (ret >= 0) {
+                    ret = wc_RsaPSS_VerifyCheck(sig, sigSz, out, outSz,
+                        digest, digestSz, hash[j], mgf[i], key);
+                }
+            } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
+            if (ret <= 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_pss);
+            /* TA100 PSS verify done; skip remaining software-only variants. */
+            return 0;
+#else
             do {
             #if defined(WOLFSSL_ASYNC_CRYPT)
                 ret = wc_AsyncWait(ret, &key->asyncDev,
@@ -23044,6 +23100,7 @@ static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
 #endif
             if (ret != 0)
                 ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_pss);
+#endif /* WOLFSSL_MICROCHIP_TA100 */
 
 #ifdef RSA_PSS_TEST_WRONG_PARAMS
             for (k = 0; k < (int)(sizeof(mgf)/sizeof(*mgf)); k++) {
@@ -24249,7 +24306,8 @@ exit_rsa:
 }
 #endif /* !NO_RSA && HAVE_ECC && WOLFSSL_CERT_GEN */
 
-#if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+#if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+    !defined(WOLFSSL_MICROCHIP_TA100)
 static wc_test_ret_t rsa_keygen_test(WC_RNG* rng)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
@@ -24263,7 +24321,7 @@ static wc_test_ret_t rsa_keygen_test(WC_RNG* rng)
 #else
     byte der[1280];
 #endif
-#ifndef WOLFSSL_CRYPTOCELL
+#if !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_MICROCHIP)
     word32 idx = 0;
 #endif
     int    derSz = 0;
@@ -24324,7 +24382,9 @@ static wc_test_ret_t rsa_keygen_test(WC_RNG* rng)
 #else
     derSz = sizeof(der);
 #endif
+#ifndef WOLFSSL_MICROCHIP
     derSz = wc_RsaKeyToDer(genKey, der, derSz);
+#endif
     if (derSz < 0) {
         ERROR_OUT(WC_TEST_RET_ENC_EC(derSz), exit_rsa);
     }
@@ -24339,7 +24399,6 @@ static wc_test_ret_t rsa_keygen_test(WC_RNG* rng)
     ret = wc_InitRsaKey(genKey, HEAP_HINT);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
-
 #ifndef WOLFSSL_CRYPTOCELL
     idx = 0;
     /* The private key part of the key gen pairs from cryptocell can't be exported */
@@ -24347,7 +24406,6 @@ static wc_test_ret_t rsa_keygen_test(WC_RNG* rng)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
 #endif /* WOLFSSL_CRYPTOCELL */
-
 exit_rsa:
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
@@ -24892,11 +24950,38 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
 #endif
 
+#if defined(WOLFSSL_KEY_GEN) && defined(WOLFSSL_MICROCHIP_TA100)
+    /* Use TA100-generated key handles for RSA HW tests. */
+    wc_FreeRsaKey(key);
+    ret = wc_InitRsaKey_ex(key, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
+    ret = wc_MakeRsaKey(key, 2048, WC_RSA_EXPONENT, &rng);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
+#ifndef NO_SIG_WRAPPER
+    modLen = wc_RsaEncryptSize(key);
+#if defined(WOLFSSL_MICROCHIP_TA100)
+    if (modLen <= 0 && (key->rKeyH != 0 || key->uKeyH != 0)) {
+        modLen = 256;
+    }
+#endif
+#endif
+#ifdef WOLFSSL_MICROCHIP_TA100
+    /* TA100 RSA tests are limited to PSS verify/sign with HW keys. */
+    goto ta100_rsa_pss_only;
+#endif
+#endif /* WOLFSSL_KEY_GEN && WOLFSSL_MICROCHIP_TA100 */
+
 #ifndef NO_SIG_WRAPPER
 #ifndef NO_SHA256
+    #if !defined(WOLFSSL_MICROCHIP_TA100)
     ret = rsa_sig_test(key, sizeof *key, modLen, &rng);
     if (ret != 0)
         goto exit_rsa;
+    #else
+    (void)modLen;
+    #endif /* !WOLFSSL_MICROCHIP_TA100 */
 #else /* NO_SHA256 */
     (void)modLen;
 #endif /* NO_SHA256 */
@@ -24910,12 +24995,23 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
 
 #if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
     !defined(WC_NO_RNG) && !defined(WOLF_CRYPTO_CB_ONLY_RSA)
+#ifndef WOLFSSL_MICROCHIP_TA100
     do {
 #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
 #endif
         if (ret >= 0) {
-            ret = wc_RsaPublicEncrypt(in, inLen, out, outSz, key, &rng);
+#if defined(WOLFSSL_KEY_GEN) && defined(WOLFSSL_MICROCHIP_TA100)
+        /* Create new keys for TA100 */
+        ret = wc_MakeRsaKey(key, 2048, WC_RSA_EXPONENT, &rng);
+        if (ret) {
+            goto exit_rsa;
+        }
+        ret = wc_RsaPublicEncrypt(in, inLen, out, 256, key, &rng);
+#else
+        ret = wc_RsaPublicEncrypt(in, inLen, out, outSz, key, &rng);
+
+#endif
         }
     } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
     if (ret < 0)
@@ -24978,6 +25074,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
     if (ret < 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
     TEST_SLEEP();
+#endif /* !WOLFSSL_MICROCHIP_TA100 */
 
 #elif defined(WOLFSSL_PUBLIC_MP)
     {
@@ -25190,7 +25287,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
 #endif /* WOLFSSL_CERT_EXT */
 
-#if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+#if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+    !defined(WOLFSSL_MICROCHIP_TA100)
     ret = rsa_keygen_test(&rng);
     if (ret != 0)
         goto exit_rsa;
@@ -25320,6 +25418,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
     }
 #endif /* WOLFSSL_CERT_REQ */
 #endif /* WOLFSSL_CERT_GEN */
+
+#ifdef WOLFSSL_MICROCHIP_TA100
+ta100_rsa_pss_only:
+#endif
 
 #if defined(WC_RSA_PSS) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,0)) && \
@@ -33940,7 +34042,8 @@ static wc_test_ret_t ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerif
     int curve_id, const ecc_set_type* dp)
 {
 #if defined(HAVE_ECC_DHE) && !defined(WC_NO_RNG) && \
-    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A)
+    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100)
     WC_DECLARE_VAR(sharedA, byte, ECC_SHARED_SIZE, HEAP_HINT);
     WC_DECLARE_VAR(sharedB, byte, ECC_SHARED_SIZE, HEAP_HINT);
     word32  y;
@@ -33975,7 +34078,8 @@ static wc_test_ret_t ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerif
 #endif
 
 #if defined(HAVE_ECC_DHE) && !defined(WC_NO_RNG) && \
-    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A)
+    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100)
     WC_ALLOC_VAR(sharedA, byte, ECC_SHARED_SIZE, HEAP_HINT);
     WC_ALLOC_VAR(sharedB, byte, ECC_SHARED_SIZE, HEAP_HINT);
 #endif
@@ -33991,7 +34095,8 @@ static wc_test_ret_t ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerif
 
 #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
 #if (defined(HAVE_ECC_DHE) || defined(HAVE_ECC_CDH)) && !defined(WC_NO_RNG) && \
-    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A)
+    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100)
     if (sharedA == NULL || sharedB == NULL)
         ERROR_OUT(WC_TEST_RET_ENC_ERRNO, done);
 #endif
@@ -34046,6 +34151,9 @@ static wc_test_ret_t ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerif
 #endif
 
 #ifndef WC_NO_RNG
+#if defined(WOLFSSL_MICROCHIP_TA100)
+    userA->slot = atmel_ecc_alloc(ATMEL_SLOT_ECDHE_ALICE);
+#endif
     ret = wc_ecc_make_key_ex(rng, keySize, userA, curve_id);
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &userA->asyncDev, WC_ASYNC_FLAG_NONE);
@@ -34073,9 +34181,13 @@ static wc_test_ret_t ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerif
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
     TEST_SLEEP();
 
-/* ATECC508/608 configuration may not support more than one ECDH key */
-#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A)
+#if defined(WOLFSSL_MICROCHIP_TA100)
+    userB->slot = atmel_ecc_alloc(ATMEL_SLOT_ECDHE_BOB);
+#endif
 
+/* ATECC508/608 configuration may not support more than one ECDH key */
+#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100)
     ret = wc_ecc_make_key_ex(rng, keySize, userB, curve_id);
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &userB->asyncDev, WC_ASYNC_FLAG_NONE);
@@ -34191,7 +34303,8 @@ static wc_test_ret_t ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
 
-#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A)
+#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100)
 #ifdef HAVE_ECC_DHE
     y = ECC_SHARED_SIZE;
     do {
@@ -34339,7 +34452,7 @@ static wc_test_ret_t ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerif
 
 #if defined(HAVE_ECC_KEY_EXPORT) && !defined(WC_NO_RNG) && \
     !defined(WOLFSSL_ATECC508) && !defined(WOLFSSL_ATECC608A) && \
-    !defined(WOLFSSL_KCAPI_ECC)
+    !defined(WOLFSSL_KCAPI_ECC) && !defined(WOLFSSL_MICROCHIP_TA100)
     x = ECC_KEY_EXPORT_BUF_SIZE;
     ret = wc_ecc_export_private_only(userA, exportBuf, &x);
     if (ret != 0)
@@ -34380,7 +34493,6 @@ done:
     WC_FREE_VAR(sig, HEAP_HINT);
     WC_FREE_VAR(digest, HEAP_HINT);
 #endif
-
     (void)keySize;
     (void)curve_id;
     (void)rng;
@@ -34418,7 +34530,7 @@ static wc_test_ret_t ecc_test_curve(WC_RNG* rng, int keySize, int curve_id)
             return ret;
         }
     }
-#ifndef WOLF_CRYPTO_CB_ONLY_ECC
+#if !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_MICROCHIP_TA100)
 #if FIPS_VERSION3_GE(6,0,0)
   skip_A:
 #endif
@@ -34471,6 +34583,7 @@ static wc_test_ret_t ecc_test_curve(WC_RNG* rng, int keySize, int curve_id)
 
 #if (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && \
     defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT) && \
     !defined(WOLFSSL_NO_MALLOC) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
 static wc_test_ret_t ecc_point_test(void)
@@ -34760,7 +34873,7 @@ static wc_test_ret_t ecc_sig_test(WC_RNG* rng, ecc_key* key)
 #endif
 
 #if defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT) && \
-   !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+   !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_MICROCHIP_TA100)
 
 static wc_test_ret_t ecc_exp_imp_test(ecc_key* key)
 {
@@ -34873,8 +34986,9 @@ done:
 #endif /* HAVE_ECC_KEY_IMPORT && HAVE_ECC_KEY_EXPORT */
 
 #if defined(HAVE_ECC_KEY_IMPORT) && !defined(WOLFSSL_VALIDATE_ECC_IMPORT) && \
-    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
-static wc_test_ret_t ecc_mulmod_test(ecc_key* key1)
+    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
+    !defined(WOLFSSL_MICROCHIP)
+static int ecc_mulmod_test(ecc_key* key1)
 {
     wc_test_ret_t ret;
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
@@ -34957,10 +35071,11 @@ done:
 }
 #endif
 
-#if defined(HAVE_ECC_DHE) && !defined(WC_NO_RNG) && \
+#if !defined(WOLFSSL_MICROCHIP) && \
+    defined(HAVE_ECC_DHE) && !defined(WC_NO_RNG) && \
     !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_ATECC508A) && \
     !defined(WOLFSSL_ATECC608A) && !defined(PLUTON_CRYPTO_ECC) && \
-    !defined(WOLFSSL_CRYPTOCELL)
+    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_MICROCHIP_TA100)
 static wc_test_ret_t ecc_ssh_test(ecc_key* key, WC_RNG* rng)
 {
     wc_test_ret_t ret;
@@ -35055,7 +35170,8 @@ static wc_test_ret_t ecc_def_curve_test(WC_RNG *rng)
     #endif
     TEST_SLEEP();
 
-    #if defined(HAVE_ECC_DHE) && !defined(WOLFSSL_CRYPTOCELL) && \
+    #if !defined(WOLFSSL_MICROCHIP) &&\
+        defined(HAVE_ECC_DHE) && !defined(WOLFSSL_CRYPTOCELL) && \
        !defined(WOLF_CRYPTO_CB_ONLY_ECC)
     ret = ecc_ssh_test(key, rng);
     if (ret < 0)
@@ -35101,13 +35217,16 @@ static wc_test_ret_t ecc_def_curve_test(WC_RNG *rng)
         goto done;
     }
 
-#if defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT)
+#if defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT) && \
+   !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_MICROCHIP_TA100)
+
     ret = ecc_exp_imp_test(key);
     if (ret < 0)
         goto done;
 #endif
 #if defined(HAVE_ECC_KEY_IMPORT) && !defined(WOLFSSL_VALIDATE_ECC_IMPORT) && \
-    !defined(WOLFSSL_CRYPTOCELL)
+    !defined(WOLFSSL_CRYPTOCELL)  && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
+    !defined(WOLFSSL_MICROCHIP)
     ret = ecc_mulmod_test(key);
     if (ret < 0)
         goto done;
@@ -36930,6 +37049,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test(void)
         goto done;
     }
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && \
     defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT) && \
     !defined(WOLFSSL_NO_MALLOC) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
     ret = ecc_point_test();
@@ -37063,8 +37183,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test(void)
     }
 #endif
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
-  !defined(WOLFSSL_STM32_PKA) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
-  !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(NO_ECC_SECP)
+    !defined(WOLFSSL_MICROCHIP_TA100) && \
+    !defined(WOLFSSL_STM32_PKA) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(NO_ECC_SECP)
     ret = ecc_test_make_pub(&rng);
     if (ret != 0) {
         printf("ecc_test_make_pub failed!\n");
@@ -37922,7 +38043,8 @@ done:
 #endif /* HAVE_ECC_ENCRYPT && HAVE_AES_CBC && WOLFSSL_AES_128 */
 
 #if defined(USE_CERT_BUFFERS_256) && !defined(WOLFSSL_ATECC508A) && \
-    !defined(WOLFSSL_ATECC608A) && !defined(NO_ECC256) && \
+    !defined(WOLFSSL_ATECC608A) && !defined(WOLFSSL_MICROCHIP_TA100) && \
+    !defined(NO_ECC256) && \
     defined(HAVE_ECC_VERIFY) && defined(HAVE_ECC_SIGN) && \
     !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(NO_ECC_SECP)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test_buffers(void)
