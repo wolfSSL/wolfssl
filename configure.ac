@@ -1203,6 +1203,8 @@ then
         test "$enable_dtls13" = "" && enable_dtls13=yes
     fi
 
+    test "$enable_ocspstapling" = "" && test "$enable_ocsp" != "no" && enable_ocspstapling=yes
+    test "$enable_ocspstapling2" = "" && test "$enable_ocsp" != "no" && enable_ocspstapling2=yes
     test "$enable_savesession" = "" && enable_savesession=yes
     test "$enable_savecert" = "" && enable_savecert=yes
     test "$enable_postauth" = "" && enable_postauth=yes
@@ -1477,8 +1479,6 @@ then
     test "$enable_cmac_kdf" = "" && enable_cmac_kdf=yes
     test "$enable_siphash" = "" && enable_siphash=yes
     test "$enable_ocsp" = "" && enable_ocsp=yes
-    test "$enable_ocspstapling" = "" && test "$enable_ocsp" != "no" && enable_ocspstapling=yes
-    test "$enable_ocspstapling2" = "" && test "$enable_ocsp" != "no" && enable_ocspstapling2=yes
     test "$enable_crl" = "" && enable_crl=yes
     test "$enable_supportedcurves" = "" && enable_supportedcurves=yes
     test "$enable_tlsx" = "" && enable_tlsx=yes
@@ -1585,6 +1585,42 @@ then
 
     # Enable onestep KDF from NIST SP 800 56c option 1.
     AM_CFLAGS="$AM_CFLAGS -DWC_KDF_NIST_SP_800_56C"
+fi
+
+# kernel-appropriate settings, also in enable-all-crypto above:
+if test "$KERNEL_MODE_DEFAULTS" = "yes" && test "$ENABLED_ALL_CRYPT" != "yes"
+then
+    # note several of these are currently on by default, including aesgcm, sha512
+    test "$enable_aesgcm" = "" && enable_aesgcm=yes
+    test "$enable_aesccm" = "" && enable_aesccm=yes
+    test "$enable_aesecb" = "" && enable_aesecb=yes
+    test "$enable_aesctr" = "" && enable_aesctr=yes
+    test "$enable_aesofb" = "" && enable_aesofb=yes
+    test "$enable_aescfb" = "" && enable_aescfb=yes
+    test "$enable_cmac" = "" && enable_cmac=yes
+    test "$enable_sha224" = "" && enable_sha224=yes
+    test "$enable_sha512" = "" && enable_sha512=yes
+    test "$enable_sha3" = "" && enable_sha3=yes
+    test "$enable_keygen" = "" && enable_keygen=yes
+    test "$enable_hkdf" = "" && enable_hkdf=yes
+    test "$enable_eccencrypt" = "" && test "$enable_ecc" != "no" && enable_eccencrypt=yes
+    test "$enable_fpecc" = "" && test "$enable_ecc" != "no" && enable_fpecc=yes
+    test "$enable_supportedcurves" = "" && enable_supportedcurves=yes
+    test "$enable_rng_bank" = "" && enable_rng_bank=yes
+    if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -ge 6
+    then
+        test "$enable_aesgcm_stream" = "" && test "$enable_aesgcm" = "yes" && enable_aesgcm_stream=yes
+        test "$enable_aesxts" = "" && enable_aesxts=yes
+        test "$enable_aesxts_stream" = "" && test "$enable_aesxts" = "yes" && enable_aesxts_stream=yes
+        test "$enable_shake128" = "" && enable_shake128=yes
+        test "$enable_shake256" = "" && enable_shake256=yes
+        test "$enable_compkey" = "" && enable_compkey=yes
+    fi
+    # Enable DH const table speedups (eliminates `-lm` math lib dependency)
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_FFDHE_2048 -DHAVE_FFDHE_3072"
+    DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS=4096
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DH_EXTRA"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT"
 fi
 
 # wolfGuard
