@@ -1610,7 +1610,7 @@ then
         test "$enable_fpecc" = "" && enable_fpecc=yes
         test "$enable_supportedcurves" = "" && enable_supportedcurves=yes
     fi
-    test "$enabled_rng" != "no" && test "$enable_rng_bank" = "" && enable_rng_bank=yes
+    test "$enable_rng" != "no" && test "$enable_rng_bank" = "" && enable_rng_bank=yes
     if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -ge 6
     then
         test "$enable_aes" != "no" && test "$enable_aescfb" = "" && enable_aescfb=yes
