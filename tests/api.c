@@ -9172,6 +9172,117 @@ static int test_wolfSSL_dtls_export_peers(void)
     return EXPECT_RESULT();
 }
 
+/* Test that ImportKeyState correctly skips extra window words when importing
+ * state from a peer compiled with a larger WOLFSSL_DTLS_WINDOW_WORDS. */
+static int test_wolfSSL_dtls_import_state_extra_window_words(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SESSION_EXPORT)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL*     ssl = NULL;
+    unsigned int stateSz = 0;
+    byte*        state = NULL;
+    byte*        modified = NULL;
+    unsigned int modifiedSz;
+    word16       origKeyLen;
+    word16       origTotalLen;
+    /* Offset from start of key state data to the first wordCount field.
+     * Layout: 4 sequence numbers (16 bytes) + DTLS-specific fields (42 bytes) +
+     * encryptSz(4) + padSz(4) + encryptionOn(1) + decryptedCur(1) = 68 */
+    const int keyStateWindowOffset = 68;
+    /* Buffer header: 2 proto + 2 total_len + 2 key_len = 6 */
+    const int headerSz = 6;
+    int idx, modIdx;
+    int extraPerWindow = 2 * (int)sizeof(word32); /* 8 bytes extra per window */
+    int totalExtra = extraPerWindow * 2; /* 16 bytes extra total */
+
+    /* Create DTLS context and SSL object */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLSv1_2_server_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* Get required buffer size and export state-only */
+    ExpectIntEQ(wolfSSL_dtls_export_state_only(ssl, NULL, &stateSz), 0);
+    ExpectIntGT((int)stateSz, 0);
+    state = (byte*)XMALLOC(stateSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(state);
+    ExpectIntGT(wolfSSL_dtls_export_state_only(ssl, state, &stateSz), 0);
+
+    /* Build a modified buffer that simulates a peer with
+     * WOLFSSL_DTLS_WINDOW_WORDS = WOLFSSL_DTLS_WINDOW_WORDS + 2.
+     * Each window section gets 2 extra word32 values (8 bytes).
+     * Two windows => 16 extra bytes total. */
+    modifiedSz = stateSz + totalExtra;
+    modified = (byte*)XMALLOC(modifiedSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(modified);
+
+    if (EXPECT_SUCCESS()) {
+        int windowWords = WOLFSSL_DTLS_WINDOW_WORDS;
+        int windowDataSz = windowWords * (int)sizeof(word32);
+
+        XMEMSET(modified, 0, modifiedSz);
+
+        /* Copy protocol/version bytes (first 2 bytes) */
+        XMEMCPY(modified, state, 2);
+
+        /* Read original total length and key state length */
+        ato16(state + 2, &origTotalLen);
+        ato16(state + 4, &origKeyLen);
+
+        /* Write updated total length and key state length */
+        c16toa((word16)(origTotalLen + totalExtra), modified + 2);
+        c16toa((word16)(origKeyLen + totalExtra), modified + 4);
+
+        /* Copy key state data up to first window section */
+        idx = headerSz;
+        modIdx = headerSz;
+        XMEMCPY(modified + modIdx, state + idx, keyStateWindowOffset);
+        idx += keyStateWindowOffset;
+        modIdx += keyStateWindowOffset;
+
+        /* First window: write increased wordCount */
+        c16toa((word16)(windowWords + 2), modified + modIdx);
+        idx += OPAQUE16_LEN;
+        modIdx += OPAQUE16_LEN;
+
+        /* Copy original window data */
+        XMEMCPY(modified + modIdx, state + idx, windowDataSz);
+        idx += windowDataSz;
+        modIdx += windowDataSz;
+
+        /* Insert 2 extra word32 padding values */
+        XMEMSET(modified + modIdx, 0, extraPerWindow);
+        modIdx += extraPerWindow;
+
+        /* Second window (prevWindow): same transformation */
+        c16toa((word16)(windowWords + 2), modified + modIdx);
+        idx += OPAQUE16_LEN;
+        modIdx += OPAQUE16_LEN;
+
+        XMEMCPY(modified + modIdx, state + idx, windowDataSz);
+        idx += windowDataSz;
+        modIdx += windowDataSz;
+
+        XMEMSET(modified + modIdx, 0, extraPerWindow);
+        modIdx += extraPerWindow;
+
+        /* Copy remainder of key state (after both windows) */
+        XMEMCPY(modified + modIdx, state + idx, stateSz - idx);
+    }
+
+    /* Import the modified state - should succeed with the fix */
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntGT(wolfSSL_dtls_import(ssl, modified, modifiedSz), 0);
+
+    XFREE(state, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(modified, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_wolfSSL_UseTrustedCA(void)
 {
     EXPECT_DECLS;
@@ -32913,6 +33024,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_tls_export),
 #endif
     TEST_DECL(test_wolfSSL_dtls_export_peers),
+    TEST_DECL(test_wolfSSL_dtls_import_state_extra_window_words),
     TEST_DECL(test_wolfSSL_SetMinVersion),
     TEST_DECL(test_wolfSSL_CTX_SetMinVersion),
 

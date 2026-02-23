@@ -1123,8 +1123,8 @@ static int ImportKeyState(WOLFSSL* ssl, const byte* exp, word32 len, byte ver,
         idx += OPAQUE16_LEN;
 
         if (wordCount > WOLFSSL_DTLS_WINDOW_WORDS) {
+            wordAdj = (wordCount - WOLFSSL_DTLS_WINDOW_WORDS) * sizeof(word32);
             wordCount = WOLFSSL_DTLS_WINDOW_WORDS;
-            wordAdj = (WOLFSSL_DTLS_WINDOW_WORDS - wordCount) * sizeof(word32);
         }
 
         XMEMSET(keys->peerSeq[0].window, 0xFF, DTLS_SEQ_SZ);
@@ -1139,8 +1139,8 @@ static int ImportKeyState(WOLFSSL* ssl, const byte* exp, word32 len, byte ver,
         idx += OPAQUE16_LEN;
 
         if (wordCount > WOLFSSL_DTLS_WINDOW_WORDS) {
+            wordAdj = (wordCount - WOLFSSL_DTLS_WINDOW_WORDS) * sizeof(word32);
             wordCount = WOLFSSL_DTLS_WINDOW_WORDS;
-            wordAdj = (WOLFSSL_DTLS_WINDOW_WORDS - wordCount) * sizeof(word32);
         }
 
         XMEMSET(keys->peerSeq[0].prevWindow, 0xFF, DTLS_SEQ_SZ);
