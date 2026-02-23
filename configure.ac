@@ -1591,29 +1591,34 @@ fi
 if test "$KERNEL_MODE_DEFAULTS" = "yes" && test "$ENABLED_ALL_CRYPT" != "yes"
 then
     # note several of these are currently on by default, including aesgcm, sha512
-    test "$enable_aesgcm" = "" && enable_aesgcm=yes
-    test "$enable_aesccm" = "" && enable_aesccm=yes
-    test "$enable_aesecb" = "" && enable_aesecb=yes
-    test "$enable_aesctr" = "" && enable_aesctr=yes
-    test "$enable_aesofb" = "" && enable_aesofb=yes
-    test "$enable_aescfb" = "" && enable_aescfb=yes
-    test "$enable_cmac" = "" && enable_cmac=yes
+    if test "$enable_aes" != "no"
+    then
+        test "$enable_aesgcm" = "" && enable_aesgcm=yes
+        test "$enable_aesccm" = "" && enable_aesccm=yes
+        test "$enable_aesecb" = "" && enable_aesecb=yes
+        test "$enable_aesctr" = "" && enable_aesctr=yes
+        test "$enable_aesofb" = "" && enable_aesofb=yes
+        test "$enable_cmac" = "" && enable_cmac=yes
+    fi
     test "$enable_sha224" = "" && enable_sha224=yes
     test "$enable_sha512" = "" && enable_sha512=yes
     test "$enable_sha3" = "" && enable_sha3=yes
     test "$enable_keygen" = "" && enable_keygen=yes
-    test "$enable_hkdf" = "" && enable_hkdf=yes
-    test "$enable_eccencrypt" = "" && test "$enable_ecc" != "no" && enable_eccencrypt=yes
-    test "$enable_fpecc" = "" && test "$enable_ecc" != "no" && enable_fpecc=yes
-    test "$enable_supportedcurves" = "" && enable_supportedcurves=yes
-    test "$enable_rng_bank" = "" && enable_rng_bank=yes
+    if test "$enable_ecc" != "no"
+    then
+        test "$enable_eccencrypt" = "" && enable_eccencrypt=yes
+        test "$enable_fpecc" = "" && enable_fpecc=yes
+        test "$enable_supportedcurves" = "" && enable_supportedcurves=yes
+    fi
+    test "$enabled_rng" != "no" && test "$enable_rng_bank" = "" && enable_rng_bank=yes
     if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -ge 6
     then
+        test "$enable_aes" != "no" && test "$enable_aescfb" = "" && enable_aescfb=yes
         test "$enable_aesgcm_stream" = "" && test "$enable_aesgcm" = "yes" && enable_aesgcm_stream=yes
-        test "$enable_aesxts" = "" && enable_aesxts=yes
+        test "$enable_aes" != "no" && test "$enable_aesxts" = "" && enable_aesxts=yes
         test "$enable_aesxts_stream" = "" && test "$enable_aesxts" = "yes" && enable_aesxts_stream=yes
-        test "$enable_shake128" = "" && enable_shake128=yes
-        test "$enable_shake256" = "" && enable_shake256=yes
+        test "$enable_shake128" = "" && test "$enable_sha3" = "yes" && enable_shake128=yes
+        test "$enable_shake256" = "" && test "$enable_sha3" = "yes" && enable_shake256=yes
         test "$enable_compkey" = "" && enable_compkey=yes
     fi
     # Enable DH const table speedups (eliminates `-lm` math lib dependency)
