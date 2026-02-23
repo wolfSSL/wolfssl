@@ -34824,6 +34824,8 @@ exit_scv:
 #ifdef HAVE_SESSION_TICKET
 int SetTicket(WOLFSSL* ssl, const byte* ticket, word32 length)
 {
+    word32 sessIdLen = (length >= ID_LEN) ? ID_LEN : length;
+
     if (!HaveUniqueSessionObj(ssl))
         return MEMORY_ERROR;
 
@@ -34856,15 +34858,17 @@ int SetTicket(WOLFSSL* ssl, const byte* ticket, word32 length)
         ssl->options.haveSessionId = 1;
 #ifdef WOLFSSL_TLS13
         if (ssl->options.tls1_3) {
+            XMEMSET(ssl->session->sessionID, 0, ID_LEN);
             XMEMCPY(ssl->session->sessionID,
-                                 ssl->session->ticket + length - ID_LEN, ID_LEN);
+                                 ssl->session->ticket + length - sessIdLen, sessIdLen);
             ssl->session->sessionIDSz = ID_LEN;
         }
         else
 #endif
         {
+            XMEMSET(ssl->arrays->sessionID, 0, ID_LEN);
             XMEMCPY(ssl->arrays->sessionID,
-                                 ssl->session->ticket + length - ID_LEN, ID_LEN);
+                                 ssl->session->ticket + length - sessIdLen, sessIdLen);
             ssl->arrays->sessionIDSz = ID_LEN;
         }
     }
