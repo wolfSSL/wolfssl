@@ -10457,8 +10457,7 @@ const char* wolfSSL_CIPHER_get_name(const WOLFSSL_CIPHER* cipher)
         return NULL;
     }
 
-    #if !defined(WOLFSSL_CIPHER_INTERNALNAME) && !defined(NO_ERROR_STRINGS) && \
-        !defined(WOLFSSL_QT)
+    #if !defined(WOLFSSL_CIPHER_INTERNALNAME) && !defined(NO_ERROR_STRINGS)
         return GetCipherNameIana(cipher->cipherSuite0, cipher->cipherSuite);
     #else
         return wolfSSL_get_cipher_name_from_suite(cipher->cipherSuite0,
@@ -14028,12 +14027,7 @@ void* wolfSSL_GetHKDFExtractCtx(WOLFSSL* ssl)
         }
         if (i == (int)WOLFSSL_OBJECT_INFO_SZ) {
             WOLFSSL_MSG("NID not in table");
-        #ifdef WOLFSSL_QT
-            sName = NULL;
-            type = (word32)id;
-        #else
             return NULL;
-        #endif
         }
 
     #ifdef HAVE_ECC
@@ -16022,9 +16016,8 @@ static WC_INLINE int sslCipherMinMaxCheck(const WOLFSSL *ssl, byte suite0,
  */
 WOLF_STACK_OF(WOLFSSL_CIPHER) *wolfSSL_get_ciphers_compat(const WOLFSSL *ssl)
 {
-    WOLF_STACK_OF(WOLFSSL_CIPHER)* ret = NULL;
     const Suites* suites;
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+#if defined(OPENSSL_ALL)
     const CipherSuiteInfo* cipher_names = GetCipherNames();
     int cipherSz = GetCipherNamesSize();
 #endif
@@ -16040,15 +16033,20 @@ WOLF_STACK_OF(WOLFSSL_CIPHER) *wolfSSL_get_ciphers_compat(const WOLFSSL *ssl)
     /* check if stack needs populated */
     if (ssl->suitesStack == NULL) {
         int i;
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
-        int j;
+
+        ((WOLFSSL*)ssl)->suitesStack =
+                wolfssl_sk_new_type_ex(STACK_TYPE_CIPHER, ssl->heap);
+        if (ssl->suitesStack == NULL)
+            return NULL;
 
         /* higher priority of cipher suite will be on top of stack */
-        for (i = suites->suiteSz - 2; i >=0; i-=2) {
+#if defined(OPENSSL_ALL)
+        for (i = suites->suiteSz - 2; i >=0; i-=2)
 #else
-        for (i = 0; i < suites->suiteSz; i+=2) {
+        for (i = 0; i < suites->suiteSz; i+=2)
 #endif
-            WOLFSSL_STACK* add;
+        {
+            struct WOLFSSL_CIPHER cipher;
 
             /* A couple of suites are placeholders for special options,
              * skip those. */
@@ -16058,39 +16056,30 @@ WOLF_STACK_OF(WOLFSSL_CIPHER) *wolfSSL_get_ciphers_compat(const WOLFSSL *ssl)
                 continue;
             }
 
-            add = wolfSSL_sk_new_node(ssl->heap);
-            if (add != NULL) {
-                add->type = STACK_TYPE_CIPHER;
-                add->data.cipher.cipherSuite0 = suites->suites[i];
-                add->data.cipher.cipherSuite  = suites->suites[i+1];
-                add->data.cipher.ssl          = ssl;
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+            XMEMSET(&cipher, 0, sizeof(cipher));
+            cipher.cipherSuite0 = suites->suites[i];
+            cipher.cipherSuite  = suites->suites[i+1];
+            cipher.ssl          = ssl;
+#if defined(OPENSSL_ALL)
+            cipher.in_stack     = 1;
+            {
+                int j;
                 for (j = 0; j < cipherSz; j++) {
-                    if (cipher_names[j].cipherSuite0 ==
-                            add->data.cipher.cipherSuite0 &&
-                            cipher_names[j].cipherSuite ==
-                                    add->data.cipher.cipherSuite) {
-                        add->data.cipher.offset = (unsigned long)j;
+                    if (cipher_names[j].cipherSuite0 == cipher.cipherSuite0 &&
+                            cipher_names[j].cipherSuite == cipher.cipherSuite) {
+                        cipher.offset = (unsigned long)j;
                         break;
                     }
                 }
+            }
 #endif
-                #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
-                /* in_stack is checked in wolfSSL_CIPHER_description */
-                add->data.cipher.in_stack     = 1;
-                #endif
-
-                add->next = ret;
-                if (ret != NULL) {
-                    add->num = ret->num + 1;
-                }
-                else {
-                    add->num = 1;
-                }
-                ret = add;
+            if (wolfSSL_sk_insert(ssl->suitesStack, &cipher, 0) <= 0) {
+                WOLFSSL_MSG("Error inserting cipher onto stack");
+                wolfSSL_sk_CIPHER_free(ssl->suitesStack);
+                ((WOLFSSL*)ssl)->suitesStack = NULL;
+                break;
             }
         }
-        ((WOLFSSL*)ssl)->suitesStack = ret;
     }
     return ssl->suitesStack;
 }

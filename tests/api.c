@@ -13582,8 +13582,7 @@ static int test_wolfSSL_get_client_ciphers_on_result(WOLFSSL* ssl) {
         ExpectIntEQ(sk_SSL_CIPHER_num(ciphers), 1);
         current = sk_SSL_CIPHER_value(ciphers, 0);
         ExpectNotNull(current);
-    #if !defined(WOLFSSL_CIPHER_INTERNALNAME) && !defined(NO_ERROR_STRINGS) && \
-        !defined(WOLFSSL_QT)
+    #if !defined(WOLFSSL_CIPHER_INTERNALNAME) && !defined(NO_ERROR_STRINGS)
         ExpectStrEQ("TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
             SSL_CIPHER_get_name(current));
     #else
@@ -25561,7 +25560,7 @@ static int test_wolfSSL_crypto_policy_ciphers(void)
 
         /* We return a different cipher string depending on build settings. */
         #if !defined(WOLFSSL_CIPHER_INTERNALNAME) && \
-        !defined(NO_ERROR_STRINGS) && !defined(WOLFSSL_QT)
+        !defined(NO_ERROR_STRINGS)
         found = crypto_policy_cipher_found(ssl, "AES_128", 0);
         ExpectIntEQ(found, !is_future);
 

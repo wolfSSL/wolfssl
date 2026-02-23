@@ -1995,18 +1995,11 @@ int wolfSSL_OCSP_id_get0_info(WOLFSSL_ASN1_STRING **name,
             ser->dataMax = WOLFSSL_ASN1_INTEGER_MAX;
         }
 
-        #if defined(WOLFSSL_QT) || defined(WOLFSSL_HAPROXY)
-            /* Serial number starts at 0 index of ser->data */
-            XMEMCPY(&ser->data[i], cid->status->serial,
-                (size_t)cid->status->serialSz);
-            ser->length = cid->status->serialSz;
-        #else
-            ser->data[i++] = ASN_INTEGER;
-            i += SetLength(cid->status->serialSz, ser->data + i);
-            XMEMCPY(&ser->data[i], cid->status->serial,
-                (size_t)cid->status->serialSz);
-            ser->length = i + cid->status->serialSz;
-        #endif
+        ser->data[i++] = ASN_INTEGER;
+        i += SetLength(cid->status->serialSz, ser->data + i);
+        XMEMCPY(&ser->data[i], cid->status->serial,
+            (size_t)cid->status->serialSz);
+        ser->length = i + cid->status->serialSz;
 
         cid->status->serialInt = ser;
         *serial = ser;

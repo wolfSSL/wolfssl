@@ -661,17 +661,25 @@ static int DNS_to_GENERAL_NAME(WOLFSSL_GENERAL_NAME* gn, DNS_entry* dns)
             if (gn->d.registeredID == NULL) {
                 return WOLFSSL_FAILURE;
             }
-            gn->d.registeredID->obj = (const unsigned char*)XMALLOC(dns->len,
-                gn->d.registeredID->heap, DYNAMIC_TYPE_ASN1);
-            if (gn->d.registeredID->obj == NULL) {
-                /* registeredID gets free'd up by caller after failure */
-                return WOLFSSL_FAILURE;
+            {
+                /* Store DER-encoded OID (tag + length + content) in obj */
+                word32 derSz = 1 + SetLength(dns->len, NULL) + dns->len;
+                byte* der = (byte*)XMALLOC(derSz,
+                    gn->d.registeredID->heap, DYNAMIC_TYPE_ASN1);
+                if (der == NULL) {
+                    return WOLFSSL_FAILURE;
+                }
+                {
+                    word32 idx = 0;
+                    der[idx++] = ASN_OBJECT_ID;
+                    idx += SetLength(dns->len, der + idx);
+                    XMEMCPY(der + idx, dns->name, dns->len);
+                }
+                gn->d.registeredID->obj = der;
+                gn->d.registeredID->objSz = derSz;
             }
             gn->d.registeredID->dynamic |= WOLFSSL_ASN1_DYNAMIC_DATA;
-            XMEMCPY((byte*)gn->d.registeredID->obj, dns->ridString, dns->len);
-            gn->d.registeredID->objSz = dns->len;
             gn->d.registeredID->grp = oidCertExtType;
-            gn->d.registeredID->nid = WC_NID_registeredAddress;
             break;
 #endif
 
@@ -2533,19 +2541,28 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
                             if (gn->d.registeredID == NULL) {
                                 goto err;
                             }
-                            gn->d.registeredID->obj =
-                                (const unsigned char*)XMALLOC(dns->len,
-                                    gn->d.registeredID->heap, DYNAMIC_TYPE_ASN1);
-                            if (gn->d.registeredID->obj == NULL) {
-                                goto err;
+                            {
+                                /* Store DER-encoded OID (tag+length+content) */
+                                word32 derSz = 1 + SetLength(dns->len, NULL)
+                                               + dns->len;
+                                byte* der = (byte*)XMALLOC(derSz,
+                                    gn->d.registeredID->heap,
+                                    DYNAMIC_TYPE_ASN1);
+                                if (der == NULL) {
+                                    goto err;
+                                }
+                                {
+                                    word32 derIdx = 0;
+                                    der[derIdx++] = ASN_OBJECT_ID;
+                                    derIdx += SetLength(dns->len, der + derIdx);
+                                    XMEMCPY(der + derIdx, dns->name, dns->len);
+                                }
+                                gn->d.registeredID->obj = der;
+                                gn->d.registeredID->objSz = derSz;
                             }
                             gn->d.registeredID->dynamic |=
                                 WOLFSSL_ASN1_DYNAMIC_DATA;
-                            XMEMCPY((byte*)gn->d.registeredID->obj,
-                                dns->ridString, dns->len);
-                            gn->d.registeredID->objSz = dns->len;
                             gn->d.registeredID->grp = oidCertExtType;
-                            gn->d.registeredID->nid = WC_NID_registeredAddress;
                             break;
                     #endif /* WOLFSSL_RID_ALT_NAME */
 
@@ -10830,15 +10847,10 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_X509_get_serialNumber(WOLFSSL_X509* x509)
         a->dataMax = WOLFSSL_ASN1_INTEGER_MAX;
     }
 
-    #if defined(WOLFSSL_QT) || defined(WOLFSSL_HAPROXY)
-        XMEMCPY(&a->data[i], x509->serial, x509->serialSz);
-        a->length = x509->serialSz;
-    #else
-        a->data[i++] = ASN_INTEGER;
-        i += SetLength(x509->serialSz, a->data + i);
-        XMEMCPY(&a->data[i], x509->serial, x509->serialSz);
-        a->length = x509->serialSz + 2;
-    #endif
+    a->data[i++] = ASN_INTEGER;
+    i += SetLength(x509->serialSz, a->data + i);
+    XMEMCPY(&a->data[i], x509->serial, x509->serialSz);
+    a->length = x509->serialSz + 2;
 
     x509->serialNumber = a;
 
