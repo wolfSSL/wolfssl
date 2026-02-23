@@ -11282,6 +11282,14 @@ const WOLFSSL_EVP_MD* wolfSSL_EVP_get_digestbynid(int id)
         case WC_NID_sm3:
             return wolfSSL_EVP_sm3();
 #endif
+#ifdef WOLFSSL_SHAKE128
+        case WC_NID_shake128:
+            return wolfSSL_EVP_shake128();
+#endif
+#ifdef WOLFSSL_SHAKE256
+        case WC_NID_shake256:
+            return wolfSSL_EVP_shake256();
+#endif
         default:
             WOLFSSL_MSG("Bad digest id value");
     }
