@@ -36,6 +36,7 @@ int test_wolfSSL_CertManagerNameConstraint3(void);
 int test_wolfSSL_CertManagerNameConstraint4(void);
 int test_wolfSSL_CertManagerNameConstraint5(void);
 int test_wolfSSL_CertManagerCRL(void);
+int test_wolfSSL_CRL_static_revoked_list(void);
 int test_wolfSSL_CRL_duplicate_extensions(void);
 int test_wolfSSL_CertManagerCheckOCSPResponse(void);
 int test_various_pathlen_chains(void);
@@ -53,6 +54,7 @@ int test_various_pathlen_chains(void);
     TEST_DECL_GROUP("certman", test_wolfSSL_CertManagerNameConstraint4),    \
     TEST_DECL_GROUP("certman", test_wolfSSL_CertManagerNameConstraint5),    \
     TEST_DECL_GROUP("certman", test_wolfSSL_CertManagerCRL),                \
+    TEST_DECL_GROUP("certman", test_wolfSSL_CRL_static_revoked_list),      \
     TEST_DECL_GROUP("certman", test_wolfSSL_CRL_duplicate_extensions),      \
     TEST_DECL_GROUP("certman", test_wolfSSL_CertManagerCheckOCSPResponse),  \
     TEST_DECL_GROUP("certman", test_various_pathlen_chains)
