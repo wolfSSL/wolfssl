@@ -20548,10 +20548,12 @@ static int test_sk_X509(void)
         ExpectNotNull(s = wolfSSL_sk_X509_new(NULL));
         ExpectIntEQ(sk_X509_num(s), 0);
         sk_X509_pop_free(s, NULL);
+        s = NULL;
 
         ExpectNotNull(s = sk_X509_new_null());
         ExpectIntEQ(sk_X509_num(s), 0);
         sk_X509_pop_free(s, NULL);
+        s = NULL;
 
         ExpectNotNull(s = sk_X509_new_null());
 
@@ -21141,7 +21143,7 @@ static int test_wolfSSL_X509_CRL_sign_large(void)
     WOLFSSL_X509_CRL* crl = NULL;
     WOLFSSL_EVP_PKEY* pkey = NULL;
     WOLFSSL_ASN1_TIME asnTime;
-    WOLFSSL_X509_REVOKED revoked;
+    WOLFSSL_X509_REVOKED revoked = {0};
     XFILE fp = XBADFILE;
     int i;
     byte serial[4];
@@ -21166,9 +21168,11 @@ static int test_wolfSSL_X509_CRL_sign_large(void)
     ExpectIntEQ(wolfSSL_X509_CRL_set_nextUpdate(crl, &asnTime),
         WOLFSSL_SUCCESS);
 
-    revoked.serialNumber = wolfSSL_ASN1_INTEGER_new();
-    revoked.serialNumber->data = serial;
-    revoked.serialNumber->length = (int)sizeof(serial);
+    ExpectNotNull(revoked.serialNumber = wolfSSL_ASN1_INTEGER_new());
+    if (revoked.serialNumber != NULL) {
+        revoked.serialNumber->data = serial;
+        revoked.serialNumber->length = (int)sizeof(serial);
+    }
 
     for (i = 1; i <= 1024; i++) {
         serial[0] = (byte)(i & 0xff);
@@ -21189,9 +21193,11 @@ static int test_wolfSSL_X509_CRL_sign_large(void)
     ExpectIntEQ(wolfSSL_X509_CRL_sign(crl, pkey, wolfSSL_EVP_sha256()),
         WOLFSSL_SUCCESS);
 
-    revoked.serialNumber->data = NULL;
-    wolfSSL_ASN1_INTEGER_free(revoked.serialNumber);
-    revoked.serialNumber = NULL;
+    if (revoked.serialNumber != NULL) {
+        revoked.serialNumber->data = NULL;
+        wolfSSL_ASN1_INTEGER_free(revoked.serialNumber);
+        revoked.serialNumber = NULL;
+    }
 
     wolfSSL_EVP_PKEY_free(pkey);
     wolfSSL_X509_CRL_free(crl);
