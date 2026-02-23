@@ -23,7 +23,7 @@ jobs:
         uses: wolfSSL/actions-build-autotools-project@v1
         with:
           path: wolfssl
-          configure: --enable-maxfragment --enable-opensslall --enable-opensslextra --enable-dtls --enable-oldtls --enable-tlsv10 --enable-ipv6 'CPPFLAGS=-DWOLFSSL_NO_DTLS_SIZE_CHECK -DOPENSSL_COMPATIBLE_DEFAULTS'
+          configure: --enable-all --enable-oldtls --enable-tlsv10 --enable-ipv6 'CPPFLAGS=-DWOLFSSL_NO_DTLS_SIZE_CHECK -DOPENSSL_COMPATIBLE_DEFAULTS'
           install: true
 
       - name: tar build-dir
@@ -43,6 +43,14 @@ jobs:
     # This should be a safe limit for the tests to run.
     timeout-minutes: 30
     needs: build_wolfssl
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - socat_version: "1.8.0.0"
+            expect_fail: "36,64,146,216,309,310,386,399,402,403,459,460,467,468,475,478,491,492,528"
+          - socat_version: "1.8.0.3"
+            expect_fail: "146,386,399,402,459,460,467,468,475,478,491,492,495,528"
     steps:
       - name: Install prereqs
         run:
@@ -57,7 +65,7 @@ jobs:
         run: tar -xf build-dir.tgz
 
       - name: Download socat
-        run: curl -O http://www.dest-unreach.org/socat/download/socat-1.8.0.0.tar.gz && tar xvf socat-1.8.0.0.tar.gz
+        run: curl -O http://www.dest-unreach.org/socat/download/socat-${{ matrix.socat_version }}.tar.gz && tar xvf socat-${{ matrix.socat_version }}.tar.gz
 
       - name: Checkout OSP
         uses: actions/checkout@v4
@@ -66,16 +74,16 @@ jobs:
           path: osp
 
       - name: Build socat
-        working-directory: ./socat-1.8.0.0
+        working-directory: ./socat-${{ matrix.socat_version }}
         run: |
-          patch -p1 < ../osp/socat/1.8.0.0/socat-1.8.0.0.patch
+          patch -p1 < ../osp/socat/${{ matrix.socat_version }}/socat-${{ matrix.socat_version }}.patch
           autoreconf -vfi
           ./configure --with-wolfssl=$GITHUB_WORKSPACE/build-dir --enable-default-ipv=4
           make
 
       - name: Run socat tests
-        working-directory: ./socat-1.8.0.0
+        working-directory: ./socat-${{ matrix.socat_version }}
         run: |
           export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/build-dir/lib:$LD_LIBRARY_PATH
           export SHELL=/bin/bash
-          SOCAT=$GITHUB_WORKSPACE/socat-1.8.0.0/socat ./test.sh -t 0.5 --expect-fail 36,64,146,214,216,217,309,310,386,399,402,403,459,460,467,468,475,478,492,528,530
+          SOCAT=$GITHUB_WORKSPACE/socat-${{ matrix.socat_version }}/socat ./test.sh -t 0.5 --expect-fail ${{ matrix.expect_fail }}
