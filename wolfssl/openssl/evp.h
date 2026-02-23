@@ -61,6 +61,12 @@
 #ifdef WOLFSSL_SM3
     #include <wolfssl/wolfcrypt/sm3.h>
 #endif
+#ifdef HAVE_BLAKE2
+    #include <wolfssl/wolfcrypt/blake2.h>
+#endif
+#ifdef HAVE_BLAKE2S
+    #include <wolfssl/wolfcrypt/blake2.h>
+#endif
 #ifdef WOLFSSL_SM4
     #include <wolfssl/wolfcrypt/sm4.h>
 #endif
@@ -223,6 +229,12 @@ typedef union {
     #endif
     #if defined(WOLFSSL_SHAKE128) || defined(WOLFSSL_SHAKE256)
         wc_Shake            shake;
+    #endif
+    #ifdef HAVE_BLAKE2
+        Blake2b             blake2b;
+    #endif
+    #ifdef HAVE_BLAKE2S
+        Blake2s             blake2s;
     #endif
 } WOLFSSL_Hasher;
 
