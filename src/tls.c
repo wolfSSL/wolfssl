@@ -2135,7 +2135,7 @@ static void TLSX_SNI_FreeAll(SNI* list, void* heap)
 }
 
 /** Tells the buffered size of the SNI objects in a list. */
-static word16 TLSX_SNI_GetSize(SNI* list)
+WOLFSSL_TEST_VIS word16 TLSX_SNI_GetSize(SNI* list)
 {
     SNI* sni;
     word32 length = OPAQUE16_LEN; /* list length */
@@ -3241,15 +3241,19 @@ word16 TLSX_CSR_GetSize_ex(CertificateStatusRequest* csr, byte isRequest,
         if (csr->ssl != NULL && SSL_CM(csr->ssl) != NULL &&
                 SSL_CM(csr->ssl)->ocsp_stapling != NULL &&
                 SSL_CM(csr->ssl)->ocsp_stapling->statusCb != NULL) {
+            if (WOLFSSL_MAX_16BIT - OPAQUE8_LEN - OPAQUE24_LEN <
+                    csr->ssl->ocspCsrResp[idx].length) {
+                return 0;
+            }
             size = OPAQUE8_LEN + OPAQUE24_LEN +
                     csr->ssl->ocspCsrResp[idx].length;
-            if (size > WOLFSSL_MAX_16BIT)
-                return 0;
             return (word16)size;
         }
-        size = OPAQUE8_LEN + OPAQUE24_LEN + csr->responses[idx].length;
-        if (size > WOLFSSL_MAX_16BIT)
+        if (WOLFSSL_MAX_16BIT - OPAQUE8_LEN - OPAQUE24_LEN <
+                csr->responses[idx].length) {
             return 0;
+        }
+        size = OPAQUE8_LEN + OPAQUE24_LEN + csr->responses[idx].length;
         return (word16)size;
     }
 #else

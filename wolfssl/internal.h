@@ -3169,7 +3169,7 @@ struct TLSX {
     struct TLSX* next; /* List Behavior   */
 };
 
-WOLFSSL_LOCAL TLSX* TLSX_Find(TLSX* list, TLSX_Type type);
+WOLFSSL_TEST_VIS TLSX* TLSX_Find(TLSX* list, TLSX_Type type);
 WOLFSSL_LOCAL void  TLSX_Remove(TLSX** list, TLSX_Type type, void* heap);
 WOLFSSL_LOCAL void  TLSX_FreeAll(TLSX* list, void* heap);
 WOLFSSL_LOCAL int   TLSX_SupportExtensions(WOLFSSL* ssl);
@@ -3237,6 +3237,7 @@ WOLFSSL_LOCAL int TLSX_UseSNI(TLSX** extensions, byte type, const void* data,
 WOLFSSL_LOCAL byte TLSX_SNI_Status(TLSX* extensions, byte type);
 WOLFSSL_LOCAL word16 TLSX_SNI_GetRequest(TLSX* extensions, byte type,
                                                 void** data, byte ignoreStatus);
+WOLFSSL_TEST_VIS word16 TLSX_SNI_GetSize(SNI* list);
 
 #ifndef NO_WOLFSSL_SERVER
 WOLFSSL_LOCAL void   TLSX_SNI_SetOptions(TLSX* extensions, byte type,

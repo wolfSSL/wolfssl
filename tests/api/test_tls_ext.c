@@ -545,3 +545,67 @@ int test_certificate_authorities_client_hello(void) {
 #endif
     return EXPECT_RESULT();
 }
+
+/* Test that the SNI size calculation returns 0 on overflow instead of
+ * wrapping around to a small value (integer overflow vulnerability). */
+int test_TLSX_SNI_GetSize_overflow(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SNI) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    TLSX* sni_ext = NULL;
+    SNI* head = NULL;
+    SNI* sni = NULL;
+    int i;
+    /* Each SNI adds ENUM_LEN(1) + OPAQUE16_LEN(2) + hostname_len to the size.
+     * With a 1-byte hostname, each entry adds 4 bytes. Starting from
+     * OPAQUE16_LEN(2) base, we need enough entries to exceed UINT16_MAX. */
+    const int num_sni = (0xFFFF / 4) + 2;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* Add initial SNI via public API */
+    ExpectIntEQ(WOLFSSL_SUCCESS,
+                wolfSSL_UseSNI(ssl, WOLFSSL_SNI_HOST_NAME, "a", 1));
+
+    /* Find the SNI extension and manually build a long chain */
+    if (EXPECT_SUCCESS()) {
+        sni_ext = TLSX_Find(ssl->extensions, TLSX_SERVER_NAME);
+        ExpectNotNull(sni_ext);
+    }
+
+    if (EXPECT_SUCCESS()) {
+        head = (SNI*)sni_ext->data;
+        ExpectNotNull(head);
+    }
+
+    /* Append many SNI nodes to force overflow in the size calculation */
+    for (i = 1; EXPECT_SUCCESS() && i < num_sni; i++) {
+        sni = (SNI*)XMALLOC(sizeof(SNI), NULL, DYNAMIC_TYPE_TLSX);
+        ExpectNotNull(sni);
+        if (sni != NULL) {
+            XMEMSET(sni, 0, sizeof(SNI));
+            sni->type = WOLFSSL_SNI_HOST_NAME;
+            sni->data.host_name = (char*)XMALLOC(2, NULL, DYNAMIC_TYPE_TLSX);
+            ExpectNotNull(sni->data.host_name);
+            if (sni->data.host_name != NULL) {
+                sni->data.host_name[0] = 'a';
+                sni->data.host_name[1] = '\0';
+            }
+            sni->next = head->next;
+            head->next = sni;
+        }
+    }
+
+    if (EXPECT_SUCCESS()) {
+        /* The fixed calculation should return 0 (overflow detected) */
+        ExpectIntEQ(TLSX_SNI_GetSize((SNI*)sni_ext->data), 0);
+    }
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
