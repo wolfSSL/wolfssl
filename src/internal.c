@@ -34824,7 +34824,7 @@ exit_scv:
 #ifdef HAVE_SESSION_TICKET
 int SetTicket(WOLFSSL* ssl, const byte* ticket, word32 length)
 {
-    word32 sessIdLen = (length >= ID_LEN) ? ID_LEN : length;
+    word32 sessIdLen = 0;
 
     if (!HaveUniqueSessionObj(ssl))
         return MEMORY_ERROR;
@@ -34847,6 +34847,10 @@ int SetTicket(WOLFSSL* ssl, const byte* ticket, word32 length)
     ssl->session->ticketLen = (word16)length;
 
     if (length > 0) {
+        if (length >= ID_LEN)
+            sessIdLen = ID_LEN;
+        else
+            sessIdLen = length;
         XMEMCPY(ssl->session->ticket, ticket, length);
         if (ssl->session_ticket_cb != NULL) {
             ssl->session_ticket_cb(ssl,
