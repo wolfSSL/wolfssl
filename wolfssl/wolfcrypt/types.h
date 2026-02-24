@@ -2056,7 +2056,8 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
     #define WC_NORETURN
 #endif
 
-#if defined(__has_attribute) && __has_attribute(nonnull)
+#ifdef __has_attribute
+#if __has_attribute(nonnull)
     #ifndef WC_ARG_NOT_NULL
         #define WC_ARG_NOT_NULL(a) __attribute__((nonnull(a)))
     #endif
@@ -2069,16 +2070,17 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
     #ifndef WC_ALL_ARGS_NOT_NULL
         #define WC_ALL_ARGS_NOT_NULL __attribute__((nonnull))
     #endif
-#else
-    #ifndef WC_ARG_NOT_NULL
-        #define WC_ARG_NOT_NULL(a) /* null expansion */
-    #endif
-    #ifndef WC_ARGS_NOT_NULL
-        #define WC_ARGS_NOT_NULL(p_a) /* null expansion */
-    #endif
-    #ifndef WC_ALL_ARGS_NOT_NULL
-        #define WC_ALL_ARGS_NOT_NULL
-    #endif
+#endif /* __has_attribute(nonnull) */
+#endif /* defined(__has_attribute) */
+
+#ifndef WC_ARG_NOT_NULL
+    #define WC_ARG_NOT_NULL(a) /* null expansion */
+#endif
+#ifndef WC_ARGS_NOT_NULL
+    #define WC_ARGS_NOT_NULL(p_a) /* null expansion */
+#endif
+#ifndef WC_ALL_ARGS_NOT_NULL
+    #define WC_ALL_ARGS_NOT_NULL
 #endif
 
 #if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || \
