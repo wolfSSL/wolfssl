@@ -57,6 +57,16 @@
     #endif
 #endif
 
+/* Enable copy/free callbacks when using callback mode */
+#if defined(MAX3266X_SHA_CB)
+    #ifndef WOLF_CRYPTO_CB_COPY
+        #define WOLF_CRYPTO_CB_COPY
+    #endif
+    #ifndef WOLF_CRYPTO_CB_FREE
+        #define WOLF_CRYPTO_CB_FREE
+    #endif
+#endif
+
 /* Crypto HW can be used in parallel on this device */
 /* Sets up new Mutexing if desired */
 #ifdef WOLFSSL_ALGO_HW_MUTEX
@@ -322,6 +332,20 @@
                                                 unsigned int* used,
                                                 unsigned int* len,
                                                 void* heap);
+    /* Free HASH_KEEP message buffer and zero the full SHA context */
+    WOLFSSL_LOCAL void wc_MXC_TPU_SHA_FreeCtx(void* ctx,
+                                                unsigned int ctxSz,
+                                                unsigned char** msg,
+                                                unsigned int* used,
+                                                unsigned int* len,
+                                                void* heap);
+    /* Copy SHA context and deep copy HASH_KEEP message buffer */
+    WOLFSSL_LOCAL int wc_MXC_TPU_SHA_Copy(void* src, void* dst,
+                                                unsigned int ctxSz,
+                                                unsigned char** dstMsg,
+                                                unsigned int* dstUsed,
+                                                unsigned int* dstLen,
+                                                void* dstHeap, void* srcHeap);
     /* Compute hash, free message buffer, and reset fields */
     WOLFSSL_LOCAL int wc_MXC_TPU_SHA_Final(unsigned char** msg,
                                                 unsigned int* used,
@@ -331,7 +355,7 @@
                                                 MXC_TPU_HASH_TYPE algo);
 
 
-#endif /* defined(MAX3266X_SHA) && !defined(WOLF_CRYPTO_CB) */
+#endif /* defined(MAX3266X_SHA) || defined(MAX3266X_SHA_CB) */
 
 #if defined(MAX3266X_MATH)
     #define WOLFSSL_USE_HW_MP
