@@ -19,6 +19,8 @@ jobs:
         config: [
           # Add new configs here
           '--enable-rsa --enable-keygen --disable-dh CFLAGS="-DWOLFSSL_NO_MALLOC -DRSA_MIN_SIZE=1024 -pedantic -Wdeclaration-after-statement -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"',
+          '--enable-ecc --enable-rsa --enable-keygen --enable-ed25519 --enable-curve25519 --enable-ed448 --enable-curve448 --enable-mlkem CFLAGS="-DWOLFSSL_NO_MALLOC -pedantic -Wdeclaration-after-statement -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"',
+          '--enable-ecc --enable-rsa --enable-keygen --enable-ed25519 --enable-curve25519 --enable-ed448 --enable-curve448 --enable-mlkem --enable-staticmemory CFLAGS="-DWOLFSSL_NO_MALLOC -pedantic -Wdeclaration-after-statement -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"',
         ]
     name: make check
     if: github.repository_owner == 'wolfssl'

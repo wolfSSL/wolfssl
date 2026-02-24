@@ -21039,7 +21039,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t memory_test(void)
 {
     wc_test_ret_t ret = 0;
     word32 j = 0; /* used in embedded const pointer test */
-    WOLFSSL_ENTER("memory_test");
 
 #if defined(COMPLEX_MEM_TEST) || defined(WOLFSSL_STATIC_MEMORY)
     int i;
@@ -21052,6 +21051,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t memory_test(void)
               /* pad to account for if head of buffer is not at set memory
                * alignment when tests are ran */
 #endif
+
+    WOLFSSL_ENTER("memory_test");
 
 #ifdef WOLFSSL_STATIC_MEMORY
     /* check macro settings */
