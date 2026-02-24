@@ -143,6 +143,20 @@
 #endif
 #endif
 
+#ifndef WC_NO_INLINE
+    #ifdef noinline
+        #define WC_NO_INLINE noinline
+    #elif defined(_MSC_VER)
+        #define WC_NO_INLINE __declspec(noinline)
+    #elif defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+        #define WC_NO_INLINE _Pragma("inline = never")
+    #elif defined(__GNUC__) || defined(__KEIL__) || defined(__DCC__)
+        #define WC_NO_INLINE __attribute__((noinline))
+    #else
+        #define WC_NO_INLINE
+    #endif
+#endif
+
 #ifndef WC_OMIT_FRAME_POINTER
     #if defined(__GNUC__)
         #define WC_OMIT_FRAME_POINTER  \
