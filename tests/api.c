@@ -24074,7 +24074,7 @@ static int test_export_keying_material_cb(WOLFSSL_CTX *ctx, WOLFSSL *ssl)
      * prevent integer overflow in seedLen calculation (ZD #21242). */
     ExpectIntEQ(wolfSSL_export_keying_material(ssl, ekm, sizeof(ekm),
             "Test label", XSTR_SIZEOF("Test label"), ekm,
-            (size_t)UINT16_MAX + 1, 1), 0);
+            (size_t)0xFFFF + 1, 1), 0);
 
     return EXPECT_RESULT();
 }

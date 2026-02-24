@@ -1024,7 +1024,7 @@ int Tls13_Exporter(WOLFSSL* ssl, unsigned char *out, size_t outLen,
         return ret;
 
     /* Sanity check contextLen to prevent truncation when cast to word32. */
-    if (contextLen > UINT32_MAX) {
+    if (contextLen > 0xFFFFFFFFU) {
         return BAD_FUNC_ARG;
     }
 
