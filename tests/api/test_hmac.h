@@ -39,6 +39,7 @@ int test_wc_Sha256HmacFinal(void);
 int test_wc_Sha384HmacSetKey(void);
 int test_wc_Sha384HmacUpdate(void);
 int test_wc_Sha384HmacFinal(void);
+int test_tls_hmac_size_overflow(void);
 
 #define TEST_HMAC_DECLS                                 \
     TEST_DECL_GROUP("hmac", test_wc_Md5HmacSetKey),     \
@@ -55,6 +56,7 @@ int test_wc_Sha384HmacFinal(void);
     TEST_DECL_GROUP("hmac", test_wc_Sha256HmacFinal),   \
     TEST_DECL_GROUP("hmac", test_wc_Sha384HmacSetKey),  \
     TEST_DECL_GROUP("hmac", test_wc_Sha384HmacUpdate),  \
-    TEST_DECL_GROUP("hmac", test_wc_Sha384HmacFinal)
+    TEST_DECL_GROUP("hmac", test_wc_Sha384HmacFinal),   \
+    TEST_DECL_GROUP("hmac", test_tls_hmac_size_overflow)
 
 #endif /* WOLFCRYPT_TEST_HMAC_H */
