@@ -1094,6 +1094,7 @@ __clang_major__
 __cplusplus
 __ghc__
 __ghs__
+__has_attribute
 __hpux__
 __i386
 __i386__
