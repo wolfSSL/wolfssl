@@ -27618,6 +27618,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 #ifdef OPENSSL_EXTRA
     char        beginBuf[PEM_LINE_LEN + 1]; /* add 1 for null terminator */
     char        endBuf[PEM_LINE_LEN + 1];   /* add 1 for null terminator */
+    int         origType    = type;
 #endif
 #ifdef WOLFSSL_ENCRYPTED_KEYS
     int hashType = WC_HASH_TYPE_NONE;
@@ -27740,9 +27741,9 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 
     if (!headerEnd) {
 #ifdef OPENSSL_EXTRA
-        if (type == PRIVATEKEY_TYPE
+        if (origType == PRIVATEKEY_TYPE
 #ifdef WOLFSSL_DUAL_ALG_CERTS
-            || type == ALT_PRIVATEKEY_TYPE
+            || origType == ALT_PRIVATEKEY_TYPE
 #endif
            ) {
             /* see if there is a -----BEGIN * PRIVATE KEY----- header */
