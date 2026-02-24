@@ -3554,6 +3554,9 @@ static int test_wolfSSL_add_to_chain_overflow(void)
         }
         ctx->certChain = fakeChain;
     }
+    else {
+        XFREE(fakeChain, ctx ? ctx->heap : NULL, DYNAMIC_TYPE_CERT);
+    }
 
     /* Try to add another cert - this MUST fail due to overflow guard. */
     ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(
