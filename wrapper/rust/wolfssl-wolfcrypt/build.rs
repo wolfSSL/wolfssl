@@ -325,7 +325,7 @@ fn scan_cfg() -> Result<()> {
     check_cfg(&binding, "DILITHIUM_LEVEL2_KEY_SIZE", "dilithium_level2");
     check_cfg(&binding, "DILITHIUM_LEVEL3_KEY_SIZE", "dilithium_level3");
     check_cfg(&binding, "DILITHIUM_LEVEL5_KEY_SIZE", "dilithium_level5");
-    check_cfg(&binding, "DILITHIUM_PRIV_SEED_SZ", "dilithium_priv_seed_sz");
+    check_cfg(&binding, "DILITHIUM_SEED_SZ", "dilithium_make_key_seed_sz");
     check_cfg(&binding, "DILITHIUM_RND_SZ", "dilithium_rnd_sz");
 
     /* sha */

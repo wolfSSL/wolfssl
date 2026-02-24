@@ -38,7 +38,7 @@ Three security parameter sets are supported, selected via
 # Examples
 
 ```rust
-#[cfg(all(dilithium, dilithium_make_key, dilithium_sign, dilithium_verify))]
+#[cfg(all(dilithium, dilithium_make_key, dilithium_sign, dilithium_verify, random))]
 {
 use wolfssl_wolfcrypt::random::RNG;
 use wolfssl_wolfcrypt::dilithium::Dilithium;
@@ -47,7 +47,7 @@ let mut key = Dilithium::generate(Dilithium::LEVEL_44, &mut rng)
     .expect("Key generation failed");
 let message = b"Hello, ML-DSA!";
 let mut sig = vec![0u8; key.sig_size().expect("sig_size failed")];
-let sig_len = key.sign_msg(message, &mut sig, Some(&mut rng))
+let sig_len = key.sign_msg(message, &mut sig, &mut rng)
     .expect("Signing failed");
 let valid = key.verify_msg(&sig[..sig_len], message)
     .expect("Verification failed");
@@ -59,7 +59,7 @@ assert!(valid);
 #![cfg(dilithium)]
 
 use crate::sys;
-#[cfg(any(dilithium_make_key, dilithium_sign))]
+#[cfg(all(random, any(dilithium_make_key, dilithium_sign)))]
 use crate::random::RNG;
 use core::mem::MaybeUninit;
 
@@ -83,9 +83,9 @@ impl Dilithium {
     pub const LEVEL_87: u8 = sys::WC_ML_DSA_87 as u8;
 
     /// Required size in bytes of the seed passed to
-    /// [`Dilithium::generate_from_seed()`] (`DILITHIUM_PRIV_SEED_SZ`).
-    #[cfg(dilithium_priv_seed_sz)]
-    pub const MAKE_KEY_SEED_SIZE: usize = sys::DILITHIUM_PRIV_SEED_SZ as usize;
+    /// [`Dilithium::generate_from_seed()`] (`DILITHIUM_SEED_SZ`).
+    #[cfg(dilithium_make_key_seed_sz)]
+    pub const DILITHIUM_SEED_SZ: usize = sys::DILITHIUM_SEED_SZ as usize;
 
     /// Required size in bytes of the seed passed to signing-with-seed
     /// functions such as [`Dilithium::sign_msg_with_seed()`]
@@ -151,7 +151,7 @@ impl Dilithium {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(dilithium, dilithium_make_key))]
+    /// #[cfg(all(dilithium, dilithium_make_key, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::dilithium::Dilithium;
@@ -160,7 +160,7 @@ impl Dilithium {
     ///     .expect("Error with generate()");
     /// }
     /// ```
-    #[cfg(dilithium_make_key)]
+    #[cfg(all(dilithium_make_key, random))]
     pub fn generate(level: u8, rng: &mut RNG) -> Result<Self, i32> {
         Self::generate_ex(level, rng, None, None)
     }
@@ -183,7 +183,7 @@ impl Dilithium {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(dilithium, dilithium_make_key))]
+    /// #[cfg(all(dilithium, dilithium_make_key, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::dilithium::Dilithium;
@@ -192,7 +192,7 @@ impl Dilithium {
     ///     .expect("Error with generate_ex()");
     /// }
     /// ```
-    #[cfg(dilithium_make_key)]
+    #[cfg(all(dilithium_make_key, random))]
     pub fn generate_ex(
         level: u8,
         rng: &mut RNG,
@@ -220,7 +220,7 @@ impl Dilithium {
     ///
     /// * `level`: Security parameter set. One of [`Dilithium::LEVEL_44`],
     ///   [`Dilithium::LEVEL_65`], or [`Dilithium::LEVEL_87`].
-    /// * `seed`: Seed bytes. Must be `DILITHIUM_PRIV_SEED_SZ` (64) bytes.
+    /// * `seed`: Seed bytes. Must be `DILITHIUM_SEED_SZ` (32) bytes.
     ///
     /// # Returns
     ///
@@ -233,7 +233,7 @@ impl Dilithium {
     /// #[cfg(all(dilithium, dilithium_make_key_from_seed))]
     /// {
     /// use wolfssl_wolfcrypt::dilithium::Dilithium;
-    /// let seed = [0x42u8; 64];
+    /// let seed = [0x42u8; 32];
     /// let key = Dilithium::generate_from_seed(Dilithium::LEVEL_44, &seed)
     ///     .expect("Error with generate_from_seed()");
     /// }
@@ -250,7 +250,7 @@ impl Dilithium {
     ///
     /// * `level`: Security parameter set. One of [`Dilithium::LEVEL_44`],
     ///   [`Dilithium::LEVEL_65`], or [`Dilithium::LEVEL_87`].
-    /// * `seed`: Seed bytes. Must be `DILITHIUM_PRIV_SEED_SZ` (64) bytes.
+    /// * `seed`: Seed bytes. Must be `DILITHIUM_SEED_SZ` (32) bytes.
     /// * `heap`: Optional heap hint.
     /// * `dev_id`: Optional device ID for crypto callbacks or async hardware.
     ///
@@ -265,7 +265,7 @@ impl Dilithium {
     /// #[cfg(all(dilithium, dilithium_make_key_from_seed))]
     /// {
     /// use wolfssl_wolfcrypt::dilithium::Dilithium;
-    /// let seed = [0x42u8; 64];
+    /// let seed = [0x42u8; 32];
     /// let key = Dilithium::generate_from_seed_ex(Dilithium::LEVEL_44, &seed, None, None)
     ///     .expect("Error with generate_from_seed_ex()");
     /// }
@@ -277,6 +277,10 @@ impl Dilithium {
         heap: Option<*mut core::ffi::c_void>,
         dev_id: Option<i32>,
     ) -> Result<Self, i32> {
+        #[cfg(dilithium_make_key_seed_sz)]
+        if seed.len() != Self::DILITHIUM_SEED_SZ {
+            return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
+        }
         let mut key = Self::new_ex(heap, dev_id)?;
         let rc = unsafe { sys::wc_dilithium_set_level(&mut key.ws_key, level) };
         if rc != 0 {
@@ -428,7 +432,7 @@ impl Dilithium {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(dilithium, dilithium_make_key))]
+    /// #[cfg(all(dilithium, dilithium_make_key, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::dilithium::Dilithium;
@@ -458,7 +462,7 @@ impl Dilithium {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(dilithium, dilithium_make_key))]
+    /// #[cfg(all(dilithium, dilithium_make_key, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::dilithium::Dilithium;
@@ -487,7 +491,7 @@ impl Dilithium {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(dilithium, dilithium_make_key))]
+    /// #[cfg(all(dilithium, dilithium_make_key, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::dilithium::Dilithium;
@@ -516,7 +520,7 @@ impl Dilithium {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(dilithium, dilithium_make_key))]
+    /// #[cfg(all(dilithium, dilithium_make_key, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::dilithium::Dilithium;
@@ -545,7 +549,7 @@ impl Dilithium {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(dilithium, dilithium_make_key, dilithium_check_key))]
+    /// #[cfg(all(dilithium, dilithium_make_key, dilithium_check_key, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::dilithium::Dilithium;
@@ -578,7 +582,7 @@ impl Dilithium {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(dilithium, dilithium_make_key, dilithium_import, dilithium_export))]
+    /// #[cfg(all(dilithium, dilithium_make_key, dilithium_import, dilithium_export, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::dilithium::Dilithium;
@@ -621,7 +625,7 @@ impl Dilithium {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(dilithium, dilithium_make_key, dilithium_import, dilithium_export))]
+    /// #[cfg(all(dilithium, dilithium_make_key, dilithium_import, dilithium_export, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::dilithium::Dilithium;
@@ -662,7 +666,7 @@ impl Dilithium {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(dilithium, dilithium_make_key, dilithium_import, dilithium_export))]
+    /// #[cfg(all(dilithium, dilithium_make_key, dilithium_import, dilithium_export, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::dilithium::Dilithium;
@@ -709,7 +713,7 @@ impl Dilithium {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(dilithium, dilithium_make_key, dilithium_export))]
+    /// #[cfg(all(dilithium, dilithium_make_key, dilithium_export, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::dilithium::Dilithium;
@@ -748,7 +752,7 @@ impl Dilithium {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(dilithium, dilithium_make_key, dilithium_export))]
+    /// #[cfg(all(dilithium, dilithium_make_key, dilithium_export, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::dilithium::Dilithium;
@@ -792,7 +796,7 @@ impl Dilithium {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(dilithium, dilithium_make_key, dilithium_export))]
+    /// #[cfg(all(dilithium, dilithium_make_key, dilithium_export, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::dilithium::Dilithium;
@@ -828,8 +832,8 @@ impl Dilithium {
     /// * `msg`: Message to sign.
     /// * `sig`: Output buffer to hold the signature. Must be at least
     ///   `sig_size()` bytes.
-    /// * `rng`: Optional RNG instance for hedged signing. Pass `None` for
-    ///   deterministic signing.
+    /// * `rng`: RNG instance for hedged signing. For deterministic signing,
+    ///   use [`Dilithium::sign_msg_with_seed()`] instead.
     ///
     /// # Returns
     ///
@@ -839,7 +843,7 @@ impl Dilithium {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(dilithium, dilithium_make_key, dilithium_sign))]
+    /// #[cfg(all(dilithium, dilithium_make_key, dilithium_sign, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::dilithium::Dilithium;
@@ -848,30 +852,26 @@ impl Dilithium {
     ///     .expect("Error with generate()");
     /// let message = b"Hello, ML-DSA!";
     /// let mut sig = vec![0u8; key.sig_size().unwrap()];
-    /// let sig_len = key.sign_msg(message, &mut sig, Some(&mut rng))
+    /// let sig_len = key.sign_msg(message, &mut sig, &mut rng)
     ///     .expect("Error with sign_msg()");
     /// assert_eq!(sig_len, Dilithium::LEVEL2_SIG_SIZE);
     /// }
     /// ```
-    #[cfg(dilithium_sign)]
+    #[cfg(all(dilithium_sign, random))]
     pub fn sign_msg(
         &mut self,
         msg: &[u8],
         sig: &mut [u8],
-        rng: Option<&mut RNG>,
+        rng: &mut RNG,
     ) -> Result<usize, i32> {
         let msg_len = msg.len() as u32;
         let mut sig_len = sig.len() as u32;
-        let rng_ptr = match rng {
-            Some(r) => &mut r.wc_rng as *mut sys::WC_RNG,
-            None => core::ptr::null_mut(),
-        };
         let rc = unsafe {
             sys::wc_dilithium_sign_msg(
                 msg.as_ptr(), msg_len,
                 sig.as_mut_ptr(), &mut sig_len,
                 &mut self.ws_key,
-                rng_ptr,
+                &mut rng.wc_rng,
             )
         };
         if rc != 0 {
@@ -888,8 +888,8 @@ impl Dilithium {
     /// * `msg`: Message to sign.
     /// * `sig`: Output buffer to hold the signature. Must be at least
     ///   `sig_size()` bytes.
-    /// * `rng`: Optional RNG instance for hedged signing. Pass `None` for
-    ///   deterministic signing.
+    /// * `rng`: RNG instance for hedged signing. For deterministic signing,
+    ///   use [`Dilithium::sign_ctx_msg_with_seed()`] instead.
     ///
     /// # Returns
     ///
@@ -899,7 +899,7 @@ impl Dilithium {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(dilithium, dilithium_make_key, dilithium_sign))]
+    /// #[cfg(all(dilithium, dilithium_make_key, dilithium_sign, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::dilithium::Dilithium;
@@ -909,17 +909,17 @@ impl Dilithium {
     /// let message = b"Hello, ML-DSA!";
     /// let ctx = b"my context";
     /// let mut sig = vec![0u8; key.sig_size().unwrap()];
-    /// key.sign_ctx_msg(ctx, message, &mut sig, Some(&mut rng))
+    /// key.sign_ctx_msg(ctx, message, &mut sig, &mut rng)
     ///     .expect("Error with sign_ctx_msg()");
     /// }
     /// ```
-    #[cfg(dilithium_sign)]
+    #[cfg(all(dilithium_sign, random))]
     pub fn sign_ctx_msg(
         &mut self,
         ctx: &[u8],
         msg: &[u8],
         sig: &mut [u8],
-        rng: Option<&mut RNG>,
+        rng: &mut RNG,
     ) -> Result<usize, i32> {
         if ctx.len() > 255 {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
@@ -927,17 +927,13 @@ impl Dilithium {
         let ctx_len = ctx.len() as u8;
         let msg_len = msg.len() as u32;
         let mut sig_len = sig.len() as u32;
-        let rng_ptr = match rng {
-            Some(r) => &mut r.wc_rng as *mut sys::WC_RNG,
-            None => core::ptr::null_mut(),
-        };
         let rc = unsafe {
             sys::wc_dilithium_sign_ctx_msg(
                 ctx.as_ptr(), ctx_len,
                 msg.as_ptr(), msg_len,
                 sig.as_mut_ptr(), &mut sig_len,
                 &mut self.ws_key,
-                rng_ptr,
+                &mut rng.wc_rng,
             )
         };
         if rc != 0 {
@@ -958,21 +954,21 @@ impl Dilithium {
     /// * `hash`: Hash digest of the message to sign.
     /// * `sig`: Output buffer to hold the signature. Must be at least
     ///   `sig_size()` bytes.
-    /// * `rng`: Optional RNG instance for hedged signing. Pass `None` for
-    ///   deterministic signing.
+    /// * `rng`: RNG instance for hedged signing. For deterministic signing,
+    ///   use [`Dilithium::sign_ctx_hash_with_seed()`] instead.
     ///
     /// # Returns
     ///
     /// Returns either Ok(size) containing the number of bytes written to `sig`
     /// on success or Err(e) containing the wolfSSL library error code value.
-    #[cfg(dilithium_sign)]
+    #[cfg(all(dilithium_sign, random))]
     pub fn sign_ctx_hash(
         &mut self,
         ctx: &[u8],
         hash_alg: i32,
         hash: &[u8],
         sig: &mut [u8],
-        rng: Option<&mut RNG>,
+        rng: &mut RNG,
     ) -> Result<usize, i32> {
         if ctx.len() > 255 {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
@@ -980,10 +976,6 @@ impl Dilithium {
         let ctx_len = ctx.len() as u8;
         let hash_len = hash.len() as u32;
         let mut sig_len = sig.len() as u32;
-        let rng_ptr = match rng {
-            Some(r) => &mut r.wc_rng as *mut sys::WC_RNG,
-            None => core::ptr::null_mut(),
-        };
         let rc = unsafe {
             sys::wc_dilithium_sign_ctx_hash(
                 ctx.as_ptr(), ctx_len,
@@ -991,7 +983,7 @@ impl Dilithium {
                 hash.as_ptr(), hash_len,
                 sig.as_mut_ptr(), &mut sig_len,
                 &mut self.ws_key,
-                rng_ptr,
+                &mut rng.wc_rng,
             )
         };
         if rc != 0 {
@@ -1022,7 +1014,7 @@ impl Dilithium {
     /// #[cfg(all(dilithium, dilithium_make_key_from_seed, dilithium_sign_with_seed))]
     /// {
     /// use wolfssl_wolfcrypt::dilithium::Dilithium;
-    /// let key_seed = [0x42u8; 64];
+    /// let key_seed = [0x42u8; 32];
     /// let mut key = Dilithium::generate_from_seed(Dilithium::LEVEL_44, &key_seed)
     ///     .expect("Error with generate_from_seed()");
     /// let message = b"Hello, ML-DSA!";
@@ -1039,6 +1031,10 @@ impl Dilithium {
         sig: &mut [u8],
         seed: &[u8],
     ) -> Result<usize, i32> {
+        #[cfg(dilithium_rnd_sz)]
+        if seed.len() != sys::DILITHIUM_RND_SZ as usize {
+            return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
+        }
         let msg_len = msg.len() as u32;
         let mut sig_len = sig.len() as u32;
         let rc = unsafe {
@@ -1077,6 +1073,10 @@ impl Dilithium {
         seed: &[u8],
     ) -> Result<usize, i32> {
         if ctx.len() > 255 {
+            return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
+        }
+        #[cfg(dilithium_rnd_sz)]
+        if seed.len() != sys::DILITHIUM_RND_SZ as usize {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
         let ctx_len = ctx.len() as u8;
@@ -1124,6 +1124,10 @@ impl Dilithium {
         if ctx.len() > 255 {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
+        #[cfg(dilithium_rnd_sz)]
+        if seed.len() != sys::DILITHIUM_RND_SZ as usize {
+            return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
+        }
         let ctx_len = ctx.len() as u8;
         let hash_len = hash.len() as u32;
         let mut sig_len = sig.len() as u32;
@@ -1158,7 +1162,7 @@ impl Dilithium {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(dilithium, dilithium_make_key, dilithium_sign, dilithium_verify))]
+    /// #[cfg(all(dilithium, dilithium_make_key, dilithium_sign, dilithium_verify, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::dilithium::Dilithium;
@@ -1167,7 +1171,7 @@ impl Dilithium {
     ///     .expect("Error with generate()");
     /// let message = b"Hello, ML-DSA!";
     /// let mut sig = vec![0u8; key.sig_size().unwrap()];
-    /// let sig_len = key.sign_msg(message, &mut sig, Some(&mut rng))
+    /// let sig_len = key.sign_msg(message, &mut sig, &mut rng)
     ///     .expect("Error with sign_msg()");
     /// let valid = key.verify_msg(&sig[..sig_len], message)
     ///     .expect("Error with verify_msg()");
@@ -1209,7 +1213,7 @@ impl Dilithium {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(dilithium, dilithium_make_key, dilithium_sign, dilithium_verify))]
+    /// #[cfg(all(dilithium, dilithium_make_key, dilithium_sign, dilithium_verify, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::dilithium::Dilithium;
@@ -1219,7 +1223,7 @@ impl Dilithium {
     /// let message = b"Hello, ML-DSA!";
     /// let ctx = b"my context";
     /// let mut sig = vec![0u8; key.sig_size().unwrap()];
-    /// let sig_len = key.sign_ctx_msg(ctx, message, &mut sig, Some(&mut rng))
+    /// let sig_len = key.sign_ctx_msg(ctx, message, &mut sig, &mut rng)
     ///     .expect("Error with sign_ctx_msg()");
     /// let valid = key.verify_ctx_msg(&sig[..sig_len], ctx, message)
     ///     .expect("Error with verify_ctx_msg()");
@@ -1228,6 +1232,9 @@ impl Dilithium {
     /// ```
     #[cfg(dilithium_verify)]
     pub fn verify_ctx_msg(&mut self, sig: &[u8], ctx: &[u8], msg: &[u8]) -> Result<bool, i32> {
+        if ctx.len() > 255 {
+            return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
+        }
         let sig_len = sig.len() as u32;
         let ctx_len = ctx.len() as u32;
         let msg_len = msg.len() as u32;
@@ -1271,6 +1278,9 @@ impl Dilithium {
         hash_alg: i32,
         hash: &[u8],
     ) -> Result<bool, i32> {
+        if ctx.len() > 255 {
+            return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
+        }
         let sig_len = sig.len() as u32;
         let ctx_len = ctx.len() as u32;
         let hash_len = hash.len() as u32;

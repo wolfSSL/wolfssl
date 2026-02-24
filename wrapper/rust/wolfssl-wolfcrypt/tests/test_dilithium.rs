@@ -23,7 +23,7 @@
 mod common;
 
 use wolfssl_wolfcrypt::dilithium::Dilithium;
-#[cfg(any(dilithium_make_key, dilithium_sign))]
+#[cfg(all(random, any(dilithium_make_key, dilithium_sign)))]
 use wolfssl_wolfcrypt::random::RNG;
 
 /// Verify the level constants have the correct numeric values required by
@@ -153,7 +153,7 @@ fn test_sign_verify_level44() {
     let message = b"Hello, ML-DSA-44!";
     let mut sig = vec![0u8; key.sig_size().expect("Error with sig_size()")];
 
-    let sig_len = key.sign_msg(message, &mut sig, Some(&mut rng))
+    let sig_len = key.sign_msg(message, &mut sig, &mut rng)
         .expect("Error with sign_msg()");
     assert_eq!(sig_len, sig.len());
 
@@ -177,7 +177,7 @@ fn test_sign_verify_level65() {
     let message = b"Hello, ML-DSA-65!";
     let mut sig = vec![0u8; key.sig_size().expect("Error with sig_size()")];
 
-    let sig_len = key.sign_msg(message, &mut sig, Some(&mut rng))
+    let sig_len = key.sign_msg(message, &mut sig, &mut rng)
         .expect("Error with sign_msg()");
     assert_eq!(sig_len, sig.len());
 
@@ -196,7 +196,7 @@ fn test_sign_verify_level87() {
     let message = b"Hello, ML-DSA-87!";
     let mut sig = vec![0u8; key.sig_size().expect("Error with sig_size()")];
 
-    let sig_len = key.sign_msg(message, &mut sig, Some(&mut rng))
+    let sig_len = key.sign_msg(message, &mut sig, &mut rng)
         .expect("Error with sign_msg()");
     assert_eq!(sig_len, sig.len());
 
@@ -218,7 +218,7 @@ fn test_sign_ctx_verify_level44() {
     let ctx = b"my context";
     let mut sig = vec![0u8; key.sig_size().expect("Error with sig_size()")];
 
-    let sig_len = key.sign_ctx_msg(ctx, message, &mut sig, Some(&mut rng))
+    let sig_len = key.sign_ctx_msg(ctx, message, &mut sig, &mut rng)
         .expect("Error with sign_ctx_msg()");
 
     let valid = key.verify_ctx_msg(&sig[..sig_len], ctx, message)
@@ -266,7 +266,7 @@ fn test_import_export_level44() {
     // Sign with the original key.
     let message = b"Import/export test message";
     let mut sig = vec![0u8; sig_size];
-    let sig_len = key.sign_msg(message, &mut sig, Some(&mut rng))
+    let sig_len = key.sign_msg(message, &mut sig, &mut rng)
         .expect("Error with sign_msg()");
 
     // Re-import public key only and verify.
@@ -282,7 +282,7 @@ fn test_import_export_level44() {
     priv_key.set_level(Dilithium::LEVEL_44).expect("Error with set_level()");
     priv_key.import_private(&priv_buf).expect("Error with import_private()");
     let mut sig2 = vec![0u8; sig_size];
-    let sig2_len = priv_key.sign_msg(message, &mut sig2, Some(&mut rng))
+    let sig2_len = priv_key.sign_msg(message, &mut sig2, &mut rng)
         .expect("Error with sign_msg() from imported private key");
     let valid = key.verify_msg(&sig2[..sig2_len], message)
         .expect("Error with verify_msg() after import_private");
@@ -313,7 +313,7 @@ fn test_import_key_level44() {
 
     let message = b"import_key round-trip";
     let mut sig = vec![0u8; sig_size];
-    let sig_len = key2.sign_msg(message, &mut sig, Some(&mut rng))
+    let sig_len = key2.sign_msg(message, &mut sig, &mut rng)
         .expect("Error with sign_msg() from imported key pair");
     let valid = key.verify_msg(&sig[..sig_len], message)
         .expect("Error with verify_msg()");
@@ -326,8 +326,8 @@ fn test_import_key_level44() {
 #[cfg(all(dilithium_make_key_from_seed, dilithium_export))]
 fn test_generate_from_seed_determinism() {
     common::setup();
-    // DILITHIUM_PRIV_SEED_SZ = 64 bytes
-    let seed = [0x42u8; 64];
+    // DILITHIUM_SEED_SZ = 32 bytes
+    let seed = [0x42u8; 32];
 
     let mut key1 = Dilithium::generate_from_seed(Dilithium::LEVEL_44, &seed)
         .expect("Error with generate_from_seed() first call");
@@ -356,8 +356,8 @@ fn test_generate_from_seed_determinism() {
 #[cfg(all(dilithium_make_key_from_seed, dilithium_sign_with_seed, dilithium_verify))]
 fn test_sign_with_seed_determinism() {
     common::setup();
-    // DILITHIUM_PRIV_SEED_SZ = 64 bytes
-    let key_seed = [0x42u8; 64];
+    // DILITHIUM_SEED_SZ = 32 bytes
+    let key_seed = [0x42u8; 32];
     // DILITHIUM_RND_SZ = 32 bytes
     let sign_seed = [0x55u8; 32];
     let message = b"Deterministic ML-DSA signing test";
@@ -388,7 +388,7 @@ fn test_sign_with_seed_determinism() {
 #[cfg(all(dilithium_make_key_from_seed, dilithium_sign_with_seed, dilithium_verify))]
 fn test_sign_ctx_with_seed_determinism() {
     common::setup();
-    let key_seed = [0x11u8; 64];
+    let key_seed = [0x11u8; 32];
     let sign_seed = [0x22u8; 32];
     let message = b"Context deterministic signing test";
     let ctx = b"test-context";
@@ -419,7 +419,7 @@ fn test_sign_ctx_with_seed_determinism() {
 #[cfg(all(dilithium_make_key_from_seed, dilithium_sign_with_seed, dilithium_verify))]
 fn test_seed_sign_verify_all_levels() {
     common::setup();
-    let key_seed = [0xABu8; 64];
+    let key_seed = [0xABu8; 32];
     let sign_seed = [0xCDu8; 32];
     let message = b"All-levels seed sign/verify test";
 
