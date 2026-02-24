@@ -909,6 +909,10 @@ int SuiteTest(int argc, char** argv)
     char argv0[3][80];
     char* myArgv[3];
 
+#ifdef WOLFSSL_STATIC_MEMORY
+    byte memory[200000];
+#endif
+
     printf(" Begin Cipher Suite Tests\n");
 
     /* setup */
@@ -917,10 +921,6 @@ int SuiteTest(int argc, char** argv)
     myArgv[2] = argv0[2];
     args.argv = myArgv;
     XSTRLCPY(argv0[0], "SuiteTest", sizeof(argv0[0]));
-
-#ifdef WOLFSSL_STATIC_MEMORY
-    byte memory[200000];
-#endif
 
     cipherSuiteCtx = wolfSSL_CTX_new(wolfSSLv23_client_method());
     if (cipherSuiteCtx == NULL) {
