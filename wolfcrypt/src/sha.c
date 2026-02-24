@@ -1172,6 +1172,10 @@ int wc_ShaCopy(wc_Sha* src, wc_Sha* dst)
     ret = 0; /* Reset ret to 0 to avoid returning the callback error code */
 #endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_COPY */
 
+    /* Free dst resources before copy to prevent memory leaks (e.g., msg
+     * buffer, W cache, hardware contexts). XMEMCPY overwrites dst. */
+    wc_ShaFree(dst);
+
     XMEMCPY(dst, src, sizeof(wc_Sha));
 
 #if defined(WOLFSSL_SILABS_SE_ACCEL) && defined(WOLFSSL_SILABS_SE_ACCEL_3)

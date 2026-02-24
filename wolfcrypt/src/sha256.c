@@ -2582,14 +2582,9 @@ int wc_Sha224_Grow(wc_Sha224* sha224, const byte* in, int inSz)
         ret = 0; /* Reset ret to 0 to avoid returning the callback error code */
 #endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_COPY */
 
-        /* Free dst's msg buffer before copy to prevent potential memory leak
-         * when XMEMCPY overwrites dst with src's pointers. */
-    #if defined(WOLFSSL_HASH_KEEP)
-        if (dst->msg != NULL) {
-            XFREE(dst->msg, dst->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            dst->msg = NULL;
-        }
-    #endif
+        /* Free dst resources before copy to prevent memory leaks (e.g., msg
+         * buffer, W cache, hardware contexts). XMEMCPY overwrites dst. */
+        wc_Sha224Free(dst);
 
         XMEMCPY(dst, src, sizeof(wc_Sha224));
 
@@ -2737,14 +2732,9 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
     ret = 0; /* Reset ret to 0 to avoid returning the callback error code */
 #endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_COPY */
 
-    /* Free dst's msg buffer before copy to prevent potential memory leak
-     * when XMEMCPY overwrites dst with src's pointers. */
-#if defined(WOLFSSL_HASH_KEEP)
-    if (dst->msg != NULL) {
-        XFREE(dst->msg, dst->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        dst->msg = NULL;
-    }
-#endif
+    /* Free dst resources before copy to prevent memory leaks (e.g., msg
+     * buffer, W cache, hardware contexts). XMEMCPY overwrites dst. */
+    wc_Sha256Free(dst);
 
     XMEMCPY(dst, src, sizeof(wc_Sha256));
 
