@@ -2546,7 +2546,7 @@ int wc_Sha224_Grow(wc_Sha224* sha224, const byte* in, int inSz)
             return BAD_FUNC_ARG;
         }
 
-        WC_ALLOC_VAR_EX(tmpSha224, wc_Sha224, 1, NULL,
+        WC_CALLOC_VAR_EX(tmpSha224, wc_Sha224, 1, NULL,
             DYNAMIC_TYPE_TMP_BUFFER, return MEMORY_E);
 
         ret = wc_Sha224Copy(sha224, tmpSha224);
@@ -2581,6 +2581,15 @@ int wc_Sha224_Grow(wc_Sha224* sha224, const byte* in, int inSz)
         }
         ret = 0; /* Reset ret to 0 to avoid returning the callback error code */
 #endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_COPY */
+
+        /* Free dst's msg buffer before copy to prevent potential memory leak
+         * when XMEMCPY overwrites dst with src's pointers. */
+    #if defined(WOLFSSL_HASH_KEEP)
+        if (dst->msg != NULL) {
+            XFREE(dst->msg, dst->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            dst->msg = NULL;
+        }
+    #endif
 
         XMEMCPY(dst, src, sizeof(wc_Sha224));
 
@@ -2691,7 +2700,7 @@ int wc_Sha256GetHash(wc_Sha256* sha256, byte* hash)
         return BAD_FUNC_ARG;
     }
 
-    WC_ALLOC_VAR_EX(tmpSha256, wc_Sha256, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+    WC_CALLOC_VAR_EX(tmpSha256, wc_Sha256, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
         return MEMORY_E);
 
     ret = wc_Sha256Copy(sha256, tmpSha256);
@@ -2727,6 +2736,15 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
     }
     ret = 0; /* Reset ret to 0 to avoid returning the callback error code */
 #endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_COPY */
+
+    /* Free dst's msg buffer before copy to prevent potential memory leak
+     * when XMEMCPY overwrites dst with src's pointers. */
+#if defined(WOLFSSL_HASH_KEEP)
+    if (dst->msg != NULL) {
+        XFREE(dst->msg, dst->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        dst->msg = NULL;
+    }
+#endif
 
     XMEMCPY(dst, src, sizeof(wc_Sha256));
 

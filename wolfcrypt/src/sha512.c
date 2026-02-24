@@ -2206,7 +2206,7 @@ static int Sha512_Family_GetHash(wc_Sha512* sha512, byte* hash,
         return BAD_FUNC_ARG;
     }
 
-    WC_ALLOC_VAR_EX(tmpSha512, wc_Sha512, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+    WC_CALLOC_VAR_EX(tmpSha512, wc_Sha512, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
         return MEMORY_E);
 
     /* copy this sha512 into tmpSha */
@@ -2248,6 +2248,15 @@ int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst)
     }
     ret = 0; /* Reset ret to 0 to avoid returning the callback error code */
 #endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_COPY */
+
+    /* Free dst's msg buffer before copy to prevent potential memory leak
+     * when XMEMCPY overwrites dst with src's pointers. */
+#if defined(WOLFSSL_HASH_KEEP)
+    if (dst->msg != NULL) {
+        XFREE(dst->msg, dst->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        dst->msg = NULL;
+    }
+#endif
 
     XMEMCPY(dst, src, sizeof(wc_Sha512));
 #ifdef WOLFSSL_SMALL_STACK_CACHE
@@ -2649,7 +2658,7 @@ int wc_Sha384GetHash(wc_Sha384* sha384, byte* hash)
         return BAD_FUNC_ARG;
     }
 
-    WC_ALLOC_VAR_EX(tmpSha384, wc_Sha384, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+    WC_CALLOC_VAR_EX(tmpSha384, wc_Sha384, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
         return MEMORY_E);
 
     /* copy this sha384 into tmpSha */
@@ -2686,6 +2695,15 @@ int wc_Sha384Copy(wc_Sha384* src, wc_Sha384* dst)
     }
     ret = 0; /* Reset ret to 0 to avoid returning the callback error code */
 #endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_COPY */
+
+    /* Free dst's msg buffer before copy to prevent potential memory leak
+     * when XMEMCPY overwrites dst with src's pointers. */
+#if defined(WOLFSSL_HASH_KEEP)
+    if (dst->msg != NULL) {
+        XFREE(dst->msg, dst->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        dst->msg = NULL;
+    }
+#endif
 
     XMEMCPY(dst, src, sizeof(wc_Sha384));
 
