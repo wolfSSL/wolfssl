@@ -2138,7 +2138,7 @@ static void TLSX_SNI_FreeAll(SNI* list, void* heap)
 static word16 TLSX_SNI_GetSize(SNI* list)
 {
     SNI* sni;
-    word16 length = OPAQUE16_LEN; /* list length */
+    word32 length = OPAQUE16_LEN; /* list length */
 
     while ((sni = list)) {
         list = sni->next;
@@ -2150,9 +2150,13 @@ static word16 TLSX_SNI_GetSize(SNI* list)
                 length += (word16)XSTRLEN((char*)sni->data.host_name);
             break;
         }
+
+        if (length > WOLFSSL_MAX_16BIT) {
+            return 0;
+        }
     }
 
-    return length;
+    return (word16)length;
 }
 
 /** Writes the SNI objects of a list in a buffer. */
@@ -3216,7 +3220,7 @@ static void TLSX_CSR_Free(CertificateStatusRequest* csr, void* heap)
 word16 TLSX_CSR_GetSize_ex(CertificateStatusRequest* csr, byte isRequest,
                                                              int idx)
 {
-    word16 size = 0;
+    word32 size = 0;
 
     /* shut up compiler warnings */
     (void) csr; (void) isRequest;
@@ -3237,15 +3241,21 @@ word16 TLSX_CSR_GetSize_ex(CertificateStatusRequest* csr, byte isRequest,
         if (csr->ssl != NULL && SSL_CM(csr->ssl) != NULL &&
                 SSL_CM(csr->ssl)->ocsp_stapling != NULL &&
                 SSL_CM(csr->ssl)->ocsp_stapling->statusCb != NULL) {
-            return OPAQUE8_LEN + OPAQUE24_LEN + csr->ssl->ocspCsrResp[idx].length;
+            size = OPAQUE8_LEN + OPAQUE24_LEN +
+                    csr->ssl->ocspCsrResp[idx].length;
+            if (size > WOLFSSL_MAX_16BIT)
+                return 0;
+            return (word16)size;
         }
-        return (word16)(OPAQUE8_LEN + OPAQUE24_LEN +
-                csr->responses[idx].length);
+        size = OPAQUE8_LEN + OPAQUE24_LEN + csr->responses[idx].length;
+        if (size > WOLFSSL_MAX_16BIT)
+            return 0;
+        return (word16)size;
     }
 #else
     (void)idx;
 #endif
-    return size;
+    return (word16)size;
 }
 
 #if (defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_SERVER))
@@ -3855,7 +3865,7 @@ static void TLSX_CSR2_FreeAll(CertificateStatusRequestItemV2* csr2, void* heap)
 static word16 TLSX_CSR2_GetSize(CertificateStatusRequestItemV2* csr2,
                                                                  byte isRequest)
 {
-    word16 size = 0;
+    word32 size = 0;
 
     /* shut up compiler warnings */
     (void) csr2; (void) isRequest;
@@ -3876,11 +3886,15 @@ static word16 TLSX_CSR2_GetSize(CertificateStatusRequestItemV2* csr2,
                         size += OCSP_NONCE_EXT_SZ;
                 break;
             }
+
+            if (size > WOLFSSL_MAX_16BIT) {
+                return 0;
+            }
         }
     }
 #endif
 
-    return size;
+    return (word16)size;
 }
 
 static int TLSX_CSR2_Write(CertificateStatusRequestItemV2* csr2,
