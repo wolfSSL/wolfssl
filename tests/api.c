@@ -3515,6 +3515,57 @@ static int test_wolfSSL_CTX_add1_chain_cert(void)
     return EXPECT_RESULT();
 }
 
+/* Test that wolfssl_add_to_chain rejects sizes that would overflow word32.
+ * ZD #21241 */
+static int test_wolfSSL_add_to_chain_overflow(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_CERTS) && defined(OPENSSL_EXTRA) && \
+    defined(KEEP_OUR_CERT) && !defined(NO_RSA) && !defined(NO_TLS) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_FILESYSTEM)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL_X509* x509 = NULL;
+    DerBuffer* fakeChain = NULL;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+
+    /* Load a real cert so ctx->certificate is set (first add goes there). */
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(
+        "./certs/intermediate/client-int-cert.pem", WOLFSSL_FILETYPE_PEM));
+    ExpectIntEQ(SSL_CTX_add1_chain_cert(ctx, x509), 1);
+    wolfSSL_X509_free(x509);
+    x509 = NULL;
+
+    /* Now ctx->certificate is set, next add goes to certChain via
+     * wolfssl_add_to_chain.  Fake a chain whose length is near UINT32_MAX
+     * so the size calculation (len + CERT_HEADER_SZ + certSz) overflows. */
+    fakeChain = (DerBuffer*)XMALLOC(sizeof(DerBuffer) + 16, ctx->heap,
+        DYNAMIC_TYPE_CERT);
+    ExpectNotNull(fakeChain);
+    if (EXPECT_SUCCESS()) {
+        XMEMSET(fakeChain, 0, sizeof(DerBuffer) + 16);
+        fakeChain->buffer = (byte*)(fakeChain + 1);
+        fakeChain->length = WOLFSSL_MAX_32BIT - 2; /* will overflow with any cert */
+        fakeChain->type = CERT_TYPE;
+        fakeChain->dynType = DYNAMIC_TYPE_CERT;
+        /* Replace the real chain with our fake one. */
+        if (ctx->certChain != NULL) {
+            XFREE(ctx->certChain, ctx->heap, DYNAMIC_TYPE_CERT);
+        }
+        ctx->certChain = fakeChain;
+    }
+
+    /* Try to add another cert - this MUST fail due to overflow guard. */
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(
+        "./certs/intermediate/ca-int2-cert.pem", WOLFSSL_FILETYPE_PEM));
+    ExpectIntEQ(SSL_CTX_add1_chain_cert(ctx, x509), 0);
+    wolfSSL_X509_free(x509);
+
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_wolfSSL_CTX_use_certificate_chain_buffer_format(void)
 {
     EXPECT_DECLS;
@@ -32759,6 +32810,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_CTX_load_verify_buffer_ex),
     TEST_DECL(test_wolfSSL_CTX_load_verify_chain_buffer_format),
     TEST_DECL(test_wolfSSL_CTX_add1_chain_cert),
+    TEST_DECL(test_wolfSSL_add_to_chain_overflow),
     TEST_DECL(test_wolfSSL_CTX_use_certificate_chain_buffer_format),
     TEST_DECL(test_wolfSSL_CTX_use_certificate_chain_file_format),
     TEST_DECL(test_wolfSSL_use_certificate_chain_file),
