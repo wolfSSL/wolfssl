@@ -5846,6 +5846,9 @@ void wolfSSL_EVP_init(void)
             if (out->pctx == NULL)
                 return WOLFSSL_FAILURE;
         }
+        /* Zero hash context after shallow copy to prevent shared sub-pointers
+         * with src. The hash Copy function will perform the proper deep copy. */
+        XMEMSET(&out->hash, 0, sizeof(out->hash));
         return wolfSSL_EVP_MD_Copy_Hasher(out, (WOLFSSL_EVP_MD_CTX*)in);
     }
     #ifndef NO_AES
