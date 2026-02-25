@@ -5728,7 +5728,7 @@ int wolfSSL_export_keying_material(WOLFSSL *ssl,
 
     /* Sanity check contextLen to prevent integer overflow when cast to word32
      * and to ensure it fits in the 2-byte length encoding (max 65535). */
-    if (use_context && contextLen > 0xFFFF) {
+    if (use_context && contextLen > WOLFSSL_MAX_16BIT) {
         WOLFSSL_MSG("contextLen too large");
         return WOLFSSL_FAILURE;
     }
