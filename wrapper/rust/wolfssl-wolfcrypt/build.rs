@@ -328,6 +328,9 @@ fn scan_cfg() -> Result<()> {
     check_cfg(&binding, "DILITHIUM_SEED_SZ", "dilithium_make_key_seed_sz");
     check_cfg(&binding, "DILITHIUM_RND_SZ", "dilithium_rnd_sz");
 
+    /* mlkem / ML-KEM */
+    check_cfg(&binding, "wc_MlKemKey_Init", "mlkem");
+
     /* sha */
     check_cfg(&binding, "wc_InitSha", "sha");
     check_cfg(&binding, "wc_InitSha224", "sha224");
