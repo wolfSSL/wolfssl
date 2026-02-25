@@ -20173,12 +20173,14 @@ static int test_MakeCertWith0Ser(void)
         CTC_NAME_SIZE);
 
     cert.selfSigned = 1;
-    cert.isCA       = 1;
+    /* Changed from isCA=1 to isCA=0 to test non-root certificate.
+     * Serial 0 is now allowed for root CAs (selfSigned && isCA),
+     * but should still be rejected for non-CA certificates. */
+    cert.isCA       = 0;
     cert.sigType    = CTC_SHA256wECDSA;
 
-#ifdef WOLFSSL_CERT_EXT
-    cert.keyUsage |= KEYUSE_KEY_CERT_SIGN;
-#endif
+    /* Note: KEYUSE_KEY_CERT_SIGN is not set here because it's only valid for
+     * CA certificates. This test creates a non-CA certificate (isCA=0). */
 
     /* set serial number to 0 */
     cert.serialSz  = 1;

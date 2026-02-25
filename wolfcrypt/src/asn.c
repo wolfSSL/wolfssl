@@ -23951,21 +23951,10 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
         cert->version = version;
         cert->serialSz = (int)serialSz;
 
-    #if !defined(WOLFSSL_NO_ASN_STRICT) && !defined(WOLFSSL_PYTHON) && \
-        !defined(WOLFSSL_ASN_ALLOW_0_SERIAL)
-        /* RFC 5280 section 4.1.2.2 states that non-conforming CAs may issue
-         * a negative or zero serial number and should be handled gracefully.
-         * Since it is a non-conforming CA that issues a serial of 0 then we
-         * treat it as an error here. */
-        if (cert->serialSz == 1 && cert->serial[0] == 0) {
-            WOLFSSL_MSG("Error serial number of 0, use WOLFSSL_NO_ASN_STRICT "
-                "if wanted");
-            ret = ASN_PARSE_E;
-        }
-    #endif
+        /* RFC 5280 requires serial number to be present and at least 1 byte */
         if (cert->serialSz == 0) {
-            WOLFSSL_MSG("Error serial size is zero. Should be at least one "
-                        "even with no serial number.");
+            WOLFSSL_MSG("Error: certificate serial number is empty "
+                        "(zero-length serial is invalid per RFC 5280)");
             ret = ASN_PARSE_E;
         }
 
@@ -25858,6 +25847,26 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
                 return ret;
             }
 #endif /* HAVE_RPK */
+        }
+#endif
+
+#if !defined(WOLFSSL_NO_ASN_STRICT) && !defined(WOLFSSL_PYTHON) && \
+    !defined(WOLFSSL_ASN_ALLOW_0_SERIAL)
+        /* Check for serial number of 0. RFC 5280 section 4.1.2.2 requires
+         * positive serial numbers. However, allow zero for self-signed CA
+         * certificates (root CAs) being loaded as trust anchors since they
+         * are explicitly trusted and some legacy root CAs in real-world
+         * trust stores have serial number 0. */
+        if ((ret == 0) && (cert->serialSz == 1) && (cert->serial[0] == 0)) {
+            if (!((type == CA_TYPE || type == TRUSTED_PEER_TYPE) &&
+                  cert->isCA && cert->selfSigned)
+#ifdef WOLFSSL_CERT_REQ
+                && !cert->isCSR
+#endif
+            ) {
+                WOLFSSL_MSG("Error serial number of 0 for non-root certificate");
+                return ASN_PARSE_E;
+            }
         }
 #endif
 
