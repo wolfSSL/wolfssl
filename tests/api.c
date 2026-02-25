@@ -24124,6 +24124,11 @@ static int test_export_keying_material_cb(WOLFSSL_CTX *ctx, WOLFSSL *ssl)
             NULL, 0, 0), 0);
     ExpectIntEQ(wolfSSL_export_keying_material(ssl, ekm, sizeof(ekm),
             "key expansion", XSTR_SIZEOF("key expansion"), NULL, 0, 0), 0);
+    /* contextLen overflow: values exceeding UINT16_MAX must be rejected to
+     * prevent integer overflow in seedLen calculation (ZD #21242). */
+    ExpectIntEQ(wolfSSL_export_keying_material(ssl, ekm, sizeof(ekm),
+            "Test label", XSTR_SIZEOF("Test label"), ekm,
+            (size_t)0xFFFF + 1, 1), 0);
 
     return EXPECT_RESULT();
 }

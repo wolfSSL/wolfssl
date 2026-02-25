@@ -1023,6 +1023,11 @@ int Tls13_Exporter(WOLFSSL* ssl, unsigned char *out, size_t outLen,
     if (ret != 0)
         return ret;
 
+    /* Sanity check contextLen to prevent truncation when cast to word32. */
+    if (contextLen > WOLFSSL_MAX_32BIT) {
+        return BAD_FUNC_ARG;
+    }
+
     /* Hash(context_value) */
     ret = wc_Hash(hashType, context, (word32)contextLen, hashOut, WC_MAX_DIGEST_SIZE);
     if (ret != 0)
