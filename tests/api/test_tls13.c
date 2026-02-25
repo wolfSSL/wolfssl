@@ -3100,3 +3100,89 @@ int test_tls13_plaintext_alert(void)
     return EXPECT_RESULT();
 }
 
+/* Test that wolfSSL_set1_sigalgs_list() is honored in TLS 1.3
+ */
+int test_tls13_cert_req_sigalgs(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_CERTS) && !defined(NO_RSA) && defined(WC_RSA_PSS) && \
+    defined(HAVE_ECC) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && defined(OPENSSL_EXTRA) && \
+    !defined(NO_FILESYSTEM)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    /* Server: require client cert and load ECC client cert for verification */
+    if (EXPECT_SUCCESS()) {
+        wolfSSL_set_verify(ssl_s,
+            WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+        ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s,
+            cliEccCertFile, 0), WOLFSSL_SUCCESS);
+    }
+
+    /* Server: restrict CertificateRequest to RSA-PSS+SHA256 only */
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl_s, "RSA-PSS+SHA256"),
+            WOLFSSL_SUCCESS);
+    }
+
+    /* Client: load ECC cert/key */
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(wolfSSL_use_certificate_file(ssl_c, cliEccCertFile,
+            CERT_FILETYPE), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_c, cliEccKeyFile,
+            CERT_FILETYPE), WOLFSSL_SUCCESS);
+    }
+
+    /* Handshake must fail: ECC client cannot match RSA-PSS+SHA256 */
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_free(ssl_c);    ssl_c = NULL;
+    wolfSSL_free(ssl_s);    ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    /* Server: require client cert and load RSA client cert for verification */
+    if (EXPECT_SUCCESS()) {
+        wolfSSL_set_verify(ssl_s,
+            WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+        ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s,
+            cliCertFile, 0), WOLFSSL_SUCCESS);
+    }
+
+    /* Server: restrict CertificateRequest to RSA-PSS+SHA256 only */
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl_s, "RSA-PSS+SHA256"),
+            WOLFSSL_SUCCESS);
+    }
+
+    /* Client: load RSA cert/key */
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(wolfSSL_use_certificate_file(ssl_c, cliCertFile,
+            CERT_FILETYPE), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_c, cliKeyFile,
+            CERT_FILETYPE), WOLFSSL_SUCCESS);
+    }
+
+    /* Handshake must succeed: RSA client satisfies RSA-PSS+SHA256 */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_free(ssl_c);    ssl_c = NULL;
+    wolfSSL_free(ssl_s);    ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+#endif
+
+    return EXPECT_RESULT();
+}
+
