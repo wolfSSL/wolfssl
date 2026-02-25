@@ -52,6 +52,17 @@
                 }
             }
         #endif
+        #if defined(WC_RSA_PSS) && !defined(NO_RSA)
+            if (info->pk.type == WC_PK_TYPE_RSA_PSS) {
+                // RSA-PSS sign/verify
+                ret = wc_RsaPSS_Sign_ex(
+                    info->pk.rsa.in, info->pk.rsa.inLen,
+                    info->pk.rsa.out, *info->pk.rsa.outLen,
+                    WC_HASH_TYPE_SHA256, WC_MGF1SHA256,
+                    RSA_PSS_SALT_LEN_DEFAULT,
+                    info->pk.rsa.key, info->pk.rsa.rng);
+            }
+        #endif
         #ifdef HAVE_ECC
             if (info->pk.type == WC_PK_TYPE_ECDSA_SIGN) {
                 // ECDSA

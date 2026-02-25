@@ -51,6 +51,7 @@
         <li>\ref MD5</li>
         <li>\ref Password</li>
         <li>\ref PKCS7</li>
+        <li>\ref PKCS7_RSA_PSS</li>
         <li>\ref PKCS11</li>
         <li>\ref Poly1305</li>
         <li>\ref RIPEMD</li>
@@ -96,5 +97,14 @@
 
     \sa wc_CryptoCb_AesSetKey
     \sa \ref Crypto Callbacks
+*/
+/*!
+    \page PKCS7_RSA_PSS PKCS#7 RSA-PSS (CMS)
+    PKCS#7 SignedData supports RSA-PSS signers (CMS RSASSA-PSS). When WC_RSA_PSS
+    is defined, use wc_PKCS7_InitWithCert with a signer certificate that has
+    RSA-PSS (id-RSASSA-PSS) and set hashOID and optional rng; encode produces
+    full RSASSA-PSS-params (hashAlgorithm, mgfAlgorithm, saltLength,
+    trailerField). Verify accepts NULL, empty, or absent parameters with
+    RFC defaults. See \ref PKCS7 for the main API.
 */
 
