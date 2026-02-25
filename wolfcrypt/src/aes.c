@@ -14643,7 +14643,7 @@ int wc_AesKeyUnWrap_ex(Aes *aes, const byte* in, word32 inSz, byte* out,
         return ret;
 
     /* verify IV */
-    if (XMEMCMP(tmp, expIv, KEYWRAP_BLOCK_SIZE) != 0)
+    if (ConstantCompare(tmp, expIv, KEYWRAP_BLOCK_SIZE) != 0)
         return BAD_KEYWRAP_IV_E;
 
     return (int)(inSz - KEYWRAP_BLOCK_SIZE);
@@ -16303,7 +16303,7 @@ static WARN_UNUSED_RESULT int AesSivCipher(
             WOLFSSL_MSG("S2V failed.");
         }
 
-        if (XMEMCMP(siv, sivTmp, WC_AES_BLOCK_SIZE) != 0) {
+        if (ConstantCompare(siv, sivTmp, WC_AES_BLOCK_SIZE) != 0) {
             WOLFSSL_MSG("Computed SIV doesn't match received SIV.");
             ret = AES_SIV_AUTH_E;
         }
