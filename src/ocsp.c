@@ -2260,7 +2260,7 @@ int wc_OcspResponder_AddSigner(OcspResponder* responder,
     DecodedCert* decoded = NULL;
     word32 keyOID = 0;
 
-    WOLFSSL_ENTER("wc_OcspResponder_AddResponder");
+    WOLFSSL_ENTER("wc_OcspResponder_AddSigner");
 
     if (responder == NULL || signerDer == NULL || signerDerSz == 0 ||
         keyDer == NULL || keyDerSz == 0)
@@ -2326,7 +2326,7 @@ int wc_OcspResponder_AddSigner(OcspResponder* responder,
         if (ret != 0)
             goto out;
 
-        if (XMEMCMP(issuer, decoded->subject, WC_ASN_NAME_MAX) != 0) {
+        if (XSTRNCMP(issuer, decoded->subject, WC_ASN_NAME_MAX) != 0) {
             /* Issuer name in responder cert does not match subject of issuer cert */
             ret = BAD_FUNC_ARG;
             goto out;
@@ -2827,6 +2827,8 @@ out:
     return ret;
 }
 
+#endif /* HAVE_OCSP_RESPONDER */
+
 /* Helper functions for testing */
 int wc_InitOcspRequest(OcspRequest* req, DecodedCert* cert,
                                     byte useNonce, void* heap)
@@ -2839,8 +2841,6 @@ int wc_EncodeOcspRequest(OcspRequest* req, byte* output,
 {
     return EncodeOcspRequest(req, output, size);
 }
-
-#endif /* HAVE_OCSP_RESPONDER */
 
 #else /* HAVE_OCSP */
 

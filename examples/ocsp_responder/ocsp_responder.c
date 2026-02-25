@@ -19,7 +19,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-/* This is a test program and should not be used as an example. */
+/* Example OCSP responder used for interoperability and stapling testing.
+ * This code is for demonstration/testing only and is not hardened for
+ * secure or production use. Do not use this as a reference implementation
+ * for deploying an OCSP responder in production.
+ */
 
 #ifdef HAVE_CONFIG_H
     #include <config.h>
@@ -515,15 +519,43 @@ static int ParseHttpRequest(const byte* httpReq, int httpReqSz,
         }
         if (contentLen) {
             *bodySz = atoi(contentLen + 15);
+            /* Reject obviously invalid or unreasonably large Content-Length */
+            if (*bodySz < 0 || *bodySz > MAX_REQUEST_SIZE) {
+                LOG_ERROR("Invalid or too large Content-Length: %d\n", *bodySz);
+                *body = NULL;
+                *bodySz = 0;
+                return -1;
+            }
         }
 
         /* Find body (after \r\n\r\n) */
         *body = (const byte*)XSTRSTR((char*)httpReq, "\r\n\r\n");
         if (*body) {
+            int offset;
+
             *body += 4;
+            offset = (int)(*body - httpReq);
+
+            /* Validate that the body pointer is within the received buffer */
+            if (offset < 0 || offset > httpReqSz) {
+                LOG_ERROR("Invalid HTTP body offset\n");
+                *body = NULL;
+                *bodySz = 0;
+                return -1;
+            }
+
             /* Use Content-Length if available, otherwise use remaining data */
             if (*bodySz == 0) {
-                *bodySz = httpReqSz - (int)(*body - httpReq);
+                *bodySz = httpReqSz - offset;
+            }
+
+            /* Ensure that the claimed body length fits in the received data */
+            if (offset + *bodySz > httpReqSz) {
+                LOG_ERROR("Incomplete HTTP body: expected %d bytes, have %d\n",
+                          *bodySz, httpReqSz - offset);
+                *body = NULL;
+                *bodySz = 0;
+                return -1;
             }
             return 0;
         }
@@ -554,17 +586,31 @@ static int SendHttpResponse(SOCKET_T clientfd, const byte* ocspResp, int ocspRes
         "\r\n", ocspRespSz);
 
     /* Send header */
-    sent = (int)send(clientfd, header, (size_t)headerLen, 0);
-    if (sent != headerLen) {
-        LOG_ERROR("Failed to send HTTP header\n");
-        return -1;
+    {
+        int totalSent = 0;
+        while (totalSent < headerLen) {
+            sent = (int)send(clientfd, header + totalSent,
+                             (size_t)(headerLen - totalSent), 0);
+            if (sent <= 0) {
+                LOG_ERROR("Failed to send HTTP header\n");
+                return -1;
+            }
+            totalSent += sent;
+        }
     }
 
     /* Send body */
-    sent = (int)send(clientfd, (const char*)ocspResp, (size_t)ocspRespSz, 0);
-    if (sent != ocspRespSz) {
-        LOG_ERROR("Failed to send OCSP response\n");
-        return -1;
+    {
+        int totalSent = 0;
+        while (totalSent < ocspRespSz) {
+            sent = (int)send(clientfd, (const char*)ocspResp + totalSent,
+                             (size_t)(ocspRespSz - totalSent), 0);
+            if (sent <= 0) {
+                LOG_ERROR("Failed to send OCSP response\n");
+                return -1;
+            }
+            totalSent += sent;
+        }
     }
 
     return 0;
@@ -815,9 +861,9 @@ THREAD_RETURN WOLFSSL_THREAD ocsp_responder_test(void* args)
     /* Write ready file if requested */
     if (opts.readyFile != NULL) {
         XFILE rf = XFOPEN(opts.readyFile, "w");
-        if (rf != NULL) {
+        if (rf != XBADFILE) {
             fprintf(rf, "%d\n", (int)opts.port);
-            fclose(rf);
+            XFCLOSE(rf);
             if (opts.verbose) {
                 LOG_MSG("Ready file created: %s\n", opts.readyFile);
             }

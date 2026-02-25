@@ -40939,6 +40939,8 @@ int OcspResponseEncode(OcspResponse* resp, byte* out, word32* outSz,
                 ret = SizeASN_Items(ocspResponseASN, dataASN,
                         ocspResponseASN_Length, &sz);
             }
+            if (ret == 0 && sz > (int)*outSz)
+                ret = BUFFER_E;
             if (ret == 0) {
                 if (SetASN_Items(ocspResponseASN, dataASN,
                         ocspResponseASN_Length, out) != sz)
