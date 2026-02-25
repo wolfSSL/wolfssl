@@ -5990,7 +5990,10 @@ exit:
 #ifndef WOLFSSL_NOSHA3_224
 static wc_test_ret_t sha3_224_test(void)
 {
-    wc_Sha3  sha, shaCopy;
+    wc_Sha3  sha;
+    /* Heap-allocated when WOLFSSL_SMALL_STACK to avoid exceeding stack frame
+     * limit with two wc_Sha3 structs on the stack. */
+    WC_DECLARE_VAR(shaCopy, wc_Sha3, 1, HEAP_HINT);
     byte  hash[WC_SHA3_224_DIGEST_SIZE];
     byte  hashcopy[WC_SHA3_224_DIGEST_SIZE];
 
@@ -5998,6 +6001,10 @@ static wc_test_ret_t sha3_224_test(void)
     testVector test_sha[3];
     wc_test_ret_t ret = 0;
     int times = sizeof(test_sha) / sizeof(struct testVector), i;
+
+    WC_ALLOC_VAR(shaCopy, wc_Sha3, 1, HEAP_HINT);
+    if (!WC_VAR_OK(shaCopy))
+        return WC_TEST_RET_ENC_EC(MEMORY_E);
 
     a.input  = "";
     a.output = "\x6b\x4e\x03\x42\x36\x67\xdb\xb7\x3b\x6e\x15\x45\x4f\x0e\xb1"
@@ -6073,19 +6080,19 @@ static wc_test_ret_t sha3_224_test(void)
     ret = wc_InitSha3_224(&sha, HEAP_HINT, devId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
-    ret = wc_InitSha3_224(&shaCopy, HEAP_HINT, devId);
+    ret = wc_InitSha3_224(shaCopy, HEAP_HINT, devId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
-    ret = wc_Sha3_224_Update(&shaCopy, (byte*)b.input, (word32)b.inLen);
+    ret = wc_Sha3_224_Update(shaCopy, (byte*)b.input, (word32)b.inLen);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
     ret = wc_Sha3_224_Update(&sha, (byte*)a.input, (word32)a.inLen);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
-    ret = wc_Sha3_224_Copy(&sha, &shaCopy);
+    ret = wc_Sha3_224_Copy(&sha, shaCopy);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
-    ret = wc_Sha3_224_Final(&shaCopy, hash);
+    ret = wc_Sha3_224_Final(shaCopy, hash);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
     if (XMEMCMP(hash, a.output, WC_SHA3_224_DIGEST_SIZE) != 0)
@@ -6093,7 +6100,8 @@ static wc_test_ret_t sha3_224_test(void)
 
 exit:
     wc_Sha3_224_Free(&sha);
-    wc_Sha3_224_Free(&shaCopy);
+    wc_Sha3_224_Free(shaCopy);
+    WC_FREE_VAR(shaCopy, HEAP_HINT);
 
     return ret;
 }
@@ -6102,7 +6110,10 @@ exit:
 #ifndef WOLFSSL_NOSHA3_256
 static wc_test_ret_t sha3_256_test(void)
 {
-    wc_Sha3  sha, shaCopy;
+    wc_Sha3  sha;
+    /* Heap-allocated when WOLFSSL_SMALL_STACK to avoid exceeding stack frame
+     * limit with two wc_Sha3 structs on the stack. */
+    WC_DECLARE_VAR(shaCopy, wc_Sha3, 1, HEAP_HINT);
     byte  hash[WC_SHA3_256_DIGEST_SIZE];
     byte  hashcopy[WC_SHA3_256_DIGEST_SIZE];
 
@@ -6122,6 +6133,10 @@ static wc_test_ret_t sha3_256_test(void)
         "\xc5\xd2\x46\x01\x86\xf7\x23\x3c\x92\x7e\x7d\xb2\xdc\xc7\x03\xc0"
         "\xe5\x00\xb6\x53\xca\x82\x27\x3b\x7b\xfa\xd8\x04\x5d\x85\xa4\x70";
 #endif
+
+    WC_ALLOC_VAR(shaCopy, wc_Sha3, 1, HEAP_HINT);
+    if (!WC_VAR_OK(shaCopy))
+        return WC_TEST_RET_ENC_EC(MEMORY_E);
 
     /*
     ** https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Standards-and-Guidelines/documents/examples/SHA3-256_Msg0.pdf
@@ -6218,19 +6233,19 @@ static wc_test_ret_t sha3_256_test(void)
     ret = wc_InitSha3_256(&sha, HEAP_HINT, devId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
-    ret = wc_InitSha3_256(&shaCopy, HEAP_HINT, devId);
+    ret = wc_InitSha3_256(shaCopy, HEAP_HINT, devId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
-    ret = wc_Sha3_256_Update(&shaCopy, (byte*)b.input, (word32)b.inLen);
+    ret = wc_Sha3_256_Update(shaCopy, (byte*)b.input, (word32)b.inLen);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
     ret = wc_Sha3_256_Update(&sha, (byte*)a.input, (word32)a.inLen);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
-    ret = wc_Sha3_256_Copy(&sha, &shaCopy);
+    ret = wc_Sha3_256_Copy(&sha, shaCopy);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
-    ret = wc_Sha3_256_Final(&shaCopy, hash);
+    ret = wc_Sha3_256_Final(shaCopy, hash);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
     if (XMEMCMP(hash, a.output, WC_SHA3_256_DIGEST_SIZE) != 0)
@@ -6238,7 +6253,8 @@ static wc_test_ret_t sha3_256_test(void)
 
 exit:
     wc_Sha3_256_Free(&sha);
-    wc_Sha3_256_Free(&shaCopy);
+    wc_Sha3_256_Free(shaCopy);
+    WC_FREE_VAR(shaCopy, HEAP_HINT);
 
     return ret;
 }
@@ -6247,7 +6263,10 @@ exit:
 #ifndef WOLFSSL_NOSHA3_384
 static wc_test_ret_t sha3_384_test(void)
 {
-    wc_Sha3  sha, shaCopy;
+    wc_Sha3  sha;
+    /* Heap-allocated when WOLFSSL_SMALL_STACK to avoid exceeding stack frame
+     * limit with two wc_Sha3 structs on the stack. */
+    WC_DECLARE_VAR(shaCopy, wc_Sha3, 1, HEAP_HINT);
     byte  hash[WC_SHA3_384_DIGEST_SIZE];
     byte  buf[64];
 #ifndef NO_INTM_HASH_TEST
@@ -6258,6 +6277,10 @@ static wc_test_ret_t sha3_384_test(void)
     testVector test_sha[3];
     wc_test_ret_t ret;
     int times = sizeof(test_sha) / sizeof(struct testVector), i;
+
+    WC_ALLOC_VAR(shaCopy, wc_Sha3, 1, HEAP_HINT);
+    if (!WC_VAR_OK(shaCopy))
+        return WC_TEST_RET_ENC_EC(MEMORY_E);
 
     /*
     ** https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Standards-and-Guidelines/documents/examples/SHA3-384_Msg0.pdf
@@ -6363,19 +6386,19 @@ static wc_test_ret_t sha3_384_test(void)
     ret = wc_InitSha3_384(&sha, HEAP_HINT, devId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
-    ret = wc_InitSha3_384(&shaCopy, HEAP_HINT, devId);
+    ret = wc_InitSha3_384(shaCopy, HEAP_HINT, devId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
-    ret = wc_Sha3_384_Update(&shaCopy, (byte*)b.input, (word32)b.inLen);
+    ret = wc_Sha3_384_Update(shaCopy, (byte*)b.input, (word32)b.inLen);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
     ret = wc_Sha3_384_Update(&sha, (byte*)a.input, (word32)a.inLen);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
-    ret = wc_Sha3_384_Copy(&sha, &shaCopy);
+    ret = wc_Sha3_384_Copy(&sha, shaCopy);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
-    ret = wc_Sha3_384_Final(&shaCopy, hash);
+    ret = wc_Sha3_384_Final(shaCopy, hash);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
     if (XMEMCMP(hash, a.output, WC_SHA3_384_DIGEST_SIZE) != 0)
@@ -6383,7 +6406,8 @@ static wc_test_ret_t sha3_384_test(void)
 
 exit:
     wc_Sha3_384_Free(&sha);
-    wc_Sha3_384_Free(&shaCopy);
+    wc_Sha3_384_Free(shaCopy);
+    WC_FREE_VAR(shaCopy, HEAP_HINT);
 
     return ret;
 }
@@ -6392,7 +6416,10 @@ exit:
 #ifndef WOLFSSL_NOSHA3_512
 static wc_test_ret_t sha3_512_test(void)
 {
-    wc_Sha3  sha, shaCopy;
+    wc_Sha3  sha;
+    /* Heap-allocated when WOLFSSL_SMALL_STACK to avoid exceeding stack frame
+     * limit with two wc_Sha3 structs on the stack. */
+    WC_DECLARE_VAR(shaCopy, wc_Sha3, 1, HEAP_HINT);
     byte  hash[WC_SHA3_512_DIGEST_SIZE];
     byte  hashcopy[WC_SHA3_512_DIGEST_SIZE];
 
@@ -6400,6 +6427,10 @@ static wc_test_ret_t sha3_512_test(void)
     testVector test_sha[3];
     wc_test_ret_t ret;
     int times = sizeof(test_sha) / sizeof(struct testVector), i;
+
+    WC_ALLOC_VAR(shaCopy, wc_Sha3, 1, HEAP_HINT);
+    if (!WC_VAR_OK(shaCopy))
+        return WC_TEST_RET_ENC_EC(MEMORY_E);
 
     /*
     ** https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Standards-and-Guidelines/documents/examples/SHA3-512_Msg0.pdf
@@ -6489,19 +6520,19 @@ static wc_test_ret_t sha3_512_test(void)
     ret = wc_InitSha3_512(&sha, HEAP_HINT, devId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
-    ret = wc_InitSha3_512(&shaCopy, HEAP_HINT, devId);
+    ret = wc_InitSha3_512(shaCopy, HEAP_HINT, devId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
-    ret = wc_Sha3_512_Update(&shaCopy, (byte*)b.input, (word32)b.inLen);
+    ret = wc_Sha3_512_Update(shaCopy, (byte*)b.input, (word32)b.inLen);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
     ret = wc_Sha3_512_Update(&sha, (byte*)a.input, (word32)a.inLen);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
-    ret = wc_Sha3_512_Copy(&sha, &shaCopy);
+    ret = wc_Sha3_512_Copy(&sha, shaCopy);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
-    ret = wc_Sha3_512_Final(&shaCopy, hash);
+    ret = wc_Sha3_512_Final(shaCopy, hash);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
     if (XMEMCMP(hash, a.output, WC_SHA3_512_DIGEST_SIZE) != 0)
@@ -6509,7 +6540,8 @@ static wc_test_ret_t sha3_512_test(void)
 
 exit:
     wc_Sha3_512_Free(&sha);
-    wc_Sha3_512_Free(&shaCopy);
+    wc_Sha3_512_Free(shaCopy);
+    WC_FREE_VAR(shaCopy, HEAP_HINT);
 
     return ret;
 }
@@ -6731,7 +6763,10 @@ exit:
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t shake128_test(void)
 {
-    wc_Shake  sha, shaCopy;
+    wc_Shake  sha;
+    /* Heap-allocated when WOLFSSL_SMALL_STACK to avoid exceeding stack frame
+     * limit with two wc_Shake structs on the stack. */
+    WC_DECLARE_VAR(shaCopy, wc_Shake, 1, HEAP_HINT);
     byte  hash[250];
 
     testVector a, b, c, d, e;
@@ -6756,6 +6791,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t shake128_test(void)
         "\xfa\x1b";
     WOLFSSL_ENTER("shake128_test");
 
+    WC_ALLOC_VAR(shaCopy, wc_Shake, 1, HEAP_HINT);
+    if (!WC_VAR_OK(shaCopy))
+        return WC_TEST_RET_ENC_EC(MEMORY_E);
 
     /*
     ** https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Standards-and-Guidelines/documents/examples/SHAKE128_Msg0.pdf
@@ -6895,19 +6933,19 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t shake128_test(void)
     ret = wc_InitShake128(&sha, HEAP_HINT, devId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
-    ret = wc_InitShake128(&shaCopy, HEAP_HINT, devId);
+    ret = wc_InitShake128(shaCopy, HEAP_HINT, devId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
-    ret = wc_Shake128_Update(&shaCopy, (byte*)b.input, (word32)b.inLen);
+    ret = wc_Shake128_Update(shaCopy, (byte*)b.input, (word32)b.inLen);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
     ret = wc_Shake128_Update(&sha, (byte*)a.input, (word32)a.inLen);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
-    ret = wc_Shake128_Copy(&sha, &shaCopy);
+    ret = wc_Shake128_Copy(&sha, shaCopy);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
-    ret = wc_Shake128_Final(&shaCopy, hash, (word32)a.outLen);
+    ret = wc_Shake128_Final(shaCopy, hash, (word32)a.outLen);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
     if (XMEMCMP(hash, a.output, a.outLen) != 0)
@@ -6915,7 +6953,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t shake128_test(void)
 
 exit:
     wc_Shake128_Free(&sha);
-    wc_Shake128_Free(&shaCopy);
+    wc_Shake128_Free(shaCopy);
+    WC_FREE_VAR(shaCopy, HEAP_HINT);
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     XFREE(large_input, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -7097,7 +7136,10 @@ exit:
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t shake256_test(void)
 {
-    wc_Shake  sha, shaCopy;
+    wc_Shake  sha;
+    /* Heap-allocated when WOLFSSL_SMALL_STACK to avoid exceeding stack frame
+     * limit with two wc_Shake structs on the stack. */
+    WC_DECLARE_VAR(shaCopy, wc_Shake, 1, HEAP_HINT);
     byte  hash[250];
 
     testVector a, b, c, d, e;
@@ -7122,6 +7164,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t shake256_test(void)
         "\xea\x26";
 
     WOLFSSL_ENTER("shake256_test");
+
+    WC_ALLOC_VAR(shaCopy, wc_Shake, 1, HEAP_HINT);
+    if (!WC_VAR_OK(shaCopy))
+        return WC_TEST_RET_ENC_EC(MEMORY_E);
+
     /*
     ** https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Standards-and-Guidelines/documents/examples/SHAKE256_Msg0.pdf
     */
@@ -7260,19 +7307,19 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t shake256_test(void)
     ret = wc_InitShake256(&sha, HEAP_HINT, devId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
-    ret = wc_InitShake256(&shaCopy, HEAP_HINT, devId);
+    ret = wc_InitShake256(shaCopy, HEAP_HINT, devId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
-    ret = wc_Shake256_Update(&shaCopy, (byte*)b.input, (word32)b.inLen);
+    ret = wc_Shake256_Update(shaCopy, (byte*)b.input, (word32)b.inLen);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
     ret = wc_Shake256_Update(&sha, (byte*)a.input, (word32)a.inLen);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
-    ret = wc_Shake256_Copy(&sha, &shaCopy);
+    ret = wc_Shake256_Copy(&sha, shaCopy);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
-    ret = wc_Shake256_Final(&shaCopy, hash, (word32)a.outLen);
+    ret = wc_Shake256_Final(shaCopy, hash, (word32)a.outLen);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
     if (XMEMCMP(hash, a.output, a.outLen) != 0)
@@ -7280,7 +7327,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t shake256_test(void)
 
 exit:
     wc_Shake256_Free(&sha);
-    wc_Shake256_Free(&shaCopy);
+    wc_Shake256_Free(shaCopy);
+    WC_FREE_VAR(shaCopy, HEAP_HINT);
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     XFREE(large_input, NULL, DYNAMIC_TYPE_TMP_BUFFER);
