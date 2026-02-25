@@ -13459,6 +13459,74 @@ static int TLSX_ECH_GetSize(WOLFSSL_ECH* ech, byte msgType)
     return (int)size;
 }
 
+/* rough check that inner hello fields do not exceed length of decrypted
+ * information. Additionally, this function will check that all padding bytes
+ * are zero and decrease the innerHelloLen accordingly if so.
+ * returns 0 on success and otherwise failure */
+static int TLSX_ECH_CheckInnerPadding(WOLFSSL* ssl, WOLFSSL_ECH* ech)
+{
+    int headerSz;
+    const byte* innerCh;
+    word32 innerChLen;
+    word32 idx;
+    byte sessionIdLen;
+    word16 cipherSuitesLen;
+    byte compressionLen;
+    word16 extLen;
+    byte acc = 0;
+    word32 i;
+
+#ifdef WOLFSSL_DTLS13
+    headerSz = ssl->options.dtls ? DTLS13_HANDSHAKE_HEADER_SZ :
+                                   HANDSHAKE_HEADER_SZ;
+#else
+    headerSz = HANDSHAKE_HEADER_SZ;
+#endif
+
+    innerCh = ech->innerClientHello + headerSz;
+    innerChLen = ech->innerClientHelloLen;
+
+    idx = OPAQUE16_LEN + RAN_LEN;
+    if (idx >= innerChLen)
+        return BUFFER_ERROR;
+
+    sessionIdLen = innerCh[idx++];
+    /* innerHello sessionID must initially be empty */
+    if (sessionIdLen != 0)
+        return INVALID_PARAMETER;
+    idx += sessionIdLen;
+    if (idx + OPAQUE16_LEN > innerChLen)
+        return BUFFER_ERROR;
+
+    ato16(innerCh + idx, &cipherSuitesLen);
+    idx += OPAQUE16_LEN + cipherSuitesLen;
+    if (idx >= innerChLen)
+        return BUFFER_ERROR;
+
+    compressionLen = innerCh[idx++];
+    idx += compressionLen;
+    if (idx + OPAQUE16_LEN > innerChLen)
+        return BUFFER_ERROR;
+
+    ato16(innerCh + idx, &extLen);
+    idx += OPAQUE16_LEN + extLen;
+    if (idx > innerChLen)
+        return BUFFER_ERROR;
+
+    /* should now be at the end of the innerHello
+     * Per ECH spec all padding bytes MUST be 0 */
+    for (i = idx; i < innerChLen; i++) {
+        acc |= innerCh[i];
+    }
+    if (acc != 0) {
+        SendAlert(ssl, alert_fatal, illegal_parameter);
+        return INVALID_PARAMETER;
+    }
+
+    ech->innerClientHelloLen -= i - idx;
+    return 0;
+}
+
 /* Locate the given extension type, use the extOffset to start off after where a
  * previous call to this function ended
  *
@@ -13510,7 +13578,7 @@ static const byte* TLSX_ECH_FindOuterExtension(const byte* outerCh,
             return NULL;
     }
 
-    while (idx < chLen && (idx - *extensionsStart) < *extensionsLen) {
+    while (idx - *extensionsStart < *extensionsLen) {
         if (idx + OPAQUE16_LEN + OPAQUE16_LEN > chLen)
             return NULL;
 
@@ -13519,7 +13587,7 @@ static const byte* TLSX_ECH_FindOuterExtension(const byte* outerCh,
         ato16(outerCh + idx, &len);
         idx += OPAQUE16_LEN;
 
-        if (idx + len > chLen)
+        if (idx + len - *extensionsStart > *extensionsLen)
             return NULL;
 
         if (type == extType) {
@@ -13662,33 +13730,22 @@ static int TLSX_ECH_ExpandOuterExtensions(WOLFSSL* ssl, WOLFSSL_ECH* ech,
     outerCh = ech->aad;
     outerChLen = ech->aadLen;
 
+    /* don't need to check for buffer overflows here since they are caught by
+     * TLSX_ECH_CheckInnerPadding */
     idx = OPAQUE16_LEN + RAN_LEN;
-    if (idx >= innerChLen)
-        return BUFFER_ERROR;
 
     sessionIdLen = innerCh[idx++];
     idx += sessionIdLen;
-    /* the ECH spec details that innerhello sessionID must initially be empty */
-    if (sessionIdLen != 0)
-        return INVALID_PARAMETER;
-    if (idx + OPAQUE16_LEN > innerChLen)
-        return BUFFER_ERROR;
 
     ato16(innerCh + idx, &cipherSuitesLen);
     idx += OPAQUE16_LEN + cipherSuitesLen;
-    if (idx >= innerChLen)
-        return BUFFER_ERROR;
 
     compressionLen = innerCh[idx++];
     idx += compressionLen;
-    if (idx + OPAQUE16_LEN > innerChLen)
-        return BUFFER_ERROR;
 
     ato16(innerCh + idx, &innerExtLen);
     idx += OPAQUE16_LEN;
     innerExtIdx = idx;
-    if (idx + innerExtLen > innerChLen)
-        return BUFFER_ERROR;
 
     /* validate ech_outer_extensions and calculate extra size */
     while (idx < innerChLen && (idx - innerExtIdx) < innerExtLen) {
@@ -13931,12 +13988,13 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
     byte msgType)
 {
     int ret = 0;
-    int i;
     TLSX* echX;
     WOLFSSL_ECH* ech;
     WOLFSSL_EchConfig* echConfig;
     byte* aadCopy;
     byte* readBuf_p = (byte*)readBuf;
+    word16 tmpVal16;
+
     WOLFSSL_MSG("TLSX_ECH_Parse");
     if (ssl->options.disableECH) {
         WOLFSSL_MSG("TLSX_ECH_Parse: ECH disabled. Ignoring.");
@@ -13977,21 +14035,26 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
             ech->state = ECH_PARSED_INTERNAL;
             return 0;
         }
+        else if (ech->type != ECH_TYPE_OUTER) {
+            /* type MUST be INNER or OUTER */
+            SendAlert(ssl, alert_fatal, illegal_parameter);
+            return INVALID_PARAMETER;
+        }
         /* technically the payload would only be 1 byte at this length */
         if (size < 11 + ech->encLen)
             return BAD_FUNC_ARG;
-        /* read kdfId */
-        ato16(readBuf_p, &ech->cipherSuite.kdfId);
-        readBuf_p += 2;
-        /* read aeadId */
-        ato16(readBuf_p, &ech->cipherSuite.aeadId);
-        readBuf_p += 2;
-        /* read configId */
-        ech->configId = *readBuf_p;
-        readBuf_p++;
         /* only get enc if we don't already have the hpke context */
         if (ech->hpkeContext == NULL) {
-            /* read encLen */
+            /* kdfId */
+            ato16(readBuf_p, &ech->cipherSuite.kdfId);
+            readBuf_p += 2;
+            /* aeadId */
+            ato16(readBuf_p, &ech->cipherSuite.aeadId);
+            readBuf_p += 2;
+            /* configId */
+            ech->configId = *readBuf_p;
+            readBuf_p++;
+            /* encLen */
             ato16(readBuf_p, &ech->encLen);
             readBuf_p += 2;
             if (ech->encLen > HPKE_Npk_MAX)
@@ -14001,6 +14064,33 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
             readBuf_p += ech->encLen;
         }
         else {
+            /* kdfId, aeadId, and configId must be the same as last time */
+            /* kdf */
+            ato16(readBuf_p, &tmpVal16);
+            if (tmpVal16 != ech->cipherSuite.kdfId) {
+                SendAlert(ssl, alert_fatal, illegal_parameter);
+                return INVALID_PARAMETER;
+            }
+            readBuf_p += 2;
+            /* aead */
+            ato16(readBuf_p, &tmpVal16);
+            if (tmpVal16 != ech->cipherSuite.aeadId) {
+                SendAlert(ssl, alert_fatal, illegal_parameter);
+                return INVALID_PARAMETER;
+            }
+            readBuf_p += 2;
+            /* configId */
+            if (*readBuf_p != ech->configId) {
+                SendAlert(ssl, alert_fatal, illegal_parameter);
+                return INVALID_PARAMETER;
+            }
+            readBuf_p++;
+            /* on an HRR the enc value MUST be empty */
+            ato16(readBuf_p, &tmpVal16);
+            if (tmpVal16 != 0) {
+                SendAlert(ssl, alert_fatal, illegal_parameter);
+                return INVALID_PARAMETER;
+            }
             readBuf_p += 2;
         }
         /* read hello inner len */
@@ -14051,19 +14141,12 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
             }
         }
         if (ret == 0) {
-            i = 0;
-            /* decrement until before the padding */
-            /* TODO: verify padding is 0, abort with illegal_parameter */
-            while (ech->innerClientHello[ech->innerClientHelloLen +
-                HANDSHAKE_HEADER_SZ - i - 1] != ECH_TYPE_INNER) {
-                i++;
+            ret = TLSX_ECH_CheckInnerPadding(ssl, ech);
+            if (ret == 0) {
+                /* expand EchOuterExtensions if present.
+                 * Also, if it exists, copy sessionID from outer hello */
+                ret = TLSX_ECH_ExpandOuterExtensions(ssl, ech, ssl->heap);
             }
-            /* subtract the length of the padding from the length */
-            ech->innerClientHelloLen -= i;
-
-            /* expand EchOuterExtensions if present
-             * and, if it exists, copy sessionID from outer hello */
-            ret = TLSX_ECH_ExpandOuterExtensions(ssl, ech, ssl->heap);
         }
         /* if we failed to extract/expand, set state to retry configs */
         if (ret != 0) {
