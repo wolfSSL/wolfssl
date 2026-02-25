@@ -102,13 +102,7 @@
 #define WOLFSSL_NO_HASH_RAW
 #endif
 
-#if defined(_MSC_VER)
-    #define SHA256_NOINLINE __declspec(noinline)
-#elif defined(__IAR_SYSTEMS_ICC__) || defined(__GNUC__)
-    #define SHA256_NOINLINE __attribute__((noinline))
-#else
-    #define SHA256_NOINLINE
-#endif
+#define SHA256_NOINLINE WC_NO_INLINE
 
 #if !defined(NO_OLD_SHA_NAMES)
     #define SHA256             WC_SHA256

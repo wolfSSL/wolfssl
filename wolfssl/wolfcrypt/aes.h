@@ -806,6 +806,13 @@ int wc_AesSivDecrypt_ex(const byte* key, word32 keySz, const AesSivAssoc* assoc,
                         const byte* in, word32 inSz, byte* siv, byte* out);
 #endif
 
+#ifdef WOLFSSL_CMAC
+/* forward declaration, in case aes.h is being included by cmac.h */
+struct Cmac;
+WOLFSSL_LOCAL int wc_local_CmacUpdateAes(struct Cmac *cmac, const byte* in,
+                                   word32 inSz);
+#endif
+
 #ifdef WOLFSSL_AES_EAX
 
 /* Because of the circular dependency between AES and CMAC, we need to prevent

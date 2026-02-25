@@ -80,13 +80,7 @@
     #include <wolfssl/wolfcrypt/port/st/stm32.h>
 #endif
 
-#if defined(_MSC_VER)
-    #define SHA512_NOINLINE __declspec(noinline)
-#elif defined(__IAR_SYSTEMS_ICC__) || defined(__GNUC__)
-    #define SHA512_NOINLINE __attribute__((noinline))
-#else
-    #define SHA512_NOINLINE
-#endif
+#define SHA512_NOINLINE WC_NO_INLINE
 
 #ifdef WOLFSSL_SHA512
 

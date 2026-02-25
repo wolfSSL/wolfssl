@@ -44,15 +44,7 @@
     #define WOLFSSL_MLKEM_NO_DECAPSULATE
 #endif
 
-#ifdef noinline
-    #define MLKEM_NOINLINE noinline
-#elif defined(_MSC_VER)
-    #define MLKEM_NOINLINE __declspec(noinline)
-#elif defined(__GNUC__)
-    #define MLKEM_NOINLINE __attribute__((noinline))
-#else
-    #define MLKEM_NOINLINE
-#endif
+#define MLKEM_NOINLINE WC_NO_INLINE
 
 enum {
     /* Flags of Kyber keys. */

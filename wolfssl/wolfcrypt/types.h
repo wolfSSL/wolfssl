@@ -2056,6 +2056,33 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
     #define WC_NORETURN
 #endif
 
+#ifdef __has_attribute
+#if __has_attribute(nonnull)
+    #ifndef WC_ARG_NOT_NULL
+        #define WC_ARG_NOT_NULL(a) __attribute__((nonnull(a)))
+    #endif
+    #ifndef WC_ARGS_NOT_NULL
+        /* double-parenthesize, a la WC_ARGS_NOT_NULL((1, 2)) -- this approach
+         * maintains compatibility with WOLF_NO_VARIADIC_MACROS.
+         */
+        #define WC_ARGS_NOT_NULL(p_a) __attribute__((nonnull p_a))
+    #endif
+    #ifndef WC_ALL_ARGS_NOT_NULL
+        #define WC_ALL_ARGS_NOT_NULL __attribute__((nonnull))
+    #endif
+#endif /* __has_attribute(nonnull) */
+#endif /* defined(__has_attribute) */
+
+#ifndef WC_ARG_NOT_NULL
+    #define WC_ARG_NOT_NULL(a) /* null expansion */
+#endif
+#ifndef WC_ARGS_NOT_NULL
+    #define WC_ARGS_NOT_NULL(p_a) /* null expansion */
+#endif
+#ifndef WC_ALL_ARGS_NOT_NULL
+    #define WC_ALL_ARGS_NOT_NULL
+#endif
+
 #if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || \
     defined(WOLFSSL_DEBUG_MATH) || defined(DEBUG_WOLFSSL) || \
     defined(WOLFSSL_PUBLIC_MP) || defined(OPENSSL_EXTRA) || \
