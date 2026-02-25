@@ -14074,7 +14074,7 @@ static int test_wolfSSL_Tls13_ECH_params(void)
     const char* b64Configs =
         "AEX+DQBBFAAgACBuAoQI8+liEVYQbXKBDeVgTmF2rfXuKO2knhwrN7jgTgAEAAEAAQASY2xvdWRmbGFyZS1lY2guY29tAAA=";
     word32 outputLen = sizeof(testBuf);
-    word16 tmpLen;
+    word16 tmpLen = 0;
     WOLFSSL_CTX* ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method());
     WOLFSSL*     ssl = wolfSSL_new(ctx);
 
@@ -14619,9 +14619,9 @@ static int test_wolfSSL_Tls13_ECH_new_config(void)
     word32 altConfigLen = sizeof(altConfig);
     byte combinedConfigs[512];
     word32 combinedConfigsLen = sizeof(combinedConfigs);
-    word16 firstConfigLen;
-    word16 secondConfigOffset;
-    word16 secondConfigLen;
+    word16 firstConfigLen = 0;
+    word16 secondConfigOffset = 0;
+    word16 secondConfigLen = 0;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
 
