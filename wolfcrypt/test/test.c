@@ -4329,6 +4329,29 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t md5_test(void)
     } /* END LARGE HASH TEST */
 #endif /* NO_LARGE_HASH_TEST */
 
+    /* Copy cleanup test: verify Copy into a previously-used dst does not leak
+     * resources (e.g., hardware contexts). Detectable by valgrind/ASAN. */
+    ret = wc_InitMd5_ex(&md5, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_InitMd5_ex(&md5Copy, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Md5Update(&md5Copy, (byte*)b.input, (word32)b.inLen);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Md5Update(&md5, (byte*)a.input, (word32)a.inLen);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Md5Copy(&md5, &md5Copy);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Md5Final(&md5Copy, hash);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    if (XMEMCMP(hash, a.output, WC_MD5_DIGEST_SIZE) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
+
 exit:
 
     wc_Md5Free(&md5);
@@ -4539,6 +4562,29 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
     } /* END LARGE HASH TEST */
 #endif /* NO_LARGE_HASH_TEST */
+
+    /* Copy cleanup test: verify Copy into a previously-used dst does not leak
+     * resources (e.g., msg buffer, W cache). Detectable by valgrind/ASAN. */
+    ret = wc_InitSha_ex(&sha, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_InitSha_ex(&shaCopy, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_ShaUpdate(&shaCopy, (byte*)b.input, (word32)b.inLen);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_ShaUpdate(&sha, (byte*)a.input, (word32)a.inLen);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_ShaCopy(&sha, &shaCopy);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_ShaFinal(&shaCopy, hash);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    if (XMEMCMP(hash, a.output, WC_SHA_DIGEST_SIZE) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
 
 exit:
 
@@ -4979,6 +5025,29 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha224_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_I(i), exit);
     }
 
+    /* Copy cleanup test: verify Copy into a previously-used dst does not leak
+     * resources (e.g., msg buffer, W cache). Detectable by valgrind/ASAN. */
+    ret = wc_InitSha224_ex(&sha, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_InitSha224_ex(&shaCopy, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Sha224Update(&shaCopy, (byte*)b.input, (word32)b.inLen);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Sha224Update(&sha, (byte*)a.input, (word32)a.inLen);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Sha224Copy(&sha, &shaCopy);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Sha224Final(&shaCopy, hash);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    if (XMEMCMP(hash, a.output, WC_SHA224_DIGEST_SIZE) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
+
 exit:
     wc_Sha224Free(&sha);
     wc_Sha224Free(&shaCopy);
@@ -5203,6 +5272,29 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha256_test(void)
     }
 #endif
 
+    /* Copy cleanup test: verify Copy into a previously-used dst does not leak
+     * resources (e.g., msg buffer, W cache). Detectable by valgrind/ASAN. */
+    ret = wc_InitSha256_ex(&sha, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_InitSha256_ex(&shaCopy, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Sha256Update(&shaCopy, (byte*)b.input, (word32)b.inLen);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Sha256Update(&sha, (byte*)a.input, (word32)a.inLen);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Sha256Copy(&sha, &shaCopy);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Sha256Final(&shaCopy, hash);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    if (XMEMCMP(hash, a.output, WC_SHA256_DIGEST_SIZE) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
+
 exit:
 
 #if !defined(NO_LARGE_HASH_TEST) && defined(WOLFSSL_SMALL_STACK)
@@ -5417,6 +5509,29 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha512_test(void)
     } /* END LARGE HASH TEST */
 #undef LARGE_HASH_TEST_INPUT_SZ
 #endif /* NO_LARGE_HASH_TEST */
+
+    /* Copy cleanup test: verify Copy into a previously-used dst does not leak
+     * resources (e.g., msg buffer, W cache). Detectable by valgrind/ASAN. */
+    ret = wc_InitSha512_ex(&sha, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_InitSha512_ex(&shaCopy, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Sha512Update(&shaCopy, (byte*)b.input, (word32)b.inLen);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Sha512Update(&sha, (byte*)a.input, (word32)a.inLen);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Sha512Copy(&sha, &shaCopy);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Sha512Final(&shaCopy, hash);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    if (XMEMCMP(hash, a.output, WC_SHA512_DIGEST_SIZE) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
 
 exit:
 
@@ -5839,6 +5954,29 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha384_test(void)
     } /* END LARGE HASH TEST */
 #endif /* NO_LARGE_HASH_TEST */
 
+    /* Copy cleanup test: verify Copy into a previously-used dst does not leak
+     * resources (e.g., msg buffer, W cache). Detectable by valgrind/ASAN. */
+    ret = wc_InitSha384_ex(&sha, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_InitSha384_ex(&shaCopy, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Sha384Update(&shaCopy, (byte*)b.input, (word32)b.inLen);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Sha384Update(&sha, (byte*)a.input, (word32)a.inLen);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Sha384Copy(&sha, &shaCopy);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Sha384Final(&shaCopy, hash);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    if (XMEMCMP(hash, a.output, WC_SHA384_DIGEST_SIZE) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
+
 exit:
 
     wc_Sha384Free(&sha);
@@ -5852,7 +5990,7 @@ exit:
 #ifndef WOLFSSL_NOSHA3_224
 static wc_test_ret_t sha3_224_test(void)
 {
-    wc_Sha3  sha;
+    wc_Sha3  sha, shaCopy;
     byte  hash[WC_SHA3_224_DIGEST_SIZE];
     byte  hashcopy[WC_SHA3_224_DIGEST_SIZE];
 
@@ -5930,8 +6068,32 @@ static wc_test_ret_t sha3_224_test(void)
     } /* END LARGE HASH TEST */
 #endif /* NO_LARGE_HASH_TEST */
 
+    /* Copy cleanup test: verify Copy into a previously-used dst does not leak
+     * resources (e.g., hardware contexts). Detectable by valgrind/ASAN. */
+    ret = wc_InitSha3_224(&sha, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_InitSha3_224(&shaCopy, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Sha3_224_Update(&shaCopy, (byte*)b.input, (word32)b.inLen);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Sha3_224_Update(&sha, (byte*)a.input, (word32)a.inLen);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Sha3_224_Copy(&sha, &shaCopy);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Sha3_224_Final(&shaCopy, hash);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    if (XMEMCMP(hash, a.output, WC_SHA3_224_DIGEST_SIZE) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
+
 exit:
     wc_Sha3_224_Free(&sha);
+    wc_Sha3_224_Free(&shaCopy);
 
     return ret;
 }
@@ -5940,7 +6102,7 @@ exit:
 #ifndef WOLFSSL_NOSHA3_256
 static wc_test_ret_t sha3_256_test(void)
 {
-    wc_Sha3  sha;
+    wc_Sha3  sha, shaCopy;
     byte  hash[WC_SHA3_256_DIGEST_SIZE];
     byte  hashcopy[WC_SHA3_256_DIGEST_SIZE];
 
@@ -6051,8 +6213,32 @@ static wc_test_ret_t sha3_256_test(void)
     }
 #endif /* WOLFSSL_HASH_FLAGS && !WOLFSSL_ASYNC_CRYPT */
 
+    /* Copy cleanup test: verify Copy into a previously-used dst does not leak
+     * resources (e.g., hardware contexts). Detectable by valgrind/ASAN. */
+    ret = wc_InitSha3_256(&sha, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_InitSha3_256(&shaCopy, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Sha3_256_Update(&shaCopy, (byte*)b.input, (word32)b.inLen);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Sha3_256_Update(&sha, (byte*)a.input, (word32)a.inLen);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Sha3_256_Copy(&sha, &shaCopy);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Sha3_256_Final(&shaCopy, hash);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    if (XMEMCMP(hash, a.output, WC_SHA3_256_DIGEST_SIZE) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
+
 exit:
     wc_Sha3_256_Free(&sha);
+    wc_Sha3_256_Free(&shaCopy);
 
     return ret;
 }
@@ -6061,7 +6247,7 @@ exit:
 #ifndef WOLFSSL_NOSHA3_384
 static wc_test_ret_t sha3_384_test(void)
 {
-    wc_Sha3  sha;
+    wc_Sha3  sha, shaCopy;
     byte  hash[WC_SHA3_384_DIGEST_SIZE];
     byte  buf[64];
 #ifndef NO_INTM_HASH_TEST
@@ -6172,8 +6358,32 @@ static wc_test_ret_t sha3_384_test(void)
     } /* END LARGE HASH TEST */
 #endif /* NO_LARGE_HASH_TEST */
 
+    /* Copy cleanup test: verify Copy into a previously-used dst does not leak
+     * resources (e.g., hardware contexts). Detectable by valgrind/ASAN. */
+    ret = wc_InitSha3_384(&sha, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_InitSha3_384(&shaCopy, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Sha3_384_Update(&shaCopy, (byte*)b.input, (word32)b.inLen);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Sha3_384_Update(&sha, (byte*)a.input, (word32)a.inLen);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Sha3_384_Copy(&sha, &shaCopy);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Sha3_384_Final(&shaCopy, hash);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    if (XMEMCMP(hash, a.output, WC_SHA3_384_DIGEST_SIZE) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
+
 exit:
     wc_Sha3_384_Free(&sha);
+    wc_Sha3_384_Free(&shaCopy);
 
     return ret;
 }
@@ -6182,7 +6392,7 @@ exit:
 #ifndef WOLFSSL_NOSHA3_512
 static wc_test_ret_t sha3_512_test(void)
 {
-    wc_Sha3  sha;
+    wc_Sha3  sha, shaCopy;
     byte  hash[WC_SHA3_512_DIGEST_SIZE];
     byte  hashcopy[WC_SHA3_512_DIGEST_SIZE];
 
@@ -6274,8 +6484,32 @@ static wc_test_ret_t sha3_512_test(void)
     } /* END LARGE HASH TEST */
 #endif /* NO_LARGE_HASH_TEST */
 
+    /* Copy cleanup test: verify Copy into a previously-used dst does not leak
+     * resources (e.g., hardware contexts). Detectable by valgrind/ASAN. */
+    ret = wc_InitSha3_512(&sha, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_InitSha3_512(&shaCopy, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Sha3_512_Update(&shaCopy, (byte*)b.input, (word32)b.inLen);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Sha3_512_Update(&sha, (byte*)a.input, (word32)a.inLen);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Sha3_512_Copy(&sha, &shaCopy);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Sha3_512_Final(&shaCopy, hash);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    if (XMEMCMP(hash, a.output, WC_SHA3_512_DIGEST_SIZE) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
+
 exit:
     wc_Sha3_512_Free(&sha);
+    wc_Sha3_512_Free(&shaCopy);
 
     return ret;
 }
@@ -6497,7 +6731,7 @@ exit:
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t shake128_test(void)
 {
-    wc_Shake  sha;
+    wc_Shake  sha, shaCopy;
     byte  hash[250];
 
     testVector a, b, c, d, e;
@@ -6653,9 +6887,35 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t shake128_test(void)
 #endif /* NO_LARGE_HASH_TEST */
 
     ret = shake128_absorb_test(&sha, large_input, SHAKE128_LARGE_INPUT_BUFSIZ);
+    if (ret != 0)
+        ERROR_OUT(ret, exit);
+
+    /* Copy cleanup test: verify Copy into a previously-used dst does not leak
+     * resources (e.g., hardware contexts). Detectable by valgrind/ASAN. */
+    ret = wc_InitShake128(&sha, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_InitShake128(&shaCopy, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Shake128_Update(&shaCopy, (byte*)b.input, (word32)b.inLen);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Shake128_Update(&sha, (byte*)a.input, (word32)a.inLen);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Shake128_Copy(&sha, &shaCopy);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Shake128_Final(&shaCopy, hash, (word32)a.outLen);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    if (XMEMCMP(hash, a.output, a.outLen) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
 
 exit:
     wc_Shake128_Free(&sha);
+    wc_Shake128_Free(&shaCopy);
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     XFREE(large_input, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -6837,7 +7097,7 @@ exit:
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t shake256_test(void)
 {
-    wc_Shake  sha;
+    wc_Shake  sha, shaCopy;
     byte  hash[250];
 
     testVector a, b, c, d, e;
@@ -6992,8 +7252,35 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t shake256_test(void)
 #endif /* NO_LARGE_HASH_TEST */
 
     ret = shake256_absorb_test(&sha, large_input, SHAKE256_LARGE_INPUT_BUFSIZ);
+    if (ret != 0)
+        ERROR_OUT(ret, exit);
+
+    /* Copy cleanup test: verify Copy into a previously-used dst does not leak
+     * resources (e.g., hardware contexts). Detectable by valgrind/ASAN. */
+    ret = wc_InitShake256(&sha, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_InitShake256(&shaCopy, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Shake256_Update(&shaCopy, (byte*)b.input, (word32)b.inLen);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Shake256_Update(&sha, (byte*)a.input, (word32)a.inLen);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Shake256_Copy(&sha, &shaCopy);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Shake256_Final(&shaCopy, hash, (word32)a.outLen);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    if (XMEMCMP(hash, a.output, a.outLen) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
+
 exit:
     wc_Shake256_Free(&sha);
+    wc_Shake256_Free(&shaCopy);
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     XFREE(large_input, NULL, DYNAMIC_TYPE_TMP_BUFFER);

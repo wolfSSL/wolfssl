@@ -2252,6 +2252,7 @@ int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst)
     /* Free dst resources before copy to prevent memory leaks (e.g., msg
      * buffer, W cache, hardware contexts). XMEMCPY overwrites dst. */
     wc_Sha512Free(dst);
+    XMEMSET(dst, 0, sizeof(wc_Sha512));
 
     XMEMCPY(dst, src, sizeof(wc_Sha512));
 #ifdef WOLFSSL_SMALL_STACK_CACHE
@@ -2694,6 +2695,7 @@ int wc_Sha384Copy(wc_Sha384* src, wc_Sha384* dst)
     /* Free dst resources before copy to prevent memory leaks (e.g., msg
      * buffer, W cache, hardware contexts). XMEMCPY overwrites dst. */
     wc_Sha384Free(dst);
+    XMEMSET(dst, 0, sizeof(wc_Sha384));
 
     XMEMCPY(dst, src, sizeof(wc_Sha384));
 
