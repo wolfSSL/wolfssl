@@ -42962,6 +42962,29 @@ static wc_test_ret_t mlkem512_kat(void)
 
     if (XMEMCMP(ss_dec, ml_kem_512_ss, sizeof(ml_kem_512_ss)) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+#ifndef WOLFSSL_MLKEM_NO_MAKE_KEY
+    wc_MlKemKey_Free(key);
+    XMEMSET(key, 0, sizeof(MlKemKey));
+    key_inited = 0;
+    ret = wc_MlKemKey_Init(key, WC_ML_KEM_512, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    else
+        key_inited = 1;
+    ret = wc_MlKemKey_MakeKeyWithRandom(key, kyber512_rand,
+        sizeof(kyber512_rand));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_MlKemKey_Decapsulate(key, ss_dec, ml_kem_512_ct,
+        sizeof(ml_kem_512_ct));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    if (XMEMCMP(ss_dec, ml_kem_512_ss, sizeof(ml_kem_512_ss)) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif
 #else
     (void)ml_kem_512_ct;
     (void)ml_kem_512_ss;
