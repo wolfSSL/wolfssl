@@ -44,7 +44,7 @@ jobs:
       fail-fast: false
       matrix:
         # List of releases to test
-        ref: [ 9.18.0, 9.18.28, 9.18.33 ]
+        ref: [ 9.18.0, 9.18.28, 9.18.33, 9.20.11 ]
     name: ${{ matrix.ref }}
     if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-24.04
@@ -66,7 +66,7 @@ jobs:
           export DEBIAN_FRONTEND=noninteractive
           sudo apt-get update
           # hostap dependencies
-          sudo apt-get install -y libuv1-dev libnghttp2-dev libcap-dev libcmocka-dev
+          sudo apt-get install -y libuv1-dev libnghttp2-dev libcap-dev libcmocka-dev liburcu-dev
 
       - name: Checkout OSP
         uses: actions/checkout@v4
