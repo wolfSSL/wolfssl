@@ -246,8 +246,7 @@ jobs:
           ./auto/configure --with-wolfssl=$GITHUB_WORKSPACE/build-dir --with-http_ssl_module \
             --with-stream --with-stream_ssl_module --with-stream_ssl_preread_module \
             --with-http_v2_module --with-mail --with-mail_ssl_module \
-            --with-cc-opt='-fsanitize=address -DNGX_DEBUG_PALLOC=1 -g3 \
-            ${{ env.nginx_c_flags }}' \
+            --with-cc-opt='-fsanitize=address -DNGX_DEBUG_PALLOC=1 -g3 ${{ env.nginx_c_flags }}' \
             --with-ld-opt='-fsanitize=address ${{ env.nginx_c_flags }}'
           make -j
 

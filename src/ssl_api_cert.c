@@ -881,8 +881,11 @@ int wolfSSL_UnloadCertsKeys(WOLFSSL* ssl)
     #ifdef WOLFSSL_DUAL_ALG_CERTS
         if (ssl->buffers.weOwnAltKey) {
             WOLFSSL_MSG("Unloading alt key");
-            if (ssl->buffers.altKey != NULL && ssl->buffers.altKey->buffer != NULL)
-                ForceZero(ssl->buffers.altKey->buffer, ssl->buffers.altKey->length);
+            if (ssl->buffers.altKey != NULL &&
+                    ssl->buffers.altKey->buffer != NULL) {
+                ForceZero(ssl->buffers.altKey->buffer,
+                          ssl->buffers.altKey->length);
+            }
             FreeDer(&ssl->buffers.altKey);
         #ifdef WOLFSSL_BLIND_PRIVATE_KEY
             FreeDer(&ssl->buffers.altKeyMask);

@@ -15508,11 +15508,10 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 #endif
 #ifndef WOLFSSL_BLIND_PRIVATE_KEY
 #ifdef WOLFSSL_COPY_KEY
+    if (ssl->buffers.key != NULL && ssl->buffers.weOwnKey) {
+        FreeDer(&ssl->buffers.key);
+    }
     if (ctx->privateKey != NULL) {
-        if (ssl->buffers.key != NULL) {
-            FreeDer(&ssl->buffers.key);
-            ssl->buffers.key = NULL;
-        }
         ret = AllocCopyDer(&ssl->buffers.key, ctx->privateKey->buffer,
             ctx->privateKey->length, ctx->privateKey->type,
             ctx->privateKey->heap);
@@ -15523,8 +15522,6 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         ssl->buffers.weOwnKey = 1;
     }
     else {
-        if (ssl->buffers.key != NULL && ssl->buffers.weOwnKey)
-            FreeDer(&ssl->buffers.key);
         ssl->buffers.key      = ctx->privateKey;
     }
 #else

@@ -38,6 +38,8 @@
     #include <wolfssl/wolfio.h>
 #endif
 
+/* 16 times MAX_X509_SIZE should be more than enough to read any X509
+ * certificate file */
 #define MAX_BIO_READ_BUFFER (MAX_X509_SIZE * 16)
 
 #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)

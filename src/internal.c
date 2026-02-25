@@ -39034,12 +39034,10 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         }
 #endif
 
-        /* Calculate actual internal ticket size */
+        internalTicketSz = (int)WOLFSSL_INTERNAL_TICKET_BASE_SZ;
 #if defined(OPENSSL_ALL) && defined(KEEP_PEER_CERT) && \
     !defined(NO_CERT_IN_TICKET)
-        internalTicketSz = (int)(WOLFSSL_INTERNAL_TICKET_BASE_SZ + peerCertSz);
-#else
-        internalTicketSz = (int)WOLFSSL_INTERNAL_TICKET_BASE_SZ;
+        internalTicketSz += peerCertSz;
 #endif
         /* MAC is placed after the encrypted data */
         mac = et->enc_ticket + WOLFSSL_TICKET_ENC_SZ;
@@ -39326,6 +39324,48 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
     }
 #endif /* WOLFSSL_SLT13 */
 
+#if defined(OPENSSL_ALL) && defined(KEEP_PEER_CERT) && \
+    !defined(NO_CERT_IN_TICKET)
+    static void RestorePeerCertFromTicket(WOLFSSL* ssl, InternalTicket* it)
+    {
+        word16 peerCertLen = 0;
+        ato16(it->peerCertLen, &peerCertLen);
+
+        if (peerCertLen > 0 && peerCertLen <= MAX_TICKET_PEER_CERT_SZ) {
+#ifdef SESSION_CERTS
+            /* Clear existing chain and add the peer certificate */
+            ssl->session->chain.count = 0;
+            AddSessionCertToChain(&ssl->session->chain,
+                                  it->peerCert, peerCertLen);
+#endif
+            /* Also decode into ssl->peerCert for direct access */
+            {
+                int ret;
+                DecodedCert* dCert;
+
+                dCert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), ssl->heap,
+                                               DYNAMIC_TYPE_DCERT);
+                if (dCert != NULL) {
+                    InitDecodedCert(dCert, it->peerCert, peerCertLen, ssl->heap);
+                    ret = ParseCertRelative(dCert, CERT_TYPE, 0, NULL, NULL);
+                    if (ret == 0) {
+                        FreeX509(&ssl->peerCert);
+                        InitX509(&ssl->peerCert, 0, ssl->heap);
+                        ret = CopyDecodedToX509(&ssl->peerCert, dCert);
+                        if (ret != 0) {
+                            /* Failed to copy - clear peerCert */
+                            FreeX509(&ssl->peerCert);
+                            InitX509(&ssl->peerCert, 0, ssl->heap);
+                        }
+                    }
+                    FreeDecodedCert(dCert);
+                    XFREE(dCert, ssl->heap, DYNAMIC_TYPE_DCERT);
+                }
+            }
+        }
+    }
+#endif /* OPENSSL_ALL && KEEP_PEER_CERT && !NO_CERT_IN_TICKET */
+
     void DoClientTicketFinalize(WOLFSSL* ssl, InternalTicket* it,
             const WOLFSSL_SESSION* sess)
     {
@@ -39416,44 +39456,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 
 #if defined(OPENSSL_ALL) && defined(KEEP_PEER_CERT) && \
     !defined(NO_CERT_IN_TICKET)
-        /* Restore peer certificate from ticket to session chain and peerCert */
-        {
-            word16 peerCertLen = 0;
-            ato16(it->peerCertLen, &peerCertLen);
-
-            if (peerCertLen > 0 && peerCertLen <= MAX_TICKET_PEER_CERT_SZ) {
-#ifdef SESSION_CERTS
-                /* Clear existing chain and add the peer certificate */
-                ssl->session->chain.count = 0;
-                AddSessionCertToChain(&ssl->session->chain,
-                                      it->peerCert, peerCertLen);
-#endif
-                /* Also decode into ssl->peerCert for direct access */
-                {
-                    int ret;
-                    DecodedCert* dCert;
-
-                    dCert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), ssl->heap,
-                                                   DYNAMIC_TYPE_DCERT);
-                    if (dCert != NULL) {
-                        InitDecodedCert(dCert, it->peerCert, peerCertLen, ssl->heap);
-                        ret = ParseCertRelative(dCert, CERT_TYPE, 0, NULL, NULL);
-                        if (ret == 0) {
-                            FreeX509(&ssl->peerCert);
-                            InitX509(&ssl->peerCert, 0, ssl->heap);
-                            ret = CopyDecodedToX509(&ssl->peerCert, dCert);
-                            if (ret != 0) {
-                                /* Failed to copy - clear peerCert */
-                                FreeX509(&ssl->peerCert);
-                                InitX509(&ssl->peerCert, 0, ssl->heap);
-                            }
-                        }
-                        FreeDecodedCert(dCert);
-                        XFREE(dCert, ssl->heap, DYNAMIC_TYPE_DCERT);
-                    }
-                }
-            }
-        }
+        RestorePeerCertFromTicket(ssl, it);
 #endif
 
         ssl->version.minor = it->pv.minor;
