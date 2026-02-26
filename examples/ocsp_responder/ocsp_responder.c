@@ -53,8 +53,10 @@
 #include <string.h>
 
 /* Define mygetopt variables (used by mygetopt_long in test.h) */
+#ifndef NO_MAIN_DRIVER
 int myoptind = 0;
 char* myoptarg = NULL;
+#endif
 
 #ifdef _WIN32
     #include <winsock2.h>
@@ -84,15 +86,6 @@ char* myoptarg = NULL;
 #define MAX_PATH_LEN      256
 #define MAX_CERTS         16
 
-/* Simple logging macro */
-#define LOG_ERROR(...)                                                         \
-    do {                                                                       \
-        if (got_signal)                                                        \
-            fprintf(stderr, "Shutdown requested, exiting loop\n");             \
-        else                                                                   \
-            fprintf(stderr, __VA_ARGS__);                                      \
-    } while (0)
-
 
 #define LOG_MSG(...)                                                           \
     do {                                                                       \
@@ -109,6 +102,21 @@ static void sig_handler(int sig)
     (void)sig;
     got_signal = 1;
 }
+
+/* Simple logging macro */
+#define LOG_ERROR(...)                                                         \
+    do {                                                                       \
+        if (got_signal)                                                        \
+            fprintf(stderr, "Shutdown requested, exiting loop\n");             \
+        else                                                                   \
+            fprintf(stderr, __VA_ARGS__);                                      \
+    } while (0)
+#else
+/* Simple logging macro */
+#define LOG_ERROR(...)                                                         \
+    do {                                                                       \
+        fprintf(stderr, __VA_ARGS__);                                          \
+    } while (0)
 #endif
 
 /* Index file entry structure */
@@ -737,6 +745,8 @@ THREAD_RETURN WOLFSSL_THREAD ocsp_responder_test(void* args)
         }
     }
 
+    myoptind = 0;      /* reset for test cases */
+
     /* Validate required options */
     if (opts.certFile == NULL) {
         LOG_ERROR("Error: CA certificate required (-c)\n");
@@ -855,8 +865,31 @@ THREAD_RETURN WOLFSSL_THREAD ocsp_responder_test(void* args)
         }
     }
 
+#ifdef USE_WINDOWS_API
+    if (opts.port == 0) {
+        /* Generate random port for testing */
+        opts.port = GetRandomPort();
+    }
+#endif /* USE_WINDOWS_API */
+
     /* Create and listen on server socket */
     tcp_listen(&sockfd, &opts.port, 1, 0, 0);
+
+#ifndef SINGLE_THREADED
+    /* Signal readiness via tcp_ready if provided (for in-process testing) */
+    if (myargs->signal != NULL) {
+        tcp_ready* ready = myargs->signal;
+    #ifdef WOLFSSL_COND
+        THREAD_CHECK_RET(wolfSSL_CondStart(&ready->cond));
+    #endif
+        ready->ready = 1;
+        ready->port  = opts.port;
+    #ifdef WOLFSSL_COND
+        THREAD_CHECK_RET(wolfSSL_CondSignal(&ready->cond));
+        THREAD_CHECK_RET(wolfSSL_CondEnd(&ready->cond));
+    #endif
+    }
+#endif /* !SINGLE_THREADED */
 
     /* Write ready file if requested */
     if (opts.readyFile != NULL) {
@@ -1007,10 +1040,6 @@ cleanup:
     if (caKeyDer)
         XFREE(caKeyDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
-#ifdef _WIN32
-    WSACleanup();
-#endif
-
     myargs->return_code = ret;
 #ifndef WOLFSSL_THREAD_VOID_RETURN
     return (THREAD_RETURN)0;
@@ -1024,6 +1053,8 @@ int main(int argc, char** argv)
 {
     func_args args;
     int ret;
+
+    StartTCP();
 
 #ifdef HAVE_WNR
     if (wc_InitNetRandom(wnrConfigFile, NULL, 5000) != 0) {
