@@ -3237,7 +3237,7 @@ word16 TLSX_CSR_GetSize_ex(CertificateStatusRequest* csr, byte isRequest,
         if (csr->ssl != NULL && SSL_CM(csr->ssl) != NULL &&
                 SSL_CM(csr->ssl)->ocsp_stapling != NULL &&
                 SSL_CM(csr->ssl)->ocsp_stapling->statusCb != NULL) {
-            return OPAQUE8_LEN + OPAQUE24_LEN + csr->ssl->ocspCsrResp[idx].length;
+            return (word16)(OPAQUE8_LEN + OPAQUE24_LEN + csr->ssl->ocspCsrResp[idx].length);
         }
         return (word16)(OPAQUE8_LEN + OPAQUE24_LEN +
                 csr->responses[idx].length);

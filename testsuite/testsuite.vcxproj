@@ -471,6 +471,7 @@
     <ClCompile Include="..\examples\echoclient\echoclient.c" />
     <ClCompile Include="..\examples\echoserver\echoserver.c" />
     <ClCompile Include="..\examples\server\server.c" />
+    <ClCompile Include="..\examples\ocsp_responder\ocsp_responder.c" />
     <ClCompile Include="..\wolfcrypt\test\test.c" />
     <ClCompile Include="testsuite.c" />
   </ItemGroup>

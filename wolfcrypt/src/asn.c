@@ -39066,7 +39066,7 @@ WC_MAYBE_UNUSED static int EncodeCertID(OcspEntry* entry, byte* out,
     DECL_ASNSETDATA(dataASN, certidasn_Length);
     int ret = 0;
     int sz = 0;
-    word32 digestSz;
+    word32 digestSz = 0;
 
     if (entry == NULL || entry->status == NULL ||
             entry->status->serialSz <= 0 || outSz == NULL) {
@@ -40117,7 +40117,8 @@ static int DecodeResponseData(byte* source, word32* ioIndex,
 #else
     DECL_ASNGETDATA(dataASN, ocspRespDataASN_Length);
     int ret = 0;
-    byte version;
+    /* Default, not present, is v1 = 0. */
+    byte version = 0;
     word32 dateSz = 0;
     word32 responderByKeySz = OCSP_RESPONDER_ID_KEY_SZ;
     word32 idx = *ioIndex;
@@ -40129,8 +40130,6 @@ static int DecodeResponseData(byte* source, word32* ioIndex,
 
     if (ret == 0) {
         resp->response = source + idx;
-        /* Default, not present, is v1 = 0. */
-        version = 0;
         /* Max size of date supported. */
         dateSz = MAX_DATE_SIZE;
 
@@ -40908,7 +40907,7 @@ int OcspResponseEncode(OcspResponse* resp, byte* out, word32* outSz,
 
     if (ret == 0) {
         SetASN_Int8Bit(&dataASN[OCSPRESPONSEASN_IDX_STATUS],
-                resp->responseStatus);
+                (byte)resp->responseStatus);
     }
     if (ret == 0 && resp->responseStatus == OCSP_SUCCESSFUL) {
         SetASN_OID(&dataASN[OCSPRESPONSEASN_IDX_BYTES_TYPE], OCSP_BASIC_OID,

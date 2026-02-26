@@ -189,6 +189,9 @@
 			<File
 				RelativePath="..\examples\server\server.c"
 				>
+			<File
+				RelativePath="..\examples\ocsp_responder\ocsp_responder.c"
+				>
 			</File>
 			<File
 				RelativePath="..\wolfcrypt\test\test.c"
