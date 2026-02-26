@@ -9226,6 +9226,117 @@ static int test_wolfSSL_dtls_export_peers(void)
     return EXPECT_RESULT();
 }
 
+/* Test that ImportKeyState correctly skips extra window words when importing
+ * state from a peer compiled with a larger WOLFSSL_DTLS_WINDOW_WORDS. */
+static int test_wolfSSL_dtls_import_state_extra_window_words(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SESSION_EXPORT)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL*     ssl = NULL;
+    unsigned int stateSz = 0;
+    byte*        state = NULL;
+    byte*        modified = NULL;
+    unsigned int modifiedSz;
+    word16       origKeyLen;
+    word16       origTotalLen;
+    /* Offset from start of key state data to the first wordCount field.
+     * Layout: 4 sequence numbers (16 bytes) + DTLS-specific fields (42 bytes) +
+     * encryptSz(4) + padSz(4) + encryptionOn(1) + decryptedCur(1) = 68 */
+    const int keyStateWindowOffset = 68;
+    /* Buffer header: 2 proto + 2 total_len + 2 key_len = 6 */
+    const int headerSz = 6;
+    int idx, modIdx;
+    int extraPerWindow = 2 * (int)sizeof(word32); /* 8 bytes extra per window */
+    int totalExtra = extraPerWindow * 2; /* 16 bytes extra total */
+
+    /* Create DTLS context and SSL object */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLSv1_2_server_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* Get required buffer size and export state-only */
+    ExpectIntEQ(wolfSSL_dtls_export_state_only(ssl, NULL, &stateSz), 0);
+    ExpectIntGT((int)stateSz, 0);
+    state = (byte*)XMALLOC(stateSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(state);
+    ExpectIntGT(wolfSSL_dtls_export_state_only(ssl, state, &stateSz), 0);
+
+    /* Build a modified buffer that simulates a peer with
+     * WOLFSSL_DTLS_WINDOW_WORDS = WOLFSSL_DTLS_WINDOW_WORDS + 2.
+     * Each window section gets 2 extra word32 values (8 bytes).
+     * Two windows => 16 extra bytes total. */
+    modifiedSz = stateSz + totalExtra;
+    modified = (byte*)XMALLOC(modifiedSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(modified);
+
+    if (EXPECT_SUCCESS()) {
+        int windowWords = WOLFSSL_DTLS_WINDOW_WORDS;
+        int windowDataSz = windowWords * (int)sizeof(word32);
+
+        XMEMSET(modified, 0, modifiedSz);
+
+        /* Copy protocol/version bytes (first 2 bytes) */
+        XMEMCPY(modified, state, 2);
+
+        /* Read original total length and key state length */
+        ato16(state + 2, &origTotalLen);
+        ato16(state + 4, &origKeyLen);
+
+        /* Write updated total length and key state length */
+        c16toa((word16)(origTotalLen + totalExtra), modified + 2);
+        c16toa((word16)(origKeyLen + totalExtra), modified + 4);
+
+        /* Copy key state data up to first window section */
+        idx = headerSz;
+        modIdx = headerSz;
+        XMEMCPY(modified + modIdx, state + idx, keyStateWindowOffset);
+        idx += keyStateWindowOffset;
+        modIdx += keyStateWindowOffset;
+
+        /* First window: write increased wordCount */
+        c16toa((word16)(windowWords + 2), modified + modIdx);
+        idx += OPAQUE16_LEN;
+        modIdx += OPAQUE16_LEN;
+
+        /* Copy original window data */
+        XMEMCPY(modified + modIdx, state + idx, windowDataSz);
+        idx += windowDataSz;
+        modIdx += windowDataSz;
+
+        /* Insert 2 extra word32 padding values */
+        XMEMSET(modified + modIdx, 0, extraPerWindow);
+        modIdx += extraPerWindow;
+
+        /* Second window (prevWindow): same transformation */
+        c16toa((word16)(windowWords + 2), modified + modIdx);
+        idx += OPAQUE16_LEN;
+        modIdx += OPAQUE16_LEN;
+
+        XMEMCPY(modified + modIdx, state + idx, windowDataSz);
+        idx += windowDataSz;
+        modIdx += windowDataSz;
+
+        XMEMSET(modified + modIdx, 0, extraPerWindow);
+        modIdx += extraPerWindow;
+
+        /* Copy remainder of key state (after both windows) */
+        XMEMCPY(modified + modIdx, state + idx, stateSz - idx);
+    }
+
+    /* Import the modified state - should succeed with the fix */
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntGT(wolfSSL_dtls_import(ssl, modified, modifiedSz), 0);
+
+    XFREE(state, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(modified, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_wolfSSL_UseTrustedCA(void)
 {
     EXPECT_DECLS;
@@ -9917,6 +10028,124 @@ static int test_wolfSSL_set_alpn_protos(void)
     res = TEST_SUCCESS;
 #endif /* !NO_WOLFSSL_CLIENT && !NO_WOLFSSL_SERVER */
     return res;
+}
+
+static int test_wolfSSL_select_next_proto(void)
+{
+    EXPECT_DECLS;
+    unsigned char *out = NULL;
+    unsigned char outLen = 0;
+    int ret;
+
+    /* Wire format: length-prefixed protocol names */
+    unsigned char serverList[] = {
+        8, 'h','t','t','p','/','1','.','1',
+        6, 's','p','d','y','/','2'
+    };
+    unsigned int serverLen = sizeof(serverList);
+
+    unsigned char clientList[] = {
+        6, 's','p','d','y','/','2'
+    };
+    unsigned int clientLen = sizeof(clientList);
+
+    unsigned char clientListHttp[] = {
+        8, 'h','t','t','p','/','1','.','1'
+    };
+    unsigned int clientListHttpLen = sizeof(clientListHttp);
+
+    unsigned char clientListNoMatch[] = {
+        6, 's','p','d','y','/','3'
+    };
+    unsigned int clientListNoMatchLen = sizeof(clientListNoMatch);
+
+    /* Test 1: NULL parameters return UNSUPPORTED */
+    ExpectIntEQ(wolfSSL_select_next_proto(NULL, &outLen, serverList,
+        serverLen, clientList, clientLen), WOLFSSL_NPN_UNSUPPORTED);
+    ExpectIntEQ(wolfSSL_select_next_proto(&out, NULL, serverList,
+        serverLen, clientList, clientLen), WOLFSSL_NPN_UNSUPPORTED);
+    ExpectIntEQ(wolfSSL_select_next_proto(&out, &outLen, NULL,
+        serverLen, clientList, clientLen), WOLFSSL_NPN_UNSUPPORTED);
+    ExpectIntEQ(wolfSSL_select_next_proto(&out, &outLen, serverList,
+        serverLen, NULL, clientLen), WOLFSSL_NPN_UNSUPPORTED);
+
+    /* Test 2: Normal match - client wants "spdy/2", server offers it */
+    out = NULL;
+    outLen = 0;
+    ret = wolfSSL_select_next_proto(&out, &outLen, serverList, serverLen,
+        clientList, clientLen);
+    ExpectIntEQ(ret, WOLFSSL_NPN_NEGOTIATED);
+    ExpectIntEQ(outLen, 6);
+    ExpectNotNull(out);
+    ExpectIntEQ(XMEMCMP(out, "spdy/2", 6), 0);
+
+    /* Test 3: No overlap - server offers "http/1.1,spdy/2", client wants
+     * "spdy/3". Falls back to first client protocol. */
+    out = NULL;
+    outLen = 0;
+    ret = wolfSSL_select_next_proto(&out, &outLen, serverList, serverLen,
+        clientListNoMatch, clientListNoMatchLen);
+    ExpectIntEQ(ret, WOLFSSL_NPN_NO_OVERLAP);
+    ExpectIntEQ(outLen, 6);
+    ExpectNotNull(out);
+    ExpectIntEQ(XMEMCMP(out, "spdy/3", 6), 0);
+
+    /* Test 4: Malformed server list - length byte overruns buffer.
+     * Must NOT crash (heap over-read). */
+    {
+        unsigned char malformedServer[] = { 200, 'h','t','t','p' };
+        out = NULL;
+        outLen = 0;
+        ret = wolfSSL_select_next_proto(&out, &outLen, malformedServer,
+            sizeof(malformedServer), clientList, clientLen);
+        ExpectIntEQ(ret, WOLFSSL_NPN_NO_OVERLAP);
+    }
+
+    /* Test 5: Malformed client list - length byte overruns buffer.
+     * Must NOT crash. */
+    {
+        unsigned char malformedClient[] = { 200, 's','p','d','y' };
+        out = NULL;
+        outLen = 0;
+        ret = wolfSSL_select_next_proto(&out, &outLen, serverList, serverLen,
+            malformedClient, sizeof(malformedClient));
+        ExpectIntEQ(ret, WOLFSSL_NPN_NO_OVERLAP);
+    }
+
+    /* Test 6: Zero-length entry in server list - must NOT infinite loop */
+    {
+        unsigned char zeroLenServer[] = { 0, 6, 's','p','d','y','/','2' };
+        out = NULL;
+        outLen = 0;
+        ret = wolfSSL_select_next_proto(&out, &outLen, zeroLenServer,
+            sizeof(zeroLenServer), clientList, clientLen);
+        /* Zero-length entry causes break, so no match found */
+        ExpectIntEQ(ret, WOLFSSL_NPN_NO_OVERLAP);
+    }
+
+    /* Test 7: Empty client list (clientLen == 0) - must NOT dereference
+     * clientNames[0]. */
+    {
+        unsigned char emptyClient[] = { 0 };
+        out = NULL;
+        outLen = 0;
+        ret = wolfSSL_select_next_proto(&out, &outLen, serverList, serverLen,
+            emptyClient, 0);
+        ExpectIntEQ(ret, WOLFSSL_NPN_NO_OVERLAP);
+        ExpectIntEQ(outLen, 0);
+    }
+
+    /* Test 8: First protocol match - both start with "http/1.1" */
+    out = NULL;
+    outLen = 0;
+    ret = wolfSSL_select_next_proto(&out, &outLen, serverList, serverLen,
+        clientListHttp, clientListHttpLen);
+    ExpectIntEQ(ret, WOLFSSL_NPN_NEGOTIATED);
+    ExpectIntEQ(outLen, 8);
+    ExpectNotNull(out);
+    ExpectIntEQ(XMEMCMP(out, "http/1.1", 8), 0);
+
+    return EXPECT_RESULT();
 }
 
 #endif /* HAVE_ALPN_PROTOS_SUPPORT */
@@ -32861,6 +33090,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_tls_export),
 #endif
     TEST_DECL(test_wolfSSL_dtls_export_peers),
+    TEST_DECL(test_wolfSSL_dtls_import_state_extra_window_words),
     TEST_DECL(test_wolfSSL_SetMinVersion),
     TEST_DECL(test_wolfSSL_CTX_SetMinVersion),
 
@@ -32908,6 +33138,7 @@ TEST_CASE testCases[] = {
 #ifdef HAVE_ALPN_PROTOS_SUPPORT
     /* Uses Assert in handshake callback. */
     TEST_DECL(test_wolfSSL_set_alpn_protos),
+    TEST_DECL(test_wolfSSL_select_next_proto),
 #endif
     TEST_DECL(test_tls_ems_downgrade),
     TEST_DECL(test_wolfSSL_DisableExtendedMasterSecret),

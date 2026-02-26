@@ -98,6 +98,35 @@ int InitCRL(WOLFSSL_CRL* crl, WOLFSSL_CERT_MANAGER* cm)
 }
 
 
+#ifdef CRL_STATIC_REVOKED_LIST
+/* Compare two RevokedCert entries by (serialSz, serialNumber) for sorting.
+ * Returns < 0, 0, or > 0 like memcmp. */
+static int CompareRevokedCert(const RevokedCert* a, const RevokedCert* b)
+{
+    if (a->serialSz != b->serialSz)
+        return a->serialSz - b->serialSz;
+    return XMEMCMP(a->serialNumber, b->serialNumber, (size_t)a->serialSz);
+}
+
+/* Sort revoked cert array in-place using insertion sort. The array is bounded
+ * by CRL_MAX_REVOKED_CERTS so O(n^2) is fine. */
+static void SortCRL_CertList(RevokedCert* certs, int totalCerts)
+{
+    int i, j;
+    RevokedCert tmp;
+
+    for (i = 1; i < totalCerts; i++) {
+        XMEMCPY(&tmp, &certs[i], sizeof(RevokedCert));
+        j = i - 1;
+        while (j >= 0 && CompareRevokedCert(&certs[j], &tmp) > 0) {
+            XMEMCPY(&certs[j + 1], &certs[j], sizeof(RevokedCert));
+            j--;
+        }
+        XMEMCPY(&certs[j + 1], &tmp, sizeof(RevokedCert));
+    }
+}
+#endif /* CRL_STATIC_REVOKED_LIST */
+
 /* Initialize CRL Entry */
 static int InitCRL_Entry(CRL_Entry* crle, DecodedCRL* dcrl, const byte* buff,
                          int verified, void* heap)
@@ -132,12 +161,15 @@ static int InitCRL_Entry(CRL_Entry* crle, DecodedCRL* dcrl, const byte* buff,
 #endif
 #ifdef CRL_STATIC_REVOKED_LIST
     /* ParseCRL_CertList() has already cached the Revoked certs into
-       the crle->certs array */
+       the crle->certs array. Sort it so binary search in
+       FindRevokedSerial works correctly. */
+    crle->totalCerts = dcrl->totalCerts;
+    SortCRL_CertList(crle->certs, crle->totalCerts);
 #else
     crle->certs = dcrl->certs;   /* take ownership */
+    crle->totalCerts = dcrl->totalCerts;
 #endif
     dcrl->certs = NULL;
-    crle->totalCerts = dcrl->totalCerts;
     crle->crlNumberSet = dcrl->crlNumberSet;
     if (crle->crlNumberSet) {
         XMEMCPY(crle->crlNumber, dcrl->crlNumber, sizeof(crle->crlNumber));
@@ -313,25 +345,52 @@ static int FindRevokedSerial(RevokedCert* rc, byte* serial, int serialSz,
     int ret = 0;
     byte hash[SIGNER_DIGEST_SIZE];
 #ifdef CRL_STATIC_REVOKED_LIST
-    /* do binary search */
-    int low, high, mid;
+    if (serialHash == NULL) {
+        /* Binary search by (serialSz, serialNumber). The array was sorted in
+         * InitCRL_Entry by the same comparison key. */
+        int low = 0;
+        int high = totalCerts - 1;
 
-    low = 0;
-    high = totalCerts - 1;
+        while (low <= high) {
+            int mid = (low + high) / 2;
+            int cmp;
 
-    while (low <= high) {
-        mid = (low + high) / 2;
+            /* Compare by serial size first, then by serial content. Shorter
+             * serials sort before longer ones. */
+            if (rc[mid].serialSz != serialSz) {
+                cmp = rc[mid].serialSz - serialSz;
+            }
+            else {
+                cmp = XMEMCMP(rc[mid].serialNumber, serial,
+                              (size_t)rc[mid].serialSz);
+            }
 
-        if (XMEMCMP(rc[mid].serialNumber, serial, rc->serialSz) < 0) {
-            low = mid + 1;
+            if (cmp < 0) {
+                low = mid + 1;
+            }
+            else if (cmp > 0) {
+                high = mid - 1;
+            }
+            else {
+                WOLFSSL_MSG("Cert revoked");
+                ret = CRL_CERT_REVOKED;
+                break;
+            }
         }
-        else if (XMEMCMP(rc[mid].serialNumber, serial, rc->serialSz) > 0) {
-            high = mid - 1;
-        }
-        else {
-            WOLFSSL_MSG("Cert revoked");
-            ret = CRL_CERT_REVOKED;
-            break;
+    }
+    else {
+        /* Hash-based lookup -- linear scan required since the array is sorted
+         * by serial number, not by hash. */
+        int i;
+        for (i = 0; i < totalCerts; i++) {
+            ret = CalcHashId(rc[i].serialNumber, (word32)rc[i].serialSz, hash);
+            if (ret != 0)
+                break;
+            if (XMEMCMP(hash, serialHash, SIGNER_DIGEST_SIZE) == 0) {
+                WOLFSSL_MSG("Cert revoked");
+                ret = CRL_CERT_REVOKED;
+                break;
+            }
         }
     }
 #else

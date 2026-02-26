@@ -13605,6 +13605,9 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
         }
         /* read hello inner len */
         ato16(readBuf_p, &ech->innerClientHelloLen);
+        if (ech->innerClientHelloLen < WC_AES_BLOCK_SIZE) {
+            return BUFFER_ERROR;
+        }
         ech->innerClientHelloLen -= WC_AES_BLOCK_SIZE;
         readBuf_p += 2;
         ech->outerClientPayload = readBuf_p;

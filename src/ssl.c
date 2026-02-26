@@ -16675,8 +16675,12 @@ int wolfSSL_select_next_proto(unsigned char **out, unsigned char *outLen,
 
     for (i = 0; i < inLen; i += lenIn) {
         lenIn = in[i++];
+        if (lenIn == 0 || i + lenIn > inLen)
+            break;
         for (j = 0; j < clientLen; j += lenClient) {
             lenClient = clientNames[j++];
+            if (lenClient == 0 || j + lenClient > clientLen)
+                break;
 
             if (lenIn != lenClient)
                 continue;
@@ -16689,8 +16693,14 @@ int wolfSSL_select_next_proto(unsigned char **out, unsigned char *outLen,
         }
     }
 
-    *out = (unsigned char *)clientNames + 1;
-    *outLen = clientNames[0];
+    if (clientLen > 0 && (unsigned int)clientNames[0] + 1 <= clientLen) {
+        *out = (unsigned char *)clientNames + 1;
+        *outLen = clientNames[0];
+    }
+    else {
+        *out = (unsigned char *)clientNames;
+        *outLen = 0;
+    }
     return WOLFSSL_NPN_NO_OVERLAP;
 }
 
