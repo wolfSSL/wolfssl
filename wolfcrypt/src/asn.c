@@ -11376,8 +11376,7 @@ int wc_RsaPublicKeyDecode_ex(const byte* input, word32* inOutIdx, word32 inSz,
         if (ret != 0) {
             /* Didn't work - try whole SubjectKeyInfo instead. Reset index
              * to caller's start since the previous attempt advanced it. */
-            if (inOutIdx != NULL)
-                *inOutIdx = startIdx;
+            *inOutIdx = startIdx;
         #ifdef WC_RSA_PSS
             /* Could be RSA or RSA PSS key. */
             GetASN_OID(&dataASN[RSAPUBLICKEYASN_IDX_ALGOID_OID], oidKeyType);
