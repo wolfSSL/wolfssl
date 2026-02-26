@@ -91,6 +91,11 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 
 #if defined(WOLFSSL_TI_CRYPT)
     #include <wolfcrypt/src/port/ti/ti-aes.c>
+
+    #define AesEncrypt_preFetchOpt(aes, inBlock, outBlock, do_preFetch) \
+        wc_AesEncryptDirect(aes, outBlock, inBlock)
+    #define AesDecrypt_preFetchOpt(aes, inBlock, outBlock, do_preFetch) \
+        wc_AesDecryptDirect(aes, outBlock, inBlock)
 #else
 
 
@@ -7279,7 +7284,6 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     #endif /* NEED_AES_CTR_SOFT */
 
 #endif /* WOLFSSL_AES_COUNTER */
-#endif /* !WOLFSSL_RISCV_ASM */
 
 #ifndef WC_AES_HAVE_PREFETCH_ARG
     #ifndef AesEncrypt_preFetchOpt
@@ -7291,6 +7295,15 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
             wc_AesDecrypt(aes, inBlock, outBlock)
     #endif
 #endif
+
+#else  /* WOLFSSL_RISCV_ASM */
+
+#define AesEncrypt_preFetchOpt(aes, inBlock, outBlock, do_preFetch) \
+    wc_AesEncryptDirect(aes, outBlock, inBlock)
+#define AesDecrypt_preFetchOpt(aes, inBlock, outBlock, do_preFetch) \
+    wc_AesDecryptDirect(aes, outBlock, inBlock)
+
+#endif /* WOLFSSL_RISCV_ASM */
 
 /*
  * The IV for AES GCM and CCM, stored in struct Aes's member reg, is comprised
