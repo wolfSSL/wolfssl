@@ -5445,6 +5445,9 @@ static int wc_PKCS7_ParseSignerInfo(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                         ret = ASN_PARSE_E;
                     }
                     else {
+#if !defined(WC_RSA_PSS) || defined(NO_RSA)
+                        (void)paramsStart;
+#endif
 #if defined(WC_RSA_PSS) && !defined(NO_RSA)
                         if ((word32)sigOID == (word32)CTC_RSASSAPSS &&
                             paramTag == (ASN_SEQUENCE | ASN_CONSTRUCTED)) {
