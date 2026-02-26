@@ -488,3 +488,6 @@ AGENTS.md
 
 # Code navigation files
 compile_commands.json
+
+# Python cache
+__pycache__/
