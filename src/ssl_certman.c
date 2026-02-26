@@ -2993,10 +2993,10 @@ int AddSigner(WOLFSSL_CERT_MANAGER* cm, Signer *s)
    don't allow chain ones to be added w/o isCA extension */
 int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
 {
-    int         ret;
+    int         ret = 0;
     Signer*     signer = NULL;
-    word32      row;
-    byte*       subjectHash;
+    word32      row = 0;
+    byte*       subjectHash = NULL;
     WC_DECLARE_VAR(cert, DecodedCert, 1, 0);
     DerBuffer*   der = *pDer;
 

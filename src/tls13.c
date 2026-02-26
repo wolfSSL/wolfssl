@@ -8698,7 +8698,7 @@ static int WriteCSRToBuffer(WOLFSSL* ssl, DerBuffer** certExts,
             if (tmpSz > (OPAQUE8_LEN + OPAQUE24_LEN) &&
                 certExts[extIdx] == NULL) {
                 /* csr extension is not zero */
-                extSz[extIdx] = tmpSz;
+                extSz[extIdx] = (word16)tmpSz;
 
                 ret = AllocDer(&certExts[extIdx], extSz[extIdx] + ex_offset,
                                                     CERT_TYPE, ssl->heap);
@@ -8938,7 +8938,7 @@ static int SendTls13Certificate(WOLFSSL* ssl)
                 return ret;
 
             ret = WriteCSRToBuffer(ssl, &ssl->buffers.certExts[0], &extSz[0],
-                    1 /* +1 for leaf */ + ssl->buffers.certChainCnt);
+                    1 /* +1 for leaf */ + (word16)ssl->buffers.certChainCnt);
             if (ret < 0)
                 return ret;
             totalextSz += ret;

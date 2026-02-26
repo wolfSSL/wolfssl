@@ -6015,11 +6015,11 @@ int wolfSSL_PEM_write_bio_PUBKEY(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key)
                 break;
 #endif /* WOLFSSL_KEY_GEN && !NO_RSA */
 #if !defined(NO_DSA) && !defined(HAVE_SELFTEST) && \
-    (defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN))
+    defined(WOLFSSL_KEY_GEN)
             case WC_EVP_PKEY_DSA:
                 ret = wolfSSL_PEM_write_bio_DSA_PUBKEY(bio, key->dsa);
                 break;
-#endif /* !NO_DSA && !HAVE_SELFTEST && (WOLFSSL_KEY_GEN || WOLFSSL_CERT_GEN) */
+#endif /* !NO_DSA && !HAVE_SELFTEST && defined(WOLFSSL_KEY_GEN) */
 #if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT) && \
     defined(WOLFSSL_KEY_GEN)
             case WC_EVP_PKEY_EC:
