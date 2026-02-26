@@ -379,6 +379,9 @@ int wolfSSL_EC_POINT_cmp(const WOLFSSL_EC_GROUP *group,
 WOLFSSL_API int wolfSSL_EC_POINT_copy(WOLFSSL_EC_POINT *dest,
                                       const WOLFSSL_EC_POINT *src);
 WOLFSSL_API
+WOLFSSL_EC_POINT *wolfSSL_EC_POINT_dup(const WOLFSSL_EC_POINT *src,
+                                       const WOLFSSL_EC_GROUP *group);
+WOLFSSL_API
 void wolfSSL_EC_POINT_free(WOLFSSL_EC_POINT *point);
 WOLFSSL_API
 int wolfSSL_EC_POINT_is_at_infinity(const WOLFSSL_EC_GROUP *group,
@@ -479,6 +482,7 @@ typedef WOLFSSL_EC_KEY_METHOD         EC_KEY_METHOD;
 #define EC_POINT_clear_free             wolfSSL_EC_POINT_clear_free
 #define EC_POINT_cmp                    wolfSSL_EC_POINT_cmp
 #define EC_POINT_copy                   wolfSSL_EC_POINT_copy
+#define EC_POINT_dup                    wolfSSL_EC_POINT_dup
 #define EC_POINT_is_at_infinity         wolfSSL_EC_POINT_is_at_infinity
 
 #define EC_get_builtin_curves           wolfSSL_EC_get_builtin_curves
