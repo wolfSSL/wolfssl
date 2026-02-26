@@ -314,6 +314,7 @@ int test_wolfSSL_EC_POINT(void)
     EC_POINT* set_point = NULL;
     EC_POINT* get_point = NULL;
     EC_POINT* infinity = NULL;
+    EC_POINT* dup_point = NULL;
     BIGNUM* k = NULL;
     BIGNUM* Gx = NULL;
     BIGNUM* Gy = NULL;
@@ -507,6 +508,12 @@ int test_wolfSSL_EC_POINT(void)
     ExpectIntEQ(EC_POINT_copy(new_point, NULL), 0);
     ExpectIntEQ(EC_POINT_copy(new_point, set_point), 1);
 
+    /* Test duplicating */
+    ExpectNull(EC_POINT_dup(NULL, group));
+    ExpectNull(EC_POINT_dup(set_point, NULL));
+    ExpectNotNull(dup_point = EC_POINT_dup(set_point, group));
+    ExpectIntEQ(EC_POINT_cmp(group, dup_point, set_point, ctx), 0);
+
     /* Test inverting */
     ExpectIntEQ(EC_POINT_invert(NULL, NULL, ctx), 0);
     ExpectIntEQ(EC_POINT_invert(NULL, new_point, ctx), 0);
@@ -523,6 +530,12 @@ int test_wolfSSL_EC_POINT(void)
                     1);
         /* new_point should be set_point inverted so adding it will revert
          * the point back to set_point */
+        ExpectIntEQ(EC_POINT_add(group, orig_point, orig_point, new_point,
+                                 NULL), 1);
+        ExpectIntEQ(EC_POINT_cmp(group, orig_point, set_point, NULL), 0);
+        /* dup_point equals set_point so let's test with that too */
+        ExpectIntEQ(EC_POINT_add(group, orig_point, dup_point, dup_point, NULL),
+                    1);
         ExpectIntEQ(EC_POINT_add(group, orig_point, orig_point, new_point,
                                  NULL), 1);
         ExpectIntEQ(EC_POINT_cmp(group, orig_point, set_point, NULL), 0);
@@ -769,6 +782,7 @@ int test_wolfSSL_EC_POINT(void)
     BN_free(k);
     BN_free(set_point_bn);
     EC_POINT_free(infinity);
+    EC_POINT_free(dup_point);
     EC_POINT_free(new_point);
     EC_POINT_free(set_point);
     EC_POINT_clear_free(Gxy);
