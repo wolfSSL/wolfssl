@@ -470,10 +470,13 @@ impl MlKem {
         ss: &mut [u8],
         rng: &mut RNG,
     ) -> Result<(), i32> {
+        // Verify the cipher text length is as expected based on the parameter
+        // set (key type) in use.
         let expected_ct_size = self.cipher_text_size()?;
         if ct.len() != expected_ct_size {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
+        // Verify the shared secret length is as expected.
         if ss.len() != Self::SHARED_SECRET_SIZE {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
@@ -535,10 +538,13 @@ impl MlKem {
         if rand.len() != Self::ENC_RAND_SIZE {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
+        // Verify the cipher text length is as expected based on the parameter
+        // set (key type) in use.
         let expected_ct_size = self.cipher_text_size()?;
         if ct.len() != expected_ct_size {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
+        // Verify the shared secret length is as expected.
         if ss.len() != Self::SHARED_SECRET_SIZE {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
@@ -598,6 +604,7 @@ impl MlKem {
     /// }
     /// ```
     pub fn decapsulate(&mut self, ss: &mut [u8], ct: &[u8]) -> Result<(), i32> {
+        // Verify the shared secret length is as expected.
         if ss.len() != Self::SHARED_SECRET_SIZE {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
