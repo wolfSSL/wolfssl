@@ -6941,7 +6941,8 @@ int wc_DeriveSakkeSSV(SakkeKey* key, enum wc_HashType hashType, byte* ssv,
 
         err = sakke_compute_point_r(key, key->id, key->idSz, ri, n, test);
     }
-    if ((err == 0) && (XMEMCMP(auth, test, (size_t)(2 * n + 1)) != 0)) {
+    /* n is word16, so 2*n+1 always fits in int */
+    if ((err == 0) && (ConstantCompare(auth, test, (int)(2 * n + 1)) != 0)) {
         err = SAKKE_VERIFY_FAIL_E;
     }
 

@@ -1219,6 +1219,8 @@ int wc_MlKemKey_EncapsulateWithRandom(MlKemKey* key, unsigned char* c,
     }
 #endif
 
+    ForceZero(kr, sizeof(kr));
+
     return ret;
 }
 #endif /* !WOLFSSL_MLKEM_NO_ENCAPSULATE */
@@ -1558,6 +1560,9 @@ int wc_MlKemKey_Decapsulate(MlKemKey* key, unsigned char* ss,
         XFREE(cmp, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #endif
+
+    ForceZero(msg, sizeof(msg));
+    ForceZero(kr, sizeof(kr));
 
     return ret;
 }

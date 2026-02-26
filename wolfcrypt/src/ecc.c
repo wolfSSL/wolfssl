@@ -14484,6 +14484,8 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
 
     RESTORE_VECTOR_REGISTERS();
 
+    ForceZero(sharedSecret, sharedSz);
+    ForceZero(keys, (word32)keysLen);
     WC_FREE_VAR_EX(sharedSecret, ctx->heap, DYNAMIC_TYPE_ECC_BUFFER);
     WC_FREE_VAR_EX(keys, ctx->heap, DYNAMIC_TYPE_ECC_BUFFER);
 
@@ -14778,8 +14780,8 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
 
                     if (ret == 0)
                         ret = wc_HmacFinal(hmac, verify);
-                    if ((ret == 0) && (XMEMCMP(verify, msg + msgSz - digestSz,
-                                                             digestSz) != 0)) {
+                    if ((ret == 0) && (ConstantCompare(verify, msg + msgSz - digestSz,
+                                                             (int)digestSz) != 0)) {
                         ret = HASH_TYPE_E;
                         WOLFSSL_MSG("ECC Decrypt HMAC Check failed!");
                     }
@@ -14882,6 +14884,8 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     if (pubKey == peerKey)
         wc_ecc_free(peerKey);
 #endif
+    ForceZero(sharedSecret, sharedSz);
+    ForceZero(keys, (word32)keysLen);
 #ifdef WOLFSSL_SMALL_STACK
 #ifndef WOLFSSL_ECIES_OLD
     XFREE(peerKey, ctx->heap, DYNAMIC_TYPE_ECC_BUFFER);

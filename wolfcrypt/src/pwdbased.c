@@ -152,6 +152,8 @@ int wc_PBKDF1_ex(byte* key, int keyLen, byte* iv, int ivLen,
 
     WC_FREE_VAR_EX(hash, heap, DYNAMIC_TYPE_HASHCTX);
 
+    ForceZero(digest, sizeof(digest));
+
     if (err != 0)
         return err;
 
@@ -294,6 +296,7 @@ int wc_PBKDF2_ex(byte* output, const byte* passwd, int pLen, const byte* salt,
         wc_HmacFree(hmac);
     }
 
+    ForceZero(buffer, (word32)hLen);
     WC_FREE_VAR_EX(buffer, heap, DYNAMIC_TYPE_TMP_BUFFER);
     WC_FREE_VAR_EX(hmac, heap, DYNAMIC_TYPE_HMAC);
 

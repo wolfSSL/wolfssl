@@ -982,7 +982,7 @@ int wc_SrpVerifyPeersProof(Srp* srp, byte* proof, word32 size)
     if (hashSize < 0)
         return ALGO_ID_E;
 
-    if (size != (word32)hashSize)
+    if (size != (word32)hashSize || size > INT_MAX)
         return BUFFER_E;
 
     r = SrpHashFinal(srp->side == SRP_CLIENT_SIDE ? &srp->server_proof
@@ -994,8 +994,10 @@ int wc_SrpVerifyPeersProof(Srp* srp, byte* proof, word32 size)
         if (!r) r = SrpHashUpdate(&srp->server_proof, srp->key, srp->keySz);
     }
 
-    if (!r && XMEMCMP(proof, digest, size) != 0)
+    if (!r && ConstantCompare(proof, digest, (int)size) != 0)
         r = SRP_VERIFY_E;
+
+    ForceZero(digest, sizeof(digest));
 
     return r;
 }

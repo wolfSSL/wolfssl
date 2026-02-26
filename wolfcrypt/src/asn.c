@@ -487,7 +487,7 @@ static word32 SizeASNLength(word32 length)
     #define ALLOC_ASNSETDATA(name, cnt, err, heap)                             \
     do {                                                                       \
         if ((err) == 0) {                                                      \
-            (name) = (ASNSetData*)XMALLOC(sizeof(ASNGetData) * (cnt), (heap),  \
+            (name) = (ASNSetData*)XMALLOC(sizeof(ASNSetData) * (cnt), (heap),  \
                                     DYNAMIC_TYPE_TMP_BUFFER);                  \
             if ((name) == NULL) {                                              \
                 (err) = MEMORY_E;                                              \
