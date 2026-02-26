@@ -2147,7 +2147,7 @@ WOLFSSL_TEST_VIS word16 TLSX_SNI_GetSize(SNI* list)
 
         switch (sni->type) {
             case WOLFSSL_SNI_HOST_NAME:
-                length += (word16)XSTRLEN((char*)sni->data.host_name);
+                length += (word32)XSTRLEN((char*)sni->data.host_name);
             break;
         }
 
