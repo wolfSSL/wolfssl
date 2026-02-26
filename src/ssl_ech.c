@@ -67,8 +67,6 @@ int wolfSSL_CTX_GenerateEchConfig(WOLFSSL_CTX* ctx, const char* publicName,
         XMEMSET(newConfig, 0, sizeof(WOLFSSL_EchConfig));
 
     /* set random configId */
-    /* TODO: if an equal configId is found should the old config be removed from
-     * the LL? Prevents growth beyond 255+ items */
     if (ret == 0)
         ret = wc_RNG_GenerateByte(rng, &newConfig->configId);
 

@@ -2373,12 +2373,13 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     /* Don't process the second ClientHello SNI extension if there
      * was problems with the first.
      */
-    if (!cacheOnly && sni->status != WOLFSSL_SNI_NO_MATCH)
+    if (!cacheOnly && sni != NULL && sni->status != WOLFSSL_SNI_NO_MATCH)
         return 0;
 #endif
 
 #if defined(HAVE_ECH)
-    if (ech != NULL && ech->sniState == ECH_INNER_SNI_ATTEMPT) {
+    if (ech != NULL && ech->sniState == ECH_INNER_SNI_ATTEMPT &&
+            ech->privateName != NULL) {
         matched = cacheOnly || (XSTRLEN(ech->privateName) == size &&
             XSTRNCMP(ech->privateName, (const char*)input + offset, size) == 0);
     }
