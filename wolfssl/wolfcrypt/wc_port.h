@@ -104,7 +104,7 @@
     #else
         #define WC_DEPRECATED(msg) /* null expansion */
     #endif
-#endif /* !WC_MAYBE_UNUSED */
+#endif /* !WC_DEPRECATED */
 
 /* use inlining if compiler allows */
 #ifndef WC_INLINE

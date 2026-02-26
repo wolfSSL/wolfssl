@@ -24381,8 +24381,6 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
             cert->extensionsSz  = (int)GetASNItem_Length(
                     dataASN[X509CERTASN_IDX_TBS_EXT], cert->source);
             cert->extensionsIdx = dataASN[X509CERTASN_IDX_TBS_EXT].offset;
-            /* Advance past extensions. */
-            cert->srcIdx = dataASN[X509CERTASN_IDX_SIGALGO_SEQ].offset;
         }
     }
 
@@ -27714,6 +27712,27 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
             footer = END_X509_CRL;
         }
 #endif
+        else if (type == CERT_TYPE
+              || type == CA_TYPE
+              || type == CHAIN_CERT_TYPE
+              || type == TRUSTED_PEER_TYPE) {
+            if (header == BEGIN_CERT) {
+                header = BEGIN_TRUSTED_CERT;
+                footer = END_TRUSTED_CERT;
+            }
+            else {
+                break;
+            }
+        }
+        else if (type == TRUSTED_CERT_TYPE) {
+            if (header == BEGIN_TRUSTED_CERT) {
+                header = BEGIN_CERT;
+                footer = END_CERT;
+            }
+            else {
+                break;
+            }
+        }
         else {
             break;
         }
