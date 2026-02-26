@@ -313,7 +313,7 @@ void wc_MemZero_Check(void* addr, size_t len)
         nextIdx--;
         if (nextIdx > 0) {
             /* Remove entry. */
-            XMEMCPY(memZero + i, memZero + i + 1,
+            XMEMMOVE(memZero + i, memZero + i + 1,
                 sizeof(MemZero) * (nextIdx - i));
             /* Clear out top to make it easier to see what is to be checked. */
             XMEMSET(&memZero[nextIdx], 0, sizeof(MemZero));

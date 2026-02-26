@@ -26,6 +26,7 @@
 #include <wolfssl/internal.h>
 #include <wolfssl/ocsp.h>
 #include <wolfssl/ssl.h>
+#include <wolfssl/wolfcrypt/asn.h>
 
 #if defined(HAVE_OCSP) && !defined(NO_SHA) && !defined(NO_RSA)
 struct ocsp_cb_ctx {
@@ -1025,3 +1026,294 @@ int test_ocsp_tls_cert_cb(void)
     return TEST_SKIPPED;
 }
 #endif
+
+#if defined(HAVE_OCSP_RESPONDER) && defined(WOLFSSL_ASN_TEMPLATE) && \
+    !defined(NO_SHA) && !defined(NO_RSA)
+/* Structure to hold test configuration */
+typedef struct {
+    const char* caCertPath;
+    const char* responderCertPath;
+    const char* responderKeyPath;
+    const char* targetCertPath;
+    enum Ocsp_Cert_Status certStatus;
+    time_t revocationTime;               /* Used when status is CERT_REVOKED */
+    enum WC_CRL_Reason revocationReason; /* Used when status is CERT_REVOKED */
+    word32 validityPeriod;               /* Used when status is CERT_GOOD */
+    int expectedResult;
+    const char* testName;
+} OcspResponderTestConfig;
+
+/* Helper function to run a single OCSP responder test configuration */
+static int ocspResponderTest_Run(OcspResponderTestConfig* config, int sendCerts)
+{
+    EXPECT_DECLS;
+    OcspResponder* responder = NULL;
+    OcspRequest* clientReq = NULL;
+    DecodedCert targetCert;
+    DecodedCert decodedCaCert;
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    byte caCertDer[4096];
+    byte responderCertDer[4096];
+    byte responderKeyDer[4096];
+    byte targetCertDer[4096];
+    byte* respBuf = NULL;
+    word32 caCertSz = sizeof(caCertDer);
+    word32 responderCertSz = sizeof(responderCertDer);
+    word32 responderKeyDerSz = sizeof(responderKeyDer);
+    word32 targetCertSz = sizeof(targetCertDer);
+    word32 respSz = 0;
+    byte reqBuf[1024];
+    int reqSz = 0;
+    const char* caSubject = NULL;
+    word32 caSubjectSz = 0;
+    const byte* serial = NULL;
+    word32 serialSz = 0;
+    XFILE f = XBADFILE;
+    byte usingAuthCa = XSTRCMP(config->caCertPath, config->responderCertPath) != 0;
+
+    printf("\nRunning OCSP Responder Test: %s (sendCerts=%d)\n",
+           config->testName, sendCerts);
+
+    XMEMSET(&targetCert, 0, sizeof(targetCert));
+    XMEMSET(&decodedCaCert, 0, sizeof(decodedCaCert));
+
+    /* Create certificate manager */
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+
+    /* Load CA certificate */
+    ExpectTrue((f = XFOPEN(config->caCertPath, "rb")) != XBADFILE);
+    ExpectIntGT(caCertSz = (word32)XFREAD(caCertDer, 1,
+                                          caCertSz, f), 0);
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+        f = XBADFILE;
+    }
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, caCertDer, caCertSz,
+                                                WOLFSSL_FILETYPE_ASN1),
+                WOLFSSL_SUCCESS);
+
+    wc_InitDecodedCert(&decodedCaCert, caCertDer, caCertSz, NULL);
+    ExpectIntEQ(wc_ParseCert(&decodedCaCert, CERT_TYPE, 0, NULL), 0);
+
+    /* Load responder certificate */
+    ExpectTrue((f = XFOPEN(config->responderCertPath, "rb")) != XBADFILE);
+    ExpectIntGT(responderCertSz = (word32)XFREAD(responderCertDer, 1,
+                                          responderCertSz, f), 0);
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+        f = XBADFILE;
+    }
+
+    if (usingAuthCa && !sendCerts) {
+        /* If responder is not sending certs then it must be loaded into cm */
+        ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, responderCertDer,
+                responderCertSz, WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    }
+
+    /* Load responder private key */
+    ExpectTrue((f = XFOPEN(config->responderKeyPath, "rb")) != XBADFILE);
+    ExpectIntGT(responderKeyDerSz = (word32)XFREAD(responderKeyDer, 1,
+                                          responderKeyDerSz, f), 0);
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+        f = XBADFILE;
+    }
+
+    /* Load target certificate */
+    ExpectTrue((f = XFOPEN(config->targetCertPath, "rb")) != XBADFILE);
+    ExpectIntGT(targetCertSz = (word32)XFREAD(targetCertDer, 1,
+                                          targetCertSz, f), 0);
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+        f = XBADFILE;
+    }
+
+    /* Parse target certificate */
+    wc_InitDecodedCert(&targetCert, targetCertDer, targetCertSz, NULL);
+    ExpectIntEQ(wc_ParseCert(&targetCert, CERT_TYPE, 0, cm), 0);
+
+    /* Create OCSP request from target certificate */
+    ExpectNotNull(clientReq = wc_OcspRequest_new(NULL));
+    ExpectIntEQ(wc_InitOcspRequest(clientReq, &targetCert, 1, NULL), 0);
+    ExpectIntGT(reqSz = wc_EncodeOcspRequest(clientReq, reqBuf,
+                                              sizeof(reqBuf)), 0);
+
+    /* Create OCSP Responder */
+    ExpectNotNull(responder = wc_OcspResponder_new(NULL, sendCerts));
+
+    /* Add responder (authorized) to responder */
+    ExpectIntEQ(wc_OcspResponder_AddSigner(responder,
+            responderCertDer, responderCertSz,
+            responderKeyDer, responderKeyDerSz,
+            usingAuthCa ? caCertDer : NULL, usingAuthCa ? caCertSz : 0), 0);
+
+    /* Set certificate status */
+    ExpectNotNull(caSubject = wc_GetDecodedCertSubject(&decodedCaCert, &caSubjectSz));
+    ExpectIntGT(caSubjectSz, 0);
+    ExpectNotNull(serial = wc_GetDecodedCertSerial(&targetCert, &serialSz));
+    ExpectIntGT(serialSz, 0);
+
+    ExpectIntEQ(wc_OcspResponder_SetCertStatus(responder,
+                                               caSubject, caSubjectSz,
+                                               serial, serialSz,
+                                               config->certStatus,
+                                               config->revocationTime,
+                                               config->revocationReason,
+                                               config->validityPeriod), 0);
+
+    /* Get required response size */
+    ExpectIntEQ(wc_OcspResponder_WriteResponse(responder, reqBuf, reqSz,
+                                               NULL, &respSz), 0);
+
+    /* Allocate response buffer */
+    ExpectNotNull(respBuf = (byte*)XMALLOC(respSz, NULL,
+            DYNAMIC_TYPE_TMP_BUFFER));
+
+    /* Generate OCSP response */
+    ExpectIntEQ(wc_OcspResponder_WriteResponse(responder, reqBuf, reqSz,
+                                               respBuf, &respSz), 0);
+
+    /* Verify response matches expected result */
+    {
+        WOLFSSL_OCSP* ocsp = NULL;
+        ExpectNotNull(ocsp = wc_NewOCSP(cm));
+        ExpectIntEQ(wc_CheckCertOcspResponse(ocsp, &targetCert, respBuf,
+                respSz, NULL), config->expectedResult);
+        wc_FreeOCSP(ocsp);
+    }
+
+    /* Cleanup */
+    XFREE(respBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_OcspRequest_free(clientReq);
+    wc_OcspResponder_free(responder);
+    wc_FreeDecodedCert(&targetCert);
+    wc_FreeDecodedCert(&decodedCaCert);
+    wolfSSL_CertManagerFree(cm);
+
+    return EXPECT_RESULT();
+}
+
+int test_ocsp_responder(void)
+{
+    EXPECT_DECLS;
+    time_t now = wc_Time(NULL);
+    OcspResponderTestConfig configs[] = {
+        {
+            "./certs/ca-cert.der",
+            "./certs/ca-cert.der",
+            "./certs/ca-key.der",
+            "./certs/server-cert.der",
+            CERT_GOOD,
+            0, CRL_REASON_UNSPECIFIED,
+            86400, /* validityPeriod - 24 hours */
+            0,
+            "RSA server cert - GOOD status"
+        },
+        {
+            "./certs/ca-cert.der",
+            "./certs/ca-cert.der",
+            "./certs/ca-key.der",
+            "./certs/server-cert.der",
+            CERT_REVOKED,
+            now, CRL_REASON_KEY_COMPROMISE,  /* Revoked due to key compromise */
+            0,     /* validityPeriod (not used for REVOKED) */
+            OCSP_CERT_REVOKED,
+            "RSA server cert - REVOKED status"
+        },
+        {
+            "./certs/ca-cert.der",
+            "./certs/ca-cert.der",
+            "./certs/ca-key.der",
+            "./certs/server-cert.der",
+            CERT_UNKNOWN,
+            0, CRL_REASON_UNSPECIFIED,
+            0,     /* validityPeriod (not used for UNKNOWN) */
+            OCSP_CERT_UNKNOWN,
+            "RSA server cert - UNKNOWN status"
+        },
+        {
+            "./certs/ocsp/root-ca-cert.der",
+            "./certs/ocsp/ocsp-responder-cert.der",
+            "./certs/ocsp/ocsp-responder-key.der",
+            "./certs/ocsp/intermediate1-ca-cert.der",
+            CERT_GOOD,
+            0, CRL_REASON_UNSPECIFIED,
+            86400, /* validityPeriod - 24 hours */
+            0,
+            "RSA int1 cert with responder - GOOD status"
+        },
+        {
+            "./certs/ocsp/root-ca-cert.der",
+            "./certs/ocsp/ocsp-responder-cert.der",
+            "./certs/ocsp/ocsp-responder-key.der",
+            "./certs/ocsp/intermediate1-ca-cert.der",
+            CERT_REVOKED,
+            now, CRL_REASON_KEY_COMPROMISE,  /* Revoked due to key compromise */
+            0,     /* validityPeriod (not used for REVOKED) */
+            OCSP_CERT_REVOKED,
+            "RSA int1 cert with responder - REVOKED status"
+        },
+        {
+            "./certs/ocsp/root-ca-cert.der",
+            "./certs/ocsp/ocsp-responder-cert.der",
+            "./certs/ocsp/ocsp-responder-key.der",
+            "./certs/ocsp/intermediate1-ca-cert.der",
+            CERT_UNKNOWN,
+            0, CRL_REASON_UNSPECIFIED,
+            0,     /* validityPeriod (not used for UNKNOWN) */
+            OCSP_CERT_UNKNOWN,
+            "RSA int1 cert with responder - UNKNOWN status"
+        },
+#ifdef HAVE_ECC
+        {
+            "./certs/ca-ecc-cert.der",
+            "./certs/ca-ecc-cert.der",
+            "./certs/ca-ecc-key.der",
+            "./certs/server-ecc.der",
+            CERT_GOOD,
+            0, CRL_REASON_UNSPECIFIED,
+            86400, /* validityPeriod - 24 hours */
+            0,
+            "ECC server cert - GOOD status"
+        },
+        {
+            "./certs/ca-ecc-cert.der",
+            "./certs/ca-ecc-cert.der",
+            "./certs/ca-ecc-key.der",
+            "./certs/server-ecc.der",
+            CERT_REVOKED,
+            now, CRL_REASON_AFFILIATION_CHANGED,
+            0,     /* validityPeriod (not used for REVOKED) */
+            OCSP_CERT_REVOKED,
+            "ECC server cert - REVOKED status"
+        },
+        {
+            "./certs/ca-ecc-cert.der",
+            "./certs/ca-ecc-cert.der",
+            "./certs/ca-ecc-key.der",
+            "./certs/server-ecc.der",
+            CERT_UNKNOWN,
+            0, CRL_REASON_UNSPECIFIED,
+            0,     /* validityPeriod (not used for UNKNOWN) */
+            OCSP_CERT_UNKNOWN,
+            "ECC server cert - UNKNOWN status"
+        }
+#endif
+    };
+    int i;
+    int numTests = (int)(sizeof(configs) / sizeof(configs[0]));
+
+    /* Run each test configuration twice: once without certs, once with certs */
+    for (i = 0; i < numTests; i++) {
+        ExpectIntEQ(ocspResponderTest_Run(&configs[i], 0), TEST_SUCCESS);
+        ExpectIntEQ(ocspResponderTest_Run(&configs[i], 1), TEST_SUCCESS);
+    }
+
+    return EXPECT_RESULT();
+}
+#else
+int test_ocsp_responder(void)
+{
+    return TEST_SKIPPED;
+}
+#endif /* HAVE_OCSP_RESPONDER && !NO_SHA && !NO_RSA */

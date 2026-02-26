@@ -11641,7 +11641,7 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
     cert->isCA    = wolfSSL_X509_get_isCA(x509);
     cert->basicConstCrit = x509->basicConstCrit;
     cert->basicConstSet = x509->basicConstSet;
-    cert->pathLen = x509->pathLength;
+    cert->pathLen = (byte)x509->pathLength;
     cert->pathLenSet = x509->pathLengthSet;
 
 #ifdef WOLFSSL_CERT_EXT

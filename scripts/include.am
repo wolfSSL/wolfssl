@@ -58,6 +58,20 @@ endif
 
 endif
 
+if BUILD_OCSP_RESPONDER
+if BUILD_OCSP_STAPLING
+dist_noinst_SCRIPTS+= scripts/ocsp-stapling-with-wolfssl-responder.test
+scripts/ocsp-stapling-with-wolfssl-responder.log: scripts/ocsp-stapling-with-ca-as-responder.log
+dist_noinst_SCRIPTS+= scripts/ocsp-responder-openssl-interop.test
+scripts/ocsp-responder-openssl-interop.log: scripts/ocsp-stapling-with-wolfssl-responder.log
+testsuite/testsuite.log: scripts/ocsp-responder-openssl-interop.log
+else
+dist_noinst_SCRIPTS+= scripts/ocsp-responder-openssl-interop.test
+scripts/ocsp-responder-openssl-interop.log: scripts/ocsp.log
+testsuite/testsuite.log: scripts/ocsp-responder-openssl-interop.log
+endif
+endif
+
 endif
 
 if BUILD_PSK

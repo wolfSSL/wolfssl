@@ -40,6 +40,11 @@
     #define HAVE_CRL
     #define HAVE_CRL_MONITOR
 
+    #define HAVE_OCSP
+    #define HAVE_OCSP_RESPONDER
+    #define WOLFSSL_CERT_GEN
+    #define HAVE_CERTIFICATE_STATUS_REQUEST
+
     #if defined(WOLFSSL_LIB)
         /* The lib */
         #define OPENSSL_EXTRA

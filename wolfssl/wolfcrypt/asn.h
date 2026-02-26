@@ -356,7 +356,7 @@ WOLFSSL_LOCAL int SizeASN_Items(const ASNItem* asn, ASNSetData *data,
 WOLFSSL_LOCAL int SetASN_Items(const ASNItem* asn, ASNSetData *data, int count,
     byte* output);
 WOLFSSL_LOCAL int GetASN_Items(const ASNItem* asn, ASNGetData *data, int count,
-    int complete, const byte* input, word32* inOutIdx, word32 length);
+    int complete, const byte* input, word32* inOutIdx, const word32 length);
 
 #ifdef WOLFSSL_ASN_TEMPLATE_TYPE_CHECK
 WOLFSSL_LOCAL void GetASN_Int8Bit(ASNGetData *dataASN, byte* num);
@@ -693,6 +693,7 @@ WOLFSSL_LOCAL void SetASN_OID(ASNSetData *dataASN, int oid, int oidType);
 /* Set the data items below node to not be encoded.
  *
  * @param [in] dataASN  Dynamic ASN data item.
+ * @param [in] asn      ASN template item.
  * @param [in] node     Node who's children should not be encoded.
  * @param [in] dataASNLen Number of items in dataASN.
  */
@@ -710,6 +711,7 @@ WOLFSSL_LOCAL void SetASN_OID(ASNSetData *dataASN, int oid, int oidType);
 /* Set the node and all nodes below to not be encoded.
  *
  * @param [in] dataASN  Dynamic ASN data item.
+ * @param [in] asn      ASN template item.
  * @param [in] node     Node which should not be encoded. Child nodes will
  *                      also not be encoded.
  * @param [in] dataASNLen Number of items in dataASN.
@@ -1726,6 +1728,10 @@ typedef int (*wc_UnknownExtCallbackEx)(const word16* oid, word32 oidSz,
 struct DecodedCert {
     const byte* publicKey;
     word32  pubKeySize;
+#ifdef HAVE_OCSP_RESPONDER
+    const byte* publicKeyForHash;
+    word32  pubKeyForHashSize;
+#endif
     int     pubKeyStored;
     word32  certBegin;               /* offset to start of cert          */
     word32  sigIndex;                /* offset to start of signature     */
@@ -1845,6 +1851,10 @@ struct DecodedCert {
 #if defined(HAVE_PKCS7) || defined(WOLFSSL_CERT_EXT)
     const byte* issuerRaw;           /* pointer to issuer inside source */
     int     issuerRawLen;
+#endif
+#ifdef HAVE_OCSP_RESPONDER
+    const byte* subjectRawForHash;   /* pointer to subject including tags */
+    int     subjectRawForHashLen;
 #endif
 #if !defined(IGNORE_NAME_CONSTRAINTS) || defined(WOLFSSL_CERT_EXT)
     const byte* subjectRaw;          /* pointer to subject inside source */
@@ -2093,6 +2103,7 @@ struct Signer {
     word32  pubKeySize;
     word32  keyOID;                  /* key type */
     word16  keyUsage;
+    byte    extKeyUsage;
     word16  maxPathLen;
     WC_BITFIELD selfSigned:1;
     const byte* publicKey;
@@ -2397,9 +2408,11 @@ WOLFSSL_LOCAL int GetTimeString(byte* date, int format, char* buf, int len,
                                 int dateLen);
 #endif
 #if !defined(NO_ASN_TIME) && !defined(USER_TIME) && \
-    !defined(TIME_OVERRIDES) && (defined(OPENSSL_EXTRA) || defined(HAVE_PKCS7))
+    !defined(TIME_OVERRIDES) && (defined(OPENSSL_EXTRA) || \
+            defined(HAVE_PKCS7) || defined(HAVE_OCSP_RESPONDER))
 WOLFSSL_LOCAL int GetFormattedTime(void* currTime, byte* buf, word32 len);
 WOLFSSL_LOCAL int GetAsnTimeString(void* currTime, byte* buf, word32 len);
+WOLFSSL_LOCAL int GetFormattedTime_ex(void* currTime, byte* buf, word32 len, byte format);
 #endif
 WOLFSSL_LOCAL int ExtractDate(const unsigned char* date, unsigned char format,
                                 wolfssl_tm* certTime, int* idx, int len);
@@ -2637,7 +2650,31 @@ enum cert_enums {
 
 #endif /* WOLFSSL_CERT_GEN */
 
+/* hashes type for asn */
+typedef struct AsnHashes {
+    #if !defined(NO_MD5)
+        byte md5[WC_MD5_DIGEST_SIZE];
+    #endif
+    #if !defined(NO_SHA)
+        byte sha[WC_SHA_DIGEST_SIZE];
+    #endif
+    #ifndef NO_SHA256
+        byte sha256[WC_SHA256_DIGEST_SIZE];
+    #endif
+    #ifdef WOLFSSL_SHA384
+        byte sha384[WC_SHA384_DIGEST_SIZE];
+    #endif
+    #ifdef WOLFSSL_SHA512
+        byte sha512[WC_SHA512_DIGEST_SIZE];
+    #endif
+    #ifdef WOLFSSL_SM3
+        byte sm3[WC_SM3_DIGEST_SIZE];
+    #endif
+} AsnHashes;
 
+WOLFSSL_LOCAL int AsnHashesHash(AsnHashes* hashes, const byte* data, word32 dataSz);
+WOLFSSL_LOCAL const byte* AsnHashesGetHash(const AsnHashes* hashes, int hashAlg,
+    int* size);
 
 /* for pointer use */
 typedef struct CertStatus CertStatus;
@@ -2685,7 +2722,9 @@ struct CertStatus {
     int status;
 
     byte thisDate[MAX_DATE_SIZE];
+    byte thisDateSz;
     byte nextDate[MAX_DATE_SIZE];
+    byte nextDateSz;
     byte thisDateFormat;
     byte nextDateFormat;
 #ifdef WOLFSSL_OCSP_PARSE_STATUS
@@ -2694,6 +2733,9 @@ struct CertStatus {
     byte* thisDateAsn;
     byte* nextDateAsn;
 #endif
+    byte revocationDate[MAX_DATE_SIZE]; /* ASN-formatted revocation time */
+    word32 revocationDateSz;
+    byte revocationReason;              /* CRL reason code */
 
     byte*  rawOcspResponse;
     word32 rawOcspResponseSz;
@@ -2721,8 +2763,8 @@ struct OcspEntry
 {
     OcspEntry *next;                      /* next entry                */
     word32 hashAlgoOID;                   /* hash algo ID              */
-    byte issuerHash[OCSP_DIGEST_SIZE];    /* issuer hash               */
-    byte issuerKeyHash[OCSP_DIGEST_SIZE]; /* issuer public key hash    */
+    byte issuerHash[WC_MAX_DIGEST_SIZE];    /* issuer hash               */
+    byte issuerKeyHash[WC_MAX_DIGEST_SIZE]; /* issuer public key hash    */
     CertStatus *status;                   /* OCSP response list        */
     int totalStatus;                      /* number on list            */
     byte* rawCertId;                      /* raw bytes of the CertID   */
@@ -2743,7 +2785,7 @@ struct OcspEntry
 enum responderIdType {
     OCSP_RESPONDER_ID_INVALID = 0,
     OCSP_RESPONDER_ID_NAME = 1,
-    OCSP_RESPONDER_ID_KEY  = 2,
+    OCSP_RESPONDER_ID_KEY  = 2
 };
 /* TODO: Long-term, it would be helpful if we made this struct and other OCSP
          structs conform to the ASN spec as described in RFC 6960. It will help
@@ -2765,6 +2807,7 @@ struct OcspResponse {
     byte    producedDate[MAX_DATE_SIZE];
                              /* Date at which this response was signed */
     byte    producedDateFormat; /* format of the producedDate */
+    byte    producedDateSz;
 
     byte*   cert;
     word32  certSz;
@@ -2789,11 +2832,9 @@ struct OcspResponse {
 
 
 struct OcspRequest {
-    byte   issuerHash[KEYID_SIZE];
-    byte   issuerKeyHash[KEYID_SIZE];
-#if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
-    int    hashSz;
-#endif
+    byte   issuerHash[WC_MAX_DIGEST_SIZE];
+    byte   issuerKeyHash[WC_MAX_DIGEST_SIZE];
+    int    hashAlg;  /* Hash_Sum OID, e.g. SHAh, SHA256h */
     byte*  serial;   /* copy of the serial number in source cert */
     int    serialSz;
 #ifdef OPENSSL_EXTRA
@@ -2812,6 +2853,8 @@ struct OcspRequest {
 WOLFSSL_LOCAL void InitOcspResponse(OcspResponse* resp, OcspEntry* single,
                      CertStatus* status, byte* source, word32 inSz, void* heap);
 WOLFSSL_LOCAL void FreeOcspResponse(OcspResponse* resp);
+WOLFSSL_LOCAL int OcspResponseEncode(OcspResponse* resp, byte* out, word32* outSz,
+        RsaKey* rsaKey, ecc_key* eccKey, WC_RNG* rng);
 WOLFSSL_LOCAL int OcspResponseDecode(OcspResponse* resp, void* cm, void* heap,
                                      int noVerifyCert, int noVerifySignature);
 
@@ -2820,6 +2863,8 @@ WOLFSSL_LOCAL int    InitOcspRequest(OcspRequest* req, DecodedCert* cert,
 WOLFSSL_LOCAL void   FreeOcspRequest(OcspRequest* req);
 WOLFSSL_LOCAL int    EncodeOcspRequest(OcspRequest* req, byte* output,
                                        word32 size);
+WOLFSSL_LOCAL int DecodeOcspRequest(OcspRequest* req, const byte* input,
+                                    word32 size);
 WOLFSSL_LOCAL word32 EncodeOcspRequestExtensions(OcspRequest* req, byte* output,
                                                  word32 size);
 
@@ -2827,6 +2872,74 @@ WOLFSSL_LOCAL word32 EncodeOcspRequestExtensions(OcspRequest* req, byte* output,
 WOLFSSL_LOCAL int  CompareOcspReqResp(OcspRequest* req, OcspResponse* resp);
 WOLFSSL_LOCAL int OcspDecodeCertID(const byte* input, word32* inOutIdx, word32 inSz,
                  OcspEntry* entry);
+
+#ifdef HAVE_OCSP_RESPONDER
+/* Revocation reason codes from RFC 5280 */
+enum WC_CRL_Reason {
+    CRL_REASON_UNSPECIFIED             = 0,
+    CRL_REASON_KEY_COMPROMISE          = 1,
+    CRL_REASON_CA_COMPROMISE           = 2,
+    CRL_REASON_AFFILIATION_CHANGED     = 3,
+    CRL_REASON_SUPERSEDED              = 4,
+    CRL_REASON_CESSATION_OF_OPERATION  = 5,
+    CRL_REASON_CERTIFICATE_HOLD        = 6,
+    /* value 7 is not used */
+    CRL_REASON_REMOVE_FROM_CRL         = 8,
+    CRL_REASON_PRIVILEGE_WITHDRAWN     = 9,
+    CRL_REASON_AA_COMPROMISE           = 10
+};
+
+/* Certificate status entry for a single certificate */
+typedef struct OcspResponderCertStatus OcspResponderCertStatus;
+struct OcspResponderCertStatus {
+    byte serial[EXTERNAL_SERIAL_SIZE];
+    int serialSz;
+    enum Ocsp_Cert_Status status;        /* CERT_GOOD, CERT_REVOKED, CERT_UNKNOWN */
+    byte revocationDate[MAX_DATE_SIZE];  /* ASN-formatted revocation time (if REVOKED) */
+    word32 revocationDateSz;             /* Size of revocation date */
+    enum WC_CRL_Reason revocationReason; /* Reason for revocation */
+    word32 validityPeriod;               /* Validity period in seconds (for CERT_GOOD) */
+    OcspResponderCertStatus* next;
+};
+
+/* CA entry with its certificates and key */
+typedef struct OcspResponderCa OcspResponderCa;
+struct OcspResponderCa {
+    char subject[WC_ASN_NAME_MAX];   /* CA subject name for lookup */
+
+    union {
+#ifndef NO_RSA
+        struct RsaKey rsa;
+#endif
+#ifdef HAVE_ECC
+        struct ecc_key ecc;
+#endif
+    } key;                           /* private key for signing */
+    enum Key_Sum keyType;            /* Type of key */
+
+    AsnHashes issuerHashes;          /* Hashes of CA's subject DN */
+    AsnHashes issuerKeyHashes;       /* Hashes of CA's public key */
+
+    byte responderKeyHash[WC_SHA_DIGEST_SIZE]; /* Hash of the responder's public key */
+
+    byte* certDer;                   /* Raw DER certificate (if sendCerts enabled) */
+    word32 certDerSz;                /* Size of certificate DER */
+
+    OcspResponderCertStatus* statuses; /* List of certificate statuses for this CA */
+
+    OcspResponderCa* next;           /* Next Auth CA in list */
+
+    WC_BITFIELD authResp:1;          /* Is the cert an authorized responder */
+};
+
+typedef struct OcspResponder OcspResponder;
+struct OcspResponder {
+    OcspResponderCa* caList;         /* List of CAs this responder handles */
+    void* heap;
+    WC_RNG rng;                      /* RNG for signing responses */
+    WC_BITFIELD sendCerts:1;         /* Whether to include CA in responses */
+};
+#endif /* HAVE_OCSP_RESPONDER */
 
 #endif /* HAVE_OCSP */
 

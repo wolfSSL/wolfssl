@@ -27,5 +27,6 @@ int test_ocsp_status_callback(void);
 int test_ocsp_basic_verify(void);
 int test_ocsp_response_parsing(void);
 int test_ocsp_tls_cert_cb(void);
+int test_ocsp_responder(void);
 #endif /* WOLFSSL_TEST_OCSP_H */
 

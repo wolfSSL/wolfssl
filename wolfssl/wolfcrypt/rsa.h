@@ -140,9 +140,6 @@ RSA keys can be used to encrypt, decrypt, sign and verify data.
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
-    #ifdef WOLFSSL_CERT_GEN
-        #include <wolfssl/wolfcrypt/asn.h>
-    #endif
 #endif
 
 #if FIPS_VERSION3_GE(6,0,0)

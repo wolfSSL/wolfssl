@@ -14,25 +14,45 @@ EXTRA_DIST += \
         certs/ocsp/openssl.cnf \
         certs/ocsp/renewcerts-for-test.sh \
         certs/ocsp/intermediate1-ca-key.pem \
+        certs/ocsp/intermediate1-ca-key.der \
         certs/ocsp/intermediate1-ca-cert.pem \
+        certs/ocsp/intermediate1-ca-cert.der \
         certs/ocsp/intermediate2-ca-key.pem \
+        certs/ocsp/intermediate2-ca-key.der \
         certs/ocsp/intermediate2-ca-cert.pem \
+        certs/ocsp/intermediate2-ca-cert.der \
         certs/ocsp/intermediate3-ca-key.pem \
+        certs/ocsp/intermediate3-ca-key.der \
         certs/ocsp/intermediate3-ca-cert.pem \
+        certs/ocsp/intermediate3-ca-cert.der \
         certs/ocsp/ocsp-responder-key.pem \
+        certs/ocsp/ocsp-responder-key.der \
         certs/ocsp/ocsp-responder-cert.pem \
+        certs/ocsp/ocsp-responder-cert.der \
         certs/ocsp/server1-key.pem \
+        certs/ocsp/server1-key.der \
         certs/ocsp/server1-cert.pem \
+        certs/ocsp/server1-cert.der \
         certs/ocsp/server2-key.pem \
+        certs/ocsp/server2-key.der \
         certs/ocsp/server2-cert.pem \
+        certs/ocsp/server2-cert.der \
         certs/ocsp/server3-key.pem \
+        certs/ocsp/server3-key.der \
         certs/ocsp/server3-cert.pem \
+        certs/ocsp/server3-cert.der \
         certs/ocsp/server4-key.pem \
+        certs/ocsp/server4-key.der \
         certs/ocsp/server4-cert.pem \
+        certs/ocsp/server4-cert.der \
         certs/ocsp/server5-key.pem \
+        certs/ocsp/server5-key.der \
         certs/ocsp/server5-cert.pem \
+        certs/ocsp/server5-cert.der \
         certs/ocsp/root-ca-key.pem \
+        certs/ocsp/root-ca-key.der \
         certs/ocsp/root-ca-cert.pem \
+        certs/ocsp/root-ca-cert.der \
         certs/ocsp/test-response.der \
         certs/ocsp/test-response-rsapss.der \
         certs/ocsp/test-response-nointern.der \

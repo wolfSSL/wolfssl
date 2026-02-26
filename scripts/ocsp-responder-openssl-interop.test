@@ -1,0 +1,567 @@
+#!/usr/bin/env bash
+
+# ocsp-responder-openssl-interop.test
+#
+# Interop test: wolfSSL ocsp_responder serving OCSP responses to openssl ocsp
+# client queries. Tests every certificate entry in each index file.
+#
+# Requires: WOLFSSL_OPENSSL_TEST, HAVE_OCSP, HAVE_OCSP_RESPONDER
+# Uses: examples/ocsp_responder/ocsp_responder as the OCSP responder
+#       openssl ocsp as the client
+
+if ! test -n "$WOLFSSL_OPENSSL_TEST"; then
+    echo "WOLFSSL_OPENSSL_TEST NOT set, won't run"
+    exit 77
+fi
+
+# if we can, isolate the network namespace to eliminate port collisions.
+if [[ -n "$NETWORK_UNSHARE_HELPER" ]]; then
+     if [[ -z "$NETWORK_UNSHARE_HELPER_CALLED" ]]; then
+         export NETWORK_UNSHARE_HELPER_CALLED=yes
+         exec "$NETWORK_UNSHARE_HELPER" "$0" "$@" || exit $?
+     fi
+elif [ "${AM_BWRAPPED-}" != "yes" ]; then
+    bwrap_path="$(command -v bwrap)"
+    if [ -n "$bwrap_path" ]; then
+        export AM_BWRAPPED=yes
+        exec "$bwrap_path" --unshare-net --dev-bind / / "$0" "$@"
+    fi
+    unset AM_BWRAPPED
+fi
+
+if [[ -z "${RETRIES_REMAINING-}" ]]; then
+    export RETRIES_REMAINING=2
+fi
+
+SCRIPT_DIR="$(dirname "$0")"
+WOLFSSL_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$WOLFSSL_DIR" || exit 1
+
+OCSP_RESPONDER="./examples/ocsp_responder/ocsp_responder"
+OCSP_DIR="certs/ocsp"
+
+if [ "$OPENSSL" = "" ]; then
+    OPENSSL=openssl
+fi
+
+# Check prerequisites
+[ ! -x "$OCSP_RESPONDER" ] && \
+    echo 'skipping: ocsp_responder not built.' 1>&2 && exit 77
+
+if $OCSP_RESPONDER -? 2>&1 | grep -q "OCSP Responder requires"; then
+    echo 'skipping: ocsp_responder not compiled with required features.' 1>&2
+    exit 77
+fi
+
+command -v $OPENSSL >/dev/null 2>&1 || \
+    { echo "Requires openssl command, skipping." 1>&2; exit 77; }
+
+echo "wolfSSL OCSP Responder / OpenSSL OCSP client interop test"
+echo "OpenSSL: $($OPENSSL version)"
+echo
+
+# IPv6 detection
+if nc -h 2>&1 | fgrep -q -i ipv6; then
+    IPV6_SUPPORTED=yes
+else
+    IPV6_SUPPORTED=no
+fi
+
+if ./examples/client/client '-#' | fgrep -q -e ' -DTEST_IPV6 '; then
+    if [[ "$IPV6_SUPPORTED" == "no" ]]; then
+        echo 'Skipping IPV6 test in environment lacking IPV6 support.'
+        exit 77
+    fi
+    LOCALHOST='[::1]'
+    LOCALHOST_FOR_NC='-6 ::1'
+else
+    LOCALHOST='127.0.0.1'
+    LOCALHOST_FOR_NC='127.0.0.1'
+fi
+
+########################################################################
+# Helpers
+########################################################################
+
+resp_pids=""
+resp_logs=""
+ready_files=""
+
+cleanup() {
+    exit_status=$?
+    for p in $resp_pids; do
+        kill $p 2>/dev/null
+        wait $p 2>/dev/null
+    done
+    # Clean up log files
+    for log in $resp_logs; do
+        rm -f "$log" 2>/dev/null
+    done
+    # Clean up ready files
+    for rf in $ready_files; do
+        rm -f "$rf" 2>/dev/null
+    done
+    if [[ ("$exit_status" == 1) && ($RETRIES_REMAINING -gt 0) ]]; then
+        echo "retrying..."
+        RETRIES_REMAINING=$((RETRIES_REMAINING - 1))
+        exec $0 "$@"
+    fi
+}
+trap cleanup EXIT INT TERM
+
+tests_run=0
+tests_passed=0
+tests_failed=0
+
+print_responder_logs() {
+    echo "--- Responder Logs ---"
+    for log in $resp_logs; do
+        if [ -f "$log" ]; then
+            echo "=== $(basename $log) ==="
+            cat "$log"
+            echo
+        fi
+    done
+    echo "----------------------"
+}
+
+# choose consecutive ports based on the PID, skipping any that are
+# already bound, to avoid the birthday problem in case other
+# instances are sharing this host.
+
+get_first_free_port() {
+    local ret="$1"
+    while :; do
+        if [[ "$ret" -ge 65536 ]]; then
+            ret=1024
+        fi
+        if ! nc -z ${LOCALHOST_FOR_NC} "$ret"; then
+            break
+        fi
+        ret=$((ret+1))
+    done
+    echo "$ret"
+    return 0
+}
+
+# wait_for_ready_file READY_FILE PID PORT
+wait_for_ready_file() {
+    local ready_file="$1"
+    local pid="$2"
+    local port="$3"
+    local counter=0
+
+    while [ ! -s "$ready_file" ] && [ "$counter" -lt 20 ]; do
+        if ! kill -0 "$pid" 2>/dev/null; then
+            echo "ERROR: Responder pid $pid for port $port exited before creating ready file" 1>&2
+            print_responder_logs
+            exit 1
+        fi
+        sleep 0.1
+        counter=$((counter + 1))
+    done
+
+    if [ ! -s "$ready_file" ]; then
+        echo "ERROR: Ready file $ready_file not created after 2 seconds" 1>&2
+        print_responder_logs
+        exit 1
+    fi
+}
+
+# query_ocsp ISSUER_CERT CERT_TO_CHECK PORT EXPECTED_STATUS DESCRIPTION
+query_ocsp() {
+    local issuer="$1"
+    local cert="$2"
+    local _port="$3"
+    local expected="$4"
+    local desc="$5"
+
+    tests_run=$((tests_run+1))
+    printf "  TEST %2d: %-55s " "$tests_run" "$desc"
+
+    local output
+    output=$($OPENSSL ocsp \
+        -issuer "$issuer" \
+        -cert "$cert" \
+        -url "http://127.0.0.1:$_port/" \
+        -resp_text 2>&1)
+    local rc=$?
+
+    # Extract the cert status line
+    local status
+    status=$(echo "$output" | grep "Cert Status:" | head -1 | \
+             sed 's/.*Cert Status: *//')
+
+    if [ "$status" = "$expected" ]; then
+        printf "PASSED (status: %s)\n" "$status"
+        tests_passed=$((tests_passed+1))
+    else
+        printf "FAILED (expected: %s, got: %s, rc: %d)\n" \
+               "$expected" "$status" "$rc"
+        tests_failed=$((tests_failed+1))
+        echo "--- openssl output ---"
+        echo "$output"
+        echo "----------------------"
+        print_responder_logs
+    fi
+}
+
+########################################################################
+# Start responders - one per CA/index-file pair
+########################################################################
+
+
+base_port=$((((($$ + $RETRIES_REMAINING) * 5) % (65536 - 2048)) + 1024))
+port1=$(get_first_free_port $base_port)        # OCSP responder: intermediate1-ca
+port2=$(get_first_free_port $((port1 + 1)))    # OCSP responder: intermediate2-ca
+port3=$(get_first_free_port $((port2 + 1)))    # OCSP responder: intermediate3-ca
+port4=$(get_first_free_port $((port3 + 1)))    # OCSP responder: root-ca
+port5=$(get_first_free_port $((port4 + 1)))    # TLS server
+
+# Responder 1: intermediate1-ca (server1=valid, server2=revoked)
+log1=$(mktemp /tmp/ocsp_resp1.XXXXXX)
+resp_logs="$resp_logs $log1"
+ready1=$(mktemp /tmp/ocsp_ready1.XXXXXX)
+ready_files="$ready_files $ready1"
+$OCSP_RESPONDER -p $port1 -v -R "$ready1" \
+    -c $OCSP_DIR/intermediate1-ca-cert.pem \
+    -k $OCSP_DIR/intermediate1-ca-key.pem \
+    -i $OCSP_DIR/index-intermediate1-ca-issued-certs.txt \
+    > "$log1" 2>&1 &
+pid1=$!
+resp_pids="$resp_pids $pid1"
+
+# Responder 2: intermediate2-ca (server3=valid, server4=revoked)
+log2=$(mktemp /tmp/ocsp_resp2.XXXXXX)
+resp_logs="$resp_logs $log2"
+ready2=$(mktemp /tmp/ocsp_ready2.XXXXXX)
+ready_files="$ready_files $ready2"
+$OCSP_RESPONDER -p $port2 -v -R "$ready2" \
+    -c $OCSP_DIR/intermediate2-ca-cert.pem \
+    -k $OCSP_DIR/intermediate2-ca-key.pem \
+    -i $OCSP_DIR/index-intermediate2-ca-issued-certs.txt \
+    > "$log2" 2>&1 &
+pid2=$!
+resp_pids="$resp_pids $pid2"
+
+# Responder 3: intermediate3-ca (server5=valid)
+log3=$(mktemp /tmp/ocsp_resp3.XXXXXX)
+resp_logs="$resp_logs $log3"
+ready3=$(mktemp /tmp/ocsp_ready3.XXXXXX)
+ready_files="$ready_files $ready3"
+$OCSP_RESPONDER -p $port3 -v -R "$ready3" \
+    -c $OCSP_DIR/intermediate3-ca-cert.pem \
+    -k $OCSP_DIR/intermediate3-ca-key.pem \
+    -i $OCSP_DIR/index-intermediate3-ca-issued-certs.txt \
+    > "$log3" 2>&1 &
+pid3=$!
+resp_pids="$resp_pids $pid3"
+
+# Responder 4: root-ca (intermediate CAs: 1=valid, 2=valid, 3=revoked)
+log4=$(mktemp /tmp/ocsp_resp4.XXXXXX)
+resp_logs="$resp_logs $log4"
+ready4=$(mktemp /tmp/ocsp_ready4.XXXXXX)
+ready_files="$ready_files $ready4"
+$OCSP_RESPONDER -p $port4 -v -R "$ready4" \
+    -c $OCSP_DIR/root-ca-cert.pem \
+    -k $OCSP_DIR/root-ca-key.pem \
+    -i $OCSP_DIR/index-ca-and-intermediate-cas.txt \
+    > "$log4" 2>&1 &
+pid4=$!
+resp_pids="$resp_pids $pid4"
+
+# Responder 5: authorized responder (delegated OCSP signer with id-kp-OCSPSigning)
+log5=$(mktemp /tmp/ocsp_resp5.XXXXXX)
+resp_logs="$resp_logs $log5"
+ready5=$(mktemp /tmp/ocsp_ready5.XXXXXX)
+ready_files="$ready_files $ready5"
+$OCSP_RESPONDER -p $port5 -v -R "$ready5" \
+    -c $OCSP_DIR/root-ca-cert.pem \
+    -r $OCSP_DIR/ocsp-responder-cert.pem \
+    -k $OCSP_DIR/ocsp-responder-key.pem \
+    -i $OCSP_DIR/index-ca-and-intermediate-cas.txt \
+    > "$log5" 2>&1 &
+pid5=$!
+resp_pids="$resp_pids $pid5"
+
+echo "Starting wolfSSL OCSP responders..."
+echo "  Responder 1 (intermediate1-ca): port $port1, pid $pid1"
+echo "  Responder 2 (intermediate2-ca): port $port2, pid $pid2"
+echo "  Responder 3 (intermediate3-ca): port $port3, pid $pid3"
+echo "  Responder 4 (root-ca):          port $port4, pid $pid4"
+echo "  Responder 5 (authorized resp):  port $port5, pid $pid5"
+
+# Wait for all responders to be ready
+wait_for_ready_file "$ready1" "$pid1" "$port1"
+wait_for_ready_file "$ready2" "$pid2" "$port2"
+wait_for_ready_file "$ready3" "$pid3" "$port3"
+wait_for_ready_file "$ready4" "$pid4" "$port4"
+wait_for_ready_file "$ready5" "$pid5" "$port5"
+
+echo "All responders ready"
+
+echo "All responders running."
+echo
+
+########################################################################
+# Test index-intermediate1-ca-issued-certs.txt
+#   serial 05 = server1 (V = valid)
+#   serial 06 = server2 (R = revoked)
+########################################################################
+
+echo "=== index-intermediate1-ca-issued-certs.txt (intermediate1-ca) ==="
+
+query_ocsp "$OCSP_DIR/intermediate1-ca-cert.pem" \
+           "$OCSP_DIR/server1-cert.pem" \
+           $port1 "good" \
+           "server1 (serial 05) -> good"
+
+query_ocsp "$OCSP_DIR/intermediate1-ca-cert.pem" \
+           "$OCSP_DIR/server2-cert.pem" \
+           $port1 "revoked" \
+           "server2 (serial 06) -> revoked"
+
+echo
+
+########################################################################
+# Test index-intermediate2-ca-issued-certs.txt
+#   serial 07 = server3 (V = valid)
+#   serial 08 = server4 (R = revoked)
+########################################################################
+
+echo "=== index-intermediate2-ca-issued-certs.txt (intermediate2-ca) ==="
+
+query_ocsp "$OCSP_DIR/intermediate2-ca-cert.pem" \
+           "$OCSP_DIR/server3-cert.pem" \
+           $port2 "good" \
+           "server3 (serial 07) -> good"
+
+query_ocsp "$OCSP_DIR/intermediate2-ca-cert.pem" \
+           "$OCSP_DIR/server4-cert.pem" \
+           $port2 "revoked" \
+           "server4 (serial 08) -> revoked"
+
+echo
+
+########################################################################
+# Test index-intermediate3-ca-issued-certs.txt
+#   serial 09 = server5 (V = valid)
+########################################################################
+
+echo "=== index-intermediate3-ca-issued-certs.txt (intermediate3-ca) ==="
+
+query_ocsp "$OCSP_DIR/intermediate3-ca-cert.pem" \
+           "$OCSP_DIR/server5-cert.pem" \
+           $port3 "good" \
+           "server5 (serial 09) -> good"
+
+echo
+
+########################################################################
+# Test index-ca-and-intermediate-cas.txt
+#   serial 01 = intermediate1-ca (V = valid)
+#   serial 02 = intermediate2-ca (V = valid)
+#   serial 03 = intermediate3-ca (R = revoked)
+#   serial 63 = root-ca          (V = valid, self-signed)
+########################################################################
+
+echo "=== index-ca-and-intermediate-cas.txt (root-ca) ==="
+
+query_ocsp "$OCSP_DIR/root-ca-cert.pem" \
+           "$OCSP_DIR/intermediate1-ca-cert.pem" \
+           $port4 "good" \
+           "intermediate1-ca (serial 01) -> good"
+
+query_ocsp "$OCSP_DIR/root-ca-cert.pem" \
+           "$OCSP_DIR/intermediate2-ca-cert.pem" \
+           $port4 "good" \
+           "intermediate2-ca (serial 02) -> good"
+
+query_ocsp "$OCSP_DIR/root-ca-cert.pem" \
+           "$OCSP_DIR/intermediate3-ca-cert.pem" \
+           $port4 "revoked" \
+           "intermediate3-ca (serial 03) -> revoked"
+
+query_ocsp "$OCSP_DIR/root-ca-cert.pem" \
+           "$OCSP_DIR/root-ca-cert.pem" \
+           $port4 "good" \
+           "root-ca (serial 63) -> good"
+
+echo
+
+echo "=== Negative tests: unsupported features ==="
+
+# Test non-SHA-1 hash algorithms
+tests_run=$((tests_run+1))
+printf "  TEST %2d: %-55s " "$tests_run" "SHA-384 hash -> good"
+
+output=$($OPENSSL ocsp \
+    -sha384 \
+    -issuer "$OCSP_DIR/intermediate1-ca-cert.pem" \
+    -cert "$OCSP_DIR/server1-cert.pem" \
+    -url "http://127.0.0.1:$port1/" \
+    -resp_text 2>&1)
+rc=$?
+
+# Extract the cert status line
+status=$(echo "$output" | grep "Cert Status:" | head -1 | \
+         sed 's/.*Cert Status: *//')
+
+# Expect "good" status (feature should be supported)
+if [ "$status" = "good" ]; then
+    printf "PASSED (status: %s)\n" "$status"
+    tests_passed=$((tests_passed+1))
+else
+    printf "FAILED (expected: good, got: %s, rc: %d)\n" "$status" "$rc"
+    tests_failed=$((tests_failed+1))
+    echo "--- openssl output ---"
+    echo "$output"
+    echo "----------------------"
+    print_responder_logs
+fi
+
+########################################################################
+# Test: Authorized Responder (RFC 6960 Section 4.2.2.2)
+########################################################################
+
+# Test: Authorized Responder (RFC 6960 Section 4.2.2.2)
+# An OCSP response can be signed by a delegated signer with id-kp-OCSPSigning
+# extended key usage instead of the CA itself.
+# Uses Responder 5 which has ocsp-responder-cert.pem with id-kp-OCSPSigning EKU.
+tests_run=$((tests_run+1))
+printf "  TEST %2d: %-55s " "$tests_run" "Authorized responder"
+
+# Query using OpenSSL - asks about intermediate1-ca which was issued by root-ca
+# Response will be signed by ocsp-responder-cert (authorized responder)
+output=$($OPENSSL ocsp \
+    -issuer "$OCSP_DIR/root-ca-cert.pem" \
+    -cert "$OCSP_DIR/intermediate1-ca-cert.pem" \
+    -url "http://127.0.0.1:$port5/" \
+    -resp_text 2>&1)
+rc=$?
+
+# Extract the cert status line
+status=$(echo "$output" | grep "Cert Status:" | head -1 | \
+         sed 's/.*Cert Status: *//')
+
+# Expect "good" status
+if [ "$status" = "good" ]; then
+    printf "PASSED (authorized responder works)\n"
+    tests_passed=$((tests_passed+1))
+else
+    printf "FAILED (expected good status, got: %s)\n" "$status"
+    tests_failed=$((tests_failed+1))
+    echo "--- openssl output ---"
+    echo "$output"
+    echo "----------------------"
+    print_responder_logs
+fi
+
+########################################################################
+# Test: Unknown certificates (not in responder's database)
+########################################################################
+
+echo "=== Unknown certificate tests ==="
+
+# Test 1: Query Responder 1 (intermediate1-ca) about server3 (issued by intermediate2-ca)
+# Note: This tests wrong issuer - should get OCSP error (unauthorized)
+tests_run=$((tests_run+1))
+printf "  TEST %2d: %-55s " "$tests_run" "Wrong issuer: server3 to responder 1 (wrong issuer)"
+
+output=$($OPENSSL ocsp \
+    -issuer "$OCSP_DIR/intermediate1-ca-cert.pem" \
+    -cert "$OCSP_DIR/server3-cert.pem" \
+    -url "http://127.0.0.1:$port1/" \
+    -noverify \
+    -resp_text 2>&1)
+rc=$?
+
+# server3 is actually issued by intermediate2-ca, not intermediate1-ca
+# Expect OCSP error response: unauthorized (6)
+if echo "$output" | grep -q "Responder Error: unauthorized"; then
+    printf "PASSED (OCSP unauthorized - wrong issuer)\n"
+    tests_passed=$((tests_passed+1))
+else
+    printf "FAILED (expected OCSP unauthorized, got rc: %d)\n" "$rc"
+    tests_failed=$((tests_failed+1))
+    echo "--- openssl output ---"
+    echo "$output"
+    echo "----------------------"
+    print_responder_logs
+fi
+
+# Test 2: Query Responder 2 (intermediate2-ca) about server1 (issued by intermediate1-ca)
+# Note: This tests wrong issuer - should get OCSP error (unauthorized)
+tests_run=$((tests_run+1))
+printf "  TEST %2d: %-55s " "$tests_run" "Wrong issuer: server1 to responder 2 (wrong issuer)"
+
+output=$($OPENSSL ocsp \
+    -issuer "$OCSP_DIR/intermediate2-ca-cert.pem" \
+    -cert "$OCSP_DIR/server1-cert.pem" \
+    -url "http://127.0.0.1:$port2/" \
+    -noverify \
+    -resp_text 2>&1)
+rc=$?
+
+# server1 is actually issued by intermediate1-ca, not intermediate2-ca
+# Expect OCSP error response: unauthorized (6)
+if echo "$output" | grep -q "Responder Error: unauthorized"; then
+    printf "PASSED (OCSP unauthorized - wrong issuer)\n"
+    tests_passed=$((tests_passed+1))
+else
+    printf "FAILED (expected OCSP unauthorized, got rc: %d)\n" "$rc"
+    tests_failed=$((tests_failed+1))
+    echo "--- openssl output ---"
+    echo "$output"
+    echo "----------------------"
+    print_responder_logs
+fi
+
+echo
+
+########################################################################
+# Negative tests: unsupported functionality
+########################################################################
+
+# Test: Multiple requests in one OCSP request (should fail with OCSP error)
+tests_run=$((tests_run+1))
+printf "  TEST %2d: %-55s " "$tests_run" "Multiple requests (should return OCSP error)"
+
+# Using multiple -cert options creates one OCSP request with multiple certificate IDs
+output=$($OPENSSL ocsp \
+    -issuer "$OCSP_DIR/intermediate1-ca-cert.pem" \
+    -cert "$OCSP_DIR/server1-cert.pem" \
+    -cert "$OCSP_DIR/server2-cert.pem" \
+    -url "http://127.0.0.1:$port1/" \
+    -resp_text 2>&1)
+rc=$?
+
+# Expect OCSP error response: malformedrequest (1)
+# OpenSSL shows "Responder Error: malformedrequest (1)"
+if echo "$output" | grep -q "Responder Error: malformedrequest"; then
+    printf "PASSED (OCSP malformedrequest)\n"
+    tests_passed=$((tests_passed+1))
+else
+    printf "FAILED (expected OCSP malformedrequest, got rc: %d)\n" "$rc"
+    tests_failed=$((tests_failed+1))
+    echo "--- openssl output ---"
+    echo "$output"
+    echo "----------------------"
+    print_responder_logs
+fi
+
+echo
+
+########################################################################
+# Results
+########################################################################
+
+echo "============================================================"
+echo "Results: $tests_passed/$tests_run passed, $tests_failed failed"
+echo "============================================================"
+
+if [ $tests_failed -ne 0 ]; then
+    exit 1
+fi
+
+exit 0

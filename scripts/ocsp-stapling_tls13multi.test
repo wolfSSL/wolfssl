@@ -103,11 +103,11 @@ ln -s ../examples
 CERT_DIR="certs/ocsp"
 
 
-ready_file1="$WORKSPACE"/wolf_ocsp_s2_readyF1$$
-ready_file2="$WORKSPACE"/wolf_ocsp_s2_readyF2$$
-ready_file3="$WORKSPACE"/wolf_ocsp_s2_readyF3$$
-ready_file4="$WORKSPACE"/wolf_ocsp_s2_readyF4$$
-ready_file5="$WORKSPACE"/wolf_ocsp_s2_readyF5$$
+ready_file1="$WORKSPACE"/wolf_ocsp_tls13_readyF1$$
+ready_file2="$WORKSPACE"/wolf_ocsp_tls13_readyF2$$
+ready_file3="$WORKSPACE"/wolf_ocsp_tls13_readyF3$$
+ready_file4="$WORKSPACE"/wolf_ocsp_tls13_readyF4$$
+ready_file5="$WORKSPACE"/wolf_ocsp_tls13_readyF5$$
 printf '%s\n' "ready file 1:  $ready_file1"
 printf '%s\n' "ready file 2:  $ready_file2"
 printf '%s\n' "ready file 3:  $ready_file3"
@@ -324,7 +324,7 @@ fi
 
 printf '%s\n' "------------- PORTS ---------------"
 printf '%s' "Random ports selected: $port1 $port2"
-printf '%s\n' " $port3 $port4"
+printf '%s\n' " $port3 $port4 $port5"
 printf '%s\n' "-----------------------------------"
 # Use client connections to cleanly shutdown the servers
 ./examples/client/client -p $port1

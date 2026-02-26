@@ -2554,7 +2554,7 @@ int wolfSSL_X509_CRL_sign(WOLFSSL_X509_CRL* crl, WOLFSSL_EVP_PKEY* pkey,
     CRL_Entry* entry;
     byte* issuerDer = NULL;
     int issuerSz = 0;
-    int sigType;
+    int sigType = 0;
     int tbsSz = 0;
     int totalSz = 0;
     byte* buf = NULL;
@@ -2794,10 +2794,10 @@ int wolfSSL_X509_CRL_sign(WOLFSSL_X509_CRL* crl, WOLFSSL_EVP_PKEY* pkey,
          */
         {
             word32 idx = 0;
-            int len;
+            int len = 0;
             word32 tbsStart = 0;
             word32 tbsLen = 0;
-            int sigLen;
+            int sigLen = 0;
 
             /* Parse outer SEQUENCE */
             if (GetSequence(buf, &idx, &len, (word32)totalSz) < 0) {

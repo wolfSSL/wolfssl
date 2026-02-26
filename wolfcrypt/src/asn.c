@@ -540,7 +540,8 @@ static word32 SizeASNLength(word32 length)
      * @param [in, out] err   Error variable.
      * @param [in]      heap  Dynamic memory allocation hint.
      */
-    #define ALLOC_ASNGETDATA(name, cnt, err, heap) WC_DO_NOTHING
+    #define ALLOC_ASNGETDATA(name, cnt, err, heap) \
+        (void)(cnt); (void)(err); (void)(heap); WC_DO_NOTHING
 
     /* Clears the memory of the dynamic BER encoding data.
      *
@@ -550,14 +551,15 @@ static word32 SizeASNLength(word32 length)
      * @param [in]      heap  Dynamic memory allocation hint.
      */
     #define CALLOC_ASNGETDATA(name, cnt, err, heap)     \
-        XMEMSET(name, 0, sizeof(name))
+        ((void)(cnt), (void)(err), (void)(heap), XMEMSET(name, 0, sizeof(name)))
 
     /* No implementation as declaration is static.
      *
      * @param [in]      name  Variable name to declare.
      * @param [in]      heap  Dynamic memory allocation hint.
      */
-    #define FREE_ASNGETDATA(name, heap) WC_DO_NOTHING
+    #define FREE_ASNGETDATA(name, heap) \
+        (void)(name); (void)(heap); WC_DO_NOTHING
 
     /* Declare the variable that is the dynamic data for encoding DER data.
      *
@@ -574,7 +576,8 @@ static word32 SizeASNLength(word32 length)
      * @param [in, out] err   Error variable.
      * @param [in]      heap  Dynamic memory allocation hint.
      */
-    #define ALLOC_ASNSETDATA(name, cnt, err, heap) WC_DO_NOTHING
+    #define ALLOC_ASNSETDATA(name, cnt, err, heap) \
+        (void)(cnt); (void)(err); (void)(heap); WC_DO_NOTHING
 
     /* Clears the memory of the dynamic BER encoding data.
      *
@@ -584,14 +587,15 @@ static word32 SizeASNLength(word32 length)
      * @param [in]      heap  Dynamic memory allocation hint.
      */
     #define CALLOC_ASNSETDATA(name, cnt, err, heap)     \
-        XMEMSET(name, 0, sizeof(name))
+        ((void)(cnt), (void)(err), (void)(heap), XMEMSET(name, 0, sizeof(name)))
 
     /* No implementation as declaration is static.
      *
      * @param [in]      name  Variable name to declare.
      * @param [in]      heap  Dynamic memory allocation hint.
      */
-    #define FREE_ASNSETDATA(name, heap) WC_DO_NOTHING
+    #define FREE_ASNSETDATA(name, heap) \
+        (void)(name); (void)(heap); WC_DO_NOTHING
 #endif
 
 
@@ -993,8 +997,9 @@ int SetASN_Items(const ASNItem* asn, ASNSetData *data, int count, byte* output)
                 }
                 else {
                     /* Dump in the DER encoded data. */
-                    XMEMCPY(out + idx, data[i].data.buffer.data,
-                            data[i].data.buffer.length);
+                    /* Allow data to come from output buffer. */
+                    XMEMMOVE(out + idx, data[i].data.buffer.data,
+                             data[i].data.buffer.length);
                 }
                 break;
 
@@ -1059,7 +1064,7 @@ static int GetOID(const byte* input, word32* inOutIdx, word32* oid,
                   word32 oidType, int length);
 
 /* Maximum supported depth in ASN.1 description. */
-#define GET_ASN_MAX_DEPTH          7
+#define GET_ASN_MAX_DEPTH          8
 /* Maximum number of checked numbered choices. Only one of the items with the
  * number is allowed.
  */
@@ -1532,7 +1537,7 @@ static int GetASN_StoreData(const ASNItem* asn, ASNGetData* data,
  * @return  ASN_UNKNOWN_OID_E when the OID cannot be verified.
  */
 int GetASN_Items(const ASNItem* asn, ASNGetData *data, int count, int complete,
-                 const byte* input, word32* inOutIdx, word32 length)
+                 const byte* input, word32* inOutIdx, const word32 length)
 {
     int    i;
     int    j;
@@ -1574,12 +1579,12 @@ int GetASN_Items(const ASNItem* asn, ASNGetData *data, int count, int complete,
         data[i].length = 0;
         /* Get current item depth. */
         depth = asn[i].depth;
+        if (depth >= GET_ASN_MAX_DEPTH) {
     #ifdef WOLFSSL_DEBUG_ASN_TEMPLATE
-        if (depth > GET_ASN_MAX_DEPTH) {
             WOLFSSL_MSG("Depth in template too large");
+    #endif
             return ASN_PARSE_E;
         }
-    #endif
         /* Keep track of minimum depth. */
         if (depth < minDepth) {
             minDepth = depth;
@@ -1705,6 +1710,12 @@ int GetASN_Items(const ASNItem* asn, ASNGetData *data, int count, int complete,
         }
         /* Store length of data. */
         data[i].length = (word32)len;
+        if (depth + 1 >= GET_ASN_MAX_DEPTH) {
+    #ifdef WOLFSSL_DEBUG_ASN_TEMPLATE
+            WOLFSSL_MSG("Depth in template too large");
+    #endif
+            return ASN_PARSE_E;
+        }
         /* Note the max length of items under this one. */
         endIdx[depth + 1] = idx + (word32)len;
         if (choice > 1) {
@@ -8726,7 +8737,8 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
     (void)tmpAlgId;
 #endif
 
-    CALLOC_ASNSETDATA(dataASN, pkcs8KeyASN_Length-1, ret, NULL);
+    if (ret == 0)
+        CALLOC_ASNSETDATA(dataASN, pkcs8KeyASN_Length-1, ret, NULL);
 
     if (ret == 0) {
         /* Only support default PKCS #8 format - v0. */
@@ -10618,7 +10630,8 @@ static int EncryptContentPBES2(byte* input, word32 inputSz, byte* out,
         &blockSz) < 0) {
         ret = ASN_INPUT_E;
     }
-    CALLOC_ASNSETDATA(dataASN, p8EncPbes2ASN_Length, ret, heap);
+    if (ret == 0)
+        CALLOC_ASNSETDATA(dataASN, p8EncPbes2ASN_Length, ret, heap);
 
     if (ret == 0) {
         /* Setup data to go into encoding including PBE algorithm, salt,
@@ -10983,8 +10996,8 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
         return EncryptContentPBES2(input, inputSz, out, outSz, password,
             passwordSz, encAlgId, salt, saltSz, itt, hmacOid, rng, heap);
     }
-
-    CALLOC_ASNSETDATA(dataASN, p8EncPbes1ASN_Length, ret, heap);
+    if (ret == 0)
+        CALLOC_ASNSETDATA(dataASN, p8EncPbes1ASN_Length, ret, heap);
 
     if (ret == 0) {
         /* Setup data to go into encoding including PBE algorithm, salt,
@@ -11670,6 +11683,9 @@ int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32 inSz)
     if (inOutIdx == NULL)
         return BAD_FUNC_ARG;
 
+    if (key == NULL)
+        return BAD_FUNC_ARG;
+
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
 
@@ -11765,11 +11781,13 @@ int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32 inSz)
         ret = BAD_FUNC_ARG;
     }
 
+    if (ret == 0) {
 #ifdef WOLFSSL_DH_EXTRA
-    ALLOC_ASNGETDATA(dataASN, dhKeyPkcs8ASN_Length, ret, key->heap);
+        ALLOC_ASNGETDATA(dataASN, dhKeyPkcs8ASN_Length, ret, key->heap);
 #else
-    ALLOC_ASNGETDATA(dataASN, dhParamASN_Length, ret, key->heap);
+        ALLOC_ASNGETDATA(dataASN, dhParamASN_Length, ret, key->heap);
 #endif
+    }
 
     if (ret == 0) {
         /* Initialize data and set mp_ints to hold p and g. */
@@ -11814,7 +11832,7 @@ int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32 inSz)
 #endif
     }
 
-    FREE_ASNGETDATA(dataASN, key->heap);
+    FREE_ASNGETDATA(dataASN, key != NULL ? key->heap : NULL);
     return ret;
 #endif /* WOLFSSL_ASN_TEMPLATE */
 }
@@ -12528,7 +12546,8 @@ int wc_DsaPrivateKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
         ret = BAD_FUNC_ARG;
     }
 
-    CALLOC_ASNGETDATA(dataASN, dsaKeyASN_Length, ret, key->heap);
+    if (ret == 0)
+        CALLOC_ASNGETDATA(dataASN, dsaKeyASN_Length, ret, key->heap);
 
     if (ret == 0) {
         int i;
@@ -12565,7 +12584,7 @@ int wc_DsaPrivateKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
         key->type = DSA_PRIVATE;
     }
 
-    FREE_ASNGETDATA(dataASN, key->heap);
+    FREE_ASNGETDATA(dataASN, key != NULL ? key->heap : NULL);
     return ret;
 #endif
 }
@@ -12766,7 +12785,8 @@ int wc_SetDsaPublicKey(byte* output, DsaKey* key, int outLen, int with_header)
         ret = BAD_FUNC_ARG;
     }
 
-    CALLOC_ASNSETDATA(dataASN, dsaPubKeyASN_Length, ret, key->heap);
+    if (ret == 0)
+        CALLOC_ASNSETDATA(dataASN, dsaPubKeyASN_Length, ret, key->heap);
 
     if (ret == 0) {
         if (with_header) {
@@ -12805,7 +12825,7 @@ int wc_SetDsaPublicKey(byte* output, DsaKey* key, int outLen, int with_header)
         ret = SetASN_Items(data, dataASN, count, output);
     }
 
-    FREE_ASNSETDATA(dataASN, key->heap);
+    FREE_ASNSETDATA(dataASN, key != NULL ? key->heap : NULL);
     return ret;
 #endif /* WOLFSSL_ASN_TEMPLATE */
 }
@@ -12918,8 +12938,8 @@ static int DsaKeyIntsToDer(DsaKey* key, byte* output, word32* inLen,
     if ((ret == 0) && (ints > DSA_INTS)) {
         ret = BAD_FUNC_ARG;
     }
-
-    CALLOC_ASNSETDATA(dataASN, dsaKeyASN_Length, ret, key->heap);
+    if (ret == 0)
+        CALLOC_ASNSETDATA(dataASN, dsaKeyASN_Length, ret, key->heap);
 
     if (ret == 0) {
         int i;
@@ -13297,6 +13317,11 @@ static int StoreKey(DecodedCert* cert, const byte* source, word32* srcIdx,
             cert->publicKey = publicKey;
             cert->pubKeyStored = 1;
             cert->pubKeySize   = (word32)length;
+
+#ifdef HAVE_OCSP_RESPONDER
+            cert->publicKeyForHash = cert->publicKey;
+            cert->pubKeyForHashSize = cert->pubKeySize;
+#endif
 
             *srcIdx += (word32)length;
         }
@@ -13928,6 +13953,10 @@ static int StoreRsaKey(DecodedCert* cert, const byte* source, word32* srcIdx,
         cert->sigCtx.CertAtt.pubkey_n_start =
             cert->sigCtx.CertAtt.pubkey_e_start = dataASN[RSACERTKEYASN_IDX_SEQ].offset;
     #endif
+    #ifdef HAVE_OCSP_RESPONDER
+        cert->publicKeyForHash = cert->publicKey;
+        cert->pubKeyForHashSize = cert->pubKeySize;
+    #endif
     #ifdef HAVE_OCSP
         /* Calculate the hash of the public key for OCSP. */
         ret = CalcHashId_ex(cert->publicKey, cert->pubKeySize,
@@ -14105,6 +14134,13 @@ static int StoreEccKey(DecodedCert* cert, const byte* source, word32* srcIdx,
         cert->publicKeyIndex =
             GetASNItem_DataIdx(dataASN[ECCCERTKEYASN_IDX_SUBJPUBKEY], source)
             + 1;
+    #endif
+
+    #ifdef HAVE_OCSP_RESPONDER
+        cert->publicKeyForHash =
+                dataASN[ECCCERTKEYASN_IDX_SUBJPUBKEY].data.ref.data;
+        cert->pubKeyForHashSize =
+                dataASN[ECCCERTKEYASN_IDX_SUBJPUBKEY].data.ref.length;
     #endif
 
     #ifdef HAVE_OCSP
@@ -16272,6 +16308,13 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
         ret = ASN_PARSE_E;
     }
 
+#ifdef HAVE_OCSP_RESPONDER
+    if (ret == 0 && nameType == ASN_SUBJECT) {
+        cert->subjectRawForHash = input + srcIdx;
+        cert->subjectRawForHashLen = (int)(maxIdx - srcIdx);
+    }
+#endif
+
     CALLOC_ASNGETDATA(dataASN, rdnASN_Length, ret, cert->heap);
 
 #ifdef WOLFSSL_X509_NAME_AVAILABLE
@@ -16731,7 +16774,8 @@ static int ValidateGmtime(struct tm* inTime)
 }
 
 #if !defined(NO_ASN_TIME) && !defined(USER_TIME) && \
-    !defined(TIME_OVERRIDES) && (defined(OPENSSL_EXTRA) || defined(HAVE_PKCS7))
+    !defined(TIME_OVERRIDES) && (defined(OPENSSL_EXTRA) || \
+            defined(HAVE_PKCS7) || defined(HAVE_OCSP_RESPONDER))
 /* Set current time string, either UTC or GeneralizedTime.
  * (void*) currTime should be a pointer to time_t, output is placed in buf.
  *
@@ -16748,7 +16792,7 @@ int GetAsnTimeString(void* currTime, byte* buf, word32 len)
         return BAD_FUNC_ARG;
 
     XMEMSET(uf_time, 0, sizeof(uf_time));
-    /* GetFormattedTime returns length with null terminator */
+    /* GetFormattedTime returns length without null terminator */
     data_len = GetFormattedTime(currTime, uf_time, (word32)sizeof(uf_time));
     if (data_len <= 0) {
         return ASN_TIME_E;
@@ -16788,6 +16832,13 @@ int GetAsnTimeString(void* currTime, byte* buf, word32 len)
 /* return just the time string as either UTC or Generalized Time*/
 int GetFormattedTime(void* currTime, byte* buf, word32 len)
 {
+    WOLFSSL_ENTER("GetFormattedTime");
+
+    return GetFormattedTime_ex(currTime, buf, len, 0);
+}
+
+int GetFormattedTime_ex(void* currTime, byte* buf, word32 len, byte format)
+{
     struct tm* ts      = NULL;
     struct tm* tmpTime = NULL;
     int year, mon, day, hour, mini, sec;
@@ -16799,9 +16850,10 @@ int GetFormattedTime(void* currTime, byte* buf, word32 len)
     /* Needed in case XGMTIME does not use the tmpTime argument. */
     (void)tmpTime;
 
-    WOLFSSL_ENTER("GetFormattedTime");
+    WOLFSSL_ENTER("GetFormattedTime_ex");
 
-    if (buf == NULL || len == 0)
+    if (buf == NULL || len == 0 || (format != 0 && format != ASN_UTC_TIME &&
+            format != ASN_GENERALIZED_TIME))
         return BAD_FUNC_ARG;
 
     ts = (struct tm *)XGMTIME((time_t*)currTime, tmpTime);
@@ -16812,8 +16864,16 @@ int GetFormattedTime(void* currTime, byte* buf, word32 len)
 
     /* Note ASN_UTC_TIME_SIZE and ASN_GENERALIZED_TIME_SIZE include space for
      * the null terminator. ASN encoded values leave off the terminator. */
+    if (format == 0) {
+        if (ts->tm_year >= 50 && ts->tm_year < 150) {
+            format = ASN_UTC_TIME;
+        }
+        else {
+            format = ASN_GENERALIZED_TIME;
+        }
+    }
 
-    if (ts->tm_year >= 50 && ts->tm_year < 150) {
+    if (format == ASN_UTC_TIME) {
         /* UTC Time */
         if (ts->tm_year >= 50 && ts->tm_year < 100) {
             year = ts->tm_year;
@@ -24891,6 +24951,33 @@ int wc_ParseCert(DecodedCert* cert, int type, int verify, void* cm)
     return ParseCert(cert, type, verify, cm);
 }
 
+const char* wc_GetDecodedCertSubject(struct DecodedCert* cert, word32* subjectSz)
+{
+    if (cert == NULL || subjectSz == NULL) {
+        return NULL;
+    }
+    *subjectSz = (word32)XSTRLEN(cert->subject);
+    return cert->subject;
+}
+
+const char* wc_GetDecodedCertIssuer(struct DecodedCert* cert, word32* issuerSz)
+{
+    if (cert == NULL || issuerSz == NULL) {
+        return NULL;
+    }
+    *issuerSz = (word32)XSTRLEN(cert->issuer);
+    return cert->issuer;
+}
+
+const byte* wc_GetDecodedCertSerial(struct DecodedCert* cert, word32* serialSz)
+{
+    if (cert == NULL || serialSz == NULL) {
+        return NULL;
+    }
+    *serialSz = (word32)cert->serialSz;
+    return cert->serial;
+}
+
 #ifdef WOLFCRYPT_ONLY
 
 /* dummy functions, not using wolfSSL so don't need actual ones */
@@ -26575,6 +26662,7 @@ int FillSigner(Signer* signer, DecodedCert* cert, int type, DerBuffer *der)
     #endif
         signer->keyUsage = cert->extKeyUsageSet ? cert->extKeyUsage
                                                 : 0xFFFF;
+        signer->extKeyUsage = cert->extExtKeyUsage;
         signer->next    = NULL; /* If Key Usage not set, all uses valid. */
         cert->publicKey = 0;    /* in case lock fails don't free here.   */
         cert->subjectCN = 0;
@@ -28653,7 +28741,8 @@ static int SetRsaPublicKey(byte* output, RsaKey* key, int outLen,
         ret = BAD_FUNC_ARG;
     }
 
-    CALLOC_ASNSETDATA(dataASN, rsaPublicKeyASN_Length, ret, key->heap);
+    if (ret == 0)
+        CALLOC_ASNSETDATA(dataASN, rsaPublicKeyASN_Length, ret, key->heap);
 
     if (ret == 0) {
         if (!with_header) {
@@ -28686,7 +28775,7 @@ static int SetRsaPublicKey(byte* output, RsaKey* key, int outLen,
         ret = sz;
     }
 
-    FREE_ASNSETDATA(dataASN, key->heap);
+    FREE_ASNSETDATA(dataASN, key != NULL ? key->heap : NULL);
     return ret;
 #endif /* WOLFSSL_ASN_TEMPLATE */
 }
@@ -28873,7 +28962,8 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
         ret = BAD_FUNC_ARG;
     }
 
-    CALLOC_ASNSETDATA(dataASN, rsaKeyASN_Length, ret, key->heap);
+    if (ret == 0)
+        CALLOC_ASNSETDATA(dataASN, rsaKeyASN_Length, ret, key->heap);
 
     if (ret == 0) {
         /* Set the version. */
@@ -28900,7 +28990,7 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
         ret = sz;
     }
 
-    FREE_ASNSETDATA(dataASN, key->heap);
+    FREE_ASNSETDATA(dataASN, key != NULL ? key->heap : NULL);
     return ret;
 #endif
 }
@@ -37596,8 +37686,8 @@ int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 *inLen,
     if ((ret == 0) && curveIn && (key->dp == NULL)) {
         ret = BAD_FUNC_ARG;
     }
-
-    CALLOC_ASNSETDATA(dataASN, eccKeyASN_Length, ret, key->heap);
+    if (ret == 0)
+        CALLOC_ASNSETDATA(dataASN, eccKeyASN_Length, ret, key->heap);
 
     if (ret == 0) {
         /* Private key size is the curve size. */
@@ -38961,6 +39051,66 @@ enum {
 #define certidasn_Length (sizeof(certIDASNItems) / sizeof(ASNItem))
 #endif
 
+#ifdef HAVE_OCSP_RESPONDER
+
+WC_MAYBE_UNUSED static int EncodeCertID(OcspEntry* entry, byte* out,
+        word32* outSz)
+{
+#ifndef WOLFSSL_ASN_TEMPLATE
+    (void)entry;
+    (void)out;
+    (void)outSz;
+    /* Encoding ocsp CertID not supported in legacy ASN parsing */
+    return NOT_COMPILED_IN;
+#else
+    DECL_ASNSETDATA(dataASN, certidasn_Length);
+    int ret = 0;
+    int sz = 0;
+    word32 digestSz = 0;
+
+    if (entry == NULL || entry->status == NULL ||
+            entry->status->serialSz <= 0 || outSz == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    WOLFSSL_ENTER("EncodeCertID");
+
+    CALLOC_ASNSETDATA(dataASN, certidasn_Length, ret, NULL);
+
+    if (ret == 0) {
+        digestSz = (word32)wc_HashGetDigestSize(
+            wc_OidGetHash((int)entry->hashAlgoOID));
+        if (digestSz <= 0)
+            ret = ASN_SIG_HASH_E;
+    }
+    if (ret == 0) {
+        SetASN_OID(&dataASN[CERTIDASN_IDX_CID_HASHALGO_OID],
+            entry->hashAlgoOID, oidHashType);
+        SetASN_Buffer(&dataASN[CERTIDASN_IDX_CID_ISSUERHASH],
+            entry->issuerHash, digestSz);
+        SetASN_Buffer(&dataASN[CERTIDASN_IDX_CID_ISSUERKEYHASH],
+            entry->issuerKeyHash, digestSz);
+        SetASN_Buffer(&dataASN[CERTIDASN_IDX_CID_SERIAL],
+            entry->status->serial, entry->status->serialSz);
+        ret = SizeASN_Items(certIDASNItems, dataASN, certidasn_Length, &sz);
+    }
+    /* Check buffer big enough for encoding if supplied. */
+    if (ret == 0 && out != NULL && sz > (int)*outSz) {
+        ret = BUFFER_E;
+    }
+    if (ret == 0 && out != NULL)
+        if (SetASN_Items(certIDASNItems, dataASN, certidasn_Length, out) != sz)
+            ret = ASN_PARSE_E;
+    if (ret == 0)
+        *outSz = sz;
+
+    FREE_ASNSETDATA(dataASN, NULL);
+    return ret;
+#endif
+}
+
+#endif /* HAVE_OCSP_RESPONDER */
+
 #ifndef WOLFSSL_ASN_TEMPLATE
 static int OcspDecodeCertIDInt(const byte* input, word32* inOutIdx, word32 inSz,
                  OcspEntry* entry)
@@ -38968,16 +39118,24 @@ static int OcspDecodeCertIDInt(const byte* input, word32* inOutIdx, word32 inSz,
     int length;
     word32 oid;
     int ret;
+    int expectedDigestSz;
+
     /* Hash algorithm */
     ret = GetAlgoId(input, inOutIdx, &oid, oidHashType, inSz);
     if (ret < 0)
         return ret;
     entry->hashAlgoOID = oid;
+
+    /* Validate hash algorithm and get expected digest size */
+    expectedDigestSz = wc_HashGetDigestSize(wc_OidGetHash((int)oid));
+    if (expectedDigestSz <= 0)
+        return ASN_SIG_HASH_E;
+
     /* Save reference to the hash of CN */
     ret = GetOctetString(input, inOutIdx, &length, inSz);
     if (ret < 0)
         return ret;
-    if (length != OCSP_DIGEST_SIZE)
+    if (length != expectedDigestSz || length > (int)sizeof(entry->issuerHash))
         return ASN_PARSE_E;
     XMEMCPY(entry->issuerHash, input + *inOutIdx, length);
     *inOutIdx += length;
@@ -38985,7 +39143,7 @@ static int OcspDecodeCertIDInt(const byte* input, word32* inOutIdx, word32 inSz,
     ret = GetOctetString(input, inOutIdx, &length, inSz);
     if (ret < 0)
         return ret;
-    if (length != OCSP_DIGEST_SIZE)
+    if (length != expectedDigestSz || length > (int)sizeof(entry->issuerKeyHash))
         return ASN_PARSE_E;
     XMEMCPY(entry->issuerKeyHash, input + *inOutIdx, length);
     *inOutIdx += length;
@@ -39001,8 +39159,8 @@ static int OcspDecodeCertIDInt(const byte* input, word32* inOutIdx, word32 inSz,
                  OcspEntry* entry)
 {
     DECL_ASNGETDATA(dataASN, certidasn_Length);
-    word32 issuerKeyHashLen = OCSP_DIGEST_SIZE;
-    word32 issuerHashLen = OCSP_DIGEST_SIZE;
+    word32 issuerKeyHashLen = WC_MAX_DIGEST_SIZE;
+    word32 issuerHashLen = WC_MAX_DIGEST_SIZE;
     word32 serialSz = EXTERNAL_SERIAL_SIZE;
     word32 digestSz;
     int ret = 0;
@@ -39062,6 +39220,134 @@ int OcspDecodeCertID(const byte *input, word32 *inOutIdx, word32 inSz,
     return 0;
 }
 
+#ifdef HAVE_OCSP_RESPONDER
+
+WC_MAYBE_UNUSED static int EncodeSingleResponse(OcspEntry* single, byte* out,
+        word32* outSz, void* heap)
+{
+#ifndef WOLFSSL_ASN_TEMPLATE
+    (void)single;
+    (void)out;
+    (void)outSz;
+    (void)heap;
+    /* Encoding ocsp responses not supported in legacy ASN parsing */
+    return NOT_COMPILED_IN;
+#else
+    DECL_ASNSETDATA(dataASN, singleResponseASN_Length);
+    int ret = 0;
+    int sz = 0;
+    word32 cidSz = 0;
+
+    if (single == NULL ||
+            /* Only one status is allowed per single response */
+            single->status == NULL || single->status->next != NULL ||
+            /* thisDate has to be set */
+            single->status->thisDateSz == 0 ||
+            single->status->thisDateSz > MAX_DATE_SIZE ||
+            single->status->thisDateFormat != ASN_GENERALIZED_TIME ||
+            /* nextDate is optional but if set, must be valid */
+            single->status->nextDateSz > MAX_DATE_SIZE ||
+            (single->status->nextDateSz > 0 &&
+             single->status->nextDateFormat != ASN_GENERALIZED_TIME) ||
+            outSz == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    WOLFSSL_ENTER("EncodeSingleResponse");
+
+    CALLOC_ASNSETDATA(dataASN, singleResponseASN_Length, ret, heap);
+
+    if (ret == 0)
+        ret = EncodeCertID(single, NULL, &cidSz);
+    if (ret == 0) {
+        SetASN_Buffer(&dataASN[SINGLERESPONSEASN_IDX_CID_SEQ], NULL, cidSz);
+
+        if (single->status->status == CERT_GOOD) {
+            SetASNItem_NoOutNode(dataASN, singleResponseASN,
+                    SINGLERESPONSEASN_IDX_CS_REVOKED,
+                    singleResponseASN_Length);
+            SetASNItem_NoOutNode(dataASN, singleResponseASN,
+                    SINGLERESPONSEASN_IDX_UNKNOWN,
+                    singleResponseASN_Length);
+        }
+        else if (single->status->status == CERT_REVOKED) {
+            SetASNItem_NoOutNode(dataASN, singleResponseASN,
+                    SINGLERESPONSEASN_IDX_CS_GOOD,
+                    singleResponseASN_Length);
+            SetASNItem_NoOutNode(dataASN, singleResponseASN,
+                    SINGLERESPONSEASN_IDX_UNKNOWN,
+                    singleResponseASN_Length);
+            /* Set revocation time - always GeneralizedTime format */
+            if (single->status->revocationDateSz == 0 ||
+                single->status->revocationDateSz > MAX_DATE_SIZE) {
+                ret = BAD_FUNC_ARG;
+            }
+            else {
+                SetASN_Buffer(&dataASN[SINGLERESPONSEASN_IDX_CS_REVOKED_TIME],
+                        single->status->revocationDate,
+                        single->status->revocationDateSz);
+                /* Set revocation reason - optional field */
+                SetASN_Int8Bit(&dataASN[SINGLERESPONSEASN_IDX_CS_REVOKED_REASON_VAL],
+                        single->status->revocationReason);
+            }
+        }
+        else if (single->status->status == CERT_UNKNOWN) {
+            SetASNItem_NoOutNode(dataASN, singleResponseASN,
+                    SINGLERESPONSEASN_IDX_CS_GOOD,
+                    singleResponseASN_Length);
+            SetASNItem_NoOutNode(dataASN, singleResponseASN,
+                    SINGLERESPONSEASN_IDX_CS_REVOKED,
+                    singleResponseASN_Length);
+        }
+        else {
+            ret = BAD_FUNC_ARG;
+        }
+    }
+    if (ret == 0) {
+        SetASN_Buffer(&dataASN[SINGLERESPONSEASN_IDX_THISUPDATE_GT],
+                single->status->thisDate,
+                single->status->thisDateSz);
+        /* Handle optional nextUpdate */
+        if (single->status->nextDateSz > 0) {
+            SetASN_Buffer(&dataASN[SINGLERESPONSEASN_IDX_NEXTUPDATE_GT],
+                    single->status->nextDate,
+                    single->status->nextDateSz);
+        }
+        else {
+            SetASNItem_NoOutNode(dataASN, singleResponseASN,
+                    SINGLERESPONSEASN_IDX_NEXTUPDATE,
+                    singleResponseASN_Length);
+        }
+        /* TODO add singleExtensions support */
+        SetASNItem_NoOutNode(dataASN, singleResponseASN,
+                SINGLERESPONSEASN_IDX_EXT,
+                singleResponseASN_Length);
+        /* Calculate size of encoding. */
+        ret = SizeASN_Items(singleResponseASN, dataASN,
+                singleResponseASN_Length, &sz);
+    }
+    /* Check buffer big enough for encoding if supplied. */
+    if (ret == 0 && out != NULL && sz > (int)*outSz)
+        ret = BUFFER_E;
+    if (ret == 0 && out != NULL) {
+        if (SetASN_Items(singleResponseASN, dataASN, singleResponseASN_Length,
+                out) != sz)
+            ret = ASN_PARSE_E;
+        if (ret == 0) {
+            ret = EncodeCertID(single,
+                 (byte*)dataASN[SINGLERESPONSEASN_IDX_CID_SEQ].data.buffer.data,
+                 &cidSz);
+        }
+    }
+    if (ret == 0)
+        *outSz = sz;
+
+    FREE_ASNSETDATA(dataASN, heap);
+    return ret;
+#endif
+}
+
+#endif /* HAVE_OCSP_RESPONDER */
 
 static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
                                 int wrapperSz, OcspEntry* single)
@@ -39223,7 +39509,11 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
                 cs->thisDate, &thisDateLen);
         GetASN_Buffer(&dataASN[SINGLERESPONSEASN_IDX_NEXTUPDATE_GT],
                 cs->nextDate, &nextDateLen);
-        /* TODO: decode revoked time and reason. */
+        cs->revocationDateSz = MAX_DATE_SIZE;
+        GetASN_Buffer(&dataASN[SINGLERESPONSEASN_IDX_CS_REVOKED_TIME],
+                cs->revocationDate, &cs->revocationDateSz);
+        GetASN_Int8Bit(&dataASN[SINGLERESPONSEASN_IDX_CS_REVOKED_REASON_VAL],
+                &cs->revocationReason);
         /* Decode OCSP single response. */
         ret = GetASN_Items(singleResponseASN, dataASN, singleResponseASN_Length,
                 1, source, ioIndex, size);
@@ -39427,10 +39717,11 @@ static int DecodeOcspRespExtensions(byte* source, word32* ioIndex,
 
     /* Step through all extensions. */
     while ((ret == 0) && (idx < maxIdx)) {
+        byte isCrit = 0;
         /* Clear dynamic data, set OID type to expect. */
         XMEMSET(dataASN, 0, sizeof(*dataASN) * certExtASN_Length);
         GetASN_OID(&dataASN[CERTEXTASN_IDX_OID], oidOcspType);
-        /* TODO: check criticality. */
+        GetASN_Boolean(&dataASN[CERTEXTASN_IDX_CRIT], &isCrit);
         /* Decode OCSP response extension. */
         ret = GetASN_Items(certExtASN, dataASN, certExtASN_Length, 0,
                            source, &idx, sz);
@@ -39448,6 +39739,9 @@ static int DecodeOcspRespExtensions(byte* source, word32* ioIndex,
                     resp->nonceSz = length;
                 }
             }
+            else if (isCrit) {
+                ret = ASN_PARSE_E;
+            }
             /* Ignore all other extension types. */
 
             /* Skip over rest of extension. */
@@ -39464,6 +39758,82 @@ static int DecodeOcspRespExtensions(byte* source, word32* ioIndex,
 }
 
 #ifdef WOLFSSL_ASN_TEMPLATE
+/* ASN.1 template for OCSP nonce extension.
+ * RFC 6960, 4.4.1 - Nonce
+ * X.509: RFC 5280, 4.1 - Basic Certificate Fields. (Extension)
+ */
+static const ASNItem ocspNonceExtASN[] = {
+/* SEQ       */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+                                     /* Extension */
+/* EXT       */     { 1, ASN_SEQUENCE, 1, 1, 0 },
+                                        /* extnId */
+/* EXT_OID   */        {2, ASN_OBJECT_ID, 0, 0, 0 },
+                                        /* critical not encoded. */
+                                        /* extnValue */
+/* EXT_VAL   */        {2, ASN_OCTET_STRING, 0, 1, 0 },
+                                               /* nonce */
+/* EXT_NONCE */            {3, ASN_OCTET_STRING, 0, 0, 0 },
+};
+enum {
+    OCSPNONCEEXTASN_IDX_SEQ = 0,
+    OCSPNONCEEXTASN_IDX_EXT,
+    OCSPNONCEEXTASN_IDX_EXT_OID,
+    OCSPNONCEEXTASN_IDX_EXT_VAL,
+    OCSPNONCEEXTASN_IDX_EXT_NONCE,
+};
+
+/* Number of items in ASN.1 template for OCSP nonce extension. */
+#define ocspNonceExtASN_Length (sizeof(ocspNonceExtASN) / sizeof(ASNItem))
+#endif /* WOLFSSL_ASN_TEMPLATE */
+
+/* Encode OCSP response extensions (currently only nonce) */
+WC_MAYBE_UNUSED static int EncodeOcspRespExtensions(OcspResponse* resp,
+        byte* out, word32* outSz)
+{
+#ifndef WOLFSSL_ASN_TEMPLATE
+    (void)resp;
+    (void)out;
+    (void)outSz;
+    /* Encoding ocsp responses not supported in legacy ASN parsing */
+    return NOT_COMPILED_IN;
+#else
+    DECL_ASNSETDATA(dataASN, ocspNonceExtASN_Length);
+    int sz = 0;
+    int ret = 0;
+
+    if (resp == NULL || outSz == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    CALLOC_ASNSETDATA(dataASN, ocspNonceExtASN_Length, ret, resp->heap);
+
+    if (ret == 0) {
+        SetASN_OID(&dataASN[OCSPNONCEEXTASN_IDX_EXT_OID], OCSP_NONCE_OID,
+                oidOcspType);
+        SetASN_Buffer(&dataASN[OCSPNONCEEXTASN_IDX_EXT_NONCE],
+                resp->nonce, resp->nonceSz);
+        /* Calculate size of encoding. */
+        ret = SizeASN_Items(ocspNonceExtASN, dataASN,
+                ocspNonceExtASN_Length, &sz);
+    }
+    /* Check buffer big enough for encoding if supplied. */
+    if (ret == 0 && out != NULL && sz > (int)*outSz) {
+        ret = BUFFER_E;
+    }
+    if (ret == 0 && out != NULL) {
+        if (SetASN_Items(ocspNonceExtASN, dataASN, ocspNonceExtASN_Length,
+                out) != sz)
+            ret = ASN_PARSE_E;
+    }
+    if (ret == 0)
+        *outSz = sz;
+
+    FREE_ASNSETDATA(dataASN, resp->heap);
+    return ret;
+#endif
+}
+
+#ifdef WOLFSSL_ASN_TEMPLATE
 /* ASN.1 template for OCSP ResponseData.
  * RFC 6960, 4.2.1 - ASN.1 Specification of the OCSP Response
  */
@@ -39471,7 +39841,7 @@ static const ASNItem ocspRespDataASN[] = {
 /* SEQ         */    { 0, ASN_SEQUENCE, 1, 1, 0 },
                                              /* version DEFAULT v1 */
 /* VER_PRESENT */        { 1, ASN_CONTEXT_SPECIFIC | 0, 1, 1, 1 },
-/* VER         */            { 2, ASN_INTEGER, 1, 0, 0 },
+/* VER         */            { 2, ASN_INTEGER, 0, 0, 0 },
                                              /* byName */
 /* BYNAME      */        { 1, ASN_CONTEXT_SPECIFIC | 1, 1, 0, 2 },
                                              /* byKey */
@@ -39499,6 +39869,130 @@ enum {
 /* Number of items in ASN.1 template for OCSP ResponseData. */
 #define ocspRespDataASN_Length (sizeof(ocspRespDataASN) / sizeof(ASNItem))
 #endif
+
+#ifdef HAVE_OCSP_RESPONDER
+
+WC_MAYBE_UNUSED static int EncodeResponseData(OcspResponse* resp, byte* out,
+        word32* outSz)
+{
+#ifndef WOLFSSL_ASN_TEMPLATE
+    (void)resp;
+    (void)out;
+    (void)outSz;
+    /* Encoding ocsp responses not supported in legacy ASN parsing */
+    return NOT_COMPILED_IN;
+#else
+    DECL_ASNSETDATA(dataASN, ocspRespDataASN_Length);
+    int ret = 0;
+    int sz = 0;
+    word32 respListSz = 0;
+    word32 respExtSz = 0;
+    OcspEntry* single = NULL;
+
+    if (resp == NULL || outSz == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    WOLFSSL_ENTER("EncodeResponseData");
+
+    CALLOC_ASNSETDATA(dataASN, ocspRespDataASN_Length, ret, resp->heap);
+
+    if (ret == 0) {
+        if (resp->single == NULL)
+            ret = BAD_FUNC_ARG;
+    }
+    for (single = resp->single; ret == 0 && single != NULL;
+         single = single->next) {
+        word32 singleRespSz = 0;
+        singleRespSz = *outSz - respListSz;
+        ret = EncodeSingleResponse(single, NULL, &singleRespSz, resp->heap);
+        if (ret == 0)
+            respListSz += singleRespSz;
+    }
+    if (ret == 0) {
+        if (resp->responderIdType == OCSP_RESPONDER_ID_NAME) {
+            /* TODO support name-based responder ID */
+            ret = NOT_COMPILED_IN;
+        }
+        else if (resp->responderIdType == OCSP_RESPONDER_ID_KEY) {
+            SetASNItem_NoOutNode(dataASN, ocspRespDataASN,
+                    OCSPRESPDATAASN_IDX_BYNAME,
+                    ocspRespDataASN_Length);
+            SetASN_Buffer(&dataASN[OCSPRESPDATAASN_IDX_BYKEY_OCT],
+                    resp->responderId.keyHash,
+                    OCSP_RESPONDER_ID_KEY_SZ);
+        }
+        else
+            ret = BAD_FUNC_ARG;
+    }
+    if (ret == 0) {
+        if (resp->producedDateSz > 0 && resp->producedDateSz < MAX_DATE_SIZE) {
+            SetASN_Buffer(&dataASN[OCSPRESPDATAASN_IDX_PA],
+                    resp->producedDate, resp->producedDateSz);
+        }
+        else
+            ret = BAD_FUNC_ARG;
+    }
+    if (ret == 0) {
+        /* Encode responseExtensions if nonce is present */
+        if (resp->nonceSz > 0) {
+            ret = EncodeOcspRespExtensions(resp, NULL, &respExtSz);
+            if (ret == 0 && respExtSz > 0) {
+                SetASN_Buffer(&dataASN[OCSPRESPDATAASN_IDX_RESPEXT],
+                        NULL, respExtSz);
+            }
+        }
+        else {
+            SetASNItem_NoOutNode(dataASN, ocspRespDataASN,
+                    OCSPRESPDATAASN_IDX_RESPEXT,
+                    ocspRespDataASN_Length);
+        }
+    }
+    if (ret == 0) {
+        SetASN_Int8Bit(&dataASN[OCSPRESPDATAASN_IDX_VER], 0);
+        SetASN_Buffer(&dataASN[OCSPRESPDATAASN_IDX_RESP], NULL,
+                respListSz);
+        /* Calculate size of encoding. */
+        ret = SizeASN_Items(ocspRespDataASN, dataASN, ocspRespDataASN_Length,
+                &sz);
+    }
+    /* Check buffer big enough for encoding if supplied. */
+    if (ret == 0 && out != NULL && sz > (int)*outSz)
+        ret = BUFFER_E;
+    if (ret == 0 && out != NULL) {
+        byte* respList = NULL;
+        if (SetASN_Items(ocspRespDataASN, dataASN, ocspRespDataASN_Length, out)
+                != sz)
+            ret = ASN_PARSE_E;
+        respList = (byte*)dataASN[OCSPRESPDATAASN_IDX_RESP].data.buffer.data;
+        for (single = resp->single; ret == 0 && single != NULL;
+             single = single->next) {
+            word32 singleRespSz = respListSz;
+            ret = EncodeSingleResponse(single, respList, &singleRespSz,
+                    resp->heap);
+            if (ret == 0) {
+                respList += singleRespSz;
+                respListSz -= singleRespSz;
+            }
+        }
+        if (ret == 0 && respListSz != 0)
+            ret = ASN_PARSE_E;
+        /* Encode response extensions if buffer was allocated */
+        if (ret == 0 && respExtSz > 0) {
+            ret = EncodeOcspRespExtensions(resp,
+                   (byte*)dataASN[OCSPRESPDATAASN_IDX_RESPEXT].data.buffer.data,
+                   &respExtSz);
+        }
+    }
+    if (ret == 0)
+        *outSz = sz;
+
+    FREE_ASNSETDATA(dataASN, resp->heap);
+    return ret;
+#endif
+}
+
+#endif /* HAVE_OCSP_RESPONDER */
 
 static int DecodeResponseData(byte* source, word32* ioIndex,
                               OcspResponse* resp, word32 size)
@@ -39623,7 +40117,8 @@ static int DecodeResponseData(byte* source, word32* ioIndex,
 #else
     DECL_ASNGETDATA(dataASN, ocspRespDataASN_Length);
     int ret = 0;
-    byte version;
+    /* Default, not present, is v1 = 0. */
+    byte version = 0;
     word32 dateSz = 0;
     word32 responderByKeySz = OCSP_RESPONDER_ID_KEY_SZ;
     word32 idx = *ioIndex;
@@ -39635,8 +40130,6 @@ static int DecodeResponseData(byte* source, word32* ioIndex,
 
     if (ret == 0) {
         resp->response = source + idx;
-        /* Default, not present, is v1 = 0. */
-        version = 0;
         /* Max size of date supported. */
         dateSz = MAX_DATE_SIZE;
 
@@ -39661,6 +40154,7 @@ static int DecodeResponseData(byte* source, word32* ioIndex,
         if  (dateSz < MIN_DATE_SIZE) {
             ret = ASN_PARSE_E;
         }
+        resp->producedDateSz = (byte)dateSz;
     }
     if (ret == 0) {
         if (dataASN[OCSPRESPDATAASN_IDX_BYNAME].tag != 0) {
@@ -39672,11 +40166,8 @@ static int DecodeResponseData(byte* source, word32* ioIndex,
         } else {
             resp->responderIdType = OCSP_RESPONDER_ID_KEY;
             if (dataASN[OCSPRESPDATAASN_IDX_BYKEY_OCT].length
-                    != OCSP_RESPONDER_ID_KEY_SZ) {
+                    != OCSP_RESPONDER_ID_KEY_SZ)
                 ret = ASN_PARSE_E;
-            } else {
-                resp->responderIdType = OCSP_RESPONDER_ID_KEY;
-            }
         }
     }
     if (ret == 0) {
@@ -39723,6 +40214,7 @@ static int DecodeResponseData(byte* source, word32* ioIndex,
         if (ret == 0) {
             /* Decode SingleResponse into OcspEntry. */
             ret = DecodeSingleResponse(source, &idx,
+                /* max index is start of next item */
                 dataASN[OCSPRESPDATAASN_IDX_RESPEXT].offset,
                 (int)dataASN[OCSPRESPDATAASN_IDX_RESP].length, single);
             /* single->used set on successful decode. */
@@ -39837,20 +40329,23 @@ static int OcspRespIdMatch(OcspResponse *resp, const byte *NameHash,
 }
 
 #ifndef WOLFSSL_NO_OCSP_ISSUER_CHECK
-static int OcspRespCheck(OcspResponse *resp, Signer *responder)
+static int OcspRespCheck(OcspResponse *resp, Signer *responder, void* vp)
 {
     OcspEntry *s;
+    int ret;
 
     s = resp->single;
     if (s == NULL)
         return -1;
 
-    /* singles responses must have the same issuer */
-    for (; s != NULL; s = s->next) {
-        if (XMEMCMP(s->issuerKeyHash, responder->subjectKeyHash,
-                KEYID_SIZE) != 0)
-            return -1;
-    }
+    if (OcspRespIdMatch(resp, responder->subjectNameHash,
+            responder->subjectKeyHash) == 0)
+        return -1;
+
+    ret = CheckOcspResponder(resp, responder->subjectNameHash,
+            responder->extKeyUsage, responder->issuerNameHash, vp);
+    if (ret != 0)
+        return -1;
 
     return 0;
 }
@@ -39936,7 +40431,8 @@ static int OcspCheckCert(OcspResponse *resp, int noVerify,
 
 #ifndef WOLFSSL_NO_OCSP_ISSUER_CHECK
     if (ret == 0 && !noVerify) {
-        ret = CheckOcspResponder(resp, cert, cm);
+        ret = CheckOcspResponder(resp, cert->subjectHash, cert->extExtKeyUsage,
+                cert->issuerHash, cm);
         if (ret != 0) {
             WOLFSSL_MSG("\tOCSP Responder certificate issuer check failed");
             goto err;
@@ -39962,6 +40458,132 @@ err:
 
     return ret;
 }
+
+#ifdef HAVE_OCSP_RESPONDER
+
+WC_MAYBE_UNUSED static int EncodeBasicOcspResponse(OcspResponse* resp,
+        byte* out, word32* outSz, RsaKey* rsaKey, ecc_key* eccKey, WC_RNG* rng)
+{
+#ifndef WOLFSSL_ASN_TEMPLATE
+    (void)resp;
+    (void)out;
+    (void)outSz;
+    (void)rsaKey;
+    (void)eccKey;
+    (void)rng;
+    /* Encoding ocsp responses not supported in legacy ASN parsing */
+    return NOT_COMPILED_IN;
+#else
+    DECL_ASNSETDATA(dataASN, ocspBasicRespASN_Length);
+    int ret = 0;
+    int sz = 0;
+    word32 respDataSz = 0;
+    word32 sigSz = 0;
+
+    if (outSz == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    WOLFSSL_ENTER("EncodeBasicOcspResponse");
+
+    CALLOC_ASNSETDATA(dataASN, ocspBasicRespASN_Length, ret, resp->heap);
+
+    if (ret == 0) {
+        respDataSz = *outSz;
+        ret = EncodeResponseData(resp, NULL, &respDataSz);
+    }
+    if (ret == 0) {
+        if (resp->sigOID == CTC_SHA256wRSA)
+            ret = wc_RsaEncryptSize(rsaKey);
+        else if (resp->sigOID == CTC_SHA256wECDSA)
+            ret = wc_ecc_sig_size(eccKey);
+        else
+            ret = BAD_FUNC_ARG;
+        if (ret > 0) {
+            sigSz = (word32)ret;
+            ret = 0;
+        }
+        else
+            ret = ret == 0 ? BAD_FUNC_ARG : ret;
+    }
+    if (ret == 0) {
+        SetASN_OID(&dataASN[OCSPBASICRESPASN_IDX_SIGALGO_OID], resp->sigOID,
+                oidSigType);
+        if (resp->sigParams != NULL && resp->sigParamsSz != 0) {
+            SetASN_Buffer(&dataASN[OCSPBASICRESPASN_IDX_SIGNATURE_PARAMS],
+                resp->sigParams, resp->sigParamsSz);
+        }
+        else {
+            SetASNItem_NoOutNode(dataASN, ocspBasicRespASN,
+                OCSPBASICRESPASN_IDX_SIGNATURE_PARAMS,
+                ocspBasicRespASN_Length);
+        }
+        if (resp->cert != NULL && resp->certSz > 0) {
+            SetASN_Buffer(&dataASN[OCSPBASICRESPASN_IDX_CERTS_SEQ],
+                resp->cert, resp->certSz);
+        }
+        else {
+            SetASNItem_NoOutNode(dataASN, ocspBasicRespASN,
+                OCSPBASICRESPASN_IDX_CERTS,
+                ocspBasicRespASN_Length);
+        }
+        if (out == NULL) {
+            /* Calculate size of encoding. */
+            SetASN_ReplaceBuffer(&dataASN[OCSPBASICRESPASN_IDX_TBS_SEQ], NULL,
+                    respDataSz);
+            SetASN_Buffer(&dataASN[OCSPBASICRESPASN_IDX_SIGNATURE], NULL,
+                    sigSz);
+            ret = SizeASN_Items(ocspBasicRespASN, dataASN,
+                    ocspBasicRespASN_Length, &sz);
+        }
+        else {
+            /* The real ECC signature might differ from the size returned by
+             * wc_ecc_sig_size. We handle this by placing the signature at
+             * the end of the buffer and then moving it into place. */
+            byte* respData = out + (*outSz - respDataSz - sigSz);
+            byte* sigData = out + (*outSz - sigSz);
+            if (respDataSz + sigSz > *outSz)
+                ret = BUFFER_E;
+            if (ret == 0)
+                ret = EncodeResponseData(resp, respData, &respDataSz);
+            if (ret == 0) {
+                CertSignCtx certSignCtx;
+                XMEMSET(&certSignCtx, 0, sizeof(CertSignCtx));
+                ret = MakeSignature(&certSignCtx, respData, respDataSz,
+                        sigData, sigSz, rsaKey, eccKey, NULL, NULL, NULL, NULL,
+                        NULL, rng, resp->sigOID, resp->heap);
+                if (ret > 0) {
+                    sigSz = (word32)ret;
+                    ret = 0;
+                }
+                else
+                    ret = ret == 0 ? WC_FAILURE : ret;
+            }
+            if (ret == 0) {
+                SetASN_ReplaceBuffer(&dataASN[OCSPBASICRESPASN_IDX_TBS_SEQ],
+                        respData, respDataSz);
+                SetASN_Buffer(&dataASN[OCSPBASICRESPASN_IDX_SIGNATURE],
+                        sigData, sigSz);
+                /* Re-calculate size of encoding. */
+                ret = SizeASN_Items(ocspBasicRespASN, dataASN,
+                        ocspBasicRespASN_Length, &sz);
+            }
+            if (ret == 0) {
+                if (SetASN_Items(ocspBasicRespASN, dataASN, ocspBasicRespASN_Length,
+                        out) != sz)
+                    ret = ASN_PARSE_E;
+            }
+        }
+    }
+
+    if (ret == 0)
+        *outSz = sz;
+    FREE_ASNSETDATA(dataASN, resp->heap);
+    return ret;
+#endif
+}
+
+#endif /* HAVE_OCSP_RESPONDER */
 
 static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
             OcspResponse* resp, word32 size, void* cm, void* heap, int noVerify,
@@ -40051,7 +40673,7 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
             return ASN_NO_SIGNER_E;
 
 #ifndef WOLFSSL_NO_OCSP_ISSUER_CHECK
-        if (OcspRespCheck(resp, ca) != 0)
+        if (OcspRespCheck(resp, ca, cm) != 0)
            return BAD_OCSP_RESPONDER;
 #endif
         InitSignatureCtx(&sigCtx, heap, INVALID_DEVID);
@@ -40142,25 +40764,29 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
     }
 #ifndef WOLFSSL_NO_OCSP_ISSUER_CHECK
     if (ret == 0 && !noVerifySignature && !sigValid) {
-        if (OcspRespCheck(resp, ca) != 0) {
+        if (OcspRespCheck(resp, ca, cm) != 0) {
             ret = BAD_OCSP_RESPONDER;
         }
     }
 #endif
     if (ret == 0 && !noVerifySignature && !sigValid) {
-        SignatureCtx sigCtx;
-        /* Initialize the signature context. */
-        InitSignatureCtx(&sigCtx, heap, INVALID_DEVID);
-
-        /* TODO: ConfirmSignature is blocking here */
-        /* Check the signature of the response CA public key. */
-        sigValid = ConfirmSignature(&sigCtx, resp->response,
-            resp->responseSz, ca->publicKey, ca->pubKeySize, ca->keyOID,
-            resp->sig, resp->sigSz, resp->sigOID, resp->sigParams,
-            resp->sigParamsSz, NULL);
-        if (sigValid != 0) {
-            WOLFSSL_MSG("\tOCSP Confirm signature failed");
-            ret = ASN_OCSP_CONFIRM_E;
+        /* Extra NULL check to satisfy compiler */
+        if (ca == NULL)
+            ret = ASN_NO_SIGNER_E;
+        if (ret == 0) {
+            SignatureCtx sigCtx;
+            /* Initialize the signature context. */
+            InitSignatureCtx(&sigCtx, heap, INVALID_DEVID);
+            /* TODO: ConfirmSignature is blocking here */
+            /* Check the signature of the response CA public key. */
+            sigValid = ConfirmSignature(&sigCtx, resp->response,
+                resp->responseSz, ca->publicKey, ca->pubKeySize, ca->keyOID,
+                resp->sig, resp->sigSz, resp->sigOID, resp->sigParams,
+                resp->sigParamsSz, NULL);
+            if (sigValid != 0) {
+                WOLFSSL_MSG("\tOCSP Confirm signature failed");
+                ret = ASN_OCSP_CONFIRM_E;
+            }
         }
     }
     if (ret == 0) {
@@ -40179,20 +40805,25 @@ void InitOcspResponse(OcspResponse* resp, OcspEntry* single, CertStatus* status,
 {
     WOLFSSL_ENTER("InitOcspResponse");
 
-    XMEMSET(status, 0, sizeof(CertStatus));
-    XMEMSET(single,  0, sizeof(OcspEntry));
-    XMEMSET(resp,   0, sizeof(OcspResponse));
-
-    single->status       = status;
-    resp->responseStatus = -1;
-    resp->single         = single;
-    resp->source         = source;
-    resp->maxIdx         = inSz;
-    resp->heap           = heap;
-    resp->pendingCAs     = NULL;
-    resp->sigParams      = NULL;
-    resp->sigParamsSz    = 0;
-    resp->responderIdType = OCSP_RESPONDER_ID_INVALID;
+    if (status != NULL) {
+        XMEMSET(status, 0, sizeof(CertStatus));
+    }
+    if (single != NULL) {
+        XMEMSET(single,  0, sizeof(OcspEntry));
+        single->status = status;
+    }
+    if (resp != NULL) {
+        XMEMSET(resp,   0, sizeof(OcspResponse));
+        resp->responseStatus = -1;
+        resp->single         = single;
+        resp->source         = source;
+        resp->maxIdx         = inSz;
+        resp->heap           = heap;
+        resp->pendingCAs     = NULL;
+        resp->sigParams      = NULL;
+        resp->sigParamsSz    = 0;
+        resp->responderIdType = OCSP_RESPONDER_ID_INVALID;
+    }
 }
 
 void FreeOcspResponse(OcspResponse* resp)
@@ -40245,6 +40876,101 @@ enum {
 /* Number of items in ASN.1 template for OCSPResponse. */
 #define ocspResponseASN_Length (sizeof(ocspResponseASN) / sizeof(ASNItem))
 #endif /* WOLFSSL_ASN_TEMPLATE */
+
+#ifdef HAVE_OCSP_RESPONDER
+
+int OcspResponseEncode(OcspResponse* resp, byte* out, word32* outSz,
+        RsaKey* rsaKey, ecc_key* eccKey, WC_RNG* rng)
+{
+#ifndef WOLFSSL_ASN_TEMPLATE
+    (void)resp;
+    (void)out;
+    (void)outSz;
+    (void)rsaKey;
+    (void)eccKey;
+    (void)rng;
+    /* Encoding ocsp responses not supported in legacy ASN parsing */
+    return NOT_COMPILED_IN;
+#else
+    DECL_ASNSETDATA(dataASN, ocspResponseASN_Length);
+    int ret = 0;
+    int sz = 0;
+    word32 basicRespSz = 0;
+
+    WOLFSSL_ENTER("OcspResponseEncode");
+
+    if (resp == NULL || outSz == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    CALLOC_ASNSETDATA(dataASN, ocspResponseASN_Length, ret, resp->heap);
+
+    if (ret == 0) {
+        SetASN_Int8Bit(&dataASN[OCSPRESPONSEASN_IDX_STATUS],
+                (byte)resp->responseStatus);
+    }
+    if (ret == 0 && resp->responseStatus == OCSP_SUCCESSFUL) {
+        SetASN_OID(&dataASN[OCSPRESPONSEASN_IDX_BYTES_TYPE], OCSP_BASIC_OID,
+                oidOcspType);
+
+        basicRespSz = *outSz;
+        ret = EncodeBasicOcspResponse(resp, NULL, &basicRespSz, rsaKey, eccKey,
+                rng);
+        if (ret == 0 && out == NULL) {
+            SetASN_Buffer(&dataASN[OCSPRESPONSEASN_IDX_BYTES_VAL], NULL,
+                    basicRespSz);
+            ret = SizeASN_Items(ocspResponseASN, dataASN,
+                    ocspResponseASN_Length, &sz);
+        }
+        else if (ret == 0 && out != NULL) {
+            /* The size of the basic response may change because of the
+             * signature encoding. */
+            byte* basicResp = out + (*outSz - basicRespSz);
+            if (basicRespSz > *outSz)
+                ret = BUFFER_E;
+            if (ret == 0) {
+                ret = EncodeBasicOcspResponse(resp, basicResp,
+                        &basicRespSz, rsaKey, eccKey, rng);
+            }
+            if (ret == 0) {
+                SetASN_Buffer(&dataASN[OCSPRESPONSEASN_IDX_BYTES_VAL],
+                        basicResp, basicRespSz);
+                ret = SizeASN_Items(ocspResponseASN, dataASN,
+                        ocspResponseASN_Length, &sz);
+            }
+            if (ret == 0 && sz > (int)*outSz)
+                ret = BUFFER_E;
+            if (ret == 0) {
+                if (SetASN_Items(ocspResponseASN, dataASN,
+                        ocspResponseASN_Length, out) != sz)
+                    ret = ASN_PARSE_E;
+            }
+        }
+
+    }
+    else if (ret == 0 && resp->responseStatus != OCSP_SUCCESSFUL) {
+        SetASNItem_NoOutNode(dataASN, ocspResponseASN,
+            OCSPRESPONSEASN_IDX_BYTES,
+            ocspResponseASN_Length);
+        ret = SizeASN_Items(ocspResponseASN, dataASN, ocspResponseASN_Length,
+                &sz);
+        if (ret == 0 && out != NULL && sz > (int)*outSz)
+            ret = BUFFER_E;
+        if (ret == 0 && out != NULL) {
+            if (SetASN_Items(ocspResponseASN, dataASN, ocspResponseASN_Length,
+                    out) != sz)
+                ret = ASN_PARSE_E;
+        }
+    }
+
+    if (ret == 0)
+        *outSz = (word32)sz;
+    FREE_ASNSETDATA(dataASN, resp->heap);
+    return ret;
+#endif
+}
+
+#endif /* HAVE_OCSP_RESPONDER */
 
 int OcspResponseDecode(OcspResponse* resp, void* cm, void* heap,
     int noVerifyCert, int noVerifySignature)
@@ -40371,35 +41097,6 @@ int OcspResponseDecode(OcspResponse* resp, void* cm, void* heap,
 #endif /* WOLFSSL_ASN_TEMPLATE */
 }
 
-#ifdef WOLFSSL_ASN_TEMPLATE
-/* ASN.1 template for OCSP nonce extension.
- * RFC 6960, 4.4.1 - Nonce
- * X.509: RFC 5280, 4.1 - Basic Certificate Fields. (Extension)
- */
-static const ASNItem ocspNonceExtASN[] = {
-/* SEQ       */ { 0, ASN_SEQUENCE, 1, 1, 0 },
-                                     /* Extension */
-/* EXT       */     { 1, ASN_SEQUENCE, 1, 1, 0 },
-                                        /* extnId */
-/* EXT_OID   */        {2, ASN_OBJECT_ID, 0, 0, 0 },
-                                        /* critical not encoded. */
-                                        /* extnValue */
-/* EXT_VAL   */        {2, ASN_OCTET_STRING, 0, 1, 0 },
-                                               /* nonce */
-/* EXT_NONCE */            {3, ASN_OCTET_STRING, 0, 0, 0 },
-};
-enum {
-    OCSPNONCEEXTASN_IDX_SEQ = 0,
-    OCSPNONCEEXTASN_IDX_EXT,
-    OCSPNONCEEXTASN_IDX_EXT_OID,
-    OCSPNONCEEXTASN_IDX_EXT_VAL,
-    OCSPNONCEEXTASN_IDX_EXT_NONCE,
-};
-
-/* Number of items in ASN.1 template for OCSP nonce extension. */
-#define ocspNonceExtASN_Length (sizeof(ocspNonceExtASN) / sizeof(ASNItem))
-#endif /* WOLFSSL_ASN_TEMPLATE */
-
 word32 EncodeOcspRequestExtensions(OcspRequest* req, byte* output, word32 size)
 {
     const byte NonceObjId[] = { 0x2b, 0x06, 0x01, 0x05, 0x05, 0x07,
@@ -40511,6 +41208,8 @@ static const ASNItem ocspRequestASN[] = {
                                                                   /* hashAlgorithm */
 /* TBS_REQ_HASH      */                        { 5, ASN_SEQUENCE, 1, 1, 0 },
 /* TBS_REQ_HASH_OID  */                            { 6, ASN_OBJECT_ID, 0, 0, 0 },
+                                                                  /* optional NULL params */
+/* TBS_REQ_HASH_NULL */                            { 6, ASN_TAG_NULL, 0, 0, 1 },
                                                                   /* issuerNameHash */
 /* TBS_REQ_ISSUER    */                        { 5, ASN_OCTET_STRING, 0, 0, 0 },
                                                                   /* issuerKeyHash */
@@ -40518,8 +41217,9 @@ static const ASNItem ocspRequestASN[] = {
                                                                   /* serialNumber */
 /* TBS_REQ_SERIAL    */                        { 5, ASN_INTEGER, 0, 0, 0 },
                                                       /* requestExtensions */
-/* TBS_REQEXT        */            { 2, ASN_CONTEXT_SPECIFIC | 2, 1, 0, 0 },
-                                                  /* optionalSignature not written. */
+/* TBS_REQEXT        */            { 2, ASN_CONTEXT_SPECIFIC | 2, 1, 0, 1 },
+                                                  /* optionalSignature */
+/* OPT_SIG           */        { 1, ASN_CONTEXT_SPECIFIC | 0, 1, 1, 1 }
 };
 enum {
     OCSPREQUESTASN_IDX_SEQ = 0,
@@ -40529,10 +41229,12 @@ enum {
     OCSPREQUESTASN_IDX_TBS_REQ_CID,
     OCSPREQUESTASN_IDX_TBS_REQ_HASH,
     OCSPREQUESTASN_IDX_TBS_REQ_HASH_OID,
+    OCSPREQUESTASN_IDX_TBS_REQ_HASH_NULL,
     OCSPREQUESTASN_IDX_TBS_REQ_ISSUER,
     OCSPREQUESTASN_IDX_TBS_REQ_ISSUERKEY,
     OCSPREQUESTASN_IDX_TBS_REQ_SERIAL,
     OCSPREQUESTASN_IDX_TBS_REQEXT,
+    OCSPREQUESTASN_IDX_OPT_SIG,
 };
 
 /* Number of items in ASN.1 template for OCSPRequest. */
@@ -40555,13 +41257,8 @@ int EncodeOcspRequest(OcspRequest* req, byte* output, word32 size)
 
     WOLFSSL_ENTER("EncodeOcspRequest");
 
-#ifdef NO_SHA
-    algoSz = SetAlgoID(SHA256h, algoArray, oidHashType, 0);
-    keyIdSz = WC_SHA256_DIGEST_SIZE;
-#else
-    algoSz = SetAlgoID(SHAh, algoArray, oidHashType, 0);
-    keyIdSz = WC_SHA_DIGEST_SIZE;
-#endif
+    algoSz = SetAlgoID(req->hashAlg, algoArray, oidHashType, 0);
+    keyIdSz = wc_HashGetDigestSize(wc_OidGetHash(req->hashAlg));
 
     issuerSz    = SetDigest(req->issuerHash,    keyIdSz,    issuerArray);
     issuerKeySz = SetDigest(req->issuerKeyHash, keyIdSz,    issuerKeyArray);
@@ -40630,15 +41327,9 @@ int EncodeOcspRequest(OcspRequest* req, byte* output, word32 size)
 
     if (ret == 0) {
         /* Set OID of hash algorithm use on issuer and key. */
-    #ifdef NO_SHA
-        SetASN_OID(&dataASN[OCSPREQUESTASN_IDX_TBS_REQ_HASH_OID], SHA256h,
+        SetASN_OID(&dataASN[OCSPREQUESTASN_IDX_TBS_REQ_HASH_OID], req->hashAlg,
                 oidHashType);
-        keyIdSz = WC_SHA256_DIGEST_SIZE;
-    #else
-        SetASN_OID(&dataASN[OCSPREQUESTASN_IDX_TBS_REQ_HASH_OID], SHAh,
-                oidHashType);
-        keyIdSz = WC_SHA_DIGEST_SIZE;
-    #endif
+        keyIdSz = (word32)wc_HashGetDigestSize(wc_OidGetHash(req->hashAlg));
         /* Set issuer, issuer key hash and serial number of certificate being
          * checked. */
         SetASN_Buffer(&dataASN[OCSPREQUESTASN_IDX_TBS_REQ_ISSUER],
@@ -40660,6 +41351,8 @@ int EncodeOcspRequest(OcspRequest* req, byte* output, word32 size)
             /* Don't write out extensions. */
             dataASN[OCSPREQUESTASN_IDX_TBS_REQEXT].noOut = 1;
         }
+        /* Don't write out signature. */
+        dataASN[OCSPREQUESTASN_IDX_OPT_SIG].noOut = 1;
     }
     if (ret == 0) {
         /* Calculate size of encoding. */
@@ -40694,6 +41387,175 @@ int EncodeOcspRequest(OcspRequest* req, byte* output, word32 size)
 #endif /* WOLFSSL_ASN_TEMPLATE */
 }
 
+#ifdef HAVE_OCSP_RESPONDER
+
+#ifdef WOLFSSL_ASN_TEMPLATE
+/* Decode OCSP request extensions.
+ * RFC 6960, 4.1.1 - ASN.1 Specification of the OCSP Request
+ *
+ * @param [in]      source  Buffer containing encoded extensions (inside [2]).
+ * @param [in]      sz      Length of buffer in bytes.
+ * @param [in, out] req     OCSP request object to store nonce.
+ * @return  0 on success.
+ * @return  ASN_PARSE_E when data is malformed.
+ */
+static int DecodeOcspReqExtensions(const byte* source, word32 sz,
+                                   OcspRequest* req)
+{
+    DECL_ASNGETDATA(dataASN, certExtASN_Length);
+    int ret = 0;
+    word32 idx = 0;
+    word32 maxIdx;
+    int seqLen;
+
+    WOLFSSL_ENTER("DecodeOcspReqExtensions");
+
+    /* Skip the outer SEQUENCE that wraps all extensions */
+    if (GetSequence(source, &idx, &seqLen, sz) < 0) {
+        return ASN_PARSE_E;
+    }
+    maxIdx = idx + (word32)seqLen;
+
+    CALLOC_ASNGETDATA(dataASN, certExtASN_Length, ret, req->heap);
+
+    /* Step through all extensions. */
+    while ((ret == 0) && (idx < maxIdx)) {
+        byte isCrit = 0;
+        /* Clear dynamic data, set OID type to expect. */
+        XMEMSET(dataASN, 0, sizeof(*dataASN) * certExtASN_Length);
+        GetASN_OID(&dataASN[CERTEXTASN_IDX_OID], oidOcspType);
+        GetASN_Boolean(&dataASN[CERTEXTASN_IDX_CRIT], &isCrit);
+        /* Decode extension. */
+        ret = GetASN_Items(certExtASN, dataASN, certExtASN_Length, 0,
+                           source, &idx, sz);
+        if (ret == 0) {
+            word32 oid = dataASN[CERTEXTASN_IDX_OID].data.oid.sum;
+            int length = (int)dataASN[CERTEXTASN_IDX_VAL].length;
+
+            if (oid == OCSP_NONCE_OID) {
+                /* Extract nonce data - get data inside inner OCTET_STRING */
+                ret = GetOctetString(source, &idx, &length, sz);
+                if (ret >= 0) {
+                    ret = 0;
+                    if (length <= (int)sizeof(req->nonce)) {
+                        XMEMCPY(req->nonce, source + idx, (size_t)length);
+                        req->nonceSz = length;
+                    }
+                    else {
+                        /* Nonce too large */
+                        ret = BUFFER_E;
+                    }
+                }
+            }
+            else if (isCrit) {
+                /* Unknown critical extension - fail */
+                ret = ASN_PARSE_E;
+            }
+            /* Ignore all other extension types. */
+
+            /* Skip over rest of extension. */
+            idx += (word32)length;
+        }
+    }
+
+    /* Ensure all extension data was consumed */
+    if (ret == 0 && idx != maxIdx) {
+        ret = ASN_PARSE_E;
+    }
+
+    FREE_ASNGETDATA(dataASN, req->heap);
+    return ret;
+}
+#endif /* WOLFSSL_ASN_TEMPLATE */
+
+int DecodeOcspRequest(OcspRequest* req, const byte* input, word32 size)
+{
+#ifndef WOLFSSL_ASN_TEMPLATE
+    (void)req;
+    (void)input;
+    (void)size;
+    /* Decoding ocsp requests not supported in legacy ASN parsing */
+    return NOT_COMPILED_IN;
+#else
+    /* TODO: support multiple Requested in a requestList */
+    DECL_ASNGETDATA(dataASN, ocspRequestASN_Length);
+    int ret = 0;
+    word32 idx = 0;
+    word32 issuerHashSz = sizeof(req->issuerHash);
+    word32 issuerKeyHashSz = sizeof(req->issuerKeyHash);
+    byte* serial = NULL;
+    word32 serialSz = 0;
+
+    WOLFSSL_ENTER("DecodeOcspRequest");
+
+    CALLOC_ASNGETDATA(dataASN, ocspRequestASN_Length, ret, req->heap);
+
+    if (ret == 0) {
+        GetASN_OID(&dataASN[OCSPREQUESTASN_IDX_TBS_REQ_HASH_OID], oidHashType);
+        GetASN_Buffer(&dataASN[OCSPREQUESTASN_IDX_TBS_REQ_ISSUER],
+                req->issuerHash, &issuerHashSz);
+        GetASN_Buffer(&dataASN[OCSPREQUESTASN_IDX_TBS_REQ_ISSUERKEY],
+                req->issuerKeyHash, &issuerKeyHashSz);
+        ret = GetASN_Items(ocspRequestASN, dataASN, ocspRequestASN_Length, 1,
+            input, &idx, size);
+    }
+    if (ret == 0) {
+        /* Make sure all input was consumed */
+        if (idx != size)
+            ret = ASN_PARSE_E;
+    }
+    if (ret == 0) {
+        /* Store hash algorithm from the request */
+        int digestSz;
+        req->hashAlg = dataASN[OCSPREQUESTASN_IDX_TBS_REQ_HASH_OID].data.oid.sum;
+        digestSz = wc_HashGetDigestSize(wc_OidGetHash(req->hashAlg));
+        if (digestSz <= 0)
+            ret = ASN_SIG_HASH_E;
+        else if ((int)issuerHashSz != digestSz ||
+                 (int)issuerKeyHashSz != digestSz)
+            ret = ASN_PARSE_E;
+    }
+    if (ret == 0) {
+        /* Parse optional extensions */
+        if (dataASN[OCSPREQUESTASN_IDX_TBS_REQEXT].data.ref.data != NULL) {
+            ret = DecodeOcspReqExtensions(
+                dataASN[OCSPREQUESTASN_IDX_TBS_REQEXT].data.ref.data,
+                dataASN[OCSPREQUESTASN_IDX_TBS_REQEXT].data.ref.length,
+                req);
+        }
+    }
+    if (ret == 0) {
+        /* Optional signature not supported yet */
+        if (dataASN[OCSPREQUESTASN_IDX_OPT_SIG].length > 0 ||
+                dataASN[OCSPREQUESTASN_IDX_OPT_SIG].data.ref.data != NULL)
+            ret = NOT_COMPILED_IN;
+    }
+    if (ret == 0) {
+        GetASN_GetRef(&dataASN[OCSPREQUESTASN_IDX_TBS_REQ_SERIAL],
+                &serial, &serialSz);
+        if (serialSz == 0 || serial == NULL)
+            ret = ASN_PARSE_E;
+    }
+    if (ret == 0) {
+        /* Copy serial number */
+        req->serial = (byte*)XMALLOC((size_t)serialSz, req->heap,
+                                     DYNAMIC_TYPE_OCSP_REQUEST);
+        if (req->serial == NULL) {
+            ret = MEMORY_E;
+        }
+        else {
+            XMEMCPY(req->serial, serial, (size_t)serialSz);
+            req->serialSz = serialSz;
+        }
+    }
+
+    FREE_ASNGETDATA(dataASN, req->heap);
+    return ret;
+#endif
+}
+
+#endif /* HAVE_OCSP_RESPONDER */
+
 
 int InitOcspRequest(OcspRequest* req, DecodedCert* cert, byte useNonce,
                                                                      void* heap)
@@ -40707,6 +41569,12 @@ int InitOcspRequest(OcspRequest* req, DecodedCert* cert, byte useNonce,
 
     XMEMSET(req, 0, sizeof(OcspRequest));
     req->heap = heap;
+
+#ifdef NO_SHA
+    req->hashAlg = SHA256h;
+#else
+    req->hashAlg = SHAh;
+#endif
 
     if (cert) {
         XMEMCPY(req->issuerHash,    cert->issuerHash,    KEYID_SIZE);
@@ -40827,12 +41695,8 @@ int CompareOcspReqResp(OcspRequest* req, OcspResponse* resp)
 
     /* match based on found status and return */
     for (single = resp->single; single; single = next) {
-    #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
         ocspDigestSize = wc_HashGetDigestSize(
             wc_OidGetHash(single->hashAlgoOID));
-    #else
-        ocspDigestSize = OCSP_DIGEST_SIZE;
-    #endif
         cmp = req->serialSz - single->status->serialSz;
         if (cmp == 0) {
             cmp = XMEMCMP(req->serial, single->status->serial,
@@ -45042,6 +45906,77 @@ int wc_VerifyX509Acert(const byte* acert, word32 acertSz,
 }
 
 #endif /* WOLFSSL_ACERT && WOLFSSL_ASN_TEMPLATE */
+
+int AsnHashesHash(AsnHashes* hashes, const byte* data, word32 dataSz)
+{
+    int ret = 0;
+
+    if (hashes == NULL || data == NULL)
+        ret = BAD_FUNC_ARG;
+#if !defined(NO_MD5)
+    if (ret == 0)
+        ret = wc_Md5Hash(data, dataSz, hashes->md5);
+#endif
+#if !defined(NO_SHA)
+    if (ret == 0)
+        ret = wc_ShaHash(data, dataSz, hashes->sha);
+#endif
+#ifndef NO_SHA256
+    if (ret == 0)
+        ret = wc_Sha256Hash(data, dataSz, hashes->sha256);
+#endif
+#ifdef WOLFSSL_SHA384
+    if (ret == 0)
+        ret = wc_Sha384Hash(data, dataSz, hashes->sha384);
+#endif
+#ifdef WOLFSSL_SHA512
+    if (ret == 0)
+        ret = wc_Sha512Hash(data, dataSz, hashes->sha512);
+#endif
+#ifdef WOLFSSL_SM3
+    if (ret == 0)
+        ret = wc_Sm3Hash(data, dataSz, hashes->sm3);
+#endif
+
+    return ret;
+}
+
+const byte* AsnHashesGetHash(const AsnHashes* hashes, int hashAlg, int* size)
+{
+    if (hashes == NULL || size == NULL)
+        return NULL;
+
+    switch (hashAlg) {
+#if !defined(NO_SHA)
+        case SHAh:
+            *size = WC_SHA_DIGEST_SIZE;
+            return hashes->sha;
+#endif
+#ifndef NO_SHA256
+        case SHA256h:
+            *size = WC_SHA256_DIGEST_SIZE;
+            return hashes->sha256;
+#endif
+#ifdef WOLFSSL_SHA384
+        case SHA384h:
+            *size = WC_SHA384_DIGEST_SIZE;
+            return hashes->sha384;
+#endif
+#ifdef WOLFSSL_SHA512
+        case SHA512h:
+            *size = WC_SHA512_DIGEST_SIZE;
+            return hashes->sha512;
+#endif
+#ifdef WOLFSSL_SM3
+        case SM3h:
+            *size = WC_SM3_DIGEST_SIZE;
+            return hashes->sm3;
+#endif
+        default:
+            *size = 0;
+            return NULL;
+    }
+}
 
 #ifdef WOLFSSL_SEP
 

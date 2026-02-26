@@ -3143,7 +3143,7 @@ int test_wc_PKCS7_GetEnvelopedDataKariRid(void)
     byte rid[256];
     byte cms[1024];
     XFILE cmsFile = XBADFILE;
-    int ret;
+    int ret = 0;
     word32 ridSz = sizeof(rid);
     XFILE skiHexFile = XBADFILE;
     byte skiHex[256];

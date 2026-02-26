@@ -48,6 +48,12 @@ openssl x509 -in root-ca-cert.pem -text > tmp.pem
 check_result $? ""
 mv tmp.pem root-ca-cert.pem
 
+echo "OCSP renew certs Step 4"
+openssl x509 -in root-ca-cert.pem -outform DER -out root-ca-cert.der
+check_result $? ""
+openssl rsa -in root-ca-key.pem -outform DER -out root-ca-key.der
+check_result $? ""
+
 # $1 cert, $2 name, $3 ca, $4 extensions, $5 serial
 update_cert() {
     echo "Updating certificate \"$1-cert.pem\""
@@ -75,6 +81,11 @@ update_cert() {
     check_result $? "Step 3"
     mv "$1"_tmp.pem "$1"-cert.pem
     cat "$3"-cert.pem >> "$1"-cert.pem
+
+    openssl x509 -in "$1"-cert.pem -outform DER -out "$1"-cert.der
+    check_result $? "Step 4"
+    openssl rsa -in "$1"-key.pem -outform DER -out "$1"-key.der
+    check_result $? "Step 5"
 }
 
 update_cert intermediate1-ca "wolfSSL intermediate CA 1"       root-ca          v3_ca   01
