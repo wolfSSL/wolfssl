@@ -3105,6 +3105,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         byte echConfig[512];
         word32 echConfigLen = sizeof(echConfig);
         char echConfigBase64[512];
+        char* echConfigBase64Ptr;
         word32 echConfigBase64Len = sizeof(echConfigBase64);
 
         if (wolfSSL_CTX_GenerateEchConfig(ctx, echPublicName, 0, 0, 0)
@@ -3116,12 +3117,16 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             err_sys_ex(runWithErrors, "GetEchConfigs failed");
         }
         if (Base64_Encode_NoNl(echConfig, echConfigLen, (byte*)echConfigBase64,
-                    &echConfigBase64Len) != 0) {
+                &echConfigBase64Len) != 0) {
             err_sys_ex(runWithErrors, "Base64_Encode_NoNl failed");
         }
         else {
-            echConfigBase64[echConfigBase64Len] = '\0';
-            printf("ECH config (base64): %s\n", echConfigBase64);
+            echConfigBase64Ptr = echConfigBase64;
+            printf("ECH config (base64): ");
+            while (echConfigBase64Len-- > 0) {
+                printf("%c", *echConfigBase64Ptr++);
+            }
+            printf("\n");
         }
     }
 #endif

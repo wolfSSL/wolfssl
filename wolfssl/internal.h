@@ -2979,9 +2979,9 @@ typedef struct Options Options;
 #define TLSXT_CONNECTION_ID              0x0036
 #define TLSXT_KEY_QUIC_TP_PARAMS         0x0039 /* RFC 9001, ch. 8.2 */
 #define TLSXT_ECH                        0xfe0d /* from */
-                                                /* draft-ietf-tls-esni-13 */
+                                                /* draft-ietf-tls-esni-25 */
 #define TLSXT_ECH_OUTER_EXTENSIONS       0xfd00 /* from
-                                                   draft-ietf-tls-esni-13 */
+                                                   draft-ietf-tls-esni-25 */
 /* The 0xFF section is experimental/custom/personal use */
 #define TLSXT_CKS                        0xff92 /* X9.146 */
 #define TLSXT_RENEGOTIATION_INFO         0xff01

@@ -2362,7 +2362,8 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 #endif
 
 #if defined(HAVE_ECH)
-    if (ech != NULL && ech->sniState == ECH_INNER_SNI_ATTEMPT) {
+    if (ech != NULL && ech->sniState == ECH_INNER_SNI_ATTEMPT &&
+            ech->privateName != NULL) {
         matched = cacheOnly || (XSTRLEN(ech->privateName) == size &&
             XSTRNCMP(ech->privateName, (const char*)input + offset, size) == 0);
     }
