@@ -13790,7 +13790,6 @@ static int test_wolfSSL_CTX_add_client_CA(void)
     defined(HAVE_IO_TESTS_DEPENDENCIES)
 static THREAD_RETURN WOLFSSL_THREAD server_task_ech(void* args)
 {
-    EXPECT_DECLS;
     callback_functions* callbacks = ((func_args*)args)->callbacks;
     WOLFSSL_CTX* ctx       = callbacks->ctx;
     WOLFSSL*  ssl   = NULL;
@@ -13820,7 +13819,7 @@ static THREAD_RETURN WOLFSSL_THREAD server_task_ech(void* args)
     if (callbacks->ctx_ready)
         callbacks->ctx_ready(ctx);
 
-    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    AssertNotNull(ssl = wolfSSL_new(ctx));
 
     /* set the sni for the server */
     AssertIntEQ(WOLFSSL_SUCCESS,
