@@ -829,8 +829,8 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch)
             * extension is present. */
             TLSX* ksExt = TLSX_Find(parsedExts, TLSX_KEY_SHARE);
             KeyShareEntry* kse = (KeyShareEntry*)ksExt->data;
-            if (WOLFSSL_NAMED_GROUP_IS_PQC(kse->group) ||
-                WOLFSSL_NAMED_GROUP_IS_PQC_HYBRID(kse->group)) {
+            if (kse != NULL && (WOLFSSL_NAMED_GROUP_IS_PQC(kse->group) ||
+                                WOLFSSL_NAMED_GROUP_IS_PQC_HYBRID(kse->group))){
                 /* Allow fragmentation of the second ClientHello due to the
                 * large PQC key share. */
                 wolfSSL_dtls13_allow_ch_frag((WOLFSSL*)ssl, 1);

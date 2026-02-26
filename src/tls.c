@@ -10272,7 +10272,19 @@ int TLSX_KeyShare_Parse_ClientHello(const WOLFSSL* ssl,
         offset += ret;
     }
 
-    if (ssl->hrr_keyshare_group != 0 && seenGroupsCnt > 0) {
+    if (ssl->hrr_keyshare_group != 0) {
+#ifdef WOLFSSL_DTLS
+        /* In case of stateless DTLSv1.3, the ssl->hrr_keyshare_group variable
+         * may already been set without further proceeding the handshake, so we
+         * never received the second ClientHello with the selected group.
+         * Hence, when we receive another ClientHello message with an empty key
+         * share, we do not consider that as an error here.
+         */
+        if (ssl->options.dtls && IsAtLeastTLSv1_3(ssl->version) &&
+            !ssl->options.dtlsStateful && seenGroupsCnt == 0) {
+            return 0;
+        }
+#endif
         /*
          * https://datatracker.ietf.org/doc/html/rfc8446#section-4.2.8
          *   when sending the new ClientHello, the client MUST

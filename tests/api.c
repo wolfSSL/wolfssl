@@ -29130,6 +29130,10 @@ static int test_dtls13_bad_epoch_ch(void)
     WOLFSSL *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
     const int EPOCH_OFF = 3;
+    int groups[] = {
+        WOLFSSL_ECC_SECP256R1,
+        WOLFSSL_ECC_SECP384R1,
+    };
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
@@ -29138,6 +29142,9 @@ static int test_dtls13_bad_epoch_ch(void)
     /* disable hrr cookie so we can later check msgsReceived.got_client_hello
      *  with just one message */
     ExpectIntEQ(wolfSSL_disable_hrr_cookie(ssl_s), WOLFSSL_SUCCESS);
+
+    /* Set client groups to traditional only to avoid CH fragmentation */
+    ExpectIntEQ(wolfSSL_set_groups(ssl_c, groups, 2), WOLFSSL_SUCCESS);
 
     ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_get_error(ssl_c, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
@@ -29160,9 +29167,6 @@ static int test_dtls13_bad_epoch_ch(void)
 
     /* resend the CH */
     ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_c), WOLFSSL_SUCCESS);
-
-    /* Re-enable HRR cookie to account for potential CH fragmentation */
-    ExpectIntEQ(wolfSSL_send_hrr_cookie(ssl_s, NULL, 0), WOLFSSL_SUCCESS);
 
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
 
