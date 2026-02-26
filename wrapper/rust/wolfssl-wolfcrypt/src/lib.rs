@@ -37,6 +37,7 @@ pub mod fips;
 pub mod hkdf;
 pub mod hmac;
 pub mod kdf;
+pub mod lms;
 pub mod mlkem;
 pub mod prf;
 pub mod random;

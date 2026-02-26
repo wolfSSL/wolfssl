@@ -331,6 +331,12 @@ fn scan_cfg() -> Result<()> {
     /* mlkem / ML-KEM */
     check_cfg(&binding, "wc_MlKemKey_Init", "mlkem");
 
+    /* lms / HSS */
+    check_cfg(&binding, "wc_LmsKey_Init", "lms");
+    check_cfg(&binding, "wc_LmsKey_MakeKey", "lms_make_key");
+    check_cfg(&binding, "wc_LmsParm_WC_LMS_PARM_L1_H5_W1", "lms_sha256_256");
+    check_cfg(&binding, "wc_LmsParm_WC_LMS_PARM_SHA256_192_L1_H5_W1", "lms_sha256_192");
+
     /* sha */
     check_cfg(&binding, "wc_InitSha", "sha");
     check_cfg(&binding, "wc_InitSha224", "sha224");
