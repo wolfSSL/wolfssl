@@ -749,6 +749,7 @@ int test_tls_hmac_size_overflow(void)
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
+    wolfSSL_Cleanup();
 #endif /* !NO_HMAC && !WOLFSSL_AEAD_ONLY && !NO_TLS && NO_OLD_TLS &&
         * !NO_WOLFSSL_CLIENT */
     return EXPECT_RESULT();
