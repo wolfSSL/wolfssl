@@ -293,6 +293,9 @@ extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t scrypt_test(void);
     extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  lms_test(void);
     #endif
 #endif
+#if defined(WOLFSSL_HAVE_SLHDSA)
+    extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  slhdsa_test(void);
+#endif
 #ifdef WOLFCRYPT_HAVE_ECCSI
     extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  eccsi_test(void);
 #endif

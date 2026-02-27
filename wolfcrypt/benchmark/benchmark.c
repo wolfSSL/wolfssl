@@ -192,6 +192,9 @@
         #include <wolfssl/wolfcrypt/wc_xmss.h>
     #endif
 #endif
+#if defined(WOLFSSL_HAVE_SLHDSA)
+    #include <wolfssl/wolfcrypt/wc_slhdsa.h>
+#endif
 #ifdef WOLFCRYPT_HAVE_ECCSI
     #include <wolfssl/wolfcrypt/eccsi.h>
 #endif
@@ -965,6 +968,18 @@ static WC_INLINE void bench_append_memory_info(char* buffer, size_t size,
 #else
 #define BENCH_XMSS_XMSSMT               0x00000000
 #endif
+#define BENCH_SLHDSA_SHAKE128S          0x00000020
+#define BENCH_SLHDSA_SHAKE128F          0x00000040
+#define BENCH_SLHDSA_SHAKE192S          0x00000080
+#define BENCH_SLHDSA_SHAKE192F          0x00000100
+#define BENCH_SLHDSA_SHAKE256S          0x00000200
+#define BENCH_SLHDSA_SHAKE256F          0x00000400
+#define BENCH_SLHDSA                    (BENCH_SLHDSA_SHAKE128S | \
+                                         BENCH_SLHDSA_SHAKE128F | \
+                                         BENCH_SLHDSA_SHAKE192S | \
+                                         BENCH_SLHDSA_SHAKE192F | \
+                                         BENCH_SLHDSA_SHAKE256S | \
+                                         BENCH_SLHDSA_SHAKE256F)
 
 /* Other */
 #define BENCH_RNG                0x00000001
@@ -987,7 +1002,8 @@ static WC_INLINE void bench_append_memory_info(char* buffer, size_t size,
 #endif
 
 #if (defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)) || \
-    (defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY))
+    (defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)) || \
+    defined(WOLFSSL_HAVE_SLHDSA)
     #define BENCH_PQ_STATEFUL_HBS
 #endif
 
@@ -1315,6 +1331,15 @@ static const bench_pq_hash_sig_alg bench_pq_hash_sig_opt[] = {
 #ifdef WC_XMSS_SHAKE256
     { "-xmss_xmssmt_shake256", BENCH_XMSS_XMSSMT_SHAKE256},
 #endif
+#endif
+#if defined(WOLFSSL_HAVE_SLHDSA)
+    { "-slhdsa-shake128s",     BENCH_SLHDSA_SHAKE128S},
+    { "-slhdsa-shake128f",     BENCH_SLHDSA_SHAKE128F},
+    { "-slhdsa-shake192s",     BENCH_SLHDSA_SHAKE192S},
+    { "-slhdsa-shake192f",     BENCH_SLHDSA_SHAKE192F},
+    { "-slhdsa-shake256s",     BENCH_SLHDSA_SHAKE256S},
+    { "-slhdsa-shake256f",     BENCH_SLHDSA_SHAKE256F},
+    { "-slhdsa",               BENCH_SLHDSA          },
 #endif
     { NULL, 0}
 };
@@ -4334,6 +4359,42 @@ static void* benchmarks_do(void* args)
     }
 #endif
 #endif /* if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY) */
+
+#if defined(WOLFSSL_HAVE_SLHDSA) && !defined(WOLFSSL_SLHDSA_VERIFY_ONLY)
+    if (bench_all) {
+        bench_pq_hash_sig_algs |= BENCH_SLHDSA;
+    }
+#ifdef WOLFSSL_SLHDSA_PARAM_128S
+    if (bench_pq_hash_sig_algs & BENCH_SLHDSA_SHAKE128S) {
+        bench_slhdsa(SLHDSA_SHAKE128S);
+    }
+#endif
+#ifdef WOLFSSL_SLHDSA_PARAM_128F
+    if (bench_pq_hash_sig_algs & BENCH_SLHDSA_SHAKE128F) {
+        bench_slhdsa(SLHDSA_SHAKE128F);
+    }
+#endif
+#ifdef WOLFSSL_SLHDSA_PARAM_192S
+    if (bench_pq_hash_sig_algs & BENCH_SLHDSA_SHAKE192S) {
+        bench_slhdsa(SLHDSA_SHAKE192S);
+    }
+#endif
+#ifdef WOLFSSL_SLHDSA_PARAM_192F
+    if (bench_pq_hash_sig_algs & BENCH_SLHDSA_SHAKE192F) {
+        bench_slhdsa(SLHDSA_SHAKE192F);
+    }
+#endif
+#ifdef WOLFSSL_SLHDSA_PARAM_256S
+    if (bench_pq_hash_sig_algs & BENCH_SLHDSA_SHAKE256S) {
+        bench_slhdsa(SLHDSA_SHAKE256S);
+    }
+#endif
+#ifdef WOLFSSL_SLHDSA_PARAM_256F
+    if (bench_pq_hash_sig_algs & BENCH_SLHDSA_SHAKE256F) {
+        bench_slhdsa(SLHDSA_SHAKE256F);
+    }
+#endif
+#endif
 
 #if defined(HAVE_ECC) && !defined(WC_NO_RNG)
     if (bench_all || (bench_asym_algs & BENCH_ECC_MAKEKEY) ||
@@ -11959,6 +12020,104 @@ void bench_xmss(int hash)
     return;
 }
 #endif /* if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY) */
+
+#if defined(WOLFSSL_HAVE_SLHDSA) && !defined(WOLFSSL_SLHDSA_VERIFY_ONLY)
+void bench_slhdsa(enum SlhDsaParam param)
+{
+    int ret = 0, count = 0;
+    double start = 0;
+    SlhDsaKey key;
+    SlhDsaKey key_vfy;
+    byte sig[WC_SLHDSA_MAX_SIG_LEN];
+    word32 sigLen;
+    byte pk[2 * 32];
+    word32 outLen;
+    static const byte msg[] = {
+        0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x20, 0x57, 0x6f,
+        0x72, 0x6c, 0x64, 0x21
+    };
+    byte ctx[1];
+    char name[30];
+    int len;
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&key_vfy, 0, sizeof(key_vfy));
+
+    ret = wc_SlhDsaKey_Init(&key, param, NULL, INVALID_DEVID);
+    if (ret != 0) {
+        goto exit;
+    }
+
+    len = wc_SlhDsaKey_PublicSize(&key) / 2 * 8;
+    XSNPRINTF(name, sizeof(name), "SLH-DSA-%c", ((param & 1) == 0) ? 'S' : 'F');
+
+    bench_stats_start(&count, &start);
+    do {
+        ret = wc_SlhDsaKey_MakeKey(&key, &gRng);
+        if (ret != 0) {
+           goto exit;
+        }
+        count++;
+        RECORD_MULTI_VALUE_STATS();
+    } while (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+       || runs < minimum_runs
+#endif
+       );
+    bench_stats_asym_finish(name, len, "gen", 0, count, start, ret);
+
+    bench_stats_start(&count, &start);
+    do {
+        sigLen = (word32)sizeof(sig);
+        ret = wc_SlhDsaKey_Sign(&key, ctx, 0, msg, (word32)sizeof(msg),
+            sig, &sigLen, &gRng);
+        if (ret != 0) {
+            goto exit;
+        }
+        count++;
+        RECORD_MULTI_VALUE_STATS();
+    } while (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+       || runs < minimum_runs
+#endif
+       );
+    bench_stats_asym_finish(name, len, "sign", 0, count, start, ret);
+
+    outLen = (word32)sizeof(pk);
+    ret = wc_SlhDsaKey_ExportPublic(&key, pk, &outLen);
+    if (ret != 0) {
+        goto exit;
+    }
+
+    ret = wc_SlhDsaKey_Init(&key_vfy, param, NULL, INVALID_DEVID);
+    if (ret != 0) {
+        goto exit;
+    }
+    ret = wc_SlhDsaKey_ImportPublic(&key_vfy, pk, outLen);
+    if (ret != 0) {
+        goto exit;
+    }
+    bench_stats_start(&count, &start);
+    do {
+        ret = wc_SlhDsaKey_Verify(&key_vfy, ctx, 0, msg, (word32)sizeof(msg),
+            sig, sigLen);
+        if (ret != 0) {
+            goto exit;
+        }
+        count++;
+        RECORD_MULTI_VALUE_STATS();
+    } while (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+       || runs < minimum_runs
+#endif
+       );
+    bench_stats_asym_finish(name, len, "verify", 0, count, start, ret);
+
+exit:
+    wc_SlhDsaKey_Free(&key_vfy);
+    wc_SlhDsaKey_Free(&key);
+}
+#endif
 
 #if defined(HAVE_ECC) && !defined(WC_NO_RNG)
 

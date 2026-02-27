@@ -105,6 +105,9 @@ void bench_dh(int useDeviceID);
 void bench_mlkem(int type);
 void bench_lms(void);
 void bench_xmss(int hash);
+#ifdef WOLFSSL_HAVE_SLHDSA
+void bench_slhdsa(enum SlhDsaParam param);
+#endif
 void bench_ecc_curve(int curveId);
 void bench_eccMakeKey(int useDeviceID, int curveId);
 void bench_ecc(int useDeviceID, int curveId);
