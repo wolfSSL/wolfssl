@@ -2970,7 +2970,9 @@ typedef struct Options Options;
 #define TLSXT_CONNECTION_ID              0x0036
 #define TLSXT_KEY_QUIC_TP_PARAMS         0x0039 /* RFC 9001, ch. 8.2 */
 #define TLSXT_ECH                        0xfe0d /* from */
-                                                /* draft-ietf-tls-esni-13 */
+                                                /* draft-ietf-tls-esni-25 */
+#define TLSXT_ECH_OUTER_EXTENSIONS       0xfd00 /* from
+                                                   draft-ietf-tls-esni-25 */
 /* The 0xFF section is experimental/custom/personal use */
 #define TLSXT_CKS                        0xff92 /* X9.146 */
 #define TLSXT_RENEGOTIATION_INFO         0xff01
@@ -3095,6 +3097,13 @@ typedef enum {
     ECH_PARSED_INTERNAL,
 } EchState;
 
+typedef enum {
+    ECH_OUTER_SNI,
+    ECH_INNER_SNI,
+    ECH_INNER_SNI_ATTEMPT,
+    ECH_SNI_DONE,
+} EchStateSNI;
+
 typedef struct EchCipherSuite {
     word16 kdfId;
     word16 aeadId;
@@ -3117,6 +3126,7 @@ typedef struct WOLFSSL_ECH {
     Hpke* hpke;
     HpkeBaseContext* hpkeContext;
     const byte* aad;
+    const char* privateName;
     void* ephemeralKey;
     WOLFSSL_EchConfig* echConfig;
     byte* innerClientHello;
@@ -3129,6 +3139,7 @@ typedef struct WOLFSSL_ECH {
     word16 kemId;
     word16 encLen;
     EchState state;
+    EchStateSNI sniState;
     byte type;
     byte configId;
     byte enc[HPKE_Npk_MAX];
@@ -5148,7 +5159,6 @@ struct Options {
     word16            useDtlsCID:1;
 #endif /* WOLFSSL_DTLS_CID */
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
-    word16            useEch:1;
     word16            echAccepted:1;
     byte              disableECH:1;           /* Did the user disable ech */
 #endif
@@ -5929,7 +5939,6 @@ struct WOLFSSL {
     HS_Hashes*      hsHashes;
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
     HS_Hashes*      hsHashesEch;
-    HS_Hashes*      hsHashesEchInner;
 #endif
     void*           IOCB_ReadCtx;
     void*           IOCB_WriteCtx;

@@ -1,0 +1,312 @@
+name: OpenSSL ECH Interop Test
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  build_wolfssl:
+    name: Build wolfSSL
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 4
+    steps:
+      - name: Build wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          path: wolfssl
+          configure: --enable-ech CFLAGS='-DUSE_FLAT_TEST_H'
+          install: true
+
+      - name: tar build-dir
+        run: |
+          # need server.h and client.h which are not installed normally
+          cp "$GITHUB_WORKSPACE/wolfssl/examples/server/server.h" \
+            build-dir/share/doc/wolfssl/example/server.h
+          cp "$GITHUB_WORKSPACE/wolfssl/examples/client/client.h" \
+            build-dir/share/doc/wolfssl/example/client.h
+
+          # need certs so 'wolfSSL error: wolf root not found' does not show up
+          cp -r "$GITHUB_WORKSPACE/wolfssl/certs" build-dir/certs
+          tar -zcf build-dir.tgz build-dir
+
+      - name: Upload built wolfSSL
+        uses: actions/upload-artifact@v4
+        with:
+          name: wolf-install-openssl-ech
+          path: build-dir.tgz
+          retention-days: 5
+
+  build_openssl_ech:
+    name: Build OpenSSL (feature/ech)
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout OpenSSL feature/ech branch
+        uses: actions/checkout@v4
+        with:
+          repository: openssl/openssl
+          ref: feature/ech
+          path: openssl
+
+      - name: Build OpenSSL
+        working-directory: openssl
+        run: |
+          ./Configure --prefix=$GITHUB_WORKSPACE/openssl-install \
+            --openssldir=$GITHUB_WORKSPACE/openssl-install/ssl \
+            enable-ech no-docs
+          make -j$(nproc)
+          make install_sw
+
+      - name: tar openssl-install
+        run: tar -zcf openssl-install.tgz openssl-install
+
+      - name: Upload built OpenSSL
+        uses: actions/upload-artifact@v4
+        with:
+          name: openssl-ech-install
+          path: openssl-install.tgz
+          retention-days: 5
+
+  ech_server_interop_test:
+    name: ECH Server Interop Test
+    if: github.repository_owner == 'wolfssl'
+    needs: [build_wolfssl, build_openssl_ech]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Download wolfSSL build
+        uses: actions/download-artifact@v4
+        with:
+          name: wolf-install-openssl-ech
+
+      - name: Download OpenSSL build
+        uses: actions/download-artifact@v4
+        with:
+          name: openssl-ech-install
+
+      - name: Extract builds
+        run: |
+          tar -xzf build-dir.tgz
+          tar -xzf openssl-install.tgz
+
+      - name: Build wolfssl server example
+        run: |
+          export WOLFSSL_INSTALL_DIR="$GITHUB_WORKSPACE/build-dir"
+          export WOLFSSL_BIN_DIR="$WOLFSSL_INSTALL_DIR/bin"
+          export CFLAGS="-Wall -I$WOLFSSL_INSTALL_DIR/include"
+          export LIBS="-L$WOLFSSL_INSTALL_DIR/lib -lm -lwolfssl"
+          export LD_LIBRARY_PATH="$WOLFSSL_INSTALL_DIR/lib/:$LD_LIBRARY_PATH"
+
+          gcc -o "$WOLFSSL_BIN_DIR/server" \
+                "$WOLFSSL_INSTALL_DIR/share/doc/wolfssl/example/server.c" \
+                $CFLAGS $LIBS -I"$WOLFSSL_INSTALL_DIR/share/doc/wolfssl/example"
+
+      - name: ECH interop - wolfSSL server, OpenSSL client
+        run: |
+          set -e
+
+          export LD_LIBRARY_PATH="$GITHUB_WORKSPACE/openssl-install/lib64:$GITHUB_WORKSPACE/openssl-install/lib:$GITHUB_WORKSPACE/build-dir/lib:$LD_LIBRARY_PATH"
+
+          OPENSSL=$GITHUB_WORKSPACE/openssl-install/bin/openssl
+          WOLFSSL_SERVER=$GITHUB_WORKSPACE/build-dir/bin/server
+
+          CERT_DIR="$GITHUB_WORKSPACE/build-dir/certs"
+          READY_FILE="$GITHUB_WORKSPACE/wolfssl_tls13_ready$$"
+          LOG_FILE="$GITHUB_WORKSPACE/log_file.log"
+          PRIV_NAME="ech-private-name.com"
+          PUB_NAME="ech-public-name.com"
+          ECH_CONFIG=""
+          PORT=0
+
+          rm -f "$READY_FILE"
+
+          # need to cd into build-dir so the certs/ dir is available for server
+          cd build-dir
+
+          $OPENSSL version | tee "$LOG_FILE"
+
+          # start server with ephemeral port + ready file
+          # also set server to be line buffered so the log can be grepped
+          stdbuf -oL $WOLFSSL_SERVER \
+                        -v 4 \
+                        -R "$READY_FILE" \
+                        -p "$PORT" \
+                        -S "$PRIV_NAME" \
+                        --ech "$PUB_NAME" \
+                        &>> "$LOG_FILE" &
+
+          # wait for server to be ready, then get port
+          counter=0
+          while [ ! -s "$READY_FILE" ]; do
+              sleep 0.1
+              counter=$((counter + 1))
+              if [ "$counter" -gt 50 ]; then
+                  echo "ERROR: no ready file" &>> "$LOG_FILE"
+                  exit 1
+              fi
+          done
+          PORT="$(cat "$READY_FILE")"
+          echo "parsed port: $PORT" &>> "$LOG_FILE"
+
+          # get ECH config from server
+          counter=0
+          while [ -z "$ECH_CONFIG" ]; do
+              ECH_CONFIG=$(grep -m1 "ECH config (base64): " "$LOG_FILE" \
+                  2>/dev/null | sed 's/ECH config (base64): //g')
+              sleep 0.1
+              counter=$((counter + 1))
+              if [ "$counter" -gt 50 ]; then
+                  echo "ERROR: no ECH configs" &>> "$LOG_FILE"
+                  exit 1
+              fi
+          done
+          echo "parsed ech config: $ECH_CONFIG" &>> "$LOG_FILE"
+
+          # Test with OpenSSL s_client using ECH
+          echo "wolfssl" | $OPENSSL s_client \
+              -tls1_3 \
+              -connect "localhost:$PORT" \
+              -cert "$CERT_DIR/client-cert.pem" \
+              -key "$CERT_DIR/client-key.pem" \
+              -CAfile "$CERT_DIR/ca-cert.pem" \
+              -servername "$PRIV_NAME" \
+              -ech_config_list "$ECH_CONFIG" \
+              &>> "$LOG_FILE"
+
+          grep "ECH: success: 1" "$LOG_FILE"
+
+          # cleanup
+          rm -f "$READY_FILE"
+          rm -f "$LOG_FILE"
+
+      - name: Print debug info on failure
+        if: ${{ failure() }}
+        run: |
+          if [ -s "$GITHUB_WORKSPACE/log_file.log" ]; then
+            cat "$GITHUB_WORKSPACE/log_file.log"
+          else
+            echo "No log file"
+          fi
+
+  ech_client_interop_test:
+    name: ECH Client Interop Test
+    if: github.repository_owner == 'wolfssl'
+    needs: [build_wolfssl, build_openssl_ech]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Download wolfSSL build
+        uses: actions/download-artifact@v4
+        with:
+          name: wolf-install-openssl-ech
+
+      - name: Download OpenSSL build
+        uses: actions/download-artifact@v4
+        with:
+          name: openssl-ech-install
+
+      - name: Extract builds
+        run: |
+          tar -xzf build-dir.tgz
+          tar -xzf openssl-install.tgz
+
+      - name: Build wolfssl client example
+        run: |
+          export WOLFSSL_INSTALL_DIR="$GITHUB_WORKSPACE/build-dir"
+          export WOLFSSL_BIN_DIR="$WOLFSSL_INSTALL_DIR/bin"
+          export CFLAGS="-Wall -I$WOLFSSL_INSTALL_DIR/include"
+          export LIBS="-L$WOLFSSL_INSTALL_DIR/lib -lm -lwolfssl"
+          export LD_LIBRARY_PATH="$WOLFSSL_INSTALL_DIR/lib/:$LD_LIBRARY_PATH"
+
+          gcc -o "$WOLFSSL_BIN_DIR/client" \
+                "$WOLFSSL_INSTALL_DIR/share/doc/wolfssl/example/client.c" \
+                $CFLAGS $LIBS -I"$WOLFSSL_INSTALL_DIR/share/doc/wolfssl/example"
+
+      - name: ECH interop - wolfSSL client, OpenSSL server
+        run: |
+          set -e
+
+          export LD_LIBRARY_PATH="$GITHUB_WORKSPACE/openssl-install/lib64:$GITHUB_WORKSPACE/openssl-install/lib:$GITHUB_WORKSPACE/build-dir/lib:$LD_LIBRARY_PATH"
+
+          OPENSSL=$GITHUB_WORKSPACE/openssl-install/bin/openssl
+          WOLFSSL_CLIENT=$GITHUB_WORKSPACE/build-dir/bin/client
+
+          CERT_DIR="$GITHUB_WORKSPACE/build-dir/certs"
+          LOG_FILE="$GITHUB_WORKSPACE/log_file.log"
+          ECH_FILE="$GITHUB_WORKSPACE/ech_config.pem"
+          PRIV_NAME="ech-private-name.com"
+          PUB_NAME="ech-public-name.com"
+          PORT=""
+          ECH_CONFIG=""
+
+          rm -f "$ECH_FILE"
+
+          # need to cd into build-dir so the certs/ dir is available for client
+          cd build-dir
+
+          $OPENSSL version | tee "$LOG_FILE"
+
+          $OPENSSL ech -public_name "$PUB_NAME" -out "$ECH_FILE" &>> "$LOG_FILE"
+
+          # parse ECH config from file
+          ECH_CONFIG=$(sed -n '/BEGIN ECHCONFIG/,/END ECHCONFIG/{/BEGIN ECHCONFIG\|END ECHCONFIG/d;p}' "$ECH_FILE" | tr -d '\n')
+          echo "parsed ech config: $ECH_CONFIG" &>> "$LOG_FILE"
+
+          # start OpenSSL ECH server with ephemeral port and make sure it is
+          # line-buffered
+          stdbuf -oL $OPENSSL s_server \
+              -tls1_3 \
+              -cert "$CERT_DIR/server-cert.pem" \
+              -key "$CERT_DIR/server-key.pem" \
+              -cert2 "$CERT_DIR/server-cert.pem" \
+              -key2 "$CERT_DIR/server-key.pem" \
+              -ech_key "$ECH_FILE" \
+              -servername "$PRIV_NAME" \
+              -accept 0 \
+              -naccept 1 \
+              &>> "$LOG_FILE" <<< "wolfssl!" &
+
+          # wait for server port to be ready and capture it
+          counter=0
+          while [ -z "$PORT" ]; do
+              PORT=$(grep -m1 "ACCEPT" "$LOG_FILE" | sed 's/.*:\([0-9]*\)$/\1/')
+              sleep 0.1
+              counter=$((counter + 1))
+              if [ "$counter" -gt 50 ]; then
+                  echo "ERROR: server port not found" &>> "$LOG_FILE"
+                  exit 1
+              fi
+          done
+          echo "parsed port: $PORT" &>> "$LOG_FILE"
+
+          # test with wolfssl client
+          $WOLFSSL_CLIENT -v 4 \
+              -p "$PORT" \
+              -S "$PRIV_NAME" \
+              --ech "$ECH_CONFIG" \
+              &>> "$LOG_FILE"
+
+          grep "ech_success=1" "$LOG_FILE"
+
+          # cleanup
+          rm -f "$LOG_FILE"
+          rm -f "$ECH_FILE"
+
+      - name: Print debug info on failure
+        if: ${{ failure() }}
+        run: |
+          if [ -s "$GITHUB_WORKSPACE/log_file.log" ]; then
+            cat "$GITHUB_WORKSPACE/log_file.log"
+          else
+            echo "No log file"
+          fi

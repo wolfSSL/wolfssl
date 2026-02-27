@@ -13813,15 +13813,17 @@ static THREAD_RETURN WOLFSSL_THREAD server_task_ech(void* args)
 
     AssertIntEQ(WOLFSSL_SUCCESS,
         wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
-                 WOLFSSL_FILETYPE_PEM));
+            WOLFSSL_FILETYPE_PEM));
 
     if (callbacks->ctx_ready)
         callbacks->ctx_ready(ctx);
 
-    ssl = wolfSSL_new(ctx);
+    AssertNotNull(ssl = wolfSSL_new(ctx));
 
     /* set the sni for the server */
-    wolfSSL_UseSNI(ssl, WOLFSSL_SNI_HOST_NAME, privateName, privateNameLen);
+    AssertIntEQ(WOLFSSL_SUCCESS,
+        wolfSSL_UseSNI(ssl, WOLFSSL_SNI_HOST_NAME, privateName,
+            privateNameLen));
 
     tcp_accept(&sfd, &cfd, (func_args*)args, port, 0, 0, 0, 0, 1, NULL, NULL);
     CloseSocket(sfd);
@@ -13840,12 +13842,13 @@ static THREAD_RETURN WOLFSSL_THREAD server_task_ech(void* args)
 
     if (ret != WOLFSSL_SUCCESS) {
         char buff[WOLFSSL_MAX_ERROR_SZ];
-        fprintf(stderr, "error = %d, %s\n", err, wolfSSL_ERR_error_string(err, buff));
+        fprintf(stderr, "error = %d, %s\n", err, wolfSSL_ERR_error_string(err,
+                buff));
     }
     else {
         if (0 < (idx = wolfSSL_read(ssl, input, sizeof(input)-1))) {
             input[idx] = 0;
-           fprintf(stderr, "Client message: %s\n", input);
+            fprintf(stderr, "Client message: %s\n", input);
         }
 
         AssertIntEQ(privateNameLen, wolfSSL_write(ssl, privateName,
@@ -14057,19 +14060,26 @@ static int test_wolfSSL_Tls13_Key_Logging_test(void)
 #endif /* OPENSSL_EXTRA && HAVE_SECRET_CALLBACK && WOLFSSL_TLS13 */
     return EXPECT_RESULT();
 }
-#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH) && \
-    defined(HAVE_IO_TESTS_DEPENDENCIES)
+
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
+#if defined(HAVE_IO_TESTS_DEPENDENCIES)
 static int test_wolfSSL_Tls13_ECH_params(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_WOLFSSL_CLIENT)
-    word32 outputLen = 0;
-    byte testBuf[72];
-    WOLFSSL_CTX *ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method());
-    WOLFSSL     *ssl = wolfSSL_new(ctx);
+    byte testBuf[256];
+    /* base64 ech configs from cloudflare-ech.com */
+    const char* b64Configs =
+        "AEX+DQBBFAAgACBuAoQI8+liEVYQbXKBDeVgTmF2rfXuKO2knhwrN7jgTgAEAAEAAQASY2xvdWRmbGFyZS1lY2guY29tAAA=";
+    word32 outputLen = sizeof(testBuf);
+    word16 tmpLen = 0;
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method());
+    WOLFSSL*     ssl = wolfSSL_new(ctx);
 
     ExpectNotNull(ctx);
     ExpectNotNull(ssl);
+
+    /* CTX NULL errors */
 
     /* invalid ctx */
     ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_GenerateEchConfig(NULL,
@@ -14079,57 +14089,142 @@ static int test_wolfSSL_Tls13_ECH_params(void)
         0, 0));
     /* invalid algorithms */
     ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_GenerateEchConfig(ctx,
-        "ech-public-name.com", 1000, 1000, 1000));
+        "ech-public-name.com", 1000, 0, 0));
+    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_GenerateEchConfig(ctx,
+        "ech-public-name.com", 0, 1000, 0));
+    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_GenerateEchConfig(ctx,
+        "ech-public-name.com", 0, 0, 1000));
 
-    /* invalid ctx */
+    /* invalid base64 configs: NULL ctx, NULL configs, 0 length */
     ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_SetEchConfigsBase64(NULL,
-        (char*)testBuf, sizeof(testBuf)));
-    /* invalid base64 configs */
+        b64Configs, (word32)XSTRLEN(b64Configs)));
     ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_SetEchConfigsBase64(ctx,
-        NULL, sizeof(testBuf)));
-    /* invalid length */
+        NULL, (word32)XSTRLEN(b64Configs)));
     ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_SetEchConfigsBase64(ctx,
-        (char*)testBuf, 0));
+        b64Configs, 0));
 
-    /* invalid ctx */
-    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_SetEchConfigs(NULL,
-        testBuf, sizeof(testBuf)));
-    /* invalid configs */
-    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_SetEchConfigs(ctx,
-        NULL, sizeof(testBuf)));
-    /* invalid length */
-    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_SetEchConfigs(ctx,
-        testBuf, 0));
-
-    /* invalid ctx */
-    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_GetEchConfigs(NULL, NULL,
-        &outputLen));
-    /* invalid output len */
-    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_GetEchConfigs(ctx, NULL, NULL));
-
-    /* invalid ssl */
-    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_SetEchConfigsBase64(NULL,
-        (char*)testBuf, sizeof(testBuf)));
-    /* invalid configs64 */
-    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_SetEchConfigsBase64(ssl, NULL,
+    /* invalid configs: NULL ctx, NULL configs, 0 length */
+    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_SetEchConfigs(NULL, testBuf,
         sizeof(testBuf)));
-    /* invalid size */
-    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_SetEchConfigsBase64(ssl,
-        (char*)testBuf, 0));
+    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_SetEchConfigs(ctx, NULL,
+        sizeof(testBuf)));
+    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_SetEchConfigs(ctx, testBuf, 0));
 
-    /* invalid ssl */
+    /* SSL NULL errors */
+
+    /* invalid base64 configs: NULL ssl, NULL configs, 0 length */
+    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_SetEchConfigsBase64(NULL, b64Configs,
+        (word32)XSTRLEN(b64Configs)));
+    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_SetEchConfigsBase64(ssl, NULL,
+        (word32)XSTRLEN(b64Configs)));
+    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_SetEchConfigsBase64(ssl, b64Configs,
+        0));
+
+    /* invalid configs: NULL ssl, NULL configs, 0 length */
     ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_SetEchConfigs(NULL, testBuf,
         sizeof(testBuf)));
-    /* invalid configs */
     ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_SetEchConfigs(ssl, NULL,
         sizeof(testBuf)));
-    /* invalid size */
     ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_SetEchConfigs(ssl, testBuf, 0));
 
-    /* invalid ssl */
-    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_GetEchConfigs(NULL, NULL, &outputLen));
-    /* invalid size */
-    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_GetEchConfigs(ssl, NULL, NULL));
+    /* stateful errors */
+
+    /* actually generate configs */
+    ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_GenerateEchConfig(ctx,
+        "ech-public-name.com", 0, 0, 0));
+
+    /* bad get: NULL ctx, NULL output len, short output len */
+    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_GetEchConfigs(NULL, testBuf,
+        &outputLen));
+    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_GetEchConfigs(ctx, testBuf, NULL));
+    outputLen = 5;
+    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_GetEchConfigs(ctx, testBuf,
+        &outputLen));
+
+    /* should be able to retrieve length with NULL buffer... */
+    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_GetEchConfigs(ctx, NULL,
+        &outputLen));
+    ExpectIntGE(sizeof(testBuf), outputLen);
+
+    /* and the get should work with this length */
+    ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_GetEchConfigs(ctx, testBuf,
+        &outputLen));
+
+    /* reject config with invalid total length */
+    if (EXPECT_SUCCESS()) {
+        ato16(testBuf, &tmpLen);
+        testBuf[0] = 0xFF;
+        testBuf[1] = 0xFF;
+    }
+    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_SetEchConfigs(ctx, testBuf,
+        outputLen));
+    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_SetEchConfigs(ssl, testBuf,
+        outputLen));
+    if (EXPECT_SUCCESS()) {
+        c16toa(tmpLen, testBuf);
+    }
+
+    /* reject config with invalid version */
+    if (EXPECT_SUCCESS()) {
+        testBuf[2] ^= 0x01;
+    }
+    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_SetEchConfigs(ctx, testBuf,
+        outputLen));
+    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_SetEchConfigs(ssl, testBuf,
+        outputLen));
+    if (EXPECT_SUCCESS()) {
+        testBuf[2] ^= 0x01;
+    }
+
+    /* reject config with bad length */
+    if (EXPECT_SUCCESS()) {
+        ato16(testBuf + 4, &tmpLen);
+        testBuf[4] = 0xFF;
+        testBuf[5] = 0xFF;
+    }
+    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_SetEchConfigs(ctx, testBuf,
+        outputLen));
+    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_SetEchConfigs(ssl, testBuf,
+        outputLen));
+    if (EXPECT_SUCCESS()) {
+        c16toa(tmpLen, testBuf + 4);
+    }
+
+    /* set valid configs */
+    ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_SetEchConfigs(ctx, testBuf,
+        outputLen));
+    ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_SetEchConfigs(ssl, testBuf,
+        outputLen));
+
+    /* NULL ssl, NULL buffer, NULL output len */
+    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_GetEchConfigs(NULL, testBuf,
+        &outputLen));
+    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_GetEchConfigs(ssl, NULL, &outputLen));
+    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_GetEchConfigs(ssl, testBuf, NULL));
+
+    /* reject setting configs when ssl already has them */
+    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_SetEchConfigs(ssl, testBuf,
+        outputLen));
+
+    /* unable to get configs from ssl with no configs (because of disable) */
+    wolfSSL_SetEchEnable(ssl, 0);
+    outputLen = sizeof(testBuf);
+    ExpectIntNE(WOLFSSL_SUCCESS,
+        wolfSSL_GetEchConfigs(ssl, testBuf, &outputLen));
+
+    /* base64 tests */
+
+    /* set base64 configs */
+    ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_SetEchConfigsBase64(ctx,
+        b64Configs, (word32)XSTRLEN(b64Configs)));
+    ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_SetEchConfigsBase64(ssl,
+        b64Configs, (word32)XSTRLEN(b64Configs)));
+
+    /* disable and check ctx has no configs as well */
+    wolfSSL_CTX_SetEchEnable(ctx, 0);
+    outputLen = sizeof(testBuf);
+    ExpectIntNE(WOLFSSL_SUCCESS,
+        wolfSSL_CTX_GetEchConfigs(ctx, testBuf, &outputLen));
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
@@ -14138,7 +14233,8 @@ static int test_wolfSSL_Tls13_ECH_params(void)
     return EXPECT_RESULT();
 }
 
-static int test_wolfSSL_Tls13_ECH_ex(int hrr)
+static int test_wolfSSL_ECH_conn_ex(method_provider serverMeth,
+    method_provider clientMeth, int hrr)
 {
     EXPECT_DECLS;
     tcp_ready ready;
@@ -14165,11 +14261,10 @@ static int test_wolfSSL_Tls13_ECH_ex(int hrr)
     XMEMSET(&server_args, 0, sizeof(func_args));
     XMEMSET(&server_cbf, 0, sizeof(callback_functions));
     XMEMSET(&client_cbf, 0, sizeof(callback_functions));
-    server_cbf.method     = wolfTLSv1_3_server_method;  /* TLS1.3 */
+    server_cbf.method     = serverMeth;
 
     /* create the server context here so we can get the ech config */
-    ExpectNotNull(server_cbf.ctx =
-        wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+    ExpectNotNull(server_cbf.ctx = wolfSSL_CTX_new(serverMeth()));
 
     /* generate ech config */
     ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_GenerateEchConfig(server_cbf.ctx,
@@ -14187,10 +14282,10 @@ static int test_wolfSSL_Tls13_ECH_ex(int hrr)
     start_thread(server_task_ech, &server_args, &serverThread);
     wait_tcp_ready(&server_args);
 
-    /* run as a TLS1.3 client */
-    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    /* set the client TLS version and run */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(clientMeth()));
     ExpectIntEQ(WOLFSSL_SUCCESS,
-            wolfSSL_CTX_load_verify_locations(ctx, caCertFile, 0));
+        wolfSSL_CTX_load_verify_locations(ctx, caCertFile, 0));
     ExpectIntEQ(WOLFSSL_SUCCESS,
         wolfSSL_CTX_use_certificate_file(ctx, cliCertFile, SSL_FILETYPE_PEM));
     ExpectIntEQ(WOLFSSL_SUCCESS,
@@ -14220,8 +14315,8 @@ static int test_wolfSSL_Tls13_ECH_ex(int hrr)
     ExpectIntEQ(wolfSSL_write(ssl, privateName, privateNameLen),
         privateNameLen);
     ExpectIntGT((replyLen = wolfSSL_read(ssl, reply, sizeof(reply))), 0);
-    /* add th null terminator for string compare */
-    reply[replyLen] = 0;
+    /* add the null terminator for string compare */
+    reply[replyLen] = '\0';
     /* check that the server replied with the private name */
     ExpectStrEQ(privateName, reply);
     wolfSSL_free(ssl);
@@ -14238,13 +14333,553 @@ static int test_wolfSSL_Tls13_ECH_ex(int hrr)
 
 static int test_wolfSSL_Tls13_ECH(void)
 {
-    return test_wolfSSL_Tls13_ECH_ex(0);
+    return test_wolfSSL_ECH_conn_ex(wolfTLSv1_3_server_method,
+                wolfTLSv1_3_client_method, 0);
 }
 
 static int test_wolfSSL_Tls13_ECH_HRR(void)
 {
-    return test_wolfSSL_Tls13_ECH_ex(1);
+    return test_wolfSSL_ECH_conn_ex(wolfTLSv1_3_server_method,
+                wolfTLSv1_3_client_method, 1);
 }
+
+static int test_wolfSSL_SubTls13_ECH(void)
+{
+    EXPECT_DECLS;
+
+#ifndef WOLFSSL_NO_TLS12
+    ExpectIntNE(test_wolfSSL_ECH_conn_ex(wolfTLSv1_3_server_method,
+        wolfTLSv1_2_client_method, 0), WOLFSSL_SUCCESS);
+    ExpectIntNE(test_wolfSSL_ECH_conn_ex(wolfTLSv1_2_server_method,
+        wolfTLSv1_3_client_method, 0), WOLFSSL_SUCCESS);
+    ExpectIntNE(test_wolfSSL_ECH_conn_ex(wolfSSLv23_server_method,
+        wolfTLSv1_2_client_method, 0), WOLFSSL_SUCCESS);
+#endif
+
+    return EXPECT_RESULT();
+}
+#endif /* HAVE_IO_TESTS_DEPENDENCIES */
+
+#ifdef HAVE_SSL_MEMIO_TESTS_DEPENDENCIES
+
+/* Static storage for passing ECH config between server and client callbacks */
+static byte   echCbTestConfigs[512];
+static word32 echCbTestConfigsLen;
+static const char* echCbTestPublicName = "ech-public-name.com";
+static const char* echCbTestPrivateName = "ech-private-name.com";
+
+/* the arg is whether the client has ech enabled or not */
+static int test_ech_server_sni_callback(WOLFSSL* ssl, int* ad, void* arg)
+{
+    const char* name;
+
+    if (!wolfSSL_SNI_GetRequest(ssl, WOLFSSL_SNI_HOST_NAME, (void**)&name)) {
+        *ad = WOLFSSL_AD_UNRECOGNIZED_NAME;
+        return fatal_return;
+    }
+
+    /* reached by *_disable_conn test: expect name to be the public SNI when
+     * client has ECH enabled, otherwise it should be the private SNI */
+    if (arg != NULL && *(int*)arg == 1 &&
+            XSTRCMP(name, echCbTestPublicName) == 0) {
+        return 0;
+    }
+    else if (XSTRCMP(name, echCbTestPrivateName) == 0) {
+        return 0;
+    }
+    else {
+        *ad = WOLFSSL_AD_UNRECOGNIZED_NAME;
+        return fatal_return;
+    }
+}
+
+/* Server ctx_ready callback: generate ECH config */
+static int test_ech_server_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    int ret;
+
+    ret = wolfSSL_CTX_GenerateEchConfig(ctx, echCbTestPublicName, 0, 0, 0);
+    if (ret != WOLFSSL_SUCCESS)
+        return TEST_FAIL;
+
+    echCbTestConfigsLen = sizeof(echCbTestConfigs);
+    ret = wolfSSL_CTX_GetEchConfigs(ctx, echCbTestConfigs,
+            &echCbTestConfigsLen);
+    if (ret != WOLFSSL_SUCCESS)
+        return TEST_FAIL;
+
+    return TEST_SUCCESS;
+}
+
+/* Server ssl_ready callback: set SNI */
+static int test_ech_server_ssl_ready(WOLFSSL* ssl)
+{
+    int ret;
+
+    ret = wolfSSL_UseSNI(ssl, WOLFSSL_SNI_HOST_NAME, echCbTestPrivateName,
+                         (word16)XSTRLEN(echCbTestPrivateName));
+    if (ret != WOLFSSL_SUCCESS)
+        return TEST_FAIL;
+
+    return TEST_SUCCESS;
+}
+
+/* Client ssl_ready callback: set ECH configs and SNI */
+static int test_ech_client_ssl_ready(WOLFSSL* ssl)
+{
+    int ret;
+
+    ret = wolfSSL_SetEchConfigs(ssl, echCbTestConfigs, echCbTestConfigsLen);
+    if (ret != WOLFSSL_SUCCESS)
+        return TEST_FAIL;
+
+    ret = wolfSSL_UseSNI(ssl, WOLFSSL_SNI_HOST_NAME, echCbTestPrivateName,
+                         (word16)XSTRLEN(echCbTestPrivateName));
+    if (ret != WOLFSSL_SUCCESS)
+        return TEST_FAIL;
+
+    return TEST_SUCCESS;
+}
+
+/* Test ECH when no private SNI is set */
+static int test_wolfSSL_Tls13_ECH_no_private_name(void)
+{
+    EXPECT_DECLS;
+    struct test_ssl_memio_ctx test_ctx;
+
+    /* client sends private SNI, server does not have one set */
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    test_ctx.s_cb.method = wolfTLSv1_3_server_method;
+    test_ctx.c_cb.method = wolfTLSv1_3_client_method;
+
+    test_ctx.s_cb.ctx_ready = test_ech_server_ctx_ready;
+    test_ctx.c_cb.ssl_ready = test_ech_client_ssl_ready;
+
+    ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+
+    ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
+    ExpectIntEQ(test_ctx.c_ssl->options.echAccepted, 1);
+
+    test_ssl_memio_cleanup(&test_ctx);
+
+    /* client does not send private SNI, server has one set */
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    test_ctx.s_cb.method = wolfTLSv1_3_server_method;
+    test_ctx.c_cb.method = wolfTLSv1_3_client_method;
+
+    test_ctx.s_cb.ctx_ready = test_ech_server_ctx_ready;
+    test_ctx.s_cb.ssl_ready = test_ech_server_ssl_ready;
+
+    ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_SetEchConfigs(test_ctx.c_ssl, echCbTestConfigs,
+        echCbTestConfigsLen), WOLFSSL_SUCCESS);
+
+    ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
+    ExpectIntEQ(test_ctx.c_ssl->options.echAccepted, 0);
+
+    test_ssl_memio_cleanup(&test_ctx);
+
+    /* client does not send private SNI, server does not have one set */
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    test_ctx.s_cb.method = wolfTLSv1_3_server_method;
+    test_ctx.c_cb.method = wolfTLSv1_3_client_method;
+
+    test_ctx.s_cb.ctx_ready = test_ech_server_ctx_ready;
+
+    ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_SetEchConfigs(test_ctx.c_ssl, echCbTestConfigs,
+        echCbTestConfigsLen), WOLFSSL_SUCCESS);
+
+    ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
+    ExpectIntEQ(test_ctx.c_ssl->options.echAccepted, 0);
+
+    test_ssl_memio_cleanup(&test_ctx);
+
+    return EXPECT_RESULT();
+}
+
+/* Test ECH rejection when configs don't match */
+static int test_wolfSSL_Tls13_ECH_bad_configs_ex(int hrr, int sniCb)
+{
+    EXPECT_DECLS;
+    struct test_ssl_memio_ctx test_ctx;
+    WOLFSSL_CTX* tempCtx = NULL;
+    const char* badPrivateName = "ech-bad-private-name.com";
+    byte badPublicConfig[128];
+    word32 badPublicConfigLen = sizeof(badPublicConfig);
+
+    /* verify with bad public SNI / config */
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    test_ctx.s_cb.method = wolfTLSv1_3_server_method;
+    test_ctx.c_cb.method = wolfTLSv1_3_client_method;
+
+    /* server generates its own ECH config */
+    test_ctx.s_cb.ctx_ready = test_ech_server_ctx_ready;
+    test_ctx.s_cb.ssl_ready = test_ech_server_ssl_ready;
+
+    ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+
+    /* generate throwaway ECH config for client to use */
+    ExpectNotNull(tempCtx = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+    ExpectIntEQ(wolfSSL_CTX_GenerateEchConfig(tempCtx, echCbTestPublicName,
+        0, 0, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_GetEchConfigs(tempCtx, badPublicConfig,
+        &badPublicConfigLen), WOLFSSL_SUCCESS);
+    wolfSSL_CTX_free(tempCtx);
+    tempCtx = NULL;
+
+    /* set bad public config on client */
+    ExpectIntEQ(wolfSSL_SetEchConfigs(test_ctx.c_ssl, badPublicConfig,
+        badPublicConfigLen), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSNI(test_ctx.c_ssl, WOLFSSL_SNI_HOST_NAME,
+        echCbTestPrivateName, (word16)XSTRLEN(echCbTestPrivateName)),
+        WOLFSSL_SUCCESS);
+
+    if (hrr) {
+        ExpectIntEQ(wolfSSL_NoKeyShares(test_ctx.c_ssl), WOLFSSL_SUCCESS);
+    }
+    if (sniCb) {
+        wolfSSL_CTX_set_servername_callback(test_ctx.s_ctx,
+            test_ech_server_sni_callback);
+    }
+
+    ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
+    ExpectIntEQ(test_ctx.c_ssl->options.echAccepted, 0);
+
+    test_ssl_memio_cleanup(&test_ctx);
+
+
+    /* verify with bad private SNI */
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    test_ctx.s_cb.method = wolfTLSv1_3_server_method;
+    test_ctx.c_cb.method = wolfTLSv1_3_client_method;
+
+    test_ctx.s_cb.ctx_ready = test_ech_server_ctx_ready;
+    test_ctx.s_cb.ssl_ready = test_ech_server_ssl_ready;
+
+    ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+
+    /* set bad private SNI on client */
+    ExpectIntEQ(wolfSSL_SetEchConfigs(test_ctx.c_ssl, echCbTestConfigs,
+        echCbTestConfigsLen), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSNI(test_ctx.c_ssl, WOLFSSL_SNI_HOST_NAME,
+        badPrivateName, (word16)XSTRLEN(badPrivateName)), WOLFSSL_SUCCESS);
+
+    if (hrr) {
+        ExpectIntEQ(wolfSSL_NoKeyShares(test_ctx.c_ssl), WOLFSSL_SUCCESS);
+    }
+    if (sniCb) {
+        wolfSSL_CTX_set_servername_callback(test_ctx.s_ctx,
+            test_ech_server_sni_callback);
+    }
+
+    ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
+    ExpectIntEQ(test_ctx.c_ssl->options.echAccepted, 0);
+
+    test_ssl_memio_cleanup(&test_ctx);
+
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_Tls13_ECH_bad_configs(void)
+{
+    EXPECT_DECLS;
+
+    ExpectIntEQ(test_wolfSSL_Tls13_ECH_bad_configs_ex(0, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_wolfSSL_Tls13_ECH_bad_configs_ex(0, 1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_wolfSSL_Tls13_ECH_bad_configs_ex(1, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_wolfSSL_Tls13_ECH_bad_configs_ex(1, 1), WOLFSSL_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+
+/* Test that client info can be successfully decoded from one of multiple server
+ * ECH configs
+ * In this case the server is expected to try it's first config, fail, then try
+ * its second config and succeed */
+static int test_wolfSSL_Tls13_ECH_new_config(void)
+{
+    EXPECT_DECLS;
+    test_ssl_memio_ctx test_ctx;
+    byte altConfig[512];
+    word32 altConfigLen = sizeof(altConfig);
+    byte combinedConfigs[512];
+    word32 combinedConfigsLen = sizeof(combinedConfigs);
+    word16 firstConfigLen = 0;
+    word16 secondConfigOffset = 0;
+    word16 secondConfigLen = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    test_ctx.s_cb.method = wolfTLSv1_3_server_method;
+    test_ctx.c_cb.method = wolfTLSv1_3_client_method;
+
+    /* server generates its own ECH config */
+    test_ctx.s_cb.ctx_ready = test_ech_server_ctx_ready;
+    test_ctx.s_cb.ssl_ready = test_ech_server_ssl_ready;
+
+    ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+
+    /* generate a second ECH config for the server */
+    ExpectIntEQ(wolfSSL_CTX_GenerateEchConfig(test_ctx.s_ctx,
+        echCbTestPrivateName, 0, 0, 0), WOLFSSL_SUCCESS);
+    ExpectNotNull(test_ctx.s_ctx->echConfigs->next);
+
+    /* capture the second ECH config in the list for the client to use */
+    ExpectIntEQ(wolfSSL_CTX_GetEchConfigs(test_ctx.s_ctx, combinedConfigs,
+        &combinedConfigsLen), WOLFSSL_SUCCESS);
+
+    /* ECHConfigList: [2 byte list len] [ECHConfig]...
+     * ECHConfig:     [2 byte version] [2 byte config len] [config data] */
+    ExpectIntGE(combinedConfigsLen, OPAQUE16_LEN * 3);
+    if (EXPECT_SUCCESS()) {
+        ato16(combinedConfigs + OPAQUE16_LEN + OPAQUE16_LEN, &firstConfigLen);
+        secondConfigOffset = OPAQUE16_LEN + OPAQUE16_LEN + OPAQUE16_LEN +
+            firstConfigLen;
+        ExpectIntGE(combinedConfigsLen,
+            secondConfigOffset + OPAQUE16_LEN + OPAQUE16_LEN);
+    }
+    if (EXPECT_SUCCESS()) {
+        ato16(combinedConfigs + secondConfigOffset + OPAQUE16_LEN,
+            &secondConfigLen);
+        secondConfigLen += OPAQUE16_LEN + OPAQUE16_LEN;
+        ExpectIntGE(combinedConfigsLen, secondConfigOffset + secondConfigLen);
+    }
+    if (EXPECT_SUCCESS()) {
+        /* build the ECHConfigList */
+        c16toa(secondConfigLen, altConfig);
+        ExpectIntLE(OPAQUE16_LEN + secondConfigLen, (word16)sizeof(altConfig));
+        if (EXPECT_SUCCESS()) {
+            XMEMCPY(altConfig + OPAQUE16_LEN,
+                combinedConfigs + secondConfigOffset, secondConfigLen);
+            altConfigLen = OPAQUE16_LEN + secondConfigLen;
+        }
+    }
+
+    /* Set client configs - server should try both and succeed with second
+     * Or seek the correct one immediately through the configId */
+    ExpectIntEQ(wolfSSL_SetEchConfigs(test_ctx.c_ssl, altConfig, altConfigLen),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSNI(test_ctx.c_ssl, WOLFSSL_SNI_HOST_NAME,
+        echCbTestPrivateName, (word16)XSTRLEN(echCbTestPrivateName)),
+        WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
+    ExpectIntEQ(test_ctx.c_ssl->options.echAccepted, 1);
+
+    test_ssl_memio_cleanup(&test_ctx);
+
+    return EXPECT_RESULT();
+}
+
+/* Test GREASE ECH:
+ * 1. client sends GREASE ECH extension but server has no ECH configs so it
+ * ignores it, handshake succeeds normally, no ECH configs received
+ * 2. client sends GREASE ECH extensions and server has ECH configs, handshake
+ * succeeds and client receives ECH configs */
+static int test_wolfSSL_Tls13_ECH_GREASE(void)
+{
+    EXPECT_DECLS;
+    test_ssl_memio_ctx test_ctx;
+    byte greaseConfigs[512];
+    word32 greaseConfigsLen = sizeof(greaseConfigs);
+
+    /* GREASE when server has no ECH configs */
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    test_ctx.s_cb.method = wolfTLSv1_3_server_method;
+    test_ctx.c_cb.method = wolfTLSv1_3_client_method;
+
+    ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_UseSNI(test_ctx.c_ssl, WOLFSSL_SNI_HOST_NAME,
+        echCbTestPrivateName, (word16)XSTRLEN(echCbTestPrivateName)),
+        WOLFSSL_SUCCESS);
+
+    /* verify ECH is enabled on the client and server */
+    ExpectIntEQ(test_ctx.s_ssl->options.disableECH, 0);
+    ExpectIntEQ(test_ctx.c_ssl->options.disableECH, 0);
+    /* verify no ECH configs are set */
+    ExpectNull(test_ctx.s_ctx->echConfigs);
+    ExpectNull(test_ctx.c_ctx->echConfigs);
+
+    /* handshake should succeed - server ignores the GREASE ECH extension */
+    ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
+
+    /* ECH should NOT be accepted since this was GREASE */
+    ExpectIntEQ(test_ctx.s_ssl->options.echAccepted, 0);
+    ExpectIntEQ(test_ctx.c_ssl->options.echAccepted, 0);
+    ExpectIntNE(wolfSSL_GetEchConfigs(test_ctx.c_ssl, greaseConfigs,
+        &greaseConfigsLen), WOLFSSL_SUCCESS);
+
+    test_ssl_memio_cleanup(&test_ctx);
+
+    /* GREASE when server has ECH configs */
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    test_ctx.s_cb.method = wolfTLSv1_3_server_method;
+    test_ctx.c_cb.method = wolfTLSv1_3_client_method;
+
+    /* generate ECH configs */
+    test_ctx.s_cb.ctx_ready = test_ech_server_ctx_ready;
+    test_ctx.s_cb.ssl_ready = test_ech_server_ssl_ready;
+
+    ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_UseSNI(test_ctx.c_ssl, WOLFSSL_SNI_HOST_NAME,
+        echCbTestPrivateName, (word16)XSTRLEN(echCbTestPrivateName)),
+        WOLFSSL_SUCCESS);
+
+    /* verify ECH is enabled on the client and server */
+    ExpectIntEQ(test_ctx.s_ssl->options.disableECH, 0);
+    ExpectIntEQ(test_ctx.c_ssl->options.disableECH, 0);
+    /* verify ECH configs are set on server */
+    ExpectNotNull(test_ctx.s_ctx->echConfigs);
+    ExpectNull(test_ctx.c_ctx->echConfigs);
+
+    /* handshake should succeed - server responds to the GREASE ECH extension */
+    ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
+
+    /* ECH should NOT be accepted since this was GREASE
+     * However, configs will be present this time */
+    ExpectIntEQ(test_ctx.s_ssl->options.echAccepted, 0);
+    ExpectIntEQ(test_ctx.c_ssl->options.echAccepted, 0);
+    ExpectIntEQ(wolfSSL_GetEchConfigs(test_ctx.c_ssl, greaseConfigs,
+        &greaseConfigsLen), WOLFSSL_SUCCESS);
+
+    test_ssl_memio_cleanup(&test_ctx);
+
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_Tls13_ECH_disable_conn_ex(int enableServer,
+    int enableClient)
+{
+    EXPECT_DECLS;
+    test_ssl_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    test_ctx.s_cb.method = wolfTLSv1_3_server_method;
+    test_ctx.c_cb.method = wolfTLSv1_3_client_method;
+
+    /* both server and client will be setup to use ECH */
+    test_ctx.s_cb.ctx_ready = test_ech_server_ctx_ready;
+    test_ctx.s_cb.ssl_ready = test_ech_server_ssl_ready;
+    test_ctx.c_cb.ssl_ready = test_ech_client_ssl_ready;
+
+    ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+
+    /* this callback will ensure that the correct SNI is being held */
+    wolfSSL_CTX_set_servername_callback(test_ctx.s_ctx,
+        test_ech_server_sni_callback);
+    ExpectIntEQ(wolfSSL_CTX_set_servername_arg(test_ctx.s_ctx, &enableClient),
+        WOLFSSL_SUCCESS);
+
+    /* disable ECH on the appropriate side(s) */
+    wolfSSL_SetEchEnable(test_ctx.s_ssl, enableServer);
+    wolfSSL_SetEchEnable(test_ctx.c_ssl, enableClient);
+
+    if (!enableClient) {
+        /* client ECH disabled: no ECH extension sent, handshake succeeds
+         * normally but ECH is not accepted */
+        ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL),
+            TEST_SUCCESS);
+    }
+    else if (!enableServer) {
+        /* client sends ECH but server can't process it: server has no ECH
+         * keys so it processes the outer ClientHello, client detects ECH
+         * rejection and aborts the handshake */
+        ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL),
+            TEST_SUCCESS);
+    }
+    ExpectIntEQ(test_ctx.c_ssl->options.echAccepted, 0);
+
+    test_ssl_memio_cleanup(&test_ctx);
+
+    return EXPECT_RESULT();
+}
+
+/* setup a server and client with ECH then disable on one, the other, or both.
+ * Verifies that disabling ECH prevents ECH from being used and that the
+ * public/private SNI's are verified correctly */
+static int test_wolfSSL_Tls13_ECH_disable_conn(void)
+{
+    EXPECT_DECLS;
+
+    ExpectIntEQ(test_wolfSSL_Tls13_ECH_disable_conn_ex(0, 1), TEST_SUCCESS);
+    ExpectIntEQ(test_wolfSSL_Tls13_ECH_disable_conn_ex(1, 0), TEST_SUCCESS);
+    ExpectIntEQ(test_wolfSSL_Tls13_ECH_disable_conn_ex(0, 0), TEST_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+#endif /* HAVE_SSL_MEMIO_TESTS_DEPENDENCIES */
+
+/* verify that ECH can be enabled/disabled without issue */
+static int test_wolfSSL_Tls13_ECH_enable_disable(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    byte echConfigs[128];
+    word32 echConfigsLen = sizeof(echConfigs);
+
+    /* NULL ctx, NULL ssl should not crash */
+    wolfSSL_SetEchEnable(ssl, 0);
+    wolfSSL_CTX_SetEchEnable(ctx, 0);
+
+    /* test CTX level enable/disable */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+
+    ExpectIntEQ(wolfSSL_CTX_GenerateEchConfig(ctx, "public.com", 0, 0, 0),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_GetEchConfigs(ctx, echConfigs, &echConfigsLen),
+        WOLFSSL_SUCCESS);
+
+    /* disable ECH at CTX level */
+    wolfSSL_CTX_SetEchEnable(ctx, 0);
+    ExpectIntEQ(ctx->disableECH, 1);
+    ExpectNull(ctx->echConfigs);
+
+    wolfSSL_CTX_SetEchEnable(ctx, 1);
+    ExpectIntEQ(ctx->disableECH, 0);
+
+    /* test SSL level enable/disable */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    ExpectIntEQ(wolfSSL_SetEchConfigs(ssl, echConfigs, echConfigsLen),
+        WOLFSSL_SUCCESS);
+
+    /* disable ECH at SSL level */
+    wolfSSL_SetEchEnable(ssl, 0);
+    ExpectIntEQ(ssl->options.disableECH, 1);
+    ExpectNull(ssl->echConfigs);
+
+    wolfSSL_SetEchEnable(ssl, 1);
+    ExpectIntEQ(ssl->options.disableECH, 0);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif /* !NO_WOLFSSL_CLIENT */
+
+    return EXPECT_RESULT();
+}
+
 #endif /* HAVE_ECH && WOLFSSL_TLS13 */
 
 #if defined(HAVE_IO_TESTS_DEPENDENCIES) && \
@@ -18879,7 +19514,7 @@ static int test_wolfSSL_d2i_and_i2d_PublicKey_ecc(void)
     const unsigned char* p;
     unsigned char *der = NULL;
     unsigned char *tmp = NULL;
-    int derLen;
+    int derLen = 0;
     unsigned char pub_buf[65];
     unsigned char pub_spki_buf[91];
     const int pub_len = 65;
@@ -18989,7 +19624,7 @@ static int test_wolfSSL_d2i_and_i2d_DSAparams(void)
     };
     int derInLen = sizeof(derIn);
     byte* derOut = NULL;
-    int derOutLen;
+    int derOutLen = 0;
     byte* p = derIn;
 
     /* Check that params can be successfully decoded. */
@@ -33151,13 +33786,23 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_SCR_check_enabled),
     TEST_DECL(test_tls_ext_duplicate),
     TEST_DECL(test_tls_bad_legacy_version),
-#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH) && \
-    defined(HAVE_IO_TESTS_DEPENDENCIES)
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
+#if defined(HAVE_IO_TESTS_DEPENDENCIES)
     TEST_DECL(test_wolfSSL_Tls13_ECH_params),
     /* Uses Assert in handshake callback. */
     TEST_DECL(test_wolfSSL_Tls13_ECH),
     TEST_DECL(test_wolfSSL_Tls13_ECH_HRR),
+    TEST_DECL(test_wolfSSL_SubTls13_ECH),
 #endif
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
+    TEST_DECL(test_wolfSSL_Tls13_ECH_no_private_name),
+    TEST_DECL(test_wolfSSL_Tls13_ECH_bad_configs),
+    TEST_DECL(test_wolfSSL_Tls13_ECH_new_config),
+    TEST_DECL(test_wolfSSL_Tls13_ECH_GREASE),
+    TEST_DECL(test_wolfSSL_Tls13_ECH_disable_conn),
+#endif
+    TEST_DECL(test_wolfSSL_Tls13_ECH_enable_disable),
+#endif /* WOLFSSL_TLS13 && HAVE_ECH */
 
     TEST_DECL(test_wolfSSL_X509_TLS_version_test_1),
     TEST_DECL(test_wolfSSL_X509_TLS_version_test_2),

@@ -1226,8 +1226,8 @@ WOLFSSL_API int wolfSSL_CTX_GetEchConfigs(WOLFSSL_CTX* ctx, byte* output,
 
 WOLFSSL_API void wolfSSL_CTX_SetEchEnable(WOLFSSL_CTX* ctx, byte enable);
 
-WOLFSSL_API int wolfSSL_SetEchConfigsBase64(WOLFSSL* ssl, char* echConfigs64,
-    word32 echConfigs64Len);
+WOLFSSL_API int wolfSSL_SetEchConfigsBase64(WOLFSSL* ssl,
+    const char* echConfigs64, word32 echConfigs64Len);
 
 WOLFSSL_API int wolfSSL_SetEchConfigs(WOLFSSL* ssl, const byte* echConfigs,
     word32 echConfigsLen);
