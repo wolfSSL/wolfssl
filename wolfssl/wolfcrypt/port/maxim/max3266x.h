@@ -57,6 +57,16 @@
     #endif
 #endif
 
+/* Enable copy/free callbacks when using callback mode */
+#if defined(MAX3266X_SHA_CB)
+    #ifndef WOLF_CRYPTO_CB_COPY
+        #define WOLF_CRYPTO_CB_COPY
+    #endif
+    #ifndef WOLF_CRYPTO_CB_FREE
+        #define WOLF_CRYPTO_CB_FREE
+    #endif
+#endif
+
 /* Crypto HW can be used in parallel on this device */
 /* Sets up new Mutexing if desired */
 #ifdef WOLFSSL_ALGO_HW_MUTEX
@@ -236,14 +246,10 @@
 
 #if defined(MAX3266X_SHA) || defined(MAX3266X_SHA_CB)
 
-    /* Need to update this struct accordingly if other SHA Structs change */
-    /* This is a generic struct to use so only this is needed */
-
-    typedef struct {
-        unsigned char   *msg;
-        unsigned int    used;
-        unsigned int    size;
-    } wc_MXC_Sha;
+    /* Use HASH_KEEP to accumulate message data for one-shot TPU hardware */
+    #ifndef WOLFSSL_HASH_KEEP
+        #define WOLFSSL_HASH_KEEP
+    #endif
 
     #if !defined(NO_SHA)
         /* Define the SHA digest for an empty string */
@@ -311,24 +317,45 @@
     #endif /* WOLFSSL_SHA512 */
 
 
-    WOLFSSL_LOCAL int wc_MXC_TPU_SHA_Init(wc_MXC_Sha *hash);
-    WOLFSSL_LOCAL int wc_MXC_TPU_SHA_Update(wc_MXC_Sha *hash,
-                                                const unsigned char* data,
-                                                unsigned int size);
-    WOLFSSL_LOCAL int wc_MXC_TPU_SHA_Final(wc_MXC_Sha *hash,
+    /* Check for empty message and provide pre-computed digest if so */
+    WOLFSSL_LOCAL int wc_MXC_TPU_SHA_GetDigest(const unsigned char* msg,
+                                                unsigned int msgSz,
                                                 unsigned char* digest,
                                                 MXC_TPU_HASH_TYPE algo);
-    WOLFSSL_LOCAL int wc_MXC_TPU_SHA_GetHash(wc_MXC_Sha *hash,
+    /* Compute hash from accumulated message using TPU hardware */
+    WOLFSSL_LOCAL int wc_MXC_TPU_SHA_GetHash(const unsigned char* msg,
+                                                unsigned int msgSz,
                                                 unsigned char* digest,
                                                 MXC_TPU_HASH_TYPE algo);
-    WOLFSSL_LOCAL int wc_MXC_TPU_SHA_Copy(wc_MXC_Sha* src, wc_MXC_Sha* dst);
-    WOLFSSL_LOCAL void wc_MXC_TPU_SHA_Free(wc_MXC_Sha* hash);
-    WOLFSSL_LOCAL int wc_MXC_TPU_SHA_GetDigest(wc_MXC_Sha *hash,
+    /* Free HASH_KEEP message buffer and reset fields */
+    WOLFSSL_LOCAL void wc_MXC_TPU_SHA_Free(unsigned char** msg,
+                                                unsigned int* used,
+                                                unsigned int* len,
+                                                void* heap);
+    /* Free HASH_KEEP message buffer and zero the full SHA context */
+    WOLFSSL_LOCAL void wc_MXC_TPU_SHA_FreeCtx(void* ctx,
+                                                unsigned int ctxSz,
+                                                unsigned char** msg,
+                                                unsigned int* used,
+                                                unsigned int* len,
+                                                void* heap);
+    /* Copy SHA context and deep copy HASH_KEEP message buffer */
+    WOLFSSL_LOCAL int wc_MXC_TPU_SHA_Copy(void* src, void* dst,
+                                                unsigned int ctxSz,
+                                                unsigned char** dstMsg,
+                                                unsigned int* dstUsed,
+                                                unsigned int* dstLen,
+                                                void* dstHeap, void* srcHeap);
+    /* Compute hash, free message buffer, and reset fields */
+    WOLFSSL_LOCAL int wc_MXC_TPU_SHA_Final(unsigned char** msg,
+                                                unsigned int* used,
+                                                unsigned int* len,
+                                                void* heap,
                                                 unsigned char* digest,
                                                 MXC_TPU_HASH_TYPE algo);
 
 
-#endif /* defined(MAX3266X_SHA) && !defined(WOLF_CRYPTO_CB) */
+#endif /* defined(MAX3266X_SHA) || defined(MAX3266X_SHA_CB) */
 
 #if defined(MAX3266X_MATH)
     #define WOLFSSL_USE_HW_MP
