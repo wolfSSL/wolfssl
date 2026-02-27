@@ -1,11 +1,11 @@
 # configure.ac
 #
-# Copyright (C) 2006-2025 wolfSSL Inc.
+# Copyright (C) 2006-2026 wolfSSL Inc.
 #
 # This file is part of wolfSSL. (formerly known as CyaSSL)
 #
 #
-AC_COPYRIGHT([Copyright (C) 2006-2025 wolfSSL Inc.])
+AC_COPYRIGHT([Copyright (C) 2006-2026 wolfSSL Inc.])
 AC_PREREQ([2.69])
 AC_INIT([wolfssl],[5.8.4],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[https://www.wolfssl.com])
 AC_CONFIG_AUX_DIR([build-aux])
@@ -2142,6 +2142,113 @@ then
         ENABLED_WC_LMS=yes
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WC_LMS"
     fi
+fi
+
+# SLH-DSA
+ENABLED_SLHDSA=yes
+AC_ARG_ENABLE([slhdsa],
+    [AS_HELP_STRING([--enable-slhdsa],[Enable SLH-DSA signatures (default: disabled)])],
+    [ ENABLED_SLHDSA=$enableval ],
+    [ ENABLED_SLHDSA=no ]
+    )
+
+for v in `echo $ENABLED_SLHDSA | tr "," " "`
+do
+  case $v in
+  yes)
+    SLHDSA_PARAM_128S=yes
+    SLHDSA_PARAM_128F=yes
+    SLHDSA_PARAM_192S=yes
+    SLHDSA_PARAM_192F=yes
+    SLHDSA_PARAM_256S=yes
+    SLHDSA_PARAM_256F=yes
+    ;;
+  no)
+    ;;
+  verify-only)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SLHDSA_VERIFY_ONLY"
+    ;;
+  small)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WC_SLHDSA_SMALL"
+    ;;
+  small-mem)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WC_SLHDSA_SMALL_MEM"
+    ;;
+  128s)
+    SLHDSA_PARAM_128S=yes
+    ;;
+  128f)
+    SLHDSA_PARAM_128F=yes
+    ;;
+  192s)
+    SLHDSA_PARAM_192S=yes
+    ;;
+  192f)
+    SLHDSA_PARAM_192F=yes
+    ;;
+  256s)
+    SLHDSA_PARAM_256S=yes
+    ;;
+  256f)
+    SLHDSA_PARAM_256F=yes
+    ;;
+  no-s)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SLHDSA_PARAM_NO_SMALL"
+    ;;
+  no-f)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SLHDSA_PARAM_NO_FAST"
+    ;;
+  *)
+    AC_MSG_ERROR([Invalid choice for SLH-DSA []: $ENABLED_SLHDSA.])
+    break;;
+  esac
+done
+
+if test "$ENABLED_SLHDSA" != "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_SLHDSA"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_HAVE_SLHDSA"
+
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WC_SLHDSA"
+
+    if test "$SLHDSA_PARAM_128S" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SLHDSA_PARAM_128S"
+    else
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SLHDSA_PARAM_NO_128S"
+    fi
+    if test "$SLHDSA_PARAM_128F" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SLHDSA_PARAM_128F"
+    else
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SLHDSA_PARAM_NO_128F"
+    fi
+    if test "$SLHDSA_PARAM_192S" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SLHDSA_PARAM_192S"
+    else
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SLHDSA_PARAM_NO_192S"
+    fi
+    if test "$SLHDSA_PARAM_192F" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SLHDSA_PARAM_192F"
+    else
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SLHDSA_PARAM_NO_192F"
+    fi
+    if test "$SLHDSA_PARAM_256S" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SLHDSA_PARAM_256S"
+    else
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SLHDSA_PARAM_NO_256S"
+    fi
+    if test "$SLHDSA_PARAM_256F" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SLHDSA_PARAM_256F"
+    else
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SLHDSA_PARAM_NO_256F"
+    fi
+
+    enable_shake256=yes
 fi
 
 # SINGLE THREADED
@@ -11232,6 +11339,7 @@ AM_CONDITIONAL([BUILD_CURVE448],[test "x$ENABLED_CURVE448" = "xyes" || test "x$E
 AM_CONDITIONAL([BUILD_CURVE448_SMALL],[test "x$ENABLED_CURVE448_SMALL" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_WC_LMS],[test "x$ENABLED_WC_LMS" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_WC_XMSS],[test "x$ENABLED_WC_XMSS" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_WC_SLHDSA],[test "x$ENABLED_SLHDSA" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_WC_MLKEM],[test "x$ENABLED_WC_MLKEM" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_DILITHIUM],[test "x$ENABLED_DILITHIUM" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_ECCSI],[test "x$ENABLED_ECCSI" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
@@ -11485,7 +11593,7 @@ rm -f $OPTION_FILE
 echo "/* wolfssl options.h" > $OPTION_FILE
 echo " * generated from configure options" >> $OPTION_FILE
 echo " *" >> $OPTION_FILE
-echo " * Copyright (C) 2006-2025 wolfSSL Inc." >> $OPTION_FILE
+echo " * Copyright (C) 2006-2026 wolfSSL Inc." >> $OPTION_FILE
 echo " *" >> $OPTION_FILE
 echo " * This file is part of wolfSSL. (formerly known as CyaSSL)" >> $OPTION_FILE
 echo " *" >> $OPTION_FILE
@@ -11782,6 +11890,7 @@ echo "   * XMSS wolfSSL impl:          $ENABLED_WC_XMSS"
 if test "$ENABLED_LIBXMSS" = "yes"; then
 echo "   * XMSS_ROOT:                  $XMSS_ROOT"
 fi
+echo "   * SLH-DSA                     $ENABLED_SLHDSA"
 echo "   * MLKEM:                      $ENABLED_MLKEM"
 echo "   * MLKEM wolfSSL impl:         $ENABLED_WC_MLKEM"
 echo "   * DILITHIUM:                  $ENABLED_DILITHIUM"
