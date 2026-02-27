@@ -14027,7 +14027,12 @@ void* wolfSSL_GetHKDFExtractCtx(WOLFSSL* ssl)
         }
         if (i == (int)WOLFSSL_OBJECT_INFO_SZ) {
             WOLFSSL_MSG("NID not in table");
+        #ifdef WOLFSSL_QT
+            sName = NULL;
+            type = (word32)id;
+        #else
             return NULL;
+        #endif
         }
 
     #ifdef HAVE_ECC

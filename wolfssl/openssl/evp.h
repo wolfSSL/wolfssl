@@ -61,10 +61,7 @@
 #ifdef WOLFSSL_SM3
     #include <wolfssl/wolfcrypt/sm3.h>
 #endif
-#ifdef HAVE_BLAKE2
-    #include <wolfssl/wolfcrypt/blake2.h>
-#endif
-#ifdef HAVE_BLAKE2S
+#if defined(HAVE_BLAKE2) || defined(HAVE_BLAKE2S)
     #include <wolfssl/wolfcrypt/blake2.h>
 #endif
 #ifdef WOLFSSL_SM4
