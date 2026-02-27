@@ -3032,9 +3032,8 @@ WC_ALL_ARGS_NOT_NULL static WARN_UNUSED_RESULT int AesEncrypt_preFetchOpt(
 #else
 #define AesEncrypt_preFetchOpt(aes, inBlock, outBlock, prefetch_ptr) \
     wc_AesEncrypt(aes, inBlock, outBlock)
-static WARN_UNUSED_RESULT int wc_AesEncrypt(
+WC_ALL_ARGS_NOT_NULL static WARN_UNUSED_RESULT int wc_AesEncrypt(
     Aes* aes, const byte* inBlock, byte* outBlock)
-    WC_ALL_ARGS_NOT_NULL
 #endif
 {
 #if defined(MAX3266X_AES)
