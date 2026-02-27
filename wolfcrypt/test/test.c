@@ -5508,6 +5508,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha512_test(void)
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
         ret = wc_Sha512Final(&sha, hash);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
     }
 #endif
     } /* END LARGE HASH TEST */
