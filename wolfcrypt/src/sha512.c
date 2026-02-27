@@ -1635,7 +1635,7 @@ void wc_Sha512Free(wc_Sha512* sha512)
     #endif
     {
         ret = wc_CryptoCb_Free(sha512->devId, WC_ALGO_TYPE_HASH,
-                         WC_HASH_TYPE_SHA512, (void*)sha512);
+                         WC_HASH_TYPE_SHA512, 0, (void*)sha512);
         /* If they want the standard free, they can call it themselves */
         /* via their callback setting devId to INVALID_DEVID */
         /* otherwise assume the callback handled it */
@@ -2117,7 +2117,7 @@ void wc_Sha384Free(wc_Sha384* sha384)
     #endif
     {
         ret = wc_CryptoCb_Free(sha384->devId, WC_ALGO_TYPE_HASH,
-                         WC_HASH_TYPE_SHA384, (void*)sha384);
+                         WC_HASH_TYPE_SHA384, 0, (void*)sha384);
         /* If they want the standard free, they can call it themselves */
         /* via their callback setting devId to INVALID_DEVID */
         /* otherwise assume the callback handled it */

@@ -1078,6 +1078,10 @@ WOLFSSL_LOCAL void wc_mldsa_poly_make_pos_avx2(sword32* a);
     wc_dilithium_sign_msg(msg, msgSz, sig, sigSz, key, rng)
 #define wc_MlDsaKey_SignCtx(key, ctx, ctxSz, sig, sigSz, msg, msgSz, rng)      \
     wc_dilithium_sign_ctx_msg(ctx, ctxSz, msg, msgSz, sig, sigSz, key, rng)
+#define wc_MlDsaKey_SignCtxHash(key, ctx, ctxSz, sig, sigSz, hash, hashSz,     \
+                                hashAlg, rng)                                  \
+    wc_dilithium_sign_ctx_hash(ctx, ctxSz, hashAlg, hash, hashSz, sig, sigSz,  \
+                               key, rng)
 #define wc_MlDsaKey_Free(key)                                                  \
     wc_dilithium_free(key)
 #define wc_MlDsaKey_ExportPubRaw(key, out, outLen)                             \
@@ -1087,13 +1091,22 @@ WOLFSSL_LOCAL void wc_mldsa_poly_make_pos_avx2(sword32* a);
 #define wc_MlDsaKey_Verify(key, sig, sigSz, msg, msgSz, res)                   \
     wc_dilithium_verify_msg(sig, sigSz, msg, msgSz, res, key)
 #define wc_MlDsaKey_VerifyCtx(key, sig, sigSz, ctx, ctxSz, msg, msgSz, res)    \
-    wc_dilithium_verify_msg_ctx(sig, sigSz, ctx, ctxSz, msg, msgSz, res, key)
+    wc_dilithium_verify_ctx_msg(sig, sigSz, ctx, ctxSz, msg, msgSz, res, key)
+#define wc_MlDsaKey_VerifyCtxHash(key, sig, sigSz, ctx, ctxSz, hash, hashSz,   \
+                                  hashAlg, res)                                \
+    wc_dilithium_verify_ctx_hash(sig, sigSz, ctx, ctxSz, hashAlg, hash,        \
+                                 hashSz, res, key)
 
 #define wc_MlDsaKey_PublicKeyToDer(key, output, len, withAlg)                  \
     wc_Dilithium_PublicKeyToDer(key, output, len, withAlg)
 
 #define wc_MlDsaKey_PrivateKeyToDer(key, output, len)                          \
     wc_Dilithium_PrivateKeyToDer(key, output, len)
+
+#define wc_MlDsaKey_PrivateKeyDecode(key, input, sz, idx)                      \
+    wc_Dilithium_PrivateKeyDecode(input, idx, key, sz)
+#define wc_MlDsaKey_PublicKeyDecode(key, input, sz, idx)                       \
+    wc_Dilithium_PublicKeyDecode(input, idx, key, sz)
 
 
 WOLFSSL_API int wc_MlDsaKey_GetPrivLen(MlDsaKey* key, int* len);
