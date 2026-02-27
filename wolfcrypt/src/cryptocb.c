@@ -219,7 +219,7 @@ void wc_CryptoCb_InfoString(wc_CryptoInfo* info)
         printf("Crypto CB: %s %s (%d) (%p ctx)\n",
             GetAlgoTypeStr(info->algo_type),
             GetCipherTypeStr(info->cipher.type),
-            info->cipher.type, info->cipher.ctx);
+            info->cipher.type, (void*)info->cipher.ctx);
     }
 #endif /* !NO_AES || !NO_DES3 */
 #if !defined(NO_SHA) || !defined(NO_SHA256) || \
@@ -228,7 +228,7 @@ void wc_CryptoCb_InfoString(wc_CryptoInfo* info)
         printf("Crypto CB: %s %s (%d) (%p ctx) %s\n",
             GetAlgoTypeStr(info->algo_type),
             GetHashTypeStr(info->hash.type),
-            info->hash.type, info->hash.ctx,
+            info->hash.type, (void*)info->hash.ctx,
             (info->hash.in != NULL) ? "Update" : "Final");
     }
 #endif
@@ -237,7 +237,7 @@ void wc_CryptoCb_InfoString(wc_CryptoInfo* info)
         printf("Crypto CB: %s %s (%d) (%p ctx) %s\n",
             GetAlgoTypeStr(info->algo_type),
             GetHashTypeStr(info->hmac.macType),
-            info->hmac.macType, info->hmac.hmac,
+            info->hmac.macType, (void*)info->hmac.hmac,
             (info->hmac.in != NULL) ? "Update" : "Final");
     }
 #endif
@@ -246,7 +246,7 @@ void wc_CryptoCb_InfoString(wc_CryptoInfo* info)
         printf("Crypto CB: %s %s (%d) (%p ctx) %s %s %s\n",
             GetAlgoTypeStr(info->algo_type),
             GetCmacTypeStr(info->cmac.type),
-            info->cmac.type, info->cmac.cmac,
+            info->cmac.type, (void*)info->cmac.cmac,
             (info->cmac.key != NULL) ? "Init " : "",
             (info->cmac.in != NULL) ? "Update " : "",
             (info->cmac.out != NULL) ? "Final" : "");

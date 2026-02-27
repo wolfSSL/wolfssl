@@ -286,6 +286,10 @@ int client_async_test(int argc, char** argv)
     }
 #endif
 #ifdef WOLF_CRYPTO_CB
+    /* Crypto callbacks require a valid devId. When no hardware async driver
+     * sets one (e.g. Cavium/Intel QA/SW), assign one explicitly. */
+    if (devId == INVALID_DEVID)
+        devId = 1;
     XMEMSET(&cryptoCbCtx, 0, sizeof(cryptoCbCtx));
     if (wc_CryptoCb_RegisterDevice(devId, AsyncTlsCryptoCb, &cryptoCbCtx) != 0) {
         fprintf(stderr, "ERROR: wc_CryptoCb_RegisterDevice failed\n");
@@ -497,6 +501,8 @@ int client_async_test(int argc, char** argv)
             }
             continue;
         }
+        fprintf(stderr, "ERROR: wolfSSL_write failed: %d (%s)\n",
+            err, wolfSSL_ERR_reason_error_string(err));
         goto out;
     }
 
@@ -529,6 +535,8 @@ int client_async_test(int argc, char** argv)
             }
             continue;
         }
+        fprintf(stderr, "ERROR: wolfSSL_read failed: %d (%s)\n",
+            err, wolfSSL_ERR_reason_error_string(err));
         goto out;
     }
 
