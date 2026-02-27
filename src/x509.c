@@ -10847,10 +10847,15 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_X509_get_serialNumber(WOLFSSL_X509* x509)
         a->dataMax = WOLFSSL_ASN1_INTEGER_MAX;
     }
 
-    a->data[i++] = ASN_INTEGER;
-    i += SetLength(x509->serialSz, a->data + i);
-    XMEMCPY(&a->data[i], x509->serial, x509->serialSz);
-    a->length = x509->serialSz + 2;
+    #if defined(WOLFSSL_QT) || defined(WOLFSSL_HAPROXY)
+        XMEMCPY(&a->data[i], x509->serial, x509->serialSz);
+        a->length = x509->serialSz;
+    #else
+        a->data[i++] = ASN_INTEGER;
+        i += SetLength(x509->serialSz, a->data + i);
+        XMEMCPY(&a->data[i], x509->serial, x509->serialSz);
+        a->length = x509->serialSz + 2;
+    #endif
 
     x509->serialNumber = a;
 
