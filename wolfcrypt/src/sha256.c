@@ -2585,8 +2585,6 @@ int wc_Sha224_Grow(wc_Sha224* sha224, const byte* in, int inSz)
         /* Free dst resources before copy to prevent memory leaks (e.g., msg
          * buffer, W cache, hardware contexts). XMEMCPY overwrites dst. */
         wc_Sha224Free(dst);
-        XMEMSET(dst, 0, sizeof(wc_Sha224));
-
         XMEMCPY(dst, src, sizeof(wc_Sha224));
 
     #ifdef WOLFSSL_SMALL_STACK_CACHE
@@ -2736,8 +2734,6 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
     /* Free dst resources before copy to prevent memory leaks (e.g., msg
      * buffer, W cache, hardware contexts). XMEMCPY overwrites dst. */
     wc_Sha256Free(dst);
-    XMEMSET(dst, 0, sizeof(wc_Sha256));
-
     XMEMCPY(dst, src, sizeof(wc_Sha256));
 
 #ifdef WOLFSSL_MAXQ10XX_CRYPTO

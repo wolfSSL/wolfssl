@@ -1175,8 +1175,6 @@ int wc_ShaCopy(wc_Sha* src, wc_Sha* dst)
     /* Free dst resources before copy to prevent memory leaks (e.g., msg
      * buffer, W cache, hardware contexts). XMEMCPY overwrites dst. */
     wc_ShaFree(dst);
-    XMEMSET(dst, 0, sizeof(wc_Sha));
-
     XMEMCPY(dst, src, sizeof(wc_Sha));
 
 #if defined(WOLFSSL_SILABS_SE_ACCEL) && defined(WOLFSSL_SILABS_SE_ACCEL_3)

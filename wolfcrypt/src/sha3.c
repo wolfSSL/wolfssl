@@ -1309,8 +1309,6 @@ static int wc_Sha3Copy(wc_Sha3* src, wc_Sha3* dst)
     /* Free dst resources before copy to prevent memory leaks (e.g.,
      * hardware contexts). XMEMCPY overwrites dst. */
     wc_Sha3Free(dst);
-    XMEMSET(dst, 0, sizeof(wc_Sha3));
-
     XMEMCPY(dst, src, sizeof(wc_Sha3));
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA3)
