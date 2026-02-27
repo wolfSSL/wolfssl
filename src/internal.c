@@ -34817,7 +34817,7 @@ exit_scv:
 #ifdef HAVE_SESSION_TICKET
 int SetTicket(WOLFSSL* ssl, const byte* ticket, word32 length)
 {
-    word32 sessIdLen = 0;
+    word32 sessIdLen = ID_LEN;
 
     if (!HaveUniqueSessionObj(ssl))
         return MEMORY_ERROR;
@@ -34840,14 +34840,13 @@ int SetTicket(WOLFSSL* ssl, const byte* ticket, word32 length)
     ssl->session->ticketLen = (word16)length;
 
     if (length > 0) {
-        if (length >= ID_LEN)
-            sessIdLen = ID_LEN;
-        else
+        if (length < ID_LEN)
             sessIdLen = length;
         XMEMCPY(ssl->session->ticket, ticket, length);
         if (ssl->session_ticket_cb != NULL) {
             ssl->session_ticket_cb(ssl,
-                                   ssl->session->ticket, ssl->session->ticketLen,
+                                   ssl->session->ticket,
+                                   ssl->session->ticketLen,
                                    ssl->session_ticket_ctx);
         }
         /* Create a fake sessionID based on the ticket, this will
@@ -34857,7 +34856,8 @@ int SetTicket(WOLFSSL* ssl, const byte* ticket, word32 length)
         if (ssl->options.tls1_3) {
             XMEMSET(ssl->session->sessionID, 0, ID_LEN);
             XMEMCPY(ssl->session->sessionID,
-                                 ssl->session->ticket + length - sessIdLen, sessIdLen);
+                                 ssl->session->ticket + length - sessIdLen,
+                                 sessIdLen);
             ssl->session->sessionIDSz = ID_LEN;
         }
         else
@@ -34865,7 +34865,8 @@ int SetTicket(WOLFSSL* ssl, const byte* ticket, word32 length)
         {
             XMEMSET(ssl->arrays->sessionID, 0, ID_LEN);
             XMEMCPY(ssl->arrays->sessionID,
-                                 ssl->session->ticket + length - sessIdLen, sessIdLen);
+                                 ssl->session->ticket + length - sessIdLen,
+                                 sessIdLen);
             ssl->arrays->sessionIDSz = ID_LEN;
         }
     }
