@@ -136,6 +136,18 @@ int test_ocsp_response_parsing(void)
 #endif
     ExpectIntEQ(test_ocsp_response_with_cm(&conf, expectedRet), TEST_SUCCESS);
 
+    /* Test response with CERT_UNKNOWN status */
+    conf.resp = (unsigned char*)resp_cert_unknown;
+    conf.respSz = sizeof(resp_cert_unknown);
+    conf.ca0 = root_ca_cert_pem;
+    conf.ca0Sz = sizeof(root_ca_cert_pem);
+    conf.ca1 = NULL;
+    conf.ca1Sz = 0;
+    conf.targetCert = intermediate1_ca_cert_pem;
+    conf.targetCertSz = sizeof(intermediate1_ca_cert_pem);
+    ExpectIntEQ(test_ocsp_response_with_cm(&conf, OCSP_CERT_UNKNOWN),
+        TEST_SUCCESS);
+
     /* Test response with unusable internal cert but that can be verified in CM
      */
     conf.resp = (unsigned char*)resp_bad_embedded_cert;
@@ -1025,3 +1037,203 @@ int test_ocsp_tls_cert_cb(void)
     return TEST_SKIPPED;
 }
 #endif
+
+/*
+ * Test: OCSP returns CERT_UNKNOWN for the leaf cert, CRL says cert is valid.
+ * Expects the TLS handshake to succeed via CRL fallback.
+ *
+ * Uses:
+ *  - server-cert.pem (serial 0x01, issued by ca-cert.pem)
+ *  - resp_server_cert_unknown: OCSP response with CERT_UNKNOWN for serial 0x01
+ *  - crl/crl.pem: CRL from ca-cert.pem, only revokes serial 0x02
+ */
+#if defined(HAVE_OCSP) && defined(HAVE_CRL) && \
+    defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA)
+
+static int test_ocsp_unknown_crl_fallback_ocsp_io_cb(void* ioCtx,
+    const char* url, int urlSz, unsigned char* request, int requestSz,
+    unsigned char** response)
+{
+    (void)url;
+    (void)urlSz;
+    (void)request;
+    (void)requestSz;
+
+    /* Return the pre-built CERT_UNKNOWN response for server-cert.pem */
+    *response = (unsigned char*)ioCtx;
+    return (int)sizeof(resp_server_cert_unknown);
+}
+
+static int test_ocsp_unknown_crl_fallback_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+
+    /* Enable OCSP on client with URL override so no real network is needed */
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSP(ctx,
+                    WOLFSSL_OCSP_URL_OVERRIDE | WOLFSSL_OCSP_NO_NONCE),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_SetOCSP_OverrideURL(ctx, "http://dummy.test"),
+        WOLFSSL_SUCCESS);
+    /* Set the OCSP I/O callback to return our CERT_UNKNOWN response blob */
+    ExpectIntEQ(wolfSSL_CTX_SetOCSP_Cb(ctx,
+                    test_ocsp_unknown_crl_fallback_ocsp_io_cb, NULL,
+                    (void*)resp_server_cert_unknown),
+        WOLFSSL_SUCCESS);
+
+    /* Enable CRL checking (already loaded via crlPemFile in the framework) */
+
+    return EXPECT_RESULT();
+}
+
+int test_ocsp_cert_unknown_crl_fallback(void)
+{
+    EXPECT_DECLS;
+    struct test_ssl_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    /* Server setup: use standard server cert issued by ca-cert.pem */
+    test_ctx.s_cb.certPemFile = "./certs/server-cert.pem";
+    test_ctx.s_cb.keyPemFile  = "./certs/server-key.pem";
+
+    /* Client setup: CA cert, CRL file, and custom ctx_ready for OCSP */
+    test_ctx.c_cb.caPemFile   = "./certs/ca-cert.pem";
+    test_ctx.c_cb.crlPemFile  = "./certs/crl/crl.pem";
+    test_ctx.c_cb.ctx_ready   = test_ocsp_unknown_crl_fallback_ctx_ready;
+
+    ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+
+    /* The OCSP response returns CERT_UNKNOWN for the server cert.
+     * CRL (crl.pem) does NOT revoke serial 0x01 (only 0x02 is revoked).
+     * If OCSP CERT_UNKNOWN correctly falls back to CRL, the handshake
+     * should succeed.
+     */
+    ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL),
+        TEST_SUCCESS);
+
+    test_ssl_memio_cleanup(&test_ctx);
+    return EXPECT_RESULT();
+}
+
+#else
+int test_ocsp_cert_unknown_crl_fallback(void)
+{
+    return TEST_SKIPPED;
+}
+#endif /* HAVE_OCSP && HAVE_CRL && HAVE_SSL_MEMIO_TESTS_DEPENDENCIES */
+
+/*
+ * Test: OCSP returns CERT_UNKNOWN for a non-leaf (intermediate) cert,
+ * CRL says the cert is valid. With both OCSP_CHECKALL and CRL_CHECKALL
+ * enabled, the CRL fallback for non-leaf certs should kick in.
+ *
+ * Chain: server1 (serial 0x05) -> intermediate1 (serial 0x01) -> root-ca
+ *
+ * OCSP responses:
+ *  - intermediate1: resp_cert_unknown (CERT_UNKNOWN)
+ *  - server1:       resp_server1_cert (CERT_GOOD)
+ *
+ * CRL files (empty = no revocations):
+ *  - root-ca-crl.pem:          covers intermediate1 (serial 0x01 not revoked)
+ *  - intermediate1-ca-crl.pem: covers server1 (serial 0x05 not revoked)
+ */
+#if defined(HAVE_OCSP) && defined(HAVE_CRL) && \
+    defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA) && \
+    !defined(NO_SHA)
+
+static int test_ocsp_unknown_nonleaf_call_count;
+
+static int test_ocsp_unknown_nonleaf_ocsp_io_cb(void* ioCtx,
+    const char* url, int urlSz, unsigned char* request, int requestSz,
+    unsigned char** response)
+{
+    (void)ioCtx;
+    (void)url;
+    (void)urlSz;
+    (void)request;
+    (void)requestSz;
+
+    test_ocsp_unknown_nonleaf_call_count++;
+
+    if (test_ocsp_unknown_nonleaf_call_count == 1) {
+        /* First OCSP lookup: non-leaf cert (intermediate1).
+         * Return CERT_UNKNOWN. */
+        *response = (unsigned char*)resp_cert_unknown;
+        return (int)sizeof(resp_cert_unknown);
+    }
+    else {
+        /* Second OCSP lookup: leaf cert (server1).
+         * Return CERT_GOOD. */
+        *response = (unsigned char*)resp_server1_cert;
+        return (int)sizeof(resp_server1_cert);
+    }
+}
+
+static int test_ocsp_unknown_nonleaf_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+
+    /* Need VERIFY_PEER so chain certs get added to the CM. Without it
+     * (e.g. OPENSSL_COMPATIBLE_DEFAULTS sets VERIFY_NONE), the intermediate
+     * CA won't be registered and the leaf cert's issuerKeyHash stays zero,
+     * causing the OCSP CertID comparison to fail. */
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+
+    /* Enable OCSP with CHECKALL so non-leaf certs are also OCSP-checked */
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSP(ctx, WOLFSSL_OCSP_CHECKALL |
+                    WOLFSSL_OCSP_URL_OVERRIDE | WOLFSSL_OCSP_NO_NONCE),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_SetOCSP_OverrideURL(ctx, "http://dummy.test"),
+        WOLFSSL_SUCCESS);
+    /* Set the OCSP I/O callback to return our test responses */
+    ExpectIntEQ(wolfSSL_CTX_SetOCSP_Cb(ctx,
+                    test_ocsp_unknown_nonleaf_ocsp_io_cb, NULL, NULL),
+        WOLFSSL_SUCCESS);
+
+    /* Load CRL from root-ca (covers intermediate1, serial 0x01 not revoked).
+     * The leaf cert (server1) gets CERT_GOOD from OCSP so doesn't need CRL. */
+    ExpectIntEQ(wolfSSL_CTX_EnableCRL(ctx, WOLFSSL_CRL_CHECKALL),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_LoadCRLFile(ctx,
+                    "./certs/ocsp/root-ca-crl.pem", WOLFSSL_FILETYPE_PEM),
+        WOLFSSL_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+
+int test_ocsp_cert_unknown_crl_fallback_nonleaf(void)
+{
+    EXPECT_DECLS;
+    struct test_ssl_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ocsp_unknown_nonleaf_call_count = 0;
+
+    /* Server: server1-chain-noroot.pem contains server1 + intermediate1
+     * (no root-ca, since the client already trusts root-ca) */
+    test_ctx.s_cb.certPemFile = "./certs/ocsp/server1-chain-noroot.pem";
+    test_ctx.s_cb.keyPemFile  = "./certs/ocsp/server1-key.pem";
+
+    /* Client: trust root-ca, enable OCSP+CRL in ctx_ready */
+    test_ctx.c_cb.caPemFile = "./certs/ocsp/root-ca-cert.pem";
+    test_ctx.c_cb.ctx_ready = test_ocsp_unknown_nonleaf_ctx_ready;
+
+    ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+
+    /* OCSP returns CERT_UNKNOWN for intermediate1 (non-leaf).
+     * CRL (root-ca-crl.pem) has no revocations, so intermediate1 is valid.
+     * If the non-leaf OCSP->CRL fallback works, the handshake should succeed.
+     */
+    ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL),
+        TEST_SUCCESS);
+
+    test_ssl_memio_cleanup(&test_ctx);
+    return EXPECT_RESULT();
+}
+
+#else
+int test_ocsp_cert_unknown_crl_fallback_nonleaf(void)
+{
+    return TEST_SKIPPED;
+}
+#endif /* HAVE_OCSP && HAVE_CRL && HAVE_SSL_MEMIO_TESTS_DEPENDENCIES */

@@ -33291,6 +33291,8 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_ocsp_response_parsing),
     TEST_DECL(test_ocsp_certid_enc_dec),
     TEST_DECL(test_ocsp_tls_cert_cb),
+    TEST_DECL(test_ocsp_cert_unknown_crl_fallback),
+    TEST_DECL(test_ocsp_cert_unknown_crl_fallback_nonleaf),
     TEST_TLS_DECLS,
     TEST_DECL(test_wc_DhSetNamedKey),
     /* This test needs to stay at the end to clean up any caches allocated. */

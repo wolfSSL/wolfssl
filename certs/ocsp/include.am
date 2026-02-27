@@ -23,6 +23,7 @@ EXTRA_DIST += \
         certs/ocsp/ocsp-responder-cert.pem \
         certs/ocsp/server1-key.pem \
         certs/ocsp/server1-cert.pem \
+        certs/ocsp/server1-chain-noroot.pem \
         certs/ocsp/server2-key.pem \
         certs/ocsp/server2-cert.pem \
         certs/ocsp/server3-key.pem \
@@ -33,6 +34,7 @@ EXTRA_DIST += \
         certs/ocsp/server5-cert.pem \
         certs/ocsp/root-ca-key.pem \
         certs/ocsp/root-ca-cert.pem \
+        certs/ocsp/root-ca-crl.pem \
         certs/ocsp/test-response.der \
         certs/ocsp/test-response-rsapss.der \
         certs/ocsp/test-response-nointern.der \
