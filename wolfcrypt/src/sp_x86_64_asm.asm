@@ -65067,7 +65067,11 @@ sp_521_get_point_33_9 PROC
         mov	r14, 1
         mov	rax, 1
         movd	xmm13, r8d
+IFNDEF SP_ALIGN_16
         add	rdx, 440
+ELSE
+        add	rdx, 448
+ENDIF
         movd	xmm15, eax
         mov	rax, 32
         pshufd	xmm15, xmm15, 0
@@ -65098,7 +65102,11 @@ L_521_get_point_33_9_start_1:
         mov	r10, QWORD PTR [rdx+64]
         movdqu	xmm10, OWORD PTR [rdx+144]
         movdqu	xmm11, OWORD PTR [rdx+160]
+IFNDEF SP_ALIGN_16
         add	rdx, 440
+ELSE
+        add	rdx, 448
+ENDIF
         pand	xmm6, xmm12
         pand	xmm7, xmm12
         pand	xmm8, xmm12
@@ -65125,7 +65133,11 @@ L_521_get_point_33_9_start_1:
         mov	r14, 1
         mov	rax, 1
         movd	xmm13, r8d
+IFNDEF SP_ALIGN_16
         sub	rdx, 14080
+ELSE
+        sub	rdx, 112640
+ENDIF
         movd	xmm15, eax
         mov	rax, 32
         pshufd	xmm15, xmm15, 0
@@ -65157,7 +65169,11 @@ L_521_get_point_33_9_start_2:
         movdqu	xmm10, OWORD PTR [rdx+320]
         movdqu	xmm11, OWORD PTR [rdx+336]
         mov	r11, QWORD PTR [rdx+352]
+IFNDEF SP_ALIGN_16
         add	rdx, 440
+ELSE
+        add	rdx, 448
+ENDIF
         pand	xmm6, xmm12
         pand	xmm7, xmm12
         pand	xmm8, xmm12
@@ -65229,7 +65245,11 @@ sp_521_get_point_33_avx2_9 PROC
         mov	rdi, 1
         mov	rax, 1
         movd	xmm13, r8d
+IFNDEF SP_ALIGN_16
         add	rdx, 440
+ELSE
+        add	rdx, 448
+ENDIF
         movd	xmm15, eax
         mov	rax, 32
         vpxor	ymm14, ymm14, ymm14
@@ -65262,7 +65282,11 @@ L_521_get_point_33_avx2_9_start:
         mov	r13, QWORD PTR [rdx+64]
         mov	r14, QWORD PTR [rdx+208]
         mov	r15, QWORD PTR [rdx+352]
+IFNDEF SP_ALIGN_16
         add	rdx, 440
+ELSE
+        add	rdx, 448
+ENDIF
         vpand	ymm6, ymm6, ymm12
         vpand	ymm7, ymm7, ymm12
         vpand	ymm8, ymm8, ymm12
