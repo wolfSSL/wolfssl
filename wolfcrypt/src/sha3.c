@@ -1345,6 +1345,7 @@ static int wc_Sha3GetHash(wc_Sha3* sha3, byte* hash, byte p, byte len)
     if (sha3 == NULL || hash == NULL)
         return BAD_FUNC_ARG;
 
+    XMEMSET(&tmpSha3, 0, sizeof(tmpSha3));
     ret = wc_Sha3Copy(sha3, &tmpSha3);
     if (ret == 0) {
         ret = wc_Sha3Final(&tmpSha3, hash, p, len);

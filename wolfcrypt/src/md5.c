@@ -522,6 +522,7 @@ int wc_Md5GetHash(wc_Md5* md5, byte* hash)
     if (md5 == NULL || hash == NULL)
         return BAD_FUNC_ARG;
 
+    XMEMSET(&tmpMd5, 0, sizeof(tmpMd5));
     ret = wc_Md5Copy(md5, &tmpMd5);
     if (ret == 0) {
         ret = wc_Md5Final(&tmpMd5, hash);
