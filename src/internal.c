@@ -26278,6 +26278,11 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
         if (sent == (word32)sz) break;
 
         buffSz = (word32)sz - sent;
+        {
+            int maxFrag = wolfSSL_GetMaxFragSize(ssl);
+            if (maxFrag > 0 && (int)buffSz > maxFrag)
+                buffSz = (word32)maxFrag;
+        }
         outputSz = wolfssl_local_GetRecordSize(ssl, (word32)buffSz, 1);
 #if defined(WOLFSSL_DTLS)
         if (ssl->options.dtls) {

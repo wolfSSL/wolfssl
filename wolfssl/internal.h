@@ -7340,6 +7340,8 @@ WOLFSSL_LOCAL void* wolfssl_sk_pop_type(WOLFSSL_STACK* sk,
                                         WOLF_STACK_TYPE type);
 WOLFSSL_LOCAL void* wolfSSL_sk_pop_node(WOLFSSL_STACK* sk, int idx);
 WOLFSSL_LOCAL WOLFSSL_STACK* wolfssl_sk_new_type(WOLF_STACK_TYPE type);
+WOLFSSL_LOCAL WOLFSSL_STACK* wolfssl_sk_new_type_ex(WOLF_STACK_TYPE type,
+        void* heap);
 
 WOLFSSL_LOCAL int wolfssl_asn1_obj_set(WOLFSSL_ASN1_OBJECT* obj,
         const byte* der, word32 len, int addHdr);

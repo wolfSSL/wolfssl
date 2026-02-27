@@ -2007,7 +2007,6 @@ int wolfSSL_OCSP_id_get0_info(WOLFSSL_ASN1_STRING **name,
                 (size_t)cid->status->serialSz);
             ser->length = i + cid->status->serialSz;
         #endif
-
         cid->status->serialInt = ser;
         *serial = ser;
     }

@@ -113,24 +113,6 @@ WOLFSSL_STACK* wolfSSL_sk_get_node(WOLFSSL_STACK* stack, int idx)
 #endif /* !NO_CERT && OPENSSL_EXTRA*/
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
-/* Copy all fields from src into dst.
- *
- * Shallow copy only.
- *
- * @param [in, out] dst  Node to copy into.
- * @param [in]      src  Node to copy.
- */
-static void wolfssl_sk_node_copy(WOLFSSL_STACK* dst, WOLFSSL_STACK* src)
-{
-    dst->data.generic = src->data.generic;
-    dst->next         = src->next;
-#ifdef OPENSSL_ALL
-    dst->hash_fn      = src->hash_fn;
-    dst->hash         = src->hash;
-#endif
-    dst->type         = src->type;
-    dst->num          = src->num;
-}
 
 #ifndef NO_CERTS
 /* Get data pointer from node.
@@ -188,13 +170,12 @@ static void wolfssl_sk_node_set_data(WOLFSSL_STACK* node, WOLF_STACK_TYPE type,
 {
     switch (type) {
         case STACK_TYPE_CIPHER:
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
             node->data.cipher = *(WOLFSSL_CIPHER*)data;
-            if (node->hash_fn != NULL) {
+#ifdef OPENSSL_ALL
+            if (node->hash_fn != NULL)
                 node->hash = node->hash_fn(&node->data.cipher);
-            }
-            break;
 #endif
+            break;
         case STACK_TYPE_X509:
         case STACK_TYPE_GEN_NAME:
         case STACK_TYPE_BIO:
@@ -331,7 +312,7 @@ void* wolfSSL_sk_pop_node(WOLFSSL_STACK* stack, int idx)
             if (stack->next) {
                 /* Keep the first node as it is the pointer passed in. */
                 tmp = stack->next;
-                wolfssl_sk_node_copy(stack, stack->next);
+                XMEMCPY(stack, stack->next, sizeof(WOLFSSL_STACK));
                 wolfSSL_sk_free_node(tmp);
             }
         }
@@ -374,7 +355,12 @@ void* wolfSSL_sk_pop_node(WOLFSSL_STACK* stack, int idx)
  */
 WOLFSSL_STACK* wolfssl_sk_new_type(WOLF_STACK_TYPE type)
 {
-    WOLFSSL_STACK* stack = wolfSSL_sk_new_node(NULL);
+    return wolfssl_sk_new_type_ex(type, NULL);
+}
+
+WOLFSSL_STACK* wolfssl_sk_new_type_ex(WOLF_STACK_TYPE type, void* heap)
+{
+    WOLFSSL_STACK* stack = wolfSSL_sk_new_node(heap);
     if (stack != NULL) {
         stack->type = type;
     }
@@ -546,7 +532,7 @@ WOLFSSL_STACK* wolfSSL_sk_dup(WOLFSSL_STACK* stack)
         /* Update last node in linked list. */
         last = cur;
 
-        wolfssl_sk_node_copy(cur, stack);
+        XMEMCPY(cur, stack, sizeof(WOLFSSL_STACK));
         /* We will allocate new memory for this */
         XMEMSET(&cur->data, 0, sizeof(cur->data));
         cur->next = NULL;
@@ -588,7 +574,7 @@ WOLFSSL_STACK* wolfSSL_shallow_sk_dup(WOLFSSL_STACK* stack)
             break;
         }
 
-        wolfssl_sk_node_copy(cur, stack);
+        XMEMCPY(cur, stack, sizeof(WOLFSSL_STACK));
         cur->next = NULL;
 
         *prev = cur;
@@ -756,7 +742,7 @@ int wolfSSL_sk_insert(WOLFSSL_STACK *stack, const void *data, int idx)
             if (idx == 0) {
                 /* Special case where we need to change the values in the head
                  * element to avoid changing the initial pointer. */
-                wolfssl_sk_node_copy(node, stack);
+                XMEMCPY(node, stack, sizeof(WOLFSSL_STACK));
                 wolfssl_sk_node_set_data(stack, stack->type, data);
                 stack->num++;
                 stack->next = node;

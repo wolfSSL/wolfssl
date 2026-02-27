@@ -1,0 +1,142 @@
+name: Python Tests
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  build_wolfssl:
+    name: Build wolfSSL
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Build wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          path: wolfssl
+          configure: >-
+            --enable-all --enable-tlsv10
+            'CPPFLAGS=-DHAVE_SECRET_CALLBACK -DWOLFSSL_PYTHON'
+          check: false
+          install: true
+
+      - name: tar build-dir
+        run: tar -zcf build-dir.tgz build-dir
+
+      - name: Upload built lib
+        uses: actions/upload-artifact@v4
+        with:
+          name: wolf-install-python
+          path: build-dir.tgz
+          retention-days: 5
+
+  python_check:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+            - python_ver: 3.12.11
+              tests: >-
+                test_ssl
+                test.test_asyncio.test_ssl
+                test.test_asyncio.test_sslproto
+                test_hashlib
+                test_hmac
+                test_secrets
+                test_ftplib
+                test_imaplib
+                test_poplib
+                test_smtplib
+                test_httplib
+                test_urllib2_localnet
+                test_xmlrpc
+                test_docxmlrpc
+            - python_ver: 3.13.4
+              tests: >-
+                test_ssl
+                test.test_asyncio.test_ssl
+                test.test_asyncio.test_sslproto
+                test_hashlib
+                test_hmac
+                test_secrets
+                test_ftplib
+                test_imaplib
+                test_poplib
+                test_smtplib
+                test_httplib
+                test_urllib2_localnet
+                test_xmlrpc
+                test_docxmlrpc
+            - python_ver: 3.13.7
+              tests: >-
+                test_ssl
+                test.test_asyncio.test_ssl
+                test.test_asyncio.test_sslproto
+                test_hashlib
+                test_hmac
+                test_secrets
+                test_ftplib
+                test_imaplib
+                test_poplib
+                test_smtplib
+                test_httplib
+                test_urllib2_localnet
+                test_xmlrpc
+                test_docxmlrpc
+    name: Python ${{ matrix.python_ver }}
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    needs: build_wolfssl
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential autoconf automake autoconf-archive pkgconf \
+            libffi-dev libbz2-dev libreadline-dev libsqlite3-dev \
+            zlib1g-dev libncursesw5-dev libgdbm-dev libnss3-dev \
+            liblzma-dev uuid-dev pkg-config
+
+      - name: Download wolfSSL
+        uses: actions/download-artifact@v4
+        with:
+          name: wolf-install-python
+
+      - name: Untar wolfSSL build
+        run: tar -xf build-dir.tgz
+
+      - name: Checkout OSP
+        uses: actions/checkout@v4
+        with:
+          repository: wolfssl/osp
+          path: osp
+
+      - name: Checkout CPython
+        uses: actions/checkout@v4
+        with:
+          repository: python/cpython
+          ref: v${{ matrix.python_ver }}
+          path: cpython
+
+      - name: Apply wolfSSL patch
+        working-directory: cpython
+        run: patch -p1 < $GITHUB_WORKSPACE/osp/Python/wolfssl-python-${{ matrix.python_ver }}.patch
+
+      - name: Build CPython and run SSL and crypto tests
+        working-directory: cpython
+        run: |
+          export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/build-dir/lib:$LD_LIBRARY_PATH
+          rm -f aclocal.m4
+          autoreconf -if
+          ./configure --with-wolfssl=$GITHUB_WORKSPACE/build-dir
+          make -j test TESTOPTS="-v ${{ matrix.tests }}"
