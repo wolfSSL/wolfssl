@@ -1298,7 +1298,7 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
     /* Pre-compute sz + hashSz + padSz + 1 with overflow checking.
      * Used by fuzzer callback and Hmac_UpdateFinal* in the verify path. */
     if (verify && padSz >= 0) {
-        word32 hmacSz;
+        word32 hmacSz = 0;
         if (!WC_SAFE_SUM_WORD32(sz, hashSz, hmacSz) ||
             !WC_SAFE_SUM_WORD32(hmacSz, (word32)padSz, hmacSz) ||
             !WC_SAFE_SUM_WORD32(hmacSz, 1, hmacSz)) {
