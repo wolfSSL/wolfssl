@@ -4331,6 +4331,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t md5_test(void)
 
     /* Copy cleanup test: verify Copy into a previously-used dst does not leak
      * resources (e.g., hardware contexts). Detectable by valgrind/ASAN. */
+    wc_Md5Free(&md5);
     ret = wc_InitMd5_ex(&md5, HEAP_HINT, devId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
@@ -4565,6 +4566,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha_test(void)
 
     /* Copy cleanup test: verify Copy into a previously-used dst does not leak
      * resources (e.g., msg buffer, W cache). Detectable by valgrind/ASAN. */
+    wc_ShaFree(&sha);
     ret = wc_InitSha_ex(&sha, HEAP_HINT, devId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
@@ -5027,6 +5029,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha224_test(void)
 
     /* Copy cleanup test: verify Copy into a previously-used dst does not leak
      * resources (e.g., msg buffer, W cache). Detectable by valgrind/ASAN. */
+    wc_Sha224Free(&sha);
     ret = wc_InitSha224_ex(&sha, HEAP_HINT, devId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
@@ -5274,6 +5277,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha256_test(void)
 
     /* Copy cleanup test: verify Copy into a previously-used dst does not leak
      * resources (e.g., msg buffer, W cache). Detectable by valgrind/ASAN. */
+    wc_Sha256Free(&sha);
     ret = wc_InitSha256_ex(&sha, HEAP_HINT, devId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
@@ -5512,6 +5516,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha512_test(void)
 
     /* Copy cleanup test: verify Copy into a previously-used dst does not leak
      * resources (e.g., msg buffer, W cache). Detectable by valgrind/ASAN. */
+    wc_Sha512Free(&sha);
     ret = wc_InitSha512_ex(&sha, HEAP_HINT, devId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
@@ -5956,6 +5961,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha384_test(void)
 
     /* Copy cleanup test: verify Copy into a previously-used dst does not leak
      * resources (e.g., msg buffer, W cache). Detectable by valgrind/ASAN. */
+    wc_Sha384Free(&sha);
     ret = wc_InitSha384_ex(&sha, HEAP_HINT, devId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
@@ -6077,6 +6083,7 @@ static wc_test_ret_t sha3_224_test(void)
 
     /* Copy cleanup test: verify Copy into a previously-used dst does not leak
      * resources (e.g., hardware contexts). Detectable by valgrind/ASAN. */
+    wc_Sha3_224_Free(&sha);
     ret = wc_InitSha3_224(&sha, HEAP_HINT, devId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
@@ -6230,6 +6237,7 @@ static wc_test_ret_t sha3_256_test(void)
 
     /* Copy cleanup test: verify Copy into a previously-used dst does not leak
      * resources (e.g., hardware contexts). Detectable by valgrind/ASAN. */
+    wc_Sha3_256_Free(&sha);
     ret = wc_InitSha3_256(&sha, HEAP_HINT, devId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
@@ -6383,6 +6391,7 @@ static wc_test_ret_t sha3_384_test(void)
 
     /* Copy cleanup test: verify Copy into a previously-used dst does not leak
      * resources (e.g., hardware contexts). Detectable by valgrind/ASAN. */
+    wc_Sha3_384_Free(&sha);
     ret = wc_InitSha3_384(&sha, HEAP_HINT, devId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
@@ -6517,6 +6526,7 @@ static wc_test_ret_t sha3_512_test(void)
 
     /* Copy cleanup test: verify Copy into a previously-used dst does not leak
      * resources (e.g., hardware contexts). Detectable by valgrind/ASAN. */
+    wc_Sha3_512_Free(&sha);
     ret = wc_InitSha3_512(&sha, HEAP_HINT, devId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
@@ -6930,6 +6940,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t shake128_test(void)
 
     /* Copy cleanup test: verify Copy into a previously-used dst does not leak
      * resources (e.g., hardware contexts). Detectable by valgrind/ASAN. */
+    wc_Shake128_Free(&sha);
     ret = wc_InitShake128(&sha, HEAP_HINT, devId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
@@ -7304,6 +7315,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t shake256_test(void)
 
     /* Copy cleanup test: verify Copy into a previously-used dst does not leak
      * resources (e.g., hardware contexts). Detectable by valgrind/ASAN. */
+    wc_Shake256_Free(&sha);
     ret = wc_InitShake256(&sha, HEAP_HINT, devId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
