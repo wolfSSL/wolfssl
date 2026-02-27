@@ -950,6 +950,55 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c)
 }
 #endif
 
+#if !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
+static int wc_mlkemkey_check_h(MlKemKey* key)
+{
+    int ret = 0;
+
+    /* If public hash (h) is not stored against key, calculate it
+     * (fields set explicitly instead of using decode).
+     * Step 1: ... H(ek)...
+     */
+    if ((key->flags & MLKEM_FLAG_H_SET) == 0) {
+    #ifndef WOLFSSL_NO_MALLOC
+        byte* pubKey = NULL;
+        word32 pubKeyLen;
+    #else
+        byte pubKey[WC_ML_KEM_MAX_PUBLIC_KEY_SIZE];
+        word32 pubKeyLen;
+    #endif
+
+        /* Determine how big an encoded public key will be. */
+        ret = wc_KyberKey_PublicKeySize(key, &pubKeyLen);
+        if (ret == 0) {
+    #ifndef WOLFSSL_NO_MALLOC
+            /* Allocate dynamic memory for encoded public key. */
+            pubKey = (byte*)XMALLOC(pubKeyLen, key->heap,
+                DYNAMIC_TYPE_TMP_BUFFER);
+            if (pubKey == NULL) {
+                ret = MEMORY_E;
+            }
+        }
+        if (ret == 0) {
+    #endif
+            /* Encode public key - h is hash of encoded public key. */
+            ret = wc_KyberKey_EncodePublicKey(key, pubKey, pubKeyLen);
+        }
+    #ifndef WOLFSSL_NO_MALLOC
+        /* Dispose of encoded public key. */
+        XFREE(pubKey, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+     #endif
+    }
+    if ((ret == 0) && ((key->flags & MLKEM_FLAG_H_SET) == 0)) {
+        /* Implementation issue if h not cached and flag set. */
+        ret = BAD_STATE_E;
+    }
+
+    return ret;
+}
+#endif
+
 #ifndef WOLFSSL_MLKEM_NO_ENCAPSULATE
 /**
  * Encapsulate with random number generator and derive secret.
@@ -1084,43 +1133,8 @@ int wc_MlKemKey_EncapsulateWithRandom(MlKemKey* key, unsigned char* c,
     }
 #endif
 
-    /* If public hash (h) is not stored against key, calculate it
-     * (fields set explicitly instead of using decode).
-     * Step 1: ... H(ek)...
-     */
-    if ((ret == 0) && ((key->flags & MLKEM_FLAG_H_SET) == 0)) {
-    #ifndef WOLFSSL_NO_MALLOC
-        byte* pubKey = NULL;
-        word32 pubKeyLen;
-    #else
-        byte pubKey[WC_ML_KEM_MAX_PUBLIC_KEY_SIZE];
-        word32 pubKeyLen = WC_ML_KEM_MAX_PUBLIC_KEY_SIZE;
-    #endif
-
-    #ifndef WOLFSSL_NO_MALLOC
-        /* Determine how big an encoded public key will be. */
-        ret = wc_KyberKey_PublicKeySize(key, &pubKeyLen);
-        if (ret == 0) {
-            /* Allocate dynamic memory for encoded public key. */
-            pubKey = (byte*)XMALLOC(pubKeyLen, key->heap,
-                DYNAMIC_TYPE_TMP_BUFFER);
-            if (pubKey == NULL) {
-                ret = MEMORY_E;
-            }
-        }
-        if (ret == 0) {
-    #endif
-            /* Encode public key - h is hash of encoded public key. */
-            ret = wc_KyberKey_EncodePublicKey(key, pubKey, pubKeyLen);
-    #ifndef WOLFSSL_NO_MALLOC
-        }
-        /* Dispose of encoded public key. */
-        XFREE(pubKey, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-     #endif
-    }
-    if ((ret == 0) && ((key->flags & MLKEM_FLAG_H_SET) == 0)) {
-        /* Implementation issue if h not cached and flag set. */
-        ret = BAD_STATE_E;
+    if (ret == 0) {
+        ret = wc_mlkemkey_check_h(key);
     }
 
 #ifdef WOLFSSL_MLKEM_KYBER
@@ -1204,6 +1218,8 @@ int wc_MlKemKey_EncapsulateWithRandom(MlKemKey* key, unsigned char* c,
         }
     }
 #endif
+
+    ForceZero(kr, sizeof(kr));
 
     return ret;
 }
@@ -1488,6 +1504,10 @@ int wc_MlKemKey_Decapsulate(MlKemKey* key, unsigned char* ss,
         ret = mlkemkey_decapsulate(key, msg, ct);
     }
     if (ret == 0) {
+        /* Check we have H, hash of public, set. */
+        ret = wc_mlkemkey_check_h(key);
+    }
+    if (ret == 0) {
         /* Hash message into seed buffer. */
         ret = MLKEM_HASH_G(&key->hash, msg, WC_ML_KEM_SYM_SZ, key->h,
             WC_ML_KEM_SYM_SZ, kr);
@@ -1540,6 +1560,9 @@ int wc_MlKemKey_Decapsulate(MlKemKey* key, unsigned char* ss,
         XFREE(cmp, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #endif
+
+    ForceZero(msg, sizeof(msg));
+    ForceZero(kr, sizeof(kr));
 
     return ret;
 }

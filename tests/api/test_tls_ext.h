@@ -27,5 +27,6 @@ int test_wolfSSL_DisableExtendedMasterSecret(void);
 int test_certificate_authorities_certificate_request(void);
 int test_certificate_authorities_client_hello(void);
 int test_TLSX_TCA_Find(void);
+int test_TLSX_SNI_GetSize_overflow(void);
 
 #endif /* TESTS_API_TEST_TLS_EMS_H */

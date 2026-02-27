@@ -19,3 +19,4 @@
 #include "wolfssl/wolfcrypt/logging.h"
 #include "wolfssl/wolfcrypt/aes.h"
 #include "wolfssl/wolfcrypt/pwdbased.h"
+#include "wolfssl/wolfcrypt/dilithium.h"

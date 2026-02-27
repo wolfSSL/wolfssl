@@ -796,6 +796,8 @@ static int wc_HpkeEncap(Hpke* hpke, void* ephemeralKey, void* receiverKey,
             hpke->Npk * 2, sharedSecret);
     }
 
+    ForceZero(dh, hpke->Ndh);
+    ForceZero(kemContext, hpke->Npk * 2);
     WC_FREE_VAR_EX(dh, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
     WC_FREE_VAR_EX(kemContext, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
@@ -816,6 +818,9 @@ static int wc_HpkeSetupBaseSender(Hpke* hpke, HpkeBaseContext* context,
 #ifdef WOLFSSL_SMALL_STACK
     sharedSecret = (byte*)XMALLOC(hpke->Nsecret, hpke->heap,
         DYNAMIC_TYPE_TMP_BUFFER);
+    if (sharedSecret == NULL) {
+        return MEMORY_E;
+    }
 #endif
 
     /* encap */
@@ -827,6 +832,7 @@ static int wc_HpkeSetupBaseSender(Hpke* hpke, HpkeBaseContext* context,
             infoSz);
     }
 
+    ForceZero(sharedSecret, hpke->Nsecret);
     WC_FREE_VAR_EX(sharedSecret, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
@@ -914,6 +920,7 @@ int wc_HpkeSealBase(Hpke* hpke, void* ephemeralKey, void* receiverKey,
 
     PRIVATE_KEY_LOCK();
 
+    ForceZero(context, sizeof(HpkeBaseContext));
     WC_FREE_VAR_EX(context, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
@@ -1032,6 +1039,8 @@ static int wc_HpkeDecap(Hpke* hpke, void* receiverKey, const byte* pubKey,
             hpke->Npk * 2, sharedSecret);
     }
 
+    ForceZero(dh, hpke->Ndh);
+    ForceZero(kemContext, hpke->Npk * 2);
     WC_FREE_VAR_EX(dh, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
     WC_FREE_VAR_EX(kemContext, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
@@ -1058,6 +1067,7 @@ static int wc_HpkeSetupBaseReceiver(Hpke* hpke, HpkeBaseContext* context,
             infoSz);
     }
 
+    ForceZero(sharedSecret, hpke->Nsecret);
     WC_FREE_VAR_EX(sharedSecret, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
@@ -1144,6 +1154,7 @@ int wc_HpkeOpenBase(Hpke* hpke, void* receiverKey, const byte* pubKey,
 
     PRIVATE_KEY_LOCK();
 
+    ForceZero(context, sizeof(HpkeBaseContext));
     WC_FREE_VAR_EX(context, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;

@@ -38,6 +38,7 @@ jobs:
           # Add new configs here
           '',
           '--enable-all',
+          '--enable-all --enable-dilithium',
           '--enable-cryptonly --disable-examples',
           '--enable-cryptonly --disable-examples --disable-aes --disable-aesgcm',
           '--enable-cryptonly --disable-examples --disable-aescbc',

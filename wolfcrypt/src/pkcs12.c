@@ -637,7 +637,13 @@ static int wc_PKCS12_verify(WC_PKCS12* pkcs12, byte* data, word32 dataSz,
     }
 #endif
 
-    return XMEMCMP(digest, mac->digest, mac->digestSz);
+    if (ConstantCompare(digest, mac->digest, (int)mac->digestSz) != 0) {
+        ForceZero(digest, sizeof(digest));
+        return MAC_CMP_FAILED_E;
+    }
+
+    ForceZero(digest, sizeof(digest));
+    return 0;
 }
 
 int wc_PKCS12_verify_ex(WC_PKCS12* pkcs12, const byte* psw, word32 pswSz)

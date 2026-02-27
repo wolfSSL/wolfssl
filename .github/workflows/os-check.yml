@@ -53,6 +53,8 @@ jobs:
           '--enable-opensslall --enable-opensslextra CPPFLAGS=-DWC_RNG_SEED_CB',
           '--enable-opensslall --enable-opensslextra
             CPPFLAGS=''-DWC_RNG_SEED_CB -DWOLFSSL_NO_GETPID'' ',
+          # PKCS#7 with RSA-PSS (CMS RSASSA-PSS signers)
+          '--enable-pkcs7 CPPFLAGS=-DWC_RSA_PSS',
           '--enable-opensslextra CPPFLAGS=''-DWOLFSSL_NO_CA_NAMES'' ',
           '--enable-opensslextra=x509small',
           'CPPFLAGS=''-DWOLFSSL_EXTRA'' ',

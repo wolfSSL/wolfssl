@@ -4831,11 +4831,20 @@ static int wolfssl_add_to_chain(DerBuffer** chain, int weOwn, const byte* cert,
         /* Get length of previous chain. */
         len = oldChain->length;
     }
-    /* Allocate DER buffer bug enough to hold old and new certificates. */
-    ret = AllocDer(&newChain, len + CERT_HEADER_SZ + certSz, CERT_TYPE, heap);
-    if (ret != 0) {
-        WOLFSSL_MSG("AllocDer error");
+    /* Check for integer overflow in size calculation. */
+    if ((len > WOLFSSL_MAX_32BIT - CERT_HEADER_SZ) ||
+            (certSz > WOLFSSL_MAX_32BIT - CERT_HEADER_SZ - len)) {
+        WOLFSSL_MSG("wolfssl_add_to_chain overflow");
         res = 0;
+    }
+    if (res == 1) {
+        /* Allocate DER buffer big enough to hold old and new certificates. */
+        ret = AllocDer(&newChain, len + CERT_HEADER_SZ + certSz, CERT_TYPE,
+            heap);
+        if (ret != 0) {
+            WOLFSSL_MSG("AllocDer error");
+            res = 0;
+        }
     }
 
     if (res == 1) {

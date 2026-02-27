@@ -632,16 +632,18 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define sk_X509_push                    wolfSSL_sk_X509_push
 #define sk_X509_pop                     wolfSSL_sk_X509_pop
 #define sk_X509_pop_free                wolfSSL_sk_X509_pop_free
-#define sk_X509_dup                     wolfSSL_sk_dup
+#define sk_X509_dup                     wolfSSL_shallow_sk_dup
 #define sk_X509_free                    wolfSSL_sk_X509_free
 #define X509_chain_up_ref               wolfSSL_X509_chain_up_ref
 
 #define sk_X509_CRL_new                 wolfSSL_sk_X509_CRL_new
+#define sk_X509_CRL_new_null            wolfSSL_sk_X509_CRL_new_null
 #define sk_X509_CRL_pop_free            wolfSSL_sk_X509_CRL_pop_free
 #define sk_X509_CRL_free                wolfSSL_sk_X509_CRL_free
 #define sk_X509_CRL_push                wolfSSL_sk_X509_CRL_push
 #define sk_X509_CRL_value               wolfSSL_sk_X509_CRL_value
 #define sk_X509_CRL_num                 wolfSSL_sk_X509_CRL_num
+#define sk_X509_CRL_dup                 wolfSSL_shallow_sk_dup
 
 #define sk_X509_OBJECT_new              wolfSSL_sk_X509_OBJECT_new
 #define sk_X509_OBJECT_free             wolfSSL_sk_X509_OBJECT_free
@@ -824,6 +826,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 
 #define X509_CRL_new                    wolfSSL_X509_CRL_new
 #define X509_CRL_dup                    wolfSSL_X509_CRL_dup
+#define X509_CRL_up_ref                 wolfSSL_X509_CRL_up_ref
 #define X509_CRL_free                   wolfSSL_X509_CRL_free
 #define X509_CRL_sign                   wolfSSL_X509_CRL_sign
 #define X509_CRL_get_lastUpdate         wolfSSL_X509_CRL_get_lastUpdate
@@ -1333,11 +1336,13 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define SSL_SESSION_get_id              wolfSSL_SESSION_get_id
 #define SSL_get_cipher_bits(s,np)       \
                           wolfSSL_CIPHER_get_bits(SSL_get_current_cipher(s),np)
+#define SSL_get_cipher_version(s)       \
+                          wolfSSL_CIPHER_get_version(SSL_get_current_cipher(s))
 #define sk_SSL_CIPHER_num               wolfSSL_sk_SSL_CIPHER_num
 #define sk_SSL_COMP_zero                wolfSSL_sk_SSL_COMP_zero
 #define sk_SSL_CIPHER_value             wolfSSL_sk_SSL_CIPHER_value
 #endif /* OPENSSL_ALL || WOLFSSL_HAPROXY */
-#define sk_SSL_CIPHER_dup               wolfSSL_sk_dup
+#define sk_SSL_CIPHER_dup               wolfSSL_shallow_sk_dup
 #define sk_SSL_CIPHER_free              wolfSSL_sk_SSL_CIPHER_free
 #define sk_SSL_CIPHER_find              wolfSSL_sk_SSL_CIPHER_find
 

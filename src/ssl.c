@@ -5726,6 +5726,13 @@ int wolfSSL_export_keying_material(WOLFSSL *ssl,
         return WOLFSSL_FAILURE;
     }
 
+    /* Sanity check contextLen to prevent integer overflow when cast to word32
+     * and to ensure it fits in the 2-byte length encoding (max 65535). */
+    if (use_context && contextLen > WOLFSSL_MAX_16BIT) {
+        WOLFSSL_MSG("contextLen too large");
+        return WOLFSSL_FAILURE;
+    }
+
     /* clientRandom + serverRandom
      * OR
      * clientRandom + serverRandom + ctx len encoding + ctx */
@@ -15508,11 +15515,10 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 #endif
 #ifndef WOLFSSL_BLIND_PRIVATE_KEY
 #ifdef WOLFSSL_COPY_KEY
+    if (ssl->buffers.key != NULL && ssl->buffers.weOwnKey) {
+        FreeDer(&ssl->buffers.key);
+    }
     if (ctx->privateKey != NULL) {
-        if (ssl->buffers.key != NULL) {
-            FreeDer(&ssl->buffers.key);
-            ssl->buffers.key = NULL;
-        }
         ret = AllocCopyDer(&ssl->buffers.key, ctx->privateKey->buffer,
             ctx->privateKey->length, ctx->privateKey->type,
             ctx->privateKey->heap);
@@ -16668,8 +16674,12 @@ int wolfSSL_select_next_proto(unsigned char **out, unsigned char *outLen,
 
     for (i = 0; i < inLen; i += lenIn) {
         lenIn = in[i++];
+        if (lenIn == 0 || i + lenIn > inLen)
+            break;
         for (j = 0; j < clientLen; j += lenClient) {
             lenClient = clientNames[j++];
+            if (lenClient == 0 || j + lenClient > clientLen)
+                break;
 
             if (lenIn != lenClient)
                 continue;
@@ -16682,8 +16692,14 @@ int wolfSSL_select_next_proto(unsigned char **out, unsigned char *outLen,
         }
     }
 
-    *out = (unsigned char *)clientNames + 1;
-    *outLen = clientNames[0];
+    if (clientLen > 0 && (unsigned int)clientNames[0] + 1 <= clientLen) {
+        *out = (unsigned char *)clientNames + 1;
+        *outLen = clientNames[0];
+    }
+    else {
+        *out = (unsigned char *)clientNames;
+        *outLen = 0;
+    }
     return WOLFSSL_NPN_NO_OVERLAP;
 }
 

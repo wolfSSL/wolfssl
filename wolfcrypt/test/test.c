@@ -20574,7 +20574,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
 #ifdef WC_DRBG_BANKREF
     WC_ALLOC_VAR_EX(rng, WC_RNG, 1, HEAP_HINT,
                     DYNAMIC_TYPE_TMP_BUFFER,
-                    return WC_TEST_RET_ENC_EC(MEMORY_E));
+                    ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out));
     XMEMSET(rng, 0, sizeof(*rng));
 #endif
 
@@ -21039,7 +21039,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t memory_test(void)
 {
     wc_test_ret_t ret = 0;
     word32 j = 0; /* used in embedded const pointer test */
-    WOLFSSL_ENTER("memory_test");
 
 #if defined(COMPLEX_MEM_TEST) || defined(WOLFSSL_STATIC_MEMORY)
     int i;
@@ -21052,6 +21051,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t memory_test(void)
               /* pad to account for if head of buffer is not at set memory
                * alignment when tests are ran */
 #endif
+
+    WOLFSSL_ENTER("memory_test");
 
 #ifdef WOLFSSL_STATIC_MEMORY
     /* check macro settings */
@@ -42961,6 +42962,29 @@ static wc_test_ret_t mlkem512_kat(void)
 
     if (XMEMCMP(ss_dec, ml_kem_512_ss, sizeof(ml_kem_512_ss)) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+#ifndef WOLFSSL_MLKEM_NO_MAKE_KEY
+    wc_MlKemKey_Free(key);
+    XMEMSET(key, 0, sizeof(MlKemKey));
+    key_inited = 0;
+    ret = wc_MlKemKey_Init(key, WC_ML_KEM_512, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    else
+        key_inited = 1;
+    ret = wc_MlKemKey_MakeKeyWithRandom(key, kyber512_rand,
+        sizeof(kyber512_rand));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_MlKemKey_Decapsulate(key, ss_dec, ml_kem_512_ct,
+        sizeof(ml_kem_512_ct));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    if (XMEMCMP(ss_dec, ml_kem_512_ss, sizeof(ml_kem_512_ss)) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif
 #else
     (void)ml_kem_512_ct;
     (void)ml_kem_512_ss;

@@ -4952,7 +4952,7 @@ int wolfSSL_EVP_DigestVerifyFinal(WOLFSSL_EVP_MD_CTX *ctx,
 
         hashLen = wolfssl_mac_len(ctx->hash.hmac.macType);
 
-        if (siglen > hashLen)
+        if (siglen > hashLen || siglen > INT_MAX)
             return WOLFSSL_FAILURE;
         /* May be a truncated signature. */
     }
@@ -4962,7 +4962,7 @@ int wolfSSL_EVP_DigestVerifyFinal(WOLFSSL_EVP_MD_CTX *ctx,
 
     if (ctx->isHMAC) {
         /* Check HMAC result matches the signature. */
-        if (XMEMCMP(sig, digest, (size_t)siglen) == 0)
+        if (ConstantCompare(sig, digest, (int)siglen) == 0)
             return WOLFSSL_SUCCESS;
         return WOLFSSL_FAILURE;
     }

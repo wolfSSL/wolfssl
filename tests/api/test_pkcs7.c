@@ -948,6 +948,98 @@ int test_wc_PKCS7_EncodeSignedData(void)
 
 
 /*
+ * Testing wc_PKCS7_EncodeSignedData() with RSA-PSS signer certificate.
+ * Uses certs/rsapss/client-rsapss.der and client-rsapss-priv.der.
+ * Requires both encode and round-trip verify to succeed.
+ */
+#if defined(HAVE_PKCS7) && defined(WC_RSA_PSS) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_SHA256)
+int test_wc_PKCS7_EncodeSignedData_RSA_PSS(void)
+{
+    EXPECT_DECLS;
+    PKCS7*    pkcs7 = NULL;
+    WC_RNG    rng;
+    byte      output[FOURK_BUF];
+    byte      cert[FOURK_BUF];
+    byte      key[FOURK_BUF];
+    word32    outputSz = (word32)sizeof(output);
+    word32    certSz = 0;
+    word32    keySz = 0;
+    XFILE     fp = XBADFILE;
+    byte      data[] = "Test data for RSA-PSS SignedData.";
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    XMEMSET(output, 0, outputSz);
+    XMEMSET(cert, 0, sizeof(cert));
+    XMEMSET(key, 0, sizeof(key));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+
+    ExpectTrue((fp = XFOPEN("./certs/rsapss/client-rsapss.der", "rb")) != XBADFILE);
+    if (fp != XBADFILE) {
+        ExpectIntGT(certSz = (word32)XFREAD(cert, 1, sizeof(cert), fp), 0);
+        XFCLOSE(fp);
+        fp = XBADFILE;
+    }
+
+    ExpectTrue((fp = XFOPEN("./certs/rsapss/client-rsapss-priv.der", "rb")) != XBADFILE);
+    if (fp != XBADFILE) {
+        ExpectIntGT(keySz = (word32)XFREAD(key, 1, sizeof(key), fp), 0);
+        XFCLOSE(fp);
+        fp = XBADFILE;
+    }
+
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
+
+    if (pkcs7 != NULL) {
+        /* Force RSA-PSS so SignerInfo uses id-RSASSA-PSS (cert may use RSA
+         * in subjectPublicKeyInfo).  WC_RSA_PSS is guaranteed by outer guard. */
+        pkcs7->publicKeyOID = RSAPSSk;
+
+        pkcs7->content       = data;
+        pkcs7->contentSz     = (word32)sizeof(data);
+        pkcs7->contentOID    = DATA;
+        pkcs7->hashOID       = SHA256h;
+        pkcs7->encryptOID    = RSAk;
+        pkcs7->privateKey    = key;
+        pkcs7->privateKeySz  = keySz;
+        pkcs7->rng           = &rng;
+        pkcs7->signedAttribs = NULL;
+        pkcs7->signedAttribsSz = 0;
+    }
+
+    /* EncodeSignedData with RSA-PSS cert: require encode and verify success */
+    {
+        int outLen = wc_PKCS7_EncodeSignedData(pkcs7, output, outputSz);
+        ExpectIntGT(outLen, 0);
+        if (outLen > 0) {
+            int verifyRet = wc_PKCS7_VerifySignedData(pkcs7, output,
+                                                       (word32)outLen);
+            ExpectIntEQ(verifyRet, 0);
+
+            if (pkcs7 != NULL) {
+                /* Verify decoded RSASSA-PSS parameters match what we
+                 * encoded:
+                 *   hashAlgorithm    = SHA-256
+                 *   maskGenAlgorithm = MGF1-SHA-256
+                 *   saltLength       = 32 (== SHA-256 digest length) */
+                ExpectIntEQ(pkcs7->pssHashType, (int)WC_HASH_TYPE_SHA256);
+                ExpectIntEQ(pkcs7->pssMgf, WC_MGF1SHA256);
+                ExpectIntEQ(pkcs7->pssSaltLen, 32);
+            }
+        }
+    }
+
+    wc_PKCS7_Free(pkcs7);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+
+    return EXPECT_RESULT();
+} /* END test_wc_PKCS7_EncodeSignedData_RSA_PSS */
+#endif
+
+
+/*
  * Testing wc_PKCS7_EncodeSignedData_ex() and wc_PKCS7_VerifySignedData_ex()
  */
 int test_wc_PKCS7_EncodeSignedData_ex(void)

@@ -1123,8 +1123,8 @@ static int ImportKeyState(WOLFSSL* ssl, const byte* exp, word32 len, byte ver,
         idx += OPAQUE16_LEN;
 
         if (wordCount > WOLFSSL_DTLS_WINDOW_WORDS) {
+            wordAdj = (wordCount - WOLFSSL_DTLS_WINDOW_WORDS) * sizeof(word32);
             wordCount = WOLFSSL_DTLS_WINDOW_WORDS;
-            wordAdj = (WOLFSSL_DTLS_WINDOW_WORDS - wordCount) * sizeof(word32);
         }
 
         XMEMSET(keys->peerSeq[0].window, 0xFF, DTLS_SEQ_SZ);
@@ -1139,8 +1139,8 @@ static int ImportKeyState(WOLFSSL* ssl, const byte* exp, word32 len, byte ver,
         idx += OPAQUE16_LEN;
 
         if (wordCount > WOLFSSL_DTLS_WINDOW_WORDS) {
+            wordAdj = (wordCount - WOLFSSL_DTLS_WINDOW_WORDS) * sizeof(word32);
             wordCount = WOLFSSL_DTLS_WINDOW_WORDS;
-            wordAdj = (WOLFSSL_DTLS_WINDOW_WORDS - wordCount) * sizeof(word32);
         }
 
         XMEMSET(keys->peerSeq[0].prevWindow, 0xFF, DTLS_SEQ_SZ);
@@ -10756,7 +10756,9 @@ static void AddRecordHeader(byte* output, word32 length, byte type,
 
 
 #if !defined(WOLFSSL_NO_TLS12) || (defined(HAVE_SESSION_TICKET) && \
-                                                    !defined(NO_WOLFSSL_SERVER))
+    !defined(NO_WOLFSSL_SERVER)) || \
+    defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+    defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) || !defined(NO_CERTS)
 /* add handshake header for message */
 static void AddHandShakeHeader(byte* output, word32 length,
                                word32 fragOffset, word32 fragLength,
@@ -10791,7 +10793,7 @@ static void AddHandShakeHeader(byte* output, word32 length,
 }
 
 /* add both headers for handshake message */
-static void AddHeaders(byte* output, word32 length, byte type, WOLFSSL* ssl)
+WC_MAYBE_UNUSED static void AddHeaders(byte* output, word32 length, byte type, WOLFSSL* ssl)
 {
     word32 lengthAdj = HANDSHAKE_HEADER_SZ;
     word32 outputAdj = RECORD_HEADER_SZ;
@@ -10806,17 +10808,14 @@ static void AddHeaders(byte* output, word32 length, byte type, WOLFSSL* ssl)
     AddRecordHeader(output, length + lengthAdj, handshake, ssl, CUR_ORDER);
     AddHandShakeHeader(output + outputAdj, length, 0, length, type, ssl);
 }
-#endif /* !WOLFSSL_NO_TLS12 || (HAVE_SESSION_TICKET && !NO_WOLFSSL_SERVER) */
+#endif /* !WOLFSSL_NO_TLS12 || (HAVE_SESSION_TICKET && !NO_WOLFSSL_SERVER) ||
+        * HAVE_CERTIFICATE_STATUS_REQUEST ||
+        * HAVE_CERTIFICATE_STATUS_REQUEST_V2 || !NO_CERTS */
 
 
-#ifndef WOLFSSL_NO_TLS12
-#if (!defined(NO_CERTS) && (!defined(NO_WOLFSSL_SERVER) || \
-                            !defined(WOLFSSL_NO_CLIENT_AUTH))) || \
-    ((!defined(NO_WOLFSSL_SERVER) || \
-      (!defined(NO_WOLFSSL_CLIENT) && !defined(NO_CERTS) && \
-       !defined(WOLFSSL_NO_CLIENT_AUTH))) && defined(WOLFSSL_DTLS))
-static void AddFragHeaders(byte* output, word32 fragSz, word32 fragOffset,
-                           word32 length, byte type, WOLFSSL* ssl)
+#if !defined(WOLFSSL_NO_TLS12) || (defined(WOLFSSL_DTLS) && defined(WOLFSSL_TLS13))
+WC_MAYBE_UNUSED static void AddFragHeaders(byte* output, word32 fragSz,
+        word32 fragOffset, word32 length, byte type, WOLFSSL* ssl)
 {
     word32 lengthAdj = HANDSHAKE_HEADER_SZ;
     word32 outputAdj = RECORD_HEADER_SZ;
@@ -10832,11 +10831,8 @@ static void AddFragHeaders(byte* output, word32 fragSz, word32 fragOffset,
     AddRecordHeader(output, fragSz + lengthAdj, handshake, ssl, CUR_ORDER);
     AddHandShakeHeader(output + outputAdj, length, fragOffset, fragSz, type, ssl);
 }
-#endif
+#endif /* !WOLFSSL_NO_TLS12 || (WOLFSSL_DTLS && WOLFSSL_TLS13) */
 
-#if !defined(NO_WOLFSSL_SERVER) || \
-    (!defined(NO_WOLFSSL_CLIENT) && !defined(NO_CERTS) && \
-     !defined(WOLFSSL_NO_CLIENT_AUTH))
 /**
  * Send the handshake message. This function handles fragmenting the message
  * so that it will fit into the desired MTU or the max fragment size.
@@ -10850,8 +10846,8 @@ static void AddFragHeaders(byte* output, word32 fragSz, word32 fragOffset,
  * @param type    Type of message being sent
  * @return        0 on success and negative otherwise
  */
-static int SendHandshakeMsg(WOLFSSL* ssl, byte* input, word32 inputSz,
-        enum HandShakeType type, const char* packetName)
+WC_MAYBE_UNUSED static int SendHandshakeMsg(WOLFSSL* ssl, byte* input,
+        word32 inputSz, enum HandShakeType type, const char* packetName)
 {
     int maxFrag;
     int ret = 0;
@@ -11012,10 +11008,6 @@ static int SendHandshakeMsg(WOLFSSL* ssl, byte* input, word32 inputSz,
     ssl->options.buildingMsg = 0;
     return ret;
 }
-#endif /* !NO_WOLFSSL_SERVER || (!NO_WOLFSSL_CLIENT && !NO_CERTS &&
-        *  !WOLFSSL_NO_CLIENT_AUTH) */
-
-#endif /* !WOLFSSL_NO_TLS12 */
 
 
 /* return bytes received, WOLFSSL_FATAL_ERROR on error,
@@ -12232,12 +12224,16 @@ static int GetRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
 
     /* record layer length check */
 #ifdef HAVE_MAX_FRAGMENT
-    if (*size > (ssl->max_fragment + MAX_COMP_EXTRA + MAX_MSG_EXTRA)) {
+    if (*size > (ssl->max_fragment + MAX_MSG_EXTRA +
+            (ssl->options.usingCompression ? MAX_COMP_EXTRA : 0))) {
+        WOLFSSL_MSG_EX("Record length %d exceeds max fragment size", *size);
         WOLFSSL_ERROR_VERBOSE(LENGTH_ERROR);
         return LENGTH_ERROR;
     }
 #else
-    if (*size > (MAX_RECORD_SIZE + MAX_COMP_EXTRA + MAX_MSG_EXTRA)) {
+    if (*size > (MAX_RECORD_SIZE + MAX_MSG_EXTRA +
+            (ssl->options.usingCompression ? MAX_COMP_EXTRA : 0))) {
+        WOLFSSL_MSG_EX("Record length %d exceeds max record size", *size);
         WOLFSSL_ERROR_VERBOSE(LENGTH_ERROR);
         return LENGTH_ERROR;
     }
@@ -13393,9 +13389,7 @@ int CheckIPAddr(DecodedCert* dCert, const char* ipasc)
 }
 
 
-#if defined(SESSION_CERTS) && (!defined(NO_WOLFSSL_CLIENT) || \
-    !defined(WOLFSSL_NO_CLIENT_AUTH))
-static void AddSessionCertToChain(WOLFSSL_X509_CHAIN* chain,
+WC_MAYBE_UNUSED static void AddSessionCertToChain(WOLFSSL_X509_CHAIN* chain,
     byte* certBuf, word32 certSz)
 {
    if (chain->count < MAX_CHAIN_DEPTH &&
@@ -13408,7 +13402,6 @@ static void AddSessionCertToChain(WOLFSSL_X509_CHAIN* chain,
         WOLFSSL_MSG("Couldn't store chain cert for session");
     }
 }
-#endif
 
 #if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS) || \
     defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
@@ -38900,9 +38893,15 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         int error;
         word32 itHash = 0;
         byte zeros[WOLFSSL_TICKET_MAC_SZ];   /* biggest cmp size */
+        int internalTicketSz;
+        byte* mac;
+#if defined(OPENSSL_ALL) && defined(KEEP_PEER_CERT) && \
+    !defined(NO_CERT_IN_TICKET)
+        word16 peerCertSz = 0;
+#endif
 
+        WOLFSSL_ASSERT_GE(sizeof(ssl->session->staticTicket), WOLFSSL_TICKET_ENC_SZ);
         WOLFSSL_ASSERT_SIZEOF_GE(ssl->session->staticTicket, *et);
-        WOLFSSL_ASSERT_SIZEOF_GE(et->enc_ticket, *it);
 
         if (ssl->session->ticket != ssl->session->staticTicket) {
             /* Always use the static ticket buffer */
@@ -38918,7 +38917,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         if (ssl->error != WC_NO_ERR_TRACE(WC_PENDING_E))
     #endif
         {
-            XMEMSET(et, 0, sizeof(*et));
+            XMEMSET(ssl->session->ticket, 0, SESSION_TICKET_LEN);
         }
 
         /* build internal */
@@ -38982,6 +38981,55 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         XMEMCPY(it->sessionCtx, ssl->sessionCtx, ID_LEN);
 #endif
 
+#if defined(OPENSSL_ALL) && defined(KEEP_PEER_CERT) && \
+    !defined(NO_CERT_IN_TICKET)
+        /* Store peer certificate in ticket for session resumption.
+         * Try ssl->peerCert first, then ssl->session->chain as fallback.
+         * Skip for DTLS to keep ticket size small for MTU constraints. */
+        if (ssl->options.dtls) {
+            c16toa(0, it->peerCertLen);
+            peerCertSz = 0;
+        }
+        else {
+            const byte* certDer = NULL;
+            word32 certDerSz = 0;
+
+            if (ssl->peerCert.derCert != NULL &&
+                    ssl->peerCert.derCert->length > 0) {
+                /* Use current peer certificate */
+                certDer = ssl->peerCert.derCert->buffer;
+                certDerSz = ssl->peerCert.derCert->length;
+            }
+#ifdef SESSION_CERTS
+            else if (ssl->session->chain.count > 0) {
+                /* Use peer certificate from session chain */
+                certDer = ssl->session->chain.certs[0].buffer;
+                certDerSz = ssl->session->chain.certs[0].length;
+            }
+#endif
+
+            if (certDer != NULL && certDerSz > 0 &&
+                    certDerSz <= MAX_TICKET_PEER_CERT_SZ
+#ifdef HAVE_MAX_FRAGMENT
+                    /* We don't support fragmentation in
+                     * SendTls13NewSessionTicket yet. */
+                    && (!IsAtLeastTLSv1_3(ssl->version) ||
+                        ssl->max_fragment == MAX_RECORD_SIZE)
+#endif
+                    ) {
+                c16toa((word16)certDerSz, it->peerCertLen);
+                XMEMCPY(it->peerCert, certDer, certDerSz);
+                peerCertSz = (word16)certDerSz;
+            }
+            else {
+                if (certDerSz > MAX_TICKET_PEER_CERT_SZ)
+                    WOLFSSL_MSG("Peer cert too large for ticket, skipping");
+                c16toa(0, it->peerCertLen);
+                peerCertSz = 0;
+            }
+        }
+#endif
+
 #ifdef WOLFSSL_TICKET_HAVE_ID
         {
             const byte* id = NULL;
@@ -38993,6 +39041,14 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             XMEMCPY(it->id, id, idSz);
         }
 #endif
+
+        internalTicketSz = (int)WOLFSSL_INTERNAL_TICKET_BASE_SZ;
+#if defined(OPENSSL_ALL) && defined(KEEP_PEER_CERT) && \
+    !defined(NO_CERT_IN_TICKET)
+        internalTicketSz += peerCertSz;
+#endif
+        /* MAC is placed after the encrypted data */
+        mac = et->enc_ticket + WOLFSSL_TICKET_ENC_SZ;
 
         /* encrypt */
         encLen = WOLFSSL_TICKET_ENC_SZ;  /* max size user can use */
@@ -39010,10 +39066,10 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             ret = BAD_TICKET_ENCRYPT;
         }
         else {
-            itHash = HashObject((byte*)it, sizeof(*it), &error);
+            itHash = HashObject((byte*)it, (word32)internalTicketSz, &error);
             if (error == 0) {
-                ret = ssl->ctx->ticketEncCb(ssl, et->key_name, et->iv, et->mac,
-                        1, et->enc_ticket, WOLFSSL_INTERNAL_TICKET_LEN, &encLen,
+                ret = ssl->ctx->ticketEncCb(ssl, et->key_name, et->iv, mac,
+                        1, et->enc_ticket, internalTicketSz, &encLen,
                         SSL_TICKET_CTX(ssl));
             }
             else {
@@ -39028,7 +39084,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 #endif
             goto error;
         }
-        if (encLen < (int)WOLFSSL_INTERNAL_TICKET_LEN ||
+        if (encLen < internalTicketSz ||
                 encLen > (int)WOLFSSL_TICKET_ENC_SZ) {
             WOLFSSL_MSG("Bad user ticket encrypt size");
             ret = BAD_TICKET_KEY_CB_SZ;
@@ -39037,7 +39093,8 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         /* sanity checks on encrypt callback */
 
         /* internal ticket can't be the same if encrypted */
-        if (itHash == HashObject((byte*)it, sizeof(*it), &error) || error != 0)
+        if (itHash == HashObject((byte*)it, (word32)internalTicketSz, &error) ||
+                error != 0)
         {
             WOLFSSL_MSG("User ticket encrypt didn't encrypt or hash failed");
             ret = BAD_TICKET_ENCRYPT;
@@ -39061,7 +39118,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         }
 
         /* mac */
-        if (XMEMCMP(et->mac, zeros, WOLFSSL_TICKET_MAC_SZ) == 0) {
+        if (XMEMCMP(mac, zeros, WOLFSSL_TICKET_MAC_SZ) == 0) {
             WOLFSSL_MSG("User ticket encrypt didn't set mac");
             ret = BAD_TICKET_ENCRYPT;
             goto error;
@@ -39071,7 +39128,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         c16toa((word16)encLen, et->enc_len);
         if (encLen < (int)WOLFSSL_TICKET_ENC_SZ) {
             /* move mac up since whole enc buffer not used */
-            XMEMMOVE(et->enc_ticket + encLen, et->mac,
+            XMEMMOVE(et->enc_ticket + encLen, mac,
                     WOLFSSL_TICKET_MAC_SZ);
         }
         ssl->session->ticketLen =
@@ -39081,11 +39138,12 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
     error:
 #ifdef WOLFSSL_CHECK_MEM_ZERO
         /* Ticket has sensitive data in it now. */
-        wc_MemZero_Add("Create Ticket internal", it, sizeof(InternalTicket));
+        wc_MemZero_Add("Create Ticket internal", it,
+                       WOLFSSL_INTERNAL_TICKET_MAX_SZ);
 #endif
-        ForceZero(it, sizeof(*it));
+        ForceZero(it, WOLFSSL_INTERNAL_TICKET_MAX_SZ);
 #ifdef WOLFSSL_CHECK_MEM_ZERO
-        wc_MemZero_Check(it, sizeof(InternalTicket));
+        wc_MemZero_Check(it, WOLFSSL_INTERNAL_TICKET_MAX_SZ);
 #endif
         WOLFSSL_ERROR_VERBOSE(ret);
         return ret;
@@ -39136,7 +39194,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         }
         else {
             /* Callback uses ssl without const but for DTLS, it really shouldn't
-             * modify its state. */
+             * modify its state. MAC is located after encrypted data. */
             ret = ssl->ctx->ticketEncCb((WOLFSSL*)ssl, et->key_name, et->iv,
                                     et->enc_ticket + inLen, 0,
                                     et->enc_ticket, inLen, &outLen,
@@ -39274,6 +39332,48 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
     }
 #endif /* WOLFSSL_SLT13 */
 
+#if defined(OPENSSL_ALL) && defined(KEEP_PEER_CERT) && \
+    !defined(NO_CERT_IN_TICKET)
+    static void RestorePeerCertFromTicket(WOLFSSL* ssl, InternalTicket* it)
+    {
+        word16 peerCertLen = 0;
+        ato16(it->peerCertLen, &peerCertLen);
+
+        if (peerCertLen > 0 && peerCertLen <= MAX_TICKET_PEER_CERT_SZ) {
+#ifdef SESSION_CERTS
+            /* Clear existing chain and add the peer certificate */
+            ssl->session->chain.count = 0;
+            AddSessionCertToChain(&ssl->session->chain,
+                                  it->peerCert, peerCertLen);
+#endif
+            /* Also decode into ssl->peerCert for direct access */
+            {
+                int ret;
+                DecodedCert* dCert;
+
+                dCert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), ssl->heap,
+                                               DYNAMIC_TYPE_DCERT);
+                if (dCert != NULL) {
+                    InitDecodedCert(dCert, it->peerCert, peerCertLen, ssl->heap);
+                    ret = ParseCertRelative(dCert, CERT_TYPE, 0, NULL, NULL);
+                    if (ret == 0) {
+                        FreeX509(&ssl->peerCert);
+                        InitX509(&ssl->peerCert, 0, ssl->heap);
+                        ret = CopyDecodedToX509(&ssl->peerCert, dCert);
+                        if (ret != 0) {
+                            /* Failed to copy - clear peerCert */
+                            FreeX509(&ssl->peerCert);
+                            InitX509(&ssl->peerCert, 0, ssl->heap);
+                        }
+                    }
+                    FreeDecodedCert(dCert);
+                    XFREE(dCert, ssl->heap, DYNAMIC_TYPE_DCERT);
+                }
+            }
+        }
+    }
+#endif /* OPENSSL_ALL && KEEP_PEER_CERT && !NO_CERT_IN_TICKET */
+
     void DoClientTicketFinalize(WOLFSSL* ssl, InternalTicket* it,
             const WOLFSSL_SESSION* sess)
     {
@@ -39361,6 +39461,12 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             ato16(it->namedGroup, &ssl->session->namedGroup);
 #endif
         }
+
+#if defined(OPENSSL_ALL) && defined(KEEP_PEER_CERT) && \
+    !defined(NO_CERT_IN_TICKET)
+        RestorePeerCertFromTicket(ssl, it);
+#endif
+
         ssl->version.minor = it->pv.minor;
     }
 
@@ -39405,6 +39511,23 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 #ifdef OPENSSL_EXTRA
         it->sessionCtxSz = sess->sessionCtxSz;
         XMEMCPY(it->sessionCtx, sess->sessionCtx, sess->sessionCtxSz);
+#endif
+#if defined(OPENSSL_ALL) && defined(KEEP_PEER_CERT) && \
+    defined(SESSION_CERTS) && !defined(NO_CERT_IN_TICKET)
+        /* Store peer certificate from session chain */
+        if (sess->chain.count > 0) {
+            word32 certLen = sess->chain.certs[0].length;
+            if (certLen <= MAX_TICKET_PEER_CERT_SZ) {
+                c16toa((word16)certLen, it->peerCertLen);
+                XMEMCPY(it->peerCert, sess->chain.certs[0].buffer, certLen);
+            }
+            else {
+                c16toa(0, it->peerCertLen);
+            }
+        }
+        else {
+            c16toa(0, it->peerCertLen);
+        }
 #endif
     }
 
@@ -39475,9 +39598,10 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                 byte* tmp;
                 WOLFSSL_MSG("Found session matching the session id"
                             " found in the ticket");
-                /* Allocate and populate an InternalTicket */
+                /* Allocate and populate an InternalTicket. Need max size
+                 * because PopulateInternalTicketFromSession may write peer cert */
             #ifdef WOLFSSL_NO_REALLOC
-                tmp = (byte*)XMALLOC(sizeof(InternalTicket), ssl->heap,
+                tmp = (byte*)XMALLOC(WOLFSSL_INTERNAL_TICKET_MAX_SZ, ssl->heap,
                         DYNAMIC_TYPE_TLSX);
                 if (tmp != NULL && psk->identity != NULL)
                 {
@@ -39486,13 +39610,13 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                    psk->identity = NULL;
                 }
             #else
-                tmp = (byte*)XREALLOC(psk->identity, sizeof(InternalTicket),
+                tmp = (byte*)XREALLOC(psk->identity, WOLFSSL_INTERNAL_TICKET_MAX_SZ,
                         ssl->heap, DYNAMIC_TYPE_TLSX);
             #endif
                 if (tmp != NULL) {
-                    XMEMSET(tmp, 0, sizeof(InternalTicket));
+                    XMEMSET(tmp, 0, WOLFSSL_INTERNAL_TICKET_MAX_SZ);
                     psk->identity = tmp;
-                    psk->identityLen = sizeof(InternalTicket);
+                    psk->identityLen = WOLFSSL_INTERNAL_TICKET_MAX_SZ;
                     psk->it = (InternalTicket*)tmp;
                     PopulateInternalTicketFromSession(sess, psk->it);
                     decryptRet = WOLFSSL_TICKET_RET_OK;
@@ -39527,8 +39651,8 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         }
 #ifdef WOLFSSL_CHECK_MEM_ZERO
         /* Internal ticket successfully decrypted. */
-        wc_MemZero_Add("Do Client Ticket internal", psk->it,
-            sizeof(InternalTicket));
+        wc_MemZero_Add("Do Client Ticket internal", psk->identity,
+            psk->identityLen);
 #endif
 
         ret = DoClientTicketCheckVersion(ssl, psk->it);
@@ -39536,7 +39660,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             psk->decryptRet = PSK_DECRYPT_FAIL;
             ForceZero(psk->identity, psk->identityLen);
 #ifdef WOLFSSL_CHECK_MEM_ZERO
-            wc_MemZero_Check(psk->it, sizeof(InternalTicket));
+            wc_MemZero_Check(psk->it, psk->identityLen);
 #endif
             WOLFSSL_LEAVE("DoClientTicket_ex", ret);
             return ret;
@@ -39553,7 +39677,13 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         int ret;
         InternalTicket* it = NULL;
 #ifdef WOLFSSL_TLS13
-        InternalTicket staticIt;
+        /* Static buffer for stateful tickets - need max size for peer cert */
+    #ifdef WOLFSSL_SMALL_STACK
+        byte* staticItBuf = NULL;
+    #else
+        byte staticItBuf[WOLFSSL_INTERNAL_TICKET_MAX_SZ];
+    #endif
+        InternalTicket* staticIt = NULL;
         const WOLFSSL_SESSION* sess = NULL;
         psk_sess_free_cb_ctx freeCtx;
 
@@ -39585,18 +39715,27 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
              * stateless tickets are much longer. */
             sess = GetSesionFromCacheOrExt(ssl, input, &freeCtx);
             if (sess != NULL) {
-                it = &staticIt;
-                XMEMSET(it, 0, sizeof(InternalTicket));
+    #ifdef WOLFSSL_SMALL_STACK
+                staticItBuf = (byte*)XMALLOC(WOLFSSL_INTERNAL_TICKET_MAX_SZ,
+                                             ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                if (staticItBuf == NULL) {
+                    decryptRet = WOLFSSL_TICKET_RET_FATAL;
+                    goto cleanup;
+                }
+    #endif
+                staticIt = (InternalTicket*)staticItBuf;
+                it = staticIt;
+                XMEMSET(it, 0, WOLFSSL_INTERNAL_TICKET_MAX_SZ);
                 PopulateInternalTicketFromSession(sess, it);
                 decryptRet = WOLFSSL_TICKET_RET_OK;
             }
         }
         else
 #endif
-        if (len >= sizeof(*it))
+        if (len >= WOLFSSL_INTERNAL_TICKET_LEN + WOLFSSL_TICKET_FIXED_SZ)
             decryptRet = DoDecryptTicket(ssl, input, len, &it);
         else
-            WOLFSSL_MSG("Ticket is smaller than InternalTicket. Rejecting.");
+            WOLFSSL_MSG("Ticket is smaller than minimum size. Rejecting.");
 
 
         if (decryptRet != WOLFSSL_TICKET_RET_OK &&
@@ -39605,8 +39744,10 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             goto cleanup;
         }
     #ifdef WOLFSSL_CHECK_MEM_ZERO
-        /* Internal ticket successfully decrypted. */
-        wc_MemZero_Add("Do Client Ticket internal", it, sizeof(InternalTicket));
+        /* Internal ticket successfully decrypted. Zero at least the minimum
+         * internal ticket size (contains master secret). */
+        wc_MemZero_Add("Do Client Ticket internal", it,
+                       WOLFSSL_INTERNAL_TICKET_LEN);
     #endif
 
         ret = DoClientTicketCheckVersion(ssl, it);
@@ -39619,12 +39760,19 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 
 cleanup:
         if (it != NULL) {
-            ForceZero(it, sizeof(*it));
+            /* Zero the minimum internal ticket size. The it pointer points into
+             * the input buffer which may be smaller than MAX_SZ. We use the
+             * minimum length (WOLFSSL_INTERNAL_TICKET_LEN) which is guaranteed
+             * to fit and contains the sensitive master secret. */
+            ForceZero(it, WOLFSSL_INTERNAL_TICKET_LEN);
 #ifdef WOLFSSL_CHECK_MEM_ZERO
-            wc_MemZero_Check(it, sizeof(InternalTicket));
+            wc_MemZero_Check(it, WOLFSSL_INTERNAL_TICKET_LEN);
 #endif
         }
 #ifdef WOLFSSL_TLS13
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(staticItBuf, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
         if (sess != NULL)
             FreeSessionFromCacheOrExt(ssl, sess, &freeCtx);
 #endif
@@ -39640,10 +39788,7 @@ cleanup:
                 psk->decryptRet = PSK_DECRYPT_NONE;
                 ForceZero(psk->identity, psk->identityLen);
 #ifdef WOLFSSL_CHECK_MEM_ZERO
-                /* We want to check the InternalTicket area since that is what
-                 * we registered in DoClientTicket_ex */
-                wc_MemZero_Check((((ExternalTicket*)psk->identity)->enc_ticket),
-                        sizeof(InternalTicket));
+                wc_MemZero_Check(psk->identity, psk->identityLen);
 #endif
             }
         }
@@ -39659,11 +39804,15 @@ cleanup:
         int                sendSz;
         word32             length = SESSION_HINT_SZ + LENGTH_SZ;
         word32             idx    = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
+        word32             headerSz = 0;
 
         WOLFSSL_START(WC_FUNC_TICKET_SEND);
         WOLFSSL_ENTER("SendTicket");
 
-        if (ssl->options.createTicket) {
+        if (ssl->options.createTicket &&
+            /* This will be set when SendHandshakeMsg returns WANT_WRITE. Create
+             * a new ticket only once. */
+            !ssl->options.buildingMsg) {
             ret = SetupTicket(ssl);
             if (ret != 0)
                 return ret;
@@ -39685,20 +39834,13 @@ cleanup:
             idx    += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
         #endif
         }
+        headerSz = idx;
 
-        if (IsEncryptionOn(ssl, 1) && ssl->options.handShakeDone)
-            sendSz += cipherExtraData(ssl);
-
-        /* Set this in case CheckAvailableSize returns a WANT_WRITE so that state
-         * is not advanced yet */
-        ssl->options.buildingMsg = 1;
-
-        /* check for available size */
-        if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
-            return ret;
+        output = (byte*)XMALLOC(sendSz, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (output == NULL)
+            return MEMORY_E;
 
         /* get output buffer */
-        output = GetOutputBuffer(ssl);
         AddHeaders(output, length, session_ticket, ssl);
 
         /* hint */
@@ -39713,45 +39855,9 @@ cleanup:
         XMEMCPY(output + idx, ssl->session->ticket, ssl->session->ticketLen);
         idx += ssl->session->ticketLen;
 
-        if (IsEncryptionOn(ssl, 1) && ssl->options.handShakeDone) {
-            byte* input;
-            int   inputSz = (int)idx; /* build msg adds rec hdr */
-            int   recordHeaderSz = RECORD_HEADER_SZ;
-
-            if (ssl->options.dtls)
-                recordHeaderSz += DTLS_RECORD_EXTRA;
-            inputSz -= recordHeaderSz;
-            input = (byte*)XMALLOC(inputSz, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
-            if (input == NULL)
-                return MEMORY_E;
-
-            XMEMCPY(input, output + recordHeaderSz, inputSz);
-            sendSz = BuildMessage(ssl, output, sendSz, input, inputSz,
-                                  handshake, 1, 0, 0, CUR_ORDER);
-            XFREE(input, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
-
-            if (sendSz < 0)
-                return sendSz;
-        }
-        else {
-            #ifdef WOLFSSL_DTLS
-            if (ssl->options.dtls) {
-                if ((ret = DtlsMsgPoolSave(ssl, output, (word32)sendSz, session_ticket)) != 0)
-                    return ret;
-
-                DtlsSEQIncrement(ssl, CUR_ORDER);
-            }
-            #endif
-            ret = HashOutput(ssl, output, sendSz, 0);
-            if (ret != 0)
-                return ret;
-        }
-
-        ssl->buffers.outputBuffer.length += sendSz;
-        ssl->options.buildingMsg = 0;
-
-        if (!ssl->options.groupMessages)
-            ret = SendBuffered(ssl);
+        ret = SendHandshakeMsg(ssl, output, idx - headerSz, session_ticket,
+                "Session Ticket");
+        XFREE(output, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
         WOLFSSL_LEAVE("SendTicket", ret);
         WOLFSSL_END(WC_FUNC_TICKET_SEND);
@@ -40249,7 +40355,8 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
 
     WOLFSSL_ENTER("DefTicketEncCb");
 
-    if ((!enc) && (inLen != WOLFSSL_INTERNAL_TICKET_LEN)) {
+    /* For decryption, check minimum internal ticket size */
+    if ((!enc) && (inLen < (int)WOLFSSL_INTERNAL_TICKET_LEN)) {
         return BUFFER_E;
     }
 

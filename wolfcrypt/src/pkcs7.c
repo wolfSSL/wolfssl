@@ -28,6 +28,26 @@
 #ifndef NO_RSA
     #include <wolfssl/wolfcrypt/rsa.h>
 #endif
+#ifndef RSA_PSS_SALT_LEN_DEFAULT
+    #define RSA_PSS_SALT_LEN_DEFAULT (-1)
+#endif
+#if defined(WC_RSA_PSS) && !defined(NO_RSA)
+    #if (defined(HAVE_FIPS) && \
+            (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))) || \
+        (defined(HAVE_SELFTEST) && \
+            (!defined(HAVE_SELFTEST_VERSION) || (HAVE_SELFTEST_VERSION < 2)))
+        #ifndef WC_MGF1NONE
+            #define WC_MGF1NONE       0
+            #define WC_MGF1SHA1       26
+            #define WC_MGF1SHA224     4
+            #define WC_MGF1SHA256     1
+            #define WC_MGF1SHA384     2
+            #define WC_MGF1SHA512     3
+            #define WC_MGF1SHA512_224 5
+            #define WC_MGF1SHA512_256 6
+        #endif
+    #endif
+#endif
 #ifdef HAVE_ECC
     #include <wolfssl/wolfcrypt/ecc.h>
 #endif
@@ -1019,6 +1039,11 @@ static int wc_PKCS7_CheckPublicKeyDer(wc_PKCS7* pkcs7, int keyOID,
 
     switch (keyOID) {
 #ifndef NO_RSA
+    #ifdef WC_RSA_PSS
+        case RSAPSSk:
+            /* RSA-PSS cert: public key is same RSA format as RSAk */
+            FALL_THROUGH;
+    #endif
         case RSAk:
             ret = wc_InitRsaKey_ex(rsa, pkcs7->heap, pkcs7->devId);
             if (ret != 0) {
@@ -1173,6 +1198,10 @@ int wc_PKCS7_InitWithCert(wc_PKCS7* pkcs7, byte* derCert, word32 derCertSz)
         XMEMCPY(pkcs7->publicKey, dCert->publicKey, dCert->pubKeySize);
         pkcs7->publicKeySz = dCert->pubKeySize;
         pkcs7->publicKeyOID = dCert->keyOID;
+        /* Do not derive publicKeyOID from cert signatureOID: the cert's
+         * signature is how the cert was signed by its issuer; the signer
+         * chooses digestEncryptionAlgorithm (e.g. RSASSA-PSS vs PKCS#1 v1.5)
+         * via API / pkcs7->publicKeyOID set by the application. */
         XMEMCPY(pkcs7->issuerHash, dCert->issuerHash, KEYID_SIZE);
         pkcs7->issuer = dCert->issuerRaw;
         pkcs7->issuerSz = (word32)dCert->issuerRawLen;
@@ -1533,7 +1562,11 @@ typedef struct ESD {
                         byte issuerSKIDSeq[MAX_SEQ_SZ];
                             byte issuerSKID[MAX_OCTET_STR_SZ];
                         byte signerDigAlgoId[MAX_ALGO_SZ];
+#if defined(WC_RSA_PSS)
+                        byte digEncAlgoId[128]; /* RSASSA-PSS needs full params */
+#else
                         byte digEncAlgoId[MAX_ALGO_SZ];
+#endif
                         byte signedAttribSet[MAX_SET_SZ];
                             EncodedAttrib signedAttribs[7];
                         byte signerDigest[MAX_OCTET_STR_SZ];
@@ -1945,6 +1978,131 @@ static int wc_PKCS7_EcdsaSign(wc_PKCS7* pkcs7, byte* in, word32 inSz, ESD* esd)
 
 #endif /* HAVE_ECC */
 
+#if defined(WC_RSA_PSS) && !defined(NO_RSA)
+/* Map hash type to MGF1 identifier; local copy so PKCS7 does not depend on
+ * rsa.c when RSA is in a separate FIPS module (e.g. CAVP build). */
+static int pkcs7_hash2mgf(enum wc_HashType hType)
+{
+    switch (hType) {
+    case WC_HASH_TYPE_NONE:
+        return WC_MGF1NONE;
+    case WC_HASH_TYPE_SHA:
+#ifndef NO_SHA
+        return WC_MGF1SHA1;
+#else
+        break;
+#endif
+    case WC_HASH_TYPE_SHA224:
+#ifdef WOLFSSL_SHA224
+        return WC_MGF1SHA224;
+#else
+        break;
+#endif
+    case WC_HASH_TYPE_SHA256:
+#ifndef NO_SHA256
+        return WC_MGF1SHA256;
+#else
+        break;
+#endif
+    case WC_HASH_TYPE_SHA384:
+#ifdef WOLFSSL_SHA384
+        return WC_MGF1SHA384;
+#else
+        break;
+#endif
+    case WC_HASH_TYPE_SHA512:
+#ifdef WOLFSSL_SHA512
+        return WC_MGF1SHA512;
+#else
+        break;
+#endif
+    /* MGF1 only supports SHA-1 and SHA-2; other hashes fall through to WC_MGF1NONE */
+    case WC_HASH_TYPE_MD2:
+    case WC_HASH_TYPE_MD4:
+    case WC_HASH_TYPE_MD5:
+    case WC_HASH_TYPE_MD5_SHA:
+    case WC_HASH_TYPE_SHA3_224:
+    case WC_HASH_TYPE_SHA3_256:
+    case WC_HASH_TYPE_SHA3_384:
+    case WC_HASH_TYPE_SHA3_512:
+    case WC_HASH_TYPE_BLAKE2B:
+    case WC_HASH_TYPE_BLAKE2S:
+#ifndef WOLFSSL_NOSHA512_224
+    case WC_HASH_TYPE_SHA512_224:
+#endif
+#ifndef WOLFSSL_NOSHA512_256
+    case WC_HASH_TYPE_SHA512_256:
+#endif
+#ifdef WOLFSSL_SHAKE128
+    case WC_HASH_TYPE_SHAKE128:
+#endif
+#ifdef WOLFSSL_SHAKE256
+    case WC_HASH_TYPE_SHAKE256:
+#endif
+#ifdef WOLFSSL_SM3
+    case WC_HASH_TYPE_SM3:
+#endif
+    default:
+        break;
+    }
+    return WC_MGF1NONE;
+}
+
+/* returns size of signature put into esd->encContentDigest, negative on error.
+ * Signs the digest (contentAttribsDigest) with RSA-PSS padding, like ECDSA. */
+static int wc_PKCS7_RsaPssSign(wc_PKCS7* pkcs7, byte* digest, word32 digestSz,
+                               ESD* esd)
+{
+    int ret;
+    word32 outSz;
+    WC_DECLARE_VAR(privKey, RsaKey, 1, 0);
+
+    if (pkcs7 == NULL || pkcs7->rng == NULL || digest == NULL || esd == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    WC_ALLOC_VAR_EX(privKey, RsaKey, 1, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER,
+        return MEMORY_E);
+
+    ret = wc_PKCS7_ImportRSA(pkcs7, privKey);
+    if (ret == 0) {
+        outSz = sizeof(esd->encContentDigest);
+#ifdef WOLFSSL_ASYNC_CRYPT
+        do {
+            ret = wc_AsyncWait(ret, &privKey->asyncDev,
+                WC_ASYNC_FLAG_CALL_AGAIN);
+            if (ret >= 0)
+#endif
+            {
+                /* Salt length policy: use hash digest length (RFC 4055 typical).
+                 * RFC 3447 allows arbitrary salt lengths, but hash-length is the
+                 * most interoperable choice and matches OpenSSL's default.
+                 * Must agree with the saltLen encoded in
+                 * SignerInfo.signatureAlgorithm params above. */
+                int saltLen = wc_HashGetDigestSize(wc_OidGetHash(pkcs7->hashOID));
+                if (saltLen < 0) {
+                    ret = saltLen;
+                }
+                else {
+                    ret = wc_RsaPSS_Sign_ex(digest, digestSz,
+                        esd->encContentDigest, outSz,
+                        esd->hashType, pkcs7_hash2mgf(esd->hashType),
+                        saltLen, privKey, pkcs7->rng);
+                }
+            }
+#ifdef WOLFSSL_ASYNC_CRYPT
+        } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
+#endif
+        /* wc_RsaPSS_Sign_ex returns signature length on success */
+    }
+
+    wc_FreeRsaKey(privKey);
+    WC_FREE_VAR_EX(privKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
+}
+#endif /* WC_RSA_PSS && !NO_RSA */
+
 /* returns encContentDigestSz based on the signature set to be used */
 static int wc_PKCS7_GetSignSize(wc_PKCS7* pkcs7)
 {
@@ -1954,6 +2112,9 @@ static int wc_PKCS7_GetSignSize(wc_PKCS7* pkcs7)
 
     #ifndef NO_RSA
         case RSAk:
+    #ifdef WC_RSA_PSS
+        case RSAPSSk:
+    #endif
         {
         #ifndef WOLFSSL_SMALL_STACK
             RsaKey  privKey[1];
@@ -2244,6 +2405,20 @@ static int wc_PKCS7_SignedDataGetEncAlgoId(wc_PKCS7* pkcs7, int* digEncAlgoId,
     }
 #endif /* HAVE_ECC */
 
+#ifdef WC_RSA_PSS
+    else if (pkcs7->publicKeyOID == RSAPSSk) {
+        algoType = oidSigType;
+        algoId = CTC_RSASSAPSS;
+        /* Hash/MGF/salt conveyed via PSS params in AlgorithmIdentifier */
+    }
+#endif
+#ifndef WC_RSA_PSS
+    else if (pkcs7->publicKeyOID == RSAPSSk) {
+        WOLFSSL_MSG("RSA-PSS requested but WC_RSA_PSS not compiled in");
+        return NOT_COMPILED_IN;
+    }
+#endif
+
     if (algoId == 0) {
         WOLFSSL_MSG("Invalid signature algorithm type");
         return BAD_FUNC_ARG;
@@ -2359,7 +2534,8 @@ static int wc_PKCS7_SignedDataBuildSignature(wc_PKCS7* pkcs7,
 {
     int ret = 0;
 #if defined(HAVE_ECC) || \
-    (defined(HAVE_PKCS7_RSA_RAW_SIGN_CALLBACK) && !defined(NO_RSA))
+    (defined(HAVE_PKCS7_RSA_RAW_SIGN_CALLBACK) && !defined(NO_RSA)) || \
+    (defined(WC_RSA_PSS) && !defined(NO_RSA))
     int hashSz = 0;
 #endif
 #if defined(HAVE_PKCS7_RSA_RAW_SIGN_CALLBACK) && !defined(NO_RSA)
@@ -2384,7 +2560,8 @@ static int wc_PKCS7_SignedDataBuildSignature(wc_PKCS7* pkcs7,
     }
 
 #if defined(HAVE_ECC) || \
-    (defined(HAVE_PKCS7_RSA_RAW_SIGN_CALLBACK) && !defined(NO_RSA))
+    (defined(HAVE_PKCS7_RSA_RAW_SIGN_CALLBACK) && !defined(NO_RSA)) || \
+    (defined(WC_RSA_PSS) && !defined(NO_RSA))
     /* get digest size from hash type */
     hashSz = wc_HashGetDigestSize(esd->hashType);
     if (hashSz < 0) {
@@ -2444,6 +2621,14 @@ static int wc_PKCS7_SignedDataBuildSignature(wc_PKCS7* pkcs7,
              * like PKCS#7 with RSA does */
             ret = wc_PKCS7_EcdsaSign(pkcs7, esd->contentAttribsDigest,
                                      (word32)hashSz, esd);
+            break;
+#endif
+
+#if defined(WC_RSA_PSS) && !defined(NO_RSA)
+        case RSAPSSk:
+            /* RSA-PSS signs the digest directly (no DigestInfo), like ECDSA */
+            ret = wc_PKCS7_RsaPssSign(pkcs7, esd->contentAttribsDigest,
+                                      (word32)hashSz, esd);
             break;
 #endif
 
@@ -2801,14 +2986,19 @@ static int PKCS7_EncodeSigned(wc_PKCS7* pkcs7,
         return BAD_FUNC_ARG;
     }
 
-    /* signature size varies with ECDSA, with a varying sign size the content
-     * hash must be known in order to create the surrounding ASN1 syntax
-     * properly before writing out the content and generating the hash on the
-     * fly and then creating the signature */
-    if (hashBuf == NULL && pkcs7->publicKeyOID == ECDSAk) {
+    /* signature size varies with ECDSA; RSA-PSS signs digest directly like
+     * ECDSA. For both, content hash must be known to build ASN.1 before signing */
+#if defined(HAVE_ECC) || defined(WC_RSA_PSS)
+    if (hashBuf == NULL &&
+        (pkcs7->publicKeyOID == ECDSAk
+#ifdef WC_RSA_PSS
+         || pkcs7->publicKeyOID == RSAPSSk
+#endif
+        )) {
         WOLFSSL_MSG("Pre-calculated content hash is needed in this case");
         return BAD_FUNC_ARG;
     }
+#endif
 
 #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
     keyIdSize = wc_HashGetDigestSize(wc_HashTypeConvert(HashIdAlg(
@@ -2965,8 +3155,31 @@ static int PKCS7_EncodeSigned(wc_PKCS7* pkcs7,
             idx = ret;
             goto out;
         }
-        esd->digEncAlgoIdSz = SetAlgoIDEx(digEncAlgoId, esd->digEncAlgoId,
-                                        digEncAlgoType, 0, pkcs7->hashParamsAbsent);
+#if defined(WC_RSA_PSS)
+        if (digEncAlgoId == CTC_RSASSAPSS) {
+            /* Salt length policy: always encode as hash digest length.
+             * This is the common CMS/RFC 4055 profile and matches OpenSSL
+             * defaults.  The decoder (pssSaltLen) handles arbitrary values
+             * from external blobs.  A future pkcs7->pssSaltLen override for
+             * encode could be added here if custom salt lengths are needed. */
+            int saltLen = wc_HashGetDigestSize(wc_OidGetHash(pkcs7->hashOID));
+            if (saltLen < 0) {
+                idx = saltLen;
+                goto out;
+            }
+            esd->digEncAlgoIdSz = wc_EncodeRsaPssAlgoId(pkcs7->hashOID,
+                                (int)(word32)saltLen, esd->digEncAlgoId,
+                                (word32)sizeof(esd->digEncAlgoId));
+            if (esd->digEncAlgoIdSz == 0) {
+                idx = ASN_PARSE_E;
+                goto out;
+            }
+        } else
+#endif
+        {
+            esd->digEncAlgoIdSz = SetAlgoIDEx(digEncAlgoId, esd->digEncAlgoId,
+                                            digEncAlgoType, 0, pkcs7->hashParamsAbsent);
+        }
         signerInfoSz += esd->digEncAlgoIdSz;
 
         /* build up signed attributes, include contentType, signingTime, and
@@ -3567,8 +3780,12 @@ int wc_PKCS7_EncodeSignedData(wc_PKCS7* pkcs7, byte* output, word32 outputSz)
         return BAD_FUNC_ARG;
     }
 
-    /* pre-calculate hash for ECC signatures */
-    if (pkcs7->publicKeyOID == ECDSAk) {
+    /* pre-calculate content hash for ECDSA and RSA-PSS (both sign digest directly) */
+    if (pkcs7->publicKeyOID == ECDSAk
+#ifdef WC_RSA_PSS
+        || pkcs7->publicKeyOID == RSAPSSk
+#endif
+        ) {
         int hashSz;
         enum wc_HashType hashType;
         byte hashBuf[WC_MAX_DIGEST_SIZE];
@@ -4071,8 +4288,7 @@ static int wc_PKCS7_RsaVerify(wc_PKCS7* pkcs7, byte* sig, int sigSz,
     byte digest[MAX_PKCS7_DIGEST_SZ];
 #endif
     RsaKey key[1];
-    DecodedCert stack_dCert;
-    DecodedCert* dCert = &stack_dCert;
+    DecodedCert dCert[1];
 #endif
 
     if (pkcs7 == NULL || sig == NULL || hash == NULL) {
@@ -4175,6 +4391,144 @@ static int wc_PKCS7_RsaVerify(wc_PKCS7* pkcs7, byte* sig, int sigSz,
     return ret;
 }
 
+#if defined(WC_RSA_PSS)
+/* returns 0 when signature verifies, negative on error */
+static int wc_PKCS7_RsaPssVerify(wc_PKCS7* pkcs7, byte* sig, int sigSz,
+                                  byte* hash, word32 hashSz)
+{
+    int ret = 0, i;
+    word32 scratch = 0, verified = 0;
+    word32 pkSz;
+    int saltLen, verify;
+    enum wc_HashType hashType;
+    int hashDigSz, mgf;
+    /* wc_RsaPSS_Verify_ex output is PSS-encoded message (RSA_PSS_PAD_SZ +
+     * saltLen + 2*hLen bytes), which can exceed MAX_PKCS7_DIGEST_SZ.
+     * Use MAX_ENCRYPTED_KEY_SZ (512) to cover RSA keys up to 4096-bit. */
+    WC_DECLARE_VAR(digest, byte, MAX_ENCRYPTED_KEY_SZ, 0);
+    WC_DECLARE_VAR(key, RsaKey, 1, 0);
+    WC_DECLARE_VAR(dCert, DecodedCert, 1, 0);
+
+    if (pkcs7 == NULL || sig == NULL || hash == NULL)
+        return BAD_FUNC_ARG;
+
+    /* Use SignerInfo.signatureAlgorithm params when decoded; else digestAlgo */
+    if (pkcs7->pssParamsPresent)
+        hashType = (enum wc_HashType)pkcs7->pssHashType;
+    else
+        hashType = wc_OidGetHash(pkcs7->hashOID);
+    hashDigSz = wc_HashGetDigestSize(hashType);
+    if (hashDigSz < 0)
+        return ASN_PARSE_E;
+    if (hashSz != (word32)hashDigSz)
+        return ASN_PARSE_E;
+    mgf = pkcs7->pssParamsPresent
+        ? pkcs7->pssMgf : pkcs7_hash2mgf(hashType);
+    if (mgf == WC_MGF1NONE)
+        return ASN_PARSE_E;
+
+    WC_ALLOC_VAR_EX(digest, byte, MAX_ENCRYPTED_KEY_SZ, pkcs7->heap,
+        DYNAMIC_TYPE_TMP_BUFFER, return MEMORY_E);
+    WC_ALLOC_VAR_EX(key, RsaKey, 1, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER,
+        { WC_FREE_VAR_EX(digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+          return MEMORY_E; });
+    WC_ALLOC_VAR_EX(dCert, DecodedCert, 1, pkcs7->heap, DYNAMIC_TYPE_DCERT,
+        { WC_FREE_VAR_EX(digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+          WC_FREE_VAR_EX(key, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+          return MEMORY_E; });
+
+    XMEMSET(digest, 0, MAX_ENCRYPTED_KEY_SZ);
+
+    for (i = 0; i < MAX_PKCS7_CERTS; i++) {
+        if (pkcs7->certSz[i] == 0)
+            continue;
+
+        scratch = 0;
+        ret = wc_InitRsaKey_ex(key, pkcs7->heap, pkcs7->devId);
+        if (ret != 0)
+            break;
+
+        InitDecodedCert(dCert, pkcs7->cert[i], pkcs7->certSz[i], pkcs7->heap);
+        ret = ParseCert(dCert, CA_TYPE, NO_VERIFY, 0);
+        if (ret < 0) {
+            FreeDecodedCert(dCert);
+            wc_FreeRsaKey(key);
+            continue;
+        }
+
+        pkSz = dCert->pubKeySize;
+        if (pkSz > (MAX_RSA_INT_SZ + MAX_RSA_E_SZ))
+            pkSz = (MAX_RSA_INT_SZ + MAX_RSA_E_SZ);
+
+        if (wc_RsaPublicKeyDecode(dCert->publicKey, &scratch, key,
+                                  pkSz) < 0) {
+            FreeDecodedCert(dCert);
+            wc_FreeRsaKey(key);
+            continue;
+        }
+
+        saltLen = pkcs7->pssParamsPresent
+                      ? pkcs7->pssSaltLen : RSA_PSS_SALT_LEN_DEFAULT;
+
+        /* wc_RsaPSS_Verify_ex returns PSS encoded message length, not
+         * the recovered hash. Must then call wc_RsaPSS_CheckPadding_ex
+         * to verify the PSS padding against the expected hash. */
+        verify = wc_RsaPSS_Verify_ex(sig, (word32)sigSz, digest,
+                                     MAX_ENCRYPTED_KEY_SZ,
+                                     hashType, mgf, saltLen, key);
+        if (verify > 0) {
+            /* wc_RsaPSS_CheckPadding_ex signature varies across
+             * FIPS / selftest versions; match the pattern in asn.c */
+        #if (defined(HAVE_SELFTEST) && \
+             (!defined(HAVE_SELFTEST_VERSION) || \
+              (HAVE_SELFTEST_VERSION < 2))) || \
+            (defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && \
+             (HAVE_FIPS_VERSION < 2))
+            ret = wc_RsaPSS_CheckPadding_ex(hash, hashSz, digest,
+                                            (word32)verify, hashType,
+                                            saltLen);
+        #elif (defined(HAVE_SELFTEST) && \
+               (HAVE_SELFTEST_VERSION == 2)) || \
+              (defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && \
+               (HAVE_FIPS_VERSION == 2))
+            ret = wc_RsaPSS_CheckPadding_ex(hash, hashSz, digest,
+                                            (word32)verify, hashType,
+                                            saltLen, 0);
+        #else
+            ret = wc_RsaPSS_CheckPadding_ex2(hash, hashSz, digest,
+                                            (word32)verify, hashType,
+                                            saltLen,
+                                            mp_count_bits(&key->n),
+                                            pkcs7->heap);
+        #endif
+        }
+        else {
+            ret = verify;
+        }
+
+        FreeDecodedCert(dCert);
+        wc_FreeRsaKey(key);
+
+        if (ret == 0) {
+            verified = 1;
+            pkcs7->verifyCert   = pkcs7->cert[i];
+            pkcs7->verifyCertSz = pkcs7->certSz[i];
+            break;
+        }
+        ret = 0;
+    }
+
+    if (verified == 0)
+        ret = SIG_VERIFY_E;
+
+    WC_FREE_VAR_EX(digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(key, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(dCert, pkcs7->heap, DYNAMIC_TYPE_DCERT);
+
+    return ret;
+}
+#endif /* WC_RSA_PSS */
+
 #endif /* NO_RSA */
 
 
@@ -4194,8 +4548,7 @@ static int wc_PKCS7_EcdsaVerify(wc_PKCS7* pkcs7, byte* sig, int sigSz,
 #else
     byte digest[MAX_PKCS7_DIGEST_SZ];
     ecc_key key[1];
-    DecodedCert stack_dCert;
-    DecodedCert* dCert = &stack_dCert;
+    DecodedCert dCert[1];
 #endif
     word32 idx = 0;
 
@@ -4695,6 +5048,14 @@ static int wc_PKCS7_SignedDataVerifySignature(wc_PKCS7* pkcs7, byte* sig,
                                          plainDigestSz);
             }
             break;
+
+    #ifdef WC_RSA_PSS
+        /* RSA-PSS signs the raw hash (plainDigest), not DigestInfo */
+        case RSAPSSk:
+            ret = wc_PKCS7_RsaPssVerify(pkcs7, sig, (int)sigSz, plainDigest,
+                                       plainDigestSz);
+            break;
+    #endif
 #endif
 
 #ifdef HAVE_ECC
@@ -4740,6 +5101,13 @@ static int wc_PKCS7_SetPublicKeyOID(wc_PKCS7* pkcs7, int sigOID)
         case CTC_SHA3_512wRSA:
             pkcs7->publicKeyOID = RSAk;
             break;
+
+    #ifdef WC_RSA_PSS
+        /* CTC_RSASSAPSS and RSAPSSk are the same OID value */
+        case CTC_RSASSAPSS:
+            pkcs7->publicKeyOID = RSAPSSk;
+            break;
+    #endif
 
         /* if sigOID is already RSAk */
         case RSAk:
@@ -5050,9 +5418,62 @@ static int wc_PKCS7_ParseSignerInfo(wc_PKCS7* pkcs7, byte* in, word32 inSz,
             idx += (word32)length;
         }
 
-        /* Get digestEncryptionAlgorithm - key type or signature type */
-        if (ret == 0 && GetAlgoId(in, &idx, &sigOID, oidIgnoreType, inSz) < 0) {
-            ret = ASN_PARSE_E;
+        /* Get digestEncryptionAlgorithm (signatureAlgorithm) - parse manually
+         * so we can decode id-RSASSA-PSS parameters in all builds. */
+#if defined(WC_RSA_PSS) && !defined(NO_RSA)
+        pkcs7->pssParamsPresent = 0;
+#endif
+        if (ret == 0) {
+            int algoSeqLen = 0;
+            word32 algoContentStart = 0;
+            if (GetSequence(in, &idx, &algoSeqLen, (word32)inSz) < 0) {
+                ret = ASN_PARSE_E;
+            }
+            else {
+                algoContentStart = idx; /* first byte of AlgorithmIdentifier content */
+                if (GetObjectId(in, &idx, &sigOID, oidSigType, inSz) < 0) {
+                    ret = ASN_PARSE_E;
+                }
+                /* Only parse params when still inside the AlgorithmIdentifier;
+                 * when optional params are absent, idx is already past the sequence. */
+                else if (algoContentStart + (word32)algoSeqLen > idx) {
+                    word32 paramsStart = idx;
+                    byte paramTag;
+                    int paramLen = 0;
+                    if (GetASNTag(in, &idx, &paramTag, inSz) != 0 ||
+                        GetLength(in, &idx, &paramLen, inSz) < 0) {
+                        ret = ASN_PARSE_E;
+                    }
+                    else {
+#if defined(WC_RSA_PSS) && !defined(NO_RSA)
+                        if ((word32)sigOID == (word32)CTC_RSASSAPSS &&
+                            paramTag == (ASN_SEQUENCE | ASN_CONSTRUCTED)) {
+                            word32 tlvLen = (idx - paramsStart) +
+                                            (word32)paramLen;
+                            enum wc_HashType pssHash = WC_HASH_TYPE_SHA;
+                            int pssMgfVal = 0, pssSalt = 0;
+                            if (paramsStart + tlvLen > (word32)inSz) {
+                                return ASN_PARSE_E;
+                            }
+                            ret = wc_DecodeRsaPssParams(in + paramsStart, tlvLen,
+                                                        &pssHash, &pssMgfVal,
+                                                        &pssSalt);
+                            if (ret == 0) {
+                                pkcs7->pssSaltLen = pssSalt;
+                                pkcs7->pssHashType = (int)pssHash;
+                                pkcs7->pssMgf = pssMgfVal;
+                                pkcs7->pssParamsPresent = 1;
+                            }
+                            else {
+                                WOLFSSL_MSG("RSASSA-PSS parameters invalid - failing parse");
+                                return ASN_PARSE_E;
+                            }
+                        }
+#endif
+                        idx += (word32)paramLen;
+                    }
+                }
+            }
         }
 
         /* store public key type based on digestEncryptionAlgorithm */

@@ -869,7 +869,8 @@ int wolfSSL_UnloadCertsKeys(WOLFSSL* ssl)
 
         if (ssl->buffers.weOwnKey) {
             WOLFSSL_MSG("Unloading key");
-            ForceZero(ssl->buffers.key->buffer, ssl->buffers.key->length);
+            if (ssl->buffers.key != NULL && ssl->buffers.key->buffer != NULL)
+                ForceZero(ssl->buffers.key->buffer, ssl->buffers.key->length);
             FreeDer(&ssl->buffers.key);
         #ifdef WOLFSSL_BLIND_PRIVATE_KEY
             FreeDer(&ssl->buffers.keyMask);
@@ -880,7 +881,11 @@ int wolfSSL_UnloadCertsKeys(WOLFSSL* ssl)
     #ifdef WOLFSSL_DUAL_ALG_CERTS
         if (ssl->buffers.weOwnAltKey) {
             WOLFSSL_MSG("Unloading alt key");
-            ForceZero(ssl->buffers.altKey->buffer, ssl->buffers.altKey->length);
+            if (ssl->buffers.altKey != NULL &&
+                    ssl->buffers.altKey->buffer != NULL) {
+                ForceZero(ssl->buffers.altKey->buffer,
+                          ssl->buffers.altKey->length);
+            }
             FreeDer(&ssl->buffers.altKey);
         #ifdef WOLFSSL_BLIND_PRIVATE_KEY
             FreeDer(&ssl->buffers.altKeyMask);
@@ -1710,6 +1715,22 @@ WOLFSSL_X509* wolfSSL_get_certificate(WOLFSSL* ssl)
     else if (ssl->buffers.weOwnCert) {
         /* Check if we already have a certificate allocated. */
         if (ssl->ourCert == NULL) {
+            /* Check if ctx has ourCert set - if so, use it instead of creating
+             * a new X509. This maintains pointer compatibility with
+             * applications (like nginx OCSP stapling) that use the X509 pointer
+             * from SSL_CTX_use_certificate as a lookup key. */
+            if (ssl->ctx != NULL && ssl->ctx->ourCert != NULL) {
+                /* Compare cert buffers to make sure they are the same */
+                if (ssl->buffers.certificate == NULL ||
+                    ssl->buffers.certificate->buffer == NULL ||
+                   (ssl->buffers.certificate->length ==
+                    ssl->ctx->certificate->length &&
+                    XMEMCMP(ssl->buffers.certificate->buffer,
+                             ssl->ctx->certificate->buffer,
+                             ssl->buffers.certificate->length) == 0)) {
+                    return ssl->ctx->ourCert;
+                }
+            }
             /* We own certificate so this should never happen. */
             if (ssl->buffers.certificate == NULL) {
                 WOLFSSL_MSG("Certificate buffer not set!");

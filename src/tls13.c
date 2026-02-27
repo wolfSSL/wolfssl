@@ -1023,6 +1023,11 @@ int Tls13_Exporter(WOLFSSL* ssl, unsigned char *out, size_t outLen,
     if (ret != 0)
         return ret;
 
+    /* Sanity check contextLen to prevent truncation when cast to word32. */
+    if (contextLen > WOLFSSL_MAX_32BIT) {
+        return BAD_FUNC_ARG;
+    }
+
     /* Hash(context_value) */
     ret = wc_Hash(hashType, context, (word32)contextLen, hashOut, WC_MAX_DIGEST_SIZE);
     if (ret != 0)
@@ -7791,7 +7796,6 @@ static int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx,
     int    sendSz;
     word32 i;
     word32 reqSz;
-    word16 hashSigAlgoSz = 0;
     SignatureAlgorithms* sa;
 
     WOLFSSL_START(WC_FUNC_CERTIFICATE_REQUEST_SEND);
@@ -7802,14 +7806,11 @@ static int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx,
     if (ssl->options.side != WOLFSSL_SERVER_END)
         return SIDE_ERROR;
 
-    /* Get the length of the hashSigAlgo buffer */
-    InitSuitesHashSigAlgo(NULL, SIG_ALL, 1, 1, ssl->buffers.keySz,
-        &hashSigAlgoSz);
-    sa = TLSX_SignatureAlgorithms_New(ssl, hashSigAlgoSz, ssl->heap);
+    /* Use ssl->suites->hashSigAlgo so wolfSSL_set1_sigalgs_list() is honored.
+     * hashSigAlgoSz=0 makes GetSize/Write fall back to WOLFSSL_SUITES(ssl). */
+    sa = TLSX_SignatureAlgorithms_New(ssl, 0, ssl->heap);
     if (sa == NULL)
         return MEMORY_ERROR;
-    InitSuitesHashSigAlgo(sa->hashSigAlgo, SIG_ALL, 1, 1, ssl->buffers.keySz,
-        &hashSigAlgoSz);
     ret = TLSX_Push(&ssl->extensions, TLSX_SIGNATURE_ALGORITHMS, sa, ssl->heap);
     if (ret != 0) {
         TLSX_SignatureAlgorithms_FreeAll(sa, ssl->heap);

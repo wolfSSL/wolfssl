@@ -312,6 +312,22 @@ fn scan_cfg() -> Result<()> {
         println!("cargo:rustc-cfg=rsa_const_api");
     }
 
+    /* dilithium / ML-DSA */
+    check_cfg(&binding, "wc_dilithium_init", "dilithium");
+    check_cfg(&binding, "wc_dilithium_make_key", "dilithium_make_key");
+    check_cfg(&binding, "wc_dilithium_make_key_from_seed", "dilithium_make_key_from_seed");
+    check_cfg(&binding, "wc_dilithium_sign_msg", "dilithium_sign");
+    check_cfg(&binding, "wc_dilithium_sign_msg_with_seed", "dilithium_sign_with_seed");
+    check_cfg(&binding, "wc_dilithium_verify_msg", "dilithium_verify");
+    check_cfg(&binding, "wc_dilithium_import_public", "dilithium_import");
+    check_cfg(&binding, "wc_dilithium_export_public", "dilithium_export");
+    check_cfg(&binding, "wc_dilithium_check_key", "dilithium_check_key");
+    check_cfg(&binding, "DILITHIUM_LEVEL2_KEY_SIZE", "dilithium_level2");
+    check_cfg(&binding, "DILITHIUM_LEVEL3_KEY_SIZE", "dilithium_level3");
+    check_cfg(&binding, "DILITHIUM_LEVEL5_KEY_SIZE", "dilithium_level5");
+    check_cfg(&binding, "DILITHIUM_SEED_SZ", "dilithium_make_key_seed_sz");
+    check_cfg(&binding, "DILITHIUM_RND_SZ", "dilithium_rnd_sz");
+
     /* sha */
     check_cfg(&binding, "wc_InitSha", "sha");
     check_cfg(&binding, "wc_InitSha224", "sha224");

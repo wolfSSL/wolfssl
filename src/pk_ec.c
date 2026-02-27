@@ -2824,6 +2824,37 @@ int wolfSSL_EC_POINT_copy(WOLFSSL_EC_POINT *dest, const WOLFSSL_EC_POINT *src)
     return ret;
 }
 
+/* Duplicates an EC point.
+ *
+ * @param [in] src    EC point to duplicate.
+ * @param [in] group  EC group for the new point.
+ * @return  New EC point on success.
+ * @return  NULL on failure.
+ */
+WOLFSSL_EC_POINT *wolfSSL_EC_POINT_dup(const WOLFSSL_EC_POINT *src,
+    const WOLFSSL_EC_GROUP *group)
+{
+    WOLFSSL_EC_POINT *dest;
+
+    WOLFSSL_ENTER("wolfSSL_EC_POINT_dup");
+
+    if ((src == NULL) || (group == NULL)) {
+        return NULL;
+    }
+
+    dest = wolfSSL_EC_POINT_new(group);
+    if (dest == NULL) {
+        return NULL;
+    }
+
+    if (wolfSSL_EC_POINT_copy(dest, src) != 1) {
+        wolfSSL_EC_POINT_free(dest);
+        return NULL;
+    }
+
+    return dest;
+}
+
 /* Checks whether point is at infinity.
  *
  * Return code compliant with OpenSSL.
