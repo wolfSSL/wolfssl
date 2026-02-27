@@ -127,6 +127,7 @@ void bench_sakkeRskGen(void);
 void bench_sakkeValidate(void);
 void bench_sakke(void);
 void bench_rng(void);
+void bench_rng_sha512(void);
 void bench_blake2b(void);
 void bench_blake2s(void);
 void bench_ascon_hash(void);

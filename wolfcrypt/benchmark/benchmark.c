@@ -969,6 +969,9 @@ static WC_INLINE void bench_append_memory_info(char* buffer, size_t size,
 /* Other */
 #define BENCH_RNG                0x00000001
 #define BENCH_SCRYPT             0x00000002
+#ifdef WOLFSSL_DRBG_SHA512
+    #define BENCH_RNG_SHA512         0x00000004
+#endif
 
 #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
     (defined(HAVE_CHACHA) && defined(HAVE_POLY1305))
@@ -1274,6 +1277,9 @@ static const bench_alg bench_other_opt[] = {
     { "-other",              0xffffffff              },
 #ifndef WC_NO_RNG
     { "-rng",                BENCH_RNG               },
+#endif
+#ifdef WOLFSSL_DRBG_SHA512
+    { "-rng-sha512",         BENCH_RNG_SHA512        },
 #endif
 #ifdef HAVE_SCRYPT
     { "-scrypt",             BENCH_SCRYPT            },
@@ -3809,6 +3815,10 @@ static void* benchmarks_do(void* args)
     if (bench_all || (bench_other_algs & BENCH_RNG))
         bench_rng();
 #endif /* WC_NO_RNG */
+#ifdef WOLFSSL_DRBG_SHA512
+    if (bench_all || (bench_other_algs & BENCH_RNG_SHA512))
+        bench_rng_sha512();
+#endif
 #ifndef NO_AES
 #ifdef HAVE_AES_CBC
     if (bench_all || (bench_cipher_algs & BENCH_AES_CBC)) {
@@ -4878,6 +4888,18 @@ void bench_rng(void)
     WC_RNG myrng;
     DECLARE_MULTI_VALUE_STATS_VARS()
 
+    /* Force SHA-256 DRBG by temporarily disabling SHA-512 DRBG */
+#if defined(WOLFSSL_DRBG_SHA512) && defined(WOLFSSL_DRBG_SHA256)
+    ret = wc_Sha512Drbg_Disable();
+    if (ret != 0) {
+        printf("wc_Sha512Drbg_Disable failed %d\n", ret);
+        return;
+    }
+#elif defined(WOLFSSL_DRBG_SHA512) && !defined(WOLFSSL_DRBG_SHA256)
+    printf("RNG SHA-256 DRBG (Skipped: Disabled)\n");
+    return;
+#endif
+
     bench_stats_prepare();
 
 #ifndef HAVE_FIPS
@@ -4886,7 +4908,10 @@ void bench_rng(void)
     ret = wc_InitRng(&myrng);
 #endif
     if (ret < 0) {
-        printf("InitRNG failed %d\n", ret);
+        printf("InitRNG (SHA-256) failed %d\n", ret);
+#ifdef WOLFSSL_DRBG_SHA512
+        wc_Sha512Drbg_Enable();
+#endif
         return;
     }
 
@@ -4917,15 +4942,95 @@ void bench_rng(void)
 #endif
            );
 exit_rng:
-    bench_stats_sym_finish("RNG", 0, count, bench_size, start, ret);
+    bench_stats_sym_finish("RNG SHA-256 DRBG", 0, count, bench_size, start,
+                           ret);
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
     wc_FreeRng(&myrng);
+
+    /* Restore SHA-512 DRBG */
+#ifdef WOLFSSL_DRBG_SHA512
+    wc_Sha512Drbg_Enable();
+#endif
 }
 #endif /* WC_NO_RNG */
 
+#ifdef WOLFSSL_DRBG_SHA512
+void bench_rng_sha512(void)
+{
+    int    ret, i, count;
+    double start;
+    long   pos, len, remain;
+    WC_RNG myrng;
+    DECLARE_MULTI_VALUE_STATS_VARS()
+
+    /* Force SHA-512 DRBG by temporarily disabling SHA-256 DRBG */
+#ifndef NO_SHA256
+    ret = wc_Sha256Drbg_Disable();
+    if (ret != 0) {
+        printf("wc_Sha256Drbg_Disable failed %d\n", ret);
+        return;
+    }
+#endif
+
+    bench_stats_prepare();
+
+#ifndef HAVE_FIPS
+    ret = wc_InitRng_ex(&myrng, HEAP_HINT, devId);
+#else
+    ret = wc_InitRng(&myrng);
+#endif
+    if (ret < 0) {
+        printf("InitRNG (SHA-512) failed %d\n", ret);
+#ifndef NO_SHA256
+        wc_Sha256Drbg_Enable();
+#endif
+        return;
+    }
+
+    bench_stats_start(&count, &start);
+    do {
+        for (i = 0; i < numBlocks; i++) {
+            /* Split request to handle large RNG request */
+            pos = 0;
+            remain = (int)bench_size;
+            while (remain > 0) {
+                len = remain;
+                if (len > RNG_MAX_BLOCK_LEN)
+                    len = RNG_MAX_BLOCK_LEN;
+                ret = wc_RNG_GenerateBlock(&myrng, &bench_plain[pos],
+                                           (word32)len);
+                if (ret < 0)
+                    goto exit_rng_sha512;
+
+                remain -= len;
+                pos += len;
+            }
+            RECORD_MULTI_VALUE_STATS();
+        }
+        count += i;
+    } while (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+           || runs < minimum_runs
+#endif
+           );
+exit_rng_sha512:
+    bench_stats_sym_finish("RNG SHA-512 DRBG", 0, count, bench_size, start,
+                           ret);
+#ifdef MULTI_VALUE_STATISTICS
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
+#endif
+
+    wc_FreeRng(&myrng);
+
+    /* Restore SHA-256 DRBG */
+#ifndef NO_SHA256
+    wc_Sha256Drbg_Enable();
+#endif
+}
+#endif /* WOLFSSL_DRBG_SHA512 */
 
 #ifndef NO_AES
 

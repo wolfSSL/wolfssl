@@ -52,9 +52,13 @@
     #endif
 #endif
 
-/* Size of the BRBG seed */
+/* Size of the DRBG seed (SHA-256) */
 #ifndef DRBG_SEED_LEN
     #define DRBG_SEED_LEN (440/8)
+#endif
+
+#ifdef WOLFSSL_DRBG_SHA512
+    #define DRBG_SHA512_SEED_LEN (888/8)  /* 111 bytes per SP 800-90A Table 2 */
 #endif
 
 
@@ -104,9 +108,16 @@
     #endif
 #elif defined(HAVE_HASHDRBG)
     #ifdef NO_SHA256
-        #error "Hash DRBG requires SHA-256."
+        #ifndef WOLFSSL_DRBG_SHA512
+            #error "Hash DRBG requires SHA-256 or SHA-512."
+        #endif
     #endif /* NO_SHA256 */
-    #include <wolfssl/wolfcrypt/sha256.h>
+    #ifndef NO_SHA256
+        #include <wolfssl/wolfcrypt/sha256.h>
+    #endif
+    #ifdef WOLFSSL_DRBG_SHA512
+        #include <wolfssl/wolfcrypt/sha512.h>
+    #endif
 #elif defined(HAVE_WNR)
      /* allow whitewood as direct RNG source using wc_GenerateSeed directly */
 #elif defined(HAVE_INTEL_RDRAND)
@@ -239,7 +250,29 @@ struct OS_Seed {
 
 #define WC_DRBG_SEED_BLOCK_SZ SEED_BLOCK_SZ
 
-#define WC_DRBG_SEED_SZ        (RNG_SECURITY_STRENGTH*ENTROPY_SCALE_FACTOR/8)
+/* WC_DRBG_SEED_SZ is the number of bytes of raw entropy gathered from the
+ * NDRNG at instantiation and reseed. We deliberately "overseed" beyond the
+ * NIST minimum (security_strength bits) to account for entropy sources that
+ * may deliver fewer than 1 bit of real entropy per bit of output.  With the
+ * default FIPS ENTROPY_SCALE_FACTOR of 4 this yields 256*4/8 = 128 bytes =
+ * 1024 bits of raw seed material, guaranteeing at least 256 bits of real
+ * entropy even if the source provides only 1 good bit per 4.
+ *
+ * Hash_df then compresses this seed material into the internal V and C state
+ * vectors (seedlen = 440 bits for SHA-256, 888 bits for SHA-512 per
+ * SP 800-90A Table 2).
+ *
+ * When the SHA-512 DRBG is enabled we also enforce a floor of
+ * DRBG_SHA512_SEED_LEN (111 bytes / 888 bits) so the raw seed is never
+ * shorter than the internal state, even with ENTROPY_SCALE_FACTOR = 1. */
+#define WC_DRBG_SEED_SZ_BASE  (RNG_SECURITY_STRENGTH*ENTROPY_SCALE_FACTOR/8)
+
+#if defined(WOLFSSL_DRBG_SHA512) && \
+    (WC_DRBG_SEED_SZ_BASE < DRBG_SHA512_SEED_LEN)
+    #define WC_DRBG_SEED_SZ    DRBG_SHA512_SEED_LEN
+#else
+    #define WC_DRBG_SEED_SZ    WC_DRBG_SEED_SZ_BASE
+#endif
 
 /* The maximum seed size will be the seed size plus a seed block for the
  * test, and an additional half of the seed size. This additional half
@@ -248,8 +281,14 @@ struct OS_Seed {
 #define WC_DRBG_MAX_SEED_SZ    (WC_DRBG_SEED_SZ + WC_DRBG_SEED_SZ/2 + \
                                 SEED_BLOCK_SZ)
 
-#define RNG_HEALTH_TEST_CHECK_SIZE (WC_SHA256_DIGEST_SIZE * 4)
+#ifndef NO_SHA256
+    #define RNG_HEALTH_TEST_CHECK_SIZE (WC_SHA256_DIGEST_SIZE * 4)
+#endif
+#ifdef WOLFSSL_DRBG_SHA512
+    #define RNG_HEALTH_TEST_CHECK_SIZE_SHA512 (WC_SHA512_DIGEST_SIZE * 4)
+#endif
 
+#ifndef NO_SHA256
 struct DRBG_internal {
     #ifdef WORD64_AVAILABLE
     word64 reseedCtr;
@@ -268,7 +307,33 @@ struct DRBG_internal {
     byte digest_scratch[WC_SHA256_DIGEST_SIZE];
 #endif
 };
+#endif /* !NO_SHA256 */
+
+#ifdef WOLFSSL_DRBG_SHA512
+struct DRBG_SHA512_internal {
+    word64 reseedCtr;
+    byte V[DRBG_SHA512_SEED_LEN];
+    byte C[DRBG_SHA512_SEED_LEN];
+    void* heap;
+#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
+    int devId;
+#endif
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+    wc_Sha512 sha512;
+    byte seed_scratch[DRBG_SHA512_SEED_LEN];
+    byte digest_scratch[WC_SHA512_DIGEST_SIZE];
+#endif
+};
+#endif /* WOLFSSL_DRBG_SHA512 */
 #endif /* HAVE_HASHDRBG */
+
+/* DRBG type enum */
+#ifdef HAVE_HASHDRBG
+enum wc_DrbgType {
+    WC_DRBG_SHA256 = 0,
+    WC_DRBG_SHA512 = 1,
+};
+#endif
 
 /* RNG health states */
 #define WC_DRBG_NOT_INIT     0
@@ -301,7 +366,8 @@ struct WC_RNG {
         #ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
         struct {
         #endif
-            /* Hash-based Deterministic Random Bit Generator */
+        #ifndef NO_SHA256
+            /* SHA-256 Hash-based Deterministic Random Bit Generator */
             struct DRBG* drbg;
         #if defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_STATIC_MEMORY)
             struct DRBG_internal drbg_data;
@@ -312,6 +378,15 @@ struct WC_RNG {
             byte *health_check_scratch;
             byte *newSeed_buf;
         #endif
+        #endif /* !NO_SHA256 */
+        #ifdef WOLFSSL_DRBG_SHA512
+            /* SHA-512 Hash-based Deterministic Random Bit Generator */
+            struct DRBG_SHA512* drbg512;
+        #if defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_STATIC_MEMORY)
+            struct DRBG_SHA512_internal drbg512_data;
+        #endif
+        #endif /* WOLFSSL_DRBG_SHA512 */
+            byte drbgType; /* WC_DRBG_SHA256 or WC_DRBG_SHA512 */
         #ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
         };
         #endif
@@ -407,6 +482,35 @@ WOLFSSL_API int  wc_FreeRng(WC_RNG* rng);
                                         const byte* seedB, word32 seedBSz,
                                         byte* output, word32 outputSz,
                                         void* heap, int devId);
+#ifdef WOLFSSL_DRBG_SHA512
+    WOLFSSL_API int wc_RNG_HealthTest_SHA512(int reseed,
+                                        const byte* seedA, word32 seedASz,
+                                        const byte* seedB, word32 seedBSz,
+                                        byte* output, word32 outputSz);
+    WOLFSSL_API int wc_RNG_HealthTest_SHA512_ex(int reseed,
+                                        const byte* nonce, word32 nonceSz,
+                                        const byte* persoString,
+                                            word32 persoStringSz,
+                                        const byte* seedA, word32 seedASz,
+                                        const byte* seedB, word32 seedBSz,
+                                        const byte* additionalA,
+                                            word32 additionalASz,
+                                        const byte* additionalB,
+                                            word32 additionalBSz,
+                                        byte* output, word32 outputSz,
+                                        void* heap, int devId);
+#endif /* WOLFSSL_DRBG_SHA512 */
+
+    /* Runtime DRBG disable/enable API */
+    WOLFSSL_API int wc_Sha256Drbg_Disable(void);
+    WOLFSSL_API int wc_Sha256Drbg_Enable(void);
+    WOLFSSL_API int wc_Sha256Drbg_GetStatus(void);
+#ifdef WOLFSSL_DRBG_SHA512
+    WOLFSSL_API int wc_Sha512Drbg_Disable(void);
+    WOLFSSL_API int wc_Sha512Drbg_Enable(void);
+    WOLFSSL_API int wc_Sha512Drbg_GetStatus(void);
+#endif
+
 #endif /* HAVE_HASHDRBG */
 
 #ifdef __cplusplus
