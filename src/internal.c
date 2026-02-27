@@ -41789,7 +41789,10 @@ int wolfSSL_AsyncPop(WOLFSSL* ssl, byte* state)
              * the completion is not detected in the poll like Intel QAT or
              * Nitrox */
             ret = wolfEventQueue_Remove(&ssl->ctx->event_queue, event);
-
+            /* Clear async device so stale pending state from
+             * wolfSSL_AsyncInit does not confuse subsequent operations */
+            XMEMSET(&asyncDev->event, 0, sizeof(WOLF_EVENT));
+            ssl->asyncDev = NULL;
         }
     #endif
     }

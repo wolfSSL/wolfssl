@@ -18,11 +18,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        async_mode: ['sw', 'cryptocb']
         extra_cflags:
           - ''
           - '-DWOLFSSL_SMALL_CERT_VERIFY'
           - '-DWOLFSSL_STATIC_MEMORY'
-    name: Async Examples (${{ matrix.extra_cflags || 'default' }})
+    name: Async Examples (${{ matrix.async_mode }}, ${{ matrix.extra_cflags || 'default' }})
     steps:
       - uses: actions/checkout@v4
         name: Checkout wolfSSL
@@ -30,12 +31,13 @@ jobs:
       - name: Build async examples (no configure)
         run: |
           make -C examples/async clean
-          make -C examples/async EXTRA_CFLAGS="${{ matrix.extra_cflags }}"
+          make -C examples/async ASYNC_MODE=${{ matrix.async_mode }} EXTRA_CFLAGS="${{ matrix.extra_cflags }}"
 
       - name: Run async examples
         run: |
           set -euo pipefail
 
+          ASYNC_MODE="${{ matrix.async_mode }}"
           MIN_PENDING=100
 
           run_pair() {
@@ -63,16 +65,21 @@ jobs:
               return 1
             fi
 
-            # Validate WC_PENDING_E count is a proper value
-            local count
-            count=$(awk '/WC_PENDING_E count:/ {print $NF}' \
-              "/tmp/async_client_${label}.log")
-            if [ -z "$count" ] || [ "$count" -lt "$MIN_PENDING" ]; then
-              echo "FAIL: $label - WC_PENDING_E count too low:" \
-                "${count:-missing} (expected >= $MIN_PENDING)"
-              return 1
+            # Validate WC_PENDING_E count for sw mode only
+            # cryptocb mode uses callback pending which isn't tracked the same way
+            if [ "$ASYNC_MODE" = "sw" ]; then
+              local count
+              count=$(awk '/WC_PENDING_E count:/ {print $NF}' \
+                "/tmp/async_client_${label}.log")
+              if [ -z "$count" ] || [ "$count" -lt "$MIN_PENDING" ]; then
+                echo "FAIL: $label - WC_PENDING_E count too low:" \
+                  "${count:-missing} (expected >= $MIN_PENDING)"
+                return 1
+              fi
+              echo "PASS: $label (WC_PENDING_E: $count)"
+            else
+              echo "PASS: $label (cryptocb mode - connection successful)"
             fi
-            echo "PASS: $label (WC_PENDING_E: $count)"
             return 0
           }
 

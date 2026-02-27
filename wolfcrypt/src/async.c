@@ -705,7 +705,11 @@ int wolfAsync_EventQueuePoll(WOLF_EVENT_QUEUE* queue, void* context_filter,
                             event->ret = wolfAsync_DoSw(asyncDev);
                         }
                 #elif defined(WOLF_CRYPTO_CB) || defined(HAVE_PK_CALLBACKS)
-                    /* Use crypto or PK callbacks */
+                    /* Crypto/PK callbacks manage their own retry state.
+                     * Leave event->ret as WC_PENDING_E so that
+                     * wolfSSL_AsyncPop can detect the pending state and
+                     * remove the event, allowing the operation to be
+                     * retried with a fresh callback invocation. */
 
                 #else
                     #warning No async crypt device defined!

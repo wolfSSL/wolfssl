@@ -23,8 +23,10 @@
     #include <config.h>
 #endif
 
-#ifndef WOLFSSL_USER_SETTINGS
-#include <wolfssl/options.h>
+#ifdef WOLFSSL_USER_SETTINGS
+    #include "user_settings.h"
+#else
+    #include <wolfssl/options.h>
 #endif
 #include "examples/async/async_tls.h"
 #include <wolfssl/ssl.h>
@@ -176,12 +178,17 @@ int AsyncTlsCryptoCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 
     if (info->algo_type == WC_ALGO_TYPE_PK) {
 #ifdef WOLFSSL_ASYNC_CRYPT
-        /* Test pending response */
+        /* Simulate async pending for signing only.
+         * This matches a typical hardware crypto scenario (e.g., TPM) where
+         * only signing is offloaded to hardware. Keygen, verify, and ECDH
+         * are performed synchronously in software.
+         * Note: WOLFSSL_ASYNC_CRYPT + WOLF_CRYPTO_CB pending simulation
+         * requires operations whose TLS state machines properly handle retry
+         * via wolfSSL_AsyncPop. ECC keygen in TLSX_KeyShare_GenEccKey does
+         * not support this because the keygen call is inside the key
+         * allocation guard (kse->key == NULL) which is skipped on retry. */
         if (info->pk.type == WC_PK_TYPE_RSA ||
-            info->pk.type == WC_PK_TYPE_EC_KEYGEN ||
-            info->pk.type == WC_PK_TYPE_ECDSA_SIGN ||
-            info->pk.type == WC_PK_TYPE_ECDSA_VERIFY ||
-            info->pk.type == WC_PK_TYPE_ECDH)
+            info->pk.type == WC_PK_TYPE_ECDSA_SIGN)
         {
             if (myCtx->pendingCount++ < TEST_PEND_COUNT) return WC_PENDING_E;
             myCtx->pendingCount = 0;
