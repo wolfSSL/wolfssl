@@ -2347,7 +2347,19 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
     #if defined(PSOC6_HASH_SHA2)
         wc_Psoc6_Sha_Free();
     #endif
+    #if !defined(FREESCALE_LTC_SHA) && \
+        !(defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)) && \
+        !defined(STM32_HASH_SHA2) && \
+        !defined(WOLFSSL_SILABS_SE_ACCEL) && \
+        !defined(WOLFSSL_IMXRT_DCP) && \
+        !defined(PSOC6_HASH_SHA2)
+        /* PSA compiles out the free function completely */
+        ForceZero(sha224->buffer, sizeof(sha224->buffer));
+        if (sha224->hiLen != 0 || sha224->loLen != 0)
+            ForceZero(sha224->digest, sizeof(sha224->digest));
+    #else
         ForceZero(sha224, sizeof(*sha224));
+    #endif
     }
 #endif /* !defined(WOLFSSL_HAVE_PSA) || defined(WOLFSSL_PSA_NO_HASH)  */
 #endif /*  WOLFSSL_SHA224 */
@@ -2494,7 +2506,19 @@ void wc_Sha256Free(wc_Sha256* sha256)
     wc_Psoc6_Sha_Free();
 #endif
 
+#if !defined(FREESCALE_LTC_SHA) && \
+    !(defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)) && \
+    !defined(STM32_HASH_SHA2) && \
+    !defined(WOLFSSL_SILABS_SE_ACCEL) && \
+    !defined(WOLFSSL_IMXRT_DCP) && \
+    !defined(PSOC6_HASH_SHA2)
+    /* PSA compiles out the free function completely */
+    ForceZero(sha256->buffer, sizeof(sha256->buffer));
+    if (sha256->hiLen != 0 || sha256->loLen != 0)
+        ForceZero(sha256->digest, sizeof(sha256->digest));
+#else
     ForceZero(sha256, sizeof(*sha256));
+#endif
 } /* wc_Sha256Free */
 
 #endif /* !defined(WOLFSSL_HAVE_PSA) || defined(WOLFSSL_PSA_NO_HASH) */
