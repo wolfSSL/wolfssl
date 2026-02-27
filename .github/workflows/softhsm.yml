@@ -25,7 +25,7 @@ jobs:
         uses: wolfSSL/actions-build-autotools-project@v1
         with:
           path: wolfssl
-          configure: --enable-all CFLAGS=-DRSA_MIN_SIZE=1024
+          configure: --enable-all --disable-oldnames CFLAGS=-DRSA_MIN_SIZE=1024
           install: true
           check: false
 
