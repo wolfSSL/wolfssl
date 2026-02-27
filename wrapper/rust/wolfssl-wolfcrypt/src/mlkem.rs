@@ -432,7 +432,7 @@ impl MlKem {
     /// public key and an RNG.
     ///
     /// The `ct` buffer must be exactly `cipher_text_size()` bytes.
-    /// The `ss` buffer must be exactly `shared_secret_size()` bytes.
+    /// The `ss` buffer must be exactly `SHARED_SECRET_SIZE` bytes.
     ///
     /// # Parameters
     ///
@@ -566,7 +566,7 @@ impl MlKem {
     /// Decapsulate: recover the shared secret from a cipher text using this
     /// private key.
     ///
-    /// The `ss` buffer must be exactly `shared_secret_size()` bytes.
+    /// The `ss` buffer must be exactly `SHARED_SECRET_SIZE` bytes.
     /// The `ct` length is validated against the expected cipher text size for
     /// the key type by the C library.
     ///
