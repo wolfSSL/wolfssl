@@ -101,13 +101,13 @@ static int I2OSP(int n, int w, byte* out)
 {
     int i;
 
-    if (w <= 0 || w > 32) {
+    if (w <= 0 || w > 32 || n < 0) {
         return MP_VAL;
     }
 
     /* if width is less than int max check that n is less than w bytes max */
     /* if width is greater than int max check that n is less than int max */
-    if ((w < 4 && n > ((1 << (w * 8)) - 1)) || (w >= 4 && n > 0x7fffffff)) {
+    if ((w < 4 && n > ((1 << (w * 8)) - 1))) {
         return MP_VAL;
     }
 
