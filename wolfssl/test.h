@@ -188,16 +188,47 @@
     #include <pthread.h>
     #define SOCKET_T int
 #elif defined(WOLFSSL_ZEPHYR)
-    #include <version.h>
+    #ifdef __has_include
+        #if __has_include(<zephyr/version.h>)
+            #include <zephyr/version.h>
+        #else
+            #include <version.h>
+        #endif
+    #else
+        #include <version.h>
+    #endif
     #include <string.h>
     #include <sys/types.h>
     #if KERNEL_VERSION_NUMBER >= 0x30100
         #include <zephyr/net/socket.h>
         #ifdef CONFIG_POSIX_API
-            #include <zephyr/posix/poll.h>
-            #include <zephyr/posix/netdb.h>
-            #include <zephyr/posix/sys/socket.h>
-            #include <zephyr/posix/sys/select.h>
+            #ifdef __has_include
+                #if __has_include(<zephyr/posix/poll.h>)
+                    #include <zephyr/posix/poll.h>
+                #else
+                    #include <poll.h>
+                #endif
+                #if __has_include(<zephyr/posix/netdb.h>)
+                    #include <zephyr/posix/netdb.h>
+                #else
+                    #include <netdb.h>
+                #endif
+                #if __has_include(<zephyr/posix/sys/socket.h>)
+                    #include <zephyr/posix/sys/socket.h>
+                #else
+                    #include <sys/socket.h>
+                #endif
+                #if __has_include(<zephyr/posix/sys/select.h>)
+                    #include <zephyr/posix/sys/select.h>
+                #else
+                    #include <sys/select.h>
+                #endif
+            #else
+                #include <zephyr/posix/poll.h>
+                #include <zephyr/posix/netdb.h>
+                #include <zephyr/posix/sys/socket.h>
+                #include <zephyr/posix/sys/select.h>
+            #endif
         #endif
     #else
         #include <net/socket.h>
@@ -209,9 +240,10 @@
         #endif
     #endif
     #define SOCKET_T int
-    #define SOL_SOCKET 1
     #define WOLFSSL_USE_GETADDRINFO
 
+    #if !defined(CONFIG_POSIX_API)
+    #define SOL_SOCKET 1
     static unsigned long inet_addr(const char *cp)
     {
         unsigned int a[4]; unsigned long ret;
@@ -227,6 +259,7 @@
         ret = ((a[3]<<24) + (a[2]<<16) + (a[1]<<8) + a[0]) ;
         return(ret) ;
     }
+    #endif
 #elif defined(NETOS)
     #include <string.h>
     #include <sys/types.h>

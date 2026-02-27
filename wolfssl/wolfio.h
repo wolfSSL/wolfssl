@@ -180,11 +180,27 @@
             }  /* extern "C" */
         #endif
 
-        #include <version.h>
+        #ifdef __has_include
+            #if __has_include(<zephyr/version.h>)
+                #include <zephyr/version.h>
+            #else
+                #include <version.h>
+            #endif
+        #else
+            #include <version.h>
+        #endif
         #if KERNEL_VERSION_NUMBER >= 0x30100
             #include <zephyr/net/socket.h>
             #ifdef CONFIG_POSIX_API
-                #include <zephyr/posix/sys/socket.h>
+                #ifdef __has_include
+                    #if __has_include(<zephyr/posix/sys/socket.h>)
+                        #include <zephyr/posix/sys/socket.h>
+                    #else
+                        #include <sys/socket.h>
+                    #endif
+                #else
+                    #include <zephyr/posix/sys/socket.h>
+                #endif
             #endif
         #else
             #include <net/socket.h>
@@ -621,6 +637,11 @@ WOLFSSL_API  int wolfIO_RecvFrom(SOCKET_T sd, WOLFSSL_BIO_ADDR *addr, char *buf,
 #elif defined(FREESCALE_MQX)
     #ifndef CloseSocket
         #define CloseSocket(s) closesocket(s)
+    #endif
+    #define StartTCP() WC_DO_NOTHING
+#elif defined(WOLFSSL_ZEPHYR) && KERNEL_VERSION_NUMBER >= 0x40100
+    #ifndef CloseSocket
+        #define CloseSocket(s) zsock_close(s)
     #endif
     #define StartTCP() WC_DO_NOTHING
 #else
