@@ -1614,6 +1614,36 @@ int test_dtls_rtx_across_epoch_change(void)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
+#if defined(WOLFSSL_HAVE_MLKEM)
+    /* When ML-KEM is used in the key share, the hello messages are fragmented
+     *into two messages */
+    int helloMsgCount = 2;
+    int groups[2] = {
+    #if defined(HAVE_CURVE25519) && defined(WOLFSSL_PQC_HYBRIDS) && \
+        !defined(WOLFSSL_NO_ML_KEM_768)
+        WOLFSSL_X25519MLKEM768,
+    #elif defined(HAVE_ECC) && defined(WOLFSSL_PQC_HYBRIDS) && \
+        !defined(WOLFSSL_NO_ML_KEM_768)
+        WOLFSSL_SECP256R1MLKEM768,
+    #elif defined(HAVE_ECC) && defined(WOLFSSL_PQC_HYBRIDS) && \
+        !defined(WOLFSSL_NO_ML_KEM_1024)
+        WOLFSSL_SECP384R1MLKEM1024,
+    #elif !defined(WOLFSSL_NO_ML_KEM_1024) && \
+                                       !defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE)
+        WOLFSSL_ML_KEM_1024,
+    #elif !defined(WOLFSSL_NO_ML_KEM_768) && \
+                                       !defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE)
+        WOLFSSL_ML_KEM_768,
+    #else
+        WOLFSSL_ML_KEM_512,
+    #endif
+        WOLFSSL_ECC_SECP256R1,
+    };
+#else
+    /* When ECC is used in the key share, the hello messages are not
+     * fragmented */
+    int helloMsgCount = 1;
+#endif
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
 
@@ -1621,6 +1651,11 @@ int test_dtls_rtx_across_epoch_change(void)
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
                     wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method),
         0);
+
+#if defined(WOLFSSL_HAVE_MLKEM)
+    ExpectIntEQ(wolfSSL_set_groups(ssl_c, groups, 2), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_groups(ssl_s, groups, 2), WOLFSSL_SUCCESS);
+#endif
 
     /* CH0 */
     wolfSSL_SetLoggingPrefix("client:");
@@ -1646,7 +1681,7 @@ int test_dtls_rtx_across_epoch_change(void)
     ExpectIntGE(test_ctx.c_msg_count, 2);
 
     /* drop everything but the SH */
-    while (test_ctx.c_msg_count > 1 && EXPECT_SUCCESS()) {
+    while (test_ctx.c_msg_count > helloMsgCount && EXPECT_SUCCESS()) {
         ExpectIntEQ(test_memio_drop_message(&test_ctx, 1, test_ctx.c_msg_count - 1), 0);
     }
 

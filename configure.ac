@@ -1701,15 +1701,22 @@ AC_ARG_WITH([liboqs],
 # Used:
 #  - SHA3, Shake128 and Shake256
 AC_ARG_ENABLE([mlkem],
-    [AS_HELP_STRING([--enable-mlkem],[Enable MLKEM (default: disabled)])],
+    [AS_HELP_STRING([--enable-mlkem],[Enable MLKEM (default: enabled)])],
     [ ENABLED_MLKEM=$enableval ],
-    [ ENABLED_MLKEM=no ]
+    [ ENABLED_MLKEM=yes ]
     )
 # note, inherits default from "mlkem" clause above.
 AC_ARG_ENABLE([kyber],
-    [AS_HELP_STRING([--enable-kyber],[Enable Kyber/MLKEM (default: disabled)])],
+    [AS_HELP_STRING([--enable-kyber],[Enable Kyber/MLKEM (default: enabled)])],
     [ ENABLED_MLKEM=$enableval ]
     )
+
+# FIPS traditionally does not support SHAKE 128 and SHAKE 256 (v6 does), so disable
+# ML-KEM if FIPS is enabled and version is less than 6
+AS_IF([test "x$ENABLED_FIPS" = "xyes" && test $HAVE_FIPS_VERSION -lt 6],[
+    AC_MSG_NOTICE([Disabling MLKEM because FIPS < 6 does not support required SHAKE])
+    ENABLED_MLKEM="no"
+])
 
 ENABLED_WC_MLKEM=no
 ENABLED_ML_KEM=unset
@@ -1738,6 +1745,9 @@ do
     ;;
   small)
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLKEM_SMALL"
+    ;;
+  no-large-code)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLKEM_NO_LARGE_CODE"
     ;;
   cache-a)
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLKEM_CACHE_A"
@@ -1834,8 +1844,61 @@ then
     fi
 fi
 
+AC_ARG_ENABLE([tls-mlkem-standalone],
+    [AS_HELP_STRING([--enable-tls-mlkem-standalone],[Enable ML-KEM as standalone TLS key exchange (non-hybrid) (default: disabled)])],
+    [ ENABLED_MLKEM_STANDALONE=$enableval ],
+    [ ENABLED_MLKEM_STANDALONE=no ]
+    )
+
+AS_IF([ test "$ENABLED_MLKEM_STANDALONE" = "yes" && test "$ENABLED_MLKEM" = "no" ],[AC_MSG_ERROR([ML-KEM as standalone TLS key exchange (non-hybrid) requires ML-KEM.])])
+if test "$ENABLED_MLKEM_STANDALONE" != "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TLS_NO_MLKEM_STANDALONE"
+fi
+
+AC_ARG_ENABLE([pqc-hybrids],
+    [AS_HELP_STRING([--enable-pqc-hybrids],[Enable PQ/T hybrid combinations (default: enabled)])],
+    [ ENABLED_PQC_HYBRIDS=$enableval ],
+    [ ENABLED_PQC_HYBRIDS=yes ]
+    )
+
+if test "$ENABLED_PQC_HYBRIDS" = "yes"
+then
+    if test "$ENABLED_MLKEM" = "no"
+    then
+        ENABLED_PQC_HYBRIDS=no
+    elif test "$ENABLED_MLKEM768" = "" && test "$ENABLED_MLKEM1024" = ""; then
+        AC_MSG_NOTICE([PQC hybrid combinations require either ML-KEM 768 or ML-KEM 1024, but both disabled.])
+        ENABLED_PQC_HYBRIDS=no
+    else
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PQC_HYBRIDS"
+    fi
+fi
+
+if test "$ENABLED_MLKEM" != "no"
+then
+    if test "$ENABLED_PQC_HYBRIDS" = "no" && test "$ENABLED_MLKEM_STANDALONE" = "no" && test "$ENABLED_CRYPTONLY" = "no"
+    then
+        AC_MSG_ERROR([Both hybrid PQ/T and standalone ML-KEM are disabled, so no PQC hybrid combinations will be available.])
+    fi
+fi
+
+# Extra PQ/T Hybrid combinations
+AC_ARG_ENABLE([extra-pqc-hybrids],
+    [AS_HELP_STRING([--enable-extra-pqc-hybrids],[Enable extra PQ/T hybrid combinations (default: disabled)])],
+    [ ENABLED_EXTRA_PQC_HYBRIDS=$enableval ],
+    [ ENABLED_EXTRA_PQC_HYBRIDS=no ]
+    )
+
+if test "$ENABLED_EXTRA_PQC_HYBRIDS" = "yes"
+then
+    AS_IF([ test "$ENABLED_EXPERIMENTAL" != "yes" ],[ AC_MSG_ERROR([extra-pqc-hybrids requires --enable-experimental.]) ])
+    AS_IF([ test "$ENABLED_MLKEM" = "no" ],[ AC_MSG_ERROR([extra-pqc-hybrids requires ML-KEM.]) ])
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_EXTRA_PQC_HYBRIDS"
+fi
+
 # Dilithium
-#  - SHA3, Shake128, Shake256 and AES-CTR
+#  - SHA3, Shake128 and Shake256
 AC_ARG_ENABLE([mldsa],
     [AS_HELP_STRING([--enable-mldsa],[Enable MLDSA (default: disabled)])],
     [ ENABLED_DILITHIUM=$enableval ],
@@ -4508,6 +4571,17 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWC_SHA3_NO_ASM"
 fi
 
+# MLKEM requires SHA-3. Force-enable SHA-3 when MLKEM is enabled.
+if test "$ENABLED_MLKEM" != "no"
+then
+    if test "$ENABLED_SHA3" = "no"
+    then
+        AC_MSG_NOTICE([MLKEM enabled (not explicitly disabled); overriding --disable-sha3 to enable SHA-3])
+        ENABLED_SHA3=yes
+        enable_sha3=yes
+    fi
+fi
+
 # SHAKE128
 AC_ARG_ENABLE([shake128],
     [AS_HELP_STRING([--enable-shake128],[Enable wolfSSL SHAKE128 support (default: disabled)])],
@@ -4515,12 +4589,34 @@ AC_ARG_ENABLE([shake128],
     [ ENABLED_SHAKE128=no ]
     )
 
+# MLKEM requires SHAKE128. Force-enable when MLKEM is enabled.
+if test "$ENABLED_MLKEM" != "no"
+then
+    if test "$ENABLED_SHAKE128" = "no"
+    then
+        AC_MSG_WARN([MLKEM enabled (not explicitly disabled); overriding --disable-shake128 to enable SHAKE128])
+        ENABLED_SHAKE128=yes
+        enable_shake128=yes
+    fi
+fi
+
 # SHAKE256
 AC_ARG_ENABLE([shake256],
     [AS_HELP_STRING([--enable-shake256],[Enable wolfSSL SHAKE256 support (default: disabled)])],
     [ ENABLED_SHAKE256=$enableval ],
     [ ENABLED_SHAKE256=no ]
     )
+
+# MLKEM requires SHAKE256. Force-enable when MLKEM is enabled.
+if test "$ENABLED_MLKEM" != "no"
+then
+    if test "$ENABLED_SHAKE256" = "no"
+    then
+        AC_MSG_WARN([MLKEM enabled (not explicitly disabled); overriding --disable-shake256 to enable SHAKE256])
+        ENABLED_SHAKE256=yes
+        enable_shake256=yes
+    fi
+fi
 
 # SHA512
 AC_ARG_ENABLE([sha512],
@@ -5705,6 +5801,15 @@ then
   then
     AC_MSG_ERROR([You need to enable DTLSv1.3 to use DTLS ClientHello fragmenting])
   fi
+  AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DTLS_CH_FRAG"
+fi
+
+# When MLKEM and DTLS 1.3 are both enabled, DTLS ClientHello fragmenting is
+# required (PQC keys in ClientHello can exceed MTU), so enable it automatically.
+if test "x$ENABLED_MLKEM" != "xno" && test "x$ENABLED_DTLS13" = "xyes" && test "x$ENABLED_DTLS_CH_FRAG" != "xyes"
+then
+  AC_MSG_NOTICE([MLKEM and DTLS 1.3 are enabled; enabling DTLS ClientHello fragmenting])
+  ENABLED_DTLS_CH_FRAG=yes
   AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DTLS_CH_FRAG"
 fi
 
@@ -11920,6 +12025,9 @@ echo "   * ERR Queues per Thread:      $ENABLED_ERRORQUEUEPERTHREAD"
 echo "   * rwlock:                     $ENABLED_RWLOCK"
 echo "   * keylog export:              $ENABLED_KEYLOG_EXPORT"
 echo "   * AutoSAR :                   $ENABLED_AUTOSAR"
+echo "   * ML-KEM  standalone:         $ENABLED_MLKEM_STANDALONE"
+echo "   * PQ/T hybrids:               $ENABLED_PQC_HYBRIDS"
+echo "   * Extra PQ/T hybrids:         $ENABLED_EXTRA_PQC_HYBRIDS"
 echo ""
 echo "---"
 

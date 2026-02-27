@@ -1742,7 +1742,7 @@ enum Misc {
     ECDHE_SIZE          = 32,  /* ECDHE server size defaults to 256 bit */
 #endif
     MAX_EXPORT_ECC_SZ   = 256, /* Export ANSI X9.62 max future size */
-    MAX_CURVE_NAME_SZ   = 18,  /* Maximum size of curve name string */
+    MAX_CURVE_NAME_SZ   = 20,  /* Maximum size of curve name string */
 
     NEW_SA_MAJOR        = 8,   /* Most significant byte used with new sig algos */
     RSA_PSS_RSAE_SHA256_MINOR = 0x04,
@@ -3412,6 +3412,7 @@ WOLFSSL_LOCAL int TLSX_UseSupportedCurve(TLSX** extensions, word16 name,
 
 WOLFSSL_LOCAL int TLSX_UsePointFormat(TLSX** extensions, byte point,
                                                                     void* heap);
+WOLFSSL_LOCAL int TLSX_IsGroupSupported(int namedGroup);
 
 #ifndef NO_WOLFSSL_SERVER
 WOLFSSL_LOCAL int TLSX_ValidateSupportedCurves(const WOLFSSL* ssl, byte first,
@@ -3662,6 +3663,8 @@ WOLFSSL_LOCAL int TLSX_KeyShare_Parse(WOLFSSL* ssl, const byte* input,
         word16 length, byte msgType);
 WOLFSSL_LOCAL int TLSX_KeyShare_Parse_ClientHello(const WOLFSSL* ssl,
         const byte* input, word16 length, TLSX** extensions);
+WOLFSSL_LOCAL int TLSX_KeyShare_HandlePqcHybridKeyServer(WOLFSSL* ssl,
+        KeyShareEntry* keyShareEntry, byte* data, word16 len);
 #ifdef WOLFSSL_DUAL_ALG_CERTS
 WOLFSSL_LOCAL int TLSX_CKS_Parse(WOLFSSL* ssl, byte* input,
                                  word16 length, TLSX** extensions);
