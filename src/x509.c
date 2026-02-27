@@ -9571,16 +9571,16 @@ const WOLFSSL_ASN1_INTEGER* wolfSSL_X509_REVOKED_get0_serial_number(const
         return NULL;
 }
 
-#ifndef NO_WOLFSSL_STUB
 const WOLFSSL_ASN1_TIME* wolfSSL_X509_REVOKED_get0_revocation_date(const
                                                       WOLFSSL_X509_REVOKED *rev)
 {
-    WOLFSSL_STUB("wolfSSL_X509_REVOKED_get0_revocation_date");
+    WOLFSSL_ENTER("wolfSSL_X509_REVOKED_get0_revocation_date");
 
-    (void) rev;
+    if (rev != NULL) {
+        return rev->revocationDate;
+    }
     return NULL;
 }
-#endif
 
 
 #ifndef NO_BIO
@@ -10760,34 +10760,192 @@ WOLFSSL_ASN1_TIME* wolfSSL_X509_gmtime_adj(WOLFSSL_ASN1_TIME *s, long adj)
 }
 #endif
 
-#ifndef NO_WOLFSSL_STUB
-int wolfSSL_sk_X509_REVOKED_num(WOLFSSL_X509_REVOKED* revoked)
+int wolfSSL_sk_X509_REVOKED_num(WOLFSSL_STACK* sk)
 {
-    (void)revoked;
-    WOLFSSL_STUB("sk_X509_REVOKED_num");
+    WOLFSSL_ENTER("wolfSSL_sk_X509_REVOKED_num");
+    if (sk != NULL) {
+        return (int)sk->num;
+    }
     return 0;
 }
-#endif
 
-#ifndef NO_WOLFSSL_STUB
-WOLFSSL_X509_REVOKED* wolfSSL_X509_CRL_get_REVOKED(WOLFSSL_X509_CRL* crl)
+/* Free a WOLFSSL_X509_REVOKED and all its owned memory. */
+void wolfSSL_X509_REVOKED_free(WOLFSSL_X509_REVOKED* rev)
 {
-    (void)crl;
-    WOLFSSL_STUB("X509_CRL_get_REVOKED");
+    if (rev == NULL) {
+        return;
+    }
+
+    wolfSSL_ASN1_INTEGER_free(rev->serialNumber);
+    wolfSSL_ASN1_TIME_free(rev->revocationDate);
+
+    if (rev->extensions != NULL) {
+        wolfSSL_sk_pop_free(rev->extensions, NULL);
+    }
+    if (rev->issuer != NULL) {
+        wolfSSL_sk_pop_free(rev->issuer, NULL);
+    }
+
+    XFREE(rev, NULL, DYNAMIC_TYPE_OPENSSL);
+}
+
+#ifdef HAVE_CRL
+/* Build a WOLFSSL_X509_REVOKED from an internal RevokedCert.
+ * Caller takes ownership of the returned object. */
+static WOLFSSL_X509_REVOKED* RevokedCertToRevoked(RevokedCert* rc, int seq)
+{
+    WOLFSSL_X509_REVOKED* rev;
+    WOLFSSL_ASN1_INTEGER* serial;
+
+    if (rc == NULL) {
+        return NULL;
+    }
+
+    rev = (WOLFSSL_X509_REVOKED*)XMALLOC(sizeof(WOLFSSL_X509_REVOKED), NULL,
+                                          DYNAMIC_TYPE_OPENSSL);
+    if (rev == NULL) {
+        return NULL;
+    }
+    XMEMSET(rev, 0, sizeof(WOLFSSL_X509_REVOKED));
+
+    /* Serial number */
+    serial = wolfSSL_ASN1_INTEGER_new();
+    if (serial == NULL) {
+        XFREE(rev, NULL, DYNAMIC_TYPE_OPENSSL);
+        return NULL;
+    }
+    if (rc->serialSz > 0 && rc->serialSz <= EXTERNAL_SERIAL_SIZE) {
+        serial->data = (unsigned char*)XMALLOC((size_t)rc->serialSz, NULL,
+                                               DYNAMIC_TYPE_OPENSSL);
+        if (serial->data == NULL) {
+            wolfSSL_ASN1_INTEGER_free(serial);
+            XFREE(rev, NULL, DYNAMIC_TYPE_OPENSSL);
+            return NULL;
+        }
+        XMEMCPY(serial->data, rc->serialNumber, (size_t)rc->serialSz);
+        serial->length = rc->serialSz;
+        serial->dataMax = rc->serialSz;
+        serial->isDynamic = 1;
+    }
+    rev->serialNumber = serial;
+
+    /* Revocation date */
+    {
+        WOLFSSL_ASN1_TIME* revDate = wolfSSL_ASN1_TIME_new();
+        if (revDate != NULL) {
+            int dateLen = 0;
+            /* Determine date length from the format byte */
+            if (rc->revDateFormat == ASN_UTC_TIME ||
+                    rc->revDateFormat == ASN_GENERALIZED_TIME) {
+                /* Find actual length: dates are null-terminated strings in
+                 * revDate buffer up to MAX_DATE_SIZE */
+                while (dateLen < MAX_DATE_SIZE && rc->revDate[dateLen] != 0)
+                    dateLen++;
+            }
+            if (dateLen > 0 && dateLen < MAX_DATE_SIZE) {
+                XMEMCPY(revDate->data, rc->revDate, (size_t)dateLen);
+                revDate->length = dateLen;
+                revDate->type = rc->revDateFormat;
+            }
+        }
+        rev->revocationDate = revDate;
+    }
+
+    /* Reason code */
+    rev->reason = rc->reasonCode;
+
+    /* Sequence (load order) */
+    rev->sequence = seq;
+
+    /* issuer: left as NULL (indirect CRL not yet supported) */
+    /* extensions: left as NULL for now (raw DER available in RevokedCert
+     * but decoded STACK_OF(X509_EXTENSION) build not yet implemented) */
+
+    return rev;
+}
+#endif /* HAVE_CRL */
+
+WOLFSSL_STACK* wolfSSL_X509_CRL_get_REVOKED(WOLFSSL_X509_CRL* crl)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_CRL_get_REVOKED");
+
+    if (crl == NULL) {
+        return NULL;
+    }
+
+#if defined(OPENSSL_EXTRA) && defined(HAVE_CRL)
+    /* Return cached stack if already built */
+    if (crl->revokedStack != NULL) {
+        return crl->revokedStack;
+    }
+
+    /* Build the stack from the internal RevokedCert linked list */
+    if (crl->crlList != NULL) {
+        WOLFSSL_STACK* sk;
+        RevokedCert* rc;
+        int seq = 0;
+
+        sk = wolfSSL_sk_new_null();
+        if (sk == NULL) {
+            return NULL;
+        }
+        sk->type = STACK_TYPE_X509_REVOKED;
+
+        for (rc = crl->crlList->certs; rc != NULL; rc = rc->next) {
+            WOLFSSL_X509_REVOKED* rev = RevokedCertToRevoked(rc, seq);
+            if (rev == NULL) {
+                /* Clean up on failure */
+                wolfSSL_sk_pop_free(sk, NULL);
+                return NULL;
+            }
+            /* Push to stack. wolfSSL_sk_push returns total count on success. */
+            if (wolfSSL_sk_push(sk, rev) <= 0) {
+                wolfSSL_X509_REVOKED_free(rev);
+                wolfSSL_sk_pop_free(sk, NULL);
+                return NULL;
+            }
+            seq++;
+        }
+
+        crl->revokedStack = sk;
+        return sk;
+    }
+#endif /* OPENSSL_EXTRA && HAVE_CRL */
+
     return NULL;
 }
-#endif
 
-#ifndef NO_WOLFSSL_STUB
 WOLFSSL_X509_REVOKED* wolfSSL_sk_X509_REVOKED_value(
-                                    WOLFSSL_X509_REVOKED* revoked, int value)
+                                    WOLFSSL_STACK* sk, int idx)
 {
-    (void)revoked;
-    (void)value;
-    WOLFSSL_STUB("sk_X509_REVOKED_value");
+    WOLFSSL_ENTER("wolfSSL_sk_X509_REVOKED_value");
+
+    if (sk == NULL) {
+        return NULL;
+    }
+
+    return (WOLFSSL_X509_REVOKED*)wolfSSL_sk_value(sk, idx);
+}
+
+/* Extension accessors for WOLFSSL_X509_REVOKED */
+int wolfSSL_X509_REVOKED_get_ext_count(const WOLFSSL_X509_REVOKED* rev)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_REVOKED_get_ext_count");
+    if (rev != NULL && rev->extensions != NULL) {
+        return (int)rev->extensions->num;
+    }
+    return 0;
+}
+
+WOLFSSL_X509_EXTENSION* wolfSSL_X509_REVOKED_get_ext(
+                                     const WOLFSSL_X509_REVOKED* rev, int loc)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_REVOKED_get_ext");
+    if (rev != NULL && rev->extensions != NULL) {
+        return (WOLFSSL_X509_EXTENSION*)wolfSSL_sk_value(rev->extensions, loc);
+    }
     return NULL;
 }
-#endif
 
 #endif /* OPENSSL_EXTRA */
 
