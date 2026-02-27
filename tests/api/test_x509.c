@@ -152,6 +152,47 @@ int test_x509_rfc2818_verification_callback(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_X509_STORE_load_multiple_certs(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_WOLFSSL_DIR) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_SIGNER_DER_CERT)
+    X509_STORE *store = NULL;
+    STACK_OF(X509_OBJECT) *objs = NULL;
+    const char multi_cert_file[] = "./certs/intermediate/server-chain.pem";
+    int cert_count = 0;
+    int i;
+
+    /* The server-chain.pem file contains 3 certificates, ensure they
+     * all load into the store correctly */
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectIntEQ(X509_STORE_load_locations(store, multi_cert_file, NULL),
+        WOLFSSL_SUCCESS);
+
+    /* Count X509 certificate objects in store and verify subject names */
+    ExpectNotNull(objs = X509_STORE_get0_objects(store));
+    for (i = 0; i < sk_X509_OBJECT_num(objs) && EXPECT_SUCCESS(); i++) {
+        X509_OBJECT *obj = (X509_OBJECT*)sk_X509_OBJECT_value(objs, i);
+        if (obj && X509_OBJECT_get_type(obj) == X509_LU_X509) {
+            WOLFSSL_X509* cert = X509_OBJECT_get0_X509(obj);
+            WOLFSSL_X509_NAME* name = X509_get_subject_name(cert);
+            char* subject = X509_NAME_oneline(name, NULL, 0);
+
+            ExpectNotNull(subject);
+            ExpectIntNE(XSTRLEN(subject), 0);
+
+            XFREE(subject, NULL, DYNAMIC_TYPE_OPENSSL);
+            cert_count++;
+        }
+    }
+
+    ExpectIntEQ(cert_count, 3);
+    X509_STORE_free(store);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Basic unit coverage for GetCAByAKID.
  *
  * These tests construct a minimal WOLFSSL_CERT_MANAGER and Signer objects in
