@@ -726,6 +726,123 @@ int test_wc_dilithium_make_key(void)
     return EXPECT_RESULT();
 }
 
+int test_wc_dilithium_pub_from_priv(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_DILITHIUM) && defined(WOLFSSL_WC_DILITHIUM) && \
+    defined(WOLFSSL_DILITHIUM_PRIVATE_KEY) && \
+    defined(WOLFSSL_DILITHIUM_PUBLIC_KEY) && \
+    !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY)
+    dilithium_key* key = NULL;
+    dilithium_key* importKey = NULL;
+    WC_RNG rng;
+    byte* privKey = NULL;
+    word32 privKeyLen = DILITHIUM_MAX_KEY_SIZE;
+    byte* pubKey = NULL;
+    word32 pubKeyLen = DILITHIUM_MAX_PUB_KEY_SIZE;
+    byte* origPub = NULL;
+#if !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY)
+    word32 origPubLen = DILITHIUM_MAX_PUB_KEY_SIZE;
+#endif
+    int ret;
+
+    key = (dilithium_key*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(key);
+    importKey = (dilithium_key*)XMALLOC(sizeof(*importKey), NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(importKey);
+    privKey = (byte*)XMALLOC(DILITHIUM_MAX_KEY_SIZE, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(privKey);
+    pubKey = (byte*)XMALLOC(DILITHIUM_MAX_PUB_KEY_SIZE, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(pubKey);
+    origPub = (byte*)XMALLOC(DILITHIUM_MAX_PUB_KEY_SIZE, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(origPub);
+
+    if (key != NULL) XMEMSET(key, 0, sizeof(*key));
+    if (importKey != NULL) XMEMSET(importKey, 0, sizeof(*importKey));
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+
+#if !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY)
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+#endif
+    ExpectIntEQ(wc_dilithium_init(key), 0);
+
+#ifndef WOLFSSL_NO_ML_DSA_44
+    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_44), 0);
+#elif !defined(WOLFSSL_NO_ML_DSA_65)
+    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_65), 0);
+#else
+    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_87), 0);
+#endif
+
+#if !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY)
+    /* Generate key then export private to simulate having only priv key */
+    ExpectIntEQ(wc_dilithium_make_key(key, &rng), 0);
+    ExpectIntEQ(wc_dilithium_export_private(key, privKey, &privKeyLen), 0);
+    /* Export original public key for later comparison. */
+    origPubLen = DILITHIUM_MAX_PUB_KEY_SIZE;
+    ExpectIntEQ(wc_dilithium_export_public(key, origPub, &origPubLen), 0);
+    ExpectIntGT(origPubLen, 0);
+#else
+    /* Use built-in bench private keys when make_key not available */
+#ifndef WOLFSSL_NO_ML_DSA_44
+    XMEMCPY(privKey, bench_dilithium_level2_key, sizeof_bench_dilithium_level2_key);
+    privKeyLen = sizeof_bench_dilithium_level2_key;
+#elif !defined(WOLFSSL_NO_ML_DSA_65)
+    XMEMCPY(privKey, bench_dilithium_level3_key, sizeof_bench_dilithium_level3_key);
+    privKeyLen = sizeof_bench_dilithium_level3_key;
+#else
+    XMEMCPY(privKey, bench_dilithium_level5_key, sizeof_bench_dilithium_level5_key);
+    privKeyLen = sizeof_bench_dilithium_level5_key;
+#endif
+#endif
+
+    ExpectIntEQ(wc_dilithium_init(importKey), 0);
+    /* Ensure importKey has the same security level set as key so import
+     * functions that validate level do not fail. */
+#ifndef WOLFSSL_NO_ML_DSA_44
+    ExpectIntEQ(wc_dilithium_set_level(importKey, WC_ML_DSA_44), 0);
+#elif !defined(WOLFSSL_NO_ML_DSA_65)
+    ExpectIntEQ(wc_dilithium_set_level(importKey, WC_ML_DSA_65), 0);
+#else
+    ExpectIntEQ(wc_dilithium_set_level(importKey, WC_ML_DSA_87), 0);
+#endif
+    ExpectIntEQ(wc_dilithium_import_private(privKey, privKeyLen, importKey), 0);
+
+    /* At this point importKey should only have private key; derive public */
+    ret = wc_dilithium_pub_from_priv(importKey);
+    ExpectIntEQ(ret, 0);
+
+    pubKeyLen = DILITHIUM_MAX_PUB_KEY_SIZE;
+    ExpectIntEQ(wc_dilithium_export_public(importKey, pubKey, &pubKeyLen), 0);
+    ExpectIntGT(pubKeyLen, 0);
+
+    /* If we generated the original key, compare its public key to the one
+     * derived from the imported private key. */
+#if !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY)
+    ExpectIntEQ(origPubLen, pubKeyLen);
+    ExpectIntEQ(XMEMCMP(origPub, pubKey, pubKeyLen), 0);
+#endif
+
+    wc_dilithium_free(importKey);
+    wc_dilithium_free(key);
+#if !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY)
+    wc_FreeRng(&rng);
+#endif
+
+    XFREE(pubKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(origPub, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(privKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(importKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif /* HAVE_DILITHIUM && WOLFSSL_WC_DILITHIUM && PRIVATE+PUBLIC */
+
+    return EXPECT_RESULT();
+}
+
 int test_wc_dilithium_sign(void)
 {
     EXPECT_DECLS;
