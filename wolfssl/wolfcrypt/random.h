@@ -373,17 +373,25 @@ struct WC_RNG {
             struct DRBG_internal drbg_data;
         #endif
         #ifdef WOLFSSL_SMALL_STACK_CACHE
-            /* Scratch buffers -- all preallocated by _InitRng(). */
+            /* SHA-256 scratch buffers -- preallocated by _InitRng(). */
             struct DRBG_internal *drbg_scratch;
             byte *health_check_scratch;
-            byte *newSeed_buf;
         #endif
         #endif /* !NO_SHA256 */
+        #ifdef WOLFSSL_SMALL_STACK_CACHE
+            /* Seed buffer for PollAndReSeed -- shared by both DRBG types */
+            byte *newSeed_buf;
+        #endif
         #ifdef WOLFSSL_DRBG_SHA512
             /* SHA-512 Hash-based Deterministic Random Bit Generator */
             struct DRBG_SHA512* drbg512;
         #if defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_STATIC_MEMORY)
             struct DRBG_SHA512_internal drbg512_data;
+        #endif
+        #ifdef WOLFSSL_SMALL_STACK_CACHE
+            /* SHA-512 scratch buffers -- preallocated by _InitRng(). */
+            struct DRBG_SHA512_internal *drbg512_scratch;
+            byte *health_check_scratch_512;
         #endif
         #endif /* WOLFSSL_DRBG_SHA512 */
             byte drbgType; /* WC_DRBG_SHA256 or WC_DRBG_SHA512 */

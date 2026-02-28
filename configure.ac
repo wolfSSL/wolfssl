@@ -6939,6 +6939,21 @@ then
   AM_CFLAGS="$AM_CFLAGS -DWC_SRTP_KDF -DHAVE_AES_ECB -DWOLFSSL_AES_DIRECT"
 fi
 
+# ML-KEM and Dilithium require SHA-3 and SHAKE — force them on before flag
+# processing so that the correct -D flags are emitted.
+if test "$ENABLED_MLKEM" != "no" && test "$ENABLED_LIBOQS" = "no"
+then
+    ENABLED_SHA3=yes
+    ENABLED_SHAKE128=yes
+    ENABLED_SHAKE256=yes
+fi
+if test "$ENABLED_DILITHIUM" != "no" && test "$ENABLED_LIBOQS" = "no"
+then
+    ENABLED_SHA3=yes
+    ENABLED_SHAKE128=yes
+    ENABLED_SHAKE256=yes
+fi
+
 # Set SHA-3 flags
 if test "$ENABLED_SHA3" != "no"
 then
