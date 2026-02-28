@@ -865,6 +865,11 @@ int wc_HpkeContextSealBase(Hpke* hpke, HpkeBaseContext* context,
         plaintext == NULL || out == NULL) {
         return BAD_FUNC_ARG;
     }
+
+    /* RFC 9180 requires error on sequence overflow. */
+    if (context->seq == WC_MAX_SINT_OF(int))
+        return SEQ_OVERFLOW_E;
+
     WC_ALLOC_VAR_EX(aes, Aes, 1, hpke->heap, DYNAMIC_TYPE_AES,
         return MEMORY_E);
     ret = wc_AesInit(aes, hpke->heap, INVALID_DEVID);
@@ -1097,6 +1102,11 @@ int wc_HpkeContextOpenBase(Hpke* hpke, HpkeBaseContext* context, byte* aad,
     if (hpke == NULL) {
         return BAD_FUNC_ARG;
     }
+
+    /* RFC 9180 requires error on sequence overflow. */
+    if (context->seq == WC_MAX_SINT_OF(int))
+        return SEQ_OVERFLOW_E;
+
     XMEMSET(nonce, 0, sizeof(nonce));
     WC_ALLOC_VAR_EX(aes, Aes, 1, hpke->heap, DYNAMIC_TYPE_AES,
         return MEMORY_E);
