@@ -28593,6 +28593,7 @@ static int ParseCipherList(Suites* suites,
                 haveRSA, 1, 1, !haveRSA, 1, haveRSA, !haveRSA, 0, 0, 1,
                 1, 1, side
         );
+        suites->setSuites = 1;
         return 1; /* wolfSSL default */
     }
 
