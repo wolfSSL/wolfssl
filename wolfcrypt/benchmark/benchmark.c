@@ -4894,7 +4894,7 @@ void bench_rng(void)
     /* Force SHA-256 DRBG by temporarily disabling SHA-512 DRBG */
 #if defined(WOLFSSL_DRBG_SHA512) && !defined(HAVE_SELFTEST) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
-  #if defined(WOLFSSL_DRBG_SHA256)
+  #if !defined(NO_SHA256)
     ret = wc_Sha512Drbg_Disable();
     if (ret != 0) {
         printf("wc_Sha512Drbg_Disable failed %d\n", ret);

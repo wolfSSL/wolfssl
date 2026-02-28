@@ -62970,7 +62970,7 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             len = (word32)sizeof(seed);
             if (info->seed.sz < len)
                 len = info->seed.sz;
-            XMEMCPY(info->seed.seed, seed, sizeof(seed));
+            XMEMCPY(info->seed.seed, seed, len);
             info->seed.seed += len;
             info->seed.sz -= len;
             (*seedWord32)++;
