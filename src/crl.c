@@ -42,6 +42,9 @@ CRL Options:
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/ecc.h>
 #include <wolfssl/wolfcrypt/rsa.h>
+#if defined(OPENSSL_EXTRA)
+#include <wolfssl/openssl/x509v3.h>
+#endif
 
 #ifndef NO_STRING_H
     #include <string.h>
@@ -92,6 +95,9 @@ int InitCRL(WOLFSSL_CRL* crl, WOLFSSL_CERT_MANAGER* cm)
         wolfSSL_RefInit(&crl->ref, &ret);
         (void)ret;
     }
+#endif
+#if defined(OPENSSL_EXTRA)
+    crl->revokedStack = NULL;
 #endif
 
     return 0;
@@ -250,6 +256,14 @@ static void CRL_Entry_free(CRL_Entry* crle, void* heap)
         return;
     }
 #ifdef CRL_STATIC_REVOKED_LIST
+#if defined(OPENSSL_EXTRA)
+    {
+        int i;
+        for (i = 0; i < CRL_MAX_REVOKED_CERTS; i++) {
+            XFREE(crle->certs[i].extensions, heap, DYNAMIC_TYPE_REVOKED);
+        }
+    }
+#endif
     XMEMSET(crle->certs, 0, CRL_MAX_REVOKED_CERTS*sizeof(RevokedCert));
 #else
     {
@@ -258,6 +272,9 @@ static void CRL_Entry_free(CRL_Entry* crle, void* heap)
 
         for (tmp = crle->certs; tmp != NULL; tmp = next) {
             next = tmp->next;
+#if defined(OPENSSL_EXTRA)
+            XFREE(tmp->extensions, heap, DYNAMIC_TYPE_REVOKED);
+#endif
             XFREE(tmp, heap, DYNAMIC_TYPE_REVOKED);
         }
 
@@ -312,6 +329,12 @@ void FreeCRL(WOLFSSL_CRL* crl, int dynamic)
         XFREE(crl->monitors[1].path, crl->heap, DYNAMIC_TYPE_CRL_MONITOR);
 #endif
 
+#if defined(OPENSSL_EXTRA)
+    if (crl->revokedStack != NULL) {
+        wolfSSL_sk_pop_free(crl->revokedStack, NULL);
+        crl->revokedStack = NULL;
+    }
+#endif
     XFREE(crl->currentEntry, crl->heap, DYNAMIC_TYPE_CRL_ENTRY);
     crl->currentEntry = NULL;
     while(tmp) {
@@ -1231,6 +1254,20 @@ static RevokedCert *DupRevokedCertList(RevokedCert* in, void* heap)
             XMEMCPY(tmp->revDate, current->revDate,
                     MAX_DATE_SIZE);
             tmp->revDateFormat = current->revDateFormat;
+            tmp->reasonCode = current->reasonCode;
+#if defined(OPENSSL_EXTRA)
+            tmp->extensions = NULL;
+            tmp->extensionsSz = 0;
+            if (current->extensions != NULL && current->extensionsSz > 0) {
+                tmp->extensions = (byte*)XMALLOC(current->extensionsSz, heap,
+                                                 DYNAMIC_TYPE_REVOKED);
+                if (tmp->extensions != NULL) {
+                    XMEMCPY(tmp->extensions, current->extensions,
+                            current->extensionsSz);
+                    tmp->extensionsSz = current->extensionsSz;
+                }
+            }
+#endif
             tmp->next = NULL;
             if (prev != NULL)
                 prev->next = tmp;
@@ -1244,6 +1281,9 @@ static RevokedCert *DupRevokedCertList(RevokedCert* in, void* heap)
             while (head != NULL) {
                 current = head;
                 head = head->next;
+#if defined(OPENSSL_EXTRA)
+                XFREE(current->extensions, heap, DYNAMIC_TYPE_REVOKED);
+#endif
                 XFREE(current, heap, DYNAMIC_TYPE_REVOKED);
             }
             return NULL;
@@ -2360,10 +2400,8 @@ WOLFSSL_X509_CRL* wolfSSL_X509_CRL_new(void)
 #ifdef WOLFSSL_CERT_GEN
 /* Add a revoked certificate entry to CRL.
  * crl: target CRL
- * rev: serial number of revoked certificate
+ * rev: revoked certificate entry (serial, date, reason, etc.)
  * Returns WOLFSSL_SUCCESS on success.
- * TODO: support other fields for OpenSSL compatibility: revocationDate,
- * extensions, issuer, etc.
  */
 int wolfSSL_X509_CRL_add_revoked(WOLFSSL_X509_CRL* crl,
                                  WOLFSSL_X509_REVOKED* rev)
@@ -2371,7 +2409,6 @@ int wolfSSL_X509_CRL_add_revoked(WOLFSSL_X509_CRL* crl,
     CRL_Entry* entry;
     RevokedCert* rc;
     RevokedCert* curr;
-    WOLFSSL_ASN1_TIME revDate;
 
     WOLFSSL_ENTER("wolfSSL_X509_CRL_add_revoked");
 
@@ -2379,16 +2416,14 @@ int wolfSSL_X509_CRL_add_revoked(WOLFSSL_X509_CRL* crl,
         return BAD_FUNC_ARG;
     }
 
-    entry = crl->crlList;
-    if (entry == NULL) {
+    if (rev->revocationDate != NULL && (rev->revocationDate->length <= 0 ||
+        (unsigned)rev->revocationDate->length > sizeof(rc->revDate))) {
         return BAD_FUNC_ARG;
     }
 
-    /* Set the revocation date to the current time */
-    XMEMSET(&revDate, 0, sizeof(revDate));
-    if (wolfSSL_ASN1_TIME_adj(&revDate, XTIME(NULL), 0, 0) == NULL) {
-        WOLFSSL_MSG("Failed to get current time");
-        return BAD_STATE_E;
+    entry = crl->crlList;
+    if (entry == NULL) {
+        return BAD_FUNC_ARG;
     }
 
     {
@@ -2427,8 +2462,25 @@ int wolfSSL_X509_CRL_add_revoked(WOLFSSL_X509_CRL* crl,
         rc->serialSz = serialSz;
     }
 
-    XMEMCPY(rc->revDate, revDate.data, revDate.length);
-    rc->revDateFormat = (byte)revDate.type;
+    /* Use caller-provided revocation date, or fall back to current time */
+    if (rev->revocationDate != NULL && rev->revocationDate->length > 0) {
+        XMEMCPY(rc->revDate, rev->revocationDate->data,
+                 (size_t)rev->revocationDate->length);
+        rc->revDateFormat = (byte)rev->revocationDate->type;
+    }
+    else {
+        WOLFSSL_ASN1_TIME revDate;
+        XMEMSET(&revDate, 0, sizeof(revDate));
+        if (wolfSSL_ASN1_TIME_adj(&revDate, XTIME(NULL), 0, 0) == NULL) {
+            WOLFSSL_MSG("Failed to get current time");
+            XFREE(rc, crl->heap, DYNAMIC_TYPE_REVOKED);
+            return BAD_STATE_E;
+        }
+        XMEMCPY(rc->revDate, revDate.data, revDate.length);
+        rc->revDateFormat = (byte)revDate.type;
+    }
+
+    rc->reasonCode = rev->reason;
     rc->next = NULL;
 
     /* Add to end of list */
@@ -2441,6 +2493,12 @@ int wolfSSL_X509_CRL_add_revoked(WOLFSSL_X509_CRL* crl,
         curr->next = rc;
     }
     entry->totalCerts++;
+
+    /* Invalidate cached STACK_OF(X509_REVOKED) since list changed */
+    if (crl->revokedStack != NULL) {
+        wolfSSL_sk_pop_free(crl->revokedStack, NULL);
+        crl->revokedStack = NULL;
+    }
 
     WOLFSSL_LEAVE("wolfSSL_X509_CRL_add_revoked", WOLFSSL_SUCCESS);
     return WOLFSSL_SUCCESS;
@@ -2513,7 +2571,9 @@ int wolfSSL_X509_CRL_add_revoked_cert(WOLFSSL_X509_CRL* crl,
     XMEMCPY(serialInt->data, cert->serial, cert->serialSz);
     serialInt->length = cert->serialSz;
 
+    XMEMSET(&revoked, 0, sizeof(revoked));
     revoked.serialNumber = serialInt;
+    revoked.reason = CRL_REASON_NONE;
 
     /* Add the revoked certificate entry */
     ret = wolfSSL_X509_CRL_add_revoked(crl, &revoked);

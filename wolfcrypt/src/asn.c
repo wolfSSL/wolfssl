@@ -2760,7 +2760,7 @@ static int SetASNNull(byte* output)
 #endif
 
 #ifndef NO_CERTS
-#ifndef WOLFSSL_ASN_TEMPLATE
+#if !defined(WOLFSSL_ASN_TEMPLATE) || defined(HAVE_CRL)
 /* Get the DER/BER encoding of an ASN.1 BOOLEAN.
  *
  * input     Buffer holding DER/BER encoded data.
@@ -2770,7 +2770,7 @@ static int SetASNNull(byte* output)
  *         ASN_PARSE_E when the BOOLEAN tag is not found or length is not 1.
  *         Otherwise, 0 to indicate the value was false and 1 to indicate true.
  */
-static int GetBoolean(const byte* input, word32* inOutIdx, word32 maxIdx)
+WC_MAYBE_UNUSED static int GetBoolean(const byte* input, word32* inOutIdx, word32 maxIdx)
 {
     word32 idx = *inOutIdx;
     byte   b;
@@ -2790,7 +2790,7 @@ static int GetBoolean(const byte* input, word32* inOutIdx, word32 maxIdx)
     *inOutIdx = idx;
     return b;
 }
-#endif
+#endif /* !WOLFSSL_ASN_TEMPLATE || HAVE_CRL */
 #endif /* !NO_CERTS*/
 
 
@@ -41047,6 +41047,77 @@ enum {
 #define revokedASN_Length (sizeof(revokedASN) / sizeof(ASNItem))
 #endif
 
+/* CRL Reason Code OID: 2.5.29.21 */
+static const byte crlReasonOid[] = { 0x55, 0x1d, 0x15 };
+
+/* Parse CRL entry extensions to extract the reason code.
+ * Sets *reasonCode if found, otherwise leaves it unchanged. */
+static void ParseCRL_ReasonCode(const byte* buff, word32 idx, word32 maxIdx,
+                                int* reasonCode)
+{
+    while (idx < maxIdx) {
+        int len;
+        word32 end;
+        word32 localIdx;
+        byte tag;
+
+        /* Each extension is a SEQUENCE */
+        if (GetSequence(buff, &idx, &len, maxIdx) < 0) {
+            break;
+        }
+        end = idx + (word32)len;
+
+        /* Check for CRL Reason OID: 2.5.29.21 */
+        if (end - idx >= (word32)(2 + sizeof(crlReasonOid)) &&
+                buff[idx] == ASN_OBJECT_ID &&
+                buff[idx + 1] == sizeof(crlReasonOid) &&
+                XMEMCMP(buff + idx + 2, crlReasonOid,
+                        sizeof(crlReasonOid)) == 0) {
+            /* Skip past the OID */
+            idx += 2 + (word32)sizeof(crlReasonOid);
+            /* Skip optional critical BOOLEAN */
+            localIdx = idx;
+            if (GetASNTag(buff, &localIdx, &tag, end) == 0 &&
+                    tag == ASN_BOOLEAN) {
+                /* Consume full BOOLEAN TLV (tag + length + value). */
+                if (GetBoolean(buff, &idx, end) < 0) {
+                    break;
+                }
+            }
+            /* Get OCTET STRING wrapping the ENUMERATED */
+            if (GetOctetString(buff, &idx, &len, end) >= 0) {
+                /* Parse ENUMERATED reason value */
+                localIdx = idx;
+                if (GetASNTag(buff, &localIdx, &tag, end) == 0 &&
+                        tag == ASN_ENUMERATED) {
+                    int reasonLen;
+                    idx = localIdx;
+                    if (GetLength(buff, &idx, &reasonLen, end) >= 0 &&
+                            reasonLen == 1) {
+                        *reasonCode = (int)buff[idx];
+                    }
+                }
+            }
+        }
+        idx = end;
+    }
+}
+
+#ifdef HAVE_CRL
+/* Test-visible helper: parse reasonCode from encoded Extension list bytes. */
+WOLFSSL_TEST_VIS int wc_ParseCRLReasonFromExtensions(const byte* ext,
+                                                     word32 extSz,
+                                                     int* reasonCode)
+{
+    if (ext == NULL || reasonCode == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    ParseCRL_ReasonCode(ext, 0, extSz, reasonCode);
+    return 0;
+}
+#endif
+
 /* Get Revoked Cert list, 0 on success */
 static int GetRevoked(RevokedCert* rcert, const byte* buff, word32* idx,
                       DecodedCRL* dcrl, word32 maxIdx)
@@ -41087,6 +41158,7 @@ static int GetRevoked(RevokedCert* rcert, const byte* buff, word32* idx,
         WOLFSSL_MSG("Alloc Revoked Cert failed");
         return MEMORY_E;
     }
+    XMEMSET(rc, 0, sizeof(RevokedCert));
     ret = wc_GetSerialNumber(buff, idx, rc->serialNumber, &rc->serialSz,maxIdx);
     if (ret < 0) {
         WOLFSSL_MSG("wc_GetSerialNumber error");
@@ -41108,7 +41180,41 @@ static int GetRevoked(RevokedCert* rcert, const byte* buff, word32* idx,
         return ret;
     }
 #endif
-    /* skip extensions */
+    /* Initialize reason code to absent */
+    rc->reasonCode = -1;
+
+    /* Parse CRL entry extensions if present */
+    if (*idx < end) {
+        word32 extIdx = *idx;
+        int extLen;
+        byte tag;
+
+        /* Check for SEQUENCE tag (extensions wrapper) */
+        if (GetASNTag(buff, &extIdx, &tag, end) == 0 &&
+                tag == (ASN_SEQUENCE | ASN_CONSTRUCTED)) {
+            word32 seqIdx = extIdx - 1;  /* back up to re-read tag */
+            if (GetSequence(buff, &seqIdx, &extLen, end) >= 0) {
+                word32 extEnd = seqIdx + (word32)extLen;
+
+#if defined(OPENSSL_EXTRA)
+                /* Store raw DER of extensions for OpenSSL compat API */
+                {
+                    word32 rawStart = *idx;
+                    word32 rawLen = end - rawStart;
+                    rc->extensions = (byte*)XMALLOC(rawLen, dcrl->heap,
+                                                    DYNAMIC_TYPE_REVOKED);
+                    if (rc->extensions != NULL) {
+                        XMEMCPY(rc->extensions, buff + rawStart, rawLen);
+                        rc->extensionsSz = rawLen;
+                    }
+                }
+#endif
+
+                ParseCRL_ReasonCode(buff, seqIdx, extEnd, &rc->reasonCode);
+            }
+        }
+    }
+
     *idx = end;
 
     return 0;
@@ -41134,6 +41240,9 @@ static int GetRevoked(RevokedCert* rcert, const byte* buff, word32* idx,
     if (rc == NULL) {
         ret = MEMORY_E;
     }
+    if (ret == 0) {
+        XMEMSET(rc, 0, sizeof(RevokedCert));
+    }
 #endif /* CRL_STATIC_REVOKED_LIST */
 
     CALLOC_ASNGETDATA(dataASN, revokedASN_Length, ret, dcrl->heap);
@@ -41158,7 +41267,39 @@ static int GetRevoked(RevokedCert* rcert, const byte* buff, word32* idx,
                 ? dataASN[REVOKEDASN_IDX_TIME_UTC].tag
                 : dataASN[REVOKEDASN_IDX_TIME_GT].tag;
 
-        /* TODO: use extensions, only v2 */
+        /* Initialize reason code to absent */
+        rc->reasonCode = -1;
+
+        /* Parse CRL entry extensions (v2 only) */
+        if (dataASN[REVOKEDASN_IDX_TIME_EXT].length > 0) {
+            word32 extOff = dataASN[REVOKEDASN_IDX_TIME_EXT].offset;
+            word32 extLen = dataASN[REVOKEDASN_IDX_TIME_EXT].length;
+            word32 extEnd = extOff + extLen;
+            word32 extIdx2 = extOff;
+
+#if defined(OPENSSL_EXTRA)
+            /* Store raw DER of extensions for OpenSSL compat API.
+             * Include the outer SEQUENCE tag+length. */
+            {
+                /* Back up to include the SEQUENCE header. We know the
+                 * content starts at extOff, so the header is just before.
+                 * Use the raw buffer start from before GetASN_Items. */
+                word32 seqHdrSz = 0;
+                /* The outer SEQUENCE header is at most 4 bytes before
+                 * content. Rather than guess, store just the content. */
+                rc->extensions = (byte*)XMALLOC(extLen, dcrl->heap,
+                                                DYNAMIC_TYPE_REVOKED);
+                if (rc->extensions != NULL) {
+                    XMEMCPY(rc->extensions, buff + extOff, extLen);
+                    rc->extensionsSz = extLen;
+                }
+                (void)seqHdrSz;
+            }
+#endif
+
+            ParseCRL_ReasonCode(buff, extIdx2, extEnd, &rc->reasonCode);
+        }
+
         /* Add revoked certificate to chain. */
 #ifndef CRL_STATIC_REVOKED_LIST
         rc->next = dcrl->certs;
@@ -41170,6 +41311,9 @@ static int GetRevoked(RevokedCert* rcert, const byte* buff, word32* idx,
     FREE_ASNGETDATA(dataASN, dcrl->heap);
 #ifndef CRL_STATIC_REVOKED_LIST
     if ((ret != 0) && (rc != NULL)) {
+#if defined(OPENSSL_EXTRA)
+        XFREE(rc->extensions, dcrl->heap, DYNAMIC_TYPE_REVOKED);
+#endif
         XFREE(rc, dcrl->heap, DYNAMIC_TYPE_CRL);
     }
     (void)rcert;
