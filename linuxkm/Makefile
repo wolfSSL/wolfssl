@@ -384,7 +384,7 @@ $(MODULE_TOP)/libwolfssl-user-build/src/.libs/libwolfssl.so: $(LIBWOLFSSL_NAME).
 	@    echo 'Using existing Makefile for libwolfssl.so.'
 	@else
 	@    echo -n 'Configuring user libwolfssl.so...'
-	@    $(FRESH_ENV) ./configure $(QFLAG) $(VFLAG) --disable-jobserver --enable-cryptonly --enable-fips="$$FIPS_FLAVOR" CFLAGS='-DWC_SYM_RELOC_TABLES_SUPPORT -DWOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE -DWOLFSSL_USER_SETTINGS -DWOLFSSL_USER_SETTINGS_ASM' '$(if $(HOSTCC),CC=$(HOSTCC))'
+	@    $(FRESH_ENV) ./configure $(QFLAG) $(VFLAG) --disable-jobserver --enable-cryptonly --enable-fips="$$FIPS_FLAVOR" CFLAGS='-DWC_SYM_RELOC_TABLES_SUPPORT -DWOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE -DWOLFSSL_USER_SETTINGS -DWOLFSSL_USER_SETTINGS_ASM' $(if $(HOSTCC),CC='$(HOSTCC)')
 	@    echo ' done.'
 	@fi
 	@echo -n 'Building user libwolfssl.so...'
