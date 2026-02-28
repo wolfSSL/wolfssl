@@ -4453,6 +4453,12 @@ AC_ARG_ENABLE([sha512-drbg],
     [ ENABLED_SHA512_DRBG=yes ]
     )
 
+# SHA-512 DRBG requires SHA-512
+if test "$ENABLED_SHA512" != "yes"
+then
+    ENABLED_SHA512_DRBG=no
+fi
+
 # SHA384
 AC_ARG_ENABLE([sha384],
     [AS_HELP_STRING([--enable-sha384],[Enable wolfSSL SHA-384 support (default: enabled)])],
@@ -6822,6 +6828,11 @@ AS_CASE([$SELFTEST_VERSION],
     ["v1"],[
         AM_CFLAGS="$AM_CFLAGS -DHAVE_SELFTEST -DHAVE_PUBLIC_FFDHE"
     ])
+
+# Selftest uses its own random.c which doesn't support SHA-512 DRBG
+# or runtime DRBG disable/enable APIs
+AS_IF([test "x$ENABLED_SELFTEST" = "xyes"],
+    [ENABLED_SHA512_DRBG=no])
 
 AS_IF([test "x$ENABLED_AESXTS" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_XTS -DWOLFSSL_AES_DIRECT"])

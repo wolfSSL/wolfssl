@@ -482,7 +482,8 @@ WOLFSSL_API int  wc_FreeRng(WC_RNG* rng);
                                         const byte* seedB, word32 seedBSz,
                                         byte* output, word32 outputSz,
                                         void* heap, int devId);
-#ifdef WOLFSSL_DRBG_SHA512
+#if defined(WOLFSSL_DRBG_SHA512) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     WOLFSSL_API int wc_RNG_HealthTest_SHA512(int reseed,
                                         const byte* seedA, word32 seedASz,
                                         const byte* seedB, word32 seedBSz,
@@ -499,9 +500,11 @@ WOLFSSL_API int  wc_FreeRng(WC_RNG* rng);
                                             word32 additionalBSz,
                                         byte* output, word32 outputSz,
                                         void* heap, int devId);
-#endif /* WOLFSSL_DRBG_SHA512 */
+#endif /* WOLFSSL_DRBG_SHA512 && !HAVE_SELFTEST && FIPS v7+ */
 
     /* Runtime DRBG disable/enable API */
+#if !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     WOLFSSL_API int wc_Sha256Drbg_Disable(void);
     WOLFSSL_API int wc_Sha256Drbg_Enable(void);
     WOLFSSL_API int wc_Sha256Drbg_GetStatus(void);
@@ -510,6 +513,7 @@ WOLFSSL_API int  wc_FreeRng(WC_RNG* rng);
     WOLFSSL_API int wc_Sha512Drbg_Enable(void);
     WOLFSSL_API int wc_Sha512Drbg_GetStatus(void);
 #endif
+#endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS v7+) */
 
 #endif /* HAVE_HASHDRBG */
 

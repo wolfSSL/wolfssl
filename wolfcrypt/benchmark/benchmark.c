@@ -969,7 +969,8 @@ static WC_INLINE void bench_append_memory_info(char* buffer, size_t size,
 /* Other */
 #define BENCH_RNG                0x00000001
 #define BENCH_SCRYPT             0x00000002
-#ifdef WOLFSSL_DRBG_SHA512
+#if defined(WOLFSSL_DRBG_SHA512) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     #define BENCH_RNG_SHA512         0x00000004
 #endif
 
@@ -1278,7 +1279,8 @@ static const bench_alg bench_other_opt[] = {
 #ifndef WC_NO_RNG
     { "-rng",                BENCH_RNG               },
 #endif
-#ifdef WOLFSSL_DRBG_SHA512
+#if defined(WOLFSSL_DRBG_SHA512) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     { "-rng-sha512",         BENCH_RNG_SHA512        },
 #endif
 #ifdef HAVE_SCRYPT
@@ -3815,7 +3817,8 @@ static void* benchmarks_do(void* args)
     if (bench_all || (bench_other_algs & BENCH_RNG))
         bench_rng();
 #endif /* WC_NO_RNG */
-#ifdef WOLFSSL_DRBG_SHA512
+#if defined(WOLFSSL_DRBG_SHA512) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     if (bench_all || (bench_other_algs & BENCH_RNG_SHA512))
         bench_rng_sha512();
 #endif
@@ -4889,15 +4892,18 @@ void bench_rng(void)
     DECLARE_MULTI_VALUE_STATS_VARS()
 
     /* Force SHA-256 DRBG by temporarily disabling SHA-512 DRBG */
-#if defined(WOLFSSL_DRBG_SHA512) && defined(WOLFSSL_DRBG_SHA256)
+#if defined(WOLFSSL_DRBG_SHA512) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+  #if defined(WOLFSSL_DRBG_SHA256)
     ret = wc_Sha512Drbg_Disable();
     if (ret != 0) {
         printf("wc_Sha512Drbg_Disable failed %d\n", ret);
         return;
     }
-#elif defined(WOLFSSL_DRBG_SHA512) && !defined(WOLFSSL_DRBG_SHA256)
+  #else
     printf("RNG SHA-256 DRBG (Skipped: Disabled)\n");
     return;
+  #endif
 #endif
 
     bench_stats_prepare();
@@ -4909,7 +4915,8 @@ void bench_rng(void)
 #endif
     if (ret < 0) {
         printf("InitRNG (SHA-256) failed %d\n", ret);
-#ifdef WOLFSSL_DRBG_SHA512
+#if defined(WOLFSSL_DRBG_SHA512) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
         wc_Sha512Drbg_Enable();
 #endif
         return;
@@ -4951,13 +4958,15 @@ exit_rng:
     wc_FreeRng(&myrng);
 
     /* Restore SHA-512 DRBG */
-#ifdef WOLFSSL_DRBG_SHA512
+#if defined(WOLFSSL_DRBG_SHA512) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     wc_Sha512Drbg_Enable();
 #endif
 }
 #endif /* WC_NO_RNG */
 
-#ifdef WOLFSSL_DRBG_SHA512
+#if defined(WOLFSSL_DRBG_SHA512) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
 void bench_rng_sha512(void)
 {
     int    ret, i, count;
@@ -5030,7 +5039,7 @@ exit_rng_sha512:
     wc_Sha256Drbg_Enable();
 #endif
 }
-#endif /* WOLFSSL_DRBG_SHA512 */
+#endif /* WOLFSSL_DRBG_SHA512 && !HAVE_SELFTEST && FIPS v7+ */
 
 #ifndef NO_AES
 

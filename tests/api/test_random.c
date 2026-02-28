@@ -539,7 +539,9 @@ int test_wc_RNG_HealthTest(void)
 int test_wc_RNG_HealthTest_SHA512(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_HASHDRBG) && defined(WOLFSSL_DRBG_SHA512)
+#if defined(HAVE_HASHDRBG) && defined(WOLFSSL_DRBG_SHA512) && \
+    !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
 
     /* No-reseed test: drbgvectors_no_reseed/Hash_DRBG.rsp, [SHA-512],
      * COUNT=0 */
@@ -667,7 +669,7 @@ int test_wc_RNG_HealthTest_SHA512(void)
         test2SeedB, sizeof(test2SeedB), output, sizeof(output)), 0);
     ExpectBufEQ(test2Output, output, sizeof(output));
 
-#endif /* HAVE_HASHDRBG && WOLFSSL_DRBG_SHA512 */
+#endif /* HAVE_HASHDRBG && WOLFSSL_DRBG_SHA512 && !HAVE_SELFTEST && FIPS v7+ */
     return EXPECT_RESULT();
 }
 

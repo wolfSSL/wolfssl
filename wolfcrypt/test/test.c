@@ -20143,7 +20143,8 @@ static wc_test_ret_t _rng_test(WC_RNG* rng)
         WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
     {
 #endif
-    #ifdef WOLFSSL_DRBG_SHA512
+    #if defined(WOLFSSL_DRBG_SHA512) && !defined(HAVE_SELFTEST) && \
+        (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
         if (rng->drbgType == WC_DRBG_SHA512) {
             ((struct DRBG_SHA512_internal *)rng->drbg512)->reseedCtr =
                 WC_RESEED_INTERVAL;
@@ -20159,7 +20160,8 @@ static wc_test_ret_t _rng_test(WC_RNG* rng)
         if (ret != 0)
             return WC_TEST_RET_ENC_EC(ret);
 
-    #ifdef WOLFSSL_DRBG_SHA512
+    #if defined(WOLFSSL_DRBG_SHA512) && !defined(HAVE_SELFTEST) && \
+        (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
         if (rng->drbgType == WC_DRBG_SHA512) {
             if (((struct DRBG_SHA512_internal *)rng->drbg512)->reseedCtr ==
                     WC_RESEED_INTERVAL)
@@ -20492,7 +20494,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_test(void)
     if (XMEMCMP(test2Output, output, sizeof(output)) != 0)
         return WC_TEST_RET_ENC_NC;
 
-#ifdef WOLFSSL_DRBG_SHA512
+#if defined(WOLFSSL_DRBG_SHA512) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     /* SHA-512 DRBG Health Tests using NIST CAVP test vectors.
      * Source: NIST CAVP drbgtestvectors.zip, Hash_DRBG.rsp, [SHA-512],
      * https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Algorithm-
@@ -20633,7 +20636,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_test(void)
         if (XMEMCMP(sha512test2Output, output512, sizeof(output512)) != 0)
             return WC_TEST_RET_ENC_NC;
     }
-#endif /* WOLFSSL_DRBG_SHA512 */
+#endif /* WOLFSSL_DRBG_SHA512 && !HAVE_SELFTEST && FIPS v7+ */
 
     /* Basic RNG generate block test */
     if ((ret = random_rng_test()) != 0)
@@ -20855,8 +20858,20 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     for (i = 0; i < bank->n_rngs; ++i) {
+    #if defined(WOLFSSL_DRBG_SHA512) && !defined(HAVE_SELFTEST) && \
+        (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+        word64 bankReseedCtr;
+        if (bank->rngs[i].rng.drbgType == WC_DRBG_SHA512)
+            bankReseedCtr = ((struct DRBG_SHA512_internal *)
+                bank->rngs[i].rng.drbg512)->reseedCtr;
+        else
+            bankReseedCtr = ((struct DRBG_internal *)
+                bank->rngs[i].rng.drbg)->reseedCtr;
+        if (bankReseedCtr != WC_RESEED_INTERVAL)
+    #else
         if (((struct DRBG_internal *)bank->rngs[i].rng.drbg)
             ->reseedCtr != WC_RESEED_INTERVAL)
+    #endif
         {
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
         }

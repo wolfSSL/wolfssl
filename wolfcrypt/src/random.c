@@ -1316,7 +1316,10 @@ int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
 
     return ret;
 }
-/* Runtime DRBG disable/enable API */
+/* Runtime DRBG disable/enable API — only available in non-selftest and
+ * FIPS v7+ builds (older FIPS/selftest random.c doesn't have these) */
+#if !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
 #ifndef NO_SHA256
 int wc_Sha256Drbg_Disable(void)
 {
@@ -1346,6 +1349,7 @@ int wc_Sha256Drbg_Disable(void) { return NOT_COMPILED_IN; }
 int wc_Sha256Drbg_Enable(void) { return 0; }
 int wc_Sha256Drbg_GetStatus(void) { return 1; } /* always disabled */
 #endif /* !NO_SHA256 */
+#endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS v7+) */
 
 #ifdef WOLFSSL_DRBG_SHA512
 int wc_Sha512Drbg_Disable(void)
