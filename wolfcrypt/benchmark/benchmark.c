@@ -3817,7 +3817,8 @@ static void* benchmarks_do(void* args)
     if (bench_all || (bench_other_algs & BENCH_RNG))
         bench_rng();
 #endif /* WC_NO_RNG */
-#if defined(WOLFSSL_DRBG_SHA512) && !defined(HAVE_SELFTEST) && \
+#if defined(WOLFSSL_DRBG_SHA512) && !defined(WC_NO_RNG) && \
+    !defined(HAVE_SELFTEST) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     if (bench_all || (bench_other_algs & BENCH_RNG_SHA512))
         bench_rng_sha512();
@@ -4965,7 +4966,8 @@ exit_rng:
 }
 #endif /* WC_NO_RNG */
 
-#if defined(WOLFSSL_DRBG_SHA512) && !defined(HAVE_SELFTEST) && \
+#if defined(WOLFSSL_DRBG_SHA512) && !defined(WC_NO_RNG) && \
+    !defined(HAVE_SELFTEST) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
 void bench_rng_sha512(void)
 {
@@ -5039,7 +5041,7 @@ exit_rng_sha512:
     wc_Sha256Drbg_Enable();
 #endif
 }
-#endif /* WOLFSSL_DRBG_SHA512 && !HAVE_SELFTEST && FIPS v7+ */
+#endif /* WOLFSSL_DRBG_SHA512 && !WC_NO_RNG && !HAVE_SELFTEST && FIPS v7+ */
 
 #ifndef NO_AES
 
