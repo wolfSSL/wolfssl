@@ -474,7 +474,7 @@ int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz)
         return BAD_FUNC_ARG;
     }
 
-#if defined(HAVE_INTEL_RDSEED) || defined(HAVE_INTEL_RDRAND)
+#ifdef HAVE_INTEL_RDRAND
     if (IS_INTEL_RDRAND(intel_flags)) {
         /* using RDRAND not DRBG, so return success */
         return 0;
