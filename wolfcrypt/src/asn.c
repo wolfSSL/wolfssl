@@ -11376,8 +11376,7 @@ int wc_RsaPublicKeyDecode_ex(const byte* input, word32* inOutIdx, word32 inSz,
         if (ret != 0) {
             /* Didn't work - try whole SubjectKeyInfo instead. Reset index
              * to caller's start since the previous attempt advanced it. */
-            if (inOutIdx != NULL)
-                *inOutIdx = startIdx;
+            *inOutIdx = startIdx;
         #ifdef WC_RSA_PSS
             /* Could be RSA or RSA PSS key. */
             GetASN_OID(&dataASN[RSAPUBLICKEYASN_IDX_ALGOID_OID], oidKeyType);
@@ -27618,6 +27617,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 #ifdef OPENSSL_EXTRA
     char        beginBuf[PEM_LINE_LEN + 1]; /* add 1 for null terminator */
     char        endBuf[PEM_LINE_LEN + 1];   /* add 1 for null terminator */
+    int         origType    = type;
 #endif
 #ifdef WOLFSSL_ENCRYPTED_KEYS
     int hashType = WC_HASH_TYPE_NONE;
@@ -27740,9 +27740,9 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 
     if (!headerEnd) {
 #ifdef OPENSSL_EXTRA
-        if (type == PRIVATEKEY_TYPE
+        if (origType == PRIVATEKEY_TYPE
 #ifdef WOLFSSL_DUAL_ALG_CERTS
-            || type == ALT_PRIVATEKEY_TYPE
+            || origType == ALT_PRIVATEKEY_TYPE
 #endif
            ) {
             /* see if there is a -----BEGIN * PRIVATE KEY----- header */
@@ -42214,6 +42214,7 @@ static int EncodeCrlSerial(const byte* sn, word32 snSz, byte* output,
  */
 static word32 EncodeRevokedCert(byte* output, const RevokedCert* rc)
 {
+    int tmpSnSz;
     word32 idx = 0;
     word32 snSz, dateSz, seqSz;
     byte snBuf[MAX_SN_SZ];
@@ -42221,10 +42222,11 @@ static word32 EncodeRevokedCert(byte* output, const RevokedCert* rc)
     byte seqBuf[MAX_SEQ_SZ];
 
     /* Encode serial number */
-    snSz = (word32)EncodeCrlSerial(rc->serialNumber, (word32)rc->serialSz,
+    tmpSnSz = EncodeCrlSerial(rc->serialNumber, (word32)rc->serialSz,
                                    snBuf, sizeof(snBuf));
-    if ((int)snSz < 0)
+    if (tmpSnSz < 0)
         return 0;
+    snSz = (word32)tmpSnSz;
 
     /* Encode revocation date */
     dateSz = EncodeCrlDate(dateBuf, rc->revDate, rc->revDateFormat);
@@ -42255,6 +42257,7 @@ static word32 EncodeRevokedCert(byte* output, const RevokedCert* rc)
 static word32 EncodeCrlNumberExt(byte* output, const byte* crlNum,
                                   word32 crlNumSz)
 {
+    int tmpIntSz;
     word32 idx = 0;
     word32 oidSz, intSz, octetSz, seqSz;
     byte seqBuf[MAX_SEQ_SZ];
@@ -42266,9 +42269,10 @@ static word32 EncodeCrlNumberExt(byte* output, const byte* crlNum,
     oidSz = sizeof(crlNumOid);
 
     /* Encode the INTEGER for CRL number */
-    intSz = (word32)EncodeCrlSerial(crlNum, crlNumSz, intBuf, sizeof(intBuf));
-    if ((int)intSz < 0)
+    tmpIntSz = EncodeCrlSerial(crlNum, crlNumSz, intBuf, sizeof(intBuf));
+    if (tmpIntSz < 0)
         return 0;
+    intSz = (word32)tmpIntSz;
 
     /* Wrap INTEGER in OCTET STRING */
     octetSz = SetOctetString(intSz, octetBuf);
