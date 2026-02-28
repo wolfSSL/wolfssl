@@ -777,6 +777,11 @@ add_option(WOLFSSL_XMSS
     "Enable the wolfSSL XMSS implementation (default: disabled)"
     "no" "yes;no")
 
+# SLH-DSA
+add_option(WOLFSSL_HAVE_SLHDSA
+    "Enable the wolfSSL SLH-DSA implementation (default: disabled)"
+    "no" "yes;no")
+
 # TODO: - Lean PSK
 #       - Lean TLS
 #       - Low resource
