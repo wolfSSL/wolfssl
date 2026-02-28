@@ -239,6 +239,74 @@ WC_MAYBE_UNUSED static int linuxkm_lkcapi_sysfs_deinstall_node(struct kobj_attri
     return 0;
 }
 
+#ifdef WC_LINUXKM_SUPPORT_DUMP_TO_FILE
+static ssize_t dump_to_file(const char *path, const u8 *buf, size_t buf_len)
+{
+    loff_t pos = 0;
+    struct file *fp;
+    ssize_t ret;
+    char tmp;
+
+    if (buf_len == 0) {
+        pr_info("libwolfssl: dump_to_file() called with buf_len == 0.  Not dumping.\n");
+        return 0;
+    }
+
+    WC_SANITIZE_DISABLE();
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5,8,0)
+    ret = probe_kernel_read(&tmp, buf, 1);
+    if (ret == 0)
+        ret = probe_kernel_read(&tmp, buf + buf_len - 1, 1);
+#else
+    ret = copy_from_kernel_nofault(&tmp, buf, 1);
+    if (ret == 0)
+        ret = copy_from_kernel_nofault(&tmp, buf + buf_len - 1, 1);
+#endif
+    WC_SANITIZE_ENABLE();
+    if (ret != 0) {
+        pr_err("libwolfssl: cannot safely read from buffer %px: %d\n", buf, (int)ret);
+        return ret;
+    }
+
+    fp = filp_open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (IS_ERR(fp)) {
+        pr_err("libwolfssl: cannot open %s: %ld\n", path, PTR_ERR(fp));
+        return PTR_ERR(fp);
+    }
+
+    WC_SANITIZE_DISABLE();
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 9, 0)
+    /* kernel_write() exported by 7bb307e894d51 */
+    ret = kernel_write(fp, buf, buf_len, &pos);
+#else
+    ret = vfs_write(fp, buf, buf_len, &pos);
+#endif
+    WC_SANITIZE_ENABLE();
+
+    filp_close(fp, NULL);
+
+    if (ret < 0)
+        pr_err("libwolfssl: write to %s failed: %zd\n", path, ret);
+    else if ((size_t)ret != buf_len)
+        pr_warn("libwolfssl: short write to %s: %zd of %zu bytes\n", path, ret, buf_len);
+
+    return ret;
+}
+
+static char *text_dump_path;
+static char *rodata_dump_path;
+
+    /* indent these so they don't look like flush-left function calls. */
+    module_param(text_dump_path,   charp, 0444);
+    module_param(rodata_dump_path, charp, 0444);
+
+MODULE_PARM_DESC(text_dump_path,
+    "Path to dump live .wolfcrypt_text section to (e.g. /tmp/wc_text.bin)");
+MODULE_PARM_DESC(rodata_dump_path,
+    "Path to dump live .wolfcrypt_rodata section to (e.g. /tmp/wc_rodata.bin)");
+
+#endif /* WC_LINUXKM_SUPPORT_DUMP_TO_FILE */
+
 #ifdef HAVE_FIPS
     static ssize_t FIPS_rerun_self_test_handler(struct kobject *kobj, struct kobj_attribute *attr,
                                        const char *buf, size_t count);
@@ -502,6 +570,27 @@ static int wolfssl_init(void)
     if (ret < 0)
         return ret;
 #endif
+
+#ifdef WC_LINUXKM_SUPPORT_DUMP_TO_FILE
+
+#ifdef WC_SYM_RELOC_TABLES
+    if (text_dump_path) {
+        if (dump_to_file(text_dump_path, (u8 *)__wc_text_start, (size_t)((uintptr_t)__wc_text_end - (uintptr_t)__wc_text_start)) == 0)
+            pr_info("libwolfssl: dumped .wolfcrypt_text (%zu bytes) to %s.\n", (size_t)((uintptr_t)__wc_text_end - (uintptr_t)__wc_text_start), text_dump_path);
+    }
+    if (rodata_dump_path) {
+        if (dump_to_file(rodata_dump_path, (u8 *)__wc_rodata_start, (size_t)(__wc_rodata_end - __wc_rodata_start)) == 0)
+            pr_info("libwolfssl: dumped .wolfcrypt_rodata (%zu bytes) to %s.\n", (size_t)((uintptr_t)__wc_rodata_end - (uintptr_t)__wc_rodata_start), text_dump_path);
+    }
+#else
+    if ((text_dump_path != NULL) ||
+        (rodata_dump_path != NULL))
+    {
+        pr_info("libwolfssl: ignoring module dump path argument(s) -- module lacks WC_SYM_RELOC_TABLES.\n");
+    }
+#endif
+
+#endif /* WC_LINUXKM_SUPPORT_DUMP_TO_FILE */
 
 #ifdef WC_LINUXKM_TEST_INET_PTON
     {

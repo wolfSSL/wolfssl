@@ -9497,7 +9497,7 @@ int wc_ecc_import_point_der_ex(const byte* in, word32 inLen,
         #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SP_SM2)
         if (curve_idx != ECC_CUSTOM_IDX &&
                                       ecc_sets[curve_idx].id == ECC_SM2P256V1) {
-            sp_ecc_uncompress_sm2_256(point->x, pointType, point->y);
+            err = sp_ecc_uncompress_sm2_256(point->x, pointType, point->y);
         }
         else
         #endif
@@ -10854,7 +10854,7 @@ int wc_ecc_import_x963_ex2(const byte* in, word32 inLen, ecc_key* key,
     #endif
     #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SP_SM2)
         if (key->dp->id == ECC_SM2P256V1) {
-            sp_ecc_uncompress_sm2_256(key->pubkey.x, pointType, key->pubkey.y);
+            err = sp_ecc_uncompress_sm2_256(key->pubkey.x, pointType, key->pubkey.y);
         }
         else
     #endif

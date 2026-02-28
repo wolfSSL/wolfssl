@@ -229,7 +229,7 @@ if BUILD_LINUXKM
         FIPS_FLAVOR
 
 module:
-	+$(MAKE) -C linuxkm libwolfssl.ko
+	+$(MAKE) -C linuxkm module
 
 module-update-fips-hash:
 	+$(MAKE) -C linuxkm module-update-fips-hash

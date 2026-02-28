@@ -16531,6 +16531,8 @@ static WARN_UNUSED_RESULT int AesSivCipher(
     wc_AesFree(aes);
 #endif
 
+    ForceZero(sivTmp, sizeof(sivTmp));
+
     return ret;
 }
 

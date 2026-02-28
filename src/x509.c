@@ -13039,9 +13039,7 @@ static WOLFSSL_X509 *loadX509orX509REQFromPemBio(WOLFSSL_BIO *bp,
                 if (i < pemSz && pem[i-1] == '\r') {
                     /* found \r , Windows line ending is \r\n so try to read one
                      * more byte for \n, ignoring return value */
-                    if (i < pemSz) {
-                        (void)wolfSSL_BIO_read(bp, (char *)&pem[i++], 1);
-                    }
+                    (void)wolfSSL_BIO_read(bp, (char *)&pem[i++], 1);
                 }
             }
             break;

@@ -92,10 +92,10 @@ libwolfssl: kernel global random_bytes handlers installed.
 ```
 
 Additionally, `/proc/crypto` will advertise that the FIPS DRBG is installed at
-highest priority "-with-global-replace":
+highest priority, with "-wolfentropy" and/or "-rdseed", and "-with-global-replace":
 ```ini
 name         : stdrng
-driver       : sha2-256-drbg-nopr-wolfcrypt-fips-140-3-with-global-replace
+driver       : sha2-256-drbg-nopr-wolfentropy-wolfcrypt-fips-140-3-with-global-replace
 module       : libwolfssl
 priority     : 100000
 refcnt       : 2

@@ -312,8 +312,9 @@ enum wolfCrypt_ErrorCodes {
     BUSY_E              = -1006, /* Object is busy */
     ALREADY_E           = -1007, /* Operation was redundant or preempted */
 
-    WC_SPAN2_LAST_E     = -1007, /* Update to indicate last used error code */
-    WC_LAST_E           = -1007, /* the last code used either here or in
+    SEQ_OVERFLOW_E      = -1008, /* Sequence counter would overflow */
+    WC_SPAN2_LAST_E     = -1008, /* Update to indicate last used error code */
+    WC_LAST_E           = -1008, /* the last code used either here or in
                                   * error-ssl.h */
 
     WC_SPAN2_MIN_CODE_E = -1999, /* Last usable code in span 2 */

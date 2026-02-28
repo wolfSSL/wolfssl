@@ -665,6 +665,9 @@ const char* wc_GetErrorString(int error)
     case ALREADY_E:
         return "Operation was redundant or preempted";
 
+    case SEQ_OVERFLOW_E:
+        return "Sequence counter would overflow";
+
     case MAX_CODE_E:
     case WC_SPAN1_MIN_CODE_E:
     case MIN_CODE_E:
