@@ -459,6 +459,7 @@
     #ifndef WC_CONTAINERIZE_THIS
         #include <linux/init.h>
         #include <linux/module.h>
+        #include <linux/moduleparam.h>
         #include <linux/delay.h>
     #endif
 
@@ -508,6 +509,10 @@
     #endif /* !WOLFCRYPT_ONLY */
 #endif /* !WC_CONTAINERIZE_THIS */
 
+    #ifdef WC_LINUXKM_SUPPORT_DUMP_TO_FILE
+        #include <linux/fs.h>
+        #include <linux/uaccess.h>
+    #endif
     #include <linux/slab.h>
     #include <linux/sched.h>
     #if __has_include(<linux/sched/task_stack.h>)

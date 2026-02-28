@@ -354,23 +354,23 @@ ssize_t wc_reloc_normalize_text(
 #ifdef DEBUG_LINUXKM_PIE_SUPPORT
                 if (reloc_buf >= seg_end - seg_beg) {
                     ++n_oob_r;
-                    RELOC_DEBUG_PRINTF("WARNING: normalized value is out of bounds (%s0x%lx) at index %ld, text offset 0x%x, reloc type %s, "
-                                         "dest seg .%s_wolfcrypt, offset from text to dest segment %s0x%lx, raw dest addr %s0x%lx, "
-                                         "seg span 0x%lx - 0x%lx, seg size 0x%lx, text base 0x%lx\n",
-                                         (sword64)reloc_buf < 0 ? "-" : "",
-                                         (sword64)reloc_buf < 0 ? -reloc_buf : reloc_buf,
-                                         i,
+                    RELOC_DEBUG_PRINTF("WARNING: normalized value is out of bounds (%s0x%llx) at index %lld, text offset 0x%x, reloc type %s, "
+                                         "dest seg .%s_wolfcrypt, offset from text to dest segment %s0x%llx, raw dest addr %s0x%llx, "
+                                         "seg span 0x%llx - 0x%llx, seg size 0x%llx, text base 0x%llx\n",
+                                         (long long)reloc_buf < 0 ? "-" : "",
+                                         (long long)reloc_buf < 0 ? -(long long)reloc_buf : (long long)reloc_buf,
+                                         (long long)i,
                                          next_reloc->offset,
                                          layout->name,
                                          seg_name,
                                          seg_beg < seg_map->text_start ? "-" : "+",
-                                         seg_beg < seg_map->text_start ? (word64)seg_map->text_start - seg_beg : seg_beg - (word64)seg_map->text_start,
-                                         (layout->is_signed && ((sword64)raw_dest_addr < 0)) ? "-" : "",
-                                         (layout->is_signed && ((sword64)raw_dest_addr < 0)) ? (word64)-(sword64)raw_dest_addr : raw_dest_addr,
-                                         (word64)seg_beg,
-                                         (word64)seg_end,
-                                         (word64)(seg_end - seg_beg),
-                                         (word64)seg_map->text_start);
+                                         seg_beg < seg_map->text_start ? (unsigned long long)seg_map->text_start - seg_beg : seg_beg - (unsigned long long)seg_map->text_start,
+                                         (layout->is_signed && ((long long)raw_dest_addr < 0)) ? "-" : "",
+                                         (layout->is_signed && ((long long)raw_dest_addr < 0)) ? (unsigned long long)-(long long)raw_dest_addr : raw_dest_addr,
+                                         (unsigned long long)seg_beg,
+                                         (unsigned long long)seg_end,
+                                         (unsigned long long)(seg_end - seg_beg),
+                                         (unsigned long long)seg_map->text_start);
                 }
 #endif
             }
