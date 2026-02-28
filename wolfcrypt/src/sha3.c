@@ -1306,6 +1306,9 @@ static int wc_Sha3Copy(wc_Sha3* src, wc_Sha3* dst)
     ret = 0; /* Reset ret to 0 to avoid returning the callback error code */
 #endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_COPY */
 
+    /* Free dst resources before copy to prevent memory leaks (e.g.,
+     * hardware contexts). XMEMCPY overwrites dst. */
+    wc_Sha3Free(dst);
     XMEMCPY(dst, src, sizeof(wc_Sha3));
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA3)
@@ -1342,6 +1345,7 @@ static int wc_Sha3GetHash(wc_Sha3* sha3, byte* hash, byte p, byte len)
     if (sha3 == NULL || hash == NULL)
         return BAD_FUNC_ARG;
 
+    XMEMSET(&tmpSha3, 0, sizeof(tmpSha3));
     ret = wc_Sha3Copy(sha3, &tmpSha3);
     if (ret == 0) {
         ret = wc_Sha3Final(&tmpSha3, hash, p, len);
