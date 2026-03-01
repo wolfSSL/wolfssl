@@ -132,6 +132,11 @@
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
+#if FIPS_VERSION3_GE(2,0,0)
+    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
+    #define FIPS_NO_WRAPPERS
+#endif
+
 #ifndef WOLFSSL_DILITHIUM_NO_ASN1
 #include <wolfssl/wolfcrypt/asn.h>
 #endif
@@ -10075,6 +10080,30 @@ int wc_dilithium_make_key(dilithium_key* key, WC_RNG* rng)
 #endif
     }
 
+#ifdef HAVE_FIPS
+    /* Pairwise Consistency Test (PCT) per FIPS 140-3 / ISO 19790:2012
+     * Section 7.10.3.3 (TE10.35.02): sign with new sk, verify with pk.
+     * Runs on every key generation. */
+    if (ret == 0) {
+        static const byte pct_msg[] = "wolfSSL ML-DSA PCT";
+        byte pct_sig[DILITHIUM_MAX_SIG_SIZE];
+        word32 pct_sigSz = DILITHIUM_MAX_SIG_SIZE;
+        int pct_res = 0;
+
+        ret = wc_dilithium_sign_msg(pct_msg, sizeof(pct_msg),
+            pct_sig, &pct_sigSz, key, rng);
+
+        if (ret == 0)
+            ret = wc_dilithium_verify_msg(pct_sig, pct_sigSz,
+                pct_msg, sizeof(pct_msg), &pct_res, key);
+
+        if (ret == 0 && pct_res != 1)
+            ret = ML_DSA_PCT_E;
+
+        ForceZero(pct_sig, sizeof(pct_sig));
+    }
+#endif /* HAVE_FIPS */
+
     return ret;
 }
 
@@ -10102,6 +10131,9 @@ int wc_dilithium_make_key_from_seed(dilithium_key* key, const byte* seed)
         ret = NOT_COMPILED_IN;
 #endif
     }
+
+    /* Note: PCT is performed in wc_dilithium_make_key() which calls this
+     * function and has the RNG parameter needed for signing. */
 
     return ret;
 }

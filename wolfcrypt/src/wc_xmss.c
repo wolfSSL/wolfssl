@@ -22,6 +22,11 @@
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifdef WOLFSSL_HAVE_XMSS
+
+#if FIPS_VERSION3_GE(2,0,0)
+    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
+    #define FIPS_NO_WRAPPERS
+#endif
 #include <wolfssl/wolfcrypt/wc_xmss.h>
 
 #ifdef NO_INLINE
