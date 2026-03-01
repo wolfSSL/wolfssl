@@ -4439,14 +4439,14 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA512"
 fi
 
-# SHA-256 Hash DRBG (SP 800-90A) — sub-option of hashdrbg
+# SHA-256 Hash DRBG (SP 800-90A) -- sub-option of hashdrbg
 AC_ARG_ENABLE([sha256-drbg],
     [AS_HELP_STRING([--enable-sha256-drbg],[Enable SHA-256 Hash DRBG (default: enabled)])],
     [ ENABLED_SHA256_DRBG=$enableval ],
     [ ENABLED_SHA256_DRBG=yes ]
     )
 
-# SHA-512 Hash DRBG (SP 800-90A) — sub-option of hashdrbg
+# SHA-512 Hash DRBG (SP 800-90A) -- sub-option of hashdrbg
 AC_ARG_ENABLE([sha512-drbg],
     [AS_HELP_STRING([--enable-sha512-drbg],[Enable SHA-512 Hash DRBG (default: enabled)])],
     [ ENABLED_SHA512_DRBG=$enableval ],
@@ -6152,12 +6152,12 @@ AS_CASE([$FIPS_VERSION],
                (test "$FIPS_VERSION" != "dev" || test "$enable_lms" != "no")],
             [ENABLED_LMS="yes"])
 
-# SHA-256 DRBG — cannot be disabled at build time in FIPS mode
+# SHA-256 DRBG -- cannot be disabled at build time in FIPS mode
         AS_IF([test "$enable_sha256_drbg" = "no"],
             [AC_MSG_WARN([Can not disable SHA256-DRBG at build time in FIPS mode, disable at run-time with wc_Sha256Drbg_Disable() or wc_Sha256Drbg_Disable_fips()])])
         ENABLED_SHA256_DRBG="yes"
 
-# SHA-512 DRBG — cannot be disabled at build time in FIPS mode
+# SHA-512 DRBG -- cannot be disabled at build time in FIPS mode
         AS_IF([test "$enable_sha512_drbg" = "no"],
             [AC_MSG_WARN([Can not disable SHA512-DRBG at build time in FIPS mode, disable it at run-time with wc_Sha512Drbg_Disable() or wc_Sha512Drbg_Disable_fips()])])
         ENABLED_SHA512_DRBG="yes"
@@ -6939,7 +6939,7 @@ then
   AM_CFLAGS="$AM_CFLAGS -DWC_SRTP_KDF -DHAVE_AES_ECB -DWOLFSSL_AES_DIRECT"
 fi
 
-# ML-KEM and Dilithium require SHA-3 and SHAKE — force them on before flag
+# ML-KEM and Dilithium require SHA-3 and SHAKE -- force them on before flag
 # processing so that the correct -D flags are emitted.
 if test "$ENABLED_MLKEM" != "no" && test "$ENABLED_LIBOQS" = "no"
 then

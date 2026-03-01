@@ -816,8 +816,6 @@ static int Hash_DRBG_Uninstantiate(DRBG_internal* drbg)
 
 #define OUTPUT_BLOCK_LEN_SHA512  (WC_SHA512_DIGEST_SIZE)  /* 64 bytes */
 
-typedef struct DRBG_SHA512_internal DRBG_SHA512_internal;
-
 /* Hash Derivation Function using SHA-512 */
 /* Returns: DRBG_SUCCESS or DRBG_FAILURE */
 static int Hash512_df(DRBG_SHA512_internal* drbg, byte* out, word32 outSz,
@@ -1325,7 +1323,7 @@ int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
 
     return ret;
 }
-/* Runtime DRBG disable/enable API — only available in non-selftest and
+/* Runtime DRBG disable/enable API -- only available in non-selftest and
  * FIPS v7+ builds (older FIPS/selftest random.c doesn't have these) */
 #if !defined(HAVE_SELFTEST) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
