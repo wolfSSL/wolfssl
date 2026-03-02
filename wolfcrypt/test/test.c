@@ -64086,7 +64086,7 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                 break;
             }
 #endif /* !NO_HMAC */
-#ifndef NO_RSA
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_TO_DER)
             case WC_SETKEY_RSA_PUB:
             {
                 RsaKey* rsaObj = (RsaKey*)info->setkey.obj;
@@ -64126,7 +64126,6 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                 XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 break;
             }
-    #ifdef WOLFSSL_KEY_TO_DER
             case WC_SETKEY_RSA_PRIV:
             {
                 RsaKey* rsaObj = (RsaKey*)info->setkey.obj;
@@ -64165,8 +64164,7 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                 XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 break;
             }
-    #endif /* WOLFSSL_KEY_TO_DER */
-#endif /* !NO_RSA */
+#endif /* !NO_RSA && WOLFSSL_KEY_TO_DER */
 #if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT) && \
     defined(HAVE_ECC_KEY_IMPORT)
             case WC_SETKEY_ECC_PUB:
