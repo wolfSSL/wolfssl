@@ -1067,6 +1067,7 @@ int main(int argc, char** argv)
         err_sys("wolfSSL_Init failed");
     }
 
+    XMEMSET(&args, 0, sizeof(args));
     args.argc = argc;
     args.argv = argv;
     args.return_code = 0;
