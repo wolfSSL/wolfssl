@@ -14,19 +14,55 @@ OPENSSL=${OPENSSL:="openssl"}
 WOLFSSL_CLIENT=${WOLFSSL_CLIENT:="./examples/client/client"}
 
 # need a unique port since may run the same time as testsuite
+# Track ports already assigned in this script run to prevent intra-run collisions
+used_ports=()
+
 generate_port() {
     #-------------------------------------------------------------------------#
-    # Generate a random port number
+    # Generate a random port number, guaranteed unique within this script run.
+    # Checks both the intra-run used_ports list and system-level bound ports.
     #-------------------------------------------------------------------------#
+    local attempts=0 collision p
 
-    if [[ "$OSTYPE" == "linux"* ]]; then
-        port=$(($(od -An -N2 /dev/urandom) % (65535-49512) + 49512))
-    elif [[ "$OSTYPE" == "darwin"* ]]; then
-        port=$(($(od -An -N2 /dev/random) % (65535-49512) + 49512))
-    else
-        echo "Unknown OS TYPE"
-        exit 1
-    fi
+    while true; do
+        if [[ "$OSTYPE" == "linux"* ]]; then
+            p=$(($(od -An -N2 /dev/urandom) % (65535-49512) + 49512))
+        elif [[ "$OSTYPE" == "darwin"* ]]; then
+            p=$(($(od -An -N2 /dev/random) % (65535-49512) + 49512))
+        else
+            echo "Unknown OS TYPE"
+            exit 1
+        fi
+
+        # Check against ports already assigned in this run
+        collision=0
+        for up in "${used_ports[@]}"; do
+            if [ "$up" = "$p" ]; then
+                collision=1
+                break
+            fi
+        done
+
+        # Also check if the port is already bound on this system
+        if [ $collision -eq 0 ]; then
+            if command -v ss &>/dev/null; then
+                ss -lnt 2>/dev/null | grep -q ":${p}[[:space:]]" && collision=1
+            elif command -v netstat &>/dev/null; then
+                netstat -lnt 2>/dev/null | grep -q ":${p}[[:space:]]" && collision=1
+            fi
+        fi
+
+        [ $collision -eq 0 ] && break
+
+        ((attempts++))
+        if [ $attempts -ge 100 ]; then
+            echo "ERROR: generate_port could not find a free port after 100 attempts"
+            exit 1
+        fi
+    done
+
+    port=$p
+    used_ports+=("$p")
 }
 
 # get size of key material based on the profile
