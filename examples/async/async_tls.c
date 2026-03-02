@@ -178,7 +178,7 @@ int AsyncTlsCryptoCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 
     if (info->algo_type == WC_ALGO_TYPE_PK) {
 #ifdef WOLFSSL_ASYNC_CRYPT
-        /* Simulate async pending for signing only.
+        /* Simulate async pending for RSA and ECC signing operations.
          * This matches a typical hardware crypto scenario (e.g., TPM) where
          * only signing is offloaded to hardware. Keygen, verify, and ECDH
          * are performed synchronously in software.
