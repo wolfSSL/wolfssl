@@ -470,6 +470,9 @@ int wc_HmacSetKey_ex(Hmac* hmac, int type, const byte* key, word32 length,
 #endif
     int    ret = 0;
     void*  heap = NULL;
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SETKEY)
+    int    cbRet;
+#endif
 
     if (hmac == NULL || (key == NULL && length != 0) ||
        !(type == WC_MD5 || type == WC_SHA ||
@@ -542,6 +545,19 @@ int wc_HmacSetKey_ex(Hmac* hmac, int type, const byte* key, word32 length,
             return HMAC_MIN_KEYLEN_E;
         }
     }
+
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SETKEY)
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (hmac->devId != INVALID_DEVID)
+    #endif
+    {
+        cbRet = wc_CryptoCb_SetKey(hmac->devId,
+            WC_SETKEY_HMAC, hmac, (void*)key, length, NULL, 0, 0);
+        if (cbRet != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return cbRet;
+        /* fall-through to software when unavailable */
+    }
+#endif
 
 #ifdef WOLF_CRYPTO_CB
     hmac->keyRaw = key; /* use buffer directly */

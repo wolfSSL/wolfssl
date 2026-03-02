@@ -65730,6 +65730,37 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             info->pk.ecdh.private_key->devId = devIdArg;
         #endif
         }
+        else if (info->pk.type == WC_PK_TYPE_EC_GET_SIZE) {
+            WC_DECLARE_VAR(tmpEcc, ecc_key, 1, NULL);
+            WC_ALLOC_VAR(tmpEcc, ecc_key, 1, NULL);
+            if (!WC_VAR_OK(tmpEcc)) {
+                ret = MEMORY_E;
+            }
+            else {
+                /* Copy key to avoid const and recursive callback */
+                XMEMCPY(tmpEcc, info->pk.ecc_get_size.key, sizeof(ecc_key));
+                tmpEcc->devId = INVALID_DEVID;
+                *info->pk.ecc_get_size.keySize = wc_ecc_size(tmpEcc);
+                WC_FREE_VAR(tmpEcc, NULL);
+                ret = 0;
+            }
+        }
+        else if (info->pk.type == WC_PK_TYPE_EC_GET_SIG_SIZE) {
+            WC_DECLARE_VAR(tmpEcc, ecc_key, 1, NULL);
+            WC_ALLOC_VAR(tmpEcc, ecc_key, 1, NULL);
+            if (!WC_VAR_OK(tmpEcc)) {
+                ret = MEMORY_E;
+            }
+            else {
+                /* Copy key to avoid const and recursive callback */
+                XMEMCPY(tmpEcc, info->pk.ecc_get_sig_size.key,
+                    sizeof(ecc_key));
+                tmpEcc->devId = INVALID_DEVID;
+                *info->pk.ecc_get_sig_size.sigSize = wc_ecc_sig_size(tmpEcc);
+                WC_FREE_VAR(tmpEcc, NULL);
+                ret = 0;
+            }
+        }
     #endif /* HAVE_ECC */
     #ifdef HAVE_CURVE25519
         if (info->pk.type == WC_PK_TYPE_CURVE25519_KEYGEN) {
@@ -66576,13 +66607,21 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                     break;
                 }
 #endif
+#ifndef NO_RSA
+                case WC_PK_TYPE_RSA:
+                {
+                    RsaKey* rsa = (RsaKey*)info->free.obj;
+                    rsa->devId = INVALID_DEVID;
+                    wc_FreeRsaKey(rsa);
+                    ret = 0;
+                    break;
+                }
+#endif
 #ifdef HAVE_DILITHIUM
                 case WC_PK_TYPE_PQC_SIG_KEYGEN:
                 {
-                    if (info->free.subType ==
-                            WC_PQC_SIG_TYPE_DILITHIUM) {
-                        dilithium_key* dil =
-                            (dilithium_key*)info->free.obj;
+                    if (info->free.subType == WC_PQC_SIG_TYPE_DILITHIUM) {
+                        dilithium_key* dil = (dilithium_key*)info->free.obj;
                         dil->devId = INVALID_DEVID;
                         wc_dilithium_free(dil);
                         ret = 0;
@@ -66615,6 +66654,329 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
         }
     }
 #endif /* WOLF_CRYPTO_CB_FREE */
+#ifdef WOLF_CRYPTO_CB_SETKEY
+    else if (info->algo_type == WC_ALGO_TYPE_SETKEY) {
+#ifdef DEBUG_CRYPTOCB
+        wc_CryptoCb_InfoString(info);
+#endif
+        switch (info->setkey.type) {
+#ifndef NO_AES
+            case WC_SETKEY_AES:
+            {
+                Aes* aes = (Aes*)info->setkey.obj;
+                /* Delegate to software: disable devId, call SetKey, restore */
+                aes->devId = INVALID_DEVID;
+                ret = wc_AesSetKey(aes,
+                    (const byte*)info->setkey.key, info->setkey.keySz,
+                    (const byte*)info->setkey.aux, info->setkey.flags);
+                aes->devId = devIdArg;
+                break;
+            }
+#endif /* !NO_AES */
+#ifndef NO_HMAC
+            case WC_SETKEY_HMAC:
+            {
+                Hmac* hmac = (Hmac*)info->setkey.obj;
+                /* Delegate to software: disable devId, call SetKey, restore */
+                hmac->devId = INVALID_DEVID;
+                ret = wc_HmacSetKey(hmac, hmac->macType,
+                    (const byte*)info->setkey.key, info->setkey.keySz);
+                hmac->devId = devIdArg;
+                break;
+            }
+#endif /* !NO_HMAC */
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_TO_DER)
+            case WC_SETKEY_RSA_PUB:
+            {
+                RsaKey* rsaObj = (RsaKey*)info->setkey.obj;
+                RsaKey* rsaTmp = (RsaKey*)info->setkey.key;
+                int derSz;
+                word32 idx = 0;
+                byte* der = NULL;
+
+                /* Get required DER size for public key */
+                derSz = wc_RsaPublicKeyDerSize(rsaTmp, 1);
+                if (derSz <= 0) {
+                    ret = derSz;
+                    break;
+                }
+
+                der = (byte*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                if (der == NULL) {
+                    ret = MEMORY_E;
+                    break;
+                }
+
+                /* Export public key from temp to DER */
+                derSz = wc_RsaKeyToPublicDer_ex(rsaTmp, der,
+                    (word32)derSz, 1);
+                if (derSz <= 0) {
+                    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                    ret = derSz;
+                    break;
+                }
+
+                /* Import DER into obj via software */
+                rsaObj->devId = INVALID_DEVID;
+                ret = wc_RsaPublicKeyDecode(der, &idx, rsaObj,
+                    (word32)derSz);
+                rsaObj->devId = devIdArg;
+
+                XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                break;
+            }
+            case WC_SETKEY_RSA_PRIV:
+            {
+                RsaKey* rsaObj = (RsaKey*)info->setkey.obj;
+                RsaKey* rsaTmp = (RsaKey*)info->setkey.key;
+                int derSz;
+                word32 idx = 0;
+                byte* der = NULL;
+
+                /* Get required DER size for private key */
+                derSz = wc_RsaKeyToDer(rsaTmp, NULL, 0);
+                if (derSz <= 0) {
+                    ret = derSz;
+                    break;
+                }
+
+                der = (byte*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                if (der == NULL) {
+                    ret = MEMORY_E;
+                    break;
+                }
+
+                /* Export private key from temp to DER */
+                derSz = wc_RsaKeyToDer(rsaTmp, der, (word32)derSz);
+                if (derSz <= 0) {
+                    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                    ret = derSz;
+                    break;
+                }
+
+                /* Import DER into obj via software */
+                rsaObj->devId = INVALID_DEVID;
+                ret = wc_RsaPrivateKeyDecode(der, &idx, rsaObj,
+                    (word32)derSz);
+                rsaObj->devId = devIdArg;
+
+                XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                break;
+            }
+#endif /* !NO_RSA && WOLFSSL_KEY_TO_DER */
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT) && \
+    defined(HAVE_ECC_KEY_IMPORT)
+            case WC_SETKEY_ECC_PUB:
+            {
+                ecc_key* eccObj = (ecc_key*)info->setkey.obj;
+                ecc_key* eccTmp = (ecc_key*)info->setkey.key;
+                word32 bufSz = ECC_BUFSIZE;
+                int curveId;
+                WC_DECLARE_VAR(buf, byte, ECC_BUFSIZE, NULL);
+                WC_ALLOC_VAR(buf, byte, ECC_BUFSIZE, NULL);
+                if (!WC_VAR_OK(buf)) {
+                    ret = MEMORY_E;
+                    break;
+                }
+
+                /* Export public key from temp to X9.63 format */
+                ret = wc_ecc_export_x963(eccTmp, buf, &bufSz);
+                if (ret != 0) {
+                    WC_FREE_VAR(buf, NULL);
+                    break;
+                }
+
+                curveId = wc_ecc_get_curve_id(eccTmp->idx);
+
+                /* Import into obj via software */
+                eccObj->devId = INVALID_DEVID;
+                ret = wc_ecc_import_x963_ex2(buf, bufSz, eccObj,
+                    curveId, 0);
+                eccObj->devId = devIdArg;
+
+                WC_FREE_VAR(buf, NULL);
+                break;
+            }
+            case WC_SETKEY_ECC_PRIV:
+            {
+                ecc_key* eccObj = (ecc_key*)info->setkey.obj;
+                ecc_key* eccTmp = (ecc_key*)info->setkey.key;
+                word32 pubSz = ECC_BUFSIZE;
+                word32 privSz = MAX_ECC_BYTES;
+                byte* pubPtr = NULL;
+                int curveId;
+                WC_DECLARE_VAR(pubBuf, byte, ECC_BUFSIZE, NULL);
+                WC_DECLARE_VAR(privBuf, byte, MAX_ECC_BYTES, NULL);
+                WC_ALLOC_VAR(pubBuf, byte, ECC_BUFSIZE, NULL);
+                WC_ALLOC_VAR(privBuf, byte, MAX_ECC_BYTES, NULL);
+                if (!WC_VAR_OK(pubBuf) || !WC_VAR_OK(privBuf)) {
+                    WC_FREE_VAR(pubBuf, NULL);
+                    WC_FREE_VAR(privBuf, NULL);
+                    ret = MEMORY_E;
+                    break;
+                }
+
+                /* Export public key from temp (if available) */
+                if (eccTmp->type != ECC_PRIVATEKEY_ONLY) {
+                    ret = wc_ecc_export_x963(eccTmp, pubBuf, &pubSz);
+                    if (ret != 0) {
+                        WC_FREE_VAR(pubBuf, NULL);
+                        WC_FREE_VAR(privBuf, NULL);
+                        break;
+                    }
+                    pubPtr = pubBuf;
+                }
+
+                ret = wc_ecc_export_private_only(eccTmp, privBuf,
+                    &privSz);
+                if (ret != 0) {
+                    WC_FREE_VAR(pubBuf, NULL);
+                    WC_FREE_VAR(privBuf, NULL);
+                    break;
+                }
+
+                curveId = wc_ecc_get_curve_id(eccTmp->idx);
+
+                /* Import into obj via software */
+                eccObj->devId = INVALID_DEVID;
+                ret = wc_ecc_import_private_key_ex(privBuf, privSz,
+                    pubPtr, (pubPtr != NULL) ? pubSz : 0,
+                    eccObj, curveId);
+                eccObj->devId = devIdArg;
+
+                WC_FREE_VAR(pubBuf, NULL);
+                WC_FREE_VAR(privBuf, NULL);
+                break;
+            }
+#endif /* HAVE_ECC && HAVE_ECC_KEY_EXPORT && HAVE_ECC_KEY_IMPORT */
+            default:
+                ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
+                break;
+        }
+    }
+#endif /* WOLF_CRYPTO_CB_SETKEY */
+#ifdef WOLF_CRYPTO_CB_EXPORT_KEY
+    else if (info->algo_type == WC_ALGO_TYPE_EXPORT_KEY) {
+#ifdef DEBUG_CRYPTOCB
+        wc_CryptoCb_InfoString(info);
+#endif
+        switch (info->export_key.type) {
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_TO_DER)
+            case WC_PK_TYPE_RSA:
+            {
+                RsaKey* src = (RsaKey*)info->export_key.obj;
+                RsaKey* dst = (RsaKey*)info->export_key.out;
+                int derSz;
+                word32 idx = 0;
+                byte* der = NULL;
+
+                /* Try private key export first, fall back to public */
+                derSz = wc_RsaKeyToDer(src, NULL, 0);
+                if (derSz > 0) {
+                    der = (byte*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                    if (der == NULL) {
+                        ret = MEMORY_E;
+                        break;
+                    }
+                    derSz = wc_RsaKeyToDer(src, der, (word32)derSz);
+                    if (derSz > 0) {
+                        ret = wc_RsaPrivateKeyDecode(der, &idx, dst,
+                            (word32)derSz);
+                    }
+                    else {
+                        ret = derSz;
+                    }
+                    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                }
+                else {
+                    /* Public key only */
+                    derSz = wc_RsaPublicKeyDerSize(src, 1);
+                    if (derSz <= 0) {
+                        ret = derSz;
+                        break;
+                    }
+                    der = (byte*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                    if (der == NULL) {
+                        ret = MEMORY_E;
+                        break;
+                    }
+                    derSz = wc_RsaKeyToPublicDer_ex(src, der,
+                        (word32)derSz, 1);
+                    if (derSz > 0) {
+                        ret = wc_RsaPublicKeyDecode(der, &idx, dst,
+                            (word32)derSz);
+                    }
+                    else {
+                        ret = derSz;
+                    }
+                    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                }
+                break;
+            }
+#endif /* !NO_RSA && WOLFSSL_KEY_TO_DER */
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT) && \
+    defined(HAVE_ECC_KEY_IMPORT)
+            case WC_PK_TYPE_ECDSA_SIGN: /* ECC key */
+            {
+                ecc_key* src = (ecc_key*)info->export_key.obj;
+                ecc_key* dst = (ecc_key*)info->export_key.out;
+                word32 pubSz = ECC_BUFSIZE;
+                word32 privSz = MAX_ECC_BYTES;
+                byte* pubPtr = NULL;
+                int curveId;
+                WC_DECLARE_VAR(pubBuf, byte, ECC_BUFSIZE, NULL);
+                WC_DECLARE_VAR(privBuf, byte, MAX_ECC_BYTES, NULL);
+                WC_ALLOC_VAR(pubBuf, byte, ECC_BUFSIZE, NULL);
+                WC_ALLOC_VAR(privBuf, byte, MAX_ECC_BYTES, NULL);
+                if (!WC_VAR_OK(pubBuf) || !WC_VAR_OK(privBuf)) {
+                    WC_FREE_VAR(pubBuf, NULL);
+                    WC_FREE_VAR(privBuf, NULL);
+                    ret = MEMORY_E;
+                    break;
+                }
+
+                /* Export public key if available */
+                if (src->type != ECC_PRIVATEKEY_ONLY) {
+                    ret = wc_ecc_export_x963(src, pubBuf, &pubSz);
+                    if (ret != 0) {
+                        WC_FREE_VAR(pubBuf, NULL);
+                        WC_FREE_VAR(privBuf, NULL);
+                        break;
+                    }
+                    pubPtr = pubBuf;
+                }
+
+                /* Export private key if available */
+                if (src->type != ECC_PUBLICKEY) {
+                    ret = wc_ecc_export_private_only(src, privBuf, &privSz);
+                    if (ret != 0) {
+                        WC_FREE_VAR(pubBuf, NULL);
+                        WC_FREE_VAR(privBuf, NULL);
+                        break;
+                    }
+
+                    curveId = wc_ecc_get_curve_id(src->idx);
+                    ret = wc_ecc_import_private_key_ex(privBuf, privSz,
+                        pubPtr, (pubPtr != NULL) ? pubSz : 0,
+                        dst, curveId);
+                }
+                else {
+                    /* Public key only */
+                    curveId = wc_ecc_get_curve_id(src->idx);
+                    ret = wc_ecc_import_x963_ex2(pubBuf, pubSz, dst,
+                        curveId, 0);
+                }
+                WC_FREE_VAR(pubBuf, NULL);
+                WC_FREE_VAR(privBuf, NULL);
+                break;
+            }
+#endif /* HAVE_ECC && HAVE_ECC_KEY_EXPORT && HAVE_ECC_KEY_IMPORT */
+            default:
+                ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
+                break;
+        }
+    }
+#endif /* WOLF_CRYPTO_CB_EXPORT_KEY */
 #ifndef NO_HMAC
     else if (info->algo_type == WC_ALGO_TYPE_HMAC) {
         if (info->hmac.hmac == NULL)
