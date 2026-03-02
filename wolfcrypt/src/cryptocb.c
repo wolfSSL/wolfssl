@@ -93,6 +93,20 @@ static const char* GetAlgoTypeStr(int algo)
     }
     return NULL;
 }
+#ifdef WOLF_CRYPTO_CB_SETKEY
+static const char* GetSetKeyTypeStr(int type)
+{
+    switch (type) {
+        case WC_SETKEY_HMAC:      return "HMAC";
+        case WC_SETKEY_RSA_PUB:   return "RSA-Pub";
+        case WC_SETKEY_RSA_PRIV:  return "RSA-Priv";
+        case WC_SETKEY_ECC_PUB:   return "ECC-Pub";
+        case WC_SETKEY_ECC_PRIV:  return "ECC-Priv";
+        case WC_SETKEY_AES:       return "AES";
+    }
+    return "Unknown";
+}
+#endif /* WOLF_CRYPTO_CB_SETKEY */
 static const char* GetPkTypeStr(int pk)
 {
     switch (pk) {
@@ -278,9 +292,9 @@ void wc_CryptoCb_InfoString(wc_CryptoInfo* info)
 #endif /* WOLF_CRYPTO_CB_FREE */
 #ifdef WOLF_CRYPTO_CB_SETKEY
     else if (info->algo_type == WC_ALGO_TYPE_SETKEY) {
-        printf("Crypto CB: %s Type=%d KeySz=%u\n",
+        printf("Crypto CB: %s %s KeySz=%u\n",
             GetAlgoTypeStr(info->algo_type),
-            info->setkey.type, info->setkey.keySz);
+            GetSetKeyTypeStr(info->setkey.type), info->setkey.keySz);
     }
 #endif /* WOLF_CRYPTO_CB_SETKEY */
 #if (defined(HAVE_HKDF) && !defined(NO_HMAC)) || \

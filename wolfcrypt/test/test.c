@@ -64057,8 +64057,8 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 #endif /* WOLF_CRYPTO_CB_FREE */
 #ifdef WOLF_CRYPTO_CB_SETKEY
     else if (info->algo_type == WC_ALGO_TYPE_SETKEY) {
-#ifdef DEBUG_WOLFSSL
-        WOLFSSL_MSG_EX("CryptoDevCb: SetKey Type=%d\n", info->setkey.type);
+#ifdef DEBUG_CRYPTOCB
+        wc_CryptoCb_InfoString(info);
 #endif
         switch (info->setkey.type) {
 #ifndef NO_AES
