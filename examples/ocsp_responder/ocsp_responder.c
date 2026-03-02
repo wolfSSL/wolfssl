@@ -421,9 +421,30 @@ static int PopulateResponderFromIndex(OcspResponder* responder, IndexEntry* inde
         word32 i;
 
         /* Convert hex string to bytes */
-        serialLen = (word32)XSTRLEN(entry->serial) / 2;
-        if (serialLen == 0 || serialLen > sizeof(serial)) {
-            continue;
+        {
+            word32 hexLen = (word32)XSTRLEN(entry->serial);
+            word32 j;
+
+            /* Reject odd-length hex strings */
+            if (hexLen % 2 != 0) {
+                LOG_ERROR("Invalid hex serial length (odd): %u\n", hexLen);
+                return BAD_FUNC_ARG;
+            }
+
+            serialLen = hexLen / 2;
+            if (serialLen == 0 || serialLen > sizeof(serial)) {
+                return BAD_FUNC_ARG;
+            }
+
+            /* Validate all characters are hex digits */
+            for (j = 0; j < hexLen; j++) {
+                char c = p[j];
+                if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') ||
+                      (c >= 'A' && c <= 'F'))) {
+                    LOG_ERROR("Invalid hex character in serial: '%c'\n", c);
+                    return BAD_FUNC_ARG;
+                }
+            }
         }
 
         for (i = 0; i < serialLen; i++) {
@@ -593,6 +614,11 @@ static int SendHttpResponse(SOCKET_T clientfd, const byte* ocspResp, int ocspRes
         "Connection: close\r\n"
         "\r\n", ocspRespSz);
 
+    if (headerLen < 0 || headerLen >= (int)sizeof(header)) {
+        LOG_ERROR("HTTP header truncated\n");
+        return -1;
+    }
+
     /* Send header */
     {
         int totalSent = 0;
@@ -638,6 +664,12 @@ static int SendHttpError(SOCKET_T clientfd, int statusCode, const char* statusMs
         "Connection: close\r\n"
         "\r\n"
         "%s", statusCode, statusMsg, (int)XSTRLEN(statusMsg), statusMsg);
+
+    /* Handle snprintf error or truncation to avoid sending out-of-bounds data. */
+    if (len < 0 || len >= (int)sizeof(response)) {
+        LOG_ERROR("HTTP error response truncated\n");
+        return -1;
+    }
 
     sent = (int)send(clientfd, response, (size_t)len, 0);
     return (sent == len) ? 0 : -1;
