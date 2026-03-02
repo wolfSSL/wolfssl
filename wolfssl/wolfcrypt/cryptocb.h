@@ -30,7 +30,7 @@
 
 /* Defines the Crypto Callback interface version, for compatibility */
 /* Increment this when Crypto Callback interface changes are made */
-#define CRYPTO_CB_VER   2
+#define CRYPTO_CB_VER   3
 
 
 #ifdef WOLF_CRYPTO_CB
@@ -133,6 +133,18 @@ typedef struct {
     word32      authInSz;
 } wc_CryptoCb_AesAuthDec;
 #endif
+
+#ifdef WOLF_CRYPTO_CB_SETKEY
+enum wc_SetKeyType {
+    WC_SETKEY_NONE      = 0,
+    WC_SETKEY_HMAC      = 1,
+    WC_SETKEY_RSA_PUB   = 2,
+    WC_SETKEY_RSA_PRIV  = 3,
+    WC_SETKEY_ECC_PUB   = 4,
+    WC_SETKEY_ECC_PRIV  = 5,
+    WC_SETKEY_AES       = 6,
+};
+#endif /* WOLF_CRYPTO_CB_SETKEY */
 
 /* Crypto Information Structure for callbacks */
 typedef struct wc_CryptoInfo {
@@ -491,6 +503,17 @@ typedef struct wc_CryptoInfo {
         void *obj; /* Object structure to free */
     } free;
 #endif /* WOLF_CRYPTO_CB_FREE */
+#ifdef WOLF_CRYPTO_CB_SETKEY
+    struct {                    /* uses wc_AlgoType=WC_ALGO_TYPE_SETKEY */
+        int type;               /* enum wc_SetKeyType */
+        void* obj;              /* Aes*, Hmac*, RsaKey*, ecc_key* */
+        void* key;              /* Raw key bytes or temp struct to export from */
+        word32 keySz;           /* Key size (0 when key is a struct ptr) */
+        void* aux;              /* Auxiliary data (IV, etc.) or NULL */
+        word32 auxSz;           /* Aux data size, 0 if unused */
+        int flags;              /* AES: direction (AES_ENCRYPTION/DECRYPTION) */
+    } setkey;
+#endif /* WOLF_CRYPTO_CB_SETKEY */
 #if defined(HAVE_HKDF) || defined(HAVE_CMAC_KDF)
     struct {
         int type; /* enum wc_KdfType */
@@ -770,6 +793,12 @@ WOLFSSL_LOCAL int wc_CryptoCb_Copy(int devId, int algo, int type, void* src,
 #ifdef WOLF_CRYPTO_CB_FREE
 WOLFSSL_LOCAL int wc_CryptoCb_Free(int devId, int algo, int type, void* obj);
 #endif /* WOLF_CRYPTO_CB_FREE */
+#ifdef WOLF_CRYPTO_CB_SETKEY
+WOLFSSL_LOCAL int wc_CryptoCb_SetKey(int devId, int type, void* obj,
+                                      void* key, word32 keySz,
+                                      void* aux, word32 auxSz,
+                                      int flags);
+#endif /* WOLF_CRYPTO_CB_SETKEY */
 
 #endif /* WOLF_CRYPTO_CB */
 
