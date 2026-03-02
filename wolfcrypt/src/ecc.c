@@ -11179,8 +11179,54 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
 #ifdef WOLFSSL_CRYPTOCELL
     const CRYS_ECPKI_Domain_t* pDomain;
 #endif
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SETKEY)
+    int cbRet = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    int tmpErr = 0;
+    WC_DECLARE_VAR(tmpKey, ecc_key, 1, NULL);
+#endif
+
     if (key == NULL || priv == NULL)
         return BAD_FUNC_ARG;
+
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SETKEY)
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (key->devId != INVALID_DEVID)
+    #endif
+    {
+        /* Allocate temp key for callback to export from */
+        WC_ALLOC_VAR(tmpKey, ecc_key, 1, key->heap);
+        if (!WC_VAR_OK(tmpKey)) {
+            return MEMORY_E;
+        }
+        XMEMSET(tmpKey, 0, sizeof(ecc_key));
+
+        tmpErr = wc_ecc_init_ex(tmpKey, key->heap, INVALID_DEVID);
+        if (tmpErr != 0) {
+            WC_FREE_VAR(tmpKey, key->heap);
+            return tmpErr;
+        }
+
+        /* Recursive call imports key material into temp via software
+         * (no callback recursion since tmpKey has INVALID_DEVID) */
+        tmpErr = wc_ecc_import_private_key_ex(priv, privSz, pub, pubSz,
+            tmpKey, curve_id);
+        if (tmpErr == 0) {
+            cbRet = wc_CryptoCb_SetKey(key->devId,
+                WC_SETKEY_ECC_PRIV, key, tmpKey, 0, NULL, 0, 0);
+        }
+
+        wc_ecc_free(tmpKey);
+        WC_FREE_VAR(tmpKey, key->heap);
+
+        if (tmpErr != 0) {
+            return tmpErr;
+        }
+        if (cbRet != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            return cbRet;
+        }
+        /* CRYPTOCB_UNAVAILABLE: fall through to software import */
+    }
+#endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_SETKEY */
 
     /* public optional, NULL if only importing private */
     if (pub != NULL) {

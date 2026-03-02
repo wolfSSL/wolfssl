@@ -8213,9 +8213,58 @@ static int _RsaPrivateKeyDecode(const byte* input, word32* inOutIdx,
 int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
     word32 inSz)
 {
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SETKEY)
+    int cbRet = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    int tmpErr = 0;
+    word32 tmpIdx;
+    WC_DECLARE_VAR(tmpKey, RsaKey, 1, NULL);
+#endif
+
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
+
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SETKEY)
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (key->devId != INVALID_DEVID)
+    #endif
+    {
+        tmpIdx = *inOutIdx;
+
+        WC_ALLOC_VAR(tmpKey, RsaKey, 1, key->heap);
+        if (!WC_VAR_OK(tmpKey)) {
+            return MEMORY_E;
+        }
+        XMEMSET(tmpKey, 0, sizeof(RsaKey));
+
+        tmpErr = wc_InitRsaKey_ex(tmpKey, key->heap, INVALID_DEVID);
+        if (tmpErr != 0) {
+            WC_FREE_VAR(tmpKey, key->heap);
+            return tmpErr;
+        }
+
+        /* Decode into temp key (software-only, no callback recursion
+         * since tmpKey has INVALID_DEVID) */
+        tmpErr = _RsaPrivateKeyDecode(input, &tmpIdx, tmpKey, NULL, inSz);
+        if (tmpErr == 0) {
+            cbRet = wc_CryptoCb_SetKey(key->devId,
+                WC_SETKEY_RSA_PRIV, key, tmpKey, 0, NULL, 0, 0);
+        }
+
+        wc_FreeRsaKey(tmpKey);
+        WC_FREE_VAR(tmpKey, key->heap);
+
+        if (tmpErr != 0) {
+            return tmpErr;
+        }
+        if (cbRet != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            *inOutIdx = tmpIdx;
+            return cbRet;
+        }
+        /* CRYPTOCB_UNAVAILABLE: fall through to software import */
+    }
+#endif
+
     return _RsaPrivateKeyDecode(input, inOutIdx, key, NULL, inSz);
 }
 
