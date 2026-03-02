@@ -5353,6 +5353,10 @@ int wc_RsaPrivateKeyDecodeRaw(const byte* n, word32 nSz,
         const byte* dQ, word32 dQSz, RsaKey* key)
 {
     int err = MP_OKAY;
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SETKEY)
+    int cbRet = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    WC_DECLARE_VAR(tmpKey, RsaKey, 1, NULL);
+#endif
 
     if (n == NULL || nSz == 0 || e == NULL || eSz == 0
             || d == NULL || dSz == 0 || p == NULL || pSz == 0
@@ -5376,6 +5380,50 @@ int wc_RsaPrivateKeyDecodeRaw(const byte* n, word32 nSz,
     (void)dQ;
     (void)dQSz;
 #endif
+
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SETKEY)
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (err == MP_OKAY && key->devId != INVALID_DEVID)
+    #else
+    if (err == MP_OKAY)
+    #endif
+    {
+        /* Allocate temp key for callback to export from */
+        WC_ALLOC_VAR(tmpKey, RsaKey, 1, key->heap);
+        if (!WC_VAR_OK(tmpKey)) {
+            return MEMORY_E;
+        }
+        XMEMSET(tmpKey, 0, sizeof(RsaKey));
+
+        /* Init temp with INVALID_DEVID to prevent callback recursion */
+        err = wc_InitRsaKey_ex(tmpKey, key->heap, INVALID_DEVID);
+        if (err != MP_OKAY) {
+            WC_FREE_VAR(tmpKey, key->heap);
+            return err;
+        }
+
+        /* Recursive call imports key material into temp via software */
+        err = wc_RsaPrivateKeyDecodeRaw(n, nSz, e, eSz, d, dSz,
+            u, uSz, p, pSz, q, qSz, dP, dPSz, dQ, dQSz, tmpKey);
+        if (err == MP_OKAY) {
+            cbRet = wc_CryptoCb_SetKey(key->devId,
+                WC_SETKEY_RSA_PRIV, key, tmpKey, 0, NULL, 0, 0);
+        }
+
+        /* wc_FreeRsaKey does mp_forcezero on private components */
+        wc_FreeRsaKey(tmpKey);
+        WC_FREE_VAR(tmpKey, key->heap);
+
+        if (err != MP_OKAY) {
+            return err;
+        }
+        if (cbRet != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            return cbRet;
+        }
+        /* CRYPTOCB_UNAVAILABLE: fall through to software import */
+        err = MP_OKAY;
+    }
+#endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_SETKEY */
 
     if (err == MP_OKAY)
         err = mp_read_unsigned_bin(&key->n, n, nSz);

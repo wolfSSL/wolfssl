@@ -87,6 +87,9 @@ static const char* GetAlgoTypeStr(int algo)
 #ifdef WOLF_CRYPTO_CB_FREE
         case WC_ALGO_TYPE_FREE:   return "Free";
 #endif /* WOLF_CRYPTO_CB_FREE */
+#ifdef WOLF_CRYPTO_CB_SETKEY
+        case WC_ALGO_TYPE_SETKEY: return "SetKey";
+#endif /* WOLF_CRYPTO_CB_SETKEY */
     }
     return NULL;
 }
@@ -273,6 +276,13 @@ void wc_CryptoCb_InfoString(wc_CryptoInfo* info)
             GetAlgoTypeStr(info->free.algo), info->free.type);
     }
 #endif /* WOLF_CRYPTO_CB_FREE */
+#ifdef WOLF_CRYPTO_CB_SETKEY
+    else if (info->algo_type == WC_ALGO_TYPE_SETKEY) {
+        printf("Crypto CB: %s Type=%d KeySz=%u\n",
+            GetAlgoTypeStr(info->algo_type),
+            info->setkey.type, info->setkey.keySz);
+    }
+#endif /* WOLF_CRYPTO_CB_SETKEY */
 #if (defined(HAVE_HKDF) && !defined(NO_HMAC)) || \
     defined(HAVE_CMAC_KDF)
     else if (info->algo_type == WC_ALGO_TYPE_KDF) {
@@ -2146,6 +2156,46 @@ int wc_CryptoCb_Free(int devId, int algo, int type, void* obj)
 }
 #endif /* WOLF_CRYPTO_CB_FREE */
 
+#ifdef WOLF_CRYPTO_CB_SETKEY
+/* Generic SetKey callback for importing keys into hardware.
+ * devId: Device ID for the registered callback
+ * type:  enum wc_SetKeyType (AES, HMAC, RSA_PUB, RSA_PRIV, ECC_PUB, ECC_PRIV)
+ * obj:   Context struct being operated on (Aes*, Hmac*, RsaKey*, ecc_key*)
+ * key:   Key material: raw bytes (AES/HMAC) or temp struct to export from (RSA/ECC)
+ * keySz: Key size in bytes (0 when key is a struct pointer)
+ * aux:   Auxiliary data (IV, etc.) or NULL
+ * auxSz: Aux data size, 0 if unused
+ * flags: AES: direction (AES_ENCRYPTION/DECRYPTION). Others: 0
+ * Returns: 0 on success, CRYPTOCB_UNAVAILABLE if not handled, negative on error
+ */
+int wc_CryptoCb_SetKey(int devId, int type, void* obj,
+                         void* key, word32 keySz,
+                         void* aux, word32 auxSz,
+                         int flags)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    /* Find registered callback device */
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_SETKEY);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_SETKEY;
+        cryptoInfo.setkey.type = type;
+        cryptoInfo.setkey.obj = obj;
+        cryptoInfo.setkey.key = key;
+        cryptoInfo.setkey.keySz = keySz;
+        cryptoInfo.setkey.aux = aux;
+        cryptoInfo.setkey.auxSz = auxSz;
+        cryptoInfo.setkey.flags = flags;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+#endif /* WOLF_CRYPTO_CB_SETKEY */
 
 #if defined(HAVE_CMAC_KDF)
 /* Crypto callback for NIST SP 800 56C two-step CMAC KDF. See software
