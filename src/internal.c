@@ -34118,7 +34118,15 @@ int SendClientKeyExchange(WOLFSSL* ssl)
         #endif
 
             if (IsEncryptionOn(ssl, 1)) {
-                args->sendSz += MAX_MSG_EXTRA;
+            #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_MTU)
+                /* Use exact cipher overhead for the MTU pre-flight check.
+                 * MAX_MSG_EXTRA is an upper bound that can exceed a small MTU,
+                 * while the actual message fits within it. */
+                if (ssl->options.dtls)
+                    args->sendSz += cipherExtraData(ssl);
+                else
+            #endif
+                    args->sendSz += MAX_MSG_EXTRA;
             }
 
             /* check for available size */
