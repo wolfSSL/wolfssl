@@ -5407,7 +5407,8 @@ int wc_RsaPrivateKeyDecodeRaw(const byte* n, word32 nSz,
             u, uSz, p, pSz, q, qSz, dP, dPSz, dQ, dQSz, tmpKey);
         if (err == MP_OKAY) {
             cbRet = wc_CryptoCb_SetKey(key->devId,
-                WC_SETKEY_RSA_PRIV, key, tmpKey, 0, NULL, 0, 0);
+                WC_SETKEY_RSA_PRIV, key, tmpKey,
+                wc_RsaEncryptSize(tmpKey), NULL, 0, 0);
         }
 
         /* wc_FreeRsaKey does mp_forcezero on private components */

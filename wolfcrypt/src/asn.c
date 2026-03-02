@@ -8248,7 +8248,8 @@ int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
         tmpErr = _RsaPrivateKeyDecode(input, &tmpIdx, tmpKey, NULL, inSz);
         if (tmpErr == 0) {
             cbRet = wc_CryptoCb_SetKey(key->devId,
-                WC_SETKEY_RSA_PRIV, key, tmpKey, 0, NULL, 0, 0);
+                WC_SETKEY_RSA_PRIV, key, tmpKey,
+                wc_RsaEncryptSize(tmpKey), NULL, 0, 0);
         }
 
         wc_FreeRsaKey(tmpKey);
@@ -43996,7 +43997,8 @@ int wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz, const byte* e,
         tmpErr = wc_RsaPublicKeyDecodeRaw(n, nSz, e, eSz, tmpKey);
         if (tmpErr == 0) {
             cbRet = wc_CryptoCb_SetKey(key->devId,
-                WC_SETKEY_RSA_PUB, key, tmpKey, 0, NULL, 0, 0);
+                WC_SETKEY_RSA_PUB, key, tmpKey,
+                wc_RsaEncryptSize(tmpKey), NULL, 0, 0);
         }
 
         wc_FreeRsaKey(tmpKey);

@@ -10691,7 +10691,8 @@ int wc_ecc_import_x963_ex2(const byte* in, word32 inLen, ecc_key* key,
         err = wc_ecc_import_x963_ex2(in, inLen, tmpKey, curve_id, untrusted);
         if (err == MP_OKAY) {
             cbRet = wc_CryptoCb_SetKey(key->devId,
-                WC_SETKEY_ECC_PUB, key, tmpKey, 0, NULL, 0, 0);
+                WC_SETKEY_ECC_PUB, key, tmpKey,
+                wc_ecc_size(tmpKey), NULL, 0, 0);
         }
 
         wc_ecc_free(tmpKey);
@@ -11212,7 +11213,8 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
             tmpKey, curve_id);
         if (tmpErr == 0) {
             cbRet = wc_CryptoCb_SetKey(key->devId,
-                WC_SETKEY_ECC_PRIV, key, tmpKey, 0, NULL, 0, 0);
+                WC_SETKEY_ECC_PRIV, key, tmpKey,
+                wc_ecc_size(tmpKey), NULL, 0, 0);
         }
 
         wc_ecc_free(tmpKey);
@@ -11598,7 +11600,8 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
                 setKeyType = WC_SETKEY_ECC_PUB;
             }
             cbRet = wc_CryptoCb_SetKey(key->devId,
-                setKeyType, key, tmpKey, 0, NULL, 0, 0);
+                setKeyType, key, tmpKey,
+                wc_ecc_size(tmpKey), NULL, 0, 0);
         }
 
         wc_ecc_free(tmpKey);
