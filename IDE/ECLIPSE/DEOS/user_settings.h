@@ -106,7 +106,7 @@ You can get the current time from https://www.unixtimestamp.com/ */
 #if 1
     #define HAVE_CURVE25519
     #define HAVE_ED25519
-    #define CURVED25519_SMALL
+    #define CURVE25519_SMALL
 #endif
 
 #undef NO_SHA

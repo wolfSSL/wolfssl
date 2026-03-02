@@ -175,10 +175,10 @@ void app_main(void)
     ESP_LOGI(TAG, "Missing CURVE25519_SMALL");
 #endif
 
-#if defined(CURVED25519_SMALL)
-    ESP_LOGI(TAG, "Found CURVED25519_SMALL");
+#if defined(CURVE25519_SMALL)
+    ESP_LOGI(TAG, "Found CURVE25519_SMALL");
 #else
-    ESP_LOGI(TAG, "Missing CURVED25519_SMALL");
+    ESP_LOGI(TAG, "Missing CURVE25519_SMALL");
 #endif
 
 #if defined(HAVE_ED25519)

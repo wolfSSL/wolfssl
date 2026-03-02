@@ -420,7 +420,7 @@ C149F3285397DFBD0C6720E14818475C3A50B10880EF9619463173A6D5ED15E7
 
     /* Optionally use small math (less flash usage, but much slower) */
     #if 1
-        #define CURVED25519_SMALL
+        #define CURVE25519_SMALL
     #endif
 #endif
 

@@ -27,7 +27,7 @@
 #define ALT_ECC_SIZE
 #define USE_FAST_MATH
 #define SMALL_SESSION_CACHE
-#define CURVED25519_SMALL
+#define CURVE25519_SMALL
 #define RSA_LOW_MEM
 #define GCM_SMALL
 #define ECC_SHAMIR

@@ -259,7 +259,7 @@ extern unsigned int my_rng_seed_gen(void);
 
     /* Optionally use small math (less flash usage, but much slower) */
     #if 1
-        #define CURVED25519_SMALL
+        #define CURVE25519_SMALL
     #endif
 #endif
 

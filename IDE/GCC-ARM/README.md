@@ -114,7 +114,7 @@ These settings are located in `Header/user_settings.h`.
 * `ECC_SHAMIR`: Doubles heap usage, but slightly faster
 * `RSA_LOW_MEM`: Half as much memory but twice as slow. Uses Non-CRT method for private key.
 * AES GCM: `GCM_SMALL`, `GCM_WORD32` or `GCM_TABLE`: Tunes performance and flash/memory usage.
-* `CURVED25519_SMALL`: Enables small versions of Ed/Curve (FE/GE math).
+* `CURVE25519_SMALL`: Enables small versions of Ed/Curve (FE/GE math).
 * `USE_SLOW_SHA`: Enables smaller/slower version of SHA.
 * `USE_SLOW_SHA256`: About 2k smaller and about 25% slower
 * `USE_SLOW_SHA512`: Over twice as small, but 50% slower

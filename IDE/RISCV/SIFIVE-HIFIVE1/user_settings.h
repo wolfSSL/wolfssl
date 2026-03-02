@@ -220,7 +220,7 @@ extern "C" {
     /* Optionally use small math (less flash usage, but much slower) */
     #if 1
         /* Curve and Ed 25519 small */
-        #define CURVED25519_SMALL
+        #define CURVE25519_SMALL
     #endif
 #endif
 

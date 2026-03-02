@@ -599,7 +599,7 @@ extern "C" {
     #define HAVE_ED25519
 
     /* Optionally use small math (less flash usage, but much slower) */
-    //#define CURVED25519_SMALL
+    //#define CURVE25519_SMALL
 #endif
 
 /* ------------------------------------------------------------------------- */

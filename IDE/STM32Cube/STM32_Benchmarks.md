@@ -854,7 +854,7 @@ Benchmark Test: Return code 0
 #define WOLFSSL_SP_SMALL
 #define WOLFSSL_NO_ASM
 #define WOLFSSL_SP_NO_MALLOC
-#define CURVED25519_SMALL
+#define CURVE25519_SMALL
 ```
 
 ```
