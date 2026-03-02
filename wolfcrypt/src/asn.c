@@ -41520,13 +41520,19 @@ static int DecodeOcspReqExtensions(const byte* source, word32 sz,
             int length = (int)dataASN[CERTEXTASN_IDX_VAL].length;
 
             if (oid == OCSP_NONCE_OID) {
-                /* Extract nonce data - get data inside inner OCTET_STRING */
-                ret = GetOctetString(source, &idx, &length, sz);
+                /* Parse inner OCTET STRING from the extension value buffer
+                 * using a local index to avoid relying on the outer idx. */
+                const byte* extData = dataASN[CERTEXTASN_IDX_VAL].data.ref.data;
+                word32 extDataSz = dataASN[CERTEXTASN_IDX_VAL].data.ref.length;
+                word32 localIdx = 0;
+                int innerLen = (int)extDataSz;
+
+                ret = GetOctetString(extData, &localIdx, &innerLen, extDataSz);
                 if (ret >= 0) {
                     ret = 0;
-                    if (length <= (int)sizeof(req->nonce)) {
-                        XMEMCPY(req->nonce, source + idx, (size_t)length);
-                        req->nonceSz = length;
+                    if (innerLen <= (int)sizeof(req->nonce)) {
+                        XMEMCPY(req->nonce, extData + localIdx, (size_t)innerLen);
+                        req->nonceSz = innerLen;
                     }
                     else {
                         /* Nonce too large */
