@@ -7846,6 +7846,9 @@ word32 wc_EncodeRsaPssAlgoId(int hashOID, int saltLen, byte* out, word32 outSz)
     if (outSz < outerSz) {
         idx = 0; goto pss_algoid_done;
     }
+    if (hashAlgSz > RSA_PSS_ALGOID_TMPBUF_SZ) {
+        idx = 0; goto pss_algoid_done;
+    }
 
     {
         word32 idPart = (word32)SetObjectId((int)rsapssOidSz, NULL) + rsapssOidSz;
