@@ -522,6 +522,7 @@ int wc_Md5GetHash(wc_Md5* md5, byte* hash)
     if (md5 == NULL || hash == NULL)
         return BAD_FUNC_ARG;
 
+    XMEMSET(&tmpMd5, 0, sizeof(tmpMd5));
     ret = wc_Md5Copy(md5, &tmpMd5);
     if (ret == 0) {
         ret = wc_Md5Final(&tmpMd5, hash);
@@ -537,6 +538,9 @@ int wc_Md5Copy(wc_Md5* src, wc_Md5* dst)
     if (src == NULL || dst == NULL)
         return BAD_FUNC_ARG;
 
+    /* Free dst resources before copy to prevent memory leaks (e.g.,
+     * hardware contexts). XMEMCPY overwrites dst. */
+    wc_Md5Free(dst);
     XMEMCPY(dst, src, sizeof(wc_Md5));
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_MD5)

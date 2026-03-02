@@ -12368,6 +12368,7 @@ static int BuildMD5(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 #else
     wc_Md5  md5[1];
 #endif
+    XMEMSET(md5, 0, sizeof(wc_Md5));
 
     /* make md5 inner */
     ret = wc_Md5Copy(&ssl->hsHashes->hashMd5, md5);
@@ -12413,6 +12414,7 @@ static int BuildSHA(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 #else
     wc_Sha  sha[1];
 #endif
+    XMEMSET(sha, 0, sizeof(wc_Sha));
     /* make sha inner */
     ret = wc_ShaCopy(&ssl->hsHashes->hashSha, sha); /* Save current position */
     if (ret == 0)
@@ -23919,6 +23921,7 @@ static int BuildMD5_CertVerify(const WOLFSSL* ssl, byte* digest)
 #else
     wc_Md5  md5[1];
 #endif
+    XMEMSET(md5, 0, sizeof(wc_Md5));
 
     /* make md5 inner */
     ret = wc_Md5Copy(&ssl->hsHashes->hashMd5, md5); /* Save current position */
@@ -23962,6 +23965,7 @@ static int BuildSHA_CertVerify(const WOLFSSL* ssl, byte* digest)
 #else
     wc_Sha  sha[1];
 #endif
+    XMEMSET(sha, 0, sizeof(wc_Sha));
 
     /* make sha inner */
     ret = wc_ShaCopy(&ssl->hsHashes->hashSha, sha); /* Save current position */

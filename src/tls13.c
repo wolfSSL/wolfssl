@@ -11983,6 +11983,8 @@ static int ExpectedResumptionSecret(WOLFSSL* ssl)
     Digest      digest;
     static byte header[] = { 0x14, 0x00, 0x00, 0x00 };
 
+    XMEMSET(&digest, 0, sizeof(Digest));
+
     /* Copy the running hash so we can restore it after. */
     switch (ssl->specs.mac_algorithm) {
     #ifndef NO_SHA256

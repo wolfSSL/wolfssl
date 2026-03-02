@@ -331,6 +331,11 @@ int wc_HmacCopy(Hmac* src, Hmac* dst) {
 
     XMEMCPY(dst, src, sizeof(*dst));
 
+    /* Zero hash context after shallow copy to prevent shared sub-pointers
+     * (e.g., msg, W buffers) with src. The hash Copy function will perform
+     * the proper deep copy. */
+    XMEMSET(&dst->hash, 0, sizeof(wc_HmacHash));
+
     ret = HmacKeyCopyHash(src->macType, &src->hash, &dst->hash);
 
     if (ret != 0)

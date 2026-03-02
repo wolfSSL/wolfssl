@@ -2206,7 +2206,7 @@ static int Sha512_Family_GetHash(wc_Sha512* sha512, byte* hash,
         return BAD_FUNC_ARG;
     }
 
-    WC_ALLOC_VAR_EX(tmpSha512, wc_Sha512, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+    WC_CALLOC_VAR_EX(tmpSha512, wc_Sha512, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
         return MEMORY_E);
 
     /* copy this sha512 into tmpSha */
@@ -2249,6 +2249,9 @@ int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst)
     ret = 0; /* Reset ret to 0 to avoid returning the callback error code */
 #endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_COPY */
 
+    /* Free dst resources before copy to prevent memory leaks (e.g., msg
+     * buffer, W cache, hardware contexts). XMEMCPY overwrites dst. */
+    wc_Sha512Free(dst);
     XMEMCPY(dst, src, sizeof(wc_Sha512));
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     /* This allocation combines the customary W buffer used by
@@ -2649,7 +2652,7 @@ int wc_Sha384GetHash(wc_Sha384* sha384, byte* hash)
         return BAD_FUNC_ARG;
     }
 
-    WC_ALLOC_VAR_EX(tmpSha384, wc_Sha384, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+    WC_CALLOC_VAR_EX(tmpSha384, wc_Sha384, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
         return MEMORY_E);
 
     /* copy this sha384 into tmpSha */
@@ -2687,6 +2690,9 @@ int wc_Sha384Copy(wc_Sha384* src, wc_Sha384* dst)
     ret = 0; /* Reset ret to 0 to avoid returning the callback error code */
 #endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_COPY */
 
+    /* Free dst resources before copy to prevent memory leaks (e.g., msg
+     * buffer, W cache, hardware contexts). XMEMCPY overwrites dst. */
+    wc_Sha384Free(dst);
     XMEMCPY(dst, src, sizeof(wc_Sha384));
 
 #ifdef WOLFSSL_SMALL_STACK_CACHE

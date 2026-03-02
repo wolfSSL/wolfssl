@@ -1031,6 +1031,7 @@ int wc_Sha256GetHash(wc_Sha256* sha256, byte* hash)
     }
     else {
         wc_Sha256 tmpSha256;
+        XMEMSET(&tmpSha256, 0, sizeof(tmpSha256));
         /* Create a copy of the hash to finalize. */
         ret = wc_Sha256Copy(sha256, &tmpSha256);
         if (ret == 0) {
@@ -1350,6 +1351,7 @@ int wc_Sha224GetHash(wc_Sha224* sha224, byte* hash)
     }
     else {
         wc_Sha224 tmpSha224;
+        XMEMSET(&tmpSha224, 0, sizeof(tmpSha224));
         /* Create a copy of the hash to finalize. */
         ret = wc_Sha224Copy(sha224, &tmpSha224);
         if (ret == 0) {
