@@ -65,7 +65,7 @@ fn test_new_ex() {
 fn test_size_queries() {
     common::setup();
     for key_type in [MlKem::TYPE_512, MlKem::TYPE_768, MlKem::TYPE_1024] {
-        let mut key = MlKem::new(key_type).expect("Error with new()");
+        let key = MlKem::new(key_type).expect("Error with new()");
         let pub_size = key.public_key_size().expect("Error with public_key_size()");
         let priv_size = key.private_key_size().expect("Error with private_key_size()");
         let ct_size = key.cipher_text_size().expect("Error with cipher_text_size()");
@@ -175,9 +175,9 @@ fn test_generate_with_random_determinism() {
     // MAKEKEY_RAND_SIZE = 64 bytes
     let rand = [0x42u8; 64];
 
-    let mut key1 = MlKem::generate_with_random(MlKem::TYPE_768, &rand)
+    let key1 = MlKem::generate_with_random(MlKem::TYPE_768, &rand)
         .expect("Error with generate_with_random() first call");
-    let mut key2 = MlKem::generate_with_random(MlKem::TYPE_768, &rand)
+    let key2 = MlKem::generate_with_random(MlKem::TYPE_768, &rand)
         .expect("Error with generate_with_random() second call");
 
     let pub_size = key1.public_key_size().expect("Error with public_key_size()");
