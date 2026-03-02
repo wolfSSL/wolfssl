@@ -6502,6 +6502,8 @@ static int RestartHandshakeHashWithCookie(WOLFSSL* ssl, Cookie* cookie)
         hrrIdx += 2;
         c16toa(OPAQUE16_LEN, hrr + hrrIdx);
         hrrIdx += 2;
+        /* Restore the HRR key share group from the cookie. */
+        ato16(cookieData + idx, &ssl->hrr_keyshare_group);
         hrr[hrrIdx++] = cookieData[idx++];
         hrr[hrrIdx++] = cookieData[idx++];
     }
@@ -7015,6 +7017,29 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
 #endif
 
+#ifdef HAVE_SUPPORTED_CURVES
+    if (ssl->hrr_keyshare_group != 0) {
+        /*
+         * https://datatracker.ietf.org/doc/html/rfc8446#section-4.2.8
+         *   when sending the new ClientHello, the client MUST
+         *   replace the original "key_share" extension with one containing only
+         *   a new KeyShareEntry for the group indicated in the selected_group
+         *   field of the triggering HelloRetryRequest.
+         */
+        TLSX* extension = TLSX_Find(ssl->extensions, TLSX_KEY_SHARE);
+        if (extension != NULL) {
+            KeyShareEntry* kse = (KeyShareEntry*)extension->data;
+            /* Exactly one KeyShareEntry with the HRR group must be present. */
+            if (kse == NULL || kse->next != NULL ||
+                                        kse->group != ssl->hrr_keyshare_group) {
+                ERROR_OUT(BAD_KEY_SHARE_DATA, exit_dch);
+            }
+        }
+        else
+            ERROR_OUT(BAD_KEY_SHARE_DATA, exit_dch);
+    }
+#endif
+
 #if defined(HAVE_ECH)
     /* hash clientHelloInner to hsHashesEch independently since it can't include
      * the HRR */
@@ -7509,7 +7534,18 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
     if (ret != 0)
         return ret;
 
-    if (extMsgType == hello_retry_request) {
+    /* When we send a HRR, we store the selected key share group to later check
+     * that the client uses the same group in the second ClientHello.
+     *
+     * In case of stateless DTLS, we do not store the group, however, as it is
+     * already stored in the cookie that is sent to the client. We later recover
+     * the group from the cookie to prevent storing a state in a stateless
+     * server. */
+    if (extMsgType == hello_retry_request
+#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_SEND_HRR_COOKIE)
+        && (!ssl->options.dtls || ssl->options.dtlsStateful)
+#endif
+    ) {
         TLSX* ksExt = TLSX_Find(ssl->extensions, TLSX_KEY_SHARE);
         if (ksExt != NULL) {
             KeyShareEntry* kse = (KeyShareEntry*)ksExt->data;

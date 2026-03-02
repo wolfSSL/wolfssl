@@ -24180,6 +24180,12 @@ static word32 test_wolfSSL_dtls_stateless_HashWOLFSSL(const WOLFSSL* ssl)
     sslCopy.keys.dtls_peer_handshake_number = 0;
     XMEMSET(&sslCopy.alert_history, 0, sizeof(sslCopy.alert_history));
     sslCopy.hsHashes = NULL;
+#if !defined(WOLFSSL_NO_CLIENT_AUTH) && \
+    ((defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)) || \
+     (defined(HAVE_ED25519) && !defined(NO_ED25519_CLIENT_AUTH)) || \
+     (defined(HAVE_ED448) && !defined(NO_ED448_CLIENT_AUTH)))
+    sslCopy.options.cacheMessages = 0;
+#endif
 #ifdef WOLFSSL_ASYNC_IO
 #ifdef WOLFSSL_ASYNC_CRYPT
     sslCopy.asyncDev = NULL;
@@ -24317,8 +24323,119 @@ static int test_wolfSSL_dtls_stateless(void)
 
     return TEST_SUCCESS;
 }
+
+/* DTLS stateless API handling multiple CHs with different HRR groups */
+static int test_wolfSSL_dtls_stateless_hrr_group(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_SEND_HRR_COOKIE)
+    size_t i;
+    word32 initHash;
+    struct {
+        method_provider client_meth;
+        method_provider server_meth;
+    } params[] = {
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_DTLS13)
+        { wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method },
+#endif
+#if !defined(WOLFSSL_NO_TLS12) && defined(WOLFSSL_DTLS)
+        { wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method },
+#endif
+    };
+    for (i = 0; i < XELEM_CNT(params) && !EXPECT_FAIL(); i++) {
+        WOLFSSL_CTX *ctx_s = NULL, *ctx_c = NULL;
+        WOLFSSL *ssl_s = NULL, *ssl_c = NULL, *ssl_c2 = NULL;
+        struct test_memio_ctx test_ctx;
+        int groups_1[] = {
+            WOLFSSL_ECC_SECP256R1,
+            WOLFSSL_ECC_SECP384R1,
+            WOLFSSL_ECC_SECP521R1
+        };
+        int groups_2[] = {
+            WOLFSSL_ECC_SECP384R1,
+            WOLFSSL_ECC_SECP521R1
+        };
+        char hrrBuf[1000];
+        int hrrSz = sizeof(hrrBuf);
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                params[i].client_meth, params[i].server_meth), 0);
+
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, NULL, &ssl_c2, NULL,
+                params[i].client_meth, params[i].server_meth), 0);
+
+
+        wolfSSL_SetLoggingPrefix("server");
+        wolfSSL_dtls_set_using_nonblock(ssl_s, 1);
+
+        initHash = test_wolfSSL_dtls_stateless_HashWOLFSSL(ssl_s);
+
+        /* Set groups and disable key shares. This ensures that only the given
+         * groups are in the SupportedGroups extension and that an empty key
+         * share extension is sent in the initial ClientHello of each session.
+         * This triggers the server to send a HelloRetryRequest with the first
+         * group in the SupportedGroups extension selected. */
+        wolfSSL_SetLoggingPrefix("client1");
+        ExpectIntEQ(wolfSSL_set_groups(ssl_c, groups_1, 3), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_NoKeyShares(ssl_c), WOLFSSL_SUCCESS);
+
+        wolfSSL_SetLoggingPrefix("client2");
+        ExpectIntEQ(wolfSSL_set_groups(ssl_c2, groups_2, 2), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_NoKeyShares(ssl_c2), WOLFSSL_SUCCESS);
+
+        /* Start handshake, send first ClientHello */
+        wolfSSL_SetLoggingPrefix("client1");
+        ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+        /* Read first ClientHello, send HRR with WOLFSSL_ECC_SECP256R1 */
+        wolfSSL_SetLoggingPrefix("server");
+        ExpectIntEQ(wolfDTLS_accept_stateless(ssl_s), 0);
+        ExpectIntEQ(test_memio_copy_message(&test_ctx, 1, hrrBuf, &hrrSz, 0), 0);
+        ExpectIntGT(hrrSz, 0);
+        ExpectIntEQ(initHash, test_wolfSSL_dtls_stateless_HashWOLFSSL(ssl_s));
+        test_memio_clear_buffer(&test_ctx, 1);
+
+        /* Send second ClientHello */
+        wolfSSL_SetLoggingPrefix("client2");
+        ExpectIntEQ(wolfSSL_connect(ssl_c2), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c2, -1), WOLFSSL_ERROR_WANT_READ);
+
+        /* Read second ClientHello, send HRR now with WOLFSSL_ECC_SECP384R1 */
+        wolfSSL_SetLoggingPrefix("server");
+        ExpectIntEQ(wolfDTLS_accept_stateless(ssl_s), 0);
+        ExpectIntEQ(initHash, test_wolfSSL_dtls_stateless_HashWOLFSSL(ssl_s));
+        test_memio_clear_buffer(&test_ctx, 1);
+
+        /* Complete first handshake with WOLFSSL_ECC_SECP256R1 */
+        wolfSSL_SetLoggingPrefix("client1");
+        ExpectIntEQ(test_memio_inject_message(&test_ctx, 1, hrrBuf, hrrSz), 0);
+        ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+        wolfSSL_SetLoggingPrefix("server");
+        ExpectIntEQ(wolfDTLS_accept_stateless(ssl_s), WOLFSSL_SUCCESS);
+
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+        wolfSSL_free(ssl_s);
+        wolfSSL_free(ssl_c);
+        wolfSSL_free(ssl_c2);
+        wolfSSL_CTX_free(ctx_s);
+        wolfSSL_CTX_free(ctx_c);
+    }
+#endif /* WOLFSSL_SEND_HRR_COOKIE */
+    return EXPECT_RESULT();
+}
 #else
 static int test_wolfSSL_dtls_stateless(void)
+{
+    return TEST_SKIPPED;
+}
+
+static int test_wolfSSL_dtls_stateless_hrr_group(void)
 {
     return TEST_SKIPPED;
 }
@@ -33186,6 +33303,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_dtls_bad_record),
     /* Uses Assert in handshake callback. */
     TEST_DECL(test_wolfSSL_dtls_stateless),
+    TEST_DECL(test_wolfSSL_dtls_stateless_hrr_group),
     TEST_DECL(test_generate_cookie),
 
 #ifndef NO_BIO
