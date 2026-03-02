@@ -64197,12 +64197,16 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                 byte privBuf[MAX_ECC_BYTES];
                 word32 pubSz = sizeof(pubBuf);
                 word32 privSz = sizeof(privBuf);
+                byte* pubPtr = NULL;
                 int curveId;
 
-                /* Export public and private key from temp */
-                ret = wc_ecc_export_x963(eccTmp, pubBuf, &pubSz);
-                if (ret != 0)
-                    break;
+                /* Export public key from temp (if available) */
+                if (eccTmp->type != ECC_PRIVATEKEY_ONLY) {
+                    ret = wc_ecc_export_x963(eccTmp, pubBuf, &pubSz);
+                    if (ret != 0)
+                        break;
+                    pubPtr = pubBuf;
+                }
 
                 ret = wc_ecc_export_private_only(eccTmp, privBuf,
                     &privSz);
@@ -64214,7 +64218,8 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                 /* Import into obj via software */
                 eccObj->devId = INVALID_DEVID;
                 ret = wc_ecc_import_private_key_ex(privBuf, privSz,
-                    pubBuf, pubSz, eccObj, curveId);
+                    pubPtr, (pubPtr != NULL) ? pubSz : 0,
+                    eccObj, curveId);
                 eccObj->devId = devIdArg;
                 break;
             }
