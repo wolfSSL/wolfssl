@@ -5034,6 +5034,9 @@ extern void uITRON4_free(void *p) ;
     #ifndef WOLFSSL_CERT_GEN
         #error "HAVE_OCSP_RESPONDER requires WOLFSSL_CERT_GEN"
     #endif
+    #ifdef NO_SHA
+        #error "HAVE_OCSP_RESPONDER requires SHA-1 (NO_SHA is defined)"
+    #endif
 #endif
 
 #ifdef __cplusplus
