@@ -682,8 +682,6 @@ static enum Ocsp_Response_Status MapErrorToOcspStatus(int err)
             return OCSP_INTERNAL_ERROR;
         case ASN_NO_SIGNER_E:
             return OCSP_UNAUTHORIZED;
-        case OCSP_CERT_UNKNOWN:
-            return OCSP_UNAUTHORIZED;
         default:
             return OCSP_INTERNAL_ERROR;
     }
