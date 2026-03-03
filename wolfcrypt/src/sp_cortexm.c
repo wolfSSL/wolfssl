@@ -51922,6 +51922,9 @@ typedef struct sp_point_521 {
     sp_digit z[2 * 17];
     /* Indicates point is at infinity. */
     int infinity;
+#ifdef SP_ALIGN_16
+    byte pad[16-sizeof(int)];
+#endif
 } sp_point_521;
 
 /* The modulus (prime) of the curve P521. */
