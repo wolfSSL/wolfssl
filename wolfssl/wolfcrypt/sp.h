@@ -26,6 +26,10 @@
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/settings.h>
 
+#if defined(__riscv) && (__riscv_xlen == 32) && !defined(__riscv_mul)
+    #define SP_NO_MUL_INSTRUCTION
+#endif
+
 #if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH) || \
                                     defined(WOLFSSL_HAVE_SP_ECC)
 #ifdef _WIN32_WCE

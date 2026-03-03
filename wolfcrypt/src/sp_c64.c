@@ -21818,7 +21818,9 @@ static void sp_256_get_entry_256_5(sp_point_256* r,
     r->y[3] = 0;
     r->y[4] = 0;
     for (i = 1; i < 256; i++) {
-        mask = (sp_digit)0 - (i == idx);
+        sp_digit gte = (sp_digit)((((sp_uint64)i - (sp_uint64)idx) >> 63) - 1);
+        sp_digit lte = (sp_digit)((((sp_uint64)idx - (sp_uint64)i) >> 63) - 1);
+        mask = gte & lte;
         r->x[0] |= mask & table[i].x[0];
         r->x[1] |= mask & table[i].x[1];
         r->x[2] |= mask & table[i].x[2];
@@ -28358,7 +28360,9 @@ static void sp_384_get_entry_256_7(sp_point_384* r,
     r->y[5] = 0;
     r->y[6] = 0;
     for (i = 1; i < 256; i++) {
-        mask = (sp_digit)0 - (i == idx);
+        sp_digit gte = (sp_digit)((((sp_uint64)i - (sp_uint64)idx) >> 63) - 1);
+        sp_digit lte = (sp_digit)((((sp_uint64)idx - (sp_uint64)i) >> 63) - 1);
+        mask = gte & lte;
         r->x[0] |= mask & table[i].x[0];
         r->x[1] |= mask & table[i].x[1];
         r->x[2] |= mask & table[i].x[2];
@@ -35371,7 +35375,9 @@ static void sp_521_get_entry_256_9(sp_point_521* r,
     r->y[7] = 0;
     r->y[8] = 0;
     for (i = 1; i < 256; i++) {
-        mask = (sp_digit)0 - (i == idx);
+        sp_digit gte = (sp_digit)((((sp_uint64)i - (sp_uint64)idx) >> 63) - 1);
+        sp_digit lte = (sp_digit)((((sp_uint64)idx - (sp_uint64)i) >> 63) - 1);
+        mask = gte & lte;
         r->x[0] |= mask & table[i].x[0];
         r->x[1] |= mask & table[i].x[1];
         r->x[2] |= mask & table[i].x[2];
