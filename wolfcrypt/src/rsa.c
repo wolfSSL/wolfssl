@@ -3595,6 +3595,7 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
             }
             return ret;
         }
+    #if !defined(WOLFSSL_SE050_NO_RSA_VERIFY)
         else if (rsa_type == RSA_PUBLIC_DECRYPT &&
                  pad_value == RSA_BLOCK_TYPE_1 &&
                  pad_type != WC_RSA_PSS_PAD) {
@@ -3610,6 +3611,7 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
             }
             return ret;
         }
+    #endif /* !WOLFSSL_SE050_NO_RSA_VERIFY */
     #endif /* RSA CRYPTO HW */
 
 

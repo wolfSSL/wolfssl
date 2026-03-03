@@ -246,6 +246,25 @@ defined, wolfCrypt will instead fall back to using `/dev/random` and
 Disables using the SE050 for RSA, useful for the SE050E which does not have
 RSA support.
 
+**`WOLFSSL_SE050_NOECDHE`**
+
+Disables offloading ECDH key generation and shared secret operations to the
+SE050. When defined, `wc_ecc_make_key()` and `wc_ecc_shared_secret()` will
+use wolfCrypt software instead of the SE050.
+
+**`WOLFSSL_SE050_NO_ECDSA_VERIFY`**
+
+When defined, ECDSA signing (`wc_ecc_sign_hash()`) continues to be offloaded
+to the SE050, but ECDSA verification (`wc_ecc_verify_hash()`) uses wolfCrypt
+software.
+
+**`WOLFSSL_SE050_NO_RSA_VERIFY`**
+
+When defined, RSA PKCS#1 v1.5 signing (`wc_RsaSSL_Sign()`) continues to be
+offloaded to the SE050, but RSA PKCS#1 v1.5 verification (`wc_RsaSSL_Verify()`)
+uses wolfCrypt software (public-key exponentiation + unpad). RSA PSS verify and
+RSA key-exchange decrypt are unaffected.
+
 ## wolfSSL HostCrypto Support
 
 The NXP SE05x Plug & Trust Middleware by default can use either OpenSSL or
