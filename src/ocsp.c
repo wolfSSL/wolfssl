@@ -2753,24 +2753,32 @@ int wc_OcspResponder_WriteResponse(OcspResponder* responder,
     /* Find the certificate status */
     certStatus = FindCertStatus(ca, req.serial, req.serialSz);
     if (certStatus == NULL) {
-        WOLFSSL_MSG("No status configured for requested certificate");
-        ret = OCSP_CERT_UNKNOWN;
-        goto out;
+        /* RFC 6960: 'unknown' is a per-certificate status inside a successful
+         * OCSPResponse, not an error response. Generate a successful response
+         * with CERT_UNKNOWN so clients can distinguish it from UNAUTHORIZED. */
+        OcspResponderCertStatus unknownStatus;
+        WOLFSSL_MSG("No status for requested certificate, responding unknown");
+        if (req.serialSz > EXTERNAL_SERIAL_SIZE) {
+            ret = BUFFER_E;
+            goto out;
+        }
+        XMEMSET(&unknownStatus, 0, sizeof(unknownStatus));
+        XMEMCPY(unknownStatus.serial, req.serial, req.serialSz);
+        unknownStatus.serialSz = req.serialSz;
+        unknownStatus.status = CERT_UNKNOWN;
+        ret = OcspResponse_WriteResponse(responder, response, responseSz, ca,
+                &unknownStatus, &req);
+    }
+    else {
+        WOLFSSL_MSG("Found CA and certificate status");
+        ret = OcspResponse_WriteResponse(responder, response, responseSz, ca,
+                certStatus, &req);
     }
 
-    WOLFSSL_MSG("Found CA and certificate status");
-
-    ret = OcspResponse_WriteResponse(responder, response, responseSz, ca,
-            certStatus, &req);
-    if (ret != 0) {
-        WOLFSSL_MSG("Failed to write OCSP response");
-        goto out;
-    }
-
-    ret = 0;
 out:
     if (reqInited)
         FreeOcspRequest(&req);
+    WOLFSSL_LEAVE("wc_OcspResponder_WriteResponse", ret);
     return ret;
 }
 
