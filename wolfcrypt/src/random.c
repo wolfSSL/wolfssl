@@ -1735,7 +1735,7 @@ static int wc_RNG_HealthTestLocal(WC_RNG* rng, int reseed, void* heap,
 
     WC_ALLOC_VAR_EX(check, byte, RNG_HEALTH_TEST_CHECK_SIZE, heap,
         DYNAMIC_TYPE_TMP_BUFFER, return MEMORY_E);
-    WC_ALLOC_VAR_EX(drbg, DRBG_internal, sizeof(DRBG_internal), heap,
+    WC_ALLOC_VAR_EX(drbg, DRBG_internal, 1, heap,
         DYNAMIC_TYPE_TMP_BUFFER, WC_DO_NOTHING);
     #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
     if (drbg == NULL) {
