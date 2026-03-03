@@ -1040,6 +1040,85 @@ int test_wc_PKCS7_EncodeSignedData_RSA_PSS(void)
 
 
 /*
+ * Testing wc_PKCS7_EncodeEnvelopedData() with RSA-PSS signed certificate
+ * for KTRI key transport. Uses certs/rsapss/client-rsapss.der.
+ * Requires encode and round-trip decode to succeed.
+ */
+#if defined(HAVE_PKCS7) && defined(WC_RSA_PSS) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_SHA256) && \
+    !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256)
+int test_wc_PKCS7_EnvelopedData_KTRI_RSA_PSS(void)
+{
+    EXPECT_DECLS;
+    PKCS7*    pkcs7 = NULL;
+    byte      encrypted[FOURK_BUF];
+    byte      decrypted[FOURK_BUF];
+    byte      cert[FOURK_BUF];
+    byte      key[FOURK_BUF];
+    word32    certSz = 0;
+    word32    keySz = 0;
+    XFILE     fp = XBADFILE;
+    byte      data[] = "Test data for RSA-PSS EnvelopedData KTRI.";
+    int       encryptedSz = 0, decryptedSz = 0;
+
+    XMEMSET(cert, 0, sizeof(cert));
+    XMEMSET(key, 0, sizeof(key));
+
+    /* Load RSA-PSS client cert */
+    ExpectTrue((fp = XFOPEN("./certs/rsapss/client-rsapss.der", "rb"))
+               != XBADFILE);
+    if (fp != XBADFILE) {
+        ExpectIntGT(certSz = (word32)XFREAD(cert, 1, sizeof(cert), fp), 0);
+        XFCLOSE(fp);
+        fp = XBADFILE;
+    }
+
+    /* Load RSA-PSS client private key */
+    ExpectTrue((fp = XFOPEN("./certs/rsapss/client-rsapss-priv.der", "rb"))
+               != XBADFILE);
+    if (fp != XBADFILE) {
+        ExpectIntGT(keySz = (word32)XFREAD(key, 1, sizeof(key), fp), 0);
+        XFCLOSE(fp);
+        fp = XBADFILE;
+    }
+
+    /* Encode EnvelopedData with KTRI using RSA-PSS cert */
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
+    if (pkcs7 != NULL) {
+        pkcs7->content    = data;
+        pkcs7->contentSz  = (word32)sizeof(data);
+        pkcs7->contentOID = DATA;
+        pkcs7->encryptOID = AES256CBCb;
+    }
+
+    ExpectIntGT(encryptedSz = wc_PKCS7_EncodeEnvelopedData(pkcs7,
+                    encrypted, sizeof(encrypted)), 0);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* Decode EnvelopedData */
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
+    if (pkcs7 != NULL) {
+        pkcs7->privateKey   = key;
+        pkcs7->privateKeySz = keySz;
+    }
+
+    ExpectIntGT(decryptedSz = wc_PKCS7_DecodeEnvelopedData(pkcs7,
+                    encrypted, (word32)encryptedSz,
+                    decrypted, sizeof(decrypted)), 0);
+    ExpectIntEQ(decryptedSz, (int)sizeof(data));
+    ExpectIntEQ(XMEMCMP(decrypted, data, sizeof(data)), 0);
+
+    wc_PKCS7_Free(pkcs7);
+
+    return EXPECT_RESULT();
+} /* END test_wc_PKCS7_EnvelopedData_KTRI_RSA_PSS */
+#endif
+
+
+/*
  * Testing wc_PKCS7_EncodeSignedData_ex() and wc_PKCS7_VerifySignedData_ex()
  */
 int test_wc_PKCS7_EncodeSignedData_ex(void)
