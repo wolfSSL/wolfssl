@@ -322,17 +322,13 @@ static IndexEntry* ParseIndexFile(const char* filename)
                     if (field[0] != '\0') {
                         struct tm tm;
                         XMEMSET(&tm, 0, sizeof(tm));
-                        /* Format: YYMMDDHHMMSSZ */
-                        if (XSTRLEN(field) >= 12) {
-                            int year = (field[0] - '0') * 10 + (field[1] - '0');
-                            tm.tm_year = (year < 50) ? (100 + year) : year;
-                            tm.tm_mon = (field[2] - '0') * 10 + (field[3] - '0') - 1;
-                            tm.tm_mday = (field[4] - '0') * 10 + (field[5] - '0');
-                            tm.tm_hour = (field[6] - '0') * 10 + (field[7] - '0');
-                            tm.tm_min = (field[8] - '0') * 10 + (field[9] - '0');
-                            tm.tm_sec = (field[10] - '0') * 10 + (field[11] - '0');
-                            entry->revocationTime = XMKTIME(&tm);
+                        if (wc_GetDateAsCalendarTime((const byte*)field,
+                                (int)XSTRLEN(field), ASN_UTC_TIME, &tm) != 0) {
+                            LOG_ERROR("Invalid revocation time format: %s\n", field);
+                            entry->revocationTime = (time_t)-1;
+                            break;
                         }
+                        entry->revocationTime = XMKTIME(&tm);
                     }
                     break;
                 case 3: /* Serial (hex) */
