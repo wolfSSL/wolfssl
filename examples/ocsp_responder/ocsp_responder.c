@@ -607,7 +607,7 @@ static int SendHttpResponse(SOCKET_T clientfd, const byte* ocspResp, int ocspRes
     int headerLen;
     int sent;
 
-    headerLen = snprintf(header, sizeof(header),
+    headerLen = XSNPRINTF(header, sizeof(header),
         "HTTP/1.0 200 OK\r\n"
         "Content-Type: application/ocsp-response\r\n"
         "Content-Length: %d\r\n"
@@ -657,7 +657,7 @@ static int SendHttpError(SOCKET_T clientfd, int statusCode, const char* statusMs
     int len;
     int sent;
 
-    len = snprintf(response, sizeof(response),
+    len = XSNPRINTF(response, sizeof(response),
         "HTTP/1.0 %d %s\r\n"
         "Content-Type: text/plain\r\n"
         "Content-Length: %d\r\n"
@@ -665,7 +665,7 @@ static int SendHttpError(SOCKET_T clientfd, int statusCode, const char* statusMs
         "\r\n"
         "%s", statusCode, statusMsg, (int)XSTRLEN(statusMsg), statusMsg);
 
-    /* Handle snprintf error or truncation to avoid sending out-of-bounds data. */
+    /* Handle XSNPRINTF error or truncation to avoid sending out-of-bounds data. */
     if (len < 0 || len >= (int)sizeof(response)) {
         LOG_ERROR("HTTP error response truncated\n");
         return -1;
