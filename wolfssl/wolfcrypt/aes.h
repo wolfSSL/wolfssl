@@ -1100,6 +1100,46 @@ WOLFSSL_LOCAL void AES_XTS_decrypt_AARCH32(const byte* in, byte* out,
 #endif /* !__aarch64__ && !WOLFSSL_ARMASM_NO_HW_CRYPTO */
 #endif /* WOLFSSL_ARMASM */
 
+#if defined(WOLFSSL_PPC64_ASM)
+WOLFSSL_LOCAL void AES_set_encrypt_key(const unsigned char* key, word32 len,
+    unsigned char* ks);
+WOLFSSL_LOCAL void AES_invert_key(unsigned char* ks, word32 rounds);
+WOLFSSL_LOCAL void AES_ECB_encrypt(const unsigned char* in, unsigned char* out,
+    unsigned long len, const unsigned char* ks, int nr);
+WOLFSSL_LOCAL void AES_ECB_decrypt(const unsigned char* in, unsigned char* out,
+    unsigned long len, const unsigned char* ks, int nr);
+WOLFSSL_LOCAL void AES_CBC_encrypt(const unsigned char* in, unsigned char* out,
+    unsigned long len, const unsigned char* ks, int nr, unsigned char* iv);
+WOLFSSL_LOCAL void AES_CBC_decrypt(const unsigned char* in, unsigned char* out,
+    unsigned long len, const unsigned char* ks, int nr, unsigned char* iv);
+WOLFSSL_LOCAL void AES_CTR_encrypt(const unsigned char* in, unsigned char* out,
+    unsigned long len, const unsigned char* ks, int nr, unsigned char* ctr);
+#if defined(GCM_TABLE) || defined(GCM_TABLE_4BIT)
+/* in pre-C2x C, constness conflicts for dimensioned arrays can't be resolved.
+ */
+WOLFSSL_LOCAL void GCM_gmult_len(byte* x, const byte** m,
+    const unsigned char* data, unsigned long len);
+#endif
+WOLFSSL_LOCAL void AES_GCM_encrypt(const unsigned char* in, unsigned char* out,
+    unsigned long len, const unsigned char* ks, int nr, unsigned char* ctr);
+
+#if defined(BUILDING_WOLFSSL)
+ WOLFSSL_API WARN_UNUSED_RESULT int wc_AesEncryptDirect(Aes* aes, byte* out,
+                                                        const byte* in);
+ WOLFSSL_API WARN_UNUSED_RESULT int wc_AesDecryptDirect(Aes* aes, byte* out,
+                                                        const byte* in);
+ WOLFSSL_API WARN_UNUSED_RESULT int wc_AesSetKeyDirect(Aes* aes,
+                                                       const byte* key,
+                                                       word32 len,
+                                const byte* iv, int dir);
+#else
+ WOLFSSL_API int wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in);
+ WOLFSSL_API int wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in);
+ WOLFSSL_API int wc_AesSetKeyDirect(Aes* aes, const byte* key, word32 len,
+                                const byte* iv, int dir);
+#endif
+#endif /* WOLFSSL_PPC64_ASM */
+
 #ifdef __cplusplus
     } /* extern "C" */
 #endif
