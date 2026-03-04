@@ -3317,3 +3317,38 @@ int test_tls13_cert_req_sigalgs(void)
     return EXPECT_RESULT();
 }
 
+int test_tls13_derive_keys_no_key(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    /* DeriveTls13Keys with no_key should succeed (skip secret derivation,
+     * only derive keys/IVs from existing secrets). This is used with early
+     * data to derive keys without re-deriving the secrets. */
+    ExpectIntEQ(DeriveTls13Keys(ssl_s, no_key, DECRYPT_SIDE_ONLY, 0), 0);
+    ExpectIntEQ(DeriveTls13Keys(ssl_s, no_key, ENCRYPT_SIDE_ONLY, 0), 0);
+    ExpectIntEQ(DeriveTls13Keys(ssl_c, no_key, ENCRYPT_AND_DECRYPT_SIDE, 0),
+        0);
+
+    /* Unknown secret type should return BAD_FUNC_ARG */
+    ExpectIntEQ(DeriveTls13Keys(ssl_c, -1, ENCRYPT_SIDE_ONLY, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+
+    return EXPECT_RESULT();
+}
+
