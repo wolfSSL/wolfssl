@@ -1453,6 +1453,8 @@ static const byte writeIVLabel[WRITE_IV_LABEL_SZ+1]   = "iv";
  *          traffic messages.
  *          update_traffic_key when deriving next keys and IVs for encrypting
  *          traffic messages.
+ *          no_key when deriving keys and IVs from existing secrets without
+ *          re-deriving the secrets. Used during early data transitions.
  * side     ENCRYPT_SIDE_ONLY when only encryption secret needs to be derived.
  *          DECRYPT_SIDE_ONLY when only decryption secret needs to be derived.
  *          ENCRYPT_AND_DECRYPT_SIDE when both secret needs to be derived.
