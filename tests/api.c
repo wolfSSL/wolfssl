@@ -28121,6 +28121,8 @@ static int test_ticket_enc_corrupted(void)
     WOLFSSL_SESSION* sess = NULL;
     ExternalTicket* et;
     word16 encLen;
+    int actualEncLen;
+    int craftedBadLen = 0;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
@@ -28133,12 +28135,21 @@ static int test_ticket_enc_corrupted(void)
     if (sess != NULL) {
         ExpectIntGT(sess->ticketLen, WOLFSSL_TICKET_FIXED_SZ);
 
-        /* Force enc_len to exceed actual encrypted ticket payload */
+        /* Force enc_len to exceed actual encrypted ticket payload while still
+         * staying <= WOLFSSL_TICKET_ENC_SZ, so callback is reached. */
         et = (ExternalTicket*)sess->ticket;
         ato16(et->enc_len, &encLen);
-        encLen = (word16)(sess->ticketLen - WOLFSSL_TICKET_FIXED_SZ + 100);
-        ExpectIntLE((int)encLen, (int)WOLFSSL_TICKET_ENC_SZ);
-        c16toa(encLen, et->enc_len);
+        actualEncLen = (int)(sess->ticketLen - WOLFSSL_TICKET_FIXED_SZ);
+        if (actualEncLen + 100 <= (int)WOLFSSL_TICKET_ENC_SZ) {
+            encLen = (word16)(actualEncLen + 100);
+            c16toa(encLen, et->enc_len);
+            craftedBadLen = 1;
+        }
+        else if (actualEncLen + 1 <= (int)WOLFSSL_TICKET_ENC_SZ) {
+            encLen = (word16)(actualEncLen + 1);
+            c16toa(encLen, et->enc_len);
+            craftedBadLen = 1;
+        }
     }
 
     wolfSSL_free(ssl_c);
@@ -28157,6 +28168,14 @@ static int test_ticket_enc_corrupted(void)
     wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_NONE, 0);
     wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, 0);
     if (sess != NULL) {
+        if (!craftedBadLen) {
+            wolfSSL_SESSION_free(sess);
+            wolfSSL_free(ssl_c);
+            wolfSSL_free(ssl_s);
+            wolfSSL_CTX_free(ctx_c);
+            wolfSSL_CTX_free(ctx_s);
+            return TEST_SKIPPED;
+        }
         ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
         ExpectIntEQ(wolfSSL_CTX_set_TicketEncCb(ctx_s,
             test_ticket_enc_corrupted_cb), WOLFSSL_SUCCESS);
