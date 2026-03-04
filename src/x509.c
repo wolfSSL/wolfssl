@@ -15924,13 +15924,13 @@ int wolfSSL_X509_set_serialNumber(WOLFSSL_X509* x509, WOLFSSL_ASN1_INTEGER* s)
 
     /* WOLFSSL_ASN1_INTEGER has type | size | data
      * Sanity check that the data is actually in ASN format */
-    if (s->length < 3 && s->data[0] != ASN_INTEGER &&
+    if (s->length < 3 || s->data[0] != ASN_INTEGER ||
             s->data[1] != s->length - 2) {
         return WOLFSSL_FAILURE;
     }
     XMEMCPY(x509->serial, s->data + 2, s->length - 2);
     x509->serialSz = s->length - 2;
-    x509->serial[s->length] = 0;
+    x509->serial[x509->serialSz] = 0;
 
     return WOLFSSL_SUCCESS;
 }
