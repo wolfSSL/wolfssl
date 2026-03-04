@@ -1910,7 +1910,7 @@ static int TLSX_ALPN_ParseAndSet(WOLFSSL *ssl, const byte *input, word16 length,
         return BUFFER_ERROR;
 
     /* validating length of entries before accepting */
-    for (s = input + offset; (s - input) < size; s += wlen) {
+    for (s = input + offset; (s - input) < length; s += wlen) {
         wlen = *s++;
         if (wlen == 0 || (s + wlen - input) > length)
             return BUFFER_ERROR;
