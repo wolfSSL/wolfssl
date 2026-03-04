@@ -184,7 +184,16 @@ static void wc_RsaCleanup(RsaKey* key)
 }
 
 #ifndef WC_NO_CONSTRUCTORS
-RsaKey* wc_NewRsaKey(void* heap, int devId, int *result_code)
+
+#define RSA_NEW_INIT_PLAIN  0
+#ifdef WOLF_PRIVATE_KEY_ID
+#define RSA_NEW_INIT_ID     1
+#define RSA_NEW_INIT_LABEL  2
+#endif
+
+static RsaKey* _NewRsaKey_common(void* heap, int devId, int *result_code,
+                                  int rsaInitType, void* rsaInitData,
+                                  int rsaInitDataLen)
 {
     int ret;
     RsaKey* key = (RsaKey*)XMALLOC(sizeof(RsaKey), heap, DYNAMIC_TYPE_RSA);
@@ -192,27 +201,69 @@ RsaKey* wc_NewRsaKey(void* heap, int devId, int *result_code)
         ret = MEMORY_E;
     }
     else {
-        ret = wc_InitRsaKey_ex(key, heap, devId);
+        switch (rsaInitType) {
+#ifdef WOLF_PRIVATE_KEY_ID
+        case RSA_NEW_INIT_ID:
+            ret = wc_InitRsaKey_Id(key, (unsigned char*)rsaInitData,
+                                   rsaInitDataLen, heap, devId);
+            break;
+        case RSA_NEW_INIT_LABEL:
+            ret = wc_InitRsaKey_Label(key, (const char*)rsaInitData,
+                                      heap, devId);
+            break;
+#endif
+        default:
+            ret = wc_InitRsaKey_ex(key, heap, devId);
+            break;
+        }
         if (ret != 0) {
             XFREE(key, heap, DYNAMIC_TYPE_RSA);
             key = NULL;
         }
     }
+    (void)rsaInitType;
+    (void)rsaInitData;
+    (void)rsaInitDataLen;
 
-    if (result_code != NULL)
+    if (result_code != NULL) {
         *result_code = ret;
+    }
 
     return key;
 }
 
+RsaKey* wc_NewRsaKey(void* heap, int devId, int *result_code)
+{
+    return _NewRsaKey_common(heap, devId, result_code,
+                             RSA_NEW_INIT_PLAIN, NULL, 0);
+}
+
+#ifdef WOLF_PRIVATE_KEY_ID
+RsaKey* wc_NewRsaKey_Id(unsigned char* id, int len, void* heap, int devId,
+                         int *result_code)
+{
+    return _NewRsaKey_common(heap, devId, result_code,
+                             RSA_NEW_INIT_ID, id, len);
+}
+
+RsaKey* wc_NewRsaKey_Label(const char* label, void* heap, int devId,
+                            int *result_code)
+{
+    return _NewRsaKey_common(heap, devId, result_code,
+                             RSA_NEW_INIT_LABEL, (void*)label, 0);
+}
+#endif /* WOLF_PRIVATE_KEY_ID */
+
 int wc_DeleteRsaKey(RsaKey* key, RsaKey** key_p)
 {
-    if (key == NULL)
+    if (key == NULL) {
         return BAD_FUNC_ARG;
+    }
     wc_FreeRsaKey(key);
     XFREE(key, key->heap, DYNAMIC_TYPE_RSA);
-    if (key_p != NULL)
+    if (key_p != NULL) {
         *key_p = NULL;
+    }
     return 0;
 }
 #endif /* !WC_NO_CONSTRUCTORS */
