@@ -39181,6 +39181,10 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             WOLFSSL_ERROR_VERBOSE(BAD_TICKET_MSG_SZ);
             return WOLFSSL_TICKET_RET_REJECT;
         }
+        if ((word32)inLen + WOLFSSL_TICKET_FIXED_SZ > len) {
+            WOLFSSL_ERROR_VERBOSE(BAD_TICKET_MSG_SZ);
+            return WOLFSSL_TICKET_RET_REJECT;
+        }
         outLen = (int)inLen;   /* may be reduced by user padding */
 
         if (ssl->ctx->ticketEncCb == NULL
