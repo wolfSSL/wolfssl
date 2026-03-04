@@ -580,20 +580,24 @@ static int wolfssl_init(void)
     if (text_dump_path) {
         if (dump_to_file(text_dump_path,
                          (u8 *)__wc_text_start,
-                         (size_t)((uintptr_t)__wc_text_end - (uintptr_t)__wc_text_start)
-                         > 0)
+                         (size_t)((uintptr_t)__wc_text_end - (uintptr_t)__wc_text_start))
+            > 0)
+        {
             pr_info("libwolfssl: dumped .wolfcrypt_text (%zu bytes) to %s.\n",
                     (size_t)((uintptr_t)__wc_text_end - (uintptr_t)__wc_text_start),
                     text_dump_path);
+        }
     }
     if (rodata_dump_path) {
         if (dump_to_file(rodata_dump_path,
                          (u8 *)__wc_rodata_start,
                          (size_t)((uintptr_t)__wc_rodata_end - (uintptr_t)__wc_rodata_start))
             > 0)
+        {
             pr_info("libwolfssl: dumped .wolfcrypt_rodata (%zu bytes) to %s.\n",
                     (size_t)((uintptr_t)__wc_rodata_end - (uintptr_t)__wc_rodata_start),
                     rodata_dump_path);
+        }
     }
 #else
     if ((text_dump_path != NULL) ||
