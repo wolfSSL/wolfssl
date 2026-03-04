@@ -18879,7 +18879,7 @@ static int test_wolfSSL_d2i_and_i2d_PublicKey_ecc(void)
     const unsigned char* p;
     unsigned char *der = NULL;
     unsigned char *tmp = NULL;
-    int derLen;
+    int derLen = -1;
     unsigned char pub_buf[65];
     unsigned char pub_spki_buf[91];
     const int pub_len = 65;
@@ -18989,7 +18989,7 @@ static int test_wolfSSL_d2i_and_i2d_DSAparams(void)
     };
     int derInLen = sizeof(derIn);
     byte* derOut = NULL;
-    int derOutLen;
+    int derOutLen = -1;
     byte* p = derIn;
 
     /* Check that params can be successfully decoded. */
