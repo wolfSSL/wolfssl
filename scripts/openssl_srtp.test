@@ -44,7 +44,7 @@ generate_port() {
         done
 
         # Also check if the port is already bound on this system
-        if [ $collision -eq 0 ]; then
+        if [ "$collision" -eq 0 ]; then
             if command -v ss &>/dev/null; then
                 ss -lnt 2>/dev/null | grep -q ":${p}[[:space:]]" && collision=1
             elif command -v netstat &>/dev/null; then
@@ -52,10 +52,10 @@ generate_port() {
             fi
         fi
 
-        [ $collision -eq 0 ] && break
+        [ "$collision" -eq 0 ] && break
 
         ((attempts++))
-        if [ $attempts -ge 100 ]; then
+        if [ "$attempts" -ge 100 ]; then
             echo "ERROR: generate_port could not find a free port after 100 attempts"
             exit 1
         fi
@@ -111,13 +111,13 @@ start_openssl_server() {
     (sleep 1;echo -n "I hear you fa shizzle...") | \
         ${OPENSSL} s_server \
                    -${dtls_version} \
-                   -port ${server_port} \
+                   -port "${server_port}" \
                    -debug \
-                   -use_srtp ${srtp_profile} \
+                   -use_srtp "${srtp_profile}" \
                    -keymatexport EXTRACTOR-dtls_srtp \
-                   -keymatexportlen $ekm_size \
+                   -keymatexportlen "$ekm_size" \
                    -cert ./certs/server-cert.pem \
-                   -key ./certs/server-key.pem >$server_output_file &
+                   -key ./certs/server-key.pem >"$server_output_file" &
 
     # make sure the server is up
     sleep 0.1
@@ -139,16 +139,16 @@ start_wolfssl_client() {
     ${WOLFSSL_CLIENT} -u\
                       -x \
                       -v${dtls_version} \
-                      --srtp ${srtp_profile} \
-                      -p${server_port} >$client_output_file
+                      --srtp "${srtp_profile}" \
+                      -p${server_port} >"$client_output_file"
 }
 
 # $1 openssl file
 # $2 wolfssl file
 check_ekm() {
-    openssl_ekm=$(cat "$1" | grep "Keying material: " | cut -d ':' -f 2)
+    openssl_ekm=$(grep "Keying material: " < "$1" | cut -d ':' -f 2)
     echo "OPENSSL EKM: $openssl_ekm"
-    wolfssl_ekm=$(cat "$2" | grep "DTLS SRTP: Exported key material: " | cut -d ':' -f 3)
+    wolfssl_ekm=$(grep "DTLS SRTP: Exported key material: " < "$2" | cut -d ':' -f 3)
     echo "WOLFSSL EKM: $wolfssl_ekm"
 
     if [ "$openssl_ekm" = "$wolfssl_ekm" ];then
@@ -161,11 +161,11 @@ check_ekm() {
 # $1 dtsl version
 # $2 srtp profile
 check_dtls_srtp() {
-    start_openssl_server $1 $2
-    start_wolfssl_client $1 $2
-    check_ekm $server_output_file $client_output_file
+    start_openssl_server "$1" "$2"
+    start_wolfssl_client "$1" "$2"
+    check_ekm "$server_output_file" "$client_output_file"
     echo -n "check dtls $1 $2... "
-    if [ $check_ret -ne 0 ];then
+    if [ "$check_ret" -ne 0 ];then
         echo "failed"
         exit 1
     else
@@ -181,6 +181,6 @@ PROFILES="SRTP_AES128_CM_SHA1_80 \
 
 for DTLS in 1.0 1.2;do
     for SRTP_PROF in $PROFILES;do
-        check_dtls_srtp $DTLS $SRTP_PROF
+        check_dtls_srtp "$DTLS" "$SRTP_PROF"
     done
 done
