@@ -3761,6 +3761,9 @@ enum DeriveKeyType {
 
 WOLFSSL_LOCAL int DeriveEarlySecret(WOLFSSL* ssl);
 WOLFSSL_LOCAL int DeriveHandshakeSecret(WOLFSSL* ssl);
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define DeriveTls13Keys wolfSSL_DeriveTls13Keys
+#endif
 WOLFSSL_TEST_VIS int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side, int store);
 WOLFSSL_LOCAL int DeriveMasterSecret(WOLFSSL* ssl);
 WOLFSSL_LOCAL int DeriveResumptionPSK(WOLFSSL* ssl, byte* nonce, byte nonceLen, byte* secret);
