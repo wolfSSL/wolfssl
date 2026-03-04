@@ -431,7 +431,7 @@ int wolfSSL_get_peer_quic_transport_version(const WOLFSSL* ssl)
 {
     return ssl->quic.transport_peer ?
         TLSX_KEY_QUIC_TP_PARAMS : (ssl->quic.transport_peer_draft ?
-        TLSX_KEY_QUIC_TP_PARAMS : -1);
+        TLSX_KEY_QUIC_TP_PARAMS_DRAFT : -1);
 }
 
 
