@@ -21261,11 +21261,7 @@ static int generate_crl_test(const char* keyFile, const char* certFile,
           .length = sizeof(serialsToRevokeBytes[2]),
           .type = 0 }
     };
-    WOLFSSL_X509_REVOKED revoked[3] = {
-        { .serialNumber = &serialsToRevoke[0], .reason = CRL_REASON_NONE },
-        { .serialNumber = &serialsToRevoke[1], .reason = CRL_REASON_NONE },
-        { .serialNumber = &serialsToRevoke[2], .reason = CRL_REASON_NONE }
-    };
+    WOLFSSL_X509_REVOKED revoked[3];
     WOLFSSL_X509* certToRevoke = NULL;
 
     /* Load certificate to get issuer name (CRL issuer = cert subject) */
@@ -21294,6 +21290,12 @@ static int generate_crl_test(const char* keyFile, const char* certFile,
     ExpectNotNull(wolfSSL_ASN1_TIME_adj(&asnTime, XTIME(NULL), 30, 0));
     ExpectIntEQ(wolfSSL_X509_CRL_set_nextUpdate(crl, &asnTime),
         WOLFSSL_SUCCESS);
+
+    XMEMSET(revoked, 0, sizeof(revoked));
+    for (i = 0; i < numSerials; i++) {
+        revoked[i].serialNumber = &serialsToRevoke[i];
+        revoked[i].reason = CRL_REASON_NONE;
+    }
 
     /* Add revoked certificates based on serial numbers */
     for (i = 0; i < numSerials; i++) {
@@ -21512,7 +21514,7 @@ static int test_wolfSSL_X509_CRL_sign_large(void)
     WOLFSSL_X509_CRL* crl = NULL;
     WOLFSSL_EVP_PKEY* pkey = NULL;
     WOLFSSL_ASN1_TIME asnTime;
-    WOLFSSL_X509_REVOKED revoked = {0};
+    WOLFSSL_X509_REVOKED revoked;
     XFILE fp = XBADFILE;
     int i;
     byte serial[4];
