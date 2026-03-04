@@ -39,10 +39,13 @@ endif
 
 WOLFSSL_CFLAGS += -ffreestanding -Wframe-larger-than=$(MAX_STACK_FRAME_SIZE) -isystem $(shell $(CC) -print-file-name=include)
 
+# -moutline-atomics added in gcc 10.1 for ARMv8.0.
+AARCH64_NO_OUTLINE_ATOMICS := $(shell { echo -e 'int f(void) {\n  return 0;\n}\n' | $(CC) -mno-outline-atomics -x c -c - -o /dev/null 2>/dev/null; } && echo -mno-outline-atomics)
+
 ifeq "$(KERNEL_ARCH)" "aarch64"
-    WOLFSSL_CFLAGS += -mno-outline-atomics
+    WOLFSSL_CFLAGS += $(AARCH64_NO_OUTLINE_ATOMICS)
 else ifeq "$(KERNEL_ARCH)" "arm64"
-    WOLFSSL_CFLAGS += -mno-outline-atomics
+    WOLFSSL_CFLAGS += $(AARCH64_NO_OUTLINE_ATOMICS)
 else ifeq "$(KERNEL_ARCH)" "arm"
     # avoids R_ARM_THM_JUMP11 relocations, including a stubborn tail recursion
     # optimization from wc_sp_cmp to wc_sp_cmp_mag:
@@ -111,7 +114,21 @@ ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
     # note, we need -fno-stack-protector to avoid references to
     # "__stack_chk_fail" from the wolfCrypt container.
     PIE_FLAGS := -DWC_CONTAINERIZE_THIS -fno-stack-protector -fno-toplevel-reorder
-    # some targets can't handle -fpie.  E.g. ARM32 on kernel <=5.10 has no handling for R_ARM_REL32.
+
+    ifndef NO_PIE_FLAG
+      ifeq ($(KERNEL_ARCH),arm)
+        ifeq ($(intcmp $(VERSION),5,1,0,0),1)
+          NO_PIE_FLAG :=
+          $(info Note: disabling -fPIE to avoid R_ARM_REL32 on pre-5.11 target kernel.)
+        else
+          ifeq ($(intcmp $(VERSION),5,0,1,0)-$(intcmp $(PATCHLEVEL),11,1,0,0),1-1)
+            NO_PIE_FLAG :=
+            $(info Note: disabling -fPIE to avoid R_ARM_REL32 on pre-5.11 target kernel.)
+          endif
+        endif
+      endif
+    endif
+
     ifdef NO_PIE_FLAG
         PIE_FLAGS += -DWC_NO_PIE_FLAG
     else
