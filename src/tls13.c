@@ -1541,6 +1541,12 @@ int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side, int store)
             }
             break;
 
+        case no_key:
+            /* Called with early data to derive keys from existing secrets
+             * without re-deriving the secrets themselves. */
+            ret = 0;
+            break;
+
         default:
             ret = BAD_FUNC_ARG;
             break;
