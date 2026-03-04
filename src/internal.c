@@ -3101,7 +3101,7 @@ void InitCiphers(WOLFSSL* ssl)
     XMEMSET(&ssl->dtlsRecordNumberEncrypt, 0,
         sizeof(ssl->dtlsRecordNumberEncrypt));
     XMEMSET(&ssl->dtlsRecordNumberDecrypt, 0,
-         sizeof(ssl->dtlsRecordNumberEncrypt));
+         sizeof(ssl->dtlsRecordNumberDecrypt));
 #endif /* WOLFSSL_DTLS13 */
 
 }
