@@ -3041,6 +3041,10 @@ int  wolfSSL_CTX_set1_groups(WOLFSSL_CTX* ctx, int* groups,
         WOLFSSL_MSG("Group count is zero");
         return WOLFSSL_FAILURE;
     }
+    if (count > WOLFSSL_MAX_GROUP_COUNT) {
+        WOLFSSL_MSG("Group count exceeds maximum");
+        return WOLFSSL_FAILURE;
+    }
     for (i = 0; i < count; i++) {
         if (isValidCurveGroup((word16)groups[i])) {
             _groups[i] = groups[i];
@@ -3074,6 +3078,10 @@ int  wolfSSL_set1_groups(WOLFSSL* ssl, int* groups, int count)
     WOLFSSL_ENTER("wolfSSL_CTX_set1_groups");
     if (count == 0) {
         WOLFSSL_MSG("Group count is zero");
+        return WOLFSSL_FAILURE;
+    }
+    if (count > WOLFSSL_MAX_GROUP_COUNT) {
+        WOLFSSL_MSG("Group count exceeds maximum");
         return WOLFSSL_FAILURE;
     }
     for (i = 0; i < count; i++) {

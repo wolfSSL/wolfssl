@@ -119,6 +119,9 @@ int test_tls13_apis(void)
     int          bad_groups[2] = { 0xDEAD, 0xBEEF };
 #endif /* !NO_WOLFSSL_SERVER || !NO_WOLFSSL_CLIENT */
     int          numGroups = 2;
+#if defined(OPENSSL_EXTRA) && !defined(NO_WOLFSSL_CLIENT)
+    int          too_many_groups[WOLFSSL_MAX_GROUP_COUNT + 1];
+#endif
 #endif
 #if defined(OPENSSL_EXTRA) && defined(HAVE_ECC)
     char         groupList[] =
@@ -605,6 +608,17 @@ int test_tls13_apis(void)
 #endif
     ExpectIntEQ(wolfSSL_CTX_set1_groups_list(NULL, groupList),
         WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+#ifndef NO_WOLFSSL_CLIENT
+    {
+        int idx;
+        for (idx = 0; idx < WOLFSSL_MAX_GROUP_COUNT + 1; idx++)
+            too_many_groups[idx] = WOLFSSL_ECC_SECP256R1;
+    }
+    ExpectIntEQ(wolfSSL_CTX_set1_groups(clientCtx, too_many_groups,
+        WOLFSSL_MAX_GROUP_COUNT + 1), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    ExpectIntEQ(wolfSSL_set1_groups(clientSsl, too_many_groups,
+        WOLFSSL_MAX_GROUP_COUNT + 1), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+#endif
 #ifndef NO_WOLFSSL_CLIENT
 #ifndef WOLFSSL_NO_TLS12
     ExpectIntEQ(wolfSSL_CTX_set1_groups_list(clientTls12Ctx, groupList),
