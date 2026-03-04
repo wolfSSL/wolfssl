@@ -137,6 +137,10 @@ int wolfSSL_CTX_GenerateEchConfig(WOLFSSL_CTX* ctx, const char* publicName,
 
     if (ret != 0) {
         if (newConfig) {
+            if (newConfig->receiverPrivkey != NULL) {
+                wc_HpkeFreeKey(hpke, newConfig->kemId,
+                    newConfig->receiverPrivkey, ctx->heap);
+            }
             XFREE(newConfig->cipherSuites, ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(newConfig->publicName, ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(newConfig, ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
