@@ -608,7 +608,7 @@ int test_tls13_apis(void)
 #endif
     ExpectIntEQ(wolfSSL_CTX_set1_groups_list(NULL, groupList),
         WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
-#ifndef NO_WOLFSSL_CLIENT
+#if defined(OPENSSL_EXTRA) && !defined(NO_WOLFSSL_CLIENT)
     {
         int idx;
         for (idx = 0; idx < WOLFSSL_MAX_GROUP_COUNT + 1; idx++)
