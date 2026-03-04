@@ -30,6 +30,7 @@
 
 #include <tests/utils.h>
 #include <tests/api/test_tls.h>
+#include <wolfssl/internal.h>
 
 
 int test_utils_memio_move_message(void)
@@ -719,6 +720,50 @@ int test_tls12_no_null_compression(void)
 #endif
     wolfSSL_free(ssl_s);
     wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test that set_curves_list correctly resolves ECC curve names that fall
+ * through the kNistCurves table and reach the wc_ecc_get_curve_idx_from_name
+ * fallback path.  The kNistCurves lookup uses a case-sensitive XSTRNCMP, so
+ * uppercase names like "SECP384R1" do not match the lowercase "secp384r1"
+ * entry; they fall through to the wolfCrypt ECC look-up which uses
+ * XSTRCASECMP. */
+int test_tls_set_curves_list_ecc_fallback(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECC) && \
+    (defined(OPENSSL_EXTRA) || defined(HAVE_CURL)) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
+    (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && \
+    ECC_MIN_KEY_SZ <= 384
+#ifndef NO_WOLFSSL_CLIENT
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL*     ssl = NULL;
+
+    /* "SECP384R1" (uppercase) is NOT in kNistCurves (case-sensitive table),
+     * so set_curves_list must use the wc_ecc_get_curve_idx_from_name fallback.
+     */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+
+    /* CTX-level: set single curve via its wolfCrypt name (uppercase) */
+    ExpectIntEQ(wolfSSL_CTX_set1_curves_list(ctx, "SECP384R1"),
+                WOLFSSL_SUCCESS);
+
+    /* Verify the correct curve was stored, not ecc_sets[0] */
+    ExpectIntEQ(ctx->numGroups, 1);
+    ExpectIntEQ(ctx->group[0], WOLFSSL_ECC_SECP384R1);
+
+    /* SSL-level: same check via wolfSSL_set1_curves_list */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_set1_curves_list(ssl, "SECP384R1"), WOLFSSL_SUCCESS);
+    ExpectIntEQ(ssl->numGroups, 1);
+    ExpectIntEQ(ssl->group[0], WOLFSSL_ECC_SECP384R1);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif /* NO_WOLFSSL_CLIENT */
 #endif
     return EXPECT_RESULT();
 }
