@@ -54,7 +54,7 @@ generate_port() {
 
         [ "$collision" -eq 0 ] && break
 
-        ((attempts++))
+        attempts=$((attempts + 1))
         if [ "$attempts" -ge 100 ]; then
             echo "ERROR: generate_port could not find a free port after 100 attempts"
             exit 1
