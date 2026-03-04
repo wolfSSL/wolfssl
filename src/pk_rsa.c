@@ -924,7 +924,7 @@ int wolfSSL_RSA_LoadDer_ex(WOLFSSL_RSA* rsa, const unsigned char* derBuf,
          * have a PKCS8 header then do not error out. */
         res = ToTraditionalInline_ex((const byte*)derBuf, &idx, (word32)derSz,
             &algId);
-        if (res > 0) {
+        if (res >= 0) {
             /* Store size of PKCS#8 header for encoding. */
             WOLFSSL_MSG("Found PKCS8 header");
             rsa->pkcs8HeaderSz = (word16)idx;
