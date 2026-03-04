@@ -48,3 +48,39 @@ functionality:
   * SRTP/SRTCP KDF
   * SSH KDF
   * TLSv1.3 HKDF
+
+## Build Notes
+
+### WOLFSSL_PREFIX
+
+If the wolfSSL C library is not installed in a default location, you can
+specify the installation prefix with the `WOLFSSL_PREFIX` environment variable
+when building the `wolfssl-wolfcrypt` crate.
+
+For example:
+
+```
+WOLFSSL_PREFIX=/opt/my-wolfssl-build cargo build
+```
+
+### Cross-Compiling
+
+Ensure that the target you want to build for is installed for Rust.
+For example:
+
+```
+rustup target add riscv64imac-unknown-none-elf
+```
+
+Build with the `--target` option if building manually:
+
+```
+export WOLFSSL_PREFIX=/opt/wolfssl-riscv64
+cargo build --target riscv64imac-unknown-none-elf
+```
+
+To specify the linker for the target:
+
+```
+export CARGO_TARGET_RISCV64IMAC_UNKNOWN_NONE_ELF_LINKER=riscv64-elf-gcc
+```

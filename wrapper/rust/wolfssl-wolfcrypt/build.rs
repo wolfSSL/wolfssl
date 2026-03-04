@@ -25,37 +25,146 @@ fn run_build() -> Result<()> {
     Ok(())
 }
 
-fn wrapper_dir() -> Result<String> {
+fn crate_dir() -> Result<String> {
     Ok(std::env::current_dir()?.display().to_string())
 }
 
-fn wolfssl_base_dir() -> Result<String> {
-    Ok(format!("{}/../../..", wrapper_dir()?))
+fn wolfssl_repo_base_dir() -> Result<String> {
+    Ok(format!("{}/../../..", crate_dir()?))
 }
 
-fn wolfssl_lib_dir() -> Result<String> {
-    Ok(format!("{}/src/.libs", wolfssl_base_dir()?))
+fn wolfssl_repo_lib_dir() -> Result<String> {
+    Ok(format!("{}/src/.libs", wolfssl_repo_base_dir()?))
+}
+
+/// Returns the include directory for wolfssl headers.
+///
+/// If `WOLFSSL_PREFIX` is set, returns `{WOLFSSL_PREFIX}/include`.
+/// Otherwise falls back to the repo root if it exists (for in-tree host builds).
+fn wolfssl_include_dir() -> Result<Option<String>> {
+    if let Ok(prefix) = env::var("WOLFSSL_PREFIX") {
+        Ok(Some(format!("{}/include", prefix)))
+    } else if Path::new(&wolfssl_repo_base_dir()?).exists() {
+        Ok(Some(wolfssl_repo_base_dir()?))
+    } else {
+        Ok(None)
+    }
+}
+
+/// Returns the library directory for libwolfssl.
+///
+/// If `WOLFSSL_PREFIX` is set, returns `{WOLFSSL_PREFIX}/lib`.
+/// Otherwise falls back to the in-tree build output directory if it exists.
+fn wolfssl_lib_dir() -> Result<Option<String>> {
+    if let Ok(prefix) = env::var("WOLFSSL_PREFIX") {
+        Ok(Some(format!("{}/lib", prefix)))
+    } else if Path::new(&wolfssl_repo_lib_dir()?).exists() {
+        Ok(Some(wolfssl_repo_lib_dir()?))
+    } else {
+        Ok(None)
+    }
 }
 
 fn bindings_path() -> String {
     PathBuf::from(env::var("OUT_DIR").unwrap()).join("bindings.rs").display().to_string()
 }
 
-/// Generate Rust bindings for the wolfssl C library using bindgen.
+/// Map a Rust target triple to the equivalent clang target triple.
 ///
-/// This function:
-/// 1. Sets up the library and include paths
-/// 2. Configures the build environment
-/// 3. Generates Rust bindings using bindgen
-/// 4. Writes the bindings to a file
+/// Rust triples embed ISA extensions in the arch component
+/// (e.g. `riscv64imac-unknown-none-elf`) while clang uses only the base arch
+/// (e.g. `riscv64-unknown-elf`).  Bare-metal targets use `<arch>-<vendor>-elf`
+/// in clang convention.
+fn rust_target_to_clang_target(rust_target: &str) -> String {
+    let parts: Vec<&str> = rust_target.splitn(4, '-').collect();
+    if parts.len() < 3 {
+        return rust_target.to_string();
+    }
+
+    // Strip ISA extensions: riscv64imac → riscv64, riscv32imac → riscv32
+    let arch = if parts[0].starts_with("riscv64") {
+        "riscv64"
+    } else if parts[0].starts_with("riscv32") {
+        "riscv32"
+    } else {
+        parts[0]
+    };
+
+    let vendor = parts[1];
+    let os     = parts[2];
+    let abi    = parts.get(3).copied().unwrap_or("");
+
+    // Bare-metal: (os=none, abi=elf) → <arch>-<vendor>-elf
+    if os == "none" && abi == "elf" {
+        format!("{}-{}-elf", arch, vendor)
+    } else {
+        format!("{}-{}-{}-{}", arch, vendor, os, abi)
+    }
+}
+
+/// Return the sysroot path for a bare-metal clang target triple, if it exists.
+///
+/// Queries the cross-compiler for its sysroot via `--print-sysroot` rather
+/// than assuming a fixed install prefix.  Tries the candidate compiler names
+/// `<arch>-<vendor>-elf-gcc` and `<arch>-elf-gcc` (vendor omitted) in order.
+/// Returns `None` if no suitable compiler is found or its sysroot is invalid.
+fn bare_metal_sysroot(clang_target: &str) -> Option<String> {
+    let parts: Vec<&str> = clang_target.splitn(3, '-').collect();
+    if parts.len() < 3 || !clang_target.ends_with("-elf") {
+        return None;
+    }
+    let (arch, vendor) = (parts[0], parts[1]);
+    let candidates = [
+        format!("{}-{}-elf-gcc", arch, vendor),
+        format!("{}-elf-gcc", arch),
+    ];
+    for compiler in &candidates {
+        if let Ok(output) = std::process::Command::new(compiler)
+                .arg("--print-sysroot")
+                .output()
+                && output.status.success() {
+            let sysroot = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            if !sysroot.is_empty() && sysroot != "/" && Path::new(&sysroot).exists() {
+                return Some(sysroot);
+            }
+        }
+    }
+    None
+}
+
+/// Generate Rust bindings for the wolfssl C library using bindgen.
 ///
 /// Returns `Ok(())` if successful, or an error if binding generation fails.
 fn generate_bindings() -> Result<()> {
-    let bindings = bindgen::Builder::default()
+    let mut builder = bindgen::Builder::default()
         .header("headers.h")
-        .clang_arg(format!("-I{}", wolfssl_base_dir()?))
         .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
-        .use_core()
+        .use_core();
+
+    if let Some(include_dir) = wolfssl_include_dir()? {
+        builder = builder.clang_arg(format!("-I{}", include_dir));
+    }
+
+    // When cross-compiling, tell clang the target so it generates correct
+    // type layouts and evaluates architecture-specific preprocessor guards.
+    let target = env::var("TARGET").unwrap();
+    let host = env::var("HOST").unwrap();
+    if target != host && target.ends_with("-none-elf") {
+        let clang_target = rust_target_to_clang_target(&target);
+        builder = builder.clang_arg(format!("--target={}", clang_target));
+
+        // For bare-metal targets, add the toolchain C runtime headers
+        // (newlib's time.h etc.) using -idirafter so they appear after
+        // clang's own built-in includes.  This lets clang's stdatomic.h
+        // take priority over newlib's incompatible version.
+        if let Some(sysroot) = bare_metal_sysroot(&clang_target) {
+            builder = builder
+                .clang_arg("-ffreestanding")
+                .clang_arg(format!("-idirafter{}/include", sysroot));
+        }
+    }
+
+    let bindings = builder
         .generate()
         .map_err(|_| io::Error::other("Failed to generate bindings"))?;
 
@@ -147,18 +256,25 @@ fn generate_fips_aliases() -> Result<()> {
 ///
 /// Returns `Ok(())` if successful, or an error if any step fails.
 fn setup_wolfssl_link() -> Result<()> {
-    println!("cargo:rustc-link-lib=wolfssl");
+    if let Some(lib_dir) = wolfssl_lib_dir()? {
+        println!("cargo:rustc-link-search={}", lib_dir);
 
-//    TODO: do we need this if only a static library is built?
-//    println!("cargo:rustc-link-lib=static=wolfssl");
-
-    let build_in_repo = Path::new(&wolfssl_lib_dir()?).exists();
-    if build_in_repo {
-        // When the crate is built in the wolfssl repository, link with the
-        // locally build wolfssl library to allow testing any local changes
-        // and running unit tests even if library is not installed.
-        println!("cargo:rustc-link-search={}", wolfssl_lib_dir()?);
-        println!("cargo:rustc-link-arg=-Wl,-rpath,{}", wolfssl_lib_dir()?);
+        // Prefer a shared library if present, otherwise fall back to static.
+        let has_shared = Path::new(&lib_dir).join("libwolfssl.so").exists()
+            || Path::new(&lib_dir).join("libwolfssl.dylib").exists();
+        if has_shared {
+            println!("cargo:rustc-link-lib=wolfssl");
+            // Only set rpath where a dynamic linker exists (not bare-metal).
+            let target = env::var("TARGET").unwrap();
+            if !target.ends_with("-none-elf") {
+                println!("cargo:rustc-link-arg=-Wl,-rpath,{}", lib_dir);
+            }
+        } else {
+            println!("cargo:rustc-link-lib=static=wolfssl");
+        }
+    } else {
+        // No local lib dir found; rely on whatever is installed system-wide.
+        println!("cargo:rustc-link-lib=wolfssl");
     }
 
     Ok(())
