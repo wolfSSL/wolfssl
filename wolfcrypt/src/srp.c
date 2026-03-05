@@ -908,30 +908,30 @@ int wc_SrpComputeKey(Srp* srp, byte* clientPubKey, word32 clientPubKeySz,
     XFREE(digest, srp->heap, DYNAMIC_TYPE_SRP);
     if (u) {
         if (r != WC_NO_ERR_TRACE(MP_INIT_E))
-            mp_clear(u);
+            mp_forcezero(u);
         XFREE(u, srp->heap, DYNAMIC_TYPE_SRP);
     }
     if (s) {
         if (r != WC_NO_ERR_TRACE(MP_INIT_E))
-            mp_clear(s);
+            mp_forcezero(s);
         XFREE(s, srp->heap, DYNAMIC_TYPE_SRP);
     }
     if (temp1) {
         if (r != WC_NO_ERR_TRACE(MP_INIT_E))
-            mp_clear(temp1);
+            mp_forcezero(temp1);
         XFREE(temp1, srp->heap, DYNAMIC_TYPE_SRP);
     }
     if (temp2) {
         if (r != WC_NO_ERR_TRACE(MP_INIT_E))
-            mp_clear(temp2);
+            mp_forcezero(temp2);
         XFREE(temp2, srp->heap, DYNAMIC_TYPE_SRP);
     }
 #else
     if (r != WC_NO_ERR_TRACE(MP_INIT_E)) {
-        mp_clear(u);
-        mp_clear(s);
-        mp_clear(temp1);
-        mp_clear(temp2);
+        mp_forcezero(u);
+        mp_forcezero(s);
+        mp_forcezero(temp1);
+        mp_forcezero(temp2);
     }
 #endif
 
