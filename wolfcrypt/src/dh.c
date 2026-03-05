@@ -1157,8 +1157,9 @@ static int GeneratePrivateDh186(DhKey* key, WC_RNG* rng, byte* priv,
         if (err == MP_OKAY)
             err = mp_read_unsigned_bin(tmpX, cBuf, cSz);
         if (err != MP_OKAY) {
-            mp_clear(tmpX);
+            mp_forcezero(tmpX);
             mp_clear(tmpQ);
+            ForceZero(cBuf, cSz);
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
             XFREE(cBuf, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmpQ, key->heap, DYNAMIC_TYPE_DH);
