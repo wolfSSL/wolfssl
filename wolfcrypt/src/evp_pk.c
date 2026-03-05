@@ -901,7 +901,7 @@ static WOLFSSL_EVP_PKEY* d2i_evp_pkey(int type, WOLFSSL_EVP_PKEY** out,
         /* Check if input buffer has PKCS8 header. In the case that it does not
          * have a PKCS8 header then do not error out. */
         if ((ret = ToTraditionalInline_ex((const byte*)(*in), &idx,
-                (word32)inSz, &algId)) > 0) {
+                (word32)inSz, &algId)) >= 0) {
             WOLFSSL_MSG("Found PKCS8 header");
             pkcs8HeaderSz = (word16)idx;
 

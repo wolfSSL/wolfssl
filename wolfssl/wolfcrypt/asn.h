@@ -352,7 +352,7 @@ typedef struct ASNGetData {
 } ASNGetData;
 
 WOLFSSL_LOCAL int SizeASN_Items(const ASNItem* asn, ASNSetData *data,
-    int count, int* encSz);
+    int count, word32* encSz);
 WOLFSSL_LOCAL int SetASN_Items(const ASNItem* asn, ASNSetData *data, int count,
     byte* output);
 WOLFSSL_LOCAL int GetASN_Items(const ASNItem* asn, ASNGetData *data, int count,

@@ -3581,7 +3581,7 @@ int wolfSSL_EC_KEY_LoadDer_ex(WOLFSSL_EC_KEY* key, const unsigned char* derBuf,
          * have a PKCS8 header then do not error out.
          */
         if ((ret = ToTraditionalInline_ex((const byte*)derBuf, &idx,
-                (word32)derSz, &algId)) > 0) {
+                (word32)derSz, &algId)) >= 0) {
             WOLFSSL_MSG("Found PKCS8 header");
             key->pkcs8HeaderSz = (word16)idx;
             res = 1;
