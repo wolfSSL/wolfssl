@@ -231,6 +231,7 @@ int wc_MakeDsaKey(WC_RNG *rng, DsaKey *dsa)
         mp_clear(&dsa->y);
     }
 
+    ForceZero(cBuf, cSz);
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     XFREE(cBuf, dsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmpQ != NULL) {
