@@ -1047,7 +1047,10 @@ int BufferStoreCRL(WOLFSSL_CRL* crl, byte* buff, long* inOutSz, int type)
                 pos += SetAlgoID((int)sigOID, buff + pos, oidSigType, 0);
             }
 
-            if (ret == 0) {
+#ifdef WC_RSA_PSS
+            if (ret == 0)
+#endif
+            {
                 /* signature BIT STRING and bytes */
                 pos += SetBitString(sigSz, 0, buff + pos);
                 XMEMCPY(buff + pos, sig, sigSz);
@@ -1099,7 +1102,10 @@ int BufferStoreCRL(WOLFSSL_CRL* crl, byte* buff, long* inOutSz, int type)
             {
                 pos += SetAlgoID((int)sigOID, derTmp + pos, oidSigType, 0);
             }
-            if (ret == 0) {
+#ifdef WC_RSA_PSS
+            if (ret == 0)
+#endif
+            {
                 pos += SetBitString(sigSz, 0, derTmp + pos);
                 XMEMCPY(derTmp + pos, sig, sigSz);
             }
