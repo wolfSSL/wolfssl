@@ -22395,6 +22395,11 @@ static int removeMsgInnerPadding(WOLFSSL* ssl)
 
     /* Get the real content type from the end of the data. */
     ssl->curRL.type = ssl->buffers.inputBuffer.buffer[i];
+    if (ssl->curRL.type == 0) {
+        SendAlert(ssl, alert_fatal, unexpected_message);
+        WOLFSSL_ERROR(PARSE_ERROR);
+        return PARSE_ERROR;
+    }
     /* consider both contentType byte and MAC as padding */
     ssl->keys.padSz = ssl->buffers.inputBuffer.idx
         + ssl->curSize - i;
