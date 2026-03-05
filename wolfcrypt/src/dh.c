@@ -2404,7 +2404,7 @@ int wc_DhImportKeyPair(DhKey* key, const byte* priv, word32 privSz,
     }
     if (havePriv) {
         if (mp_read_unsigned_bin(&key->priv, priv, privSz) != MP_OKAY) {
-            mp_clear(&key->priv);
+            mp_forcezero(&key->priv);
             havePriv = 0;
         } else {
             WOLFSSL_MSG("DH Private Key Set");
