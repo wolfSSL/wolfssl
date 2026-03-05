@@ -22038,6 +22038,12 @@ static int DoAlert(WOLFSSL* ssl, byte* input, word32* inOutIdx, int* type)
         if (level == alert_fatal) {
             ssl->options.isClosed = 1;  /* Don't send close_notify */
         }
+        /* RFC 8446 Section 6.2: In TLS 1.3, all error alerts are implicitly
+         * fatal regardless of the AlertLevel byte. */
+        if (IsAtLeastTLSv1_3(ssl->version) &&
+                code != close_notify && code != user_canceled) {
+            ssl->options.isClosed = 1;
+        }
     }
 
     if (++ssl->options.alertCount >= WOLFSSL_ALERT_COUNT_MAX) {
@@ -23516,6 +23522,15 @@ default:
 
                     if (type == decrypt_error)
                         return FATAL_ERROR;
+
+                    /* RFC 8446 Section 6.2: In TLS 1.3, all error alerts MUST
+                     * be treated as fatal regardless of the AlertLevel byte.
+                     * Only close_notify (handled above) and user_canceled
+                     * are exempt. */
+                    if (IsAtLeastTLSv1_3(ssl->version) &&
+                            type != user_canceled && type != invalid_alert) {
+                        return FATAL_ERROR;
+                    }
 
                     /* Reset error if we got an alert level in ret */
                     if (ret > 0)
