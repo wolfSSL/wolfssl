@@ -23136,6 +23136,8 @@ static int test_wolfSSL_CTX_LoadCRL_largeCRLnum(void)
     const char* caCert     =  "./certs/ca-cert.pem";
     const char* crl_lrgcrlnum = "./certs/crl/extra-crls/large_crlnum.pem";
     const char* crl_lrgcrlnum2 = "./certs/crl/extra-crls/large_crlnum2.pem";
+    const char* crl_57oct = "./certs/crl/extra-crls/crlnum_57oct.pem";
+    const char* crl_64oct = "./certs/crl/extra-crls/crlnum_64oct.pem";
     const char* exp_crlnum = "D8AFADA7F08B38E6178BD0E5CD7B0DF80071BA74";
     byte *crlLrgCrlNumBuff = NULL;
     word32  crlLrgCrlNumSz;
@@ -23169,6 +23171,15 @@ static int test_wolfSSL_CTX_LoadCRL_largeCRLnum(void)
         crlInfo.crlNumber, exp_crlnum, XSTRLEN(exp_crlnum)), 0);
     /* Expect to fail loading CRL because of >21 octets CRL number */
     ExpectIntEQ(wolfSSL_CertManagerLoadCRLFile(cm, crl_lrgcrlnum2,
+                                                WOLFSSL_FILETYPE_PEM),
+        ASN_PARSE_E);
+
+    /* Expect to fail loading CRL because of >57 octets CRL number */
+    ExpectIntEQ(wolfSSL_CertManagerLoadCRLFile(cm, crl_57oct,
+                                                WOLFSSL_FILETYPE_PEM),
+        ASN_PARSE_E);
+    /* Expect to fail loading CRL because of >64 octets CRL number */
+    ExpectIntEQ(wolfSSL_CertManagerLoadCRLFile(cm, crl_64oct,
                                                 WOLFSSL_FILETYPE_PEM),
         ASN_PARSE_E);
 
