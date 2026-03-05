@@ -85,10 +85,7 @@ void wc_FreeDsaKey(DsaKey* key)
     if (key == NULL)
         return;
 
-    if (key->type == DSA_PRIVATE)
-        mp_forcezero(&key->x);
-
-    mp_clear(&key->x);
+    mp_forcezero(&key->x);
     mp_clear(&key->y);
     mp_clear(&key->g);
     mp_clear(&key->q);
