@@ -241,4 +241,17 @@ openssl crl -in extra-crls/large_crlnum2.pem -text > tmp
 check_result $?
 mv tmp extra-crls/large_crlnum2.pem
 
+# OCSP root-ca CRL (empty, no revocations)
+cp blank.index.txt demoCA/index.txt
+
+echo "Step 31"
+openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 1000 -out ../ocsp/root-ca-crl.pem -keyfile ../ocsp/root-ca-key.pem -cert ../ocsp/root-ca-cert.pem
+check_result $?
+
+# metadata
+echo "Step 32"
+openssl crl -in ../ocsp/root-ca-crl.pem -text > tmp
+check_result $?
+mv tmp ../ocsp/root-ca-crl.pem
+
 exit 0

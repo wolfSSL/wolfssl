@@ -126,6 +126,10 @@ def cert_status(value: int) -> rfc6960.CertStatus:
         revoked['revocationTime'] = useful.GeneralizedTime().fromDateTime(
             datetime.now() - timedelta(days=1))
         cs['revoked'] = revoked
+    elif value == CERT_UNKNOWN:
+        unknown = rfc6960.UnknownInfo('').subtype(implicitTag=tag.Tag(
+            tag.tagClassContext, tag.tagFormatSimple, 2))
+        cs['unknown'] = unknown
 
     return cs
 
@@ -443,6 +447,38 @@ if __name__ == '__main__':
             ],
             'responder_key': WOLFSSL_OCSP_CERT_PATH + 'ocsp-responder-key.pem',
             'name': 'resp_root_ca_cert'
+        },
+        {
+            'response_status': 0,
+            'signature_algorithm': signature_algorithm(),
+            'certs_path': [WOLFSSL_OCSP_CERT_PATH + 'root-ca-cert.pem'],
+            'responder_by_name': True,
+            'responder_cert': WOLFSSL_OCSP_CERT_PATH + 'root-ca-cert.pem',
+            'responses': [
+                {
+                    'issuer_cert': WOLFSSL_OCSP_CERT_PATH + 'root-ca-cert.pem',
+                    'serial': 0x01,
+                    'status': CERT_UNKNOWN
+                }
+            ],
+            'responder_key': WOLFSSL_OCSP_CERT_PATH + 'root-ca-key.pem',
+            'name': 'resp_cert_unknown'
+        },
+        {
+            'response_status': 0,
+            'signature_algorithm': signature_algorithm(),
+            'certs_path': [WOLFSSL_OCSP_CERT_PATH + '../ca-cert.pem'],
+            'responder_by_name': True,
+            'responder_cert': WOLFSSL_OCSP_CERT_PATH + '../ca-cert.pem',
+            'responses': [
+                {
+                    'issuer_cert': WOLFSSL_OCSP_CERT_PATH + '../ca-cert.pem',
+                    'serial': 0x01,
+                    'status': CERT_UNKNOWN
+                }
+            ],
+            'responder_key': WOLFSSL_OCSP_CERT_PATH + '../ca-key.pem',
+            'name': 'resp_server_cert_unknown'
         },
     ]
 
