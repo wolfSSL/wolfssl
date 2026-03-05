@@ -568,7 +568,7 @@ int wc_Pkcs11_Initialize_v3(Pkcs11Dev* dev, const char* library,
                 pkcs11_version.major = 2;
                 pkcs11_version.minor = 20;
             }
-            else if (*version == WC_PCKS11VERSION_2_20) {
+            else if (*version == WC_PCKS11VERSION_2_40) {
                 pkcs11_version.major = 2;
                 pkcs11_version.minor = 40;
             }
