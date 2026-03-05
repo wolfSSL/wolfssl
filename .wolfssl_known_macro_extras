@@ -564,6 +564,7 @@ STSAFE_HOST_KEY_MAC
 STSAFE_I2C_BUS
 STSE_CONF_ECC_BRAINPOOL_P_256
 STSE_CONF_ECC_BRAINPOOL_P_384
+SYS_CLOCK_REALTIME
 TASK_EXTRA_STACK_SIZE
 TCP_NODELAY
 TFM_ALREADY_SET
@@ -1097,7 +1098,11 @@ __clang_major__
 __cplusplus
 __ghc__
 __ghs__
+<<<<<<< HEAD
 __has_attribute
+=======
+__has_include
+>>>>>>> 9188ee19b (Add to macro list)
 __hpux__
 __i386
 __i386__
