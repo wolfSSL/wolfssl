@@ -39,6 +39,7 @@ jobs:
           '',
           '--enable-all',
           '--enable-all --enable-dilithium',
+          '--enable-all --enable-mlkem',
           '--enable-cryptonly --disable-examples',
           '--enable-cryptonly --disable-examples --disable-aes --disable-aesgcm',
           '--enable-cryptonly --disable-examples --disable-aescbc',
