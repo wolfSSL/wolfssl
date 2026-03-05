@@ -300,8 +300,8 @@ int wc_SrpInit(Srp* srp, SrpType type, SrpSide side)
 void wc_SrpTerm(Srp* srp)
 {
     if (srp) {
-        mp_clear(&srp->N);    mp_clear(&srp->g);
-        mp_clear(&srp->auth); mp_clear(&srp->priv);
+        mp_clear(&srp->N);       mp_clear(&srp->g);
+        mp_forcezero(&srp->auth); mp_forcezero(&srp->priv);
         if (srp->salt) {
             ForceZero(srp->salt, srp->saltSz);
             XFREE(srp->salt, srp->heap, DYNAMIC_TYPE_SRP);
