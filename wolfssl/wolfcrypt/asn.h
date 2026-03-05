@@ -2412,6 +2412,11 @@ WOLFSSL_LOCAL int wc_ValidateDateWithTime(const byte* date, byte format,
 #endif
 WOLFSSL_TEST_VIS int wc_AsnSetSkipDateCheck(int skip_p);
 WOLFSSL_LOCAL int wc_AsnGetSkipDateCheck(void);
+#ifdef HAVE_CRL
+WOLFSSL_TEST_VIS int wc_ParseCRLReasonFromExtensions(const byte* ext,
+                                                     word32 extSz,
+                                                     int* reasonCode);
+#endif
 
 /* ASN.1 helper functions */
 #ifdef WOLFSSL_CERT_GEN
@@ -2842,6 +2847,11 @@ struct RevokedCert {
     RevokedCert* next;
     byte         revDate[MAX_DATE_SIZE];
     byte         revDateFormat;
+    int          reasonCode;     /* CRL reason code, -1 if absent */
+#if defined(OPENSSL_EXTRA)
+    byte*        extensions;     /* raw DER of crlEntryExtensions */
+    word32       extensionsSz;
+#endif
 };
 
 #ifndef CRL_MAX_NUM_SZ

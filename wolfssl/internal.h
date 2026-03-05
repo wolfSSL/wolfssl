@@ -2590,6 +2590,9 @@ struct WOLFSSL_CRL {
 #ifdef OPENSSL_ALL
     wolfSSL_Ref           ref;
 #endif
+#if defined(OPENSSL_EXTRA)
+    WOLFSSL_STACK*        revokedStack;  /* cached STACK_OF(X509_REVOKED) */
+#endif
     void*                 heap;          /* heap hint for dynamic memory */
 };
 #endif
@@ -5318,6 +5321,7 @@ typedef enum {
     STACK_TYPE_X509_NAME_ENTRY    = 17,
     STACK_TYPE_X509_REQ_ATTR      = 18,
     STACK_TYPE_GENERAL_SUBTREE    = 19,
+    STACK_TYPE_X509_REVOKED       = 20,
 } WOLF_STACK_TYPE;
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
@@ -5352,6 +5356,7 @@ struct WOLFSSL_STACK {
         WOLFSSL_X509_OBJECT*   x509_obj;
         WOLFSSL_DIST_POINT*    dp;
         WOLFSSL_X509_CRL*      crl;
+        WOLFSSL_X509_REVOKED*  revoked;
     } data;
     void* heap; /* memory heap hint */
     WOLFSSL_STACK* next;

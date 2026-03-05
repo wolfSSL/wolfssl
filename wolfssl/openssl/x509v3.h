@@ -98,6 +98,24 @@ struct WOLFSSL_X509_EXTENSION {
 #define WOLFSSL_GEN_RID         8
 #define WOLFSSL_GEN_IA5         9
 
+/* CRL reason codes per RFC 5280 section 5.3.1 */
+#ifndef CRL_REASON_UNSPECIFIED
+#ifndef CRL_REASON_NONE
+#define CRL_REASON_NONE                         (-1)
+#endif
+#define CRL_REASON_UNSPECIFIED                  0
+#define CRL_REASON_KEY_COMPROMISE               1
+#define CRL_REASON_CA_COMPROMISE                2
+#define CRL_REASON_AFFILIATION_CHANGED          3
+#define CRL_REASON_SUPERSEDED                   4
+#define CRL_REASON_CESSATION_OF_OPERATION       5
+#define CRL_REASON_CERTIFICATE_HOLD             6
+/* value 7 is not used */
+#define CRL_REASON_REMOVE_FROM_CRL              8
+#define CRL_REASON_PRIVILEGE_WITHDRAWN          9
+#define CRL_REASON_AA_COMPROMISE               10
+#endif
+
 typedef WOLF_STACK_OF(WOLFSSL_ACCESS_DESCRIPTION) WOLFSSL_AUTHORITY_INFO_ACCESS;
 
 WOLFSSL_API WOLFSSL_BASIC_CONSTRAINTS* wolfSSL_BASIC_CONSTRAINTS_new(void);

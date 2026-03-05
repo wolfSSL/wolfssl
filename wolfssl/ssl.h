@@ -885,10 +885,14 @@ struct WOLFSSL_X509_VERIFY_PARAM {
 #endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
 typedef struct WOLFSSL_X509_REVOKED {
-    WOLFSSL_ASN1_INTEGER* serialNumber;          /* stunnel dereference */
-    /* TODO: add other fields to match OpenSSL's X509_REVOKED
-     * (struct x509_revoked_st) such as revocationDate, extensions, etc.
-     * Then update wolfSSL_X509_CRL_add_revoked to handle those fields. */
+    WOLFSSL_ASN1_INTEGER*  serialNumber;       /* certificate serial number */
+    WOLFSSL_ASN1_TIME*     revocationDate;     /* revocation date */
+    WOLFSSL_STACK*         extensions;         /* STACK_OF(X509_EXTENSION) */
+    WOLFSSL_STACK*         issuer;             /* STACK_OF(GENERAL_NAME) for
+                                                * indirect CRL (currently NULL) */
+    int                    reason;             /* CRL reason code, -1 if absent */
+    int                    sequence;           /* tracks original order of entries
+                                                * in the CRL for iteration */
 } WOLFSSL_X509_REVOKED;
 
 typedef enum {
@@ -2447,7 +2451,7 @@ WOLFSSL_API WOLFSSL_ASN1_TIME *wolfSSL_X509_time_adj(WOLFSSL_ASN1_TIME *asnTime,
     long offset_sec, time_t *in_tm);
 WOLFSSL_API WOLFSSL_ASN1_TIME* wolfSSL_X509_gmtime_adj(WOLFSSL_ASN1_TIME* s,
     long adj);
-WOLFSSL_API int       wolfSSL_sk_X509_REVOKED_num(WOLFSSL_X509_REVOKED* revoked);
+WOLFSSL_API int       wolfSSL_sk_X509_REVOKED_num(WOLFSSL_STACK* sk);
 WOLFSSL_API void      wolfSSL_X509_STORE_CTX_set_time(WOLFSSL_X509_STORE_CTX* ctx,
                                                       unsigned long flags,
                                                       time_t t);
@@ -2479,9 +2483,9 @@ WOLFSSL_API int wolfSSL_X509_load_crl_file(WOLFSSL_X509_LOOKUP *ctx,
 WOLFSSL_API int wolfSSL_X509_load_cert_crl_file(WOLFSSL_X509_LOOKUP *ctx,
                                               const char *file, int type);
 #endif
-WOLFSSL_API WOLFSSL_X509_REVOKED* wolfSSL_X509_CRL_get_REVOKED(WOLFSSL_X509_CRL* crl);
+WOLFSSL_API WOLFSSL_STACK* wolfSSL_X509_CRL_get_REVOKED(WOLFSSL_X509_CRL* crl);
 WOLFSSL_API WOLFSSL_X509_REVOKED* wolfSSL_sk_X509_REVOKED_value(
-                                                      WOLFSSL_X509_REVOKED* revoked,int value);
+                                                      WOLFSSL_STACK* sk, int idx);
 WOLFSSL_API WOLFSSL_ASN1_INTEGER* wolfSSL_X509_get_serialNumber(WOLFSSL_X509* x509);
 WOLFSSL_API void wolfSSL_ASN1_INTEGER_free(WOLFSSL_ASN1_INTEGER* in);
 WOLFSSL_API WOLFSSL_ASN1_INTEGER* wolfSSL_ASN1_INTEGER_new(void);
@@ -3589,6 +3593,11 @@ const WOLFSSL_ASN1_INTEGER* wolfSSL_X509_REVOKED_get0_serial_number(const
 WOLFSSL_API
 const WOLFSSL_ASN1_TIME* wolfSSL_X509_REVOKED_get0_revocation_date(const
                                                      WOLFSSL_X509_REVOKED *rev);
+WOLFSSL_API void wolfSSL_X509_REVOKED_free(WOLFSSL_X509_REVOKED* rev);
+WOLFSSL_API int wolfSSL_X509_REVOKED_get_ext_count(
+                                               const WOLFSSL_X509_REVOKED* rev);
+WOLFSSL_API WOLFSSL_X509_EXTENSION* wolfSSL_X509_REVOKED_get_ext(
+                                         const WOLFSSL_X509_REVOKED* rev, int loc);
 
 #ifndef NO_FILESYSTEM
     #ifndef NO_STDIO_FILESYSTEM
