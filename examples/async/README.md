@@ -14,8 +14,42 @@ Tested with:
 * `./configure --enable-asynccrypt --enable-pkcallbacks --enable-rsa --disable-ecc`
 * `./configure --enable-asynccrypt --enable-pkcallbacks --disable-rsa --enable-ecc`
 
+## Build Modes
+
+The async examples support two mutually exclusive async modes controlled via the
+`ASYNC_MODE` Makefile variable:
+
+### Software Async Mode (default)
+Uses `WOLFSSL_ASYNC_CRYPT_SW` with non-blocking ECC (`WC_ECC_NONBLOCK`):
 ```
 make -C examples/async
+# or explicitly:
+make -C examples/async ASYNC_MODE=sw
+```
+
+### Crypto Callback Mode
+Uses `WOLF_CRYPTO_CB` with the `AsyncTlsCryptoCb` callback that simulates hardware
+crypto delays by returning `WC_PENDING_E` for a configurable number of iterations:
+```
+make -C examples/async ASYNC_MODE=cryptocb
+```
+
+To adjust the simulated pending count (default is 2), define `TEST_PEND_COUNT`:
+```
+make -C examples/async ASYNC_MODE=cryptocb EXTRA_CFLAGS="-DTEST_PEND_COUNT=5"
+```
+
+To enable crypto callback debug output:
+```
+make -C examples/async ASYNC_MODE=cryptocb EXTRA_CFLAGS="-DDEBUG_CRYPTOCB"
+```
+
+**Note:** `WOLFSSL_ASYNC_CRYPT_SW` and `WOLF_CRYPTO_CB` are mutually exclusive in the
+async polling code (async.c uses `#elif`).
+
+## Running the Examples
+
+```
 ./examples/async/async_server --ecc
 ./examples/async/async_client --ecc 127.0.0.1 11111
 ./examples/async/async_client --x25519 ecc256.badssl.com 443

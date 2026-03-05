@@ -52,6 +52,9 @@
 #include <wolfssl/ssl.h>
 #include <wolfssl/wolfio.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
+#ifdef WOLF_CRYPTO_CB
+#include <wolfssl/wolfcrypt/cryptocb.h>
+#endif
 #include <wolfssl/certs_test.h>
 #include "examples/async/async_tls.h"
 
@@ -233,6 +236,9 @@ int client_async_test(int argc, char** argv)
     int wouldblock_count = 0;
     int pending_count = 0;
 #endif
+#ifdef WOLF_CRYPTO_CB
+    AsyncTlsCryptoCbCtx cryptoCbCtx;
+#endif
 #ifdef WOLFSSL_STATIC_MEMORY
     static byte memory[300000];
     static byte memoryIO[34500];
@@ -276,6 +282,17 @@ int client_async_test(int argc, char** argv)
 #endif
 #ifdef WOLFSSL_ASYNC_CRYPT
     if (wolfAsync_DevOpenThread(&devId, NULL) != 0) {
+        goto out;
+    }
+#endif
+#ifdef WOLF_CRYPTO_CB
+    /* Crypto callbacks require a valid devId. When no hardware async driver
+     * sets one (e.g. Cavium/Intel QA/SW), assign one explicitly. */
+    if (devId == INVALID_DEVID)
+        devId = 1;
+    XMEMSET(&cryptoCbCtx, 0, sizeof(cryptoCbCtx));
+    if (wc_CryptoCb_RegisterDevice(devId, AsyncTlsCryptoCb, &cryptoCbCtx) != 0) {
+        fprintf(stderr, "ERROR: wc_CryptoCb_RegisterDevice failed\n");
         goto out;
     }
 #endif
@@ -484,6 +501,8 @@ int client_async_test(int argc, char** argv)
             }
             continue;
         }
+        fprintf(stderr, "ERROR: wolfSSL_write failed: %d (%s)\n",
+            err, wolfSSL_ERR_reason_error_string(err));
         goto out;
     }
 
@@ -516,6 +535,8 @@ int client_async_test(int argc, char** argv)
             }
             continue;
         }
+        fprintf(stderr, "ERROR: wolfSSL_read failed: %d (%s)\n",
+            err, wolfSSL_ERR_reason_error_string(err));
         goto out;
     }
 
@@ -548,6 +569,9 @@ out:
     if (ctx != NULL) {
         wolfSSL_CTX_free(ctx);
     }
+#ifdef WOLF_CRYPTO_CB
+    wc_CryptoCb_UnRegisterDevice(devId);
+#endif
 #ifdef WOLFSSL_ASYNC_CRYPT
     if (devId != INVALID_DEVID) {
         wolfAsync_DevClose(&devId);

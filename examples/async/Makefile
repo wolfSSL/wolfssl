@@ -5,6 +5,9 @@ RM ?= rm -f
 WOLFSSL_TOP ?= $(abspath ../..)
 OBJDIR ?= build
 
+# Async mode: "sw" (default) for WOLFSSL_ASYNC_CRYPT_SW, "cryptocb" for WOLF_CRYPTO_CB
+ASYNC_MODE ?= sw
+
 CFLAGS ?= -O0 -g
 CFLAGS += -I.
 CFLAGS += -I$(WOLFSSL_TOP)
@@ -14,6 +17,14 @@ CFLAGS += -Wall -Wextra -Wpedantic -Werror
 CFLAGS += -DWOLFSSL_USER_SETTINGS
 CFLAGS += -DHAVE_SYS_TIME_H
 CFLAGS += -DUSE_CERT_BUFFERS_256
+
+# Set async mode defines based on ASYNC_MODE
+ifeq ($(ASYNC_MODE),cryptocb)
+    CFLAGS += -DWOLF_CRYPTO_CB
+else
+    CFLAGS += -DWOLFSSL_ASYNC_CRYPT_SW
+endif
+
 CFLAGS += $(EXTRA_CFLAGS)
 
 LDFLAGS ?=

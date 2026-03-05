@@ -45,13 +45,20 @@
 #define WC_X25519_NONBLOCK
 
 #define WOLFSSL_ASYNC_CRYPT
-#define WOLFSSL_ASYNC_CRYPT_SW
 #define WC_NO_ASYNC_THREADING
 #define HAVE_WOLF_BIGINT
+
+/* Async mode is controlled via Makefile ASYNC_MODE variable:
+ * - ASYNC_MODE=sw (default): WOLFSSL_ASYNC_CRYPT_SW for non-blocking ECC
+ * - ASYNC_MODE=cryptocb: WOLF_CRYPTO_CB for crypto callback simulation
+ * These are mutually exclusive in async.c polling code (#elif).
+ * See README.md for build instructions.
+ */
 
 #define HAVE_AESGCM
 
 #define WOLFSSL_SHA512
+#define WOLFSSL_HASH_FLAGS
 
 #define WOLFSSL_TLS13
 #define HAVE_HKDF
