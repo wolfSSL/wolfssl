@@ -5400,13 +5400,13 @@ int wc_RsaPrivateKeyDecodeRaw(const byte* n, word32 nSz,
     else if (key != NULL) {
         mp_clear(&key->n);
         mp_clear(&key->e);
-        mp_clear(&key->d);
-        mp_clear(&key->p);
-        mp_clear(&key->q);
+        mp_forcezero(&key->d);
+        mp_forcezero(&key->p);
+        mp_forcezero(&key->q);
 #if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || !defined(RSA_LOW_MEM)
-        mp_clear(&key->u);
-        mp_clear(&key->dP);
-        mp_clear(&key->dQ);
+        mp_forcezero(&key->u);
+        mp_forcezero(&key->dP);
+        mp_forcezero(&key->dQ);
 #endif
     }
 
