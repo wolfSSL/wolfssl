@@ -1851,7 +1851,6 @@ int wc_ecc_curve_cache_init(void)
 void wc_ecc_curve_cache_free(void)
 {
     int x;
-
     /* free all ECC curve caches */
     for (x = 0; x < (int)ECC_SET_COUNT; x++) {
     #ifdef WOLFSSL_NO_MALLOC

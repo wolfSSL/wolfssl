@@ -30,6 +30,7 @@
 
 #include <wolfssl/wolfcrypt/hmac.h>
 #include <wolfssl/wolfcrypt/types.h>
+#include <wolfssl/internal.h>
 #include <tests/api/api.h>
 #include <tests/api/test_hmac.h>
 
@@ -680,4 +681,77 @@ int test_wc_Sha384HmacFinal(void)
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_Sha384HmacFinal */
+
+/* Test for integer overflow in TLS_hmac size calculation (ZD #21240).
+ *
+ * TLS_hmac() computes sz + hashSz + padSz + 1 and passes the result to
+ * Hmac_UpdateFinal / Hmac_UpdateFinal_CT. When sz (word32) is near
+ * UINT32_MAX, the addition overflows and wraps to a small value, causing
+ * the HMAC routines to operate on an undersized length. The fix adds
+ * WC_SAFE_SUM_WORD32 overflow checks and returns BUFFER_E on overflow.
+ *
+ * This test calls through ssl->hmac (which points to TLS_hmac) with
+ * values that trigger the overflow condition and verifies the function
+ * correctly rejects them.
+ */
+int test_tls_hmac_size_overflow(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_HMAC) && !defined(WOLFSSL_AEAD_ONLY) && !defined(NO_TLS) && \
+    defined(NO_OLD_TLS) && !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL*     ssl = NULL;
+    byte         digest[WC_MAX_DIGEST_SIZE];
+    byte         dummy_in[64];
+
+    XMEMSET(dummy_in, 0xAA, sizeof(dummy_in));
+    XMEMSET(digest, 0, sizeof(digest));
+
+    ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
+    ExpectNotNull(ctx);
+    ssl = wolfSSL_new(ctx);
+    ExpectNotNull(ssl);
+
+    if (EXPECT_SUCCESS()) {
+        ExpectNotNull(ssl->hmac);
+
+        /* Set a hash size so the verify path in TLS_hmac is exercised. */
+        ssl->specs.hash_size = WC_SHA256_DIGEST_SIZE;
+
+        /* Overflow case 1: sz near UINT32_MAX, padSz pushes sum past limit.
+         *   (UINT32_MAX - 300) + 32 + 500 + 1 = UINT32_MAX + 233 -> wraps to 232
+         */
+        ExpectIntEQ(ssl->hmac(ssl, digest, dummy_in,
+                              (word32)(WOLFSSL_MAX_32BIT - 300),
+                              500,   /* padSz */
+                              application_data, 1, PEER_ORDER),
+                    WC_NO_ERR_TRACE(BUFFER_E));
+
+        /* Overflow case 2: padSz = 0, hashSz alone causes overflow.
+         *   (UINT32_MAX - 10) + 32 + 0 + 1 = UINT32_MAX + 23 -> wraps to 22
+         */
+        ExpectIntEQ(ssl->hmac(ssl, digest, dummy_in,
+                              (word32)(WOLFSSL_MAX_32BIT - 10),
+                              0,     /* padSz */
+                              application_data, 1, PEER_ORDER),
+                    WC_NO_ERR_TRACE(BUFFER_E));
+
+        /* Normal case: should NOT return BUFFER_E.
+         * May fail for other reasons (no keys configured) but the overflow
+         * check must not fire for small legitimate values.
+         */
+        ExpectIntNE(ssl->hmac(ssl, digest, dummy_in,
+                              100,
+                              10,    /* padSz */
+                              application_data, 1, PEER_ORDER),
+                    WC_NO_ERR_TRACE(BUFFER_E));
+    }
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+    wolfSSL_Cleanup();
+#endif /* !NO_HMAC && !WOLFSSL_AEAD_ONLY && !NO_TLS && NO_OLD_TLS &&
+        * !NO_WOLFSSL_CLIENT */
+    return EXPECT_RESULT();
+} /* END test_tls_hmac_size_overflow */
 

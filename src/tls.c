@@ -1283,6 +1283,7 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
     int    ret = 0;
     const byte* macSecret = NULL;
     word32 hashSz = 0;
+    word32 totalSz = 0;
 
     if (ssl == NULL)
         return BAD_FUNC_ARG;
@@ -1294,11 +1295,23 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
     hashSz = ssl->specs.hash_size;
 #endif
 
+    /* Pre-compute sz + hashSz + padSz + 1 with overflow checking.
+     * Used by fuzzer callback and Hmac_UpdateFinal* in the verify path. */
+    if (verify && padSz >= 0) {
+        word32 hmacSz = 0;
+        if (!WC_SAFE_SUM_WORD32(sz, hashSz, hmacSz) ||
+            !WC_SAFE_SUM_WORD32(hmacSz, (word32)padSz, hmacSz) ||
+            !WC_SAFE_SUM_WORD32(hmacSz, 1, hmacSz)) {
+            return BUFFER_E;
+        }
+        totalSz = hmacSz;
+    }
+
 #ifdef HAVE_FUZZER
     /* Fuzz "in" buffer with sz to be used in HMAC algorithm */
     if (ssl->fuzzerCb) {
         if (verify && padSz >= 0) {
-            ssl->fuzzerCb(ssl, in, sz + hashSz + padSz + 1, FUZZ_HMAC,
+            ssl->fuzzerCb(ssl, in, totalSz, FUZZ_HMAC,
                           ssl->fuzzerCtx);
         }
         else {
@@ -1335,19 +1348,18 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
     #ifdef HAVE_BLAKE2
             if (wolfSSL_GetHmacType(ssl) == WC_HASH_TYPE_BLAKE2B) {
                 ret = Hmac_UpdateFinal(&hmac, digest, in,
-                        sz + hashSz + (word32)padSz + 1, myInner, innerSz);
+                        totalSz, myInner, innerSz);
             }
             else
     #endif
             {
                 ret = Hmac_UpdateFinal_CT(&hmac, digest, in,
-                                      (sz + hashSz + (word32)padSz + 1),
+                                      totalSz,
                                       (int)hashSz, myInner, innerSz);
 
             }
 #else
-            ret = Hmac_UpdateFinal(&hmac, digest, in, sz + hashSz +
-                                        (word32)(padSz) + 1,
+            ret = Hmac_UpdateFinal(&hmac, digest, in, totalSz,
                                         myInner, innerSz);
 #endif
         }
