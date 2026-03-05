@@ -1110,6 +1110,7 @@ __must_check
 __ppc64__
 __ppc__
 __riscv
+__riscv_mul
 __riscv_xlen
 __s390x__
 __sparc

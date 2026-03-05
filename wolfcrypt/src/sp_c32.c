@@ -114,6 +114,71 @@
 
 #ifndef WOLFSSL_SP_ASM
 #if SP_WORD_SIZE == 32
+#ifdef SP_NO_MUL_INSTRUCTION
+sp_uint64 __muldi3(sp_uint64 a, sp_uint64 b);
+sp_uint64 __muldi3(sp_uint64 a, sp_uint64 b)
+{
+    sp_uint64 r;
+    sp_uint64 am[16];
+
+    /* if b is negative, convert it to positive and negate a. */
+    r = 0 - (b >> 63);
+    a = a ^ r;
+    b = b ^ r;
+    a -= r;
+    b -= r;
+
+#if defined(WOLFSSL_SP_SMALL)
+    int i;
+
+    am[0] = 0;
+    for (i = 1; i < 16; i++) {
+        am[i] = am[i-1] + a;
+    }
+
+    r = am[(b >> 28) & 0xf];
+    for (i = 24; i >= 0; i -= 4) {
+        r <<= 4;
+        r += am[(b >> i) & 0xf];
+    }
+#else
+    am[ 0] = 0;
+    am[ 1] =          a;
+    am[ 2] = a << 1;
+    am[ 3] = am[ 2] + a;
+    am[ 4] = a << 2;
+    am[ 5] = am[ 4] + a;
+    am[ 6] = am[ 5] + a;
+    am[ 7] = am[ 6] + a;
+    am[ 8] = a << 3;
+    am[ 9] = am[ 8] + a;
+    am[10] = am[ 9] + a;
+    am[11] = am[10] + a;
+    am[12] = am[11] + a;
+    am[13] = am[12] + a;
+    am[14] = am[13] + a;
+    am[15] = am[14] + a;
+
+    r  = am[(b >> 28) & 0xf];
+    r <<= 4;
+    r += am[(b >> 24) & 0xf];
+    r <<= 4;
+    r += am[(b >> 20) & 0xf];
+    r <<= 4;
+    r += am[(b >> 16) & 0xf];
+    r <<= 4;
+    r += am[(b >> 12) & 0xf];
+    r <<= 4;
+    r += am[(b >>  8) & 0xf];
+    r <<= 4;
+    r += am[(b >>  4) & 0xf];
+    r <<= 4;
+    r += am[(b >>  0) & 0xf];
+#endif
+
+    return r;
+}
+#endif /* SP_NO_MUL_INSTRUCTION */
 #define SP_PRINT_NUM(var, name, total, words, bits)   \
     do {                                              \
         int ii;                                       \
@@ -21252,7 +21317,9 @@ static void sp_256_get_entry_256_9(sp_point_256* r,
     r->y[7] = 0;
     r->y[8] = 0;
     for (i = 1; i < 256; i++) {
-        mask = (sp_digit)0 - (i == idx);
+        sp_digit gte = (sp_digit)((((sp_uint32)i - (sp_uint32)idx) >> 31) - 1);
+        sp_digit lte = (sp_digit)((((sp_uint32)idx - (sp_uint32)i) >> 31) - 1);
+        mask = gte & lte;
         r->x[0] |= mask & table[i].x[0];
         r->x[1] |= mask & table[i].x[1];
         r->x[2] |= mask & table[i].x[2];
@@ -28357,7 +28424,9 @@ static void sp_384_get_entry_256_15(sp_point_384* r,
     r->y[13] = 0;
     r->y[14] = 0;
     for (i = 1; i < 256; i++) {
-        mask = (sp_digit)0 - (i == idx);
+        sp_digit gte = (sp_digit)((((sp_uint32)i - (sp_uint32)idx) >> 31) - 1);
+        sp_digit lte = (sp_digit)((((sp_uint32)idx - (sp_uint32)i) >> 31) - 1);
+        mask = gte & lte;
         r->x[0] |= mask & table[i].x[0];
         r->x[1] |= mask & table[i].x[1];
         r->x[2] |= mask & table[i].x[2];
@@ -35524,7 +35593,9 @@ static void sp_521_get_entry_256_21(sp_point_521* r,
     r->y[19] = 0;
     r->y[20] = 0;
     for (i = 1; i < 256; i++) {
-        mask = (sp_digit)0 - (i == idx);
+        sp_digit gte = (sp_digit)((((sp_uint32)i - (sp_uint32)idx) >> 31) - 1);
+        sp_digit lte = (sp_digit)((((sp_uint32)idx - (sp_uint32)i) >> 31) - 1);
+        mask = gte & lte;
         r->x[0] |= mask & table[i].x[0];
         r->x[1] |= mask & table[i].x[1];
         r->x[2] |= mask & table[i].x[2];
