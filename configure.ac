@@ -754,12 +754,12 @@ AC_ARG_ENABLE([benchmark],
 
 ENABLED_LINUXKM_PIE=$ENABLED_FIPS
 
-AC_ARG_ENABLE([linuxkm-pie],
-    [AS_HELP_STRING([--enable-linuxkm-pie],[Enable relocatable object build of Linux kernel module (default: disabled)])],
-    [ENABLED_LINUXKM_PIE=$enableval])
-
 AC_ARG_ENABLE([kernel-reloc-tables],
     [AS_HELP_STRING([--enable-kernel-reloc-tables],[Enable containerized object build of wolfCrypt module in kernel build (default: disabled)])],
+    [ENABLED_LINUXKM_PIE=$enableval])
+
+AC_ARG_ENABLE([linuxkm-pie],
+    [AS_HELP_STRING([--enable-linuxkm-pie],[Alias for --enable-kernel-reloc-tables])],
     [ENABLED_LINUXKM_PIE=$enableval])
 
 if test "$ENABLED_LINUXKM" = "yes" && test "$ENABLED_LINUXKM_PIE" = "yes"
@@ -1701,13 +1701,13 @@ AC_ARG_WITH([liboqs],
 # Used:
 #  - SHA3, Shake128 and Shake256
 AC_ARG_ENABLE([mlkem],
-    [AS_HELP_STRING([--enable-mlkem],[Enable MLKEM (default: disabled)])],
+    [AS_HELP_STRING([--enable-mlkem],[Enable ML-KEM/Kyber (default: disabled)])],
     [ ENABLED_MLKEM=$enableval ],
     [ ENABLED_MLKEM=no ]
     )
 # note, inherits default from "mlkem" clause above.
 AC_ARG_ENABLE([kyber],
-    [AS_HELP_STRING([--enable-kyber],[Enable Kyber/MLKEM (default: disabled)])],
+    [AS_HELP_STRING([--enable-kyber],[Alias for --enable-mlkem])],
     [ ENABLED_MLKEM=$enableval ]
     )
 
@@ -1837,13 +1837,13 @@ fi
 # Dilithium
 #  - SHA3, Shake128, Shake256 and AES-CTR
 AC_ARG_ENABLE([mldsa],
-    [AS_HELP_STRING([--enable-mldsa],[Enable MLDSA (default: disabled)])],
+    [AS_HELP_STRING([--enable-mldsa],[Enable ML-DSA/Dilithium (default: disabled)])],
     [ ENABLED_DILITHIUM=$enableval ],
     [ ENABLED_DILITHIUM=no ]
     )
 # note, inherits default from "mldsa" clause above.
 AC_ARG_ENABLE([dilithium],
-    [AS_HELP_STRING([--enable-dilithium],[Enable Dilithium/MLDSA (default: disabled)])],
+    [AS_HELP_STRING([--enable-dilithium],[Alias for --enable-mldsa])],
     [ ENABLED_DILITHIUM=$enableval ]
     )
 
@@ -4107,7 +4107,7 @@ AC_ARG_ENABLE([amdrdseed],
     )
 
 AC_ARG_ENABLE([amdrand],
-    [AS_HELP_STRING([--enable-amdrand],[Enable AMD rdseed as preferred RNG seeding source (default: disabled)])],
+    [AS_HELP_STRING([--enable-amdrand],[Alias for --enable-amdrdseed])],
     [ ENABLED_AMDRDSEED=$enableval ]
     )
 
@@ -6016,8 +6016,12 @@ AC_ARG_ENABLE([wolfEntropy],
     [ ENABLED_ENTROPY_MEMUSE=$enableval ],
     [ ENABLED_ENTROPY_MEMUSE=$ENABLED_ENTROPY_MEMUSE_DEFAULT ]
     )
+AC_ARG_ENABLE([wolfentropy],
+    [AS_HELP_STRING([--enable-wolfentropy],[Alias for --enable-wolfEntropy])],
+    [ ENABLED_ENTROPY_MEMUSE=$enableval ],
+    )
 AC_ARG_ENABLE([entropy-memuse],
-    [AS_HELP_STRING([--enable-entropy-memuse],[Enable memuse entropy support (default: disabled)])],
+    [AS_HELP_STRING([--enable-entropy-memuse],[Alias for --enable-wolfEntropy])],
     [ ENABLED_ENTROPY_MEMUSE=$enableval ]
     )
 
@@ -11046,8 +11050,11 @@ AX_HARDEN_CC_COMPILER_FLAGS
 
 # -Wdeprecated-enum-enum-conversion is on by default in C++20, but conflicts with
 # our use of enum constructs to define fungible constants.
-AX_CHECK_COMPILE_FLAG([-Werror -Wno-deprecated-enum-enum-conversion],
-  [AX_APPEND_FLAG([-Wno-deprecated-enum-enum-conversion], [AM_CFLAGS])])
+if test "$KERNEL_MODE_DEFAULTS" != "yes"
+then
+    AX_CHECK_COMPILE_FLAG([-Werror -Wno-deprecated-enum-enum-conversion],
+      [AX_APPEND_FLAG([-Wno-deprecated-enum-enum-conversion], [AM_CFLAGS])])
+fi
 
 case $host_os in
     mingw*)

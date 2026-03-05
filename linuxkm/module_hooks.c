@@ -268,16 +268,19 @@ static ssize_t dump_to_file(const char *path, const u8 *buf, size_t buf_len)
         return ret;
     }
 
-    fp = filp_open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    fp = filp_open(path, O_WRONLY | O_CREAT, 0644);
     if (IS_ERR(fp)) {
         pr_err("libwolfssl: cannot open %s: %ld\n", path, PTR_ERR(fp));
         return PTR_ERR(fp);
     }
 
     WC_SANITIZE_DISABLE();
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 9, 0)
-    /* kernel_write() exported by 7bb307e894d51 */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0)
+    /* kernel_write() fixed by e13ec939e9 */
     ret = kernel_write(fp, buf, buf_len, &pos);
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(3, 9, 0)
+    /* kernel_write() exported by 7bb307e894d51 */
+    ret = kernel_write(fp, (char *)buf, buf_len, pos);
 #else
     ret = vfs_write(fp, buf, buf_len, &pos);
 #endif
@@ -575,12 +578,26 @@ static int wolfssl_init(void)
 
 #ifdef WC_SYM_RELOC_TABLES
     if (text_dump_path) {
-        if (dump_to_file(text_dump_path, (u8 *)__wc_text_start, (size_t)((uintptr_t)__wc_text_end - (uintptr_t)__wc_text_start)) == 0)
-            pr_info("libwolfssl: dumped .wolfcrypt_text (%zu bytes) to %s.\n", (size_t)((uintptr_t)__wc_text_end - (uintptr_t)__wc_text_start), text_dump_path);
+        if (dump_to_file(text_dump_path,
+                         (u8 *)__wc_text_start,
+                         (size_t)((uintptr_t)__wc_text_end - (uintptr_t)__wc_text_start))
+            > 0)
+        {
+            pr_info("libwolfssl: dumped .wolfcrypt_text (%zu bytes) to %s.\n",
+                    (size_t)((uintptr_t)__wc_text_end - (uintptr_t)__wc_text_start),
+                    text_dump_path);
+        }
     }
     if (rodata_dump_path) {
-        if (dump_to_file(rodata_dump_path, (u8 *)__wc_rodata_start, (size_t)(__wc_rodata_end - __wc_rodata_start)) == 0)
-            pr_info("libwolfssl: dumped .wolfcrypt_rodata (%zu bytes) to %s.\n", (size_t)((uintptr_t)__wc_rodata_end - (uintptr_t)__wc_rodata_start), text_dump_path);
+        if (dump_to_file(rodata_dump_path,
+                         (u8 *)__wc_rodata_start,
+                         (size_t)((uintptr_t)__wc_rodata_end - (uintptr_t)__wc_rodata_start))
+            > 0)
+        {
+            pr_info("libwolfssl: dumped .wolfcrypt_rodata (%zu bytes) to %s.\n",
+                    (size_t)((uintptr_t)__wc_rodata_end - (uintptr_t)__wc_rodata_start),
+                    rodata_dump_path);
+        }
     }
 #else
     if ((text_dump_path != NULL) ||
@@ -1536,7 +1553,9 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
 
 #ifdef CONFIG_ARM64
 #ifndef CONFIG_ARCH_TEGRA
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
     wolfssl_linuxkm_pie_redirect_table.alt_cb_patch_nops = alt_cb_patch_nops;
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0) */
     wolfssl_linuxkm_pie_redirect_table.queued_spin_lock_slowpath = queued_spin_lock_slowpath;
 #endif
 #endif

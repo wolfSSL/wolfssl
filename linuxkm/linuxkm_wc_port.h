@@ -301,7 +301,13 @@
     #endif
 
     #if defined(WC_CONTAINERIZE_THIS) && defined(CONFIG_ARM64)
-        #define alt_cb_patch_nops my__alt_cb_patch_nops
+        /* alt_cb_patch_nops and queued_spin_lock_slowpath are defined early
+         * to allow shimming in system headers.
+         */
+        /* alt_cb_patch_nops added by d926079f17, release 6.1 */
+        #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
+            #define alt_cb_patch_nops my__alt_cb_patch_nops
+        #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0) */
         #define queued_spin_lock_slowpath my__queued_spin_lock_slowpath
     #endif
 
@@ -508,6 +514,11 @@
         #define XINET_PTON(af, src, dst) wc_linuxkm_inet_pton(af, src, dst)
     #endif /* !WOLFCRYPT_ONLY */
 #endif /* !WC_CONTAINERIZE_THIS */
+
+    #if defined(WC_SYM_RELOC_TABLES) && defined(DEBUG_LINUXKM_PIE_SUPPORT) && \
+        !defined(WC_LINUXKM_SUPPORT_DUMP_TO_FILE)
+        #define WC_LINUXKM_SUPPORT_DUMP_TO_FILE
+    #endif
 
     #ifdef WC_LINUXKM_SUPPORT_DUMP_TO_FILE
         #include <linux/fs.h>
@@ -1116,12 +1127,16 @@
              * to allow shimming in system headers, but now we need the native
              * ones.
              */
+            #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
             #undef alt_cb_patch_nops
             typeof(my__alt_cb_patch_nops) *alt_cb_patch_nops;
+            #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0) */
             #undef queued_spin_lock_slowpath
             typeof(my__queued_spin_lock_slowpath) *queued_spin_lock_slowpath;
         #else
+            #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
             typeof(alt_cb_patch_nops) *alt_cb_patch_nops;
+            #endif
             typeof(queued_spin_lock_slowpath) *queued_spin_lock_slowpath;
         #endif
         #endif

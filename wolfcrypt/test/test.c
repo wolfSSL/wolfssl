@@ -698,7 +698,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  pwdbased_test(void);
 #if defined(USE_CERT_BUFFERS_2048) && \
         defined(HAVE_PKCS12) && \
             !defined(NO_ASN) && !defined(NO_PWDBASED) && !defined(NO_HMAC) && \
-            !defined(NO_CERTS) && !defined(NO_DES3)
+            !defined(NO_CERTS) && !defined(NO_DES3) && !defined(NO_SHA)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  pkcs12_test(void);
 #endif
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  ripemd_test(void);
@@ -2648,7 +2648,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 #if defined(USE_CERT_BUFFERS_2048) && \
         defined(HAVE_PKCS12) && \
             !defined(NO_ASN) && !defined(NO_PWDBASED) && !defined(NO_HMAC) && \
-            !defined(NO_CERTS) && !defined(NO_DES3)
+            !defined(NO_CERTS) && !defined(NO_DES3) && !defined(NO_SHA)
     if ( (ret = pkcs12_test()) != 0)
         TEST_FAIL("PKCS12   test failed!\n", ret);
     else
@@ -4564,6 +4564,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha_test(void)
     } /* END LARGE HASH TEST */
 #endif /* NO_LARGE_HASH_TEST */
 
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7, 0))
     /* Copy cleanup test: verify Copy into a previously-used dst does not leak
      * resources (e.g., msg buffer, W cache). Detectable by valgrind/ASAN. */
     wc_ShaFree(&sha);
@@ -4587,6 +4588,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
     if (XMEMCMP(hash, a.output, WC_SHA_DIGEST_SIZE) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
+#endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS_VERSION_GE(7, 0)) */
 
 exit:
 
@@ -5027,6 +5029,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha224_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_I(i), exit);
     }
 
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7, 0))
     /* Copy cleanup test: verify Copy into a previously-used dst does not leak
      * resources (e.g., msg buffer, W cache). Detectable by valgrind/ASAN. */
     wc_Sha224Free(&sha);
@@ -5050,6 +5053,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha224_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
     if (XMEMCMP(hash, a.output, WC_SHA224_DIGEST_SIZE) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
+#endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS_VERSION_GE(7, 0)) */
 
 exit:
     wc_Sha224Free(&sha);
@@ -5275,6 +5279,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha256_test(void)
     }
 #endif
 
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7, 0))
     /* Copy cleanup test: verify Copy into a previously-used dst does not leak
      * resources (e.g., msg buffer, W cache). Detectable by valgrind/ASAN. */
     wc_Sha256Free(&sha);
@@ -5298,6 +5303,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha256_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
     if (XMEMCMP(hash, a.output, WC_SHA256_DIGEST_SIZE) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
+#endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS_VERSION_GE(7, 0)) */
 
 exit:
 
@@ -5516,6 +5522,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha512_test(void)
 #undef LARGE_HASH_TEST_INPUT_SZ
 #endif /* NO_LARGE_HASH_TEST */
 
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7, 0))
     /* Copy cleanup test: verify Copy into a previously-used dst does not leak
      * resources (e.g., msg buffer, W cache). Detectable by valgrind/ASAN. */
     wc_Sha512Free(&sha);
@@ -5539,6 +5546,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha512_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
     if (XMEMCMP(hash, a.output, WC_SHA512_DIGEST_SIZE) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
+#endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS_VERSION_GE(7, 0)) */
 
 exit:
 
@@ -5961,6 +5969,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha384_test(void)
     } /* END LARGE HASH TEST */
 #endif /* NO_LARGE_HASH_TEST */
 
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7, 0))
     /* Copy cleanup test: verify Copy into a previously-used dst does not leak
      * resources (e.g., msg buffer, W cache). Detectable by valgrind/ASAN. */
     wc_Sha384Free(&sha);
@@ -5984,6 +5993,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha384_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
     if (XMEMCMP(hash, a.output, WC_SHA384_DIGEST_SIZE) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
+#endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS_VERSION_GE(7, 0)) */
 
 exit:
 
@@ -6013,6 +6023,7 @@ static wc_test_ret_t sha3_224_test(void)
     WC_ALLOC_VAR(shaCopy, wc_Sha3, 1, HEAP_HINT);
     if (!WC_VAR_OK(shaCopy))
         return WC_TEST_RET_ENC_EC(MEMORY_E);
+    XMEMSET(shaCopy, 0, sizeof(*shaCopy));
 
     a.input  = "";
     a.output = "\x6b\x4e\x03\x42\x36\x67\xdb\xb7\x3b\x6e\x15\x45\x4f\x0e\xb1"
@@ -6037,8 +6048,10 @@ static wc_test_ret_t sha3_224_test(void)
     test_sha[2] = c;
 
     ret = wc_InitSha3_224(&sha, HEAP_HINT, devId);
-    if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+    if (ret != 0) {
+        XMEMSET(&sha, 0, sizeof(sha));
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    }
 
     for (i = 0; i < times; ++i) {
         ret = wc_Sha3_224_Update(&sha, (byte*)test_sha[i].input,
@@ -6083,6 +6096,7 @@ static wc_test_ret_t sha3_224_test(void)
     } /* END LARGE HASH TEST */
 #endif /* NO_LARGE_HASH_TEST */
 
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7, 0))
     /* Copy cleanup test: verify Copy into a previously-used dst does not leak
      * resources (e.g., hardware contexts). Detectable by valgrind/ASAN. */
     wc_Sha3_224_Free(&sha);
@@ -6106,6 +6120,7 @@ static wc_test_ret_t sha3_224_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
     if (XMEMCMP(hash, a.output, WC_SHA3_224_DIGEST_SIZE) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
+#endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS_VERSION_GE(7, 0)) */
 
 exit:
     wc_Sha3_224_Free(&sha);
@@ -6237,6 +6252,7 @@ static wc_test_ret_t sha3_256_test(void)
     }
 #endif /* WOLFSSL_HASH_FLAGS && !WOLFSSL_ASYNC_CRYPT */
 
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7, 0))
     /* Copy cleanup test: verify Copy into a previously-used dst does not leak
      * resources (e.g., hardware contexts). Detectable by valgrind/ASAN. */
     wc_Sha3_256_Free(&sha);
@@ -6260,6 +6276,7 @@ static wc_test_ret_t sha3_256_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
     if (XMEMCMP(hash, a.output, WC_SHA3_256_DIGEST_SIZE) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
+#endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS_VERSION_GE(7, 0)) */
 
 exit:
     wc_Sha3_256_Free(&sha);
@@ -6391,6 +6408,7 @@ static wc_test_ret_t sha3_384_test(void)
     } /* END LARGE HASH TEST */
 #endif /* NO_LARGE_HASH_TEST */
 
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7, 0))
     /* Copy cleanup test: verify Copy into a previously-used dst does not leak
      * resources (e.g., hardware contexts). Detectable by valgrind/ASAN. */
     wc_Sha3_384_Free(&sha);
@@ -6414,6 +6432,7 @@ static wc_test_ret_t sha3_384_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
     if (XMEMCMP(hash, a.output, WC_SHA3_384_DIGEST_SIZE) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
+#endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS_VERSION_GE(7, 0)) */
 
 exit:
     wc_Sha3_384_Free(&sha);
@@ -6526,6 +6545,7 @@ static wc_test_ret_t sha3_512_test(void)
     } /* END LARGE HASH TEST */
 #endif /* NO_LARGE_HASH_TEST */
 
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7, 0))
     /* Copy cleanup test: verify Copy into a previously-used dst does not leak
      * resources (e.g., hardware contexts). Detectable by valgrind/ASAN. */
     wc_Sha3_512_Free(&sha);
@@ -6549,6 +6569,7 @@ static wc_test_ret_t sha3_512_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
     if (XMEMCMP(hash, a.output, WC_SHA3_512_DIGEST_SIZE) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
+#endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS_VERSION_GE(7, 0)) */
 
 exit:
     wc_Sha3_512_Free(&sha);
@@ -6940,6 +6961,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t shake128_test(void)
     if (ret != 0)
         ERROR_OUT(ret, exit);
 
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7, 0))
     /* Copy cleanup test: verify Copy into a previously-used dst does not leak
      * resources (e.g., hardware contexts). Detectable by valgrind/ASAN. */
     wc_Shake128_Free(&sha);
@@ -6963,6 +6985,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t shake128_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
     if (XMEMCMP(hash, a.output, a.outLen) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
+#endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS_VERSION_GE(7, 0)) */
 
 exit:
     wc_Shake128_Free(&sha);
@@ -7315,6 +7338,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t shake256_test(void)
     if (ret != 0)
         ERROR_OUT(ret, exit);
 
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7, 0))
     /* Copy cleanup test: verify Copy into a previously-used dst does not leak
      * resources (e.g., hardware contexts). Detectable by valgrind/ASAN. */
     wc_Shake256_Free(&sha);
@@ -7338,6 +7362,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t shake256_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
     if (XMEMCMP(hash, a.output, a.outLen) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
+#endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS_VERSION_GE(7, 0)) */
 
 exit:
     wc_Shake256_Free(&sha);
@@ -30444,7 +30469,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pwdbased_test(void)
 #if defined(USE_CERT_BUFFERS_2048) && \
         defined(HAVE_PKCS12) && \
             !defined(NO_ASN) && !defined(NO_PWDBASED) && !defined(NO_HMAC) && \
-            !defined(NO_CERTS) && !defined(NO_DES3)
+            !defined(NO_CERTS) && !defined(NO_DES3) && !defined(NO_SHA)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs12_test(void)
 {
     wc_test_ret_t ret = 0;
