@@ -28291,6 +28291,122 @@ static int test_ticket_ret_create(void)
 }
 #endif
 
+/* Build a valid TLS 1.2 ticket by completing an initial handshake, then tamper
+ * with enc_len so it is larger than the true encrypted payload. */
+#if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    !defined(NO_RSA) && defined(HAVE_ECC) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+
+static int test_ticket_enc_corrupted_cb(WOLFSSL* ssl,
+    byte key_name[WOLFSSL_TICKET_NAME_SZ], byte iv[WOLFSSL_TICKET_IV_SZ],
+    byte mac[WOLFSSL_TICKET_MAC_SZ], int enc, byte* ticket, int inLen,
+    int* outLen, void* userCtx)
+{
+    (void)ssl;
+    (void)key_name;
+    (void)iv;
+    (void)mac;
+    (void)userCtx;
+    (void)outLen;
+
+    if (!enc) {
+        XMEMSET(ticket, 0, (size_t)inLen);
+        return WOLFSSL_TICKET_RET_REJECT; /* keep handshake progressing */
+    }
+    return WOLFSSL_TICKET_RET_CREATE;
+}
+
+static int test_ticket_enc_corrupted(void)
+{
+    EXPECT_DECLS;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL*     ssl_c = NULL;
+    WOLFSSL*     ssl_s = NULL;
+    WOLFSSL_SESSION* sess = NULL;
+    ExternalTicket* et;
+    word16 encLen;
+    int actualEncLen;
+    int craftedBadLen = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_NONE, 0);
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, 0);
+    ExpectIntEQ(wolfSSL_CTX_UseSessionTicket(ctx_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+    if (sess != NULL) {
+        ExpectIntGT(sess->ticketLen, WOLFSSL_TICKET_FIXED_SZ);
+
+        /* Force enc_len to exceed actual encrypted ticket payload while still
+         * staying <= WOLFSSL_TICKET_ENC_SZ, so callback is reached. */
+        et = (ExternalTicket*)sess->ticket;
+        ato16(et->enc_len, &encLen);
+        actualEncLen = (int)(sess->ticketLen - WOLFSSL_TICKET_FIXED_SZ);
+        if (actualEncLen + 100 <= (int)WOLFSSL_TICKET_ENC_SZ) {
+            encLen = (word16)(actualEncLen + 100);
+            c16toa(encLen, et->enc_len);
+            craftedBadLen = 1;
+        }
+        else if (actualEncLen + 1 <= (int)WOLFSSL_TICKET_ENC_SZ) {
+            encLen = (word16)(actualEncLen + 1);
+            c16toa(encLen, et->enc_len);
+            craftedBadLen = 1;
+        }
+    }
+
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    test_memio_clear_buffer(&test_ctx, 1);
+    test_memio_clear_buffer(&test_ctx, 0);
+
+    ExpectNotNull(ssl_s = wolfSSL_new(ctx_s));
+    wolfSSL_SetIOWriteCtx(ssl_s, &test_ctx);
+    wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
+    ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+    wolfSSL_SetIOWriteCtx(ssl_c, &test_ctx);
+    wolfSSL_SetIOReadCtx(ssl_c, &test_ctx);
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_NONE, 0);
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, 0);
+    if (sess != NULL) {
+        if (!craftedBadLen) {
+            wolfSSL_SESSION_free(sess);
+            wolfSSL_free(ssl_c);
+            wolfSSL_free(ssl_s);
+            wolfSSL_CTX_free(ctx_c);
+            wolfSSL_CTX_free(ctx_s);
+            return TEST_SKIPPED;
+        }
+        ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_set_TicketEncCb(ctx_s,
+            test_ticket_enc_corrupted_cb), WOLFSSL_SUCCESS);
+        ExpectTrue((wolfSSL_connect(ssl_c) ==
+            WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)) &&
+            (ssl_c->error == WC_NO_ERR_TRACE(WANT_READ)));
+        ExpectTrue((wolfSSL_accept(ssl_s) ==
+            WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)) &&
+            (ssl_s->error == WC_NO_ERR_TRACE(WANT_READ)));
+    }
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+
+    return EXPECT_RESULT();
+}
+#else
+static int test_ticket_enc_corrupted(void) { return TEST_SKIPPED; }
+#endif
+
 #if defined(WOLFSSL_TLS13) && !defined(NO_PSK) && \
     defined(HAVE_SESSION_TICKET) && defined(OPENSSL_EXTRA) && \
     defined(HAVE_IO_TESTS_DEPENDENCIES) && defined(HAVE_AESGCM) && \
@@ -33456,6 +33572,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_ticket_nonce_malloc),
 #endif
     TEST_DECL(test_ticket_ret_create),
+    TEST_DECL(test_ticket_enc_corrupted),
     TEST_DECL(test_wrong_cs_downgrade),
     TEST_DECL(test_extra_alerts_wrong_cs),
     TEST_DECL(test_extra_alerts_skip_hs),
