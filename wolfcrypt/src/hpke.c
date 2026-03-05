@@ -599,12 +599,14 @@ static int wc_HpkeExtractAndExpand( Hpke* hpke, byte* dh, word32 dh_len,
         EAE_PRK_LABEL_STR_LEN, dh, dh_len, eae_prk);
 
     /* expand */
-    if ( ret == 0 )
+    if ( ret == 0 ) {
         ret = wc_HpkeLabeledExpand(hpke, hpke->kem_suite_id,
             sizeof( hpke->kem_suite_id ), eae_prk, hpke->Nh,
             (byte*)SHARED_SECRET_LABEL_STR, SHARED_SECRET_LABEL_STR_LEN,
             kemContext, kem_context_length, hpke->Nsecret, sharedSecret);
+    }
 
+    ForceZero(eae_prk, WC_MAX_DIGEST_SIZE);
     WC_FREE_VAR_EX(eae_prk, hpke->heap, DYNAMIC_TYPE_DIGEST);
 
     return ret;
@@ -693,6 +695,8 @@ static int wc_HpkeKeyScheduleBase(Hpke* hpke, HpkeBaseContext* context,
             1 + 2 * hpke->Nh, hpke->Nh, context->exporter_secret);
     }
 
+    ForceZero(key_schedule_context, 1 + 2 * WC_MAX_DIGEST_SIZE);
+    ForceZero(secret, WC_MAX_DIGEST_SIZE);
     WC_FREE_VAR_EX(key_schedule_context, hpke->heap,
         DYNAMIC_TYPE_TMP_BUFFER);
     WC_FREE_VAR_EX(secret, hpke->heap, DYNAMIC_TYPE_DIGEST);
