@@ -3164,8 +3164,10 @@ AS_IF([test "x$with_cryptoauthlib" != "xno"], [
         LDFLAGS="$CRYPTOAUTHLIB_LIBS $LDFLAGS"
         LIBS="$CRYPTOAUTHLIB_LIBS $LIBS"
         cryptoauthlib_found="pkg-config"
-    ], [
-        # Method 2: Manual search
+    ], [:])
+
+    # Method 2: Manual search if pkg-config failed
+    AS_IF([test "x$cryptoauthlib_found" = "xno"], [
         AS_IF([test "x$with_cryptoauthlib" = "xyes"], [
             search_dirs="/usr /usr/local"
         ], [
