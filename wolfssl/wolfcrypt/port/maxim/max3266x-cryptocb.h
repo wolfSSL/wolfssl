@@ -59,12 +59,6 @@
 #endif /* HAVE_AES_DECRYPT */
 
 
-    WOLFSSL_LOCAL int wc_MXC_Sha256Update(wc_MXC_Sha* sha256,
-                                            const unsigned char* data,
-                                            unsigned int len);
-    WOLFSSL_LOCAL int wc_MXC_Sha256Final(wc_MXC_Sha* sha256,
-                                            unsigned char* hash);
-
 #ifdef __cplusplus
     } /* extern "C" */
 #endif
