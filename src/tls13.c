@@ -1207,16 +1207,22 @@ int DeriveHandshakeSecret(WOLFSSL* ssl)
     ret = DeriveKeyMsg(ssl, key, -1, ssl->arrays->secret,
                         derivedLabel, DERIVED_LABEL_SZ,
                         NULL, 0, ssl->specs.mac_algorithm);
-    if (ret != 0)
-        return ret;
+    if (ret == 0) {
+        PRIVATE_KEY_UNLOCK();
+        ret = Tls13_HKDF_Extract(ssl, ssl->arrays->preMasterSecret,
+                key, ssl->specs.hash_size,
+                ssl->arrays->preMasterSecret, (int)ssl->arrays->preMasterSz,
+                mac2hash(ssl->specs.mac_algorithm));
+        PRIVATE_KEY_LOCK();
+    }
 
-    PRIVATE_KEY_UNLOCK();
-    ret = Tls13_HKDF_Extract(ssl, ssl->arrays->preMasterSecret,
-            key, ssl->specs.hash_size,
-            ssl->arrays->preMasterSecret, (int)ssl->arrays->preMasterSz,
-            mac2hash(ssl->specs.mac_algorithm));
-    PRIVATE_KEY_LOCK();
-
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("DeriveHandshakeSecret key", key, WC_MAX_DIGEST_SIZE);
+#endif
+    ForceZero(key, sizeof(key));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(key, sizeof(key));
+#endif
     return ret;
 }
 
@@ -1244,14 +1250,22 @@ int DeriveMasterSecret(WOLFSSL* ssl)
     ret = DeriveKeyMsg(ssl, key, -1, ssl->arrays->preMasterSecret,
                         derivedLabel, DERIVED_LABEL_SZ,
                         NULL, 0, ssl->specs.mac_algorithm);
-    if (ret != 0)
-        return ret;
+    if (ret == 0) {
+        PRIVATE_KEY_UNLOCK();
+        ret = Tls13_HKDF_Extract(ssl, ssl->arrays->masterSecret,
+                                 key, ssl->specs.hash_size,
+                                 ssl->arrays->masterSecret, 0,
+                                 mac2hash(ssl->specs.mac_algorithm));
+        PRIVATE_KEY_LOCK();
+    }
 
-    PRIVATE_KEY_UNLOCK();
-    ret = Tls13_HKDF_Extract(ssl, ssl->arrays->masterSecret,
-            key, ssl->specs.hash_size,
-            ssl->arrays->masterSecret, 0, mac2hash(ssl->specs.mac_algorithm));
-    PRIVATE_KEY_LOCK();
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("DeriveMasterSecret key", key, WC_MAX_DIGEST_SIZE);
+#endif
+    ForceZero(key, sizeof(key));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(key, sizeof(key));
+#endif
 
 #ifdef HAVE_KEYING_MATERIAL
     if (ret != 0)

@@ -33,6 +33,12 @@
         #include <stdio.h>
     #endif
 #endif
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #define WOLFSSL_MISC_INCLUDED
+    #include <wolfcrypt/src/misc.c>
+#endif
 
 #if defined(WOLFSSL_RENESAS_FSPSM_TLS) || defined(WOLFSSL_RENESAS_TSIP_TLS)
 #include <wolfssl/wolfcrypt/port/Renesas/renesas_cmn.h>
@@ -3902,6 +3908,7 @@ int DeriveKeys(WOLFSSL* ssl)
         return MEMORY_E;
     }
 #endif
+
     XMEMSET(shaOutput, 0, WC_SHA_DIGEST_SIZE);
     ret = wc_InitMd5(md5);
     if (ret == 0) {
@@ -3948,6 +3955,26 @@ int DeriveKeys(WOLFSSL* ssl)
             ret = StoreKeys(ssl, keyData, PROVISION_CLIENT_SERVER);
     }
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("DeriveKeys shaOutput", shaOutput, WC_SHA_DIGEST_SIZE);
+    wc_MemZero_Add("DeriveKeys md5Input", md5Input,
+                   SECRET_LEN + WC_SHA_DIGEST_SIZE);
+    wc_MemZero_Add("DeriveKeys shaInput", shaInput,
+                   KEY_PREFIX + SECRET_LEN + 2 * RAN_LEN);
+    wc_MemZero_Add("DeriveKeys keyData", keyData,
+                   KEY_PREFIX * WC_MD5_DIGEST_SIZE);
+#endif
+    ForceZero(shaOutput, WC_SHA_DIGEST_SIZE);
+    ForceZero(md5Input, SECRET_LEN + WC_SHA_DIGEST_SIZE);
+    ForceZero(shaInput, KEY_PREFIX + SECRET_LEN + 2 * RAN_LEN);
+    ForceZero(keyData, KEY_PREFIX * WC_MD5_DIGEST_SIZE);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(shaOutput, WC_SHA_DIGEST_SIZE);
+    wc_MemZero_Check(md5Input, SECRET_LEN + WC_SHA_DIGEST_SIZE);
+    wc_MemZero_Check(shaInput, KEY_PREFIX + SECRET_LEN + 2 * RAN_LEN);
+    wc_MemZero_Check(keyData, KEY_PREFIX * WC_MD5_DIGEST_SIZE);
+#endif
+
     WC_FREE_VAR_EX(shaOutput, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     WC_FREE_VAR_EX(md5Input, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     WC_FREE_VAR_EX(shaInput, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -3959,26 +3986,24 @@ int DeriveKeys(WOLFSSL* ssl)
 }
 
 
-static int CleanPreMaster(WOLFSSL* ssl)
+static void CleanPreMaster(WOLFSSL* ssl)
 {
-    int i, ret, sz = (int)(ssl->arrays->preMasterSz);
+    int sz = (int)(ssl->arrays->preMasterSz);
 
-    for (i = 0; i < sz; i++)
-        ssl->arrays->preMasterSecret[i] = 0;
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("CleanPreMaster preMasterSecret",
+                   ssl->arrays->preMasterSecret, sz);
+#endif
 
-    ret = wc_RNG_GenerateBlock(ssl->rng, ssl->arrays->preMasterSecret,
-                                                            (word32)(sz));
-    if (ret != 0)
-        return ret;
+    ForceZero(ssl->arrays->preMasterSecret, sz);
 
-    for (i = 0; i < sz; i++)
-        ssl->arrays->preMasterSecret[i] = 0;
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(ssl->arrays->preMasterSecret, sz);
+#endif
 
     XFREE(ssl->arrays->preMasterSecret, ssl->heap, DYNAMIC_TYPE_SECRET);
     ssl->arrays->preMasterSecret = NULL;
     ssl->arrays->preMasterSz = 0;
-
-    return 0;
 }
 
 
@@ -4038,6 +4063,13 @@ static int MakeSslMasterSecret(WOLFSSL* ssl)
         return MEMORY_E;
     }
 #endif
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("MakeSslMasterSecret md5Input", md5Input,
+                   ENCRYPT_LEN + WC_SHA_DIGEST_SIZE);
+    wc_MemZero_Add("MakeSslMasterSecret shaInput", shaInput,
+                   PREFIX + ENCRYPT_LEN + 2 * RAN_LEN);
+#endif
+
     XMEMSET(shaOutput, 0, WC_SHA_DIGEST_SIZE);
 
     ret = wc_InitMd5(md5);
@@ -4096,16 +4128,20 @@ static int MakeSslMasterSecret(WOLFSSL* ssl)
             ret = DeriveKeys(ssl);
     }
 
+    ForceZero(md5Input, ENCRYPT_LEN + WC_SHA_DIGEST_SIZE);
+    ForceZero(shaInput, PREFIX + ENCRYPT_LEN + 2 * RAN_LEN);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(md5Input, ENCRYPT_LEN + WC_SHA_DIGEST_SIZE);
+    wc_MemZero_Check(shaInput, PREFIX + ENCRYPT_LEN + 2 * RAN_LEN);
+#endif
+
     WC_FREE_VAR_EX(shaOutput, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     WC_FREE_VAR_EX(md5Input, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     WC_FREE_VAR_EX(shaInput, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     WC_FREE_VAR_EX(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     WC_FREE_VAR_EX(sha, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
-    if (ret == 0)
-        ret = CleanPreMaster(ssl);
-    else
-        CleanPreMaster(ssl);
+    CleanPreMaster(ssl);
 
     return ret;
 }
