@@ -564,9 +564,9 @@ int wc_FreeRsaKey(RsaKey* key)
 #endif
 
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
-    /* Always forcezero private key fields, since they may contain residual
-     * sensitive data even when key->type is not RSA_PRIVATE (e.g., after a
-     * partial key decode failure). */
+    /* Forcezero all private key fields that are present in this build
+     * configuration, since they may contain residual sensitive data even when
+     * key->type is not RSA_PRIVATE (e.g., after a partial key decode failure). */
 #if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || !defined(RSA_LOW_MEM)
     mp_forcezero(&key->u);
     mp_forcezero(&key->dQ);
