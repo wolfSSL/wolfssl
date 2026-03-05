@@ -227,7 +227,7 @@ int wc_MakeDsaKey(WC_RNG *rng, DsaKey *dsa)
         dsa->type = DSA_PRIVATE;
 
     if (err != MP_OKAY) {
-        mp_clear(&dsa->x);
+        mp_forcezero(&dsa->x);
         mp_clear(&dsa->y);
     }
 
