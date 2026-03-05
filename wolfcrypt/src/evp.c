@@ -1264,7 +1264,7 @@ static int checkPad(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *buff)
     int i;
     int n;
     n = buff[ctx->block_size-1];
-    if (n > ctx->block_size) return -1;
+    if (n > ctx->block_size || n == 0) return -1;
     for (i = 0; i < n; i++) {
         if (buff[ctx->block_size-i-1] != n)
             return -1;
