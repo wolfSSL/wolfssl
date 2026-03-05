@@ -2131,6 +2131,19 @@ AC_ARG_WITH([liblms],
     ]
 )
 
+if test "$ENABLED_LMS" != "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_LMS"
+
+    # Use hash-sigs LMS lib if enabled.
+    if test "$ENABLED_LIBLMS" = "yes"; then
+        ENABLED_WC_LMS=no
+    else
+        ENABLED_WC_LMS=yes
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WC_LMS"
+    fi
+fi
+
 # SLH-DSA
 ENABLED_SLHDSA=yes
 AC_ARG_ENABLE([slhdsa],
