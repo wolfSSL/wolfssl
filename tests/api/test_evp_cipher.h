@@ -63,6 +63,7 @@ int test_wolfSSL_EVP_rc4(void);
 int test_wolfSSL_EVP_enc_null(void);
 int test_wolfSSL_EVP_rc2_cbc(void);
 int test_wolfSSL_EVP_mdc2(void);
+int test_evp_cipher_pkcs7_pad_zero(void);
 int test_evp_cipher_aead_aad_overflow(void);
 
 #define TEST_EVP_CIPHER_DECLS                                               \
@@ -105,6 +106,7 @@ int test_evp_cipher_aead_aad_overflow(void);
     TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_enc_null),               \
     TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_rc2_cbc),                \
     TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_mdc2),                  \
+    TEST_DECL_GROUP("evp_cipher", test_evp_cipher_pkcs7_pad_zero),            \
     TEST_DECL_GROUP("evp_cipher", test_evp_cipher_aead_aad_overflow)
 
 #endif /* WOLFCRYPT_TEST_EVP_CIPHER_H */
