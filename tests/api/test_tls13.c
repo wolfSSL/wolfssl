@@ -3100,6 +3100,54 @@ int test_tls13_plaintext_alert(void)
     return EXPECT_RESULT();
 }
 
+/* Test that TLS 1.3 warning-level alerts are treated as fatal (RFC 8446
+ * Section 6.2).
+ * A peer sending e.g. {alert_warning, handshake_failure} must still cause the
+ * connection to be terminated, not silently continued.
+ */
+int test_tls13_warning_alert_is_fatal(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL *ssl_c = NULL;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_ALERT_HISTORY h;
+    /* TLS record: content_type=alert(0x15), version=TLS1.2(0x0303), len=2,
+     *             level=warning(0x01), code=handshake_failure(0x28=40) */
+    static const unsigned char warn_alert[] =
+        { 0x15, 0x03, 0x03, 0x00, 0x02, 0x01, 0x28 };
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, NULL, &ssl_c, NULL,
+        wolfTLSv1_3_client_method, NULL), 0);
+
+    /* Client sends ClientHello, then waits for the server response. */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+    /* Inject a warning-level handshake_failure alert as if from the server.
+     * RFC 8446 Section 6.2: In TLS 1.3, all error alerts MUST be treated as
+     * fatalregardless of the AlertLevel byte. */
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 1,
+        (const char *)warn_alert, sizeof(warn_alert)), 0);
+
+    /* Expect the connection to be terminated, not silently continued. */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WC_NO_ERR_TRACE(FATAL_ERROR));
+
+    /* The alert details should be recorded correctly. */
+    ExpectIntEQ(wolfSSL_get_alert_history(ssl_c, &h), WOLFSSL_SUCCESS);
+    ExpectIntEQ(h.last_rx.code, handshake_failure);
+    ExpectIntEQ(h.last_rx.level, alert_warning);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test that wolfSSL_set1_sigalgs_list() is honored in TLS 1.3
  */
 int test_tls13_cert_req_sigalgs(void)
