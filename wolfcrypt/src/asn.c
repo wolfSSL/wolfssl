@@ -41719,7 +41719,6 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf,
         word32* inOutIdx, word32 sz)
 {
     int length;
-    int needed;
     word32 idx;
     word32 ext_bound; /* boundary index for the sequence of extensions */
     word32 oid;
