@@ -1521,7 +1521,7 @@ int test_wc_ecc_shared_secret_ssh(void)
     ExpectIntEQ(wc_ecc_set_rng(&key, &rng), 0);
 #endif
 
-    ExpectIntEQ(wc_ecc_shared_secret_ssh(&key, key2.pubkey, secret,
+    ExpectIntEQ(wc_ecc_shared_secret_ssh(&key, &key2.pubkey, secret,
         &secretLen), 0);
     /* Pass in bad args. */
     ExpectIntEQ(wc_ecc_shared_secret_ssh(NULL, &key2.pubkey, secret,

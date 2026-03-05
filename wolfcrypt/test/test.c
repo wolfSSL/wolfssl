@@ -23327,7 +23327,6 @@ static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
     const char       inStr[] = TEST_STRING;
     word32           inLen   = (word32)TEST_STRING_SZ;
     word32           outSz;
-    word32           sigSz;
     word32           plainSz;
     word32           digestSz;
     int              i, j;
@@ -23420,14 +23419,14 @@ static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
             if (ret <= 0)
                 ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_pss);
             outSz = (word32)ret;
-            /* Preserve signature length for TA100 verify. */
-            sigSz = outSz;
 
             XMEMCPY(sig, out, outSz);
             plain = NULL;
             TEST_SLEEP();
 
 #if defined(WOLFSSL_MICROCHIP_TA100)
+            {
+            word32 sigSz = outSz;
             do {
             #if defined(WOLFSSL_ASYNC_CRYPT)
                 ret = wc_AsyncWait(ret, &key->asyncDev,
@@ -23442,6 +23441,7 @@ static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
                 ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_pss);
             /* TA100 PSS verify done; skip remaining software-only variants. */
             return 0;
+            }
 #else
             do {
             #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -25432,6 +25432,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
     if (XMEMCMP(res, in, inLen)) {
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit_rsa);
     }
+    TEST_SLEEP();
+
+    do {
+#if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+#endif
+        if (ret >= 0) {
+            ret = wc_RsaSSL_Sign(in, inLen, out, outSz, key, &rng);
+        }
+    } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
+    if (ret < 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
     TEST_SLEEP();
 #endif /* !WOLFSSL_MICROCHIP_TA100 */
 
