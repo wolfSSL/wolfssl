@@ -259,6 +259,13 @@ int wc_SrpInit_ex(Srp* srp, SrpType type, SrpSide side, void* heap, int devId)
     /* initializing variables */
     XMEMSET(srp, 0, sizeof(Srp));
 
+    /* default heap hint to NULL or test value */
+#ifdef WOLFSSL_HEAP_TEST
+    srp->heap = (void*)WOLFSSL_HEAP_TEST;
+#else
+    srp->heap = heap;
+#endif /* WOLFSSL_HEAP_TEST */
+
     if ((r = SrpHashInit(&srp->client_proof, type, srp->heap)) != 0)
         return r;
 
@@ -279,13 +286,6 @@ int wc_SrpInit_ex(Srp* srp, SrpType type, SrpSide side, void* heap, int devId)
     srp->key  = NULL;    srp->keySz  = 0;
 
     srp->keyGenFunc_cb = wc_SrpSetKey;
-
-    /* default heap hint to NULL or test value */
-#ifdef WOLFSSL_HEAP_TEST
-    srp->heap = (void*)WOLFSSL_HEAP_TEST;
-#else
-    srp->heap = heap;
-#endif /* WOLFSSL_HEAP_TEST */
 
     (void)devId; /* future */
 
