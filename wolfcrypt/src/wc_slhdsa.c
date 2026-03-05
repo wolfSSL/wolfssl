@@ -186,7 +186,7 @@ static cpuid_flags_t cpuid_flags = WC_CPUID_INITIALIZER;
  * @param [in] t  Tree address.
  */
 #define HA_SetTreeAddress(a, t)                                                \
-    do { (a)[1] = t[0]; (a)[2] = t[1]; (a)[3] = t[2]; } while (0)
+    do { (a)[1] = (t)[0]; (a)[2] = (t)[1]; (a)[3] = (t)[2]; } while (0)
 /* Set type and clear following fields.
  *
  * FIPS 205. Section 4.3. Table 1. Line 3.
@@ -236,7 +236,7 @@ static cpuid_flags_t cpuid_flags = WC_CPUID_INITIALIZER;
  * @param [in] a  HashAddress set.
  * @param [in] i  Tree height.
  */
-#define HA_SetTreeHeightBE(a, i)    c32toa(i, a + (6 * 4))
+#define HA_SetTreeHeightBE(a, i)    c32toa(i, (a) + (6 * 4))
 /* Set hash address into HashAddress.
  *
  * FIPS 205. Section 4.3. Table 1. Line 6.

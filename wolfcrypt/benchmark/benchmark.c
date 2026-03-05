@@ -12049,7 +12049,10 @@ void bench_slhdsa(enum SlhDsaParam param)
     }
 
     len = wc_SlhDsaKey_PublicSize(&key) / 2 * 8;
-    XSNPRINTF(name, sizeof(name), "SLH-DSA-%c", ((param & 1) == 0) ? 'S' : 'F');
+    XMEMCPY(name, "SLH-DSA-S", 10);
+    if ((param & 1) == 1) {
+        name[8] = 'F';
+    }
 
     bench_stats_start(&count, &start);
     do {
