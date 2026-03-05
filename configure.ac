@@ -3131,13 +3131,15 @@ AS_IF([test "x$with_cryptoauthlib" != "xno"], [
     saved_CFLAGS="$CFLAGS"
 
     # Method 1: Try pkg-config first (most reliable)
-    PKG_CHECK_MODULES([CRYPTOAUTHLIB], [cryptoauthlib], [
-        CPPFLAGS="$CRYPTOAUTHLIB_CFLAGS $CPPFLAGS"
-        CFLAGS="$CRYPTOAUTHLIB_CFLAGS $CFLAGS"
-        LDFLAGS="$CRYPTOAUTHLIB_LIBS $LDFLAGS"
-        LIBS="$CRYPTOAUTHLIB_LIBS $LIBS"
-        cryptoauthlib_found="pkg-config"
-    ], [:])
+    m4_ifdef([PKG_CHECK_MODULES], [
+        PKG_CHECK_MODULES([CRYPTOAUTHLIB], [cryptoauthlib], [
+            CPPFLAGS="$CRYPTOAUTHLIB_CFLAGS $CPPFLAGS"
+            CFLAGS="$CRYPTOAUTHLIB_CFLAGS $CFLAGS"
+            LDFLAGS="$CRYPTOAUTHLIB_LIBS $LDFLAGS"
+            LIBS="$CRYPTOAUTHLIB_LIBS $LIBS"
+            cryptoauthlib_found="pkg-config"
+        ], [:])
+    ])
 
     # Method 2: Manual search if pkg-config failed
     AS_IF([test "x$cryptoauthlib_found" = "xno"], [
