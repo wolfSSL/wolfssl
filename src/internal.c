@@ -27549,6 +27549,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 
     case WOLFSSL_EVP_R_PRIVATE_KEY_DECODE_ERROR:
         return "Private key decode error (EVP)";
+
+    case SESSION_TICKET_NONCE_OVERFLOW:
+        return "Session ticket nonce overflow";
     }
 
     return "unknown error number";

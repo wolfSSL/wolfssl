@@ -12159,6 +12159,13 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
         if (ssl->error != WC_NO_ERR_TRACE(WC_PENDING_E))
     #endif
     {
+        if (ssl->session->ticketNonce.data[0] == 255) {
+            /* RFC8446 Section 4.6.1: Each ticket must have a unique nonce
+             * value. As the nonce is only a single byte, we have to prevent
+             * the overflow and abort. */
+            return SESSION_TICKET_NONCE_OVERFLOW;
+        }
+        else
             ssl->session->ticketNonce.data[0]++;
     }
 
