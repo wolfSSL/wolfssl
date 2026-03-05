@@ -8344,7 +8344,11 @@ int wc_PKCS7_AddRecipient_KTRI(wc_PKCS7* pkcs7, const byte* cert, word32 certSz,
     pkcs7->publicKeyOID = decoded->keyOID;
 
     /* KeyEncryptionAlgorithmIdentifier, only support RSA now */
-    if (pkcs7->publicKeyOID != RSAk) {
+    if (pkcs7->publicKeyOID != RSAk
+#ifdef WC_RSA_PSS
+        && pkcs7->publicKeyOID != RSAPSSk
+#endif
+    ) {
         FreeDecodedCert(decoded);
         WC_FREE_VAR_EX(serial, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
         WC_FREE_VAR_EX(keyAlgArray, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -8354,8 +8358,7 @@ int wc_PKCS7_AddRecipient_KTRI(wc_PKCS7* pkcs7, const byte* cert, word32 certSz,
         return ALGO_ID_E;
     }
 
-    keyEncAlgSz = (int)SetAlgoID((int)pkcs7->publicKeyOID, keyAlgArray,
-                                 oidKeyType, 0);
+    keyEncAlgSz = (int)SetAlgoID(RSAk, keyAlgArray, oidKeyType, 0);
     if (keyEncAlgSz == 0) {
         FreeDecodedCert(decoded);
         WC_FREE_VAR_EX(serial, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -10230,6 +10233,10 @@ int wc_PKCS7_EncodeEnvelopedData(wc_PKCS7* pkcs7, byte* output, word32 outputSz)
     if (pkcs7->singleCert != NULL && pkcs7->singleCertSz > 0) {
         switch (pkcs7->publicKeyOID) {
         #ifndef NO_RSA
+        #ifdef WC_RSA_PSS
+            case RSAPSSk:
+                FALL_THROUGH;
+        #endif
             case RSAk:
                 ret = wc_PKCS7_AddRecipient_KTRI(pkcs7, pkcs7->singleCert,
                                                  pkcs7->singleCertSz, 0);
@@ -13547,6 +13554,10 @@ int wc_PKCS7_EncodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* output,
     if (pkcs7->singleCert != NULL && pkcs7->singleCertSz > 0) {
         switch (pkcs7->publicKeyOID) {
         #ifndef NO_RSA
+        #ifdef WC_RSA_PSS
+            case RSAPSSk:
+                FALL_THROUGH;
+        #endif
             case RSAk:
                 ret = wc_PKCS7_AddRecipient_KTRI(pkcs7, pkcs7->singleCert,
                                                  pkcs7->singleCertSz, 0);
