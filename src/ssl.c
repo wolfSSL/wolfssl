@@ -3502,6 +3502,11 @@ int wolfSSL_CTX_set_TicketHint(WOLFSSL_CTX* ctx, int hint)
     if (ctx == NULL)
         return BAD_FUNC_ARG;
 
+    /* RFC8446 Section 4.6.1: Servers MUST NOT use any value greater than
+     * 604800 seconds (7 days). */
+    if (hint < 0 || hint > 604800)
+        return BAD_FUNC_ARG;
+
     ctx->ticketHint = hint;
 
     return WOLFSSL_SUCCESS;
