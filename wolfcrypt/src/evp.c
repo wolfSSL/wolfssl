@@ -3152,7 +3152,7 @@ int wolfSSL_EVP_PKEY_decrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
  */
 int wolfSSL_EVP_PKEY_decrypt_init(WOLFSSL_EVP_PKEY_CTX *ctx)
 {
-    if (ctx == NULL) return WOLFSSL_FAILURE;
+    if (ctx == NULL || ctx->pkey == NULL) return WOLFSSL_FAILURE;
     WOLFSSL_ENTER("wolfSSL_EVP_PKEY_decrypt_init");
     switch (ctx->pkey->type) {
     case WC_EVP_PKEY_RSA:
@@ -3256,7 +3256,7 @@ int wolfSSL_EVP_PKEY_encrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
  */
 int wolfSSL_EVP_PKEY_encrypt_init(WOLFSSL_EVP_PKEY_CTX *ctx)
 {
-    if (ctx == NULL) return WOLFSSL_FAILURE;
+    if (ctx == NULL || ctx->pkey == NULL) return WOLFSSL_FAILURE;
     WOLFSSL_ENTER("wolfSSL_EVP_PKEY_encrypt_init");
 
     switch (ctx->pkey->type) {
