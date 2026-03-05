@@ -2305,7 +2305,7 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
     #endif
         {
             ret = wc_CryptoCb_Free(sha224->devId, WC_ALGO_TYPE_HASH,
-                             WC_HASH_TYPE_SHA224, (void*)sha224);
+                             WC_HASH_TYPE_SHA224, 0, (void*)sha224);
             /* If they want the standard free, they can call it themselves */
             /* via their callback setting devId to INVALID_DEVID */
             /* otherwise assume the callback handled it */
@@ -2382,7 +2382,7 @@ void wc_Sha256Free(wc_Sha256* sha256)
     #endif
     {
         ret = wc_CryptoCb_Free(sha256->devId, WC_ALGO_TYPE_HASH,
-                         WC_HASH_TYPE_SHA256, (void*)sha256);
+                         WC_HASH_TYPE_SHA256, 0, (void*)sha256);
         /* If they want the standard free, they can call it themselves */
         /* via their callback setting devId to INVALID_DEVID */
         /* otherwise assume the callback handled it */

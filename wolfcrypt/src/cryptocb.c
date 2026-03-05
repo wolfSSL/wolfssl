@@ -2120,11 +2120,13 @@ int wc_CryptoCb_Copy(int devId, int algo, int type, void* src, void* dst)
  *       WC_ALGO_TYPE_CIPHER, etc
  * type: Specific type - for HASH: enum wc_HashType, for CIPHER:
  *       enum wc_CipherType
+ * subType: Specific subtype - for PQC: enum wc_PqcKemType,
+ *       enum wc_PqcSignatureType
  * obj: Pointer to object structure to free
  * Returns: 0 on success, negative on error, CRYPTOCB_UNAVAILABLE if not
  *          handled
  */
-int wc_CryptoCb_Free(int devId, int algo, int type, void* obj)
+int wc_CryptoCb_Free(int devId, int algo, int type, int subType, void* obj)
 {
     int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
@@ -2137,6 +2139,7 @@ int wc_CryptoCb_Free(int devId, int algo, int type, void* obj)
         cryptoInfo.algo_type = WC_ALGO_TYPE_FREE;
         cryptoInfo.free.algo = algo;
         cryptoInfo.free.type = type;
+        cryptoInfo.free.subType = subType;
         cryptoInfo.free.obj = obj;
 
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);

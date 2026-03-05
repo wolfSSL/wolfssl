@@ -89,6 +89,7 @@ extern "C" {
 #define CKK_SHA384_HMAC                       0x0000002cUL
 #define CKK_SHA512_HMAC                       0x0000002dUL
 #define CKK_SHA224_HMAC                       0x0000002eUL
+#define CKK_ML_DSA                            0x0000004aUL
 
 #define CKA_CLASS                             0x00000000UL
 #define CKA_TOKEN                             0x00000001UL
@@ -139,6 +140,8 @@ extern "C" {
 #define CKA_HW_FEATURE_TYPE                   0x00000300UL
 #define CKA_RESET_ON_INIT                     0x00000301UL
 #define CKA_HAS_RESET                         0x00000302UL
+#define CKA_PARAMETER_SET                     0x0000061DUL
+
 
 #define CKM_RSA_PKCS_KEY_PAIR_GEN             0x00000000UL
 #define CKM_RSA_PKCS                          0x00000001UL
@@ -158,6 +161,10 @@ extern "C" {
 #define CKM_SHA384_HMAC                       0x00000261UL
 #define CKM_SHA512                            0x00000270UL
 #define CKM_SHA512_HMAC                       0x00000271UL
+#define CKM_SHA512_256                        0x0000004CUL
+#define CKM_SHA3_256                          0x000002B0UL
+#define CKM_SHA3_384                          0x000002C0UL
+#define CKM_SHA3_512                          0x000002D0UL
 #define CKM_GENERIC_SECRET_KEY_GEN            0x00000350UL
 #define CKM_EC_KEY_PAIR_GEN                   0x00001040UL
 #define CKM_ECDSA                             0x00001041UL
@@ -167,6 +174,9 @@ extern "C" {
 #define CKM_AES_CBC                           0x00001082UL
 #define CKM_AES_CTR                           0x00001086UL
 #define CKM_AES_GCM                           0x00001087UL
+#define CKM_ML_DSA_KEY_PAIR_GEN               0x0000001CUL
+#define CKM_ML_DSA                            0x0000001DUL
+#define CKM_HASH_ML_DSA                       0x0000001FUL
 
 /* full data RSA PK callbacks */
 #define CKM_SHA1_RSA_PKCS_PSS                 0x0000000EUL
@@ -394,6 +404,33 @@ typedef struct CK_ASYNC_DATA {
     CK_OBJECT_HANDLE  hAdditionalObject;
 } CK_ASYNC_DATA;
 typedef CK_ASYNC_DATA* CK_ASYNC_DATA_PTR;
+
+/* generic PQ mechanism parameters */
+typedef CK_ULONG CK_HEDGE_TYPE;
+#define CKH_HEDGE_PREFERRED        0x00000000UL
+#define CKH_HEDGE_REQUIRED         0x00000001UL
+#define CKH_DETERMINISTIC_REQUIRED 0x00000002UL
+
+typedef struct CK_SIGN_ADDITIONAL_CONTEXT {
+     CK_HEDGE_TYPE   hedgeVariant;
+     CK_BYTE_PTR     pContext;
+     CK_ULONG        ulContextLen;
+} CK_SIGN_ADDITIONAL_CONTEXT;
+
+typedef struct CK_HASH_SIGN_ADDITIONAL_CONTEXT {
+     CK_HEDGE_TYPE     hedgeVariant;
+     CK_BYTE_PTR       pContext;
+     CK_ULONG          ulContextLen;
+     CK_MECHANISM_TYPE hash;
+} CK_HASH_SIGN_ADDITIONAL_CONTEXT;
+
+
+/* ML-DSA values for CKA_PARAMETER_SETS */
+typedef CK_ULONG CK_ML_DSA_PARAMETER_SET_TYPE;
+#define CKP_ML_DSA_44          0x00000001UL
+#define CKP_ML_DSA_65          0x00000002UL
+#define CKP_ML_DSA_87          0x00000003UL
+
 
 /* Function list types. */
 typedef struct CK_FUNCTION_LIST CK_FUNCTION_LIST;
