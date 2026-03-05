@@ -2731,40 +2731,46 @@ int test_evp_cipher_pkcs7_pad_zero(void)
         0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f
     };
     byte iv[AES_BLOCK_SIZE] = {0};
-    /* Plaintext block ending in 0x00 - when decrypted with padding enabled,
-     * the last byte (0x00) will be interpreted as the PKCS#7 padding length,
-     * which is invalid (valid range is 1..block_size). */
-    byte plain[AES_BLOCK_SIZE] = {
+    /* Two plaintext blocks, with the last byte set to 0x00. When decrypted
+     * with padding enabled, the last byte (0x00) will be interpreted as the
+     * PKCS#7 padding length, which is invalid (valid range is 1..block_size).
+     * Using two blocks ensures CipherUpdate outputs the first block and
+     * CipherFinal processes the second (last) block through checkPad. */
+    byte plain[AES_BLOCK_SIZE * 2] = {
+        0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+        0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
         0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
         0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x00
     };
-    byte cipher[AES_BLOCK_SIZE * 2];
-    byte decrypted[AES_BLOCK_SIZE * 2];
+    byte cipher[AES_BLOCK_SIZE * 3];
+    byte decrypted[AES_BLOCK_SIZE * 3];
     int outl = 0;
     int total = 0;
 
-    /* Encrypt the plaintext block with padding disabled so the ciphertext
-     * is exactly one block. */
+    /* Encrypt two plaintext blocks with padding disabled so the ciphertext
+     * is exactly two blocks. */
     ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
     ExpectIntEQ(EVP_CipherInit(ctx, EVP_aes_128_cbc(), key, iv, 1),
         WOLFSSL_SUCCESS);
-    EVP_CIPHER_CTX_set_padding(ctx, 0);
-    ExpectIntEQ(EVP_CipherUpdate(ctx, cipher, &outl, plain, AES_BLOCK_SIZE),
-        WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_CIPHER_CTX_set_padding(ctx, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_CipherUpdate(ctx, cipher, &outl, plain,
+        AES_BLOCK_SIZE * 2), WOLFSSL_SUCCESS);
     total = outl;
     ExpectIntEQ(EVP_CipherFinal(ctx, cipher + total, &outl), WOLFSSL_SUCCESS);
     total += outl;
-    ExpectIntEQ(total, AES_BLOCK_SIZE);
+    ExpectIntEQ(total, AES_BLOCK_SIZE * 2);
     EVP_CIPHER_CTX_free(ctx);
     ctx = NULL;
 
     /* Decrypt the ciphertext with padding enabled (the default).
-     * checkPad should reject padding value 0 and CipherFinal must fail. */
+     * CipherUpdate should output the first block. CipherFinal processes
+     * the last block through checkPad, which should reject padding value 0. */
     ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
     ExpectIntEQ(EVP_CipherInit(ctx, EVP_aes_128_cbc(), key, iv, 0),
         WOLFSSL_SUCCESS);
     ExpectIntEQ(EVP_CipherUpdate(ctx, decrypted, &outl, cipher, total),
         WOLFSSL_SUCCESS);
+    ExpectIntEQ(outl, AES_BLOCK_SIZE);
     ExpectIntNE(EVP_CipherFinal(ctx, decrypted + outl, &outl),
         WOLFSSL_SUCCESS);
     EVP_CIPHER_CTX_free(ctx);
