@@ -543,12 +543,16 @@ int wc_SrpSetPrivate(Srp* srp, const byte* priv, word32 size)
 static int wc_SrpGenPrivate(Srp* srp, byte* priv, word32 size)
 {
     WC_RNG rng;
-    int r = wc_InitRng_ex(&rng, srp->heap, INVALID_DEVID);
+    int r;
 
-    if (!r) r = wc_RNG_GenerateBlock(&rng, priv, size);
-    if (!r) r = wc_SrpSetPrivate(srp, priv, size);
-    if (!r) wc_FreeRng(&rng);
-
+    r = wc_InitRng_ex(&rng, srp->heap, INVALID_DEVID);
+    if (r == 0) {
+        r = wc_RNG_GenerateBlock(&rng, priv, size);
+        if (r == 0) {
+            r = wc_SrpSetPrivate(srp, priv, size);
+        }
+        wc_FreeRng(&rng);
+    }
     return r;
 }
 
