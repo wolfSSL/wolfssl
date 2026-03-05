@@ -255,7 +255,7 @@ check_result $?
 mv tmp ../ocsp/root-ca-crl.pem
 
 echo "Step 33 larger CRL number( 57 octets )"
-printf '%0114d' | tr '0' '4' > crlnumber   # 0x41 * 57 = 114 hex chars crlnumber
+python3 -c "print('4' * 114)" > crlnumber # 0x41 * 57 = 114 hex chars crlnumber
 openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 1000 -out extra-crls/crlnum_57oct.pem -keyfile ../ca-key.pem -cert ../ca-cert.pem
 check_result $?
 # metadata
@@ -264,8 +264,8 @@ openssl crl -in extra-crls/crlnum_57oct.pem -text > tmp
 check_result $?
 mv tmp extra-crls/crlnum_57oct.pem
 
-echo "Step 35 larger CRL number( 64 octets )"
-printf '%0128d' | tr '0' '4' > crlnumber   # 0x41 * 64 = 128 hex chars crlnumber
+echo "Step 34 larger CRL number( 64 octets )"
+python3 -c "print('4' * 128)" > crlnumber # 0x41 * 64 = 128 hex chars crlnumber
 openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 1000 -out extra-crls/crlnum_64oct.pem -keyfile ../ca-key.pem -cert ../ca-cert.pem
 check_result $?
 
