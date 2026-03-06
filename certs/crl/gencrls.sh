@@ -264,7 +264,7 @@ openssl crl -in extra-crls/crlnum_57oct.pem -text > tmp
 check_result $?
 mv tmp extra-crls/crlnum_57oct.pem
 
-echo "Step 34 larger CRL number( 64 octets )"
+echo "Step 35 larger CRL number( 64 octets )"
 python3 -c "print('4' * 128)" > crlnumber # 0x41 * 64 = 128 hex chars crlnumber
 openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 1000 -out extra-crls/crlnum_64oct.pem -keyfile ../ca-key.pem -cert ../ca-cert.pem
 check_result $?
