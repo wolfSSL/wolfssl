@@ -13269,13 +13269,9 @@ static int TLSX_ECH_Write(WOLFSSL_ECH* ech, byte msgType, byte* writeBuf,
     word32 configsLen = 0;
     void* ephemeralKey = NULL;
     byte* writeBuf_p = writeBuf;
-#ifdef WOLFSSL_SMALL_STACK
-    Hpke* hpke = NULL;
-    WC_RNG* rng = NULL;
-#else
-    Hpke hpke[1];
-    WC_RNG rng[1];
-#endif
+    WC_DECLARE_VAR(hpke, Hpke, 1, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_DECLARE_VAR(rng, WC_RNG, 1, DYNAMIC_TYPE_RNG);
+
     WOLFSSL_MSG("TLSX_ECH_Write");
     if (msgType == hello_retry_request) {
         /* reserve space to write the confirmation to */
@@ -13321,19 +13317,13 @@ static int TLSX_ECH_Write(WOLFSSL_ECH* ech, byte msgType, byte* writeBuf,
         }
         writeBuf_p += 2;
         if (ech->state == ECH_WRITE_GREASE) {
-#ifdef WOLFSSL_SMALL_STACK
-            hpke = (Hpke*)XMALLOC(sizeof(Hpke), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            if (hpke == NULL)
-                return MEMORY_E;
-            rng = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
-            if (rng == NULL) {
-                XFREE(hpke, NULL, DYNAMIC_TYPE_RNG);
-                return MEMORY_E;
-            }
-#endif
+            WC_ALLOC_VAR_EX(hpke, Hpke, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER, ret = MEMORY_E);
+            WC_ALLOC_VAR_EX(rng, WC_RNG, 1, NULL, DYNAMIC_TYPE_RNG, ret = MEMORY_E);
             /* hpke init */
-            ret = wc_HpkeInit(hpke, ech->kemId, ech->cipherSuite.kdfId,
-                ech->cipherSuite.aeadId, NULL);
+            if (ret == 0) {
+                ret = wc_HpkeInit(hpke, ech->kemId, ech->cipherSuite.kdfId,
+                    ech->cipherSuite.aeadId, NULL);
+            }
             if (ret == 0)
                 rngRet = ret = wc_InitRng(rng);
             /* create the ephemeralKey */
