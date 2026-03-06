@@ -395,7 +395,6 @@ int wolfSSL_ASN1_item_i2d(const void* obj, byte** dest,
 {
     int ret = 1;
     int len = 0;
-    byte* buf = NULL;
 
     WOLFSSL_ENTER("wolfSSL_ASN1_item_i2d");
 
@@ -408,6 +407,7 @@ int wolfSSL_ASN1_item_i2d(const void* obj, byte** dest,
         ret = 0;
 
     if ((ret == 1) && (dest != NULL)) {
+        byte* buf = NULL;
         if (*dest == NULL) {
             buf = (byte*)XMALLOC((size_t)len, NULL, DYNAMIC_TYPE_ASN1);
             if (buf == NULL)
@@ -428,11 +428,11 @@ int wolfSSL_ASN1_item_i2d(const void* obj, byte** dest,
             else
                 *dest += len;
         }
+        if (*dest == NULL)
+            XFREE(buf, NULL, DYNAMIC_TYPE_ASN1);
     }
 
     if (ret == 0) {
-        if (*dest == NULL)
-            XFREE(buf, NULL, DYNAMIC_TYPE_ASN1);
         len = WOLFSSL_FATAL_ERROR;
     }
     WOLFSSL_LEAVE("wolfSSL_ASN1_item_i2d", len);
