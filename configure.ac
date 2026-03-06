@@ -6082,8 +6082,10 @@ AS_CASE([$FIPS_VERSION],
     [v6|ready|dev],[ # FIPS 140-3 SRTP-KDF
 
         AS_IF([test "$FIPS_VERSION" = "dev"],
+	    ENABLED_FIPS_DEV=yes
             [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_FIPS_DEV"])
         AS_IF([test "$FIPS_VERSION" = "ready"],
+	    ENABLED_FIPS_READY=yes
             [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_FIPS_READY"])
 
         AM_CFLAGS="$AM_CFLAGS \
@@ -11309,6 +11311,19 @@ fi
 
 LIB_SOCKET_NSL
 AX_HARDEN_CC_COMPILER_FLAGS
+
+if test "$ENABLED_SELFTEST" = yes || test "$ENABLED_FIPS" = yes
+then
+    if ! test "$ENABLED_FIPS_DEV" = yes && ! test "$ENABLED_FIPS_READY" = yes
+    then
+        # rsa.c wc_hash2mgf() switches on enum wc_HashType, which is defined
+        # outside the FIPS boundary.  Unsupported hashes are correctly handled
+        # by the default clause.
+        AC_LANG_PUSH([C])
+        AX_APPEND_COMPILE_FLAGS([-Wno-switch-enum],,[$ax_append_compile_cflags_extra])
+        AC_LANG_POP
+    fi
+fi
 
 # -Wdeprecated-enum-enum-conversion is on by default in C++20, but conflicts with
 # our use of enum constructs to define fungible constants.

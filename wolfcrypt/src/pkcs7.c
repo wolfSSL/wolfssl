@@ -2046,21 +2046,11 @@ static int pkcs7_hash2mgf(enum wc_HashType hType)
     case WC_HASH_TYPE_SHA3_512:
     case WC_HASH_TYPE_BLAKE2B:
     case WC_HASH_TYPE_BLAKE2S:
-#ifndef WOLFSSL_NOSHA512_224
     case WC_HASH_TYPE_SHA512_224:
-#endif
-#ifndef WOLFSSL_NOSHA512_256
     case WC_HASH_TYPE_SHA512_256:
-#endif
-#ifdef WOLFSSL_SHAKE128
     case WC_HASH_TYPE_SHAKE128:
-#endif
-#ifdef WOLFSSL_SHAKE256
     case WC_HASH_TYPE_SHAKE256:
-#endif
-#ifdef WOLFSSL_SM3
     case WC_HASH_TYPE_SM3:
-#endif
     default:
         break;
     }

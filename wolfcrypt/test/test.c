@@ -7633,11 +7633,22 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hash_test(void)
 #endif
                                         WC_HASH_TYPE_NONE
                                      };
-    enum wc_HashType typesBad[]  = { WC_HASH_TYPE_NONE, WC_HASH_TYPE_MD5_SHA,
-                                     WC_HASH_TYPE_MD2, WC_HASH_TYPE_MD4 };
-    enum wc_HashType typesHashBad[] = { WC_HASH_TYPE_MD2, WC_HASH_TYPE_MD4,
-                                        WC_HASH_TYPE_BLAKE2B,
-                                        WC_HASH_TYPE_NONE };
+    int typesBad[]  = { WC_HASH_TYPE_NONE, WC_HASH_TYPE_MAX + 1 };
+
+    enum wc_HashType typesHashBad[] = {
+#ifndef WOLFSSL_MD2
+        WC_HASH_TYPE_MD2,
+#endif
+#ifdef NO_MD4
+        WC_HASH_TYPE_MD4,
+#endif
+#if defined(NO_MD5) || defined(NO_SHA)
+        WC_HASH_TYPE_MD5_SHA,
+#endif
+#if !defined(HAVE_BLAKE2) && !defined(HAVE_BLAKE2S)
+        WC_HASH_TYPE_BLAKE2B,
+#endif
+        WC_HASH_TYPE_NONE };
 
     WOLFSSL_ENTER("hash_test");
 
@@ -7691,17 +7702,17 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hash_test(void)
         if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
         }
-        ret = wc_HashInit(hash, typesBad[i]);
+        ret = wc_HashInit(hash, (enum wc_HashType)typesBad[i]);
 
         if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
-        ret = wc_HashUpdate(hash, typesBad[i], data, sizeof(data));
+        ret = wc_HashUpdate(hash, (enum wc_HashType)typesBad[i], data, sizeof(data));
         if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
-        ret = wc_HashFinal(hash, typesBad[i], out);
+        ret = wc_HashFinal(hash, (enum wc_HashType)typesBad[i], out);
         if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
-        ret = wc_HashFree(hash, typesBad[i]);
+        ret = wc_HashFree(hash, (enum wc_HashType)typesBad[i]);
         if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
 
@@ -7838,7 +7849,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hash_test(void)
 #endif
 
     ret = wc_HashGetOID(WC_HASH_TYPE_MD5_SHA);
-#ifndef NO_MD5
+#if !defined(NO_MD5) && !defined(NO_SHA)
     if (ret == WC_NO_ERR_TRACE(HASH_TYPE_E) ||
         ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG))
     {
@@ -7849,7 +7860,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hash_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 #endif
     ret = wc_HashGetOID(WC_HASH_TYPE_MD4);
-    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+    if (ret != WC_NO_ERR_TRACE(HASH_TYPE_E))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     ret = wc_HashGetOID(WC_HASH_TYPE_NONE);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
