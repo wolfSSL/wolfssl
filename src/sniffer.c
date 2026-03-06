@@ -4260,12 +4260,20 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
             idx += idLen;
 
             /* Obfuscated Ticket Age 32-bits */
+            if (idx + OPAQUE32_LEN > extLen) {
+                SetError(CLIENT_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
+                return WOLFSSL_FATAL_ERROR;
+            }
             ticketAge = (word32)((input[idx] << 24) | (input[idx+1] << 16) |
                                  (input[idx+2] << 8) | input[idx+3]);
             (void)ticketAge; /* not used */
             idx += OPAQUE32_LEN;
 
             /* binders - all binders */
+            if (idx + OPAQUE16_LEN > extLen) {
+                SetError(CLIENT_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
+                return WOLFSSL_FATAL_ERROR;
+            }
             bindersLen = (word16)((input[idx] << 8) | input[idx+1]);
             if (bindersLen + OPAQUE16_LEN + idx > extLen) {
                 SetError(CLIENT_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
