@@ -583,3 +583,241 @@ int wc_Entropy_Get(int bits, unsigned char* entropy, word32 len);
     \sa wc_Entropy_Get
 */
 int wc_Entropy_OnDemandTest(void);
+
+/*!
+    \ingroup Random
+
+    \brief Runs the SHA-512 Hash_DRBG Known Answer Test (KAT) per
+    SP 800-90A.  Instantiates a SHA-512 DRBG with seedA, optionally
+    reseeds with seedB, generates output, and compares against known
+    test vectors.  Available when WOLFSSL_DRBG_SHA512 is defined.
+
+    \return 0 On success
+    \return BAD_FUNC_ARG If seedA or output is NULL, or if reseed is
+    set and seedB is NULL
+    \return -1 Test failed
+
+    \param reseed Non-zero to test reseeding
+    \param seedA Initial entropy seed
+    \param seedASz Size of seedA in bytes
+    \param seedB Reseed entropy (required if reseed is set)
+    \param seedBSz Size of seedB in bytes
+    \param output Buffer to receive generated output
+    \param outputSz Size of output in bytes
+
+    _Example_
+    \code
+    byte output[WC_SHA512_DIGEST_SIZE * 4];
+    const byte seedA[] = { ... };
+    const byte seedB[] = { ... };
+
+    ret = wc_RNG_HealthTest_SHA512(0, seedA, sizeof(seedA), NULL, 0,
+                                   output, sizeof(output));
+    if (ret != 0)
+        return -1;
+
+    ret = wc_RNG_HealthTest_SHA512(1, seedA, sizeof(seedA),
+                                   seedB, sizeof(seedB),
+                                   output, sizeof(output));
+    if (ret != 0)
+        return -1;
+    \endcode
+
+    \sa wc_RNG_HealthTest
+    \sa wc_RNG_HealthTest_SHA512_ex
+*/
+int wc_RNG_HealthTest_SHA512(int reseed, const byte* seedA, word32 seedASz,
+        const byte* seedB, word32 seedBSz,
+        byte* output, word32 outputSz);
+
+/*!
+    \ingroup Random
+
+    \brief Extended SHA-512 Hash_DRBG health test with nonce,
+    personalization string, and additional input support.  Suitable
+    for full ACVP / CAVP test vector validation.  Available when
+    WOLFSSL_DRBG_SHA512 is defined.
+
+    \return 0 On success
+    \return BAD_FUNC_ARG If required params are NULL
+    \return -1 Test failed
+
+    \param reseed Non-zero to test reseeding
+    \param nonce Nonce buffer (can be NULL)
+    \param nonceSz Nonce size
+    \param persoString Personalization string (can be NULL)
+    \param persoStringSz Personalization string size
+    \param seedA Initial entropy seed
+    \param seedASz Initial seed size
+    \param seedB Reseed entropy (required if reseed is set)
+    \param seedBSz Reseed size
+    \param additionalA Additional input for first generate (can be NULL)
+    \param additionalASz Additional input A size
+    \param additionalB Additional input for second generate (can be NULL)
+    \param additionalBSz Additional input B size
+    \param output Output buffer
+    \param outputSz Output size
+    \param heap Heap hint (can be NULL)
+    \param devId Device ID (INVALID_DEVID for software)
+
+    _Example_
+    \code
+    byte output[WC_SHA512_DIGEST_SIZE * 4];
+    const byte seedA[] = { ... };
+    const byte nonce[] = { ... };
+
+    int ret = wc_RNG_HealthTest_SHA512_ex(0, nonce, sizeof(nonce),
+                                          NULL, 0,
+                                          seedA, sizeof(seedA),
+                                          NULL, 0,
+                                          NULL, 0, NULL, 0,
+                                          output, sizeof(output),
+                                          NULL, INVALID_DEVID);
+    \endcode
+
+    \sa wc_RNG_HealthTest_SHA512
+    \sa wc_RNG_HealthTest_ex
+*/
+int wc_RNG_HealthTest_SHA512_ex(int reseed, const byte* nonce, word32 nonceSz,
+        const byte* persoString, word32 persoStringSz,
+        const byte* seedA, word32 seedASz,
+        const byte* seedB, word32 seedBSz,
+        const byte* additionalA, word32 additionalASz,
+        const byte* additionalB, word32 additionalBSz,
+        byte* output, word32 outputSz,
+        void* heap, int devId);
+
+/*!
+    \ingroup Random
+
+    \brief Disables the SHA-256 Hash_DRBG at runtime.  When disabled,
+    newly initialized WC_RNG instances will not use the SHA-256 DRBG.
+    If the SHA-512 DRBG is enabled (WOLFSSL_DRBG_SHA512), new RNG
+    instances will use SHA-512 instead.  Requires HAVE_HASHDRBG.
+
+    \return 0 On success
+
+    _Example_
+    \code
+    wc_Sha256Drbg_Disable();
+    // New WC_RNG instances will now use SHA-512 DRBG if available
+    WC_RNG rng;
+    wc_InitRng(&rng);
+    \endcode
+
+    \sa wc_Sha256Drbg_Enable
+    \sa wc_Sha256Drbg_GetStatus
+    \sa wc_Sha512Drbg_Disable
+*/
+int wc_Sha256Drbg_Disable(void);
+
+/*!
+    \ingroup Random
+
+    \brief Re-enables the SHA-256 Hash_DRBG at runtime after a prior
+    call to wc_Sha256Drbg_Disable().  Requires HAVE_HASHDRBG.
+
+    \return 0 On success
+
+    _Example_
+    \code
+    wc_Sha256Drbg_Disable();
+    // ... use SHA-512 DRBG only ...
+    wc_Sha256Drbg_Enable();
+    // New WC_RNG instances can use SHA-256 DRBG again
+    \endcode
+
+    \sa wc_Sha256Drbg_Disable
+    \sa wc_Sha256Drbg_GetStatus
+*/
+int wc_Sha256Drbg_Enable(void);
+
+/*!
+    \ingroup Random
+
+    \brief Returns the current status of the SHA-256 Hash_DRBG
+    (disabled or enabled).  Requires HAVE_HASHDRBG.
+
+    \return 1 SHA-256 DRBG is disabled
+    \return 0 SHA-256 DRBG is enabled
+
+    _Example_
+    \code
+    if (wc_Sha256Drbg_GetStatus()) {
+        printf("SHA-256 DRBG is off\n");
+    }
+    \endcode
+
+    \sa wc_Sha256Drbg_Disable
+    \sa wc_Sha256Drbg_Enable
+*/
+int wc_Sha256Drbg_GetStatus(void);
+
+/*!
+    \ingroup Random
+
+    \brief Disables the SHA-512 Hash_DRBG at runtime.  When disabled,
+    newly initialized WC_RNG instances will not use the SHA-512 DRBG.
+    If the SHA-256 DRBG is still enabled, new RNG instances will fall
+    back to SHA-256.  Available when WOLFSSL_DRBG_SHA512 is defined.
+    Requires HAVE_HASHDRBG.
+
+    \return 0 On success
+
+    _Example_
+    \code
+    wc_Sha512Drbg_Disable();
+    // New WC_RNG instances will now use SHA-256 DRBG
+    WC_RNG rng;
+    wc_InitRng(&rng);
+    \endcode
+
+    \sa wc_Sha512Drbg_Enable
+    \sa wc_Sha512Drbg_GetStatus
+    \sa wc_Sha256Drbg_Disable
+*/
+int wc_Sha512Drbg_Disable(void);
+
+/*!
+    \ingroup Random
+
+    \brief Re-enables the SHA-512 Hash_DRBG at runtime after a prior
+    call to wc_Sha512Drbg_Disable().  Available when WOLFSSL_DRBG_SHA512
+    is defined.  Requires HAVE_HASHDRBG.
+
+    \return 0 On success
+
+    _Example_
+    \code
+    wc_Sha512Drbg_Disable();
+    // ... use SHA-256 DRBG only ...
+    wc_Sha512Drbg_Enable();
+    // New WC_RNG instances can use SHA-512 DRBG again
+    \endcode
+
+    \sa wc_Sha512Drbg_Disable
+    \sa wc_Sha512Drbg_GetStatus
+*/
+int wc_Sha512Drbg_Enable(void);
+
+/*!
+    \ingroup Random
+
+    \brief Returns the current status of the SHA-512 Hash_DRBG
+    (disabled or enabled).  Available when WOLFSSL_DRBG_SHA512 is
+    defined.  Requires HAVE_HASHDRBG.
+
+    \return 1 SHA-512 DRBG is disabled
+    \return 0 SHA-512 DRBG is enabled
+
+    _Example_
+    \code
+    if (wc_Sha512Drbg_GetStatus()) {
+        printf("SHA-512 DRBG is off\n");
+    }
+    \endcode
+
+    \sa wc_Sha512Drbg_Disable
+    \sa wc_Sha512Drbg_Enable
+*/
+int wc_Sha512Drbg_GetStatus(void);

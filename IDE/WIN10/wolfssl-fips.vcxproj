@@ -316,6 +316,13 @@
     <ClCompile Include="..\..\wolfcrypt\src\wolfmath.c" />
     <ClCompile Include="..\..\wolfcrypt\src\wolfevent.c" />
     <ClCompile Include="..\..\wolfcrypt\src\pkcs12.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\wc_mlkem.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\wc_mlkem_poly.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\dilithium.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\wc_lms.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\wc_lms_impl.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\wc_xmss.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\wc_xmss_impl.c" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="..\..\wolfcrypt\src\aes_asm.asm">

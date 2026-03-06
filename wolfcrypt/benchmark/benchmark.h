@@ -127,6 +127,13 @@ void bench_sakkeRskGen(void);
 void bench_sakkeValidate(void);
 void bench_sakke(void);
 void bench_rng(void);
+void bench_rng_init(void);
+#if defined(WOLFSSL_DRBG_SHA512) && !defined(WC_NO_RNG) && \
+    !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+void bench_rng_sha512(void);
+void bench_rng_sha512_init(void);
+#endif
 void bench_blake2b(void);
 void bench_blake2s(void);
 void bench_ascon_hash(void);

@@ -1451,6 +1451,8 @@ int test_wc_mlkem_make_key_kats(void)
         XMEMSET(key, 0, sizeof(MlKemKey));
     }
 
+    PRIVATE_KEY_UNLOCK();
+
 #ifndef WOLFSSL_NO_ML_KEM_512
     ExpectIntEQ(wc_MlKemKey_Init(key, WC_ML_KEM_512, NULL, INVALID_DEVID), 0);
     ExpectIntEQ(wc_MlKemKey_MakeKeyWithRandom(key, seed_512, sizeof(seed_512)),
@@ -1487,6 +1489,8 @@ int test_wc_mlkem_make_key_kats(void)
     ExpectIntEQ(XMEMCMP(privKey, dk_1024, WC_ML_KEM_1024_PRIVATE_KEY_SIZE), 0);
     wc_MlKemKey_Free(key);
 #endif
+
+    PRIVATE_KEY_LOCK();
 
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
@@ -3845,6 +3849,8 @@ int test_wc_mlkem_decapsulate_kats(void)
         XMEMSET(key, 0, sizeof(MlKemKey));
     }
 
+    PRIVATE_KEY_UNLOCK();
+
 #ifndef WOLFSSL_NO_ML_KEM_512
     ExpectIntEQ(wc_MlKemKey_Init(key, WC_ML_KEM_512, NULL, INVALID_DEVID), 0);
     ExpectIntEQ(wc_MlKemKey_DecodePrivateKey(key, dk_512, sizeof(dk_512)), 0);
@@ -3866,6 +3872,8 @@ int test_wc_mlkem_decapsulate_kats(void)
     ExpectIntEQ(XMEMCMP(ss, kprime_1024, WC_ML_KEM_SS_SZ), 0);
     wc_MlKemKey_Free(key);
 #endif
+
+    PRIVATE_KEY_LOCK();
 
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif

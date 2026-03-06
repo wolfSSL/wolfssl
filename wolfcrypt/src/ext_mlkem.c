@@ -22,6 +22,12 @@
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_WC_MLKEM)
+
+#if FIPS_VERSION3_GE(2,0,0)
+    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
+    #define FIPS_NO_WRAPPERS
+#endif
+
 #include <wolfssl/wolfcrypt/ext_mlkem.h>
 
 #ifdef NO_INLINE

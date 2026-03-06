@@ -665,6 +665,27 @@ const char* wc_GetErrorString(int error)
     case ALREADY_E:
         return "Operation was redundant or preempted";
 
+    case ML_KEM_KAT_FIPS_E:
+        return "wolfCrypt FIPS ML-KEM Known Answer Test Failure";
+
+    case ML_DSA_KAT_FIPS_E:
+        return "wolfCrypt FIPS ML-DSA Known Answer Test Failure";
+
+    case LMS_KAT_FIPS_E:
+        return "wolfCrypt FIPS LMS Known Answer Test Failure";
+
+    case XMSS_KAT_FIPS_E:
+        return "wolfCrypt FIPS XMSS Known Answer Test Failure";
+
+    case ML_KEM_PCT_E:
+        return "wolfcrypt ML-KEM Pairwise Consistency Test Failure";
+
+    case ML_DSA_PCT_E:
+        return "wolfcrypt ML-DSA Pairwise Consistency Test Failure";
+
+    case DRBG_SHA512_KAT_FIPS_E:
+        return "SHA-512 DRBG Known Answer Test check FIPS error";
+
     case SEQ_OVERFLOW_E:
         return "Sequence counter would overflow";
 

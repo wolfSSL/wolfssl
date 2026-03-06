@@ -88,7 +88,7 @@ enum wolfCrypt_ErrorCodes {
     AES_EAX_AUTH_E     = -122, /* AES-EAX Authentication check failure */
     KEY_EXHAUSTED_E    = -123, /* No longer usable for operation. */
 
-    /* -124 unused. */
+    ML_KEM_KAT_FIPS_E  = -124,  /* ML-KEM KAT failure */
 
     MEMORY_E           = -125,  /* out of memory error */
     VAR_STATE_CHANGE_E = -126,  /* var state modified by different thread */
@@ -136,7 +136,9 @@ enum wolfCrypt_ErrorCodes {
     ED448_KAT_FIPS_E   = -164,  /* Ed448 Known answer test failure */
     PBKDF2_KAT_FIPS_E  = -165,  /* PBKDF2 Known answer test failure */
     WC_KEY_MISMATCH_E  = -166,  /* Error for private/public key mismatch */
-    /* -167..-169 unused. */
+    ML_DSA_KAT_FIPS_E  = -167,  /* ML-DSA KAT failure */
+    LMS_KAT_FIPS_E     = -168,  /* LMS KAT failure */
+    XMSS_KAT_FIPS_E    = -169,  /* XMSS KAT failure */
 
     ECC_BAD_ARG_E      = -170,  /* ECC input argument of wrong type */
     ASN_ECC_KEY_E      = -171,  /* ASN ECC bad input */
@@ -311,10 +313,13 @@ enum wolfCrypt_ErrorCodes {
                                   * not match stored hash*/
     BUSY_E              = -1006, /* Object is busy */
     ALREADY_E           = -1007, /* Operation was redundant or preempted */
+    ML_KEM_PCT_E        = -1008, /* ML-KEM Pairwise Consistency Test failure */
+    ML_DSA_PCT_E        = -1009, /* ML-DSA Pairwise Consistency Test failure */
+    DRBG_SHA512_KAT_FIPS_E = -1010, /* SHA-512 DRBG KAT failure */
 
-    SEQ_OVERFLOW_E      = -1008, /* Sequence counter would overflow */
-    WC_SPAN2_LAST_E     = -1008, /* Update to indicate last used error code */
-    WC_LAST_E           = -1008, /* the last code used either here or in
+    SEQ_OVERFLOW_E      = -1011, /* Sequence counter would overflow */
+    WC_SPAN2_LAST_E     = -1011, /* Update to indicate last used error code */
+    WC_LAST_E           = -1011, /* the last code used either here or in
                                   * error-ssl.h */
 
     WC_SPAN2_MIN_CODE_E = -1999, /* Last usable code in span 2 */
