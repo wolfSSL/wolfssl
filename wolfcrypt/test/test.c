@@ -6215,8 +6215,10 @@ static wc_test_ret_t sha3_256_test(void)
     test_sha[2] = c;
 
     ret = wc_InitSha3_256(&sha, HEAP_HINT, devId);
-    if (ret != 0)
+    if (ret != 0) {
+        WC_FREE_VAR(shaCopy, HEAP_HINT);
         return WC_TEST_RET_ENC_EC(ret);
+    }
 
     for (i = 0; i < times; ++i) {
         ret = wc_Sha3_256_Update(&sha, (byte*)test_sha[i].input,
@@ -6380,8 +6382,10 @@ static wc_test_ret_t sha3_384_test(void)
     test_sha[2] = c;
 
     ret = wc_InitSha3_384(&sha, HEAP_HINT, devId);
-    if (ret != 0)
+    if (ret != 0) {
+        WC_FREE_VAR(shaCopy, HEAP_HINT);
         return WC_TEST_RET_ENC_EC(ret);
+    }
 
     for (i = 0; i < times; ++i) {
         XMEMCPY(buf, test_sha[i].input, test_sha[i].inLen);
@@ -6521,8 +6525,10 @@ static wc_test_ret_t sha3_512_test(void)
     test_sha[2] = c;
 
     ret = wc_InitSha3_512(&sha, HEAP_HINT, devId);
-    if (ret != 0)
+    if (ret != 0) {
+        WC_FREE_VAR(shaCopy, HEAP_HINT);
         return WC_TEST_RET_ENC_EC(ret);
+    }
 
     for (i = 0; i < times; ++i) {
         ret = wc_Sha3_512_Update(&sha, (byte*)test_sha[i].input,
@@ -6938,8 +6944,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t shake128_test(void)
     test_sha[4] = e;
 
     ret = wc_InitShake128(&sha, HEAP_HINT, devId);
-    if (ret != 0)
+    if (ret != 0) {
+        WC_FREE_VAR(shaCopy, HEAP_HINT);
         return WC_TEST_RET_ENC_EC(ret);
+    }
 
     for (i = 0; i < times; ++i) {
         ret = wc_Shake128_Update(&sha, (byte*)test_sha[i].input,
@@ -7315,8 +7323,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t shake256_test(void)
     test_sha[4] = e;
 
     ret = wc_InitShake256(&sha, HEAP_HINT, devId);
-    if (ret != 0)
+    if (ret != 0) {
+        WC_FREE_VAR(shaCopy, HEAP_HINT);
         return WC_TEST_RET_ENC_EC(ret);
+    }
 
     for (i = 0; i < times; ++i) {
         ret = wc_Shake256_Update(&sha, (byte*)test_sha[i].input,
