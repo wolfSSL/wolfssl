@@ -6072,15 +6072,16 @@ static int TLSX_SecureRenegotiation_Parse(WOLFSSL* ssl, const byte* input,
             }
             else if (*input == 2 * TLS_FINISHED_SZ &&
                      length == 2 * TLS_FINISHED_SZ + OPAQUE8_LEN) {
+                int cmpRes = 0;
                 input++;  /* get past size */
-
+                cmpRes |= ConstantCompare(input,
+                        ssl->secure_renegotiation->client_verify_data,
+                        TLS_FINISHED_SZ);
+                cmpRes |= ConstantCompare(input + TLS_FINISHED_SZ,
+                        ssl->secure_renegotiation->server_verify_data,
+                        TLS_FINISHED_SZ);
                 /* validate client and server verify data */
-                if (ConstantCompare(input,
-                            ssl->secure_renegotiation->client_verify_data,
-                            TLS_FINISHED_SZ) == 0 &&
-                    ConstantCompare(input + TLS_FINISHED_SZ,
-                            ssl->secure_renegotiation->server_verify_data,
-                            TLS_FINISHED_SZ) == 0) {
+                if (cmpRes == 0) {
                     WOLFSSL_MSG("SCR client and server verify data match");
                     ret = 0;  /* verified */
                 }
