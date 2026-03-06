@@ -310,6 +310,9 @@
     #else
         #include <version.h>
     #endif
+    /* Include sys/types.h early so host libc sets __timer_t_defined
+     * before Zephyr's posix_types.h can define a conflicting timer_t */
+    #include <sys/types.h>
     #ifndef SINGLE_THREADED
         #if !defined(CONFIG_PTHREAD_IPC) && !defined(CONFIG_POSIX_THREADS)
             #error "Threading needs CONFIG_PTHREAD_IPC / CONFIG_POSIX_THREADS"
@@ -317,21 +320,8 @@
         #if KERNEL_VERSION_NUMBER >= 0x30100
             #include <zephyr/kernel.h>
             #ifndef CONFIG_ARCH_POSIX
-                #ifdef __has_include
-                    #if __has_include(<zephyr/posix/posix_types.h>)
-                        #include <zephyr/posix/posix_types.h>
-                    #else
-                        #include <sys/types.h>
-                    #endif
-                    #if __has_include(<zephyr/posix/pthread.h>)
-                        #include <zephyr/posix/pthread.h>
-                    #else
-                        #include <pthread.h>
-                    #endif
-                #else
-                    #include <zephyr/posix/posix_types.h>
-                    #include <zephyr/posix/pthread.h>
-                #endif
+                #include <zephyr/posix/posix_types.h>
+                #include <zephyr/posix/pthread.h>
             #endif
         #else
             #include <kernel.h>
@@ -1530,31 +1520,12 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
         }  /* extern "C" */
     #endif
 
-    #ifdef __has_include
-        #if __has_include(<zephyr/version.h>)
-            #include <zephyr/version.h>
-        #else
-            #include <version.h>
-        #endif
-    #else
-        #include <version.h>
-    #endif
-    #ifndef _POSIX_C_SOURCE
-        #if KERNEL_VERSION_NUMBER >= 0x30100
-            #ifdef __has_include
-                #if __has_include(<zephyr/posix/time.h>)
-                    #include <zephyr/posix/time.h>
-                #else
-                    #include <time.h>
-                #endif
-            #else
-                #include <zephyr/posix/time.h>
-            #endif
-        #else
-            #include <posix/time.h>
-        #endif
-    #else
+    #if KERNEL_VERSION_NUMBER >= 0x40300
         #include <time.h>
+    #elif KERNEL_VERSION_NUMBER >= 0x30100
+        #include <zephyr/posix/time.h>
+    #else
+        #include <posix/time.h>
     #endif
 
     #ifndef CLOCK_REALTIME

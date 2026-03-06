@@ -3457,6 +3457,8 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         #include <version.h>
     #endif
 
+    #include <sys/types.h>
+
     #if KERNEL_VERSION_NUMBER >= 0x30500
         #include <zephyr/random/random.h>
     #else
@@ -3467,14 +3469,12 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         #endif
     #endif
 
-    #ifndef _POSIX_C_SOURCE
-        #if KERNEL_VERSION_NUMBER >= 0x30100
-            #include <zephyr/posix/time.h>
-        #else
-            #include <posix/time.h>
-        #endif
-    #else
+    #if KERNEL_VERSION_NUMBER >= 0x40300
         #include <time.h>
+    #elif KERNEL_VERSION_NUMBER >= 0x30100
+        #include <zephyr/posix/time.h>
+    #else
+        #include <posix/time.h>
     #endif
 
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
