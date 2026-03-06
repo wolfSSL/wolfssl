@@ -4867,6 +4867,10 @@ static int EchCheckAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
     XMEMSET(transcriptEchConf, 0, sizeof(transcriptEchConf));
     XMEMSET(expandLabelPrk, 0, sizeof(expandLabelPrk));
     XMEMSET(acceptConfirmation, 0, sizeof(acceptConfirmation));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("ECH PRK", expandLabelPrk,
+        sizeof(expandLabelPrk));
+#endif
     /* store so we can restore regardless of the outcome */
     tmpHashes = ssl->hsHashes;
     /* swap hsHashes to hsHashesEch */
@@ -4975,6 +4979,10 @@ static int EchCheckAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
     ssl->hsHashesEch = NULL;
     /* swap to tmp, will be inner if accepted, hsHashes if rejected */
     ssl->hsHashes = tmpHashes;
+    ForceZero(expandLabelPrk, sizeof(expandLabelPrk));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(expandLabelPrk, sizeof(expandLabelPrk));
+#endif
     return ret;
 }
 #endif
@@ -7336,6 +7344,10 @@ static int EchWriteAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
     XMEMSET(zeros, 0, sizeof(zeros));
     XMEMSET(transcriptEchConf, 0, sizeof(transcriptEchConf));
     XMEMSET(expandLabelPrk, 0, sizeof(expandLabelPrk));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("ECH PRK", expandLabelPrk,
+        sizeof(expandLabelPrk));
+#endif
     /* store so we can restore regardless of the outcome */
     tmpHashes = ssl->hsHashes;
     ssl->hsHashes = ssl->hsHashesEch;
@@ -7417,6 +7429,10 @@ static int EchWriteAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
     FreeHandshakeHashes(ssl);
     ssl->hsHashesEch = NULL;
     ssl->hsHashes = tmpHashes;
+    ForceZero(expandLabelPrk, sizeof(expandLabelPrk));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(expandLabelPrk, sizeof(expandLabelPrk));
+#endif
     return ret;
 }
 #endif
