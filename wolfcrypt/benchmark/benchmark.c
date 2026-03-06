@@ -2106,7 +2106,8 @@ static const char* bench_result_words2[][6] = {
     static volatile int g_threadCount;
 #endif
 
-#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_CAAM) || defined(WC_USE_DEVID)  || \
+#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_CAAM) || \
+    defined(WC_USE_DEVID) || \
     defined(WOLFSSL_MICROCHIP_TA100)
     #ifndef NO_HW_BENCH
         #define BENCH_DEVID
@@ -10071,7 +10072,8 @@ exit_rsa_sign:
                     #if !defined(WOLFSSL_RSA_VERIFY_INLINE) && \
                         !defined(WOLFSSL_RSA_PUBLIC_ONLY)
                         #if defined(WOLFSSL_MICROCHIP_TA100)
-                            ret = wc_RsaSSL_Verify(message, len, enc[i], rsaKeySz/8, rsaKey[i]);
+                            ret = wc_RsaSSL_Verify(message, len,
+                                enc[i], rsaKeySz/8, rsaKey[i]);
                         #else
                             ret = wc_RsaSSL_Verify(enc[i], idx, out[i],
                                                       rsaKeySz/8, rsaKey[i]);

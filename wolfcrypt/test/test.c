@@ -21905,7 +21905,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t memory_test(void)
 #endif /* !NO_RSA */
 
 #if !defined(NO_RSA) || !defined(NO_DSA)
-    #if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(WOLFSSL_MICROCHIP)
+    #if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+        !defined(WOLFSSL_MICROCHIP)
         static const char* keyDerFile = CERT_WRITE_TEMP_DIR "key.der";
         static const char* keyPemFile = CERT_WRITE_TEMP_DIR "key.pem";
     #endif
@@ -22835,7 +22836,7 @@ static wc_test_ret_t rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG
     /* RNG is handled by hardware */
     if (ret != 0)
 #elif defined(WOLFSSL_MICROCHIP_TA100)
-    /* TA100 path doesn't require RNG, but may report BAD_FUNC_ARG on NULL RNG. */
+    /* TA100 path doesn't require RNG, may report BAD_FUNC_ARG. */
     if (ret != 0 && ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
 #else
     if (ret != WC_NO_ERR_TRACE(MISSING_RNG_E))

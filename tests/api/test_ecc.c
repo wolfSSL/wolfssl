@@ -1370,7 +1370,7 @@ int test_wc_ecc_pointFns(void)
 #if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT) && \
     !defined(WC_NO_RNG) && !defined(WOLFSSL_ATECC508A) && \
     !defined(WOLFSSL_ATECC608A) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
-    !defined(WOLFSSL_MICROCHIP_TA100) 
+    !defined(WOLFSSL_MICROCHIP_TA100)
     ecc_key    key;
     WC_RNG     rng;
     int        ret;
@@ -1476,7 +1476,7 @@ int test_wc_ecc_shared_secret_ssh(void)
     !defined(WC_NO_RNG) && !defined(WOLFSSL_ATECC508A) && \
     !defined(WOLFSSL_ATECC608A) && !defined(PLUTON_CRYPTO_ECC) && \
     !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
-    !defined(WOLFSSL_MICROCHIP_TA100) 
+    !defined(WOLFSSL_MICROCHIP_TA100)
     ecc_key key;
     ecc_key key2;
     WC_RNG  rng;

@@ -5784,7 +5784,8 @@ static int _ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
         key->dp->id == ECC_SECP224R1 ||
         key->dp->id == ECC_SECP384R1 ||
         key->dp->id == ECC_SECP256K1 ||
-        key->dp->id == ECC_BRAINPOOLP256R1) { /* supports more than ECC256R1 curve */
+        key->dp->id == ECC_BRAINPOOLP256R1) {
+        /* supports more than ECC256R1 curve */
 #else
     if (key->dp->id == ECC_SECP256R1 ||
         key->dp->id == ECC_SECP224R1 ||
@@ -8993,7 +8994,8 @@ static int ecc_verify_hash_sp(mp_int *r, mp_int *s, const byte* hash,
     return NOT_COMPILED_IN;
 }
 
-#if !defined(WOLFSSL_MICROCHIP) && (!defined(WOLFSSL_SP_MATH) || defined(FREESCALE_LTC_ECC))
+#if !defined(WOLFSSL_MICROCHIP) && \
+    (!defined(WOLFSSL_SP_MATH) || defined(FREESCALE_LTC_ECC))
 static int ecc_verify_hash(mp_int *r, mp_int *s, const byte* hash,
     word32 hashlen, int* res, ecc_key* key, ecc_curve_spec* curve)
 {
@@ -10595,7 +10597,7 @@ int wc_ecc_get_generator(ecc_point* ecp, int curve_idx)
 static int _ecc_validate_public_key(ecc_key* key, int partial, int priv)
 {
     int err = MP_OKAY;
-#if defined(HAVE_ECC_CHECK_PUBKEY_ORDER) && !defined(WOLFSSL_SP_MATH) 
+#if defined(HAVE_ECC_CHECK_PUBKEY_ORDER) && !defined(WOLFSSL_SP_MATH)
     mp_int* b = NULL;
     #ifdef USE_ECC_B_PARAM
         DECLARE_CURVE_SPECS(4);
