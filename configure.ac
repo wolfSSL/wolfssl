@@ -1393,6 +1393,11 @@ then
         AC_MSG_ERROR([--enable-all-asm is incompatible with --disable-ppc32-asm])
     fi
 
+    if test "$enable_ppc64_asm" = "no"
+    then
+        AC_MSG_ERROR([--enable-all-asm is incompatible with --disable-ppc64-asm])
+    fi
+
     case "$host_cpu" in
         *x86_64*|*amd64*)
             if test "$enable_intelasm" = ""
@@ -1423,6 +1428,10 @@ then
             fi
             ;;
         *powerpc64*)
+            if test "$enable_ppc64_asm" = ""
+            then
+               enable_ppc64_asm=yes
+            fi
             ;;
         *powerpc*)
             if test "$enable_ppc32_asm" = ""
@@ -3881,20 +3890,69 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PPC32_ASM"
     AC_MSG_NOTICE([32-bit PowerPC assembly for SHA-256])
     ENABLED_PPC32_ASM=yes
+
+    if test "$ENABLED_PPC32_ASM_INLINE" = "yes" || test "$ENABLED_PPC32_ASM_INLINE_REG" = "yes"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PPC32_ASM_INLINE"
+    else
+        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_PPC32_ASM"
+    fi
+    if test "$ENABLED_PPC32_ASM_SMALL" = "yes"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PPC32_ASM_SMALL"
+        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_PPC32_ASM_SMALL"
+    fi
+    if test "$ENABLED_PPC32_ASM_SPE" = "yes"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PPC32_ASM_SPE"
+        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_PPC32_ASM_SPE"
+    fi
 fi
-if test "$ENABLED_PPC32_ASM_INLINE" = "yes" || test "$ENABLED_PPC32_ASM_INLINE_REG" = "yes"; then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PPC32_ASM_INLINE"
+
+# PPC64 Assembly
+AC_ARG_ENABLE([ppc64-asm],
+    [AS_HELP_STRING([--enable-ppc64-asm],[Enable wolfSSL PowerPC 64-bit ASM support (default: disabled).])],
+    [ ENABLED_PPC64_ASM=$enableval ],
+    [ ENABLED_PPC64_ASM=no ]
+    )
+
+
+if test "$ENABLED_PPC64_ASM" != "no" && test "$ENABLED_ASM" = "yes"
+then
+    ENABLED_PPC64_ASM_OPTS=$ENABLED_PPC64_ASM
+    for v in `echo $ENABLED_PPC64_ASM_OPTS | tr "," " "`
+    do
+      case $v in
+      yes)
+        ;;
+      inline)
+        ENABLED_PPC64_ASM_INLINE=yes
+        ;;
+      inline-reg)
+        ENABLED_PPC64_ASM_INLINE_REG=yes
+        ;;
+      small)
+        ENABLED_PPC64_ASM_SMALL=yes
+        ;;
+      *)
+        AC_MSG_ERROR([Invalid RISC-V option [yes,inline,small]: $ENABLED_PPC64_ASM.])
+        break
+        ;;
+      esac
+    done
+
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PPC64_ASM"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DEXTERNAL_OPTS_OPENVPN"
+    AC_MSG_NOTICE([64-bit PowerPC assembly for AES])
+    ENABLED_PPC64_ASM=yes
+fi
+if test "$ENABLED_PPC64_ASM_INLINE" = "yes" || test "$ENABLED_PPC64_ASM_INLINE_REG" = "yes"; then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PPC64_ASM_INLINE"
 else
-    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_PPC32_ASM"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_PPC64_ASM"
 fi
-if test "$ENABLED_PPC32_ASM_SMALL" = "yes"; then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PPC32_ASM_SMALL"
-    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_PPC32_ASM_SMALL"
+if test "$ENABLED_PPC64_ASM_SMALL" = "yes"; then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PPC64_ASM_SMALL"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_PPC64_ASM_SMALL"
 fi
-if test "$ENABLED_PPC32_ASM_SPE" = "yes"; then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PPC32_ASM_SPE"
-    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_PPC32_ASM_SPE"
-fi
+
 
 # Xilinx hardened crypto
 AC_ARG_ENABLE([xilinx],
@@ -11202,6 +11260,9 @@ AM_CONDITIONAL([BUILD_RISCV_ASM],[test "x$ENABLED_RISCV_ASM" = "xyes"])
 AM_CONDITIONAL([BUILD_PPC32_ASM],[test "x$ENABLED_PPC32_ASM" = "xyes"])
 AM_CONDITIONAL([BUILD_PPC32_ASM_INLINE],[test "x$ENABLED_PPC32_ASM_INLINE" = "xyes"])
 AM_CONDITIONAL([BUILD_PPC32_ASM_INLINE_REG],[test "x$ENABLED_PPC32_ASM_INLINE_REG" = "xyes"])
+AM_CONDITIONAL([BUILD_PPC64_ASM],[test "x$ENABLED_PPC64_ASM" = "xyes"])
+AM_CONDITIONAL([BUILD_PPC64_ASM_INLINE],[test "x$ENABLED_PPC64_ASM_INLINE" = "xyes"])
+AM_CONDITIONAL([BUILD_PPC64_ASM_INLINE_REG],[test "x$ENABLED_PPC64_ASM_INLINE_REG" = "xyes"])
 AM_CONDITIONAL([BUILD_XILINX],[test "x$ENABLED_XILINX" = "xyes"])
 AM_CONDITIONAL([BUILD_AESNI],[test "x$ENABLED_AESNI" = "xyes"])
 AM_CONDITIONAL([BUILD_INTELASM],[test "x$ENABLED_INTELASM" = "xyes"])
@@ -11905,6 +11966,15 @@ then
     ENABLED_PPC32_ASM="inline C Reg"
 fi
 echo "   * PPC32 ASM                   $ENABLED_PPC32_ASM"
+if test "$ENABLED_PPC64_ASM_INLINE" = "yes"
+then
+    ENABLED_PPC64_ASM="inline C"
+fi
+if test "$ENABLED_PPC64_ASM_INLINE_REG" = "yes"
+then
+    ENABLED_PPC64_ASM="inline C Reg"
+fi
+echo "   * PPC64 ASM                   $ENABLED_PPC64_ASM"
 echo "   * Write duplicate:            $ENABLED_WRITEDUP"
 echo "   * Xilinx Hardware Acc.:       $ENABLED_XILINX"
 echo "   * C89:                        $ENABLED_C89"
