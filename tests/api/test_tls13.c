@@ -1946,29 +1946,27 @@ int test_tls13_rpk_handshake(void)
      (defined(HAVE_ECC) && !defined(WOLFSSL_NO_ML_KEM_768)))
 static void test_tls13_pq_groups_ctx_ready(WOLFSSL_CTX* ctx)
 {
-#ifndef WOLFSSL_TLS_NO_MLKEM_STANDALONE
-#ifndef WOLFSSL_NO_ML_KEM_1024
 #ifdef WOLFSSL_MLKEM_KYBER
+    #if !defined(WOLFSSL_NO_KYBER1024)
     int group = WOLFSSL_KYBER_LEVEL5;
-#else
-    int group = WOLFSSL_ML_KEM_1024;
-#endif /* WOLFSSL_MLKEM_KYBER */
-#elif !defined(WOLFSSL_NO_ML_KEM_768)
-#ifdef WOLFSSL_MLKEM_KYBER
+    #elif !defined(WOLFSSL_NO_KYBER768)
     int group = WOLFSSL_KYBER_LEVEL3;
-#else
-    int group = WOLFSSL_ML_KEM_768;
-#endif /* WOLFSSL_MLKEM_KYBER */
-#else
-#ifdef WOLFSSL_MLKEM_KYBER
+    #else
     int group = WOLFSSL_KYBER_LEVEL1;
-#else
+    #endif
+#elif !defined(WOLFSSL_NO_ML_KEM) && !defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE)
+    #if !defined(WOLFSSL_NO_ML_KEM_1024)
+    int group = WOLFSSL_ML_KEM_1024;
+    #elif !defined(WOLFSSL_NO_ML_KEM_768)
+    int group = WOLFSSL_ML_KEM_768;
+    #else
     int group = WOLFSSL_ML_KEM_512;
-#endif /* WOLFSSL_MLKEM_KYBER */
-#endif
-#elif defined(HAVE_ECC) && !defined(WOLFSSL_NO_ML_KEM_768)
+    #endif
+#elif defined(HAVE_ECC) && !defined(WOLFSSL_NO_ML_KEM_768) && \
+      defined(WOLFSSL_PQC_HYBRIDS)
     int group = WOLFSSL_SECP256R1MLKEM768;
-#elif defined(HAVE_CURVE25519) && !defined(WOLFSSL_NO_ML_KEM_768)
+#elif defined(HAVE_CURVE25519) && !defined(WOLFSSL_NO_ML_KEM_768) && \
+      defined(WOLFSSL_PQC_HYBRIDS)
     int group = WOLFSSL_X25519MLKEM768;
 #endif
 
@@ -1977,29 +1975,27 @@ static void test_tls13_pq_groups_ctx_ready(WOLFSSL_CTX* ctx)
 
 static void test_tls13_pq_groups_on_result(WOLFSSL* ssl)
 {
-#ifndef WOLFSSL_TLS_NO_MLKEM_STANDALONE
-#ifndef WOLFSSL_NO_ML_KEM_1024
 #ifdef WOLFSSL_MLKEM_KYBER
+    #if !defined(WOLFSSL_NO_KYBER1024)
     AssertStrEQ(wolfSSL_get_curve_name(ssl), "KYBER_LEVEL5");
-#else
-    AssertStrEQ(wolfSSL_get_curve_name(ssl), "ML_KEM_1024");
-#endif /* WOLFSSL_MLKEM_KYBER */
-#elif !defined(WOLFSSL_NO_ML_KEM_768)
-#ifdef WOLFSSL_MLKEM_KYBER
+    #elif !defined(WOLFSSL_NO_KYBER768)
     AssertStrEQ(wolfSSL_get_curve_name(ssl), "KYBER_LEVEL3");
-#else
-    AssertStrEQ(wolfSSL_get_curve_name(ssl), "ML_KEM_768");
-#endif /* WOLFSSL_MLKEM_KYBER */
-#else
-#ifdef WOLFSSL_MLKEM_KYBER
+    #else
     AssertStrEQ(wolfSSL_get_curve_name(ssl), "KYBER_LEVEL1");
-#else
+    #endif
+#elif !defined(WOLFSSL_NO_ML_KEM) && !defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE)
+    #if !defined(WOLFSSL_NO_ML_KEM_1024)
+    AssertStrEQ(wolfSSL_get_curve_name(ssl), "ML_KEM_1024");
+    #elif !defined(WOLFSSL_NO_ML_KEM_768)
+    AssertStrEQ(wolfSSL_get_curve_name(ssl), "ML_KEM_768");
+    #else
     AssertStrEQ(wolfSSL_get_curve_name(ssl), "ML_KEM_512");
-#endif /* WOLFSSL_MLKEM_KYBER */
-#endif
-#elif defined(HAVE_ECC) && !defined(WOLFSSL_NO_ML_KEM_768)
+    #endif
+#elif defined(HAVE_ECC) && !defined(WOLFSSL_NO_ML_KEM_768) && \
+      defined(WOLFSSL_PQC_HYBRIDS)
     AssertStrEQ(wolfSSL_get_curve_name(ssl), "SecP256r1MLKEM768");
-#elif defined(HAVE_CURVE25519) && !defined(WOLFSSL_NO_ML_KEM_768)
+#elif defined(HAVE_CURVE25519) && !defined(WOLFSSL_NO_ML_KEM_768) && \
+      defined(WOLFSSL_PQC_HYBRIDS)
     AssertStrEQ(wolfSSL_get_curve_name(ssl), "X25519MLKEM768");
 #endif
 }

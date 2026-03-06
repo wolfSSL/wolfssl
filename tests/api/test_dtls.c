@@ -1620,20 +1620,26 @@ int test_dtls_rtx_across_epoch_change(void)
     int helloMsgCount = 2;
     int groups[2] = {
     #if defined(HAVE_CURVE25519) && defined(WOLFSSL_PQC_HYBRIDS) && \
-        !defined(WOLFSSL_NO_ML_KEM_768)
+        !defined(WOLFSSL_NO_ML_KEM) && !defined(WOLFSSL_NO_ML_KEM_768)
         WOLFSSL_X25519MLKEM768,
     #elif defined(HAVE_ECC) && defined(WOLFSSL_PQC_HYBRIDS) && \
-        !defined(WOLFSSL_NO_ML_KEM_768)
+        !defined(WOLFSSL_NO_ML_KEM) && !defined(WOLFSSL_NO_ML_KEM_768)
         WOLFSSL_SECP256R1MLKEM768,
     #elif defined(HAVE_ECC) && defined(WOLFSSL_PQC_HYBRIDS) && \
-        !defined(WOLFSSL_NO_ML_KEM_1024)
+        !defined(WOLFSSL_NO_ML_KEM) && !defined(WOLFSSL_NO_ML_KEM_1024)
         WOLFSSL_SECP384R1MLKEM1024,
-    #elif !defined(WOLFSSL_NO_ML_KEM_1024) && \
+    #elif !defined(WOLFSSL_NO_ML_KEM_1024) && !defined(WOLFSSL_NO_ML_KEM) && \
                                        !defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE)
         WOLFSSL_ML_KEM_1024,
-    #elif !defined(WOLFSSL_NO_ML_KEM_768) && \
+    #elif !defined(WOLFSSL_NO_ML_KEM_768) && !defined(WOLFSSL_NO_ML_KEM) && \
                                        !defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE)
         WOLFSSL_ML_KEM_768,
+    #elif defined(WOLFSSL_MLKEM_KYBER) && !defined(WOLFSSL_NO_KYBER1024)
+        WOLFSSL_KYBER_LEVEL5,
+    #elif defined(WOLFSSL_MLKEM_KYBER) && !defined(WOLFSSL_NO_KYBER768)
+        WOLFSSL_KYBER_LEVEL3,
+    #elif defined(WOLFSSL_MLKEM_KYBER) && !defined(WOLFSSL_NO_KYBER512)
+        WOLFSSL_KYBER_LEVEL1,
     #else
         WOLFSSL_ML_KEM_512,
     #endif

@@ -31284,7 +31284,6 @@ static int test_dtls13_frag_ch_pq(void)
     const char *test_str = "test";
     int test_str_size;
     byte buf[255];
-#if !defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE)
 #if defined(WOLFSSL_MLKEM_KYBER)
     #if !defined(WOLFSSL_NO_KYBER1024)
     int group = WOLFSSL_KYBER_LEVEL5;
@@ -31295,8 +31294,8 @@ static int test_dtls13_frag_ch_pq(void)
     #else
     int group = WOLFSSL_KYBER_LEVEL1;
     const char *group_name = "KYBER_LEVEL1";
-#endif
-#else
+    #endif
+#elif !defined(WOLFSSL_NO_ML_KEM) && !defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE)
     #if !defined(WOLFSSL_NO_ML_KEM_1024)
     int group = WOLFSSL_ML_KEM_1024;
     const char *group_name = "ML_KEM_1024";
@@ -31307,19 +31306,18 @@ static int test_dtls13_frag_ch_pq(void)
     int group = WOLFSSL_ML_KEM_512;
     const char *group_name = "ML_KEM_512";
     #endif
-#endif
 #elif defined(WOLFSSL_PQC_HYBRIDS)
-#if defined(HAVE_CURVE25519) && !defined(WOLFSSL_NO_ML_KEM_768)
+    #if defined(HAVE_CURVE25519) && !defined(WOLFSSL_NO_ML_KEM_768)
     int group = WOLFSSL_X25519MLKEM768;
     const char *group_name = "X25519MLKEM768";
-#elif !defined(WOLFSSL_NO_ML_KEM_768)
+    #elif !defined(WOLFSSL_NO_ML_KEM_768)
     int group = WOLFSSL_SECP256R1MLKEM768;
     const char *group_name = "SecP256r1MLKEM768";
-#else
+    #else
     int group = WOLFSSL_SECP384R1MLKEM1024;
     const char *group_name = "SecP384r1MLKEM1024";
+    #endif
 #endif
-#endif /* WOLFSSL_TLS_NO_MLKEM_STANDALONE */
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,

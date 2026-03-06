@@ -1850,7 +1850,7 @@ AC_ARG_ENABLE([tls-mlkem-standalone],
     [ ENABLED_MLKEM_STANDALONE=no ]
     )
 
-AS_IF([ test "$ENABLED_MLKEM_STANDALONE" = "yes" && test "$ENABLED_MLKEM" = "no" ],[AC_MSG_ERROR([ML-KEM as standalone TLS key exchange (non-hybrid) requires ML-KEM.])])
+AS_IF([ test "$ENABLED_MLKEM_STANDALONE" = "yes" && test "$ENABLED_ML_KEM" = "no" ],[AC_MSG_ERROR([ML-KEM as standalone TLS key exchange (non-hybrid) requires ML-KEM.])])
 if test "$ENABLED_MLKEM_STANDALONE" != "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TLS_NO_MLKEM_STANDALONE"
@@ -1864,7 +1864,7 @@ AC_ARG_ENABLE([pqc-hybrids],
 
 if test "$ENABLED_PQC_HYBRIDS" = "yes"
 then
-    if test "$ENABLED_MLKEM" = "no"
+    if test "$ENABLED_ML_KEM" = "no" || test "$ENABLED_MLKEM" = "no"
     then
         ENABLED_PQC_HYBRIDS=no
     elif test "$ENABLED_MLKEM768" = "" && test "$ENABLED_MLKEM1024" = ""; then
@@ -1875,7 +1875,7 @@ then
     fi
 fi
 
-if test "$ENABLED_MLKEM" != "no"
+if test "$ENABLED_ML_KEM" != "no" && test "$ENABLED_MLKEM" != "no"
 then
     if test "$ENABLED_PQC_HYBRIDS" = "no" && test "$ENABLED_MLKEM_STANDALONE" = "no" && test "$ENABLED_CRYPTONLY" = "no"
     then
@@ -1893,7 +1893,7 @@ AC_ARG_ENABLE([extra-pqc-hybrids],
 if test "$ENABLED_EXTRA_PQC_HYBRIDS" = "yes"
 then
     AS_IF([ test "$ENABLED_EXPERIMENTAL" != "yes" ],[ AC_MSG_ERROR([extra-pqc-hybrids requires --enable-experimental.]) ])
-    AS_IF([ test "$ENABLED_MLKEM" = "no" ],[ AC_MSG_ERROR([extra-pqc-hybrids requires ML-KEM.]) ])
+    AS_IF([ test "$ENABLED_ML_KEM" = "no" ],[ AC_MSG_ERROR([extra-pqc-hybrids requires ML-KEM.]) ])
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_EXTRA_PQC_HYBRIDS"
 fi
 

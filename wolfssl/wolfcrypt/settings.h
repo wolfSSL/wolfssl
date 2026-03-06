@@ -4521,7 +4521,8 @@ extern void uITRON4_free(void *p) ;
 #endif
 
 #if defined(HAVE_PQC) && defined(WOLFSSL_HAVE_MLKEM) && \
-    !defined(WOLFSSL_PQC_HYBRIDS) && defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE)
+    !defined(WOLFSSL_NO_ML_KEM) && !defined(WOLFSSL_PQC_HYBRIDS) && \
+    defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE)
 #error "Neither PQ/T hybrid combinations nor ML-KEM as standalone TLS key " \
     "exchange are enabled"
 #endif
