@@ -25372,17 +25372,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
         ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
 #endif
         if (ret >= 0) {
-#if defined(WOLFSSL_KEY_GEN) && defined(WOLFSSL_MICROCHIP_TA100)
-        /* Create new keys for TA100 */
-        ret = wc_MakeRsaKey(key, 2048, WC_RSA_EXPONENT, &rng);
-        if (ret) {
-            goto exit_rsa;
-        }
-        ret = wc_RsaPublicEncrypt(in, inLen, out, 256, key, &rng);
-#else
-        ret = wc_RsaPublicEncrypt(in, inLen, out, outSz, key, &rng);
-
-#endif
+            ret = wc_RsaPublicEncrypt(in, inLen, out, outSz, key, &rng);
         }
     } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
     if (ret < 0)
