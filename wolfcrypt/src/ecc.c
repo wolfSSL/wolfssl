@@ -7436,7 +7436,7 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
 
        #ifndef HAVE_CAVIUM_V
            mp_clear(e);
-           mp_clear(k);
+           mp_forcezero(k);
        #endif
            wc_ecc_curve_free(curve);
            FREE_CURVE_SPECS();
