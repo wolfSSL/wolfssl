@@ -1362,6 +1362,7 @@ enum {
     DYNAMIC_TYPE_OS_BUF       = 104,
     DYNAMIC_TYPE_ASCON        = 105,
     DYNAMIC_TYPE_SHA          = 106,
+    DYNAMIC_TYPE_OCSP_RESPONSE = 107,
     DYNAMIC_TYPE_SNIFFER_SERVER       = 1000,
     DYNAMIC_TYPE_SNIFFER_SESSION      = 1001,
     DYNAMIC_TYPE_SNIFFER_PB           = 1002,
@@ -2398,7 +2399,7 @@ enum Max_ASN {
 
 #define MAX_SIG_SZ MAX_ENCODED_SIG_SZ
 
-#ifdef WOLFSSL_CERT_GEN
+#if defined(WOLFSSL_CERT_GEN) || defined(HAVE_OCSP_RESPONDER)
     /* Used in asn.c MakeSignature for ECC and RSA non-blocking/async */
     enum CertSignState {
         CERTSIGN_STATE_BEGIN,
