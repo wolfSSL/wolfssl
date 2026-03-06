@@ -1086,15 +1086,15 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
                 XFREE((byte*)ext->obj->obj, NULL, DYNAMIC_TYPE_ASN1);
             }
             else if (tmp == NULL) {
-                ext->obj->obj = tmp;
+                XFREE((byte*)ext->obj->obj, NULL, DYNAMIC_TYPE_ASN1);
             }
             ext->obj->obj = tmp;
         #else
             tmp = (byte*)XREALLOC((byte*)ext->obj->obj, objSz, NULL,
                                   DYNAMIC_TYPE_ASN1);
-            if (tmp != NULL) {
-                ext->obj->obj = tmp;
-            }
+            if (tmp == NULL)
+                XFREE((byte*)ext->obj->obj, NULL, DYNAMIC_TYPE_ASN1);
+            ext->obj->obj = tmp;
         #endif
             if (ext->obj->obj == NULL) {
                 wolfSSL_X509_EXTENSION_free(ext);
