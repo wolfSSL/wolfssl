@@ -39152,7 +39152,7 @@ WC_MAYBE_UNUSED static int EncodeCertID(OcspEntry* entry, byte* out,
 #else
     DECL_ASNSETDATA(dataASN, certidasn_Length);
     int ret = 0;
-    int sz = 0;
+    word32 sz = 0;
     word32 digestSz = 0;
 
     if (entry == NULL || entry->status == NULL ||
@@ -39182,11 +39182,12 @@ WC_MAYBE_UNUSED static int EncodeCertID(OcspEntry* entry, byte* out,
         ret = SizeASN_Items(certIDASNItems, dataASN, certidasn_Length, &sz);
     }
     /* Check buffer big enough for encoding if supplied. */
-    if (ret == 0 && out != NULL && sz > (int)*outSz) {
+    if (ret == 0 && out != NULL && sz > *outSz) {
         ret = BUFFER_E;
     }
     if (ret == 0 && out != NULL)
-        if (SetASN_Items(certIDASNItems, dataASN, certidasn_Length, out) != sz)
+        if (SetASN_Items(certIDASNItems, dataASN, certidasn_Length, out) !=
+                (int)sz)
             ret = ASN_PARSE_E;
     if (ret == 0)
         *outSz = sz;
@@ -39322,7 +39323,7 @@ WC_MAYBE_UNUSED static int EncodeSingleResponse(OcspEntry* single, byte* out,
 #else
     DECL_ASNSETDATA(dataASN, singleResponseASN_Length);
     int ret = 0;
-    int sz = 0;
+    word32 sz = 0;
     word32 cidSz = 0;
 
     if (single == NULL ||
@@ -39414,11 +39415,11 @@ WC_MAYBE_UNUSED static int EncodeSingleResponse(OcspEntry* single, byte* out,
                 singleResponseASN_Length, &sz);
     }
     /* Check buffer big enough for encoding if supplied. */
-    if (ret == 0 && out != NULL && sz > (int)*outSz)
+    if (ret == 0 && out != NULL && sz > *outSz)
         ret = BUFFER_E;
     if (ret == 0 && out != NULL) {
-        if (SetASN_Items(singleResponseASN, dataASN, singleResponseASN_Length,
-                out) != sz)
+        if (SetASN_Items(singleResponseASN, dataASN,
+                singleResponseASN_Length, out) != (int)sz)
             ret = ASN_PARSE_E;
         if (ret == 0) {
             ret = EncodeCertID(single,
@@ -39885,7 +39886,7 @@ WC_MAYBE_UNUSED static int EncodeOcspRespExtensions(OcspResponse* resp,
     return NOT_COMPILED_IN;
 #else
     DECL_ASNSETDATA(dataASN, ocspNonceExtASN_Length);
-    int sz = 0;
+    word32 sz = 0;
     int ret = 0;
 
     if (resp == NULL || outSz == NULL) {
@@ -39904,12 +39905,12 @@ WC_MAYBE_UNUSED static int EncodeOcspRespExtensions(OcspResponse* resp,
                 ocspNonceExtASN_Length, &sz);
     }
     /* Check buffer big enough for encoding if supplied. */
-    if (ret == 0 && out != NULL && sz > (int)*outSz) {
+    if (ret == 0 && out != NULL && sz > *outSz) {
         ret = BUFFER_E;
     }
     if (ret == 0 && out != NULL) {
-        if (SetASN_Items(ocspNonceExtASN, dataASN, ocspNonceExtASN_Length,
-                out) != sz)
+        if (SetASN_Items(ocspNonceExtASN, dataASN,
+                ocspNonceExtASN_Length, out) != (int)sz)
             ret = ASN_PARSE_E;
     }
     if (ret == 0)
@@ -39971,7 +39972,7 @@ WC_MAYBE_UNUSED static int EncodeResponseData(OcspResponse* resp, byte* out,
 #else
     DECL_ASNSETDATA(dataASN, ocspRespDataASN_Length);
     int ret = 0;
-    int sz = 0;
+    word32 sz = 0;
     word32 respListSz = 0;
     word32 respExtSz = 0;
     OcspEntry* single = NULL;
@@ -40044,12 +40045,12 @@ WC_MAYBE_UNUSED static int EncodeResponseData(OcspResponse* resp, byte* out,
                 &sz);
     }
     /* Check buffer big enough for encoding if supplied. */
-    if (ret == 0 && out != NULL && sz > (int)*outSz)
+    if (ret == 0 && out != NULL && sz > *outSz)
         ret = BUFFER_E;
     if (ret == 0 && out != NULL) {
         byte* respList = NULL;
-        if (SetASN_Items(ocspRespDataASN, dataASN, ocspRespDataASN_Length, out)
-                != sz)
+        if (SetASN_Items(ocspRespDataASN, dataASN,
+                ocspRespDataASN_Length, out) != (int)sz)
             ret = ASN_PARSE_E;
         respList = (byte*)dataASN[OCSPRESPDATAASN_IDX_RESP].data.buffer.data;
         for (single = resp->single; ret == 0 && single != NULL;
@@ -40563,7 +40564,7 @@ WC_MAYBE_UNUSED static int EncodeBasicOcspResponse(OcspResponse* resp,
 #else
     DECL_ASNSETDATA(dataASN, ocspBasicRespASN_Length);
     int ret = 0;
-    int sz = 0;
+    word32 sz = 0;
     word32 respDataSz = 0;
     word32 sigSz = 0;
 
@@ -40656,8 +40657,8 @@ WC_MAYBE_UNUSED static int EncodeBasicOcspResponse(OcspResponse* resp,
                         ocspBasicRespASN_Length, &sz);
             }
             if (ret == 0) {
-                if (SetASN_Items(ocspBasicRespASN, dataASN, ocspBasicRespASN_Length,
-                        out) != sz)
+                if (SetASN_Items(ocspBasicRespASN, dataASN,
+                        ocspBasicRespASN_Length, out) != (int)sz)
                     ret = ASN_PARSE_E;
             }
         }
@@ -40981,7 +40982,7 @@ int OcspResponseEncode(OcspResponse* resp, byte* out, word32* outSz,
 #else
     DECL_ASNSETDATA(dataASN, ocspResponseASN_Length);
     int ret = 0;
-    int sz = 0;
+    word32 sz = 0;
     word32 basicRespSz = 0;
 
     WOLFSSL_ENTER("OcspResponseEncode");
@@ -41025,11 +41026,11 @@ int OcspResponseEncode(OcspResponse* resp, byte* out, word32* outSz,
                 ret = SizeASN_Items(ocspResponseASN, dataASN,
                         ocspResponseASN_Length, &sz);
             }
-            if (ret == 0 && sz > (int)*outSz)
+            if (ret == 0 && sz > *outSz)
                 ret = BUFFER_E;
             if (ret == 0) {
                 if (SetASN_Items(ocspResponseASN, dataASN,
-                        ocspResponseASN_Length, out) != sz)
+                        ocspResponseASN_Length, out) != (int)sz)
                     ret = ASN_PARSE_E;
             }
         }
@@ -41041,17 +41042,17 @@ int OcspResponseEncode(OcspResponse* resp, byte* out, word32* outSz,
             ocspResponseASN_Length);
         ret = SizeASN_Items(ocspResponseASN, dataASN, ocspResponseASN_Length,
                 &sz);
-        if (ret == 0 && out != NULL && sz > (int)*outSz)
+        if (ret == 0 && out != NULL && sz > *outSz)
             ret = BUFFER_E;
         if (ret == 0 && out != NULL) {
-            if (SetASN_Items(ocspResponseASN, dataASN, ocspResponseASN_Length,
-                    out) != sz)
+            if (SetASN_Items(ocspResponseASN, dataASN,
+                    ocspResponseASN_Length, out) != (int)sz)
                 ret = ASN_PARSE_E;
         }
     }
 
     if (ret == 0)
-        *outSz = (word32)sz;
+        *outSz = sz;
     FREE_ASNSETDATA(dataASN, resp->heap);
     return ret;
 #endif
