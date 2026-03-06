@@ -22420,8 +22420,11 @@ static int DecodeSubjInfoAcc(const byte* input, word32 sz, DecodedCert* cert)
 
     if (cert->extSubjInfoAccCaRepo == NULL ||
             cert->extSubjInfoAccCaRepoSz == 0) {
-        WOLFSSL_MSG("SubjectInfoAccess missing an URL.");
-        ret = ASN_PARSE_E;
+        /* Not all SIA extensions contain id-ad-caRepository.  RFC 5280
+         * section 4.2.2.2 permits any access method; for example,
+         * ISO 15118-20 EV-charging PKI certificates carry only custom
+         * access-method OIDs.  Log a message but do not reject the cert. */
+        WOLFSSL_MSG("SubjectInfoAccess: no caRepository URI found.");
     }
 
     WOLFSSL_LEAVE("DecodeSubjInfoAcc", ret);
