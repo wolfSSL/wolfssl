@@ -301,19 +301,34 @@
         }  /* extern "C" */
     #endif
 
-    #include <version.h>
+    #ifdef __has_include
+        #if __has_include(<zephyr/version.h>)
+            #include <zephyr/version.h>
+        #else
+            #include <version.h>
+        #endif
+    #else
+        #include <version.h>
+    #endif
+    /* Include sys/types.h early so host libc sets __timer_t_defined
+     * before Zephyr's posix_types.h can define a conflicting timer_t */
+    #include <sys/types.h>
     #ifndef SINGLE_THREADED
         #if !defined(CONFIG_PTHREAD_IPC) && !defined(CONFIG_POSIX_THREADS)
             #error "Threading needs CONFIG_PTHREAD_IPC / CONFIG_POSIX_THREADS"
         #endif
         #if KERNEL_VERSION_NUMBER >= 0x30100
             #include <zephyr/kernel.h>
-            #include <zephyr/posix/posix_types.h>
-            #include <zephyr/posix/pthread.h>
+            #ifndef CONFIG_ARCH_POSIX
+                #include <zephyr/posix/posix_types.h>
+                #include <zephyr/posix/pthread.h>
+            #endif
         #else
             #include <kernel.h>
-            #include <posix/posix_types.h>
-            #include <posix/pthread.h>
+            #ifndef CONFIG_ARCH_POSIX
+                #include <posix/posix_types.h>
+                #include <posix/pthread.h>
+            #endif
         #endif
     #endif
 
@@ -1505,15 +1520,20 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
         }  /* extern "C" */
     #endif
 
-    #include <version.h>
-    #ifndef _POSIX_C_SOURCE
-        #if KERNEL_VERSION_NUMBER >= 0x30100
-            #include <zephyr/posix/time.h>
-        #else
-            #include <posix/time.h>
-        #endif
-    #else
+    #if KERNEL_VERSION_NUMBER >= 0x40300
         #include <time.h>
+    #elif KERNEL_VERSION_NUMBER >= 0x30100
+        #include <zephyr/posix/time.h>
+    #else
+        #include <posix/time.h>
+    #endif
+
+    #ifndef CLOCK_REALTIME
+        #ifdef SYS_CLOCK_REALTIME
+            #define CLOCK_REALTIME  SYS_CLOCK_REALTIME
+            #define clock_gettime   sys_clock_gettime
+            #define clock_settime   sys_clock_settime
+        #endif
     #endif
 
     #if defined(CONFIG_RTC)

@@ -112,6 +112,13 @@ config WOLFCRYPT_INTELASM
 	help
 	  wolfCrypt Intel Aassembly support (AVX/AVX2/AESNI)
 
+config WOLFSSL_NO_HAVE_MIN_MAX
+	bool "Force wolfSSL to use its own min/max"
+	help
+	  Disable this if Zephyr min()/max() macros cause
+	  issues. By default wolfSSL defers to Zephyr's
+	  min/max on >= 4.3.
+
 config WOLFSSL_DEBUG
 	bool "wolfSSL debug activation"
 	depends on WOLFSSL_BUILTIN
