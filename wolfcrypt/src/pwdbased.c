@@ -837,7 +837,7 @@ end:
         ForceZero(v, ((size_t)1 << cost) * (size_t)bSz);
     }
     if (y != NULL) {
-        ForceZero(y, (size_t)(blockSize * 128));
+        ForceZero(y, (size_t)blockSize * 128);
     }
 
     XFREE(blocks, NULL, DYNAMIC_TYPE_TMP_BUFFER);
