@@ -22880,8 +22880,10 @@ default:
 #ifdef WOLFSSL_TLS13
                 if (IsAtLeastTLSv1_3(ssl->version)) {
                     tooLong  = ssl->curSize > MAX_TLS13_ENC_SZ;
-                    tooLong |= ssl->curSize - ssl->specs.aead_mac_size >
+                    if (ssl->specs.aead_mac_size < ssl->curSize) {
+                        tooLong |= ssl->curSize - ssl->specs.aead_mac_size >
                                                              MAX_TLS13_PLAIN_SZ;
+                    }
                 }
 #endif
 #ifdef WOLFSSL_EXTRA_ALERTS
