@@ -428,7 +428,7 @@ int wolfSSL_ASN1_item_i2d(const void* obj, byte** dest,
             else
                 *dest += len;
         }
-        if (*dest == NULL)
+        if (ret == 0 && *dest == NULL)
             XFREE(buf, NULL, DYNAMIC_TYPE_ASN1);
     }
 
