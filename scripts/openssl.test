@@ -160,18 +160,6 @@ do_trap() {
 
 trap do_trap INT TERM
 
-
-check_process_running() {
-    if [ "$ps_grep" = "" ]
-    then
-        ps -p "$server_pid" > /dev/null
-        PS_EXIT=$?
-    else
-        pgrep -f "^ *$server_pid " > /dev/null
-        PS_EXIT=$?
-    fi
-}
-
 #
 # Start an OpenSSL server
 #
@@ -218,8 +206,7 @@ start_openssl_server() {
         # wait to see if s_server successfully starts before continuing
         sleep 0.1
 
-        check_process_running
-        if [ "$PS_EXIT" = "0" ]
+        if kill -0 "$server_pid" 2>/dev/null
         then
             echo "s_server started successfully on port $server_port"
             found_free_port=1
@@ -283,8 +270,7 @@ start_wolfssl_server() {
         # wait to see if server successfully starts before continuing
         sleep 0.1
 
-        check_process_running
-        if [ "$PS_EXIT" = "0" ]
+        if kill -0 "$server_pid" 2>/dev/null
         then
             echo "wolfSSL server started successfully on port $server_port"
             found_free_port=1
@@ -462,11 +448,6 @@ echo
 echo "OpenSSL version:"
 $OPENSSL version -a
 echo
-
-if ! ps -p $PPID >/dev/null 2>&1; then
-    ps_grep="yes"
-    echo "ps -p not working, using ps and grep"
-fi
 
 echo -e "\nTesting existence of openssl command...\n"
 command -v "$OPENSSL" >/dev/null 2>&1 || { echo >&2 "Requires openssl command, but it's not installed.  Ending."; do_cleanup; exit 0; }
