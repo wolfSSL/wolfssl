@@ -177,12 +177,14 @@ static ATCAIfaceCfg* gCfg = &config_atmel_device[WOLFSSL_ATCA_DEVICE_NO];
         #endif
     #endif
 
-    /* Helper function to fix property field endianness after talib_handle_init_*
-     * functions populate the ta_element_attributes_t structure.
+    /* Helper function to fix property field endianness after
+     * talib_handle_init_* functions populate the
+     * ta_element_attributes_t structure.
      * The talib functions build the property value in host byte order, but
      * the TA100 device expects little-endian format.
      */
-    static WC_INLINE void ta100_fix_property_endian(ta_element_attributes_t* attr)
+    static WC_INLINE void ta100_fix_property_endian(
+        ta_element_attributes_t* attr)
     {
     #ifdef BIG_ENDIAN_ORDER
         if (attr != NULL) {
@@ -682,8 +684,10 @@ int atmel_ecc_create_key(int slotId, int curve_id, byte* peerKey)
     /* generate new ephemeral key on device */
 #ifdef WOLFSSL_MICROCHIP_TA100
     #if defined(TA100_ECC_TRACE)
-    printf("[TA100] atmel_ecc_create_key: slot=%d curve_id=%d curve_size=%d curve_type=%d\r\n",
-        slotId, curve_id, getCurveSizeBytes(curve_id), getCurveType(curve_id));
+    printf("[TA100] atmel_ecc_create_key: slot=%d curve_id=%d "
+        "curve_size=%d curve_type=%d\r\n",
+        slotId, curve_id, getCurveSizeBytes(curve_id),
+        getCurveType(curve_id));
 #endif
     {
         ATCA_STATUS status;
@@ -720,7 +724,8 @@ int atmel_ecc_create_key(int slotId, int curve_id, byte* peerKey)
         status = talib_genkey_base(atcab_get_device(), TA_KEYGEN_MODE_NEWKEY,
             (uint32_t)MAP_TO_HANDLE(slotId), peerKey, &pubkey_len);
         #if defined(TA100_ECC_TRACE)
-        printf("[TA100] atmel_ecc_create_key: genkey status=%d pubkey_len=%u\r\n",
+        printf("[TA100] atmel_ecc_create_key: "
+            "genkey status=%d pubkey_len=%u\r\n",
             status, (unsigned)pubkey_len);
 #endif
         return atmel_ecc_translate_err(status);
@@ -953,8 +958,8 @@ int wc_Microchip_rsa_decrypt(const byte* in, word32 inLen, byte* out,
 }
 
 
-int wc_Microchip_rsa_sign(const byte* in, word32 inLen, byte* out, word32 outLen,
-                          RsaKey* key)
+int wc_Microchip_rsa_sign(const byte* in, word32 inLen,
+                          byte* out, word32 outLen, RsaKey* key)
 {
     int ret;
     uint16_t sign_size = (uint16_t)outLen;
@@ -983,7 +988,8 @@ int wc_Microchip_rsa_sign(const byte* in, word32 inLen, byte* out, word32 outLen
 }
 
 
-int wc_Microchip_rsa_verify(const byte* in, word32 inLen, byte* sig, word32 sigLen,
+int wc_Microchip_rsa_verify(const byte* in, word32 inLen,
+                            byte* sig, word32 sigLen,
                             RsaKey* key, int* pVerified)
 {
     int ret;
@@ -1820,9 +1826,11 @@ static int ta100_is_aes_handle(uint16_t handle)
     }
 
     handle_class = info[0] & TA_HANDLE_INFO_CLASS_MASK;
-    key_type = (info[0] & TA_HANDLE_INFO_KEY_TYPE_MASK) >> TA_HANDLE_INFO_KEY_TYPE_SHIFT;
+    key_type = (info[0] & TA_HANDLE_INFO_KEY_TYPE_MASK) >>
+        TA_HANDLE_INFO_KEY_TYPE_SHIFT;
 
-    return (handle_class == TA_CLASS_SYMMETRIC_KEY && key_type == TA_KEY_TYPE_AES128);
+    return (handle_class == TA_CLASS_SYMMETRIC_KEY &&
+            key_type == TA_KEY_TYPE_AES128);
 }
 
 int wc_Microchip_aes_set_key(Aes* aes, const byte* key, word32 keylen,
@@ -1848,20 +1856,22 @@ int wc_Microchip_aes_set_key(Aes* aes, const byte* key, word32 keylen,
 
     /* Create AES handle if not already created */
     if (!ta100_aes_handle_created) {
-        status = talib_is_handle_valid(atcab_get_device(), (uint32_t)aes->key_id,
+        status = talib_is_handle_valid(atcab_get_device(),
+                                       (uint32_t)aes->key_id,
                                        &is_handle_valid);
         if (status != ATCA_SUCCESS) {
             return WC_HW_E;
         }
 
         if (is_handle_valid == 0) {
-            status = talib_handle_init_symmetric_key(&attr, TA_KEY_TYPE_AES128,
-                                                     TA_PROP_SYMM_KEY_USAGE_ANY);
+            status = talib_handle_init_symmetric_key(&attr,
+                TA_KEY_TYPE_AES128, TA_PROP_SYMM_KEY_USAGE_ANY);
             if (status != ATCA_SUCCESS) {
                 return WC_HW_E;
             }
-            (void)talib_handle_set_permissions(&attr, TA_PERM_ALWAYS, TA_PERM_ALWAYS,
-                                               TA_PERM_ALWAYS, TA_PERM_ALWAYS);
+            (void)talib_handle_set_permissions(&attr,
+                TA_PERM_ALWAYS, TA_PERM_ALWAYS,
+                TA_PERM_ALWAYS, TA_PERM_ALWAYS);
             ta100_fix_property_endian(&attr);
 
             status = talib_create_element_with_handle(atcab_get_device(),
@@ -1877,7 +1887,8 @@ int wc_Microchip_aes_set_key(Aes* aes, const byte* key, word32 keylen,
         ta100_aes_handle_created = 1;
     }
 
-    status = talib_is_handle_locked(atcab_get_device(), aes->key_id, &is_locked);
+    status = talib_is_handle_locked(atcab_get_device(),
+        aes->key_id, &is_locked);
     if (status == ATCA_SUCCESS && is_locked) {
         return WC_HW_E;
     }
@@ -1926,7 +1937,8 @@ static int wc_Microchip_AesGcmCommon(Aes* aes, byte* out, const byte* in,
     if (ivSz != TA_AES_GCM_IV_LENGTH) {
         return BAD_FUNC_ARG;
     }
-    if (authTag == NULL || authTagSz == 0 || authTagSz > TA_AES_GCM_TAG_LENGTH) {
+    if (authTag == NULL || authTagSz == 0 ||
+        authTagSz > TA_AES_GCM_TAG_LENGTH) {
         return BAD_FUNC_ARG;
     }
 
@@ -1934,7 +1946,8 @@ static int wc_Microchip_AesGcmCommon(Aes* aes, byte* out, const byte* in,
         /* Note: talib API takes non-const iv */
         if (authTagSz != TA_AES_GCM_TAG_LENGTH) {
             status = talib_aes_gcm_encrypt(atcab_get_device(), authIn,
-                                           authInSz, (uint8_t*)iv, in, sz, out, tag_buf);
+                                           authInSz, (uint8_t*)iv,
+                                           in, sz, out, tag_buf);
             if (status == ATCA_SUCCESS) {
                 copy_sz = authTagSz;
                 XMEMCPY(authTag, tag_buf, copy_sz);
@@ -1942,7 +1955,8 @@ static int wc_Microchip_AesGcmCommon(Aes* aes, byte* out, const byte* in,
         }
         else {
             status = talib_aes_gcm_encrypt(atcab_get_device(), authIn,
-                                           authInSz, (uint8_t*)iv, in, sz, out, authTag);
+                                           authInSz, (uint8_t*)iv,
+                                           in, sz, out, authTag);
         }
     }
     else {
@@ -1951,7 +1965,8 @@ static int wc_Microchip_AesGcmCommon(Aes* aes, byte* out, const byte* in,
                 return NOT_COMPILED_IN;
             }
             status = talib_aes_gcm_encrypt(atcab_get_device(), authIn,
-                                           authInSz, (uint8_t*)iv, in, sz, out, tag_buf);
+                                           authInSz, (uint8_t*)iv,
+                                           in, sz, out, tag_buf);
             if (status == ATCA_SUCCESS) {
                 copy_sz = authTagSz;
                 if (XMEMCMP(tag_buf, authTag, copy_sz) != 0) {
@@ -1961,7 +1976,8 @@ static int wc_Microchip_AesGcmCommon(Aes* aes, byte* out, const byte* in,
         }
         else {
             status = talib_aes_gcm_decrypt(atcab_get_device(), authIn,
-                                           authInSz, (uint8_t*)iv, authTag, in, sz, out);
+                                           authInSz, (uint8_t*)iv,
+                                           authTag, in, sz, out);
         }
     }
 

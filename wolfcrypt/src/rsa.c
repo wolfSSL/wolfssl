@@ -3585,7 +3585,8 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
                     return WC_HW_E;
                 }
                 int tmp;
-                return wc_Microchip_rsa_verify(in, inLen, out, outLen, key, &tmp);
+                return wc_Microchip_rsa_verify(in, inLen,
+                    out, outLen, key, &tmp);
             }
             return WC_HW_E;
         }
