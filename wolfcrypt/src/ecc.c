@@ -10958,7 +10958,7 @@ int wc_ecc_import_x963_ex2(const byte* in, word32 inLen, ecc_key* key,
         mp_clear(key->pubkey.x);
         mp_clear(key->pubkey.y);
         mp_clear(key->pubkey.z);
-        mp_clear(key->k);
+        mp_forcezero(key->k);
     }
 
     RESTORE_VECTOR_REGISTERS();
@@ -11741,7 +11741,7 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
         mp_clear(key->pubkey.x);
         mp_clear(key->pubkey.y);
         mp_clear(key->pubkey.z);
-        mp_clear(key->k);
+        mp_forcezero(key->k);
 #if defined(WOLFSSL_XILINX_CRYPT_VERSAL)
         ForceZero(key->keyRaw, sizeof(key->keyRaw));
 #endif
