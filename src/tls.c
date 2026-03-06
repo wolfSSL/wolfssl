@@ -6047,7 +6047,7 @@ static int TLSX_SecureRenegotiation_Parse(WOLFSSL* ssl, const byte* input,
                     input++; /* get past size */
 
                     /* validate client verify data */
-                    if (XMEMCMP(input,
+                    if (ConstantCompare(input,
                             ssl->secure_renegotiation->client_verify_data,
                             TLS_FINISHED_SZ) == 0) {
                         WOLFSSL_MSG("SCR client verify data match");
@@ -6075,10 +6075,10 @@ static int TLSX_SecureRenegotiation_Parse(WOLFSSL* ssl, const byte* input,
                 input++;  /* get past size */
 
                 /* validate client and server verify data */
-                if (XMEMCMP(input,
+                if (ConstantCompare(input,
                             ssl->secure_renegotiation->client_verify_data,
                             TLS_FINISHED_SZ) == 0 &&
-                    XMEMCMP(input + TLS_FINISHED_SZ,
+                    ConstantCompare(input + TLS_FINISHED_SZ,
                             ssl->secure_renegotiation->server_verify_data,
                             TLS_FINISHED_SZ) == 0) {
                     WOLFSSL_MSG("SCR client and server verify data match");
