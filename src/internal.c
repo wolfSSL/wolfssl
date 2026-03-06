@@ -26304,8 +26304,12 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
 
         if (sent == (word32)sz) break;
 
-        buffSz = (word32)sz - sent;
-        outputSz = wolfssl_local_GetRecordSize(ssl, (word32)buffSz, 1);
+        buffSz = (int)((word32)sz - sent);
+        if (buffSz <= 0) {
+            WOLFSSL_MSG("error: sent size exceeds input size");
+            ssl->error = BAD_FUNC_ARG;
+            return WOLFSSL_FATAL_ERROR;
+        }
 #if defined(WOLFSSL_DTLS)
         if (ssl->options.dtls) {
 #if defined(WOLFSSL_DTLS_MTU)
@@ -26313,6 +26317,7 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
 #else
             int mtu = MAX_MTU;
 #endif
+            outputSz = wolfssl_local_GetRecordSize(ssl, (word32)buffSz, 1);
             if (outputSz > mtu) {
 #if defined(WOLFSSL_NO_DTLS_SIZE_CHECK)
                 /* split instead of error out */
@@ -26326,7 +26331,14 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
 #endif /* WOLFSSL_NO_DTLS_SIZE_CHECK */
             }
         }
+        else
 #endif /* WOLFSSL_DTLS */
+        {
+            int maxFrag = wolfSSL_GetMaxFragSize(ssl);
+            if (maxFrag > 0)
+                buffSz = min((word32)buffSz, (word32)maxFrag);
+            outputSz = wolfssl_local_GetRecordSize(ssl, (word32)buffSz, 1);
+        }
 
         /* check for available size, it does also DTLS MTU checks */
         if ((ret = CheckAvailableSize(ssl, outputSz)) != 0)
@@ -34106,7 +34118,15 @@ int SendClientKeyExchange(WOLFSSL* ssl)
         #endif
 
             if (IsEncryptionOn(ssl, 1)) {
-                args->sendSz += MAX_MSG_EXTRA;
+            #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_MTU)
+                /* Use exact cipher overhead for the MTU pre-flight check.
+                 * MAX_MSG_EXTRA is an upper bound that can exceed a small MTU,
+                 * while the actual message fits within it. */
+                if (ssl->options.dtls)
+                    args->sendSz += cipherExtraData(ssl);
+                else
+            #endif
+                    args->sendSz += MAX_MSG_EXTRA;
             }
 
             /* check for available size */
