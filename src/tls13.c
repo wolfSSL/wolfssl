@@ -4945,7 +4945,7 @@ static int EchCheckAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
     }
     if (ret == 0) {
         /* last 8 bytes should match our expand output */
-        ret = XMEMCMP(acceptConfirmation, input + acceptOffset,
+        ret = ConstantCompare(acceptConfirmation, input + acceptOffset,
             ECH_ACCEPT_CONFIRMATION_SZ);
         /* ech accepted */
         if (ret == 0) {
