@@ -490,68 +490,61 @@ int SetEchConfigsEx(WOLFSSL_EchConfig** outputConfigs, void* heap,
     const byte* echConfigs, word32 echConfigsLen)
 {
     int ret = 0;
-    int i;
+    word32 configIdx;
+    word32 idx;
     int j;
     word16 totalLength;
     word16 version;
     word16 length;
     word16 hpkePubkeyLen;
     word16 cipherSuitesLen;
-    word16 publicNameLen;
+    word16 extensionsLen;
+    byte publicNameLen;
     WOLFSSL_EchConfig* configList = NULL;
     WOLFSSL_EchConfig* workingConfig = NULL;
     WOLFSSL_EchConfig* lastConfig = NULL;
-    byte* echConfig = NULL;
+    const byte* echConfig = NULL;
 
-    if (outputConfigs == NULL || echConfigs == NULL || echConfigsLen == 0)
+    if (outputConfigs == NULL || echConfigs == NULL || echConfigsLen < 2)
         return BAD_FUNC_ARG;
 
     /* check that the total length is well formed */
     ato16(echConfigs, &totalLength);
-
     if (totalLength != echConfigsLen - 2) {
         return WOLFSSL_FATAL_ERROR;
     }
-
-    /* skip the total length uint16_t */
-    i = 2;
+    configIdx = 2;
 
     do {
-        echConfig = (byte*)echConfigs + i;
+        if (configIdx + 4 > echConfigsLen) {
+            ret = BUFFER_E;
+            break;
+        }
+        echConfig = echConfigs + configIdx;
         ato16(echConfig, &version);
         ato16(echConfig + 2, &length);
 
-        /* if the version does not match */
-        if (version != TLSX_ECH) {
-            /* we hit the end of the configs */
-            if ( (word32)i + 2 >= echConfigsLen ) {
-                break;
-            }
-
-            /* skip this config, +4 for version and length */
-            i += length + 4;
-            continue;
-        }
-
-        /* check if the length will overrun the buffer */
-        if ((word32)i + length + 4 > echConfigsLen) {
+        if (configIdx + length + 4 > echConfigsLen) {
+            ret = BUFFER_E;
             break;
+        }
+        else if (version != TLSX_ECH) {
+            /* skip this config and try the next one */
+            configIdx += length + 4;
+            continue;
         }
 
         if (workingConfig == NULL) {
             workingConfig =
                 (WOLFSSL_EchConfig*)XMALLOC(sizeof(WOLFSSL_EchConfig), heap,
-                DYNAMIC_TYPE_TMP_BUFFER);
+                                            DYNAMIC_TYPE_TMP_BUFFER);
             configList = workingConfig;
-            if (workingConfig != NULL) {
-                workingConfig->next = NULL;
-            }
         }
         else {
             lastConfig = workingConfig;
             workingConfig->next =
-                (WOLFSSL_EchConfig*)XMALLOC(sizeof(WOLFSSL_EchConfig),
-                heap, DYNAMIC_TYPE_TMP_BUFFER);
+                (WOLFSSL_EchConfig*)XMALLOC(sizeof(WOLFSSL_EchConfig), heap,
+                                            DYNAMIC_TYPE_TMP_BUFFER);
             workingConfig = workingConfig->next;
         }
 
@@ -566,8 +559,8 @@ int SetEchConfigsEx(WOLFSSL_EchConfig** outputConfigs, void* heap,
         workingConfig->rawLen = length + 4;
 
         /* raw body */
-        workingConfig->raw = (byte*)XMALLOC(workingConfig->rawLen,
-            heap, DYNAMIC_TYPE_TMP_BUFFER);
+        workingConfig->raw = (byte*)XMALLOC(workingConfig->rawLen, heap,
+                                            DYNAMIC_TYPE_TMP_BUFFER);
         if (workingConfig->raw == NULL) {
             ret = MEMORY_E;
             break;
@@ -578,8 +571,14 @@ int SetEchConfigsEx(WOLFSSL_EchConfig** outputConfigs, void* heap,
         /* skip over version and length */
         echConfig += 4;
 
+        idx = 5;
+        if (idx >= length) {
+            ret = BUFFER_E;
+            break;
+        }
+
         /* configId, 1 byte */
-        workingConfig->configId = *(echConfig);
+        workingConfig->configId = *echConfig;
         echConfig++;
         /* kemId, 2 bytes */
         ato16(echConfig, &workingConfig->kemId);
@@ -587,15 +586,41 @@ int SetEchConfigsEx(WOLFSSL_EchConfig** outputConfigs, void* heap,
         /* hpke public_key length, 2 bytes */
         ato16(echConfig, &hpkePubkeyLen);
         echConfig += 2;
+
         /* hpke public_key */
-        if (hpkePubkeyLen > HPKE_Npk_MAX) {
+        if (hpkePubkeyLen > HPKE_Npk_MAX || hpkePubkeyLen == 0) {
             ret = BUFFER_E;
             break;
         }
+        idx += hpkePubkeyLen;
+        if (idx >= length) {
+            ret = BUFFER_E;
+            break;
+        }
+
         XMEMCPY(workingConfig->receiverPubkey, echConfig, hpkePubkeyLen);
         echConfig += hpkePubkeyLen;
+
         /* cipherSuitesLen */
+        idx += 2;
+        if (idx >= length) {
+            ret = BUFFER_E;
+            break;
+        }
         ato16(echConfig, &cipherSuitesLen);
+        if (cipherSuitesLen == 0 || cipherSuitesLen % 4 != 0 ||
+                cipherSuitesLen >= 1024) {
+            /* numCipherSuites is a byte so only 256 ciphersuites (each 4 bytes)
+             * can be accessed */
+            ret = BUFFER_E;
+            break;
+        }
+
+        idx += cipherSuitesLen;
+        if (idx >= length) {
+            ret = BUFFER_E;
+            break;
+        }
 
         workingConfig->cipherSuites = (EchCipherSuite*)XMALLOC(cipherSuitesLen,
             heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -605,32 +630,68 @@ int SetEchConfigsEx(WOLFSSL_EchConfig** outputConfigs, void* heap,
         }
 
         echConfig += 2;
-        workingConfig->numCipherSuites = cipherSuitesLen / 4;
+        workingConfig->numCipherSuites = (byte)(cipherSuitesLen / 4);
         /* cipherSuites */
         for (j = 0; j < workingConfig->numCipherSuites; j++) {
-            ato16(echConfig + j * 4, &workingConfig->cipherSuites[j].kdfId);
-            ato16(echConfig + j * 4 + 2,
-                &workingConfig->cipherSuites[j].aeadId);
+            ato16(echConfig, &workingConfig->cipherSuites[j].kdfId);
+            ato16(echConfig + 2, &workingConfig->cipherSuites[j].aeadId);
+            echConfig += 4;
         }
-        echConfig += cipherSuitesLen;
+
         /* ignore the maximum name length */
+        idx++;
+        if (idx >= length) {
+            ret = BUFFER_E;
+            break;
+        }
         echConfig++;
+
         /* publicNameLen */
-        publicNameLen = *(echConfig);
+        idx++;
+        if (idx >= length) {
+            ret = BUFFER_E;
+            break;
+        }
+
+        publicNameLen = *echConfig;
+        if (publicNameLen == 0) {
+            ret = BUFFER_E;
+            break;
+        }
+
+        idx += publicNameLen;
+        if (idx >= length) {
+            ret = BUFFER_E;
+            break;
+        }
+        echConfig++;
+
         workingConfig->publicName = (char*)XMALLOC(publicNameLen + 1,
             heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (workingConfig->publicName == NULL) {
             ret = MEMORY_E;
             break;
         }
-        echConfig++;
+
         /* publicName */
         XMEMCPY(workingConfig->publicName, echConfig, publicNameLen);
-        /* null terminated */
-        workingConfig->publicName[publicNameLen] = 0;
+        workingConfig->publicName[publicNameLen] = '\0';
+        echConfig += publicNameLen;
 
-        /* add length to go to next config, +4 for version and length */
-        i += length + 4;
+        /* TODO: Parse ECHConfigExtension */
+        /*       --> for now just ignore it */
+        idx += 2;
+        if (idx > length) {
+            ret = BUFFER_E;
+            break;
+        }
+        ato16(echConfig, &extensionsLen);
+
+        idx += extensionsLen;
+        if (idx != length) {
+            ret = BUFFER_E;
+            break;
+        }
 
         /* check that we support this config */
         for (j = 0; j < HPKE_SUPPORTED_KEM_LEN; j++) {
@@ -638,18 +699,31 @@ int SetEchConfigsEx(WOLFSSL_EchConfig** outputConfigs, void* heap,
                 break;
         }
 
-        /* if we don't support the kem or at least one cipher suite */
+        /* KEM or ciphersuite not supported, free this config and then try to
+         * parse another */
         if (j >= HPKE_SUPPORTED_KEM_LEN ||
-            EchConfigGetSupportedCipherSuite(workingConfig) < 0)
-        {
-            XFREE(workingConfig->cipherSuites, heap,
-                DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(workingConfig->publicName, heap,
-                DYNAMIC_TYPE_TMP_BUFFER);
+                EchConfigGetSupportedCipherSuite(workingConfig) < 0) {
+            XFREE(workingConfig->cipherSuites, heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(workingConfig->publicName, heap, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(workingConfig->raw, heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(workingConfig, heap, DYNAMIC_TYPE_TMP_BUFFER);
             workingConfig = lastConfig;
+
+            if (workingConfig != NULL) {
+                workingConfig->next = NULL;
+            }
+            else {
+                /* if one (or more) of the leading configs are unsupported then
+                 * this case will be hit */
+                configList = NULL;
+            }
         }
-    } while ((word32)i < echConfigsLen);
+
+        configIdx += 4 + length;
+    } while (configIdx < echConfigsLen);
+    if (ret == 0 && configIdx != echConfigsLen){
+        ret = BUFFER_E;
+    }
 
     /* if we found valid configs */
     if (ret == 0 && configList != NULL) {
@@ -659,7 +733,6 @@ int SetEchConfigsEx(WOLFSSL_EchConfig** outputConfigs, void* heap,
     }
 
     workingConfig = configList;
-
     while (workingConfig != NULL) {
         lastConfig = workingConfig;
         workingConfig = workingConfig->next;
@@ -667,7 +740,6 @@ int SetEchConfigsEx(WOLFSSL_EchConfig** outputConfigs, void* heap,
         XFREE(lastConfig->cipherSuites, heap, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(lastConfig->publicName, heap, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(lastConfig->raw, heap, DYNAMIC_TYPE_TMP_BUFFER);
-
         XFREE(lastConfig, heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 

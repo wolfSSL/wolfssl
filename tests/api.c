@@ -14068,9 +14068,6 @@ static int test_wolfSSL_Tls13_ECH_params(void)
     EXPECT_DECLS;
 #if !defined(NO_WOLFSSL_CLIENT)
     byte testBuf[256];
-    /* base64 ech configs from cloudflare-ech.com */
-    const char* b64Configs =
-        "AEX+DQBBFAAgACBuAoQI8+liEVYQbXKBDeVgTmF2rfXuKO2knhwrN7jgTgAEAAEAAQASY2xvdWRmbGFyZS1lY2guY29tAAA=";
     word32 outputLen = sizeof(testBuf);
     word16 tmpLen = 0;
     WOLFSSL_CTX* ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method());
@@ -14079,7 +14076,7 @@ static int test_wolfSSL_Tls13_ECH_params(void)
     ExpectNotNull(ctx);
     ExpectNotNull(ssl);
 
-    /* CTX NULL errors */
+    /* generation errors */
 
     /* invalid ctx */
     ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_GenerateEchConfig(NULL,
@@ -14095,36 +14092,22 @@ static int test_wolfSSL_Tls13_ECH_params(void)
     ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_GenerateEchConfig(ctx,
         "ech-public-name.com", 0, 0, 1000));
 
-    /* invalid base64 configs: NULL ctx, NULL configs, 0 length */
-    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_SetEchConfigsBase64(NULL,
-        b64Configs, (word32)XSTRLEN(b64Configs)));
-    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_SetEchConfigsBase64(ctx,
-        NULL, (word32)XSTRLEN(b64Configs)));
-    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_SetEchConfigsBase64(ctx,
-        b64Configs, 0));
+    /* bad function calls */
 
-    /* invalid configs: NULL ctx, NULL configs, 0 length */
+    /* NULL ctx */
     ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_SetEchConfigs(NULL, testBuf,
         sizeof(testBuf)));
-    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_SetEchConfigs(ctx, NULL,
-        sizeof(testBuf)));
-    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_SetEchConfigs(ctx, testBuf, 0));
-
-    /* SSL NULL errors */
-
-    /* invalid base64 configs: NULL ssl, NULL configs, 0 length */
-    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_SetEchConfigsBase64(NULL, b64Configs,
-        (word32)XSTRLEN(b64Configs)));
-    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_SetEchConfigsBase64(ssl, NULL,
-        (word32)XSTRLEN(b64Configs)));
-    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_SetEchConfigsBase64(ssl, b64Configs,
-        0));
-
-    /* invalid configs: NULL ssl, NULL configs, 0 length */
     ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_SetEchConfigs(NULL, testBuf,
+        sizeof(testBuf)));
+
+    /* NULL configs */
+    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_SetEchConfigs(ctx, NULL,
         sizeof(testBuf)));
     ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_SetEchConfigs(ssl, NULL,
         sizeof(testBuf)));
+
+    /* 0 length */
+    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_SetEchConfigs(ctx, testBuf, 0));
     ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_SetEchConfigs(ssl, testBuf, 0));
 
     /* stateful errors */
@@ -14212,15 +14195,103 @@ static int test_wolfSSL_Tls13_ECH_params(void)
     ExpectIntNE(WOLFSSL_SUCCESS,
         wolfSSL_GetEchConfigs(ssl, testBuf, &outputLen));
 
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif /* !NO_WOLFSSL_CLIENT */
+
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_Tls13_ECH_params_b64(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_WOLFSSL_CLIENT)
+    /* base64 ech configs from cloudflare-ech.com (these are good configs) */
+    const char* b64Valid = "AEX+DQBBFAAgACBuAoQI8+liEVYQbXKBDeVgTmF2rfXuKO2knhwrN7jgTgAEAAEAAQASY2xvdWRmbGFyZS1lY2guY29tAAA=";
+    /* ech configs with bad/unsupported algorithm */
+    const char* b64BadAlgo = "AEX+DQBBFP//ACBuAoQI8+liEVYQbXKBDeVgTmF2rfXuKO2knhwrN7jgTgAEAAEAAQASY2xvdWRmbGFyZS1lY2guY29tAAA=";
+    /* ech configs with bad/unsupported ciphersuite */
+    const char* b64BadCiph = "AEX+DQBBFAAgACBuAoQI8+liEVYQbXKBDeVgTmF2rfXuKO2knhwrN7jgTgAE//8AAQASY2xvdWRmbGFyZS1lY2guY29tAAA=";
+    /* ech configs with bad version first */
+    const char* b64BadVers1 = "AIz+HQBCAQAgACCjR6+Qn9UYkMaWdXZzsby88vXFhPHJ2tWCDHQJLvMkEgAEAAEAAQATZWNoLXB1YmxpYy1uYW1lLmNvbQAA/g0AQgIAIAAgMM6vLrTbOfsfA6fTbJY/Iu0Lj2xeHEPGUJeUwQGAYF4ABAABAAEAE2VjaC1wdWJsaWMtbmFtZS5jb20AAA==";
+    /* ech configs with bad version second */
+    const char* b64BadVers2 = "AIz+DQBCAQAgACCjR6+Qn9UYkMaWdXZzsby88vXFhPHJ2tWCDHQJLvMkEgAEAAEAAQATZWNoLXB1YmxpYy1uYW1lLmNvbQAA/h0AQgIAIAAgMM6vLrTbOfsfA6fTbJY/Iu0Lj2xeHEPGUJeUwQGAYF4ABAABAAEAE2VjaC1wdWJsaWMtbmFtZS5jb20AAA==";
+    byte testBuf[256];
+    word32 outputLen;
+
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method());
+    WOLFSSL*     ssl = wolfSSL_new(ctx);
+
+    ExpectNotNull(ctx);
+    ExpectNotNull(ssl);
+
+    /* NULL ctx/ssl, short public key */
+    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_SetEchConfigsBase64(NULL,
+        b64Valid, (word32)XSTRLEN(b64Valid)));
+    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_SetEchConfigsBase64(NULL,
+        b64Valid, (word32)XSTRLEN(b64Valid)));
+
+    /* NULL configs */
+    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_SetEchConfigsBase64(ctx,
+        NULL, (word32)XSTRLEN(b64Valid)));
+    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_SetEchConfigsBase64(ssl,
+        NULL, (word32)XSTRLEN(b64Valid)));
+
+    /* 0 length */
+    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_SetEchConfigsBase64(ctx,
+        b64Valid, 0));
+    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_SetEchConfigsBase64(ssl,
+        b64Valid, 0));
+
+    /* bad algorithm */
+    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_SetEchConfigsBase64(ctx,
+        b64BadAlgo, (word32)XSTRLEN(b64BadAlgo)));
+    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_SetEchConfigsBase64(ssl,
+        b64BadAlgo, (word32)XSTRLEN(b64BadAlgo)));
+
+    /* bad ciphersuite */
+    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_SetEchConfigsBase64(ctx,
+        b64BadCiph, (word32)XSTRLEN(b64BadCiph)));
+    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_SetEchConfigsBase64(ssl,
+        b64BadCiph, (word32)XSTRLEN(b64BadCiph)));
+
+    /* bad version first, should only have config 2 set */
+    ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_SetEchConfigsBase64(ctx,
+        b64BadVers1, (word32)XSTRLEN(b64BadVers1)));
+    ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_SetEchConfigsBase64(ssl,
+        b64BadVers1, (word32)XSTRLEN(b64BadVers1)));
+    ExpectIntEQ(2, ctx->echConfigs->configId);
+    ExpectIntEQ(2, ssl->echConfigs->configId);
+
+    /* clear configs */
+    wolfSSL_CTX_SetEchEnable(ctx, 0);
+    wolfSSL_CTX_SetEchEnable(ctx, 1);
+    wolfSSL_SetEchEnable(ssl, 0);
+    wolfSSL_SetEchEnable(ssl, 1);
+
+    /* bad version second, should only have config 1 set */
+    ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_SetEchConfigsBase64(ctx,
+        b64BadVers2, (word32)XSTRLEN(b64BadVers2)));
+    ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_SetEchConfigsBase64(ssl,
+        b64BadVers2, (word32)XSTRLEN(b64BadVers2)));
+    ExpectIntEQ(1, ctx->echConfigs->configId);
+    ExpectIntEQ(1, ssl->echConfigs->configId);
+
+    /* clear configs */
+    wolfSSL_CTX_SetEchEnable(ctx, 0);
+    wolfSSL_CTX_SetEchEnable(ctx, 1);
+    wolfSSL_SetEchEnable(ssl, 0);
+    wolfSSL_SetEchEnable(ssl, 1);
+
     /* base64 tests */
 
     /* set base64 configs */
     ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_SetEchConfigsBase64(ctx,
-        b64Configs, (word32)XSTRLEN(b64Configs)));
+        b64Valid, (word32)XSTRLEN(b64Valid)));
     ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_SetEchConfigsBase64(ssl,
-        b64Configs, (word32)XSTRLEN(b64Configs)));
+        b64Valid, (word32)XSTRLEN(b64Valid)));
 
-    /* disable and check ctx has no configs as well */
+    /* disable and check ctx has no configs */
     wolfSSL_CTX_SetEchEnable(ctx, 0);
     outputLen = sizeof(testBuf);
     ExpectIntNE(WOLFSSL_SUCCESS,
@@ -34122,6 +34193,7 @@ TEST_CASE testCases[] = {
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
 #if defined(HAVE_IO_TESTS_DEPENDENCIES)
     TEST_DECL(test_wolfSSL_Tls13_ECH_params),
+    TEST_DECL(test_wolfSSL_Tls13_ECH_params_b64),
     /* Uses Assert in handshake callback. */
     TEST_DECL(test_wolfSSL_Tls13_ECH),
     TEST_DECL(test_wolfSSL_Tls13_ECH_HRR),
