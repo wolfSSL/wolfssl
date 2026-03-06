@@ -380,6 +380,9 @@ WOLFSSL_ABI WOLFSSL_API const char* wc_GetErrorString(int error);
     #include <wolfssl/debug-trace-error-codes.h>
 #else
     #define WC_NO_ERR_TRACE(label) (label)
+    #ifndef WC_ERR_TRACE
+        #define WC_ERR_TRACE(label) (label)
+    #endif
 #endif
 
 #ifdef __cplusplus
