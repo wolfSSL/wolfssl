@@ -16949,7 +16949,7 @@ int set_curves_list(WOLFSSL* ssl, WOLFSSL_CTX *ctx, const char* names,
                 goto leave;
             }
 
-            eccSet = wc_ecc_get_curve_params(ret);
+            eccSet = wc_ecc_get_curve_params(nret);
             if (eccSet == NULL) {
                 WOLFSSL_MSG("NULL set returned");
                 goto leave;
