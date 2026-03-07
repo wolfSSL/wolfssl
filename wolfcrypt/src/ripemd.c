@@ -317,7 +317,7 @@ int wc_RipeMdFinal(RipeMd* ripemd, byte* hash)
     AddLength(ripemd, ripemd->buffLen);               /* before adding pads */
 
     /* ensure we have a valid buffer length; */
-    if (ripemd->buffLen > RIPEMD_BLOCK_SIZE) {
+    if (ripemd->buffLen >= RIPEMD_BLOCK_SIZE) {
         /* exit with error code if there's a bad buffer size in buffLen */
         return BAD_STATE_E;
     } /* buffLen check */
