@@ -85,10 +85,7 @@ void wc_FreeDsaKey(DsaKey* key)
     if (key == NULL)
         return;
 
-    if (key->type == DSA_PRIVATE)
-        mp_forcezero(&key->x);
-
-    mp_clear(&key->x);
+    mp_forcezero(&key->x);
     mp_clear(&key->y);
     mp_clear(&key->g);
     mp_clear(&key->q);
@@ -227,10 +224,11 @@ int wc_MakeDsaKey(WC_RNG *rng, DsaKey *dsa)
         dsa->type = DSA_PRIVATE;
 
     if (err != MP_OKAY) {
-        mp_clear(&dsa->x);
+        mp_forcezero(&dsa->x);
         mp_clear(&dsa->y);
     }
 
+    ForceZero(cBuf, (word32)cSz);
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     XFREE(cBuf, dsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmpQ != NULL) {
