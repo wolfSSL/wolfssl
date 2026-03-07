@@ -56,7 +56,8 @@
 #endif
 
 #if defined(WOLFSSL_ATMEL) || defined(WOLFSSL_ATECC508A) || \
-    defined(WOLFSSL_ATECC608A)
+    defined(WOLFSSL_ATECC608A) || \
+    defined(WOLFSSL_MICROCHIP_TA100)
     #include <wolfssl/wolfcrypt/port/atmel/atmel.h>
 #endif
 #if defined(WOLFSSL_RENESAS_TSIP)
@@ -288,7 +289,7 @@ int wolfCrypt_Init(void)
     #endif
 
     #if defined(WOLFSSL_ATMEL) || defined(WOLFSSL_ATECC508A) || \
-        defined(WOLFSSL_ATECC608A)
+        defined(WOLFSSL_ATECC608A) || defined(WOLFSSL_MICROCHIP_TA100)
         ret = atmel_init();
         if (ret != 0) {
             WOLFSSL_MSG("CryptoAuthLib init failed");
