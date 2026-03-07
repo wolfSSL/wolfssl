@@ -830,6 +830,16 @@ int wc_scrypt(byte* output, const byte* passwd, int passLen,
     ret = wc_PBKDF2(output, passwd, passLen, blocks, (int)blocksSz, 1, dkLen,
                     WC_SHA256);
 end:
+    if (blocks != NULL) {
+        ForceZero(blocks, blocksSz);
+    }
+    if (v != NULL) {
+        ForceZero(v, ((size_t)1 << cost) * (size_t)bSz);
+    }
+    if (y != NULL) {
+        ForceZero(y, (size_t)blockSize * 128);
+    }
+
     XFREE(blocks, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(v, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(y, NULL, DYNAMIC_TYPE_TMP_BUFFER);
