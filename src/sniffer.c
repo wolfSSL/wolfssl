@@ -4243,7 +4243,7 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
             const byte *identity, *binders;
 
             idsLen = (word16)((input[idx] << 8) | input[idx+1]);
-            if (idsLen + OPAQUE16_LEN + idx > extLen) {
+            if ((word32)idsLen + OPAQUE16_LEN + idx > (word32)extLen) {
                 SetError(CLIENT_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
                 return WOLFSSL_FATAL_ERROR;
             }
@@ -4251,7 +4251,7 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
 
             /* PSK identity */
             idLen = (word16)((input[idx] << 8) | input[idx+1]);
-            if (idLen + OPAQUE16_LEN + idx > extLen) {
+            if ((word32)idLen + OPAQUE16_LEN + idx > (word32)extLen) {
                 SetError(CLIENT_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
                 return WOLFSSL_FATAL_ERROR;
             }
@@ -4260,14 +4260,22 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
             idx += idLen;
 
             /* Obfuscated Ticket Age 32-bits */
+            if ((word32)idx + OPAQUE32_LEN > (word32)extLen) {
+                SetError(CLIENT_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
+                return WOLFSSL_FATAL_ERROR;
+            }
             ticketAge = (word32)((input[idx] << 24) | (input[idx+1] << 16) |
                                  (input[idx+2] << 8) | input[idx+3]);
             (void)ticketAge; /* not used */
             idx += OPAQUE32_LEN;
 
             /* binders - all binders */
+            if ((word32)idx + OPAQUE16_LEN > (word32)extLen) {
+                SetError(CLIENT_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
+                return WOLFSSL_FATAL_ERROR;
+            }
             bindersLen = (word16)((input[idx] << 8) | input[idx+1]);
-            if (bindersLen + OPAQUE16_LEN + idx > extLen) {
+            if ((word32)bindersLen + OPAQUE16_LEN + idx > (word32)extLen) {
                 SetError(CLIENT_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
                 return WOLFSSL_FATAL_ERROR;
             }
