@@ -259,6 +259,13 @@ int wc_SrpInit_ex(Srp* srp, SrpType type, SrpSide side, void* heap, int devId)
     /* initializing variables */
     XMEMSET(srp, 0, sizeof(Srp));
 
+    /* default heap hint to NULL or test value */
+#ifdef WOLFSSL_HEAP_TEST
+    srp->heap = (void*)WOLFSSL_HEAP_TEST;
+#else
+    srp->heap = heap;
+#endif /* WOLFSSL_HEAP_TEST */
+
     if ((r = SrpHashInit(&srp->client_proof, type, srp->heap)) != 0)
         return r;
 
@@ -280,13 +287,6 @@ int wc_SrpInit_ex(Srp* srp, SrpType type, SrpSide side, void* heap, int devId)
 
     srp->keyGenFunc_cb = wc_SrpSetKey;
 
-    /* default heap hint to NULL or test value */
-#ifdef WOLFSSL_HEAP_TEST
-    srp->heap = (void*)WOLFSSL_HEAP_TEST;
-#else
-    srp->heap = heap;
-#endif /* WOLFSSL_HEAP_TEST */
-
     (void)devId; /* future */
 
     return 0;
@@ -300,8 +300,8 @@ int wc_SrpInit(Srp* srp, SrpType type, SrpSide side)
 void wc_SrpTerm(Srp* srp)
 {
     if (srp) {
-        mp_clear(&srp->N);    mp_clear(&srp->g);
-        mp_clear(&srp->auth); mp_clear(&srp->priv);
+        mp_clear(&srp->N);       mp_clear(&srp->g);
+        mp_forcezero(&srp->auth); mp_forcezero(&srp->priv);
         if (srp->salt) {
             ForceZero(srp->salt, srp->saltSz);
             XFREE(srp->salt, srp->heap, DYNAMIC_TYPE_SRP);
@@ -912,30 +912,30 @@ int wc_SrpComputeKey(Srp* srp, byte* clientPubKey, word32 clientPubKeySz,
     XFREE(digest, srp->heap, DYNAMIC_TYPE_SRP);
     if (u) {
         if (r != WC_NO_ERR_TRACE(MP_INIT_E))
-            mp_clear(u);
+            mp_forcezero(u);
         XFREE(u, srp->heap, DYNAMIC_TYPE_SRP);
     }
     if (s) {
         if (r != WC_NO_ERR_TRACE(MP_INIT_E))
-            mp_clear(s);
+            mp_forcezero(s);
         XFREE(s, srp->heap, DYNAMIC_TYPE_SRP);
     }
     if (temp1) {
         if (r != WC_NO_ERR_TRACE(MP_INIT_E))
-            mp_clear(temp1);
+            mp_forcezero(temp1);
         XFREE(temp1, srp->heap, DYNAMIC_TYPE_SRP);
     }
     if (temp2) {
         if (r != WC_NO_ERR_TRACE(MP_INIT_E))
-            mp_clear(temp2);
+            mp_forcezero(temp2);
         XFREE(temp2, srp->heap, DYNAMIC_TYPE_SRP);
     }
 #else
     if (r != WC_NO_ERR_TRACE(MP_INIT_E)) {
-        mp_clear(u);
-        mp_clear(s);
-        mp_clear(temp1);
-        mp_clear(temp2);
+        mp_forcezero(u);
+        mp_forcezero(s);
+        mp_forcezero(temp1);
+        mp_forcezero(temp2);
     }
 #endif
 
