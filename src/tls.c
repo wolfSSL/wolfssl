@@ -488,6 +488,14 @@ int DeriveTlsKeys(WOLFSSL* ssl)
     if (ret == 0)
         ret = StoreKeys(ssl, key_dig, PROVISION_CLIENT_SERVER);
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("DeriveTlsKeys key_dig", key_dig, MAX_PRF_DIG);
+#endif
+    ForceZero(key_dig, MAX_PRF_DIG);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(key_dig, MAX_PRF_DIG);
+#endif
+
     WC_FREE_VAR_EX(key_dig, ssl->heap, DYNAMIC_TYPE_DIGEST);
 
     return ret;
