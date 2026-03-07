@@ -14205,6 +14205,13 @@ int wolfSSL_request_certificate(WOLFSSL* ssl)
         return NOT_READY_ERROR;
     if (!ssl->options.postHandshakeAuth)
         return POST_HAND_AUTH_ERROR;
+    if (ssl->certReqCtx != NULL) {
+        if (ssl->certReqCtx->len != 1)
+            return BAD_STATE_E;
+        /* We support sending up to 255 certificate requests */
+        if (ssl->certReqCtx->ctx == 255)
+            return BAD_STATE_E;
+    }
 
     certReqCtx = (CertReqCtx*)XMALLOC(sizeof(CertReqCtx), ssl->heap,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
