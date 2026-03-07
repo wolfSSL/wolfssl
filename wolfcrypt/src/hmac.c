@@ -1679,6 +1679,7 @@ int wolfSSL_GetHmacMaxSize(void)
             n++;
         }
 
+        ForceZero(tmp, WC_MAX_DIGEST_SIZE);
         wc_HmacFree(myHmac);
         WC_FREE_VAR_EX(myHmac, NULL, DYNAMIC_TYPE_HMAC);
 
@@ -1734,11 +1735,12 @@ int wolfSSL_GetHmacMaxSize(void)
 
         ret = wc_HKDF_Extract_ex(type, salt, saltSz, inKey, inKeySz, prk, heap,
                                  devId);
-        if (ret != 0)
-            return ret;
-
-        return wc_HKDF_Expand_ex(type, prk, hashSz, info, infoSz, out, outSz,
-                                 heap, devId);
+        if (ret == 0) {
+            ret = wc_HKDF_Expand_ex(type, prk, hashSz, info, infoSz,
+                                    out, outSz, heap, devId);
+        }
+        ForceZero(prk, WC_MAX_DIGEST_SIZE);
+        return ret;
     }
 
     int wc_HKDF(int type, const byte* inKey, word32 inKeySz, const byte* salt,
