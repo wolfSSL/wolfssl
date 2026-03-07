@@ -4970,7 +4970,7 @@ int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
 
 #ifdef HAVE_ECC_CDH
     if (k == k_lcl)
-        mp_clear(k);
+        mp_forcezero(k);
     WC_FREE_VAR_EX(k_lcl, private_key->heap, DYNAMIC_TYPE_ECC_BUFFER);
 #endif
 
