@@ -671,7 +671,7 @@ int test_tls12_no_null_compression(void)
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(WOLFSSL_NO_TLS12)
     /* ClientHello with compression list missing the required null method (RFC
-     * 5246 §7.4.1.2: the list MUST include the null compression method). */
+     * 5246 7.4.1.2: the list MUST include the null compression method). */
     const byte badClientHello[] = {
         /* record header */
         0x16, 0x03, 0x03, 0x00, 0x2d,
