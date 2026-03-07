@@ -53,19 +53,55 @@ elif [ "${AM_BWRAPPED-}" != "yes" ]; then
 fi
 
 # need a unique port since may run the same time as testsuite
+# Track ports already assigned in this script run to prevent intra-run collisions
+used_ports=()
+
 generate_port() {
     #-------------------------------------------------------------------------#
-    # Generate a random port number
+    # Generate a random port number, guaranteed unique within this script run.
+    # Checks both the intra-run used_ports list and system-level bound ports.
     #-------------------------------------------------------------------------#
+    local attempts=0 collision p
 
-    if [[ "$OSTYPE" == "linux"* ]]; then
-        port=$(($(od -An -N2 /dev/urandom) % (65535-49512) + 49512))
-    elif [[ "$OSTYPE" == "darwin"* ]]; then
-        port=$(($(od -An -N2 /dev/random) % (65535-49512) + 49512))
-    else
-        echo "skipping due to unsupported OS"
-        exit 0
-    fi
+    while true; do
+        if [[ "$OSTYPE" == "linux"* ]]; then
+            p=$(($(od -An -N2 /dev/urandom) % (65535-49512) + 49512))
+        elif [[ "$OSTYPE" == "darwin"* ]]; then
+            p=$(($(od -An -N2 /dev/random) % (65535-49512) + 49512))
+        else
+            echo "skipping due to unsupported OS"
+            exit 0
+        fi
+
+        # Check against ports already assigned in this run
+        collision=0
+        for up in "${used_ports[@]}"; do
+            if [ "$up" = "$p" ]; then
+                collision=1
+                break
+            fi
+        done
+
+        # Also check if the port is already bound on this system
+        if [ "$collision" -eq 0 ]; then
+            if command -v ss &>/dev/null; then
+                ss -lnt 2>/dev/null | grep -q ":${p}[[:space:]]" && collision=1
+            elif command -v netstat &>/dev/null; then
+                netstat -lnt 2>/dev/null | grep -q ":${p}[[:space:]]" && collision=1
+            fi
+        fi
+
+        [ "$collision" -eq 0 ] && break
+
+        ((attempts++))
+        if [ "$attempts" -ge 100 ]; then
+            echo "ERROR: generate_port could not find a free port after 100 attempts"
+            exit 1
+        fi
+    done
+
+    port=$p
+    used_ports+=("$p")
 }
 
 WOLFSSL_SERVER=./examples/server/server
@@ -73,17 +109,17 @@ WOLFSSL_SERVER=./examples/server/server
 start_wolfssl_server() {
     generate_port
     server_port=$port
-    $WOLFSSL_SERVER -p $server_port -v 4 -c $CERT_DIR/rsapss/server-rsapss.pem -k $CERT_DIR/rsapss/server-rsapss-priv.pem -A $CERT_DIR/rsapss/root-rsapss.pem -d &
+    $WOLFSSL_SERVER -p "$server_port" -v 4 -c "$CERT_DIR"/rsapss/server-rsapss.pem -k "$CERT_DIR"/rsapss/server-rsapss-priv.pem -A "$CERT_DIR"/rsapss/root-rsapss.pem -d &
 }
 
 #
 # Run OpenSSL client against wolfSSL server
 #
 do_openssl_client() {
-    echo "test connection" | $OPENSSL s_client -connect 127.0.0.1:$server_port -cert $CERT_DIR/rsapss/client-rsapss.pem -key $CERT_DIR/rsapss/client-rsapss-priv.pem -CAfile $CERT_DIR/rsapss/root-rsapss.pem > rsapss.test.log
+    echo "test connection" | $OPENSSL s_client -connect 127.0.0.1:"$server_port" -cert "$CERT_DIR"/rsapss/client-rsapss.pem -key "$CERT_DIR"/rsapss/client-rsapss-priv.pem -CAfile "$CERT_DIR"/rsapss/root-rsapss.pem > rsapss.test.log
     result=$?
     cat rsapss.test.log
-    if [ $result != 0 ]
+    if [ "$result" != 0 ]
     then
         echo "$OPENSSL s_client command failed"
         exit 1
@@ -91,7 +127,7 @@ do_openssl_client() {
     grep -q "Peer signature type:.*rsa_pss_rsae_sha256" rsapss.test.log
     result=$?
     rm -f rsapss.test.log
-    if [ $result == 0 ]
+    if [ "$result" == 0 ]
     then
         echo "Test failed: Peer signature type identified as rsa_pss_rsae_sha256"
         exit 1

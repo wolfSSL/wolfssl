@@ -31,19 +31,55 @@ fi
 echo "WOLFSSL_OPENSSL_TEST set, running test..."
 
 # need a unique port since may run the same time as testsuite
+# Track ports already assigned in this script run to prevent intra-run collisions
+used_ports=()
+
 generate_port() {
     #-------------------------------------------------------------------------#
-    # Generate a random port number
+    # Generate a random port number, guaranteed unique within this script run.
+    # Checks both the intra-run used_ports list and system-level bound ports.
     #-------------------------------------------------------------------------#
+    local attempts=0 collision p
 
-    if [[ "$OSTYPE" == "linux"* ]]; then
-        port=$(($(od -An -N2 /dev/urandom) % (65535-49512) + 49512))
-    elif [[ "$OSTYPE" == "darwin"* ]]; then
-        port=$(($(od -An -N2 /dev/random) % (65535-49512) + 49512))
-    else
-        echo "Unknown OS TYPE"
-        exit 1
-    fi
+    while true; do
+        if [[ "$OSTYPE" == "linux"* ]]; then
+            p=$(($(od -An -N2 /dev/urandom) % (65535-49512) + 49512))
+        elif [[ "$OSTYPE" == "darwin"* ]]; then
+            p=$(($(od -An -N2 /dev/random) % (65535-49512) + 49512))
+        else
+            echo "Unknown OS TYPE"
+            exit 1
+        fi
+
+        # Check against ports already assigned in this run
+        collision=0
+        for up in "${used_ports[@]}"; do
+            if [ "$up" = "$p" ]; then
+                collision=1
+                break
+            fi
+        done
+
+        # Also check if the port is already bound on this system
+        if [ "$collision" -eq 0 ]; then
+            if command -v ss &>/dev/null; then
+                ss -lnt 2>/dev/null | grep -q ":${p}[[:space:]]" && collision=1
+            elif command -v netstat &>/dev/null; then
+                netstat -lnt 2>/dev/null | grep -q ":${p}[[:space:]]" && collision=1
+            fi
+        fi
+
+        [ "$collision" -eq 0 ] && break
+
+        ((attempts++))
+        if [ "$attempts" -ge 100 ]; then
+            echo "ERROR: generate_port could not find a free port after 100 attempts"
+            exit 1
+        fi
+    done
+
+    port=$p
+    used_ports+=("$p")
 }
 
 no_pid=-1
@@ -112,7 +148,7 @@ do_cleanup() {
         pid=${f2##*:}
         port=${s##*:}
         echo "killing server: $sname ($port)"
-        kill -9 $pid
+        kill -9 "$pid"
     done
 }
 
@@ -123,18 +159,6 @@ do_trap() {
 }
 
 trap do_trap INT TERM
-
-
-check_process_running() {
-    if [ "$ps_grep" = "" ]
-    then
-        ps -p $server_pid > /dev/null
-        PS_EXIT=$?
-    else
-        ps | grep "^ *$server_pid " > /dev/null
-        PS_EXIT=$?
-    fi
-}
 
 #
 # Start an OpenSSL server
@@ -153,20 +177,13 @@ start_openssl_server() {
     # If OPENSSL_ENGINE_ID has been set then check that the desired engine can
     # be loaded successfully and error out if not. Otherwise the OpenSSL app
     # will fall back to default engine.
-    if [ ! -z "${OPENSSL_ENGINE_ID}" ]; then
-        OUTPUT=`$OPENSSL engine -tt $OPENSSL_ENGINE_ID`
-        if [ $? != 0 ]; then
-            printf "not able to load engine\n"
-            printf "$OPENSSL engine -tt $OPENSSL_ENGINE_ID\n"
+    if [ -n "${OPENSSL_ENGINE_ID}" ]; then
+        OUTPUT=$($OPENSSL engine -tt "$OPENSSL_ENGINE_ID")
+        if ! echo "$OUTPUT" | grep -q "available"; then
+            printf "not able to load engine or engine not available\n"
+            printf '%s\n' "$OPENSSL engine -tt $OPENSSL_ENGINE_ID"
             do_cleanup
             exit 1
-        else
-            echo $OUTPUT | grep "available"
-            if [ $? != 0 ]; then
-                printf "engine not available\n"
-                do_cleanup
-                exit 1
-            fi
         fi
         OPENSSL_ENGINE_ID="-engine ${OPENSSL_ENGINE_ID}"
     fi
@@ -177,18 +194,19 @@ start_openssl_server() {
 
         if [ "$cert_file" != "" ]
         then
-            echo "# " $OPENSSL s_server -accept $server_port $OPENSSL_ENGINE_ID -cert \"$cert_file\" -key \"$key_file\"  -quiet -CAfile \"$ca_file\" -www -dhparam \"${CERT_DIR}/dh2048.pem\" -verify 10 -verify_return_error -psk $psk_hex -cipher "ALL:eNULL" $openssl_nodhe
-            $OPENSSL s_server -accept $server_port $OPENSSL_ENGINE_ID -cert "$cert_file" -key "$key_file"  -quiet -CAfile "$ca_file" -www -dhparam "${CERT_DIR}/dh2048.pem" -verify 10 -verify_return_error -psk $psk_hex -cipher "ALL:eNULL" $openssl_nodhe &
+            echo "# $OPENSSL s_server -accept $server_port $OPENSSL_ENGINE_ID -cert \"$cert_file\" -key \"$key_file\" -quiet -CAfile \"$ca_file\" -www -dhparam \"${CERT_DIR}/dh2048.pem\" -verify 10 -verify_return_error -psk $psk_hex -cipher \"ALL:eNULL\" $openssl_nodhe"
+            # shellcheck disable=SC2086
+            $OPENSSL s_server -accept "$server_port" $OPENSSL_ENGINE_ID -cert "$cert_file" -key "$key_file" -quiet -CAfile "$ca_file" -www -dhparam "${CERT_DIR}/dh2048.pem" -verify 10 -verify_return_error -psk "$psk_hex" -cipher "ALL:eNULL" $openssl_nodhe &
         else
-            echo "# " $OPENSSL s_server -accept $server_port $OPENSSL_ENGINE_ID -quiet -nocert -www -dhparam \"${CERT_DIR}/dh2048.pem\" -verify 10 -verify_return_error -psk $psk_hex -cipher "ALL:eNULL" $openssl_nodhe
-            $OPENSSL s_server -accept $server_port $OPENSSL_ENGINE_ID -quiet -nocert -www -dhparam "${CERT_DIR}/dh2048.pem" -verify 10 -verify_return_error -psk $psk_hex -cipher "ALL:eNULL" $openssl_nodhe &
+            echo "# $OPENSSL s_server -accept $server_port $OPENSSL_ENGINE_ID -quiet -nocert -www -dhparam \"${CERT_DIR}/dh2048.pem\" -verify 10 -verify_return_error -psk $psk_hex -cipher \"ALL:eNULL\" $openssl_nodhe"
+            # shellcheck disable=SC2086
+            $OPENSSL s_server -accept "$server_port" $OPENSSL_ENGINE_ID -quiet -nocert -www -dhparam "${CERT_DIR}/dh2048.pem" -verify 10 -verify_return_error -psk "$psk_hex" -cipher "ALL:eNULL" $openssl_nodhe &
         fi
         server_pid=$!
         # wait to see if s_server successfully starts before continuing
         sleep 0.1
 
-        check_process_running
-        if [ "$PS_EXIT" = "0" ]
+        if kill -0 "$server_pid" 2>/dev/null
         then
             echo "s_server started successfully on port $server_port"
             found_free_port=1
@@ -201,7 +219,7 @@ start_openssl_server() {
         fi
     done
 
-    if [ $found_free_port = 0 ]
+    if [ "$found_free_port" = 0 ]
     then
         echo -e "Couldn't find free port for server"
         do_cleanup
@@ -246,13 +264,13 @@ start_wolfssl_server() {
 
         echo "#"
         echo "# $WOLFSSL_SERVER -p $server_port -g -v d -x -i $psk $crl -l ALL \"$wolfssl_cert\" \"$wolfssl_key\" \"$wolfssl_caCert\""
-        $WOLFSSL_SERVER -p $server_port -g -v d -x -i $psk $crl -l ALL "$wolfssl_cert" "$wolfssl_key" "$wolfssl_caCert" &
+        # shellcheck disable=SC2086
+        $WOLFSSL_SERVER -p "$server_port" -g -v d -x -i $psk $crl -l ALL "$wolfssl_cert" "$wolfssl_key" "$wolfssl_caCert" &
         server_pid=$!
         # wait to see if server successfully starts before continuing
         sleep 0.1
 
-        check_process_running
-        if [ "$PS_EXIT" = "0" ]
+        if kill -0 "$server_pid" 2>/dev/null
         then
             echo "wolfSSL server started successfully on port $server_port"
             found_free_port=1
@@ -265,7 +283,7 @@ start_wolfssl_server() {
         fi
     done
 
-    if [ $found_free_port = 0 ]
+    if [ "$found_free_port" = 0 ]
     then
         echo -e "Couldn't find free port for server"
         do_cleanup
@@ -280,9 +298,9 @@ check_server_ready() {
     server_ready=0
     while [ "$counter" -lt 20 ]; do
         echo -e "waiting for $server_name ready..."
-        echo -e Checking | nc -4 -w 1 -z localhost $server_port
+        echo -e Checking | nc -4 -w 1 -z localhost "$server_port"
         nc_result=$?
-        if [ $nc_result = 0 ]
+        if [ "$nc_result" = 0 ]
         then
             echo -e "$server_name ready!"
             server_ready=1
@@ -325,7 +343,7 @@ do_wolfssl_client() {
         wolfssl_caCert="-A$caCert"
     fi
     wolfssl_resume="-r"
-    if [ "$openssl_psk_resume_bug" != "" -a "$tls13_suite" != "" ]
+    if [ "$openssl_psk_resume_bug" != "" ] && [ "$tls13_suite" != "" ]
     then
         wolfssl_resume=
     fi
@@ -333,21 +351,23 @@ do_wolfssl_client() {
     then
         wolfssl_resume=
     fi
-    if [ "$version" != "5" -a "$version" != "" ]
+    if [ "$version" != "5" ] && [ "$version" != "" ]
     then
         echo "#"
         echo "# $WOLFSSL_CLIENT -p $port -g $wolfssl_resume -l $wolfSuite -v $version $psk $adh \"$wolfssl_cert\" \"$wolfssl_key\" \"$wolfssl_caCert\" $crl"
-        $WOLFSSL_CLIENT -p $port -g $wolfssl_resume -l $wolfSuite -v $version $psk $adh "$wolfssl_cert" "$wolfssl_key" "$wolfssl_caCert" $crl
+        # shellcheck disable=SC2086
+        $WOLFSSL_CLIENT -p "$port" -g $wolfssl_resume -l "$wolfSuite" -v "$version" $psk $adh "$wolfssl_cert" "$wolfssl_key" "$wolfssl_caCert" $crl
     else
         echo "#"
         echo "# $WOLFSSL_CLIENT -p $port -g $wolfssl_resume -l $wolfSuite $psk $adh \"$wolfssl_cert\" \"$wolfssl_key\" \"$wolfssl_caCert\" $crl"
         # do all versions
-        $WOLFSSL_CLIENT -p $port -g $wolfssl_resume -l $wolfSuite $psk $adh "$wolfssl_cert" "$wolfssl_key" "$wolfssl_caCert" $crl
+        # shellcheck disable=SC2086
+        $WOLFSSL_CLIENT -p "$port" -g $wolfssl_resume -l "$wolfSuite" $psk $adh "$wolfssl_cert" "$wolfssl_key" "$wolfssl_caCert" $crl
     fi
 
     client_result=$?
 
-    if [ $client_result != 0 ]
+    if [ "$client_result" != 0 ]
     then
         echo -e "client failed! Suite = $wolfSuite version = $version"
         do_cleanup
@@ -365,9 +385,9 @@ do_openssl_client() {
         return
     fi
 
-    if [ "$version" = "" -o "$version" = "5" ]
+    if [ "$version" = "" ] || [ "$version" = "5" ]
     then
-        if [ "$tls13_cipher" = "" -a "$openssl_tls13" != "" ]
+        if [ "$tls13_cipher" = "" ] && [ "$openssl_tls13" != "" ]
         then
             openssl_version="-no_tls1_3"
         fi
@@ -407,7 +427,7 @@ do_openssl_client() {
 
     client_result=$?
 
-    if [ $client_result != 0 ]
+    if [ "$client_result" != 0 ]
     then
         echo -e "client failed! Suite = $wolfSuite version = $version"
         do_cleanup
@@ -429,27 +449,20 @@ echo "OpenSSL version:"
 $OPENSSL version -a
 echo
 
-ps -p $PPID >/dev/null 2>&1
-if [ "$?" = "1" ]
-then
-    ps_grep="yes"
-    echo "ps -p not working, using ps and grep"
-fi
-
 echo -e "\nTesting existence of openssl command...\n"
-command -v $OPENSSL >/dev/null 2>&1 || { echo >&2 "Requires openssl command, but it's not installed.  Ending."; do_cleanup; exit 0; }
+command -v "$OPENSSL" >/dev/null 2>&1 || { echo >&2 "Requires openssl command, but it's not installed.  Ending."; do_cleanup; exit 0; }
 
 
 echo -e "\nTesting for _build directory as part of distcheck, different paths"
-currentDir=`pwd`
+currentDir=$(pwd)
 case "$currentDir" in
 *_build)
     echo -e "_build directory detected, moving a directory back"
-    cd ..
+    cd .. || exit
     ;;
 esac
 echo -e "\nChecking for wolfSSL client - needed for cipher list"
-wolfssl_client_avail=`$WOLFSSL_CLIENT -?`
+wolfssl_client_avail=$($WOLFSSL_CLIENT -?)
 case $wolfssl_client_avail in
 *"Client not compiled in!"*)
     wolfssl_client_avail=
@@ -460,7 +473,7 @@ case $wolfssl_client_avail in
 esac
 
 echo -e "\nTesting for buggy version of OpenSSL - TLS 1.3, PSK and session ticket"
-openssl_version=`$OPENSSL version`
+openssl_version=$($OPENSSL version)
 case $openssl_version in
 "OpenSSL 1.1.1 "*)
     openssl_psk_resume_bug=yes
@@ -471,16 +484,16 @@ case $openssl_version in
 esac
 
 # check for wolfssl server
-wolfssl_server_avail=`$WOLFSSL_SERVER -?`
+wolfssl_server_avail=$($WOLFSSL_SERVER -?)
 case $wolfssl_server_avail in
 *"Server not compiled in!"*)
     wolfssl_server_avail=
     ;;
 esac
 # get wolfssl ciphers
-wolf_ciphers=`$WOLFSSL_CLIENT -e`
+wolf_ciphers=$($WOLFSSL_CLIENT -e)
 # get wolfssl supported versions
-wolf_versions=`$WOLFSSL_CLIENT -V`
+wolf_versions=$($WOLFSSL_CLIENT -V)
 wolf_versions="${wolf_versions}:5" #5 will test without -v flag
 
 OIFS="$IFS" # store old separator to reset
@@ -503,7 +516,7 @@ IFS="$OIFS" #restore separator
 #
 
 # Check for certificate support in wolfSSL
-wolf_certs=`$WOLFSSL_CLIENT -? 2>&1`
+wolf_certs=$($WOLFSSL_CLIENT -? 2>&1)
 case $wolf_certs in
 *"cert"*)
     ;;
@@ -516,7 +529,7 @@ if [ "$wolf_certs" != "" ]
 then
     echo
     # Check if RSA certificates supported in wolfSSL
-    wolf_rsa=`$WOLFSSL_CLIENT -A "${CERT_DIR}/ca-cert.pem" 2>&1`
+    wolf_rsa=$($WOLFSSL_CLIENT -A "${CERT_DIR}/ca-cert.pem" 2>&1)
     case $wolf_rsa in
     *"ca file"*)
         echo "wolfSSL does not support RSA"
@@ -529,7 +542,7 @@ then
         echo "wolfSSL supports RSA"
     fi
     # Check if RSA-PSS certificates supported in wolfSSL
-    wolf_rsapss=`$WOLFSSL_CLIENT -A "${CERT_DIR}/rsapss/ca-rsapss.pem" 2>&1`
+    wolf_rsapss=$($WOLFSSL_CLIENT -A "${CERT_DIR}/rsapss/ca-rsapss.pem" 2>&1)
     case $wolf_rsapss in
     *"ca file"*)
         echo "wolfSSL does not support RSA-PSS"
@@ -542,7 +555,7 @@ then
         echo "wolfSSL supports RSA-PSS"
     fi
     # Check if ECC certificates supported in wolfSSL
-    wolf_ecc=`$WOLFSSL_CLIENT -A "${CERT_DIR}/ca-ecc-cert.pem" 2>&1`
+    wolf_ecc=$($WOLFSSL_CLIENT -A "${CERT_DIR}/ca-ecc-cert.pem" 2>&1)
     case $wolf_ecc in
     *"ca file"*)
         echo "wolfSSL does not support ECDSA"
@@ -555,7 +568,7 @@ then
         echo "wolfSSL supports ECDSA"
     fi
     # Check if Ed25519 certificates supported in wolfSSL
-    wolf_ed25519=`$WOLFSSL_CLIENT -A "${CERT_DIR}/ed25519/root-ed25519.pem" 2>&1`
+    wolf_ed25519=$($WOLFSSL_CLIENT -A "${CERT_DIR}/ed25519/root-ed25519.pem" 2>&1)
     case $wolf_ed25519 in
     *"ca file"*)
         echo "wolfSSL does not support Ed25519"
@@ -568,7 +581,7 @@ then
         echo "wolfSSL supports Ed25519"
     fi
     # Check if Ed25519 certificates supported in OpenSSL
-    openssl_ed25519=`$OPENSSL s_client -cert "${CERT_DIR}/ed25519/client-ed25519.pem" -key "${CERT_DIR}/ed25519/client-ed25519-priv.pem" 2>&1`
+    openssl_ed25519=$($OPENSSL s_client -cert "${CERT_DIR}/ed25519/client-ed25519.pem" -key "${CERT_DIR}/ed25519/client-ed25519-priv.pem" 2>&1)
     case $openssl_ed25519 in
     *"unable to load"*)
         echo "OpenSSL does not support Ed25519"
@@ -581,7 +594,7 @@ then
         echo "OpenSSL supports Ed25519"
     fi
     # Check if Ed448 certificates supported in wolfSSL
-    wolf_ed448=`$WOLFSSL_CLIENT -A "${CERT_DIR}/ed448/root-ed448.pem" 2>&1`
+    wolf_ed448=$($WOLFSSL_CLIENT -A "${CERT_DIR}/ed448/root-ed448.pem" 2>&1)
     case $wolf_ed448 in
     *"ca file"*)
         echo "wolfSSL does not support Ed448"
@@ -594,7 +607,7 @@ then
         echo "wolfSSL supports Ed448"
     fi
     # Check if Ed448 certificates supported in OpenSSL
-    openssl_ed448=`$OPENSSL s_client -cert "${CERT_DIR}/ed448/client-ed448.pem" -key "${CERT_DIR}/ed448/client-ed448-priv.pem" 2>&1`
+    openssl_ed448=$($OPENSSL s_client -cert "${CERT_DIR}/ed448/client-ed448.pem" -key "${CERT_DIR}/ed448/client-ed448-priv.pem" 2>&1)
     case $openssl_ed448 in
     *"unable to load"*)
         echo "OpenSSL does not support Ed448"
@@ -609,7 +622,7 @@ then
     echo
 fi
 
-openssl_tls13=`$OPENSSL s_client -help 2>&1`
+openssl_tls13=$($OPENSSL s_client -help 2>&1)
 case $openssl_tls13 in
 *no_tls1_3*)
     ;;
@@ -619,7 +632,7 @@ case $openssl_tls13 in
 esac
 
 # Not all openssl versions support -allow_no_dhe_kex
-openssl_nodhe=`$OPENSSL s_client -help 2>&1`
+openssl_nodhe=$($OPENSSL s_client -help 2>&1)
 case $openssl_nodhe in
 *allow_no_dhe_kex*)
     openssl_nodhe=-allow_no_dhe_kex
@@ -669,7 +682,7 @@ for wolfSuite in $wolf_ciphers; do
 done
 IFS="$OIFS" #restore separator
 
-openssl_ciphers=`$OPENSSL ciphers ALL 2>&1`
+openssl_ciphers=$($OPENSSL ciphers ALL 2>&1)
 case $openssl_ciphers in
 *ADH*)
     openssl_anon=yes
@@ -680,7 +693,7 @@ esac
 psk_hex="1a2b3c4d"
 
 # If RSA cipher suites supported in wolfSSL then start servers
-if [ "$wolf_rsa" != "" -o "$wolf_tls_psk" != "" ]
+if [ "$wolf_rsa" != "" ] || [ "$wolf_tls_psk" != "" ]
 then
     if [ "$wolf_rsa" != "" ]
     then
@@ -707,6 +720,7 @@ echo "cert_file=$cert_file"
     start_wolfssl_server
     psk=
     wolfssl_port=$server_port
+    # shellcheck disable=SC2034
     wolfssl_pid=$server_pid
 fi
 
@@ -720,15 +734,17 @@ then
     openssl_suite="ECDH-RSA"
     start_openssl_server
     ecdh_openssl_port=$server_port
+    # shellcheck disable=SC2034
     ecdh_openssl_pid=$server_pid
 
     wolfssl_suite="ECDH-RSA"
     start_wolfssl_server
     ecdh_wolfssl_port=$server_port
+    # shellcheck disable=SC2034
     ecdh_wolfssl_pid=$server_pid
 fi
 
-if [ "$wolf_ecdsa" != "" -a "$wolf_ecc" != "" ]
+if [ "$wolf_ecdsa" != "" ] && [ "$wolf_ecc" != "" ]
 then
     cert_file="${CERT_DIR}/server-ecc.pem"
     key_file="${CERT_DIR}/ecc-key.pem"
@@ -742,6 +758,7 @@ then
     wolfssl_suite="ECDH[E]-ECDSA"
     start_wolfssl_server
     ecdsa_wolfssl_port=$server_port
+    # shellcheck disable=SC2034
     ecdsa_wolfssl_pid=$server_pid
 fi
 
@@ -761,6 +778,7 @@ then
     wolfssl_suite="Ed25519"
     start_wolfssl_server
     ed25519_wolfssl_port=$server_port
+    # shellcheck disable=SC2034
     ed25519_wolfssl_pid=$server_pid
     crl=
 fi
@@ -781,11 +799,12 @@ then
     wolfssl_suite="Ed448"
     start_wolfssl_server
     ed448_wolfssl_port=$server_port
+    # shellcheck disable=SC2034
     ed448_wolfssl_pid=$server_pid
     crl=
 fi
 
-if [ "$wolf_tls13" != "" -a "$wolf_psk" != "" ]
+if [ "$wolf_tls13" != "" ] && [ "$wolf_psk" != "" ]
 then
     cert_file=
 
@@ -793,15 +812,17 @@ then
     openssl_suite="TLSv1.3_PSK"
     start_openssl_server
     tls13_psk_openssl_port=$server_port
+    # shellcheck disable=SC2034
     tls13_psk_openssl_pid=$server_pid
 
     psk="-s --openssl-psk"
     wolfssl_suite="TLSv1.3_PSK"
     start_wolfssl_server
     tls13_psk_wolfssl_port=$server_port
+    # shellcheck disable=SC2034
     tls13_psk_wolfssl_pid=$server_pid
 fi
-if [ "$wolf_anon" != "" -a "$openssl_anon" ]
+if [ "$wolf_anon" != "" ] && [ "$openssl_anon" ]
 then
     cert_file=""
     key_file=""
@@ -811,6 +832,7 @@ then
     psk="-a" # anonymous not psk
     start_wolfssl_server
     anon_wolfssl_port=$server_port
+    # shellcheck disable=SC2034
     anon_wolfssl_pid=$server_pid
 fi
 
@@ -837,13 +859,13 @@ do
     # -s flag for only supported ciphers
     case $version in
     "0")
-        openssl_ciphers=`$OPENSSL ciphers "SSLv3" 2>&1`
+        openssl_ciphers=$($OPENSSL ciphers "SSLv3" 2>&1)
 
         # double check that can actually do a sslv3 connection using
         # client-cert.pem to send but any file with EOF works
-        $OPENSSL s_client -ssl3 -no_ign_eof -host localhost -port $openssl_port < "${CERT_DIR}/client-cert.pem"
+        $OPENSSL s_client -ssl3 -no_ign_eof -host localhost -port "$openssl_port" < "${CERT_DIR}/client-cert.pem"
         sslv3_sup=$?
-        if [ $sslv3_sup != 0 ]
+        if [ "$sslv3_sup" != 0 ]
         then
             echo -e "Not testing SSLv3. No OpenSSL support for 'SSLv3' modifier"
             testing_summary="${testing_summary}SSLv3\tNo\tN/A\tN/A\tN/A\tN/A\t (No OpenSSL cipherstring)\n"
@@ -852,17 +874,17 @@ do
         openssl_version="-ssl3"
         ;;
     "1")
-        proto_check=`echo "hell" | $OPENSSL s_client -connect localhost:$openssl_port -tls1 2>&1`
+        proto_check=$(echo "hell" | $OPENSSL s_client -connect localhost:"$openssl_port" -tls1 2>&1)
         tlsv1_sup=$?
-        if [ $tlsv1_sup != 0 ]
+        if [ "$tlsv1_sup" != 0 ]
         then
             echo -e "Not testing TLSv1. No OpenSSL support for '-tls1'"
             testing_summary="${testing_summary}TLSv1\tNo\tN/A\tN/A\tN/A\tN/A\t (No OpenSSL Support)\n"
             continue
         fi
-        openssl_ciphers=`$OPENSSL ciphers -s "TLSv1" 2>&1`
+        openssl_ciphers=$($OPENSSL ciphers -s "TLSv1" 2>&1)
         tlsv1_sup=$?
-        if [ $tlsv1_sup != 0 ]
+        if [ "$tlsv1_sup" != 0 ]
         then
             echo -e "Not testing TLSv1. No OpenSSL support for 'TLSv1' modifier"
             testing_summary="${testing_summary}TLSv1\tNo\tN/A\tN/A\tN/A\tN/A\t (No OpenSSL cipherstring)\n"
@@ -872,17 +894,18 @@ do
         ;;
     "2")
         # Same ciphers for TLSv1.1 as TLSv1
-        proto_check=`echo "hello" | $OPENSSL s_client -connect localhost:$openssl_port -tls1_1 2>&1`
+        # shellcheck disable=SC2034
+        proto_check=$(echo "hello" | $OPENSSL s_client -connect localhost:"$openssl_port" -tls1_1 2>&1)
         tlsv1_1_sup=$?
-        if [ $tlsv1_1_sup != 0 ]
+        if [ "$tlsv1_1_sup" != 0 ]
         then
             echo -e "Not testing TLSv1.1. No OpenSSL support for 'TLSv1.1' modifier"
             testing_summary="${testing_summary}TLSv1.1\tNo\tN/A\tN/A\tN/A\tN/A\t (No OpenSSL cipherstring)\n"
             continue
         fi
-        openssl_ciphers=`$OPENSSL ciphers -s "TLSv1" 2>&1`
+        openssl_ciphers=$($OPENSSL ciphers -s "TLSv1" 2>&1)
         tlsv1_sup=$?
-        if [ $tlsv1_sup != 0 ]
+        if [ "$tlsv1_sup" != 0 ]
         then
             echo -e "Not testing TLSv1. No OpenSSL support for 'TLSv1' modifier"
             testing_summary="${testing_summary}TLSv1\tNo\tN/A\tN/A\tN/A\tN/A\t (No OpenSSL cipherstring)\n"
@@ -891,9 +914,9 @@ do
         openssl_version="-tls1_1"
         ;;
     "3")
-        openssl_ciphers=`$OPENSSL ciphers -s "TLSv1.2" 2>&1`
+        openssl_ciphers=$($OPENSSL ciphers -s "TLSv1.2" 2>&1)
         tlsv1_2_sup=$?
-        if [ $tlsv1_2_sup != 0 ]
+        if [ "$tlsv1_2_sup" != 0 ]
         then
             echo -e "Not testing TLSv1.2. No OpenSSL support for 'TLSv1.2' modifier"
             testing_summary="${testing_summary}TLSv1.2\tNo\tN/A\tN/A\tN/A\tN/A\t (No OpenSSL cipherstring)\n"
@@ -902,15 +925,16 @@ do
         openssl_version="-tls1_2"
         ;;
     "4")
-        openssl_ciphers=`$OPENSSL ciphers -tls1_3 2>&1`
+        openssl_ciphers=$($OPENSSL ciphers -tls1_3 2>&1)
         tlsv1_3_sup=$?
-        if [ $tlsv1_3_sup != 0 ]
+        if [ "$tlsv1_3_sup" != 0 ]
         then
             echo -e "Not testing TLSv1.3. No OpenSSL support for 'TLSv1.3' modifier"
             testing_summary="${testing_summary}TLSv1.3\tNo\tN/A\tN/A\tN/A\tN/A\t (No OpenSSL cipherstring)\n"
             continue
         fi
-        ecc_support=`$WOLFSSL_CLIENT -? 2>&1 | grep 'ECC named groups'`
+        # shellcheck disable=SC2034
+        ecc_support=$($WOLFSSL_CLIENT -? 2>&1 | grep 'ECC named groups')
         openssl_version="-tls1_3"
         ;;
     "d(downgrade)")
@@ -921,9 +945,9 @@ do
         continue
         ;;
     "5") #test all suites
-        openssl_ciphers=`$OPENSSL ciphers -s "ALL" 2>&1`
+        openssl_ciphers=$($OPENSSL ciphers -s "ALL" 2>&1)
         all_sup=$?
-        if [ $all_sup != 0 ]
+        if [ "$all_sup" != 0 ]
         then
             echo -e "Not testing ALL. No OpenSSL support for ALL modifier"
             testing_summary="${testing_summary}ALL\tNo\tN/A\tN/A\tN/A\tN/A\t (No OpenSSL cipherstring)\n"
@@ -932,9 +956,9 @@ do
         openssl_version=""
         ;;
     "")
-        openssl_ciphers=`$OPENSSL ciphers 2>&1`
+        openssl_ciphers=$($OPENSSL ciphers 2>&1)
         all_sup=$?
-        if [ $all_sup != 0 ]
+        if [ "$all_sup" != 0 ]
         then
             echo -e "Not testing ALL. No OpenSSL support for ALL modifier"
             testing_summary="${testing_summary}ALL\tNo\tN/A\tN/A\tN/A\tN/A\t (No OpenSSL cipherstring)\n"
@@ -1007,7 +1031,7 @@ do
             case ":$openssl_ciphers:" in *":$cmpSuite:"*) # add extra : for edge cases
                 case "$cmpSuite" in
                 "TLS_"*)
-                    if [ "$version" != "4" -a "$version" != "d" ]
+                    if [ "$version" != "4" ] && [ "$version" != "d" ]
                     then
                         echo -e "TLS 1.3 cipher suite but not TLS 1.3 protocol"
                         matchSuite=0
@@ -1017,7 +1041,7 @@ do
                     fi
                     ;;
                 *)
-                    if [ "$version" = "d" -a "$wolfdowngrade" = "4" ]
+                    if [ "$version" = "d" ] && [ "$wolfdowngrade" = "4" ]
                     then
                         echo -e "Not TLS 1.3 cipher suite but TLS 1.3 downgrade"
                         matchSuite=0
@@ -1072,7 +1096,7 @@ do
             else
                 wolf_temp_cases_total=$((wolf_temp_cases_total - 1))
             fi
-            if [ $ed25519_openssl_pid != $no_pid -a "$version" != "0" -a "$version" != "1" -a "$version" != "2" ]
+            if [ "$ed25519_openssl_pid" != "$no_pid" ] && [ "$version" != "0" ] && [ "$version" != "1" ] && [ "$version" != "2" ]
             then
                 cert="${CERT_DIR}/ed25519/client-ed25519.pem"
                 key="${CERT_DIR}/ed25519/client-ed25519-priv.pem"
@@ -1086,7 +1110,7 @@ do
                 port=$ed25519_wolfssl_port
                 do_openssl_client
             fi
-            if [ $ed448_openssl_pid != $no_pid -a "$version" != "0" -a "$version" != "1" -a "$version" != "2" ]
+            if [ "$ed448_openssl_pid" != "$no_pid" ] && [ "$version" != "0" ] && [ "$version" != "1" ] && [ "$version" != "2" ]
             then
                 cert="${CERT_DIR}/ed448/client-ed448.pem"
                 key="${CERT_DIR}/ed448/client-ed448-priv.pem"
@@ -1136,7 +1160,7 @@ do
             key="${CERT_DIR}/client-key.pem"
             caCert="${CERT_DIR}/ca-cert.pem"
 
-            if [ "$version" != "0" -a "$version" != "1" -a "$version" != "2" -a "$openssl_adh_reneg_bug" != "" ]
+            if [ "$version" != "0" ] && [ "$version" != "1" ] && [ "$version" != "2" ] && [ "$openssl_adh_reneg_bug" != "" ]
             then
                 continue
             fi
@@ -1148,7 +1172,7 @@ do
             do_openssl_client
             ;;
         TLS13*)
-            if [ $version != "4" -a $version != "d" -a $version != " " -a $version != "5" ]
+            if [ "$version" != "4" ] && [ "$version" != "d" ] && [ "$version" != " " ] && [ "$version" != "5" ]
             then
                 continue
             fi
@@ -1165,10 +1189,8 @@ do
                 fi
 
                 # Integrity-only cipher suites require OpenSSL 3.4 or later
-                $OPENSSL version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 | \
-                    awk -F. '{if ($1 > 3 || ($1 == 3 && $2 >= 4)) exit 1; else exit 0;}'
-                if [ $? -eq 0 ]
-                then
+                if $OPENSSL version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 | \
+                    awk -F. '{if ($1 > 3 || ($1 == 3 && $2 >= 4)) exit 1; else exit 0;}'; then
                     echo -e "OpenSSL version too old for integrity-only ciphers, skipping"
                     tls13_cipher=
                     tls13_integrity_only=
@@ -1176,7 +1198,7 @@ do
                 fi
 
                 # Test with RSA certs if available
-                if [ $openssl_pid != $no_pid -a "$wolf_rsa" != "" ]
+                if [ "$openssl_pid" != "$no_pid" ] && [ "$wolf_rsa" != "" ]
                 then
                     cert="${CERT_DIR}/client-cert.pem"
                     key="${CERT_DIR}/client-key.pem"
@@ -1185,7 +1207,7 @@ do
                     # Start a dedicated OpenSSL server for integrity-only tests
                     generate_port
                     integrity_openssl_port=$port
-                    $OPENSSL s_server -accept $integrity_openssl_port -cert "${CERT_DIR}/server-cert.pem" -key "${CERT_DIR}/server-key.pem" -quiet -CAfile "${CERT_DIR}/client-cert.pem" -www -cipher "ALL:eNULL:@SECLEVEL=0" -ciphersuites "$cmpSuite" -verify 10 -verify_return_error &
+                    $OPENSSL s_server -accept "$integrity_openssl_port" -cert "${CERT_DIR}/server-cert.pem" -key "${CERT_DIR}/server-key.pem" -quiet -CAfile "${CERT_DIR}/client-cert.pem" -www -cipher "ALL:eNULL:@SECLEVEL=0" -ciphersuites "$cmpSuite" -verify 10 -verify_return_error &
                     integrity_openssl_pid=$!
                     sleep 0.1
 
@@ -1193,13 +1215,13 @@ do
                     do_wolfssl_client
 
                     # Kill the dedicated server
-                    kill $integrity_openssl_pid 2>/dev/null
+                    kill "$integrity_openssl_pid" 2>/dev/null
 
                     port=$wolfssl_port
                     do_openssl_client
                 fi
                 # Test with ECC certs if available
-                if [ $ecdsa_openssl_pid != $no_pid -a "$wolf_ecc" != "" ]
+                if [ "$ecdsa_openssl_pid" != "$no_pid" ] && [ "$wolf_ecc" != "" ]
                 then
                     cert="${CERT_DIR}/client-ecc-cert.pem"
                     key="${CERT_DIR}/ecc-client-key.pem"
@@ -1208,7 +1230,7 @@ do
                     # Start a dedicated OpenSSL server for integrity-only tests (ECC)
                     generate_port
                     integrity_openssl_port=$port
-                    $OPENSSL s_server -accept $integrity_openssl_port -cert "${CERT_DIR}/server-ecc.pem" -key "${CERT_DIR}/ecc-key.pem" -quiet -CAfile "${CERT_DIR}/client-ecc-cert.pem" -www -cipher "ALL:eNULL:@SECLEVEL=0" -ciphersuites "$cmpSuite" -verify 10 -verify_return_error &
+                    $OPENSSL s_server -accept "$integrity_openssl_port" -cert "${CERT_DIR}/server-ecc.pem" -key "${CERT_DIR}/ecc-key.pem" -quiet -CAfile "${CERT_DIR}/client-ecc-cert.pem" -www -cipher "ALL:eNULL:@SECLEVEL=0" -ciphersuites "$cmpSuite" -verify 10 -verify_return_error &
                     integrity_openssl_pid=$!
                     sleep 0.1
 
@@ -1217,7 +1239,7 @@ do
                     do_wolfssl_client
 
                     # Kill the dedicated server
-                    kill $integrity_openssl_pid 2>/dev/null
+                    kill "$integrity_openssl_pid" 2>/dev/null
 
                     open_temp_cases_total=$((open_temp_cases_total + 1))
                     port=$ecdsa_wolfssl_port
@@ -1228,7 +1250,7 @@ do
                 continue
             fi
             # RSA
-            if [ $openssl_pid != $no_pid -a "$ecdhe_avail" = "yes" ]
+            if [ "$openssl_pid" != "$no_pid" ] && [ "$ecdhe_avail" = "yes" ]
             then
                 cert="${CERT_DIR}/client-cert.pem"
                 key="${CERT_DIR}/client-key.pem"
@@ -1240,7 +1262,7 @@ do
                 do_openssl_client
             fi
             # PSK
-            if [ "$wolf_psk" != "" -a $wolfSuite = "TLS13-AES128-GCM-SHA256" -a "$wolf_ecc" != "" -a $openssl_nodhe != "" ]
+            if [ "$wolf_psk" != "" ] && [ "$wolfSuite" = "TLS13-AES128-GCM-SHA256" ] && [ "$wolf_ecc" != "" ] && [ "$openssl_nodhe" != "" ]
             then
                 cert=""
                 key=""
@@ -1268,7 +1290,7 @@ do
                 openssl_psk=""
             fi
             # ECDSA
-            if [ $ecdsa_openssl_pid != $no_pid -a "$wolf_ecc" != "" ]
+            if [ "$ecdsa_openssl_pid" != "$no_pid" ] && [ "$wolf_ecc" != "" ]
             then
                 cert="${CERT_DIR}/client-ecc-cert.pem"
                 key="${CERT_DIR}/ecc-client-key.pem"
@@ -1344,7 +1366,7 @@ done
 IFS="$OIFS" #restore separator
 
 # Skip RSA-PSS interop test when RSA-PSS is not supported
-if [ "$wolf_rsapss" != "" -a "$ecdhe_avail" = "yes" -a "$wolf_rsa" = "yes" ]
+if [ "$wolf_rsapss" != "" ] && [ "$ecdhe_avail" = "yes" ] && [ "$wolf_rsa" = "yes" ]
 then
     # Test for RSA-PSS certs interop
     # Was running into alert sent by openssl server with version 1.1.1 released
