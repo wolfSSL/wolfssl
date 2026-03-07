@@ -42685,14 +42685,18 @@ int wc_SignCRL_ex(const byte* tbsBuf, int tbsSz, int sType,
         return BAD_FUNC_ARG;
     if (rsaKey == NULL && eccKey == NULL)
         return BAD_FUNC_ARG;
+    if (rsaKey != NULL && eccKey != NULL)
+        return BAD_FUNC_ARG;
 
     XMEMSET(certSignCtx, 0, sizeof(*certSignCtx));
 
+#ifndef NO_RSA
     if (rsaKey != NULL) {
         heap = rsaKey->heap;
     }
+#endif
 #ifdef HAVE_ECC
-    else if (eccKey != NULL) {
+    if (eccKey != NULL) {
         heap = eccKey->heap;
     }
 #endif
