@@ -238,7 +238,9 @@ enum wolfSSL_ErrorCodes {
     CRYPTO_POLICY_FORBIDDEN      = -516,   /* operation forbidden by system
                                             * crypto-policy */
 
-    WOLFSSL_LAST_E               = -516
+    SESSION_TICKET_NONCE_OVERFLOW = -517,  /* Session ticket nonce overflow */
+
+    WOLFSSL_LAST_E               = -517
 
     /* codes -1000 to -1999 are reserved for wolfCrypt. */
 };
