@@ -243,3 +243,96 @@ int test_x509_GetCAByAKID(void)
 #endif /* WOLFSSL_AKID_NAME */
     return EXPECT_RESULT();
 }
+
+int test_x509_set_serialNumber(void)
+{
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    EXPECT_DECLS;
+    WOLFSSL_X509*         x509 = NULL;
+    WOLFSSL_ASN1_INTEGER* s    = NULL;
+#if defined(OPENSSL_EXTRA_X509_SMALL)
+    WOLFSSL_ASN1_INTEGER  asnInt;
+#endif
+
+    ExpectNotNull(x509 = wolfSSL_X509_new());
+#if defined(OPENSSL_EXTRA_X509_SMALL)
+    XMEMSET(&asnInt, 0, sizeof(asnInt));
+    asnInt.data = asnInt.intData;
+    asnInt.isDynamic = 0;
+    asnInt.dataMax = (unsigned int)sizeof(asnInt.intData);
+    s = &asnInt;
+#else
+    ExpectNotNull(s = wolfSSL_ASN1_INTEGER_new());
+#endif
+
+    /* --- invalid inputs that must be rejected --- */
+
+    /* NULL x509 */
+    ExpectIntEQ(X509_set_serialNumber(NULL, s), WOLFSSL_FAILURE);
+    /* NULL s */
+    ExpectIntEQ(X509_set_serialNumber(x509, NULL), WOLFSSL_FAILURE);
+
+    if (s != NULL) {
+        /* length == 0: too short */
+        s->length  = 0;
+        s->data[0] = ASN_INTEGER;
+        s->data[1] = 0;
+        ExpectIntEQ(wolfSSL_X509_set_serialNumber(x509, s),
+                    WOLFSSL_FAILURE);
+
+        /* length == 1: still too short */
+        s->length  = 1;
+        s->data[0] = ASN_INTEGER;
+        s->data[1] = 0;
+        ExpectIntEQ(wolfSSL_X509_set_serialNumber(x509, s),
+                    WOLFSSL_FAILURE);
+
+        /* length == 2: still rejected — the guard requires length >= 3 */
+        s->length  = 2;
+        s->data[0] = ASN_INTEGER;
+        s->data[1] = 0;
+        ExpectIntEQ(wolfSSL_X509_set_serialNumber(x509, s),
+                    WOLFSSL_FAILURE);
+
+        /* wrong type byte */
+        s->length  = 4;
+        s->data[0] = 0x00; /* not ASN_INTEGER */
+        s->data[1] = 2;    /* length field */
+        s->data[2] = 0x01;
+        s->data[3] = 0x02;
+        ExpectIntEQ(wolfSSL_X509_set_serialNumber(x509, s),
+                    WOLFSSL_FAILURE);
+
+        /* mismatched length byte (data[1] != s->length - 2) */
+        s->length  = 4;
+        s->data[0] = ASN_INTEGER;
+        s->data[1] = 99; /* claims 99 bytes but s->length - 2 == 2 */
+        s->data[2] = 0x01;
+        s->data[3] = 0x02;
+        ExpectIntEQ(wolfSSL_X509_set_serialNumber(x509, s),
+                    WOLFSSL_FAILURE);
+
+        /* --- valid two-byte serial number --- */
+        s->length  = 4;
+        s->data[0] = ASN_INTEGER;
+        s->data[1] = 2;
+        s->data[2] = 0x01;
+        s->data[3] = 0x02;
+        ExpectIntEQ(wolfSSL_X509_set_serialNumber(x509, s),
+                    WOLFSSL_SUCCESS);
+        ExpectIntEQ(x509->serialSz, 2);
+        /* NUL terminator must be placed right after the copied data */
+        ExpectIntEQ(x509->serial[x509->serialSz], 0);
+        ExpectIntEQ(x509->serial[0], 0x01);
+        ExpectIntEQ(x509->serial[1], 0x02);
+    }
+
+#if !defined(OPENSSL_EXTRA_X509_SMALL)
+    wolfSSL_ASN1_INTEGER_free(s);
+#endif
+    wolfSSL_X509_free(x509);
+    return EXPECT_RESULT();
+#else
+    return TEST_SKIPPED;
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+}
