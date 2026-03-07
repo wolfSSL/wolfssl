@@ -557,6 +557,10 @@ int wc_FreeRsaKey(RsaKey* key)
         return BAD_FUNC_ARG;
     }
 
+#if defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_NO_RSA)
+    se050_rsa_free_key(key);
+#endif
+
     wc_RsaCleanup(key);
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA)
@@ -3385,7 +3389,12 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
                                             mgf, label, labelSz, sz);
         }
         else if (rsa_type == RSA_PRIVATE_ENCRYPT &&
-                                              pad_value == RSA_BLOCK_TYPE_1) {
+                 pad_value == RSA_BLOCK_TYPE_1 &&
+                 pad_type != WC_RSA_PSS_PAD) {
+            /* SE050 handles PKCS#1 v1.5 signing directly. PSS signing falls
+             * through to software path because the SE050 PSS sign API
+             * (Se05x_API_RSASign) is hash-then-sign and does not support
+             * signing a pre-computed digest without double-hashing. */
             return se050_rsa_sign(in, inLen, out, outLen, key, rsa_type,
                                   pad_value, pad_type, hash, mgf, label,
                                   labelSz, sz);
@@ -3551,7 +3560,12 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
             return ret;
         }
         else if (rsa_type == RSA_PUBLIC_DECRYPT &&
-                                                pad_value == RSA_BLOCK_TYPE_1) {
+                 pad_value == RSA_BLOCK_TYPE_1 &&
+                 pad_type != WC_RSA_PSS_PAD) {
+            /* SE050 handles PKCS#1 v1.5 verification directly. PSS
+             * verification falls through to software path to match the
+             * software PSS signing path (SE050 PSS sign uses hash-then-sign
+             * which double-hashes a pre-computed digest). */
             ret = se050_rsa_verify(in, inLen, out, outLen, key, rsa_type,
                                    pad_value, pad_type, hash, mgf, label,
                                    labelSz);
