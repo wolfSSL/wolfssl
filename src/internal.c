@@ -38067,6 +38067,15 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                 }
             }
 
+            if (!matchNo) {
+                WOLFSSL_MSG("Compression list missing null");
+#ifdef WOLFSSL_EXTRA_ALERTS
+                SendAlert(ssl, alert_fatal, illegal_parameter);
+#endif
+                ret = COMPRESSION_ERROR;
+                goto out;
+            }
+
             if (ssl->options.usingCompression == 0 && matchNo) {
                 WOLFSSL_MSG("Matched No Compression");
             } else if (ssl->options.usingCompression && matchZlib) {

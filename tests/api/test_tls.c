@@ -666,3 +666,60 @@ int test_tls12_bad_cv_sig_alg(void)
     return EXPECT_RESULT();
 }
 
+int test_tls12_no_null_compression(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(WOLFSSL_NO_TLS12)
+    /* ClientHello with compression list missing the required null method (RFC
+     * 5246 7.4.1.2: the list MUST include the null compression method). */
+    const byte badClientHello[] = {
+        /* record header */
+        0x16, 0x03, 0x03, 0x00, 0x2d,
+        /* handshake header: ClientHello, length 41 */
+        0x01, 0x00, 0x00, 0x29,
+        /* client version: TLS 1.2 */
+        0x03, 0x03,
+        /* random: 32 bytes */
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+        0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+        0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
+        /* session id length: 0 */
+        0x00,
+        /* cipher suites length: 2, TLS_RSA_WITH_AES_128_CBC_SHA */
+        0x00, 0x02, 0x00, 0x2f,
+        /* compression methods: 1 entry, ZLIB only (null is absent) */
+        0x01, 0xdd,
+    };
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 0,
+            (const char*)badClientHello, sizeof(badClientHello)), 0);
+    ExpectIntEQ(test_memio_setup(&test_ctx, NULL, &ctx_s, NULL, &ssl_s,
+                    NULL, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+            WC_NO_ERR_TRACE(COMPRESSION_ERROR));
+#ifdef WOLFSSL_EXTRA_ALERTS
+    {
+        const byte illegalParamAlert[] = {
+            0x15,             /* alert content type */
+            0x03, 0x03,       /* version: TLS 1.2 */
+            0x00, 0x02,       /* length: 2 */
+            0x02,             /* level: fatal */
+            0x2f,             /* description: illegal_parameter (47) */
+        };
+        ExpectIntEQ(test_ctx.c_len, (int)sizeof(illegalParamAlert));
+        ExpectBufEQ(test_ctx.c_buff, illegalParamAlert,
+                sizeof(illegalParamAlert));
+    }
+#endif
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
