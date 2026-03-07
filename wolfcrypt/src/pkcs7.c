@@ -9520,6 +9520,7 @@ static int wc_PKCS7_PwriKek_KeyUnWrap(wc_PKCS7* pkcs7, const byte* kek,
     byte* tmpIv     = NULL;
     byte* lastBlock = NULL;
     byte* outTmp    = NULL;
+    byte  fail      = 0;
 
     if (pkcs7 == NULL || kek == NULL || in == NULL ||
         out == NULL || iv == NULL) {
@@ -9581,25 +9582,18 @@ static int wc_PKCS7_PwriKek_KeyUnWrap(wc_PKCS7* pkcs7, const byte* kek,
     cekLen = outTmp[0];
 
     /* verify length */
-    if ((word32)cekLen > inSz) {
-        ForceZero(outTmp, inSz);
-        XFREE(outTmp, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        return BAD_FUNC_ARG;
-    }
-
+    fail |= ctMaskGT(cekLen, (int)inSz);
     /* verify check bytes */
-    if ((outTmp[1] ^ outTmp[4]) != 0xFF ||
-        (outTmp[2] ^ outTmp[5]) != 0xFF ||
-        (outTmp[3] ^ outTmp[6]) != 0xFF) {
+    fail |= ctMaskNotEq((int)(outTmp[1] ^ outTmp[4]), 0xFF);
+    fail |= ctMaskNotEq((int)(outTmp[2] ^ outTmp[5]), 0xFF);
+    fail |= ctMaskNotEq((int)(outTmp[3] ^ outTmp[6]), 0xFF);
+    /* verify length */
+    fail |= ctMaskGT(cekLen, (int)outSz);
+
+    if (fail) {
         ForceZero(outTmp, inSz);
         XFREE(outTmp, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
         return BAD_FUNC_ARG;
-    }
-
-    if (outSz < (word32)cekLen) {
-        ForceZero(outTmp, inSz);
-        XFREE(outTmp, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        return BUFFER_E;
     }
 
     XMEMCPY(out, outTmp + 4, outTmp[0]);
