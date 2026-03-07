@@ -178,6 +178,7 @@
 #include <tests/api/test_sha512.h>
 #include <tests/api/test_sha3.h>
 #include <tests/api/test_blake2.h>
+#include <tests/api/test_lms.h>
 #include <tests/api/test_sm3.h>
 #include <tests/api/test_ripemd.h>
 #include <tests/api/test_hash.h>
@@ -32969,6 +32970,8 @@ TEST_CASE testCases[] = {
     TEST_MLKEM_DECLS,
     /* Dilithium */
     TEST_MLDSA_DECLS,
+    /* LMS */
+    TEST_LMS_DECLS,
     /* Signature API */
     TEST_SIGNATURE_DECLS,
 
