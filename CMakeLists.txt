@@ -2816,6 +2816,7 @@ if(WOLFSSL_EXAMPLES)
         tests/api/test_ed448.c
         tests/api/test_mlkem.c
         tests/api/test_mldsa.c
+        tests/api/test_lms.c
         tests/api/test_signature.c
         tests/api/test_dtls.c
         tests/api/test_ocsp.c
