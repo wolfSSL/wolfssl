@@ -1962,7 +1962,8 @@ static int wc_lms_treehash_init(LmsState* state, LmsPrivState* privState,
 
         /* Cache leaf node if in range. */
         if ((ret == 0) && (i >= leaf->idx) && (i < leaf->idx + max_cb)) {
-            XMEMCPY(leaf->cache + i * params->hash_len, temp, params->hash_len);
+            XMEMCPY(leaf->cache + (i - leaf->idx) * params->hash_len, temp,
+                    params->hash_len);
         }
 
         /* Store the node if on the authentication path. */
