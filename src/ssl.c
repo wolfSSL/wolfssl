@@ -16423,7 +16423,7 @@ static int wolfSSL_TicketKeyCb(WOLFSSL* ssl,
             goto end;
         if (!wolfSSL_HMAC_Final(&hmacCtx, digest, &mdSz))
             goto end;
-        if (XMEMCMP(mac, digest, mdSz) != 0)
+        if (ConstantCompare(mac, digest, (int)mdSz) != 0)
             goto end;
 
         /* Decrypt the ticket data in place. */
