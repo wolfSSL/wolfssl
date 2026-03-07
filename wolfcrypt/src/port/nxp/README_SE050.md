@@ -246,6 +246,12 @@ defined, wolfCrypt will instead fall back to using `/dev/random` and
 Disables using the SE050 for RSA, useful for the SE050E which does not have
 RSA support.
 
+**`WOLFSSL_SE050_NOECDHE`**
+
+Disables offloading ECDH key generation and shared secret operations to the
+SE050. When defined, `wc_ecc_make_key()` and `wc_ecc_shared_secret()` will
+use wolfCrypt software instead of the SE050.
+
 ## wolfSSL HostCrypto Support
 
 The NXP SE05x Plug & Trust Middleware by default can use either OpenSSL or
