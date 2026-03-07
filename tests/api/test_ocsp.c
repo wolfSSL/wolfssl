@@ -1048,7 +1048,8 @@ int test_ocsp_tls_cert_cb(void)
  *  - crl/crl.pem: CRL from ca-cert.pem, only revokes serial 0x02
  */
 #if defined(HAVE_OCSP) && defined(HAVE_CRL) && \
-    defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA)
+    defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA) && \
+    !defined(NO_SHA)
 
 static int test_ocsp_unknown_crl_fallback_ocsp_io_cb(void* ioCtx,
     const char* url, int urlSz, unsigned char* request, int requestSz,
@@ -1120,7 +1121,8 @@ int test_ocsp_cert_unknown_crl_fallback(void)
 {
     return TEST_SKIPPED;
 }
-#endif /* HAVE_OCSP && HAVE_CRL && HAVE_SSL_MEMIO_TESTS_DEPENDENCIES */
+#endif /* HAVE_OCSP && HAVE_CRL && HAVE_SSL_MEMIO_TESTS_DEPENDENCIES && */
+       /* !NO_RSA && !NO_SHA */
 
 /*
  * Test: OCSP returns CERT_UNKNOWN for a non-leaf (intermediate) cert,
