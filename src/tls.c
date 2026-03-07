@@ -16891,7 +16891,7 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
             default:
                 WOLFSSL_MSG("Unknown TLS extension type");
 #if defined(WOLFSSL_TLS13)
-                /* RFC 8446 §4.2: for TLS 1.3 server-to-client messages, the
+                /* RFC 8446 4.2: for TLS 1.3 server-to-client messages, the
                  * client MUST abort with unsupported_extension upon receiving
                  * an extension that was not advertised in the ClientHello. */
                 if (IsAtLeastTLSv1_3(ssl->version) && !isRequest) {

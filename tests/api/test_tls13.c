@@ -3149,7 +3149,7 @@ int test_tls13_warning_alert_is_fatal(void)
 }
 
 /* Test that an unknown extension in a TLS 1.3 server-to-client message is
- * rejected with unsupported_extension (RFC 8446 §4.2).  The client MUST abort
+ * rejected with unsupported_extension (RFC 8446 4.2).  The client MUST abort
  * the handshake when it receives an extension it did not advertise.
  */
  int test_tls13_unknown_ext_rejected(void)
@@ -3166,9 +3166,9 @@ int test_tls13_warning_alert_is_fatal(void)
       * (TLS 1.3), and an extra unknown extension type 0xFABC.
       *
       * The base HRR (from test_tls13_same_ch) extended with 4 bytes:
-      *   extensions length: 6 → 10  (0x00,0x0a)
-      *   handshake body length: 46 → 50  (0x00,0x00,0x32)
-      *   record body length: 50 → 54  (0x00,0x36)
+      *   extensions length: 6 -> 10  (0x00,0x0a)
+      *   handshake body length: 46 -> 50  (0x00,0x00,0x32)
+      *   record body length: 50 -> 54  (0x00,0x36)
       *   appended: 0xfa,0xbc,0x00,0x00  (unknown type, zero-length value)
       */
      static const unsigned char hrr_unknown_ext[] = {
@@ -3206,7 +3206,7 @@ int test_tls13_warning_alert_is_fatal(void)
      ExpectIntEQ(test_memio_inject_message(&test_ctx, 1,
          (const char *)hrr_unknown_ext, sizeof(hrr_unknown_ext)), 0);
 
-     /* RFC 8446 §4.2: the client MUST abort with unsupported_extension. */
+     /* RFC 8446 4.2: the client MUST abort with unsupported_extension. */
      ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
      ExpectIntEQ(wolfSSL_get_error(ssl_c, -1),
          WC_NO_ERR_TRACE(UNSUPPORTED_EXTENSION));
