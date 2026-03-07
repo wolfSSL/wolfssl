@@ -3148,6 +3148,75 @@ int test_tls13_warning_alert_is_fatal(void)
     return EXPECT_RESULT();
 }
 
+/* Test that an unknown extension in a TLS 1.3 server-to-client message is
+ * rejected with unsupported_extension (RFC 8446 4.2).  The client MUST abort
+ * the handshake when it receives an extension it did not advertise.
+ */
+ int test_tls13_unknown_ext_rejected(void)
+ {
+     EXPECT_DECLS;
+ #if defined(WOLFSSL_TLS13) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+     !defined(NO_WOLFSSL_CLIENT) && defined(WOLFSSL_AES_128) && \
+     defined(HAVE_AESGCM) && !defined(NO_SHA256) && \
+     !defined(WOLFSSL_TLS13_MIDDLEBOX_COMPAT)
+     WOLFSSL_CTX *ctx_c = NULL;
+     WOLFSSL *ssl_c = NULL;
+     struct test_memio_ctx test_ctx;
+     /* HelloRetryRequest carrying TLS_AES_128_GCM_SHA256, supported_versions
+      * (TLS 1.3), and an extra unknown extension type 0xFABC.
+      *
+      * The base HRR (from test_tls13_same_ch) extended with 4 bytes:
+      *   extensions length: 6 -> 10  (0x00,0x0a)
+      *   handshake body length: 46 -> 50  (0x00,0x00,0x32)
+      *   record body length: 50 -> 54  (0x00,0x36)
+      *   appended: 0xfa,0xbc,0x00,0x00  (unknown type, zero-length value)
+      */
+     static const unsigned char hrr_unknown_ext[] = {
+         /* TLS record header: handshake, TLS 1.2 compat, len=54 */
+         0x16, 0x03, 0x03, 0x00, 0x36,
+         /* Handshake header: ServerHello, len=50 */
+         0x02, 0x00, 0x00, 0x32,
+         /* legacy_version: TLS 1.2 */
+         0x03, 0x03,
+         /* HelloRetryRequest magic random */
+         0xcf, 0x21, 0xad, 0x74, 0xe5, 0x9a, 0x61, 0x11,
+         0xbe, 0x1d, 0x8c, 0x02, 0x1e, 0x65, 0xb8, 0x91,
+         0xc2, 0xa2, 0x11, 0x16, 0x7a, 0xbb, 0x8c, 0x5e,
+         0x07, 0x9e, 0x09, 0xe2, 0xc8, 0xa8, 0x33, 0x9c,
+         /* session ID length: 0 */
+         0x00,
+         /* cipher suite: TLS_AES_128_GCM_SHA256 */
+         0x13, 0x01,
+         /* compression: null */
+         0x00,
+         /* extensions length: 10 */
+         0x00, 0x0a,
+         /* supported_versions: TLS 1.3 (0x0304) */
+         0x00, 0x2b, 0x00, 0x02, 0x03, 0x04,
+         /* unknown extension type 0xFABC, zero-length value */
+         0xfa, 0xbc, 0x00, 0x00
+     };
+
+     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, NULL, &ssl_c, NULL,
+         wolfTLSv1_3_client_method, NULL), 0);
+
+     /* Inject the crafted HRR before the client starts the handshake.
+      * wolfSSL_connect will send the ClientHello and then read this message. */
+     ExpectIntEQ(test_memio_inject_message(&test_ctx, 1,
+         (const char *)hrr_unknown_ext, sizeof(hrr_unknown_ext)), 0);
+
+     /* RFC 8446 4.2: the client MUST abort with unsupported_extension. */
+     ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+     ExpectIntEQ(wolfSSL_get_error(ssl_c, -1),
+         WC_NO_ERR_TRACE(UNSUPPORTED_EXTENSION));
+
+     wolfSSL_free(ssl_c);
+     wolfSSL_CTX_free(ctx_c);
+ #endif
+     return EXPECT_RESULT();
+ }
+
 /* Test that wolfSSL_set1_sigalgs_list() is honored in TLS 1.3
  */
 int test_tls13_cert_req_sigalgs(void)
