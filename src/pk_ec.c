@@ -4898,18 +4898,16 @@ WOLFSSL_ECDSA_SIG *wolfSSL_ECDSA_SIG_new(void)
         DYNAMIC_TYPE_ECC);
     if (sig == NULL) {
         WOLFSSL_MSG("wolfSSL_ECDSA_SIG_new malloc ECDSA signature failure");
-        err = 1;
+        return NULL;
     }
 
-    if (!err) {
-        /* Set s to NULL in case of error. */
-        sig->s = NULL;
-        /* Allocate BN into r. */
-        sig->r = wolfSSL_BN_new();
-        if (sig->r == NULL) {
-            WOLFSSL_MSG("wolfSSL_ECDSA_SIG_new malloc ECDSA r failure");
-            err = 1;
-        }
+    /* Set s to NULL in case of error. */
+    sig->s = NULL;
+    /* Allocate BN into r. */
+    sig->r = wolfSSL_BN_new();
+    if (sig->r == NULL) {
+        WOLFSSL_MSG("wolfSSL_ECDSA_SIG_new malloc ECDSA r failure");
+        err = 1;
     }
     if (!err) {
         /* Allocate BN into s. */
@@ -4920,7 +4918,7 @@ WOLFSSL_ECDSA_SIG *wolfSSL_ECDSA_SIG_new(void)
         }
     }
 
-    if (err && (sig != NULL)) {
+    if (err) {
         /* Dispose of allocated memory. */
         wolfSSL_ECDSA_SIG_free(sig);
         sig = NULL;
