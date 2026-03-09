@@ -4054,7 +4054,6 @@ static int EchCalcAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
 #endif
     return ret;
 }
-
 #endif
 
 #ifndef NO_WOLFSSL_CLIENT
@@ -5065,12 +5064,20 @@ static int Dtls13ClientDoDowngrade(WOLFSSL* ssl)
 #endif /* WOLFSSL_DTLS13 && !WOLFSSL_NO_CLIENT*/
 
 #if defined(HAVE_ECH)
-/* check if the server accepted ech or not, return status */
+/* Calculate ECH acceptance and verify the server accepted ECH.
+ *
+ * ssl          SSL/TLS object.
+ * label        Ascii string describing ECH acceptance type.
+ * labelSz      Length of label excluding NULL character.
+ * input        The buffer to calculate confirmation off of.
+ * acceptOffset Where the 8 ECH confirmation bytes start.
+ * helloSz      Size of hello message.
+ * returns 0 on success and otherwise failure.
+ */
 static int EchCheckAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
-    const byte* input, int acceptOffset, int helloSz)
+    const byte* input, int acceptOffset, int helloSz, byte msgType)
 {
     int ret = 0;
-    int isHrr = 0;
     int headerSz;
     HS_Hashes* tmpHashes;
     byte acceptConfirmation[ECH_ACCEPT_CONFIRMATION_SZ];
@@ -5084,13 +5091,8 @@ static int EchCheckAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
     headerSz = HANDSHAKE_HEADER_SZ;
 #endif
 
-    if (labelSz == ECH_HRR_ACCEPT_CONFIRMATION_LABEL_SZ &&
-        XMEMCMP(label, echHrrAcceptConfirmationLabel, labelSz) == 0) {
-        isHrr = 1;
-    }
-
     ret = EchCalcAcceptance(ssl, label, labelSz, input, acceptOffset, helloSz,
-            isHrr, acceptConfirmation);
+            msgType == hello_retry_request, acceptConfirmation);
 
     tmpHashes = ssl->hsHashes;
     ssl->hsHashes = ssl->hsHashesEch;
@@ -5105,7 +5107,7 @@ static int EchCheckAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
 
             /* after HRR, hsHashesEch must contain:
              * message_hash(ClientHelloInner1) || HRR (actual, not zeros) */
-            if (isHrr) {
+            if (msgType == hello_retry_request) {
                 ret = HashRaw(ssl, input, helloSz + headerSz);
             }
             /* normal TLS code will calculate transcript of ServerHello */
@@ -5663,7 +5665,7 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
 
 #if defined(HAVE_ECH)
-    /* check for acceptConfirmation, must be done after hashes restart */
+    /* check for acceptConfirmation */
     if (ssl->echConfigs != NULL && !ssl->options.disableECH) {
         args->echX = TLSX_Find(ssl->extensions, TLSX_ECH);
         /* account for hrr extension instead of server random */
@@ -5680,7 +5682,8 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         /* check acceptance */
         if (ret == 0) {
             ret = EchCheckAcceptance(ssl, args->acceptLabel,
-                args->acceptLabelSz, input, args->acceptOffset, helloSz);
+                args->acceptLabelSz, input, args->acceptOffset, helloSz,
+                args->extMsgType);
         }
         if (ret != 0)
             return ret;

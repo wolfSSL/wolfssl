@@ -2358,7 +2358,7 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
     if (ech != NULL && ech->sniState == ECH_INNER_SNI){
         /* SNI status is carried over from processing the outer hello so it is
-        * necessary to clear it before processing the inner hello */
+         * necessary to clear it before processing the inner hello */
         ech->sniState = ECH_INNER_SNI_ATTEMPT;
         if (sni != NULL){
             sni->status = WOLFSSL_SNI_NO_MATCH;
@@ -13340,11 +13340,23 @@ static int TLSX_ECH_Write(WOLFSSL_ECH* ech, byte msgType, byte* writeBuf,
 
     WOLFSSL_MSG("TLSX_ECH_Write");
     if (msgType == hello_retry_request) {
-        /* reserve space to write the confirmation to */
-        *offset += ECH_ACCEPT_CONFIRMATION_SZ;
-        /* set confBuf */
-        ech->confBuf = writeBuf;
-        return 0;
+        WC_ALLOC_VAR_EX(rng, WC_RNG, 1, NULL, DYNAMIC_TYPE_RNG, ret = MEMORY_E);
+        if (ret == 0) {
+            ret = wc_InitRng(rng);
+        }
+        if (ret == 0) {
+            /* randomize confirmation in case ech is rejected */
+            ret = wc_RNG_GenerateBlock(rng, writeBuf,
+                    ECH_ACCEPT_CONFIRMATION_SZ);
+            wc_FreeRng(rng);
+        }
+        if (ret == 0) {
+            *offset += ECH_ACCEPT_CONFIRMATION_SZ;
+            ech->confBuf = writeBuf;
+        }
+
+        WC_FREE_VAR_EX(rng, NULL, DYNAMIC_TYPE_RNG);
+        return ret;
     }
     if (ech->state == ECH_WRITE_NONE || ech->state == ECH_PARSED_INTERNAL)
         return 0;
@@ -13567,7 +13579,7 @@ static int TLSX_ECH_CheckInnerPadding(WOLFSSL* ssl, WOLFSSL_ECH* ech)
  * returns 0 on success and otherwise failure.
  */
 static const byte* TLSX_ECH_FindOuterExtension(const byte* outerCh,
-    word32 chLen, word16 extType, word16* extLen, word16* extOffset,
+    word32 chLen, word16 extType, word32* extLen, word32* extOffset,
     word16* extensionsStart, word16* extensionsLen)
 {
     word32 idx = *extOffset;
@@ -13647,8 +13659,8 @@ static int TLSX_ECH_CopyOuterExtensions(const byte* outerCh, word32 outerChLen,
 {
     int ret = 0;
     word16 refType;
-    word16 outerExtLen;
-    word16 outerExtOffset = 0;
+    word32 outerExtLen;
+    word32 outerExtOffset = 0;
     word16 extsStart;
     word16 extsLen;
     const byte* outerExtData;
