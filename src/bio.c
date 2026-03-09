@@ -1300,8 +1300,14 @@ size_t wolfSSL_BIO_ctrl_pending(WOLFSSL_BIO *bio)
 #endif
 
     if (bio == NULL) {
-        return 0;
+        return WOLFSSL_FATAL_ERROR;
     }
+
+    if (bio->method != NULL && bio->method->ctrlCb != NULL)
+    {
+        WOLFSSL_MSG("Calling custom BIO ctrl pending callback");
+        return (int)bio->method->ctrlCb(bio, WOLFSSL_BIO_CTRL_PENDING, 0, NULL);
+    }   
 
     if (bio->type == WOLFSSL_BIO_MD ||
             bio->type == WOLFSSL_BIO_BASE64) {
@@ -1711,6 +1717,12 @@ int wolfSSL_BIO_reset(WOLFSSL_BIO *bio)
         WOLFSSL_MSG("NULL argument passed in");
         /* -1 is consistent failure even for FILE type */
         return WOLFSSL_BIO_ERROR;
+    }
+
+    if (bio->method != NULL && bio->method->ctrlCb != NULL)
+    {
+        WOLFSSL_MSG("Calling custom BIO reset callback");
+        return (int)bio->method->ctrlCb(bio, WOLFSSL_BIO_CTRL_RESET, 0, NULL);
     }
 
     switch (bio->type) {
@@ -2184,7 +2196,11 @@ int wolfSSL_BIO_get_mem_data(WOLFSSL_BIO* bio, void* p)
 
     if (bio == NULL)
         return WOLFSSL_FATAL_ERROR;
-
+    if (bio->method != NULL && bio->method->ctrlCb != NULL)
+    {
+        WOLFSSL_MSG("Calling custom BIO get mem data callback");
+        return (int)bio->method->ctrlCb(bio, WOLFSSL_BIO_CTRL_INFO, 0, p);
+    }
     mem_bio = bio;
     /* Return pointer from last memory BIO in chain */
     while (bio->next) {
