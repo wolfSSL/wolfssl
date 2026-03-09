@@ -228,7 +228,7 @@ const QuicTransportParam* QuicTransportParam_new(const uint8_t* data,
 {
     QuicTransportParam* tp;
 
-    if (len > 65353) return NULL;
+    if (len > 65535) return NULL;
     tp = (QuicTransportParam*)XMALLOC(sizeof(*tp), heap, DYNAMIC_TYPE_TLSX);
     if (!tp) return NULL;
     tp->data = (uint8_t*)XMALLOC(len, heap, DYNAMIC_TYPE_TLSX);
