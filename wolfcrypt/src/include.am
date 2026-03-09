@@ -11,6 +11,7 @@ BUILT_SOURCES+= $(ASYNC_FILES)
 MAINTAINERCLEANFILES+= $(ASYNC_FILES)
 
 EXTRA_DIST += wolfcrypt/src/misc.c
+EXTRA_DIST += wolfcrypt/src/asn_orig.c
 EXTRA_DIST += wolfcrypt/src/evp.c
 EXTRA_DIST += wolfcrypt/src/evp_pk.c
 EXTRA_DIST += wolfcrypt/src/asm.c
