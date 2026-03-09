@@ -5074,7 +5074,7 @@ static const byte* DecryptMessage(WOLFSSL* ssl, const byte* input, word32 sz,
 
 #ifdef WOLFSSL_TLS13
     if (IsAtLeastTLSv1_3(ssl->version)) {
-        if (sz < ssl->specs.aead_mac_size) {
+        if (sz <= ssl->specs.aead_mac_size) {
             *error = BUFFER_ERROR;
             return NULL;
         }
@@ -5131,6 +5131,10 @@ static const byte* DecryptMessage(WOLFSSL* ssl, const byte* input, word32 sz,
 #ifdef WOLFSSL_TLS13
     if (IsAtLeastTLSv1_3(ssl->version)) {
         word16 i = (word16)(sz - ssl->keys.padSz);
+        if (i == 0) {
+            *error = BUFFER_ERROR;
+            return NULL;
+        }
         /* Remove padding from end of plain text. */
         for (--i; i > 0; i--) {
             if (output[i] != 0)
