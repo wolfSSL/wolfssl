@@ -43,7 +43,7 @@ RUN mkdir /var/empty
 RUN cd /opt/sources && wget -q -O- https://roumenpetrov.info/secsh/src/pkixssh-15.1.tar.gz | tar xzf - && cd pkixssh-15.1 && ./configure --prefix=/opt/pkixssh/ --exec-prefix=/opt/pkixssh/ && make install
 
 # Install udp/tcp-proxy
-RUN cd /opt/sources && git clone --depth=1 --single-branch --branch=main http://github.com/wolfssl/udp-proxy && cd udp-proxy && make && cp tcp_proxy udp_proxy /bin/.
+RUN cd /opt/sources && git clone --depth=1 --single-branch --branch=main https://github.com/wolfssl/udp-proxy && cd udp-proxy && make && cp tcp_proxy udp_proxy /bin/.
 # Install libbacktrace
 RUN cd /opt/sources && git clone --depth=1 --single-branch https://github.com/ianlancetaylor/libbacktrace.git && cd libbacktrace && mkdir build && cd build && ../configure && make && make install
 
