@@ -9641,7 +9641,7 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
                     WOLFSSL_MSG("Not Dilithium Level 5 DER key");
                 }
             }
-            else {
+            if (*algoID == 0) {
                 WOLFSSL_MSG("GetKeyOID dilithium initialization failed");
             }
             wc_dilithium_free(dilithium);
