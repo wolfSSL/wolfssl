@@ -12,6 +12,10 @@ readme = "README.md"
 
 [features]
 std = []
+rand_core = ["dep:rand_core"]
+
+[dependencies]
+rand_core = { version = "0.10", optional = true, default-features = false }
 
 [build-dependencies]
 bindgen = "0.72.1"

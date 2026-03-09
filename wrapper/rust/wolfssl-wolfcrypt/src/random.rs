@@ -380,6 +380,34 @@ impl RNG {
     }
 }
 
+/// Implement `rand_core::TryRng` for `RNG`, allowing it to be used anywhere
+/// a standard Rust RNG is expected.
+///
+/// `Error` is set to `Infallible` so that the blanket impls for `Rng` and
+/// `CryptoRng` apply automatically. wolfSSL RNG failures cause a panic, which
+/// is consistent with the infallible contract.
+#[cfg(feature = "rand_core")]
+impl rand_core::TryRng for RNG {
+    type Error = core::convert::Infallible;
+
+    fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
+        rand_core::utils::next_word_via_fill(self)
+    }
+
+    fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
+        rand_core::utils::next_word_via_fill(self)
+    }
+
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Self::Error> {
+        self.generate_block(dest).expect("RNG failure");
+        Ok(())
+    }
+}
+
+/// Mark `RNG` as a cryptographically secure random number generator.
+#[cfg(feature = "rand_core")]
+impl rand_core::TryCryptoRng for RNG {}
+
 impl Drop for RNG {
     /// Safely free the underlying wolfSSL RNG context.
     ///
