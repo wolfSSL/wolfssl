@@ -27,7 +27,7 @@ jobs:
 
     steps:
         - name: Pull wolfssl
-          uses: actions/checkout@master
+          uses: actions/checkout@v4
           with:
             repository: wolfssl/wolfssl
             path: wolfssl
