@@ -86,6 +86,15 @@ extern const int hpkeSupportedAead[HPKE_SUPPORTED_AEAD_LEN];
 #define MAX_HPKE_LABEL_SZ 512
 #endif
 
+/* I2OSP encoded length prefix size in LabeledExpand (RFC 9180 Section 4) */
+#define HPKE_I2OSP_LEN_SZ 2
+
+/* Maximum raw ECH config length accepted by SetEchConfigsEx. The raw config
+ * is concatenated into a MAX_HPKE_LABEL_SZ buffer in wc_HpkeLabeledExtract
+ * along with version (7) + suite_id (HPKE_SUITE_ID_LEN) + label (~12) +
+ * TLS info prefix (8) overhead. */
+#define MAX_ECH_CONFIG_RAW_SZ (MAX_HPKE_LABEL_SZ - 50)
+
 typedef struct {
     void* heap;
     word32 kem;

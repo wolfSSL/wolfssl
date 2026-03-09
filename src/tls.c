@@ -9986,6 +9986,10 @@ static int TLSX_KeyShare_ProcessPqcHybridClient(WOLFSSL* ssl,
         ssl->arrays->preMasterSz = ssSzEcc + ssSzPqc;
     }
 
+    if (ret != 0) {
+        ForceZero(ssl->arrays->preMasterSecret, ENCRYPT_LEN);
+    }
+
     TLSX_KeyShare_FreeAll(ecc_kse, ssl->heap);
     TLSX_KeyShare_FreeAll(pqc_kse, ssl->heap);
 

@@ -570,6 +570,13 @@ int SetEchConfigsEx(WOLFSSL_EchConfig** outputConfigs, void* heap,
         /* rawLen */
         workingConfig->rawLen = length + 4;
 
+        /* Reject configs whose raw encoding would overflow the fixed-size
+         * labeled_ikm buffer in wc_HpkeLabeledExtract */
+        if (workingConfig->rawLen > MAX_ECH_CONFIG_RAW_SZ) {
+            ret = BUFFER_E;
+            break;
+        }
+
         /* raw body */
         workingConfig->raw = (byte*)XMALLOC(workingConfig->rawLen,
             heap, DYNAMIC_TYPE_TMP_BUFFER);

@@ -473,6 +473,13 @@ static int wc_HpkeLabeledExtract(Hpke* hpke, byte* suite_id,
     WC_ALLOC_VAR_EX(labeled_ikm, byte, MAX_HPKE_LABEL_SZ, hpke->heap,
         DYNAMIC_TYPE_TMP_BUFFER, return MEMORY_E);
 
+    /* validate total size fits in the labeled_ikm buffer */
+    if (HPKE_VERSION_STR_LEN + suite_id_len + label_len + ikm_len
+            > MAX_HPKE_LABEL_SZ) {
+        WC_FREE_VAR_EX(labeled_ikm, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return BUFFER_E;
+    }
+
     /* concat the labeled_ikm */
     /* version */
     XMEMCPY(labeled_ikm, HPKE_VERSION_STR, HPKE_VERSION_STR_LEN);
@@ -519,6 +526,14 @@ static int wc_HpkeLabeledExpand(Hpke* hpke, byte* suite_id, word32 suite_id_len,
 
     WC_ALLOC_VAR_EX(labeled_info, byte, MAX_HPKE_LABEL_SZ, hpke->heap,
         DYNAMIC_TYPE_TMP_BUFFER, return MEMORY_E);
+
+    /* validate total size fits in the labeled_info buffer
+     * total = I2OSP length prefix + version + suite_id + label + info */
+    if (HPKE_I2OSP_LEN_SZ + HPKE_VERSION_STR_LEN + suite_id_len + label_len
+            + infoSz > MAX_HPKE_LABEL_SZ) {
+        WC_FREE_VAR_EX(labeled_info, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return BUFFER_E;
+    }
 
     /* copy length */
     ret = I2OSP((int)L, 2, labeled_info);
