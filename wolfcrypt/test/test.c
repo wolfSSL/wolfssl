@@ -25720,6 +25720,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
 
 exit_rsa:
 
+    (void)res;
+    (void)bytes;
+    (void)idx;
+    (void)in;
+    (void)out;
+    (void)plain;
+    (void)idx;
+    (void)inStr;
+    (void)inLen;
+    (void)outSz;
+    (void)plainSz;
+
 #if !defined(WOLFSSL_NO_MALLOC)
     XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     #if defined(WOLFSSL_CERT_REQ)
@@ -25747,18 +25759,6 @@ exit_rsa:
     WC_FREE_VAR(in, HEAP_HINT);
     WC_FREE_VAR(out, HEAP_HINT);
     WC_FREE_VAR(plain, HEAP_HINT);
-
-    (void)res;
-    (void)bytes;
-    (void)idx;
-    (void)in;
-    (void)out;
-    (void)plain;
-    (void)idx;
-    (void)inStr;
-    (void)inLen;
-    (void)outSz;
-    (void)plainSz;
 
     /* ret can be greater then 0 with certgen but all negative values should
      * be returned and treated as an error */
