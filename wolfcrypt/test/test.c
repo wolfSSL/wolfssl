@@ -12512,7 +12512,7 @@ EVP_TEST_END:
         ret = EVP_test(wolfSSL_EVP_aes_128_cfb8(), key1, iv, msg1, sizeof(msg1),
                 cipher1, sizeof(cipher1));
         if (ret != 0) {
-            return ret;
+            ERROR_OUT(ret, out);
         }
     #endif
         ret = wc_AesSetKey(enc, key1, WC_AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
@@ -12559,7 +12559,7 @@ EVP_TEST_END:
         ret = EVP_test(wolfSSL_EVP_aes_192_cfb8(), key2, iv2, msg2, sizeof(msg2),
                 cipher2, sizeof(msg2));
         if (ret != 0) {
-            return ret;
+            ERROR_OUT(ret, out);
         }
 #endif
 
