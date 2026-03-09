@@ -491,6 +491,8 @@ int wc_AsconAEAD128_DecryptUpdate(wc_AsconAEAD128* a, byte* out,
 
 int wc_AsconAEAD128_DecryptFinal(wc_AsconAEAD128* a, const byte* tag)
 {
+    int ret = 0;
+
     if (a == NULL || tag == NULL)
         return BAD_FUNC_ARG;
     if (!a->keySet || !a->nonceSet || !a->adSet)
@@ -509,13 +511,14 @@ int wc_AsconAEAD128_DecryptFinal(wc_AsconAEAD128* a, const byte* tag)
     a->state.s64[4] ^= a->key[1];
 
     if (ConstantCompare(tag, (const byte*)&a->state.s64[3],
-                        ASCON_AEAD128_TAG_SZ) != 0)
-        return ASCON_AUTH_E;
+                        ASCON_AEAD128_TAG_SZ) != 0) {
+        ret = ASCON_AUTH_E;
+    }
 
     /* Clear state as soon as possible */
     wc_AsconAEAD128_Clear(a);
 
-    return 0;
+    return ret;
 }
 
 #endif /* HAVE_ASCON */
