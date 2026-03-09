@@ -427,7 +427,7 @@ WC_MISC_STATIC WC_INLINE void XorWordsOut(wolfssl_word** r,
 }
 
 /* This routine performs a bitwise XOR operation of <*buf> and <*mask> of n
-counts, placing the result in <*buf>. */
+counts, placing the result in <*out>. */
 
 WC_MISC_STATIC WC_INLINE void xorbufout(void* out, const void* buf,
                                         const void* mask, word32 count)
