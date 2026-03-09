@@ -1,27 +1,44 @@
-/*
- * POWER8 Hardware AES Implementation v2 — 8-way Pipeline
+/* ppc64-aes-power8-crypto.c
+ *
+ * POWER8 Hardware AES Implementation — 8-way Pipeline
  * Using vcipher/vcipherlast/vncipher/vncipherlast (ISA 2.07)
  * and vpmsumd for GCM GHASH
  *
- * Copyright (c) 2026 Elyan Labs
- * License: GPLv2+ (matching wolfSSL)
+ * Copyright (C) 2026 Elyan Labs
+ * Copyright (C) 2006-2026 wolfSSL Inc.
  *
- * v2 optimizations over v1:
+ * This file is part of wolfSSL.
+ *
+ * wolfSSL is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * Key optimizations:
  *   - 8-way parallel pipeline (fills 7-cycle vcipher latency perfectly)
  *   - Vectorized counter increment (no memory round-trip)
  *   - Hoisted first/last round keys outside loop
- *   - 4-way and 8-way ECB for comparison
  *   - dcbt/dcbtst prefetch 2 cache lines ahead
- *
- * Dual-brain optimization: Claude (architecture + framework) + GPT-5.4 (8-way SIMD pipeline)
+ *   - Side-channel resistant: hardware AES is constant-time
  */
+
+/* Only compile on PPC64 targets with AltiVec/VSX support */
+#if defined(__powerpc64__) || defined(__PPC64__) || \
+    defined(_ARCH_PPC64) || defined(__ppc64__)
+
+#ifdef HAVE_CONFIG_H
+    #include <config.h>
+#endif
 
 #include <altivec.h>
 #include <stdint.h>
 #include <string.h>
+
+#ifdef POWER8_AES_BENCHMARK
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#endif
 
 #define AES_BLOCK_SIZE 16
 #define AES_MAXNR      14
@@ -431,8 +448,10 @@ void AES_CTR_encrypt_8way(const unsigned char *in, unsigned char *out,
 }
 
 /* ============================================================
- * Benchmark Harness
+ * Benchmark Harness (compile with -DPOWER8_AES_BENCHMARK)
  * ============================================================ */
+
+#ifdef POWER8_AES_BENCHMARK
 
 static double get_time(void)
 {
@@ -559,3 +578,7 @@ int main(void)
     printf("\nDone.\n");
     return 0;
 }
+
+#endif /* POWER8_AES_BENCHMARK */
+
+#endif /* __powerpc64__ || __PPC64__ || _ARCH_PPC64 || __ppc64__ */
