@@ -37576,7 +37576,7 @@ static wc_test_ret_t ecc_ctx_kdf_salt_test(WC_RNG* rng, ecc_key* a, ecc_key* b)
     }
 
     XMEMSET(plaintext, 0, MAX_ECIES_TEST_SZ);
-    XSTRLCPY((char *)plaintext, message, sizeof plaintext);
+    XSTRLCPY((char *)plaintext, message, MAX_ECIES_TEST_SZ);
     plaintextLen = (((word32)XSTRLEN(message) + WC_AES_BLOCK_SIZE - 1) /
                     WC_AES_BLOCK_SIZE) * WC_AES_BLOCK_SIZE;
 
