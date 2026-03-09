@@ -28242,8 +28242,11 @@ static wc_test_ret_t openssl_aes_test(void)
         int  num = 0;
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-        if ((enc == NULL) || (dec == NULL))
+        if ((enc == NULL) || (dec == NULL)) {
+            XFREE(enc, HEAP_HINT, DYNAMIC_TYPE_AES);
+            XFREE(dec, HEAP_HINT, DYNAMIC_TYPE_AES);
             return MEMORY_E;
+        }
 #endif
 
         XMEMCPY(iv, setIv, sizeof(setIv));
