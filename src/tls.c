@@ -4077,7 +4077,7 @@ static int TLSX_CSR2_Parse(WOLFSSL* ssl, const byte* input, word16 length,
                         return BUFFER_ERROR;
 
                     ato16(input + offset, &size);
-                    if (length - offset < size)
+                    if (length - offset - OPAQUE16_LEN < size)
                         return BUFFER_ERROR;
 
                     offset += OPAQUE16_LEN + size;
@@ -6622,11 +6622,27 @@ static int TLSX_UseSRTP_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     /* total length, not include itself */
     ato16(input, &profile_len);
     offset += OPAQUE16_LEN;
+    /* Check profile length is not bigger than remaining length. */
+    if (profile_len > length - offset) {
+        return BUFFER_ERROR;
+    }
+    /* Protection profiles are 2 bytes long - ensure not an odd no. bytes. */
+    if ((profile_len & 1) == 1) {
+        return BUFFER_ERROR;
+    }
+    /* Ignoring srtp_mki field - SRTP Make Key Identifier.
+     * Defined to be 0..255 bytes long.
+     */
+    if ((length - profile_len - offset) > 255) {
+        return BUFFER_ERROR;
+    }
 
     if (!isRequest) {
 #ifndef NO_WOLFSSL_CLIENT
-        if (length < offset + OPAQUE16_LEN)
+        /* Only one SRTP Protection Profile can be chosen. */
+        if (profile_len != OPAQUE16_LEN) {
             return BUFFER_ERROR;
+        }
 
         ato16(input + offset, &profile_value);
 
@@ -6641,14 +6657,8 @@ static int TLSX_UseSRTP_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     else {
         /* parse remainder one profile at a time, looking for match in CTX */
         ret = 0;
-        for (i=offset; i<length; i+=OPAQUE16_LEN) {
-            if (length < (i + OPAQUE16_LEN)) {
-                WOLFSSL_MSG("Unexpected length when parsing SRTP profile");
-                ret = BUFFER_ERROR;
-                break;
-            }
-
-            ato16(input+i, &profile_value);
+        for (i = 0; i < profile_len; i += OPAQUE16_LEN) {
+            ato16(input + offset + i, &profile_value);
             /* find first match */
             if (profile_value < 16 &&
                                  ssl->dtlsSrtpProfiles & (1 << profile_value)) {
@@ -6680,7 +6690,6 @@ static int TLSX_UseSRTP_Parse(WOLFSSL* ssl, const byte* input, word16 length,
         ssl->dtlsSrtpId = 0;
         TLSX_UseSRTP_Free(srtp, ssl->heap);
     }
-    (void)profile_len;
 
     return ret;
 }
@@ -7468,7 +7477,7 @@ static int TLSX_CA_Names_Parse(WOLFSSL *ssl, const byte* input,
         return BUFFER_ERROR;
 
     while (length) {
-        word32 idx = 0;
+        word16 idx = 0;
         WOLFSSL_X509_NAME* name = NULL;
         int ret = 0;
         int didInit = FALSE;
@@ -7491,7 +7500,7 @@ static int TLSX_CA_Names_Parse(WOLFSSL *ssl, const byte* input,
             ato16(input, &extLen);
             idx += OPAQUE16_LEN;
 
-            if (idx + extLen > length)
+            if (extLen > length - idx)
                 ret = BUFFER_ERROR;
         }
 
@@ -7521,7 +7530,7 @@ static int TLSX_CA_Names_Parse(WOLFSSL *ssl, const byte* input,
             return ret;
 
         input += idx;
-        length -= (word16)idx;
+        length -= idx;
     }
     return 0;
 }
@@ -7652,12 +7661,11 @@ static int TLSX_SignatureAlgorithms_Parse(WOLFSSL *ssl, const byte* input,
     if (length != OPAQUE16_LEN + len)
         return BUFFER_ERROR;
 
+    /* Truncate hashSigAlgo list if too long. */
+    suites->hashSigAlgoSz = len;
     /* Sig Algo list size must be even. */
     if (suites->hashSigAlgoSz % 2 != 0)
         return BUFFER_ERROR;
-
-    /* truncate hashSigAlgo list if too long */
-    suites->hashSigAlgoSz = len;
     if (suites->hashSigAlgoSz > WOLFSSL_MAX_SIGALGO) {
         WOLFSSL_MSG("TLSX SigAlgo list exceeds max, truncating");
         suites->hashSigAlgoSz = WOLFSSL_MAX_SIGALGO;
@@ -13545,7 +13553,11 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
     WOLFSSL_EchConfig* echConfig;
     byte* aadCopy;
     byte* readBuf_p = (byte*)readBuf;
+    word32 offset = 0;
+    word16 len;
+
     WOLFSSL_MSG("TLSX_ECH_Parse");
+
     if (size == 0)
         return BAD_FUNC_ARG;
     if (ssl->options.disableECH) {
@@ -13580,43 +13592,58 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
         /* read the ech parameters before the payload */
         ech->type = *readBuf_p;
         readBuf_p++;
+        offset += 1;
         if (ech->type == ECH_TYPE_INNER) {
             ech->state = ECH_PARSED_INTERNAL;
             return 0;
         }
-        /* technically the payload would only be 1 byte at this length */
-        if (size < 11 + ech->encLen)
-            return BAD_FUNC_ARG;
+        /* Must have kdfId, aeadId, configId, enc len and payload len. */
+        if (size < offset + 2 + 2 + 1 + 2 + 2) {
+            return BUFFER_ERROR;
+        }
         /* read kdfId */
         ato16(readBuf_p, &ech->cipherSuite.kdfId);
         readBuf_p += 2;
+        offset += 2;
         /* read aeadId */
         ato16(readBuf_p, &ech->cipherSuite.aeadId);
         readBuf_p += 2;
+        offset += 2;
         /* read configId */
         ech->configId = *readBuf_p;
         readBuf_p++;
+        offset++;
+        /* read encLen */
+        ato16(readBuf_p, &len);
+        readBuf_p += 2;
+        offset += 2;
+        /* Check encLen isn't more than remaining bytes minus payload length. */
+        if (len > size - offset - 2) {
+            return BAD_FUNC_ARG;
+        }
+        if (len > HPKE_Npk_MAX) {
+            return BAD_FUNC_ARG;
+        }
         /* only get enc if we don't already have the hpke context */
         if (ech->hpkeContext == NULL) {
-            /* read encLen */
-            ato16(readBuf_p, &ech->encLen);
-            readBuf_p += 2;
-            if (ech->encLen > HPKE_Npk_MAX)
-                return BAD_FUNC_ARG;
             /* read enc */
-            XMEMCPY(ech->enc, readBuf_p, ech->encLen);
-            readBuf_p += ech->encLen;
+            XMEMCPY(ech->enc, readBuf_p, len);
+            ech->encLen = len;
         }
-        else {
-            readBuf_p += 2;
-        }
+        readBuf_p += len;
+        offset += len;
         /* read hello inner len */
         ato16(readBuf_p, &ech->innerClientHelloLen);
+        readBuf_p += 2;
+        offset += 2;
+        /* Check payload is no biffer than remaining bytes. */
+        if (ech->innerClientHelloLen > size - offset) {
+            return BAD_FUNC_ARG;
+        }
         if (ech->innerClientHelloLen < WC_AES_BLOCK_SIZE) {
             return BUFFER_ERROR;
         }
         ech->innerClientHelloLen -= WC_AES_BLOCK_SIZE;
-        readBuf_p += 2;
         ech->outerClientPayload = readBuf_p;
         /* make a copy of the aad */
         aadCopy = (byte*)XMALLOC(ech->aadLen, ssl->heap,
