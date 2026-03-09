@@ -1,21 +1,39 @@
-/*
- * vec_perm_aes.c — AES-128 using pure AltiVec vec_perm
+/* vec_perm_aes.c — AES-128 using pure AltiVec vec_perm
  *
  * No hardware crypto (vcipher) needed. Runs on G4, G5, POWER7.
  * SubBytes via nibble-indexed vec_perm tables.
  * ShiftRows via single vec_perm.
  * MixColumns via xtime + vec_perm column rotation.
  *
- * gcc -maltivec -O2 -o vec_perm_aes vec_perm_aes.c
+ * Standalone: gcc -maltivec -O2 -DVEC_PERM_AES_BENCHMARK -o vec_perm_aes vec_perm_aes.c
  *
- * (c) 2025 Elyan Labs — Scott Boudreaux & Claude
+ * Copyright (C) 2006-2025 wolfSSL Inc.
+ *
+ * This file is part of wolfSSL.
+ *
+ * wolfSSL is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  */
 
+/* Only compile on PowerPC with AltiVec */
+#if defined(__powerpc__) || defined(__ppc__) || defined(__PPC__) || \
+    defined(__powerpc64__) || defined(__ppc64__) || defined(__PPC64__) || \
+    defined(_ARCH_PPC)
+
+#ifdef HAVE_CONFIG_H
+    #include <config.h>
+#endif
+
 #include <altivec.h>
-#include <stdio.h>
 #include <string.h>
+
+#ifdef VEC_PERM_AES_BENCHMARK
+#include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
+#endif
 
 typedef vector unsigned char v16u8;
 typedef vector unsigned int  v4u32;
@@ -222,6 +240,7 @@ static inline void aes128_ecb_4way(v16u8 *b0, v16u8 *b1, v16u8 *b2, v16u8 *b3,
     *b2 = vec_xor(s2, rk[10]); *b3 = vec_xor(s3, rk[10]);
 }
 
+#ifdef VEC_PERM_AES_BENCHMARK
 /* ── Helpers ── */
 static double now_sec(void)
 {
@@ -426,3 +445,6 @@ int main(void)
 
     return 0;
 }
+#endif /* VEC_PERM_AES_BENCHMARK */
+
+#endif /* __powerpc__ || __ppc__ || __PPC__ || __powerpc64__ || ... */
