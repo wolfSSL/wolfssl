@@ -3867,7 +3867,7 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
             }
         #endif
             case EXT_SUPPORTED_VERSIONS:
-                if (extLen < 2) {
+                if (extLen != 2) {
                     SetError(SERVER_HELLO_INPUT_STR, error, session,
                              FATAL_ERROR_STATE);
                     return WOLFSSL_FATAL_ERROR;
