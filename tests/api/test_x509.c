@@ -287,7 +287,7 @@ int test_x509_set_serialNumber(void)
         ExpectIntEQ(wolfSSL_X509_set_serialNumber(x509, s),
                     WOLFSSL_FAILURE);
 
-        /* length == 2: still rejected — the guard requires length >= 3 */
+        /* length == 2: still rejected - the guard requires length >= 3 */
         s->length  = 2;
         s->data[0] = ASN_INTEGER;
         s->data[1] = 0;
