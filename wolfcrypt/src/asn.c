@@ -42553,7 +42553,7 @@ int wc_MakeCRL_ex(const byte* issuerDer, word32 issuerSz,
 
     /* Signature AlgorithmIdentifier */
     algoSz = SetAlgoID(sigType, algoBuf, oidSigType, 0);
-    if (algoSz == 0)
+    if (algoSz == 0 || algoSz > MAX_ALGO_SZ)
         return ALGO_ID_E;
 
     /* thisUpdate */
