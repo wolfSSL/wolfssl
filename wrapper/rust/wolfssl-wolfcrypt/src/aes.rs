@@ -28,6 +28,11 @@ Encryption Standard (AES) functionality.
 use crate::sys;
 use core::mem::{size_of_val, MaybeUninit};
 
+#[cfg(feature = "aead")]
+use aead::{AeadCore, AeadInPlace, KeyInit, KeySizeUser};
+#[cfg(feature = "aead")]
+use aead::generic_array::typenum::{U0, U12, U16, U32};
+
 #[cfg(aes_wc_block_size)]
 pub const AES_BLOCK_SIZE: usize = sys::WC_AES_BLOCK_SIZE as usize;
 #[cfg(not(aes_wc_block_size))]
@@ -411,6 +416,169 @@ impl Drop for CCM {
     /// Safely free the wolfSSL resources.
     fn drop(&mut self) {
         unsafe { sys::wc_AesFree(&mut self.ws_aes); }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// AES-CCM aead trait implementations
+// ---------------------------------------------------------------------------
+
+/// Encrypt `buffer` in-place using AES-CCM (12-byte nonce, 16-byte tag).
+#[cfg(all(aes_ccm, feature = "aead"))]
+fn ccm_encrypt_in_place(
+    key: &[u8],
+    nonce: &[u8],
+    aad: &[u8],
+    buffer: &mut [u8],
+    tag: &mut [u8],
+) -> Result<(), aead::Error> {
+    let mut ccm = CCM::new().map_err(|_| aead::Error)?;
+    ccm.init(key).map_err(|_| aead::Error)?;
+    // wolfCrypt CCM supports in-place operation (out == in).
+    let buf_ptr = buffer.as_mut_ptr();
+    let in_ptr = buf_ptr as *const u8;
+    let rc = unsafe {
+        sys::wc_AesCcmEncrypt(
+            &mut ccm.ws_aes,
+            buf_ptr, in_ptr, buffer.len() as u32,
+            nonce.as_ptr(), nonce.len() as u32,
+            tag.as_mut_ptr(), tag.len() as u32,
+            aad.as_ptr(), aad.len() as u32,
+        )
+    };
+    if rc != 0 {
+        return Err(aead::Error);
+    }
+    Ok(())
+}
+
+/// Decrypt `buffer` in-place using AES-CCM and verify `tag`.
+#[cfg(all(aes_ccm, feature = "aead"))]
+fn ccm_decrypt_in_place(
+    key: &[u8],
+    nonce: &[u8],
+    aad: &[u8],
+    buffer: &mut [u8],
+    tag: &[u8],
+) -> Result<(), aead::Error> {
+    let mut ccm = CCM::new().map_err(|_| aead::Error)?;
+    ccm.init(key).map_err(|_| aead::Error)?;
+    let buf_ptr = buffer.as_mut_ptr();
+    let in_ptr = buf_ptr as *const u8;
+    let rc = unsafe {
+        sys::wc_AesCcmDecrypt(
+            &mut ccm.ws_aes,
+            buf_ptr, in_ptr, buffer.len() as u32,
+            nonce.as_ptr(), nonce.len() as u32,
+            tag.as_ptr(), tag.len() as u32,
+            aad.as_ptr(), aad.len() as u32,
+        )
+    };
+    if rc != 0 {
+        return Err(aead::Error);
+    }
+    Ok(())
+}
+
+/// AES-128-CCM authenticated encryption (12-byte nonce, 16-byte tag).
+#[cfg(all(aes_ccm, feature = "aead"))]
+pub struct Aes128Ccm {
+    key: [u8; 16],
+}
+
+#[cfg(all(aes_ccm, feature = "aead"))]
+impl KeySizeUser for Aes128Ccm {
+    type KeySize = U16;
+}
+
+#[cfg(all(aes_ccm, feature = "aead"))]
+impl AeadCore for Aes128Ccm {
+    type NonceSize = U12;
+    type TagSize = U16;
+    type CiphertextOverhead = U0;
+}
+
+#[cfg(all(aes_ccm, feature = "aead"))]
+impl KeyInit for Aes128Ccm {
+    fn new(key: &aead::Key<Self>) -> Self {
+        let mut k = [0u8; 16];
+        k.copy_from_slice(key.as_ref());
+        Aes128Ccm { key: k }
+    }
+}
+
+#[cfg(all(aes_ccm, feature = "aead"))]
+impl AeadInPlace for Aes128Ccm {
+    fn encrypt_in_place_detached(
+        &self,
+        nonce: &aead::Nonce<Self>,
+        associated_data: &[u8],
+        buffer: &mut [u8],
+    ) -> Result<aead::Tag<Self>, aead::Error> {
+        let mut tag = aead::Tag::<Self>::default();
+        ccm_encrypt_in_place(&self.key, nonce.as_ref(), associated_data, buffer, tag.as_mut())?;
+        Ok(tag)
+    }
+
+    fn decrypt_in_place_detached(
+        &self,
+        nonce: &aead::Nonce<Self>,
+        associated_data: &[u8],
+        buffer: &mut [u8],
+        tag: &aead::Tag<Self>,
+    ) -> Result<(), aead::Error> {
+        ccm_decrypt_in_place(&self.key, nonce.as_ref(), associated_data, buffer, tag.as_ref())
+    }
+}
+
+/// AES-256-CCM authenticated encryption (12-byte nonce, 16-byte tag).
+#[cfg(all(aes_ccm, feature = "aead"))]
+pub struct Aes256Ccm {
+    key: [u8; 32],
+}
+
+#[cfg(all(aes_ccm, feature = "aead"))]
+impl KeySizeUser for Aes256Ccm {
+    type KeySize = U32;
+}
+
+#[cfg(all(aes_ccm, feature = "aead"))]
+impl AeadCore for Aes256Ccm {
+    type NonceSize = U12;
+    type TagSize = U16;
+    type CiphertextOverhead = U0;
+}
+
+#[cfg(all(aes_ccm, feature = "aead"))]
+impl KeyInit for Aes256Ccm {
+    fn new(key: &aead::Key<Self>) -> Self {
+        let mut k = [0u8; 32];
+        k.copy_from_slice(key.as_ref());
+        Aes256Ccm { key: k }
+    }
+}
+
+#[cfg(all(aes_ccm, feature = "aead"))]
+impl AeadInPlace for Aes256Ccm {
+    fn encrypt_in_place_detached(
+        &self,
+        nonce: &aead::Nonce<Self>,
+        associated_data: &[u8],
+        buffer: &mut [u8],
+    ) -> Result<aead::Tag<Self>, aead::Error> {
+        let mut tag = aead::Tag::<Self>::default();
+        ccm_encrypt_in_place(&self.key, nonce.as_ref(), associated_data, buffer, tag.as_mut())?;
+        Ok(tag)
+    }
+
+    fn decrypt_in_place_detached(
+        &self,
+        nonce: &aead::Nonce<Self>,
+        associated_data: &[u8],
+        buffer: &mut [u8],
+        tag: &aead::Tag<Self>,
+    ) -> Result<(), aead::Error> {
+        ccm_decrypt_in_place(&self.key, nonce.as_ref(), associated_data, buffer, tag.as_ref())
     }
 }
 
@@ -1391,6 +1559,170 @@ impl Drop for GCM {
     /// Safely free the wolfSSL resources.
     fn drop(&mut self) {
         unsafe { sys::wc_AesFree(&mut self.ws_aes); }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// AES-GCM aead trait implementations
+// ---------------------------------------------------------------------------
+
+/// Encrypt `buffer` in-place using AES-GCM (12-byte nonce, 16-byte tag).
+///
+/// wolfCrypt's `wc_AesGcmEncrypt` supports in-place operation (out == in).
+#[cfg(all(aes_gcm, feature = "aead"))]
+fn gcm_encrypt_in_place(
+    key: &[u8],
+    nonce: &[u8],
+    aad: &[u8],
+    buffer: &mut [u8],
+    tag: &mut [u8],
+) -> Result<(), aead::Error> {
+    let mut gcm = GCM::new().map_err(|_| aead::Error)?;
+    gcm.init(key).map_err(|_| aead::Error)?;
+    let buf_ptr = buffer.as_mut_ptr();
+    let in_ptr = buf_ptr as *const u8;
+    let rc = unsafe {
+        sys::wc_AesGcmEncrypt(
+            &mut gcm.ws_aes,
+            buf_ptr, in_ptr, buffer.len() as u32,
+            nonce.as_ptr(), nonce.len() as u32,
+            tag.as_mut_ptr(), tag.len() as u32,
+            aad.as_ptr(), aad.len() as u32,
+        )
+    };
+    if rc != 0 {
+        return Err(aead::Error);
+    }
+    Ok(())
+}
+
+/// Decrypt `buffer` in-place using AES-GCM and verify `tag`.
+#[cfg(all(aes_gcm, feature = "aead"))]
+fn gcm_decrypt_in_place(
+    key: &[u8],
+    nonce: &[u8],
+    aad: &[u8],
+    buffer: &mut [u8],
+    tag: &[u8],
+) -> Result<(), aead::Error> {
+    let mut gcm = GCM::new().map_err(|_| aead::Error)?;
+    gcm.init(key).map_err(|_| aead::Error)?;
+    let buf_ptr = buffer.as_mut_ptr();
+    let in_ptr = buf_ptr as *const u8;
+    let rc = unsafe {
+        sys::wc_AesGcmDecrypt(
+            &mut gcm.ws_aes,
+            buf_ptr, in_ptr, buffer.len() as u32,
+            nonce.as_ptr(), nonce.len() as u32,
+            tag.as_ptr(), tag.len() as u32,
+            aad.as_ptr(), aad.len() as u32,
+        )
+    };
+    if rc != 0 {
+        return Err(aead::Error);
+    }
+    Ok(())
+}
+
+/// AES-128-GCM authenticated encryption (12-byte nonce, 16-byte tag).
+#[cfg(all(aes_gcm, feature = "aead"))]
+pub struct Aes128Gcm {
+    key: [u8; 16],
+}
+
+#[cfg(all(aes_gcm, feature = "aead"))]
+impl KeySizeUser for Aes128Gcm {
+    type KeySize = U16;
+}
+
+#[cfg(all(aes_gcm, feature = "aead"))]
+impl AeadCore for Aes128Gcm {
+    type NonceSize = U12;
+    type TagSize = U16;
+    type CiphertextOverhead = U0;
+}
+
+#[cfg(all(aes_gcm, feature = "aead"))]
+impl KeyInit for Aes128Gcm {
+    fn new(key: &aead::Key<Self>) -> Self {
+        let mut k = [0u8; 16];
+        k.copy_from_slice(key.as_ref());
+        Aes128Gcm { key: k }
+    }
+}
+
+#[cfg(all(aes_gcm, feature = "aead"))]
+impl AeadInPlace for Aes128Gcm {
+    fn encrypt_in_place_detached(
+        &self,
+        nonce: &aead::Nonce<Self>,
+        associated_data: &[u8],
+        buffer: &mut [u8],
+    ) -> Result<aead::Tag<Self>, aead::Error> {
+        let mut tag = aead::Tag::<Self>::default();
+        gcm_encrypt_in_place(&self.key, nonce.as_ref(), associated_data, buffer, tag.as_mut())?;
+        Ok(tag)
+    }
+
+    fn decrypt_in_place_detached(
+        &self,
+        nonce: &aead::Nonce<Self>,
+        associated_data: &[u8],
+        buffer: &mut [u8],
+        tag: &aead::Tag<Self>,
+    ) -> Result<(), aead::Error> {
+        gcm_decrypt_in_place(&self.key, nonce.as_ref(), associated_data, buffer, tag.as_ref())
+    }
+}
+
+/// AES-256-GCM authenticated encryption (12-byte nonce, 16-byte tag).
+#[cfg(all(aes_gcm, feature = "aead"))]
+pub struct Aes256Gcm {
+    key: [u8; 32],
+}
+
+#[cfg(all(aes_gcm, feature = "aead"))]
+impl KeySizeUser for Aes256Gcm {
+    type KeySize = U32;
+}
+
+#[cfg(all(aes_gcm, feature = "aead"))]
+impl AeadCore for Aes256Gcm {
+    type NonceSize = U12;
+    type TagSize = U16;
+    type CiphertextOverhead = U0;
+}
+
+#[cfg(all(aes_gcm, feature = "aead"))]
+impl KeyInit for Aes256Gcm {
+    fn new(key: &aead::Key<Self>) -> Self {
+        let mut k = [0u8; 32];
+        k.copy_from_slice(key.as_ref());
+        Aes256Gcm { key: k }
+    }
+}
+
+#[cfg(all(aes_gcm, feature = "aead"))]
+impl AeadInPlace for Aes256Gcm {
+    fn encrypt_in_place_detached(
+        &self,
+        nonce: &aead::Nonce<Self>,
+        associated_data: &[u8],
+        buffer: &mut [u8],
+    ) -> Result<aead::Tag<Self>, aead::Error> {
+        let mut tag = aead::Tag::<Self>::default();
+        gcm_encrypt_in_place(&self.key, nonce.as_ref(), associated_data, buffer, tag.as_mut())?;
+        Ok(tag)
+    }
+
+    fn decrypt_in_place_detached(
+        &self,
+        nonce: &aead::Nonce<Self>,
+        associated_data: &[u8],
+        buffer: &mut [u8],
+        tag: &aead::Tag<Self>,
+    ) -> Result<(), aead::Error> {
+        gcm_decrypt_in_place(&self.key, nonce.as_ref(), associated_data, buffer, tag.as_ref())
     }
 }
 
