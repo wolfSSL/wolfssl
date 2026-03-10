@@ -2547,7 +2547,7 @@ static int slhdsakey_wots_sign_chain_x4_16(SlhDsaKey* key, const byte* msg,
     int i;
     sword8 j;
     byte ii;
-    byte idx[4];
+    byte idx[4] = {0};
     byte n = key->params->n;
     byte len = key->params->len;
     WC_DECLARE_VAR(sk, byte, 4 * 16, key->heap);
@@ -2627,7 +2627,7 @@ static int slhdsakey_wots_sign_chain_x4_24(SlhDsaKey* key, const byte* msg,
     int i;
     sword8 j;
     byte ii;
-    byte idx[4];
+    byte idx[4] = {0};
     byte n = key->params->n;
     byte len = key->params->len;
     WC_DECLARE_VAR(sk, byte, 4 * 24, key->heap);
@@ -2707,7 +2707,7 @@ static int slhdsakey_wots_sign_chain_x4_32(SlhDsaKey* key, const byte* msg,
     int i;
     sword8 j;
     byte ii;
-    byte idx[4];
+    byte idx[4] = {0};
     byte n = key->params->n;
     byte len = key->params->len;
     WC_DECLARE_VAR(sk, byte, 4 * 32, key->heap);
@@ -3183,7 +3183,7 @@ static int slhdsakey_wots_pk_from_sig_x4(SlhDsaKey* key, const byte* sig,
     const byte* msg, const byte* pk_seed, word32* adrs, byte* pk_sig)
 {
     int ret = 0;
-    byte idx[4];
+    byte idx[4] = {0};
     int i;
     byte ii;
     sword8 j;

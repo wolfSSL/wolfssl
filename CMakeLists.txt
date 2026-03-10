@@ -778,6 +778,10 @@ add_option(WOLFSSL_XMSS
     "no" "yes;no")
 
 # SLH-DSA
+add_option(WOLFSSL_SLHDSA
+    "Enable the wolfSSL SLH-DSA implementation (default: disabled)"
+    "no" "yes;no")
+
 if (WOLFSSL_SLHDSA)
     message(STATUS "Automatically set related requirements for SLH-DSA")
     add_definitions("-DWOLFSSL_HAVE_SLHDSA")
@@ -789,10 +793,6 @@ if (WOLFSSL_SLHDSA)
     set_wolfssl_definitions("WOLFSSL_SHAKE256"    RESULT)
     message(STATUS "Looking for WOLFSSL_SLHDSA - found")
 endif()
-
-add_option(WOLFSSL_SLHDSA
-    "Enable the wolfSSL SLH-DSA implementation (default: disabled)"
-    "no" "yes;no")
 
 # TODO: - Lean PSK
 #       - Lean TLS

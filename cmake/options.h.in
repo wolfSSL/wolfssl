@@ -410,6 +410,10 @@ extern "C" {
 #cmakedefine HAVE_SECRET_CALLBACK
 #undef WC_RSA_DIRECT
 #cmakedefine WC_RSA_DIRECT
+#undef WOLFSSL_HAVE_SLHDSA
+#cmakedefine WOLFSSL_HAVE_SLHDSA
+#undef WOLFSSL_WC_SLHDSA
+#cmakedefine WOLFSSL_WC_SLHDSA
 
 #ifdef __cplusplus
 }
