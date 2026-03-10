@@ -17964,6 +17964,10 @@ static word32 SetAlgoIDImpl(int algoOID, byte* output, int type, int curveSz,
     word32 algoSz = 0;
 
     CALLOC_ASNSETDATA(dataASN, algoIdASN_Length, ret, NULL);
+    if(ret < 0) {
+        /* Catch MEMORY_E */
+        return 0;
+    }
 
     algoName = OidFromId((word32)algoOID, (word32)type, &algoSz);
     if (algoName == NULL) {
