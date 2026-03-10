@@ -34,6 +34,12 @@
 #include <wolfssl/wolfcrypt/sha512.h>
 #include <wolfssl/wolfcrypt/sha3.h>
 
+/* When hash struct internals are not accessible (hardware SHA acceleration),
+ * fall back to full hash API calls. */
+#if defined(WOLFSSL_NO_HASH_RAW) && !defined(WC_XMSS_FULL_HASH)
+    #define WC_XMSS_FULL_HASH
+#endif
+
 #if !defined(WOLFSSL_WC_XMSS)
     #error "This code is incompatible with external implementation of XMSS."
 #endif

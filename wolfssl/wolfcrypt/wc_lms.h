@@ -95,6 +95,12 @@
 #include <wolfssl/wolfcrypt/lms.h>
 #include <wolfssl/wolfcrypt/sha256.h>
 
+/* When hash struct internals are not accessible (hardware SHA acceleration),
+ * fall back to full hash API calls. */
+#if defined(WOLFSSL_NO_HASH_RAW) && !defined(WC_LMS_FULL_HASH)
+    #define WC_LMS_FULL_HASH
+#endif
+
 #ifdef WOLFSSL_LMS_MAX_LEVELS
     /* Maximum number of levels of trees supported by implementation. */
     #define LMS_MAX_LEVELS          WOLFSSL_LMS_MAX_LEVELS
