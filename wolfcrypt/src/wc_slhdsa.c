@@ -338,12 +338,12 @@ static void HA_Encode(const word32* adrs, byte* address)
  * @param [in] k    Number of FORS signatures.
  */
 #define SLHDSA_PARAMETERS(p, n, h, d, h_m, a, k)    \
-    { p, n, h, d, h_m, a, k,                        \
-      2 * n + 3,                                    \
-      ((k * a) + 7) / 8,                            \
-      ((h - (h / d)) + 7) / 8,                      \
-      (h + ((8 * d) - 1)) / (8 * d),                \
-      (1 + k * (1 + a) + d * (h_m + 2*n + 3)) * n }
+    { (p), (n), (h), (d), (h_m), (a), (k),          \
+      2 * (n) + 3,                                  \
+      (((k) * (a)) + 7) / 8,                        \
+      (((h) - ((h) / (d))) + 7) / 8,                \
+      ((h) + ((8 * (d)) - 1)) / (8 * (d)),          \
+      (1 + (k) * (1 + (a)) + (d) * ((h_m) + 2*(n) + 3)) * (n) }
 
 /* An array of known parameters.
  *
@@ -654,7 +654,7 @@ static int slhdsakey_hash_shake_4(wc_Shake* shake, const byte* data1,
  * @return  SHAKE-256 error return code on digest failure.
  */
 #define HASH_H(shake, pk_seed, adrs, node, n, hash)                         \
-    slhdsakey_hash_shake_3(shake, pk_seed, n, adrs, node, 2 * n, hash, n)
+    slhdsakey_hash_shake_3(shake, pk_seed, n, adrs, node, 2 * (n), hash, (n))
 #else
 /* PRF hash.
  *
@@ -953,13 +953,19 @@ static int slhdsakey_chain(SlhDsaKey* key, const byte* x, byte i, byte s,
 #define SHAKE256_SET_SEED_HA_X4_16(state, seed, addr)                       \
 do {                                                                        \
     /* Set 4 copies of the seed 64-bits at a time. */                       \
-    state[0] = state[1] = state[2] = state[3] = ((word64*)seed)[0];         \
-    state[4] = state[5] = state[6] = state[7] = ((word64*)seed)[1];         \
+    (state)[0] = (state)[1] = (state)[2] = (state)[3] =                     \
+                        readUnalignedWord64((seed) + (0 * sizeof(word64))); \
+    (state)[4] = (state)[5] = (state)[6] = (state)[7] =                     \
+                        readUnalignedWord64((seed) + (1 * sizeof(word64))); \
     /* 32 bytes copied 8 bytes at a time. */                                \
-    state[ 8] = state[ 9] = state[10] = state[11] = ((word64*)addr)[0];     \
-    state[12] = state[13] = state[14] = state[15] = ((word64*)addr)[1];     \
-    state[16] = state[17] = state[18] = state[19] = ((word64*)addr)[2];     \
-    state[20] = state[21] = state[22] = state[23] = ((word64*)addr)[3];     \
+    (state)[ 8] = (state)[ 9] = (state)[10] = (state)[11] =                 \
+                        readUnalignedWord64((addr) + (0 * sizeof(word64))); \
+    (state)[12] = (state)[13] = (state)[14] = (state)[15] =                 \
+                        readUnalignedWord64((addr) + (1 * sizeof(word64))); \
+    (state)[16] = (state)[17] = (state)[18] = (state)[19] =                 \
+                        readUnalignedWord64((addr) + (2 * sizeof(word64))); \
+    (state)[20] = (state)[21] = (state)[22] = (state)[23] =                 \
+                        readUnalignedWord64((addr) + (3 * sizeof(word64))); \
 } while (0)
 
 /* Append to SHAKE-256 x4 state the 16-byte hash.
@@ -969,14 +975,14 @@ do {                                                                        \
  */
 #define SHAKE256_SET_HASH_X4_16(state, hash)                                \
 do {                                                                        \
-    state[24] = ((word64*)(hash + 0 * 16))[0];                              \
-    state[25] = ((word64*)(hash + 1 * 16))[0];                              \
-    state[26] = ((word64*)(hash + 2 * 16))[0];                              \
-    state[27] = ((word64*)(hash + 3 * 16))[0];                              \
-    state[28] = ((word64*)(hash + 0 * 16))[1];                              \
-    state[29] = ((word64*)(hash + 1 * 16))[1];                              \
-    state[30] = ((word64*)(hash + 2 * 16))[1];                              \
-    state[31] = ((word64*)(hash + 3 * 16))[1];                              \
+    (state)[24] = ((word64*)((hash) + 0 * 16))[0];                          \
+    (state)[25] = ((word64*)((hash) + 1 * 16))[0];                          \
+    (state)[26] = ((word64*)((hash) + 2 * 16))[0];                          \
+    (state)[27] = ((word64*)((hash) + 3 * 16))[0];                          \
+    (state)[28] = ((word64*)((hash) + 0 * 16))[1];                          \
+    (state)[29] = ((word64*)((hash) + 1 * 16))[1];                          \
+    (state)[30] = ((word64*)((hash) + 2 * 16))[1];                          \
+    (state)[31] = ((word64*)((hash) + 3 * 16))[1];                          \
 } while (0)
 
 /* Get the four SHAKE-256 16-byte hash results.
@@ -986,14 +992,14 @@ do {                                                                        \
  */
 #define SHAKE256_GET_HASH_X4_16(state, hash)                                \
 do {                                                                        \
-    ((word64*)(hash + 0 * 16))[0] = state[0];                               \
-    ((word64*)(hash + 1 * 16))[0] = state[1];                               \
-    ((word64*)(hash + 2 * 16))[0] = state[2];                               \
-    ((word64*)(hash + 3 * 16))[0] = state[3];                               \
-    ((word64*)(hash + 0 * 16))[1] = state[4];                               \
-    ((word64*)(hash + 1 * 16))[1] = state[5];                               \
-    ((word64*)(hash + 2 * 16))[1] = state[6];                               \
-    ((word64*)(hash + 3 * 16))[1] = state[7];                               \
+    ((word64*)((hash) + 0 * 16))[0] = (state)[0];                           \
+    ((word64*)((hash) + 1 * 16))[0] = (state)[1];                           \
+    ((word64*)((hash) + 2 * 16))[0] = (state)[2];                           \
+    ((word64*)((hash) + 3 * 16))[0] = (state)[3];                           \
+    ((word64*)((hash) + 0 * 16))[1] = (state)[4];                           \
+    ((word64*)((hash) + 1 * 16))[1] = (state)[5];                           \
+    ((word64*)((hash) + 2 * 16))[1] = (state)[6];                           \
+    ((word64*)((hash) + 3 * 16))[1] = (state)[7];                           \
 } while (0)
 #endif
 
@@ -1006,14 +1012,21 @@ do {                                                                        \
  */
 #define SHAKE256_SET_SEED_HA_X4_24(state, seed, addr)                       \
 do {                                                                        \
-    state[0] = state[1] = state[ 2] = state[ 3] = ((word64*)seed)[0];       \
-    state[4] = state[5] = state[ 6] = state[ 7] = ((word64*)seed)[1];       \
-    state[8] = state[9] = state[10] = state[11] = ((word64*)seed)[2];       \
+    (state)[0] = (state)[1] = (state)[ 2] = (state)[ 3] =                   \
+                        readUnalignedWord64((seed) + (0 * sizeof(word64))); \
+    (state)[4] = (state)[5] = (state)[ 6] = (state)[ 7] =                   \
+                        readUnalignedWord64((seed) + (1 * sizeof(word64))); \
+    (state)[8] = (state)[9] = (state)[10] = (state)[11] =                   \
+                        readUnalignedWord64((seed) + (2 * sizeof(word64))); \
     /* 32 bytes copied 8 bytes at a time. */                                \
-    state[12] = state[13] = state[14] = state[15] = ((word64*)addr)[0];     \
-    state[16] = state[17] = state[18] = state[19] = ((word64*)addr)[1];     \
-    state[20] = state[21] = state[22] = state[23] = ((word64*)addr)[2];     \
-    state[24] = state[25] = state[26] = state[27] = ((word64*)addr)[3];     \
+    (state)[12] = (state)[13] = (state)[14] = (state)[15] =                 \
+                        readUnalignedWord64((addr) + (0 * sizeof(word64))); \
+    (state)[16] = (state)[17] = (state)[18] = (state)[19] =                 \
+                        readUnalignedWord64((addr) + (1 * sizeof(word64))); \
+    (state)[20] = (state)[21] = (state)[22] = (state)[23] =                 \
+                        readUnalignedWord64((addr) + (2 * sizeof(word64))); \
+    (state)[24] = (state)[25] = (state)[26] = (state)[27] =                 \
+                        readUnalignedWord64((addr) + (3 * sizeof(word64))); \
 } while (0)
 
 /* Append to SHAKE-256 x4 state the 24-byte hash.
@@ -1023,39 +1036,39 @@ do {                                                                        \
  */
 #define SHAKE256_SET_HASH_X4_24(state, hash)                                \
 do {                                                                        \
-    state[28] = ((word64*)(hash + 0 * 24))[0];                              \
-    state[29] = ((word64*)(hash + 1 * 24))[0];                              \
-    state[30] = ((word64*)(hash + 2 * 24))[0];                              \
-    state[31] = ((word64*)(hash + 3 * 24))[0];                              \
-    state[32] = ((word64*)(hash + 0 * 24))[1];                              \
-    state[33] = ((word64*)(hash + 1 * 24))[1];                              \
-    state[34] = ((word64*)(hash + 2 * 24))[1];                              \
-    state[35] = ((word64*)(hash + 3 * 24))[1];                              \
-    state[36] = ((word64*)(hash + 0 * 24))[2];                              \
-    state[37] = ((word64*)(hash + 1 * 24))[2];                              \
-    state[38] = ((word64*)(hash + 2 * 24))[2];                              \
-    state[39] = ((word64*)(hash + 3 * 24))[2];                              \
+    (state)[28] = ((word64*)((hash) + 0 * 24))[0];                          \
+    (state)[29] = ((word64*)((hash) + 1 * 24))[0];                          \
+    (state)[30] = ((word64*)((hash) + 2 * 24))[0];                          \
+    (state)[31] = ((word64*)((hash) + 3 * 24))[0];                          \
+    (state)[32] = ((word64*)((hash) + 0 * 24))[1];                          \
+    (state)[33] = ((word64*)((hash) + 1 * 24))[1];                          \
+    (state)[34] = ((word64*)((hash) + 2 * 24))[1];                          \
+    (state)[35] = ((word64*)((hash) + 3 * 24))[1];                          \
+    (state)[36] = ((word64*)((hash) + 0 * 24))[2];                          \
+    (state)[37] = ((word64*)((hash) + 1 * 24))[2];                          \
+    (state)[38] = ((word64*)((hash) + 2 * 24))[2];                          \
+    (state)[39] = ((word64*)((hash) + 3 * 24))[2];                          \
 } while (0)
 
-/* Get the four SHAKE-256 24-byte hash results.
+/* Get the four SHAKE-256 24-byte (hash) results.
  *
  * @param [in]  state  SHAKE-256 x4 state.
  * @param [out] hash   Hash buffer to hold 4 24-byte hash results.
  */
 #define SHAKE256_GET_HASH_X4_24(state, hash)                                \
 do {                                                                        \
-    ((word64*)(hash + 0 * 24))[0] = state[ 0];                              \
-    ((word64*)(hash + 1 * 24))[0] = state[ 1];                              \
-    ((word64*)(hash + 2 * 24))[0] = state[ 2];                              \
-    ((word64*)(hash + 3 * 24))[0] = state[ 3];                              \
-    ((word64*)(hash + 0 * 24))[1] = state[ 4];                              \
-    ((word64*)(hash + 1 * 24))[1] = state[ 5];                              \
-    ((word64*)(hash + 2 * 24))[1] = state[ 6];                              \
-    ((word64*)(hash + 3 * 24))[1] = state[ 7];                              \
-    ((word64*)(hash + 0 * 24))[2] = state[ 8];                              \
-    ((word64*)(hash + 1 * 24))[2] = state[ 9];                              \
-    ((word64*)(hash + 2 * 24))[2] = state[10];                              \
-    ((word64*)(hash + 3 * 24))[2] = state[11];                              \
+    ((word64*)((hash) + 0 * 24))[0] = (state)[ 0];                          \
+    ((word64*)((hash) + 1 * 24))[0] = (state)[ 1];                          \
+    ((word64*)((hash) + 2 * 24))[0] = (state)[ 2];                          \
+    ((word64*)((hash) + 3 * 24))[0] = (state)[ 3];                          \
+    ((word64*)((hash) + 0 * 24))[1] = (state)[ 4];                          \
+    ((word64*)((hash) + 1 * 24))[1] = (state)[ 5];                          \
+    ((word64*)((hash) + 2 * 24))[1] = (state)[ 6];                          \
+    ((word64*)((hash) + 3 * 24))[1] = (state)[ 7];                          \
+    ((word64*)((hash) + 0 * 24))[2] = (state)[ 8];                          \
+    ((word64*)((hash) + 1 * 24))[2] = (state)[ 9];                          \
+    ((word64*)((hash) + 2 * 24))[2] = (state)[10];                          \
+    ((word64*)((hash) + 3 * 24))[2] = (state)[11];                          \
 } while (0)
 #endif
 
@@ -1068,15 +1081,23 @@ do {                                                                        \
  */
 #define SHAKE256_SET_SEED_HA_X4_32(state, seed, addr)                       \
 do {                                                                        \
-    state[ 0] = state[ 1] = state[ 2] = state[ 3] = ((word64*)seed)[0];     \
-    state[ 4] = state[ 5] = state[ 6] = state[ 7] = ((word64*)seed)[1];     \
-    state[ 8] = state[ 9] = state[10] = state[11] = ((word64*)seed)[2];     \
-    state[12] = state[13] = state[14] = state[15] = ((word64*)seed)[3];     \
+    (state)[ 0] = (state)[ 1] = (state)[ 2] = (state)[ 3] =                 \
+                        readUnalignedWord64((seed) + (0 * sizeof(word64))); \
+    (state)[ 4] = (state)[ 5] = (state)[ 6] = (state)[ 7] =                 \
+                        readUnalignedWord64((seed) + (1 * sizeof(word64))); \
+    (state)[ 8] = (state)[ 9] = (state)[10] = (state)[11] =                 \
+                        readUnalignedWord64((seed) + (2 * sizeof(word64))); \
+    (state)[12] = (state)[13] = (state)[14] = (state)[15] =                 \
+                        readUnalignedWord64((seed) + (3 * sizeof(word64))); \
     /* 32 bytes copied 8 bytes at a time. */                                \
-    state[16] = state[17] = state[18] = state[19] = ((word64*)addr)[0];     \
-    state[20] = state[21] = state[22] = state[23] = ((word64*)addr)[1];     \
-    state[24] = state[25] = state[26] = state[27] = ((word64*)addr)[2];     \
-    state[28] = state[29] = state[30] = state[31] = ((word64*)addr)[3];     \
+    (state)[16] = (state)[17] = (state)[18] = (state)[19] =                 \
+                        readUnalignedWord64((addr) + (0 * sizeof(word64))); \
+    (state)[20] = (state)[21] = (state)[22] = (state)[23] =                 \
+                        readUnalignedWord64((addr) + (1 * sizeof(word64))); \
+    (state)[24] = (state)[25] = (state)[26] = (state)[27] =                 \
+                        readUnalignedWord64((addr) + (2 * sizeof(word64))); \
+    (state)[28] = (state)[29] = (state)[30] = (state)[31] =                 \
+                        readUnalignedWord64((addr) + (3 * sizeof(word64))); \
 } while (0)
 
 /* Append to SHAKE-256 x4 state the 32-byte hash.
@@ -1086,22 +1107,22 @@ do {                                                                        \
  */
 #define SHAKE256_SET_HASH_X4_32(state, hash)                                \
 do {                                                                        \
-    state[32] = ((word64*)(hash + 0 * 32))[0];                              \
-    state[33] = ((word64*)(hash + 1 * 32))[0];                              \
-    state[34] = ((word64*)(hash + 2 * 32))[0];                              \
-    state[35] = ((word64*)(hash + 3 * 32))[0];                              \
-    state[36] = ((word64*)(hash + 0 * 32))[1];                              \
-    state[37] = ((word64*)(hash + 1 * 32))[1];                              \
-    state[38] = ((word64*)(hash + 2 * 32))[1];                              \
-    state[39] = ((word64*)(hash + 3 * 32))[1];                              \
-    state[40] = ((word64*)(hash + 0 * 32))[2];                              \
-    state[41] = ((word64*)(hash + 1 * 32))[2];                              \
-    state[42] = ((word64*)(hash + 2 * 32))[2];                              \
-    state[43] = ((word64*)(hash + 3 * 32))[2];                              \
-    state[44] = ((word64*)(hash + 0 * 32))[3];                              \
-    state[45] = ((word64*)(hash + 1 * 32))[3];                              \
-    state[46] = ((word64*)(hash + 2 * 32))[3];                              \
-    state[47] = ((word64*)(hash + 3 * 32))[3];                              \
+    (state)[32] = ((word64*)((hash) + 0 * 32))[0];                          \
+    (state)[33] = ((word64*)((hash) + 1 * 32))[0];                          \
+    (state)[34] = ((word64*)((hash) + 2 * 32))[0];                          \
+    (state)[35] = ((word64*)((hash) + 3 * 32))[0];                          \
+    (state)[36] = ((word64*)((hash) + 0 * 32))[1];                          \
+    (state)[37] = ((word64*)((hash) + 1 * 32))[1];                          \
+    (state)[38] = ((word64*)((hash) + 2 * 32))[1];                          \
+    (state)[39] = ((word64*)((hash) + 3 * 32))[1];                          \
+    (state)[40] = ((word64*)((hash) + 0 * 32))[2];                          \
+    (state)[41] = ((word64*)((hash) + 1 * 32))[2];                          \
+    (state)[42] = ((word64*)((hash) + 2 * 32))[2];                          \
+    (state)[43] = ((word64*)((hash) + 3 * 32))[2];                          \
+    (state)[44] = ((word64*)((hash) + 0 * 32))[3];                          \
+    (state)[45] = ((word64*)((hash) + 1 * 32))[3];                          \
+    (state)[46] = ((word64*)((hash) + 2 * 32))[3];                          \
+    (state)[47] = ((word64*)((hash) + 3 * 32))[3];                          \
 } while (0)
 
 /* Get the four SHAKE-256 32-byte hash results.
@@ -1111,22 +1132,22 @@ do {                                                                        \
  */
 #define SHAKE256_GET_HASH_X4_32(state, hash)                                \
 do {                                                                        \
-    ((word64*)(hash + 0 * 32))[0] = state[ 0];                              \
-    ((word64*)(hash + 1 * 32))[0] = state[ 1];                              \
-    ((word64*)(hash + 2 * 32))[0] = state[ 2];                              \
-    ((word64*)(hash + 3 * 32))[0] = state[ 3];                              \
-    ((word64*)(hash + 0 * 32))[1] = state[ 4];                              \
-    ((word64*)(hash + 1 * 32))[1] = state[ 5];                              \
-    ((word64*)(hash + 2 * 32))[1] = state[ 6];                              \
-    ((word64*)(hash + 3 * 32))[1] = state[ 7];                              \
-    ((word64*)(hash + 0 * 32))[2] = state[ 8];                              \
-    ((word64*)(hash + 1 * 32))[2] = state[ 9];                              \
-    ((word64*)(hash + 2 * 32))[2] = state[10];                              \
-    ((word64*)(hash + 3 * 32))[2] = state[11];                              \
-    ((word64*)(hash + 0 * 32))[3] = state[12];                              \
-    ((word64*)(hash + 1 * 32))[3] = state[13];                              \
-    ((word64*)(hash + 2 * 32))[3] = state[14];                              \
-    ((word64*)(hash + 3 * 32))[3] = state[15];                              \
+    ((word64*)((hash) + 0 * 32))[0] = (state)[ 0];                          \
+    ((word64*)((hash) + 1 * 32))[0] = (state)[ 1];                          \
+    ((word64*)((hash) + 2 * 32))[0] = (state)[ 2];                          \
+    ((word64*)((hash) + 3 * 32))[0] = (state)[ 3];                          \
+    ((word64*)((hash) + 0 * 32))[1] = (state)[ 4];                          \
+    ((word64*)((hash) + 1 * 32))[1] = (state)[ 5];                          \
+    ((word64*)((hash) + 2 * 32))[1] = (state)[ 6];                          \
+    ((word64*)((hash) + 3 * 32))[1] = (state)[ 7];                          \
+    ((word64*)((hash) + 0 * 32))[2] = (state)[ 8];                          \
+    ((word64*)((hash) + 1 * 32))[2] = (state)[ 9];                          \
+    ((word64*)((hash) + 2 * 32))[2] = (state)[10];                          \
+    ((word64*)((hash) + 3 * 32))[2] = (state)[11];                          \
+    ((word64*)((hash) + 0 * 32))[3] = (state)[12];                          \
+    ((word64*)((hash) + 1 * 32))[3] = (state)[13];                          \
+    ((word64*)((hash) + 2 * 32))[3] = (state)[14];                          \
+    ((word64*)((hash) + 3 * 32))[3] = (state)[15];                          \
 } while (0)
 #endif
 
@@ -1138,16 +1159,16 @@ do {                                                                        \
 #define SHAKE256_SET_END_X4(state, o)                                       \
 do {                                                                        \
     /* Data end marker. */                                                  \
-    state[o + 0] = (word64)0x1f;                                            \
-    state[o + 1] = (word64)0x1f;                                            \
-    state[o + 2] = (word64)0x1f;                                            \
-    state[o + 3] = (word64)0x1f;                                            \
-    XMEMSET(state + o + 4, 0, (25 * 4 - (o + 4)) * sizeof(word64));         \
-    /* SHAKE-256 state end marker. */                                       \
-    ((word8*)(state + 4 * WC_SHA3_256_COUNT - 4))[7] ^= 0x80;               \
-    ((word8*)(state + 4 * WC_SHA3_256_COUNT - 3))[7] ^= 0x80;               \
-    ((word8*)(state + 4 * WC_SHA3_256_COUNT - 2))[7] ^= 0x80;               \
-    ((word8*)(state + 4 * WC_SHA3_256_COUNT - 1))[7] ^= 0x80;               \
+    (state)[(o) + 0] = (word64)0x1f;                                        \
+    (state)[(o) + 1] = (word64)0x1f;                                        \
+    (state)[(o) + 2] = (word64)0x1f;                                        \
+    (state)[(o) + 3] = (word64)0x1f;                                        \
+    XMEMSET((state) + (o) + 4, 0, (25 * 4 - ((o) + 4)) * sizeof(word64));   \
+    /* SHAKE-256 (state) end marker. */                                     \
+    ((word8*)((state) + 4 * WC_SHA3_256_COUNT - 4))[7] ^= 0x80;             \
+    ((word8*)((state) + 4 * WC_SHA3_256_COUNT - 3))[7] ^= 0x80;             \
+    ((word8*)((state) + 4 * WC_SHA3_256_COUNT - 2))[7] ^= 0x80;             \
+    ((word8*)((state) + 4 * WC_SHA3_256_COUNT - 1))[7] ^= 0x80;             \
 } while (0)
 
 /* Set into SHAKE-256 x4 state the n-byte seed and encoded HashAddress.
@@ -1165,15 +1186,15 @@ static int slhdsakey_shake256_set_seed_ha_x4(word64* state, const byte* seed,
     int o = 0;
 
     /* Set 4 copies of the seed 64-bits at a time. */
-    for (i = 0; i < n / 8; i++) {
+    for (i = 0; i < n; i += 8) {
         state[o + 0] = state[o + 1] = state[o + 2] = state[o + 3] =
-                ((word64*)seed)[i];
+                readUnalignedWord64(seed + i);
         o += 4;
     }
     /* 32 bytes copied 8 bytes at a time. */
-    for (i = 0; i < (SLHDSA_HA_SZ / 8); i++) {
+    for (i = 0; i < SLHDSA_HA_SZ; i += 8) {
         state[o + 0] = state[o + 1] = state[o + 2] = state[o + 3] =
-            ((word64*)addr)[i];
+            readUnalignedWord64(addr + i);
         o += 4;
     }
 
@@ -1198,9 +1219,9 @@ static int slhdsakey_shake256_set_seed_ha_hash_x4(word64* state,
     int ret;
 
     ret = o = slhdsakey_shake256_set_seed_ha_x4(state, seed, addr, n);
-    for (i = 0; i < (n / 8); i++) {
+    for (i = 0; i < n; i += 8) {
         state[o + 0] = state[o + 1] = state[o + 2] = state[o + 3] =
-            ((word64*)hash)[i];
+            readUnalignedWord64(hash + i);
         o += 4;
     }
 
@@ -1238,10 +1259,10 @@ static void slhdsakey_shake256_get_hash_x4(const word64* state, byte* hash,
  */
 #define SHAKE256_SET_CHAIN_ADDRESS(state, o, a)                             \
 do {                                                                        \
-    ((word8*)(state + o - 4))[3] = a + 0;                                   \
-    ((word8*)(state + o - 3))[3] = a + 1;                                   \
-    ((word8*)(state + o - 2))[3] = a + 2;                                   \
-    ((word8*)(state + o - 1))[3] = a + 3;                                   \
+    ((word8*)((state) + (o) - 4))[3] = (a) + 0;                             \
+    ((word8*)((state) + (o) - 3))[3] = (a) + 1;                             \
+    ((word8*)((state) + (o) - 2))[3] = (a) + 2;                             \
+    ((word8*)((state) + (o) - 1))[3] = (a) + 3;                             \
 } while (0)
 #endif
 
@@ -1253,68 +1274,68 @@ do {                                                                        \
  */
 #define SHAKE256_SET_CHAIN_ADDRESS_IDX(state, o, idx)                       \
 do {                                                                        \
-    ((word8*)(state + o - 4))[3] = idx[0];                                  \
-    ((word8*)(state + o - 3))[3] = idx[1];                                  \
-    ((word8*)(state + o - 2))[3] = idx[2];                                  \
-    ((word8*)(state + o - 1))[3] = idx[3];                                  \
+    ((word8*)((state) + (o) - 4))[3] = (idx)[0];                            \
+    ((word8*)((state) + (o) - 3))[3] = (idx)[1];                            \
+    ((word8*)((state) + (o) - 2))[3] = (idx)[2];                            \
+    ((word8*)((state) + (o) - 1))[3] = (idx)[3];                            \
 } while (0)
 
 /* Set the hash address into the SHAKE-256 x4 state.
  *
  * @param [in, out] state  SHAKE-256 x4 state.
- * @param [in]      o      Offset of state after HashAddress.
+ * @param [in]      (o)      Offset of state after HashAddress.
  * @param [in]      a      Value to set for each hash.
  */
 #define SHAKE256_SET_HASH_ADDRESS(state, o, a)                              \
 do {                                                                        \
-    ((word8*)(state + o - 4))[7] = a;                                       \
-    ((word8*)(state + o - 3))[7] = a;                                       \
-    ((word8*)(state + o - 2))[7] = a;                                       \
-    ((word8*)(state + o - 1))[7] = a;                                       \
+    ((word8*)((state) + (o) - 4))[7] = (a);                                 \
+    ((word8*)((state) + (o) - 3))[7] = (a);                                 \
+    ((word8*)((state) + (o) - 2))[7] = (a);                                 \
+    ((word8*)((state) + (o) - 1))[7] = (a);                                 \
 } while (0)
 
 #ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
 /* Set the tree index into the SHAKE-256 x4 state.
  *
  * @param [in, out] state  SHAKE-256 x4 state.
- * @param [in]      o      Offset of state after HashAddress.
+ * @param [in]      (o)      Offset of state after HashAddress.
  * @param [in]      ti     Value to encode that increments for each hash.
  */
 #define SHAKE256_SET_TREE_INDEX(state, o, ti)                               \
 do {                                                                        \
-    c32toa(ti + 0, (byte*)&((word32*)(state + o - 4))[1]);                  \
-    c32toa(ti + 1, (byte*)&((word32*)(state + o - 3))[1]);                  \
-    c32toa(ti + 2, (byte*)&((word32*)(state + o - 2))[1]);                  \
-    c32toa(ti + 3, (byte*)&((word32*)(state + o - 1))[1]);                  \
+    c32toa((ti) + 0, (byte*)&((word32*)((state) + (o) - 4))[1]);            \
+    c32toa((ti) + 1, (byte*)&((word32*)((state) + (o) - 3))[1]);            \
+    c32toa((ti) + 2, (byte*)&((word32*)((state) + (o) - 2))[1]);            \
+    c32toa((ti) + 3, (byte*)&((word32*)((state) + (o) - 1))[1]);            \
 } while (0)
 #endif
 
 /* Set the tree indices into the SHAKE-256 x4 state.
  *
  * @param [in, out] state  SHAKE-256 x4 state.
- * @param [in]      o      Offset of state after HashAddress.
+ * @param [in]      (o)      Offset of state after HashAddress.
  * @param [in]      ti     Indices to encode for each hash.
  */
 #define SHAKE256_SET_TREE_INDEX_IDX(state, o, ti)                           \
 do {                                                                        \
-    c32toa(ti[0], (byte*)&((word32*)(state + o - 4))[1]);                   \
-    c32toa(ti[1], (byte*)&((word32*)(state + o - 3))[1]);                   \
-    c32toa(ti[2], (byte*)&((word32*)(state + o - 2))[1]);                   \
-    c32toa(ti[3], (byte*)&((word32*)(state + o - 1))[1]);                   \
+    c32toa((ti)[0], (byte*)&((word32*)((state) + (o) - 4))[1]);             \
+    c32toa((ti)[1], (byte*)&((word32*)((state) + (o) - 3))[1]);             \
+    c32toa((ti)[2], (byte*)&((word32*)((state) + (o) - 2))[1]);             \
+    c32toa((ti)[3], (byte*)&((word32*)((state) + (o) - 1))[1]);             \
 } while (0)
 
 /* Set the tree height into the SHAKE-256 x4 state.
  *
  * @param [in, out] state  SHAKE-256 x4 state.
- * @param [in]      o      Offset of state after HashAddress.
+ * @param [in]      (o)      Offset of state after HashAddress.
  * @param [in]      ti     Value to encode for each hash.
  */
 #define SHAKE256_SET_TREE_HEIGHT(state, o, th)                              \
 do {                                                                        \
-    c32toa(th, (byte*)&((word32*)(state + o - 4))[0]);                      \
-    c32toa(th, (byte*)&((word32*)(state + o - 3))[0]);                      \
-    c32toa(th, (byte*)&((word32*)(state + o - 2))[0]);                      \
-    c32toa(th, (byte*)&((word32*)(state + o - 1))[0]);                      \
+    c32toa((th), (byte*)&((word32*)((state) + (o) - 4))[0]);                \
+    c32toa((th), (byte*)&((word32*)((state) + (o) - 3))[0]);                \
+    c32toa((th), (byte*)&((word32*)((state) + (o) - 2))[0]);                \
+    c32toa((th), (byte*)&((word32*)((state) + (o) - 1))[0]);                \
 } while (0)
 
 #ifndef WOLFSSL_SLHDSA_PARAM_NO_128
@@ -1367,7 +1388,11 @@ static int slhdsakey_chain_idx_x4_16(byte* sk, byte i, byte s,
             XMEMCPY(state, fixed, (6 * 4) * sizeof(word64));
             SHAKE256_SET_HASH_ADDRESS(state, 24, j);
             SHAKE256_SET_END_X4(state, 32);
+            ret = SAVE_VECTOR_REGISTERS2();
+            if (ret != 0)
+                return ret;
             sha3_blocksx4_avx2(state);
+            RESTORE_VECTOR_REGISTERS();
         }
 
         SHAKE256_GET_HASH_X4_16(state, sk);
@@ -1428,7 +1453,11 @@ static int slhdsakey_chain_idx_x4_24(byte* sk, byte i, byte s,
             XMEMCPY(state, fixed, 28 * sizeof(word64));
             SHAKE256_SET_HASH_ADDRESS(state, 28, j);
             SHAKE256_SET_END_X4(state, 40);
+            ret = SAVE_VECTOR_REGISTERS2();
+            if (ret != 0)
+                return ret;
             sha3_blocksx4_avx2(state);
+            RESTORE_VECTOR_REGISTERS();
         }
 
         SHAKE256_GET_HASH_X4_24(state, sk);
@@ -1489,7 +1518,11 @@ static int slhdsakey_chain_idx_x4_32(byte* sk, byte i, byte s,
             XMEMCPY(state, fixed, 32 * sizeof(word64));
             SHAKE256_SET_HASH_ADDRESS(state, 32, j);
             SHAKE256_SET_END_X4(state, 48);
+            ret = SAVE_VECTOR_REGISTERS2();
+            if (ret != 0)
+                return ret;
             sha3_blocksx4_avx2(state);
+            RESTORE_VECTOR_REGISTERS();
         }
 
         SHAKE256_GET_HASH_X4_32(state, sk);
@@ -1541,8 +1574,12 @@ static int slhdsakey_hash_prf_x4(const byte* pk_seed, const byte* sk_seed,
         o = slhdsakey_shake256_set_seed_ha_hash_x4(state, pk_seed, addr,
             sk_seed, n);
         SHAKE256_SET_CHAIN_ADDRESS(state, o, ca);
-        sha3_blocksx4_avx2(state);
-        slhdsakey_shake256_get_hash_x4(state, sk, n);
+        ret = SAVE_VECTOR_REGISTERS2();
+        if (ret == 0) {
+            sha3_blocksx4_avx2(state);
+            slhdsakey_shake256_get_hash_x4(state, sk, n);
+            RESTORE_VECTOR_REGISTERS();
+        }
 
         WC_FREE_VAR_EX(state, heap, DYNAMIC_TYPE_SLHDSA);
     }
@@ -1598,10 +1635,15 @@ static int slhdsakey_chain_x4_16(byte* sk, const byte* pk_seed, byte* addr,
             XMEMCPY(state, fixed, 24 * sizeof(word64));
             SHAKE256_SET_HASH_ADDRESS(state, 24, j);
             SHAKE256_SET_END_X4(state, 32);
+            ret = SAVE_VECTOR_REGISTERS2();
+            if (ret != 0)
+                break;
             sha3_blocksx4_avx2(state);
+            RESTORE_VECTOR_REGISTERS();
         }
 
-        SHAKE256_GET_HASH_X4_16(state, sk);
+        if (ret == 0)
+            SHAKE256_GET_HASH_X4_16(state, sk);
     }
 
     WC_FREE_VAR_EX(state, heap, DYNAMIC_TYPE_SLHDSA);
@@ -1658,10 +1700,15 @@ static int slhdsakey_chain_x4_24(byte* sk, const byte* pk_seed, byte* addr,
             XMEMCPY(state, fixed, 28 * sizeof(word64));
             SHAKE256_SET_HASH_ADDRESS(state, 28, j);
             SHAKE256_SET_END_X4(state, 40);
+            ret = SAVE_VECTOR_REGISTERS2();
+            if (ret != 0)
+                break;
             sha3_blocksx4_avx2(state);
+            RESTORE_VECTOR_REGISTERS();
         }
 
-        SHAKE256_GET_HASH_X4_24(state, sk);
+        if (ret == 0)
+            SHAKE256_GET_HASH_X4_24(state, sk);
     }
 
     WC_FREE_VAR_EX(state, heap, DYNAMIC_TYPE_SLHDSA);
@@ -1718,10 +1765,15 @@ static int slhdsakey_chain_x4_32(byte* sk, const byte* pk_seed, byte* addr,
             XMEMCPY(state, fixed, 32 * sizeof(word64));
             SHAKE256_SET_HASH_ADDRESS(state, 32, j);
             SHAKE256_SET_END_X4(state, 48);
+            ret = SAVE_VECTOR_REGISTERS2();
+            if (ret != 0)
+                break;
             sha3_blocksx4_avx2(state);
+            RESTORE_VECTOR_REGISTERS();
         }
 
-        SHAKE256_GET_HASH_X4_32(state, sk);
+        if (ret == 0)
+            SHAKE256_GET_HASH_X4_32(state, sk);
     }
 
     WC_FREE_VAR_EX(state, heap, DYNAMIC_TYPE_SLHDSA);
@@ -1766,8 +1818,12 @@ static int slhdsakey_hash_prf_idx_x4(const byte* pk_seed, const byte* sk_seed,
         o = slhdsakey_shake256_set_seed_ha_hash_x4(state, pk_seed, addr,
             sk_seed, n);
         SHAKE256_SET_CHAIN_ADDRESS_IDX(state, o, idx);
-        sha3_blocksx4_avx2(state);
-        slhdsakey_shake256_get_hash_x4(state, sk, n);
+        ret = SAVE_VECTOR_REGISTERS2();
+        if (ret == 0) {
+            sha3_blocksx4_avx2(state);
+            RESTORE_VECTOR_REGISTERS();
+            slhdsakey_shake256_get_hash_x4(state, sk, n);
+        }
 
         WC_FREE_VAR_EX(state, heap, DYNAMIC_TYPE_SLHDSA);
     }
@@ -2502,7 +2558,7 @@ static int slhdsakey_wots_sign_chain_x4_16(SlhDsaKey* key, const byte* msg,
         ii = 0;
         for (j = SLHDSA_WM1; j >= 0; j--) {
             for (i = 0; i < len; i++) {
-                if (msg[i] == j) {
+                if ((sword8)msg[i] == j) {
                     idx[ii++] = i;
                     if (ii == 4) {
                         ret = slhdsakey_hash_prf_idx_x4(pk_seed, sk_seed,
@@ -2582,7 +2638,7 @@ static int slhdsakey_wots_sign_chain_x4_24(SlhDsaKey* key, const byte* msg,
         ii = 0;
         for (j = SLHDSA_WM1; j >= 0; j--) {
             for (i = 0; i < len; i++) {
-                if (msg[i] == j) {
+                if ((sword8)msg[i] == j) {
                     idx[ii++] = i;
                     if (ii == 4) {
                         ret = slhdsakey_hash_prf_idx_x4(pk_seed, sk_seed,
@@ -2662,7 +2718,7 @@ static int slhdsakey_wots_sign_chain_x4_32(SlhDsaKey* key, const byte* msg,
         ii = 0;
         for (j = SLHDSA_WM1; j >= 0; j--) {
             for (i = 0; i < len; i++) {
-                if (msg[i] == j) {
+                if ((sword8)msg[i] == j) {
                     idx[ii++] = i;
                     if (ii == 4) {
                         ret = slhdsakey_hash_prf_idx_x4(pk_seed, sk_seed,
@@ -3143,7 +3199,7 @@ static int slhdsakey_wots_pk_from_sig_x4(SlhDsaKey* key, const byte* sig,
         ii = 0;
         for (j = 0; j <= SLHDSA_WM1; j++) {
             for (i = 0; i < len; i++) {
-                if (msg[i] == j) {
+                if ((sword8)msg[i] == j) {
                     idx[ii++] = i;
                     if (ii == 4) {
                         ret = slhdsakey_chain_idx_to_max_16(key, sig,
@@ -3170,7 +3226,7 @@ static int slhdsakey_wots_pk_from_sig_x4(SlhDsaKey* key, const byte* sig,
         ii = 0;
         for (j = 0; j <= SLHDSA_WM1; j++) {
             for (i = 0; i < len; i++) {
-                if (msg[i] == j) {
+                if ((sword8)msg[i] == j) {
                     idx[ii++] = i;
                     if (ii == 4) {
                         ret = slhdsakey_chain_idx_to_max_24(key, sig,
@@ -3197,7 +3253,7 @@ static int slhdsakey_wots_pk_from_sig_x4(SlhDsaKey* key, const byte* sig,
         ii = 0;
         for (j = 0; j <= SLHDSA_WM1; j++) {
             for (i = 0; i < len; i++) {
-                if (msg[i] == j) {
+                if ((sword8)msg[i] == j) {
                     idx[ii++] = i;
                     if (ii == 4) {
                         ret = slhdsakey_chain_idx_to_max_32(key, sig,
@@ -4061,8 +4117,12 @@ static int slhdsakey_hash_prf_ti_x4(const byte* pk_seed, const byte* sk_seed,
         o = slhdsakey_shake256_set_seed_ha_hash_x4(state, pk_seed, addr,
             sk_seed, n);
         SHAKE256_SET_TREE_INDEX(state, o, ti);
-        sha3_blocksx4_avx2(state);
-        slhdsakey_shake256_get_hash_x4(state, node, n);
+        ret = SAVE_VECTOR_REGISTERS2();
+        if (ret == 0) {
+            sha3_blocksx4_avx2(state);
+            RESTORE_VECTOR_REGISTERS();
+            slhdsakey_shake256_get_hash_x4(state, node, n);
+        }
 
         WC_FREE_VAR_EX(state, heap, DYNAMIC_TYPE_SLHDSA);
     }
@@ -4113,8 +4173,12 @@ static int slhdsakey_hash_f_ti_x4(const byte* pk_seed, byte* addr, byte* node,
             o += 4;
         }
         SHAKE256_SET_END_X4(state, o);
-        sha3_blocksx4_avx2(state);
-        slhdsakey_shake256_get_hash_x4(state, node, n);
+        ret = SAVE_VECTOR_REGISTERS2();
+        if (ret == 0) {
+            sha3_blocksx4_avx2(state);
+            RESTORE_VECTOR_REGISTERS();
+            slhdsakey_shake256_get_hash_x4(state, node, n);
+        }
 
         WC_FREE_VAR_EX(state, heap, DYNAMIC_TYPE_SLHDSA);
     }
@@ -4166,8 +4230,12 @@ static int slhdsakey_hash_h_ti_x4(const byte* pk_seed, byte* addr,
             o += 4;
         }
         SHAKE256_SET_END_X4(state, o);
-        sha3_blocksx4_avx2(state);
-        slhdsakey_shake256_get_hash_x4(state, hash, n);
+        ret = SAVE_VECTOR_REGISTERS2();
+        if (ret == 0) {
+            sha3_blocksx4_avx2(state);
+            RESTORE_VECTOR_REGISTERS();
+            slhdsakey_shake256_get_hash_x4(state, hash, n);
+        }
 
         WC_FREE_VAR_EX(state, heap, DYNAMIC_TYPE_SLHDSA);
     }
@@ -4860,7 +4928,7 @@ static int slhdsakey_fors_sign(SlhDsaKey* key, const byte* md,
         sig_fors += n;
 
     #if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL)
-        if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        if (IS_INTEL_AVX2(cpuid_flags) && CAN_SAVE_VECTOR_REGISTERS()) {
             word16 idx = indices[i];
             /* Step 5: For each bit: */
             for (j = 0; j < a; j++) {
@@ -4953,8 +5021,12 @@ static int slhdsakey_hash_f_ti4_x4(const byte* pk_seed, byte* addr,
             o += 4;
         }
         SHAKE256_SET_END_X4(state, o);
-        sha3_blocksx4_avx2(state);
-        slhdsakey_shake256_get_hash_x4(state, node, n);
+        ret = SAVE_VECTOR_REGISTERS2();
+        if (ret == 0) {
+            sha3_blocksx4_avx2(state);
+            RESTORE_VECTOR_REGISTERS();
+            slhdsakey_shake256_get_hash_x4(state, node, n);
+        }
 
         WC_FREE_VAR_EX(state, heap, DYNAMIC_TYPE_SLHDSA);
     }
@@ -5027,8 +5099,12 @@ static int slhdsakey_hash_h_2_x4(const byte* pk_seed, byte* addr, byte* node,
             o += 4;
         }
         SHAKE256_SET_END_X4(state, o);
-        sha3_blocksx4_avx2(state);
-        slhdsakey_shake256_get_hash_x4(state, node, n);
+        ret = SAVE_VECTOR_REGISTERS2();
+        if (ret == 0) {
+            sha3_blocksx4_avx2(state);
+            RESTORE_VECTOR_REGISTERS();
+            slhdsakey_shake256_get_hash_x4(state, node, n);
+        }
 
         WC_FREE_VAR_EX(state, heap, DYNAMIC_TYPE_SLHDSA);
     }

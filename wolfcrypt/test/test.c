@@ -311,13 +311,13 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
 
 #define TestDumpData(name, data, len) do {                                     \
     int _i;                                                                    \
-    fprintf(stderr, "%s: %d bytes\n", name, (int)(len));                       \
+    WOLFSSL_DEBUG_PRINTF("%s: %d bytes\n", name, (int)(len));                  \
     for (_i = 0; _i < (int)(len); _i++) {                                      \
-        fprintf(stderr, "0x%02x,", ((byte*)(data))[_i]);                       \
-        if ((_i & 7) == 7) fprintf(stderr, "\n");                              \
-        else               fprintf(stderr, " ");                               \
+        WOLFSSL_DEBUG_PRINTF("0x%02x,", ((byte*)(data))[_i]);                  \
+        if ((_i & 7) == 7) WOLFSSL_DEBUG_PRINTF("\n");                         \
+        else               WOLFSSL_DEBUG_PRINTF(" ");                          \
     }                                                                          \
-    if ((_i & 7) != 0) fprintf(stderr, "\n");                                  \
+    if ((_i & 7) != 0) WOLFSSL_DEBUG_PRINTF("\n");                             \
 } while(0)
 
 #include <wolfssl/wolfcrypt/memory.h>
@@ -51758,8 +51758,8 @@ static wc_test_ret_t slhdsa_test_param(enum SlhDsaParam param)
 {
     int ret;
     WC_RNG rng;
-    SlhDsaKey key;
-    SlhDsaKey key_vfy;
+    WC_DECLARE_VAR(key, SlhDsaKey, 1, HEAP_HINT);
+    WC_DECLARE_VAR(key_vfy, SlhDsaKey, 1, HEAP_HINT);
     WC_DECLARE_VAR(sig, byte, WC_SLHDSA_MAX_SIG_LEN, HEAP_HINT);
     word32 sigLen;
     byte pk[WC_SLHDSA_MAX_PUB_LEN];
@@ -51770,6 +51770,10 @@ static wc_test_ret_t slhdsa_test_param(enum SlhDsaParam param)
     };
     byte ctx[1];
 
+    WC_ALLOC_VAR_EX(key, SlhDsaKey, 1, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER, return WC_TEST_RET_ENC_EC(MEMORY_E));
+    WC_ALLOC_VAR_EX(key_vfy, SlhDsaKey, 1, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER, return WC_TEST_RET_ENC_EC(MEMORY_E));
     WC_ALLOC_VAR_EX(sig, byte, WC_SLHDSA_MAX_SIG_LEN, HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER, return WC_TEST_RET_ENC_EC(MEMORY_E));
 
@@ -51779,62 +51783,76 @@ static wc_test_ret_t slhdsa_test_param(enum SlhDsaParam param)
     ret = wc_InitRng(&rng);
 #endif
     if (ret != 0) {
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
 
-    ret = wc_SlhDsaKey_Init(&key, param, NULL, INVALID_DEVID);
+    ret = wc_SlhDsaKey_Init(key, param, NULL, INVALID_DEVID);
     if (ret != 0) {
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
-    ret = wc_SlhDsaKey_MakeKey(&key, &rng);
+    ret = wc_SlhDsaKey_MakeKey(key, &rng);
     if (ret != 0) {
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
     sigLen = WC_SLHDSA_MAX_SIG_LEN;
-    ret = wc_SlhDsaKey_Sign(&key, ctx, 0, msg, (word32)sizeof(msg),
+    ret = wc_SlhDsaKey_Sign(key, ctx, 0, msg, (word32)sizeof(msg),
         sig, &sigLen, &rng);
     if (ret != 0) {
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
     outLen = (word32)sizeof(pk);
 
-    ret = wc_SlhDsaKey_ExportPublic(&key, pk, &outLen);
+    ret = wc_SlhDsaKey_ExportPublic(key, pk, &outLen);
     if (ret != 0) {
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
 
-    ret = wc_SlhDsaKey_Init(&key_vfy, param, NULL, INVALID_DEVID);
+    ret = wc_SlhDsaKey_Init(key_vfy, param, NULL, INVALID_DEVID);
     if (ret != 0) {
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
-    ret = wc_SlhDsaKey_ImportPublic(&key_vfy, pk, outLen);
+    ret = wc_SlhDsaKey_ImportPublic(key_vfy, pk, outLen);
     if (ret != 0) {
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
-    ret = wc_SlhDsaKey_Verify(&key_vfy, ctx, 0, msg, (word32)sizeof(msg),
+    ret = wc_SlhDsaKey_Verify(key_vfy, ctx, 0, msg, (word32)sizeof(msg),
         sig, sigLen);
     if (ret != 0) {
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
 
     sigLen = WC_SLHDSA_MAX_SIG_LEN;
-    ret = wc_SlhDsaKey_SignHash(&key, ctx, 0, msg, (word32)sizeof(msg),
+    ret = wc_SlhDsaKey_SignHash(key, ctx, 0, msg, (word32)sizeof(msg),
         WC_HASH_TYPE_SHAKE256, sig, &sigLen, &rng);
     if (ret != 0) {
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
-    ret = wc_SlhDsaKey_VerifyHash(&key_vfy, ctx, 0, msg, (word32)sizeof(msg),
+    ret = wc_SlhDsaKey_VerifyHash(key_vfy, ctx, 0, msg, (word32)sizeof(msg),
         WC_HASH_TYPE_SHAKE256, sig, sigLen);
     if (ret != 0) {
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
 
-    wc_SlhDsaKey_Free(&key_vfy);
-    wc_SlhDsaKey_Free(&key);
+out:
+
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    if (key_vfy)
+#endif
+    {
+        wc_SlhDsaKey_Free(key_vfy);
+    }
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    if (key_vfy)
+#endif
+    {
+        wc_SlhDsaKey_Free(key);
+    }
     wc_FreeRng(&rng);
     WC_FREE_VAR_EX(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(key_vfy, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 
-    return 0;
+    return ret;
 }
 #endif
 
@@ -51844,9 +51862,9 @@ wc_test_ret_t slhdsa_test(void)
     int ret;
 #endif
 #ifdef WOLFSSL_SLHDSA_PARAM_128S
-    SlhDsaKey key_vfy;
+    WC_DECLARE_VAR(key_vfy, SlhDsaKey, 1, HEAP_HINT);
 #ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
-    SlhDsaKey key;
+    WC_DECLARE_VAR(key, SlhDsaKey, 1, HEAP_HINT);
     static const byte sk_seed_shake128s[] = {
         0x17, 0x3D, 0x04, 0xC9, 0x38, 0xC1, 0xC3, 0x6B,
         0xF2, 0x89, 0xC3, 0xC0, 0x22, 0xD0, 0x4B, 0x14
@@ -51877,8 +51895,8 @@ wc_test_ret_t slhdsa_test(void)
         0xc6, 0xb5, 0xa7, 0xbb, 0xe3, 0x7e, 0xb4, 0xa8
     };
 #ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
-    byte sk[WC_SLHDSA_MAX_PRIV_LEN];
-    byte pk[WC_SLHDSA_MAX_PUB_LEN];
+    WC_DECLARE_VAR(sk, byte, WC_SLHDSA_MAX_PRIV_LEN, HEAP_HINT);
+    WC_DECLARE_VAR(pk, byte, WC_SLHDSA_MAX_PUB_LEN, HEAP_HINT);
     word32 outLen;
 #endif
     static const byte msg[] = {
@@ -52874,90 +52892,93 @@ wc_test_ret_t slhdsa_test(void)
     WC_DECLARE_VAR(sig, byte, sizeof(sig_shake128s), HEAP_HINT);
 #endif
 
+    WC_ALLOC_VAR_EX(key_vfy, SlhDsaKey, 1, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER, ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out));
+    XMEMSET(key_vfy, 0, sizeof(*key_vfy));
 #ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
+    WC_ALLOC_VAR_EX(key, SlhDsaKey, 1, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER, ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out));
+    XMEMSET(key, 0, sizeof(*key));
+    WC_ALLOC_VAR_EX(sk, byte, WC_SLHDSA_MAX_PRIV_LEN, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER, ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out));
+    WC_ALLOC_VAR_EX(pk, byte, WC_SLHDSA_MAX_PUB_LEN, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER, ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out));
+    /* // NOLINTBEGIN(bugprone-sizeof-expression) */
     WC_ALLOC_VAR_EX(sig, byte, sizeof(sig_shake128s), HEAP_HINT,
-        DYNAMIC_TYPE_TMP_BUFFER, return WC_TEST_RET_ENC_EC(MEMORY_E));
-
-    XMEMSET(&key, 0, sizeof(key));
+        DYNAMIC_TYPE_TMP_BUFFER, ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out));
+    /* // NOLINTEND(bugprone-sizeof-expression) */
 #endif
-    XMEMSET(&key_vfy, 0, sizeof(key_vfy));
 
 #ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
-    ret = wc_SlhDsaKey_Init(&key, SLHDSA_SHAKE128S, NULL, INVALID_DEVID);
+    ret = wc_SlhDsaKey_Init(key, SLHDSA_SHAKE128S, NULL, INVALID_DEVID);
     if (ret != 0) {
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
 
-    ret = wc_SlhDsaKey_MakeKeyWithRandom(&key,
+    ret = wc_SlhDsaKey_MakeKeyWithRandom(key,
         sk_seed_shake128s, (word32)sizeof(sk_seed_shake128s),
         sk_prf_shake128s, (word32)sizeof(sk_prf_shake128s),
         pk_seed_shake128s, (word32)sizeof(pk_seed_shake128s));
     if (ret != 0) {
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
 
-    outLen = (word32)sizeof(sk);
-    ret = wc_SlhDsaKey_ExportPrivate(&key, sk, &outLen);
+    outLen = WC_SLHDSA_MAX_PRIV_LEN;
+    ret = wc_SlhDsaKey_ExportPrivate(key, sk, &outLen);
     if (ret != 0) {
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
     if (outLen != 4 * 16) {
-        return WC_TEST_RET_ENC_I(outLen);
+        ERROR_OUT(WC_TEST_RET_ENC_I(outLen), out);
     }
     if (XMEMCMP(sk, sk_shake128s, outLen) != 0) {
-        return WC_TEST_RET_ENC_NC;
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     }
 
-    outLen = (word32)sizeof(pk);
-    ret = wc_SlhDsaKey_ExportPublic(&key, pk, &outLen);
+    outLen = WC_SLHDSA_MAX_PUB_LEN;
+    ret = wc_SlhDsaKey_ExportPublic(key, pk, &outLen);
     if (ret != 0) {
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
     if (outLen != 2 * 16) {
-        return WC_TEST_RET_ENC_I(outLen);
+        ERROR_OUT(WC_TEST_RET_ENC_I(outLen), out);
     }
     if (XMEMCMP(pk, pk_shake128s, outLen) != 0) {
-        return WC_TEST_RET_ENC_NC;
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     }
 #endif
 
-    ret = wc_SlhDsaKey_Init(&key_vfy, SLHDSA_SHAKE128S, NULL, INVALID_DEVID);
+    ret = wc_SlhDsaKey_Init(key_vfy, SLHDSA_SHAKE128S, NULL, INVALID_DEVID);
     if (ret != 0) {
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
-    ret = wc_SlhDsaKey_ImportPublic(&key_vfy, pk_shake128s,
+    ret = wc_SlhDsaKey_ImportPublic(key_vfy, pk_shake128s,
         (word32)sizeof(pk_shake128s));
     if (ret != 0) {
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
 
-    ret = wc_SlhDsaKey_Verify(&key_vfy, ctx, 0, msg, (word32)sizeof(msg),
+    ret = wc_SlhDsaKey_Verify(key_vfy, ctx, 0, msg, (word32)sizeof(msg),
         sig_shake128s, (word32)sizeof(sig_shake128s));
     if (ret != 0) {
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
 
 #ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
     outLen = (word32)sizeof(sig_shake128s);
-    ret = wc_SlhDsaKey_SignWithRandom(&key, ctx, 0, msg, (word32)sizeof(msg),
+    ret = wc_SlhDsaKey_SignWithRandom(key, ctx, 0, msg, (word32)sizeof(msg),
         sig, &outLen, pk_seed_shake128s);
     if (ret != 0) {
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
     if (outLen != (word32)sizeof(sig_shake128s)) {
-        return WC_TEST_RET_ENC_I(outLen);
+        ERROR_OUT(WC_TEST_RET_ENC_I(outLen), out);
     }
     if (XMEMCMP(sig, sig_shake128s, outLen) != 0) {
         TestDumpData("SIG", sig, outLen);
         TestDumpData("EXP", sig_shake128s, outLen);
-        return WC_TEST_RET_ENC_NC;
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     }
-#endif
-
-    wc_SlhDsaKey_Free(&key_vfy);
-#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
-    wc_SlhDsaKey_Free(&key);
-    WC_FREE_VAR_EX(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 #endif
 
@@ -52966,47 +52987,69 @@ wc_test_ret_t slhdsa_test(void)
     ret = slhdsa_test_param(SLHDSA_SHAKE128S);
     if (ret != 0) {
         wc_test_render_error_message("SLHDSA_SHAKE128S", 0);
-        return ret;
+        goto out;
     }
 #endif
 #ifdef WOLFSSL_SLHDSA_PARAM_128F
     ret = slhdsa_test_param(SLHDSA_SHAKE128F);
     if (ret != 0) {
         wc_test_render_error_message("SLHDSA_SHAKE128F", 0);
-        return ret;
+        goto out;
     }
 #endif
 #ifdef WOLFSSL_SLHDSA_PARAM_192S
     ret = slhdsa_test_param(SLHDSA_SHAKE192S);
     if (ret != 0) {
         wc_test_render_error_message("SLHDSA_SHAKE192S", 0);
-        return ret;
+        goto out;
     }
 #endif
 #ifdef WOLFSSL_SLHDSA_PARAM_192F
     ret = slhdsa_test_param(SLHDSA_SHAKE192F);
     if (ret != 0) {
         wc_test_render_error_message("SLHDSA_SHAKE192F", 0);
-        return ret;
+        goto out;
     }
 #endif
 #ifdef WOLFSSL_SLHDSA_PARAM_256S
     ret = slhdsa_test_param(SLHDSA_SHAKE256S);
     if (ret != 0) {
         wc_test_render_error_message("SLHDSA_SHAKE256S", 0);
-        return ret;
+        goto out;
     }
 #endif
 #ifdef WOLFSSL_SLHDSA_PARAM_256F
     ret = slhdsa_test_param(SLHDSA_SHAKE256F);
     if (ret != 0) {
         wc_test_render_error_message("SLHDSA_SHAKE256F", 0);
-        return ret;
+        goto out;
     }
 #endif
 #endif
 
-    return 0;
+out:
+
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    if (key_vfy)
+#endif
+    {
+        wc_SlhDsaKey_Free(key_vfy);
+    }
+    WC_FREE_VAR_EX(key_vfy, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    if (key)
+#endif
+    {
+        wc_SlhDsaKey_Free(key);
+    }
+    WC_FREE_VAR_EX(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(sk, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(pk, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return ret;
 }
 #endif
 
