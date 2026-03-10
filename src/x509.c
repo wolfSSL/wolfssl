@@ -1357,6 +1357,7 @@ int wolfSSL_X509_add_ext(WOLFSSL_X509 *x509, WOLFSSL_X509_EXTENSION *ext,
             if (ext->obj->pathlen) {
                 x509->pathLength = (word32)ext->obj->pathlen->length;
                 x509->basicConstPlSet = 1;
+                x509->pathLengthSet = 1;
             }
             x509->basicConstSet = 1;
         }

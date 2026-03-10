@@ -870,6 +870,37 @@ int test_wolfSSL_ASN1_OBJECT(void)
     s.objSz = sizeof(der);
     ExpectNotNull(a = wolfSSL_ASN1_OBJECT_dup(&s));
     ASN1_OBJECT_free(a);
+    a = NULL;
+    ASN1_OBJECT_free(&s);
+
+    /* Test dup copies pathlen when set */
+    XMEMSET(&s, 0, sizeof(ASN1_OBJECT));
+    s.type = NID_basic_constraints;
+    s.ca = 1;
+    s.pathlen = wolfSSL_ASN1_INTEGER_new();
+    ExpectNotNull(s.pathlen);
+    if (s.pathlen != NULL) {
+        s.pathlen->length = 5;
+    }
+    ExpectNotNull(a = wolfSSL_ASN1_OBJECT_dup(&s));
+    if (a != NULL) {
+        ExpectIntEQ(a->ca, 1);
+        ExpectNotNull(a->pathlen);
+        if (a->pathlen != NULL) {
+            ExpectIntEQ(a->pathlen->length, 5);
+        }
+    }
+    ASN1_OBJECT_free(a);
+    a = NULL;
+
+    /* Test dup with NULL pathlen leaves it NULL */
+    wolfSSL_ASN1_INTEGER_free(s.pathlen);
+    s.pathlen = NULL;
+    ExpectNotNull(a = wolfSSL_ASN1_OBJECT_dup(&s));
+    if (a != NULL) {
+        ExpectNull(a->pathlen);
+    }
+    ASN1_OBJECT_free(a);
     ASN1_OBJECT_free(&s);
 #endif /* OPENSSL_EXTRA */
     return EXPECT_RESULT();
