@@ -518,6 +518,7 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
                         wc_Des_CbcDecrypt(&des, input, input, (word32)length);
                     }
                 }
+                ForceZero(&des, sizeof(Des));
                 break;
             }
         #endif /* !NO_SHA || !NO_MD5 */
@@ -561,6 +562,7 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
 
                 wc_Arc4SetKey(&dec, key, derivedLen);
                 wc_Arc4Process(&dec, input, input, (word32)length);
+                ForceZero(&dec, sizeof(Arc4));
                 break;
             }
     #endif
@@ -629,9 +631,7 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
                     else
                         ret = wc_Rc2CbcDecrypt(&rc2, input, input, length);
                 }
-                if (ret == 0) {
-                    ForceZero(&rc2, sizeof(Rc2));
-                }
+                ForceZero(&rc2, sizeof(Rc2));
                 break;
             }
     #endif
