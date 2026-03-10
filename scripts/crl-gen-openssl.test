@@ -9,11 +9,32 @@ set -euo pipefail
 # (good).
 
 OPENSSL=${OPENSSL:-openssl}
+UNIT_TEST=${UNIT_TEST:-./scripts/unit.test}
+CRL_GEN_SUBTEST=${CRL_GEN_SUBTEST:-test_sk_X509_CRL_encode}
 
 if ! command -v "$OPENSSL" >/dev/null 2>&1; then
     echo "skipping crl-gen-openssl.test: openssl not found"
     exit 77
 fi
+
+if [ ! -x "$UNIT_TEST" ]; then
+    # Fallback for out-of-tree/in-tree differences.
+    if [ -x "./tests/unit.test" ]; then
+        UNIT_TEST="./tests/unit.test"
+    elif [ -x "./scripts/unit.test" ]; then
+        UNIT_TEST="./scripts/unit.test"
+    fi
+fi
+
+if [ ! -x "$UNIT_TEST" ]; then
+    echo "skipping crl-gen-openssl.test: unit.test not found"
+    exit 77
+fi
+
+# Run the CRL unit test to generate the CRL files and avoid race conditions
+# with the full unit test run.
+echo "Generating CRLs with: $UNIT_TEST --api -$CRL_GEN_SUBTEST"
+"$UNIT_TEST" --api "-$CRL_GEN_SUBTEST"
 
 normalize_dn() {
     sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' \
@@ -91,6 +112,8 @@ check_crl() {
     fi
 
     local verify_out verify_rc verify_out_norm
+    # Capture both stdout and stderr so we can reliably detect and print the
+    # revocation text.
     verify_out=$("$OPENSSL" verify -CAfile "$ca_cert" -crl_check \
         -CRLfile "$crl" \
         "$revoked_cert" 2>&1) || verify_rc=$?
@@ -109,7 +132,7 @@ check_crl() {
 
     if [ -n "$good_cert" ]; then
         if ! "$OPENSSL" verify -CAfile "$ca_cert" -crl_check -CRLfile "$crl" \
-            "$good_cert" >/dev/null 2>&1; then
+            "$good_cert" >/dev/null; then
             echo "expected successful verification for $label CRL with " \
                 "$good_cert"
             return 1
