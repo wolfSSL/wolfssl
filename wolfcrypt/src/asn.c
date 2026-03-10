@@ -25002,31 +25002,69 @@ int wc_ParseCert(DecodedCert* cert, int type, int verify, void* cm)
     return ParseCert(cert, type, verify, cm);
 }
 
-const char* wc_GetDecodedCertSubject(struct DecodedCert* cert, word32* subjectSz)
+int wc_GetDecodedCertSubject(const struct DecodedCert* cert, char* buf,
+                             word32* bufSz)
 {
-    if (cert == NULL || subjectSz == NULL) {
-        return NULL;
+    word32 sz;
+
+    if (cert == NULL || bufSz == NULL)
+        return BAD_FUNC_ARG;
+
+    sz = (word32)XSTRLEN(cert->subject);
+
+    if (buf == NULL) {
+        *bufSz = sz;
+        return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
-    *subjectSz = (word32)XSTRLEN(cert->subject);
-    return cert->subject;
+
+    if (*bufSz < sz)
+        return BUFFER_E;
+
+    XMEMCPY(buf, cert->subject, sz);
+    *bufSz = sz;
+    return 0;
 }
 
-const char* wc_GetDecodedCertIssuer(struct DecodedCert* cert, word32* issuerSz)
+int wc_GetDecodedCertIssuer(const struct DecodedCert* cert, char* buf,
+                            word32* bufSz)
 {
-    if (cert == NULL || issuerSz == NULL) {
-        return NULL;
+    word32 sz;
+
+    if (cert == NULL || bufSz == NULL)
+        return BAD_FUNC_ARG;
+
+    sz = (word32)XSTRLEN(cert->issuer);
+
+    if (buf == NULL) {
+        *bufSz = sz;
+        return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
-    *issuerSz = (word32)XSTRLEN(cert->issuer);
-    return cert->issuer;
+
+    if (*bufSz < sz)
+        return BUFFER_E;
+
+    XMEMCPY(buf, cert->issuer, sz);
+    *bufSz = sz;
+    return 0;
 }
 
-const byte* wc_GetDecodedCertSerial(struct DecodedCert* cert, word32* serialSz)
+int wc_GetDecodedCertSerial(const struct DecodedCert* cert, byte* buf,
+                            word32* bufSz)
 {
-    if (cert == NULL || serialSz == NULL) {
-        return NULL;
+    if (cert == NULL || bufSz == NULL)
+        return BAD_FUNC_ARG;
+
+    if (buf == NULL) {
+        *bufSz = (word32)cert->serialSz;
+        return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
-    *serialSz = (word32)cert->serialSz;
-    return cert->serial;
+
+    if (*bufSz < (word32)cert->serialSz)
+        return BUFFER_E;
+
+    XMEMCPY(buf, cert->serial, (size_t)cert->serialSz);
+    *bufSz = (word32)cert->serialSz;
+    return 0;
 }
 
 #ifdef WOLFCRYPT_ONLY

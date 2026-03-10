@@ -633,9 +633,12 @@ static int CheckOcspResponderChain(OcspEntry* single, byte* issuerHash,
 
 /**
  * Enforce https://www.rfc-editor.org/rfc/rfc6960#section-4.2.2.2
- * @param bs   The basic response to verify
- * @param cert The decoded bs->cert
- * @return
+ * @param bs              The basic OCSP response to verify
+ * @param subjectHash     The subject key hash of the OCSP responder certificate
+ * @param extExtKeyUsage  The extended key usage bits of the responder certificate
+ * @param issuerHash      The issuer key hash of the OCSP responder certificate
+ * @param vp              Unused (reserved for future use)
+ * @return 1 if the responder is authorized to sign the response, 0 otherwise
  */
 int CheckOcspResponder(OcspResponse *bs, byte* subjectHash,
         byte extExtKeyUsage, byte* issuerHash, void* vp)
@@ -2263,7 +2266,8 @@ int wc_OcspResponder_AddSigner(OcspResponder* responder,
     WOLFSSL_ENTER("wc_OcspResponder_AddSigner");
 
     if (responder == NULL || signerDer == NULL || signerDerSz == 0 ||
-        keyDer == NULL || keyDerSz == 0)
+        keyDer == NULL || keyDerSz == 0 ||
+        (issuerCertDerSz != 0 && issuerCertDer == NULL))
         return BAD_FUNC_ARG;
 
     /* Allocate CA structure */
@@ -2431,7 +2435,6 @@ out:
     return ret;
 }
 
-/* Find Auth CA by comparing cert DER */
 /* Find Auth CA by issuer hashes from request */
 static OcspResponderCa* FindCaByHashes(OcspResponder* responder,
     const byte* issuerHash, const byte* issuerKeyHash, int hashAlg)

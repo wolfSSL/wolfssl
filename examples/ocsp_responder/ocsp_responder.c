@@ -391,8 +391,8 @@ static int PopulateResponderFromIndex(OcspResponder* responder, IndexEntry* inde
                                        DecodedCert* caCert)
 {
     IndexEntry* entry;
-    const char* caSubject;
-    word32 caSubjSz;
+    char caSubjectBuf[WC_ASN_NAME_MAX];
+    word32 caSubjSz = sizeof(caSubjectBuf);
     int count = 0;
     int ret;
 
@@ -400,8 +400,8 @@ static int PopulateResponderFromIndex(OcspResponder* responder, IndexEntry* inde
         return BAD_FUNC_ARG;
     }
 
-    caSubject = wc_GetDecodedCertSubject(caCert, &caSubjSz);
-    if (caSubject == NULL || caSubjSz == 0) {
+    ret = wc_GetDecodedCertSubject(caCert, caSubjectBuf, &caSubjSz);
+    if (ret != 0 || caSubjSz == 0) {
         LOG_ERROR("Could not get CA subject\n");
         return BAD_FUNC_ARG;
     }
@@ -467,7 +467,7 @@ static int PopulateResponderFromIndex(OcspResponder* responder, IndexEntry* inde
         }
 
         ret = wc_OcspResponder_SetCertStatus(responder,
-                                              caSubject, caSubjSz,
+                                              caSubjectBuf, caSubjSz,
                                               serial, serialLen,
                                               status, revTime, revReason, validity);
         if (ret == 0) {
@@ -832,7 +832,8 @@ THREAD_RETURN WOLFSSL_THREAD ocsp_responder_test(void* args)
         ret = -1;
         goto cleanup;
     }
-    (void)wc_GetDecodedCertSubject(&caCert, &caSubjectSz);
+    (void)wc_GetDecodedCertSubject(&caCert, NULL, &caSubjectSz);
+    (void)caSubjectSz; /* Not used in current implementation */
     (void)caSubjectSz; /* Not used in current implementation */
 
     /* Load index file if provided */

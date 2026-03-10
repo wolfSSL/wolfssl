@@ -1278,10 +1278,10 @@ static int ocspResponderTest_Run(OcspResponderTestConfig* config, int sendCerts)
     word32 respSz = 0;
     byte reqBuf[1024];
     int reqSz = 0;
-    const char* caSubject = NULL;
-    word32 caSubjectSz = 0;
-    const byte* serial = NULL;
-    word32 serialSz = 0;
+    char caSubject[WC_ASN_NAME_MAX];
+    word32 caSubjectSz = sizeof(caSubject);
+    byte serial[EXTERNAL_SERIAL_SIZE];
+    word32 serialSz = sizeof(serial);
     XFILE f = XBADFILE;
     byte usingAuthCa = XSTRCMP(config->caCertPath, config->responderCertPath) != 0;
 
@@ -1362,9 +1362,9 @@ static int ocspResponderTest_Run(OcspResponderTestConfig* config, int sendCerts)
             usingAuthCa ? caCertDer : NULL, usingAuthCa ? caCertSz : 0), 0);
 
     /* Set certificate status */
-    ExpectNotNull(caSubject = wc_GetDecodedCertSubject(&decodedCaCert, &caSubjectSz));
+    ExpectIntEQ(wc_GetDecodedCertSubject(&decodedCaCert, caSubject, &caSubjectSz), 0);
     ExpectIntGT(caSubjectSz, 0);
-    ExpectNotNull(serial = wc_GetDecodedCertSerial(&targetCert, &serialSz));
+    ExpectIntEQ(wc_GetDecodedCertSerial(&targetCert, serial, &serialSz), 0);
     ExpectIntGT(serialSz, 0);
 
     ExpectIntEQ(wc_OcspResponder_SetCertStatus(responder,
