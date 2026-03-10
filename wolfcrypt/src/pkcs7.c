@@ -13221,6 +13221,12 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
             /* use cached content */
             encryptedContent = pkcs7->cachedEncryptedContent;
             encryptedContentSz = (int)pkcs7->cachedEncryptedContentSz;
+
+            if (encryptedContentSz <= 0) {
+                ret = BUFFER_E;
+                break;
+            }
+
             padLen = encryptedContent[encryptedContentSz-1];
 
             /* copy plaintext to output */
