@@ -67,14 +67,19 @@ static int d2i_make_pkey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
 
     /* Set the size and allocate memory for key data to be copied into. */
     pkey->pkey_sz = (int)memSz;
-    pkey->pkey.ptr = (char*)XMALLOC((size_t)memSz, NULL,
-        priv ? DYNAMIC_TYPE_PRIVATE_KEY : DYNAMIC_TYPE_PUBLIC_KEY);
-    if (pkey->pkey.ptr == NULL) {
-        ret = 0;
+    if (memSz > 0) {
+        pkey->pkey.ptr = (char*)XMALLOC((size_t)memSz, NULL,
+            priv ? DYNAMIC_TYPE_PRIVATE_KEY : DYNAMIC_TYPE_PUBLIC_KEY);
+        if (pkey->pkey.ptr == NULL) {
+            ret = 0;
+        }
+        if (ret == 1) {
+            /* Copy in key data. */
+            XMEMCPY(pkey->pkey.ptr, mem, memSz);
+        }
     }
     if (ret == 1) {
-        /* Copy in key data, set key type passed in and return object. */
-        XMEMCPY(pkey->pkey.ptr, mem, memSz);
+        /* Set key type passed in and return object. */
         pkey->type = type;
         *out = pkey;
     }
