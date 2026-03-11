@@ -176,6 +176,9 @@
 #ifdef HAVE_DILITHIUM
     #include <wolfssl/wolfcrypt/dilithium.h>
 #endif
+#ifdef WOLFSSL_HAVE_SLHDSA
+    #include <wolfssl/wolfcrypt/wc_slhdsa.h>
+#endif
 
 #ifdef OPENSSL_EXTRA
   #ifndef WOLFCRYPT_ONLY
