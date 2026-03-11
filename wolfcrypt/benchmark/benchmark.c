@@ -12026,9 +12026,9 @@ void bench_slhdsa(enum SlhDsaParam param)
 {
     int ret = 0, count = 0;
     double start = 0;
-    SlhDsaKey key;
-    SlhDsaKey key_vfy;
-    byte sig[WC_SLHDSA_MAX_SIG_LEN];
+    WC_DECLARE_VAR(key, SlhDsaKey, 1, HEAP_HINT);
+    WC_DECLARE_VAR(key_vfy, SlhDsaKey, 1, HEAP_HINT);
+    WC_DECLARE_VAR(sig, byte, WC_SLHDSA_MAX_SIG_LEN, HEAP_HINT);
     word32 sigLen;
     byte pk[2 * 32];
     word32 outLen;
@@ -12040,15 +12040,23 @@ void bench_slhdsa(enum SlhDsaParam param)
     char name[30];
     int len;
 
-    XMEMSET(&key, 0, sizeof(key));
-    XMEMSET(&key_vfy, 0, sizeof(key_vfy));
+    WC_ALLOC_VAR_EX(key_vfy, SlhDsaKey, 1, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER, goto exit);
+    XMEMSET(key_vfy, 0, sizeof(*key_vfy));
 
-    ret = wc_SlhDsaKey_Init(&key, param, NULL, INVALID_DEVID);
+    WC_ALLOC_VAR_EX(key, SlhDsaKey, 1, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER, goto exit);
+    XMEMSET(key, 0, sizeof(*key));
+
+    WC_ALLOC_VAR_EX(sig, byte, WC_SLHDSA_MAX_SIG_LEN, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER, goto exit);
+
+    ret = wc_SlhDsaKey_Init(key, param, NULL, INVALID_DEVID);
     if (ret != 0) {
         goto exit;
     }
 
-    len = wc_SlhDsaKey_PublicSize(&key) / 2 * 8;
+    len = wc_SlhDsaKey_PublicSize(key) / 2 * 8;
     XMEMCPY(name, "SLH-DSA-S", 10);
     if ((param & 1) == 1) {
         name[8] = 'F';
@@ -12056,7 +12064,7 @@ void bench_slhdsa(enum SlhDsaParam param)
 
     bench_stats_start(&count, &start);
     do {
-        ret = wc_SlhDsaKey_MakeKey(&key, &gRng);
+        ret = wc_SlhDsaKey_MakeKey(key, &gRng);
         if (ret != 0) {
            goto exit;
         }
@@ -12071,8 +12079,8 @@ void bench_slhdsa(enum SlhDsaParam param)
 
     bench_stats_start(&count, &start);
     do {
-        sigLen = (word32)sizeof(sig);
-        ret = wc_SlhDsaKey_Sign(&key, ctx, 0, msg, (word32)sizeof(msg),
+        sigLen = WC_SLHDSA_MAX_SIG_LEN;
+        ret = wc_SlhDsaKey_Sign(key, ctx, 0, msg, (word32)sizeof(msg),
             sig, &sigLen, &gRng);
         if (ret != 0) {
             goto exit;
@@ -12087,22 +12095,22 @@ void bench_slhdsa(enum SlhDsaParam param)
     bench_stats_asym_finish(name, len, "sign", 0, count, start, ret);
 
     outLen = (word32)sizeof(pk);
-    ret = wc_SlhDsaKey_ExportPublic(&key, pk, &outLen);
+    ret = wc_SlhDsaKey_ExportPublic(key, pk, &outLen);
     if (ret != 0) {
         goto exit;
     }
 
-    ret = wc_SlhDsaKey_Init(&key_vfy, param, NULL, INVALID_DEVID);
+    ret = wc_SlhDsaKey_Init(key_vfy, param, NULL, INVALID_DEVID);
     if (ret != 0) {
         goto exit;
     }
-    ret = wc_SlhDsaKey_ImportPublic(&key_vfy, pk, outLen);
+    ret = wc_SlhDsaKey_ImportPublic(key_vfy, pk, outLen);
     if (ret != 0) {
         goto exit;
     }
     bench_stats_start(&count, &start);
     do {
-        ret = wc_SlhDsaKey_Verify(&key_vfy, ctx, 0, msg, (word32)sizeof(msg),
+        ret = wc_SlhDsaKey_Verify(key_vfy, ctx, 0, msg, (word32)sizeof(msg),
             sig, sigLen);
         if (ret != 0) {
             goto exit;
@@ -12117,8 +12125,22 @@ void bench_slhdsa(enum SlhDsaParam param)
     bench_stats_asym_finish(name, len, "verify", 0, count, start, ret);
 
 exit:
-    wc_SlhDsaKey_Free(&key_vfy);
-    wc_SlhDsaKey_Free(&key);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    if (key_vfy)
+#endif
+    {
+        wc_SlhDsaKey_Free(key_vfy);
+    }
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    if (key)
+#endif
+    {
+        wc_SlhDsaKey_Free(key);
+    }
+
+    WC_FREE_VAR_EX(key_vfy, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 }
 #endif
 
