@@ -27084,6 +27084,12 @@ static const char* wolfSSL_ERR_reason_error_string_OpenSSL(unsigned long e)
     case WOLFSSL_X509_V_ERR_SUBJECT_ISSUER_MISMATCH:
         return "subject issuer mismatch";
 
+    case WOLFSSL_X509_V_ERR_HOSTNAME_MISMATCH:
+        return "hostname mismatch";
+
+    case WOLFSSL_X509_V_ERR_IP_ADDRESS_MISMATCH:
+        return "IP address mismatch";
+
     default:
         return NULL;
     }

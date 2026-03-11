@@ -740,6 +740,33 @@ exit:
         wolfSSL_sk_X509_free(certsToUse);
     }
 
+    /* Enforce hostname / IP verification from X509_VERIFY_PARAM if set.
+     * Always check against the leaf (end-entity) certificate, captured in
+     * orig before the chain-building loop modified ctx->current_cert. */
+    if (ctx->param != NULL) {
+        if (ret == WOLFSSL_SUCCESS && ctx->param->hostName[0] != '\0') {
+            if (wolfSSL_X509_check_host(orig,
+                    ctx->param->hostName,
+                    XSTRLEN(ctx->param->hostName),
+                    ctx->param->hostFlags, NULL) != WOLFSSL_SUCCESS) {
+                ctx->error = WOLFSSL_X509_V_ERR_HOSTNAME_MISMATCH;
+                ctx->error_depth = 0;
+                ctx->current_cert = orig;
+                ret = WOLFSSL_FAILURE;
+            }
+        }
+        if (ret == WOLFSSL_SUCCESS && ctx->param->ipasc[0] != '\0') {
+            if (wolfSSL_X509_check_ip_asc(orig,
+                    ctx->param->ipasc,
+                    ctx->param->hostFlags) != WOLFSSL_SUCCESS) {
+                ctx->error = WOLFSSL_X509_V_ERR_IP_ADDRESS_MISMATCH;
+                ctx->error_depth = 0;
+                ctx->current_cert = orig;
+                ret = WOLFSSL_FAILURE;
+            }
+        }
+    }
+
     return ret == WOLFSSL_SUCCESS ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
 }
 
