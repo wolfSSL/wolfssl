@@ -34,6 +34,9 @@ functionality:
   * Ed448
   * HKDF
   * HMAC
+  * LMS
+  * ML-DSA
+  * ML-KEM
   * PBKDF2
   * PKCS #12 PBKDF
   * PRF
