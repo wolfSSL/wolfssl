@@ -41673,7 +41673,7 @@ int DecodeOcspRequest(OcspRequest* req, const byte* input, word32 size)
     if (ret == 0) {
         GetASN_GetRef(&dataASN[OCSPREQUESTASN_IDX_TBS_REQ_SERIAL],
                 &serial, &serialSz);
-        if (serialSz == 0 || serial == NULL)
+        if (serialSz == 0 || serial == NULL || serialSz > EXTERNAL_SERIAL_SIZE)
             ret = ASN_PARSE_E;
     }
     if (ret == 0) {

@@ -571,9 +571,8 @@ static int ParseHttpRequest(const byte* httpReq, int httpReqSz,
                 return -1;
             }
 
-            /* Use Content-Length if available, otherwise use remaining data */
             if (*bodySz == 0) {
-                *bodySz = httpReqSz - offset;
+                return -1;
             }
 
             /* Ensure that the claimed body length fits in the received data */
@@ -1081,6 +1080,9 @@ int main(int argc, char** argv)
 {
     func_args args;
     int ret;
+
+    printf("The ocsp_responder.c example is only meant for testing. "
+            "Do not use this in a production environment.\n");
 
     StartTCP();
 
