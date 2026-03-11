@@ -29,5 +29,6 @@ int test_ocsp_response_parsing(void);
 int test_ocsp_tls_cert_cb(void);
 int test_ocsp_cert_unknown_crl_fallback(void);
 int test_ocsp_cert_unknown_crl_fallback_nonleaf(void);
+int test_ocsp_responder(void);
 #endif /* WOLFSSL_TEST_OCSP_H */
 

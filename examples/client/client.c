@@ -1727,7 +1727,7 @@ static void showPeerPEM(WOLFSSL* ssl)
 
         if (bioOut) {
             wolfSSL_BIO_write(bioOut, "---\nServer certificate\n",
-                    XSTRLEN("---\nServer certificate\n"));
+                    (int)XSTRLEN("---\nServer certificate\n"));
             wolfSSL_PEM_write_bio_X509(bioOut, peer);
         }
         wolfSSL_BIO_free(bioOut);
