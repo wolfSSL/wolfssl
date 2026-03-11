@@ -591,7 +591,7 @@ int CheckCertCRL_ex(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
             if (cbRet == WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_WANT_READ)) {
                 ret = OCSP_WANT_READ;
             }
-            else if (ret >= 0) {
+            else if (cbRet >= 0) {
                 /* try again */
                 ret = CheckCertCRLList(crl, issuerHash, serial, serialSz,
                         serialHash, &foundEntry);

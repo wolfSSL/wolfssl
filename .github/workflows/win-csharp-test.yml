@@ -27,7 +27,7 @@ jobs:
 
     steps:
         - name: Pull wolfssl
-          uses: actions/checkout@master
+          uses: actions/checkout@v4
           with:
             repository: wolfssl/wolfssl
             path: wolfssl
@@ -41,7 +41,7 @@ jobs:
             echo $null >> wolfcrypt\src\wolfcrypt_last.c
 
         - name: Add MSBuild to PATH
-          uses: microsoft/setup-msbuild@v1
+          uses: microsoft/setup-msbuild@v2
 
         - name: Build
           working-directory: ${{env.GITHUB_WORKSPACE}}

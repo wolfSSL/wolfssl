@@ -6869,11 +6869,7 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif
 
     sessIdSz = input[args->idx++];
-#ifndef WOLFSSL_TLS13_MIDDLEBOX_COMPAT
     if (sessIdSz > ID_LEN)
-#else
-    if (sessIdSz != ID_LEN && sessIdSz != 0)
-#endif
     {
         ERROR_OUT(INVALID_PARAMETER, exit_dch);
     }

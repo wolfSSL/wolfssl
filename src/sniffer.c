@@ -3478,7 +3478,7 @@ static int ProcessSessionTicket(const byte* input, int* sslBytes,
     /* TLS v1.3 has hint age and nonce */
     if (IsAtLeastTLSv1_3(ssl->version)) {
         /* make sure can read through hint age and nonce len */
-        if (TICKET_HINT_AGE_LEN + 1 > *sslBytes) {
+        if (TICKET_HINT_AGE_LEN + OPAQUE8_LEN > *sslBytes) {
             SetError(BAD_INPUT_STR, error, session, FATAL_ERROR_STATE);
             return WOLFSSL_FATAL_ERROR;
         }
@@ -3487,7 +3487,7 @@ static int ProcessSessionTicket(const byte* input, int* sslBytes,
 
         /* ticket nonce */
         len = input[0];
-        if (len > MAX_TICKET_NONCE_STATIC_SZ) {
+        if (len > MAX_TICKET_NONCE_STATIC_SZ || len + OPAQUE8_LEN > *sslBytes) {
             SetError(BAD_INPUT_STR, error, session, FATAL_ERROR_STATE);
             return WOLFSSL_FATAL_ERROR;
         }
@@ -3847,6 +3847,11 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
             case EXT_MAX_FRAGMENT_LENGTH:
             {
                 word16 max_fragment = MAX_RECORD_SIZE;
+                if (extLen != 1) {
+                    SetError(SERVER_HELLO_INPUT_STR, error, session,
+                             FATAL_ERROR_STATE);
+                    return WOLFSSL_FATAL_ERROR;
+                }
                 switch (input[0]) {
                     case WOLFSSL_MFL_2_8 : max_fragment =  256; break;
                     case WOLFSSL_MFL_2_9 : max_fragment =  512; break;
@@ -3862,6 +3867,11 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
             }
         #endif
             case EXT_SUPPORTED_VERSIONS:
+                if (extLen != 2) {
+                    SetError(SERVER_HELLO_INPUT_STR, error, session,
+                             FATAL_ERROR_STATE);
+                    return WOLFSSL_FATAL_ERROR;
+                }
                 session->sslServer->version.major = input[0];
                 session->sslServer->version.minor = input[1];
                 session->sslClient->version.major = input[0];

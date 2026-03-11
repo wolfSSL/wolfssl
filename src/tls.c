@@ -6173,24 +6173,6 @@ int TLSX_AddEmptyRenegotiationInfo(TLSX** extensions, void* heap)
 
 #ifdef HAVE_SESSION_TICKET
 
-#if defined(WOLFSSL_TLS13) || !defined(NO_WOLFSSL_CLIENT)
-static void TLSX_SessionTicket_ValidateRequest(WOLFSSL* ssl)
-{
-    TLSX*          extension = TLSX_Find(ssl->extensions, TLSX_SESSION_TICKET);
-    SessionTicket* ticket    = extension ?
-                                         (SessionTicket*)extension->data : NULL;
-
-    if (ticket) {
-        /* TODO validate ticket timeout here! */
-        if (ticket->lifetime == 0xfffffff) {
-            /* send empty ticket on timeout */
-            TLSX_UseSessionTicket(&ssl->extensions, NULL, ssl->heap);
-        }
-    }
-}
-#endif /* WOLFSSL_TLS13 || !NO_WOLFSSL_CLIENT */
-
-
 static word16 TLSX_SessionTicket_GetSize(SessionTicket* ticket, int isRequest)
 {
     (void)isRequest;
@@ -6369,7 +6351,6 @@ int TLSX_UseSessionTicket(TLSX** extensions, SessionTicket* ticket, void* heap)
     return WOLFSSL_SUCCESS;
 }
 
-#define WOLF_STK_VALIDATE_REQUEST TLSX_SessionTicket_ValidateRequest
 #define WOLF_STK_GET_SIZE         TLSX_SessionTicket_GetSize
 #define WOLF_STK_WRITE            TLSX_SessionTicket_Write
 #define WOLF_STK_PARSE            TLSX_SessionTicket_Parse
@@ -15402,7 +15383,6 @@ int TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, word32* pLength)
     if (msgType == client_hello) {
         EC_VALIDATE_REQUEST(ssl, semaphore);
         PF_VALIDATE_REQUEST(ssl, semaphore);
-        WOLF_STK_VALIDATE_REQUEST(ssl);
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
         if (WOLFSSL_SUITES(ssl)->hashSigAlgoSz == 0)
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_SIGNATURE_ALGORITHMS));
@@ -15579,7 +15559,6 @@ int TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType, word32* pOffset)
     if (msgType == client_hello) {
         EC_VALIDATE_REQUEST(ssl, semaphore);
         PF_VALIDATE_REQUEST(ssl, semaphore);
-        WOLF_STK_VALIDATE_REQUEST(ssl);
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
         if (WOLFSSL_SUITES(ssl)->hashSigAlgoSz == 0)
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_SIGNATURE_ALGORITHMS));

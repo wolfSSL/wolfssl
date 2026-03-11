@@ -119,6 +119,10 @@ int wc_ChaCha20Poly1305_Decrypt(
     if (ret == 0)
         ret = wc_ChaCha20Poly1305_CheckTag(inAuthTag, calculatedAuthTag);
 
+    if (ret != 0) {
+        /* zero plaintext on error */
+        ForceZero(outPlaintext, inCiphertextLen);
+    }
     WC_FREE_VAR_EX(aead, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
