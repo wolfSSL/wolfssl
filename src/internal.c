@@ -3159,6 +3159,9 @@ static void FreeCiphersSide(Ciphers *cipher, void* heap)
     XFREE(cipher->hmac, heap, DYNAMIC_TYPE_CIPHER);
     cipher->hmac = NULL;
 #endif
+
+    (void)cipher;
+    (void)heap;
 }
 
 /* Free ciphers */
@@ -8619,7 +8622,7 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
     }
     FreeSuites(ssl);
     FreeHandshakeHashes(ssl);
-#ifdef HAVE_ECH
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
     /* try to free the ech hashes in case we errored out */
     ssl->hsHashes = ssl->hsHashesEch;
     FreeHandshakeHashes(ssl);
@@ -39085,6 +39088,9 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 #if defined(OPENSSL_ALL) && defined(KEEP_PEER_CERT) && \
     !defined(NO_CERT_IN_TICKET)
         internalTicketSz += peerCertSz;
+#endif
+#ifdef WOLFSSL_TICKET_ENC_CBC_HMAC
+        internalTicketSz = (internalTicketSz + 15) & (~0xf);
 #endif
         /* MAC is placed after the encrypted data */
         mac = et->enc_ticket + WOLFSSL_TICKET_ENC_SZ;
