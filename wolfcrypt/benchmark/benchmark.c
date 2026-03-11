@@ -16096,7 +16096,11 @@ void bench_sphincsKeySign(byte level, byte optim)
         int64_t t;
         (void)reset;
      #if defined(CONFIG_ARCH_POSIX)
-         k_cpu_idle();
+         #if defined(CONFIG_BOARD_NATIVE_SIM)
+             k_msleep(1);
+         #else
+             k_cpu_idle();
+         #endif
      #endif
         t = k_uptime_get(); /* returns current uptime in milliseconds */
         return (double)(t / 1000);
