@@ -12536,7 +12536,7 @@ EVP_TEST_END:
         ret = EVP_test(wolfSSL_EVP_aes_128_cfb8(), key1, iv, msg1, sizeof(msg1),
                 cipher1, sizeof(cipher1));
         if (ret != 0) {
-            return ret;
+            ERROR_OUT(ret, out);
         }
     #endif
         ret = wc_AesSetKey(enc, key1, WC_AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
@@ -12583,7 +12583,7 @@ EVP_TEST_END:
         ret = EVP_test(wolfSSL_EVP_aes_192_cfb8(), key2, iv2, msg2, sizeof(msg2),
                 cipher2, sizeof(msg2));
         if (ret != 0) {
-            return ret;
+            ERROR_OUT(ret, out);
         }
 #endif
 
@@ -25744,6 +25744,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
 
 exit_rsa:
 
+    (void)res;
+    (void)bytes;
+    (void)idx;
+    (void)in;
+    (void)out;
+    (void)plain;
+    (void)idx;
+    (void)inStr;
+    (void)inLen;
+    (void)outSz;
+    (void)plainSz;
+
 #if !defined(WOLFSSL_NO_MALLOC)
     XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     #if defined(WOLFSSL_CERT_REQ)
@@ -25771,18 +25783,6 @@ exit_rsa:
     WC_FREE_VAR(in, HEAP_HINT);
     WC_FREE_VAR(out, HEAP_HINT);
     WC_FREE_VAR(plain, HEAP_HINT);
-
-    (void)res;
-    (void)bytes;
-    (void)idx;
-    (void)in;
-    (void)out;
-    (void)plain;
-    (void)idx;
-    (void)inStr;
-    (void)inLen;
-    (void)outSz;
-    (void)plainSz;
 
     /* ret can be greater then 0 with certgen but all negative values should
      * be returned and treated as an error */
@@ -28266,8 +28266,11 @@ static wc_test_ret_t openssl_aes_test(void)
         int  num = 0;
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-        if ((enc == NULL) || (dec == NULL))
+        if ((enc == NULL) || (dec == NULL)) {
+            XFREE(enc, HEAP_HINT, DYNAMIC_TYPE_AES);
+            XFREE(dec, HEAP_HINT, DYNAMIC_TYPE_AES);
             return MEMORY_E;
+        }
 #endif
 
         XMEMCPY(iv, setIv, sizeof(setIv));
@@ -37600,7 +37603,7 @@ static wc_test_ret_t ecc_ctx_kdf_salt_test(WC_RNG* rng, ecc_key* a, ecc_key* b)
     }
 
     XMEMSET(plaintext, 0, MAX_ECIES_TEST_SZ);
-    XSTRLCPY((char *)plaintext, message, sizeof plaintext);
+    XSTRLCPY((char *)plaintext, message, MAX_ECIES_TEST_SZ);
     plaintextLen = (((word32)XSTRLEN(message) + WC_AES_BLOCK_SIZE - 1) /
                     WC_AES_BLOCK_SIZE) * WC_AES_BLOCK_SIZE;
 
