@@ -571,8 +571,11 @@ static int ParseHttpRequest(const byte* httpReq, int httpReqSz,
                 return -1;
             }
 
+            /* Use Content-Length if available, otherwise use remaining data */
             if (*bodySz == 0) {
-                return -1;
+                /* TODO We should only enter here when "Connection-close"
+                 * is present. There should be some checks to confirm that. */
+                *bodySz = httpReqSz - offset;
             }
 
             /* Ensure that the claimed body length fits in the received data */
