@@ -444,10 +444,12 @@ static int PopulateResponderFromIndex(OcspResponder* responder, IndexEntry* inde
         }
 
         for (i = 0; i < serialLen; i++) {
-            int high = (p[i*2] >= 'A') ? (p[i*2] - 'A' + 10) :
-                      (p[i*2] >= 'a') ? (p[i*2] - 'a' + 10) : (p[i*2] - '0');
-            int low = (p[i*2+1] >= 'A') ? (p[i*2+1] - 'A' + 10) :
-                     (p[i*2+1] >= 'a') ? (p[i*2+1] - 'a' + 10) : (p[i*2+1] - '0');
+            int high = ('0' <= p[i*2]   && p[i*2]   <= '9') ? (p[i*2]   - '0') :
+                       ('A' <= p[i*2]   && p[i*2]   <= 'F') ? (p[i*2]   - 'A' + 10) :
+                                                               (p[i*2]   - 'a' + 10);
+            int low  = ('0' <= p[i*2+1] && p[i*2+1] <= '9') ? (p[i*2+1] - '0') :
+                       ('A' <= p[i*2+1] && p[i*2+1] <= 'F') ? (p[i*2+1] - 'A' + 10) :
+                                                               (p[i*2+1] - 'a' + 10);
             serial[i] = (byte)((high << 4) | low);
         }
 
@@ -833,7 +835,6 @@ THREAD_RETURN WOLFSSL_THREAD ocsp_responder_test(void* args)
         goto cleanup;
     }
     (void)wc_GetDecodedCertSubject(&caCert, NULL, &caSubjectSz);
-    (void)caSubjectSz; /* Not used in current implementation */
     (void)caSubjectSz; /* Not used in current implementation */
 
     /* Load index file if provided */

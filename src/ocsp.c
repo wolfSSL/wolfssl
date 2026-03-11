@@ -636,7 +636,7 @@ static int CheckOcspResponderChain(OcspEntry* single, byte* issuerHash,
  * @param bs              The basic OCSP response to verify
  * @param subjectHash     The subject key hash of the OCSP responder certificate
  * @param extExtKeyUsage  The extended key usage bits of the responder certificate
- * @param issuerHash      The issuer key hash of the OCSP responder certificate
+ * @param issuerHash      The issuer name hash of the OCSP responder certificate
  * @param vp              Unused (reserved for future use)
  * @return 1 if the responder is authorized to sign the response, 0 otherwise
  */

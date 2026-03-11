@@ -171,9 +171,9 @@ wait_for_readyFile(){
 
     counter=0
 
-    while [ ! -s $1 -a "$counter" -lt 20 ]; do
+    while [ ! -s "$1" ] && [ "$counter" -lt 20 ]; do
         if [[ -n "${2-}" ]]; then
-            if ! kill -0 $2 2>&-; then
+            if ! kill -0 "$2" 2>&-; then
                 echo "pid $2 for port ${3-} exited before creating ready file.  bailing..."
                 exit 1
             fi
@@ -183,7 +183,7 @@ wait_for_readyFile(){
         counter=$((counter+ 1))
     done
 
-    if test -e $1; then
+    if test -e "$1"; then
         echo -e "found ready file, starting client..."
     else
         echo -e "NO ready file at $1 -- ending test..."

@@ -549,7 +549,7 @@ static word32 SizeASNLength(word32 length)
      * @param [in]      heap  Dynamic memory allocation hint.
      */
     #define ALLOC_ASNGETDATA(name, cnt, err, heap) \
-        (void)(cnt); (void)(err); (void)(heap); WC_DO_NOTHING
+        do { (void)(cnt); (void)(err); (void)(heap); } while (0)
 
     /* Clears the memory of the dynamic BER encoding data.
      *
@@ -567,7 +567,7 @@ static word32 SizeASNLength(word32 length)
      * @param [in]      heap  Dynamic memory allocation hint.
      */
     #define FREE_ASNGETDATA(name, heap) \
-        (void)(name); (void)(heap); WC_DO_NOTHING
+        do { (void)(name); (void)(heap); } while (0)
 
     /* Declare the variable that is the dynamic data for encoding DER data.
      *
@@ -585,7 +585,7 @@ static word32 SizeASNLength(word32 length)
      * @param [in]      heap  Dynamic memory allocation hint.
      */
     #define ALLOC_ASNSETDATA(name, cnt, err, heap) \
-        (void)(cnt); (void)(err); (void)(heap); WC_DO_NOTHING
+        do { (void)(cnt); (void)(err); (void)(heap); } while (0)
 
     /* Clears the memory of the dynamic BER encoding data.
      *
@@ -603,7 +603,7 @@ static word32 SizeASNLength(word32 length)
      * @param [in]      heap  Dynamic memory allocation hint.
      */
     #define FREE_ASNSETDATA(name, heap) \
-        (void)(name); (void)(heap); WC_DO_NOTHING
+        do { (void)(name); (void)(heap); } while (0)
 #endif
 
 
@@ -41385,6 +41385,8 @@ int EncodeOcspRequest(OcspRequest* req, byte* output, word32 size)
 
     algoSz = SetAlgoID(req->hashAlg, algoArray, oidHashType, 0);
     keyIdSz = wc_HashGetDigestSize(wc_OidGetHash(req->hashAlg));
+    if (keyIdSz <= 0 || keyIdSz > WC_MAX_DIGEST_SIZE)
+        return BAD_FUNC_ARG;
 
     issuerSz    = SetDigest(req->issuerHash,    keyIdSz,    issuerArray);
     issuerKeySz = SetDigest(req->issuerKeyHash, keyIdSz,    issuerKeyArray);
@@ -41452,10 +41454,16 @@ int EncodeOcspRequest(OcspRequest* req, byte* output, word32 size)
     CALLOC_ASNSETDATA(dataASN, ocspRequestASN_Length, ret, req->heap);
 
     if (ret == 0) {
+        int digestSz = wc_HashGetDigestSize(wc_OidGetHash(req->hashAlg));
+        if (digestSz <= 0)
+            ret = BAD_FUNC_ARG;
+        else
+            keyIdSz = (word32)digestSz;
+    }
+    if (ret == 0) {
         /* Set OID of hash algorithm use on issuer and key. */
         SetASN_OID(&dataASN[OCSPREQUESTASN_IDX_TBS_REQ_HASH_OID], req->hashAlg,
                 oidHashType);
-        keyIdSz = (word32)wc_HashGetDigestSize(wc_OidGetHash(req->hashAlg));
         /* Set issuer, issuer key hash and serial number of certificate being
          * checked. */
         SetASN_Buffer(&dataASN[OCSPREQUESTASN_IDX_TBS_REQ_ISSUER],
