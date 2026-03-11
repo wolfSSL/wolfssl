@@ -2795,6 +2795,10 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
     ato32(data + idx, &s->bornOn); idx += OPAQUE32_LEN;
     ato32(data + idx, &s->timeout); idx += OPAQUE32_LEN;
     s->sessionIDSz = data[idx++];
+    if (s->sessionIDSz > ID_LEN) {
+        ret = BUFFER_ERROR;
+        goto end;
+    }
 
     /* sessionID | secret | haveEMS | haveAltSessionID */
     if (i - idx < s->sessionIDSz + SECRET_LEN + OPAQUE8_LEN + OPAQUE8_LEN) {
@@ -2877,6 +2881,10 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
         goto end;
     }
     ato16(data + idx, &s->idLen); idx += OPAQUE16_LEN;
+    if (s->idLen > SERVER_ID_LEN) {
+        ret = BUFFER_ERROR;
+        goto end;
+    }
 
     /* ServerID */
     if (i - idx < s->idLen) {
@@ -2892,6 +2900,10 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
         goto end;
     }
     s->sessionCtxSz = data[idx++];
+    if (s->sessionCtxSz > ID_LEN) {
+        ret = BUFFER_ERROR;
+        goto end;
+    }
 
     /* app session context ID */
     if (i - idx < s->sessionCtxSz) {
