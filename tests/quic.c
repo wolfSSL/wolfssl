@@ -731,9 +731,13 @@ static void ext_dump(const byte *data, size_t data_len, int indent)
     word16 len16, etype, i;
 
     printf("%*sextensions:\n", indent, " ");
-    while (idx < data_len) {
+    while (idx + 4 <= data_len) {
         ato16(&data[idx], &etype); /* extension type */
         ato16(&data[idx+2], &len16); /* extension length */
+        if (idx + 4 + len16 > data_len) {
+            printf("  unexpected extension length\n");
+            break;
+        }
         printf("  extension: %04x [", etype);
         for (i = 0; i < len16; ++i) {
             printf("%s0x%02x", (i? ", ": ""), data[idx+4+i]);
