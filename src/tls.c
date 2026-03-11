@@ -7373,7 +7373,7 @@ int TLSX_Cookie_Use(const WOLFSSL* ssl, const byte* data, word16 len, byte* mac,
 
 #else
 
-#define CKE_FREE_ALL(a, b)    WC_DO_NOTHING
+#define CKE_FREE_ALL(a, b)    0
 #define CKE_GET_SIZE(a, b, c) 0
 #define CKE_WRITE(a, b, c, d) 0
 #define CKE_PARSE(a, b, c, d) 0
@@ -13903,10 +13903,12 @@ void TLSX_FreeAll(TLSX* list, void* heap)
                 WOLFSSL_MSG("Supported Versions extension free");
                 break;
 
+    #ifdef WOLFSSL_SEND_HRR_COOKIE
             case TLSX_COOKIE:
                 WOLFSSL_MSG("Cookie extension free");
                 CKE_FREE_ALL((Cookie*)extension->data, heap);
                 break;
+    #endif
 
     #ifdef WOLFSSL_EARLY_DATA
             case TLSX_EARLY_DATA:
@@ -14098,9 +14100,11 @@ static int TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType,
                 ret = SV_GET_SIZE(extension->data, msgType, &length);
                 break;
 
+    #ifdef WOLFSSL_SEND_HRR_COOKIE
             case TLSX_COOKIE:
                 ret = CKE_GET_SIZE((Cookie*)extension->data, msgType, &length);
                 break;
+    #endif
 
     #ifdef WOLFSSL_EARLY_DATA
             case TLSX_EARLY_DATA:
@@ -14331,11 +14335,13 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
                                                                        &offset);
                 break;
 
+    #ifdef WOLFSSL_SEND_HRR_COOKIE
             case TLSX_COOKIE:
                 WOLFSSL_MSG("Cookie extension to write");
                 ret = CKE_WRITE((Cookie*)extension->data, output + offset,
                                 msgType, &offset);
                 break;
+    #endif
 
     #ifdef WOLFSSL_EARLY_DATA
             case TLSX_EARLY_DATA:
@@ -16635,6 +16641,7 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
                 break;
 
 
+    #ifdef WOLFSSL_SEND_HRR_COOKIE
             case TLSX_COOKIE:
                 WOLFSSL_MSG("Cookie extension received");
             #ifdef WOLFSSL_DEBUG_TLS
@@ -16650,6 +16657,7 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
 
                 ret = CKE_PARSE(ssl, input + offset, size, msgType);
                 break;
+    #endif
 
     #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
             case TLSX_PRE_SHARED_KEY:
@@ -16889,16 +16897,6 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
 #endif
             default:
                 WOLFSSL_MSG("Unknown TLS extension type");
-#if defined(WOLFSSL_TLS13)
-                /* RFC 8446 4.2: for TLS 1.3 server-to-client messages, the
-                 * client MUST abort with unsupported_extension upon receiving
-                 * an extension that was not advertised in the ClientHello. */
-                if (IsAtLeastTLSv1_3(ssl->version) && !isRequest) {
-                    SendAlert((WOLFSSL*)ssl, alert_fatal, unsupported_extension);
-                    WOLFSSL_ERROR_VERBOSE(UNSUPPORTED_EXTENSION);
-                    return UNSUPPORTED_EXTENSION;
-                }
-#endif
         }
 
         /* offset should be updated here! */
