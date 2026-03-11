@@ -228,15 +228,15 @@ which is of 8 byte
 
 typedef struct
 {
-    uint8_t  element_CKA;     //!< contains class, key_type & Algorithm mode
-    uint16_t property;        //!< properties of the element
-    uint8_t  usage_key;       //!< usage key
-    uint8_t  write_key;       //!< write key
-    uint8_t  read_key;        //!< read key
-    uint8_t  permission;      //!< permission of the element usage|write|read|
-                              //delete perm
-    uint8_t  byte7_settings;  //!< Byte 7 attributes use_count|exportable|
-                              // lockable|access_limit
+    uint8_t  element_CKA;     /* contains class, key_type & Algorithm mode */
+    uint16_t property;        /* properties of the element */
+    uint8_t  usage_key;       /* usage key */
+    uint8_t  write_key;       /* write key */
+    uint8_t  read_key;        /* read key */
+    uint8_t  permission;      /* permission of the element usage|write|read|
+                                 delete perm */
+    uint8_t  byte7_settings;  /* Byte 7 attributes use_count|exportable|
+                                 lockable|access_limit */
 } ATCA_PACKED ta_element_attributes_t;
 
 See Shared Data Element Attributes in the programming specifications

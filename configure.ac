@@ -3251,7 +3251,7 @@ AS_IF([test "x$with_cryptoauthlib" != "xno"], [
                 CPPFLAGS="$saved_CPPFLAGS"
                 CFLAGS="$saved_CFLAGS"
                 AC_MSG_RESULT([no - compilation failed])
-                AC_MSG_ERROR([CryptoAuthLib found but test compilation failed. Check config.log for details.])
+                AC_MSG_ERROR([CryptoAuthLib found but compilation check failed. Check config.log for details.])
             ])
     ], [
         AC_MSG_RESULT([no - library not found])
