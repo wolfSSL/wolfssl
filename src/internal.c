@@ -8623,8 +8623,6 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
     /* try to free the ech hashes in case we errored out */
     ssl->hsHashes = ssl->hsHashesEch;
     FreeHandshakeHashes(ssl);
-    ssl->hsHashes = ssl->hsHashesEchInner;
-    FreeHandshakeHashes(ssl);
 #endif
     XFREE(ssl->buffers.domainName.buffer, ssl->heap, DYNAMIC_TYPE_DOMAIN);
 
@@ -8636,10 +8634,9 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
     ForceZero(&ssl->serverSecret, sizeof(ssl->serverSecret));
 
 #if defined(HAVE_ECH)
-    if (ssl->options.useEch == 1) {
+    if (ssl->echConfigs != NULL) {
         FreeEchConfigs(ssl->echConfigs, ssl->heap);
         ssl->echConfigs = NULL;
-        ssl->options.useEch = 0;
     }
 #endif /* HAVE_ECH */
 #endif /* WOLFSSL_TLS13 */

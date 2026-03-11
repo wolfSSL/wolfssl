@@ -464,10 +464,32 @@ static int wc_HpkeLabeledExtract(Hpke* hpke, byte* suite_id,
 {
     int ret;
     byte* labeled_ikm_p;
+    word32 remaining;
     WC_DECLARE_VAR(labeled_ikm, byte, MAX_HPKE_LABEL_SZ, 0);
 
     if (hpke == NULL) {
         return BAD_FUNC_ARG;
+    }
+
+    /* check that sum of len's will not overflow */
+    remaining = MAX_HPKE_LABEL_SZ;
+    if ((word32)HPKE_VERSION_STR_LEN > remaining) {
+        return BUFFER_E;
+    }
+    remaining -= (word32)HPKE_VERSION_STR_LEN;
+
+    if (suite_id_len > remaining) {
+        return BUFFER_E;
+    }
+    remaining -= suite_id_len;
+
+    if (label_len > remaining) {
+        return BUFFER_E;
+    }
+    remaining -= label_len;
+
+    if (ikm_len > remaining) {
+        return BUFFER_E;
     }
 
     WC_ALLOC_VAR_EX(labeled_ikm, byte, MAX_HPKE_LABEL_SZ, hpke->heap,
@@ -511,10 +533,37 @@ static int wc_HpkeLabeledExpand(Hpke* hpke, byte* suite_id, word32 suite_id_len,
 {
     int ret;
     byte* labeled_info_p;
+    word32 remaining;
     WC_DECLARE_VAR(labeled_info, byte, MAX_HPKE_LABEL_SZ, 0);
 
     if (hpke == NULL) {
         return BAD_FUNC_ARG;
+    }
+
+    /* check that sum of len's will not overflow */
+    remaining = MAX_HPKE_LABEL_SZ;
+    if (2U > remaining){
+        return BUFFER_E;
+    }
+    remaining -= 2U;
+
+    if ((word32)HPKE_VERSION_STR_LEN > remaining) {
+        return BUFFER_E;
+    }
+    remaining -= (word32)HPKE_VERSION_STR_LEN;
+
+    if (suite_id_len > remaining) {
+        return BUFFER_E;
+    }
+    remaining -= suite_id_len;
+
+    if (label_len > remaining) {
+        return BUFFER_E;
+    }
+    remaining -= label_len;
+
+    if (infoSz > remaining) {
+        return BUFFER_E;
     }
 
     WC_ALLOC_VAR_EX(labeled_info, byte, MAX_HPKE_LABEL_SZ, hpke->heap,
