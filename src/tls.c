@@ -9966,6 +9966,17 @@ static int TLSX_KeyShare_ProcessPqcHybridClient(WOLFSSL* ssl,
 
         ssl->arrays->preMasterSz = ssSzEcc + ssSzPqc;
     }
+    else
+#ifdef WOLFSSL_ASYNC_CRYPT
+        if (ret != WC_NO_ERR_TRACE(WC_PENDING_E))
+#endif
+    {
+        /* Clear the pre master secret buffer to prevent leaking any
+         * intermediate keys in the error case. Do not use preMasterSz
+         * here as it may already been set to the ECC shared secret size,
+         * which would be too small due to the PQC offset case. */
+        ForceZero(ssl->arrays->preMasterSecret, ENCRYPT_LEN);
+    }
 
     TLSX_KeyShare_FreeAll(ecc_kse, ssl->heap);
     TLSX_KeyShare_FreeAll(pqc_kse, ssl->heap);
@@ -10701,6 +10712,17 @@ static int TLSX_KeyShare_HandlePqcHybridKeyServer(WOLFSSL* ssl,
         /* Set namedGroup so wolfSSL_get_curve_name() can function properly on
          * the server side. */
         ssl->namedGroup = keyShareEntry->group;
+    }
+    else
+#ifdef WOLFSSL_ASYNC_CRYPT
+        if (ret != WC_NO_ERR_TRACE(WC_PENDING_E))
+#endif
+    {
+        /* Clear the pre master secret buffer to prevent leaking any
+         * intermediate keys in the error case. Do not use preMasterSz
+         * here as it may already been set to the ECC shared secret size,
+         * which would be too small due to the PQC offset case. */
+        ForceZero(ssl->arrays->preMasterSecret, ENCRYPT_LEN);
     }
 
     TLSX_KeyShare_FreeAll(ecc_kse, ssl->heap);
