@@ -7468,6 +7468,48 @@ int wolfSSL_check_domain_name(WOLFSSL* ssl, const char* dn)
     }
 }
 
+/* call before SSL_connect, if verifying will add IP SAN check to
+   date check and signature check */
+WOLFSSL_ABI
+int wolfSSL_check_ip_address(WOLFSSL* ssl, const char* ipaddr)
+{
+    WOLFSSL_ENTER("wolfSSL_check_ip_address");
+
+    if (ssl == NULL || ipaddr == NULL) {
+        WOLFSSL_MSG("Bad function argument: NULL");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (ssl->buffers.ipasc.buffer != NULL) {
+        XFREE(ssl->buffers.ipasc.buffer, ssl->heap, DYNAMIC_TYPE_DOMAIN);
+        ssl->buffers.ipasc.buffer = NULL;
+        ssl->buffers.ipasc.length = 0;
+    }
+
+    ssl->buffers.ipasc.length = (word32)XSTRLEN(ipaddr);
+    ssl->buffers.ipasc.buffer = (byte*)XMALLOC(ssl->buffers.ipasc.length + 1,
+                                               ssl->heap, DYNAMIC_TYPE_DOMAIN);
+    if (ssl->buffers.ipasc.buffer == NULL) {
+        ssl->error = MEMORY_ERROR;
+        return WOLFSSL_FAILURE;
+    }
+
+    XMEMCPY(ssl->buffers.ipasc.buffer, ipaddr, ssl->buffers.ipasc.length);
+    ssl->buffers.ipasc.buffer[ssl->buffers.ipasc.length] = '\0';
+
+#ifdef OPENSSL_EXTRA
+    if (ssl->param == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+    if (wolfSSL_X509_VERIFY_PARAM_set1_ip_asc(ssl->param, ipaddr) !=
+            WOLFSSL_SUCCESS) {
+        return WOLFSSL_FAILURE;
+    }
+#endif
+
+    return WOLFSSL_SUCCESS;
+}
+
 #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
 const char *wolfSSL_get0_peername(WOLFSSL *ssl) {
     if (ssl == NULL) {

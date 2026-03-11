@@ -15998,6 +15998,8 @@ static int test_wolfSSL_check_domain_basic_client_ssl(WOLFSSL* ssl)
 
     return EXPECT_RESULT();
 }
+/* Verify wolfSSL_check_domain_name() controls DNS-name matching during
+ * handshake with expected fail/pass outcomes. */
 static int test_wolfSSL_check_domain_basic(void)
 {
     EXPECT_DECLS;
@@ -16029,6 +16031,102 @@ static int test_wolfSSL_check_domain_basic(void)
     return EXPECT_RESULT();
 }
 #endif /* HAVE_SSL_MEMIO_TESTS_DEPENDENCIES */
+
+#if defined(OPENSSL_EXTRA) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
+    (defined(WOLFSSL_IP_ALT_NAME) || defined(OPENSSL_ALL)) && \
+    !defined(OPENSSL_COMPATIBLE_DEFAULTS) && !defined(NO_SHA256)
+static const char* ipaddr = NULL;
+static int test_wolfSSL_check_ip_param_client_ssl(WOLFSSL* ssl)
+{
+    EXPECT_DECLS;
+    X509_VERIFY_PARAM* param = NULL;
+
+    ExpectNotNull(param = SSL_get0_param(ssl));
+    ExpectIntEQ(X509_VERIFY_PARAM_set1_ip_asc(param, ipaddr), WOLFSSL_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+
+/* Verify the OpenSSL-compat verify-param path:
+ * SSL_get0_param() + X509_VERIFY_PARAM_set1_ip_asc() controls IP SAN matching
+ * during handshake. */
+static int test_wolfSSL_check_ip_param_basic(void)
+{
+    EXPECT_DECLS;
+    test_ssl_cbf func_cb_client;
+    test_ssl_cbf func_cb_server;
+
+    XMEMSET(&func_cb_client, 0, sizeof(func_cb_client));
+    XMEMSET(&func_cb_server, 0, sizeof(func_cb_server));
+
+    func_cb_client.ssl_ready = &test_wolfSSL_check_ip_param_client_ssl;
+
+    ipaddr = "127.0.0.2";
+    /* Expect to fail: cert SAN IP is 127.0.0.1 */
+    ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&func_cb_client,
+        &func_cb_server, NULL), -1001);
+
+    ipaddr = "127.0.0.1";
+    /* Expect to succeed */
+    ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&func_cb_client,
+        &func_cb_server, NULL), TEST_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+#else
+static int test_wolfSSL_check_ip_param_basic(void)
+{
+    EXPECT_DECLS;
+    return EXPECT_RESULT();
+}
+#endif
+
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(OPENSSL_COMPATIBLE_DEFAULTS) && !defined(NO_SHA256) && \
+    defined(WOLFSSL_IP_ALT_NAME)
+static const char* ipaddr_api = NULL;
+static int test_wolfSSL_check_ip_address_basic_client_ssl(WOLFSSL* ssl)
+{
+    EXPECT_DECLS;
+
+    ExpectIntEQ(wolfSSL_check_ip_address(ssl, ipaddr_api), WOLFSSL_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+
+/* Verify wolfSSL convenience API path:
+ * wolfSSL_check_ip_address() enables IP SAN matching during handshake,
+ * including the non-OPENSSL_EXTRA storage/verification flow. */
+static int test_wolfSSL_check_ip_address_basic(void)
+{
+    EXPECT_DECLS;
+    test_ssl_cbf func_cb_client;
+    test_ssl_cbf func_cb_server;
+
+    XMEMSET(&func_cb_client, 0, sizeof(func_cb_client));
+    XMEMSET(&func_cb_server, 0, sizeof(func_cb_server));
+
+    func_cb_client.ssl_ready = &test_wolfSSL_check_ip_address_basic_client_ssl;
+
+    ipaddr_api = "127.0.0.2";
+    /* Expect to fail: cert SAN IP is 127.0.0.1 */
+    ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&func_cb_client,
+        &func_cb_server, NULL), -1001);
+
+    ipaddr_api = "127.0.0.1";
+    /* Expect to succeed */
+    ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&func_cb_client,
+        &func_cb_server, NULL), TEST_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+#else
+static int test_wolfSSL_check_ip_address_basic(void)
+{
+    EXPECT_DECLS;
+    return EXPECT_RESULT();
+}
+#endif
 
 static int test_wolfSSL_BUF(void)
 {
@@ -34155,6 +34253,8 @@ TEST_CASE testCases[] = {
 
     TEST_DECL(test_wolfSSL_check_domain),
     TEST_DECL(test_wolfSSL_check_domain_basic),
+    TEST_DECL(test_wolfSSL_check_ip_param_basic),
+    TEST_DECL(test_wolfSSL_check_ip_address_basic),
     TEST_DECL(test_wolfSSL_cert_cb),
     TEST_DECL(test_wolfSSL_cert_cb_dyn_ciphers),
     TEST_DECL(test_wolfSSL_ciphersuite_auth),
