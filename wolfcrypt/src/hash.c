@@ -1956,7 +1956,7 @@ int _wc_Hash_Grow(byte** msg, word32* used, word32* len, const byte* in,
 {
     word32 usedSz = 0;
 
-    if (!WC_SAFE_SUM_WORD32(*used, (word32)inSz, usedSz))
+    if (inSz <= 0 || !WC_SAFE_SUM_WORD32(*used, (word32)inSz, usedSz))
         return BAD_FUNC_ARG;
 
     if (*len < usedSz) {

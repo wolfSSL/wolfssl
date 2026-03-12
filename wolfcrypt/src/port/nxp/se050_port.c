@@ -278,6 +278,9 @@ int se050_hash_update(SE050_HASH_Context* se050Ctx, const byte* data, word32 len
         if (se050Ctx->msg == NULL) {
             se050Ctx->msg = (byte*)XMALLOC(usedSz,
                 se050Ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            if (se050Ctx->msg == NULL) {
+                return MEMORY_E;
+            }
             XMEMSET(se050Ctx->msg, 0, usedSz);
         }
         else {
