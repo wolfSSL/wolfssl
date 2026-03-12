@@ -267,26 +267,26 @@ int se050_hash_copy(SE050_HASH_Context* src, SE050_HASH_Context* dst)
 int se050_hash_update(SE050_HASH_Context* se050Ctx, const byte* data, word32 len)
 {
     byte* tmp = NULL;
-    word32 tmpSz = 0;
+    word32 usedSz = 0;
 
     if (se050Ctx == NULL || (len > 0 && data == NULL) ||
-        !WC_SAFE_SUM_WORD32(se050Ctx->used, len, tmpSz)) {
+        !WC_SAFE_SUM_WORD32(se050Ctx->used, len, usedSz)) {
         return BAD_FUNC_ARG;
     }
 
-    if (se050Ctx->len < se050Ctx->used + len) {
+    if (se050Ctx->len < usedSz) {
         if (se050Ctx->msg == NULL) {
-            se050Ctx->msg = (byte*)XMALLOC(se050Ctx->used + len,
+            se050Ctx->msg = (byte*)XMALLOC(usedSz,
                 se050Ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            XMEMSET(se050Ctx->msg, 0, se050Ctx->used + len);
+            XMEMSET(se050Ctx->msg, 0, usedSz);
         }
         else {
-            tmp = (byte*)XMALLOC(se050Ctx->used + len, se050Ctx->heap,
+            tmp = (byte*)XMALLOC(usedSz, se050Ctx->heap,
                                  DYNAMIC_TYPE_TMP_BUFFER);
             if (tmp == NULL) {
                 return MEMORY_E;
             }
-            XMEMSET(tmp, 0, se050Ctx->used + len);
+            XMEMSET(tmp, 0, usedSz);
             XMEMCPY(tmp, se050Ctx->msg, se050Ctx->used);
             XFREE(se050Ctx->msg, se050Ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
             se050Ctx->msg = tmp;
@@ -294,7 +294,7 @@ int se050_hash_update(SE050_HASH_Context* se050Ctx, const byte* data, word32 len
         if (se050Ctx->msg == NULL) {
             return MEMORY_E;
         }
-        se050Ctx->len = se050Ctx->used + len;
+        se050Ctx->len = usedSz;
     }
 
     XMEMCPY(se050Ctx->msg + se050Ctx->used, data, len);
