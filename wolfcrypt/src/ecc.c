@@ -7887,7 +7887,7 @@ WOLFSSL_ABI
 int wc_ecc_free(ecc_key* key)
 {
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
-    int ret;
+    int ret = 0;
 #endif
 
     if (key == NULL) {
