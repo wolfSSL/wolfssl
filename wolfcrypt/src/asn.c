@@ -46198,6 +46198,7 @@ int wc_VerifyX509Acert(const byte* acert, word32 acertSz,
 
 #endif /* WOLFSSL_ACERT && WOLFSSL_ASN_TEMPLATE */
 
+#ifdef HAVE_OCSP_RESPONDER
 int AsnHashesHash(AsnHashes* hashes, const byte* data, word32 dataSz)
 {
     int ret = 0;
@@ -46268,6 +46269,7 @@ const byte* AsnHashesGetHash(const AsnHashes* hashes, int hashAlg, int* size)
             return NULL;
     }
 }
+#endif /* HAVE_OCSP_RESPONDER */
 
 #ifdef WOLFSSL_SEP
 
