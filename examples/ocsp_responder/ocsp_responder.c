@@ -749,6 +749,9 @@ THREAD_RETURN WOLFSSL_THREAD ocsp_responder_test(void* args)
     opts.sendCerts = 1;
     opts.readyFile = NULL;
 
+    /* Initialize caCert */
+    XMEMSET(&caCert, 0, sizeof(caCert));
+
     /* Parse command line arguments */
     while ((ch = mygetopt_long(argc, argv, "?p:c:r:k:i:R:n:vx",
                                long_options, 0)) != -1) {
@@ -848,7 +851,6 @@ THREAD_RETURN WOLFSSL_THREAD ocsp_responder_test(void* args)
     }
 
     /* Parse CA certificate to get subject */
-    XMEMSET(&caCert, 0, sizeof(caCert));
     wc_InitDecodedCert(&caCert, caCertDer, caCertDerSz, NULL);
     ret = wc_ParseCert(&caCert, CERT_TYPE, 0, NULL);
     if (ret != 0) {
