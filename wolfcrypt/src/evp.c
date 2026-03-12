@@ -8449,10 +8449,15 @@ void wolfSSL_EVP_init(void)
                                              int ivLen)
     {
         WOLFSSL_ENTER("wolfSSL_EVP_CIPHER_CTX_set_iv_length");
-        if (ctx)
-            ctx->ivSz= ivLen;
-        else
+        if (ctx == NULL) {
             return WOLFSSL_FAILURE;
+        }
+
+        if (ivLen < 0 || ivLen > (int) sizeof(ctx->iv)) {
+            return WOLFSSL_FAILURE;
+        }
+
+        ctx->ivSz = ivLen;
 
         return WOLFSSL_SUCCESS;
     }
