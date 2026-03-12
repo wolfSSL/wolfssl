@@ -5452,8 +5452,13 @@ static sword32 dilithium_mont_red(sword64 a)
 #endif
 }
 
-#if !defined(WOLFSSL_DILITHIUM_SMALL) || !defined(WOLFSSL_DILITHIUM_NO_SIGN)
-
+#if !defined(WOLFSSL_DILITHIUM_SMALL) || \
+    (!defined(WOLFSSL_DILITHIUM_NO_SIGN) || \
+     (defined(WOLFSSL_DILITHIUM_SMALL) && \
+      (!defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) || \
+       (!defined(WOLFSSL_DILITHIUM_NO_VERIFY) && \
+        !defined(WOLFSSL_DILITHIUM_VERIFY_SMALL_MEM)) || \
+       defined(WOLFSSL_DILITHIUM_CHECK_KEY))))
 /* Reduce 32-bit a modulo q. r = a mod q.
  *
  * Barrett reduction.
@@ -5470,8 +5475,7 @@ static sword32 dilithium_red(sword32 a)
     return (sword32)(a - (t << 23) + (t << 13) - t);
 #endif
 }
-
-#endif /* !WOLFSSL_DILITHIUM_SMALL || !WOLFSSL_DILITHIUM_NO_SIGN */
+#endif
 
 /* Zetas for NTT. */
 static const sword32 zetas[DILITHIUM_N] = {
@@ -7287,7 +7291,12 @@ static void dilithium_vec_mul(sword32* r, sword32* a, sword32* b, byte l)
 #endif
 #endif
 
-#ifndef WOLFSSL_DILITHIUM_NO_SIGN
+#if !defined(WOLFSSL_DILITHIUM_NO_SIGN) || \
+    (defined(WOLFSSL_DILITHIUM_SMALL) && \
+     (!defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) || \
+      (!defined(WOLFSSL_DILITHIUM_NO_VERIFY) && \
+       !defined(WOLFSSL_DILITHIUM_VERIFY_SMALL_MEM)) || \
+      defined(WOLFSSL_DILITHIUM_CHECK_KEY)))
 /* Modulo reduce values in polynomial. Range (-2^31)..(2^31-1).
  *
  * @param [in, out] a  Polynomial.
@@ -7331,6 +7340,13 @@ static void dilithium_poly_red(sword32* a)
     }
 }
 
+#if (defined(WOLFSSL_DILITHIUM_SMALL) && \
+     (!defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) || \
+      (!defined(WOLFSSL_DILITHIUM_NO_VERIFY) && \
+       !defined(WOLFSSL_DILITHIUM_VERIFY_SMALL_MEM)) || \
+      defined(WOLFSSL_DILITHIUM_CHECK_KEY))) || \
+    (!defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
+     !defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM))
 /* Modulo reduce values in polynomials of vector. Range (-2^31)..(2^31-1).
  *
  * @param [in, out] a  Vector of polynomials.
@@ -7345,7 +7361,8 @@ static void dilithium_vec_red(sword32* a, byte l)
         a += DILITHIUM_N;
     }
 }
-#endif /* !WOLFSSL_DILITHIUM_NO_SIGN */
+#endif
+#endif
 
 #if (!defined(WOLFSSL_DILITHIUM_NO_SIGN) || \
      (!defined(WOLFSSL_DILITHIUM_NO_VERIFY) && \

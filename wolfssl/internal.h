@@ -3028,9 +3028,6 @@ typedef enum {
     #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
     TLSX_SIGNATURE_ALGORITHMS_CERT  = TLSXT_SIGNATURE_ALGORITHMS_CERT,
     #endif
-    #if defined(WOLFSSL_DTLS_CID)
-    TLSX_CONNECTION_ID              = TLSXT_CONNECTION_ID,
-    #endif /* defined(WOLFSSL_DTLS_CID) */
     #ifdef WOLFSSL_QUIC
     TLSX_KEY_QUIC_TP_PARAMS         = TLSXT_KEY_QUIC_TP_PARAMS,
     #endif
@@ -3038,6 +3035,9 @@ typedef enum {
     TLSX_ECH                        = TLSXT_ECH,
     #endif
 #endif
+#if defined(WOLFSSL_DTLS_CID)
+    TLSX_CONNECTION_ID              = TLSXT_CONNECTION_ID,
+#endif /* defined(WOLFSSL_DTLS_CID) */
 #if defined(WOLFSSL_TLS13) || !defined(WOLFSSL_NO_TLS12) || !defined(NO_OLD_TLS)
     #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
     TLSX_PRE_SHARED_KEY             = TLSXT_PRE_SHARED_KEY,

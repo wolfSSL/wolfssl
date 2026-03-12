@@ -17494,7 +17494,7 @@ static int test_wolfSSL_d2i_SSL_SESSION_bounds_check(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && defined(HAVE_EXT_CACHE) && \
-    defined(SESSION_CERTS)
+    defined(SESSION_CERTS) && !defined(NO_SESSION_CACHE)
     WOLFSSL_SESSION* sess = NULL;
     WOLFSSL_SESSION* restored = NULL;
     unsigned char* sessDer = NULL;
@@ -21925,7 +21925,8 @@ static int test_wolfSSL_X509_CRL_reason_critical_boolean(void)
 
 #if (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) && !defined(NO_CERTS) && \
     defined(HAVE_CRL) && !defined(NO_FILESYSTEM) && \
-    !defined(NO_STDIO_FILESYSTEM) && defined(WOLFSSL_CERT_GEN)
+    !defined(NO_STDIO_FILESYSTEM) && defined(WOLFSSL_CERT_GEN) && \
+    !defined(NO_ASN_TIME)
 /* Helper function to create, sign, and write a CRL */
 static int generate_crl_test(const char* keyFile, const char* certFile,
                              const char* derFile, const char* pemFile,
@@ -22173,7 +22174,8 @@ static int test_sk_X509_CRL_encode(void)
     EXPECT_DECLS;
 #if (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) && !defined(NO_CERTS) && \
     defined(HAVE_CRL) && !defined(NO_FILESYSTEM) && \
-    !defined(NO_STDIO_FILESYSTEM) && defined(WOLFSSL_CERT_GEN)
+    !defined(NO_STDIO_FILESYSTEM) && defined(WOLFSSL_CERT_GEN) && \
+    !defined(NO_ASN_TIME)
 #ifndef NO_RSA
     static const char* crlRsaPemFile = "./certs/crl/crlRsaOut.pem";
     static const char* crlRsaDerFile = "./certs/crl/crlRsaOut.der";
@@ -22212,7 +22214,8 @@ static int test_wolfSSL_X509_CRL_sign_large(void)
     EXPECT_DECLS;
 #if (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) && !defined(NO_CERTS) && \
     defined(HAVE_CRL) && !defined(NO_FILESYSTEM) && \
-    !defined(NO_STDIO_FILESYSTEM) && defined(WOLFSSL_CERT_GEN)
+    !defined(NO_STDIO_FILESYSTEM) && defined(WOLFSSL_CERT_GEN) && \
+    !defined(NO_ASN_TIME)
 #ifndef NO_RSA
     static const char* testRsaKeyFile  = "./certs/ca-key.pem";
     static const char* testRsaCertFile = "./certs/ca-cert.pem";

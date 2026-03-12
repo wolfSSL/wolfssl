@@ -2326,7 +2326,7 @@ int StoreCRL(WOLFSSL_CRL* crl, const char* file, int type)
 }
 #endif /* NO_FILESYSTEM */
 
-#if defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) && !defined(NO_ASN_TIME)
 /* Create a new empty CRL object for generation.
  * Version is set to 2 by default. Use wolfSSL_X509_CRL_set_version() to
  * change it.
@@ -2601,6 +2601,8 @@ static int GetCrlSignBufSz(int tbsSz, int sigType, RsaKey* rsaKey,
     if (tbsSz <= 0)
         return BAD_FUNC_ARG;
 
+    (void)rsaKey;
+    (void)eccKey;
 #ifndef NO_RSA
     if (rsaKey != NULL) {
         sigSz = wc_RsaEncryptSize(rsaKey);
@@ -2666,8 +2668,8 @@ int wolfSSL_X509_CRL_sign(WOLFSSL_X509_CRL* crl, WOLFSSL_EVP_PKEY* pkey,
     }
 
     /* Determine signature type from digest and key type */
-#ifndef NO_RSA
     if (ret == WOLFSSL_SUCCESS) {
+#ifndef NO_RSA
         if (pkey->type == WC_EVP_PKEY_RSA) {
             if (md == wolfSSL_EVP_sha256()) {
                 sigType = CTC_SHA256wRSA;

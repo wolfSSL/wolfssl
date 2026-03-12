@@ -3155,7 +3155,7 @@ static int PKCS7_EncodeSigned(wc_PKCS7* pkcs7,
             idx = ret;
             goto out;
         }
-#if defined(WC_RSA_PSS)
+#if !defined(NO_RSA) && defined(WC_RSA_PSS)
         if (digEncAlgoId == CTC_RSASSAPSS) {
             /* Salt length policy: always encode as hash digest length.
              * This is the common CMS/RFC 4055 profile and matches OpenSSL
