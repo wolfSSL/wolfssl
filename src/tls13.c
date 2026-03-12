@@ -12321,7 +12321,7 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
     /* Nonce */
     length += TICKET_NONCE_LEN_SZ + DEF_TICKET_NONCE_SZ;
 
-    sendSz = (word16)(idx + length + MAX_MSG_EXTRA);
+    sendSz = (int)(idx + length + MAX_MSG_EXTRA);
 
     /* Check buffers are big enough and grow if needed. */
     if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
@@ -12377,7 +12377,8 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
     idx += EXTS_SZ;
 #endif
 
-    if (idx > WOLFSSL_MAX_16BIT) {
+    if (idx > WOLFSSL_MAX_16BIT ||
+        sendSz > (int)WOLFSSL_MAX_16BIT) {
         return BAD_LENGTH_E;
     }
 
