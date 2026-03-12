@@ -12932,8 +12932,8 @@ static int DsaKeyIntsToDer(DsaKey* key, byte* output, word32* inLen,
     seqSz = SetSequence(verSz + intTotalLen, seq);
 
     outLen = seqSz + verSz + intTotalLen;
-    *inLen = outLen;
     if (output == NULL) {
+        *inLen = outLen;
         FreeTmpDsas(tmps, key->heap, ints);
         return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
@@ -12941,6 +12941,7 @@ static int DsaKeyIntsToDer(DsaKey* key, byte* output, word32* inLen,
         FreeTmpDsas(tmps, key->heap, ints);
         return BAD_FUNC_ARG;
     }
+    *inLen = outLen;
 
     /* write to output */
     XMEMCPY(output, seq, seqSz);
@@ -18024,6 +18025,10 @@ static word32 SetAlgoIDImpl(int algoOID, byte* output, int type, int curveSz,
     word32 algoSz = 0;
 
     CALLOC_ASNSETDATA(dataASN, algoIdASN_Length, ret, NULL);
+    if(ret < 0) {
+        /* Catch MEMORY_E */
+        return 0;
+    }
 
     algoName = OidFromId((word32)algoOID, (word32)type, &algoSz);
     if (algoName == NULL) {
@@ -43470,7 +43475,7 @@ int wc_MakeCRL_ex(const byte* issuerDer, word32 issuerSz,
 
     /* Signature AlgorithmIdentifier */
     algoSz = SetAlgoID(sigType, algoBuf, oidSigType, 0);
-    if (algoSz == 0)
+    if (algoSz == 0 || algoSz > MAX_ALGO_SZ)
         return ALGO_ID_E;
 
     /* thisUpdate */
