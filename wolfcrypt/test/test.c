@@ -65413,6 +65413,37 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                     break;
             }
         }
+        else if (info->free.algo == WC_ALGO_TYPE_PK) {
+            switch (info->free.type) {
+#ifdef HAVE_ECC
+                case WC_PK_TYPE_EC_KEYGEN:
+                {
+                    ecc_key* ecc = (ecc_key*)info->free.obj;
+                    ecc->devId = INVALID_DEVID;
+                    wc_ecc_free(ecc);
+                    ret = 0;
+                    break;
+                }
+#endif
+#ifdef HAVE_DILITHIUM
+                case WC_PK_TYPE_PQC_SIG_KEYGEN:
+                {
+                    if (info->free.subType ==
+                            WC_PQC_SIG_TYPE_DILITHIUM) {
+                        dilithium_key* dil =
+                            (dilithium_key*)info->free.obj;
+                        dil->devId = INVALID_DEVID;
+                        wc_dilithium_free(dil);
+                        ret = 0;
+                    }
+                    break;
+                }
+#endif
+                default:
+                    ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
+                    break;
+            }
+        }
         else {
             ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
         }
