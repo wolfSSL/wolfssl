@@ -7886,15 +7886,23 @@ void wc_ecc_free_curve(const ecc_set_type* curve, void* heap)
 WOLFSSL_ABI
 int wc_ecc_free(ecc_key* key)
 {
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
+    int ret;
+#endif
+
     if (key == NULL) {
         return 0;
     }
 
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
     if (key->devId != INVALID_DEVID) {
-        wc_CryptoCb_Free(key->devId, WC_ALGO_TYPE_PK,
+        ret = wc_CryptoCb_Free(key->devId, WC_ALGO_TYPE_PK,
                          WC_PK_TYPE_EC_KEYGEN, 0, key);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return ret;
+        /* fall-through to software cleanup */
     }
+    (void)ret;
 #endif
 
 #if defined(WOLFSSL_ECDSA_SET_K) || defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP) || \
