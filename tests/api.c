@@ -13818,7 +13818,8 @@ static THREAD_RETURN WOLFSSL_THREAD server_task_ech(void* args)
     if (callbacks->ctx_ready)
         callbacks->ctx_ready(ctx);
 
-    AssertNotNull(ssl = wolfSSL_new(ctx));
+    ssl = wolfSSL_new(ctx);
+    AssertNotNull(ssl);
 
     /* set the sni for the server */
     AssertIntEQ(WOLFSSL_SUCCESS,
