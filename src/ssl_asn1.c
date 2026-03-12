@@ -2026,9 +2026,17 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_ASN1_OBJECT_dup(WOLFSSL_ASN1_OBJECT* obj)
         dupl->objSz = obj->objSz;
     #ifdef OPENSSL_EXTRA
         dupl->ca    = obj->ca;
+        if (obj->pathlen != NULL) {
+            dupl->pathlen = wolfSSL_ASN1_INTEGER_dup(obj->pathlen);
+            if (dupl->pathlen == NULL) {
+                WOLFSSL_MSG("ASN1 pathlen alloc error");
+                wolfSSL_ASN1_OBJECT_free(dupl);
+                dupl = NULL;
+            }
+        }
     #endif
         /* Check for encoding. */
-        if (obj->obj) {
+        if (dupl != NULL && obj->obj) {
             /* Allocate memory for ASN.1 OBJECT_ID DER encoding. */
             dupl->obj = (const unsigned char*)XMALLOC(obj->objSz, NULL,
                 DYNAMIC_TYPE_ASN1);

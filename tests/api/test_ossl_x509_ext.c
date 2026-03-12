@@ -282,6 +282,7 @@ static int test_X509_add_basic_constraints(WOLFSSL_X509* x509)
     ExpectIntEQ(wolfSSL_X509_add_ext(x509, ext, -1), WOLFSSL_SUCCESS);
     ExpectIntEQ(x509->isCa, 0);
     ExpectIntEQ(x509->pathLength, 2);
+    ExpectIntEQ(x509->pathLengthSet, 1);
     if (ext != NULL && ext->obj != NULL) {
         /* Add second time to without path length. */
         ext->obj->ca = 1;
@@ -290,6 +291,7 @@ static int test_X509_add_basic_constraints(WOLFSSL_X509* x509)
     ExpectIntEQ(wolfSSL_X509_add_ext(x509, ext, -1), WOLFSSL_SUCCESS);
     ExpectIntEQ(x509->isCa, 1);
     ExpectIntEQ(x509->pathLength, 2);
+    ExpectIntEQ(x509->pathLengthSet, 1);
     ExpectIntEQ(wolfSSL_X509_get_isSet_pathLength(NULL), 0);
     ExpectIntEQ(wolfSSL_X509_get_isSet_pathLength(x509), 1);
     ExpectIntEQ(wolfSSL_X509_get_pathLength(NULL), 0);
