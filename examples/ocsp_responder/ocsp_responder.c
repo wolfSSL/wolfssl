@@ -46,7 +46,8 @@
 #include <examples/ocsp_responder/ocsp_responder.h>
 
 /* Check if we have the required features */
-#if defined(HAVE_OCSP) && defined(HAVE_OCSP_RESPONDER) && !defined(NO_FILESYSTEM)
+#if defined(HAVE_OCSP) && defined(HAVE_OCSP_RESPONDER) && \
+    !defined(NO_FILESYSTEM)
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -144,8 +145,6 @@ typedef struct {
 } OcspResponderOptions;
 
 /* Usage help */
-
-/* Usage help */
 static void Usage(void)
 {
     LOG_MSG("OCSP Responder Example\n\n");
@@ -154,7 +153,8 @@ static void Usage(void)
     LOG_MSG("  -?           Help\n");
     LOG_MSG("  -p <num>     Port (default %d)\n", DEFAULT_PORT);
     LOG_MSG("  -c <file>    CA certificate (issuer)\n");
-    LOG_MSG("  -r <file>    Responder certificate (for authorized responder)\n");
+    LOG_MSG("  -r <file>    Responder certificate"
+            " (for authorized responder)\n");
     LOG_MSG("  -k <file>    Signing private key\n");
     LOG_MSG("  -i <file>    Index file for cert status\n");
     LOG_MSG("  -R <file>    Ready file for external monitor\n");
@@ -185,7 +185,8 @@ static int LoadFile(const char* filename, byte** buf, word32* bufSz, int* isPem)
 }
 
 /* Convert PEM to DER */
-static int ConvertPemToDer(const byte* pem, word32 pemSz, byte** der, word32* derSz, int type)
+static int ConvertPemToDer(const byte* pem, word32 pemSz,
+                           byte** der, word32* derSz, int type)
 {
     int ret;
     DerBuffer* derBuf = NULL;
@@ -301,7 +302,8 @@ static IndexEntry* ParseIndexFile(const char* filename)
         if (line[0] == '\n' || line[0] == '\r' || line[0] == '\0')
             continue;
 
-        entry = (IndexEntry*)XMALLOC(sizeof(IndexEntry), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        entry = (IndexEntry*)XMALLOC(sizeof(IndexEntry), NULL,
+                                     DYNAMIC_TYPE_TMP_BUFFER);
         if (entry == NULL) {
             LOG_ERROR("Memory allocation failed for index entry\n");
             goto cleanup;
@@ -324,7 +326,8 @@ static IndexEntry* ParseIndexFile(const char* filename)
                         XMEMSET(&tm, 0, sizeof(tm));
                         if (wc_GetDateAsCalendarTime((const byte*)field,
                                 (int)XSTRLEN(field), ASN_UTC_TIME, &tm) != 0) {
-                            LOG_ERROR("Invalid revocation time format: %s\n", field);
+                            LOG_ERROR("Invalid revocation time"
+                                      " format: %s\n", field);
                             entry->revocationTime = (time_t)-1;
                             break;
                         }
@@ -335,15 +338,18 @@ static IndexEntry* ParseIndexFile(const char* filename)
                     XSTRNCPY(entry->serial, field, sizeof(entry->serial) - 1);
                     break;
                 case 4: /* Filename */
-                    XSTRNCPY(entry->filename, field, sizeof(entry->filename) - 1);
+                    XSTRNCPY(entry->filename, field,
+                             sizeof(entry->filename) - 1);
                     break;
                 case 5: /* Subject */
                     /* Remove trailing newline */
                     {
                         size_t len = XSTRLEN(field);
-                        if (len > 0 && (field[len-1] == '\n' || field[len-1] == '\r'))
+                        if (len > 0 && (field[len-1] == '\n' ||
+                                        field[len-1] == '\r'))
                             field[len-1] = '\0';
-                        if (len > 1 && (field[len-2] == '\n' || field[len-2] == '\r'))
+                        if (len > 1 && (field[len-2] == '\n' ||
+                                        field[len-2] == '\r'))
                             field[len-2] = '\0';
                     }
                     XSTRNCPY(entry->subject, field, sizeof(entry->subject) - 1);
@@ -387,8 +393,9 @@ cleanup:
 }
 
 /* Lookup certificate status by serial number */
-static int PopulateResponderFromIndex(OcspResponder* responder, IndexEntry* index,
-                                       DecodedCert* caCert)
+static int PopulateResponderFromIndex(OcspResponder* responder,
+                                      IndexEntry* index,
+                                      DecodedCert* caCert)
 {
     IndexEntry* entry;
     char caSubjectBuf[WC_ASN_NAME_MAX];
@@ -444,12 +451,16 @@ static int PopulateResponderFromIndex(OcspResponder* responder, IndexEntry* inde
         }
 
         for (i = 0; i < serialLen; i++) {
-            int high = ('0' <= p[i*2]   && p[i*2]   <= '9') ? (p[i*2]   - '0') :
-                       ('A' <= p[i*2]   && p[i*2]   <= 'F') ? (p[i*2]   - 'A' + 10) :
-                                                               (p[i*2]   - 'a' + 10);
-            int low  = ('0' <= p[i*2+1] && p[i*2+1] <= '9') ? (p[i*2+1] - '0') :
-                       ('A' <= p[i*2+1] && p[i*2+1] <= 'F') ? (p[i*2+1] - 'A' + 10) :
-                                                               (p[i*2+1] - 'a' + 10);
+            int high = ('0' <= p[i*2] && p[i*2] <= '9') ?
+                           (p[i*2] - '0') :
+                       ('A' <= p[i*2] && p[i*2] <= 'F') ?
+                           (p[i*2] - 'A' + 10) :
+                           (p[i*2] - 'a' + 10);
+            int low  = ('0' <= p[i*2+1] && p[i*2+1] <= '9') ?
+                           (p[i*2+1] - '0') :
+                       ('A' <= p[i*2+1] && p[i*2+1] <= 'F') ?
+                           (p[i*2+1] - 'A' + 10) :
+                           (p[i*2+1] - 'a' + 10);
             serial[i] = (byte)((high << 4) | low);
         }
 
@@ -471,7 +482,8 @@ static int PopulateResponderFromIndex(OcspResponder* responder, IndexEntry* inde
         ret = wc_OcspResponder_SetCertStatus(responder,
                                               caSubjectBuf, caSubjSz,
                                               serial, serialLen,
-                                              status, revTime, revReason, validity);
+                                              status, revTime,
+                                              revReason, validity);
         if (ret == 0) {
             count++;
         }
@@ -601,7 +613,8 @@ static int ParseHttpRequest(const byte* httpReq, int httpReqSz,
 }
 
 /* Send HTTP response with OCSP response body */
-static int SendHttpResponse(SOCKET_T clientfd, const byte* ocspResp, int ocspRespSz)
+static int SendHttpResponse(SOCKET_T clientfd, const byte* ocspResp,
+                            int ocspRespSz)
 {
     char header[MAX_HTTP_HEADER];
     int headerLen;
@@ -651,7 +664,8 @@ static int SendHttpResponse(SOCKET_T clientfd, const byte* ocspResp, int ocspRes
 }
 
 /* Send HTTP error response */
-static int SendHttpError(SOCKET_T clientfd, int statusCode, const char* statusMsg)
+static int SendHttpError(SOCKET_T clientfd, int statusCode,
+                         const char* statusMsg)
 {
     char response[512];
     int len;
@@ -665,7 +679,8 @@ static int SendHttpError(SOCKET_T clientfd, int statusCode, const char* statusMs
         "\r\n"
         "%s", statusCode, statusMsg, (int)XSTRLEN(statusMsg), statusMsg);
 
-    /* Handle XSNPRINTF error or truncation to avoid sending out-of-bounds data. */
+    /* Handle XSNPRINTF error or truncation to avoid sending
+     * out-of-bounds data. */
     if (len < 0 || len >= (int)sizeof(response)) {
         LOG_ERROR("HTTP error response truncated\n");
         return -1;
@@ -735,7 +750,8 @@ THREAD_RETURN WOLFSSL_THREAD ocsp_responder_test(void* args)
     opts.readyFile = NULL;
 
     /* Parse command line arguments */
-    while ((ch = mygetopt_long(argc, argv, "?p:c:r:k:i:R:n:vx", long_options, 0)) != -1) {
+    while ((ch = mygetopt_long(argc, argv, "?p:c:r:k:i:R:n:vx",
+                               long_options, 0)) != -1) {
         switch (ch) {
             case '?':
                 Usage();
@@ -799,14 +815,17 @@ THREAD_RETURN WOLFSSL_THREAD ocsp_responder_test(void* args)
         goto cleanup;
     }
     if (opts.verbose) {
-        LOG_MSG("Loaded CA certificate: %s (%d bytes)\n", opts.certFile, caCertDerSz);
+        LOG_MSG("Loaded CA certificate: %s (%d bytes)\n",
+                opts.certFile, caCertDerSz);
     }
 
     /* Load responder certificate if provided */
     if (opts.responderCertFile != NULL) {
-        ret = LoadCertDer(opts.responderCertFile, &responderCertDer, &responderCertDerSz);
+        ret = LoadCertDer(opts.responderCertFile, &responderCertDer,
+                          &responderCertDerSz);
         if (ret != 0) {
-            LOG_ERROR("Error loading responder certificate: %s\n", opts.responderCertFile);
+            LOG_ERROR("Error loading responder certificate: %s\n",
+                      opts.responderCertFile);
             ret = -1;
             goto cleanup;
         }
@@ -824,7 +843,8 @@ THREAD_RETURN WOLFSSL_THREAD ocsp_responder_test(void* args)
         goto cleanup;
     }
     if (opts.verbose) {
-        LOG_MSG("Loaded signing key: %s (%d bytes)\n", opts.keyFile, caKeyDerSz);
+        LOG_MSG("Loaded signing key: %s (%d bytes)\n",
+                opts.keyFile, caKeyDerSz);
     }
 
     /* Parse CA certificate to get subject */
@@ -843,7 +863,8 @@ THREAD_RETURN WOLFSSL_THREAD ocsp_responder_test(void* args)
     if (opts.indexFile) {
         indexEntries = ParseIndexFile(opts.indexFile);
         if (indexEntries == NULL) {
-            LOG_ERROR("Warning: Could not parse index file: %s\n", opts.indexFile);
+            LOG_ERROR("Warning: Could not parse index file: %s\n",
+                      opts.indexFile);
         }
         else if (opts.verbose) {
             LOG_MSG("Loaded index file: %s\n", opts.indexFile);
@@ -860,11 +881,16 @@ THREAD_RETURN WOLFSSL_THREAD ocsp_responder_test(void* args)
 
     /* Add signer to responder */
     if (opts.responderCertFile != NULL) {
-        /* Authorized responder: use responder cert as signer, CA cert as issuer */
-        ret = wc_OcspResponder_AddSigner(responder, responderCertDer, responderCertDerSz,
-                                      caKeyDer, caKeyDerSz, caCertDer, caCertDerSz);
+        /* Authorized responder: use responder cert as signer,
+         * CA cert as issuer */
+        ret = wc_OcspResponder_AddSigner(responder,
+                                         responderCertDer,
+                                         responderCertDerSz,
+                                         caKeyDer, caKeyDerSz,
+                                         caCertDer, caCertDerSz);
         if (ret != 0) {
-            LOG_ERROR("Error adding authorized responder to responder: %d\n", ret);
+            LOG_ERROR("Error adding authorized responder to"
+                      " responder: %d\n", ret);
             goto cleanup;
         }
         if (opts.verbose) {
@@ -886,12 +912,16 @@ THREAD_RETURN WOLFSSL_THREAD ocsp_responder_test(void* args)
 
     /* Populate responder with certificate statuses from index */
     if (indexEntries != NULL) {
-        int statusCount = PopulateResponderFromIndex(responder, indexEntries, &caCert);
+        int statusCount = PopulateResponderFromIndex(responder,
+                                                     indexEntries,
+                                                     &caCert);
         if (statusCount < 0) {
-            LOG_ERROR("Error populating responder from index: %d\n", statusCount);
+            LOG_ERROR("Error populating responder from index:"
+                      " %d\n", statusCount);
         }
         else if (opts.verbose) {
-            LOG_MSG("Populated responder with %d certificate statuses\n", statusCount);
+            LOG_MSG("Populated responder with %d certificate"
+                    " statuses\n", statusCount);
         }
     }
 
@@ -932,7 +962,8 @@ THREAD_RETURN WOLFSSL_THREAD ocsp_responder_test(void* args)
             }
         }
         else {
-            LOG_ERROR("Warning: Failed to create ready file: %s\n", opts.readyFile);
+            LOG_ERROR("Warning: Failed to create ready file:"
+                      " %s\n", opts.readyFile);
         }
     }
 
@@ -965,7 +996,8 @@ THREAD_RETURN WOLFSSL_THREAD ocsp_responder_test(void* args)
         char path[MAX_PATH_LEN];
 
         /* Accept connection */
-        clientfd = accept(sockfd, (struct sockaddr*)&clientAddr, &clientAddrLen);
+        clientfd = accept(sockfd, (struct sockaddr*)&clientAddr,
+                          &clientAddrLen);
         if (clientfd == INVALID_SOCKET) {
             LOG_ERROR("accept() failed\n");
             continue;
@@ -990,7 +1022,8 @@ THREAD_RETURN WOLFSSL_THREAD ocsp_responder_test(void* args)
         }
 
         /* Parse HTTP request */
-        ret = ParseHttpRequest(httpBuf, recvLen, &ocspReq, &ocspReqSz, path, sizeof(path));
+        ret = ParseHttpRequest(httpBuf, recvLen, &ocspReq, &ocspReqSz,
+                               path, sizeof(path));
         if (ret != 0 || ocspReq == NULL || ocspReqSz <= 0) {
             LOG_ERROR("Invalid HTTP request\n");
             SendHttpError(clientfd, 400, "Bad Request");
@@ -1004,7 +1037,8 @@ THREAD_RETURN WOLFSSL_THREAD ocsp_responder_test(void* args)
 
         /* Process OCSP request and generate response */
         respSz = sizeof(respBuf);
-        ret = wc_OcspResponder_WriteResponse(responder, ocspReq, (word32)ocspReqSz,
+        ret = wc_OcspResponder_WriteResponse(responder, ocspReq,
+                                              (word32)ocspReqSz,
                                               respBuf, &respSz);
 
         if (ret != 0) {
@@ -1014,7 +1048,8 @@ THREAD_RETURN WOLFSSL_THREAD ocsp_responder_test(void* args)
             /* Generate appropriate OCSP error response */
             errStatus = MapErrorToOcspStatus(ret);
             respSz = sizeof(respBuf);
-            ret = wc_OcspResponder_WriteErrorResponse(errStatus, respBuf, &respSz);
+            ret = wc_OcspResponder_WriteErrorResponse(errStatus,
+                                                       respBuf, &respSz);
 
             if (ret != 0) {
                 /* If we can't even encode an error response, send HTTP error */
@@ -1125,7 +1160,8 @@ int main(int argc, char** argv)
 {
     (void)argc;
     (void)argv;
-    printf("OCSP Responder requires HAVE_OCSP, HAVE_OCSP_RESPONDER, and filesystem support\n");
+    printf("OCSP Responder requires HAVE_OCSP, HAVE_OCSP_RESPONDER,"
+           " and filesystem support\n");
     return 0;
 }
 #endif
@@ -1133,7 +1169,8 @@ int main(int argc, char** argv)
 THREAD_RETURN WOLFSSL_THREAD ocsp_responder_test(void* args)
 {
     func_args* myargs = (func_args*)args;
-    printf("OCSP Responder requires HAVE_OCSP, HAVE_OCSP_RESPONDER, and filesystem support\n");
+    printf("OCSP Responder requires HAVE_OCSP, HAVE_OCSP_RESPONDER,"
+           " and filesystem support\n");
     myargs->return_code = 0;
     WOLFSSL_RETURN_FROM_THREAD(0);
 }
