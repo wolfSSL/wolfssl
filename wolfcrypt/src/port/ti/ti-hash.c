@@ -75,8 +75,11 @@ static int hashInit(wolfssl_TI_Hash *hash)
 static int hashUpdate(wolfssl_TI_Hash *hash, const byte* data, word32 len)
 {
     void *p;
+    word32 tmpSz = 0;
 
-    if ((hash== NULL) || (data == NULL))return BAD_FUNC_ARG;
+    if ((hash== NULL) || (data == NULL) ||
+        !WC_SAFE_SUM_WORD32(hash->used, len, tmpSz))
+        return BAD_FUNC_ARG;
 
     if (hash->len < hash->used+len) {
         if (hash->msg == NULL) {

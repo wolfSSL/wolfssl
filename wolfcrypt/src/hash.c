@@ -1954,6 +1954,11 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
 int _wc_Hash_Grow(byte** msg, word32* used, word32* len, const byte* in,
                         int inSz, void* heap)
 {
+    word32 tmpSz = 0;
+
+    if (!WC_SAFE_SUM_WORD32(*used, inSz, tmpSz))
+        return BAD_FUNC_ARG;
+
     if (*len < *used + inSz) {
         if (*msg == NULL) {
             *msg = (byte*)XMALLOC(*used + inSz, heap, DYNAMIC_TYPE_TMP_BUFFER);
