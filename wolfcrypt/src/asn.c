@@ -12912,8 +12912,8 @@ static int DsaKeyIntsToDer(DsaKey* key, byte* output, word32* inLen,
     seqSz = SetSequence(verSz + intTotalLen, seq);
 
     outLen = seqSz + verSz + intTotalLen;
-    *inLen = outLen;
     if (output == NULL) {
+        *inLen = outLen;
         FreeTmpDsas(tmps, key->heap, ints);
         return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
@@ -12921,6 +12921,7 @@ static int DsaKeyIntsToDer(DsaKey* key, byte* output, word32* inLen,
         FreeTmpDsas(tmps, key->heap, ints);
         return BAD_FUNC_ARG;
     }
+    *inLen = outLen;
 
     /* write to output */
     XMEMCPY(output, seq, seqSz);
