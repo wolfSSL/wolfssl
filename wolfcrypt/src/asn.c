@@ -41837,6 +41837,10 @@ int CompareOcspReqResp(OcspRequest* req, OcspResponse* resp)
     for (single = resp->single; single; single = next) {
         ocspDigestSize = wc_HashGetDigestSize(
             wc_OidGetHash(single->hashAlgoOID));
+        if (ocspDigestSize <= 0) {
+            WOLFSSL_MSG("\tinvalid hash algorithm in response");
+            return -1;
+        }
         cmp = req->serialSz - single->status->serialSz;
         if (cmp == 0) {
             cmp = XMEMCMP(req->serial, single->status->serial,

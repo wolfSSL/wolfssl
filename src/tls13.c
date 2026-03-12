@@ -8807,7 +8807,7 @@ static int WriteCSRToBuffer(WOLFSSL* ssl, DerBuffer** certExts,
             if (tmpSz > (OPAQUE8_LEN + OPAQUE24_LEN) &&
                 certExts[extIdx] == NULL) {
                 /* csr extension is not zero */
-                if (tmpSz > 0xFFFF)
+                if (tmpSz > WOLFSSL_MAX_16BIT)
                     return BUFFER_E;
                 extSz[extIdx] = (word16)tmpSz;
 
