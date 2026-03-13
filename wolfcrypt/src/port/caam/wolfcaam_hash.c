@@ -72,6 +72,7 @@ static int _ShaUpdate(byte* buffer, word32* buffLen, const byte* ctx,
     CAAM_BUFFER buf[2];
     word32 arg[4];
     int ret;
+    int idx = 0;
 
     if (buffer == NULL || ctx == NULL || (data == NULL && len > 0)) {
         return BAD_FUNC_ARG;
@@ -262,7 +263,7 @@ int wc_CAAM_Sha224Hash(wc_Sha224* sha224, const byte* in, word32 inSz,
         ret = wc_Sha224_Grow(sha224, in, inSz);
     #else
         ret = _ShaUpdate(sha224->buffer, &sha224->bufferLen,
-            (byte*)sha224->digest, data, len, SHA224_DIGEST_SIZE, CAAM_SHA224);
+            (byte*)sha224->digest, in, inSz, SHA224_DIGEST_SIZE, CAAM_SHA224);
     #endif
     }
 
