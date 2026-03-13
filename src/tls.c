@@ -10534,6 +10534,7 @@ static int TLSX_KeyShare_HandlePqcKeyServer(WOLFSSL* ssl,
         keyShareEntry->ke = NULL;
         keyShareEntry->keLen = 0;
 
+        XFREE(keyShareEntry->pubKey, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         keyShareEntry->pubKey = ciphertext;
         keyShareEntry->pubKeyLen = ctSz;
         ciphertext = NULL;
@@ -10770,6 +10771,7 @@ static int TLSX_KeyShare_HandlePqcHybridKeyServer(WOLFSSL* ssl,
             XMEMCPY(ciphertext + ecc_kse->pubKeyLen, pqc_kse->pubKey, ctSz);
         }
 
+        XFREE(keyShareEntry->pubKey, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         keyShareEntry->pubKey = ciphertext;
         keyShareEntry->pubKeyLen = ecc_kse->pubKeyLen + ctSz;
         ciphertext = NULL;
@@ -10859,13 +10861,20 @@ int TLSX_KeyShare_Use(const WOLFSSL* ssl, word16 group, word16 len, byte* data,
 #if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE)
     if (ssl->options.side == WOLFSSL_SERVER_END &&
             WOLFSSL_NAMED_GROUP_IS_PQC(group)) {
-        ret = TLSX_KeyShare_HandlePqcKeyServer((WOLFSSL*)ssl,
-                                               keyShareEntry,
-                                               data, len,
-                                               ssl->arrays->preMasterSecret,
-                                               &ssl->arrays->preMasterSz);
-        if (ret != 0)
-            return ret;
+        if (TLSX_IsGroupSupported(group)) {
+            ret = TLSX_KeyShare_HandlePqcKeyServer((WOLFSSL*)ssl,
+                                                   keyShareEntry,
+                                                   data, len,
+                                                   ssl->arrays->preMasterSecret,
+                                                   &ssl->arrays->preMasterSz);
+            if (ret != 0)
+                return ret;
+        }
+        else {
+            XFREE(keyShareEntry->ke, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+            keyShareEntry->ke = NULL;
+            keyShareEntry->keLen = 0;
+        }
     }
     else if (ssl->options.side == WOLFSSL_SERVER_END &&
              WOLFSSL_NAMED_GROUP_IS_PQC_HYBRID(group)) {

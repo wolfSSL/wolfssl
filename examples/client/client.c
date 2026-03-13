@@ -557,6 +557,18 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
             else {
                 err_sys("unable to use post-quantum KEM");
             }
+
+        #ifdef WOLFSSL_DTLS13
+            if (wolfSSL_dtls(ssl)) {
+                /* When the KeyShare is too large for an unfragmented
+                 * ClientHello, DTLS sends an empty KeyShare extension to
+                 * use the Hello Retry Request to enable fragmentation.
+                 * In order to enforce our desired PQC algorithm in the
+                 * second ClientHello, we need to set it as the only one
+                 * allowed in the SupportedGroups extension. */
+                setGroups = 1;
+            }
+        #endif /* WOLFSSL_DTLS13 */
         }
     }
     #endif
@@ -2299,8 +2311,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 
 #ifdef WOLFSSL_STATIC_MEMORY
-    #if (defined(HAVE_ECC) && !defined(ALT_ECC_SIZE)) \
-        || defined(SESSION_CERTS)
+    #if (defined(HAVE_ECC) && !defined(ALT_ECC_SIZE)) || \
+        defined(SESSION_CERTS) || defined(WOLFSSL_HAVE_MLKEM)
         /* big enough to handle most cases including session certs */
         byte memory[320000];
     #else
