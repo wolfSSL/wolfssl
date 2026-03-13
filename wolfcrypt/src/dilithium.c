@@ -8058,7 +8058,7 @@ static int dilithium_pub_from_priv(dilithium_key* key)
             dilithium_vec_decode_eta_bits(s1p, params->eta, s1, params->l);
             dilithium_vec_decode_eta_bits(s2p, params->eta, s2, params->k);
 
-            dilithium_vec_ntt_small(s1, params->l);
+            dilithium_vec_ntt_small_full(s1, params->l);
         }
     }
 #else
@@ -8069,7 +8069,7 @@ static int dilithium_pub_from_priv(dilithium_key* key)
         else {
             s1 = key->s1;
             s2 = key->s2;
-	    dilithium_vec_invntt_full(s2, params->k);
+	        dilithium_vec_invntt_full(s2, params->k);
         }
     }
 #endif
