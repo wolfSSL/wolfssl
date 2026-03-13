@@ -177,6 +177,16 @@ static int LoadFile(const char* filename, byte** buf, word32* bufSz, int* isPem)
 
     /* Check if PEM format by looking for -----BEGIN */
     if (isPem) {
+        /* Reallocate with space for null terminator for XSTRSTR */
+        byte* tmp = (byte*)XREALLOC(*buf, (word32)sz + 1, NULL,
+                                    DYNAMIC_TYPE_TMP_BUFFER);
+        if (tmp == NULL) {
+            XFREE(*buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            *buf = NULL;
+            return MEMORY_E;
+        }
+        *buf = tmp;
+        (*buf)[sz] = '\0';
         *isPem = (XSTRSTR((char*)*buf, "-----BEGIN") != NULL) ? 1 : 0;
     }
 
