@@ -45,6 +45,7 @@ int test_mldsa_pkcs8_import_OpenSSL_form(void);
 int test_mldsa_pkcs8_export_import_wolfSSL_form(void);
 int test_wc_dilithium_encode_w1_large_values(void);
 int test_mldsa_pkcs12(void);
+int test_mldsa_x509_pubkey_sigtype(void);
 
 #define TEST_MLDSA_DECLS                                                       \
     TEST_DECL_GROUP("mldsa", test_wc_dilithium),                               \

@@ -10057,6 +10057,10 @@ int wolfSSL_EVP_PKEY_type(int type)
             return WC_EVP_PKEY_EC;
         case WC_EVP_PKEY_DH:
             return WC_EVP_PKEY_DH;
+    #ifdef HAVE_DILITHIUM
+        case WC_EVP_PKEY_DILITHIUM:
+            return WC_EVP_PKEY_DILITHIUM;
+    #endif
         default:
             return WC_NID_undef;
     }

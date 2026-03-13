@@ -6346,6 +6346,13 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
             else if (x509->pubKeyOID == DSAk) {
                 key->type = WC_EVP_PKEY_DSA;
             }
+        #ifdef HAVE_DILITHIUM
+            else if (x509->pubKeyOID == ML_DSA_LEVEL2k ||
+                     x509->pubKeyOID == ML_DSA_LEVEL3k ||
+                     x509->pubKeyOID == ML_DSA_LEVEL5k) {
+                key->type = WC_EVP_PKEY_DILITHIUM;
+            }
+        #endif
             else {
                 key->type = WC_EVP_PKEY_EC;
             }
