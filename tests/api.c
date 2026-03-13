@@ -32902,9 +32902,12 @@ static int test_write_dup(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(HAVE_WRITE_DUP)
-    size_t i, j;
+    size_t i, j, k;
     char hiWorld[] = "dup message";
     char readData[sizeof(hiWorld) + 5];
+#ifdef WOLFSSL_TLS13
+    int required;
+#endif
     struct {
         method_provider client_meth;
         method_provider server_meth;
@@ -32913,9 +32916,11 @@ static int test_write_dup(void)
     } methods[] = {
 #ifndef WOLFSSL_NO_TLS12
         {wolfTLSv1_2_client_method, wolfTLSv1_2_server_method, "TLS 1.2", WOLFSSL_TLSV1_2},
+        {wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method, "DTLS 1.2", WOLFSSL_TLSV1_2},
 #endif
 #ifdef WOLFSSL_TLS13
         {wolfTLSv1_3_client_method, wolfTLSv1_3_server_method, "TLS 1.3", WOLFSSL_TLSV1_3},
+        {wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method, "DTLS 1.3", WOLFSSL_TLSV1_3},
 #endif
     };
     struct {
@@ -32981,6 +32986,18 @@ static int test_write_dup(void)
 #endif
     };
 
+/* Macro capturing local variables for concise bidirectional data exchange. */
+#define EXCHANGE_DATA do { \
+    ExpectIntEQ(wolfSSL_write(ssl_s, hiWorld, sizeof(hiWorld)), \
+            sizeof(hiWorld)); \
+    ExpectIntEQ(wolfSSL_read(ssl_c, readData, sizeof(readData)), \
+            sizeof(hiWorld)); \
+    ExpectIntEQ(wolfSSL_write(ssl_c2, hiWorld, sizeof(hiWorld)), \
+            sizeof(hiWorld)); \
+    ExpectIntEQ(wolfSSL_read(ssl_s, readData, sizeof(readData)), \
+            sizeof(hiWorld)); \
+} while (0)
+
     for (i = 0; i < XELEM_CNT(methods); i++) {
         for (j = 0; j < XELEM_CNT(ciphers) && !EXPECT_FAIL(); j++) {
             struct test_memio_ctx test_ctx;
@@ -33003,23 +33020,77 @@ static int test_write_dup(void)
 
             ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
                     methods[i].client_meth, methods[i].server_meth), 0);
+#ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+            if (methods[i].version == WOLFSSL_TLSV1_3) {
+                ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_c, cliCertFile,
+                        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+                ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_c, cliKeyFile,
+                        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+                ExpectIntEQ(wolfSSL_use_certificate_file(ssl_c, cliCertFile,
+                        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+                ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_c, cliKeyFile,
+                        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+                ExpectIntEQ(wolfSSL_allow_post_handshake_auth(ssl_c), 0);
+                ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, caCertFile,
+                        NULL), WOLFSSL_SUCCESS);
+            }
+#endif
             ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
 
             ExpectNotNull(ssl_c2 = wolfSSL_write_dup(ssl_c));
             ExpectIntEQ(wolfSSL_write(ssl_c, hiWorld, sizeof(hiWorld)),
                     WC_NO_ERR_TRACE(WRITE_DUP_WRITE_E));
-            ExpectIntEQ(wolfSSL_write(ssl_c2, hiWorld, sizeof(hiWorld)),
-                    sizeof(hiWorld));
-
-            ExpectIntEQ(wolfSSL_read(ssl_s, readData, sizeof(readData)),
-                    sizeof(hiWorld));
-            ExpectIntEQ(wolfSSL_write(ssl_s, hiWorld, sizeof(hiWorld)),
-                    sizeof(hiWorld));
-
+            EXCHANGE_DATA;
             ExpectIntEQ(wolfSSL_read(ssl_c2, readData, sizeof(readData)),
                     WC_NO_ERR_TRACE(WRITE_DUP_READ_E));
-            ExpectIntEQ(wolfSSL_read(ssl_c, readData, sizeof(readData)),
-                    sizeof(hiWorld));
+#ifdef WOLFSSL_DTLS13
+            /* The initial EXCHANGE_DATA above processes the post-handshake
+             * NewSessionTicket (S2C part delegates ACK) and triggers the
+             * ACK (C2S part sends it). Verify it completed. */
+            if (methods[i].client_meth == wolfDTLSv1_3_client_method) {
+                ExpectNotNull(ssl_c->dupWrite);
+                ExpectIntEQ(ssl_c->dupWrite->sendAcks, 0);
+                ExpectNull(ssl_s->dtls13Rtx.rtxRecords);
+            }
+#endif
+            for (k = 0; k < 10; k++)
+                EXCHANGE_DATA;
+
+#ifdef WOLFSSL_TLS13
+            if (methods[i].version == WOLFSSL_TLSV1_3) {
+                /* Client-initiated key update. */
+                ExpectIntEQ(wolfSSL_update_keys(ssl_c2), WOLFSSL_SUCCESS);
+                ExpectIntEQ(wolfSSL_key_update_response(ssl_c2, &required), 0);
+                ExpectIntEQ(required, 1);
+                for (k = 0; k < 10; k++)
+                    EXCHANGE_DATA;
+            }
+
+            if (methods[i].version == WOLFSSL_TLSV1_3) {
+                /* Server-initiated key update. */
+                ExpectIntEQ(wolfSSL_update_keys(ssl_s), WOLFSSL_SUCCESS);
+                ExpectIntEQ(wolfSSL_key_update_response(ssl_s, &required), 0);
+                ExpectIntEQ(required, 1);
+                for (k = 0; k < 10; k++)
+                    EXCHANGE_DATA;
+                ExpectIntEQ(wolfSSL_key_update_response(ssl_s, &required), 0);
+                ExpectIntEQ(required, 0);
+            }
+#endif /* WOLFSSL_TLS13 */
+
+#ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+            if (methods[i].version == WOLFSSL_TLSV1_3) {
+                WOLFSSL_X509_CHAIN* chain = NULL;
+                ExpectNotNull(chain = wolfSSL_get_peer_chain(ssl_s));
+                ExpectIntEQ(wolfSSL_get_chain_count(chain), 0);
+                ExpectIntEQ(wolfSSL_request_certificate(ssl_s), WOLFSSL_SUCCESS);
+                EXCHANGE_DATA;
+                ExpectNotNull(chain = wolfSSL_get_peer_chain(ssl_s));
+                ExpectIntEQ(wolfSSL_get_chain_count(chain), 1);
+                for (k = 0; k < 10; k++)
+                    EXCHANGE_DATA;
+            }
+#endif
 
             if (EXPECT_SUCCESS())
                 printf("ok\n");
@@ -33033,6 +33104,245 @@ static int test_write_dup(void)
             wolfSSL_CTX_free(ctx_s);
         }
     }
+#undef EXCHANGE_DATA
+#endif
+    return EXPECT_RESULT();
+}
+
+static int test_write_dup_want_write(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(HAVE_WRITE_DUP)
+    size_t i, k;
+    char hiWorld[] = "dup message";
+    char readData[sizeof(hiWorld) + 5];
+#ifdef WOLFSSL_TLS13
+    int required;
+#endif
+    struct {
+        method_provider client_meth;
+        method_provider server_meth;
+        const char* version_name;
+        int version;
+    } methods[] = {
+#ifndef WOLFSSL_NO_TLS12
+        {wolfTLSv1_2_client_method, wolfTLSv1_2_server_method, "TLS 1.2", WOLFSSL_TLSV1_2},
+        {wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method, "DTLS 1.2", WOLFSSL_TLSV1_2},
+#endif
+#ifdef WOLFSSL_TLS13
+        {wolfTLSv1_3_client_method, wolfTLSv1_3_server_method, "TLS 1.3", WOLFSSL_TLSV1_3},
+        {wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method, "DTLS 1.3", WOLFSSL_TLSV1_3},
+#endif
+    };
+
+/* Same as test_write_dup's EXCHANGE_DATA but every client (write-dup side)
+ * write is preceded by a simulated WANT_WRITE that must be retried. */
+#define EXCHANGE_DATA do { \
+    ExpectIntEQ(wolfSSL_write(ssl_s, hiWorld, sizeof(hiWorld)), \
+            sizeof(hiWorld)); \
+    ExpectIntEQ(wolfSSL_read(ssl_c, readData, sizeof(readData)), \
+            sizeof(hiWorld)); \
+    test_memio_simulate_want_write(&test_ctx, 1, 1); \
+    ExpectIntEQ(wolfSSL_write(ssl_c2, hiWorld, sizeof(hiWorld)), \
+            WOLFSSL_FATAL_ERROR); \
+    ExpectIntEQ(wolfSSL_get_error(ssl_c2, WOLFSSL_FATAL_ERROR), \
+            WOLFSSL_ERROR_WANT_WRITE); \
+    test_memio_simulate_want_write(&test_ctx, 1, 0); \
+    ExpectIntEQ(wolfSSL_write(ssl_c2, hiWorld, sizeof(hiWorld)), \
+            sizeof(hiWorld)); \
+    ExpectIntEQ(wolfSSL_read(ssl_s, readData, sizeof(readData)), \
+            sizeof(hiWorld)); \
+} while (0)
+
+    for (i = 0; i < XELEM_CNT(methods) && !EXPECT_FAIL(); i++) {
+        struct test_memio_ctx test_ctx;
+        WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+        WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+        WOLFSSL *ssl_c2 = NULL;
+
+        if (i == 0)
+            printf("\n");
+        printf("Testing write_dup WANT_WRITE %s... ",
+                methods[i].version_name);
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                methods[i].client_meth, methods[i].server_meth), 0);
+#ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+        if (methods[i].version == WOLFSSL_TLSV1_3) {
+            ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_c, cliCertFile,
+                    WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+            ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_c, cliKeyFile,
+                    WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+            ExpectIntEQ(wolfSSL_use_certificate_file(ssl_c, cliCertFile,
+                    WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+            ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_c, cliKeyFile,
+                    WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+            ExpectIntEQ(wolfSSL_allow_post_handshake_auth(ssl_c), 0);
+            ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, caCertFile,
+                    NULL), WOLFSSL_SUCCESS);
+        }
+#endif
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+        ExpectNotNull(ssl_c2 = wolfSSL_write_dup(ssl_c));
+
+        for (k = 0; k < 10 && !EXPECT_FAIL(); k++)
+            EXCHANGE_DATA;
+
+#ifdef WOLFSSL_TLS13
+        if (methods[i].version == WOLFSSL_TLSV1_3) {
+            /* Client-initiated key update with WANT_WRITE. */
+            ExpectIntEQ(wolfSSL_update_keys(ssl_c2), WOLFSSL_SUCCESS);
+            ExpectIntEQ(wolfSSL_key_update_response(ssl_c2, &required), 0);
+            ExpectIntEQ(required, 1);
+            for (k = 0; k < 10 && !EXPECT_FAIL(); k++)
+                EXCHANGE_DATA;
+
+            /* Server-initiated key update: response goes through write side
+             * with WANT_WRITE. */
+            ExpectIntEQ(wolfSSL_update_keys(ssl_s), WOLFSSL_SUCCESS);
+            ExpectIntEQ(wolfSSL_key_update_response(ssl_s, &required), 0);
+            ExpectIntEQ(required, 1);
+            for (k = 0; k < 10 && !EXPECT_FAIL(); k++)
+                EXCHANGE_DATA;
+            ExpectIntEQ(wolfSSL_key_update_response(ssl_s, &required), 0);
+            ExpectIntEQ(required, 0);
+        }
+#endif /* WOLFSSL_TLS13 */
+
+#ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+        if (methods[i].version == WOLFSSL_TLSV1_3) {
+            WOLFSSL_X509_CHAIN* chain = NULL;
+            ExpectNotNull(chain = wolfSSL_get_peer_chain(ssl_s));
+            ExpectIntEQ(wolfSSL_get_chain_count(chain), 0);
+            ExpectIntEQ(wolfSSL_request_certificate(ssl_s), WOLFSSL_SUCCESS);
+            EXCHANGE_DATA;
+            ExpectNotNull(chain = wolfSSL_get_peer_chain(ssl_s));
+            ExpectIntEQ(wolfSSL_get_chain_count(chain), 1);
+            for (k = 0; k < 10 && !EXPECT_FAIL(); k++)
+                EXCHANGE_DATA;
+        }
+#endif /* WOLFSSL_POST_HANDSHAKE_AUTH */
+
+        if (EXPECT_SUCCESS())
+            printf("ok\n");
+        else
+            printf("failed\n");
+
+        wolfSSL_free(ssl_c);
+        wolfSSL_free(ssl_c2);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_CTX_free(ctx_s);
+    }
+#undef EXCHANGE_DATA
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Simultaneous key update and cert req */
+static int test_write_dup_want_write_simul(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(HAVE_WRITE_DUP) && \
+    defined(WOLFSSL_POST_HANDSHAKE_AUTH) && defined(WOLFSSL_TLS13)
+    size_t i, k;
+    char hiWorld[] = "dup message";
+    char readData[sizeof(hiWorld) + 5];
+    int required;
+    struct {
+        method_provider client_meth;
+        method_provider server_meth;
+        const char* version_name;
+    } methods[] = {
+#ifdef WOLFSSL_TLS13
+        {wolfTLSv1_3_client_method, wolfTLSv1_3_server_method, "TLS 1.3"},
+        {wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method, "DTLS 1.3"},
+#endif
+    };
+
+/* Same as test_write_dup's EXCHANGE_DATA but every client (write-dup side)
+ * write is preceded by a simulated WANT_WRITE that must be retried. */
+#define EXCHANGE_DATA do { \
+    ExpectIntEQ(wolfSSL_write(ssl_s, hiWorld, sizeof(hiWorld)), \
+            sizeof(hiWorld)); \
+    ExpectIntEQ(wolfSSL_read(ssl_c, readData, sizeof(readData)), \
+            sizeof(hiWorld)); \
+    test_memio_simulate_want_write(&test_ctx, 1, 1); \
+    ExpectIntEQ(wolfSSL_write(ssl_c2, hiWorld, sizeof(hiWorld)), \
+            WOLFSSL_FATAL_ERROR); \
+    ExpectIntEQ(wolfSSL_get_error(ssl_c2, WOLFSSL_FATAL_ERROR), \
+            WOLFSSL_ERROR_WANT_WRITE); \
+    test_memio_simulate_want_write(&test_ctx, 1, 0); \
+    ExpectIntEQ(wolfSSL_write(ssl_c2, hiWorld, sizeof(hiWorld)), \
+            sizeof(hiWorld)); \
+    ExpectIntEQ(wolfSSL_read(ssl_s, readData, sizeof(readData)), \
+            sizeof(hiWorld)); \
+} while (0)
+
+    for (i = 0; i < XELEM_CNT(methods) && !EXPECT_FAIL(); i++) {
+        struct test_memio_ctx test_ctx;
+        WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+        WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+        WOLFSSL *ssl_c2 = NULL;
+        WOLFSSL_X509_CHAIN* chain = NULL;
+
+        if (i == 0)
+            printf("\n");
+        printf("Testing write_dup WANT_WRITE %s... ",
+                methods[i].version_name);
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                methods[i].client_meth, methods[i].server_meth), 0);
+        ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_c, cliCertFile,
+                WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_c, cliKeyFile,
+                WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_use_certificate_file(ssl_c, cliCertFile,
+                WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_c, cliKeyFile,
+                WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_allow_post_handshake_auth(ssl_c), 0);
+        ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, caCertFile,
+                NULL), WOLFSSL_SUCCESS);
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+        ExpectNotNull(ssl_c2 = wolfSSL_write_dup(ssl_c));
+
+        for (k = 0; k < 10 && !EXPECT_FAIL(); k++)
+            EXCHANGE_DATA;
+
+        /* Server-initiated key update and cert req: response goes through
+         * write side with WANT_WRITE. */
+        ExpectNotNull(chain = wolfSSL_get_peer_chain(ssl_s));
+        ExpectIntEQ(wolfSSL_get_chain_count(chain), 0);
+        ExpectIntEQ(wolfSSL_update_keys(ssl_s), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_key_update_response(ssl_s, &required), 0);
+        ExpectIntEQ(required, 1);
+        ExpectIntEQ(wolfSSL_request_certificate(ssl_s), WOLFSSL_SUCCESS);
+        for (k = 0; k < 10 && !EXPECT_FAIL(); k++)
+            EXCHANGE_DATA;
+        ExpectNotNull(chain = wolfSSL_get_peer_chain(ssl_s));
+        ExpectIntEQ(wolfSSL_get_chain_count(chain), 1);
+        ExpectIntEQ(wolfSSL_key_update_response(ssl_s, &required), 0);
+        ExpectIntEQ(required, 0);
+
+        if (EXPECT_SUCCESS())
+            printf("ok\n");
+        else
+            printf("failed\n");
+
+        wolfSSL_free(ssl_c);
+        wolfSSL_free(ssl_c2);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_CTX_free(ctx_s);
+    }
+#undef EXCHANGE_DATA
 #endif
     return EXPECT_RESULT();
 }
@@ -34749,6 +35059,8 @@ TEST_CASE testCases[] = {
     TEST_DTLS_DECLS,
     TEST_DECL(test_tls_multi_handshakes_one_record),
     TEST_DECL(test_write_dup),
+    TEST_DECL(test_write_dup_want_write),
+    TEST_DECL(test_write_dup_want_write_simul),
     TEST_DECL(test_read_write_hs),
     TEST_DECL(test_get_signature_nid),
 #ifndef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION

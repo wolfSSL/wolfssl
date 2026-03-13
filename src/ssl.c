@@ -842,9 +842,28 @@ void FreeWriteDup(WOLFSSL* ssl)
     }
 
     if (doFree) {
-        WOLFSSL_MSG("Doing WriteDup full free, count to zero");
+#ifdef WOLFSSL_DTLS13
+        struct Dtls13RecordNumber* rn = ssl->dupWrite->sendAckList;
+        while (rn != NULL) {
+            struct Dtls13RecordNumber* next = rn->next;
+            XFREE(rn, ssl->heap, DYNAMIC_TYPE_DTLS_MSG);
+            rn = next;
+        }
+#endif
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+        Free_HS_Hashes(ssl->dupWrite->postHandshakeHashState, ssl->heap);
+        {
+            CertReqCtx* ctx = ssl->dupWrite->postHandshakeCertReqCtx;
+            while (ctx != NULL) {
+                CertReqCtx* nxt = ctx->next;
+                XFREE(ctx, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                ctx = nxt;
+            }
+        }
+#endif /* WOLFSSL_TLS13 && WOLFSSL_POST_HANDSHAKE_AUTH */
         wc_FreeMutex(&ssl->dupWrite->dupMutex);
         XFREE(ssl->dupWrite, ssl->heap, DYNAMIC_TYPE_WRITEDUP);
+        WOLFSSL_MSG("Did WriteDup full free, count to zero");
     }
 }
 
@@ -901,6 +920,40 @@ static int DupSSL(WOLFSSL* dup, WOLFSSL* ssl)
 
     /* dup side now owns encrypt/write ciphers */
     XMEMSET(&ssl->encrypt, 0, sizeof(Ciphers));
+
+#ifdef WOLFSSL_TLS13
+    if (IsAtLeastTLSv1_3(ssl->version)) {
+        /* Copy TLS 1.3 application traffic secrets so the write side can
+         * derive updated keys when wolfSSL_update_keys() is called. */
+        XMEMCPY(dup->clientSecret, ssl->clientSecret, SECRET_LEN);
+        XMEMCPY(dup->serverSecret, ssl->serverSecret, SECRET_LEN);
+
+#ifdef WOLFSSL_DTLS13
+        if (ssl->options.dtls) {
+            /* Copy epoch array (contains only value types -- safe to memcpy). */
+            XMEMCPY(dup->dtls13Epochs, ssl->dtls13Epochs,
+                    sizeof(ssl->dtls13Epochs));
+
+            /* Re-point dtls13EncryptEpoch into dup's own epoch array. */
+            if (ssl->dtls13EncryptEpoch != NULL) {
+                dup->dtls13EncryptEpoch =
+                    &dup->dtls13Epochs[ssl->dtls13EncryptEpoch -
+                                       ssl->dtls13Epochs];
+            }
+
+            /* Copy current write epoch number. */
+            dup->dtls13Epoch = ssl->dtls13Epoch;
+
+            /* Transfer record-number encryption cipher ownership to dup. */
+            XMEMCPY(&dup->dtlsRecordNumberEncrypt,
+                    &ssl->dtlsRecordNumberEncrypt, sizeof(RecordNumberCiphers));
+            XMEMSET(&ssl->dtlsRecordNumberEncrypt,
+                    0, sizeof(RecordNumberCiphers));
+        }
+#endif /* WOLFSSL_DTLS13 */
+    }
+#endif /* WOLFSSL_TLS13 */
+
 
     dup->IOCB_WriteCtx = ssl->IOCB_WriteCtx;
     dup->CBIOSend = ssl->CBIOSend;
@@ -2509,7 +2562,7 @@ int wolfSSL_GetDhKey_Sz(WOLFSSL* ssl)
 
 static int wolfSSL_write_internal(WOLFSSL* ssl, const void* data, size_t sz)
 {
-    int ret;
+    int ret = 0;
 
     WOLFSSL_ENTER("wolfSSL_write");
 
@@ -2524,32 +2577,143 @@ static int wolfSSL_write_internal(WOLFSSL* ssl, const void* data, size_t sz)
 #endif
 
 #ifdef HAVE_WRITE_DUP
-    { /* local variable scope */
+    if (ssl->dupSide == READ_DUP_SIDE) {
+        WOLFSSL_MSG("Read dup side cannot write");
+        return WRITE_DUP_WRITE_E;
+    }
+    /* Only enter special dupWrite logic when error is cleared. This will help
+     * with handling async data and other edge case errors. */
+    if (ssl->dupWrite != NULL && ssl->error == 0) {
         int dupErr = 0;   /* local copy */
-
-        ret = 0;
-
-        if (ssl->dupWrite && ssl->dupSide == READ_DUP_SIDE) {
-            WOLFSSL_MSG("Read dup side cannot write");
-            return WRITE_DUP_WRITE_E;
-        }
-        if (ssl->dupWrite) {
-            if (wc_LockMutex(&ssl->dupWrite->dupMutex) != 0) {
-                return BAD_MUTEX_E;
+        /* Lock ssl->dupWrite to gather what needs to be done. */
+        if (wc_LockMutex(&ssl->dupWrite->dupMutex) != 0)
+            return BAD_MUTEX_E;
+        dupErr = ssl->dupWrite->dupErr;
+#ifdef WOLFSSL_TLS13
+        if (IsAtLeastTLSv1_3(ssl->version)) {
+            /* TLS 1.3: if the read side received a KeyUpdate(update_requested)
+             * it cannot respond; send the response from here. */
+            ssl->keys.keyUpdateRespond |= ssl->dupWrite->keyUpdateRespond;
+            ssl->dupWrite->keyUpdateRespond = 0;
+#ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+            ssl->postHandshakeAuthPending |=
+                    ssl->dupWrite->postHandshakeAuthPending;
+            ssl->dupWrite->postHandshakeAuthPending = 0;
+            if (ssl->postHandshakeAuthPending) {
+                /* Take ownership of the delegated auth state. */
+                CertReqCtx** tail = &ssl->dupWrite->postHandshakeCertReqCtx;
+                while (*tail != NULL)
+                    tail = &(*tail)->next;
+                *tail = ssl->certReqCtx;
+                ssl->certReqCtx = ssl->dupWrite->postHandshakeCertReqCtx;
+                ssl->dupWrite->postHandshakeCertReqCtx = NULL;
+                FreeHandshakeHashes(ssl);
+                ssl->hsHashes = ssl->dupWrite->postHandshakeHashState;
+                ssl->dupWrite->postHandshakeHashState = NULL;
+                ssl->options.sendVerify = ssl->dupWrite->postHandshakeSendVerify;
+                ssl->options.sigAlgo = ssl->dupWrite->postHandshakeSigAlgo;
+                ssl->options.hashAlgo = ssl->dupWrite->postHandshakeHashAlgo;
             }
-            dupErr = ssl->dupWrite->dupErr;
-            ret = wc_UnLockMutex(&ssl->dupWrite->dupMutex);
-        }
+#endif /* WOLFSSL_POST_HANDSHAKE_AUTH */
+#ifdef WOLFSSL_DTLS13
+            if (ssl->options.dtls) {
+                /* Schedule key update to be sent. */
+                if (ssl->keys.keyUpdateRespond)
+                    ssl->dtls13DoKeyUpdate = 1;
 
-        if (ret != 0) {
-            ssl->error = ret;  /* high priority fatal error */
-            return WOLFSSL_FATAL_ERROR;
+                /* Copy over ACKs */
+                ssl->dtls13Rtx.sendAcks |= ssl->dupWrite->sendAcks;
+                if (ssl->dupWrite->sendAcks) {
+                    /* Insert each record number so the
+                     * ACK message is properly ordered. */
+                    struct Dtls13RecordNumber* rn;
+                    for (rn = ssl->dupWrite->sendAckList; rn != NULL;
+                         rn = rn->next) {
+                        ret = Dtls13RtxAddAck(ssl, rn->epoch, rn->seq);
+                        if (ret != 0)
+                            break;
+                    }
+                    /* Clear only on success so no ACKs get dropped */
+                    if (ret == 0) {
+                        rn = ssl->dupWrite->sendAckList;
+                        ssl->dupWrite->sendAckList = NULL;
+                        ssl->dupWrite->sendAcks = 0;
+                        while (rn != NULL) {
+                            struct Dtls13RecordNumber* next = rn->next;
+                            XFREE(rn, ssl->heap, DYNAMIC_TYPE_DTLS_MSG);
+                            rn = next;
+                        }
+                    }
+                }
+
+                /* Remove KeyUpdate record from RTX list. */
+                if (ssl->dupWrite->keyUpdateAcked) {
+                    Dtls13RtxRemoveRecord(ssl, ssl->dupWrite->keyUpdateEpoch,
+                            ssl->dupWrite->keyUpdateSeq);
+                }
+                /* Store if KeyUpdate was ACKed. */
+                ssl->dtls13KeyUpdateAcked |= ssl->dupWrite->keyUpdateAcked;
+                ssl->dupWrite->keyUpdateAcked = 0;
+            }
+#endif /* WOLFSSL_DTLS13 */
         }
+#endif /* WOLFSSL_TLS13 */
+        wc_UnLockMutex(&ssl->dupWrite->dupMutex);
+
         if (dupErr != 0) {
             WOLFSSL_MSG("Write dup error from other side");
             ssl->error = dupErr;
             return WOLFSSL_FATAL_ERROR;
         }
+        if (ret != 0) {
+            ssl->error = ret;
+            return WOLFSSL_FATAL_ERROR;
+        }
+
+
+#ifdef WOLFSSL_TLS13
+        if (IsAtLeastTLSv1_3(ssl->version)) {
+#ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+            /* Read side received a CertificateRequest but couldn't write;
+             * send Certificate+CertificateVerify+Finished from the write side. */
+            if (ssl->postHandshakeAuthPending) {
+                /* reset handshake states */
+                ssl->postHandshakeAuthPending = 0;
+                ssl->options.clientState = CLIENT_HELLO_COMPLETE;
+                ssl->options.connectState = FIRST_REPLY_DONE;
+                ssl->options.handShakeState = CLIENT_HELLO_COMPLETE;
+                ssl->options.processReply = 0; /* doProcessInit */
+                if (wolfSSL_connect_TLSv13(ssl) != WOLFSSL_SUCCESS) {
+                    if (ssl->error != WC_NO_ERR_TRACE(WANT_WRITE) &&
+                            ssl->error != WC_NO_ERR_TRACE(WC_PENDING_E)) {
+                        WOLFSSL_MSG("Post-handshake auth send failed");
+                        ssl->error = POST_HAND_AUTH_ERROR;
+                    }
+                    return WOLFSSL_FATAL_ERROR;
+                }
+            }
+#endif /* WOLFSSL_POST_HANDSHAKE_AUTH */
+#ifdef WOLFSSL_DTLS13
+            if (ssl->options.dtls) {
+                if (ssl->dtls13KeyUpdateAcked)
+                    ret = DoDtls13KeyUpdateAck(ssl);
+                ssl->dtls13KeyUpdateAcked = 0;
+                if (ret == 0)
+                    ret = Dtls13DoScheduledWork(ssl);
+            }
+            else
+#endif /* WOLFSSL_DTLS13 */
+            if (ssl->keys.keyUpdateRespond) /* cleared in SendTls13KeyUpdate */
+                ret = Tls13UpdateKeys(ssl);
+            if (ret != 0) {
+                ssl->error = ret;
+                return WOLFSSL_FATAL_ERROR;
+            }
+            /* WANT_WRITE is safe to clear. Data is buffered in output buffer
+             * or in DTLS RTX queue */
+            ret = 0;
+        }
+#endif /* WOLFSSL_TLS13 */
     }
 #endif
 

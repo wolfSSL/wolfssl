@@ -7462,41 +7462,47 @@ int InitHandshakeHashes(WOLFSSL* ssl)
     return ret;
 }
 
-void FreeHandshakeHashes(WOLFSSL* ssl)
+void Free_HS_Hashes(HS_Hashes* hsHashes, void* heap)
 {
-    if (ssl->hsHashes) {
+    if (hsHashes) {
     #if !defined(NO_MD5) && !defined(NO_OLD_TLS)
-        wc_Md5Free(&ssl->hsHashes->hashMd5);
+        wc_Md5Free(&hsHashes->hashMd5);
     #endif
     #if !defined(NO_SHA) && (!defined(NO_OLD_TLS) || \
                               defined(WOLFSSL_ALLOW_TLS_SHA1))
-        wc_ShaFree(&ssl->hsHashes->hashSha);
+        wc_ShaFree(&hsHashes->hashSha);
     #endif
     #ifndef NO_SHA256
-        wc_Sha256Free(&ssl->hsHashes->hashSha256);
+        wc_Sha256Free(&hsHashes->hashSha256);
     #endif
     #ifdef WOLFSSL_SHA384
-        wc_Sha384Free(&ssl->hsHashes->hashSha384);
+        wc_Sha384Free(&hsHashes->hashSha384);
     #endif
     #ifdef WOLFSSL_SHA512
-        wc_Sha512Free(&ssl->hsHashes->hashSha512);
+        wc_Sha512Free(&hsHashes->hashSha512);
     #endif
     #ifdef WOLFSSL_SM3
-        wc_Sm3Free(&ssl->hsHashes->hashSm3);
+        wc_Sm3Free(&hsHashes->hashSm3);
     #endif
     #if (defined(HAVE_ED25519) || defined(HAVE_ED448) || \
          (defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3))) && \
         !defined(WOLFSSL_NO_CLIENT_AUTH)
-        if (ssl->hsHashes->messages != NULL) {
-            ForceZero(ssl->hsHashes->messages, (word32)ssl->hsHashes->length);
-            XFREE(ssl->hsHashes->messages, ssl->heap, DYNAMIC_TYPE_HASHES);
-            ssl->hsHashes->messages = NULL;
+        if (hsHashes->messages != NULL) {
+            ForceZero(hsHashes->messages, (word32)hsHashes->length);
+            XFREE(hsHashes->messages, heap, DYNAMIC_TYPE_HASHES);
+            hsHashes->messages = NULL;
          }
     #endif
 
-        XFREE(ssl->hsHashes, ssl->heap, DYNAMIC_TYPE_HASHES);
-        ssl->hsHashes = NULL;
+        XFREE(hsHashes, heap, DYNAMIC_TYPE_HASHES);
+        hsHashes = NULL;
     }
+}
+
+void FreeHandshakeHashes(WOLFSSL* ssl)
+{
+    Free_HS_Hashes(ssl->hsHashes, ssl->heap);
+    ssl->hsHashes = NULL;
 }
 
 /* copy the hashes from source to a newly made destination return status */
@@ -7509,15 +7515,8 @@ int InitHandshakeHashesAndCopy(WOLFSSL* ssl, HS_Hashes* source,
         return BAD_FUNC_ARG;
 
     /* If *destination is already allocated, its constituent hashes need to be
-     * freed, else they would leak.  To keep things simple, we reuse
-     * FreeHandshakeHashes(), which deallocates *destination.
-     */
-    if (*destination != NULL) {
-        HS_Hashes* tmp = ssl->hsHashes;
-        ssl->hsHashes = *destination;
-        FreeHandshakeHashes(ssl);
-        ssl->hsHashes = tmp;
-    }
+     * freed, else they would leak. */
+    Free_HS_Hashes(*destination, ssl->heap);
 
     /* allocate handshake hashes */
     *destination = (HS_Hashes*)XMALLOC(sizeof(HS_Hashes), ssl->heap,
@@ -8065,6 +8064,24 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     }
     ssl->options.dtls = ssl->version.major == DTLS_MAJOR;
 
+
+#ifdef WOLFSSL_DTLS13
+    /* setup 0 (un-protected) epoch */
+    ssl->dtls13Epochs[0].isValid = 1;
+    ssl->dtls13Epochs[0].side = ENCRYPT_AND_DECRYPT_SIDE;
+    ssl->dtls13EncryptEpoch = &ssl->dtls13Epochs[0];
+    ssl->dtls13DecryptEpoch = &ssl->dtls13Epochs[0];
+    ssl->options.dtls13SendMoreAcks = WOLFSSL_DTLS13_SEND_MOREACK_DEFAULT;
+    ssl->dtls13Rtx.rtxRecordTailPtr = &ssl->dtls13Rtx.rtxRecords;
+
+#ifdef WOLFSSL_RW_THREADED
+    ret = wc_InitMutex(&ssl->dtls13Rtx.mutex);
+    if (ret < 0) {
+        return ret;
+    }
+#endif
+#endif /* WOLFSSL_DTLS13 */
+
 #ifdef HAVE_WRITE_DUP
     if (writeDup) {
         /* all done */
@@ -8175,24 +8192,6 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
         }
     }
 #endif /* HAVE_SECURE_RENEGOTIATION */
-
-
-#ifdef WOLFSSL_DTLS13
-    /* setup 0 (un-protected) epoch */
-    ssl->dtls13Epochs[0].isValid = 1;
-    ssl->dtls13Epochs[0].side = ENCRYPT_AND_DECRYPT_SIDE;
-    ssl->dtls13EncryptEpoch = &ssl->dtls13Epochs[0];
-    ssl->dtls13DecryptEpoch = &ssl->dtls13Epochs[0];
-    ssl->options.dtls13SendMoreAcks = WOLFSSL_DTLS13_SEND_MOREACK_DEFAULT;
-    ssl->dtls13Rtx.rtxRecordTailPtr = &ssl->dtls13Rtx.rtxRecords;
-
-#ifdef WOLFSSL_RW_THREADED
-    ret = wc_InitMutex(&ssl->dtls13Rtx.mutex);
-    if (ret < 0) {
-        return ret;
-    }
-#endif
-#endif /* WOLFSSL_DTLS13 */
 
 #ifdef WOLFSSL_QUIC
     if (ctx->quic.method) {
@@ -26094,6 +26093,10 @@ static int CheckTLS13AEADSendLimit(WOLFSSL* ssl)
     }
 #ifdef WOLFSSL_DTLS13
     if (ssl->options.dtls) {
+        if (ssl->dtls13EncryptEpoch == NULL) {
+            WOLFSSL_MSG("DTLS 1.3 encrypt epoch not set");
+            return BAD_STATE_E;
+        }
         seq = ssl->dtls13EncryptEpoch->nextSeqNumber;
     }
     else
@@ -26324,6 +26327,8 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
         else {
             /* advance sent to previous sent + plain size just sent */
             sent = ssl->buffers.prevSent + ssl->buffers.plainSz;
+            ssl->buffers.prevSent = 0;
+            ssl->buffers.plainSz = 0;
             WOLFSSL_MSG("sent write buffered data");
 
             if (sent > (word32)sz) {
