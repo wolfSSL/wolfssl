@@ -380,6 +380,8 @@ extern "C" {
 #cmakedefine WOLFSSL_HAVE_MLKEM
 #undef WOLFSSL_WC_MLKEM
 #cmakedefine WOLFSSL_WC_MLKEM
+#undef WOLFSSL_TLS_NO_MLKEM_STANDALONE
+#cmakedefine WOLFSSL_TLS_NO_MLKEM_STANDALONE
 #undef WOLFSSL_WC_DILITHIUM
 #cmakedefine WOLFSSL_WC_DILITHIUM
 #undef NO_WOLFSSL_STUB
@@ -414,6 +416,10 @@ extern "C" {
 #cmakedefine WOLFSSL_HAVE_SLHDSA
 #undef WOLFSSL_WC_SLHDSA
 #cmakedefine WOLFSSL_WC_SLHDSA
+#undef WOLFSSL_PQC_HYBRIDS
+#cmakedefine WOLFSSL_PQC_HYBRIDS
+#undef WOLFSSL_EXTRA_PQC_HYBRIDS
+#cmakedefine WOLFSSL_EXTRA_PQC_HYBRIDS
 
 #ifdef __cplusplus
 }

@@ -610,7 +610,7 @@ add_option(WOLFSSL_OQS
 # ML-KEM/Kyber
 add_option(WOLFSSL_MLKEM
     "Enable the wolfSSL PQ ML-KEM library (default: disabled)"
-    "no" "yes;no")
+    "yes" "yes;no")
 
 if (WOLFSSL_MLKEM)
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_HAVE_MLKEM")
@@ -624,6 +624,32 @@ if (WOLFSSL_MLKEM)
     set_wolfssl_definitions("WOLFSSL_SHA3"       RESULT)
     set_wolfssl_definitions("WOLFSSL_SHAKE128"   RESULT)
     set_wolfssl_definitions("WOLFSSL_SHAKE256"   RESULT)
+endif()
+
+# When MLKEM and DTLS 1.3 are both enabled, DTLS ClientHello fragmenting is
+# required (PQC keys in ClientHello can exceed MTU), so enable it automatically.
+if(WOLFSSL_MLKEM AND WOLFSSL_DTLS13 AND NOT WOLFSSL_DTLS_CH_FRAG)
+    message(STATUS "MLKEM and DTLS 1.3 are enabled; enabling DTLS ClientHello fragmenting")
+    override_cache(WOLFSSL_DTLS_CH_FRAG "yes")
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_DTLS_CH_FRAG")
+endif()
+
+# Disable ML-KEM as standalone TLS key exchange (non-hybrid); when enabled (default), standalone is disabled
+add_option(WOLFSSL_TLS_NO_MLKEM_STANDALONE
+    "Disable ML-KEM as standalone TLS key exchange (non-hybrid) (default: enabled, i.e. standalone disabled)"
+    "yes" "yes;no")
+
+if (WOLFSSL_TLS_NO_MLKEM_STANDALONE)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_TLS_NO_MLKEM_STANDALONE")
+endif()
+
+# PQ/T hybrid combinations
+add_option(WOLFSSL_PQC_HYBRIDS
+    "Enable PQ/T hybrid combinations (default: enabled)"
+    "yes" "yes;no")
+
+if (WOLFSSL_PQC_HYBRIDS)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_PQC_HYBRIDS")
 endif()
 
 # Dilithium
@@ -675,6 +701,10 @@ add_option(WOLFSSL_EXPERIMENTAL
     "Enable experimental features (default: disabled)"
     "no" "yes;no")
 
+add_option(WOLFSSL_EXTRA_PQC_HYBRIDS
+    "Enable extra PQ/T hybrid combinations (default: disabled)"
+    "no" "yes;no")
+
 message(STATUS "Looking for WOLFSSL_EXPERIMENTAL")
 if (WOLFSSL_EXPERIMENTAL)
     message(STATUS "Looking for WOLFSSL_EXPERIMENTAL - found")
@@ -708,6 +738,16 @@ if (WOLFSSL_EXPERIMENTAL)
         endif()
     else()
         message(STATUS "Looking for WOLFSSL_OQS - not found")
+    endif()
+
+    # Checking for experimental feature: extra PQ/T hybrid combinations
+    message(STATUS "Looking for WOLFSSL_EXTRA_PQC_HYBRIDS")
+    if (WOLFSSL_EXTRA_PQC_HYBRIDS)
+        set(WOLFSSL_FOUND_EXPERIMENTAL_FEATURE 1)
+        message(STATUS "Looking for WOLFSSL_EXTRA_PQC_HYBRIDS - found")
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_EXTRA_PQC_HYBRIDS")
+    else()
+        message(STATUS "Looking for WOLFSSL_EXTRA_PQC_HYBRIDS - not found")
     endif()
 
     # Other experimental feature detection can be added here...
