@@ -87,7 +87,8 @@ static int hashUpdate(wolfssl_TI_Hash *hash, const byte* data, word32 len)
         } else {
             p = XREALLOC(hash->msg, usedSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         }
-        if (p == 0)return 1;
+        if (p == 0)
+            return MEMORY_E;
         hash->msg = p;
         hash->len = usedSz;
     }
