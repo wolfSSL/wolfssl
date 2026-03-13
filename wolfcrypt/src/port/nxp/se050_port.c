@@ -269,7 +269,7 @@ int se050_hash_update(SE050_HASH_Context* se050Ctx, const byte* data, word32 len
     byte* tmp = NULL;
     word32 usedSz = 0;
 
-    if (se050Ctx == NULL || (len > 0 && data == NULL) ||
+    if (se050Ctx == NULL || (len > 0 && data == NULL) || (len == 0) ||
         !WC_SAFE_SUM_WORD32(se050Ctx->used, len, usedSz)) {
         return BAD_FUNC_ARG;
     }

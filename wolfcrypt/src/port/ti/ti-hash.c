@@ -77,7 +77,7 @@ static int hashUpdate(wolfssl_TI_Hash *hash, const byte* data, word32 len)
     void *p;
     word32 usedSz = 0;
 
-    if ((hash== NULL) || (data == NULL) ||
+    if ((hash == NULL) || (data == NULL) || (len == 0) ||
         !WC_SAFE_SUM_WORD32(hash->used, len, usedSz))
         return BAD_FUNC_ARG;
 
