@@ -5794,6 +5794,12 @@ int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
                                                  (ecc_key*)info->free.obj);
                     Pkcs11CloseSession(token, &session);
                 }
+                /* Return CRYPTOCB_UNAVAILABLE so wc_ecc_free() still
+                 * performs software cleanup. This callback only releases
+                 * the HSM object. Conditional because wc_ecc_free returns
+                 * int and can propagate an HSM error to the caller. */
+                if (ret == 0)
+                    ret = CRYPTOCB_UNAVAILABLE;
             }
             else
     #endif
@@ -5807,6 +5813,11 @@ int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
                                                    (MlDsaKey*)info->free.obj);
                     Pkcs11CloseSession(token, &session);
                 }
+                /* Always return CRYPTOCB_UNAVAILABLE so wc_dilithium_free()
+                 * performs software cleanup. This callback only releases
+                 * the HSM object. Unconditional because wc_dilithium_free
+                 * returns void and cannot propagate an error. */
+                ret = CRYPTOCB_UNAVAILABLE;
             }
             else
     #endif

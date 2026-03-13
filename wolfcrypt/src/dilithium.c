@@ -10889,14 +10889,22 @@ int wc_dilithium_get_level(dilithium_key* key, byte* level)
  */
 void wc_dilithium_free(dilithium_key* key)
 {
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
+    int ret = 0;
+#endif
+
     if (key != NULL) {
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
         if (key->devId != INVALID_DEVID) {
-            wc_CryptoCb_Free(key->devId, WC_ALGO_TYPE_PK,
+            ret = wc_CryptoCb_Free(key->devId, WC_ALGO_TYPE_PK,
                              WC_PK_TYPE_PQC_SIG_KEYGEN,
                              WC_PQC_SIG_TYPE_DILITHIUM,
                              (void*)key);
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+                return;
+            /* fall-through to software cleanup */
         }
+        (void)ret;
 #endif
 #ifdef WOLFSSL_WC_DILITHIUM
 #ifndef WC_DILITHIUM_FIXED_ARRAY

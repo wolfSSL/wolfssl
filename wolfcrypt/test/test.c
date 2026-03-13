@@ -46997,7 +46997,7 @@ static wc_test_ret_t dilithium_param_vfy_test(int param, const byte* pubKey,
         msg[i] = (byte)i;
     }
 
-    ret = wc_dilithium_init(key);
+    ret = wc_dilithium_init_ex(key, NULL, devId);
     if (ret != 0) {
         ret = WC_TEST_RET_ENC_EC(ret);
         return ret;
@@ -50158,7 +50158,7 @@ static wc_test_ret_t dilithium_param_test(int param, WC_RNG* rng)
     }
 #endif
 
-    ret = wc_dilithium_init(key);
+    ret = wc_dilithium_init_ex(key, NULL, devId);
     if (ret != 0) {
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
@@ -50250,7 +50250,7 @@ static wc_test_ret_t test_dilithium_decode_level(const byte* rawKey,
 
     /* Initialize key */
     if (ret == 0) {
-        ret = wc_dilithium_init(key);
+        ret = wc_dilithium_init_ex(key, NULL, devId);
     }
 
     /* Import raw key, setting the security level */
@@ -50293,7 +50293,7 @@ static wc_test_ret_t test_dilithium_decode_level(const byte* rawKey,
     /* Free and reinit key to test fresh decode */
     if (ret == 0) {
         wc_dilithium_free(key);
-        ret = wc_dilithium_init(key);
+        ret = wc_dilithium_init_ex(key, NULL, devId);
     }
 
     /* First test decoding when security level is set externally */
@@ -50318,7 +50318,7 @@ static wc_test_ret_t test_dilithium_decode_level(const byte* rawKey,
     /* Free and reinit key to test fresh decode */
     if (ret == 0) {
         wc_dilithium_free(key);
-        ret = wc_dilithium_init(key);
+        ret = wc_dilithium_init_ex(key, NULL, devId);
     }
 
 #ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
@@ -65413,6 +65413,37 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                     break;
             }
         }
+        else if (info->free.algo == WC_ALGO_TYPE_PK) {
+            switch (info->free.type) {
+#ifdef HAVE_ECC
+                case WC_PK_TYPE_EC_KEYGEN:
+                {
+                    ecc_key* ecc = (ecc_key*)info->free.obj;
+                    ecc->devId = INVALID_DEVID;
+                    wc_ecc_free(ecc);
+                    ret = 0;
+                    break;
+                }
+#endif
+#ifdef HAVE_DILITHIUM
+                case WC_PK_TYPE_PQC_SIG_KEYGEN:
+                {
+                    if (info->free.subType ==
+                            WC_PQC_SIG_TYPE_DILITHIUM) {
+                        dilithium_key* dil =
+                            (dilithium_key*)info->free.obj;
+                        dil->devId = INVALID_DEVID;
+                        wc_dilithium_free(dil);
+                        ret = 0;
+                    }
+                    break;
+                }
+#endif
+                default:
+                    ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
+                    break;
+            }
+        }
         else {
             ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
         }
@@ -65599,6 +65630,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
     if (ret == 0)
         ret = ecc_onlycb_test(&myCtx);
     PRIVATE_KEY_LOCK();
+#endif
+#ifdef HAVE_DILITHIUM
+    if (ret == 0)
+        ret = dilithium_test();
 #endif
 #ifdef HAVE_ED25519
     PRIVATE_KEY_UNLOCK();
