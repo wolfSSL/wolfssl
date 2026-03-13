@@ -12380,7 +12380,9 @@ int wc_DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
         ret = BAD_FUNC_ARG;
     }
 
-    ALLOC_ASNGETDATA(dataASN, dsaPubKeyASN_Length, ret, key->heap);
+    if (ret == 0) {
+        ALLOC_ASNGETDATA(dataASN, dsaPubKeyASN_Length, ret, key->heap);
+    }
 
     if (ret == 0) {
         int i;
@@ -13011,7 +13013,7 @@ static int DsaKeyIntsToDer(DsaKey* key, byte* output, word32* inLen,
         ret = (int)sz;
     }
 
-    FREE_ASNSETDATA(dataASN, key->heap);
+    FREE_ASNSETDATA(dataASN, key != NULL ? key->heap : NULL);
     return ret;
 #endif /* WOLFSSL_ASN_TEMPLATE */
 }
@@ -37132,7 +37134,9 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
     }
 #endif
 
-    CALLOC_ASNGETDATA(dataASN, eccKeyASN_Length, ret, key->heap);
+    if (ret == 0) {
+        CALLOC_ASNGETDATA(dataASN, eccKeyASN_Length, ret, key->heap);
+    }
 
     if (ret == 0) {
         /* Get the version and set the expected OID type. */
@@ -37543,7 +37547,9 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
         ret = BAD_FUNC_ARG;
     }
 
-    ALLOC_ASNGETDATA(dataASN, eccKeyASN_Length, ret, key->heap);
+    if (ret == 0) {
+        ALLOC_ASNGETDATA(dataASN, eccKeyASN_Length, ret, key->heap);
+    }
 
     if (ret == 0) {
         /* Clear dynamic data for ECC public key. */
@@ -37906,7 +37912,7 @@ int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 *inLen,
         ret = (int)sz;
     }
 
-    FREE_ASNSETDATA(dataASN, key->heap);
+    FREE_ASNSETDATA(dataASN, key != NULL ? key->heap : NULL);
     return ret;
 #endif
 }
