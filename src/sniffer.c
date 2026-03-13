@@ -5520,6 +5520,12 @@ static int CheckHeaders(IpInfo* ipInfo, TcpInfo* tcpInfo, const byte* packet,
      * data after the IP record for the FCS for Ethernet. */
     *sslBytes = (int)(packet + ipInfo->total - *sslFrame);
 
+    /* Ensure sslBytes does not exceed the actual size. */
+    if (*sslBytes > (int)(length - (ipInfo->length + tcpInfo->length))) {
+        SetError(PACKET_HDR_SHORT_STR, error, NULL, 0);
+        return WOLFSSL_FATAL_ERROR;
+    }
+
     (void)checkReg;
 
     return 0;
