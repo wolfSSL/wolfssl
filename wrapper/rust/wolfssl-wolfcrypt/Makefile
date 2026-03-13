@@ -1,4 +1,4 @@
-FEATURES := rand_core,aead
+FEATURES := rand_core,aead,cipher
 CARGO_FEATURE_FLAGS := --features $(FEATURES)
 
 .PHONY: all

@@ -14,13 +14,16 @@ readme = "README.md"
 std = []
 rand_core = ["dep:rand_core"]
 aead = ["dep:aead"]
+cipher = ["dep:cipher"]
 
 [dependencies]
 rand_core = { version = "0.10", optional = true, default-features = false }
 aead = { version = "0.5", optional = true, default-features = false }
+cipher = { version = "0.5", optional = true, default-features = false }
 
 [dev-dependencies]
 aead = { version = "0.5", features = ["alloc", "dev"] }
+cipher = "0.5"
 
 [build-dependencies]
 bindgen = "0.72.1"
