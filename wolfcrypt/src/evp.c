@@ -3096,6 +3096,12 @@ int wolfSSL_EVP_PKEY_decrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
         return 0;
     }
 
+    if (ctx->op != WC_EVP_PKEY_OP_DECRYPT) {
+        WOLFSSL_MSG("ctx->op must be set to WC_EVP_PKEY_OP_DECRYPT. Use "
+            "wolfSSL_EVP_PKEY_decrypt_init.");
+        return WOLFSSL_FAILURE;
+    }
+
     (void)out;
     (void)outLen;
     (void)in;
