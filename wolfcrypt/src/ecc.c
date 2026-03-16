@@ -9600,6 +9600,14 @@ int wc_ecc_import_point_der_ex(const byte* in, word32 inLen,
         return ECC_BAD_ARG_E;
     }
 
+    /* validate point format byte before any memory operations */
+    pointType = in[0];
+    if (pointType != ECC_POINT_UNCOMP &&
+            pointType != ECC_POINT_COMP_EVEN &&
+            pointType != ECC_POINT_COMP_ODD) {
+        return ASN_PARSE_E;
+    }
+
     /* clear if previously allocated */
     mp_clear(point->x);
     mp_clear(point->y);
@@ -9619,13 +9627,7 @@ int wc_ecc_import_point_der_ex(const byte* in, word32 inLen,
     if (err != MP_OKAY)
         return MEMORY_E;
 
-    /* check for point type (4, 2, or 3) */
-    pointType = in[0];
-    if (pointType != ECC_POINT_UNCOMP && pointType != ECC_POINT_COMP_EVEN &&
-                                         pointType != ECC_POINT_COMP_ODD) {
-        err = ASN_PARSE_E;
-    }
-
+    /* pointType already validated above; check for compressed format */
     if (pointType == ECC_POINT_COMP_EVEN || pointType == ECC_POINT_COMP_ODD) {
 #ifdef HAVE_COMP_KEY
         compressed = 1;
