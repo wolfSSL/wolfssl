@@ -12374,14 +12374,16 @@ int wc_DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
     /* dsaPubKeyASN is longer than dsaPublicKeyASN. */
     DECL_ASNGETDATA(dataASN, dsaPubKeyASN_Length);
     int ret = 0;
+    void* heap = NULL;
 
     /* Validated parameters. */
     if ((input == NULL) || (inOutIdx == NULL) || (key == NULL)) {
         ret = BAD_FUNC_ARG;
     }
+    heap = (key != NULL) ? key->heap : NULL;
 
     if (ret == 0) {
-        ALLOC_ASNGETDATA(dataASN, dsaPubKeyASN_Length, ret, key->heap);
+        ALLOC_ASNGETDATA(dataASN, dsaPubKeyASN_Length, ret, heap);
     }
 
     if (ret == 0) {
@@ -12420,7 +12422,7 @@ int wc_DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
         key->type = DSA_PUBLIC;
     }
 
-    FREE_ASNGETDATA(dataASN, key->heap);
+    FREE_ASNGETDATA(dataASN, heap);
     return ret;
 #endif
 }
@@ -37536,6 +37538,7 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
     /* eccKeyASN is longer than eccPublicKeyASN. */
     DECL_ASNGETDATA(dataASN, eccKeyASN_Length);
     int ret = 0;
+    void* heap = NULL;
     int curve_id = ECC_CURVE_DEF;
     int oidIdx = ECCPUBLICKEYASN_IDX_ALGOID_CURVEID;
 #ifdef WOLFSSL_CUSTOM_CURVES
@@ -37546,9 +37549,10 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
     if ((input == NULL) || (inOutIdx == NULL) || (key == NULL) || (inSz == 0)) {
         ret = BAD_FUNC_ARG;
     }
+    heap = (key != NULL) ? key->heap : NULL;
 
     if (ret == 0) {
-        ALLOC_ASNGETDATA(dataASN, eccKeyASN_Length, ret, key->heap);
+        ALLOC_ASNGETDATA(dataASN, eccKeyASN_Length, ret, heap);
     }
 
     if (ret == 0) {
@@ -37622,7 +37626,7 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
         }
     }
 
-    FREE_ASNGETDATA(dataASN, key->heap);
+    FREE_ASNGETDATA(dataASN, heap);
     return ret;
 #endif /* WOLFSSL_ASN_TEMPLATE */
 }
