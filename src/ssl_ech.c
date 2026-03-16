@@ -34,8 +34,8 @@ int wolfSSL_CTX_GenerateEchConfig(WOLFSSL_CTX* ctx, const char* publicName,
     word16 kemId, word16 kdfId, word16 aeadId)
 {
     int ret = 0;
-    word16 encLen = DHKEM_X25519_ENC_LEN;
     WOLFSSL_EchConfig* newConfig;
+    word16 encLen = sizeof(newConfig->receiverPubkey);
 #ifdef WOLFSSL_SMALL_STACK
     Hpke* hpke = NULL;
     WC_RNG* rng;

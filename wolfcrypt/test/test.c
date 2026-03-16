@@ -32102,8 +32102,23 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hpke_test(void)
     ret = hpke_test_multi(hpke);
     if (ret != 0)
         return ret;
-
     #endif
+
+    #if (defined(WOLFSSL_SHA224) || !defined(NO_SHA256)) && \
+        (defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512))
+    /* p256 with sha512 kdf */
+    ret = wc_HpkeInit(hpke, DHKEM_P256_HKDF_SHA256, HKDF_SHA512,
+        HPKE_AES_128_GCM, NULL);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = hpke_test_single(hpke);
+    if (ret != 0)
+        return ret;
+    ret = hpke_test_multi(hpke);
+    if (ret != 0)
+        return ret;
+    #endif
+
 
     #if defined(WOLFSSL_SHA384) && \
         (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES))
@@ -32124,6 +32139,21 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hpke_test(void)
         (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES))
     /* p521 */
     ret = wc_HpkeInit(hpke, DHKEM_P521_HKDF_SHA512, HKDF_SHA512,
+        HPKE_AES_128_GCM, NULL);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = hpke_test_single(hpke);
+    if (ret != 0)
+        return ret;
+    ret = hpke_test_multi(hpke);
+    if (ret != 0)
+        return ret;
+    #endif
+
+    #if defined(WOLFSSL_SHA384) && defined(WOLFSSL_SHA512) && \
+        (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES))
+    /* p521 with sha384 kdf */
+    ret = wc_HpkeInit(hpke, DHKEM_P521_HKDF_SHA512, HKDF_SHA384,
         HPKE_AES_128_GCM, NULL);
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);

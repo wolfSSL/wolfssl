@@ -99,6 +99,7 @@ typedef struct {
     word32 Npk;
     word32 Nsecret;
     int kdf_digest;
+    int kem_digest;
     int curve_id;
     byte kem_suite_id[KEM_SUITE_ID_LEN];
     byte hpke_suite_id[HPKE_SUITE_ID_LEN];

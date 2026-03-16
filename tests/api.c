@@ -14438,6 +14438,9 @@ static byte   echCbTestConfigs[512];
 static word32 echCbTestConfigsLen;
 static const char* echCbTestPublicName = "ech-public-name.com";
 static const char* echCbTestPrivateName = "ech-private-name.com";
+static word16 echCbTestKemID = 0;
+static word16 echCbTestKdfID = 0;
+static word16 echCbTestAeadID = 0;
 
 /* the arg is whether the client has ech enabled or not */
 static int test_ech_server_sni_callback(WOLFSSL* ssl, int* ad, void* arg)
@@ -14469,7 +14472,8 @@ static int test_ech_server_ctx_ready(WOLFSSL_CTX* ctx)
 {
     int ret;
 
-    ret = wolfSSL_CTX_GenerateEchConfig(ctx, echCbTestPublicName, 0, 0, 0);
+    ret = wolfSSL_CTX_GenerateEchConfig(ctx, echCbTestPublicName,
+            echCbTestKemID, echCbTestKdfID, echCbTestAeadID);
     if (ret != WOLFSSL_SUCCESS)
         return TEST_FAIL;
 
@@ -14510,6 +14514,65 @@ static int test_ech_client_ssl_ready(WOLFSSL* ssl)
         return TEST_FAIL;
 
     return TEST_SUCCESS;
+}
+
+static int test_wolfSSL_Tls13_ECH_all_algos_ex(void)
+{
+    EXPECT_DECLS;
+    struct test_ssl_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    test_ctx.s_cb.method = wolfTLSv1_3_server_method;
+    test_ctx.c_cb.method = wolfTLSv1_3_client_method;
+
+    test_ctx.s_cb.ctx_ready = test_ech_server_ctx_ready;
+    test_ctx.s_cb.ssl_ready = test_ech_server_ssl_ready;
+    test_ctx.c_cb.ssl_ready = test_ech_client_ssl_ready;
+
+    ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+
+    ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
+    ExpectIntEQ(test_ctx.c_ssl->options.echAccepted, 1);
+
+    test_ssl_memio_cleanup(&test_ctx);
+
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_Tls13_ECH_all_algos(void)
+{
+    EXPECT_DECLS;
+    int i;
+    int j;
+    int k;
+    static const word16 kems[] = {
+        DHKEM_P256_HKDF_SHA256,
+        DHKEM_P384_HKDF_SHA384,
+        DHKEM_P521_HKDF_SHA512,
+        DHKEM_X25519_HKDF_SHA256,
+    };
+    static const word16 kdfs[] = { HKDF_SHA256, HKDF_SHA384, HKDF_SHA512 };
+    static const word16 aeads[] = { HPKE_AES_128_GCM, HPKE_AES_256_GCM };
+
+    /* test each KEM with default KDF and AEAD */
+    for (i = 0; i < (int)(sizeof(kems) / sizeof(*kems)); i++) {
+        echCbTestKemID = kems[i];
+        for (j = 0; j < (int)(sizeof(kdfs) / sizeof(*kdfs)); j++) {
+            echCbTestKdfID = kdfs[j];
+            for (k = 0; k < (int)(sizeof(aeads) / sizeof(*aeads)); k++) {
+                echCbTestAeadID = aeads[k];
+                ExpectIntEQ(test_wolfSSL_Tls13_ECH_all_algos_ex(),
+                    WOLFSSL_SUCCESS);
+            }
+        }
+    }
+
+    echCbTestKemID = 0;
+    echCbTestKdfID = 0;
+    echCbTestAeadID = 0;
+
+    return EXPECT_RESULT();
 }
 
 /* Test ECH when no private SNI is set */
@@ -34426,6 +34489,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_SubTls13_ECH),
 #endif
 #if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
+    TEST_DECL(test_wolfSSL_Tls13_ECH_all_algos),
     TEST_DECL(test_wolfSSL_Tls13_ECH_no_private_name),
     TEST_DECL(test_wolfSSL_Tls13_ECH_bad_configs),
     TEST_DECL(test_wolfSSL_Tls13_ECH_new_config),
