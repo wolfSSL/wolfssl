@@ -75,18 +75,22 @@ static int hashInit(wolfssl_TI_Hash *hash)
 static int hashUpdate(wolfssl_TI_Hash *hash, const byte* data, word32 len)
 {
     void *p;
+    word32 newSz;
 
     if ((hash== NULL) || (data == NULL))return BAD_FUNC_ARG;
 
-    if (hash->len < hash->used+len) {
+    if (!WC_SAFE_SUM_WORD32(hash->used, len, newSz)) {
+        return BAD_FUNC_ARG;
+    }
+    if (hash->len < newSz) {
         if (hash->msg == NULL) {
-            p = XMALLOC(hash->used+len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            p = XMALLOC(newSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         } else {
-            p = XREALLOC(hash->msg, hash->used+len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            p = XREALLOC(hash->msg, newSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         }
         if (p == 0)return 1;
         hash->msg = p;
-        hash->len = hash->used+len;
+        hash->len = newSz;
     }
     XMEMCPY(hash->msg+hash->used, data, len);
     hash->used += len;
