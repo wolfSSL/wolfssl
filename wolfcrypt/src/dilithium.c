@@ -8026,6 +8026,7 @@ static int dilithium_make_key(dilithium_key* key, WC_RNG* rng)
         ret = wc_dilithium_make_key_from_seed(key, seed);
     }
 
+    ForceZero(seed, sizeof(seed));
     return ret;
 }
 #endif /* !WOLFSSL_DILITHIUM_NO_MAKE_KEY */
