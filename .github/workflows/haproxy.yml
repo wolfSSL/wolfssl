@@ -72,7 +72,7 @@ jobs:
 
     - name: Download haproxy if needed
       if: steps.cache-haproxy.outputs.cache-hit != 'true'
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         repository: haproxy/haproxy
         ref: ${{matrix.haproxy_ref}}
