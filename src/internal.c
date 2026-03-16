@@ -14957,6 +14957,7 @@ int LoadCertByIssuer(WOLFSSL_X509_STORE* store, X509_NAME* issuer, int type)
     #elif !defined(NO_SHA)
         retHash = wc_ShaHash((const byte*)pbuf, (word32)len, dgt);
     #endif
+        wolfSSL_OPENSSL_free(pbuf);
         if (retHash == 0) {
             /* 4 bytes in little endian as unsigned long */
             hash = (((unsigned long)dgt[3] << 24) |
@@ -14967,7 +14968,6 @@ int LoadCertByIssuer(WOLFSSL_X509_STORE* store, X509_NAME* issuer, int type)
             WOLFSSL_MSG("failed hash operation");
             return WOLFSSL_FAILURE;
         }
-        wolfSSL_OPENSSL_free(pbuf);
     }
 
     /* try to load each hashed name file in path */
