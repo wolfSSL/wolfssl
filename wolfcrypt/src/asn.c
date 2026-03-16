@@ -9669,9 +9669,10 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
             return MEMORY_E;
 
         if (wc_sphincs_init(sphincs) == 0) {
-            tmpIdx = 0;
-            if (wc_sphincs_set_level_and_optim(sphincs, 1, FAST_VARIANT)
-                == 0) {
+            if ((*algoID == 0) &&
+                (wc_sphincs_set_level_and_optim(sphincs, 1, FAST_VARIANT)
+                 == 0)) {
+                tmpIdx = 0;
                 if (wc_Sphincs_PrivateKeyDecode(key, &tmpIdx, sphincs,
                     keySz) == 0) {
                     *algoID = SPHINCS_FAST_LEVEL1k;
@@ -9680,8 +9681,10 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
                     WOLFSSL_MSG("Not Sphincs-fast Level 1 DER key");
                 }
             }
-            else if (wc_sphincs_set_level_and_optim(sphincs, 3, FAST_VARIANT)
-                == 0) {
+            if ((*algoID == 0) &&
+                (wc_sphincs_set_level_and_optim(sphincs, 3, FAST_VARIANT)
+                 == 0)) {
+                tmpIdx = 0;
                 if (wc_Sphincs_PrivateKeyDecode(key, &tmpIdx, sphincs,
                     keySz) == 0) {
                     *algoID = SPHINCS_FAST_LEVEL3k;
@@ -9690,8 +9693,10 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
                     WOLFSSL_MSG("Not Sphincs-fast Level 3 DER key");
                 }
             }
-            else if (wc_sphincs_set_level_and_optim(sphincs, 5, FAST_VARIANT)
-                == 0) {
+            if ((*algoID == 0) &&
+                (wc_sphincs_set_level_and_optim(sphincs, 5, FAST_VARIANT)
+                 == 0)) {
+                tmpIdx = 0;
                 if (wc_Sphincs_PrivateKeyDecode(key, &tmpIdx, sphincs,
                     keySz) == 0) {
                     *algoID = SPHINCS_FAST_LEVEL5k;
@@ -9700,8 +9705,10 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
                     WOLFSSL_MSG("Not Sphincs-fast Level 5 DER key");
                 }
             }
-            else if (wc_sphincs_set_level_and_optim(sphincs, 1, SMALL_VARIANT)
-                == 0) {
+            if ((*algoID == 0) &&
+                (wc_sphincs_set_level_and_optim(sphincs, 1, SMALL_VARIANT)
+                 == 0)) {
+                tmpIdx = 0;
                 if (wc_Sphincs_PrivateKeyDecode(key, &tmpIdx, sphincs,
                     keySz) == 0) {
                     *algoID = SPHINCS_SMALL_LEVEL1k;
@@ -9710,8 +9717,10 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
                     WOLFSSL_MSG("Not Sphincs-small Level 1 DER key");
                 }
             }
-            else if (wc_sphincs_set_level_and_optim(sphincs, 3, SMALL_VARIANT)
-                == 0) {
+            if ((*algoID == 0) &&
+                (wc_sphincs_set_level_and_optim(sphincs, 3, SMALL_VARIANT)
+                 == 0)) {
+                tmpIdx = 0;
                 if (wc_Sphincs_PrivateKeyDecode(key, &tmpIdx, sphincs,
                     keySz) == 0) {
                     *algoID = SPHINCS_SMALL_LEVEL3k;
@@ -9720,8 +9729,10 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
                     WOLFSSL_MSG("Not Sphincs-small Level 3 DER key");
                 }
             }
-            else if (wc_sphincs_set_level_and_optim(sphincs, 5, SMALL_VARIANT)
-                == 0) {
+            if ((*algoID == 0) &&
+                (wc_sphincs_set_level_and_optim(sphincs, 5, SMALL_VARIANT)
+                 == 0)) {
+                tmpIdx = 0;
                 if (wc_Sphincs_PrivateKeyDecode(key, &tmpIdx, sphincs,
                     keySz) == 0) {
                     *algoID = SPHINCS_SMALL_LEVEL5k;
@@ -9730,7 +9741,7 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
                     WOLFSSL_MSG("Not Sphincs-small Level 5 DER key");
                 }
             }
-            else {
+            if (*algoID == 0) {
                 WOLFSSL_MSG("GetKeyOID sphincs initialization failed");
             }
             wc_sphincs_free(sphincs);
