@@ -10735,7 +10735,10 @@ int wc_ecc_import_x963_ex2(const byte* in, word32 inLen, ecc_key* key,
             XMEMCPY(key->pubkey_raw, (byte*)in, inLen);
     }
 #elif defined(WOLFSSL_KCAPI_ECC)
-    XMEMCPY(key->pubkey_raw, (byte*)in, inLen);
+    if (inLen <= (word32)sizeof(key->pubkey_raw))
+        XMEMCPY(key->pubkey_raw, (byte*)in, inLen);
+    else
+        err = BAD_FUNC_ARG;
 #endif
 
     if (err == MP_OKAY) {
