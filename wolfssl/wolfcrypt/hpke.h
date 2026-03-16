@@ -64,14 +64,6 @@ enum {
     HPKE_AES_256_GCM = 0x0002
 };
 
-/* TODO better way of doing this */
-#define HPKE_SUPPORTED_KEM_LEN 4
-#define HPKE_SUPPORTED_KDF_LEN 3
-#define HPKE_SUPPORTED_AEAD_LEN 2
-extern const int hpkeSupportedKem[HPKE_SUPPORTED_KEM_LEN];
-extern const int hpkeSupportedKdf[HPKE_SUPPORTED_KDF_LEN];
-extern const int hpkeSupportedAead[HPKE_SUPPORTED_AEAD_LEN];
-
 #define HPKE_Nh_MAX 64
 #define HPKE_Nk_MAX 32
 #define HPKE_Nn_MAX 12
@@ -88,9 +80,6 @@ extern const int hpkeSupportedAead[HPKE_SUPPORTED_AEAD_LEN];
 
 typedef struct {
     void* heap;
-    word32 kem;
-    word32 kdf;
-    word32 aead;
     word32 Nh;
     word32 Nk;
     word32 Nn;
@@ -101,6 +90,9 @@ typedef struct {
     int kdf_digest;
     int kem_digest;
     int curve_id;
+    word16 kem;
+    word16 kdf;
+    word16 aead;
     byte kem_suite_id[KEM_SUITE_ID_LEN];
     byte hpke_suite_id[HPKE_SUITE_ID_LEN];
 } Hpke;
@@ -136,6 +128,11 @@ WOLFSSL_API int wc_HpkeContextOpenBase(Hpke* hpke, HpkeBaseContext* context,
 WOLFSSL_API int wc_HpkeOpenBase(Hpke* hpke, void* receiverKey,
     const byte* pubKey, word16 pubKeySz, byte* info, word32 infoSz, byte* aad,
     word32 aadSz, byte* ciphertext, word32 ctSz, byte* plaintext);
+
+WOLFSSL_LOCAL word16 wc_HpkeKemGetEncLen(word16 kemId);
+WOLFSSL_LOCAL int wc_HpkeKemIsSupported(word16 kemId);
+WOLFSSL_LOCAL int wc_HpkeKdfIsSupported(word16 kdfId);
+WOLFSSL_LOCAL int wc_HpkeAeadIsSupported(word16 aeadId);
 
 #endif
 

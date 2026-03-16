@@ -338,23 +338,7 @@ int GetEchConfig(WOLFSSL_EchConfig* config, byte* output, word32* outputLen)
     totalLen += 2;
 
     /* hpke_pub_key */
-    switch (config->kemId) {
-        case DHKEM_P256_HKDF_SHA256:
-            totalLen += DHKEM_P256_ENC_LEN;
-            break;
-        case DHKEM_P384_HKDF_SHA384:
-            totalLen += DHKEM_P384_ENC_LEN;
-            break;
-        case DHKEM_P521_HKDF_SHA512:
-            totalLen += DHKEM_P521_ENC_LEN;
-            break;
-        case DHKEM_X25519_HKDF_SHA256:
-            totalLen += DHKEM_X25519_ENC_LEN;
-            break;
-        case DHKEM_X448_HKDF_SHA512:
-            totalLen += DHKEM_X448_ENC_LEN;
-            break;
-    }
+    totalLen += wc_HpkeKemGetEncLen(config->kemId);
 
     /* cipherSuitesLen */
     totalLen += 2;
@@ -693,16 +677,9 @@ int SetEchConfigsEx(WOLFSSL_EchConfig** outputConfigs, void* heap,
             break;
         }
 
-        /* check that we support this config */
-        for (j = 0; j < HPKE_SUPPORTED_KEM_LEN; j++) {
-            if (hpkeSupportedKem[j] == workingConfig->kemId)
-                break;
-        }
-
         /* KEM or ciphersuite not supported, free this config and then try to
          * parse another */
-        if (j >= HPKE_SUPPORTED_KEM_LEN ||
-                EchConfigGetSupportedCipherSuite(workingConfig) < 0) {
+        if (EchConfigGetSupportedCipherSuite(workingConfig) < 0) {
             XFREE(workingConfig->cipherSuites, heap, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(workingConfig->publicName, heap, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(workingConfig->raw, heap, DYNAMIC_TYPE_TMP_BUFFER);

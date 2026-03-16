@@ -45,24 +45,6 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
-const int hpkeSupportedKem[HPKE_SUPPORTED_KEM_LEN] = {
-    DHKEM_P256_HKDF_SHA256,
-    DHKEM_P384_HKDF_SHA384,
-    DHKEM_P521_HKDF_SHA512,
-    DHKEM_X25519_HKDF_SHA256,
-};
-
-const int hpkeSupportedKdf[HPKE_SUPPORTED_KDF_LEN] = {
-    HKDF_SHA256,
-    HKDF_SHA384,
-    HKDF_SHA512,
-};
-
-const int hpkeSupportedAead[HPKE_SUPPORTED_AEAD_LEN] = {
-    HPKE_AES_128_GCM,
-    HPKE_AES_256_GCM,
-};
-
 static const char* KEM_STR = "KEM";
 static const int   KEM_STR_LEN = 3;
 
@@ -132,9 +114,9 @@ int wc_HpkeInit(Hpke* hpke, int kem, int kdf, int aead, void* heap)
     }
 
     XMEMSET(hpke, 0, sizeof(*hpke));
-    hpke->kem = (word32)kem;
-    hpke->kdf = (word32)kdf;
-    hpke->aead = (word32)aead;
+    hpke->kem = (word16)kem;
+    hpke->kdf = (word16)kdf;
+    hpke->aead = (word16)aead;
     hpke->heap = heap;
 
     /* set kem_suite_id */
@@ -227,20 +209,26 @@ int wc_HpkeInit(Hpke* hpke, int kem, int kdf, int aead, void* heap)
 
     if (ret == 0) {
         switch (kdf) {
+#if defined(WOLFSSL_SHA224) || !defined(NO_SHA256)
         case HKDF_SHA256:
             hpke->Nh = WC_SHA256_DIGEST_SIZE;
             hpke->kdf_digest = WC_SHA256;
             break;
+#endif
 
+#ifdef WOLFSSL_SHA384
         case HKDF_SHA384:
             hpke->Nh = WC_SHA384_DIGEST_SIZE;
             hpke->kdf_digest = WC_SHA384;
             break;
+#endif
 
+#ifdef WOLFSSL_SHA512
         case HKDF_SHA512:
             hpke->Nh = WC_SHA512_DIGEST_SIZE;
             hpke->kdf_digest = WC_SHA512;
             break;
+#endif
 
         default:
             ret = BAD_FUNC_ARG;
@@ -250,17 +238,21 @@ int wc_HpkeInit(Hpke* hpke, int kem, int kdf, int aead, void* heap)
 
     if (ret == 0) {
         switch (aead) {
+#ifdef WOLFSSL_AES_128
         case HPKE_AES_128_GCM:
             hpke->Nk = AES_128_KEY_SIZE;
             hpke->Nn = GCM_NONCE_MID_SZ;
             hpke->Nt = WC_AES_BLOCK_SIZE;
             break;
+#endif
 
+#ifdef WOLFSSL_AES_256
         case HPKE_AES_256_GCM:
             hpke->Nk = AES_256_KEY_SIZE;
             hpke->Nn = GCM_NONCE_MID_SZ;
             hpke->Nt = WC_AES_BLOCK_SIZE;
             break;
+#endif
 
         default:
             ret = BAD_FUNC_ARG;
@@ -329,7 +321,7 @@ int wc_HpkeGenerateKeyPair(Hpke* hpke, void** keypair, WC_RNG* rng)
         ret = MEMORY_E;
 
     if (ret != 0 && *keypair != NULL) {
-        wc_HpkeFreeKey(hpke, (word16)hpke->kem, *keypair, hpke->heap);
+        wc_HpkeFreeKey(hpke, hpke->kem, *keypair, hpke->heap);
         *keypair = NULL;
     }
 
@@ -427,7 +419,7 @@ int wc_HpkeDeserializePublicKey(Hpke* hpke, void** key, const byte* in,
         ret = MEMORY_E;
 
     if (ret != 0 && *key != NULL) {
-        wc_HpkeFreeKey(hpke, (word16)hpke->kem, *key, hpke->heap);
+        wc_HpkeFreeKey(hpke, hpke->kem, *key, hpke->heap);
         *key = NULL;
     }
 
@@ -1083,7 +1075,7 @@ static int wc_HpkeDecap(Hpke* hpke, void* receiverKey, const byte* pubKey,
         }
 
     if (ephemeralKey != NULL)
-        wc_HpkeFreeKey(hpke, (word16)hpke->kem, ephemeralKey, hpke->heap);
+        wc_HpkeFreeKey(hpke, hpke->kem, ephemeralKey, hpke->heap);
 
     if (ret == 0) {
         /* copy pubKey into kemContext */
@@ -1224,6 +1216,100 @@ int wc_HpkeOpenBase(Hpke* hpke, void* receiverKey, const byte* pubKey,
     WC_FREE_VAR_EX(context, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
+}
+
+WOLFSSL_LOCAL word16 wc_HpkeKemGetEncLen(word16 kemId)
+{
+    switch (kemId)
+    {
+#if defined(HAVE_ECC)
+#if defined(WOLFSSL_SHA224) || !defined(NO_SHA256)
+    case DHKEM_P256_HKDF_SHA256:
+        return DHKEM_P256_ENC_LEN;
+#endif
+#ifdef WOLFSSL_SHA384
+    case DHKEM_P384_HKDF_SHA384:
+        return DHKEM_P384_ENC_LEN;
+#endif
+#if defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512)
+    case DHKEM_P521_HKDF_SHA512:
+        return DHKEM_P521_ENC_LEN;
+#endif
+#endif /* HAVE_ECC */
+#if defined(HAVE_CURVE25519) && \
+    (defined(WOLFSSL_SHA224) || !defined(NO_SHA256))
+    case DHKEM_X25519_HKDF_SHA256:
+        return DHKEM_X25519_ENC_LEN;
+#endif
+#if defined(HAVE_CURVE448) &&\
+    (defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512))
+    case DHKEM_X448_HKDF_SHA512:
+        return DHKEM_X448_ENC_LEN;
+#endif
+    default:
+        return 0;
+    }
+}
+
+WOLFSSL_LOCAL int wc_HpkeKemIsSupported(word16 kemId)
+{
+    switch (kemId) {
+#if defined(HAVE_ECC)
+#if defined(WOLFSSL_SHA224) || !defined(NO_SHA256)
+    case DHKEM_P256_HKDF_SHA256:
+#endif
+#ifdef WOLFSSL_SHA384
+    case DHKEM_P384_HKDF_SHA384:
+#endif
+#if defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512)
+    case DHKEM_P521_HKDF_SHA512:
+#endif
+#endif /* HAVE_ECC */
+#if defined(HAVE_CURVE25519) && \
+    (defined(WOLFSSL_SHA224) || !defined(NO_SHA256))
+    case DHKEM_X25519_HKDF_SHA256:
+#endif
+        return 1;
+
+    case DHKEM_X448_HKDF_SHA512:
+    default:
+        return 0;
+    }
+}
+
+WOLFSSL_LOCAL int wc_HpkeKdfIsSupported(word16 kdfId)
+{
+    switch (kdfId) {
+#if defined(WOLFSSL_SHA224) || !defined(NO_SHA256)
+    case HKDF_SHA256:
+#endif
+#ifdef WOLFSSL_SHA384
+    case HKDF_SHA384:
+#endif
+#ifdef WOLFSSL_SHA512
+    case HKDF_SHA512:
+#endif
+        return 1;
+
+    default:
+        return 0;
+    }
+}
+
+WOLFSSL_LOCAL int wc_HpkeAeadIsSupported(word16 aeadId)
+{
+    switch (aeadId) {
+#ifdef WOLFSSL_AES_128
+    case HPKE_AES_128_GCM:
+#endif
+#ifdef WOLFSSL_AES_256
+    case HPKE_AES_256_GCM:
+#endif
+        return 1;
+
+    default:
+        return 0;
+    }
 }
 
 #endif /* HAVE_HPKE && (HAVE_ECC || HAVE_CURVE25519) && HAVE_AESGCM */
