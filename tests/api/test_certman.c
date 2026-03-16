@@ -1786,7 +1786,7 @@ int test_wolfSSL_CRL_reason_extensions_cleanup(void)
     EXPECT_DECLS;
 #if defined(HAVE_CRL) && defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
     defined(WOLFSSL_PEM_TO_DER) && !defined(NO_FILESYSTEM) && \
-    !defined(NO_STDIO_FILESYSTEM)
+    !defined(NO_STDIO_FILESYSTEM) && !defined(NO_RSA)
     WOLFSSL_CERT_MANAGER* cm = NULL;
     const char* crlReasonFile = "./certs/crl/crl_reason.pem";
 
