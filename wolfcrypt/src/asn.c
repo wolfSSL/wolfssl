@@ -9491,14 +9491,15 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
         if (rsa == NULL)
             return MEMORY_E;
 
-        wc_InitRsaKey(rsa, heap);
-        if (wc_RsaPrivateKeyDecode(key, &tmpIdx, rsa, keySz) == 0) {
-            *algoID = RSAk;
+        if (wc_InitRsaKey(rsa, heap) == 0) {
+            if (wc_RsaPrivateKeyDecode(key, &tmpIdx, rsa, keySz) == 0) {
+                *algoID = RSAk;
+            }
+            else {
+                WOLFSSL_MSG("Not RSA DER key");
+            }
+            wc_FreeRsaKey(rsa);
         }
-        else {
-            WOLFSSL_MSG("Not RSA DER key");
-        }
-        wc_FreeRsaKey(rsa);
         XFREE(rsa, heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
     #endif /* !NO_RSA && !NO_ASN_CRYPT */
