@@ -1211,7 +1211,11 @@ then
     test "$enable_ocsp" = "" && enable_ocsp=yes
     test "$enable_ocspstapling" = "" && test "$enable_ocsp" != "no" && enable_ocspstapling=yes
     test "$enable_ocspstapling2" = "" && test "$enable_ocsp" != "no" && enable_ocspstapling2=yes
-    test "$enable_ocsp_responder" = "" && test "$enable_ocsp" != "no" && test "$ASN_IMPL" = "template" && enable_ocsp_responder=yes
+    test "$enable_ocsp_responder" = "" &&
+        test "$enable_ocsp" != "no" &&
+        test "$enable_sha" != "no" &&
+        test "$ASN_IMPL" = "template" &&
+        enable_ocsp_responder=yes
     test "$enable_savesession" = "" && enable_savesession=yes
     test "$enable_savecert" = "" && enable_savecert=yes
     test "$enable_postauth" = "" && enable_postauth=yes
@@ -1485,7 +1489,6 @@ then
     test "$enable_ocsp" = "" && enable_ocsp=yes
     test "$enable_ocspstapling" = "" && test "$enable_ocsp" != "no" && enable_ocspstapling=yes
     test "$enable_ocspstapling2" = "" && test "$enable_ocsp" != "no" && enable_ocspstapling2=yes
-    test "$enable_ocsp_responder" = "" && test "$enable_ocsp" != "no" && test "$ASN_IMPL" = "template" && enable_ocsp_responder=yes
     test "$enable_crl" = "" && enable_crl=yes
     test "$enable_supportedcurves" = "" && enable_supportedcurves=yes
     test "$enable_tlsx" = "" && enable_tlsx=yes
@@ -10700,16 +10703,6 @@ AS_IF([test "x$ENABLED_SCEP" = "xyes" && \
 AS_IF([test "x$ENABLED_CMAC" = "xyes" && \
        test "x$ENABLED_AES" = "xno"],
       [AC_MSG_ERROR([cannot use CMAC without AES.])])
-
-# OCSP responder requires SHA-1. Auto disable for --enable-all or
-# --enable-all-crypto when SHA-1 was disabled.
-AS_IF([test "x$ENABLED_OCSP_RESPONDER" = "xyes" && \
-       test "x$ENABLED_SHA" = "xno"],
-      [AS_IF([test "x$ENABLED_ALL" = "xyes" || \
-              test "x$ENABLED_ALL_CRYPT" = "xyes"],
-             [AC_MSG_WARN([Disabling OCSP responder because SHA-1 is disabled (--disable-sha).])
-              ENABLED_OCSP_RESPONDER="no"],
-             [AC_MSG_ERROR([--enable-ocsp-responder requires SHA-1; remove --disable-sha or disable OCSP responder.])])])
 
 # certreq requires certgen
 AS_IF([test "x$ENABLED_CERT_REQ" = "xyes" && \
