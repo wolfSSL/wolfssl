@@ -8106,7 +8106,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     if (ctx->quic.method) {
         ret = wolfSSL_set_quic_method(ssl, ctx->quic.method);
         if (ret != WOLFSSL_SUCCESS)
-            return ret;
+            return WOLFSSL_FATAL_ERROR;
     }
 #endif
 
