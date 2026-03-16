@@ -10701,6 +10701,16 @@ AS_IF([test "x$ENABLED_CMAC" = "xyes" && \
        test "x$ENABLED_AES" = "xno"],
       [AC_MSG_ERROR([cannot use CMAC without AES.])])
 
+# OCSP responder requires SHA-1. Auto disable for --enable-all or
+# --enable-all-crypto when SHA-1 was disabled.
+AS_IF([test "x$ENABLED_OCSP_RESPONDER" = "xyes" && \
+       test "x$ENABLED_SHA" = "xno"],
+      [AS_IF([test "x$ENABLED_ALL" = "xyes" || \
+              test "x$ENABLED_ALL_CRYPT" = "xyes"],
+             [AC_MSG_WARN([Disabling OCSP responder because SHA-1 is disabled (--disable-sha).])
+              ENABLED_OCSP_RESPONDER="no"],
+             [AC_MSG_ERROR([--enable-ocsp-responder requires SHA-1; remove --disable-sha or disable OCSP responder.])])])
+
 # certreq requires certgen
 AS_IF([test "x$ENABLED_CERT_REQ" = "xyes" && \
        test "x$ENABLED_CERT_GEN" = "xno"],
