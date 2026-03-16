@@ -4010,12 +4010,52 @@ int wolfSSL_EVP_PKEY_cmp(const WOLFSSL_EVP_PKEY *a, const WOLFSSL_EVP_PKEY *b)
 #endif /* !NO_RSA */
 #ifdef HAVE_ECC
     case WC_EVP_PKEY_EC:
-        if (a->ecc == NULL || a->ecc->internal == NULL ||
-            b->ecc == NULL || b->ecc->internal == NULL ||
-            wc_ecc_size((ecc_key*)a->ecc->internal) <= 0 ||
-            wc_ecc_size((ecc_key*)b->ecc->internal) <= 0 ||
+    {
+        ecc_key* ecc_key_a;
+        ecc_key* ecc_key_b;
+
+        if (a->ecc == NULL || b->ecc == NULL ||
             a->ecc->group == NULL || b->ecc->group == NULL) {
             return ret;
+        }
+
+        /* Ensure internal ecc_key is synced from external representation.
+         * After d2i_PrivateKey, the external BIGNUMs may be set but the
+         * internal ecc_key.pubkey may not be populated. */
+        if (a->ecc->inSet == 0) {
+            if (SetECKeyInternal((WOLFSSL_EC_KEY*)a->ecc) != 1) {
+                return ret;
+            }
+        }
+        if (b->ecc->inSet == 0) {
+            if (SetECKeyInternal((WOLFSSL_EC_KEY*)b->ecc) != 1) {
+                return ret;
+            }
+        }
+
+        if (a->ecc->internal == NULL || b->ecc->internal == NULL ||
+            wc_ecc_size((ecc_key*)a->ecc->internal) <= 0 ||
+            wc_ecc_size((ecc_key*)b->ecc->internal) <= 0) {
+            return ret;
+        }
+
+        ecc_key_a = (ecc_key*)a->ecc->internal;
+        ecc_key_b = (ecc_key*)b->ecc->internal;
+
+        /* If a key was imported as private-only (e.g. RFC 5915 without the
+         * optional public key), the pubkey point will not be populated.
+         * Derive it from the private key so the comparison can succeed. */
+        if (ecc_key_a->type == ECC_PRIVATEKEY_ONLY) {
+            if (wc_ecc_make_pub(ecc_key_a, NULL) != MP_OKAY) {
+                return ret;
+            }
+            ecc_key_a->type = ECC_PRIVATEKEY;
+        }
+        if (ecc_key_b->type == ECC_PRIVATEKEY_ONLY) {
+            if (wc_ecc_make_pub(ecc_key_b, NULL) != MP_OKAY) {
+                return ret;
+            }
+            ecc_key_b->type = ECC_PRIVATEKEY;
         }
 
         /* check curve */
@@ -4023,11 +4063,12 @@ int wolfSSL_EVP_PKEY_cmp(const WOLFSSL_EVP_PKEY *a, const WOLFSSL_EVP_PKEY *b)
             return WS_RETURN_CODE(ret, WOLFSSL_FAILURE);
         }
 
-        if (wc_ecc_cmp_point(&((ecc_key*)a->ecc->internal)->pubkey,
-                             &((ecc_key*)b->ecc->internal)->pubkey) != 0) {
+        if (wc_ecc_cmp_point(&ecc_key_a->pubkey,
+                             &ecc_key_b->pubkey) != 0) {
             return WS_RETURN_CODE(ret, WOLFSSL_FAILURE);
         }
         break;
+    }
 #endif /* HAVE_ECC */
     default:
         return WS_RETURN_CODE(ret, -2);
