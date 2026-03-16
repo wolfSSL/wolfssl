@@ -9487,6 +9487,13 @@ int wc_ecc_import_point_der_ex(const byte* in, word32 inLen,
     keysize = (int)(inLen>>1);
 #endif
 
+    /* sanity check that x coordinate is expected size */
+    if (err == MP_OKAY) {
+        if (keysize != ecc_sets[curve_idx].size) {
+            err = ECC_BAD_ARG_E;
+        }
+    }
+
     /* read data */
     if (err == MP_OKAY)
         err = mp_read_unsigned_bin(point->x, in, (word32)keysize);

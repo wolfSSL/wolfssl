@@ -35072,6 +35072,32 @@ static wc_test_ret_t ecc_point_test(void)
 
 #if defined(HAVE_COMP_KEY) && (!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) || \
     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2)))
+    /* Test compressed point with missing x coordinate bytes */
+    ret = wc_ecc_import_point_der(derComp0, 1, curve_idx, point3);
+    if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) {
+        ret = WC_TEST_RET_ENC_EC(ret);
+        goto done;
+    }
+
+    ret = wc_ecc_import_point_der(derComp1, 1, curve_idx, point3);
+    if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) {
+        ret = WC_TEST_RET_ENC_EC(ret);
+        goto done;
+    }
+
+    /* Full uncompressed P-256 length (65 bytes) but invalid prefix byte */
+    {
+        byte invalidType[65];
+        XMEMSET(invalidType, 0x42, sizeof(invalidType));
+        invalidType[0] = 0x01;
+        ret = wc_ecc_import_point_der_ex(invalidType, sizeof(invalidType),
+                                         curve_idx, point3, 0);
+        if (ret != WC_NO_ERR_TRACE(ASN_PARSE_E)) {
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto done;
+        }
+    }
+
     ret = wc_ecc_import_point_der(derComp0, sizeof(derComp0)*2-1, curve_idx, point3);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
