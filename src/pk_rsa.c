@@ -3899,7 +3899,7 @@ int wolfSSL_RSA_GenAdd(WOLFSSL_RSA* rsa)
         }
     }
 
-    mp_clear(t);
+    mp_forcezero(t);
 
 #ifdef WOLFSSL_SMALL_STACK
     if (rsa != NULL) {
