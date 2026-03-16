@@ -872,6 +872,7 @@ static int wolfkdriv_gcm_work(device_t dev, wolfkdriv_session_t * session,
 
         if (error) {
             error = EINVAL;
+            goto gcm_work_out;
         }
     }
     else {
