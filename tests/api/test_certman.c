@@ -1781,6 +1781,32 @@ int test_wolfSSL_CertManagerCRL(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_CRL_reason_extensions_cleanup(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_CRL) && defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_PEM_TO_DER) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_STDIO_FILESYSTEM) && !defined(NO_RSA)
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    const char* crlReasonFile = "./certs/crl/crl_reason.pem";
+
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    if (cm != NULL) {
+        ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECKALL),
+                    WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, ca_cert_der_2048,
+                    sizeof_ca_cert_der_2048, WOLFSSL_FILETYPE_ASN1),
+                    WOLFSSL_SUCCESS);
+        /* Exercises ParseCRL/GetRevoked path that allocates entry extensions;
+         * cleanup runs via FreeDecodedCRL in BufferLoadCRL. */
+        ExpectIntEQ(wolfSSL_CertManagerLoadCRLFile(cm, crlReasonFile,
+                    WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+        wolfSSL_CertManagerFree(cm);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_CRL_static_revoked_list(void)
 {
     EXPECT_DECLS;

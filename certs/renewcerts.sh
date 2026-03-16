@@ -42,6 +42,7 @@
 #                       crl/cliCrl.pem
 #                       crl/crl.pem
 #                       crl/crl.revoked
+#                       crl/crl_reason.pem
 #                       crl/eccCliCRL.pem
 #                       crl/eccSrvCRL.pem
 #
