@@ -1263,13 +1263,17 @@ static int checkPad(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *buff)
 {
     int i;
     int n;
+    byte mask = 0;
     n = buff[ctx->block_size-1];
-    if (n > ctx->block_size || n == 0) return -1;
-    for (i = 0; i < n; i++) {
-        if (buff[ctx->block_size-i-1] != n)
-            return -1;
+    /* Encode invalid n into mask constant-time instead of early-returning,
+     * so the loop always runs and timing does not reveal padding length. */
+    mask |= ctMaskEq(n, 0) | ctMaskGT(n, ctx->block_size);
+    for (i = 0; i < ctx->block_size; i++) {
+        byte in_padding = ctMaskLT(i, n);
+        mask |= ctMaskSel(in_padding,
+                    ctMaskNotEq(buff[ctx->block_size - 1 - i], n), 0);
     }
-    return ctx->block_size - n;
+    return ctMaskSelInt(ctMaskEq(mask, 0), ctx->block_size - n, -1);
 }
 
 #if (defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
