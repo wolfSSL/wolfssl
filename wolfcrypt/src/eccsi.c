@@ -68,8 +68,6 @@ int wc_InitEccsiKey_ex(EccsiKey* key, int keySz, int curveId, void* heap,
         int devId)
 {
     int err = 0;
-    ecc_key* ecc = NULL;
-    ecc_key* pubkey = NULL;
     EccsiKeyParams* params = NULL;
 
     if (key == NULL) {
@@ -84,7 +82,6 @@ int wc_InitEccsiKey_ex(EccsiKey* key, int keySz, int curveId, void* heap,
         err = wc_ecc_init_ex(&key->ecc, heap, devId);
     }
     if (err == 0) {
-        ecc = &key->ecc;
         err = wc_ecc_init_ex(&key->pubkey, heap, devId);
     }
     if (err == 0) {
@@ -94,7 +91,6 @@ int wc_InitEccsiKey_ex(EccsiKey* key, int keySz, int curveId, void* heap,
         }
     }
     if (err == 0) {
-        pubkey = &key->pubkey;
         err = mp_init_multi(&params->order,
 #ifdef WOLFCRYPT_ECCSI_CLIENT
                 &params->a, &params->b, &params->prime, &key->tmp, &key->ssk
@@ -111,8 +107,7 @@ int wc_InitEccsiKey_ex(EccsiKey* key, int keySz, int curveId, void* heap,
     }
 
     if (err != 0) {
-        wc_ecc_free(pubkey);
-        wc_ecc_free(ecc);
+        wc_FreeEccsiKey(key);
     }
 
     return err;
