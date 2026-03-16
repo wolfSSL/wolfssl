@@ -416,26 +416,21 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
     /* step 1: create nonce to use where nonce is r in
        r = H(h_b, ... ,h_2b-1,M) */
     ret = ed25519_hash(key, key->k, ED25519_KEY_SIZE, az);
-    if (ret != 0)
-        return ret;
 
-    /* apply clamp */
-    az[0]  &= 248;
-    az[31] &= 63; /* same than az[31] &= 127 because of az[31] |= 64 */
-    az[31] |= 64;
-
-    {
+    if (ret == 0) {
 #ifdef WOLFSSL_ED25519_PERSISTENT_SHA
         wc_Sha512 *sha = &key->sha;
 #else
         wc_Sha512 sha[1];
         ret = ed25519_hash_init(key, sha);
-        if (ret < 0) {
-            return ret;
-        }
 #endif
 
-        if (type == Ed25519ctx || type == Ed25519ph) {
+        /* apply clamp */
+        az[0]  &= 248;
+        az[31] &= 63; /* same than az[31] &= 127 because of az[31] |= 64 */
+        az[31] |= 64;
+
+        if (ret == 0 && (type == Ed25519ctx || type == Ed25519ph)) {
             ret = ed25519_hash_update(key, sha, ed25519Ctx, ED25519CTX_SIZE);
             if (ret == 0)
                 ret = ed25519_hash_update(key, sha, &type, sizeof(type));
@@ -457,39 +452,36 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
 #endif
     }
 
-    if (ret != 0)
-        return ret;
-
+    if (ret == 0) {
 #ifdef FREESCALE_LTC_ECC
-    ltcPoint.X = &tempBuf[0];
-    ltcPoint.Y = &tempBuf[32];
-    LTC_PKHA_sc_reduce(nonce);
-    LTC_PKHA_Ed25519_PointMul(LTC_PKHA_Ed25519_BasePoint(), nonce,
-           ED25519_KEY_SIZE, &ltcPoint, kLTC_Ed25519 /* result on Ed25519 */);
-    LTC_PKHA_Ed25519_Compress(&ltcPoint, out);
+        ltcPoint.X = &tempBuf[0];
+        ltcPoint.Y = &tempBuf[32];
+        LTC_PKHA_sc_reduce(nonce);
+        LTC_PKHA_Ed25519_PointMul(LTC_PKHA_Ed25519_BasePoint(), nonce,
+               ED25519_KEY_SIZE, &ltcPoint,
+               kLTC_Ed25519 /* result on Ed25519 */);
+        LTC_PKHA_Ed25519_Compress(&ltcPoint, out);
 #else
-    sc_reduce(nonce);
+        sc_reduce(nonce);
 
-    /* step 2: computing R = rB where rB is the scalar multiplication of
-       r and B */
-    ge_scalarmult_base(&R,nonce);
-    ge_p3_tobytes(out,&R);
+        /* step 2: computing R = rB where rB is the scalar multiplication of
+           r and B */
+        ge_scalarmult_base(&R,nonce);
+        ge_p3_tobytes(out,&R);
 #endif
+    }
 
     /* step 3: hash R + public key + message getting H(R,A,M) then
        creating S = (r + H(R,A,M)a) mod l */
-    {
+    if (ret == 0) {
 #ifdef WOLFSSL_ED25519_PERSISTENT_SHA
         wc_Sha512 *sha = &key->sha;
 #else
         wc_Sha512 sha[1];
-
         ret = ed25519_hash_init(key, sha);
-        if (ret < 0)
-            return ret;
 #endif
 
-        if (type == Ed25519ctx || type == Ed25519ph) {
+        if (ret == 0 && (type == Ed25519ctx || type == Ed25519ph)) {
             ret = ed25519_hash_update(key, sha, ed25519Ctx, ED25519CTX_SIZE);
             if (ret == 0)
                 ret = ed25519_hash_update(key, sha, &type, sizeof(type));
@@ -512,20 +504,22 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
 #endif
     }
 
-    if (ret != 0)
-        return ret;
-
+    if (ret == 0) {
 #ifdef FREESCALE_LTC_ECC
-    LTC_PKHA_sc_reduce(hram);
-    LTC_PKHA_sc_muladd(out + (ED25519_SIG_SIZE/2), hram, az, nonce);
+        LTC_PKHA_sc_reduce(hram);
+        LTC_PKHA_sc_muladd(out + (ED25519_SIG_SIZE/2), hram, az, nonce);
 #else
-    sc_reduce(hram);
-    sc_muladd(out + (ED25519_SIG_SIZE/2), hram, az, nonce);
+        sc_reduce(hram);
+        sc_muladd(out + (ED25519_SIG_SIZE/2), hram, az, nonce);
 #endif
+    }
+
+    ForceZero(az, sizeof(az));
+    ForceZero(nonce, sizeof(nonce));
 #endif /* WOLFSSL_SE050 */
 
 #ifdef WOLFSSL_EDDSA_CHECK_PRIV_ON_SIGN
-    {
+    if (ret == 0) {
         int  i;
         byte c = 0;
         for (i = 0; i < ED25519_KEY_SIZE; i++) {
