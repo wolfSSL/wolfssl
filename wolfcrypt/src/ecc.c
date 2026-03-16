@@ -9470,6 +9470,10 @@ int wc_ecc_import_point_der_ex(const byte* in, word32 inLen,
     if (pointType == ECC_POINT_COMP_EVEN || pointType == ECC_POINT_COMP_ODD) {
 #ifdef HAVE_COMP_KEY
         compressed = 1;
+        /* compressed points must be exactly 1 + field_element_size bytes */
+        if (inLen != 1 + (word32)ecc_sets[curve_idx].size) {
+            err = ECC_BAD_ARG_E;
+        }
 #else
         err = NOT_COMPILED_IN;
 #endif
