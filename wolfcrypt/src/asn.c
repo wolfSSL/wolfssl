@@ -37201,7 +37201,7 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
                 key, curve_id);
     }
 
-    FREE_ASNGETDATA(dataASN, key->heap);
+    FREE_ASNGETDATA(dataASN, key != NULL ? key->heap : NULL);
     return ret;
 #endif
 }
