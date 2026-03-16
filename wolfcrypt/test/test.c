@@ -66935,36 +66935,47 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                     break;
                 }
 
-                /* Export public key if available */
-                if (src->type != ECC_PRIVATEKEY_ONLY) {
-                    ret = wc_ecc_export_x963(src, pubBuf, &pubSz);
-                    if (ret != 0) {
-                        WC_FREE_VAR(pubBuf, NULL);
-                        WC_FREE_VAR(privBuf, NULL);
-                        break;
-                    }
-                    pubPtr = pubBuf;
-                }
+                /* Use software to export from src - prevent recursion */
+                {
+                    int savedDevId = src->devId;
+                    src->devId = INVALID_DEVID;
 
-                /* Export private key if available */
-                if (src->type != ECC_PUBLICKEY) {
-                    ret = wc_ecc_export_private_only(src, privBuf, &privSz);
-                    if (ret != 0) {
-                        WC_FREE_VAR(pubBuf, NULL);
-                        WC_FREE_VAR(privBuf, NULL);
-                        break;
+                    /* Export public key if available */
+                    if (src->type != ECC_PRIVATEKEY_ONLY) {
+                        ret = wc_ecc_export_x963(src, pubBuf, &pubSz);
+                        if (ret != 0) {
+                            src->devId = savedDevId;
+                            WC_FREE_VAR(pubBuf, NULL);
+                            WC_FREE_VAR(privBuf, NULL);
+                            break;
+                        }
+                        pubPtr = pubBuf;
                     }
 
-                    curveId = wc_ecc_get_curve_id(src->idx);
-                    ret = wc_ecc_import_private_key_ex(privBuf, privSz,
-                        pubPtr, (pubPtr != NULL) ? pubSz : 0,
-                        dst, curveId);
-                }
-                else {
-                    /* Public key only */
-                    curveId = wc_ecc_get_curve_id(src->idx);
-                    ret = wc_ecc_import_x963_ex2(pubBuf, pubSz, dst,
-                        curveId, 0);
+                    /* Export private key if available */
+                    if (src->type != ECC_PUBLICKEY) {
+                        ret = wc_ecc_export_private_only(src, privBuf,
+                            &privSz);
+                        if (ret != 0) {
+                            src->devId = savedDevId;
+                            WC_FREE_VAR(pubBuf, NULL);
+                            WC_FREE_VAR(privBuf, NULL);
+                            break;
+                        }
+
+                        curveId = wc_ecc_get_curve_id(src->idx);
+                        ret = wc_ecc_import_private_key_ex(privBuf, privSz,
+                            pubPtr, (pubPtr != NULL) ? pubSz : 0,
+                            dst, curveId);
+                    }
+                    else {
+                        /* Public key only */
+                        curveId = wc_ecc_get_curve_id(src->idx);
+                        ret = wc_ecc_import_x963_ex2(pubBuf, pubSz, dst,
+                            curveId, 0);
+                    }
+
+                    src->devId = savedDevId;
                 }
                 WC_FREE_VAR(pubBuf, NULL);
                 WC_FREE_VAR(privBuf, NULL);

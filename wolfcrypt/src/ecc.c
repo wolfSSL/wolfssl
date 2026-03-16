@@ -9863,6 +9863,9 @@ int wc_ecc_export_x963(ecc_key* key, byte* out, word32* outLen)
    word32 numlen;
    WC_DECLARE_VAR(buf, byte, ECC_BUFSIZE, 0);
    word32 pubxlen, pubylen;
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_EXPORT_KEY)
+   WC_DECLARE_VAR(tmpKey, ecc_key, 1, NULL);
+#endif
 
    /* return length needed only */
    if (key != NULL && out == NULL && outLen != NULL) {
@@ -9877,6 +9880,41 @@ int wc_ecc_export_x963(ecc_key* key, byte* out, word32* outLen)
 
    if (key->type == ECC_PRIVATEKEY_ONLY)
        return ECC_PRIVATEONLY_E;
+
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_EXPORT_KEY)
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (key->devId != INVALID_DEVID)
+    #endif
+    {
+        WC_ALLOC_VAR(tmpKey, ecc_key, 1, key->heap);
+        if (!WC_VAR_OK(tmpKey)) {
+            return MEMORY_E;
+        }
+        XMEMSET(tmpKey, 0, sizeof(ecc_key));
+
+        ret = wc_ecc_init_ex(tmpKey, key->heap, INVALID_DEVID);
+        if (ret != 0) {
+            WC_FREE_VAR(tmpKey, key->heap);
+            return ret;
+        }
+
+        ret = wc_CryptoCb_ExportKey(key->devId, WC_PK_TYPE_ECDSA_SIGN,
+                                     (void*)key, tmpKey);
+        if (ret == 0) {
+            /* Recursive call on software tmpKey (INVALID_DEVID) */
+            ret = wc_ecc_export_x963(tmpKey, out, outLen);
+        }
+
+        wc_ecc_free(tmpKey);
+        WC_FREE_VAR(tmpKey, key->heap);
+
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            return ret;
+        }
+        /* CRYPTOCB_UNAVAILABLE: fall through to software export */
+        ret = MP_OKAY;
+    }
+#endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_EXPORT_KEY */
 
 #if defined(WOLFSSL_QNX_CAAM) || defined(WOLFSSL_IMXRT1170_CAAM)
     /* check if public key in secure memory */
@@ -11145,10 +11183,49 @@ int wc_ecc_export_ex(ecc_key* key, byte* qx, word32* qxLen,
 {
     int err = 0;
     word32 keySz;
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_EXPORT_KEY)
+    WC_DECLARE_VAR(tmpKey, ecc_key, 1, NULL);
+#endif
 
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
+
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_EXPORT_KEY)
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (key->devId != INVALID_DEVID)
+    #endif
+    {
+        WC_ALLOC_VAR(tmpKey, ecc_key, 1, key->heap);
+        if (!WC_VAR_OK(tmpKey)) {
+            return MEMORY_E;
+        }
+        XMEMSET(tmpKey, 0, sizeof(ecc_key));
+
+        err = wc_ecc_init_ex(tmpKey, key->heap, INVALID_DEVID);
+        if (err != 0) {
+            WC_FREE_VAR(tmpKey, key->heap);
+            return err;
+        }
+
+        err = wc_CryptoCb_ExportKey(key->devId, WC_PK_TYPE_ECDSA_SIGN,
+                                     (void*)key, tmpKey);
+        if (err == 0) {
+            /* Recursive call on software tmpKey (INVALID_DEVID) */
+            err = wc_ecc_export_ex(tmpKey, qx, qxLen, qy, qyLen, d, dLen,
+                                    encType);
+        }
+
+        wc_ecc_free(tmpKey);
+        WC_FREE_VAR(tmpKey, key->heap);
+
+        if (err != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            return err;
+        }
+        /* CRYPTOCB_UNAVAILABLE: fall through to software export */
+        err = 0;
+    }
+#endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_EXPORT_KEY */
 
     if (wc_ecc_is_valid_idx(key->idx) == 0 || key->dp == NULL) {
         return ECC_BAD_ARG_E;
