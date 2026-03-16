@@ -150,30 +150,30 @@ int wc_HpkeInit(Hpke* hpke, int kem, int kdf, int aead, void* heap)
 #if defined(HAVE_ECC)
 #if defined(WOLFSSL_SHA224) || !defined(NO_SHA256)
         case DHKEM_P256_HKDF_SHA256:
-            hpke->curve_id = ECC_SECP256R1;
+            hpke->curveId = ECC_SECP256R1;
             hpke->Nsecret = WC_SHA256_DIGEST_SIZE;
-            hpke->kem_digest = WC_SHA256;
-            hpke->Ndh = (word32)wc_ecc_get_curve_size_from_id(hpke->curve_id);
+            hpke->kemDigest = WC_SHA256;
+            hpke->Ndh = (word32)wc_ecc_get_curve_size_from_id(hpke->curveId);
             hpke->Npk = 1 + hpke->Ndh * 2;
             break;
 #endif
 
 #ifdef WOLFSSL_SHA384
         case DHKEM_P384_HKDF_SHA384:
-            hpke->curve_id = ECC_SECP384R1;
+            hpke->curveId = ECC_SECP384R1;
             hpke->Nsecret = WC_SHA384_DIGEST_SIZE;
-            hpke->kem_digest = WC_SHA384;
-            hpke->Ndh = (word32)wc_ecc_get_curve_size_from_id(hpke->curve_id);
+            hpke->kemDigest = WC_SHA384;
+            hpke->Ndh = (word32)wc_ecc_get_curve_size_from_id(hpke->curveId);
             hpke->Npk = 1 + hpke->Ndh * 2;
             break;
 #endif
 
 #if defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512)
         case DHKEM_P521_HKDF_SHA512:
-            hpke->curve_id = ECC_SECP521R1;
+            hpke->curveId = ECC_SECP521R1;
             hpke->Nsecret = WC_SHA512_DIGEST_SIZE;
-            hpke->kem_digest = WC_SHA512;
-            hpke->Ndh = (word32)wc_ecc_get_curve_size_from_id(hpke->curve_id);
+            hpke->kemDigest = WC_SHA512;
+            hpke->Ndh = (word32)wc_ecc_get_curve_size_from_id(hpke->curveId);
             hpke->Npk = 1 + hpke->Ndh * 2;
             break;
 #endif
@@ -183,7 +183,7 @@ int wc_HpkeInit(Hpke* hpke, int kem, int kdf, int aead, void* heap)
     (defined(WOLFSSL_SHA224) || !defined(NO_SHA256))
         case DHKEM_X25519_HKDF_SHA256:
             hpke->Nsecret = WC_SHA256_DIGEST_SIZE;
-            hpke->kem_digest = WC_SHA256;
+            hpke->kemDigest = WC_SHA256;
             hpke->Ndh = CURVE25519_KEYSIZE;
             hpke->Npk = CURVE25519_PUB_KEY_SIZE;
             break;
@@ -193,7 +193,7 @@ int wc_HpkeInit(Hpke* hpke, int kem, int kdf, int aead, void* heap)
     (defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512))
         case DHKEM_X448_HKDF_SHA512:
             hpke->Nsecret = WC_SHA512_DIGEST_SIZE;
-            hpke->kem_digest = WC_SHA512;
+            hpke->kemDigest = WC_SHA512;
             /* size of x448 shared secret */
             hpke->Ndh = 64;
             hpke->Npk = CURVE448_PUB_KEY_SIZE;
@@ -212,21 +212,21 @@ int wc_HpkeInit(Hpke* hpke, int kem, int kdf, int aead, void* heap)
 #if defined(WOLFSSL_SHA224) || !defined(NO_SHA256)
         case HKDF_SHA256:
             hpke->Nh = WC_SHA256_DIGEST_SIZE;
-            hpke->kdf_digest = WC_SHA256;
+            hpke->kdfDigest = WC_SHA256;
             break;
 #endif
 
 #ifdef WOLFSSL_SHA384
         case HKDF_SHA384:
             hpke->Nh = WC_SHA384_DIGEST_SIZE;
-            hpke->kdf_digest = WC_SHA384;
+            hpke->kdfDigest = WC_SHA384;
             break;
 #endif
 
 #ifdef WOLFSSL_SHA512
         case HKDF_SHA512:
             hpke->Nh = WC_SHA512_DIGEST_SIZE;
-            hpke->kdf_digest = WC_SHA512;
+            hpke->kdfDigest = WC_SHA512;
             break;
 #endif
 
@@ -392,7 +392,7 @@ int wc_HpkeDeserializePublicKey(Hpke* hpke, void** key, const byte* in,
             if (*key != NULL) {
                 /* import the x963 key */
                 ret = wc_ecc_import_x963_ex(in, inSz, (ecc_key*)*key,
-                    hpke->curve_id);
+                    hpke->curveId);
             }
             break;
 #endif
@@ -636,13 +636,13 @@ static int wc_HpkeExtractAndExpand( Hpke* hpke, byte* dh, word32 dh_len,
 
     /* extract */
     ret = wc_HpkeLabeledExtract(hpke, hpke->kem_suite_id,
-        sizeof( hpke->kem_suite_id ), hpke->kem_digest, NULL, 0,
+        sizeof( hpke->kem_suite_id ), hpke->kemDigest, NULL, 0,
         (byte*)EAE_PRK_LABEL_STR, EAE_PRK_LABEL_STR_LEN, dh, dh_len, eae_prk);
 
     /* expand */
     if ( ret == 0 ) {
         ret = wc_HpkeLabeledExpand(hpke, hpke->kem_suite_id,
-            sizeof( hpke->kem_suite_id ), hpke->kem_digest, eae_prk,
+            sizeof( hpke->kem_suite_id ), hpke->kemDigest, eae_prk,
             hpke->Nsecret, (byte*)SHARED_SECRET_LABEL_STR,
             SHARED_SECRET_LABEL_STR_LEN, kemContext, kem_context_length,
             hpke->Nsecret, sharedSecret);
@@ -695,14 +695,14 @@ static int wc_HpkeKeyScheduleBase(Hpke* hpke, HpkeBaseContext* context,
 
     /* extract psk_id, which for base is null */
     ret = wc_HpkeLabeledExtract(hpke, hpke->hpke_suite_id,
-        sizeof( hpke->hpke_suite_id ), hpke->kdf_digest, NULL, 0,
+        sizeof( hpke->hpke_suite_id ), hpke->kdfDigest, NULL, 0,
         (byte*)PSK_ID_HASH_LABEL_STR, PSK_ID_HASH_LABEL_STR_LEN, NULL, 0,
         key_schedule_context + 1);
 
     /* extract info */
     if (ret == 0) {
         ret = wc_HpkeLabeledExtract(hpke, hpke->hpke_suite_id,
-            sizeof( hpke->hpke_suite_id ), hpke->kdf_digest, NULL, 0,
+            sizeof( hpke->hpke_suite_id ), hpke->kdfDigest, NULL, 0,
             (byte*)INFO_HASH_LABEL_STR, INFO_HASH_LABEL_STR_LEN, info, infoSz,
             key_schedule_context + 1 + hpke->Nh);
     }
@@ -710,7 +710,7 @@ static int wc_HpkeKeyScheduleBase(Hpke* hpke, HpkeBaseContext* context,
     /* extract secret */
     if (ret == 0) {
         ret = wc_HpkeLabeledExtract(hpke, hpke->hpke_suite_id,
-            sizeof( hpke->hpke_suite_id ), hpke->kdf_digest, sharedSecret,
+            sizeof( hpke->hpke_suite_id ), hpke->kdfDigest, sharedSecret,
             hpke->Nsecret, (byte*)SECRET_LABEL_STR, SECRET_LABEL_STR_LEN,
             NULL, 0, secret);
     }
@@ -718,14 +718,14 @@ static int wc_HpkeKeyScheduleBase(Hpke* hpke, HpkeBaseContext* context,
     /* expand key */
     if (ret == 0)
         ret = wc_HpkeLabeledExpand(hpke, hpke->hpke_suite_id,
-            sizeof( hpke->hpke_suite_id ), hpke->kdf_digest, secret, hpke->Nh,
+            sizeof( hpke->hpke_suite_id ), hpke->kdfDigest, secret, hpke->Nh,
             (byte*)KEY_LABEL_STR, KEY_LABEL_STR_LEN, key_schedule_context,
             1 + 2 * hpke->Nh, hpke->Nk, context->key);
 
     /* expand nonce */
     if (ret == 0) {
         ret = wc_HpkeLabeledExpand(hpke, hpke->hpke_suite_id,
-            sizeof( hpke->hpke_suite_id ), hpke->kdf_digest, secret, hpke->Nh,
+            sizeof( hpke->hpke_suite_id ), hpke->kdfDigest, secret, hpke->Nh,
             (byte*)BASE_NONCE_LABEL_STR, BASE_NONCE_LABEL_STR_LEN,
             key_schedule_context, 1 + 2 * hpke->Nh, hpke->Nn,
             context->base_nonce);
@@ -734,7 +734,7 @@ static int wc_HpkeKeyScheduleBase(Hpke* hpke, HpkeBaseContext* context,
     /* expand exporter_secret */
     if (ret == 0) {
         ret = wc_HpkeLabeledExpand(hpke, hpke->hpke_suite_id,
-            sizeof( hpke->hpke_suite_id ), hpke->kdf_digest, secret, hpke->Nh,
+            sizeof( hpke->hpke_suite_id ), hpke->kdfDigest, secret, hpke->Nh,
             (byte*)EXP_LABEL_STR, EXP_LABEL_STR_LEN, key_schedule_context,
             1 + 2 * hpke->Nh, hpke->Nh, context->exporter_secret);
     }

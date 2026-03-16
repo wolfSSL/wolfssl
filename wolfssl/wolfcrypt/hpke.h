@@ -87,9 +87,9 @@ typedef struct {
     word32 Ndh;
     word32 Npk;
     word32 Nsecret;
-    int kdf_digest;
-    int kem_digest;
-    int curve_id;
+    int kdfDigest;
+    int kemDigest;
+    int curveId;
     word16 kem;
     word16 kdf;
     word16 aead;
