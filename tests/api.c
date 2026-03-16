@@ -33617,7 +33617,10 @@ static int test_lms_write_key(const byte* priv, word32 privSz, void* context)
     FILE* f = fopen((const char*)context, "wb");
     if (f == NULL)
         return -1;
-    fwrite(priv, 1, privSz, f);
+    if (fwrite(priv, 1, privSz, f) != privSz) {
+        fclose(f);
+        return -1;
+    }
     fclose(f);
     return WC_LMS_RC_SAVED_TO_NV_MEMORY;
 }

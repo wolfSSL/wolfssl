@@ -2394,9 +2394,10 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     else
 #endif
     {
-        matched = cacheOnly || (XSTRLEN(sni->data.host_name) == size &&
-            XSTRNCMP(sni->data.host_name, (const char*)input + offset,
-                                                                    size) == 0);
+        const char* hostName = (sni != NULL) ? sni->data.host_name : NULL;
+        matched = cacheOnly || (hostName != NULL &&
+            XSTRLEN(hostName) == size &&
+            XSTRNCMP(hostName, (const char*)input + offset, size) == 0);
     }
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
@@ -2415,7 +2416,8 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     }
 #endif
 
-    if (matched || sni->options & WOLFSSL_SNI_ANSWER_ON_MISMATCH) {
+    if (matched ||
+            (sni != NULL && (sni->options & WOLFSSL_SNI_ANSWER_ON_MISMATCH))) {
         int matchStat;
         int r = TLSX_UseSNI(&ssl->extensions, type, input + offset, size,
                                                                      ssl->heap);
@@ -2441,7 +2443,8 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, const byte* input, word16 length,
         if (!cacheOnly)
             TLSX_SetResponse(ssl, TLSX_SERVER_NAME);
     }
-    else if (!(sni->options & WOLFSSL_SNI_CONTINUE_ON_MISMATCH)) {
+    else if ((sni == NULL) ||
+            !(sni->options & WOLFSSL_SNI_CONTINUE_ON_MISMATCH)) {
         SendAlert(ssl, alert_fatal, unrecognized_name);
         WOLFSSL_ERROR_VERBOSE(UNKNOWN_SNI_HOST_NAME_E);
         return UNKNOWN_SNI_HOST_NAME_E;
