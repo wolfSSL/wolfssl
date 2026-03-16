@@ -5094,10 +5094,10 @@ static int EchCheckAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
     ret = EchCalcAcceptance(ssl, label, labelSz, input, acceptOffset, helloSz,
             msgType == hello_retry_request, acceptConfirmation);
 
-    tmpHashes = ssl->hsHashes;
-    ssl->hsHashes = ssl->hsHashesEch;
-
     if (ret == 0) {
+        tmpHashes = ssl->hsHashes;
+        ssl->hsHashes = ssl->hsHashesEch;
+
         /* last 8 bytes must match the expand output */
         ret = ConstantCompare(acceptConfirmation, input + acceptOffset,
             ECH_ACCEPT_CONFIRMATION_SZ);
@@ -5126,9 +5126,10 @@ static int EchCheckAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
             FreeHandshakeHashes(ssl);
             ssl->hsHashesEch = NULL;
         }
+
+        ssl->hsHashes = tmpHashes;
     }
 
-    ssl->hsHashes = tmpHashes;
     return ret;
 }
 #endif /* HAVE_ECH */
@@ -6806,25 +6807,28 @@ static int EchWriteAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
             helloSz - headerSz, msgType == hello_retry_request,
             output + acceptOffset);
 
-    tmpHashes = ssl->hsHashes;
-    ssl->hsHashes = ssl->hsHashesEch;
+    if (ret == 0) {
+        tmpHashes = ssl->hsHashes;
+        ssl->hsHashes = ssl->hsHashesEch;
 
-    /* after HRR, hsHashesEch must contain:
-     * message_hash(ClientHelloInner1) || HRR (actual, not zeros) */
-    if (ret == 0 && msgType == hello_retry_request) {
-        ret = HashRaw(ssl, output, helloSz);
-    }
-    /* normal TLS code will calculate transcript of ServerHello */
-    else if (ret == 0) {
-        ssl->options.echAccepted = 1;
+        /* after HRR, hsHashesEch must contain:
+         * message_hash(ClientHelloInner1) || HRR (actual, not zeros) */
+        if (msgType == hello_retry_request) {
+            ret = HashRaw(ssl, output, helloSz);
+        }
+        /* normal TLS code will calculate transcript of ServerHello */
+        else {
+            ssl->options.echAccepted = 1;
+
+            ssl->hsHashes = tmpHashes;
+            FreeHandshakeHashes(ssl);
+            tmpHashes = ssl->hsHashesEch;
+            ssl->hsHashesEch = NULL;
+        }
 
         ssl->hsHashes = tmpHashes;
-        FreeHandshakeHashes(ssl);
-        tmpHashes = ssl->hsHashesEch;
-        ssl->hsHashesEch = NULL;
     }
 
-    ssl->hsHashes = tmpHashes;
     return ret;
 }
 #endif
