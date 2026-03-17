@@ -7976,7 +7976,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
             (unsigned long)wolfSSL_X509_VERIFY_PARAM_get_flags(
             wolfSSL_CTX_get0_param(ctx))) != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("ssl->param set flags error");
-            return WOLFSSL_FAILURE;
+            return BAD_STATE_E;
         }
 #endif
 
@@ -8137,7 +8137,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     if (ctx->quic.method) {
         ret = wolfSSL_set_quic_method(ssl, ctx->quic.method);
         if (ret != WOLFSSL_SUCCESS)
-            return ret;
+            return WOLFSSL_FATAL_ERROR;
     }
 #endif
 
@@ -14988,6 +14988,7 @@ int LoadCertByIssuer(WOLFSSL_X509_STORE* store, X509_NAME* issuer, int type)
     #elif !defined(NO_SHA)
         retHash = wc_ShaHash((const byte*)pbuf, (word32)len, dgt);
     #endif
+        wolfSSL_OPENSSL_free(pbuf);
         if (retHash == 0) {
             /* 4 bytes in little endian as unsigned long */
             hash = (((unsigned long)dgt[3] << 24) |
@@ -14998,7 +14999,6 @@ int LoadCertByIssuer(WOLFSSL_X509_STORE* store, X509_NAME* issuer, int type)
             WOLFSSL_MSG("failed hash operation");
             return WOLFSSL_FAILURE;
         }
-        wolfSSL_OPENSSL_free(pbuf);
     }
 
     /* try to load each hashed name file in path */

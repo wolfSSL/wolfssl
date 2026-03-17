@@ -33629,14 +33629,13 @@ int test_wc_LmsKey_reload_cache(void);
 static int test_lms_write_key(const byte* priv, word32 privSz, void* context)
 {
     FILE* f = fopen((const char*)context, "wb");
+    int ret = WC_LMS_RC_SAVED_TO_NV_MEMORY;
     if (f == NULL)
         return -1;
-    if (fwrite(priv, 1, privSz, f) != privSz) {
-        fclose(f);
-        return -1;
-    }
+    if (fwrite(priv, 1, privSz, f) != privSz)
+        ret = -1;
     fclose(f);
-    return WC_LMS_RC_SAVED_TO_NV_MEMORY;
+    return ret;
 }
 
 static int test_lms_read_key(byte* priv, word32 privSz, void* context)

@@ -391,16 +391,15 @@ int wc_ed448_sign_msg_ex(const byte* in, word32 inLen, byte* out,
 #else
         wc_Shake sha[1];
         ret = ed448_hash_init(key, sha);
-        if (ret < 0)
-            return ret;
 #endif
         /* apply clamp */
         az[0]  &= 0xfc;
         az[55] |= 0x80;
         az[56]  = 0x00;
 
-        ret = ed448_hash_update(key, sha, ed448Ctx, ED448CTX_SIZE);
-
+        if (ret == 0) {
+            ret = ed448_hash_update(key, sha, ed448Ctx, ED448CTX_SIZE);
+        }
         if (ret == 0) {
             ret = ed448_hash_update(key, sha, &type, sizeof(type));
         }
@@ -429,15 +428,14 @@ int wc_ed448_sign_msg_ex(const byte* in, word32 inLen, byte* out,
 #else
         wc_Shake sha[1];
         ret = ed448_hash_init(key, sha);
-        if (ret < 0)
-            return ret;
 #endif
-        sc448_reduce(nonce);
-
+        if (ret == 0)
+            sc448_reduce(nonce);
         /* step 2: computing R = rB where rB is the scalar multiplication of
            r and B */
-        ret = ge448_scalarmult_base(&R,nonce);
-
+        if (ret == 0) {
+            ret = ge448_scalarmult_base(&R,nonce);
+        }
         /* step 3: hash R + public key + message getting H(R,A,M) then
            creating S = (r + H(R,A,M)a) mod l */
         if (ret == 0) {
@@ -487,6 +485,8 @@ int wc_ed448_sign_msg_ex(const byte* in, word32 inLen, byte* out,
     }
 #endif
 
+    ForceZero(az, sizeof(az));
+    ForceZero(nonce, sizeof(nonce));
     return ret;
 }
 
