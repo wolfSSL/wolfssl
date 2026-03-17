@@ -919,7 +919,7 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
 /*  4. add the same message into Japanese section         */
 /*     (will be translated later)                         */
 /*  5. add printf() into suitable position of Usage()     */
-static const char* server_usage_msg[][69] = {
+static const char* server_usage_msg[][70] = {
     /* English */
     {
         " NOTE: All files relative to wolfSSL home dir\n",               /* 0 */
@@ -1120,11 +1120,14 @@ static const char* server_usage_msg[][69] = {
         "--ech <name>  Generate Encrypted Client Hello config with "
             "public name <name>\n",
                                                                         /* 67 */
+        "--ech-suite <KEM,KDF,AEAD>  HPKE suite to use for ech config. "
+            "Supplied as 3 integers (e.g., 32,1,3)\n",
+                                                                        /* 68 */
 #endif
         "\n"
            "For simpler wolfSSL TLS server examples, visit\n"
            "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n",
-                                                                        /* 68 */
+                                                                        /* 69 */
         NULL,
     },
 #ifndef NO_MULTIBYTE_PRINT
@@ -1502,6 +1505,7 @@ static void Usage(void)
 #endif
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
     printf("%s", msg[++msgId]);     /* --ech */
+    printf("%s", msg[++msgId]);     /* --ech-suite */
 #endif
     printf("%s", msg[++msgId]);     /* Examples repo link */
 }
@@ -1627,6 +1631,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #endif /* WOLFSSL_SYS_CRYPTO_POLICY */
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
         { "ech", 1, 269 },
+        { "ech-suite", 1, 270 },
 #endif
         { 0, 0, 0 }
     };
@@ -1706,6 +1711,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #endif
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
     char*  echPublicName = NULL;
+    char*  echSuite = NULL;
 #endif
 
 #ifdef HAVE_TRUSTED_CA
@@ -2539,6 +2545,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             case 269:
                 echPublicName = myoptarg;
                 break;
+            case 270:
+                echSuite = myoptarg;
+                break;
 #endif
 
         case -1:
@@ -3107,9 +3116,27 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         char echConfigBase64[512];
         char* echConfigBase64Ptr;
         word32 echConfigBase64Len = sizeof(echConfigBase64);
+        word16 kemId = 0;
+        word16 kdfId = 0;
+        word16 aeadId = 0;
 
-        if (wolfSSL_CTX_GenerateEchConfig(ctx, echPublicName, 0, 0, 0)
-                != WOLFSSL_SUCCESS) {
+        /* an optimistic approach to parsing the ciphersuite */
+        if (echSuite != NULL) {
+            const char* s = echSuite;
+
+            kemId = (word16)atoi(s);
+            for (; *s != '\0' && *s != ','; s++);
+            if (*s == ',') s++;
+
+            kdfId = (word16)atoi(s);
+            for (; *s != '\0' && *s != ','; s++);
+            if (*s == ',') s++;
+
+            aeadId = (word16)atoi(s);
+        }
+
+        if (wolfSSL_CTX_GenerateEchConfig(ctx, echPublicName, kemId, kdfId,
+                aeadId) != WOLFSSL_SUCCESS) {
             err_sys_ex(runWithErrors, "GenerateEchConfig failed");
         }
         if (wolfSSL_CTX_GetEchConfigs(ctx, echConfig, &echConfigLen)

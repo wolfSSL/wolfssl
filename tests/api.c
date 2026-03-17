@@ -14535,6 +14535,30 @@ static int test_wolfSSL_Tls13_ECH_all_algos_ex(void)
     ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
     ExpectIntEQ(test_ctx.c_ssl->options.echAccepted, 1);
 
+    if (echCbTestKemID != 0 && echCbTestKdfID != 0 && echCbTestAeadID != 0) {
+        TLSX* echX = TLSX_Find(test_ctx.c_ssl->extensions, TLSX_ECH);
+        ExpectNotNull(echX);
+        if (echX != NULL) {
+            WOLFSSL_ECH* ech = (WOLFSSL_ECH*)echX->data;
+            ExpectNotNull(ech);
+            if (ech != NULL) {
+                /* verify that the ech extension has the correct algos */
+                ExpectIntEQ(ech->kemId, echCbTestKemID);
+                ExpectIntEQ(ech->cipherSuite.kdfId, echCbTestKdfID);
+                ExpectIntEQ(ech->cipherSuite.aeadId, echCbTestAeadID);
+                if (ech->hpke != NULL) {
+                    /* and that hpke was initialized with these algos */
+                    ExpectIntEQ(ech->hpke->kem, echCbTestKemID);
+                    ExpectIntEQ(ech->hpke->kdf, echCbTestKdfID);
+                    ExpectIntEQ(ech->hpke->aead, echCbTestAeadID);
+                }
+                if (ech->echConfig != NULL) {
+                    ExpectIntEQ(ech->echConfig->kemId, echCbTestKemID);
+                }
+            }
+        }
+    }
+
     test_ssl_memio_cleanup(&test_ctx);
 
     return EXPECT_RESULT();
