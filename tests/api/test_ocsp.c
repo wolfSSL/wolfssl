@@ -1241,6 +1241,98 @@ int test_ocsp_cert_unknown_crl_fallback_nonleaf(void)
 }
 #endif /* HAVE_OCSP && HAVE_CRL && HAVE_SSL_MEMIO_TESTS_DEPENDENCIES */
 
+#if defined(HAVE_OCSP) && defined(WOLFSSL_TLS13) &&                 \
+    defined(WOLFSSL_NONBLOCK_OCSP) && defined(HAVE_MAX_FRAGMENT) && \
+    defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) &&                   \
+    !defined(NO_RSA) && !defined(NO_SHA)
+
+/* Number of times the OCSP IO callback has been called. */
+static int test_tls13_nonblock_ocsp_mfl_cb_cnt;
+
+/*
+ * OCSP IO callback: simulates a nonblocking responder. Returns WANT_READ
+ * a few times before finally returning the OCSP response.
+ */
+static int test_tls13_nonblock_ocsp_mfl_io_cb(void* ioCtx, const char* url,
+    int urlSz, unsigned char* req, int reqSz, unsigned char** respBuf)
+{
+    (void)ioCtx;
+    (void)url;
+    (void)urlSz;
+    (void)req;
+    (void)reqSz;
+
+    if (test_tls13_nonblock_ocsp_mfl_cb_cnt++ < 5)
+        return WOLFSSL_CBIO_ERR_WANT_READ;
+
+    *respBuf = (unsigned char*)resp_server1_cert;
+    return (int)sizeof(resp_server1_cert);
+}
+
+/* CTX-ready callback: enable client-side OCSP with URL override. */
+static int test_tls13_nonblock_ocsp_mfl_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSP(ctx,
+                    WOLFSSL_OCSP_URL_OVERRIDE | WOLFSSL_OCSP_NO_NONCE),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_SetOCSP_OverrideURL(ctx, "http://example.com"),
+        WOLFSSL_SUCCESS);
+    /* NULL free-callback: resp points to static array, must not be freed. */
+    ExpectIntEQ(wolfSSL_CTX_SetOCSP_Cb(ctx,
+                    test_tls13_nonblock_ocsp_mfl_io_cb, NULL, NULL),
+        WOLFSSL_SUCCESS);
+    return EXPECT_RESULT();
+}
+
+/* SSL-ready callback: cap record payload at 1024 bytes. */
+static int test_tls13_nonblock_ocsp_mfl_ssl_ready(WOLFSSL* ssl)
+{
+    EXPECT_DECLS;
+    ExpectIntEQ(wolfSSL_UseMaxFragment(ssl, WOLFSSL_MFL_2_10), WOLFSSL_SUCCESS);
+    return EXPECT_RESULT();
+}
+
+int test_tls13_nonblock_ocsp_low_mfl(void)
+{
+    EXPECT_DECLS;
+    struct test_ssl_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_tls13_nonblock_ocsp_mfl_cb_cnt = 0;
+
+    /*
+     * Server: two-cert chain (server1 + intermediate1, no root).
+     * Total DER size ~2534 bytes -> splits into 3 TLS records at MFL=1024.
+     */
+    test_ctx.s_cb.certPemFile = "./certs/ocsp/server1-chain-noroot.pem";
+    test_ctx.s_cb.keyPemFile  = "./certs/ocsp/server1-key.pem";
+    test_ctx.s_cb.method      = wolfTLSv1_3_server_method;
+
+    /* Client: trust root-ca, TLS 1.3, OCSP + MFL=1024. */
+    test_ctx.c_cb.caPemFile = "./certs/ocsp/root-ca-cert.pem";
+    test_ctx.c_cb.method    = wolfTLSv1_3_client_method;
+    test_ctx.c_cb.ctx_ready = test_tls13_nonblock_ocsp_mfl_ctx_ready;
+    test_ctx.c_cb.ssl_ready = test_tls13_nonblock_ocsp_mfl_ssl_ready;
+
+    ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+    ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL),
+        TEST_SUCCESS);
+
+    /* The OCSP callback must have been retried (called more than once). */
+    ExpectIntGT(test_tls13_nonblock_ocsp_mfl_cb_cnt, 1);
+
+    test_ssl_memio_cleanup(&test_ctx);
+    return EXPECT_RESULT();
+}
+
+#else
+int test_tls13_nonblock_ocsp_low_mfl(void)
+{
+    return TEST_SKIPPED;
+}
+#endif
+
 #if defined(HAVE_OCSP_RESPONDER) && defined(WOLFSSL_ASN_TEMPLATE) && \
     !defined(NO_SHA) && !defined(NO_RSA)
 /* Structure to hold test configuration */
