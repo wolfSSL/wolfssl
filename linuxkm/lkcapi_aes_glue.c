@@ -1148,12 +1148,11 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
         assoc = scatterwalk_map(&assocSgWalk);
 #endif
         if (unlikely(IS_ERR(assoc))) {
+            err = (int)PTR_ERR(assoc);
             pr_err("%s: scatterwalk_map failed: %ld\n",
                    crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)),
                    PTR_ERR(assoc));
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 15, 0)
-            scatterwalk_unmap(&assocSgWalk);
-#endif
+            assoc = NULL;
             goto out;
         }
     }
@@ -1355,12 +1354,11 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
         in_map = scatterwalk_map(&in_walk);
 #endif
         if (unlikely(IS_ERR(in_map))) {
+            err = (int)PTR_ERR(in_map);
             pr_err("%s: scatterwalk_map failed: %ld\n",
                    crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)),
-                   PTR_ERR(assoc));
-#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 15, 0)
+                   PTR_ERR(in_map));
             in_map = NULL;
-#endif
             goto out;
         }
         assoc = in_map;
@@ -1374,12 +1372,11 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
         out_map = scatterwalk_map(&out_walk);
 #endif
         if (unlikely(IS_ERR(out_map))) {
+            err = (int)PTR_ERR(out_map);
             pr_err("%s: scatterwalk_map failed: %ld\n",
                    crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)),
-                   PTR_ERR(assoc));
-#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 15, 0)
+                   PTR_ERR(out_map));
             out_map = NULL;
-#endif
             goto out;
         }
         out_text = out_map + req->assoclen;
