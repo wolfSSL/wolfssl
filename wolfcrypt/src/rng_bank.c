@@ -708,7 +708,7 @@ WOLFSSL_API int wc_BankRef_Release(WC_RNG *rng)
     return ret;
 }
 
-#ifndef WC_RNG_BANK_STATIC
+#if !defined(WC_RNG_BANK_STATIC) && !defined(WC_NO_CONSTRUCTORS)
 WOLFSSL_API int wc_rng_new_bankref(struct wc_rng_bank *bank, WC_RNG **rng) {
     int ret;
 
@@ -732,7 +732,7 @@ WOLFSSL_API int wc_rng_new_bankref(struct wc_rng_bank *bank, WC_RNG **rng) {
 
     return ret;
 }
-#endif /* !WC_RNG_BANK_STATIC */
+#endif /* !WC_RNG_BANK_STATIC && !WC_NO_CONSTRUCTORS */
 
 #endif /* WC_DRBG_BANKREF */
 
