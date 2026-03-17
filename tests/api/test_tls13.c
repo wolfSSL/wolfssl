@@ -149,15 +149,15 @@ int test_tls13_apis(void)
             ":P256_KYBER_LEVEL1"
     #elif !defined(WOLFSSL_NO_KYBER768)
             ":P256_KYBER_LEVEL3"
-    #else
+    #elif !defined(WOLFSSL_NO_KYBER1024)
             ":P256_KYBER_LEVEL5"
     #endif
 #else
-    #ifndef WOLFSSL_NO_KYBER512
+    #ifndef WOLFSSL_NO_ML_KEM_512
             ":SecP256r1MLKEM512"
-    #elif !defined(WOLFSSL_NO_KYBER768)
+    #elif !defined(WOLFSSL_NO_ML_KEM_768)
             ":SecP384r1MLKEM768"
-    #else
+    #elif !defined(WOLFSSL_NO_ML_KEM_1024)
             ":SecP521r1MLKEM1024"
     #endif
 #endif
@@ -173,15 +173,15 @@ int test_tls13_apis(void)
             ":KYBER_LEVEL1"
     #elif !defined(WOLFSSL_NO_KYBER768)
             ":KYBER_LEVEL3"
-    #else
+    #elif !defined(WOLFSSL_NO_KYBER1024)
             ":KYBER_LEVEL5"
     #endif
 #else
-    #ifndef WOLFSSL_NO_KYBER512
+    #ifndef WOLFSSL_NO_ML_KEM_512
             ":ML_KEM_512"
-    #elif !defined(WOLFSSL_NO_KYBER768)
+    #elif !defined(WOLFSSL_NO_ML_KEM_768)
             ":ML_KEM_768"
-    #else
+    #elif !defined(WOLFSSL_NO_ML_KEM_1024)
             ":ML_KEM_1024"
     #endif
 #endif

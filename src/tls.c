@@ -2394,9 +2394,10 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     else
 #endif
     {
-        matched = cacheOnly || (XSTRLEN(sni->data.host_name) == size &&
-            XSTRNCMP(sni->data.host_name, (const char*)input + offset,
-                                                                    size) == 0);
+        const char* hostName = (sni != NULL) ? sni->data.host_name : NULL;
+        matched = cacheOnly || (hostName != NULL &&
+            XSTRLEN(hostName) == size &&
+            XSTRNCMP(hostName, (const char*)input + offset, size) == 0);
     }
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
@@ -2415,7 +2416,8 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     }
 #endif
 
-    if (matched || sni->options & WOLFSSL_SNI_ANSWER_ON_MISMATCH) {
+    if (matched ||
+            (sni != NULL && (sni->options & WOLFSSL_SNI_ANSWER_ON_MISMATCH))) {
         int matchStat;
         int r = TLSX_UseSNI(&ssl->extensions, type, input + offset, size,
                                                                      ssl->heap);
@@ -2441,7 +2443,8 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, const byte* input, word16 length,
         if (!cacheOnly)
             TLSX_SetResponse(ssl, TLSX_SERVER_NAME);
     }
-    else if (!(sni->options & WOLFSSL_SNI_CONTINUE_ON_MISMATCH)) {
+    else if ((sni == NULL) ||
+            !(sni->options & WOLFSSL_SNI_CONTINUE_ON_MISMATCH)) {
         SendAlert(ssl, alert_fatal, unrecognized_name);
         WOLFSSL_ERROR_VERBOSE(UNKNOWN_SNI_HOST_NAME_E);
         return UNKNOWN_SNI_HOST_NAME_E;
@@ -10531,6 +10534,7 @@ static int TLSX_KeyShare_HandlePqcKeyServer(WOLFSSL* ssl,
         keyShareEntry->ke = NULL;
         keyShareEntry->keLen = 0;
 
+        XFREE(keyShareEntry->pubKey, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         keyShareEntry->pubKey = ciphertext;
         keyShareEntry->pubKeyLen = ctSz;
         ciphertext = NULL;
@@ -10767,6 +10771,7 @@ static int TLSX_KeyShare_HandlePqcHybridKeyServer(WOLFSSL* ssl,
             XMEMCPY(ciphertext + ecc_kse->pubKeyLen, pqc_kse->pubKey, ctSz);
         }
 
+        XFREE(keyShareEntry->pubKey, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         keyShareEntry->pubKey = ciphertext;
         keyShareEntry->pubKeyLen = ecc_kse->pubKeyLen + ctSz;
         ciphertext = NULL;
@@ -10856,21 +10861,35 @@ int TLSX_KeyShare_Use(const WOLFSSL* ssl, word16 group, word16 len, byte* data,
 #if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE)
     if (ssl->options.side == WOLFSSL_SERVER_END &&
             WOLFSSL_NAMED_GROUP_IS_PQC(group)) {
-        ret = TLSX_KeyShare_HandlePqcKeyServer((WOLFSSL*)ssl,
-                                               keyShareEntry,
-                                               data, len,
-                                               ssl->arrays->preMasterSecret,
-                                               &ssl->arrays->preMasterSz);
-        if (ret != 0)
-            return ret;
+        if (TLSX_IsGroupSupported(group)) {
+            ret = TLSX_KeyShare_HandlePqcKeyServer((WOLFSSL*)ssl,
+                                                   keyShareEntry,
+                                                   data, len,
+                                                   ssl->arrays->preMasterSecret,
+                                                   &ssl->arrays->preMasterSz);
+            if (ret != 0)
+                return ret;
+        }
+        else {
+            XFREE(keyShareEntry->ke, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+            keyShareEntry->ke = NULL;
+            keyShareEntry->keLen = 0;
+        }
     }
     else if (ssl->options.side == WOLFSSL_SERVER_END &&
              WOLFSSL_NAMED_GROUP_IS_PQC_HYBRID(group)) {
-        ret = TLSX_KeyShare_HandlePqcHybridKeyServer((WOLFSSL*)ssl,
-                                                     keyShareEntry,
-                                                     data, len);
-        if (ret != 0)
-            return ret;
+        if (TLSX_IsGroupSupported(group)) {
+            ret = TLSX_KeyShare_HandlePqcHybridKeyServer((WOLFSSL*)ssl,
+                                                         keyShareEntry,
+                                                         data, len);
+            if (ret != 0)
+                return ret;
+        }
+        else {
+            XFREE(keyShareEntry->ke, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+            keyShareEntry->ke = NULL;
+            keyShareEntry->keLen = 0;
+        }
     }
     else
 #endif

@@ -275,4 +275,27 @@ openssl crl -in extra-crls/crlnum_64oct.pem -text > tmp
 check_result $?
 mv tmp extra-crls/crlnum_64oct.pem
 
+# CRL with revoked-entry reason extension for parser/cleanup tests.
+cp blank.index.txt demoCA/index.txt
+# Reset CRL number state so this test fixture is independent of the
+# preceding large-CRL-number steps.
+echo "01" > crlnumber
+echo "01" > ../crl/crlnumber
+echo "Step 37 reason-extension CRL revoke"
+openssl ca -config ../renewcerts/wolfssl.cnf -revoke ../server-cert.pem \
+    -crl_reason keyCompromise -keyfile ../ca-key.pem -cert ../ca-cert.pem
+check_result $?
+
+echo "Step 38 reason-extension CRL"
+openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 3650 \
+    -out crl_reason.pem -keyfile ../ca-key.pem -cert ../ca-cert.pem
+check_result $?
+
+# metadata
+echo "Step 39"
+openssl crl -in crl_reason.pem -text > tmp
+check_result $?
+mv tmp crl_reason.pem
+cp blank.index.txt demoCA/index.txt
+
 exit 0

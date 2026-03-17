@@ -296,7 +296,7 @@ static int km_AesInitCommon(
     if (! ctx->aes_encrypt) {
         pr_err("%s: allocation of %zu bytes for encryption key failed.\n",
                name, sizeof(*ctx->aes_encrypt));
-        err = -MEMORY_E;
+        err = -ENOMEM;
         goto out;
     }
 
@@ -319,7 +319,7 @@ static int km_AesInitCommon(
         if (! ctx->aes_decrypt) {
             pr_err("%s: allocation of %zu bytes for decryption key failed.\n",
                    name, sizeof(*ctx->aes_decrypt));
-            err = -MEMORY_E;
+            err = -ENOMEM;
             goto out;
         }
 
@@ -341,7 +341,7 @@ static int km_AesInitCommon(
     if (! ctx->aes_encrypt_C) {
         pr_err("%s: allocation of %zu bytes for encryption key failed.\n",
                name, sizeof(*ctx->aes_encrypt_C));
-        err = -MEMORY_E;
+        err = -ENOMEM;
         goto out;
     }
 
@@ -1577,7 +1577,7 @@ static int km_AesXtsInitCommon(struct km_AesXtsCtx * ctx, const char * name)
     ctx->aesXts = (XtsAes *)malloc(sizeof(*ctx->aesXts));
 
     if (! ctx->aesXts)
-        return -MEMORY_E;
+        return -ENOMEM;
 
     err = wc_AesXtsInit(ctx->aesXts, NULL, INVALID_DEVID);
 

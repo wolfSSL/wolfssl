@@ -1954,12 +1954,17 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
 int _wc_Hash_Grow(byte** msg, word32* used, word32* len, const byte* in,
                         int inSz, void* heap)
 {
-    if (*len < *used + inSz) {
+    word32 usedSz = 0;
+
+    if (inSz <= 0 || !WC_SAFE_SUM_WORD32(*used, (word32)inSz, usedSz))
+        return BAD_FUNC_ARG;
+
+    if (*len < usedSz) {
         if (*msg == NULL) {
-            *msg = (byte*)XMALLOC(*used + inSz, heap, DYNAMIC_TYPE_TMP_BUFFER);
+            *msg = (byte*)XMALLOC(usedSz, heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
         else {
-            byte* pt = (byte*)XREALLOC(*msg, *used + inSz, heap,
+            byte* pt = (byte*)XREALLOC(*msg, usedSz, heap,
                     DYNAMIC_TYPE_TMP_BUFFER);
             if (pt == NULL) {
                 return MEMORY_E;
@@ -1969,7 +1974,7 @@ int _wc_Hash_Grow(byte** msg, word32* used, word32* len, const byte* in,
         if (*msg == NULL) {
             return MEMORY_E;
         }
-        *len = *used + inSz;
+        *len = usedSz;
     }
     XMEMCPY(*msg + *used, in, inSz);
     *used += inSz;

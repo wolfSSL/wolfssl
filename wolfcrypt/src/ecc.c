@@ -9487,6 +9487,13 @@ int wc_ecc_import_point_der_ex(const byte* in, word32 inLen,
     keysize = (int)(inLen>>1);
 #endif
 
+    /* sanity check that x coordinate is expected size */
+    if (err == MP_OKAY) {
+        if (keysize != ecc_sets[curve_idx].size) {
+            err = ECC_BAD_ARG_E;
+        }
+    }
+
     /* read data */
     if (err == MP_OKAY)
         err = mp_read_unsigned_bin(point->x, in, (word32)keysize);
@@ -10735,7 +10742,10 @@ int wc_ecc_import_x963_ex2(const byte* in, word32 inLen, ecc_key* key,
             XMEMCPY(key->pubkey_raw, (byte*)in, inLen);
     }
 #elif defined(WOLFSSL_KCAPI_ECC)
-    XMEMCPY(key->pubkey_raw, (byte*)in, inLen);
+    if (inLen <= (word32)sizeof(key->pubkey_raw))
+        XMEMCPY(key->pubkey_raw, (byte*)in, inLen);
+    else
+        err = BAD_FUNC_ARG;
 #endif
 
     if (err == MP_OKAY) {

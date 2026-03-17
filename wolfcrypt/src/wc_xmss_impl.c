@@ -413,8 +413,7 @@ static void wc_idx_update(unsigned char* a, word8 l)
 
 /* Copy index from source buffer to destination buffer.
  *
- * Index is put into the front of the destination buffer with the length of the
- * source.
+ * Index is put in the back of the destination buffer.
  *
  * @param [in]      s   Source buffer.
  * @param [in]      sl  Length of index in source.
@@ -424,8 +423,8 @@ static void wc_idx_update(unsigned char* a, word8 l)
 static void wc_idx_copy(const unsigned char* s, word8 sl, unsigned char* d,
     word8 dl)
 {
-    XMEMCPY(d, s, sl);
-    XMEMSET(d + sl, 0, dl - sl);
+    XMEMSET(d, 0, dl - sl);
+    XMEMCPY(d + dl - sl, s, sl);
 }
 #endif
 

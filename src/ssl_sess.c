@@ -2930,17 +2930,21 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
 #endif
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
 #ifdef WOLFSSL_TLS13
+
+#ifdef WOLFSSL_32BIT_MILLI_TIME
+    if (i - idx < OPAQUE32_LEN) {
+        ret = BUFFER_ERROR;
+        goto end;
+    }
+    ato32(data + idx, &s->ticketSeen);
+    idx += OPAQUE32_LEN;
+#else
     if (i - idx < (OPAQUE32_LEN * 2)) {
         ret = BUFFER_ERROR;
         goto end;
     }
-#ifdef WOLFSSL_32BIT_MILLI_TIME
-    ato32(data + idx, &s->ticketSeen);
-    idx += OPAQUE32_LEN;
-#else
     {
         word32 seenHi, seenLo;
-
         ato32(data + idx, &seenHi);
         idx += OPAQUE32_LEN;
         ato32(data + idx, &seenLo);
@@ -2948,6 +2952,11 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
         s->ticketSeen = ((sword64)seenHi << 32) + seenLo;
     }
 #endif
+
+    if (i - idx < OPAQUE32_LEN) {
+        ret = BUFFER_ERROR;
+        goto end;
+    }
     ato32(data + idx, &s->ticketAdd);
     idx += OPAQUE32_LEN;
     if (i - idx < OPAQUE8_LEN) {

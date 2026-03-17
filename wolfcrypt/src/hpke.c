@@ -472,7 +472,7 @@ static int wc_HpkeLabeledExtract(Hpke* hpke, byte* suite_id,
     }
 
     /* check that sum of len's will not overflow */
-    remaining = MAX_HPKE_LABEL_SZ;
+    remaining = (word32)MAX_HPKE_LABEL_SZ;
     if ((word32)HPKE_VERSION_STR_LEN > remaining) {
         return BUFFER_E;
     }
@@ -541,16 +541,11 @@ static int wc_HpkeLabeledExpand(Hpke* hpke, byte* suite_id, word32 suite_id_len,
     }
 
     /* check that sum of len's will not overflow */
-    remaining = MAX_HPKE_LABEL_SZ;
-    if (2U > remaining){
+    remaining = (word32)MAX_HPKE_LABEL_SZ;
+    if (2U + (word32)HPKE_VERSION_STR_LEN > remaining) {
         return BUFFER_E;
     }
-    remaining -= 2U;
-
-    if ((word32)HPKE_VERSION_STR_LEN > remaining) {
-        return BUFFER_E;
-    }
-    remaining -= (word32)HPKE_VERSION_STR_LEN;
+    remaining -= 2U + (word32)HPKE_VERSION_STR_LEN;
 
     if (suite_id_len > remaining) {
         return BUFFER_E;

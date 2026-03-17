@@ -1465,7 +1465,7 @@ static int wc_DhGenerateKeyPair_Async(DhKey* key, WC_RNG* rng,
         if (ret == MP_OKAY)
             ret = IntelQaDhKeyGen(&key->asyncDev, &key->p.raw, &key->g.raw,
                 &x.raw, pub, pubSz);
-        mp_clear(&x);
+        mp_forcezero(&x);
 
         return ret;
     }

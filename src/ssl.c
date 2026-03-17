@@ -16098,6 +16098,12 @@ WOLF_STACK_OF(WOLFSSL_CIPHER) *wolfSSL_get_ciphers_compat(const WOLFSSL *ssl)
                 break;
             }
         }
+
+        /* If no ciphers were added, free empty stack and return NULL */
+        if (ssl->suitesStack != NULL && wolfSSL_sk_num(ssl->suitesStack) == 0) {
+            wolfSSL_sk_CIPHER_free(ssl->suitesStack);
+            ((WOLFSSL*)ssl)->suitesStack = NULL;
+        }
     }
     return ssl->suitesStack;
 }

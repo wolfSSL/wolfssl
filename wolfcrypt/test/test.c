@@ -35072,6 +35072,32 @@ static wc_test_ret_t ecc_point_test(void)
 
 #if defined(HAVE_COMP_KEY) && (!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) || \
     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2)))
+    /* Test compressed point with missing x coordinate bytes */
+    ret = wc_ecc_import_point_der(derComp0, 1, curve_idx, point3);
+    if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) {
+        ret = WC_TEST_RET_ENC_EC(ret);
+        goto done;
+    }
+
+    ret = wc_ecc_import_point_der(derComp1, 1, curve_idx, point3);
+    if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) {
+        ret = WC_TEST_RET_ENC_EC(ret);
+        goto done;
+    }
+
+    /* Full uncompressed P-256 length (65 bytes) but invalid prefix byte */
+    {
+        byte invalidType[65];
+        XMEMSET(invalidType, 0x42, sizeof(invalidType));
+        invalidType[0] = 0x01;
+        ret = wc_ecc_import_point_der_ex(invalidType, sizeof(invalidType),
+                                         curve_idx, point3, 0);
+        if (ret != WC_NO_ERR_TRACE(ASN_PARSE_E)) {
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto done;
+        }
+    }
+
     ret = wc_ecc_import_point_der(derComp0, sizeof(derComp0)*2-1, curve_idx, point3);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
@@ -46715,8 +46741,11 @@ out:
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mlkem_test(void)
 {
     wc_test_ret_t ret;
-    WC_RNG rng;
     int i;
+#ifndef WC_NO_RNG
+    WC_RNG rng;
+    int rng_inited = 0;
+#endif
 #ifdef WOLFSSL_SMALL_STACK
     MlKemKey *key = NULL;
 #ifndef WOLFSSL_MLKEM_NO_MAKE_KEY
@@ -46783,6 +46812,30 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mlkem_test(void)
     #endif
 #endif
     };
+#ifdef WC_NO_RNG
+#ifndef WOLFSSL_MLKEM_NO_MAKE_KEY
+    /* Fake random data for testing (from mlkem768_kat) */
+    WOLFSSL_SMALL_STACK_STATIC const byte make_key_rand[] = {
+        0x7c, 0x99, 0x35, 0xa0, 0xb0, 0x76, 0x94, 0xaa,
+        0x0c, 0x6d, 0x10, 0xe4, 0xdb, 0x6b, 0x1a, 0xdd,
+        0x2f, 0xd8, 0x1a, 0x25, 0xcc, 0xb1, 0x48, 0x03,
+        0x2d, 0xcd, 0x73, 0x99, 0x36, 0x73, 0x7f, 0x2d,
+        0x86, 0x26, 0xED, 0x79, 0xD4, 0x51, 0x14, 0x08,
+        0x00, 0xE0, 0x3B, 0x59, 0xB9, 0x56, 0xF8, 0x21,
+        0x0E, 0x55, 0x60, 0x67, 0x40, 0x7D, 0x13, 0xDC,
+        0x90, 0xFA, 0x9E, 0x8B, 0x87, 0x2B, 0xFB, 0x8F
+    };
+#ifndef WOLFSSL_MLKEM_NO_ENCAPSULATE
+    WOLFSSL_SMALL_STACK_STATIC const byte encap_rand[] = {
+        0x14, 0x7c, 0x03, 0xf7, 0xa5, 0xbe, 0xbb, 0xa4,
+        0x06, 0xc8, 0xfa, 0xe1, 0x87, 0x4d, 0x7f, 0x13,
+        0xc8, 0x0e, 0xfe, 0x79, 0xa3, 0xa9, 0xa8, 0x74,
+        0xcc, 0x09, 0xfe, 0x76, 0xf6, 0x99, 0x76, 0x15
+    };
+#endif
+#endif
+#endif
+
     WOLFSSL_ENTER("mlkem_test");
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -46826,6 +46879,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mlkem_test(void)
 #endif
 #endif
 
+#ifndef WC_NO_RNG
 #ifndef HAVE_FIPS
     ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
 #else
@@ -46833,6 +46887,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mlkem_test(void)
 #endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    rng_inited = 1;
+#endif /* WC_NO_RNG */
 
     for (i = 0; i < (int)(sizeof(testData) / sizeof(*testData)); i++) {
         ret = wc_MlKemKey_Init(key, testData[i][0], HEAP_HINT, devId);
@@ -46842,7 +46898,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mlkem_test(void)
             key_inited = 1;
 
 #ifndef WOLFSSL_MLKEM_NO_MAKE_KEY
+    #ifndef WC_NO_RNG
         ret = wc_MlKemKey_MakeKey(key, &rng);
+    #else
+        ret = wc_MlKemKey_MakeKeyWithRandom(key, make_key_rand,
+                                            sizeof(make_key_rand));
+    #endif
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
 
@@ -46863,7 +46924,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mlkem_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
 
 #ifndef WOLFSSL_MLKEM_NO_ENCAPSULATE
+    #ifndef WC_NO_RNG
         ret = wc_MlKemKey_Encapsulate(key, ct, ss, &rng);
+    #else
+        ret = wc_MlKemKey_EncapsulateWithRandom(key, ct, ss, encap_rand,
+                                                sizeof(encap_rand));
+    #endif
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
 #endif
@@ -46911,8 +46977,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mlkem_test(void)
 #endif
     }
 
-    wc_FreeRng(&rng);
-
 #ifdef WOLFSSL_WC_MLKEM
 #if !defined(WOLFSSL_NO_KYBER512) && !defined(WOLFSSL_NO_ML_KEM_512)
     ret = mlkem512_kat();
@@ -46935,6 +46999,11 @@ out:
 
     if (key_inited)
         wc_MlKemKey_Free(key);
+
+#ifndef WC_NO_RNG
+    if (rng_inited)
+        wc_FreeRng(&rng);
+#endif
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
