@@ -26,22 +26,80 @@ This library contains implementation for the random number generator.
 
 */
 
-/* Possible defines:
- *   ENTROPY_NUM_UPDATE                                         default: 18
- *     Number of updates to perform. A hash is created and memory accessed
- *     based on the hash values in each update of a sample.
- *     More updates will result in better entropy quality but longer sample
- *     times.
- *   ENTROPY_NUM_UPDATES_BITS                                   default: 5
- *     Number of bits needed to represent ENTROPY_NUM_UPDATE.
- *      = upper(log2(ENTROPY_NUM_UPDATE))
- *   ENTROPY_NUM_WORDS_BITS                                     default: 14
- *     State has 2^ENTROPY_NUMN_WORDS_BITS entries.             Range: 8-30
- *     The value should be based on the cache sizes.
- *     Use a value that is at least as large as the L1 cache if possible.
- *     The higher the value, the more likely there will be cache misses and
- *     better the entropy quality.
- *     A larger value will use more static memory.
+/*
+ * Random Number Generator Build Options:
+ *
+ * Core RNG:
+ * WC_NO_RNG:               Disable RNG support entirely         default: off
+ * HAVE_HASHDRBG:            Enable Hash-based DRBG (SP 800-90A) default: on
+ * WC_RNG_BLOCKING:          Make RNG operations blocking         default: off
+ * WC_VERBOSE_RNG:           Enable verbose RNG debug output      default: off
+ * WC_RNG_SEED_CB:           Use custom seed callback function    default: off
+ * WC_RNG_BANK_SUPPORT:      Enable RNG bank (pre-generated)     default: off
+ *                            random data support
+ * WOLFSSL_RNG_USE_FULL_SEED: Use full-length seed for DRBG      default: off
+ * WOLFSSL_GENSEED_FORTEST:  Use deterministic seed for testing   default: off
+ *                            WARNING: not for production use
+ * WOLFSSL_KEEP_RNG_SEED_FD_OPEN: Keep /dev/random fd open       default: off
+ *                            between seed operations
+ *
+ * Custom RNG Sources:
+ * CUSTOM_RAND_GENERATE:     Custom random word generator func    default: off
+ * CUSTOM_RAND_GENERATE_BLOCK: Custom block random generator      default: off
+ * CUSTOM_RAND_GENERATE_SEED: Custom seed generator function      default: off
+ * CUSTOM_RAND_GENERATE_SEED_OS: Custom OS-level seed generator   default: off
+ *
+ * Entropy Sources:
+ * HAVE_ENTROPY_MEMUSE:      Enable memory-use based entropy      default: off
+ *                            source for DRBG seeding
+ * ENTROPY_MEMUSE_FORCE_FAILURE: Force entropy failure (testing)  default: off
+ * HAVE_GETRANDOM:           Use Linux getrandom() syscall        default: auto
+ * WOLFSSL_GETRANDOM:        Use getrandom() for seed source      default: auto
+ * FORCE_FAILURE_GETRANDOM:  Force getrandom failure (testing)    default: off
+ * NO_DEV_RANDOM:            Don't use /dev/random for seeding    default: off
+ * NO_DEV_URANDOM:           Don't use /dev/urandom for seeding   default: off
+ * HAVE_INTEL_RDRAND:        Use Intel RDRAND instruction         default: off
+ * HAVE_INTEL_RDSEED:        Use Intel RDSEED instruction         default: off
+ * HAVE_AMD_RDSEED:          Use AMD RDSEED instruction           default: off
+ * IDIRECT_DEV_RANDOM:       iDirect custom /dev/random path      default: off
+ * WIN_REUSE_CRYPT_HANDLE:   Reuse Windows CryptContext handle    default: off
+ *
+ * Entropy Tuning (for HAVE_ENTROPY_MEMUSE):
+ * ENTROPY_NUM_UPDATE:       Number of updates per sample         default: 18
+ *                            More updates = better entropy but slower
+ * ENTROPY_NUM_UPDATES_BITS: Bits to represent ENTROPY_NUM_UPDATE default: 5
+ *                            = upper(log2(ENTROPY_NUM_UPDATE))
+ * ENTROPY_NUM_WORDS_BITS:   State size as 2^N entries            default: 14
+ *                            Range: 8-30. Base on cache sizes.
+ *                            Larger = more cache misses = better entropy
+ *                            but more static memory usage.
+ *
+ * DRBG Health Tests:
+ * WC_RNG_SEED_APT_CUTOFF:  Adaptive proportion test cutoff      default: auto
+ * WC_RNG_SEED_APT_WINDOW:  Adaptive proportion test window size  default: auto
+ * WC_RNG_SEED_RCT_CUTOFF:  Repetition count test cutoff         default: auto
+ *
+ * Hardware RNG:
+ * STM32_RNG:                STM32 hardware RNG                   default: off
+ * STM32_NUTTX_RNG:          STM32 RNG via NuttX                  default: off
+ * WOLFSSL_STM32F427_RNG:    STM32F427 hardware RNG               default: off
+ * WOLFSSL_STM32_RNG_NOLIB:  STM32 RNG without HAL library        default: off
+ * WOLFSSL_PIC32MZ_RNG:      PIC32MZ hardware RNG                 default: off
+ * FREESCALE_RNGA:           Freescale RNGA                       default: off
+ * FREESCALE_K70_RNGA:       Freescale K70 RNGA                   default: off
+ * FREESCALE_RNGB:           Freescale RNGB                       default: off
+ * FREESCALE_KSDK_2_0_RNGA:  Freescale KSDK 2.0 RNGA             default: off
+ * FREESCALE_KSDK_2_0_TRNG:  Freescale KSDK 2.0 TRNG             default: off
+ * MAX3266X_RNG:             MAX3266X hardware RNG                 default: off
+ * QAT_ENABLE_RNG:           Intel QAT hardware RNG               default: off
+ * WOLFSSL_ATECC_RNG:        ATECC508/608 hardware RNG             default: off
+ * WOLFSSL_SILABS_TRNG:      Silicon Labs TRNG                    default: off
+ * WOLFSSL_SCE_NO_TRNG:      Disable Renesas SCE TRNG             default: off
+ * WOLFSSL_SCE_TRNG_HANDLE:  Renesas SCE TRNG handle              default: off
+ * WOLFSSL_SE050_NO_TRNG:    Disable SE050 TRNG                   default: off
+ * WOLFSSL_PSA_NO_RNG:       Disable PSA RNG                      default: off
+ * HAVE_IOTSAFE_HWRNG:       IoT-Safe hardware RNG                default: off
+ * WOLFSSL_XILINX_CRYPT_VERSAL: Xilinx Versal crypto RNG          default: off
  */
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>

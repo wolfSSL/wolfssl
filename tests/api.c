@@ -37,7 +37,7 @@
 #if defined(WOLFSSL_STATIC_MEMORY)
     #include <wolfssl/wolfcrypt/memory.h>
 #endif
-#ifdef WOLFSSL_ASNC_CRYPT
+#ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
 #endif
 #ifdef HAVE_ECC

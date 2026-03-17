@@ -19,6 +19,103 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+/*
+ * TLS Build Options:
+ * (See tls13.c for TLS 1.3-specific options)
+ *
+ * Protocol Control:
+ * NO_OLD_TLS:               Disable TLS 1.0 and 1.1              default: off
+ * WOLFSSL_ALLOW_TLSV10:     Allow TLS 1.0 connections             default: off
+ * WOLFSSL_NO_TLS12:         Disable TLS 1.2                       default: off
+ * NO_TLS:                   Disable TLS entirely (SSL only)       default: off
+ * WOLFSSL_DTLS:             Enable DTLS support                   default: off
+ * WOLFSSL_DTLS13:           Enable DTLS 1.3 support               default: off
+ * WOLFSSL_DTLS_CID:         Enable DTLS Connection ID             default: off
+ * WOLFSSL_AEAD_ONLY:        Only allow AEAD cipher suites         default: off
+ * NO_WOLFSSL_CLIENT:        Disable TLS client functionality      default: off
+ * NO_WOLFSSL_SERVER:        Disable TLS server functionality      default: off
+ * WOLFSSL_EITHER_SIDE:      Allow same context for client/server  default: off
+ * HAVE_TLS_EXTENSIONS:      Enable TLS extension support          default: on
+ * HAVE_SNI:                 Server Name Indication extension      default: off
+ * WOLFSSL_ALWAYS_KEEP_SNI:  Keep SNI after handshake              default: off
+ * HAVE_MAX_FRAGMENT:        Max Fragment Length extension          default: off
+ * HAVE_TRUNCATED_HMAC:      Truncated HMAC extension              default: off
+ * HAVE_SUPPORTED_CURVES:    Supported Curves extension            default: on
+ * HAVE_EXTENDED_MASTER:     Extended Master Secret (RFC 7627)     default: on
+ * HAVE_ENCRYPT_THEN_MAC:    Encrypt-Then-MAC extension            default: on
+ * HAVE_ALPN:                Application-Layer Protocol Negotiation default: off
+ * HAVE_CERTIFICATE_STATUS_REQUEST: OCSP stapling                  default: off
+ * HAVE_CERTIFICATE_STATUS_REQUEST_V2: OCSP stapling v2            default: off
+ * HAVE_SECURE_RENEGOTIATION: Secure renegotiation support         default: off
+ * HAVE_SERVER_RENEGOTIATION_INFO: Server renegotiation info       default: off
+ * HAVE_SESSION_TICKET:      Session ticket support                default: off
+ * HAVE_TRUSTED_CA:          Trusted CA Indication extension       default: off
+ * HAVE_RPK:                 Raw Public Key support (RFC 7250)     default: off
+ * HAVE_ECH:                 Encrypted Client Hello support        default: off
+ * WOLFSSL_NO_SIGALG:        Disable signature algorithms ext      default: off
+ * WOLFSSL_NO_CA_NAMES:      Disable CA Names in CertificateReq   default: off
+ * WOLFSSL_NO_SERVER_GROUPS_EXT: Don't send server groups ext      default: off
+ * NO_TLSX_PSKKEM_PLAIN_ANNOUNCE: Disable plain PSK announce      default: off
+ * WOLFSSL_OLD_UNSUPPORTED_EXTENSION: Old unsupported ext handling default: off
+ * WOLFSSL_ALLOW_SERVER_SC_EXT: Allow server supported curves ext  default: off
+ *
+ * Pre-Shared Keys:
+ * NO_PSK:                   Disable PSK cipher suites             default: off
+ *
+ * Key Exchange:
+ * HAVE_FFDHE:               Enable Finite Field DH ephemeral      default: off
+ * HAVE_FFDHE_2048:          Enable FFDHE 2048-bit group           default: off
+ * HAVE_FFDHE_3072:          Enable FFDHE 3072-bit group           default: off
+ * HAVE_FFDHE_4096:          Enable FFDHE 4096-bit group           default: off
+ * HAVE_FFDHE_6144:          Enable FFDHE 6144-bit group           default: off
+ * HAVE_FFDHE_8192:          Enable FFDHE 8192-bit group           default: off
+ * HAVE_PUBLIC_FFDHE:        Use public FFDHE parameters only      default: off
+ * WOLFSSL_OLD_PRIME_CHECK:  Use old DH prime checking method      default: off
+ * WOLFSSL_STATIC_DH:        Enable static DH cipher suites       default: off
+ * WOLFSSL_STATIC_EPHEMERAL: Enable static ephemeral key loading   default: off
+ *
+ * Post-Quantum:
+ * WOLFSSL_HAVE_MLKEM:       Enable ML-KEM (Kyber) support         default: off
+ * WOLFSSL_WC_MLKEM:         Use wolfCrypt ML-KEM implementation   default: off
+ * WOLFSSL_MLKEM_KYBER:      Use Kyber round 3 parameters          default: off
+ * WOLFSSL_KYBER512:         Enable Kyber/ML-KEM-512               default: off
+ * WOLFSSL_KYBER768:         Enable Kyber/ML-KEM-768               default: off
+ * WOLFSSL_KYBER1024:        Enable Kyber/ML-KEM-1024              default: off
+ * WOLFSSL_NO_ML_KEM:        Disable all ML-KEM support            default: off
+ * WOLFSSL_NO_ML_KEM_512:    Disable ML-KEM-512                    default: off
+ * WOLFSSL_NO_ML_KEM_768:    Disable ML-KEM-768                    default: off
+ * WOLFSSL_NO_ML_KEM_1024:   Disable ML-KEM-1024                  default: off
+ * WOLFSSL_ML_KEM_USE_OLD_IDS: Use old IANA IDs for ML-KEM        default: off
+ * WOLFSSL_TLSX_PQC_MLKEM_STORE_OBJ: Store ML-KEM object in ext   default: off
+ * WOLFSSL_TLSX_PQC_MLKEM_STORE_PRIV_KEY: Store ML-KEM priv key   default: off
+ * WOLFSSL_MLKEM_CACHE_A:    Cache ML-KEM A matrix                 default: off
+ * WOLFSSL_MLKEM_NO_MAKE_KEY: Disable ML-KEM key generation       default: off
+ * WOLFSSL_MLKEM_NO_ENCAPSULATE: Disable ML-KEM encapsulation     default: off
+ * WOLFSSL_MLKEM_NO_DECAPSULATE: Disable ML-KEM decapsulation     default: off
+ * HAVE_LIBOQS:              Use liboqs for PQ algorithms          default: off
+ *
+ * Curves:
+ * HAVE_SECRET_CALLBACK:     Enable TLS secret callback            default: off
+ * HAVE_PK_CALLBACKS:        Enable public key callbacks           default: off
+ * HAVE_FUZZER:              Enable fuzzing callback support        default: off
+ *
+ * Features:
+ * WOLFSSL_SNIFFER:          Enable TLS packet sniffing support    default: off
+ * WOLFSSL_SNIFFER_KEYLOGFILE: Sniffer keylog file support         default: off
+ * WOLFSSL_SSLKEYLOGFILE:    Enable SSL key log file output        default: off
+ * WOLFSSL_SRTP:             Enable SRTP extension support         default: off
+ * WOLFSSL_DUAL_ALG_CERTS:   Enable dual algorithm certificates   default: off
+ * WOLFSSL_HAVE_PRF:         Enable TLS PRF function access        default: off
+ * WOLFSSL_DEBUG_TLS:        Debug TLS protocol messages            default: off
+ * WOLFSSL_32BIT_MILLI_TIME: 32-bit millisecond time function      default: off
+ * WOLFSSL_REQUIRE_TCA:      Require Trusted CA extension          default: off
+ * WOLFSSL_DH_EXTRA:         Extra DH key info in SSL object       default: off
+ * WOLFSSL_CURVE25519_BLINDING: Curve25519 blinding in TLS         default: off
+ * HAVE_NULL_CIPHER:         Allow NULL cipher suites               default: off
+ * HAVE_WEBSERVER:           Enable web server features             default: off
+ * NO_CERTS:                 Disable certificate processing        default: off
+ */
+
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifndef WOLFCRYPT_ONLY

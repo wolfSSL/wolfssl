@@ -19,6 +19,25 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+/*
+ * SHA-3 Build Options:
+ *
+ * Core:
+ * WOLFSSL_SHA3:             Enable SHA-3 support                  default: off
+ * WOLFSSL_SHA3_SMALL:       Use smaller SHA-3 implementation      default: off
+ * WOLFSSL_SHAKE128:         Enable SHAKE128 XOF                   default: off
+ * WOLFSSL_SHAKE256:         Enable SHAKE256 XOF                   default: off
+ * SHA3_BY_SPEC:             Use specification Keccak-f order      default: off
+ * WC_SHA3_NO_ASM:           Disable SHA-3 assembly optimizations  default: off
+ * WC_SHA3_FAULT_HARDEN:     Harden SHA-3 against fault attacks    default: off
+ *
+ * Hardware Acceleration (SHA-3-specific):
+ * WC_ASYNC_ENABLE_SHA3:     Enable async SHA-3 operations         default: off
+ * WOLFSSL_ARMASM_CRYPTO_SHA3: ARM crypto SHA-3 instructions       default: off
+ * STM32_HASH_SHA3:          STM32 hardware SHA-3                  default: off
+ * PSOC6_HASH_SHA3:          PSoC6 hardware SHA-3                  default: off
+ */
+
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifdef WC_SHA3_NO_ASM

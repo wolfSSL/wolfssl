@@ -38,6 +38,14 @@ and Daniel J. Bernstein
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
+/*
+ * Poly1305 Build Options:
+ *
+ * HAVE_POLY1305:            Enable Poly1305 authenticator          default: off
+ * POLY130564:               Use 64-bit Poly1305 implementation    default: auto
+ * USE_INTEL_POLY1305_SPEEDUP: Intel AVX/AVX2 Poly1305 accel      default: off
+ */
+
 #ifdef HAVE_POLY1305
 #include <wolfssl/wolfcrypt/poly1305.h>
 #include <wolfssl/wolfcrypt/cpuid.h>

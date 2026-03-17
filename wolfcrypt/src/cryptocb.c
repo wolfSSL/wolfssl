@@ -22,18 +22,36 @@
 /* This framework provides a central place for crypto hardware integration
    using the devId scheme. If not supported return `CRYPTOCB_UNAVAILABLE`. */
 
-/* Some common, optional build settings:
- * these can also be set in wolfssl/options.h or user_settings.h
- * -------------------------------------------------------------
- * enable the find device callback functions
- * WOLF_CRYPTO_CB_FIND
+/*
+Crypto Callback Build Options:
+ * WOLF_CRYPTO_CB:      Master enable for crypto callback       default: off
+ *                      framework. Required for all options below.
+ * WOLF_CRYPTO_CB_FIND: Enable find device callback functions   default: off
+ *                      Allows lookup of registered crypto devices.
+ * WOLF_CRYPTO_CB_CMD:  Enable command callbacks invoked during default: off
+ *                      register and unregister of crypto devices.
+ * WOLF_CRYPTO_CB_COPY: Enable copy callback for algorithm      default: off
+ *                      structures (hash, cipher state copying).
+ * WOLF_CRYPTO_CB_FREE: Enable free callback for algorithm      default: off
+ *                      structures (cleanup of crypto objects).
+ * WOLF_CRYPTO_CB_AES_SETKEY: Enable callback for AES key setup default: off
+ * WOLF_CRYPTO_CB_RSA_PAD: Enable callback for RSA padding      default: off
+ *                      operations (custom padding handling).
+ * DEBUG_CRYPTOCB:      Enable debug InfoString functions        default: off
  *
- * enable the command callback functions to invoke the callback during
- * register and unregister
- * WOLF_CRYPTO_CB_CMD
+ * Device ID options:
+ * WC_USE_DEVID:        Specify a default device ID to use      default: off
+ *                      when no hardware device is detected.
+ * WC_NO_DEFAULT_DEVID: Disable automatic default device ID     default: off
+ *                      selection. Requires explicit devId passing.
+ * WOLFSSL_CAAM_DEVID:  Device ID constant (value 7) for NXP    default: off
+ *                      CAAM hardware crypto.
  *
- * enable debug InfoString functions
- * DEBUG_CRYPTOCB
+ * Algorithm-specific callback options:
+ * NO_SHA2_CRYPTO_CB:   Disable crypto callbacks for SHA-384    default: off
+ *                      and SHA-512 operations.
+ * WOLF_CRYPTO_CB_ONLY_ECC: Use only callbacks for ECC          default: off
+ * WOLF_CRYPTO_CB_ONLY_RSA: Use only callbacks for RSA          default: off
  */
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>

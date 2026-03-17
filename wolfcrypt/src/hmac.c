@@ -20,6 +20,21 @@
  */
 
 
+/*
+ * HMAC Build Options:
+ *
+ * NO_HMAC:                  Disable HMAC support entirely         default: off
+ * HAVE_HKDF:                Enable HKDF (RFC 5869) key derivation default: off
+ * WOLFSSL_HMAC_COPY_HASH:   Copy hash state instead of re-init   default: off
+ *                            for HMAC operations (performance)
+ * STM32_HMAC:               STM32 hardware HMAC acceleration     default: off
+ *
+ * Hardware Acceleration (HMAC-specific):
+ * WC_ASYNC_ENABLE_HMAC:     Enable async HMAC operations          default: off
+ * WOLFSSL_DEVCRYPTO_HMAC:   /dev/crypto HMAC acceleration        default: off
+ * WOLFSSL_KCAPI_HMAC:       Linux kernel crypto API for HMAC     default: off
+ */
+
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifndef NO_HMAC

@@ -107,6 +107,106 @@ ASN Options:
  * WOLFSSL_ALLOW_AKID_SKID_MATCH: By default cert issuer is found using hash
  * of cert subject hash with signers subject hash. This option allows fallback
  * to using AKID and SKID matching.
+ *
+ * Certificate Generation/Parsing:
+ * WOLFSSL_CERT_REQ:         Enable certificate request (CSR) support
+ * WOLFSSL_CERT_EXT:         Enable certificate extension support
+ * WOLFSSL_CERT_PIV:         Enable PIV certificate support
+ * WOLFSSL_CERT_GEN_CACHE:   Cache DER for cert generation
+ * WOLFSSL_CERT_SIGN_CB:     Enable certificate signing callback
+ * WOLFSSL_CERT_NAME_ALL:    Store all certificate name components
+ * WOLFSSL_MULTI_ATTRIB:     Enable multi-valued RDN attributes
+ * WOLFSSL_DER_TO_PEM:       Enable DER to PEM conversion
+ * WOLFSSL_PEM_TO_DER:       Enable PEM to DER conversion
+ * WOLFSSL_PUB_PEM_TO_DER:   Enable public key PEM to DER conversion
+ * WOLFSSL_KEY_TO_DER:       Enable key to DER encoding
+ * WOLFSSL_ENCRYPTED_KEYS:   Enable encrypted private key support (PKCS#8)
+ * ASN_BER_TO_DER:           Enable BER to DER conversion
+ * WOLFSSL_DUP_CERTPOL:      Allow duplicate certificate policies
+ * WOLFSSL_NAMES_STATIC:     Use static allocation for name strings
+ * WOLFSSL_SIGNER_DER_CERT:  Store signer DER cert in cert manager
+ *
+ * Certificate Validation:
+ * NO_VERIFY_OID:            Skip OID verification
+ * NO_CHECK_PRIVATE_KEY:     Skip private key pair check
+ * NO_SKID:                  Disable Subject Key Identifier
+ * NO_STRICT_ECDSA_LEN:      Allow non-strict ECDSA signature length
+ * NO_WOLFSSL_CM_VERIFY:     Disable cert manager verify callback
+ * NO_WOLFSSL_SKIP_TRAILING_PAD: Don't skip trailing padding
+ * ALLOW_SELFSIGNED_INVALID_CERTSIGN: Allow self-signed certs
+ *                            without keyCertSign in keyUsage
+ * ALLOW_V1_EXTENSIONS:      Allow extensions in v1 certificates
+ * USE_WOLF_VALIDDATE:       Use wolfSSL date validation
+ * WC_ASN_RUNTIME_DATE_CHECK_CONTROL: Runtime control of date checking
+ * WOLFSSL_AFTER_DATE_CLOCK_SKEW: Clock skew tolerance for after-date
+ * WOLFSSL_BEFORE_DATE_CLOCK_SKEW: Clock skew tolerance for before-date
+ * WOLFSSL_TRUST_PEER_CERT:  Enable trusted peer certificate support
+ *
+ * Extensions:
+ * WOLFSSL_ALT_NAMES:        Enable Subject Alternative Names
+ * WOLFSSL_ALT_NAMES_NO_REV: Alt names without reverse order
+ * WOLFSSL_IP_ALT_NAME:      Enable IP address in SAN
+ * WOLFSSL_RID_ALT_NAME:     Enable Registered ID in SAN
+ * WOLFSSL_SEP:              Enable SubjectEntryPoint extension
+ * WOLFSSL_EKU_OID:          Enable Extended Key Usage OID support
+ * WOLFSSL_ACERT:            Enable attribute certificate support
+ * IGNORE_KEY_EXTENSIONS:    Ignore key usage extensions
+ * IGNORE_NETSCAPE_CERT_TYPE: Ignore Netscape cert type extension
+ * WOLFSSL_ALLOW_CRIT_AIA:   Allow critical Authority Info Access
+ * WOLFSSL_ALLOW_CRIT_AKID:  Allow critical Auth Key Identifier
+ * WOLFSSL_ALLOW_CRIT_SKID:  Allow critical Subject Key Identifier
+ * WC_ASN_UNKNOWN_EXT_CB:    Callback for unknown extensions
+ *
+ * ASN.1 Parsing:
+ * WOLFSSL_ASN_ALL:          Enable all ASN.1 features
+ * WOLFSSL_ASN_CA_ISSUER:    Enable CA Issuer in AIA parsing
+ * WOLFSSL_ASN_PRINT:        Enable ASN.1 structure printing
+ * WOLFSSL_ASN_INT_LEAD_0_ANY: Allow any leading zero in ASN integers
+ * WOLFSSL_ASN_PARSE_KEYUSAGE: Parse key usage extension
+ * WOLFSSL_ASN_TIME_STRING:  Enable ASN time to string conversion
+ * ASN_TEMPLATE_SKIP_ISCA_CHECK: Skip isCA check in ASN template
+ *
+ * OID:
+ * HAVE_OID_ENCODING:        Enable OID encoding support
+ * HAVE_OID_DECODING:        Enable OID decoding support
+ * WOLFSSL_OLD_OID_SUM:      Use old OID sum calculation
+ *
+ * CRL:
+ * HAVE_CRL:                 Enable Certificate Revocation Lists
+ * CRL_STATIC_REVOKED_LIST:  Use static list for revoked certs
+ *
+ * OCSP:
+ * HAVE_OCSP:                Enable OCSP support
+ * HAVE_OCSP_RESPONDER:      Enable OCSP responder support
+ * WOLFSSL_OCSP_PARSE_STATUS: Parse OCSP response status
+ *
+ * PKCS:
+ * HAVE_PKCS8:               Enable PKCS#8 support
+ * HAVE_PKCS12:              Enable PKCS#12 support
+ *
+ * Algorithms (ASN encoding/decoding):
+ * HAVE_DILITHIUM:           Enable Dilithium ASN support
+ * WOLFSSL_DILITHIUM_NO_ASN1: Disable Dilithium ASN.1 encoding
+ * WOLFSSL_DILITHIUM_FIPS204_DRAFT: FIPS 204 draft Dilithium
+ * WOLFSSL_DILITHIUM_NO_SIGN: Disable Dilithium signing
+ * WOLFSSL_DILITHIUM_NO_VERIFY: Disable Dilithium verify
+ * HAVE_FALCON:              Enable Falcon ASN support
+ * HAVE_SPHINCS:             Enable SPHINCS+ ASN support
+ *
+ * Key Import/Export:
+ * WC_ENABLE_ASYM_KEY_IMPORT: Enable asymmetric key import
+ * WC_ENABLE_ASYM_KEY_EXPORT: Enable asymmetric key export
+ *
+ * Compatibility:
+ * WOLFSSL_APACHE_HTTPD:     Apache HTTPD compatibility
+ * WOLFSSL_X509_NAME_AVAILABLE: Enable X509_NAME API
+ * WOLFSSL_HAVE_ISSUER_NAMES: Store issuer name components
+ * WOLFSSL_ASN_KEY_SIZE_ENUM: Use enum for AES key size in ASN
+ * WOLFSSL_SM3:              Enable SM3 hash ASN support
+ * HAVE_SMIME:               Enable S/MIME support
+ * HAVE_LIBZ:                Enable zlib compression for certs
+ * WC_RC2:                   Enable RC2 for PKCS#12
+ * WOLFSSL_MD2:              Enable MD2 hash (legacy)
 */
 
 #ifndef NO_RSA
@@ -4389,7 +4489,7 @@ static word32 SetBitString16Bit(word16 val, byte* output)
 
     /* Falcon Level 5: 1 3 9999 3 9 */
     static const byte sigFalcon_Level5Oid[] = {43, 206, 15, 3, 9};
-#endif /* HAVE_FACON */
+#endif /* HAVE_FALCON */
 #ifdef HAVE_DILITHIUM
 #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
     /* Dilithium Level 2: 1.3.6.1.4.1.2.267.12.4.4 */
@@ -17954,7 +18054,7 @@ static WC_INLINE int IsSigAlgoECC(word32 algoOID)
         #ifdef HAVE_CURVE448
               || (algoOID == X448k)
         #endif
-        #ifdef HAVE_FACON
+        #ifdef HAVE_FALCON
               || (algoOID == FALCON_LEVEL1k)
               || (algoOID == FALCON_LEVEL5k)
         #endif
