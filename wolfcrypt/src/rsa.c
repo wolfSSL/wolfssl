@@ -3617,10 +3617,10 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
         else if (rsa_type == RSA_PUBLIC_DECRYPT &&
                                          pad_value == RSA_BLOCK_TYPE_1) {
             if (key->uKeyH != 0) {
+                int tmp;
                 if (pad_type != WC_RSA_PSS_PAD) {
                     return WC_HW_E;
                 }
-                int tmp;
                 return wc_Microchip_rsa_verify(in, inLen,
                     out, outLen, key, &tmp);
             }
