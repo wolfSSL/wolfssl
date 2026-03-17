@@ -216,6 +216,19 @@
         #define WC_GENERATE_SEED_DEFAULT wc_linuxkm_GenerateSeed_IntelRD
     #endif
 
+    /* setup for LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT needs to be here
+     * to assure that calls to get_random_bytes() in random.c are gated out
+     * (they would recurse, potentially infinitely).
+     */
+    #if defined(LINUXKM_LKCAPI_REGISTER_ALL) && \
+        !defined(LINUXKM_LKCAPI_DONT_REGISTER_HASH_DRBG) && \
+        !defined(LINUXKM_LKCAPI_DONT_REGISTER_HASH_DRBG_DEFAULT) && \
+        !defined(NO_LINUXKM_DRBG_GET_RANDOM_BYTES) && \
+        !defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT) && \
+        defined(HAVE_HASHDRBG)
+        #define LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
+    #endif
+
     #ifdef BUILDING_WOLFSSL
 
     #if ((LINUX_VERSION_CODE >= KERNEL_VERSION(5, 16, 0)) || \
@@ -560,18 +573,6 @@
             #define WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
         #endif
 
-        /* setup for LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT needs to be here
-         * to assure that calls to get_random_bytes() in random.c are gated out
-         * (they would recurse, potentially infinitely).
-         */
-        #if defined(LINUXKM_LKCAPI_REGISTER_ALL) && \
-            !defined(LINUXKM_LKCAPI_DONT_REGISTER_HASH_DRBG) && \
-            !defined(LINUXKM_LKCAPI_DONT_REGISTER_HASH_DRBG_DEFAULT) && \
-            !defined(NO_LINUXKM_DRBG_GET_RANDOM_BYTES) && \
-            !defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT)
-            #define LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
-        #endif
-
         #ifndef WC_CONTAINERIZE_THIS
             #include <linux/crypto.h>
             #include <linux/scatterlist.h>
@@ -603,6 +604,7 @@
             #endif
             #define WC_LKM_REFCOUNT_TO_INT(refcount) wc_lkm_refcount_to_int(&(refcount))
         #endif /* !WC_CONTAINERIZE_THIS */
+
     #endif /* LINUXKM_LKCAPI_REGISTER */
 
     /* benchmarks.c uses floating point math, so needs a working
@@ -1776,6 +1778,11 @@
             return 0;
         }
 
+    #endif
+
+    #ifdef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
+        struct crypto_rng;
+        WOLFSSL_API int wc_linux_kernel_rng_is_wolfcrypt(struct crypto_rng *rng);
     #endif
 
     /* Undo copied defines from wc_port.h, to avoid redefinition warnings. */
