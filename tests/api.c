@@ -259,7 +259,8 @@
 #endif
 
 #if defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFCRYPT_ONLY)
-    #if (defined(HAVE_ECC) && !defined(ALT_ECC_SIZE)) || defined(SESSION_CERTS)
+    #if (defined(HAVE_ECC) && !defined(ALT_ECC_SIZE)) || \
+        defined(SESSION_CERTS) || defined(WOLFSSL_HAVE_MLKEM)
         #ifdef OPENSSL_EXTRA
             #define TEST_TLS_STATIC_MEMSZ (400000)
         #else
@@ -32014,7 +32015,7 @@ static int test_dtls13_frag_ch_pq(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
-    && defined(WOLFSSL_DTLS_CH_FRAG) && defined(HAVE_LIBOQS)
+    && defined(WOLFSSL_DTLS_CH_FRAG) && defined(WOLFSSL_HAVE_MLKEM)
     WOLFSSL_CTX *ctx_c = NULL;
     WOLFSSL_CTX *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL;
@@ -32023,10 +32024,28 @@ static int test_dtls13_frag_ch_pq(void)
     const char *test_str = "test";
     int test_str_size;
     byte buf[255];
-#ifdef WOLFSSL_MLKEM_KYBER
+#if defined(WOLFSSL_MLKEM_KYBER)
+    #if !defined(WOLFSSL_NO_KYBER1024)
     int group = WOLFSSL_KYBER_LEVEL5;
+    const char *group_name = "KYBER_LEVEL5";
+    #elif !defined(WOLFSSL_NO_KYBER768)
+    int group = WOLFSSL_KYBER_LEVEL3;
+    const char *group_name = "KYBER_LEVEL3";
+    #else
+    int group = WOLFSSL_KYBER_LEVEL1;
+    const char *group_name = "KYBER_LEVEL1";
+    #endif
 #else
+    #if !defined(WOLFSSL_NO_ML_KEM_1024)
     int group = WOLFSSL_ML_KEM_1024;
+    const char *group_name = "ML_KEM_1024";
+    #elif !defined(WOLFSSL_NO_ML_KEM_768)
+    int group = WOLFSSL_ML_KEM_768;
+    const char *group_name = "ML_KEM_768";
+    #else
+    int group = WOLFSSL_ML_KEM_512;
+    const char *group_name = "ML_KEM_512";
+    #endif
 #endif
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
@@ -32037,13 +32056,8 @@ static int test_dtls13_frag_ch_pq(void)
     ExpectIntEQ(wolfSSL_UseKeyShare(ssl_c, group), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_dtls13_allow_ch_frag(ssl_s, 1), WOLFSSL_SUCCESS);
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
-#ifdef WOLFSSL_MLKEM_KYBER
-    ExpectStrEQ(wolfSSL_get_curve_name(ssl_c), "KYBER_LEVEL5");
-    ExpectStrEQ(wolfSSL_get_curve_name(ssl_s), "KYBER_LEVEL5");
-#else
-    ExpectStrEQ(wolfSSL_get_curve_name(ssl_c), "ML_KEM_1024");
-    ExpectStrEQ(wolfSSL_get_curve_name(ssl_s), "ML_KEM_1024");
-#endif
+    ExpectStrEQ(wolfSSL_get_curve_name(ssl_c), group_name);
+    ExpectStrEQ(wolfSSL_get_curve_name(ssl_s), group_name);
     test_str_size = XSTRLEN("test") + 1;
     ExpectIntEQ(wolfSSL_write(ssl_c, test_str, test_str_size), test_str_size);
     ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf)), test_str_size);

@@ -1763,8 +1763,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     /* Note: Actual memory used is much less, this is the entire buffer buckets,
      * which is partitioned into pools of common sizes. To adjust the buckets
      * sizes see WOLFMEM_BUCKETS in memory.h */
-    #if (defined(HAVE_ECC) && !defined(ALT_ECC_SIZE)) \
-        || defined(SESSION_CERTS)
+    #if (defined(HAVE_ECC) && !defined(ALT_ECC_SIZE)) || \
+        defined(SESSION_CERTS) || defined(WOLFSSL_HAVE_MLKEM)
         /* big enough to handle most cases including session certs */
         #if !defined(WOLFSSL_NO_CLIENT_AUTH) && \
                ((defined(HAVE_ED25519) && !defined(NO_ED25519_CLIENT_AUTH)) || \

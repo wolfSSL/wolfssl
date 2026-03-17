@@ -2251,6 +2251,26 @@ int InitSSL_Side(WOLFSSL* ssl, word16 side)
             WOLFSSL_MSG("DTLS Cookie Secret error");
             return ret;
         }
+    #if defined(WOLFSSL_DTLS13)
+        if (IsAtLeastTLSv1_3(ssl->version)) {
+        #if defined(WOLFSSL_SEND_HRR_COOKIE)
+            ret = wolfSSL_send_hrr_cookie(ssl, NULL, 0);
+            if (ret != WOLFSSL_SUCCESS) {
+                WOLFSSL_MSG("DTLS1.3 Cookie secret error");
+                return ret;
+            }
+        #endif /* WOLFSSL_SEND_HRR_COOKIE */
+        #if defined(WOLFSSL_DTLS_CH_FRAG) && defined(WOLFSSL_HAVE_MLKEM)
+            /* Allow fragmentation of the second ClientHello due to the
+             * large PQC key share. */
+            ret = wolfSSL_dtls13_allow_ch_frag(ssl, 1);
+            if (ret != WOLFSSL_SUCCESS) {
+                WOLFSSL_MSG("DTLS1.3 CH frag error");
+                return ret;
+            }
+        #endif /* WOLFSSL_DTLS_CH_FRAG && WOLFSSL_HAVE_MLKEM */
+        }
+    #endif /* WOLFSSL_DTLS13 */
     }
 #endif /* WOLFSSL_DTLS && !NO_WOLFSSL_SERVER */
 
@@ -8006,15 +8026,26 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
             WOLFSSL_MSG("DTLS Cookie Secret error");
             return ret;
         }
-#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_SEND_HRR_COOKIE)
+    #if defined(WOLFSSL_DTLS13)
         if (IsAtLeastTLSv1_3(ssl->version)) {
+        #if defined(WOLFSSL_SEND_HRR_COOKIE)
             ret = wolfSSL_send_hrr_cookie(ssl, NULL, 0);
             if (ret != WOLFSSL_SUCCESS) {
                 WOLFSSL_MSG("DTLS1.3 Cookie secret error");
                 return ret;
             }
+        #endif /* WOLFSSL_SEND_HRR_COOKIE */
+        #if defined(WOLFSSL_DTLS_CH_FRAG) && defined(WOLFSSL_HAVE_MLKEM)
+            /* Allow fragmentation of the second ClientHello due to the
+             * large PQC key share. */
+            ret = wolfSSL_dtls13_allow_ch_frag(ssl, 1);
+            if (ret != WOLFSSL_SUCCESS) {
+                WOLFSSL_MSG("DTLS1.3 CH frag error");
+                return ret;
+            }
+        #endif /* WOLFSSL_DTLS_CH_FRAG && WOLFSSL_HAVE_MLKEM */
         }
-#endif /* WOLFSSL_DTLS13 && WOLFSSL_SEND_HRR_COOKIE */
+    #endif /* WOLFSSL_DTLS13 */
     }
 #endif /* WOLFSSL_DTLS && !NO_WOLFSSL_SERVER */
 

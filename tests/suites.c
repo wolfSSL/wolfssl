@@ -169,57 +169,151 @@ static int IsValidCipherSuite(const char* line, char *suite, size_t suite_spc)
 }
 
 #if defined(WOLFSSL_HAVE_MLKEM)
+
+#define MATCH_PQC(b, s, l) ((l) == sizeof(s) - 1 && \
+    XSTRNCMP((b), (s), sizeof(s) - 1) == 0)
+
 static int IsKyberLevelAvailable(const char* line)
 {
     int available = 0;
-    const char* find = "--pqc ";
-    const char* begin = strstr(line, find);
-    const char* end;
+    const char* begin = XSTRSTR(line, "--pqc");
+    size_t len = 0;
 
     if (begin != NULL) {
-        begin += 6;
-        end = XSTRSTR(begin, " ");
+        begin += XSTRLEN("--pqc");
+        while (*begin == ' ' || *begin == '\t') {
+            begin++;
+        }
 
-    #ifndef WOLFSSL_NO_ML_KEM
-        if ((size_t)end - (size_t)begin == 10) {
+        if (*begin != '\0') {
+            const char* end = begin;
+            while (*end != '\0' && *end != ' ' && *end != '\t') {
+                end++;
+            }
+            len = (size_t)(end - begin);
+        }
+    }
+
+    if (begin != NULL && len > 0) {
+#ifndef WOLFSSL_NO_ML_KEM
         #ifndef WOLFSSL_NO_ML_KEM_512
-            if (XSTRNCMP(begin, "ML_KEM_512", 10) == 0) {
+            if (MATCH_PQC(begin, "ML_KEM_512", len)) {
                 available = 1;
             }
         #endif
         #ifndef WOLFSSL_NO_ML_KEM_768
-            if (XSTRNCMP(begin, "ML_KEM_768", 10) == 0) {
+            if (MATCH_PQC(begin, "ML_KEM_768", len)) {
                 available = 1;
             }
         #endif
-        }
         #ifndef WOLFSSL_NO_ML_KEM_1024
-        if ((size_t)end - (size_t)begin == 11) {
-            if (XSTRNCMP(begin, "ML_KEM_1024", 11) == 0) {
+            if (MATCH_PQC(begin, "ML_KEM_1024", len)) {
                 available = 1;
             }
-        }
         #endif
-    #endif
-    #ifdef WOLFSSL_MLKEM_KYBER
-        if ((size_t)end - (size_t)begin == 12) {
-        #ifndef WOLFSSL_NO_KYBER512
-            if (XSTRNCMP(begin, "KYBER_LEVEL1", 12) == 0) {
+
+        #if !defined(WOLFSSL_NO_ML_KEM_512) && defined(HAVE_ECC)
+            if (MATCH_PQC(begin, "SecP256r1MLKEM512", len)) {
                 available = 1;
             }
+        #ifdef WOLFSSL_ML_KEM_USE_OLD_IDS
+            if (MATCH_PQC(begin, "P256_ML_KEM_512_OLD", len)) {
+                available = 1;
+            }
+        #endif
+        #endif
+        #if !defined(WOLFSSL_NO_ML_KEM_768) && defined(HAVE_ECC)
+            if (MATCH_PQC(begin, "SecP384r1MLKEM768", len)) {
+                available = 1;
+            }
+            if (MATCH_PQC(begin, "SecP256r1MLKEM768", len)) {
+                available = 1;
+            }
+        #ifdef WOLFSSL_ML_KEM_USE_OLD_IDS
+            if (MATCH_PQC(begin, "P384_ML_KEM_768_OLD", len)) {
+                available = 1;
+            }
+        #endif
+        #endif
+        #if !defined(WOLFSSL_NO_ML_KEM_768) && defined(HAVE_CURVE25519)
+            if (MATCH_PQC(begin, "X25519MLKEM768", len)) {
+                available = 1;
+            }
+        #endif
+        #if !defined(WOLFSSL_NO_ML_KEM_1024) && defined(HAVE_ECC)
+            if (MATCH_PQC(begin, "SecP521r1MLKEM1024", len)) {
+                available = 1;
+            }
+            if (MATCH_PQC(begin, "SecP384r1MLKEM1024", len)) {
+                available = 1;
+            }
+        #ifdef WOLFSSL_ML_KEM_USE_OLD_IDS
+            if (MATCH_PQC(begin, "P521_ML_KEM_1024_OLD", len)) {
+                available = 1;
+            }
+        #endif
+        #endif
+        #if !defined(WOLFSSL_NO_ML_KEM_512) && defined(HAVE_CURVE25519)
+            if (MATCH_PQC(begin, "X25519MLKEM512", len)) {
+                available = 1;
+            }
+        #endif
+        #if !defined(WOLFSSL_NO_ML_KEM_768) && defined(HAVE_CURVE448)
+            if (MATCH_PQC(begin, "X448MLKEM768", len)) {
+                available = 1;
+            }
+        #endif
+#endif /* !WOLFSSL_NO_ML_KEM */
+#ifdef WOLFSSL_MLKEM_KYBER
+        #ifndef WOLFSSL_NO_KYBER512
+            if (MATCH_PQC(begin, "KYBER_LEVEL1", len)) {
+                available = 1;
+            }
+        #ifdef HAVE_ECC
+            if (MATCH_PQC(begin, "P256_KYBER_LEVEL1", len)) {
+                available = 1;
+            }
+        #endif
         #endif
         #ifndef WOLFSSL_NO_KYBER768
-            if (XSTRNCMP(begin, "KYBER_LEVEL3", 12) == 0) {
+            if (MATCH_PQC(begin, "KYBER_LEVEL3", len)) {
                 available = 1;
             }
+        #ifdef HAVE_ECC
+            if (MATCH_PQC(begin, "P384_KYBER_LEVEL3", len)) {
+                available = 1;
+            }
+            if (MATCH_PQC(begin, "P256_KYBER_LEVEL3", len)) {
+                available = 1;
+            }
+        #endif
         #endif
         #ifndef WOLFSSL_NO_KYBER1024
-            if (XSTRNCMP(begin, "KYBER_LEVEL5", 12) == 0) {
+            if (MATCH_PQC(begin, "KYBER_LEVEL5", len)) {
+                available = 1;
+            }
+        #ifdef HAVE_ECC
+            if (MATCH_PQC(begin, "P521_KYBER_LEVEL5", len)) {
                 available = 1;
             }
         #endif
-        }
-    #endif
+        #endif
+        #if !defined(WOLFSSL_NO_KYBER512) && defined(HAVE_CURVE25519)
+            if (MATCH_PQC(begin, "X25519_KYBER_LEVEL1", len)) {
+                available = 1;
+            }
+        #endif
+        #if !defined(WOLFSSL_NO_KYBER768) && defined(HAVE_CURVE25519)
+            if (MATCH_PQC(begin, "X25519_KYBER_LEVEL3", len)) {
+                available = 1;
+            }
+        #endif
+        #if !defined(WOLFSSL_NO_KYBER768) && defined(HAVE_CURVE448)
+            if (MATCH_PQC(begin, "X448_KYBER_LEVEL3", len)) {
+                available = 1;
+            }
+        #endif
+#endif /* WOLFSSL_MLKEM_KYBER */
     }
 
 #if defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
@@ -910,7 +1004,7 @@ int SuiteTest(int argc, char** argv)
     char* myArgv[3];
 
 #ifdef WOLFSSL_STATIC_MEMORY
-    byte memory[200000];
+    byte memory[320000];
 #endif
 
     printf(" Begin Cipher Suite Tests\n");
