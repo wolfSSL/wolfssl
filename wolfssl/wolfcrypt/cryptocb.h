@@ -65,6 +65,9 @@
 #ifdef WOLFSSL_CMAC
     #include <wolfssl/wolfcrypt/cmac.h>
 #endif
+#ifdef WOLFSSL_SHE
+    #include <wolfssl/wolfcrypt/she.h>
+#endif
 #ifdef HAVE_ED25519
     #include <wolfssl/wolfcrypt/ed25519.h>
 #endif
@@ -478,6 +481,31 @@ typedef struct wc_CryptoInfo {
         int type;
     } cmac;
 #endif
+#ifdef WOLFSSL_SHE
+    struct {
+        void*       she;        /* wc_SHE* context */
+        int         type;       /* enum wc_SheType - discriminator */
+        const void* ctx;        /* read-only caller context */
+        union {
+            struct {
+                const byte* uid;    /* caller-provided UID (may be NULL) */
+                word32      uidSz;  /* size of uid buffer */
+            } setUid;
+            struct {
+                byte*       m1;     /* output: M1 */
+                word32      m1Sz;
+                byte*       m2;     /* output: M2 */
+                word32      m2Sz;
+                byte*       m3;     /* output: M3 */
+                word32      m3Sz;
+                byte*       m4;     /* output: M4 */
+                word32      m4Sz;
+                byte*       m5;     /* output: M5 */
+                word32      m5Sz;
+            } exportKey;
+        } op;
+    } she;
+#endif
 #ifndef NO_CERTS
     struct {
         const byte *id;
@@ -797,6 +825,22 @@ WOLFSSL_LOCAL int wc_CryptoCb_RandomSeed(OS_Seed* os, byte* seed, word32 sz);
 WOLFSSL_LOCAL int wc_CryptoCb_Cmac(Cmac* cmac, const byte* key, word32 keySz,
         const byte* in, word32 inSz, byte* out, word32* outSz, int type,
         void* ctx);
+#endif
+
+#ifdef WOLFSSL_SHE
+WOLFSSL_LOCAL int wc_CryptoCb_SheSetUid(wc_SHE* she, const byte* uid,
+                                         word32 uidSz, const void* ctx);
+WOLFSSL_LOCAL int wc_CryptoCb_SheGenerateM1M2M3(wc_SHE* she,
+                                          const void* ctx);
+WOLFSSL_LOCAL int wc_CryptoCb_SheGenerateM4M5(wc_SHE* she,
+                                          const void* ctx);
+WOLFSSL_LOCAL int wc_CryptoCb_SheExportKey(wc_SHE* she,
+                                            byte* m1, word32 m1Sz,
+                                            byte* m2, word32 m2Sz,
+                                            byte* m3, word32 m3Sz,
+                                            byte* m4, word32 m4Sz,
+                                            byte* m5, word32 m5Sz,
+                                            const void* ctx);
 #endif
 
 #ifndef NO_CERTS
