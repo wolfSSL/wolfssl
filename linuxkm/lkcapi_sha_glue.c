@@ -1128,6 +1128,18 @@ static void linuxkm_put_drbg(struct crypto_rng *tfm, struct wc_rng_bank_inst **d
 
 #if defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT) && defined(HAVE_HASHDRBG)
 
+int wc_linux_kernel_rng_is_wolfcrypt(struct crypto_rng *rng) {
+    if (rng &&
+        wc_linuxkm_drbg_default_instance_registered &&
+        (rng->base.__crt_alg->cra_init == wc_linuxkm_drbg_init_tfm))
+    {
+        return 1;
+    }
+    else {
+        return 0;
+    }
+}
+
 static inline struct crypto_rng *get_crypto_default_rng(void) {
     struct crypto_rng *current_crypto_default_rng = crypto_default_rng;
 
@@ -1149,7 +1161,6 @@ static inline struct crypto_rng *get_crypto_default_rng(void) {
 
     if (current_crypto_default_rng->base.__crt_alg->cra_init != wc_linuxkm_drbg_init_tfm) {
         pr_err("BUG: get_default_drbg_ctx() found wrong crypto_default_rng \"%s\"\n", crypto_tfm_alg_driver_name(&current_crypto_default_rng->base));
-        crypto_put_default_rng();
         return NULL;
     }
 
