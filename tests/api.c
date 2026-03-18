@@ -14613,7 +14613,7 @@ static int test_wolfSSL_Tls13_ECH_all_algos(void)
             for (k = 0; k < (int)(sizeof(aeads) / sizeof(*aeads)); k++) {
                 echCbTestAeadID = aeads[k];
                 ExpectIntEQ(test_wolfSSL_Tls13_ECH_all_algos_ex(),
-                    WOLFSSL_SUCCESS);
+                    TEST_SUCCESS);
             }
         }
     }

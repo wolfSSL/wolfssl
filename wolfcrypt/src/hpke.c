@@ -1218,6 +1218,8 @@ int wc_HpkeOpenBase(Hpke* hpke, void* receiverKey, const byte* pubKey,
     return ret;
 }
 
+/* return the encrypted length of the KEM
+ * return 0 otherwise */
 WOLFSSL_LOCAL word16 wc_HpkeKemGetEncLen(word16 kemId)
 {
     switch (kemId)
@@ -1241,16 +1243,13 @@ WOLFSSL_LOCAL word16 wc_HpkeKemGetEncLen(word16 kemId)
     case DHKEM_X25519_HKDF_SHA256:
         return DHKEM_X25519_ENC_LEN;
 #endif
-#if defined(HAVE_CURVE448) &&\
-    (defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512))
-    case DHKEM_X448_HKDF_SHA512:
-        return DHKEM_X448_ENC_LEN;
-#endif
     default:
         return 0;
     }
 }
 
+/* return true if hpke is compiled with support for the given KEM
+ * return false otherwise */
 WOLFSSL_LOCAL int wc_HpkeKemIsSupported(word16 kemId)
 {
     switch (kemId) {
@@ -1271,12 +1270,13 @@ WOLFSSL_LOCAL int wc_HpkeKemIsSupported(word16 kemId)
 #endif
         return 1;
 
-    case DHKEM_X448_HKDF_SHA512:
     default:
         return 0;
     }
 }
 
+/* return true if hpke is compiled with support for the given KDF
+ * return false otherwise */
 WOLFSSL_LOCAL int wc_HpkeKdfIsSupported(word16 kdfId)
 {
     switch (kdfId) {
@@ -1296,6 +1296,8 @@ WOLFSSL_LOCAL int wc_HpkeKdfIsSupported(word16 kdfId)
     }
 }
 
+/* return true if hpke is compiled with support for the given AEAD
+ * return false otherwise */
 WOLFSSL_LOCAL int wc_HpkeAeadIsSupported(word16 aeadId)
 {
     switch (aeadId) {

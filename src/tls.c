@@ -13260,6 +13260,10 @@ static int TLSX_ECH_Use(WOLFSSL_EchConfig* echConfig, TLSX** extensions,
     ech->configId = echConfig->configId;
     /* encLen */
     ech->encLen = wc_HpkeKemGetEncLen(echConfig->kemId);
+    if (ech->encLen == 0) {
+        XFREE(ech, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return BAD_FUNC_ARG;
+    }
     /* setup hpke */
     ech->hpke = (Hpke*)XMALLOC(sizeof(Hpke), heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (ech->hpke == NULL) {

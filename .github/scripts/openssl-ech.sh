@@ -3,8 +3,10 @@
 set -e
 
 cleanup() {
-    cat "$TMP_LOG"
-    rm -f "$TMP_LOG"
+    if [ -f "$TMP_LOG" ]; then
+        cat "$TMP_LOG"
+        rm -f "$TMP_LOG"
+    fi
 }
 trap cleanup EXIT
 

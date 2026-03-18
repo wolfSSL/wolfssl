@@ -1120,8 +1120,8 @@ static const char* server_usage_msg[][70] = {
         "--ech <name>  Generate Encrypted Client Hello config with "
             "public name <name>\n",
                                                                         /* 67 */
-        "--ech-suite <KEM,KDF,AEAD>  HPKE suite to use for ech config. "
-            "Supplied as 3 integers (e.g., 32,1,3)\n",
+        "--ech-suite <KEM,KDF,AEAD>  HPKE suite to use for ech config.\n"
+            "                            Supplied as 3 integers (ex: 32,1,3)\n",
                                                                         /* 68 */
 #endif
         "\n"
@@ -1339,11 +1339,19 @@ static const char* server_usage_msg[][70] = {
 #ifdef WOLFSSL_SYS_CRYPTO_POLICY
         "--crypto-policy  <path to crypto policy file>\n", /* 66 */
 #endif
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
+        "--ech <name>  Generate Encrypted Client Hello config with "
+            "public name <name>\n",
+                                                                        /* 67 */
+        "--ech-suite <KEM,KDF,AEAD>  HPKE suite to use for ech config.\n"
+            "                            Supplied as 3 integers (ex: 32,1,3)\n",
+                                                                        /* 68 */
+#endif
         "\n"
         "より簡単なwolfSSL TSL クライアントの例については"
                                           "下記にアクセスしてください\n"
         "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n",
-                                                                        /* 67 */
+                                                                        /* 69 */
         NULL,
     },
 #endif
@@ -1712,6 +1720,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
     char*  echPublicName = NULL;
     char*  echSuite = NULL;
+    word16 kemId = 0;
+    word16 kdfId = 0;
+    word16 aeadId = 0;
 #endif
 
 #ifdef HAVE_TRUSTED_CA
@@ -2547,6 +2558,29 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 break;
             case 270:
                 echSuite = myoptarg;
+
+                /* parse alg id's ignoring overflows
+                 * commas can be entered with no number to accept the default */
+                if (echSuite != NULL) {
+                    kemId = (word16)atoi(echSuite);
+                    for (; *echSuite != '\0' && *echSuite != ','; echSuite++);
+                    if (*echSuite != ',') {
+                        LOG_ERROR("Expected two commas '%s'\n", myoptarg);
+                        XEXIT_T(EXIT_FAILURE);
+                    }
+                    echSuite++;
+
+                    kdfId = (word16)atoi(echSuite);
+                    for (; *echSuite != '\0' && *echSuite != ','; echSuite++);
+                    if (*echSuite != ',') {
+                        LOG_ERROR("Expected two commas'%s'\n", myoptarg);
+                        XEXIT_T(EXIT_FAILURE);
+                    }
+                    echSuite++;
+
+                    aeadId = (word16)atoi(echSuite);
+                }
+
                 break;
 #endif
 
@@ -3116,24 +3150,6 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         char echConfigBase64[512];
         char* echConfigBase64Ptr;
         word32 echConfigBase64Len = sizeof(echConfigBase64);
-        word16 kemId = 0;
-        word16 kdfId = 0;
-        word16 aeadId = 0;
-
-        /* an optimistic approach to parsing the ciphersuite */
-        if (echSuite != NULL) {
-            const char* s = echSuite;
-
-            kemId = (word16)atoi(s);
-            for (; *s != '\0' && *s != ','; s++);
-            if (*s == ',') s++;
-
-            kdfId = (word16)atoi(s);
-            for (; *s != '\0' && *s != ','; s++);
-            if (*s == ',') s++;
-
-            aeadId = (word16)atoi(s);
-        }
 
         if (wolfSSL_CTX_GenerateEchConfig(ctx, echPublicName, kemId, kdfId,
                 aeadId) != WOLFSSL_SUCCESS) {
