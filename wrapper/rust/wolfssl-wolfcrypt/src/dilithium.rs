@@ -1236,7 +1236,7 @@ impl Dilithium {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
         let sig_len = sig.len() as u32;
-        let ctx_len = ctx.len() as u32;
+        let ctx_len = ctx.len() as u8;
         let msg_len = msg.len() as u32;
         let mut res = 0i32;
         let rc = unsafe {
@@ -1282,7 +1282,7 @@ impl Dilithium {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
         let sig_len = sig.len() as u32;
-        let ctx_len = ctx.len() as u32;
+        let ctx_len = ctx.len() as u8;
         let hash_len = hash.len() as u32;
         let mut res = 0i32;
         let rc = unsafe {

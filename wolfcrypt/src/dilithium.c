@@ -9797,8 +9797,8 @@ static int dilithium_verify_mu(dilithium_key* key, const byte* mu,
  * @return  Other negative when an error occurs.
  */
 static int dilithium_verify_ctx_msg(dilithium_key* key, const byte* ctx,
-    word32 ctxLen, const byte* msg, word32 msgLen, const byte* sig,
-    word32 sigLen, int* res)
+    byte ctxLen, const byte* msg, word32 msgLen, const byte* sig, word32 sigLen,
+    int* res)
 {
     int ret = 0;
     byte tr[DILITHIUM_TR_SZ];
@@ -9887,8 +9887,8 @@ static int dilithium_verify_msg(dilithium_key* key, const byte* msg,
  * @return  Other negative when an error occurs.
  */
 static int dilithium_verify_ctx_hash(dilithium_key* key, const byte* ctx,
-    word32 ctxLen, int hashAlg, const byte* hash, word32 hashLen,
-    const byte* sig, word32 sigLen, int* res)
+    byte ctxLen, int hashAlg, const byte* hash, word32 hashLen, const byte* sig,
+    word32 sigLen, int* res)
 {
     int ret = 0;
     byte tr[DILITHIUM_TR_SZ];
@@ -10480,7 +10480,7 @@ int wc_dilithium_sign_ctx_hash_with_seed(const byte* ctx, byte ctxLen,
  *          0 otherwise.
  */
 int wc_dilithium_verify_ctx_msg(const byte* sig, word32 sigLen, const byte* ctx,
-    word32 ctxLen, const byte* msg, word32 msgLen, int* res, dilithium_key* key)
+    byte ctxLen, const byte* msg, word32 msgLen, int* res, dilithium_key* key)
 {
     int ret = 0;
 
@@ -10591,8 +10591,8 @@ int wc_dilithium_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
  *          0 otherwise.
  */
 int wc_dilithium_verify_ctx_hash(const byte* sig, word32 sigLen,
-    const byte* ctx, word32 ctxLen, int hashAlg, const byte* hash,
-    word32 hashLen, int* res, dilithium_key* key)
+    const byte* ctx, byte ctxLen, int hashAlg, const byte* hash, word32 hashLen,
+    int* res, dilithium_key* key)
 {
     int ret = 0;
 
