@@ -34905,8 +34905,8 @@ static wc_test_ret_t ecc_point_test(void)
                          0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
                          0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
                          0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08 };
-#if defined(HAVE_COMP_KEY) && (!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) || \
-    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2)))
+#if defined(HAVE_COMP_KEY) && ((!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
+    (defined(FIPS_VERSION3_GE) && FIPS_VERSION3_GE(7,0,0)))
     byte       derComp0[] = { 0x02, /* = Compressed, y even */
                               0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
                               0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
@@ -35070,8 +35070,8 @@ static wc_test_ret_t ecc_point_test(void)
         goto done;
     }
 
-#if defined(HAVE_COMP_KEY) && (!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) || \
-    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2)))
+#if defined(HAVE_COMP_KEY) && ((!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
+    (defined(FIPS_VERSION3_GE) && FIPS_VERSION3_GE(7,0,0)))
     /* Test compressed point with missing x coordinate bytes */
     ret = wc_ecc_import_point_der(derComp0, 1, curve_idx, point3);
     if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) {
@@ -35125,7 +35125,8 @@ static wc_test_ret_t ecc_point_test(void)
         ret = WC_TEST_RET_ENC_EC(ret);
         goto done;
     }
-#endif
+#endif /* HAVE_COMP_KEY && ((!HAVE_FIPS && !HAVE_SELFTEST) || */
+       /* FIPS_VERSION3_GE(7,0,0)) */
 
 done:
 #ifdef HAVE_COMP_KEY
