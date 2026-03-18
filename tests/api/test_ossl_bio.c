@@ -1466,5 +1466,214 @@ int test_wolfSSL_BIO_BIO_ring_read(void)
     return EXPECT_RESULT();
 }
 
+/* Custom BIO backing store for test_wolfSSL_BIO_custom_method */
+#if defined(OPENSSL_EXTRA)
+
+struct custom_bio_data {
+    char buf[256];
+    int len;
+    byte createCalled:1;
+    byte destroyCalled:1;
+    byte writeCalled:1;
+    byte readCalled:1;
+    byte putsCalled:1;
+    byte getsCalled:1;
+    byte ctrlCalled:1;
+};
+
+static int custom_bio_createCb(WOLFSSL_BIO* bio)
+{
+    struct custom_bio_data* data;
+    data = (struct custom_bio_data*)XMALLOC(sizeof(*data), NULL,
+            DYNAMIC_TYPE_TMP_BUFFER);
+    if (data == NULL)
+        return 0;
+    XMEMSET(data, 0, sizeof(*data));
+    data->createCalled = 1;
+    BIO_set_data(bio, data);
+    BIO_set_init(bio, 1);
+    return 1;
+}
+
+static int custom_bio_destroyCb(WOLFSSL_BIO* bio)
+{
+    struct custom_bio_data* data = (struct custom_bio_data*)BIO_get_data(bio);
+    if (data != NULL) {
+        data->destroyCalled = 1;
+        XFREE(data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    BIO_set_data(bio, NULL);
+    return 1;
+}
+
+static int custom_bio_writeCb(WOLFSSL_BIO* bio, const char* in, int len)
+{
+    struct custom_bio_data* data = (struct custom_bio_data*)BIO_get_data(bio);
+    int avail;
+    if (data == NULL || in == NULL || len <= 0)
+        return -1;
+    data->writeCalled = 1;
+    avail = (int)sizeof(data->buf) - data->len;
+    if (len > avail)
+        len = avail;
+    XMEMCPY(data->buf + data->len, in, (size_t)len);
+    data->len += len;
+    return len;
+}
+
+static int custom_bio_readCb(WOLFSSL_BIO* bio, char* out, int len)
+{
+    struct custom_bio_data* data = (struct custom_bio_data*)BIO_get_data(bio);
+    if (data == NULL || out == NULL || len <= 0)
+        return -1;
+    data->readCalled = 1;
+    if (data->len == 0)
+        return 0;
+    if (len > data->len)
+        len = data->len;
+    XMEMCPY(out, data->buf, (size_t)len);
+    /* shift remaining data */
+    data->len -= len;
+    if (data->len > 0)
+        XMEMMOVE(data->buf, data->buf + len, (size_t)data->len);
+    return len;
+}
+
+static int custom_bio_putsCb(WOLFSSL_BIO* bio, const char* str)
+{
+    struct custom_bio_data* data = (struct custom_bio_data*)BIO_get_data(bio);
+    if (str == NULL || data == NULL)
+        return -1;
+    data->putsCalled = 1;
+    return custom_bio_writeCb(bio, str, (int)XSTRLEN(str));
+}
+
+static int custom_bio_getsCb(WOLFSSL_BIO* bio, char* buf, int sz)
+{
+    struct custom_bio_data* data = (struct custom_bio_data*)BIO_get_data(bio);
+    int i;
+    int readLen;
+    if (data == NULL || buf == NULL || sz <= 1)
+        return -1;
+    data->getsCalled = 1;
+    if (data->len == 0)
+        return 0;
+    /* read up to newline or sz-1 bytes */
+    readLen = (sz - 1 < data->len) ? sz - 1 : data->len;
+    for (i = 0; i < readLen; i++) {
+        buf[i] = data->buf[i];
+        if (data->buf[i] == '\n') {
+            i++;
+            break;
+        }
+    }
+    buf[i] = '\0';
+    /* shift remaining data */
+    data->len -= i;
+    if (data->len > 0)
+        XMEMMOVE(data->buf, data->buf + i, (size_t)data->len);
+    return i;
+}
+
+static long custom_bio_ctrlCb(WOLFSSL_BIO* bio, int cmd, long larg, void* parg)
+{
+    struct custom_bio_data* data = (struct custom_bio_data*)BIO_get_data(bio);
+    (void)larg;
+    if (data == NULL)
+        return -1;
+    data->ctrlCalled = 1;
+    switch (cmd) {
+        case BIO_CTRL_PENDING:
+            return (long)data->len;
+        case BIO_CTRL_RESET:
+            data->len = 0;
+            return WOLFSSL_SUCCESS;
+        case BIO_CTRL_FLUSH:
+            return 1;
+        case BIO_CTRL_INFO:
+            if (parg != NULL)
+                *(char**)parg = data->buf;
+            return (long)data->len;
+        default:
+            return 0;
+    }
+}
+
+#endif /* OPENSSL_EXTRA */
+
+int test_wolfSSL_BIO_custom_method(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA)
+    BIO_METHOD* method = NULL;
+    BIO* bio = NULL;
+    struct custom_bio_data* data = NULL;
+    char buf[256];
+    char* memPtr = NULL;
+
+    /* Create custom method and set all callbacks */
+    ExpectNotNull(method = BIO_meth_new(WOLFSSL_BIO_UNDEF, "custom_test"));
+    ExpectIntEQ(BIO_meth_set_create(method, custom_bio_createCb),
+            WOLFSSL_SUCCESS);
+    ExpectIntEQ(BIO_meth_set_destroy(method, custom_bio_destroyCb),
+            WOLFSSL_SUCCESS);
+    ExpectIntEQ(BIO_meth_set_write(method, custom_bio_writeCb),
+            WOLFSSL_SUCCESS);
+    ExpectIntEQ(BIO_meth_set_read(method, custom_bio_readCb),
+            WOLFSSL_SUCCESS);
+    ExpectIntEQ(BIO_meth_set_puts(method, custom_bio_putsCb),
+            WOLFSSL_SUCCESS);
+    ExpectIntEQ(BIO_meth_set_gets(method, custom_bio_getsCb),
+            WOLFSSL_SUCCESS);
+    ExpectIntEQ(BIO_meth_set_ctrl(method, custom_bio_ctrlCb),
+            WOLFSSL_SUCCESS);
+
+    /* Create BIO - should invoke createCb */
+    ExpectNotNull(bio = BIO_new(method));
+    ExpectNotNull(data = (struct custom_bio_data*)BIO_get_data(bio));
+    ExpectTrue(data->createCalled);
+
+    /* write */
+    ExpectIntEQ(BIO_write(bio, "hello", 5), 5);
+    ExpectTrue(data->writeCalled);
+
+    /* ctrl_pending via ctrlCb */
+    ExpectIntEQ((int)BIO_ctrl_pending(bio), 5);
+    ExpectTrue(data->ctrlCalled);
+
+    /* read */
+    XMEMSET(buf, 0, sizeof(buf));
+    ExpectIntEQ(BIO_read(bio, buf, 5), 5);
+    ExpectBufEQ(buf, "hello", 5);
+    ExpectTrue(data->readCalled);
+    ExpectIntEQ((int)BIO_ctrl_pending(bio), 0);
+
+    /* puts */
+    ExpectIntEQ(BIO_puts(bio, "world\nfoo"), 9);
+    ExpectTrue(data->putsCalled);
+    ExpectIntEQ((int)BIO_ctrl_pending(bio), 9);
+
+    /* gets - should read up to and including first newline */
+    XMEMSET(buf, 0, sizeof(buf));
+    ExpectIntEQ(BIO_gets(bio, buf, (int)sizeof(buf)), 6);
+    ExpectStrEQ(buf, "world\n");
+    ExpectTrue(data->getsCalled);
+    ExpectIntEQ((int)BIO_ctrl_pending(bio), 3);
+
+    /* get_mem_data via BIO_CTRL_INFO */
+    ExpectIntEQ(BIO_get_mem_data(bio, &memPtr), 3);
+    ExpectNotNull(memPtr);
+
+    /* reset via ctrlCb */
+    ExpectIntEQ(BIO_reset(bio), WOLFSSL_SUCCESS);
+    ExpectIntEQ((int)BIO_ctrl_pending(bio), 0);
+
+    /* free - should invoke destroyCb */
+    BIO_free(bio);
+    BIO_meth_free(method);
+#endif
+    return EXPECT_RESULT();
+}
+
 #endif /* !NO_BIO */
 
