@@ -72,7 +72,7 @@
 /* Global variables */
 static sss_session_t *cfg_se050_i2c_pi;
 static sss_key_store_t *gHostKeyStore;
-static sss_key_store_t *gHeyStore;
+static sss_key_store_t *gKeyStore;
 
 int wc_se050_set_config(sss_session_t *pSession, sss_key_store_t *pHostKeyStore,
     sss_key_store_t *pKeyStore)
@@ -81,7 +81,7 @@ int wc_se050_set_config(sss_session_t *pSession, sss_key_store_t *pHostKeyStore,
 
     cfg_se050_i2c_pi = pSession;
     gHostKeyStore = pHostKeyStore;
-    gHeyStore = pKeyStore;
+    gKeyStore = pKeyStore;
 
     return 0;
 }
@@ -294,9 +294,6 @@ int se050_hash_update(SE050_HASH_Context* se050Ctx, const byte* data, word32 len
             XFREE(se050Ctx->msg, se050Ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
             se050Ctx->msg = tmp;
         }
-        if (se050Ctx->msg == NULL) {
-            return MEMORY_E;
-        }
         se050Ctx->len = usedSz;
     }
 
@@ -395,6 +392,7 @@ int se050_aes_set_key(Aes* aes, const byte* key, word32 keylen,
     /* free existing key in slot first before storing new one */
     ret = wc_se050_erase_object(aes->keyId);
     if (ret != 0) {
+        wolfSSL_CryptHwMutexUnLock();
         return ret;
     }
     aes->keyIdSet = 0;
@@ -1177,6 +1175,7 @@ int se050_rsa_sign(const byte* in, word32 inLen, byte* out,
     algorithm = se050_get_rsa_signature_type(pad_type, hash, mgf);
     if (algorithm == kAlgorithm_None) {
         WOLFSSL_MSG("Unsupported padding/hash/mgf combination for SE050");
+        wolfSSL_CryptHwMutexUnLock();
         return BAD_FUNC_ARG;
     }
 
@@ -1229,7 +1228,7 @@ int se050_rsa_sign(const byte* in, word32 inLen, byte* out,
                                                derSz, (keySz * 8), NULL, 0);
             }
 
-            XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(derBuf, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
         else {
             status = sss_key_object_get_handle(&newKey, keyId);
@@ -1332,6 +1331,7 @@ int se050_rsa_verify(const byte* in, word32 inLen, byte* out, word32 outLen,
     algorithm = se050_get_rsa_signature_type(pad_type, hash, mgf);
     if (algorithm == kAlgorithm_None) {
         WOLFSSL_MSG("Unsupported padding/hash/mgf combination for SE050");
+        wolfSSL_CryptHwMutexUnLock();
         return BAD_FUNC_ARG;
     }
 
@@ -1391,7 +1391,7 @@ int se050_rsa_verify(const byte* in, word32 inLen, byte* out, word32 outLen,
                                                derSz, (keySz * 8), NULL, 0);
             }
 
-            XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(derBuf, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
         else {
             status = sss_key_object_get_handle(&newKey, keyId);
@@ -1520,6 +1520,7 @@ int se050_rsa_public_encrypt(const byte* in, word32 inLen, byte* out,
     algorithm = se050_get_rsa_encrypt_type(pad_type, hash);
     if (algorithm == kAlgorithm_None) {
         WOLFSSL_MSG("Unsupported padding/hash/mgf combination for SE050");
+        wolfSSL_CryptHwMutexUnLock();
         return BAD_FUNC_ARG;
     }
 
@@ -1576,7 +1577,7 @@ int se050_rsa_public_encrypt(const byte* in, word32 inLen, byte* out,
             status = sss_key_object_get_handle(&newKey, keyId);
         }
 
-        XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(derBuf, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
     if (status == kStatus_SSS_Success) {
@@ -1678,6 +1679,7 @@ int se050_rsa_private_decrypt(const byte* in, word32 inLen, byte* out,
     algorithm = se050_get_rsa_encrypt_type(pad_type, hash);
     if (algorithm == kAlgorithm_None) {
         WOLFSSL_MSG("Unsupported padding/hash/mgf combination for SE050");
+        wolfSSL_CryptHwMutexUnLock();
         return BAD_FUNC_ARG;
     }
 
@@ -1741,7 +1743,7 @@ int se050_rsa_private_decrypt(const byte* in, word32 inLen, byte* out,
             status = sss_key_object_get_handle(&newKey, keyId);
         }
 
-        XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(derBuf, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
     if (status == kStatus_SSS_Success) {

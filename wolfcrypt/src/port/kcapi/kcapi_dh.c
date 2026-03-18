@@ -94,6 +94,10 @@ int KcapiDh_MakeKey(DhKey* key, byte* pub, word32* pubSz)
     if (ret == 0) {
         ret = (int)kcapi_kpp_keygen(key->handle, pub, *pubSz,
                                KCAPI_ACCESS_HEURISTIC);
+        if (ret >= 0) {
+            *pubSz = ret;
+            ret = 0;
+        }
     }
 
     return ret;
@@ -103,7 +107,7 @@ int KcapiDh_MakeKey(DhKey* key, byte* pub, word32* pubSz)
 static int KcapiDh_SetPrivKey(DhKey* key)
 {
     int ret;
-    unsigned char* priv;
+    unsigned char* priv = NULL;
     int len;
 
     len = ret = mp_unsigned_bin_size(&key->priv);
@@ -123,6 +127,7 @@ static int KcapiDh_SetPrivKey(DhKey* key)
         }
     }
 
+    XFREE(priv, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 #endif
@@ -143,7 +148,7 @@ int KcapiDh_SharedSecret(DhKey* private_key, const byte* pub, word32 pubSz,
     }
 
 #ifdef WOLFSSL_DH_EXTRA
-    if (!mp_iszero(&private_key->priv)) {
+    if (ret == 0 && !mp_iszero(&private_key->priv)) {
         ret = KcapiDh_SetPrivKey(private_key);
     }
 #endif

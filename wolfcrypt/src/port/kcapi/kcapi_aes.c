@@ -57,7 +57,8 @@
         int          ret = 0;
         struct iovec iov;
 
-        if (aes == NULL || out == NULL || in == NULL) {
+        if (aes == NULL || out == NULL || in == NULL ||
+                                                    sz % WC_AES_BLOCK_SIZE != 0) {
             ret = BAD_FUNC_ARG;
         }
 
@@ -270,13 +271,13 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         }
     #else
         ret = posix_memalign((void*)&data, pageSz, dataSz);
-        if (ret < 0) {
+        if (ret != 0) {
             ret = MEMORY_E;
         }
     #endif
     }
 
-    if (ret >= 0) {
+    if (ret == 0) {
         ret = kcapi_aead_setkey(aes->handle, (byte*)aes->devKey, aes->keylen);
         if (ret != 0) {
             WOLFSSL_MSG("GcmEncrypt set key failed");
@@ -292,8 +293,10 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
     if (ret == 0) {
         kcapi_aead_setassoclen(aes->handle, authInSz);
-        XMEMCPY(data, authIn, authInSz);
-        XMEMCPY(data + authInSz, in, sz);
+        if (authInSz > 0)
+            XMEMCPY(data, authIn, authInSz);
+        if (sz > 0)
+            XMEMCPY(data + authInSz, in, sz);
 
         ret = (int)kcapi_aead_encrypt(aes->handle, data, inbuflen, iv, data,
             outbuflen, KCAPI_ACCESS_HEURISTIC);
@@ -383,13 +386,13 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         }
     #else
         ret = posix_memalign((void*)&data, pageSz, dataSz);
-        if (ret < 0) {
+        if (ret != 0) {
             ret = MEMORY_E;
         }
     #endif
     }
 
-    if (ret >= 0) {
+    if (ret == 0) {
         ret = kcapi_aead_setkey(aes->handle, (byte*)aes->devKey, aes->keylen);
         if (ret != 0) {
             WOLFSSL_MSG("GcmDecrypt set key failed");
@@ -402,8 +405,10 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
     if (ret == 0) {
         kcapi_aead_setassoclen(aes->handle, authInSz);
-        XMEMCPY(data, authIn, authInSz);
-        XMEMCPY(data + authInSz, in, sz);
+        if (authInSz > 0)
+            XMEMCPY(data, authIn, authInSz);
+        if (sz > 0)
+            XMEMCPY(data + authInSz, in, sz);
         XMEMCPY(data + authInSz + sz, authTag, authTagSz);
 
         ret = (int)kcapi_aead_decrypt(aes->handle, data, inbuflen, iv, data,

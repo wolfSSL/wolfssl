@@ -518,6 +518,7 @@ static void wc_Stm32_Hmac_FeedKey(const byte* key, word32 keySz)
             keySz % STM32_HASH_REG_SIZE);
         HASH->DIN = tmp;
     }
+    ForceZero(&tmp, sizeof(tmp));
 
 #ifdef DEBUG_STM32_HASH
     printf("STM HMAC FeedKey %d bytes\n", (int)keySz);
@@ -692,6 +693,7 @@ int wc_Stm32_Aes_Wrap(struct Aes* aes, const byte* in, word32 inSz, byte* out,
         ret = HAL_CRYPEx_WrapKey(&hcryp, (uint32_t*)key, (uint32_t*)out, 100);
         HAL_CRYP_DeInit(&hcryp);
     }
+    ForceZero(key, sizeof(key));
 
     ByteReverseWords((word32*)out, (word32*)out, inSz);
     *outSz = inSz;
@@ -1095,8 +1097,10 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
         }
     }
 #endif
-    if (res != MP_OKAY)
+    if (res != MP_OKAY) {
+        ForceZero(kbin, sizeof(kbin));
         return res;
+    }
 
     pka_mul.modulusSize = szModulus;
     pka_mul.coefSign = coefA_sign;
@@ -1113,12 +1117,14 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
 
     status = HAL_PKA_ECCMul(&hpka, &pka_mul, HAL_MAX_DELAY);
     if (status != HAL_OK) {
+        ForceZero(kbin, sizeof(kbin));
         HAL_PKA_RAMReset(&hpka);
         return WC_HW_E;
     }
     pka_mul_res.ptX = Gxbin;
     pka_mul_res.ptY = Gybin;
     HAL_PKA_ECCMul_GetResult(&hpka, &pka_mul_res);
+    ForceZero(kbin, sizeof(kbin));
     res = mp_read_unsigned_bin(R->x, Gxbin, szModulus);
     if (res == MP_OKAY) {
         res = mp_read_unsigned_bin(R->y, Gybin, szModulus);
@@ -1309,13 +1315,18 @@ int stm32_ecc_sign_hash_ex(const byte* hash, word32 hashlen, WC_RNG* rng,
         status = stm32_get_from_mp_int(Intbin, &gen_k, size);
     mp_clear(&gen_k);
     mp_clear(&order_mp);
-    if (status != MP_OKAY)
+    if (status != MP_OKAY) {
+        ForceZero(Intbin, sizeof(Intbin));
         return status;
+     }
 
     /* get private part of "k" */
     status = stm32_get_from_mp_int(Keybin, wc_ecc_key_get_priv(key), size);
-    if (status != MP_OKAY)
+    if (status != MP_OKAY) {
+        ForceZero(Keybin, sizeof(Keybin));
+        ForceZero(Intbin, sizeof(Intbin));
         return status;
+    }
 
     pka_ecc.primeOrderSize =  size;
     pka_ecc.modulusSize =     size;
@@ -1331,6 +1342,8 @@ int stm32_ecc_sign_hash_ex(const byte* hash, word32 hashlen, WC_RNG* rng,
 
     XMEMSET(Hashbin, 0, STM32_MAX_ECC_SIZE);
     if (hashlen > STM32_MAX_ECC_SIZE) {
+        ForceZero(Keybin, sizeof(Keybin));
+        ForceZero(Intbin, sizeof(Intbin));
         return ECC_BAD_ARG_E;
     }
     else if ((int)hashlen > size) {
@@ -1353,10 +1366,14 @@ int stm32_ecc_sign_hash_ex(const byte* hash, word32 hashlen, WC_RNG* rng,
 
     status = HAL_PKA_ECDSASign(&hpka, &pka_ecc, HAL_MAX_DELAY);
     if (status != HAL_OK) {
+        ForceZero(Keybin, sizeof(Keybin));
+        ForceZero(Intbin, sizeof(Intbin));
         HAL_PKA_RAMReset(&hpka);
         return WC_HW_E;
     }
     HAL_PKA_ECDSASign_GetResult(&hpka, &pka_ecc_out, NULL);
+    ForceZero(Keybin, sizeof(Keybin));
+    ForceZero(Intbin, sizeof(Intbin));
     status = mp_read_unsigned_bin(r, pka_ecc_out.RSign, size);
     if (status == MP_OKAY)
         status = mp_read_unsigned_bin(s, pka_ecc_out.SSign, size);

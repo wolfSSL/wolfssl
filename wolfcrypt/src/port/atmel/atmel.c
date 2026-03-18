@@ -106,7 +106,7 @@ int atmel_get_random_number(uint32_t count, uint8_t* rand_out)
 {
     int ret = 0;
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
-    uint8_t i = 0;
+    uint32_t i = 0;
     uint32_t copy_count = 0;
     uint8_t rng_buffer[RANDOM_NUM_SIZE];
 
@@ -292,7 +292,12 @@ int atmel_ecc_alloc(int slotType)
                         break;
                     }
                 }
+                if (slotId == ATECC_INVALID_SLOT) {
+                    goto exit;
+                }
                 break;
+            default:
+                goto exit;
         }
 
         /* is slot available */
@@ -686,13 +691,16 @@ int atcatls_create_pms_cb(WOLFSSL* ssl, ecc_key* otherKey,
         /* for client: create and export public key */
         if (side == WOLFSSL_CLIENT_END) {
             int slotId = atmel_ecc_alloc(ATMEL_SLOT_ECDHE);
-            if (slotId == ATECC_INVALID_SLOT)
-                return WC_HW_WAIT_E;
+            if (slotId == ATECC_INVALID_SLOT) {
+                ret = WC_HW_WAIT_E;
+                goto exit;
+            }
             tmpKey.slot = slotId;
 
             /* generate new ephemeral key on device */
             ret = atmel_ecc_create_key(slotId, peerKey);
             if (ret != ATCA_SUCCESS) {
+                atmel_ecc_free(slotId);
                 goto exit;
             }
 
@@ -885,6 +893,7 @@ int atcatls_verify_signature_cb(WOLFSSL* ssl, const byte* sig,
         ret = wc_EccPublicKeyDecode(key, &idx, &tmpKey, keySz);
     }
     if (ret != 0) {
+        wc_ecc_free(&tmpKey);
         goto exit;
     }
 
@@ -920,6 +929,8 @@ int atcatls_verify_signature_cb(WOLFSSL* ssl, const byte* sig,
     #else
         ret = NOT_COMPILED_IN;
     #endif /* !WOLFSSL_ATECC508A_NOSOFTECC */
+        wc_ecc_free(&tmpKey);
+        goto exit;
     }
 
     (void)rSz;
@@ -1048,6 +1059,13 @@ static int atcatls_set_certificates(WOLFSSL_CTX *ctx)
         printf("Failed to read device cert!\r\n");
     #endif
         return (int)status;
+    }
+    else if (deviceCertSize > ATCATLS_DEVICE_CERT_MAX_SIZE) {
+    #ifdef WOLFSSL_ATECC_DEBUG
+        printf("Device cert buffer too small, need to increase at least"
+               " to %d\r\n", deviceCertSize);
+    #endif
+       return -1;
     }
 #endif
 

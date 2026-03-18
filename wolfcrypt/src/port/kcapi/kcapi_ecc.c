@@ -166,7 +166,7 @@ int KcapiEcc_MakeKey(ecc_key* key, int keysize, int curve_id)
 
     /* check arguments */
     if (key == NULL || key->dp == NULL) {
-        ret = BAD_FUNC_ARG;
+        return BAD_FUNC_ARG;
     }
 
     ret = KcapiEcc_LoadKey(key, key->pubkey_raw, &pubkey_sz, 0);
@@ -389,7 +389,7 @@ int KcapiEcc_Sign(ecc_key* key, const byte* hash, word32 hashLen, byte* sig,
     }
 
     if (handleInit) {
-        kcapi_kpp_destroy(key->handle);
+        kcapi_akcipher_destroy(key->handle);
         key->handle = NULL;
     }
 
@@ -489,7 +489,7 @@ int KcapiEcc_Verify(ecc_key* key, const byte* hash, word32 hashLen, byte* sig,
     }
 
     if (handleInit) {
-        kcapi_kpp_destroy(key->handle);
+        kcapi_akcipher_destroy(key->handle);
         key->handle = NULL;
     }
     return ret;

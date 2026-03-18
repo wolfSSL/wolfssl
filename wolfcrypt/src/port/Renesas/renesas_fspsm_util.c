@@ -195,7 +195,7 @@ int wc_fspsm_GenerateRandBlock(byte* output, word32 sz)
     uint32_t fspbuf[RANDGEN_WORDS];
 
     while (sz > 0) {
-        word32 len = sizeof(buffer);
+        word32 len = sizeof(fspbuf);
 
         if (sz < len) {
             len = sz;

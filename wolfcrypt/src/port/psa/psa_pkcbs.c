@@ -138,7 +138,7 @@ static int psa_ecc_keygen_cb(WOLFSSL* ssl, struct ecc_key* key,
 
     ret = psa_ecc_keygen(ecc_curve, key_size, &psa_key_id);
     if (ret != 0)
-        return WC_HW_E;
+        return ret;
 
     ret = psa_ecc_export_to_wc_key(key, psa_key_id, ecc_curve);
     if (ret != 0) {
@@ -148,6 +148,11 @@ static int psa_ecc_keygen_cb(WOLFSSL* ssl, struct ecc_key* key,
         return WC_HW_E;
     }
 
+    if (psa_ctx->dh_key != PSA_KEY_ID_NULL) {
+        PSA_LOCK();
+        psa_destroy_key(psa_ctx->dh_key);
+        PSA_UNLOCK();
+    }
     psa_ctx->dh_key = psa_key_id;
 
     return 0;
@@ -239,18 +244,18 @@ static int psa_ecc_shared_secret_cb(WOLFSSL* ssl, struct ecc_key* other_key,
                                    &output_length);
     PSA_UNLOCK();
 
+    PSA_LOCK();
+    psa_destroy_key(psa_ctx->dh_key);
+    PSA_UNLOCK();
+
+    psa_ctx->dh_key = PSA_KEY_ID_NULL;
+
     if (status != PSA_SUCCESS) {
         WOLFSSL_MSG("PSA: error raw_key_agreement");
         return WC_HW_E;
     }
 
     *output_size = (word32)output_length;
-
-    PSA_LOCK();
-    psa_destroy_key(psa_ctx->dh_key);
-    PSA_UNLOCK();
-
-    psa_ctx->dh_key = PSA_KEY_ID_NULL;
 
     return 0;
 }
@@ -305,11 +310,15 @@ static int psa_ecc_sign_cb(WOLFSSL* ssl, const unsigned char* input,
 
     /* Get correct hash algorithm that matches input hash length */
     hash_algo = psa_map_hash_alg(input_length);
+    if (hash_algo == PSA_ALG_NONE)
+        return BAD_FUNC_ARG;
 
+    PSA_LOCK();
     status = psa_sign_hash(psa_ctx->private_key,
                            PSA_ALG_ECDSA(hash_algo), input,
                            input_length, rs, sizeof(rs),
                            &rs_length);
+    PSA_UNLOCK();
     if (status != PSA_SUCCESS)
         return WC_HW_E;
 
@@ -317,7 +326,7 @@ static int psa_ecc_sign_cb(WOLFSSL* ssl, const unsigned char* input,
     ret = wc_ecc_rs_raw_to_sig(rs, point_len, rs + point_len, point_len,
                                signature, signature_size);
     if (ret != 0)
-        return -1;
+        return ret;
 
     return 0;
 }
@@ -391,8 +400,12 @@ static int psa_ecc_verify_cb(WOLFSSL* ssl, const byte* sig, word32 sig_length,
     (void)ctx;
     WOLFSSL_ENTER("psa_ecc_verify_cb");
 
+    *result = 0;
+
     /* Get correct hash algorithm that matches input hash length */
     hash_algo = psa_map_hash_alg(hash_length);
+    if (hash_algo == PSA_ALG_NONE)
+        return BAD_FUNC_ARG;
 
     ret = psa_ecc_decode_public_key(key, key_length, &tmp_key, hash_algo);
     if (ret != 0)
@@ -406,7 +419,7 @@ static int psa_ecc_verify_cb(WOLFSSL* ssl, const byte* sig, word32 sig_length,
         goto exit;
 
     /* coalescence of r and s in the buffer */
-    XMEMCPY(raw_signature + r_len, s, s_len);
+    XMEMMOVE(raw_signature + r_len, s, s_len);
 
     PSA_LOCK();
     status = psa_verify_hash(tmp_key, PSA_ALG_ECDSA(hash_algo), hash,
@@ -416,8 +429,6 @@ static int psa_ecc_verify_cb(WOLFSSL* ssl, const byte* sig, word32 sig_length,
     if (status == PSA_SUCCESS) {
         *result = 1;
     } else {
-        *result = 0;
-
         if (status != PSA_ERROR_INVALID_SIGNATURE) {
             WOLFSSL_MSG("psa_ecc_verify_cb: can't verify hash");
             ret = WC_HW_E;
@@ -436,6 +447,7 @@ static int psa_ecc_verify_cb(WOLFSSL* ssl, const byte* sig, word32 sig_length,
 #endif /* HAVE_ECC */
 
 #ifdef HAVE_HKDF
+/* ikm will always be not NULL. */
 static int psa_hkdf_extract_cb(byte* prk, const byte* salt,
                                word32 salt_length, byte* ikm,
                                word32 ikm_length, int digest,
@@ -532,7 +544,7 @@ int wolfSSL_psa_set_private_key_id(struct psa_ssl_ctx *ctx, psa_key_id_t id)
 
 void wolfSSL_free_psa_ctx(struct psa_ssl_ctx *ctx)
 {
-    if (ctx->dh_key != PSA_KEY_ID_NULL) {
+    if (ctx != NULL && ctx->dh_key != PSA_KEY_ID_NULL) {
         PSA_LOCK();
         psa_destroy_key(ctx->dh_key);
         PSA_UNLOCK();

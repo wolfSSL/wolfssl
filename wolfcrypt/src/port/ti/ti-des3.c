@@ -59,7 +59,7 @@ static int  DesSetIV(Des* des, const byte* iv, int tri)
 
 static int  DesSetKey(Des* des, const byte* key, const byte* iv,int dir, int tri)
 {
-    if(!wolfSSL_TI_CCMInit())return 1 ;
+    if(!wolfSSL_TI_CCMInit())return WC_HW_E ;
     if ((des == NULL) || (key == NULL) || (iv == NULL))
         return BAD_FUNC_ARG;
     if(!((dir == DES_ENCRYPTION) || (dir == DES_DECRYPTION)))
@@ -162,7 +162,7 @@ WOLFSSL_API int  wc_Des_CbcDecryptWithKey(byte* out, const byte* in, word32 sz,
                                           const byte* key, const byte* iv)
 {
     (void)out; (void)in; (void)sz; (void)key; (void)iv ;
-    return -1 ;
+    return NOT_COMPILED_IN;
 }
 
 WOLFSSL_API int  wc_Des3_CbcEncrypt(Des3* des, byte* out, const byte* in, word32 sz)
@@ -179,7 +179,7 @@ WOLFSSL_API int  wc_Des3_CbcDecryptWithKey(byte* out, const byte* in, word32 sz,
                                                const byte* key, const byte* iv)
 {
      (void)out; (void)in; (void)sz; (void)key; (void)iv ;
-     return -1 ;
+     return NOT_COMPILED_IN;
  }
 
 WOLFSSL_API int wc_Des3Init(Des3* des, void* heap, int devId)
