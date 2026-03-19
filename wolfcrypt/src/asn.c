@@ -18413,6 +18413,7 @@ void FreeSignatureCtx(SignatureCtx* sigCtx)
                 if (sigCtx->key.ecc->nb_ctx != NULL) {
                     XFREE(sigCtx->key.ecc->nb_ctx, sigCtx->heap,
                           DYNAMIC_TYPE_TMP_BUFFER);
+                    sigCtx->key.ecc->nb_ctx = NULL;
                 }
             #endif /* WC_ECC_NONBLOCK && WOLFSSL_ASYNC_CRYPT_SW &&
                       WC_ASYNC_ENABLE_ECC */
@@ -18488,6 +18489,7 @@ void FreeSignatureCtx(SignatureCtx* sigCtx)
     #ifndef WOLFSSL_NO_MALLOC
         sigCtx->key.ptr = NULL;
     #endif
+        sigCtx->keyOID = 0; /* mark key as freed (guards re-entry without malloc) */
     }
 #endif /* !NO_ASN_CRYPT */
 
