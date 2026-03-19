@@ -5275,6 +5275,12 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             }
 #endif /* WOLFSSL_DTLS13 */
 
+            if (ssl->options.resuming) {
+                WOLFSSL_MSG("Attempted resumption: negotiated version"
+                        " downgraded from TLS 1.3, falling back to full handshake");
+                ssl->options.resuming = 0;
+            }
+
             return DoServerHello(ssl, input, inOutIdx, helloSz);
         }
     }
@@ -5391,6 +5397,11 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
 #ifndef WOLFSSL_NO_TLS12
         ssl->options.tls1_3 = 0;
+        if (ssl->options.resuming) {
+            WOLFSSL_MSG("Attempted resumption: negotiated version"
+                    " downgraded from TLS 1.3, falling back to full handshake");
+            ssl->options.resuming = 0;
+        }
         return DoServerHello(ssl, input, inOutIdx, helloSz);
 #else
         SendAlert(ssl, alert_fatal, wolfssl_alert_protocol_version);
@@ -5562,6 +5573,11 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         else
             ssl->chVersion.minor = TLSv1_2_MINOR;
         /* Complete TLS v1.2 processing of ServerHello. */
+        if (ssl->options.resuming) {
+            WOLFSSL_MSG("Attempted resumption negotiated version"
+                    " downgraded from TLS 1.3, falling back to full handshake");
+            ssl->options.resuming = 0;
+        }
         ret = DoServerHello(ssl, input, inOutIdx, helloSz);
 #else
         WOLFSSL_MSG("Client using higher version, fatal error");
