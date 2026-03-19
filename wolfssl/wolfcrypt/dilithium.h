@@ -838,11 +838,11 @@ int wc_dilithium_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
     word32 msgLen, int* res, dilithium_key* key);
 WOLFSSL_API
 int wc_dilithium_verify_ctx_msg(const byte* sig, word32 sigLen, const byte* ctx,
-    word32 ctxLen, const byte* msg, word32 msgLen, int* res,
+    byte ctxLen, const byte* msg, word32 msgLen, int* res,
     dilithium_key* key);
 WOLFSSL_API
 int wc_dilithium_verify_ctx_hash(const byte* sig, word32 sigLen,
-    const byte* ctx, word32 ctxLen, int hashAlg, const byte* hash,
+    const byte* ctx, byte ctxLen, int hashAlg, const byte* hash,
     word32 hashLen, int* res, dilithium_key* key);
 
 #ifndef WC_NO_CONSTRUCTORS
