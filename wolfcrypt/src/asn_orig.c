@@ -36,47 +36,185 @@
     #endif
 #else
 
-/* Forward declarations for static functions defined later
- * in this file. */
+/* Forward declarations for static functions defined later in this file. */
 static int SkipObjectId(const byte* input, word32* inOutIdx, word32 maxIdx);
+#ifndef NO_DSA
 static WC_INLINE void FreeTmpDsas(byte** tmps, void* heap, int ints);
+#endif
+#ifndef NO_CERTS
 static int GetCertHeader(DecodedCert* cert);
+#endif
+#ifndef NO_CERTS
 static int GetDate(DecodedCert* cert, int dateType, int verify, int maxIdx);
+#endif
+#ifndef NO_CERTS
 static int GetValidity(DecodedCert* cert, int verify, int maxIdx);
+#endif
 static word32 SetOctetString8Bit(word32 len, byte* output);
 static word32 SetDigest(const byte* digest, word32 digSz, byte* output);
+#ifndef NO_CERTS
 static void AddAltName(DecodedCert* cert, DNS_entry* dnsEntry);
+#endif
+#ifndef NO_CERTS
+#if defined(WOLFSSL_SEP)
 static int DecodeSepHwAltName(DecodedCert* cert, const byte* input, word32* idxIn, word32 sz);
+#endif
+#endif
+#ifndef NO_CERTS
 static int DecodeConstructedOtherName(DecodedCert* cert, const byte* input, word32* idx, word32 sz, int oid);
+#endif
+#ifndef NO_CERTS
+#ifdef WOLFSSL_CERT_GEN
+#ifdef WOLFSSL_CERT_REQ
 static word32 SetPrintableString(word32 len, byte* output);
+#endif
+#endif
+#endif
+#ifndef NO_CERTS
+#ifdef WOLFSSL_CERT_GEN
+#ifdef WOLFSSL_CERT_REQ
 static word32 SetUTF8String(word32 len, byte* output);
+#endif
+#endif
+#endif
+#ifndef NO_CERTS
+#ifdef WOLFSSL_CERT_GEN
 static int CopyValidity(byte* output, Cert* cert);
+#endif
+#endif
+#ifndef NO_CERTS
+#ifdef WOLFSSL_CERT_GEN
 static int SetExtensions(byte* out, word32 outSz, int *IdxInOut, const byte* ext, int extSz);
+#endif
+#endif
+#ifndef NO_CERTS
+#ifdef WOLFSSL_CERT_GEN
 static int SetExtensionsHeader(byte* out, word32 outSz, word32 extSz);
+#endif
+#endif
+#ifndef NO_CERTS
+#ifdef WOLFSSL_CERT_GEN
 static int SetCaWithPathLen(byte* out, word32 outSz, byte pathLen);
+#endif
+#endif
+#ifndef NO_CERTS
+#ifdef WOLFSSL_CERT_GEN
 static int SetCaEx(byte* out, word32 outSz, byte isCa);
+#endif
+#endif
+#ifndef NO_CERTS
+#ifdef WOLFSSL_CERT_GEN
 static int SetCa(byte* out, word32 outSz);
+#endif
+#endif
+#ifndef NO_CERTS
+#ifdef WOLFSSL_CERT_GEN
 static int SetBC(byte* out, word32 outSz);
+#endif
+#endif
+#ifndef NO_CERTS
+#ifdef WOLFSSL_CERT_GEN
+#ifdef WOLFSSL_CERT_EXT
 static int SetOidValue(byte* out, word32 outSz, const byte *oid, word32 oidSz, byte *in, word32 inSz);
+#endif
+#endif
+#endif
+#ifndef NO_CERTS
+#ifdef WOLFSSL_CERT_GEN
+#ifdef WOLFSSL_CERT_EXT
 static int SetSKID(byte* output, word32 outSz, const byte *input, word32 length);
+#endif
+#endif
+#endif
+#ifndef NO_CERTS
+#ifdef WOLFSSL_CERT_GEN
+#ifdef WOLFSSL_CERT_EXT
 static int SetAKID(byte* output, word32 outSz, byte *input, word32 length, byte rawAkid);
+#endif
+#endif
+#endif
+#ifndef NO_CERTS
+#ifdef WOLFSSL_CERT_GEN
+#ifdef WOLFSSL_CERT_EXT
 static int SetKeyUsage(byte* output, word32 outSz, word16 input);
+#endif
+#endif
+#endif
+#ifndef NO_CERTS
+#ifdef WOLFSSL_CERT_GEN
+#ifdef WOLFSSL_CERT_EXT
 static int SetOjectIdValue(byte* output, word32 outSz, word32* idx, const byte* oid, word32 oidSz);
+#endif
+#endif
+#endif
+#ifndef NO_CERTS
+#ifdef WOLFSSL_CERT_GEN
+#ifdef WOLFSSL_CERT_EXT
+#ifndef IGNORE_NETSCAPE_CERT_TYPE
 static int SetNsCertType(Cert* cert, byte* output, word32 outSz, byte input);
+#endif
+#endif
+#endif
+#endif
+#ifndef NO_CERTS
+#ifdef WOLFSSL_CERT_GEN
+#ifdef WOLFSSL_CERT_EXT
 static int SetCRLInfo(Cert* cert, byte* output, word32 outSz, byte* input, int inSz);
+#endif
+#endif
+#endif
+#ifndef NO_CERTS
+#ifdef WOLFSSL_CERT_GEN
+#ifdef WOLFSSL_ALT_NAMES
 static int SetAltNames(byte *output, word32 outSz, const byte *input, word32 length, int critical);
+#endif
+#endif
+#endif
+#ifndef NO_CERTS
+#ifdef WOLFSSL_CERT_GEN
+#ifdef WOLFSSL_CERT_REQ
 static word32 SetReqAttribSingle(byte* output, word32* idx, char* attr, word32 attrSz, const byte* oid, word32 oidSz, byte printable, word32 extSz);
+#endif
+#endif
+#endif
+#ifndef NO_CERTS
+#ifdef WOLFSSL_CERT_GEN
+#ifdef WOLFSSL_CERT_REQ
 static int SetReqAttrib(byte* output, Cert* cert, word32 extSz);
+#endif
+#endif
+#endif
+#ifndef NO_CERTS
+#ifdef WOLFSSL_CERT_GEN
+#ifdef WOLFSSL_CERT_REQ
+#ifdef WOLFSSL_CUSTOM_OID
 static int SetCustomObjectId(Cert* cert, byte* output, word32 outSz, CertOidField* custom);
+#endif
+#endif
+#endif
+#endif
+#if defined(HAVE_ECC) || !defined(NO_DSA)
 static word32 is_leading_bit_set(const byte* input, word32 sz);
+#endif
+#if defined(HAVE_ECC) || !defined(NO_DSA)
 static word32 trim_leading_zeros(const byte** input, word32 sz);
+#endif
+#ifdef HAVE_ECC
+#ifdef WOLFSSL_CUSTOM_CURVES
 static int ASNToHexString(const byte* input, word32* inOutIdx, char** out, word32 inSz, void* heap, int heapType);
+#endif
+#endif
+#ifdef HAVE_ECC
+#ifdef WOLFSSL_CUSTOM_CURVES
 static int EccKeyParamCopy(char** dst, char* src, void* heap);
+#endif
+#endif
+#if (defined(HAVE_OCSP) || defined(HAVE_CRL)) && !defined(WOLFCRYPT_ONLY)
 static int GetBasicDate(const byte* source, word32* idx, byte* date, byte* format, int maxIdx);
+#endif
+#if defined(HAVE_OCSP) && !defined(WOLFCRYPT_ONLY)
 static int GetEnumerated(const byte* input, word32* inOutIdx, int *value, int sz);
-static int DecodeCerts(byte* source, word32* ioIndex, OcspResponse* resp, word32 size);
-static int GetCRL_Signature(const byte* source, word32* idx, DecodedCRL* dcrl, int maxIdx);
-static int ParseCRL_CertList(RevokedCert* rcert, DecodedCRL* dcrl, const byte* buf,word32* inOutIdx, int sz, int verify);
+#endif
 
 int GetObjectId(const byte* input, word32* inOutIdx, word32* oid,
                                   word32 oidType, word32 maxIdx)
@@ -147,6 +285,7 @@ static int GetAlgoIdImpl(const byte* input, word32* inOutIdx, word32* oid,
     return 0;
 }
 
+#ifndef NO_RSA
 #ifndef NO_RSA
 static int _RsaPrivateKeyDecode(const byte* input, word32* inOutIdx,
     RsaKey* key, int* keySz, word32 inSz)
@@ -228,6 +367,7 @@ static int _RsaPrivateKeyDecode(const byte* input, word32* inOutIdx,
 }
 #endif /* NO_RSA */
 
+#endif
 int ToTraditionalInline_ex2(const byte* input, word32* inOutIdx, word32 sz,
                             word32* algId, word32* eccOid)
 {
@@ -302,6 +442,7 @@ int ToTraditionalInline_ex2(const byte* input, word32* inOutIdx, word32 sz,
     return length;
 }
 
+#if defined(HAVE_PKCS8)
 #if defined(HAVE_PKCS8)
 int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
         int algoID, const byte* curveOID, word32 oidSz)
@@ -396,6 +537,9 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
 }
 #endif /* HAVE_PKCS8 */
 
+#endif
+#ifndef NO_PWDBASED
+#ifdef HAVE_PKCS8
 #ifdef HAVE_PKCS8
 int DecryptContent(byte* input, word32 sz, const char* password, int passwordSz)
 {
@@ -546,6 +690,8 @@ exit_dc:
 }
 #endif /* HAVE_PKCS8 */
 
+#endif
+#ifdef HAVE_PKCS12
 #ifdef HAVE_PKCS12
 int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
         const char* password, int passwordSz, int vPKCS, int vAlgo,
@@ -719,6 +865,10 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
 }
 #endif /* HAVE_PKCS12 */
 
+#endif
+#endif
+#ifndef NO_RSA
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_FSPSM_TLS)
 #if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_FSPSM_TLS)
 static int RsaPublicKeyDecodeRawIndex(const byte* input, word32* inOutIdx,
                                       word32 inSz, word32* key_n,
@@ -794,6 +944,7 @@ static int RsaPublicKeyDecodeRawIndex(const byte* input, word32* inOutIdx,
 }
 #endif /* WOLFSSL_RENESAS_TSIP */
 
+#endif
 #ifndef NO_RSA
 int wc_RsaPublicKeyDecode_ex(const byte* input, word32* inOutIdx, word32 inSz,
     const byte** n, word32* nSz, const byte** e, word32* eSz)
@@ -900,6 +1051,8 @@ int wc_RsaPublicKeyDecode_ex(const byte* input, word32* inOutIdx, word32 inSz,
 }
 #endif /* !NO_RSA */
 
+#endif
+#ifndef NO_DH
 #ifndef NO_DH
 int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32 inSz)
 {
@@ -1005,6 +1158,7 @@ int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32 inSz)
 }
 #endif /* !NO_DH */
 
+#ifdef WOLFSSL_DH_EXTRA
 #ifdef WOLFSSL_DH_EXTRA
 int wc_DhKeyToDer(DhKey* key, byte* output, word32* outSz, int exportPriv)
 {
@@ -1155,6 +1309,7 @@ int wc_DhParamsToDer(DhKey* key, byte* output, word32* outSz)
 }
 #endif /* WOLFSSL_DH_EXTRA */
 
+#endif
 #ifndef NO_DH
 int wc_DhParamsLoad(const byte* input, word32 inSz, byte* p, word32* pInOutSz,
                  byte* g, word32* gInOutSz)
@@ -1195,6 +1350,8 @@ int wc_DhParamsLoad(const byte* input, word32 inSz, byte* p, word32* pInOutSz,
 }
 #endif /* !NO_DH */
 
+#endif
+#ifndef NO_DSA
 #ifndef NO_DSA
 int wc_DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
                           word32 inSz)
@@ -1341,6 +1498,8 @@ static WC_INLINE void FreeTmpDsas(byte** tmps, void* heap, int ints)
     (void)heap;
 }
 
+#if !defined(HAVE_SELFTEST) && (defined(WOLFSSL_KEY_GEN) || \
+defined(WOLFSSL_CERT_GEN))
 #if !defined(HAVE_SELFTEST) && (defined(WOLFSSL_KEY_GEN) || \
         defined(WOLFSSL_CERT_GEN))
 int wc_SetDsaPublicKey(byte* output, DsaKey* key, int outLen, int with_header)
@@ -1500,6 +1659,7 @@ int wc_SetDsaPublicKey(byte* output, DsaKey* key, int outLen, int with_header)
 }
 #endif /* !HAVE_SELFTEST && (WOLFSSL_KEY_GEN || WOLFSSL_CERT_GEN) */
 
+#endif
 #ifndef NO_DSA
 static int DsaKeyIntsToDer(DsaKey* key, byte* output, word32* inLen,
                            int ints, int includeVersion)
@@ -1581,6 +1741,8 @@ static int DsaKeyIntsToDer(DsaKey* key, byte* output, word32* inLen,
 }
 #endif /* NO_DSA */
 
+#endif
+#ifndef NO_CERTS
 static int GetCertHeader(DecodedCert* cert)
 {
     int ret = 0, len;
@@ -1612,6 +1774,8 @@ static int GetCertHeader(DecodedCert* cert)
     return ret;
 }
 
+#endif
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)
 #if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)
 static int SetEccPublicKey(byte* output, ecc_key* key, int outLen,
                            int with_header, int comp)
@@ -1684,6 +1848,8 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int outLen,
 }
 #endif /* HAVE_ECC && HAVE_ECC_KEY_EXPORT */
 
+#endif
+#ifdef WC_ENABLE_ASYM_KEY_EXPORT
 #ifdef WC_ENABLE_ASYM_KEY_EXPORT
 int SetAsymKeyDerPublic(const byte* pubKey, word32 pubKeyLen,
     byte* output, word32 outLen, int keyType, int withHeader)
@@ -1743,6 +1909,8 @@ int SetAsymKeyDerPublic(const byte* pubKey, word32 pubKeyLen,
 }
 #endif /* WC_ENABLE_ASYM_KEY_EXPORT */
 
+#endif
+#if !defined(NO_RSA) && !defined(NO_CERTS)
 #if !defined(NO_RSA) && !defined(NO_CERTS)
 static int StoreRsaKey(DecodedCert* cert, const byte* source, word32* srcIdx,
                        word32 maxIdx)
@@ -1778,6 +1946,8 @@ static int StoreRsaKey(DecodedCert* cert, const byte* source, word32* srcIdx,
 }
 #endif /* !NO_RSA && !NO_CERTS */
 
+#endif
+#if defined(HAVE_ECC) && !defined(NO_CERTS)
 #if defined(HAVE_ECC) && !defined(NO_CERTS)
 static int StoreEccKey(DecodedCert* cert, const byte* source, word32* srcIdx,
                        word32 maxIdx, const byte* pubKey, word32 pubKeyLen)
@@ -1847,6 +2017,9 @@ static int StoreEccKey(DecodedCert* cert, const byte* source, word32* srcIdx,
 }
 #endif /* HAVE_ECC && !NO_CERTS */
 
+#endif
+#ifndef NO_CERTS
+#if !defined(NO_DSA)
 #if !defined(NO_DSA)
 static int ParseDsaKey(const byte* source, word32* srcIdx, word32 maxIdx,
                        void* heap)
@@ -1884,6 +2057,8 @@ static int ParseDsaKey(const byte* source, word32* srcIdx, word32 maxIdx,
 }
 #endif /* !NO_DSA */
 
+#endif
+#endif
 static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                        const byte* input, word32* inOutIdx, word32 maxIdx)
 {
@@ -2786,6 +2961,7 @@ static int GetSigAlg(DecodedCert* cert, word32* sigOid, word32 maxIdx)
 #endif
 
 #ifndef NO_CERTS
+#ifndef NO_CERTS
 int wc_GetPubX509(DecodedCert* cert, int verify, int* badDate)
 {
     int ret;
@@ -2893,6 +3069,7 @@ static int GetSignature(DecodedCert* cert)
     return 0;
 }
 
+#endif
 /* Set an octet header when length is only 7-bit.
  *
  * @param [in] len     Length of data in OCTET_STRING. Value must be <= 127.
@@ -2977,6 +3154,7 @@ word32 wc_EncodeSignature(byte* out, const byte* digest, word32 digSz,
     return encDigSz + algoSz + seqSz;
 }
 
+#ifndef NO_CERTS
 static void AddAltName(DecodedCert* cert, DNS_entry* dnsEntry)
 {
 #if (defined(WOLFSSL_ASN_ALL) || defined(OPENSSL_EXTRA)) && \
@@ -3975,6 +4153,7 @@ int DecodeExtKeyUsage(const byte* input, word32 sz,
 }
 
 #ifndef IGNORE_NAME_CONSTRAINTS
+#ifndef IGNORE_NAME_CONSTRAINTS
 static int DecodeSubtree(const byte* input, word32 sz, Base_entry** head,
                          word32 limit, void* heap)
 {
@@ -4107,6 +4286,8 @@ static int DecodeNameConstraints(const byte* input, word32 sz,
 }
 #endif /* IGNORE_NAME_CONSTRAINTS */
 
+#endif
+#if defined(WOLFSSL_SEP) || defined(WOLFSSL_CERT_EXT)
 #if defined(WOLFSSL_SEP) || defined(WOLFSSL_CERT_EXT)
 static int DecodeCertPolicy(const byte* input, word32 sz, DecodedCert* cert)
 {
@@ -4216,6 +4397,8 @@ static int DecodeCertPolicy(const byte* input, word32 sz, DecodedCert* cert)
 }
 #endif /* WOLFSSL_SEP || WOLFSSL_CERT_EXT  */
 
+#endif
+#ifdef WOLFSSL_SUBJ_DIR_ATTR
 #ifdef WOLFSSL_SUBJ_DIR_ATTR
 static int DecodeSubjDirAttr(const byte* input, word32 sz, DecodedCert* cert)
 {
@@ -4279,6 +4462,7 @@ static int DecodeSubjDirAttr(const byte* input, word32 sz, DecodedCert* cert)
 }
 #endif /* WOLFSSL_SUBJ_DIR_ATTR */
 
+#endif
 static int DecodeCertExtensions(DecodedCert* cert)
 {
     int ret = 0;
@@ -4377,6 +4561,7 @@ end:
     return ret;
 }
 
+#if defined(WOLFSSL_SMALL_CERT_VERIFY) || defined(OPENSSL_EXTRA)
 #if defined(WOLFSSL_SMALL_CERT_VERIFY) || defined(OPENSSL_EXTRA)
 static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
         void* cm, const byte* pubKey, word32 pubKeySz, int pubKeyOID, int req)
@@ -4725,6 +4910,8 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
 }
 #endif /* WOLFSSL_SMALL_CERT_VERIFY || OPENSSL_EXTRA */
 
+#endif
+#endif
 int wc_GetSerialNumber(const byte* input, word32* inOutIdx,
     byte* serial, int* serialSz, word32 maxIdx)
 {
@@ -4760,6 +4947,9 @@ int wc_GetSerialNumber(const byte* input, word32* inOutIdx,
     return result;
 }
 
+#ifndef NO_CERTS
+#if !defined(NO_RSA) && \
+(defined(WOLFSSL_KEY_TO_DER) || defined(WOLFSSL_CERT_GEN))
 #if !defined(NO_RSA) && \
     (defined(WOLFSSL_KEY_TO_DER) || defined(WOLFSSL_CERT_GEN))
 static int SetRsaPublicKey(byte* output, RsaKey* key, int outLen,
@@ -4833,6 +5023,9 @@ static int SetRsaPublicKey(byte* output, RsaKey* key, int outLen,
 }
 #endif /* !NO_RSA && WOLFSSL_KEY_TO_DER */
 
+#endif
+#endif
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_TO_DER)
 #if !defined(NO_RSA) && defined(WOLFSSL_KEY_TO_DER)
 int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
 {
@@ -4948,6 +5141,9 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
 }
 #endif /* !NO_RSA && WOLFSSL_KEY_TO_DER */
 
+#endif
+#ifndef NO_CERTS
+#ifdef WOLFSSL_CERT_GEN
 #ifdef WOLFSSL_CERT_REQ
 
 /* Write a set header to output */
@@ -4963,8 +5159,8 @@ static word32 SetUTF8String(word32 len, byte* output)
     return SetLength(len, output + 1) + 1;
 }
 
-#endif /* WOLFSSL_CERT_REQ */
 
+#endif
 
 /* Copy Dates from cert, return bytes written */
 static int CopyValidity(byte* output, Cert* cert)
@@ -5285,7 +5481,6 @@ static int SetOjectIdValue(byte* output, word32 outSz, word32* idx,
 
     return 0;
 }
-#endif /* WOLFSSL_CERT_EXT */
 
 #ifdef WOLFSSL_CERT_EXT
 static int SetExtKeyUsage(Cert* cert, byte* output, word32 outSz, byte input)
@@ -5412,8 +5607,8 @@ static int SetNsCertType(Cert* cert, byte* output, word32 outSz, byte input)
 
     return (int)idx;
 }
-#endif
 
+#endif
 static int SetCRLInfo(Cert* cert, byte* output, word32 outSz, byte* input,
                       int inSz)
 {
@@ -5504,6 +5699,7 @@ static int SetCertificatePolicies(byte *output,
 }
 #endif /* WOLFSSL_CERT_EXT */
 
+#endif
 #ifdef WOLFSSL_ALT_NAMES
 /* encode Alternative Names, return total bytes written */
 static int SetAltNames(byte *output, word32 outSz,
@@ -5553,8 +5749,10 @@ static int SetAltNames(byte *output, word32 outSz,
 
     return (int)idx;
 }
-#endif /* WOLFSSL_ALT_NAMES */
 
+#endif
+#endif
+#if defined(WOLFSSL_CERT_GEN) || defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 #if defined(WOLFSSL_CERT_GEN) || defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 static int EncodeName(EncodedName* name, const char* nameStr,
                     byte nameTag, byte type, byte emailTag, CertName* cname)
@@ -5737,6 +5935,8 @@ static int EncodeName(EncodedName* name, const char* nameStr,
 }
 #endif /* WOLFSSL_CERT_GEN || OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
+#endif
+#ifdef WOLFSSL_CERT_GEN
 int SetNameEx(byte* output, word32 outputSz, CertName* name, void* heap)
 {
     int ret;
@@ -7115,7 +7315,6 @@ static int WriteCertReqBody(DerCert* der, byte* buf)
 
     return idx;
 }
-#endif /* WOLFSSL_CERT_REQ */
 
 #ifdef WOLFSSL_CERT_REQ
 static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
@@ -7213,6 +7412,10 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
 }
 #endif /* WOLFSSL_CERT_REQ */
 
+#endif
+#endif
+#endif
+#if !defined(NO_DH) && (defined(WOLFSSL_QT) || defined(OPENSSL_ALL))
 #if !defined(NO_DH) && (defined(WOLFSSL_QT) || defined(OPENSSL_ALL))
 int StoreDHparams(byte* out, word32* outLen, mp_int* p, mp_int* g)
 {
@@ -7253,6 +7456,8 @@ int StoreDHparams(byte* out, word32* outLen, mp_int* p, mp_int* g)
 }
 #endif /* !NO_DH && (WOLFSSL_QT || OPENSSL_ALL) */
 
+#endif
+#if defined(HAVE_ECC) || !defined(NO_DSA)
 #if defined(HAVE_ECC) || !defined(NO_DSA)
 int StoreECC_DSA_Sig(byte* out, word32* outLen, mp_int* r, mp_int* s)
 {
@@ -7478,6 +7683,8 @@ int DecodeECC_DSA_Sig_Ex(const byte* sig, word32 sigLen, mp_int* r, mp_int* s,
 }
 #endif
 
+#endif
+#ifdef HAVE_ECC
 #ifdef HAVE_ECC
 WOLFSSL_ABI
 int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
@@ -7678,8 +7885,8 @@ static int EccKeyParamCopy(char** dst, char* src, void* heap)
 
     return ret;
 }
-#endif /* WOLFSSL_CUSTOM_CURVES */
 
+#endif
 #ifdef HAVE_ECC
 WOLFSSL_ABI
 int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
@@ -7952,6 +8159,7 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
 #endif /* HAVE_ECC */
 
 #ifdef HAVE_ECC_KEY_EXPORT
+#ifdef HAVE_ECC_KEY_EXPORT
 int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 *inLen,
                              int pubIn, int curveIn)
 {
@@ -8128,6 +8336,8 @@ int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 *inLen,
 }
 #endif /* HAVE_ECC_KEY_EXPORT */
 
+#endif
+#endif
 #if (defined(HAVE_OCSP) || defined(HAVE_CRL)) && !defined(WOLFCRYPT_ONLY)
 
 /* Get raw Date only, no processing, 0 on success */
@@ -8150,6 +8360,7 @@ static int GetBasicDate(const byte* source, word32* idx, byte* date,
 
 #endif /* HAVE_OCSP || HAVE_CRL */
 
+#if defined(HAVE_OCSP) && !defined(WOLFCRYPT_ONLY)
 static int GetEnumerated(const byte* input, word32* inOutIdx, int *value,
         int sz)
 {
@@ -8184,6 +8395,7 @@ static int GetEnumerated(const byte* input, word32* inOutIdx, int *value,
 }
 
 #ifdef HAVE_OCSP_RESPONDER
+#ifdef HAVE_OCSP_RESPONDER
 WC_MAYBE_UNUSED static int EncodeCertID(OcspEntry* entry, byte* out,
         word32* outSz)
 {
@@ -8195,6 +8407,7 @@ WC_MAYBE_UNUSED static int EncodeCertID(OcspEntry* entry, byte* out,
 }
 #endif /* HAVE_OCSP_RESPONDER */
 
+#endif
 static int OcspDecodeCertIDInt(const byte* input, word32* inOutIdx, word32 inSz,
                  OcspEntry* entry)
 {
@@ -8239,6 +8452,7 @@ static int OcspDecodeCertIDInt(const byte* input, word32* inOutIdx, word32 inSz,
 }
 
 #ifdef HAVE_OCSP_RESPONDER
+#ifdef HAVE_OCSP_RESPONDER
 WC_MAYBE_UNUSED static int EncodeSingleResponse(OcspEntry* single, byte* out,
         word32* outSz, void* heap)
 {
@@ -8251,6 +8465,7 @@ WC_MAYBE_UNUSED static int EncodeSingleResponse(OcspEntry* single, byte* out,
 }
 #endif /* HAVE_OCSP_RESPONDER */
 
+#endif
 static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
                                 int wrapperSz, OcspEntry* single)
 {
@@ -8480,6 +8695,7 @@ WC_MAYBE_UNUSED static int EncodeOcspRespExtensions(OcspResponse* resp,
 #endif /* HAVE_OCSP */
 
 #ifdef HAVE_OCSP_RESPONDER
+#ifdef HAVE_OCSP_RESPONDER
 WC_MAYBE_UNUSED static int EncodeResponseData(OcspResponse* resp, byte* out,
         word32* outSz)
 {
@@ -8491,6 +8707,7 @@ WC_MAYBE_UNUSED static int EncodeResponseData(OcspResponse* resp, byte* out,
 }
 #endif /* HAVE_OCSP_RESPONDER */
 
+#endif
 #if defined(HAVE_OCSP) && !defined(WOLFCRYPT_ONLY)
 static int DecodeResponseData(byte* source, word32* ioIndex,
                               OcspResponse* resp, word32 size)
@@ -8649,6 +8866,7 @@ static int DecodeCerts(byte* source,
 #endif /* WOLFSSL_NO_OCSP_OPTIONAL_CERTS */
 
 #ifdef HAVE_OCSP_RESPONDER
+#ifdef HAVE_OCSP_RESPONDER
 WC_MAYBE_UNUSED static int EncodeBasicOcspResponse(OcspResponse* resp,
         byte* out, word32* outSz, RsaKey* rsaKey, ecc_key* eccKey, WC_RNG* rng)
 {
@@ -8663,6 +8881,7 @@ WC_MAYBE_UNUSED static int EncodeBasicOcspResponse(OcspResponse* resp,
 }
 #endif /* HAVE_OCSP_RESPONDER */
 
+#endif
 #if defined(HAVE_OCSP) && !defined(WOLFCRYPT_ONLY)
 static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
             OcspResponse* resp, word32 size, void* cm, void* heap, int noVerify,
@@ -8774,6 +8993,7 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
 #endif /* HAVE_OCSP */
 
 #ifdef HAVE_OCSP_RESPONDER
+#ifdef HAVE_OCSP_RESPONDER
 int OcspResponseEncode(OcspResponse* resp, byte* out, word32* outSz,
         RsaKey* rsaKey, ecc_key* eccKey, WC_RNG* rng)
 {
@@ -8788,6 +9008,7 @@ int OcspResponseEncode(OcspResponse* resp, byte* out, word32* outSz,
 }
 #endif /* HAVE_OCSP_RESPONDER */
 
+#endif
 #if defined(HAVE_OCSP) && !defined(WOLFCRYPT_ONLY)
 int OcspResponseDecode(OcspResponse* resp, void* cm, void* heap,
     int noVerifyCert, int noVerifySignature)
@@ -8949,6 +9170,7 @@ int EncodeOcspRequest(OcspRequest* req, byte* output, word32 size)
 #endif /* HAVE_OCSP */
 
 #ifdef HAVE_OCSP_RESPONDER
+#ifdef HAVE_OCSP_RESPONDER
 int DecodeOcspRequest(OcspRequest* req, const byte* input, word32 size)
 {
     (void)req;
@@ -8959,6 +9181,8 @@ int DecodeOcspRequest(OcspRequest* req, const byte* input, word32 size)
 }
 #endif /* HAVE_OCSP_RESPONDER */
 
+#endif
+#endif
 int GetNameHash_ex(const byte* source, word32* idx, byte* hash, int maxIdx,
     word32 sigOID)
 {
@@ -8996,6 +9220,7 @@ int GetNameHash_ex(const byte* source, word32* idx, byte* hash, int maxIdx,
     return ret;
 }
 
+#if defined(HAVE_CRL) && !defined(WOLFCRYPT_ONLY)
 #if defined(HAVE_CRL) && !defined(WOLFCRYPT_ONLY)
 static int GetRevoked(RevokedCert* rcert, const byte* buff, word32* idx,
                       DecodedCRL* dcrl, word32 maxIdx)
@@ -9232,6 +9457,7 @@ static int ParseCRL_CertList(RevokedCert* rcert, DecodedCRL* dcrl,
 }
 
 #ifndef NO_SKID
+#ifndef NO_SKID
 static int ParseCRL_AuthKeyIdExt(const byte* input, int sz, DecodedCRL* dcrl)
 {
     word32 idx = 0;
@@ -9269,6 +9495,7 @@ static int ParseCRL_AuthKeyIdExt(const byte* input, int sz, DecodedCRL* dcrl)
 }
 #endif
 
+#endif
 static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf,
         word32* inOutIdx, word32 sz)
 {
@@ -9510,6 +9737,8 @@ end:
 }
 #endif /* HAVE_CRL */
 
+#endif
+#ifdef WOLFSSL_CERT_PIV
 #ifdef WOLFSSL_CERT_PIV
 int wc_ParseCertPIV(wc_CertPIV* piv, const byte* buf, word32 totalSz)
 {
@@ -9589,5 +9818,6 @@ int wc_ParseCertPIV(wc_CertPIV* piv, const byte* buf, word32 totalSz)
 }
 #endif /* WOLFSSL_CERT_PIV */
 
+#endif
 
 #endif /* WOLFSSL_ASN_ORIG_INCLUDED */

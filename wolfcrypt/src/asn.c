@@ -4343,41 +4343,183 @@ static word32 SetBitString16Bit(word16 val, byte* output)
  * Needed so shared code can call them in non-template mode. */
 #ifndef WOLFSSL_ASN_TEMPLATE
 static int GetAlgoIdImpl(const byte* input, word32* inOutIdx, word32* oid, word32 oidType, word32 maxIdx, byte *absentParams);
+#ifndef NO_RSA
+#ifndef NO_RSA
 static int _RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key, int* keySz, word32 inSz);
+#endif
+#endif
+#ifndef NO_DSA
+#ifndef NO_DSA
 static int DsaKeyIntsToDer(DsaKey* key, byte* output, word32* inLen, int ints, int includeVersion);
+#endif
+#endif
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)
 static int SetEccPublicKey(byte* output, ecc_key* key, int outLen, int with_header, int comp);
+#endif
+#endif
+#if !defined(NO_RSA) && !defined(NO_CERTS)
+#if !defined(NO_RSA) && !defined(NO_CERTS)
 static int StoreRsaKey(DecodedCert* cert, const byte* source, word32* srcIdx, word32 maxIdx);
+#endif
+#endif
+#if defined(HAVE_ECC) && !defined(NO_CERTS)
+#if defined(HAVE_ECC) && !defined(NO_CERTS)
 static int StoreEccKey(DecodedCert* cert, const byte* source, word32* srcIdx, word32 maxIdx, const byte* pubKey, word32 pubKeyLen);
+#endif
+#endif
+#ifndef NO_CERTS
+#if !defined(NO_DSA)
+#if !defined(NO_DSA)
 static int ParseDsaKey(const byte* source, word32* srcIdx, word32 maxIdx, void* heap);
+#endif
+#endif
+#endif
 static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType, const byte* input, word32* inOutIdx, word32 maxIdx);
 static int GetDateInfo(const byte* source, word32* idx, const byte** pDate, byte* pFormat, int* pLength, word32 maxIdx);
+#ifndef NO_CERTS
 static int GetSigAlg(DecodedCert* cert, word32* sigOid, word32 maxIdx);
+#endif
+#ifndef NO_CERTS
 static int GetSignature(DecodedCert* cert);
+#endif
 static word32 SetAlgoIDImpl(int algoOID, byte* output, int type, int curveSz, byte absentParams);
+#ifndef NO_CERTS
 static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert);
+#endif
+#ifndef NO_CERTS
 static int DecodeCrlDist(const byte* input, word32 sz, DecodedCert* cert);
+#endif
+#ifndef NO_CERTS
 static int DecodeAuthInfo(const byte* input, word32 sz, DecodedCert* cert);
+#endif
+#ifndef NO_CERTS
+#ifndef IGNORE_NAME_CONSTRAINTS
+#ifndef IGNORE_NAME_CONSTRAINTS
 static int DecodeSubtree(const byte* input, word32 sz, Base_entry** head, word32 limit, void* heap);
+#endif
+#endif
+#endif
+#ifndef NO_CERTS
+#ifndef IGNORE_NAME_CONSTRAINTS
+#ifndef IGNORE_NAME_CONSTRAINTS
 static int DecodeNameConstraints(const byte* input, word32 sz, DecodedCert* cert);
+#endif
+#endif
+#endif
+#ifndef NO_CERTS
+#if defined(WOLFSSL_SEP) || defined(WOLFSSL_CERT_EXT)
+#if defined(WOLFSSL_SEP) || defined(WOLFSSL_CERT_EXT)
 static int DecodeCertPolicy(const byte* input, word32 sz, DecodedCert* cert);
+#endif
+#endif
+#endif
+#ifndef NO_CERTS
+#ifdef WOLFSSL_SUBJ_DIR_ATTR
+#ifdef WOLFSSL_SUBJ_DIR_ATTR
 static int DecodeSubjDirAttr(const byte* input, word32 sz, DecodedCert* cert);
+#endif
+#endif
+#endif
+#ifndef NO_CERTS
 static int DecodeCertExtensions(DecodedCert* cert);
+#endif
+#ifndef NO_CERTS
+#if defined(WOLFSSL_SMALL_CERT_VERIFY) || defined(OPENSSL_EXTRA)
+#if defined(WOLFSSL_SMALL_CERT_VERIFY) || defined(OPENSSL_EXTRA)
 static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap, void* cm, const byte* pubKey, word32 pubKeySz, int pubKeyOID, int req);
+#endif
+#endif
+#endif
+#ifndef NO_CERTS
+#if !defined(NO_RSA) && \
+(defined(WOLFSSL_KEY_TO_DER) || defined(WOLFSSL_CERT_GEN))
+#if !defined(NO_RSA) && \
+(defined(WOLFSSL_KEY_TO_DER) || defined(WOLFSSL_CERT_GEN))
 static int SetRsaPublicKey(byte* output, RsaKey* key, int outLen, int with_header);
+#endif
+#endif
+#endif
+#ifndef NO_CERTS
+#ifdef WOLFSSL_CERT_GEN
+#ifdef WOLFSSL_CERT_EXT
+#ifdef WOLFSSL_CERT_EXT
 static int SetExtKeyUsage(Cert* cert, byte* output, word32 outSz, byte input);
+#endif
+#endif
+#endif
+#endif
+#ifndef NO_CERTS
+#ifdef WOLFSSL_CERT_GEN
+#ifdef WOLFSSL_CERT_EXT
+#ifdef WOLFSSL_CERT_EXT
 static int SetCertificatePolicies(byte *output, word32 outputSz, char input[MAX_CERTPOL_NB][MAX_CERTPOL_SZ], word16 nb_certpol, void* heap);
+#endif
+#endif
+#endif
+#endif
+#ifndef NO_CERTS
+#if defined(WOLFSSL_CERT_GEN) || defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+#if defined(WOLFSSL_CERT_GEN) || defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 static int EncodeName(EncodedName* name, const char* nameStr, byte nameTag, byte type, byte emailTag, CertName* cname);
+#endif
+#endif
+#endif
+#ifndef NO_CERTS
+#ifdef WOLFSSL_CERT_GEN
 static int SetValidity(byte* output, int daysValid);
+#endif
+#endif
+#ifndef NO_CERTS
+#ifdef WOLFSSL_CERT_GEN
 static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz, RsaKey* rsaKey, ecc_key* eccKey, WC_RNG* rng, DsaKey* dsaKey, ed25519_key* ed25519Key, ed448_key* ed448Key, falcon_key* falconKey, dilithium_key* dilithiumKey, sphincs_key* sphincsKey);
+#endif
+#endif
+#ifndef NO_CERTS
+#ifdef WOLFSSL_CERT_GEN
+#ifdef WOLFSSL_CERT_REQ
+#ifdef WOLFSSL_CERT_REQ
 static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz, RsaKey* rsaKey, DsaKey* dsaKey, ecc_key* eccKey, ed25519_key* ed25519Key, ed448_key* ed448Key, falcon_key* falconKey, dilithium_key* dilithiumKey, sphincs_key* sphincsKey);
+#endif
+#endif
+#endif
+#endif
+#if defined(HAVE_OCSP) && !defined(WOLFCRYPT_ONLY)
 static int OcspDecodeCertIDInt(const byte* input, word32* inOutIdx, word32 inSz, OcspEntry* entry);
+#endif
+#if defined(HAVE_OCSP) && !defined(WOLFCRYPT_ONLY)
 static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size, int wrapperSz, OcspEntry* single);
+#endif
+#if defined(HAVE_OCSP) && !defined(WOLFCRYPT_ONLY)
+#if defined(HAVE_OCSP) && !defined(WOLFCRYPT_ONLY)
 static int DecodeOcspRespExtensions(byte* source, word32* ioIndex, OcspResponse* resp, word32 sz);
+#endif
+#endif
+#if defined(HAVE_OCSP) && !defined(WOLFCRYPT_ONLY)
+#if defined(HAVE_OCSP) && !defined(WOLFCRYPT_ONLY)
 static int DecodeResponseData(byte* source, word32* ioIndex, OcspResponse* resp, word32 size);
+#endif
+#endif
+#if defined(HAVE_OCSP) && !defined(WOLFCRYPT_ONLY)
+#if defined(HAVE_OCSP) && !defined(WOLFCRYPT_ONLY)
 static int DecodeBasicOcspResponse(byte* source, word32* ioIndex, OcspResponse* resp, word32 size, void* cm, void* heap, int noVerify, int noVerifySignature);
+#endif
+#endif
+#if defined(HAVE_CRL) && !defined(WOLFCRYPT_ONLY)
+#if defined(HAVE_CRL) && !defined(WOLFCRYPT_ONLY)
 static int GetRevoked(RevokedCert* rcert, const byte* buff, word32* idx, DecodedCRL* dcrl, word32 maxIdx);
+#endif
+#endif
+#if defined(HAVE_CRL) && !defined(WOLFCRYPT_ONLY)
+#ifndef NO_SKID
+#ifndef NO_SKID
 static int ParseCRL_AuthKeyIdExt(const byte* input, int sz, DecodedCRL* dcrl);
+#endif
+#endif
+#endif
+#if defined(HAVE_CRL) && !defined(WOLFCRYPT_ONLY)
 static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32* inOutIdx, word32 sz);
+#endif
 #endif /* !WOLFSSL_ASN_TEMPLATE */
 
 /* hashType */
@@ -9332,15 +9474,14 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
         if (rsa == NULL)
             return MEMORY_E;
 
-        if (wc_InitRsaKey(rsa, heap) == 0) {
-            if (wc_RsaPrivateKeyDecode(key, &tmpIdx, rsa, keySz) == 0) {
-                *algoID = RSAk;
-            }
-            else {
-                WOLFSSL_MSG("Not RSA DER key");
-            }
-            wc_FreeRsaKey(rsa);
+        wc_InitRsaKey(rsa, heap);
+        if (wc_RsaPrivateKeyDecode(key, &tmpIdx, rsa, keySz) == 0) {
+            *algoID = RSAk;
         }
+        else {
+            WOLFSSL_MSG("Not RSA DER key");
+        }
+        wc_FreeRsaKey(rsa);
         XFREE(rsa, heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
     #endif /* !NO_RSA && !NO_ASN_CRYPT */
@@ -9351,23 +9492,22 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
             return MEMORY_E;
 
         tmpIdx = 0;
-        if (wc_ecc_init_ex(ecc, heap, INVALID_DEVID) == 0) {
-            if (wc_EccPrivateKeyDecode(key, &tmpIdx, ecc, keySz) == 0) {
-                *algoID = ECDSAk;
+        wc_ecc_init_ex(ecc, heap, INVALID_DEVID);
+        if (wc_EccPrivateKeyDecode(key, &tmpIdx, ecc, keySz) == 0) {
+            *algoID = ECDSAk;
 
-                /* now find oid */
-                if (wc_ecc_get_oid(ecc->dp->oidSum, curveOID, oidSz) < 0) {
-                    WOLFSSL_MSG("Error getting ECC curve OID");
-                    wc_ecc_free(ecc);
-                    XFREE(ecc, heap, DYNAMIC_TYPE_TMP_BUFFER);
-                    return BAD_FUNC_ARG;
-                }
+            /* now find oid */
+            if (wc_ecc_get_oid(ecc->dp->oidSum, curveOID, oidSz) < 0) {
+                WOLFSSL_MSG("Error getting ECC curve OID");
+                wc_ecc_free(ecc);
+                XFREE(ecc, heap, DYNAMIC_TYPE_TMP_BUFFER);
+                return BAD_FUNC_ARG;
             }
-            else {
-                WOLFSSL_MSG("Not ECC DER key either");
-            }
-            wc_ecc_free(ecc);
         }
+        else {
+            WOLFSSL_MSG("Not ECC DER key either");
+        }
+        wc_ecc_free(ecc);
         XFREE(ecc, heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #endif /* HAVE_ECC && !NO_ASN_CRYPT */
@@ -9425,8 +9565,8 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
             return MEMORY_E;
 
         if (wc_falcon_init(falcon) == 0) {
-            if ((*algoID == 0) && (wc_falcon_set_level(falcon, 1) == 0)) {
-                tmpIdx = 0;
+            tmpIdx = 0;
+            if (wc_falcon_set_level(falcon, 1) == 0) {
                 if (wc_Falcon_PrivateKeyDecode(key, &tmpIdx, falcon, keySz)
                     == 0) {
                     *algoID = FALCON_LEVEL1k;
@@ -9435,8 +9575,7 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
                     WOLFSSL_MSG("Not Falcon Level 1 DER key");
                 }
             }
-            if ((*algoID == 0) && (wc_falcon_set_level(falcon, 5) == 0)) {
-                tmpIdx = 0;
+            else if (wc_falcon_set_level(falcon, 5) == 0) {
                 if (wc_Falcon_PrivateKeyDecode(key, &tmpIdx, falcon, keySz)
                     == 0) {
                     *algoID = FALCON_LEVEL5k;
@@ -9445,7 +9584,7 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
                     WOLFSSL_MSG("Not Falcon Level 5 DER key");
                 }
             }
-            if (*algoID == 0) {
+            else {
                 WOLFSSL_MSG("GetKeyOID falcon initialization failed");
             }
             wc_falcon_free(falcon);
@@ -9513,10 +9652,9 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
             return MEMORY_E;
 
         if (wc_sphincs_init(sphincs) == 0) {
-            if ((*algoID == 0) &&
-                (wc_sphincs_set_level_and_optim(sphincs, 1, FAST_VARIANT)
-                 == 0)) {
-                tmpIdx = 0;
+            tmpIdx = 0;
+            if (wc_sphincs_set_level_and_optim(sphincs, 1, FAST_VARIANT)
+                == 0) {
                 if (wc_Sphincs_PrivateKeyDecode(key, &tmpIdx, sphincs,
                     keySz) == 0) {
                     *algoID = SPHINCS_FAST_LEVEL1k;
@@ -9525,10 +9663,8 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
                     WOLFSSL_MSG("Not Sphincs-fast Level 1 DER key");
                 }
             }
-            if ((*algoID == 0) &&
-                (wc_sphincs_set_level_and_optim(sphincs, 3, FAST_VARIANT)
-                 == 0)) {
-                tmpIdx = 0;
+            else if (wc_sphincs_set_level_and_optim(sphincs, 3, FAST_VARIANT)
+                == 0) {
                 if (wc_Sphincs_PrivateKeyDecode(key, &tmpIdx, sphincs,
                     keySz) == 0) {
                     *algoID = SPHINCS_FAST_LEVEL3k;
@@ -9537,10 +9673,8 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
                     WOLFSSL_MSG("Not Sphincs-fast Level 3 DER key");
                 }
             }
-            if ((*algoID == 0) &&
-                (wc_sphincs_set_level_and_optim(sphincs, 5, FAST_VARIANT)
-                 == 0)) {
-                tmpIdx = 0;
+            else if (wc_sphincs_set_level_and_optim(sphincs, 5, FAST_VARIANT)
+                == 0) {
                 if (wc_Sphincs_PrivateKeyDecode(key, &tmpIdx, sphincs,
                     keySz) == 0) {
                     *algoID = SPHINCS_FAST_LEVEL5k;
@@ -9549,10 +9683,8 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
                     WOLFSSL_MSG("Not Sphincs-fast Level 5 DER key");
                 }
             }
-            if ((*algoID == 0) &&
-                (wc_sphincs_set_level_and_optim(sphincs, 1, SMALL_VARIANT)
-                 == 0)) {
-                tmpIdx = 0;
+            else if (wc_sphincs_set_level_and_optim(sphincs, 1, SMALL_VARIANT)
+                == 0) {
                 if (wc_Sphincs_PrivateKeyDecode(key, &tmpIdx, sphincs,
                     keySz) == 0) {
                     *algoID = SPHINCS_SMALL_LEVEL1k;
@@ -9561,10 +9693,8 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
                     WOLFSSL_MSG("Not Sphincs-small Level 1 DER key");
                 }
             }
-            if ((*algoID == 0) &&
-                (wc_sphincs_set_level_and_optim(sphincs, 3, SMALL_VARIANT)
-                 == 0)) {
-                tmpIdx = 0;
+            else if (wc_sphincs_set_level_and_optim(sphincs, 3, SMALL_VARIANT)
+                == 0) {
                 if (wc_Sphincs_PrivateKeyDecode(key, &tmpIdx, sphincs,
                     keySz) == 0) {
                     *algoID = SPHINCS_SMALL_LEVEL3k;
@@ -9573,10 +9703,8 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
                     WOLFSSL_MSG("Not Sphincs-small Level 3 DER key");
                 }
             }
-            if ((*algoID == 0) &&
-                (wc_sphincs_set_level_and_optim(sphincs, 5, SMALL_VARIANT)
-                 == 0)) {
-                tmpIdx = 0;
+            else if (wc_sphincs_set_level_and_optim(sphincs, 5, SMALL_VARIANT)
+                == 0) {
                 if (wc_Sphincs_PrivateKeyDecode(key, &tmpIdx, sphincs,
                     keySz) == 0) {
                     *algoID = SPHINCS_SMALL_LEVEL5k;
@@ -9585,7 +9713,7 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
                     WOLFSSL_MSG("Not Sphincs-small Level 5 DER key");
                 }
             }
-            if (*algoID == 0) {
+            else {
                 WOLFSSL_MSG("GetKeyOID sphincs initialization failed");
             }
             wc_sphincs_free(sphincs);
@@ -11425,16 +11553,14 @@ int wc_DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
     /* dsaPubKeyASN is longer than dsaPublicKeyASN. */
     DECL_ASNGETDATA(dataASN, dsaPubKeyASN_Length);
     int ret = 0;
-    void* heap = NULL;
 
     /* Validated parameters. */
     if ((input == NULL) || (inOutIdx == NULL) || (key == NULL)) {
         ret = BAD_FUNC_ARG;
     }
-    heap = (key != NULL) ? key->heap : NULL;
 
     if (ret == 0) {
-        ALLOC_ASNGETDATA(dataASN, dsaPubKeyASN_Length, ret, heap);
+        ALLOC_ASNGETDATA(dataASN, dsaPubKeyASN_Length, ret, key->heap);
     }
 
     if (ret == 0) {
@@ -11473,7 +11599,7 @@ int wc_DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
         key->type = DSA_PUBLIC;
     }
 
-    FREE_ASNGETDATA(dataASN, heap);
+    FREE_ASNGETDATA(dataASN, key->heap);
     return ret;
 }
 #endif /* WOLFSSL_ASN_TEMPLATE */
@@ -30094,7 +30220,6 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
     /* eccKeyASN is longer than eccPublicKeyASN. */
     DECL_ASNGETDATA(dataASN, eccKeyASN_Length);
     int ret = 0;
-    void* heap = NULL;
     int curve_id = ECC_CURVE_DEF;
     int oidIdx = ECCPUBLICKEYASN_IDX_ALGOID_CURVEID;
 #ifdef WOLFSSL_CUSTOM_CURVES
@@ -30105,10 +30230,9 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
     if ((input == NULL) || (inOutIdx == NULL) || (key == NULL) || (inSz == 0)) {
         ret = BAD_FUNC_ARG;
     }
-    heap = (key != NULL) ? key->heap : NULL;
 
     if (ret == 0) {
-        ALLOC_ASNGETDATA(dataASN, eccKeyASN_Length, ret, heap);
+        ALLOC_ASNGETDATA(dataASN, eccKeyASN_Length, ret, key->heap);
     }
 
     if (ret == 0) {
@@ -30182,7 +30306,7 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
         }
     }
 
-    FREE_ASNGETDATA(dataASN, heap);
+    FREE_ASNGETDATA(dataASN, key->heap);
     return ret;
 }
 #endif /* WOLFSSL_ASN_TEMPLATE */
@@ -33590,9 +33714,6 @@ void FreeDecodedCRL(DecodedCRL* dcrl)
 
     while(tmp) {
         RevokedCert* next = tmp->next;
-#ifdef OPENSSL_EXTRA
-        XFREE(tmp->extensions, dcrl->heap, DYNAMIC_TYPE_REVOKED);
-#endif
         XFREE(tmp, dcrl->heap, DYNAMIC_TYPE_REVOKED);
         tmp = next;
     }
