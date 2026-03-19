@@ -4872,7 +4872,8 @@ int test_ssl_memio_do_handshake(test_ssl_memio_ctx* ctx, int max_rounds,
                     /* retry non-blocking math */
                 }
                 else if (err != WOLFSSL_ERROR_WANT_READ &&
-                         err != WOLFSSL_ERROR_WANT_WRITE) {
+                         err != WOLFSSL_ERROR_WANT_WRITE &&
+                         err != WC_NO_ERR_TRACE(OCSP_WANT_READ)) {
                     char buff[WOLFSSL_MAX_ERROR_SZ];
                     fprintf(stderr, "error = %d, %s\n", err,
                         wolfSSL_ERR_error_string((word32)err, buff));
@@ -4897,7 +4898,8 @@ int test_ssl_memio_do_handshake(test_ssl_memio_ctx* ctx, int max_rounds,
                     /* retry non-blocking math */
                 }
                 else if (err != WOLFSSL_ERROR_WANT_READ &&
-                         err != WOLFSSL_ERROR_WANT_WRITE) {
+                         err != WOLFSSL_ERROR_WANT_WRITE &&
+                         err != WC_NO_ERR_TRACE(OCSP_WANT_READ)) {
                     char buff[WOLFSSL_MAX_ERROR_SZ];
                     fprintf(stderr, "error = %d, %s\n", err,
                         wolfSSL_ERR_error_string((word32)err, buff));
@@ -34588,6 +34590,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_ocsp_tls_cert_cb),
     TEST_DECL(test_ocsp_cert_unknown_crl_fallback),
     TEST_DECL(test_ocsp_cert_unknown_crl_fallback_nonleaf),
+    TEST_DECL(test_tls13_nonblock_ocsp_low_mfl),
     TEST_DECL(test_ocsp_responder),
     TEST_TLS_DECLS,
     TEST_DECL(test_wc_DhSetNamedKey),
