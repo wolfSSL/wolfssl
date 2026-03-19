@@ -415,7 +415,7 @@ WC_MISC_STATIC WC_INLINE void ByteReverseWords64(word64* out, const word64* in,
 /* Leave no doubt that WOLFSSL_WORD_SIZE is a power of 2. */
 wc_static_assert((WOLFSSL_WORD_SIZE & (WOLFSSL_WORD_SIZE - 1)) == 0);
 
-/* This routine performs a bitwise XOR operation of <*r> and <*a> for <n> number
+/* This routine performs a bitwise XOR operation of <*a> and <*b> for <n> number
 of wolfssl_words, placing the result in <*r>. */
 WC_MISC_STATIC WC_INLINE void XorWordsOut(wolfssl_word** r,
                        const wolfssl_word** a, const wolfssl_word** b, word32 n)
@@ -427,7 +427,7 @@ WC_MISC_STATIC WC_INLINE void XorWordsOut(wolfssl_word** r,
 }
 
 /* This routine performs a bitwise XOR operation of <*buf> and <*mask> of n
-counts, placing the result in <*buf>. */
+counts, placing the result in <*out>. */
 
 WC_MISC_STATIC WC_INLINE void xorbufout(void* out, const void* buf,
                                         const void* mask, word32 count)

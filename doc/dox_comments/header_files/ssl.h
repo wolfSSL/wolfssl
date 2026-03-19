@@ -4,7 +4,7 @@
     \return pointer This function returns a pointer to a new
     WOLFSSL_METHOD structure.
 
-    \param none No parameters.
+    \param heap pointer to a heap hint for memory allocation.
 
     _Example_
     \code
@@ -1078,7 +1078,10 @@ int wolfSSL_CTX_use_certificate_file(WOLFSSL_CTX* ctx, const char* file,
     decoding fails on the file. The key file is encrypted but no password
     is provided.
 
-    \param none No parameters.
+    \param ctx pointer to a WOLFSSL_CTX structure.
+    \param file path to the private key file.
+    \param format format of the key file (SSL_FILETYPE_PEM or
+    SSL_FILETYPE_ASN1).
 
     _Example_
     \code
@@ -1889,7 +1892,8 @@ int wolfSSL_set_dtls_fd_connected(WOLFSSL* ssl, int fd);
     \return BAD_FUNC_ARG upon failure.
 
     \param ssl pointer to the SSL session, created with wolfSSL_new().
-    \param fd file descriptor to use with SSL/TLS connection.
+    \param cb ClientHelloGoodCb callback function pointer.
+    \param user_ctx pointer to user context to be passed to callback.
 
     _Example_
     \code
@@ -2831,7 +2835,7 @@ int wolfSSL_GetSessionIndex(WOLFSSL* ssl);
     \return BAD_MUTEX_E returned if there was an unlock or lock mutex error.
     \return SSL_FAILURE returned if the function did not execute successfully.
 
-    \param idx an int type representing the session index.
+    \param index an int type representing the session index.
     \param session a pointer to the WOLFSSL_SESSION structure.
 
     _Example_
@@ -4499,9 +4503,9 @@ int wolfSSL_BIO_get_mem_data(WOLFSSL_BIO* bio,void* p);
 
     \return SSL_SUCCESS(1) upon success.
 
-    \param bio WOLFSSL_BIO structure to set fd.
+    \param b WOLFSSL_BIO structure to set fd.
     \param fd file descriptor to use.
-    \param closeF flag for behavior when closing fd.
+    \param flag flag for behavior when closing fd.
 
     _Example_
     \code
@@ -4524,7 +4528,7 @@ long wolfSSL_BIO_set_fd(WOLFSSL_BIO* b, int fd, int flag);
 
     \return SSL_SUCCESS(1) upon success.
 
-    \param bio WOLFSSL_BIO structure.
+    \param b WOLFSSL_BIO structure.
     \param flag flag for behavior when closing i/o stream.
 
     _Example_
@@ -4571,7 +4575,7 @@ WOLFSSL_BIO_METHOD *wolfSSL_BIO_s_socket(void);
     \return SSL_SUCCESS On successfully setting the write buffer.
     \return SSL_FAILURE If an error case was encountered.
 
-    \param bio WOLFSSL_BIO structure to set fd.
+    \param b WOLFSSL_BIO structure to set write buffer size.
     \param size size of buffer to allocate.
 
     _Example_
@@ -4631,7 +4635,7 @@ int  wolfSSL_BIO_make_bio_pair(WOLFSSL_BIO *b1, WOLFSSL_BIO *b2);
     \return SSL_SUCCESS On successfully setting value.
     \return SSL_FAILURE If an error case was encountered.
 
-    \param bio WOLFSSL_BIO structure to set read request flag.
+    \param b WOLFSSL_BIO structure to set read request flag.
 
     _Example_
     \code
@@ -4864,7 +4868,7 @@ long wolfSSL_BIO_set_mem_eof_return(WOLFSSL_BIO *bio, int v);
     value of 0).
 
     \param bio pointer to the WOLFSSL_BIO structure for getting memory pointer.
-    \param ptr structure that is currently a char*. Is set to point to
+    \param m pointer to WOLFSSL_BUF_MEM structure. Is set to point to
     bio’s memory.
 
     _Example_
@@ -4985,7 +4989,7 @@ WOLFSSL_X509_NAME*  wolfSSL_X509_get_subject_name(WOLFSSL_X509* cert);
     structure is returned.
     \return 0 returned if there is not a valid x509 structure passed in.
 
-    \param cert a pointer to a WOLFSSL_X509 structure.
+    \param x509 a pointer to a WOLFSSL_X509 structure.
 
     _Example_
     \code
@@ -5046,7 +5050,7 @@ int wolfSSL_X509_NAME_get_text_by_NID(WOLFSSL_X509_NAME* name, int nid,
     \return int an integer value is returned which was retrieved from
     the x509 object.
 
-    \param cert a pointer to a WOLFSSL_X509 structure.
+    \param x509 a pointer to a WOLFSSL_X509 structure.
 
     _Example_
     \code
@@ -5138,7 +5142,7 @@ int wolfSSL_X509_get_signature(WOLFSSL_X509* x509, unsigned char* buf, int* bufS
     \return SSL_SUCCESS If certificate is added successfully.
     \return SSL_FATAL_ERROR: If certificate is not added successfully.
 
-    \param str certificate store to add the certificate to.
+    \param store certificate store to add the certificate to.
     \param x509 certificate to add.
 
     _Example_
@@ -5712,7 +5716,7 @@ long wolfSSL_set_options(WOLFSSL *s, long op);
 
     \return val Returns the mask value stored in ssl.
 
-    \param ssl WOLFSSL structure to get options mask from.
+    \param s WOLFSSL structure to get options mask from.
 
     _Example_
     \code
@@ -5736,7 +5740,7 @@ long wolfSSL_get_options(const WOLFSSL *s);
     \return SSL_SUCCESS On successful setting argument.
     \return SSL_FAILURE If an NULL ssl passed in.
 
-    \param ssl WOLFSSL structure to set argument in.
+    \param s WOLFSSL structure to set argument in.
     \param arg argument to use.
 
     _Example_
@@ -6959,7 +6963,7 @@ WOLFSSL_ASN1_TIME* wolfSSL_X509_get_notAfter(WOLFSSL_X509*);
     \return 0 returned if the x509 structure is NULL.
     \return version the version stored in the x509 structure will be returned.
 
-    \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
+    \param x509 a pointer to a WOLFSSL_X509 structure.
 
     _Example_
     \code
@@ -7615,7 +7619,8 @@ int  wolfSSL_CTX_SetTmpDH_file(WOLFSSL_CTX* ctx, const char* f,
     \return BAD_FUNC_ARG returned if the WOLFSSL_CTX struct is NULL or if
     the keySz_bits is greater than 16,000 or not divisible by 8.
 
-    \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
+    \param ctx a pointer to a WOLFSSL_CTX structure, created using
+    wolfSSL_CTX_new().
     \param keySz_bits a word16 type used to set the minimum DH key size in bits.
     The WOLFSSL_CTX struct holds this information in the minDhKeySz member.
 
@@ -7673,7 +7678,8 @@ int wolfSSL_SetMinDhKey_Sz(WOLFSSL* ssl, word16 keySz_bits);
     \return BAD_FUNC_ARG returned if the WOLFSSL_CTX struct is NULL or if
     the keySz_bits is greater than 16,000 or not divisible by 8.
 
-    \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
+    \param ctx a pointer to a WOLFSSL_CTX structure, created using
+    wolfSSL_CTX_new().
     \param keySz_bits a word16 type used to set the maximum DH key size in bits.
     The WOLFSSL_CTX struct holds this information in the maxDhKeySz member.
 
@@ -8900,7 +8906,8 @@ int wolfSSL_SetVersion(WOLFSSL* ssl, int version);
 
     \return none No return.
 
-    \param No parameters.
+    \param ctx pointer to the SSL context, created with wolfSSL_CTX_new().
+    \param cb callback function to register for Mac/Encrypt.
 
     _Example_
     \code
@@ -8918,7 +8925,8 @@ void  wolfSSL_CTX_SetMacEncryptCb(WOLFSSL_CTX* ctx, CallbackMacEncrypt cb);
 
     \return none No return.
 
-    \param none No parameters.
+    \param ssl pointer to a WOLFSSL structure, created using wolfSSL_new().
+    \param ctx pointer to the user context to be stored.
 
     _Example_
     \code
@@ -8939,7 +8947,7 @@ void  wolfSSL_SetMacEncryptCtx(WOLFSSL* ssl, void *ctx);
     to the context.
     \return NULL will be returned for a blank context.
 
-    \param none No parameters.
+    \param ssl pointer to a WOLFSSL structure, created using wolfSSL_new().
 
     _Example_
     \code
@@ -8965,7 +8973,8 @@ void* wolfSSL_GetMacEncryptCtx(WOLFSSL* ssl);
 
     \return none No returns.
 
-    \param none No parameters.
+    \param ctx pointer to the SSL context, created with wolfSSL_CTX_new().
+    \param cb callback function to register for Decrypt/Verify.
 
     _Example_
     \code
@@ -8984,7 +8993,8 @@ void  wolfSSL_CTX_SetDecryptVerifyCb(WOLFSSL_CTX* ctx,
 
     \return none No returns.
 
-    \param none No parameters.
+    \param ssl pointer to a WOLFSSL structure, created using wolfSSL_new().
+    \param ctx pointer to the user context to be stored.
 
     _Example_
     \code
@@ -9005,7 +9015,7 @@ void  wolfSSL_SetDecryptVerifyCtx(WOLFSSL* ssl, void *ctx);
     context.
     \return NULL will be returned for a blank context.
 
-    \param none No parameters.
+    \param ssl pointer to a WOLFSSL structure, created using wolfSSL_new().
 
     _Example_
     \code
@@ -9358,7 +9368,8 @@ int wolfSSL_SetTlsHmacInner(WOLFSSL* ssl, byte* inner,
 
     \return none No returns.
 
-    \param none No parameters.
+    \param ctx pointer to the SSL context, created with wolfSSL_CTX_new().
+    \param cb callback function to register for ECC signing.
 
     _Example_
     \code
@@ -9464,7 +9475,8 @@ void* wolfSSL_CTX_GetEccSignCtx(WOLFSSL_CTX* ctx);
 
     \return none No returns.
 
-    \param none No parameters.
+    \param ctx pointer to the SSL context, created with wolfSSL_CTX_new().
+    \param cb callback function to register for ECC verification.
 
     _Example_
     \code
@@ -9482,7 +9494,8 @@ void  wolfSSL_CTX_SetEccVerifyCb(WOLFSSL_CTX* ctx, CallbackEccVerify cb);
 
     \return none No returns.
 
-    \param none No parameters.
+    \param ssl pointer to a WOLFSSL structure, created using wolfSSL_new().
+    \param ctx pointer to the user context to be stored.
 
     _Example_
     \code
@@ -9502,7 +9515,7 @@ void  wolfSSL_SetEccVerifyCtx(WOLFSSL* ssl, void *ctx);
     context.
     \return NULL will be returned for a blank context.
 
-    \param none No parameters.
+    \param ssl pointer to a WOLFSSL structure, created using wolfSSL_new().
 
     _Example_
     \code
@@ -9528,7 +9541,8 @@ void* wolfSSL_GetEccVerifyCtx(WOLFSSL* ssl);
 
     \return none No returns.
 
-    \param none No parameters.
+    \param ctx pointer to the SSL context, created with wolfSSL_CTX_new().
+    \param cb callback function to register for RSA signing.
 
     _Example_
     \code
@@ -9546,7 +9560,8 @@ void  wolfSSL_CTX_SetRsaSignCb(WOLFSSL_CTX* ctx, CallbackRsaSign cb);
 
     \return none No Returns.
 
-    \param none No parameters.
+    \param ssl pointer to a WOLFSSL structure, created using wolfSSL_new().
+    \param ctx pointer to the user context to be stored.
 
     _Example_
     \code
@@ -9566,8 +9581,7 @@ void  wolfSSL_SetRsaSignCtx(WOLFSSL* ssl, void *ctx);
     context.
     \return NULL will be returned for a blank context.
 
-    \param none No parameters.
-    \param none No parameters.
+    \param ssl pointer to a WOLFSSL structure, created using wolfSSL_new().
 
     _Example_
     \code
@@ -9591,7 +9605,8 @@ void* wolfSSL_GetRsaSignCtx(WOLFSSL* ssl);
 
     \return none No returns.
 
-    \param none No parameters.
+    \param ctx pointer to the SSL context, created with wolfSSL_CTX_new().
+    \param cb callback function to register for RSA verification.
 
     \sa wolfSSL_SetRsaVerifyCtx
     \sa wolfSSL_GetRsaVerifyCtx
@@ -9604,7 +9619,8 @@ void  wolfSSL_CTX_SetRsaVerifyCb(WOLFSSL_CTX* ctx, CallbackRsaVerify cb);
 
     \return none No returns.
 
-    \param none No parameters.
+    \param ssl pointer to a WOLFSSL structure, created using wolfSSL_new().
+    \param ctx pointer to the user context to be stored.
 
     _Example_
     \code
@@ -9624,7 +9640,7 @@ void  wolfSSL_SetRsaVerifyCtx(WOLFSSL* ssl, void *ctx);
     the context.
     \return NULL will be returned for a blank context.
 
-    \param none No parameters.
+    \param ssl pointer to a WOLFSSL structure, created using wolfSSL_new().
 
     _Example_
     \code
@@ -9650,7 +9666,8 @@ void* wolfSSL_GetRsaVerifyCtx(WOLFSSL* ssl);
 
     \return none No returns.
 
-    \param none No parameters.
+    \param ctx pointer to the SSL context, created with wolfSSL_CTX_new().
+    \param cb callback function to register for RSA public encrypt.
 
     _Examples_
     \code
@@ -9668,7 +9685,8 @@ void  wolfSSL_CTX_SetRsaEncCb(WOLFSSL_CTX* ctx, CallbackRsaEnc cb);
 
     \return none No returns.
 
-    \param none No parameters.
+    \param ssl pointer to a WOLFSSL structure, created using wolfSSL_new().
+    \param ctx pointer to the user context to be stored.
 
     _Example_
     \code
@@ -9688,7 +9706,7 @@ void  wolfSSL_SetRsaEncCtx(WOLFSSL* ssl, void *ctx);
     to the context.
     \return NULL will be returned for a blank context.
 
-    \param none No parameters.
+    \param ssl pointer to a WOLFSSL structure, created using wolfSSL_new().
 
     _Example_
     \code
@@ -9713,7 +9731,8 @@ void* wolfSSL_GetRsaEncCtx(WOLFSSL* ssl);
 
     \return none No returns.
 
-    \param none No parameters.
+    \param ctx pointer to the SSL context, created with wolfSSL_CTX_new().
+    \param cb callback function to register for RSA private decrypt.
 
     _Example_
     \code
@@ -9731,7 +9750,8 @@ void  wolfSSL_CTX_SetRsaDecCb(WOLFSSL_CTX* ctx, CallbackRsaDec cb);
 
     \return none No returns.
 
-    \param none No parameters.
+    \param ssl pointer to a WOLFSSL structure, created using wolfSSL_new().
+    \param ctx pointer to the user context to be stored.
 
     _Example_
     \code
@@ -9751,7 +9771,7 @@ void  wolfSSL_SetRsaDecCtx(WOLFSSL* ssl, void *ctx);
     to the context.
     \return NULL will be returned for a blank context.
 
-    \param none No parameters.
+    \param ssl pointer to a WOLFSSL structure, created using wolfSSL_new().
 
     _Example_
     \code
@@ -9772,7 +9792,7 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl);
     \return none No return.
 
     \param ctx pointer to the SSL context, created with wolfSSL_CTX_new().
-    \param callback function to be registered as the CA callback for the
+    \param cb function to be registered as the CA callback for the
     wolfSSL context, ctx. The signature of this function must follow that
     as shown above in the Synopsis section.
 
@@ -9807,7 +9827,7 @@ void wolfSSL_CTX_SetCACb(WOLFSSL_CTX* ctx, CallbackCACache cb);
     WOLFSSL_CERT_MANAGER pointer.
     \return NULL will be returned for an error state.
 
-    \param none No parameters.
+    \param heap pointer to a heap hint for memory allocation.
 
     \sa wolfSSL_CertManagerFree
 */
@@ -10579,7 +10599,7 @@ int wolfSSL_CertManagerEnableOCSP(WOLFSSL_CERT_MANAGER* cm,
     crlEnabled member of the WOLFSSL_CERT_MANAGER structure.
     \return BAD_FUNC_ARG the WOLFSSL structure was NULL.
 
-    \param ssl - a pointer to a WOLFSSL structure, created using wolfSSL_new().
+    \param cm a pointer to a WOLFSSL_CERT_MANAGER structure.
 
     _Example_
     \code
@@ -10961,7 +10981,9 @@ int wolfSSL_SetOCSP_Cb(WOLFSSL* ssl, CbOCSPIO ioCb, CbOCSPRespFree respFreeCb,
     WOLFSSL_CERT_MANAGER fails to initialize correctly.
     \return NOT_COMPILED_IN wolfSSL was not compiled with the HAVE_CRL option.
 
-    \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
+    \param ctx a pointer to a WOLFSSL_CTX structure, created using
+    wolfSSL_CTX_new().
+    \param options option flags for enabling CRL.
 
     _Example_
     \code
@@ -12650,7 +12672,10 @@ int wolfSSL_DeriveTlsKeys(unsigned char* key_data, word32 keyLen,
     \return SSL_FATAL_ERROR will be returned if the underlying SSL_connect()
     call encountered an error.
 
-    \param none No parameters.
+    \param ssl pointer to a WOLFSSL structure, created using wolfSSL_new().
+    \param hsCb HandShake Callback function pointer.
+    \param toCb Timeout Callback function pointer.
+    \param timeout timeout value to use with the Timeout Callback.
 
     _Example_
     \code
@@ -12682,7 +12707,10 @@ int wolfSSL_connect_ex(WOLFSSL* ssl, HandShakeCallBack hsCb,
     \return SSL_FATAL_ERROR will be returned if the underlying
     SSL_accept() call encountered an error.
 
-    \param none No parameters.
+    \param ssl pointer to a WOLFSSL structure, created using wolfSSL_new().
+    \param hsCb HandShake Callback function pointer.
+    \param toCb Timeout Callback function pointer.
+    \param timeout timeout value to use with the Timeout Callback.
 
     _Example_
     \code
@@ -12786,9 +12814,9 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl);
     \return >= 0 If successful the extension index is returned.
     \return -1 If extension is not found or error is encountered.
 
-    \param x509 certificate to get parse through for extension.
+    \param x certificate to get parse through for extension.
     \param nid extension OID to be found.
-    \param lastPos start search from extension after lastPos.
+    \param lastpos start search from extension after lastpos.
                    Set to -1 initially.
 
     _Example_
