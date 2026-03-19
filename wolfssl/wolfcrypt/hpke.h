@@ -31,7 +31,8 @@
     extern "C" {
 #endif
 
-#if defined(HAVE_HPKE) && defined(HAVE_ECC)
+#if defined(HAVE_HPKE) && (defined(HAVE_ECC) || defined(HAVE_CURVE25519)) && \
+    defined(HAVE_AESGCM)
 
 #ifndef WOLFCRYPT_HPKE
 #define WOLFCRYPT_HPKE
@@ -136,7 +137,7 @@ WOLFSSL_LOCAL int wc_HpkeAeadIsSupported(word16 aeadId);
 
 #endif
 
-#endif /* HAVE_HPKE && HAVE_ECC */
+#endif /* HAVE_HPKE && (HAVE_ECC || HAVE_CURVE25519) && HAVE_AESGCM */
 
 #ifdef __cplusplus
     }    /* extern "C" */

@@ -2559,13 +2559,13 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             case 270:
                 echSuite = myoptarg;
 
-                /* parse alg id's ignoring overflows
+                /* parse alg id's
                  * commas can be entered with no number to accept the default */
                 if (echSuite != NULL) {
                     kemId = (word16)atoi(echSuite);
                     for (; *echSuite != '\0' && *echSuite != ','; echSuite++);
                     if (*echSuite != ',') {
-                        LOG_ERROR("Expected two commas '%s'\n", myoptarg);
+                        LOG_ERROR("Expected two commas in '%s'\n", myoptarg);
                         XEXIT_T(EXIT_FAILURE);
                     }
                     echSuite++;
@@ -2573,7 +2573,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                     kdfId = (word16)atoi(echSuite);
                     for (; *echSuite != '\0' && *echSuite != ','; echSuite++);
                     if (*echSuite != ',') {
-                        LOG_ERROR("Expected two commas'%s'\n", myoptarg);
+                        LOG_ERROR("Expected two commas in '%s'\n", myoptarg);
                         XEXIT_T(EXIT_FAILURE);
                     }
                     echSuite++;
