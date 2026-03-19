@@ -29339,6 +29339,9 @@ struct sig_algs {
 #endif
 #ifdef HAVE_ECC
     { ecc_dsa_sa_algo, "ECDSA" },
+#ifdef HAVE_ECC_BRAINPOOL
+    { ecc_brainpool_sa_algo, "ECDSA-BRAINPOOL" },
+#endif
 #endif
 #ifdef HAVE_ED25519
     { ed25519_sa_algo, "ED25519" },
