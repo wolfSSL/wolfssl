@@ -65,7 +65,7 @@ A heap buffer out of bounds write case existed in wolfSSL version 5.8.4 and earl
 * Support for STM32 HMAC hardware by @dgarske (PR 9745).
 * Add STM32G0 hardware crypto support by @danielinux (PR 9707).
 * Misc STM32 fixes and testing improvements by @dgarske, @LinuxJedi (PRs 9446, 9563).
-* Various Thumb2 AES/SP ASM enhancements and fixes by @SparkiDev (PRs 9464, 9491, 9547, 9615, 9767) 
+* Various Thumb2 AES/SP ASM enhancements and fixes by @SparkiDev (PRs 9464, 9491, 9547, 9615, 9767)
 * Add Zephyr 4.1+ build compatibility for wolfssl_tls_sock sample by @night1rider (PR 9765)
 
 ## Rust wrapper
