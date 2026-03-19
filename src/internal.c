@@ -13230,6 +13230,11 @@ int MatchDomainName(const char* pattern, int patternLen, const char* str,
 
             /* Only single wildcard allowed with strict left only */
             if (leftWildcardOnly) {
+                /* For the left wildcard only case, disallow wildcards with
+                 * the pattern *domain.com and only allow *.domain.com. */
+                if (patternLen > 0 && *pattern != '.')
+                    return 0;
+
                 wildcardEligible = 0;
             }
 
