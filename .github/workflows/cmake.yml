@@ -73,6 +73,7 @@ jobs:
             -DWOLFSSL_X963KDF:BOOL=yes -DWOLFSSL_DILITHIUM:BOOL=yes -DWOLFSSL_PKCS11:BOOL=yes \
             -DWOLFSSL_ECCSI:BOOL=yes -DWOLFSSL_SAKKE:BOOL=yes -DWOLFSSL_SIPHASH:BOOL=yes \
             -DWOLFSSL_WC_RSA_DIRECT:BOOL=yes -DWOLFSSL_PUBLIC_MP:BOOL=yes \
+            -DWOLFSSL_EXTRA_PQC_HYBRIDS:BOOL=yes -DWOLFSSL_TLS_NO_MLKEM_STANDALONE:BOOL=no \
             ..
         cmake --build .
         ctest -j $(nproc)
