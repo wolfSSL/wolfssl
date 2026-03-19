@@ -245,8 +245,9 @@ int test_wc_d2i_PKCS12_oid_underflow(void)
     WC_PKCS12* pkcs12 = NULL;
 
     /* Crafted PKCS12 DER: the inner ContentInfo SEQUENCE declares length 5,
-     * but contains a valid 11-byte OID (1.2.840.113549.1.7.1). Without the
-     * bounds check, (word32)curSz - (localIdx - curIdx) = 5 - 11 underflows
+     * but contains a valid OID (1.2.840.113549.1.7.1) that is 11 bytes
+     * on the wire (tag 06 + length 09 + 9 value bytes). Without the bounds
+     * check, (word32)curSz - (localIdx - curIdx) = 5 - 11 underflows
      * to ~4GB. */
     static const byte crafted[] = {
         0x30, 0x23,                                           /* outer SEQ */
@@ -263,7 +264,8 @@ int test_wc_d2i_PKCS12_oid_underflow(void)
     };
 
     ExpectNotNull(pkcs12 = wc_PKCS12_new());
-    ExpectIntLT(wc_d2i_PKCS12(crafted, (word32)sizeof(crafted), pkcs12), 0);
+    ExpectIntEQ(wc_d2i_PKCS12(crafted, (word32)sizeof(crafted), pkcs12),
+                ASN_PARSE_E);
     wc_PKCS12_free(pkcs12);
 #endif
     return EXPECT_RESULT();
