@@ -327,17 +327,18 @@ static WC_INLINE void bench_heap_checkpoint_measure(long* allocs,
 static WC_INLINE void bench_stack_checkpoint_prepare(void)
 {
     (void)StackSizeHWMReset();
+    bench_last_stack_bytes = (long)StackSizeHWM_OffsetCorrected();
 }
 
 static WC_INLINE long bench_stack_checkpoint_measure(void)
 {
     long used = (long)StackSizeHWM_OffsetCorrected();
+
+    used -= bench_last_stack_bytes;
     if (used < 0)
         used = 0;
     (void)StackSizeHWMReset();
-#ifdef WC_BENCH_STACK_TRACKING
     bench_last_stack_bytes = used;
-#endif
     return used;
 }
 #else
@@ -1345,7 +1346,7 @@ static const bench_pq_hash_sig_alg bench_pq_hash_sig_opt[] = {
 };
 #endif /* BENCH_PQ_STATEFUL_HBS */
 
-#ifndef WOLFSSL_BENCHMARK_ALL
+#if !defined(WOLFSSL_BENCHMARK_ALL) && !defined(MAIN_NO_ARGS)
 #if defined(WOLFSSL_HAVE_MLKEM) || defined(HAVE_FALCON) || \
     defined(HAVE_DILITHIUM) || defined(HAVE_SPHINCS)
 /* The post-quantum-specific mapping of command line option to bit values and
@@ -2250,7 +2251,7 @@ static const char* bench_result_words2[][6] = {
 
 /* maximum runtime for each benchmark */
 #ifndef BENCH_MIN_RUNTIME_SEC
-    #define BENCH_MIN_RUNTIME_SEC   1.0F
+    #define BENCH_MIN_RUNTIME_SEC   (double)1.0F
 #endif
 
 #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
@@ -2349,8 +2350,12 @@ static int    numBlocks  = NUM_BLOCKS;
 static word32 bench_size = BENCH_SIZE;
 static int base2 = 1;
 static int digest_stream = 1;
+#ifndef NO_HMAC
 static int mac_stream = 1;
+#endif
+#ifdef HAVE_AESGCM
 static int aead_set_key = 0;
+#endif
 #ifdef HAVE_CHACHA
 static int encrypt_only = 0;
 #endif
@@ -3036,8 +3041,7 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
 #ifdef WC_BENCH_STACK_TRACKING
     {
         long stackUsed = bench_stack_checkpoint_measure();
-        stackUsed += bench_stats_stack_setup_bytes;
-        bench_last_stack_bytes = stackUsed;
+        bench_last_stack_bytes = MAX(stackUsed, bench_stats_stack_setup_bytes);
     }
     bench_stats_stack_setup_bytes = 0;
 #else
@@ -3276,8 +3280,7 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
 #ifdef WC_BENCH_STACK_TRACKING
     {
         long stackUsed = bench_stack_checkpoint_measure();
-        stackUsed += bench_stats_stack_setup_bytes;
-        bench_last_stack_bytes = stackUsed;
+        bench_last_stack_bytes = MAX(stackUsed, bench_stats_stack_setup_bytes);
     }
     bench_stats_stack_setup_bytes = 0;
 #else
@@ -16417,8 +16420,16 @@ static void Usage(void)
     e += 3;
 #endif
     printf("%s", bench_Usage_msg1[lng_index][e++]);    /* option -dgst_full */
+#ifndef NO_HMAC
     printf("%s", bench_Usage_msg1[lng_index][e++]);    /* option -mac_final */
+#else
+    e++;
+#endif
+#ifdef HAVE_AESGCM
     printf("%s", bench_Usage_msg1[lng_index][e++]);    /* option -aead_set_key */
+#else
+    e++;
+#endif
 #ifndef NO_RSA
     printf("%s", bench_Usage_msg1[lng_index][e++]);    /* option -rsa_sign */
     #ifdef WOLFSSL_KEY_GEN
@@ -16625,10 +16636,14 @@ int wolfcrypt_benchmark_main(int argc, char** argv)
 #endif
         else if (string_matches(argv[1], "-dgst_full"))
             digest_stream = 0;
+#ifndef NO_HMAC
         else if (string_matches(argv[1], "-mac_final"))
             mac_stream = 0;
+#endif
+#ifdef HAVE_AESGCM
         else if (string_matches(argv[1], "-aead_set_key"))
             aead_set_key = 1;
+#endif
 #ifdef HAVE_CHACHA
         else if (string_matches(argv[1], "-enc_only"))
             encrypt_only = 1;
