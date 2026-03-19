@@ -41491,6 +41491,7 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                     {
                         RsaKey* key = (RsaKey*)ssl->hsKey;
                         volatile int lenErrMask;
+                        int lenErrMaskCopy;
 
                         ret = RsaDec(ssl,
                             input + args->idx,
@@ -41517,8 +41518,9 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                             goto exit_dcke;
 
                         lenErrMask = 0 - (SECRET_LEN != args->sigSz);
-                        args->lastErr = (ret & (~lenErrMask)) |
-                            (WC_NO_ERR_TRACE(RSA_PAD_E) & lenErrMask);
+                        lenErrMaskCopy = lenErrMask;
+                        args->lastErr = (ret & (~lenErrMaskCopy)) |
+                            (WC_NO_ERR_TRACE(RSA_PAD_E) & lenErrMaskCopy);
                         ret = 0;
                         break;
                     } /* rsa_kea */

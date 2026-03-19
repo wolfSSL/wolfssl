@@ -1890,6 +1890,10 @@ static int RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
         volatile byte   invalid = 0;
         volatile byte   minPad;
         volatile int    invalidMask;
+        word16 pastSepCopy;
+        byte   invalidCopy;
+        byte   minPadCopy;
+        int    invalidMaskCopy;
 
         i = 0;
         /* Decrypted with private key - unpad must be constant time. */
@@ -1902,17 +1906,25 @@ static int RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
 
         /* Minimum of 11 bytes of pre-message data - including leading 0x00. */
         minPad = ctMaskLT(i, RSA_MIN_PAD_SZ);
-        invalid |= minPad;
+        minPadCopy = minPad;
+        invalidCopy = invalid;
+        invalid = invalidCopy | minPadCopy;
         /* Must have seen separator. */
-        invalid |= (byte)~pastSep;
+        pastSepCopy = pastSep;
+        invalidCopy = invalid;
+        invalid = invalidCopy | (byte)~pastSepCopy;
         /* First byte must be 0x00. */
-        invalid |= ctMaskNotEq(pkcsBlock[0], 0x00);
+        invalidCopy = invalid;
+        invalid = invalidCopy | ctMaskNotEq(pkcsBlock[0], 0x00);
         /* Check against expected block type: padValue */
-        invalid |= ctMaskNotEq(pkcsBlock[1], padValue);
+        invalidCopy = invalid;
+        invalid = invalidCopy | ctMaskNotEq(pkcsBlock[1], padValue);
 
         *output = (byte *)(pkcsBlock + i);
-        invalidMask = (int)-1 + (int)(invalid >> 7);
-        ret = invalidMask & ((int)pkcsBlockLen - i);
+        invalidCopy = invalid;
+        invalidMask = (int)-1 + (int)(invalidCopy >> 7);
+        invalidMaskCopy = invalidMask;
+        ret = invalidMaskCopy & ((int)pkcsBlockLen - i);
     }
 #endif
 
