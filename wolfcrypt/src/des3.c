@@ -19,6 +19,17 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+/*
+ * DES3 Build Options:
+ *
+ * NO_DES3:                  Disable 3DES support entirely         default: off
+ * WOLFSSL_DES_ECB:          Enable DES-ECB mode                   default: off
+ *
+ * Hardware Acceleration (DES3-specific):
+ * WC_ASYNC_ENABLE_3DES:     Enable async 3DES operations          default: off
+ * FREESCALE_LTC_DES:        Freescale LTC DES acceleration        default: off
+ */
+
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifndef NO_DES3

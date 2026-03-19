@@ -19,6 +19,17 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+/*
+ * MD5 Build Options:
+ *
+ * NO_MD5:                   Disable MD5 support entirely          default: off
+ * HAVE_MD5_CUST_API:        Enable custom MD5 API                 default: off
+ * STM32_NOMD5:              Disable STM32 hardware MD5            default: off
+ *
+ * Hardware Acceleration (MD5-specific):
+ * WC_ASYNC_ENABLE_MD5:      Enable async MD5 operations           default: off
+ */
+
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #if !defined(NO_MD5)

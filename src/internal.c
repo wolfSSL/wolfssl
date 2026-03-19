@@ -22,72 +22,133 @@
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 /*
- * WOLFSSL_SMALL_CERT_VERIFY:
- *     Verify the certificate signature without using DecodedCert. Doubles up
- *     on some code but allows smaller peak heap memory usage.
- *     Cannot be used with WOLFSSL_NONBLOCK_OCSP.
- * WOLFSSL_ALT_CERT_CHAINS:
- *     Allows CA's to be presented by peer, but not part of a valid chain.
- *     Default wolfSSL behavior is to require validation of all presented peer
- *     certificates. This also allows loading intermediate CA's as trusted
- *     and ignoring no signer failures for CA's up the chain to root.
- * WOLFSSL_DTLS_RESEND_ONLY_TIMEOUT:
- *     Enable resending the previous DTLS handshake flight only on a network
- *     read timeout. By default we resend in two more cases, when we receive:
- *     - an out of order last msg of the peer's flight
- *     - a duplicate of the first msg from the peer's flight
+ * internal.c Build Options:
+ *
+ * See also: tls.c for TLS extension/protocol options, tls13.c for TLS 1.3,
+ *           ssl.c for SSL API layer, wc_port.c for platform/memory.
+ *
+ * Connection & Buffers:
+ * LARGE_STATIC_BUFFERS:       Use large static I/O buffers            default: on
+ * WOLFSSL_DISABLE_EARLY_SANITY_CHECKS:
+ *                  Disable early sanity checks on TLS messages        default: off
+ * WOLFSSL_NO_DTLS_SIZE_CHECK: Disable DTLS record size validation     default: off
+ *
+ * Cipher Suite Selection:
+ * NO_CHAPOL_AEAD:             Disable ChaCha20-Poly1305 AEAD suites   default: off
+ * WOLFSSL_OLDTLS_AEAD_CIPHERSUITES:
+ *                  Enable AEAD cipher suites for pre-TLS 1.2          default: off
+ * WOLFSSL_OLDTLS_SHA2_CIPHERSUITES:
+ *                  Enable SHA-2 cipher suites for pre-TLS 1.2         default: off
+ * WOLFSSL_NO_STRICT_CIPHER_SUITE:
+ *                  Relax strict cipher suite validation               default: off
+ * NO_RESUME_SUITE_CHECK:      Skip cipher suite check on resume       default: off
+ * NO_FORCE_SCR_SAME_SUITE:    Allow different suite in renegotiation  default: off
+ * CIPHER_NONCE:               Per-record cipher nonce for AEAD        default: off
+ *
+ * Certificate Validation:
+ * WOLFSSL_SMALL_CERT_VERIFY:  Verify cert sig without DecodedCert     default: off
+ * WOLFSSL_ALT_CERT_CHAINS:    Allow non-validated intermediate CAs    default: off
+ * NO_CHECK_PRIVATE_KEY:       Skip key/cert matching validation       default: off
+ * WOLFSSL_VERIFY_CB_ALL_CERTS:
+ *                  Call verify callback for all chain certs           default: off
+ * WOLFSSL_ALWAYS_VERIFY_CB:   Always invoke verify callback           default: off
+ * WOLFSSL_ALLOW_NO_CN_IN_SAN: Allow certs with SAN but no CN          default: off
+ * WOLFSSL_TRUST_PEER_CERT:    Direct trust of specific peer certs     default: off
+ * WOLFSSL_LOCAL_X509_STORE:   Per-context X509 store                  default: off
+ * WOLFSSL_APPLE_NATIVE_CERT_VALIDATION:
+ *                  Use Apple native cert validation on macOS/iOS      default: off
+ * WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION:
+ *                  Testing mode for Apple cert validation             default: off
+ * HAVE_DANE:                  DNS-based cert validation (DNSSEC)      default: off
+ * HAVE_FALLBACK_SCSV:         TLS Fallback SCSV anti-downgrade        default: off
+ * WOLFSSL_ACERT:              Attribute certificate support           default: off
+ * WOLFSSL_DEBUG_CERTS:        Debug logging for cert processing       default: off
+ * WOLFSSL_HOSTNAME_VERIFY_ALT_NAME_ONLY:
+ *                  Verify hostname using SAN only (not CN)            default: off
+ *
+ * Handshake Behavior:
+ * OLD_HELLO_ALLOWED:          Allow SSLv2-format ClientHello          default: off
+ * WOLFSSL_ALTERNATIVE_DOWNGRADE:
+ *                  Alternative protocol downgrade detection           default: off
+ * WOLFSSL_OLD_TIMINGPADVERIFY:
+ *                  Old timing-based CBC padding verification          default: off
+ * WOLFSSL_ECDSA_MATCH_HASH:   Match ECDSA hash to curve preference    default: off
+ * WOLFSSL_STRONGEST_HASH_SIG: Prefer strongest hash in signatures     default: off
+ * USE_ECDSA_KEYSZ_HASH_ALGO:  Select ECDSA hash by key size           default: off
+ * WOLFSSL_ALLOW_TLS_SHA1:     Allow SHA-1 cipher suites/signatures    default: off
+ * WOLFSSL_EXTRA_ALERTS:       Send additional TLS alert messages      default: off
+ * WOLFSSL_NO_ETM_ALERT:       No alert on Encrypt-Then-MAC failure    default: off
+ *
+ * Secure Renegotiation & PSK:
+ * WOLFSSL_SECURE_RENEGOTIATION_ON_BY_DEFAULT:
+ *                  Enable secure renegotiation by default             default: off
+ * WOLFSSL_PSK_IDENTITY_ALERT: Alert on PSK identity lookup failure    default: off
+ *
+ * Session Tickets:
  * WOLFSSL_NO_DEF_TICKET_ENC_CB:
- *     No default ticket encryption callback.
- *     Server only.
- *     Application must set its own callback to use session tickets.
- * WOLFSSL_TICKET_ENC_CHACHA20_POLY1305
- *     Use ChaCha20-Poly1305 to encrypt/decrypt session tickets in default
- *     callback. Default algorithm if none defined and algorithms compiled in.
- *     Server only.
- * WOLFSSL_TICKET_ENC_AES128_GCM
- *     Use AES128-GCM to encrypt/decrypt session tickets in default callback.
- *     Server only. Default algorithm if ChaCha20/Poly1305 not compiled in.
- * WOLFSSL_TICKET_ENC_AES256_GCM
- *     Use AES256-GCM to encrypt/decrypt session tickets in default callback.
- *     Server only.
- * WOLFSSL_TICKET_DECRYPT_NO_CREATE
- *     Default callback will not request creation of new ticket on successful
- *     decryption.
- *     Server only.
- * WOLFSSL_TLS13_NO_PEEK_HANDSHAKE_DONE
- *     Once a normal TLS 1.3 handshake is complete, a session ticket message
- *     may be received by a client. To support detecting this, peek will
- *     return WOLFSSL_ERROR_WANT_READ.
- *     This define turns off this behaviour.
- * WOLFSSL_HOSTNAME_VERIFY_ALT_NAME_ONLY
- *     Verify hostname/ip address using alternate name (SAN) only and do not
- *     use the common name. Forces use of the alternate name, so certificates
- *     missing SAN will be rejected during the handshake
- * WOLFSSL_CHECK_SIG_FAULTS
- *     Verifies the ECC signature after signing in case of faults in the
- *     calculation of the signature. Useful when signature fault injection is a
- *     possible attack.
- * WOLFSSL_TLS13_IGNORE_AEAD_LIMITS
- *     Ignore the AEAD limits for messages specified in the RFC. After
- *     reaching the limit, we initiate a key update. We enforce the AEAD limits
- *     by default.
- *     https://www.rfc-editor.org/rfc/rfc8446#section-5.5
- *     https://www.rfc-editor.org/rfc/rfc9147.html#name-aead-limits
- * WOLFSSL_HARDEN_TLS
- *     Implement the recommendations specified in RFC9325. This macro needs to
- *     be defined to the desired number of bits of security. The currently
- *     implemented values are 112 and 128 bits. The following macros disable
- *     certain checks.
- *     - WOLFSSL_HARDEN_TLS_ALLOW_TRUNCATED_HMAC
- *     - WOLFSSL_HARDEN_TLS_ALLOW_OLD_TLS
- *     - WOLFSSL_HARDEN_TLS_NO_SCR_CHECK
- *     - WOLFSSL_HARDEN_TLS_NO_PKEY_CHECK
- *     - WOLFSSL_HARDEN_TLS_ALLOW_ALL_CIPHERSUITES
- * WOLFSSL_NO_INIT_CTX_KEY
- *      Allows SSL objects to be created from a CTX without a loaded key/cert
- *      pair
+ *                  No default ticket encryption callback              default: off
+ * WOLFSSL_TICKET_ENC_CHACHA20_POLY1305:
+ *                  ChaCha20-Poly1305 for ticket encryption            default: auto
+ * WOLFSSL_TICKET_ENC_AES128_GCM:
+ *                  AES128-GCM for ticket encryption                   default: auto
+ * WOLFSSL_TICKET_ENC_AES256_GCM:
+ *                  AES256-GCM for ticket encryption                   default: off
+ * WOLFSSL_TICKET_DECRYPT_NO_CREATE:
+ *                  No new ticket on successful decryption             default: off
+ * WOLFSSL_TICKET_ENC_CBC_HMAC:
+ *                  CBC+HMAC for ticket encryption (non-AEAD)          default: off
+ * WOLFSSL_NO_TICKET_EXPIRE:   Disable ticket expiration checking      default: off
+ *
+ * TLS 1.3 Internals:
+ * WOLFSSL_TLS13_IGNORE_PT_ALERT_ON_ENC:
+ *                  Ignore plaintext alerts when encrypted expected    default: off
+ * WOLFSSL_TLS13_NO_PEEK_HANDSHAKE_DONE:
+ *                  Disable peek returning WANT_READ for tickets       default: off
+ * WOLFSSL_TLS13_IGNORE_AEAD_LIMITS:
+ *                  Ignore AEAD message limits from RFC 8446           default: off
+ * WOLFSSL_DTLS13_SEND_MOREACK_DEFAULT:
+ *                  Send more ACKs by default in DTLS 1.3              default: off
+ *
+ * DTLS:
+ * WOLFSSL_DTLS_RESEND_ONLY_TIMEOUT:
+ *                  Resend previous flight only on timeout             default: off
+ * WOLFSSL_DTLS_DISALLOW_FUTURE:
+ *                  Reject DTLS records with future epoch              default: off
  * WOLFSSL_DTLS_RECORDS_CAN_SPAN_DATAGRAMS:
- *     When defined, allows DTLS records to span across multiple datagrams.
+ *                  Allow DTLS records to span datagrams               default: off
+ * WOLFSSL_DEBUG_DTLS:         Debug logging for DTLS operations       default: off
+ *
+ * Session Export:
+ * WOLFSSL_SESSION_EXPORT:     Enable session export/import            default: off
+ * WOLFSSL_SESSION_EXPORT_DEBUG:
+ *                  Debug logging for session export/import            default: off
+ * WOLFSSL_SESSION_EXPORT_NOPEER:
+ *                  Export sessions without peer cert info             default: off
+ *
+ * Compatibility Layers:
+ * WOLFSSL_MYSQL_COMPATIBLE:   MySQL protocol compatibility            default: off
+ * WOLFSSL_OPENVPN:            OpenVPN compatibility behaviors         default: off
+ *
+ * Async & Non-blocking:
+ * WOLFSSL_ASYNC_CRYPT_SW:     Software async crypto simulation        default: off
+ * WC_X25519_NONBLOCK:         Non-blocking X25519 operations          default: off
+ * HAVE_WOLF_EVENT:            Event-driven async processing           default: off
+ *
+ * Hardware/Platform TLS:
+ * WOLFSSL_MAXQ10XX_TLS:       Maxim MAXQ10xx secure element           default: off
+ * WOLFSSL_IOTSAFE:            IoTSAFE (GSMA) applet support           default: off
+ * WOLFSSL_QNX_CAAM:           QNX CAAM crypto module support          default: off
+ * HAVE_DH_DEFAULT_PARAMS:     Include default DH parameters           default: off
+ * HAVE_EXT_CACHE:             External session cache callbacks        default: off
+ *
+ * Hardening:
+ * WOLFSSL_HARDEN_TLS:         Implement RFC 9325 recommendations      default: off
+ *   WOLFSSL_HARDEN_TLS_ALLOW_TRUNCATED_HMAC:  Allow truncated HMAC
+ *   WOLFSSL_HARDEN_TLS_ALLOW_OLD_TLS:         Allow old TLS versions
+ *   WOLFSSL_HARDEN_TLS_NO_SCR_CHECK:          No SCR check
+ *   WOLFSSL_HARDEN_TLS_NO_PKEY_CHECK:         No public key check
+ *   WOLFSSL_HARDEN_TLS_ALLOW_ALL_CIPHERSUITES: Allow all suites
+ * WOLFSSL_NO_INIT_CTX_KEY:    Allow SSL objects without loaded keys   default: off
  */
 
 #ifndef WOLFCRYPT_ONLY

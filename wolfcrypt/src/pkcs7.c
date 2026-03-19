@@ -19,6 +19,25 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+/*
+ * PKCS#7 Build Options:
+ *
+ * Core:
+ * HAVE_PKCS7:               Enable PKCS#7 support                 default: off
+ * NO_PKCS7_STREAM:          Disable PKCS#7 streaming mode         default: off
+ * NO_PKCS7_ENCRYPTED_DATA:  Disable PKCS#7 EncryptedData type    default: off
+ * NO_PKCS7_COMPRESSED_DATA: Disable PKCS#7 CompressedData type   default: off
+ * WC_PKCS7_STREAM_DEBUG:    Enable PKCS#7 stream debug output    default: off
+ * WOLFSSL_PKCS7_MAX_DECOMPRESSION: Max decompression size        default: off
+ *
+ * Callbacks:
+ * HAVE_PKCS7_RSA_RAW_SIGN_CALLBACK: Custom RSA raw sign callback default: off
+ * HAVE_PKCS7_ECC_RAW_SIGN_CALLBACK: Custom ECC raw sign callback default: off
+ *
+ * Key Derivation:
+ * HAVE_X963_KDF:            Enable ANSI X9.63 KDF                 default: off
+ */
+
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifdef HAVE_PKCS7

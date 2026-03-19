@@ -5493,7 +5493,7 @@ const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbyname(const char *name)
         {EVP_ARIA_256_GCM, "aria-256-gcm"},
         {EVP_ARIA_256_GCM, "id-aria256-GCM"},
 #endif
-#ifdef WOLFSSL_SM4_EBC
+#ifdef WOLFSSL_SM4_ECB
         {EVP_SM4_ECB, "sm4-ecb"},
 #endif
 #ifdef WOLFSSL_SM4_CBC
