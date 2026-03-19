@@ -27,10 +27,12 @@
 int test_wc_i2d_PKCS12(void);
 int test_wc_PKCS12_create(void);
 int test_wc_d2i_PKCS12_bad_mac_salt(void);
+int test_wc_d2i_PKCS12_oid_underflow(void);
 
 #define TEST_PKCS12_DECLS                                       \
     TEST_DECL_GROUP("pkcs12", test_wc_i2d_PKCS12),              \
-    TEST_DECL_GROUP("pkcs12", test_wc_PKCS12_create),            \
-    TEST_DECL_GROUP("pkcs12", test_wc_d2i_PKCS12_bad_mac_salt)
+    TEST_DECL_GROUP("pkcs12", test_wc_PKCS12_create),           \
+    TEST_DECL_GROUP("pkcs12", test_wc_d2i_PKCS12_bad_mac_salt), \
+    TEST_DECL_GROUP("pkcs12", test_wc_d2i_PKCS12_oid_underflow)
 
 #endif /* WOLFCRYPT_TEST_PKCS12_H */
