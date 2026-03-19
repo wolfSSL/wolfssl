@@ -159,6 +159,12 @@
     #include "wolfssl/internal.h"
 #endif
 
+#if defined(WOLFSSL_SNIFFER) && defined(WOLFSSL_SNIFFER_CHAIN_INPUT)
+    #include <wolfssl/sniffer.h>
+    #include <wolfssl/sniffer_error.h>
+    #include <sys/uio.h>
+#endif
+
 /* include misc.c here regardless of NO_INLINE, because misc.c implementations
  * have default (hidden) visibility, and in the absence of visibility, it's
  * benign to mask out the library implementation.
@@ -33786,6 +33792,46 @@ int test_wc_LmsKey_reload_cache(void)
     return EXPECT_RESULT();
 }
 
+#if defined(WOLFSSL_SNIFFER) && defined(WOLFSSL_SNIFFER_CHAIN_INPUT)
+static int test_sniffer_chain_input_overflow(void)
+{
+    EXPECT_DECLS;
+    struct iovec chain[3];
+    byte* data = NULL;
+    char error[WOLFSSL_MAX_ERROR_SZ];
+    int ret;
+    byte dummy[1] = {0};
+
+    /* Test 1: iov_len values that sum to more than INT_MAX.
+     * Before the fix, these size_t values would be truncated when accumulated
+     * into an int, causing an undersized allocation followed by an oversized
+     * copy (heap buffer overflow). After the fix, the function should detect
+     * the overflow and return an error without allocating or copying. */
+    chain[0].iov_base = dummy;
+    chain[0].iov_len  = (size_t)0x80000000UL; /* 2GB */
+    chain[1].iov_base = dummy;
+    chain[1].iov_len  = (size_t)0x80000000UL; /* 2GB */
+    chain[2].iov_base = dummy;
+    chain[2].iov_len  = (size_t)0x80000000UL; /* 2GB */
+
+    XMEMSET(error, 0, sizeof(error));
+    ret = ssl_DecodePacketWithChain(chain, 3, &data, error);
+    ExpectIntEQ(ret, WOLFSSL_SNIFFER_ERROR);
+
+    /* Test 2: total exactly at INT_MAX boundary should also be rejected since
+     * it would require a ~2GB allocation that is unreasonable for a packet. */
+    chain[0].iov_len = (size_t)0x7FFFFFFFUL; /* INT_MAX */
+    chain[1].iov_len = (size_t)1;
+    chain[2].iov_len = (size_t)0;
+
+    XMEMSET(error, 0, sizeof(error));
+    ret = ssl_DecodePacketWithChain(chain, 2, &data, error);
+    ExpectIntEQ(ret, WOLFSSL_SNIFFER_ERROR);
+
+    return EXPECT_RESULT();
+}
+#endif /* WOLFSSL_SNIFFER && WOLFSSL_SNIFFER_CHAIN_INPUT */
+
 TEST_CASE testCases[] = {
     TEST_DECL(test_fileAccess),
 
@@ -34591,6 +34637,11 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_ocsp_responder),
     TEST_TLS_DECLS,
     TEST_DECL(test_wc_DhSetNamedKey),
+
+#if defined(WOLFSSL_SNIFFER) && defined(WOLFSSL_SNIFFER_CHAIN_INPUT)
+    TEST_DECL(test_sniffer_chain_input_overflow),
+#endif
+
     /* This test needs to stay at the end to clean up any caches allocated. */
     TEST_DECL(test_wolfSSL_Cleanup)
 };
