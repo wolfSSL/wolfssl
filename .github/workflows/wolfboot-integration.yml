@@ -18,13 +18,13 @@ env:
 jobs:
   keytools:
     name: keytools
-    if: github.repository_owner == 'wolfssl'
+    if: toLower(github.repository_owner) == 'wolfssl'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
 
     steps:
       - name: Checkout wolfSSL
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
 
       - name: Clone wolfBoot and link tested wolfSSL
         run: |
@@ -109,13 +109,13 @@ jobs:
 
   renode_config_selection:
     name: renode-config-selection
-    if: github.repository_owner == 'wolfssl'
+    if: toLower(github.repository_owner) == 'wolfssl'
     runs-on: ubuntu-24.04
     timeout-minutes: 35
 
     steps:
       - name: Checkout wolfSSL
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
 
       - name: Clone wolfBoot and link tested wolfSSL
         run: |
@@ -154,6 +154,7 @@ jobs:
               --rm \
               --log-driver=none -a stdout -a stderr \
               --volume "$PWD:/workspace" \
+              --volume "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:ro" \
               --volume "$result_dir:/tmp/test_results" \
               --env SCRIPT=/workspace/renode-config.resc \
               --env RENODE_CHECKOUT=/home/developer/renode \
@@ -195,22 +196,15 @@ jobs:
           run_case ecc256-smallstack-fastmath "SIGN=ECC256 WOLFBOOT_SMALL_STACK=1 SPMATH=0"
           run_case rsa2048-smallstack-fastmath "SIGN=RSA2048 WOLFBOOT_SMALL_STACK=1 SPMATH=0"
 
-      - name: Upload Renode logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: wolfboot-renode-config-selection
-          path: wolfboot/test_results/
-
   host_smoke:
     name: host-smoke
-    if: github.repository_owner == 'wolfssl'
+    if: toLower(github.repository_owner) == 'wolfssl'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
 
     steps:
       - name: Checkout wolfSSL
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
 
       - name: Clone wolfBoot and link tested wolfSSL
         run: |
@@ -237,8 +231,14 @@ jobs:
           ./tools/keytools/sign --ed25519 --sha256 test.bin wolfboot_signing_private_key.der 1
 
           make test-lib SIGN=ED25519 HASH=SHA256
-          ./test-lib test_v1_signed.bin
-          ./test-lib test_v1_signed.bin 2>&1 | grep "Firmware Valid"
+          success_output=$(./test-lib test_v1_signed.bin 2>&1)
+          success_status=$?
+          printf '%s\n' "$success_output"
+          if [ "$success_status" -ne 0 ]; then
+            echo "Expected success, but test-lib failed"
+            exit 1
+          fi
+          printf '%s\n' "$success_output" | grep -F "Firmware Valid" >/dev/null
 
           truncate -s -1 test_v1_signed.bin
           printf 'A' >> test_v1_signed.bin
