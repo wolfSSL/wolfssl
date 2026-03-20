@@ -50,6 +50,12 @@ jobs:
     timeout-minutes: 4
     needs: build_wolfssl
     steps:
+      - name: Checkout wolfSSL CI actions
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/actions
+          fetch-depth: 1
+
       - name: Download lib
         uses: actions/download-artifact@v4
         with:
@@ -65,10 +71,9 @@ jobs:
           path: osp
 
       - name: Install dependencies
-        run: |
-            export DEBIAN_FRONTEND=noninteractive
-            sudo apt-get update
-            sudo apt-get install -y build-essential libev-dev libssl-dev automake python3-docutils libcunit1 libcunit1-doc libcunit1-dev pkg-config make python3-psutil
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: build-essential libev-dev libssl-dev automake python3-docutils libcunit1 libcunit1-doc libcunit1-dev pkg-config make python3-psutil
 
       - name: Checkout mosquitto
         uses: actions/checkout@v4

@@ -52,6 +52,12 @@ jobs:
     timeout-minutes: 10
     needs: build_wolfssl
     steps:
+      - name: Checkout wolfSSL CI actions
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/actions
+          fetch-depth: 1
+
       - name: Download lib
         uses: actions/download-artifact@v4
         with:
@@ -61,12 +67,9 @@ jobs:
         run: tar -xf build-dir.tgz
 
       - name: Install dependencies
-        run: |
-          # Don't prompt for anything
-          export DEBIAN_FRONTEND=noninteractive
-          sudo apt-get update
-          # hostap dependencies
-          sudo apt-get install -y libuv1-dev libnghttp2-dev libcap-dev libcmocka-dev liburcu-dev
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: libuv1-dev libnghttp2-dev libcap-dev libcmocka-dev liburcu-dev
 
       - name: Checkout OSP
         uses: actions/checkout@v4
