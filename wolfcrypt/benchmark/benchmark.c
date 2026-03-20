@@ -15477,9 +15477,9 @@ void bench_dilithiumKeySign(byte level)
     }
 #endif
 
-    ret = wc_dilithium_init(key);
+    ret = wc_dilithium_init_ex(key, HEAP_HINT, devId);
     if (ret != 0) {
-        printf("wc_dilithium_init failed %d\n", ret);
+        printf("wc_dilithium_init_ex failed %d\n", ret);
         goto out;
     }
 
