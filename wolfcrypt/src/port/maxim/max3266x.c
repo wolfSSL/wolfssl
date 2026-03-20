@@ -808,14 +808,12 @@ int wc_MXC_TPU_SHA_Copy(void* src, void* dst, word32 ctxSz,
                                 byte** dstMsg, word32* dstUsed, word32* dstLen,
                                 void* dstHeap, void* srcHeap)
 {
-    byte* srcBuf;
+    byte* srcBuf = NULL;
 
     if (src == NULL || dst == NULL || dstMsg == NULL ||
         dstUsed == NULL || dstLen == NULL || ctxSz == 0) {
         return BAD_FUNC_ARG;
     }
-
-    srcBuf = *dstMsg;
 
     /* Free existing dst msg buffer using dst's original heap */
     wc_MXC_TPU_SHA_Free(dstMsg, dstUsed, dstLen, dstHeap);
@@ -823,8 +821,13 @@ int wc_MXC_TPU_SHA_Copy(void* src, void* dst, word32 ctxSz,
     /* Shallow copy the full context struct */
     XMEMCPY(dst, src, ctxSz);
 
-    /* Deep copy src msg buffer if present, allocate using src's heap */
-    if (srcBuf != NULL) {
+    /* Deep copy src msg buffer if present. Since dstMsg points into the dst
+     * struct, the XMEMCPY above overwrites it with the src's msg pointer.
+     * Save that pointer, allocate a new buffer for dst, and copy the data.
+     * Do NOT move srcBuf assignment before XMEMCPY - it must capture the
+     * src msg pointer that lands in *dstMsg after the shallow copy. */
+    if (*dstMsg != NULL) {
+        srcBuf = *dstMsg;
         *dstMsg = (byte*)XMALLOC(*dstLen, srcHeap, DYNAMIC_TYPE_TMP_BUFFER);
         if (*dstMsg == NULL) {
             return MEMORY_E;
