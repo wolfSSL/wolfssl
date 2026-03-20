@@ -6808,15 +6808,18 @@ int DecodeObjectId(const byte* in, word32 inSz, word16* out, word32* outSz)
         t = (t << 7) | (in[x] & 0x7F);
         cnt++;
         if (!(in[x] & 0x80)) {
-            if (y >= (int)*outSz) {
-                return BUFFER_E;
-            }
             if (y == 0) {
+                if ((int)*outSz < 2) {
+                    return BUFFER_E;
+                }
                 out[0] = (word16)(t / 40);
                 out[1] = (word16)(t % 40);
                 y = 2;
             }
             else {
+                if (y >= (int)*outSz) {
+                    return BUFFER_E;
+                }
                 out[y++] = (word16)t;
             }
             t = 0; /* reset tmp */
@@ -6913,7 +6916,7 @@ static int DumpOID(const byte* oidData, word32 oidSz, word32 oid,
     #ifdef HAVE_OID_DECODING
     {
         word16 decOid[MAX_OID_SZ];
-        word32 decOidSz = sizeof(decOid);
+        word32 decOidSz = MAX_OID_SZ;
         /* Decode the OID into dotted form. */
         ret = DecodeObjectId(oidData, oidSz, decOid, &decOidSz);
         if (ret == 0) {
@@ -24084,7 +24087,7 @@ end:
             if (isUnknownExt && (cert->unknownExtCallback != NULL ||
                                  cert->unknownExtCallbackEx != NULL)) {
                 word16 decOid[MAX_OID_SZ];
-                word32 decOidSz = sizeof(decOid);
+                word32 decOidSz = MAX_OID_SZ;
                 ret = DecodeObjectId(
                           dataASN[CERTEXTASN_IDX_OID].data.oid.data,
                           dataASN[CERTEXTASN_IDX_OID].data.oid.length,
