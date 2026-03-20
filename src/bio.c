@@ -2028,6 +2028,13 @@ void* wolfSSL_BIO_get_data(WOLFSSL_BIO* bio)
     return NULL;
 }
 
+void wolfSSL_BIO_set_init(WOLFSSL_BIO* bio, int init)
+{
+    WOLFSSL_ENTER("wolfSSL_BIO_set_init");
+    if (bio != NULL)
+        bio->init = (byte)(init != 0);
+}
+
 /* If flag is 0 then blocking is set, if 1 then non blocking.
  * Always returns WOLFSSL_SUCCESS.
  */
@@ -3634,15 +3641,6 @@ int wolfSSL_BIO_new_bio_pair(WOLFSSL_BIO **bio1_p, size_t writebuf1,
 #endif
 
 #ifdef OPENSSL_ALL
-
-#ifndef NO_WOLFSSL_STUB
-void wolfSSL_BIO_set_init(WOLFSSL_BIO* bio, int init)
-{
-    WOLFSSL_STUB("wolfSSL_BIO_set_init");
-    (void)bio;
-    (void)init;
-}
-#endif /* NO_WOLFSSL_STUB */
 
 void wolfSSL_BIO_set_shutdown(WOLFSSL_BIO* bio, int shut)
 {
