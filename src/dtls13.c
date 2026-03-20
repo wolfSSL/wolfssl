@@ -2039,13 +2039,13 @@ int Dtls13HandshakeSend(WOLFSSL* ssl, byte* message, word16 outputSize,
 #ifdef HAVE_WRITE_DUP
         /* Notify the read side so it can watch for the ACK on our behalf. */
         if (ssl->dupWrite != NULL && ssl->dupSide == WRITE_DUP_SIDE) {
-            if (wc_LockMutex(&ssl->dupWrite->dupMutex) == 0) {
-                ssl->dupWrite->keyUpdateEpoch = ssl->dtls13Epoch;
-                ssl->dupWrite->keyUpdateSeq =
-                    ssl->dtls13EncryptEpoch->nextSeqNumber;
-                ssl->dupWrite->keyUpdateWaiting = 1;
-                wc_UnLockMutex(&ssl->dupWrite->dupMutex);
-            }
+            if (wc_LockMutex(&ssl->dupWrite->dupMutex) != 0)
+                return BAD_MUTEX_E;
+            ssl->dupWrite->keyUpdateEpoch = ssl->dtls13Epoch;
+            ssl->dupWrite->keyUpdateSeq =
+                ssl->dtls13EncryptEpoch->nextSeqNumber;
+            ssl->dupWrite->keyUpdateWaiting = 1;
+            wc_UnLockMutex(&ssl->dupWrite->dupMutex);
         }
 #endif /* HAVE_WRITE_DUP */
     }
@@ -2723,16 +2723,16 @@ int Dtls13DoScheduledWork(WOLFSSL* ssl)
         /* The read side cannot encrypt.  Transfer the seenRecords list to the
          * shared WriteDup struct so the write side sends the ACK instead. */
         if (ssl->dupWrite != NULL && ssl->dupSide == READ_DUP_SIDE) {
-            if (wc_LockMutex(&ssl->dupWrite->dupMutex) == 0) {
-                struct Dtls13RecordNumber** tail =
-                    (struct Dtls13RecordNumber**)&ssl->dupWrite->sendAckList;
-                while (*tail != NULL)
-                    tail = &(*tail)->next;
-                *tail = ssl->dtls13Rtx.seenRecords;
-                ssl->dtls13Rtx.seenRecords = NULL;
-                ssl->dupWrite->sendAcks = 1;
-                wc_UnLockMutex(&ssl->dupWrite->dupMutex);
-            }
+            struct Dtls13RecordNumber** tail = NULL;
+            if (wc_LockMutex(&ssl->dupWrite->dupMutex) != 0)
+                return BAD_MUTEX_E;
+            tail = (struct Dtls13RecordNumber**)&ssl->dupWrite->sendAckList;
+            while (*tail != NULL)
+                tail = &(*tail)->next;
+            *tail = ssl->dtls13Rtx.seenRecords;
+            ssl->dtls13Rtx.seenRecords = NULL;
+            ssl->dupWrite->sendAcks = 1;
+            wc_UnLockMutex(&ssl->dupWrite->dupMutex);
         }
         else
 #endif /* HAVE_WRITE_DUP */
@@ -2861,15 +2861,15 @@ int DoDtls13Ack(WOLFSSL* ssl, const byte* input, word32 inputSize,
          * Match on both epoch AND seq to avoid false positives from data records
          * in the same epoch (sent while dtls13WaitKeyUpdateAck == 1). */
         if (ssl->dupWrite != NULL && ssl->dupSide == READ_DUP_SIDE) {
-            if (wc_LockMutex(&ssl->dupWrite->dupMutex) == 0) {
-                if (ssl->dupWrite->keyUpdateWaiting &&
-                        w64Equal(epoch, ssl->dupWrite->keyUpdateEpoch) &&
-                        w64Equal(seq,   ssl->dupWrite->keyUpdateSeq)) {
-                    ssl->dupWrite->keyUpdateAcked = 1;
-                    ssl->dupWrite->keyUpdateWaiting = 0;
-                }
-                wc_UnLockMutex(&ssl->dupWrite->dupMutex);
+            if (wc_LockMutex(&ssl->dupWrite->dupMutex) != 0)
+                return BAD_MUTEX_E;
+            if (ssl->dupWrite->keyUpdateWaiting &&
+                    w64Equal(epoch, ssl->dupWrite->keyUpdateEpoch) &&
+                    w64Equal(seq,   ssl->dupWrite->keyUpdateSeq)) {
+                ssl->dupWrite->keyUpdateAcked = 1;
+                ssl->dupWrite->keyUpdateWaiting = 0;
             }
+            wc_UnLockMutex(&ssl->dupWrite->dupMutex);
         }
 #endif /* HAVE_WRITE_DUP */
     }
