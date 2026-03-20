@@ -15,11 +15,10 @@ jobs:
 # pull wolfSSL
     - uses: actions/checkout@v4
 
-# install cmake
     - name: Install cmake
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y cmake
+      uses: ./.github/actions/install-apt-deps
+      with:
+        packages: cmake
 
 # build wolfssl
     - name: Build wolfssl

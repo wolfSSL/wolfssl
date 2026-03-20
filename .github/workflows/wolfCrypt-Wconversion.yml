@@ -39,11 +39,10 @@ jobs:
       - uses: actions/checkout@v4
         name: Checkout wolfSSL
 
-      - name: install_multilib
-        run: |
-          export DEBIAN_FRONTEND=noninteractive
-          sudo apt-get update
-          sudo apt-get install -y gcc-multilib
+      - name: Install multilib
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: gcc-multilib
 
       - name: Build wolfCrypt with extra type conversion warnings
         run: |

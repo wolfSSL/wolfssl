@@ -50,6 +50,12 @@ jobs:
     timeout-minutes: 10
     needs: build_wolfssl
     steps:
+      - name: Checkout wolfSSL CI actions
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/actions
+          fetch-depth: 1
+
       - name: Download lib
         uses: actions/download-artifact@v4
         with:
@@ -65,11 +71,9 @@ jobs:
           path: osp
 
       - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            autoconf automake libtool pkg-config gettext \
-            libidn2-dev libsecret-1-dev autopoint
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: autoconf automake libtool pkg-config gettext libidn2-dev libsecret-1-dev autopoint
 
       - name: Checkout msmtp
         uses: actions/checkout@v4

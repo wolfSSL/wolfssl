@@ -52,12 +52,16 @@ jobs:
     timeout-minutes: 4
     needs: build_wolfssl
     steps:
+      - name: Checkout wolfSSL CI actions
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/actions
+          fetch-depth: 1
+
       - name: Install dependencies
-        run: |
-          # Don't prompt for anything
-          export DEBIAN_FRONTEND=noninteractive
-          sudo apt-get update
-          sudo apt-get install -y libcurl4-openssl-dev libjansson-dev libp11-dev librtlsdr-dev libcap-dev
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: libcurl4-openssl-dev libjansson-dev libp11-dev librtlsdr-dev libcap-dev
 
       - name: Download lib
         uses: actions/download-artifact@v4

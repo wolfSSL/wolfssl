@@ -51,6 +51,12 @@ jobs:
     timeout-minutes: 10
     needs: build_wolfssl
     steps:
+      - name: Checkout wolfSSL CI actions
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/actions
+          fetch-depth: 1
+
       - name: Download lib
         uses: actions/download-artifact@v4
         with:
@@ -60,11 +66,9 @@ jobs:
         run: tar -xf build-dir.tgz
 
       - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install liblzo2-dev libpam0g-dev liblz4-dev libcap-ng-dev \
-                     linux-libc-dev man2html libcmocka-dev python3-docutils \
-                     libtool automake autoconf libnl-genl-3-dev libnl-genl-3-200
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: liblzo2-dev libpam0g-dev liblz4-dev libcap-ng-dev linux-libc-dev man2html libcmocka-dev python3-docutils libtool automake autoconf libnl-genl-3-dev libnl-genl-3-200
 
       - name: workaround high-entropy ASLR
         # not needed after either an update to llvm or runner is done

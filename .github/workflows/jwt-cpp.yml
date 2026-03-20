@@ -54,12 +54,16 @@ jobs:
     runs-on: ${{ matrix.config.runner }}
     needs: build_wolfssl
     steps:
+      - name: Checkout wolfSSL CI actions
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/actions
+          fetch-depth: 1
+
       - name: Install dependencies
-        run: |
-          # Don't prompt for anything
-          export DEBIAN_FRONTEND=noninteractive
-          sudo apt-get update
-          sudo apt-get install libgtest-dev
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: libgtest-dev
 
       - name: Download lib
         uses: actions/download-artifact@v4

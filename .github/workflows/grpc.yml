@@ -62,9 +62,16 @@ jobs:
           ip addr list lo | grep 'inet '
           ip addr list lo | grep 'inet6 '
 
+      - name: Checkout wolfSSL CI actions
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/actions
+          fetch-depth: 1
+
       - name: Install prereqs
-        run:
-          sudo apt-get install build-essential autoconf libtool pkg-config cmake clang libc++-dev
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: build-essential autoconf libtool pkg-config cmake clang libc++-dev
 
       - name: Download lib
         uses: actions/download-artifact@v4
