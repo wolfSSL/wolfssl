@@ -157,8 +157,14 @@ void print_data(const char* name, const byte* d, int len)
 
 /******************************************************************************/
 
-/* Declare variable to make compiler not optimize code in mlkem_from_msg(). */
-volatile sword16 mlkem_opt_blocker = 0;
+/* Helper function with volatile variable, to force compiler not to optimize
+ * code in mlkem_from_msg().
+ */
+sword16 wc_mlkem_opt_blocker(void);
+sword16 wc_mlkem_opt_blocker(void) {
+    static volatile sword16 static_mlkem_opt_blocker = 0;
+    return static_mlkem_opt_blocker;
+}
 
 /******************************************************************************/
 
