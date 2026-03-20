@@ -3356,6 +3356,9 @@ WOLFSSL_API int  wolfSSL_get_chain_cert_pem(WOLFSSL_X509_CHAIN* chain, int idx,
 /* call before SSL_connect, if verifying will add name check to
    date check and signature check */
 WOLFSSL_ABI WOLFSSL_API int wolfSSL_check_domain_name(WOLFSSL* ssl, const char* dn);
+/* call before SSL_connect, if verifying will add IP address check to
+   date check and signature check */
+WOLFSSL_ABI WOLFSSL_API int wolfSSL_check_ip_address(WOLFSSL* ssl, const char* ipaddr);
 
 
 /* need to call once to load library (session cache) */

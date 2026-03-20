@@ -6433,6 +6433,37 @@ int wolfSSL_want_write(WOLFSSL* ssl);
 int wolfSSL_check_domain_name(WOLFSSL* ssl, const char* dn);
 
 /*!
+    \ingroup Setup
+
+    \brief Calling this function before wolfSSL_connect() or wolfSSL_accept()
+    adds an IP-address identity check against the peer certificate SAN
+    iPAddress entries.
+
+    \return SSL_SUCCESS upon success.
+    \return SSL_FAILURE if parameters are invalid or memory allocation fails.
+
+    \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
+    \param ipaddr NULL-terminated ASCII IP address string to verify against the
+    peer certificate.
+
+    _Example_
+    \code
+    int ret = 0;
+    WOLFSSL* ssl;
+    const char* ip = "127.0.0.1";
+    ...
+
+    ret = wolfSSL_check_ip_address(ssl, ip);
+    if (ret != SSL_SUCCESS) {
+       // failed to enable IP check
+    }
+    \endcode
+
+    \sa wolfSSL_check_domain_name
+*/
+int wolfSSL_check_ip_address(WOLFSSL* ssl, const char* ipaddr);
+
+/*!
     \ingroup TLS
 
     \brief Initializes the wolfSSL library for use.  Must be called once per

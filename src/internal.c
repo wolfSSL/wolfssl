@@ -8720,6 +8720,7 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
     FreeHandshakeHashes(ssl);
 #endif
     XFREE(ssl->buffers.domainName.buffer, ssl->heap, DYNAMIC_TYPE_DOMAIN);
+    XFREE(ssl->buffers.ipasc.buffer, ssl->heap, DYNAMIC_TYPE_DOMAIN);
 
     /* clear keys struct after session */
     ForceZero(&ssl->keys, sizeof(Keys));
@@ -16889,7 +16890,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                  (char*)ssl->buffers.domainName.buffer,
                                  (ssl->buffers.domainName.buffer == NULL ? 0 :
                                  (word32)XSTRLEN(ssl->buffers.domainName.buffer)),
-                                 NULL, 0) != 1) {
+                                 NULL, 0, 0) != 1) {
                             WOLFSSL_MSG("DomainName match failed");
                             /* try to get peer key still */
                             ret = DOMAIN_NAME_MISMATCH;
@@ -16898,6 +16899,17 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     }
                 #endif /* WOLFSSL_ALL_NO_CN_IN_SAN */
                 }
+
+#ifndef OPENSSL_EXTRA
+                if (!ssl->options.verifyNone && ssl->buffers.ipasc.buffer) {
+                    if (CheckIPAddr(args->dCert,
+                            (const char*)ssl->buffers.ipasc.buffer) != 0) {
+                        WOLFSSL_MSG("IPAddr match on alt names failed");
+                        ret = IPADDR_MISMATCH;
+                        WOLFSSL_ERROR_VERBOSE(ret);
+                    }
+                }
+#endif
 
                 /* decode peer key */
                 switch (args->dCert->keyOID) {
