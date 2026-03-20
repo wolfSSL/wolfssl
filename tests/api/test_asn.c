@@ -1092,7 +1092,7 @@ int test_wc_DecodeObjectId(void)
         }
 
         /* Test 6: Buffer too small for later arcs */
-        outSz = 3; /* only room for 3 arcs, but OID has 8 */
+        outSz = 3; /* only room for 3 arcs, but OID has 7 */
         ExpectIntEQ(DecodeObjectId(oid_sha256rsa, sizeof(oid_sha256rsa),
                                    out, &outSz),
                     WC_NO_ERR_TRACE(BUFFER_E));
