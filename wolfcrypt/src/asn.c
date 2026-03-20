@@ -26906,7 +26906,9 @@ int FillSigner(Signer* signer, DecodedCert* cert, int type, DerBuffer *der)
         signer->extKeyUsage = cert->extExtKeyUsage;
         signer->next    = NULL; /* If Key Usage not set, all uses valid. */
         cert->publicKey = 0;    /* in case lock fails don't free here.   */
+        cert->pubKeyStored = 0;
         cert->subjectCN = 0;
+        cert->subjectCNStored = 0;
     #ifndef IGNORE_NAME_CONSTRAINTS
         cert->permittedNames = NULL;
         cert->excludedNames = NULL;
