@@ -124,11 +124,11 @@ WC_OMIT_FRAME_POINTER void wc_chacha_setkey(word32* x, const byte* key,
         "STM	%[x]!, {r3, r4, r5, r6}\n\t"
         /* Next 16 bytes of key. */
 #if defined(__GNUC__)
-        "BEQ	L_chacha_thumb2_setkey_same_keyb_ytes_%=\n\t"
+        "BEQ	L_chacha_thumb2_setkey_same_key_bytes_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BEQ.N	L_chacha_thumb2_setkey_same_keyb_ytes\n\t"
+        "BEQ.N	L_chacha_thumb2_setkey_same_key_bytes\n\t"
 #else
-        "BEQ.N	L_chacha_thumb2_setkey_same_keyb_ytes_%=\n\t"
+        "BEQ.N	L_chacha_thumb2_setkey_same_key_bytes_%=\n\t"
 #endif
         /* Update key pointer for next 16 bytes. */
         "ADD	%[key], %[key], %[keySz]\n\t"
@@ -138,9 +138,9 @@ WC_OMIT_FRAME_POINTER void wc_chacha_setkey(word32* x, const byte* key,
         "LDR	r6, [%[key], #12]\n\t"
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-    "L_chacha_thumb2_setkey_same_keyb_ytes:\n\t"
+    "L_chacha_thumb2_setkey_same_key_bytes:\n\t"
 #else
-    "L_chacha_thumb2_setkey_same_keyb_ytes_%=:\n\t"
+    "L_chacha_thumb2_setkey_same_key_bytes_%=:\n\t"
 #endif
         "STM	%[x], {r3, r4, r5, r6}\n\t"
         : [x] "+r" (x), [key] "+r" (key), [keySz] "+r" (keySz),

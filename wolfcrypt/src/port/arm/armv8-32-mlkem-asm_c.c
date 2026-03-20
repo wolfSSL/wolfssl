@@ -118,7 +118,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_ntt(sword16* r)
 #else
         "movt	r10, #0xcff\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
         "mov	r2, #16\n\t"
         "\n"
     "L_mlkem_arm32_ntt_loop_123_%=: \n\t"
@@ -222,7 +222,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_ntt(sword16* r)
 #else
         "bfi	r2, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "smulbb	r12, r11, r7\n\t"
         "smulbt	r7, r11, r7\n\t"
@@ -313,7 +313,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_ntt(sword16* r)
 #else
         "bfi	r3, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "smulbb	r12, r11, r8\n\t"
         "smulbt	r8, r11, r8\n\t"
@@ -404,7 +404,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_ntt(sword16* r)
 #else
         "bfi	r4, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "smulbb	r12, r11, r9\n\t"
         "smulbt	r9, r11, r9\n\t"
@@ -495,7 +495,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_ntt(sword16* r)
 #else
         "bfi	r5, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
         "ldr	r11, [r1, #4]\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "smulbb	r12, r11, r4\n\t"
@@ -587,7 +587,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_ntt(sword16* r)
 #else
         "bfi	r2, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "smulbb	r12, r11, r5\n\t"
         "smulbt	r5, r11, r5\n\t"
@@ -678,7 +678,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_ntt(sword16* r)
 #else
         "bfi	r3, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "smultb	r12, r11, r8\n\t"
         "smultt	r8, r11, r8\n\t"
@@ -768,7 +768,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_ntt(sword16* r)
 #else
         "bfi	r6, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "smultb	r12, r11, r9\n\t"
         "smultt	r9, r11, r9\n\t"
@@ -858,7 +858,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_ntt(sword16* r)
 #else
         "bfi	r7, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
         "ldr	r11, [r1, #8]\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "smulbb	r12, r11, r3\n\t"
@@ -950,7 +950,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_ntt(sword16* r)
 #else
         "bfi	r2, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "smultb	r12, r11, r5\n\t"
         "smultt	r5, r11, r5\n\t"
@@ -1040,7 +1040,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_ntt(sword16* r)
 #else
         "bfi	r4, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
         "ldr	r11, [r1, #12]\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "smulbb	r12, r11, r7\n\t"
@@ -1132,7 +1132,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_ntt(sword16* r)
 #else
         "bfi	r6, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "smultb	r12, r11, r9\n\t"
         "smultt	r9, r11, r9\n\t"
@@ -1222,7 +1222,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_ntt(sword16* r)
 #else
         "bfi	r8, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
         "str	r2, [%[r]]\n\t"
         "str	r3, [%[r], #64]\n\t"
         "str	r4, [%[r], #128]\n\t"
@@ -1344,7 +1344,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_ntt(sword16* r)
 #else
         "bfi	r2, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "smulbb	r12, r11, r5\n\t"
         "smulbt	r5, r11, r5\n\t"
@@ -1435,7 +1435,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_ntt(sword16* r)
 #else
         "bfi	r3, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "smultb	r12, r11, r8\n\t"
         "smultt	r8, r11, r8\n\t"
@@ -1525,7 +1525,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_ntt(sword16* r)
 #else
         "bfi	r6, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "smultb	r12, r11, r9\n\t"
         "smultt	r9, r11, r9\n\t"
@@ -1615,7 +1615,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_ntt(sword16* r)
 #else
         "bfi	r7, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
         "str	r2, [%[r]]\n\t"
         "str	r3, [%[r], #16]\n\t"
         "str	r4, [%[r], #32]\n\t"
@@ -1741,7 +1741,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_ntt(sword16* r)
 #else
         "bfi	r2, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "smulbb	r12, r11, r7\n\t"
         "smulbt	r7, r11, r7\n\t"
@@ -1832,7 +1832,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_ntt(sword16* r)
 #else
         "bfi	r3, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "smulbb	r12, r11, r8\n\t"
         "smulbt	r8, r11, r8\n\t"
@@ -1923,7 +1923,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_ntt(sword16* r)
 #else
         "bfi	r4, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "smulbb	r12, r11, r9\n\t"
         "smulbt	r9, r11, r9\n\t"
@@ -2014,7 +2014,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_ntt(sword16* r)
 #else
         "bfi	r5, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
         "ldr	r11, [sp, #4]\n\t"
         "add	r11, r1, r11, lsr #2\n\t"
         "ldr	r11, [r11, #64]\n\t"
@@ -2108,7 +2108,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_ntt(sword16* r)
 #else
         "bfi	r2, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "smulbb	r12, r11, r5\n\t"
         "smulbt	r5, r11, r5\n\t"
@@ -2199,7 +2199,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_ntt(sword16* r)
 #else
         "bfi	r3, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "smultb	r12, r11, r8\n\t"
         "smultt	r8, r11, r8\n\t"
@@ -2289,7 +2289,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_ntt(sword16* r)
 #else
         "bfi	r6, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "smultb	r12, r11, r9\n\t"
         "smultt	r9, r11, r9\n\t"
@@ -2379,7 +2379,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_ntt(sword16* r)
 #else
         "bfi	r7, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
         "ldr	r11, [sp, #4]\n\t"
         "add	r11, r1, r11, lsr #1\n\t"
         "ldr	r11, [r11, #128]\n\t"
@@ -2473,7 +2473,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_ntt(sword16* r)
 #else
         "bfi	r2, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "smultb	r12, r11, r5\n\t"
         "smultt	r5, r11, r5\n\t"
@@ -2563,7 +2563,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_ntt(sword16* r)
 #else
         "bfi	r4, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
         "ldr	r11, [sp, #4]\n\t"
         "add	r11, r1, r11, lsr #1\n\t"
         "ldr	r11, [r11, #132]\n\t"
@@ -2657,7 +2657,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_ntt(sword16* r)
 #else
         "bfi	r6, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "smultb	r12, r11, r9\n\t"
         "smultt	r9, r11, r9\n\t"
@@ -2747,7 +2747,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_ntt(sword16* r)
 #else
         "bfi	r8, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "mov	r11, #0xc0\n\t"
@@ -2773,7 +2773,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_ntt(sword16* r)
 #else
         "mov	r10, #0xd01\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "smulwb	r12, r11, r2\n\t"
         "smulwt	lr, r11, r2\n\t"
@@ -2809,7 +2809,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_ntt(sword16* r)
 #else
         "bfi	r2, lr, #16, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "smulwb	r12, r11, r3\n\t"
         "smulwt	lr, r11, r3\n\t"
@@ -2845,7 +2845,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_ntt(sword16* r)
 #else
         "bfi	r3, lr, #16, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "smulwb	r12, r11, r4\n\t"
         "smulwt	lr, r11, r4\n\t"
@@ -2881,7 +2881,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_ntt(sword16* r)
 #else
         "bfi	r4, lr, #16, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "smulwb	r12, r11, r5\n\t"
         "smulwt	lr, r11, r5\n\t"
@@ -2917,7 +2917,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_ntt(sword16* r)
 #else
         "bfi	r5, lr, #16, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "smulwb	r12, r11, r6\n\t"
         "smulwt	lr, r11, r6\n\t"
@@ -2953,7 +2953,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_ntt(sword16* r)
 #else
         "bfi	r6, lr, #16, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "smulwb	r12, r11, r7\n\t"
         "smulwt	lr, r11, r7\n\t"
@@ -2989,7 +2989,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_ntt(sword16* r)
 #else
         "bfi	r7, lr, #16, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "smulwb	r12, r11, r8\n\t"
         "smulwt	lr, r11, r8\n\t"
@@ -3025,7 +3025,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_ntt(sword16* r)
 #else
         "bfi	r8, lr, #16, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "smulwb	r12, r11, r9\n\t"
         "smulwt	lr, r11, r9\n\t"
@@ -3061,7 +3061,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_ntt(sword16* r)
 #else
         "bfi	r9, lr, #16, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "mov	r10, #0x1\n\t"
@@ -3075,7 +3075,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_ntt(sword16* r)
 #else
         "movt	r10, #0xcff\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
         "str	r2, [%[r]]\n\t"
         "str	r3, [%[r], #4]\n\t"
         "str	r4, [%[r], #8]\n\t"
@@ -3170,7 +3170,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #else
         "movt	r10, #0xcff\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
         "mov	r3, #0\n\t"
         "\n"
     "L_mlkem_invntt_loop_765_%=: \n\t"
@@ -3301,7 +3301,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #else
         "bfi	r3, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "ssub16	r12, r4, r5\n\t"
         "sadd16	r4, r4, r5\n\t"
@@ -3417,7 +3417,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #else
         "bfi	r5, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
         "ldr	r11, [sp, #4]\n\t"
         "add	r11, r1, r11, lsr #1\n\t"
         "ldr	r11, [r11, #4]\n\t"
@@ -3537,7 +3537,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #else
         "bfi	r7, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "ssub16	r12, r8, r9\n\t"
         "sadd16	r8, r8, r9\n\t"
@@ -3653,7 +3653,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #else
         "bfi	r9, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
         "ldr	r11, [sp, #4]\n\t"
         "add	r11, r1, r11, lsr #2\n\t"
         "ldr	r11, [r11, #128]\n\t"
@@ -3773,7 +3773,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #else
         "bfi	r4, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "ssub16	r12, r3, r5\n\t"
         "sadd16	r3, r3, r5\n\t"
@@ -3890,7 +3890,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #else
         "bfi	r5, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "ssub16	r12, r6, r8\n\t"
         "sadd16	r6, r6, r8\n\t"
@@ -4006,7 +4006,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #else
         "bfi	r8, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "ssub16	r12, r7, r9\n\t"
         "sadd16	r7, r7, r9\n\t"
@@ -4122,7 +4122,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #else
         "bfi	r9, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
         "ldr	r11, [sp, #4]\n\t"
         "add	r11, r1, r11, lsr #3\n\t"
         "ldr	r11, [r11, #192]\n\t"
@@ -4242,7 +4242,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #else
         "bfi	r6, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "ssub16	r12, r3, r7\n\t"
         "sadd16	r3, r3, r7\n\t"
@@ -4359,7 +4359,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #else
         "bfi	r7, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "ssub16	r12, r4, r8\n\t"
         "sadd16	r4, r4, r8\n\t"
@@ -4476,7 +4476,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #else
         "bfi	r8, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "ssub16	r12, r5, r9\n\t"
         "sadd16	r5, r5, r9\n\t"
@@ -4593,7 +4593,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #else
         "bfi	r9, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "mov	r11, #0xc0\n\t"
@@ -4613,7 +4613,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #else
         "mov	r11, #0x4ebf\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "smulwb	r12, r11, r2\n\t"
         "smulwt	lr, r11, r2\n\t"
@@ -4649,7 +4649,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #else
         "bfi	r2, lr, #16, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "smulwb	r12, r11, r3\n\t"
         "smulwt	lr, r11, r3\n\t"
@@ -4685,7 +4685,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #else
         "bfi	r3, lr, #16, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "smulwb	r12, r11, r4\n\t"
         "smulwt	lr, r11, r4\n\t"
@@ -4721,7 +4721,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #else
         "bfi	r4, lr, #16, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "smulwb	r12, r11, r5\n\t"
         "smulwt	lr, r11, r5\n\t"
@@ -4757,7 +4757,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #else
         "bfi	r5, lr, #16, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
         "str	r2, [%[r]]\n\t"
         "str	r3, [%[r], #4]\n\t"
         "str	r4, [%[r], #8]\n\t"
@@ -4906,7 +4906,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #else
         "bfi	r4, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "ssub16	r12, r3, r5\n\t"
         "sadd16	r3, r3, r5\n\t"
@@ -5023,7 +5023,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #else
         "bfi	r5, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "ssub16	r12, r6, r8\n\t"
         "sadd16	r6, r6, r8\n\t"
@@ -5139,7 +5139,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #else
         "bfi	r8, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "ssub16	r12, r7, r9\n\t"
         "sadd16	r7, r7, r9\n\t"
@@ -5255,7 +5255,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #else
         "bfi	r9, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
         "str	r2, [%[r]]\n\t"
         "str	r3, [%[r], #16]\n\t"
         "str	r4, [%[r], #32]\n\t"
@@ -5407,7 +5407,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #else
         "bfi	r3, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "ssub16	r12, r4, r5\n\t"
         "sadd16	r4, r4, r5\n\t"
@@ -5523,7 +5523,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #else
         "bfi	r5, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
         "ldr	r11, [r1, #244]\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "ssub16	r12, r6, r7\n\t"
@@ -5641,7 +5641,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #else
         "bfi	r7, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "ssub16	r12, r8, r9\n\t"
         "sadd16	r8, r8, r9\n\t"
@@ -5757,7 +5757,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #else
         "bfi	r9, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
         "ldr	r11, [r1, #248]\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "ssub16	r12, r2, r4\n\t"
@@ -5875,7 +5875,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #else
         "bfi	r4, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "ssub16	r12, r3, r5\n\t"
         "sadd16	r3, r3, r5\n\t"
@@ -5992,7 +5992,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #else
         "bfi	r5, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "ssub16	r12, r6, r8\n\t"
         "sadd16	r6, r6, r8\n\t"
@@ -6108,7 +6108,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #else
         "bfi	r8, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "ssub16	r12, r7, r9\n\t"
         "sadd16	r7, r7, r9\n\t"
@@ -6224,7 +6224,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #else
         "bfi	r9, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "mov	r11, #0xc0\n\t"
@@ -6244,7 +6244,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #else
         "mov	r11, #0x4ebf\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "smulwb	r12, r11, r2\n\t"
         "smulwt	lr, r11, r2\n\t"
@@ -6280,7 +6280,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #else
         "bfi	r2, lr, #16, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "smulwb	r12, r11, r3\n\t"
         "smulwt	lr, r11, r3\n\t"
@@ -6316,7 +6316,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #else
         "bfi	r3, lr, #16, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "smulwb	r12, r11, r4\n\t"
         "smulwt	lr, r11, r4\n\t"
@@ -6352,7 +6352,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #else
         "bfi	r4, lr, #16, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "smulwb	r12, r11, r5\n\t"
         "smulwt	lr, r11, r5\n\t"
@@ -6388,7 +6388,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #else
         "bfi	r5, lr, #16, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
         "ldr	r11, [r1, #252]\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "ssub16	r12, r2, r6\n\t"
@@ -6506,7 +6506,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #else
         "bfi	r6, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "ssub16	r12, r3, r7\n\t"
         "sadd16	r3, r3, r7\n\t"
@@ -6623,7 +6623,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #else
         "bfi	r7, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "ssub16	r12, r4, r8\n\t"
         "sadd16	r4, r4, r8\n\t"
@@ -6740,7 +6740,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #else
         "bfi	r8, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "ssub16	r12, r5, r9\n\t"
         "sadd16	r5, r5, r9\n\t"
@@ -6857,7 +6857,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #else
         "bfi	r9, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
         "ldr	r11, [r1, #254]\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "smulbb	r12, r11, r2\n\t"
@@ -6941,7 +6941,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #else
         "bfi	r2, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "smulbb	r12, r11, r3\n\t"
         "smulbt	r3, r11, r3\n\t"
@@ -7024,7 +7024,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #else
         "bfi	r3, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "smulbb	r12, r11, r4\n\t"
         "smulbt	r4, r11, r4\n\t"
@@ -7107,7 +7107,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #else
         "bfi	r4, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "smulbb	r12, r11, r5\n\t"
         "smulbt	r5, r11, r5\n\t"
@@ -7190,7 +7190,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #else
         "bfi	r5, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "smulbb	r12, r11, r6\n\t"
         "smulbt	r6, r11, r6\n\t"
@@ -7273,7 +7273,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #else
         "bfi	r6, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "smulbb	r12, r11, r7\n\t"
         "smulbt	r7, r11, r7\n\t"
@@ -7356,7 +7356,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #else
         "bfi	r7, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "smulbb	r12, r11, r8\n\t"
         "smulbt	r8, r11, r8\n\t"
@@ -7439,7 +7439,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #else
         "bfi	r8, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "smulbb	r12, r11, r9\n\t"
         "smulbt	r9, r11, r9\n\t"
@@ -7522,7 +7522,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #else
         "bfi	r9, r12, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
         "str	r2, [%[r]]\n\t"
         "str	r3, [%[r], #64]\n\t"
         "str	r4, [%[r], #128]\n\t"
@@ -7620,7 +7620,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_basemul_mont(sword16* r,
 #else
         "movt	r12, #0xcff\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
         "mov	r8, #0\n\t"
         "\n"
     "L_mlkem_basemul_mont_loop_%=: \n\t"
@@ -7872,7 +7872,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_basemul_mont(sword16* r,
 #endif
         "orr	r4, r9, r8, lsr #16\n\t"
         "orr	r5, r11, r10, lsr #16\n\t"
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
         "stm	%[r]!, {r4, r5}\n\t"
         "pop	{r8}\n\t"
         "bne	L_mlkem_basemul_mont_loop_%=\n\t"
@@ -7925,7 +7925,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_basemul_mont_add(sword16* r,
 #else
         "movt	r12, #0xcff\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
         "mov	r8, #0\n\t"
         "\n"
     "L_mlkem_arm32_basemul_mont_add_loop_%=: \n\t"
@@ -8211,7 +8211,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_basemul_mont_add(sword16* r,
 #else
         "bfi	r5, r10, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
         "stm	%[r]!, {r4, r5}\n\t"
         "pop	{r8}\n\t"
         "bne	L_mlkem_arm32_basemul_mont_add_loop_%=\n\t"
@@ -8264,7 +8264,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_csubq(sword16* p)
 #else
         "movt	lr, #0xd01\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
         "mov	r11, #0x8000\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "orr	r11, r11, #0x80000000\n\t"
@@ -8405,7 +8405,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_csubq(sword16* p)
 #else
         "bfi	r5, r10, #0, #16\n\t"
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
         "stm	%[p]!, {r2, r3, r4, r5}\n\t"
         "subs	r1, r1, #8\n\t"
         "bne	L_mlkem_arm32_csubq_loop_%=\n\t"

@@ -134,7 +134,7 @@ WC_OMIT_FRAME_POINTER void wc_chacha_setkey(word32* x, const byte* key,
 #endif /* BIG_ENDIAN_ORDER */
         "stm	%[x]!, {r4, r5, r12, lr}\n\t"
         /* Next 16 bytes of key. */
-        "beq	L_chacha_arm32_setkey_same_keyb_ytes_%=\n\t"
+        "beq	L_chacha_arm32_setkey_same_key_bytes_%=\n\t"
         /* Update key pointer for next 16 bytes. */
         "add	%[key], %[key], %[keySz]\n\t"
         "ldr	r4, [%[key]]\n\t"
@@ -142,7 +142,7 @@ WC_OMIT_FRAME_POINTER void wc_chacha_setkey(word32* x, const byte* key,
         "ldr	r12, [%[key], #8]\n\t"
         "ldr	lr, [%[key], #12]\n\t"
         "\n"
-    "L_chacha_arm32_setkey_same_keyb_ytes_%=: \n\t"
+    "L_chacha_arm32_setkey_same_key_bytes_%=: \n\t"
         "stm	%[x], {r4, r5, r12, lr}\n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [x] "+r" (x), [key] "+r" (key), [keySz] "+r" (keySz),
@@ -693,11 +693,11 @@ WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
         "ror	r11, r11, #16\n\t"
         "veor	q7, q7, q4\n\t"
         "add	r8, r8, r10\n\t"
-        "vrev32.i16	q15, q15\n\t"
+        "vrev32.16	q15, q15\n\t"
         "add	r9, r9, r11\n\t"
-        "vrev32.i16	q3, q3\n\t"
+        "vrev32.16	q3, q3\n\t"
         "eor	r4, r4, r8\n\t"
-        "vrev32.i16	q7, q7\n\t"
+        "vrev32.16	q7, q7\n\t"
         "eor	r5, r5, r9\n\t"
         /* c += d; b ^= c; b <<<= 12; */
         "vadd.i32	q14, q14, q15\n\t"
@@ -806,11 +806,11 @@ WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
         "ror	r10, r10, #16\n\t"
         "veor	q7, q7, q4\n\t"
         "add	r8, r8, r11\n\t"
-        "vrev32.i16	q15, q15\n\t"
+        "vrev32.16	q15, q15\n\t"
         "add	r9, r9, r10\n\t"
-        "vrev32.i16	q3, q3\n\t"
+        "vrev32.16	q3, q3\n\t"
         "eor	r5, r5, r8\n\t"
-        "vrev32.i16	q7, q7\n\t"
+        "vrev32.16	q7, q7\n\t"
         "eor	r6, r6, r9\n\t"
         /* c += d; b ^= c; b <<<= 12; */
         "vadd.i32	q14, q14, q15\n\t"
@@ -1014,8 +1014,8 @@ WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
         "vadd.i32	q4, q4, q5\n\t"
         "veor	q3, q3, q0\n\t"
         "veor	q7, q7, q4\n\t"
-        "vrev32.i16	q3, q3\n\t"
-        "vrev32.i16	q7, q7\n\t"
+        "vrev32.16	q3, q3\n\t"
+        "vrev32.16	q7, q7\n\t"
         /* c += d; b ^= c; b <<<= 12; */
         "vadd.i32	q2, q2, q3\n\t"
         "vadd.i32	q6, q6, q7\n\t"
@@ -1055,8 +1055,8 @@ WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
         "vadd.i32	q4, q4, q5\n\t"
         "veor	q3, q3, q0\n\t"
         "veor	q7, q7, q4\n\t"
-        "vrev32.i16	q3, q3\n\t"
-        "vrev32.i16	q7, q7\n\t"
+        "vrev32.16	q3, q3\n\t"
+        "vrev32.16	q7, q7\n\t"
         /* c += d; b ^= c; b <<<= 12; */
         "vadd.i32	q2, q2, q3\n\t"
         "vadd.i32	q6, q6, q7\n\t"
@@ -1329,13 +1329,13 @@ WC_OMIT_FRAME_POINTER void wc_chacha_setkey(word32* x, const byte* key,
         "vldm	r3, {q0}\n\t"
         "vld1.8	{q1}, [%[key]]!\n\t"
 #ifdef BIG_ENDIAN_ORDER
-        "vrev32.i16	q1, q1\n\t"
+        "vrev32.16	q1, q1\n\t"
 #endif /* BIG_ENDIAN_ORDER */
         "vstm	%[x]!, {q0-q1}\n\t"
         "beq	L_chacha_setkey_arm32_done_%=\n\t"
         "vld1.8	{q1}, [%[key]]\n\t"
 #ifdef BIG_ENDIAN_ORDER
-        "vrev32.i16	q1, q1\n\t"
+        "vrev32.16	q1, q1\n\t"
 #endif /* BIG_ENDIAN_ORDER */
         "\n"
     "L_chacha_setkey_arm32_done_%=: \n\t"

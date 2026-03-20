@@ -961,14 +961,14 @@ L_chacha_crypt_bytes_arm64_lt_16:
 	beq	L_chacha_crypt_bytes_arm64_done
 L_chacha_crypt_bytes_arm64_lt_8:
 	mov	x5, v0.d[0]
-L_chacha_crypt_bytes_arm64loop_lt_8:
+L_chacha_crypt_bytes_arm64_loop_lt_8:
 	# Encipher 1 byte at a time
 	ldrb	w6, [x2], #1
 	eor	w6, w6, w5
 	strb	w6, [x1], #1
 	subs	x3, x3, #1
 	lsr	x5, x5, #8
-	bgt	L_chacha_crypt_bytes_arm64loop_lt_8
+	bgt	L_chacha_crypt_bytes_arm64_loop_lt_8
 L_chacha_crypt_bytes_arm64_done:
 L_chacha_crypt_bytes_arm64_done_all:
 	st1	{v16.4s, v17.4s, v18.4s, v19.4s}, [x0]

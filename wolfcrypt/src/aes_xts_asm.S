@@ -1444,7 +1444,6 @@ AES_XTS_init_avx1:
 .p2align	4
 _AES_XTS_init_avx1:
 #endif /* __APPLE__ */
-        movl	%edx, %eax
         vmovdqu	(%rdi), %xmm0
         # aes_enc_block
         vpxor	(%rsi), %xmm0, %xmm0
@@ -1466,13 +1465,13 @@ _AES_XTS_init_avx1:
         vaesenc	%xmm2, %xmm0, %xmm0
         vmovdqu	144(%rsi), %xmm2
         vaesenc	%xmm2, %xmm0, %xmm0
-        cmpl	$11, %eax
+        cmpl	$11, %edx
         vmovdqu	160(%rsi), %xmm2
         jl	L_AES_XTS_init_avx1_tweak_aes_enc_block_last
         vaesenc	%xmm2, %xmm0, %xmm0
         vmovdqu	176(%rsi), %xmm3
         vaesenc	%xmm3, %xmm0, %xmm0
-        cmpl	$13, %eax
+        cmpl	$13, %edx
         vmovdqu	192(%rsi), %xmm2
         jl	L_AES_XTS_init_avx1_tweak_aes_enc_block_last
         vaesenc	%xmm2, %xmm0, %xmm0
