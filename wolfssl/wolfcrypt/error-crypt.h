@@ -354,7 +354,7 @@ WOLFSSL_ABI WOLFSSL_API const char* wc_GetErrorString(int error);
         #endif
     #endif
     #ifndef WC_ERR_TRACE
-        #ifdef __GNUC__
+        #if defined(__GNUC__) && !defined(__STRICT_ANSI__)
             #define WC_ERR_TRACE(label)                                   \
                 ({ if (wc_debug_trace_error_codes_enabled()) {            \
                     (void)WOLFSSL_DEBUG_PRINTF_FN(                        \
@@ -364,7 +364,7 @@ WOLFSSL_ABI WOLFSSL_API const char* wc_GetErrorString(int error);
                     (void)WOLFSSL_DEBUG_BACKTRACE_RENDER_CLAUSE; }        \
                   (label);                                                \
                 })
-        #else /* ! __GNUC__ */
+        #else /* ! __GNUC__ || __STRICT_ANSI__ */
             #define WC_ERR_TRACE(label)                                   \
                 ((void)(wc_debug_trace_error_codes_enabled() &&           \
                           WOLFSSL_DEBUG_PRINTF_FN(                        \
@@ -375,7 +375,7 @@ WOLFSSL_ABI WOLFSSL_API const char* wc_GetErrorString(int error);
                           WOLFSSL_DEBUG_BACKTRACE_RENDER_CLAUSE),         \
                   (label)                                                 \
                 )
-        #endif /* ! __GNUC__ */
+        #endif /* ! __GNUC__ || __STRICT_ANSI__ */
     #endif
     #include <wolfssl/debug-trace-error-codes.h>
 #else
