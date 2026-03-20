@@ -154,7 +154,7 @@ jobs:
               --rm \
               --log-driver=none -a stdout -a stderr \
               --volume "$PWD:/workspace" \
-              --volume "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:ro" \
+              --volume "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}" \
               --volume "$result_dir:/tmp/test_results" \
               --env SCRIPT=/workspace/renode-config.resc \
               --env RENODE_CHECKOUT=/home/developer/renode \
