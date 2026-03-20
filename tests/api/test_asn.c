@@ -1033,7 +1033,8 @@ int test_wc_DecodeObjectId(void)
 {
     EXPECT_DECLS;
 
-#if defined(HAVE_OID_DECODING) || defined(WOLFSSL_ASN_PRINT)
+#if !defined(NO_ASN) && \
+    (defined(HAVE_OID_DECODING) || defined(WOLFSSL_ASN_PRINT))
     {
         /* OID 1.2.840.113549.1.1.11 (sha256WithRSAEncryption)
          * DER encoding: 2a 86 48 86 f7 0d 01 01 0b
@@ -1097,6 +1098,7 @@ int test_wc_DecodeObjectId(void)
                                    out, &outSz),
                     WC_NO_ERR_TRACE(BUFFER_E));
     }
-#endif /* HAVE_OID_DECODING || WOLFSSL_ASN_PRINT */
+#endif /* !NO_ASN && (HAVE_OID_DECODING || WOLFSSL_ASN_PRINT) */
+
     return EXPECT_RESULT();
 }
