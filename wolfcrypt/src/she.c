@@ -116,19 +116,14 @@ int wc_She_AesMp16(Aes* aes, const byte* in, word32 inSz, byte* out)
 /* -------------------------------------------------------------------------- */
 int wc_SHE_Init(wc_SHE* she, void* heap, int devId)
 {
-    const byte encC[] = WC_SHE_KEY_UPDATE_ENC_C;
-    const byte macC[] = WC_SHE_KEY_UPDATE_MAC_C;
-
     if (she == NULL) {
         return BAD_FUNC_ARG;
     }
 
-    XMEMSET(she, 0, sizeof(wc_SHE));
+    ForceZero(she, sizeof(wc_SHE));
     she->heap  = heap;
     she->devId = devId;
-    XMEMCPY(she->kdfEncC, encC, WC_SHE_KEY_SZ);
-    XMEMCPY(she->kdfMacC, macC, WC_SHE_KEY_SZ);
-    /* m2pHeader/m4pHeader are zero from XMEMSET ΓÇö correct for counter=0 */
+    /* kdfEncOverride/kdfMacOverride are zero from XMEMSET — defaults used */
 
     return 0;
 }
@@ -227,85 +222,45 @@ void wc_SHE_Free(wc_SHE* she)
 }
 
 /* -------------------------------------------------------------------------- */
-/* Setter functions                                                           */
+/* GetUID — callback required                                                 */
+/*                                                                            */
+/* Dispatches to callback to fetch UID from hardware.                        */
+/* Buffer size validation is the callback's responsibility.                  */
+/* Returns CRYPTOCB_UNAVAILABLE if no callback.                              */
 /* -------------------------------------------------------------------------- */
-
-int wc_SHE_SetUID(wc_SHE* she, const byte* uid, word32 uidSz,
+#if defined(WOLF_CRYPTO_CB) && !defined(NO_WC_SHE_GETUID)
+int wc_SHE_GetUID(wc_SHE* she, byte* uid, word32 uidSz,
                    const void* ctx)
 {
-#ifdef WOLF_CRYPTO_CB
-    int ret;
-#endif
-
-    if (she == NULL) {
+    if (she == NULL || uid == NULL) {
         return BAD_FUNC_ARG;
     }
 
-#ifdef WOLF_CRYPTO_CB
-    /* Try callback first if a device is registered */
-    if (she->devId != INVALID_DEVID) {
-        ret = wc_CryptoCb_SheSetUid(she, uid, uidSz, ctx);
-        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
-            return ret;
-        }
-        /* fall-through to software path */
-    }
-#else
-    (void)ctx;
-#endif
-
-    /* Software path: copy caller-provided UID */
-    if (uid == NULL || uidSz != WC_SHE_UID_SZ) {
-        return BAD_FUNC_ARG;
-    }
-
-    XMEMCPY(she->uid, uid, WC_SHE_UID_SZ);
-    return 0;
+    return wc_CryptoCb_SheSetUid(she, uid, uidSz, ctx);
 }
+#endif /* WOLF_CRYPTO_CB && !NO_WC_SHE_GETUID */
 
-int wc_SHE_SetAuthKey(wc_SHE* she, byte authKeyId,
-                       const byte* authKey, word32 keySz)
+/* -------------------------------------------------------------------------- */
+/* GetCounter — callback required                                             */
+/*                                                                            */
+/* Dispatches to callback to read current counter from hardware.             */
+/* Returns CRYPTOCB_UNAVAILABLE if no callback.                              */
+/* -------------------------------------------------------------------------- */
+#if defined(WOLF_CRYPTO_CB) && !defined(NO_WC_SHE_GETCOUNTER)
+int wc_SHE_GetCounter(wc_SHE* she, word32* counter, const void* ctx)
 {
-    if (she == NULL || authKey == NULL || keySz != WC_SHE_KEY_SZ) {
+    if (she == NULL || counter == NULL) {
         return BAD_FUNC_ARG;
     }
 
-    she->authKeyId = authKeyId;
-    XMEMCPY(she->authKey, authKey, WC_SHE_KEY_SZ);
-    return 0;
+    return wc_CryptoCb_SheGetCounter(she, counter, ctx);
 }
+#endif /* WOLF_CRYPTO_CB && !NO_WC_SHE_GETCOUNTER */
 
-int wc_SHE_SetNewKey(wc_SHE* she, byte targetKeyId,
-                      const byte* newKey, word32 keySz)
-{
-    if (she == NULL || newKey == NULL || keySz != WC_SHE_KEY_SZ) {
-        return BAD_FUNC_ARG;
-    }
-
-    she->targetKeyId = targetKeyId;
-    XMEMCPY(she->newKey, newKey, WC_SHE_KEY_SZ);
-    return 0;
-}
-
-int wc_SHE_SetCounter(wc_SHE* she, word32 counter)
-{
-    if (she == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
-    she->counter = counter;
-    return 0;
-}
-
-int wc_SHE_SetFlags(wc_SHE* she, byte flags)
-{
-    if (she == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
-    she->flags = flags;
-    return 0;
-}
+/* -------------------------------------------------------------------------- */
+/* Extended SHE overrides                                                     */
+/* -------------------------------------------------------------------------- */
+#ifdef WOLFSSL_SHE_EXTENDED
 
 int wc_SHE_SetKdfConstants(wc_SHE* she,
                             const byte* encC, word32 encCSz,
@@ -320,6 +275,7 @@ int wc_SHE_SetKdfConstants(wc_SHE* she,
             return BAD_FUNC_ARG;
         }
         XMEMCPY(she->kdfEncC, encC, WC_SHE_KEY_SZ);
+        she->kdfEncOverride = 1;
     }
 
     if (macC != NULL) {
@@ -327,10 +283,43 @@ int wc_SHE_SetKdfConstants(wc_SHE* she,
             return BAD_FUNC_ARG;
         }
         XMEMCPY(she->kdfMacC, macC, WC_SHE_KEY_SZ);
+        she->kdfMacOverride = 1;
     }
 
     return 0;
 }
+
+#endif /* WOLFSSL_SHE_EXTENDED */
+
+/* -------------------------------------------------------------------------- */
+/* GetUID                                                                     */
+
+#if defined(WOLF_CRYPTO_CB) || !defined(NO_WC_SHE_IMPORT_M123)
+/* -------------------------------------------------------------------------- */
+/* Import M1/M2/M3                                                            */
+/*                                                                            */
+/* Copy externally-provided M1/M2/M3 into context and set generated flag.    */
+/* -------------------------------------------------------------------------- */
+int wc_SHE_ImportM1M2M3(wc_SHE* she,
+                          const byte* m1, word32 m1Sz,
+                          const byte* m2, word32 m2Sz,
+                          const byte* m3, word32 m3Sz)
+{
+    if (she == NULL || m1 == NULL || m2 == NULL || m3 == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    if (m1Sz != WC_SHE_M1_SZ || m2Sz != WC_SHE_M2_SZ ||
+        m3Sz != WC_SHE_M3_SZ) {
+        return BAD_FUNC_ARG;
+    }
+
+    XMEMCPY(she->m1, m1, WC_SHE_M1_SZ);
+    XMEMCPY(she->m2, m2, WC_SHE_M2_SZ);
+    XMEMCPY(she->m3, m3, WC_SHE_M3_SZ);
+    she->generated = 1;
+    return 0;
+}
+#endif /* WOLF_CRYPTO_CB || !NO_WC_SHE_IMPORT_M123 */
 
 /* -------------------------------------------------------------------------- */
 /* Portable big-endian 32-bit store                                           */
@@ -343,28 +332,45 @@ static WC_INLINE void she_store_be32(byte* dst, word32 val)
     dst[3] = (byte)(val);
 }
 
-/* Build M2P/M4P headers from counter and flags using standard SHE packing.
+/* Build M2P and M4P headers from counter and flags using standard SHE packing.
  * M2P header: counter(28b) | flags(4b) | zeros(96b) = 16 bytes
  * M4P header: counter(28b) | 1(1b) | zeros(99b) = 16 bytes
- * Called internally by GenerateM1M2M3/GenerateM4M5 unless overridden. */
-static void she_build_headers(wc_SHE* she)
+ * Writes to caller-provided buffers. Skipped if WOLFSSL_SHE_EXTENDED
+ * override is active on the context. */
+static void she_build_headers(wc_SHE* she, word32 counter, byte flags,
+                               byte* m2pHeader, byte* m4pHeader)
 {
     word32 field;
 
-    if (!she->m2pOverride) {
-        XMEMSET(she->m2pHeader, 0, WC_SHE_KEY_SZ);
-        field = (she->counter << WC_SHE_M2_COUNT_SHIFT) |
-                (she->flags   << WC_SHE_M2_FLAGS_SHIFT);
-        she_store_be32(she->m2pHeader, field);
+#ifdef WOLFSSL_SHE_EXTENDED
+    if (she->m2pOverride) {
+        XMEMCPY(m2pHeader, she->m2pHeader, WC_SHE_KEY_SZ);
+    }
+    else
+#endif
+    {
+        XMEMSET(m2pHeader, 0, WC_SHE_KEY_SZ);
+        field = (counter << WC_SHE_M2_COUNT_SHIFT) |
+                (flags   << WC_SHE_M2_FLAGS_SHIFT);
+        she_store_be32(m2pHeader, field);
     }
 
-    if (!she->m4pOverride) {
-        XMEMSET(she->m4pHeader, 0, WC_SHE_KEY_SZ);
-        field = (she->counter << WC_SHE_M4_COUNT_SHIFT) | WC_SHE_M4_COUNT_PAD;
-        she_store_be32(she->m4pHeader, field);
+#ifdef WOLFSSL_SHE_EXTENDED
+    if (she->m4pOverride) {
+        XMEMCPY(m4pHeader, she->m4pHeader, WC_SHE_KEY_SZ);
     }
+    else
+#endif
+    {
+        XMEMSET(m4pHeader, 0, WC_SHE_KEY_SZ);
+        field = (counter << WC_SHE_M4_COUNT_SHIFT) | WC_SHE_M4_COUNT_PAD;
+        she_store_be32(m4pHeader, field);
+    }
+
+    (void)she;
 }
 
+#ifdef WOLFSSL_SHE_EXTENDED
 int wc_SHE_SetM2Header(wc_SHE* she, const byte* header, word32 headerSz)
 {
     if (she == NULL || header == NULL || headerSz != WC_SHE_KEY_SZ) {
@@ -386,6 +392,7 @@ int wc_SHE_SetM4Header(wc_SHE* she, const byte* header, word32 headerSz)
     she->m4pOverride = 1;
     return 0;
 }
+#endif /* WOLFSSL_SHE_EXTENDED */
 
 /* -------------------------------------------------------------------------- */
 /* M1/M2/M3 generation                                                       */
@@ -397,37 +404,72 @@ int wc_SHE_SetM4Header(wc_SHE* she, const byte* header, word32 headerSz)
 /*                                                                            */
 /* Ported from wolfHSM wh_She_GenerateLoadableKey() in wh_she_crypto.c.      */
 /* -------------------------------------------------------------------------- */
-int wc_SHE_GenerateM1M2M3(wc_SHE* she)
+int wc_SHE_GenerateM1M2M3(wc_SHE* she,
+                      const byte* uid, word32 uidSz,
+                      byte authKeyId, const byte* authKey, word32 authKeySz,
+                      byte targetKeyId, const byte* newKey, word32 newKeySz,
+                      word32 counter, byte flags,
+                      byte* m1, word32 m1Sz,
+                      byte* m2, word32 m2Sz,
+                      byte* m3, word32 m3Sz)
 {
     int    ret = 0;
+    byte   m2pHeader[WC_SHE_KEY_SZ];
+    byte   m4pHeader[WC_SHE_KEY_SZ];
     byte   k1[WC_SHE_KEY_SZ];
     byte   k2[WC_SHE_KEY_SZ];
     byte   kdfInput[WC_SHE_KEY_SZ * 2];
+    byte   encC[] = WC_SHE_KEY_UPDATE_ENC_C;
+    byte   macC[] = WC_SHE_KEY_UPDATE_MAC_C;
     word32 cmacSz = AES_BLOCK_SIZE;
     WC_DECLARE_VAR(aes, Aes, 1, 0);
     WC_DECLARE_VAR(cmac, Cmac, 1, 0);
 
+    /* Validate SHE context first — required for both callback and software */
     if (she == NULL) {
         return BAD_FUNC_ARG;
     }
 
-    /* Build M2P/M4P headers from counter/flags (skipped if overridden) */
-    she_build_headers(she);
-
 #ifdef WOLF_CRYPTO_CB
-    /* Try callback first ΓÇö hardware may generate M1/M2/M3 directly */
+    /* Try callback first — callback handles its own parameter validation.
+     * This allows callers to pass NULL authKey/newKey when a secure element
+     * holds the keys and the callback talks to it directly. */
     if (she->devId != INVALID_DEVID) {
-        ret = wc_CryptoCb_SheGenerateM1M2M3(she, NULL);
+        ret = wc_CryptoCb_SheGenerateM1M2M3(she, uid, uidSz,
+                  authKeyId, authKey, authKeySz,
+                  targetKeyId, newKey, newKeySz,
+                  counter, flags,
+                  m1, m1Sz, m2, m2Sz, m3, m3Sz);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
-            if (ret == 0) {
-                she->generated = 1;
-            }
             return ret;
         }
         /* fall-through to software path */
         ret = 0;
     }
 #endif
+
+    /* Software path — validate all parameters */
+    if (uid == NULL || uidSz != WC_SHE_UID_SZ ||
+        authKey == NULL || authKeySz != WC_SHE_KEY_SZ ||
+        newKey == NULL || newKeySz != WC_SHE_KEY_SZ ||
+        m1 == NULL || m1Sz < WC_SHE_M1_SZ ||
+        m2 == NULL || m2Sz < WC_SHE_M2_SZ ||
+        m3 == NULL || m3Sz < WC_SHE_M3_SZ) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* Override KDF constants if explicitly set */
+#ifdef WOLFSSL_SHE_EXTENDED
+    if (she->kdfEncOverride) {
+        XMEMCPY(encC, she->kdfEncC, WC_SHE_KEY_SZ);
+    }
+    if (she->kdfMacOverride) {
+        XMEMCPY(macC, she->kdfMacC, WC_SHE_KEY_SZ);
+    }
+#endif
+
+    /* Build M2P/M4P headers from counter/flags (skipped if overridden) */
+    she_build_headers(she, counter, flags, m2pHeader, m4pHeader);
 
     WC_ALLOC_VAR(aes, Aes, 1, she->heap);
     if (!WC_VAR_OK(aes)) {
@@ -449,34 +491,34 @@ int wc_SHE_GenerateM1M2M3(wc_SHE* she)
     }
 
     /* ---- Derive K1 = AES-MP(AuthKey || CENC) ---- */
-    XMEMCPY(kdfInput, she->authKey, WC_SHE_KEY_SZ);
-    XMEMCPY(kdfInput + WC_SHE_KEY_SZ, she->kdfEncC, WC_SHE_KEY_SZ);
+    XMEMCPY(kdfInput, authKey, WC_SHE_KEY_SZ);
+    XMEMCPY(kdfInput + WC_SHE_KEY_SZ, encC, WC_SHE_KEY_SZ);
     ret = wc_She_AesMp16(aes, kdfInput, WC_SHE_KEY_SZ * 2, k1);
 
     /* ---- Build M1: UID(15B) | TargetKeyID(4b) | AuthKeyID(4b) ---- */
     if (ret == 0) {
-        XMEMCPY(she->m1, she->uid, WC_SHE_UID_SZ);
-        she->m1[WC_SHE_M1_KID_OFFSET] =
-            (byte)((she->targetKeyId << WC_SHE_M1_KID_SHIFT) |
-                   (she->authKeyId   << WC_SHE_M1_AID_SHIFT));
+        XMEMCPY(m1, uid, WC_SHE_UID_SZ);
+        m1[WC_SHE_M1_KID_OFFSET] =
+            (byte)((targetKeyId << WC_SHE_M1_KID_SHIFT) |
+                   (authKeyId   << WC_SHE_M1_AID_SHIFT));
     }
 
     /* ---- Build cleartext M2 and encrypt with K1 ---- */
     if (ret == 0) {
         /* M2P = m2pHeader(16B) | newKey(16B) */
-        XMEMCPY(she->m2, she->m2pHeader, WC_SHE_KEY_SZ);
-        XMEMCPY(she->m2 + WC_SHE_M2_KEY_OFFSET, she->newKey, WC_SHE_KEY_SZ);
+        XMEMCPY(m2, m2pHeader, WC_SHE_KEY_SZ);
+        XMEMCPY(m2 + WC_SHE_M2_KEY_OFFSET, newKey, WC_SHE_KEY_SZ);
 
         /* Encrypt M2 in-place with AES-128-CBC, IV = 0 */
         ret = wc_AesSetKey(aes, k1, WC_SHE_KEY_SZ, NULL, AES_ENCRYPTION);
         if (ret == 0) {
-            ret = wc_AesCbcEncrypt(aes, she->m2, she->m2, WC_SHE_M2_SZ);
+            ret = wc_AesCbcEncrypt(aes, m2, m2, WC_SHE_M2_SZ);
         }
     }
 
-    /* ---- Derive K2 = AES-MP(AuthKey || CMAC) ---- */
+    /* ---- Derive K2 = AES-MP(AuthKey || CMAC_C) ---- */
     if (ret == 0) {
-        XMEMCPY(kdfInput + WC_SHE_KEY_SZ, she->kdfMacC, WC_SHE_KEY_SZ);
+        XMEMCPY(kdfInput + WC_SHE_KEY_SZ, macC, WC_SHE_KEY_SZ);
         ret = wc_She_AesMp16(aes, kdfInput, WC_SHE_KEY_SZ * 2, k2);
     }
 
@@ -486,18 +528,14 @@ int wc_SHE_GenerateM1M2M3(wc_SHE* she)
                               NULL, she->heap, she->devId);
     }
     if (ret == 0) {
-        ret = wc_CmacUpdate(cmac, she->m1, WC_SHE_M1_SZ);
+        ret = wc_CmacUpdate(cmac, m1, WC_SHE_M1_SZ);
     }
     if (ret == 0) {
-        ret = wc_CmacUpdate(cmac, she->m2, WC_SHE_M2_SZ);
+        ret = wc_CmacUpdate(cmac, m2, WC_SHE_M2_SZ);
     }
     if (ret == 0) {
         cmacSz = AES_BLOCK_SIZE;
-        ret = wc_CmacFinal(cmac, she->m3, &cmacSz);
-    }
-
-    if (ret == 0) {
-        she->generated = 1;
+        ret = wc_CmacFinal(cmac, m3, &cmacSz);
     }
 
     /* Scrub temporary key material */
@@ -520,36 +558,67 @@ int wc_SHE_GenerateM1M2M3(wc_SHE* she)
 /*                                                                            */
 /* These are the expected proof messages that SHE hardware should return.     */
 /* -------------------------------------------------------------------------- */
-int wc_SHE_GenerateM4M5(wc_SHE* she)
+int wc_SHE_GenerateM4M5(wc_SHE* she,
+                      const byte* uid, word32 uidSz,
+                      byte authKeyId, byte targetKeyId,
+                      const byte* newKey, word32 newKeySz,
+                      word32 counter,
+                      byte* m4, word32 m4Sz,
+                      byte* m5, word32 m5Sz)
 {
     int    ret = 0;
+    byte   m2pHeader[WC_SHE_KEY_SZ];
+    byte   m4pHeader[WC_SHE_KEY_SZ];
     byte   k3[WC_SHE_KEY_SZ];
     byte   k4[WC_SHE_KEY_SZ];
     byte   kdfInput[WC_SHE_KEY_SZ * 2];
+    byte   encC[] = WC_SHE_KEY_UPDATE_ENC_C;
+    byte   macC[] = WC_SHE_KEY_UPDATE_MAC_C;
     word32 cmacSz;
     WC_DECLARE_VAR(aes, Aes, 1, 0);
     WC_DECLARE_VAR(cmac, Cmac, 1, 0);
 
+    /* Validate SHE context first */
     if (she == NULL) {
         return BAD_FUNC_ARG;
     }
-    if (!she->generated) {
-        return BAD_STATE_E;
-    }
 
 #ifdef WOLF_CRYPTO_CB
-    /* Try callback first — sends M1/M2/M3 to HW, receives M4/M5 */
+    /* Try callback first — useful for uploading M1/M2/M3 to an HSM which
+     * loads the key and returns the correct M4/M5 proof values.  The callback
+     * handles its own parameter validation. */
     if (she->devId != INVALID_DEVID) {
-        ret = wc_CryptoCb_SheGenerateM4M5(she, NULL);
+        ret = wc_CryptoCb_SheGenerateM4M5(she, uid, uidSz,
+                  authKeyId, targetKeyId,
+                  newKey, newKeySz, counter,
+                  m4, m4Sz, m5, m5Sz);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
-            if (ret == 0) {
-                she->verified = 1;
-            }
             return ret;
         }
         /* fall-through to software path */
     }
 #endif
+
+    /* Software path — validate all parameters */
+    if (uid == NULL || uidSz != WC_SHE_UID_SZ ||
+        newKey == NULL || newKeySz != WC_SHE_KEY_SZ ||
+        m4 == NULL || m4Sz < WC_SHE_M4_SZ ||
+        m5 == NULL || m5Sz < WC_SHE_M5_SZ) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* Override KDF constants if explicitly set */
+#ifdef WOLFSSL_SHE_EXTENDED
+    if (she->kdfEncOverride) {
+        XMEMCPY(encC, she->kdfEncC, WC_SHE_KEY_SZ);
+    }
+    if (she->kdfMacOverride) {
+        XMEMCPY(macC, she->kdfMacC, WC_SHE_KEY_SZ);
+    }
+#endif
+
+    /* Build headers from counter (skipped if overridden) */
+    she_build_headers(she, counter, 0, m2pHeader, m4pHeader);
 
     WC_ALLOC_VAR(aes, Aes, 1, she->heap);
     if (!WC_VAR_OK(aes)) {
@@ -571,48 +640,44 @@ int wc_SHE_GenerateM4M5(wc_SHE* she)
     }
 
     /* ---- Derive K3 = AES-MP(NewKey || CENC) ---- */
-    XMEMCPY(kdfInput, she->newKey, WC_SHE_KEY_SZ);
-    XMEMCPY(kdfInput + WC_SHE_KEY_SZ, she->kdfEncC, WC_SHE_KEY_SZ);
+    XMEMCPY(kdfInput, newKey, WC_SHE_KEY_SZ);
+    XMEMCPY(kdfInput + WC_SHE_KEY_SZ, encC, WC_SHE_KEY_SZ);
     ret = wc_She_AesMp16(aes, kdfInput, WC_SHE_KEY_SZ * 2, k3);
 
     /* ---- Build M4: UID|IDs header + AES-ECB(K3, m4pHeader) ---- */
     if (ret == 0) {
-        XMEMSET(she->m4, 0, WC_SHE_M4_SZ);
+        XMEMSET(m4, 0, WC_SHE_M4_SZ);
 
-        XMEMCPY(she->m4, she->uid, WC_SHE_UID_SZ);
-        she->m4[WC_SHE_M4_KID_OFFSET] =
-            (byte)((she->targetKeyId << WC_SHE_M4_KID_SHIFT) |
-                   (she->authKeyId   << WC_SHE_M4_AID_SHIFT));
+        XMEMCPY(m4, uid, WC_SHE_UID_SZ);
+        m4[WC_SHE_M4_KID_OFFSET] =
+            (byte)((targetKeyId << WC_SHE_M4_KID_SHIFT) |
+                   (authKeyId   << WC_SHE_M4_AID_SHIFT));
 
         /* Copy pre-built M4P header (counter|pad) into M4 counter block */
-        XMEMCPY(she->m4 + WC_SHE_M4_COUNT_OFFSET, she->m4pHeader,
+        XMEMCPY(m4 + WC_SHE_M4_COUNT_OFFSET, m4pHeader,
                  WC_SHE_KEY_SZ);
 
         /* Encrypt the 16-byte counter block in-place with AES-ECB */
         ret = wc_AesSetKey(aes, k3, WC_SHE_KEY_SZ, NULL, AES_ENCRYPTION);
         if (ret == 0) {
             ret = wc_AesEncryptDirect(aes,
-                    she->m4 + WC_SHE_M4_COUNT_OFFSET,
-                    she->m4 + WC_SHE_M4_COUNT_OFFSET);
+                    m4 + WC_SHE_M4_COUNT_OFFSET,
+                    m4 + WC_SHE_M4_COUNT_OFFSET);
         }
     }
 
-    /* ---- Derive K4 = AES-MP(NewKey || CMAC) ---- */
+    /* ---- Derive K4 = AES-MP(NewKey || CMAC_C) ---- */
     if (ret == 0) {
-        XMEMCPY(kdfInput + WC_SHE_KEY_SZ, she->kdfMacC, WC_SHE_KEY_SZ);
+        XMEMCPY(kdfInput + WC_SHE_KEY_SZ, macC, WC_SHE_KEY_SZ);
         ret = wc_She_AesMp16(aes, kdfInput, WC_SHE_KEY_SZ * 2, k4);
     }
 
     /* ---- Build M5 = AES-CMAC(K4, M4) ---- */
     if (ret == 0) {
         cmacSz = AES_BLOCK_SIZE;
-        ret = wc_AesCmacGenerate_ex(cmac, she->m5, &cmacSz,
-                she->m4, WC_SHE_M4_SZ, k4, WC_SHE_KEY_SZ,
+        ret = wc_AesCmacGenerate_ex(cmac, m5, &cmacSz,
+                m4, WC_SHE_M4_SZ, k4, WC_SHE_KEY_SZ,
                 she->heap, she->devId);
-    }
-
-    if (ret == 0) {
-        she->verified = 1;
     }
 
     ForceZero(k3, sizeof(k3));
@@ -633,6 +698,12 @@ int wc_SHE_GenerateM4M5(wc_SHE* she)
 /* M1/M2/M3 require generated state, M4/M5 require verified state.          */
 /* Callback: asks hardware to export the key as M1-M5.                       */
 /* -------------------------------------------------------------------------- */
+#if defined(WOLF_CRYPTO_CB) && !defined(NO_WC_SHE_EXPORTKEY)
+/* -------------------------------------------------------------------------- */
+/* Export Key — callback required                                             */
+/*                                                                            */
+/* Asks hardware to export a key slot as M1-M5 in SHE loadable format.       */
+/* -------------------------------------------------------------------------- */
 int wc_SHE_ExportKey(wc_SHE* she,
                       byte* m1, word32 m1Sz,
                       byte* m2, word32 m2Sz,
@@ -645,58 +716,10 @@ int wc_SHE_ExportKey(wc_SHE* she,
         return BAD_FUNC_ARG;
     }
 
-    /* Verify buffer sizes for any non-NULL pointers */
-    if ((m1 != NULL && m1Sz < WC_SHE_M1_SZ) ||
-        (m2 != NULL && m2Sz < WC_SHE_M2_SZ) ||
-        (m3 != NULL && m3Sz < WC_SHE_M3_SZ) ||
-        (m4 != NULL && m4Sz < WC_SHE_M4_SZ) ||
-        (m5 != NULL && m5Sz < WC_SHE_M5_SZ)) {
-        return BUFFER_E;
-    }
-
-#ifdef WOLF_CRYPTO_CB
-    if (she->devId != INVALID_DEVID) {
-        int ret = wc_CryptoCb_SheExportKey(she,
-                      m1, m1Sz, m2, m2Sz, m3, m3Sz,
-                      m4, m4Sz, m5, m5Sz, ctx);
-        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
-            return ret;
-        }
-        /* fall-through to software path */
-    }
-#endif
-    (void)ctx;
-
-    /* Export M1/M2/M3 if requested */
-    if (m1 != NULL || m2 != NULL || m3 != NULL) {
-        if (!she->generated) {
-            return BAD_STATE_E;
-        }
-        if (m1 != NULL) {
-            XMEMCPY(m1, she->m1, WC_SHE_M1_SZ);
-        }
-        if (m2 != NULL) {
-            XMEMCPY(m2, she->m2, WC_SHE_M2_SZ);
-        }
-        if (m3 != NULL) {
-            XMEMCPY(m3, she->m3, WC_SHE_M3_SZ);
-        }
-    }
-
-    /* Export M4/M5 if requested */
-    if (m4 != NULL || m5 != NULL) {
-        if (!she->verified) {
-            return BAD_STATE_E;
-        }
-        if (m4 != NULL) {
-            XMEMCPY(m4, she->m4, WC_SHE_M4_SZ);
-        }
-        if (m5 != NULL) {
-            XMEMCPY(m5, she->m5, WC_SHE_M5_SZ);
-        }
-    }
-
-    return 0;
+    return wc_CryptoCb_SheExportKey(she,
+               m1, m1Sz, m2, m2Sz, m3, m3Sz,
+               m4, m4Sz, m5, m5Sz, ctx);
 }
+#endif /* WOLF_CRYPTO_CB && !NO_WC_SHE_EXPORTKEY */
 
 #endif /* WOLFSSL_SHE */

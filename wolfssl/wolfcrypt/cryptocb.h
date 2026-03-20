@@ -488,19 +488,53 @@ typedef struct wc_CryptoInfo {
         const void* ctx;        /* read-only caller context */
         union {
             struct {
-                const byte* uid;    /* caller-provided UID (may be NULL) */
-                word32      uidSz;  /* size of uid buffer */
+                const byte* uid;
+                word32      uidSz;
             } setUid;
             struct {
-                byte*       m1;     /* output: M1 */
+                word32*     counter;
+            } getCounter;
+            struct {
+                const byte* uid;
+                word32      uidSz;
+                byte        authKeyId;
+                const byte* authKey;
+                word32      authKeySz;
+                byte        targetKeyId;
+                const byte* newKey;
+                word32      newKeySz;
+                word32      counter;
+                byte        flags;
+                byte*       m1;
                 word32      m1Sz;
-                byte*       m2;     /* output: M2 */
+                byte*       m2;
                 word32      m2Sz;
-                byte*       m3;     /* output: M3 */
+                byte*       m3;
                 word32      m3Sz;
-                byte*       m4;     /* output: M4 */
+            } generateM1M2M3;
+            struct {
+                const byte* uid;
+                word32      uidSz;
+                byte        authKeyId;
+                byte        targetKeyId;
+                const byte* newKey;
+                word32      newKeySz;
+                word32      counter;
+                byte*       m4;
                 word32      m4Sz;
-                byte*       m5;     /* output: M5 */
+                byte*       m5;
+                word32      m5Sz;
+            } generateM4M5;
+            struct {
+                byte*       m1;
+                word32      m1Sz;
+                byte*       m2;
+                word32      m2Sz;
+                byte*       m3;
+                word32      m3Sz;
+                byte*       m4;
+                word32      m4Sz;
+                byte*       m5;
                 word32      m5Sz;
             } exportKey;
         } op;
@@ -830,10 +864,23 @@ WOLFSSL_LOCAL int wc_CryptoCb_Cmac(Cmac* cmac, const byte* key, word32 keySz,
 #ifdef WOLFSSL_SHE
 WOLFSSL_LOCAL int wc_CryptoCb_SheSetUid(wc_SHE* she, const byte* uid,
                                          word32 uidSz, const void* ctx);
+WOLFSSL_LOCAL int wc_CryptoCb_SheGetCounter(wc_SHE* she, word32* counter,
+                                             const void* ctx);
 WOLFSSL_LOCAL int wc_CryptoCb_SheGenerateM1M2M3(wc_SHE* she,
-                                          const void* ctx);
+                      const byte* uid, word32 uidSz,
+                      byte authKeyId, const byte* authKey, word32 authKeySz,
+                      byte targetKeyId, const byte* newKey, word32 newKeySz,
+                      word32 counter, byte flags,
+                      byte* m1, word32 m1Sz,
+                      byte* m2, word32 m2Sz,
+                      byte* m3, word32 m3Sz);
 WOLFSSL_LOCAL int wc_CryptoCb_SheGenerateM4M5(wc_SHE* she,
-                                          const void* ctx);
+                      const byte* uid, word32 uidSz,
+                      byte authKeyId, byte targetKeyId,
+                      const byte* newKey, word32 newKeySz,
+                      word32 counter,
+                      byte* m4, word32 m4Sz,
+                      byte* m5, word32 m5Sz);
 WOLFSSL_LOCAL int wc_CryptoCb_SheExportKey(wc_SHE* she,
                                             byte* m1, word32 m1Sz,
                                             byte* m2, word32 m2Sz,

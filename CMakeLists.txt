@@ -1641,17 +1641,23 @@ if(WOLFSSL_CMAC)
 endif()
 
 # SHE (Secure Hardware Extension) key update message generation
+# standard: core SHE support, extended: adds custom KDF/header overrides
 add_option("WOLFSSL_SHE"
-    "Enable SHE key update support (default: disabled)"
-    "no" "yes;no")
+    "Enable SHE key update support (standard|extended|no)"
+    "no" "standard;extended;no")
 
-if(WOLFSSL_SHE)
+if(WOLFSSL_SHE STREQUAL "standard" OR WOLFSSL_SHE STREQUAL "extended")
     if (NOT WOLFSSL_AES)
         message(FATAL_ERROR "Cannot use SHE without AES.")
     else()
         list(APPEND WOLFSSL_DEFINITIONS
             "-DWOLFSSL_SHE")
     endif()
+endif()
+
+if(WOLFSSL_SHE STREQUAL "extended")
+    list(APPEND WOLFSSL_DEFINITIONS
+        "-DWOLFSSL_SHE_EXTENDED")
 endif()
 
 # TODO: - RC2

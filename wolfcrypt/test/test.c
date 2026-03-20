@@ -56625,6 +56625,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t she_test(void)
     byte   m4[WC_SHE_M4_SZ];
     byte   m5[WC_SHE_M5_SZ];
     WC_DECLARE_VAR(she, wc_SHE, 1, HEAP_HINT);
+    WC_DECLARE_VAR(she2, wc_SHE, 1, HEAP_HINT);
 
     /* SHE specification test vector (from wolfHSM wh_test_she.c) */
     WOLFSSL_SMALL_STACK_STATIC const byte sheUid[] = {
@@ -56678,47 +56679,15 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t she_test(void)
         return WC_TEST_RET_ENC_EC(ret);
     }
 
-    /* ---- Set inputs from test vector ---- */
-    ret = wc_SHE_SetUID(she, sheUid, sizeof(sheUid), NULL);
-    if (ret != 0) {
-        goto exit_SHE_Test;
-    }
-
-    ret = wc_SHE_SetAuthKey(she, WC_SHE_MASTER_ECU_KEY_ID,
-                                 vectorAuthKey, sizeof(vectorAuthKey));
-    if (ret != 0) {
-        goto exit_SHE_Test;
-    }
-
-    ret = wc_SHE_SetNewKey(she, 4, vectorNewKey, sizeof(vectorNewKey));
-    if (ret != 0) {
-        goto exit_SHE_Test;
-    }
-
-    ret = wc_SHE_SetCounter(she, 1);
-    if (ret != 0) {
-        goto exit_SHE_Test;
-    }
-
-    ret = wc_SHE_SetFlags(she, 0);
-    if (ret != 0) {
-        goto exit_SHE_Test;
-    }
-
-    /* ---- Generate M1/M2/M3 ---- */
-    ret = wc_SHE_GenerateM1M2M3(she);
-    if (ret != 0) {
-        goto exit_SHE_Test;
-    }
-
-    /* ---- Export M1/M2/M3 ---- */
-    ret = wc_SHE_ExportKey(she,
-                            m1, WC_SHE_M1_SZ,
-                            m2, WC_SHE_M2_SZ,
-                            m3, WC_SHE_M3_SZ,
-                            NULL, 0,
-                            NULL, 0,
-                            NULL);
+    /* ---- Generate M1/M2/M3 from test vector inputs ---- */
+    ret = wc_SHE_GenerateM1M2M3(she,
+              sheUid, sizeof(sheUid),
+              WC_SHE_MASTER_ECU_KEY_ID, vectorAuthKey, sizeof(vectorAuthKey),
+              4, vectorNewKey, sizeof(vectorNewKey),
+              1, 0,
+              m1, WC_SHE_M1_SZ,
+              m2, WC_SHE_M2_SZ,
+              m3, WC_SHE_M3_SZ);
     if (ret != 0) {
         goto exit_SHE_Test;
     }
@@ -56741,20 +56710,19 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t she_test(void)
         goto exit_SHE_Test;
     }
 
-    /* ---- Compute M4/M5 ---- */
-    ret = wc_SHE_GenerateM4M5(she);
+    /* ---- Compute and export M4/M5 ---- */
+    wc_SHE_Free(she);
+    ret = wc_SHE_Init(she, HEAP_HINT, devId);
     if (ret != 0) {
         goto exit_SHE_Test;
     }
-
-    /* ---- Export M4/M5 ---- */
-    ret = wc_SHE_ExportKey(she,
-                            NULL, 0,
-                            NULL, 0,
-                            NULL, 0,
-                            m4, WC_SHE_M4_SZ,
-                            m5, WC_SHE_M5_SZ,
-                            NULL);
+    ret = wc_SHE_GenerateM4M5(she,
+              sheUid, sizeof(sheUid),
+              WC_SHE_MASTER_ECU_KEY_ID, 4,
+              vectorNewKey, sizeof(vectorNewKey),
+              1,
+              m4, WC_SHE_M4_SZ,
+              m5, WC_SHE_M5_SZ);
     if (ret != 0) {
         goto exit_SHE_Test;
     }
@@ -56771,9 +56739,160 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t she_test(void)
         goto exit_SHE_Test;
     }
 
+    /* ---- Import M1/M2/M3 and generate M4/M5 (only NewKey needed) ---- */
+    wc_SHE_Free(she);
+    ret = wc_SHE_Init(she, HEAP_HINT, devId);
+    if (ret != 0) {
+        goto exit_SHE_Test;
+    }
+
+    /* Import M1/M2/M3, then generate M4/M5 via one-shot */
+    ret = wc_SHE_ImportM1M2M3(she,
+                                expM1, WC_SHE_M1_SZ,
+                                expM2, WC_SHE_M2_SZ,
+                                expM3, WC_SHE_M3_SZ);
+    if (ret != 0) {
+        goto exit_SHE_Test;
+    }
+    ret = wc_SHE_GenerateM4M5(she,
+              sheUid, sizeof(sheUid),
+              WC_SHE_MASTER_ECU_KEY_ID, 4,
+              vectorNewKey, sizeof(vectorNewKey),
+              1,
+              m4, WC_SHE_M4_SZ,
+              m5, WC_SHE_M5_SZ);
+    if (ret != 0) {
+        goto exit_SHE_Test;
+    }
+
+    if (XMEMCMP(m4, expM4, WC_SHE_M4_SZ) != 0) {
+        ret = WC_TEST_RET_ENC_NC;
+        goto exit_SHE_Test;
+    }
+    if (XMEMCMP(m5, expM5, WC_SHE_M5_SZ) != 0) {
+        ret = WC_TEST_RET_ENC_NC;
+        goto exit_SHE_Test;
+    }
+
+    /* ---- One-shot M1/M2/M3 ---- */
+    wc_SHE_Free(she);
+    ret = wc_SHE_Init(she, HEAP_HINT, devId);
+    if (ret != 0) {
+        goto exit_SHE_Test;
+    }
+
+    ret = wc_SHE_GenerateM1M2M3(she,
+                sheUid, sizeof(sheUid),
+                WC_SHE_MASTER_ECU_KEY_ID, vectorAuthKey, sizeof(vectorAuthKey),
+                4, vectorNewKey, sizeof(vectorNewKey),
+                1, 0,
+                m1, WC_SHE_M1_SZ,
+                m2, WC_SHE_M2_SZ,
+                m3, WC_SHE_M3_SZ);
+    if (ret != 0) {
+        goto exit_SHE_Test;
+    }
+
+    if (XMEMCMP(m1, expM1, WC_SHE_M1_SZ) != 0) {
+        ret = WC_TEST_RET_ENC_NC;
+        goto exit_SHE_Test;
+    }
+    if (XMEMCMP(m2, expM2, WC_SHE_M2_SZ) != 0) {
+        ret = WC_TEST_RET_ENC_NC;
+        goto exit_SHE_Test;
+    }
+    if (XMEMCMP(m3, expM3, WC_SHE_M3_SZ) != 0) {
+        ret = WC_TEST_RET_ENC_NC;
+        goto exit_SHE_Test;
+    }
+
+    /* ---- One-shot M4/M5 ---- */
+    wc_SHE_Free(she);
+    ret = wc_SHE_Init(she, HEAP_HINT, devId);
+    if (ret != 0) {
+        goto exit_SHE_Test;
+    }
+
+    ret = wc_SHE_GenerateM4M5(she,
+                sheUid, sizeof(sheUid),
+                WC_SHE_MASTER_ECU_KEY_ID, 4,
+                vectorNewKey, sizeof(vectorNewKey),
+                1,
+                m4, WC_SHE_M4_SZ,
+                m5, WC_SHE_M5_SZ);
+    if (ret != 0) {
+        goto exit_SHE_Test;
+    }
+
+    if (XMEMCMP(m4, expM4, WC_SHE_M4_SZ) != 0) {
+        ret = WC_TEST_RET_ENC_NC;
+        goto exit_SHE_Test;
+    }
+    if (XMEMCMP(m5, expM5, WC_SHE_M5_SZ) != 0) {
+        ret = WC_TEST_RET_ENC_NC;
+        goto exit_SHE_Test;
+    }
+
+    /* ---- Independence test: two separate contexts, M1M2M3 and M4M5 ---- */
+    wc_SHE_Free(she);
+    ret = wc_SHE_Init(she, HEAP_HINT, devId);
+    if (ret != 0) {
+        goto exit_SHE_Test;
+    }
+
+    WC_ALLOC_VAR(she2, wc_SHE, 1, HEAP_HINT);
+    if (!WC_VAR_OK(she2)) {
+        ret = WC_TEST_RET_ENC_EC(MEMORY_E);
+        goto exit_SHE_Test;
+    }
+    ret = wc_SHE_Init(she2, HEAP_HINT, devId);
+    if (ret != 0) {
+        WC_FREE_VAR(she2, HEAP_HINT);
+        goto exit_SHE_Test;
+    }
+
+    /* Generate M1/M2/M3 on first context */
+    ret = wc_SHE_GenerateM1M2M3(she,
+              sheUid, sizeof(sheUid),
+              WC_SHE_MASTER_ECU_KEY_ID, vectorAuthKey, sizeof(vectorAuthKey),
+              4, vectorNewKey, sizeof(vectorNewKey),
+              1, 0,
+              m1, WC_SHE_M1_SZ, m2, WC_SHE_M2_SZ, m3, WC_SHE_M3_SZ);
+    if (ret != 0) {
+        wc_SHE_Free(she2);
+        WC_FREE_VAR(she2, HEAP_HINT);
+        goto exit_SHE_Test;
+    }
+
+    /* Generate M4/M5 on second context — completely independent */
+    ret = wc_SHE_GenerateM4M5(she2,
+              sheUid, sizeof(sheUid),
+              WC_SHE_MASTER_ECU_KEY_ID, 4,
+              vectorNewKey, sizeof(vectorNewKey),
+              1,
+              m4, WC_SHE_M4_SZ, m5, WC_SHE_M5_SZ);
+
+    wc_SHE_Free(she2);
+    WC_FREE_VAR(she2, HEAP_HINT);
+
+    if (ret != 0) {
+        goto exit_SHE_Test;
+    }
+
+    /* Verify both match the test vector */
+    if (XMEMCMP(m1, expM1, WC_SHE_M1_SZ) != 0 ||
+        XMEMCMP(m2, expM2, WC_SHE_M2_SZ) != 0 ||
+        XMEMCMP(m3, expM3, WC_SHE_M3_SZ) != 0 ||
+        XMEMCMP(m4, expM4, WC_SHE_M4_SZ) != 0 ||
+        XMEMCMP(m5, expM5, WC_SHE_M5_SZ) != 0) {
+        ret = WC_TEST_RET_ENC_NC;
+        goto exit_SHE_Test;
+    }
+
 exit_SHE_Test:
     wc_SHE_Free(she);
     WC_FREE_VAR(she, HEAP_HINT);
+    WC_FREE_VAR(she2, HEAP_HINT);
     return ret;
 }
 
@@ -67356,28 +67475,76 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 
         switch (info->she.type) {
             case WC_SHE_SET_UID:
-                ret = wc_SHE_SetUID(she, info->she.op.setUid.uid,
-                                     info->she.op.setUid.uidSz,
-                                     info->she.ctx);
+                /* Test callback: just acknowledge, UID is in caller's buffer */
+                ret = 0;
+                break;
+            case WC_SHE_GET_COUNTER:
+            {
+                static word32 simCounter = 0;
+                if (info->she.op.getCounter.counter != NULL) {
+                    *info->she.op.getCounter.counter = ++simCounter;
+                }
+                ret = 0;
+                break;
+            }
+            case WC_SHE_GENERATE_M1M2M3:
+                /* Re-call with software devId using params from callback */
+                ret = wc_SHE_GenerateM1M2M3(she,
+                          info->she.op.generateM1M2M3.uid,
+                          info->she.op.generateM1M2M3.uidSz,
+                          info->she.op.generateM1M2M3.authKeyId,
+                          info->she.op.generateM1M2M3.authKey,
+                          info->she.op.generateM1M2M3.authKeySz,
+                          info->she.op.generateM1M2M3.targetKeyId,
+                          info->she.op.generateM1M2M3.newKey,
+                          info->she.op.generateM1M2M3.newKeySz,
+                          info->she.op.generateM1M2M3.counter,
+                          info->she.op.generateM1M2M3.flags,
+                          info->she.op.generateM1M2M3.m1,
+                          info->she.op.generateM1M2M3.m1Sz,
+                          info->she.op.generateM1M2M3.m2,
+                          info->she.op.generateM1M2M3.m2Sz,
+                          info->she.op.generateM1M2M3.m3,
+                          info->she.op.generateM1M2M3.m3Sz);
                 break;
             case WC_SHE_GENERATE_M4M5:
-                /* Re-call with software devId — fills she->m4/m5 */
-                ret = wc_SHE_GenerateM4M5(she);
+                /* Re-call with software devId using params from callback */
+                ret = wc_SHE_GenerateM4M5(she,
+                          info->she.op.generateM4M5.uid,
+                          info->she.op.generateM4M5.uidSz,
+                          info->she.op.generateM4M5.authKeyId,
+                          info->she.op.generateM4M5.targetKeyId,
+                          info->she.op.generateM4M5.newKey,
+                          info->she.op.generateM4M5.newKeySz,
+                          info->she.op.generateM4M5.counter,
+                          info->she.op.generateM4M5.m4,
+                          info->she.op.generateM4M5.m4Sz,
+                          info->she.op.generateM4M5.m5,
+                          info->she.op.generateM4M5.m5Sz);
                 break;
             case WC_SHE_EXPORT_KEY:
-                /* Fall back to software export */
-                ret = wc_SHE_ExportKey(she,
-                          info->she.op.exportKey.m1,
-                          info->she.op.exportKey.m1Sz,
-                          info->she.op.exportKey.m2,
-                          info->she.op.exportKey.m2Sz,
-                          info->she.op.exportKey.m3,
-                          info->she.op.exportKey.m3Sz,
-                          info->she.op.exportKey.m4,
-                          info->she.op.exportKey.m4Sz,
-                          info->she.op.exportKey.m5,
-                          info->she.op.exportKey.m5Sz,
-                          info->she.ctx);
+                /* Simulate hardware export — fill with test pattern */
+                if (info->she.op.exportKey.m1 != NULL) {
+                    XMEMSET(info->she.op.exportKey.m1, 0x11,
+                            WC_SHE_M1_SZ);
+                }
+                if (info->she.op.exportKey.m2 != NULL) {
+                    XMEMSET(info->she.op.exportKey.m2, 0x22,
+                            WC_SHE_M2_SZ);
+                }
+                if (info->she.op.exportKey.m3 != NULL) {
+                    XMEMSET(info->she.op.exportKey.m3, 0x33,
+                            WC_SHE_M3_SZ);
+                }
+                if (info->she.op.exportKey.m4 != NULL) {
+                    XMEMSET(info->she.op.exportKey.m4, 0x44,
+                            WC_SHE_M4_SZ);
+                }
+                if (info->she.op.exportKey.m5 != NULL) {
+                    XMEMSET(info->she.op.exportKey.m5, 0x55,
+                            WC_SHE_M5_SZ);
+                }
+                ret = 0;
                 break;
             default:
                 ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);

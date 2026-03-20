@@ -28,37 +28,35 @@ int test_wc_SHE_Init(void);
 int test_wc_SHE_Init_Id(void);
 int test_wc_SHE_Init_Label(void);
 int test_wc_SHE_Free(void);
-int test_wc_SHE_SetUID(void);
-int test_wc_SHE_SetAuthKey(void);
-int test_wc_SHE_SetNewKey(void);
-int test_wc_SHE_SetCounter(void);
-int test_wc_SHE_SetFlags(void);
+int test_wc_SHE_ImportM1M2M3(void);
+int test_wc_She_AesMp16(void);
+int test_wc_SHE_GenerateM1M2M3(void);
+int test_wc_SHE_GenerateM4M5(void);
+#ifdef WOLFSSL_SHE_EXTENDED
 int test_wc_SHE_SetKdfConstants(void);
 int test_wc_SHE_SetM2M4Header(void);
-int test_wc_SHE_GenerateM1M2M3(void);
-int test_wc_She_AesMp16(void);
-int test_wc_SHE_GenerateM4M5(void);
-int test_wc_SHE_ExportKey(void);
+#endif
 #if defined(WOLF_CRYPTO_CB) && defined(WOLFSSL_SHE)
 int test_wc_SHE_CryptoCb(void);
 #endif
 
-#define TEST_SHE_DECLS                                          \
-    TEST_DECL_GROUP("she", test_wc_SHE_Init),                   \
-    TEST_DECL_GROUP("she", test_wc_SHE_Init_Id),                \
-    TEST_DECL_GROUP("she", test_wc_SHE_Init_Label),             \
-    TEST_DECL_GROUP("she", test_wc_SHE_Free),                   \
-    TEST_DECL_GROUP("she", test_wc_SHE_SetUID),                 \
-    TEST_DECL_GROUP("she", test_wc_SHE_SetAuthKey),             \
-    TEST_DECL_GROUP("she", test_wc_SHE_SetNewKey),              \
-    TEST_DECL_GROUP("she", test_wc_SHE_SetCounter),             \
-    TEST_DECL_GROUP("she", test_wc_SHE_SetFlags),               \
-    TEST_DECL_GROUP("she", test_wc_SHE_SetKdfConstants),          \
-    TEST_DECL_GROUP("she", test_wc_SHE_SetM2M4Header),          \
-    TEST_DECL_GROUP("she", test_wc_SHE_GenerateM1M2M3),        \
-    TEST_DECL_GROUP("she", test_wc_She_AesMp16),               \
-    TEST_DECL_GROUP("she", test_wc_SHE_GenerateM4M5),    \
-    TEST_DECL_GROUP("she", test_wc_SHE_ExportKey)
+#define TEST_SHE_DECLS                                              \
+    TEST_DECL_GROUP("she", test_wc_SHE_Init),                       \
+    TEST_DECL_GROUP("she", test_wc_SHE_Init_Id),                    \
+    TEST_DECL_GROUP("she", test_wc_SHE_Init_Label),                 \
+    TEST_DECL_GROUP("she", test_wc_SHE_Free),                       \
+    TEST_DECL_GROUP("she", test_wc_SHE_ImportM1M2M3),               \
+    TEST_DECL_GROUP("she", test_wc_She_AesMp16),                    \
+    TEST_DECL_GROUP("she", test_wc_SHE_GenerateM1M2M3),             \
+    TEST_DECL_GROUP("she", test_wc_SHE_GenerateM4M5)
+
+#ifdef WOLFSSL_SHE_EXTENDED
+#define TEST_SHE_EXT_DECLS                                          \
+    TEST_DECL_GROUP("she", test_wc_SHE_SetKdfConstants),            \
+    TEST_DECL_GROUP("she", test_wc_SHE_SetM2M4Header)
+#else
+#define TEST_SHE_EXT_DECLS
+#endif
 
 #if defined(WOLF_CRYPTO_CB) && defined(WOLFSSL_SHE)
 #define TEST_SHE_CB_DECLS \

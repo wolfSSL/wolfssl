@@ -36,69 +36,53 @@
 #include <tests/api/api.h>
 #include <tests/api/test_she.h>
 
-/*
- * Testing wc_SHE_Init()
- */
+/* Common test vector data */
+#if defined(WOLFSSL_SHE) && !defined(NO_AES)
+static const byte sheTestUid[] = {
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01
+};
+static const byte sheTestAuthKey[] = {
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+    0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f
+};
+static const byte sheTestNewKey[] = {
+    0x0f, 0x0e, 0x0d, 0x0c, 0x0b, 0x0a, 0x09, 0x08,
+    0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01, 0x00
+};
+static const byte sheTestExpM1[] = {
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x41
+};
+static const byte sheTestExpM4[] = {
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x41,
+    0xb4, 0x72, 0xe8, 0xd8, 0x72, 0x7d, 0x70, 0xd5,
+    0x72, 0x95, 0xe7, 0x48, 0x49, 0xa2, 0x79, 0x17
+};
+static const byte sheTestExpM5[] = {
+    0x82, 0x0d, 0x8d, 0x95, 0xdc, 0x11, 0xb4, 0x66,
+    0x88, 0x78, 0x16, 0x0c, 0xb2, 0xa4, 0xe2, 0x3e
+};
+#endif
+
 int test_wc_SHE_Init(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_SHE) && !defined(NO_AES)
     wc_SHE she;
 
-    /* Valid init with default heap/devId */
     ExpectIntEQ(wc_SHE_Init(&she, NULL, INVALID_DEVID), 0);
-
-    /* Verify heap and devId are stored correctly */
     ExpectTrue(she.heap == NULL);
     ExpectIntEQ(she.devId, INVALID_DEVID);
-
-    /* Verify state flags are zeroed */
-    ExpectIntEQ(she.generated, 0);
-    ExpectIntEQ(she.verified, 0);
-
-    /* Verify key material is zeroed */
-    {
-        byte zeros[WC_SHE_KEY_SZ] = {0};
-        ExpectIntEQ(XMEMCMP(she.authKey, zeros, WC_SHE_KEY_SZ), 0);
-        ExpectIntEQ(XMEMCMP(she.newKey, zeros, WC_SHE_KEY_SZ), 0);
-    }
-
     wc_SHE_Free(&she);
 
-    /* Test bad args: NULL pointer */
     ExpectIntEQ(wc_SHE_Init(NULL, NULL, INVALID_DEVID),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #endif
     return EXPECT_RESULT();
-} /* END test_wc_SHE_Init */
+}
 
-/*
- * Testing wc_SHE_Free()
- */
-int test_wc_SHE_Free(void)
-{
-    EXPECT_DECLS;
-#if defined(WOLFSSL_SHE) && !defined(NO_AES)
-    wc_SHE she;
-
-    /* Init, then free — should scrub key material */
-    ExpectIntEQ(wc_SHE_Init(&she, NULL, INVALID_DEVID), 0);
-    wc_SHE_Free(&she);
-
-    /* After free, context should be zeroed */
-    ExpectIntEQ(she.devId, 0);
-    ExpectIntEQ(she.generated, 0);
-    ExpectIntEQ(she.verified, 0);
-
-    /* Free with NULL should not crash */
-    wc_SHE_Free(NULL);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_SHE_Free */
-
-/*
- * Testing wc_SHE_Init_Id()
- */
 int test_wc_SHE_Init_Id(void)
 {
     EXPECT_DECLS;
@@ -106,430 +90,85 @@ int test_wc_SHE_Init_Id(void)
     wc_SHE she;
     unsigned char testId[] = {0x01, 0x02, 0x03, 0x04};
 
-    /* Valid init with a 4-byte key ID */
     ExpectIntEQ(wc_SHE_Init_Id(&she, testId, (int)sizeof(testId),
                                 NULL, INVALID_DEVID), 0);
-
-    /* Verify the ID was copied and length is set */
     ExpectIntEQ(she.idLen, (int)sizeof(testId));
-    ExpectIntEQ(XMEMCMP(she.id, testId, sizeof(testId)), 0);
-
-    /* Verify label length is cleared */
-    ExpectIntEQ(she.labelLen, 0);
-
-    /* Verify heap and devId are stored */
-    ExpectTrue(she.heap == NULL);
-    ExpectIntEQ(she.devId, INVALID_DEVID);
-
     wc_SHE_Free(&she);
 
-    /* Test bad args: NULL she pointer */
     ExpectIntEQ(wc_SHE_Init_Id(NULL, testId, (int)sizeof(testId),
                                 NULL, INVALID_DEVID),
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    /* Test bad args: ID length too large */
     ExpectIntEQ(wc_SHE_Init_Id(&she, testId, WC_SHE_MAX_ID_LEN + 1,
                                 NULL, INVALID_DEVID),
                 WC_NO_ERR_TRACE(BUFFER_E));
-
-    /* Test bad args: negative ID length */
     ExpectIntEQ(wc_SHE_Init_Id(&she, testId, -1, NULL, INVALID_DEVID),
                 WC_NO_ERR_TRACE(BUFFER_E));
-
-    /* Test zero-length ID is valid */
-    ExpectIntEQ(wc_SHE_Init_Id(&she, testId, 0, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(she.idLen, 0);
-    wc_SHE_Free(&she);
 #endif
     return EXPECT_RESULT();
-} /* END test_wc_SHE_Init_Id */
+}
 
-/*
- * Testing wc_SHE_Init_Label()
- */
 int test_wc_SHE_Init_Label(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_SHE) && !defined(NO_AES) && defined(WOLF_PRIVATE_KEY_ID)
     wc_SHE she;
-    const char* testLabel = "my_she_key";
 
-    /* Valid init with a label string */
-    ExpectIntEQ(wc_SHE_Init_Label(&she, testLabel, NULL, INVALID_DEVID), 0);
-
-    /* Verify the label was copied and length is set */
-    ExpectIntEQ(she.labelLen, (int)XSTRLEN(testLabel));
-    ExpectIntEQ(XMEMCMP(she.label, testLabel, XSTRLEN(testLabel)), 0);
-
-    /* Verify ID length is cleared */
-    ExpectIntEQ(she.idLen, 0);
-
-    /* Verify heap and devId are stored */
-    ExpectTrue(she.heap == NULL);
-    ExpectIntEQ(she.devId, INVALID_DEVID);
-
+    ExpectIntEQ(wc_SHE_Init_Label(&she, "test", NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(she.labelLen, 4);
     wc_SHE_Free(&she);
 
-    /* Test bad args: NULL she pointer */
-    ExpectIntEQ(wc_SHE_Init_Label(NULL, testLabel, NULL, INVALID_DEVID),
+    ExpectIntEQ(wc_SHE_Init_Label(NULL, "test", NULL, INVALID_DEVID),
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    /* Test bad args: NULL label */
     ExpectIntEQ(wc_SHE_Init_Label(&she, NULL, NULL, INVALID_DEVID),
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    /* Test bad args: empty label */
     ExpectIntEQ(wc_SHE_Init_Label(&she, "", NULL, INVALID_DEVID),
                 WC_NO_ERR_TRACE(BUFFER_E));
 #endif
     return EXPECT_RESULT();
-} /* END test_wc_SHE_Init_Label */
+}
 
-/*
- * Testing wc_SHE_SetUID()
- */
-int test_wc_SHE_SetUID(void)
-{
-    EXPECT_DECLS;
-#if defined(WOLFSSL_SHE) && !defined(NO_AES)
-    wc_SHE she;
-    byte uid[WC_SHE_UID_SZ] = {
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01
-    };
-
-    ExpectIntEQ(wc_SHE_Init(&she, NULL, INVALID_DEVID), 0);
-
-    /* Valid UID */
-    ExpectIntEQ(wc_SHE_SetUID(&she, uid, WC_SHE_UID_SZ, NULL), 0);
-    ExpectIntEQ(XMEMCMP(she.uid, uid, WC_SHE_UID_SZ), 0);
-
-    /* Bad args */
-    ExpectIntEQ(wc_SHE_SetUID(NULL, uid, WC_SHE_UID_SZ, NULL),
-                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_SHE_SetUID(&she, NULL, WC_SHE_UID_SZ, NULL),
-                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_SHE_SetUID(&she, uid, WC_SHE_UID_SZ - 1, NULL),
-                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_SHE_SetUID(&she, uid, WC_SHE_UID_SZ + 1, NULL),
-                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_SHE_Free(&she);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_SHE_SetUID */
-
-/*
- * Testing wc_SHE_SetAuthKey()
- */
-int test_wc_SHE_SetAuthKey(void)
-{
-    EXPECT_DECLS;
-#if defined(WOLFSSL_SHE) && !defined(NO_AES)
-    wc_SHE she;
-    byte key[WC_SHE_KEY_SZ] = {
-        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
-        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f
-    };
-
-    ExpectIntEQ(wc_SHE_Init(&she, NULL, INVALID_DEVID), 0);
-
-    /* Valid auth key */
-    ExpectIntEQ(wc_SHE_SetAuthKey(&she, WC_SHE_MASTER_ECU_KEY_ID,
-                                   key, WC_SHE_KEY_SZ), 0);
-    ExpectIntEQ(she.authKeyId, WC_SHE_MASTER_ECU_KEY_ID);
-    ExpectIntEQ(XMEMCMP(she.authKey, key, WC_SHE_KEY_SZ), 0);
-
-    /* Bad args */
-    ExpectIntEQ(wc_SHE_SetAuthKey(NULL, 0, key, WC_SHE_KEY_SZ),
-                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_SHE_SetAuthKey(&she, 0, NULL, WC_SHE_KEY_SZ),
-                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_SHE_SetAuthKey(&she, 0, key, WC_SHE_KEY_SZ - 1),
-                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_SHE_Free(&she);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_SHE_SetAuthKey */
-
-/*
- * Testing wc_SHE_SetNewKey()
- */
-int test_wc_SHE_SetNewKey(void)
-{
-    EXPECT_DECLS;
-#if defined(WOLFSSL_SHE) && !defined(NO_AES)
-    wc_SHE she;
-    byte key[WC_SHE_KEY_SZ] = {
-        0x0f, 0x0e, 0x0d, 0x0c, 0x0b, 0x0a, 0x09, 0x08,
-        0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01, 0x00
-    };
-
-    ExpectIntEQ(wc_SHE_Init(&she, NULL, INVALID_DEVID), 0);
-
-    /* Valid new key */
-    ExpectIntEQ(wc_SHE_SetNewKey(&she, 4, key, WC_SHE_KEY_SZ), 0);
-    ExpectIntEQ(she.targetKeyId, 4);
-    ExpectIntEQ(XMEMCMP(she.newKey, key, WC_SHE_KEY_SZ), 0);
-
-    /* Bad args */
-    ExpectIntEQ(wc_SHE_SetNewKey(NULL, 4, key, WC_SHE_KEY_SZ),
-                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_SHE_SetNewKey(&she, 4, NULL, WC_SHE_KEY_SZ),
-                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_SHE_SetNewKey(&she, 4, key, 0),
-                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_SHE_Free(&she);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_SHE_SetNewKey */
-
-/*
- * Testing wc_SHE_SetCounter()
- */
-int test_wc_SHE_SetCounter(void)
+int test_wc_SHE_Free(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_SHE) && !defined(NO_AES)
     wc_SHE she;
 
     ExpectIntEQ(wc_SHE_Init(&she, NULL, INVALID_DEVID), 0);
-
-    ExpectIntEQ(wc_SHE_SetCounter(&she, 1), 0);
-    ExpectIntEQ(she.counter, 1);
-
-    ExpectIntEQ(wc_SHE_SetCounter(&she, 0x0FFFFFFF), 0);
-    ExpectIntEQ(she.counter, 0x0FFFFFFF);
-
-    /* Bad args */
-    ExpectIntEQ(wc_SHE_SetCounter(NULL, 1),
-                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
     wc_SHE_Free(&she);
+    ExpectIntEQ(she.devId, 0);
+
+    wc_SHE_Free(NULL);
 #endif
     return EXPECT_RESULT();
-} /* END test_wc_SHE_SetCounter */
+}
 
-/*
- * Testing wc_SHE_SetFlags()
- */
-int test_wc_SHE_SetFlags(void)
+int test_wc_SHE_ImportM1M2M3(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_SHE) && !defined(NO_AES)
+#if defined(WOLFSSL_SHE) && !defined(NO_AES) && \
+    (defined(WOLF_CRYPTO_CB) || !defined(NO_WC_SHE_IMPORT_M123))
     wc_SHE she;
+    byte m1[WC_SHE_M1_SZ] = {0};
+    byte m2[WC_SHE_M2_SZ] = {0};
+    byte m3[WC_SHE_M3_SZ] = {0};
 
     ExpectIntEQ(wc_SHE_Init(&she, NULL, INVALID_DEVID), 0);
-
-    ExpectIntEQ(wc_SHE_SetFlags(&she, 0), 0);
-    ExpectIntEQ(she.flags, 0);
-
-    ExpectIntEQ(wc_SHE_SetFlags(&she, WC_SHE_FLAG_WRITE_PROTECT |
-                                       WC_SHE_FLAG_BOOT_PROTECT), 0);
-    ExpectIntEQ(she.flags, WC_SHE_FLAG_WRITE_PROTECT |
-                            WC_SHE_FLAG_BOOT_PROTECT);
-
-    /* Bad args */
-    ExpectIntEQ(wc_SHE_SetFlags(NULL, 0),
-                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_SHE_Free(&she);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_SHE_SetFlags */
-
-/*
- * Testing wc_SHE_SetKdfConstants()
- */
-int test_wc_SHE_SetKdfConstants(void)
-{
-    EXPECT_DECLS;
-#if defined(WOLFSSL_SHE) && !defined(NO_AES)
-    wc_SHE she;
-    const byte defEncC[] = WC_SHE_KEY_UPDATE_ENC_C;
-    const byte defMacC[] = WC_SHE_KEY_UPDATE_MAC_C;
-    byte customEncC[WC_SHE_KEY_SZ];
-    byte customMacC[WC_SHE_KEY_SZ];
-
-    ExpectIntEQ(wc_SHE_Init(&she, NULL, INVALID_DEVID), 0);
-
-    /* Init should set defaults */
-    ExpectIntEQ(XMEMCMP(she.kdfEncC, defEncC, WC_SHE_KEY_SZ), 0);
-    ExpectIntEQ(XMEMCMP(she.kdfMacC, defMacC, WC_SHE_KEY_SZ), 0);
-
-    /* Override both */
-    XMEMCPY(customEncC, defEncC, WC_SHE_KEY_SZ);
-    XMEMCPY(customMacC, defMacC, WC_SHE_KEY_SZ);
-    customEncC[1] += 0x80;
-    customMacC[1] += 0x80;
-    ExpectIntEQ(wc_SHE_SetKdfConstants(&she,
-                    customEncC, WC_SHE_KEY_SZ,
-                    customMacC, WC_SHE_KEY_SZ), 0);
-    ExpectIntEQ(XMEMCMP(she.kdfEncC, customEncC, WC_SHE_KEY_SZ), 0);
-    ExpectIntEQ(XMEMCMP(she.kdfMacC, customMacC, WC_SHE_KEY_SZ), 0);
-
-    /* Override only encC, leave macC unchanged */
-    ExpectIntEQ(wc_SHE_SetKdfConstants(&she,
-                    defEncC, WC_SHE_KEY_SZ, NULL, 0), 0);
-    ExpectIntEQ(XMEMCMP(she.kdfEncC, defEncC, WC_SHE_KEY_SZ), 0);
-    ExpectIntEQ(XMEMCMP(she.kdfMacC, customMacC, WC_SHE_KEY_SZ), 0);
-
-    /* Bad args: NULL she */
-    ExpectIntEQ(wc_SHE_SetKdfConstants(NULL,
-                    defEncC, WC_SHE_KEY_SZ, defMacC, WC_SHE_KEY_SZ),
-                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    /* Bad args: wrong size */
-    ExpectIntEQ(wc_SHE_SetKdfConstants(&she,
-                    defEncC, WC_SHE_KEY_SZ - 1, NULL, 0),
-                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_SHE_Free(&she);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_SHE_SetKdfConstants */
-
-/*
- * Testing wc_SHE_SetM2Header() and wc_SHE_SetM4Header()
- */
-int test_wc_SHE_SetM2M4Header(void)
-{
-    EXPECT_DECLS;
-#if defined(WOLFSSL_SHE) && !defined(NO_AES)
-    wc_SHE she, sheOvr;
-    byte uid[] = {
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01
-    };
-    byte authKey[] = {
-        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
-        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f
-    };
-    byte newKey[] = {
-        0x0f, 0x0e, 0x0d, 0x0c, 0x0b, 0x0a, 0x09, 0x08,
-        0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01, 0x00
-    };
-    byte customHeader[WC_SHE_KEY_SZ] = {0};
-    byte m1Def[WC_SHE_M1_SZ], m2Def[WC_SHE_M2_SZ], m3Def[WC_SHE_M3_SZ];
-    byte m1Ovr[WC_SHE_M1_SZ], m2Ovr[WC_SHE_M2_SZ], m3Ovr[WC_SHE_M3_SZ];
-
-    /* --- SetM2Header bad args --- */
-    ExpectIntEQ(wc_SHE_SetM2Header(NULL, customHeader, WC_SHE_KEY_SZ),
-                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_SHE_SetM4Header(NULL, customHeader, WC_SHE_KEY_SZ),
-                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    ExpectIntEQ(wc_SHE_Init(&she, NULL, INVALID_DEVID), 0);
-
-    /* NULL header */
-    ExpectIntEQ(wc_SHE_SetM2Header(&she, NULL, WC_SHE_KEY_SZ),
-                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    /* Wrong size */
-    ExpectIntEQ(wc_SHE_SetM2Header(&she, customHeader, WC_SHE_KEY_SZ - 1),
-                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_SHE_SetM4Header(&she, customHeader, WC_SHE_KEY_SZ + 1),
-                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    /* Valid set */
-    XMEMSET(customHeader, 0xAA, WC_SHE_KEY_SZ);
-    ExpectIntEQ(wc_SHE_SetM2Header(&she, customHeader, WC_SHE_KEY_SZ), 0);
-    ExpectIntEQ(XMEMCMP(she.m2pHeader, customHeader, WC_SHE_KEY_SZ), 0);
-    ExpectIntEQ(she.m2pOverride, 1);
-
-    ExpectIntEQ(wc_SHE_SetM4Header(&she, customHeader, WC_SHE_KEY_SZ), 0);
-    ExpectIntEQ(XMEMCMP(she.m4pHeader, customHeader, WC_SHE_KEY_SZ), 0);
-    ExpectIntEQ(she.m4pOverride, 1);
-
-    wc_SHE_Free(&she);
-
-    /* --- Override produces different M2 than default --- */
-    /* Default path: counter=1, flags=0, auto-built headers */
-    ExpectIntEQ(wc_SHE_Init(&she, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_SHE_SetUID(&she, uid, sizeof(uid), NULL), 0);
-    ExpectIntEQ(wc_SHE_SetAuthKey(&she, 1, authKey, sizeof(authKey)), 0);
-    ExpectIntEQ(wc_SHE_SetNewKey(&she, 4, newKey, sizeof(newKey)), 0);
-    ExpectIntEQ(wc_SHE_SetCounter(&she, 1), 0);
-    ExpectIntEQ(wc_SHE_SetFlags(&she, 0), 0);
-    ExpectIntEQ(wc_SHE_GenerateM1M2M3(&she), 0);
-    ExpectIntEQ(wc_SHE_ExportKey(&she,
-                    m1Def, WC_SHE_M1_SZ, m2Def, WC_SHE_M2_SZ,
-                    m3Def, WC_SHE_M3_SZ, NULL, 0, NULL, 0, NULL), 0);
-    wc_SHE_Free(&she);
-
-    /* Override path: same inputs but custom m2pHeader */
-    ExpectIntEQ(wc_SHE_Init(&sheOvr, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_SHE_SetUID(&sheOvr, uid, sizeof(uid), NULL), 0);
-    ExpectIntEQ(wc_SHE_SetAuthKey(&sheOvr, 1, authKey, sizeof(authKey)), 0);
-    ExpectIntEQ(wc_SHE_SetNewKey(&sheOvr, 4, newKey, sizeof(newKey)), 0);
-    ExpectIntEQ(wc_SHE_SetCounter(&sheOvr, 1), 0);
-    ExpectIntEQ(wc_SHE_SetFlags(&sheOvr, 0), 0);
-    /* Set a different header ΓÇö should produce different M2/M3 */
-    XMEMSET(customHeader, 0, WC_SHE_KEY_SZ);
-    customHeader[0] = 0xFF;  /* different from auto-built */
-    ExpectIntEQ(wc_SHE_SetM2Header(&sheOvr, customHeader, WC_SHE_KEY_SZ), 0);
-    ExpectIntEQ(wc_SHE_GenerateM1M2M3(&sheOvr), 0);
-    ExpectIntEQ(wc_SHE_ExportKey(&sheOvr,
-                    m1Ovr, WC_SHE_M1_SZ, m2Ovr, WC_SHE_M2_SZ,
-                    m3Ovr, WC_SHE_M3_SZ, NULL, 0, NULL, 0, NULL), 0);
-
-    /* M1 should be same (UID|IDs unchanged), M2 should differ */
-    ExpectIntEQ(XMEMCMP(m1Def, m1Ovr, WC_SHE_M1_SZ), 0);
-    ExpectIntNE(XMEMCMP(m2Def, m2Ovr, WC_SHE_M2_SZ), 0);
-
-    wc_SHE_Free(&sheOvr);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_SHE_SetM2M4Header */
-
-/*
- * Testing wc_SHE_GenerateM1M2M3()
- */
-int test_wc_SHE_GenerateM1M2M3(void)
-{
-    EXPECT_DECLS;
-#if defined(WOLFSSL_SHE) && !defined(NO_AES)
-    wc_SHE she;
-    byte uid[] = {
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01
-    };
-    byte authKey[] = {
-        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
-        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f
-    };
-    byte newKey[] = {
-        0x0f, 0x0e, 0x0d, 0x0c, 0x0b, 0x0a, 0x09, 0x08,
-        0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01, 0x00
-    };
-
-    ExpectIntEQ(wc_SHE_Init(&she, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_SHE_SetUID(&she, uid, sizeof(uid), NULL), 0);
-    ExpectIntEQ(wc_SHE_SetAuthKey(&she, WC_SHE_MASTER_ECU_KEY_ID,
-                                   authKey, sizeof(authKey)), 0);
-    ExpectIntEQ(wc_SHE_SetNewKey(&she, 4, newKey, sizeof(newKey)), 0);
-    ExpectIntEQ(wc_SHE_SetCounter(&she, 1), 0);
-    ExpectIntEQ(wc_SHE_SetFlags(&she, 0), 0);
-
-    /* Generate should succeed and set generated flag */
-    ExpectIntEQ(wc_SHE_GenerateM1M2M3(&she), 0);
+    ExpectIntEQ(wc_SHE_ImportM1M2M3(&she,
+                    m1, WC_SHE_M1_SZ, m2, WC_SHE_M2_SZ, m3, WC_SHE_M3_SZ), 0);
     ExpectIntEQ(she.generated, 1);
 
-    /* Bad args */
-    ExpectIntEQ(wc_SHE_GenerateM1M2M3(NULL),
+    ExpectIntEQ(wc_SHE_ImportM1M2M3(NULL,
+                    m1, WC_SHE_M1_SZ, m2, WC_SHE_M2_SZ, m3, WC_SHE_M3_SZ),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_SHE_ImportM1M2M3(&she,
+                    m1, WC_SHE_M1_SZ - 1, m2, WC_SHE_M2_SZ, m3, WC_SHE_M3_SZ),
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     wc_SHE_Free(&she);
 #endif
     return EXPECT_RESULT();
-} /* END test_wc_SHE_GenerateM1M2M3 */
+}
 
-/*
- * Testing wc_She_AesMp16() — Miyaguchi-Preneel compression
- */
 int test_wc_She_AesMp16(void)
 {
     EXPECT_DECLS;
@@ -542,7 +181,6 @@ int test_wc_She_AesMp16(void)
         0x01, 0x01, 0x53, 0x48, 0x45, 0x00, 0x80, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xB0
     };
-    /* 17 bytes — not block-aligned, triggers zero-padding path */
     byte shortInput[17] = {
         0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
         0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
@@ -550,39 +188,26 @@ int test_wc_She_AesMp16(void)
     };
 
     ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
-
-    /* Valid block-aligned input */
     ExpectIntEQ(wc_She_AesMp16(&aes, input, sizeof(input), out), 0);
 
-    /* Non-block-aligned input — exercises zero-padding */
     ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
     ExpectIntEQ(wc_She_AesMp16(&aes, shortInput, sizeof(shortInput), out), 0);
 
-    /* Bad args: NULL aes */
     ExpectIntEQ(wc_She_AesMp16(NULL, input, sizeof(input), out),
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    /* Bad args: NULL input */
     ExpectIntEQ(wc_She_AesMp16(&aes, NULL, sizeof(input), out),
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    /* Bad args: zero size */
     ExpectIntEQ(wc_She_AesMp16(&aes, input, 0, out),
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    /* Bad args: NULL output */
     ExpectIntEQ(wc_She_AesMp16(&aes, input, sizeof(input), NULL),
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     wc_AesFree(&aes);
 #endif
     return EXPECT_RESULT();
-} /* END test_wc_She_AesMp16 */
+}
 
-/*
- * Testing wc_SHE_ExportKey()
- */
-int test_wc_SHE_ExportKey(void)
+int test_wc_SHE_GenerateM1M2M3(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_SHE) && !defined(NO_AES)
@@ -590,148 +215,225 @@ int test_wc_SHE_ExportKey(void)
     byte m1[WC_SHE_M1_SZ];
     byte m2[WC_SHE_M2_SZ];
     byte m3[WC_SHE_M3_SZ];
-    byte m4[WC_SHE_M4_SZ];
-    byte m5[WC_SHE_M5_SZ];
-    byte uid[] = {
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01
-    };
-    byte authKey[] = {
-        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
-        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f
-    };
-    byte newKey[] = {
-        0x0f, 0x0e, 0x0d, 0x0c, 0x0b, 0x0a, 0x09, 0x08,
-        0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01, 0x00
-    };
 
     ExpectIntEQ(wc_SHE_Init(&she, NULL, INVALID_DEVID), 0);
 
-    /* Export before generate should return BAD_STATE_E */
-    ExpectIntEQ(wc_SHE_ExportKey(&she,
-                    m1, WC_SHE_M1_SZ, NULL, 0, NULL, 0,
-                    NULL, 0, NULL, 0, NULL),
-                WC_NO_ERR_TRACE(BAD_STATE_E));
+    /* Generate and verify M1 against test vector */
+    ExpectIntEQ(wc_SHE_GenerateM1M2M3(&she,
+                    sheTestUid, sizeof(sheTestUid),
+                    WC_SHE_MASTER_ECU_KEY_ID, sheTestAuthKey, sizeof(sheTestAuthKey),
+                    4, sheTestNewKey, sizeof(sheTestNewKey),
+                    1, 0,
+                    m1, WC_SHE_M1_SZ, m2, WC_SHE_M2_SZ, m3, WC_SHE_M3_SZ), 0);
+    ExpectIntEQ(XMEMCMP(m1, sheTestExpM1, WC_SHE_M1_SZ), 0);
 
-    /* NULL she should return BAD_FUNC_ARG */
-    ExpectIntEQ(wc_SHE_ExportKey(NULL,
-                    m1, WC_SHE_M1_SZ, NULL, 0, NULL, 0,
-                    NULL, 0, NULL, 0, NULL),
+    /* Bad args */
+    ExpectIntEQ(wc_SHE_GenerateM1M2M3(NULL,
+                    sheTestUid, sizeof(sheTestUid),
+                    1, sheTestAuthKey, sizeof(sheTestAuthKey),
+                    4, sheTestNewKey, sizeof(sheTestNewKey),
+                    1, 0,
+                    m1, WC_SHE_M1_SZ, m2, WC_SHE_M2_SZ, m3, WC_SHE_M3_SZ),
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    /* Set up, generate, and compute verification */
-    ExpectIntEQ(wc_SHE_SetUID(&she, uid, sizeof(uid), NULL), 0);
-    ExpectIntEQ(wc_SHE_SetAuthKey(&she, WC_SHE_MASTER_ECU_KEY_ID,
-                                   authKey, sizeof(authKey)), 0);
-    ExpectIntEQ(wc_SHE_SetNewKey(&she, 4, newKey, sizeof(newKey)), 0);
-    ExpectIntEQ(wc_SHE_SetCounter(&she, 1), 0);
-    ExpectIntEQ(wc_SHE_SetFlags(&she, 0), 0);
-    ExpectIntEQ(wc_SHE_GenerateM1M2M3(&she), 0);
-    ExpectIntEQ(wc_SHE_GenerateM4M5(&she), 0);
-
-    /* Export only M1/M2/M3 */
-    ExpectIntEQ(wc_SHE_ExportKey(&she,
-                    m1, WC_SHE_M1_SZ,
-                    m2, WC_SHE_M2_SZ,
-                    m3, WC_SHE_M3_SZ,
-                    NULL, 0, NULL, 0, NULL), 0);
-
-    /* Export only M4/M5 */
-    ExpectIntEQ(wc_SHE_ExportKey(&she,
-                    NULL, 0, NULL, 0, NULL, 0,
-                    m4, WC_SHE_M4_SZ,
-                    m5, WC_SHE_M5_SZ, NULL), 0);
-
-    /* Export all M1-M5 */
-    ExpectIntEQ(wc_SHE_ExportKey(&she,
-                    m1, WC_SHE_M1_SZ,
-                    m2, WC_SHE_M2_SZ,
-                    m3, WC_SHE_M3_SZ,
-                    m4, WC_SHE_M4_SZ,
-                    m5, WC_SHE_M5_SZ, NULL), 0);
-
-    /* Buffer too small */
-    ExpectIntEQ(wc_SHE_ExportKey(&she,
-                    m1, 1, NULL, 0, NULL, 0,
-                    NULL, 0, NULL, 0, NULL),
-                WC_NO_ERR_TRACE(BUFFER_E));
-
-    /* Export M4/M5 when generated but not verified — BAD_STATE_E */
-    {
-        wc_SHE badShe;
-        ExpectIntEQ(wc_SHE_Init(&badShe, NULL, INVALID_DEVID), 0);
-        badShe.generated = 1;  /* fake generated state */
-        badShe.verified  = 0;  /* but not verified */
-        ExpectIntEQ(wc_SHE_ExportKey(&badShe,
-                        NULL, 0, NULL, 0, NULL, 0,
-                        m4, WC_SHE_M4_SZ,
-                        NULL, 0, NULL),
-                    WC_NO_ERR_TRACE(BAD_STATE_E));
-        wc_SHE_Free(&badShe);
-    }
 
     wc_SHE_Free(&she);
 #endif
     return EXPECT_RESULT();
-} /* END test_wc_SHE_ExportKey */
+}
 
-/*
- * Testing wc_SHE_GenerateM4M5()
- */
 int test_wc_SHE_GenerateM4M5(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_SHE) && !defined(NO_AES)
     wc_SHE she;
-    byte uid[] = {
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01
-    };
-    byte authKey[] = {
-        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
-        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f
-    };
-    byte newKey[] = {
-        0x0f, 0x0e, 0x0d, 0x0c, 0x0b, 0x0a, 0x09, 0x08,
-        0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01, 0x00
-    };
+    byte m4[WC_SHE_M4_SZ];
+    byte m5[WC_SHE_M5_SZ];
 
     ExpectIntEQ(wc_SHE_Init(&she, NULL, INVALID_DEVID), 0);
 
-    /* GenerateM4M5 before GenerateM1M2M3 should return BAD_STATE_E */
-    ExpectIntEQ(wc_SHE_GenerateM4M5(&she),
-                WC_NO_ERR_TRACE(BAD_STATE_E));
-
-    /* Set up and generate M1/M2/M3 */
-    ExpectIntEQ(wc_SHE_SetUID(&she, uid, sizeof(uid), NULL), 0);
-    ExpectIntEQ(wc_SHE_SetAuthKey(&she, WC_SHE_MASTER_ECU_KEY_ID,
-                                   authKey, sizeof(authKey)), 0);
-    ExpectIntEQ(wc_SHE_SetNewKey(&she, 4, newKey, sizeof(newKey)), 0);
-    ExpectIntEQ(wc_SHE_SetCounter(&she, 1), 0);
-    ExpectIntEQ(wc_SHE_SetFlags(&she, 0), 0);
-    ExpectIntEQ(wc_SHE_GenerateM1M2M3(&she), 0);
-
-    /* Now compute M4/M5 */
-    ExpectIntEQ(wc_SHE_GenerateM4M5(&she), 0);
-    ExpectIntEQ(she.verified, 1);
+    /* Generate and verify against test vector */
+    ExpectIntEQ(wc_SHE_GenerateM4M5(&she,
+                    sheTestUid, sizeof(sheTestUid),
+                    WC_SHE_MASTER_ECU_KEY_ID, 4,
+                    sheTestNewKey, sizeof(sheTestNewKey), 1,
+                    m4, WC_SHE_M4_SZ, m5, WC_SHE_M5_SZ), 0);
+    ExpectIntEQ(XMEMCMP(m4, sheTestExpM4, WC_SHE_M4_SZ), 0);
+    ExpectIntEQ(XMEMCMP(m5, sheTestExpM5, WC_SHE_M5_SZ), 0);
 
     /* Bad args */
-    ExpectIntEQ(wc_SHE_GenerateM4M5(NULL),
+    ExpectIntEQ(wc_SHE_GenerateM4M5(NULL,
+                    sheTestUid, sizeof(sheTestUid),
+                    1, 4, sheTestNewKey, sizeof(sheTestNewKey), 1,
+                    m4, WC_SHE_M4_SZ, m5, WC_SHE_M5_SZ),
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     wc_SHE_Free(&she);
 #endif
     return EXPECT_RESULT();
-} /* END test_wc_SHE_GenerateM4M5 */
+}
+
+#if defined(WOLFSSL_SHE_EXTENDED) && defined(WOLFSSL_SHE) && !defined(NO_AES)
+
+int test_wc_SHE_SetKdfConstants(void)
+{
+    EXPECT_DECLS;
+    wc_SHE she;
+    byte m1Def[WC_SHE_M1_SZ];
+    byte m2Def[WC_SHE_M2_SZ];
+    byte m3Def[WC_SHE_M3_SZ];
+    byte m1Cust[WC_SHE_M1_SZ];
+    byte m2Cust[WC_SHE_M2_SZ];
+    byte m3Cust[WC_SHE_M3_SZ];
+    byte m4[WC_SHE_M4_SZ];
+    byte m5[WC_SHE_M5_SZ];
+    byte customEncC[WC_SHE_KEY_SZ] = {0};
+    byte customMacC[WC_SHE_KEY_SZ] = {0};
+
+    customEncC[0] = 0xFF;
+    customMacC[0] = 0xFE;
+
+    /* Generate with defaults */
+    ExpectIntEQ(wc_SHE_Init(&she, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_SHE_GenerateM1M2M3(&she,
+                    sheTestUid, sizeof(sheTestUid),
+                    WC_SHE_MASTER_ECU_KEY_ID, sheTestAuthKey, sizeof(sheTestAuthKey),
+                    4, sheTestNewKey, sizeof(sheTestNewKey), 1, 0,
+                    m1Def, WC_SHE_M1_SZ, m2Def, WC_SHE_M2_SZ,
+                    m3Def, WC_SHE_M3_SZ), 0);
+    wc_SHE_Free(&she);
+
+    /* Generate with custom KDF constants */
+    ExpectIntEQ(wc_SHE_Init(&she, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_SHE_SetKdfConstants(&she,
+                    customEncC, WC_SHE_KEY_SZ,
+                    customMacC, WC_SHE_KEY_SZ), 0);
+    ExpectIntEQ(she.kdfEncOverride, 1);
+    ExpectIntEQ(she.kdfMacOverride, 1);
+
+    ExpectIntEQ(wc_SHE_GenerateM1M2M3(&she,
+                    sheTestUid, sizeof(sheTestUid),
+                    WC_SHE_MASTER_ECU_KEY_ID, sheTestAuthKey, sizeof(sheTestAuthKey),
+                    4, sheTestNewKey, sizeof(sheTestNewKey), 1, 0,
+                    m1Cust, WC_SHE_M1_SZ, m2Cust, WC_SHE_M2_SZ,
+                    m3Cust, WC_SHE_M3_SZ), 0);
+
+    /* M1 same, M2 should differ */
+    ExpectIntEQ(XMEMCMP(m1Def, m1Cust, WC_SHE_M1_SZ), 0);
+    ExpectIntNE(XMEMCMP(m2Def, m2Cust, WC_SHE_M2_SZ), 0);
+
+    /* Bad args */
+    ExpectIntEQ(wc_SHE_SetKdfConstants(NULL,
+                    customEncC, WC_SHE_KEY_SZ, NULL, 0),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_SHE_SetKdfConstants(&she,
+                    customEncC, WC_SHE_KEY_SZ - 1, NULL, 0),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_SHE_SetKdfConstants(&she,
+                    NULL, 0, customMacC, WC_SHE_KEY_SZ - 1),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* Test KDF override in M4M5 path */
+    ExpectIntEQ(wc_SHE_GenerateM4M5(&she,
+                    sheTestUid, sizeof(sheTestUid),
+                    WC_SHE_MASTER_ECU_KEY_ID, 4,
+                    sheTestNewKey, sizeof(sheTestNewKey), 1,
+                    m4, WC_SHE_M4_SZ, m5, WC_SHE_M5_SZ), 0);
+
+    wc_SHE_Free(&she);
+    return EXPECT_RESULT();
+}
+
+int test_wc_SHE_SetM2M4Header(void)
+{
+    EXPECT_DECLS;
+    wc_SHE she;
+    byte customHeader[WC_SHE_KEY_SZ] = {0};
+    byte m1Def[WC_SHE_M1_SZ];
+    byte m2Def[WC_SHE_M2_SZ];
+    byte m3Def[WC_SHE_M3_SZ];
+    byte m1Ovr[WC_SHE_M1_SZ];
+    byte m2Ovr[WC_SHE_M2_SZ];
+    byte m3Ovr[WC_SHE_M3_SZ];
+    byte m4Def[WC_SHE_M4_SZ];
+    byte m5Def[WC_SHE_M5_SZ];
+    byte m4Ovr[WC_SHE_M4_SZ];
+    byte m5Ovr[WC_SHE_M5_SZ];
+
+    /* Bad args */
+    ExpectIntEQ(wc_SHE_SetM2Header(NULL, customHeader, WC_SHE_KEY_SZ),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_SHE_SetM4Header(NULL, customHeader, WC_SHE_KEY_SZ),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    ExpectIntEQ(wc_SHE_Init(&she, NULL, INVALID_DEVID), 0);
+
+    ExpectIntEQ(wc_SHE_SetM2Header(&she, NULL, WC_SHE_KEY_SZ),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_SHE_SetM2Header(&she, customHeader, WC_SHE_KEY_SZ - 1),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* Generate M1M2M3 with defaults */
+    ExpectIntEQ(wc_SHE_GenerateM1M2M3(&she,
+                    sheTestUid, sizeof(sheTestUid),
+                    WC_SHE_MASTER_ECU_KEY_ID, sheTestAuthKey, sizeof(sheTestAuthKey),
+                    4, sheTestNewKey, sizeof(sheTestNewKey), 1, 0,
+                    m1Def, WC_SHE_M1_SZ, m2Def, WC_SHE_M2_SZ,
+                    m3Def, WC_SHE_M3_SZ), 0);
+    wc_SHE_Free(&she);
+
+    /* Generate with overridden M2 header */
+    ExpectIntEQ(wc_SHE_Init(&she, NULL, INVALID_DEVID), 0);
+    customHeader[0] = 0xFF;
+    ExpectIntEQ(wc_SHE_SetM2Header(&she, customHeader, WC_SHE_KEY_SZ), 0);
+    ExpectIntEQ(she.m2pOverride, 1);
+
+    ExpectIntEQ(wc_SHE_GenerateM1M2M3(&she,
+                    sheTestUid, sizeof(sheTestUid),
+                    WC_SHE_MASTER_ECU_KEY_ID, sheTestAuthKey, sizeof(sheTestAuthKey),
+                    4, sheTestNewKey, sizeof(sheTestNewKey), 1, 0,
+                    m1Ovr, WC_SHE_M1_SZ, m2Ovr, WC_SHE_M2_SZ,
+                    m3Ovr, WC_SHE_M3_SZ), 0);
+
+    ExpectIntEQ(XMEMCMP(m1Def, m1Ovr, WC_SHE_M1_SZ), 0);
+    ExpectIntNE(XMEMCMP(m2Def, m2Ovr, WC_SHE_M2_SZ), 0);
+    wc_SHE_Free(&she);
+
+    /* Test M4 header override */
+    ExpectIntEQ(wc_SHE_Init(&she, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_SHE_GenerateM4M5(&she,
+                    sheTestUid, sizeof(sheTestUid),
+                    WC_SHE_MASTER_ECU_KEY_ID, 4,
+                    sheTestNewKey, sizeof(sheTestNewKey), 1,
+                    m4Def, WC_SHE_M4_SZ, m5Def, WC_SHE_M5_SZ), 0);
+    wc_SHE_Free(&she);
+
+    ExpectIntEQ(wc_SHE_Init(&she, NULL, INVALID_DEVID), 0);
+    XMEMSET(customHeader, 0xBB, WC_SHE_KEY_SZ);
+    ExpectIntEQ(wc_SHE_SetM4Header(&she, customHeader, WC_SHE_KEY_SZ), 0);
+    ExpectIntEQ(she.m4pOverride, 1);
+
+    ExpectIntEQ(wc_SHE_GenerateM4M5(&she,
+                    sheTestUid, sizeof(sheTestUid),
+                    WC_SHE_MASTER_ECU_KEY_ID, 4,
+                    sheTestNewKey, sizeof(sheTestNewKey), 1,
+                    m4Ovr, WC_SHE_M4_SZ, m5Ovr, WC_SHE_M5_SZ), 0);
+
+    ExpectIntNE(XMEMCMP(m4Def, m4Ovr, WC_SHE_M4_SZ), 0);
+    wc_SHE_Free(&she);
+
+    return EXPECT_RESULT();
+}
+
+#endif /* WOLFSSL_SHE_EXTENDED && WOLFSSL_SHE && !NO_AES */
 
 #if defined(WOLF_CRYPTO_CB) && defined(WOLFSSL_SHE) && !defined(NO_AES)
 
-/* Simple SHE callback that falls back to software by resetting devId */
+/* SHE callback — re-calls with software devId */
 static int test_she_crypto_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 {
-    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     wc_SHE* she;
     int savedDevId;
+    int ret;
 
     (void)ctx;
     (void)devIdArg;
@@ -741,7 +443,6 @@ static int test_she_crypto_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     }
 
 #ifdef WOLF_CRYPTO_CB_FREE
-    /* Handle free callback */
     if (info->algo_type == WC_ALGO_TYPE_FREE) {
         if (info->free.algo == WC_ALGO_TYPE_SHE) {
             she = (wc_SHE*)info->free.obj;
@@ -767,26 +468,68 @@ static int test_she_crypto_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 
     switch (info->she.type) {
         case WC_SHE_SET_UID:
-            ret = wc_SHE_SetUID(she, info->she.op.setUid.uid,
-                                 info->she.op.setUid.uidSz,
-                                 info->she.ctx);
+            ret = 0;
+            break;
+        case WC_SHE_GET_COUNTER:
+        {
+            static word32 simCounter = 0;
+            if (info->she.op.getCounter.counter != NULL) {
+                *info->she.op.getCounter.counter = ++simCounter;
+            }
+            ret = 0;
+            break;
+        }
+        case WC_SHE_GENERATE_M1M2M3:
+            ret = wc_SHE_GenerateM1M2M3(she,
+                      info->she.op.generateM1M2M3.uid,
+                      info->she.op.generateM1M2M3.uidSz,
+                      info->she.op.generateM1M2M3.authKeyId,
+                      info->she.op.generateM1M2M3.authKey,
+                      info->she.op.generateM1M2M3.authKeySz,
+                      info->she.op.generateM1M2M3.targetKeyId,
+                      info->she.op.generateM1M2M3.newKey,
+                      info->she.op.generateM1M2M3.newKeySz,
+                      info->she.op.generateM1M2M3.counter,
+                      info->she.op.generateM1M2M3.flags,
+                      info->she.op.generateM1M2M3.m1,
+                      info->she.op.generateM1M2M3.m1Sz,
+                      info->she.op.generateM1M2M3.m2,
+                      info->she.op.generateM1M2M3.m2Sz,
+                      info->she.op.generateM1M2M3.m3,
+                      info->she.op.generateM1M2M3.m3Sz);
             break;
         case WC_SHE_GENERATE_M4M5:
-            ret = wc_SHE_GenerateM4M5(she);
+            ret = wc_SHE_GenerateM4M5(she,
+                      info->she.op.generateM4M5.uid,
+                      info->she.op.generateM4M5.uidSz,
+                      info->she.op.generateM4M5.authKeyId,
+                      info->she.op.generateM4M5.targetKeyId,
+                      info->she.op.generateM4M5.newKey,
+                      info->she.op.generateM4M5.newKeySz,
+                      info->she.op.generateM4M5.counter,
+                      info->she.op.generateM4M5.m4,
+                      info->she.op.generateM4M5.m4Sz,
+                      info->she.op.generateM4M5.m5,
+                      info->she.op.generateM4M5.m5Sz);
             break;
         case WC_SHE_EXPORT_KEY:
-            ret = wc_SHE_ExportKey(she,
-                      info->she.op.exportKey.m1,
-                      info->she.op.exportKey.m1Sz,
-                      info->she.op.exportKey.m2,
-                      info->she.op.exportKey.m2Sz,
-                      info->she.op.exportKey.m3,
-                      info->she.op.exportKey.m3Sz,
-                      info->she.op.exportKey.m4,
-                      info->she.op.exportKey.m4Sz,
-                      info->she.op.exportKey.m5,
-                      info->she.op.exportKey.m5Sz,
-                      info->she.ctx);
+            /* Simulate hardware export — fill with test pattern */
+            if (info->she.op.exportKey.m1 != NULL) {
+                XMEMSET(info->she.op.exportKey.m1, 0x11, WC_SHE_M1_SZ);
+            }
+            if (info->she.op.exportKey.m2 != NULL) {
+                XMEMSET(info->she.op.exportKey.m2, 0x22, WC_SHE_M2_SZ);
+            }
+            if (info->she.op.exportKey.m3 != NULL) {
+                XMEMSET(info->she.op.exportKey.m3, 0x33, WC_SHE_M3_SZ);
+            }
+            if (info->she.op.exportKey.m4 != NULL) {
+                XMEMSET(info->she.op.exportKey.m4, 0x44, WC_SHE_M4_SZ);
+            }
+            if (info->she.op.exportKey.m5 != NULL) {
+                XMEMSET(info->she.op.exportKey.m5, 0x55, WC_SHE_M5_SZ);
+            }
+            ret = 0;
             break;
         default:
             ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
@@ -797,79 +540,99 @@ static int test_she_crypto_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     return ret;
 }
 
-/*
- * Testing SHE callback path for SetUID and GenerateM4M5
- */
 int test_wc_SHE_CryptoCb(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_SHE) && !defined(NO_AES)
     wc_SHE she;
     int sheTestDevId = 54321;
+    byte m1[WC_SHE_M1_SZ];
+    byte m2[WC_SHE_M2_SZ];
+    byte m3[WC_SHE_M3_SZ];
     byte m4[WC_SHE_M4_SZ];
     byte m5[WC_SHE_M5_SZ];
-    byte uid[] = {
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01
-    };
-    byte authKey[] = {
-        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
-        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f
-    };
-    byte newKey[] = {
-        0x0f, 0x0e, 0x0d, 0x0c, 0x0b, 0x0a, 0x09, 0x08,
-        0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01, 0x00
-    };
 
-    /* Register our test callback with a non-INVALID devId */
     ExpectIntEQ(wc_CryptoCb_RegisterDevice(sheTestDevId,
                                             test_she_crypto_cb, NULL), 0);
-
-    /* Init with the test devId so callback path is used */
     ExpectIntEQ(wc_SHE_Init(&she, NULL, sheTestDevId), 0);
 
-    /* SetUID via callback — passes uid through to software */
-    ExpectIntEQ(wc_SHE_SetUID(&she, uid, sizeof(uid), NULL), 0);
-    ExpectIntEQ(XMEMCMP(she.uid, uid, WC_SHE_UID_SZ), 0);
+    /* Generate M1/M2/M3 via callback */
+    ExpectIntEQ(wc_SHE_GenerateM1M2M3(&she,
+                    sheTestUid, sizeof(sheTestUid),
+                    WC_SHE_MASTER_ECU_KEY_ID, sheTestAuthKey, sizeof(sheTestAuthKey),
+                    4, sheTestNewKey, sizeof(sheTestNewKey), 1, 0,
+                    m1, WC_SHE_M1_SZ, m2, WC_SHE_M2_SZ, m3, WC_SHE_M3_SZ), 0);
+    ExpectIntEQ(XMEMCMP(m1, sheTestExpM1, WC_SHE_M1_SZ), 0);
 
-    /* Set remaining inputs (software only) */
-    ExpectIntEQ(wc_SHE_SetAuthKey(&she, WC_SHE_MASTER_ECU_KEY_ID,
-                                   authKey, sizeof(authKey)), 0);
-    ExpectIntEQ(wc_SHE_SetNewKey(&she, 4, newKey, sizeof(newKey)), 0);
-    ExpectIntEQ(wc_SHE_SetCounter(&she, 1), 0);
-    ExpectIntEQ(wc_SHE_SetFlags(&she, 0), 0);
+    /* Generate M4/M5 via callback */
+    ExpectIntEQ(wc_SHE_GenerateM4M5(&she,
+                    sheTestUid, sizeof(sheTestUid),
+                    WC_SHE_MASTER_ECU_KEY_ID, 4,
+                    sheTestNewKey, sizeof(sheTestNewKey), 1,
+                    m4, WC_SHE_M4_SZ, m5, WC_SHE_M5_SZ), 0);
+    ExpectIntEQ(XMEMCMP(m4, sheTestExpM4, WC_SHE_M4_SZ), 0);
+    ExpectIntEQ(XMEMCMP(m5, sheTestExpM5, WC_SHE_M5_SZ), 0);
 
-    /* GenerateLoadKey — software, callback not involved */
-    ExpectIntEQ(wc_SHE_GenerateM1M2M3(&she), 0);
-
-    /* GenerateM4M5 via callback — falls back to software */
-    ExpectIntEQ(wc_SHE_GenerateM4M5(&she), 0);
-    ExpectIntEQ(she.verified, 1);
-
-    /* ExportKey via callback path */
-    ExpectIntEQ(wc_SHE_ExportKey(&she,
-                    NULL, 0, NULL, 0, NULL, 0,
-                    m4, WC_SHE_M4_SZ,
-                    m5, WC_SHE_M5_SZ, NULL), 0);
-
-    /* Export all M1-M5 via callback */
+    /* ExportKey via callback — simulated hardware */
+#if !defined(NO_WC_SHE_EXPORTKEY)
     {
-        byte cm1[WC_SHE_M1_SZ];
-        byte cm2[WC_SHE_M2_SZ];
-        byte cm3[WC_SHE_M3_SZ];
+        byte em1[WC_SHE_M1_SZ];
+        byte em2[WC_SHE_M2_SZ];
+        byte em3[WC_SHE_M3_SZ];
+        byte em4[WC_SHE_M4_SZ];
+        byte em5[WC_SHE_M5_SZ];
+        byte pat[WC_SHE_M1_SZ];
+
         ExpectIntEQ(wc_SHE_ExportKey(&she,
-                        cm1, WC_SHE_M1_SZ,
-                        cm2, WC_SHE_M2_SZ,
-                        cm3, WC_SHE_M3_SZ,
-                        m4, WC_SHE_M4_SZ,
-                        m5, WC_SHE_M5_SZ, NULL), 0);
+                        em1, WC_SHE_M1_SZ, em2, WC_SHE_M2_SZ,
+                        em3, WC_SHE_M3_SZ, em4, WC_SHE_M4_SZ,
+                        em5, WC_SHE_M5_SZ, NULL), 0);
+
+        /* Verify callback filled with test pattern */
+        XMEMSET(pat, 0x11, WC_SHE_M1_SZ);
+        ExpectIntEQ(XMEMCMP(em1, pat, WC_SHE_M1_SZ), 0);
+
+        /* Bad args */
+        ExpectIntEQ(wc_SHE_ExportKey(NULL,
+                        em1, WC_SHE_M1_SZ, em2, WC_SHE_M2_SZ,
+                        em3, WC_SHE_M3_SZ, em4, WC_SHE_M4_SZ,
+                        em5, WC_SHE_M5_SZ, NULL),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     }
+#endif
+
+#if !defined(NO_WC_SHE_GETUID)
+    {
+        byte cbUid[WC_SHE_UID_SZ];
+        ExpectIntEQ(wc_SHE_GetUID(&she, cbUid, WC_SHE_UID_SZ, NULL), 0);
+        ExpectIntEQ(wc_SHE_GetUID(NULL, cbUid, WC_SHE_UID_SZ, NULL),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_SHE_GetUID(&she, NULL, WC_SHE_UID_SZ, NULL),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    }
+#endif
+
+#if !defined(NO_WC_SHE_GETCOUNTER)
+    {
+        word32 cnt1 = 0;
+        word32 cnt2 = 0;
+
+        /* Callback should return incrementing counter */
+        ExpectIntEQ(wc_SHE_GetCounter(&she, &cnt1, NULL), 0);
+        ExpectIntEQ(wc_SHE_GetCounter(&she, &cnt2, NULL), 0);
+        ExpectTrue(cnt2 > cnt1);
+
+        /* Bad args */
+        ExpectIntEQ(wc_SHE_GetCounter(NULL, &cnt1, NULL),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_SHE_GetCounter(&she, NULL, NULL),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    }
+#endif
 
     wc_SHE_Free(&she);
     wc_CryptoCb_UnRegisterDevice(sheTestDevId);
-#endif
+
     return EXPECT_RESULT();
-} /* END test_wc_SHE_CryptoCb */
+}
 
 #endif /* WOLF_CRYPTO_CB && WOLFSSL_SHE && !NO_AES */
-

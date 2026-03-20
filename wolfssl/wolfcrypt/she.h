@@ -46,9 +46,10 @@
 /* crypto callback sub-types for WC_ALGO_TYPE_SHE */
 enum wc_SheType {
     WC_SHE_SET_UID              = 1,
-    WC_SHE_GENERATE_M1M2M3      = 2,
-    WC_SHE_GENERATE_M4M5        = 3,
-    WC_SHE_EXPORT_KEY           = 4
+    WC_SHE_GET_COUNTER          = 2,
+    WC_SHE_GENERATE_M1M2M3      = 3,
+    WC_SHE_GENERATE_M4M5        = 4,
+    WC_SHE_EXPORT_KEY           = 5
 };
 
 /* test flags (only used for KATs) */
@@ -93,29 +94,26 @@ enum {
 };
 
 typedef struct wc_SHE {
-    byte   uid[WC_SHE_UID_SZ];
-    byte   authKeyId;
-    byte   targetKeyId;
-    byte   authKey[WC_SHE_KEY_SZ];
-    byte   newKey[WC_SHE_KEY_SZ];
-    word32 counter;
-    byte   flags;
+#ifdef WOLFSSL_SHE_EXTENDED
+    /* Custom KDF constants and header overrides.
+     * Useful for some HSMs that support multiple key groups with
+     * different derivation constants. */
+    byte   kdfEncC[WC_SHE_KEY_SZ];
+    byte   kdfMacC[WC_SHE_KEY_SZ];
+    byte   m2pHeader[WC_SHE_KEY_SZ];
+    byte   m4pHeader[WC_SHE_KEY_SZ];
+    byte   kdfEncOverride;
+    byte   kdfMacOverride;
+    byte   m2pOverride;
+    byte   m4pOverride;
+#endif
 
-    byte   kdfEncC[WC_SHE_KEY_SZ];  /* KDF encryption constant (CENC) */
-    byte   kdfMacC[WC_SHE_KEY_SZ];  /* KDF authentication constant (CMAC) */
-    byte   m2pHeader[WC_SHE_KEY_SZ]; /* M2P cleartext header (counter|flags|pad) */
-    byte   m4pHeader[WC_SHE_KEY_SZ]; /* M4P cleartext header (counter|pad) */
-    byte   m2pOverride;  /* set by SetM2Header to skip auto-build */
-    byte   m4pOverride;  /* set by SetM4Header to skip auto-build */
-
+#if defined(WOLF_CRYPTO_CB) || !defined(NO_WC_SHE_IMPORT_M123)
     byte   m1[WC_SHE_M1_SZ];
     byte   m2[WC_SHE_M2_SZ];
     byte   m3[WC_SHE_M3_SZ];
-    byte   m4[WC_SHE_M4_SZ];
-    byte   m5[WC_SHE_M5_SZ];
-
     byte   generated;
-    byte   verified;
+#endif
 
     void*  heap;
     int    devId;
@@ -143,54 +141,69 @@ WOLFSSL_API int wc_SHE_Init_Label(wc_SHE* she, const char* label,
                        void* heap, int devId);
 #endif
 
-/* Scrub key material and zero the context */
+/* Scrub and zero the context */
 WOLFSSL_API void wc_SHE_Free(wc_SHE* she);
 
-/* Set UID; callback optional (WC_SHE_SET_UID) */
-WOLFSSL_API int wc_SHE_SetUID(wc_SHE* she, const byte* uid, word32 uidSz,
+/* Get UID from hardware; callback required (WC_SHE_SET_UID) */
+#if defined(WOLF_CRYPTO_CB) && !defined(NO_WC_SHE_GETUID)
+WOLFSSL_API int wc_SHE_GetUID(wc_SHE* she, byte* uid, word32 uidSz,
                    const void* ctx);
+#endif
 
-/* Set authorizing key slot ID and value */
-WOLFSSL_API int wc_SHE_SetAuthKey(wc_SHE* she, byte authKeyId,
-                       const byte* authKey, word32 keySz);
+/* Get counter from hardware; callback required */
+#if defined(WOLF_CRYPTO_CB) && !defined(NO_WC_SHE_GETCOUNTER)
+WOLFSSL_API int wc_SHE_GetCounter(wc_SHE* she, word32* counter,
+                   const void* ctx);
+#endif
 
-/* Set target key slot ID and new key value */
-WOLFSSL_API int wc_SHE_SetNewKey(wc_SHE* she, byte targetKeyId,
-                      const byte* newKey, word32 keySz);
-
-/* Set monotonic counter value for M2 */
-WOLFSSL_API int wc_SHE_SetCounter(wc_SHE* she, word32 counter);
-
-/* Set flag byte for M2 */
-WOLFSSL_API int wc_SHE_SetFlags(wc_SHE* she, byte flags);
-
-/* Set KDF constants (CENC/CMAC) used for key derivation.
- * Defaults are set by Init. Either pointer may be NULL to skip. */
+/* Custom KDF constants and header overrides.
+ * Useful for some HSMs that support multiple key groups with
+ * different derivation constants. */
+#ifdef WOLFSSL_SHE_EXTENDED
+/* Set KDF constants (CENC/CMAC). Defaults set by Init. NULL to skip. */
 WOLFSSL_API int wc_SHE_SetKdfConstants(wc_SHE* she,
                             const byte* encC, word32 encCSz,
                             const byte* macC, word32 macCSz);
 
-/* Override M2P cleartext header (first 16 bytes before KID').
- * Skips auto-build from counter/flags in GenerateM1M2M3. */
+/* Override M2P cleartext header. Skips auto-build from counter/flags. */
 WOLFSSL_API int wc_SHE_SetM2Header(wc_SHE* she,
                             const byte* header, word32 headerSz);
 
-/* Override M4P cleartext header (16-byte counter block).
- * Skips auto-build from counter in GenerateM4M5. */
+/* Override M4P cleartext header. Skips auto-build from counter. */
 WOLFSSL_API int wc_SHE_SetM4Header(wc_SHE* she,
                             const byte* header, word32 headerSz);
+#endif /* WOLFSSL_SHE_EXTENDED */
 
-/* Generate M1/M2/M3 from the current context */
-WOLFSSL_API int wc_SHE_GenerateM1M2M3(wc_SHE* she);
+/* Import externally-provided M1/M2/M3 into context; sets generated flag */
+#if defined(WOLF_CRYPTO_CB) || !defined(NO_WC_SHE_IMPORT_M123)
+WOLFSSL_API int wc_SHE_ImportM1M2M3(wc_SHE* she,
+                          const byte* m1, word32 m1Sz,
+                          const byte* m2, word32 m2Sz,
+                          const byte* m3, word32 m3Sz);
+#endif
 
-/* Miyaguchi-Preneel AES-128 compression (internal, exposed for testing) */
-WOLFSSL_TEST_VIS int wc_She_AesMp16(Aes* aes, const byte* in, word32 inSz,
-                                     byte* out);
+/* Generate M1/M2/M3 and write to caller buffers */
+WOLFSSL_API int wc_SHE_GenerateM1M2M3(wc_SHE* she,
+                      const byte* uid, word32 uidSz,
+                      byte authKeyId, const byte* authKey, word32 authKeySz,
+                      byte targetKeyId, const byte* newKey, word32 newKeySz,
+                      word32 counter, byte flags,
+                      byte* m1, word32 m1Sz,
+                      byte* m2, word32 m2Sz,
+                      byte* m3, word32 m3Sz);
 
-/* Generate M4/M5 verification messages; callback optional (WC_SHE_GENERATE_M4M5) */
-WOLFSSL_API int wc_SHE_GenerateM4M5(wc_SHE* she);
+/* Generate M4/M5 and write to caller buffers */
+WOLFSSL_API int wc_SHE_GenerateM4M5(wc_SHE* she,
+                      const byte* uid, word32 uidSz,
+                      byte authKeyId, byte targetKeyId,
+                      const byte* newKey, word32 newKeySz,
+                      word32 counter,
+                      byte* m4, word32 m4Sz,
+                      byte* m5, word32 m5Sz);
 
-/* Export M1-M5 into caller buffers; NULL to skip; callback optional (WC_SHE_EXPORT_KEY) */
+/* Export key from hardware as M1-M5; callback required.
+ * Some HSMs allow exporting certain key slots (e.g. RAM key) in SHE format. */
+#if defined(WOLF_CRYPTO_CB) && !defined(NO_WC_SHE_EXPORTKEY)
 WOLFSSL_API int wc_SHE_ExportKey(wc_SHE* she,
                       byte* m1, word32 m1Sz,
                       byte* m2, word32 m2Sz,
@@ -198,6 +211,11 @@ WOLFSSL_API int wc_SHE_ExportKey(wc_SHE* she,
                       byte* m4, word32 m4Sz,
                       byte* m5, word32 m5Sz,
                       const void* ctx);
+#endif
+
+/* Internal: Miyaguchi-Preneel AES-128 compression, exposed for testing */
+WOLFSSL_TEST_VIS int wc_She_AesMp16(Aes* aes, const byte* in, word32 inSz,
+                                     byte* out);
 
 #ifdef __cplusplus
     } /* extern "C" */

@@ -35638,6 +35638,9 @@ TEST_CASE testCases[] = {
     TEST_CMAC_DECLS,
     /* SHE */
     TEST_SHE_DECLS,
+#ifdef WOLFSSL_SHE_EXTENDED
+    TEST_SHE_EXT_DECLS,
+#endif
 #if defined(WOLF_CRYPTO_CB) && defined(WOLFSSL_SHE)
     TEST_SHE_CB_DECLS,
 #endif
