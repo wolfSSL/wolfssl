@@ -1469,11 +1469,12 @@ int test_wolfSSL_BIO_BIO_ring_read(void)
 /* Custom BIO backing store for test_wolfSSL_BIO_custom_method */
 #if defined(OPENSSL_EXTRA)
 
+static int custom_bio_destroyCalled = 0;
+
 struct custom_bio_data {
     char buf[256];
     int len;
     byte createCalled:1;
-    byte destroyCalled:1;
     byte writeCalled:1;
     byte readCalled:1;
     byte putsCalled:1;
@@ -1499,7 +1500,7 @@ static int custom_bio_destroyCb(WOLFSSL_BIO* bio)
 {
     struct custom_bio_data* data = (struct custom_bio_data*)BIO_get_data(bio);
     if (data != NULL) {
-        data->destroyCalled = 1;
+        custom_bio_destroyCalled = 1;
         XFREE(data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
     BIO_set_data(bio, NULL);
@@ -1669,7 +1670,9 @@ int test_wolfSSL_BIO_custom_method(void)
     ExpectIntEQ((int)BIO_ctrl_pending(bio), 0);
 
     /* free - should invoke destroyCb */
+    custom_bio_destroyCalled = 0;
     BIO_free(bio);
+    ExpectTrue(custom_bio_destroyCalled);
     BIO_meth_free(method);
 #endif
     return EXPECT_RESULT();

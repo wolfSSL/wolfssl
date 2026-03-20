@@ -1304,8 +1304,10 @@ size_t wolfSSL_BIO_ctrl_pending(WOLFSSL_BIO *bio)
     }
 
     if (bio->method != NULL && bio->method->ctrlCb != NULL) {
+        long ret;
         WOLFSSL_MSG("Calling custom BIO ctrl pending callback");
-        return (size_t)bio->method->ctrlCb(bio, WOLFSSL_BIO_CTRL_PENDING, 0, NULL);
+        ret = bio->method->ctrlCb(bio, WOLFSSL_BIO_CTRL_PENDING, 0, NULL);
+        return (ret < 0) ? 0 : (size_t)ret;
     }
 
     if (bio->type == WOLFSSL_BIO_MD ||
