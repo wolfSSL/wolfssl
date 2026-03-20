@@ -1432,6 +1432,11 @@ unsigned int wolfSSL_Atomic_Uint_SubFetch(wolfSSL_Atomic_Uint* c,
     return val - i;
 }
 
+int wolfSSL_Atomic_Int_Exchange(wolfSSL_Atomic_Int* c, int new_i)
+{
+    return atomic_swap_int(c, new_i);
+}
+
 int wolfSSL_Atomic_Int_CompareExchange(wolfSSL_Atomic_Int* c, int *expected_i,
                                        int new_i)
 {
@@ -1493,6 +1498,11 @@ int wolfSSL_Atomic_Int_SubFetch(wolfSSL_Atomic_Int* c, int i)
 {
     int ret = atomic_fetch_sub_explicit(c, i, memory_order_relaxed);
     return ret - i;
+}
+
+int wolfSSL_Atomic_Int_Exchange(wolfSSL_Atomic_Int* c, int new_i)
+{
+    return atomic_exchange_explicit(c, new_i, memory_order_seq_cst);
 }
 
 int wolfSSL_Atomic_Int_CompareExchange(
@@ -1600,6 +1610,11 @@ int wolfSSL_Atomic_Int_SubFetch(wolfSSL_Atomic_Int* c, int i)
     return __atomic_sub_fetch(c, i, __ATOMIC_RELAXED);
 }
 
+int wolfSSL_Atomic_Int_Exchange(wolfSSL_Atomic_Int* c, int new_i)
+{
+    return __atomic_exchange_n(c, new_i, __ATOMIC_SEQ_CST);
+}
+
 int wolfSSL_Atomic_Int_CompareExchange(wolfSSL_Atomic_Int* c, int *expected_i,
                                        int new_i)
 {
@@ -1690,6 +1705,12 @@ int wolfSSL_Atomic_Int_SubFetch(wolfSSL_Atomic_Int* c, int i)
 {
     int ret = (int)_InterlockedExchangeAdd(c, (long)-i);
     return ret - i;
+}
+
+int wolfSSL_Atomic_Int_Exchange(wolfSSL_Atomic_Int* c, int new_i)
+{
+    long actual_i = InterlockedExchange(c, (long)new_i);
+    return (int)actual_i;
 }
 
 int wolfSSL_Atomic_Int_CompareExchange(wolfSSL_Atomic_Int* c, int *expected_i,

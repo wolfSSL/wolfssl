@@ -613,6 +613,8 @@
     WOLFSSL_API int wolfSSL_Atomic_Int_FetchSub(wolfSSL_Atomic_Int* c, int i);
     WOLFSSL_API int wolfSSL_Atomic_Int_AddFetch(wolfSSL_Atomic_Int* c, int i);
     WOLFSSL_API int wolfSSL_Atomic_Int_SubFetch(wolfSSL_Atomic_Int* c, int i);
+    WOLFSSL_API int wolfSSL_Atomic_Int_Exchange(
+        wolfSSL_Atomic_Int* c, int new_i);
     WOLFSSL_API int wolfSSL_Atomic_Int_CompareExchange(
         wolfSSL_Atomic_Int* c, int *expected_i, int new_i);
     WOLFSSL_API unsigned int wolfSSL_Atomic_Uint_FetchAdd(
@@ -651,6 +653,13 @@
     }
     static WC_INLINE int wolfSSL_Atomic_Int_SubFetch(int *c, int i) {
         return (*c -= i);
+    }
+    static WC_INLINE int wolfSSL_Atomic_Int_Exchange(
+        int *c, int new_i)
+    {
+        int ret = *c;
+        *c = new_i;
+        return ret;
     }
     static WC_INLINE int wolfSSL_Atomic_Int_CompareExchange(
         int *c, int *expected_i, int new_i)
