@@ -153,7 +153,12 @@ int wc_HpkeInit(Hpke* hpke, int kem, int kdf, int aead, void* heap)
             hpke->curveId = ECC_SECP256R1;
             hpke->Nsecret = WC_SHA256_DIGEST_SIZE;
             hpke->kemDigest = WC_SHA256;
-            hpke->Ndh = (word32)wc_ecc_get_curve_size_from_id(hpke->curveId);
+            ret = wc_ecc_get_curve_size_from_id(hpke->curveId);
+            if (ret < 0) {
+                break;
+            }
+            hpke->Ndh = (word32)ret;
+            ret = 0;
             hpke->Npk = 1 + hpke->Ndh * 2;
             break;
 #endif
@@ -164,7 +169,12 @@ int wc_HpkeInit(Hpke* hpke, int kem, int kdf, int aead, void* heap)
             hpke->curveId = ECC_SECP384R1;
             hpke->Nsecret = WC_SHA384_DIGEST_SIZE;
             hpke->kemDigest = WC_SHA384;
-            hpke->Ndh = (word32)wc_ecc_get_curve_size_from_id(hpke->curveId);
+            ret = wc_ecc_get_curve_size_from_id(hpke->curveId);
+            if (ret < 0) {
+                break;
+            }
+            hpke->Ndh = (word32)ret;
+            ret = 0;
             hpke->Npk = 1 + hpke->Ndh * 2;
             break;
 #endif
@@ -175,7 +185,12 @@ int wc_HpkeInit(Hpke* hpke, int kem, int kdf, int aead, void* heap)
             hpke->curveId = ECC_SECP521R1;
             hpke->Nsecret = WC_SHA512_DIGEST_SIZE;
             hpke->kemDigest = WC_SHA512;
-            hpke->Ndh = (word32)wc_ecc_get_curve_size_from_id(hpke->curveId);
+            ret = wc_ecc_get_curve_size_from_id(hpke->curveId);
+            if (ret < 0) {
+                break;
+            }
+            hpke->Ndh = (word32)ret;
+            ret = 0;
             hpke->Npk = 1 + hpke->Ndh * 2;
             break;
 #endif
@@ -258,10 +273,6 @@ int wc_HpkeInit(Hpke* hpke, int kem, int kdf, int aead, void* heap)
             ret = BAD_FUNC_ARG;
             break;
         }
-    }
-
-    if ((int)hpke->Ndh < 0) {
-        return (int)hpke->Ndh;
     }
 
     return ret;

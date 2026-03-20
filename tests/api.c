@@ -14572,22 +14572,24 @@ static int test_wolfSSL_Tls13_ECH_all_algos(void)
     int k;
     static const word16 kems[] = {
 #if defined(HAVE_ECC)
-#if (defined(WOLFSSL_SHA224) || !defined(NO_SHA256))
+#if (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && !defined(NO_SHA256)
         DHKEM_P256_HKDF_SHA256,
 #endif
-#if defined(WOLFSSL_SHA384)
+#if (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && \
+    defined(WOLFSSL_SHA384)
         DHKEM_P384_HKDF_SHA384,
 #endif
-#if (defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512))
+#if (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && \
+    defined(WOLFSSL_SHA512)
         DHKEM_P521_HKDF_SHA512,
 #endif
 #endif /* HAVE_ECC */
-#if defined(HAVE_CURVE25519) && (defined(WOLFSSL_SHA224) || !defined(NO_SHA256))
+#if defined(HAVE_CURVE25519) && !defined(NO_SHA256)
         DHKEM_X25519_HKDF_SHA256,
 #endif
     };
     static const word16 kdfs[] = {
-#if defined(WOLFSSL_SHA224) || !defined(NO_SHA256)
+#if !defined(NO_SHA256)
         HKDF_SHA256,
 #endif
 #ifdef WOLFSSL_SHA384

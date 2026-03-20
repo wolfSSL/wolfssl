@@ -316,6 +316,7 @@ int GetEchConfig(WOLFSSL_EchConfig* config, byte* output, word32* outputLen)
 {
     int i;
     word16 totalLen = 0;
+    word16 kemEncLen;
     word16 publicNameLen;
 
     if (config == NULL || (output == NULL && outputLen == NULL))
@@ -338,7 +339,10 @@ int GetEchConfig(WOLFSSL_EchConfig* config, byte* output, word32* outputLen)
     totalLen += 2;
 
     /* hpke_pub_key */
-    totalLen += wc_HpkeKemGetEncLen(config->kemId);
+    kemEncLen = wc_HpkeKemGetEncLen(config->kemId);
+    if (kemEncLen == 0)
+        return BAD_FUNC_ARG;
+    totalLen += kemEncLen;
 
     /* cipherSuitesLen */
     totalLen += 2;
@@ -378,38 +382,10 @@ int GetEchConfig(WOLFSSL_EchConfig* config, byte* output, word32* outputLen)
     output += 2;
 
     /* length and key itself */
-    switch (config->kemId) {
-        case DHKEM_P256_HKDF_SHA256:
-            c16toa(DHKEM_P256_ENC_LEN, output);
-            output += 2;
-            XMEMCPY(output, config->receiverPubkey, DHKEM_P256_ENC_LEN);
-            output += DHKEM_P256_ENC_LEN;
-            break;
-        case DHKEM_P384_HKDF_SHA384:
-            c16toa(DHKEM_P384_ENC_LEN, output);
-            output += 2;
-            XMEMCPY(output, config->receiverPubkey, DHKEM_P384_ENC_LEN);
-            output += DHKEM_P384_ENC_LEN;
-            break;
-        case DHKEM_P521_HKDF_SHA512:
-            c16toa(DHKEM_P521_ENC_LEN, output);
-            output += 2;
-            XMEMCPY(output, config->receiverPubkey, DHKEM_P521_ENC_LEN);
-            output += DHKEM_P521_ENC_LEN;
-            break;
-        case DHKEM_X25519_HKDF_SHA256:
-            c16toa(DHKEM_X25519_ENC_LEN, output);
-            output += 2;
-            XMEMCPY(output, config->receiverPubkey, DHKEM_X25519_ENC_LEN);
-            output += DHKEM_X25519_ENC_LEN;
-            break;
-        case DHKEM_X448_HKDF_SHA512:
-            c16toa(DHKEM_X448_ENC_LEN, output);
-            output += 2;
-            XMEMCPY(output, config->receiverPubkey, DHKEM_X448_ENC_LEN);
-            output += DHKEM_X448_ENC_LEN;
-            break;
-    }
+    c16toa(kemEncLen, output);
+    output += 2;
+    XMEMCPY(output, config->receiverPubkey, kemEncLen);
+    output += kemEncLen;
 
     /* cipherSuites len */
     c16toa(config->numCipherSuites * 4, output);
