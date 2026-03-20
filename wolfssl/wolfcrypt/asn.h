@@ -2257,8 +2257,6 @@ typedef enum MimeStatus
     #define FillSigner wc_FillSigner
     #define MakeSigner wc_MakeSigner
     #define FreeSigner wc_FreeSigner
-    #define AllocDer wc_AllocDer
-    #define FreeDer wc_FreeDer
 #endif /* WOLFSSL_API_PREFIX_MAP */
 
 WOLFSSL_LOCAL int HashIdAlg(word32 oidSum);
