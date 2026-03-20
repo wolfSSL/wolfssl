@@ -20826,6 +20826,9 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
 
             AddAltName(cert, dnsEntry);
 
+            if (strLen > length) {
+                return ASN_PARSE_E;
+            }
             length -= strLen;
             idx    += (word32)strLen;
         }
@@ -20867,6 +20870,9 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
             dirEntry->next = cert->altDirNames;
             cert->altDirNames = dirEntry;
 
+            if (strLen > length) {
+                return ASN_PARSE_E;
+            }
             length -= strLen;
             idx    += (word32)strLen;
         }
@@ -20902,6 +20908,9 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
             emailEntry->next = cert->altEmailNames;
             cert->altEmailNames = emailEntry;
 
+            if (strLen > length) {
+                return ASN_PARSE_E;
+            }
             length -= strLen;
             idx    += (word32)strLen;
         }
@@ -20981,6 +20990,9 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
 
             AddAltName(cert, uriEntry);
 
+            if (strLen > length) {
+                return ASN_PARSE_E;
+            }
             length -= strLen;
             idx    += (word32)strLen;
         }
@@ -21027,6 +21039,9 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
             }
             AddAltName(cert, ipAddr);
 
+            if (strLen > length) {
+                return ASN_PARSE_E;
+            }
             length -= strLen;
             idx    += (word32)strLen;
         }
@@ -21075,6 +21090,9 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
 
             AddAltName(cert, rid);
 
+            if (strLen > length) {
+                return ASN_PARSE_E;
+            }
             length -= strLen;
             idx    += (word32)strLen;
         }
@@ -21092,6 +21110,9 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
                 return ASN_PARSE_E;
             }
             /* Consume the rest of this sequence. */
+            if ((int)((word32)strLen + idx - lenStartIdx) > length) {
+                return ASN_PARSE_E;
+            }
             length -= (int)(((word32)strLen + idx - lenStartIdx));
 
             if (GetObjectId(input, &idx, &oid, oidCertAltNameType, sz) < 0) {
@@ -21142,6 +21163,9 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
 
             if (GetLength(input, &idx, &strLen, sz) < 0) {
                 WOLFSSL_MSG("\tfail: unsupported name length");
+                return ASN_PARSE_E;
+            }
+            if ((int)((word32)strLen + idx - lenStartIdx) > length) {
                 return ASN_PARSE_E;
             }
             length -= (int)((word32)strLen + idx - lenStartIdx);
