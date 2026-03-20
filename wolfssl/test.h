@@ -31,9 +31,6 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #undef TEST_OPENSSL_COEXIST /* can't use this option with this example */
-#if defined(OPENSSL_EXTRA) && defined(OPENSSL_COEXIST)
-    #error "Example apps built with OPENSSL_EXTRA can't also be built with OPENSSL_COEXIST."
-#endif
 
 #include <wolfssl/wolfcrypt/wc_port.h>
 
@@ -1236,7 +1233,7 @@ static WC_INLINE void ShowX509Ex(WOLFSSL_X509* x509, const char* hdr,
     XFREE(subject, 0, DYNAMIC_TYPE_OPENSSL);
     XFREE(issuer,  0, DYNAMIC_TYPE_OPENSSL);
 
-#if defined(SHOW_CERTS) && defined(OPENSSL_EXTRA)
+#if defined(SHOW_CERTS) && defined(OPENSSL_EXTRA) && !defined(OPENSSL_COEXIST)
     {
         WOLFSSL_BIO* bio;
         char buf[WC_ASN_NAME_MAX];
@@ -1257,7 +1254,7 @@ static WC_INLINE void ShowX509Ex(WOLFSSL_X509* x509, const char* hdr,
             wolfSSL_BIO_free(bio);
         }
     }
-#endif /* SHOW_CERTS && OPENSSL_EXTRA */
+#endif /* SHOW_CERTS && OPENSSL_EXTRA && !OPENSSL_COEXIST */
 }
 /* original ShowX509 to maintain compatibility */
 static WC_INLINE void ShowX509(WOLFSSL_X509* x509, const char* hdr)
@@ -1306,7 +1303,8 @@ static WC_INLINE void showPeerEx(WOLFSSL* ssl, int lng_index)
 #ifndef NO_DH
     int bits;
 #endif
-#if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
+#if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY) && \
+    !defined(OPENSSL_COEXIST)
     int nid;
 #endif
 #ifdef KEEP_PEER_CERT
@@ -1326,7 +1324,8 @@ static WC_INLINE void showPeerEx(WOLFSSL* ssl, int lng_index)
 
     cipher = wolfSSL_get_current_cipher(ssl);
     printf("%s %s\n", words[1], wolfSSL_CIPHER_get_name(cipher));
-#if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
+#if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY) && \
+    !defined(OPENSSL_COEXIST)
     if (wolfSSL_get_signature_nid(ssl, &nid) == WOLFSSL_SUCCESS) {
         printf("%s %s\n", words[2], OBJ_nid2sn(nid));
     }
@@ -2560,7 +2559,8 @@ static WC_INLINE int myVerify(int preverify, WOLFSSL_X509_STORE_CTX* store)
 
         XFREE(subject, 0, DYNAMIC_TYPE_OPENSSL);
         XFREE(issuer,  0, DYNAMIC_TYPE_OPENSSL);
-#if defined(OPENSSL_EXTRA) && defined(SHOW_CERTS) && !defined(NO_FILESYSTEM)
+#if defined(OPENSSL_EXTRA) && defined(SHOW_CERTS) && !defined(NO_FILESYSTEM) \
+    && !defined(OPENSSL_COEXIST)
         /* avoid printing duplicate certs */
         if (store->depth == 1) {
             int i;
