@@ -6720,12 +6720,21 @@ static int ssl_DecodePacketInternal(const byte* packet, int length, int isChain,
 #ifdef WOLFSSL_SNIFFER_CHAIN_INPUT
         struct iovec* chain;
         word32 i;
+        size_t totalLength;
 
         word32 chainSz = (word32)length;
 
         chain = (struct iovec*)packet;
-        length = 0;
-        for (i = 0; i < chainSz; i++) length += chain[i].iov_len;
+        totalLength = 0;
+        for (i = 0; i < chainSz; i++) {
+            size_t prev = totalLength;
+            totalLength += chain[i].iov_len;
+            if (totalLength < prev || totalLength > (size_t)INT_MAX) {
+                SetError(BAD_INPUT_STR, error, session, FATAL_ERROR_STATE);
+                return WOLFSSL_SNIFFER_ERROR;
+            }
+        }
+        length = (int)totalLength;
 
         tmpPacket = (byte*)XMALLOC(length, NULL, DYNAMIC_TYPE_SNIFFER_CHAIN_BUFFER);
         if (tmpPacket == NULL) return MEMORY_E;
@@ -6733,7 +6742,7 @@ static int ssl_DecodePacketInternal(const byte* packet, int length, int isChain,
         length = 0;
         for (i = 0; i < chainSz; i++) {
             XMEMCPY(tmpPacket+length,chain[i].iov_base,chain[i].iov_len);
-            length += chain[i].iov_len;
+            length += (int)chain[i].iov_len;
         }
         packet = (const byte*)tmpPacket;
 #else
