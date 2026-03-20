@@ -4535,18 +4535,26 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWC_SHA3_NO_ASM"
 fi
 
+if test "$ENABLED_SHA3" != "no" &&
+   (test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -ge 6)
+then
+    SHAKE_DEFAULT=yes
+else
+    SHAKE_DEFAULT=no
+fi
+
 # SHAKE128
 AC_ARG_ENABLE([shake128],
     [AS_HELP_STRING([--enable-shake128],[Enable wolfSSL SHAKE128 support (default: disabled)])],
     [ ENABLED_SHAKE128=$enableval ],
-    [ ENABLED_SHAKE128=no ]
+    [ ENABLED_SHAKE128=$SHAKE_DEFAULT ]
     )
 
 # SHAKE256
 AC_ARG_ENABLE([shake256],
     [AS_HELP_STRING([--enable-shake256],[Enable wolfSSL SHAKE256 support (default: disabled)])],
     [ ENABLED_SHAKE256=$enableval ],
-    [ ENABLED_SHAKE256=no ]
+    [ ENABLED_SHAKE256=$SHAKE_DEFAULT ]
     )
 
 # SHA512
