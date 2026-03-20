@@ -1,0 +1,262 @@
+name: wolfBoot Integration
+
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  WOLFBOOT_REPO: https://github.com/wolfSSL/wolfBoot.git
+  WOLFBOOT_BRANCH: master
+
+jobs:
+  keytools:
+    name: keytools
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout wolfSSL
+        uses: actions/checkout@v4
+
+      - name: Clone wolfBoot and link tested wolfSSL
+        run: |
+          set -euxo pipefail
+
+          git clone --depth 1 --branch "${WOLFBOOT_BRANCH}" "${WOLFBOOT_REPO}" wolfboot
+          rm -rf wolfboot/lib/wolfssl
+          ln -s "${GITHUB_WORKSPACE}" wolfboot/lib/wolfssl
+          test -L wolfboot/lib/wolfssl
+          test "$(realpath wolfboot/lib/wolfssl)" = "${GITHUB_WORKSPACE}"
+
+      - name: Run wolfBoot keytools integration flow
+        working-directory: wolfboot
+        run: |
+          set -euxo pipefail
+
+          make_clean() {
+            make distclean
+            rm -f private-key.der private-key.pem public-key.der public-rsa2048-key.der
+            rm -f test-app/image_v1.sig test-app/image_v1_digest.bin test-app/image_v2_signed.bin
+            rm -f wolfboot_signing_private_key.der ecc384-priv-key.der keystore.der
+          }
+
+          prepare_sim() {
+            cp config/examples/sim.config .config
+            make include/target.h
+            make -C tools/keytools
+            make -C tools/bin-assemble
+          }
+
+          # ECC256
+          make_clean
+          prepare_sim
+          make SIGN=ECC256 HASH=SHA256
+          rm -f src/keystore.c
+          openssl ecparam -name prime256v1 -genkey -noout -outform DER -out private-key.der
+          openssl ec -in private-key.der -inform DER -pubout -out public-key.der -outform DER
+          ./tools/keytools/keygen --ecc256 -i public-key.der
+          ./tools/keytools/sign --ecc256 --sha-only --sha256 test-app/image.elf public-key.der 1
+          openssl pkeyutl -sign -keyform der -inkey private-key.der -in test-app/image_v1_digest.bin > test-app/image_v1.sig
+          ./tools/keytools/sign --ecc256 --sha256 --manual-sign test-app/image.elf public-key.der 1 test-app/image_v1.sig
+
+          # ED25519
+          make_clean
+          prepare_sim
+          make SIGN=ED25519 HASH=SHA256
+          rm -f src/keystore.c
+          openssl genpkey -algorithm ed25519 -out private-key.der -outform DER
+          openssl pkey -in private-key.der -inform DER -pubout -out public-key.der -outform DER
+          ./tools/keytools/keygen --ed25519 -i public-key.der
+          ./tools/keytools/sign --ed25519 --sha-only --sha256 test-app/image.elf public-key.der 1
+          openssl pkeyutl -sign -keyform der -inkey private-key.der -rawin -in test-app/image_v1_digest.bin > test-app/image_v1.sig
+          ./tools/keytools/sign --ed25519 --sha256 --manual-sign test-app/image.elf public-key.der 1 test-app/image_v1.sig
+
+          # RSA2048
+          make_clean
+          prepare_sim
+          make SIGN=RSA2048 HASH=SHA256
+          rm -f src/keystore.c
+          openssl genrsa -out private-key.pem 2048
+          openssl rsa -in private-key.pem -inform PEM -out private-key.der -outform DER
+          openssl rsa -inform DER -outform DER -in private-key.der -out public-key.der -pubout
+          ./tools/keytools/keygen --rsa2048 -i public-key.der
+          ./tools/keytools/sign --rsa2048 --sha-only --sha256 test-app/image.elf public-key.der 1
+          openssl pkeyutl -sign -keyform der -inkey private-key.der -in test-app/image_v1_digest.bin > test-app/image_v1.sig
+          ./tools/keytools/sign --rsa2048 --sha256 --manual-sign test-app/image.elf public-key.der 1 test-app/image_v1.sig
+
+          # sign --no-ts
+          make_clean
+          prepare_sim
+          make SIGN=ECC256 HASH=SHA256
+          ./tools/keytools/sign --ecc256 --sha256 --no-ts test-app/image.elf wolfboot_signing_private_key.der 2
+
+          # Universal keystore
+          make_clean
+          prepare_sim
+          openssl genrsa -out private-key.pem 2048
+          openssl rsa -in private-key.pem -inform PEM -out private-key.der -outform DER
+          openssl rsa -inform DER -outform DER -in private-key.der -out public-rsa2048-key.der -pubout
+          ./tools/keytools/keygen --rsa2048 -i public-rsa2048-key.der --ecc256 -g wolfboot_signing_private_key.der --ecc384 -g ecc384-priv-key.der
+          make SIGN=ECC256 HASH=SHA256 WOLFBOOT_UNIVERSAL_KEYSTORE=1
+
+  renode_config_selection:
+    name: renode-config-selection
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout wolfSSL
+        uses: actions/checkout@v4
+
+      - name: Clone wolfBoot and link tested wolfSSL
+        run: |
+          set -euxo pipefail
+
+          git clone --depth 1 --branch "${WOLFBOOT_BRANCH}" "${WOLFBOOT_REPO}" wolfboot
+          rm -rf wolfboot/lib/wolfssl
+          ln -s "${GITHUB_WORKSPACE}" wolfboot/lib/wolfssl
+          test -L wolfboot/lib/wolfssl
+          test "$(realpath wolfboot/lib/wolfssl)" = "${GITHUB_WORKSPACE}"
+
+      - name: Build Renode docker image once
+        working-directory: wolfboot
+        run: |
+          set -euxo pipefail
+          docker build -t wolfboot-renode-nrf52 -f tools/renode/Dockerfile .
+
+      - name: Run curated wolfBoot Renode configurations
+        working-directory: wolfboot
+        run: |
+          set -euo pipefail
+
+          cp config/examples/nrf52840.config .config
+          make include/target.h
+
+          mkdir -p test_results
+
+          run_case() {
+            local slug="$1"
+            local opts="$2"
+            local result_dir="$PWD/test_results/$slug"
+            mkdir -p "$result_dir"
+
+            echo "=== Running $slug: $opts ==="
+            if docker run \
+              --rm \
+              --log-driver=none -a stdout -a stderr \
+              --volume "$PWD:/workspace" \
+              --volume "$result_dir:/tmp/test_results" \
+              --env SCRIPT=/workspace/renode-config.resc \
+              --env RENODE_CHECKOUT=/home/developer/renode \
+              --env TEST_OPTIONS="$opts" \
+              --workdir /workspace \
+              wolfboot-renode-nrf52 \
+              /bin/bash -lc 'tools/scripts/renode-test-update.sh $TEST_OPTIONS > /tmp/test_results/logs.txt 2>&1'
+            then
+              echo "$opts: PASS" | tee -a test_results/summary.txt
+            else
+              echo "$opts: FAIL" | tee -a test_results/summary.txt
+              if [ -f "$result_dir/logs.txt" ]; then
+                cat "$result_dir/logs.txt"
+              fi
+              return 1
+            fi
+          }
+
+          run_case sign-none "SIGN=NONE"
+          run_case ecc256 "SIGN=ECC256"
+          run_case ed25519 "SIGN=ED25519"
+          run_case rsa2048 "SIGN=RSA2048"
+
+          run_case sign-none-smallstack "SIGN=NONE WOLFBOOT_SMALL_STACK=1"
+          run_case ecc256-smallstack "SIGN=ECC256 WOLFBOOT_SMALL_STACK=1"
+          run_case ed25519-smallstack "SIGN=ED25519 WOLFBOOT_SMALL_STACK=1"
+          run_case rsa2048-smallstack "SIGN=RSA2048 WOLFBOOT_SMALL_STACK=1"
+
+          run_case ecc256-noasm "SIGN=ECC256 NO_ASM=1"
+          run_case ed25519-noasm "SIGN=ED25519 NO_ASM=1"
+          run_case rsa2048-noasm "SIGN=RSA2048 NO_ASM=1"
+
+          run_case ecc256-fastmath "SIGN=ECC256 SPMATH=0"
+          run_case rsa2048-fastmath "SIGN=RSA2048 SPMATH=0"
+
+          run_case ecc256-smallstack-noasm "SIGN=ECC256 WOLFBOOT_SMALL_STACK=1 NO_ASM=1"
+          run_case rsa2048-smallstack-noasm "SIGN=RSA2048 WOLFBOOT_SMALL_STACK=1 NO_ASM=1"
+
+          run_case ecc256-smallstack-fastmath "SIGN=ECC256 WOLFBOOT_SMALL_STACK=1 SPMATH=0"
+          run_case rsa2048-smallstack-fastmath "SIGN=RSA2048 WOLFBOOT_SMALL_STACK=1 SPMATH=0"
+
+      - name: Upload Renode logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wolfboot-renode-config-selection
+          path: wolfboot/test_results/
+
+  host_smoke:
+    name: host-smoke
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout wolfSSL
+        uses: actions/checkout@v4
+
+      - name: Clone wolfBoot and link tested wolfSSL
+        run: |
+          set -euxo pipefail
+
+          git clone --depth 1 --branch "${WOLFBOOT_BRANCH}" "${WOLFBOOT_REPO}" wolfboot
+          rm -rf wolfboot/lib/wolfssl
+          ln -s "${GITHUB_WORKSPACE}" wolfboot/lib/wolfssl
+          test -L wolfboot/lib/wolfssl
+          test "$(realpath wolfboot/lib/wolfssl)" = "${GITHUB_WORKSPACE}"
+
+      - name: Build and exercise host-side smoke test
+        working-directory: wolfboot
+        run: |
+          set -euo pipefail
+
+          cp config/examples/library.config .config
+          make keysclean
+          make clean
+          make keytools SIGN=ED25519 HASH=SHA256
+          ./tools/keytools/keygen --ed25519 -g wolfboot_signing_private_key.der
+
+          printf 'wolfBoot wolfSSL integration smoke\n' > test.bin
+          ./tools/keytools/sign --ed25519 --sha256 test.bin wolfboot_signing_private_key.der 1
+
+          make test-lib SIGN=ED25519 HASH=SHA256
+          ./test-lib test_v1_signed.bin
+          ./test-lib test_v1_signed.bin 2>&1 | grep "Firmware Valid"
+
+          truncate -s -1 test_v1_signed.bin
+          printf 'A' >> test_v1_signed.bin
+
+          set +e
+          output=$(./test-lib test_v1_signed.bin 2>&1)
+          status=$?
+          set -e
+
+          printf '%s\n' "$output"
+
+          if printf '%s\n' "$output" | grep -F "Failure" >/dev/null; then
+            status=1
+          fi
+
+          if [ "$status" -eq 0 ]; then
+            echo "Expected failure, but test-lib succeeded"
+            exit 1
+          fi
+
+          printf '%s\n' "$output" | grep -F "Failure" >/dev/null
