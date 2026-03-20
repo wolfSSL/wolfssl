@@ -235,3 +235,39 @@ int test_wc_d2i_PKCS12_bad_mac_salt(void)
     return EXPECT_RESULT();
 }
 
+/* Test that a crafted PKCS12 with a ContentInfo SEQUENCE length smaller than
+ * the contained OID is rejected, rather than causing an integer underflow
+ * in ci->dataSz calculation. */
+int test_wc_d2i_PKCS12_oid_underflow(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_ASN) && !defined(NO_PWDBASED) && defined(HAVE_PKCS12)
+    WC_PKCS12* pkcs12 = NULL;
+
+    /* Crafted PKCS12 DER: the inner ContentInfo SEQUENCE declares length 5,
+     * but contains a valid OID (1.2.840.113549.1.7.1) that is 11 bytes
+     * on the wire (tag 06 + length 09 + 9 value bytes). Without the bounds
+     * check, (word32)curSz - (localIdx - curIdx) = 5 - 11 underflows
+     * to ~4GB. */
+    static const byte crafted[] = {
+        0x30, 0x23,                                           /* outer SEQ */
+        0x02, 0x01, 0x03,                                     /* version 3 */
+        0x30, 0x1E,                                  /* AuthSafe wrapper SEQ */
+          0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D,
+          0x01, 0x07, 0x01,                             /* OID pkcs7-data */
+          0xA0, 0x11,                              /* [0] CONSTRUCTED ctx */
+            0x04, 0x0F,                                   /* OCTET STRING */
+              0x30, 0x0D,                       /* SEQ of ContentInfo arr */
+                0x30, 0x05,              /* ContentInfo SEQ, length=5 LIE */
+                  0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D,
+                  0x01, 0x07, 0x01              /* OID: 11 bytes actual */
+    };
+
+    ExpectNotNull(pkcs12 = wc_PKCS12_new());
+    ExpectIntEQ(wc_d2i_PKCS12(crafted, (word32)sizeof(crafted), pkcs12),
+                ASN_PARSE_E);
+    wc_PKCS12_free(pkcs12);
+#endif
+    return EXPECT_RESULT();
+}
+

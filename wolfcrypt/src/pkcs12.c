@@ -334,6 +334,12 @@ static int GetSafeContent(WC_PKCS12* pkcs12, const byte* input,
                 return ret;
             }
 
+            /* Check that OID did not consume more than the sequence length */
+            if (localIdx > curIdx + (word32)curSz) {
+                freeSafe(safe, pkcs12->heap);
+                return ASN_PARSE_E;
+            }
+
             /* create new content info struct ... possible OID sanity check? */
             ci = (ContentInfo*)XMALLOC(sizeof(ContentInfo), pkcs12->heap,
                                        DYNAMIC_TYPE_PKCS);
