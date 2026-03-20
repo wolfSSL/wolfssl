@@ -12555,7 +12555,7 @@ L_AES_CBC_encrypt_block_nr_256:
 	eor	r5, r5, r9
 	eor	r6, r6, r10
 	eor	r7, r7, r11
-#endif /* WOLFSSL_ARMASM_AES_BLOCK_INLINE */
+#endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
 	pop	{r1, r2, lr}
 	ldr	r3, [sp]
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
@@ -13269,7 +13269,7 @@ L_AES_CBC_encrypt_block_nr_192:
 	eor	r5, r5, r9
 	eor	r6, r6, r10
 	eor	r7, r7, r11
-#endif /* WOLFSSL_ARMASM_AES_BLOCK_INLINE */
+#endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
 	pop	{r1, r2, lr}
 	ldr	r3, [sp]
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
@@ -13983,7 +13983,7 @@ L_AES_CBC_encrypt_block_nr_128:
 	eor	r5, r5, r9
 	eor	r6, r6, r10
 	eor	r7, r7, r11
-#endif /* WOLFSSL_ARMASM_AES_BLOCK_INLINE */
+#endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
 	pop	{r1, r2, lr}
 	ldr	r3, [sp]
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)

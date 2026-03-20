@@ -64790,7 +64790,7 @@ _text ENDS
 ; /* Double a Montgomery form number (r = a + a % m).
 ;  *
 ;  * r   Result of addition.
-;  * a   Number to souble in Montgomery form.
+;  * a   Number to double in Montgomery form.
 ;  * m   Modulus (prime).
 ;  */
 _text SEGMENT READONLY PARA
@@ -74754,7 +74754,7 @@ _text ENDS
 ; /* Double a Montgomery form number (r = a + a % m).
 ;  *
 ;  * r   Result of addition.
-;  * a   Number to souble in Montgomery form.
+;  * a   Number to double in Montgomery form.
 ;  * m   Modulus (prime).
 ;  */
 _text SEGMENT READONLY PARA
@@ -74919,7 +74919,7 @@ _text ENDS
 ; /* Triple a Montgomery form number (r = a + a + a % m).
 ;  *
 ;  * r   Result of addition.
-;  * a   Number to souble in Montgomery form.
+;  * a   Number to double in Montgomery form.
 ;  * m   Modulus (prime).
 ;  */
 _text SEGMENT READONLY PARA
@@ -76037,7 +76037,7 @@ IFDEF HAVE_INTEL_AVX2
 ; /* Double a Montgomery form number (r = a + a % m).
 ;  *
 ;  * r   Result of addition.
-;  * a   Number to souble in Montgomery form.
+;  * a   Number to double in Montgomery form.
 ;  * m   Modulus (prime).
 ;  */
 _text SEGMENT READONLY PARA
@@ -76186,7 +76186,7 @@ IFDEF HAVE_INTEL_AVX2
 ; /* Triple a Montgomery form number (r = a + a + a % m).
 ;  *
 ;  * r   Result of addition.
-;  * a   Number to souble in Montgomery form.
+;  * a   Number to double in Montgomery form.
 ;  * m   Modulus (prime).
 ;  */
 _text SEGMENT READONLY PARA

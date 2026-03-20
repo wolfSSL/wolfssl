@@ -185,7 +185,7 @@ mlkem_arm32_ntt:
 #else
 	movt	r10, #0xcff
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 	mov	r2, #16
 L_mlkem_arm32_ntt_loop_123:
 	str	r2, [sp]
@@ -288,7 +288,7 @@ L_mlkem_arm32_ntt_loop_123:
 #else
 	bfi	r2, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	smulbb	r12, r11, r7
 	smulbt	r7, r11, r7
@@ -379,7 +379,7 @@ L_mlkem_arm32_ntt_loop_123:
 #else
 	bfi	r3, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	smulbb	r12, r11, r8
 	smulbt	r8, r11, r8
@@ -470,7 +470,7 @@ L_mlkem_arm32_ntt_loop_123:
 #else
 	bfi	r4, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	smulbb	r12, r11, r9
 	smulbt	r9, r11, r9
@@ -561,7 +561,7 @@ L_mlkem_arm32_ntt_loop_123:
 #else
 	bfi	r5, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 	ldr	r11, [r1, #4]
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	smulbb	r12, r11, r4
@@ -653,7 +653,7 @@ L_mlkem_arm32_ntt_loop_123:
 #else
 	bfi	r2, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	smulbb	r12, r11, r5
 	smulbt	r5, r11, r5
@@ -744,7 +744,7 @@ L_mlkem_arm32_ntt_loop_123:
 #else
 	bfi	r3, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	smultb	r12, r11, r8
 	smultt	r8, r11, r8
@@ -834,7 +834,7 @@ L_mlkem_arm32_ntt_loop_123:
 #else
 	bfi	r6, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	smultb	r12, r11, r9
 	smultt	r9, r11, r9
@@ -924,7 +924,7 @@ L_mlkem_arm32_ntt_loop_123:
 #else
 	bfi	r7, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 	ldr	r11, [r1, #8]
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	smulbb	r12, r11, r3
@@ -1016,7 +1016,7 @@ L_mlkem_arm32_ntt_loop_123:
 #else
 	bfi	r2, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	smultb	r12, r11, r5
 	smultt	r5, r11, r5
@@ -1106,7 +1106,7 @@ L_mlkem_arm32_ntt_loop_123:
 #else
 	bfi	r4, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 	ldr	r11, [r1, #12]
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	smulbb	r12, r11, r7
@@ -1198,7 +1198,7 @@ L_mlkem_arm32_ntt_loop_123:
 #else
 	bfi	r6, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	smultb	r12, r11, r9
 	smultt	r9, r11, r9
@@ -1288,7 +1288,7 @@ L_mlkem_arm32_ntt_loop_123:
 #else
 	bfi	r8, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 	str	r2, [r0]
 	str	r3, [r0, #64]
 	str	r4, [r0, #128]
@@ -1408,7 +1408,7 @@ L_mlkem_arm32_ntt_loop_4_i:
 #else
 	bfi	r2, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	smulbb	r12, r11, r5
 	smulbt	r5, r11, r5
@@ -1499,7 +1499,7 @@ L_mlkem_arm32_ntt_loop_4_i:
 #else
 	bfi	r3, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	smultb	r12, r11, r8
 	smultt	r8, r11, r8
@@ -1589,7 +1589,7 @@ L_mlkem_arm32_ntt_loop_4_i:
 #else
 	bfi	r6, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	smultb	r12, r11, r9
 	smultt	r9, r11, r9
@@ -1679,7 +1679,7 @@ L_mlkem_arm32_ntt_loop_4_i:
 #else
 	bfi	r7, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 	str	r2, [r0]
 	str	r3, [r0, #16]
 	str	r4, [r0, #32]
@@ -1804,7 +1804,7 @@ L_mlkem_arm32_ntt_loop_567:
 #else
 	bfi	r2, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	smulbb	r12, r11, r7
 	smulbt	r7, r11, r7
@@ -1895,7 +1895,7 @@ L_mlkem_arm32_ntt_loop_567:
 #else
 	bfi	r3, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	smulbb	r12, r11, r8
 	smulbt	r8, r11, r8
@@ -1986,7 +1986,7 @@ L_mlkem_arm32_ntt_loop_567:
 #else
 	bfi	r4, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	smulbb	r12, r11, r9
 	smulbt	r9, r11, r9
@@ -2077,7 +2077,7 @@ L_mlkem_arm32_ntt_loop_567:
 #else
 	bfi	r5, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 	ldr	r11, [sp, #4]
 	add	r11, r1, r11, lsr #2
 	ldr	r11, [r11, #64]
@@ -2171,7 +2171,7 @@ L_mlkem_arm32_ntt_loop_567:
 #else
 	bfi	r2, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	smulbb	r12, r11, r5
 	smulbt	r5, r11, r5
@@ -2262,7 +2262,7 @@ L_mlkem_arm32_ntt_loop_567:
 #else
 	bfi	r3, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	smultb	r12, r11, r8
 	smultt	r8, r11, r8
@@ -2352,7 +2352,7 @@ L_mlkem_arm32_ntt_loop_567:
 #else
 	bfi	r6, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	smultb	r12, r11, r9
 	smultt	r9, r11, r9
@@ -2442,7 +2442,7 @@ L_mlkem_arm32_ntt_loop_567:
 #else
 	bfi	r7, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 	ldr	r11, [sp, #4]
 	add	r11, r1, r11, lsr #1
 	ldr	r11, [r11, #128]
@@ -2536,7 +2536,7 @@ L_mlkem_arm32_ntt_loop_567:
 #else
 	bfi	r2, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	smultb	r12, r11, r5
 	smultt	r5, r11, r5
@@ -2626,7 +2626,7 @@ L_mlkem_arm32_ntt_loop_567:
 #else
 	bfi	r4, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 	ldr	r11, [sp, #4]
 	add	r11, r1, r11, lsr #1
 	ldr	r11, [r11, #132]
@@ -2720,7 +2720,7 @@ L_mlkem_arm32_ntt_loop_567:
 #else
 	bfi	r6, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	smultb	r12, r11, r9
 	smultt	r9, r11, r9
@@ -2810,7 +2810,7 @@ L_mlkem_arm32_ntt_loop_567:
 #else
 	bfi	r8, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	mov	r11, #0xc0
@@ -2836,7 +2836,7 @@ L_mlkem_arm32_ntt_loop_567:
 #else
 	mov	r10, #0xd01
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	smulwb	r12, r11, r2
 	smulwt	lr, r11, r2
@@ -2872,7 +2872,7 @@ L_mlkem_arm32_ntt_loop_567:
 #else
 	bfi	r2, lr, #16, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	smulwb	r12, r11, r3
 	smulwt	lr, r11, r3
@@ -2908,7 +2908,7 @@ L_mlkem_arm32_ntt_loop_567:
 #else
 	bfi	r3, lr, #16, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	smulwb	r12, r11, r4
 	smulwt	lr, r11, r4
@@ -2944,7 +2944,7 @@ L_mlkem_arm32_ntt_loop_567:
 #else
 	bfi	r4, lr, #16, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	smulwb	r12, r11, r5
 	smulwt	lr, r11, r5
@@ -2980,7 +2980,7 @@ L_mlkem_arm32_ntt_loop_567:
 #else
 	bfi	r5, lr, #16, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	smulwb	r12, r11, r6
 	smulwt	lr, r11, r6
@@ -3016,7 +3016,7 @@ L_mlkem_arm32_ntt_loop_567:
 #else
 	bfi	r6, lr, #16, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	smulwb	r12, r11, r7
 	smulwt	lr, r11, r7
@@ -3052,7 +3052,7 @@ L_mlkem_arm32_ntt_loop_567:
 #else
 	bfi	r7, lr, #16, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	smulwb	r12, r11, r8
 	smulwt	lr, r11, r8
@@ -3088,7 +3088,7 @@ L_mlkem_arm32_ntt_loop_567:
 #else
 	bfi	r8, lr, #16, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	smulwb	r12, r11, r9
 	smulwt	lr, r11, r9
@@ -3124,7 +3124,7 @@ L_mlkem_arm32_ntt_loop_567:
 #else
 	bfi	r9, lr, #16, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	mov	r10, #0x1
@@ -3138,7 +3138,7 @@ L_mlkem_arm32_ntt_loop_567:
 #else
 	movt	r10, #0xcff
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 	str	r2, [r0]
 	str	r3, [r0, #4]
 	str	r4, [r0, #8]
@@ -3309,7 +3309,7 @@ mlkem_arm32_invntt:
 #else
 	movt	r10, #0xcff
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 	mov	r3, #0
 L_mlkem_invntt_loop_765:
 	add	r11, r1, r3, lsr #1
@@ -3439,7 +3439,7 @@ L_mlkem_invntt_loop_765:
 #else
 	bfi	r3, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	ssub16	r12, r4, r5
 	sadd16	r4, r4, r5
@@ -3555,7 +3555,7 @@ L_mlkem_invntt_loop_765:
 #else
 	bfi	r5, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 	ldr	r11, [sp, #4]
 	add	r11, r1, r11, lsr #1
 	ldr	r11, [r11, #4]
@@ -3675,7 +3675,7 @@ L_mlkem_invntt_loop_765:
 #else
 	bfi	r7, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	ssub16	r12, r8, r9
 	sadd16	r8, r8, r9
@@ -3791,7 +3791,7 @@ L_mlkem_invntt_loop_765:
 #else
 	bfi	r9, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 	ldr	r11, [sp, #4]
 	add	r11, r1, r11, lsr #2
 	ldr	r11, [r11, #128]
@@ -3911,7 +3911,7 @@ L_mlkem_invntt_loop_765:
 #else
 	bfi	r4, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	ssub16	r12, r3, r5
 	sadd16	r3, r3, r5
@@ -4028,7 +4028,7 @@ L_mlkem_invntt_loop_765:
 #else
 	bfi	r5, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	ssub16	r12, r6, r8
 	sadd16	r6, r6, r8
@@ -4144,7 +4144,7 @@ L_mlkem_invntt_loop_765:
 #else
 	bfi	r8, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	ssub16	r12, r7, r9
 	sadd16	r7, r7, r9
@@ -4260,7 +4260,7 @@ L_mlkem_invntt_loop_765:
 #else
 	bfi	r9, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 	ldr	r11, [sp, #4]
 	add	r11, r1, r11, lsr #3
 	ldr	r11, [r11, #192]
@@ -4380,7 +4380,7 @@ L_mlkem_invntt_loop_765:
 #else
 	bfi	r6, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	ssub16	r12, r3, r7
 	sadd16	r3, r3, r7
@@ -4497,7 +4497,7 @@ L_mlkem_invntt_loop_765:
 #else
 	bfi	r7, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	ssub16	r12, r4, r8
 	sadd16	r4, r4, r8
@@ -4614,7 +4614,7 @@ L_mlkem_invntt_loop_765:
 #else
 	bfi	r8, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	ssub16	r12, r5, r9
 	sadd16	r5, r5, r9
@@ -4731,7 +4731,7 @@ L_mlkem_invntt_loop_765:
 #else
 	bfi	r9, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	mov	r11, #0xc0
@@ -4751,7 +4751,7 @@ L_mlkem_invntt_loop_765:
 #else
 	mov	r11, #0x4ebf
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	smulwb	r12, r11, r2
 	smulwt	lr, r11, r2
@@ -4787,7 +4787,7 @@ L_mlkem_invntt_loop_765:
 #else
 	bfi	r2, lr, #16, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	smulwb	r12, r11, r3
 	smulwt	lr, r11, r3
@@ -4823,7 +4823,7 @@ L_mlkem_invntt_loop_765:
 #else
 	bfi	r3, lr, #16, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	smulwb	r12, r11, r4
 	smulwt	lr, r11, r4
@@ -4859,7 +4859,7 @@ L_mlkem_invntt_loop_765:
 #else
 	bfi	r4, lr, #16, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	smulwb	r12, r11, r5
 	smulwt	lr, r11, r5
@@ -4895,7 +4895,7 @@ L_mlkem_invntt_loop_765:
 #else
 	bfi	r5, lr, #16, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 	str	r2, [r0]
 	str	r3, [r0, #4]
 	str	r4, [r0, #8]
@@ -5042,7 +5042,7 @@ L_mlkem_invntt_loop_4_i:
 #else
 	bfi	r4, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	ssub16	r12, r3, r5
 	sadd16	r3, r3, r5
@@ -5159,7 +5159,7 @@ L_mlkem_invntt_loop_4_i:
 #else
 	bfi	r5, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	ssub16	r12, r6, r8
 	sadd16	r6, r6, r8
@@ -5275,7 +5275,7 @@ L_mlkem_invntt_loop_4_i:
 #else
 	bfi	r8, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	ssub16	r12, r7, r9
 	sadd16	r7, r7, r9
@@ -5391,7 +5391,7 @@ L_mlkem_invntt_loop_4_i:
 #else
 	bfi	r9, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 	str	r2, [r0]
 	str	r3, [r0, #16]
 	str	r4, [r0, #32]
@@ -5542,7 +5542,7 @@ L_mlkem_invntt_loop_321:
 #else
 	bfi	r3, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	ssub16	r12, r4, r5
 	sadd16	r4, r4, r5
@@ -5658,7 +5658,7 @@ L_mlkem_invntt_loop_321:
 #else
 	bfi	r5, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 	ldr	r11, [r1, #244]
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	ssub16	r12, r6, r7
@@ -5776,7 +5776,7 @@ L_mlkem_invntt_loop_321:
 #else
 	bfi	r7, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	ssub16	r12, r8, r9
 	sadd16	r8, r8, r9
@@ -5892,7 +5892,7 @@ L_mlkem_invntt_loop_321:
 #else
 	bfi	r9, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 	ldr	r11, [r1, #248]
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	ssub16	r12, r2, r4
@@ -6010,7 +6010,7 @@ L_mlkem_invntt_loop_321:
 #else
 	bfi	r4, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	ssub16	r12, r3, r5
 	sadd16	r3, r3, r5
@@ -6127,7 +6127,7 @@ L_mlkem_invntt_loop_321:
 #else
 	bfi	r5, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	ssub16	r12, r6, r8
 	sadd16	r6, r6, r8
@@ -6243,7 +6243,7 @@ L_mlkem_invntt_loop_321:
 #else
 	bfi	r8, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	ssub16	r12, r7, r9
 	sadd16	r7, r7, r9
@@ -6359,7 +6359,7 @@ L_mlkem_invntt_loop_321:
 #else
 	bfi	r9, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	mov	r11, #0xc0
@@ -6379,7 +6379,7 @@ L_mlkem_invntt_loop_321:
 #else
 	mov	r11, #0x4ebf
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	smulwb	r12, r11, r2
 	smulwt	lr, r11, r2
@@ -6415,7 +6415,7 @@ L_mlkem_invntt_loop_321:
 #else
 	bfi	r2, lr, #16, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	smulwb	r12, r11, r3
 	smulwt	lr, r11, r3
@@ -6451,7 +6451,7 @@ L_mlkem_invntt_loop_321:
 #else
 	bfi	r3, lr, #16, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	smulwb	r12, r11, r4
 	smulwt	lr, r11, r4
@@ -6487,7 +6487,7 @@ L_mlkem_invntt_loop_321:
 #else
 	bfi	r4, lr, #16, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	smulwb	r12, r11, r5
 	smulwt	lr, r11, r5
@@ -6523,7 +6523,7 @@ L_mlkem_invntt_loop_321:
 #else
 	bfi	r5, lr, #16, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 	ldr	r11, [r1, #252]
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	ssub16	r12, r2, r6
@@ -6641,7 +6641,7 @@ L_mlkem_invntt_loop_321:
 #else
 	bfi	r6, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	ssub16	r12, r3, r7
 	sadd16	r3, r3, r7
@@ -6758,7 +6758,7 @@ L_mlkem_invntt_loop_321:
 #else
 	bfi	r7, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	ssub16	r12, r4, r8
 	sadd16	r4, r4, r8
@@ -6875,7 +6875,7 @@ L_mlkem_invntt_loop_321:
 #else
 	bfi	r8, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	ssub16	r12, r5, r9
 	sadd16	r5, r5, r9
@@ -6992,7 +6992,7 @@ L_mlkem_invntt_loop_321:
 #else
 	bfi	r9, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 	ldr	r11, [r1, #254]
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	smulbb	r12, r11, r2
@@ -7076,7 +7076,7 @@ L_mlkem_invntt_loop_321:
 #else
 	bfi	r2, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	smulbb	r12, r11, r3
 	smulbt	r3, r11, r3
@@ -7159,7 +7159,7 @@ L_mlkem_invntt_loop_321:
 #else
 	bfi	r3, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	smulbb	r12, r11, r4
 	smulbt	r4, r11, r4
@@ -7242,7 +7242,7 @@ L_mlkem_invntt_loop_321:
 #else
 	bfi	r4, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	smulbb	r12, r11, r5
 	smulbt	r5, r11, r5
@@ -7325,7 +7325,7 @@ L_mlkem_invntt_loop_321:
 #else
 	bfi	r5, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	smulbb	r12, r11, r6
 	smulbt	r6, r11, r6
@@ -7408,7 +7408,7 @@ L_mlkem_invntt_loop_321:
 #else
 	bfi	r6, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	smulbb	r12, r11, r7
 	smulbt	r7, r11, r7
@@ -7491,7 +7491,7 @@ L_mlkem_invntt_loop_321:
 #else
 	bfi	r7, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	smulbb	r12, r11, r8
 	smulbt	r8, r11, r8
@@ -7574,7 +7574,7 @@ L_mlkem_invntt_loop_321:
 #else
 	bfi	r8, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	smulbb	r12, r11, r9
 	smulbt	r9, r11, r9
@@ -7657,7 +7657,7 @@ L_mlkem_invntt_loop_321:
 #else
 	bfi	r9, r12, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 	str	r2, [r0]
 	str	r3, [r0, #64]
 	str	r4, [r0, #128]
@@ -7827,7 +7827,7 @@ mlkem_arm32_basemul_mont:
 #else
 	movt	r12, #0xcff
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 	mov	r8, #0
 L_mlkem_basemul_mont_loop:
 	ldm	r1!, {r4, r5}
@@ -8078,7 +8078,7 @@ L_mlkem_basemul_mont_loop:
 #endif
 	orr	r4, r9, r8, lsr #16
 	orr	r5, r11, r10, lsr #16
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 	stm	r0!, {r4, r5}
 	pop	{r8}
 	bne	L_mlkem_basemul_mont_loop
@@ -8105,7 +8105,7 @@ mlkem_arm32_basemul_mont_add:
 #else
 	movt	r12, #0xcff
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 	mov	r8, #0
 L_mlkem_arm32_basemul_mont_add_loop:
 	ldm	r1!, {r4, r5}
@@ -8390,7 +8390,7 @@ L_mlkem_arm32_basemul_mont_add_loop:
 #else
 	bfi	r5, r10, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 	stm	r0!, {r4, r5}
 	pop	{r8}
 	bne	L_mlkem_arm32_basemul_mont_add_loop
@@ -8421,7 +8421,7 @@ mlkem_arm32_csubq:
 #else
 	movt	lr, #0xd01
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 	mov	r11, #0x8000
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	orr	r11, r11, #0x80000000
@@ -8561,7 +8561,7 @@ L_mlkem_arm32_csubq_loop:
 #else
 	bfi	r5, r10, #0, #16
 #endif
-#endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 	stm	r0!, {r2, r3, r4, r5}
 	subs	r1, r1, #8
 	bne	L_mlkem_arm32_csubq_loop

@@ -2188,7 +2188,7 @@ L_AES_CBC_encrypt_block_nr_256:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
-#endif /* WOLFSSL_ARMASM_AES_BLOCK_INLINE */
+#endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
 	POP	{r1, r2, lr}
 	LDR	r3, [sp]
 	REV	r4, r4
@@ -2444,7 +2444,7 @@ L_AES_CBC_encrypt_block_nr_192:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
-#endif /* WOLFSSL_ARMASM_AES_BLOCK_INLINE */
+#endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
 	POP	{r1, r2, lr}
 	LDR	r3, [sp]
 	REV	r4, r4
@@ -2700,7 +2700,7 @@ L_AES_CBC_encrypt_block_nr_128:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
-#endif /* WOLFSSL_ARMASM_AES_BLOCK_INLINE */
+#endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
 	POP	{r1, r2, lr}
 	LDR	r3, [sp]
 	REV	r4, r4

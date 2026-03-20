@@ -89,14 +89,14 @@ wc_chacha_setkey:
 #endif /* BIG_ENDIAN_ORDER */
 	stm	r0!, {r4, r5, r12, lr}
 	# Next 16 bytes of key.
-	beq	L_chacha_arm32_setkey_same_keyb_ytes
+	beq	L_chacha_arm32_setkey_same_key_bytes
 	# Update key pointer for next 16 bytes.
 	add	r1, r1, r2
 	ldr	r4, [r1]
 	ldr	r5, [r1, #4]
 	ldr	r12, [r1, #8]
 	ldr	lr, [r1, #12]
-L_chacha_arm32_setkey_same_keyb_ytes:
+L_chacha_arm32_setkey_same_key_bytes:
 	stm	r0, {r4, r5, r12, lr}
 	pop	{r4, r5, pc}
 	.size	wc_chacha_setkey,.-wc_chacha_setkey
@@ -572,11 +572,11 @@ L_chacha_crypt_bytes_arm32_round_start_256:
 	ror	r11, r11, #16
 	veor	q7, q7, q4
 	add	r8, r8, r10
-	vrev32.i16	q15, q15
+	vrev32.16	q15, q15
 	add	r9, r9, r11
-	vrev32.i16	q3, q3
+	vrev32.16	q3, q3
 	eor	r4, r4, r8
-	vrev32.i16	q7, q7
+	vrev32.16	q7, q7
 	eor	r5, r5, r9
 	# c += d; b ^= c; b <<<= 12;
 	vadd.i32	q14, q14, q15
@@ -685,11 +685,11 @@ L_chacha_crypt_bytes_arm32_round_start_256:
 	ror	r10, r10, #16
 	veor	q7, q7, q4
 	add	r8, r8, r11
-	vrev32.i16	q15, q15
+	vrev32.16	q15, q15
 	add	r9, r9, r10
-	vrev32.i16	q3, q3
+	vrev32.16	q3, q3
 	eor	r5, r5, r8
-	vrev32.i16	q7, q7
+	vrev32.16	q7, q7
 	eor	r6, r6, r9
 	# c += d; b ^= c; b <<<= 12;
 	vadd.i32	q14, q14, q15
@@ -891,8 +891,8 @@ L_chacha_crypt_bytes_arm32_round_start_128:
 	vadd.i32	q4, q4, q5
 	veor	q3, q3, q0
 	veor	q7, q7, q4
-	vrev32.i16	q3, q3
-	vrev32.i16	q7, q7
+	vrev32.16	q3, q3
+	vrev32.16	q7, q7
 	# c += d; b ^= c; b <<<= 12;
 	vadd.i32	q2, q2, q3
 	vadd.i32	q6, q6, q7
@@ -932,8 +932,8 @@ L_chacha_crypt_bytes_arm32_round_start_128:
 	vadd.i32	q4, q4, q5
 	veor	q3, q3, q0
 	veor	q7, q7, q4
-	vrev32.i16	q3, q3
-	vrev32.i16	q7, q7
+	vrev32.16	q3, q3
+	vrev32.16	q7, q7
 	# c += d; b ^= c; b <<<= 12;
 	vadd.i32	q2, q2, q3
 	vadd.i32	q6, q6, q7
@@ -1178,13 +1178,13 @@ wc_chacha_setkey:
 	vldm	r3, {q0}
 	vld1.8	{q1}, [r1]!
 #ifdef BIG_ENDIAN_ORDER
-	vrev32.i16	q1, q1
+	vrev32.16	q1, q1
 #endif /* BIG_ENDIAN_ORDER */
 	vstm	r0!, {q0, q1}
 	beq	L_chacha_setkey_arm32_done
 	vld1.8	{q1}, [r1]
 #ifdef BIG_ENDIAN_ORDER
-	vrev32.i16	q1, q1
+	vrev32.16	q1, q1
 #endif /* BIG_ENDIAN_ORDER */
 L_chacha_setkey_arm32_done:
 	vstm	r0, {q1}

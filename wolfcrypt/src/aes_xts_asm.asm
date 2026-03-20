@@ -1456,7 +1456,6 @@ _text ENDS
 IFDEF HAVE_INTEL_AVX1
 _text SEGMENT READONLY PARA
 AES_XTS_init_avx1 PROC
-        mov	eax, r8d
         vmovdqu	xmm0, OWORD PTR [rcx]
         ; aes_enc_block
         vpxor	xmm0, xmm0, [rdx]
@@ -1478,13 +1477,13 @@ AES_XTS_init_avx1 PROC
         vaesenc	xmm0, xmm0, xmm2
         vmovdqu	xmm2, OWORD PTR [rdx+144]
         vaesenc	xmm0, xmm0, xmm2
-        cmp	eax, 11
+        cmp	r8d, 11
         vmovdqu	xmm2, OWORD PTR [rdx+160]
         jl	L_AES_XTS_init_avx1_tweak_aes_enc_block_last
         vaesenc	xmm0, xmm0, xmm2
         vmovdqu	xmm3, OWORD PTR [rdx+176]
         vaesenc	xmm0, xmm0, xmm3
-        cmp	eax, 13
+        cmp	r8d, 13
         vmovdqu	xmm2, OWORD PTR [rdx+192]
         jl	L_AES_XTS_init_avx1_tweak_aes_enc_block_last
         vaesenc	xmm0, xmm0, xmm2

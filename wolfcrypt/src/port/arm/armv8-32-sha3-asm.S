@@ -33,10 +33,10 @@
 #ifdef WOLFSSL_SHA3
 #ifndef WOLFSSL_ARMASM_NO_NEON
 	.text
-	.type	L_sha3_arm2_neon_rt, %object
-	.size	L_sha3_arm2_neon_rt, 192
+	.type	L_sha3_arm32_neon_rt, %object
+	.size	L_sha3_arm32_neon_rt, 192
 	.align	4
-L_sha3_arm2_neon_rt:
+L_sha3_arm32_neon_rt:
 	.word	0x1
 	.word	0x0
 	.word	0x8082
@@ -92,7 +92,7 @@ L_sha3_arm2_neon_rt:
 BlockSha3:
 	vpush	{d8-d15}
 	sub	sp, sp, #16
-	adr	r1, L_sha3_arm2_neon_rt
+	adr	r1, L_sha3_arm32_neon_rt
 	mov	r2, #24
 	mov	r3, sp
 	vld1.8	{d0-d3}, [r0]!
@@ -354,10 +354,10 @@ L_sha3_arm32_neon_begin:
 #endif /* WOLFSSL_ARMASM_NO_NEON */
 #ifdef WOLFSSL_ARMASM_NO_NEON
 	.text
-	.type	L_sha3_arm2_rt, %object
-	.size	L_sha3_arm2_rt, 192
+	.type	L_sha3_arm32_rt, %object
+	.size	L_sha3_arm32_rt, 192
 	.align	4
-L_sha3_arm2_rt:
+L_sha3_arm32_rt:
 	.word	0x1
 	.word	0x0
 	.word	0x8082
@@ -413,7 +413,7 @@ L_sha3_arm2_rt:
 BlockSha3:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
 	sub	sp, sp, #0xcc
-	adr	r1, L_sha3_arm2_rt
+	adr	r1, L_sha3_arm32_rt
 	mov	r2, #12
 L_sha3_arm32_begin:
 	str	r2, [sp, #200]

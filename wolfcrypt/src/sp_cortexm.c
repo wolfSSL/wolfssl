@@ -2357,9 +2357,9 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_2048_sub_in_place_64(sp_digit* a,
         "ADD	r11, %[a], #0x100\n\t"
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-    "L_sp_2048_sub_in_pkace_64_word:\n\t"
+    "L_sp_2048_sub_in_place_64_word:\n\t"
 #else
-    "L_sp_2048_sub_in_pkace_64_word_%=:\n\t"
+    "L_sp_2048_sub_in_place_64_word_%=:\n\t"
 #endif
         "RSBS	r10, r10, #0x0\n\t"
         "LDM	%[a], {r2, r3, r4, r5}\n\t"
@@ -2372,11 +2372,11 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_2048_sub_in_place_64(sp_digit* a,
         "SBC	r10, r10, r10\n\t"
         "CMP	%[a], r11\n\t"
 #if defined(__GNUC__)
-        "BNE	L_sp_2048_sub_in_pkace_64_word_%=\n\t"
+        "BNE	L_sp_2048_sub_in_place_64_word_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BNE.N	L_sp_2048_sub_in_pkace_64_word\n\t"
+        "BNE.N	L_sp_2048_sub_in_place_64_word\n\t"
 #else
-        "BNE.N	L_sp_2048_sub_in_pkace_64_word_%=\n\t"
+        "BNE.N	L_sp_2048_sub_in_place_64_word_%=\n\t"
 #endif
         "MOV	%[a], r10\n\t"
         : [a] "+r" (a), [b] "+r" (b)
@@ -2737,9 +2737,9 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_2048_sub_in_place_32(sp_digit* a,
         "ADD	r11, %[a], #0x80\n\t"
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-    "L_sp_2048_sub_in_pkace_32_word:\n\t"
+    "L_sp_2048_sub_in_place_32_word:\n\t"
 #else
-    "L_sp_2048_sub_in_pkace_32_word_%=:\n\t"
+    "L_sp_2048_sub_in_place_32_word_%=:\n\t"
 #endif
         "RSBS	r10, r10, #0x0\n\t"
         "LDM	%[a], {r2, r3, r4, r5}\n\t"
@@ -2752,11 +2752,11 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_2048_sub_in_place_32(sp_digit* a,
         "SBC	r10, r10, r10\n\t"
         "CMP	%[a], r11\n\t"
 #if defined(__GNUC__)
-        "BNE	L_sp_2048_sub_in_pkace_32_word_%=\n\t"
+        "BNE	L_sp_2048_sub_in_place_32_word_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BNE.N	L_sp_2048_sub_in_pkace_32_word\n\t"
+        "BNE.N	L_sp_2048_sub_in_place_32_word\n\t"
 #else
-        "BNE.N	L_sp_2048_sub_in_pkace_32_word_%=\n\t"
+        "BNE.N	L_sp_2048_sub_in_place_32_word_%=\n\t"
 #endif
         "MOV	%[a], r10\n\t"
         : [a] "+r" (a), [b] "+r" (b)
@@ -13347,9 +13347,9 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_3072_sub_in_place_96(sp_digit* a,
         "ADD	r11, %[a], #0x180\n\t"
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-    "L_sp_3072_sub_in_pkace_96_word:\n\t"
+    "L_sp_3072_sub_in_place_96_word:\n\t"
 #else
-    "L_sp_3072_sub_in_pkace_96_word_%=:\n\t"
+    "L_sp_3072_sub_in_place_96_word_%=:\n\t"
 #endif
         "RSBS	r10, r10, #0x0\n\t"
         "LDM	%[a], {r2, r3, r4, r5}\n\t"
@@ -13362,11 +13362,11 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_3072_sub_in_place_96(sp_digit* a,
         "SBC	r10, r10, r10\n\t"
         "CMP	%[a], r11\n\t"
 #if defined(__GNUC__)
-        "BNE	L_sp_3072_sub_in_pkace_96_word_%=\n\t"
+        "BNE	L_sp_3072_sub_in_place_96_word_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BNE.N	L_sp_3072_sub_in_pkace_96_word\n\t"
+        "BNE.N	L_sp_3072_sub_in_place_96_word\n\t"
 #else
-        "BNE.N	L_sp_3072_sub_in_pkace_96_word_%=\n\t"
+        "BNE.N	L_sp_3072_sub_in_place_96_word_%=\n\t"
 #endif
         "MOV	%[a], r10\n\t"
         : [a] "+r" (a), [b] "+r" (b)
@@ -13727,9 +13727,9 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_3072_sub_in_place_48(sp_digit* a,
         "ADD	r11, %[a], #0xc0\n\t"
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-    "L_sp_3072_sub_in_pkace_48_word:\n\t"
+    "L_sp_3072_sub_in_place_48_word:\n\t"
 #else
-    "L_sp_3072_sub_in_pkace_48_word_%=:\n\t"
+    "L_sp_3072_sub_in_place_48_word_%=:\n\t"
 #endif
         "RSBS	r10, r10, #0x0\n\t"
         "LDM	%[a], {r2, r3, r4, r5}\n\t"
@@ -13742,11 +13742,11 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_3072_sub_in_place_48(sp_digit* a,
         "SBC	r10, r10, r10\n\t"
         "CMP	%[a], r11\n\t"
 #if defined(__GNUC__)
-        "BNE	L_sp_3072_sub_in_pkace_48_word_%=\n\t"
+        "BNE	L_sp_3072_sub_in_place_48_word_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BNE.N	L_sp_3072_sub_in_pkace_48_word\n\t"
+        "BNE.N	L_sp_3072_sub_in_place_48_word\n\t"
 #else
-        "BNE.N	L_sp_3072_sub_in_pkace_48_word_%=\n\t"
+        "BNE.N	L_sp_3072_sub_in_place_48_word_%=\n\t"
 #endif
         "MOV	%[a], r10\n\t"
         : [a] "+r" (a), [b] "+r" (b)
@@ -23690,9 +23690,9 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_4096_sub_in_place_128(sp_digit* a,
         "ADD	r11, %[a], #0x200\n\t"
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-    "L_sp_4096_sub_in_pkace_128_word:\n\t"
+    "L_sp_4096_sub_in_place_128_word:\n\t"
 #else
-    "L_sp_4096_sub_in_pkace_128_word_%=:\n\t"
+    "L_sp_4096_sub_in_place_128_word_%=:\n\t"
 #endif
         "RSBS	r10, r10, #0x0\n\t"
         "LDM	%[a], {r2, r3, r4, r5}\n\t"
@@ -23705,11 +23705,11 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_4096_sub_in_place_128(sp_digit* a,
         "SBC	r10, r10, r10\n\t"
         "CMP	%[a], r11\n\t"
 #if defined(__GNUC__)
-        "BNE	L_sp_4096_sub_in_pkace_128_word_%=\n\t"
+        "BNE	L_sp_4096_sub_in_place_128_word_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BNE.N	L_sp_4096_sub_in_pkace_128_word\n\t"
+        "BNE.N	L_sp_4096_sub_in_place_128_word\n\t"
 #else
-        "BNE.N	L_sp_4096_sub_in_pkace_128_word_%=\n\t"
+        "BNE.N	L_sp_4096_sub_in_place_128_word_%=\n\t"
 #endif
         "MOV	%[a], r10\n\t"
         : [a] "+r" (a), [b] "+r" (b)
@@ -39666,9 +39666,9 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_256_sub_in_place_8(sp_digit* a,
         "ADD	r11, %[a], #0x20\n\t"
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-    "L_sp_256_sub_in_pkace_8_word:\n\t"
+    "L_sp_256_sub_in_place_8_word:\n\t"
 #else
-    "L_sp_256_sub_in_pkace_8_word_%=:\n\t"
+    "L_sp_256_sub_in_place_8_word_%=:\n\t"
 #endif
         "RSBS	r10, r10, #0x0\n\t"
         "LDM	%[a], {r2, r3, r4, r5}\n\t"
@@ -39681,11 +39681,11 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_256_sub_in_place_8(sp_digit* a,
         "SBC	r10, r10, r10\n\t"
         "CMP	%[a], r11\n\t"
 #if defined(__GNUC__)
-        "BNE	L_sp_256_sub_in_pkace_8_word_%=\n\t"
+        "BNE	L_sp_256_sub_in_place_8_word_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BNE.N	L_sp_256_sub_in_pkace_8_word\n\t"
+        "BNE.N	L_sp_256_sub_in_place_8_word\n\t"
 #else
-        "BNE.N	L_sp_256_sub_in_pkace_8_word_%=\n\t"
+        "BNE.N	L_sp_256_sub_in_place_8_word_%=\n\t"
 #endif
         "MOV	%[a], r10\n\t"
         : [a] "+r" (a), [b] "+r" (b)
@@ -49643,9 +49643,9 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_384_sub_in_place_12(sp_digit* a,
         "ADD	r11, %[a], #0x30\n\t"
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-    "L_sp_384_sub_in_pkace_12_word:\n\t"
+    "L_sp_384_sub_in_place_12_word:\n\t"
 #else
-    "L_sp_384_sub_in_pkace_12_word_%=:\n\t"
+    "L_sp_384_sub_in_place_12_word_%=:\n\t"
 #endif
         "RSBS	r10, r10, #0x0\n\t"
         "LDM	%[a], {r2, r3, r4, r5}\n\t"
@@ -49658,11 +49658,11 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_384_sub_in_place_12(sp_digit* a,
         "SBC	r10, r10, r10\n\t"
         "CMP	%[a], r11\n\t"
 #if defined(__GNUC__)
-        "BNE	L_sp_384_sub_in_pkace_12_word_%=\n\t"
+        "BNE	L_sp_384_sub_in_place_12_word_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BNE.N	L_sp_384_sub_in_pkace_12_word\n\t"
+        "BNE.N	L_sp_384_sub_in_place_12_word\n\t"
 #else
-        "BNE.N	L_sp_384_sub_in_pkace_12_word_%=\n\t"
+        "BNE.N	L_sp_384_sub_in_place_12_word_%=\n\t"
 #endif
         "MOV	%[a], r10\n\t"
         : [a] "+r" (a), [b] "+r" (b)
@@ -57454,9 +57454,23 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_521_mont_tpl_17(sp_digit* r,
         "SUB	%[r], %[r], #0x44\n\t"
         "LDM	%[r], {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
         "ADDS	r4, r4, r2\n\t"
-        "ADCS	r4, r4, #0x0\n\t"
+        "ADCS	r5, r5, #0x0\n\t"
+        "ADCS	r6, r6, #0x0\n\t"
+        "ADCS	r7, r7, #0x0\n\t"
+        "ADCS	r8, r8, #0x0\n\t"
+        "ADCS	r9, r9, #0x0\n\t"
+        "ADCS	r10, r10, #0x0\n\t"
+        "ADCS	r11, r11, #0x0\n\t"
         "STM	%[r]!, {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
         "LDM	%[r], {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
+        "ADCS	r4, r4, #0x0\n\t"
+        "ADCS	r5, r5, #0x0\n\t"
+        "ADCS	r6, r6, #0x0\n\t"
+        "ADCS	r7, r7, #0x0\n\t"
+        "ADCS	r8, r8, #0x0\n\t"
+        "ADCS	r9, r9, #0x0\n\t"
+        "ADCS	r10, r10, #0x0\n\t"
+        "ADCS	r11, r11, #0x0\n\t"
         "STM	%[r]!, {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
         "LDM	%[r], {r4}\n\t"
         "ADCS	r4, r4, #0x0\n\t"
@@ -62068,77 +62082,77 @@ WC_OMIT_FRAME_POINTER static void sp_521_rshift_17(sp_digit* r,
         "LSR	r5, r5, %[n]\n\t"
         "ORR	r4, r4, r3\n\t"
         "LDR	r6, [%[a], #8]\n\t"
-        "STR	r4, [%[a]]\n\t"
+        "STR	r4, [%[r]]\n\t"
         "LSL	r3, r6, r7\n\t"
         "LSR	r6, r6, %[n]\n\t"
         "ORR	r5, r5, r3\n\t"
         "LDR	r4, [%[a], #12]\n\t"
-        "STR	r5, [%[a], #4]\n\t"
+        "STR	r5, [%[r], #4]\n\t"
         "LSL	r3, r4, r7\n\t"
         "LSR	r4, r4, %[n]\n\t"
         "ORR	r6, r6, r3\n\t"
         "LDR	r5, [%[a], #16]\n\t"
-        "STR	r6, [%[a], #8]\n\t"
+        "STR	r6, [%[r], #8]\n\t"
         "LSL	r3, r5, r7\n\t"
         "LSR	r5, r5, %[n]\n\t"
         "ORR	r4, r4, r3\n\t"
         "LDR	r6, [%[a], #20]\n\t"
-        "STR	r4, [%[a], #12]\n\t"
+        "STR	r4, [%[r], #12]\n\t"
         "LSL	r3, r6, r7\n\t"
         "LSR	r6, r6, %[n]\n\t"
         "ORR	r5, r5, r3\n\t"
         "LDR	r4, [%[a], #24]\n\t"
-        "STR	r5, [%[a], #16]\n\t"
+        "STR	r5, [%[r], #16]\n\t"
         "LSL	r3, r4, r7\n\t"
         "LSR	r4, r4, %[n]\n\t"
         "ORR	r6, r6, r3\n\t"
         "LDR	r5, [%[a], #28]\n\t"
-        "STR	r6, [%[a], #20]\n\t"
+        "STR	r6, [%[r], #20]\n\t"
         "LSL	r3, r5, r7\n\t"
         "LSR	r5, r5, %[n]\n\t"
         "ORR	r4, r4, r3\n\t"
         "LDR	r6, [%[a], #32]\n\t"
-        "STR	r4, [%[a], #24]\n\t"
+        "STR	r4, [%[r], #24]\n\t"
         "LSL	r3, r6, r7\n\t"
         "LSR	r6, r6, %[n]\n\t"
         "ORR	r5, r5, r3\n\t"
         "LDR	r4, [%[a], #36]\n\t"
-        "STR	r5, [%[a], #28]\n\t"
+        "STR	r5, [%[r], #28]\n\t"
         "LSL	r3, r4, r7\n\t"
         "LSR	r4, r4, %[n]\n\t"
         "ORR	r6, r6, r3\n\t"
         "LDR	r5, [%[a], #40]\n\t"
-        "STR	r6, [%[a], #32]\n\t"
+        "STR	r6, [%[r], #32]\n\t"
         "LSL	r3, r5, r7\n\t"
         "LSR	r5, r5, %[n]\n\t"
         "ORR	r4, r4, r3\n\t"
         "LDR	r6, [%[a], #44]\n\t"
-        "STR	r4, [%[a], #36]\n\t"
+        "STR	r4, [%[r], #36]\n\t"
         "LSL	r3, r6, r7\n\t"
         "LSR	r6, r6, %[n]\n\t"
         "ORR	r5, r5, r3\n\t"
         "LDR	r4, [%[a], #48]\n\t"
-        "STR	r5, [%[a], #40]\n\t"
+        "STR	r5, [%[r], #40]\n\t"
         "LSL	r3, r4, r7\n\t"
         "LSR	r4, r4, %[n]\n\t"
         "ORR	r6, r6, r3\n\t"
         "LDR	r5, [%[a], #52]\n\t"
-        "STR	r6, [%[a], #44]\n\t"
+        "STR	r6, [%[r], #44]\n\t"
         "LSL	r3, r5, r7\n\t"
         "LSR	r5, r5, %[n]\n\t"
         "ORR	r4, r4, r3\n\t"
         "LDR	r6, [%[a], #56]\n\t"
-        "STR	r4, [%[a], #48]\n\t"
+        "STR	r4, [%[r], #48]\n\t"
         "LSL	r3, r6, r7\n\t"
         "LSR	r6, r6, %[n]\n\t"
         "ORR	r5, r5, r3\n\t"
         "LDR	r4, [%[a], #60]\n\t"
-        "STR	r5, [%[a], #52]\n\t"
+        "STR	r5, [%[r], #52]\n\t"
         "LSL	r3, r4, r7\n\t"
         "LSR	r4, r4, %[n]\n\t"
         "ORR	r6, r6, r3\n\t"
         "LDR	r5, [%[a], #64]\n\t"
-        "STR	r6, [%[a], #56]\n\t"
+        "STR	r6, [%[r], #56]\n\t"
         "LSL	r3, r5, r7\n\t"
         "LSR	r5, r5, %[n]\n\t"
         "ORR	r4, r4, r3\n\t"
@@ -62527,9 +62541,9 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_521_sub_in_place_17(sp_digit* a,
         "ADD	r11, %[a], #0x40\n\t"
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-    "L_sp_521_sub_in_pkace_17_word:\n\t"
+    "L_sp_521_sub_in_place_17_word:\n\t"
 #else
-    "L_sp_521_sub_in_pkace_17_word_%=:\n\t"
+    "L_sp_521_sub_in_place_17_word_%=:\n\t"
 #endif
         "RSBS	r10, r10, #0x0\n\t"
         "LDM	%[a], {r2, r3, r4, r5}\n\t"
@@ -62542,11 +62556,11 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_521_sub_in_place_17(sp_digit* a,
         "SBC	r10, r10, r10\n\t"
         "CMP	%[a], r11\n\t"
 #if defined(__GNUC__)
-        "BNE	L_sp_521_sub_in_pkace_17_word_%=\n\t"
+        "BNE	L_sp_521_sub_in_place_17_word_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BNE.N	L_sp_521_sub_in_pkace_17_word\n\t"
+        "BNE.N	L_sp_521_sub_in_place_17_word\n\t"
 #else
-        "BNE.N	L_sp_521_sub_in_pkace_17_word_%=\n\t"
+        "BNE.N	L_sp_521_sub_in_place_17_word_%=\n\t"
 #endif
         "RSBS	r10, r10, #0x0\n\t"
         "LDM	%[a], {r2}\n\t"
@@ -68852,9 +68866,9 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_1024_sub_in_place_32(sp_digit* a,
         "ADD	r11, %[a], #0x80\n\t"
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-    "L_sp_1024_sub_in_pkace_32_word:\n\t"
+    "L_sp_1024_sub_in_place_32_word:\n\t"
 #else
-    "L_sp_1024_sub_in_pkace_32_word_%=:\n\t"
+    "L_sp_1024_sub_in_place_32_word_%=:\n\t"
 #endif
         "RSBS	r10, r10, #0x0\n\t"
         "LDM	%[a], {r2, r3, r4, r5}\n\t"
@@ -68867,11 +68881,11 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_1024_sub_in_place_32(sp_digit* a,
         "SBC	r10, r10, r10\n\t"
         "CMP	%[a], r11\n\t"
 #if defined(__GNUC__)
-        "BNE	L_sp_1024_sub_in_pkace_32_word_%=\n\t"
+        "BNE	L_sp_1024_sub_in_place_32_word_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BNE.N	L_sp_1024_sub_in_pkace_32_word\n\t"
+        "BNE.N	L_sp_1024_sub_in_place_32_word\n\t"
 #else
-        "BNE.N	L_sp_1024_sub_in_pkace_32_word_%=\n\t"
+        "BNE.N	L_sp_1024_sub_in_place_32_word_%=\n\t"
 #endif
         "MOV	%[a], r10\n\t"
         : [a] "+r" (a), [b] "+r" (b)

@@ -2062,7 +2062,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt(const unsigned char* in,
         "EOR	r5, r5, r9\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
-#endif /* WOLFSSL_ARMASM_AES_BLOCK_INLINE */
+#endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
         "POP	{r1, %[len], lr}\n\t"
         "LDR	%[ks], [sp]\n\t"
         "REV	r4, r4\n\t"
@@ -2339,7 +2339,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt(const unsigned char* in,
         "EOR	r5, r5, r9\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
-#endif /* WOLFSSL_ARMASM_AES_BLOCK_INLINE */
+#endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
         "POP	{r1, %[len], lr}\n\t"
         "LDR	%[ks], [sp]\n\t"
         "REV	r4, r4\n\t"
@@ -2616,7 +2616,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt(const unsigned char* in,
         "EOR	r5, r5, r9\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
-#endif /* WOLFSSL_ARMASM_AES_BLOCK_INLINE */
+#endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
         "POP	{r1, %[len], lr}\n\t"
         "LDR	%[ks], [sp]\n\t"
         "REV	r4, r4\n\t"

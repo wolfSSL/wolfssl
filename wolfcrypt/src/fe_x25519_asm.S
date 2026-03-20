@@ -12372,7 +12372,7 @@ _fe_cmov_table_avx2:
         pushq	%r15
         pushq	%rbx
         movq	%rdx, %rcx
-        xor	%rbx, %rbx
+        xorq	%rbx, %rbx
         movsbq	%cl, %rax
         cdq
         xorb	%dl, %al
