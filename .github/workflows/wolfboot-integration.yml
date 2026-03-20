@@ -18,7 +18,7 @@ env:
 jobs:
   keytools:
     name: keytools
-    if: toLower(github.repository_owner) == 'wolfssl'
+    if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
 
@@ -109,7 +109,7 @@ jobs:
 
   renode_config_selection:
     name: renode-config-selection
-    if: toLower(github.repository_owner) == 'wolfssl'
+    if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-24.04
     timeout-minutes: 35
 
@@ -198,7 +198,7 @@ jobs:
 
   host_smoke:
     name: host-smoke
-    if: toLower(github.repository_owner) == 'wolfssl'
+    if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
 
