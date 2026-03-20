@@ -73,7 +73,7 @@ static int AesSetIV(Aes* aes, const byte* iv)
 int wc_AesSetKey(Aes* aes, const byte* key, word32 len, const byte* iv, int dir)
 {
     if (!wolfSSL_TI_CCMInit())
-        return 1;
+        return WC_HW_E;
     if ((aes == NULL) || (key == NULL))
         return BAD_FUNC_ARG;
     if (!((dir == AES_ENCRYPTION) || (dir == AES_DECRYPTION)))
@@ -231,6 +231,9 @@ int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     char *tmp; /* (char *)aes->tmp, for short */
     int ret;
 
+    if ((aes == NULL) || (out == NULL) || (in == NULL))
+        return BAD_FUNC_ARG;
+
     tmp = (char *)aes->tmp;
     if (aes->left) {
         if ((aes->left + sz) >= WC_AES_BLOCK_SIZE) {
@@ -350,7 +353,7 @@ static int AesAuthArgCheck(Aes* aes, byte* out, const byte* in, word32 inSz,
     case 16:
         *M = AES_CFG_CCM_M_16; break;
     default:
-        return 1;
+        return BAD_FUNC_ARG;
     }
 
     switch (nonceSz) {
@@ -371,7 +374,7 @@ static int AesAuthArgCheck(Aes* aes, byte* out, const byte* in, word32 inSz,
     case 14:
         *L = AES_CFG_CCM_L_1; break;
     default:
-        return 1;
+        return BAD_FUNC_ARG;
     }
     return 0;
 }
@@ -468,6 +471,9 @@ static int AesAuthEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         authTagSz, &M, &L);
     if (ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
         return ret;
+    }
+    if ((authIn == NULL) && (authInSz > 0)) {
+        return BAD_FUNC_ARG;
     }
 
     AesAuthSetIv(aes, nonce, nonceSz, L, mode);
@@ -568,6 +574,9 @@ static int AesAuthDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         authTagSz, &M, &L);
     if (ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
         return ret;
+    }
+    if ((authIn == NULL) && (authInSz > 0)) {
+        return BAD_FUNC_ARG;
     }
 
     AesAuthSetIv(aes, nonce, nonceSz, L, mode);
@@ -685,6 +694,9 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
 int wc_GmacSetKey(Gmac* gmac, const byte* key, word32 len)
 {
+    if (gmac == NULL) {
+        return BAD_FUNC_ARG;
+    }
     return AesAuthSetKey(&gmac->aes, key, len);
 }
 
@@ -692,6 +704,9 @@ int wc_GmacUpdate(Gmac* gmac, const byte* iv, word32 ivSz,
                               const byte* authIn, word32 authInSz,
                               byte* authTag, word32 authTagSz)
 {
+    if (gmac == NULL) {
+        return BAD_FUNC_ARG;
+    }
     return AesAuthEncrypt(&gmac->aes, NULL, NULL, 0, iv, ivSz, authTag, authTagSz,
                               authIn, authInSz, AES_CFG_MODE_GCM_HY0CALC);
 }

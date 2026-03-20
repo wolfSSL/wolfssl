@@ -279,6 +279,9 @@ int stsafe_interface_init(void)
  *          Note: For ECDH operations on persistent slots, the key must be generated
  *          with appropriate usage settings. Per ST FAE: slot 0xFF with usage_limit=1
  *          is recommended for ephemeral ECDH (key establishment mode).
+ *
+ * \return STSAFE_A_OK on success.
+ * \return Other value on failure.
  */
 static int stsafe_create_key(stsafe_slot_t slot, stsafe_curve_id_t curve_id,
                              uint8_t* pPubKeyRaw)
@@ -316,6 +319,9 @@ static int stsafe_create_key(stsafe_slot_t slot, stsafe_curve_id_t curve_id,
  *          Per ST FAE recommendation: slot 0xFF must be used with mode of
  *          operation = key establishment and usage limit = 1 for ECDH operations.
  *          Public key is returned in X||Y format.
+ *
+ * \return STSAFE_A_OK on success.
+ * \return Other value on failure.
  */
 static int stsafe_create_ecdhe_key(stsafe_curve_id_t curve_id,
                                     uint8_t* pPubKeyRaw)
@@ -344,6 +350,9 @@ static int stsafe_create_ecdhe_key(stsafe_curve_id_t curve_id,
 
 /**
  * \brief ECDSA sign using STSAFE-A120
+ *
+ * \return STSAFE_A_OK on success.
+ * \return Other value on failure.
  */
 static int stsafe_sign(stsafe_slot_t slot, stsafe_curve_id_t curve_id,
                        uint8_t* pHash, uint8_t* pSigRS)
@@ -369,6 +378,9 @@ static int stsafe_sign(stsafe_slot_t slot, stsafe_curve_id_t curve_id,
 
 /**
  * \brief ECDSA verify using STSAFE-A120
+ *
+ * \return STSAFE_A_OK on success.
+ * \return Other value on failure.
  */
 static int stsafe_verify(stsafe_curve_id_t curve_id, uint8_t* pHash,
                          uint8_t* pSigRS, uint8_t* pPubKeyX, uint8_t* pPubKeyY,
@@ -412,6 +424,9 @@ static int stsafe_verify(stsafe_curve_id_t curve_id, uint8_t* pHash,
 
 /**
  * \brief ECDH shared secret using STSAFE-A120
+ *
+ * \return STSAFE_A_OK on success.
+ * \return Other value on failure.
  */
 static int stsafe_shared_secret(stsafe_slot_t slot, stsafe_curve_id_t curve_id,
                                 uint8_t* pPubKeyX, uint8_t* pPubKeyY,
@@ -470,6 +485,9 @@ static int stsafe_shared_secret(stsafe_slot_t slot, stsafe_curve_id_t curve_id,
 
 /**
  * \brief Read device certificate from STSAFE-A120
+ *
+ * \return STSAFE_A_OK on success.
+ * \return Other value on failure.
  */
 static int stsafe_read_certificate(uint8_t** ppCert, uint32_t* pCertLen)
 {
@@ -588,6 +606,9 @@ static int stsafe_check_host_keys(void* handle)
 
 /**
  * \brief Initialize STSAFE-A100/A110 device
+ *
+ * \return STSAFE_A_OK on success.
+ * \return Other value on failure.
  */
 int stsafe_interface_init(void)
 {
@@ -641,6 +662,9 @@ int stsafe_interface_init(void)
 
 /**
  * \brief Generate ECC key pair on STSAFE-A100/A110
+ *
+ * \return STSAFE_A_OK on success.
+ * \return Other value on failure.
  */
 static int stsafe_create_key(stsafe_slot_t* pSlot, stsafe_curve_id_t curve_id,
                              uint8_t* pPubKeyRaw)
@@ -663,7 +687,8 @@ static int stsafe_create_key(stsafe_slot_t* pSlot, stsafe_curve_id_t curve_id,
         curve_id, &pointRepId, &pubX, &pubY, STSAFE_A_HOST_C_MAC);
 
     if (status_code == STSAFE_A_OK && pointRepId != NULL &&
-        *pointRepId == STSAFE_A_POINT_REPRESENTATION_ID) {
+        *pointRepId == STSAFE_A_POINT_REPRESENTATION_ID &&
+        pubX != NULL && pubY != NULL) {
         XMEMCPY(pPubKeyRaw, pubX->Data, pubX->Length);
         XMEMCPY(pPubKeyRaw + key_sz, pubY->Data, pubY->Length);
         rc = STSAFE_A_OK;
@@ -685,6 +710,9 @@ static int stsafe_create_key(stsafe_slot_t* pSlot, stsafe_curve_id_t curve_id,
 
 /**
  * \brief ECDSA sign using STSAFE-A100/A110
+ *
+ * \return STSAFE_A_OK on success.
+ * \return Other value on failure.
  */
 static int stsafe_sign(stsafe_slot_t slot, stsafe_curve_id_t curve_id,
                        uint8_t* pHash, uint8_t* pSigRS)
@@ -743,6 +771,9 @@ static int stsafe_sign(stsafe_slot_t slot, stsafe_curve_id_t curve_id,
 
 /**
  * \brief ECDSA verify using STSAFE-A100/A110
+ *
+ * \return STSAFE_A_OK on success.
+ * \return Other value on failure.
  */
 static int stsafe_verify(stsafe_curve_id_t curve_id, uint8_t* pHash,
                          uint8_t* pSigRS, uint8_t* pPubKeyX, uint8_t* pPubKeyY,
@@ -836,6 +867,9 @@ static int stsafe_verify(stsafe_curve_id_t curve_id, uint8_t* pHash,
 
 /**
  * \brief ECDH shared secret using STSAFE-A100/A110
+ *
+ * \return STSAFE_A_OK on success.
+ * \return Other value on failure.
  */
 static int stsafe_shared_secret(stsafe_slot_t slot, stsafe_curve_id_t curve_id,
                                 uint8_t* pPubKeyX, uint8_t* pPubKeyY,
@@ -901,6 +935,9 @@ static int stsafe_shared_secret(stsafe_slot_t slot, stsafe_curve_id_t curve_id,
 
 /**
  * \brief Read device certificate from STSAFE-A100/A110
+ *
+ * \return STSAFE_A_OK on success.
+ * \return Other value on failure.
  */
 static int stsafe_read_certificate(uint8_t** ppCert, uint32_t* pCertLen)
 {
@@ -923,7 +960,7 @@ static int stsafe_read_certificate(uint8_t** ppCert, uint32_t* pCertLen)
     status_code = StSafeA_Read(g_stsafe_handle, 0, 0, STSAFE_A_ALWAYS,
         0, 0, 4, &readBuf, STSAFE_A_NO_MAC);
 
-    if (status_code == STSAFE_A_OK && readBuf->Length == 4) {
+    if (status_code == STSAFE_A_OK && readBuf != NULL && readBuf->Length == 4) {
         /* Parse ASN.1 DER certificate header */
         /* 0x30 = ASN_SEQUENCE | ASN_CONSTRUCTED (certificate is a SEQUENCE) */
         if (readBuf->Data[0] == (ASN_SEQUENCE | ASN_CONSTRUCTED)) {
@@ -962,7 +999,7 @@ static int stsafe_read_certificate(uint8_t** ppCert, uint32_t* pCertLen)
     if (rc == STSAFE_A_OK && *pCertLen > 0) {
         *ppCert = (uint8_t*)XMALLOC(*pCertLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (*ppCert == NULL) {
-            rc = (int)(uint8_t)-1;
+            rc = MEMORY_E;
         }
     }
 

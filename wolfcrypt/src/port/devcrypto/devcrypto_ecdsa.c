@@ -228,6 +228,7 @@ int wc_DevCryptoEccVerify(int curveId, byte* pub, word32 pubSz,
         ret = wc_DevCryptoCreate(&ctx, CRYPTO_ASYM_ECDSA_VERIFY, NULL, 0);
     }
     if (ret == 0) {
+        XMEMSET(&kop, 0, sizeof(kop));
         kop.crk_op = CRK_ECDSA_VERIFY;
         kop.ses    = ctx.sess.ses;
         kop.crk_flags = CurveIDToFlag(curveId);

@@ -239,7 +239,7 @@ int wc_Sha3_384_Copy(wc_Sha3* src, wc_Sha3* dst)
     return 0;
 #else
     WOLFSSL_MSG("Copy of SHA3 struct not supported with this build");
-    return -1;
+    return NOT_COMPILED_IN;
 #endif
 }
 #endif

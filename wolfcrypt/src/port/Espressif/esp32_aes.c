@@ -475,15 +475,17 @@ int wc_esp32AesDecrypt(Aes *aes, const byte* in, byte* out)
 
     ESP_LOGV(TAG, "enter wc_esp32AesDecrypt");
     /* lock the hw engine */
-    esp_aes_hw_InUse();
-    /* load the key into the register */
-    ret = esp_aes_hw_Set_KeyMode(aes, ESP32_AES_UPDATEKEY_DECRYPT);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "wc_esp32AesDecrypt failed "
-                      "during esp_aes_hw_Set_KeyMode");
-        /* release hw */
-        esp_aes_hw_Leave();
-        ret = BAD_FUNC_ARG;
+    ret = esp_aes_hw_InUse();
+    if (ret == ESP_OK) {
+        /* load the key into the register */
+        ret = esp_aes_hw_Set_KeyMode(aes, ESP32_AES_UPDATEKEY_DECRYPT);
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "wc_esp32AesDecrypt failed "
+                          "during esp_aes_hw_Set_KeyMode");
+            /* release hw */
+            esp_aes_hw_Leave();
+            ret = BAD_FUNC_ARG;
+        }
     }
 
     if (ret == ESP_OK) {
@@ -606,9 +608,9 @@ int wc_esp32AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 
             offset += WC_AES_BLOCK_SIZE;
         } /* while (blocks--) */
-        esp_aes_hw_Leave();
     } /* if Set Mode was successful (ret == ESP_OK) */
 
+    esp_aes_hw_Leave();
     ESP_LOGV(TAG, "leave wc_esp32AesCbcDecrypt");
     return ret;
 } /* wc_esp32AesCbcDecrypt */
