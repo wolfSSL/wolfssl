@@ -32,6 +32,7 @@ int test_tls13_pq_groups(void);
 int test_tls13_early_data(void);
 int test_tls13_same_ch(void);
 int test_tls13_hrr_different_cs(void);
+int test_tls13_ch2_different_cs(void);
 int test_tls13_sg_missing(void);
 int test_tls13_ks_missing(void);
 int test_tls13_duplicate_extension(void);
@@ -51,6 +52,7 @@ int test_tls13_derive_keys_no_key(void);
     TEST_DECL_GROUP("tls13", test_tls13_early_data),            \
     TEST_DECL_GROUP("tls13", test_tls13_same_ch),               \
     TEST_DECL_GROUP("tls13", test_tls13_hrr_different_cs),      \
+    TEST_DECL_GROUP("tls13", test_tls13_ch2_different_cs),      \
     TEST_DECL_GROUP("tls13", test_tls13_sg_missing),            \
     TEST_DECL_GROUP("tls13", test_tls13_ks_missing),            \
     TEST_DECL_GROUP("tls13", test_tls13_duplicate_extension),   \

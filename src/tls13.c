@@ -6635,8 +6635,10 @@ static int RestartHandshakeHashWithCookie(WOLFSSL* ssl, Cookie* cookie)
         hrrIdx += ssl->session->sessionIDSz;
     }
 
-    /* Cipher Suite */
+    /* Restore the cipher suite from the cookie. */
+    ssl->options.hrrCipherSuite0 = cookieData[idx];
     hrr[hrrIdx++] = cookieData[idx++];
+    ssl->options.hrrCipherSuite  = cookieData[idx];
     hrr[hrrIdx++] = cookieData[idx++];
 
     /* Compression not supported in TLS v1.3. */
@@ -7350,6 +7352,21 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
 #endif
 
+    /* Verify the cipher suite is the same as what was chosen in HRR.
+     * got_client_hello == 2 covers the stateful path.
+     * cookieGood covers the stateless DTLS path. */
+    if ((ssl->msgsReceived.got_client_hello == 2
+#ifdef WOLFSSL_SEND_HRR_COOKIE
+            || ssl->options.cookieGood
+#endif
+        ) &&
+            (ssl->options.cipherSuite0 != ssl->options.hrrCipherSuite0 ||
+             ssl->options.cipherSuite  != ssl->options.hrrCipherSuite)) {
+        WOLFSSL_MSG("Cipher suite in second ClientHello does not match "
+                    "HelloRetryRequest");
+        ERROR_OUT(INVALID_PARAMETER, exit_dch);
+    }
+
     /* Advance state and proceed */
     ssl->options.asyncState = TLS_ASYNC_VERIFY;
     } /* case TLS_ASYNC_BUILD || TLS_ASYNC_DO */
@@ -7657,7 +7674,9 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
      * In case of stateless DTLS, we do not store the group, however, as it is
      * already stored in the cookie that is sent to the client. We later recover
      * the group from the cookie to prevent storing a state in a stateless
-     * server. */
+     * server.
+     *
+     * Similar logic holds for the hrrCipherSuite. */
     if (extMsgType == hello_retry_request
 #if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_SEND_HRR_COOKIE)
         && (!ssl->options.dtls || ssl->options.dtlsStateful)
@@ -7669,6 +7688,9 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
             if (kse != NULL)
                 ssl->hrr_keyshare_group = kse->group;
         }
+
+        ssl->options.hrrCipherSuite0 = ssl->options.cipherSuite0;
+        ssl->options.hrrCipherSuite  = ssl->options.cipherSuite;
     }
 
 #ifdef WOLFSSL_SEND_HRR_COOKIE
