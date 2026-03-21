@@ -428,7 +428,7 @@ int test_wc_SHE_SetM2M4Header(void)
 
 #if defined(WOLF_CRYPTO_CB) && defined(WOLFSSL_SHE) && !defined(NO_AES)
 
-/* SHE callback — re-calls with software devId */
+/* SHE callback -- re-calls with software devId */
 static int test_she_crypto_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 {
     wc_SHE* she;
@@ -513,7 +513,7 @@ static int test_she_crypto_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                       info->she.op.generateM4M5.m5Sz);
             break;
         case WC_SHE_EXPORT_KEY:
-            /* Simulate hardware export — fill with test pattern */
+            /* Simulate hardware export -- fill with test pattern */
             if (info->she.op.exportKey.m1 != NULL) {
                 XMEMSET(info->she.op.exportKey.m1, 0x11, WC_SHE_M1_SZ);
             }
@@ -572,7 +572,7 @@ int test_wc_SHE_CryptoCb(void)
     ExpectIntEQ(XMEMCMP(m4, sheTestExpM4, WC_SHE_M4_SZ), 0);
     ExpectIntEQ(XMEMCMP(m5, sheTestExpM5, WC_SHE_M5_SZ), 0);
 
-    /* ExportKey via callback — simulated hardware */
+    /* ExportKey via callback -- simulated hardware */
 #if !defined(NO_WC_SHE_EXPORTKEY)
     {
         byte em1[WC_SHE_M1_SZ];

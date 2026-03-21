@@ -123,7 +123,7 @@ int wc_SHE_Init(wc_SHE* she, void* heap, int devId)
     ForceZero(she, sizeof(wc_SHE));
     she->heap  = heap;
     she->devId = devId;
-    /* kdfEncOverride/kdfMacOverride are zero from XMEMSET — defaults used */
+    /* kdfEncOverride/kdfMacOverride are zero from XMEMSET -- defaults used */
 
     return 0;
 }
@@ -222,7 +222,7 @@ void wc_SHE_Free(wc_SHE* she)
 }
 
 /* -------------------------------------------------------------------------- */
-/* GetUID — callback required                                                 */
+/* GetUID -- callback required                                                 */
 /*                                                                            */
 /* Dispatches to callback to fetch UID from hardware.                        */
 /* Buffer size validation is the callback's responsibility.                  */
@@ -241,7 +241,7 @@ int wc_SHE_GetUID(wc_SHE* she, byte* uid, word32 uidSz,
 #endif /* WOLF_CRYPTO_CB && !NO_WC_SHE_GETUID */
 
 /* -------------------------------------------------------------------------- */
-/* GetCounter — callback required                                             */
+/* GetCounter -- callback required                                             */
 /*                                                                            */
 /* Dispatches to callback to read current counter from hardware.             */
 /* Returns CRYPTOCB_UNAVAILABLE if no callback.                              */
@@ -425,13 +425,13 @@ int wc_SHE_GenerateM1M2M3(wc_SHE* she,
     WC_DECLARE_VAR(aes, Aes, 1, 0);
     WC_DECLARE_VAR(cmac, Cmac, 1, 0);
 
-    /* Validate SHE context first — required for both callback and software */
+    /* Validate SHE context first -- required for both callback and software */
     if (she == NULL) {
         return BAD_FUNC_ARG;
     }
 
 #ifdef WOLF_CRYPTO_CB
-    /* Try callback first — callback handles its own parameter validation.
+    /* Try callback first -- callback handles its own parameter validation.
      * This allows callers to pass NULL authKey/newKey when a secure element
      * holds the keys and the callback talks to it directly. */
     if (she->devId != INVALID_DEVID) {
@@ -448,7 +448,7 @@ int wc_SHE_GenerateM1M2M3(wc_SHE* she,
     }
 #endif
 
-    /* Software path — validate all parameters */
+    /* Software path -- validate all parameters */
     if (uid == NULL || uidSz != WC_SHE_UID_SZ ||
         authKey == NULL || authKeySz != WC_SHE_KEY_SZ ||
         newKey == NULL || newKeySz != WC_SHE_KEY_SZ ||
@@ -482,7 +482,7 @@ int wc_SHE_GenerateM1M2M3(wc_SHE* she,
         return MEMORY_E;
     }
 
-    /* Init AES once — used by both MP16 and CBC */
+    /* Init AES once -- used by both MP16 and CBC */
     ret = wc_AesInit(aes, she->heap, she->devId);
     if (ret != 0) {
         WC_FREE_VAR(aes, she->heap);
@@ -584,7 +584,7 @@ int wc_SHE_GenerateM4M5(wc_SHE* she,
     }
 
 #ifdef WOLF_CRYPTO_CB
-    /* Try callback first — useful for uploading M1/M2/M3 to an HSM which
+    /* Try callback first -- useful for uploading M1/M2/M3 to an HSM which
      * loads the key and returns the correct M4/M5 proof values.  The callback
      * handles its own parameter validation. */
     if (she->devId != INVALID_DEVID) {
@@ -599,7 +599,7 @@ int wc_SHE_GenerateM4M5(wc_SHE* she,
     }
 #endif
 
-    /* Software path — validate all parameters */
+    /* Software path -- validate all parameters */
     if (uid == NULL || uidSz != WC_SHE_UID_SZ ||
         newKey == NULL || newKeySz != WC_SHE_KEY_SZ ||
         m4 == NULL || m4Sz < WC_SHE_M4_SZ ||
@@ -631,7 +631,7 @@ int wc_SHE_GenerateM4M5(wc_SHE* she,
         return MEMORY_E;
     }
 
-    /* Init AES once — used by both MP16 and ECB */
+    /* Init AES once -- used by both MP16 and ECB */
     ret = wc_AesInit(aes, she->heap, she->devId);
     if (ret != 0) {
         WC_FREE_VAR(aes, she->heap);
@@ -700,7 +700,7 @@ int wc_SHE_GenerateM4M5(wc_SHE* she,
 /* -------------------------------------------------------------------------- */
 #if defined(WOLF_CRYPTO_CB) && !defined(NO_WC_SHE_EXPORTKEY)
 /* -------------------------------------------------------------------------- */
-/* Export Key — callback required                                             */
+/* Export Key -- callback required                                             */
 /*                                                                            */
 /* Asks hardware to export a key slot as M1-M5 in SHE loadable format.       */
 /* -------------------------------------------------------------------------- */

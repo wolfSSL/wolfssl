@@ -56739,6 +56739,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t she_test(void)
         goto exit_SHE_Test;
     }
 
+#if defined(WOLF_CRYPTO_CB) || !defined(NO_WC_SHE_IMPORT_M123)
     /* ---- Import M1/M2/M3 and generate M4/M5 (only NewKey needed) ---- */
     wc_SHE_Free(she);
     ret = wc_SHE_Init(she, HEAP_HINT, devId);
@@ -56746,7 +56747,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t she_test(void)
         goto exit_SHE_Test;
     }
 
-    /* Import M1/M2/M3, then generate M4/M5 via one-shot */
+    /* Import M1/M2/M3, then generate M4/M5 */
     ret = wc_SHE_ImportM1M2M3(she,
                                 expM1, WC_SHE_M1_SZ,
                                 expM2, WC_SHE_M2_SZ,
@@ -56773,6 +56774,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t she_test(void)
         ret = WC_TEST_RET_ENC_NC;
         goto exit_SHE_Test;
     }
+#endif /* WOLF_CRYPTO_CB || !NO_WC_SHE_IMPORT_M123 */
 
     /* ---- One-shot M1/M2/M3 ---- */
     wc_SHE_Free(she);
@@ -56864,7 +56866,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t she_test(void)
         goto exit_SHE_Test;
     }
 
-    /* Generate M4/M5 on second context — completely independent */
+    /* Generate M4/M5 on second context -- completely independent */
     ret = wc_SHE_GenerateM4M5(she2,
               sheUid, sizeof(sheUid),
               WC_SHE_MASTER_ECU_KEY_ID, 4,
@@ -67523,7 +67525,7 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                           info->she.op.generateM4M5.m5Sz);
                 break;
             case WC_SHE_EXPORT_KEY:
-                /* Simulate hardware export — fill with test pattern */
+                /* Simulate hardware export -- fill with test pattern */
                 if (info->she.op.exportKey.m1 != NULL) {
                     XMEMSET(info->she.op.exportKey.m1, 0x11,
                             WC_SHE_M1_SZ);
