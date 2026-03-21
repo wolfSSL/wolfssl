@@ -4856,3 +4856,47 @@ int test_wc_PKCS7_VerifySignedData_PKCS7ContentSeq(void)
     return EXPECT_RESULT();
 }
 
+/*
+ * Test PKCS7 VerifySignedData with indefinite-length BER-encoded SignedData
+ * containing mismatched nesting depth. Verifies bounds checking in the
+ * end-of-content octet verification loop in streaming mode.
+ */
+int test_wc_PKCS7_VerifySignedData_IndefLenOOB(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_PKCS7_STREAM) && !defined(NO_FILESYSTEM)
+    PKCS7* pkcs7 = NULL;
+    char   fName[] = "./certs/pkcs7-indef-len-signed-data.bin";
+    XFILE  f = XBADFILE;
+    byte*  der = NULL;
+    word32 derSz = 0;
+
+    /* PKCS#7 SignedData with indefinite-length BER encoding where the
+     * nesting depth exceeds the available end-of-content octets. */
+    ExpectTrue((f = XFOPEN(fName, "rb")) != XBADFILE);
+    if (f != XBADFILE) {
+        ExpectIntEQ(XFSEEK(f, 0, XSEEK_END), 0);
+        ExpectIntGT(derSz = (word32)XFTELL(f), 0);;
+        ExpectIntEQ(XFSEEK(f, 0, XSEEK_SET), 0);
+        ExpectNotNull(der = (byte*)XMALLOC(derSz, HEAP_HINT,
+                                           DYNAMIC_TYPE_TMP_BUFFER));
+        if (der != NULL) {
+            ExpectTrue(XFREAD(der, 1, derSz, f) == derSz);
+        }
+        XFCLOSE(f);
+    }
+
+    if (der != NULL) {
+        /* Should return a parse error for malformed input */
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        ExpectIntNE(wc_PKCS7_VerifySignedData(pkcs7, der, derSz), 0);
+        wc_PKCS7_Free(pkcs7);
+    }
+
+    XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+#endif /* HAVE_PKCS7 && !NO_PKCS7_STREAM && !NO_FILESYSTEM */
+    return EXPECT_RESULT();
+}

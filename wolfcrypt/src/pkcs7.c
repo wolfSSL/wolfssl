@@ -6897,6 +6897,10 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                 word32 sz = (word32)pkcs7->stream->cntIdfCnt * ASN_INDEF_END_SZ;
                 localIdx = idx;
                 for (i = 0; i < sz; i++) {
+                    if (localIdx + i >= pkiMsg2Sz) {
+                        ret = ASN_PARSE_E;
+                        break;
+                    }
                     if (pkiMsg2[localIdx + i] == 0)
                         continue;
                     else {
