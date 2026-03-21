@@ -222,25 +222,24 @@ static ATCAIfaceCfg* gCfg = &config_atmel_device[WOLFSSL_ATCA_DEVICE_NO];
 #endif
 
 #if defined(WOLFSSL_MICROCHIP_TA100)
-/*
-TA_ElementAttributes contains data element attributes of the handle
-which is of 8 byte
-
-typedef struct
-{
-    uint8_t  element_CKA;     /* contains class, key_type & Algorithm mode */
-    uint16_t property;        /* properties of the element */
-    uint8_t  usage_key;       /* usage key */
-    uint8_t  write_key;       /* write key */
-    uint8_t  read_key;        /* read key */
-    uint8_t  permission;      /* permission of the element usage|write|read|
-                                 delete perm */
-    uint8_t  byte7_settings;  /* Byte 7 attributes use_count|exportable|
-                                 lockable|access_limit */
-} ATCA_PACKED ta_element_attributes_t;
-
-See Shared Data Element Attributes in the programming specifications
-*/
+/* TA_ElementAttributes contains data element attributes of the handle
+ * which is of 8 byte
+ *
+ * typedef struct
+ * {
+ *     uint8_t  element_CKA;     -- contains class, key_type & Algorithm mode
+ *     uint16_t property;        -- properties of the element
+ *     uint8_t  usage_key;       -- usage key
+ *     uint8_t  write_key;       -- write key
+ *     uint8_t  read_key;        -- read key
+ *     uint8_t  permission;      -- permission of the element usage|write|read|
+ *                                  delete perm
+ *     uint8_t  byte7_settings;  -- Byte 7 attributes use_count|exportable|
+ *                                  lockable|access_limit
+ * } ATCA_PACKED ta_element_attributes_t;
+ *
+ * See Shared Data Element Attributes in the programming specifications
+ */
 static ta_element_attributes_t sharedData_attr[ATECC_MAX_SLOT] = {
     {0x81, TA100_PROP_SHARED_DATA, 0x00, 0x00, 0x00, 0x41, 0x10},
     {0x81, TA100_PROP_SHARED_DATA, 0x00, 0x00, 0x00, 0x41, 0x10},
