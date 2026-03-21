@@ -63,7 +63,7 @@ enum {
     MLKEM_COMP_4BITS    =  4,
     MLKEM_COMP_5BITS    =  5,
     MLKEM_COMP_10BITS   = 10,
-    MLKEM_COMP_11BITS   = 11,
+    MLKEM_COMP_11BITS   = 11
 };
 
 

@@ -301,7 +301,7 @@ enum {
     WC_ML_KEM_ENC_RAND_SZ       = WC_ML_KEM_SYM_SZ,
 
     /* Encoded polynomial size. */
-    WC_ML_KEM_POLY_SIZE         = 384,
+    WC_ML_KEM_POLY_SIZE         = 384
 };
 
 

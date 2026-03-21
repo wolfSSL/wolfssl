@@ -11839,15 +11839,15 @@ int wolfSSL_ERR_GET_REASON(unsigned long err)
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
     /* Nginx looks for this error to know to stop parsing certificates.
      * Same for HAProxy. */
-    if (err == ((ERR_LIB_PEM << 24) | PEM_R_NO_START_LINE) ||
-       ((err & 0xFFFFFFL) == -WC_NO_ERR_TRACE(ASN_NO_PEM_HEADER)) ||
-       ((err & 0xFFFL) == PEM_R_NO_START_LINE ))
+    if ((err == (unsigned long)((ERR_LIB_PEM << 24) | PEM_R_NO_START_LINE)) ||
+        ((err & 0xFFFFFFL) == (unsigned long)(-WC_NO_ERR_TRACE(ASN_NO_PEM_HEADER))) ||
+        ((err & 0xFFFL) == (unsigned long)PEM_R_NO_START_LINE))
         return PEM_R_NO_START_LINE;
-    if (err == ((ERR_LIB_SSL << 24) | -SSL_R_HTTP_REQUEST))
+    if (err == (unsigned long)((ERR_LIB_SSL << 24) | -SSL_R_HTTP_REQUEST))
         return SSL_R_HTTP_REQUEST;
 #endif
 #if defined(OPENSSL_ALL) && defined(WOLFSSL_PYTHON)
-    if (err == ((ERR_LIB_ASN1 << 24) | ASN1_R_HEADER_TOO_LONG))
+    if (err == (unsigned long)((ERR_LIB_ASN1 << 24) | ASN1_R_HEADER_TOO_LONG))
         return ASN1_R_HEADER_TOO_LONG;
 #endif
 

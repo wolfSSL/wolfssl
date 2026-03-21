@@ -99,7 +99,7 @@ static int mlkem_get_noise_eta2_c(MLKEM_PRF_T* prf, sword16* p,
 #endif
 
 /* Declared in wc_mlkem.c to stop compiler optimizer from simplifying. */
-extern volatile sword16 mlkem_opt_blocker;
+extern sword16 wc_mlkem_opt_blocker(void);
 
 #if defined(USE_INTEL_SPEEDUP) || (defined(__aarch64__) && \
     defined(WOLFSSL_ARMASM))
@@ -126,7 +126,7 @@ static cpuid_flags_t cpuid_flags = WC_CPUID_INITIALIZER;
  * f is the normalizer = 2^k % m.
  * 16-bit value cast to sword32 in use.
  */
-#define MLKEM_F          ((1ULL << 32) % MLKEM_Q)
+#define MLKEM_F          (((word64)1 << 32) % MLKEM_Q)
 
 /* Number of bytes in an output block of SHA-3-128 */
 #define SHA3_128_BYTES   (WC_SHA3_128_COUNT * 8)
@@ -5758,8 +5758,8 @@ void mlkem_decompress_5(sword16* p, const byte* b)
 /* Convert bit from byte to 0 or (MLKEM_Q + 1) / 2.
  *
  * Constant time implementation.
- * XOR in mlkem_opt_blocker to ensure optimizer doesn't know what will be ANDed
- * with MLKEM_Q_1_HALF and can't optimize to non-constant time code.
+ * XOR in wc_mlkem_opt_blocker() to ensure optimizer doesn't know what will be
+ * ANDed with MLKEM_Q_1_HALF and can't optimize to non-constant time code.
  *
  * FIPS 203, Algorithm 6: ByteDecode_d(B)
  *
@@ -5770,7 +5770,7 @@ void mlkem_decompress_5(sword16* p, const byte* b)
  */
 #define FROM_MSG_BIT(p, msg, i, j) \
     ((p)[8 * (i) + (j)] = (((sword16)0 - (sword16)(((msg)[i] >> (j)) & 1)) ^ \
-                          mlkem_opt_blocker) & MLKEM_Q_1_HALF)
+                          wc_mlkem_opt_blocker()) & MLKEM_Q_1_HALF)
 
 /* Convert message to polynomial.
  *
