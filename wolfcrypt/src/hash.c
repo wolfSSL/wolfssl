@@ -1956,8 +1956,13 @@ int _wc_Hash_Grow(byte** msg, word32* used, word32* len, const byte* in,
 {
     word32 usedSz = 0;
 
-    if (inSz <= 0 || !WC_SAFE_SUM_WORD32(*used, (word32)inSz, usedSz))
+    if (inSz < 0 || !WC_SAFE_SUM_WORD32(*used, (word32)inSz, usedSz))
         return BAD_FUNC_ARG;
+
+    /* Allow zero-length input as a no-op. Some callers may pass zero-length
+     * data during hash operations and this should not be treated as an error. */
+    if (inSz == 0)
+        return 0;
 
     if (*len < usedSz) {
         if (*msg == NULL) {
