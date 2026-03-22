@@ -355,7 +355,7 @@ WOLFSSL_ABI WOLFSSL_API const char* wc_GetErrorString(int error);
     #endif
     #ifndef WC_ERR_TRACE
         #if defined(__GNUC__) && !defined(__STRICT_ANSI__)
-            #define WC_ERR_TRACE(label)                                   \
+            #define WC_ERR_TRACE(label) __extension__                     \
                 ({ if (wc_debug_trace_error_codes_enabled()) {            \
                     (void)WOLFSSL_DEBUG_PRINTF_FN(                        \
                                           WOLFSSL_DEBUG_PRINTF_FIRST_ARGS \
