@@ -1939,7 +1939,7 @@ int wc_backtrace_render(void) {
         int cur_init_count = wolfSSL_Atomic_Int_FetchSub(&init_count, 1);
         if (cur_init_count != 0) {
             (void)wolfSSL_Atomic_Int_FetchAdd(&init_count, 1);
-            return DEADLOCK_AVERTED_E;
+            return WC_NO_ERR_TRACE(DEADLOCK_AVERTED_E);
         }
         ret = wc_InitMutex(&backtrace_mutex);
         if (ret != 0)
@@ -1960,7 +1960,7 @@ int wc_backtrace_render(void) {
     if (backtrace_state == NULL) {
         if (backtrace_init(&backtrace_state) < 0) {
             wc_UnLockMutex(&backtrace_mutex);
-            return BAD_STATE_E;
+            return WC_NO_ERR_TRACE(BAD_STATE_E);
         }
     }
 
