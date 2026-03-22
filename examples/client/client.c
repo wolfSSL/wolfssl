@@ -1044,7 +1044,7 @@ static int SMTP_Shutdown(WOLFSSL* ssl, int wc_shutdown)
     printf("%s\n", tmpBuf);
 
     ret = wolfSSL_shutdown(ssl);
-    if (wc_shutdown && ret == WOLFSSL_SHUTDOWN_NOT_DONE) {
+    if (wc_shutdown && ret == WC_NO_ERR_TRACE(WOLFSSL_SHUTDOWN_NOT_DONE)) {
         if (tcp_select(wolfSSL_get_fd(ssl), DEFAULT_TIMEOUT_SEC) ==
                 TEST_RECV_READY) {
             ret = wolfSSL_shutdown(ssl);    /* bidirectional shutdown */
@@ -4687,7 +4687,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif
 
     ret = wolfSSL_shutdown(ssl);
-    if (wc_shutdown && ret == WOLFSSL_SHUTDOWN_NOT_DONE) {
+    if (wc_shutdown && ret == WC_NO_ERR_TRACE(WOLFSSL_SHUTDOWN_NOT_DONE)) {
         while (tcp_select(wolfSSL_get_fd(ssl), DEFAULT_TIMEOUT_SEC) ==
                 TEST_RECV_READY) {
             ret = wolfSSL_shutdown(ssl); /* bidirectional shutdown */
@@ -4695,7 +4695,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 printf("Bidirectional shutdown complete\n");
                 break;
             }
-            else if (ret != WOLFSSL_SHUTDOWN_NOT_DONE) {
+            else if (ret != WC_NO_ERR_TRACE(WOLFSSL_SHUTDOWN_NOT_DONE)) {
                 LOG_ERROR("Bidirectional shutdown failed\n");
                 break;
             }
@@ -4932,7 +4932,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 sendGET, " resume", 0);
 
         ret = wolfSSL_shutdown(sslResume);
-        if (wc_shutdown && ret == WOLFSSL_SHUTDOWN_NOT_DONE)
+        if (wc_shutdown && ret == WC_NO_ERR_TRACE(WOLFSSL_SHUTDOWN_NOT_DONE))
             wolfSSL_shutdown(sslResume);    /* bidirectional shutdown */
 
         /* display collected statistics */
