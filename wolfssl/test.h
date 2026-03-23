@@ -1814,6 +1814,21 @@ static WC_INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
 
     if (udp) {
         udp_accept(sockfd, clientfd, useAnyAddr, port, args);
+        if (ready_file) {
+        #if (!defined(NO_FILESYSTEM) || defined(FORCE_BUFFER_TEST)) && \
+            !defined(NETOS)
+            XFILE srf = (XFILE)NULL;
+            if (args)
+                ready = args->signal;
+            if (ready) {
+                srf = XFOPEN(ready->srfName, "w");
+                if (srf) {
+                    LIBCALL_CHECK_RET(fprintf(srf, "%d\n", (int)ready->port));
+                    fclose(srf);
+                }
+            }
+        #endif
+        }
         return;
     }
 
@@ -1848,7 +1863,7 @@ static WC_INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
                 srf = XFOPEN(ready->srfName, "w");
 
                 if (srf) {
-                    /* let's write port sever is listening on to ready file
+                    /* let's write port server is listening on to ready file
                        external monitor can then do ephemeral ports by passing
                        -p 0 to server on supported platforms with -R ready_file
                        client can then wait for existence of ready_file and see

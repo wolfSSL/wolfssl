@@ -129,6 +129,32 @@ remove_single_rF(){
     fi
 }
 
+wait_for_port(){
+    local port=$1
+    local pid=${2-}
+    local counter=0
+    while true; do
+        if command -v ss &>/dev/null; then
+            ss -lnt 2>/dev/null | grep -q ":${port}[[:space:]]" && break
+        elif command -v netstat &>/dev/null; then
+            netstat -lnt 2>/dev/null | grep -q ":${port}[[:space:]]" && break
+        else
+            # best effort!
+            sleep 4 && break
+        fi
+        if [[ -n "$pid" ]] && ! kill -0 "$pid" 2>/dev/null; then
+            echo "pid $pid for port $port exited before becoming ready. bailing..."
+            exit 1
+        fi
+        sleep 0.1
+        counter=$((counter + 1))
+        if [ "$counter" -ge 40 ]; then
+            echo "timed out waiting for port $port"
+            exit 1
+        fi
+    done
+}
+
 #create a configure file for cert generation with the port 0 solution
 create_new_cnf() {
     printf '%s\n' "Random Ports Selected: $1 $2 $3 $4"
@@ -329,6 +355,7 @@ openssl ocsp -port "$port1" -nmin 1                         \
     -CA      certs/ocsp/root-ca-cert.pem                  \
     "$@"                                                  \
     &
+ocsp_pid1=$!
 
 # OLD: ./certs/ocsp/ocspd-intermediate2-ca-issued-certs.sh &
 # NEW: openssl isn't being cleaned up, invoke directly in script for cleanup
@@ -340,6 +367,7 @@ openssl ocsp -port "$port2" -nmin 1                               \
     -CA      certs/ocsp/intermediate2-ca-cert.pem               \
     "$@"                                                        \
     &
+ocsp_pid2=$!
 
 # OLD: ./certs/ocsp/ocspd-intermediate3-ca-issued-certs.sh &
 # NEW: openssl isn't being cleaned up, invoke directly in script for cleanup
@@ -351,6 +379,7 @@ openssl ocsp -port "$port3" -nmin 1                               \
     -CA      certs/ocsp/intermediate3-ca-cert.pem               \
     "$@"                                                        \
     &
+ocsp_pid3=$!
 
 # NEW: openssl isn't being cleaned up, invoke directly in script for cleanup
 # purposes!
@@ -361,8 +390,12 @@ openssl ocsp -port "$port4" -nmin 1                         \
     -CA      certs/ocsp/root-ca-cert.pem                  \
     "$@"                                                  \
     &
+ocsp_pid4=$!
 
-sleep 0.1
+wait_for_port "$port1" "$ocsp_pid1"
+wait_for_port "$port2" "$ocsp_pid2"
+wait_for_port "$port3" "$ocsp_pid3"
+wait_for_port "$port4" "$ocsp_pid4"
 # "jobs" is not portable for posix. Must use bash interpreter!
 [ "$(jobs -r | wc -l)" -ne 4 ] && printf '\n\n%s\n' "Setup ocsp responder failed, skipping" && exit 0
 
@@ -412,7 +445,8 @@ remove_single_rF "$ready_file5"
 ./examples/server/server -c certs/ocsp/server4-cert.pem \
                          -k certs/ocsp/server4-key.pem -R "$ready_file5" \
                          -p "$port5" &
-sleep 0.1
+server_pid5=$!
+wait_for_readyFile "$ready_file5" "$server_pid5" "$port5"
 ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 3 -v 3 \
                          -p "$port5"
 RESULT=$?
@@ -466,7 +500,7 @@ remove_single_rF "$ready_file5"
                          -k certs/ocsp/server4-key.pem -R "$ready_file5" \
                          -p "$port5" -H loadSSL &
 server_pid5=$!
-sleep 0.1
+wait_for_readyFile "$ready_file5" "$server_pid5" "$port5"
 ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 3 -v 3 \
                          -p "$port5"
 RESULT=$?
@@ -535,7 +569,7 @@ generate_port() {
 # Start OpenSSL server that has no OCSP responses to return
 generate_port
 openssl s_server -cert ./certs/server-cert.pem -key certs/server-key.pem -www -port "$port" &
-MAX_TIMEOUT=10
+MAX_TIMEOUT=40
 until nc -z localhost "$port" # Wait for openssl to be ready
 do
     sleep 0.05
@@ -567,11 +601,12 @@ printf '%s\n\n' "Test PASSED!"
 if ./examples/client/client -? 2>&1 | grep -q 'DTLS'; then
 printf '%s\n\n' "------------- TEST CASE DTLS-1 SHOULD PASS -------------------"
 # client test against our own server - GOOD CERTS
+remove_single_rF "$ready_file5"
 ./examples/server/server -c certs/ocsp/server3-cert.pem \
                          -k certs/ocsp/server3-key.pem -R "$ready_file5" \
                          -p "$port5" -u -v 3 &
 server_pid5=$!
-sleep 0.2
+wait_for_readyFile "$ready_file5" "$server_pid5" "$port5"
 ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 2 -u -v 3 \
                          -p "$port5"
 RESULT=$?

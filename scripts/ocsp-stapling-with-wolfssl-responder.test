@@ -473,7 +473,6 @@ if [ "$stapling_v1" == "yes" ]; then
                              -p $port5 &
     server_pid5=$!
     wait_for_readyFile $ready_file5 $server_pid5 $port5
-    sleep 0.1
     ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -p $port5
     RESULT=$?
     [ $RESULT -ne 1 ] && printf '\n\n%s\n' "Client connection 2 succeeded $RESULT" \
@@ -537,7 +536,7 @@ if [ "$stapling_v1" == "yes" ]; then
                                  -k certs/ocsp/server1-key.pem -u -v 3 \
                                  -p $port5 &
         server_pid5=$!
-        sleep 0.2
+        wait_for_readyFile $ready_file5 $server_pid5 $port5
         ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -u -v 3 \
                                  -W 1 -p $port5
         RESULT=$?
@@ -553,7 +552,7 @@ if [ "$stapling_v1" == "yes" ]; then
                                  -k certs/ocsp/server1-key.pem -u -v 4 \
                                  -p $port5 &
         server_pid5=$!
-        sleep 0.2
+        wait_for_readyFile $ready_file5 $server_pid5 $port5
         ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -u -v 4 \
                                  -W 1 -p $port5
         RESULT=$?
@@ -619,7 +618,8 @@ if [ "$stapling_v2" == "yes" ]; then
     ./examples/server/server -c certs/ocsp/server4-cert.pem \
                              -k certs/ocsp/server4-key.pem -R $ready_file5 \
                              -p $port5 &
-    sleep 0.1
+    server_pid5=$!
+    wait_for_readyFile $ready_file5 $server_pid5 $port5
     ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 3 -v 3 \
                              -p $port5
     RESULT=$?
@@ -663,7 +663,7 @@ if [ "$stapling_v2" == "yes" ]; then
                                      -k certs/ocsp/server3-key.pem -R $ready_file5 \
                                      -p $port5 -u -v 3 &
             server_pid5=$!
-            sleep 0.2
+            wait_for_readyFile $ready_file5 $server_pid5 $port5
             ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 2 -u -v 3 \
                                      -p $port5
             RESULT=$?
