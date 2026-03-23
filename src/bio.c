@@ -1303,6 +1303,13 @@ size_t wolfSSL_BIO_ctrl_pending(WOLFSSL_BIO *bio)
         return 0;
     }
 
+    if (bio->method != NULL && bio->method->ctrlCb != NULL) {
+        long ret;
+        WOLFSSL_MSG("Calling custom BIO ctrl pending callback");
+        ret = bio->method->ctrlCb(bio, WOLFSSL_BIO_CTRL_PENDING, 0, NULL);
+        return (ret < 0) ? 0 : (size_t)ret;
+    }
+
     if (bio->type == WOLFSSL_BIO_MD ||
             bio->type == WOLFSSL_BIO_BASE64) {
         /* these are wrappers only, get next bio */
@@ -1713,6 +1720,11 @@ int wolfSSL_BIO_reset(WOLFSSL_BIO *bio)
         return WOLFSSL_BIO_ERROR;
     }
 
+    if (bio->method != NULL && bio->method->ctrlCb != NULL) {
+        WOLFSSL_MSG("Calling custom BIO reset callback");
+        return (int)bio->method->ctrlCb(bio, WOLFSSL_BIO_CTRL_RESET, 0, NULL);
+    }
+
     switch (bio->type) {
         #ifndef NO_FILESYSTEM
         case WOLFSSL_BIO_FILE:
@@ -2016,6 +2028,13 @@ void* wolfSSL_BIO_get_data(WOLFSSL_BIO* bio)
     return NULL;
 }
 
+void wolfSSL_BIO_set_init(WOLFSSL_BIO* bio, int init)
+{
+    WOLFSSL_ENTER("wolfSSL_BIO_set_init");
+    if (bio != NULL)
+        bio->init = (byte)(init != 0);
+}
+
 /* If flag is 0 then blocking is set, if 1 then non blocking.
  * Always returns WOLFSSL_SUCCESS.
  */
@@ -2184,7 +2203,10 @@ int wolfSSL_BIO_get_mem_data(WOLFSSL_BIO* bio, void* p)
 
     if (bio == NULL)
         return WOLFSSL_FATAL_ERROR;
-
+    if (bio->method != NULL && bio->method->ctrlCb != NULL) {
+        WOLFSSL_MSG("Calling custom BIO get mem data callback");
+        return (int)bio->method->ctrlCb(bio, WOLFSSL_BIO_CTRL_INFO, 0, p);
+    }
     mem_bio = bio;
     /* Return pointer from last memory BIO in chain */
     while (bio->next) {
@@ -3619,15 +3641,6 @@ int wolfSSL_BIO_new_bio_pair(WOLFSSL_BIO **bio1_p, size_t writebuf1,
 #endif
 
 #ifdef OPENSSL_ALL
-
-#ifndef NO_WOLFSSL_STUB
-void wolfSSL_BIO_set_init(WOLFSSL_BIO* bio, int init)
-{
-    WOLFSSL_STUB("wolfSSL_BIO_set_init");
-    (void)bio;
-    (void)init;
-}
-#endif /* NO_WOLFSSL_STUB */
 
 void wolfSSL_BIO_set_shutdown(WOLFSSL_BIO* bio, int shut)
 {
