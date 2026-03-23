@@ -5820,18 +5820,22 @@ void wolfSSL_EVP_init(void)
                     ret = NOT_COMPILED_IN;
             #endif
                     break;
-            #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE128)
                 case WC_HASH_TYPE_SHAKE128:
+            #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE128)
                     ret = wc_Shake128_Copy((wc_Shake*)&src->hash.digest.shake,
                             (wc_Shake*)&des->hash.digest.shake);
-                    break;
+            #else
+                    ret = NOT_COMPILED_IN;
             #endif
-            #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256)
+                    break;
                 case WC_HASH_TYPE_SHAKE256:
+            #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256)
                     ret = wc_Shake256_Copy((wc_Shake*)&src->hash.digest.shake,
                             (wc_Shake*)&des->hash.digest.shake);
-                    break;
+            #else
+                    ret = NOT_COMPILED_IN;
             #endif
+                    break;
                 case WC_HASH_TYPE_NONE:
                 case WC_HASH_TYPE_MD2:
                 case WC_HASH_TYPE_MD4:
