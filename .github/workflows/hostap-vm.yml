@@ -2,14 +2,10 @@ name: hostap and wpa-supplicant Tests
 
 # START OF COMMON SECTION
 on:
-    workflow_dispatch: # Allows people to run it manually if they want but
-                       # disables it from running automatically when broken
-# To restore this to an auto test delete the above workflow_dispatch line and
-# comments and uncomment the below lines for push and pull_request
-#  push:
-#    branches: [ 'master', 'main', 'release/**' ]
-#  pull_request:
-#    branches: [ '*' ]
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -232,16 +228,6 @@ jobs:
         working-directory: hostap
         run: git checkout ${{ matrix.config.hostap_ref }}
 
-      - name: Update certs
-        working-directory: hostap/tests/hwsim/auth_serv
-        run: |
-          ./update.sh
-          ./sha512-generate.sh
-          # Force regeneration of rsa3072-ca.key to get rsa3072-generate.sh to
-          # correctly update all the certs
-          rm rsa3072-ca.key
-          ./rsa3072-generate.sh
-
       - if: ${{ matrix.config.osp_ref }}
         name: Checkout OSP
         uses: actions/checkout@v4
@@ -258,6 +244,20 @@ jobs:
           do
             patch -p1 < $f
           done
+
+      - name: Update certs
+        working-directory: hostap/tests/hwsim/auth_serv
+        run: |
+          mkdir -p rootCA/newcerts
+          ./update.sh
+          ./ec-generate.sh
+          ./ec2-generate.sh
+          ./sha512-generate.sh
+          # Force regeneration of rsa3072-ca.key to get rsa3072-generate.sh to
+          # correctly update all the certs
+          rm rsa3072-ca.key
+          ./rsa3072-generate.sh
+          ./ica-generate.sh
 
       - name: Apply extra patches
         working-directory: hostap
