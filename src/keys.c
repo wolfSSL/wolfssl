@@ -3571,7 +3571,7 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
 #endif
 
 #if !defined(NO_CERTS) && defined(HAVE_PK_CALLBACKS)
-    ret = PROTOCOLCB_UNAVAILABLE;
+    ret = WC_NO_ERR_TRACE(PROTOCOLCB_UNAVAILABLE);
     if (ssl->ctx->EncryptKeysCb) {
         void* ctx = wolfSSL_GetEncryptKeysCtx(ssl);
         #if defined(WOLFSSL_RENESAS_FSPSM_TLS)

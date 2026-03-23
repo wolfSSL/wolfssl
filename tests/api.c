@@ -6713,13 +6713,15 @@ static int test_wolfSSL_read_write_ex(void)
 
     ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_SHUTDOWN_NOT_DONE);
     ExpectIntEQ(wolfSSL_shutdown(ssl_s), WOLFSSL_SHUTDOWN_NOT_DONE);
-    ExpectIntEQ(wolfSSL_shutdown(ssl_c), 1);
-    ExpectIntEQ(wolfSSL_shutdown(ssl_s), 1);
+    ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_shutdown(ssl_s), WOLFSSL_SUCCESS);
 
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);
     wolfSSL_CTX_free(ctx_c);
     wolfSSL_CTX_free(ctx_s);
+
+    /* XXX this should be return EXPECT_RESULT(); */
     return TEST_SUCCESS;
 }
 
@@ -25691,7 +25693,7 @@ static THREAD_RETURN WOLFSSL_THREAD SSL_read_test_client_thread(void* args)
 
     if (EXPECT_SUCCESS()) {
         ret = wolfSSL_shutdown(ssl);
-        if (ret == WOLFSSL_SHUTDOWN_NOT_DONE) {
+        if (ret == WC_NO_ERR_TRACE(WOLFSSL_SHUTDOWN_NOT_DONE)) {
             ret = wolfSSL_shutdown(ssl);
         }
     }
@@ -29286,7 +29288,7 @@ static void test_ticket_and_psk_mixing_on_result(WOLFSSL* ssl)
     }
     do {
         ret = wolfSSL_shutdown(ssl);
-    } while (ret == WOLFSSL_SHUTDOWN_NOT_DONE);
+    } while (ret == WC_NO_ERR_TRACE(WOLFSSL_SHUTDOWN_NOT_DONE));
     AssertIntEQ(wolfSSL_clear(ssl), WOLFSSL_SUCCESS);
     wolfSSL_set_psk_callback_ctx(ssl, (void*)"TLS13-AES256-GCM-SHA384");
 #ifndef OPENSSL_COMPATIBLE_DEFAULTS
@@ -29377,7 +29379,7 @@ static void test_prioritize_psk_on_result(WOLFSSL* ssl)
     }
     do {
         ret = wolfSSL_shutdown(ssl);
-    } while (ret == WOLFSSL_SHUTDOWN_NOT_DONE);
+    } while (ret == WC_NO_ERR_TRACE(WOLFSSL_SHUTDOWN_NOT_DONE));
     AssertIntEQ(wolfSSL_clear(ssl), WOLFSSL_SUCCESS);
     wolfSSL_set_psk_callback_ctx(ssl, (void*)"TLS13-AES256-GCM-SHA384");
     /* Previous connection was made with TLS13-AES128-GCM-SHA256. Order is

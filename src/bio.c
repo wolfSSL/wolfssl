@@ -2646,7 +2646,7 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
 
         if (b->ptr.ssl != NULL) {
             int rc = wolfSSL_shutdown(b->ptr.ssl);
-            if (rc == WOLFSSL_SHUTDOWN_NOT_DONE) {
+            if (rc == WC_NO_ERR_TRACE(WOLFSSL_SHUTDOWN_NOT_DONE)) {
                 /* In this case, call again to give us a chance to read the
                  * close notify alert from the other end. */
                 wolfSSL_shutdown(b->ptr.ssl);

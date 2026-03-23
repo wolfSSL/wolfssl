@@ -4044,7 +4044,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #endif /* WOLFSSL_DTLS13 */
 
         ret = SSL_shutdown(ssl);
-        if (wc_shutdown && ret == WOLFSSL_SHUTDOWN_NOT_DONE) {
+        if (wc_shutdown && ret == WC_NO_ERR_TRACE(WOLFSSL_SHUTDOWN_NOT_DONE)) {
             while (tcp_select(wolfSSL_get_fd(ssl), DEFAULT_TIMEOUT_SEC) ==
                     TEST_RECV_READY) {
                 ret = wolfSSL_shutdown(ssl); /* bidirectional shutdown */
@@ -4052,7 +4052,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                     printf("Bidirectional shutdown complete\n");
                     break;
                 }
-                else if (ret != WOLFSSL_SHUTDOWN_NOT_DONE) {
+                else if (ret != WC_NO_ERR_TRACE(WOLFSSL_SHUTDOWN_NOT_DONE)) {
                     LOG_ERROR("Bidirectional shutdown failed\n");
                     break;
                 }
