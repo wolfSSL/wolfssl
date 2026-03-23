@@ -50246,14 +50246,14 @@ static wc_test_ret_t dilithium_param_test(int param, WC_RNG* rng)
     if (sigLen <= 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-    ret = wc_dilithium_sign_msg(msg, (word32)sizeof(msg), sig, &sigLen, key,
-        rng);
+    ret = wc_dilithium_sign_ctx_msg(NULL, 0, msg, (word32)sizeof(msg), sig,
+        &sigLen, key, rng);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
 #ifndef WOLFSSL_DILITHIUM_NO_VERIFY
-    ret = wc_dilithium_verify_msg(sig, sigLen, msg, (word32)sizeof(msg), &res,
-        key);
+    ret = wc_dilithium_verify_ctx_msg(sig, sigLen, NULL, 0, msg,
+        (word32)sizeof(msg), &res, key);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     if (res != 1)

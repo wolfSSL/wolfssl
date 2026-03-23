@@ -15557,10 +15557,10 @@ void bench_dilithiumKeySign(byte level)
     do {
         for (i = 0; i < agreeTimes; i++) {
             if (ret == 0) {
-                ret = wc_dilithium_sign_msg(msg, DILITHIUM_BENCH_MSG_SIZE, sig, &x, key,
-                                            GLOBAL_RNG);
+                ret = wc_dilithium_sign_ctx_msg(NULL, 0, msg,
+                    DILITHIUM_BENCH_MSG_SIZE, sig, &x, key, GLOBAL_RNG);
                 if (ret != 0) {
-                    printf("wc_dilithium_sign_msg failed\n");
+                    printf("wc_dilithium_sign_ctx_msg failed\n");
                 }
             }
             RECORD_MULTI_VALUE_STATS();
@@ -15631,11 +15631,11 @@ void bench_dilithiumKeySign(byte level)
         for (i = 0; i < agreeTimes; i++) {
             if (ret == 0) {
                 int verify = 0;
-                ret = wc_dilithium_verify_msg(sig, x, msg, DILITHIUM_BENCH_MSG_SIZE,
-                                              &verify, key);
+                ret = wc_dilithium_verify_ctx_msg(sig, x, NULL, 0, msg,
+                    DILITHIUM_BENCH_MSG_SIZE, &verify, key);
 
                 if (ret != 0 || verify != 1) {
-                    printf("wc_dilithium_verify_msg failed %d, verify %d\n",
+                    printf("wc_dilithium_verify_ctx_msg failed %d, verify %d\n",
                            ret, verify);
                     ret = -1;
                 }

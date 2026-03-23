@@ -867,7 +867,8 @@ impl Dilithium {
         let msg_len = msg.len() as u32;
         let mut sig_len = sig.len() as u32;
         let rc = unsafe {
-            sys::wc_dilithium_sign_msg(
+            sys::wc_dilithium_sign_ctx_msg(
+                core::ptr::null(), 0,
                 msg.as_ptr(), msg_len,
                 sig.as_mut_ptr(), &mut sig_len,
                 &mut self.ws_key,
@@ -1038,7 +1039,8 @@ impl Dilithium {
         let msg_len = msg.len() as u32;
         let mut sig_len = sig.len() as u32;
         let rc = unsafe {
-            sys::wc_dilithium_sign_msg_with_seed(
+            sys::wc_dilithium_sign_ctx_msg_with_seed(
+                core::ptr::null(), 0,
                 msg.as_ptr(), msg_len,
                 sig.as_mut_ptr(), &mut sig_len,
                 &mut self.ws_key,
@@ -1184,8 +1186,9 @@ impl Dilithium {
         let msg_len = msg.len() as u32;
         let mut res = 0i32;
         let rc = unsafe {
-            sys::wc_dilithium_verify_msg(
+            sys::wc_dilithium_verify_ctx_msg(
                 sig.as_ptr(), sig_len,
+                core::ptr::null(), 0,
                 msg.as_ptr(), msg_len,
                 &mut res,
                 &mut self.ws_key,
