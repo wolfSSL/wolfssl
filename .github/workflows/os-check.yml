@@ -99,6 +99,7 @@ jobs:
           '--enable-certreq --enable-certext --enable-certgen --disable-secure-renegotiation-info CPPFLAGS="-DNO_TLS"',
           '--enable-ocsp --enable-ocsp-responder --enable-ocspstapling CPPFLAGS="-DWOLFSSL_NONBLOCK_OCSP" --enable-maxfragment',
           '--enable-all CPPFLAGS=-DWOLFSSL_HASH_KEEP',
+          '--enable-all --enable-writedup',
         ]
     name: make check
     if: github.repository_owner == 'wolfssl'

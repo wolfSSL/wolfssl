@@ -5771,9 +5771,47 @@ typedef struct BuildMsgArgs {
     #define READ_DUP_SIDE 2
 
     typedef struct WriteDup {
-        wolfSSL_Mutex   dupMutex;       /* reference count mutex */
+        wolfSSL_Mutex   dupMutex;       /* field access mutex */
         int             dupCount;       /* reference count */
         int             dupErr;         /* under dupMutex, pass to other side */
+#ifdef WOLFSSL_DTLS13
+        struct Dtls13RecordNumber* sendAckList; /* ownership transferred */
+        /* Key update ACK tracking: write side stores the (epoch, seq) of its
+         * in-flight KeyUpdate; read side sets keyUpdateAcked when the ACK for
+         * that exact record arrives.  Both epoch and seq are checked to avoid
+         * false positives from data records in the same epoch. */
+        w64wrapper keyUpdateEpoch;     /* epoch of the KeyUpdate */
+        w64wrapper keyUpdateSeq;       /* seq num of the KeyUpdate */
+#endif /* WOLFSSL_DTLS13 */
+#ifdef WOLFSSL_TLS13
+#ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+        /* Post-handshake certificate request delegation: the read side received
+         * a CertificateRequest but cannot write; it saves state here and the
+         * write side sends Certificate+CertificateVerify+Finished. */
+        struct HS_Hashes* postHandshakeHashState;    /* transcript at CR time */
+        struct CertReqCtx* postHandshakeCertReqCtx; /* context from CR */
+        byte postHandshakeSendVerify;    /* ssl->options.sendVerify */
+        byte postHandshakeSigAlgo;       /* ssl->options.sigAlgo */
+        byte postHandshakeHashAlgo;      /* ssl->options.hashAlgo */
+#endif /* WOLFSSL_POST_HANDSHAKE_AUTH */
+#endif /* WOLFSSL_TLS13 */
+
+        /* Flags */
+#ifdef WOLFSSL_DTLS13
+        WC_BITFIELD keyUpdateWaiting:1; /* write side has an unACKed KeyUpdate */
+        WC_BITFIELD keyUpdateAcked:1;   /* read side confirmed the ACK arrived */
+        /* DTLS 1.3: read side cannot write, so it passes ACK work to the
+         * write side. */
+        WC_BITFIELD sendAcks:1;
+#endif /* WOLFSSL_DTLS13 */
+#ifdef WOLFSSL_TLS13
+        /* TLS 1.3 (and DTLS 1.3): read side received a KeyUpdate(update_requested)
+         * but cannot send the response; write side handles it. */
+        WC_BITFIELD keyUpdateRespond:1; /* write side must send a KeyUpdate response */
+#ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+        WC_BITFIELD postHandshakeAuthPending:1; /* write side must respond */
+#endif /* WOLFSSL_POST_HANDSHAKE_AUTH */
+#endif /* WOLFSSL_TLS13 */
     } WriteDup;
 
     WOLFSSL_LOCAL void FreeWriteDup(WOLFSSL* ssl);
@@ -6178,6 +6216,9 @@ struct WOLFSSL {
     byte dtls13SendingFragments:1;
     byte dtls13SendingAckOrRtx;
     byte dtls13FastTimeout:1;
+#ifdef HAVE_WRITE_DUP
+    byte dtls13KeyUpdateAcked:1;
+#endif
     byte dtls13WaitKeyUpdateAck;
     byte dtls13DoKeyUpdate;
     word32 dtls13MessageLength;
@@ -6453,6 +6494,13 @@ struct WOLFSSL {
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12) && \
     defined(WOLFSSL_HARDEN_TLS) && !defined(WOLFSSL_HARDEN_TLS_NO_SCR_CHECK)
     WC_BITFIELD          scr_check_enabled:1;  /* enable/disable SCR check */
+#endif
+#ifdef HAVE_WRITE_DUP
+#ifdef WOLFSSL_TLS13
+#ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+    WC_BITFIELD postHandshakeAuthPending:1;
+#endif
+#endif
 #endif
 };
 
@@ -7088,6 +7136,7 @@ WOLFSSL_LOCAL int SetDhExternal(WOLFSSL_DH *dh);
 #endif
 
 WOLFSSL_LOCAL int InitHandshakeHashes(WOLFSSL* ssl);
+WOLFSSL_LOCAL void Free_HS_Hashes(HS_Hashes* hsHashes, void* heap);
 WOLFSSL_LOCAL void FreeHandshakeHashes(WOLFSSL* ssl);
 WOLFSSL_LOCAL int InitHandshakeHashesAndCopy(WOLFSSL* ssl, HS_Hashes* source,
     HS_Hashes** destination);
@@ -7187,6 +7236,8 @@ WOLFSSL_LOCAL int Dtls13SetEpochKeys(WOLFSSL* ssl, w64wrapper epochNumber,
     enum encrypt_side side);
 WOLFSSL_LOCAL int Dtls13GetSeq(WOLFSSL* ssl, int order, word32* seq,
     byte increment);
+WOLFSSL_LOCAL void Dtls13RtxRemoveRecord(WOLFSSL* ssl, w64wrapper epoch,
+    w64wrapper seq);
 WOLFSSL_LOCAL int Dtls13DoScheduledWork(WOLFSSL* ssl);
 WOLFSSL_LOCAL int Dtls13DeriveSnKeys(WOLFSSL* ssl, int provision);
 WOLFSSL_LOCAL int Dtls13SetRecordNumberKeys(WOLFSSL* ssl,
