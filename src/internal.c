@@ -28734,7 +28734,6 @@ static int ParseCipherList(Suites* suites,
     }
 
     if (next[0] == '\0' ||
-        XSTRCMP(next, "ALL") == 0 ||
         XSTRCMP(next, "DEFAULT") == 0 ||
         XSTRCMP(next, "HIGH") == 0)
     {
@@ -28749,6 +28748,25 @@ static int ParseCipherList(Suites* suites,
                 0,
 #endif
                 haveRSA, 1, 1, !haveRSA, 1, haveRSA, !haveRSA, 0, 0, 1,
+                1, 1, side
+        );
+        suites->setSuites = 1;
+        return 1; /* wolfSSL default */
+    }
+
+    if (XSTRCMP(next, "ALL") == 0)
+    {
+        /* Add all ciphersuites. Prefer RSA */
+#ifndef NO_RSA
+        haveRSA = 1;
+#endif
+        InitSuites(suites, version,
+#ifndef NO_CERTS
+                privateKeySz,
+#else
+                0,
+#endif
+                haveRSA, 1, 1, !haveRSA, 1, haveRSA, !haveRSA, 1, 1, 1,
                 1, 1, side
         );
         suites->setSuites = 1;

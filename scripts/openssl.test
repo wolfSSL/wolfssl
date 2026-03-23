@@ -369,7 +369,7 @@ do_wolfssl_client() {
 
     if [ "$client_result" != 0 ]
     then
-        echo -e "client failed! Suite = $wolfSuite version = $version"
+        echo -e "wolfSSL client failed! Suite = $wolfSuite version = $version"
         do_cleanup
         exit 1
     fi
@@ -429,7 +429,7 @@ do_openssl_client() {
 
     if [ "$client_result" != 0 ]
     then
-        echo -e "client failed! Suite = $wolfSuite version = $version"
+        echo -e "OpenSSL client failed! Suite = $wolfSuite version = $version"
         do_cleanup
         exit 1
     fi
