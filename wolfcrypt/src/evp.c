@@ -11193,24 +11193,28 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
                 ret = NOT_COMPILED_IN;
         #endif
                 break;
-        #ifdef HAVE_BLAKE2
             case WC_HASH_TYPE_BLAKE2B:
+        #ifdef HAVE_BLAKE2
                 if (wc_Blake2bFinal(&ctx->hash.digest.blake2b, md,
                         WC_BLAKE2B_DIGEST_SIZE) == 0) {
                     if (s) *s = WC_BLAKE2B_DIGEST_SIZE;
                     ret = WOLFSSL_SUCCESS;
                 }
-                break;
+        #else
+                ret = NOT_COMPILED_IN;
         #endif
-        #ifdef HAVE_BLAKE2S
+                break;
             case WC_HASH_TYPE_BLAKE2S:
+        #ifdef HAVE_BLAKE2S
                 if (wc_Blake2sFinal(&ctx->hash.digest.blake2s, md,
                         WC_BLAKE2S_DIGEST_SIZE) == 0) {
                     if (s) *s = WC_BLAKE2S_DIGEST_SIZE;
                     ret = WOLFSSL_SUCCESS;
                 }
-                break;
+        #else
+                ret = NOT_COMPILED_IN;
         #endif
+                break;
             case WC_HASH_TYPE_NONE:
             case WC_HASH_TYPE_MD2:
             case WC_HASH_TYPE_MD5_SHA:
