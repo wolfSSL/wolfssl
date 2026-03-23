@@ -33617,6 +33617,9 @@ void FreeDecodedCRL(DecodedCRL* dcrl)
 
     while(tmp) {
         RevokedCert* next = tmp->next;
+#if defined(OPENSSL_EXTRA)
+        XFREE(tmp->extensions, dcrl->heap, DYNAMIC_TYPE_REVOKED);
+#endif
         XFREE(tmp, dcrl->heap, DYNAMIC_TYPE_REVOKED);
         tmp = next;
     }
