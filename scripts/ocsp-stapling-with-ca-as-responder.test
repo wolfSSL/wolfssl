@@ -98,32 +98,6 @@ remove_single_rF(){
     fi
 }
 
-wait_for_port(){
-    local port=$1
-    local pid=${2-}
-    local counter=0
-    while true; do
-        if command -v ss &>/dev/null; then
-            ss -lnt 2>/dev/null | grep -q ":${port}[[:space:]]" && break
-        elif command -v netstat &>/dev/null; then
-            netstat -lnt 2>/dev/null | grep -q ":${port}[[:space:]]" && break
-        else
-            # best effort!
-            sleep 4 && break
-        fi
-        if [[ -n "$pid" ]] && ! kill -0 "$pid" 2>/dev/null; then
-            echo "pid $pid for port $port exited before becoming ready. bailing..."
-            exit 1
-        fi
-        sleep 0.1
-        counter=$((counter + 1))
-        if [ "$counter" -ge 40 ]; then
-            echo "timed out waiting for port $port"
-            exit 1
-        fi
-    done
-}
-
 #create a configure file for cert generation with the port 0 solution
 create_new_cnf() {
     printf '%s\n' "Random Port Selected: $RPORTSELECTED"
@@ -235,13 +209,10 @@ get_first_free_port() {
     echo "$ret"
     return 0
 }
-
 base_port=$((((($$ + $RETRIES_REMAINING) * 5) % (65536 - 2048)) + 1024))
-port1=$(get_first_free_port $base_port)
-port2=$(get_first_free_port $((port1 + 1)))
-
 
 # create a port to use with openssl ocsp responder
+port1=$(get_first_free_port $base_port)
 ./examples/server/server -R "$ready_file" -p $port1 &
 wolf_pid=$!
 wait_for_readyFile "$ready_file" $wolf_pid $port1
@@ -277,13 +248,15 @@ openssl ocsp -port $port1 -nmin 1                               \
     -CA      certs/ocsp/intermediate1-ca-cert.pem               \
     "$@"                                                        \
     &
-ocsp_pid=$!
-wait_for_port "$port1" "$ocsp_pid"
+
+sleep 0.1
+
 # "jobs" is not portable for posix. Must use bash interpreter!
 [ $(jobs -r | wc -l) -ne 1 ] && printf '\n\n%s\n' "Setup ocsp responder failed, skipping" && exit 0
 
 printf '%s\n\n' "------------- TEST CASE 1 SHOULD PASS ------------------------"
 # client test against our own server - GOOD CERT
+port2=$(get_first_free_port $((port1 + 1)))
 ./examples/server/server -c certs/ocsp/server1-cert.pem \
                          -k certs/ocsp/server1-key.pem -R "$ready_file2" \
                          -p $port2 &
@@ -298,6 +271,7 @@ printf '%s\n\n' "Test PASSED!"
 printf '%s\n\n' "------------- TEST CASE 2 SHOULD REVOKE ----------------------"
 # client test against our own server - REVOKED CERT
 remove_single_rF "$ready_file2"
+port2=$(get_first_free_port $((port2)))
 ./examples/server/server -c certs/ocsp/server2-cert.pem \
                          -k certs/ocsp/server2-key.pem -R "$ready_file2" \
                          -p $port2 &

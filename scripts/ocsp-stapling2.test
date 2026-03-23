@@ -129,32 +129,6 @@ remove_single_rF(){
     fi
 }
 
-wait_for_port(){
-    local port=$1
-    local pid=${2-}
-    local counter=0
-    while true; do
-        if command -v ss &>/dev/null; then
-            ss -lnt 2>/dev/null | grep -q ":${port}[[:space:]]" && break
-        elif command -v netstat &>/dev/null; then
-            netstat -lnt 2>/dev/null | grep -q ":${port}[[:space:]]" && break
-        else
-            # best effort!
-            sleep 4 && break
-        fi
-        if [[ -n "$pid" ]] && ! kill -0 "$pid" 2>/dev/null; then
-            echo "pid $pid for port $port exited before becoming ready. bailing..."
-            exit 1
-        fi
-        sleep 0.1
-        counter=$((counter + 1))
-        if [ "$counter" -ge 40 ]; then
-            echo "timed out waiting for port $port"
-            exit 1
-        fi
-    done
-}
-
 #create a configure file for cert generation with the port 0 solution
 create_new_cnf() {
     printf '%s\n' "Random Ports Selected: $1 $2 $3 $4"
@@ -289,15 +263,10 @@ get_first_free_port() {
     echo "$ret"
     return 0
 }
-
 base_port=$((((($$ + RETRIES_REMAINING) * 5) % (65536 - 2048)) + 1024))
-port1=$(get_first_free_port "$base_port")
-port2=$(get_first_free_port $((port1 + 1)))
-port3=$(get_first_free_port $((port2 + 1)))
-port4=$(get_first_free_port $((port3 + 1)))
-port5=$(get_first_free_port $((port4 + 1)))
 
 # 1:
+port1=$(get_first_free_port "$base_port")
 ./examples/server/server -R "$ready_file1" -p "$port1" &
 server_pid1=$!
 wait_for_readyFile "$ready_file1" "$server_pid1" "$port1"
@@ -306,6 +275,7 @@ if [ ! -f "$ready_file1" ]; then
     exit 1
 fi
 # 2:
+port2=$(get_first_free_port $((port1 + 1)))
 ./examples/server/server -R "$ready_file2" -p "$port2" &
 server_pid2=$!
 wait_for_readyFile "$ready_file2" "$server_pid2" "$port2"
@@ -314,6 +284,7 @@ if [ ! -f "$ready_file2" ]; then
     exit 1
 fi
 # 3:
+port3=$(get_first_free_port $((port2 + 1)))
 ./examples/server/server -R "$ready_file3" -p "$port3" &
 server_pid3=$!
 wait_for_readyFile "$ready_file3" "$server_pid3" "$port3"
@@ -322,6 +293,7 @@ if [ ! -f "$ready_file3" ]; then
     exit 1
 fi
 # 4:
+port4=$(get_first_free_port $((port3 + 1)))
 ./examples/server/server -R "$ready_file4" -p "$port4" &
 server_pid4=$!
 wait_for_readyFile "$ready_file4" "$server_pid4" "$port4"
@@ -334,13 +306,9 @@ printf '%s\n' "------------- PORTS ---------------"
 printf '%s' "Random ports selected: $port1 $port2"
 printf '%s\n' " $port3 $port4"
 printf '%s\n' "-----------------------------------"
-# Use client connections to cleanly shutdown the servers
-./examples/client/client -p "$port1"
-./examples/client/client -p "$port2"
-./examples/client/client -p "$port3"
-./examples/client/client -p "$port4"
-create_new_cnf "$port1" "$port2" "$port3" \
-               "$port4"
+# Create cnf and then for each responder:
+# use client connection to cleanly shutdown server and reuse the port
+create_new_cnf "$port1" "$port2" "$port3" "$port4"
 
 sleep 0.1
 
@@ -348,6 +316,7 @@ sleep 0.1
 # OLD: ./certs/ocsp/ocspd-root-ca-and-intermediate-cas.sh &
 # NEW: openssl isn't being cleaned up, invoke directly in script for cleanup
 # purposes!
+./examples/client/client -p "$port1"
 openssl ocsp -port "$port1" -nmin 1                         \
     -index   certs/ocsp/index-ca-and-intermediate-cas.txt \
     -rsigner certs/ocsp/ocsp-responder-cert.pem           \
@@ -355,11 +324,11 @@ openssl ocsp -port "$port1" -nmin 1                         \
     -CA      certs/ocsp/root-ca-cert.pem                  \
     "$@"                                                  \
     &
-ocsp_pid1=$!
 
 # OLD: ./certs/ocsp/ocspd-intermediate2-ca-issued-certs.sh &
 # NEW: openssl isn't being cleaned up, invoke directly in script for cleanup
 # purposes!
+./examples/client/client -p "$port2"
 openssl ocsp -port "$port2" -nmin 1                               \
     -index   certs/ocsp/index-intermediate2-ca-issued-certs.txt \
     -rsigner certs/ocsp/ocsp-responder-cert.pem                 \
@@ -367,11 +336,11 @@ openssl ocsp -port "$port2" -nmin 1                               \
     -CA      certs/ocsp/intermediate2-ca-cert.pem               \
     "$@"                                                        \
     &
-ocsp_pid2=$!
 
 # OLD: ./certs/ocsp/ocspd-intermediate3-ca-issued-certs.sh &
 # NEW: openssl isn't being cleaned up, invoke directly in script for cleanup
 # purposes!
+./examples/client/client -p "$port3"
 openssl ocsp -port "$port3" -nmin 1                               \
     -index   certs/ocsp/index-intermediate3-ca-issued-certs.txt \
     -rsigner certs/ocsp/ocsp-responder-cert.pem                 \
@@ -379,10 +348,10 @@ openssl ocsp -port "$port3" -nmin 1                               \
     -CA      certs/ocsp/intermediate3-ca-cert.pem               \
     "$@"                                                        \
     &
-ocsp_pid3=$!
 
 # NEW: openssl isn't being cleaned up, invoke directly in script for cleanup
 # purposes!
+./examples/client/client -p "$port4"
 openssl ocsp -port "$port4" -nmin 1                         \
     -index   certs/ocsp/index-ca-and-intermediate-cas.txt \
     -rsigner certs/ocsp/ocsp-responder-cert.pem           \
@@ -390,18 +359,16 @@ openssl ocsp -port "$port4" -nmin 1                         \
     -CA      certs/ocsp/root-ca-cert.pem                  \
     "$@"                                                  \
     &
-ocsp_pid4=$!
 
-wait_for_port "$port1" "$ocsp_pid1"
-wait_for_port "$port2" "$ocsp_pid2"
-wait_for_port "$port3" "$ocsp_pid3"
-wait_for_port "$port4" "$ocsp_pid4"
+sleep 0.1
+
 # "jobs" is not portable for posix. Must use bash interpreter!
 [ "$(jobs -r | wc -l)" -ne 4 ] && printf '\n\n%s\n' "Setup ocsp responder failed, skipping" && exit 0
 
 printf '\n\n%s\n\n' "All OCSP responders started successfully!"
 printf '%s\n\n' "------------- TEST CASE 1 SHOULD PASS ------------------------"
 # client test against our own server - GOOD CERTS
+port5=$(get_first_free_port $((port4 + 1)))
 ./examples/server/server -c certs/ocsp/server3-cert.pem \
                          -k certs/ocsp/server3-key.pem -R "$ready_file5" \
                          -p "$port5" &
@@ -415,6 +382,7 @@ printf '%s\n\n' "Test PASSED!"
 
 printf '%s\n\n' "------------- TEST CASE 2 SHOULD PASS ------------------------"
 remove_single_rF "$ready_file5"
+port5=$(get_first_free_port $((port5)))
 ./examples/server/server -c certs/ocsp/server3-cert.pem \
                          -k certs/ocsp/server3-key.pem -R "$ready_file5" \
                          -p "$port5" &
@@ -429,6 +397,7 @@ printf '%s\n\n' "Test PASSED!"
 printf '%s\n\n' "------------- TEST CASE 3 SHOULD REVOKE ----------------------"
 # client test against our own server - REVOKED SERVER CERT
 remove_single_rF "$ready_file5"
+port5=$(get_first_free_port $((port5)))
 ./examples/server/server -c certs/ocsp/server4-cert.pem \
                          -k certs/ocsp/server4-key.pem -R "$ready_file5" \
                          -p "$port5" &
@@ -442,6 +411,7 @@ printf '%s\n\n' "Test successfully REVOKED!"
 
 printf '%s\n\n' "------------- TEST CASE 4 SHOULD REVOKE ----------------------"
 remove_single_rF "$ready_file5"
+port5=$(get_first_free_port $((port5)))
 ./examples/server/server -c certs/ocsp/server4-cert.pem \
                          -k certs/ocsp/server4-key.pem -R "$ready_file5" \
                          -p "$port5" &
@@ -456,6 +426,7 @@ printf '%s\n\n' "Test successfully REVOKED!"
 printf '%s\n\n' "------------- TEST CASE 5 SHOULD PASS ------------------------"
 # client test against our own server - REVOKED INTERMEDIATE CERT
 remove_single_rF "$ready_file5"
+port5=$(get_first_free_port $((port5)))
 ./examples/server/server -c certs/ocsp/server5-cert.pem \
                          -k certs/ocsp/server5-key.pem -R "$ready_file5" \
                          -p "$port5" &
@@ -469,6 +440,7 @@ printf '%s\n\n' "Test PASSED!"
 
 printf '%s\n\n' "------------- TEST CASE 6 SHOULD REVOKE ----------------------"
 remove_single_rF "$ready_file5"
+port5=$(get_first_free_port $((port5)))
 ./examples/server/server -c certs/ocsp/server5-cert.pem \
                          -k certs/ocsp/server5-key.pem -R "$ready_file5" \
                          -p "$port5" &
@@ -481,6 +453,7 @@ RESULT=$?
 printf '%s\n\n' "Test successfully REVOKED!"
 printf '%s\n\n' "------------- TEST CASE 7 LOAD CERT IN SSL -------------------"
 remove_single_rF "$ready_file5"
+port5=$(get_first_free_port $((port5)))
 ./examples/server/server -c certs/ocsp/server1-cert.pem \
                          -k certs/ocsp/server1-key.pem -R "$ready_file5" \
                          -p "$port5" -H loadSSL &
@@ -496,6 +469,7 @@ fi
 printf '%s\n\n' "Test successful"
 printf '%s\n\n' "------------- TEST CASE 8 SHOULD REVOKE ----------------------"
 remove_single_rF "$ready_file5"
+port5=$(get_first_free_port $((port5)))
 ./examples/server/server -c certs/ocsp/server4-cert.pem \
                          -k certs/ocsp/server4-key.pem -R "$ready_file5" \
                          -p "$port5" -H loadSSL &
@@ -569,7 +543,7 @@ generate_port() {
 # Start OpenSSL server that has no OCSP responses to return
 generate_port
 openssl s_server -cert ./certs/server-cert.pem -key certs/server-key.pem -www -port "$port" &
-MAX_TIMEOUT=40
+MAX_TIMEOUT=10
 until nc -z localhost "$port" # Wait for openssl to be ready
 do
     sleep 0.05
@@ -602,6 +576,7 @@ if ./examples/client/client -? 2>&1 | grep -q 'DTLS'; then
 printf '%s\n\n' "------------- TEST CASE DTLS-1 SHOULD PASS -------------------"
 # client test against our own server - GOOD CERTS
 remove_single_rF "$ready_file5"
+port5=$(get_first_free_port $((port5)))
 ./examples/server/server -c certs/ocsp/server3-cert.pem \
                          -k certs/ocsp/server3-key.pem -R "$ready_file5" \
                          -p "$port5" -u -v 3 &
