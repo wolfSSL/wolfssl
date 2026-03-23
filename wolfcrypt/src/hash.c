@@ -337,8 +337,8 @@ enum wc_HashType wc_OidGetHash(int oid)
             hash_type = WC_ERR_TRACE(WC_HASH_TYPE_NONE);
         #endif
             break;
-        #ifdef WOLFSSL_SHA3
         case SHA3_512h:
+        #ifdef WOLFSSL_SHA3
             hash_type = WC_HASH_TYPE_SHA3_512;
         #else
             hash_type = WC_ERR_TRACE(WC_HASH_TYPE_NONE);
