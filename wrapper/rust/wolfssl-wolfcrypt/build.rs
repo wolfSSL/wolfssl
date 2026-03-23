@@ -44,10 +44,17 @@ fn wolfssl_repo_lib_dir() -> Result<String> {
 fn wolfssl_include_dir() -> Result<Option<String>> {
     if let Ok(prefix) = env::var("WOLFSSL_PREFIX") {
         Ok(Some(format!("{}/include", prefix)))
-    } else if Path::new(&wolfssl_repo_base_dir()?).exists() {
-        Ok(Some(wolfssl_repo_base_dir()?))
     } else {
-        Ok(None)
+        let base = wolfssl_repo_base_dir()?;
+        let base_path = Path::new(&base);
+        // Treat this as an in-tree wolfSSL repo only if the expected layout exists.
+        let wolfssl_dir = base_path.join("wolfssl");
+        let wolfssl_options = wolfssl_dir.join("options.h");
+        if wolfssl_options.is_file() {
+            Ok(Some(base))
+        } else {
+            Ok(None)
+        }
     }
 }
 
@@ -97,6 +104,8 @@ fn rust_target_to_clang_target(rust_target: &str) -> String {
     // Bare-metal: (os=none, abi=elf) → <arch>-<vendor>-elf
     if os == "none" && abi == "elf" {
         format!("{}-{}-elf", arch, vendor)
+    } else if abi.is_empty() {
+        format!("{}-{}-{}", arch, vendor, os)
     } else {
         format!("{}-{}-{}-{}", arch, vendor, os, abi)
     }
