@@ -427,15 +427,14 @@ impl ECC {
         if rc != 0 {
             return Err(rc);
         }
-        let mut wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
+        let wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
+        let mut ecc = ECC { wc_ecc_key };
         let rc = unsafe {
-            sys::wc_ecc_make_key(&mut rng.wc_rng, size, &mut wc_ecc_key)
+            sys::wc_ecc_make_key(&mut rng.wc_rng, size, &mut ecc.wc_ecc_key)
         };
         if rc != 0 {
-            unsafe { sys::wc_ecc_free(&mut wc_ecc_key); }
             return Err(rc);
         }
-        let ecc = ECC { wc_ecc_key };
         Ok(ecc)
     }
 
@@ -485,15 +484,14 @@ impl ECC {
         if rc != 0 {
             return Err(rc);
         }
-        let mut wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
+        let wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
+        let mut ecc = ECC { wc_ecc_key };
         let rc = unsafe {
-            sys::wc_ecc_make_key_ex(&mut rng.wc_rng, size, &mut wc_ecc_key, curve_id)
+            sys::wc_ecc_make_key_ex(&mut rng.wc_rng, size, &mut ecc.wc_ecc_key, curve_id)
         };
         if rc != 0 {
-            unsafe { sys::wc_ecc_free(&mut wc_ecc_key); }
             return Err(rc);
         }
-        let ecc = ECC { wc_ecc_key };
         Ok(ecc)
     }
 
@@ -544,15 +542,14 @@ impl ECC {
         if rc != 0 {
             return Err(rc);
         }
-        let mut wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
+        let wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
+        let mut ecc = ECC { wc_ecc_key };
         let rc = unsafe {
-            sys::wc_ecc_make_key_ex2(&mut rng.wc_rng, size, &mut wc_ecc_key, curve_id, flags)
+            sys::wc_ecc_make_key_ex2(&mut rng.wc_rng, size, &mut ecc.wc_ecc_key, curve_id, flags)
         };
         if rc != 0 {
-            unsafe { sys::wc_ecc_free(&mut wc_ecc_key); }
             return Err(rc);
         }
-        let ecc = ECC { wc_ecc_key };
         Ok(ecc)
     }
 
@@ -632,16 +629,16 @@ impl ECC {
         if rc != 0 {
             return Err(rc);
         }
-        let mut wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
+        let wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
+        let mut ecc = ECC { wc_ecc_key };
         let mut idx = 0u32;
         let der_size = der.len() as u32;
         let rc = unsafe {
-            sys::wc_EccPrivateKeyDecode(der.as_ptr(), &mut idx, &mut wc_ecc_key, der_size)
+            sys::wc_EccPrivateKeyDecode(der.as_ptr(), &mut idx, &mut ecc.wc_ecc_key, der_size)
         };
         if rc != 0 {
             return Err(rc);
         }
-        let ecc = ECC { wc_ecc_key };
         Ok(ecc)
     }
 
@@ -695,16 +692,16 @@ impl ECC {
         if rc != 0 {
             return Err(rc);
         }
-        let mut wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
+        let wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
+        let mut ecc = ECC { wc_ecc_key };
         let mut idx = 0u32;
         let der_size = der.len() as u32;
         let rc = unsafe {
-            sys::wc_EccPublicKeyDecode(der.as_ptr(), &mut idx, &mut wc_ecc_key, der_size)
+            sys::wc_EccPublicKeyDecode(der.as_ptr(), &mut idx, &mut ecc.wc_ecc_key, der_size)
         };
         if rc != 0 {
             return Err(rc);
         }
-        let ecc = ECC { wc_ecc_key };
         Ok(ecc)
     }
 
@@ -764,18 +761,18 @@ impl ECC {
         if rc != 0 {
             return Err(rc);
         }
-        let mut wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
+        let wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
+        let mut ecc = ECC { wc_ecc_key };
         let priv_size = priv_buf.len() as u32;
         let pub_ptr = if pub_buf.is_empty() {core::ptr::null()} else {pub_buf.as_ptr()};
         let pub_size = pub_buf.len() as u32;
         let rc = unsafe {
             sys::wc_ecc_import_private_key(priv_buf.as_ptr(), priv_size,
-                pub_ptr, pub_size, &mut wc_ecc_key)
+                pub_ptr, pub_size, &mut ecc.wc_ecc_key)
         };
         if rc != 0 {
             return Err(rc);
         }
-        let ecc = ECC { wc_ecc_key };
         Ok(ecc)
     }
 
@@ -838,18 +835,18 @@ impl ECC {
         if rc != 0 {
             return Err(rc);
         }
-        let mut wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
+        let wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
+        let mut ecc = ECC { wc_ecc_key };
         let priv_size = priv_buf.len() as u32;
         let pub_ptr = if pub_buf.is_empty() {core::ptr::null()} else {pub_buf.as_ptr()};
         let pub_size = pub_buf.len() as u32;
         let rc = unsafe {
             sys::wc_ecc_import_private_key_ex(priv_buf.as_ptr(), priv_size,
-                pub_ptr, pub_size, &mut wc_ecc_key, curve_id)
+                pub_ptr, pub_size, &mut ecc.wc_ecc_key, curve_id)
         };
         if rc != 0 {
             return Err(rc);
         }
-        let ecc = ECC { wc_ecc_key };
         Ok(ecc)
     }
 
@@ -897,19 +894,19 @@ impl ECC {
         if rc != 0 {
             return Err(rc);
         }
-        let mut wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
+        let wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
+        let mut ecc = ECC { wc_ecc_key };
         let qx_ptr = qx.as_ptr() as *const core::ffi::c_char;
         let qy_ptr = qy.as_ptr() as *const core::ffi::c_char;
         let d_ptr = d.as_ptr() as *const core::ffi::c_char;
         let curve_name_ptr = curve_name.as_ptr() as *const core::ffi::c_char;
         let rc = unsafe {
-            sys::wc_ecc_import_raw(&mut wc_ecc_key, qx_ptr, qy_ptr, d_ptr,
+            sys::wc_ecc_import_raw(&mut ecc.wc_ecc_key, qx_ptr, qy_ptr, d_ptr,
                 curve_name_ptr)
         };
         if rc != 0 {
             return Err(rc);
         }
-        let ecc = ECC { wc_ecc_key };
         Ok(ecc)
     }
 
@@ -957,18 +954,18 @@ impl ECC {
         if rc != 0 {
             return Err(rc);
         }
-        let mut wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
+        let wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
+        let mut ecc = ECC { wc_ecc_key };
         let qx_ptr = qx.as_ptr() as *const core::ffi::c_char;
         let qy_ptr = qy.as_ptr() as *const core::ffi::c_char;
         let d_ptr = d.as_ptr() as *const core::ffi::c_char;
         let rc = unsafe {
-            sys::wc_ecc_import_raw_ex(&mut wc_ecc_key, qx_ptr, qy_ptr, d_ptr,
-                curve_id)
+            sys::wc_ecc_import_raw_ex(&mut ecc.wc_ecc_key, qx_ptr, qy_ptr,
+                d_ptr, curve_id)
         };
         if rc != 0 {
             return Err(rc);
         }
-        let ecc = ECC { wc_ecc_key };
         Ok(ecc)
     }
 
@@ -1025,15 +1022,15 @@ impl ECC {
         if rc != 0 {
             return Err(rc);
         }
-        let mut wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
+        let wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
+        let mut ecc = ECC { wc_ecc_key };
         let rc = unsafe {
-            sys::wc_ecc_import_unsigned(&mut wc_ecc_key, qx.as_ptr(), qy.as_ptr(),
-                d.as_ptr(), curve_id)
+            sys::wc_ecc_import_unsigned(&mut ecc.wc_ecc_key, qx.as_ptr(),
+                qy.as_ptr(), d.as_ptr(), curve_id)
         };
         if rc != 0 {
             return Err(rc);
         }
-        let ecc = ECC { wc_ecc_key };
         Ok(ecc)
     }
 
@@ -1084,15 +1081,14 @@ impl ECC {
         if rc != 0 {
             return Err(rc);
         }
-        let mut wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
+        let wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
+        let mut ecc = ECC { wc_ecc_key };
         let rc = unsafe {
-            sys::wc_ecc_import_x963(din.as_ptr(), din_size, &mut wc_ecc_key)
+            sys::wc_ecc_import_x963(din.as_ptr(), din_size, &mut ecc.wc_ecc_key)
         };
         if rc != 0 {
-            unsafe { sys::wc_ecc_free(&mut wc_ecc_key); }
             return Err(rc);
         }
-        let ecc = ECC { wc_ecc_key };
         Ok(ecc)
     }
 
@@ -1148,15 +1144,14 @@ impl ECC {
         if rc != 0 {
             return Err(rc);
         }
-        let mut wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
+        let wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
+        let mut ecc = ECC { wc_ecc_key };
         let rc = unsafe {
-            sys::wc_ecc_import_x963_ex(din.as_ptr(), din_size, &mut wc_ecc_key, curve_id)
+            sys::wc_ecc_import_x963_ex(din.as_ptr(), din_size, &mut ecc.wc_ecc_key, curve_id)
         };
         if rc != 0 {
-            unsafe { sys::wc_ecc_free(&mut wc_ecc_key); }
             return Err(rc);
         }
-        let ecc = ECC { wc_ecc_key };
         Ok(ecc)
     }
 
