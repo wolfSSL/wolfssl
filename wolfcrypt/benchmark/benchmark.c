@@ -1517,12 +1517,13 @@ static const char* bench_result_words1[][5] = {
 #endif
 };
 
-#if !defined(NO_RSA) || \
-    defined(HAVE_ECC) || !defined(NO_DH) || defined(HAVE_ECC_ENCRYPT) || \
-    defined(HAVE_CURVE25519) || defined(HAVE_CURVE25519_SHARED_SECRET)  || \
-    defined(HAVE_ED25519) || defined(HAVE_CURVE448) || \
-    defined(HAVE_CURVE448_SHARED_SECRET) || defined(HAVE_ED448) || \
-    defined(WOLFSSL_HAVE_MLKEM) || defined(HAVE_DILITHIUM)
+#if ((!defined(NO_RSA) || \
+      defined(HAVE_ECC) || !defined(NO_DH) || defined(HAVE_ECC_ENCRYPT) || \
+      defined(HAVE_CURVE25519) || defined(HAVE_CURVE25519_SHARED_SECRET)  || \
+      defined(HAVE_ED25519) || defined(HAVE_CURVE448) || \
+      defined(HAVE_CURVE448_SHARED_SECRET) || defined(HAVE_ED448) || \
+      defined(HAVE_DILITHIUM)) && !defined(WC_NO_RNG)) || \
+     defined(WOLFSSL_HAVE_MLKEM)
 
 static const char* bench_desc_words[][15] = {
     /* 0           1          2         3        4        5         6            7            8          9        10        11       12          13       14 */
@@ -2057,11 +2058,11 @@ static const char* bench_result_words3[][5] = {
 #endif
 
 #if defined(BENCH_ASYM)
-#if defined(HAVE_ECC) || !defined(NO_RSA) || !defined(NO_DH) || \
-    defined(HAVE_CURVE25519) || defined(HAVE_ED25519) || \
-    defined(HAVE_CURVE448) || defined(HAVE_ED448) || \
-    defined(WOLFSSL_HAVE_MLKEM) || defined(HAVE_DILITHIUM) || \
-    defined(WOLFSSL_HAVE_LMS)
+#if ((defined(HAVE_ECC) || !defined(NO_RSA) || !defined(NO_DH) || \
+      defined(HAVE_CURVE25519) || defined(HAVE_ED25519) || \
+      defined(HAVE_CURVE448) || defined(HAVE_ED448) || \
+      defined(HAVE_DILITHIUM) || defined(WOLFSSL_HAVE_LMS)) && \
+      !defined(WC_NO_RNG)) || defined(WOLFSSL_HAVE_MLKEM)
 static const char* bench_result_words2[][6] = {
 #ifdef BENCH_MICROSECOND
     { "ops took", "μsec"     , "avg" , "ops/μsec", "cycles/op",
@@ -3201,11 +3202,11 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
 } /* bench_stats_sym_finish */
 
 #ifdef BENCH_ASYM
-#if defined(HAVE_ECC) || !defined(NO_RSA) || !defined(NO_DH) || \
-    defined(HAVE_CURVE25519) || defined(HAVE_ED25519) || \
-    defined(HAVE_CURVE448) || defined(HAVE_ED448) || \
-    defined(WOLFSSL_HAVE_MLKEM) || defined(HAVE_DILITHIUM) || \
-    defined(WOLFSSL_HAVE_LMS)
+#if ((defined(HAVE_ECC) || !defined(NO_RSA) || !defined(NO_DH) || \
+      defined(HAVE_CURVE25519) || defined(HAVE_ED25519) || \
+      defined(HAVE_CURVE448) || defined(HAVE_ED448) || \
+      defined(HAVE_DILITHIUM) || defined(WOLFSSL_HAVE_LMS)) && \
+      !defined(WC_NO_RNG)) || defined(WOLFSSL_HAVE_MLKEM)
 static void bench_stats_asym_finish_ex(const char* algo, int strength,
     const char* desc, const char* desc_extra, int useDeviceID, int count,
     double start, int ret)
@@ -4567,7 +4568,7 @@ static void* benchmarks_do(void* args)
     if (bench_all || (bench_pq_asym_algs & BENCH_FALCON_LEVEL5_SIGN))
         bench_falconKeySign(5);
 #endif
-#ifdef HAVE_DILITHIUM
+#if defined(HAVE_DILITHIUM) && !defined(WC_NO_RNG)
 #ifndef WOLFSSL_NO_ML_DSA_44
     if (bench_all || (bench_pq_asym_algs & BENCH_DILITHIUM_LEVEL2_SIGN))
         bench_dilithiumKeySign(2);
@@ -9643,7 +9644,7 @@ void bench_srtpkdf(void)
 }
 #endif
 
-#ifndef NO_RSA
+#if !defined(NO_RSA) && !defined(WC_NO_RNG)
 
 #if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
 static void bench_rsaKeyGen_helper(int useDeviceID, word32 keySz)
@@ -10285,7 +10286,7 @@ exit:
     }
 }
 #endif /* WOLFSSL_KEY_GEN */
-#endif /* !NO_RSA */
+#endif /* !NO_RSA && !WC_NO_RNG */
 
 
 #if !defined(NO_DH) && !defined(WC_NO_RNG)
@@ -14329,7 +14330,7 @@ void bench_falconKeySign(byte level)
 }
 #endif /* HAVE_FALCON */
 
-#ifdef HAVE_DILITHIUM
+#if defined(HAVE_DILITHIUM) && !defined(WC_NO_RNG)
 
 #if defined(WOLFSSL_DILITHIUM_NO_SIGN) && !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
 
@@ -15675,7 +15676,7 @@ out:
     #endif
 #endif
 }
-#endif /* HAVE_DILITHIUM */
+#endif /* HAVE_DILITHIUM && !WC_NO_RNG */
 
 #ifdef HAVE_SPHINCS
 void bench_sphincsKeySign(byte level, byte optim)
