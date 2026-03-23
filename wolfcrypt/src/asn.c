@@ -8336,6 +8336,8 @@ int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
                 wc_RsaEncryptSize(tmpKey), NULL, 0, 0);
         }
 
+        /* wc_FreeRsaKey calls mp_forcezero on all private key components,
+         * so no separate ForceZero of the struct is needed here. */
         wc_FreeRsaKey(tmpKey);
         WC_FREE_VAR(tmpKey, key->heap);
 
@@ -36543,63 +36545,20 @@ int wc_Asn1_PrintAll(Asn1* asn1, Asn1PrintOptions* opts, unsigned char* data,
 
 /* Functions that parse, but are not using ASN.1 */
 #if !defined(NO_RSA) && (!defined(NO_BIG_INT) || defined(WOLFSSL_SP_MATH))
-/* import RSA public key elements (n, e) into RsaKey structure (key) */
-/* this function does not use any ASN.1 parsing */
-int wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz, const byte* e,
-                             word32 eSz, RsaKey* key)
+/* Software-only import of RSA public key elements (n, e) into RsaKey.
+ * This internal helper avoids recursion when called from the SETKEY path. */
+static int _RsaPublicKeyDecodeRaw(const byte* n, word32 nSz, const byte* e,
+                                  word32 eSz, RsaKey* key)
 {
-#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SETKEY)
-    int cbRet = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
-    int tmpErr = 0;
-    WC_DECLARE_VAR(tmpKey, RsaKey, 1, NULL);
-#endif
-
-    if (n == NULL || e == NULL || key == NULL)
+    if (n == NULL || e == NULL || key == NULL) {
         return BAD_FUNC_ARG;
-
-#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SETKEY)
-    #ifndef WOLF_CRYPTO_CB_FIND
-    if (key->devId != INVALID_DEVID)
-    #endif
-    {
-        /* Allocate temp key for callback to export from */
-        WC_ALLOC_VAR(tmpKey, RsaKey, 1, key->heap);
-        if (!WC_VAR_OK(tmpKey)) {
-            return MEMORY_E;
-        }
-        XMEMSET(tmpKey, 0, sizeof(RsaKey));
-
-        tmpErr = wc_InitRsaKey_ex(tmpKey, key->heap, INVALID_DEVID);
-        if (tmpErr != 0) {
-            WC_FREE_VAR(tmpKey, key->heap);
-            return tmpErr;
-        }
-
-        /* Recursive call imports n, e into temp via software */
-        tmpErr = wc_RsaPublicKeyDecodeRaw(n, nSz, e, eSz, tmpKey);
-        if (tmpErr == 0) {
-            cbRet = wc_CryptoCb_SetKey(key->devId,
-                WC_SETKEY_RSA_PUB, key, tmpKey,
-                wc_RsaEncryptSize(tmpKey), NULL, 0, 0);
-        }
-
-        wc_FreeRsaKey(tmpKey);
-        WC_FREE_VAR(tmpKey, key->heap);
-
-        if (tmpErr != 0) {
-            return tmpErr;
-        }
-        if (cbRet != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
-            return cbRet;
-        }
-        /* CRYPTOCB_UNAVAILABLE: fall through to software import */
     }
-#endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_SETKEY */
 
     key->type = RSA_PUBLIC;
 
-    if (mp_init(&key->n) != MP_OKAY)
+    if (mp_init(&key->n) != MP_OKAY) {
         return MP_INIT_E;
+    }
 
     if (mp_read_unsigned_bin(&key->n, n, nSz) != 0) {
         mp_clear(&key->n);
@@ -36637,6 +36596,63 @@ int wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz, const byte* e,
 #endif
 
     return 0;
+}
+
+/* import RSA public key elements (n, e) into RsaKey structure (key) */
+/* this function does not use any ASN.1 parsing */
+int wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz, const byte* e,
+                             word32 eSz, RsaKey* key)
+{
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SETKEY)
+    int cbRet = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    int tmpErr = 0;
+    WC_DECLARE_VAR(tmpKey, RsaKey, 1, NULL);
+#endif
+
+    if (n == NULL || e == NULL || key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SETKEY)
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (key->devId != INVALID_DEVID)
+    #endif
+    {
+        /* Allocate temp key for callback to export from */
+        WC_ALLOC_VAR(tmpKey, RsaKey, 1, key->heap);
+        if (!WC_VAR_OK(tmpKey)) {
+            return MEMORY_E;
+        }
+        XMEMSET(tmpKey, 0, sizeof(RsaKey));
+
+        tmpErr = wc_InitRsaKey_ex(tmpKey, key->heap, INVALID_DEVID);
+        if (tmpErr != 0) {
+            WC_FREE_VAR(tmpKey, key->heap);
+            return tmpErr;
+        }
+
+        /* Import into temp via software helper (no callback recursion) */
+        tmpErr = _RsaPublicKeyDecodeRaw(n, nSz, e, eSz, tmpKey);
+        if (tmpErr == 0) {
+            cbRet = wc_CryptoCb_SetKey(key->devId,
+                WC_SETKEY_RSA_PUB, key, tmpKey,
+                wc_RsaEncryptSize(tmpKey), NULL, 0, 0);
+        }
+
+        wc_FreeRsaKey(tmpKey);
+        WC_FREE_VAR(tmpKey, key->heap);
+
+        if (tmpErr != 0) {
+            return tmpErr;
+        }
+        if (cbRet != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            return cbRet;
+        }
+        /* CRYPTOCB_UNAVAILABLE: fall through to software import */
+    }
+#endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_SETKEY */
+
+    return _RsaPublicKeyDecodeRaw(n, nSz, e, eSz, key);
 }
 #endif /* !NO_RSA && (!NO_BIG_INT || WOLFSSL_SP_MATH) */
 
