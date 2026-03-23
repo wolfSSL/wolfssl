@@ -79,6 +79,11 @@ int wc_PBKDF1_ex(byte* key, int keyLen, byte* iv, int ivLen,
     if (iterations <= 0)
         iterations = 1;
 
+    if (iterations > WC_PBKDF_MAX_ITERATIONS) {
+        WOLFSSL_MSG("PBKDF1 iteration count exceeds WC_PBKDF_MAX_ITERATIONS");
+        return BAD_FUNC_ARG;
+    }
+
     hashT = wc_HashTypeConvert(hashType);
     err = wc_HashGetDigestSize(hashT);
     if (err < 0)
@@ -214,6 +219,11 @@ int wc_PBKDF2_ex(byte* output, const byte* passwd, int pLen, const byte* salt,
 #endif
     if (iterations <= 0)
         iterations = 1;
+
+    if (iterations > WC_PBKDF_MAX_ITERATIONS) {
+        WOLFSSL_MSG("PBKDF2 iteration count exceeds WC_PBKDF_MAX_ITERATIONS");
+        return BAD_FUNC_ARG;
+    }
 
     hashT = wc_HashTypeConvert(hashType);
     hLen = wc_HashGetDigestSize(hashT);
@@ -402,6 +412,11 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
 
     if (iterations <= 0)
         iterations = 1;
+
+    if (iterations > WC_PBKDF_MAX_ITERATIONS) {
+        WOLFSSL_MSG("PKCS12 PBKDF iteration count exceeds WC_PBKDF_MAX_ITERATIONS");
+        return BAD_FUNC_ARG;
+    }
 
     hashT = wc_HashTypeConvert(hashType);
     ret = wc_HashGetDigestSize(hashT);

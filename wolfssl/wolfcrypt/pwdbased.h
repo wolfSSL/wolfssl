@@ -35,6 +35,15 @@
     extern "C" {
 #endif
 
+/* Maximum allowed PBKDF iteration count to prevent CPU exhaustion DoS.
+ * Attacker-controlled PKCS#12 files can specify iterations up to INT_MAX
+ * (2,147,483,647) in the MAC data, causing hours of CPU time.
+ * Override by defining WC_PBKDF_MAX_ITERATIONS before including this header.
+ * Normal PKCS#12 files use 1,000–10,000 iterations. */
+#ifndef WC_PBKDF_MAX_ITERATIONS
+    #define WC_PBKDF_MAX_ITERATIONS 100000
+#endif
+
 #if FIPS_VERSION3_GE(6,0,0)
     extern const unsigned int wolfCrypt_FIPS_pbkdf_ro_sanity[2];
     WOLFSSL_LOCAL int wolfCrypt_FIPS_PBKDF_sanity(void);
