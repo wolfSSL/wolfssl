@@ -9377,14 +9377,15 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
         if (rsa == NULL)
             return MEMORY_E;
 
-        wc_InitRsaKey(rsa, heap);
-        if (wc_RsaPrivateKeyDecode(key, &tmpIdx, rsa, keySz) == 0) {
-            *algoID = RSAk;
+        if (wc_InitRsaKey(rsa, heap) == 0) {
+            if (wc_RsaPrivateKeyDecode(key, &tmpIdx, rsa, keySz) == 0) {
+                *algoID = RSAk;
+            }
+            else {
+                WOLFSSL_MSG("Not RSA DER key");
+            }
+            wc_FreeRsaKey(rsa);
         }
-        else {
-            WOLFSSL_MSG("Not RSA DER key");
-        }
-        wc_FreeRsaKey(rsa);
         XFREE(rsa, heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
     #endif /* !NO_RSA && !NO_ASN_CRYPT */
@@ -9395,22 +9396,23 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
             return MEMORY_E;
 
         tmpIdx = 0;
-        wc_ecc_init_ex(ecc, heap, INVALID_DEVID);
-        if (wc_EccPrivateKeyDecode(key, &tmpIdx, ecc, keySz) == 0) {
-            *algoID = ECDSAk;
+        if (wc_ecc_init_ex(ecc, heap, INVALID_DEVID) == 0) {
+            if (wc_EccPrivateKeyDecode(key, &tmpIdx, ecc, keySz) == 0) {
+                *algoID = ECDSAk;
 
-            /* now find oid */
-            if (wc_ecc_get_oid(ecc->dp->oidSum, curveOID, oidSz) < 0) {
-                WOLFSSL_MSG("Error getting ECC curve OID");
-                wc_ecc_free(ecc);
-                XFREE(ecc, heap, DYNAMIC_TYPE_TMP_BUFFER);
-                return BAD_FUNC_ARG;
+                /* now find oid */
+                if (wc_ecc_get_oid(ecc->dp->oidSum, curveOID, oidSz) < 0) {
+                    WOLFSSL_MSG("Error getting ECC curve OID");
+                    wc_ecc_free(ecc);
+                    XFREE(ecc, heap, DYNAMIC_TYPE_TMP_BUFFER);
+                    return BAD_FUNC_ARG;
+                }
             }
+            else {
+                WOLFSSL_MSG("Not ECC DER key either");
+            }
+            wc_ecc_free(ecc);
         }
-        else {
-            WOLFSSL_MSG("Not ECC DER key either");
-        }
-        wc_ecc_free(ecc);
         XFREE(ecc, heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #endif /* HAVE_ECC && !NO_ASN_CRYPT */
@@ -37323,3 +37325,5 @@ const byte* AsnHashesGetHash(const AsnHashes* hashes, int hashAlg, int* size)
 
 
 #endif /* WOLFSSL_SEP */
+
+#undef ERROR_OUT
