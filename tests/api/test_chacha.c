@@ -334,8 +334,10 @@ int test_wc_Chacha_Process_Chunking(void)
         0x0c, 0xb3, 0xc9, 0x39, 0x0f, 0x1f, 0x51, 0x9d
     };
 
-    WC_ALLOC_VAR(plain, byte, CHACHA_LEN, NULL);
-    WC_ALLOC_VAR(cipher, byte, CHACHA_LEN, NULL);
+    WC_ALLOC_VAR_EX(plain, byte, CHACHA_LEN, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+        ExpectNotNull(plain); goto cleanup);
+    WC_ALLOC_VAR_EX(cipher, byte, CHACHA_LEN, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+        ExpectNotNull(cipher); goto cleanup);
 
     XMEMSET(plain, 0xa5, CHACHA_LEN);
     for (i = 0; i < (int)sizeof(key); i++) {
@@ -360,8 +362,11 @@ int test_wc_Chacha_Process_Chunking(void)
         ExpectBufEQ(cipher, expected, (int)sizeof(expected));
     }
 
-    WC_FREE_VAR(plain, NULL);
-    WC_FREE_VAR(cipher, NULL);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+cleanup:
+#endif
+    WC_FREE_VAR_EX(plain, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(cipher, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_Chacha_Process */

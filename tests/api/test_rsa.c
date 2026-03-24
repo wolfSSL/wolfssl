@@ -33,6 +33,8 @@
 #include <tests/api/api.h>
 #include <tests/api/test_rsa.h>
 
+#define WC_ALLOC_DO_ON_FAILURE() WC_DO_NOTHING
+
 /*
  * Testing wc_Init RsaKey()
  */

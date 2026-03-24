@@ -825,9 +825,6 @@ enum {
 #include <wolfssl/wolfcrypt/memory.h>
 
 /* declare/free variable handling for async and smallstack */
-#ifndef WC_ALLOC_DO_ON_FAILURE
-    #define WC_ALLOC_DO_ON_FAILURE() WC_DO_NOTHING
-#endif
 
 #define WC_DECLARE_HEAP_ARRAY(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) \
     VAR_TYPE* VAR_NAME[VAR_ITEMS] = { NULL, };                               \
