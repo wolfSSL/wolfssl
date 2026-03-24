@@ -42902,6 +42902,7 @@ static wc_test_ret_t mlkem512_kat(void)
 #endif
 #endif
     int key_inited = 0;
+    const int katDevId = INVALID_DEVID;
     WOLFSSL_SMALL_STACK_STATIC const byte kyber512_rand[] = {
         0x7c, 0x99, 0x35, 0xa0, 0xb0, 0x76, 0x94, 0xaa,
         0x0c, 0x6d, 0x10, 0xe4, 0xdb, 0x6b, 0x1a, 0xdd,
@@ -43789,7 +43790,7 @@ static wc_test_ret_t mlkem512_kat(void)
 #endif
 
 #ifdef WOLFSSL_MLKEM_KYBER
-    ret = wc_KyberKey_Init(KYBER512, key, HEAP_HINT, devId);
+    ret = wc_KyberKey_Init(KYBER512, key, HEAP_HINT, katDevId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     else
@@ -43852,7 +43853,7 @@ static wc_test_ret_t mlkem512_kat(void)
 #endif
 #endif
 #ifndef WOLFSSL_NO_ML_KEM
-    ret = wc_MlKemKey_Init(key, WC_ML_KEM_512, HEAP_HINT, devId);
+    ret = wc_MlKemKey_Init(key, WC_ML_KEM_512, HEAP_HINT, katDevId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     else
@@ -43915,7 +43916,7 @@ static wc_test_ret_t mlkem512_kat(void)
     wc_MlKemKey_Free(key);
     XMEMSET(key, 0, sizeof(MlKemKey));
     key_inited = 0;
-    ret = wc_MlKemKey_Init(key, WC_ML_KEM_512, HEAP_HINT, devId);
+    ret = wc_MlKemKey_Init(key, WC_ML_KEM_512, HEAP_HINT, katDevId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     else
@@ -43995,6 +43996,7 @@ static wc_test_ret_t mlkem768_kat(void)
 #endif
 #endif
     int key_inited = 0;
+    const int katDevId = INVALID_DEVID;
     WOLFSSL_SMALL_STACK_STATIC const byte kyber768_rand[] = {
         0x7c, 0x99, 0x35, 0xa0, 0xb0, 0x76, 0x94, 0xaa,
         0x0c, 0x6d, 0x10, 0xe4, 0xdb, 0x6b, 0x1a, 0xdd,
@@ -45251,7 +45253,7 @@ static wc_test_ret_t mlkem768_kat(void)
 #endif
 
 #ifdef WOLFSSL_MLKEM_KYBER
-    ret = wc_KyberKey_Init(KYBER768, key, HEAP_HINT, devId);
+    ret = wc_KyberKey_Init(KYBER768, key, HEAP_HINT, katDevId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     else
@@ -45314,7 +45316,7 @@ static wc_test_ret_t mlkem768_kat(void)
 #endif
 #endif
 #ifndef WOLFSSL_NO_ML_KEM
-    ret = wc_MlKemKey_Init(key, WC_ML_KEM_768, HEAP_HINT, devId);
+    ret = wc_MlKemKey_Init(key, WC_ML_KEM_768, HEAP_HINT, katDevId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     else
@@ -45434,6 +45436,7 @@ static wc_test_ret_t mlkem1024_kat(void)
 #endif
 #endif
     int key_inited = 0;
+    const int katDevId = INVALID_DEVID;
     WOLFSSL_SMALL_STACK_STATIC const byte kyber1024_rand[] = {
         0x7c, 0x99, 0x35, 0xa0, 0xb0, 0x76, 0x94, 0xaa,
         0x0c, 0x6d, 0x10, 0xe4, 0xdb, 0x6b, 0x1a, 0xdd,
@@ -47097,7 +47100,7 @@ static wc_test_ret_t mlkem1024_kat(void)
 #endif
 
 #ifdef WOLFSSL_MLKEM_KYBER
-    ret = wc_KyberKey_Init(KYBER1024, key, HEAP_HINT, devId);
+    ret = wc_KyberKey_Init(KYBER1024, key, HEAP_HINT, katDevId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     else
@@ -47160,7 +47163,7 @@ static wc_test_ret_t mlkem1024_kat(void)
 #endif
 #endif
 #ifndef WOLFSSL_NO_ML_KEM
-    ret = wc_MlKemKey_Init(key, WC_ML_KEM_1024, HEAP_HINT, devId);
+    ret = wc_MlKemKey_Init(key, WC_ML_KEM_1024, HEAP_HINT, katDevId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     else
@@ -65400,6 +65403,92 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
         }
         #endif
     #endif /* HAVE_ED25519 */
+    #ifdef WOLFSSL_HAVE_MLKEM
+        if (info->pk.type == WC_PK_TYPE_PQC_KEM_KEYGEN) {
+            if ((info->pk.pqc_kem_kg.type == WC_PQC_KEM_TYPE_KYBER) &&
+                (info->pk.pqc_kem_kg.key != NULL)) {
+                MlKemKey* key = (MlKemKey*)info->pk.pqc_kem_kg.key;
+#ifdef WOLFSSL_WC_MLKEM
+                int hashDevId = key->hash.devId;
+                int prfDevId = key->prf.devId;
+#endif
+
+                /* set devId to invalid, so software is used */
+                key->devId = INVALID_DEVID;
+#ifdef WOLFSSL_WC_MLKEM
+                key->hash.devId = INVALID_DEVID;
+                key->prf.devId = INVALID_DEVID;
+#endif
+
+                ret = wc_MlKemKey_MakeKey(key, info->pk.pqc_kem_kg.rng);
+
+                /* reset devId */
+                key->devId = devIdArg;
+#ifdef WOLFSSL_WC_MLKEM
+                key->hash.devId = hashDevId;
+                key->prf.devId = prfDevId;
+#endif
+            }
+        }
+        else if (info->pk.type == WC_PK_TYPE_PQC_KEM_ENCAPS) {
+            if ((info->pk.pqc_encaps.type == WC_PQC_KEM_TYPE_KYBER) &&
+                (info->pk.pqc_encaps.key != NULL)) {
+                MlKemKey* key = (MlKemKey*)info->pk.pqc_encaps.key;
+#ifdef WOLFSSL_WC_MLKEM
+                int hashDevId = key->hash.devId;
+                int prfDevId = key->prf.devId;
+#endif
+
+                /* set devId to invalid, so software is used */
+                key->devId = INVALID_DEVID;
+#ifdef WOLFSSL_WC_MLKEM
+                key->hash.devId = INVALID_DEVID;
+                key->prf.devId = INVALID_DEVID;
+#endif
+
+                ret = wc_MlKemKey_Encapsulate(key,
+                    info->pk.pqc_encaps.ciphertext,
+                    info->pk.pqc_encaps.sharedSecret,
+                    info->pk.pqc_encaps.rng);
+
+                /* reset devId */
+                key->devId = devIdArg;
+#ifdef WOLFSSL_WC_MLKEM
+                key->hash.devId = hashDevId;
+                key->prf.devId = prfDevId;
+#endif
+            }
+        }
+        else if (info->pk.type == WC_PK_TYPE_PQC_KEM_DECAPS) {
+            if ((info->pk.pqc_decaps.type == WC_PQC_KEM_TYPE_KYBER) &&
+                (info->pk.pqc_decaps.key != NULL)) {
+                MlKemKey* key = (MlKemKey*)info->pk.pqc_decaps.key;
+#ifdef WOLFSSL_WC_MLKEM
+                int hashDevId = key->hash.devId;
+                int prfDevId = key->prf.devId;
+#endif
+
+                /* set devId to invalid, so software is used */
+                key->devId = INVALID_DEVID;
+#ifdef WOLFSSL_WC_MLKEM
+                key->hash.devId = INVALID_DEVID;
+                key->prf.devId = INVALID_DEVID;
+#endif
+
+                ret = wc_MlKemKey_Decapsulate(key,
+                    info->pk.pqc_decaps.sharedSecret,
+                    info->pk.pqc_decaps.ciphertext,
+                    info->pk.pqc_decaps.ciphertextLen);
+
+                /* reset devId */
+                key->devId = devIdArg;
+#ifdef WOLFSSL_WC_MLKEM
+                key->hash.devId = hashDevId;
+                key->prf.devId = prfDevId;
+#endif
+            }
+        }
+    #endif /* WOLFSSL_HAVE_MLKEM */
     }
     else if (info->algo_type == WC_ALGO_TYPE_CIPHER) {
 #if !defined(NO_AES) || !defined(NO_DES3)
@@ -66106,6 +66195,21 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                     break;
                 }
 #endif
+#ifdef WOLFSSL_HAVE_MLKEM
+                case WC_PK_TYPE_PQC_KEM_KEYGEN:
+                {
+                    if (info->free.subType == WC_PQC_KEM_TYPE_KYBER) {
+                        MlKemKey* mlkem = (MlKemKey*)info->free.obj;
+                        mlkem->devId = INVALID_DEVID;
+#ifdef WOLFSSL_WC_MLKEM
+                        mlkem->hash.devId = INVALID_DEVID;
+                        mlkem->prf.devId = INVALID_DEVID;
+#endif
+                        ret = wc_MlKemKey_Free(mlkem);
+                    }
+                    break;
+                }
+#endif
                 default:
                     ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
                     break;
@@ -66297,6 +66401,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
     if (ret == 0)
         ret = ecc_onlycb_test(&myCtx);
     PRIVATE_KEY_LOCK();
+#endif
+#ifdef WOLFSSL_HAVE_MLKEM
+    if (ret == 0)
+        ret = mlkem_test();
 #endif
 #ifdef HAVE_DILITHIUM
     if (ret == 0)
