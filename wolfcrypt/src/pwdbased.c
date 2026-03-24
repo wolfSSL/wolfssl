@@ -687,9 +687,12 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
         PKCS12_ByteReverseWords(Bw, Bw, v);
 #endif
         /* Increment B by 1. */
-        k = nwc;
-        while ((k-- > 0) && (++Bw[k] == 0))
-            ;
+        for (k = nwc; k > 0; ) {
+            --k;
+            ++Bw[k];
+            if (Bw[k] != 0)
+                break;
+        }
 
 #ifndef BIG_ENDIAN_ORDER
         PKCS12_ByteReverseWords((PKCS12_WORD*)I, (PKCS12_WORD*)I, nBlocks * v);
