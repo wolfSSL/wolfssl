@@ -324,8 +324,10 @@ int wc_SignatureVerify(
     byte hash_data[MAX_DER_DIGEST_SZ];
 #endif
 
-    /* Check arguments */
-    if (data == NULL || data_len == 0 ||
+    /* Check arguments.
+     * data may be NULL when data_len is 0 (empty message is valid —
+     * the hash of an empty string is well-defined). */
+    if ((data == NULL && data_len > 0) ||
         sig == NULL || sig_len == 0 ||
         key == NULL || key_len == 0) {
         return BAD_FUNC_ARG;
@@ -523,8 +525,9 @@ int wc_SignatureGenerate_ex(
     byte hash_data[MAX_DER_DIGEST_SZ];
 #endif
 
-    /* Check arguments */
-    if (data == NULL || data_len == 0 ||
+    /* Check arguments.
+     * data may be NULL when data_len is 0 (signing an empty message). */
+    if ((data == NULL && data_len > 0) ||
         sig == NULL || sig_len == NULL || *sig_len == 0 ||
         key == NULL || key_len == 0) {
         return BAD_FUNC_ARG;
