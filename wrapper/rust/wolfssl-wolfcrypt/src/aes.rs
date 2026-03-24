@@ -2655,7 +2655,7 @@ impl XTSStream {
     /// wolfSSL library return code on failure.
     pub fn new_ex(heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let ws_xtsaes = new_ws_xtsaes(heap, dev_id)?;
-        let ws_xtsaesstreamdata: MaybeUninit<sys::XtsAesStreamData> = MaybeUninit::uninit();
+        let ws_xtsaesstreamdata: MaybeUninit<sys::XtsAesStreamData> = MaybeUninit::zeroed();
         let ws_xtsaesstreamdata = unsafe { ws_xtsaesstreamdata.assume_init() };
         let xtsstream = XTSStream {ws_xtsaes, ws_xtsaesstreamdata};
         Ok(xtsstream)
