@@ -1245,8 +1245,6 @@ static int GetASN_Integer(const byte* input, word32 idx, int length,
  */
 int GetASN_BitString(const byte* input, word32 idx, int length)
 {
-#if (!defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)) || \
-    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2))
     /* Check contents consist of one or more octets. */
     if (length == 0) {
     #ifdef WOLFSSL_DEBUG_ASN_TEMPLATE
@@ -1254,7 +1252,6 @@ int GetASN_BitString(const byte* input, word32 idx, int length)
     #endif
         return ASN_PARSE_E;
     }
-#endif
     /* Ensure unused bits value is valid range. */
     if (input[idx] > 7) {
     #ifdef WOLFSSL_DEBUG_ASN_TEMPLATE
