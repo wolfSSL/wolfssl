@@ -84,13 +84,11 @@ impl Dilithium {
 
     /// Required size in bytes of the seed passed to
     /// [`Dilithium::generate_from_seed()`] (`DILITHIUM_SEED_SZ`).
-    #[cfg(dilithium_make_key_seed_sz)]
     pub const DILITHIUM_SEED_SZ: usize = sys::DILITHIUM_SEED_SZ as usize;
 
     /// Required size in bytes of the seed passed to signing-with-seed
     /// functions such as [`Dilithium::sign_msg_with_seed()`]
     /// (`DILITHIUM_RND_SZ`).
-    #[cfg(dilithium_rnd_sz)]
     pub const SIGN_SEED_SIZE: usize = sys::DILITHIUM_RND_SZ as usize;
 
     /// Private (secret) key size in bytes for ML-DSA-44.
@@ -277,7 +275,6 @@ impl Dilithium {
         heap: Option<*mut core::ffi::c_void>,
         dev_id: Option<i32>,
     ) -> Result<Self, i32> {
-        #[cfg(dilithium_make_key_seed_sz)]
         if seed.len() != Self::DILITHIUM_SEED_SZ {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
@@ -1032,7 +1029,6 @@ impl Dilithium {
         sig: &mut [u8],
         seed: &[u8],
     ) -> Result<usize, i32> {
-        #[cfg(dilithium_rnd_sz)]
         if seed.len() != sys::DILITHIUM_RND_SZ as usize {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
@@ -1077,7 +1073,6 @@ impl Dilithium {
         if ctx.len() > 255 {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
-        #[cfg(dilithium_rnd_sz)]
         if seed.len() != sys::DILITHIUM_RND_SZ as usize {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
@@ -1126,7 +1121,6 @@ impl Dilithium {
         if ctx.len() > 255 {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
-        #[cfg(dilithium_rnd_sz)]
         if seed.len() != sys::DILITHIUM_RND_SZ as usize {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
