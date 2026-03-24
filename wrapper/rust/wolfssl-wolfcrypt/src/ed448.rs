@@ -675,6 +675,9 @@ impl Ed448 {
         let mut context_size = 0u8;
         if let Some(context) = context {
             context_ptr = context.as_ptr();
+            if context.len() > 255 {
+                return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+            }
             context_size = context.len() as u8;
         }
         let mut signature_size = signature.len() as u32;
@@ -737,6 +740,9 @@ impl Ed448 {
         let mut context_size = 0u8;
         if let Some(context) = context {
             context_ptr = context.as_ptr();
+            if context.len() > 255 {
+                return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+            }
             context_size = context.len() as u8;
         }
         let mut signature_size = signature.len() as u32;
@@ -790,6 +796,9 @@ impl Ed448 {
         let mut context_size = 0u8;
         if let Some(context) = context {
             context_ptr = context.as_ptr();
+            if context.len() > 255 {
+                return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+            }
             context_size = context.len() as u8;
         }
         let mut signature_size = signature.len() as u32;
@@ -843,6 +852,9 @@ impl Ed448 {
         let mut context_size = 0u8;
         if let Some(context) = context {
             context_ptr = context.as_ptr();
+            if context.len() > 255 {
+                return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+            }
             context_size = context.len() as u8;
         }
         let mut signature_size = signature.len() as u32;
@@ -897,6 +909,9 @@ impl Ed448 {
         let mut context_size = 0u8;
         if let Some(context) = context {
             context_ptr = context.as_ptr();
+            if context.len() > 255 {
+                return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+            }
             context_size = context.len() as u8;
         }
         let mut res = 0i32;
@@ -962,6 +977,9 @@ impl Ed448 {
         let mut context_size = 0u8;
         if let Some(context) = context {
             context_ptr = context.as_ptr();
+            if context.len() > 255 {
+                return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+            }
             context_size = context.len() as u8;
         }
         let mut res = 0i32;
@@ -1017,6 +1035,9 @@ impl Ed448 {
         let mut context_size = 0u8;
         if let Some(context) = context {
             context_ptr = context.as_ptr();
+            if context.len() > 255 {
+                return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+            }
             context_size = context.len() as u8;
         }
         let mut res = 0i32;
@@ -1072,6 +1093,9 @@ impl Ed448 {
         let mut context_size = 0u8;
         if let Some(context) = context {
             context_ptr = context.as_ptr();
+            if context.len() > 255 {
+                return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+            }
             context_size = context.len() as u8;
         }
         let mut res = 0i32;
@@ -1126,6 +1150,9 @@ impl Ed448 {
         let mut context_size = 0u8;
         if let Some(context) = context {
             context_ptr = context.as_ptr();
+            if context.len() > 255 {
+                return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+            }
             context_size = context.len() as u8;
         }
         let rc = unsafe {
