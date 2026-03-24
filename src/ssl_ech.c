@@ -34,8 +34,8 @@ int wolfSSL_CTX_GenerateEchConfig(WOLFSSL_CTX* ctx, const char* publicName,
     word16 kemId, word16 kdfId, word16 aeadId)
 {
     int ret = 0;
-    word16 encLen = DHKEM_X25519_ENC_LEN;
     WOLFSSL_EchConfig* newConfig;
+    word16 encLen = HPKE_Npk_MAX;
 #ifdef WOLFSSL_SMALL_STACK
     Hpke* hpke = NULL;
     WC_RNG* rng;
@@ -316,6 +316,7 @@ int GetEchConfig(WOLFSSL_EchConfig* config, byte* output, word32* outputLen)
 {
     int i;
     word16 totalLen = 0;
+    word16 kemEncLen;
     word16 publicNameLen;
 
     if (config == NULL || (output == NULL && outputLen == NULL))
@@ -338,23 +339,10 @@ int GetEchConfig(WOLFSSL_EchConfig* config, byte* output, word32* outputLen)
     totalLen += 2;
 
     /* hpke_pub_key */
-    switch (config->kemId) {
-        case DHKEM_P256_HKDF_SHA256:
-            totalLen += DHKEM_P256_ENC_LEN;
-            break;
-        case DHKEM_P384_HKDF_SHA384:
-            totalLen += DHKEM_P384_ENC_LEN;
-            break;
-        case DHKEM_P521_HKDF_SHA512:
-            totalLen += DHKEM_P521_ENC_LEN;
-            break;
-        case DHKEM_X25519_HKDF_SHA256:
-            totalLen += DHKEM_X25519_ENC_LEN;
-            break;
-        case DHKEM_X448_HKDF_SHA512:
-            totalLen += DHKEM_X448_ENC_LEN;
-            break;
-    }
+    kemEncLen = wc_HpkeKemGetEncLen(config->kemId);
+    if (kemEncLen == 0)
+        return BAD_FUNC_ARG;
+    totalLen += kemEncLen;
 
     /* cipherSuitesLen */
     totalLen += 2;
@@ -394,38 +382,10 @@ int GetEchConfig(WOLFSSL_EchConfig* config, byte* output, word32* outputLen)
     output += 2;
 
     /* length and key itself */
-    switch (config->kemId) {
-        case DHKEM_P256_HKDF_SHA256:
-            c16toa(DHKEM_P256_ENC_LEN, output);
-            output += 2;
-            XMEMCPY(output, config->receiverPubkey, DHKEM_P256_ENC_LEN);
-            output += DHKEM_P256_ENC_LEN;
-            break;
-        case DHKEM_P384_HKDF_SHA384:
-            c16toa(DHKEM_P384_ENC_LEN, output);
-            output += 2;
-            XMEMCPY(output, config->receiverPubkey, DHKEM_P384_ENC_LEN);
-            output += DHKEM_P384_ENC_LEN;
-            break;
-        case DHKEM_P521_HKDF_SHA512:
-            c16toa(DHKEM_P521_ENC_LEN, output);
-            output += 2;
-            XMEMCPY(output, config->receiverPubkey, DHKEM_P521_ENC_LEN);
-            output += DHKEM_P521_ENC_LEN;
-            break;
-        case DHKEM_X25519_HKDF_SHA256:
-            c16toa(DHKEM_X25519_ENC_LEN, output);
-            output += 2;
-            XMEMCPY(output, config->receiverPubkey, DHKEM_X25519_ENC_LEN);
-            output += DHKEM_X25519_ENC_LEN;
-            break;
-        case DHKEM_X448_HKDF_SHA512:
-            c16toa(DHKEM_X448_ENC_LEN, output);
-            output += 2;
-            XMEMCPY(output, config->receiverPubkey, DHKEM_X448_ENC_LEN);
-            output += DHKEM_X448_ENC_LEN;
-            break;
-    }
+    c16toa(kemEncLen, output);
+    output += 2;
+    XMEMCPY(output, config->receiverPubkey, kemEncLen);
+    output += kemEncLen;
 
     /* cipherSuites len */
     c16toa(config->numCipherSuites * 4, output);
@@ -693,16 +653,9 @@ int SetEchConfigsEx(WOLFSSL_EchConfig** outputConfigs, void* heap,
             break;
         }
 
-        /* check that we support this config */
-        for (j = 0; j < HPKE_SUPPORTED_KEM_LEN; j++) {
-            if (hpkeSupportedKem[j] == workingConfig->kemId)
-                break;
-        }
-
         /* KEM or ciphersuite not supported, free this config and then try to
          * parse another */
-        if (j >= HPKE_SUPPORTED_KEM_LEN ||
-                EchConfigGetSupportedCipherSuite(workingConfig) < 0) {
+        if (EchConfigGetSupportedCipherSuite(workingConfig) < 0) {
             XFREE(workingConfig->cipherSuites, heap, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(workingConfig->publicName, heap, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(workingConfig->raw, heap, DYNAMIC_TYPE_TMP_BUFFER);

@@ -13500,23 +13500,10 @@ static int TLSX_ECH_Use(WOLFSSL_EchConfig* echConfig, TLSX** extensions,
     /* configId */
     ech->configId = echConfig->configId;
     /* encLen */
-    switch (echConfig->kemId)
-    {
-        case DHKEM_P256_HKDF_SHA256:
-            ech->encLen = DHKEM_P256_ENC_LEN;
-            break;
-        case DHKEM_P384_HKDF_SHA384:
-            ech->encLen = DHKEM_P384_ENC_LEN;
-            break;
-        case DHKEM_P521_HKDF_SHA512:
-            ech->encLen = DHKEM_P521_ENC_LEN;
-            break;
-        case DHKEM_X25519_HKDF_SHA256:
-            ech->encLen = DHKEM_X25519_ENC_LEN;
-            break;
-        case DHKEM_X448_HKDF_SHA512:
-            ech->encLen = DHKEM_X448_ENC_LEN;
-            break;
+    ech->encLen = wc_HpkeKemGetEncLen(echConfig->kemId);
+    if (ech->encLen == 0) {
+        XFREE(ech, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return BAD_FUNC_ARG;
     }
     /* setup hpke */
     ech->hpke = (Hpke*)XMALLOC(sizeof(Hpke), heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -13529,8 +13516,13 @@ static int TLSX_ECH_Use(WOLFSSL_EchConfig* echConfig, TLSX** extensions,
     /* setup the ephemeralKey */
     if (ret == 0)
         ret = wc_HpkeGenerateKeyPair(ech->hpke, &ech->ephemeralKey, rng);
-    if (ret == 0)
+    if (ret == 0) {
         ret = TLSX_Push(extensions, TLSX_ECH, ech, heap);
+        if (ret != 0) {
+            wc_HpkeFreeKey(ech->hpke, ech->hpke->kem, ech->ephemeralKey,
+                ech->hpke->heap);
+        }
+    }
     if (ret != 0) {
         XFREE(ech->hpke, heap, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(ech, heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -14157,7 +14149,6 @@ static int TLSX_ExtractEch(WOLFSSL_ECH* ech, WOLFSSL_EchConfig* echConfig,
     byte* aad, word32 aadLen, void* heap)
 {
     int ret = 0;
-    int expectedEncLen;
     int i;
     word32 rawConfigLen = 0;
     byte* info = NULL;
@@ -14165,28 +14156,7 @@ static int TLSX_ExtractEch(WOLFSSL_ECH* ech, WOLFSSL_EchConfig* echConfig,
     if (ech == NULL || echConfig == NULL || aad == NULL)
         return BAD_FUNC_ARG;
     /* verify the kem and key len */
-    switch (echConfig->kemId)
-    {
-        case DHKEM_P256_HKDF_SHA256:
-            expectedEncLen = DHKEM_P256_ENC_LEN;
-            break;
-        case DHKEM_P384_HKDF_SHA384:
-            expectedEncLen = DHKEM_P384_ENC_LEN;
-            break;
-        case DHKEM_P521_HKDF_SHA512:
-            expectedEncLen = DHKEM_P521_ENC_LEN;
-            break;
-        case DHKEM_X25519_HKDF_SHA256:
-            expectedEncLen = DHKEM_X25519_ENC_LEN;
-            break;
-        case DHKEM_X448_HKDF_SHA512:
-            expectedEncLen = DHKEM_X448_ENC_LEN;
-            break;
-        default:
-            expectedEncLen = 0;
-            break;
-    }
-    if (expectedEncLen != ech->encLen)
+    if (wc_HpkeKemGetEncLen(echConfig->kemId) != ech->encLen)
         return BAD_FUNC_ARG;
     /* verify the cipher suite */
     for (i = 0; i < echConfig->numCipherSuites; i++) {
@@ -14470,11 +14440,12 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
 static void TLSX_ECH_Free(WOLFSSL_ECH* ech, void* heap)
 {
     XFREE(ech->innerClientHello, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (ech->ephemeralKey != NULL)
-        wc_HpkeFreeKey(ech->hpke, ech->hpke->kem, ech->ephemeralKey,
-            ech->hpke->heap);
-    if (ech->hpke != NULL)
+    if (ech->hpke != NULL) {
+        if (ech->ephemeralKey != NULL)
+            wc_HpkeFreeKey(ech->hpke, ech->hpke->kem, ech->ephemeralKey,
+                ech->hpke->heap);
         XFREE(ech->hpke, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
     if (ech->hpkeContext != NULL)
         XFREE(ech->hpkeContext, heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (ech->privateName != NULL)

@@ -163,7 +163,10 @@ extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  sshkdf_test(void);
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  tls13_kdf_test(void);
 #endif
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  x963kdf_test(void);
-#if defined(HAVE_HPKE) && defined(HAVE_ECC) && defined(HAVE_AESGCM)
+#if defined(HAVE_HPKE) && \
+    (defined(HAVE_ECC) || defined(HAVE_CURVE25519) || \
+        defined(HAVE_CURVE448)) && \
+    defined(HAVE_AESGCM)
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  hpke_test(void);
 #endif
 #ifdef WC_SRTP_KDF

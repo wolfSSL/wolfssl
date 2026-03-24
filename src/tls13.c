@@ -3772,26 +3772,17 @@ static byte helloRetryRequestRandom[] = {
 /* returns the index of the first supported cipher suite, -1 if none */
 int EchConfigGetSupportedCipherSuite(WOLFSSL_EchConfig* config)
 {
-    int i, j, supported = 0;
+    int i = 0;
+
+    if (!wc_HpkeKemIsSupported(config->kemId)) {
+        return WOLFSSL_FATAL_ERROR;
+    }
 
     for (i = 0; i < config->numCipherSuites; i++) {
-        supported = 0;
-
-        for (j = 0; j < HPKE_SUPPORTED_KDF_LEN; j++) {
-            if (config->cipherSuites[i].kdfId == hpkeSupportedKdf[j])
-                break;
-        }
-
-        if (j < HPKE_SUPPORTED_KDF_LEN)
-            for (j = 0; j < HPKE_SUPPORTED_AEAD_LEN; j++) {
-                if (config->cipherSuites[i].aeadId == hpkeSupportedAead[j]) {
-                    supported = 1;
-                    break;
-                }
-            }
-
-        if (supported)
+        if (wc_HpkeKdfIsSupported(config->cipherSuites[i].kdfId) &&
+                wc_HpkeAeadIsSupported(config->cipherSuites[i].aeadId)) {
             return i;
+        }
     }
 
     return WOLFSSL_FATAL_ERROR;
