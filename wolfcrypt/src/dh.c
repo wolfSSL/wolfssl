@@ -2227,8 +2227,10 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
 #endif
     XFREE(y, key->heap, DYNAMIC_TYPE_DH);
 #elif defined(WOLFSSL_CHECK_MEM_ZERO)
+#if !defined(WOLFSSL_SP_MATH)
     mp_memzero_check(x);
     mp_memzero_check(z);
+#endif
 #endif
 
     return ret;

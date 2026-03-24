@@ -255,6 +255,23 @@ typedef const char wcchar[];
         #endif
 #endif
 
+#if defined(HAVE___UINT128_T) && !defined(NO_INT128)
+    #ifndef WOLFSSL_UINT128_T_DEFINED
+        #ifdef __SIZEOF_INT128__
+            typedef __uint128_t uint128_t;
+            typedef __int128_t   int128_t;
+            typedef __uint128_t   word128;
+            typedef __int128_t   sword128;
+        #else
+            typedef unsigned long uint128_t __attribute__ ((mode(TI)));
+            typedef long           int128_t __attribute__ ((mode(TI)));
+            typedef uint128_t       word128;
+            typedef int128_t       sword128;
+        #endif
+        #define WOLFSSL_UINT128_T_DEFINED
+    #endif
+#endif
+
 #if (defined(_MSC_VER) && (_MSC_VER == 1200)) ||  /* MSVC6 */ \
     (defined(_MSC_VER) && !defined(WOLFSSL_NOT_WINDOWS_API)) || \
         defined(__BCPLUSPLUS__) || \

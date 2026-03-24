@@ -23562,7 +23562,7 @@ static int test_wolfSSL_X509_print(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && \
-   !defined(NO_RSA) && defined(XSNPRINTF)
+   !defined(NO_RSA) && defined(XSNPRINTF) && !defined(WC_DISABLE_RADIX_ZERO_PAD)
     X509 *x509 = NULL;
     BIO *bio = NULL;
 #if defined(OPENSSL_ALL) && !defined(NO_WOLFSSL_DIR)
