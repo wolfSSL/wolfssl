@@ -1028,3 +1028,77 @@ int test_DecodeAltNames_length_underflow(void)
 #endif /* !NO_CERTS && !NO_RSA && !NO_ASN */
     return EXPECT_RESULT();
 }
+
+int test_wc_DecodeObjectId(void)
+{
+    EXPECT_DECLS;
+
+#if !defined(NO_ASN) && \
+    (defined(HAVE_OID_DECODING) || defined(WOLFSSL_ASN_PRINT))
+    {
+        /* OID 1.2.840.113549.1.1.11 (sha256WithRSAEncryption)
+         * DER encoding: 2a 86 48 86 f7 0d 01 01 0b
+         * First byte 0x2a = 42 => arc0 = 42/40 = 1, arc1 = 42%40 = 2
+         * Remaining arcs: 840, 113549, 1, 1, 11
+         */
+        static const byte oid_sha256rsa[] = {
+            0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x0b
+        };
+        word16 out[MAX_OID_SZ];
+        word32 outSz;
+
+        /* Test 1: Normal decode */
+        outSz = MAX_OID_SZ;
+        ExpectIntEQ(DecodeObjectId(oid_sha256rsa, sizeof(oid_sha256rsa),
+                                   out, &outSz), 0);
+        ExpectIntEQ((int)outSz, 7);
+        ExpectIntEQ(out[0], 1);
+        ExpectIntEQ(out[1], 2);
+        ExpectIntEQ(out[2], 840);
+        ExpectIntEQ(out[3], (word16)113549); /* truncated to word16 */
+        ExpectIntEQ(out[4], 1);
+        ExpectIntEQ(out[5], 1);
+        ExpectIntEQ(out[6], 11);
+
+        /* Test 2: NULL args */
+        outSz = MAX_OID_SZ;
+        ExpectIntEQ(DecodeObjectId(NULL, sizeof(oid_sha256rsa), out, &outSz),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(DecodeObjectId(oid_sha256rsa, sizeof(oid_sha256rsa),
+                                   out, NULL),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        /* Test 3 (Bug 1): outSz=1 must return BUFFER_E, not OOB write.
+         * The first OID byte decodes into two arcs, so outSz must be >= 2. */
+        outSz = 1;
+        ExpectIntEQ(DecodeObjectId(oid_sha256rsa, sizeof(oid_sha256rsa),
+                                   out, &outSz),
+                    WC_NO_ERR_TRACE(BUFFER_E));
+
+        /* Test 4: outSz=0 must also return BUFFER_E */
+        outSz = 0;
+        ExpectIntEQ(DecodeObjectId(oid_sha256rsa, sizeof(oid_sha256rsa),
+                                   out, &outSz),
+                    WC_NO_ERR_TRACE(BUFFER_E));
+
+        /* Test 5: outSz=2 is enough for a single-byte OID (two arcs) */
+        {
+            static const byte oid_one_byte[] = { 0x2a }; /* 1.2 */
+            outSz = 2;
+            ExpectIntEQ(DecodeObjectId(oid_one_byte, sizeof(oid_one_byte),
+                                       out, &outSz), 0);
+            ExpectIntEQ((int)outSz, 2);
+            ExpectIntEQ(out[0], 1);
+            ExpectIntEQ(out[1], 2);
+        }
+
+        /* Test 6: Buffer too small for later arcs */
+        outSz = 3; /* only room for 3 arcs, but OID has 7 */
+        ExpectIntEQ(DecodeObjectId(oid_sha256rsa, sizeof(oid_sha256rsa),
+                                   out, &outSz),
+                    WC_NO_ERR_TRACE(BUFFER_E));
+    }
+#endif /* !NO_ASN && (HAVE_OID_DECODING || WOLFSSL_ASN_PRINT) */
+
+    return EXPECT_RESULT();
+}

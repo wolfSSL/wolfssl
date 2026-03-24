@@ -30,6 +30,7 @@ int test_wc_IndexSequenceOf(void);
 int test_wolfssl_local_MatchBaseName(void);
 int test_wc_DecodeRsaPssParams(void);
 int test_DecodeAltNames_length_underflow(void);
+int test_wc_DecodeObjectId(void);
 
 #define TEST_ASN_DECLS                                              \
     TEST_DECL_GROUP("asn", test_SetAsymKeyDer),                     \
@@ -37,6 +38,7 @@ int test_DecodeAltNames_length_underflow(void);
     TEST_DECL_GROUP("asn", test_wc_IndexSequenceOf),                \
     TEST_DECL_GROUP("asn", test_wolfssl_local_MatchBaseName),       \
     TEST_DECL_GROUP("asn", test_wc_DecodeRsaPssParams),             \
-    TEST_DECL_GROUP("asn", test_DecodeAltNames_length_underflow)
+    TEST_DECL_GROUP("asn", test_DecodeAltNames_length_underflow),    \
+    TEST_DECL_GROUP("asn", test_wc_DecodeObjectId)
 
 #endif /* WOLFCRYPT_TEST_ASN_H */
