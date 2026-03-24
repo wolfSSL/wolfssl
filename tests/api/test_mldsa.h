@@ -38,6 +38,8 @@ int test_wc_dilithium_sig_kats(void);
 int test_wc_dilithium_sign_ctx_kats(void);
 int test_wc_dilithium_verify_ctx_kats(void);
 int test_wc_dilithium_verify_kats(void);
+int test_wc_dilithium_sign_mu_kats(void);
+int test_wc_dilithium_verify_mu_kats(void);
 int test_wc_Dilithium_PrivateKeyDecode_OpenSSL_form(void);
 int test_mldsa_pkcs8_import_OpenSSL_form(void);
 int test_mldsa_pkcs8_export_import_wolfSSL_form(void);
@@ -59,6 +61,8 @@ int test_mldsa_pkcs12(void);
     TEST_DECL_GROUP("mldsa", test_wc_dilithium_sign_ctx_kats),                 \
     TEST_DECL_GROUP("mldsa", test_wc_dilithium_verify_ctx_kats),               \
     TEST_DECL_GROUP("mldsa", test_wc_dilithium_verify_kats),                   \
+    TEST_DECL_GROUP("mldsa", test_wc_dilithium_sign_mu_kats),                  \
+    TEST_DECL_GROUP("mldsa", test_wc_dilithium_verify_mu_kats),                \
     TEST_DECL_GROUP("mldsa", test_wc_Dilithium_PrivateKeyDecode_OpenSSL_form), \
     TEST_DECL_GROUP("mldsa", test_mldsa_pkcs8_import_OpenSSL_form),            \
     TEST_DECL_GROUP("mldsa", test_mldsa_pkcs8_export_import_wolfSSL_form),     \

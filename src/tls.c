@@ -8892,7 +8892,9 @@ static int TLSX_KeyShare_GenPqcKeyClient(WOLFSSL *ssl, KeyShareEntry* kse)
 
 #ifndef WOLFSSL_TLSX_PQC_MLKEM_STORE_OBJ
     if (ret == 0) {
+        PRIVATE_KEY_UNLOCK();
         ret = wc_KyberKey_EncodePrivateKey(kem, privKey, privSz);
+        PRIVATE_KEY_LOCK();
     }
 #endif
 
@@ -9975,7 +9977,9 @@ static int TLSX_KeyShare_ProcessPqcClient_ex(WOLFSSL* ssl,
         ret = BAD_FUNC_ARG;
     }
     if (ret == 0) {
+        PRIVATE_KEY_UNLOCK();
         ret = wc_KyberKey_DecodePrivateKey(kem, keyShareEntry->privKey, privSz);
+        PRIVATE_KEY_LOCK();
     }
 #endif
 
@@ -9984,8 +9988,10 @@ static int TLSX_KeyShare_ProcessPqcClient_ex(WOLFSSL* ssl,
         ret = BUFFER_E;
     }
     if (ret == 0) {
+        PRIVATE_KEY_UNLOCK();
         ret = wc_KyberKey_Decapsulate(kem, ssOutput,
                                       keyShareEntry->ke, ctSz);
+        PRIVATE_KEY_LOCK();
         if (ret != 0) {
             WOLFSSL_MSG("wc_KyberKey decapsulation failure.");
             ret = BAD_FUNC_ARG;

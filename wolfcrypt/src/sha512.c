@@ -348,6 +348,7 @@ static int InitSha512(wc_Sha512* sha512)
     sha512->digest[7] = W64LIT(0x5be0cd19137e2179);
 
     sha512->buffLen = 0;
+    XMEMSET(sha512->buffer, 0, sizeof(sha512->buffer));
     sha512->loLen   = 0;
     sha512->hiLen   = 0;
 
@@ -403,6 +404,7 @@ static int InitSha512_224(wc_Sha512* sha512)
     sha512->digest[7] = W64LIT(0x1112e6ad91d692a1);
 
     sha512->buffLen = 0;
+    XMEMSET(sha512->buffer, 0, sizeof(sha512->buffer));
     sha512->loLen   = 0;
     sha512->hiLen   = 0;
 
@@ -460,6 +462,7 @@ static int InitSha512_256(wc_Sha512* sha512)
     sha512->digest[7] = W64LIT(0x0eb72ddc81c52ca2);
 
     sha512->buffLen = 0;
+    XMEMSET(sha512->buffer, 0, sizeof(sha512->buffer));
     sha512->loLen   = 0;
     sha512->hiLen   = 0;
 
@@ -1967,6 +1970,7 @@ static int InitSha384(wc_Sha384* sha384)
     sha384->digest[7] = W64LIT(0x47b5481dbefa4fa4);
 
     sha384->buffLen = 0;
+    XMEMSET(sha384->buffer, 0, sizeof(sha384->buffer));
     sha384->loLen   = 0;
     sha384->hiLen   = 0;
 

@@ -642,6 +642,7 @@ static int InitSha3(wc_Sha3* sha3)
 
     for (i = 0; i < 25; i++)
         sha3->s[i] = 0;
+    XMEMSET(sha3->t, 0, sizeof(sha3->t));
     sha3->i = 0;
 #ifdef WOLFSSL_HASH_FLAGS
     sha3->flags = 0;

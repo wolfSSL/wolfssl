@@ -4466,6 +4466,12 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32* inOutI
 #ifndef WOLFSSL_NOSHA3_512
     static const byte hashSha3_512hOid[] = {96, 134, 72, 1, 101, 3, 4, 2, 10};
 #endif /* WOLFSSL_NOSHA3_512 */
+#ifdef WOLFSSL_SHAKE128
+    static const byte hashShake128hOid[] = {96, 134, 72, 1, 101, 3, 4, 2, 11};
+#endif /* WOLFSSL_SHAKE128 */
+#ifdef WOLFSSL_SHAKE256
+    static const byte hashShake256hOid[] = {96, 134, 72, 1, 101, 3, 4, 2, 12};
+#endif /* WOLFSSL_SHAKE256 */
 #endif /* WOLFSSL_SHA3 */
 
 /* hmacType */
@@ -5339,6 +5345,18 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     *oidSz = sizeof(hashSha3_512hOid);
                     break;
             #endif /* WOLFSSL_NOSHA3_512 */
+            #ifdef WOLFSSL_SHAKE128
+                case SHAKE128h:
+                    oid = hashShake128hOid;
+                    *oidSz = sizeof(hashShake128hOid);
+                    break;
+            #endif /* WOLFSSL_SHAKE128 */
+            #ifdef WOLFSSL_SHAKE256
+                case SHAKE256h:
+                    oid = hashShake256hOid;
+                    *oidSz = sizeof(hashShake256hOid);
+                    break;
+            #endif /* WOLFSSL_SHAKE256 */
             #endif /* WOLFSSL_SHA3 */
                 default:
                     break;

@@ -1137,6 +1137,62 @@ static int RsaMGF1(enum wc_HashType hType, byte* seed, word32 seedSz,
 }
 #endif /* SHA2 Hashes */
 
+#if defined(WOLFSSL_SHA3) && \
+    (defined(WOLFSSL_SHAKE128) || defined(WOLFSSL_SHAKE256))
+/* SHAKE XOF used directly as mask generation function (not MGF1).
+ * Per FIPS 186-5, SHAKE can be used as the MGF for RSA-PSS. */
+static int RsaMGF_SHAKE(enum wc_HashType shakeType, byte* seed, word32 seedSz,
+                         byte* out, word32 outSz, void* heap)
+{
+    WC_DECLARE_VAR(shake, wc_Shake, 1, heap);
+    int ret;
+
+    (void)heap;
+    (void)shakeType;
+
+    WC_ALLOC_VAR_EX(shake, wc_Shake, 1, heap, DYNAMIC_TYPE_TMP_BUFFER,
+        return MEMORY_E);
+
+#ifdef WOLFSSL_SHAKE128
+    if (shakeType == WC_HASH_TYPE_SHAKE128)
+        ret = wc_InitShake128(shake, heap, INVALID_DEVID);
+    else
+#endif
+#ifdef WOLFSSL_SHAKE256
+    if (shakeType == WC_HASH_TYPE_SHAKE256)
+        ret = wc_InitShake256(shake, heap, INVALID_DEVID);
+    else
+#endif
+        ret = BAD_FUNC_ARG;
+
+    if (ret == 0) {
+#ifdef WOLFSSL_SHAKE128
+        if (shakeType == WC_HASH_TYPE_SHAKE128) {
+            ret = wc_Shake128_Update(shake, seed, seedSz);
+            if (ret == 0)
+                ret = wc_Shake128_Final(shake, out, outSz);
+            wc_Shake128_Free(shake);
+        }
+        else
+#endif
+#ifdef WOLFSSL_SHAKE256
+        if (shakeType == WC_HASH_TYPE_SHAKE256) {
+            ret = wc_Shake256_Update(shake, seed, seedSz);
+            if (ret == 0)
+                ret = wc_Shake256_Final(shake, out, outSz);
+            wc_Shake256_Free(shake);
+        }
+        else
+#endif
+        {
+            ret = BAD_FUNC_ARG;
+        }
+    }
+    WC_FREE_VAR_EX(shake, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    return ret;
+}
+#endif /* WOLFSSL_SHA3 && (WOLFSSL_SHAKE128 || WOLFSSL_SHAKE256) */
+
 /* helper function to direct which mask generation function is used
    switched on type input
  */
@@ -1182,6 +1238,52 @@ static int RsaMGF(int type, byte* seed, word32 seedSz, byte* out,
                 heap);
             break;
         #endif
+    #endif
+    #ifdef WOLFSSL_SHA3
+    #ifndef WOLFSSL_NOSHA3_224
+        case WC_MGF1SHA3_224:
+            ret = RsaMGF1(WC_HASH_TYPE_SHA3_224, seed, seedSz, out, outSz,
+                heap);
+            break;
+    #endif
+    #ifndef WOLFSSL_NOSHA3_256
+        case WC_MGF1SHA3_256:
+            ret = RsaMGF1(WC_HASH_TYPE_SHA3_256, seed, seedSz, out, outSz,
+                heap);
+            break;
+    #endif
+    #ifndef WOLFSSL_NOSHA3_384
+        case WC_MGF1SHA3_384:
+            ret = RsaMGF1(WC_HASH_TYPE_SHA3_384, seed, seedSz, out, outSz,
+                heap);
+            break;
+    #endif
+    #ifndef WOLFSSL_NOSHA3_512
+        case WC_MGF1SHA3_512:
+            ret = RsaMGF1(WC_HASH_TYPE_SHA3_512, seed, seedSz, out, outSz,
+                heap);
+            break;
+    #endif
+    #endif /* WOLFSSL_SHA3 */
+    #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE128)
+        case WC_MGF1SHAKE128:
+            ret = RsaMGF1(WC_HASH_TYPE_SHAKE128, seed, seedSz, out, outSz,
+                heap);
+            break;
+        case WC_MGFSHAKE128:
+            ret = RsaMGF_SHAKE(WC_HASH_TYPE_SHAKE128, seed, seedSz, out, outSz,
+                heap);
+            break;
+    #endif
+    #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256)
+        case WC_MGF1SHAKE256:
+            ret = RsaMGF1(WC_HASH_TYPE_SHAKE256, seed, seedSz, out, outSz,
+                heap);
+            break;
+        case WC_MGFSHAKE256:
+            ret = RsaMGF_SHAKE(WC_HASH_TYPE_SHAKE256, seed, seedSz, out, outSz,
+                heap);
+            break;
     #endif
         default:
             WOLFSSL_MSG("Unknown MGF type: check build options");
@@ -2116,21 +2218,64 @@ int wc_hash2mgf(enum wc_HashType hType)
 #else
         break;
 #endif
+    case WC_HASH_TYPE_SHA512_224:
+#if defined(WOLFSSL_SHA512) && !defined(WOLFSSL_NOSHA512_224)
+        return WC_MGF1SHA512_224;
+#else
+        break;
+#endif
+    case WC_HASH_TYPE_SHA512_256:
+#if defined(WOLFSSL_SHA512) && !defined(WOLFSSL_NOSHA512_256)
+        return WC_MGF1SHA512_256;
+#else
+        break;
+#endif
     case WC_HASH_TYPE_MD2:
     case WC_HASH_TYPE_MD4:
     case WC_HASH_TYPE_MD5:
     case WC_HASH_TYPE_MD5_SHA:
-    case WC_HASH_TYPE_SHA512_224:
-    case WC_HASH_TYPE_SHA512_256:
     case WC_HASH_TYPE_SHA3_224:
+#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_224)
+        return WC_MGF1SHA3_224;
+#else
+        break;
+#endif
     case WC_HASH_TYPE_SHA3_256:
+#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_256)
+        return WC_MGF1SHA3_256;
+#else
+        break;
+#endif
     case WC_HASH_TYPE_SHA3_384:
+#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_384)
+        return WC_MGF1SHA3_384;
+#else
+        break;
+#endif
     case WC_HASH_TYPE_SHA3_512:
+#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_512)
+        return WC_MGF1SHA3_512;
+#else
+        break;
+#endif
     case WC_HASH_TYPE_BLAKE2B:
     case WC_HASH_TYPE_BLAKE2S:
     case WC_HASH_TYPE_SM3:
+        break;
+#ifdef WOLFSSL_SHAKE128
     case WC_HASH_TYPE_SHAKE128:
+        return WC_MGF1SHAKE128;
+#else
+    case WC_HASH_TYPE_SHAKE128:
+        break;
+#endif
+#ifdef WOLFSSL_SHAKE256
     case WC_HASH_TYPE_SHAKE256:
+        return WC_MGF1SHAKE256;
+#else
+    case WC_HASH_TYPE_SHAKE256:
+        break;
+#endif
     default:
         break;
     }
