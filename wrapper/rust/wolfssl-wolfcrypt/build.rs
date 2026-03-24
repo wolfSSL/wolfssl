@@ -316,9 +316,9 @@ fn scan_cfg() -> Result<()> {
     check_cfg(&binding, "wc_dilithium_init", "dilithium");
     check_cfg(&binding, "wc_dilithium_make_key", "dilithium_make_key");
     check_cfg(&binding, "wc_dilithium_make_key_from_seed", "dilithium_make_key_from_seed");
-    check_cfg(&binding, "wc_dilithium_sign_msg", "dilithium_sign");
-    check_cfg(&binding, "wc_dilithium_sign_msg_with_seed", "dilithium_sign_with_seed");
-    check_cfg(&binding, "wc_dilithium_verify_msg", "dilithium_verify");
+    check_cfg(&binding, "wc_dilithium_sign_ctx_msg", "dilithium_sign");
+    check_cfg(&binding, "wc_dilithium_sign_ctx_msg_with_seed", "dilithium_sign_with_seed");
+    check_cfg(&binding, "wc_dilithium_verify_ctx_msg", "dilithium_verify");
     check_cfg(&binding, "wc_dilithium_import_public", "dilithium_import");
     check_cfg(&binding, "wc_dilithium_export_public", "dilithium_export");
     check_cfg(&binding, "wc_dilithium_check_key", "dilithium_check_key");

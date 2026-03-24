@@ -9038,6 +9038,7 @@ static int dilithium_sign_ctx_msg_with_seed(dilithium_key* key,
  * @return  MEMORY_E when memory allocation fails.
  * @return  Other negative when an error occurs.
  */
+#ifdef WOLFSSL_DILITHIUM_NO_CTX
 static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
     const byte* msg, word32 msgLen, byte* sig, word32 *sigLen)
 {
@@ -9058,6 +9059,7 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
 
     return ret;
 }
+#endif /* WOLFSSL_DILITHIUM_NO_CTX */
 
 /* Sign a message with the key and a random number generator.
  *
@@ -9153,6 +9155,7 @@ static int dilithium_sign_ctx_msg(dilithium_key* key, WC_RNG* rng,
  * @return  MEMORY_E when memory allocation fails.
  * @return  Other negative when an error occurs.
  */
+#ifdef WOLFSSL_DILITHIUM_NO_CTX
 static int dilithium_sign_msg(dilithium_key* key, WC_RNG* rng,
     const byte* msg, word32 msgLen, byte* sig, word32 *sigLen)
 {
@@ -9183,6 +9186,7 @@ static int dilithium_sign_msg(dilithium_key* key, WC_RNG* rng,
 
     return ret;
 }
+#endif /* WOLFSSL_DILITHIUM_NO_CTX */
 
 /* Sign a pre-hashed message with the key and a seed.
  *
@@ -9825,6 +9829,7 @@ static int dilithium_verify_ctx_msg(dilithium_key* key, const byte* ctx,
     return ret;
 }
 
+#ifdef WOLFSSL_DILITHIUM_NO_CTX
 /* Verify signature of message using public key.
  *
  * @param [in, out] key     Dilithium key.
@@ -9867,6 +9872,7 @@ static int dilithium_verify_msg(dilithium_key* key, const byte* msg,
 
     return ret;
 }
+#endif /* WOLFSSL_DILITHIUM_NO_CTX */
 
 /* Verify signature of message using public key.
  *
@@ -10084,7 +10090,7 @@ static int oqs_dilithium_verify_msg(const byte* sig, word32 sigLen,
     }
     return ret;
 }
-#endif /* WOLFSSL_DILITHIUM_NO_VERIFY */
+#endif /* !WOLFSSL_DILITHIUM_NO_VERIFY */
 
 #else
     #error "No dilithium implementation chosen."
@@ -10222,6 +10228,7 @@ int wc_dilithium_sign_ctx_msg(const byte* ctx, byte ctxLen, const byte* msg,
     return ret;
 }
 
+#ifdef WOLFSSL_DILITHIUM_NO_CTX
 /* Sign the message using the dilithium private key.
  *
  *  msg         [in]      Message to sign.
@@ -10233,6 +10240,8 @@ int wc_dilithium_sign_ctx_msg(const byte* ctx, byte ctxLen, const byte* msg,
  *  returns BAD_FUNC_ARG when a parameter is NULL or public key not set,
  *          BUFFER_E when outLen is less than DILITHIUM_LEVEL2_SIG_SIZE,
  *          0 otherwise.
+ * NOTE: This is a pre-FIPS 204 API without context support. New code should
+ *       use wc_dilithium_sign_ctx_msg() with ctx=NULL/ctxLen=0 instead.
  */
 int wc_dilithium_sign_msg(const byte* msg, word32 msgLen, byte* sig,
     word32 *sigLen, dilithium_key* key, WC_RNG* rng)
@@ -10271,6 +10280,7 @@ int wc_dilithium_sign_msg(const byte* msg, word32 msgLen, byte* sig,
 
     return ret;
 }
+#endif /* WOLFSSL_DILITHIUM_NO_CTX */
 
 /* Sign the message hash using the dilithium private key.
  *
@@ -10379,6 +10389,7 @@ int wc_dilithium_sign_ctx_msg_with_seed(const byte* ctx, byte ctxLen,
     return ret;
 }
 
+#ifdef WOLFSSL_DILITHIUM_NO_CTX
 /* Sign the message using the dilithium private key.
  *
  *  msg         [in]      Message to sign.
@@ -10390,6 +10401,8 @@ int wc_dilithium_sign_ctx_msg_with_seed(const byte* ctx, byte ctxLen,
  *  returns BAD_FUNC_ARG when a parameter is NULL or public key not set,
  *          BUFFER_E when outLen is less than DILITHIUM_LEVEL2_SIG_SIZE,
  *          0 otherwise.
+ * NOTE: This is a pre-FIPS 204 API without context support. New code should
+ *       use wc_dilithium_sign_ctx_msg_with_seed() instead.
  */
 int wc_dilithium_sign_msg_with_seed(const byte* msg, word32 msgLen, byte* sig,
     word32 *sigLen, dilithium_key* key, const byte* seed)
@@ -10414,6 +10427,7 @@ int wc_dilithium_sign_msg_with_seed(const byte* msg, word32 msgLen, byte* sig,
 
     return ret;
 }
+#endif /* WOLFSSL_DILITHIUM_NO_CTX */
 
 /* Sign the message using the dilithium private key.
  *
@@ -10514,16 +10528,14 @@ int wc_dilithium_verify_ctx_msg(const byte* sig, word32 sigLen, const byte* ctx,
         ret = dilithium_verify_ctx_msg(key, ctx, ctxLen, msg, msgLen, sig,
             sigLen, res);
     #elif defined(HAVE_LIBOQS)
-        ret = NOT_COMPILED_IN;
-        (void)sigLen;
-        (void)msgLen;
-        (void)res;
+        ret = oqs_dilithium_verify_msg(sig, sigLen, msg, msgLen, res, key);
     #endif
     }
 
     return ret;
 }
 
+#ifdef WOLFSSL_DILITHIUM_NO_CTX
 /* Verify the message using the dilithium public key.
  *
  *  sig         [in]  Signature to verify.
@@ -10535,6 +10547,8 @@ int wc_dilithium_verify_ctx_msg(const byte* sig, word32 sigLen, const byte* ctx,
  *  returns BAD_FUNC_ARG when a parameter is NULL or contextLen is zero when and
  *          BUFFER_E when sigLen is less than DILITHIUM_LEVEL2_SIG_SIZE,
  *          0 otherwise.
+ * NOTE: This is a pre-FIPS 204 API without context support. New code should
+ *       use wc_dilithium_verify_ctx_msg() with ctx=NULL/ctxLen=0 instead.
  */
 int wc_dilithium_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
     word32 msgLen, int* res, dilithium_key* key)
@@ -10573,6 +10587,7 @@ int wc_dilithium_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
 
     return ret;
 }
+#endif /* WOLFSSL_DILITHIUM_NO_CTX */
 
 /* Verify the message using the dilithium public key.
  *
