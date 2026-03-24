@@ -2257,6 +2257,8 @@ typedef enum MimeStatus
     #define FillSigner wc_FillSigner
     #define MakeSigner wc_MakeSigner
     #define FreeSigner wc_FreeSigner
+    #define AllocDer wc_AllocDer
+    #define FreeDer wc_FreeDer
 #endif /* WOLFSSL_API_PREFIX_MAP */
 
 WOLFSSL_LOCAL int HashIdAlg(word32 oidSum);
@@ -2611,11 +2613,11 @@ WOLFSSL_LOCAL int wc_EncryptedInfoParse(EncryptedInfo* info,
 WOLFSSL_LOCAL int PemToDer(const unsigned char* buff, long longSz, int type,
                           DerBuffer** pDer, void* heap, EncryptedInfo* info,
                           int* keyFormat);
-WOLFSSL_TEST_VIS int AllocDer(DerBuffer** der, word32 length, int type,
+WOLFSSL_API int AllocDer(DerBuffer** der, word32 length, int type,
     void* heap);
 WOLFSSL_LOCAL int AllocCopyDer(DerBuffer** der, const unsigned char* buff,
     word32 length, int type, void* heap);
-WOLFSSL_TEST_VIS void FreeDer(DerBuffer** der);
+WOLFSSL_API void FreeDer(DerBuffer** der);
 
 #ifdef WOLFSSL_ASN_PARSE_KEYUSAGE
 WOLFSSL_LOCAL int ParseKeyUsageStr(const char* value, word16* keyUsage,
