@@ -199,23 +199,29 @@ static int ConvertPemToDer(const byte* pem, word32 pemSz,
                            byte** der, word32* derSz, int type)
 {
     int ret;
-    DerBuffer* derBuf = NULL;
 
-    ret = wc_PemToDer(pem, pemSz, type, &derBuf, NULL, NULL, NULL);
-    if (ret != 0 || derBuf == NULL) {
-        return ret;
-    }
-
-    *der = (byte*)XMALLOC(derBuf->length, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    /* Allocate buffer large enough for DER (always smaller than PEM) */
+    *der = (byte*)XMALLOC(pemSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (*der == NULL) {
-        wc_FreeDer(&derBuf);
         return MEMORY_E;
     }
 
-    XMEMCPY(*der, derBuf->buffer, derBuf->length);
-    *derSz = derBuf->length;
-    wc_FreeDer(&derBuf);
+    if (type == PRIVATEKEY_TYPE) {
+        ret = wc_KeyPemToDer(pem, (int)pemSz, *der, (int)pemSz, NULL);
+    }
+    else {
+        ret = wc_CertPemToDer(pem, (int)pemSz, *der, (int)pemSz, type);
+    }
 
+    if (ret <= 0) {
+        XFREE(*der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        *der = NULL;
+        if (ret == 0)
+            ret = BAD_FUNC_ARG;
+        return ret;
+    }
+
+    *derSz = (word32)ret;
     return 0;
 }
 

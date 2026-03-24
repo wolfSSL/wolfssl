@@ -22499,7 +22499,9 @@ int FillSigner(Signer* signer, DecodedCert* cert, int type, DerBuffer *der)
         signer->extKeyUsage = cert->extExtKeyUsage;
         signer->next    = NULL; /* If Key Usage not set, all uses valid. */
         cert->publicKey = 0;    /* in case lock fails don't free here.   */
+        cert->pubKeyStored = 0;
         cert->subjectCN = 0;
+        cert->subjectCNStored = 0;
     #ifndef IGNORE_NAME_CONSTRAINTS
         cert->permittedNames = NULL;
         cert->excludedNames = NULL;
@@ -22794,6 +22796,7 @@ void FreeDer(DerBuffer** pDer)
     }
 }
 
+#ifndef WOLFSSL_API_PREFIX_MAP
 int wc_AllocDer(DerBuffer** pDer, word32 length, int type, void* heap)
 {
     return AllocDer(pDer, length, type, heap);
@@ -22802,6 +22805,7 @@ void wc_FreeDer(DerBuffer** pDer)
 {
     FreeDer(pDer);
 }
+#endif
 
 
 #if defined(WOLFSSL_PEM_TO_DER) || defined(WOLFSSL_DER_TO_PEM)

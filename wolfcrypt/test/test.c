@@ -824,6 +824,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t scrypt_test(void);
 #if !defined(NO_ASN_TIME) && !defined(NO_RSA) && defined(WOLFSSL_TEST_CERT) && \
     !defined(NO_FILESYSTEM)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cert_test(void);
+static wc_test_ret_t fill_signer_twice_test(void);
 #endif
 #if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT) && \
    !defined(NO_FILESYSTEM) && !defined(NO_RSA) && defined(WOLFSSL_GEN_CERT)
@@ -2737,6 +2738,11 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_FAIL("CERT     test failed!\n", ret);
     else
         TEST_PASS("CERT     test passed!\n");
+
+    if ( (ret = fill_signer_twice_test()) != 0)
+        TEST_FAIL("FILL SIGNER test failed!\n", ret);
+    else
+        TEST_PASS("FILL SIGNER test passed!\n");
 #endif
 
 #if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT) && \
@@ -22266,6 +22272,111 @@ done:
     return ret;
 }
 #endif /* WOLFSSL_TEST_CERT */
+
+#if !defined(NO_ASN_TIME) && !defined(NO_RSA) && defined(WOLFSSL_TEST_CERT) && \
+    !defined(NO_FILESYSTEM)
+/* Test that FillSigner clears pubKeyStored/subjectCNStored after transferring
+ * ownership, so a second call doesn't copy stale NULL pointers. */
+static wc_test_ret_t fill_signer_twice_test(void)
+{
+    DecodedCert cert;
+    Signer* signer1 = NULL;
+    Signer* signer2 = NULL;
+    DerBuffer* der = NULL;
+    byte*       tmp = NULL;
+    size_t      bytes;
+    XFILE       file;
+    wc_test_ret_t ret;
+
+    WOLFSSL_ENTER("fill_signer_twice_test");
+
+    tmp = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (tmp == NULL)
+        return WC_TEST_RET_ENC_ERRNO;
+
+    /* Load a DER certificate. */
+    file = XFOPEN(certExtNc, "rb");
+    if (!file) {
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, done);
+    }
+    bytes = XFREAD(tmp, 1, FOURK_BUF, file);
+    XFCLOSE(file);
+    if (bytes == 0)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, done);
+
+    /* Create a DerBuffer for FillSigner (needed when WOLFSSL_SIGNER_DER_CERT
+     * is defined). */
+    ret = AllocDer(&der, (word32)bytes, CERT_TYPE, HEAP_HINT);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    XMEMCPY(der->buffer, tmp, bytes);
+
+    InitDecodedCert(&cert, tmp, (word32)bytes, 0);
+    ret = ParseCert(&cert, CERT_TYPE, NO_VERIFY, NULL);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+
+    /* After parsing, pubKeyStored should be set and publicKey non-NULL. */
+    if (!cert.pubKeyStored || cert.publicKey == NULL) {
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+    }
+
+    /* First FillSigner: transfers publicKey and subjectCN ownership. */
+    signer1 = MakeSigner(HEAP_HINT);
+    if (signer1 == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, done);
+
+    ret = FillSigner(signer1, &cert, CA_TYPE, der);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+
+    /* signer1 should have received the publicKey. */
+    if (signer1->publicKey == NULL) {
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+    }
+
+    /* After FillSigner, cert->publicKey should be NULL. */
+    if (cert.publicKey != NULL) {
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+    }
+
+    /* BUG CHECK: pubKeyStored should have been cleared to 0.
+     * If it is still set, a second FillSigner would copy a NULL pointer. */
+    if (cert.pubKeyStored != 0) {
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+    }
+
+    /* Also check subjectCNStored is cleared. */
+    if (cert.subjectCNStored != 0) {
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+    }
+
+    /* Second FillSigner on the same cert should not copy NULL pointers. */
+    signer2 = MakeSigner(HEAP_HINT);
+    if (signer2 == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, done);
+
+    ret = FillSigner(signer2, &cert, CA_TYPE, der);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+
+    /* signer2 should NOT have a publicKey (since cert no longer owns one). */
+    if (signer2->publicKey != NULL) {
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+    }
+
+done:
+    FreeDecodedCert(&cert);
+    if (signer1 != NULL)
+        FreeSigner(signer1, HEAP_HINT);
+    if (signer2 != NULL)
+        FreeSigner(signer2, HEAP_HINT);
+    FreeDer(&der);
+    XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
+}
+#endif /* !NO_ASN_TIME && !NO_RSA && WOLFSSL_TEST_CERT && !NO_FILESYSTEM */
 
 #if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT) && \
    !defined(NO_FILESYSTEM) && !defined(NO_RSA) && defined(WOLFSSL_GEN_CERT)
