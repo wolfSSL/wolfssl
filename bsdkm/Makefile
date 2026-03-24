@@ -39,7 +39,7 @@ WOLFSSL_OBJS != echo ${src_libwolfssl_la_OBJECTS} | \
 # wolfcrypt benchmark
 .if ${ENABLED_KERNEL_BENCHMARKS} == "yes"
     WOLFSSL_OBJS += ${WOLFSSL_DIR}/wolfcrypt/benchmark/benchmark.o
-    CFLAGS += -DWOLFSSL_NO_FLOAT_FMT -DMAIN_NO_ARGS
+    CFLAGS.benchmark.c += -DWOLFSSL_NO_FLOAT_FMT -DMAIN_NO_ARGS
 .endif
 
 OBJS += ${WOLFSSL_OBJS}
