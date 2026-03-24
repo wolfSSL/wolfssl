@@ -28,7 +28,7 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
-#include <wolfssl/wolfcrypt/she.h>
+#include <wolfssl/wolfcrypt/wc_she.h>
 #include <wolfssl/wolfcrypt/types.h>
 #ifdef WOLF_CRYPTO_CB
     #include <wolfssl/wolfcrypt/cryptocb.h>
@@ -169,7 +169,7 @@ int test_wc_SHE_ImportM1M2M3(void)
     return EXPECT_RESULT();
 }
 
-int test_wc_She_AesMp16(void)
+int test_wc_SHE_AesMp16(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_SHE) && !defined(NO_AES)
@@ -188,18 +188,18 @@ int test_wc_She_AesMp16(void)
     };
 
     ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_She_AesMp16(&aes, input, sizeof(input), out), 0);
+    ExpectIntEQ(wc_SHE_AesMp16(&aes, input, sizeof(input), out), 0);
 
     ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_She_AesMp16(&aes, shortInput, sizeof(shortInput), out), 0);
+    ExpectIntEQ(wc_SHE_AesMp16(&aes, shortInput, sizeof(shortInput), out), 0);
 
-    ExpectIntEQ(wc_She_AesMp16(NULL, input, sizeof(input), out),
+    ExpectIntEQ(wc_SHE_AesMp16(NULL, input, sizeof(input), out),
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_She_AesMp16(&aes, NULL, sizeof(input), out),
+    ExpectIntEQ(wc_SHE_AesMp16(&aes, NULL, sizeof(input), out),
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_She_AesMp16(&aes, input, 0, out),
+    ExpectIntEQ(wc_SHE_AesMp16(&aes, input, 0, out),
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_She_AesMp16(&aes, input, sizeof(input), NULL),
+    ExpectIntEQ(wc_SHE_AesMp16(&aes, input, sizeof(input), NULL),
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     wc_AesFree(&aes);
@@ -467,7 +467,7 @@ static int test_she_crypto_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     she->devId = INVALID_DEVID;
 
     switch (info->she.type) {
-        case WC_SHE_SET_UID:
+        case WC_SHE_GET_UID:
             ret = 0;
             break;
         case WC_SHE_GET_COUNTER:

@@ -349,7 +349,7 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
 #include <wolfssl/wolfcrypt/wc_encrypt.h>
 #include <wolfssl/wolfcrypt/cmac.h>
 #ifdef WOLFSSL_SHE
-    #include <wolfssl/wolfcrypt/she.h>
+    #include <wolfssl/wolfcrypt/wc_she.h>
 #endif
 #include <wolfssl/wolfcrypt/siphash.h>
 #include <wolfssl/wolfcrypt/poly1305.h>
@@ -56616,6 +56616,176 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cmac_test(void)
 
 #if defined(WOLFSSL_SHE) && !defined(NO_AES)
 
+#if defined(WC_SHE_SW_DEFAULT) && defined(WOLF_CRYPTO_CB) && \
+    !defined(NO_WC_SHE_GETUID) && !defined(NO_WC_SHE_GETCOUNTER)
+
+#ifndef WC_SHE_SW_TEST_AUTH_KEY
+#define WC_SHE_SW_TEST_AUTH_KEY { \
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, \
+    0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f \
+}
+#endif
+
+#ifndef WC_SHE_SW_TEST_NEW_KEY
+#define WC_SHE_SW_TEST_NEW_KEY { \
+    0x0f, 0x0e, 0x0d, 0x0c, 0x0b, 0x0a, 0x09, 0x08, \
+    0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01, 0x00 \
+}
+#endif
+
+#ifndef WC_SHE_SW_TEST_EXP_M1
+#define WC_SHE_SW_TEST_EXP_M1 { \
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, \
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x41 \
+}
+#endif
+
+#ifndef WC_SHE_SW_TEST_EXP_M2
+#define WC_SHE_SW_TEST_EXP_M2 { \
+    0x2b, 0x11, 0x1e, 0x2d, 0x93, 0xf4, 0x86, 0x56, \
+    0x6b, 0xcb, 0xba, 0x1d, 0x7f, 0x7a, 0x97, 0x97, \
+    0xc9, 0x46, 0x43, 0xb0, 0x50, 0xfc, 0x5d, 0x4d, \
+    0x7d, 0xe1, 0x4c, 0xff, 0x68, 0x22, 0x03, 0xc3 \
+}
+#endif
+
+#ifndef WC_SHE_SW_TEST_EXP_M3
+#define WC_SHE_SW_TEST_EXP_M3 { \
+    0xb9, 0xd7, 0x45, 0xe5, 0xac, 0xe7, 0xd4, 0x18, \
+    0x60, 0xbc, 0x63, 0xc2, 0xb9, 0xf5, 0xbb, 0x46 \
+}
+#endif
+
+#ifndef WC_SHE_SW_TEST_EXP_M4
+#define WC_SHE_SW_TEST_EXP_M4 { \
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, \
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x41, \
+    0xb4, 0x72, 0xe8, 0xd8, 0x72, 0x7d, 0x70, 0xd5, \
+    0x72, 0x95, 0xe7, 0x48, 0x49, 0xa2, 0x79, 0x17 \
+}
+#endif
+
+#ifndef WC_SHE_SW_TEST_EXP_M5
+#define WC_SHE_SW_TEST_EXP_M5 { \
+    0x82, 0x0d, 0x8d, 0x95, 0xdc, 0x11, 0xb4, 0x66, \
+    0x88, 0x78, 0x16, 0x0c, 0xb2, 0xa4, 0xe2, 0x3e \
+}
+#endif
+
+/* Software-only SHE test using the full GetUID -> GetCounter -> GenerateM1M2M3
+ * -> GenerateM4M5 API flow. This test allows someone to test a custom vector
+ * by overriding the WC_SHE_SW_TEST_* and WC_SHE_DEFAULT_* macros, and
+ * demonstrates the whole SHE API in a software-only configuration. */
+static wc_test_ret_t she_sw_default_test(void)
+{
+    wc_test_ret_t ret = 0;
+    byte   uid[WC_SHE_UID_SZ];
+    word32 counter;
+    byte   m1[WC_SHE_M1_SZ];
+    byte   m2[WC_SHE_M2_SZ];
+    byte   m3[WC_SHE_M3_SZ];
+    byte   m4[WC_SHE_M4_SZ];
+    byte   m5[WC_SHE_M5_SZ];
+    WC_DECLARE_VAR(she, wc_SHE, 1, HEAP_HINT);
+
+    WOLFSSL_SMALL_STACK_STATIC const byte authKey[] = WC_SHE_SW_TEST_AUTH_KEY;
+    WOLFSSL_SMALL_STACK_STATIC const byte newKey[] = WC_SHE_SW_TEST_NEW_KEY;
+    WOLFSSL_SMALL_STACK_STATIC const byte expM1[] = WC_SHE_SW_TEST_EXP_M1;
+    WOLFSSL_SMALL_STACK_STATIC const byte expM2[] = WC_SHE_SW_TEST_EXP_M2;
+    WOLFSSL_SMALL_STACK_STATIC const byte expM3[] = WC_SHE_SW_TEST_EXP_M3;
+    WOLFSSL_SMALL_STACK_STATIC const byte expM4[] = WC_SHE_SW_TEST_EXP_M4;
+    WOLFSSL_SMALL_STACK_STATIC const byte expM5[] = WC_SHE_SW_TEST_EXP_M5;
+
+    WOLFSSL_ENTER("she_sw_default_test");
+
+    WC_ALLOC_VAR(she, wc_SHE, 1, HEAP_HINT);
+    if (!WC_VAR_OK(she)) {
+        return WC_TEST_RET_ENC_EC(MEMORY_E);
+    }
+
+    /* Use INVALID_DEVID intentionally -- this test exercises the software-only
+     * path and should not use any hardware callbacks. */
+    ret = wc_SHE_Init(she, HEAP_HINT, INVALID_DEVID);
+    if (ret != 0) {
+        WC_FREE_VAR(she, HEAP_HINT);
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+
+    /* Get UID and counter from software defaults */
+    ret = wc_SHE_GetUID(she, uid, WC_SHE_UID_SZ, NULL);
+    if (ret != 0) {
+        wc_SHE_Free(she);
+        WC_FREE_VAR(she, HEAP_HINT);
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+
+    ret = wc_SHE_GetCounter(she, &counter, NULL);
+    if (ret != 0) {
+        wc_SHE_Free(she);
+        WC_FREE_VAR(she, HEAP_HINT);
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+
+    /* Generate M1/M2/M3 using retrieved UID and counter */
+    ret = wc_SHE_GenerateM1M2M3(she,
+              uid, WC_SHE_UID_SZ,
+              WC_SHE_MASTER_ECU_KEY_ID, authKey, sizeof(authKey),
+              4, newKey, sizeof(newKey),
+              counter, 0,
+              m1, WC_SHE_M1_SZ,
+              m2, WC_SHE_M2_SZ,
+              m3, WC_SHE_M3_SZ);
+    if (ret != 0) {
+        wc_SHE_Free(she);
+        WC_FREE_VAR(she, HEAP_HINT);
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+
+    /* Verify M1/M2/M3 match expected values */
+    if (XMEMCMP(m1, expM1, WC_SHE_M1_SZ) != 0 ||
+        XMEMCMP(m2, expM2, WC_SHE_M2_SZ) != 0 ||
+        XMEMCMP(m3, expM3, WC_SHE_M3_SZ) != 0) {
+        wc_SHE_Free(she);
+        WC_FREE_VAR(she, HEAP_HINT);
+        return WC_TEST_RET_ENC_NC;
+    }
+
+    /* Generate M4/M5 using same UID and counter */
+    wc_SHE_Free(she);
+    ret = wc_SHE_Init(she, HEAP_HINT, INVALID_DEVID);
+    if (ret != 0) {
+        WC_FREE_VAR(she, HEAP_HINT);
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+
+    ret = wc_SHE_GenerateM4M5(she,
+              uid, WC_SHE_UID_SZ,
+              WC_SHE_MASTER_ECU_KEY_ID, 4,
+              newKey, sizeof(newKey),
+              counter,
+              m4, WC_SHE_M4_SZ,
+              m5, WC_SHE_M5_SZ);
+    if (ret != 0) {
+        wc_SHE_Free(she);
+        WC_FREE_VAR(she, HEAP_HINT);
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+
+    /* Verify M4/M5 match expected values */
+    if (XMEMCMP(m4, expM4, WC_SHE_M4_SZ) != 0 ||
+        XMEMCMP(m5, expM5, WC_SHE_M5_SZ) != 0) {
+        wc_SHE_Free(she);
+        WC_FREE_VAR(she, HEAP_HINT);
+        return WC_TEST_RET_ENC_NC;
+    }
+
+    wc_SHE_Free(she);
+    WC_FREE_VAR(she, HEAP_HINT);
+    return ret;
+}
+#endif /* WC_SHE_SW_DEFAULT && WOLF_CRYPTO_CB &&
+        * !NO_WC_SHE_GETUID && !NO_WC_SHE_GETCOUNTER */
+
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t she_test(void)
 {
     wc_test_ret_t ret = 0;
@@ -56890,6 +57060,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t she_test(void)
         ret = WC_TEST_RET_ENC_NC;
         goto exit_SHE_Test;
     }
+
+#if defined(WC_SHE_SW_DEFAULT) && defined(WOLF_CRYPTO_CB) && \
+    !defined(NO_WC_SHE_GETUID) && !defined(NO_WC_SHE_GETCOUNTER)
+    ret = she_sw_default_test();
+    if (ret != 0) {
+        goto exit_SHE_Test;
+    }
+#endif
 
 exit_SHE_Test:
     wc_SHE_Free(she);
@@ -67476,7 +67654,7 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
         she->devId = INVALID_DEVID;
 
         switch (info->she.type) {
-            case WC_SHE_SET_UID:
+            case WC_SHE_GET_UID:
                 /* Test callback: just acknowledge, UID is in caller's buffer */
                 ret = 0;
                 break;

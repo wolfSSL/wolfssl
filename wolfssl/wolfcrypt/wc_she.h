@@ -1,4 +1,4 @@
-/* she.h
+/* wc_she.h
  *
  * Copyright (C) 2006-2026 wolfSSL Inc.
  *
@@ -45,7 +45,7 @@
 
 /* crypto callback sub-types for WC_ALGO_TYPE_SHE */
 enum wc_SheType {
-    WC_SHE_SET_UID              = 1,
+    WC_SHE_GET_UID              = 1,
     WC_SHE_GET_COUNTER          = 2,
     WC_SHE_GENERATE_M1M2M3      = 3,
     WC_SHE_GENERATE_M4M5        = 4,
@@ -161,23 +161,22 @@ WOLFSSL_API int wc_SHE_Init_Label(wc_SHE* she, const char* label,
 /* Scrub all data and zero the context. Safe to call on NULL. */
 WOLFSSL_API void wc_SHE_Free(wc_SHE* she);
 
-/* Get UID from hardware via callback (WC_SHE_SET_UID).
- *   she   - initialized SHE context with a registered callback
+/* Get UID from hardware.
+ *   she   - initialized SHE context
  *   uid   - buffer to receive the 120-bit (15-byte) SHE UID
  *   uidSz - size of uid buffer in bytes
- *   ctx   - read-only caller context passed to the callback
- *           (e.g. challenge buffer, HSM handle) */
+ *   ctx   - read-only caller context (e.g. challenge buffer, HSM handle) */
 #if defined(WOLF_CRYPTO_CB) && !defined(NO_WC_SHE_GETUID)
 WOLFSSL_API int wc_SHE_GetUID(wc_SHE* she, byte* uid, word32 uidSz,
                    const void* ctx);
 #endif
 
-/* Get monotonic counter from hardware via callback (WC_SHE_GET_COUNTER).
- *   she     - initialized SHE context with a registered callback
+/* Get monotonic counter from hardware.
+ *   she     - initialized SHE context
  *   counter - pointer to receive the current counter value.
  *             The SHE spec uses a 28-bit counter. The caller should
  *             increment this value before passing to GenerateM1M2M3/M4M5.
- *   ctx     - read-only caller context passed to the callback */
+ *   ctx     - read-only caller context */
 #if defined(WOLF_CRYPTO_CB) && !defined(NO_WC_SHE_GETCOUNTER)
 WOLFSSL_API int wc_SHE_GetCounter(wc_SHE* she, word32* counter,
                    const void* ctx);
@@ -236,10 +235,7 @@ WOLFSSL_API int wc_SHE_ImportM1M2M3(wc_SHE* she,
 #endif
 
 /* Generate M1/M2/M3 for the SHE key update protocol and write to
- * caller-provided buffers. Callback optional -- if a callback is
- * registered it is tried first; if it returns CRYPTOCB_UNAVAILABLE
- * the software path runs. This allows a secure element to generate
- * M1/M2/M3 when it holds the auth key internally.
+ * caller-provided buffers.
  *
  *   she        - initialized SHE context
  *   uid        - 15-byte SHE UID (120-bit ECU/module identifier)
@@ -247,14 +243,12 @@ WOLFSSL_API int wc_SHE_ImportM1M2M3(wc_SHE* she,
  *   authKeyId  - slot ID of the authorizing key (0-14, e.g.
  *                MASTER_ECU_KEY=1, KEY_1..KEY_10=4..13)
  *   authKey    - 16-byte value of the authorizing key. Used to derive
- *                K1 (encryption) and K2 (MAC). May be NULL when the
- *                callback handles key access.
- *   authKeySz  - must be WC_SHE_KEY_SZ (16) when authKey is non-NULL
+ *                K1 (encryption) and K2 (MAC).
+ *   authKeySz  - must be WC_SHE_KEY_SZ (16)
  *   targetKeyId - slot ID of the key being loaded (1-14)
  *   newKey     - 16-byte value of the new key to load. Placed in M2
  *                cleartext and used to derive K3/K4 for M4/M5.
- *                May be NULL when the callback handles key access.
- *   newKeySz   - must be WC_SHE_KEY_SZ (16) when newKey is non-NULL
+ *   newKeySz   - must be WC_SHE_KEY_SZ (16)
  *   counter    - 28-bit monotonic counter value. Must be strictly greater
  *                than the counter stored in the target slot on the SHE.
  *   flags      - key protection flags (lower 4 bits of the counter|flags
@@ -275,9 +269,7 @@ WOLFSSL_API int wc_SHE_GenerateM1M2M3(wc_SHE* she,
                       byte* m3, word32 m3Sz);
 
 /* Generate M4/M5 verification messages and write to caller-provided
- * buffers. Independent of M1/M2/M3 -- can be called on a separate
- * context. Callback optional -- useful for uploading M1/M2/M3 to an
- * HSM which loads the key and returns M4/M5 as proof.
+ * buffers. Independent of M1/M2/M3, can be called on a separate context.
  *
  *   she         - initialized SHE context
  *   uid         - 15-byte SHE UID (same UID used for M1)
@@ -286,8 +278,7 @@ WOLFSSL_API int wc_SHE_GenerateM1M2M3(wc_SHE* she,
  *   targetKeyId - slot ID of the key being loaded (same as in M1)
  *   newKey      - 16-byte value of the new key. Used to derive K3
  *                 (encryption for M4 counter block) and K4 (MAC for M5).
- *                 May be NULL when the callback handles key access.
- *   newKeySz    - must be WC_SHE_KEY_SZ (16) when newKey is non-NULL
+ *   newKeySz    - must be WC_SHE_KEY_SZ (16)
  *   counter     - 28-bit monotonic counter (same value as in M2)
  *   m4          - output buffer for M4 (32 bytes)
  *   m4Sz        - size of m4 buffer, must be >= WC_SHE_M4_SZ
@@ -302,10 +293,9 @@ WOLFSSL_API int wc_SHE_GenerateM4M5(wc_SHE* she,
                       byte* m5, word32 m5Sz);
 
 /* Export a key from hardware in SHE loadable format (M1-M5).
- * Callback required -- dispatches to WC_SHE_EXPORT_KEY.
  * Some HSMs allow exporting certain key slots (e.g. RAM key) so they
  * can be re-loaded later via the SHE key update protocol.
- *   she   - initialized SHE context with a registered callback
+ *   she   - initialized SHE context
  *   m1    - output buffer for M1 (16 bytes), or NULL to skip
  *   m1Sz  - size of m1 buffer
  *   m2    - output buffer for M2 (32 bytes), or NULL to skip
@@ -335,7 +325,7 @@ WOLFSSL_API int wc_SHE_ExportKey(wc_SHE* she,
  *   in    - input data (e.g. BaseKey || KDF_Constant, 32 bytes)
  *   inSz  - length of input in bytes (zero-padded to block boundary)
  *   out   - output buffer for 16-byte compressed result */
-WOLFSSL_TEST_VIS int wc_She_AesMp16(Aes* aes, const byte* in, word32 inSz,
+WOLFSSL_TEST_VIS int wc_SHE_AesMp16(Aes* aes, const byte* in, word32 inSz,
                                      byte* out);
 
 #ifdef __cplusplus

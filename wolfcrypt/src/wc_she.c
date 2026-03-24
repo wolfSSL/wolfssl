@@ -1,4 +1,4 @@
-/* she.c
+/* wc_she.c
  *
  * Copyright (C) 2006-2026 wolfSSL Inc.
  *
@@ -31,6 +31,19 @@
 
 #ifdef WOLFSSL_SHE
 
+#ifdef NO_AES
+    #error "SHE requires AES (NO_AES is defined)"
+#endif
+#ifndef HAVE_AES_CBC
+    #error "SHE requires AES-CBC (HAVE_AES_CBC is not defined)"
+#endif
+#ifndef WOLFSSL_AES_DIRECT
+    #error "SHE requires AES direct (WOLFSSL_AES_DIRECT is not defined)"
+#endif
+#ifndef WOLFSSL_CMAC
+    #error "SHE requires CMAC (WOLFSSL_CMAC is not defined)"
+#endif
+
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -40,11 +53,31 @@
 
 #include <wolfssl/wolfcrypt/aes.h>
 #include <wolfssl/wolfcrypt/cmac.h>
-#include <wolfssl/wolfcrypt/she.h>
+#include <wolfssl/wolfcrypt/wc_she.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #ifdef WOLF_CRYPTO_CB
     #include <wolfssl/wolfcrypt/cryptocb.h>
 #endif
+
+#ifdef WC_SHE_SW_DEFAULT
+/* Software-only default UID for example usage only. Uses the SHE specification
+ * test vector UID value. Override by defining WC_SHE_DEFAULT_UID before
+ * including this file. */
+#ifndef WC_SHE_DEFAULT_UID
+#define WC_SHE_DEFAULT_UID { \
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, \
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01 \
+}
+#endif
+static const byte wc_She_DefaultUid[] = WC_SHE_DEFAULT_UID;
+
+/* Software-only default counter start value for testing. Uses the SHE
+ * specification test vector counter value. Override by defining
+ * WC_SHE_DEFAULT_COUNTER before including this file. */
+#ifndef WC_SHE_DEFAULT_COUNTER
+#define WC_SHE_DEFAULT_COUNTER 1
+#endif
+#endif /* WC_SHE_SW_DEFAULT */
 
 /* -------------------------------------------------------------------------- */
 /* Miyaguchi-Preneel AES-128 compression (internal)                           */
@@ -57,7 +90,7 @@
 /* Ported from wolfHSM wh_She_AesMp16_ex() in src/wh_she_crypto.c.           */
 /* The caller (GenerateM1M2M3 / GenerateM4M5) owns the Aes object.            */
 /* -------------------------------------------------------------------------- */
-int wc_She_AesMp16(Aes* aes, const byte* in, word32 inSz, byte* out)
+int wc_SHE_AesMp16(Aes* aes, const byte* in, word32 inSz, byte* out)
 {
     int ret;
     int i = 0;
@@ -123,7 +156,6 @@ int wc_SHE_Init(wc_SHE* she, void* heap, int devId)
     ForceZero(she, sizeof(wc_SHE));
     she->heap  = heap;
     she->devId = devId;
-    /* kdfEncOverride/kdfMacOverride are zero from XMEMSET -- defaults used */
 
     return 0;
 }
@@ -141,17 +173,17 @@ int wc_SHE_Init_Id(wc_SHE* she, unsigned char* id, int len,
 {
     int ret;
 
-    if (she == NULL) {
+    if (she == NULL || id == NULL) {
         return BAD_FUNC_ARG;
+    }
+
+    if (len < 0 || len > WC_SHE_MAX_ID_LEN) {
+        return BUFFER_E;
     }
 
     ret = wc_SHE_Init(she, heap, devId);
     if (ret != 0) {
         return ret;
-    }
-
-    if (len < 0 || len > WC_SHE_MAX_ID_LEN) {
-        return BUFFER_E;
     }
 
     XMEMCPY(she->id, id, (size_t)len);
@@ -222,38 +254,74 @@ void wc_SHE_Free(wc_SHE* she)
 }
 
 /* -------------------------------------------------------------------------- */
-/* GetUID -- callback required                                                 */
+/* GetUID                                                                      */
 /*                                                                            */
-/* Dispatches to callback to fetch UID from hardware.                        */
-/* Buffer size validation is the callback's responsibility.                  */
+/* When a crypto callback is registered, it can be used to get the UID from  */
+/* hardware. The caller can pass a challenge or other context via the void    */
+/* ctx parameter (e.g. challenge buffer, HSM handle).                        */
 /* Returns CRYPTOCB_UNAVAILABLE if no callback.                              */
 /* -------------------------------------------------------------------------- */
 #if defined(WOLF_CRYPTO_CB) && !defined(NO_WC_SHE_GETUID)
 int wc_SHE_GetUID(wc_SHE* she, byte* uid, word32 uidSz,
                    const void* ctx)
 {
+    int ret;
+
     if (she == NULL || uid == NULL) {
         return BAD_FUNC_ARG;
     }
 
-    return wc_CryptoCb_SheSetUid(she, uid, uidSz, ctx);
+    ret = wc_CryptoCb_SheGetUid(she, uid, uidSz, ctx);
+    if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+        return ret;
+    }
+
+#ifdef WC_SHE_SW_DEFAULT
+    /* Software-only default UID for example usage only. */
+    if (uidSz < sizeof(wc_She_DefaultUid)) {
+        return BUFFER_E;
+    }
+    XMEMCPY(uid, wc_She_DefaultUid, sizeof(wc_She_DefaultUid));
+    ret = 0;
+#endif
+
+    return ret;
 }
 #endif /* WOLF_CRYPTO_CB && !NO_WC_SHE_GETUID */
 
 /* -------------------------------------------------------------------------- */
-/* GetCounter -- callback required                                             */
+/* GetCounter                                                                  */
 /*                                                                            */
-/* Dispatches to callback to read current counter from hardware.             */
+/* When a crypto callback is registered, it can be used to read the          */
+/* monotonic counter from hardware. The caller can pass operational context   */
+/* via the void ctx parameter (e.g. read counter/increment, read only).      */
 /* Returns CRYPTOCB_UNAVAILABLE if no callback.                              */
 /* -------------------------------------------------------------------------- */
 #if defined(WOLF_CRYPTO_CB) && !defined(NO_WC_SHE_GETCOUNTER)
 int wc_SHE_GetCounter(wc_SHE* she, word32* counter, const void* ctx)
 {
+    int ret;
+#ifdef WC_SHE_SW_DEFAULT
+    /* Software-only default counter for example usage only.
+     * Simple static counter that increments on each call. */
+    static word32 she_sw_counter = WC_SHE_DEFAULT_COUNTER;
+#endif
+
     if (she == NULL || counter == NULL) {
         return BAD_FUNC_ARG;
     }
 
-    return wc_CryptoCb_SheGetCounter(she, counter, ctx);
+    ret = wc_CryptoCb_SheGetCounter(she, counter, ctx);
+    if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+        return ret;
+    }
+
+#ifdef WC_SHE_SW_DEFAULT
+    *counter = she_sw_counter++;
+    ret = 0;
+#endif
+
+    return ret;
 }
 #endif /* WOLF_CRYPTO_CB && !NO_WC_SHE_GETCOUNTER */
 
@@ -402,6 +470,12 @@ int wc_SHE_SetM4Header(wc_SHE* she, const byte* header, word32 headerSz)
 /*   M2 = AES-CBC(K1, IV=0, counter|flags|pad|newkey)                        */
 /*   M3 = AES-CMAC(K2, M1 | M2)                                             */
 /*                                                                            */
+/* When a crypto callback is registered and the SHE context has a valid      */
+/* device ID, the callback is tried first. This is useful when a secure      */
+/* element or HSM holds the auth key internally and can generate M1/M2/M3    */
+/* directly. If the callback returns CRYPTOCB_UNAVAILABLE, the software      */
+/* path runs.                                                                */
+/*                                                                            */
 /* Ported from wolfHSM wh_She_GenerateLoadableKey() in wh_she_crypto.c.      */
 /* -------------------------------------------------------------------------- */
 int wc_SHE_GenerateM1M2M3(wc_SHE* she,
@@ -493,7 +567,7 @@ int wc_SHE_GenerateM1M2M3(wc_SHE* she,
     /* ---- Derive K1 = AES-MP(AuthKey || CENC) ---- */
     XMEMCPY(kdfInput, authKey, WC_SHE_KEY_SZ);
     XMEMCPY(kdfInput + WC_SHE_KEY_SZ, encC, WC_SHE_KEY_SZ);
-    ret = wc_She_AesMp16(aes, kdfInput, WC_SHE_KEY_SZ * 2, k1);
+    ret = wc_SHE_AesMp16(aes, kdfInput, WC_SHE_KEY_SZ * 2, k1);
 
     /* ---- Build M1: UID(15B) | TargetKeyID(4b) | AuthKeyID(4b) ---- */
     if (ret == 0) {
@@ -519,7 +593,7 @@ int wc_SHE_GenerateM1M2M3(wc_SHE* she,
     /* ---- Derive K2 = AES-MP(AuthKey || CMAC_C) ---- */
     if (ret == 0) {
         XMEMCPY(kdfInput + WC_SHE_KEY_SZ, macC, WC_SHE_KEY_SZ);
-        ret = wc_She_AesMp16(aes, kdfInput, WC_SHE_KEY_SZ * 2, k2);
+        ret = wc_SHE_AesMp16(aes, kdfInput, WC_SHE_KEY_SZ * 2, k2);
     }
 
     /* ---- Build M3 = AES-CMAC(K2, M1 || M2) ---- */
@@ -557,6 +631,11 @@ int wc_SHE_GenerateM1M2M3(wc_SHE* she,
 /*   M5 = AES-CMAC(K4, M4)                                                  */
 /*                                                                            */
 /* These are the expected proof messages that SHE hardware should return.     */
+/*                                                                            */
+/* When a crypto callback is registered and the SHE context has a valid      */
+/* device ID, the callback is tried first. This is useful for uploading      */
+/* M1/M2/M3 to an HSM which loads the key and returns M4/M5 as proof.       */
+/* If the callback returns CRYPTOCB_UNAVAILABLE, the software path runs.     */
 /* -------------------------------------------------------------------------- */
 int wc_SHE_GenerateM4M5(wc_SHE* she,
                       const byte* uid, word32 uidSz,
@@ -596,6 +675,7 @@ int wc_SHE_GenerateM4M5(wc_SHE* she,
             return ret;
         }
         /* fall-through to software path */
+        ret = 0;
     }
 #endif
 
@@ -642,7 +722,7 @@ int wc_SHE_GenerateM4M5(wc_SHE* she,
     /* ---- Derive K3 = AES-MP(NewKey || CENC) ---- */
     XMEMCPY(kdfInput, newKey, WC_SHE_KEY_SZ);
     XMEMCPY(kdfInput + WC_SHE_KEY_SZ, encC, WC_SHE_KEY_SZ);
-    ret = wc_She_AesMp16(aes, kdfInput, WC_SHE_KEY_SZ * 2, k3);
+    ret = wc_SHE_AesMp16(aes, kdfInput, WC_SHE_KEY_SZ * 2, k3);
 
     /* ---- Build M4: UID|IDs header + AES-ECB(K3, m4pHeader) ---- */
     if (ret == 0) {
@@ -669,7 +749,7 @@ int wc_SHE_GenerateM4M5(wc_SHE* she,
     /* ---- Derive K4 = AES-MP(NewKey || CMAC_C) ---- */
     if (ret == 0) {
         XMEMCPY(kdfInput + WC_SHE_KEY_SZ, macC, WC_SHE_KEY_SZ);
-        ret = wc_She_AesMp16(aes, kdfInput, WC_SHE_KEY_SZ * 2, k4);
+        ret = wc_SHE_AesMp16(aes, kdfInput, WC_SHE_KEY_SZ * 2, k4);
     }
 
     /* ---- Build M5 = AES-CMAC(K4, M4) ---- */
@@ -691,19 +771,14 @@ int wc_SHE_GenerateM4M5(wc_SHE* she,
 }
 
 /* -------------------------------------------------------------------------- */
-/* Export Key (callback optional)                                             */
+/* Export Key                                                                  */
 /*                                                                            */
-/* Software: copies computed messages from context into caller buffers.       */
+/* When a crypto callback is registered, it can be used to export M1-M5     */
+/* from a key slot on an HSM, allowing the key to be re-loaded later via    */
+/* the SHE key update protocol.                                              */
 /* Any pointer may be NULL to skip that message.                             */
-/* M1/M2/M3 require generated state, M4/M5 require verified state.          */
-/* Callback: asks hardware to export the key as M1-M5.                       */
 /* -------------------------------------------------------------------------- */
 #if defined(WOLF_CRYPTO_CB) && !defined(NO_WC_SHE_EXPORTKEY)
-/* -------------------------------------------------------------------------- */
-/* Export Key -- callback required                                             */
-/*                                                                            */
-/* Asks hardware to export a key slot as M1-M5 in SHE loadable format.       */
-/* -------------------------------------------------------------------------- */
 int wc_SHE_ExportKey(wc_SHE* she,
                       byte* m1, word32 m1Sz,
                       byte* m2, word32 m2Sz,

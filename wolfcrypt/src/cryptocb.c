@@ -2121,7 +2121,7 @@ int wc_CryptoCb_Cmac(Cmac* cmac, const byte* key, word32 keySz,
 #endif /* WOLFSSL_CMAC */
 
 #ifdef WOLFSSL_SHE
-int wc_CryptoCb_SheSetUid(wc_SHE* she, const byte* uid, word32 uidSz,
+int wc_CryptoCb_SheGetUid(wc_SHE* she, const byte* uid, word32 uidSz,
                             const void* ctx)
 {
     int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
@@ -2138,7 +2138,7 @@ int wc_CryptoCb_SheSetUid(wc_SHE* she, const byte* uid, word32 uidSz,
         XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
         cryptoInfo.algo_type          = WC_ALGO_TYPE_SHE;
         cryptoInfo.she.she            = she;
-        cryptoInfo.she.type           = WC_SHE_SET_UID;
+        cryptoInfo.she.type           = WC_SHE_GET_UID;
         cryptoInfo.she.ctx            = ctx;
         cryptoInfo.she.op.setUid.uid  = uid;
         cryptoInfo.she.op.setUid.uidSz = uidSz;

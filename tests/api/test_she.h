@@ -29,7 +29,7 @@ int test_wc_SHE_Init_Id(void);
 int test_wc_SHE_Init_Label(void);
 int test_wc_SHE_Free(void);
 int test_wc_SHE_ImportM1M2M3(void);
-int test_wc_She_AesMp16(void);
+int test_wc_SHE_AesMp16(void);
 int test_wc_SHE_GenerateM1M2M3(void);
 int test_wc_SHE_GenerateM4M5(void);
 #ifdef WOLFSSL_SHE_EXTENDED
@@ -46,7 +46,7 @@ int test_wc_SHE_CryptoCb(void);
     TEST_DECL_GROUP("she", test_wc_SHE_Init_Label),                 \
     TEST_DECL_GROUP("she", test_wc_SHE_Free),                       \
     TEST_DECL_GROUP("she", test_wc_SHE_ImportM1M2M3),               \
-    TEST_DECL_GROUP("she", test_wc_She_AesMp16),                    \
+    TEST_DECL_GROUP("she", test_wc_SHE_AesMp16),                    \
     TEST_DECL_GROUP("she", test_wc_SHE_GenerateM1M2M3),             \
     TEST_DECL_GROUP("she", test_wc_SHE_GenerateM4M5)
 

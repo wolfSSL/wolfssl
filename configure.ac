@@ -5957,7 +5957,9 @@ AC_ARG_ENABLE([she],
 
 if test "x$ENABLED_SHE" = "xstandard" || test "x$ENABLED_SHE" = "xextended"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHE"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHE -DWOLFSSL_CMAC -DWOLFSSL_AES_DIRECT"
+    ENABLED_CMAC=yes
+    ENABLED_AESCBC=yes
 fi
 
 if test "x$ENABLED_SHE" = "xextended"

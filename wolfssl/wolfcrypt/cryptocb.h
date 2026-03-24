@@ -66,7 +66,7 @@
     #include <wolfssl/wolfcrypt/cmac.h>
 #endif
 #ifdef WOLFSSL_SHE
-    #include <wolfssl/wolfcrypt/she.h>
+    #include <wolfssl/wolfcrypt/wc_she.h>
 #endif
 #ifdef HAVE_ED25519
     #include <wolfssl/wolfcrypt/ed25519.h>
@@ -862,7 +862,7 @@ WOLFSSL_LOCAL int wc_CryptoCb_Cmac(Cmac* cmac, const byte* key, word32 keySz,
 #endif
 
 #ifdef WOLFSSL_SHE
-WOLFSSL_LOCAL int wc_CryptoCb_SheSetUid(wc_SHE* she, const byte* uid,
+WOLFSSL_LOCAL int wc_CryptoCb_SheGetUid(wc_SHE* she, const byte* uid,
                                          word32 uidSz, const void* ctx);
 WOLFSSL_LOCAL int wc_CryptoCb_SheGetCounter(wc_SHE* she, word32* counter,
                                              const void* ctx);
