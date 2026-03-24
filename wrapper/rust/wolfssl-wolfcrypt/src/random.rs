@@ -96,7 +96,7 @@ impl RNG {
                 return Err(rc);
             }
         }
-        let mut rng: MaybeUninit<RNG> = MaybeUninit::uninit();
+        let mut wc_rng: MaybeUninit<sys::WC_RNG> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
@@ -106,10 +106,11 @@ impl RNG {
             None => sys::INVALID_DEVID,
         };
         let rc = unsafe {
-            sys::wc_InitRng_ex(&mut (*rng.as_mut_ptr()).wc_rng, heap, dev_id)
+            sys::wc_InitRng_ex(wc_rng.as_mut_ptr(), heap, dev_id)
         };
         if rc == 0 {
-            let rng = unsafe { rng.assume_init() };
+            let wc_rng = unsafe { wc_rng.assume_init() };
+            let rng = RNG {wc_rng};
             Ok(rng)
         } else {
             Err(rc)
@@ -157,7 +158,7 @@ impl RNG {
         }
         let ptr = nonce.as_mut_ptr() as *mut u8;
         let size: u32 = size_of_val(nonce) as u32;
-        let mut rng: MaybeUninit<RNG> = MaybeUninit::uninit();
+        let mut wc_rng: MaybeUninit<sys::WC_RNG> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
@@ -167,10 +168,11 @@ impl RNG {
             None => sys::INVALID_DEVID,
         };
         let rc = unsafe {
-            sys::wc_InitRngNonce_ex(&mut (*rng.as_mut_ptr()).wc_rng, ptr, size, heap, dev_id)
+            sys::wc_InitRngNonce_ex(wc_rng.as_mut_ptr(), ptr, size, heap, dev_id)
         };
         if rc == 0 {
-            let rng = unsafe { rng.assume_init() };
+            let wc_rng = unsafe { wc_rng.assume_init() };
+            let rng = RNG {wc_rng};
             Ok(rng)
         } else {
             Err(rc)
