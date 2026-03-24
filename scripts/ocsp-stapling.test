@@ -109,7 +109,7 @@ wait_for_readyFile(){
     while [ ! -s "$1" ] && [ "$counter" -lt 20 ]; do
         if [[ -n "${2-}" ]]; then
             if ! kill -0 "$2" 2>&-; then
-                echo "pid $2 for port ${3-} exited before creating ready file.  bailing..."
+                echo "pid $2 exited before creating ready file.  bailing..."
                 exit 1
             fi
         fi
@@ -262,72 +262,42 @@ if [ -n "$size" ]; then
     printf 'OK\n'
 fi
 
-# choose consecutive ports based on the PID, skipping any that are
-# already bound, to avoid the birthday problem in case other
-# instances are sharing this host.
-
-get_first_free_port() {
-    local ret="$1"
-    while :; do
-        if [[ "$ret" -ge 65536 ]]; then
-            ret=1024
-        fi
-        if ! nc -z "$V4V6_FLAG" $LOCALHOST_FOR_NC "$ret"; then
-            break
-        fi
-        ret=$((ret+1))
-    done
-    echo "$ret"
-    return 0
-}
-base_port=$((((($$ + RETRIES_REMAINING) * 5) % (65536 - 2048)) + 1024))
-
 # test interop fail case
 ready_file=$PWD/wolf_ocsp_readyF$$
 printf '%s\n' "ready file:  \"$ready_file\""
-port1=$(get_first_free_port $base_port)
-./examples/server/server -b -p "$port1" -o -R "$ready_file" &
+./examples/server/server -b -p 0 -o -R "$ready_file" &
 wolf_pid=$!
-wait_for_readyFile "$ready_file" "$wolf_pid" "$port1"
-if [ ! -f "$ready_file" ]; then
-    printf '%s\n' "Failed to create ready file: \"$ready_file\""
+wait_for_readyFile "$ready_file" "$wolf_pid"
+port1=$(cat "$ready_file")
+
+# should fail if ocspstapling is also enabled
+OPENSSL_OUTPUT=$(echo "hi" | openssl s_client -status "$V4V6_FLAG" -legacy_renegotiation -connect "${LOCALHOST}:$port1" -cert ./certs/client-cert.pem -key ./certs/client-key.pem -CAfile ./certs/ocsp/root-ca-cert.pem 2>&1)
+OPENSSL_RESULT=$?
+echo "$OPENSSL_OUTPUT"
+grep -F -q 'self signed certificate in certificate chain' <<< "$OPENSSL_OUTPUT"
+FGREP1_RESULT=$?
+grep -F -q 'self-signed certificate in certificate chain' <<< "$OPENSSL_OUTPUT"
+FGREP2_RESULT=$?
+remove_single_rF "$ready_file"
+if [ "$OPENSSL_RESULT" -eq 0 ] && [ "$FGREP1_RESULT" -ne 0 ] && [ "$FGREP2_RESULT" -ne 0 ]; then
+    printf '%s\n' "Expected verification error from s_client is missing."
     exit 1
-else
-    # should fail if ocspstapling is also enabled
-    OPENSSL_OUTPUT=$(echo "hi" | openssl s_client -status "$V4V6_FLAG" -legacy_renegotiation -connect "${LOCALHOST}:$port1" -cert ./certs/client-cert.pem -key ./certs/client-key.pem -CAfile ./certs/ocsp/root-ca-cert.pem 2>&1)
-    OPENSSL_RESULT=$?
-    echo "$OPENSSL_OUTPUT"
-    grep -F -q 'self signed certificate in certificate chain' <<< "$OPENSSL_OUTPUT"
-    FGREP1_RESULT=$?
-    grep -F -q 'self-signed certificate in certificate chain' <<< "$OPENSSL_OUTPUT"
-    FGREP2_RESULT=$?
-    if [ "$OPENSSL_RESULT" -eq 0 ] && [ "$FGREP1_RESULT" -ne 0 ] && [ "$FGREP2_RESULT" -ne 0 ]; then
-        printf '%s\n' "Expected verification error from s_client is missing."
-        remove_single_rF "$ready_file"
-        exit 1
-    fi
-    remove_single_rF "$ready_file"
-    if ! wait "$wolf_pid"; then
-        printf '%s\n' "wolfSSL server unexpected fail"
-        exit 1
-    fi
+fi
+if ! wait "$wolf_pid"; then
+    printf '%s\n' "wolfSSL server unexpected fail"
+    exit 1
 fi
 
 
 # create a port to use with openssl ocsp responder
-port2=$(get_first_free_port $((port1 + 1)))
-./examples/server/server -b -p "$port2" -R "$ready_file" &
+./examples/server/server -b -p 0 -R "$ready_file" &
 wolf_pid2=$!
-wait_for_readyFile "$ready_file" "$wolf_pid2" "$port2"
-if [ ! -f "$ready_file" ]; then
-    printf '%s\n' "Failed to create ready file: \"$ready_file\""
-    exit 1
-else
-    printf '%s\n' "Random port selected: $port2"
-    # Use client connection to shutdown the server cleanly
-    ./examples/client/client -p "$port2"
-    create_new_cnf "$port2"
-fi
+wait_for_readyFile "$ready_file" "$wolf_pid2"
+port2=$(cat "$ready_file")
+printf '%s\n' "Random port selected: $port2"
+# Use client connection to shutdown the server cleanly
+create_new_cnf "$port2"
+./examples/client/client -p "$port2"
 sleep 0.1
 
 # is our desired server there? - login.live.com doesn't answers PING
@@ -371,11 +341,11 @@ sleep 0.1
 
 printf '%s\n\n' "------------- TEST CASE 1 SHOULD PASS ------------------------"
 # client test against our own server - GOOD CERT
-port3=$(get_first_free_port $((port2 + 1)))
 ./examples/server/server -c certs/ocsp/server1-cert.pem -R "$ready_file2" \
-                         -k certs/ocsp/server1-key.pem -p "$port3" &
+                         -k certs/ocsp/server1-key.pem -p 0 &
 wolf_pid3=$!
-wait_for_readyFile "$ready_file2" "$wolf_pid3" "$port3"
+wait_for_readyFile "$ready_file2" "$wolf_pid3"
+port3=$(cat "$ready_file2")
 ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -p "$port3"
 RESULT=$?
 [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection 1 failed" && exit 1
@@ -384,11 +354,11 @@ printf '%s\n\n' "Test PASSED!"
 printf '%s\n\n' "------------- TEST CASE 2 SHOULD REVOKE ----------------------"
 # client test against our own server - REVOKED CERT
 remove_single_rF "$ready_file2"
-port3=$(get_first_free_port $((port3)))
 ./examples/server/server -c certs/ocsp/server2-cert.pem -R "$ready_file2" \
-                         -k certs/ocsp/server2-key.pem -p "$port3" &
+                         -k certs/ocsp/server2-key.pem -p 0 &
 wolf_pid3=$!
-wait_for_readyFile "$ready_file2" "$wolf_pid3" "$port3"
+wait_for_readyFile "$ready_file2" "$wolf_pid3"
+port3=$(cat "$ready_file2")
 ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -p "$port3"
 RESULT=$?
 [ $RESULT -ne 1 ] && printf '\n\n%s\n' "Client connection 2 succeeded $RESULT" \
@@ -400,12 +370,12 @@ printf '%s\n\n' "Test successfully REVOKED!"
     printf '%s\n\n' "------------- TEST CASE 3 SHOULD PASS --------------------"
     # client test against our own server - GOOD CERT
     remove_single_rF "$ready_file2"
-    port3=$(get_first_free_port $((port3)))
     ./examples/server/server -c certs/ocsp/server1-cert.pem -R "$ready_file2" \
                              -k certs/ocsp/server1-key.pem -v 4 \
-                             -p "$port3" &
+                             -p 0 &
     wolf_pid3=$!
-    wait_for_readyFile "$ready_file2" "$wolf_pid3" "$port3"
+    wait_for_readyFile "$ready_file2" "$wolf_pid3"
+    port3=$(cat "$ready_file2")
     ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 -F 1 \
                              -p "$port3"
     RESULT=$?
@@ -415,12 +385,12 @@ printf '%s\n\n' "Test successfully REVOKED!"
     printf '%s\n\n' "------------- TEST CASE 4 SHOULD PASS --------------------"
     # client test against our own server, must staple - GOOD CERT
     remove_single_rF "$ready_file2"
-    port3=$(get_first_free_port $((port3)))
     ./examples/server/server -c certs/ocsp/server1-cert.pem -R "$ready_file2" \
                              -k certs/ocsp/server1-key.pem -v 4 \
-                             -p "$port3" &
+                             -p 0 &
     wolf_pid3=$!
-    wait_for_readyFile "$ready_file2" "$wolf_pid3" "$port3"
+    wait_for_readyFile "$ready_file2" "$wolf_pid3"
+    port3=$(cat "$ready_file2")
     ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1m -v 4 -F 1 \
                              -p "$port3"
     RESULT=$?
@@ -430,12 +400,12 @@ printf '%s\n\n' "Test successfully REVOKED!"
     printf '%s\n\n' "------------- TEST CASE 5 SHOULD REVOKE ------------------"
     # client test against our own server - REVOKED CERT
     remove_single_rF "$ready_file2"
-    port3=$(get_first_free_port $((port3)))
     ./examples/server/server -c certs/ocsp/server2-cert.pem -R "$ready_file2" \
                              -k certs/ocsp/server2-key.pem -v 4 \
-                             -p "$port3" &
+                             -p 0 &
     wolf_pid3=$!
-    wait_for_readyFile "$ready_file2" "$wolf_pid3" "$port3"
+    wait_for_readyFile "$ready_file2" "$wolf_pid3"
+    port3=$(cat "$ready_file2")
     ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 -F 1 \
                              -p "$port3"
     RESULT=$?
@@ -452,12 +422,12 @@ if ./examples/client/client -? 2>&1 | grep -q 'DTLSv1.2'; then
   printf '%s\n\n' "------------- TEST CASE DTLS-1 SHOULD PASS -------------------"
  # client test against our own server, must staple - GOOD CERT
   remove_single_rF "$ready_file2"
-  port3=$(get_first_free_port $((port3)))
   ./examples/server/server -c certs/ocsp/server1-cert.pem -R "$ready_file2" \
                           -k certs/ocsp/server1-key.pem -u -v 3 \
-                          -p "$port3" &
+                          -p 0 &
   wolf_pid3=$!
-  wait_for_readyFile "$ready_file2" "$wolf_pid3" "$port3"
+  wait_for_readyFile "$ready_file2" "$wolf_pid3"
+  port3=$(cat "$ready_file2")
   ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -u -v 3 \
                            -W 1 -p "$port3"
   RESULT=$?
@@ -469,12 +439,12 @@ fi
   printf '%s\n\n' "------------- TEST CASE DTLS-2 SHOULD PASS -------------------"
  # client test against our own server, must staple - GOOD CERT
   remove_single_rF "$ready_file2"
-  port3=$(get_first_free_port $((port3)))
   ./examples/server/server -c certs/ocsp/server1-cert.pem -R "$ready_file2" \
                           -k certs/ocsp/server1-key.pem -u -v 4 \
-                          -p "$port3" &
+                          -p 0 &
   wolf_pid3=$!
-  wait_for_readyFile "$ready_file2" "$wolf_pid3" "$port3"
+  wait_for_readyFile "$ready_file2" "$wolf_pid3"
+  port3=$(cat "$ready_file2")
   ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -u -v 4 \
                            -W 1 -p "$port3"
   RESULT=$?

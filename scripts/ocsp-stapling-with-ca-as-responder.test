@@ -191,40 +191,15 @@ ca=certs/external/DigiCertGlobalRootCA.pem
 [ ! -x ./examples/client/client ] && printf '\n\n%s\n' "Client doesn't exist" && exit 1
 
 
-# choose consecutive ports based on the PID, skipping any that are
-# already bound, to avoid the birthday problem in case other
-# instances are sharing this host.
-
-get_first_free_port() {
-    local ret="$1"
-    while :; do
-        if [[ "$ret" -ge 65536 ]]; then
-            ret=1024
-        fi
-        if ! nc -z 127.0.0.1 "$ret"; then
-            break
-        fi
-        ret=$((ret+1))
-    done
-    echo "$ret"
-    return 0
-}
-base_port=$((((($$ + $RETRIES_REMAINING) * 5) % (65536 - 2048)) + 1024))
-
 # create a port to use with openssl ocsp responder
-port1=$(get_first_free_port $base_port)
-./examples/server/server -R "$ready_file" -p $port1 &
+./examples/server/server -R "$ready_file" -p 0 &
 wolf_pid=$!
-wait_for_readyFile "$ready_file" $wolf_pid $port1
-if [ ! -f "$ready_file" ]; then
-    printf '%s\n' "Failed to create ready file: \"$ready_file\""
-    exit 1
-else
-    printf '%s\n' "Random port selected: $port1"
-    # Use client connection to shutdown the server cleanly
-    ./examples/client/client -p $port1
-    create_new_cnf $port1
-fi
+wait_for_readyFile "$ready_file" $wolf_pid
+port1=$(cat "$ready_file")
+printf '%s\n' "Random port selected: $port1"
+# Use client connection to shutdown the server cleanly
+./examples/client/client -p $port1
+create_new_cnf $port1
 sleep 0.1
 
 # is our desired server there? - login.live.com doesn't answers PING
@@ -256,12 +231,12 @@ sleep 0.1
 
 printf '%s\n\n' "------------- TEST CASE 1 SHOULD PASS ------------------------"
 # client test against our own server - GOOD CERT
-port2=$(get_first_free_port $((port1 + 1)))
 ./examples/server/server -c certs/ocsp/server1-cert.pem \
                          -k certs/ocsp/server1-key.pem -R "$ready_file2" \
-                         -p $port2 &
+                         -p 0 &
 wolf_pid2=$!
-wait_for_readyFile "$ready_file2" $wolf_pid2 $port2
+wait_for_readyFile "$ready_file2" $wolf_pid2
+port2=$(cat "$ready_file2")
 ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 \
                          -p $port2
 RESULT=$?
@@ -271,12 +246,12 @@ printf '%s\n\n' "Test PASSED!"
 printf '%s\n\n' "------------- TEST CASE 2 SHOULD REVOKE ----------------------"
 # client test against our own server - REVOKED CERT
 remove_single_rF "$ready_file2"
-port2=$(get_first_free_port $((port2)))
 ./examples/server/server -c certs/ocsp/server2-cert.pem \
                          -k certs/ocsp/server2-key.pem -R "$ready_file2" \
-                         -p $port2 &
+                         -p 0 &
 wolf_pid2=$!
-wait_for_readyFile "$ready_file2" $wolf_pid2 $port2
+wait_for_readyFile "$ready_file2" $wolf_pid2
+port2=$(cat "$ready_file2")
 ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 \
                          -p $port2
 RESULT=$?

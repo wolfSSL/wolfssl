@@ -336,63 +336,27 @@ if [ ! -z "$size" ]; then
     printf 'OK\n'
 fi
 
-# choose consecutive ports based on the PID, skipping any that are
-# already bound, to avoid the birthday problem in case other
-# instances are sharing this host.
-
-get_first_free_port() {
-    local ret="$1"
-    while :; do
-        if [[ "$ret" -ge 65536 ]]; then
-            ret=1024
-        fi
-        if ! nc -z ${LOCALHOST_FOR_NC} "$ret"; then
-            break
-        fi
-        ret=$((ret+1))
-    done
-    echo "$ret"
-    return 0
-}
-base_port=$((((($$ + $RETRIES_REMAINING) * 5) % (65536 - 2048)) + 1024))
-
 # Verify ports by starting and stopping dummy servers
 # 1:
-port1=$(get_first_free_port $base_port)        # OCSP responder: intermediate1-ca
-./examples/server/server -R $ready_file1 -p $port1 &
+./examples/server/server -R $ready_file1 -p 0 &        # OCSP responder: intermediate1-ca
 server_pid1=$!
-wait_for_readyFile $ready_file1 $server_pid1 $port1
-if [ ! -f $ready_file1 ]; then
-    printf '%s\n' "Failed to create ready file1: \"$ready_file1\""
-    exit 1
-fi
+wait_for_readyFile $ready_file1 $server_pid1
+port1=$(cat $ready_file1)
 # 2:
-port2=$(get_first_free_port $((port1 + 1)))    # OCSP responder: intermediate2-ca
-./examples/server/server -R $ready_file2 -p $port2 &
+./examples/server/server -R $ready_file2 -p 0 &        # OCSP responder: intermediate2-ca
 server_pid2=$!
-wait_for_readyFile $ready_file2 $server_pid2 $port2
-if [ ! -f $ready_file2 ]; then
-    printf '%s\n' "Failed to create ready file2: \"$ready_file2\""
-    exit 1
-fi
+wait_for_readyFile $ready_file2 $server_pid2
+port2=$(cat $ready_file2)
 # 3:
-port3=$(get_first_free_port $((port2 + 1)))    # OCSP responder: intermediate3-ca
-./examples/server/server -R $ready_file3 -p $port3 &
+./examples/server/server -R $ready_file3 -p 0 &        # OCSP responder: intermediate3-ca
 server_pid3=$!
-wait_for_readyFile $ready_file3 $server_pid3 $port3
-if [ ! -f $ready_file3 ]; then
-    printf '%s\n' "Failed to create ready file3: \"$ready_file3\""
-    exit 1
-fi
+wait_for_readyFile $ready_file3 $server_pid3
+port3=$(cat $ready_file3)
 # 4:
-port4=$(get_first_free_port $((port3 + 1)))    # OCSP responder: root-ca
-./examples/server/server -R $ready_file4 -p $port4 &
+./examples/server/server -R $ready_file4 -p 0 &        # OCSP responder: root-ca
 server_pid4=$!
-wait_for_readyFile $ready_file4 $server_pid4 $port4
-if [ ! -f $ready_file4 ]; then
-    printf '%s\n' "Failed to create ready file4: \"$ready_file4\""
-    exit 1
-fi
+wait_for_readyFile $ready_file4 $server_pid4
+port4=$(cat $ready_file4)
 
 printf '%s\n' "------------- PORTS ---------------"
 printf '%s\n' "OCSP responder ports: $port1 $port2 $port3 $port4"
@@ -406,6 +370,7 @@ printf '%s\n' "Starting wolfSSL OCSP responders..."
 
 # Responder 1: intermediate1-ca (for server1, server2)
 ./examples/client/client -p $port1
+wait "$server_pid1"
 $OCSP_RESPONDER -v -p $port1 -R "$ready_file_resp1" \
     -i certs/ocsp/index-intermediate1-ca-issued-certs.txt \
     -c certs/ocsp/intermediate1-ca-cert.pem \
@@ -414,6 +379,7 @@ resp_pid1=$!
 
 # Responder 2: intermediate2-ca (for server3, server4)
 ./examples/client/client -p $port2
+wait "$server_pid2"
 $OCSP_RESPONDER -v -p $port2 -R "$ready_file_resp2" \
     -i certs/ocsp/index-intermediate2-ca-issued-certs.txt \
     -c certs/ocsp/intermediate2-ca-cert.pem \
@@ -422,6 +388,7 @@ resp_pid2=$!
 
 # Responder 3: intermediate3-ca (for server5)
 ./examples/client/client -p $port3
+wait "$server_pid3"
 $OCSP_RESPONDER -v -p $port3 -R "$ready_file_resp3" \
     -i certs/ocsp/index-intermediate3-ca-issued-certs.txt \
     -c certs/ocsp/intermediate3-ca-cert.pem \
@@ -430,6 +397,7 @@ resp_pid3=$!
 
 # Responder 4: root-ca (for intermediate CA certs)
 ./examples/client/client -p $port4
+wait "$server_pid4"
 $OCSP_RESPONDER -v -p $port4 -R "$ready_file_resp4" \
     -i certs/ocsp/index-ca-and-intermediate-cas.txt \
     -c certs/ocsp/root-ca-cert.pem \
@@ -444,9 +412,6 @@ wait_for_readyFile "$ready_file_resp4" "$resp_pid4" "$port4"
 
 printf '\n\n%s\n\n' "All wolfSSL OCSP responders started successfully!"
 
-# set port 5 here since we don't know what tests are enabled
-port5=$((port4 + 1))
-
 ########################################################################
 # v1 STAPLING TESTS (server1/server2 issued by intermediate1-ca)
 ########################################################################
@@ -456,12 +421,12 @@ if [ "$stapling_v1" == "yes" ]; then
 
     printf '%s\n\n' "------------- TEST CASE 1 SHOULD PASS -------------------------"
     # client test against our own server - GOOD CERT
-    port5=$(get_first_free_port $((port5)))
     ./examples/server/server -c certs/ocsp/server1-cert.pem \
                              -k certs/ocsp/server1-key.pem -R $ready_file5 \
-                             -p $port5 &
+                             -p 0 &
     server_pid5=$!
-    wait_for_readyFile $ready_file5 $server_pid5 $port5
+    wait_for_readyFile $ready_file5 $server_pid5
+    port5=$(cat $ready_file5)
     ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -p $port5
     RESULT=$?
     [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection 1 failed" && exit 1
@@ -470,12 +435,12 @@ if [ "$stapling_v1" == "yes" ]; then
     printf '%s\n\n' "------------- TEST CASE 2 SHOULD REVOKE -----------------------"
     # client test against our own server - REVOKED CERT
     remove_single_rF $ready_file5
-    port5=$(get_first_free_port $((port5)))
     ./examples/server/server -c certs/ocsp/server2-cert.pem \
                              -k certs/ocsp/server2-key.pem -R $ready_file5 \
-                             -p $port5 &
+                             -p 0 &
     server_pid5=$!
-    wait_for_readyFile $ready_file5 $server_pid5 $port5
+    wait_for_readyFile $ready_file5 $server_pid5
+    port5=$(cat $ready_file5)
     ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -p $port5
     RESULT=$?
     [ $RESULT -ne 1 ] && printf '\n\n%s\n' "Client connection 2 succeeded $RESULT" \
@@ -488,12 +453,12 @@ if [ "$stapling_v1" == "yes" ]; then
         printf '%s\n\n' "------------- TEST CASE 3 TLS13 SHOULD PASS -----------------"
         # client test against our own server - GOOD CERT
         remove_single_rF $ready_file5
-        port5=$(get_first_free_port $((port5)))
         ./examples/server/server -c certs/ocsp/server1-cert.pem \
                                  -k certs/ocsp/server1-key.pem -v 4 \
-                                 -R $ready_file5 -p $port5 &
+                                 -R $ready_file5 -p 0 &
         server_pid5=$!
-        wait_for_readyFile $ready_file5 $server_pid5 $port5
+        wait_for_readyFile $ready_file5 $server_pid5
+        port5=$(cat $ready_file5)
         ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 -F 1 \
                                  -p $port5
         RESULT=$?
@@ -503,12 +468,12 @@ if [ "$stapling_v1" == "yes" ]; then
         printf '%s\n\n' "------------- TEST CASE 4 TLS13 MUST-STAPLE SHOULD PASS -----"
         # client test against our own server, must staple - GOOD CERT
         remove_single_rF $ready_file5
-        port5=$(get_first_free_port $((port5)))
         ./examples/server/server -c certs/ocsp/server1-cert.pem \
                                  -k certs/ocsp/server1-key.pem -v 4 \
-                                 -R $ready_file5 -p $port5 &
+                                 -R $ready_file5 -p 0 &
         server_pid5=$!
-        wait_for_readyFile $ready_file5 $server_pid5 $port5
+        wait_for_readyFile $ready_file5 $server_pid5
+        port5=$(cat $ready_file5)
         ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1m -v 4 -F 1 \
                                  -p $port5
         RESULT=$?
@@ -518,12 +483,12 @@ if [ "$stapling_v1" == "yes" ]; then
         printf '%s\n\n' "------------- TEST CASE 5 TLS13 SHOULD REVOKE ---------------"
         # client test against our own server - REVOKED CERT
         remove_single_rF $ready_file5
-        port5=$(get_first_free_port $((port5)))
         ./examples/server/server -c certs/ocsp/server2-cert.pem \
                                  -k certs/ocsp/server2-key.pem -v 4 \
-                                 -R $ready_file5 -p $port5 &
+                                 -R $ready_file5 -p 0 &
         server_pid5=$!
-        wait_for_readyFile $ready_file5 $server_pid5 $port5
+        wait_for_readyFile $ready_file5 $server_pid5
+        port5=$(cat $ready_file5)
         ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 -F 1 \
                                  -p $port5
         RESULT=$?
@@ -538,12 +503,12 @@ if [ "$stapling_v1" == "yes" ]; then
     if [[ "$dtls12" == "yes" ]]; then
         printf '%s\n\n' "------------- TEST CASE DTLS12-1 SHOULD PASS ----------------"
         remove_single_rF $ready_file5
-        port5=$(get_first_free_port $((port5)))
         ./examples/server/server -c certs/ocsp/server1-cert.pem -R $ready_file5 \
                                  -k certs/ocsp/server1-key.pem -u -v 3 \
-                                 -p $port5 &
+                                 -p 0 &
         server_pid5=$!
-        wait_for_readyFile $ready_file5 $server_pid5 $port5
+        wait_for_readyFile $ready_file5 $server_pid5
+        port5=$(cat $ready_file5)
         ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -u -v 3 \
                                  -W 1 -p $port5
         RESULT=$?
@@ -555,12 +520,12 @@ if [ "$stapling_v1" == "yes" ]; then
     if [ "$dtls13" == "yes" ]; then
         printf '%s\n\n' "------------- TEST CASE DTLS13-1 SHOULD PASS ----------------"
         remove_single_rF $ready_file5
-        port5=$(get_first_free_port $((port5)))
         ./examples/server/server -c certs/ocsp/server1-cert.pem -R $ready_file5 \
                                  -k certs/ocsp/server1-key.pem -u -v 4 \
-                                 -p $port5 &
+                                 -p 0 &
         server_pid5=$!
-        wait_for_readyFile $ready_file5 $server_pid5 $port5
+        wait_for_readyFile $ready_file5 $server_pid5
+        port5=$(cat $ready_file5)
         ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -u -v 4 \
                                  -W 1 -p $port5
         RESULT=$?
@@ -582,12 +547,12 @@ if [ "$stapling_v2" == "yes" ]; then
     printf '%s\n\n' "------------- TEST CASE V2-1 SHOULD PASS ----------------------"
     # client test against our own server - GOOD CERTS
     remove_single_rF $ready_file5
-    port5=$(get_first_free_port $((port5)))
     ./examples/server/server -c certs/ocsp/server3-cert.pem \
                              -k certs/ocsp/server3-key.pem -R $ready_file5 \
-                             -p $port5 &
+                             -p 0 &
     server_pid5=$!
-    wait_for_readyFile $ready_file5 $server_pid5 $port5
+    wait_for_readyFile $ready_file5 $server_pid5
+    port5=$(cat $ready_file5)
     ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 2 -v 3 \
                              -p $port5
     RESULT=$?
@@ -596,12 +561,12 @@ if [ "$stapling_v2" == "yes" ]; then
 
     printf '%s\n\n' "------------- TEST CASE V2-2 SHOULD PASS ----------------------"
     remove_single_rF $ready_file5
-    port5=$(get_first_free_port $((port5)))
     ./examples/server/server -c certs/ocsp/server3-cert.pem \
                              -k certs/ocsp/server3-key.pem -R $ready_file5 \
-                             -p $port5 &
+                             -p 0 &
     server_pid5=$!
-    wait_for_readyFile $ready_file5 $server_pid5 $port5
+    wait_for_readyFile $ready_file5 $server_pid5
+    port5=$(cat $ready_file5)
     ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 3 -v 3 \
                              -p $port5
     RESULT=$?
@@ -611,12 +576,12 @@ if [ "$stapling_v2" == "yes" ]; then
     printf '%s\n\n' "------------- TEST CASE V2-3 SHOULD REVOKE --------------------"
     # client test against our own server - REVOKED SERVER CERT
     remove_single_rF $ready_file5
-    port5=$(get_first_free_port $((port5)))
     ./examples/server/server -c certs/ocsp/server4-cert.pem \
                              -k certs/ocsp/server4-key.pem -R $ready_file5 \
-                             -p $port5 &
+                             -p 0 &
     server_pid5=$!
-    wait_for_readyFile $ready_file5 $server_pid5 $port5
+    wait_for_readyFile $ready_file5 $server_pid5
+    port5=$(cat $ready_file5)
     ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 2 -v 3 \
                              -p $port5
     RESULT=$?
@@ -626,12 +591,12 @@ if [ "$stapling_v2" == "yes" ]; then
 
     printf '%s\n\n' "------------- TEST CASE V2-4 SHOULD REVOKE --------------------"
     remove_single_rF $ready_file5
-    port5=$(get_first_free_port $((port5)))
     ./examples/server/server -c certs/ocsp/server4-cert.pem \
                              -k certs/ocsp/server4-key.pem -R $ready_file5 \
-                             -p $port5 &
+                             -p 0 &
     server_pid5=$!
-    wait_for_readyFile $ready_file5 $server_pid5 $port5
+    wait_for_readyFile $ready_file5 $server_pid5
+    port5=$(cat $ready_file5)
     ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 3 -v 3 \
                              -p $port5
     RESULT=$?
@@ -642,12 +607,12 @@ if [ "$stapling_v2" == "yes" ]; then
     printf '%s\n\n' "------------- TEST CASE V2-5 SHOULD PASS ----------------------"
     # client test against our own server - REVOKED INTERMEDIATE CERT
     remove_single_rF $ready_file5
-    port5=$(get_first_free_port $((port5)))
     ./examples/server/server -c certs/ocsp/server5-cert.pem \
                              -k certs/ocsp/server5-key.pem -R $ready_file5 \
-                             -p $port5 &
+                             -p 0 &
     server_pid5=$!
-    wait_for_readyFile $ready_file5 $server_pid5 $port5
+    wait_for_readyFile $ready_file5 $server_pid5
+    port5=$(cat $ready_file5)
     ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 2 -v 3 \
                              -p $port5
     RESULT=$?
@@ -656,12 +621,12 @@ if [ "$stapling_v2" == "yes" ]; then
 
     printf '%s\n\n' "------------- TEST CASE V2-6 SHOULD REVOKE --------------------"
     remove_single_rF $ready_file5
-    port5=$(get_first_free_port $((port5)))
     ./examples/server/server -c certs/ocsp/server5-cert.pem \
                              -k certs/ocsp/server5-key.pem -R $ready_file5 \
-                             -p $port5 &
+                             -p 0 &
     server_pid5=$!
-    wait_for_readyFile $ready_file5 $server_pid5 $port5
+    wait_for_readyFile $ready_file5 $server_pid5
+    port5=$(cat $ready_file5)
     ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 3 -v 3 \
                              -p $port5
     RESULT=$?
@@ -673,12 +638,12 @@ if [ "$stapling_v2" == "yes" ]; then
         if [[ "$dtls12" == "yes" ]]; then
             printf '%s\n\n' "------------- TEST CASE DTLS12-V2 SHOULD PASS ----------------"
             remove_single_rF $ready_file5
-            port5=$(get_first_free_port $((port5)))
             ./examples/server/server -c certs/ocsp/server3-cert.pem \
                                      -k certs/ocsp/server3-key.pem -R $ready_file5 \
-                                     -p $port5 -u -v 3 &
+                                     -p 0 -u -v 3 &
             server_pid5=$!
-            wait_for_readyFile $ready_file5 $server_pid5 $port5
+            wait_for_readyFile $ready_file5 $server_pid5
+            port5=$(cat $ready_file5)
             ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 2 -u -v 3 \
                                      -p $port5
             RESULT=$?
@@ -700,12 +665,12 @@ if [ "$tls13" == "yes" ] && [ "$stapling_v1" == "yes" ]; then
     printf '%s\n\n' "------------- TEST CASE T13-1 SHOULD PASS --------------------"
     # client test against our own server - GOOD CERTS
     remove_single_rF $ready_file5
-    port5=$(get_first_free_port $((port5)))
     ./examples/server/server -c certs/ocsp/server3-cert.pem \
                              -k certs/ocsp/server3-key.pem -R $ready_file5 \
-                             -p $port5 -v 4 &
+                             -p 0 -v 4 &
     server_pid5=$!
-    wait_for_readyFile $ready_file5 $server_pid5 $port5
+    wait_for_readyFile $ready_file5 $server_pid5
+    port5=$(cat $ready_file5)
     ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 \
                              -p $port5
     RESULT=$?
@@ -715,12 +680,12 @@ if [ "$tls13" == "yes" ] && [ "$stapling_v1" == "yes" ]; then
     printf '%s\n\n' "------------- TEST CASE T13-2 SHOULD REVOKE ------------------"
     # client test against our own server - REVOKED SERVER CERT
     remove_single_rF $ready_file5
-    port5=$(get_first_free_port $((port5)))
     ./examples/server/server -c certs/ocsp/server4-cert.pem \
                              -k certs/ocsp/server4-key.pem -R $ready_file5 \
-                             -p $port5 -v 4 &
+                             -p 0 -v 4 &
     server_pid5=$!
-    wait_for_readyFile $ready_file5 $server_pid5 $port5
+    wait_for_readyFile $ready_file5 $server_pid5
+    port5=$(cat $ready_file5)
     ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 \
                              -p $port5
     RESULT=$?
@@ -731,12 +696,12 @@ if [ "$tls13" == "yes" ] && [ "$stapling_v1" == "yes" ]; then
     printf '%s\n\n' "------------- TEST CASE T13-3 SHOULD REVOKE ------------------"
     # client test against our own server - REVOKED INTERMEDIATE CERT
     remove_single_rF $ready_file5
-    port5=$(get_first_free_port $((port5)))
     ./examples/server/server -c certs/ocsp/server5-cert.pem \
                              -k certs/ocsp/server5-key.pem -R $ready_file5 \
-                             -p $port5 -v 4 &
+                             -p 0 -v 4 &
     server_pid5=$!
-    wait_for_readyFile $ready_file5 $server_pid5 $port5
+    wait_for_readyFile $ready_file5 $server_pid5
+    port5=$(cat $ready_file5)
     ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 \
                              -p $port5
     RESULT=$?
@@ -748,12 +713,12 @@ if [ "$tls13" == "yes" ] && [ "$stapling_v1" == "yes" ]; then
     if [ "$dtls13" == "yes" ]; then
         printf '%s\n\n' "------------- TEST CASE DTLS13-V2 SHOULD PASS ----------------"
         remove_single_rF $ready_file5
-        port5=$(get_first_free_port $((port5)))
         ./examples/server/server -c certs/ocsp/server3-cert.pem \
                                  -k certs/ocsp/server3-key.pem -R $ready_file5 \
-                                 -p $port5 -u -v 4 &
+                                 -p 0 -u -v 4 &
         server_pid5=$!
-        wait_for_readyFile $ready_file5 $server_pid5 $port5
+        wait_for_readyFile $ready_file5 $server_pid5
+        port5=$(cat $ready_file5)
         ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -u -v 4 \
                                  -p $port5
         RESULT=$?
@@ -762,12 +727,12 @@ if [ "$tls13" == "yes" ] && [ "$stapling_v1" == "yes" ]; then
 
         printf '%s\n\n' "------------- TEST CASE DTLS13-V2-REVOKE SHOULD REVOKE -------"
         remove_single_rF $ready_file5
-        port5=$(get_first_free_port $((port5)))
         ./examples/server/server -c certs/ocsp/server4-cert.pem \
                                  -k certs/ocsp/server4-key.pem -R $ready_file5 \
-                                 -p $port5 -v 4 &
+                                 -p 0 -v 4 &
         server_pid5=$!
-        wait_for_readyFile $ready_file5 $server_pid5 $port5
+        wait_for_readyFile $ready_file5 $server_pid5
+        port5=$(cat $ready_file5)
         ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 \
                                  -p $port5
         RESULT=$?
