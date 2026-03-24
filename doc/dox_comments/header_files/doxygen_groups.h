@@ -202,6 +202,7 @@
     \defgroup PKCS11 Algorithms - PKCS11
     \defgroup Password Algorithms - Password Based
     \defgroup Poly1305 Algorithms - Poly1305
+    \defgroup PUF Algorithms - PUF
     \defgroup RIPEMD Algorithms - RIPEMD
     \defgroup RSA Algorithms - RSA
     \defgroup SHA Algorithms - SHA 128/224/256/384/512

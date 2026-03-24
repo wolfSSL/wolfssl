@@ -1372,6 +1372,10 @@ if BUILD_ASCON
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/ascon.c
 endif
 
+if BUILD_PUF
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/puf.c
+endif
+
 if !BUILD_INLINE
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/misc.c
 endif
