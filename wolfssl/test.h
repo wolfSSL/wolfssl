@@ -2508,10 +2508,11 @@ static WC_INLINE int myVerify(int preverify, WOLFSSL_X509_STORE_CTX* store)
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     WOLFSSL_X509* peer;
 #endif
-#if defined(OPENSSL_EXTRA) && defined(SHOW_CERTS) && !defined(NO_FILESYSTEM)
+#if defined(OPENSSL_EXTRA) && defined(SHOW_CERTS) && !defined(NO_FILESYSTEM) \
+    && !defined(OPENSSL_COEXIST)
     WOLFSSL_BIO* bio = NULL;
     WOLFSSL_STACK* sk = NULL;
-    X509* x509 = NULL;
+    WOLFSSL_X509* x509 = NULL;
 #endif
 
     /* Verify Callback Arguments:
@@ -4879,7 +4880,7 @@ static WC_INLINE word16 GetRandomPort(void)
 static WC_INLINE void EarlyDataStatus(WOLFSSL* ssl)
 {
     int earlyData_status;
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) && !defined(OPENSSL_COEXIST)
     earlyData_status = SSL_get_early_data_status(ssl);
 #else
     earlyData_status = wolfSSL_get_early_data_status(ssl);

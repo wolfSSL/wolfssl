@@ -339,7 +339,7 @@ static int NonBlockingSSL_Accept(WOLFSSL* ssl)
 #else
     int ret = wolfSSL_accept_ex(ssl, srvHandShakeCB, srvTimeoutCB, srvTo);
 #endif
-    int error = wolfSSL_get_error(ssl, 0);
+    int error = wolfSSL_get_error(ssl, ret);
     SOCKET_T sockfd = (SOCKET_T)wolfSSL_get_fd(ssl);
     int select_ret = 0;
 
@@ -391,7 +391,7 @@ static int NonBlockingSSL_Accept(WOLFSSL* ssl)
                 ret = wolfSSL_accept_ex(ssl,
                                     srvHandShakeCB, srvTimeoutCB, srvTo);
             #endif
-            error = wolfSSL_get_error(ssl, 0);
+            error = wolfSSL_get_error(ssl, ret);
         }
         else if (select_ret == TEST_TIMEOUT && !wolfSSL_dtls(ssl)) {
             error = WOLFSSL_ERROR_WANT_READ;
@@ -449,7 +449,7 @@ int ServerEchoData(WOLFSSL* ssl, int clientfd, int echoData, int block,
             while (rx_pos < len) {
                 ret = wolfSSL_read(ssl, &buffer[rx_pos], len - rx_pos);
                 if (ret <= 0) {
-                    err = wolfSSL_get_error(ssl, 0);
+                    err = wolfSSL_get_error(ssl, ret);
                 #ifdef WOLFSSL_ASYNC_CRYPT
                     if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
                         ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
@@ -633,7 +633,7 @@ static void ServerWrite(WOLFSSL* ssl, const char* output, int outputLen)
         err = 0; /* reset error */
         ret = wolfSSL_write(ssl, output, len);
         if (ret <= 0) {
-            err = wolfSSL_get_error(ssl, 0);
+            err = wolfSSL_get_error(ssl, ret);
 
         #ifdef WOLFSSL_ASYNC_CRYPT
             if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
@@ -3690,7 +3690,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         EarlyDataStatus(ssl);
 #endif
         if (ret != WOLFSSL_SUCCESS) {
-            err = wolfSSL_get_error(ssl, 0);
+            err = wolfSSL_get_error(ssl, ret);
             LOG_ERROR("SSL_accept error %d, %s\n", err,
                                             wolfSSL_ERR_error_string((unsigned long)err, buffer));
             if (exitWithRet || !runWithErrors) {
