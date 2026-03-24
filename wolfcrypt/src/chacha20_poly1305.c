@@ -93,11 +93,13 @@ int wc_ChaCha20Poly1305_Decrypt(
     WC_DECLARE_VAR(aead, ChaChaPoly_Aead, 1, 0);
     byte calculatedAuthTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE];
 
-    /* Validate function arguments */
+    /* Validate function arguments.
+     * outPlaintext may be NULL when inCiphertextLen is 0
+     * (authentication-only, no plaintext to decrypt). */
     if (!inKey || !inIV ||
         (inCiphertextLen > 0 && inCiphertext == NULL) ||
         !inAuthTag ||
-        !outPlaintext)
+        (inCiphertextLen > 0 && !outPlaintext))
     {
         return BAD_FUNC_ARG;
     }
@@ -119,7 +121,7 @@ int wc_ChaCha20Poly1305_Decrypt(
     if (ret == 0)
         ret = wc_ChaCha20Poly1305_CheckTag(inAuthTag, calculatedAuthTag);
 
-    if (ret != 0) {
+    if (ret != 0 && inCiphertextLen > 0) {
         /* zero plaintext on error */
         ForceZero(outPlaintext, inCiphertextLen);
     }
@@ -229,7 +231,8 @@ int wc_ChaCha20Poly1305_UpdateData(ChaChaPoly_Aead* aead,
 {
     int ret = 0;
 
-    if (aead == NULL || inData == NULL || outData == NULL) {
+    if (aead == NULL ||
+        (dataLen > 0 && (inData == NULL || outData == NULL))) {
         return BAD_FUNC_ARG;
     }
     if (aead->state != CHACHA20_POLY1305_STATE_READY &&
@@ -249,7 +252,7 @@ int wc_ChaCha20Poly1305_UpdateData(ChaChaPoly_Aead* aead,
     aead->state = CHACHA20_POLY1305_STATE_DATA;
 
     /* Perform ChaCha20 encrypt/decrypt and Poly1305 auth calc */
-    if (ret == 0) {
+    if (ret == 0 && dataLen > 0) {
         if (aead->isEncrypt) {
             ret = wc_Chacha_Process(&aead->chacha, outData, inData, dataLen);
             if (ret == 0)
@@ -401,7 +404,7 @@ static WC_INLINE int wc_XChaCha20Poly1305_crypt_oneshot(
         dst_len = src_len - (size_t)POLY1305_DIGEST_SIZE;
     }
 
-    if ((dst == NULL) || (src == NULL)) {
+    if ((dst_len > 0 && dst == NULL) || (src == NULL)) {
         ret = BAD_FUNC_ARG;
         goto out;
     }
