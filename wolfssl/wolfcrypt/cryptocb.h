@@ -490,7 +490,7 @@ typedef struct wc_CryptoInfo {
             struct {
                 const byte* uid;
                 word32      uidSz;
-            } setUid;
+            } getUid;
             struct {
                 word32*     counter;
             } getCounter;

@@ -2140,8 +2140,8 @@ int wc_CryptoCb_SheGetUid(wc_SHE* she, const byte* uid, word32 uidSz,
         cryptoInfo.she.she            = she;
         cryptoInfo.she.type           = WC_SHE_GET_UID;
         cryptoInfo.she.ctx            = ctx;
-        cryptoInfo.she.op.setUid.uid  = uid;
-        cryptoInfo.she.op.setUid.uidSz = uidSz;
+        cryptoInfo.she.op.getUid.uid  = uid;
+        cryptoInfo.she.op.getUid.uidSz = uidSz;
 
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
