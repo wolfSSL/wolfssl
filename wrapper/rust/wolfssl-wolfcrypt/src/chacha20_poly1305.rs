@@ -243,6 +243,17 @@ impl ChaCha20Poly1305 {
     }
 }
 
+impl Drop for ChaCha20Poly1305 {
+    fn drop(&mut self) {
+        unsafe {
+            let ptr = &mut self.wc_ccp as *mut sys::ChaChaPoly_Aead as *mut u8;
+            for i in 0..core::mem::size_of::<sys::ChaChaPoly_Aead>() {
+                core::ptr::write_volatile(ptr.add(i), 0);
+            }
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // ChaCha20-Poly1305 aead trait implementations
 // ---------------------------------------------------------------------------
