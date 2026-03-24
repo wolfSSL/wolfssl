@@ -8051,7 +8051,7 @@ static int dilithium_pub_from_priv(dilithium_key* key)
             DYNAMIC_TYPE_DILITHIUM);
         if (s1 == NULL) {
             ret = MEMORY_E;
-           }
+        }
         else {
             s2 = s1 + params->s1Sz / sizeof(*s1);
 
@@ -8069,7 +8069,7 @@ static int dilithium_pub_from_priv(dilithium_key* key)
         else {
             s1 = key->s1;
             s2 = key->s2;
-	        dilithium_vec_invntt_full(s2, params->k);
+            dilithium_vec_invntt_full(s2, params->k);
         }
     }
 #endif
@@ -8105,29 +8105,29 @@ static int dilithium_pub_from_priv(dilithium_key* key)
     }
 #ifdef WC_DILITHIUM_CACHE_PRIV_VECTORS
     if (s2 != NULL) {
-    	/* NTT s2 */
-    	dilithium_vec_ntt_small(s2, params->k);
+        /* NTT s2 */
+        dilithium_vec_ntt_small(s2, params->k);
     }
 #endif
 #ifndef WC_DILITHIUM_CACHE_MATRIX_A
     if (a != NULL) {
-    	XMEMSET(a, 0, params->aSz);
-    	XFREE(a, key->heap, DYNAMIC_TYPE_DILITHIUM);
+        XMEMSET(a, 0, params->aSz);
+        XFREE(a, key->heap, DYNAMIC_TYPE_DILITHIUM);
     }
 #endif
 #ifndef WC_DILITHIUM_CACHE_PRIV_VECTORS
     if (s1 != NULL) {
-    	XMEMSET(s1, 0, params->s1Sz + params->s2Sz);
-    	XFREE(s1, key->heap, DYNAMIC_TYPE_DILITHIUM);
+        XMEMSET(s1, 0, params->s1Sz + params->s2Sz);
+        XFREE(s1, key->heap, DYNAMIC_TYPE_DILITHIUM);
     }
 #endif
     if (t0 != NULL) {
-    	XMEMSET(t0, 0, params->s2Sz);
-	XFREE(t0, key->heap, DYNAMIC_TYPE_DILITHIUM);
+        XMEMSET(t0, 0, params->s2Sz);
+        XFREE(t0, key->heap, DYNAMIC_TYPE_DILITHIUM);
     }
     if (t != NULL) {
-    	XMEMSET(t, 0, params->s2Sz);
-    	XFREE(t, key->heap, DYNAMIC_TYPE_DILITHIUM);
+        XMEMSET(t, 0, params->s2Sz);
+        XFREE(t, key->heap, DYNAMIC_TYPE_DILITHIUM);
     }
     if (ret == 0) {
 #ifdef WC_DILITHIUM_CACHE_PUB_VECTORS
