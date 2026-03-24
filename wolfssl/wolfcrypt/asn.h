@@ -2899,17 +2899,17 @@ WOLFSSL_LOCAL int OcspDecodeCertID(const byte* input, word32* inOutIdx, word32 i
 #ifdef HAVE_OCSP_RESPONDER
 /* Revocation reason codes from RFC 5280 */
 enum WC_CRL_Reason {
-    CRL_REASON_UNSPECIFIED             = 0,
-    CRL_REASON_KEY_COMPROMISE          = 1,
-    CRL_REASON_CA_COMPROMISE           = 2,
-    CRL_REASON_AFFILIATION_CHANGED     = 3,
-    CRL_REASON_SUPERSEDED              = 4,
-    CRL_REASON_CESSATION_OF_OPERATION  = 5,
-    CRL_REASON_CERTIFICATE_HOLD        = 6,
+    WC_CRL_REASON_UNSPECIFIED             = 0,
+    WC_CRL_REASON_KEY_COMPROMISE          = 1,
+    WC_CRL_REASON_CA_COMPROMISE           = 2,
+    WC_CRL_REASON_AFFILIATION_CHANGED     = 3,
+    WC_CRL_REASON_SUPERSEDED              = 4,
+    WC_CRL_REASON_CESSATION_OF_OPERATION  = 5,
+    WC_CRL_REASON_CERTIFICATE_HOLD        = 6,
     /* value 7 is not used */
-    CRL_REASON_REMOVE_FROM_CRL         = 8,
-    CRL_REASON_PRIVILEGE_WITHDRAWN     = 9,
-    CRL_REASON_AA_COMPROMISE           = 10
+    WC_CRL_REASON_REMOVE_FROM_CRL         = 8,
+    WC_CRL_REASON_PRIVILEGE_WITHDRAWN     = 9,
+    WC_CRL_REASON_AA_COMPROMISE           = 10
 };
 
 /* Certificate status entry for a single certificate */
