@@ -716,6 +716,9 @@ impl Ed25519 {
     #[cfg(ed25519_sign)]
     pub fn sign_msg_ctx(&mut self, message: &[u8], context: &[u8], signature: &mut [u8]) -> Result<usize, i32> {
         let message_size = message.len() as u32;
+        if context.len() > 255 {
+            return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+        }
         let context_size = context.len() as u8;
         let mut signature_size = signature.len() as u32;
         let rc = unsafe {
@@ -777,6 +780,9 @@ impl Ed25519 {
         let mut context_size = 0u8;
         if let Some(context) = context {
             context_ptr = context.as_ptr();
+            if context.len() > 255 {
+                return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+            }
             context_size = context.len() as u8;
         }
         let mut signature_size = signature.len() as u32;
@@ -830,6 +836,9 @@ impl Ed25519 {
         let mut context_size = 0u8;
         if let Some(context) = context {
             context_ptr = context.as_ptr();
+            if context.len() > 255 {
+                return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+            }
             context_size = context.len() as u8;
         }
         let mut signature_size = signature.len() as u32;
@@ -883,6 +892,9 @@ impl Ed25519 {
         let mut context_size = 0u8;
         if let Some(context) = context {
             context_ptr = context.as_ptr();
+            if context.len() > 255 {
+                return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+            }
             context_size = context.len() as u8;
         }
         let mut signature_size = signature.len() as u32;
@@ -976,6 +988,9 @@ impl Ed25519 {
     pub fn verify_msg_ctx(&mut self, signature: &[u8], message: &[u8], context: &[u8]) -> Result<bool, i32> {
         let signature_size = signature.len() as u32;
         let message_size = message.len() as u32;
+        if context.len() > 255 {
+            return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+        }
         let context_size = context.len() as u8;
         let mut res = 0i32;
         let rc = unsafe {
@@ -1040,6 +1055,9 @@ impl Ed25519 {
         let mut context_size = 0u8;
         if let Some(context) = context {
             context_ptr = context.as_ptr();
+            if context.len() > 255 {
+                return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+            }
             context_size = context.len() as u8;
         }
         let mut res = 0i32;
@@ -1095,6 +1113,9 @@ impl Ed25519 {
         let mut context_size = 0u8;
         if let Some(context) = context {
             context_ptr = context.as_ptr();
+            if context.len() > 255 {
+                return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+            }
             context_size = context.len() as u8;
         }
         let mut res = 0i32;
@@ -1150,6 +1171,9 @@ impl Ed25519 {
         let mut context_size = 0u8;
         if let Some(context) = context {
             context_ptr = context.as_ptr();
+            if context.len() > 255 {
+                return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+            }
             context_size = context.len() as u8;
         }
         let mut res = 0i32;
@@ -1203,6 +1227,9 @@ impl Ed25519 {
         let mut context_size = 0u8;
         if let Some(context) = context {
             context_ptr = context.as_ptr();
+            if context.len() > 255 {
+                return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+            }
             context_size = context.len() as u8;
         }
         let rc = unsafe {
