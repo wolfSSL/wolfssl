@@ -681,7 +681,7 @@
             return 1;
         }
         else {
-            *(char * volatile *)expected_ptr = *(char **)c;
+            *(char * volatile *)expected_ptr = *(char * volatile *)c;
             return 0;
         }
     }
