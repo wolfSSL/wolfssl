@@ -1038,8 +1038,8 @@ EOF
     ############################################################
     #### ML-DSA (FIPS 204) self-signed certificates          ###
     ############################################################
-    # ML-DSA requires OpenSSL 3.3+ (oqsprovider or built-in support).
-    # Search for a versioned binary if the system default lacks ML-DSA support.
+    # ML-DSA requires an OpenSSL 3.x binary with ML-DSA support
+    # (via oqsprovider or built-in). Detect support by probing candidates.
     OPENSSL3=""
     for candidate in \
         "/usr/local/opt/openssl@3.2/bin/openssl" \
@@ -1047,6 +1047,13 @@ EOF
         "/opt/homebrew/opt/openssl@3.2/bin/openssl" \
         "/opt/homebrew/opt/openssl@3/bin/openssl" \
         "openssl"; do
+        if [ "$candidate" = "openssl" ]; then
+            # Skip if 'openssl' is not available on PATH.
+            command -v openssl >/dev/null 2>&1 || continue
+        else
+            # Skip non-existent or non-executable absolute paths.
+            [ -x "$candidate" ] || continue
+        fi
         if "$candidate" genpkey -algorithm mldsa44 -out /dev/null 2>/dev/null; then
             OPENSSL3="$candidate"
             break
