@@ -522,6 +522,22 @@ int wolfSSL_memrestore_session_cache(const void* mem, int sz)
     #endif
 
         XMEMCPY(&SessionCache[i], row++, SIZEOF_SESSION_ROW);
+    #ifndef SESSION_CACHE_DYNAMIC_MEM
+        /* Reset pointers to safe values after raw copy */
+        {
+            int j;
+            for (j = 0; j < SESSIONS_PER_ROW; j++) {
+                WOLFSSL_SESSION* s = &SessionCache[i].Sessions[j];
+    #ifdef HAVE_SESSION_TICKET
+                s->ticket = s->staticTicket;
+                s->ticketLenAlloc = 0;
+    #endif
+    #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
+                s->peer = NULL;
+    #endif
+            }
+        }
+    #endif
     #ifdef ENABLE_SESSION_CACHE_ROW_LOCK
         SESSION_ROW_UNLOCK(&SessionCache[i]);
     #endif
@@ -681,6 +697,22 @@ int wolfSSL_restore_session_cache(const char *fname)
     #endif
 
         ret = (int)XFREAD(&SessionCache[i], SIZEOF_SESSION_ROW, 1, file);
+    #ifndef SESSION_CACHE_DYNAMIC_MEM
+        /* Reset pointers to safe values after raw copy */
+        {
+            int j;
+            for (j = 0; j < SESSIONS_PER_ROW; j++) {
+                WOLFSSL_SESSION* s = &SessionCache[i].Sessions[j];
+    #ifdef HAVE_SESSION_TICKET
+                s->ticket = s->staticTicket;
+                s->ticketLenAlloc = 0;
+    #endif
+    #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
+                s->peer = NULL;
+    #endif
+            }
+        }
+    #endif
     #ifdef ENABLE_SESSION_CACHE_ROW_LOCK
         SESSION_ROW_UNLOCK(&SessionCache[i]);
     #endif

@@ -11840,7 +11840,7 @@ static int PrintHexWithColon(WOLFSSL_BIO* out, const byte* input,
 static int PrintPubKeyRSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     int indent, int bitlen, WOLFSSL_ASN1_PCTX* pctx)
 {
-    byte   buff[8] = { 0 };
+    byte   buff[24] = { 0 };
     int    res = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
     word32 inOutIdx = 0;
     word32 nSz;             /* size of modulus */
@@ -11984,7 +11984,7 @@ static int PrintPubKeyEC(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
 {
     byte*   pub = NULL;
     word32  pubSz = 0;
-    byte    buff[8] = { 0 };
+    byte    buff[24] = { 0 };
     int     res = WOLFSSL_SUCCESS;
     word32  inOutIdx = 0;
     int     curveId = 0;
@@ -12173,7 +12173,7 @@ static int PrintPubKeyDSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     int indent, int bitlen, WOLFSSL_ASN1_PCTX* pctx)
 {
 
-    byte    buff[8] = { 0 };
+    byte    buff[24] = { 0 };
     int     length;
     int     res = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
     word32  inOutIdx = 0;
@@ -12380,7 +12380,7 @@ static int PrintPubKeyDH(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     int indent, int bitlen, WOLFSSL_ASN1_PCTX* pctx)
 {
 
-    byte    buff[8] = { 0 };
+    byte    buff[24] = { 0 };
     int     res = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
     word32  length;
     word32  inOutIdx;

@@ -11504,6 +11504,9 @@ static int wc_PKCS7_DecryptOri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
             if (GetASNObjectId(pkiMsg, idx, &oriOIDSz, pkiMsgSz) != 0)
                 return ASN_PARSE_E;
 
+            if (oriOIDSz > MAX_OID_SZ) {
+                return BUFFER_E;
+            }
             XMEMCPY(oriOID, pkiMsg + *idx, (word32)oriOIDSz);
             *idx += (word32)oriOIDSz;
 
@@ -13247,9 +13250,23 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
             padLen = encryptedContent[encryptedContentSz-1];
 
             /* copy plaintext to output */
-            if (padLen > encryptedContentSz) {
+            if (padLen == 0 || padLen > expBlockSz ||
+                padLen > encryptedContentSz) {
                 ret = BUFFER_E;
                 break;
+            }
+            /* Constant-time check all padding bytes */
+            {
+                byte padCheck = 0;
+                int pi;
+                for (pi = encryptedContentSz - padLen;
+                     pi < encryptedContentSz; pi++) {
+                    padCheck |= encryptedContent[pi] ^ padLen;
+                }
+                if (padCheck != 0) {
+                    ret = BUFFER_E;
+                    break;
+                }
             }
 
         #ifdef ASN_BER_TO_DER
@@ -15279,11 +15296,27 @@ int wc_PKCS7_DecodeEncryptedData(wc_PKCS7* pkcs7, byte* in, word32 inSz,
             if (ret == 0) {
                 padLen = encryptedContent[encryptedContentSz-1];
 
-                if (padLen > encryptedContentSz) {
+                if (padLen == 0 || padLen > expBlockSz ||
+                    padLen > encryptedContentSz) {
                     WOLFSSL_MSG("Bad padding size found");
                     ret = BUFFER_E;
                     XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
                     break;
+                }
+                /* Constant-time check all padding bytes */
+                {
+                    byte padCheck = 0;
+                    int pi;
+                    for (pi = encryptedContentSz - padLen;
+                         pi < encryptedContentSz; pi++) {
+                        padCheck |= encryptedContent[pi] ^ padLen;
+                    }
+                    if (padCheck != 0) {
+                        WOLFSSL_MSG("Bad padding bytes found");
+                        ret = BUFFER_E;
+                        XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+                        break;
+                    }
                 }
 
                 /* copy plaintext to output */

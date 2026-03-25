@@ -9834,7 +9834,7 @@ int DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch, const byte* data, byte ty
                 done = 1;
                 break;
             }
-            else if (fragOffset <= curEnd) {
+            else if (fragOffset <= curEnd && fragOffsetEnd >= cur->m.m.offset) {
                 /* found place to store fragment */
                 break;
             }
