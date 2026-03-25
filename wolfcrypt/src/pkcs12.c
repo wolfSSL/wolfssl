@@ -1147,7 +1147,7 @@ static byte* PKCS12_ConcatenateContent(WC_PKCS12* pkcs12,byte* mergedData,
 {
     byte* oldContent;
     word32 oldContentSz;
-    word32 newSz;
+    word32 newSz = 0;
 
     (void)pkcs12;
 
