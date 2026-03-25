@@ -8770,14 +8770,18 @@ static word32 NextCert(byte* data, word32 length, word32* idx)
 {
     word32 len;
 
-    /* Is index at end of list. */
-    if (*idx == length)
+    /* Would index read past end of list? */
+    if (*idx + 3 > length)
         return 0;
 
     /* Length of the current ASN.1 encoded certificate. */
     c24to32(data + *idx, &len);
     /* Include the length field. */
     len += 3;
+
+    /* Ensure len does not overrun certificate list */
+    if (*idx + len > length)
+        return 0;
 
     /* Move index to next certificate and return the current certificate's
      * length.
