@@ -30,6 +30,8 @@ int test_wolfSSL_dtls_cid_parse(void);
 int test_wolfSSL_dtls_set_pending_peer(void);
 int test_dtls13_epochs(void);
 int test_dtls13_ack_order(void);
+int test_dtls13_ack_overflow(void);
+int test_dtls13_ack_dup_write_counter(void);
 int test_dtls_version_checking(void);
 int test_dtls_short_ciphertext(void);
 int test_dtls12_record_length_mismatch(void);
@@ -60,6 +62,8 @@ int test_dtls13_min_rtx_interval(void);
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_set_pending_peer),           \
         TEST_DECL_GROUP("dtls", test_dtls13_epochs),                           \
         TEST_DECL_GROUP("dtls", test_dtls13_ack_order),                        \
+        TEST_DECL_GROUP("dtls", test_dtls13_ack_overflow),                     \
+        TEST_DECL_GROUP("dtls", test_dtls13_ack_dup_write_counter),            \
         TEST_DECL_GROUP("dtls", test_dtls_version_checking),                   \
         TEST_DECL_GROUP("dtls", test_dtls_short_ciphertext),                   \
         TEST_DECL_GROUP("dtls", test_dtls12_record_length_mismatch),           \
