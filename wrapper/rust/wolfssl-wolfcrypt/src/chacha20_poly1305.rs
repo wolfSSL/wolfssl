@@ -459,6 +459,7 @@ impl aead::KeyInit for XChaCha20Poly1305Aead {
 
 #[cfg(all(xchacha20_poly1305, feature = "aead"))]
 impl aead::AeadInPlace for XChaCha20Poly1305Aead {
+    // This function can encrypt a maximum of 4096 bytes.
     fn encrypt_in_place_detached(
         &self,
         nonce: &aead::Nonce<Self>,
