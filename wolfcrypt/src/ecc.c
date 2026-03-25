@@ -9868,6 +9868,7 @@ static int _ecc_export_x963(ecc_key* key, byte* out, word32* outLen)
    if (key != NULL && out == NULL && outLen != NULL) {
       /* if key hasn't been setup assume max bytes for size estimation */
       numlen = key->dp ? (word32)key->dp->size : MAX_ECC_BYTES;
+      /* X9.63 uncompressed point: 0x04 header + x coord + y coord */
       *outLen = 1 + 2 * numlen;
       return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
    }
@@ -9961,6 +9962,7 @@ int wc_ecc_export_x963(ecc_key* key, byte* out, word32* outLen)
     /* return length needed only */
     if (out == NULL) {
         word32 numlen = key->dp ? (word32)key->dp->size : MAX_ECC_BYTES;
+        /* X9.63 uncompressed point: 0x04 header + x coord + y coord */
         *outLen = 1 + 2 * numlen;
         return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
@@ -12263,28 +12265,28 @@ static int ecc_public_key_size(ecc_key* key, word32* sz)
 WOLFSSL_ABI
 int wc_ecc_size(ecc_key* key)
 {
-#ifdef WOLF_CRYPTO_CB
-    int ret;
-    int keySz;
-#endif
-
-    if (key == NULL)
+    if (key == NULL) {
         return 0;
+    }
 
 #ifdef WOLF_CRYPTO_CB
     if (key->devId != INVALID_DEVID) {
-        keySz = 0;
+        int ret;
+        int keySz = 0;
+
         ret = wc_CryptoCb_EccGetSize(key, &keySz);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
-            if (ret != 0)
+            if (ret != 0) {
                 return 0;
+            }
             return keySz;
         }
     }
 #endif
 
-    if (key->dp == NULL)
+    if (key->dp == NULL) {
         return 0;
+    }
 
     return key->dp->size;
 }
@@ -12313,28 +12315,29 @@ int wc_ecc_sig_size(const ecc_key* key)
 {
     int maxSigSz;
     int orderBits, keySz;
-#ifdef WOLF_CRYPTO_CB
-    int ret;
-    int cbKeySz;
-#endif
 
-    if (key == NULL)
+    if (key == NULL) {
         return 0;
+    }
 
 #ifdef WOLF_CRYPTO_CB
     if (key->devId != INVALID_DEVID) {
-        cbKeySz = 0;
+        int ret;
+        int cbKeySz = 0;
+
         ret = wc_CryptoCb_EccGetSigSize(key, &cbKeySz);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
-            if (ret != 0 || cbKeySz == 0)
+            if (ret != 0 || cbKeySz == 0) {
                 return 0;
+            }
             return cbKeySz;
         }
     }
 #endif
 
-    if (key->dp == NULL)
+    if (key->dp == NULL) {
         return 0;
+    }
 
     /* the signature r and s will always be less than order */
     /* if the order MSB (top bit of byte) is set then ASN encoding needs

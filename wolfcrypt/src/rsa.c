@@ -4571,11 +4571,6 @@ static int _RsaFlattenPublicKey(const RsaKey* key, byte* e, word32* eSz,
 int wc_RsaFlattenPublicKey(const RsaKey* key, byte* e, word32* eSz, byte* n,
                                                                    word32* nSz)
 {
-#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_EXPORT_KEY)
-    int ret;
-    WC_DECLARE_VAR(tmpKey, RsaKey, 1, NULL);
-#endif
-
     if (key == NULL || e == NULL || eSz == NULL || n == NULL || nSz == NULL) {
         return BAD_FUNC_ARG;
     }
@@ -4585,6 +4580,9 @@ int wc_RsaFlattenPublicKey(const RsaKey* key, byte* e, word32* eSz, byte* n,
     if (key->devId != INVALID_DEVID)
 #endif
     {
+        int ret;
+        WC_DECLARE_VAR(tmpKey, RsaKey, 1, NULL);
+
         WC_ALLOC_VAR(tmpKey, RsaKey, 1, key->heap);
         if (!WC_VAR_OK(tmpKey)) {
             return MEMORY_E;
@@ -4695,9 +4693,6 @@ int wc_RsaExportKey(const RsaKey* key,
                     byte* q, word32* qSz)
 {
     int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
-#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_EXPORT_KEY)
-    WC_DECLARE_VAR(tmpKey, RsaKey, 1, NULL);
-#endif
 
     if (key && e && eSz && n && nSz && d && dSz && p && pSz && q && qSz) {
         ret = 0;
@@ -4709,6 +4704,8 @@ int wc_RsaExportKey(const RsaKey* key,
         if (key->devId != INVALID_DEVID)
     #endif
         {
+            WC_DECLARE_VAR(tmpKey, RsaKey, 1, NULL);
+
             WC_ALLOC_VAR(tmpKey, RsaKey, 1, key->heap);
             if (!WC_VAR_OK(tmpKey)) {
                 return MEMORY_E;
