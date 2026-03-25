@@ -737,6 +737,9 @@ int Dtls13RtxAddAck(WOLFSSL* ssl, w64wrapper epoch, w64wrapper seq)
         for (; cur != NULL; prevNext = &cur->next, cur = cur->next) {
             if (w64Equal(cur->epoch, epoch) && w64Equal(cur->seq, seq)) {
                 /* already in list. no duplicates. */
+    #ifdef WOLFSSL_RW_THREADED
+                wc_UnLockMutex(&ssl->dtls13Rtx.mutex);
+    #endif
                 return 0;
             }
             else if (w64LT(epoch, cur->epoch)
@@ -747,8 +750,12 @@ int Dtls13RtxAddAck(WOLFSSL* ssl, w64wrapper epoch, w64wrapper seq)
         }
 
         rn = Dtls13NewRecordNumber(epoch, seq, ssl->heap);
-        if (rn == NULL)
+        if (rn == NULL) {
+    #ifdef WOLFSSL_RW_THREADED
+            wc_UnLockMutex(&ssl->dtls13Rtx.mutex);
+    #endif
             return MEMORY_E;
+        }
 
         *prevNext = rn;
         rn->next = cur;
