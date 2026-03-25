@@ -1047,10 +1047,12 @@ ed25519_key* wc_ed25519_new(void* heap, int devId, int *result_code)
 }
 
 int wc_ed25519_delete(ed25519_key* key, ed25519_key** key_p) {
+    void* heap;
     if (key == NULL)
         return BAD_FUNC_ARG;
+    heap = key->heap;
     wc_ed25519_free(key);
-    XFREE(key, key->heap, DYNAMIC_TYPE_ED25519);
+    XFREE(key, heap, DYNAMIC_TYPE_ED25519);
     if (key_p != NULL)
         *key_p = NULL;
     return 0;
