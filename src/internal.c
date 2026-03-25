@@ -31027,7 +31027,7 @@ static void MakePSKPreMasterSecret(Arrays* arrays, byte use_psk_key)
             XMEMSET(pms, 0, sz);
             pms += sz;
         }
-        c16toa(arrays->psk_keySz, pms);
+        c16toa((word16)arrays->psk_keySz, pms);
         pms += OPAQUE16_LEN;
         XMEMCPY(pms, arrays->psk_key, arrays->psk_keySz);
         arrays->preMasterSz = sz + arrays->psk_keySz + OPAQUE16_LEN * 2;
