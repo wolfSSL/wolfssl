@@ -584,6 +584,11 @@ pub fn ssh_kdf(typ: i32, key_id: u8, k: &[u8], h: &[u8], session_id: &[u8], key:
 #[cfg(kdf_srtp)]
 pub fn srtp_kdf(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8],
         key1: &mut [u8], key2: &mut [u8], key3: &mut [u8]) -> Result<(), i32> {
+    if !(kdr_index == -1 || (0 <= kdr_index && (kdr_index as usize) <= idx.len() * 8)) {
+        // The kdr_index value must be either -1 or the number of bits that
+        // will be read from the idx slice.
+        return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+    }
     let key_size = key.len() as u32;
     let salt_size = salt.len() as u32;
     let key1_size = key1.len() as u32;
@@ -684,6 +689,11 @@ pub fn srtp_kdf_label(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8],
 #[cfg(kdf_srtp)]
 pub fn srtcp_kdf(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8],
         key1: &mut [u8], key2: &mut [u8], key3: &mut [u8]) -> Result<(), i32> {
+    if !(kdr_index == -1 || (0 <= kdr_index && (kdr_index as usize) <= idx.len() * 8)) {
+        // The kdr_index value must be either -1 or the number of bits that
+        // will be read from the idx slice.
+        return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+    }
     let key_size = key.len() as u32;
     let salt_size = salt.len() as u32;
     let key1_size = key1.len() as u32;
