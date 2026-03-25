@@ -46,7 +46,7 @@ fn wolfssl_include_dir() -> Result<Option<String>> {
         let include_dir = format!("{}/include", prefix);
         let wolfssl_dir = Path::new(&include_dir).join("wolfssl");
         if !wolfssl_dir.is_dir() {
-            eprintln!("cargo:warning=WOLFSSL_PREFIX is set but {} does not exist", wolfssl_dir.display());
+            println!("cargo:warning=WOLFSSL_PREFIX is set but {} does not exist", wolfssl_dir.display());
             return Ok(None);
         }
         Ok(Some(include_dir))
@@ -167,18 +167,20 @@ fn generate_bindings() -> Result<()> {
     // type layouts and evaluates architecture-specific preprocessor guards.
     let target = env::var("TARGET").unwrap();
     let host = env::var("HOST").unwrap();
-    if target != host && target.ends_with("-none-elf") {
+    if target != host {
         let clang_target = rust_target_to_clang_target(&target);
         builder = builder.clang_arg(format!("--target={}", clang_target));
 
-        // For bare-metal targets, add the toolchain C runtime headers
-        // (newlib's time.h etc.) using -idirafter so they appear after
-        // clang's own built-in includes.  This lets clang's stdatomic.h
-        // take priority over newlib's incompatible version.
-        if let Some(sysroot) = bare_metal_sysroot(&clang_target) {
-            builder = builder
-                .clang_arg("-ffreestanding")
-                .clang_arg(format!("-idirafter{}/include", sysroot));
+        if target.ends_with("-none-elf") {
+            // For bare-metal targets, add the toolchain C runtime headers
+            // (newlib's time.h etc.) using -idirafter so they appear after
+            // clang's own built-in includes.  This lets clang's stdatomic.h
+            // take priority over newlib's incompatible version.
+            if let Some(sysroot) = bare_metal_sysroot(&clang_target) {
+                builder = builder
+                    .clang_arg("-ffreestanding")
+                    .clang_arg(format!("-idirafter{}/include", sysroot));
+            }
         }
     }
 
