@@ -157,6 +157,12 @@ impl BLAKE2b {
     /// ```
     pub fn finalize(&mut self, hash: &mut [u8]) -> Result<(), i32> {
         let hash_size = hash.len() as u32;
+        if hash_size == 0 {
+            // The C function uses the internal state configured digest size
+            // if hash_size is passed in as 0. We do not want to allow a
+            // buffer overrun, so do not allow an empty hash buffer here.
+            return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
+        }
         let rc = unsafe {
             sys::wc_Blake2bFinal(&mut self.wc_blake2b, hash.as_mut_ptr(), hash_size)
         };
@@ -434,6 +440,12 @@ impl BLAKE2s {
     /// ```
     pub fn finalize(&mut self, hash: &mut [u8]) -> Result<(), i32> {
         let hash_size = hash.len() as u32;
+        if hash_size == 0 {
+            // The C function uses the internal state configured digest size
+            // if hash_size is passed in as 0. We do not want to allow a
+            // buffer overrun, so do not allow an empty hash buffer here.
+            return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
+        }
         let rc = unsafe {
             sys::wc_Blake2sFinal(&mut self.wc_blake2s, hash.as_mut_ptr(), hash_size)
         };
