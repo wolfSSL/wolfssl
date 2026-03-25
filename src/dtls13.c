@@ -837,6 +837,11 @@ static void Dtls13RtxRemoveCurAck(WOLFSSL* ssl)
 {
     Dtls13RecordNumber *rn, **prevNext;
 
+#ifdef WOLFSSL_RW_THREADED
+    if (wc_LockMutex(&ssl->dtls13Rtx.mutex) != 0)
+        return;
+#endif
+
     prevNext = &ssl->dtls13Rtx.seenRecords;
     rn = ssl->dtls13Rtx.seenRecords;
 
@@ -845,12 +850,19 @@ static void Dtls13RtxRemoveCurAck(WOLFSSL* ssl)
             w64Equal(rn->seq, ssl->keys.curSeq)) {
             *prevNext = rn->next;
             XFREE(rn, ssl->heap, DYNAMIC_TYPE_DTLS_MSG);
+#ifdef WOLFSSL_RW_THREADED
+            wc_UnLockMutex(&ssl->dtls13Rtx.mutex);
+#endif
             return;
         }
 
         prevNext = &rn->next;
         rn = rn->next;
     }
+
+#ifdef WOLFSSL_RW_THREADED
+    wc_UnLockMutex(&ssl->dtls13Rtx.mutex);
+#endif
 }
 
 static void Dtls13MaybeSaveClientHello(WOLFSSL* ssl)
