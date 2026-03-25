@@ -5877,7 +5877,7 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
      * Increase size to handle other implementations sending more than one byte.
      * That is, allocate extra space, over one byte, to hold the context value.
      */
-    certReqCtx = (CertReqCtx*)XMALLOC(sizeof(CertReqCtx) + len - 1, ssl->heap,
+    certReqCtx = (CertReqCtx*)XMALLOC(sizeof(CertReqCtx) + (len == 0 ? 0 : len - 1), ssl->heap,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
     if (certReqCtx == NULL)
         return MEMORY_E;
