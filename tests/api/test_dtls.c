@@ -918,7 +918,7 @@ int test_dtls13_ack_order(void)
     ExpectIntEQ(Dtls13RtxAddAck(ssl_c, w64From32(0, 2), w64From32(0, 2)), 0);
     ExpectIntEQ(Dtls13RtxAddAck(ssl_c, w64From32(0, 2), w64From32(0, 2)), 0);
     ExpectIntEQ(Dtls13WriteAckMessage(ssl_c, ssl_c->dtls13Rtx.seenRecords,
-            &length), 0);
+            ssl_c->dtls13Rtx.seenRecordsCount, &length), 0);
 
     /* must zero the span reserved for the header to avoid read of uninited
      * data.

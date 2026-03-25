@@ -5857,6 +5857,11 @@ enum  {
     DTLS13_EPOCH_TRAFFIC0 = 3
 };
 
+/* 64-bit epoch + 64-bit sequence number */
+#define DTLS13_RN_SIZE (OPAQUE64_LEN + OPAQUE64_LEN)
+/* Maximum number of ACK records encodable in the word16 length field */
+#define DTLS13_ACK_MAX_RECORDS ((int)(WOLFSSL_MAX_16BIT / DTLS13_RN_SIZE))
+
 typedef struct Dtls13Epoch {
     w64wrapper epochNumber;
 
@@ -5925,6 +5930,7 @@ typedef struct Dtls13Rtx {
     Dtls13RtxRecord *rtxRecords;
     Dtls13RtxRecord **rtxRecordTailPtr;
     Dtls13RecordNumber *seenRecords;
+    word16 seenRecordsCount;
 #ifdef WOLFSSL_32BIT_MILLI_TIME
     word32 lastRtx;
 #else
@@ -7279,7 +7285,7 @@ WOLFSSL_LOCAL int Dtls13ReconstructEpochNumber(WOLFSSL* ssl, byte epochBits,
 WOLFSSL_LOCAL int Dtls13ReconstructSeqNumber(WOLFSSL* ssl,
     Dtls13UnifiedHdrInfo* hdrInfo, w64wrapper* out);
 WOLFSSL_TEST_VIS int Dtls13WriteAckMessage(WOLFSSL* ssl,
-    Dtls13RecordNumber* recordNumberList, word32* length);
+    Dtls13RecordNumber* recordNumberList, word16 recordsCount, word32* length);
 WOLFSSL_LOCAL int SendDtls13Ack(WOLFSSL* ssl);
 WOLFSSL_TEST_VIS int Dtls13RtxAddAck(WOLFSSL* ssl, w64wrapper epoch, w64wrapper seq);
 WOLFSSL_LOCAL int Dtls13RtxProcessingCertificate(WOLFSSL* ssl, byte* input,
