@@ -503,6 +503,9 @@ static int dilithium_hash256(wc_Shake* shake256, const byte* data1,
     word64* state = shake256->s;
     word8 *state8 = (word8*)state;
 
+    if (data2Len > (UINT32_MAX - data1Len)) {
+        return BAD_FUNC_ARG;
+    }
     if (data1Len + data2Len >= WC_SHA3_256_COUNT * 8) {
         XMEMCPY(state8, data1, data1Len);
         XMEMCPY(state8 + data1Len, data2,  WC_SHA3_256_COUNT * 8 - data1Len);
@@ -10552,6 +10555,10 @@ int wc_dilithium_verify_ctx_msg(const byte* sig, word32 sigLen, const byte* ctx,
         ret = BAD_FUNC_ARG;
     }
     if ((ret == 0) && (ctx == NULL) && (ctxLen > 0)) {
+        ret = BAD_FUNC_ARG;
+    }
+    /* Reject msgLen that would cause integer overflow in hash computations */
+    if ((ret == 0) && (msgLen > UINT32_MAX / 2)) {
         ret = BAD_FUNC_ARG;
     }
 
