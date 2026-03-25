@@ -30279,11 +30279,12 @@ int test_mldsa_x509_pubkey_sigtype(void)
     !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
     static const struct {
         const char* pem_path;
-        word32      expected_sig_oid;  /* CTC_ML_DSA_LEVEL* */
+        int         expected_sig_oid;  /* CTC_ML_DSA_LEVEL* (stored as int,
+                                        * same bit pattern as word32 return) */
     } cases[] = {
-        { "./certs/mldsa/mldsa44-cert.pem", CTC_ML_DSA_LEVEL2 },
-        { "./certs/mldsa/mldsa65-cert.pem", CTC_ML_DSA_LEVEL3 },
-        { "./certs/mldsa/mldsa87-cert.pem", CTC_ML_DSA_LEVEL5 },
+        { "./certs/mldsa/mldsa44-cert.pem", (int)CTC_ML_DSA_LEVEL2 },
+        { "./certs/mldsa/mldsa65-cert.pem", (int)CTC_ML_DSA_LEVEL3 },
+        { "./certs/mldsa/mldsa87-cert.pem", (int)CTC_ML_DSA_LEVEL5 },
     };
     int i;
     int n = (int)(sizeof(cases) / sizeof(cases[0]));
@@ -30302,7 +30303,7 @@ int test_mldsa_x509_pubkey_sigtype(void)
 
         /* wolfSSL_X509_get_signature_type() must return the ML-DSA OID sum */
         sig_oid = wolfSSL_X509_get_signature_type(x509);
-        ExpectIntEQ((word32)sig_oid, cases[i].expected_sig_oid);
+        ExpectIntEQ(sig_oid, cases[i].expected_sig_oid);
 
         /* wolfSSL_X509_get_pubkey() must succeed */
         ExpectNotNull(pkey = wolfSSL_X509_get_pubkey(x509));
