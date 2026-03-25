@@ -10700,10 +10700,16 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                  * we can decode both lengths here now. */
                 word32 tmpIdx = args->idx;
                 word16 tmpSz = 0;
+                if (args->sz < OPAQUE16_LEN) {
+                    ERROR_OUT(BUFFER_ERROR, exit_dcv);
+                }
                 ato16(input + tmpIdx, &tmpSz);
                 args->sigSz = tmpSz;
 
                 tmpIdx += OPAQUE16_LEN + args->sigSz;
+                if (tmpIdx - args->idx + OPAQUE16_LEN > args->sz) {
+                    ERROR_OUT(BUFFER_ERROR, exit_dcv);
+                }
                 ato16(input + tmpIdx, &tmpSz);
                 args->altSignatureSz = tmpSz;
 
