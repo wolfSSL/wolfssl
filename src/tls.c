@@ -9950,6 +9950,10 @@ static int TLSX_KeyShare_ProcessPqcClient_ex(WOLFSSL* ssl,
     }
 #endif
 
+    if (ret == 0 && keyShareEntry->keLen < ctSz) {
+        WOLFSSL_MSG("PQC key share data too short for ciphertext.");
+        ret = BUFFER_E;
+    }
     if (ret == 0) {
         ret = wc_KyberKey_Decapsulate(kem, ssOutput,
                                       keyShareEntry->ke, ctSz);
