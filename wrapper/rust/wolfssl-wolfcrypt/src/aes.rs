@@ -3257,10 +3257,10 @@ impl StreamCipher for Aes128Ctr {
         // wolfCrypt AES-CTR supports in-place operation (out == in).
         let in_ptr = buf.get_in().as_ptr();
         let out_ptr = buf.get_out().as_mut_ptr();
-        // SAFETY: CTR in-place is valid; raw ptrs used to avoid aliasing rules.
-        let in_slice = unsafe { core::slice::from_raw_parts(in_ptr, len) };
-        let out_slice = unsafe { core::slice::from_raw_parts_mut(out_ptr, len) };
-        self.inner.encrypt(in_slice, out_slice).expect("wc_AesCtrEncrypt failed");
+        // SAFETY: CTR in-place is valid; C function called directly to avoid
+        // creating aliasing slices.
+        let rc = unsafe { sys::wc_AesCtrEncrypt(&mut self.inner.ws_aes, out_ptr, in_ptr, len as u32) };
+        assert_eq!(rc, 0, "wc_AesCtrEncrypt failed");
     }
 
     fn unchecked_write_keystream(&mut self, buf: &mut [u8]) {
@@ -3305,10 +3305,10 @@ impl StreamCipher for Aes192Ctr {
         if len == 0 { return; }
         let in_ptr = buf.get_in().as_ptr();
         let out_ptr = buf.get_out().as_mut_ptr();
-        // SAFETY: CTR in-place is valid; raw ptrs used to avoid aliasing rules.
-        let in_slice = unsafe { core::slice::from_raw_parts(in_ptr, len) };
-        let out_slice = unsafe { core::slice::from_raw_parts_mut(out_ptr, len) };
-        self.inner.encrypt(in_slice, out_slice).expect("wc_AesCtrEncrypt failed");
+        // SAFETY: CTR in-place is valid; C function called directly to avoid
+        // creating aliasing slices.
+        let rc = unsafe { sys::wc_AesCtrEncrypt(&mut self.inner.ws_aes, out_ptr, in_ptr, len as u32) };
+        assert_eq!(rc, 0, "wc_AesCtrEncrypt failed");
     }
 
     fn unchecked_write_keystream(&mut self, buf: &mut [u8]) {
@@ -3353,10 +3353,10 @@ impl StreamCipher for Aes256Ctr {
         if len == 0 { return; }
         let in_ptr = buf.get_in().as_ptr();
         let out_ptr = buf.get_out().as_mut_ptr();
-        // SAFETY: CTR in-place is valid; raw ptrs used to avoid aliasing rules.
-        let in_slice = unsafe { core::slice::from_raw_parts(in_ptr, len) };
-        let out_slice = unsafe { core::slice::from_raw_parts_mut(out_ptr, len) };
-        self.inner.encrypt(in_slice, out_slice).expect("wc_AesCtrEncrypt failed");
+        // SAFETY: CTR in-place is valid; C function called directly to avoid
+        // creating aliasing slices.
+        let rc = unsafe { sys::wc_AesCtrEncrypt(&mut self.inner.ws_aes, out_ptr, in_ptr, len as u32) };
+        assert_eq!(rc, 0, "wc_AesCtrEncrypt failed");
     }
 
     fn unchecked_write_keystream(&mut self, buf: &mut [u8]) {
@@ -3410,10 +3410,10 @@ impl StreamCipher for Aes128Ofb {
         // wolfCrypt AES-OFB supports in-place operation (out == in).
         let in_ptr = buf.get_in().as_ptr();
         let out_ptr = buf.get_out().as_mut_ptr();
-        // SAFETY: OFB in-place is valid; raw ptrs used to avoid aliasing rules.
-        let in_slice = unsafe { core::slice::from_raw_parts(in_ptr, len) };
-        let out_slice = unsafe { core::slice::from_raw_parts_mut(out_ptr, len) };
-        self.inner.encrypt(in_slice, out_slice).expect("wc_AesOfbEncrypt failed");
+        // SAFETY: OFB in-place is valid; C function called directly to avoid
+        // creating aliasing slices.
+        let rc = unsafe { sys::wc_AesOfbEncrypt(&mut self.inner.ws_aes, out_ptr, in_ptr, len as u32) };
+        assert_eq!(rc, 0, "wc_AesOfbEncrypt failed");
     }
 
     fn unchecked_write_keystream(&mut self, buf: &mut [u8]) {
@@ -3458,10 +3458,10 @@ impl StreamCipher for Aes192Ofb {
         if len == 0 { return; }
         let in_ptr = buf.get_in().as_ptr();
         let out_ptr = buf.get_out().as_mut_ptr();
-        // SAFETY: OFB in-place is valid; raw ptrs used to avoid aliasing rules.
-        let in_slice = unsafe { core::slice::from_raw_parts(in_ptr, len) };
-        let out_slice = unsafe { core::slice::from_raw_parts_mut(out_ptr, len) };
-        self.inner.encrypt(in_slice, out_slice).expect("wc_AesOfbEncrypt failed");
+        // SAFETY: OFB in-place is valid; C function called directly to avoid
+        // creating aliasing slices.
+        let rc = unsafe { sys::wc_AesOfbEncrypt(&mut self.inner.ws_aes, out_ptr, in_ptr, len as u32) };
+        assert_eq!(rc, 0, "wc_AesOfbEncrypt failed");
     }
 
     fn unchecked_write_keystream(&mut self, buf: &mut [u8]) {
@@ -3506,10 +3506,10 @@ impl StreamCipher for Aes256Ofb {
         if len == 0 { return; }
         let in_ptr = buf.get_in().as_ptr();
         let out_ptr = buf.get_out().as_mut_ptr();
-        // SAFETY: OFB in-place is valid; raw ptrs used to avoid aliasing rules.
-        let in_slice = unsafe { core::slice::from_raw_parts(in_ptr, len) };
-        let out_slice = unsafe { core::slice::from_raw_parts_mut(out_ptr, len) };
-        self.inner.encrypt(in_slice, out_slice).expect("wc_AesOfbEncrypt failed");
+        // SAFETY: OFB in-place is valid; C function called directly to avoid
+        // creating aliasing slices.
+        let rc = unsafe { sys::wc_AesOfbEncrypt(&mut self.inner.ws_aes, out_ptr, in_ptr, len as u32) };
+        assert_eq!(rc, 0, "wc_AesOfbEncrypt failed");
     }
 
     fn unchecked_write_keystream(&mut self, buf: &mut [u8]) {
