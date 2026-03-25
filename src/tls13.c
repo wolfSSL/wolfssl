@@ -4991,6 +4991,14 @@ int SendTls13ClientHello(WOLFSSL* ssl)
     /* encrypt and pack the ech innerClientHello */
     if (ssl->echConfigs != NULL && !ssl->options.disableECH &&
         (ssl->options.echAccepted || args->ech->innerCount == 0)) {
+#if defined(WOLFSSL_TEST)
+        if (ssl->echInnerHelloCb != NULL) {
+            ret = ssl->echInnerHelloCb(args->ech->innerClientHello,
+                args->ech->innerClientHelloLen - args->ech->hpke->Nt);
+            if (ret != 0)
+                return ret;
+        }
+#endif
         ret = TLSX_FinalizeEch(args->ech,
             args->output + RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ,
             (word32)(args->sendSz - (RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ)));
@@ -7252,6 +7260,13 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
 
     if (wantDowngrade) {
+#if defined(HAVE_ECH)
+        if (ssl->options.echProcessingInner) {
+            WOLFSSL_MSG("ECH: inner client hello does not support version "
+                        "less than TLS v1.3");
+            ERROR_OUT(INVALID_PARAMETER, exit_dch);
+        }
+#endif
 #ifndef WOLFSSL_NO_TLS12
         byte realMinor;
         if (!ssl->options.downgrade) {
@@ -7412,7 +7427,8 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
 
 #if defined(HAVE_ECH)
-    if (echX != NULL && ((WOLFSSL_ECH*)echX->data)->state == ECH_WRITE_NONE) {
+    if (!ssl->options.echProcessingInner && echX != NULL &&
+            ((WOLFSSL_ECH*)echX->data)->state == ECH_WRITE_NONE) {
         if (((WOLFSSL_ECH*)echX->data)->innerClientHello != NULL) {
             /* Client sent real ECH and inner hello was decrypted, jump to
              * exit so the caller can re-invoke with the inner hello */
@@ -13463,12 +13479,16 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 *inOutIdx = echInOutIdx;
                 /* call again with the inner hello */
                 if (ret == 0) {
-                    ((WOLFSSL_ECH*)echX->data)->sniState = ECH_INNER_SNI;
+                    if (((WOLFSSL_ECH*)echX->data)->sniState == ECH_OUTER_SNI) {
+                        ((WOLFSSL_ECH*)echX->data)->sniState = ECH_INNER_SNI;
+                    }
 
+                    ssl->options.echProcessingInner = 1;
                     ret = DoTls13ClientHello(ssl,
                         ((WOLFSSL_ECH*)echX->data)->innerClientHello,
                         &echInOutIdx,
                         ((WOLFSSL_ECH*)echX->data)->innerClientHelloLen);
+                    ssl->options.echProcessingInner = 0;
 
                     ((WOLFSSL_ECH*)echX->data)->sniState = ECH_SNI_DONE;
                 }

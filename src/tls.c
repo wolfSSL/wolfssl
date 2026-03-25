@@ -13835,7 +13835,6 @@ static int TLSX_ECH_CheckInnerPadding(WOLFSSL* ssl, WOLFSSL_ECH* ech)
         acc |= innerCh[i];
     }
     if (acc != 0) {
-        SendAlert(ssl, alert_fatal, illegal_parameter);
         return INVALID_PARAMETER;
     }
 
@@ -13942,51 +13941,35 @@ static int TLSX_ECH_CopyOuterExtensions(const byte* outerCh, word32 outerChLen,
     word16 extsLen;
     const byte* outerExtData;
 
-    if (newInnerCh == NULL) {
-        *newInnerChLen = 0;
+    while (numOuterRefs-- > 0) {
+        ato16(outerRefTypes, &refType);
 
-        while (numOuterRefs-- > 0) {
-            ato16(outerRefTypes, &refType);
-
-            if (refType == TLSXT_ECH) {
-                WOLFSSL_MSG("ECH: ech_outer_extensions references ECH");
-                ret = INVALID_PARAMETER;
-                break;
-            }
-
-            outerExtData = TLSX_ECH_FindOuterExtension(outerCh, outerChLen,
-                                refType, &outerExtLen, &outerExtOffset,
-                                &extsStart, &extsLen);
-
-            if (outerExtData == NULL) {
-                WOLFSSL_MSG("ECH: referenced extension not in outer CH");
-                ret = INVALID_PARAMETER;
-                break;
-            }
-
-            *newInnerChLen += outerExtLen;
-
-            outerRefTypes += OPAQUE16_LEN;
+        if (refType == TLSXT_ECH) {
+            WOLFSSL_MSG("ECH: ech_outer_extensions references ECH");
+            ret = INVALID_PARAMETER;
+            break;
         }
-    }
-    else {
-        while (numOuterRefs-- > 0) {
-            ato16(outerRefTypes, &refType);
 
-            outerExtData = TLSX_ECH_FindOuterExtension(outerCh, outerChLen,
-                                refType, &outerExtLen, &outerExtOffset,
-                                &extsStart, &extsLen);
+        outerExtData = TLSX_ECH_FindOuterExtension(outerCh, outerChLen,
+                            refType, &outerExtLen, &outerExtOffset,
+                            &extsStart, &extsLen);
 
-            if (outerExtData == NULL) {
-                ret = INVALID_PARAMETER;
-                break;
-            }
+        if (outerExtData == NULL) {
+            WOLFSSL_MSG("ECH: referenced extension not in outer CH or out "
+                        "of order");
+            ret = INVALID_PARAMETER;
+            break;
+        }
 
+        if (newInnerCh == NULL) {
+            *newInnerChLen += outerExtLen;
+        }
+        else {
             XMEMCPY(*newInnerCh, outerExtData, outerExtLen);
             *newInnerCh += outerExtLen;
-
-            outerRefTypes += OPAQUE16_LEN;
         }
+
+        outerRefTypes += OPAQUE16_LEN;
     }
 
     return ret;
@@ -14339,9 +14322,10 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
             ech->state = ECH_PARSED_INTERNAL;
             return 0;
         }
-        else if (ech->type != ECH_TYPE_OUTER) {
+        else if (ssl->options.echProcessingInner ||
+                 ech->type != ECH_TYPE_OUTER) {
             /* type MUST be INNER or OUTER */
-            return BAD_FUNC_ARG;
+            return INVALID_PARAMETER;
         }
         /* Must have kdfId, aeadId, configId, enc len and payload len. */
         if (size < offset + 2 + 2 + 1 + 2 + 2) {
@@ -14464,7 +14448,14 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
                 echConfig = echConfig->next;
             }
         }
-        if (ret == 0) {
+        /* if we failed to extract/expand, set state to retry configs */
+        if (ret != 0) {
+            XFREE(ech->innerClientHello, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            ech->innerClientHello = NULL;
+            ech->state = ECH_WRITE_RETRY_CONFIGS;
+            ret = 0;
+        }
+        else {
             ret = TLSX_ECH_CheckInnerPadding(ssl, ech);
             if (ret == 0) {
                 /* expand EchOuterExtensions if present.
@@ -14472,14 +14463,11 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
                 ret = TLSX_ECH_ExpandOuterExtensions(ssl, ech, ssl->heap);
             }
         }
-        /* if we failed to extract/expand, set state to retry configs */
         if (ret != 0) {
             XFREE(ech->innerClientHello, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
             ech->innerClientHello = NULL;
-            ech->state = ECH_WRITE_RETRY_CONFIGS;
         }
         XFREE(aadCopy, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        return 0;
     }
 
     return ret;

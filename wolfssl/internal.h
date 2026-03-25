@@ -5201,6 +5201,7 @@ struct Options {
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
     word16            echAccepted:1;
     byte              disableECH:1;           /* Did the user disable ech */
+    byte              echProcessingInner:1;   /* Processing the inner hello */
 #endif
 #ifdef WOLFSSL_SEND_HRR_COOKIE
     word16            cookieGood:1;
@@ -6520,6 +6521,12 @@ struct WOLFSSL {
 #endif /* WOLFSSL_QUIC */
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
     WOLFSSL_EchConfig* echConfigs;
+#endif
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH) && defined(WOLFSSL_TEST)
+    /* Test-only hook: called on the client before ECH encryption, after the
+     * inner ClientHello body is fully constructed.  The callback may modify
+     * innerCh in-place (length stays the same). */
+    int (*echInnerHelloCb)(byte* innerCh, word32 innerChLen);
 #endif
 
 #if defined(WOLFSSL_SNIFFER) && defined(WOLFSSL_SNIFFER_KEYLOGFILE)
