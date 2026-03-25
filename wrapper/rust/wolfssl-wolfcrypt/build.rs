@@ -43,7 +43,13 @@ fn wolfssl_repo_lib_dir() -> Result<String> {
 /// Otherwise falls back to the repo root if it exists (for in-tree host builds).
 fn wolfssl_include_dir() -> Result<Option<String>> {
     if let Ok(prefix) = env::var("WOLFSSL_PREFIX") {
-        Ok(Some(format!("{}/include", prefix)))
+        let include_dir = format!("{}/include", prefix);
+        let wolfssl_dir = Path::new(&include_dir).join("wolfssl");
+        if !wolfssl_dir.is_dir() {
+            eprintln!("cargo:warning=WOLFSSL_PREFIX is set but {} does not exist", wolfssl_dir.display());
+            return Ok(None);
+        }
+        Ok(Some(include_dir))
     } else {
         let base = wolfssl_repo_base_dir()?;
         let base_path = Path::new(&base);
@@ -65,10 +71,13 @@ fn wolfssl_include_dir() -> Result<Option<String>> {
 fn wolfssl_lib_dir() -> Result<Option<String>> {
     if let Ok(prefix) = env::var("WOLFSSL_PREFIX") {
         Ok(Some(format!("{}/lib", prefix)))
-    } else if Path::new(&wolfssl_repo_lib_dir()?).exists() {
-        Ok(Some(wolfssl_repo_lib_dir()?))
     } else {
-        Ok(None)
+        let repo_lib_dir = wolfssl_repo_lib_dir()?;
+        if Path::new(&repo_lib_dir).exists() {
+            Ok(Some(repo_lib_dir))
+        } else {
+            Ok(None)
+        }
     }
 }
 
