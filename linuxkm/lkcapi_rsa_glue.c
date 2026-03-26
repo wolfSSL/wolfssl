@@ -2935,7 +2935,9 @@ test_pkcs1_end:
         pr_info("info: %s, %d, %d: self test returned: %d\n", driver,
                 nbits, key_len, ret);
     }
-    #endif /* WOLFKM_DEBUG_RSA */
+    #else /* !WOLFKM_DEBUG_RSA */
+    (void)skipped;
+    #endif /* !WOLFKM_DEBUG_RSA */
 
     return test_rc;
 }
@@ -3292,7 +3294,9 @@ test_pkcs1_end:
         pr_info("info: %s, %d, %d: self test returned: %d\n", driver,
                 nbits, key_len, ret);
     }
-    #endif /* WOLFKM_DEBUG_RSA */
+    #else /* !WOLFKM_DEBUG_RSA */
+    (void)skipped;
+    #endif /* !WOLFKM_DEBUG_RSA */
 
     return test_rc;
 }

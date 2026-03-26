@@ -136,16 +136,11 @@ static unsigned int hash_span(const u8 *start, const u8 *end, unsigned int sum) 
     return sum;
 }
 
-#ifdef WC_SYM_RELOC_TABLES
 struct wc_reloc_counts reloc_counts = {};
-#endif
 
 #endif /* DEBUG_LINUXKM_PIE_SUPPORT */
 
-#ifdef WC_SYM_RELOC_TABLES
-extern struct wolfssl_linuxkm_pie_redirect_table wolfssl_linuxkm_pie_redirect_table;
 static int set_up_wolfssl_linuxkm_pie_redirect_table(void);
-#endif /* WC_SYM_RELOC_TABLES */
 
 #ifdef HAVE_FIPS
 extern const unsigned int wolfCrypt_FIPS_ro_start[];
