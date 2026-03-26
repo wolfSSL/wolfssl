@@ -108,10 +108,10 @@ int silabs_ecc_sign_hash(const byte* in, word32 inlen, byte* out,
         return BAD_FUNC_ARG;
 
     slkey = &key->key;
-    siglen = *outlen;
+    siglen = key->dp->size * 2;
 
-    if ((int)siglen >= key->dp->size * 2) {
-        siglen = key->dp->size * 2;
+    if (*outlen < siglen) {
+        return BUFFER_E;
     }
 
 #if (_SILICON_LABS_SECURITY_FEATURE == _SILICON_LABS_SECURITY_FEATURE_VAULT)
