@@ -7659,6 +7659,9 @@ static int addKeyLogSnifferServerHelper(const char* address,
     #ifdef FUSION_RTOS
         if (XINET_PTON(AF_INET6, address, serverIp.ip6,
                        sizeof(serverIp.ip4)) == 1)
+    #elif defined(FREESCALE_MQX)
+        if (XINET_PTON(AF_INET6, address, serverIp.ip6,
+                       sizeof(serverIp.ip6)) == RTCS_OK)
     #else
         if (XINET_PTON(AF_INET6, address, serverIp.ip6) == 1)
     #endif

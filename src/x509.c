@@ -3085,15 +3085,25 @@ int wolfSSL_X509_add_altname(WOLFSSL_X509* x509, const char* name, int type)
         int ptonRet;
 
         /* Check if this is an ip4 address */
+    #ifdef FREESCALE_MQX
+        ptonRet = XINET_PTON(WOLFSSL_IP4, name, ip4, sizeof(ip4));
+        if (ptonRet == RTCS_OK) {
+    #else
         ptonRet = XINET_PTON(WOLFSSL_IP4, name, ip4);
         if (ptonRet == 1) {
+    #endif
             return wolfSSL_X509_add_altname_ex(x509, (const char*)ip4, 4,
                 type);
         }
 
         /* Check for ip6 */
+    #ifdef FREESCALE_MQX
+        ptonRet = XINET_PTON(WOLFSSL_IP6, name, ip6, sizeof(ip6));
+        if (ptonRet == RTCS_OK) {
+    #else
         ptonRet = XINET_PTON(WOLFSSL_IP6, name, ip6);
         if (ptonRet == 1) {
+    #endif
             return wolfSSL_X509_add_altname_ex(x509, (const char*)ip6, 16,
                 type);
         }
@@ -5521,12 +5531,20 @@ static int MatchIpName(const char* name, int nameSz, WOLFSSL_GENERAL_NAME* gn)
     /* IPv4 constraint 8 bytes (IP + mask),
      * IPv6 constraint 32 bytes (IP + mask) */
     if (constraintLen == 8) {
+    #ifdef FREESCALE_MQX
+        if (XINET_PTON(WOLFSSL_IP4, ipStr, ipBytes, sizeof(ipBytes)) == RTCS_OK) {
+    #else
         if (XINET_PTON(WOLFSSL_IP4, ipStr, ipBytes) == 1) {
+    #endif
             ipLen = 4;
         }
     }
     else if (constraintLen == 32) {
+    #ifdef FREESCALE_MQX
+        if (XINET_PTON(WOLFSSL_IP6, ipStr, ipBytes, sizeof(ipBytes)) == RTCS_OK) {
+    #else
         if (XINET_PTON(WOLFSSL_IP6, ipStr, ipBytes) == 1) {
+    #endif
             ipLen = 16;
         }
     }
