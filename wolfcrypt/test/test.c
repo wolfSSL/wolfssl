@@ -22739,15 +22739,22 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t decodedCertCache_test(void)
 static wc_test_ret_t rsa_flatten_test(RsaKey* key)
 {
     wc_test_ret_t ret;
+#if !defined(WOLFSSL_NO_MALLOC)
     byte*  e = NULL;
     byte*  n = NULL;
+#else
+    byte   e[RSA_TEST_BYTES];
+    byte   n[RSA_TEST_BYTES];
+#endif
     word32 eSz = RSA_TEST_BYTES;
     word32 nSz = RSA_TEST_BYTES;
 
+#if !defined(WOLFSSL_NO_MALLOC)
     e = (byte*)XMALLOC(RSA_TEST_BYTES, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     n = (byte*)XMALLOC(RSA_TEST_BYTES, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (e == NULL || n == NULL)
         ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), exit_rsa_flatten);
+#endif
 
     /* Parameter Validation testing. */
     ret = wc_RsaFlattenPublicKey(NULL, e, &eSz, n, &nSz);
@@ -22788,8 +22795,10 @@ static wc_test_ret_t rsa_flatten_test(RsaKey* key)
     ret = 0;
 
 exit_rsa_flatten:
+#if !defined(WOLFSSL_NO_MALLOC)
     XFREE(e, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(n, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
     return ret;
 }
 #endif /* NO_ASN */
@@ -22801,22 +22810,31 @@ static wc_test_ret_t rsa_export_key_test(RsaKey* key)
     wc_test_ret_t ret;
     byte  e[3];
     word32 eSz = sizeof(e);
+#if !defined(WOLFSSL_NO_MALLOC)
     byte*  n = NULL;
-    word32 nSz = RSA_TEST_BYTES;
     byte*  d = NULL;
-    word32 dSz = RSA_TEST_BYTES;
     byte*  p = NULL;
-    word32 pSz = RSA_TEST_BYTES/2;
     byte*  q = NULL;
+#else
+    byte   n[RSA_TEST_BYTES];
+    byte   d[RSA_TEST_BYTES];
+    byte   p[RSA_TEST_BYTES/2];
+    byte   q[RSA_TEST_BYTES/2];
+#endif
+    word32 nSz = RSA_TEST_BYTES;
+    word32 dSz = RSA_TEST_BYTES;
+    word32 pSz = RSA_TEST_BYTES/2;
     word32 qSz = RSA_TEST_BYTES/2;
     word32 zero = 0;
 
+#if !defined(WOLFSSL_NO_MALLOC)
     n = (byte*)XMALLOC(RSA_TEST_BYTES, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     d = (byte*)XMALLOC(RSA_TEST_BYTES, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     p = (byte*)XMALLOC(RSA_TEST_BYTES/2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     q = (byte*)XMALLOC(RSA_TEST_BYTES/2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (n == NULL || d == NULL || p == NULL || q == NULL)
         ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), exit_rsa_export);
+#endif
 
     ret = wc_RsaExportKey(NULL, e, &eSz, n, &nSz, d, &dSz, p, &pSz, q, &qSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
@@ -22877,10 +22895,12 @@ static wc_test_ret_t rsa_export_key_test(RsaKey* key)
     ret = 0;
 
 exit_rsa_export:
+#if !defined(WOLFSSL_NO_MALLOC)
     XFREE(n, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(d, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(p, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(q, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
     return ret;
 }
 #endif /* !HAVE_FIPS && !NO_ASN && !WOLFSSL_RSA_VERIFY_ONLY */
@@ -22909,11 +22929,14 @@ static wc_test_ret_t rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG
     };
     word32 inLen = (word32)XSTRLEN((char*)in);
     word32 outSz = RSA_TEST_BYTES;
+#if !defined(WOLFSSL_NO_MALLOC)
     byte*  out = NULL;
-
     out = (byte*)XMALLOC(RSA_TEST_BYTES, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (out == NULL)
         ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), exit_rsa_sig);
+#else
+    byte   out[RSA_TEST_BYTES];
+#endif
 
     /* Parameter Validation testing. */
     ret = wc_SignatureGetSize(WC_SIGNATURE_TYPE_NONE, key, keyLen);
@@ -23080,7 +23103,9 @@ static wc_test_ret_t rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG
     ret = 0;
 
 exit_rsa_sig:
+#if !defined(WOLFSSL_NO_MALLOC)
     XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
     return ret;
 }
 #endif /* !NO_SIG_WRAPPER && !NO_SHA256 */
@@ -64320,7 +64345,11 @@ static wc_test_ret_t rsa_onlycb_test(myCryptoDevCtx *ctx)
 
     word32 sigSz;
     WOLFSSL_SMALL_STACK_STATIC const byte in[] = TEST_STRING;
+#if !defined(WOLFSSL_NO_MALLOC)
     byte*  out = NULL;
+#else
+    byte   out[RSA_TEST_BYTES];
+#endif
 
 #if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048) && \
     !defined(USE_CERT_BUFFERS_3072) && !defined(USE_CERT_BUFFERS_4096) && \
@@ -64358,9 +64387,11 @@ static wc_test_ret_t rsa_onlycb_test(myCryptoDevCtx *ctx)
     if (tmp == NULL)
         ERROR_OUT(WC_TEST_RET_ENC_ERRNO, exit_onlycb);
 #endif
+#if !defined(WOLFSSL_NO_MALLOC)
     out = (byte*)XMALLOC(RSA_TEST_BYTES, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (out == NULL)
         ERROR_OUT(WC_TEST_RET_ENC_ERRNO, exit_onlycb);
+#endif
 
 #ifdef USE_CERT_BUFFERS_1024
     XMEMCPY(tmp, client_key_der_1024, (size_t)sizeof_client_key_der_1024);
@@ -64454,7 +64485,9 @@ exit_onlycb:
 #else
     wc_FreeRsaKey(key);
 #endif
+#if !defined(WOLFSSL_NO_MALLOC)
     XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
 #endif
     return ret;
