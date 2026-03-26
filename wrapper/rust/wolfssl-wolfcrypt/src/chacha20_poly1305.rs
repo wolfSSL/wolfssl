@@ -470,6 +470,7 @@ impl aead::AeadInPlace for XChaCha20Poly1305Aead {
         // single output buffer.  Use a stack buffer to hold both, then split
         // the tag out and copy the ciphertext back over the caller's buffer.
         const MAX_INLINE: usize = 4096;
+        debug_assert!(buffer.len() <= MAX_INLINE, "Maximum of 4096 bytes supported");
         if buffer.len() > MAX_INLINE {
             return Err(aead::Error);
         }
@@ -495,6 +496,7 @@ impl aead::AeadInPlace for XChaCha20Poly1305Aead {
         Ok(tag)
     }
 
+    // This function can decrypt a maximum of 4096 bytes.
     fn decrypt_in_place_detached(
         &self,
         nonce: &aead::Nonce<Self>,
@@ -505,6 +507,7 @@ impl aead::AeadInPlace for XChaCha20Poly1305Aead {
         // wc_XChaCha20Poly1305_Decrypt expects the auth tag appended after the
         // ciphertext.  Build a combined [ciphertext | tag] buffer on the stack.
         const MAX_INLINE: usize = 4096;
+        debug_assert!(buffer.len() <= MAX_INLINE, "Maximum of 4096 bytes supported");
         if buffer.len() > MAX_INLINE {
             return Err(aead::Error);
         }
