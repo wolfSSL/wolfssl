@@ -7230,6 +7230,7 @@ WOLFSSL_LOCAL void DtlsSetSeqNumForReply(WOLFSSL* ssl);
         #define Dtls13CheckEpoch wolfSSL_Dtls13CheckEpoch
         #define Dtls13WriteAckMessage wolfSSL_Dtls13WriteAckMessage
         #define Dtls13RtxAddAck wolfSSL_Dtls13RtxAddAck
+        #define Dtls13DoScheduledWork wolfSSL_Dtls13DoScheduledWork
     #endif
 
 WOLFSSL_TEST_VIS struct Dtls13Epoch* Dtls13GetEpoch(WOLFSSL* ssl,
