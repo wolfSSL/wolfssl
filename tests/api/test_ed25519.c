@@ -170,6 +170,50 @@ int test_wc_ed25519_sign_msg(void)
 } /* END test_wc_ed25519_sign_msg */
 
 /*
+ * Test that wc_ed25519_sign_msg() rejects a public-key-only key object.
+ * A key with pubKeySet=1 but privKeySet=0 must not silently sign.
+ */
+int test_wc_ed25519_sign_msg_pubonly_fails(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_SIGN) && \
+    defined(HAVE_ED25519_KEY_IMPORT) && defined(HAVE_ED25519_KEY_EXPORT)
+    ed25519_key fullKey;
+    ed25519_key pubOnlyKey;
+    WC_RNG      rng;
+    byte        pubBuf[ED25519_PUB_KEY_SIZE];
+    word32      pubSz = sizeof(pubBuf);
+    byte        msg[] = "test message for pubonly check";
+    byte        sig[ED25519_SIG_SIZE];
+    word32      sigLen = sizeof(sig);
+
+    XMEMSET(&fullKey, 0, sizeof(fullKey));
+    XMEMSET(&pubOnlyKey, 0, sizeof(pubOnlyKey));
+    XMEMSET(&rng, 0, sizeof(rng));
+
+    ExpectIntEQ(wc_ed25519_init(&fullKey), 0);
+    ExpectIntEQ(wc_ed25519_init(&pubOnlyKey), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    /* Generate a real key pair and export its public key. */
+    ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &fullKey), 0);
+    ExpectIntEQ(wc_ed25519_export_public(&fullKey, pubBuf, &pubSz), 0);
+
+    /* Import only the public key into a fresh key object. */
+    ExpectIntEQ(wc_ed25519_import_public(pubBuf, pubSz, &pubOnlyKey), 0);
+
+    /* Signing with a public-key-only object must fail. */
+    ExpectIntEQ(wc_ed25519_sign_msg(msg, sizeof(msg), sig, &sigLen,
+        &pubOnlyKey), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_ed25519_free(&pubOnlyKey);
+    wc_ed25519_free(&fullKey);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ed25519_sign_msg_pubonly_fails */
+
+/*
  * Testing wc_ed25519_import_public()
  */
 int test_wc_ed25519_import_public(void)

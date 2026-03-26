@@ -1481,6 +1481,9 @@ int wc_MlKemKey_Decapsulate(MlKemKey* key, unsigned char* ss,
     if ((key == NULL) || (ss == NULL) || (ct == NULL)) {
         ret = BAD_FUNC_ARG;
     }
+    if ((ret == 0) && ((key->flags & MLKEM_FLAG_PRIV_SET) == 0)) {
+        ret = BAD_STATE_E;
+    }
 
     if (ret == 0) {
         /* Establish cipher text size based on key type. */

@@ -163,6 +163,50 @@ int test_wc_ed448_sign_msg(void)
 } /* END test_wc_ed448_sign_msg */
 
 /*
+ * Test that wc_ed448_sign_msg() rejects a public-key-only key object.
+ * A key with pubKeySet=1 but privKeySet=0 must not silently sign.
+ */
+int test_wc_ed448_sign_msg_pubonly_fails(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ED448) && defined(HAVE_ED448_SIGN) && \
+    defined(HAVE_ED448_KEY_IMPORT) && defined(HAVE_ED448_KEY_EXPORT)
+    ed448_key fullKey;
+    ed448_key pubOnlyKey;
+    WC_RNG    rng;
+    byte      pubBuf[ED448_PUB_KEY_SIZE];
+    word32    pubSz = sizeof(pubBuf);
+    byte      msg[] = "test message for pubonly check";
+    byte      sig[ED448_SIG_SIZE];
+    word32    sigLen = sizeof(sig);
+
+    XMEMSET(&fullKey, 0, sizeof(fullKey));
+    XMEMSET(&pubOnlyKey, 0, sizeof(pubOnlyKey));
+    XMEMSET(&rng, 0, sizeof(rng));
+
+    ExpectIntEQ(wc_ed448_init(&fullKey), 0);
+    ExpectIntEQ(wc_ed448_init(&pubOnlyKey), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    /* Generate a real key pair and export its public key. */
+    ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &fullKey), 0);
+    ExpectIntEQ(wc_ed448_export_public(&fullKey, pubBuf, &pubSz), 0);
+
+    /* Import only the public key into a fresh key object. */
+    ExpectIntEQ(wc_ed448_import_public(pubBuf, pubSz, &pubOnlyKey), 0);
+
+    /* Signing with a public-key-only object must fail. */
+    ExpectIntEQ(wc_ed448_sign_msg(msg, sizeof(msg), sig, &sigLen,
+        &pubOnlyKey, NULL, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_ed448_free(&pubOnlyKey);
+    wc_ed448_free(&fullKey);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ed448_sign_msg_pubonly_fails */
+
+/*
  * Testing wc_ed448_import_public()
  */
 int test_wc_ed448_import_public(void)
