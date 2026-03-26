@@ -25322,6 +25322,7 @@ static wc_test_ret_t rsa_keygen_test(WC_RNG* rng)
 #else
     derSz = sizeof(der);
 #endif
+#if !defined(WC_TEST_SKIP_RSA_PRIVATE_EXPORT)
     derSz = wc_RsaKeyToDer(genKey, der, derSz);
     if (derSz < 0) {
         ERROR_OUT(WC_TEST_RET_ENC_EC(derSz), exit_rsa);
@@ -25345,6 +25346,7 @@ static wc_test_ret_t rsa_keygen_test(WC_RNG* rng)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
 #endif /* WOLFSSL_CRYPTOCELL */
+#endif /* !WC_TEST_SKIP_RSA_PRIVATE_EXPORT */
 
 exit_rsa:
 
