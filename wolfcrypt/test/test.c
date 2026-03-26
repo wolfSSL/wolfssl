@@ -35030,7 +35030,7 @@ static wc_test_ret_t ecc_test_key_gen(WC_RNG* rng, int keySize)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
     TEST_SLEEP();
 
-#ifndef WC_TEST_NO_ECC_CHECK_KEY
+#ifndef WC_TEST_SKIP_ECC_CHECK_KEY
     ret = wc_ecc_check_key(userA);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
@@ -35239,7 +35239,7 @@ static wc_test_ret_t ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerif
             ERROR_OUT(WC_TEST_RET_ENC_NC, done);
     }
 
-#ifndef WC_TEST_NO_ECC_CHECK_KEY
+#ifndef WC_TEST_SKIP_ECC_CHECK_KEY
     ret = wc_ecc_check_key(userA);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
