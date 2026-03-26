@@ -592,7 +592,7 @@ static int AesAuthDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         ROM_AESDataProcess(AES_BASE, aes->reg, tmpTag, WC_AES_BLOCK_SIZE);
         wolfSSL_TI_unlockCCM();
 
-        if (XMEMCMP(authTag, tmpTag, authTagSz) != 0) {
+        if (ConstantCompare(authTag, tmpTag, authTagSz) != 0) {
             ret = AES_GCM_AUTH_E;
         }
         return ret;
@@ -645,7 +645,7 @@ static int AesAuthDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         (unsigned int*)tmpTag);
     wolfSSL_TI_unlockCCM();
 
-    if ((ret == false) || (XMEMCMP(authTag, tmpTag, authTagSz) != 0)) {
+    if ((ret == false) || (ConstantCompare(authTag, tmpTag, authTagSz) != 0)) {
         XMEMSET(out, 0, inSz);
         ret = AES_GCM_AUTH_E;
     }
