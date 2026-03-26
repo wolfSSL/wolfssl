@@ -344,6 +344,7 @@ int se050_hash_final(SE050_HASH_Context* se050Ctx, byte* hash, size_t digestLen,
 
     if (status == kStatus_SSS_Success) {
         /* reset state */
+        XFREE(se050Ctx->msg, se050Ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
         ret = se050_hash_init(se050Ctx, se050Ctx->heap);
     } else {
         ret = WC_HW_E;
