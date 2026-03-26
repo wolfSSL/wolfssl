@@ -1551,12 +1551,11 @@ int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
     ssl->options.resuming = 1;
     ssl->options.haveEMS = (ssl->session->haveEMS) ? 1 : 0;
 
-#if defined(SESSION_CERTS) || (defined(WOLFSSL_TLS13) && \
-                           defined(HAVE_SESSION_TICKET))
-    ssl->version              = ssl->session->version;
-    if (IsAtLeastTLSv1_3(ssl->version))
-        ssl->options.tls1_3 = 1;
-#endif
+    if (ssl->session->version.major != 0) {
+        ssl->version              = ssl->session->version;
+        if (IsAtLeastTLSv1_3(ssl->version))
+            ssl->options.tls1_3 = 1;
+    }
 #if defined(SESSION_CERTS) || !defined(NO_RESUME_SUITE_CHECK) || \
                     (defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET))
     ssl->options.cipherSuite0 = ssl->session->cipherSuite0;
