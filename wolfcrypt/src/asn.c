@@ -30214,7 +30214,7 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
         }
     }
 
-    FREE_ASNGETDATA(dataASN, key);
+    FREE_ASNGETDATA(dataASN, key->heap);
     return ret;
 }
 #endif /* WOLFSSL_ASN_TEMPLATE */
