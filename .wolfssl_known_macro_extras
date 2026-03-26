@@ -1129,3 +1129,7 @@ ssize_t
 sun
 versal
 wc_Tls13_HKDF_Expand_Label
+__PPC64__
+__powerpc64__
+__powerpc__
+_ARCH_PPC
