@@ -52,6 +52,12 @@ int test_tls13_hrr_bad_cookie(void);
 int test_tls13_zero_inner_content_type(void);
 int test_tls13_downgrade_sentinel(void);
 int test_tls13_serverhello_bad_cipher_suites(void);
+int test_tls13_cert_with_extern_psk_apis(void);
+int test_tls13_cert_with_extern_psk_handshake(void);
+int test_tls13_cert_with_extern_psk_requires_key_share(void);
+int test_tls13_cert_with_extern_psk_rejects_resumption(void);
+int test_tls13_cert_with_extern_psk_sh_missing_key_share(void);
+int test_tls13_cert_with_extern_psk_sh_confirms_resumption(void);
 
 #define TEST_TLS13_DECLS                                        \
     TEST_DECL_GROUP("tls13", test_tls13_apis),                  \
@@ -81,6 +87,12 @@ int test_tls13_serverhello_bad_cipher_suites(void);
     TEST_DECL_GROUP("tls13", test_tls13_hrr_bad_cookie), \
     TEST_DECL_GROUP("tls13", test_tls13_zero_inner_content_type), \
     TEST_DECL_GROUP("tls13", test_tls13_downgrade_sentinel), \
-    TEST_DECL_GROUP("tls13", test_tls13_serverhello_bad_cipher_suites)
+    TEST_DECL_GROUP("tls13", test_tls13_serverhello_bad_cipher_suites), \
+    TEST_DECL_GROUP("tls13", test_tls13_cert_with_extern_psk_apis), \
+    TEST_DECL_GROUP("tls13", test_tls13_cert_with_extern_psk_handshake), \
+    TEST_DECL_GROUP("tls13", test_tls13_cert_with_extern_psk_requires_key_share), \
+    TEST_DECL_GROUP("tls13", test_tls13_cert_with_extern_psk_rejects_resumption), \
+    TEST_DECL_GROUP("tls13", test_tls13_cert_with_extern_psk_sh_missing_key_share), \
+    TEST_DECL_GROUP("tls13", test_tls13_cert_with_extern_psk_sh_confirms_resumption)
 
 #endif /* WOLFCRYPT_TEST_TLS13_H */

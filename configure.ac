@@ -5146,6 +5146,27 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PSK_ONE_ID"
 fi
 
+# Certificate Authentication with External PSK (RFC 8773bis)
+AC_ARG_ENABLE([cert-with-extern-psk],
+    [AS_HELP_STRING([--enable-cert-with-extern-psk],[Enable Certificate Authentication with External PSKs for TLS 1.3 (default: disabled)])],
+    [ ENABLED_CERT_WITH_EXTERN_PSK=$enableval ],
+    [ ENABLED_CERT_WITH_EXTERN_PSK=no ]
+    )
+if test "$ENABLED_CERT_WITH_EXTERN_PSK" = "yes"
+then
+    if test "$ENABLED_TLS13" = "no"
+    then
+        AC_MSG_NOTICE([TLS 1.3 is disabled - disabling cert-with-extern-psk])
+        ENABLED_CERT_WITH_EXTERN_PSK="no"
+    elif test "$ENABLED_PSK" = "no"
+    then
+        AC_MSG_NOTICE([PSK is disabled - disabling cert-with-extern-psk])
+        ENABLED_CERT_WITH_EXTERN_PSK="no"
+    else
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_WITH_EXTERN_PSK"
+    fi
+fi
+
 # ERROR STRINGS
 AC_ARG_ENABLE([errorstrings],
     [AS_HELP_STRING([--enable-errorstrings],[Enable error strings table (default: enabled)])],

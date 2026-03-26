@@ -1548,7 +1548,7 @@ int SuiteTest(int argc, char** argv)
         }
         #endif
     #endif
-    #ifdef WOLFSSL_TLS13
+    #if defined(WOLFSSL_TLS13) && !defined(NO_PSK)
     /* add psk extra suites */
     XSTRLCPY(argv0[1], "tests/test-tls13-psk.conf", sizeof(argv0[1]));
     printf("starting TLS 1.3 psk no identity extra cipher suite tests\n");
@@ -1558,6 +1558,17 @@ int SuiteTest(int argc, char** argv)
         args.return_code = EXIT_FAILURE;
         goto exit;
     }
+    #ifdef WOLFSSL_CERT_WITH_EXTERN_PSK
+    /* add psk with certificates (cert_with_extern_psk) suites */
+    XSTRLCPY(argv0[1], "tests/test-tls13-psk-certs.conf", sizeof(argv0[1]));
+    printf("starting TLS 1.3 PSK with certificates extra suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+    #endif
     #endif
 #endif
 #if defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_DES3) && !defined(NO_MD5) &&\
