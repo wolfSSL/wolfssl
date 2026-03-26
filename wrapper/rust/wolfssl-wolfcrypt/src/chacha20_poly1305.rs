@@ -73,8 +73,8 @@ impl ChaCha20Poly1305 {
         if auth_tag.len() != Self::AUTH_TAG_SIZE {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
-        let aad_size = aad.len() as u32;
-        let ciphertext_size = ciphertext.len() as u32;
+        let aad_size = crate::buffer_len_to_u32(aad.len())?;
+        let ciphertext_size = crate::buffer_len_to_u32(ciphertext.len())?;
         let rc = unsafe {
             sys::wc_ChaCha20Poly1305_Decrypt(key.as_ptr(), iv.as_ptr(),
                 aad.as_ptr(), aad_size, ciphertext.as_ptr(),
@@ -115,8 +115,8 @@ impl ChaCha20Poly1305 {
         if auth_tag.len() != Self::AUTH_TAG_SIZE {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
-        let aad_size = aad.len() as u32;
-        let plaintext_size = plaintext.len() as u32;
+        let aad_size = crate::buffer_len_to_u32(aad.len())?;
+        let plaintext_size = crate::buffer_len_to_u32(plaintext.len())?;
         let rc = unsafe {
             sys::wc_ChaCha20Poly1305_Encrypt(key.as_ptr(), iv.as_ptr(),
                 aad.as_ptr(), aad_size, plaintext.as_ptr(), plaintext_size,
@@ -171,7 +171,7 @@ impl ChaCha20Poly1305 {
     /// Returns either Ok(()) on success or Err(e) containing the wolfSSL
     /// library error code value.
     pub fn update_aad(&mut self, aad: &[u8]) -> Result<(), i32> {
-        let aad_size = aad.len() as u32;
+        let aad_size = crate::buffer_len_to_u32(aad.len())?;
         let rc = unsafe {
             sys::wc_ChaCha20Poly1305_UpdateAad(&mut self.wc_ccp,
                 aad.as_ptr(), aad_size)
@@ -203,7 +203,7 @@ impl ChaCha20Poly1305 {
         if din.len() != dout.len() {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
-        let din_size = din.len() as u32;
+        let din_size = crate::buffer_len_to_u32(din.len())?;
         let rc = unsafe {
             sys::wc_ChaCha20Poly1305_UpdateData(&mut self.wc_ccp,
                 din.as_ptr(), dout.as_mut_ptr(), din_size)
@@ -283,6 +283,9 @@ impl aead::AeadInPlace for ChaCha20Poly1305Aead {
         associated_data: &[u8],
         buffer: &mut [u8],
     ) -> Result<aead::Tag<Self>, aead::Error> {
+        if associated_data.len() > u32::MAX as usize || buffer.len() > u32::MAX as usize {
+            return Err(aead::Error);
+        }
         let mut tag = aead::Tag::<Self>::default();
         // wc_ChaCha20Poly1305_Encrypt supports in-place (out == in).
         let buf_ptr = buffer.as_mut_ptr();
@@ -310,6 +313,9 @@ impl aead::AeadInPlace for ChaCha20Poly1305Aead {
         buffer: &mut [u8],
         tag: &aead::Tag<Self>,
     ) -> Result<(), aead::Error> {
+        if associated_data.len() > u32::MAX as usize || buffer.len() > u32::MAX as usize {
+            return Err(aead::Error);
+        }
         let buf_ptr = buffer.as_mut_ptr();
         let in_ptr = buf_ptr as *const u8;
         let nonce_bytes: &[u8] = nonce;

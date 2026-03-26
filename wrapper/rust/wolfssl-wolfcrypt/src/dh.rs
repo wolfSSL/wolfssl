@@ -98,8 +98,8 @@ impl DH {
     /// }
     /// ```
     pub fn check_pub_value(prime: &[u8], public: &[u8]) -> Result<(), i32> {
-        let prime_size = prime.len() as u32;
-        let public_size = public.len() as u32;
+        let prime_size = crate::buffer_len_to_u32(prime.len())?;
+        let public_size = crate::buffer_len_to_u32(public.len())?;
         let rc = unsafe {
             sys::wc_DhCheckPubValue(prime.as_ptr(), prime_size,
                 public.as_ptr(), public_size)
@@ -144,6 +144,13 @@ impl DH {
     /// }
     /// ```
     pub fn compare_named_key(name: i32, p: &[u8], g: &[u8], q: Option<&[u8]>) -> bool {
+        if p.len() > u32::MAX as usize || g.len() > u32::MAX as usize {
+            return false;
+        }
+        if let Some(qv) = q
+            && qv.len() > u32::MAX as usize {
+            return false;
+        }
         let p_size = p.len() as u32;
         let g_size = g.len() as u32;
         let mut no_q = 1i32;
@@ -556,8 +563,8 @@ impl DH {
     /// }
     /// ```
     pub fn new_from_pg_ex(p: &[u8], g: &[u8], heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let p_size = p.len() as u32;
-        let g_size = g.len() as u32;
+        let p_size = crate::buffer_len_to_u32(p.len())?;
+        let g_size = crate::buffer_len_to_u32(g.len())?;
         let mut wc_dhkey: MaybeUninit<sys::DhKey> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
@@ -784,9 +791,9 @@ impl DH {
     /// }
     /// ```
     pub fn new_from_pgq_ex(p: &[u8], g: &[u8], q: &[u8], heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let p_size = p.len() as u32;
-        let g_size = g.len() as u32;
-        let q_size = q.len() as u32;
+        let p_size = crate::buffer_len_to_u32(p.len())?;
+        let g_size = crate::buffer_len_to_u32(g.len())?;
+        let q_size = crate::buffer_len_to_u32(q.len())?;
         let mut wc_dhkey: MaybeUninit<sys::DhKey> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
@@ -1024,9 +1031,9 @@ impl DH {
     /// ```
     #[cfg(random)]
     pub fn new_from_pgq_with_check_ex(p: &[u8], g: &[u8], q: &[u8], trusted: i32, rng: &mut RNG, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let p_size = p.len() as u32;
-        let g_size = g.len() as u32;
-        let q_size = q.len() as u32;
+        let p_size = crate::buffer_len_to_u32(p.len())?;
+        let g_size = crate::buffer_len_to_u32(g.len())?;
+        let q_size = crate::buffer_len_to_u32(q.len())?;
         let mut wc_dhkey: MaybeUninit<sys::DhKey> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
@@ -1084,8 +1091,8 @@ impl DH {
     /// }
     /// ```
     pub fn check_key_pair(&mut self, public: &[u8], private: &[u8]) -> Result<(), i32> {
-        let public_size = public.len() as u32;
-        let private_size = private.len() as u32;
+        let public_size = crate::buffer_len_to_u32(public.len())?;
+        let private_size = crate::buffer_len_to_u32(private.len())?;
         let rc = unsafe {
             sys::wc_DhCheckKeyPair(&mut self.wc_dhkey,
                 public.as_ptr(), public_size,
@@ -1129,7 +1136,7 @@ impl DH {
     /// }
     /// ```
     pub fn check_priv_key(&mut self, private: &[u8]) -> Result<(), i32> {
-        let private_size = private.len() as u32;
+        let private_size = crate::buffer_len_to_u32(private.len())?;
         let rc = unsafe {
             sys::wc_DhCheckPrivKey(&mut self.wc_dhkey,
                 private.as_ptr(), private_size)
@@ -1249,12 +1256,12 @@ impl DH {
     /// }
     /// ```
     pub fn check_priv_key_ex(&mut self, private: &[u8], prime: Option<&[u8]>) -> Result<(), i32> {
-        let private_size = private.len() as u32;
+        let private_size = crate::buffer_len_to_u32(private.len())?;
         let mut prime_ptr: *const u8 = core::ptr::null();
         let mut prime_size = 0u32;
         if let Some(prime) = prime {
             prime_ptr = prime.as_ptr();
-            prime_size = prime.len() as u32;
+            prime_size = crate::buffer_len_to_u32(prime.len())?;
         }
         let rc = unsafe {
             sys::wc_DhCheckPrivKey_ex(&mut self.wc_dhkey,
@@ -1299,7 +1306,7 @@ impl DH {
     /// }
     /// ```
     pub fn check_pub_key(&mut self, public: &[u8]) -> Result<(), i32> {
-        let public_size = public.len() as u32;
+        let public_size = crate::buffer_len_to_u32(public.len())?;
         let rc = unsafe {
             sys::wc_DhCheckPubKey(&mut self.wc_dhkey, public.as_ptr(), public_size)
         };
@@ -1423,8 +1430,8 @@ impl DH {
     /// }
     /// ```
     pub fn check_pub_key_ex(&mut self, public: &[u8], prime: &[u8]) -> Result<(), i32> {
-        let public_size = public.len() as u32;
-        let prime_size = prime.len() as u32;
+        let public_size = crate::buffer_len_to_u32(public.len())?;
+        let prime_size = crate::buffer_len_to_u32(prime.len())?;
         let rc = unsafe {
             sys::wc_DhCheckPubKey_ex(&mut self.wc_dhkey,
                 public.as_ptr(), public_size,
@@ -1455,9 +1462,9 @@ impl DH {
             p: &mut [u8], p_size: &mut u32,
             q: &mut [u8], q_size: &mut u32,
             g: &mut [u8], g_size: &mut u32) -> Result<(), i32> {
-        *p_size = p.len() as u32;
-        *q_size = q.len() as u32;
-        *g_size = g.len() as u32;
+        *p_size = crate::buffer_len_to_u32(p.len())?;
+        *q_size = crate::buffer_len_to_u32(q.len())?;
+        *g_size = crate::buffer_len_to_u32(g.len())?;
         let rc = unsafe {
             sys::wc_DhExportParamsRaw(&mut self.wc_dhkey,
                 p.as_mut_ptr(), p_size,
@@ -1505,8 +1512,8 @@ impl DH {
     pub fn generate_key_pair(&mut self, rng: &mut RNG,
             private: &mut [u8], private_size: &mut u32,
             public: &mut [u8], public_size: &mut u32) -> Result<(), i32> {
-        *private_size = private.len() as u32;
-        *public_size = public.len() as u32;
+        *private_size = crate::buffer_len_to_u32(private.len())?;
+        *public_size = crate::buffer_len_to_u32(public.len())?;
         let rc = unsafe {
             sys::wc_DhGenerateKeyPair(&mut self.wc_dhkey, &mut rng.wc_rng,
                 private.as_mut_ptr(), private_size,
@@ -1556,9 +1563,9 @@ impl DH {
     /// }
     /// ```
     pub fn shared_secret(&mut self, dout: &mut [u8], private: &[u8], other_pub: &[u8]) -> Result<usize, i32> {
-        let mut dout_size = dout.len() as u32;
-        let private_size = private.len() as u32;
-        let other_pub_size = other_pub.len() as u32;
+        let mut dout_size = crate::buffer_len_to_u32(dout.len())?;
+        let private_size = crate::buffer_len_to_u32(private.len())?;
+        let other_pub_size = crate::buffer_len_to_u32(other_pub.len())?;
         let rc = unsafe {
             sys::wc_DhAgree(&mut self.wc_dhkey,
                 dout.as_mut_ptr(), &mut dout_size,

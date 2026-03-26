@@ -120,9 +120,9 @@ pub fn prf(secret: &[u8], seed: &[u8], hash_type: i32, dout: &mut [u8]) -> Resul
 /// }
 /// ```
 pub fn prf_ex(secret: &[u8], seed: &[u8], hash_type: i32, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>, dout: &mut [u8]) -> Result<(), i32> {
-    let secret_size = secret.len() as u32;
-    let seed_size = seed.len() as u32;
-    let dout_size = dout.len() as u32;
+    let secret_size = crate::buffer_len_to_u32(secret.len())?;
+    let seed_size = crate::buffer_len_to_u32(seed.len())?;
+    let dout_size = crate::buffer_len_to_u32(dout.len())?;
     let heap = match heap {
         Some(heap) => heap,
         None => core::ptr::null_mut(),

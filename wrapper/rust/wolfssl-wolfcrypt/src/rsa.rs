@@ -218,6 +218,7 @@ impl RSA {
     /// }
     /// ```
     pub fn new_from_der_ex(der: &[u8], heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+        let der_size = crate::buffer_len_to_u32(der.len())?;
         let mut wc_rsakey: MaybeUninit<sys::RsaKey> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
@@ -232,7 +233,6 @@ impl RSA {
             return Err(rc);
         }
         let mut wc_rsakey = unsafe { wc_rsakey.assume_init() };
-        let der_size = der.len() as u32;
         let mut idx: u32 = 0;
         let rc = unsafe {
             sys::wc_RsaPrivateKeyDecode(der.as_ptr(), &mut idx, &mut wc_rsakey, der_size)
@@ -335,6 +335,7 @@ impl RSA {
     /// }
     /// ```
     pub fn new_public_from_der_ex(der: &[u8], heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+        let der_size = crate::buffer_len_to_u32(der.len())?;
         let mut wc_rsakey: MaybeUninit<sys::RsaKey> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
@@ -349,7 +350,6 @@ impl RSA {
             return Err(rc);
         }
         let mut wc_rsakey = unsafe { wc_rsakey.assume_init() };
-        let der_size = der.len() as u32;
         let mut idx: u32 = 0;
         let rc = unsafe {
             sys::wc_RsaPublicKeyDecode(der.as_ptr(), &mut idx, &mut wc_rsakey, der_size)
@@ -527,11 +527,11 @@ impl RSA {
             d: &mut [u8], d_size: &mut u32,
             p: &mut [u8], p_size: &mut u32,
             q: &mut [u8], q_size: &mut u32) -> Result<(), i32> {
-        *e_size = e.len() as u32;
-        *n_size = n.len() as u32;
-        *d_size = d.len() as u32;
-        *p_size = p.len() as u32;
-        *q_size = q.len() as u32;
+        *e_size = crate::buffer_len_to_u32(e.len())?;
+        *n_size = crate::buffer_len_to_u32(n.len())?;
+        *d_size = crate::buffer_len_to_u32(d.len())?;
+        *p_size = crate::buffer_len_to_u32(p.len())?;
+        *q_size = crate::buffer_len_to_u32(q.len())?;
         #[cfg(rsa_const_api)]
         let key_ptr = &self.wc_rsakey;
         #[cfg(not(rsa_const_api))]
@@ -584,8 +584,8 @@ impl RSA {
     pub fn export_public_key(&mut self,
             e: &mut [u8], e_size: &mut u32,
             n: &mut [u8], n_size: &mut u32) -> Result<(), i32> {
-        *e_size = e.len() as u32;
-        *n_size = n.len() as u32;
+        *e_size = crate::buffer_len_to_u32(e.len())?;
+        *n_size = crate::buffer_len_to_u32(n.len())?;
         #[cfg(rsa_const_api)]
         let key = &self.wc_rsakey;
         #[cfg(not(rsa_const_api))]
@@ -705,8 +705,8 @@ impl RSA {
     /// ```
     #[cfg(random)]
     pub fn public_encrypt(&mut self, din: &[u8], dout: &mut [u8], rng: &mut RNG) -> Result<usize, i32> {
-        let din_size = din.len() as u32;
-        let dout_size = dout.len() as u32;
+        let din_size = crate::buffer_len_to_u32(din.len())?;
+        let dout_size = crate::buffer_len_to_u32(dout.len())?;
         let rc = unsafe {
             sys::wc_RsaPublicEncrypt(din.as_ptr(), din_size,
                 dout.as_mut_ptr(), dout_size, &mut self.wc_rsakey,
@@ -763,8 +763,8 @@ impl RSA {
     /// }
     /// ```
     pub fn private_decrypt(&mut self, din: &[u8], dout: &mut [u8]) -> Result<usize, i32> {
-        let din_size = din.len() as u32;
-        let dout_size = dout.len() as u32;
+        let din_size = crate::buffer_len_to_u32(din.len())?;
+        let dout_size = crate::buffer_len_to_u32(dout.len())?;
         let rc = unsafe {
             sys::wc_RsaPrivateDecrypt(din.as_ptr(), din_size,
                 dout.as_mut_ptr(), dout_size, &mut self.wc_rsakey)
@@ -829,8 +829,8 @@ impl RSA {
     /// ```
     #[cfg(all(random, rsa_pss))]
     pub fn pss_sign(&mut self, din: &[u8], dout: &mut [u8], hash_algo: u32, mgf: i32, rng: &mut RNG) -> Result<usize, i32> {
-        let din_size = din.len() as u32;
-        let dout_size = dout.len() as u32;
+        let din_size = crate::buffer_len_to_u32(din.len())?;
+        let dout_size = crate::buffer_len_to_u32(dout.len())?;
         let rc = unsafe {
             sys::wc_RsaPSS_Sign(din.as_ptr(), din_size, dout.as_mut_ptr(), dout_size,
                 hash_algo, mgf, &mut self.wc_rsakey, &mut rng.wc_rng)
@@ -892,8 +892,8 @@ impl RSA {
     /// ```
     #[cfg(all(rsa_pss, rsa_const_api))]
     pub fn pss_check_padding(&mut self, din: &[u8], sig: &[u8], hash_algo: u32) -> Result<(), i32> {
-        let din_size = din.len() as u32;
-        let sig_size = sig.len() as u32;
+        let din_size = crate::buffer_len_to_u32(din.len())?;
+        let sig_size = crate::buffer_len_to_u32(sig.len())?;
         let rc = unsafe {
             sys::wc_RsaPSS_CheckPadding(din.as_ptr(), din_size,
                 sig.as_ptr(), sig_size, hash_algo)
@@ -958,8 +958,8 @@ impl RSA {
     /// ```
     #[cfg(all(rsa_pss, rsa_const_api))]
     pub fn pss_verify(&mut self, din: &[u8], dout: &mut [u8], hash_algo: u32, mgf: i32) -> Result<usize, i32> {
-        let din_size = din.len() as u32;
-        let dout_size = dout.len() as u32;
+        let din_size = crate::buffer_len_to_u32(din.len())?;
+        let dout_size = crate::buffer_len_to_u32(dout.len())?;
         let rc = unsafe {
             sys::wc_RsaPSS_Verify(din.as_ptr(), din_size,
                 dout.as_mut_ptr(), dout_size,
@@ -1029,9 +1029,9 @@ impl RSA {
     /// ```
     #[cfg(all(rsa_pss, rsa_const_api))]
     pub fn pss_verify_check(&mut self, din: &[u8], dout: &mut [u8], digest: &[u8], hash_algo: u32, mgf: i32) -> Result<usize, i32> {
-        let din_size = din.len() as u32;
-        let dout_size = dout.len() as u32;
-        let digest_size = digest.len() as u32;
+        let din_size = crate::buffer_len_to_u32(din.len())?;
+        let dout_size = crate::buffer_len_to_u32(dout.len())?;
+        let digest_size = crate::buffer_len_to_u32(digest.len())?;
         let rc = unsafe {
             sys::wc_RsaPSS_VerifyCheck(din.as_ptr(), din_size,
                 dout.as_mut_ptr(), dout_size, digest.as_ptr(), digest_size,
@@ -1092,8 +1092,8 @@ impl RSA {
     /// ```
     #[cfg(all(rsa_direct, rsa_const_api))]
     pub fn rsa_direct(&mut self, din: &[u8], dout: &mut [u8], typ: i32, rng: &mut RNG) -> Result<usize, i32> {
-        let din_size = din.len() as u32;
-        let mut dout_size = dout.len() as u32;
+        let din_size = crate::buffer_len_to_u32(din.len())?;
+        let mut dout_size = crate::buffer_len_to_u32(dout.len())?;
         let rc = unsafe {
             sys::wc_RsaDirect(din.as_ptr(), din_size,
                 dout.as_mut_ptr(), &mut dout_size,
@@ -1209,8 +1209,8 @@ impl RSA {
     /// ```
     #[cfg(random)]
     pub fn ssl_sign(&mut self, din: &[u8], dout: &mut [u8], rng: &mut RNG) -> Result<usize, i32> {
-        let din_size = din.len() as u32;
-        let dout_size = dout.len() as u32;
+        let din_size = crate::buffer_len_to_u32(din.len())?;
+        let dout_size = crate::buffer_len_to_u32(dout.len())?;
         let rc = unsafe {
             sys::wc_RsaSSL_Sign(din.as_ptr(), din_size,
                 dout.as_mut_ptr(), dout_size,
@@ -1270,8 +1270,8 @@ impl RSA {
     /// }
     /// ```
     pub fn ssl_verify(&mut self, din: &[u8], dout: &mut [u8]) -> Result<usize, i32> {
-        let din_size = din.len() as u32;
-        let dout_size = dout.len() as u32;
+        let din_size = crate::buffer_len_to_u32(din.len())?;
+        let dout_size = crate::buffer_len_to_u32(dout.len())?;
         let rc = unsafe {
             sys::wc_RsaSSL_Verify(din.as_ptr(), din_size,
                 dout.as_mut_ptr(), dout_size, &mut self.wc_rsakey)

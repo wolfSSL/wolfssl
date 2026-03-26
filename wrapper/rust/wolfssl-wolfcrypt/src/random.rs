@@ -157,7 +157,7 @@ impl RNG {
             }
         }
         let ptr = nonce.as_mut_ptr() as *mut u8;
-        let size: u32 = size_of_val(nonce) as u32;
+        let size = crate::buffer_len_to_u32(size_of_val(nonce))?;
         let mut wc_rng: MaybeUninit<sys::WC_RNG> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
@@ -244,16 +244,16 @@ impl RNG {
         let mut nonce_size = 0u32;
         if let Some(nonce) = nonce {
             nonce_ptr = nonce.as_ptr();
-            nonce_size = nonce.len() as u32;
+            nonce_size = crate::buffer_len_to_u32(nonce.len())?;
         }
-        let seed_a_size = seed_a.len() as u32;
+        let seed_a_size = crate::buffer_len_to_u32(seed_a.len())?;
         let mut seed_b_ptr = core::ptr::null();
         let mut seed_b_size = 0u32;
         if let Some(seed_b) = seed_b {
             seed_b_ptr = seed_b.as_ptr();
-            seed_b_size = seed_b.len() as u32;
+            seed_b_size = crate::buffer_len_to_u32(seed_b.len())?;
         }
-        let output_size = output.len() as u32;
+        let output_size = crate::buffer_len_to_u32(output.len())?;
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
@@ -297,7 +297,7 @@ impl RNG {
     /// ```
     #[cfg(random_hashdrbg)]
     pub fn test_seed(seed: &[u8]) -> Result<(), i32> {
-        let seed_size = seed.len() as u32;
+        let seed_size = crate::buffer_len_to_u32(seed.len())?;
         let rc = unsafe { sys::wc_RNG_TestSeed(seed.as_ptr(), seed_size) };
         if rc != 0 {
             return Err(rc);
@@ -340,7 +340,7 @@ impl RNG {
     /// library return code on failure.
     pub fn generate_block<T>(&mut self, buf: &mut [T]) -> Result<(), i32> {
         let ptr = buf.as_mut_ptr() as *mut u8;
-        let size: u32 = size_of_val(buf) as u32;
+        let size = crate::buffer_len_to_u32(size_of_val(buf))?;
         let rc = unsafe { sys::wc_RNG_GenerateBlock(&mut self.wc_rng, ptr, size) };
         if rc == 0 {
             Ok(())
@@ -371,7 +371,7 @@ impl RNG {
     /// ```
     #[cfg(random_hashdrbg)]
     pub fn reseed(&mut self, seed: &[u8]) -> Result<(), i32> {
-        let seed_size = seed.len() as u32;
+        let seed_size = crate::buffer_len_to_u32(seed.len())?;
         let rc = unsafe {
             sys::wc_RNG_DRBG_Reseed(&mut self.wc_rng, seed.as_ptr(), seed_size)
         };

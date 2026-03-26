@@ -97,9 +97,9 @@ pub fn hkdf_extract_ex(typ: i32, salt: Option<&[u8]>, key: &[u8], out: &mut [u8]
     let mut salt_size = 0u32;
     if let Some(salt) = salt {
         salt_ptr = salt.as_ptr();
-        salt_size = salt.len() as u32;
+        salt_size = crate::buffer_len_to_u32(salt.len())?;
     }
-    let key_size = key.len() as u32;
+    let key_size = crate::buffer_len_to_u32(key.len())?;
     if out.len() != HMAC::get_hmac_size_by_type(typ)? {
         return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
     }
@@ -192,14 +192,14 @@ pub fn hkdf_expand(typ: i32, key: &[u8], info: Option<&[u8]>, out: &mut [u8]) ->
 /// hkdf_expand_ex(HMAC::TYPE_SHA256, &extract_out, Some(info), &mut expand_out, None, None).expect("Error with hkdf_expand_ex()");
 /// ```
 pub fn hkdf_expand_ex(typ: i32, key: &[u8], info: Option<&[u8]>, out: &mut [u8], heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
-    let key_size = key.len() as u32;
+    let key_size = crate::buffer_len_to_u32(key.len())?;
     let mut info_ptr = core::ptr::null();
     let mut info_size = 0u32;
     if let Some(info) = info {
         info_ptr = info.as_ptr();
-        info_size = info.len() as u32;
+        info_size = crate::buffer_len_to_u32(info.len())?;
     }
-    let out_size = out.len() as u32;
+    let out_size = crate::buffer_len_to_u32(out.len())?;
     let heap = match heap {
         Some(heap) => heap,
         None => core::ptr::null_mut(),
@@ -250,20 +250,20 @@ pub fn hkdf_expand_ex(typ: i32, key: &[u8], info: Option<&[u8]>, out: &mut [u8],
 /// hkdf(HMAC::TYPE_SHA256, ikm, Some(salt), Some(info), &mut out).expect("Error with hkdf()");
 /// ```
 pub fn hkdf(typ: i32, key: &[u8], salt: Option<&[u8]>, info: Option<&[u8]>, out: &mut[u8]) -> Result<(), i32> {
-    let key_size = key.len() as u32;
+    let key_size = crate::buffer_len_to_u32(key.len())?;
     let mut salt_ptr = core::ptr::null();
     let mut salt_size = 0u32;
     if let Some(salt) = salt {
         salt_ptr = salt.as_ptr();
-        salt_size = salt.len() as u32;
+        salt_size = crate::buffer_len_to_u32(salt.len())?;
     }
     let mut info_ptr = core::ptr::null();
     let mut info_size = 0u32;
     if let Some(info) = info {
         info_ptr = info.as_ptr();
-        info_size = info.len() as u32;
+        info_size = crate::buffer_len_to_u32(info.len())?;
     }
-    let out_size = out.len() as u32;
+    let out_size = crate::buffer_len_to_u32(out.len())?;
     let rc = unsafe {
         sys::wc_HKDF(typ, key.as_ptr(), key_size, salt_ptr, salt_size,
             info_ptr, info_size, out.as_mut_ptr(), out_size)

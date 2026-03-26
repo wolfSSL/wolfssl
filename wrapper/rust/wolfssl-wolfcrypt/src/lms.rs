@@ -528,14 +528,15 @@ impl Lms {
         if sig.len() < expected_sig_len {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
-        let mut sig_sz = sig.len() as u32;
+        let mut sig_sz = crate::buffer_len_to_u32(sig.len())?;
+        let msg_sz = crate::buffer_len_to_i32(msg.len())?;
         let rc = unsafe {
             sys::wc_LmsKey_Sign(
                 &mut self.ws_key,
                 sig.as_mut_ptr(),
                 &mut sig_sz,
                 msg.as_ptr(),
-                msg.len() as core::ffi::c_int,
+                msg_sz,
             )
         };
         if rc != 0 {
@@ -670,7 +671,7 @@ impl Lms {
     /// }
     /// ```
     pub fn export_pub_raw(&self, out: &mut [u8]) -> Result<usize, i32> {
-        let mut out_len = out.len() as u32;
+        let mut out_len = crate::buffer_len_to_u32(out.len())?;
         let rc = unsafe {
             sys::wc_LmsKey_ExportPubRaw(&self.ws_key, out.as_mut_ptr(), &mut out_len)
         };
@@ -704,8 +705,9 @@ impl Lms {
     /// key.import_pub_raw(&pub_buf).expect("Error with import_pub_raw()");
     /// ```
     pub fn import_pub_raw(&mut self, data: &[u8]) -> Result<(), i32> {
+        let data_size = crate::buffer_len_to_u32(data.len())?;
         let rc = unsafe {
-            sys::wc_LmsKey_ImportPubRaw(&mut self.ws_key, data.as_ptr(), data.len() as u32)
+            sys::wc_LmsKey_ImportPubRaw(&mut self.ws_key, data.as_ptr(), data_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -735,13 +737,15 @@ impl Lms {
         if sig.len() != expected_sig_len {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
+        let sig_sz = crate::buffer_len_to_u32(sig.len())?;
+        let msg_sz = crate::buffer_len_to_i32(msg.len())?;
         let rc = unsafe {
             sys::wc_LmsKey_Verify(
                 &mut self.ws_key,
                 sig.as_ptr(),
-                sig.len() as u32,
+                sig_sz,
                 msg.as_ptr(),
-                msg.len() as core::ffi::c_int,
+                msg_sz,
             )
         };
         if rc != 0 {

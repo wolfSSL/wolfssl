@@ -70,9 +70,9 @@ impl CMAC {
     /// ```
     #[cfg(aes)]
     pub fn generate(key: &[u8], data: &[u8], dout: &mut [u8]) -> Result<(), i32> {
-        let key_size = key.len() as u32;
-        let data_size = data.len() as u32;
-        let mut dout_size = dout.len() as u32;
+        let key_size = crate::buffer_len_to_u32(key.len())?;
+        let data_size = crate::buffer_len_to_u32(data.len())?;
+        let mut dout_size = crate::buffer_len_to_u32(dout.len())?;
         let rc = unsafe {
             sys::wc_AesCmacGenerate(dout.as_mut_ptr(), &mut dout_size,
                 data.as_ptr(), data_size,
@@ -134,7 +134,7 @@ impl CMAC {
     /// let mut cmac = CMAC::new_ex(&key, None, None).expect("Error with new_ex()");
     /// ```
     pub fn new_ex(key: &[u8], heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let key_size = key.len() as u32;
+        let key_size = crate::buffer_len_to_u32(key.len())?;
         let mut ws_cmac: MaybeUninit<sys::Cmac> = MaybeUninit::uninit();
         let typ = sys::CmacType_WC_CMAC_AES as i32;
         let heap = match heap {
@@ -193,9 +193,9 @@ impl CMAC {
     /// ```
     #[cfg(aes)]
     pub fn verify(key: &[u8], data: &[u8], check: &[u8]) -> Result<bool, i32> {
-        let key_size = key.len() as u32;
-        let data_size = data.len() as u32;
-        let check_size = check.len() as u32;
+        let key_size = crate::buffer_len_to_u32(key.len())?;
+        let data_size = crate::buffer_len_to_u32(data.len())?;
+        let check_size = crate::buffer_len_to_u32(check.len())?;
         let rc = unsafe {
             sys::wc_AesCmacVerify(check.as_ptr(), check_size,
                 data.as_ptr(), data_size,
@@ -243,9 +243,9 @@ impl CMAC {
     /// ```
     #[cfg(aes)]
     pub fn generate_ex(&mut self, key: &[u8], data: &[u8], dout: &mut [u8], heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
-        let key_size = key.len() as u32;
-        let data_size = data.len() as u32;
-        let mut dout_size = dout.len() as u32;
+        let key_size = crate::buffer_len_to_u32(key.len())?;
+        let data_size = crate::buffer_len_to_u32(data.len())?;
+        let mut dout_size = crate::buffer_len_to_u32(dout.len())?;
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
@@ -293,7 +293,7 @@ impl CMAC {
     /// cmac.update(&message).expect("Error with update()");
     /// ```
     pub fn update(&mut self, data: &[u8]) -> Result<(), i32> {
-        let data_size = data.len() as u32;
+        let data_size = crate::buffer_len_to_u32(data.len())?;
         let rc = unsafe {
             sys::wc_CmacUpdate(&mut self.ws_cmac, data.as_ptr(), data_size)
         };
@@ -335,7 +335,7 @@ impl CMAC {
     /// cmac.finalize(&mut finalize_out).expect("Error with finalize()");
     /// ```
     pub fn finalize(mut self, dout: &mut [u8]) -> Result<(), i32> {
-        let mut dout_size = dout.len() as u32;
+        let mut dout_size = crate::buffer_len_to_u32(dout.len())?;
         let rc = unsafe {
             sys::wc_CmacFinalNoFree(&mut self.ws_cmac,
                 dout.as_mut_ptr(), &mut dout_size)
@@ -385,9 +385,9 @@ impl CMAC {
     /// ```
     #[cfg(aes)]
     pub fn verify_ex(&mut self, key: &[u8], data: &[u8], check: &[u8], heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<bool, i32> {
-        let key_size = key.len() as u32;
-        let data_size = data.len() as u32;
-        let check_size = check.len() as u32;
+        let key_size = crate::buffer_len_to_u32(key.len())?;
+        let data_size = crate::buffer_len_to_u32(data.len())?;
+        let check_size = crate::buffer_len_to_u32(check.len())?;
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
