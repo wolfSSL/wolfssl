@@ -51593,6 +51593,39 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_I(sigSz), out);
     }
 
+    /* Test wc_LmsKey_Sign input validation. */
+    {
+        word32 smallSz = 1;
+        wc_lms_write_private_key_cb saved_write_cb;
+        void*                       saved_ctx;
+
+        /* Undersized sig buffer should return BUFFER_E. */
+        ret = wc_LmsKey_Sign(&signingKey, sig, &smallSz, (byte *) msg, msgSz);
+        if (ret != WC_NO_ERR_TRACE(BUFFER_E)) {
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        }
+
+        /* NULL write callback should return BAD_FUNC_ARG. */
+        saved_write_cb = signingKey.write_private_key;
+        signingKey.write_private_key = NULL;
+        ret = wc_LmsKey_Sign(&signingKey, sig, &sigSz, (byte *) msg, msgSz);
+        signingKey.write_private_key = saved_write_cb;
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        }
+
+        /* NULL context should return BAD_FUNC_ARG. */
+        saved_ctx = signingKey.context;
+        signingKey.context = NULL;
+        ret = wc_LmsKey_Sign(&signingKey, sig, &sigSz, (byte *) msg, msgSz);
+        signingKey.context = saved_ctx;
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        }
+
+        ret = 0;
+    }
+
     /* 2 ** 5 should be the max number of signatures */
     for (i = 0; i < 32; ++i) {
         /* We should have remaining signstures. */
