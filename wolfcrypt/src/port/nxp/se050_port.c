@@ -572,6 +572,7 @@ int wc_se050_insert_binary_object(word32 keyId, const byte* object,
 
     /* Avoid key ID conflicts with temporary key storage */
     if (keyId >= SE050_KEYID_START) {
+        wolfSSL_CryptHwMutexUnLock();
         return BAD_FUNC_ARG;
     }
 
@@ -636,10 +637,12 @@ int wc_se050_get_binary_object(word32 keyId, byte* out, word32* outSz)
         else {
             if (out == NULL) {
                 *outSz = ret;
+                wolfSSL_CryptHwMutexUnLock();
                 return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
             }
             if ((word32)ret > *outSz) {
                 WOLFSSL_MSG("Output buffer not large enough for object");
+                wolfSSL_CryptHwMutexUnLock();
                 return BAD_LENGTH_E;
             }
             ret = 0;
@@ -931,6 +934,7 @@ static int se050_rsa_insert_key(word32 keyId, const byte* rsaDer,
 
     /* Avoid key ID conflicts with temporary key storage */
     if (keyId >= SE050_KEYID_START) {
+        wolfSSL_CryptHwMutexUnLock();
         return BAD_FUNC_ARG;
     }
 
