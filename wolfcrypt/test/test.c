@@ -22732,55 +22732,65 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t decodedCertCache_test(void)
 #endif /* defined(WOLFSSL_CERT_GEN_CACHE) && defined(WOLFSSL_TEST_CERT) &&
           defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CERT_GEN) */
 
-#define RSA_TEST_BYTES 512 /* up to 4096-bit key */
+#define RSA_TEST_BYTES (RSA_MAX_SIZE / 8)
 
 #if !defined(NO_ASN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
                                                !defined(WOLFSSL_RSA_VERIFY_ONLY)
 static wc_test_ret_t rsa_flatten_test(RsaKey* key)
 {
     wc_test_ret_t ret;
-    byte   e[RSA_TEST_BYTES];
-    byte   n[RSA_TEST_BYTES];
-    word32 eSz = sizeof(e);
-    word32 nSz = sizeof(n);
+    byte*  e = NULL;
+    byte*  n = NULL;
+    word32 eSz = RSA_TEST_BYTES;
+    word32 nSz = RSA_TEST_BYTES;
+
+    e = (byte*)XMALLOC(RSA_TEST_BYTES, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    n = (byte*)XMALLOC(RSA_TEST_BYTES, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (e == NULL || n == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), exit_rsa_flatten);
 
     /* Parameter Validation testing. */
     ret = wc_RsaFlattenPublicKey(NULL, e, &eSz, n, &nSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_flatten);
 
     ret = wc_RsaFlattenPublicKey(key, NULL, &eSz, n, &nSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_flatten);
 
     ret = wc_RsaFlattenPublicKey(key, e, NULL, n, &nSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_flatten);
 
     ret = wc_RsaFlattenPublicKey(key, e, &eSz, NULL, &nSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_flatten);
 
     ret = wc_RsaFlattenPublicKey(key, e, &eSz, n, NULL);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_flatten);
 
     ret = wc_RsaFlattenPublicKey(key, e, &eSz, n, &nSz);
     if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_flatten);
 
     eSz = 0;
     ret = wc_RsaFlattenPublicKey(key, e, &eSz, n, &nSz);
     if (ret != WC_NO_ERR_TRACE(RSA_BUFFER_E))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_flatten);
 
-    eSz = sizeof(e);
+    eSz = RSA_TEST_BYTES;
     nSz = 0;
     ret = wc_RsaFlattenPublicKey(key, e, &eSz, n, &nSz);
     if (ret != WC_NO_ERR_TRACE(RSA_BUFFER_E))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_flatten);
 
-    return 0;
+    ret = 0;
+
+exit_rsa_flatten:
+    XFREE(e, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(n, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    return ret;
 }
 #endif /* NO_ASN */
 
@@ -22789,75 +22799,89 @@ static wc_test_ret_t rsa_flatten_test(RsaKey* key)
 static wc_test_ret_t rsa_export_key_test(RsaKey* key)
 {
     wc_test_ret_t ret;
-    byte e[3];
+    byte  e[3];
     word32 eSz = sizeof(e);
-    byte n[RSA_TEST_BYTES];
-    word32 nSz = sizeof(n);
-    byte d[RSA_TEST_BYTES];
-    word32 dSz = sizeof(d);
-    byte p[RSA_TEST_BYTES/2];
-    word32 pSz = sizeof(p);
-    byte q[RSA_TEST_BYTES/2];
-    word32 qSz = sizeof(q);
+    byte*  n = NULL;
+    word32 nSz = RSA_TEST_BYTES;
+    byte*  d = NULL;
+    word32 dSz = RSA_TEST_BYTES;
+    byte*  p = NULL;
+    word32 pSz = RSA_TEST_BYTES/2;
+    byte*  q = NULL;
+    word32 qSz = RSA_TEST_BYTES/2;
     word32 zero = 0;
+
+    n = (byte*)XMALLOC(RSA_TEST_BYTES, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    d = (byte*)XMALLOC(RSA_TEST_BYTES, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    p = (byte*)XMALLOC(RSA_TEST_BYTES/2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    q = (byte*)XMALLOC(RSA_TEST_BYTES/2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (n == NULL || d == NULL || p == NULL || q == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), exit_rsa_export);
 
     ret = wc_RsaExportKey(NULL, e, &eSz, n, &nSz, d, &dSz, p, &pSz, q, &qSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_export);
     ret = wc_RsaExportKey(key, NULL, &eSz, n, &nSz, d, &dSz, p, &pSz, q, &qSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_export);
     ret = wc_RsaExportKey(key, e, NULL, n, &nSz, d, &dSz, p, &pSz, q, &qSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_export);
     ret = wc_RsaExportKey(key, e, &eSz, NULL, &nSz, d, &dSz, p, &pSz, q, &qSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_export);
     ret = wc_RsaExportKey(key, e, &eSz, n, NULL, d, &dSz, p, &pSz, q, &qSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_export);
     ret = wc_RsaExportKey(key, e, &eSz, n, &nSz, NULL, &dSz, p, &pSz, q, &qSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_export);
     ret = wc_RsaExportKey(key, e, &eSz, n, &nSz, d, NULL, p, &pSz, q, &qSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_export);
     ret = wc_RsaExportKey(key, e, &eSz, n, &nSz, d, &dSz, NULL, &pSz, q, &qSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_export);
     ret = wc_RsaExportKey(key, e, &eSz, n, &nSz, d, &dSz, p, NULL, q, &qSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_export);
     ret = wc_RsaExportKey(key, e, &eSz, n, &nSz, d, &dSz, p, &pSz, NULL, &qSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_export);
     ret = wc_RsaExportKey(key, e, &eSz, n, &nSz, d, &dSz, p, &pSz, q, NULL);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_export);
 
     ret = wc_RsaExportKey(key, e, &zero, n, &nSz, d, &dSz, p, &pSz, q, &qSz);
     if (ret != WC_NO_ERR_TRACE(RSA_BUFFER_E))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_export);
     ret = wc_RsaExportKey(key, e, &eSz, n, &zero, d, &dSz, p, &pSz, q, &qSz);
     if (ret != WC_NO_ERR_TRACE(RSA_BUFFER_E))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_export);
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
     ret = wc_RsaExportKey(key, e, &eSz, n, &nSz, d, &zero, p, &pSz, q, &qSz);
     if (ret != WC_NO_ERR_TRACE(RSA_BUFFER_E))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_export);
     ret = wc_RsaExportKey(key, e, &eSz, n, &nSz, d, &dSz, p, &zero, q, &qSz);
     if (ret != WC_NO_ERR_TRACE(RSA_BUFFER_E))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_export);
     ret = wc_RsaExportKey(key, e, &eSz, n, &nSz, d, &dSz, p, &pSz, q, &zero);
     if (ret != WC_NO_ERR_TRACE(RSA_BUFFER_E))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_export);
 #endif /* WOLFSSL_RSA_PUBLIC_ONLY */
 
     ret = wc_RsaExportKey(key, e, &eSz, n, &nSz, d, &dSz, p, &pSz, q, &qSz);
     if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_export);
 
-    return 0;
+    ret = 0;
+
+exit_rsa_export:
+    XFREE(n, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(d, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(p, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(q, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    return ret;
 }
 #endif /* !HAVE_FIPS && !NO_ASN && !WOLFSSL_RSA_VERIFY_ONLY */
 
@@ -22884,41 +22908,46 @@ static wc_test_ret_t rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG
         0xa6, 0x58, 0x0a, 0x33, 0x0b, 0x84, 0x5f, 0x5f
     };
     word32 inLen = (word32)XSTRLEN((char*)in);
-    byte   out[RSA_TEST_BYTES];
+    word32 outSz = RSA_TEST_BYTES;
+    byte*  out = NULL;
+
+    out = (byte*)XMALLOC(RSA_TEST_BYTES, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (out == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), exit_rsa_sig);
 
     /* Parameter Validation testing. */
     ret = wc_SignatureGetSize(WC_SIGNATURE_TYPE_NONE, key, keyLen);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_sig);
     ret = wc_SignatureGetSize(WC_SIGNATURE_TYPE_RSA, key, 0);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_sig);
 
     sigSz = (word32)modLen;
     ret = wc_SignatureGenerate(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_RSA, NULL,
                                inLen, out, &sigSz, key, keyLen, rng);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_sig);
     ret = wc_SignatureGenerate(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_RSA, in,
                                0, out, &sigSz, key, keyLen, rng);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_sig);
     ret = wc_SignatureGenerate(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_RSA, in,
                                inLen, NULL, &sigSz, key, keyLen, rng);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_sig);
     ret = wc_SignatureGenerate(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_RSA, in,
                                inLen, out, NULL, key, keyLen, rng);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_sig);
     ret = wc_SignatureGenerate(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_RSA, in,
                                inLen, out, &sigSz, NULL, keyLen, rng);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_sig);
     ret = wc_SignatureGenerate(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_RSA, in,
                                inLen, out, &sigSz, key, 0, rng);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_sig);
     ret = wc_SignatureGenerate(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_RSA, in,
                                inLen, out, &sigSz, key, keyLen, NULL);
 #if defined(WOLFSSL_AFALG_XILINX_RSA) || defined(WOLFSSL_XILINX_CRYPT)
@@ -22942,112 +22971,117 @@ static wc_test_ret_t rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG
 #else
     if (ret != WC_NO_ERR_TRACE(MISSING_RNG_E))
 #endif
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_sig);
     sigSz = 0;
     ret = wc_SignatureGenerate(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_RSA, in,
                                inLen, out, &sigSz, key, keyLen, rng);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_sig);
 
     ret = wc_SignatureVerify(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_RSA, NULL,
                              inLen, out, (word32)modLen, key, keyLen);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_sig);
     ret = wc_SignatureVerify(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_RSA, in,
                              0, out, (word32)modLen, key, keyLen);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_sig);
     ret = wc_SignatureVerify(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_RSA, in,
                              inLen, NULL, (word32)modLen, key, keyLen);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_sig);
     ret = wc_SignatureVerify(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_RSA, in,
                              inLen, out, 0, key, keyLen);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_sig);
     ret = wc_SignatureVerify(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_RSA, in,
                              inLen, out, (word32)modLen, NULL, keyLen);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_sig);
     ret = wc_SignatureVerify(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_RSA, in,
                              inLen, out, (word32)modLen, key, 0);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_sig);
 
 #ifndef HAVE_ECC
     ret = wc_SignatureGetSize(WC_SIGNATURE_TYPE_ECC, key, keyLen);
     if (ret != WC_NO_ERR_TRACE(SIG_TYPE_E))
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_sig);
 #endif
 #if defined(WOLF_CRYPTO_CB_ONLY_RSA)
-    return 0;
+    ret = 0;
+    goto exit_rsa_sig;
 #endif
     /* Use APIs. */
     ret = wc_SignatureGetSize(WC_SIGNATURE_TYPE_RSA, key, keyLen);
     if (ret != modLen)
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_sig);
     ret = wc_SignatureGetSize(WC_SIGNATURE_TYPE_RSA_W_ENC, key, keyLen);
     if (ret != modLen)
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_sig);
 
     sigSz = (word32)ret;
 #if !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
-    XMEMSET(out, 0, sizeof(out));
+    XMEMSET(out, 0, outSz);
     ret = wc_SignatureGenerate(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_RSA, in,
                                inLen, out, &sigSz, key, keyLen, rng);
     if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_sig);
 
     ret = wc_SignatureVerify(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_RSA, in,
                              inLen, out, (word32)modLen, key, keyLen);
     if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_sig);
 
-    sigSz = (word32)sizeof(out);
+    sigSz = outSz;
     ret = wc_SignatureGenerate(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_RSA_W_ENC,
                                in, inLen, out, &sigSz, key, keyLen, rng);
     if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_sig);
 
     ret = wc_SignatureVerify(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_RSA_W_ENC,
                              in, inLen, out, (word32)modLen, key, keyLen);
     if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_sig);
 
     /* Wrong signature type. */
     ret = wc_SignatureVerify(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_RSA, in,
                              inLen, out, (word32)modLen, key, keyLen);
     if (ret == 0)
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_sig);
 
     /* check hash functions */
-    sigSz = (word32)sizeof(out);
+    sigSz = outSz;
     ret = wc_SignatureGenerateHash(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_RSA,
         hash, (int)sizeof(hash), out, &sigSz, key, keyLen, rng);
     if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_sig);
 
     ret = wc_SignatureVerifyHash(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_RSA,
         hash, (int)sizeof(hash), out, (word32)modLen, key, keyLen);
     if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_sig);
 
-    sigSz = (word32)sizeof(out);
+    sigSz = outSz;
     ret = wc_SignatureGenerateHash(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_RSA_W_ENC,
         hashEnc, (int)sizeof(hashEnc), out, &sigSz, key, keyLen, rng);
     if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_sig);
 
     ret = wc_SignatureVerifyHash(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_RSA_W_ENC,
         hashEnc, (int)sizeof(hashEnc), out, (word32)modLen, key, keyLen);
     if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_sig);
 #else
     (void)hash;
     (void)hashEnc;
 #endif /* !WOLFSSL_RSA_PUBLIC_ONLY && !WOLFSSL_RSA_VERIFY_ONLY */
 
-    return 0;
+    ret = 0;
+
+exit_rsa_sig:
+    XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    return ret;
 }
 #endif /* !NO_SIG_WRAPPER && !NO_SHA256 */
 
@@ -64286,7 +64320,7 @@ static wc_test_ret_t rsa_onlycb_test(myCryptoDevCtx *ctx)
 
     word32 sigSz;
     WOLFSSL_SMALL_STACK_STATIC const byte in[] = TEST_STRING;
-    byte   out[RSA_TEST_BYTES];
+    byte*  out = NULL;
 
 #if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048) && \
     !defined(USE_CERT_BUFFERS_3072) && !defined(USE_CERT_BUFFERS_4096) && \
@@ -64324,6 +64358,9 @@ static wc_test_ret_t rsa_onlycb_test(myCryptoDevCtx *ctx)
     if (tmp == NULL)
         ERROR_OUT(WC_TEST_RET_ENC_ERRNO, exit_onlycb);
 #endif
+    out = (byte*)XMALLOC(RSA_TEST_BYTES, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (out == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, exit_onlycb);
 
 #ifdef USE_CERT_BUFFERS_1024
     XMEMCPY(tmp, client_key_der_1024, (size_t)sizeof_client_key_der_1024);
@@ -64417,6 +64454,7 @@ exit_onlycb:
 #else
     wc_FreeRsaKey(key);
 #endif
+    XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 
 #endif
     return ret;
