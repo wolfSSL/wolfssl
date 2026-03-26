@@ -30950,10 +30950,7 @@ static int test_short_session_id_ssl_ready(WOLFSSL* ssl)
     /* Setup the session to avoid errors */
     ssl->session->timeout = (word32)-1;
     ssl->session->side = WOLFSSL_CLIENT_END;
-#if defined(SESSION_CERTS) || (defined(WOLFSSL_TLS13) && \
-                               defined(HAVE_SESSION_TICKET))
     ssl->session->version = ssl->version;
-#endif
     /* Force a short session ID to be sent */
     ssl->session->sessionIDSz = 4;
 #ifndef NO_SESSION_CACHE_REF
