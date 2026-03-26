@@ -772,17 +772,22 @@ int wc_CAAM_MakeEccKey(WC_RNG* rng, int keySize, ecc_key* key, int curveId,
         return CRYPTOCB_UNAVAILABLE;
     }
 
-    if (key->blackKey == CAAM_BLACK_KEY_ECB) {
+    switch (key->blackKey) {
+    case CAAM_BLACK_KEY_ECB:
         enc = CAAM_PKHA_ENC_PRI_AESECB;
-    }
-
-    if (key->blackKey == 0) {
+        break;
+    case 0:
     #ifdef WOLFSSL_CAAM_NO_BLACK_KEY
         enc = 0;
     #else
         key->blackKey = CAAM_BLACK_KEY_ECB;
         enc = CAAM_PKHA_ENC_PRI_AESECB;
     #endif
+        break;
+    default:
+        WOLFSSL_MSG("unknown/unsupported key type");
+        ForceZero(k, sizeof(k));
+        return BAD_FUNC_ARG;
     }
 
     status = CAAM_ECC_Keygen(CAAM, &hndl, k, &kSz, xy, &xySz, ecdsel,
