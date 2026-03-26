@@ -237,12 +237,12 @@ static int _PrivateOperation(const byte* in, word32 inlen, byte* out,
         }
     }
 
-    XFREE(d, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(p, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(q, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(dp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(dq, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(u, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (d)  { ForceZero(d, dSz);   XFREE(d, NULL, DYNAMIC_TYPE_TMP_BUFFER);  }
+    if (p)  { ForceZero(p, pSz);   XFREE(p, NULL, DYNAMIC_TYPE_TMP_BUFFER);  }
+    if (q)  { ForceZero(q, qSz);   XFREE(q, NULL, DYNAMIC_TYPE_TMP_BUFFER);  }
+    if (dp) { ForceZero(dp, dpSz); XFREE(dp, NULL, DYNAMIC_TYPE_TMP_BUFFER); }
+    if (dq) { ForceZero(dq, dqSz); XFREE(dq, NULL, DYNAMIC_TYPE_TMP_BUFFER); }
+    if (u)  { ForceZero(u, uSz);   XFREE(u, NULL, DYNAMIC_TYPE_TMP_BUFFER);  }
     XFREE(n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     wc_DevCryptoFree(dev);
@@ -540,13 +540,13 @@ int wc_DevCrypto_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     #endif
     }
 
-    XFREE(p, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(q, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(dp, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(dq, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(c, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (p)  { ForceZero(p, pSz);   XFREE(p, key->heap, DYNAMIC_TYPE_TMP_BUFFER);  }
+    if (q)  { ForceZero(q, qSz);   XFREE(q, key->heap, DYNAMIC_TYPE_TMP_BUFFER);  }
+    if (dp) { ForceZero(dp, dpSz); XFREE(dp, key->heap, DYNAMIC_TYPE_TMP_BUFFER); }
+    if (dq) { ForceZero(dq, dqSz); XFREE(dq, key->heap, DYNAMIC_TYPE_TMP_BUFFER); }
+    if (c)  { ForceZero(c, cSz);   XFREE(c, key->heap, DYNAMIC_TYPE_TMP_BUFFER);  }
     XFREE(n, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(d, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (d)  { ForceZero(d, dSz);   XFREE(d, key->heap, DYNAMIC_TYPE_TMP_BUFFER);  }
 
     (void)rng;
     return ret;
