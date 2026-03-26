@@ -63,6 +63,7 @@ use crate::sys;
 #[cfg(random)]
 use crate::random::RNG;
 use core::mem::{MaybeUninit};
+use zeroize::Zeroize;
 
 /// The `RSA` struct manages the lifecycle of a wolfSSL `RsaKey` object.
 ///
@@ -1283,6 +1284,12 @@ impl RSA {
     }
 }
 
+impl Zeroize for RSA {
+    fn zeroize(&mut self) {
+        unsafe { crate::zeroize_raw(&mut self.wc_rsakey); }
+    }
+}
+
 impl Drop for RSA {
     /// Safely free the underlying wolfSSL RSA context.
     ///
@@ -1293,5 +1300,6 @@ impl Drop for RSA {
     /// preventing memory leaks.
     fn drop(&mut self) {
         unsafe { sys::wc_FreeRsaKey(&mut self.wc_rsakey); }
+        self.zeroize();
     }
 }

@@ -32,6 +32,7 @@ use crate::sys;
 #[cfg(random)]
 use crate::random::RNG;
 use core::mem::{MaybeUninit};
+use zeroize::Zeroize;
 
 pub struct DH {
     wc_dhkey: sys::DhKey,
@@ -1579,6 +1580,12 @@ impl DH {
     }
 }
 
+impl Zeroize for DH {
+    fn zeroize(&mut self) {
+        unsafe { crate::zeroize_raw(&mut self.wc_dhkey); }
+    }
+}
+
 impl Drop for DH {
     /// Safely free the underlying wolfSSL DhKey context.
     ///
@@ -1589,5 +1596,6 @@ impl Drop for DH {
     /// resources and preventing memory leaks.
     fn drop(&mut self) {
         unsafe { sys::wc_FreeDhKey(&mut self.wc_dhkey); }
+        self.zeroize();
     }
 }

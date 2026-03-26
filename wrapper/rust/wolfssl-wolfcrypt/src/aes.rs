@@ -27,6 +27,7 @@ Encryption Standard (AES) functionality.
 
 use crate::sys;
 use core::mem::{size_of_val, MaybeUninit};
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 #[cfg(feature = "aead")]
 use aead::{AeadCore, AeadInPlace, KeyInit, KeySizeUser};
@@ -233,10 +234,17 @@ impl CBC {
     }
 }
 #[cfg(aes_cbc)]
+impl Zeroize for CBC {
+    fn zeroize(&mut self) {
+        unsafe { crate::zeroize_raw(&mut self.ws_aes); }
+    }
+}
+#[cfg(aes_cbc)]
 impl Drop for CBC {
     /// Safely free the wolfSSL resources.
     fn drop(&mut self) {
         unsafe { sys::wc_AesFree(&mut self.ws_aes); }
+        self.zeroize();
     }
 }
 
@@ -428,10 +436,17 @@ impl CCM {
     }
 }
 #[cfg(aes_ccm)]
+impl Zeroize for CCM {
+    fn zeroize(&mut self) {
+        unsafe { crate::zeroize_raw(&mut self.ws_aes); }
+    }
+}
+#[cfg(aes_ccm)]
 impl Drop for CCM {
     /// Safely free the wolfSSL resources.
     fn drop(&mut self) {
         unsafe { sys::wc_AesFree(&mut self.ws_aes); }
+        self.zeroize();
     }
 }
 
@@ -506,6 +521,7 @@ fn ccm_decrypt_in_place(
 
 /// AES-128-CCM authenticated encryption (12-byte nonce, 16-byte tag).
 #[cfg(all(aes_ccm, feature = "aead"))]
+#[derive(Zeroize, ZeroizeOnDrop)]
 pub struct Aes128Ccm {
     key: [u8; 16],
 }
@@ -557,6 +573,7 @@ impl AeadInPlace for Aes128Ccm {
 
 /// AES-256-CCM authenticated encryption (12-byte nonce, 16-byte tag).
 #[cfg(all(aes_ccm, feature = "aead"))]
+#[derive(Zeroize, ZeroizeOnDrop)]
 pub struct Aes256Ccm {
     key: [u8; 32],
 }
@@ -906,10 +923,17 @@ impl CFB {
     }
 }
 #[cfg(aes_cfb)]
+impl Zeroize for CFB {
+    fn zeroize(&mut self) {
+        unsafe { crate::zeroize_raw(&mut self.ws_aes); }
+    }
+}
+#[cfg(aes_cfb)]
 impl Drop for CFB {
     /// Safely free the wolfSSL resources.
     fn drop(&mut self) {
         unsafe { sys::wc_AesFree(&mut self.ws_aes); }
+        self.zeroize();
     }
 }
 
@@ -1076,10 +1100,17 @@ impl CTR {
     }
 }
 #[cfg(aes_ctr)]
+impl Zeroize for CTR {
+    fn zeroize(&mut self) {
+        unsafe { crate::zeroize_raw(&mut self.ws_aes); }
+    }
+}
+#[cfg(aes_ctr)]
 impl Drop for CTR {
     /// Safely free the wolfSSL resources.
     fn drop(&mut self) {
         unsafe { sys::wc_AesFree(&mut self.ws_aes); }
+        self.zeroize();
     }
 }
 
@@ -1384,10 +1415,17 @@ impl ECB {
     }
 }
 #[cfg(aes_ecb)]
+impl Zeroize for ECB {
+    fn zeroize(&mut self) {
+        unsafe { crate::zeroize_raw(&mut self.ws_aes); }
+    }
+}
+#[cfg(aes_ecb)]
 impl Drop for ECB {
     /// Safely free the wolfSSL resources.
     fn drop(&mut self) {
         unsafe { sys::wc_AesFree(&mut self.ws_aes); }
+        self.zeroize();
     }
 }
 
@@ -1579,10 +1617,17 @@ impl GCM {
     }
 }
 #[cfg(aes_gcm)]
+impl Zeroize for GCM {
+    fn zeroize(&mut self) {
+        unsafe { crate::zeroize_raw(&mut self.ws_aes); }
+    }
+}
+#[cfg(aes_gcm)]
 impl Drop for GCM {
     /// Safely free the wolfSSL resources.
     fn drop(&mut self) {
         unsafe { sys::wc_AesFree(&mut self.ws_aes); }
+        self.zeroize();
     }
 }
 
@@ -1658,6 +1703,7 @@ fn gcm_decrypt_in_place(
 
 /// AES-128-GCM authenticated encryption (12-byte nonce, 16-byte tag).
 #[cfg(all(aes_gcm, feature = "aead"))]
+#[derive(Zeroize, ZeroizeOnDrop)]
 pub struct Aes128Gcm {
     key: [u8; 16],
 }
@@ -1709,6 +1755,7 @@ impl AeadInPlace for Aes128Gcm {
 
 /// AES-256-GCM authenticated encryption (12-byte nonce, 16-byte tag).
 #[cfg(all(aes_gcm, feature = "aead"))]
+#[derive(Zeroize, ZeroizeOnDrop)]
 pub struct Aes256Gcm {
     key: [u8; 32],
 }
@@ -2034,10 +2081,17 @@ impl GCMStream {
     }
 }
 #[cfg(aes_gcm_stream)]
+impl Zeroize for GCMStream {
+    fn zeroize(&mut self) {
+        unsafe { crate::zeroize_raw(&mut self.ws_aes); }
+    }
+}
+#[cfg(aes_gcm_stream)]
 impl Drop for GCMStream {
     /// Safely free the wolfSSL resources.
     fn drop(&mut self) {
         unsafe { sys::wc_AesFree(&mut self.ws_aes); }
+        self.zeroize();
     }
 }
 
@@ -2215,10 +2269,17 @@ impl OFB {
     }
 }
 #[cfg(aes_ofb)]
+impl Zeroize for OFB {
+    fn zeroize(&mut self) {
+        unsafe { crate::zeroize_raw(&mut self.ws_aes); }
+    }
+}
+#[cfg(aes_ofb)]
 impl Drop for OFB {
     /// Safely free the wolfSSL resources.
     fn drop(&mut self) {
         unsafe { sys::wc_AesFree(&mut self.ws_aes); }
+        self.zeroize();
     }
 }
 
@@ -2586,10 +2647,17 @@ impl XTS {
     }
 }
 #[cfg(aes_xts)]
+impl Zeroize for XTS {
+    fn zeroize(&mut self) {
+        unsafe { crate::zeroize_raw(&mut self.ws_xtsaes); }
+    }
+}
+#[cfg(aes_xts)]
 impl Drop for XTS {
     /// Safely free the wolfSSL resources.
     fn drop(&mut self) {
         unsafe { sys::wc_AesXtsFree(&mut self.ws_xtsaes); }
+        self.zeroize();
     }
 }
 
@@ -2890,10 +2958,17 @@ impl XTSStream {
     }
 }
 #[cfg(aes_xts_stream)]
+impl Zeroize for XTSStream {
+    fn zeroize(&mut self) {
+        unsafe { crate::zeroize_raw(&mut self.ws_xtsaes); }
+    }
+}
+#[cfg(aes_xts_stream)]
 impl Drop for XTSStream {
     /// Safely free the wolfSSL resources.
     fn drop(&mut self) {
         unsafe { sys::wc_AesXtsFree(&mut self.ws_xtsaes); }
+        self.zeroize();
     }
 }
 

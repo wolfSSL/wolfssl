@@ -29,6 +29,7 @@ functionality.
 use crate::random::RNG;
 use crate::sys;
 use core::mem::MaybeUninit;
+use zeroize::Zeroize;
 
 pub struct Curve25519Key {
     wc_key: sys::curve25519_key,
@@ -654,6 +655,12 @@ impl Curve25519Key {
     }
 }
 
+impl Zeroize for Curve25519Key {
+    fn zeroize(&mut self) {
+        unsafe { crate::zeroize_raw(&mut self.wc_key); }
+    }
+}
+
 impl Drop for Curve25519Key {
     /// Safely free the underlying wolfSSL Curve25519Key context.
     ///
@@ -664,5 +671,6 @@ impl Drop for Curve25519Key {
     /// preventing memory leaks.
     fn drop(&mut self) {
         unsafe { sys::wc_curve25519_free(&mut self.wc_key); }
+        self.zeroize();
     }
 }

@@ -23,6 +23,23 @@
 /* bindgen-generated bindings to the C library */
 pub mod sys;
 
+/// Zeroize the raw bytes of a value. For use in `Zeroize` impls on C FFI
+/// structs where `#[derive(Zeroize)]` cannot be used.
+///
+/// # Safety
+///
+/// `val` must be a valid, initialized value whose entire `size_of_val` byte
+/// representation is safe to overwrite with zeroes.
+pub(crate) unsafe fn zeroize_raw<T>(val: &mut T) {
+    use zeroize::Zeroize;
+    unsafe {
+        core::slice::from_raw_parts_mut(
+            val as *mut T as *mut u8,
+            core::mem::size_of_val(val),
+        ).zeroize();
+    }
+}
+
 pub mod aes;
 pub mod blake2;
 pub mod chacha20_poly1305;

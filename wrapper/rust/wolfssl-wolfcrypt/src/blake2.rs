@@ -27,6 +27,7 @@ functionality.
 
 use crate::sys;
 use core::mem::MaybeUninit;
+use zeroize::Zeroize;
 
 /// Context for BLAKE2b computation.
 #[cfg(blake2b)]
@@ -174,6 +175,20 @@ impl BLAKE2b {
 }
 
 
+#[cfg(blake2b)]
+impl Zeroize for BLAKE2b {
+    fn zeroize(&mut self) {
+        unsafe { crate::zeroize_raw(&mut self.wc_blake2b); }
+    }
+}
+
+#[cfg(blake2b)]
+impl Drop for BLAKE2b {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
+}
+
 /// Context for HMAC-BLAKE2b computation.
 #[cfg(blake2b_hmac)]
 pub struct BLAKE2bHmac {
@@ -310,6 +325,20 @@ impl BLAKE2bHmac {
     }
 }
 
+
+#[cfg(blake2b_hmac)]
+impl Zeroize for BLAKE2bHmac {
+    fn zeroize(&mut self) {
+        unsafe { crate::zeroize_raw(&mut self.wc_blake2b); }
+    }
+}
+
+#[cfg(blake2b_hmac)]
+impl Drop for BLAKE2bHmac {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
+}
 
 /// Context for BLAKE2s computation.
 #[cfg(blake2s)]
@@ -457,6 +486,20 @@ impl BLAKE2s {
 }
 
 
+#[cfg(blake2s)]
+impl Zeroize for BLAKE2s {
+    fn zeroize(&mut self) {
+        unsafe { crate::zeroize_raw(&mut self.wc_blake2s); }
+    }
+}
+
+#[cfg(blake2s)]
+impl Drop for BLAKE2s {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
+}
+
 /// Context for HMAC-BLAKE2s computation.
 #[cfg(blake2s_hmac)]
 pub struct BLAKE2sHmac {
@@ -590,5 +633,19 @@ impl BLAKE2sHmac {
             return Err(rc);
         }
         Ok(())
+    }
+}
+
+#[cfg(blake2s_hmac)]
+impl Zeroize for BLAKE2sHmac {
+    fn zeroize(&mut self) {
+        unsafe { crate::zeroize_raw(&mut self.wc_blake2s); }
+    }
+}
+
+#[cfg(blake2s_hmac)]
+impl Drop for BLAKE2sHmac {
+    fn drop(&mut self) {
+        self.zeroize();
     }
 }

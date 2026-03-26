@@ -27,6 +27,7 @@ Message Authentication Code (CMAC) functionality.
 
 use crate::sys;
 use core::mem::MaybeUninit;
+use zeroize::Zeroize;
 
 /// The `CMAC` struct manages the lifecycle of a wolfSSL `Cmac` object.
 ///
@@ -408,9 +409,16 @@ impl CMAC {
         Ok(rc == 0)
     }
 }
+impl Zeroize for CMAC {
+    fn zeroize(&mut self) {
+        unsafe { crate::zeroize_raw(&mut self.ws_cmac); }
+    }
+}
+
 impl Drop for CMAC {
     /// Safely free the wolfSSL resources.
     fn drop(&mut self) {
         unsafe { sys::wc_CmacFree(&mut self.ws_cmac); }
+        self.zeroize();
     }
 }

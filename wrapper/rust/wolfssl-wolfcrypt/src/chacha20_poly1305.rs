@@ -27,6 +27,7 @@ ChaCha20-Poly1305 functionality.
 
 use crate::sys;
 use core::mem::MaybeUninit;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 pub struct ChaCha20Poly1305 {
     wc_ccp: sys::ChaChaPoly_Aead,
@@ -243,14 +244,15 @@ impl ChaCha20Poly1305 {
     }
 }
 
+impl Zeroize for ChaCha20Poly1305 {
+    fn zeroize(&mut self) {
+        unsafe { crate::zeroize_raw(&mut self.wc_ccp); }
+    }
+}
+
 impl Drop for ChaCha20Poly1305 {
     fn drop(&mut self) {
-        unsafe {
-            let ptr = &mut self.wc_ccp as *mut sys::ChaChaPoly_Aead as *mut u8;
-            for i in 0..core::mem::size_of::<sys::ChaChaPoly_Aead>() {
-                core::ptr::write_volatile(ptr.add(i), 0);
-            }
-        }
+        self.zeroize();
     }
 }
 
@@ -261,6 +263,7 @@ impl Drop for ChaCha20Poly1305 {
 /// ChaCha20-Poly1305 AEAD instance holding a key for use with the
 /// `aead::KeyInit` and `aead::AeadInPlace` traits.
 #[cfg(feature = "aead")]
+#[derive(Zeroize, ZeroizeOnDrop)]
 pub struct ChaCha20Poly1305Aead {
     key: [u8; 32],
 }
@@ -449,6 +452,7 @@ impl XChaCha20Poly1305 {
 /// XChaCha20-Poly1305 AEAD instance holding a key for use with the
 /// `aead::KeyInit` and `aead::AeadInPlace` traits.
 #[cfg(all(xchacha20_poly1305, feature = "aead"))]
+#[derive(Zeroize, ZeroizeOnDrop)]
 pub struct XChaCha20Poly1305Aead {
     key: [u8; 32],
 }

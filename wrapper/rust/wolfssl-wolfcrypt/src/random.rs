@@ -46,6 +46,7 @@ rng.generate_block(&mut buffer).expect("Failed to generate a block");
 
 use crate::sys;
 use core::mem::{size_of_val, MaybeUninit};
+use zeroize::Zeroize;
 
 /// A cryptographically secure random number generator based on the wolfSSL
 /// library.
@@ -410,6 +411,12 @@ impl rand_core::TryRng for RNG {
 #[cfg(feature = "rand_core")]
 impl rand_core::TryCryptoRng for RNG {}
 
+impl Zeroize for RNG {
+    fn zeroize(&mut self) {
+        unsafe { crate::zeroize_raw(&mut self.wc_rng); }
+    }
+}
+
 impl Drop for RNG {
     /// Safely free the underlying wolfSSL RNG context.
     ///
@@ -420,5 +427,6 @@ impl Drop for RNG {
     /// preventing memory leaks.
     fn drop(&mut self) {
         unsafe { sys::wc_FreeRng(&mut self.wc_rng); }
+        self.zeroize();
     }
 }

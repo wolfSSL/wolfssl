@@ -32,6 +32,7 @@ use crate::sys;
 #[cfg(random)]
 use crate::random::RNG;
 use core::mem::{MaybeUninit};
+use zeroize::Zeroize;
 
 /// Rust wrapper for wolfSSL `ecc_point` object.
 pub struct ECCPoint {
@@ -267,6 +268,13 @@ impl ECCPoint {
     }
 }
 
+impl Zeroize for ECCPoint {
+    fn zeroize(&mut self) {
+        self.wc_ecc_point = core::ptr::null_mut();
+        self.heap = core::ptr::null_mut();
+    }
+}
+
 impl Drop for ECCPoint {
     /// Safely free the underlying wolfSSL ecc_point context.
     ///
@@ -277,6 +285,7 @@ impl Drop for ECCPoint {
     /// resources and preventing memory leaks.
     fn drop(&mut self) {
         unsafe { sys::wc_ecc_del_point_h(self.wc_ecc_point, self.heap); }
+        self.zeroize();
     }
 }
 
@@ -1957,6 +1966,12 @@ impl ECC {
     }
 }
 
+impl Zeroize for ECC {
+    fn zeroize(&mut self) {
+        unsafe { crate::zeroize_raw(&mut self.wc_ecc_key); }
+    }
+}
+
 impl Drop for ECC {
     /// Safely free the underlying wolfSSL ECC context.
     ///
@@ -1967,5 +1982,6 @@ impl Drop for ECC {
     /// preventing memory leaks.
     fn drop(&mut self) {
         unsafe { sys::wc_ecc_free(&mut self.wc_ecc_key); }
+        self.zeroize();
     }
 }

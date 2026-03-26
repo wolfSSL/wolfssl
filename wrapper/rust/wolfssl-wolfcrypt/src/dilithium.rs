@@ -62,6 +62,7 @@ use crate::sys;
 #[cfg(all(random, any(dilithium_make_key, dilithium_sign)))]
 use crate::random::RNG;
 use core::mem::MaybeUninit;
+use zeroize::Zeroize;
 
 /// Rust wrapper for a wolfSSL `dilithium_key` object.
 ///
@@ -1299,6 +1300,12 @@ impl Dilithium {
     }
 }
 
+impl Zeroize for Dilithium {
+    fn zeroize(&mut self) {
+        unsafe { crate::zeroize_raw(&mut self.ws_key); }
+    }
+}
+
 impl Drop for Dilithium {
     /// Safely free the underlying wolfSSL Dilithium key context.
     ///
@@ -1306,5 +1313,6 @@ impl Drop for Dilithium {
     /// is called when the `Dilithium` struct goes out of scope.
     fn drop(&mut self) {
         unsafe { sys::wc_dilithium_free(&mut self.ws_key); }
+        self.zeroize();
     }
 }
