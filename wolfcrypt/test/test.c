@@ -1896,8 +1896,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t nist_sp80056c_twostep_cmac(void)
     }
 #endif
 
-#define WC_ALLOC_DO_ON_FAILURE() WC_DO_NOTHING
-
 #ifdef TEST_ALWAYS_RUN_TO_END
     #define TEST_FAIL(msg, retval) do { last_failed_test_ret = (retval); wc_test_render_error_message(msg, retval); } while (0)
 #elif !defined(TEST_FAIL)
