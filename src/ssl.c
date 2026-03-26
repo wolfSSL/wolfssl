@@ -1274,7 +1274,7 @@ const char* wolfSSL_get_shared_ciphers(WOLFSSL* ssl, char* buf, int len)
 {
     const char* cipher;
 
-    if (ssl == NULL)
+    if (ssl == NULL || len <= 0)
         return NULL;
 
     cipher = wolfSSL_get_cipher_name_iana(ssl);
