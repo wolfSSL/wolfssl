@@ -391,21 +391,15 @@ int wc_MlKemKey_Init_Label(MlKemKey* key, int type, const char* label,
  */
 int wc_MlKemKey_Free(MlKemKey* key)
 {
-#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
-    int ret = 0;
-#endif
-
     if (key != NULL) {
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
         if (key->devId != INVALID_DEVID) {
-            ret = wc_CryptoCb_Free(key->devId, WC_ALGO_TYPE_PK,
-                WC_PK_TYPE_PQC_KEM_KEYGEN, WC_PQC_KEM_TYPE_KYBER, (void*)key);
-            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
-                return ret;
-            }
-            /* fall-through to software cleanup */
+            (void)wc_CryptoCb_Free(key->devId, WC_ALGO_TYPE_PK,
+                                   WC_PK_TYPE_PQC_KEM_KEYGEN,
+                                   WC_PQC_KEM_TYPE_KYBER,
+                                   (void*)key);
+            /* always continue to software cleanup */
         }
-        (void)ret;
 #endif
         /* Dispose of PRF object. */
         mlkem_prf_free(&key->prf);
