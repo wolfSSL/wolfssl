@@ -138,7 +138,11 @@ int silabs_ecc_sign_hash(const byte* in, word32 inlen, byte* out,
             siglen
         );
     }
-    return (sl_stat == SL_STATUS_OK) ? 0 : WC_HW_E;
+    if (sl_stat == SL_STATUS_OK) {
+        *outlen = siglen;
+        return 0;
+    }
+    return WC_HW_E;
 }
 
 #ifdef HAVE_ECC_VERIFY
