@@ -34374,17 +34374,19 @@ static int test_zd21414_pkcs7_ori_oid_overflow(void)
         0x4D,0x80,0x10,0xBD,0x36,0x26,0xF5,0x6E,0x11,0xD0,0xBB,0x5C,
         0x15,0x19,0xA7,0x6B,0xC2,0xC2,0xB6
     }; /* 187 bytes */
-    PKCS7 pkcs7;
+    PKCS7* pkcs7 = NULL;
     byte decoded[256];
 
-    ExpectIntEQ(wc_PKCS7_Init(&pkcs7, NULL, INVALID_DEVID), 0);
-    /* ORI decrypt callback must be set or parser skips ORI processing */
-    wc_PKCS7_SetOriDecryptCb(&pkcs7, oriDecryptCb_zd21414);
-    /* Without fix: overflows oriOID[32] → crash.
-     * With fix: returns BUFFER_E before the copy. */
-    ExpectIntLT(wc_PKCS7_DecodeEnvelopedData(&pkcs7, (byte*)malformed,
-        (word32)sizeof(malformed), decoded, sizeof(decoded)), 0);
-    wc_PKCS7_Free(&pkcs7);
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, INVALID_DEVID));
+    if (pkcs7 != NULL) {
+        /* ORI decrypt callback must be set or parser skips ORI processing */
+        wc_PKCS7_SetOriDecryptCb(pkcs7, oriDecryptCb_zd21414);
+        /* Without fix: overflows oriOID[32] → crash.
+         * With fix: returns BUFFER_E before the copy. */
+        ExpectIntLT(wc_PKCS7_DecodeEnvelopedData(pkcs7, (byte*)malformed,
+            (word32)sizeof(malformed), decoded, sizeof(decoded)), 0);
+        wc_PKCS7_Free(pkcs7);
+    }
 #endif
     return EXPECT_RESULT();
 }

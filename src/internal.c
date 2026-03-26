@@ -9728,8 +9728,9 @@ static DtlsFragBucket* DtlsMsgCombineFragBuckets(DtlsMsg* msg,
             newBucket->m.m.next = next;
         }
     }
-    /* Adjust size in msg */
-    msg->bytesReceived += newSz - overlapSz;
+    /* Adjust size in msg. Cap at dataSz to avoid counting gap bytes
+     * between a non-overlapping fragment and bucket as received. */
+    msg->bytesReceived += min(newSz - overlapSz, dataSz);
     newBucket->m.m.offset = newOffset;
     newBucket->m.m.sz = newSz;
     return newBucket;
@@ -9834,7 +9835,7 @@ int DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch, const byte* data, byte ty
                 done = 1;
                 break;
             }
-            else if (fragOffset <= curEnd && fragOffsetEnd >= cur->m.m.offset) {
+            else if (fragOffset <= curEnd) {
                 /* found place to store fragment */
                 break;
             }
