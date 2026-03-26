@@ -5859,8 +5859,17 @@ enum  {
 
 /* 64-bit epoch + 64-bit sequence number */
 #define DTLS13_RN_SIZE (OPAQUE64_LEN + OPAQUE64_LEN)
-/* Maximum number of ACK records encodable in the word16 length field */
-#define DTLS13_ACK_MAX_RECORDS ((int)(WOLFSSL_MAX_16BIT / DTLS13_RN_SIZE))
+/* Maximum number of ACK records allowed in a ACK record */
+#ifndef DTLS13_ACK_MAX_RECORDS
+#define DTLS13_ACK_MAX_RECORDS 128
+#endif
+/* WOLFSSL_MAX_16BIT / DTLS13_RN_SIZE (0xffff / (OPAQUE64_LEN + OPAQUE64_LEN))
+ * Literals are used because OPAQUE64_LEN is an enum value, invisible to the
+ * preprocessor. */
+#if DTLS13_ACK_MAX_RECORDS > 0xffff / 16
+#error "DTLS13_ACK_MAX_RECORDS exceeds the maximum encodable in the word16 length field"
+#endif
+
 
 typedef struct Dtls13Epoch {
     w64wrapper epochNumber;
