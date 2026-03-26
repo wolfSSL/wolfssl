@@ -17597,6 +17597,10 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     *inOutIdx   += status_length;
                     list_length -= status_length;
                 }
+                if (idx >= MAX_CHAIN_DEPTH) {
+                    ret = BUFFER_ERROR;
+                    break;
+                }
                 idx++;
             }
 
