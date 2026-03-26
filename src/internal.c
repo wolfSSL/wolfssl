@@ -13743,11 +13743,34 @@ static int CopyREQAttributes(WOLFSSL_X509* x509, DecodedCert* dCert)
 }
 #endif /* WOLFSSL_CERT_REQ */
 
+/* Copy an ASN-encoded date (type + length + data) into a WOLFSSL_ASN1_TIME.
+ * srcDate: ASN date buffer where [0]=type, [1]=length, [2..]=date bytes.
+ * srcDateLen: total length of srcDate (0 means no date present). */
+static void CopyDateToASN1_TIME(const byte* srcDate, int srcDateLen,
+                                WOLFSSL_ASN1_TIME* dst)
+{
+    if (srcDateLen >= 2) {
+        /* Clamp the date length to the maximum allowed size.
+         * This needs to match the size of WOLFSSL_ASN1_TIME minus the 
+         * the type and length fields. */
+        const int maxSz = CTC_DATE_SIZE - 2;
+        const int copySz = (int)min(srcDate[1], maxSz);
+        dst->type = srcDate[0];
+        dst->length = copySz;
+        XMEMCPY(dst->data, &srcDate[2], copySz);
+    }
+    else {
+        dst->length = 0;
+    }
+}
+
 /* Copy parts X509 needs from Decoded cert, 0 on success */
 int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
 {
     int ret = 0;
+#ifdef WOLFSSL_SEP
     int minSz;
+#endif
 
     if (x509 == NULL || dCert == NULL ||
         dCert->subjectCNLen < 0)
@@ -13820,22 +13843,10 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
         x509->hwSerialNumSz = 0;
 #endif /* WOLFSSL_SEP */
 
-    if (dCert->beforeDateLen > 0) {
-        minSz = (int)min(dCert->beforeDate[1], MAX_DATE_SZ);
-        x509->notBefore.type = dCert->beforeDate[0];
-        x509->notBefore.length = minSz;
-        XMEMCPY(x509->notBefore.data, &dCert->beforeDate[2], minSz);
-    }
-    else
-        x509->notBefore.length = 0;
-    if (dCert->afterDateLen > 0) {
-        minSz = (int)min(dCert->afterDate[1], MAX_DATE_SZ);
-        x509->notAfter.type = dCert->afterDate[0];
-        x509->notAfter.length = minSz;
-        XMEMCPY(x509->notAfter.data, &dCert->afterDate[2], minSz);
-    }
-    else
-        x509->notAfter.length = 0;
+    CopyDateToASN1_TIME(dCert->beforeDate, dCert->beforeDateLen,
+        &x509->notBefore);
+    CopyDateToASN1_TIME(dCert->afterDate, dCert->afterDateLen,
+        &x509->notAfter);
 
     if (dCert->publicKey != NULL && dCert->pubKeySize != 0) {
         x509->pubKey.buffer = (byte*)XMALLOC(
@@ -14217,29 +14228,10 @@ int CopyDecodedAcertToX509(WOLFSSL_X509_ACERT* x509, DecodedAcert* dAcert)
     }
 
     /* Copy before and after dates. */
-    {
-        int minSz = 0;
-
-        if (dAcert->beforeDateLen > 0) {
-            minSz = (int)min(dAcert->beforeDate[1], MAX_DATE_SZ);
-            x509->notBefore.type = dAcert->beforeDate[0];
-            x509->notBefore.length = minSz;
-            XMEMCPY(x509->notBefore.data, &dAcert->beforeDate[2], minSz);
-        }
-        else {
-            x509->notBefore.length = 0;
-        }
-
-        if (dAcert->afterDateLen > 0) {
-            minSz = (int)min(dAcert->afterDate[1], MAX_DATE_SZ);
-            x509->notAfter.type = dAcert->afterDate[0];
-            x509->notAfter.length = minSz;
-            XMEMCPY(x509->notAfter.data, &dAcert->afterDate[2], minSz);
-        }
-        else {
-            x509->notAfter.length = 0;
-        }
-    }
+    CopyDateToASN1_TIME(dAcert->beforeDate, dAcert->beforeDateLen,
+        &x509->notBefore);
+    CopyDateToASN1_TIME(dAcert->afterDate, dAcert->afterDateLen,
+        &x509->notAfter);
 
     /* Copy the signature. */
     if (dAcert->signature != NULL && dAcert->sigLength != 0 &&
