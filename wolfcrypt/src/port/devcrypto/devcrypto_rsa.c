@@ -156,9 +156,10 @@ static int _PrivateOperation(const byte* in, word32 inlen, byte* out,
     byte* u    = NULL;
     byte* n    = NULL;
     word32 dSz, pSz, qSz, dpSz = 0, dqSz = 0, uSz = 0, nSz;
+    word32 dAllocSz;
 
     dev = &key->ctx;
-    dSz = nSz = wc_RsaEncryptSize(key);
+    dAllocSz = dSz = nSz = wc_RsaEncryptSize(key);
     pSz = qSz = nSz / 2;
     if (outlen < dSz) {
         WOLFSSL_MSG("Output buffer is too small");
@@ -196,7 +197,7 @@ static int _PrivateOperation(const byte* in, word32 inlen, byte* out,
     if (!key->blackKey) { /* @TODO unexpected results with black key CRT form */
         if (ret == 0 && dpSz > 0) {
             dSz = 0; nSz = 0;
-            dq = (byte*)XMALLOC(dpSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            dq = (byte*)XMALLOC(dqSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             dp = (byte*)XMALLOC(dpSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             u  = (byte*)XMALLOC(uSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             if (dq == NULL || dp == NULL || u == NULL) {
@@ -237,12 +238,12 @@ static int _PrivateOperation(const byte* in, word32 inlen, byte* out,
         }
     }
 
-    if (d)  { ForceZero(d, dSz);   XFREE(d, NULL, DYNAMIC_TYPE_TMP_BUFFER);  }
-    if (p)  { ForceZero(p, pSz);   XFREE(p, NULL, DYNAMIC_TYPE_TMP_BUFFER);  }
-    if (q)  { ForceZero(q, qSz);   XFREE(q, NULL, DYNAMIC_TYPE_TMP_BUFFER);  }
-    if (dp) { ForceZero(dp, dpSz); XFREE(dp, NULL, DYNAMIC_TYPE_TMP_BUFFER); }
-    if (dq) { ForceZero(dq, dqSz); XFREE(dq, NULL, DYNAMIC_TYPE_TMP_BUFFER); }
-    if (u)  { ForceZero(u, uSz);   XFREE(u, NULL, DYNAMIC_TYPE_TMP_BUFFER);  }
+    if (d)  { ForceZero(d, dAllocSz); XFREE(d, NULL, DYNAMIC_TYPE_TMP_BUFFER);  }
+    if (p)  { ForceZero(p, pSz);    XFREE(p, NULL, DYNAMIC_TYPE_TMP_BUFFER);  }
+    if (q)  { ForceZero(q, qSz);    XFREE(q, NULL, DYNAMIC_TYPE_TMP_BUFFER);  }
+    if (dp) { ForceZero(dp, dpSz);  XFREE(dp, NULL, DYNAMIC_TYPE_TMP_BUFFER); }
+    if (dq) { ForceZero(dq, dqSz);  XFREE(dq, NULL, DYNAMIC_TYPE_TMP_BUFFER); }
+    if (u)  { ForceZero(u, uSz);    XFREE(u, NULL, DYNAMIC_TYPE_TMP_BUFFER);  }
     XFREE(n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     wc_DevCryptoFree(dev);

@@ -1982,6 +1982,7 @@ static int se050_ecc_insert_key(word32 keyId, const byte* eccDer,
 
     /* Avoid key ID conflicts with temporary key storage */
     if (keyId >= SE050_KEYID_START) {
+        wolfSSL_CryptHwMutexUnLock();
         return BAD_FUNC_ARG;
     }
 
@@ -2013,7 +2014,9 @@ static int se050_ecc_insert_key(word32 keyId, const byte* eccDer,
             status = kStatus_SSS_Fail;
         }
     }
-    status = sss_key_store_context_init(&host_keystore, cfg_se050_i2c_pi);
+    if (status == kStatus_SSS_Success) {
+        status = sss_key_store_context_init(&host_keystore, cfg_se050_i2c_pi);
+    }
     if (status == kStatus_SSS_Success) {
         status = sss_key_object_init(&newKey, &host_keystore);
     }
