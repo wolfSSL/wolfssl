@@ -11005,8 +11005,8 @@ int wc_ecc_import_x963_ex2(const byte* in, word32 inLen, ecc_key* key,
     if (err == MP_OKAY)
         err = wc_ecc_check_key(key);
 #else
-    /* Always validate ECC imports to prevent invalid curve attacks */
-    if (err == MP_OKAY)
+    /* Validate untrusted ECC imports to prevent invalid curve attacks */
+    if ((err == MP_OKAY) && untrusted)
         err = wc_ecc_check_key(key);
 #endif
 #if (!defined(WOLFSSL_VALIDATE_ECC_IMPORT) || \

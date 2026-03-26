@@ -34449,9 +34449,10 @@ static int test_zd21418_ecc_invalid_curve_point(void)
 
     ExpectIntEQ(wc_ecc_init(&peerKey), 0);
 
-    /* Import of invalid point must be rejected */
-    ExpectIntNE(wc_ecc_import_x963_ex(badPt, sizeof(badPt), &peerKey,
-        ECC_SECP256R1), 0);
+    /* Import of invalid point as untrusted (TLS peer) must be rejected.
+     * Uses _ex2 with untrusted=1 to match the TLS key exchange path. */
+    ExpectIntNE(wc_ecc_import_x963_ex2(badPt, sizeof(badPt), &peerKey,
+        ECC_SECP256R1, 1), 0);
 
     wc_ecc_free(&peerKey);
 #endif
