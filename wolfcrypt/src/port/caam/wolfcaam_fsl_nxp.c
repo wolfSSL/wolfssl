@@ -443,12 +443,14 @@ int wc_CAAM_EccSign(const byte* in, int inlen, byte* out, word32* outlen,
         if (key->blackKey == CAAM_BLACK_KEY_CCM) {
             if (mp_to_unsigned_bin_len(wc_ecc_key_get_priv(key), k,
                     kSz + WC_CAAM_MAC_SZ) != MP_OKAY) {
+                ForceZero(k, sizeof(k));
                 return MP_TO_E;
             }
         }
         else {
             if (mp_to_unsigned_bin_len(wc_ecc_key_get_priv(key), k, kSz) !=
                     MP_OKAY) {
+                ForceZero(k, sizeof(k));
                 return MP_TO_E;
             }
         }
@@ -457,6 +459,7 @@ int wc_CAAM_EccSign(const byte* in, int inlen, byte* out, word32* outlen,
     ecdsel = GetECDSEL(dp->id);
     if (ecdsel == 0) {
         WOLFSSL_MSG("unknown key type or size");
+        ForceZero(k, sizeof(k));
         return CRYPTOCB_UNAVAILABLE;
     }
 
@@ -469,6 +472,7 @@ int wc_CAAM_EccSign(const byte* in, int inlen, byte* out, word32* outlen,
             break;
         default:
             WOLFSSL_MSG("unknown/unsupported key type");
+            ForceZero(k, sizeof(k));
             return BAD_FUNC_ARG;
     }
 
@@ -508,10 +512,12 @@ int wc_CAAM_EccSign(const byte* in, int inlen, byte* out, word32* outlen,
         mp_free(&mps);
         if (ret != 0) {
             WOLFSSL_MSG("Issue converting to signature");
+            ForceZero(k, sizeof(k));
             return -1;
         }
     }
 
+    ForceZero(k, sizeof(k));
     return ret;
 }
 
@@ -697,22 +703,26 @@ int wc_CAAM_Ecdh(ecc_key* private_key, ecc_key* public_key, byte* out,
     if (private_key->blackKey == CAAM_BLACK_KEY_CCM) {
         if (mp_to_unsigned_bin_len(wc_ecc_key_get_priv(private_key), k,
                 keySz + WC_CAAM_MAC_SZ) != MP_OKAY) {
+            ForceZero(k, sizeof(k));
             return MP_TO_E;
         }
     }
     else {
         if (mp_to_unsigned_bin_len(wc_ecc_key_get_priv(private_key), k, keySz)
                 != MP_OKAY) {
+            ForceZero(k, sizeof(k));
             return MP_TO_E;
         }
     }
 
     if (*outlen < (word32)keySz) {
+        ForceZero(k, sizeof(k));
         return -1;
     }
 
     status = CAAM_ECC_ECDH(CAAM, &hndl, k, keySz, qxy, keySz*2, out, keySz,
         ecdsel, enc);
+    ForceZero(k, sizeof(k));
     if (status == kStatus_Success) {
         *outlen = keySz;
         return MP_OKAY;
@@ -787,6 +797,7 @@ int wc_CAAM_MakeEccKey(WC_RNG* rng, int keySize, ecc_key* key, int curveId,
         ret = -1;
     }
 
+    ForceZero(k, sizeof(k));
     return ret;
 }
 #endif /* WOLFSSL_KEY_GEN */
