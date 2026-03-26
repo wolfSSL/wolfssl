@@ -1180,6 +1180,8 @@ static int ImportKeyState(WOLFSSL* ssl, const byte* exp, word32 len, byte ver,
         word16 i, wordCount, wordAdj = 0;
 
         /* do window */
+        if (idx + OPAQUE16_LEN > len)
+            return BUFFER_E;
         ato16(exp + idx, &wordCount);
         idx += OPAQUE16_LEN;
 
@@ -1188,6 +1190,8 @@ static int ImportKeyState(WOLFSSL* ssl, const byte* exp, word32 len, byte ver,
             wordCount = WOLFSSL_DTLS_WINDOW_WORDS;
         }
 
+        if (idx + (wordCount * OPAQUE32_LEN) + wordAdj > len)
+            return BUFFER_E;
         XMEMSET(keys->peerSeq[0].window, 0xFF, DTLS_SEQ_SZ);
         for (i = 0; i < wordCount; i++) {
             ato32(exp + idx, &keys->peerSeq[0].window[i]);
@@ -1196,6 +1200,9 @@ static int ImportKeyState(WOLFSSL* ssl, const byte* exp, word32 len, byte ver,
         idx += wordAdj;
 
         /* do prevWindow */
+        wordAdj = 0;
+        if (idx + OPAQUE16_LEN > len)
+            return BUFFER_E;
         ato16(exp + idx, &wordCount);
         idx += OPAQUE16_LEN;
 
@@ -1204,6 +1211,8 @@ static int ImportKeyState(WOLFSSL* ssl, const byte* exp, word32 len, byte ver,
             wordCount = WOLFSSL_DTLS_WINDOW_WORDS;
         }
 
+        if (idx + (wordCount * OPAQUE32_LEN) + wordAdj > len)
+            return BUFFER_E;
         XMEMSET(keys->peerSeq[0].prevWindow, 0xFF, DTLS_SEQ_SZ);
         for (i = 0; i < wordCount; i++) {
             ato32(exp + idx, &keys->peerSeq[0].prevWindow[i]);
