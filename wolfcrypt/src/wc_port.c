@@ -99,6 +99,13 @@
     #include <wolfssl/wolfcrypt/port/nxp/dcp_port.h>
 #endif
 
+#ifdef WOLFSSL_NXP_CASPER
+    #include <wolfssl/wolfcrypt/port/nxp/casper_port.h>
+#endif
+#ifdef WOLFSSL_NXP_HASHCRYPT
+    #include <wolfssl/wolfcrypt/port/nxp/hashcrypt_port.h>
+#endif
+
 #ifdef WOLF_CRYPTO_CB
     #include <wolfssl/wolfcrypt/cryptocb.h>
 #endif
@@ -437,6 +444,17 @@ int wolfCrypt_Init(void)
 
 #ifdef WOLFSSL_IMXRT_DCP
         if ((ret = wc_dcp_init()) != 0) {
+            return ret;
+        }
+#endif
+
+#ifdef WOLFSSL_NXP_CASPER
+        if ((ret = wc_casper_init()) != 0) {
+            return ret;
+        }
+#endif
+#ifdef WOLFSSL_NXP_HASHCRYPT
+        if ((ret = wc_hashcrypt_init()) != 0) {
             return ret;
         }
 #endif

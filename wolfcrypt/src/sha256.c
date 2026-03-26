@@ -222,6 +222,7 @@ on the specific device platform.
       !defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)) || \
      defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)) && \
     !defined(PSOC6_HASH_SHA2) && !defined(WOLFSSL_IMXRT_DCP) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
+    !defined(WOLFSSL_NXP_HASHCRYPT) && \
     !defined(WOLFSSL_KCAPI_HASH) && !defined(WOLFSSL_SE050_HASH) && \
     ((!defined(WOLFSSL_RENESAS_SCEPROTECT) && \
       !defined(WOLFSSL_RENESAS_RSIP)) \
@@ -1050,6 +1051,9 @@ static int InitSha256(wc_Sha256* sha256)
 #elif defined(WOLFSSL_IMXRT_DCP)
     #include <wolfssl/wolfcrypt/port/nxp/dcp_port.h>
     /* implemented in wolfcrypt/src/port/nxp/dcp_port.c */
+
+#elif defined(WOLFSSL_NXP_HASHCRYPT)
+    /* implemented in wolfcrypt/src/port/nxp/hashcrypt_port.c */
 
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
     /* implemented in wolfcrypt/src/port/silabs/silabs_hash.c */
