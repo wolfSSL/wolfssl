@@ -8013,6 +8013,11 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
                             acceptOffset - RECORD_HEADER_SZ,
                             sendSz - RECORD_HEADER_SZ, extMsgType);
                     }
+#if defined(WOLFSSL_TEST)
+                    if (ret == 0 && ssl->echInnerHelloCb != NULL) {
+                        ret = ssl->echInnerHelloCb(output, (word32)sendSz);
+                    }
+#endif
                     if (extMsgType == hello_retry_request) {
                         /* reset the ech state for round 2 */
                         ((WOLFSSL_ECH*)echX->data)->state = ECH_WRITE_NONE;
@@ -14275,6 +14280,18 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
                 }
             }
         #endif /* NO_HANDSHAKE_DONE_CB */
+
+        #if defined(HAVE_ECH)
+            /* RFC 9849 s6.1.6: if we offered ECH but the server rejected it,
+             * send ech_required alert and abort before returning to the app */
+            if (ssl->echConfigs != NULL && !ssl->options.disableECH &&
+                    !ssl->options.echAccepted) {
+                SendAlert(ssl, alert_fatal, ech_required);
+                ssl->error = ECH_REQUIRED_E;
+                WOLFSSL_ERROR_VERBOSE(ECH_REQUIRED_E);
+                return WOLFSSL_FATAL_ERROR;
+            }
+        #endif /* HAVE_ECH */
 
             if (!ssl->options.keepResources) {
                 FreeHandshakeResources(ssl);

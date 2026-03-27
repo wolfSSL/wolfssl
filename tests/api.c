@@ -15430,6 +15430,7 @@ static int test_wolfSSL_Tls13_ECH_disable_conn(void)
 
     return EXPECT_RESULT();
 }
+
 /* Regression test: an inner SNI hostname >= MAX_PUBLIC_NAME_SZ (256) bytes
  * must not cause a stack-buffer-overflow in TLSX_EchRestoreSNI.  Before the
  * fix, the truncated copy omitted the NUL terminator and XSTRLEN read past
@@ -15475,6 +15476,51 @@ static int test_wolfSSL_Tls13_ECH_long_SNI(void)
 
     return EXPECT_RESULT();
 }
+
+static int test_wolfSSL_Tls13_ECH_ech_required()
+{
+    EXPECT_DECLS;
+    test_ssl_memio_ctx test_ctx;
+    int checkPublic = 1;
+
+    /* both server and client will be setup to use ECH */
+    test_ctx.s_cb.ctx_ready = test_ech_server_ctx_ready;
+    test_ctx.s_cb.ssl_ready = test_ech_server_ssl_ready;
+    test_ctx.c_cb.ssl_ready = test_ech_client_ssl_ready;
+
+    ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+
+    /* this callback will ensure that the correct SNI is being held */
+    wolfSSL_CTX_set_servername_callback(test_ctx.s_ctx,
+        test_ech_server_sni_callback);
+    ExpectIntEQ(wolfSSL_CTX_set_servername_arg(test_ctx.s_ctx, &checkPublic),
+        WOLFSSL_SUCCESS);
+
+    /* disable ECH on the server side so ECH will fail */
+    wolfSSL_SetEchEnable(test_ctx.s_ssl, 0);
+
+    /* Reconfigure the server SNI to match the public name */
+    ExpectIntEQ(wolfSSL_UseSNI(test_ctx.s_ssl, WOLFSSL_SNI_HOST_NAME,
+        echCbTestPublicName, (word16)XSTRLEN(echCbTestPublicName)),
+        WOLFSSL_SUCCESS);
+
+    /* client sends ECH but server can't process it */
+    ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL),
+        TEST_SUCCESS);
+    ExpectIntEQ(test_ctx.c_ssl->options.echAccepted, 0);
+
+    /* the server should see the handshake as successful
+     * the client should abort because the server did not use ECH */
+    ExpectIntEQ(wolfSSL_get_error(test_ctx.c_ssl, 0),
+        WC_NO_ERR_TRACE(ECH_REQUIRED_E));
+    ExpectIntEQ(wolfSSL_get_error(test_ctx.s_ssl, 0),
+        WC_NO_ERR_TRACE(WOLFSSL_ERROR_NONE));
+
+    test_ssl_memio_cleanup(&test_ctx);
+
+    return EXPECT_RESULT();
+}
+
 #endif /* HAVE_SSL_MEMIO_TESTS_DEPENDENCIES */
 
 /* verify that ECH can be enabled/disabled without issue */
@@ -15665,7 +15711,6 @@ static int ech_tamper_key_share(byte* innerCh, word32 innerChLen)
 
 static int ech_tamper_ciphersuite(byte* innerCh, word32 innerChLen)
 {
-
     word16 idx;
     byte sessionIdLen;
     word16 cipherSuitesLen;
@@ -15713,7 +15758,7 @@ static int test_wolfSSL_Tls13_ECH_tamper_ex(struct test_ssl_memio_ctx* test_ctx)
     return EXPECT_RESULT();
 }
 
-static int test_wolfSSL_Tls13_ECH_tamper(void)
+static int test_wolfSSL_Tls13_ECH_tamper_client(void)
 {
     EXPECT_DECLS;
     int err;
@@ -15779,7 +15824,8 @@ static int test_wolfSSL_Tls13_ECH_tamper(void)
     test_ssl_memio_cleanup(&test_ctx);
     return EXPECT_RESULT();
 }
-#endif /* WOLFSSL_TLS13 && HAVE_ECH && WOLFSSL_TEST && ... */
+#endif /* WOLFSSL_TLS13 && HAVE_ECH && WOLFSSL_TEST &&
+        * HAVE_SSL_MEMIO_TESTS_DEPENDENCIES && !WOLFSSL_NO_TLS12 */
 
 #endif /* HAVE_ECH && WOLFSSL_TLS13 */
 
@@ -37848,10 +37894,11 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_Tls13_ECH_GREASE),
     TEST_DECL(test_wolfSSL_Tls13_ECH_disable_conn),
     TEST_DECL(test_wolfSSL_Tls13_ECH_long_SNI),
+    TEST_DECL(test_wolfSSL_Tls13_ECH_ech_required),
 #endif
 #if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TEST) && \
     !defined(WOLFSSL_NO_TLS12)
-    TEST_DECL(test_wolfSSL_Tls13_ECH_tamper),
+    TEST_DECL(test_wolfSSL_Tls13_ECH_tamper_client),
 #endif
     TEST_DECL(test_wolfSSL_Tls13_ECH_enable_disable),
 #endif /* WOLFSSL_TLS13 && HAVE_ECH */

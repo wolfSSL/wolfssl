@@ -14318,13 +14318,15 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
         ech->type = *readBuf_p;
         readBuf_p++;
         offset += 1;
-        if (ech->type == ECH_TYPE_INNER) {
+        if (ssl->options.echProcessingInner && ech->type == ECH_TYPE_INNER) {
             ech->state = ECH_PARSED_INTERNAL;
             return 0;
         }
-        else if (ssl->options.echProcessingInner ||
-                 ech->type != ECH_TYPE_OUTER) {
-            /* type MUST be INNER or OUTER */
+        else if ((!ssl->options.echProcessingInner &&
+                  ech->type != ECH_TYPE_OUTER) ||
+                 (ssl->options.echProcessingInner &&
+                  ech->type != ECH_TYPE_INNER)) {
+            /* MUST process INNER in inner hello and OUTER in outer hello */
             return INVALID_PARAMETER;
         }
         /* Must have kdfId, aeadId, configId, enc len and payload len. */

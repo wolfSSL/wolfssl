@@ -960,7 +960,7 @@ typedef struct WOLFSSL_ALERT_HISTORY {
 
 
 /* Valid Alert types from page 16/17
- * Add alert string to the function AlertTypeToString in src/ssl.c
+ * Add alert string to the function AlertTypeToString in src/internal.c
  */
 enum AlertDescription {
     invalid_alert                   =  -1,
@@ -998,7 +998,8 @@ enum AlertDescription {
     bad_certificate_status_response = 113, /**< RFC 6066, section 8 */
     unknown_psk_identity            = 115, /**< RFC 4279, section 2 */
     certificate_required            = 116, /**< RFC 8446, section 8.2 */
-    no_application_protocol         = 120
+    no_application_protocol         = 120,
+    ech_required                    = 121  /**< RFC 9849, section 5 */
 };
 
 #ifdef WOLFSSL_MYSQL_COMPATIBLE

@@ -22210,6 +22210,13 @@ const char* AlertTypeToString(int type)
                 return no_application_protocol_str;
             }
 
+        case ech_required:
+            {
+                static const char ech_required_str[] =
+                    "ech_required";
+                return ech_required_str;
+            }
+
         default:
             WOLFSSL_MSG("Unknown Alert");
             return NULL;
@@ -27828,6 +27835,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 
     case SESSION_TICKET_NONCE_OVERFLOW:
         return "Session ticket nonce overflow";
+
+    case ECH_REQUIRED_E:
+        return "ECH offered but rejected by server";
     }
 
     return "unknown error number";
