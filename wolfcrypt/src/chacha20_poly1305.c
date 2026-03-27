@@ -373,9 +373,7 @@ static WC_INLINE int wc_XChaCha20Poly1305_crypt_oneshot(
     int isEncrypt)
 {
     int ret;
-    long int dst_len = isEncrypt ?
-        (long int)src_len + POLY1305_DIGEST_SIZE :
-        (long int)src_len - POLY1305_DIGEST_SIZE;
+    size_t dst_len;
     const byte *src_i;
     byte *dst_i;
     size_t src_len_rem;
@@ -388,12 +386,27 @@ static WC_INLINE int wc_XChaCha20Poly1305_crypt_oneshot(
     ChaChaPoly_Aead aead_buf, *aead = &aead_buf;
 #endif
 
+    if (isEncrypt) {
+        if (src_len > (size_t)(CHACHA20_POLY1305_MAX - POLY1305_DIGEST_SIZE)) {
+            ret = BAD_FUNC_ARG;
+            goto out;
+        }
+        dst_len = src_len + (size_t)POLY1305_DIGEST_SIZE;
+    }
+    else {
+        if (src_len < POLY1305_DIGEST_SIZE) {
+            ret = BAD_FUNC_ARG;
+            goto out;
+        }
+        dst_len = src_len - (size_t)POLY1305_DIGEST_SIZE;
+    }
+
     if ((dst == NULL) || (src == NULL)) {
         ret = BAD_FUNC_ARG;
         goto out;
     }
 
-    if (dst_len < 0 || (long int)dst_space < dst_len) {
+    if (dst_space < dst_len) {
         ret = BUFFER_E;
         goto out;
     }
@@ -412,7 +425,7 @@ static WC_INLINE int wc_XChaCha20Poly1305_crypt_oneshot(
      * and to exploit hot cache for the input data.
      */
     src_i = src;
-    src_len_rem = isEncrypt ? src_len : (size_t)dst_len;
+    src_len_rem = isEncrypt ? src_len : dst_len;
     dst_i = dst;
     while (src_len_rem > 0) {
         word32 this_src_len =
@@ -437,9 +450,9 @@ static WC_INLINE int wc_XChaCha20Poly1305_crypt_oneshot(
     }
 
 #ifdef WORD64_AVAILABLE
-    ret = wc_Poly1305_EncodeSizes64(&aead->poly, ad_len, isEncrypt ? src_len : (size_t)dst_len);
+    ret = wc_Poly1305_EncodeSizes64(&aead->poly, ad_len, isEncrypt ? src_len : dst_len);
 #else
-    ret = wc_Poly1305_EncodeSizes(&aead->poly, ad_len, isEncrypt ? src_len : (size_t)dst_len);
+    ret = wc_Poly1305_EncodeSizes(&aead->poly, ad_len, isEncrypt ? src_len : dst_len);
 #endif
     if (ret < 0)
         goto out;
