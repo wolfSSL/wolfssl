@@ -11746,8 +11746,11 @@ int wolfSSL_OCSP_parse_url(const char* url, char** host, char** port,
         if (upath != NULL && uport >= upath)
             goto err;
         XFREE(*port, NULL, DYNAMIC_TYPE_OPENSSL);
-        *port = CopyString(uport, upath != NULL ? (int)(upath - uport) : -1,
-                           NULL, DYNAMIC_TYPE_OPENSSL);
+        if (upath)
+            *port = CopyString(uport, (int)(upath - uport), NULL,
+                               DYNAMIC_TYPE_OPENSSL);
+        else
+            *port = CopyString(uport, -1, NULL, DYNAMIC_TYPE_OPENSSL);
         if (*port == NULL)
             goto err;
         hostEnd = uport - 1;
@@ -11755,8 +11758,11 @@ int wolfSSL_OCSP_parse_url(const char* url, char** host, char** port,
     else
         hostEnd = upath;
 
-    *host = CopyString(u, hostEnd != NULL ? (int)(hostEnd - u) : -1, NULL,
-                       DYNAMIC_TYPE_OPENSSL);
+    if (hostEnd)
+        *host = CopyString(u, (int)(hostEnd - u), NULL, DYNAMIC_TYPE_OPENSSL);
+    else
+        *host = CopyString(u, -1, NULL, DYNAMIC_TYPE_OPENSSL);
+
     if (*host == NULL)
         goto err;
 

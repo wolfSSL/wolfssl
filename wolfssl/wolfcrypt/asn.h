@@ -651,6 +651,9 @@ WOLFSSL_LOCAL void SetASN_OID(ASNSetData *dataASN, int oid, int oidType);
     ((dataASN).length + (word32)((dataASN).data.buffer.data - (in)) -  \
                                                      (dataASN).offset)
 
+#define GetASNItem_HaveData(dataASN)                                   \
+   ((dataASN).data.buffer.data != NULL)
+
 /* Get the index of a BER item's data.
  *
  * @param [in] dataASN  Dynamic ASN data item.
@@ -659,6 +662,9 @@ WOLFSSL_LOCAL void SetASN_OID(ASNSetData *dataASN, int oid, int oidType);
  */
 #define GetASNItem_DataIdx(dataASN, in)                                \
     (word32)((dataASN).data.ref.data - (in))
+
+#define GetASNItem_HaveIdx(dataASN)                                    \
+    ((dataASN).data.ref.data != NULL)
 
 /* Get the end index of a BER item - index of the start of the next item.
  *
