@@ -5701,6 +5701,9 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     /* check for acceptConfirmation */
     if (ssl->echConfigs != NULL && !ssl->options.disableECH) {
         args->echX = TLSX_Find(ssl->extensions, TLSX_ECH);
+        if (args->echX == NULL || args->echX->data == NULL)
+            return WOLFSSL_FATAL_ERROR;
+
         /* account for hrr extension instead of server random */
         if (args->extMsgType == hello_retry_request) {
             args->acceptOffset =
