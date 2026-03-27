@@ -30844,7 +30844,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pwdbased_test(void)
     if (ret != 0)
         return ret;
 #endif
-#ifdef HAVE_PKCS12
+#if defined(HAVE_PKCS12) && !defined(NO_ASN) && !defined(NO_PWDBASED) && \
+    !defined(NO_HMAC) && !defined(NO_CERTS)
     /* Test that a crafted PKCS#12 with INT_MAX MAC iterations is rejected
      * immediately rather than hanging in DoPKCS12Hash(). */
     {
@@ -30889,7 +30890,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pwdbased_test(void)
         }
         ret = 0;
     }
-#endif /* HAVE_PKCS12 */
+#endif /* HAVE_PKCS12 && !NO_ASN && !NO_PWDBASED && !NO_HMAC && !NO_CERTS */
 #ifdef HAVE_SCRYPT
     ret = scrypt_test();
     if (ret != 0)
