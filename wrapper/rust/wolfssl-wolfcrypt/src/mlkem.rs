@@ -73,6 +73,10 @@ use zeroize::Zeroize;
 ///
 /// An instance is created with [`MlKem::generate()`],
 /// [`MlKem::generate_with_random()`], or [`MlKem::new()`].
+///
+/// This struct does not implement Send or Sync because it is not safe in the
+/// general case to access the underlying C API from multiple threads
+/// concurrently.
 pub struct MlKem {
     ws_key: *mut sys::MlKemKey,
 }
