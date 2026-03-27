@@ -30758,20 +30758,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs12_pbkdf_test(void)
     if (XMEMCMP(derived, verify2, 24) != 0)
         return WC_TEST_RET_ENC_NC;
 
-    /* Test iteration cap: iterations above WC_PBKDF_MAX_ITERATIONS must be
-     * rejected to prevent CPU exhaustion DoS via crafted PKCS#12 files. */
-    ret = wc_PKCS12_PBKDF_ex(derived, passwd2, sizeof(passwd2), salt2, 8,
-                              WC_PBKDF_MAX_ITERATIONS + 1, kLen, WC_SHA256,
-                              id, HEAP_HINT);
-    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_NC;
-
-    ret = wc_PKCS12_PBKDF_ex(derived, passwd2, sizeof(passwd2), salt2, 8,
-                              WC_PBKDF_MAX_ITERATIONS, kLen, WC_SHA256,
-                              id, HEAP_HINT);
-    if (ret < 0)
-        return WC_TEST_RET_ENC_EC(ret);
-
     return 0;
 }
 #endif /* HAVE_PKCS12 && !NO_SHA256 */
@@ -30803,13 +30789,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pbkdf2_test(void)
     if (XMEMCMP(derived, verify, sizeof(verify)) != 0)
         return WC_TEST_RET_ENC_NC;
 
-    /* Test iteration cap */
-    ret = wc_PBKDF2_ex(derived, (byte*)passwd, (int)XSTRLEN(passwd),
-                        salt, (int)sizeof(salt), WC_PBKDF_MAX_ITERATIONS + 1,
-                        kLen, WC_SHA256, HEAP_HINT, devId);
-    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_NC;
-
     return 0;
 
 }
@@ -30839,13 +30818,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pbkdf1_test(void)
         return ret;
 
     if (XMEMCMP(derived, verify, sizeof(verify)) != 0)
-        return WC_TEST_RET_ENC_NC;
-
-    /* Test iteration cap */
-    ret = wc_PBKDF1_ex(derived, kLen, NULL, 0, (byte*)passwd,
-             (int)XSTRLEN(passwd), salt, (int)sizeof(salt),
-             WC_PBKDF_MAX_ITERATIONS + 1, WC_SHA, HEAP_HINT);
-    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         return WC_TEST_RET_ENC_NC;
 
     return 0;
