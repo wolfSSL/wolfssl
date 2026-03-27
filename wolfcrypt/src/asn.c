@@ -23259,6 +23259,15 @@ static wcchar kDecInfoHeader = "DEK-Info";
 #if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256)
     static wcchar kEncTypeAesCbc256 = "AES-256-CBC";
 #endif
+#if !defined(NO_AES) && defined(WOLFSSL_AES_COUNTER) && defined(WOLFSSL_AES_128)
+    static wcchar kEncTypeAesCtr128 = "AES-128-CTR";
+#endif
+#if !defined(NO_AES) && defined(WOLFSSL_AES_COUNTER) && defined(WOLFSSL_AES_192)
+    static wcchar kEncTypeAesCtr192 = "AES-192-CTR";
+#endif
+#if !defined(NO_AES) && defined(WOLFSSL_AES_COUNTER) && defined(WOLFSSL_AES_256)
+    static wcchar kEncTypeAesCtr256 = "AES-256-CTR";
+#endif
 
 int wc_EncryptedInfoGet(EncryptedInfo* info, const char* cipherInfo)
 {
@@ -23310,6 +23319,30 @@ int wc_EncryptedInfoGet(EncryptedInfo* info, const char* cipherInfo)
 #if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256)
     if (XSTRCMP(cipherInfo, kEncTypeAesCbc256) == 0) {
         info->cipherType = WC_CIPHER_AES_CBC;
+        info->keySz = AES_256_KEY_SIZE;
+        if (info->ivSz == 0) info->ivSz  = AES_IV_SIZE;
+    }
+    else
+#endif
+#if !defined(NO_AES) && defined(WOLFSSL_AES_COUNTER) && defined(WOLFSSL_AES_128)
+    if (XSTRCMP(cipherInfo, kEncTypeAesCtr128) == 0) {
+        info->cipherType = WC_CIPHER_AES_CTR;
+        info->keySz = AES_128_KEY_SIZE;
+        if (info->ivSz == 0) info->ivSz  = AES_IV_SIZE;
+    }
+    else
+#endif
+#if !defined(NO_AES) && defined(WOLFSSL_AES_COUNTER) && defined(WOLFSSL_AES_192)
+    if (XSTRCMP(cipherInfo, kEncTypeAesCtr192) == 0) {
+        info->cipherType = WC_CIPHER_AES_CTR;
+        info->keySz = AES_192_KEY_SIZE;
+        if (info->ivSz == 0) info->ivSz  = AES_IV_SIZE;
+    }
+    else
+#endif
+#if !defined(NO_AES) && defined(WOLFSSL_AES_COUNTER) && defined(WOLFSSL_AES_256)
+    if (XSTRCMP(cipherInfo, kEncTypeAesCtr256) == 0) {
+        info->cipherType = WC_CIPHER_AES_CTR;
         info->keySz = AES_256_KEY_SIZE;
         if (info->ivSz == 0) info->ivSz  = AES_IV_SIZE;
     }
