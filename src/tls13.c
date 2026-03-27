@@ -4759,8 +4759,8 @@ int SendTls13ClientHello(WOLFSSL* ssl)
             args->ech->type = 0;
             /* set innerClientHelloLen to ClientHelloInner + padding + tag */
             args->ech->paddingLen = 31 - ((args->length - 1) % 32);
-            args->ech->innerClientHelloLen = (word16)(args->length +
-                args->ech->paddingLen + args->ech->hpke->Nt);
+            args->ech->innerClientHelloLen = args->length +
+                args->ech->paddingLen + args->ech->hpke->Nt;
             /* set the length back to before we computed ClientHelloInner size */
             args->length = (word32)args->preXLength;
         }

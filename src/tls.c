@@ -13696,7 +13696,7 @@ static int TLSX_ECH_Write(WOLFSSL_ECH* ech, byte msgType, byte* writeBuf,
                 writeBuf_p += ech->encLen;
             }
             /* innerClientHelloLen */
-            c16toa(ech->innerClientHelloLen, writeBuf_p);
+            c16toa((word16)ech->innerClientHelloLen, writeBuf_p);
             writeBuf_p += 2;
             /* set payload offset for when we finalize */
             ech->outerClientPayload = writeBuf_p;
@@ -14155,7 +14155,7 @@ static int TLSX_ECH_ExpandOuterExtensions(WOLFSSL* ssl, WOLFSSL_ECH* ech,
     if (ret == 0) {
         XFREE(ech->innerClientHello, heap, DYNAMIC_TYPE_TMP_BUFFER);
         ech->innerClientHello = newInnerCh;
-        ech->innerClientHelloLen = (word16)newInnerChLen;
+        ech->innerClientHelloLen = newInnerChLen;
         newInnerCh = NULL;
     }
 
@@ -14269,6 +14269,7 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
     word32 offset = 0;
     word16 len;
     word16 tmpVal16;
+    word16 lenCh;
 
     WOLFSSL_MSG("TLSX_ECH_Parse");
     if (ssl->options.disableECH) {
@@ -14385,7 +14386,8 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
         readBuf_p += len;
         offset += len;
         /* read payload (encrypted CH) len */
-        ato16(readBuf_p, &ech->innerClientHelloLen);
+        ato16(readBuf_p, &lenCh);
+        ech->innerClientHelloLen = lenCh;
         readBuf_p += 2;
         offset += 2;
         /* Check payload is no bigger than remaining bytes. */
