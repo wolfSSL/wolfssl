@@ -2775,13 +2775,12 @@ impl XTSStream {
     /// library return code on failure.
     pub fn encrypt_update(&mut self, din: &[u8], dout: &mut [u8]) -> Result<(), i32> {
         let in_size = crate::buffer_len_to_u32(din.len())?;
-        let out_ptr = dout.as_ptr() as *mut u8;
         let out_size = crate::buffer_len_to_u32(dout.len())?;
         if in_size != out_size {
             return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
         let rc = unsafe {
-            sys::wc_AesXtsEncryptUpdate(&mut self.ws_xtsaes, out_ptr,
+            sys::wc_AesXtsEncryptUpdate(&mut self.ws_xtsaes, dout.as_mut_ptr(),
                 din.as_ptr(), in_size, &mut self.ws_xtsaesstreamdata)
         };
         if rc != 0 {
@@ -2809,13 +2808,12 @@ impl XTSStream {
     /// library return code on failure.
     pub fn encrypt_final(&mut self, din: &[u8], dout: &mut [u8]) -> Result<(), i32> {
         let in_size = crate::buffer_len_to_u32(din.len())?;
-        let out_ptr = dout.as_ptr() as *mut u8;
         let out_size = crate::buffer_len_to_u32(dout.len())?;
         if in_size != out_size {
             return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
         let rc = unsafe {
-            sys::wc_AesXtsEncryptFinal(&mut self.ws_xtsaes, out_ptr,
+            sys::wc_AesXtsEncryptFinal(&mut self.ws_xtsaes, dout.as_mut_ptr(),
                 din.as_ptr(), in_size, &mut self.ws_xtsaesstreamdata)
         };
         if rc != 0 {
@@ -2844,13 +2842,12 @@ impl XTSStream {
     /// library return code on failure.
     pub fn decrypt_update(&mut self, din: &[u8], dout: &mut [u8]) -> Result<(), i32> {
         let in_size = crate::buffer_len_to_u32(din.len())?;
-        let out_ptr = dout.as_ptr() as *mut u8;
         let out_size = crate::buffer_len_to_u32(dout.len())?;
         if in_size != out_size {
             return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
         let rc = unsafe {
-            sys::wc_AesXtsDecryptUpdate(&mut self.ws_xtsaes, out_ptr,
+            sys::wc_AesXtsDecryptUpdate(&mut self.ws_xtsaes, dout.as_mut_ptr(),
                 din.as_ptr(), in_size, &mut self.ws_xtsaesstreamdata)
         };
         if rc != 0 {
@@ -2878,13 +2875,12 @@ impl XTSStream {
     /// library return code on failure.
     pub fn decrypt_final(&mut self, din: &[u8], dout: &mut [u8]) -> Result<(), i32> {
         let in_size = crate::buffer_len_to_u32(din.len())?;
-        let out_ptr = dout.as_ptr() as *mut u8;
         let out_size = crate::buffer_len_to_u32(dout.len())?;
         if in_size != out_size {
             return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
         let rc = unsafe {
-            sys::wc_AesXtsDecryptFinal(&mut self.ws_xtsaes, out_ptr,
+            sys::wc_AesXtsDecryptFinal(&mut self.ws_xtsaes, dout.as_mut_ptr(),
                 din.as_ptr(), in_size, &mut self.ws_xtsaesstreamdata)
         };
         if rc != 0 {
