@@ -4682,8 +4682,10 @@ static int wc_PKCS7_EcdsaVerify(wc_PKCS7* pkcs7, byte* sig, int sigSz,
 #endif /* HAVE_ECC */
 
 
-/* build SignedData digest, both in PKCS#7 DigestInfo format and
- * as plain digest for CMS.
+/* Build CMS SignedData digest (RFC 5652 sec 5.4) wrapped in a DigestInfo
+ * structure (RFC 8017 sec 9.2) as for example used by RSA PKCS#1 v1.5
+ * verification. Also returns a pointer to the inner plain digest for
+ * algorithms that do not wrap digist in DigestInfo, e.g. ECDSA and RSA-PSS.
  *
  * pkcs7          - pointer to initialized PKCS7 struct
  * signedAttrib   - signed attributes
@@ -4779,9 +4781,8 @@ static int wc_PKCS7_BuildSignedDataDigest(wc_PKCS7* pkcs7, byte* signedAttrib,
         }
     }
 
-    /* Set algoID, match whatever was input to match either NULL or absent */
-    algoIdSz = SetAlgoIDEx(pkcs7->hashOID, algoId, oidHashType,
-                            0, pkcs7->hashParamsAbsent);
+    /* parameters SHALL be NULL per RFC 8017 section 9.2, not absent */
+    algoIdSz = SetAlgoID(pkcs7->hashOID, algoId, oidHashType, 0);
 
     digestStrSz = SetOctetString(hashSz, digestStr);
     digestInfoSeqSz = SetSequence(algoIdSz + digestStrSz + hashSz,
