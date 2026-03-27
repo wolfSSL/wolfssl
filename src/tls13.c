@@ -3933,9 +3933,13 @@ static int EchCalcAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
 
     if (isHrr) {
         /* the transcript hash of ClientHelloInner1 */
-        hashSz = GetMsgHash(ssl, clientHelloInnerHash);
-        if (hashSz > 0) {
+        ret = GetMsgHash(ssl, clientHelloInnerHash);
+        if (ret > 0) {
+            hashSz = ret;
             ret = 0;
+        }
+        else if (ret == 0) {
+            ret = HASH_TYPE_E;
         }
 
         /* restart ECH transcript hash, similar to RestartHandshakeHash but
@@ -3975,6 +3979,9 @@ static int EchCalcAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
         ret = GetMsgHash(ssl, transcriptEchConf);
         if (ret > 0) {
             ret = 0;
+        }
+        else if (ret == 0) {
+            ret = HASH_TYPE_E;
         }
     }
 
@@ -8648,6 +8655,8 @@ int CreateSigData(WOLFSSL* ssl, byte* sigData, word16* sigDataSz,
     ret = GetMsgHash(ssl, &sigData[idx]);
     if (ret < 0)
         return ret;
+    if (ret == 0)
+        return HASH_TYPE_E;
 
     *sigDataSz = (word16)(idx + ret);
     ret = 0;
