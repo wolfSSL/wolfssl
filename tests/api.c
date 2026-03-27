@@ -165,6 +165,19 @@
     #include <sys/uio.h>
 #endif
 
+#ifdef HAVE_DILITHIUM
+    #include <wolfssl/wolfcrypt/dilithium.h>
+#endif
+#if defined(WOLFSSL_HAVE_MLKEM)
+    #include <wolfssl/wolfcrypt/mlkem.h>
+#endif
+#if defined(HAVE_PKCS7)
+    #include <wolfssl/wolfcrypt/pkcs7.h>
+#endif
+#if !defined(NO_BIG_INT)
+    #include <wolfssl/wolfcrypt/sp_int.h>
+#endif
+
 /* include misc.c here regardless of NO_INLINE, because misc.c implementations
  * have default (hidden) visibility, and in the absence of visibility, it's
  * benign to mask out the library implementation.
@@ -34758,6 +34771,47 @@ static int test_DhAgree_rejects_p_minus_1(void)
     return EXPECT_RESULT();
 }
 
+
+/* ML-DSA HashML-DSA verify must reject hashLen > WC_MAX_DIGEST_SIZE */
+static int test_mldsa_verify_hash(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_DILITHIUM) && defined(WOLFSSL_WC_DILITHIUM) && \
+    !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
+    dilithium_key key;
+    WC_RNG rng;
+    int res = 0;
+    byte sig[4000];
+    byte hash[4096]; /* larger than WC_MAX_DIGEST_SIZE */
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(sig, 0x41, sizeof(sig));
+    XMEMSET(hash, 'A', sizeof(hash));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_dilithium_init(&key), 0);
+#ifndef WOLFSSL_NO_ML_DSA_65
+    ExpectIntEQ(wc_dilithium_set_level(&key, WC_ML_DSA_65), 0);
+#elif !defined(WOLFSSL_NO_ML_DSA_44)
+    ExpectIntEQ(wc_dilithium_set_level(&key, WC_ML_DSA_44), 0);
+#else
+    ExpectIntEQ(wc_dilithium_set_level(&key, WC_ML_DSA_87), 0);
+#endif
+    ExpectIntEQ(wc_dilithium_make_key(&key, &rng), 0);
+
+    /* hashLen=4096 must be rejected with BUFFER_E, not overflow the stack */
+    ExpectIntEQ(wc_dilithium_verify_ctx_hash(sig, sizeof(sig), NULL, 0,
+        WC_HASH_TYPE_SHA256, hash, sizeof(hash), &res, &key),
+        WC_NO_ERR_TRACE(BUFFER_E));
+
+    wc_dilithium_free(&key);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test: Ed448 must reject identity public key (0,1) */
 static int test_ed448_rejects_identity_key(void)
 {
@@ -34931,6 +34985,133 @@ static int test_pkcs7_ori_oversized_oid(void)
                                                   out, sizeof(out)), 0);
 
         wc_PKCS7_Free(p7);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Dilithium verify_ctx_msg must reject absurdly large msgLen */
+static int test_dilithium_hash(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_DILITHIUM) && defined(WOLFSSL_WC_DILITHIUM) && \
+    !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
+    dilithium_key key;
+    WC_RNG rng;
+    int res = 0;
+    byte sig[4000];
+    byte msg[64];
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(sig, 0, sizeof(sig));
+    XMEMSET(msg, 'A', sizeof(msg));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_dilithium_init(&key), 0);
+#ifndef WOLFSSL_NO_ML_DSA_65
+    ExpectIntEQ(wc_dilithium_set_level(&key, WC_ML_DSA_65), 0);
+#elif !defined(WOLFSSL_NO_ML_DSA_44)
+    ExpectIntEQ(wc_dilithium_set_level(&key, WC_ML_DSA_44), 0);
+#else
+    ExpectIntEQ(wc_dilithium_set_level(&key, WC_ML_DSA_87), 0);
+#endif
+    ExpectIntEQ(wc_dilithium_make_key(&key, &rng), 0);
+
+    ExpectIntEQ(wc_dilithium_verify_ctx_msg(sig, sizeof(sig), NULL, 0,
+        msg, 0xFFFFFFC0u, &res, &key), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    wc_dilithium_free(&key);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* PKCS7 CBC must validate all padding bytes */
+static int test_pkcs7_padding(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_AES) && defined(HAVE_AES_CBC) && \
+    defined(WOLFSSL_AES_256) && !defined(NO_PKCS7_ENCRYPTED_DATA)
+    PKCS7 pkcs7;
+    byte key[32];
+    byte plaintext[27]; /* 27 bytes → padded to 32 → padding = 05 05 05 05 05 */
+    byte encoded[4096];
+    byte output[256];
+    byte modified[4096];
+    int encodedSz;
+    int outSz;
+    int ctOff = -1;
+    int ctLen = 0;
+    int i;
+
+    XMEMSET(key, 0xAA, sizeof(key));
+    XMEMSET(plaintext, 'X', sizeof(plaintext));
+
+    /* Encode EncryptedData */
+    XMEMSET(&pkcs7, 0, sizeof(pkcs7));
+    ExpectIntEQ(wc_PKCS7_Init(&pkcs7, NULL, 0), 0);
+    pkcs7.content      = plaintext;
+    pkcs7.contentSz    = sizeof(plaintext);
+    pkcs7.contentOID   = DATA;
+    pkcs7.encryptOID   = AES256CBCb;
+    pkcs7.encryptionKey   = key;
+    pkcs7.encryptionKeySz = sizeof(key);
+
+    ExpectIntGT(encodedSz = wc_PKCS7_EncodeEncryptedData(&pkcs7, encoded,
+        sizeof(encoded)), 0);
+
+    /* Verify normal decrypt works */
+    ExpectIntEQ(outSz = wc_PKCS7_DecodeEncryptedData(&pkcs7, encoded,
+        (word32)encodedSz, output, sizeof(output)), (int)sizeof(plaintext));
+    wc_PKCS7_Free(&pkcs7);
+
+    /* Find ciphertext block in encoded DER */
+    if (EXPECT_SUCCESS()) {
+        for (i = encodedSz - 10; i > 10; i--) {
+            if (encoded[i] == 0x04 || encoded[i] == 0x80) {
+                int len, lbytes;
+
+                if (encoded[i+1] < 0x80) {
+                    len = encoded[i+1]; lbytes = 1;
+                }
+                else if (encoded[i+1] == 0x81) {
+                    len = encoded[i+2]; lbytes = 2;
+                }
+                else {
+                    continue;
+                }
+                if (len > 0 && len % 16 == 0 &&
+                    i + 1 + lbytes + len <= encodedSz) {
+                    ctOff = i + 1 + lbytes;
+                    ctLen = len;
+                    break;
+                }
+            }
+        }
+    }
+    ExpectIntGT(ctOff, 0);
+    ExpectIntGE(ctLen, 32);
+
+    /* Corrupt an interior padding byte via CBC bit-flip */
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(modified, encoded, (size_t)encodedSz);
+        /* Flip byte in penultimate block to corrupt interior padding */
+        modified[ctOff + ctLen - 32 + 11] ^= 0x42;
+
+        /* Decrypt modified ciphertext — must fail, not succeed */
+        XMEMSET(&pkcs7, 0, sizeof(pkcs7));
+        ExpectIntEQ(wc_PKCS7_Init(&pkcs7, NULL, 0), 0);
+        pkcs7.encryptionKey   = key;
+        pkcs7.encryptionKeySz = sizeof(key);
+
+        outSz = wc_PKCS7_DecodeEncryptedData(&pkcs7, modified,
+            (word32)encodedSz, output, sizeof(output));
+        /* Must return an error — if it returns plaintext size, padding
+         * oracle vulnerability exists */
+        ExpectIntLT(outSz, 0);
+        wc_PKCS7_Free(&pkcs7);
     }
 #endif
     return EXPECT_RESULT();
@@ -35754,11 +35935,14 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_ed448_rejects_identity_key),
     TEST_DECL(test_pkcs7_decode_encrypted_outputsz),
     TEST_DECL(test_pkcs7_ori_oversized_oid),
+    TEST_DECL(test_pkcs7_padding),
 
 #if defined(WOLFSSL_SNIFFER) && defined(WOLFSSL_SNIFFER_CHAIN_INPUT)
     TEST_DECL(test_sniffer_chain_input_overflow),
 #endif
 
+    TEST_DECL(test_mldsa_verify_hash),
+    TEST_DECL(test_dilithium_hash),
     /* This test needs to stay at the end to clean up any caches allocated. */
     TEST_DECL(test_wolfSSL_Cleanup)
 };
