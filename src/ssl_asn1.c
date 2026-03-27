@@ -1000,6 +1000,54 @@ void wolfSSL_ASN1_INTEGER_free(WOLFSSL_ASN1_INTEGER* in)
     XFREE(in, NULL, DYNAMIC_TYPE_OPENSSL);
 }
 
+/* Get the length of the raw integer value bytes, stripping the DER tag/length
+ * header if present. Required for OpenSSL compatibility where ASN1_INTEGER is
+ * typedef'd to ASN1_STRING and callers use ASN1_STRING_length() on integers.
+ *
+ * @param [in] ai  ASN.1 INTEGER object.
+ * @return  Length of the raw integer value on success.
+ * @return  0 when ai is NULL or data is invalid.
+ */
+int wolfSSL_ASN1_INTEGER_get_length(const WOLFSSL_ASN1_INTEGER* ai)
+{
+    if (ai == NULL || ai->data == NULL || ai->length <= 0) {
+        return 0;
+    }
+    if (ai->data[0] == ASN_INTEGER) {
+        word32 idx = 1;
+        int len = 0;
+        if (GetLength(ai->data, &idx, &len, (word32)ai->length) > 0) {
+            return len;
+        }
+    }
+    /* WOLFSSL_QT / WOLFSSL_HAPROXY format: raw bytes without DER header */
+    return ai->length;
+}
+
+/* Get a pointer to the raw integer value bytes, skipping the DER tag/length
+ * header if present. Required for OpenSSL compatibility where ASN1_INTEGER is
+ * typedef'd to ASN1_STRING and callers use ASN1_STRING_get0_data() on integers.
+ *
+ * @param [in] ai  ASN.1 INTEGER object.
+ * @return  Pointer to the raw integer value bytes on success.
+ * @return  NULL when ai is NULL or data is invalid.
+ */
+const unsigned char* wolfSSL_ASN1_INTEGER_get0_data(const WOLFSSL_ASN1_INTEGER* ai)
+{
+    if (ai == NULL || ai->data == NULL || ai->length <= 0) {
+        return NULL;
+    }
+    if (ai->data[0] == ASN_INTEGER) {
+        word32 idx = 1;
+        int len = 0;
+        if (GetLength(ai->data, &idx, &len, (word32)ai->length) > 0) {
+            return ai->data + idx;
+        }
+    }
+    /* WOLFSSL_QT / WOLFSSL_HAPROXY format: raw bytes without DER header */
+    return ai->data;
+}
+
 #if defined(OPENSSL_EXTRA)
 /* Reset the data of ASN.1 INTEGER object back to empty fixed array.
  *
