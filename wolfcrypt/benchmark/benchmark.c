@@ -5080,6 +5080,26 @@ static WC_MAYBE_UNUSED int bench_CmacInit(Cmac* cmac, const byte* key,
 }
 #endif /* WOLFSSL_CMAC */
 
+/* --- AES ECB --- */
+#if defined(HAVE_AES_ECB) || \
+    (defined(HAVE_FIPS) && defined(WOLFSSL_AES_DIRECT))
+#if defined(WOLF_PRIVATE_KEY_ID) && defined(WC_TEST_AES_ECB_ID)
+static unsigned char benchAesEcbId[] = WC_TEST_AES_ECB_ID;
+static int benchAesEcbIdLen = (int)sizeof(benchAesEcbId);
+#endif
+
+static WC_MAYBE_UNUSED int bench_AesEcbInit(Aes* aes, void* heap,
+                                             int declaredDevId)
+{
+#if defined(WOLF_PRIVATE_KEY_ID) && defined(WC_TEST_AES_ECB_ID)
+    return wc_AesInit_Id(aes, benchAesEcbId, benchAesEcbIdLen, heap,
+                         declaredDevId);
+#else
+    return wc_AesInit(aes, heap, declaredDevId);
+#endif
+}
+#endif /* HAVE_AES_ECB || (HAVE_FIPS && WOLFSSL_AES_DIRECT) */
+
 /* --- ECC --- */
 #ifdef HAVE_ECC
 #if defined(WOLF_PRIVATE_KEY_ID) && defined(WC_TEST_ECC_PAIR_P256_ID)
@@ -5827,7 +5847,7 @@ static void bench_aesecb_internal(int useDeviceID,
 
     /* init keys */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
-        if ((ret = wc_AesInit(enc[i], HEAP_HINT,
+        if ((ret = bench_AesEcbInit(enc[i], HEAP_HINT,
                                 useDeviceID ? devId: INVALID_DEVID)) != 0) {
             printf("AesInit failed at L%d, ret = %d\n", __LINE__, ret);
             goto exit;

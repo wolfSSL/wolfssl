@@ -582,6 +582,27 @@ static WC_MAYBE_UNUSED int test_AesCbcInit(Aes* aes, void* heap,
 
 #endif /* !NO_AES && HAVE_AES_CBC */
 
+/* --- AES ECB id[] and init helper --- */
+#if !defined(NO_AES) && \
+    (defined(HAVE_AES_ECB) || defined(WOLFSSL_AES_DIRECT))
+#if defined(WOLF_PRIVATE_KEY_ID) && defined(WC_TEST_AES_ECB_ID)
+static unsigned char testAesEcbId[] = WC_TEST_AES_ECB_ID;
+static int testAesEcbIdLen = (int)sizeof(testAesEcbId);
+#endif
+
+static WC_MAYBE_UNUSED int test_AesEcbInit(Aes* aes, void* heap,
+                                            int declaredDevId)
+{
+#if defined(WOLF_PRIVATE_KEY_ID) && defined(WC_TEST_AES_ECB_ID)
+    return wc_AesInit_Id(aes, testAesEcbId, testAesEcbIdLen, heap,
+                         declaredDevId);
+#else
+    return wc_AesInit(aes, heap, declaredDevId);
+#endif
+}
+
+#endif /* !NO_AES && (HAVE_AES_ECB || WOLFSSL_AES_DIRECT) */
+
 /* --- AES GCM id[] and init helper --- */
 #if !defined(NO_AES) && defined(HAVE_AESGCM)
 #if defined(WOLF_PRIVATE_KEY_ID) && defined(WC_TEST_AES_GCM_ID)
@@ -1365,6 +1386,20 @@ static WC_MAYBE_UNUSED Aes* test_AesCbcNew(void* heap, int declaredDevId,
 #endif
 }
 #endif /* !NO_AES && HAVE_AES_CBC */
+
+#if !defined(NO_AES) && \
+    (defined(HAVE_AES_ECB) || defined(WOLFSSL_AES_DIRECT))
+static WC_MAYBE_UNUSED Aes* test_AesEcbNew(void* heap, int declaredDevId,
+                                            int* ret)
+{
+#if defined(WOLF_PRIVATE_KEY_ID) && defined(WC_TEST_AES_ECB_ID)
+    return wc_AesNew_Id(testAesEcbId, testAesEcbIdLen, heap, declaredDevId,
+                        ret);
+#else
+    return wc_AesNew(heap, declaredDevId, ret);
+#endif
+}
+#endif /* !NO_AES && (HAVE_AES_ECB || WOLFSSL_AES_DIRECT) */
 
 #if !defined(NO_AES) && defined(HAVE_AESGCM)
 static WC_MAYBE_UNUSED Aes* test_AesGcmNew(void* heap, int declaredDevId,
@@ -16806,20 +16841,20 @@ static wc_test_ret_t aes_ecb_direct_test(void)
 #endif
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    enc = wc_AesNew(HEAP_HINT, devId, &ret);
+    enc = test_AesEcbNew(HEAP_HINT, devId, &ret);
     if (enc == NULL)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 #ifdef HAVE_AES_DECRYPT
-    dec = wc_AesNew(HEAP_HINT, devId, &ret);
+    dec = test_AesEcbNew(HEAP_HINT, devId, &ret);
     if (dec == NULL)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 #endif
 #else
-    ret = wc_AesInit(enc, HEAP_HINT, devId);
+    ret = test_AesEcbInit(enc, HEAP_HINT, devId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 #ifdef HAVE_AES_DECRYPT
-    ret = wc_AesInit(dec, HEAP_HINT, devId);
+    ret = test_AesEcbInit(dec, HEAP_HINT, devId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 #endif
