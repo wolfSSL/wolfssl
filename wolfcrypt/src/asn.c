@@ -11461,14 +11461,15 @@ int wc_DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
 
     /* Validated parameters. */
     if ((input == NULL) || (inOutIdx == NULL) || (key == NULL)) {
-        ret = BAD_FUNC_ARG;
+        return BAD_FUNC_ARG;
     }
 
-    if (ret == 0) {
-        ALLOC_ASNGETDATA(dataASN, dsaPubKeyASN_Length, ret, key->heap);
-    }
+    ALLOC_ASNGETDATA(dataASN, dsaPubKeyASN_Length, ret, key->heap);
 
-    if (ret == 0) {
+    if (ret != 0)
+        return ret;
+
+    {
         int i;
 
         /* Clear dynamic data items. */
@@ -30137,44 +30138,42 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
     int pubIdx = ECCPUBLICKEYASN_IDX_PUBKEY;
 
     if ((input == NULL) || (inOutIdx == NULL) || (key == NULL) || (inSz == 0)) {
-        ret = BAD_FUNC_ARG;
+        return BAD_FUNC_ARG;
     }
 
-    if (ret == 0) {
-        ALLOC_ASNGETDATA(dataASN, eccKeyASN_Length, ret, key->heap);
-    }
+    ALLOC_ASNGETDATA(dataASN, eccKeyASN_Length, ret, key->heap);
+    if (ret != 0)
+        return ret;
 
-    if (ret == 0) {
-        /* Clear dynamic data for ECC public key. */
-        XMEMSET(dataASN, 0, sizeof(*dataASN) * eccPublicKeyASN_Length);
+    /* Clear dynamic data for ECC public key. */
+    XMEMSET(dataASN, 0, sizeof(*dataASN) * eccPublicKeyASN_Length);
 #if !defined(WOLFSSL_SM2) || !defined(WOLFSSL_SM3)
-        /* Set required ECDSA OID and ignore the curve OID type. */
-        GetASN_ExpBuffer(&dataASN[ECCPUBLICKEYASN_IDX_ALGOID_OID], keyEcdsaOid,
-                sizeof(keyEcdsaOid));
+    /* Set required ECDSA OID and ignore the curve OID type. */
+    GetASN_ExpBuffer(&dataASN[ECCPUBLICKEYASN_IDX_ALGOID_OID], keyEcdsaOid,
+            sizeof(keyEcdsaOid));
 #else
-        GetASN_OID(&dataASN[ECCPUBLICKEYASN_IDX_ALGOID_OID], oidKeyType);
+    GetASN_OID(&dataASN[ECCPUBLICKEYASN_IDX_ALGOID_OID], oidKeyType);
 #endif
-        GetASN_OID(&dataASN[oidIdx], oidCurveType);
-        /* Decode the public ECC key. */
-        ret = GetASN_Items(eccPublicKeyASN, dataASN, eccPublicKeyASN_Length, 1,
-                           input, inOutIdx, inSz);
-        if (ret != 0) {
-            oidIdx = ECCKEYASN_IDX_CURVEID;
-        #ifdef WOLFSSL_CUSTOM_CURVES
-            specIdx = ECCKEYASN_IDX_CURVEPARAMS;
-        #endif
-            pubIdx = ECCKEYASN_IDX_PUBKEY_VAL;
+    GetASN_OID(&dataASN[oidIdx], oidCurveType);
+    /* Decode the public ECC key. */
+    ret = GetASN_Items(eccPublicKeyASN, dataASN, eccPublicKeyASN_Length, 1,
+                       input, inOutIdx, inSz);
+    if (ret != 0) {
+        oidIdx = ECCKEYASN_IDX_CURVEID;
+    #ifdef WOLFSSL_CUSTOM_CURVES
+        specIdx = ECCKEYASN_IDX_CURVEPARAMS;
+    #endif
+        pubIdx = ECCKEYASN_IDX_PUBKEY_VAL;
 
-            /* Clear dynamic data for ECC private key. */
-            XMEMSET(dataASN, 0, sizeof(*dataASN) * eccKeyASN_Length);
-            /* Check named curve OID type. */
-            GetASN_OID(&dataASN[oidIdx], oidCurveType);
-            /* Try private key format .*/
-            ret = GetASN_Items(eccKeyASN, dataASN, eccKeyASN_Length, 1, input,
-                               inOutIdx, inSz);
-            if (ret != 0) {
-                ret = ASN_PARSE_E;
-            }
+        /* Clear dynamic data for ECC private key. */
+        XMEMSET(dataASN, 0, sizeof(*dataASN) * eccKeyASN_Length);
+        /* Check named curve OID type. */
+        GetASN_OID(&dataASN[oidIdx], oidCurveType);
+        /* Try private key format .*/
+        ret = GetASN_Items(eccKeyASN, dataASN, eccKeyASN_Length, 1, input,
+                           inOutIdx, inSz);
+        if (ret != 0) {
+            ret = ASN_PARSE_E;
         }
     }
 

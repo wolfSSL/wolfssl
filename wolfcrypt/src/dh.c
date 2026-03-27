@@ -1032,13 +1032,13 @@ static int _ffc_pairwise_consistency_test(DhKey* key,
 #ifndef WOLFSSL_DH_CONST
     #define WOLFSSL_DH_ROUND(x) WC_DO_NOTHING
 #else
-    #define WOLFSSL_DH_ROUND(x) \
-        do {                    \
-            if (x % 128) {      \
-                x &= 0xffffff80;\
-                x += 128;       \
-            }                   \
-        }                       \
+    #define WOLFSSL_DH_ROUND(x)   \
+        do {                      \
+            if ((x) % 128) {      \
+                (x) &= 0xffffff80;\
+                (x) += 128;       \
+            }                     \
+        }                         \
         while (0)
 #endif
 

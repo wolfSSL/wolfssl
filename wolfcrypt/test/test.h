@@ -104,6 +104,17 @@ wc_static_assert(-(long)MIN_CODE_E < 0x7ffL);
 
 #ifdef WC_TEST_EXPORT_SUBTESTS
 
+#if defined(NO_FILESYSTEM) || defined(WC_NO_RNG)
+    #if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048) && \
+        !defined(USE_CERT_BUFFERS_3072) && !defined(USE_CERT_BUFFERS_4096)
+        #define USE_CERT_BUFFERS_2048
+    #endif
+    #if !defined(USE_CERT_BUFFERS_256)
+        #define USE_CERT_BUFFERS_256
+    #endif
+#endif
+
+extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  macro_test(void);
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  error_test(void);
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  base64_test(void);
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  base16_test(void);
@@ -172,6 +183,15 @@ extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  hpke_test(void);
 #ifdef WC_SRTP_KDF
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  srtpkdf_test(void);
 #endif
+
+#if defined(WC_KDF_NIST_SP_800_56C) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  nist_sp80056c_kdf_test(void);
+#endif
+#if defined(HAVE_CMAC_KDF) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  nist_sp800108_cmac(void);
+extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  nist_sp80056c_twostep_cmac(void);
+#endif
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  arc4_test(void);
 #ifdef WC_RC2
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rc2_test(void);
@@ -221,12 +241,15 @@ extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  dsa_test(void);
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  srp_test(void);
 #ifndef WC_NO_RNG
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_test(void);
+#ifdef WC_RNG_BANK_SUPPORT
+extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_bank_test(void);
+#endif
 #endif /* WC_NO_RNG */
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  pwdbased_test(void);
 #if defined(USE_CERT_BUFFERS_2048) && \
         defined(HAVE_PKCS12) && \
             !defined(NO_ASN) && !defined(NO_PWDBASED) && !defined(NO_HMAC) && \
-            !defined(NO_CERTS) && !defined(NO_DES3)
+            !defined(NO_CERTS) && !defined(NO_DES3) && !defined(NO_SHA)
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  pkcs12_test(void);
 #endif
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  ripemd_test(void);
@@ -307,9 +330,11 @@ extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t scrypt_test(void);
 #endif
 #ifdef HAVE_BLAKE2
     extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  blake2b_test(void);
+    extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  blake2b_hmac_test(void);
 #endif
 #ifdef HAVE_BLAKE2S
     extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  blake2s_test(void);
+    extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  blake2s_hmac_test(void);
 #endif
 #ifdef HAVE_LIBZ
     extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t compress_test(void);

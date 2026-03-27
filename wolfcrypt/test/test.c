@@ -581,6 +581,8 @@ typedef struct testVector {
     #define WOLFSSL_TEST_SUBROUTINE
 #endif
 
+#ifndef WC_TEST_EXPORT_SUBTESTS
+
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  macro_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  error_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  base64_test(void);
@@ -899,6 +901,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_eax_test(void);
     WOLFSSL_TEST_SUBROUTINE wc_test_ret_t test_fips_status(void);
     WOLFSSL_TEST_SUBROUTINE wc_test_ret_t drbg_continuous_main(void);
 #endif
+
+#endif /* !WC_TEST_EXPORT_SUBTESTS */
 
 /* General big buffer size for many tests. */
 #define FOURK_BUF 4096
@@ -1891,8 +1895,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t nist_sp80056c_twostep_cmac(void)
         ASSERT_RESTORED_VECTOR_REGISTERS(exit(1););             \
     }
 #endif
-
-#define WC_ALLOC_DO_ON_FAILURE() WC_DO_NOTHING
 
 #ifdef TEST_ALWAYS_RUN_TO_END
     #define TEST_FAIL(msg, retval) do { last_failed_test_ret = (retval); wc_test_render_error_message(msg, retval); } while (0)

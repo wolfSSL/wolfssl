@@ -276,7 +276,9 @@
     _Pragma("GCC diagnostic ignored \"-Wsign-compare\"");
     _Pragma("GCC diagnostic ignored \"-Wpointer-sign\"");
     _Pragma("GCC diagnostic ignored \"-Wbad-function-cast\"");
+#ifndef __clang__
     _Pragma("GCC diagnostic ignored \"-Wdiscarded-qualifiers\"");
+#endif
     _Pragma("GCC diagnostic ignored \"-Wtype-limits\"");
     _Pragma("GCC diagnostic ignored \"-Wswitch-enum\"");
     _Pragma("GCC diagnostic ignored \"-Wcast-function-type\""); /* needed for kernel 4.14.336 */
@@ -1870,8 +1872,10 @@
      * them to be evaluable by the preprocessor, for use in sp_int.h.
      */
     #if BITS_PER_LONG == 64
+        /* NOLINTBEGIN(bugprone-sizeof-expression) */
         static_assert(sizeof(ULONG_MAX) == 8,
                        "BITS_PER_LONG is 64, but ULONG_MAX is not.");
+        /* NOLINTEND(bugprone-sizeof-expression) */
 
         #undef UCHAR_MAX
         #define UCHAR_MAX 255
