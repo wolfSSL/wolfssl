@@ -21339,11 +21339,9 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
         ret = BAD_FUNC_ARG;
     }
 
-    ALLOC_ASNGETDATA(dataASN, x509CertASN_Length, ret, heap);
+    CALLOC_ASNGETDATA(dataASN, x509CertASN_Length, ret, heap);
 
     if ((ret == 0) && (!req)) {
-        /* Clear dynamic data for certificate items. */
-        XMEMSET(dataASN, 0, sizeof(ASNGetData) * x509CertASN_Length);
         /* Set OID types expected for signature and public key. */
         GetASN_OID(&dataASN[X509CERTASN_IDX_TBS_ALGOID_OID], oidSigType);
         GetASN_OID(&dataASN[X509CERTASN_IDX_TBS_SPUBKEYINFO_ALGO_OID],
@@ -21406,8 +21404,6 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
 #ifndef WOLFSSL_CERT_REQ
         ret = NOT_COMPILED_IN;
 #else
-        /* Clear dynamic data for certificate request items. */
-        XMEMSET(dataASN, 0, sizeof(ASNGetData) * certReqASN_Length);
         /* Set OID types expected for signature and public key. */
         GetASN_OID(&dataASN[CERTREQASN_IDX_INFO_SPUBKEYINFO_ALGOID_OID],
                 oidKeyType);
