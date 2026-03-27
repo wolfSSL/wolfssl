@@ -10175,6 +10175,7 @@ static int TLSX_KeyShare_ProcessPqcHybridClient(WOLFSSL* ssl,
 
     if (ret == 0) {
         keyShareEntry->key = ecc_kse->key;
+        ecc_kse->key = NULL;
 
         if ((ret == 0) &&
             ((ssl->arrays->preMasterSz + ssSzPqc) > ENCRYPT_LEN)) {
@@ -10210,6 +10211,17 @@ static int TLSX_KeyShare_ProcessPqcHybridClient(WOLFSSL* ssl,
          * here as it may already been set to the ECC shared secret size,
          * which would be too small due to the PQC offset case. */
         ForceZero(ssl->arrays->preMasterSecret, ENCRYPT_LEN);
+
+        /* Prevent FreeAll from freeing pointers owned by keyShareEntry. */
+        if (ecc_kse != NULL)
+            ecc_kse->key = NULL;
+        if (pqc_kse != NULL) {
+        #ifndef WOLFSSL_TLSX_PQC_MLKEM_STORE_OBJ
+            pqc_kse->privKey = NULL;
+        #else
+            pqc_kse->key = NULL;
+        #endif
+        }
     }
 
     TLSX_KeyShare_FreeAll(ecc_kse, ssl->heap);
