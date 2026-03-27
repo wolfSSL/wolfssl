@@ -757,13 +757,17 @@ impl Lms {
 
     /// Get the Key ID (I value) for this LMS/HSS key.
     ///
-    /// Returns a slice pointing into the key's internal storage.
+    /// Copies the key ID into the provided buffer.
+    ///
+    /// # Parameters
+    ///
+    /// * `kid`: Buffer in which to store the key ID.
     ///
     /// # Returns
     ///
-    /// Returns either Ok(&[u8]) containing the key ID on success, or Err(e)
-    /// containing the wolfSSL library error code value.
-    pub fn get_kid(&mut self) -> Result<&[u8], i32> {
+    /// Returns either Ok(usize) containing the key ID length on success,
+    /// or Err(e) containing the wolfSSL library error code value.
+    pub fn get_kid(&mut self, kid: &mut [u8]) -> Result<usize, i32> {
         let mut kid_ptr: *const u8 = core::ptr::null();
         let mut kid_sz: u32 = 0;
         let rc = unsafe {
@@ -772,8 +776,12 @@ impl Lms {
         if rc != 0 {
             return Err(rc);
         }
-        let slice = unsafe { core::slice::from_raw_parts(kid_ptr, kid_sz as usize) };
-        Ok(slice)
+        let src = unsafe { core::slice::from_raw_parts(kid_ptr, kid_sz as usize) };
+        if kid.len() < src.len() {
+            return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
+        }
+        kid[..src.len()].copy_from_slice(src);
+        Ok(src.len())
     }
 }
 

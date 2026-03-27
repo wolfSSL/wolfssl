@@ -386,8 +386,8 @@ fn test_get_kid() {
     setup_callbacks(&mut key, ctx);
     key.make_key(&mut rng).expect("Error with make_key()");
 
-    let kid = key.get_kid().expect("Error with get_kid()");
-    assert_eq!(kid.len(), Lms::KEY_ID_LEN, "kid must be KEY_ID_LEN bytes");
+    let mut kid = [0u8; Lms::KEY_ID_LEN];
+    key.get_kid(&mut kid).expect("Error with get_kid()");
 
     let _ = store;
 }
