@@ -4909,8 +4909,10 @@ int SendTls13ClientHello(WOLFSSL* ssl)
         args->ech->innerClientHello =
             (byte*)XMALLOC(args->ech->innerClientHelloLen - args->ech->hpke->Nt,
             ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        if (args->ech->innerClientHello == NULL)
+        if (args->ech->innerClientHello == NULL) {
+            args->ech->type = ECH_TYPE_OUTER;
             return MEMORY_E;
+        }
         /* set the padding bytes to 0 */
         XMEMSET(args->ech->innerClientHello + args->ech->innerClientHelloLen -
             args->ech->hpke->Nt - args->ech->paddingLen, 0,
@@ -4933,8 +4935,10 @@ int SendTls13ClientHello(WOLFSSL* ssl)
         /* change the outer client random */
         ret = wc_RNG_GenerateBlock(ssl->rng, args->output +
             args->clientRandomOffset, RAN_LEN);
-        if (ret != 0)
+        if (ret != 0) {
+            args->ech->type = ECH_TYPE_OUTER;
             return ret;
+        }
         /* copy the new client random */
         XMEMCPY(ssl->arrays->clientRandom, args->output +
             args->clientRandomOffset, RAN_LEN);
@@ -4943,10 +4947,10 @@ int SendTls13ClientHello(WOLFSSL* ssl)
         ret = TLSX_WriteRequest(ssl, args->ech->innerClientHello + args->idx -
             (RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ), client_hello,
             &args->length);
+        /* set the type to outer */
+        args->ech->type = ECH_TYPE_OUTER;
         if (ret != 0)
             return ret;
-        /* set the type to outer */
-        args->ech->type = 0;
     }
 #endif
 
