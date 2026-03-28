@@ -33,6 +33,9 @@ extern "C" {
 #endif
 
 #ifndef WOLFSSL_OPTIONS_IGNORE_SYS
+/* Since types.h depends on HAVE_LIMITS_H, we must define it in options.h. */
+#undef HAVE_LIMITS_H
+#cmakedefine HAVE_LIMITS_H @HAVE_LIMITS_H@
 #undef _GNU_SOURCE
 #cmakedefine _GNU_SOURCE
 #undef _POSIX_THREADS
