@@ -5000,3 +5000,72 @@ int test_wc_PKCS7_VerifySignedData_IndefLenOOB(void)
 #endif /* HAVE_PKCS7 && !NO_PKCS7_STREAM */
     return EXPECT_RESULT();
 }
+
+#if defined(HAVE_PKCS7) && defined(HAVE_PKCS7_TEST_SIGNED_DATA_FILES) && \
+    !defined(NO_FILESYSTEM)
+static int pkcs7_verify_one_signed_data_der_file(const char* path)
+{
+    EXPECT_DECLS;
+    XFILE f = XBADFILE;
+    long signedDataSz;
+    byte* signedData = NULL;
+    PKCS7* pkcs7 = NULL;
+
+    ExpectTrue((f = XFOPEN(path, "rb")) != XBADFILE);
+    ExpectIntEQ(XFSEEK(f, 0, XSEEK_END), 0);
+    ExpectIntGT(signedDataSz = XFTELL(f), 0);
+    ExpectIntEQ(XFSEEK(f, 0, XSEEK_SET), 0);
+
+    ExpectNotNull(signedData = (byte*)XMALLOC((word32)signedDataSz, NULL,
+                                              DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectIntEQ((long)XFREAD(signedData, 1, (word32)signedDataSz, f),
+                signedDataSz);
+    if (f != XBADFILE)
+        XFCLOSE(f);
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, INVALID_DEVID));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+
+    /* test signature verification and message content */
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7,
+                                          signedData,
+                                          (word32)signedDataSz), 0);
+    ExpectNotNull(pkcs7->contentDynamic);
+
+    XFREE(signedData, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_PKCS7_Free(pkcs7);
+    return EXPECT_RESULT();
+}
+
+/* Verify CMS SignedData DER files created with third party tools.
+ *
+ * This test verifies signatures created with external tools can be verified by
+ * wolfSSL. Standards allow some variance when creating CMS signatures. The
+ * test is intended to catch incompatibility from subtle differences in
+ * implementation.
+ *
+ * DER files are supplied at configure time:
+ *   configure --with-pkcs7-test-signed-data=openssl_cms.der,openssl_smime.der
+ */
+int test_wc_PKCS7_VerifySignedData_interop(void)
+{
+    EXPECT_DECLS;
+    char pathsTokenBuf[FOURK_BUF];
+    char* nextPath;
+    char* tokState = NULL;
+
+    wc_static_assert2(sizeof(PKCS7_TEST_SIGNED_DATA_FILES) <= sizeof(pathsTokenBuf),
+                      "pkcs7-test-signed-data file list too long for FOURK_BUF");
+    XSTRNCPY(pathsTokenBuf, PKCS7_TEST_SIGNED_DATA_FILES, sizeof(pathsTokenBuf));
+
+    nextPath = XSTRTOK(pathsTokenBuf, ",", &tokState);
+    while (nextPath != NULL) {
+        Expect(pkcs7_verify_one_signed_data_der_file(nextPath) == TEST_SUCCESS,
+               ("%s signature verification succeeds", nextPath),
+               ("%s signature verification failed", nextPath));
+        nextPath = XSTRTOK(NULL, ",", &tokState);
+    }
+    return EXPECT_RESULT();
+}
+#endif /* HAVE_PKCS7 && HAVE_PKCS7_TEST_SIGNED_DATA_FILES && !NO_FILESYSTEM */
+

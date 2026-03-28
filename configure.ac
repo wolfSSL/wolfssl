@@ -10490,6 +10490,17 @@ if test "x$ENABLED_OLD_EXTDATA_FMT" = "xyes"; then
   AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_OLD_EXTDATA_FMT"
 fi
 
+# Optional PKCS#7 SignedData interoperability test
+AC_ARG_WITH([pkcs7-test-signed-data],
+    [AS_HELP_STRING([--with-pkcs7-test-signed-data=FILE[,FILE,...]],
+        [External test data for optional PKCS#7 interoperability test])],
+    [
+        AC_DEFINE([HAVE_PKCS7_TEST_SIGNED_DATA_FILES], [1],
+            [Define to enable PKCS#7 SignedData interoperability test])
+        AC_DEFINE_UNQUOTED([PKCS7_TEST_SIGNED_DATA_FILES], ["$withval"],
+            [Comma-separated list of DER-encoded CMS SignedData files for interop test])
+    ])
+
 # determine if we have key validation mechanism
 if test "x$ENABLED_ECC" != "xno" || test "x$ENABLED_RSA" = "xyes"
 then

@@ -59,6 +59,14 @@ int test_wc_PKCS7_DecodeCompressedData(void);
 int test_wc_PKCS7_DecodeEnvelopedData_multiple_recipients(void);
 int test_wc_PKCS7_VerifySignedData_PKCS7ContentSeq(void);
 int test_wc_PKCS7_VerifySignedData_IndefLenOOB(void);
+#if defined(HAVE_PKCS7) && defined(HAVE_PKCS7_TEST_SIGNED_DATA_FILES) && \
+    !defined(NO_FILESYSTEM)
+int test_wc_PKCS7_VerifySignedData_interop(void);
+#define TEST_PKCS7_INTEROP_VERIFY_SD_DECL \
+    TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_interop),
+#else
+#define TEST_PKCS7_INTEROP_VERIFY_SD_DECL
+#endif
 
 
 #define TEST_PKCS7_DECLS                                        \
@@ -94,6 +102,7 @@ int test_wc_PKCS7_VerifySignedData_IndefLenOOB(void);
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_BER),                     \
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_NoDefaultSignedAttribs),  \
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_PKCS7ContentSeq), \
+    TEST_PKCS7_INTEROP_VERIFY_SD_DECL                                            \
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_IndefLenOOB)
 
 #define TEST_PKCS7_ENCRYPTED_DATA_DECLS                                     \
