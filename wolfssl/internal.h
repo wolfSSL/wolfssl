@@ -5859,7 +5859,7 @@ enum  {
 
 /* 64-bit epoch + 64-bit sequence number */
 #define DTLS13_RN_SIZE (OPAQUE64_LEN + OPAQUE64_LEN)
-/* Maximum number of ACK records allowed in a ACK record */
+/* Maximum number of ACK records allowed in an ACK message */
 #ifndef DTLS13_ACK_MAX_RECORDS
 #define DTLS13_ACK_MAX_RECORDS 128
 #endif
