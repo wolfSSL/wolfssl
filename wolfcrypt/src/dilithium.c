@@ -8414,6 +8414,7 @@ static int dilithium_sign_with_seed_mu(dilithium_key* key,
         dilithium_vec_encode_gamma1(z, params->l, params->gamma1_bits, ze);
     }
 
+    ForceZero(priv_rand_seed, sizeof(priv_rand_seed));
     XFREE(y, key->heap, DYNAMIC_TYPE_DILITHIUM);
     return ret;
 #else
@@ -8955,6 +8956,7 @@ static int dilithium_sign_with_seed_mu(dilithium_key* key,
         while ((ret == 0) && (!valid));
     }
 
+    ForceZero(priv_rand_seed, sizeof(priv_rand_seed));
     XFREE(y, key->heap, DYNAMIC_TYPE_DILITHIUM);
     return ret;
 #endif
@@ -9008,6 +9010,7 @@ static int dilithium_sign_ctx_msg_with_seed(dilithium_key* key,
         ret = dilithium_sign_with_seed_mu(key, seedMu, sig, sigLen);
     }
 
+    ForceZero(seedMu, sizeof(seedMu));
     return ret;
 }
 
@@ -9057,6 +9060,7 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
         ret = dilithium_sign_with_seed_mu(key, seedMu, sig, sigLen);
     }
 
+    ForceZero(seedMu, sizeof(seedMu));
     return ret;
 }
 #endif /* WOLFSSL_DILITHIUM_NO_CTX */
@@ -9122,6 +9126,7 @@ static int dilithium_sign_ctx_msg(dilithium_key* key, WC_RNG* rng,
         ret = dilithium_sign_with_seed_mu(key, seedMu, sig, sigLen);
     }
 
+    ForceZero(seedMu, sizeof(seedMu));
     return ret;
 }
 
@@ -9184,6 +9189,7 @@ static int dilithium_sign_msg(dilithium_key* key, WC_RNG* rng,
         ret = dilithium_sign_with_seed_mu(key, seedMu, sig, sigLen);
     }
 
+    ForceZero(seedMu, sizeof(seedMu));
     return ret;
 }
 #endif /* WOLFSSL_DILITHIUM_NO_CTX */
@@ -9257,6 +9263,7 @@ static int dilithium_sign_ctx_hash_with_seed(dilithium_key* key,
         ret = dilithium_sign_with_seed_mu(key, seedMu, sig, sigLen);
     }
 
+    ForceZero(seedMu, sizeof(seedMu));
     return ret;
 }
 
