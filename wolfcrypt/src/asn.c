@@ -9151,8 +9151,13 @@ int wc_CheckPrivateKeyCert(const byte* key, word32 keySz, DecodedCert* der,
         if (ret == 0) {
             if (der->sapkiOID == RSAk || der->sapkiOID == ECDSAk) {
                 /* Simply copy the data */
-                XMEMCPY(decodedPubKey, der->sapkiDer, der->sapkiLen);
-                pubKeyLen = der->sapkiLen;
+                if ((word32)der->sapkiLen > pubKeyLen) {
+                    ret = BUFFER_E;
+                }
+                else {
+                    XMEMCPY(decodedPubKey, der->sapkiDer, der->sapkiLen);
+                    pubKeyLen = der->sapkiLen;
+                }
             }
             else {
             #if defined(WC_ENABLE_ASYM_KEY_IMPORT)
@@ -16210,6 +16215,10 @@ int ConfirmSignature(SignatureCtx* sigCtx,
 
                     if (sigSz < DSA_MIN_SIG_SIZE) {
                         WOLFSSL_MSG("Verify Signature is too small");
+                        ERROR_OUT(BUFFER_E, exit_cs);
+                    }
+                    else if (sigSz > MAX_ENCODED_SIG_SZ) {
+                        WOLFSSL_MSG("Verify Signature is too big");
                         ERROR_OUT(BUFFER_E, exit_cs);
                     }
                 #ifndef WOLFSSL_NO_MALLOC

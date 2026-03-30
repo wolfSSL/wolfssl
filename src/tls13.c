@@ -2966,11 +2966,15 @@ int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz,
                  const byte* aad, word16 aadSz)
 {
     int    ret    = 0;
-    word16 dataSz = sz - ssl->specs.aead_mac_size;
+    word16 dataSz;
     word16 macSz  = ssl->specs.aead_mac_size;
     word32 nonceSz = 0;
 
     WOLFSSL_ENTER("DecryptTls13");
+    if (sz < ssl->specs.aead_mac_size) {
+        return BAD_FUNC_ARG;
+    }
+    dataSz = sz - ssl->specs.aead_mac_size;
 
 #if defined(WOLFSSL_RENESAS_TSIP_TLS)
     ret = tsip_Tls13AesDecrypt(ssl, output, input, sz);
@@ -5873,7 +5877,7 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
      * Increase size to handle other implementations sending more than one byte.
      * That is, allocate extra space, over one byte, to hold the context value.
      */
-    certReqCtx = (CertReqCtx*)XMALLOC(sizeof(CertReqCtx) + len - 1, ssl->heap,
+    certReqCtx = (CertReqCtx*)XMALLOC(sizeof(CertReqCtx) + (len == 0 ? 0 : len - 1), ssl->heap,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
     if (certReqCtx == NULL)
         return MEMORY_E;
@@ -8766,14 +8770,18 @@ static word32 NextCert(byte* data, word32 length, word32* idx)
 {
     word32 len;
 
-    /* Is index at end of list. */
-    if (*idx == length)
+    /* Would index read past end of list? */
+    if (*idx + 3 > length)
         return 0;
 
     /* Length of the current ASN.1 encoded certificate. */
     c24to32(data + *idx, &len);
     /* Include the length field. */
     len += 3;
+
+    /* Ensure len does not overrun certificate list */
+    if (*idx + len > length)
+        return 0;
 
     /* Move index to next certificate and return the current certificate's
      * length.
@@ -10696,10 +10704,16 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                  * we can decode both lengths here now. */
                 word32 tmpIdx = args->idx;
                 word16 tmpSz = 0;
+                if (args->sz < OPAQUE16_LEN) {
+                    ERROR_OUT(BUFFER_ERROR, exit_dcv);
+                }
                 ato16(input + tmpIdx, &tmpSz);
                 args->sigSz = tmpSz;
 
                 tmpIdx += OPAQUE16_LEN + args->sigSz;
+                if (tmpIdx - args->idx + OPAQUE16_LEN > args->sz) {
+                    ERROR_OUT(BUFFER_ERROR, exit_dcv);
+                }
                 ato16(input + tmpIdx, &tmpSz);
                 args->altSignatureSz = tmpSz;
 

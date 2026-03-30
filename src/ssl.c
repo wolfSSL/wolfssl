@@ -906,6 +906,9 @@ static int DupSSL(WOLFSSL* dup, WOLFSSL* ssl)
     XMEMCPY(&dup->version, &ssl->version, sizeof(ProtocolVersion));
     XMEMCPY(&dup->chVersion, &ssl->chVersion, sizeof(ProtocolVersion));
 
+    /* dup side now owns encrypt/write ciphers */
+    XMEMSET(&ssl->encrypt, 0, sizeof(Ciphers));
+
 #ifdef HAVE_ONE_TIME_AUTH
 #ifdef HAVE_POLY1305
     if (ssl->auth.setup && ssl->auth.poly1305 != NULL) {
@@ -917,9 +920,6 @@ static int DupSSL(WOLFSSL* dup, WOLFSSL* ssl)
     }
 #endif
 #endif
-
-    /* dup side now owns encrypt/write ciphers */
-    XMEMSET(&ssl->encrypt, 0, sizeof(Ciphers));
 
 #ifdef WOLFSSL_TLS13
     if (IsAtLeastTLSv1_3(ssl->version)) {
@@ -1274,7 +1274,7 @@ const char* wolfSSL_get_shared_ciphers(WOLFSSL* ssl, char* buf, int len)
 {
     const char* cipher;
 
-    if (ssl == NULL)
+    if (ssl == NULL || len <= 0)
         return NULL;
 
     cipher = wolfSSL_get_cipher_name_iana(ssl);
