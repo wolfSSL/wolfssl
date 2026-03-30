@@ -32177,6 +32177,317 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t x963kdf_test(void)
         defined(HAVE_CURVE448)) && \
     defined(HAVE_AESGCM)
 
+#if defined(HAVE_ECC) && defined(WOLFSSL_AES_128) && \
+    (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && !defined(NO_SHA256)
+static wc_test_ret_t hpke_test_api(Hpke* hpke)
+{
+    wc_test_ret_t ret = 0;
+    int rngRet = 0;
+    WC_RNG rng[1];
+    const char* start_text = "this is a test";
+    const char* info_text = "info";
+    const char* aad_text = "aad";
+    byte ciphertext[MAX_HPKE_LABEL_SZ];
+    byte plaintext[MAX_HPKE_LABEL_SZ];
+    void* receiverKey = NULL;
+    void* ephemeralKey = NULL;
+#ifdef WOLFSSL_SMALL_STACK
+    byte *pubKey = NULL; /* public key */
+    word16 pubKeySz = (word16)HPKE_Npk_MAX;
+#else
+    byte pubKey[HPKE_Npk_MAX]; /* public key */
+    word16 pubKeySz = (word16)sizeof(pubKey);
+#endif
+
+    rngRet = ret = wc_InitRng(rng);
+
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (ret == 0) {
+        pubKey = (byte *)XMALLOC(pubKeySz, HEAP_HINT,
+                                    DYNAMIC_TYPE_TMP_BUFFER);
+        if (pubKey == NULL)
+            ret = WC_TEST_RET_ENC_EC(MEMORY_E);
+    }
+#endif
+
+    /* Negative test case with NULL argument */
+    if (ret == 0) {
+        ret = wc_HpkeGenerateKeyPair(NULL, &receiverKey, rng);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ret = WC_TEST_RET_ENC_EC(ret);
+        else
+            ret = 0;
+    }
+    if (ret == 0) {
+        ret = wc_HpkeGenerateKeyPair(hpke, NULL, rng);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ret = WC_TEST_RET_ENC_EC(ret);
+        else
+            ret = 0;
+    }
+    if (ret == 0) {
+        ret = wc_HpkeGenerateKeyPair(hpke, &receiverKey, NULL);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ret = WC_TEST_RET_ENC_EC(ret);
+        else
+            ret = 0;
+    }
+
+    /* generate the keys */
+    if (ret == 0) {
+        ret = wc_HpkeGenerateKeyPair(hpke, &ephemeralKey, rng);
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
+    }
+
+    if (ret == 0) {
+        ret = wc_HpkeGenerateKeyPair(hpke, &receiverKey, rng);
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
+    }
+
+    /* Negative test case with NULL argument */
+    if (ret == 0) {
+        ret = wc_HpkeSealBase(NULL, ephemeralKey, receiverKey,
+            (byte*)info_text, (word32)XSTRLEN(info_text),
+            (byte*)aad_text, (word32)XSTRLEN(aad_text),
+            (byte*)start_text, (word32)XSTRLEN(start_text),
+            ciphertext);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ret = WC_TEST_RET_ENC_EC(ret);
+        else
+            ret = 0;
+    }
+    if (ret == 0) {
+        ret = wc_HpkeSealBase(hpke, NULL, receiverKey,
+            (byte*)info_text, (word32)XSTRLEN(info_text),
+            (byte*)aad_text, (word32)XSTRLEN(aad_text),
+            (byte*)start_text, (word32)XSTRLEN(start_text),
+            ciphertext);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ret = WC_TEST_RET_ENC_EC(ret);
+        else
+            ret = 0;
+    }
+    if (ret == 0) {
+        ret = wc_HpkeSealBase(hpke, ephemeralKey, NULL,
+            (byte*)info_text, (word32)XSTRLEN(info_text),
+            (byte*)aad_text, (word32)XSTRLEN(aad_text),
+            (byte*)start_text, (word32)XSTRLEN(start_text),
+            ciphertext);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ret = WC_TEST_RET_ENC_EC(ret);
+        else
+            ret = 0;
+    }
+    if (ret == 0) {
+        ret = wc_HpkeSealBase(hpke, ephemeralKey, receiverKey,
+            (byte*)NULL, (word32)XSTRLEN(info_text),
+            (byte*)aad_text, (word32)XSTRLEN(aad_text),
+            (byte*)start_text, (word32)XSTRLEN(start_text),
+            ciphertext);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ret = WC_TEST_RET_ENC_EC(ret);
+        else
+            ret = 0;
+    }
+    if (ret == 0) {
+        ret = wc_HpkeSealBase(hpke, ephemeralKey, receiverKey,
+            (byte*)info_text, (word32)XSTRLEN(info_text),
+            (byte*)NULL, (word32)XSTRLEN(aad_text),
+            (byte*)start_text, (word32)XSTRLEN(start_text),
+            ciphertext);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ret = WC_TEST_RET_ENC_EC(ret);
+        else
+            ret = 0;
+    }
+    if (ret == 0) {
+        ret = wc_HpkeSealBase(hpke, ephemeralKey, receiverKey,
+            (byte*)info_text, (word32)XSTRLEN(info_text),
+            (byte*)aad_text, (word32)XSTRLEN(aad_text),
+            (byte*)NULL, (word32)XSTRLEN(start_text),
+            ciphertext);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ret = WC_TEST_RET_ENC_EC(ret);
+        else
+            ret = 0;
+    }
+    if (ret == 0) {
+        ret = wc_HpkeSealBase(hpke, ephemeralKey, receiverKey,
+            (byte*)info_text, (word32)XSTRLEN(info_text),
+            (byte*)aad_text, (word32)XSTRLEN(aad_text),
+            (byte*)start_text, (word32)XSTRLEN(start_text),
+            NULL);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ret = WC_TEST_RET_ENC_EC(ret);
+        else
+            ret = 0;
+    }
+
+    /* seal */
+    if (ret == 0) {
+        ret = wc_HpkeSealBase(hpke, ephemeralKey, receiverKey,
+            (byte*)info_text, (word32)XSTRLEN(info_text),
+            (byte*)aad_text, (word32)XSTRLEN(aad_text),
+            (byte*)start_text, (word32)XSTRLEN(start_text),
+            ciphertext);
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
+    }
+
+    /* Negative test case with NULL argument */
+    if (ret == 0) {
+        ret = wc_HpkeSerializePublicKey(NULL, ephemeralKey, pubKey, &pubKeySz);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ret = WC_TEST_RET_ENC_EC(ret);
+        else
+            ret = 0;
+    }
+    if (ret == 0) {
+        ret = wc_HpkeSerializePublicKey(hpke, NULL, pubKey, &pubKeySz);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ret = WC_TEST_RET_ENC_EC(ret);
+        else
+            ret = 0;
+    }
+    if (ret == 0) {
+        ret = wc_HpkeSerializePublicKey(hpke, ephemeralKey, NULL, &pubKeySz);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ret = WC_TEST_RET_ENC_EC(ret);
+        else
+            ret = 0;
+    }
+    if (ret == 0) {
+        ret = wc_HpkeSerializePublicKey(hpke, ephemeralKey, pubKey, NULL);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ret = WC_TEST_RET_ENC_EC(ret);
+        else
+            ret = 0;
+    }
+
+    /* export ephemeral key */
+    if (ret == 0) {
+        ret = wc_HpkeSerializePublicKey(hpke, ephemeralKey, pubKey, &pubKeySz);
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
+    }
+
+    /* Negative test case with NULL argument */
+    if (ret == 0) {
+        ret = wc_HpkeOpenBase(NULL, receiverKey, pubKey, pubKeySz,
+            (byte*)info_text, (word32)XSTRLEN(info_text),
+            (byte*)aad_text, (word32)XSTRLEN(aad_text),
+            ciphertext, (word32)XSTRLEN(start_text),
+            plaintext);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ret = WC_TEST_RET_ENC_EC(ret);
+        else
+            ret = 0;
+    }
+    if (ret == 0) {
+        ret = wc_HpkeOpenBase(hpke, NULL, pubKey, pubKeySz,
+            (byte*)info_text, (word32)XSTRLEN(info_text),
+            (byte*)aad_text, (word32)XSTRLEN(aad_text),
+            ciphertext, (word32)XSTRLEN(start_text),
+            plaintext);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ret = WC_TEST_RET_ENC_EC(ret);
+        else
+            ret = 0;
+    }
+    if (ret == 0) {
+        ret = wc_HpkeOpenBase(hpke, receiverKey, NULL, pubKeySz,
+            (byte*)info_text, (word32)XSTRLEN(info_text),
+            (byte*)aad_text, (word32)XSTRLEN(aad_text),
+            ciphertext, (word32)XSTRLEN(start_text),
+            plaintext);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ret = WC_TEST_RET_ENC_EC(ret);
+        else
+            ret = 0;
+    }
+    if (ret == 0) {
+        ret = wc_HpkeOpenBase(hpke, receiverKey, pubKey, pubKeySz,
+            (byte*)NULL, (word32)XSTRLEN(info_text),
+            (byte*)aad_text, (word32)XSTRLEN(aad_text),
+            ciphertext, (word32)XSTRLEN(start_text),
+            plaintext);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ret = WC_TEST_RET_ENC_EC(ret);
+        else
+            ret = 0;
+    }
+    if (ret == 0) {
+        ret = wc_HpkeOpenBase(hpke, receiverKey, pubKey, pubKeySz,
+            (byte*)info_text, (word32)XSTRLEN(info_text),
+            (byte*)NULL, (word32)XSTRLEN(aad_text),
+            ciphertext, (word32)XSTRLEN(start_text),
+            plaintext);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ret = WC_TEST_RET_ENC_EC(ret);
+        else
+            ret = 0;
+    }
+    if (ret == 0) {
+        ret = wc_HpkeOpenBase(hpke, receiverKey, pubKey, pubKeySz,
+            (byte*)info_text, (word32)XSTRLEN(info_text),
+            (byte*)aad_text, (word32)XSTRLEN(aad_text),
+            NULL, (word32)XSTRLEN(start_text),
+            plaintext);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ret = WC_TEST_RET_ENC_EC(ret);
+        else
+            ret = 0;
+    }
+    if (ret == 0) {
+        ret = wc_HpkeOpenBase(hpke, receiverKey, pubKey, pubKeySz,
+            (byte*)info_text, (word32)XSTRLEN(info_text),
+            (byte*)aad_text, (word32)XSTRLEN(aad_text),
+            ciphertext, (word32)XSTRLEN(start_text),
+            NULL);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ret = WC_TEST_RET_ENC_EC(ret);
+        else
+            ret = 0;
+    }
+
+    /* open with exported ephemeral key */
+    if (ret == 0) {
+        ret = wc_HpkeOpenBase(hpke, receiverKey, pubKey, pubKeySz,
+            (byte*)info_text, (word32)XSTRLEN(info_text),
+            (byte*)aad_text, (word32)XSTRLEN(aad_text),
+            ciphertext, (word32)XSTRLEN(start_text),
+            plaintext);
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
+    }
+
+    if (ret == 0) {
+        ret = XMEMCMP(plaintext, start_text, XSTRLEN(start_text));
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_NC;
+    }
+
+    if (ephemeralKey != NULL)
+        wc_HpkeFreeKey(hpke, hpke->kem, ephemeralKey, hpke->heap);
+
+    if (receiverKey != NULL)
+        wc_HpkeFreeKey(hpke, hpke->kem, receiverKey, hpke->heap);
+
+    WC_FREE_VAR_EX(pubKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+    if (rngRet == 0)
+        wc_FreeRng(rng);
+
+    return ret;
+}
+#endif /* HAVE_ECC && WOLFSSL_AES_128 && (!NO_ECC256 || HAVE_ALL_CURVES) &&
+          !NO_SHA256 */
+
 static wc_test_ret_t hpke_test_single(Hpke* hpke)
 {
     wc_test_ret_t ret = 0;
@@ -32257,31 +32568,6 @@ static wc_test_ret_t hpke_test_single(Hpke* hpke)
         ret = XMEMCMP(plaintext, start_text, XSTRLEN(start_text));
         if (ret != 0)
             ret = WC_TEST_RET_ENC_NC;
-    }
-
-    /* Negative test case with NULL argument */
-    if (ret == 0) {
-        ret = wc_HpkeGenerateKeyPair(NULL, &receiverKey, rng);
-        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-            ret = WC_TEST_RET_ENC_EC(ret);
-        else
-            ret = 0;
-    }
-
-    if (ret == 0) {
-        ret = wc_HpkeGenerateKeyPair(hpke, NULL, rng);
-        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-            ret = WC_TEST_RET_ENC_EC(ret);
-        else
-            ret = 0;
-    }
-
-    if (ret == 0) {
-        ret = wc_HpkeGenerateKeyPair(hpke, &receiverKey, NULL);
-        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-            ret = WC_TEST_RET_ENC_EC(ret);
-        else
-            ret = 0;
     }
 
     if (ephemeralKey != NULL)
@@ -32406,6 +32692,15 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hpke_test(void)
 
 #if defined(HAVE_ECC) && defined(WOLFSSL_AES_128)
     #if (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && !defined(NO_SHA256)
+    /* p256 but this will only test the api */
+    ret = wc_HpkeInit(hpke, DHKEM_P256_HKDF_SHA256, HKDF_SHA256,
+        HPKE_AES_128_GCM, NULL);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = hpke_test_api(hpke);
+    if (ret != 0)
+        return ret;
+
     /* p256 */
     ret = wc_HpkeInit(hpke, DHKEM_P256_HKDF_SHA256, HKDF_SHA256,
         HPKE_AES_128_GCM, NULL);
