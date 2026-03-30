@@ -1032,7 +1032,7 @@ int test_dtls13_ack_dup_write_counter(void)
     ssl_c->dtls13Rtx.sendAcks = 1;
     ExpectIntEQ(Dtls13DoScheduledWork(ssl_c), 0);
     /* seenRecords ownership was transferred to dupWrite->sendAckList;
-     * seenRecordsCount must be reset to 0 — not left at 5. */
+     * seenRecordsCount must be reset to 0,  not left at 5. */
     ExpectNull(ssl_c->dtls13Rtx.seenRecords);
     ExpectIntEQ(ssl_c->dtls13Rtx.seenRecordsCount, 0);
 
