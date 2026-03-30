@@ -41507,6 +41507,7 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                     {
                         RsaKey* key = (RsaKey*)ssl->hsKey;
                         volatile int lenErrMask;
+                        int mask;
 
                         ret = RsaDec(ssl,
                             input + args->idx,
@@ -41533,8 +41534,11 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                             goto exit_dcke;
 
                         lenErrMask = 0 - (SECRET_LEN != args->sigSz);
-                        args->lastErr = (ret & (~lenErrMask)) |
-                            (WC_NO_ERR_TRACE(RSA_PAD_E) & lenErrMask);
+                        /* Snapshot volatile to avoid multiple volatile
+                         * accesses per expression. */
+                        mask = lenErrMask;
+                        args->lastErr = (ret & (~mask)) |
+                            (WC_NO_ERR_TRACE(RSA_PAD_E) & mask);
                         ret = 0;
                         break;
                     } /* rsa_kea */
