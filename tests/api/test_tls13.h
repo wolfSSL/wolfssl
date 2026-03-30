@@ -42,6 +42,8 @@ int test_tls13_plaintext_alert(void);
 int test_tls13_warning_alert_is_fatal(void);
 int test_tls13_cert_req_sigalgs(void);
 int test_tls13_derive_keys_no_key(void);
+int test_tls13_pqc_hybrid_truncated_keyshare(void);
+int test_tls13_short_session_ticket(void);
 
 #define TEST_TLS13_DECLS                                        \
     TEST_DECL_GROUP("tls13", test_tls13_apis),                  \
@@ -61,6 +63,8 @@ int test_tls13_derive_keys_no_key(void);
     TEST_DECL_GROUP("tls13", test_tls13_plaintext_alert),       \
     TEST_DECL_GROUP("tls13", test_tls13_warning_alert_is_fatal), \
     TEST_DECL_GROUP("tls13", test_tls13_cert_req_sigalgs),       \
-    TEST_DECL_GROUP("tls13", test_tls13_derive_keys_no_key)
+    TEST_DECL_GROUP("tls13", test_tls13_derive_keys_no_key),    \
+    TEST_DECL_GROUP("tls13", test_tls13_pqc_hybrid_truncated_keyshare), \
+    TEST_DECL_GROUP("tls13", test_tls13_short_session_ticket)
 
 #endif /* WOLFCRYPT_TEST_TLS13_H */
