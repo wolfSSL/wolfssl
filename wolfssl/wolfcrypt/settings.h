@@ -3149,13 +3149,15 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif /* HAVE_ECC */
 
-#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && defined(HAVE_ECC) && \
-    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
-    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SE050) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_STM32_PKA)
-    #undef  USE_ECC_B_PARAM
-    #define USE_ECC_B_PARAM
+/* The FIPS-validated ecc.c gates wc_ecc_point_is_on_curve behind
+ * USE_ECC_B_PARAM. That guard was removed from the non-FIPS tree (the
+ * function is now unconditionally compiled in). Force-define the flag
+ * when building with any FIPS module so the certified file still
+ * provides the symbol. */
+ #if defined(HAVE_FIPS) && !defined(USE_ECC_B_PARAM)
+ #define USE_ECC_B_PARAM
 #endif
+
 
 /* Curve25519 Configs */
 #ifdef HAVE_CURVE25519

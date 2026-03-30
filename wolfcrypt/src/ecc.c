@@ -50,8 +50,6 @@ Possible ECC enable options:
  *                      SECP160K1 and SECP224K1. These do not work with scalars
  *                      that are the length of the order when the order is
  *                      longer than the prime. Use wc_ecc_fp_free to free cache.
- * USE_ECC_B_PARAM:     Enable ECC curve B param                default: off
- *                      (on for HAVE_COMP_KEY)
  * WOLFSSL_ECC_CURVE_STATIC:                                    default off (on for windows)
  *                      For the ECC curve parameters `ecc_set_type` use fixed
  *                      array for hex string
@@ -1522,9 +1520,7 @@ typedef struct ecc_curve_spec {
 
     mp_int* prime;
     mp_int* Af;
-    #ifdef USE_ECC_B_PARAM
-        mp_int* Bf;
-    #endif
+    mp_int* Bf;
     mp_int* order;
     mp_int* Gx;
     mp_int* Gy;
@@ -1532,9 +1528,7 @@ typedef struct ecc_curve_spec {
 #ifdef ECC_CACHE_CURVE
     mp_int prime_lcl;
     mp_int Af_lcl;
-    #ifdef USE_ECC_B_PARAM
-        mp_int Bf_lcl;
-    #endif
+    mp_int Bf_lcl;
     mp_int order_lcl;
     mp_int Gx_lcl;
     mp_int Gy_lcl;
@@ -1554,19 +1548,12 @@ typedef struct ecc_curve_spec {
     #define ECC_CURVE_FIELD_NONE    0x00
     #define ECC_CURVE_FIELD_PRIME   0x01
     #define ECC_CURVE_FIELD_AF      0x02
-#ifdef USE_ECC_B_PARAM
     #define ECC_CURVE_FIELD_BF      0x04
-#endif
     #define ECC_CURVE_FIELD_ORDER   0x08
     #define ECC_CURVE_FIELD_GX      0x10
     #define ECC_CURVE_FIELD_GY      0x20
-#ifdef USE_ECC_B_PARAM
     #define ECC_CURVE_FIELD_ALL     0x3F
     #define ECC_CURVE_FIELD_COUNT   6
-#else
-    #define ECC_CURVE_FIELD_ALL     0x3B
-    #define ECC_CURVE_FIELD_COUNT   5
-#endif
 
 #if defined(WOLFSSL_XILINX_CRYPT_VERSAL)
 static const u32 xil_curve_type[ECC_CURVE_MAX] = {
@@ -1710,10 +1697,8 @@ static void wc_ecc_curve_cache_free_spec(ecc_curve_spec* curve)
         wc_ecc_curve_cache_free_spec_item(curve, curve->prime, ECC_CURVE_FIELD_PRIME);
     if (curve->load_mask & ECC_CURVE_FIELD_AF)
         wc_ecc_curve_cache_free_spec_item(curve, curve->Af, ECC_CURVE_FIELD_AF);
-#ifdef USE_ECC_B_PARAM
     if (curve->load_mask & ECC_CURVE_FIELD_BF)
         wc_ecc_curve_cache_free_spec_item(curve, curve->Bf, ECC_CURVE_FIELD_BF);
-#endif
     if (curve->load_mask & ECC_CURVE_FIELD_ORDER)
         wc_ecc_curve_cache_free_spec_item(curve, curve->order, ECC_CURVE_FIELD_ORDER);
     if (curve->load_mask & ECC_CURVE_FIELD_GX)
@@ -1847,9 +1832,7 @@ static int wc_ecc_curve_load(const ecc_set_type* dp, ecc_curve_spec** pCurve,
     #ifdef ECC_CACHE_CURVE
         curve->prime = &curve->prime_lcl;
         curve->Af = &curve->Af_lcl;
-        #ifdef USE_ECC_B_PARAM
-            curve->Bf = &curve->Bf_lcl;
-        #endif
+        curve->Bf = &curve->Bf_lcl;
         curve->order = &curve->order_lcl;
         curve->Gx = &curve->Gx_lcl;
         curve->Gy = &curve->Gy_lcl;
@@ -1868,11 +1851,9 @@ static int wc_ecc_curve_load(const ecc_set_type* dp, ecc_curve_spec** pCurve,
     if (load_items & ECC_CURVE_FIELD_AF)
         ret += wc_ecc_curve_cache_load_item(curve, dp->Af, &curve->Af,
             ECC_CURVE_FIELD_AF);
-#ifdef USE_ECC_B_PARAM
     if (load_items & ECC_CURVE_FIELD_BF)
         ret += wc_ecc_curve_cache_load_item(curve, dp->Bf, &curve->Bf,
             ECC_CURVE_FIELD_BF);
-#endif
     if (load_items & ECC_CURVE_FIELD_ORDER)
         ret += wc_ecc_curve_cache_load_item(curve, dp->order, &curve->order,
             ECC_CURVE_FIELD_ORDER);
@@ -4762,6 +4743,7 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
       return ECC_BAD_ARG_E;
    }
 
+
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
    /* For SECP256R1 use hardware */
    if (private_key->dp->id == ECC_SECP256R1) {
@@ -5274,7 +5256,6 @@ int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
 #endif /* !WOLFSSL_ATECC508A && !WOLFSSL_CRYPTOCELL && !WOLFSSL_KCAPI_ECC */
 #endif /* HAVE_ECC_DHE */
 
-#ifdef USE_ECC_B_PARAM
 /* Checks if a point p lies on the curve with index curve_idx */
 int wc_ecc_point_is_on_curve(ecc_point *p, int curve_idx)
 {
@@ -5309,7 +5290,6 @@ int wc_ecc_point_is_on_curve(ecc_point *p, int curve_idx)
 
     return err;
 }
-#endif /* USE_ECC_B_PARAM */
 
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
     !defined(WOLFSSL_CRYPTOCELL) && \
@@ -9969,8 +9949,6 @@ int wc_ecc_export_x963_ex(ecc_key* key, byte* out, word32* outLen,
 #endif /* HAVE_ECC_KEY_EXPORT */
 
 
-#ifdef HAVE_ECC_CHECK_PUBKEY_ORDER
-
 /* is ecc point on curve described by dp ? */
 static int _ecc_is_point(ecc_point* ecp, mp_int* a, mp_int* b, mp_int* prime)
 {
@@ -10146,6 +10124,8 @@ int wc_ecc_is_point(ecc_point* ecp, mp_int* a, mp_int* b, mp_int* prime)
 
     return err;
 }
+
+#ifdef HAVE_ECC_CHECK_PUBKEY_ORDER
 
 #if (FIPS_VERSION_GE(5,0) || defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || \
     (defined(WOLFSSL_VALIDATE_ECC_IMPORT) && !defined(WOLFSSL_SP_MATH))) && \
@@ -10514,14 +10494,7 @@ static int _ecc_validate_public_key(ecc_key* key, int partial, int priv)
     int err = MP_OKAY;
 #if defined(HAVE_ECC_CHECK_PUBKEY_ORDER) && !defined(WOLFSSL_SP_MATH)
     mp_int* b = NULL;
-    #ifdef USE_ECC_B_PARAM
-        DECLARE_CURVE_SPECS(4);
-    #else
-        #ifndef WOLFSSL_SMALL_STACK
-            mp_int b_lcl;
-        #endif
-        DECLARE_CURVE_SPECS(3);
-    #endif /* USE_ECC_B_PARAM */
+    DECLARE_CURVE_SPECS(4);
 #endif
 
     ASSERT_SAVED_VECTOR_REGISTERS();
@@ -10573,21 +10546,7 @@ static int _ecc_validate_public_key(ecc_key* key, int partial, int priv)
 #endif
 
 #ifndef WOLFSSL_SP_MATH
-    #ifdef USE_ECC_B_PARAM
-        ALLOC_CURVE_SPECS(4, err);
-    #else
-        ALLOC_CURVE_SPECS(3, err);
-        #ifndef WOLFSSL_SMALL_STACK
-            b = &b_lcl;
-        #else
-            b = (mp_int*)XMALLOC(sizeof(mp_int), key->heap, DYNAMIC_TYPE_ECC);
-            if (b == NULL) {
-                FREE_CURVE_SPECS();
-                return MEMORY_E;
-            }
-        #endif
-        XMEMSET(b, 0, sizeof(mp_int));
-    #endif
+    ALLOC_CURVE_SPECS(4, err);
 
     #ifdef WOLFSSL_CAAM
     /* keys can be black encrypted ones which can not be checked like plain text
@@ -10612,22 +10571,10 @@ static int _ecc_validate_public_key(ecc_key* key, int partial, int priv)
     /* load curve info */
     if (err == MP_OKAY)
         err = wc_ecc_curve_load(key->dp, &curve, (ECC_CURVE_FIELD_PRIME |
-            ECC_CURVE_FIELD_AF | ECC_CURVE_FIELD_ORDER
-#ifdef USE_ECC_B_PARAM
-            | ECC_CURVE_FIELD_BF
-#endif
-    ));
+            ECC_CURVE_FIELD_AF | ECC_CURVE_FIELD_ORDER | ECC_CURVE_FIELD_BF));
 
-#ifndef USE_ECC_B_PARAM
-    /* load curve b parameter */
-    if (err == MP_OKAY)
-        err = mp_init(b);
-    if (err == MP_OKAY)
-        err = mp_read_radix(b, key->dp->Bf, MP_RADIX_HEX);
-#else
     if (err == MP_OKAY)
         b = curve->Bf;
-#endif
 
     /* SP 800-56Ar3, section 5.6.2.3.3, process step 2 */
     /* SP 800-56Ar3, section 5.6.2.3.4, process step 2 */
@@ -10683,11 +10630,6 @@ static int _ecc_validate_public_key(ecc_key* key, int partial, int priv)
     }
 
     wc_ecc_curve_free(curve);
-
-#ifndef USE_ECC_B_PARAM
-    mp_clear(b);
-        WC_FREE_VAR_EX(b, key->heap, DYNAMIC_TYPE_ECC);
-#endif
 
     FREE_CURVE_SPECS();
 
@@ -11012,16 +10954,75 @@ int wc_ecc_import_x963_ex2(const byte* in, word32 inLen, ecc_key* key,
      !defined(WOLFSSL_CRYPTOCELL) && \
      (!defined(WOLF_CRYPTO_CB_ONLY_ECC) || defined(WOLFSSL_QNX_CAAM) || \
        defined(WOLFSSL_IMXRT1170_CAAM))
-    if (untrusted) {
-        /* Only do quick checks. */
-        if ((err == MP_OKAY) && wc_ecc_point_is_at_infinity(&key->pubkey)) {
+    if ((err == MP_OKAY) && untrusted) {
+        /* Reject point at infinity. */
+        if (wc_ecc_point_is_at_infinity(&key->pubkey)) {
             err = ECC_INF_E;
         }
-    #ifdef USE_ECC_B_PARAM
-        if ((err == MP_OKAY) && (key->idx != ECC_CUSTOM_IDX))  {
+        /* Verify the point lies on the curve (y^2 = x^3 + ax + b mod p) */
+        if ((err == MP_OKAY) && (key->idx != ECC_CUSTOM_IDX)) {
+    #ifdef WOLFSSL_HAVE_SP_ECC
+        #ifndef WOLFSSL_SP_NO_256
+            if (ecc_sets[key->idx].id == ECC_SECP256R1) {
+                err = sp_ecc_is_point_256(key->pubkey.x, key->pubkey.y);
+            #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SP_SM2)
+                if (err != MP_OKAY && curve_id < 0) {
+                    /* Retry with SM2 curve when P-256 returns invalid.
+                     * Only when no explicit curve was requested (curve_id < 0).
+                     * Needed because SM2 keys can be mis-identified as
+                     * SECP256R1 during parsing. */
+                    err = sp_ecc_is_point_sm2_256(key->pubkey.x,
+                                                  key->pubkey.y);
+                    if (err == MP_OKAY) {
+                        err = wc_ecc_set_curve(key, key->dp->size,
+                                               ECC_SM2P256V1);
+                    }
+                }
+            #endif
+            }
+            else
+        #endif
+        #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SP_SM2)
+            if (ecc_sets[key->idx].id == ECC_SM2P256V1) {
+                err = sp_ecc_is_point_sm2_256(key->pubkey.x, key->pubkey.y);
+            }
+            else
+        #endif
+        #ifdef WOLFSSL_SP_384
+            if (ecc_sets[key->idx].id == ECC_SECP384R1) {
+                err = sp_ecc_is_point_384(key->pubkey.x, key->pubkey.y);
+            }
+            else
+        #endif
+        #ifdef WOLFSSL_SP_521
+            if (ecc_sets[key->idx].id == ECC_SECP521R1) {
+                err = sp_ecc_is_point_521(key->pubkey.x, key->pubkey.y);
+            }
+            else
+        #endif
+            {
+                err = wc_ecc_point_is_on_curve(&key->pubkey, key->idx);
+            }
+    #else
             err = wc_ecc_point_is_on_curve(&key->pubkey, key->idx);
+        #if defined(WOLFSSL_SM2)
+            if (err != MP_OKAY && curve_id < 0) {
+                /* Retry with SM2 curve when P-256 returns invalid.
+                 * Only when no explicit curve was requested (curve_id < 0).
+                 * Needed because SM2 keys can be mis-identified as
+                 * SECP256R1 during parsing. */
+                int sm2_idx = wc_ecc_get_curve_idx(ECC_SM2P256V1);
+                if (sm2_idx != ECC_CURVE_INVALID) {
+                    err = wc_ecc_point_is_on_curve(&key->pubkey, sm2_idx);
+                    if (err == MP_OKAY) {
+                        err = wc_ecc_set_curve(key, WOLFSSL_SM2_KEY_BITS / 8,
+                                               ECC_SM2P256V1);
+                    }
+                }
+            }
+        #endif
+    #endif /* WOLFSSL_HAVE_SP_ECC */
         }
-    #endif /* USE_ECC_B_PARAM */
     }
 #endif
     (void)untrusted;
@@ -11048,7 +11049,8 @@ int wc_ecc_import_x963_ex2(const byte* in, word32 inLen, ecc_key* key,
 int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
                           int curve_id)
 {
-    return wc_ecc_import_x963_ex2(in, inLen, key, curve_id, 0);
+    /* treat as untrusted: validate the point is on the curve */
+    return wc_ecc_import_x963_ex2(in, inLen, key, curve_id, 1);
 }
 
 WOLFSSL_ABI
