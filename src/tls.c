@@ -16086,11 +16086,18 @@ static int TLSX_EchChangeSNI(WOLFSSL* ssl, TLSX** pEchX,
 
         if (serverNameX == NULL && ssl->ctx && ssl->ctx->extensions) {
             serverNameX = TLSX_Find(ssl->ctx->extensions, TLSX_SERVER_NAME);
-            extensions = &ssl->ctx->extensions;
+            if (serverNameX != NULL)
+                extensions = &ssl->ctx->extensions;
+        }
+
+        /* ECH requires an inner SNI to be present for ClientHelloInner.
+         * Without it, fail instead of mutating extension lists. */
+        if (serverNameX == NULL) {
+            ret = BAD_FUNC_ARG;
         }
 
         /* store the inner server name */
-        if (serverNameX != NULL) {
+        if (ret == 0 && serverNameX != NULL) {
             char* hostName = ((SNI*)serverNameX->data)->data.host_name;
             word32 hostNameSz = (word32)XSTRLEN(hostName) + 1;
 
@@ -16101,15 +16108,19 @@ static int TLSX_EchChangeSNI(WOLFSSL* ssl, TLSX** pEchX,
             XMEMCPY(serverName, hostName, hostNameSz);
         }
 
-        /* remove the inner server name */
-        TLSX_Remove(extensions, TLSX_SERVER_NAME, ssl->heap);
+        /* only swap the SNI if one was found; extensions is non-NULL if an
+         * SNI entry was found on ssl->extensions or ctx->extensions */
+        if (ret == 0 && extensions != NULL) {
+            /* remove the inner server name */
+            TLSX_Remove(extensions, TLSX_SERVER_NAME, ssl->heap);
 
-        /* set the public name as the server name */
-        if ((ret = TLSX_UseSNI(extensions, WOLFSSL_SNI_HOST_NAME,
-                ((WOLFSSL_ECH*)echX->data)->echConfig->publicName,
-                XSTRLEN(((WOLFSSL_ECH*)echX->data)->echConfig->publicName),
-                ssl->heap)) == WOLFSSL_SUCCESS)
-            ret = 0;
+            /* set the public name as the server name */
+            if ((ret = TLSX_UseSNI(extensions, WOLFSSL_SNI_HOST_NAME,
+                    ((WOLFSSL_ECH*)echX->data)->echConfig->publicName,
+                    XSTRLEN(((WOLFSSL_ECH*)echX->data)->echConfig->publicName),
+                    ssl->heap)) == WOLFSSL_SUCCESS)
+                ret = 0;
+        }
     }
     *pServerNameX = serverNameX;
     *pExtensions = extensions;
@@ -16122,10 +16133,12 @@ static int TLSX_EchRestoreSNI(WOLFSSL* ssl, char* serverName,
 {
     int ret = 0;
 
-    if (serverNameX != NULL) {
-        /* remove the public name SNI */
+    /* always remove the publicName SNI we injected, regardless of whether
+     * there was a prior inner SNI to restore */
+    if (extensions != NULL)
         TLSX_Remove(extensions, TLSX_SERVER_NAME, ssl->heap);
 
+    if (serverNameX != NULL) {
         /* restore the inner server name */
         ret = TLSX_UseSNI(extensions, WOLFSSL_SNI_HOST_NAME,
             serverName, XSTRLEN(serverName), ssl->heap);
