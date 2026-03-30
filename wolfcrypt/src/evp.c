@@ -1499,16 +1499,33 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
         * HAVE_FIPS_VERSION >= 2 */
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
         case WC_CHACHA20_POLY1305_TYPE:
+        {
+            byte computedTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE];
+            if (!ctx->enc) {
+                /* Save the expected tag before _Final() overwrites
+                 * ctx->authTag */
+                XMEMCPY(computedTag, ctx->authTag, sizeof(computedTag));
+            }
             if (wc_ChaCha20Poly1305_Final(&ctx->cipher.chachaPoly,
                                           ctx->authTag) != 0) {
                 WOLFSSL_MSG("wc_ChaCha20Poly1305_Final failed");
                 return WOLFSSL_FAILURE;
             }
-            else {
-                *outl = 0;
-                return WOLFSSL_SUCCESS;
+            if (!ctx->enc) {
+                /* ctx->authTag now holds computed tag; computedTag holds
+                 * expected */
+                int tagErr = wc_ChaCha20Poly1305_CheckTag(computedTag,
+                                                          ctx->authTag);
+                ForceZero(computedTag, sizeof(computedTag));
+                if (tagErr != 0) {
+                    WOLFSSL_MSG("ChaCha20-Poly1305 tag mismatch");
+                    return WOLFSSL_FAILURE;
+                }
             }
-            break;
+            *outl = 0;
+            return WOLFSSL_SUCCESS;
+        }
+        break;
 #endif
 #ifdef WOLFSSL_SM4_GCM
         case WC_SM4_GCM_TYPE:
