@@ -3392,6 +3392,12 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif
 
+/*  For setting.h/user_settings.h */
+#if defined(WOLFSSL_HAVE_SP_DH) && !defined(NO_DH) && \
+    !defined(WOLFSSL_SP_4096) && (MIN_FFDHE_BITS >= 4096)
+    #define WOLFSSL_SP_4096
+#endif
+
 /* if desktop type system and fastmath increase default max bits */
 #if defined(WOLFSSL_X86_64_BUILD) || defined(WOLFSSL_AARCH64_BUILD) || \
     defined(OPENSSL_EXTRA)
