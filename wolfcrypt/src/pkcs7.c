@@ -12759,7 +12759,9 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
     byte* encryptedContent = NULL;
     int explicitOctet = 0;
     word32 localIdx = 0;
-    byte   tag = 0;
+    byte tag = 0;
+    byte padCheck = 0;
+    int padIndex;
 
     if (pkcs7 == NULL)
         return BAD_FUNC_ARG;
@@ -13267,18 +13269,16 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                 ret = BUFFER_E;
                 break;
             }
-            /* Constant-time check all padding bytes */
-            {
-                byte padCheck = 0;
-                int pi;
-                for (pi = encryptedContentSz - padLen;
-                     pi < encryptedContentSz; pi++) {
-                    padCheck |= encryptedContent[pi] ^ padLen;
-                }
-                if (padCheck != 0) {
-                    ret = BUFFER_E;
-                    break;
-                }
+
+            /* Check all padding bytes. Better implementation would be to run
+             * through the entire block. */
+            for (padIndex = encryptedContentSz - padLen;
+                 padIndex < encryptedContentSz; padIndex++) {
+                padCheck |= encryptedContent[padIndex] ^ padLen;
+            }
+            if (padCheck != 0) {
+                ret = BUFFER_E;
+                break;
             }
 
         #ifdef ASN_BER_TO_DER
@@ -15052,6 +15052,8 @@ int wc_PKCS7_DecodeEncryptedData(wc_PKCS7* pkcs7, byte* in, word32 inSz,
     byte* pkiMsg = in;
     word32 pkiMsgSz = inSz;
     byte  tag = 0;
+    byte padCheck = 0;
+    int padIndex;
 
     if (pkcs7 == NULL ||
             ((pkcs7->encryptionKey == NULL || pkcs7->encryptionKeySz == 0) &&
@@ -15336,20 +15338,18 @@ int wc_PKCS7_DecodeEncryptedData(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                     XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
                     break;
                 }
-                /* Constant-time check all padding bytes */
-                {
-                    byte padCheck = 0;
-                    int pi;
-                    for (pi = encryptedContentSz - padLen;
-                         pi < encryptedContentSz; pi++) {
-                        padCheck |= encryptedContent[pi] ^ padLen;
-                    }
-                    if (padCheck != 0) {
-                        WOLFSSL_MSG("Bad padding bytes found");
-                        ret = BUFFER_E;
-                        XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-                        break;
-                    }
+
+                /* Check all padding bytes. Better implementation would be to
+                 * run through the entire block. */
+                for (padIndex = encryptedContentSz - padLen;
+                     padIndex < encryptedContentSz; padIndex++) {
+                     padCheck |= encryptedContent[padIndex] ^ padLen;
+                }
+                if (padCheck != 0) {
+                    WOLFSSL_MSG("Bad padding bytes found");
+                    ret = BUFFER_E;
+                    XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+                    break;
                 }
 
                 /* copy plaintext to output */
