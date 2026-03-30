@@ -13751,7 +13751,7 @@ static void CopyDateToASN1_TIME(const byte* srcDate, int srcDateLen,
 {
     if (srcDateLen >= 2) {
         /* Clamp the date length to the maximum allowed size.
-         * This needs to match the size of WOLFSSL_ASN1_TIME minus the 
+         * This needs to match the size of WOLFSSL_ASN1_TIME minus the
          * the type and length fields. */
         const int maxSz = CTC_DATE_SIZE - 2;
         const int copySz = (int)min(srcDate[1], maxSz);

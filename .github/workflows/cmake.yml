@@ -76,7 +76,7 @@ jobs:
             -DWOLFSSL_EXTRA_PQC_HYBRIDS:BOOL=yes -DWOLFSSL_TLS_NO_MLKEM_STANDALONE:BOOL=no \
             ..
         cmake --build .
-        ctest -j $(nproc)
+        ctest -j $(nproc) --output-on-failure
         cmake --install .
 
         # clean up
