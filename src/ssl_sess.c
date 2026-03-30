@@ -487,6 +487,12 @@ int wolfSSL_memsave_session_cache(void* mem, int sz)
 int wolfSSL_memrestore_session_cache(const void* mem, int sz)
 {
     int    i;
+    #ifndef SESSION_CACHE_DYNAMIC_MEM
+    #if defined(HAVE_SESSION_TICKET) || \
+       (defined(SESSION_CERTS) && defined(OPENSSL_EXTRA))
+    int    j;
+    #endif
+    #endif
     cache_header_t cache_header;
     SessionRow*    row  = (SessionRow*)((byte*)mem + sizeof(cache_header));
 
@@ -523,20 +529,23 @@ int wolfSSL_memrestore_session_cache(const void* mem, int sz)
 
         XMEMCPY(&SessionCache[i], row++, SIZEOF_SESSION_ROW);
     #ifndef SESSION_CACHE_DYNAMIC_MEM
+    #if defined(HAVE_SESSION_TICKET) || \
+       (defined(SESSION_CERTS) && defined(OPENSSL_EXTRA))
         /* Reset pointers to safe values after raw copy */
-        {
-            int j;
-            for (j = 0; j < SESSIONS_PER_ROW; j++) {
-                WOLFSSL_SESSION* s = &SessionCache[i].Sessions[j];
+        for (j = 0; j < SESSIONS_PER_ROW; j++) {
+            WOLFSSL_SESSION* s = &SessionCache[i].Sessions[j];
     #ifdef HAVE_SESSION_TICKET
-                s->ticket = s->staticTicket;
-                s->ticketLenAlloc = 0;
+            s->ticket = s->staticTicket;
+            s->ticketLenAlloc = 0;
+            if (s->ticketLen > SESSION_TICKET_LEN) {
+                s->ticketLen = SESSION_TICKET_LEN;
+            }
     #endif
     #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
-                s->peer = NULL;
+            s->peer = NULL;
     #endif
-            }
         }
+    #endif
     #endif
     #ifdef ENABLE_SESSION_CACHE_ROW_LOCK
         SESSION_ROW_UNLOCK(&SessionCache[i]);
@@ -698,6 +707,8 @@ int wolfSSL_restore_session_cache(const char *fname)
 
         ret = (int)XFREAD(&SessionCache[i], SIZEOF_SESSION_ROW, 1, file);
     #ifndef SESSION_CACHE_DYNAMIC_MEM
+    #if defined(HAVE_SESSION_TICKET) || \
+       (defined(SESSION_CERTS) && defined(OPENSSL_EXTRA))
         /* Reset pointers to safe values after raw copy */
         {
             int j;
@@ -706,12 +717,16 @@ int wolfSSL_restore_session_cache(const char *fname)
     #ifdef HAVE_SESSION_TICKET
                 s->ticket = s->staticTicket;
                 s->ticketLenAlloc = 0;
+                if (s->ticketLen > SESSION_TICKET_LEN) {
+                    s->ticketLen = SESSION_TICKET_LEN;
+                }
     #endif
     #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
                 s->peer = NULL;
     #endif
             }
         }
+    #endif
     #endif
     #ifdef ENABLE_SESSION_CACHE_ROW_LOCK
         SESSION_ROW_UNLOCK(&SessionCache[i]);

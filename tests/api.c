@@ -35020,7 +35020,7 @@ static int test_dilithium_hash(void)
     ExpectIntEQ(wc_dilithium_make_key(&key, &rng), 0);
 
     ExpectIntEQ(wc_dilithium_verify_ctx_msg(sig, sizeof(sig), NULL, 0,
-        msg, 0xFFFFFFC0u, &res, &key), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        msg, 0xFFFFFFC0, &res, &key), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     wc_dilithium_free(&key);
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
@@ -35036,11 +35036,11 @@ static int test_pkcs7_padding(void)
     defined(WOLFSSL_AES_256) && !defined(NO_PKCS7_ENCRYPTED_DATA)
     PKCS7 pkcs7;
     byte key[32];
-    byte plaintext[27]; /* 27 bytes → padded to 32 → padding = 05 05 05 05 05 */
+    byte plaintext[27]; /* 27 bytes -> padded to 32 -> padding = 05 05 05 05 05 */
     byte encoded[4096];
     byte output[256];
     byte modified[4096];
-    int encodedSz;
+    int encodedSz = 0;
     int outSz;
     int ctOff = -1;
     int ctLen = 0;
@@ -35100,7 +35100,7 @@ static int test_pkcs7_padding(void)
         /* Flip byte in penultimate block to corrupt interior padding */
         modified[ctOff + ctLen - 32 + 11] ^= 0x42;
 
-        /* Decrypt modified ciphertext — must fail, not succeed */
+        /* Decrypt modified ciphertext - must fail, not succeed */
         XMEMSET(&pkcs7, 0, sizeof(pkcs7));
         ExpectIntEQ(wc_PKCS7_Init(&pkcs7, NULL, 0), 0);
         pkcs7.encryptionKey   = key;
@@ -35108,7 +35108,7 @@ static int test_pkcs7_padding(void)
 
         outSz = wc_PKCS7_DecodeEncryptedData(&pkcs7, modified,
             (word32)encodedSz, output, sizeof(output));
-        /* Must return an error — if it returns plaintext size, padding
+        /* Must return an error - if it returns plaintext size, padding
          * oracle vulnerability exists */
         ExpectIntLT(outSz, 0);
         wc_PKCS7_Free(&pkcs7);
