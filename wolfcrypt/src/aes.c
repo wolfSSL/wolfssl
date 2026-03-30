@@ -16377,9 +16377,7 @@ int wc_local_CmacUpdateAes(struct Cmac *cmac, const byte* in, word32 inSz) {
         in += add;
 
         if (cmac->bufferSz == WC_AES_BLOCK_SIZE && inSz != 0) {
-            if (cmac->totalSz != 0) {
-                xorbuf(cmac->buffer, cmac->digest, WC_AES_BLOCK_SIZE);
-            }
+            xorbuf(cmac->buffer, cmac->digest, WC_AES_BLOCK_SIZE);
             ret = AesEncrypt_preFetchOpt(aes, cmac->buffer,
                                             cmac->digest, &did_prefetches);
             if (ret == 0) {
