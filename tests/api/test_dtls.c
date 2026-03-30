@@ -2814,3 +2814,98 @@ int test_dtls13_no_session_id_echo(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* Test that a DTLS 1.3 handshake with an oversized certificate chain does
+ * not crash or cause out-of-bounds access in SendTls13Certificate. */
+int test_dtls13_oversized_cert_chain(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
+    && !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    XFILE f = XBADFILE;
+    long sz = 0;
+    byte *cert = NULL;
+    byte *chain = NULL;
+    int copies, off, i;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    /* Read server cert */
+    f = XFOPEN(svrCertFile, "rb");
+    ExpectTrue(f != XBADFILE);
+    if (EXPECT_SUCCESS()) {
+        (void)XFSEEK(f, 0, XSEEK_END);
+        sz = XFTELL(f);
+        (void)XFSEEK(f, 0, XSEEK_SET);
+    }
+    ExpectTrue(sz > 0);
+    cert = (byte*)XMALLOC((size_t)(sz + 1), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(cert);
+    if (EXPECT_SUCCESS())
+        ExpectIntEQ((int)XFREAD(cert, 1, (size_t)sz, f), (int)sz);
+    if (f != XBADFILE)
+        XFCLOSE(f);
+
+    /* Build an oversized chain by duplicating the cert */
+    copies = EXPECT_SUCCESS() ? (int)(70000 / sz) + 2 : 0;
+    chain = (byte*)XMALLOC((size_t)(sz * copies + 1), NULL,
+                            DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(chain);
+    off = 0;
+    if (EXPECT_SUCCESS()) {
+        for (i = 0; i < copies; i++) {
+            XMEMCPY(chain + off, cert, (size_t)sz);
+            off += (int)sz;
+        }
+    }
+
+    /* Server context: load the oversized chain */
+    ExpectNotNull(ctx_s = wolfSSL_CTX_new(wolfDTLSv1_3_server_method()));
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_buffer(ctx_s,
+        chain, (long)off), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKeyFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    if (EXPECT_SUCCESS()) {
+        wolfSSL_SetIORecv(ctx_s, test_memio_read_cb);
+        wolfSSL_SetIOSend(ctx_s, test_memio_write_cb);
+    }
+
+    /* Client context: no verification (chain certs are duplicates) */
+    ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfDTLSv1_3_client_method()));
+    if (EXPECT_SUCCESS()) {
+        wolfSSL_CTX_set_verify(ctx_c, WOLFSSL_VERIFY_NONE, NULL);
+        wolfSSL_SetIORecv(ctx_c, test_memio_read_cb);
+        wolfSSL_SetIOSend(ctx_c, test_memio_write_cb);
+    }
+
+    ExpectNotNull(ssl_s = wolfSSL_new(ctx_s));
+    if (EXPECT_SUCCESS()) {
+        wolfSSL_SetIOWriteCtx(ssl_s, &test_ctx);
+        wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
+    }
+
+    ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+    if (EXPECT_SUCCESS()) {
+        wolfSSL_SetIOWriteCtx(ssl_c, &test_ctx);
+        wolfSSL_SetIOReadCtx(ssl_c, &test_ctx);
+    }
+
+    /* Handshake must not crash. If SendTls13Certificate mishandles the
+     * oversized chain this will trigger a wild pointer dereference or stack
+     * overflow resulting with the test failing.
+     * The correct behaviour either returns BUFFER_E or succeeds
+     * if the build config truncated the chain during loading. */
+    (void)test_memio_do_handshake(ssl_c, ssl_s, 10, NULL);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(chain, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
