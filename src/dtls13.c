@@ -1042,6 +1042,10 @@ static int Dtls13SendFragmentedInternal(WOLFSSL* ssl)
             Dtls13FreeFragmentsBuffer(ssl);
             return outputSz;
         }
+        if ((word32)outputSz > WOLFSSL_MAX_16BIT) {
+            Dtls13FreeFragmentsBuffer(ssl);
+            return BUFFER_E;
+        }
 
         ret = CheckAvailableSize(ssl, outputSz);
         if (ret != 0) {
@@ -1635,6 +1639,10 @@ static int Dtls13RtxSendBuffered(WOLFSSL* ssl)
 
         if (!w64IsZero(r->epoch))
             sendSz += MAX_MSG_EXTRA;
+
+        if ((word32)sendSz > WOLFSSL_MAX_16BIT) {
+            return BUFFER_E;
+        }
 
         ret = CheckAvailableSize(ssl, sendSz);
         if (ret != 0)
