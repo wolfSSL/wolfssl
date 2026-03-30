@@ -2763,7 +2763,7 @@ int test_dtls13_no_session_id_echo(void)
     /* Ensure the session has a non-empty session ID so the ClientHello
      * will have a populated legacy_session_id field (which is legal per
      * RFC 9147). */
-    if (sess->sessionIDSz == 0) {
+    if (sess != NULL && sess->sessionIDSz == 0) {
         sess->sessionIDSz = ID_LEN;
         XMEMSET(sess->sessionID, 0x42, ID_LEN);
     }
