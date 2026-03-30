@@ -57721,6 +57721,9 @@ static wc_test_ret_t pkcs7authenveloped_run_vectors(byte* rsaCert, word32 rsaCer
     wc_test_ret_t ret = 0;
     int testSz = 0, i;
     int envelopedSz, decodedSz;
+#ifdef HAVE_AESGCM
+    int tagTruncationChecked = 0;
+#endif
 
     byte   *enveloped = NULL;
     byte   *decoded = NULL;
@@ -58231,6 +58234,45 @@ static wc_test_ret_t pkcs7authenveloped_run_vectors(byte* rsaCert, word32 rsaCer
             wc_PKCS7_Free(pkcs7);
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
         }
+
+#ifdef HAVE_AESGCM
+        if (tagTruncationChecked == 0 &&
+                (testVectors[i].encryptOID == AES128GCMb ||
+                 testVectors[i].encryptOID == AES192GCMb ||
+                 testVectors[i].encryptOID == AES256GCMb) &&
+                testVectors[i].authAttribsSz == 0 &&
+                testVectors[i].unauthAttribsSz == 0 &&
+                envelopedSz > (WC_AES_BLOCK_SIZE + 2)) {
+            int macIdx = envelopedSz - (WC_AES_BLOCK_SIZE + 2);
+            byte* tampered = NULL;
+
+            /* For plain DER output without unauthenticated attributes, the
+             * MAC OCTET STRING is the final field. */
+            if (enveloped[macIdx] == ASN_OCTET_STRING &&
+                    enveloped[macIdx + 1] == WC_AES_BLOCK_SIZE) {
+                tampered = (byte*)XMALLOC((word32)envelopedSz, HEAP_HINT,
+                                          DYNAMIC_TYPE_TMP_BUFFER);
+                if (tampered == NULL) {
+                    wc_PKCS7_Free(pkcs7);
+                    ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
+                }
+                XMEMCPY(tampered, enveloped, (word32)envelopedSz);
+                tampered[macIdx + 1] = 1;
+
+                decodedSz = wc_PKCS7_DecodeAuthEnvelopedData(pkcs7, tampered,
+                        (word32)envelopedSz, decoded, PKCS7_BUF_SIZE);
+
+                XFREE(tampered, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+                tampered = NULL;
+
+                if (decodedSz > 0) {
+                    wc_PKCS7_Free(pkcs7);
+                    ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+                }
+                tagTruncationChecked = 1;
+            }
+        }
+#endif
 
 #ifdef PKCS7_OUTPUT_TEST_BUNDLES
         /* output pkcs7 envelopedData for external testing */
