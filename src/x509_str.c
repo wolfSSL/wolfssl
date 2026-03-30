@@ -318,6 +318,11 @@ static void SetupStoreCtxError_ex(WOLFSSL_X509_STORE_CTX* ctx, int ret,
 {
     int error = GetX509Error(ret);
 
+    /* Do not overwrite a previously recorded error with success; preserve
+     * the worst-seen error across the chain walk. */
+    if (error == 0 && ctx->error != 0)
+        return;
+
     wolfSSL_X509_STORE_CTX_set_error(ctx, error);
     wolfSSL_X509_STORE_CTX_set_error_depth(ctx, depth);
 }
@@ -635,8 +640,13 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
                 if (ctx->store->verify_cb) {
                     ret = ctx->store->verify_cb(0, ctx);
                     if (ret != WOLFSSL_SUCCESS) {
+                        ret = WOLFSSL_FAILURE;
                         goto exit;
                     }
+                }
+                else {
+                    ret = WOLFSSL_FAILURE;
+                    goto exit;
                 }
             } else
         #endif
@@ -2174,4 +2184,3 @@ int wolfSSL_X509_STORE_set1_param(WOLFSSL_X509_STORE *ctx,
 #endif /* !WOLFCRYPT_ONLY */
 
 #endif /* !WOLFSSL_X509_STORE_INCLUDED */
-
