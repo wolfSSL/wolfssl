@@ -22549,6 +22549,210 @@ static int test_wolfSSL_X509_CRL_sign_large(void)
     return EXPECT_RESULT();
 }
 
+/* Test round-trip of a CRL with the maximum size CRL number (CRL_MAX_NUM_SZ
+ * = 20 bytes). Build TBS with wc_MakeCRL_ex, sign with wc_SignCRL_ex, then
+ * decode with d2i_X509_CRL and verify the CRL number survives.
+ * Then patch the DER to make the CRL number negative and verify rejection. */
+static int test_wc_MakeCRL_max_crlnum(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_CERT_GEN) && defined(HAVE_CRL) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_ASN) && defined(OPENSSL_EXTRA)
+    const char* caCertDerFile = "./certs/ca-cert.der";
+    const char* caKeyDerFile  = "./certs/ca-key.der";
+    byte certBuf[4096];
+    byte keyBuf[4096];
+    int  certSz = 0;
+    int  keySz  = 0;
+    XFILE f = XBADFILE;
+    DecodedCert caCert;
+    int caCertInit = 0;
+    RsaKey rsaKey;
+    WC_RNG rng;
+    word32 idx = 0;
+    int rsaKeyInit = 0;
+    int rngInit = 0;
+
+    /* 20-byte CRL number: 0x01..0x14.  First byte < 0x80 so no ASN.1
+     * padding byte is needed - the encoded INTEGER content is exactly
+     * 20 bytes, matching CRL_MAX_NUM_SZ. */
+    byte crlNum[CRL_MAX_NUM_SZ];
+    const char* expHex =
+        "0102030405060708090A0B0C0D0E0F1011121314";
+
+    /* thisUpdate/nextUpdate dates in UTC time format */
+    const byte thisUpdate[] = "260101000000Z";  /* Jan 1, 2026 */
+    const byte nextUpdate[] = "270101000000Z";  /* Jan 1, 2027 */
+
+    /* issuer DER (SEQUENCE-wrapped Name) */
+    byte issuerDer[512];
+    word32 issuerDerSz = 0;
+
+    byte* tbsBuf = NULL;
+    int   tbsSz  = 0;
+    byte* crlBuf = NULL;
+    int   crlSz  = 0;
+    int   bufSz  = 0;
+
+    WOLFSSL_X509_CRL* decodedCrl = NULL;
+    int i;
+
+    /* CRL Number OID 2.5.29.20: used to locate the extension in the DER */
+    static const byte crlNumOid[] = { 0x55, 0x1D, 0x14 };
+
+    /* Fill CRL number with 0x01..0x14 */
+    for (i = 0; i < (int)CRL_MAX_NUM_SZ; i++) {
+        crlNum[i] = (byte)(i + 1);
+    }
+
+    /* Load CA cert DER */
+    ExpectTrue((f = XFOPEN(caCertDerFile, "rb")) != XBADFILE);
+    if (f != XBADFILE) {
+        ExpectIntGT(certSz = (int)XFREAD(certBuf, 1, sizeof(certBuf), f), 0);
+        XFCLOSE(f);
+        f = XBADFILE;
+    }
+
+    /* Load CA key DER */
+    ExpectTrue((f = XFOPEN(caKeyDerFile, "rb")) != XBADFILE);
+    if (f != XBADFILE) {
+        ExpectIntGT(keySz = (int)XFREAD(keyBuf, 1, sizeof(keyBuf), f), 0);
+        XFCLOSE(f);
+        f = XBADFILE;
+    }
+
+    /* Parse CA cert to extract the subject (= CRL issuer) DER.
+     * subjectRaw is the Name contents without the outer SEQUENCE tag,
+     * so we re-wrap it with SetSequence to produce a valid issuer Name. */
+    wc_InitDecodedCert(&caCert, certBuf, (word32)certSz, NULL);
+    caCertInit = 1;
+    ExpectIntEQ(wc_ParseCert(&caCert, CERT_TYPE, 0, NULL), 0);
+    if (EXPECT_SUCCESS()) {
+        word32 seqHdrSz = SetSequence((word32)caCert.subjectRawLen, issuerDer);
+        XMEMCPY(issuerDer + seqHdrSz, caCert.subjectRaw,
+            (size_t)caCert.subjectRawLen);
+        issuerDerSz = seqHdrSz + (word32)caCert.subjectRawLen;
+    }
+
+    /* Decode RSA private key */
+    ExpectIntEQ(wc_InitRsaKey(&rsaKey, NULL), 0);
+    if (EXPECT_SUCCESS()) {
+        rsaKeyInit = 1;
+    }
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(keyBuf, &idx, &rsaKey, (word32)keySz),
+        0);
+
+    /* Init RNG for signing */
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS()) {
+        rngInit = 1;
+    }
+
+    /* --- Build TBS --- */
+    /* First call with NULL output to get required size */
+    tbsSz = wc_MakeCRL_ex(
+        issuerDer, issuerDerSz,
+        thisUpdate, ASN_UTC_TIME,                    /* thisUpdate */
+        nextUpdate, ASN_UTC_TIME,                    /* nextUpdate */
+        NULL,                                        /* no revoked certs */
+        crlNum, (word32)sizeof(crlNum),              /* max-size CRL number */
+        CTC_SHA256wRSA, 2,                           /* v2 for extensions */
+        NULL, 0);
+    ExpectIntGT(tbsSz, 0);
+
+    /* Allocate buffer large enough for TBS + signature overhead */
+    if (EXPECT_SUCCESS()) {
+        bufSz = tbsSz + 512; /* generous room for signature wrapper */
+        ExpectNotNull(tbsBuf = (byte*)XMALLOC(bufSz, NULL,
+            DYNAMIC_TYPE_TMP_BUFFER));
+    }
+
+    /* Second call to actually encode TBS */
+    if (EXPECT_SUCCESS()) {
+        tbsSz = wc_MakeCRL_ex(
+            issuerDer, issuerDerSz,
+            thisUpdate, ASN_UTC_TIME,
+            nextUpdate, ASN_UTC_TIME,
+            NULL,
+            crlNum, (word32)sizeof(crlNum),
+            CTC_SHA256wRSA, 2,
+            tbsBuf, (word32)bufSz);
+        ExpectIntGT(tbsSz, 0);
+    }
+
+    /* --- Sign the CRL --- */
+    if (EXPECT_SUCCESS()) {
+        ExpectNotNull(crlBuf = (byte*)XMALLOC(bufSz, NULL,
+            DYNAMIC_TYPE_TMP_BUFFER));
+    }
+    if (EXPECT_SUCCESS()) {
+        crlSz = wc_SignCRL_ex(tbsBuf, tbsSz, CTC_SHA256wRSA,
+            crlBuf, (word32)bufSz, &rsaKey, NULL, &rng);
+        ExpectIntGT(crlSz, 0);
+    }
+
+    /* --- Decode the CRL and verify CRL number --- */
+    if (EXPECT_SUCCESS()) {
+        ExpectNotNull(decodedCrl = d2i_X509_CRL(NULL, crlBuf, crlSz));
+    }
+    if (decodedCrl != NULL && decodedCrl->crlList != NULL) {
+        ExpectTrue(decodedCrl->crlList->crlNumberSet);
+        if (decodedCrl->crlList->crlNumberSet) {
+            ExpectIntEQ(XMEMCMP(decodedCrl->crlList->crlNumber, expHex,
+                XSTRLEN(expHex)), 0);
+        }
+    }
+    wolfSSL_X509_CRL_free(decodedCrl);
+    decodedCrl = NULL;
+
+    /* --- Negative test: patch the CRL number to be negative --- */
+    /* The encoded CRL number INTEGER is: 02 14 01 02 03 ... 14
+     * (tag=0x02, length=0x14=20, content bytes 0x01..0x14).
+     * Flip the high bit of the first content byte (0x01 -> 0x81) to make
+     * the INTEGER negative.  No lengths change, so the DER stays
+     * structurally valid.  The signature is now wrong, but d2i_X509_CRL
+     * uses NO_VERIFY so that doesn't matter. */
+    if (EXPECT_SUCCESS()) {
+        /* Find CRL Number OID (55 1D 14) in the DER */
+        int found = 0;
+        for (i = 0; i < crlSz - (int)sizeof(crlNumOid); i++) {
+            if (XMEMCMP(crlBuf + i, crlNumOid, sizeof(crlNumOid)) == 0) {
+                /* OID found at i.  Skip past: OID (3 bytes) -> OCTET STRING
+                 * tag (1) + length (1) -> INTEGER tag (1) + length (1) ->
+                 * first content byte. */
+                int contentIdx = i + 3 + 2 + 2;
+                if (contentIdx < crlSz) {
+                    crlBuf[contentIdx] |= 0x80;
+                    found = 1;
+                }
+                break;
+            }
+        }
+        ExpectTrue(found);
+    }
+    /* Decoding the patched CRL must fail - the CRL number is negative. */
+    if (EXPECT_SUCCESS()) {
+        decodedCrl = d2i_X509_CRL(NULL, crlBuf, crlSz);
+        ExpectNull(decodedCrl);
+        wolfSSL_X509_CRL_free(decodedCrl);
+    }
+
+    XFREE(crlBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(tbsBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (caCertInit) {
+        wc_FreeDecodedCert(&caCert);
+    }
+    if (rngInit) {
+        wc_FreeRng(&rng);
+    }
+    if (rsaKeyInit) {
+        wc_FreeRsaKey(&rsaKey);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_X509_REQ(void)
 {
     EXPECT_DECLS;
@@ -34702,6 +34906,7 @@ TEST_CASE testCases[] = {
 #endif
     TEST_DECL(test_sk_X509_CRL_encode),
     TEST_DECL(test_wolfSSL_X509_CRL_sign_large),
+    TEST_DECL(test_wc_MakeCRL_max_crlnum),
 
     /* OpenSSL X509 REQ API test */
     TEST_DECL(test_wolfSSL_d2i_X509_REQ),

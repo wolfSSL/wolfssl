@@ -9359,12 +9359,25 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf,
             localIdx = idx;
             if (GetASNTag(buf, &localIdx, &tag, sz) == 0 &&
                     tag == ASN_INTEGER) {
+                word32 rawIdx = idx;
+                int rawLen = 0;
                 ret = GetASNInt(buf, &idx, &length, sz);
                 if (ret < 0) {
                     WOLFSSL_MSG("\tcouldn't parse CRL number extension");
                     return ret;
                 }
-                else if (length <= CRL_MAX_NUM_SZ) {
+                /* RFC 5280 s5.2.3: CRL number must be non-negative.
+                 * Check the raw encoding before GetASNInt strips
+                 * the leading-zero pad: skip past the INTEGER tag
+                 * and length, then reject if the first content byte
+                 * has its high bit set (negative value). */
+                (void)GetASNHeader(buf, ASN_INTEGER,
+                    &rawIdx, &rawLen, sz);
+                if (rawLen > 0 && (buf[rawIdx] & 0x80) != 0) {
+                    WOLFSSL_MSG("CRL number is negative");
+                    return ASN_PARSE_E;
+                }
+                if (length <= CRL_MAX_NUM_SZ) {
                     DECL_MP_INT_SIZE_DYN(m, CRL_MAX_NUM_SZ_BITS,
                                    CRL_MAX_NUM_SZ_BITS);
                     NEW_MP_INT_SIZE(m, CRL_MAX_NUM_SZ_BITS, NULL,
