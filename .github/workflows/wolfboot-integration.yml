@@ -231,8 +231,10 @@ jobs:
           ./tools/keytools/sign --ed25519 --sha256 test.bin wolfboot_signing_private_key.der 1
 
           make test-lib SIGN=ED25519 HASH=SHA256
+          set +e
           success_output=$(./test-lib test_v1_signed.bin 2>&1)
           success_status=$?
+          set -e
           printf '%s\n' "$success_output"
           if [ "$success_status" -ne 0 ]; then
             echo "Expected success, but test-lib failed"
