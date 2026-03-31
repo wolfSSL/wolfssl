@@ -7442,6 +7442,10 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             goto exit_dch;
         }
         else {
+            if (ssl->options.serverState ==
+                    SERVER_HELLO_RETRY_REQUEST_COMPLETE) {
+                ERROR_OUT(EXT_MISSING, exit_dch);
+            }
             /* Server has ECH but client did not send ECH. Clear the
              * response flag so the empty ECH extension is not written
              * in EncryptedExtensions. */
