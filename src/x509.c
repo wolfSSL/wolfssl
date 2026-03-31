@@ -13192,7 +13192,7 @@ static WOLFSSL_X509 *loadX509orX509REQFromPemBio(WOLFSSL_BIO *bp,
             pem = newPem;
             pemSz = newSz;
         }
-        else if (i > pemSz) {
+        else if (i >= pemSz) {
             /* Buffer full for non-streaming source - this shouldn't happen */
             break;
         }
