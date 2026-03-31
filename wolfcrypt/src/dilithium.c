@@ -2191,15 +2191,24 @@ static void dilithium_encode_w1_88_c(const sword32* w1, byte* w1e)
          * 16 numbers in 12 bytes. (16 * 6 bits = 12 * 8 bits) */
 #if defined(LITTLE_ENDIAN_ORDER) && (WOLFSSL_DILITHIUM_ALIGNMENT <= 4)
         word32* w1e32 = (word32*)w1e;
-        w1e32[0] = (word32)( w1[j+ 0]        | (w1[j+ 1] <<  6) |
-                            (w1[j+ 2] << 12) | (w1[j+ 3] << 18) |
-                            (w1[j+ 4] << 24) | (w1[j+ 5] << 30));
-        w1e32[1] = (word32)((w1[j+ 5] >>  2) | (w1[j+ 6] <<  4) |
-                            (w1[j+ 7] << 10) | (w1[j+ 8] << 16) |
-                            (w1[j+ 9] << 22) | (w1[j+10] << 28));
-        w1e32[2] = (word32)((w1[j+10] >>  4) | (w1[j+11] <<  2) |
-                            (w1[j+12] <<  8) | (w1[j+13] << 14) |
-                            (w1[j+14] << 20) | (w1[j+15] << 26));
+        w1e32[0] = (word32)( (word32)w1[j+ 0]        |
+                            ((word32)w1[j+ 1] <<  6) |
+                            ((word32)w1[j+ 2] << 12) |
+                            ((word32)w1[j+ 3] << 18) |
+                            ((word32)w1[j+ 4] << 24) |
+                            ((word32)w1[j+ 5] << 30));
+        w1e32[1] = (word32)(((word32)w1[j+ 5] >>  2) |
+                            ((word32)w1[j+ 6] <<  4) |
+                            ((word32)w1[j+ 7] << 10) |
+                            ((word32)w1[j+ 8] << 16) |
+                            ((word32)w1[j+ 9] << 22) |
+                            ((word32)w1[j+10] << 28));
+        w1e32[2] = (word32)(((word32)w1[j+10] >>  4) |
+                            ((word32)w1[j+11] <<  2) |
+                            ((word32)w1[j+12] <<  8) |
+                            ((word32)w1[j+13] << 14) |
+                            ((word32)w1[j+14] << 20) |
+                            ((word32)w1[j+15] << 26));
 #else
         w1e[ 0] = (byte)( w1[j+ 0]       | (w1[j+ 1] << 6));
         w1e[ 1] = (byte)((w1[j+ 1] >> 2) | (w1[j+ 2] << 4));
@@ -2238,6 +2247,11 @@ static void dilithium_encode_w1_88(const sword32* w1, byte* w1e)
         dilithium_encode_w1_88_c(w1, w1e);
     }
 }
+
+WOLFSSL_TEST_VIS void wc_dilithium_encode_w1_88(const sword32* w1, byte* w1e)
+{
+    dilithium_encode_w1_88(w1, w1e);
+}
 #endif /* !WOLFSSL_NO_ML_DSA_44 */
 
 #if !defined(WOLFSSL_NO_ML_DSA_65) || !defined(WOLFSSL_NO_ML_DSA_87)
@@ -2263,14 +2277,22 @@ static void dilithium_encode_w1_32_c(const sword32* w1, byte* w1e)
          * 16 numbers in 8 bytes. (16 * 4 bits = 8 * 8 bits) */
 #if defined(LITTLE_ENDIAN_ORDER) && (WOLFSSL_DILITHIUM_ALIGNMENT <= 8)
         word32* w1e32 = (word32*)w1e;
-        w1e32[0] = (word32)((w1[j +  0] <<  0) | (w1[j +  1] <<  4) |
-                            (w1[j +  2] <<  8) | (w1[j +  3] << 12) |
-                            (w1[j +  4] << 16) | (w1[j +  5] << 20) |
-                            (w1[j +  6] << 24) | (w1[j +  7] << 28));
-        w1e32[1] = (word32)((w1[j +  8] <<  0) | (w1[j +  9] <<  4) |
-                            (w1[j + 10] <<  8) | (w1[j + 11] << 12) |
-                            (w1[j + 12] << 16) | (w1[j + 13] << 20) |
-                            (w1[j + 14] << 24) | (w1[j + 15] << 28));
+        w1e32[0] = (word32)(((word32)w1[j +  0] <<  0) |
+                            ((word32)w1[j +  1] <<  4) |
+                            ((word32)w1[j +  2] <<  8) |
+                            ((word32)w1[j +  3] << 12) |
+                            ((word32)w1[j +  4] << 16) |
+                            ((word32)w1[j +  5] << 20) |
+                            ((word32)w1[j +  6] << 24) |
+                            ((word32)w1[j +  7] << 28));
+        w1e32[1] = (word32)(((word32)w1[j +  8] <<  0) |
+                            ((word32)w1[j +  9] <<  4) |
+                            ((word32)w1[j + 10] <<  8) |
+                            ((word32)w1[j + 11] << 12) |
+                            ((word32)w1[j + 12] << 16) |
+                            ((word32)w1[j + 13] << 20) |
+                            ((word32)w1[j + 14] << 24) |
+                            ((word32)w1[j + 15] << 28));
 #else
         w1e[0] = (byte)(w1[j +  0] | (w1[j +  1] << 4));
         w1e[1] = (byte)(w1[j +  2] | (w1[j +  3] << 4));
@@ -2304,6 +2326,11 @@ static void dilithium_encode_w1_32(const sword32* w1, byte* w1e)
     {
         dilithium_encode_w1_32_c(w1, w1e);
     }
+}
+
+WOLFSSL_TEST_VIS void wc_dilithium_encode_w1_32(const sword32* w1, byte* w1e)
+{
+    dilithium_encode_w1_32(w1, w1e);
 }
 #endif
 #endif

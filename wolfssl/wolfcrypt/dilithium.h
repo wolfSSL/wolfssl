@@ -1145,6 +1145,16 @@ WOLFSSL_API int wc_MlDsaKey_GetPrivLen(MlDsaKey* key, int* len);
 WOLFSSL_API int wc_MlDsaKey_GetPubLen(MlDsaKey* key, int* len);
 WOLFSSL_API int wc_MlDsaKey_GetSigLen(MlDsaKey* key, int* len);
 
+#if !defined(WOLFSSL_DILITHIUM_NO_SIGN) || \
+    !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
+#ifndef WOLFSSL_NO_ML_DSA_44
+WOLFSSL_TEST_VIS void wc_dilithium_encode_w1_88(const sword32* w1, byte* w1e);
+#endif
+#if !defined(WOLFSSL_NO_ML_DSA_65) || !defined(WOLFSSL_NO_ML_DSA_87)
+WOLFSSL_TEST_VIS void wc_dilithium_encode_w1_32(const sword32* w1, byte* w1e);
+#endif
+#endif
+
 #ifdef __cplusplus
     }    /* extern "C" */
 #endif

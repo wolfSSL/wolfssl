@@ -24781,6 +24781,135 @@ int test_mldsa_pkcs8_export_import_wolfSSL_form(void)
     return EXPECT_RESULT();
 }
 
+/* Exercise w1 encoding with adversarial inputs to catch undefined behavior.
+ *
+ * The word32-optimized paths in dilithium_encode_w1_88_c and
+ * dilithium_encode_w1_32_c left-shift sword32 values by up to 30 bits.
+ * Large or invalid w1 values trigger signed integer overflow (UB in C).
+ * Under -fsanitize=undefined this test will trap on the offending shifts.
+ *
+ * We also test that encoding the same input twice yields identical output
+ * (determinism check - UB can cause nondeterministic results).
+ */
+int test_wc_dilithium_encode_w1_large_values(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_DILITHIUM) && defined(WOLFSSL_WC_DILITHIUM) && \
+    (!defined(WOLFSSL_DILITHIUM_NO_SIGN) || \
+     !defined(WOLFSSL_DILITHIUM_NO_VERIFY))
+
+    sword32 w1[DILITHIUM_N];
+    unsigned int j, k;
+
+    /* Adversarial w1 values:
+     *   - valid boundary values (0, 1, max-for-bit-width)
+     *   - oversize values that exceed the expected bit width
+     *   - negative values (should never appear but might if prior step is buggy)
+     *   - extreme values near INT32 limits
+     *   - alternating patterns that stress cross-element packing
+     */
+    const sword32 patterns[] = {
+        0,                  /* trivial zero */
+        1,                  /* minimal nonzero */
+        0x7F,               /* 7 bits set - wider than both 4-bit and 6-bit */
+        0xFF,               /* full byte */
+        0xFFFF,             /* 16 bits */
+        0x7FFFFFFF,         /* INT32_MAX */
+        -1,                 /* all bits set (negative) */
+        -128,               /* negative */
+        (sword32)0x80000000 /* INT32_MIN */
+    };
+    const int n_patterns = (int)(sizeof(patterns) / sizeof(patterns[0]));
+
+    /* ---- 6-bit encoding (dilithium_encode_w1_88 path) ---- */
+#ifndef WOLFSSL_NO_ML_DSA_44
+    {
+        ALIGN32 byte enc_a[DILITHIUM_N * DILITHIUM_Q_HI_88_ENC_BITS / 8];
+        ALIGN32 byte enc_b[DILITHIUM_N * DILITHIUM_Q_HI_88_ENC_BITS / 8];
+
+        /* Uniform fill with each pattern */
+        for (k = 0; k < (unsigned int)n_patterns; k++) {
+            for (j = 0; j < DILITHIUM_N; j++) {
+                w1[j] = patterns[k];
+            }
+
+            XMEMSET(enc_a, 0, sizeof(enc_a));
+            XMEMSET(enc_b, 0, sizeof(enc_b));
+            wc_dilithium_encode_w1_88(w1, enc_a);
+            wc_dilithium_encode_w1_88(w1, enc_b);
+
+            /* Determinism: same input must produce same output */
+            ExpectIntEQ(XMEMCMP(enc_a, enc_b, sizeof(enc_a)), 0);
+        }
+
+        /* Alternating pattern: adjacent elements get different values */
+        for (j = 0; j < DILITHIUM_N; j++) {
+            w1[j] = (j & 1) ? 43 : 0;
+        }
+        XMEMSET(enc_a, 0, sizeof(enc_a));
+        XMEMSET(enc_b, 0, sizeof(enc_b));
+        wc_dilithium_encode_w1_88(w1, enc_a);
+        wc_dilithium_encode_w1_88(w1, enc_b);
+        ExpectIntEQ(XMEMCMP(enc_a, enc_b, sizeof(enc_a)), 0);
+
+        /* Ascending pattern: each element differs */
+        for (j = 0; j < DILITHIUM_N; j++) {
+            w1[j] = (sword32)(j % 44);  /* 0..43 cycling */
+        }
+        XMEMSET(enc_a, 0, sizeof(enc_a));
+        XMEMSET(enc_b, 0, sizeof(enc_b));
+        wc_dilithium_encode_w1_88(w1, enc_a);
+        wc_dilithium_encode_w1_88(w1, enc_b);
+        ExpectIntEQ(XMEMCMP(enc_a, enc_b, sizeof(enc_a)), 0);
+    }
+#endif /* !WOLFSSL_NO_ML_DSA_44 */
+
+    /* ---- 4-bit encoding (dilithium_encode_w1_32 path) ---- */
+#if !defined(WOLFSSL_NO_ML_DSA_65) || !defined(WOLFSSL_NO_ML_DSA_87)
+    {
+        ALIGN32 byte enc_a[DILITHIUM_N * DILITHIUM_Q_HI_32_ENC_BITS / 8];
+        ALIGN32 byte enc_b[DILITHIUM_N * DILITHIUM_Q_HI_32_ENC_BITS / 8];
+
+        /* Uniform fill with each pattern */
+        for (k = 0; k < (unsigned int)n_patterns; k++) {
+            for (j = 0; j < DILITHIUM_N; j++) {
+                w1[j] = patterns[k];
+            }
+
+            XMEMSET(enc_a, 0, sizeof(enc_a));
+            XMEMSET(enc_b, 0, sizeof(enc_b));
+            wc_dilithium_encode_w1_32(w1, enc_a);
+            wc_dilithium_encode_w1_32(w1, enc_b);
+
+            ExpectIntEQ(XMEMCMP(enc_a, enc_b, sizeof(enc_a)), 0);
+        }
+
+        /* Alternating pattern */
+        for (j = 0; j < DILITHIUM_N; j++) {
+            w1[j] = (j & 1) ? 15 : 0;
+        }
+        XMEMSET(enc_a, 0, sizeof(enc_a));
+        XMEMSET(enc_b, 0, sizeof(enc_b));
+        wc_dilithium_encode_w1_32(w1, enc_a);
+        wc_dilithium_encode_w1_32(w1, enc_b);
+        ExpectIntEQ(XMEMCMP(enc_a, enc_b, sizeof(enc_a)), 0);
+
+        /* Ascending pattern */
+        for (j = 0; j < DILITHIUM_N; j++) {
+            w1[j] = (sword32)(j % 16);  /* 0..15 cycling */
+        }
+        XMEMSET(enc_a, 0, sizeof(enc_a));
+        XMEMSET(enc_b, 0, sizeof(enc_b));
+        wc_dilithium_encode_w1_32(w1, enc_a);
+        wc_dilithium_encode_w1_32(w1, enc_b);
+        ExpectIntEQ(XMEMCMP(enc_a, enc_b, sizeof(enc_a)), 0);
+    }
+#endif /* !WOLFSSL_NO_ML_DSA_65 || !WOLFSSL_NO_ML_DSA_87 */
+
+#endif /* HAVE_DILITHIUM && WOLFSSL_WC_DILITHIUM && sign/verify */
+    return EXPECT_RESULT();
+}
+
 int test_mldsa_pkcs12(void)
 {
     EXPECT_DECLS;
