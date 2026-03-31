@@ -14,6 +14,7 @@ concurrency:
 env:
   WOLFBOOT_REPO: https://github.com/wolfSSL/wolfBoot.git
   WOLFBOOT_BRANCH: master
+  RENODE_CONTAINER_VERSION: 1.15.3
 
 jobs:
   keytools:
@@ -131,7 +132,7 @@ jobs:
         working-directory: wolfboot
         run: |
           set -euxo pipefail
-          docker build -t wolfboot-renode-nrf52 -f tools/renode/Dockerfile .
+          docker build -t wolfboot-renode-nrf52:${RENODE_CONTAINER_VERSION} -f tools/renode/Dockerfile .
 
       - name: Run curated wolfBoot Renode configurations
         working-directory: wolfboot
@@ -160,7 +161,7 @@ jobs:
               --env RENODE_CHECKOUT=/home/developer/renode \
               --env TEST_OPTIONS="$opts" \
               --workdir /workspace \
-              wolfboot-renode-nrf52 \
+              wolfboot-renode-nrf52:${RENODE_CONTAINER_VERSION} \
               /bin/bash -lc 'tools/scripts/renode-test-update.sh $TEST_OPTIONS > /tmp/test_results/logs.txt 2>&1'
             then
               echo "$opts: PASS" | tee -a test_results/summary.txt
@@ -252,13 +253,11 @@ jobs:
 
           printf '%s\n' "$output"
 
-          if printf '%s\n' "$output" | grep -F "Failure" >/dev/null; then
-            status=1
-          fi
-
           if [ "$status" -eq 0 ]; then
             echo "Expected failure, but test-lib succeeded"
             exit 1
           fi
 
-          printf '%s\n' "$output" | grep -F "Failure" >/dev/null
+          if ! printf '%s\n' "$output" | grep -F "Failure" >/dev/null; then
+            echo "test-lib failed as expected, but did not print the legacy \"Failure\" marker"
+          fi
