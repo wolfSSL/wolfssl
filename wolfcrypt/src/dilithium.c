@@ -8157,6 +8157,7 @@ static int dilithium_sign_with_seed_mu(dilithium_key* key,
     sword32* ct0 = NULL;
     byte priv_rand_seed[DILITHIUM_Y_SEED_SZ];
     byte* h = sig + params->lambda / 4 + params->zEncSz;
+    unsigned int allocSz = 0;
 #ifdef WC_MLDSA_FAULT_HARDEN
    sword32* y_check;
 #endif
@@ -8206,8 +8207,6 @@ static int dilithium_sign_with_seed_mu(dilithium_key* key,
     }
 #endif
     if (ret == 0) {
-        unsigned int allocSz;
-
         /* y-l, w0-k, w1-k, c-1, z-l, ct0-k */
         allocSz = params->s1Sz + params->s2Sz + params->s2Sz +
             DILITHIUM_POLY_SIZE + params->s1Sz + params->s2Sz;
@@ -8415,6 +8414,9 @@ static int dilithium_sign_with_seed_mu(dilithium_key* key,
     }
 
     ForceZero(priv_rand_seed, sizeof(priv_rand_seed));
+    if (y != NULL) {
+        ForceZero(y, allocSz);
+    }
     XFREE(y, key->heap, DYNAMIC_TYPE_DILITHIUM);
     return ret;
 #else
@@ -8444,6 +8446,7 @@ static int dilithium_sign_with_seed_mu(dilithium_key* key,
     byte* blocks = NULL;
     byte priv_rand_seed[DILITHIUM_Y_SEED_SZ];
     byte* h = sig + params->lambda / 4 + params->zEncSz;
+    unsigned int allocSz = 0;
 #ifdef WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC_A
     byte maxK = (byte)min(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC_A,
         params->k);
@@ -8463,8 +8466,6 @@ static int dilithium_sign_with_seed_mu(dilithium_key* key,
 
     /* Allocate memory for large intermediates. */
     if (ret == 0) {
-        unsigned int allocSz;
-
         /* y-l, w0-k, w1-k, blocks, c-1, z-1, A-1 */
         allocSz  = params->s1Sz + params->s2Sz + params->s2Sz +
             DILITHIUM_REJ_NTT_POLY_H_SIZE +
@@ -8957,6 +8958,9 @@ static int dilithium_sign_with_seed_mu(dilithium_key* key,
     }
 
     ForceZero(priv_rand_seed, sizeof(priv_rand_seed));
+    if (y != NULL) {
+        ForceZero(y, allocSz);
+    }
     XFREE(y, key->heap, DYNAMIC_TYPE_DILITHIUM);
     return ret;
 #endif
@@ -9313,6 +9317,7 @@ static int dilithium_sign_ctx_hash(dilithium_key* key, WC_RNG* rng,
             hash, hashLen, sig, sigLen);
     }
 
+    ForceZero(seed, sizeof(seed));
     return ret;
 }
 
