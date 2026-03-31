@@ -3715,6 +3715,10 @@ int wolfSSL_EVP_PKEY_keygen_init(WOLFSSL_EVP_PKEY_CTX *ctx)
     return WOLFSSL_SUCCESS;
 }
 
+#ifdef HAVE_ECC
+static int ECC_populate_EVP_PKEY(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_EC_KEY *key);
+#endif
+
 int wolfSSL_EVP_PKEY_keygen(WOLFSSL_EVP_PKEY_CTX *ctx,
   WOLFSSL_EVP_PKEY **ppkey)
 {
@@ -3769,6 +3773,8 @@ int wolfSSL_EVP_PKEY_keygen(WOLFSSL_EVP_PKEY_CTX *ctx,
                 ret = wolfSSL_EC_KEY_generate_key(pkey->ecc);
                 if (ret == WOLFSSL_SUCCESS) {
                     pkey->ownEcc = 1;
+                    if (ECC_populate_EVP_PKEY(pkey, pkey->ecc) != WOLFSSL_SUCCESS)
+                        ret = WOLFSSL_FAILURE;
                 }
             }
             break;
@@ -9521,7 +9527,15 @@ static int ECC_populate_EVP_PKEY(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_EC_KEY *key)
         else
 #endif /* HAVE_PKCS8 */
         {
-            if (ecc->type == ECC_PRIVATEKEY_ONLY) {
+            if (ecc->type == ECC_PRIVATEKEY_ONLY ||
+                    (ecc->type == ECC_PRIVATEKEY &&
+                     mp_iszero(ecc->pubkey.x))) {
+                /* Reconstruct public key from private scalar.  This covers
+                 * both ECC_PRIVATEKEY_ONLY keys and ECC_PRIVATEKEY keys whose
+                 * public-key point was never populated (e.g. when only
+                 * EC_KEY_set_private_key was called, SetECKeyInternal copies
+                 * the zero-initialized pub_key point and marks the type as
+                 * ECC_PRIVATEKEY, leaving pubkey.x == 0). */
                 if (wc_ecc_make_pub(ecc, NULL) != MP_OKAY) {
                     return WOLFSSL_FAILURE;
                 }
