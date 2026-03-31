@@ -20720,7 +20720,7 @@ static WC_INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input,
         #ifdef HAVE_ARIA
             if (ssl->specs.bulk_cipher_algorithm == wolfssl_aria_gcm)
             {
-                /* finalize authentication cipher — wc_AriaEncrypt is
+                /* finalize authentication cipher -- wc_AriaEncrypt is
                  * stateless, so the explicit IV must always advance */
                 AeadIncrementExpIV(ssl);
                 if (ssl->encrypt.nonce)
