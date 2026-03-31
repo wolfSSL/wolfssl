@@ -3880,6 +3880,7 @@ int test_wc_mlkem_decapsulate_kats(void)
 int test_wc_mlkem_decapsulate_pubonly_fails(void)
 {
     EXPECT_DECLS;
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
 #if defined(WOLFSSL_HAVE_MLKEM) && defined(WOLFSSL_WC_MLKEM) && \
     !defined(WOLFSSL_NO_ML_KEM) && !defined(WOLFSSL_MLKEM_NO_DECAPSULATE) && \
     !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
@@ -3944,6 +3945,7 @@ int test_wc_mlkem_decapsulate_pubonly_fails(void)
     wc_MlKemKey_Free(fullKey);
     XFREE(pubOnlyKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(fullKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_mlkem_decapsulate_pubonly_fails */

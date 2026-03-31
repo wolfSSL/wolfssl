@@ -692,6 +692,7 @@ int test_wc_dilithium(void)
 int test_wc_dilithium_sign_pubonly_fails(void)
 {
     EXPECT_DECLS;
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
 #if defined(HAVE_DILITHIUM) && defined(WOLFSSL_WC_DILITHIUM) && \
     !defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
     !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) && \
@@ -757,6 +758,7 @@ int test_wc_dilithium_sign_pubonly_fails(void)
     XFREE(pubBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(pubOnlyKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_dilithium_sign_pubonly_fails */

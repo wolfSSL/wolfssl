@@ -169,6 +169,7 @@ int test_wc_ed448_sign_msg(void)
 int test_wc_ed448_sign_msg_pubonly_fails(void)
 {
     EXPECT_DECLS;
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
 #if defined(HAVE_ED448) && defined(HAVE_ED448_SIGN) && \
     defined(HAVE_ED448_KEY_IMPORT) && defined(HAVE_ED448_KEY_EXPORT)
     ed448_key fullKey;
@@ -202,6 +203,7 @@ int test_wc_ed448_sign_msg_pubonly_fails(void)
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
     wc_ed448_free(&pubOnlyKey);
     wc_ed448_free(&fullKey);
+#endif
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_ed448_sign_msg_pubonly_fails */
