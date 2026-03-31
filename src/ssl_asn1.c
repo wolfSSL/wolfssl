@@ -1016,7 +1016,7 @@ int wolfSSL_ASN1_INTEGER_get_length(const WOLFSSL_ASN1_INTEGER* ai)
     if (ai->data[0] == ASN_INTEGER) {
         word32 idx = 1;
         int len = 0;
-        if (GetLength(ai->data, &idx, &len, (word32)ai->length) > 0 &&
+        if (GetLength(ai->data, &idx, &len, (word32)ai->length) >= 0 &&
                 idx + (word32)len == (word32)ai->length) {
             return len;
         }
@@ -1043,7 +1043,7 @@ const unsigned char* wolfSSL_ASN1_INTEGER_get0_data(const WOLFSSL_ASN1_INTEGER* 
     if (ai->data[0] == ASN_INTEGER) {
         word32 idx = 1;
         int len = 0;
-        if (GetLength(ai->data, &idx, &len, (word32)ai->length) > 0 &&
+        if (GetLength(ai->data, &idx, &len, (word32)ai->length) >= 0 &&
                 idx + (word32)len == (word32)ai->length) {
             return ai->data + idx;
         }
