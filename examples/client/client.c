@@ -1748,7 +1748,7 @@ static void showPeerPEM(WOLFSSL* ssl)
             LOG_ERROR("failed to get bio on stdout\n");
         }
         else {
-            if (wolfSSL_BIO_set_fp(bioOut, stdout, BIO_NOCLOSE)
+            if (wolfSSL_BIO_set_fp(bioOut, stdout, WOLFSSL_BIO_NOCLOSE)
                 != WOLFSSL_SUCCESS) {
                 LOG_ERROR("failed to set stdout to bio output\n");
                 wolfSSL_BIO_free(bioOut);
@@ -4378,7 +4378,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     #ifndef NO_BIO
     /* print out session to stdout */
     {
-        WOLFSSL_BIO* bio = wolfSSL_BIO_new_fp(stdout, BIO_NOCLOSE);
+        WOLFSSL_BIO* bio = wolfSSL_BIO_new_fp(stdout, WOLFSSL_BIO_NOCLOSE);
         if (bio != NULL) {
             if (wolfSSL_SESSION_print(bio, wolfSSL_get_session(ssl)) !=
                     WOLFSSL_SUCCESS) {
