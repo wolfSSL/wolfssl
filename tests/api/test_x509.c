@@ -643,15 +643,26 @@ int test_x509_CertFromX509_akid_overflow(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_AKID_NAME) && defined(WOLFSSL_CERT_GEN) && \
-    defined(WOLFSSL_CERT_EXT) && \
+    defined(WOLFSSL_CERT_EXT) && !defined(NO_BIO) && \
     (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL))
     /* DER builder helpers -- write into a flat buffer */
+#ifdef WOLFSSL_SMALL_STACK
+    unsigned char* buf = NULL;
+#else
     unsigned char buf[16384];
+#endif
     size_t pos = 0;
     size_t akid_val_len;
     unsigned char* akid_val = NULL;
     WOLFSSL_X509* x = NULL;
     WOLFSSL_BIO* bio = NULL;
+
+#ifdef WOLFSSL_SMALL_STACK
+    buf = (unsigned char*)XMALLOC(16384, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(buf);
+    if (buf == NULL)
+        return EXPECT_RESULT();
+#endif
 
     #define PUT1(b) do { buf[pos++] = (b); } while(0)
     #define PUTN(p, n) do { XMEMCPY(buf + pos, (p), (n)); pos += (n); } while(0)
@@ -840,6 +851,9 @@ int test_x509_CertFromX509_akid_overflow(void)
     wolfSSL_BIO_free(bio);
     wolfSSL_X509_free(x);
     XFREE(akid_val, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     #undef PUT1
     #undef PUTN
