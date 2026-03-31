@@ -34179,11 +34179,27 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32 idx,
 
                     if (ret == 0) {
                         int crlNumLen = 0;
+                        word32 rawIdx = localIdx;
                         word32 tmpIdx = localIdx;
                         ret = GetASNInt(buf, &tmpIdx, &crlNumLen, maxIdx);
                         if (ret == 0 && (crlNumLen > CRL_MAX_NUM_SZ)) {
                             WOLFSSL_MSG("CRL number exceeds limitation");
                             ret = BUFFER_E;
+                        }
+                        /* RFC 5280 s5.2.3: CRL number must be non-negative.
+                         * Check the raw encoding before GetASNInt strips
+                         * the leading-zero pad: skip past the INTEGER tag
+                         * and length, then reject if the first content byte
+                         * has its high bit set (negative value). A leading
+                         * 0x00 pad means the value is positive. */
+                        if (ret == 0) {
+                            int rawLen = 0;
+                            (void)GetASNHeader(buf, ASN_INTEGER,
+                                &rawIdx, &rawLen, maxIdx);
+                            if (rawLen > 0 && (buf[rawIdx] & 0x80) != 0) {
+                                WOLFSSL_MSG("CRL number is negative");
+                                ret = ASN_PARSE_E;
+                            }
                         }
                         if (ret == 0) {
                             ret = GetInt(m, buf, &localIdx, maxIdx);
