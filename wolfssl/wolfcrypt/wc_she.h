@@ -292,6 +292,88 @@ WOLFSSL_API int wc_SHE_GenerateM4M5(wc_SHE* she,
                       byte* m4, word32 m4Sz,
                       byte* m5, word32 m5Sz);
 
+/* One-shot Load Key: Init, ImportM1M2M3, GenerateM4M5 (via callback), Free.
+ * Requires a valid devId (not INVALID_DEVID) -- dispatches to a hardware
+ * crypto callback that sends M1/M2/M3 to the HSM and returns M4/M5.
+ * Define NO_WC_SHE_LOADKEY to compile out all LoadKey/Verify wrappers.
+ *   heap  - heap hint for internal allocations, or NULL
+ *   devId - crypto callback device ID (must not be INVALID_DEVID)
+ *   m1-m3 - input: externally-provided SHE key update messages
+ *   m4,m5 - output: verification messages returned by the HSM */
+#ifndef NO_WC_SHE_LOADKEY
+#if defined(WOLF_CRYPTO_CB) || !defined(NO_WC_SHE_IMPORT_M123)
+WOLFSSL_API int wc_SHE_LoadKey(
+    void* heap, int devId,
+    const byte* m1, word32 m1Sz,
+    const byte* m2, word32 m2Sz,
+    const byte* m3, word32 m3Sz,
+    byte* m4, word32 m4Sz,
+    byte* m5, word32 m5Sz);
+
+#ifdef WOLF_PRIVATE_KEY_ID
+/* One-shot Load Key with opaque hardware key identifier. */
+WOLFSSL_API int wc_SHE_LoadKey_Id(
+    unsigned char* id, int idLen,
+    void* heap, int devId,
+    const byte* m1, word32 m1Sz,
+    const byte* m2, word32 m2Sz,
+    const byte* m3, word32 m3Sz,
+    byte* m4, word32 m4Sz,
+    byte* m5, word32 m5Sz);
+
+/* One-shot Load Key with human-readable key label. */
+WOLFSSL_API int wc_SHE_LoadKey_Label(
+    const char* label,
+    void* heap, int devId,
+    const byte* m1, word32 m1Sz,
+    const byte* m2, word32 m2Sz,
+    const byte* m3, word32 m3Sz,
+    byte* m4, word32 m4Sz,
+    byte* m5, word32 m5Sz);
+#endif /* WOLF_PRIVATE_KEY_ID */
+
+/* One-shot Load Key with M4/M5 verification.
+ * Same as wc_SHE_LoadKey but also compares the M4/M5 returned by the HSM
+ * against caller-provided expected values. Returns SIG_VERIFY_E on mismatch.
+ * The actual M4/M5 are still written to the output buffers on failure.
+ *   m4Expected, m5Expected - expected verification messages to compare against */
+WOLFSSL_API int wc_SHE_LoadKey_Verify(
+    void* heap, int devId,
+    const byte* m1, word32 m1Sz,
+    const byte* m2, word32 m2Sz,
+    const byte* m3, word32 m3Sz,
+    byte* m4, word32 m4Sz,
+    byte* m5, word32 m5Sz,
+    const byte* m4Expected, word32 m4ExpectedSz,
+    const byte* m5Expected, word32 m5ExpectedSz);
+
+#ifdef WOLF_PRIVATE_KEY_ID
+WOLFSSL_API int wc_SHE_LoadKey_Verify_Id(
+    unsigned char* id, int idLen,
+    void* heap, int devId,
+    const byte* m1, word32 m1Sz,
+    const byte* m2, word32 m2Sz,
+    const byte* m3, word32 m3Sz,
+    byte* m4, word32 m4Sz,
+    byte* m5, word32 m5Sz,
+    const byte* m4Expected, word32 m4ExpectedSz,
+    const byte* m5Expected, word32 m5ExpectedSz);
+
+WOLFSSL_API int wc_SHE_LoadKey_Verify_Label(
+    const char* label,
+    void* heap, int devId,
+    const byte* m1, word32 m1Sz,
+    const byte* m2, word32 m2Sz,
+    const byte* m3, word32 m3Sz,
+    byte* m4, word32 m4Sz,
+    byte* m5, word32 m5Sz,
+    const byte* m4Expected, word32 m4ExpectedSz,
+    const byte* m5Expected, word32 m5ExpectedSz);
+#endif /* WOLF_PRIVATE_KEY_ID */
+
+#endif /* WOLF_CRYPTO_CB || !NO_WC_SHE_IMPORT_M123 */
+#endif /* !NO_WC_SHE_LOADKEY */
+
 /* Export a key from hardware in SHE loadable format (M1-M5).
  * Some HSMs allow exporting certain key slots (e.g. RAM key) so they
  * can be re-loaded later via the SHE key update protocol.

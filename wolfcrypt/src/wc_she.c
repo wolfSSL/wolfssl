@@ -771,6 +771,320 @@ int wc_SHE_GenerateM4M5(wc_SHE* she,
 }
 
 /* -------------------------------------------------------------------------- */
+/* One-shot Load Key helpers                                                   */
+/*                                                                            */
+/* Internal helper that does the actual work: imports M1/M2/M3 into the       */
+/* already-initialized SHE context, calls GenerateM4M5 (which dispatches to   */
+/* the crypto callback to send M1/M2/M3 to the HSM and receive M4/M5 back),  */
+/* and frees the context.                                                      */
+/* -------------------------------------------------------------------------- */
+#ifndef NO_WC_SHE_LOADKEY
+#if defined(WOLF_CRYPTO_CB) || !defined(NO_WC_SHE_IMPORT_M123)
+static int wc_SHE_LoadKey_Internal(wc_SHE* she,
+    const byte* m1, word32 m1Sz,
+    const byte* m2, word32 m2Sz,
+    const byte* m3, word32 m3Sz,
+    byte* m4, word32 m4Sz,
+    byte* m5, word32 m5Sz)
+{
+    int ret;
+
+    ret = wc_SHE_ImportM1M2M3(she, m1, m1Sz, m2, m2Sz, m3, m3Sz);
+    if (ret != 0) {
+        wc_SHE_Free(she);
+        return ret;
+    }
+
+    /* GenerateM4M5 with NULL uid/newKey -- the callback reads M1/M2/M3
+     * from the context and sends them to the HSM which returns M4/M5. */
+    ret = wc_SHE_GenerateM4M5(she, NULL, 0, 0, 0, NULL, 0, 0,
+                               m4, m4Sz, m5, m5Sz);
+
+    wc_SHE_Free(she);
+    return ret;
+}
+
+/* -------------------------------------------------------------------------- */
+/* wc_SHE_LoadKey                                                              */
+/*                                                                            */
+/* One-shot: Init, ImportM1M2M3, GenerateM4M5 (via callback), Free.           */
+/* Requires a valid devId (not INVALID_DEVID) since the operation dispatches   */
+/* to a hardware crypto callback.                                              */
+/* -------------------------------------------------------------------------- */
+int wc_SHE_LoadKey(
+    void* heap, int devId,
+    const byte* m1, word32 m1Sz,
+    const byte* m2, word32 m2Sz,
+    const byte* m3, word32 m3Sz,
+    byte* m4, word32 m4Sz,
+    byte* m5, word32 m5Sz)
+{
+    int ret;
+    WC_DECLARE_VAR(she, wc_SHE, 1, heap);
+
+    if (m1 == NULL || m2 == NULL || m3 == NULL ||
+        m4 == NULL || m5 == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (devId == INVALID_DEVID) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (m1Sz != WC_SHE_M1_SZ || m2Sz != WC_SHE_M2_SZ ||
+        m3Sz != WC_SHE_M3_SZ) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (m4Sz < WC_SHE_M4_SZ || m5Sz < WC_SHE_M5_SZ) {
+        return BAD_FUNC_ARG;
+    }
+
+    WC_ALLOC_VAR(she, wc_SHE, 1, heap);
+    if (!WC_VAR_OK(she)) {
+        return MEMORY_E;
+    }
+
+    ret = wc_SHE_Init(she, heap, devId);
+    if (ret != 0) {
+        WC_FREE_VAR(she, heap);
+        return ret;
+    }
+
+    ret = wc_SHE_LoadKey_Internal(she, m1, m1Sz, m2, m2Sz, m3, m3Sz,
+                                  m4, m4Sz, m5, m5Sz);
+    WC_FREE_VAR(she, heap);
+    return ret;
+}
+
+#ifdef WOLF_PRIVATE_KEY_ID
+/* -------------------------------------------------------------------------- */
+/* wc_SHE_LoadKey_Id                                                           */
+/*                                                                            */
+/* One-shot with opaque hardware key identifier.                               */
+/* Requires a valid devId (not INVALID_DEVID) since the operation dispatches   */
+/* to a hardware crypto callback.                                              */
+/* -------------------------------------------------------------------------- */
+int wc_SHE_LoadKey_Id(
+    unsigned char* id, int idLen,
+    void* heap, int devId,
+    const byte* m1, word32 m1Sz,
+    const byte* m2, word32 m2Sz,
+    const byte* m3, word32 m3Sz,
+    byte* m4, word32 m4Sz,
+    byte* m5, word32 m5Sz)
+{
+    int ret;
+    WC_DECLARE_VAR(she, wc_SHE, 1, heap);
+
+    if (id == NULL || m1 == NULL || m2 == NULL || m3 == NULL ||
+        m4 == NULL || m5 == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (devId == INVALID_DEVID) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (idLen < 0 || idLen > WC_SHE_MAX_ID_LEN) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (m1Sz != WC_SHE_M1_SZ || m2Sz != WC_SHE_M2_SZ ||
+        m3Sz != WC_SHE_M3_SZ) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (m4Sz < WC_SHE_M4_SZ || m5Sz < WC_SHE_M5_SZ) {
+        return BAD_FUNC_ARG;
+    }
+
+    WC_ALLOC_VAR(she, wc_SHE, 1, heap);
+    if (!WC_VAR_OK(she)) {
+        return MEMORY_E;
+    }
+
+    ret = wc_SHE_Init_Id(she, id, idLen, heap, devId);
+    if (ret != 0) {
+        WC_FREE_VAR(she, heap);
+        return ret;
+    }
+
+    ret = wc_SHE_LoadKey_Internal(she, m1, m1Sz, m2, m2Sz, m3, m3Sz,
+                                  m4, m4Sz, m5, m5Sz);
+    WC_FREE_VAR(she, heap);
+    return ret;
+}
+
+/* -------------------------------------------------------------------------- */
+/* wc_SHE_LoadKey_Label                                                        */
+/*                                                                            */
+/* One-shot with human-readable key label.                                     */
+/* Requires a valid devId (not INVALID_DEVID) since the operation dispatches   */
+/* to a hardware crypto callback.                                              */
+/* -------------------------------------------------------------------------- */
+int wc_SHE_LoadKey_Label(
+    const char* label,
+    void* heap, int devId,
+    const byte* m1, word32 m1Sz,
+    const byte* m2, word32 m2Sz,
+    const byte* m3, word32 m3Sz,
+    byte* m4, word32 m4Sz,
+    byte* m5, word32 m5Sz)
+{
+    int ret;
+    WC_DECLARE_VAR(she, wc_SHE, 1, heap);
+
+    if (label == NULL || m1 == NULL || m2 == NULL || m3 == NULL ||
+        m4 == NULL || m5 == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (devId == INVALID_DEVID) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (XSTRLEN(label) == 0 || XSTRLEN(label) > WC_SHE_MAX_LABEL_LEN) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (m1Sz != WC_SHE_M1_SZ || m2Sz != WC_SHE_M2_SZ ||
+        m3Sz != WC_SHE_M3_SZ) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (m4Sz < WC_SHE_M4_SZ || m5Sz < WC_SHE_M5_SZ) {
+        return BAD_FUNC_ARG;
+    }
+
+    WC_ALLOC_VAR(she, wc_SHE, 1, heap);
+    if (!WC_VAR_OK(she)) {
+        return MEMORY_E;
+    }
+
+    ret = wc_SHE_Init_Label(she, label, heap, devId);
+    if (ret != 0) {
+        WC_FREE_VAR(she, heap);
+        return ret;
+    }
+
+    ret = wc_SHE_LoadKey_Internal(she, m1, m1Sz, m2, m2Sz, m3, m3Sz,
+                                  m4, m4Sz, m5, m5Sz);
+    WC_FREE_VAR(she, heap);
+    return ret;
+}
+#endif /* WOLF_PRIVATE_KEY_ID */
+
+/* -------------------------------------------------------------------------- */
+/* One-shot Load Key with Verification                                         */
+/*                                                                            */
+/* Same as the LoadKey variants but also compares the M4/M5 returned by the   */
+/* HSM against caller-provided expected values. Returns SIG_VERIFY_E on       */
+/* mismatch. The actual M4/M5 from the HSM are still written to the output    */
+/* buffers so the caller can inspect them on failure.                          */
+/* -------------------------------------------------------------------------- */
+static int wc_SHE_VerifyM4M5(
+    const byte* m4, word32 m4Sz,
+    const byte* m5, word32 m5Sz,
+    const byte* m4Expected, word32 m4ExpectedSz,
+    const byte* m5Expected, word32 m5ExpectedSz)
+{
+    if (m4Expected == NULL || m5Expected == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (m4ExpectedSz != WC_SHE_M4_SZ || m5ExpectedSz != WC_SHE_M5_SZ ||
+        m4Sz < WC_SHE_M4_SZ || m5Sz < WC_SHE_M5_SZ) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (ConstantCompare(m4, m4Expected, WC_SHE_M4_SZ) != 0 ||
+        ConstantCompare(m5, m5Expected, WC_SHE_M5_SZ) != 0) {
+        return SIG_VERIFY_E;
+    }
+
+    return 0;
+}
+
+int wc_SHE_LoadKey_Verify(
+    void* heap, int devId,
+    const byte* m1, word32 m1Sz,
+    const byte* m2, word32 m2Sz,
+    const byte* m3, word32 m3Sz,
+    byte* m4, word32 m4Sz,
+    byte* m5, word32 m5Sz,
+    const byte* m4Expected, word32 m4ExpectedSz,
+    const byte* m5Expected, word32 m5ExpectedSz)
+{
+    int ret;
+
+    ret = wc_SHE_LoadKey(heap, devId, m1, m1Sz, m2, m2Sz, m3, m3Sz,
+                         m4, m4Sz, m5, m5Sz);
+    if (ret != 0) {
+        return ret;
+    }
+
+    return wc_SHE_VerifyM4M5(m4, m4Sz, m5, m5Sz,
+                              m4Expected, m4ExpectedSz,
+                              m5Expected, m5ExpectedSz);
+}
+
+#ifdef WOLF_PRIVATE_KEY_ID
+int wc_SHE_LoadKey_Verify_Id(
+    unsigned char* id, int idLen,
+    void* heap, int devId,
+    const byte* m1, word32 m1Sz,
+    const byte* m2, word32 m2Sz,
+    const byte* m3, word32 m3Sz,
+    byte* m4, word32 m4Sz,
+    byte* m5, word32 m5Sz,
+    const byte* m4Expected, word32 m4ExpectedSz,
+    const byte* m5Expected, word32 m5ExpectedSz)
+{
+    int ret;
+
+    ret = wc_SHE_LoadKey_Id(id, idLen, heap, devId,
+                            m1, m1Sz, m2, m2Sz, m3, m3Sz,
+                            m4, m4Sz, m5, m5Sz);
+    if (ret != 0) {
+        return ret;
+    }
+
+    return wc_SHE_VerifyM4M5(m4, m4Sz, m5, m5Sz,
+                              m4Expected, m4ExpectedSz,
+                              m5Expected, m5ExpectedSz);
+}
+
+int wc_SHE_LoadKey_Verify_Label(
+    const char* label,
+    void* heap, int devId,
+    const byte* m1, word32 m1Sz,
+    const byte* m2, word32 m2Sz,
+    const byte* m3, word32 m3Sz,
+    byte* m4, word32 m4Sz,
+    byte* m5, word32 m5Sz,
+    const byte* m4Expected, word32 m4ExpectedSz,
+    const byte* m5Expected, word32 m5ExpectedSz)
+{
+    int ret;
+
+    ret = wc_SHE_LoadKey_Label(label, heap, devId,
+                               m1, m1Sz, m2, m2Sz, m3, m3Sz,
+                               m4, m4Sz, m5, m5Sz);
+    if (ret != 0) {
+        return ret;
+    }
+
+    return wc_SHE_VerifyM4M5(m4, m4Sz, m5, m5Sz,
+                              m4Expected, m4ExpectedSz,
+                              m5Expected, m5ExpectedSz);
+}
+#endif /* WOLF_PRIVATE_KEY_ID */
+
+#endif /* WOLF_CRYPTO_CB || !NO_WC_SHE_IMPORT_M123 */
+#endif /* !NO_WC_SHE_LOADKEY */
+
+/* -------------------------------------------------------------------------- */
 /* Export Key                                                                  */
 /*                                                                            */
 /* When a crypto callback is registered, it can be used to export M1-M5     */
