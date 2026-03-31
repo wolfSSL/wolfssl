@@ -14288,7 +14288,14 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
 
     /* retry configs */
     if (msgType == encrypted_extensions) {
-        ret = wolfSSL_SetEchConfigs(ssl, readBuf, size);
+        echX = TLSX_Find(ssl->extensions, TLSX_ECH);
+        if (echX == NULL)
+            return BAD_FUNC_ARG;
+        ech = (WOLFSSL_ECH*)echX->data;
+
+        if (ech->state != ECH_WRITE_GREASE) {
+            ret = wolfSSL_SetEchConfigs(ssl, readBuf, size);
+        }
 
         if (ret == WOLFSSL_SUCCESS)
             ret = 0;
