@@ -154,7 +154,7 @@ wolfSSL 5.8.4 and earlier on RISC-V RV32I architectures lacks a constant-time so
 A protection mechanism failure in wolfCrypt post-quantum implementations (ML-KEM and ML-DSA) in wolfSSL on ARM Cortex-M microcontrollers allows a physical attacker to compromise key material and/or cryptographic outcomes via induced transient faults that corrupt or redirect seed/pointer values during Keccak-based expansion. This issue affects wolfSSL (wolfCrypt): commit hash d86575c766e6e67ef93545fa69c04d6eb49400c6. Thanks to Hariprasad Kelassery Valsaraj of Temasek Laboratories for the report. Fixed in PR 9734.
 
 * [Low] CVE-2026-4159
-1-byte OOB heap read in wc_PKCS7_DecodeEnvelopedData via zero-length encrypted content. A vulnerability existed in wolfSSL 5.8.4 and earlier, where a 1-byte out-of-bounds heap read in wc_PKCS7_DecodeEnvelopedData could be triggered by a crafted CMS EnvelopedData message with zero-length encrypted content. Note that PKCS7 support is disabled by default. Thanks to Haruto Kimura (Stella). Fixed in PR9945.
+1-byte OOB heap read in wc_PKCS7_DecodeEnvelopedData via zero-length encrypted content. A vulnerability existed in wolfSSL 5.8.4 and earlier, where a 1-byte out-of-bounds heap read in wc_PKCS7_DecodeEnvelopedData could be triggered by a crafted CMS EnvelopedData message with zero-length encrypted content. Note that PKCS7 support is disabled by default. Thanks to Haruto Kimura (Stella). Fixed in PR 9945.
 
 * [Low] CVE-2026-4395
 A heap buffer out of bounds write case existed in wolfSSL version 5.8.4 and earlier when importing an ECC key while built with KCAPI support. The fix implemented added a check on the raw pubkey length in wc_ecc_import_x963 before copying it to an internal struct. KCAPI support is turned off by default and only enabled with builds using --enable-kcapi. Thanks to Haruto Kimura (Stella) for the report. Fixed in PR 9988.
@@ -245,20 +245,20 @@ A heap buffer out of bounds write case existed in wolfSSL version 5.8.4 and earl
 * Fixes to big-endian bugs found in Curve448 and Blake2S by @LinuxJedi (PR 9778).
 * Fix cert chain size issue by @embhorn (PR 9827).
 * Fix potential memory leak when copying into existing SHA contexts and zero init tmpSha by @night1rider (PR 9829).
-* Add sanity checks in key export by @embhorn (PR9823). Thanks to Muhammad Arya Arjuna (pelioro) for the report.
+* Add sanity checks in key export by @embhorn (PR 9823). Thanks to Muhammad Arya Arjuna (pelioro) for the report.
 * CRL enhancements for revoked entries by @padelsbach (PR 9839).
 * Fix DRBG_internal alloc in wc_RNG_HealthTestLocal by @embhorn (PR 9847).
 * Various CMake fixes and improvements by @Frauschi (PRs 9605, 9725).
-* RISC-V 32 no mul SP C: implement multiplication by @SparkiDev in (PR 9855).
+* RISC-V 32 no mul SP C: implement multiplication by @SparkiDev (PR 9855).
 * ASN: improve handling of ASN.1 parsing/encoding by @SparkiDev (PR 9872).
-* Various fixes to CRL parsing by @miyazakh in (PRs 9628, 9873).
+* Various fixes to CRL parsing by @miyazakh (PRs 9628, 9873).
 * Harden hash comparison in TLS1.2 finished by @Frauschi (PR 9874).
 * Various fixes to TLS sniffer by @mattia-moffa, @embhorn, @julek-wolfssl, @Frauschi (PRs 9571, 9643, 9867, 9901, 9924).
 * Check ivLen in wolfSSL_EVP_CIPHER_CTX_set_iv_length by @philljj (PR 9943). Thanks to Haruto Kimura (Stella) for the report.
-* Validate that the ticket length is at least ID_LEN  before use in SetTicket, preventing an undersized buffer from being processed. @kareem-wolfssl (PR 9782).
+* Validate that the ticket length is at least ID_LEN before use in SetTicket, preventing an undersized buffer from being processed by @kareem-wolfssl (PR 9782).
 * Enforce null compression in compression_methods list by @julek-wolfssl (PR 9913).
 * Additional sanity check on number of groups in set groups function by @JacobBarthelmeh (PR 9861).
-* Resolves issues with asynchronous and crypto callback handling, adding test coverage to prevent regressions. by @dgarske (https://github.com/wolfSSL/wolfssl/pull/9784).
+* Resolves issues with asynchronous and crypto callback handling, adding test coverage to prevent regressions by @dgarske (PR 9784).
 * Fix checkPad to reject zero PKCS#7 padding value by @embhorn (PR 9878).
 * Add sanity check on keysize found with ECC point import by @JacobBarthelmeh (PR 9989).
 * Adds a range check to ensure session ticket lifetimes are within the bounds permitted by the TLS specification by @Frauschi (PR 9881).
