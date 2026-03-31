@@ -5178,8 +5178,15 @@ static int EchCheckAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
             }
         }
         else {
-            ssl->options.echAccepted = 0;
-            ret = 0;
+            if (msgType != hello_retry_request && ssl->options.echAccepted) {
+                /* the SH has rejected ECH after the HRR has accepted it
+                 * RFC 9849, section 6.1.5 */
+                ssl->options.echAccepted = 0;
+                ret = INVALID_PARAMETER;
+            }
+            else {
+                ret = 0;
+            }
 
             /* ECH rejected, continue with outer transcript */
             FreeHandshakeHashes(ssl);

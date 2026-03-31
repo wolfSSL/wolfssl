@@ -14297,7 +14297,7 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
     else if (msgType == hello_retry_request && ssl->echConfigs != NULL) {
         /* length must be 8 */
         if (size != ECH_ACCEPT_CONFIRMATION_SZ)
-            return BAD_FUNC_ARG;
+            return DECODE_E;
 
         /* get extension */
         echX = TLSX_Find(ssl->extensions, TLSX_ECH);
