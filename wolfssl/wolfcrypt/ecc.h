@@ -769,7 +769,7 @@ int wc_ecc_init_label(ecc_key* key, const char* label, void* heap, int devId);
 #endif
 #ifdef WOLFSSL_CUSTOM_CURVES
 WOLFSSL_LOCAL
-void wc_ecc_free_curve(const ecc_set_type* curve, void* heap);
+void wc_ecc_free_curve(ecc_set_type* curve, void* heap);
 #endif
 WOLFSSL_ABI WOLFSSL_API
 int wc_ecc_free(ecc_key* key);

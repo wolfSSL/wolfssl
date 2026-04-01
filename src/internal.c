@@ -13384,7 +13384,7 @@ int CheckForAltNames(DecodedCert* dCert, const char* domain, word32 domainLen,
 {
     int match = 0;
     DNS_entry* altName = NULL;
-    char *buf;
+    const char *buf;
     word32 len;
 
     WOLFSSL_MSG("Checking AltNames");

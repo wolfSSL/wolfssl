@@ -389,11 +389,11 @@ int wc_SrpSetParams(Srp* srp, const byte* N,    word32 nSz,
 
     /* Set k = H(N, g) */
     r = SrpHashInit(&hash, srp->type, srp->heap);
-    if (!r) r = SrpHashUpdate(&hash, (byte*) N, nSz);
+    if (!r) r = SrpHashUpdate(&hash, (const byte*) N, nSz);
     for (i = 0; (word32)i < nSz - gSz; i++) {
         if (!r) r = SrpHashUpdate(&hash, &pad, 1);
     }
-    if (!r) r = SrpHashUpdate(&hash, (byte*) g, gSz);
+    if (!r) r = SrpHashUpdate(&hash, (const byte*) g, gSz);
     if (!r) r = SrpHashFinal(&hash, srp->k);
     SrpHashFree(&hash);
 
@@ -401,13 +401,13 @@ int wc_SrpSetParams(Srp* srp, const byte* N,    word32 nSz,
 
     /* digest1 = H(N) */
     if (!r) r = SrpHashInit(&hash, srp->type, srp->heap);
-    if (!r) r = SrpHashUpdate(&hash, (byte*) N, nSz);
+    if (!r) r = SrpHashUpdate(&hash, (const byte*) N, nSz);
     if (!r) r = SrpHashFinal(&hash, digest1);
     SrpHashFree(&hash);
 
     /* digest2 = H(g) */
     if (!r) r = SrpHashInit(&hash, srp->type, srp->heap);
-    if (!r) r = SrpHashUpdate(&hash, (byte*) g, gSz);
+    if (!r) r = SrpHashUpdate(&hash, (const byte*) g, gSz);
     if (!r) r = SrpHashFinal(&hash, digest2);
     SrpHashFree(&hash);
 

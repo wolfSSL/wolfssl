@@ -160,7 +160,7 @@ WOLFSSL_LOCAL void fe_pow22523(fe out,const fe z);
 #endif
 
 #ifdef CURVED25519_ASM
-WOLFSSL_LOCAL void fe_cmov_table(fe* r, fe* base, signed char b);
+WOLFSSL_LOCAL void fe_cmov_table(fe* r, const fe* base, signed char b);
 
 WOLFSSL_LOCAL void fe_invert_nct(fe r, const fe a);
 #endif /* CURVED25519_ASM */

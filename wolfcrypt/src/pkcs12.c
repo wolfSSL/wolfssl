@@ -63,7 +63,7 @@ static const byte WC_PKCS12_ShroudedKeyBag_OID[] =
 
 
 typedef struct ContentInfo {
-    byte* data;
+    const byte* data;
     struct ContentInfo* next;
     word32 encC;  /* encryptedContent */
     word32 dataSz;
@@ -350,7 +350,7 @@ static int GetSafeContent(WC_PKCS12* pkcs12, const byte* input,
 
             ci->type   = (int)oid;
             ci->dataSz = (word32)curSz - (localIdx-curIdx);
-            ci->data   = (byte*)input + localIdx;
+            ci->data   = input + localIdx;
             localIdx  += ci->dataSz;
 
         #ifdef WOLFSSL_DEBUG_PKCS12
@@ -1180,7 +1180,8 @@ static byte* PKCS12_ConcatenateContent(WC_PKCS12* pkcs12,byte* mergedData,
 
 /* Check if constructed [0] is seen after wc_BerToDer() or not.
  * returns 1 if seen, 0 if not, ASN_PARSE_E on error */
-static int PKCS12_CheckConstructedZero(byte* data, word32 dataSz, word32* idx)
+static int PKCS12_CheckConstructedZero(const byte* data, word32 dataSz,
+                                       word32* idx)
 {
     word32 oid;
     int    ret = 0;
@@ -1355,7 +1356,7 @@ int wc_PKCS12_parse_ex(WC_PKCS12* pkcs12, const char* psw,
     /* if there is sign data then verify the MAC */
     if (pkcs12->signData != NULL ) {
         if ((ret = wc_PKCS12_verify(pkcs12, pkcs12->safe->data,
-                               pkcs12->safe->dataSz, (byte*)psw, (word32)pswSz)) != 0) {
+                 pkcs12->safe->dataSz, (const byte*)psw, (word32)pswSz)) != 0) {
             WOLFSSL_MSG("PKCS12 Bad MAC on verify");
             WOLFSSL_LEAVE("wc_PKCS12_parse verify ", ret);
             (void)ret;
@@ -1371,7 +1372,7 @@ int wc_PKCS12_parse_ex(WC_PKCS12* pkcs12, const char* psw,
     /* Decode content infos */
     ci = pkcs12->safe->CI;
     for (i = 0; i < pkcs12->safe->numCI; i++) {
-        byte*  data;
+        const byte* data;
         word32 idx = 0;
         int    size, totalSz;
         byte   tag;
@@ -1422,9 +1423,13 @@ int wc_PKCS12_parse_ex(WC_PKCS12* pkcs12, const char* psw,
              * the DecryptContent() expects */
             if (pkcs12->indefinite && PKCS12_CheckConstructedZero(data,
                                                     ci->dataSz, &idx) == 1) {
-                data[idx-1] = ASN_LONG_LENGTH;
-                ret = PKCS12_CoalesceOctetStrings(pkcs12, data, ci->dataSz,
-                                                  &idx, &curIdx);
+                /* safe casts -- pkcs12->indefinite signals that data is inside
+                 * the earlier allocation of der by wc_d2i_PKCS12(().
+                 */
+                ((byte *)(wc_ptr_t)data)[idx-1] = ASN_LONG_LENGTH;
+                ret = PKCS12_CoalesceOctetStrings(
+                    pkcs12, ((byte *)(wc_ptr_t)data), ci->dataSz,
+                    &idx, &curIdx);
                 if (ret < 0) {
                     goto exit_pk12par;
                 }

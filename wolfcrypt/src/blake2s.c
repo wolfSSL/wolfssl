@@ -102,9 +102,9 @@ static WC_INLINE int blake2s_init0( blake2s_state *S )
 int blake2s_init_param( blake2s_state *S, const blake2s_param *P )
 {
   word32 i;
-  byte *p ;
+  const byte *p ;
   blake2s_init0( S );
-  p =  ( byte * )( P );
+  p =  ( const byte * )( P );
 
   /* IV XOR ParamBlock */
   for( i = 0; i < 8; ++i )
@@ -117,32 +117,17 @@ int blake2s_init_param( blake2s_state *S, const blake2s_param *P )
 
 int blake2s_init( blake2s_state *S, const byte outlen )
 {
-#ifdef WOLFSSL_BLAKE2S_INIT_EACH_FIELD
-  blake2s_param P[1];
-#else
-  volatile blake2s_param P[1];
-#endif
+  blake2s_param P;
 
   if ( ( !outlen ) || ( outlen > BLAKE2S_OUTBYTES ) ) return BAD_FUNC_ARG;
 
-#ifdef WOLFSSL_BLAKE2S_INIT_EACH_FIELD
-  P->digest_length = outlen;
-  P->key_length    = 0;
-  P->fanout        = 1;
-  P->depth         = 1;
-  store32( &P->leaf_length, 0 );
-  store32( &P->node_offset, 0 );
-  P->node_depth    = 0;
-  P->inner_length  = 0;
-  XMEMSET( P->salt,     0, sizeof( P->salt ) );
-  XMEMSET( P->personal, 0, sizeof( P->personal ) );
-#else
-  XMEMSET( (blake2s_param *)P, 0, sizeof( *P ) );
-  P->digest_length = outlen;
-  P->fanout        = 1;
-  P->depth         = 1;
-#endif
-  return blake2s_init_param( S, (blake2s_param *)P );
+  XMEMSET( &P, 0, sizeof( P ) );
+  WC_BARRIER();
+  P.digest_length = outlen;
+  P.fanout        = 1;
+  P.depth         = 1;
+
+  return blake2s_init_param( S, &P );
 }
 
 
@@ -150,36 +135,20 @@ int blake2s_init_key( blake2s_state *S, const byte outlen, const void *key,
                       const byte keylen )
 {
   int ret = 0;
-#ifdef WOLFSSL_BLAKE2S_INIT_EACH_FIELD
-  blake2s_param P[1];
-#else
-  volatile blake2s_param P[1];
-#endif
+  blake2s_param P;
 
   if ( ( !outlen ) || ( outlen > BLAKE2S_OUTBYTES ) ) return BAD_FUNC_ARG;
 
   if ( !key || !keylen || keylen > BLAKE2S_KEYBYTES ) return BAD_FUNC_ARG;
 
-#ifdef WOLFSSL_BLAKE2S_INIT_EACH_FIELD
-  P->digest_length = outlen;
-  P->key_length    = keylen;
-  P->fanout        = 1;
-  P->depth         = 1;
-  store32( &P->leaf_length, 0 );
-  store64( &P->node_offset, 0 );
-  P->node_depth    = 0;
-  P->inner_length  = 0;
-  XMEMSET( P->salt,     0, sizeof( P->salt ) );
-  XMEMSET( P->personal, 0, sizeof( P->personal ) );
-#else
-  XMEMSET( (blake2s_param *)P, 0, sizeof( *P ) );
-  P->digest_length = outlen;
-  P->key_length    = keylen;
-  P->fanout        = 1;
-  P->depth         = 1;
-#endif
+  XMEMSET( &P, 0, sizeof( P ) );
+  WC_BARRIER();
+  P.digest_length = outlen;
+  P.key_length    = keylen;
+  P.fanout        = 1;
+  P.depth         = 1;
 
-  ret = blake2s_init_param( S, (blake2s_param *)P );
+  ret = blake2s_init_param( S, &P );
   if (ret < 0)
       return ret;
 
@@ -401,7 +370,7 @@ int blake2s( byte *out, const void *in, const void *key, const byte outlen,
   }
 
   {
-      int ret = blake2s_update( S, ( byte * )in, inlen );
+      int ret = blake2s_update( S, ( const byte * )in, inlen );
       if (ret < 0) return ret;
   }
 

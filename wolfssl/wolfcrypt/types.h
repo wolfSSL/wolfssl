@@ -489,6 +489,8 @@ enum {
     static WC_INLINE WARN_UNUSED_RESULT int WC_WUR_INT(int x) { return x; }
 #endif
 
+#define WC_BARRIER() do { volatile byte _xfence = 0; (void)_xfence; } while(0)
+
 #ifdef WORD64_AVAILABLE
     #define WC_MAX_UINT_OF(x)                                        \
         ((x)((((word64)1 << ((sizeof(x) * (word64)CHAR_BIT) -        \

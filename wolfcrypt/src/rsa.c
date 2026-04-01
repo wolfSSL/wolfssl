@@ -1851,7 +1851,7 @@ static int RsaUnPad_PSS(byte *pkcsBlock, unsigned int pkcsBlockLen,
 /* UnPad plaintext, set start to *output, return length of plaintext,
  * < 0 on error */
 static int RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
-                    byte **output, byte padValue)
+                    const byte **output, byte padValue)
 {
     int    ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
     word16 i;
@@ -1880,7 +1880,7 @@ static int RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
             return RSA_PAD_E;
         }
 
-        *output = (byte *)(pkcsBlock + i);
+        *output = (const byte *)(pkcsBlock + i);
         ret = (int)pkcsBlockLen - i;
     }
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
@@ -1918,7 +1918,7 @@ static int RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
         inv |= ctMaskNotEq(pkcsBlock[1], padValue);
 
         invalid = inv;
-        *output = (byte *)(pkcsBlock + i);
+        *output = (const byte *)(pkcsBlock + i);
         invalidMask = (int)-1 + (int)(inv >> 7);
         ret = invalidMask & ((int)pkcsBlockLen - i);
     }
@@ -1941,7 +1941,8 @@ int wc_RsaUnPad_ex(byte* pkcsBlock, word32 pkcsBlockLen, byte** out,
     switch (padType) {
         case WC_RSA_PKCSV15_PAD:
             /*WOLFSSL_MSG("wolfSSL Using RSA PKCSV15 un-padding");*/
-            ret = RsaUnPad(pkcsBlock, pkcsBlockLen, out, padValue);
+            ret = RsaUnPad(pkcsBlock, pkcsBlockLen, (const byte **)(void *)out,
+                           padValue);
             break;
 
     #ifndef WC_NO_RSA_OAEP

@@ -1496,7 +1496,7 @@ static int GetASN_StoreData(const ASNItem* asn, ASNGetData* data,
             }
             FALL_THROUGH;
         case ASN_DATA_TYPE_MP_INITED:
-            err = mp_read_unsigned_bin(data->data.mp, (byte*)input + idx,
+            err = mp_read_unsigned_bin(data->data.mp, (const byte*)input + idx,
                                        (word32)len);
             if (err != 0) {
             #ifdef WOLFSSL_DEBUG_ASN_TEMPLATE
@@ -2257,9 +2257,10 @@ void GetASN_GetConstRef(ASNGetData * dataASN, const byte** data, word32* length)
  * @param [out] data     Pointer to data of item.
  * @param [out] length   Length of buffer in bytes.
  */
-void GetASN_GetRef(ASNGetData * dataASN, byte** data, word32* length)
+void GetASN_GetRef(const ASNGetData * dataASN, const byte** data,
+                   word32* length)
 {
-    *data   = (byte*)dataASN->data.ref.data;
+    *data   = (const byte*)dataASN->data.ref.data;
     *length =        dataASN->data.ref.length;
 }
 
@@ -2269,9 +2270,10 @@ void GetASN_GetRef(ASNGetData * dataASN, byte** data, word32* length)
  * @param [out] data     Pointer to .
  * @param [out] length   Length of buffer in bytes.
  */
-void GetASN_OIDData(ASNGetData * dataASN, byte** data, word32* length)
+void GetASN_OIDData(const ASNGetData * dataASN, const byte** data,
+                    word32* length)
 {
-    *data   = (byte*)dataASN->data.oid.data;
+    *data   = (const byte*)dataASN->data.oid.data;
     *length =        dataASN->data.oid.length;
 }
 
@@ -10158,10 +10160,10 @@ int DecryptContent(byte* input, word32 sz, const char* password, int passwordSz)
     word32 keySz = 0;
     word32 saltSz = 0;
     word32 shaOid = 0;
-    byte*  salt = NULL;
-    byte*  key = NULL;
+    const byte* salt = NULL;
+    const byte* key = NULL;
     byte   cbcIv[MAX_IV_SIZE];
-    byte*  params = NULL;
+    const byte* params = NULL;
 
     WOLFSSL_ENTER("DecryptContent");
 
@@ -10248,9 +10250,10 @@ int DecryptContent(byte* input, word32 sz, const char* password, int passwordSz)
 
     if (ret == 0) {
         /* Decrypt the key. */
+        /* safe cast -- key is actually inside the readwrite "input" buffer. */
         ret = wc_CryptKey(
-            password, passwordSz, salt, (int)saltSz, (int)iterations, id, key,
-            (int)keySz, version, cbcIv, 0, (int)shaOid);
+            password, passwordSz, salt, (int)saltSz, (int)iterations, id,
+            (byte *)(wc_ptr_t)key, (int)keySz, version, cbcIv, 0, (int)shaOid);
     }
     if (ret == 0) {
         /* Copy the decrypted key into the input (inline). */
@@ -10473,8 +10476,10 @@ static int EncryptContentPBES2(byte* input, word32 inputSz, byte* out,
                  (int)(p8EncPbes2ASN_Length - P8ENCPBES2ASN_IDX_ALGO_SEQ),
                  out);
 
-        saltEnc = (byte*)
-            dataASN[P8ENCPBES2ASN_IDX_ALGO_PARAMS_PBKDF2_SALT].data.buffer.data;
+        /* safe cast -- the pointer is actually inside the output buffer. */
+        saltEnc = (byte*)(wc_ptr_t)
+            dataASN[P8ENCPBES2ASN_IDX_ALGO_PARAMS_PBKDF2_SALT].
+                data.buffer.data;
         if (genSalt) {
             /* Generate salt into encoding. */
             ret = wc_RNG_GenerateBlock(rng, saltEnc, saltSz);
@@ -10484,13 +10489,15 @@ static int EncryptContentPBES2(byte* input, word32 inputSz, byte* out,
         }
     }
     if (ret == 0) {
-        cbcIv = (byte*)
+        /* safe cast -- the pointer is actually inside the output buffer. */
+        cbcIv = (byte*)(wc_ptr_t)
             dataASN[P8ENCPBES2ASN_IDX_ALGO_ENCS_PARAMS].data.buffer.data;
         ret = wc_RNG_GenerateBlock(rng, cbcIv, (word32)blockSz);
     }
     if (ret == 0) {
         /* Store PKCS#8 key in output buffer. */
-        byte* pkcs8 = (byte*)
+        /* safe cast -- the pointer is actually inside the output buffer. */
+        byte* pkcs8 = (byte*)(wc_ptr_t)
             dataASN[P8ENCPBES2ASN_IDX_ENCDATA].data.buffer.data;
         XMEMCPY(pkcs8, input, inputSz);
         (void)wc_PkcsPad(pkcs8, inputSz, (word32)blockSz);
@@ -10655,16 +10662,19 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
 
         if (salt == NULL) {
             /* Generate salt into encoding. */
-            salt = (byte*)dataASN[P8ENCPBES1ASN_IDX_ENCALGO_PBEPARAM_SALT].
-                data.buffer.data;
+            /* safe cast -- the pointer is actually inside the output buffer. */
+            salt = (byte*)(wc_ptr_t)
+                dataASN[P8ENCPBES1ASN_IDX_ENCALGO_PBEPARAM_SALT].
+                    data.buffer.data;
             ret = wc_RNG_GenerateBlock(rng, salt, saltSz);
         }
     }
     if (ret == 0) {
         byte cbcIv[MAX_IV_SIZE];
         /* Store PKCS#8 key in output buffer. */
-        byte* pkcs8 =
-            (byte*)dataASN[P8ENCPBES1ASN_IDX_ENCDATA].data.buffer.data;
+        /* safe cast -- the pointer is actually inside the output buffer. */
+        byte* pkcs8 = (byte*)(wc_ptr_t)
+            dataASN[P8ENCPBES1ASN_IDX_ENCDATA].data.buffer.data;
         XMEMCPY(pkcs8, input, inputSz);
         (void)wc_PkcsPad(pkcs8, inputSz, (word32)blockSz);
 
@@ -11914,12 +11924,33 @@ void FreeAltNames(DNS_entry* altNames, void* heap)
     while (altNames) {
         DNS_entry* tmp = altNames->next;
 
-        XFREE(altNames->name, heap, DYNAMIC_TYPE_ALTNAME);
+        if (altNames->nameStored) {
+            /* safe cast -- .nameStored signifies that the pointer comes from
+             * our own earlier XMALLOC().
+             */
+            XFREE((void *)(wc_ptr_t)altNames->name, heap,
+                  DYNAMIC_TYPE_ALTNAME);
+            altNames->nameStored = 0;
+        }
     #ifdef WOLFSSL_IP_ALT_NAME
-        XFREE(altNames->ipString, heap, DYNAMIC_TYPE_ALTNAME);
+        if (altNames->ipStringStored) {
+            /* safe cast -- .ipStringStored signifies that the pointer comes
+             * from our own earlier XMALLOC().
+             */
+            XFREE((void *)(wc_ptr_t)altNames->ipString, heap,
+                  DYNAMIC_TYPE_ALTNAME);
+            altNames->ipStringStored = 0;
+        }
     #endif
     #ifdef WOLFSSL_RID_ALT_NAME
-        XFREE(altNames->ridString, heap, DYNAMIC_TYPE_ALTNAME);
+        if (altNames->ridStringStored) {
+            /* safe cast -- .ridStringStored signifies that the pointer comes
+             * from our own earlier XMALLOC().
+             */
+            XFREE((void *)(wc_ptr_t)altNames->ridString, heap,
+                  DYNAMIC_TYPE_ALTNAME);
+            altNames->ridStringStored = 0;
+        }
     #endif
         XFREE(altNames,       heap, DYNAMIC_TYPE_ALTNAME);
         altNames = tmp;
@@ -11953,11 +11984,14 @@ DNS_entry* AltNameDup(DNS_entry* from, void* heap)
 
 
     ret->name = CopyString(from->name, from->len, heap, DYNAMIC_TYPE_ALTNAME);
+    ret->nameStored = 1;
 #ifdef WOLFSSL_IP_ALT_NAME
     ret->ipString = CopyString(from->ipString, 0, heap, DYNAMIC_TYPE_ALTNAME);
+    ret->ipStringStored = 1;
 #endif
 #ifdef WOLFSSL_RID_ALT_NAME
     ret->ridString = CopyString(from->ridString, 0, heap, DYNAMIC_TYPE_ALTNAME);
+    ret->ridStringStored = 1;
 #endif
     if (ret->name == NULL
 #ifdef WOLFSSL_IP_ALT_NAME
@@ -12013,10 +12047,18 @@ void FreeDecodedCert(DecodedCert* cert)
     if (cert == NULL)
         return;
     if (cert->subjectCNStored == 1) {
-        XFREE(cert->subjectCN, cert->heap, DYNAMIC_TYPE_SUBJECT_CN);
+        /* safe cast -- .subjectCNStored signifies that the pointer comes from
+         * our own earlier XMALLOC().
+         */
+        XFREE((void*)(wc_ptr_t)cert->subjectCN, cert->heap,
+              DYNAMIC_TYPE_SUBJECT_CN);
     }
     if (cert->pubKeyStored == 1) {
-        XFREE((void*)cert->publicKey, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        /* safe cast -- .pubKeyStored signifies that the pointer comes from our
+         * own earlier XMALLOC().
+         */
+        XFREE((void*)(wc_ptr_t)cert->publicKey, cert->heap,
+              DYNAMIC_TYPE_PUBLIC_KEY);
     }
     if (cert->weOwnAltNames && cert->altNames)
         FreeAltNames(cert->altNames, cert->heap);
@@ -12280,7 +12322,8 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int outLen,
             /* Skip to where public point is to be encoded. */
             output += sz - pubSz;
             /* Cache the location to place the name curve OID. */
-            curveOid = (byte*)
+            /* safe cast -- the pointer is actually inside the output buffer. */
+            curveOid = (byte*)(wc_ptr_t)
                 dataASN[ECCPUBLICKEYASN_IDX_ALGOID_CURVEID].data.buffer.data;
         }
 
@@ -12431,7 +12474,9 @@ int SetAsymKeyDerPublic(const byte* pubKey, word32 pubKeyLen,
             /* Encode public key. */
             SetASN_Items(publicKeyASN, dataASN, publicKeyASN_Length, output);
             /* Set location to encode public point. */
-            output = (byte*)dataASN[PUBKEYASN_IDX_PUBKEY].data.buffer.data;
+            /* safe cast -- the pointer is actually inside the output buffer. */
+            output = (byte*)(wc_ptr_t)
+                dataASN[PUBKEYASN_IDX_PUBKEY].data.buffer.data;
         }
 
         FREE_ASNSETDATA(dataASN, NULL);
@@ -13135,7 +13180,8 @@ int GetHashId(const byte* id, int length, byte* hash, int hashAlg)
 
 /* Set the string for a name component into the subject name. */
 #define SetCertNameSubject(cert, id, val) \
-    *((char**)(((byte *)(cert)) + certNameSubject[(id) - 3].data)) = (val)
+    *((const char**)(((byte *)(cert)) + certNameSubject[(id) - 3].data)) = \
+        (val)
 /* Set the string length for a name component into the subject name. */
 #define SetCertNameSubjectLen(cert, id, val) \
     *((int*)(((byte *)(cert)) + certNameSubject[(id) - 3].len)) = (int)(val)
@@ -13166,7 +13212,8 @@ int GetHashId(const byte* id, int length, byte* hash, int hashAlg)
 
 /* Set the string for a name component into the issuer name. */
 #define SetCertNameIssuer(cert, id, val) \
-    *((char**)(((byte *)(cert)) + certNameSubject[(id) - 3].dataI)) = (val)
+    *((const char**)(((byte *)(cert)) + certNameSubject[(id) - 3].dataI)) = \
+        (val)
 /* Set the string length for a name component into the issuer name. */
 #define SetCertNameIssuerLen(cert, id, val) \
     *((int*)(((byte *)(cert)) + certNameSubject[(id) - 3].lenI)) = (int)(val)
@@ -13603,7 +13650,7 @@ static int GenerateDNSEntryIPString(DNS_entry* entry, void* heap)
     int ret = 0;
     size_t nameSz = 0;
     char tmpName[WOLFSSL_MAX_IPSTR];
-    unsigned char* ip;
+    const unsigned char* ip;
 
     if (entry == NULL || entry->type != ASN_IP_TYPE) {
         return BAD_FUNC_ARG;
@@ -13614,7 +13661,7 @@ static int GenerateDNSEntryIPString(DNS_entry* entry, void* heap)
         WOLFSSL_MSG("Unexpected IP size");
         return BAD_FUNC_ARG;
     }
-    ip = (unsigned char*)entry->name;
+    ip = (const unsigned char*)entry->name;
 
     XMEMSET(tmpName, 0, sizeof(tmpName));
 
@@ -13648,6 +13695,9 @@ static int GenerateDNSEntryIPString(DNS_entry* entry, void* heap)
         DYNAMIC_TYPE_ALTNAME);
     if (entry->ipString == NULL) {
         ret = MEMORY_E;
+    }
+    else {
+        entry->ipStringStored = 1;
     }
 
     if (ret == 0) {
@@ -13747,6 +13797,9 @@ static int GenerateDNSEntryRIDString(DNS_entry* entry, void* heap)
         if (entry->ridString == NULL) {
             ret = MEMORY_E;
         }
+        else {
+            entry->ridStringStored = 1;
+        }
 
         if (ret == 0) {
             XMEMCPY(entry->ridString, finalName, (word32)(nameSz + 1));
@@ -13809,6 +13862,7 @@ static int SetDNSEntry(void* heap, const char* str, int strLen,
 {
     DNS_entry* dnsEntry;
     int ret = 0;
+    char *dnsEntry_name = NULL;
 
     /* TODO: consider one malloc. */
     /* Allocate DNS Entry object. */
@@ -13818,18 +13872,21 @@ static int SetDNSEntry(void* heap, const char* str, int strLen,
     }
     if (ret == 0) {
         /* Allocate DNS Entry name - length of string plus 1 for NUL. */
-        dnsEntry->name = (char*)XMALLOC((size_t)strLen + 1, heap,
-                                                          DYNAMIC_TYPE_ALTNAME);
+        dnsEntry->name = dnsEntry_name = (char*)XMALLOC((size_t)strLen + 1,
+                                                    heap, DYNAMIC_TYPE_ALTNAME);
         if (dnsEntry->name == NULL) {
             ret = MEMORY_E;
+        }
+        else {
+            dnsEntry->nameStored = 1;
         }
     }
     if (ret == 0) {
         /* Set tag type, name length, name and NUL terminate name. */
         dnsEntry->type = type;
         dnsEntry->len = strLen;
-        XMEMCPY(dnsEntry->name, str, (size_t)strLen);
-        dnsEntry->name[strLen] = '\0';
+        XMEMCPY(dnsEntry_name, str, (size_t)strLen);
+        dnsEntry_name[strLen] = '\0';
 
 #ifdef WOLFSSL_RID_ALT_NAME
         /* store registeredID as a string */
@@ -13848,7 +13905,7 @@ static int SetDNSEntry(void* heap, const char* str, int strLen,
 
     /* failure cleanup */
     if (ret != 0 && dnsEntry != NULL) {
-        XFREE(dnsEntry->name, heap, DYNAMIC_TYPE_ALTNAME);
+        XFREE(dnsEntry_name, heap, DYNAMIC_TYPE_ALTNAME);
         XFREE(dnsEntry, heap, DYNAMIC_TYPE_ALTNAME);
     }
 
@@ -13865,21 +13922,21 @@ static int SetDNSEntry(void* heap, const char* str, int strLen,
  * @param [in]      tag     BER tag representing encoding of string.
  * @return  0 on success, negative values on failure.
  */
-static int SetSubject(DecodedCert* cert, int id, byte* str, int strLen,
+static int SetSubject(DecodedCert* cert, int id, const byte* str, int strLen,
                       byte tag)
 {
     int ret = 0;
 
     /* Put string and encoding into certificate. */
     if (id == ASN_COMMON_NAME) {
-        cert->subjectCN = (char *)str;
+        cert->subjectCN = (const char *)str;
         cert->subjectCNLen = (int)strLen;
         cert->subjectCNEnc = (char)tag;
     }
 #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
     else if (id > ASN_COMMON_NAME && id <= ASN_USER_ID) {
         /* Use table and offsets to put data into appropriate fields. */
-        SetCertNameSubject(cert, id, (char*)str);
+        SetCertNameSubject(cert, id, (const char*)str);
         SetCertNameSubjectLen(cert, id, strLen);
         SetCertNameSubjectEnc(cert, id, tag);
     }
@@ -13887,19 +13944,19 @@ static int SetSubject(DecodedCert* cert, int id, byte* str, int strLen,
 #if !defined(IGNORE_NAME_CONSTRAINTS) || \
      defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
     else if (id == ASN_EMAIL) {
-        cert->subjectEmail = (char*)str;
+        cert->subjectEmail = (const char*)str;
         cert->subjectEmailLen = strLen;
     }
 #endif
 #ifdef WOLFSSL_CERT_EXT
     /* TODO: consider mapping id to an index and using SetCertNameSubect*(). */
     else if (id == ASN_JURIS_C) {
-        cert->subjectJC = (char*)str;
+        cert->subjectJC = (const char*)str;
         cert->subjectJCLen = strLen;
         cert->subjectJCEnc = (char)tag;
     }
     else if (id == ASN_JURIS_ST) {
-        cert->subjectJS = (char*)str;
+        cert->subjectJS = (const char*)str;
         cert->subjectJSLen = strLen;
         cert->subjectJSEnc = (char)tag;
     }
@@ -13919,25 +13976,25 @@ static int SetSubject(DecodedCert* cert, int id, byte* str, int strLen,
  * @param [in]      tag     BER tag representing encoding of string.
  * @return  0 on success, negative values on failure.
  */
-static int SetIssuer(DecodedCert* cert, int id, byte* str, int strLen,
+static int SetIssuer(DecodedCert* cert, int id, const byte* str, int strLen,
                       byte tag)
 {
     int ret = 0;
 
     /* Put string and encoding into certificate. */
     if (id == ASN_COMMON_NAME) {
-        cert->issuerCN = (char *)str;
+        cert->issuerCN = (const char *)str;
         cert->issuerCNLen = (int)strLen;
         cert->issuerCNEnc = (char)tag;
     }
     else if (id > ASN_COMMON_NAME && id <= ASN_USER_ID) {
         /* Use table and offsets to put data into appropriate fields. */
-        SetCertNameIssuer(cert, id, (char*)str);
+        SetCertNameIssuer(cert, id, (const char*)str);
         SetCertNameIssuerLen(cert, id, strLen);
         SetCertNameIssuerEnc(cert, id, tag);
     }
     else if (id == ASN_EMAIL) {
-        cert->issuerEmail = (char*)str;
+        cert->issuerEmail = (const char*)str;
         cert->issuerEmailLen = strLen;
     }
 
@@ -13963,7 +14020,7 @@ static int GetRDN(DecodedCert* cert, char* full, word32* idx, int* nid,
     int         ret = 0;
     const char* typeStr = NULL;
     byte        typeStrLen = 0;
-    byte*       oid;
+    const byte* oid;
     word32      oidSz;
     int         id = 0;
 
@@ -14075,7 +14132,7 @@ static int GetRDN(DecodedCert* cert, char* full, word32* idx, int* nid,
 
     if ((ret == 0) && (typeStr != NULL)) {
         /* OID type to store for subject name and add to full string. */
-        byte*  str;
+        const byte* str;
         word32 strLen;
         byte   tag = dataASN[RDNASN_IDX_ATTR_VAL].tag;
 
@@ -14215,7 +14272,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
              * (do parsing for WOLFSSL_X509_NAME on demand) */
             if (ret == 0) {
                 int enc;
-                byte*  str;
+                const byte* str;
                 word32 strLen;
                 byte   tag = dataASN[RDNASN_IDX_ATTR_VAL].tag;
 
@@ -17506,7 +17563,7 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
                     subjectDnsName.next = NULL;
                     subjectDnsName.type = ASN_RFC822_TYPE;
                     subjectDnsName.len  = cert->subjectEmailLen;
-                    subjectDnsName.name = (char *)cert->subjectEmail;
+                    subjectDnsName.name = cert->subjectEmail;
                 }
                 break;
             case ASN_DIR_TYPE:
@@ -17524,7 +17581,7 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
                     subjectDnsName.next = NULL;
                     subjectDnsName.type = ASN_DIR_TYPE;
                     subjectDnsName.len = cert->subjectRawLen;
-                    subjectDnsName.name = (char *)cert->subjectRaw;
+                    subjectDnsName.name = (const char *)cert->subjectRaw;
                 }
                 break;
             case ASN_URI_TYPE:
@@ -19306,7 +19363,7 @@ static int DecodeCertPolicy(const byte* input, word32 sz, DecodedCert* cert)
     #endif
             ) {
         ASNGetData dataASN[policyInfoASN_Length];
-        byte* data = NULL;
+        const byte* data = NULL;
         word32 length = 0;
 
         /* Clear dynamic data and check OID is a cert policy type. */
@@ -19441,7 +19498,7 @@ static int DecodeSubjDirAttr(const byte* input, word32 sz, DecodedCert* cert)
                 (dataASN[SUBJDIRATTRASN_IDX_OID].data.oid.sum == SDA_COC_OID)) {
             int cuLen;
             word32 setIdx = 0;
-            byte* setData;
+            const byte* setData;
             word32 setLen;
 
             GetASN_GetRef(&dataASN[SUBJDIRATTRASN_IDX_SET], &setData, &setLen);
@@ -20836,8 +20893,8 @@ static int DecodeCertReqAttrValue(DecodedCert* cert, int* criticalExt,
                                1, input, &idx, maxIdx);
             if (ret == 0) {
                 /* Store references to password data. */
-                cert->contentType =
-                        (char*)strDataASN[STRATTRASN_IDX_STR].data.ref.data;
+                cert->contentType = (const char*)
+                        strDataASN[STRATTRASN_IDX_STR].data.ref.data;
                 cert->contentTypeLen =
                         (int)strDataASN[STRATTRASN_IDX_STR].data.ref.length;
             }
@@ -20855,8 +20912,8 @@ static int DecodeCertReqAttrValue(DecodedCert* cert, int* criticalExt,
                                1, input, &idx, maxIdx);
             if (ret == 0) {
                 /* Store references to password data. */
-                cert->cPwd =
-                        (char*)strDataASN[STRATTRASN_IDX_STR].data.ref.data;
+                cert->cPwd = (const char*)
+                    strDataASN[STRATTRASN_IDX_STR].data.ref.data;
                 cert->cPwdLen = (int)strDataASN[STRATTRASN_IDX_STR].
                     data.ref.length;
             }
@@ -20875,8 +20932,8 @@ static int DecodeCertReqAttrValue(DecodedCert* cert, int* criticalExt,
                                1, input, &idx, maxIdx);
             if (ret == 0) {
                 /* Store references to serial number. */
-                cert->sNum =
-                        (char*)strDataASN[STRATTRASN_IDX_STR].data.ref.data;
+                cert->sNum = (const char*)
+                    strDataASN[STRATTRASN_IDX_STR].data.ref.data;
                 cert->sNumLen = (int)strDataASN[STRATTRASN_IDX_STR].
                     data.ref.length;
                 /* Store serial number if small enough. */
@@ -20896,8 +20953,8 @@ static int DecodeCertReqAttrValue(DecodedCert* cert, int* criticalExt,
                                1, input, &idx, maxIdx);
             if (ret == 0) {
                 /* Store references to unstructured name. */
-                cert->unstructuredName =
-                        (char*)strDataASN[STRATTRASN_IDX_STR].data.ref.data;
+                cert->unstructuredName = (const char*)
+                    strDataASN[STRATTRASN_IDX_STR].data.ref.data;
                 cert->unstructuredNameLen = (int)strDataASN[STRATTRASN_IDX_STR].
                     data.ref.length;
             }
@@ -21330,7 +21387,7 @@ static int GetAKIHash(const byte* input, word32 maxIdx, word32 sigOID,
     int ret = 0;
     word32 idx = 0;
     word32 extEndIdx;
-    byte* extData;
+    const byte* extData;
     word32 extDataSz;
     byte critical;
 
@@ -22633,8 +22690,17 @@ void FreeSigner(Signer* signer, void* heap)
 {
     (void)signer;
     (void)heap;
-    XFREE(signer->name, heap, DYNAMIC_TYPE_SUBJECT_CN);
-    XFREE((void*)signer->publicKey, heap, DYNAMIC_TYPE_PUBLIC_KEY);
+
+    /* this cast is safe because signer->name is only set in FillSigner()
+     * from cert->subjectCN, and only if cert->subjectCNStored, in which case
+     * cert->subjectCN is set to NULL, imparting ownership to the Signer object.
+     */
+    XFREE((void *)(wc_ptr_t)signer->name, heap, DYNAMIC_TYPE_SUBJECT_CN);
+    /* this cast is safe because signer->publicKey is only set in FillSigner()
+     * from cert->publicKey, and only if cert->pubKeyStored, in which case
+     * cert->publicKey is set to NULL, imparting ownership to the Signer object.
+     */
+    XFREE((void*)(wc_ptr_t)signer->publicKey, heap, DYNAMIC_TYPE_PUBLIC_KEY);
 #ifdef WOLFSSL_DUAL_ALG_CERTS
     XFREE(signer->sapkiDer, heap, DYNAMIC_TYPE_PUBLIC_KEY);
 #endif
@@ -22709,7 +22775,11 @@ void FreeTrustedPeer(TrustedPeerCert* tp, void* heap)
         return;
     }
 
-    XFREE(tp->name, heap, DYNAMIC_TYPE_SUBJECT_CN);
+    /* safe cast -- when .name is set in AddTrustedPeer() from cert->subjectCN,
+     * it inherits the allocation from ParseCert(), and cert->subjectCN is set
+     * to NULL.
+     */
+    XFREE((void *)(wc_ptr_t)tp->name, heap, DYNAMIC_TYPE_SUBJECT_CN);
 
     XFREE(tp->sig, heap, DYNAMIC_TYPE_SIGNATURE);
 #ifndef IGNORE_NAME_CONSTRAINTS
@@ -23327,7 +23397,7 @@ int wc_EncryptedInfoParse(EncryptedInfo* info, const char** pBuffer,
     int         err = 0;
     const char* bufferStart;
     const char* bufferEnd;
-    char*       line;
+    const char* line;
 
     if (info == NULL || pBuffer == NULL || bufSz == 0)
         return BAD_FUNC_ARG;
@@ -23340,8 +23410,8 @@ int wc_EncryptedInfoParse(EncryptedInfo* info, const char** pBuffer,
                     min((word32)bufSz, PEM_LINE_LEN));
     if (line != NULL) {
         word32      lineSz;
-        char*       finish;
-        char*       start;
+        const char* finish;
+        const char* start;
         word32      startSz;
         const char* newline = NULL;
 
@@ -23625,7 +23695,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 
     /* map header if not found for type */
     for (;;) {
-        headerEnd = XSTRNSTR((char*)buff, header, sz);
+        headerEnd = XSTRNSTR((const char *)buff, header, sz);
         if (headerEnd) {
             break;
         }
@@ -23851,7 +23921,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 #endif /* WOLFSSL_ENCRYPTED_KEYS */
 
     /* find footer */
-    footerEnd = XSTRNSTR(headerEnd, footer, (unsigned int)((char*)buff +
+    footerEnd = XSTRNSTR(headerEnd, footer, (unsigned int)((const char*)buff +
         sz - headerEnd));
     if (!footerEnd) {
         if (info)
@@ -23890,7 +23960,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
     case CERT_TYPE:
     case TRUSTED_CERT_TYPE:
     case CRL_TYPE:
-        if (Base64_Decode_nonCT((byte*)headerEnd, (word32)neededSz,
+        if (Base64_Decode_nonCT((const byte*)headerEnd, (word32)neededSz,
                           der->buffer, &der->length) < 0)
         {
             WOLFSSL_ERROR(BUFFER_E);
@@ -23898,7 +23968,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
         }
         break;
     default:
-        if (Base64_Decode((byte*)headerEnd, (word32)neededSz,
+        if (Base64_Decode((const byte*)headerEnd, (word32)neededSz,
                           der->buffer, &der->length) < 0) {
             WOLFSSL_ERROR(BUFFER_E);
             return BUFFER_E;
@@ -24112,7 +24182,8 @@ int wc_KeyPemToDer(const unsigned char* pem, int pemSz,
     XMEMSET(info, 0, sizeof(EncryptedInfo));
 #ifdef WOLFSSL_ENCRYPTED_KEYS
     info->passwd_cb = KeyPemToDerPassCb;
-    info->passwd_userdata = (void*)pass;
+    /* if user passes readonly data, user must only access it readonly. */
+    info->passwd_userdata = (void*)(wc_ptr_t)pass;
 #else
     (void)pass;
 #endif
@@ -24985,7 +25056,7 @@ static int wc_SetCert_LoadDer(Cert* cert, const byte* der, word32 derSz,
             ret = ParseCertRelative((DecodedCert*)cert->decodedCert,
                     CERT_TYPE, 0, NULL, NULL);
             if (ret >= 0) {
-                cert->der = (byte*)der;
+                cert->der = der;
             }
             else {
                 wc_SetCert_Free(cert);
@@ -26652,8 +26723,11 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
     #ifdef WOLFSSL_CERT_EXT
         if (cert->extKeyUsage != 0){
             /* Encode Extended Key Usage into space provided. */
-            if (SetExtKeyUsage(cert,
-                    (byte*)dataASN[CERTEXTSASN_IDX_EKU_STR].data.buffer.data,
+            /* safe cast -- the pointer is actually inside the output buffer. */
+            if (SetExtKeyUsage(
+                    cert,
+                    (byte*)(wc_ptr_t)
+                        dataASN[CERTEXTSASN_IDX_EKU_STR].data.buffer.data,
                     dataASN[CERTEXTSASN_IDX_EKU_STR].data.buffer.length,
                     cert->extKeyUsage) <= 0) {
                 ret = KEYUSAGE_E;
@@ -26661,8 +26735,10 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
         }
         if ((!forRequest) && (cert->certPoliciesNb > 0)) {
             /* Encode Certificate Policies into space provided. */
+            /* safe cast -- the pointer is actually inside the output buffer. */
             if (SetCertificatePolicies(
-                    (byte*)dataASN[CERTEXTSASN_IDX_POLICIES_INFO].data.buffer.data,
+                    (byte*)(wc_ptr_t)
+                        dataASN[CERTEXTSASN_IDX_POLICIES_INFO].data.buffer.data,
                     dataASN[CERTEXTSASN_IDX_POLICIES_INFO].data.buffer.length,
                     cert->certPolicies, cert->certPoliciesNb, cert->heap) <= 0) {
                 ret = CERTPOLICIES_E;
@@ -27409,16 +27485,20 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
             /* Encode issuer name into buffer. Use the subject as the issuer
              * if it is self-signed. Size will be correct because we did the
              * same for size. */
+            /* safe cast -- the pointer is actually inside derBuffer. */
             ret = SetNameEx(
-                (byte*)dataASN[X509CERTASN_IDX_TBS_ISSUER_SEQ].data.buffer.data,
+                (byte*)(wc_ptr_t)
+                    dataASN[X509CERTASN_IDX_TBS_ISSUER_SEQ].data.buffer.data,
                 dataASN[X509CERTASN_IDX_TBS_ISSUER_SEQ].data.buffer.length,
                 cert->selfSigned ? &cert->subject : &cert->issuer, cert->heap);
         }
     }
     if ((ret >= 0) && (sbjRawLen == 0)) {
         /* Encode subject name into buffer. */
+        /* safe cast -- the pointer is actually inside derBuffer. */
         ret = SetNameEx(
-            (byte*)dataASN[X509CERTASN_IDX_TBS_SUBJECT_SEQ].data.buffer.data,
+            (byte*)(wc_ptr_t)
+                dataASN[X509CERTASN_IDX_TBS_SUBJECT_SEQ].data.buffer.data,
             dataASN[X509CERTASN_IDX_TBS_SUBJECT_SEQ].data.buffer.length,
             &cert->subject, cert->heap);
     }
@@ -27426,17 +27506,19 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
         if (cert->beforeDateSz == 0 || cert->afterDateSz == 0)
         {
             /* Encode validity into buffer. */
+            /* safe casts -- the pointers are actually inside derBuffer. */
             ret = SetValidity(
-                (byte*)dataASN[X509CERTASN_IDX_TBS_VALIDITY_NOTB_GT]
+                (byte*)(wc_ptr_t)dataASN[X509CERTASN_IDX_TBS_VALIDITY_NOTB_GT]
                                .data.buffer.data,
-                (byte*)dataASN[X509CERTASN_IDX_TBS_VALIDITY_NOTA_GT]
+                (byte*)(wc_ptr_t)dataASN[X509CERTASN_IDX_TBS_VALIDITY_NOTA_GT]
                                .data.buffer.data, cert->daysValid);
         }
     }
     if (ret >= 0) {
         /* Encode public key into buffer. */
+        /* safe cast -- the pointer is actually inside derBuffer. */
         ret = EncodePublicKey(cert->keyType,
-            (byte*)dataASN[X509CERTASN_IDX_TBS_SPUBKEYINFO_SEQ]
+            (byte*)(wc_ptr_t)dataASN[X509CERTASN_IDX_TBS_SPUBKEYINFO_SEQ]
                            .data.buffer.data,
             (int)dataASN[X509CERTASN_IDX_TBS_SPUBKEYINFO_SEQ]
                            .data.buffer.length,
@@ -27445,9 +27527,12 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
     }
     if ((ret >= 0) && (!dataASN[X509CERTASN_IDX_TBS_EXT_SEQ].noOut)) {
         /* Encode extensions into buffer. */
-        ret = EncodeExtensions(cert,
-                (byte*)dataASN[X509CERTASN_IDX_TBS_EXT_SEQ].data.buffer.data,
-                dataASN[X509CERTASN_IDX_TBS_EXT_SEQ].data.buffer.length, 0);
+        /* safe cast -- the pointer is actually inside derBuffer. */
+        ret = EncodeExtensions(
+            cert,
+            (byte*)(wc_ptr_t)
+                dataASN[X509CERTASN_IDX_TBS_EXT_SEQ].data.buffer.data,
+            dataASN[X509CERTASN_IDX_TBS_EXT_SEQ].data.buffer.length, 0);
     }
     if (ret >= 0) {
         /* Store encoded certificate body size. */
@@ -27827,16 +27912,21 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
     #endif
         {
             /* Encode subject name into space in buffer. */
+            /* safe cast -- the pointer is actually inside derBuffer. */
             ret = SetNameEx(
-                (byte*)dataASN[CERTREQBODYASN_IDX_SUBJ_SEQ].data.buffer.data,
+                (byte*)(wc_ptr_t)
+                    dataASN[CERTREQBODYASN_IDX_SUBJ_SEQ].data.buffer.data,
                 dataASN[CERTREQBODYASN_IDX_SUBJ_SEQ].data.buffer.length,
                 &cert->subject, cert->heap);
         }
     }
     if (ret >= 0 && derBuffer != NULL) {
         /* Encode public key into space in buffer. */
-        ret = EncodePublicKey(cert->keyType,
-            (byte*)dataASN[CERTREQBODYASN_IDX_SPUBKEYINFO_SEQ].data.buffer.data,
+        /* safe cast -- the pointer is actually inside derBuffer. */
+        ret = EncodePublicKey(
+            cert->keyType,
+            (byte*)(wc_ptr_t)
+                dataASN[CERTREQBODYASN_IDX_SPUBKEYINFO_SEQ].data.buffer.data,
             (int)dataASN[CERTREQBODYASN_IDX_SPUBKEYINFO_SEQ].data.buffer.length,
             rsaKey, eccKey, ed25519Key, ed448Key, dsaKey, falconKey,
             dilithiumKey, sphincsKey);
@@ -27844,9 +27934,12 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
     if ((ret >= 0 && derBuffer != NULL) &&
             (!dataASN[CERTREQBODYASN_IDX_EXT_BODY].noOut)) {
         /* Encode extensions into space in buffer. */
-        ret = EncodeExtensions(cert,
-                (byte*)dataASN[CERTREQBODYASN_IDX_EXT_BODY].data.buffer.data,
-                dataASN[CERTREQBODYASN_IDX_EXT_BODY].data.buffer.length, 1);
+        /* safe cast -- the pointer is actually inside derBuffer. */
+        ret = EncodeExtensions(
+            cert,
+            (byte*)(wc_ptr_t)
+                dataASN[CERTREQBODYASN_IDX_EXT_BODY].data.buffer.data,
+            dataASN[CERTREQBODYASN_IDX_EXT_BODY].data.buffer.length, 1);
     }
     if (ret >= 0) {
         /* Store encoded certificate request body size. */
@@ -28997,9 +29090,11 @@ int wc_SetCustomExtension(Cert *cert, int critical, const char *oid,
 
     ext = &cert->customCertExt[cert->customCertExtCount];
 
-    ext->oid = (char*)oid;
+    /* if supplied oid is readonly, user must access ext->oid readonly. */
+    ext->oid = (char*)(wc_ptr_t)oid;
     ext->crit = (critical == 0) ? 0 : 1;
-    ext->val = (byte*)der;
+    /* if supplied der is readonly, user must access ext->der readonly. */
+    ext->val = (byte*)(wc_ptr_t)der;
     ext->valSz = (int)derSz;
 
     cert->customCertExtCount++;
@@ -30001,43 +30096,55 @@ static int EccSpecifiedECDomainDecode(const byte* input, word32 inSz,
     /* Allocate buffer to put hex strings into. */
     if (ret == 0) {
         /* Base X-ordinate */
+        char *curve_Gx = NULL;
         ret = DataToHexStringAlloc(base + 1, (word32)curve->size,
-                                   (char**)&curve->Gx, heap,
+                                   &curve_Gx, heap,
                                    DYNAMIC_TYPE_ECC_BUFFER);
+        curve->Gx = curve_Gx;
     }
     if (ret == 0) {
         /* Base Y-ordinate */
+        char *curve_Gy = NULL;
         ret = DataToHexStringAlloc(base + 1 + curve->size, (word32)curve->size,
-                                   (char**)&curve->Gy, heap,
+                                   &curve_Gy, heap,
                                    DYNAMIC_TYPE_ECC_BUFFER);
+        curve->Gy = curve_Gy;
     }
     if (ret == 0) {
         /* Prime */
+        char *curve_prime = NULL;
         ret = DataToHexStringAlloc(
                 dataASN[ECCSPECIFIEDASN_IDX_PRIME_P].data.ref.data,
                 dataASN[ECCSPECIFIEDASN_IDX_PRIME_P].data.ref.length,
-                (char**)&curve->prime, heap, DYNAMIC_TYPE_ECC_BUFFER);
+                &curve_prime, heap, DYNAMIC_TYPE_ECC_BUFFER);
+        curve->prime = curve_prime;
     }
     if (ret == 0) {
         /* Parameter A */
+        char *curve_Af = NULL;
         ret = DataToHexStringAlloc(
                 dataASN[ECCSPECIFIEDASN_IDX_PARAM_A].data.ref.data,
                 dataASN[ECCSPECIFIEDASN_IDX_PARAM_A].data.ref.length,
-                (char**)&curve->Af, heap, DYNAMIC_TYPE_ECC_BUFFER);
+                &curve_Af, heap, DYNAMIC_TYPE_ECC_BUFFER);
+        curve->Af = curve_Af;
     }
     if (ret == 0) {
         /* Parameter B */
+        char *curve_Bf = NULL;
         ret = DataToHexStringAlloc(
                 dataASN[ECCSPECIFIEDASN_IDX_PARAM_B].data.ref.data,
                 dataASN[ECCSPECIFIEDASN_IDX_PARAM_B].data.ref.length,
-                (char**)&curve->Bf, heap, DYNAMIC_TYPE_ECC_BUFFER);
+                &curve_Bf, heap, DYNAMIC_TYPE_ECC_BUFFER);
+        curve->Bf = curve_Bf;
     }
     if (ret == 0) {
         /* Order of curve */
+        char *curve_order = NULL;
         ret = DataToHexStringAlloc(
                 dataASN[ECCSPECIFIEDASN_IDX_ORDER].data.ref.data,
                 dataASN[ECCSPECIFIEDASN_IDX_ORDER].data.ref.length,
-                (char**)&curve->order, heap, DYNAMIC_TYPE_ECC_BUFFER);
+                &curve_order, heap, DYNAMIC_TYPE_ECC_BUFFER);
+        curve->order = curve_order;
     }
     #else
     if (ret == 0) {
@@ -30401,8 +30508,11 @@ int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 *inLen,
 
         if (curveIn) {
             /* Put named curve OID data into encoding. */
-            curveIdSz = SetCurve(key,
-                (byte*)dataASN[ECCKEYASN_IDX_CURVEID].data.buffer.data,
+            /* safe cast -- the pointer is actually inside the output buffer. */
+            curveIdSz = SetCurve(
+                key,
+                (byte *)(wc_ptr_t)
+                    dataASN[ECCKEYASN_IDX_CURVEID].data.buffer.data,
                 (size_t)curveIdSz);
             if (curveIdSz < 0) {
                 ret = curveIdSz;
@@ -30410,15 +30520,22 @@ int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 *inLen,
         }
         if (ret == 0) {
             /* Export the private value into the buffer. */
-            ret = wc_ecc_export_private_only(key,
-                (byte*)dataASN[ECCKEYASN_IDX_PKEY].data.buffer.data, &privSz);
+            /* safe cast -- the pointer is actually inside the output buffer. */
+            ret = wc_ecc_export_private_only(
+                key,
+                (byte*)(wc_ptr_t)
+                    dataASN[ECCKEYASN_IDX_PKEY].data.buffer.data,
+                &privSz);
         }
         if ((ret == 0) && pubIn) {
             /* Export the public point into the buffer. */
             PRIVATE_KEY_UNLOCK();
-            ret = wc_ecc_export_x963(key,
-                    (byte*)dataASN[ECCKEYASN_IDX_PUBKEY_VAL].data.buffer.data,
-                    &pubSz);
+            /* safe cast -- the pointer is actually inside the output buffer. */
+            ret = wc_ecc_export_x963(
+                key,
+                (byte*)(wc_ptr_t)
+                    dataASN[ECCKEYASN_IDX_PUBKEY_VAL].data.buffer.data,
+                &pubSz);
             PRIVATE_KEY_LOCK();
         }
     }
@@ -31261,13 +31378,19 @@ int SetAsymKeyDer(const byte* privKey, word32 privKeyLen,
         SetASN_Items(privateKeyASN, dataASN, privateKeyASN_Length, output);
 
         /* Put private value into space provided. */
-        XMEMCPY((byte*)dataASN[PRIVKEYASN_IDX_PKEY_CURVEPKEY].data.buffer.data,
-                privKey, privKeyLen);
+        /* safe cast -- the pointer is actually inside output buffer. */
+        XMEMCPY(
+            (byte*)(wc_ptr_t)
+                dataASN[PRIVKEYASN_IDX_PKEY_CURVEPKEY].data.buffer.data,
+            privKey, privKeyLen);
 
         if (pubKey != NULL) {
             /* Put public value into space provided. */
-            XMEMCPY((byte*)dataASN[PRIVKEYASN_IDX_PUBKEY].data.buffer.data,
-                    pubKey, pubKeyLen);
+            /* safe cast -- the pointer is actually inside output buffer. */
+            XMEMCPY(
+                (byte*)(wc_ptr_t)
+                    dataASN[PRIVKEYASN_IDX_PUBKEY].data.buffer.data,
+                pubKey, pubKeyLen);
         }
     }
     if (ret == 0) {
@@ -31884,8 +32007,8 @@ WC_MAYBE_UNUSED static int EncodeSingleResponse(OcspEntry* single, byte* out,
 #endif /* HAVE_OCSP_RESPONDER */
 
 #ifdef WOLFSSL_ASN_TEMPLATE
-static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
-                                int wrapperSz, OcspEntry* single)
+static int DecodeSingleResponse(const byte* source, word32* ioIndex,
+                                word32 size, int wrapperSz, OcspEntry* single)
 {
     DECL_ASNGETDATA(dataASN, singleResponseASN_Length);
     int ret = 0;
@@ -32019,7 +32142,7 @@ enum {
 #endif
 
 #ifdef WOLFSSL_ASN_TEMPLATE
-static int DecodeOcspRespExtensions(byte* source, word32* ioIndex,
+static int DecodeOcspRespExtensions(const byte* source, word32* ioIndex,
                                     OcspResponse* resp, word32 sz)
 {
     /* certExtASN_Length is greater than respExtHdrASN_Length */
@@ -32307,7 +32430,7 @@ WC_MAYBE_UNUSED static int EncodeResponseData(OcspResponse* resp, byte* out,
 #endif /* HAVE_OCSP_RESPONDER */
 
 #ifdef WOLFSSL_ASN_TEMPLATE
-static int DecodeResponseData(byte* source, word32* ioIndex,
+static int DecodeResponseData(const byte* source, word32* ioIndex,
                               OcspResponse* resp, word32 size)
 {
     DECL_ASNGETDATA(dataASN, ocspRespDataASN_Length);
@@ -32734,7 +32857,7 @@ WC_MAYBE_UNUSED static int EncodeBasicOcspResponse(OcspResponse* resp,
 #endif /* HAVE_OCSP_RESPONDER */
 
 #ifdef WOLFSSL_ASN_TEMPLATE
-static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
+static int DecodeBasicOcspResponse(const byte* source, word32* ioIndex,
             OcspResponse* resp, word32 size, void* cm, void* heap, int noVerify,
             int noVerifySignature)
 {
@@ -33015,7 +33138,7 @@ int OcspResponseDecode(OcspResponse* resp, void* cm, void* heap,
     word32 idx = 0, size = resp->maxIdx;
     byte* source = resp->source;
     byte status = 0;
-    byte* basic;
+    const byte* basic;
     word32 basicSz;
 
     WOLFSSL_ENTER("OcspResponseDecode");
@@ -33374,7 +33497,7 @@ int DecodeOcspRequest(OcspRequest* req, const byte* input, word32 size)
     word32 idx = 0;
     word32 issuerHashSz = sizeof(req->issuerHash);
     word32 issuerKeyHashSz = sizeof(req->issuerKeyHash);
-    byte* serial = NULL;
+    const byte* serial = NULL;
     word32 serialSz = 0;
 
     WOLFSSL_ENTER("DecodeOcspRequest");
