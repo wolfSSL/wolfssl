@@ -2030,12 +2030,13 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
         WOLFSSL_MSG("wc_DhAgree wc_DhCheckPrivKey failed");
         return DH_CHECK_PRIV_E;
     }
+#endif
 
+    /* Always validate peer public key (2 <= y <= p-2) per SP 800-56A */
     if (wc_DhCheckPubKey(key, otherPub, pubSz) != 0) {
         WOLFSSL_MSG("wc_DhAgree wc_DhCheckPubKey failed");
         return DH_CHECK_PUB_E;
     }
-#endif
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     y = (mp_int*)XMALLOC(sizeof(mp_int), key->heap, DYNAMIC_TYPE_DH);
