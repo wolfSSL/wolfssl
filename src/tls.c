@@ -14288,6 +14288,13 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
 
     /* retry configs */
     if (msgType == encrypted_extensions) {
+        /* configs should only be sent on ECH rejection (RFC9849, Section 5) */
+        if (ssl->options.echAccepted) {
+            SendAlert(ssl, alert_fatal, unsupported_extension);
+            WOLFSSL_ERROR_VERBOSE(UNSUPPORTED_EXTENSION);
+            return UNSUPPORTED_EXTENSION;
+        }
+
         echX = TLSX_Find(ssl->extensions, TLSX_ECH);
         if (echX == NULL)
             return BAD_FUNC_ARG;
@@ -14304,7 +14311,7 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
     else if (msgType == hello_retry_request && ssl->echConfigs != NULL) {
         /* length must be 8 */
         if (size != ECH_ACCEPT_CONFIRMATION_SZ)
-            return DECODE_E;
+            return BUFFER_ERROR;
 
         /* get extension */
         echX = TLSX_Find(ssl->extensions, TLSX_ECH);
@@ -14361,10 +14368,10 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
             /* Check encLen isn't more than remaining bytes minus
              * payload length. */
             if (len > size - offset - 2) {
-                return BAD_FUNC_ARG;
+                return BUFFER_ERROR;
             }
             if (len > HPKE_Npk_MAX) {
-                return BAD_FUNC_ARG;
+                return BUFFER_ERROR;
             }
             /* read enc */
             XMEMCPY(ech->enc, readBuf_p, len);
@@ -14375,27 +14382,27 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
             /* kdfId */
             ato16(readBuf_p, &tmpVal16);
             if (tmpVal16 != ech->cipherSuite.kdfId) {
-                return BAD_FUNC_ARG;
+                return INVALID_PARAMETER;
             }
             readBuf_p += 2;
             offset += 2;
             /* aeadId */
             ato16(readBuf_p, &tmpVal16);
             if (tmpVal16 != ech->cipherSuite.aeadId) {
-                return BAD_FUNC_ARG;
+                return INVALID_PARAMETER;
             }
             readBuf_p += 2;
             offset += 2;
             /* configId */
             if (*readBuf_p != ech->configId) {
-                return BAD_FUNC_ARG;
+                return INVALID_PARAMETER;
             }
             readBuf_p++;
             offset++;
             /* on an HRR the enc value MUST be empty */
             ato16(readBuf_p, &len);
             if (len != 0) {
-                return BAD_FUNC_ARG;
+                return INVALID_PARAMETER;
             }
             readBuf_p += 2;
             offset += 2;
@@ -14409,7 +14416,7 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
         offset += 2;
         /* Check payload is no bigger than remaining bytes. */
         if (ech->innerClientHelloLen > size - offset) {
-            return BAD_FUNC_ARG;
+            return BUFFER_ERROR;
         }
         if (ech->innerClientHelloLen < WC_AES_BLOCK_SIZE) {
             return BUFFER_ERROR;
@@ -14457,12 +14464,23 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
                 echConfig = echConfig->next;
             }
         }
-        /* if we failed to extract/expand, set state to retry configs */
+        /* if we failed to extract/expand */
         if (ret != 0) {
-            XFREE(ech->innerClientHello, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            ech->innerClientHello = NULL;
-            ech->state = ECH_WRITE_RETRY_CONFIGS;
-            ret = 0;
+            WOLFSSL_MSG("Failed to decrypt InnerHello");
+            if (ech->hpkeContext != NULL) {
+                /* on SH2 this is fatal */
+                SendAlert(ssl, alert_fatal, decrypt_error);
+                WOLFSSL_ERROR_VERBOSE(VERIFY_FINISHED_ERROR);
+                ret = VERIFY_FINISHED_ERROR;
+            }
+            else {
+                /* on SH1 prepare to write retry configs */
+                XFREE(ech->innerClientHello, ssl->heap,
+                    DYNAMIC_TYPE_TMP_BUFFER);
+                ech->innerClientHello = NULL;
+                ech->state = ECH_WRITE_RETRY_CONFIGS;
+                ret = 0;
+            }
         }
         else {
             ret = TLSX_ECH_CheckInnerPadding(ssl, ech);

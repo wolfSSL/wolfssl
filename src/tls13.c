@@ -7442,9 +7442,14 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             goto exit_dch;
         }
         else {
+            /* If ECH was accepted in ClientHello1 then ClientHello2 MUST
+             * contain an ECH extension */
             if (ssl->options.serverState ==
-                    SERVER_HELLO_RETRY_REQUEST_COMPLETE) {
-                ERROR_OUT(EXT_MISSING, exit_dch);
+                    SERVER_HELLO_RETRY_REQUEST_COMPLETE &&
+                    ssl->options.echAccepted) {
+                WOLFSSL_MSG("Client did not send an EncryptedClientHello "
+                            "extension");
+                ERROR_OUT(INCOMPLETE_DATA, exit_dch);
             }
             /* Server has ECH but client did not send ECH. Clear the
              * response flag so the empty ECH extension is not written
