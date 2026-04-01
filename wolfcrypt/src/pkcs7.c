@@ -14606,6 +14606,10 @@ authenv_atrbend:
             }
 
             /* copy plaintext to output */
+            if ((word32)encryptedContentSz > outputSz) {
+                ret = BUFFER_E;
+                break;
+            }
             XMEMCPY(output, encryptedContent, (word32)encryptedContentSz);
 
             /* free memory, zero out keys */
@@ -15290,6 +15294,11 @@ int wc_PKCS7_DecodeEncryptedData(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                 }
 
                 /* copy plaintext to output */
+                if ((word32)(encryptedContentSz - padLen) > outputSz) {
+                    XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+                    ret = BUFFER_E;
+                    break;
+                }
                 XMEMCPY(output, encryptedContent,
                     (unsigned int)(encryptedContentSz - padLen));
 
