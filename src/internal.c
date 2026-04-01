@@ -13285,7 +13285,7 @@ int MatchDomainName(const char* pattern, int patternLen, const char* str,
         return 1;
 #endif
 
-    while (patternLen > 0 && strLen > 0) {
+    while (patternLen > 0) {
         /* Get the next pattern char to evaluate */
         char p = (char)XTOLOWER((unsigned char)*pattern);
         if (p == '\0')
@@ -13355,6 +13355,9 @@ int MatchDomainName(const char* pattern, int patternLen, const char* str,
             if (leftWildcardOnly && wildcardEligible) {
                 wildcardEligible = 0;
             }
+
+            if (strLen == 0)
+                return 0;
 
             /* Simple case, pattern match exactly */
             if (p != (char)XTOLOWER((unsigned char) *str))
