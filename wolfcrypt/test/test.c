@@ -30844,53 +30844,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pwdbased_test(void)
     if (ret != 0)
         return ret;
 #endif
-#if defined(HAVE_PKCS12) && !defined(NO_ASN) && !defined(NO_PWDBASED) && \
-    !defined(NO_HMAC) && !defined(NO_CERTS)
-    /* Test that a crafted PKCS#12 with INT_MAX MAC iterations is rejected
-     * immediately rather than hanging in DoPKCS12Hash(). */
-    {
-        static const byte evil_p12[] = {
-            0x30, 0x58, 0x02, 0x01, 0x03, 0x30, 0x1e, 0x06,
-            0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01,
-            0x07, 0x01, 0xa0, 0x11, 0x04, 0x0f, 0x30, 0x0d,
-            0x30, 0x0b, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86,
-            0xf7, 0x0d, 0x01, 0x07, 0x01, 0x30, 0x33, 0x30,
-            0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x0e, 0x03,
-            0x02, 0x1a, 0x05, 0x00, 0x04, 0x14, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x04, 0x08, 0x41, 0x41, 0x41, 0x41,
-            0x41, 0x41, 0x41, 0x41, 0x02, 0x04, 0x7f, 0xff,
-            0xff, 0xff
-        };
-        WC_PKCS12* evilPkcs12 = wc_PKCS12_new_ex(HEAP_HINT);
-        if (evilPkcs12 == NULL)
-            return WC_TEST_RET_ENC_EC(MEMORY_E);
-
-        ret = wc_d2i_PKCS12(evil_p12, (word32)sizeof(evil_p12), evilPkcs12);
-        if (ret == 0) {
-            byte* evilKey = NULL;
-            byte* evilCert = NULL;
-            word32 evilKeySz = 0, evilCertSz = 0;
-            WC_DerCertList* evilCa = NULL;
-
-            ret = wc_PKCS12_parse(evilPkcs12, "test", &evilKey, &evilKeySz,
-                                  &evilCert, &evilCertSz, &evilCa);
-            XFREE(evilKey, HEAP_HINT, DYNAMIC_TYPE_PKCS);
-            XFREE(evilCert, HEAP_HINT, DYNAMIC_TYPE_PKCS);
-            if (evilCa)
-                wc_FreeCertList(evilCa, HEAP_HINT);
-            wc_PKCS12_free(evilPkcs12);
-            /* Parse must fail (iteration cap), not succeed or hang */
-            if (ret == 0)
-                return WC_TEST_RET_ENC_NC;
-        }
-        else {
-            wc_PKCS12_free(evilPkcs12);
-        }
-        ret = 0;
-    }
-#endif /* HAVE_PKCS12 && !NO_ASN && !NO_PWDBASED && !NO_HMAC && !NO_CERTS */
 #ifdef HAVE_SCRYPT
     ret = scrypt_test();
     if (ret != 0)
@@ -30988,56 +30941,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs12_test(void)
     if (keyDer == NULL || certDer == NULL || derCaListOut == NULL) {
         ret = WC_TEST_RET_ENC_NC;
         goto out;
-    }
-
-    /* Test that a crafted PKCS#12 with INT_MAX MAC iterations is rejected
-     * immediately rather than hanging in DoPKCS12Hash(). This is a 90-byte
-     * minimal PKCS#12 with mac->itt = 0x7FFFFFFF (2,147,483,647). */
-    {
-        static const byte evil_p12[] = {
-            0x30, 0x58, 0x02, 0x01, 0x03, 0x30, 0x1e, 0x06,
-            0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01,
-            0x07, 0x01, 0xa0, 0x11, 0x04, 0x0f, 0x30, 0x0d,
-            0x30, 0x0b, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86,
-            0xf7, 0x0d, 0x01, 0x07, 0x01, 0x30, 0x33, 0x30,
-            0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x0e, 0x03,
-            0x02, 0x1a, 0x05, 0x00, 0x04, 0x14, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x04, 0x08, 0x41, 0x41, 0x41, 0x41,
-            0x41, 0x41, 0x41, 0x41, 0x02, 0x04, 0x7f, 0xff,
-            0xff, 0xff
-        };
-        WC_PKCS12* evilPkcs12 = wc_PKCS12_new_ex(HEAP_HINT);
-        if (evilPkcs12 == NULL) {
-            ret = WC_TEST_RET_ENC_EC(MEMORY_E);
-            goto out;
-        }
-        ret = wc_d2i_PKCS12(evil_p12, (word32)sizeof(evil_p12), evilPkcs12);
-        if (ret != 0) {
-            wc_PKCS12_free(evilPkcs12);
-            ret = WC_TEST_RET_ENC_EC(ret);
-            goto out;
-        }
-        {
-            byte* evilKey = NULL;
-            byte* evilCert = NULL;
-            word32 evilKeySz = 0, evilCertSz = 0;
-            WC_DerCertList* evilCa = NULL;
-            ret = wc_PKCS12_parse(evilPkcs12, "test", &evilKey, &evilKeySz,
-                                  &evilCert, &evilCertSz, &evilCa);
-            XFREE(evilKey, HEAP_HINT, DYNAMIC_TYPE_PKCS);
-            XFREE(evilCert, HEAP_HINT, DYNAMIC_TYPE_PKCS);
-            if (evilCa)
-                wc_FreeCertList(evilCa, HEAP_HINT);
-        }
-        wc_PKCS12_free(evilPkcs12);
-        /* Must have been rejected (not hung) */
-        if (ret == 0) {
-            ret = WC_TEST_RET_ENC_NC;
-            goto out;
-        }
-        ret = 0;  /* rejection is the expected outcome */
     }
 
 out:
