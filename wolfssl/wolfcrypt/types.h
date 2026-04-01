@@ -489,12 +489,6 @@ enum {
     static WC_INLINE WARN_UNUSED_RESULT int WC_WUR_INT(int x) { return x; }
 #endif
 
-/* XFENCE() is a no-op on some targets.  WC_BARRIER() uses C89 intrinsics as an
- * additional portable barrier.
- */
-#define WC_BARRIER() do { volatile byte _xfence = 0; (void)_xfence; XFENCE(); \
-        } while(0)
-
 #ifdef WORD64_AVAILABLE
     #define WC_MAX_UINT_OF(x)                                        \
         ((x)((((word64)1 << ((sizeof(x) * (word64)CHAR_BIT) -        \
