@@ -33076,7 +33076,7 @@ static int test_dtls13_finished_send_error_propagation(void)
     /* Server first flight with finished */
     ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
     ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
-    /* Client second flight with finished — block sends to force error */
+    /* Client second flight with finished - block sends to force error */
     test_ctx.s_len = TEST_MEMIO_BUF_SZ;
     ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
     /* Verify the error is propagated, not silently swallowed as success */
