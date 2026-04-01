@@ -34758,6 +34758,42 @@ static int test_DhAgree_rejects_p_minus_1(void)
     return EXPECT_RESULT();
 }
 
+/* Test: Ed448 must reject identity public key (0,1) */
+static int test_ed448_rejects_identity_key(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ED448) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0))
+    ed448_key key;
+    byte identity[ED448_PUB_KEY_SIZE];
+    byte forged_sig[ED448_SIG_SIZE];
+    const byte msg[] = "test message";
+    int res = 0;
+
+    XMEMSET(identity, 0, sizeof(identity));
+    identity[0] = 0x01;  /* identity (0,1) encoding */
+
+    XMEMSET(forged_sig, 0, sizeof(forged_sig));
+    forged_sig[0] = 0x01;  /* R = identity, S = 0 */
+
+    ExpectIntEQ(wc_ed448_init(&key), 0);
+
+    /* The identity public key must be rejected at import time. */
+    ExpectIntNE(wc_ed448_import_public(identity, sizeof(identity), &key), 0);
+
+    /* If import somehow succeeded, verify must also reject the forgery. */
+    if (EXPECT_SUCCESS() && key.pubKeySet) {
+        int verifyRet = wc_ed448_verify_msg(forged_sig, sizeof(forged_sig),
+                                             msg, sizeof(msg) - 1,
+                                             &res, &key, NULL, 0);
+        ExpectTrue(verifyRet != 0 || res == 0);
+    }
+
+    wc_ed448_free(&key);
+#endif
+    return EXPECT_RESULT();
+}
+
 TEST_CASE testCases[] = {
     TEST_DECL(test_fileAccess),
 
@@ -35573,6 +35609,7 @@ TEST_CASE testCases[] = {
     TEST_TLS_DECLS,
     TEST_DECL(test_wc_DhSetNamedKey),
     TEST_DECL(test_DhAgree_rejects_p_minus_1),
+    TEST_DECL(test_ed448_rejects_identity_key),
 
 #if defined(WOLFSSL_SNIFFER) && defined(WOLFSSL_SNIFFER_CHAIN_INPUT)
     TEST_DECL(test_sniffer_chain_input_overflow),

@@ -711,6 +711,18 @@ static int ed448_verify_msg_final_with_sha(const byte* sig, word32 sigLen,
     if (i == -1)
         return BAD_FUNC_ARG;
 
+    /* Reject identity public key (0,1): 0x01 followed by 56 zero bytes. */
+    {
+        int isIdentity = (key->p[0] == 0x01);
+        int j;
+        for (j = 1; j < ED448_PUB_KEY_SIZE && isIdentity; j++) {
+            if (key->p[j] != 0x00)
+                isIdentity = 0;
+        }
+        if (isIdentity)
+            return BAD_FUNC_ARG;
+    }
+
     /* uncompress A (public key), test if valid, and negate it */
     if (ge448_from_bytes_negate_vartime(&A, key->p) != 0)
         return BAD_FUNC_ARG;
@@ -1335,14 +1347,28 @@ int wc_ed448_check_key(ed448_key* key)
     }
     /* No private key, check Y is valid. */
     else if ((ret == 0) && (!key->privKeySet)) {
-        /* Verify that Q is not identity element 0.
-         * 0 has no representation for Ed448. */
+        /* Reject the identity element (0, 1).
+         * Encoding: 0x01 followed by 56 zero bytes. */
+        {
+            int isIdentity = 1;
+            int i;
+            if (key->p[0] != 0x01)
+                isIdentity = 0;
+            for (i = 1; i < ED448_PUB_KEY_SIZE && isIdentity; i++) {
+                if (key->p[i] != 0x00)
+                    isIdentity = 0;
+            }
+            if (isIdentity) {
+                WOLFSSL_MSG("Ed448 public key is the identity element");
+                ret = PUBLIC_KEY_E;
+            }
+        }
 
         /* Verify that xQ and yQ are integers in the interval [0, p - 1].
          * Only have yQ so check that ordinate.
          * p = 2^448-2^224-1 = 0xff..fe..ff
          */
-        {
+        if (ret == 0) {
             int i;
             ret = PUBLIC_KEY_E;
 
