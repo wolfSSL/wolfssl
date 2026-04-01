@@ -2551,7 +2551,7 @@ typedef enum bench_stat_type {
 
         if (bstat == NULL) {
             /* allocate new and put on list */
-            bstat = (bench_stats_t*)XMALLOC(sizeof(bench_stats_t), NULL,
+            bstat = (bench_stats_t*)XMALLOC(sizeof(bench_stats_t), HEAP_HINT,
                 DYNAMIC_TYPE_INFO);
             if (bstat) {
                 XMEMSET(bstat, 0, sizeof(bench_stats_t));
@@ -3719,7 +3719,7 @@ static WC_INLINE void bench_stats_free(void)
     bench_stats_t* bstat;
     for (bstat = bench_stats_head; bstat != NULL; ) {
         bench_stats_t* next = bstat->next;
-        XFREE(bstat, NULL, DYNAMIC_TYPE_INFO);
+        XFREE(bstat, HEAP_HINT, DYNAMIC_TYPE_INFO);
         bstat = next;
     }
     bench_stats_head = NULL;
@@ -6470,7 +6470,7 @@ static void bench_aesofb_internal(const byte* key,
 
     bench_stats_prepare();
 
-    ret = wc_AesInit(&enc, NULL, INVALID_DEVID);
+    ret = wc_AesInit(&enc, HEAP_HINT, INVALID_DEVID);
     if (ret != 0) {
         printf("AesInit failed at L%d, ret = %d\n", __LINE__, ret);
         return;
@@ -11539,7 +11539,7 @@ static void bench_lms_keygen(enum wc_LmsParm parm, byte* pub)
         return;
     }
 
-    ret = wc_LmsKey_Init(&key, NULL, INVALID_DEVID);
+    ret = wc_LmsKey_Init(&key, HEAP_HINT, devId);
     if (ret) {
         printf("wc_LmsKey_Init failed: %d\n", ret);
         wc_FreeRng(&rng);
@@ -11555,7 +11555,7 @@ static void bench_lms_keygen(enum wc_LmsParm parm, byte* pub)
 
             wc_LmsKey_Free(&key);
 
-            ret = wc_LmsKey_Init(&key, NULL, INVALID_DEVID);
+            ret = wc_LmsKey_Init(&key, HEAP_HINT, devId);
             if (ret) {
                 printf("wc_LmsKey_Init failed: %d\n", ret);
                 goto exit_lms_keygen;
@@ -11644,7 +11644,7 @@ static void bench_lms_sign_verify(enum wc_LmsParm parm, byte* pub)
 
     bench_stats_prepare();
 
-    ret = wc_LmsKey_Init(&key, NULL, INVALID_DEVID);
+    ret = wc_LmsKey_Init(&key, HEAP_HINT, devId);
     if (ret) {
         printf("wc_LmsKey_Init failed: %d\n", ret);
         goto exit_lms_sign_verify;
@@ -12124,7 +12124,7 @@ static void bench_xmss_sign_verify(const char * params)
 
     freeRng = 1;
 
-    ret = wc_XmssKey_Init(&key, NULL, INVALID_DEVID);
+    ret = wc_XmssKey_Init(&key, HEAP_HINT, devId);
     if (ret != 0) {
         printf("wc_XmssKey_Init failed: %d\n", ret);
         goto exit_xmss_sign_verify;
@@ -12602,7 +12602,8 @@ void bench_slhdsa(int param)
     WC_ALLOC_VAR_EX(sig, byte, WC_SLHDSA_MAX_SIG_LEN, HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER, goto exit);
 
-    ret = wc_SlhDsaKey_Init(key, (enum SlhDsaParam)param, NULL, INVALID_DEVID);
+    ret = wc_SlhDsaKey_Init(key, (enum SlhDsaParam)param, HEAP_HINT,
+        INVALID_DEVID);
     if (ret != 0) {
         goto exit;
     }
@@ -12664,7 +12665,8 @@ void bench_slhdsa(int param)
         goto exit;
     }
 
-    ret = wc_SlhDsaKey_Init(key_vfy, (enum SlhDsaParam)param, NULL, INVALID_DEVID);
+    ret = wc_SlhDsaKey_Init(key_vfy, (enum SlhDsaParam)param, HEAP_HINT,
+        INVALID_DEVID);
     if (ret != 0) {
         goto exit;
     }
@@ -14215,7 +14217,7 @@ void bench_eccsiKeyGen(void)
     bench_stats_start(&count, &start);
     do {
         for (i = 0; i < genTimes; i++) {
-            wc_InitEccsiKey(genKey, NULL, INVALID_DEVID);
+            wc_InitEccsiKey(genKey, HEAP_HINT, devId);
             ret = wc_MakeEccsiKey(genKey, &gRng);
             wc_FreeEccsiKey(genKey);
             if (ret != 0) {
@@ -14260,7 +14262,7 @@ void bench_eccsiPairGen(void)
 
     (void)mp_init(ssk);
     pvt = wc_ecc_new_point();
-    wc_InitEccsiKey(genKey, NULL, INVALID_DEVID);
+    wc_InitEccsiKey(genKey, HEAP_HINT, devId);
     (void)wc_MakeEccsiKey(genKey, &gRng);
 
     /* RSK Gen */
@@ -14319,7 +14321,7 @@ void bench_eccsiValidate(void)
 
     (void)mp_init(ssk);
     pvt = wc_ecc_new_point();
-    wc_InitEccsiKey(genKey, NULL, INVALID_DEVID);
+    wc_InitEccsiKey(genKey, HEAP_HINT, devId);
     (void)wc_MakeEccsiKey(genKey, &gRng);
     (void)wc_MakeEccsiPair(genKey, &gRng, WC_HASH_TYPE_SHA256, id, sizeof(id),
                            ssk, pvt);
@@ -14384,7 +14386,7 @@ void bench_eccsi(void)
 
     (void)mp_init(ssk);
     pvt = wc_ecc_new_point();
-    (void)wc_InitEccsiKey(genKey, NULL, INVALID_DEVID);
+    (void)wc_InitEccsiKey(genKey, HEAP_HINT, devId);
     (void)wc_MakeEccsiKey(genKey, &gRng);
     (void)wc_MakeEccsiPair(genKey, &gRng, WC_HASH_TYPE_SHA256, id, sizeof(id),
                            ssk, pvt);
@@ -14475,7 +14477,7 @@ void bench_sakkeKeyGen(void)
     bench_stats_start(&count, &start);
     do {
         for (i = 0; i < genTimes; i++) {
-            wc_InitSakkeKey_ex(genKey, 128, ECC_SAKKE_1, NULL, INVALID_DEVID);
+            wc_InitSakkeKey_ex(genKey, 128, ECC_SAKKE_1, HEAP_HINT, devId);
             ret = wc_MakeSakkeKey(genKey, &gRng);
             if (ret != 0) {
                 printf("wc_MakeSakkeKey failed: %d\n", ret);
@@ -14517,7 +14519,7 @@ void bench_sakkeRskGen(void)
     WC_ALLOC_VAR(genKey, SakkeKey, 1, HEAP_HINT);
 
     rsk = wc_ecc_new_point();
-    wc_InitSakkeKey_ex(genKey, 128, ECC_SAKKE_1, NULL, INVALID_DEVID);
+    wc_InitSakkeKey_ex(genKey, 128, ECC_SAKKE_1, HEAP_HINT, devId);
     (void)wc_MakeSakkeKey(genKey, &gRng);
 
     /* RSK Gen */
@@ -14570,7 +14572,7 @@ void bench_sakkeValidate(void)
     WC_ALLOC_VAR(genKey, SakkeKey, 1, HEAP_HINT);
 
     rsk = wc_ecc_new_point();
-    (void)wc_InitSakkeKey_ex(genKey, 128, ECC_SAKKE_1, NULL, INVALID_DEVID);
+    (void)wc_InitSakkeKey_ex(genKey, 128, ECC_SAKKE_1, HEAP_HINT, devId);
     (void)wc_MakeSakkeKey(genKey, &gRng);
     (void)wc_MakeSakkeRsk(genKey, id, sizeof(id), rsk);
     (void)wc_ValidateSakkeRsk(genKey, id, sizeof(id), rsk, &valid);
@@ -14634,7 +14636,7 @@ void bench_sakke(void)
     XMEMCPY(ssv, ssv_init, sizeof ssv);
 
     rsk = wc_ecc_new_point();
-    (void)wc_InitSakkeKey_ex(genKey, 128, ECC_SAKKE_1, NULL, INVALID_DEVID);
+    (void)wc_InitSakkeKey_ex(genKey, 128, ECC_SAKKE_1, HEAP_HINT, devId);
     (void)wc_MakeSakkeKey(genKey, &gRng);
     (void)wc_MakeSakkeRsk(genKey, id, sizeof(id), rsk);
     (void)wc_SetSakkeRsk(genKey, rsk, NULL, 0);
@@ -14861,9 +14863,9 @@ void bench_falconKeySign(byte level)
 
     bench_stats_prepare();
 
-    ret = wc_falcon_init(&key);
+    ret = wc_falcon_init_ex(&key, HEAP_HINT, devId);
     if (ret != 0) {
-        printf("wc_falcon_init failed %d\n", ret);
+        printf("wc_falcon_init_ex failed %d\n", ret);
         return;
     }
 
