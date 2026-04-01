@@ -2989,6 +2989,7 @@ static int test_wolfSSL_CheckOCSPResponse(void)
 
     pt = data;
     ExpectNotNull(res = wolfSSL_d2i_OCSP_RESPONSE(NULL, &pt, dataSz));
+    ExpectPtrEq(pt, data + dataSz);
     ExpectNotNull(issuer = wolfSSL_X509_load_certificate_file(caFile,
         SSL_FILETYPE_PEM));
     ExpectNotNull(st = wolfSSL_X509_STORE_new());
@@ -3013,6 +3014,7 @@ static int test_wolfSSL_CheckOCSPResponse(void)
 
     pt = data;
     ExpectNotNull(res = wolfSSL_d2i_OCSP_RESPONSE(NULL, &pt, dataSz));
+    ExpectPtrEq(pt, data + dataSz);
     wolfSSL_OCSP_RESPONSE_free(res);
     res = NULL;
 
@@ -3124,6 +3126,7 @@ static int test_wolfSSL_CheckOCSPResponse(void)
 
         pt = data;
         ExpectNotNull(res = wolfSSL_d2i_OCSP_RESPONSE(NULL, &pt, dataSz));
+        ExpectPtrEq(pt, data + dataSz);
 
         /* try to verify the response */
         ExpectNotNull(issuer = wolfSSL_X509_load_certificate_file(caFile,
@@ -35489,6 +35492,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_ocsp_basic_verify),
     TEST_DECL(test_ocsp_response_parsing),
     TEST_DECL(test_ocsp_certid_enc_dec),
+    TEST_DECL(test_ocsp_certid_dup),
     TEST_DECL(test_ocsp_tls_cert_cb),
     TEST_DECL(test_ocsp_cert_unknown_crl_fallback),
     TEST_DECL(test_ocsp_cert_unknown_crl_fallback_nonleaf),
