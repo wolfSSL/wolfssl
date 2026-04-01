@@ -695,10 +695,16 @@ static int evpCipherBlock(WOLFSSL_EVP_CIPHER_CTX *ctx,
             break;
         #if defined(WOLFSSL_DES_ECB)
         case WC_DES_ECB_TYPE:
-            ret = wc_Des_EcbEncrypt(&ctx->cipher.des, out, in, inl);
+            if (ctx->enc)
+                ret = wc_Des_EcbEncrypt(&ctx->cipher.des, out, in, inl);
+            else
+                ret = wc_Des_EcbDecrypt(&ctx->cipher.des, out, in, inl);
             break;
         case WC_DES_EDE3_ECB_TYPE:
-            ret = wc_Des3_EcbEncrypt(&ctx->cipher.des3, out, in, inl);
+            if (ctx->enc)
+                ret = wc_Des3_EcbEncrypt(&ctx->cipher.des3, out, in, inl);
+            else
+                ret = wc_Des3_EcbDecrypt(&ctx->cipher.des3, out, in, inl);
             break;
         #endif
     #endif
@@ -8749,13 +8755,19 @@ void wolfSSL_EVP_init(void)
 #ifdef WOLFSSL_DES_ECB
             case WC_DES_ECB_TYPE :
                 WOLFSSL_MSG("DES ECB");
-                ret = wc_Des_EcbEncrypt(&ctx->cipher.des, dst, src, len);
+                if (ctx->enc)
+                    ret = wc_Des_EcbEncrypt(&ctx->cipher.des, dst, src, len);
+                else
+                    ret = wc_Des_EcbDecrypt(&ctx->cipher.des, dst, src, len);
                 if (ret == 0)
                     ret = (int)((len / DES_BLOCK_SIZE) * DES_BLOCK_SIZE);
                 break;
             case WC_DES_EDE3_ECB_TYPE :
                 WOLFSSL_MSG("DES3 ECB");
-                ret = wc_Des3_EcbEncrypt(&ctx->cipher.des3, dst, src, len);
+                if (ctx->enc)
+                    ret = wc_Des3_EcbEncrypt(&ctx->cipher.des3, dst, src, len);
+                else
+                    ret = wc_Des3_EcbDecrypt(&ctx->cipher.des3, dst, src, len);
                 if (ret == 0)
                     ret = (int)((len / DES_BLOCK_SIZE) * DES_BLOCK_SIZE);
                 break;
