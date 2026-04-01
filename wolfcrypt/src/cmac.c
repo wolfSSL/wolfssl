@@ -591,7 +591,7 @@ int wc_AesCmacVerify_ex(Cmac* cmac,
                                 devId);
     if (ret == 0) {
         compareRet = ConstantCompare(check, a, (int)min(checkSz, aSz));
-        ret = compareRet ? 1 : 0;
+        ret = compareRet ? MAC_CMP_FAILED_E : 0;
     }
 
     return ret;
