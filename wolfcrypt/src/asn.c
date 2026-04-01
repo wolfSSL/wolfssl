@@ -3817,7 +3817,7 @@ int CheckBitString(const byte* input, word32* inOutIdx, int* len,
 }
 
 /* RSA (with CertGen or KeyGen) OR ECC OR ED25519 OR ED448 (with CertGen or
- * KeyGen) */
+ * KeyGen) OR CRL */
 #if (!defined(NO_RSA) && \
      (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN) || \
       defined(OPENSSL_EXTRA))) || \
@@ -3827,7 +3827,8 @@ int CheckBitString(const byte* input, word32* inOutIdx, int* len,
       defined(OPENSSL_EXTRA))) || \
     (defined(WC_ENABLE_ASYM_KEY_EXPORT) && !defined(NO_CERTS)) || \
     (!defined(NO_DSA) && !defined(HAVE_SELFTEST) && defined(WOLFSSL_KEY_GEN)) || \
-    (!defined(NO_DH) && defined(WOLFSSL_DH_EXTRA))
+    (!defined(NO_DH) && defined(WOLFSSL_DH_EXTRA)) || \
+    defined(HAVE_CRL)
 
 /* Set the DER/BER encoding of the ASN.1 BIT STRING header.
  *
@@ -3865,7 +3866,7 @@ word32 SetBitString(word32 len, byte unusedBits, byte* output)
     /* Return index after header. */
     return idx;
 }
-#endif /* !NO_RSA || HAVE_ECC || HAVE_ED25519 || HAVE_ED448 */
+#endif /* !NO_RSA || HAVE_ECC || HAVE_ED25519 || HAVE_ED448 || HAVE_CRL */
 
 #ifdef ASN_BER_TO_DER
 
