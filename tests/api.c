@@ -34877,6 +34877,65 @@ static int test_pkcs7_decode_encrypted_outputsz(void)
     return EXPECT_RESULT();
 }
 
+/* Dummy ORI callback for PKCS#7 ORI overflow test */
+#if defined(HAVE_PKCS7) && !defined(WOLFSSL_NO_MALLOC)
+static int test_dummy_ori_cb(wc_PKCS7* pkcs7, byte* oriType, word32 oriTypeSz,
+                              byte* oriValue, word32 oriValueSz,
+                              byte* decryptedKey, word32* decryptedKeySz,
+                              void* ctx)
+{
+    (void)pkcs7; (void)oriType; (void)oriTypeSz;
+    (void)oriValue; (void)oriValueSz;
+    (void)decryptedKey; (void)decryptedKeySz; (void)ctx;
+    return -1;
+}
+#endif
+
+/* Test: PKCS#7 ORI must reject OID larger than MAX_OID_SZ (32) */
+static int test_pkcs7_ori_oversized_oid(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(WOLFSSL_NO_MALLOC)
+    wc_PKCS7* p7 = NULL;
+    byte out[256];
+
+    /* EnvelopedData with [4] IMPLICIT ORI containing an 80-byte OID */
+    static const byte poc[] = {
+        0x30, 0x6b,
+          0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x07, 0x03,
+          0xa0, 0x5e,
+            0x30, 0x5c,
+              0x02, 0x01, 0x00,
+              0x31, 0x57,
+                0xa4, 0x55,
+                  0x06, 0x50,
+                    0x2a,
+                    0x41,0x41,0x41,0x41,0x41,0x41,0x41,0x41,0x41,0x41,
+                    0x41,0x41,0x41,0x41,0x41,0x41,0x41,0x41,0x41,0x41,
+                    0x41,0x41,0x41,0x41,0x41,0x41,0x41,0x41,0x41,0x41,
+                    0x41,0x41,0x41,0x41,0x41,0x41,0x41,0x41,0x41,0x41,
+                    0x41,0x41,0x41,0x41,0x41,0x41,0x41,0x41,0x41,0x41,
+                    0x41,0x41,0x41,0x41,0x41,0x41,0x41,0x41,0x41,0x41,
+                    0x41,0x41,0x41,0x41,0x41,0x41,0x41,0x41,0x41,0x41,
+                    0x41,0x41,0x41,0x41,0x41,0x41,0x41,0x41,0x41,
+                  0x04, 0x01, 0x00
+    };
+
+    p7 = wc_PKCS7_New(NULL, INVALID_DEVID);
+    ExpectNotNull(p7);
+    if (p7 != NULL) {
+        wc_PKCS7_SetOriDecryptCb(p7, test_dummy_ori_cb);
+
+        /* Must return error (ASN_PARSE_E), not overflow the stack */
+        ExpectIntLT(wc_PKCS7_DecodeEnvelopedData(p7, (byte*)poc, sizeof(poc),
+                                                  out, sizeof(out)), 0);
+
+        wc_PKCS7_Free(p7);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 TEST_CASE testCases[] = {
     TEST_DECL(test_fileAccess),
 
@@ -35694,6 +35753,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_DhAgree_rejects_p_minus_1),
     TEST_DECL(test_ed448_rejects_identity_key),
     TEST_DECL(test_pkcs7_decode_encrypted_outputsz),
+    TEST_DECL(test_pkcs7_ori_oversized_oid),
 
 #if defined(WOLFSSL_SNIFFER) && defined(WOLFSSL_SNIFFER_CHAIN_INPUT)
     TEST_DECL(test_sniffer_chain_input_overflow),
