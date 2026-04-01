@@ -843,7 +843,7 @@ MP_API int  mp_2expt(mp_int* a, int b);
 
 MP_API int  mp_div(mp_int * a, mp_int * b, mp_int * c, mp_int * d);
 
-MP_API int  mp_cmp(mp_int *a, mp_int *b);
+MP_API int  mp_cmp(const mp_int *a, const mp_int *b);
 #define mp_cmp_ct(a, b, n) mp_cmp(a, b)
 MP_API int  mp_cmp_d(mp_int *a, mp_digit b);
 

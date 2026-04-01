@@ -95,7 +95,11 @@ int wc_SignatureGetSize(enum wc_SignatureType sig_type,
 #ifdef HAVE_ECC
             /* Sanity check that void* key is at least ecc_key in size */
             if (key_len >= sizeof(ecc_key)) {
+#if defined(HAVE_SELFTEST) || (defined(HAVE_FIPS) && FIPS_VERSION3_LT(5,0,0))
+                sig_len = wc_ecc_sig_size((ecc_key*)(wc_ptr_t)key);
+#else
                 sig_len = wc_ecc_sig_size((const ecc_key*)key);
+#endif
             }
             else {
                 WOLFSSL_MSG("wc_SignatureGetSize: Invalid ECC key size");
@@ -110,7 +114,11 @@ int wc_SignatureGetSize(enum wc_SignatureType sig_type,
 #ifndef NO_RSA
             /* Sanity check that void* key is at least RsaKey in size */
             if (key_len >= sizeof(RsaKey)) {
+#if defined(HAVE_SELFTEST) || (defined(HAVE_FIPS) && FIPS_VERSION3_LT(5,0,0))
+                sig_len = wc_RsaEncryptSize((RsaKey*)(wc_ptr_t)key);
+#else
                 sig_len = wc_RsaEncryptSize((const RsaKey*)key);
+#endif
             }
             else {
                 WOLFSSL_MSG("wc_SignatureGetSize: Invalid RsaKey key size");
