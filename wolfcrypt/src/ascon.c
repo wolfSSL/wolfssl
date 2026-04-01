@@ -45,6 +45,9 @@
 #ifndef WORD64_AVAILABLE
     #error "Ascon implementation requires a 64-bit word"
 #endif
+#ifdef BIG_ENDIAN_ORDER
+    #error "Ascon not yet supported on big-endian systems"
+#endif
 
 /* Data block size in bytes */
 #define ASCON_HASH256_RATE                              8
