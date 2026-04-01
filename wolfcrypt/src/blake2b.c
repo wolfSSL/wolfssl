@@ -120,37 +120,37 @@ int blake2b_init_param( blake2b_state *S, const blake2b_param *P )
 
 int blake2b_init( blake2b_state *S, const byte outlen )
 {
-  blake2b_param P;
+  volatile blake2b_param P;
 
   if ( ( !outlen ) || ( outlen > BLAKE2B_OUTBYTES ) ) return BAD_FUNC_ARG;
 
-  XMEMSET(&P, 0, sizeof(P));
+  XMEMSET((void *)(wc_ptr_t)&P, 0, sizeof(P));
   WC_BARRIER();
   P.digest_length = outlen;
   P.fanout        = 1;
   P.depth         = 1;
 
-  return blake2b_init_param(S, &P);
+  return blake2b_init_param(S, (const blake2b_param *)(wc_ptr_t)&P);
 }
 
 int blake2b_init_key( blake2b_state *S, const byte outlen, const void *key,
                       const byte keylen )
 {
   int ret = 0;
-  blake2b_param P;
+  volatile blake2b_param P;
 
   if ( ( !outlen ) || ( outlen > BLAKE2B_OUTBYTES ) ) return BAD_FUNC_ARG;
 
   if ( !key || !keylen || keylen > BLAKE2B_KEYBYTES ) return BAD_FUNC_ARG;
 
-  XMEMSET( &P, 0, sizeof( P ) );
+  XMEMSET( (void *)(wc_ptr_t)&P, 0, sizeof( P ) );
   WC_BARRIER();
   P.digest_length = outlen;
   P.key_length    = keylen;
   P.fanout        = 1;
   P.depth         = 1;
 
-  ret = blake2b_init_param(S, &P);
+  ret = blake2b_init_param(S, (const blake2b_param *)(wc_ptr_t)&P);
   if ( ret < 0 ) return ret;
 
   {
