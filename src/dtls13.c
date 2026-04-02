@@ -1040,7 +1040,7 @@ static int Dtls13SendFragmentedInternal(WOLFSSL* ssl)
             fragLength + DTLS_HANDSHAKE_HEADER_SZ, isEncrypted);
         if (outputSz < 0) {
             Dtls13FreeFragmentsBuffer(ssl);
-            return recordLength;
+            return outputSz;
         }
 
         ret = CheckAvailableSize(ssl, outputSz);
@@ -1102,7 +1102,7 @@ static int Dtls13SendFragmented(WOLFSSL* ssl, byte* message, word16 length,
     isEncrypted = Dtls13TypeIsEncrypted(handshake_type);
     rlHeaderLength = Dtls13GetRlHeaderLength(ssl, isEncrypted);
 
-    if (length < rlHeaderLength)
+    if (length < rlHeaderLength + DTLS_HANDSHAKE_HEADER_SZ)
         return INCOMPLETE_DATA;
 
     /* DTLSv1.3 do not consider fragmentation for hash transcript. Build the
@@ -2212,7 +2212,7 @@ static void Dtls13EpochCopyKeys(WOLFSSL* ssl, Dtls13Epoch* e, Keys* k, int side)
     byte clientWrite, serverWrite;
     byte enc, dec;
 
-    WOLFSSL_ENTER("Dtls13SetEpochKeys");
+    WOLFSSL_ENTER("Dtls13EpochCopyKeys");
 
     clientWrite = serverWrite = 0;
     enc = dec = 0;
