@@ -3872,3 +3872,81 @@ int test_wc_mlkem_decapsulate_kats(void)
     return EXPECT_RESULT();
 }
 
+/*
+ * Test that wc_MlKemKey_Decapsulate() rejects a public-key-only key object.
+ * A key with MLKEM_FLAG_PUB_SET but not MLKEM_FLAG_PRIV_SET must not
+ * silently decapsulate with zeroed private key data.
+ */
+int test_wc_mlkem_decapsulate_pubonly_fails(void)
+{
+    EXPECT_DECLS;
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+#if defined(WOLFSSL_HAVE_MLKEM) && defined(WOLFSSL_WC_MLKEM) && \
+    !defined(WOLFSSL_NO_ML_KEM) && !defined(WOLFSSL_MLKEM_NO_DECAPSULATE) && \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
+    !defined(WOLFSSL_MLKEM_NO_MAKE_KEY)
+    MlKemKey* fullKey;
+    MlKemKey* pubOnlyKey;
+    WC_RNG rng;
+    byte ct[WC_ML_KEM_MAX_CIPHER_TEXT_SIZE];
+    byte ss[WC_ML_KEM_SS_SZ];
+    byte ssDec[WC_ML_KEM_SS_SZ];
+    byte pubBuf[WC_ML_KEM_MAX_PUBLIC_KEY_SIZE];
+    word32 pubLen = 0;
+    word32 ctLen = 0;
+
+    fullKey = (MlKemKey*)XMALLOC(sizeof(*fullKey), NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(fullKey);
+    pubOnlyKey = (MlKemKey*)XMALLOC(sizeof(*pubOnlyKey), NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(pubOnlyKey);
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+#ifndef WOLFSSL_NO_ML_KEM_768
+    ExpectIntEQ(wc_MlKemKey_Init(fullKey, WC_ML_KEM_768, NULL,
+        INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlKemKey_Init(pubOnlyKey, WC_ML_KEM_768, NULL,
+        INVALID_DEVID), 0);
+#elif !defined(WOLFSSL_NO_ML_KEM_512)
+    ExpectIntEQ(wc_MlKemKey_Init(fullKey, WC_ML_KEM_512, NULL,
+        INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlKemKey_Init(pubOnlyKey, WC_ML_KEM_512, NULL,
+        INVALID_DEVID), 0);
+#else
+    ExpectIntEQ(wc_MlKemKey_Init(fullKey, WC_ML_KEM_1024, NULL,
+        INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlKemKey_Init(pubOnlyKey, WC_ML_KEM_1024, NULL,
+        INVALID_DEVID), 0);
+#endif
+
+    /* Get correct sizes for this key type. */
+    ExpectIntEQ(wc_MlKemKey_PublicKeySize(fullKey, &pubLen), 0);
+    ExpectIntEQ(wc_MlKemKey_CipherTextSize(fullKey, &ctLen), 0);
+
+    /* Generate a real key pair. */
+    ExpectIntEQ(wc_MlKemKey_MakeKey(fullKey, &rng), 0);
+
+    /* Encapsulate with the full key to get a valid ciphertext. */
+    ExpectIntEQ(wc_MlKemKey_Encapsulate(fullKey, ct, ss, &rng), 0);
+
+    /* Export and import only the public key. */
+    ExpectIntEQ(wc_MlKemKey_EncodePublicKey(fullKey, pubBuf, pubLen), 0);
+    ExpectIntEQ(wc_MlKemKey_DecodePublicKey(pubOnlyKey, pubBuf, pubLen), 0);
+
+    /* Decapsulating with a public-key-only object must fail. */
+    ExpectIntEQ(wc_MlKemKey_Decapsulate(pubOnlyKey, ssDec, ct, ctLen),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_MlKemKey_Free(pubOnlyKey);
+    wc_MlKemKey_Free(fullKey);
+    XFREE(pubOnlyKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(fullKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_mlkem_decapsulate_pubonly_fails */
+

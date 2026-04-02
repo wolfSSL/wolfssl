@@ -686,6 +686,84 @@ int test_wc_dilithium(void)
     return EXPECT_RESULT();
 }
 
+/*
+ * Test that wc_dilithium_sign_msg() rejects a public-key-only key object.
+ * A key with prvKeySet=0 must not silently sign with zeroed key data.
+ */
+int test_wc_dilithium_sign_pubonly_fails(void)
+{
+    EXPECT_DECLS;
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+#if defined(HAVE_DILITHIUM) && defined(WOLFSSL_WC_DILITHIUM) && \
+    !defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
+    !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_DILITHIUM_NO_CTX)
+    dilithium_key* key;
+    dilithium_key* pubOnlyKey;
+    WC_RNG rng;
+    byte* pubBuf = NULL;
+    word32 pubLen = DILITHIUM_MAX_PUB_KEY_SIZE;
+    byte msg[] = "test message for pubonly check";
+    byte* sig = NULL;
+    word32 sigLen = DILITHIUM_MAX_SIG_SIZE;
+
+    key = (dilithium_key*)XMALLOC(sizeof(*key), NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(key);
+    pubOnlyKey = (dilithium_key*)XMALLOC(sizeof(*pubOnlyKey), NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(pubOnlyKey);
+    pubBuf = (byte*)XMALLOC(DILITHIUM_MAX_PUB_KEY_SIZE, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(pubBuf);
+    sig = (byte*)XMALLOC(DILITHIUM_MAX_SIG_SIZE, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(sig);
+
+    if (key != NULL)
+        XMEMSET(key, 0, sizeof(*key));
+    if (pubOnlyKey != NULL)
+        XMEMSET(pubOnlyKey, 0, sizeof(*pubOnlyKey));
+    XMEMSET(&rng, 0, sizeof(rng));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_dilithium_init(key), 0);
+    ExpectIntEQ(wc_dilithium_init(pubOnlyKey), 0);
+
+#ifndef WOLFSSL_NO_ML_DSA_44
+    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_44), 0);
+    ExpectIntEQ(wc_dilithium_set_level(pubOnlyKey, WC_ML_DSA_44), 0);
+#elif !defined(WOLFSSL_NO_ML_DSA_65)
+    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_65), 0);
+    ExpectIntEQ(wc_dilithium_set_level(pubOnlyKey, WC_ML_DSA_65), 0);
+#else
+    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_87), 0);
+    ExpectIntEQ(wc_dilithium_set_level(pubOnlyKey, WC_ML_DSA_87), 0);
+#endif
+
+    /* Generate a real key pair and export its public key. */
+    ExpectIntEQ(wc_dilithium_make_key(key, &rng), 0);
+    ExpectIntEQ(wc_dilithium_export_public(key, pubBuf, &pubLen), 0);
+
+    /* Import only the public key into a fresh key object. */
+    ExpectIntEQ(wc_dilithium_import_public(pubBuf, pubLen, pubOnlyKey), 0);
+
+    /* Signing with a public-key-only object must fail. */
+    ExpectIntEQ(wc_dilithium_sign_ctx_msg(NULL, 0, msg, sizeof(msg), sig,
+        &sigLen, pubOnlyKey, &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_dilithium_free(pubOnlyKey);
+    wc_dilithium_free(key);
+    XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(pubBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(pubOnlyKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_dilithium_sign_pubonly_fails */
+
 int test_wc_dilithium_make_key(void)
 {
     EXPECT_DECLS;

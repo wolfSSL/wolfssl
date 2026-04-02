@@ -367,6 +367,9 @@ int wc_ed448_sign_msg_ex(const byte* in, word32 inLen, byte* out,
     if ((ret == 0) && (!key->pubKeySet)) {
         ret = BAD_FUNC_ARG;
     }
+    if ((ret == 0) && (!key->privKeySet)) {
+        ret = BAD_FUNC_ARG;
+    }
 
     /* check and set up out length */
     if ((ret == 0) && (*outLen < ED448_SIG_SIZE)) {

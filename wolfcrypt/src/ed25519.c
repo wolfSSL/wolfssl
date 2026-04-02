@@ -401,6 +401,8 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
 
     if (!key->pubKeySet)
         return BAD_FUNC_ARG;
+    if (!key->privKeySet)
+        return BAD_FUNC_ARG;
 
     /* check and set up out length */
     if (*outLen < ED25519_SIG_SIZE) {

@@ -10237,6 +10237,9 @@ int wc_dilithium_sign_ctx_msg(const byte* ctx, byte ctxLen, const byte* msg,
     if ((ret == 0) && (ctx == NULL) && (ctxLen > 0)) {
         ret = BAD_FUNC_ARG;
     }
+    if ((ret == 0) && (!key->prvKeySet)) {
+        ret = BAD_FUNC_ARG;
+    }
 
 #ifdef WOLF_CRYPTO_CB
     if (ret == 0) {

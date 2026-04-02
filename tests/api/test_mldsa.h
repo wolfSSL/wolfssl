@@ -25,6 +25,7 @@
 #include <tests/api/api_decl.h>
 
 int test_wc_dilithium(void);
+int test_wc_dilithium_sign_pubonly_fails(void);
 int test_wc_dilithium_make_key(void);
 int test_wc_dilithium_sign(void);
 int test_wc_dilithium_verify(void);
@@ -45,6 +46,7 @@ int test_mldsa_pkcs12(void);
 
 #define TEST_MLDSA_DECLS                                                       \
     TEST_DECL_GROUP("mldsa", test_wc_dilithium),                               \
+    TEST_DECL_GROUP("mldsa", test_wc_dilithium_sign_pubonly_fails),           \
     TEST_DECL_GROUP("mldsa", test_wc_dilithium_make_key),                      \
     TEST_DECL_GROUP("mldsa", test_wc_dilithium_sign),                          \
     TEST_DECL_GROUP("mldsa", test_wc_dilithium_verify),                        \
