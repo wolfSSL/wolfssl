@@ -6018,6 +6018,14 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
         return ret;
 #endif
 
+#if defined(HAVE_ECH)
+    /* RFC 9849 s6.1.7: ECH was offered but rejected by the server...
+     * the client MUST respond with an empty Certificate message. */
+    if (ssl->echConfigs != NULL && !ssl->options.echAccepted) {
+        ssl->options.sendVerify = SEND_BLANK_CERT;
+    }
+    else
+#endif
     if ((ssl->buffers.certificate && ssl->buffers.certificate->buffer &&
         ((ssl->buffers.key && ssl->buffers.key->buffer)
         #ifdef HAVE_PK_CALLBACKS
