@@ -4559,12 +4559,12 @@ static WC_INLINE int test_ssl_memio_write_cb(WOLFSSL *ssl, char *data, int sz,
          * "Import from Hex Dump..." option ion and selecting the TCP
          * encapsulation option. */
         char dump_file_name[64];
-        WOLFSSL_BIO *dump_file;
+        XFILE dump_file;
         sprintf(dump_file_name, "%s/%s.dump", tmpDirName, currentTestName);
-        dump_file = wolfSSL_BIO_new_file(dump_file_name, "a");
-        if (dump_file != NULL) {
-            (void)wolfSSL_BIO_write(dump_file, data, sz);
-            wolfSSL_BIO_free(dump_file);
+        dump_file = XFOPEN(dump_file_name, "ab");
+        if (dump_file != XBADFILE) {
+            (void)XFWRITE(data, 1, (size_t)sz, dump_file);
+            XFCLOSE(dump_file);
         }
     }
 #endif
@@ -30950,10 +30950,7 @@ static int test_short_session_id_ssl_ready(WOLFSSL* ssl)
     /* Setup the session to avoid errors */
     ssl->session->timeout = (word32)-1;
     ssl->session->side = WOLFSSL_CLIENT_END;
-#if defined(SESSION_CERTS) || (defined(WOLFSSL_TLS13) && \
-                               defined(HAVE_SESSION_TICKET))
     ssl->session->version = ssl->version;
-#endif
     /* Force a short session ID to be sent */
     ssl->session->sessionIDSz = 4;
 #ifndef NO_SESSION_CACHE_REF

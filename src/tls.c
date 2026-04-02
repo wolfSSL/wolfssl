@@ -12198,7 +12198,6 @@ static int TLSX_PreSharedKey_Parse(WOLFSSL* ssl, const byte* input,
         }
         list->chosen = 1;
 
-    #ifdef HAVE_SESSION_TICKET
         if (list->resumption) {
            /* Check that the session's details are the same as the server's. */
            if (ssl->options.cipherSuite0  != ssl->session->cipherSuite0       ||
@@ -12209,7 +12208,6 @@ static int TLSX_PreSharedKey_Parse(WOLFSSL* ssl, const byte* input,
                return PSK_KEY_ERROR;
            }
         }
-    #endif
 
         return 0;
     }
