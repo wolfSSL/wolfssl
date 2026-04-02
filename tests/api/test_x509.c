@@ -434,3 +434,201 @@ int test_x509_set_serialNumber(void)
     return TEST_SKIPPED;
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 }
+
+/*
+ * Test: CopyDateToASN1_TIME clamps attacker-controlled time field length.
+ *
+ * Attack chain:
+ *   1. Attacker crafts a DER certificate with notBefore UTCTime length byte
+ *      set to 0x1F (31) instead of 0x0D (13). The first 13 bytes are a valid
+ *      "YYMMDDHHMMSSZ" string (passes ExtractDate 'Z'-at-position-12 check),
+ *      followed by 18 sentinel bytes (0xDE). Parent SEQUENCE lengths are
+ *      adjusted so the DER is structurally valid.
+ *   2. The malicious cert is presented as the server cert in a TLS handshake
+ *      (via memio -- no sockets needed).
+ *   3. The client parses the cert. CopyDateToASN1_TIME() in internal.c must
+ *      clamp the length to CTC_DATE_SIZE - 2 (30) so that downstream code
+ *      in wolfSSL_X509_notBefore() can safely prepend type+length at offset
+ *      0-1 of the 32-byte notBeforeData without overflowing.
+ *
+ * The test verifies that notBefore.length <= CTC_DATE_SIZE - 2 (30),
+ * regardless of the attacker's wire value (31).
+ */
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && \
+    !defined(NO_RSA) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER)
+
+/* Verify callback that accepts all certificates regardless of errors. */
+static int accept_all_verify_cb(int preverify, WOLFSSL_X509_STORE_CTX* store)
+{
+    (void)preverify;
+    (void)store;
+    return 1;
+}
+
+/*
+ * Craft a malicious DER certificate by inflating the notBefore UTCTime length.
+ *
+ * Scans for the Validity SEQUENCE (pattern: 0x30 XX 0x17 0x0D), inflates the
+ * notBefore length by 'inflate' bytes, inserts sentinel bytes (0xDE), and
+ * adjusts all parent SEQUENCE lengths.
+ *
+ * out:      caller-supplied buffer, must be at least origSz + inflate bytes.
+ * outSz:   set to the new cert size on success.
+ * Returns 0 on success, -1 on failure.
+ */
+static int craft_malicious_time_cert(const byte* orig, int origSz,
+    byte* out, int* outSz, int inflate)
+{
+    int i;
+    int validityOff = -1;
+    int notBeforeLenOff;  /* offset of the notBefore length byte */
+    int notBeforeDataEnd; /* offset just past the 13-byte time data */
+    word16 seqLen;
+
+    /* Scan for Validity SEQUENCE: 0x30 XX 0x17 0x0D */
+    for (i = 0; i < origSz - 3; i++) {
+        if (orig[i] == 0x30 && orig[i + 2] == 0x17 && orig[i + 3] == 0x0D) {
+            validityOff = i;
+            break;
+        }
+    }
+    if (validityOff < 0) {
+        return -1;
+    }
+
+    notBeforeLenOff = validityOff + 3; /* the 0x0D byte */
+    notBeforeDataEnd = notBeforeLenOff + 1 + 13; /* tag(1) was at +2, data starts at +4 */
+
+    /* Build the new buffer:
+     *   [0 .. notBeforeLenOff-1]  unchanged prefix
+     *   [notBeforeLenOff]         inflated length byte
+     *   [notBeforeLenOff+1 .. notBeforeDataEnd-1]  original 13 time bytes
+     *   <insert 'inflate' sentinel bytes here>
+     *   [notBeforeDataEnd .. origSz-1]  remainder of cert
+     */
+
+    /* Copy prefix including the length byte position */
+    XMEMCPY(out, orig, notBeforeDataEnd);
+
+    /* Patch the notBefore UTCTime length byte */
+    out[notBeforeLenOff] = (byte)(0x0D + inflate);
+
+    /* Insert sentinel bytes */
+    XMEMSET(out + notBeforeDataEnd, 0xDE, inflate);
+
+    /* Copy the rest of the cert (notAfter field onward) */
+    XMEMCPY(out + notBeforeDataEnd + inflate,
+             orig + notBeforeDataEnd,
+             origSz - notBeforeDataEnd);
+
+    /* Fix Validity SEQUENCE length (single-byte encoding at validityOff+1) */
+    out[validityOff + 1] = (byte)(orig[validityOff + 1] + inflate);
+
+    /* Fix TBSCertificate SEQUENCE length (2-byte big-endian at offset 6-7,
+     * format: 30 82 XX XX) */
+    seqLen = ((word16)orig[6] << 8) | orig[7];
+    seqLen += (word16)inflate;
+    out[6] = (byte)(seqLen >> 8);
+    out[7] = (byte)(seqLen & 0xFF);
+
+    /* Fix Certificate SEQUENCE length (2-byte big-endian at offset 2-3,
+     * format: 30 82 XX XX) */
+    seqLen = ((word16)orig[2] << 8) | orig[3];
+    seqLen += (word16)inflate;
+    out[2] = (byte)(seqLen >> 8);
+    out[3] = (byte)(seqLen & 0xFF);
+
+    *outSz = origSz + inflate;
+    return 0;
+}
+
+#endif /* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES && ... */
+
+int test_x509_time_field_overread_via_tls(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && \
+    !defined(NO_RSA) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    WOLFSSL_X509* peer = NULL;
+    WOLFSSL_ASN1_TIME* notBefore = NULL;
+    /*
+     * Inflate notBefore length by 18 bytes: 13 + 18 = 31.
+     * CopyDecodedToX509() sets notBefore.length = min(31, MAX_DATE_SZ) = 31
+     * because it trusts the raw ASN.1 length byte from the wire.
+     * A valid UTCTime is only 13 bytes.
+     */
+    const int INFLATE = 18;
+    byte malicious_der[sizeof_server_cert_der_2048 + 18];
+    int malicious_der_sz = 0;
+
+    /* --- Step 1: Craft malicious certificate --- */
+    ExpectIntEQ(craft_malicious_time_cert(
+        server_cert_der_2048, (int)sizeof_server_cert_der_2048,
+        malicious_der, &malicious_der_sz, INFLATE), 0);
+    ExpectIntEQ(malicious_der_sz,
+                (int)sizeof_server_cert_der_2048 + INFLATE);
+
+    /* --- Step 2: Set up TLS via memio --- */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    ExpectIntEQ(test_memio_setup_ex(&test_ctx, &ctx_c, &ctx_s,
+        &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method,
+        (byte*)ca_cert_der_2048, (int)sizeof_ca_cert_der_2048,
+        malicious_der, malicious_der_sz,
+        (byte*)server_key_der_2048, (int)sizeof_server_key_der_2048), 0);
+
+    /* Client verify callback accepts all errors (signature is broken
+     * because we modified the TBSCertificate without re-signing).
+     * Must be set on ssl_c (not ctx_c) because the SSL object was already
+     * created from ctx_c inside test_memio_setup_ex(). */
+    if (ssl_c != NULL) {
+        wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER,
+                           accept_all_verify_cb);
+    }
+
+    /* --- Step 3: Perform TLS handshake --- */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* --- Step 4: Verify CopyDecodedToX509 does not trust wire length --- */
+#ifdef KEEP_PEER_CERT
+    ExpectNotNull(peer = wolfSSL_get_peer_certificate(ssl_c));
+
+    /*
+     * X509_get_notBefore returns &x509->notBefore directly (no copy).
+     * CopyDecodedToX509() set notBefore.length = min(wireLength, 32) = 31
+     * because it trusts the raw ASN.1 length byte from the attacker's cert.
+     *
+     * The data buffer is CTC_DATE_SIZE (32) bytes, and the notBeforeData
+     * encoding prepends type+length at offset 0-1, leaving 30 bytes for
+     * content. So the maximum safe length is CTC_DATE_SIZE - 2 = 30.
+     *
+     * This assertion FAILS on the buggy code (length > 30) and will PASS
+     * once CopyDateToASN1_TIME clamps to the buffer capacity.
+     */
+    if (peer != NULL) {
+        notBefore = wolfSSL_X509_get_notBefore(peer);
+    }
+    ExpectNotNull(notBefore);
+    ExpectIntLE(notBefore->length, CTC_DATE_SIZE - 2); /* max: 30 */
+
+    wolfSSL_X509_free(peer);
+#endif /* KEEP_PEER_CERT */
+
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_c);
+#endif /* compile guards */
+    return EXPECT_RESULT();
+}

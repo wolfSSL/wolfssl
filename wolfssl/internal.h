@@ -2471,10 +2471,6 @@ struct WOLFSSL_OCSP {
 };
 #endif
 
-#ifndef MAX_DATE_SIZE
-#define MAX_DATE_SIZE 32
-#endif
-
 typedef struct CRL_Entry CRL_Entry;
 
 #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
@@ -5309,10 +5305,6 @@ typedef struct Arrays {
     #endif
 #endif
 
-#ifndef MAX_DATE_SZ
-#define MAX_DATE_SZ 32
-#endif
-
 typedef enum {
     STACK_TYPE_X509               = 0,
     STACK_TYPE_GEN_NAME           = 1,
@@ -6324,7 +6316,7 @@ struct WOLFSSL {
 #endif /* HAVE_TLS_EXTENSIONS */
 #ifdef HAVE_OCSP
         void*       ocspIOCtx;
-        byte ocspProducedDate[MAX_DATE_SZ];
+        byte ocspProducedDate[MAX_DATE_SIZE];
         int ocspProducedDateFormat;
         buffer      ocspCsrResp[1 + MAX_CHAIN_DEPTH];
     #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)

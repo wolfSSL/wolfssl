@@ -26,11 +26,13 @@ int test_x509_rfc2818_verification_callback(void);
 int test_x509_GetCAByAKID(void);
 int test_x509_set_serialNumber(void);
 int test_x509_verify_cert_hostname_check(void);
+int test_x509_time_field_overread_via_tls(void);
 
 #define TEST_X509_DECLS                                                        \
     TEST_DECL_GROUP("x509", test_x509_rfc2818_verification_callback),          \
     TEST_DECL_GROUP("x509", test_x509_GetCAByAKID),                            \
     TEST_DECL_GROUP("x509", test_x509_set_serialNumber),                       \
-    TEST_DECL_GROUP("x509", test_x509_verify_cert_hostname_check)
+    TEST_DECL_GROUP("x509", test_x509_verify_cert_hostname_check),             \
+    TEST_DECL_GROUP("x509", test_x509_time_field_overread_via_tls)
 
 #endif /* WOLFCRYPT_TEST_X509_H */
