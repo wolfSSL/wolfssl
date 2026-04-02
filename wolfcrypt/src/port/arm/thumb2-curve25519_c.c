@@ -574,14 +574,15 @@ WC_OMIT_FRAME_POINTER int fe_isnegative(const fe a)
 #if defined(HAVE_ED25519_MAKE_KEY) || defined(HAVE_ED25519_SIGN) || defined(WOLFSSL_CURVE25519_USE_ED25519)
 #ifndef WC_NO_CACHE_RESISTANT
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER void fe_cmov_table(fe* r_p, fe* base_p, signed char b_p)
+WC_OMIT_FRAME_POINTER void fe_cmov_table(fe* r_p, const fe* base_p,
+    signed char b_p)
 #else
-WC_OMIT_FRAME_POINTER void fe_cmov_table(fe* r, fe* base, signed char b)
+WC_OMIT_FRAME_POINTER void fe_cmov_table(fe* r, const fe* base, signed char b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register fe* r __asm__ ("r0") = (fe*)r_p;
-    register fe* base __asm__ ("r1") = (fe*)base_p;
+    register const fe* base __asm__ ("r1") = (const fe*)base_p;
     register signed char b __asm__ ("r2") = (signed char)b_p;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
@@ -1558,14 +1559,15 @@ WC_OMIT_FRAME_POINTER void fe_cmov_table(fe* r, fe* base, signed char b)
 
 #else
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER void fe_cmov_table(fe* r_p, fe* base_p, signed char b_p)
+WC_OMIT_FRAME_POINTER void fe_cmov_table(fe* r_p, const fe* base_p,
+    signed char b_p)
 #else
-WC_OMIT_FRAME_POINTER void fe_cmov_table(fe* r, fe* base, signed char b)
+WC_OMIT_FRAME_POINTER void fe_cmov_table(fe* r, const fe* base, signed char b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register fe* r __asm__ ("r0") = (fe*)r_p;
-    register fe* base __asm__ ("r1") = (fe*)base_p;
+    register const fe* base __asm__ ("r1") = (const fe*)base_p;
     register signed char b __asm__ ("r2") = (signed char)b_p;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
