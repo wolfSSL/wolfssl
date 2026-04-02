@@ -488,7 +488,7 @@ int wc_Sha512_224Final(wc_Sha512* sha, byte* hash)
     if (sha == NULL) {
         return BAD_FUNC_ARG;
     }
-    return KcapiHashFinal(&sha->kcapi, hash, WC_SHA512_DIGEST_SIZE,
+    return KcapiHashFinal(&sha->kcapi, hash, WC_SHA512_224_DIGEST_SIZE,
                           WC_NAME_SHA512_224);
 }
 int wc_Sha512_224GetHash(wc_Sha512* sha, byte* hash)
@@ -496,7 +496,7 @@ int wc_Sha512_224GetHash(wc_Sha512* sha, byte* hash)
     if (sha == NULL) {
         return BAD_FUNC_ARG;
     }
-    return KcapiHashGet(&sha->kcapi, hash, WC_SHA512_DIGEST_SIZE);
+    return KcapiHashGet(&sha->kcapi, hash, WC_SHA512_224_DIGEST_SIZE);
 }
 
 
@@ -527,7 +527,7 @@ int wc_Sha512_256Final(wc_Sha512* sha, byte* hash)
     if (sha == NULL) {
         return BAD_FUNC_ARG;
     }
-    return KcapiHashFinal(&sha->kcapi, hash, WC_SHA512_DIGEST_SIZE,
+    return KcapiHashFinal(&sha->kcapi, hash, WC_SHA512_256_DIGEST_SIZE,
                           WC_NAME_SHA512_256);
 }
 int wc_Sha512_256GetHash(wc_Sha512* sha, byte* hash)
@@ -535,7 +535,7 @@ int wc_Sha512_256GetHash(wc_Sha512* sha, byte* hash)
     if (sha == NULL) {
         return BAD_FUNC_ARG;
     }
-    return KcapiHashGet(&sha->kcapi, hash, WC_SHA512_DIGEST_SIZE);
+    return KcapiHashGet(&sha->kcapi, hash, WC_SHA512_256_DIGEST_SIZE);
 }
 
 

@@ -108,10 +108,10 @@ int silabs_ecc_sign_hash(const byte* in, word32 inlen, byte* out,
         return BAD_FUNC_ARG;
 
     slkey = &key->key;
-    siglen = *outlen;
+    siglen = key->dp->size * 2;
 
-    if ((int)siglen >= key->dp->size * 2) {
-        siglen = key->dp->size * 2;
+    if (*outlen < siglen) {
+        return BUFFER_E;
     }
 
 #if (_SILICON_LABS_SECURITY_FEATURE == _SILICON_LABS_SECURITY_FEATURE_VAULT)
@@ -138,7 +138,11 @@ int silabs_ecc_sign_hash(const byte* in, word32 inlen, byte* out,
             siglen
         );
     }
-    return (sl_stat == SL_STATUS_OK) ? 0 : WC_HW_E;
+    if (sl_stat == SL_STATUS_OK) {
+        *outlen = siglen;
+        return 0;
+    }
+    return WC_HW_E;
 }
 
 #ifdef HAVE_ECC_VERIFY

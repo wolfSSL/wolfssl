@@ -127,7 +127,10 @@ static int KcapiDh_SetPrivKey(DhKey* key)
         }
     }
 
-    XFREE(priv, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (priv != NULL) {
+        ForceZero(priv, len);
+        XFREE(priv, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
     return ret;
 }
 #endif
