@@ -80,7 +80,7 @@
  * @param [in] a  Little-endian byte array.
  * @return 16-bit number.
  */
-#define GET_U16(a)      (*(word16*)(a))
+#define GET_U16(a)      (*(const word16*)(a))
 /**
  * Encode 64-bit number to a little-endian byte array.
  *
@@ -411,8 +411,8 @@ int wc_SipHash(const unsigned char* key, const unsigned char* in, word32 inSz,
         return BAD_FUNC_ARG;
     }
 
-    k0 = ((word64*)key)[0];
-    k1 = ((word64*)key)[1];
+    k0 = ((const word64*)key)[0];
+    k1 = ((const word64*)key)[1];
     __asm__ __volatile__ (
         "xorq   %[k0], %[v0]\n\t"
         "xorq   %[k1], %[v1]\n\t"

@@ -5132,16 +5132,16 @@ extern "C" {
 #endif
 
 /* Modular exponentiation implementations using Single Precision. */
-WOLFSSL_LOCAL int sp_ModExp_1024(sp_int* base, sp_int* exp, sp_int* mod,
-    sp_int* res);
-WOLFSSL_LOCAL int sp_ModExp_1536(sp_int* base, sp_int* exp, sp_int* mod,
-    sp_int* res);
-WOLFSSL_LOCAL int sp_ModExp_2048(sp_int* base, sp_int* exp, sp_int* mod,
-    sp_int* res);
-WOLFSSL_LOCAL int sp_ModExp_3072(sp_int* base, sp_int* exp, sp_int* mod,
-    sp_int* res);
-WOLFSSL_LOCAL int sp_ModExp_4096(sp_int* base, sp_int* exp, sp_int* mod,
-    sp_int* res);
+WOLFSSL_LOCAL int sp_ModExp_1024(const sp_int* base, const sp_int* exp,
+    const sp_int* mod, sp_int* res);
+WOLFSSL_LOCAL int sp_ModExp_1536(const sp_int* base, const sp_int* exp,
+    const sp_int* mod, sp_int* res);
+WOLFSSL_LOCAL int sp_ModExp_2048(const sp_int* base, const sp_int* exp,
+    const sp_int* mod, sp_int* res);
+WOLFSSL_LOCAL int sp_ModExp_3072(const sp_int* base, const sp_int* exp,
+    const sp_int* mod, sp_int* res);
+WOLFSSL_LOCAL int sp_ModExp_4096(const sp_int* base, const sp_int* exp,
+    const sp_int* mod, sp_int* res);
 
 #ifdef __cplusplus
 } /* extern "C" */
@@ -5167,9 +5167,9 @@ static void _sp_mont_setup(const sp_int* m, sp_int_digit* rho);
  *
  * @param [out] a  SP integer to set to zero.
  */
-static void _sp_zero(sp_int* a)
+static void _sp_zero(volatile sp_int* a)
 {
-    sp_int_minimal* am = (sp_int_minimal *)a;
+    volatile sp_int_minimal* am = (volatile sp_int_minimal *)a;
 
     am->used = 0;
     am->dp[0] = 0;
@@ -5191,7 +5191,7 @@ static void _sp_init_size(sp_int* a, unsigned int size)
 #ifdef HAVE_WOLF_BIGINT
     wc_bigint_init((struct WC_BIGINT*)&am->raw);
 #endif
-    _sp_zero((sp_int*)am);
+    _sp_zero((volatile sp_int*)am);
 
     am->size = (sp_size_t)size;
 }
@@ -14132,12 +14132,12 @@ int sp_exptmod_ex(const sp_int* b, const sp_int* e, int digits, const sp_int* m,
     #ifndef WOLFSSL_SP_NO_2048
         if ((mBits == 1024) && sp_isodd(m) && (bBits <= 1024) &&
                 (eBits <= 1024)) {
-            err = sp_ModExp_1024((sp_int*)b, (sp_int*)e, (sp_int*)m, r);
+            err = sp_ModExp_1024(b, e, m, r);
             done = 1;
         }
         else if ((mBits == 2048) && sp_isodd(m) && (bBits <= 2048) &&
                  (eBits <= 2048)) {
-            err = sp_ModExp_2048((sp_int*)b, (sp_int*)e, (sp_int*)m, r);
+            err = sp_ModExp_2048(b, e, m, r);
             done = 1;
         }
         else
@@ -14145,12 +14145,12 @@ int sp_exptmod_ex(const sp_int* b, const sp_int* e, int digits, const sp_int* m,
     #ifndef WOLFSSL_SP_NO_3072
         if ((mBits == 1536) && sp_isodd(m) && (bBits <= 1536) &&
                 (eBits <= 1536)) {
-            err = sp_ModExp_1536((sp_int*)b, (sp_int*)e, (sp_int*)m, r);
+            err = sp_ModExp_1536(b, e, m, r);
             done = 1;
         }
         else if ((mBits == 3072) && sp_isodd(m) && (bBits <= 3072) &&
                  (eBits <= 3072)) {
-            err = sp_ModExp_3072((sp_int*)b, (sp_int*)e, (sp_int*)m, r);
+            err = sp_ModExp_3072(b, e, m, r);
             done = 1;
         }
         else
@@ -14158,7 +14158,7 @@ int sp_exptmod_ex(const sp_int* b, const sp_int* e, int digits, const sp_int* m,
     #ifdef WOLFSSL_SP_4096
         if ((mBits == 4096) && sp_isodd(m) && (bBits <= 4096) &&
                 (eBits <= 4096)) {
-            err = sp_ModExp_4096((sp_int*)b, (sp_int*)e, (sp_int*)m, r);
+            err = sp_ModExp_4096(b, e, m, r);
             done = 1;
         }
         else

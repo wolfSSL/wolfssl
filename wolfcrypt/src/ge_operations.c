@@ -9091,7 +9091,8 @@ static void ge_select(ge_precomp *t,int pos,signed char b)
   fe_neg(minust.xy2d,t->xy2d);
   fe_cmov(t->xy2d,minust.xy2d,bnegative);
 #else
-  fe_cmov_table((fe*)t, (fe*)base[pos], b);
+  /* (wc_ptr_t) needed to work around C array casting semantics. */
+  fe_cmov_table((fe*)t, (const fe*)(wc_ptr_t)base[pos], b);
 #endif
 }
 

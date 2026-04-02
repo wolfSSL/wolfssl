@@ -314,7 +314,8 @@ int wc_curve25519_make_pub_blind(int public_size, byte* pub, int private_size,
 #else
     fe_init();
 
-    ret = curve25519_smul_blind(pub, priv, (byte*)kCurve25519BasePoint, rng);
+    ret = curve25519_smul_blind(pub, priv, (const byte*)kCurve25519BasePoint,
+                                rng);
 #endif
 
     if (ret == 0) {

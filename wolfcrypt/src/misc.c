@@ -205,7 +205,7 @@ WC_MISC_STATIC WC_INLINE void ByteReverseWords(word32* out, const word32* in,
         }
     }
     else if (((size_t)out & 0x3) == 0) {
-        byte *in_bytes = (byte *)in;
+        const byte *in_bytes = (const byte *)in;
         word32 scratch;
 
         byteCount &= ~0x3U;
@@ -216,7 +216,7 @@ WC_MISC_STATIC WC_INLINE void ByteReverseWords(word32* out, const word32* in,
         }
     }
     else {
-        byte *in_bytes = (byte *)in;
+        const byte *in_bytes = (const byte *)in;
         byte *out_bytes = (byte *)out;
         word32 scratch;
 
@@ -234,7 +234,7 @@ WC_MISC_STATIC WC_INLINE void ByteReverseWords(word32* out, const word32* in,
 WC_MISC_STATIC WC_INLINE word32 readUnalignedWord32(const byte *in)
 {
     if (((wc_ptr_t)in & (wc_ptr_t)(sizeof(word32) - 1U)) == (wc_ptr_t)0)
-        return *(word32 *)in;
+        return *(const word32 *)in;
     else {
         word32 out = 0; /* else CONFIG_FORTIFY_SOURCE -Wmaybe-uninitialized */
         XMEMCPY(&out, in, sizeof(out));
@@ -283,7 +283,7 @@ WC_MISC_STATIC WC_INLINE void writeUnalignedWords32(byte *out, const word32 *in,
 WC_MISC_STATIC WC_INLINE word64 readUnalignedWord64(const byte *in)
 {
     if (((wc_ptr_t)in & (wc_ptr_t)(sizeof(word64) - 1U)) == (wc_ptr_t)0)
-        return *(word64 *)in;
+        return *(const word64 *)in;
     else {
         word64 out = 0; /* else CONFIG_FORTIFY_SOURCE -Wmaybe-uninitialized */
         XMEMCPY(&out, in, sizeof(out));
@@ -382,7 +382,7 @@ WC_MISC_STATIC WC_INLINE void ByteReverseWords64(word64* out, const word64* in,
         }
     }
     else if (((size_t)out & 0x7) == 0) {
-        byte *in_bytes = (byte *)in;
+        const byte *in_bytes = (const byte *)in;
         word64 scratch;
 
         byteCount &= ~0x7U;
@@ -393,7 +393,7 @@ WC_MISC_STATIC WC_INLINE void ByteReverseWords64(word64* out, const word64* in,
         }
     }
     else {
-        byte *in_bytes = (byte *)in;
+        const byte *in_bytes = (const byte *)in;
         byte *out_bytes = (byte *)out;
         word64 scratch;
 

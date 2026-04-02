@@ -41,9 +41,9 @@
 static WC_INLINE word32 load32( const void *src )
 {
 #if defined(LITTLE_ENDIAN_ORDER)
-  return *( word32 * )( src );
+  return *( const word32 * )( src );
 #else
-  const byte *p = ( byte * )src;
+  const byte *p = ( const byte * )src;
   word32 w = *p++;
   w |= ( word32 )( *p++ ) <<  8;
   w |= ( word32 )( *p++ ) << 16;
@@ -55,9 +55,9 @@ static WC_INLINE word32 load32( const void *src )
 static WC_INLINE word64 load64( const void *src )
 {
 #if defined(LITTLE_ENDIAN_ORDER)
-  return *( word64 * )( src );
+  return *( const word64 * )( src );
 #else
-  const byte *p = ( byte * )src;
+  const byte *p = ( const byte * )src;
   word64 w = *p++;
   w |= ( word64 )( *p++ ) <<  8;
   w |= ( word64 )( *p++ ) << 16;

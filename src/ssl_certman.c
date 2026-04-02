@@ -1265,7 +1265,9 @@ static WC_INLINE int cm_restore_cert_row(WOLFSSL_CERT_MANAGER* cm,
 
         if (ret == 0) {
             /* Copy in certificate name. */
-            XMEMCPY(signer->name, current + idx, (size_t)signer->nameLen);
+            /* safe cast -- allocated by above XMALLOC(). */
+            XMEMCPY((void *)(wc_ptr_t)signer->name, current + idx,
+                    (size_t)signer->nameLen);
             idx += signer->nameLen;
 
             /* Copy in hash of subject name. */

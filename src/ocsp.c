@@ -2131,8 +2131,8 @@ int wolfSSL_OCSP_request_add1_nonce(OcspRequest* req, unsigned char* val,
  */
 int wolfSSL_OCSP_check_nonce(OcspRequest* req, WOLFSSL_OCSP_BASICRESP* bs)
 {
-    byte* reqNonce = NULL;
-    byte* rspNonce = NULL;
+    const byte* reqNonce = NULL;
+    const byte* rspNonce = NULL;
     int reqNonceSz = 0;
     int rspNonceSz = 0;
 

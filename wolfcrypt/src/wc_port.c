@@ -4237,12 +4237,12 @@ char* wolfSSL_strnstr(const char* s1, const char* s2, unsigned int n)
     unsigned int s2_len = (unsigned int)XSTRLEN(s2);
 
     if (s2_len == 0)
-        return (char*)s1;
+        return (char *)(wc_ptr_t)s1;
 
     while (n >= s2_len && s1[0]) {
         if (s1[0] == s2[0])
             if (XMEMCMP(s1, s2, s2_len) == 0)
-                return (char*)s1;
+                return (char *)(wc_ptr_t)s1;
         s1++;
         n--;
     }

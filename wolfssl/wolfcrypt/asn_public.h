@@ -504,17 +504,17 @@ typedef struct Cert {
     CertExtension customCertExt[NUM_CUSTOM_EXT];
     int customCertExtCount;
 #endif /* WOLFSSL_CUSTOM_OID */
-    void*   decodedCert;      /* internal DecodedCert allocated from heap */
-    byte*   der;              /* Pointer to buffer of current DecodedCert cache */
-    void*   heap;             /* heap hint */
+    void*   decodedCert;        /* internal DecodedCert allocated from heap */
+    const byte* der;            /* Pointer to buffer of current DecodedCert cache */
+    void*   heap;               /* heap hint */
     WC_BITFIELD basicConstSet:1;  /* Indicator for when Basic Constraint is set */
-    byte             basicConstCrit;  /* Indicator of criticality of Basic Constraints extension */
+    byte    basicConstCrit;     /* Indicator of criticality of Basic Constraints extension */
 #ifdef WOLFSSL_ALLOW_ENCODING_CA_FALSE
-    WC_BITFIELD isCaSet:1;        /* Indicator for when isCA is set */
+    WC_BITFIELD isCaSet:1;      /* Indicator for when isCA is set */
 #endif
-    WC_BITFIELD pathLenSet:1;     /* Indicator for when path length is set */
+    WC_BITFIELD pathLenSet:1;   /* Indicator for when path length is set */
 #ifdef WOLFSSL_ALT_NAMES
-    WC_BITFIELD altNamesCrit:1;   /* Indicator of criticality of SAN extension */
+    WC_BITFIELD altNamesCrit:1; /* Indicator of criticality of SAN extension */
 #endif
 } Cert;
 

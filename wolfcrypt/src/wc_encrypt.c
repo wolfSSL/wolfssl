@@ -315,7 +315,7 @@ int wc_BufferKeyEncrypt(EncryptedInfo* info, byte* der, word32 derSz,
  *
  * returns a negative value on fail case
  */
-int wc_CryptKey(const char* password, int passwordSz, byte* salt,
+int wc_CryptKey(const char* password, int passwordSz, const byte* salt,
                       int saltSz, int iterations, int id, byte* input,
                       int length, int version, byte* cbcIv, int enc, int shaOid)
 {
@@ -439,14 +439,14 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
     #ifndef NO_HMAC
             case PKCS5v2:
                 PRIVATE_KEY_UNLOCK();
-                ret = wc_PBKDF2(key, (byte*)password, passwordSz,
+                ret = wc_PBKDF2(key, (const byte*)password, passwordSz,
                                 salt, saltSz, iterations, (int)derivedLen, typeH);
                 PRIVATE_KEY_LOCK();
                 break;
     #endif
     #ifndef NO_SHA
             case PKCS5:
-                ret = wc_PBKDF1(key, (byte*)password, passwordSz,
+                ret = wc_PBKDF1(key, (const byte*)password, passwordSz,
                                 salt, saltSz, iterations, (int)derivedLen, typeH);
                 break;
     #endif

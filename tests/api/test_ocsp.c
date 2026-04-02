@@ -251,7 +251,7 @@ int test_ocsp_basic_verify(void)
         WOLFSSL_SUCCESS);
     /* verify that the signature is checked */
     if (EXPECT_SUCCESS()) {
-        response->sig[0] ^= 0xff;
+        ((byte *)(wc_ptr_t)response->sig)[0] ^= 0xff;
     }
     ExpectIntEQ(wolfSSL_OCSP_basic_verify(response, NULL, NULL, OCSP_NOVERIFY),
         WOLFSSL_FAILURE);
@@ -285,12 +285,12 @@ int test_ocsp_basic_verify(void)
         WOLFSSL_SUCCESS);
     /* make invalid signature */
     if (EXPECT_SUCCESS()) {
-        response->sig[0] ^= 0xff;
+        ((byte *)(wc_ptr_t)response->sig)[0] ^= 0xff;
     }
     ExpectIntEQ(wolfSSL_OCSP_basic_verify(response, NULL, store, 0),
         WOLFSSL_FAILURE);
     if (EXPECT_SUCCESS()) {
-        response->sig[0] ^= 0xff;
+        ((byte *)(wc_ptr_t)response->sig)[0] ^= 0xff;
     }
 
     /* cert embedded and in certs, no store needed bc OCSP_TRUSTOTHER */

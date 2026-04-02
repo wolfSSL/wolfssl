@@ -52,7 +52,7 @@ Public domain.
 
     #define U32C(v) (v##U)
     #define U32V(v) ((word32)(v) & U32C(0xFFFFFFFF))
-    #define U8TO32_LITTLE(p) LITTLE32(((word32*)(p))[0])
+    #define U8TO32_LITTLE(p) LITTLE32(((const word32*)(p))[0])
 
     #define ROTATE(v,c) rotlFixed(v, c)
     #define XOR(v,w)    ((v) ^ (w))

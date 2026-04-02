@@ -3182,8 +3182,10 @@ static int DecodeConstructedOtherName(DecodedCert* cert, const byte* input,
             ret = MEMORY_E;
         }
         else {
-            XMEMCPY(dnsEntry->name, &input[*idx], (size_t)strLen);
-            dnsEntry->name[strLen] = '\0';
+            dnsEntry->nameStored = 1;
+            XMEMCPY((void *)(wc_ptr_t)dnsEntry->name, &input[*idx],
+                    (size_t)strLen);
+            ((char *)(wc_ptr_t)dnsEntry->name)[strLen] = '\0';
             AddAltName(cert, dnsEntry);
         }
     }
@@ -3271,9 +3273,11 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
                 XFREE(dnsEntry, cert->heap, DYNAMIC_TYPE_ALTNAME);
                 return MEMORY_E;
             }
+            dnsEntry->nameStored = 1;
             dnsEntry->len = strLen;
-            XMEMCPY(dnsEntry->name, &input[idx], (size_t)strLen);
-            dnsEntry->name[strLen] = '\0';
+            XMEMCPY((void *)(wc_ptr_t)dnsEntry->name, &input[idx],
+                    (size_t)strLen);
+            ((char *)(wc_ptr_t)dnsEntry->name)[strLen] = '\0';
 
             AddAltName(cert, dnsEntry);
 
@@ -3315,9 +3319,11 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
                 XFREE(dirEntry, cert->heap, DYNAMIC_TYPE_ALTNAME);
                 return MEMORY_E;
             }
+            dirEntry->nameStored = 1;
             dirEntry->len = strLen;
-            XMEMCPY(dirEntry->name, &input[idx], (size_t)strLen);
-            dirEntry->name[strLen] = '\0';
+            XMEMCPY((void *)(wc_ptr_t)dirEntry->name, &input[idx],
+                    (size_t)strLen);
+            ((char *)(wc_ptr_t)dirEntry->name)[strLen] = '\0';
             dirEntry->next = cert->altDirNames;
             cert->altDirNames = dirEntry;
 
@@ -3343,7 +3349,7 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
                 WOLFSSL_MSG("\tOut of Memory");
                 return MEMORY_E;
             }
-
+            emailEntry->nameStored = 1;
             emailEntry->type = ASN_RFC822_TYPE;
             emailEntry->name = (char*)XMALLOC((size_t)strLen + 1, cert->heap,
                                          DYNAMIC_TYPE_ALTNAME);
@@ -3353,8 +3359,9 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
                 return MEMORY_E;
             }
             emailEntry->len = strLen;
-            XMEMCPY(emailEntry->name, &input[idx], (size_t)strLen);
-            emailEntry->name[strLen] = '\0';
+            XMEMCPY((void *)(wc_ptr_t)emailEntry->name, &input[idx],
+                    (size_t)strLen);
+            ((char *)(wc_ptr_t)emailEntry->name)[strLen] = '\0';
 
             emailEntry->next = cert->altEmailNames;
             cert->altEmailNames = emailEntry;
@@ -3426,7 +3433,7 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
                 WOLFSSL_MSG("\tOut of Memory");
                 return MEMORY_E;
             }
-
+            uriEntry->nameStored = 1;
             uriEntry->type = ASN_URI_TYPE;
             uriEntry->name = (char*)XMALLOC((size_t)strLen + 1, cert->heap,
                                          DYNAMIC_TYPE_ALTNAME);
@@ -3436,8 +3443,9 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
                 return MEMORY_E;
             }
             uriEntry->len = strLen;
-            XMEMCPY(uriEntry->name, &input[idx], (size_t)strLen);
-            uriEntry->name[strLen] = '\0';
+            XMEMCPY((void *)(wc_ptr_t)uriEntry->name, &input[idx],
+                    (size_t)strLen);
+            ((char *)(wc_ptr_t)uriEntry->name)[strLen] = '\0';
 
             AddAltName(cert, uriEntry);
 
@@ -3469,7 +3477,7 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
                 WOLFSSL_MSG("\tOut of Memory");
                 return MEMORY_E;
             }
-
+            ipAddr->nameStored = 1;
             ipAddr->type = ASN_IP_TYPE;
             ipAddr->name = (char*)XMALLOC((size_t)strLen + 1, cert->heap,
                                          DYNAMIC_TYPE_ALTNAME);
@@ -3479,12 +3487,13 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
                 return MEMORY_E;
             }
             ipAddr->len = strLen;
-            XMEMCPY(ipAddr->name, &input[idx], strLen);
-            ipAddr->name[strLen] = '\0';
+            XMEMCPY((void *)(wc_ptr_t)ipAddr->name, &input[idx], strLen);
+            ((char *)(wc_ptr_t)ipAddr->name)[strLen] = '\0';
 
             if (GenerateDNSEntryIPString(ipAddr, cert->heap) != 0) {
                 WOLFSSL_MSG("\tOut of Memory for IP string");
-                XFREE(ipAddr->name, cert->heap, DYNAMIC_TYPE_ALTNAME);
+                XFREE((void *)(wc_ptr_t)ipAddr->name, cert->heap,
+                      DYNAMIC_TYPE_ALTNAME);
                 XFREE(ipAddr, cert->heap, DYNAMIC_TYPE_ALTNAME);
                 return MEMORY_E;
             }
@@ -3528,13 +3537,15 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
                 XFREE(rid, cert->heap, DYNAMIC_TYPE_ALTNAME);
                 return MEMORY_E;
             }
+            rid->nameStored = 1;
             rid->len = strLen;
-            XMEMCPY(rid->name, &input[idx], strLen);
-            rid->name[strLen] = '\0';
+            XMEMCPY((void *)(wc_ptr_t)rid->name, &input[idx], strLen);
+            ((char *)(wc_ptr_t)rid->name)[strLen] = '\0';
 
             if (GenerateDNSEntryRIDString(rid, cert->heap) != 0) {
                 WOLFSSL_MSG("\tOut of Memory for registered Id string");
-                XFREE(rid->name, cert->heap, DYNAMIC_TYPE_ALTNAME);
+                XFREE((void *)(wc_ptr_t)rid->name, cert->heap,
+                      DYNAMIC_TYPE_ALTNAME);
                 XFREE(rid, cert->heap, DYNAMIC_TYPE_ALTNAME);
                 return MEMORY_E;
             }
