@@ -8037,11 +8037,6 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
                             acceptOffset - RECORD_HEADER_SZ,
                             sendSz - RECORD_HEADER_SZ, extMsgType);
                     }
-#if defined(WOLFSSL_TEST)
-                    if (ret == 0 && ssl->echInnerHelloCb != NULL) {
-                        ret = ssl->echInnerHelloCb(output, (word32)sendSz);
-                    }
-#endif
                     if (extMsgType == hello_retry_request) {
                         /* reset the ech state for round 2 */
                         ((WOLFSSL_ECH*)echX->data)->state = ECH_WRITE_NONE;
