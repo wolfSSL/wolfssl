@@ -29,6 +29,6 @@ int test_wc_SignatureGetSize_rsa(void);
 
 #define TEST_SIGNATURE_DECLS                                    \
     TEST_DECL_GROUP("signature", test_wc_SignatureGetSize_ecc), \
-    TEST_DECL_GROUP("signature", test_wc_SignatureGetSize_ecc)
+    TEST_DECL_GROUP("signature", test_wc_SignatureGetSize_rsa)
 
 #endif /* WOLFCRYPT_TEST_SIGNATURE_H */
