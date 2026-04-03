@@ -198,11 +198,11 @@ int test_wolfSSL_ASN1_INTEGER_BN(void)
     }
 #if defined(WOLFSSL_QT) || defined(WOLFSSL_HAPROXY)
     ExpectNotNull(bn = ASN1_INTEGER_to_BN(ai, NULL));
+#else
+    ExpectNull(bn = ASN1_INTEGER_to_BN(ai, NULL));
+#endif
     BN_free(bn);
     bn = NULL;
-#else
-    ExpectNull(ASN1_INTEGER_to_BN(ai, NULL));
-#endif
 
     if (ai != NULL) {
         ai->data[0] = 0x02; /* tag for ASN_INTEGER */
@@ -213,11 +213,11 @@ int test_wolfSSL_ASN1_INTEGER_BN(void)
 #if defined(WOLFSSL_QT) || defined(WOLFSSL_HAPROXY)
     /* Interpreted as a number 0x020403. */
     ExpectNotNull(bn = ASN1_INTEGER_to_BN(ai, NULL));
+#else
+    ExpectNull(bn = ASN1_INTEGER_to_BN(ai, NULL));
+#endif
     BN_free(bn);
     bn = NULL;
-#else
-    ExpectNull(ASN1_INTEGER_to_BN(ai, NULL));
-#endif
 
     if (ai != NULL) {
         ai->data[0] = 0x02; /* tag for ASN_INTEGER */
