@@ -338,6 +338,9 @@ int wc_CryptKey(const char* password, int passwordSz, const byte* salt,
 
     WOLFSSL_ENTER("wc_CryptKey");
 
+    if (password == NULL || salt == NULL || input == NULL)
+        return BAD_FUNC_ARG;
+
     if (length < 0)
         return BAD_LENGTH_E;
 
