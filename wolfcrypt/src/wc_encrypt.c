@@ -100,6 +100,10 @@ int wc_Des_CbcEncryptWithKey(byte* out, const byte* in, word32 sz,
     int ret  = 0;
     WC_DECLARE_VAR(des, Des, 1, 0);
 
+    if (out == NULL || in == NULL || key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
     WC_ALLOC_VAR_EX(des, Des, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
         return MEMORY_E);
 
@@ -117,6 +121,10 @@ int wc_Des_CbcDecryptWithKey(byte* out, const byte* in, word32 sz,
 {
     int ret  = 0;
     WC_DECLARE_VAR(des, Des, 1, 0);
+
+    if (out == NULL || in == NULL || key == NULL) {
+        return BAD_FUNC_ARG;
+    }
 
     WC_ALLOC_VAR_EX(des, Des, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
         return MEMORY_E);
