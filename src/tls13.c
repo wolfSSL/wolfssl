@@ -2968,6 +2968,7 @@ static int Tls13IntegrityOnly_Decrypt(WOLFSSL* ssl, byte* output,
     /* Copy the input to output if not the same buffer */
     if (ret == 0 && output != input)
         XMEMCPY(output, input, sz);
+    ForceZero(hmac, sizeof(hmac));
     return ret;
 }
 #endif
