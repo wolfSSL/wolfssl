@@ -2256,7 +2256,7 @@ static int wc_PKCS7_BuildSignedAttributes(wc_PKCS7* pkcs7, ESD* esd,
         esd->signedAttribsCount += idx;
         esd->signedAttribsSz += (word32)EncodeAttributes(
             &esd->signedAttribs[atrIdx], (int)idx, cannedAttribs,
-            (int)cannedAttribsCount);
+            (int)idx);
         atrIdx += idx;
     } else {
         esd->signedAttribsCount = 0;
@@ -13242,7 +13242,9 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                 }
                 wc_PKCS7_DecryptContentFree(pkcs7, encOID, pkcs7->heap);
             } else {
-                if ((idx + (word32)encryptedContentTotalSz) > pkiMsgSz) {
+                word32 tmpSum;
+                if (!WC_SAFE_SUM_WORD32(idx, (word32)encryptedContentTotalSz, tmpSum) ||
+                    tmpSum > pkiMsgSz) {
                     ret = BUFFER_E;
                     break;
                 }
