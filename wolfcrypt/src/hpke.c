@@ -1175,7 +1175,7 @@ int wc_HpkeContextOpenBase(Hpke* hpke, HpkeBaseContext* context, byte* aad,
     int ret;
     byte nonce[HPKE_Nn_MAX];
     WC_DECLARE_VAR(aes, Aes, 1, 0);
-    if (hpke == NULL) {
+    if (hpke == NULL || context == NULL || ciphertext == NULL || out == NULL) {
         return BAD_FUNC_ARG;
     }
 
