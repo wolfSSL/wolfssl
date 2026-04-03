@@ -12323,8 +12323,6 @@ restore:
             wc_Sha256Free(&ssl->hsHashes->hashSha256);
             ret = wc_Sha256Copy(&digest.sha256, &ssl->hsHashes->hashSha256);
             wc_Sha256Free(&digest.sha256);
-            if (ret != 0)
-                return ret;
             break;
     #endif
     #ifdef WOLFSSL_SHA384
@@ -12332,8 +12330,6 @@ restore:
             wc_Sha384Free(&ssl->hsHashes->hashSha384);
             ret = wc_Sha384Copy(&digest.sha384, &ssl->hsHashes->hashSha384);
             wc_Sha384Free(&digest.sha384);
-            if (ret != 0)
-                return ret;
             break;
     #endif
     #ifdef WOLFSSL_TLS13_SHA512
@@ -12341,8 +12337,6 @@ restore:
             wc_Sha512Free(&ssl->hsHashes->hashSha512);
             ret = wc_Sha512Copy(&digest.sha512, &ssl->hsHashes->hashSha512);
             wc_Sha512Free(&digest.sha512);
-            if (ret != 0)
-                return ret;
             break;
     #endif
     #ifdef WOLFSSL_SM3
@@ -12350,12 +12344,11 @@ restore:
             wc_Sm3Free(&ssl->hsHashes->hashSm3);
             ret = wc_Sm3Copy(&digest.sm3, &ssl->hsHashes->hashSm3);
             wc_Sm3Free(&digest.sm3);
-            if (ret != 0)
-                return ret;
             break;
     #endif
     }
 
+    ForceZero(mac, sizeof(mac));
     return ret;
 }
 #endif
