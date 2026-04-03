@@ -2556,8 +2556,8 @@ int wc_OcspResponder_SetCertStatus(OcspResponder* responder,
     if (status == CERT_REVOKED) {
         if (revocationTime <= 0)
             goto out;
-        if (revocationReason < CRL_REASON_UNSPECIFIED ||
-            revocationReason > CRL_REASON_AA_COMPROMISE)
+        if (revocationReason < WC_CRL_REASON_UNSPECIFIED ||
+            revocationReason > WC_CRL_REASON_AA_COMPROMISE)
             goto out;
         /* Skip value 7 which is not used */
         if (revocationReason == 7)

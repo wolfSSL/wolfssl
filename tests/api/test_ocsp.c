@@ -1561,7 +1561,7 @@ int test_ocsp_responder(void)
             "./certs/ca-key.der",
             "./certs/server-cert.der",
             CERT_GOOD,
-            0, CRL_REASON_UNSPECIFIED,
+            0, WC_CRL_REASON_UNSPECIFIED,
             86400, /* validityPeriod - 24 hours */
             0,
             "RSA server cert - GOOD status"
@@ -1572,7 +1572,7 @@ int test_ocsp_responder(void)
             "./certs/ca-key.der",
             "./certs/server-cert.der",
             CERT_REVOKED,
-            now, CRL_REASON_KEY_COMPROMISE,  /* Revoked due to key compromise */
+            now, WC_CRL_REASON_KEY_COMPROMISE,  /* Revoked due to key compromise */
             0,     /* validityPeriod (not used for REVOKED) */
             OCSP_CERT_REVOKED,
             "RSA server cert - REVOKED status"
@@ -1583,7 +1583,7 @@ int test_ocsp_responder(void)
             "./certs/ca-key.der",
             "./certs/server-cert.der",
             CERT_UNKNOWN,
-            0, CRL_REASON_UNSPECIFIED,
+            0, WC_CRL_REASON_UNSPECIFIED,
             0,     /* validityPeriod (not used for UNKNOWN) */
             OCSP_CERT_UNKNOWN,
             "RSA server cert - UNKNOWN status"
@@ -1594,7 +1594,7 @@ int test_ocsp_responder(void)
             "./certs/ocsp/ocsp-responder-key.der",
             "./certs/ocsp/intermediate1-ca-cert.der",
             CERT_GOOD,
-            0, CRL_REASON_UNSPECIFIED,
+            0, WC_CRL_REASON_UNSPECIFIED,
             86400, /* validityPeriod - 24 hours */
             0,
             "RSA int1 cert with responder - GOOD status"
@@ -1605,7 +1605,7 @@ int test_ocsp_responder(void)
             "./certs/ocsp/ocsp-responder-key.der",
             "./certs/ocsp/intermediate1-ca-cert.der",
             CERT_REVOKED,
-            now, CRL_REASON_KEY_COMPROMISE,  /* Revoked due to key compromise */
+            now, WC_CRL_REASON_KEY_COMPROMISE,  /* Revoked due to key compromise */
             0,     /* validityPeriod (not used for REVOKED) */
             OCSP_CERT_REVOKED,
             "RSA int1 cert with responder - REVOKED status"
@@ -1616,7 +1616,7 @@ int test_ocsp_responder(void)
             "./certs/ocsp/ocsp-responder-key.der",
             "./certs/ocsp/intermediate1-ca-cert.der",
             CERT_UNKNOWN,
-            0, CRL_REASON_UNSPECIFIED,
+            0, WC_CRL_REASON_UNSPECIFIED,
             0,     /* validityPeriod (not used for UNKNOWN) */
             OCSP_CERT_UNKNOWN,
             "RSA int1 cert with responder - UNKNOWN status"
@@ -1628,7 +1628,7 @@ int test_ocsp_responder(void)
             "./certs/ca-ecc-key.der",
             "./certs/server-ecc.der",
             CERT_GOOD,
-            0, CRL_REASON_UNSPECIFIED,
+            0, WC_CRL_REASON_UNSPECIFIED,
             86400, /* validityPeriod - 24 hours */
             0,
             "ECC server cert - GOOD status"
@@ -1639,7 +1639,7 @@ int test_ocsp_responder(void)
             "./certs/ca-ecc-key.der",
             "./certs/server-ecc.der",
             CERT_REVOKED,
-            now, CRL_REASON_AFFILIATION_CHANGED,
+            now, WC_CRL_REASON_AFFILIATION_CHANGED,
             0,     /* validityPeriod (not used for REVOKED) */
             OCSP_CERT_REVOKED,
             "ECC server cert - REVOKED status"
@@ -1650,7 +1650,7 @@ int test_ocsp_responder(void)
             "./certs/ca-ecc-key.der",
             "./certs/server-ecc.der",
             CERT_UNKNOWN,
-            0, CRL_REASON_UNSPECIFIED,
+            0, WC_CRL_REASON_UNSPECIFIED,
             0,     /* validityPeriod (not used for UNKNOWN) */
             OCSP_CERT_UNKNOWN,
             "ECC server cert - UNKNOWN status"

@@ -434,7 +434,7 @@ static int PopulateResponderFromIndex(OcspResponder* responder,
         word32 serialLen = 0;
         enum Ocsp_Cert_Status status;
         time_t revTime = 0;
-        enum WC_CRL_Reason revReason = CRL_REASON_UNSPECIFIED;
+        enum WC_CRL_Reason revReason = WC_CRL_REASON_UNSPECIFIED;
         word32 validity = 86400;
         char* p = entry->serial;
         word32 i;
@@ -487,7 +487,7 @@ static int PopulateResponderFromIndex(OcspResponder* responder,
         else if (entry->status == 'R') {
             status = CERT_REVOKED;
             revTime = entry->revocationTime;
-            revReason = CRL_REASON_UNSPECIFIED;
+            revReason = WC_CRL_REASON_UNSPECIFIED;
             validity = 0;
         }
         else {
