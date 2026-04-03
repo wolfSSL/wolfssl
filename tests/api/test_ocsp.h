@@ -23,6 +23,7 @@
 #define WOLFSSL_TEST_OCSP_H
 
 int test_ocsp_certid_enc_dec(void);
+int test_ocsp_certid_dup(void);
 int test_ocsp_status_callback(void);
 int test_ocsp_basic_verify(void);
 int test_ocsp_response_parsing(void);
