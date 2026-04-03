@@ -12380,6 +12380,15 @@ static int DoTls13NewSessionTicket(WOLFSSL* ssl, const byte* input,
     WOLFSSL_START(WC_FUNC_NEW_SESSION_TICKET_DO);
     WOLFSSL_ENTER("DoTls13NewSessionTicket");
 
+#ifdef HAVE_ECH
+    /* ignore session ticket when ECH is rejected */
+    if (ssl->echConfigs != NULL && !ssl->options.disableECH &&
+            !ssl->options.echAccepted) {
+        *inOutIdx += size + ssl->keys.padSz;
+        return 0;
+    }
+#endif
+
     /* Lifetime hint. */
     if ((*inOutIdx - begin) + SESSION_HINT_SZ > size)
         return BUFFER_ERROR;

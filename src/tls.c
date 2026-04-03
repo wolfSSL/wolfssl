@@ -14300,12 +14300,16 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
             return BAD_FUNC_ARG;
         ech = (WOLFSSL_ECH*)echX->data;
 
-        if (ech->state != ECH_WRITE_GREASE) {
-            ret = wolfSSL_SetEchConfigs(ssl, readBuf, size);
-        }
-
+        ret = wolfSSL_SetEchConfigs(ssl, readBuf, size);
         if (ret == WOLFSSL_SUCCESS)
             ret = 0;
+
+        if (ret == 0 && ech->state == ECH_WRITE_GREASE) {
+            /* the configs need to be checked syntactically but must not be
+             * saved on grease connection */
+            FreeEchConfigs(ssl->echConfigs, ssl->heap);
+            ssl->echConfigs = NULL;
+        }
     }
     /* HRR with special confirmation */
     else if (msgType == hello_retry_request && ssl->echConfigs != NULL) {
