@@ -11870,25 +11870,28 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
         return WOLFSSL_FAILURE;
     }
 
-    if (x509->authKeyIdSz < sizeof(cert->akid)) {
     #ifdef WOLFSSL_AKID_NAME
-        cert->rawAkid = 0;
-        if (x509->authKeyIdSrc) {
-            XMEMCPY(cert->akid, x509->authKeyIdSrc, x509->authKeyIdSrcSz);
-            cert->akidSz = (int)x509->authKeyIdSrcSz;
-            cert->rawAkid = 1;
+    cert->rawAkid = 0;
+    if (x509->authKeyIdSrc) {
+        if (x509->authKeyIdSrcSz > sizeof(cert->akid)) {
+            WOLFSSL_MSG("Auth Key ID too large");
+            WOLFSSL_ERROR_VERBOSE(BUFFER_E);
+            return WOLFSSL_FAILURE;
         }
-        else
-    #endif
-        if (x509->authKeyId) {
-            XMEMCPY(cert->akid, x509->authKeyId, x509->authKeyIdSz);
-            cert->akidSz = (int)x509->authKeyIdSz;
-        }
+        XMEMCPY(cert->akid, x509->authKeyIdSrc, x509->authKeyIdSrcSz);
+        cert->akidSz = (int)x509->authKeyIdSrcSz;
+        cert->rawAkid = 1;
     }
-    else {
-        WOLFSSL_MSG("Auth Key ID too large");
-        WOLFSSL_ERROR_VERBOSE(BUFFER_E);
-        return WOLFSSL_FAILURE;
+    else
+    #endif
+    if (x509->authKeyId) {
+        if (x509->authKeyIdSz > sizeof(cert->akid)) {
+            WOLFSSL_MSG("Auth Key ID too large");
+            WOLFSSL_ERROR_VERBOSE(BUFFER_E);
+            return WOLFSSL_FAILURE;
+        }
+        XMEMCPY(cert->akid, x509->authKeyId, x509->authKeyIdSz);
+        cert->akidSz = (int)x509->authKeyIdSz;
     }
 
     for (i = 0; i < x509->certPoliciesNb; i++) {

@@ -38,6 +38,7 @@
 
 #include <wolfssl/internal.h>
 #include <wolfssl/wolfcrypt/asn.h>
+#include <wolfssl/wolfcrypt/asn_public.h>
 
 #if defined(OPENSSL_ALL) && \
     defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
@@ -630,5 +631,247 @@ int test_x509_time_field_overread_via_tls(void)
     wolfSSL_CTX_free(ctx_s);
     wolfSSL_CTX_free(ctx_c);
 #endif /* compile guards */
+    return EXPECT_RESULT();
+}
+
+
+/* Test that CertFromX509 rejects an oversized raw AuthorityKeyIdentifier
+ * extension. Before the fix, the guard checked authKeyIdSz (the [0]
+ * keyIdentifier sub-field) but the WOLFSSL_AKID_NAME branch copied
+ * authKeyIdSrcSz (the full extension) bytes, causing a heap overflow. */
+int test_x509_CertFromX509_akid_overflow(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_AKID_NAME) && defined(WOLFSSL_CERT_GEN) && \
+    defined(WOLFSSL_CERT_EXT) && !defined(NO_BIO) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL))
+    /* DER builder helpers -- write into a flat buffer */
+#ifdef WOLFSSL_SMALL_STACK
+    unsigned char* buf = NULL;
+#else
+    unsigned char buf[16384];
+#endif
+    size_t pos = 0;
+    size_t akid_val_len;
+    unsigned char* akid_val = NULL;
+    WOLFSSL_X509* x = NULL;
+    WOLFSSL_BIO* bio = NULL;
+
+#ifdef WOLFSSL_SMALL_STACK
+    buf = (unsigned char*)XMALLOC(16384, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(buf);
+    if (buf == NULL)
+        return EXPECT_RESULT();
+#endif
+
+    #define PUT1(b) do { buf[pos++] = (b); } while(0)
+    #define PUTN(p, n) do { XMEMCPY(buf + pos, (p), (n)); pos += (n); } while(0)
+
+    /* Emit tag + definite-length header, return header size */
+    #define TLV_HDR(tag, n, out, hlen) do {                          \
+        size_t _i = 0;                                               \
+        (out)[_i++] = (tag);                                         \
+        if ((n) < 0x80u)       { (out)[_i++] = (unsigned char)(n); } \
+        else if ((n) < 0x100u) { (out)[_i++] = 0x81;                \
+            (out)[_i++] = (unsigned char)(n); }                      \
+        else if ((n) < 0x10000u) { (out)[_i++] = 0x82;              \
+            (out)[_i++] = (unsigned char)((n)>>8);                   \
+            (out)[_i++] = (unsigned char)(n); }                      \
+        (hlen) = _i;                                                 \
+    } while(0)
+
+    /* Wrap [start, pos) in-place with a TLV header */
+    #define WRAP(start, tag) do {                                    \
+        size_t _len = pos - (start);                                 \
+        unsigned char _hdr[6]; size_t _hlen;                         \
+        TLV_HDR((tag), _len, _hdr, _hlen);                          \
+        XMEMMOVE(buf + (start) + _hlen, buf + (start), _len);       \
+        XMEMCPY(buf + (start), _hdr, _hlen);                        \
+        pos += _hlen;                                                \
+    } while(0)
+
+    /* ---- Build AKID extension value ---- */
+    {
+        size_t akid_start = pos;
+        size_t s;
+        int i;
+
+        /* [0] keyIdentifier: 20 bytes (small, passes old check) */
+        s = pos;
+        for (i = 0; i < 20; i++) PUT1(0x41);
+        WRAP(s, 0x80);
+
+        /* [1] authorityCertIssuer: one URI of ~4000 bytes
+         * This makes authKeyIdSrcSz >> sizeof(cert->akid) (~1628) */
+        s = pos;
+        {
+            const char* pfx = "http://e/";
+            PUTN(pfx, (size_t)XSTRLEN(pfx));
+            for (i = 0; i < 4000; i++) PUT1('Z');
+        }
+        WRAP(s, 0x86); /* GeneralName [6] URI */
+        WRAP(s, 0xA1); /* [1] IMPLICIT */
+
+        /* [2] authorityCertSerialNumber */
+        s = pos;
+        PUT1(0x01);
+        WRAP(s, 0x82);
+
+        WRAP(akid_start, 0x30); /* SEQUENCE */
+        akid_val_len = pos - akid_start;
+        akid_val = (unsigned char*)XMALLOC(akid_val_len, NULL,
+                                           DYNAMIC_TYPE_TMP_BUFFER);
+        ExpectNotNull(akid_val);
+        if (akid_val != NULL)
+            XMEMCPY(akid_val, buf + akid_start, akid_val_len);
+    }
+
+    /* ---- Build minimal self-signed v3 certificate ---- */
+    pos = 0;
+    {
+        size_t tbs_start = pos;
+        size_t s;
+
+        /* version [0] EXPLICIT INTEGER 2 (v3) */
+        PUT1(0xA0); PUT1(0x03); PUT1(0x02); PUT1(0x01); PUT1(0x02);
+
+        /* serialNumber INTEGER 1 */
+        PUT1(0x02); PUT1(0x01); PUT1(0x01);
+
+        /* signature: ecdsa-with-SHA256 */
+        s = pos;
+        {
+            unsigned char oid[] = {0x06,0x08,0x2A,0x86,0x48,0xCE,
+                                   0x3D,0x04,0x03,0x02};
+            PUTN(oid, sizeof(oid));
+        }
+        WRAP(s, 0x30);
+
+        /* issuer: CN=A */
+        s = pos;
+        {
+            size_t rdn = pos, atv = pos;
+            unsigned char cn[] = {0x06,0x03,0x55,0x04,0x03};
+            PUTN(cn, sizeof(cn));
+            PUT1(0x0C); PUT1(0x01); PUT1('A');
+            WRAP(atv, 0x30); WRAP(rdn, 0x31); WRAP(s, 0x30);
+        }
+
+        /* validity */
+        s = pos;
+        {
+            unsigned char t1[] = {0x17,0x0D,'2','5','0','1','0','1',
+                                  '0','0','0','0','0','0','Z'};
+            unsigned char t2[] = {0x17,0x0D,'3','5','0','1','0','1',
+                                  '0','0','0','0','0','0','Z'};
+            PUTN(t1, sizeof(t1)); PUTN(t2, sizeof(t2));
+        }
+        WRAP(s, 0x30);
+
+        /* subject: CN=A */
+        s = pos;
+        {
+            size_t rdn = pos, atv = pos;
+            unsigned char cn[] = {0x06,0x03,0x55,0x04,0x03};
+            PUTN(cn, sizeof(cn));
+            PUT1(0x0C); PUT1(0x01); PUT1('A');
+            WRAP(atv, 0x30); WRAP(rdn, 0x31); WRAP(s, 0x30);
+        }
+
+        /* subjectPublicKeyInfo: EC P-256 with dummy point */
+        s = pos;
+        {
+            size_t alg = pos, bs;
+            unsigned char ecpk[] = {0x06,0x07,0x2A,0x86,0x48,0xCE,
+                                    0x3D,0x02,0x01};
+            unsigned char p256[] = {0x06,0x08,0x2A,0x86,0x48,0xCE,
+                                    0x3D,0x03,0x01,0x07};
+            PUTN(ecpk, sizeof(ecpk));
+            PUTN(p256, sizeof(p256));
+            WRAP(alg, 0x30);
+            bs = pos;
+            PUT1(0x00); PUT1(0x04);
+            /* Use P-256 generator point (valid on-curve point) so that
+             * builds with WOLFSSL_VALIDATE_ECC_IMPORT accept the key. */
+            {
+                static const unsigned char p256G[64] = {
+                    0x6B,0x17,0xD1,0xF2,0xE1,0x2C,0x42,0x47,
+                    0xF8,0xBC,0xE6,0xE5,0x63,0xA4,0x40,0xF2,
+                    0x77,0x03,0x7D,0x81,0x2D,0xEB,0x33,0xA0,
+                    0xF4,0xA1,0x39,0x45,0xD8,0x98,0xC2,0x96,
+                    0x4F,0xE3,0x42,0xE2,0xFE,0x1A,0x7F,0x9B,
+                    0x8E,0xE7,0xEB,0x4A,0x7C,0x0F,0x9E,0x16,
+                    0x2B,0xCE,0x33,0x57,0x6B,0x31,0x5E,0xCE,
+                    0xCB,0xB6,0x40,0x68,0x37,0xBF,0x51,0xF5
+                };
+                PUTN(p256G, sizeof(p256G));
+            }
+            WRAP(bs, 0x03);
+        }
+        WRAP(s, 0x30);
+
+        /* extensions [3] */
+        {
+            size_t exts_outer = pos, exts_seq = pos, ext = pos, ev;
+            unsigned char akid_oid[] = {0x06,0x03,0x55,0x1D,0x23};
+            PUTN(akid_oid, sizeof(akid_oid));
+            ev = pos;
+            if (akid_val != NULL)
+                PUTN(akid_val, akid_val_len);
+            WRAP(ev, 0x04);
+            WRAP(ext, 0x30);
+            WRAP(exts_seq, 0x30);
+            WRAP(exts_outer, 0xA3);
+        }
+
+        WRAP(tbs_start, 0x30);
+
+        /* signatureAlgorithm */
+        s = pos;
+        {
+            unsigned char oid[] = {0x06,0x08,0x2A,0x86,0x48,0xCE,
+                                   0x3D,0x04,0x03,0x02};
+            PUTN(oid, sizeof(oid));
+        }
+        WRAP(s, 0x30);
+
+        /* signatureValue: dummy */
+        s = pos;
+        {
+            size_t sig;
+            PUT1(0x00);
+            sig = pos;
+            PUT1(0x02); PUT1(0x01); PUT1(0x01);
+            PUT1(0x02); PUT1(0x01); PUT1(0x01);
+            WRAP(sig, 0x30);
+        }
+        WRAP(s, 0x03);
+
+        WRAP(0, 0x30); /* outer Certificate SEQUENCE */
+    }
+
+    /* Parse the crafted certificate */
+    x = wolfSSL_X509_d2i(NULL, buf, (int)pos);
+    ExpectNotNull(x);
+
+    /* Attempt re-encode via i2d_X509_bio -- must fail gracefully, not
+     * overflow. Before the fix this would write ~4000 bytes past the
+     * end of cert->akid[]. */
+    bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
+    ExpectNotNull(bio);
+    ExpectIntEQ(wolfSSL_i2d_X509_bio(bio, x), 0);
+
+    wolfSSL_BIO_free(bio);
+    wolfSSL_X509_free(x);
+    XFREE(akid_val, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    #undef PUT1
+    #undef PUTN
+    #undef TLV_HDR
+    #undef WRAP
+#endif
     return EXPECT_RESULT();
 }
