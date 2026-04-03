@@ -421,6 +421,9 @@ int wc_InitBlake2s(Blake2s* b2s, word32 digestSz)
     if (b2s == NULL){
         return BAD_FUNC_ARG;
     }
+    if (digestSz == 0 || digestSz > BLAKE2S_OUTBYTES) {
+        return BAD_FUNC_ARG;
+    }
     b2s->digestSz = digestSz;
 
     return blake2s_init(b2s->S, (byte)digestSz);
@@ -431,6 +434,9 @@ int wc_InitBlake2s(Blake2s* b2s, word32 digestSz)
 int wc_InitBlake2s_WithKey(Blake2s* b2s, word32 digestSz, const byte *key, word32 keylen)
 {
     if (b2s == NULL){
+        return BAD_FUNC_ARG;
+    }
+    if (digestSz == 0 || digestSz > BLAKE2S_OUTBYTES) {
         return BAD_FUNC_ARG;
     }
     b2s->digestSz = digestSz;
@@ -475,6 +481,9 @@ int wc_Blake2sFinal(Blake2s* b2s, byte* final, word32 requestSz)
     }
 
     sz = requestSz ? requestSz : b2s->digestSz;
+    if (sz == 0 || sz > BLAKE2S_OUTBYTES) {
+        return BAD_FUNC_ARG;
+    }
 
     return blake2s_final(b2s->S, final, (byte)sz);
 }

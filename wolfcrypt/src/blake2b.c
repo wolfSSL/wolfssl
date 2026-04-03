@@ -426,6 +426,9 @@ int wc_InitBlake2b(Blake2b* b2b, word32 digestSz)
     if (b2b == NULL){
         return BAD_FUNC_ARG;
     }
+    if (digestSz == 0 || digestSz > BLAKE2B_OUTBYTES) {
+        return BAD_FUNC_ARG;
+    }
     b2b->digestSz = digestSz;
 
     return blake2b_init(b2b->S, (byte)digestSz);
@@ -435,6 +438,9 @@ int wc_InitBlake2b(Blake2b* b2b, word32 digestSz)
 int wc_InitBlake2b_WithKey(Blake2b* b2b, word32 digestSz, const byte *key, word32 keylen)
 {
     if (b2b == NULL){
+        return BAD_FUNC_ARG;
+    }
+    if (digestSz == 0 || digestSz > BLAKE2B_OUTBYTES) {
         return BAD_FUNC_ARG;
     }
     b2b->digestSz = digestSz;
@@ -478,6 +484,9 @@ int wc_Blake2bFinal(Blake2b* b2b, byte* final, word32 requestSz)
     }
 
     sz = requestSz ? requestSz : b2b->digestSz;
+    if (sz == 0 || sz > BLAKE2B_OUTBYTES) {
+        return BAD_FUNC_ARG;
+    }
 
     return blake2b_final(b2b->S, final, (byte)sz);
 }
