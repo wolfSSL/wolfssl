@@ -13242,6 +13242,11 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                 }
                 wc_PKCS7_DecryptContentFree(pkcs7, encOID, pkcs7->heap);
             } else {
+                if ((idx + (word32)encryptedContentTotalSz) > pkiMsgSz) {
+                    ret = BUFFER_E;
+                    break;
+                }
+
                 pkcs7->cachedEncryptedContentSz =
                     (word32)encryptedContentTotalSz;
                 pkcs7->totalEncryptedContentSz =
