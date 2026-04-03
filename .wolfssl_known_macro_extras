@@ -661,8 +661,6 @@ WC_RSA_NONBLOCK
 WC_RSA_NONBLOCK_TIME
 WC_RSA_NO_FERMAT_CHECK
 WC_RWLOCK_OPS_INLINE
-<<<<<<< HEAD
-=======
 WC_SHA384
 WC_SHA384_DIGEST_SIZE
 WC_SHA512
@@ -676,7 +674,6 @@ WC_SHE_SW_TEST_EXP_M3
 WC_SHE_SW_TEST_EXP_M4
 WC_SHE_SW_TEST_EXP_M5
 WC_SHE_SW_TEST_NEW_KEY
->>>>>>> 68515713f0 (Address comments from bigbrett and Fenrir bot. Rename she.{c,h} to wc_she.{c,h}, fix naming consistency, auto-enable CMAC/AES dependencies, add WC_SHE_SW_DEFAULT opt-inAddress PR #10009 review comments from bigbrett and Fenrir)
 WC_SKIP_INCLUDED_C_FILES
 WC_SSIZE_TYPE
 WC_STRICT_SIG
