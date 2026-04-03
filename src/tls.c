@@ -18031,19 +18031,6 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
     if (ret == 0)
         ret = TCA_VERIFY_PARSE(ssl, isRequest);
 
-#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
-    /* If client used ECH, server HRR must include ECH confirmation */
-    if (ret == 0 && msgType == hello_retry_request && ssl->echConfigs != NULL &&
-            !ssl->options.disableECH) {
-        TLSX* echX = TLSX_Find(ssl->extensions, TLSX_ECH);
-        if (echX == NULL || ((WOLFSSL_ECH*)echX->data)->confBuf == NULL) {
-            WOLFSSL_MSG("ECH used but HRR missing ECH confirmation");
-            WOLFSSL_ERROR_VERBOSE(EXT_MISSING);
-            ret = EXT_MISSING;
-        }
-    }
-#endif
-
     WOLFSSL_LEAVE("Leaving TLSX_Parse", ret);
     return ret;
 }

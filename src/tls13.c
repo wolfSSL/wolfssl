@@ -5747,34 +5747,43 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
 #if defined(HAVE_ECH)
     /* check for acceptConfirmation */
-    if (ssl->echConfigs != NULL && !ssl->options.disableECH) {
+    if (ssl->echConfigs != NULL && !ssl->options.disableECH &&
+            ssl->hsHashesEch != NULL) {
         args->echX = TLSX_Find(ssl->extensions, TLSX_ECH);
         if (args->echX == NULL || args->echX->data == NULL)
             return WOLFSSL_FATAL_ERROR;
 
-        /* account for hrr extension instead of server random */
-        if (args->extMsgType == hello_retry_request) {
-            args->acceptOffset =
-                (word32)(((WOLFSSL_ECH*)args->echX->data)->confBuf - input);
-            args->acceptLabel = (byte*)echHrrAcceptConfirmationLabel;
-            args->acceptLabelSz = ECH_HRR_ACCEPT_CONFIRMATION_LABEL_SZ;
+        if (args->extMsgType == hello_retry_request &&
+                ((WOLFSSL_ECH*)args->echX->data)->confBuf == NULL) {
+            /* server rejected ECH, fallback to outer */
+            Free_HS_Hashes(ssl->hsHashesEch, ssl->heap);
+            ssl->hsHashesEch = NULL;
         }
         else {
-            args->acceptLabel = (byte*)echAcceptConfirmationLabel;
-            args->acceptLabelSz = ECH_ACCEPT_CONFIRMATION_LABEL_SZ;
-        }
-        /* check acceptance */
-        if (ret == 0) {
-            ret = EchCheckAcceptance(ssl, args->acceptLabel,
-                args->acceptLabelSz, input, args->acceptOffset, helloSz,
-                args->extMsgType);
-        }
-        if (ret != 0)
-            return ret;
-        /* use the inner random for client random */
-        if (args->extMsgType != hello_retry_request) {
-            XMEMCPY(ssl->arrays->clientRandom, ssl->arrays->clientRandomInner,
-                RAN_LEN);
+            /* account for hrr extension instead of server random */
+            if (args->extMsgType == hello_retry_request) {
+                args->acceptOffset =
+                    (word32)(((WOLFSSL_ECH*)args->echX->data)->confBuf - input);
+                args->acceptLabel = (byte*)echHrrAcceptConfirmationLabel;
+                args->acceptLabelSz = ECH_HRR_ACCEPT_CONFIRMATION_LABEL_SZ;
+            }
+            else {
+                args->acceptLabel = (byte*)echAcceptConfirmationLabel;
+                args->acceptLabelSz = ECH_ACCEPT_CONFIRMATION_LABEL_SZ;
+            }
+            /* check acceptance */
+            if (ret == 0) {
+                ret = EchCheckAcceptance(ssl, args->acceptLabel,
+                    args->acceptLabelSz, input, args->acceptOffset, helloSz,
+                    args->extMsgType);
+            }
+            if (ret != 0)
+                return ret;
+            /* use the inner random for client random */
+            if (args->extMsgType != hello_retry_request) {
+                XMEMCPY(ssl->arrays->clientRandom,
+                    ssl->arrays->clientRandomInner, RAN_LEN);
+            }
         }
     }
 #endif /* HAVE_ECH */
@@ -13529,6 +13538,11 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     ssl->options.echProcessingInner = 0;
 
                     ((WOLFSSL_ECH*)echX->data)->sniState = ECH_SNI_DONE;
+                }
+                if (ret == 0 && ((WOLFSSL_ECH*)echX->data)->state !=
+                        ECH_PARSED_INTERNAL) {
+                    WOLFSSL_MSG("ECH: inner ClientHello missing ECH extension");
+                    ret = INVALID_PARAMETER;
                 }
                 /* if the inner ech parsed successfully we have successfully
                  * handled the hello and can skip the whole message */
