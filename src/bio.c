@@ -2849,7 +2849,7 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
                 tmp = b->ip;
                 b->ip = (char*)XMALLOC(newLen+1, b->heap, DYNAMIC_TYPE_OPENSSL);
                 if (b->ip != NULL && tmp != NULL) {
-                    XMEMCPY(b->ip, tmp, newLen);
+                    XMEMCPY(b->ip, tmp, currLen < newLen ? currLen : newLen);
                     XFREE(tmp, b->heap, DYNAMIC_TYPE_OPENSSL);
                     tmp = NULL;
             }
