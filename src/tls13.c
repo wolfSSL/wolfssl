@@ -9291,7 +9291,7 @@ static int SendTls13Certificate(WOLFSSL* ssl)
                         break;
                 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) && \
                         !defined(NO_WOLFSSL_SERVER)
-                    if (MAX_CERT_EXTENSIONS > extIdx)
+                    if (extIdx + 1 < MAX_CERT_EXTENSIONS)
                         extIdx++;
                 #endif
                 }
@@ -9324,6 +9324,10 @@ static int SendTls13Certificate(WOLFSSL* ssl)
             /* DTLS1.3 uses a separate variable and logic for fragments */
             ssl->options.buildingMsg = 0;
             ssl->fragOffset = 0;
+            if ((word32)sendSz > WOLFSSL_MAX_16BIT || i > WOLFSSL_MAX_16BIT) {
+                WOLFSSL_MSG("Send Cert DTLS size exceeds word16");
+                return BUFFER_E;
+            }
             ret = Dtls13HandshakeSend(ssl, output, (word16)sendSz, (word16)i,
                                       certificate, 1);
         }
