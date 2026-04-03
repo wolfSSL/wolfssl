@@ -4921,7 +4921,8 @@ int SendTls13ClientHello(WOLFSSL* ssl)
 #if defined(HAVE_ECH)
     /* write inner then outer */
     if (ssl->echConfigs != NULL && !ssl->options.disableECH &&
-        (ssl->options.echAccepted || args->ech->innerCount == 0)) {
+            (ssl->options.echAccepted || args->ech->innerCount == 0)) {
+        byte downgrade;
         /* set the type to inner */
         args->ech->type = ECH_TYPE_INNER;
         /* innerClientHello may already exist from hrr, free if it does */
@@ -4966,11 +4967,15 @@ int SendTls13ClientHello(WOLFSSL* ssl)
         /* copy the new client random */
         XMEMCPY(ssl->arrays->clientRandom, args->output +
             args->clientRandomOffset, RAN_LEN);
-        /* write the extensions for inner */
+        /* write the extensions for inner
+         * ensuring that a version less than TLS1.3 is never offered  */
         args->length = 0;
-        ret = TLSX_WriteRequest(ssl, args->ech->innerClientHello + args->idx -
-            (RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ), client_hello,
-            &args->length);
+        downgrade = ssl->options.downgrade;
+        ssl->options.downgrade = 0;
+        ret = TLSX_WriteRequest(ssl, args->ech->innerClientHello +
+            args->idx - (RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ),
+            client_hello, &args->length);
+        ssl->options.downgrade = downgrade;
         /* set the type to outer */
         args->ech->type = ECH_TYPE_OUTER;
         if (ret != 0)

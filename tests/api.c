@@ -15822,7 +15822,7 @@ static int test_wolfSSL_Tls13_ECH_tamper_client(void)
     ExpectIntEQ(wolfSSL_get_error(test_ctx.c_ssl, 0),
         WC_NO_ERR_TRACE(FATAL_ERROR));
 
-    /* corrupted key share (checks that inner key_share is used, not outer) */
+    /* corrupted key share */
     ExpectIntEQ(test_wolfSSL_Tls13_ECH_tamper_ex(&test_ctx), TEST_SUCCESS);
     test_ctx.c_ssl->echInnerHelloCb = ech_tamper_key_share;
     ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
