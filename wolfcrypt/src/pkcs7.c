@@ -2253,7 +2253,7 @@ static int wc_PKCS7_BuildSignedAttributes(wc_PKCS7* pkcs7, ESD* esd,
             idx++;
         }
 
-        esd->signedAttribsCount += cannedAttribsCount;
+        esd->signedAttribsCount += idx;
         esd->signedAttribsSz += (word32)EncodeAttributes(
             &esd->signedAttribs[atrIdx], (int)idx, cannedAttribs,
             (int)cannedAttribsCount);
