@@ -13360,6 +13360,9 @@ int MatchDomainName(const char* pattern, int patternLen, const char* str,
                 wildcardEligible = 0;
             }
 
+            if (strLen == 0)
+                return 0;
+
             /* Simple case, pattern match exactly */
             if (p != (char)XTOLOWER((unsigned char) *str))
                 return 0;
