@@ -9701,8 +9701,9 @@ static DtlsFragBucket* DtlsMsgCombineFragBuckets(DtlsMsg* msg,
         }
         else {
             /* data -> cur. memcpy as much possible as its faster. */
-            XMEMMOVE(newBucket->buf + dataSz, cur->buf,
-                    cur->m.m.sz - (offsetEnd - cur->m.m.offset));
+            word32 skipInCur = offsetEnd - cur->m.m.offset;
+            XMEMMOVE(newBucket->buf + dataSz, cur->buf + skipInCur,
+                    cur->m.m.sz - skipInCur);
             XMEMCPY(newBucket->buf, data, dataSz);
         }
     }
@@ -9863,22 +9864,25 @@ int DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch, const byte* data, byte ty
                     msg->fragBucketListCount++;
                 }
             }
-            else if (prev == NULL && fragOffsetEnd < cur->m.m.offset) {
-                    /* This is the new first fragment we have received */
+            else if (fragOffsetEnd < cur->m.m.offset) {
+                    /* Fragment is entirely before cur with a gap */
+                    DtlsFragBucket** prev_next;
                     if (msg->fragBucketListCount >= DTLS_FRAG_POOL_SZ) {
                         WOLFSSL_ERROR_VERBOSE(DTLS_TOO_MANY_FRAGMENTS_E);
                         return DTLS_TOO_MANY_FRAGMENTS_E;
                     }
-                    msg->fragBucketList = DtlsMsgCreateFragBucket(fragOffset, data,
+                    prev_next = prev != NULL
+                            ? &prev->m.m.next : &msg->fragBucketList;
+                    *prev_next = DtlsMsgCreateFragBucket(fragOffset, data,
                             fragSz, heap);
-                    if (msg->fragBucketList != NULL) {
-                        msg->fragBucketList->m.m.next = cur;
+                    if (*prev_next != NULL) {
+                        (*prev_next)->m.m.next = cur;
                         msg->bytesReceived += fragSz;
                         msg->fragBucketListCount++;
                     }
                     else {
                         /* reset on error */
-                        msg->fragBucketList = cur;
+                        *prev_next = cur;
                     }
             }
             else {
