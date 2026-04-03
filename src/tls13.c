@@ -6144,7 +6144,8 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
     ext = TLSX_Find(ssl->extensions, TLSX_PRE_SHARED_KEY);
     if (ext == NULL) {
         WOLFSSL_MSG("No pre shared extension keys found");
-        return BAD_FUNC_ARG;
+        ret = BAD_FUNC_ARG;
+        goto cleanup;
     }
 
     /* Look through all client's pre-shared keys for a match. */
@@ -6152,7 +6153,8 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
             current = current->next) {
     #ifndef NO_PSK
         if (current->identityLen > MAX_PSK_ID_LEN) {
-            return BUFFER_ERROR;
+            ret = BUFFER_ERROR;
+            goto cleanup;
         }
         XMEMCPY(ssl->arrays->client_identity, current->identity,
                 current->identityLen);
@@ -6179,7 +6181,7 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
 
         #ifdef WOLFSSL_ASYNC_CRYPT
         if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
-            return ret;
+            goto cleanup;
         #endif
 
         if (ret != WOLFSSL_TICKET_RET_OK && current->sess_free_cb != NULL) {
@@ -6214,45 +6216,45 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
             ssl->options.cipherSuite    = ssl->session->cipherSuite;
             ret = SetCipherSpecs(ssl);
             if (ret != 0)
-                return ret;
+                goto cleanup;
 
             /* Resumption PSK is resumption master secret. */
             ssl->arrays->psk_keySz = ssl->specs.hash_size;
             if ((ret = DeriveResumptionPSK(ssl, ssl->session->ticketNonce.data,
                 ssl->session->ticketNonce.len, ssl->arrays->psk_key)) != 0) {
-                return ret;
+                goto cleanup;
             }
 
             /* Derive the early secret using the PSK. */
             ret = DeriveEarlySecret(ssl);
             if (ret != 0)
-                return ret;
+                goto cleanup;
 
             /* Hash data up to binders for deriving binders in PSK extension. */
             ret = HashInput(ssl, input, (int)inputSz);
             if (ret < 0)
-                return ret;
+                goto cleanup;
 
             /* Derive the binder key to use with HMAC. */
             ret = DeriveBinderKeyResume(ssl, binderKey);
             if (ret != 0)
-                return ret;
+                goto cleanup;
         }
         else
     #endif /* HAVE_SESSION_TICKET */
     #ifndef NO_PSK
         if (FindPsk(ssl, current, suite, &ret)) {
             if (ret != 0)
-                return ret;
+                goto cleanup;
 
             ret = HashInput(ssl, input, (int)inputSz);
             if (ret < 0)
-                return ret;
+                goto cleanup;
 
             /* Derive the binder key to use with HMAC. */
             ret = DeriveBinderKey(ssl, binderKey);
             if (ret != 0)
-                return ret;
+                goto cleanup;
         }
         else
     #endif
@@ -6267,18 +6269,19 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
                                    ssl->keys.client_write_MAC_secret,
                                    0 /* neither end */);
         if (ret != 0)
-            return ret;
+            goto cleanup;
 
         /* Derive the binder and compare with the one in the extension. */
         ret = BuildTls13HandshakeHmac(ssl,
                          ssl->keys.client_write_MAC_secret, binder, &binderLen);
         if (ret != 0)
-            return ret;
+            goto cleanup;
         if (binderLen != current->binderLen ||
                              ConstantCompare(binder, current->binder,
                                 binderLen) != 0) {
             WOLFSSL_ERROR_VERBOSE(BAD_BINDER);
-            return BAD_BINDER;
+            ret = BAD_BINDER;
+            goto cleanup;
         }
 
         /* This PSK works, no need to try any more. */
@@ -6290,19 +6293,26 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
     if (current == NULL) {
 #ifdef WOLFSSL_PSK_ID_PROTECTION
     #ifndef NO_CERTS
-        if (ssl->buffers.certChainCnt != 0)
-            return 0;
+        if (ssl->buffers.certChainCnt != 0) {
+            ret = 0;
+            goto cleanup;
+        }
     #endif
         WOLFSSL_ERROR_VERBOSE(BAD_BINDER);
-        return BAD_BINDER;
+        ret = BAD_BINDER;
+        goto cleanup;
 #else
-        return 0;
+        ret = 0;
+        goto cleanup;
 #endif
     }
 
     *first = (current == ext->data);
     *usingPSK = 1;
 
+cleanup:
+    ForceZero(binderKey, sizeof(binderKey));
+    ForceZero(binder, sizeof(binder));
     WOLFSSL_LEAVE("DoPreSharedKeys", ret);
 
     return ret;
