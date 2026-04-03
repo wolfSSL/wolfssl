@@ -502,6 +502,9 @@ static int craft_malicious_time_cert(const byte* orig, int origSz,
 
     notBeforeLenOff = validityOff + 3; /* the 0x0D byte */
     notBeforeDataEnd = notBeforeLenOff + 1 + 13; /* tag(1) was at +2, data starts at +4 */
+    if (notBeforeDataEnd >= origSz) {
+        return -1;
+    }
 
     /* Build the new buffer:
      *   [0 .. notBeforeLenOff-1]  unchanged prefix
