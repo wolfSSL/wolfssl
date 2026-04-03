@@ -5802,6 +5802,14 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             XMEMSET(ssl->arrays->psk_key, 0, MAX_PSK_KEY_LEN);
         }
         else {
+#if defined(HAVE_ECH)
+            /* do not resume when outerHandshake will be negotiated  */
+            if (ssl->echConfigs != NULL && !ssl->options.disableECH &&
+                    !ssl->options.echAccepted) {
+                WOLFSSL_MSG("ECH rejected but server negotiated PSK");
+                return INVALID_PARAMETER;
+            }
+#endif
 #ifdef WOLFSSL_CERT_WITH_EXTERN_PSK
             if (ssl->options.certWithExternPsk && psk->resumption) {
                 /* RFC8773bis mode requires external PSK, not ticket resumption. */
