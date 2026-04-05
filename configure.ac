@@ -3201,6 +3201,41 @@ case "$ENABLED_STSAFE" in
 esac
 
 
+# Caliptra Cryptographic Mailbox
+AC_ARG_ENABLE([caliptra],
+    [AS_HELP_STRING([--enable-caliptra],[enable Caliptra cryptographic mailbox CryptoCb port; implies --enable-cryptocb (default: disabled)])],
+    [ ENABLED_CALIPTRA=$enableval ],
+    [ ENABLED_CALIPTRA=no ]
+)
+if test "x$ENABLED_CALIPTRA" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CALIPTRA"
+    AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_CB_FREE"
+    # Caliptra requires WOLF_CRYPTO_CB and WOLF_CRYPTO_CB_FREE.
+    # ENABLED_CRYPTOCB is forced to yes below, alongside the cryptocb
+    # AC_ARG_ENABLE processing, so this declaration ordering is robust.
+fi
+
+# Caliptra software simulator: provides caliptra_mailbox_exec() so that
+# libwolfssl and example binaries link without a real hardware backend.
+# Enabled by default when --enable-caliptra is on; disable for production
+# builds that supply their own caliptra_mailbox_exec() implementation.
+AC_ARG_ENABLE([caliptra-sim],
+    [AS_HELP_STRING([--disable-caliptra-sim],[Disable bundled Caliptra software simulator; requires integrator-supplied caliptra_mailbox_exec() (default: enabled when --enable-caliptra)])],
+    [ ENABLED_CALIPTRA_SIM=$enableval ],
+    [ ENABLED_CALIPTRA_SIM=yes ]
+)
+if test "x$ENABLED_CALIPTRA" = "xno"
+then
+    ENABLED_CALIPTRA_SIM=no
+fi
+if test "x$ENABLED_CALIPTRA_SIM" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CALIPTRA_SIM"
+    AC_MSG_WARN([Caliptra software simulator enabled (default). This is for offline development and test only -- production builds must pass --disable-caliptra-sim and supply a real caliptra_mailbox_exec() implementation.])
+fi
+
+
 # NXP SE050
 # Example: "./configure --with-se050=/home/pi/simw_top"
 ENABLED_SE050="no"
@@ -10620,7 +10655,7 @@ AC_ARG_ENABLE([cryptocb-sw-test],
     [ ENABLED_CRYPTOCB_SW_TEST=yes ]
     )
 
-if test "x$ENABLED_PKCS11" = "xyes" || test "x$ENABLED_WOLFTPM" = "xyes" || test "$ENABLED_CAAM" != "no"
+if test "x$ENABLED_PKCS11" = "xyes" || test "x$ENABLED_WOLFTPM" = "xyes" || test "$ENABLED_CAAM" != "no" || test "x$ENABLED_CALIPTRA" = "xyes"
 then
     ENABLED_CRYPTOCB=yes
 fi
@@ -12370,6 +12405,8 @@ AM_CONDITIONAL([BUILD_IOTSAFE_HWRNG],[test "x$ENABLED_IOTSAFE_HWRNG" = "xyes"])
 AM_CONDITIONAL([BUILD_SE050],[test "x$ENABLED_SE050" = "xyes"])
 AM_CONDITIONAL([BUILD_STSAFE],[test "x$ENABLED_STSAFE" != "xno"])
 AM_CONDITIONAL([BUILD_TROPIC01],[test "x$ENABLED_TROPIC01" = "xyes"])
+AM_CONDITIONAL([BUILD_CALIPTRA],[test "x$ENABLED_CALIPTRA" = "xyes"])
+AM_CONDITIONAL([BUILD_CALIPTRA_SIM],[test "x$ENABLED_CALIPTRA_SIM" = "xyes"])
 AM_CONDITIONAL([BUILD_KDF],[test "x$ENABLED_KDF" = "xyes"])
 AM_CONDITIONAL([BUILD_HMAC],[test "x$ENABLED_HMAC" = "xyes"])
 AM_CONDITIONAL([BUILD_ERROR_STRINGS],[test "x$ENABLED_ERROR_STRINGS" = "xyes"])
@@ -12940,6 +12977,8 @@ echo "   * IoT-Safe HWRNG:             $ENABLED_IOTSAFE_HWRNG"
 echo "   * NXP SE050:                  $ENABLED_SE050"
 echo "   * STMicro STSAFE:             $ENABLED_STSAFE"
 echo "   * TROPIC01:                   $ENABLED_TROPIC01"
+echo "   * Caliptra:                   $ENABLED_CALIPTRA"
+echo "   * Caliptra Sim:               $ENABLED_CALIPTRA_SIM"
 echo "   * Maxim Integrated MAXQ10XX:  $ENABLED_MAXQ10XX"
 echo "   * PSA:                        $ENABLED_PSA"
 echo "   * System CA certs:            $ENABLED_SYS_CA_CERTS"
