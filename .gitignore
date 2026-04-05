@@ -485,6 +485,9 @@ wrapper/Ada/obj/
 wolfssl/debug-trace-error-codes.h
 wolfssl/debug-untrace-error-codes.h
 
+# AI tool configuration
+.ai/
+.claude/
 AGENTS.md
 CLAUDE.md
 
@@ -493,3 +496,13 @@ compile_commands.json
 
 # Python cache
 __pycache__/
+
+# Beads issue tracker
+.beads/
+.dolt/
+*.db
+.beads-credential-key
+
+# Caliptra hw-model test binary
+wolfcrypt/src/port/caliptra/sim/caliptra_test_bin
+wolfcrypt/src/port/caliptra/sim/*.o

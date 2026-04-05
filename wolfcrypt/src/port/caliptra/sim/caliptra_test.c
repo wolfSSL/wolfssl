@@ -1,14 +1,19 @@
 /* caliptra_test.c — test harness for the wolfSSL Caliptra port
  *
  * Exercises the port via the standard wolfSSL API with WOLF_CALIPTRA_DEVID.
- * The caliptra_mailbox_exec() function is provided by caliptra_sim.c.
  *
- * Build (see Makefile notes in README):
- *   gcc $CFLAGS -DBUILDING_WOLFSSL \
- *       caliptra_sim.c caliptra_test.c \
- *       wolfcrypt/src/port/caliptra/caliptra_port.o \
- *       src/.libs/libwolfssl.a -lpthread -lm \
- *       -o caliptra_test_bin
+ * Two transport backends are supported:
+ *
+ *   Software simulator (caliptra_sim.c) — default, no external dependencies:
+ *     gcc $CFLAGS -DBUILDING_WOLFSSL \
+ *         caliptra_sim.c caliptra_test.c \
+ *         wolfcrypt/src/port/caliptra/caliptra_port.o \
+ *         src/.libs/libwolfssl.a -lpthread -lm \
+ *         -o caliptra_test_bin
+ *
+ *   hw-model emulator (caliptra_hwmodel.c) — requires the Caliptra hw-model
+ *   C binding.  Build using the Makefile in this directory:
+ *     make -C wolfcrypt/src/port/caliptra/sim/ run
  */
 
 #include <wolfssl/wolfcrypt/settings.h>
@@ -25,6 +30,11 @@
 
 #include <stdio.h>
 #include <string.h>
+
+/* hw-model backend: include init/cleanup declarations when requested */
+#ifdef CALIPTRA_HWMODEL
+#include "caliptra_hwmodel.h"
+#endif
 
 /* Use INVALID_DEVID when we want software fallback (no CryptoCb device) */
 #ifndef WC_NO_DEVID
@@ -277,67 +287,58 @@ static void test_aesgcm_roundtrip(void)
 static void test_ecdsa_sign_verify(void)
 {
     WC_RNG rng;
-    ecc_key key, sign_key, ver_key;
+    ecc_key sign_key, ver_key;
     CaliptraCmk sign_cmk, verify_cmk;
     byte sig_der[160];
     word32 sig_len = sizeof(sig_der);
     byte hash[48];
-    byte priv_bytes[48];
-    word32 priv_len = 48;
-    byte pub_x[48], pub_y[48];
-    word32 pub_xlen = 48, pub_ylen = 48;
-    byte pub_xy[96];
+    /* Caliptra treats the 48-byte ECDSA CMK input as a seed: it derives the
+     * key pair via ecc384.key_pair(seed).  Importing the *same* seed for both
+     * sign and verify causes the firmware to derive the same (d', Q') on both
+     * sides, making hardware-to-hardware round-trip verification work. */
+    byte seed[48];
     int verify_res = 0;
     int ret;
-    int saved_devId;
 
     memset(hash, 0xAB, 48);
     memset(sig_der, 0, sizeof(sig_der));
 
     ret = wc_InitRng(&rng);
     if (ret != 0) {
-        TEST("ECDSA sign+verify via Caliptra port", 0);
+        TEST("Caliptra ECDSA sign+verify", 0);
         return;
     }
 
-    wc_ecc_init(&key);
-    ret = wc_ecc_make_key_ex(&rng, 48, &key, ECC_SECP384R1);
+    /* Random seed: both sign_cmk and verify_cmk will hold this value */
+    ret = wc_RNG_GenerateBlock(&rng, seed, sizeof(seed));
     if (ret != 0) {
-        wc_ecc_free(&key);
         wc_FreeRng(&rng);
-        TEST("ECDSA sign+verify via Caliptra port", 0);
+        TEST("Caliptra ECDSA sign+verify", 0);
         return;
     }
 
-    /* Export private key */
-    saved_devId = key.devId;
-    key.devId = WC_NO_DEVID;
-    ret = wc_ecc_export_private_only(&key, priv_bytes, &priv_len);
-    key.devId = saved_devId;
+    /* Import seed as sign CMK */
+    ret = wc_caliptra_import_key(seed, 48, CMB_KEY_USAGE_ECDSA, &sign_cmk);
     if (ret != 0) {
-        wc_ecc_free(&key);
         wc_FreeRng(&rng);
-        TEST("ECDSA sign+verify via Caliptra port", 0);
+        TEST("Caliptra ECDSA sign+verify", 0);
         return;
     }
 
-    /* Import private key as CMK */
-    ret = wc_caliptra_import_key(priv_bytes, priv_len, CMB_KEY_USAGE_ECDSA /* 3 */, &sign_cmk);
+    /* Import the same seed as verify CMK — firmware re-derives the same Q' */
+    ret = wc_caliptra_import_key(seed, 48, CMB_KEY_USAGE_ECDSA, &verify_cmk);
     if (ret != 0) {
-        wc_ecc_free(&key);
+        wc_caliptra_delete_key(&sign_cmk);
         wc_FreeRng(&rng);
-        TEST("ECDSA sign+verify via Caliptra port", 0);
+        TEST("Caliptra ECDSA sign+verify", 0);
         return;
     }
 
-    /* Sign via Caliptra port: init an ECC key on the device, set devCtx */
+    /* Sign via Caliptra: wc_ecc_sign_hash requires the key's curve to be
+     * initialised before it routes through the CryptoCb path.  Generate a
+     * throwaway P-384 key to populate the curve metadata, then override
+     * devCtx with sign_cmk so the actual signing uses the Caliptra CMK. */
     wc_ecc_init_ex(&sign_key, NULL, WOLF_CALIPTRA_DEVID);
-    /* wc_ecc_sign_hash requires the key's curve to be initialised before
-     * it routes through the CryptoCb path.  We generate a throwaway P-384
-     * key to populate the curve metadata, then overwrite devCtx with the
-     * imported Caliptra CMK for the actual signing operation.  The
-     * throwaway private key is never used; the signature comes from
-     * Caliptra via devCtx = &sign_cmk. */
     ret = wc_ecc_make_key_ex(&rng, 48, &sign_key, ECC_SECP384R1);
     if (ret == 0) {
         sign_key.devCtx = &sign_cmk;
@@ -348,53 +349,28 @@ static void test_ecdsa_sign_verify(void)
 
     if (ret != 0) {
         wc_caliptra_delete_key(&sign_cmk);
-        wc_ecc_free(&key);
+        wc_caliptra_delete_key(&verify_cmk);
         wc_FreeRng(&rng);
-        TEST("ECDSA sign+verify via Caliptra port", 0);
+        TEST("Caliptra ECDSA sign+verify", 0);
         return;
     }
 
-    /* Export public key coordinates from the original software key */
-    saved_devId = key.devId;
-    key.devId = WC_NO_DEVID;
-    ret = wc_ecc_export_public_raw(&key, pub_x, &pub_xlen, pub_y, &pub_ylen);
-    key.devId = saved_devId;
-    if (ret != 0) {
-        wc_caliptra_delete_key(&sign_cmk);
-        wc_ecc_free(&key);
-        wc_FreeRng(&rng);
-        TEST("ECDSA sign+verify via Caliptra port", 0);
-        return;
-    }
-
-    /* Import public key (Qx||Qy = 96 bytes) as CMK for verify */
-    memcpy(pub_xy,      pub_x, 48);
-    memcpy(pub_xy + 48, pub_y, 48);
-    ret = wc_caliptra_import_key(pub_xy, 96, CMB_KEY_USAGE_ECDSA, &verify_cmk);
-    if (ret != 0) {
-        wc_caliptra_delete_key(&sign_cmk);
-        wc_ecc_free(&key);
-        wc_FreeRng(&rng);
-        TEST("ECDSA sign+verify via Caliptra port", 0);
-        return;
-    }
-
-    /* Verify via Caliptra port */
+    /* Verify via Caliptra: same seed → same Q' → signature checks out.
+     * Same curve-init trick: make a throwaway key, override devCtx. */
     wc_ecc_init_ex(&ver_key, NULL, WOLF_CALIPTRA_DEVID);
-    /* Import public coordinates so wc_ecc_verify_hash can export them */
-    wc_ecc_import_unsigned(&ver_key, pub_x, pub_y, NULL, ECC_SECP384R1);
-    ver_key.devCtx = &verify_cmk;
-    ver_key.devId  = WOLF_CALIPTRA_DEVID;
-
-    ret = wc_ecc_verify_hash(sig_der, sig_len, hash, 48, &verify_res, &ver_key);
+    ret = wc_ecc_make_key_ex(&rng, 48, &ver_key, ECC_SECP384R1);
+    if (ret == 0) {
+        ver_key.devCtx = &verify_cmk;
+        ver_key.devId  = WOLF_CALIPTRA_DEVID;
+        ret = wc_ecc_verify_hash(sig_der, sig_len, hash, 48, &verify_res, &ver_key);
+    }
     wc_ecc_free(&ver_key);
 
     wc_caliptra_delete_key(&sign_cmk);
     wc_caliptra_delete_key(&verify_cmk);
-    wc_ecc_free(&key);
     wc_FreeRng(&rng);
 
-    TEST("ECDSA sign+verify via Caliptra port", ret == 0 && verify_res == 1);
+    TEST("Caliptra ECDSA sign+verify", ret == 0 && verify_res == 1);
 }
 
 /* =========================================================================
@@ -423,7 +399,11 @@ static void test_ecdsa_sign_verify(void)
 
 static void test_hmac_sha384(void)
 {
-    static const byte hmac_key[32] = {
+    /* Caliptra firmware requires HMAC keys to be exactly 48 or 64 bytes
+     * (SHA-384 or SHA-512 block size); 32-byte keys are rejected. */
+    static const byte hmac_key[48] = {
+        0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+        0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
         0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
         0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
         0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
@@ -445,13 +425,15 @@ static void test_hmac_sha384(void)
     memset(sw_mac, 0, sizeof(sw_mac));
 
     /* Import the HMAC key into the Caliptra sim */
-    ret = wc_caliptra_import_key(hmac_key, 32, CMB_KEY_USAGE_HMAC, &hmac_cmk);
+    ret = wc_caliptra_import_key(hmac_key, 48, CMB_KEY_USAGE_HMAC, &hmac_cmk);
     if (ret != 0) {
         TEST("HMAC-SHA-384 matches software", 0);
         return;
     }
 
-    /* Call Caliptra HMAC mailbox directly (single-shot) */
+    /* Call Caliptra HMAC mailbox directly (single-shot).
+     * The firmware verifies: sum(cmd_id bytes) + sum(req[4..req_len]) + chksum == 0
+     * so we must compute and fill hdr.chksum before calling caliptra_mailbox_exec. */
     memset(&req, 0, sizeof(req));
     memcpy(&req.cmk, &hmac_cmk, sizeof(CaliptraCmk));
     req.hash_algorithm = CMB_SHA_ALG_SHA384;
@@ -459,6 +441,20 @@ static void test_hmac_sha384(void)
     memcpy(req.data, msg, msg_len);
 
     req_len = (word32)(sizeof(req) - CMB_MAX_DATA_SIZE + msg_len);
+
+    /* Compute checksum over cmd_id bytes and req payload (bytes [4..req_len]) */
+    {
+        const byte *buf = (const byte*)&req;
+        word32 sum = 0;
+        word32 i;
+        sum += (byte)(CM_HMAC);
+        sum += (byte)(CM_HMAC >> 8);
+        sum += (byte)(CM_HMAC >> 16);
+        sum += (byte)(CM_HMAC >> 24);
+        for (i = sizeof(word32); i < req_len; i++)
+            sum += buf[i];
+        req.hdr.chksum = 0u - sum;
+    }
 
     memset(&resp, 0, sizeof(resp));
     ret = caliptra_mailbox_exec(CM_HMAC, &req, req_len, &resp, (word32)sizeof(resp));
@@ -478,7 +474,7 @@ static void test_hmac_sha384(void)
     /* Software reference using wolfSSL */
     ret = wc_HmacInit(&sw_hmac, NULL, WC_NO_DEVID);
     if (ret == 0) {
-        ret = wc_HmacSetKey(&sw_hmac, WC_SHA384, hmac_key, 32);
+        ret = wc_HmacSetKey(&sw_hmac, WC_SHA384, hmac_key, 48);
         if (ret == 0)
             ret = wc_HmacUpdate(&sw_hmac, msg, msg_len);
         if (ret == 0)
@@ -577,9 +573,29 @@ int main(void)
 
     wolfSSL_Init();
 
+#ifdef CALIPTRA_HWMODEL
+    /* Boot the hw-model emulator before registering the CryptoCb device.
+     * ROM_PATH and FW_PATH are supplied via -D flags in the Makefile. */
+#ifndef CALIPTRA_ROM_PATH
+#error "CALIPTRA_ROM_PATH must be defined when building with CALIPTRA_HWMODEL"
+#endif
+#ifndef CALIPTRA_FW_PATH
+#error "CALIPTRA_FW_PATH must be defined when building with CALIPTRA_HWMODEL"
+#endif
+    ret = caliptra_hwmodel_init(CALIPTRA_ROM_PATH, CALIPTRA_FW_PATH);
+    if (ret != 0) {
+        printf("FATAL: caliptra_hwmodel_init failed: %d\n", ret);
+        wolfSSL_Cleanup();
+        return 1;
+    }
+#endif /* CALIPTRA_HWMODEL */
+
     ret = wc_CryptoCb_RegisterDevice(WOLF_CALIPTRA_DEVID, wc_caliptra_cb, NULL);
     if (ret != 0) {
         printf("FATAL: CryptoCb_RegisterDevice failed: %d\n", ret);
+#ifdef CALIPTRA_HWMODEL
+        caliptra_hwmodel_cleanup();
+#endif
         wolfSSL_Cleanup();
         return 1;
     }
@@ -598,6 +614,10 @@ int main(void)
 
     wc_CryptoCb_UnRegisterDevice(WOLF_CALIPTRA_DEVID);
     wolfSSL_Cleanup();
+
+#ifdef CALIPTRA_HWMODEL
+    caliptra_hwmodel_cleanup();
+#endif
 
     return (tests_pass == tests_run) ? 0 : 1;
 }

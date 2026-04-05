@@ -147,26 +147,50 @@ supported.
 HMAC-SHA-384 and HMAC-SHA-512 are supported.  HMAC-SHA-256 returns
 `CRYPTOCB_UNAVAILABLE` and wolfSSL falls back to software.
 
-### ECDSA verify requires a pre-imported public key CMK
+### ECDSA verify uses seed-based key derivation
 
-The `CmImportReq` structure has a fixed 64-byte input field
-(`CMK_MAX_KEY_SIZE_BITS / 8 = 64`).  A P-384 public key is 96 bytes
-(Qx || Qy), which exceeds this limit.
+Caliptra's ECDSA firmware treats the 48-byte CMK input as a **seed** for
+deterministic key-pair derivation (`ecc384.key_pair(seed)`), not as the raw
+private scalar.  This applies to both sign (`CM_ECDSA_SIGN`) and verify
+(`CM_ECDSA_VERIFY`): the firmware re-derives the same `(d', Q')` from the seed
+on every call.
 
-If `key->devCtx` is NULL when `wc_EccVerify()` is called, the port returns
-`CRYPTOCB_UNAVAILABLE` and wolfSSL performs a software ECC verification using
-the raw public key coordinates in the `ecc_key` struct.
+Consequence: importing a raw software private key as an ECDSA CMK seed will
+produce a signature from a *different* key pair than the one the software key
+represents.  Software verification against the original public key will fail.
 
-To use Caliptra for verify, the application must:
+**Correct pattern for hardware sign + hardware verify:**
 
-1. Import the P-384 public key into Caliptra via a firmware-specific mechanism
-   (e.g., a dedicated public-key import command, or by retrieving a CMK for a
-   key that was already generated or stored in the key vault).
-2. Store the resulting `CaliptraCmk` pointer in `key->devCtx` before calling
-   `wc_EccVerify()`.
+```c
+byte seed[48];
+wc_RNG_GenerateBlock(&rng, seed, sizeof(seed));
 
-The port will then use the pre-imported CMK directly and will NOT delete it
-after verify (the caller owns the CMK lifetime).
+CaliptraCmk sign_cmk, verify_cmk;
+wc_caliptra_import_key(seed, 48, CMB_KEY_USAGE_ECDSA, &sign_cmk);
+wc_caliptra_import_key(seed, 48, CMB_KEY_USAGE_ECDSA, &verify_cmk);
+/* Both CMKs hold the same seed; firmware derives the same Q' for each. */
+
+ecc_key key;
+wc_ecc_init_ex(&key, NULL, WOLF_CALIPTRA_DEVID);
+wc_ecc_make_key_ex(&rng, 48, &key, ECC_SECP384R1);  /* init curve metadata */
+key.devCtx = &sign_cmk;
+wc_ecc_sign_hash(hash, hashSz, sig, &sigLen, &rng, &key);
+wc_ecc_free(&key);
+
+ecc_key vkey;
+wc_ecc_init_ex(&vkey, NULL, WOLF_CALIPTRA_DEVID);
+wc_ecc_make_key_ex(&rng, 48, &vkey, ECC_SECP384R1);
+vkey.devCtx = &verify_cmk;
+wc_ecc_verify_hash(sig, sigLen, hash, hashSz, &verify_res, &vkey);
+wc_ecc_free(&vkey);
+```
+
+If `key->devCtx` is NULL when `wc_ecc_verify_hash()` is called, the port
+returns `CRYPTOCB_UNAVAILABLE` and wolfSSL falls back to software ECC
+verification using the raw public key coordinates in the `ecc_key` struct.
+
+The caller owns the CMK lifetime; the port does not delete `verify_cmk` after
+verify.
 
 ## File Layout
 
@@ -185,8 +209,104 @@ Production test coverage lives in `wolfcrypt/test/test.c` under
 `#ifdef WOLFSSL_CALIPTRA`.  Build with `--enable-caliptra` and run
 `wolfcrypt/test/testwolfcrypt` as normal.
 
-The `wolfcrypt/src/port/caliptra/sim/` directory contains development
-scaffolding — `caliptra_sim.c` provides a software mailbox simulator
-(implementing `caliptra_mailbox_exec`) and `caliptra_test.c` is a standalone
-test harness that links against it.  They exist solely for offline development
-and are not required to validate the port.
+The `wolfcrypt/src/port/caliptra/sim/` directory contains two test backends:
+
+- **`caliptra_sim.c`** — software mailbox stub for offline development (no
+  external dependencies).
+- **`caliptra_hwmodel.c`** + **`Makefile`** — runs `caliptra_test.c` against
+  real Caliptra firmware via the [chipsalliance/caliptra-sw][caliptra-sw]
+  hw-model C binding.
+
+### Running the hw-model test
+
+The hw-model test exercises actual Caliptra firmware (ROM + runtime) through
+the hardware emulator.  All nine test cases pass: RNG, SHA-256, SHA-384,
+AES-GCM, ECDSA sign+verify, and HMAC-SHA-384.
+
+#### Prerequisites
+
+| Requirement | Version / Notes |
+|-------------|-----------------|
+| Rust toolchain | 1.85 (set by `rust-toolchain.toml` in caliptra-sw) |
+| RISC-V target | `riscv32imc-unknown-none-elf` (installed by `rustup` automatically) |
+| C compiler | GCC or Clang |
+| System libs | `libpthread`, `libstdc++`, `libdl`, `librt`, `libm` |
+| wolfSSL | Built with `--enable-caliptra` (see step 3 below) |
+
+#### Step 1 — Clone caliptra-sw
+
+```sh
+git clone https://github.com/chipsalliance/caliptra-sw.git ~/caliptra
+cd ~/caliptra
+```
+
+The Makefile defaults to `~/caliptra`; override with `CALIPTRA_ROOT=<path>`
+if you clone elsewhere.
+
+#### Step 2 — Build the C binding and firmware image bundle
+
+```sh
+cd ~/caliptra
+
+# Build the hw-model C binding static library and generate caliptra_model.h
+cargo build -p caliptra-hw-model-c-binding
+# Produces: target/debug/libcaliptra_hw_model_c_binding.a
+#           hw-model/c-binding/out/caliptra_model.h
+
+# Build the firmware image bundle (compiles FMC + runtime RISC-V firmware)
+# Also produces a ROM binary; the frozen ROM in the repo can be used instead
+# (see Makefile variables below).
+cargo run --manifest-path=builder/Cargo.toml --bin image -- \
+    --rom-with-log hw-model/c-binding/out/caliptra_rom.bin \
+    --fw hw-model/c-binding/out/image_bundle.bin
+# Produces: hw-model/c-binding/out/image_bundle.bin
+#           hw-model/c-binding/out/caliptra_rom.bin (optional; see note below)
+```
+
+The Makefile's default `ROM_PATH` points to the pre-built frozen ROM already
+checked into caliptra-sw (`rom/ci_frozen_rom/2.1/caliptra-rom-2.1.0-a72a76f.bin`).
+To use the freshly built ROM instead, pass `ROM_PATH` on the make command line
+(see table below).
+
+#### Step 3 — Build wolfSSL with Caliptra support
+
+```sh
+cd <wolfssl-root>
+./autogen.sh          # if building from git, not a release tarball
+./configure --enable-caliptra
+make -j$(nproc)
+```
+
+#### Step 4 — Build and run the hw-model test
+
+```sh
+make -C wolfcrypt/src/port/caliptra/sim/ run
+```
+
+Expected output (boot log abbreviated):
+
+```
+caliptra_hwmodel: runtime ready (boot status 0x600)
+PASS: RNG generates nonzero
+PASS: SHA-256 empty KAT
+PASS: SHA-256 abc KAT
+PASS: SHA-384 empty KAT
+PASS: SHA-256 multi-update matches software
+PASS: AES-GCM encrypt/decrypt roundtrip
+PASS: Caliptra ECDSA sign+verify
+PASS: HMAC-SHA-384 matches software
+PASS: AES-GCM tampered tag returns AES_GCM_AUTH_E
+
+9/9 tests passed
+```
+
+#### Makefile variables
+
+| Variable | Default | Override example |
+|----------|---------|-----------------|
+| `CALIPTRA_ROOT` | `~/caliptra` | `make CALIPTRA_ROOT=/opt/caliptra run` |
+| `ROM_PATH` | `$(CALIPTRA_ROOT)/rom/ci_frozen_rom/2.1/caliptra-rom-2.1.0-a72a76f.bin` | `make ROM_PATH=/path/to/rom.bin run` |
+| `FW_PATH` | `$(CALIPTRA_ROOT)/hw-model/c-binding/out/image_bundle.bin` | `make FW_PATH=/path/to/fw.bin run` |
+| `WOLFSSL_ROOT` | repo root (auto-detected) | `make WOLFSSL_ROOT=/path/to/wolfssl run` |
+
+[caliptra-sw]: https://github.com/chipsalliance/caliptra-sw
