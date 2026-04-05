@@ -3183,6 +3183,22 @@ AC_ARG_WITH([tropic01],
 )
 
 
+# Caliptra Cryptographic Mailbox
+AC_ARG_ENABLE([caliptra],
+    [AS_HELP_STRING([--enable-caliptra],[enable Caliptra cryptographic mailbox CryptoCb port; implies --enable-cryptocb (default: disabled)])],
+    [ ENABLED_CALIPTRA=$enableval ],
+    [ ENABLED_CALIPTRA=no ]
+)
+if test "x$ENABLED_CALIPTRA" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CALIPTRA"
+    AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_CB_FREE"
+    ENABLED_CRYPTOCB=yes
+    # Caliptra requires WOLF_CRYPTO_CB and WOLF_CRYPTO_CB_FREE.
+    # WOLF_CRYPTO_CB is added below when ENABLED_CRYPTOCB=yes is processed.
+fi
+
+
 # NXP SE050
 # Example: "./configure --with-se050=/home/pi/simw_top"
 ENABLED_SE050="no"
@@ -11611,6 +11627,7 @@ AM_CONDITIONAL([BUILD_IOTSAFE],[test "x$ENABLED_IOTSAFE" = "xyes"])
 AM_CONDITIONAL([BUILD_IOTSAFE_HWRNG],[test "x$ENABLED_IOTSAFE_HWRNG" = "xyes"])
 AM_CONDITIONAL([BUILD_SE050],[test "x$ENABLED_SE050" = "xyes"])
 AM_CONDITIONAL([BUILD_TROPIC01],[test "x$ENABLED_TROPIC01" = "xyes"])
+AM_CONDITIONAL([BUILD_CALIPTRA],[test "x$ENABLED_CALIPTRA" = "xyes"])
 AM_CONDITIONAL([BUILD_KDF],[test "x$ENABLED_KDF" = "xyes"])
 AM_CONDITIONAL([BUILD_HMAC],[test "x$ENABLED_HMAC" = "xyes"])
 AM_CONDITIONAL([BUILD_ERROR_STRINGS],[test "x$ENABLED_ERROR_STRINGS" = "xyes"])
@@ -12185,6 +12202,7 @@ echo "   * IoT-Safe:                   $ENABLED_IOTSAFE"
 echo "   * IoT-Safe HWRNG:             $ENABLED_IOTSAFE_HWRNG"
 echo "   * NXP SE050:                  $ENABLED_SE050"
 echo "   * TROPIC01:                   $ENABLED_TROPIC01"
+echo "   * Caliptra:                   $ENABLED_CALIPTRA"
 echo "   * Maxim Integrated MAXQ10XX:  $ENABLED_MAXQ10XX"
 echo "   * PSA:                        $ENABLED_PSA"
 echo "   * System CA certs:            $ENABLED_SYS_CA_CERTS"

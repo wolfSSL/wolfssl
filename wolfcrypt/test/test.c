@@ -472,6 +472,9 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
     #if defined(WOLFSSL_MAX3266X) || defined(WOLFSSL_MAX3266X_OLD)
         #include <wolfssl/wolfcrypt/port/maxim/max3266x-cryptocb.h>
     #endif
+    #if defined(WOLFSSL_CALIPTRA)
+        #include <wolfssl/wolfcrypt/port/caliptra/caliptra_port.h>
+    #endif
 #endif
 
 #ifdef _MSC_VER
@@ -869,6 +872,9 @@ WOLFSSL_TEST_SUBROUTINE int ariagcm_test(MC_ALGID);
 
 #if defined(WOLF_CRYPTO_CB) && !defined(WC_TEST_NO_CRYPTOCB_SW_TEST)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void);
+#endif
+#if defined(WOLFSSL_CALIPTRA) && defined(WOLF_CRYPTO_CB)
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t caliptra_test(void);
 #endif
 #ifdef WOLFSSL_CERT_PIV
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t certpiv_test(void);
@@ -2976,6 +2982,13 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_FAIL("crypto callback test failed!\n", ret);
     else
         TEST_PASS("crypto callback test passed!\n");
+#endif
+
+#if defined(WOLFSSL_CALIPTRA) && defined(WOLF_CRYPTO_CB)
+    if ( (ret = caliptra_test()) != 0)
+        TEST_FAIL("caliptra test failed!\n", ret);
+    else
+        TEST_PASS("caliptra test passed!\n");
 #endif
 
 #ifdef WOLFSSL_CERT_PIV
@@ -66635,6 +66648,1036 @@ drbg_cont_end:
         return all_passed ? 0 : 1;
     }
 #endif /* REALLY_LONG_DRBG_CONTINUOUS_TEST */
+
+#if defined(WOLFSSL_CALIPTRA) && defined(WOLF_CRYPTO_CB)
+/*
+ * caliptra_test() — exercise the Caliptra CryptoCb port through the standard
+ * wolfSSL API.
+ *
+ * Requires caliptra_mailbox_exec() at link time (provided by the integrator
+ * or by audit/caliptra_sim.c for host-side testing).
+ *
+ * Tests:
+ *   1. RNG via wc_InitRng_ex / wc_RNG_GenerateBlock / wc_FreeRng
+ *   2. SHA-384 empty-message KAT (Init → Final; exercises the empty-message
+ *      path where caliptra_hash sends CM_SHA_INIT with zero data then Final)
+ *   3. SHA-512 empty-message KAT (same path)
+ *   3a. SHA-384 streaming KAT: Init → Update("abc") → Final
+ *       (exercises caliptra_sha_do_init with data, then straight to Final)
+ *   3b. SHA-512 streaming KAT: Init → Update("a") → Update("bc") → Final
+ *       (exercises caliptra_sha_do_init on first Update, then CM_SHA_UPDATE
+ *       on the second Update, then Final — the only path through all three
+ *       mailbox commands)
+ *   3c. SHA-384 zero-length-Update KAT:
+ *       Init → Update("a") → Update(non-NULL, 0) → Update("bc") → Final
+ *       (exercises the untested branch: has_input=true with inSz==0;
+ *       the port sends CM_SHA_UPDATE with input_size=0 — no guard exists
+ *       to skip the mailbox call — so this test reveals whether Caliptra
+ *       firmware accepts a zero-byte update without corrupting context)
+ *   4. AES-256-GCM KAT: decrypt vs. NIST GCM Test Case 16 (McGrew-Viega).
+ *      Caliptra generates IVs server-side on AES-GCM encrypt; no encrypt KAT
+ *      is possible through the public API.  The decrypt KAT fully exercises
+ *      Caliptra's AES-GCM implementation against an external standard vector.
+ *   4b. AES-256-GCM round-trip (encrypt-then-decrypt, IV retrieved from hardware)
+ *   4c. AES-256-GCM authentication failure detection
+ *   5. HMAC-SHA-384 via wc_caliptra_hmac(), cross-validated against software
+ *   6. ECDSA P-384 sign + verify via Caliptra CryptoCb
+ */
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t caliptra_test(void)
+{
+    wc_test_ret_t ret = 0;
+
+    /* SHA-384 empty-message digest (FIPS 180-4 test vector). */
+    static const byte sha384_empty_digest[48] = {
+        0x38, 0xb0, 0x60, 0xa7, 0x51, 0xac, 0x96, 0x38,
+        0x4c, 0xd9, 0x32, 0x7e, 0xb1, 0xb1, 0xe3, 0x6a,
+        0x21, 0xfd, 0xb7, 0x11, 0x14, 0xbe, 0x07, 0x43,
+        0x4c, 0x0c, 0xc7, 0xbf, 0x63, 0xf6, 0xe1, 0xda,
+        0x27, 0x4e, 0xde, 0xbf, 0xe7, 0x6f, 0x65, 0xfb,
+        0xd5, 0x1a, 0xd2, 0xf1, 0x48, 0x98, 0xb9, 0x5b
+    };
+
+    /* SHA-512 empty-message digest (FIPS 180-4 test vector). */
+    static const byte sha512_empty_digest[64] = {
+        0xcf, 0x83, 0xe1, 0x35, 0x7e, 0xef, 0xb8, 0xbd,
+        0xf1, 0x54, 0x28, 0x50, 0xd6, 0x6d, 0x80, 0x07,
+        0xd6, 0x20, 0xe4, 0x05, 0x0b, 0x57, 0x15, 0xdc,
+        0x83, 0xf4, 0xa9, 0x21, 0xd3, 0x6c, 0xe9, 0xce,
+        0x47, 0xd0, 0xd1, 0x3c, 0x5d, 0x85, 0xf2, 0xb0,
+        0xff, 0x83, 0x18, 0xd2, 0x87, 0x7e, 0xec, 0x2f,
+        0x63, 0xb9, 0x31, 0xbd, 0x47, 0x41, 0x7a, 0x81,
+        0xa5, 0x38, 0x32, 0x7a, 0xf9, 0x27, 0xda, 0x3e
+    };
+
+    /* SHA-384("abc") digest (NIST FIPS 180-4). */
+    static const byte sha384_abc_digest[WC_SHA384_DIGEST_SIZE] = {
+        0xcb, 0x00, 0x75, 0x3f, 0x45, 0xa3, 0x5e, 0x8b,
+        0xb5, 0xa0, 0x3d, 0x69, 0x9a, 0xc6, 0x50, 0x07,
+        0x27, 0x2c, 0x32, 0xab, 0x0e, 0xde, 0xd1, 0x63,
+        0x1a, 0x8b, 0x60, 0x5a, 0x43, 0xff, 0x5b, 0xed,
+        0x80, 0x86, 0x07, 0x2b, 0xa1, 0xe7, 0xcc, 0x23,
+        0x58, 0xba, 0xec, 0xa1, 0x34, 0xc8, 0x25, 0xa7
+    };
+
+    /* SHA-512("abc") digest (NIST FIPS 180-4). */
+    static const byte sha512_abc_digest[WC_SHA512_DIGEST_SIZE] = {
+        0xdd, 0xaf, 0x35, 0xa1, 0x93, 0x61, 0x7a, 0xba,
+        0xcc, 0x41, 0x73, 0x49, 0xae, 0x20, 0x41, 0x31,
+        0x12, 0xe6, 0xfa, 0x4e, 0x89, 0xa9, 0x7e, 0xa2,
+        0x0a, 0x9e, 0xee, 0xe6, 0x4b, 0x55, 0xd3, 0x9a,
+        0x21, 0x92, 0x99, 0x2a, 0x27, 0x4f, 0xc1, 0xa8,
+        0x36, 0xba, 0x3c, 0x23, 0xa3, 0xfe, 0xeb, 0xbd,
+        0x45, 0x4d, 0x44, 0x23, 0x64, 0x3c, 0xe8, 0x0e,
+        0x2a, 0x9a, 0xc9, 0x4f, 0xa5, 0x4c, 0xa4, 0x9f
+    };
+
+    /* 32-byte AES-256 key for AES-GCM round-trip. */
+    static const byte aes_key[32] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+        0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+        0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f
+    };
+
+    /* 16-byte test plaintext for AES-GCM round-trip. */
+    static const byte plaintext[16] = {
+        0x6b, 0xc1, 0xbe, 0xe2, 0x2e, 0x40, 0x9f, 0x96,
+        0xe9, 0x3d, 0x7e, 0x11, 0x73, 0x93, 0x17, 0x2a
+    };
+
+    /* AES-256-GCM KAT vectors: NIST GCM Test Case 16 (AES-256).
+     * Source: McGrew & Viega, "The GCM Mode of Operation", Table 5, TC-16.
+     * The same vectors are used by wolfSSL aesgcm_test() in this file.
+     * Note: Caliptra generates IVs server-side on AES-GCM encrypt; the
+     * decrypt path accepts a caller-provided IV, making a decrypt-only KAT
+     * the only way to validate against an external standard vector. */
+    static const byte kat_aes_key[32] = {
+        0xfe, 0xff, 0xe9, 0x92, 0x86, 0x65, 0x73, 0x1c,
+        0x6d, 0x6a, 0x8f, 0x94, 0x67, 0x30, 0x83, 0x08,
+        0xfe, 0xff, 0xe9, 0x92, 0x86, 0x65, 0x73, 0x1c,
+        0x6d, 0x6a, 0x8f, 0x94, 0x67, 0x30, 0x83, 0x08
+    };
+    static const byte kat_iv[12] = {
+        0xca, 0xfe, 0xba, 0xbe, 0xfa, 0xce, 0xdb, 0xad,
+        0xde, 0xca, 0xf8, 0x88
+    };
+    static const byte kat_aad[20] = {
+        0xfe, 0xed, 0xfa, 0xce, 0xde, 0xad, 0xbe, 0xef,
+        0xfe, 0xed, 0xfa, 0xce, 0xde, 0xad, 0xbe, 0xef,
+        0xab, 0xad, 0xda, 0xd2
+    };
+    static const byte kat_pt[60] = {
+        0xd9, 0x31, 0x32, 0x25, 0xf8, 0x84, 0x06, 0xe5,
+        0xa5, 0x59, 0x09, 0xc5, 0xaf, 0xf5, 0x26, 0x9a,
+        0x86, 0xa7, 0xa9, 0x53, 0x15, 0x34, 0xf7, 0xda,
+        0x2e, 0x4c, 0x30, 0x3d, 0x8a, 0x31, 0x8a, 0x72,
+        0x1c, 0x3c, 0x0c, 0x95, 0x95, 0x68, 0x09, 0x53,
+        0x2f, 0xcf, 0x0e, 0x24, 0x49, 0xa6, 0xb5, 0x25,
+        0xb1, 0x6a, 0xed, 0xf5, 0xaa, 0x0d, 0xe6, 0x57,
+        0xba, 0x63, 0x7b, 0x39
+    };
+    static const byte kat_ct[60] = {
+        0x52, 0x2d, 0xc1, 0xf0, 0x99, 0x56, 0x7d, 0x07,
+        0xf4, 0x7f, 0x37, 0xa3, 0x2a, 0x84, 0x42, 0x7d,
+        0x64, 0x3a, 0x8c, 0xdc, 0xbf, 0xe5, 0xc0, 0xc9,
+        0x75, 0x98, 0xa2, 0xbd, 0x25, 0x55, 0xd1, 0xaa,
+        0x8c, 0xb0, 0x8e, 0x48, 0x59, 0x0d, 0xbb, 0x3d,
+        0xa7, 0xb0, 0x8b, 0x10, 0x56, 0x82, 0x88, 0x38,
+        0xc5, 0xf6, 0x1e, 0x63, 0x93, 0xba, 0x7a, 0x0a,
+        0xbc, 0xc9, 0xf6, 0x62
+    };
+    static const byte kat_tag[16] = {
+        0x76, 0xfc, 0x6e, 0xce, 0x0f, 0x4e, 0x17, 0x68,
+        0xcd, 0xdf, 0x88, 0x53, 0xbb, 0x2d, 0x55, 0x1b
+    };
+
+    /* 48-byte HMAC key (SHA-384 output size, valid for Caliptra HMAC). */
+    static const byte hmac_key[48] = {
+        0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+        0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+        0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+        0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+        0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+        0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b
+    };
+
+    /* 13-byte HMAC message: "Hello, World!" */
+    static const byte hmac_msg[13] = {
+        0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x2c, 0x20, 0x57,
+        0x6f, 0x72, 0x6c, 0x64, 0x21
+    };
+
+    /* ---- register the Caliptra device ---- */
+    ret = (wc_test_ret_t)wc_caliptra_init();
+    if (ret != 0) {
+        printf("caliptra_test: wc_caliptra_init failed %d\n", (int)ret);
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+
+    ret = (wc_test_ret_t)wc_CryptoCb_RegisterDevice(WOLF_CALIPTRA_DEVID,
+                                                     wc_caliptra_cb, NULL);
+    if (ret != 0) {
+        printf("caliptra_test: wc_CryptoCb_RegisterDevice failed %d\n",
+               (int)ret);
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+
+    /* ---------------------------------------------------------------
+     * Test 1: RNG
+     * --------------------------------------------------------------- */
+    {
+        WC_RNG rng;
+        byte   rng_buf[32];
+        byte   zero_buf[32];
+
+        XMEMSET(rng_buf,  0, sizeof(rng_buf));
+        XMEMSET(zero_buf, 0, sizeof(zero_buf));
+
+        ret = (wc_test_ret_t)wc_InitRng_ex(&rng, HEAP_HINT,
+                                            WOLF_CALIPTRA_DEVID);
+        if (ret != 0) {
+            printf("caliptra_test: wc_InitRng_ex failed %d\n", (int)ret);
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto caliptra_done;
+        }
+
+        ret = (wc_test_ret_t)wc_RNG_GenerateBlock(&rng, rng_buf,
+                                                   sizeof(rng_buf));
+        wc_FreeRng(&rng);
+        if (ret != 0) {
+            printf("caliptra_test: wc_RNG_GenerateBlock failed %d\n",
+                   (int)ret);
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto caliptra_done;
+        }
+        if (XMEMCMP(rng_buf, zero_buf, sizeof(rng_buf)) == 0) {
+            printf("caliptra_test: RNG output is all zeros\n");
+            ret = WC_TEST_RET_ENC_NC;
+            goto caliptra_done;
+        }
+        printf("caliptra_test: RNG passed\n");
+    }
+
+    /* ---------------------------------------------------------------
+     * Test 2: SHA-384 empty-message KAT
+     * --------------------------------------------------------------- */
+    {
+        wc_Sha384 sha;
+        byte      digest[WC_SHA384_DIGEST_SIZE];
+
+        XMEMSET(digest, 0, sizeof(digest));
+
+        ret = (wc_test_ret_t)wc_InitSha384_ex(&sha, HEAP_HINT,
+                                               WOLF_CALIPTRA_DEVID);
+        if (ret != 0) {
+            printf("caliptra_test: wc_InitSha384_ex failed %d\n", (int)ret);
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto caliptra_done;
+        }
+
+        ret = (wc_test_ret_t)wc_Sha384Final(&sha, digest);
+        wc_Sha384Free(&sha);
+        if (ret != 0) {
+            printf("caliptra_test: wc_Sha384Final failed %d\n", (int)ret);
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto caliptra_done;
+        }
+        if (XMEMCMP(digest, sha384_empty_digest,
+                    WC_SHA384_DIGEST_SIZE) != 0) {
+            printf("caliptra_test: SHA-384 KAT mismatch\n");
+            ret = WC_TEST_RET_ENC_NC;
+            goto caliptra_done;
+        }
+        printf("caliptra_test: SHA-384 passed\n");
+    }
+
+    /* ---------------------------------------------------------------
+     * Test 3: SHA-512 empty-message KAT
+     * --------------------------------------------------------------- */
+    {
+        wc_Sha512 sha;
+        byte      digest[WC_SHA512_DIGEST_SIZE];
+
+        XMEMSET(digest, 0, sizeof(digest));
+
+        ret = (wc_test_ret_t)wc_InitSha512_ex(&sha, HEAP_HINT,
+                                               WOLF_CALIPTRA_DEVID);
+        if (ret != 0) {
+            printf("caliptra_test: wc_InitSha512_ex failed %d\n", (int)ret);
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto caliptra_done;
+        }
+
+        ret = (wc_test_ret_t)wc_Sha512Final(&sha, digest);
+        wc_Sha512Free(&sha);
+        if (ret != 0) {
+            printf("caliptra_test: wc_Sha512Final failed %d\n", (int)ret);
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto caliptra_done;
+        }
+        if (XMEMCMP(digest, sha512_empty_digest,
+                    WC_SHA512_DIGEST_SIZE) != 0) {
+            printf("caliptra_test: SHA-512 KAT mismatch\n");
+            ret = WC_TEST_RET_ENC_NC;
+            goto caliptra_done;
+        }
+        printf("caliptra_test: SHA-512 passed\n");
+    }
+
+    /* ---------------------------------------------------------------
+     * Test 3a: SHA-384 streaming KAT — Init → Update("abc") → Final
+     *
+     * Exercises caliptra_sha_do_init with a non-empty first chunk
+     * (CM_SHA_INIT carries 3 bytes), then Final with no remaining data.
+     * Vector: NIST FIPS 180-4 SHA-384("abc").
+     * --------------------------------------------------------------- */
+    {
+        wc_Sha384 sha;
+        byte      digest[WC_SHA384_DIGEST_SIZE];
+
+        XMEMSET(digest, 0, sizeof(digest));
+
+        ret = (wc_test_ret_t)wc_InitSha384_ex(&sha, HEAP_HINT,
+                                               WOLF_CALIPTRA_DEVID);
+        if (ret != 0) {
+            printf("caliptra_test: SHA-384 streaming init failed %d\n",
+                   (int)ret);
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto caliptra_done;
+        }
+
+        ret = (wc_test_ret_t)wc_Sha384Update(&sha, (const byte*)"abc", 3);
+        if (ret != 0) {
+            wc_Sha384Free(&sha);
+            printf("caliptra_test: SHA-384 streaming update failed %d\n",
+                   (int)ret);
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto caliptra_done;
+        }
+
+        ret = (wc_test_ret_t)wc_Sha384Final(&sha, digest);
+        wc_Sha384Free(&sha);
+        if (ret != 0) {
+            printf("caliptra_test: SHA-384 streaming final failed %d\n",
+                   (int)ret);
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto caliptra_done;
+        }
+        if (XMEMCMP(digest, sha384_abc_digest, WC_SHA384_DIGEST_SIZE) != 0) {
+            printf("caliptra_test: SHA-384 streaming KAT mismatch\n");
+            ret = WC_TEST_RET_ENC_NC;
+            goto caliptra_done;
+        }
+        printf("caliptra_test: SHA-384 streaming (single-update) passed\n");
+    }
+
+    /* ---------------------------------------------------------------
+     * Test 3b: SHA-512 streaming KAT — Init → Update("a") →
+     *          Update("bc") → Final
+     *
+     * The first Update routes through caliptra_sha_do_init (which sends
+     * CM_SHA_INIT carrying 1 byte).  The second Update sends CM_SHA_UPDATE
+     * with the saved context.  This is the only path that exercises all
+     * three SHA mailbox commands in sequence.
+     * Vector: NIST FIPS 180-4 SHA-512("abc").
+     * --------------------------------------------------------------- */
+    {
+        wc_Sha512 sha;
+        byte      digest[WC_SHA512_DIGEST_SIZE];
+
+        XMEMSET(digest, 0, sizeof(digest));
+
+        ret = (wc_test_ret_t)wc_InitSha512_ex(&sha, HEAP_HINT,
+                                               WOLF_CALIPTRA_DEVID);
+        if (ret != 0) {
+            printf("caliptra_test: SHA-512 streaming init failed %d\n",
+                   (int)ret);
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto caliptra_done;
+        }
+
+        ret = (wc_test_ret_t)wc_Sha512Update(&sha, (const byte*)"a", 1);
+        if (ret == 0)
+            ret = (wc_test_ret_t)wc_Sha512Update(&sha, (const byte*)"bc", 2);
+        if (ret != 0) {
+            wc_Sha512Free(&sha);
+            printf("caliptra_test: SHA-512 streaming update failed %d\n",
+                   (int)ret);
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto caliptra_done;
+        }
+
+        ret = (wc_test_ret_t)wc_Sha512Final(&sha, digest);
+        wc_Sha512Free(&sha);
+        if (ret != 0) {
+            printf("caliptra_test: SHA-512 streaming final failed %d\n",
+                   (int)ret);
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto caliptra_done;
+        }
+        if (XMEMCMP(digest, sha512_abc_digest, WC_SHA512_DIGEST_SIZE) != 0) {
+            printf("caliptra_test: SHA-512 streaming KAT mismatch\n");
+            ret = WC_TEST_RET_ENC_NC;
+            goto caliptra_done;
+        }
+        printf("caliptra_test: SHA-512 streaming (two-update) passed\n");
+    }
+
+    /* ---------------------------------------------------------------
+     * Test 3c: SHA-384 zero-length-Update KAT
+     *
+     * Why this test exists
+     * --------------------
+     * caliptra_hash() uses `has_input = (info->hash.in != NULL)` as the
+     * sole discriminator between the Update and Final branches.  A caller
+     * that passes in != NULL with inSz == 0 (a zero-length update, which
+     * the wc_Sha384Update() API contract must accept) will cause the port
+     * to enter the Update branch and issue CM_SHA_UPDATE with input_size=0
+     * — there is no guard that skips the mailbox call for inSz==0.
+     *
+     * This is the only branch of the state machine not covered by Tests
+     * 3a/3b.  Two failure modes it catches:
+     *
+     *   1. Firmware rejects zero-byte CM_SHA_UPDATE → port propagates
+     *      WC_HW_E → wc_Sha384Update returns an error that this test
+     *      surfaces.  Fix: add an early-return guard for inSz==0.
+     *
+     *   2. Firmware accepts zero-byte CM_SHA_UPDATE but corrupts the
+     *      saved SHA context → subsequent Update/Final computes a wrong
+     *      digest → XMEMCMP mismatch.
+     *
+     * The expected digest is sha384_abc_digest because
+     * SHA-384("a" || "" || "bc") == SHA-384("abc") — a zero-byte update
+     * must not change the accumulated hash state.
+     *
+     * Vector: NIST FIPS 180-4 SHA-384("abc").
+     * --------------------------------------------------------------- */
+    {
+        wc_Sha384     sha;
+        byte          digest[WC_SHA384_DIGEST_SIZE];
+        /* A non-NULL pointer with length 0. The exact address does not
+         * matter; the port must not dereference it for inSz==0 bytes.
+         * Using a string literal ensures a valid, non-NULL address
+         * without allocating extra storage. */
+        const byte*   empty_ptr = (const byte*)"";
+
+        XMEMSET(digest, 0, sizeof(digest));
+
+        ret = (wc_test_ret_t)wc_InitSha384_ex(&sha, HEAP_HINT,
+                                               WOLF_CALIPTRA_DEVID);
+        if (ret != 0) {
+            printf("caliptra_test: SHA-384 zero-update init failed %d\n",
+                   (int)ret);
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto caliptra_done;
+        }
+
+        /* Update 1: 1 real byte — triggers CM_SHA_INIT carrying data. */
+        ret = (wc_test_ret_t)wc_Sha384Update(&sha, (const byte*)"a", 1);
+        /* Update 2: non-NULL pointer, zero bytes — exercises the
+         * has_input=true, inSz==0 branch → CM_SHA_UPDATE(input_size=0). */
+        if (ret == 0)
+            ret = (wc_test_ret_t)wc_Sha384Update(&sha, empty_ptr, 0);
+        /* Update 3: 2 real bytes — CM_SHA_UPDATE carrying "bc". */
+        if (ret == 0)
+            ret = (wc_test_ret_t)wc_Sha384Update(&sha, (const byte*)"bc", 2);
+        if (ret != 0) {
+            wc_Sha384Free(&sha);
+            printf("caliptra_test: SHA-384 zero-update update failed %d\n",
+                   (int)ret);
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto caliptra_done;
+        }
+
+        ret = (wc_test_ret_t)wc_Sha384Final(&sha, digest);
+        wc_Sha384Free(&sha);
+        if (ret != 0) {
+            printf("caliptra_test: SHA-384 zero-update final failed %d\n",
+                   (int)ret);
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto caliptra_done;
+        }
+        if (XMEMCMP(digest, sha384_abc_digest, WC_SHA384_DIGEST_SIZE) != 0) {
+            printf("caliptra_test: SHA-384 zero-update KAT mismatch\n");
+            ret = WC_TEST_RET_ENC_NC;
+            goto caliptra_done;
+        }
+        printf("caliptra_test: SHA-384 streaming (zero-length update) passed\n");
+    }
+
+    /* ---------------------------------------------------------------
+     * Test 4: AES-256-GCM KAT (decrypt)
+     * Decrypt a known ciphertext using a caller-supplied IV against
+     * NIST GCM Test Case 16 (McGrew-Viega, AES-256).  Validates
+     * Caliptra's AES-GCM implementation against an external vector.
+     *
+     * An encrypt KAT is not possible: Caliptra generates IVs server-
+     * side and provides no API to supply a fixed encrypt nonce.
+     * --------------------------------------------------------------- */
+    {
+        Aes         aes;
+        CaliptraCmk kat_cmk;
+        byte        recovered[sizeof(kat_pt)];
+
+        XMEMSET(&kat_cmk,  0, sizeof(kat_cmk));
+        XMEMSET(recovered, 0, sizeof(recovered));
+
+        ret = (wc_test_ret_t)wc_caliptra_import_key(kat_aes_key,
+                                                     sizeof(kat_aes_key),
+                                                     CMB_KEY_USAGE_AES,
+                                                     &kat_cmk);
+        if (ret != 0) {
+            printf("caliptra_test: AES-GCM KAT: import key failed %d\n",
+                   (int)ret);
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto caliptra_done;
+        }
+
+        ret = (wc_test_ret_t)wc_AesInit(&aes, HEAP_HINT, WOLF_CALIPTRA_DEVID);
+        if (ret != 0) {
+            printf("caliptra_test: AES-GCM KAT: wc_AesInit failed %d\n",
+                   (int)ret);
+            wc_caliptra_delete_key(&kat_cmk);
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto caliptra_done;
+        }
+
+        ret = (wc_test_ret_t)wc_AesGcmSetKey(&aes, kat_aes_key,
+                                              sizeof(kat_aes_key));
+        if (ret != 0) {
+            printf("caliptra_test: AES-GCM KAT: wc_AesGcmSetKey failed %d\n",
+                   (int)ret);
+            wc_AesFree(&aes);
+            wc_caliptra_delete_key(&kat_cmk);
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto caliptra_done;
+        }
+        aes.devCtx = &kat_cmk;
+
+        ret = (wc_test_ret_t)wc_AesGcmDecrypt(&aes,
+                                               recovered, kat_ct,
+                                               sizeof(kat_ct),
+                                               kat_iv,  sizeof(kat_iv),
+                                               kat_tag, sizeof(kat_tag),
+                                               kat_aad, sizeof(kat_aad));
+        wc_AesFree(&aes);
+        wc_caliptra_delete_key(&kat_cmk);
+        if (ret != 0) {
+            printf("caliptra_test: AES-GCM KAT: decrypt failed %d\n",
+                   (int)ret);
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto caliptra_done;
+        }
+        if (XMEMCMP(recovered, kat_pt, sizeof(kat_pt)) != 0) {
+            printf("caliptra_test: AES-GCM KAT: plaintext mismatch\n");
+            ret = WC_TEST_RET_ENC_NC;
+            goto caliptra_done;
+        }
+        printf("caliptra_test: AES-256-GCM KAT (decrypt) passed\n");
+    }
+
+    /* ---------------------------------------------------------------
+     * Test 4b: AES-256-GCM round-trip
+     * Import a 32-byte AES key, encrypt 16 bytes, retrieve the
+     * Caliptra-generated IV, then decrypt and verify plaintext.
+     * --------------------------------------------------------------- */
+    {
+        Aes       aes;
+        CaliptraCmk aes_cmk;
+        byte      ciphertext[16];
+        byte      recovered[16];
+        byte      auth_tag[16];
+        byte      iv[12];
+
+        XMEMSET(&aes_cmk,   0, sizeof(aes_cmk));
+        XMEMSET(ciphertext, 0, sizeof(ciphertext));
+        XMEMSET(recovered,  0, sizeof(recovered));
+        XMEMSET(auth_tag,   0, sizeof(auth_tag));
+        XMEMSET(iv,         0, sizeof(iv));
+
+        ret = (wc_test_ret_t)wc_caliptra_import_key(aes_key,
+                                                     sizeof(aes_key),
+                                                     CMB_KEY_USAGE_AES,
+                                                     &aes_cmk);
+        if (ret != 0) {
+            printf("caliptra_test: import AES key failed %d\n", (int)ret);
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto caliptra_done;
+        }
+
+        ret = (wc_test_ret_t)wc_AesInit(&aes, HEAP_HINT,
+                                         WOLF_CALIPTRA_DEVID);
+        if (ret != 0) {
+            printf("caliptra_test: wc_AesInit failed %d\n", (int)ret);
+            wc_caliptra_delete_key(&aes_cmk);
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto caliptra_done;
+        }
+
+        ret = (wc_test_ret_t)wc_AesGcmSetKey(&aes, aes_key, sizeof(aes_key));
+        if (ret != 0) {
+            printf("caliptra_test: wc_AesGcmSetKey failed %d\n", (int)ret);
+            wc_AesFree(&aes);
+            wc_caliptra_delete_key(&aes_cmk);
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto caliptra_done;
+        }
+
+        /* Point devCtx at the imported CMK handle. */
+        aes.devCtx = &aes_cmk;
+
+        /* Encrypt: pass iv=NULL, ivSz=0 to request server-side IV generation.
+         * Retrieve the Caliptra-generated IV afterward via wc_caliptra_aesgcm_get_iv(). */
+        ret = (wc_test_ret_t)wc_AesGcmEncrypt(&aes,
+                                               ciphertext, plaintext,
+                                               sizeof(plaintext),
+                                               NULL, 0,
+                                               auth_tag, sizeof(auth_tag),
+                                               NULL, 0);
+        if (ret != 0) {
+            printf("caliptra_test: wc_AesGcmEncrypt failed %d\n", (int)ret);
+            wc_AesFree(&aes);
+            wc_caliptra_delete_key(&aes_cmk);
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto caliptra_done;
+        }
+
+        /* Retrieve the Caliptra-generated IV from aes.reg. */
+        ret = (wc_test_ret_t)wc_caliptra_aesgcm_get_iv(&aes, iv, sizeof(iv));
+        if (ret != 0) {
+            printf("caliptra_test: wc_caliptra_aesgcm_get_iv failed %d\n",
+                   (int)ret);
+            wc_AesFree(&aes);
+            wc_caliptra_delete_key(&aes_cmk);
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto caliptra_done;
+        }
+
+        /* Decrypt with retrieved IV. */
+        ret = (wc_test_ret_t)wc_AesGcmDecrypt(&aes,
+                                               recovered, ciphertext,
+                                               sizeof(ciphertext),
+                                               iv,   sizeof(iv),
+                                               auth_tag, sizeof(auth_tag),
+                                               NULL, 0);
+        wc_AesFree(&aes);
+        wc_caliptra_delete_key(&aes_cmk);
+        if (ret != 0) {
+            printf("caliptra_test: wc_AesGcmDecrypt failed %d\n", (int)ret);
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto caliptra_done;
+        }
+        if (XMEMCMP(recovered, plaintext, sizeof(plaintext)) != 0) {
+            printf("caliptra_test: AES-GCM plaintext mismatch\n");
+            ret = WC_TEST_RET_ENC_NC;
+            goto caliptra_done;
+        }
+        printf("caliptra_test: AES-256-GCM round-trip passed\n");
+    }
+
+    /* ---------------------------------------------------------------
+     * Test 4c: AES-256-GCM authentication failure
+     * Encrypt with a valid key, tamper one byte of the authentication
+     * tag, then decrypt and verify AES_GCM_AUTH_E is returned.
+     * --------------------------------------------------------------- */
+    {
+        Aes         aes;
+        CaliptraCmk aes_cmk;
+        byte        ciphertext[sizeof(plaintext)];
+        byte        discarded[sizeof(plaintext)];
+        byte        auth_tag[16];
+        byte        bad_tag[16];
+        byte        iv[12];
+        int         dec_ret;
+
+        XMEMSET(&aes_cmk,   0, sizeof(aes_cmk));
+        XMEMSET(ciphertext, 0, sizeof(ciphertext));
+        XMEMSET(discarded,  0, sizeof(discarded));
+        XMEMSET(auth_tag,   0, sizeof(auth_tag));
+        XMEMSET(iv,         0, sizeof(iv));
+
+        ret = (wc_test_ret_t)wc_caliptra_import_key(aes_key,
+                                                     sizeof(aes_key),
+                                                     CMB_KEY_USAGE_AES,
+                                                     &aes_cmk);
+        if (ret != 0) {
+            printf("caliptra_test: auth-failure test: import AES key failed %d\n",
+                   (int)ret);
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto caliptra_done;
+        }
+
+        ret = (wc_test_ret_t)wc_AesInit(&aes, HEAP_HINT, WOLF_CALIPTRA_DEVID);
+        if (ret != 0) {
+            printf("caliptra_test: auth-failure test: wc_AesInit failed %d\n",
+                   (int)ret);
+            wc_caliptra_delete_key(&aes_cmk);
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto caliptra_done;
+        }
+        aes.devCtx = &aes_cmk;
+
+        ret = (wc_test_ret_t)wc_AesGcmEncrypt(&aes,
+                                               ciphertext, plaintext,
+                                               sizeof(plaintext),
+                                               NULL, 0,
+                                               auth_tag, sizeof(auth_tag),
+                                               NULL, 0);
+        if (ret == 0)
+            ret = (wc_test_ret_t)wc_caliptra_aesgcm_get_iv(&aes, iv, sizeof(iv));
+
+        if (ret != 0) {
+            printf("caliptra_test: auth-failure test: encrypt/get_iv failed %d\n",
+                   (int)ret);
+            wc_AesFree(&aes);
+            wc_caliptra_delete_key(&aes_cmk);
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto caliptra_done;
+        }
+
+        /* Tamper the authentication tag: flip the first byte */
+        XMEMCPY(bad_tag, auth_tag, sizeof(auth_tag));
+        bad_tag[0] ^= 0xFF;
+
+        /* Decrypt with tampered tag — must return AES_GCM_AUTH_E */
+        dec_ret = wc_AesGcmDecrypt(&aes,
+                                   discarded, ciphertext,
+                                   sizeof(ciphertext),
+                                   iv, sizeof(iv),
+                                   bad_tag, sizeof(bad_tag),
+                                   NULL, 0);
+        wc_AesFree(&aes);
+        wc_caliptra_delete_key(&aes_cmk);
+
+        if (dec_ret != AES_GCM_AUTH_E) {
+            printf("caliptra_test: AES-GCM auth failure: expected AES_GCM_AUTH_E "
+                   "(%d) got %d\n", AES_GCM_AUTH_E, dec_ret);
+            ret = WC_TEST_RET_ENC_NC;
+            goto caliptra_done;
+        }
+        printf("caliptra_test: AES-GCM authentication failure detection passed\n");
+    }
+
+    /* ---------------------------------------------------------------
+     * Test 5: HMAC-SHA-384 via wc_caliptra_hmac()
+     * Caliptra HMAC is single-shot; use wc_caliptra_hmac() directly.
+     * Cross-validate the output against a wolfSSL software reference.
+     * --------------------------------------------------------------- */
+    {
+        CaliptraCmk  hmac_cmk;
+        byte         caliptra_mac[WC_SHA384_DIGEST_SIZE];
+        word32       caliptra_mac_len;
+        byte         sw_mac[WC_SHA384_DIGEST_SIZE];
+        Hmac         sw_hmac;
+
+        XMEMSET(&hmac_cmk,    0, sizeof(hmac_cmk));
+        XMEMSET(caliptra_mac, 0, sizeof(caliptra_mac));
+        XMEMSET(sw_mac,       0, sizeof(sw_mac));
+
+        ret = (wc_test_ret_t)wc_caliptra_import_key(hmac_key,
+                                                     sizeof(hmac_key),
+                                                     CMB_KEY_USAGE_HMAC,
+                                                     &hmac_cmk);
+        if (ret != 0) {
+            printf("caliptra_test: import HMAC key failed %d\n", (int)ret);
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto caliptra_done;
+        }
+
+        caliptra_mac_len = sizeof(caliptra_mac);
+        ret = (wc_test_ret_t)wc_caliptra_hmac(&hmac_cmk, WC_SHA384,
+                                               hmac_msg, sizeof(hmac_msg),
+                                               caliptra_mac, &caliptra_mac_len);
+        wc_caliptra_delete_key(&hmac_cmk);
+        if (ret != 0) {
+            printf("caliptra_test: wc_caliptra_hmac failed %d\n", (int)ret);
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto caliptra_done;
+        }
+
+        /* Software HMAC reference (INVALID_DEVID bypasses CryptoCb) */
+        ret = (wc_test_ret_t)wc_HmacInit(&sw_hmac, HEAP_HINT, INVALID_DEVID);
+        if (ret != 0) {
+            printf("caliptra_test: wc_HmacInit failed %d\n", (int)ret);
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto caliptra_done;
+        }
+        ret = (wc_test_ret_t)wc_HmacSetKey(&sw_hmac, WC_SHA384,
+                                             hmac_key, sizeof(hmac_key));
+        if (ret == 0)
+            ret = (wc_test_ret_t)wc_HmacUpdate(&sw_hmac, hmac_msg,
+                                                 sizeof(hmac_msg));
+        if (ret == 0)
+            ret = (wc_test_ret_t)wc_HmacFinal(&sw_hmac, sw_mac);
+        wc_HmacFree(&sw_hmac);
+        if (ret != 0) {
+            printf("caliptra_test: software HMAC failed %d\n", (int)ret);
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto caliptra_done;
+        }
+        if (XMEMCMP(caliptra_mac, sw_mac, WC_SHA384_DIGEST_SIZE) != 0) {
+            printf("caliptra_test: HMAC-SHA-384 Caliptra/software mismatch\n");
+            ret = WC_TEST_RET_ENC_NC;
+            goto caliptra_done;
+        }
+        printf("caliptra_test: HMAC-SHA-384 passed\n");
+    }
+
+    /* ---------------------------------------------------------------
+     * Test 6: ECDSA P-384 sign + verify via Caliptra CryptoCb
+     * Generate a P-384 key pair, import private key as CMK, sign a
+     * 48-byte hash, import the public key via direct mailbox call
+     * (CM_IMPORT with 96-byte Qx||Qy input), then verify.
+     * --------------------------------------------------------------- */
+    {
+        WC_RNG       ecdsa_rng;
+        ecc_key      raw_key;              /* software key for key generation */
+        ecc_key      sign_key;             /* Caliptra signing key */
+        ecc_key      ver_key;              /* Caliptra verify key */
+        CaliptraCmk  sign_cmk;
+        CaliptraCmk  verify_cmk;
+        byte         hash[48];
+        byte         sig[160];
+        word32       sig_len = sizeof(sig);
+        byte         priv_bytes[48];
+        word32       priv_len = 48;
+        byte         pub_x[48], pub_y[48];
+        word32       pub_xlen = 48, pub_ylen = 48;
+        int          verify_res = 0;
+        int          rng_init   = 0;
+        int          raw_init   = 0;
+        byte         pub_key[96];   /* Qx || Qy for Caliptra ECDSA verify import */
+        int          saved_devId;
+
+        XMEMSET(hash,     0xAB, sizeof(hash));
+        XMEMSET(sig,      0,    sizeof(sig));
+        XMEMSET(pub_key,  0,    sizeof(pub_key));
+        XMEMSET(&sign_cmk,   0, sizeof(sign_cmk));
+        XMEMSET(&verify_cmk, 0, sizeof(verify_cmk));
+
+        ret = (wc_test_ret_t)wc_InitRng_ex(&ecdsa_rng, HEAP_HINT,
+                                             INVALID_DEVID);
+        if (ret != 0) {
+            printf("caliptra_test: ECDSA wc_InitRng failed %d\n", (int)ret);
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto caliptra_done;
+        }
+        rng_init = 1;
+
+        /* Generate a P-384 key pair in software to obtain key material */
+        wc_ecc_init_ex(&raw_key, HEAP_HINT, INVALID_DEVID);
+        raw_init = 1;
+        ret = (wc_test_ret_t)wc_ecc_make_key_ex(&ecdsa_rng, 48, &raw_key,
+                                                  ECC_SECP384R1);
+        if (ret != 0) {
+            printf("caliptra_test: ECDSA wc_ecc_make_key failed %d\n",
+                   (int)ret);
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto ecdsa_cleanup;
+        }
+
+        /* Export private scalar */
+        ret = (wc_test_ret_t)wc_ecc_export_private_only(&raw_key,
+                                                          priv_bytes,
+                                                          &priv_len);
+        if (ret != 0) {
+            printf("caliptra_test: ECDSA export private failed %d\n",
+                   (int)ret);
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto ecdsa_cleanup;
+        }
+
+        /* Export public coordinates */
+        ret = (wc_test_ret_t)wc_ecc_export_public_raw(&raw_key,
+                                                        pub_x, &pub_xlen,
+                                                        pub_y, &pub_ylen);
+        if (ret != 0) {
+            printf("caliptra_test: ECDSA export public failed %d\n",
+                   (int)ret);
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto ecdsa_cleanup;
+        }
+
+        /* Import private key into Caliptra as an ECDSA CMK */
+        ret = (wc_test_ret_t)wc_caliptra_import_key(priv_bytes, priv_len,
+                                                      CMB_KEY_USAGE_ECDSA,
+                                                      &sign_cmk);
+        if (ret != 0) {
+            printf("caliptra_test: ECDSA import private key failed %d\n",
+                   (int)ret);
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto ecdsa_cleanup;
+        }
+
+        /* Sign: use a Caliptra-backed ecc_key.
+         * Import the actual key material so caliptra_ecdsa_sign is invoked. */
+        wc_ecc_init_ex(&sign_key, HEAP_HINT, WOLF_CALIPTRA_DEVID);
+        {
+            int saved_sign_devId = sign_key.devId;
+            sign_key.devId = INVALID_DEVID;
+            ret = (wc_test_ret_t)wc_ecc_import_unsigned(&sign_key, pub_x, pub_y,
+                                                         priv_bytes, ECC_SECP384R1);
+            sign_key.devId = saved_sign_devId;
+        }
+        if (ret == 0) {
+            sign_key.devCtx = &sign_cmk;
+            ret = (wc_test_ret_t)wc_ecc_sign_hash(hash, sizeof(hash),
+                                                    sig, &sig_len,
+                                                    &ecdsa_rng, &sign_key);
+        }
+        wc_ecc_free(&sign_key);
+        if (ret != 0) {
+            printf("caliptra_test: ECDSA sign failed %d\n", (int)ret);
+            wc_caliptra_delete_key(&sign_cmk);
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto ecdsa_cleanup;
+        }
+        wc_caliptra_delete_key(&sign_cmk);
+
+        /* Import public key (Qx||Qy = 96 bytes) for Caliptra ECDSA verify. */
+        XMEMCPY(pub_key,      pub_x, 48);
+        XMEMCPY(pub_key + 48, pub_y, 48);
+        ret = (wc_test_ret_t)wc_caliptra_import_key(pub_key, 96,
+                                                     CMB_KEY_USAGE_ECDSA,
+                                                     &verify_cmk);
+        if (ret != 0) {
+            printf("caliptra_test: ECDSA import public key failed %d\n",
+                   (int)ret);
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto ecdsa_cleanup;
+        }
+
+        /* Verify: load public coordinates so wc_ecc_verify_hash
+         * can route through CryptoCb; set devCtx to the public CMK. */
+        wc_ecc_init_ex(&ver_key, HEAP_HINT, WOLF_CALIPTRA_DEVID);
+        saved_devId = ver_key.devId;
+        ver_key.devId = INVALID_DEVID;
+        ret = (wc_test_ret_t)wc_ecc_import_unsigned(&ver_key, pub_x, pub_y,
+                                                      NULL, ECC_SECP384R1);
+        ver_key.devId = saved_devId;
+        if (ret == 0) {
+            ver_key.devCtx = &verify_cmk;
+            ver_key.devId  = WOLF_CALIPTRA_DEVID;
+            ret = (wc_test_ret_t)wc_ecc_verify_hash(sig, sig_len,
+                                                      hash, sizeof(hash),
+                                                      &verify_res, &ver_key);
+        }
+        wc_ecc_free(&ver_key);
+        wc_caliptra_delete_key(&verify_cmk);
+        if (ret != 0) {
+            printf("caliptra_test: ECDSA verify call failed %d\n", (int)ret);
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto ecdsa_cleanup;
+        }
+        if (verify_res != 1) {
+            printf("caliptra_test: ECDSA verify result %d (expected 1)\n",
+                   verify_res);
+            ret = WC_TEST_RET_ENC_NC;
+            goto ecdsa_cleanup;
+        }
+        printf("caliptra_test: ECDSA P-384 sign+verify passed\n");
+
+        /* Negative test: corrupt the r value in the signature; verify MUST
+         * return ret=0 with verify_res=0 (not a system error).
+         *
+         * Corrupt a byte in the r value, not in the DER framing: corrupting
+         * framing bytes can cause wc_ecc_sig_to_rs to return a parse error
+         * before Caliptra is reached, making the test pass for the wrong
+         * reason.  Instead: decode to raw r/s, flip a bit in r, re-encode. */
+        {
+            ecc_key      bad_ver_key;
+            CaliptraCmk  bad_verify_cmk;
+            byte         bad_sig[160];
+            word32       bad_sig_len;
+            byte         bad_r[48], bad_s[48];
+            word32       bad_rLen = 48, bad_sLen = 48;
+            int          bad_res = 1; /* init to 1; must become 0 */
+            int          bad_ret;
+            int          bad_saved_devId;
+
+            XMEMSET(&bad_verify_cmk, 0, sizeof(bad_verify_cmk));
+            XMEMSET(bad_r, 0, sizeof(bad_r));
+            XMEMSET(bad_s, 0, sizeof(bad_s));
+
+            /* Decode the good DER signature to raw r and s. */
+            bad_ret = wc_ecc_sig_to_rs(sig, sig_len,
+                                        bad_r, &bad_rLen, bad_s, &bad_sLen);
+            if (bad_ret != 0) {
+                printf("caliptra_test: ECDSA negative-test sig decode "
+                       "failed %d\n", bad_ret);
+                ret = WC_TEST_RET_ENC_NC;
+                goto ecdsa_cleanup;
+            }
+            /* Left-pad r to 48 bytes if the leading zero was stripped. */
+            if (bad_rLen < 48) {
+                byte tmp[48];
+                XMEMSET(tmp, 0, 48);
+                XMEMCPY(tmp + (48 - bad_rLen), bad_r, bad_rLen);
+                XMEMCPY(bad_r, tmp, 48);
+            }
+            /* Corrupt the high byte of r and re-encode to valid DER. */
+            bad_r[0] ^= 0xFF;
+            bad_sig_len = (word32)sizeof(bad_sig);
+            bad_ret = wc_ecc_rs_raw_to_sig(bad_r, 48, bad_s, 48,
+                                            bad_sig, &bad_sig_len);
+            if (bad_ret != 0) {
+                printf("caliptra_test: ECDSA negative-test sig re-encode "
+                       "failed %d\n", bad_ret);
+                ret = WC_TEST_RET_ENC_NC;
+                goto ecdsa_cleanup;
+            }
+
+            /* Re-import the same public key for the negative verify test. */
+            bad_ret = wc_caliptra_import_key(pub_key, 96,
+                                              CMB_KEY_USAGE_ECDSA,
+                                              &bad_verify_cmk);
+            if (bad_ret != 0) {
+                printf("caliptra_test: ECDSA negative-test import failed %d\n",
+                       bad_ret);
+                ret = WC_TEST_RET_ENC_NC;
+                goto ecdsa_cleanup;
+            }
+
+            wc_ecc_init_ex(&bad_ver_key, HEAP_HINT, WOLF_CALIPTRA_DEVID);
+            bad_saved_devId = bad_ver_key.devId;
+            bad_ver_key.devId = INVALID_DEVID;
+            bad_ret = wc_ecc_import_unsigned(&bad_ver_key, pub_x, pub_y,
+                                              NULL, ECC_SECP384R1);
+            bad_ver_key.devId = bad_saved_devId;
+            if (bad_ret == 0) {
+                bad_ver_key.devCtx = &bad_verify_cmk;
+                bad_ver_key.devId  = WOLF_CALIPTRA_DEVID;
+                bad_ret = wc_ecc_verify_hash(bad_sig, bad_sig_len,
+                                              hash, sizeof(hash),
+                                              &bad_res, &bad_ver_key);
+            }
+            wc_ecc_free(&bad_ver_key);
+            wc_caliptra_delete_key(&bad_verify_cmk);
+
+            /* Correct result: function returns 0, bad_res == 0 */
+            if (bad_ret != 0 || bad_res != 0) {
+                printf("caliptra_test: ECDSA negative verify: expected "
+                       "ret=0 res=0, got ret=%d res=%d\n",
+                       bad_ret, bad_res);
+                ret = WC_TEST_RET_ENC_NC;
+                goto ecdsa_cleanup;
+            }
+            printf("caliptra_test: ECDSA P-384 negative verify passed\n");
+        }
+
+ecdsa_cleanup:
+        if (raw_init)  { wc_ecc_free(&raw_key); raw_init = 0; }
+        if (rng_init)  { wc_FreeRng(&ecdsa_rng); rng_init = 0; }
+        if (ret != 0)
+            goto caliptra_done;
+    }
+
+caliptra_done:
+    wc_CryptoCb_UnRegisterDevice(WOLF_CALIPTRA_DEVID);
+    wc_caliptra_cleanup();
+    return ret;
+}
+#endif /* defined(WOLFSSL_CALIPTRA) && defined(WOLF_CRYPTO_CB) */
 
 #undef ERROR_OUT
 
