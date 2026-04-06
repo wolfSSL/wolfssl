@@ -13567,8 +13567,8 @@ int wc_AesCcmEncrypt_ex(Aes* aes, byte* out, const byte* in, word32 sz,
 #endif
 
 static Aes* _AesNew_common(void* heap, int devId, int *result_code,
-                            int aesInitType, const void* aesInitData,
-                            int aesInitDataLen)
+                            int aesInitType, unsigned char* id,
+                            int idLen, const char* label)
 {
     int ret;
     Aes* aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_AES);
@@ -13579,16 +13579,29 @@ static Aes* _AesNew_common(void* heap, int devId, int *result_code,
         switch (aesInitType) {
 #ifdef WOLF_PRIVATE_KEY_ID
         case AES_NEW_INIT_ID:
-            ret = wc_AesInit_Id(aes, (unsigned char*)(uintptr_t)aesInitData,
-                                aesInitDataLen, heap, devId);
+            if (id == NULL || idLen == 0 || label != NULL) {
+                ret = BAD_FUNC_ARG;
+            }
+            else {
+                ret = wc_AesInit_Id(aes, id, idLen, heap, devId);
+            }
             break;
         case AES_NEW_INIT_LABEL:
-            ret = wc_AesInit_Label(aes, (const char*)aesInitData,
-                                   heap, devId);
+            if (label == NULL || id != NULL || idLen != 0) {
+                ret = BAD_FUNC_ARG;
+            }
+            else {
+                ret = wc_AesInit_Label(aes, label, heap, devId);
+            }
             break;
 #endif
         default:
-            ret = wc_AesInit(aes, heap, devId);
+            if (id != NULL || idLen != 0 || label != NULL) {
+                ret = BAD_FUNC_ARG;
+            }
+            else {
+                ret = wc_AesInit(aes, heap, devId);
+            }
             break;
         }
         if (ret != 0) {
@@ -13597,8 +13610,9 @@ static Aes* _AesNew_common(void* heap, int devId, int *result_code,
         }
     }
     (void)aesInitType;
-    (void)aesInitData;
-    (void)aesInitDataLen;
+    (void)id;
+    (void)idLen;
+    (void)label;
 
     if (result_code != NULL) {
         *result_code = ret;
@@ -13610,7 +13624,7 @@ static Aes* _AesNew_common(void* heap, int devId, int *result_code,
 Aes* wc_AesNew(void* heap, int devId, int *result_code)
 {
     return _AesNew_common(heap, devId, result_code,
-                          AES_NEW_INIT_PLAIN, NULL, 0);
+                          AES_NEW_INIT_PLAIN, NULL, 0, NULL);
 }
 
 #ifdef WOLF_PRIVATE_KEY_ID
@@ -13618,14 +13632,14 @@ Aes* wc_AesNew_Id(unsigned char* id, int len, void* heap, int devId,
                    int *result_code)
 {
     return _AesNew_common(heap, devId, result_code,
-                          AES_NEW_INIT_ID, id, len);
+                          AES_NEW_INIT_ID, id, len, NULL);
 }
 
 Aes* wc_AesNew_Label(const char* label, void* heap, int devId,
                       int *result_code)
 {
     return _AesNew_common(heap, devId, result_code,
-                          AES_NEW_INIT_LABEL, label, 0);
+                          AES_NEW_INIT_LABEL, NULL, 0, label);
 }
 #endif /* WOLF_PRIVATE_KEY_ID */
 
