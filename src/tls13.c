@@ -8898,7 +8898,7 @@ static int WriteCSRToBuffer(WOLFSSL* ssl, DerBuffer** certExts,
     DerBuffer* der;
 
     if (extSz_num > MAX_CERT_EXTENSIONS)
-        return BAD_FUNC_ARG;
+        return MAX_CERT_EXTENSIONS_ERR;
 
     ext = TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST);
     csr = ext ? (CertificateStatusRequest*)ext->data : NULL;
@@ -9152,7 +9152,7 @@ static int SendTls13Certificate(WOLFSSL* ssl)
                 return ret;
 
             if ((word16)(1 + ssl->buffers.certChainCnt) > MAX_CERT_EXTENSIONS)
-                ret = BAD_FUNC_ARG;
+                ret = MAX_CERT_EXTENSIONS_ERR;
             if (ret == 0)
                 ret = WriteCSRToBuffer(ssl, &ssl->buffers.certExts[0], &extSz[0],
                         1 /* +1 for leaf */ + (word16)ssl->buffers.certChainCnt);

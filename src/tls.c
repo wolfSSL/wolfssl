@@ -3614,6 +3614,12 @@ int ProcessChainOCSPRequest(WOLFSSL* ssl)
 
     if (chain && chain->buffer) {
         while (ret == 0 && pos + OPAQUE24_LEN < chain->length) {
+            if (i >= MAX_CERT_EXTENSIONS) {
+                WOLFSSL_MSG("OCSP request cert chain exceeds maximum length.");
+                ret = MAX_CERT_EXTENSIONS_ERR;
+                break;
+            }
+
             c24to32(chain->buffer + pos, &der.length);
             pos += OPAQUE24_LEN;
             der.buffer = chain->buffer + pos;
