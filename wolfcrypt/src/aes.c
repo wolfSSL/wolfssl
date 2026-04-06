@@ -13567,7 +13567,7 @@ int wc_AesCcmEncrypt_ex(Aes* aes, byte* out, const byte* in, word32 sz,
 #endif
 
 static Aes* _AesNew_common(void* heap, int devId, int *result_code,
-                            int aesInitType, void* aesInitData,
+                            int aesInitType, const void* aesInitData,
                             int aesInitDataLen)
 {
     int ret;
@@ -13579,7 +13579,7 @@ static Aes* _AesNew_common(void* heap, int devId, int *result_code,
         switch (aesInitType) {
 #ifdef WOLF_PRIVATE_KEY_ID
         case AES_NEW_INIT_ID:
-            ret = wc_AesInit_Id(aes, (unsigned char*)aesInitData,
+            ret = wc_AesInit_Id(aes, (unsigned char*)(uintptr_t)aesInitData,
                                 aesInitDataLen, heap, devId);
             break;
         case AES_NEW_INIT_LABEL:
@@ -13625,7 +13625,7 @@ Aes* wc_AesNew_Label(const char* label, void* heap, int devId,
                       int *result_code)
 {
     return _AesNew_common(heap, devId, result_code,
-                          AES_NEW_INIT_LABEL, (void*)label, 0);
+                          AES_NEW_INIT_LABEL, label, 0);
 }
 #endif /* WOLF_PRIVATE_KEY_ID */
 

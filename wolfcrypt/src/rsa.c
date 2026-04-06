@@ -192,7 +192,7 @@ static void wc_RsaCleanup(RsaKey* key)
 #endif
 
 static RsaKey* _NewRsaKey_common(void* heap, int devId, int *result_code,
-                                  int rsaInitType, void* rsaInitData,
+                                  int rsaInitType, const void* rsaInitData,
                                   int rsaInitDataLen)
 {
     int ret;
@@ -204,7 +204,7 @@ static RsaKey* _NewRsaKey_common(void* heap, int devId, int *result_code,
         switch (rsaInitType) {
 #ifdef WOLF_PRIVATE_KEY_ID
         case RSA_NEW_INIT_ID:
-            ret = wc_InitRsaKey_Id(key, (unsigned char*)rsaInitData,
+            ret = wc_InitRsaKey_Id(key, (unsigned char*)(uintptr_t)rsaInitData,
                                    rsaInitDataLen, heap, devId);
             break;
         case RSA_NEW_INIT_LABEL:
@@ -250,7 +250,7 @@ RsaKey* wc_NewRsaKey_Label(const char* label, void* heap, int devId,
                             int *result_code)
 {
     return _NewRsaKey_common(heap, devId, result_code,
-                             RSA_NEW_INIT_LABEL, (void*)label, 0);
+                             RSA_NEW_INIT_LABEL, label, 0);
 }
 #endif /* WOLF_PRIVATE_KEY_ID */
 

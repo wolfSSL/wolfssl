@@ -106,7 +106,7 @@ void ShiftAndXorRb(byte* out, byte* in)
 
 static int _InitCmac_common(Cmac* cmac, const byte* key, word32 keySz,
                             int type, void* unused, void* heap, int devId,
-                            int aesInitType, void* aesInitData,
+                            int aesInitType, const void* aesInitData,
                             int aesInitDataLen)
 {
     int ret = 0;
@@ -178,7 +178,7 @@ static int _InitCmac_common(Cmac* cmac, const byte* key, word32 keySz,
         switch (aesInitType) {
 #ifdef WOLF_PRIVATE_KEY_ID
         case CMAC_AES_INIT_ID:
-            ret = wc_AesInit_Id(&cmac->aes, (unsigned char*)aesInitData,
+            ret = wc_AesInit_Id(&cmac->aes, (unsigned char*)(uintptr_t)aesInitData,
                                 aesInitDataLen, heap, devId);
             break;
         case CMAC_AES_INIT_LABEL:
@@ -271,7 +271,7 @@ int wc_InitCmac_Label(Cmac* cmac, const byte* key, word32 keySz,
                       void* heap, int devId)
 {
     return _InitCmac_common(cmac, key, keySz, type, unused, heap, devId,
-                            CMAC_AES_INIT_LABEL, (void*)label, 0);
+                            CMAC_AES_INIT_LABEL, label, 0);
 }
 #endif /* WOLF_PRIVATE_KEY_ID */
 
