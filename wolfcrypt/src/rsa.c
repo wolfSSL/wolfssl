@@ -270,11 +270,13 @@ RsaKey* wc_NewRsaKey_Label(const char* label, void* heap, int devId,
 
 int wc_DeleteRsaKey(RsaKey* key, RsaKey** key_p)
 {
+    void* heap;
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
+    heap = key->heap;
     wc_FreeRsaKey(key);
-    XFREE(key, key->heap, DYNAMIC_TYPE_RSA);
+    XFREE(key, heap, DYNAMIC_TYPE_RSA);
     if (key_p != NULL) {
         *key_p = NULL;
     }
