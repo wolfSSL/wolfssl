@@ -6262,6 +6262,16 @@ WOLFSSL_EVP_PKEY* wolfSSL_PEM_read_bio_PrivateKey(WOLFSSL_BIO* bio,
             case DHk:
                 type = WC_EVP_PKEY_DH;
                 break;
+        #ifdef HAVE_ED25519
+            case ED25519k:
+                type = WC_EVP_PKEY_ED25519;
+                break;
+        #endif
+        #ifdef HAVE_ED448
+            case ED448k:
+                type = WC_EVP_PKEY_ED448;
+                break;
+        #endif
             default:
                 type = WOLFSSL_FATAL_ERROR;
                 break;
@@ -6409,6 +6419,16 @@ WOLFSSL_EVP_PKEY* wolfSSL_PEM_read_PrivateKey(XFILE fp, WOLFSSL_EVP_PKEY **key,
             case DHk:
                 type = WC_EVP_PKEY_DH;
                 break;
+        #ifdef HAVE_ED25519
+            case ED25519k:
+                type = WC_EVP_PKEY_ED25519;
+                break;
+        #endif
+        #ifdef HAVE_ED448
+            case ED448k:
+                type = WC_EVP_PKEY_ED448;
+                break;
+        #endif
             default:
                 type = WOLFSSL_FATAL_ERROR;
                 break;

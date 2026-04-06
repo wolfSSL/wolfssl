@@ -5257,6 +5257,18 @@ int wolfSSL_CTX_use_PrivateKey(WOLFSSL_CTX *ctx, WOLFSSL_EVP_PKEY *pkey)
             ret = ECC_populate_EVP_PKEY(pkey, pkey->ecc);
             break;
     #endif
+    #ifdef HAVE_ED25519
+        case WC_EVP_PKEY_ED25519:
+            /* DER is already stored in pkey->pkey.ptr by d2i_evp_pkey. */
+            WOLFSSL_MSG("populating Ed25519 key");
+            break;
+    #endif
+    #ifdef HAVE_ED448
+        case WC_EVP_PKEY_ED448:
+            /* DER is already stored in pkey->pkey.ptr by d2i_evp_pkey. */
+            WOLFSSL_MSG("populating Ed448 key");
+            break;
+    #endif
         default:
             ret = 0;
         }

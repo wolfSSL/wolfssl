@@ -41,6 +41,12 @@
 #include <wolfssl/openssl/evp.h>
 #include <wolfssl/openssl/kdf.h>
 #include <wolfssl/wolfcrypt/wolfmath.h>
+#ifdef HAVE_ED25519
+#include <wolfssl/wolfcrypt/ed25519.h>
+#endif
+#ifdef HAVE_ED448
+#include <wolfssl/wolfcrypt/ed448.h>
+#endif
 
 static const struct s_ent {
     const enum wc_HashType macType;
@@ -11678,6 +11684,26 @@ void wolfSSL_EVP_PKEY_free(WOLFSSL_EVP_PKEY* key)
                     }
                     break;
                 #endif /* ! NO_DH ... */
+
+                #ifdef HAVE_ED25519
+                case WC_EVP_PKEY_ED25519:
+                    if (key->ed25519 != NULL && key->ownEd25519 == 1) {
+                        wc_ed25519_free(key->ed25519);
+                        XFREE(key->ed25519, key->heap, DYNAMIC_TYPE_ED25519);
+                        key->ed25519 = NULL;
+                    }
+                    break;
+                #endif /* HAVE_ED25519 */
+
+                #ifdef HAVE_ED448
+                case WC_EVP_PKEY_ED448:
+                    if (key->ed448 != NULL && key->ownEd448 == 1) {
+                        wc_ed448_free(key->ed448);
+                        XFREE(key->ed448, key->heap, DYNAMIC_TYPE_ED448);
+                        key->ed448 = NULL;
+                    }
+                    break;
+                #endif /* HAVE_ED448 */
 
                 #ifdef HAVE_HKDF
                 case WC_EVP_PKEY_HKDF:
