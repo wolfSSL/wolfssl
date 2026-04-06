@@ -2800,6 +2800,9 @@ int TLSX_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
         } else {
             word16 listLen;
 
+            if (extLen < OPAQUE16_LEN)
+                return BUFFER_ERROR;
+
             ato16(clientHello + offset, &listLen);
             offset += OPAQUE16_LEN;
 
