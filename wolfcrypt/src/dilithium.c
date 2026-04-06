@@ -9273,8 +9273,9 @@ static int dilithium_sign_ctx_hash_with_seed(dilithium_key* key,
     byte oidMsgHash[DILITHIUM_HASH_OID_LEN + WC_MAX_DIGEST_SIZE];
     word32 oidMsgHashLen = 0;
 
-    if ((ret == 0) && (hashLen > WC_MAX_DIGEST_SIZE)) {
-        ret = BUFFER_E;
+    /* Check that the input hash length is valid. */
+    if ((int)hashLen != wc_HashGetDigestSize((enum wc_HashType)hashAlg)) {
+        ret = BAD_LENGTH_E;
     }
 
     if (ret == 0) {
@@ -9943,6 +9944,12 @@ static int dilithium_verify_ctx_hash(dilithium_key* key, const byte* ctx,
 
     if (key == NULL) {
         ret = BAD_FUNC_ARG;
+    }
+    /* Check that the input hash length is valid. */
+    if ((ret == 0) &&
+        ((int)hashLen != wc_HashGetDigestSize((enum wc_HashType)hashAlg)))
+    {
+        ret = BAD_LENGTH_E;
     }
 
     if (ret == 0) {

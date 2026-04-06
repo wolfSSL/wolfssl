@@ -12284,9 +12284,9 @@ static int test_wc_CheckCertSigPubKey(void)
     ExpectIntEQ(wc_CheckCertSigPubKey(cert_der, cert_dersz, NULL, keyDer, 0,
         RSAk), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
-    /* Wrong aglo. */
+    /* Wrong algo. */
     ExpectIntEQ(wc_CheckCertSigPubKey(cert_der, cert_dersz, NULL, keyDer,
-        keyDerSz, ECDSAk), WC_NO_ERR_TRACE(ASN_PARSE_E));
+        keyDerSz, ECDSAk), WC_NO_ERR_TRACE(ASN_SIG_OID_E));
 
     wc_FreeDecodedCert(&decoded);
     if (cert_der != NULL)

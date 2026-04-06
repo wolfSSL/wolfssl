@@ -371,6 +371,11 @@ int wc_ed448_sign_msg_ex(const byte* in, word32 inLen, byte* out,
         ret = BAD_FUNC_ARG;
     }
 
+    if ((ret == 0) && (type == Ed448ph) && (inLen != ED448_PREHASH_SIZE))
+    {
+        ret = BAD_LENGTH_E;
+    }
+
     /* check and set up out length */
     if ((ret == 0) && (*outLen < ED448_SIG_SIZE)) {
         *outLen = ED448_SIG_SIZE;
@@ -795,6 +800,12 @@ int wc_ed448_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
 
     if (key == NULL)
         return BAD_FUNC_ARG;
+
+    if ((type == Ed448ph) &&
+        (msgLen != ED448_PREHASH_SIZE))
+    {
+        return BAD_LENGTH_E;
+    }
 
 #ifdef WOLFSSL_ED448_PERSISTENT_SHA
     sha = &key->sha;

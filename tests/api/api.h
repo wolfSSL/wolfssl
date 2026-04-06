@@ -37,10 +37,32 @@
     #define HEAP_HINT NULL
 #endif
 
+#include <wolfssl/wolfcrypt/hash.h>
 
-#define TEST_STRING    "Everyone gets Friday off."
-#define TEST_STRING_SZ 25
-
+#if defined(WC_FIPS_186_5_PLUS)
+    #define TEST_STRING "WC_FIPS_186_5_PLUS test test"
+    #define TEST_STRING_SZ 28
+#elif defined(WC_FIPS_186_4_PLUS) || defined(HAVE_SELFTEST)
+    #define TEST_STRING "WC_FIPS_186_4_PLUS test.."
+    #define TEST_STRING_SZ 25
+#elif WC_MIN_DIGEST_SIZE <= 25
+    #define TEST_STRING "Everyone gets Friday off."
+    #define TEST_STRING_SZ 25
+#elif WC_MIN_DIGEST_SIZE <= 28
+    #define TEST_STRING "Everyone works the weekends."
+    #define TEST_STRING_SZ 28
+#elif WC_MIN_DIGEST_SIZE <= 32
+    #define TEST_STRING "Everyone works through the night"
+    #define TEST_STRING_SZ 32
+#elif WC_MIN_DIGEST_SIZE <= 48
+    #define TEST_STRING "Everyone gets to summer in Tuscany with Chianti."
+    #define TEST_STRING_SZ 48
+#elif WC_MIN_DIGEST_SIZE <= 64
+    #define TEST_STRING "Everyone works from Christmas Eve, clear through New Year's Day."
+    #define TEST_STRING_SZ 64
+#else
+    #error WC_MIN_DIGEST_SIZE value not supported by unit test.
+#endif
 
 #ifndef ONEK_BUF
     #define ONEK_BUF 1024

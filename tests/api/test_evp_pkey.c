@@ -742,7 +742,7 @@ int test_wolfSSL_EVP_PKEY_set1_get1_DSA(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_ALL) && !defined (NO_DSA) && !defined(HAVE_SELFTEST) && \
-    defined(WOLFSSL_KEY_GEN)
+    !defined(WC_FIPS_186_5_PLUS) && defined(WOLFSSL_KEY_GEN)
     DSA       *dsa  = NULL;
     DSA       *setDsa  = NULL;
     EVP_PKEY  *pkey = NULL;
@@ -829,7 +829,8 @@ int test_wolfSSL_EVP_PKEY_set1_get1_DSA(void)
     DSA_free(setDsa);
     EVP_PKEY_free(pkey);
     EVP_PKEY_free(set1Pkey);
-#endif /* OPENSSL_ALL && !NO_DSA && !HAVE_SELFTEST && WOLFSSL_KEY_GEN */
+#endif /* OPENSSL_ALL && !NO_DSA && !HAVE_SELFTEST && !WC_FIPS_186_5_PLUS */
+       /* && WOLFSSL_KEY_GEN */
     return EXPECT_RESULT();
 } /* END test_EVP_PKEY_set1_get1_DSA */
 
@@ -1606,7 +1607,8 @@ int test_wolfSSL_EVP_PKEY_sign_verify_dsa(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA)
-#if !defined (NO_DSA) && !defined(HAVE_SELFTEST) && defined(WOLFSSL_KEY_GEN)
+#if !defined (NO_DSA) && !defined(WC_FIPS_186_5_PLUS) && \
+    !defined(HAVE_SELFTEST) && defined(WOLFSSL_KEY_GEN)
     ExpectIntEQ(test_wolfSSL_EVP_PKEY_sign_verify(EVP_PKEY_DSA), TEST_SUCCESS);
 #endif
 #endif

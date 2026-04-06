@@ -27130,14 +27130,16 @@ done:
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t dsa_test(void)
 {
     wc_test_ret_t ret = 0;
-    int answer;
     word32 bytes;
     word32 idx = 0;
     WC_RNG rng;
     int rng_inited = 0;
     wc_Sha sha;
     byte   hash[WC_SHA_DIGEST_SIZE];
+#ifndef WC_FIPS_186_5_PLUS
     byte   signature[40];
+    int answer;
+#endif
     int key_inited = 0;
 #ifdef WOLFSSL_KEY_GEN
     int    derSz = 0;
@@ -27223,6 +27225,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t dsa_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     rng_inited = 1;
 
+#ifndef WC_FIPS_186_5_PLUS
     ret = wc_DsaSign(hash, signature, key, &rng);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -27232,6 +27235,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t dsa_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     if (answer != 1)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif /* !WC_FIPS_186_5_PLUS */
 
     wc_FreeDsaKey(key);
     key_inited = 0;
@@ -33216,8 +33220,30 @@ static wc_test_ret_t ecc_test_vector(int keySize)
         break;
 #endif /* HAVE_ECC192 */
 
-#if defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)
+#if (defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)) && \
+    (!defined(NO_SHA) || defined(WOLFSSL_SHA224) || \
+     (defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_224)))
     case 28:
+#if defined(WC_FIPS_186_5_PLUS) || defined(NO_SHA)
+        /* FIPS 186-5 Example vector -- P-224, SHA-224 */
+        /* Unhashed message: "Example of ECDSA with P-224" */
+
+        vec.msg = "\x1F\x1E\x1C\xF8\x92\x92\x6C\xFC\xCF\xC5\xA2\x8F\xEE\xF3\xD8"
+            "\x07\xD2\x3F\x77\x80\x08\xDB\xA4\xB3\x5F\x04\xB2\xFD";
+        vec.msgLen = 28;
+        vec.Qx  = "E84FB0B8E7000CB657D7973CF6B42ED78B301674276DF744AF130B3E";
+        vec.Qy  = "4376675C6FC5612C21A0FF2D2A89D2987DF7A2BC52183B5982298555";
+        vec.d   = "3F0C488E987C80BE0FEE521F8D90BE6034EC69AE11CA72AA777481E8";
+        vec.R   = "C3A3F5B82712532004C6F6D1DB672F55D931C3409EA1216D0BE77380";
+        vec.S   = "C5AA1EAE6095DEA34C9BD84DA3852CCA41A8BD9D5548F36DABDF6617";
+        vec.curveName = "SECP224R1";
+        vec.r   = (const byte *)"\xC3\xA3\xF5\xB8\x27\x12\x53\x20\x04\xC6\xF6"
+            "\xD1\xDB\x67\x2F\x55\xD9\x31\xC3\x40\x9E\xA1\x21\x6D\x0B\xE7\x73\x80";
+        vec.rSz = 28;
+        vec.s   = (const byte *)"\xC5\xAA\x1E\xAE\x60\x95\xDE\xA3\x4C\x9B\xD8"
+            "\x4D\xA3\x85\x2C\xCA\x41\xA8\xBD\x9D\x55\x48\xF3\x6D\xAB\xDF\x66\x17";
+        vec.sSz = 28;
+#else /* !WC_FIPS_186_5_PLUS && !NO_SHA */
         /* first [P-224,SHA-1] vector from FIPS 186-3 NIST vectors */
         #if 1
             vec.msg = "\xb9\xa3\xb8\x6d\xb0\xba\x99\xfd\xc6\xd2\x94\x6b\xfe\xbe\x9c\xe8\x3f\x10\x74\xfc";
@@ -33249,8 +33275,9 @@ static wc_test_ret_t ecc_test_vector(int keySize)
                          "\x61\x91\x28\x9e\x2e\x04\xd4\x54\x93\x5d\x50\xfe"
                          "\x6a\xf3\xad\x5b";
         vec.sSz = 28;
+#endif /* !WC_FIPS_186_5_PLUS && !NO_SHA */
         break;
-#endif /* HAVE_ECC224 */
+#endif /* HAVE_ECC224 && (!NO_SHA || SHA224 || SHA3_224 */
 
 #if defined(HAVE_ECC239) || defined(HAVE_ALL_CURVES)
     case 30:
@@ -33259,6 +33286,29 @@ static wc_test_ret_t ecc_test_vector(int keySize)
 
 #if !defined(NO_ECC256) || defined(HAVE_ALL_CURVES)
     case 32:
+#if defined(WC_FIPS_186_5_PLUS) || defined(NO_SHA)
+        /* FIPS 186-5 Example vector - P-256, SHA-256 */
+        /* Unhashed message: "Example of ECDSA with P-256" */
+
+        vec.msg = "\xA4\x1A\x41\xA1\x2A\x79\x95\x48\x21\x1C\x41\x0C\x65\xD8\x13"
+                "\x3A\xFD\xE3\x4D\x28\xBD\xD5\x42\xE4\xB6\x80\xCF\x28\x99\xC8"
+                "\xA8\xC4";
+        vec.msgLen = 32;
+        vec.Qx  = "B7E08AFDFE94BAD3F1DC8C734798BA1C62B3A0AD1E9EA2A38201CD0889BC7A19";
+        vec.Qy  = "3603F747959DBF7A4BB226E41928729063ADC7AE43529E61B563BBC606CC5E09";
+        vec.d   = "C477F9F65C22CCE20657FAA5B2D1D8122336F851A508A1ED04E479C34985BF96";
+        vec.R   = "2B42F576D07F4165FF65D1F3B1500F81E44C316F1F0B3EF57325B69ACA46104F";
+        vec.S   = "DC42C2122D6392CD3E3A993A89502A8198C1886FE69D262C4B329BDB6B63FAF1";
+        vec.curveName = "SECP256R1";
+        vec.r   = (const byte *)"\x2B\x42\xF5\x76\xD0\x7F\x41\x65\xFF\x65\xD1"
+                "\xF3\xB1\x50\x0F\x81\xE4\x4C\x31\x6F\x1F\x0B\x3E\xF5\x73\x25"
+                "\xB6\x9A\xCA\x46\x10\x4F";
+        vec.rSz = 32;
+        vec.s   = (const byte *)"\xDC\x42\xC2\x12\x2D\x63\x92\xCD\x3E\x3A\x99"
+                "\x3A\x89\x50\x2A\x81\x98\xC1\x88\x6F\xE6\x9D\x26\x2C\x4B\x32"
+                "\x9B\xDB\x6B\x63\xFA\xF1";
+        vec.sSz = 32;
+#else /* !WC_FIPS_186_5_PLUS && !NO_SHA */
         /* first [P-256,SHA-1] vector from FIPS 186-3 NIST vectors */
         #if 1
             vec.msg = "\xa3\xf9\x1a\xe2\x1b\xa6\xb3\x03\x98\x64\x47\x2f\x18\x41\x44\xc6\xaf\x62\xcd\x0e";
@@ -33290,6 +33340,7 @@ static wc_test_ret_t ecc_test_vector(int keySize)
                          "\x5a\x21\x48\xae\x32\xe3\xa2\x48";
         vec.sSz = 32;
         vec.curveName = "SECP256R1";
+#endif /* !WC_FIPS_186_5_PLUS && !NO_SHA */
         break;
 #endif /* !NO_ECC256 */
 
@@ -33300,6 +33351,37 @@ static wc_test_ret_t ecc_test_vector(int keySize)
 
 #if defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)
     case 48:
+#if defined(WC_FIPS_186_5_PLUS) || defined(NO_SHA)
+        /* FIPS 186-5 Example vector -- P-384, SHA-384 */
+        /* Unhashed message: "Example of ECDSA with P-384" */
+
+        vec.msg = "\x5A\xEA\x18\x7D\x1C\x4F\x6E\x1B\x35\x05\x7D\x20\x12\x6D\x83"
+                  "\x6C\x6A\xDB\xBC\x70\x49\xEE\x02\x99\xC9\x52\x9F\x5E\x0B\x3F"
+                  "\x8B\x5A\x74\x11\x14\x9D\x6C\x30\xD6\xCB\x2B\x8A\xF7\x0E\x0A"
+                  "\x78\x1E\x89";
+        vec.msgLen = 48;
+        vec.Qx  = "3BF701BC9E9D36B4D5F1455343F09126F2564390F2B487365071243C61E6"
+                  "471FB9D2AB74657B82F9086489D9EF0F5CB5";
+        vec.Qy  = "D1A358EAFBF952E68D533855CCBDAA6FF75B137A5101443199325583552A"
+                  "6295FFE5382D00CFCDA30344A9B5B68DB855";
+        vec.d   = "F92C02ED629E4B48C0584B1C6CE3A3E3B4FAAE4AFC6ACB0455E73DFC392E"
+                  "6A0AE393A8565E6B9714D1224B57D83F8A08";
+        vec.R   = "30EA514FC0D38D8208756F068113C7CADA9F66A3B40EA3B313D040D9B57D"
+                  "D41A332795D02CC7D507FCEF9FAF01A27088";
+        vec.S   = "CC808E504BE414F46C9027BCBF78ADF067A43922D6FCAA66C4476875FBB7"
+                  "B94EFD1F7D5DBE620BFB821C46D549683AD8";
+        vec.curveName = "SECP384R1";
+        vec.r   = (const byte *)"\x30\xEA\x51\x4F\xC0\xD3\x8D\x82\x08\x75\x6F"
+                  "\x06\x81\x13\xC7\xCA\xDA\x9F\x66\xA3\xB4\x0E\xA3\xB3\x13\xD0"
+                  "\x40\xD9\xB5\x7D\xD4\x1A\x33\x27\x95\xD0\x2C\xC7\xD5\x07\xFC"
+                  "\xEF\x9F\xAF\x01\xA2\x70\x88";
+        vec.rSz = 48;
+        vec.s   = (const byte *)"\xCC\x80\x8E\x50\x4B\xE4\x14\xF4\x6C\x90\x27"
+                  "\xBC\xBF\x78\xAD\xF0\x67\xA4\x39\x22\xD6\xFC\xAA\x66\xC4\x47"
+                  "\x68\x75\xFB\xB7\xB9\x4E\xFD\x1F\x7D\x5D\xBE\x62\x0B\xFB\x82"
+                  "\x1C\x46\xD5\x49\x68\x3A\xD8";
+        vec.sSz = 48;
+#else /* !WC_FIPS_186_5_PLUS && !NO_SHA */
         /* first [P-384,SHA-1] vector from FIPS 186-3 NIST vectors */
         #if 1
             vec.msg = "\x9b\x9f\x8c\x95\x35\xa5\xca\x26\x60\x5d\xb7\xf2\xfa\x57\x3b\xdf\xc3\x2e\xab\x8b";
@@ -33333,6 +33415,7 @@ static wc_test_ret_t ecc_test_vector(int keySize)
                          "\x8e\x93\x56\x74\x1f\x23\xc9\x6c\x14\x71\x42\x21"
                          "\x07\x8d\xbd\x5c\x17\xf4\xfd\xd8\x9b\x32\xa9\x07";
         vec.sSz = 48;
+#endif /* !WC_FIPS_186_5_PLUS && !NO_SHA */
         break;
 #endif /* HAVE_ECC384 */
 
@@ -33343,6 +33426,45 @@ static wc_test_ret_t ecc_test_vector(int keySize)
 
 #if defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)
     case 66:
+#if defined(WC_FIPS_186_5_PLUS) || defined(NO_SHA)
+        /* FIPS 186-5 Example vector -- P-521, SHA-512 */
+        /* Unhashed message: "Example of ECDSA with P-521" */
+
+        vec.msg = "\x9B\xF0\xE1\xDE\xED\xA3\x1E\x00\xF9\x25\xB7\x7F\x7C\xB6\xB1"
+                  "\xCE\xD7\x36\x8D\xE1\xDC\x75\xBB\x9F\x94\x58\x2C\x1C\xA7\x09"
+                  "\x20\x5D\x32\xAF\x90\x02\x5B\x02\xFA\x13\x2F\xBE\xBD\x6C\xDD"
+                  "\xCD\x91\x72\xC0\xD6\x6D\x8E\x58\x17\x67\xA8\xB6\xF7\x1D\xE6"
+                  "\x0B\xE1\xF9\x32";
+        vec.msgLen = 64;
+        vec.Qx  = "98E91EEF9A68452822309C52FAB453F5F117C1DA8ED796B255E9AB8F6410"
+                  "CCA16E59DF403A6BDC6CA467A37056B1E54B3005D8AC030DECFEB68DF18B"
+                  "171885D5C4";
+        vec.Qy  = "164350C321AECFC1CCA1BA4364C9B15656150B4B78D6A48D7D28E7F31985"
+                  "EF17BE8554376B72900712C4B83AD668327231526E313F5F092999A4632F"
+                  "D50D946BC2E";
+        vec.d   = "100085F47B8E1B8B11B7EB33028C0B2888E304BFC98501955B45BBA1478D"
+                  "C184EEEDF09B86A5F7C21994406072787205E69A63709FE35AA93BA33351"
+                  "4B24F961722";
+        vec.R   = "140C8EDCA57108CE3F7E7A240DDD3AD74D81E2DE62451FC1D558FDC79269"
+                  "ADACD1C2526EEEEF32F8C0432A9D56E2B4A8A732891C37C9B96641A9254C"
+                  "CFE5DC3E2BA";
+        vec.S   = "D72F15229D0096376DA6651D9985BFD7C07F8D49583B545DB3EAB20E0A2C"
+                  "1E8615BD9E298455BDEB6B61378E77AF1C54EEE2CE37B2C61F5C9A823295"
+                  "1CB988B5B1";
+        vec.curveName = "SECP521R1";
+        vec.r   = (const byte *)"\x01\x40\xC8\xED\xCA\x57\x10\x8C\xE3\xF7\xE7"
+                  "\xA2\x40\xDD\xD3\xAD\x74\xD8\x1E\x2D\xE6\x24\x51\xFC\x1D\x55"
+                  "\x8F\xDC\x79\x26\x9A\xDA\xCD\x1C\x25\x26\xEE\xEE\xF3\x2F\x8C"
+                  "\x04\x32\xA9\xD5\x6E\x2B\x4A\x8A\x73\x28\x91\xC3\x7C\x9B\x96"
+                  "\x64\x1A\x92\x54\xCC\xFE\x5D\xC3\xE2\xBA";
+        vec.rSz = 66;
+        vec.s   = (const byte *)"\xD7\x2F\x15\x22\x9D\x00\x96\x37\x6D\xA6\x65"
+                  "\x1D\x99\x85\xBF\xD7\xC0\x7F\x8D\x49\x58\x3B\x54\x5D\xB3\xEA"
+                  "\xB2\x0E\x0A\x2C\x1E\x86\x15\xBD\x9E\x29\x84\x55\xBD\xEB\x6B"
+                  "\x61\x37\x8E\x77\xAF\x1C\x54\xEE\xE2\xCE\x37\xB2\xC6\x1F\x5C"
+                  "\x9A\x82\x32\x95\x1C\xB9\x88\xB5\xB1";
+        vec.sSz = 65;
+#else /* !WC_FIPS_186_5_PLUS && !NO_SHA */
         /* first [P-521,SHA-1] vector from FIPS 186-3 NIST vectors */
         #if 1
             vec.msg = "\x1b\xf7\x03\x9c\xca\x23\x94\x27\x3f\x11\xa1\xd4\x8d\xcc\xb4\x46\x6f\x31\x61\xdf";
@@ -33380,6 +33502,7 @@ static wc_test_ret_t ecc_test_vector(int keySize)
                          "\xdf\xf9\x0c\x34\x68\x4c\xdb\xe7\xbb\x66\x9b\x6c"
                          "\x3d\x22\xf2\x48\x0c";
         vec.sSz = 65;
+#endif /* !WC_FIPS_186_5_PLUS && !NO_SHA */
         break;
 #endif /* HAVE_ECC521 */
     default:
@@ -34115,7 +34238,9 @@ static wc_test_ret_t ecc_test_make_pub(WC_RNG* rng)
     byte exportBuf[ECC_BUFSIZE];
     byte tmp[ECC_BUFSIZE];
 #endif
-    const byte* msg = (const byte*)"test wolfSSL ECC public gen";
+    static const byte msg[] =
+        "All we have to decide is what to do with the time that is given ";
+    wc_static_assert(sizeof(msg) >= WC_MAX_DIGEST_SIZE);
     word32 x;
     word32 tmpSz;
     wc_test_ret_t ret = 0;
@@ -34267,7 +34392,7 @@ static wc_test_ret_t ecc_test_make_pub(WC_RNG* rng)
         ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
         if (ret == 0) {
-            ret = wc_ecc_sign_hash(msg, (word32)XSTRLEN((const char* )msg), tmp,
+            ret = wc_ecc_sign_hash(msg, WC_MAX_DIGEST_SIZE, tmp,
                 &tmpSz, rng, key);
         }
     } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
@@ -34284,7 +34409,7 @@ static wc_test_ret_t ecc_test_make_pub(WC_RNG* rng)
     #endif
         if (ret == 0) {
             ret = wc_ecc_verify_hash(tmp, tmpSz, msg,
-                (word32)XSTRLEN((const char*)msg), &verify, key);
+                WC_MAX_DIGEST_SIZE, &verify, key);
         }
     } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
     if (ret != 0)
@@ -59272,7 +59397,7 @@ static wc_test_ret_t pkcs7signed_run_vectors(
     static const byte senderNonceOid[] =
                { 0x06, 0x0a, 0x60, 0x86, 0x48, 0x01, 0x86, 0xF8, 0x45, 0x01,
                  0x09, 0x05 };
-#ifndef NO_SHA
+#if !defined(NO_SHA) && !defined(WC_FIPS_186_5_PLUS)
     byte transId[(WC_SHA_DIGEST_SIZE + 1) * 2 + 1];
 #else
     byte transId[(WC_SHA256_DIGEST_SIZE + 1) * 2 + 1];
@@ -59319,7 +59444,7 @@ static wc_test_ret_t pkcs7signed_run_vectors(
 
     {
 #ifndef NO_RSA
-    #ifndef NO_SHA
+    #if !defined(NO_SHA) && !defined(WC_FIPS_186_5_PLUS)
         /* RSA with SHA */
         ADD_PKCS7SIGNEDVECTOR(
          data, (word32)sizeof(data), SHAh, RSAk, rsaClientPrivKeyBuf,
@@ -59417,7 +59542,7 @@ static wc_test_ret_t pkcs7signed_run_vectors(
 #endif /* NO_RSA */
 
 #ifdef HAVE_ECC
-    #ifndef NO_SHA
+    #if !defined(NO_SHA) && !defined(WC_FIPS_186_5_PLUS)
         /* ECDSA with SHA */
         ADD_PKCS7SIGNEDVECTOR(
          data, (word32)sizeof(data), SHAh, ECDSAk, eccClientPrivKeyBuf,
@@ -59586,7 +59711,7 @@ static wc_test_ret_t pkcs7signed_run_vectors(
 
         /* generate transactionID (used with SCEP) */
         {
-        #ifndef NO_SHA
+        #if !defined(NO_SHA) && !defined(WC_FIPS_186_5_PLUS)
             wc_Sha sha;
             byte digest[WC_SHA_DIGEST_SIZE];
         #else
@@ -59598,7 +59723,7 @@ static wc_test_ret_t pkcs7signed_run_vectors(
             transId[0] = 0x13;
             transId[1] = sizeof(digest) * 2;
 
-        #ifndef NO_SHA
+        #if !defined(NO_SHA) && !defined(WC_FIPS_186_5_PLUS)
             ret = wc_InitSha_ex(&sha, HEAP_HINT, devId);
             if (ret != 0)
                 ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -59673,7 +59798,7 @@ static wc_test_ret_t pkcs7signed_run_vectors(
 
         {
             /* check getting signed attributes */
-        #ifndef NO_SHA
+        #if !defined(NO_SHA) && !defined(WC_FIPS_186_5_PLUS)
             byte buf[(WC_SHA_DIGEST_SIZE + 1) * 2 + 1];
         #else
             byte buf[(WC_SHA256_DIGEST_SIZE + 1) * 2 + 1];

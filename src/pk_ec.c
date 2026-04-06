@@ -5264,6 +5264,14 @@ int wolfSSL_ECDSA_do_verify(const unsigned char *dgst, int dLen,
         ret = WOLFSSL_FATAL_ERROR;
     }
 
+    /* Check hash length */
+    if ((ret == 1) &&
+        ((dLen > WC_MAX_DIGEST_SIZE) ||
+         (dLen < WC_MIN_DIGEST_SIZE))) {
+        WOLFSSL_MSG("wolfSSL_ECDSA_do_verify Bad digest size");
+        ret = WOLFSSL_FATAL_ERROR;
+    }
+
     /* Ensure internal EC key is set from external. */
     if ((ret == 1) && (key->inSet == 0)) {
         WOLFSSL_MSG("No EC key internal set, do it");
@@ -5385,6 +5393,14 @@ int wolfSSL_ECDSA_verify(int type, const unsigned char *digest, int digestSz,
 
     /* Validate parameters. */
     if (key == NULL) {
+        ret = 0;
+    }
+
+    /* Check hash length */
+    if ((ret == 1) &&
+        ((digestSz > WC_MAX_DIGEST_SIZE) ||
+         (digestSz < WC_MIN_DIGEST_SIZE))) {
+        WOLFSSL_MSG("wolfSSL_ECDSA_verify Bad digest size");
         ret = 0;
     }
 

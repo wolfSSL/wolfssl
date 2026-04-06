@@ -727,7 +727,7 @@ int test_wc_PKCS7_EncodeSignedData(void)
         pkcs7->privateKey = key;
         pkcs7->privateKeySz = (word32)sizeof(key);
         pkcs7->encryptOID = encryptOid;
-    #ifdef NO_SHA
+    #if defined(NO_SHA) || defined(WC_FIPS_186_5_PLUS)
         pkcs7->hashOID = SHA256h;
     #else
         pkcs7->hashOID = SHAh;
@@ -1685,7 +1685,7 @@ int CreatePKCS7SignedData(unsigned char* output, int outputSz,
         else {
             pkcs7->encryptOID = ECDSAk;
         }
-    #ifdef NO_SHA
+    #if defined(NO_SHA) || defined(WC_FIPS_186_5_PLUS)
         pkcs7->hashOID = SHA256h;
     #else
         pkcs7->hashOID = SHAh;
@@ -1739,7 +1739,7 @@ int test_wc_PKCS7_VerifySignedData_RSA(void)
     word32 badOutSz = 0;
     byte   badContent[] = "This is different content than was signed";
     wc_HashAlg hash;
-#ifdef NO_SHA
+#if defined(NO_SHA) || defined(WC_FIPS_186_5_PLUS)
     enum wc_HashType hashType = WC_HASH_TYPE_SHA256;
 #else
     enum wc_HashType hashType = WC_HASH_TYPE_SHA;
@@ -2120,7 +2120,7 @@ int test_wc_PKCS7_VerifySignedData_ECC(void)
     word32 z;
     int ret;
 #endif /* !NO_PKCS7_STREAM */
-#ifdef NO_SHA
+#if defined(NO_SHA) || defined(WC_FIPS_186_5_PLUS)
     enum wc_HashType hashType = WC_HASH_TYPE_SHA256;
 #else
     enum wc_HashType hashType = WC_HASH_TYPE_SHA;

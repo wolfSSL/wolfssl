@@ -163,6 +163,35 @@ int wc_SignatureVerifyHash(
         WOLFSSL_MSG("wc_SignatureVerify: Invalid hash type/len");
         return ret;
     }
+
+#if !defined(NO_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+    /* For WC_SIGNATURE_TYPE_RSA_W_ENC, we need to extract the actual size of
+     * the ASN.1-encoded hash.
+     */
+    if (sig_type == WC_SIGNATURE_TYPE_RSA_W_ENC) {
+        int hash_dec_len;
+        word32 idx = 0;
+        if (GetSequence(hash_data, &idx, &hash_dec_len, hash_len) < 0)
+            return ASN_PARSE_E;
+        /* skip the AlgorithmIdentifier */
+        if (GetSequence(hash_data, &idx, &hash_dec_len, hash_len) < 0)
+            return ASN_PARSE_E;
+        idx += (word32)hash_dec_len;
+        /* now sitting at the OCTET STRING containing the digest */
+        if (GetOctetString(hash_data, &idx, &hash_dec_len, hash_len) < 0)
+            return ASN_PARSE_E;
+        if (hash_dec_len != ret)
+            return BAD_LENGTH_E;
+    }
+    else
+#endif
+    {
+        if (hash_len != (word32)ret) {
+            WOLFSSL_MSG("wc_SignatureVerify: Invalid hash size");
+            return BAD_LENGTH_E;
+        }
+    }
+
     ret = 0;
 
     /* Verify signature using hash */

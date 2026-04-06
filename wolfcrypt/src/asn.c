@@ -16109,6 +16109,118 @@ static int DecodeDsaAsn1Sig(const byte* sig, word32 sigSz, byte* sigCpy,
 }
 #endif
 
+/* The certificate's signatureAlgorithm (sigOID) must match the issuer's
+ * key type (keyOID). sigOID picks the pre-hash; keyOID picks the
+ * verifier. They need to agree or the verifier gets the wrong input. */
+static int SigOidMatchesKeyOid(word32 sigOID, word32 keyOID)
+{
+    switch (keyOID) {
+    #ifndef NO_RSA
+        case RSAk:
+            switch (sigOID) {
+                case CTC_MD2wRSA:
+                case CTC_MD5wRSA:
+                case CTC_SHAwRSA:
+                case CTC_SHA224wRSA:
+                case CTC_SHA256wRSA:
+                case CTC_SHA384wRSA:
+                case CTC_SHA512wRSA:
+                case CTC_SHA3_224wRSA:
+                case CTC_SHA3_256wRSA:
+                case CTC_SHA3_384wRSA:
+                case CTC_SHA3_512wRSA:
+                case CTC_RSASSAPSS:
+                    return 1;
+            }
+            return 0;
+        #ifdef WC_RSA_PSS
+        case RSAPSSk:
+            return (sigOID == CTC_RSASSAPSS);
+        #endif
+    #endif
+    #if !defined(NO_DSA) && !defined(HAVE_SELFTEST)
+        case DSAk:
+            switch (sigOID) {
+                case CTC_SHAwDSA:
+                case CTC_SHA256wDSA:
+                    return 1;
+            }
+            return 0;
+    #endif
+    #if defined(HAVE_ECC) && defined(HAVE_ECC_VERIFY)
+        case ECDSAk:
+        #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+        case SM2k:
+        #endif
+            switch (sigOID) {
+                case CTC_SHAwECDSA:
+                case CTC_SHA224wECDSA:
+                case CTC_SHA256wECDSA:
+                case CTC_SHA384wECDSA:
+                case CTC_SHA512wECDSA:
+                case CTC_SHA3_224wECDSA:
+                case CTC_SHA3_256wECDSA:
+                case CTC_SHA3_384wECDSA:
+                case CTC_SHA3_512wECDSA:
+            #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+                case CTC_SM3wSM2:
+            #endif
+                    return 1;
+            }
+            return 0;
+    #endif
+    #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)
+        case ED25519k:
+            return (sigOID == CTC_ED25519);
+    #endif
+    #if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)
+        case ED448k:
+            return (sigOID == CTC_ED448);
+    #endif
+    #if defined(HAVE_FALCON)
+        case FALCON_LEVEL1k:
+            return (sigOID == CTC_FALCON_LEVEL1);
+        case FALCON_LEVEL5k:
+            return (sigOID == CTC_FALCON_LEVEL5);
+    #endif
+    #if defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_VERIFY) && \
+        !defined(WOLFSSL_DILITHIUM_NO_ASN1)
+        #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+        case DILITHIUM_LEVEL2k:
+            return (sigOID == CTC_DILITHIUM_LEVEL2);
+        case DILITHIUM_LEVEL3k:
+            return (sigOID == CTC_DILITHIUM_LEVEL3);
+        case DILITHIUM_LEVEL5k:
+            return (sigOID == CTC_DILITHIUM_LEVEL5);
+        #endif
+        case ML_DSA_LEVEL2k:
+            return (sigOID == CTC_ML_DSA_LEVEL2);
+        case ML_DSA_LEVEL3k:
+            return (sigOID == CTC_ML_DSA_LEVEL3);
+        case ML_DSA_LEVEL5k:
+            return (sigOID == CTC_ML_DSA_LEVEL5);
+    #endif
+    #if defined(HAVE_SPHINCS)
+        case SPHINCS_FAST_LEVEL1k:
+            return (sigOID == CTC_SPHINCS_FAST_LEVEL1);
+        case SPHINCS_FAST_LEVEL3k:
+            return (sigOID == CTC_SPHINCS_FAST_LEVEL3);
+        case SPHINCS_FAST_LEVEL5k:
+            return (sigOID == CTC_SPHINCS_FAST_LEVEL5);
+        case SPHINCS_SMALL_LEVEL1k:
+            return (sigOID == CTC_SPHINCS_SMALL_LEVEL1);
+        case SPHINCS_SMALL_LEVEL3k:
+            return (sigOID == CTC_SPHINCS_SMALL_LEVEL3);
+        case SPHINCS_SMALL_LEVEL5k:
+            return (sigOID == CTC_SPHINCS_SMALL_LEVEL5);
+    #endif
+    }
+
+    /* Default to reject unknown key types */
+    (void)sigOID;
+    return 0;
+}
+
 /* Return codes: 0=Success, Negative (see error-crypt.h), ASN_SIG_CONFIRM_E */
 int ConfirmSignature(SignatureCtx* sigCtx,
     const byte* buf, word32 bufSz,
@@ -16177,6 +16289,11 @@ int ConfirmSignature(SignatureCtx* sigCtx,
 
         case SIG_STATE_HASH:
         {
+            if (!SigOidMatchesKeyOid(sigOID, keyOID)) {
+                WOLFSSL_MSG("sigOID incompatible with issuer keyOID");
+                ERROR_OUT(ASN_SIG_OID_E, exit_cs);
+            }
+
         #if !defined(NO_RSA) && defined(WC_RSA_PSS)
             if (sigOID == RSAPSSk) {
                 word32 fakeSigOID = 0;

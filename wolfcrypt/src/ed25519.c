@@ -389,6 +389,12 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
         return BAD_FUNC_ARG;
     }
 
+    if ((type == Ed25519ph) &&
+        (inLen != WC_SHA512_DIGEST_SIZE))
+    {
+        return BAD_LENGTH_E;
+    }
+
 #ifdef WOLF_CRYPTO_CB
     if (key->devId != INVALID_DEVID) {
         ret = wc_CryptoCb_Ed25519Sign(in, inLen, out, outLen, key, type,
@@ -896,6 +902,12 @@ int wc_ed25519_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
     if (sig == NULL || msg == NULL || res == NULL || key == NULL ||
                                          (context == NULL && contextLen != 0))
         return BAD_FUNC_ARG;
+
+    if ((type == Ed25519ph) &&
+        (msgLen != WC_SHA512_DIGEST_SIZE))
+    {
+        return BAD_LENGTH_E;
+    }
 
 #ifdef WOLF_CRYPTO_CB
     if (key->devId != INVALID_DEVID) {
