@@ -248,6 +248,27 @@ install_module modules_install:
 
 endif
 
+if BUILD_WOLFENTROPY_KO
+
+    export build_triplet host_triplet CC AS LD \
+        KERNEL_ROOT KERNEL_ARCH KERNEL_EXTRA_CFLAGS \
+        EXTRA_CFLAGS EXTRA_CPPFLAGS EXTRA_CCASFLAGS EXTRA_LDFLAGS \
+	AM_CPPFLAGS CPPFLAGS AM_CFLAGS CFLAGS \
+        AM_CCASFLAGS CCASFLAGS \
+        src_libwolfssl_la_OBJECTS ENABLED_ASM \
+        CFLAGS_FPU_DISABLE CFLAGS_SIMD_DISABLE \
+        CFLAGS_AUTO_VECTORIZE_DISABLE \
+        ASFLAGS_FPU_DISABLE_SIMD_ENABLE \
+        ASFLAGS_FPUSIMD_DISABLE ASFLAGS_FPUSIMD_ENABLE
+
+wolfentropy:
+	+$(MAKE) -C linuxkm wolfentropy
+
+wolfentropy-clean:
+	+$(MAKE) -C linuxkm wolfentropy-clean
+
+endif
+
 if BUILD_BSDKM
     SUBDIRS_OPT += bsdkm
     DIST_SUBDIRS_OPT += bsdkm

@@ -463,10 +463,90 @@ endif
 install modules_install:
 	+$(MAKE) $(QFLAG) --no-silent -C $(KERNEL_ROOT) M=$(MODULE_TOP) src=$(SRC_TOP) INSTALL_MOD_DIR=wolfssl modules_install
 
+# wolfentropy.ko -- minimal SP 800-90B entropy source module.
+#
+# Built from a fixed, minimal set of wolfcrypt sources compiled with the same
+# WOLFSSL_CFLAGS as the main module (which already carries -DHAVE_ENTROPY_MEMUSE
+# when --enable-wolfentropy was passed to configure).  Only wc_Entropy_Get,
+# wc_Entropy_GetRawEntropy, and wc_Entropy_OnDemandTest are exported; all other
+# wolfcrypt symbols (SHA3, mutexes, wolfCrypt_Init, ...) remain unexported, so
+# loading wolfentropy.ko alongside libwolfssl.ko causes no symbol collisions.
+#
+# The build runs in a separate subdirectory ($(MODULE_TOP)/wolfentropy/) that
+# mirrors the layout used by the main module build.
+
+WOLFENTROPY_MODULE_TOP := $(MODULE_TOP)/wolfentropy
+
+# Minimal set of wolfcrypt objects needed for Entropy_Init / wc_Entropy_Get.
+# random.c uses SHA256 internally for the DRBG counter-mode update, so
+# sha256.o must be included.
+# Add wolfcrypt/src/sha3_asm.o here for platforms with SHA3 ASM acceleration.
+WOLFENTROPY_OBJ_FILES := \
+    wolfcrypt/src/random.o \
+    wolfcrypt/src/sha256.o \
+    wolfcrypt/src/sha3.o \
+    wolfcrypt/src/wc_port.o \
+    wolfcrypt/src/memory.o \
+    wolfcrypt/src/logging.o \
+    linuxkm/linuxkm_memory.o
+
+# Inherit the same compiler flags as the main module; configure already added
+# -DHAVE_ENTROPY_MEMUSE (and -DWOLFSSL_SHA3) when --enable-wolfentropy was set.
+# WOLFSSL_LINUXKM_USE_MUTEXES: use kernel mutexes directly; wolfentropy.ko
+# does not have the PIE redirect table that wc_lkm_LockMutex requires.
+WOLFENTROPY_CFLAGS := $(WOLFSSL_CFLAGS) -DWOLFSSL_LINUXKM_USE_MUTEXES
+
+export WOLFENTROPY_OBJ_FILES WOLFENTROPY_CFLAGS
+
+.PHONY: wolfentropy wolfentropy.ko
+wolfentropy: wolfentropy.ko
+
+wolfentropy.ko:
+	@set -e
+	@if test -z '$(KERNEL_ROOT)'; then echo '$$KERNEL_ROOT is unset' >&2; exit 1; fi
+	@if test -z '$(AM_CFLAGS)$(CFLAGS)'; then echo '$$AM_CFLAGS and $$CFLAGS are both unset.' >&2; exit 1; fi
+	@mkdir -p '$(WOLFENTROPY_MODULE_TOP)/linuxkm'
+	@# Symlink Kbuild.entropy as the Kbuild file for this build directory.
+	@ln -sf '$(MODULE_TOP)/Kbuild.entropy' '$(WOLFENTROPY_MODULE_TOP)/Kbuild'
+	@# Symlink all linuxkm .c/.h sources (includes module_hooks_entropy.c,
+	@# module_exports_entropy.c, linuxkm_memory.c, get_thread_size.c, ...).
+	@function resolved_link_is_equal() { [[ -L "$$1" && "$$(readlink -f "$$1")" == "$$(readlink -f "$$2")" ]]; }
+	@resolved_link_is_equal \
+		'$(WOLFENTROPY_MODULE_TOP)/linuxkm/module_hooks_entropy.c' \
+		'$(MODULE_TOP)/module_hooks_entropy.c' || \
+		cp $(vflag) --no-dereference --symbolic-link --no-clobber \
+			'$(MODULE_TOP)'/*.[ch] '$(WOLFENTROPY_MODULE_TOP)/linuxkm/'
+	@# Symlink wolfcrypt source tree.
+	@resolved_link_is_equal \
+		'$(WOLFENTROPY_MODULE_TOP)/wolfcrypt/src/random.c' \
+		'$(SRC_TOP)/wolfcrypt/src/random.c' || \
+		cp $(vflag) --no-dereference --symbolic-link --no-clobber \
+			--recursive '$(SRC_TOP)/wolfcrypt' '$(WOLFENTROPY_MODULE_TOP)/'
+	+$(MAKE) $(QFLAG) --no-print-directory --no-silent \
+		ARCH='$(KERNEL_ARCH)' $(OVERRIDE_PATHS) $(CROSS_COMPILE) \
+		-C '$(KERNEL_ROOT)' M='$(WOLFENTROPY_MODULE_TOP)' \
+		WOLFENTROPY_OBJ_FILES='$(WOLFENTROPY_OBJ_FILES)' \
+		WOLFENTROPY_CFLAGS='$(WOLFENTROPY_CFLAGS)' \
+		WOLFSSL_ASFLAGS='$(WOLFSSL_ASFLAGS)' \
+		KERNEL_ARCH='$(KERNEL_ARCH)' \
+		CFLAGS_SIMD_DISABLE='$(CFLAGS_SIMD_DISABLE)' \
+		CFLAGS_FPU_DISABLE='$(CFLAGS_FPU_DISABLE)' \
+		ASFLAGS_FPUSIMD_DISABLE='$(ASFLAGS_FPUSIMD_DISABLE)' \
+		$(KBUILD_EXTRA_FLAGS) CC_FLAGS_FTRACE=
+	@cp '$(WOLFENTROPY_MODULE_TOP)/wolfentropy.ko' . 2>/dev/null || true
+
+.PHONY: wolfentropy-clean
+wolfentropy-clean:
+	+$(MAKE) $(QFLAG) --no-silent -C $(KERNEL_ROOT) \
+		M='$(WOLFENTROPY_MODULE_TOP)' src='$(WOLFENTROPY_MODULE_TOP)' clean \
+		2>/dev/null || true
+	$(RM) -rf '$(WOLFENTROPY_MODULE_TOP)'
+	$(RM) -f wolfentropy.ko
+
 .PHONY: clean
 # note, must supply $(MODULE_TOP) as the src value for clean so that Kbuild is included, else
 # the top Makefile (which is not for the kernel build) would be included here.
-clean:
+clean: wolfentropy-clean
 	+$(MAKE) $(QFLAG) --no-silent -C $(KERNEL_ROOT) M=$(MODULE_TOP) src=$(MODULE_TOP) clean
 	$(RM) -rf '$(MODULE_TOP)/linuxkm'
 	$(RM) -rf '$(MODULE_TOP)/wolfcrypt'

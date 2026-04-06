@@ -368,6 +368,7 @@ ifndef NO_EXPORTS
 	$(READELF) --symbols --wide $(filter %.o,$^) |
 		$(AWK) '/^ *[0-9]+: / {
 		  if ($$8 !~ /^(wc_|wolf|WOLF|TLSX_)/){next;}
+		  if ($$8 ~ /^wc_Entropy_(Get|GetRawEntropy|OnDemandTest)$$/){next;}
 		  if (($$4 == "FUNC") && ($$5 == "GLOBAL") && ($$6 == "DEFAULT")) {
 		    print "$(EXPORT_SYMBOL)(" $$8 ", '"$$ns"');";
 		  }

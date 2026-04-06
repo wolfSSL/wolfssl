@@ -397,9 +397,27 @@ void wc_linuxkm_relax_long_loop(void) {
 
 #if defined(WC_LINUXKM_WOLFENTROPY_IN_GLUE_LAYER)
 
+/* When building without the wolfentropy source (HAVE_ENTROPY_MEMUSE not set),
+ * wc_Entropy_Get and MAX_ENTROPY_BITS are not declared via the normal header
+ * chain.  Provide the declarations here at file scope so the compiler sees
+ * them before the call below.
+ */
+#ifndef HAVE_ENTROPY_MEMUSE
+    #ifndef MAX_ENTROPY_BITS
+        #define MAX_ENTROPY_BITS 256
+    #endif
+    extern int wc_Entropy_Get(int bits, unsigned char *entropy, word32 len) __attribute__((weak));
+#endif /* !HAVE_ENTROPY_MEMUSE */
+
 int wc_linuxkm_GenerateSeed_wolfEntropy(OS_Seed* os, byte* output, word32 sz)
 {
     (void)os;
+#ifndef HAVE_ENTROPY_MEMUSE
+    if (!wc_Entropy_Get) {
+        pr_err("wolfentropy: wc_Entropy_Get unavailable -- is wolfentropy.ko loaded?\n");
+        return -ENODEV;
+    }
+#endif
     return wc_Entropy_Get(MAX_ENTROPY_BITS, output, sz);
 }
 
@@ -1112,6 +1130,15 @@ module_exit(wolfssl_exit);
 MODULE_AUTHOR("https://www.wolfssl.com/");
 MODULE_DESCRIPTION("libwolfssl cryptographic and protocol facilities");
 MODULE_VERSION(LIBWOLFSSL_VERSION_STRING);
+
+#ifdef WC_LINUXKM_WOLFENTROPY_IN_GLUE_LAYER
+MODULE_SOFTDEP("pre: wolfentropy");
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 13, 0)
+MODULE_IMPORT_NS("WOLFSSL");
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
+MODULE_IMPORT_NS(WOLFSSL);
+#endif
+#endif /* WC_LINUXKM_WOLFENTROPY_IN_GLUE_LAYER */
 
 #ifdef WC_SYM_RELOC_TABLES
 
