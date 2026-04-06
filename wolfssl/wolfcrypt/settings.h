@@ -459,6 +459,29 @@
     (WOLFSSL_FIPS_VERSION_CODE > WOLFSSL_MAKE_FIPS_VERSION3(major,minor,patch))
 #define FIPS_VERSION3_NE(major,minor,patch) \
     (WOLFSSL_FIPS_VERSION_CODE != WOLFSSL_MAKE_FIPS_VERSION3(major,minor,patch))
+
+#if defined(HAVE_FIPS) && !defined(WC_FIPS_186_5) && !defined(WC_FIPS_186_4)
+    #if FIPS_VERSION3_GE(7,0,0)
+        #ifndef WC_FIPS_186_5
+            #define WC_FIPS_186_5
+        #endif
+    #else
+        #ifndef WC_FIPS_186_4
+            #define WC_FIPS_186_4
+        #endif
+    #endif
+#endif
+#if defined(WC_FIPS_186_4) && defined(WC_FIPS_186_5)
+    #error Conflicting FIPS 186 settings.
+#endif
+#if (defined(WC_FIPS_186_4) || defined(WC_FIPS_186_5)) && \
+        !defined(WC_FIPS_186_4_PLUS)
+    #define WC_FIPS_186_4_PLUS
+#endif
+#if defined(WC_FIPS_186_5) && !defined(WC_FIPS_186_5_PLUS)
+    #define WC_FIPS_186_5_PLUS
+#endif
+
 /*------------------------------------------------------------*/
 
 

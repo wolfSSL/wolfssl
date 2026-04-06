@@ -157,6 +157,7 @@
 #include <wolfssl/error-ssl.h>
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/dh.h>
+#include <wolfssl/wolfcrypt/hash.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -5719,6 +5720,12 @@ int EccVerify(WOLFSSL* ssl, const byte* in, word32 inSz, const byte* out,
         keySz = keyBufInfo->length;
     }
 #endif
+
+    /* Check hash length */
+    if ((outSz > WC_MAX_DIGEST_SIZE) ||
+        (outSz < WC_MIN_DIGEST_SIZE)) {
+        return BAD_LENGTH_E;
+    }
 
     (void)ssl;
     (void)keyBufInfo;

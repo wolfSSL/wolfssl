@@ -4565,6 +4565,12 @@ static int wc_PKCS7_EcdsaVerify(wc_PKCS7* pkcs7, byte* sig, int sigSz,
     if (pkcs7 == NULL || sig == NULL)
         return BAD_FUNC_ARG;
 
+    /* Check hash length */
+    if ((hashSz > WC_MAX_DIGEST_SIZE) ||
+        (hashSz < WC_MIN_DIGEST_SIZE)) {
+        return BAD_LENGTH_E;
+    }
+
 #ifdef WOLFSSL_SMALL_STACK
     digest = (byte*)XMALLOC(MAX_PKCS7_DIGEST_SZ, pkcs7->heap,
                             DYNAMIC_TYPE_TMP_BUFFER);

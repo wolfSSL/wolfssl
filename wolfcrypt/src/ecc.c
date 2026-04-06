@@ -213,6 +213,7 @@ ECC Curve Sizes:
 
 #include <wolfssl/wolfcrypt/ecc.h>
 #include <wolfssl/wolfcrypt/asn.h>
+#include <wolfssl/wolfcrypt/hash.h>
 
 #ifdef WOLFSSL_HAVE_SP_ECC
 #include <wolfssl/wolfcrypt/sp.h>
@@ -221,10 +222,6 @@ ECC Curve Sizes:
 #ifdef HAVE_ECC_ENCRYPT
     #include <wolfssl/wolfcrypt/kdf.h>
     #include <wolfssl/wolfcrypt/aes.h>
-#endif
-
-#ifdef HAVE_X963_KDF
-    #include <wolfssl/wolfcrypt/hash.h>
 #endif
 
 #ifdef WOLF_CRYPTO_CB
@@ -6778,7 +6775,9 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
     if (in == NULL || out == NULL || outlen == NULL || key == NULL) {
         return ECC_BAD_ARG_E;
     }
-    if (inlen > WC_MAX_DIGEST_SIZE) {
+    if ((inlen > WC_MAX_DIGEST_SIZE) ||
+        (inlen < WC_MIN_DIGEST_SIZE))
+    {
         return BAD_LENGTH_E;
     }
 
@@ -7298,6 +7297,11 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
 
    if (in == NULL || r == NULL || s == NULL || key == NULL || rng == NULL) {
        return ECC_BAD_ARG_E;
+   }
+   if ((inlen > WC_MAX_DIGEST_SIZE) ||
+       (inlen < WC_MIN_DIGEST_SIZE))
+   {
+       return BAD_LENGTH_E;
    }
 
    /* is this a private key? */
@@ -8576,7 +8580,10 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
     if (sig == NULL || hash == NULL || res == NULL || key == NULL) {
         return ECC_BAD_ARG_E;
     }
-    if (hashlen > WC_MAX_DIGEST_SIZE) {
+
+    /* Check hash length */
+    if ((hashlen > WC_MAX_DIGEST_SIZE) ||
+        (hashlen < WC_MIN_DIGEST_SIZE)) {
         return BAD_LENGTH_E;
     }
 
@@ -9283,6 +9290,12 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 
    if (r == NULL || s == NULL || hash == NULL || res == NULL || key == NULL)
        return ECC_BAD_ARG_E;
+
+    /* Check hash length */
+    if ((hashlen > WC_MAX_DIGEST_SIZE) ||
+        (hashlen < WC_MIN_DIGEST_SIZE)) {
+        return BAD_LENGTH_E;
+    }
 
    /* default to invalid signature */
    *res = 0;

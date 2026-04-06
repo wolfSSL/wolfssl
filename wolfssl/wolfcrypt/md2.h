@@ -36,12 +36,10 @@
 #endif
 
 /* in bytes */
-enum {
-    WC_MD2_BLOCK_SIZE  = 16,
-    WC_MD2_DIGEST_SIZE = 16,
-    WC_MD2_PAD_SIZE    = 16,
-    WC_MD2_X_SIZE      = 48
-};
+#define WC_MD2_BLOCK_SIZE  16
+#define WC_MD2_DIGEST_SIZE 16
+#define WC_MD2_PAD_SIZE    16
+#define WC_MD2_X_SIZE      48
 
 
 /* Md2 digest */
@@ -60,13 +58,11 @@ WOLFSSL_API int  wc_Md2Hash(const byte* data, word32 len, byte* hash);
 
 #ifndef OPENSSL_COEXIST
 
-enum {
-    MD2             = WC_HASH_TYPE_MD2,
-    MD2_BLOCK_SIZE  = WC_MD2_BLOCK_SIZE,
-    MD2_DIGEST_SIZE = WC_MD2_DIGEST_SIZE,
-    MD2_PAD_SIZE    = WC_MD2_PAD_SIZE,
-    MD2_X_SIZE      = WC_MD2_X_SIZE
-};
+#define MD2             WC_HASH_TYPE_MD2,
+#define MD2_BLOCK_SIZE  WC_MD2_BLOCK_SIZE,
+#define MD2_DIGEST_SIZE WC_MD2_DIGEST_SIZE,
+#define MD2_PAD_SIZE    WC_MD2_PAD_SIZE,
+#define MD2_X_SIZE      WC_MD2_X_SIZE
 
 
 /* Md2 digest */
