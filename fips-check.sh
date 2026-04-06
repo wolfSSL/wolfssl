@@ -368,89 +368,17 @@ wolfentropy)
   FIPS_REPO_TAG='WCv6.0.0-RC4'
   ASM_PICKUPS_TAG='WCv6.0.0-RC4'
   WOLF_ENTROPY_TAG='wolfEntropy2'
-  FIPS_OPTION='v6'
+  FIPS_OPTION='disabled --enable-wolfentropy=random_c --disable-shake128
+               --disable-shake256'
   FIPS_FILES=(
-    "wolfcrypt/src/fips.c:${FIPS_REPO_TAG}"
-    "wolfcrypt/src/fips_test.c:${FIPS_REPO_TAG}"
-    "wolfcrypt/src/wolfcrypt_first.c:${FIPS_REPO_TAG}"
-    "wolfcrypt/src/wolfcrypt_last.c:${FIPS_REPO_TAG}"
-    "wolfssl/wolfcrypt/fips.h:${FIPS_REPO_TAG}"
   )
   WOLFCRYPT_FILES=(
-    "wolfcrypt/src/aes_asm.asm:${WOLF_REPO_TAG}"
-    "wolfcrypt/src/aes_asm.S:${WOLF_REPO_TAG}"
-    "wolfcrypt/src/aes_gcm_asm.S:${WOLF_REPO_TAG}"
-    "wolfcrypt/src/aes_gcm_x86_asm.S:${WOLF_REPO_TAG}"
-    "wolfcrypt/src/aes_xts_asm.S:${WOLF_REPO_TAG}"
-    "wolfcrypt/src/aes.c:${WOLF_REPO_TAG}"
-    "wolfcrypt/src/port/arm/armv8-32-aes-asm_c.c:${ASM_PICKUPS_TAG}"
-    "wolfcrypt/src/port/arm/armv8-32-aes-asm.S:${WOLF_REPO_TAG}"
-    "wolfcrypt/src/port/arm/armv8-32-sha256-asm_c.c:${ASM_PICKUPS_TAG}"
-    "wolfcrypt/src/port/arm/armv8-32-sha256-asm.S:${WOLF_REPO_TAG}"
-    "wolfcrypt/src/port/arm/armv8-32-sha3-asm_c.c:${WOLF_REPO_TAG}"
-    "wolfcrypt/src/port/arm/armv8-32-sha3-asm.S:${WOLF_REPO_TAG}"
-    "wolfcrypt/src/port/arm/armv8-32-sha512-asm_c.c:${ASM_PICKUPS_TAG}"
-    "wolfcrypt/src/port/arm/armv8-32-sha512-asm.S:${WOLF_REPO_TAG}"
-    "wolfcrypt/src/port/arm/armv8-aes.c:${ASM_PICKUPS_TAG}"
-    "wolfcrypt/src/port/arm/armv8-sha256.c:${WOLF_REPO_TAG}"
-    "wolfcrypt/src/port/arm/armv8-sha3-asm_c.c:${ASM_PICKUPS_TAG}"
-    "wolfcrypt/src/port/arm/armv8-sha3-asm.S:${ASM_PICKUPS_TAG}"
-    "wolfcrypt/src/port/arm/armv8-sha512-asm_c.c:${ASM_PICKUPS_TAG}"
-    "wolfcrypt/src/port/arm/armv8-sha512-asm.S:${WOLF_REPO_TAG}"
-    "wolfcrypt/src/port/arm/armv8-sha512.c:${WOLF_REPO_TAG}"
-    "wolfcrypt/src/cmac.c:${WOLF_REPO_TAG}"
-    "wolfcrypt/src/dh.c:${WOLF_REPO_TAG}"
-    "wolfcrypt/src/ecc.c:${WOLF_REPO_TAG}"
-    "wolfcrypt/src/ed25519.c:${WOLF_REPO_TAG}"
-    "wolfcrypt/src/ed448.c:${WOLF_REPO_TAG}"
-    "wolfcrypt/src/hmac.c:${WOLF_REPO_TAG}"
-    "wolfcrypt/src/kdf.c:${WOLF_REPO_TAG}"
-    "wolfcrypt/src/pwdbased.c:${WOLF_REPO_TAG}"
     "wolfcrypt/src/random.c:${WOLF_ENTROPY_TAG}"
-    "wolfcrypt/src/rsa.c:${WOLF_REPO_TAG}"
-    "wolfcrypt/src/sha.c:${WOLF_REPO_TAG}"
-    "wolfcrypt/src/sha256_asm.S:${WOLF_REPO_TAG}"
     "wolfcrypt/src/sha256.c:${WOLF_REPO_TAG}"
     "wolfcrypt/src/sha3.c:${WOLF_REPO_TAG}"
-    "wolfcrypt/src/sha3_asm.S:${WOLF_REPO_TAG}"
-    "wolfcrypt/src/sha512_asm.S:${WOLF_REPO_TAG}"
-    "wolfcrypt/src/sha512.c:${WOLF_REPO_TAG}"
-    "wolfcrypt/src/sp_arm32.c:${ASM_PICKUPS_TAG}"
-    "wolfcrypt/src/sp_arm64.c:${ASM_PICKUPS_TAG}"
-    "wolfcrypt/src/sp_armthumb.c:${ASM_PICKUPS_TAG}"
-    "wolfcrypt/src/sp_c32.c:${ASM_PICKUPS_TAG}"
-    "wolfcrypt/src/sp_c64.c:${ASM_PICKUPS_TAG}"
-    "wolfcrypt/src/sp_cortexm.c:${ASM_PICKUPS_TAG}"
-    "wolfcrypt/src/sp_x86_64_asm.asm:${WOLF_REPO_TAG}"
-    "wolfcrypt/src/sp_x86_64_asm.S:${WOLF_REPO_TAG}"
-    "wolfcrypt/src/sp_x86_64.c:${ASM_PICKUPS_TAG}"
-    "wolfcrypt/src/port/arm/thumb2-aes-asm_c.c:${WOLF_REPO_TAG}"
-    "wolfcrypt/src/port/arm/thumb2-aes-asm.S:${WOLF_REPO_TAG}"
-    "wolfcrypt/src/port/arm/thumb2-sha256-asm_c.c:${WOLF_REPO_TAG}"
-    "wolfcrypt/src/port/arm/thumb2-sha256-asm.S:${WOLF_REPO_TAG}"
-    "wolfcrypt/src/port/arm/thumb2-sha3-asm_c.c:${WOLF_REPO_TAG}"
-    "wolfcrypt/src/port/arm/thumb2-sha3-asm.S:${WOLF_REPO_TAG}"
-    "wolfcrypt/src/port/arm/thumb2-sha512-asm_c.c:${WOLF_REPO_TAG}"
-    "wolfcrypt/src/port/arm/thumb2-sha512-asm.S:${WOLF_REPO_TAG}"
-    "wolfssl/wolfcrypt/aes.h:${WOLF_REPO_TAG}"
-    "wolfssl/wolfcrypt/cmac.h:${WOLF_REPO_TAG}"
-    "wolfssl/wolfcrypt/dh.h:${WOLF_REPO_TAG}"
-    "wolfssl/wolfcrypt/ecc.h:${WOLF_REPO_TAG}"
-    "wolfssl/wolfcrypt/ed25519.h:${WOLF_REPO_TAG}"
-    "wolfssl/wolfcrypt/ed448.h:${WOLF_REPO_TAG}"
-    "wolfssl/wolfcrypt/fips_test.h:${WOLF_REPO_TAG}"
-    "wolfssl/wolfcrypt/hmac.h:${WOLF_REPO_TAG}"
-    "wolfssl/wolfcrypt/kdf.h:${WOLF_REPO_TAG}"
-    "wolfssl/wolfcrypt/pwdbased.h:${WOLF_REPO_TAG}"
     "wolfssl/wolfcrypt/random.h:${WOLF_ENTROPY_TAG}"
-    "wolfssl/wolfcrypt/rsa.h:${WOLF_REPO_TAG}"
-    "wolfssl/wolfcrypt/sha.h:${WOLF_REPO_TAG}"
     "wolfssl/wolfcrypt/sha256.h:${WOLF_REPO_TAG}"
     "wolfssl/wolfcrypt/sha3.h:${WOLF_REPO_TAG}"
-    "wolfssl/wolfcrypt/sha512.h:${WOLF_REPO_TAG}"
-    "wolfcrypt/src/port/riscv/riscv-64-sha256.c:${WOLF_REPO_TAG}"
-    "wolfcrypt/src/port/riscv/riscv-64-sha3.c:${WOLF_REPO_TAG}"
-    "wolfcrypt/src/port/riscv/riscv-64-sha512.c:${WOLF_REPO_TAG}"
   )
   ;;
 
@@ -515,13 +443,15 @@ if [ ${#WOLFCRYPT_FILES[@]} -gt 0 ]; then
 fi
 
 declare -a FIPS_TAGS_NEEDED_UNSORTED FIPS_TAGS_NEEDED
-for file_entry in "${FIPS_FILES[@]}"; do
-    FIPS_TAGS_NEEDED_UNSORTED+=("${file_entry#*:}")
-done
-while IFS= read -r tag; do FIPS_TAGS_NEEDED+=("$tag"); done < <(IFS=$'\n'; sort -u <<< "${FIPS_TAGS_NEEDED_UNSORTED[*]}")
-if [ "${#FIPS_TAGS_NEEDED[@]}" = "0" ]; then
-    echo "Error -- missing FIPS tags." 1>&2
-    exit 1
+if [ ${#FIPS_FILES[@]} -gt 0 ]; then
+    for file_entry in "${FIPS_FILES[@]}"; do
+        FIPS_TAGS_NEEDED_UNSORTED+=("${file_entry#*:}")
+    done
+    while IFS= read -r tag; do FIPS_TAGS_NEEDED+=("$tag"); done < <(IFS=$'\n'; sort -u <<< "${FIPS_TAGS_NEEDED_UNSORTED[*]}")
+    if [ "${#FIPS_TAGS_NEEDED[@]}" = "0" ]; then
+        echo "Error -- missing FIPS tags." 1>&2
+        exit 1
+    fi
 fi
 
 if [ ${#WOLFCRYPT_TAGS_NEEDED[@]} -gt 0 ]; then
