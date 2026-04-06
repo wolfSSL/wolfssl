@@ -4231,10 +4231,13 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
     #ifdef WOLFSSL_TLS13
         case EXT_KEY_SHARE:
         {
-            if (extLen < OPAQUE16_LEN)
+            word16 ksLen = 0;
+            if (extLen < OPAQUE16_LEN) {
+                SetError(BUFFER_ERROR_STR, error, session, FATAL_ERROR_STATE);
                 return BUFFER_ERROR;
+            }
 
-            word16 ksLen = (word16)((input[0] << 8) | input[1]);
+            ksLen = (word16)((input[0] << 8) | input[1]);
             if (ksLen + OPAQUE16_LEN > extLen) {
                 SetError(CLIENT_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
                 return WOLFSSL_FATAL_ERROR;
@@ -4258,8 +4261,10 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
             word32 ticketAge;
             const byte *identity, *binders;
 
-            if (extLen < OPAQUE16_LEN)
+            if (extLen < OPAQUE16_LEN) {
+                SetError(BUFFER_ERROR_STR, error, session, FATAL_ERROR_STATE);
                 return BUFFER_ERROR;
+            }
 
             idsLen = (word16)((input[idx] << 8) | input[idx+1]);
             if ((word32)idsLen + OPAQUE16_LEN + idx > (word32)extLen) {

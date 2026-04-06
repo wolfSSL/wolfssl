@@ -9151,7 +9151,7 @@ static int SendTls13Certificate(WOLFSSL* ssl)
             if (ret != 0)
                 return ret;
 
-            if ((word16)(1 + ssl->buffers.certChainCnt) > MAX_CERT_EXTENSIONS)
+            if ((1 + ssl->buffers.certChainCnt) > MAX_CERT_EXTENSIONS)
                 ret = MAX_CERT_EXTENSIONS_ERR;
             if (ret == 0)
                 ret = WriteCSRToBuffer(ssl, &ssl->buffers.certExts[0], &extSz[0],
