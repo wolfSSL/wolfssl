@@ -4195,6 +4195,9 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
         {
             word16 listLen = 0, offset = 0;
 
+            if (extLen < OPAQUE16_LEN)
+                return BUFFER_ERROR;
+
             ato16(input + offset, &listLen);
             offset += OPAQUE16_LEN;
 
@@ -4228,6 +4231,9 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
     #ifdef WOLFSSL_TLS13
         case EXT_KEY_SHARE:
         {
+            if (extLen < OPAQUE16_LEN)
+                return BUFFER_ERROR;
+
             word16 ksLen = (word16)((input[0] << 8) | input[1]);
             if (ksLen + OPAQUE16_LEN > extLen) {
                 SetError(CLIENT_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
@@ -4251,6 +4257,9 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
             word16 idsLen, idLen, bindersLen, idx = 0;
             word32 ticketAge;
             const byte *identity, *binders;
+
+            if (extLen < OPAQUE16_LEN)
+                return BUFFER_ERROR;
 
             idsLen = (word16)((input[idx] << 8) | input[idx+1]);
             if ((word32)idsLen + OPAQUE16_LEN + idx > (word32)extLen) {
