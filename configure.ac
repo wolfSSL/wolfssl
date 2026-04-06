@@ -7194,6 +7194,7 @@ else
 fi
 
 # MemUse Entropy (AKA wolfEntropy)
+WOLFENTROPY_IN_RANDOM_C=no
 if test "x$ENABLED_ENTROPY_MEMUSE" != "xno"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_ENTROPY_MEMUSE"
@@ -7210,8 +7211,11 @@ then
       nofallback)
         AM_CFLAGS="$AM_CFLAGS -DENTROPY_MEMUSE_FORCE_FAILURE"
         ;;
+      random_c)
+        WOLFENTROPY_IN_RANDOM_C=yes
+        ;;
       *)
-        AC_MSG_ERROR([Invalid MemUse Entropy option. Valid are: thread, nofallback. Seen: $ENABLED_ENTROPY_MEMUSE.])
+        AC_MSG_ERROR([Invalid MemUse Entropy option. Valid are: thread, nofallback, random_c. Seen: $ENABLED_ENTROPY_MEMUSE.])
         break;;
       esac
     done
@@ -11519,6 +11523,7 @@ AM_CONDITIONAL([BUILD_ECCSI],[test "x$ENABLED_ECCSI" = "xyes" || test "x$ENABLED
 AM_CONDITIONAL([BUILD_SAKKE],[test "x$ENABLED_SAKKE" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_MEMORY],[test "x$ENABLED_MEMORY" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_MEMUSE],[test "x$ENABLED_ENTROPY_MEMUSE" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_WOLFENTROPY_C],[test "x$WOLFENTROPY_IN_RANDOM_C" != "xyes" && test "x$ENABLED_ENTROPY_MEMUSE" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_RNG_BANK],[test "$ENABLED_RNG_BANK" = "yes" || test "$ENABLED_USERSETTINGS" = "yes"])
 AM_CONDITIONAL([BUILD_RSA],[test "x$ENABLED_RSA" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_DH],[test "x$ENABLED_DH" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])

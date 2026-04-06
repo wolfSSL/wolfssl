@@ -187,7 +187,7 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += \
                wolfcrypt/src/hmac.c \
                wolfcrypt/src/random.c
 
-if BUILD_MEMUSE
+if BUILD_WOLFENTROPY_C
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wolfentropy.c
 endif
 
@@ -441,7 +441,7 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += \
                wolfcrypt/src/random.c
 
 if BUILD_FIPS_V6
-if BUILD_MEMUSE
+if BUILD_WOLFENTROPY_C
 if BUILD_KERNEL_MODE_DEFAULTS
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wolfentropy.c
 endif
@@ -449,7 +449,7 @@ endif
 endif
 
 if !BUILD_FIPS_V6
-if BUILD_MEMUSE
+if BUILD_WOLFENTROPY_C
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wolfentropy.c
 endif
 endif
@@ -810,7 +810,7 @@ endif !BUILD_FIPS_V5
 if !BUILD_FIPS_V2_PLUS
 if BUILD_RNG
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/random.c
-if BUILD_MEMUSE
+if BUILD_WOLFENTROPY_C
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wolfentropy.c
 endif
 if BUILD_RNG_BANK
