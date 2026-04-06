@@ -404,24 +404,23 @@ static int d2iTryAltDhKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
     key = (DhKey*)dhObj->internal;
     /* Try decoding data as a DH public key. */
     if (wc_DhKeyDecode(mem, &keyIdx, key, (word32)memSz) != 0) {
-        ret = 0;
+        wolfSSL_DH_free(dhObj);
+        return WOLFSSL_FATAL_ERROR;
     }
-    if (ret == 1) {
-        /* DH key has data and is external to DH object. */
-        elements = ELEMENT_P | ELEMENT_G | ELEMENT_Q | ELEMENT_PUB;
-        if (priv) {
-            elements |= ELEMENT_PRV;
-        }
-        if (SetDhExternal_ex(dhObj, elements) != WOLFSSL_SUCCESS ) {
-            ret = 0;
-        }
+    /* DH key has data and is external to DH object. */
+    elements = ELEMENT_P | ELEMENT_G | ELEMENT_Q | ELEMENT_PUB;
+    if (priv) {
+        elements |= ELEMENT_PRV;
+    }
+    if (SetDhExternal_ex(dhObj, elements) != WOLFSSL_SUCCESS ) {
+        ret = 0;
     }
     if (ret == 1) {
         /* Create an EVP PKEY object. */
         ret = d2i_make_pkey(out, mem, keyIdx, priv, WC_EVP_PKEY_DH);
     }
     if (ret == 1) {
-        /* Put RSA key object into EVP PKEY object. */
+        /* Put DH key object into EVP PKEY object. */
         (*out)->ownDh = 1;
         (*out)->dh = dhObj;
     }
