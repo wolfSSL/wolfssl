@@ -1915,6 +1915,7 @@ int test_wolfssl_EVP_chacha20_poly1305(void)
     byte cipherText[sizeof(plainText)];
     byte decryptedText[sizeof(plainText)];
     byte tag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE];
+    byte badTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE];
     EVP_CIPHER_CTX* ctx = NULL;
     int outSz;
 
@@ -1976,6 +1977,28 @@ int test_wolfssl_EVP_chacha20_poly1305(void)
     ExpectIntEQ(EVP_DecryptFinal_ex(ctx, decryptedText, &outSz),
                 WOLFSSL_SUCCESS);
     ExpectIntEQ(outSz, 0);
+    EVP_CIPHER_CTX_free(ctx);
+    ctx = NULL;
+
+    /* Negative test: forged (all-zero) tag must be rejected. */
+    XMEMSET(badTag, 0, sizeof(badTag));
+    ExpectNotNull((ctx = EVP_CIPHER_CTX_new()));
+    ExpectIntEQ(EVP_DecryptInit_ex(ctx, EVP_chacha20_poly1305(), NULL,
+                NULL, NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_IVLEN,
+                CHACHA20_POLY1305_AEAD_IV_SIZE, NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG,
+                CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE, badTag),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_DecryptInit_ex(ctx, NULL, NULL, key, iv),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_DecryptUpdate(ctx, NULL, &outSz, aad, sizeof(aad)),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_DecryptUpdate(ctx, decryptedText, &outSz, cipherText,
+                sizeof(cipherText)), WOLFSSL_SUCCESS);
+    /* EVP_DecryptFinal_ex MUST return failure on tag mismatch */
+    ExpectIntNE(EVP_DecryptFinal_ex(ctx, decryptedText, &outSz),
+                WOLFSSL_SUCCESS);
     EVP_CIPHER_CTX_free(ctx);
     ctx = NULL;
 

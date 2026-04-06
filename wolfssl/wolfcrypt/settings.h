@@ -3452,6 +3452,8 @@ extern void uITRON4_free(void *p) ;
 /* Default AES minimum auth tag sz, allow user to override */
 #ifndef WOLFSSL_MIN_AUTH_TAG_SZ
     #define WOLFSSL_MIN_AUTH_TAG_SZ 12
+#elif WOLFSSL_MIN_AUTH_TAG_SZ < 1
+    #error WOLFSSL_MIN_AUTH_TAG_SZ must be at least 1
 #endif
 
 

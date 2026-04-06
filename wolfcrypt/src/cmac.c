@@ -238,9 +238,7 @@ int wc_CmacUpdate(Cmac* cmac, const byte* in, word32 inSz)
             inSz -= add;
 
             if (cmac->bufferSz == WC_AES_BLOCK_SIZE && inSz != 0) {
-                if (cmac->totalSz != 0) {
-                    xorbuf(cmac->buffer, cmac->digest, WC_AES_BLOCK_SIZE);
-                }
+                xorbuf(cmac->buffer, cmac->digest, WC_AES_BLOCK_SIZE);
                 wc_AesEncryptDirect(&cmac->aes, cmac->digest,
                         cmac->buffer);
                 cmac->totalSz += WC_AES_BLOCK_SIZE;

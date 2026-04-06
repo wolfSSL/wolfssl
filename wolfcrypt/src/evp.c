@@ -1505,16 +1505,33 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
         * HAVE_FIPS_VERSION >= 2 */
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
         case WC_CHACHA20_POLY1305_TYPE:
+        {
+            byte computedTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE];
+            if (!ctx->enc) {
+                /* Save the expected tag before _Final() overwrites
+                 * ctx->authTag */
+                XMEMCPY(computedTag, ctx->authTag, sizeof(computedTag));
+            }
             if (wc_ChaCha20Poly1305_Final(&ctx->cipher.chachaPoly,
                                           ctx->authTag) != 0) {
                 WOLFSSL_MSG("wc_ChaCha20Poly1305_Final failed");
                 return WOLFSSL_FAILURE;
             }
-            else {
-                *outl = 0;
-                return WOLFSSL_SUCCESS;
+            if (!ctx->enc) {
+                /* ctx->authTag now holds computed tag; computedTag holds
+                 * expected */
+                int tagErr = wc_ChaCha20Poly1305_CheckTag(computedTag,
+                                                          ctx->authTag);
+                ForceZero(computedTag, sizeof(computedTag));
+                if (tagErr != 0) {
+                    WOLFSSL_MSG("ChaCha20-Poly1305 tag mismatch");
+                    return WOLFSSL_FAILURE;
+                }
             }
-            break;
+            *outl = 0;
+            return WOLFSSL_SUCCESS;
+        }
+        break;
 #endif
 #ifdef WOLFSSL_SM4_GCM
         case WC_SM4_GCM_TYPE:
@@ -3704,6 +3721,10 @@ int wolfSSL_EVP_PKEY_keygen_init(WOLFSSL_EVP_PKEY_CTX *ctx)
     return WOLFSSL_SUCCESS;
 }
 
+#ifdef HAVE_ECC
+static int ECC_populate_EVP_PKEY(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_EC_KEY *key);
+#endif
+
 int wolfSSL_EVP_PKEY_keygen(WOLFSSL_EVP_PKEY_CTX *ctx,
   WOLFSSL_EVP_PKEY **ppkey)
 {
@@ -3758,6 +3779,8 @@ int wolfSSL_EVP_PKEY_keygen(WOLFSSL_EVP_PKEY_CTX *ctx,
                 ret = wolfSSL_EC_KEY_generate_key(pkey->ecc);
                 if (ret == WOLFSSL_SUCCESS) {
                     pkey->ownEcc = 1;
+                    if (ECC_populate_EVP_PKEY(pkey, pkey->ecc) != WOLFSSL_SUCCESS)
+                        ret = WOLFSSL_FAILURE;
                 }
             }
             break;
@@ -9516,7 +9539,15 @@ static int ECC_populate_EVP_PKEY(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_EC_KEY *key)
         else
 #endif /* HAVE_PKCS8 */
         {
-            if (ecc->type == ECC_PRIVATEKEY_ONLY) {
+            if (ecc->type == ECC_PRIVATEKEY_ONLY ||
+                    (ecc->type == ECC_PRIVATEKEY &&
+                     mp_iszero(ecc->pubkey.x))) {
+                /* Reconstruct public key from private scalar.  This covers
+                 * both ECC_PRIVATEKEY_ONLY keys and ECC_PRIVATEKEY keys whose
+                 * public-key point was never populated (e.g. when only
+                 * EC_KEY_set_private_key was called, SetECKeyInternal copies
+                 * the zero-initialized pub_key point and marks the type as
+                 * ECC_PRIVATEKEY, leaving pubkey.x == 0). */
                 if (wc_ecc_make_pub(ecc, NULL) != MP_OKAY) {
                     return WOLFSSL_FAILURE;
                 }

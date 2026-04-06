@@ -10217,8 +10217,9 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     /* If the sz is non-zero, both in and out must be set. If sz is 0,
      * in and out are don't cares, as this is is the GMAC case. */
     if (aes == NULL || iv == NULL || (sz != 0 && (in == NULL || out == NULL)) ||
-        authTag == NULL || authTagSz > WC_AES_BLOCK_SIZE || authTagSz == 0 ||
-        ivSz == 0 || ((authInSz > 0) && (authIn == NULL)))
+        authTag == NULL || authTagSz > WC_AES_BLOCK_SIZE ||
+        authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ || ivSz == 0 ||
+        ((authInSz > 0) && (authIn == NULL)))
     {
         return BAD_FUNC_ARG;
     }
@@ -10781,8 +10782,8 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     /* If the sz is non-zero, both in and out must be set. If sz is 0,
      * in and out are don't cares, as this is is the GMAC case. */
     if (aes == NULL || iv == NULL || (sz != 0 && (in == NULL || out == NULL)) ||
-        authTag == NULL || authTagSz > WC_AES_BLOCK_SIZE || authTagSz == 0 ||
-        ivSz == 0) {
+        authTag == NULL || authTagSz > WC_AES_BLOCK_SIZE ||
+        authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ || ivSz == 0) {
 
         return BAD_FUNC_ARG;
     }
@@ -12473,7 +12474,7 @@ int wc_AesGcmEncryptFinal(Aes* aes, byte* authTag, word32 authTagSz)
 
     /* Check validity of parameters. */
     if ((aes == NULL) || (authTag == NULL) || (authTagSz > WC_AES_BLOCK_SIZE) ||
-            (authTagSz == 0)) {
+            (authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ)) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -16377,9 +16378,7 @@ int wc_local_CmacUpdateAes(struct Cmac *cmac, const byte* in, word32 inSz) {
         in += add;
 
         if (cmac->bufferSz == WC_AES_BLOCK_SIZE && inSz != 0) {
-            if (cmac->totalSz != 0) {
-                xorbuf(cmac->buffer, cmac->digest, WC_AES_BLOCK_SIZE);
-            }
+            xorbuf(cmac->buffer, cmac->digest, WC_AES_BLOCK_SIZE);
             ret = AesEncrypt_preFetchOpt(aes, cmac->buffer,
                                             cmac->digest, &did_prefetches);
             if (ret == 0) {
