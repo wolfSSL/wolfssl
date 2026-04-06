@@ -1444,7 +1444,7 @@ static int test_dual_alg_crit_ext_support(void)
     XFREE(root, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(server, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
-    free(serverKey);
+    XFREE(serverKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return EXPECT_RESULT();
 }
@@ -1519,7 +1519,7 @@ static int test_dual_alg_support(void)
     XFREE(root, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(server, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
-    free(serverKey);
+    XFREE(serverKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return EXPECT_RESULT();
 }
