@@ -241,7 +241,8 @@ static int d2iTryEccKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
  * @param [in]      memSz  Size of key data in bytes.
  * @param [in]      priv   1 means private key, 0 means public key.
  * @return  1 on success.
- * @return  0 otherwise.
+ * @return  0 on allocation/initialization failure
+ * @return  WOLFSSL_FATAL_ERROR if the input is not an Ed25519 key.
  */
 static int d2iTryEd25519Key(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
     long memSz, int priv)
@@ -250,14 +251,19 @@ static int d2iTryEd25519Key(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
     word32 keyIdx = 0;
     int isEdKey;
     int ret = 1;
+    void* heap = NULL;
 
-    edKey = (ed25519_key*)XMALLOC(sizeof(ed25519_key), NULL,
+    if (*out != NULL) {
+        heap = (*out)->heap;
+    }
+
+    edKey = (ed25519_key*)XMALLOC(sizeof(ed25519_key), heap,
         DYNAMIC_TYPE_ED25519);
     if (edKey == NULL) {
         return 0;
     }
-    if (wc_ed25519_init(edKey) != 0) {
-        XFREE(edKey, NULL, DYNAMIC_TYPE_ED25519);
+    if (wc_ed25519_init_ex(edKey, heap, INVALID_DEVID) != 0) {
+        XFREE(edKey, heap, DYNAMIC_TYPE_ED25519);
         return 0;
     }
 
@@ -288,11 +294,13 @@ static int d2iTryEd25519Key(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
 
     if (!isEdKey) {
         wc_ed25519_free(edKey);
-        XFREE(edKey, NULL, DYNAMIC_TYPE_ED25519);
+        XFREE(edKey, heap, DYNAMIC_TYPE_ED25519);
         return WOLFSSL_FATAL_ERROR;
     }
 
-    /* Create an EVP PKEY object holding the DER bytes. */
+    /* Create an EVP PKEY object holding the input bytes. These are the
+     * SPKI / PKCS#8 DER on the structured path, or the raw 32-byte key
+     * on the raw fallback path. */
     ret = d2i_make_pkey(out, mem, keyIdx, priv, WC_EVP_PKEY_ED25519);
     if (ret == 1) {
         (*out)->ownEd25519 = 1;
@@ -300,7 +308,7 @@ static int d2iTryEd25519Key(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
     }
     else {
         wc_ed25519_free(edKey);
-        XFREE(edKey, NULL, DYNAMIC_TYPE_ED25519);
+        XFREE(edKey, heap, DYNAMIC_TYPE_ED25519);
     }
 
     return ret;
@@ -317,7 +325,8 @@ static int d2iTryEd25519Key(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
  * @param [in]      memSz  Size of key data in bytes.
  * @param [in]      priv   1 means private key, 0 means public key.
  * @return  1 on success.
- * @return  0 otherwise.
+ * @return  0 on allocation/initialization failure.
+ * @return  WOLFSSL_FATAL_ERROR if the input is not an Ed448 key.
  */
 static int d2iTryEd448Key(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
     long memSz, int priv)
@@ -326,13 +335,18 @@ static int d2iTryEd448Key(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
     word32 keyIdx = 0;
     int isEdKey;
     int ret = 1;
+    void* heap = NULL;
 
-    edKey = (ed448_key*)XMALLOC(sizeof(ed448_key), NULL, DYNAMIC_TYPE_ED448);
+    if (*out != NULL) {
+        heap = (*out)->heap;
+    }
+
+    edKey = (ed448_key*)XMALLOC(sizeof(ed448_key), heap, DYNAMIC_TYPE_ED448);
     if (edKey == NULL) {
         return 0;
     }
-    if (wc_ed448_init(edKey) != 0) {
-        XFREE(edKey, NULL, DYNAMIC_TYPE_ED448);
+    if (wc_ed448_init_ex(edKey, heap, INVALID_DEVID) != 0) {
+        XFREE(edKey, heap, DYNAMIC_TYPE_ED448);
         return 0;
     }
 
@@ -363,11 +377,13 @@ static int d2iTryEd448Key(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
 
     if (!isEdKey) {
         wc_ed448_free(edKey);
-        XFREE(edKey, NULL, DYNAMIC_TYPE_ED448);
+        XFREE(edKey, heap, DYNAMIC_TYPE_ED448);
         return WOLFSSL_FATAL_ERROR;
     }
 
-    /* Create an EVP PKEY object holding the DER bytes. */
+    /* Create an EVP PKEY object holding the input bytes. These are the
+     * SPKI / PKCS#8 DER on the structured path, or the raw 57-byte key
+     * on the raw fallback path. */
     ret = d2i_make_pkey(out, mem, keyIdx, priv, WC_EVP_PKEY_ED448);
     if (ret == 1) {
         (*out)->ownEd448 = 1;
@@ -375,7 +391,7 @@ static int d2iTryEd448Key(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
     }
     else {
         wc_ed448_free(edKey);
-        XFREE(edKey, NULL, DYNAMIC_TYPE_ED448);
+        XFREE(edKey, heap, DYNAMIC_TYPE_ED448);
     }
 
     return ret;
@@ -1199,14 +1215,14 @@ static WOLFSSL_EVP_PKEY* d2i_evp_pkey(int type, WOLFSSL_EVP_PKEY** out,
             word32 keyIdx = 0;
             int isEdKey;
 
-            edKey = (ed25519_key*)XMALLOC(sizeof(ed25519_key), NULL,
+            edKey = (ed25519_key*)XMALLOC(sizeof(ed25519_key), local->heap,
                 DYNAMIC_TYPE_ED25519);
             if (edKey == NULL) {
                 wolfSSL_EVP_PKEY_free(local);
                 return NULL;
             }
-            if (wc_ed25519_init(edKey) != 0) {
-                XFREE(edKey, NULL, DYNAMIC_TYPE_ED25519);
+            if (wc_ed25519_init_ex(edKey, local->heap, INVALID_DEVID) != 0) {
+                XFREE(edKey, local->heap, DYNAMIC_TYPE_ED25519);
                 wolfSSL_EVP_PKEY_free(local);
                 return NULL;
             }
@@ -1228,7 +1244,7 @@ static WOLFSSL_EVP_PKEY* d2i_evp_pkey(int type, WOLFSSL_EVP_PKEY** out,
             }
             if (!isEdKey) {
                 wc_ed25519_free(edKey);
-                XFREE(edKey, NULL, DYNAMIC_TYPE_ED25519);
+                XFREE(edKey, local->heap, DYNAMIC_TYPE_ED25519);
                 wolfSSL_EVP_PKEY_free(local);
                 return NULL;
             }
@@ -1244,14 +1260,14 @@ static WOLFSSL_EVP_PKEY* d2i_evp_pkey(int type, WOLFSSL_EVP_PKEY** out,
             word32 keyIdx = 0;
             int isEdKey;
 
-            edKey = (ed448_key*)XMALLOC(sizeof(ed448_key), NULL,
+            edKey = (ed448_key*)XMALLOC(sizeof(ed448_key), local->heap,
                 DYNAMIC_TYPE_ED448);
             if (edKey == NULL) {
                 wolfSSL_EVP_PKEY_free(local);
                 return NULL;
             }
-            if (wc_ed448_init(edKey) != 0) {
-                XFREE(edKey, NULL, DYNAMIC_TYPE_ED448);
+            if (wc_ed448_init_ex(edKey, local->heap, INVALID_DEVID) != 0) {
+                XFREE(edKey, local->heap, DYNAMIC_TYPE_ED448);
                 wolfSSL_EVP_PKEY_free(local);
                 return NULL;
             }
@@ -1273,7 +1289,7 @@ static WOLFSSL_EVP_PKEY* d2i_evp_pkey(int type, WOLFSSL_EVP_PKEY** out,
             }
             if (!isEdKey) {
                 wc_ed448_free(edKey);
-                XFREE(edKey, NULL, DYNAMIC_TYPE_ED448);
+                XFREE(edKey, local->heap, DYNAMIC_TYPE_ED448);
                 wolfSSL_EVP_PKEY_free(local);
                 return NULL;
             }
