@@ -17892,6 +17892,12 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
                 WOLFSSL_MSG("ECH extension received");
                 ret = ECH_PARSE(ssl, input + offset, size, msgType);
                 break;
+            case TLSXT_ECH_OUTER_EXTENSIONS:
+                /* RFC 9849 s5.1: ech_outer_extensions MUST only appear in
+                 * the EncodedClientHelloInner */
+                WOLFSSL_MSG("ech_outer_extensions in plaintext message");
+                WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
+                return INVALID_PARAMETER;
 #endif
             default:
                 WOLFSSL_MSG("Unknown TLS extension type");
