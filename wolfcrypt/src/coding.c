@@ -174,6 +174,9 @@ int Base64_Decode_nonCT(const byte* in, word32 inLen, byte* out, word32* outLen)
     int ret;
     const byte maxIdx = BASE64DECODE_TABLE_SZ + BASE64_MIN - 1;
 
+    if ((in == NULL && inLen > 0) || out == NULL || outLen == NULL)
+        return BAD_FUNC_ARG;
+
     while (inLen > 3) {
         int pad3 = 0;
         int pad4 = 0;
@@ -272,6 +275,9 @@ int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
     word32 i = 0;
     word32 j = 0;
     int ret;
+
+    if ((in == NULL && inLen > 0) || out == NULL || outLen == NULL)
+        return BAD_FUNC_ARG;
 
     while (inLen > 3) {
         int pad3 = 0;
@@ -473,6 +479,9 @@ static int DoBase64_Encode(const byte* in, word32 inLen, byte* out,
 
     word32 outSz = (inLen + 3 - 1) / 3 * 4;
     word32 addSz = (outSz + BASE64_LINE_SZ - 1) / BASE64_LINE_SZ;  /* new lines */
+
+    if (in == NULL && inLen > 0)
+        return BAD_FUNC_ARG;
 
     if (escaped == WC_ESC_NL_ENC)
         addSz *= 3;   /* instead of just \n, we're doing %0A triplet */
