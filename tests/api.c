@@ -27475,7 +27475,7 @@ static int error_test(void)
 {
     EXPECT_DECLS;
     const char* errStr;
-    const char* unknownStr = wc_GetErrorString(0);
+    const char* unknownStr = wc_GetErrorString(WC_LAST_E - 1);
 
 #ifdef NO_ERROR_STRINGS
     /* Ensure a valid error code's string matches an invalid code's.

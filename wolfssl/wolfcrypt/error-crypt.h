@@ -46,6 +46,7 @@ enum wolfCrypt_ErrorCodes {
     /* note that WOLFSSL_FATAL_ERROR is defined as -1 in error-ssl.h, for
      * reasons of backward compatibility.
      */
+    WC_SUCCESS         =    0,
     WC_FAILURE         =   -1,  /* Generic but traceable back compat errcode.
                                  * Note, not reflected in MAX_CODE_E or
                                  * WC_FIRST_E.

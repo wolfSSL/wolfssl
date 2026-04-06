@@ -675,7 +675,7 @@
         }
     }
     static WC_INLINE int wolfSSL_Atomic_Ptr_CompareExchange(
-        void * volatile *c, void *expected_ptr, void *new_ptr)
+        void * volatile *c, void **expected_ptr, void *new_ptr)
     {
         if (*(char * volatile *)c == *(char **)expected_ptr) {
             *(char * volatile *)c = (char *)new_ptr;
@@ -758,11 +758,21 @@ typedef struct wolfSSL_RefWithMutex wolfSSL_Ref;
         (void)wolfSSL_Atomic_Int_FetchAdd(&(ref)->count, 1); \
         *(err) = 0;                          \
     } while(0)
+#define wolfSSL_RefInc2(ref, new_count, err) \
+    do {                                     \
+        *(new_count) = wolfSSL_Atomic_Int_AddFetch(&(ref)->count, 1); \
+        *(err) = 0;                          \
+    } while(0)
 #define wolfSSL_RefDec(ref, isZero, err)     \
     do {                                     \
         int __prev = wolfSSL_Atomic_Int_FetchSub(&(ref)->count, 1); \
         /* __prev holds the value of count before subtracting 1 */ \
         *(isZero) = (__prev == 1);     \
+        *(err) = 0;                          \
+    } while(0)
+#define wolfSSL_RefDec2(ref, new_count, err) \
+    do {                                     \
+        *(new_count) = wolfSSL_Atomic_Int_SubFetch(&(ref)->count, 1);    \
         *(err) = 0;                          \
     } while(0)
 
@@ -773,7 +783,9 @@ typedef struct wolfSSL_RefWithMutex wolfSSL_Ref;
 #define wolfSSL_RefInit wolfSSL_RefWithMutexInit
 #define wolfSSL_RefFree wolfSSL_RefWithMutexFree
 #define wolfSSL_RefInc wolfSSL_RefWithMutexInc
+#define wolfSSL_RefInc2 wolfSSL_RefWithMutexInc2
 #define wolfSSL_RefDec wolfSSL_RefWithMutexDec
+#define wolfSSL_RefDec2 wolfSSL_RefWithMutexDec2
 
 #endif
 
@@ -782,9 +794,11 @@ typedef struct wolfSSL_RefWithMutex wolfSSL_Ref;
 #define wolfSSL_RefWithMutexInit wolfSSL_RefInit
 #define wolfSSL_RefWithMutexFree wolfSSL_RefFree
 #define wolfSSL_RefWithMutexInc wolfSSL_RefInc
+#define wolfSSL_RefWithMutexInc2 wolfSSL_RefInc2
 #define wolfSSL_RefWithMutexLock(ref) 0
 #define wolfSSL_RefWithMutexUnlock(ref) 0
 #define wolfSSL_RefWithMutexDec wolfSSL_RefDec
+#define wolfSSL_RefWithMutexDec2 wolfSSL_RefDec2
 
 #else
 
@@ -793,10 +807,15 @@ WOLFSSL_LOCAL void wolfSSL_RefWithMutexInit(wolfSSL_RefWithMutex* ref,
 WOLFSSL_LOCAL void wolfSSL_RefWithMutexFree(wolfSSL_RefWithMutex* ref);
 WOLFSSL_LOCAL void wolfSSL_RefWithMutexInc(wolfSSL_RefWithMutex* ref,
                                             int* err);
+WOLFSSL_LOCAL void wolfSSL_RefWithMutexInc2(wolfSSL_RefWithMutex* ref,
+                                            int *new_count,
+                                            int* err);
 WOLFSSL_LOCAL int wolfSSL_RefWithMutexLock(wolfSSL_RefWithMutex* ref);
 WOLFSSL_LOCAL int wolfSSL_RefWithMutexUnlock(wolfSSL_RefWithMutex* ref);
 WOLFSSL_LOCAL void wolfSSL_RefWithMutexDec(wolfSSL_RefWithMutex* ref,
                                             int* isZero, int* err);
+WOLFSSL_LOCAL void wolfSSL_RefWithMutexDec2(wolfSSL_RefWithMutex* ref,
+                                            int* new_count, int* err);
 
 #endif
 
