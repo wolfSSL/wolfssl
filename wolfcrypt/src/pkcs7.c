@@ -2197,7 +2197,6 @@ static int wc_PKCS7_BuildSignedAttributes(wc_PKCS7* pkcs7, ESD* esd,
 #endif
     word32 idx    = 0;
     word32 atrIdx = 0;
-    word32 cannedAttribsCount;
 
     if (pkcs7 == NULL || esd == NULL || contentType == NULL ||
         contentTypeOid == NULL || messageDigestOid == NULL ||
@@ -2219,8 +2218,6 @@ static int wc_PKCS7_BuildSignedAttributes(wc_PKCS7* pkcs7, ESD* esd,
         if (timeSz < 0)
             return timeSz;
     #endif
-
-        cannedAttribsCount = sizeof(cannedAttribs)/sizeof(PKCS7Attrib);
 
         XMEMSET(&cannedAttribs[idx], 0, sizeof(cannedAttribs[idx]));
 
