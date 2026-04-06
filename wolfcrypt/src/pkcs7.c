@@ -14391,9 +14391,17 @@ int wc_PKCS7_DecodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* in,
             }
 
             if (ret == 0) {
-                XMEMCPY(encryptedContent, &pkiMsg[idx],
+                word32 tmpSum;
+                if (!WC_SAFE_SUM_WORD32(idx, (word32)encryptedContentSz,
+                                        tmpSum) ||
+                    tmpSum > pkiMsgSz) {
+                    ret = BUFFER_E;
+                    break;
+                } else {
+                    XMEMCPY(encryptedContent, &pkiMsg[idx],
                                                     (word32)encryptedContentSz);
-                idx += (word32)encryptedContentSz;
+                    idx += (word32)encryptedContentSz;
+                }
             }
         #ifndef NO_PKCS7_STREAM
             pkcs7->stream->bufferPt = encryptedContent;
@@ -15327,16 +15335,22 @@ int wc_PKCS7_DecodeEncryptedData(wc_PKCS7* pkcs7, byte* in, word32 inSz,
             }
 
             if (ret == 0) {
-                XMEMCPY(encryptedContent, &pkiMsg[idx],
-                    (unsigned int)encryptedContentSz);
-                idx += (word32)encryptedContentSz;
+                word32 tmpSum;
+                if (!WC_SAFE_SUM_WORD32(idx, (word32)encryptedContentSz, tmpSum) ||
+                    tmpSum > pkiMsgSz) {
+                    ret = BUFFER_E;
+                } else {
+                    XMEMCPY(encryptedContent, &pkiMsg[idx],
+                        (unsigned int)encryptedContentSz);
+                    idx += (word32)encryptedContentSz;
 
-                /* decrypt encryptedContent */
-                ret = wc_PKCS7_DecryptContent(pkcs7, encOID,
-                              pkcs7->encryptionKey, pkcs7->encryptionKeySz,
-                              tmpIv, expBlockSz, NULL, 0, NULL, 0,
-                              encryptedContent, encryptedContentSz,
-                              encryptedContent, pkcs7->devId, pkcs7->heap);
+                    /* decrypt encryptedContent */
+                    ret = wc_PKCS7_DecryptContent(pkcs7, encOID,
+                                pkcs7->encryptionKey, pkcs7->encryptionKeySz,
+                                tmpIv, expBlockSz, NULL, 0, NULL, 0,
+                                encryptedContent, encryptedContentSz,
+                                encryptedContent, pkcs7->devId, pkcs7->heap);
+                }
                 if (ret != 0) {
                     XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
                 }
