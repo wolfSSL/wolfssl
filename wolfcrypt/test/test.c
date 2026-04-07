@@ -27675,6 +27675,37 @@ static wc_test_ret_t srp_test_digest(SrpType dgstType)
 
     if (!r) r = wc_SrpVerifyPeersProof(cli, serverProof, serverProofSz);
 
+    /* Negative test: corrupted proof must be rejected with SRP_VERIFY_E. */
+    if (!r) {
+        int rNeg;
+        Srp cli2[1];
+
+        XMEMSET(cli2, 0, sizeof(Srp));
+        rNeg = wc_SrpInit_ex(cli2, dgstType, SRP_CLIENT_SIDE, HEAP_HINT,
+                              devId);
+        if (!rNeg) rNeg = wc_SrpSetUsername(cli2, username, usernameSz);
+        if (!rNeg) rNeg = wc_SrpSetParams(cli2, N, sizeof(N),
+                                           g, sizeof(g), salt, sizeof(salt));
+        if (!rNeg) rNeg = wc_SrpSetPassword(cli2, password, passwordSz);
+        if (!rNeg) rNeg = wc_SrpGetPublic(cli2, clientPubKey, &clientPubKeySz);
+        if (!rNeg) rNeg = wc_SrpComputeKey(cli2, clientPubKey, clientPubKeySz,
+                                            serverPubKey, serverPubKeySz);
+        if (!rNeg) rNeg = wc_SrpGetProof(cli2, clientProof, &clientProofSz);
+
+        /* Corrupt the server proof before verifying. */
+        serverProof[0] ^= 0x01;
+        if (!rNeg) {
+            rNeg = wc_SrpVerifyPeersProof(cli2, serverProof, serverProofSz);
+            if (rNeg != SRP_VERIFY_E) {
+                r = WC_TEST_RET_ENC_EC(rNeg);
+            }
+        }
+        else {
+            r = WC_TEST_RET_ENC_EC(rNeg);
+        }
+        wc_SrpTerm(cli2);
+    }
+
     wc_SrpTerm(cli);
     wc_SrpTerm(srv);
 
