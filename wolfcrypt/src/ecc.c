@@ -10978,16 +10978,22 @@ int wc_ecc_import_x963_ex2(const byte* in, word32 inLen, ecc_key* key,
         #ifndef WOLFSSL_SP_NO_256
             if (ecc_sets[key->idx].id == ECC_SECP256R1) {
                 err = sp_ecc_is_point_256(key->pubkey.x, key->pubkey.y);
-            #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SP_SM2)
+            #if defined(WOLFSSL_SM2)
                 if (err != MP_OKAY && curve_id < 0) {
                     /* Retry with SM2 curve when P-256 returns invalid.
                      * Only when no explicit curve was requested (curve_id < 0).
                      * Needed because SM2 keys can be mis-identified as
                      * SECP256R1 during parsing. */
+                #if defined(WOLFSSL_SP_SM2)
                     err = sp_ecc_is_point_sm2_256(key->pubkey.x,
                                                   key->pubkey.y);
+                #else
+                    int sm2_idx = wc_ecc_get_curve_idx(ECC_SM2P256V1);
+                    if (sm2_idx != ECC_CURVE_INVALID)
+                        err = wc_ecc_point_is_on_curve(&key->pubkey, sm2_idx);
+                #endif
                     if (err == MP_OKAY) {
-                        err = wc_ecc_set_curve(key, key->dp->size,
+                        err = wc_ecc_set_curve(key, WOLFSSL_SM2_KEY_BITS / 8,
                                                ECC_SM2P256V1);
                     }
                 }
