@@ -11048,7 +11048,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ascon_aead128_test(void)
         err = wc_AsconAEAD128_DecryptUpdate(&asconAEAD, tbuf, tct, sizeof(tct));
         if (err != 0) return WC_TEST_RET_ENC_EC(err);
         err = wc_AsconAEAD128_DecryptFinal(&asconAEAD, ttag);
-        if (err != ASCON_AUTH_E) {
+        if (err != WC_NO_ERR_TRACE(ASCON_AUTH_E)) {
             return WC_TEST_RET_ENC_EC(err);
         }
         wc_AsconAEAD128_Clear(&asconAEAD);
@@ -19396,7 +19396,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aeskeywrap_test(void)
         plainSz = wc_AesKeyUnWrap(test_wrap[0].kek, test_wrap[0].kekLen,
                                   output, (word32)wrapSz,
                                   plain, sizeof(plain), NULL);
-        if (plainSz != BAD_KEYWRAP_IV_E)
+        if (plainSz != WC_NO_ERR_TRACE(BAD_KEYWRAP_IV_E))
             return WC_TEST_RET_ENC_EC(plainSz);
     }
 
@@ -27713,7 +27713,7 @@ static wc_test_ret_t srp_test_digest(SrpType dgstType)
             if (!rNeg) {
                 rNeg = wc_SrpVerifyPeersProof(cli2, serverProof,
                                                serverProofSz);
-                if (rNeg != SRP_VERIFY_E) {
+                if (rNeg != WC_NO_ERR_TRACE(SRP_VERIFY_E)) {
                     r = WC_TEST_RET_ENC_EC(rNeg);
                 }
             }
@@ -66858,7 +66858,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_siv_test(void)
                               testVectors[0].nonce, testVectors[0].nonceSz,
                               computedCiphertext, testVectors[0].plaintextSz,
                               siv, computedPlaintext);
-        if (ret != AES_SIV_AUTH_E) {
+        if (ret != WC_NO_ERR_TRACE(AES_SIV_AUTH_E)) {
             return WC_TEST_RET_ENC_EC(ret);
         }
     }
