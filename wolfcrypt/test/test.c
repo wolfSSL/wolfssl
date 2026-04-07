@@ -39039,6 +39039,15 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test_buffers(void)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
         if (XMEMCMP(plain, in, inLen))
             ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+
+        /* Negative test: corrupt HMAC tag in encrypted msg, expect
+         * HASH_TYPE_E from wc_ecc_decrypt. */
+        out[x - 1] ^= 0x01;
+        y = sizeof(plain);
+        ret = wc_ecc_decrypt(servKey, tmpKey, out, x, plain, &y, NULL);
+        if (ret != WC_NO_ERR_TRACE(HASH_TYPE_E))
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+        ret = 0; /* reset ret for following tests */
     }
 #endif
 
