@@ -3615,7 +3615,7 @@ int ProcessChainOCSPRequest(WOLFSSL* ssl)
     if (chain && chain->buffer) {
         while (ret == 0 && pos + OPAQUE24_LEN < chain->length) {
             if (i >= MAX_CERT_EXTENSIONS) {
-                WOLFSSL_ERROR_MSG_EX(
+                WOLFSSL_MSG_EX(
                     "OCSP request cert chain exceeds maximum length: "
                     "i=%d, MAX_CERT_EXTENSIONS=%d", i, MAX_CERT_EXTENSIONS);
                 ret = MAX_CERT_EXTENSIONS_ERR;
