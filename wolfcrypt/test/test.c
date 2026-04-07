@@ -19381,6 +19381,25 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aeskeywrap_test(void)
             return WC_TEST_RET_ENC_I(i);
     }
 
+    /* Negative test: corrupted wrapped data must be rejected with
+     * BAD_KEYWRAP_IV_E. */
+    {
+        wrapSz = wc_AesKeyWrap(test_wrap[0].kek, test_wrap[0].kekLen,
+                               test_wrap[0].data, test_wrap[0].dataLen,
+                               output, sizeof(output), NULL);
+        if (wrapSz < 0)
+            return WC_TEST_RET_ENC_EC(wrapSz);
+
+        /* Corrupt one byte of the wrapped data. */
+        output[0] ^= 0x01;
+
+        plainSz = wc_AesKeyUnWrap(test_wrap[0].kek, test_wrap[0].kekLen,
+                                  output, (word32)wrapSz,
+                                  plain, sizeof(plain), NULL);
+        if (plainSz != BAD_KEYWRAP_IV_E)
+            return WC_TEST_RET_ENC_EC(plainSz);
+    }
+
     return 0;
 }
 #endif /* HAVE_AES_KEYWRAP */
