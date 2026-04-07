@@ -4732,7 +4732,7 @@ int wolfSSL_use_AltPrivateKey_Label(WOLFSSL* ssl, const char* label, int devId)
         #endif
         }
         if (AllocDer(&ssl->buffers.altKey, (word32)sz, ALT_PRIVATEKEY_TYPE,
-                ssl->heap) == 0) {
+                ssl->heap) != 0) {
             ret = 0;
         }
     }
