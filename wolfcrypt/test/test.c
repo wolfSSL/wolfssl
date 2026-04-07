@@ -27678,32 +27678,50 @@ static wc_test_ret_t srp_test_digest(SrpType dgstType)
     /* Negative test: corrupted proof must be rejected with SRP_VERIFY_E. */
     if (!r) {
         int rNeg;
-        Srp cli2[1];
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+        Srp* cli2 = (Srp*)XMALLOC(sizeof *cli2, HEAP_HINT,
+                                    DYNAMIC_TYPE_TMP_BUFFER);
+        if (cli2 == NULL) {
+            r = WC_TEST_RET_ENC_NC;
+        }
+    #else
+        Srp cli2_buf[1];
+        Srp* cli2 = cli2_buf;
+    #endif
+        if (!r) {
+            XMEMSET(cli2, 0, sizeof *cli2);
+            rNeg = wc_SrpInit_ex(cli2, dgstType, SRP_CLIENT_SIDE, HEAP_HINT,
+                                  devId);
+            if (!rNeg) rNeg = wc_SrpSetUsername(cli2, username, usernameSz);
+            if (!rNeg) rNeg = wc_SrpSetParams(cli2, N, sizeof(N),
+                                               g, sizeof(g), salt,
+                                               sizeof(salt));
+            if (!rNeg) rNeg = wc_SrpSetPassword(cli2, password, passwordSz);
+            if (!rNeg) rNeg = wc_SrpGetPublic(cli2, clientPubKey,
+                                               &clientPubKeySz);
+            if (!rNeg) rNeg = wc_SrpComputeKey(cli2, clientPubKey,
+                                                clientPubKeySz, serverPubKey,
+                                                serverPubKeySz);
+            if (!rNeg) rNeg = wc_SrpGetProof(cli2, clientProof,
+                                              &clientProofSz);
 
-        XMEMSET(cli2, 0, sizeof(Srp));
-        rNeg = wc_SrpInit_ex(cli2, dgstType, SRP_CLIENT_SIDE, HEAP_HINT,
-                              devId);
-        if (!rNeg) rNeg = wc_SrpSetUsername(cli2, username, usernameSz);
-        if (!rNeg) rNeg = wc_SrpSetParams(cli2, N, sizeof(N),
-                                           g, sizeof(g), salt, sizeof(salt));
-        if (!rNeg) rNeg = wc_SrpSetPassword(cli2, password, passwordSz);
-        if (!rNeg) rNeg = wc_SrpGetPublic(cli2, clientPubKey, &clientPubKeySz);
-        if (!rNeg) rNeg = wc_SrpComputeKey(cli2, clientPubKey, clientPubKeySz,
-                                            serverPubKey, serverPubKeySz);
-        if (!rNeg) rNeg = wc_SrpGetProof(cli2, clientProof, &clientProofSz);
-
-        /* Corrupt the server proof before verifying. */
-        serverProof[0] ^= 0x01;
-        if (!rNeg) {
-            rNeg = wc_SrpVerifyPeersProof(cli2, serverProof, serverProofSz);
-            if (rNeg != SRP_VERIFY_E) {
+            /* Corrupt the server proof before verifying. */
+            serverProof[0] ^= 0x01;
+            if (!rNeg) {
+                rNeg = wc_SrpVerifyPeersProof(cli2, serverProof,
+                                               serverProofSz);
+                if (rNeg != SRP_VERIFY_E) {
+                    r = WC_TEST_RET_ENC_EC(rNeg);
+                }
+            }
+            else {
                 r = WC_TEST_RET_ENC_EC(rNeg);
             }
+            wc_SrpTerm(cli2);
         }
-        else {
-            r = WC_TEST_RET_ENC_EC(rNeg);
-        }
-        wc_SrpTerm(cli2);
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+        XFREE(cli2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
     }
 
     wc_SrpTerm(cli);
