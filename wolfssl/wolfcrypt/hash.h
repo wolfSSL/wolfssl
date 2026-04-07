@@ -40,7 +40,7 @@
 #if defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512)
     #include <wolfssl/wolfcrypt/sha512.h>
 #endif
-#if defined(HAVE_BLAKE2) || defined(HAVE_BLAKE2S)
+#if defined(HAVE_BLAKE2B) || defined(HAVE_BLAKE2S)
     #include <wolfssl/wolfcrypt/blake2.h>
 #endif
 #ifdef WOLFSSL_SHA3
@@ -131,7 +131,7 @@ typedef struct {
 #elif defined(WOLFSSL_SHA512)
     #define WC_MAX_DIGEST_SIZE WC_SHA512_DIGEST_SIZE
     #define WC_MAX_BLOCK_SIZE  WC_SHA512_BLOCK_SIZE
-#elif defined(HAVE_BLAKE2)
+#elif defined(HAVE_BLAKE2B)
     #define WC_MAX_DIGEST_SIZE BLAKE2B_OUTBYTES
     #define WC_MAX_BLOCK_SIZE  BLAKE2B_BLOCKBYTES
 #elif defined(WOLFSSL_SHA384)

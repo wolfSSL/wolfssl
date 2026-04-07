@@ -328,7 +328,7 @@ extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t scrypt_test(void);
 #ifdef WOLFCRYPT_HAVE_SAKKE
     extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  sakke_test(void);
 #endif
-#ifdef HAVE_BLAKE2
+#ifdef HAVE_BLAKE2B
     extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  blake2b_test(void);
     extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  blake2b_hmac_test(void);
 #endif

@@ -103,7 +103,6 @@
 #define TEST_ESPIDF_ALL_WOLFSSL
 #ifdef  TEST_ESPIDF_ALL_WOLFSSL
     #define WOLFSSL_MD2
-    #define HAVE_BLAKE2
     #define HAVE_BLAKE2B
     #define HAVE_BLAKE2S
 

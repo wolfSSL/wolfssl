@@ -483,7 +483,7 @@ int wc_HashGetDigestSize(enum wc_HashType hash_type)
         #endif
             break;
         case WC_HASH_TYPE_BLAKE2S:
-        #if defined(HAVE_BLAKE2) || defined(HAVE_BLAKE2S)
+        #if defined(HAVE_BLAKE2S)
             dig_size = BLAKE2S_OUTBYTES;
         #else
             dig_size = HASH_TYPE_E;
@@ -639,7 +639,7 @@ int wc_HashGetBlockSize(enum wc_HashType hash_type)
         #endif
             break;
         case WC_HASH_TYPE_BLAKE2S:
-        #if defined(HAVE_BLAKE2) || defined(HAVE_BLAKE2S)
+        #if defined(HAVE_BLAKE2S)
             block_size = BLAKE2S_BLOCKBYTES;
         #else
             block_size = HASH_TYPE_E;

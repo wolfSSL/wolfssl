@@ -769,7 +769,6 @@
      * the "enable all" feature: */
     #if defined(TEST_ESPIDF_ALL_WOLFSSL)
         #define WOLFSSL_MD2
-        #define HAVE_BLAKE2
         #define HAVE_BLAKE2B
         #define HAVE_BLAKE2S
 
@@ -5056,6 +5055,14 @@ extern void uITRON4_free(void *p) ;
     #error "ED448 streaming verify" \
            " (WOLFSSL_ED448_STREAMING_VERIFY)" \
            " requires ED448 (HAVE_ED448)"
+#endif
+
+/* Accommodate legacy BLAKE gate. */
+#ifdef HAVE_BLAKE2
+    #ifndef HAVE_BLAKE2B
+        #define HAVE_BLAKE2B
+    #endif
+    #undef HAVE_BLAKE2
 #endif
 
 /* QUIC Rules */

@@ -422,7 +422,7 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
 #ifdef WOLFCRYPT_HAVE_SAKKE
     #include <wolfssl/wolfcrypt/sakke.h>
 #endif
-#if defined(HAVE_BLAKE2) || defined(HAVE_BLAKE2S)
+#if defined(HAVE_BLAKE2B) || defined(HAVE_BLAKE2S)
     #include <wolfssl/wolfcrypt/blake2.h>
 #endif
 #ifdef WOLFSSL_SHA3
@@ -795,7 +795,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t scrypt_test(void);
 #ifdef WOLFCRYPT_HAVE_SAKKE
     WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  sakke_test(void);
 #endif
-#ifdef HAVE_BLAKE2
+#ifdef HAVE_BLAKE2B
     WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  blake2b_test(void);
     WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  blake2b_hmac_test(void);
 #endif
@@ -2237,7 +2237,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_PASS("RIPEMD   test passed!\n");
 #endif
 
-#ifdef HAVE_BLAKE2
+#ifdef HAVE_BLAKE2B
     if ( (ret = blake2b_test()) != 0)
         TEST_FAIL("BLAKE2b  test failed!\n", ret);
     else
@@ -4706,7 +4706,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ripemd_test(void)
 #endif /* WOLFSSL_RIPEMD */
 
 
-#ifdef HAVE_BLAKE2
+#ifdef HAVE_BLAKE2B
 
 #define BLAKE2B_TESTS 3
 
@@ -4864,7 +4864,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t blake2b_hmac_test(void)
 
     return 0;
 }
-#endif /* HAVE_BLAKE2 */
+#endif /* HAVE_BLAKE2B */
 
 
 #ifdef HAVE_BLAKE2S
@@ -7659,8 +7659,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hash_test(void)
 #if defined(NO_MD5) || defined(NO_SHA)
         WC_HASH_TYPE_MD5_SHA,
 #endif
-#if !defined(HAVE_BLAKE2) && !defined(HAVE_BLAKE2S)
+#if !defined(HAVE_BLAKE2B)
         WC_HASH_TYPE_BLAKE2B,
+#endif
+#if !defined(HAVE_BLAKE2S)
+        WC_HASH_TYPE_BLAKE2S,
 #endif
         WC_HASH_TYPE_NONE };
 
@@ -7941,9 +7944,43 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hash_test(void)
     if (ret != WC_NO_ERR_TRACE(HASH_TYPE_E))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 #endif
+    ret = wc_HashGetDigestSize(WC_HASH_TYPE_MD5_SHA);
+#if !defined(NO_MD5) && !defined(NO_SHA)
+    if (ret == WC_NO_ERR_TRACE(HASH_TYPE_E) ||
+        ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+    {
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    }
+#else
+    if (ret != WC_NO_ERR_TRACE(HASH_TYPE_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#endif
+
+    ret = wc_HashGetBlockSize(WC_HASH_TYPE_BLAKE2S);
+#if defined(HAVE_BLAKE2S)
+    if (ret == WC_NO_ERR_TRACE(HASH_TYPE_E) ||
+        ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+    {
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    }
+#else
+    if (ret != WC_NO_ERR_TRACE(HASH_TYPE_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#endif
+    ret = wc_HashGetDigestSize(WC_HASH_TYPE_BLAKE2S);
+#if defined(HAVE_BLAKE2S)
+    if (ret == WC_NO_ERR_TRACE(HASH_TYPE_E) ||
+        ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+    {
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    }
+#else
+    if (ret != WC_NO_ERR_TRACE(HASH_TYPE_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#endif
 
     ret = wc_HashGetBlockSize(WC_HASH_TYPE_BLAKE2B);
-#if defined(HAVE_BLAKE2) || defined(HAVE_BLAKE2S)
+#if defined(HAVE_BLAKE2B)
     if (ret == WC_NO_ERR_TRACE(HASH_TYPE_E) ||
         ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG))
     {
@@ -7954,7 +7991,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hash_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 #endif
     ret = wc_HashGetDigestSize(WC_HASH_TYPE_BLAKE2B);
-#if defined(HAVE_BLAKE2) || defined(HAVE_BLAKE2S)
+#if defined(HAVE_BLAKE2B)
     if (ret == WC_NO_ERR_TRACE(HASH_TYPE_E) ||
         ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG))
     {
