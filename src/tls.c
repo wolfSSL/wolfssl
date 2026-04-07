@@ -13939,8 +13939,8 @@ static int TLSX_ECH_CopyOuterExtensions(const byte* outerCh, word32 outerChLen,
     word16 refType;
     word32 outerExtLen;
     word32 outerExtOffset = 0;
-    word16 extsStart;
-    word16 extsLen;
+    word16 extsStart = 0;
+    word16 extsLen = 0;
     const byte* outerExtData;
 
     while (numOuterRefs-- > 0) {
