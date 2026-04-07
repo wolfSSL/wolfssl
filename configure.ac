@@ -2222,7 +2222,6 @@ then
     test "$enable_ecc" = "" && enable_ecc=yes
     test "$enable_curve25519" = "" && enable_curve25519=yes
     test "$enable_sha256" = "" && enable_sha256=yes
-    test "$enable_tlsx" = "" && enable_tlsx=yes
     test "$enable_sni" = "" && enable_sni=yes
     test "$enable_tls13" = "" && enable_tls13=yes
 fi
