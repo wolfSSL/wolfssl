@@ -83,6 +83,7 @@ jobs:
         with:
           repository: wolfssl/osp
           path: osp
+          fetch-depth: 1
 
       - name: Checkout jwt-cpp
         uses: actions/checkout@v4
@@ -90,6 +91,7 @@ jobs:
           repository: Thalhammer/jwt-cpp
           path: jwt-cpp
           ref: v${{ matrix.config.ref }}
+          fetch-depth: 1
 
       - name: Build pam-ipmi
         working-directory: jwt-cpp

@@ -65,6 +65,7 @@ jobs:
         with:
           repository: wolfssl/osp
           path: osp
+          fetch-depth: 1
 
       # Avoid DoS'ing ntp site so cache the tar.gz
       - name: Check if we have ntp

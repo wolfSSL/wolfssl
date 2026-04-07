@@ -117,6 +117,7 @@ jobs:
           repository: torvalds/linux
           path: linux
           ref: ${{ env.LINUX_REF }}
+          fetch-depth: 1
 
       - name: Compile linux
         if: steps.cache.outputs.cache-hit != 'true'
@@ -246,6 +247,7 @@ jobs:
           repository: wolfssl/osp
           path: osp
           ref: ${{ matrix.config.osp_ref }}
+          fetch-depth: 1
 
       - if: ${{ matrix.config.osp_ref }}
         name: Apply patch files

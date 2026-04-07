@@ -186,7 +186,7 @@ jobs:
         cp ./examples/configs/user_settings_all.h user_settings.h
         sed -i -e "s/if 0/if 1/" user_settings.h
         ./configure --enable-usersettings
-        make
+        make -j
         make check
 
   windows_build:

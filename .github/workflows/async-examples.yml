@@ -31,7 +31,7 @@ jobs:
       - name: Build async examples (no configure)
         run: |
           make -C examples/async clean
-          make -C examples/async ASYNC_MODE=${{ matrix.async_mode }} EXTRA_CFLAGS="${{ matrix.extra_cflags }}"
+          make -j -C examples/async ASYNC_MODE=${{ matrix.async_mode }} EXTRA_CFLAGS="${{ matrix.extra_cflags }}"
 
       - name: Run async examples
         run: |
