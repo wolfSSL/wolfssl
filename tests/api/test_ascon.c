@@ -180,6 +180,39 @@ int test_ascon_aead128(void)
         }
     }
 
+    /* Negative test: corrupted tag must be rejected with ASCON_AUTH_E. */
+    {
+        byte key[ASCON_AEAD128_KEY_SZ];
+        byte nonce[ASCON_AEAD128_NONCE_SZ];
+        byte pt[4] = { 0x00, 0x01, 0x02, 0x03 };
+        byte ct[4];
+        byte tag[ASCON_AEAD128_TAG_SZ];
+        byte buf[4];
+
+        XMEMSET(key, 0xAA, sizeof(key));
+        XMEMSET(nonce, 0xBB, sizeof(nonce));
+
+        ExpectIntEQ(wc_AsconAEAD128_Init(asconAEAD), 0);
+        ExpectIntEQ(wc_AsconAEAD128_SetKey(asconAEAD, key), 0);
+        ExpectIntEQ(wc_AsconAEAD128_SetNonce(asconAEAD, nonce), 0);
+        ExpectIntEQ(wc_AsconAEAD128_SetAD(asconAEAD, NULL, 0), 0);
+        ExpectIntEQ(wc_AsconAEAD128_EncryptUpdate(asconAEAD, ct, pt,
+                    sizeof(pt)), 0);
+        ExpectIntEQ(wc_AsconAEAD128_EncryptFinal(asconAEAD, tag), 0);
+
+        /* Corrupt one byte of the tag. */
+        tag[0] ^= 0x01;
+
+        ExpectIntEQ(wc_AsconAEAD128_Init(asconAEAD), 0);
+        ExpectIntEQ(wc_AsconAEAD128_SetKey(asconAEAD, key), 0);
+        ExpectIntEQ(wc_AsconAEAD128_SetNonce(asconAEAD, nonce), 0);
+        ExpectIntEQ(wc_AsconAEAD128_SetAD(asconAEAD, NULL, 0), 0);
+        ExpectIntEQ(wc_AsconAEAD128_DecryptUpdate(asconAEAD, buf, ct,
+                    sizeof(ct)), 0);
+        ExpectIntEQ(wc_AsconAEAD128_DecryptFinal(asconAEAD, tag),
+                    ASCON_AUTH_E);
+    }
+
     wc_AsconAEAD128_Free(asconAEAD);
 #endif
     return EXPECT_RESULT();
