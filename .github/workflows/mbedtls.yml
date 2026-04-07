@@ -19,7 +19,7 @@ jobs:
   build_mbedtls:
     name: Build mbedtls
     if: github.repository_owner == 'wolfssl'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 10
     steps:
@@ -38,6 +38,7 @@ jobs:
           repository: Mbed-TLS/mbedtls
           ref: ${{ env.MBED_REF }}
           path: mbedtls
+          fetch-depth: 1
 
       - name: Compile mbedtls
         if: steps.cache.outputs.cache-hit != 'true'
@@ -55,7 +56,7 @@ jobs:
   mbedtls_test:
     name: Test interop with mbedtls
     if: github.repository_owner == 'wolfssl'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: build_mbedtls
     timeout-minutes: 10
     steps:

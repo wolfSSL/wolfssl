@@ -71,6 +71,7 @@ jobs:
         with:
           repository: wolfssl/osp
           path: osp
+          fetch-depth: 1
 
       - name: Checkout openldap
         uses: actions/checkout@v4
@@ -78,6 +79,7 @@ jobs:
           repository: openldap/openldap
           path: openldap
           ref: ${{ matrix.git_ref }}
+          fetch-depth: 1
 
       - name: Build and test OpenLDAP
         working-directory: openldap

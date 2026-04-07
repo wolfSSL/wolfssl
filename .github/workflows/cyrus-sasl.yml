@@ -77,6 +77,7 @@ jobs:
         with:
           repository: wolfssl/osp
           path: osp
+          fetch-depth: 1
 
       - name: Checkout sasl
         uses: actions/checkout@v4
@@ -84,6 +85,7 @@ jobs:
           repository: cyrusimap/cyrus-sasl
           ref: cyrus-sasl-${{ matrix.ref }}
           path: sasl
+          fetch-depth: 1
 
       - name: Build cyrus-sasl
         working-directory: sasl

@@ -89,6 +89,7 @@ jobs:
         with:
           repository: wolfssl/osp
           path: osp
+          fetch-depth: 1
 
       - name: Build and test sssd
         uses: wolfSSL/actions-build-autotools-project@v1

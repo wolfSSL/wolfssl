@@ -83,6 +83,7 @@ jobs:
         repository: haproxy/haproxy
         ref: ${{matrix.haproxy_ref}}
         path: build-dir/haproxy-${{matrix.haproxy_ref}}
+        fetch-depth: 1
 
     - name: Build haproxy
       working-directory: build-dir/haproxy-${{matrix.haproxy_ref}}

@@ -76,6 +76,7 @@ jobs:
         with:
           repository: wolfssl/osp
           path: osp
+          fetch-depth: 1
 
       - name: Checkout SoftHSMv2
         uses: actions/checkout@v4
@@ -83,6 +84,7 @@ jobs:
           repository: opendnssec/SoftHSMv2
           path: softhsm
           ref: ${{ matrix.ref }}
+          fetch-depth: 1
 
       # Not using wolfSSL/actions-build-autotools-project@v1 because autogen.sh doesn't work
       - name: Build softhsm

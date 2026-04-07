@@ -52,6 +52,7 @@ jobs:
           repository: nss-dev/nss
           ref: ${{ env.NSS_REF }}
           path: nss
+          fetch-depth: 1
 
       - name: Compile nss
         if: steps.cache.outputs.cache-hit != 'true'

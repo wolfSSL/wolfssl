@@ -122,6 +122,7 @@ jobs:
         with:
           repository: wolfssl/osp
           path: osp
+          fetch-depth: 1
 
       - name: Checkout CPython
         uses: actions/checkout@v4
@@ -129,6 +130,7 @@ jobs:
           repository: python/cpython
           ref: v${{ matrix.python_ver }}
           path: cpython
+          fetch-depth: 1
 
       - name: Apply wolfSSL patch
         working-directory: cpython

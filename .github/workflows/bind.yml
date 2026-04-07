@@ -76,6 +76,7 @@ jobs:
         with:
           repository: wolfssl/osp
           path: osp
+          fetch-depth: 1
 
       - name: Checkout bind9
         uses: actions/checkout@v4
@@ -83,6 +84,7 @@ jobs:
           repository: isc-projects/bind9
           path: bind
           ref: v${{ matrix.ref }}
+          fetch-depth: 1
 
       - name: Build and test bind9
         working-directory: bind
