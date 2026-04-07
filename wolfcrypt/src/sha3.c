@@ -615,19 +615,8 @@ static word64 Load64BitLittleEndian(const byte* a)
     return n;
 }
 #elif defined(WC_SHA3_FAULT_HARDEN)
-static WC_INLINE word64 Load64Unaligned(const unsigned char *a)
-{
-#ifdef WC_64BIT_CPU
-    return *(word64*)a;
-#elif defined(WC_32BIT_CPU)
-    return (((word64)((word32*)a)[1]) << 32) |
-                     ((word32*)a)[0];
-#else
-    return (((word64)((word16*)a)[3]) << 48) |
-           (((word64)((word16*)a)[2]) << 32) |
-           (((word64)((word16*)a)[1]) << 16) |
-                     ((word16*)a)[0];
-#endif
+static WC_INLINE word64 Load64Unaligned(const unsigned char *a) {
+    return readUnalignedWord64(a);
 }
 
 /* Convert the array of bytes, in little-endian order, to a 64-bit integer.
