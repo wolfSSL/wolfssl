@@ -720,9 +720,14 @@ static Dtls13RecordNumber* Dtls13NewRecordNumber(w64wrapper epoch,
     return rn;
 }
 
+#ifndef DTLS13_MAX_ACK_RECORDS
+#define DTLS13_MAX_ACK_RECORDS 512
+#endif
+
 int Dtls13RtxAddAck(WOLFSSL* ssl, w64wrapper epoch, w64wrapper seq)
 {
     Dtls13RecordNumber* rn;
+    int count;
 
     WOLFSSL_ENTER("Dtls13RtxAddAck");
 
@@ -741,7 +746,9 @@ int Dtls13RtxAddAck(WOLFSSL* ssl, w64wrapper epoch, w64wrapper seq)
             return 0; /* list full, silently drop */
         }
 
+        count = 0;
         for (; cur != NULL; prevNext = &cur->next, cur = cur->next) {
+            count++;
             if (w64Equal(cur->epoch, epoch) && w64Equal(cur->seq, seq)) {
                 /* already in list. no duplicates. */
     #ifdef WOLFSSL_RW_THREADED
@@ -754,6 +761,16 @@ int Dtls13RtxAddAck(WOLFSSL* ssl, w64wrapper epoch, w64wrapper seq)
                             && w64LT(seq, cur->seq))) {
                 break;
             }
+        }
+
+        /* Cap the ACK list to prevent word16 overflow in
+         * Dtls13GetAckListLength and bound memory consumption */
+        if (count >= DTLS13_MAX_ACK_RECORDS) {
+            WOLFSSL_MSG("DTLS 1.3 ACK list full, dropping record");
+        #ifdef WOLFSSL_RW_THREADED
+            wc_UnLockMutex(&ssl->dtls13Rtx.mutex);
+        #endif
+            return 0;
         }
 
         rn = Dtls13NewRecordNumber(epoch, seq, ssl->heap);
