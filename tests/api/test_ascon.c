@@ -210,7 +210,7 @@ int test_ascon_aead128(void)
         ExpectIntEQ(wc_AsconAEAD128_DecryptUpdate(asconAEAD, buf, ct,
                     sizeof(ct)), 0);
         ExpectIntEQ(wc_AsconAEAD128_DecryptFinal(asconAEAD, tag),
-                    ASCON_AUTH_E);
+                    WC_NO_ERR_TRACE(ASCON_AUTH_E));
     }
 
     wc_AsconAEAD128_Free(asconAEAD);
