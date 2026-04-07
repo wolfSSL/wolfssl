@@ -2423,8 +2423,6 @@ enum Max_ASN {
 
 #endif /* WOLFSSL_CERT_GEN */
 
-#define EVP_EXPONENT_PRINT_MAX 24
-
 #ifdef __cplusplus
     }   /* extern "C" */
 #endif
