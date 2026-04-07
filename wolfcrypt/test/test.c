@@ -11009,6 +11009,51 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ascon_aead128_test(void)
         }
     }
 
+    /* Negative test: corrupted tag must be rejected with ASCON_AUTH_E. */
+    {
+        byte tkey[ASCON_AEAD128_KEY_SZ];
+        byte tnonce[ASCON_AEAD128_NONCE_SZ];
+        byte tpt[4] = { 0x00, 0x01, 0x02, 0x03 };
+        byte tct[4];
+        byte ttag[ASCON_AEAD128_TAG_SZ];
+        byte tbuf[4];
+
+        XMEMSET(tkey, 0xAA, sizeof(tkey));
+        XMEMSET(tnonce, 0xBB, sizeof(tnonce));
+
+        err = wc_AsconAEAD128_Init(&asconAEAD);
+        if (err != 0) return WC_TEST_RET_ENC_EC(err);
+        err = wc_AsconAEAD128_SetKey(&asconAEAD, tkey);
+        if (err != 0) return WC_TEST_RET_ENC_EC(err);
+        err = wc_AsconAEAD128_SetNonce(&asconAEAD, tnonce);
+        if (err != 0) return WC_TEST_RET_ENC_EC(err);
+        err = wc_AsconAEAD128_SetAD(&asconAEAD, NULL, 0);
+        if (err != 0) return WC_TEST_RET_ENC_EC(err);
+        err = wc_AsconAEAD128_EncryptUpdate(&asconAEAD, tct, tpt, sizeof(tpt));
+        if (err != 0) return WC_TEST_RET_ENC_EC(err);
+        err = wc_AsconAEAD128_EncryptFinal(&asconAEAD, ttag);
+        if (err != 0) return WC_TEST_RET_ENC_EC(err);
+
+        /* Corrupt one byte of the tag. */
+        ttag[0] ^= 0x01;
+
+        err = wc_AsconAEAD128_Init(&asconAEAD);
+        if (err != 0) return WC_TEST_RET_ENC_EC(err);
+        err = wc_AsconAEAD128_SetKey(&asconAEAD, tkey);
+        if (err != 0) return WC_TEST_RET_ENC_EC(err);
+        err = wc_AsconAEAD128_SetNonce(&asconAEAD, tnonce);
+        if (err != 0) return WC_TEST_RET_ENC_EC(err);
+        err = wc_AsconAEAD128_SetAD(&asconAEAD, NULL, 0);
+        if (err != 0) return WC_TEST_RET_ENC_EC(err);
+        err = wc_AsconAEAD128_DecryptUpdate(&asconAEAD, tbuf, tct, sizeof(tct));
+        if (err != 0) return WC_TEST_RET_ENC_EC(err);
+        err = wc_AsconAEAD128_DecryptFinal(&asconAEAD, ttag);
+        if (err != ASCON_AUTH_E) {
+            return WC_TEST_RET_ENC_EC(err);
+        }
+        wc_AsconAEAD128_Clear(&asconAEAD);
+    }
+
     return 0;
 }
 #endif /* HAVE_ASCON */
