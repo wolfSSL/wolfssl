@@ -23530,7 +23530,8 @@ default:
                         WOLFSSL_MSG("Dropping DTLS record outside receiving "
                                     "window");
                         ssl->options.processReply = doProcessInit;
-                        ssl->buffers.inputBuffer.idx += ssl->curSize;
+                        ssl->buffers.inputBuffer.idx += ssl->curSize
+                            + ssl->keys.padSz;
                         if (ssl->buffers.inputBuffer.idx >
                                 ssl->buffers.inputBuffer.length)
                             return BUFFER_E;
@@ -23645,8 +23646,12 @@ default:
                                    exit */
                                 ssl->earlyData = no_early_data;
                                 ssl->options.processReply = doProcessInit;
-                                if (ssl->options.clientInEarlyData)
+                                if (ssl->options.clientInEarlyData) {
+                                    if (IsEncryptionOn(ssl, 0))
+                                        ssl->buffers.inputBuffer.idx +=
+                                            ssl->keys.padSz;
                                     return APP_DATA_READY;
+                                }
                             }
 #endif /* WOLFSSL_EARLY_DATA */
                             if (ret == 0 ||
@@ -23692,8 +23697,12 @@ default:
                                 ssl->options.handShakeState == HANDSHAKE_DONE) {
                             ssl->earlyData = no_early_data;
                             ssl->options.processReply = doProcessInit;
-                            if (ssl->options.clientInEarlyData)
+                            if (ssl->options.clientInEarlyData) {
+                                if (IsEncryptionOn(ssl, 0))
+                                    ssl->buffers.inputBuffer.idx +=
+                                        ssl->keys.padSz;
                                 return APP_DATA_READY;
+                            }
                         }
     #endif
 #else
