@@ -2212,6 +2212,8 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
 #endif
             }
 
+            if (d != NULL)
+                ForceZero(d, dSz);
             XFREE(d, key->heap, DYNAMIC_TYPE_PRIVATE_KEY);
         }
     #endif
