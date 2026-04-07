@@ -32932,6 +32932,7 @@ WC_MAYBE_UNUSED static int EncodeBasicOcspResponse(OcspResponse* resp,
     if (ret == 0) {
         SetASN_OID(&dataASN[OCSPBASICRESPASN_IDX_SIGALGO_OID], resp->sigOID,
                 oidSigType);
+    #ifdef WC_RSA_PSS
         if (resp->sigParams != NULL && resp->sigParamsSz != 0) {
             SetASN_Buffer(&dataASN[OCSPBASICRESPASN_IDX_SIGNATURE_PARAMS],
                 resp->sigParams, resp->sigParamsSz);
@@ -32941,6 +32942,7 @@ WC_MAYBE_UNUSED static int EncodeBasicOcspResponse(OcspResponse* resp,
                 OCSPBASICRESPASN_IDX_SIGNATURE_PARAMS,
                 ocspBasicRespASN_Length);
         }
+    #endif
         if (resp->cert != NULL && resp->certSz > 0) {
             SetASN_Buffer(&dataASN[OCSPBASICRESPASN_IDX_CERTS_SEQ],
                 resp->cert, resp->certSz);
