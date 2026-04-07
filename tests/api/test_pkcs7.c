@@ -4718,7 +4718,7 @@ int test_wc_PKCS7_DecodeCompressedData(void)
     XFREE(decompressed, heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     if (cert_buf != NULL)
-        free(cert_buf);
+        XFREE(cert_buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     wc_PKCS7_Free(pkcs7);
 #endif
     return EXPECT_RESULT();
