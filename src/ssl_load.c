@@ -1672,7 +1672,7 @@ static int ProcessBufferCertPublicKey(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
                     ECC_KEY_SIZE_E);
             }
             break;
-    #endif /* HAVE_ED25519 */
+    #endif /* WOLFSSL_SM2 && WOLFSSL_SM3 */
     #ifdef HAVE_ED25519
         case ED25519k:
             keyType = ed25519_sa_algo;
@@ -1882,7 +1882,7 @@ static int ProcessBufferCertAltPublicKey(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
                     ECC_KEY_SIZE_E);
             }
             break;
-    #endif /* HAVE_ED25519 */
+    #endif /* WOLFSSL_SM2 && WOLFSSL_SM3 */
     #ifdef HAVE_ED25519
         case ED25519k:
             keyType = ed25519_sa_algo;
