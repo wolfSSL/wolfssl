@@ -66715,6 +66715,29 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_siv_test(void)
         }
     }
 
+    /* Negative test: corrupted SIV must be rejected with AES_SIV_AUTH_E. */
+    {
+        ret = wc_AesSivEncrypt(testVectors[0].key, testVectors[0].keySz,
+                              testVectors[0].assoc1, testVectors[0].assoc1Sz,
+                              testVectors[0].nonce, testVectors[0].nonceSz,
+                              testVectors[0].plaintext,
+                              testVectors[0].plaintextSz, siv,
+                              computedCiphertext);
+        if (ret != 0) {
+            return WC_TEST_RET_ENC_EC(ret);
+        }
+        /* Corrupt one byte of the SIV tag. */
+        siv[0] ^= 0x01;
+        ret = wc_AesSivDecrypt(testVectors[0].key, testVectors[0].keySz,
+                              testVectors[0].assoc1, testVectors[0].assoc1Sz,
+                              testVectors[0].nonce, testVectors[0].nonceSz,
+                              computedCiphertext, testVectors[0].plaintextSz,
+                              siv, computedPlaintext);
+        if (ret != AES_SIV_AUTH_E) {
+            return WC_TEST_RET_ENC_EC(ret);
+        }
+    }
+
     return 0;
 }
 #endif
