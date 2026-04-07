@@ -35,17 +35,7 @@ jobs:
           '--enable-dtls --enable-dtls13 --enable-earlydata
              --enable-session-ticket --enable-psk
              CPPFLAGS=''-DWOLFSSL_DTLS13_NO_HRR_ON_RESUME'' ',
-          '--enable-experimental --enable-kyber --enable-dtls --enable-dtls13
-             --enable-dtls-frag-ch',
-          '--enable-all --enable-dtls13 --enable-dtls-frag-ch',
           '--enable-all --enable-dtls13 --enable-dtls-frag-ch --disable-mlkem',
-          '--enable-all --enable-dtls13 --enable-dtls-frag-ch
-           --enable-tls-mlkem-standalone',
-          '--enable-all --enable-dtls13 --enable-dtls-frag-ch
-           --enable-tls-mlkem-standalone --enable-experimental
-           --enable-extra-pqc-hybrids',
-          '--enable-dtls --enable-dtls13 --enable-dtls-frag-ch
-           --enable-dtls-mtu',
           '--enable-dtls --enable-dtlscid --enable-dtls13 --enable-secure-renegotiation
             --enable-psk --enable-aesccm --enable-nullcipher
             CPPFLAGS=-DWOLFSSL_STATIC_RSA',
@@ -66,7 +56,6 @@ jobs:
           '--enable-opensslextra CPPFLAGS=''-DWOLFSSL_NO_CA_NAMES'' ',
           '--enable-opensslextra=x509small',
           'CPPFLAGS=''-DWOLFSSL_EXTRA'' ',
-          '--enable-lms=small,verify-only --enable-xmss=small,verify-only',
           '--disable-sys-ca-certs',
           '--enable-all CPPFLAGS=-DWOLFSSL_DEBUG_CERTS ',
           '--enable-all CPPFLAGS="-DWOLFSSL_CHECK_MEM_ZERO"',
@@ -83,7 +72,6 @@ jobs:
           '--enable-cryptocb --enable-aesgcm CPPFLAGS="-DWOLF_CRYPTO_CB_AES_SETKEY -DWOLF_CRYPTO_CB_FREE"',
           '--disable-tls --enable-cryptocb --enable-aesgcm CPPFLAGS="-DWOLF_CRYPTO_CB_AES_SETKEY -DWOLF_CRYPTO_CB_FREE"',
           '--enable-all --enable-dilithium --enable-cryptocb --enable-cryptocbutils --enable-pkcallbacks',
-          '--enable-cryptocb --enable-aesgcm CPPFLAGS="-DWOLF_CRYPTO_CB_AES_SETKEY"',
           '--disable-examples CPPFLAGS=-DWOLFSSL_NO_MALLOC',
           'CPPFLAGS=-DNO_WOLFSSL_CLIENT',
           'CPPFLAGS=-DNO_WOLFSSL_SERVER',

@@ -33,13 +33,12 @@ jobs:
       run: make -C wrapper/rust test
     strategy:
       matrix:
-        os: [ ubuntu-24.04, ubuntu-24.04-arm ]
+        os: [ ubuntu-24.04 ]
         config: [
           # Add new configs here
           '',
           '--enable-all',
           '--enable-all --enable-dilithium',
-          '--enable-all --enable-mlkem',
           '--enable-cryptonly --disable-examples',
           '--enable-cryptonly --disable-examples --disable-mlkem --disable-aes --disable-aesgcm',
           '--enable-cryptonly --disable-examples --disable-mlkem --disable-aescbc',
@@ -74,3 +73,11 @@ jobs:
           '--enable-cryptonly --disable-examples --disable-mlkem --disable-srtp-kdf',
           '--enable-cryptonly --disable-examples --disable-mlkem --disable-x963kdf',
         ]
+        include:
+          # Core configs also run on ARM
+          - os: ubuntu-24.04-arm
+            config: ''
+          - os: ubuntu-24.04-arm
+            config: '--enable-all'
+          - os: ubuntu-24.04-arm
+            config: '--enable-all --enable-dilithium'

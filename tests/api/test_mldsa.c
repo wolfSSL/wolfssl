@@ -24992,8 +24992,8 @@ int test_mldsa_pkcs12(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_ASN) && defined(HAVE_PKCS12) && \
-    defined(HAVE_DILITHIUM) && !defined(NO_TLS) && \
-    !defined(NO_PWDBASED) && !defined(NO_HMAC) && \
+    defined(HAVE_DILITHIUM) && defined(WOLFSSL_DILITHIUM_PRIVATE_KEY) && \
+    !defined(NO_TLS) && !defined(NO_PWDBASED) && !defined(NO_HMAC) && \
     !defined(NO_CERTS) && !defined(NO_DES3) && \
     (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && \
     defined(WOLFSSL_CERT_GEN)
