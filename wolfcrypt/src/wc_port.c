@@ -19,6 +19,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#if (defined(__linux__) || defined(__ANDROID__)) && \
+    !defined(WOLFSSL_LINUXKM) && !defined(WOLFSSL_ZEPHYR) && \
+    !defined(_GNU_SOURCE)
+    #define _GNU_SOURCE 1
+#endif
+
 /*
 wolfCrypt Porting Build Options:
 
@@ -5129,6 +5135,76 @@ char* wolfSSL_strnstr(const char* s1, const char* s2, unsigned int n)
 #endif /* Environment check */
 
 #endif /* not SINGLE_THREADED */
+
+#if (defined(__unix__) || defined(__APPLE__)) && \
+    !defined(WOLFSSL_LINUXKM) && !defined(WOLFSSL_ZEPHYR)
+
+#include <fcntl.h>
+#include <errno.h>
+#include <sys/socket.h>
+
+#ifndef O_CLOEXEC
+    #define O_CLOEXEC 0
+#endif
+#ifndef SOCK_CLOEXEC
+    #define SOCK_CLOEXEC 0
+#endif
+
+void wc_set_cloexec(int fd)
+{
+#ifdef FD_CLOEXEC
+    int fdFlags;
+    if (fd < 0)
+        return;
+    fdFlags = fcntl(fd, F_GETFD);
+    if (fdFlags >= 0)
+        (void)fcntl(fd, F_SETFD, fdFlags | FD_CLOEXEC);
+#else
+    (void)fd;
+#endif
+}
+
+int wc_open_cloexec(const char* path, int flags)
+{
+    int fd = open(path, flags | O_CLOEXEC);
+#ifdef FD_CLOEXEC
+    if (fd < 0 && errno == EINVAL) {
+        fd = open(path, flags);
+        wc_set_cloexec(fd);
+    }
+#endif
+    return fd;
+}
+
+int wc_socket_cloexec(int domain, int type, int protocol)
+{
+    int fd = socket(domain, type | SOCK_CLOEXEC, protocol);
+#ifdef FD_CLOEXEC
+    if (fd < 0 && errno == EINVAL) {
+        fd = socket(domain, type, protocol);
+        wc_set_cloexec(fd);
+    }
+#endif
+    return fd;
+}
+
+int wc_accept_cloexec(int sockfd, void* addr, void* addrlen)
+{
+    int fd;
+#if defined(__linux__) || defined(__ANDROID__)
+    fd = accept4(sockfd, (struct sockaddr*)addr, (socklen_t*)addrlen,
+                 SOCK_CLOEXEC);
+    if (fd >= 0)
+        return fd;
+    if (errno != ENOSYS && errno != EINVAL)
+        return fd;
+#endif
+    fd = accept(sockfd, (struct sockaddr*)addr, (socklen_t*)addrlen);
+    wc_set_cloexec(fd);
+    return fd;
+}
+
+#endif /* (__unix__ || __APPLE__) && !WOLFSSL_LINUXKM && !WOLFSSL_ZEPHYR */
 
 #if defined(WOLFSSL_LINUXKM) && defined(CONFIG_ARM64) && \
     defined(WC_SYM_RELOC_TABLES)

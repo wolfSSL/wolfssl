@@ -204,8 +204,8 @@ This library contains implementation for the random number generator.
 #elif defined(WOLFSSL_MAX3266X) || defined(WOLFSSL_MAX3266X_OLD)
     #include "wolfssl/wolfcrypt/port/maxim/max3266x.h"
 #else
+    #include <errno.h>
     #if defined(WOLFSSL_GETRANDOM) || defined(HAVE_GETRANDOM)
-        #include <errno.h>
         #include <sys/random.h>
     #endif
     /* include headers that may be needed to get good seed */
@@ -3829,7 +3829,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         if (!os->seedFdOpen)
         {
         #ifndef NO_DEV_URANDOM /* way to disable use of /dev/urandom */
-            os->fd = open("/dev/urandom", O_RDONLY);
+            os->fd = wc_open_cloexec("/dev/urandom", O_RDONLY);
             #if defined(DEBUG_WOLFSSL)
                 WOLFSSL_MSG("opened /dev/urandom.");
             #endif /* DEBUG_WOLFSSL */
@@ -3837,7 +3837,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         #endif /* NO_DEV_URANDOM */
             {
                 /* may still have /dev/random */
-                os->fd = open("/dev/random", O_RDONLY);
+                os->fd = wc_open_cloexec("/dev/random", O_RDONLY);
             #if defined(DEBUG_WOLFSSL)
                 WOLFSSL_MSG("opened /dev/random.");
             #endif /* DEBUG_WOLFSSL */
@@ -3855,7 +3855,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         }
     #else /* WOLFSSL_KEEP_RNG_SEED_FD_OPEN */
         #ifndef NO_DEV_URANDOM /* way to disable use of /dev/urandom */
-        os->fd = open("/dev/urandom", O_RDONLY);
+        os->fd = wc_open_cloexec("/dev/urandom", O_RDONLY);
         #if defined(DEBUG_WOLFSSL)
             WOLFSSL_MSG("opened /dev/urandom.");
         #endif /* DEBUG_WOLFSSL */
@@ -3863,7 +3863,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         #endif /* !NO_DEV_URANDOM */
         {
             /* may still have /dev/random */
-            os->fd = open("/dev/random", O_RDONLY);
+            os->fd = wc_open_cloexec("/dev/random", O_RDONLY);
         #if defined(DEBUG_WOLFSSL)
             WOLFSSL_MSG("opened /dev/random.");
         #endif /* DEBUG_WOLFSSL */
@@ -3944,7 +3944,7 @@ int wc_hwrng_generate_block(byte *output, word32 sz)
 {
     int fd;
     int ret = 0;
-    fd = open("/dev/hwrng", O_RDONLY);
+    fd = wc_open_cloexec("/dev/hwrng", O_RDONLY);
     if (fd == -1)
         return OPEN_RAN_E;
     while(sz)

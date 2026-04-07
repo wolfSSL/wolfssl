@@ -1860,6 +1860,24 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define WC_GENERATE_SEED_DEFAULT wc_GenerateSeed
 #endif
 
+#if (defined(__unix__) || defined(__APPLE__)) && \
+    !defined(WOLFSSL_LINUXKM) && !defined(WOLFSSL_ZEPHYR)
+    WOLFSSL_LOCAL void wc_set_cloexec(int fd);
+    WOLFSSL_LOCAL int wc_open_cloexec(const char* path, int flags);
+    WOLFSSL_LOCAL int wc_socket_cloexec(int domain, int type, int protocol);
+    WOLFSSL_LOCAL int wc_accept_cloexec(int sockfd, void* addr, void* addrlen);
+#else
+    /* Platforms without POSIX close-on-exec semantics (Windows, OS/2 OW,
+     * Linux kernel module, Zephyr, etc.): pass through to plain syscalls
+     * where the underlying headers are available in the caller. */
+    #define wc_set_cloexec(fd) ((void)(fd))
+    #define wc_open_cloexec(path, flags) open((path), (flags))
+    #define wc_socket_cloexec(domain, type, protocol) \
+        socket((domain), (type), (protocol))
+    #define wc_accept_cloexec(sockfd, addr, addrlen) \
+        accept((sockfd), (addr), (addrlen))
+#endif
+
 #ifdef __cplusplus
     }  /* extern "C" */
 #endif

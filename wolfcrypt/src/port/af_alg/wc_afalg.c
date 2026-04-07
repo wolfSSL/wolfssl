@@ -19,12 +19,20 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#if defined(__linux__) && !defined(_GNU_SOURCE)
+    #define _GNU_SOURCE 1
+#endif
+
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #if defined(WOLFSSL_AFALG) || defined(WOLFSSL_AFALG_XILINX)
 
 #include <wolfssl/wolfcrypt/port/af_alg/wc_afalg.h>
 #include <linux/if_alg.h>
+#include <sys/socket.h>
+#include <errno.h>
+#include <fcntl.h>
+
 
 
 /* Sets the type of socket address to use */
@@ -56,7 +64,7 @@ int wc_Afalg_Accept(struct sockaddr_alg* in, int inSz, int sock)
         return WC_AFALG_SOCK_E;
     }
 
-    return accept(sock, NULL, 0);
+    return wc_accept_cloexec(sock, NULL, NULL);
 }
 
 
@@ -66,7 +74,8 @@ int wc_Afalg_Socket(void)
 {
     int sock;
 
-    if ((sock = socket(AF_ALG, SOCK_SEQPACKET, 0)) < 0) {
+    sock = wc_socket_cloexec(AF_ALG, SOCK_SEQPACKET, 0);
+    if (sock < 0) {
         WOLFSSL_MSG("Failed to get AF_ALG socket");
         return WC_AFALG_SOCK_E;
     }

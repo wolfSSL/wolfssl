@@ -1574,16 +1574,30 @@ static const char* bench_result_words3[][5] = {
     #include <linux/perf_event.h>
     #include <sys/syscall.h>
     #include <unistd.h>
+    #include <fcntl.h>
+    #include <errno.h>
+
+    #ifndef PERF_FLAG_FD_CLOEXEC
+        #define PERF_FLAG_FD_CLOEXEC (1UL << 3)
+    #endif
 
     static THREAD_LS_T word64 begin_cycles;
     static THREAD_LS_T word64 total_cycles;
     static THREAD_LS_T int cycles = -1;
     static THREAD_LS_T struct perf_event_attr atr;
 
+    /* Try with PERF_FLAG_FD_CLOEXEC first; on older kernels (< 3.14) this
+     * fails with EINVAL, so fall back to flags=0 and set FD_CLOEXEC via
+     * fcntl() as a best-effort. */
     #define INIT_CYCLE_COUNTER do {                                            \
         atr.type   = PERF_TYPE_HARDWARE;                                       \
         atr.config = PERF_COUNT_HW_CPU_CYCLES;                                 \
-        cycles = (int)syscall(__NR_perf_event_open, &atr, 0, -1, -1, 0);       \
+        cycles = (int)syscall(__NR_perf_event_open, &atr, 0, -1, -1,           \
+                              PERF_FLAG_FD_CLOEXEC);                           \
+        if (cycles < 0 && errno == EINVAL) {                                   \
+            cycles = (int)syscall(__NR_perf_event_open, &atr, 0, -1, -1, 0);   \
+            wc_set_cloexec(cycles);                                            \
+        }                                                                      \
     } while (0);
 
     #define BEGIN_CYCLES read(cycles, &begin_cycles, sizeof(begin_cycles));
