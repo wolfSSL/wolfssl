@@ -13621,6 +13621,32 @@ static int CopyBaseEntry(Base_entry** to, Base_entry* from, void* heap)
         *  OPENSSL_EXTRA_X509_SMALL) && !IGNORE_NAME_CONSTRAINTS */
 
 #if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS) || \
+    defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+    defined(WOLFSSL_ACERT)
+/* Copy an ASN-encoded date (type + length + data) into a WOLFSSL_ASN1_TIME.
+ * srcDate: ASN date buffer where [0]=type, [1]=length, [2..]=date bytes.
+ * srcDateLen: total length of srcDate (0 means no date present). */
+static void CopyDateToASN1_TIME(const byte* srcDate, int srcDateLen,
+                                WOLFSSL_ASN1_TIME* dst)
+{
+    if (srcDateLen >= 2) {
+        /* Clamp the date length to the maximum allowed size.
+         * This needs to match the size of WOLFSSL_ASN1_TIME minus the
+         * the type and length fields. */
+        const int maxSz = CTC_DATE_SIZE - 2;
+        const int copySz = (int)min(srcDate[1], maxSz);
+        dst->type = srcDate[0];
+        dst->length = copySz;
+        XMEMCPY(dst->data, &srcDate[2], copySz);
+    }
+    else {
+        dst->length = 0;
+    }
+}
+#endif /* KEEP_PEER_CERT || SESSION_CERTS || OPENSSL_EXTRA ||
+        *  OPENSSL_EXTRA_X509_SMALL || WOLFSSL_ACERT */
+
+#if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS) || \
     defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 void CopyDecodedName(WOLFSSL_X509_NAME* name, DecodedCert* dCert, int nameType)
 {
@@ -13765,27 +13791,6 @@ static int CopyREQAttributes(WOLFSSL_X509* x509, DecodedCert* dCert)
     return ret;
 }
 #endif /* WOLFSSL_CERT_REQ */
-
-/* Copy an ASN-encoded date (type + length + data) into a WOLFSSL_ASN1_TIME.
- * srcDate: ASN date buffer where [0]=type, [1]=length, [2..]=date bytes.
- * srcDateLen: total length of srcDate (0 means no date present). */
-static void CopyDateToASN1_TIME(const byte* srcDate, int srcDateLen,
-                                WOLFSSL_ASN1_TIME* dst)
-{
-    if (srcDateLen >= 2) {
-        /* Clamp the date length to the maximum allowed size.
-         * This needs to match the size of WOLFSSL_ASN1_TIME minus the
-         * the type and length fields. */
-        const int maxSz = CTC_DATE_SIZE - 2;
-        const int copySz = (int)min(srcDate[1], maxSz);
-        dst->type = srcDate[0];
-        dst->length = copySz;
-        XMEMCPY(dst->data, &srcDate[2], copySz);
-    }
-    else {
-        dst->length = 0;
-    }
-}
 
 /* Copy parts X509 needs from Decoded cert, 0 on success */
 int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
