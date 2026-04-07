@@ -2120,6 +2120,7 @@ WOLFSSL_API long wolfSSL_BIO_set_nbio(WOLFSSL_BIO* bio, long on);
 WOLFSSL_API int wolfSSL_BIO_get_mem_data(WOLFSSL_BIO* bio,void* p);
 
 WOLFSSL_API void wolfSSL_BIO_set_init(WOLFSSL_BIO* bio, int init);
+WOLFSSL_API int  wolfSSL_BIO_get_init(WOLFSSL_BIO* bio);
 WOLFSSL_API void wolfSSL_BIO_set_data(WOLFSSL_BIO* bio, void* ptr);
 WOLFSSL_API void* wolfSSL_BIO_get_data(WOLFSSL_BIO* bio);
 WOLFSSL_API void wolfSSL_BIO_set_shutdown(WOLFSSL_BIO* bio, int shut);

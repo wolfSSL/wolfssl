@@ -2032,6 +2032,12 @@ void wolfSSL_BIO_set_init(WOLFSSL_BIO* bio, int init)
         bio->init = (byte)(init != 0);
 }
 
+int wolfSSL_BIO_get_init(WOLFSSL_BIO* bio)
+{
+    WOLFSSL_ENTER("wolfSSL_BIO_get_init");
+    return bio != NULL && bio->init;
+}
+
 /* If flag is 0 then blocking is set, if 1 then non blocking.
  * Always returns WOLFSSL_SUCCESS.
  */
