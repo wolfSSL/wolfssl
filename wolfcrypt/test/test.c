@@ -3682,7 +3682,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t error_test(void)
 {
     const char* errStr;
     char        out[WOLFSSL_MAX_ERROR_SZ]; /* test fails if too small, < 64 */
-    const char* unknownStr = wc_GetErrorString(0);
+    const char* unknownStr = wc_GetErrorString((int)WC_LAST_E - 1);
 
 #ifdef NO_ERROR_STRINGS
     /* Ensure a valid error code's string matches an invalid code's.
@@ -21066,6 +21066,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
+    {
+        struct wc_rng_bank_inst *bogus_inst = (struct wc_rng_bank_inst *)(wc_ptr_t)bank;
+        ret = wc_rng_bank_checkin(bank, &bogus_inst);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    }
+
     ret = wc_rng_bank_checkin(bank, &rng_inst);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -21104,6 +21111,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
 #ifdef WC_DRBG_BANKREF
+    ret = wc_InitRng_BankRef(NULL, rng);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_InitRng_BankRef(bank, NULL);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
     ret = wc_InitRng_BankRef(bank, rng);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -21116,6 +21131,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     if (XMEMCMP(outbuf1, outbuf2, sizeof(outbuf1)) == 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #endif
+
+    ret = wc_rng_bank_reseed(NULL, 10, WC_RNG_BANK_FLAG_NONE);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     ret = wc_rng_bank_reseed(bank, 10, WC_RNG_BANK_FLAG_NONE);
     if (ret != 0)
@@ -21180,6 +21199,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
+    ret = wc_rng_bank_seed(NULL, (byte *)bank_arg, (word32)sizeof(bank_arg), 10, WC_RNG_BANK_FLAG_CAN_WAIT);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
     ret = wc_rng_bank_seed(bank, (byte *)bank_arg, (word32)sizeof(bank_arg), 10, WC_RNG_BANK_FLAG_CAN_WAIT);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -21199,6 +21222,15 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     if (XMEMCMP(outbuf1, outbuf2, sizeof(outbuf1)) == 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
+    ret = wc_rng_bank_inst_reinit(NULL, rng_inst, 10, WC_RNG_BANK_FLAG_CAN_WAIT);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* bogus pointer test */
+    ret = wc_rng_bank_inst_reinit(bank, (struct wc_rng_bank_inst *)(wc_ptr_t)bank, 10, WC_RNG_BANK_FLAG_CAN_WAIT);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
     ret = wc_rng_bank_inst_reinit(bank, rng_inst, 10, WC_RNG_BANK_FLAG_CAN_WAIT);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -21210,8 +21242,16 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     if (XMEMCMP(outbuf1, outbuf2, sizeof(outbuf1)) == 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
+    ret = wc_rng_bank_checkin(NULL, &rng_inst);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
     ret = wc_rng_bank_checkin(bank, &rng_inst);
     if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_rng_bank_checkout(NULL, &rng_inst, -1, 10, WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST | WC_RNG_BANK_FLAG_AFFINITY_LOCK);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
 #ifdef WC_DRBG_BANKREF
@@ -21227,6 +21267,70 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     if (wolfSSL_RefCur(bank->refcount) != 1)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #endif
+
+#ifdef WC_RNG_BANK_DEFAULT_SUPPORT
+
+    ret = wc_rng_bank_default_clear(NULL);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_rng_bank_default_clear(bank);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_rng_bank_default_set(bank);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* When gated in, passing a NULL bank arg to wc_rng_bank_checkout(),
+     * wc_rng_bank_checkin(), wc_rng_bank_inst_reinit(), wc_rng_bank_seed(),
+     * wc_rng_bank_reseed(), wc_InitRng_BankRef(), or wc_rng_new_bankref()
+     * implicitly designates the default bank.
+     */
+    ret = wc_rng_bank_checkout(NULL, &rng_inst, 3, 10, WC_RNG_BANK_FLAG_NONE);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (rng_inst != bank->rngs + 3)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    ret = wc_rng_bank_inst_reinit(NULL, rng_inst, 10, WC_RNG_BANK_FLAG_CAN_WAIT);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+#ifdef WC_DRBG_BANKREF
+    ret = wc_InitRng_BankRef(NULL, rng);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    wc_FreeRng(rng);
+
+#ifndef WC_RNG_BANK_STATIC
+    ret = wc_rng_new_bankref(NULL, &rng2);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    wc_rng_free(rng2);
+    rng2 = NULL;
+#endif
+
+#endif
+
+    ret = wc_rng_bank_checkin(NULL, &rng_inst);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_rng_bank_seed(NULL, (byte *)bank_arg, (word32)sizeof(bank_arg), 10, WC_RNG_BANK_FLAG_CAN_WAIT);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_rng_bank_reseed(NULL, 10, WC_RNG_BANK_FLAG_NONE);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_rng_bank_default_clear(bank);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+#endif /* WC_RNG_BANK_DEFAULT_SUPPORT */
 
 #ifdef WC_RNG_BANK_STATIC
 
@@ -21319,6 +21423,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
 #ifdef WC_DRBG_BANKREF
+    ret = wc_rng_new_bankref(NULL, &rng2);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_rng_new_bankref(bank2, NULL);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
     ret = wc_rng_new_bankref(bank2, &rng2);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
