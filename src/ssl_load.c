@@ -5202,7 +5202,7 @@ int wolfSSL_add1_chain_cert(WOLFSSL* ssl, WOLFSSL_X509* x509)
     }
 
     /* Increase reference count on X509 object before adding. */
-    if ((ret == 1) && ((ret == wolfSSL_X509_up_ref(x509)) == 1)) {
+    if ((ret == 1) && ((ret = wolfSSL_X509_up_ref(x509)) == 1)) {
         /* Add this to the chain. */
         if ((ret = wolfSSL_add0_chain_cert(ssl, x509)) != 1) {
             /* Decrease reference count on error as not stored. */
