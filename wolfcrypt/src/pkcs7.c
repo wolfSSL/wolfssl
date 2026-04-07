@@ -13263,18 +13263,16 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
 
             padLen = encryptedContent[encryptedContentSz-1];
 
-            /* copy plaintext to output */
-            if (padLen == 0 || padLen > expBlockSz ||
-                padLen > encryptedContentSz) {
-                ret = BUFFER_E;
-                break;
-            }
-
-            /* Check all padding bytes. Better implementation would be to run
-             * through the entire block. */
-            for (padIndex = encryptedContentSz - padLen;
+            /* Constant-time padding check */
+            padCheck |= ctMaskEq(padLen, 0);
+            padCheck |= ctMaskGT(padLen, expBlockSz);
+            padCheck |= ctMaskGT(padLen, encryptedContentSz);
+            padCheck |= ctMaskGT(expBlockSz, encryptedContentSz);
+            for (padIndex = encryptedContentSz - expBlockSz;
                  padIndex < encryptedContentSz; padIndex++) {
-                padCheck |= encryptedContent[padIndex] ^ padLen;
+                byte inPad = ctMaskGTE(padIndex,
+                                       encryptedContentSz - (int)padLen);
+                padCheck |= inPad & (encryptedContent[padIndex] ^ padLen);
             }
             if (padCheck != 0) {
                 ret = BUFFER_E;
@@ -15331,19 +15329,16 @@ int wc_PKCS7_DecodeEncryptedData(wc_PKCS7* pkcs7, byte* in, word32 inSz,
             if (ret == 0) {
                 padLen = encryptedContent[encryptedContentSz-1];
 
-                if (padLen == 0 || padLen > expBlockSz ||
-                    padLen > encryptedContentSz) {
-                    WOLFSSL_MSG("Bad padding size found");
-                    ret = BUFFER_E;
-                    XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-                    break;
-                }
-
-                /* Check all padding bytes. Better implementation would be to
-                 * run through the entire block. */
-                for (padIndex = encryptedContentSz - padLen;
+                /* Constant-time padding check */
+                padCheck |= ctMaskEq(padLen, 0);
+                padCheck |= ctMaskGT(padLen, expBlockSz);
+                padCheck |= ctMaskGT(padLen, encryptedContentSz);
+                padCheck |= ctMaskGT(expBlockSz, encryptedContentSz);
+                for (padIndex = encryptedContentSz - expBlockSz;
                      padIndex < encryptedContentSz; padIndex++) {
-                     padCheck |= encryptedContent[padIndex] ^ padLen;
+                    byte inPad = ctMaskGTE(padIndex,
+                                           encryptedContentSz - (int)padLen);
+                    padCheck |= inPad & (encryptedContent[padIndex] ^ padLen);
                 }
                 if (padCheck != 0) {
                     WOLFSSL_MSG("Bad padding bytes found");
