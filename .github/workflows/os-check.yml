@@ -13,6 +13,9 @@ concurrency:
 # END OF COMMON SECTION
 
 jobs:
+  # Configs that interact with platform-specific features (sys-ca-certs,
+  # Apple Security.framework, OpenSSL compat layer, networking).
+  # Run on both Ubuntu and macOS.
   make_check:
     strategy:
       fail-fast: false
@@ -39,8 +42,6 @@ jobs:
           '--enable-dtls --enable-dtlscid --enable-dtls13 --enable-secure-renegotiation
             --enable-psk --enable-aesccm --enable-nullcipher
             CPPFLAGS=-DWOLFSSL_STATIC_RSA',
-          '--enable-ascon --enable-experimental',
-          '--enable-ascon CPPFLAGS=-DWOLFSSL_ASCON_UNROLL --enable-experimental',
           '--enable-all CPPFLAGS=''-DNO_AES_192 -DNO_AES_256'' ',
           '--enable-sniffer --enable-curve25519 --enable-curve448 --enable-enckeys
             CPPFLAGS=-DWOLFSSL_DH_EXTRA',
@@ -49,32 +50,17 @@ jobs:
           '--enable-opensslall --enable-opensslextra CPPFLAGS=-DWC_RNG_SEED_CB',
           '--enable-opensslall --enable-opensslextra
             CPPFLAGS=''-DWC_RNG_SEED_CB -DWOLFSSL_NO_GETPID'' ',
-          # PKCS#7 with RSA-PSS (CMS RSASSA-PSS signers)
-          '--enable-pkcs7 CPPFLAGS=-DWC_RSA_PSS',
-          # PKCS#7 without RSA-PSS
-          '--enable-pkcs7',
           '--enable-opensslextra CPPFLAGS=''-DWOLFSSL_NO_CA_NAMES'' ',
           '--enable-opensslextra=x509small',
-          'CPPFLAGS=''-DWOLFSSL_EXTRA'' ',
           '--disable-sys-ca-certs',
           '--enable-all CPPFLAGS=-DWOLFSSL_DEBUG_CERTS ',
           '--enable-all CPPFLAGS="-DWOLFSSL_CHECK_MEM_ZERO"',
-          '--enable-coding=no',
           '--enable-dtls --enable-dtls13 --enable-ocspstapling --enable-ocspstapling2
            --enable-cert-setup-cb --enable-sessioncerts',
           '--enable-dtls --enable-dtls13 --enable-tls13
            CPPFLAGS=-DWOLFSSL_TLS13_IGNORE_PT_ALERT_ON_ENC',
-          '--disable-sni --disable-ecc --disable-tls13 --disable-secure-renegotiation-info',
-          'CPPFLAGS=-DWOLFSSL_BLIND_PRIVATE_KEY',
           '--enable-all --enable-certgencache',
-          '--enable-sessionexport --enable-dtls --enable-dtls13',
-          '--enable-sessionexport',
-          '--enable-cryptocb --enable-aesgcm CPPFLAGS="-DWOLF_CRYPTO_CB_AES_SETKEY -DWOLF_CRYPTO_CB_FREE"',
-          '--disable-tls --enable-cryptocb --enable-aesgcm CPPFLAGS="-DWOLF_CRYPTO_CB_AES_SETKEY -DWOLF_CRYPTO_CB_FREE"',
           '--enable-all --enable-dilithium --enable-cryptocb --enable-cryptocbutils --enable-pkcallbacks',
-          '--disable-examples CPPFLAGS=-DWOLFSSL_NO_MALLOC',
-          'CPPFLAGS=-DNO_WOLFSSL_CLIENT',
-          'CPPFLAGS=-DNO_WOLFSSL_SERVER',
           'CPPFLAGS=-DWOLFSSL_NO_CLIENT_AUTH',
           'CPPFLAGS=''-DNO_WOLFSSL_CLIENT -DWOLFSSL_NO_CLIENT_AUTH''',
           'CPPFLAGS=''-DNO_WOLFSSL_SERVER -DWOLFSSL_NO_CLIENT_AUTH''',
@@ -83,8 +69,6 @@ jobs:
           '--enable-all CPPFLAGS=-DWOLFSSL_NO_CLIENT_AUTH',
           '--enable-all CPPFLAGS=''-DNO_WOLFSSL_CLIENT -DWOLFSSL_NO_CLIENT_AUTH''',
           '--enable-all CPPFLAGS=''-DNO_WOLFSSL_SERVER -DWOLFSSL_NO_CLIENT_AUTH''',
-          '--enable-curve25519=nonblock --enable-ecc=nonblock --enable-sp=yes,nonblock CPPFLAGS="-DWOLFSSL_PUBLIC_MP -DWOLFSSL_DEBUG_NONBLOCK"',
-          '--enable-certreq --enable-certext --enable-certgen --disable-secure-renegotiation-info CPPFLAGS="-DNO_TLS"',
           '--enable-ocsp --enable-ocsp-responder --enable-ocspstapling CPPFLAGS="-DWOLFSSL_NONBLOCK_OCSP" --enable-maxfragment',
           '--enable-all CPPFLAGS=-DWOLFSSL_HASH_KEEP',
           '--enable-all --enable-writedup',
@@ -92,6 +76,45 @@ jobs:
     name: make check
     if: github.repository_owner == 'wolfssl'
     runs-on: ${{ matrix.os }}
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 14
+    steps:
+      - name: Build and test wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          configure: CFLAGS="-pedantic -Wno-overlength-strings -Wdeclaration-after-statement -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE" ${{ matrix.config }}
+          check: true
+
+  # Platform-agnostic configs: pure crypto algorithms, preprocessor guards,
+  # or features with no macOS-specific code paths. Linux only.
+  make_check_linux:
+    strategy:
+      fail-fast: false
+      matrix:
+        config: [
+          '--enable-ascon --enable-experimental',
+          '--enable-ascon CPPFLAGS=-DWOLFSSL_ASCON_UNROLL --enable-experimental',
+          # PKCS#7 with RSA-PSS (CMS RSASSA-PSS signers)
+          '--enable-pkcs7 CPPFLAGS=-DWC_RSA_PSS',
+          # PKCS#7 without RSA-PSS
+          '--enable-pkcs7',
+          'CPPFLAGS=''-DWOLFSSL_EXTRA'' ',
+          '--enable-coding=no',
+          '--disable-sni --disable-ecc --disable-tls13 --disable-secure-renegotiation-info',
+          'CPPFLAGS=-DWOLFSSL_BLIND_PRIVATE_KEY',
+          '--enable-sessionexport --enable-dtls --enable-dtls13',
+          '--enable-cryptocb --enable-aesgcm CPPFLAGS="-DWOLF_CRYPTO_CB_AES_SETKEY -DWOLF_CRYPTO_CB_FREE"',
+          '--disable-tls --enable-cryptocb --enable-aesgcm CPPFLAGS="-DWOLF_CRYPTO_CB_AES_SETKEY -DWOLF_CRYPTO_CB_FREE"',
+          '--disable-examples CPPFLAGS=-DWOLFSSL_NO_MALLOC',
+          'CPPFLAGS=-DNO_WOLFSSL_CLIENT',
+          'CPPFLAGS=-DNO_WOLFSSL_SERVER',
+          '--enable-lms=small,verify-only --enable-xmss=small,verify-only',
+          '--enable-curve25519=nonblock --enable-ecc=nonblock --enable-sp=yes,nonblock CPPFLAGS="-DWOLFSSL_PUBLIC_MP -DWOLFSSL_DEBUG_NONBLOCK"',
+          '--enable-certreq --enable-certext --enable-certgen --disable-secure-renegotiation-info CPPFLAGS="-DNO_TLS"',
+        ]
+    name: make check (Linux only)
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-24.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 14
     steps:
@@ -127,7 +150,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-24.04, macos-latest ]
+        # testwolfcrypt runs pure crypto tests with no platform-specific
+        # features, so Linux-only is sufficient for these user_settings.
+        os: [ ubuntu-24.04 ]
         user-settings: [
           # Add new user_settings.h here (alphabetical order)
           'examples/configs/user_settings_ca.h',
