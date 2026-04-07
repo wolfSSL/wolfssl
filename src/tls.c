@@ -13792,6 +13792,8 @@ static int TLSX_ECH_CheckInnerPadding(WOLFSSL* ssl, WOLFSSL_ECH* ech)
     byte acc = 0;
     word32 i;
 
+    (void)ssl;
+
 #ifdef WOLFSSL_DTLS13
     headerSz = ssl->options.dtls ? DTLS13_HANDSHAKE_HEADER_SZ :
                                    HANDSHAKE_HEADER_SZ;
@@ -13919,7 +13921,7 @@ static const byte* TLSX_ECH_FindOuterExtension(const byte* outerCh,
 
 /* If newinnerCh is NULL, validate ordering and existence of references
  *   - updates newInnerChLen with total length of selected extensions
- * If newinnerCh in not NULL, copy extensions into newInnerCh
+ * If newinnerCh is not NULL, copy extensions into newInnerCh
  *
  * outerCh          The outer ClientHello buffer.
  * outerChLen       Outer ClientHello length.
@@ -14474,8 +14476,8 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
             if (ech->hpkeContext != NULL) {
                 /* on SH2 this is fatal */
                 SendAlert(ssl, alert_fatal, decrypt_error);
-                WOLFSSL_ERROR_VERBOSE(VERIFY_FINISHED_ERROR);
-                ret = VERIFY_FINISHED_ERROR;
+                WOLFSSL_ERROR_VERBOSE(DECRYPT_ERROR);
+                ret = DECRYPT_ERROR;
             }
             else {
                 /* on SH1 prepare to write retry configs */

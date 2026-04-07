@@ -6043,7 +6043,8 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
 #if defined(HAVE_ECH)
     /* RFC 9849 s6.1.7: ECH was offered but rejected by the server...
      * the client MUST respond with an empty Certificate message. */
-    if (ssl->echConfigs != NULL && !ssl->options.echAccepted) {
+    if (ssl->echConfigs != NULL && !ssl->options.disableECH &&
+            !ssl->options.echAccepted) {
         ssl->options.sendVerify = SEND_BLANK_CERT;
     }
     else
@@ -7297,6 +7298,9 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
 
     if (wantDowngrade) {
+#ifndef WOLFSSL_NO_TLS12
+        byte realMinor;
+#endif
 #if defined(HAVE_ECH)
         if (ssl->options.echProcessingInner) {
             WOLFSSL_MSG("ECH: inner client hello does not support version "
@@ -7305,7 +7309,6 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
 #endif
 #ifndef WOLFSSL_NO_TLS12
-        byte realMinor;
         if (!ssl->options.downgrade) {
             WOLFSSL_MSG("Client trying to connect with lesser version than "
                         "TLS v1.3");

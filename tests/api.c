@@ -15305,8 +15305,6 @@ static int test_wolfSSL_Tls13_ECH_GREASE(void)
 {
     EXPECT_DECLS;
     test_ssl_memio_ctx test_ctx;
-    byte greaseConfigs[512];
-    word32 greaseConfigsLen = sizeof(greaseConfigs);
 
     /* GREASE when server has no ECH configs */
 
@@ -15326,7 +15324,7 @@ static int test_wolfSSL_Tls13_ECH_GREASE(void)
     ExpectIntEQ(test_ctx.c_ssl->options.disableECH, 0);
     /* verify no ECH configs are set */
     ExpectNull(test_ctx.s_ctx->echConfigs);
-    ExpectNull(test_ctx.c_ctx->echConfigs);
+    ExpectNull(test_ctx.c_ssl->echConfigs);
 
     /* handshake should succeed - server ignores the GREASE ECH extension */
     ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
@@ -15334,8 +15332,8 @@ static int test_wolfSSL_Tls13_ECH_GREASE(void)
     /* ECH should NOT be accepted since this was GREASE */
     ExpectIntEQ(test_ctx.s_ssl->options.echAccepted, 0);
     ExpectIntEQ(test_ctx.c_ssl->options.echAccepted, 0);
-    ExpectIntNE(wolfSSL_GetEchConfigs(test_ctx.c_ssl, greaseConfigs,
-        &greaseConfigsLen), WOLFSSL_SUCCESS);
+    /* verify no ECH configs are received */
+    ExpectNull(test_ctx.c_ssl->echConfigs);
 
     test_ssl_memio_cleanup(&test_ctx);
 
@@ -15361,17 +15359,16 @@ static int test_wolfSSL_Tls13_ECH_GREASE(void)
     ExpectIntEQ(test_ctx.c_ssl->options.disableECH, 0);
     /* verify ECH configs are set on server */
     ExpectNotNull(test_ctx.s_ctx->echConfigs);
-    ExpectNull(test_ctx.c_ctx->echConfigs);
+    ExpectNull(test_ctx.c_ssl->echConfigs);
 
     /* handshake should succeed - server responds to the GREASE ECH extension */
     ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
 
-    /* ECH should NOT be accepted since this was GREASE
-     * However, configs will be present this time */
+    /* ECH should NOT be accepted since this was GREASE */
     ExpectIntEQ(test_ctx.s_ssl->options.echAccepted, 0);
     ExpectIntEQ(test_ctx.c_ssl->options.echAccepted, 0);
     /* verify no ECH configs are received */
-    ExpectNull(test_ctx.c_ctx->echConfigs);
+    ExpectNull(test_ctx.c_ssl->echConfigs);
 
     test_ssl_memio_cleanup(&test_ctx);
 
