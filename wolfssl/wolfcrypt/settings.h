@@ -461,7 +461,7 @@
     (WOLFSSL_FIPS_VERSION_CODE != WOLFSSL_MAKE_FIPS_VERSION3(major,minor,patch))
 
 #if defined(HAVE_FIPS) && !defined(WC_FIPS_186_5) && !defined(WC_FIPS_186_4)
-    #if FIPS_VERSION3_GE(7,0,0)
+    #if FIPS_VERSION3_GE(7,0,0) && !defined(WOLFSSL_FIPS_READY)
         #ifndef WC_FIPS_186_5
             #define WC_FIPS_186_5
         #endif
