@@ -1532,7 +1532,7 @@ int wolfSSL_ECPoint_d2i(const unsigned char *in, unsigned int len,
             ret = 0;
         }
 
-        /* wolfSSL_EC_POINT_set_affine_coordinates_GFp check that the point is
+        /* wolfSSL_EC_POINT_set_affine_coordinates_GFp checks that the point is
          * on the curve. */
         if (ret == 1 && wolfSSL_EC_POINT_set_affine_coordinates_GFp(group,
                 point, x, y, NULL) != 1) {
@@ -1544,6 +1544,18 @@ int wolfSSL_ECPoint_d2i(const unsigned char *in, unsigned int len,
                     "operations later on.");
 #endif
     }
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION_GT(2,0))
+    /* Validate that the imported point lies on the curve.  The Z!=1 path
+     * above validates via set_affine_coordinates_GFp, but for affine
+     * imports (Z==1), the common case for uncompressed points, that
+     * block is skipped.  Check unconditionally so no import path can
+     * bypass validation. */
+    if (ret == 1 && wolfSSL_EC_POINT_is_on_curve(group,
+            (WOLFSSL_EC_POINT *)point, NULL) != 1) {
+        WOLFSSL_MSG("wolfSSL_ECPoint_d2i: point not on curve");
+        ret = 0;
+    }
+#endif
 
     if (ret == 1) {
         /* Dump new point. */
@@ -1750,8 +1762,7 @@ WOLFSSL_BIGNUM *wolfSSL_EC_POINT_point2bn(const WOLFSSL_EC_GROUP* group,
     return ret;
 }
 
-#if defined(USE_ECC_B_PARAM) && !defined(HAVE_SELFTEST) && \
-    (!defined(HAVE_FIPS) || FIPS_VERSION_GT(2,0))
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION_GT(2,0))
 /* Check if EC point is on the the curve defined by the EC group.
  *
  * @param [in] group  EC group defining curve.
@@ -1792,7 +1803,7 @@ int wolfSSL_EC_POINT_is_on_curve(const WOLFSSL_EC_GROUP *group,
     /* Return boolean of on curve. No error means on curve. */
     return !err;
 }
-#endif /* USE_ECC_B_PARAM && !HAVE_SELFTEST && !(FIPS_VERSION <= 2) */
+#endif /* !HAVE_SELFTEST && !(HAVE_FIPS && FIPS_VERSION <= 2) */
 
 #if !defined(WOLFSSL_SP_MATH) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
 /* Convert Jacobian ordinates to affine.
@@ -1985,8 +1996,7 @@ int wolfSSL_EC_POINT_set_affine_coordinates_GFp(const WOLFSSL_EC_GROUP* group,
         ret = 0;
     }
 
-#if defined(USE_ECC_B_PARAM) && !defined(HAVE_SELFTEST) && \
-    (!defined(HAVE_FIPS) || FIPS_VERSION_GT(2,0))
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION_GT(2,0))
     /* Check that the point is valid. */
     if ((ret == 1) && (wolfSSL_EC_POINT_is_on_curve(group,
             (WOLFSSL_EC_POINT *)point, ctx) != 1)) {

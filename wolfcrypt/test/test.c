@@ -38346,6 +38346,7 @@ static wc_test_ret_t ecc_encrypt_e2e_test(WC_RNG* rng, ecc_key* userA, ecc_key* 
 
 #ifdef WOLFSSL_ECIES_OLD
     tmpKey->dp = userA->dp;
+    tmpKey->idx = userA->idx;
     ret = wc_ecc_copy_point(&userA->pubkey, &tmpKey->pubkey);
     if (ret != 0) {
         ret = WC_TEST_RET_ENC_EC(ret); goto done;
