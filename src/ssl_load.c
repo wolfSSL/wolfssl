@@ -4684,7 +4684,7 @@ int wolfSSL_use_AltPrivateKey_Id(WOLFSSL* ssl, const unsigned char* id, long sz,
         #endif
         }
         if (AllocDer(&ssl->buffers.altKey, (word32)sz, ALT_PRIVATEKEY_TYPE,
-                ssl->heap) == 0) {
+                ssl->heap) != 0) {
             ret = 0;
         }
     }
