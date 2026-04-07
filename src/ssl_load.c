@@ -5864,7 +5864,7 @@ long wolfSSL_CTX_set_tmp_dh(WOLFSSL_CTX* ctx, WOLFSSL_DH* dh)
         pSz = wolfSSL_BN_bn2bin(dh->p, p);
         gSz = wolfSSL_BN_bn2bin(dh->g, g);
         /* Check encoding worked. */
-        if ((pSz < 0) && (gSz < 0)) {
+        if ((pSz <= 0) || (gSz <= 0)) {
             ret = WOLFSSL_FATAL_ERROR;
         }
     }
