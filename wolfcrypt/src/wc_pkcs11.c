@@ -1539,6 +1539,8 @@ static int Pkcs11CreateEccPrivateKey(CK_OBJECT_HANDLE* privateKey,
                 ret = WC_HW_E;
             }
         }
+        if (priv != NULL)
+            ForceZero(priv, privLen);
         XFREE(priv, private_key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
