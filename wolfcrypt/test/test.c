@@ -27690,6 +27690,9 @@ static wc_test_ret_t srp_test_digest(SrpType dgstType)
     #endif
         if (!r) {
             XMEMSET(cli2, 0, sizeof *cli2);
+            /* Reset sizes consumed by the first exchange. */
+            clientPubKeySz = SRP_TEST_BUFFER_SIZE;
+            clientProofSz = SRP_MAX_DIGEST_SIZE;
             rNeg = wc_SrpInit_ex(cli2, dgstType, SRP_CLIENT_SIDE, HEAP_HINT,
                                   devId);
             if (!rNeg) rNeg = wc_SrpSetUsername(cli2, username, usernameSz);
