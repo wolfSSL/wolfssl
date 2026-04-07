@@ -33,7 +33,7 @@
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
-#ifdef HAVE_BLAKE2
+#ifdef HAVE_BLAKE2B
 
 #include <wolfssl/wolfcrypt/blake2.h>
 #include <wolfssl/wolfcrypt/blake2-impl.h>
@@ -603,4 +603,4 @@ int wc_Blake2bHmac(const byte* in, size_t in_len,
 
 /* end wolfCrypt API */
 
-#endif  /* HAVE_BLAKE2 */
+#endif  /* HAVE_BLAKE2B */

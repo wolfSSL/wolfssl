@@ -40,7 +40,7 @@
 int test_wc_InitBlake2b(void)
 {
     EXPECT_DECLS;
-#ifdef HAVE_BLAKE2
+#ifdef HAVE_BLAKE2B
     Blake2b blake;
 
     /* Test bad arg. */
@@ -66,7 +66,7 @@ int test_wc_InitBlake2b(void)
 int test_wc_InitBlake2b_WithKey(void)
 {
     EXPECT_DECLS;
-#ifdef HAVE_BLAKE2
+#ifdef HAVE_BLAKE2B
     Blake2b     blake;
     word32      digestSz = BLAKE2B_KEYBYTES;
     byte        key[BLAKE2B_KEYBYTES];
@@ -104,7 +104,7 @@ int test_wc_InitBlake2b_WithKey(void)
 int test_wc_Blake2bUpdate(void)
 {
     EXPECT_DECLS;
-#ifdef HAVE_BLAKE2
+#ifdef HAVE_BLAKE2B
     Blake2b blake;
 
     ExpectIntEQ(wc_InitBlake2b(&blake, WC_BLAKE2B_DIGEST_SIZE), 0);
@@ -127,7 +127,7 @@ int test_wc_Blake2bUpdate(void)
 int test_wc_Blake2bFinal(void)
 {
     EXPECT_DECLS;
-#ifdef HAVE_BLAKE2
+#ifdef HAVE_BLAKE2B
     Blake2b blake;
     byte hash[WC_BLAKE2B_DIGEST_SIZE];
 
@@ -156,7 +156,7 @@ int test_wc_Blake2bFinal(void)
 int test_wc_Blake2b_KATs(void)
 {
     EXPECT_DECLS;
-#ifdef HAVE_BLAKE2
+#ifdef HAVE_BLAKE2B
     Blake2b blake;
 
     testVector blake2b_kat[BLAKE2B_KAT_CNT];
@@ -272,7 +272,7 @@ int test_wc_Blake2b_KATs(void)
 int test_wc_Blake2b_other(void)
 {
     EXPECT_DECLS;
-#ifdef HAVE_BLAKE2
+#ifdef HAVE_BLAKE2B
     Blake2b blake;
     byte hash[WC_BLAKE2B_DIGEST_SIZE + 1];
     byte data[WC_BLAKE2B_DIGEST_SIZE * 8 + 1];

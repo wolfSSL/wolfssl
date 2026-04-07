@@ -28,7 +28,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#if defined(HAVE_BLAKE2) || defined(HAVE_BLAKE2S)
+#if defined(HAVE_BLAKE2B) || defined(HAVE_BLAKE2S)
 
 #include <wolfssl/wolfcrypt/blake2-int.h>
 
@@ -121,6 +121,6 @@ WOLFSSL_API int wc_Blake2sHmac(const byte* in, size_t in_len,
     }
 #endif
 
-#endif  /* HAVE_BLAKE2 || HAVE_BLAKE2S */
+#endif  /* HAVE_BLAKE2B || HAVE_BLAKE2S */
 #endif  /* WOLF_CRYPT_BLAKE2_H */
 

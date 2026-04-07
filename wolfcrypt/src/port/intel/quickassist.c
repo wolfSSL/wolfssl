@@ -3431,7 +3431,7 @@ int IntelQaSymSha3(WC_ASYNC_DEV* dev, byte* out, const byte* in, word32 sz)
                 }
                 break;
         #endif
-        #ifdef HAVE_BLAKE2
+        #ifdef HAVE_BLAKE2B
             case BLAKE2B_ID:
         #endif
         #ifdef WOLFSSL_SHA3

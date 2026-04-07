@@ -117,10 +117,10 @@ static const enum wc_HashType notCompiledHash[] = {
 #ifdef NO_MD4
     WC_HASH_TYPE_MD4,
 #endif
-#if !defined(HAVE_BLAKE2) && !defined(HAVE_BLAKE2S)
+#ifndef HAVE_BLAKE2B
     WC_HASH_TYPE_BLAKE2B,
 #endif
-#if !defined(HAVE_BLAKE2) && !defined(HAVE_BLAKE2B)
+#ifndef HAVE_BLAKE2S
     WC_HASH_TYPE_BLAKE2S,
 #endif
     WC_HASH_TYPE_NONE   /* Dummy value to ensure list is non-zero. */
@@ -145,8 +145,10 @@ static const enum wc_HashType sizeSupportedHash[] = {
 #ifndef NO_MD4
     WC_HASH_TYPE_MD4,
 #endif
-#if defined(HAVE_BLAKE2) || defined(HAVE_BLAKE2S)
+#ifdef HAVE_BLAKE2B
     WC_HASH_TYPE_BLAKE2B,
+#endif
+#ifdef HAVE_BLAKE2S
     WC_HASH_TYPE_BLAKE2S,
 #endif
     WC_HASH_TYPE_NONE   /* Dummy value to ensure list is non-zero. */
@@ -163,8 +165,10 @@ static const enum wc_HashType sizeNotCompiledHash[] = {
 #ifdef NO_MD4
     WC_HASH_TYPE_MD4,
 #endif
-#if !defined(HAVE_BLAKE2) && !defined(HAVE_BLAKE2S)
+#ifndef HAVE_BLAKE2B
     WC_HASH_TYPE_BLAKE2B,
+#endif
+#ifndef HAVE_BLAKE2S
     WC_HASH_TYPE_BLAKE2S,
 #endif
     WC_HASH_TYPE_SHAKE128,

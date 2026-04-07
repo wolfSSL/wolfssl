@@ -1168,7 +1168,7 @@ static const bench_alg bench_digest_opt[] = {
 #ifdef WOLFSSL_RIPEMD
     { "-ripemd",             BENCH_RIPEMD            },
 #endif
-#ifdef HAVE_BLAKE2
+#ifdef HAVE_BLAKE2B
     { "-blake2b",            BENCH_BLAKE2B           },
 #endif
 #ifdef HAVE_BLAKE2S
@@ -2014,7 +2014,7 @@ static const char* bench_result_words3[][5] = {
     #include <wolfssl/certs_test.h>
 #endif
 
-#if defined(HAVE_BLAKE2) || defined(HAVE_BLAKE2S)
+#if defined(HAVE_BLAKE2B) || defined(HAVE_BLAKE2S)
     #include <wolfssl/wolfcrypt/blake2.h>
 #endif
 
@@ -4133,7 +4133,7 @@ static void* benchmarks_do(void* args)
     if (bench_all || (bench_digest_algs & BENCH_RIPEMD))
         bench_ripemd();
 #endif
-#ifdef HAVE_BLAKE2
+#ifdef HAVE_BLAKE2B
     if (bench_all || (bench_digest_algs & BENCH_BLAKE2B))
         bench_blake2b();
 #endif
@@ -8851,7 +8851,7 @@ void bench_ripemd(void)
 #endif
 
 
-#ifdef HAVE_BLAKE2
+#ifdef HAVE_BLAKE2B
 void bench_blake2b(void)
 {
     Blake2b b2b;

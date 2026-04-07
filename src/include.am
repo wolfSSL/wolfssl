@@ -1304,7 +1304,7 @@ if BUILD_RIPEMD
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/ripemd.c
 endif
 
-if BUILD_BLAKE2
+if BUILD_BLAKE2B
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/blake2b.c
 endif
 if BUILD_BLAKE2S
