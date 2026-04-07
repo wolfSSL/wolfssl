@@ -34801,10 +34801,10 @@ static int test_mldsa_verify_hash(void)
 #endif
     ExpectIntEQ(wc_dilithium_make_key(&key, &rng), 0);
 
-    /* hashLen=4096 must be rejected with BUFFER_E, not overflow the stack */
+    /* hashLen=4096 must be rejected, not overflow the stack */
     ExpectIntEQ(wc_dilithium_verify_ctx_hash(sig, sizeof(sig), NULL, 0,
         WC_HASH_TYPE_SHA256, hash, sizeof(hash), &res, &key),
-        WC_NO_ERR_TRACE(BUFFER_E));
+        WC_NO_ERR_TRACE(BAD_LENGTH_E));
 
     wc_dilithium_free(&key);
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
