@@ -9541,7 +9541,8 @@ static int ECC_populate_EVP_PKEY(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_EC_KEY *key)
         {
             if (ecc->type == ECC_PRIVATEKEY_ONLY ||
                     (ecc->type == ECC_PRIVATEKEY &&
-                     mp_iszero(ecc->pubkey.x))) {
+                     mp_iszero(ecc->pubkey.x) &&
+                     mp_iszero(ecc->pubkey.y))) {
                 /* Reconstruct public key from private scalar.  This covers
                  * both ECC_PRIVATEKEY_ONLY keys and ECC_PRIVATEKEY keys whose
                  * public-key point was never populated (e.g. when only
