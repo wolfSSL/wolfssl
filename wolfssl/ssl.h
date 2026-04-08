@@ -2594,7 +2594,9 @@ WOLFSSL_API unsigned long wolfSSL_ERR_peek_error(void);
 WOLFSSL_API int           wolfSSL_GET_REASON(int);
 
 WOLFSSL_API const char* wolfSSL_alert_type_string_long(int alertID);
+WOLFSSL_API const char* wolfSSL_alert_type_string(int alertID);
 WOLFSSL_API const char* wolfSSL_alert_desc_string_long(int alertID);
+WOLFSSL_API const char* wolfSSL_alert_desc_string(int alertID);
 WOLFSSL_API const char* wolfSSL_state_string_long(const WOLFSSL* ssl);
 
 WOLFSSL_API WOLFSSL_RSA* wolfSSL_RSA_generate_key(int len, unsigned long e,

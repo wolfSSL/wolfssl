@@ -12050,11 +12050,95 @@ const char* wolfSSL_alert_type_string_long(int alertID)
     return AlertTypeToString(alertID);
 }
 
+const char* wolfSSL_alert_type_string(int alertID)
+{
+    WOLFSSL_ENTER("wolfSSL_alert_type_string");
+
+    switch (alertID) {
+        case alert_warning:
+            return "W";
+        case alert_fatal:
+            return "F";
+        default:
+            return "U";
+    }
+}
+
 const char* wolfSSL_alert_desc_string_long(int alertID)
 {
     WOLFSSL_ENTER("wolfSSL_alert_desc_string_long");
 
     return AlertTypeToString(alertID);
+}
+
+const char* wolfSSL_alert_desc_string(int alertID)
+{
+    WOLFSSL_ENTER("wolfSSL_alert_desc_string");
+
+    switch (alertID) {
+        case close_notify:
+            return "CN";
+        case unexpected_message:
+            return "UM";
+        case bad_record_mac:
+            return "BM";
+        case record_overflow:
+            return "RO";
+        case decompression_failure:
+            return "DF";
+        case handshake_failure:
+            return "HF";
+        case no_certificate:
+            return "NC";
+        case bad_certificate:
+            return "BC";
+        case unsupported_certificate:
+            return "UC";
+        case certificate_revoked:
+            return "CR";
+        case certificate_expired:
+            return "CE";
+        case certificate_unknown:
+            return "CU";
+        case illegal_parameter:
+            return "IP";
+        case unknown_ca:
+            return "CA";
+        case access_denied:
+            return "AD";
+        case decode_error:
+            return "DE";
+        case decrypt_error:
+            return "DC";
+        case wolfssl_alert_protocol_version:
+            return "PV";
+        case insufficient_security:
+            return "IS";
+        case internal_error:
+            return "IE";
+        case inappropriate_fallback:
+            return "IF";
+        case user_canceled:
+            return "US";
+        case no_renegotiation:
+            return "NR";
+        case missing_extension:
+            return "ME";
+        case unsupported_extension:
+            return "UE";
+        case unrecognized_name:
+            return "UN";
+        case bad_certificate_status_response:
+            return "BR";
+        case unknown_psk_identity:
+            return "UP";
+        case certificate_required:
+            return "CQ";
+        case no_application_protocol:
+            return "AP";
+        default:
+            return "UK";
+    }
 }
 #endif /* !NO_TLS */
 

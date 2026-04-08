@@ -844,11 +844,19 @@ WOLFSSL_API int wolfSSL_EVP_DigestSignUpdate(WOLFSSL_EVP_MD_CTX *ctx,
                                              const void *d, unsigned int cnt);
 WOLFSSL_API int wolfSSL_EVP_DigestSignFinal(WOLFSSL_EVP_MD_CTX *ctx,
                                             unsigned char *sig, size_t *siglen);
+WOLFSSL_API int wolfSSL_EVP_DigestSign(WOLFSSL_EVP_MD_CTX *ctx,
+                                       unsigned char *sigret, size_t *siglen,
+                                       const unsigned char *tbs, size_t tbslen);
 WOLFSSL_API int wolfSSL_EVP_DigestVerifyUpdate(WOLFSSL_EVP_MD_CTX *ctx,
                                                const void *d, size_t cnt);
 WOLFSSL_API int wolfSSL_EVP_DigestVerifyFinal(WOLFSSL_EVP_MD_CTX *ctx,
                                               const unsigned char *sig,
                                               size_t siglen);
+WOLFSSL_API int wolfSSL_EVP_DigestVerify(WOLFSSL_EVP_MD_CTX *ctx,
+                                         const unsigned char *sigret,
+                                         size_t siglen,
+                                         const unsigned char *tbs,
+                                         size_t tbslen);
 
 WOLFSSL_API int wolfSSL_EVP_BytesToKey(const WOLFSSL_EVP_CIPHER* type,
                        const WOLFSSL_EVP_MD* md, const byte* salt,
@@ -1290,9 +1298,11 @@ WOLFSSL_API int wolfSSL_EVP_SignInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
 #define EVP_DigestSignInit     wolfSSL_EVP_DigestSignInit
 #define EVP_DigestSignUpdate   wolfSSL_EVP_DigestSignUpdate
 #define EVP_DigestSignFinal    wolfSSL_EVP_DigestSignFinal
+#define EVP_DigestSign         wolfSSL_EVP_DigestSign
 #define EVP_DigestVerifyInit   wolfSSL_EVP_DigestVerifyInit
 #define EVP_DigestVerifyUpdate wolfSSL_EVP_DigestVerifyUpdate
 #define EVP_DigestVerifyFinal  wolfSSL_EVP_DigestVerifyFinal
+#define EVP_DigestVerify       wolfSSL_EVP_DigestVerify
 #define EVP_BytesToKey         wolfSSL_EVP_BytesToKey
 
 #define EVP_get_cipherbyname wolfSSL_EVP_get_cipherbyname

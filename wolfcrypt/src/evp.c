@@ -4950,6 +4950,25 @@ int wolfSSL_EVP_DigestSignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sig,
     return ret;
 }
 
+int wolfSSL_EVP_DigestSign(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sigret,
+                           size_t *siglen, const unsigned char *tbs,
+                           size_t tbslen)
+{
+    WOLFSSL_ENTER("EVP_DigestSign");
+
+    if (ctx == NULL || siglen == NULL)
+        return WOLFSSL_FAILURE;
+
+    if (sigret != NULL) {
+        if (tbs == NULL || tbslen == 0)
+            return WOLFSSL_FAILURE;
+        if (wolfSSL_EVP_DigestSignUpdate(ctx, tbs, (unsigned int)tbslen)
+                != WOLFSSL_SUCCESS)
+            return WOLFSSL_FAILURE;
+    }
+    return wolfSSL_EVP_DigestSignFinal(ctx, sigret, siglen);
+}
+
 int wolfSSL_EVP_DigestVerifyInit(WOLFSSL_EVP_MD_CTX *ctx,
                                  WOLFSSL_EVP_PKEY_CTX **pctx,
                                  const WOLFSSL_EVP_MD *type,
@@ -5042,6 +5061,21 @@ int wolfSSL_EVP_DigestVerifyFinal(WOLFSSL_EVP_MD_CTX *ctx,
     }
 
     return WOLFSSL_FAILURE;
+}
+
+int wolfSSL_EVP_DigestVerify(WOLFSSL_EVP_MD_CTX *ctx,
+                             const unsigned char *sigret, size_t siglen,
+                             const unsigned char *tbs, size_t tbslen)
+{
+    WOLFSSL_ENTER("EVP_DigestVerify");
+
+    if (ctx == NULL || sigret == NULL || tbs == NULL)
+        return WOLFSSL_FAILURE;
+
+    if (wolfSSL_EVP_DigestVerifyUpdate(ctx, tbs, tbslen) != WOLFSSL_SUCCESS)
+        return WOLFSSL_FAILURE;
+
+    return wolfSSL_EVP_DigestVerifyFinal(ctx, sigret, siglen);
 }
 
 
