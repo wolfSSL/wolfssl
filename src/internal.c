@@ -18781,9 +18781,9 @@ static int DoHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         return DoHandShakeMsgType(ssl, input, inOutIdx, type, size, totalSz);
     }
 
-    inputLength = ssl->buffers.inputBuffer.length - *inOutIdx;
-    if (IsEncryptionOn(ssl, 0))
-        inputLength -= ssl->keys.padSz;
+    /* curSize has already been reduced to content-only (padSz subtracted)
+     * in ProcessReply, so curStartIdx + curSize bounds the content. */
+    inputLength = ssl->curStartIdx + ssl->curSize - *inOutIdx;
 
     /* If there is a pending fragmented handshake message,
      * pending message size will be non-zero. */
@@ -23634,9 +23634,9 @@ default:
                     word32 processedSize = 0;
                     ret = DoDtls13Ack(ssl, ssl->buffers.inputBuffer.buffer +
                                              ssl->buffers.inputBuffer.idx,
-                                             ssl->buffers.inputBuffer.length -
-                                             ssl->buffers.inputBuffer.idx -
-                                             ssl->keys.padSz, &processedSize);
+                                             ssl->curStartIdx + ssl->curSize -
+                                             ssl->buffers.inputBuffer.idx,
+                                             &processedSize);
                     ssl->buffers.inputBuffer.idx += processedSize;
                     if (ret != 0)
                         return ret;

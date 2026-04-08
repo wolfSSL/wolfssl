@@ -13518,7 +13518,9 @@ int DoTls13HandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                        totalSz);
     }
 
-    inputLength = ssl->buffers.inputBuffer.length - *inOutIdx - ssl->keys.padSz;
+    /* curSize has already been reduced to content-only (padSz subtracted)
+     * in ProcessReply, so curStartIdx + curSize bounds the content. */
+    inputLength = ssl->curStartIdx + ssl->curSize - *inOutIdx;
 
     /* If there is a pending fragmented handshake message,
      * pending message size will be non-zero. */
