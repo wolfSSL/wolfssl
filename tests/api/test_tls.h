@@ -30,6 +30,7 @@ int test_tls13_curve_intersection(void);
 int test_tls_certreq_order(void);
 int test_tls12_bad_cv_sig_alg(void);
 int test_tls12_no_null_compression(void);
+int test_tls12_etm_failed_resumption(void);
 int test_tls_set_curves_list_ecc_fallback(void);
 
 #define TEST_TLS_DECLS                                                         \
@@ -41,6 +42,7 @@ int test_tls_set_curves_list_ecc_fallback(void);
         TEST_DECL_GROUP("tls", test_tls_certreq_order),                        \
         TEST_DECL_GROUP("tls", test_tls12_bad_cv_sig_alg),                     \
         TEST_DECL_GROUP("tls", test_tls12_no_null_compression),                \
+        TEST_DECL_GROUP("tls", test_tls12_etm_failed_resumption),              \
         TEST_DECL_GROUP("tls", test_tls_set_curves_list_ecc_fallback)
 
 #endif /* TESTS_API_TEST_TLS_H */
