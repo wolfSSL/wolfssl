@@ -503,7 +503,7 @@ static int dilithium_hash256(wc_Shake* shake256, const byte* data1,
     word64* state = shake256->s;
     word8 *state8 = (word8*)state;
 
-    if (data2Len > (UINT32_MAX - data1Len)) {
+    if (data2Len > (WOLFSSL_MAX_32BIT - data1Len)) {
         return BAD_FUNC_ARG;
     }
     if (data1Len + data2Len >= WC_SHA3_256_COUNT * 8) {
@@ -10558,7 +10558,7 @@ int wc_dilithium_verify_ctx_msg(const byte* sig, word32 sigLen, const byte* ctx,
         ret = BAD_FUNC_ARG;
     }
     /* Reject msgLen that would cause integer overflow in hash computations */
-    if ((ret == 0) && (msgLen > UINT32_MAX / 2)) {
+    if ((ret == 0) && (msgLen > WOLFSSL_MAX_32BIT / 2)) {
         ret = BAD_FUNC_ARG;
     }
 
