@@ -11,13 +11,12 @@
     \param sig_type A signature type enum value such as
     WC_SIGNATURE_TYPE_ECC or WC_SIGNATURE_TYPE_RSA.
     \param key Pointer to the key structure corresponding to sig_type:
-    pass an ecc_key* (cast to const void*) for
-    WC_SIGNATURE_TYPE_ECC, or a RsaKey* for
+    pass an ecc_key* for WC_SIGNATURE_TYPE_ECC, or a RsaKey* for
     WC_SIGNATURE_TYPE_RSA / WC_SIGNATURE_TYPE_RSA_W_ENC.
     The caller is responsible for ensuring the pointer refers to the correct
     type; this function cannot verify the actual runtime type of the object.
-    \param key_len Must be exactly sizeof(ecc_key) or
-    sizeof(RsaKey) matching the sig_type. Passing any other value
+    \param key_len If key is non-NULL, key_len Must be exactly sizeof(ecc_key)
+    or sizeof(RsaKey) matching the sig_type. Passing any other value
     causes the function to return BAD_FUNC_ARG without dereferencing key.
     The conventional idiom is to pass sizeof(*key) at the call site.
 
