@@ -15517,6 +15517,7 @@ static int test_wolfSSL_Tls13_ECH_rejected_cert_valid_ex(const char* publicName,
     /* Do not require client cert on server so it does not send
      * CertificateRequest */
     wolfSSL_set_verify(test_ctx.s_ssl, WOLFSSL_VERIFY_NONE, NULL);
+    wolfSSL_set_verify(test_ctx.c_ssl, WOLFSSL_VERIFY_PEER, NULL);
 
     /* Disable ECH on the server side so ECH is rejected */
     wolfSSL_SetEchEnable(test_ctx.s_ssl, 0);
