@@ -46,6 +46,12 @@ int test_tls13_derive_keys_no_key(void);
 int test_tls13_pqc_hybrid_truncated_keyshare(void);
 int test_tls13_short_session_ticket(void);
 int test_tls13_early_data_0rtt_replay(void);
+int test_tls13_corrupted_finished(void);
+int test_tls13_peerauth_failsafe(void);
+int test_tls13_hrr_bad_cookie(void);
+int test_tls13_zero_inner_content_type(void);
+int test_tls13_downgrade_sentinel(void);
+int test_tls13_serverhello_bad_cipher_suites(void);
 
 #define TEST_TLS13_DECLS                                        \
     TEST_DECL_GROUP("tls13", test_tls13_apis),                  \
@@ -69,6 +75,12 @@ int test_tls13_early_data_0rtt_replay(void);
     TEST_DECL_GROUP("tls13", test_tls13_pqc_hybrid_truncated_keyshare), \
     TEST_DECL_GROUP("tls13", test_tls13_short_session_ticket),  \
     TEST_DECL_GROUP("tls13", test_tls13_early_data_0rtt_replay), \
-    TEST_DECL_GROUP("tls13", test_tls13_unknown_ext_rejected)
+    TEST_DECL_GROUP("tls13", test_tls13_unknown_ext_rejected),  \
+    TEST_DECL_GROUP("tls13", test_tls13_corrupted_finished),     \
+    TEST_DECL_GROUP("tls13", test_tls13_peerauth_failsafe),    \
+    TEST_DECL_GROUP("tls13", test_tls13_hrr_bad_cookie), \
+    TEST_DECL_GROUP("tls13", test_tls13_zero_inner_content_type), \
+    TEST_DECL_GROUP("tls13", test_tls13_downgrade_sentinel), \
+    TEST_DECL_GROUP("tls13", test_tls13_serverhello_bad_cipher_suites)
 
 #endif /* WOLFCRYPT_TEST_TLS13_H */
