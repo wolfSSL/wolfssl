@@ -41,7 +41,7 @@
  * Override by defining WC_PBKDF_MAX_ITERATIONS before including this header.
  * Normal PKCS#12 files use 1,000–10,000 iterations. */
 #ifndef WC_PBKDF_MAX_ITERATIONS
-    #define WC_PBKDF_MAX_ITERATIONS 100000
+    #define WC_PBKDF_MAX_ITERATIONS 2000000
 #endif
 
 #if FIPS_VERSION3_GE(6,0,0)
