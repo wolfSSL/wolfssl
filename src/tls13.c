@@ -13520,6 +13520,8 @@ int DoTls13HandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
     /* curSize has already been reduced to content-only (padSz subtracted)
      * in ProcessReply, so curStartIdx + curSize bounds the content. */
+    if (*inOutIdx > (word32)ssl->curStartIdx + ssl->curSize)
+        return BUFFER_ERROR;
     inputLength = ssl->curStartIdx + ssl->curSize - *inOutIdx;
 
     /* If there is a pending fragmented handshake message,
