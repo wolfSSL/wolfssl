@@ -35,6 +35,8 @@ int test_tls12_etm_failed_resumption(void);
 int test_tls_set_curves_list_ecc_fallback(void);
 int test_tls12_corrupted_finished(void);
 int test_tls12_peerauth_failsafe(void);
+int test_wolfSSL_alert_type_string(void);
+int test_wolfSSL_alert_desc_string(void);
 
 #define TEST_TLS_DECLS                                                         \
         TEST_DECL_GROUP("tls", test_utils_memio_move_message),                 \
@@ -49,6 +51,8 @@ int test_tls12_peerauth_failsafe(void);
         TEST_DECL_GROUP("tls", test_tls12_etm_failed_resumption),              \
         TEST_DECL_GROUP("tls", test_tls_set_curves_list_ecc_fallback),         \
         TEST_DECL_GROUP("tls", test_tls12_corrupted_finished),                 \
-        TEST_DECL_GROUP("tls", test_tls12_peerauth_failsafe)
+        TEST_DECL_GROUP("tls", test_tls12_peerauth_failsafe),                  \         
+        TEST_DECL_GROUP("tls", test_wolfSSL_alert_type_string),                \
+        TEST_DECL_GROUP("tls", test_wolfSSL_alert_desc_string)
 
 #endif /* TESTS_API_TEST_TLS_H */
