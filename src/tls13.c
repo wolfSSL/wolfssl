@@ -10125,11 +10125,16 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                 /* check for signature faults */
                 byte* sigOut = args->verify + HASH_SIG_SIZE + VERIFY_HEADER +
                                 args->sigLen + OPAQUE16_LEN + OPAQUE16_LEN;
+            #ifdef HAVE_PK_CALLBACKS
+                buffer tmp;
+                tmp.length = ssl->buffers.altKey->length;
+                tmp.buffer = ssl->buffers.altKey->buffer;
+            #endif
                 ret = EccVerify(ssl, sigOut, args->altSigLen,
                         args->altSigData, args->altSigDataSz,
                         (ecc_key*)ssl->hsAltKey,
             #ifdef HAVE_PK_CALLBACKS
-                        ssl->buffers.altKey
+                        &tmp
             #else
                         NULL
             #endif
