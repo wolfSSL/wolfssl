@@ -12125,7 +12125,7 @@ const char* wolfSSL_alert_desc_string(int alertID)
         case missing_extension:
             return "ME";
         case unsupported_extension:
-            return "UE";
+            return "XE";
         case unrecognized_name:
             return "UN";
         case bad_certificate_status_response:
