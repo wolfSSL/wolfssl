@@ -13268,7 +13268,8 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
             padCheck |= ctMaskGT(padLen, expBlockSz);
             padCheck |= ctMaskGT(padLen, encryptedContentSz);
             padCheck |= ctMaskGT(expBlockSz, encryptedContentSz);
-            for (padIndex = encryptedContentSz - expBlockSz;
+            for (padIndex = encryptedContentSz < expBlockSz ? 0 :
+                     encryptedContentSz - expBlockSz;
                  padIndex < encryptedContentSz; padIndex++) {
                 byte inPad = ctMaskGTE(padIndex,
                                        encryptedContentSz - (int)padLen);
@@ -15334,7 +15335,8 @@ int wc_PKCS7_DecodeEncryptedData(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                 padCheck |= ctMaskGT(padLen, expBlockSz);
                 padCheck |= ctMaskGT(padLen, encryptedContentSz);
                 padCheck |= ctMaskGT(expBlockSz, encryptedContentSz);
-                for (padIndex = encryptedContentSz - expBlockSz;
+                for (padIndex = encryptedContentSz < expBlockSz ? 0 :
+                         encryptedContentSz - expBlockSz;
                      padIndex < encryptedContentSz; padIndex++) {
                     byte inPad = ctMaskGTE(padIndex,
                                            encryptedContentSz - (int)padLen);
