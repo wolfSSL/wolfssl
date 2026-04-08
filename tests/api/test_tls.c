@@ -791,7 +791,8 @@ int test_tls12_etm_failed_resumption(void)
      * still findable via the cache.  Disable lookups on this server SSL
      * directly so that HandleTlsResumption hits its "session lookup failed"
      * path — exactly the scenario the bug fix targets. */
-    ssl_s->options.sessionCacheOff = 1;
+    if (ssl_s != NULL)
+        ssl_s->options.sessionCacheOff = 1;
     ExpectIntEQ(wolfSSL_NoTicketTLSv12(ssl_c), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_NoTicketTLSv12(ssl_s), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, cbcSuite), WOLFSSL_SUCCESS);
