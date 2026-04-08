@@ -785,6 +785,127 @@ static int test_wolfSSL_X509_STORE_CTX_ex11(X509_STORE_test_data *testData)
     return EXPECT_RESULT();
 }
 
+static int test_wolfSSL_X509_STORE_CTX_ex_partial_chain_neg(
+    X509_STORE_test_data *testData)
+{
+    EXPECT_DECLS;
+    X509_STORE* store = NULL;
+    X509_STORE_CTX* ctx = NULL;
+    STACK_OF(X509)* untrusted = NULL;
+
+    /* Negative partial-chain test: with X509_V_FLAG_PARTIAL_CHAIN set, the
+     * intermediates are supplied ONLY as untrusted (passed through the
+     * X509_STORE_CTX_init "chain" argument and never added to the store).
+     * No certificate in the chain is in the store, so verification must
+     * fail.  Pre-fix, wolfSSL_X509_verify_cert would incorrectly accept
+     * this chain because its partial-chain fallback only checked that some
+     * intermediate had been temporarily loaded into the CertManager, not
+     * that any chain certificate was actually trusted. */
+    ExpectNotNull(store = X509_STORE_new());
+    /* Intentionally do NOT add x509CaInt, x509CaInt2, or x509Ca. */
+    ExpectIntEQ(X509_STORE_set_flags(store, X509_V_FLAG_PARTIAL_CHAIN), 1);
+
+    ExpectNotNull(untrusted = sk_X509_new_null());
+    ExpectIntGT(sk_X509_push(untrusted, testData->x509CaInt2), 0);
+    ExpectIntGT(sk_X509_push(untrusted, testData->x509CaInt), 0);
+
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, testData->x509Leaf, untrusted),
+        1);
+    /* Must NOT verify: partial-chain does not relax the trust requirement. */
+    ExpectIntNE(X509_verify_cert(ctx), 1);
+    /* Verify the failure is specifically due to missing trust anchor, not
+     * some unrelated error. */
+    ExpectIntEQ(X509_STORE_CTX_get_error(ctx),
+        X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY);
+
+    X509_STORE_CTX_free(ctx);
+    X509_STORE_free(store);
+    sk_X509_free(untrusted);
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_X509_STORE_CTX_ex_partial_chain_mixed(
+    X509_STORE_test_data *testData)
+{
+    EXPECT_DECLS;
+    X509_STORE* store = NULL;
+    X509_STORE_CTX* ctx = NULL;
+    STACK_OF(X509)* untrusted = NULL;
+
+    /* Mixed trusted-store + untrusted-chain partial-chain test: the store
+     * trusts an intermediate (x509CaInt2, the leaf's direct issuer), while
+     * an additional intermediate (x509CaInt) is supplied only as untrusted
+     * via the chain argument.  With X509_V_FLAG_PARTIAL_CHAIN, verification
+     * must succeed by terminating at the trusted intermediate.  This test
+     * exercises the snapshot-based trust check in X509StoreCertIsTrusted:
+     * the untrusted intermediate injected during verification must not be
+     * treated as a trust anchor, but the intermediate already in the store
+     * must be. */
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectIntEQ(X509_STORE_add_cert(store, testData->x509CaInt2), 1);
+    ExpectIntEQ(X509_STORE_set_flags(store, X509_V_FLAG_PARTIAL_CHAIN), 1);
+
+    ExpectNotNull(untrusted = sk_X509_new_null());
+    ExpectIntGT(sk_X509_push(untrusted, testData->x509CaInt), 0);
+
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, testData->x509Leaf, untrusted),
+        1);
+    /* Must verify: chain terminates at trusted intermediate in the store. */
+    ExpectIntEQ(X509_verify_cert(ctx), 1);
+
+    X509_STORE_CTX_free(ctx);
+    X509_STORE_free(store);
+    sk_X509_free(untrusted);
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_X509_STORE_CTX_ex_partial_chain_untrusted_terminal(
+    X509_STORE_test_data *testData)
+{
+    EXPECT_DECLS;
+    X509_STORE* store = NULL;
+    X509_STORE_CTX* ctx = NULL;
+    STACK_OF(X509)* untrusted = NULL;
+
+    /* Partial-chain boundary test: the store trusts a CA (x509Ca) that is
+     * NOT reachable from the leaf given the supplied untrusted intermediates,
+     * and an untrusted intermediate (x509CaInt2) IS the terminal of the
+     * (truncated) chain.  With X509_V_FLAG_PARTIAL_CHAIN set, verification
+     * must FAIL because the chain terminates at an untrusted certificate.
+     *
+     * This test specifically targets the snapshot-based trust check in
+     * X509StoreCertIsTrusted.  Before addAllButSelfSigned injects
+     * x509CaInt2, origTrustedSk is snapshotted from the caller-trusted set
+     * and contains only x509Ca.  When the chain terminates at x509CaInt2,
+     * the trust check consults origTrustedSk (not the mutated working
+     * stack) and correctly finds no match.  A regression that consulted
+     * the post-injection working stack instead of the snapshot would
+     * incorrectly mark x509CaInt2 as trusted and cause verification to
+     * succeed. */
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectIntEQ(X509_STORE_add_cert(store, testData->x509Ca), 1);
+    ExpectIntEQ(X509_STORE_set_flags(store, X509_V_FLAG_PARTIAL_CHAIN), 1);
+
+    /* Only x509CaInt2 supplied as untrusted; x509CaInt is intentionally
+     * withheld so the chain cannot actually reach the trusted x509Ca. */
+    ExpectNotNull(untrusted = sk_X509_new_null());
+    ExpectIntGT(sk_X509_push(untrusted, testData->x509CaInt2), 0);
+
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, testData->x509Leaf, untrusted),
+        1);
+    /* Must NOT verify: the chain terminal (x509CaInt2) is not in the
+     * original trust set, even though the store is non-empty. */
+    ExpectIntNE(X509_verify_cert(ctx), 1);
+
+    X509_STORE_CTX_free(ctx);
+    X509_STORE_free(store);
+    sk_X509_free(untrusted);
+    return EXPECT_RESULT();
+}
+
 #ifdef HAVE_ECC
 static int test_wolfSSL_X509_STORE_CTX_ex12(void)
 {
@@ -870,6 +991,12 @@ int test_wolfSSL_X509_STORE_CTX_ex(void)
     ExpectIntEQ(test_wolfSSL_X509_STORE_CTX_ex9(&testData), 1);
     ExpectIntEQ(test_wolfSSL_X509_STORE_CTX_ex10(&testData), 1);
     ExpectIntEQ(test_wolfSSL_X509_STORE_CTX_ex11(&testData), 1);
+    ExpectIntEQ(test_wolfSSL_X509_STORE_CTX_ex_partial_chain_neg(&testData), 1);
+    ExpectIntEQ(test_wolfSSL_X509_STORE_CTX_ex_partial_chain_mixed(&testData),
+        1);
+    ExpectIntEQ(
+        test_wolfSSL_X509_STORE_CTX_ex_partial_chain_untrusted_terminal(
+            &testData), 1);
 #ifdef HAVE_ECC
     ExpectIntEQ(test_wolfSSL_X509_STORE_CTX_ex12(), 1);
 #endif
