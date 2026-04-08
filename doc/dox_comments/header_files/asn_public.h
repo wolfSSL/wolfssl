@@ -3378,15 +3378,20 @@ int wc_GetSubjectPubKeyInfoDerFromCert(const byte* certDer,
     \brief Retrieves the subject name from a decoded certificate.
 
     This function copies the subject name string from a DecodedCert
-    structure into the provided buffer. If buf is NULL, the required
-    buffer size is returned in bufSz and LENGTH_ONLY_E is returned.
+    structure into the provided buffer. The string uses a one-line
+    distinguished name format with "/" delimiters
+    (e.g. "/C=US/O=Org/CN=example.com"). The output is NOT
+    NUL-terminated; the caller should append a NUL byte if needed.
+    If buf is NULL, the required buffer size is returned
+    in bufSz and LENGTH_ONLY_E is returned.
 
     \param cert   Pointer to the DecodedCert (must have been parsed).
     \param buf    Output buffer to receive the subject name string,
                   or NULL to query the required size.
     \param bufSz  Pointer to the buffer size. On input, the available
                   buffer size. On output, the number of bytes written
-                  or the required size if buf is NULL.
+                  (excluding any NUL terminator) or the required size
+                  if buf is NULL.
 
     \return 0 on success.
     \return LENGTH_ONLY_E when buf is NULL (bufSz contains required size).
@@ -3407,15 +3412,20 @@ int wc_GetDecodedCertSubject(const struct DecodedCert* cert,
     \brief Retrieves the issuer name from a decoded certificate.
 
     This function copies the issuer name string from a DecodedCert
-    structure into the provided buffer. If buf is NULL, the required
-    buffer size is returned in bufSz and LENGTH_ONLY_E is returned.
+    structure into the provided buffer. The string uses a one-line
+    distinguished name format with "/" delimiters
+    (e.g. "/C=US/O=Org/CN=example.com"). The output is NOT
+    NUL-terminated; the caller should append a NUL byte if needed.
+    If buf is NULL, the required buffer size is returned
+    in bufSz and LENGTH_ONLY_E is returned.
 
     \param cert   Pointer to the DecodedCert (must have been parsed).
     \param buf    Output buffer to receive the issuer name string,
                   or NULL to query the required size.
     \param bufSz  Pointer to the buffer size. On input, the available
                   buffer size. On output, the number of bytes written
-                  or the required size if buf is NULL.
+                  (excluding any NUL terminator) or the required size
+                  if buf is NULL.
 
     \return 0 on success.
     \return LENGTH_ONLY_E when buf is NULL (bufSz contains required size).

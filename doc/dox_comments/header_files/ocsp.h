@@ -74,8 +74,9 @@ OcspRequest* wc_OcspRequest_new(void* heap);
     \brief Frees an OcspRequest structure.
 
     This function releases all resources associated with an OcspRequest
-    that was allocated with wc_OcspRequest_new(). It calls the internal
-    FreeOcspRequest() before freeing the structure itself.
+    that was allocated with wc_OcspRequest_new(). It frees any internal
+    allocations associated with the request before freeing the structure
+    itself.
 
     \param request  Pointer to the OcspRequest to free. May be NULL,
                     in which case this function is a no-op.
@@ -161,8 +162,9 @@ OcspResponse* wc_OcspResponse_new(void* heap);
     \brief Frees an OcspResponse structure.
 
     This function releases all resources associated with an OcspResponse
-    that was allocated with wc_OcspResponse_new(). It calls the internal
-    FreeOcspResponse() before freeing the structure itself.
+    that was allocated with wc_OcspResponse_new(). It frees any internal
+    allocations associated with the response before freeing the structure
+    itself.
 
     \param response  Pointer to the OcspResponse to free. May be NULL,
                      in which case this function is a no-op.
@@ -281,8 +283,14 @@ int wc_OcspResponder_AddSigner(OcspResponder* responder,
     Requires HAVE_OCSP_RESPONDER to be defined.
 
     \param responder        Pointer to the OcspResponder.
-    \param caSubject        The subject name string of the issuing CA.
-    \param caSubjectSz      Length of the caSubject string.
+    \param caSubject        The issuing CA subject name in the one-line
+                            distinguished name format used internally by
+                            the library (e.g. "/C=US/O=Org/CN=CA"). To
+                            avoid mismatches,
+                            obtain this value from wc_GetDecodedCertSubject()
+                            rather than constructing the string manually.
+    \param caSubjectSz      Length of the caSubject string in bytes,
+                            not including any NUL terminator.
     \param serial           Pointer to the certificate serial number bytes.
     \param serialSz         Size of the serial number in bytes.
     \param status           Certificate status: CERT_GOOD, CERT_REVOKED,
