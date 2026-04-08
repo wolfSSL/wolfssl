@@ -1678,5 +1678,130 @@ int test_wolfSSL_BIO_custom_method(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_BIO_set_conn_hostname(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA)
+    BIO* bio = NULL;
+
+    /* NULL bio should fail */
+    ExpectIntEQ(BIO_set_conn_hostname(NULL, (char*)"localhost"),
+        WOLFSSL_FAILURE);
+
+    /* Create a bare socket BIO (ip starts as NULL) */
+    ExpectNotNull(bio = BIO_new(BIO_s_socket()));
+
+    /* NULL hostname should fail */
+    ExpectIntEQ(BIO_set_conn_hostname(bio, NULL), WOLFSSL_FAILURE);
+
+    /* Set initial hostname (ip == NULL, triggers malloc) */
+    ExpectIntEQ(BIO_set_conn_hostname(bio, (char*)"127.0.0.1"),
+        WOLFSSL_SUCCESS);
+
+    /* Set same-length hostname (reuses existing buffer) */
+    ExpectIntEQ(BIO_set_conn_hostname(bio, (char*)"192.168.0"),
+        WOLFSSL_SUCCESS);
+
+    /* Set shorter hostname (triggers free + malloc) */
+    ExpectIntEQ(BIO_set_conn_hostname(bio, (char*)"short"), WOLFSSL_SUCCESS);
+
+    /* Set longer hostname (triggers free + malloc) */
+    ExpectIntEQ(BIO_set_conn_hostname(bio, (char*)"a]longer.hostname.example"),
+        WOLFSSL_SUCCESS);
+
+    BIO_free(bio);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(OPENSSL_EXTRA)
+static long pending_ctrlCb(WOLFSSL_BIO* bio, int cmd, long larg, void* parg)
+{
+    (void)bio;
+    (void)larg;
+    (void)parg;
+    if (cmd == BIO_CTRL_PENDING)
+        return 42;
+    return 0;
+}
+#endif
+
+int test_wolfSSL_BIO_ctrl_pending_chain(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA)
+    BIO* md = NULL;
+    BIO* b64 = NULL;
+    BIO* mem = NULL;
+    char msg[] = "hello";
+
+    /* Build chain: md -> b64 -> mem */
+    ExpectNotNull(md = BIO_new(BIO_f_md()));
+    ExpectNotNull(b64 = BIO_new(BIO_f_base64()));
+    ExpectNotNull(mem = BIO_new(BIO_s_mem()));
+    ExpectNotNull(BIO_push(md, b64));
+    ExpectNotNull(BIO_push(b64, mem));
+
+    /* Write directly to mem so wrSz is set */
+    ExpectIntEQ(BIO_write(mem, msg, sizeof(msg)), (int)sizeof(msg));
+
+    /* ctrl_pending on mem should work */
+    ExpectIntEQ((int)BIO_ctrl_pending(mem), (int)sizeof(msg));
+
+    /* ctrl_pending on the head of the chain (md) should skip both wrappers
+     * and return mem's pending count */
+    ExpectIntEQ((int)BIO_ctrl_pending(md), (int)sizeof(msg));
+
+    BIO_free(md);
+    BIO_free(b64);
+    BIO_free(mem);
+
+    /* Test that ctrl_pending reaches a custom ctrlCb through a wrapper.
+     * Chain: md -> custom(with ctrlCb) -> mem. The custom BIO's ctrlCb
+     * returns 42 for BIO_CTRL_PENDING, so ctrl_pending on md should
+     * return 42 (stopping at custom), not fall through to mem. */
+    {
+        BIO* md2 = NULL;
+        BIO* custom = NULL;
+        BIO* mem2 = NULL;
+        BIO_METHOD* meth = NULL;
+
+        ExpectNotNull(meth = BIO_meth_new(0, "pending_test"));
+        ExpectIntEQ(BIO_meth_set_ctrl(meth, pending_ctrlCb), WOLFSSL_SUCCESS);
+        ExpectNotNull(md2 = BIO_new(BIO_f_md()));
+        ExpectNotNull(custom = BIO_new(meth));
+        ExpectNotNull(mem2 = BIO_new(BIO_s_mem()));
+        ExpectNotNull(BIO_push(md2, custom));
+        ExpectNotNull(BIO_push(custom, mem2));
+
+        ExpectIntEQ((int)BIO_ctrl_pending(md2), 42);
+
+        BIO_free(md2);
+        BIO_free(custom);
+        BIO_free(mem2);
+        BIO_meth_free(meth);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_BIO_meth_type_large(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA)
+    BIO_METHOD* method = NULL;
+    BIO* bio = NULL;
+
+    /* Type value exceeding 255, as used by applications like HAProxy (0x666) */
+    ExpectNotNull(method = BIO_meth_new(0x666, "large_type_test"));
+    ExpectNotNull(bio = BIO_new(method));
+    ExpectIntEQ(BIO_method_type(bio), 0x666);
+
+    BIO_free(bio);
+    BIO_meth_free(method);
+#endif
+    return EXPECT_RESULT();
+}
+
 #endif /* !NO_BIO */
 
