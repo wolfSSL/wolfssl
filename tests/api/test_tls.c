@@ -31,7 +31,7 @@
 #include <tests/utils.h>
 #include <tests/api/test_tls.h>
 #include <wolfssl/internal.h>
-#include <wolfssl/openssl/ssl.h>
+#include <wolfssl/ssl.h>
 
 
 int test_utils_memio_move_message(void)
@@ -1063,8 +1063,8 @@ int test_tls12_corrupted_finished(void)
 int test_wolfSSL_alert_type_string(void)
 {
     EXPECT_DECLS;
-#ifndef NO_TLS
-    /* wolfSSL_alert_type_string returns short code for alert level */
+#if !defined(NO_TLS) && (defined(OPENSSL_EXTRA) || \
+    defined(OPENSSL_EXTRA_X509_SMALL))
     ExpectStrEQ(wolfSSL_alert_type_string(alert_warning), "W");
     ExpectStrEQ(wolfSSL_alert_type_string(alert_fatal), "F");
     ExpectStrEQ(wolfSSL_alert_type_string(0), "U");
@@ -1137,8 +1137,8 @@ int test_tls12_peerauth_failsafe(void)
 int test_wolfSSL_alert_desc_string(void)
 {
     EXPECT_DECLS;
-#ifndef NO_TLS
-    /* wolfSSL_alert_desc_string returns short 2-letter code */
+#if !defined(NO_TLS) && (defined(OPENSSL_EXTRA) || \
+    defined(OPENSSL_EXTRA_X509_SMALL))
     ExpectStrEQ(wolfSSL_alert_desc_string(close_notify), "CN");
     ExpectStrEQ(wolfSSL_alert_desc_string(unexpected_message), "UM");
     ExpectStrEQ(wolfSSL_alert_desc_string(bad_record_mac), "BM");
@@ -1163,7 +1163,7 @@ int test_wolfSSL_alert_desc_string(void)
     ExpectStrEQ(wolfSSL_alert_desc_string(user_canceled), "US");
     ExpectStrEQ(wolfSSL_alert_desc_string(no_renegotiation), "NR");
     ExpectStrEQ(wolfSSL_alert_desc_string(missing_extension), "ME");
-    ExpectStrEQ(wolfSSL_alert_desc_string(unsupported_extension), "UE");
+    ExpectStrEQ(wolfSSL_alert_desc_string(unsupported_extension), "XE");
     ExpectStrEQ(wolfSSL_alert_desc_string(unrecognized_name), "UN");
     ExpectStrEQ(wolfSSL_alert_desc_string(bad_certificate_status_response), "BR");
     ExpectStrEQ(wolfSSL_alert_desc_string(unknown_psk_identity), "UP");
