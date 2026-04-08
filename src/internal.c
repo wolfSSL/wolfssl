@@ -16942,10 +16942,12 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         ssl->echConfigs != NULL &&
                         !ssl->options.echAccepted) {
                     TLSX* echX = TLSX_Find(ssl->extensions, TLSX_ECH);
-                    if (echX != NULL) {
+                    if (echX != NULL && echX->data != NULL) {
                         WOLFSSL_ECH* ech = (WOLFSSL_ECH*)echX->data;
-                        domainName = ech->echConfig ?
-                            ech->echConfig->publicName : NULL;
+                        if (ech->echConfig != NULL &&
+                                ech->echConfig->publicName != NULL) {
+                            domainName = ech->echConfig->publicName;
+                        }
                     }
                 }
             #endif

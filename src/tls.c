@@ -13792,12 +13792,12 @@ static int TLSX_ECH_CheckInnerPadding(WOLFSSL* ssl, WOLFSSL_ECH* ech)
     byte acc = 0;
     word32 i;
 
-    (void)ssl;
-
 #ifdef WOLFSSL_DTLS13
     headerSz = ssl->options.dtls ? DTLS13_HANDSHAKE_HEADER_SZ :
                                    HANDSHAKE_HEADER_SZ;
 #else
+    (void)ssl;
+
     headerSz = HANDSHAKE_HEADER_SZ;
 #endif
 

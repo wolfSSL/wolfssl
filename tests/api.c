@@ -15595,6 +15595,10 @@ static int test_wolfSSL_Tls13_ECH_rejected_empty_client_cert(void)
         "ech-private.com", (word16)XSTRLEN("ech-private.com")),
         WOLFSSL_SUCCESS);
 
+    wolfSSL_set_verify(test_ctx.s_ssl,
+            WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+    wolfSSL_set_verify(test_ctx.c_ssl, WOLFSSL_VERIFY_PEER, NULL);
+
     /* Disable ECH on the server so ECH is rejected */
     wolfSSL_SetEchEnable(test_ctx.s_ssl, 0);
 
