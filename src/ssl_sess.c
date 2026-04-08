@@ -483,6 +483,38 @@ int wolfSSL_memsave_session_cache(void* mem, int sz)
 }
 
 
+#if !defined(SESSION_CACHE_DYNAMIC_MEM) && \
+    (defined(HAVE_SESSION_TICKET) || \
+    (defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)))
+static void SessionSanityPointerSet(SessionRow* row)
+{
+    int j;
+
+    /* Reset pointers to safe values after raw copy */
+    for (j = 0; j < SESSIONS_PER_ROW; j++) {
+        WOLFSSL_SESSION* s = &row->Sessions[j];
+#ifdef HAVE_SESSION_TICKET
+        s->ticket = s->staticTicket;
+        s->ticketLenAlloc = 0;
+        if (s->ticketLen > SESSION_TICKET_LEN) {
+            s->ticketLen = SESSION_TICKET_LEN;
+        }
+#endif
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) &&                 \
+    defined(WOLFSSL_TICKET_NONCE_MALLOC) &&                                    \
+    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
+        s->ticketNonce.data = s->ticketNonce.dataStatic;
+        if (s->ticketNonce.len > MAX_TICKET_NONCE_STATIC_SZ) {
+            s->ticketNonce.len = MAX_TICKET_NONCE_STATIC_SZ;
+        }
+#endif
+#if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
+        s->peer = NULL;
+#endif
+    }
+}
+#endif
+
 /* Restore the persistent session cache from memory */
 int wolfSSL_memrestore_session_cache(const void* mem, int sz)
 {
@@ -522,6 +554,11 @@ int wolfSSL_memrestore_session_cache(const void* mem, int sz)
     #endif
 
         XMEMCPY(&SessionCache[i], row++, SIZEOF_SESSION_ROW);
+    #if !defined(SESSION_CACHE_DYNAMIC_MEM) && \
+        (defined(HAVE_SESSION_TICKET) || \
+        (defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)))
+        SessionSanityPointerSet(&SessionCache[i]);
+    #endif
     #ifdef ENABLE_SESSION_CACHE_ROW_LOCK
         SESSION_ROW_UNLOCK(&SessionCache[i]);
     #endif
@@ -681,6 +718,11 @@ int wolfSSL_restore_session_cache(const char *fname)
     #endif
 
         ret = (int)XFREAD(&SessionCache[i], SIZEOF_SESSION_ROW, 1, file);
+    #if !defined(SESSION_CACHE_DYNAMIC_MEM) && \
+        (defined(HAVE_SESSION_TICKET) || \
+        (defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)))
+        SessionSanityPointerSet(&SessionCache[i]);
+    #endif
     #ifdef ENABLE_SESSION_CACHE_ROW_LOCK
         SESSION_ROW_UNLOCK(&SessionCache[i]);
     #endif
