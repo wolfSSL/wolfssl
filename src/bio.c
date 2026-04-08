@@ -2093,7 +2093,7 @@ WOLFSSL_BIO_METHOD *wolfSSL_BIO_meth_new(int type, const char *name)
         return NULL;
     }
     XMEMSET(meth, 0, sizeof(WOLFSSL_BIO_METHOD));
-    meth->type = (byte)type;
+    meth->type = type;
     XSTRNCPY(meth->name, name, MAX_BIO_METHOD_NAME - 1);
 
     return meth;
@@ -2890,7 +2890,7 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
                 DYNAMIC_TYPE_OPENSSL);
         if (bio) {
             XMEMSET(bio, 0, sizeof(WOLFSSL_BIO));
-            bio->type = (byte)method->type;
+            bio->type = method->type;
 #if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
             bio->method = (WOLFSSL_BIO_METHOD*)method;
 #else

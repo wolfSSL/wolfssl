@@ -783,7 +783,7 @@ typedef long (*wolfssl_BIO_meth_ctrl_info_cb)(WOLFSSL_BIO*, int, wolfSSL_BIO_inf
 #define MAX_BIO_METHOD_NAME 256
 #endif
 struct WOLFSSL_BIO_METHOD {
-    byte type;               /* method type */
+    int type;                /* method type */
     char name[MAX_BIO_METHOD_NAME];
     wolfSSL_BIO_meth_write_cb writeCb;
     wolfSSL_BIO_meth_read_cb readCb;
