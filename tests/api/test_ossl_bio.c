@@ -1150,7 +1150,7 @@ int test_wolfSSL_BIO_reset(void)
     ExpectIntEQ(BIO_read(bio, buf, 16), 10);
     ExpectIntEQ(XMEMCMP(buf, " your data", 10), 0);
     /* You cannot write to MEM BIO with read-only mode. */
-    ExpectIntEQ(BIO_write(bio, "WriteToReadonly", 15), 0);
+    ExpectIntEQ(BIO_write(bio, "WriteToReadonly", 15), WOLFSSL_BIO_ERROR);
     ExpectIntEQ(BIO_read(bio, buf, 16), -1);
     XMEMSET(buf, 0, 16);
     ExpectIntEQ(BIO_reset(bio), 1);
