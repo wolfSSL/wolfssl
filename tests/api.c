@@ -1718,7 +1718,7 @@ static int test_wolfSSL_use_AltPrivateKey_Id(void)
     ExpectIntEQ(wolfSSL_use_AltPrivateKey_Id(ssl, NULL, sizeof(id),
         INVALID_DEVID), 0);
 
-    /* Positive test — valid ID should succeed. */
+    /* Positive test - valid ID should succeed. */
     ExpectIntEQ(wolfSSL_use_AltPrivateKey_Id(ssl, id, sizeof(id),
         INVALID_DEVID), 1);
 
@@ -1748,7 +1748,7 @@ static int test_wolfSSL_use_AltPrivateKey_Label(void)
         0);
     ExpectIntEQ(wolfSSL_use_AltPrivateKey_Label(ssl, NULL, INVALID_DEVID), 0);
 
-    /* Positive test — valid label should succeed. */
+    /* Positive test - valid label should succeed. */
     ExpectIntEQ(wolfSSL_use_AltPrivateKey_Label(ssl, "test_label",
         INVALID_DEVID), 1);
 

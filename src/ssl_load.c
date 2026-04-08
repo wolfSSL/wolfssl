@@ -5930,12 +5930,10 @@ static int ws_ctx_ssl_set_tmp_dh(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
 
     /* PemToDer allocates its own DER buffer. */
     if ((res == 1) && (format != WOLFSSL_FILETYPE_PEM)) {
-        /* Create an empty DER buffer. */
-        ret = AllocDer(&der, 0, DH_PARAM_TYPE, heap);
+        /* Create a DER buffer and copy in the encoded DH parameters. */
+        ret = AllocDer(&der, (word32)sz, DH_PARAM_TYPE, heap);
         if (ret == 0) {
-            /* Assign encoded DH parameters to DER buffer. */
-            der->buffer = (byte*)buf;
-            der->length = (word32)sz;
+            XMEMCPY(der->buffer, buf, (word32)sz);
         }
         else {
             res = ret;
