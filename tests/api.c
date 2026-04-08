@@ -15671,8 +15671,9 @@ static int test_wolfSSL_Tls13_ECH_enable_disable(void)
     return EXPECT_RESULT();
 }
 
-#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH) && defined(WOLFSSL_TEST) && \
-    defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && !defined(WOLFSSL_NO_TLS12)
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH) && \
+    defined(WOLFSSL_TEST_ECH) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12)
 static int ech_tamper_seek_extension(byte* innerCh, word16* innerExtLen)
 {
     word16 idx;
@@ -15921,7 +15922,7 @@ static int test_wolfSSL_Tls13_ECH_tamper_client(void)
     test_ssl_memio_cleanup(&test_ctx);
     return EXPECT_RESULT();
 }
-#endif /* WOLFSSL_TLS13 && HAVE_ECH && WOLFSSL_TEST &&
+#endif /* WOLFSSL_TLS13 && HAVE_ECH && WOLFSSL_TEST_ECH &&
         * HAVE_SSL_MEMIO_TESTS_DEPENDENCIES && !WOLFSSL_NO_TLS12 */
 
 #endif /* HAVE_ECH && WOLFSSL_TLS13 */
@@ -37994,7 +37995,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_Tls13_ECH_rejected_cert_valid),
     TEST_DECL(test_wolfSSL_Tls13_ECH_rejected_empty_client_cert),
 #endif
-#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TEST) && \
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TEST_ECH) && \
     !defined(WOLFSSL_NO_TLS12)
     TEST_DECL(test_wolfSSL_Tls13_ECH_tamper_client),
 #endif

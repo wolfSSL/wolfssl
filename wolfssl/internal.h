@@ -6522,9 +6522,9 @@ struct WOLFSSL {
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
     WOLFSSL_EchConfig* echConfigs;
 #endif
-#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH) && defined(WOLFSSL_TEST)
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH) && defined(WOLFSSL_TEST_ECH)
     /* Test-only hook: called on the client before ECH encryption, after the
-     * inner ClientHello body is fully constructed.  The callback may modify
+     * inner ClientHello body is fully constructed. The callback may modify
      * innerCh in-place (length stays the same). */
     int (*echInnerHelloCb)(byte* innerCh, word32 innerChLen);
 #endif

@@ -16950,9 +16950,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 }
             #endif
 
-                if ((!ssl->options.verifyNone ||
-                        domainName != (char*)ssl->buffers.domainName.buffer) &&
-                        domainName) {
+                if (!ssl->options.verifyNone && domainName) {
                 #ifndef WOLFSSL_ALLOW_NO_CN_IN_SAN
                     /* Per RFC 5280 section 4.2.1.6, "Whenever such identities
                      * are to be bound into a certificate, the subject

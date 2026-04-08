@@ -4996,7 +4996,7 @@ int SendTls13ClientHello(WOLFSSL* ssl)
     /* encrypt and pack the ech innerClientHello */
     if (ssl->echConfigs != NULL && !ssl->options.disableECH &&
         (ssl->options.echAccepted || args->ech->innerCount == 0)) {
-#if defined(WOLFSSL_TEST)
+#if defined(WOLFSSL_TEST_ECH)
         if (ssl->echInnerHelloCb != NULL) {
             ret = ssl->echInnerHelloCb(args->ech->innerClientHello,
                 args->ech->innerClientHelloLen - args->ech->hpke->Nt);

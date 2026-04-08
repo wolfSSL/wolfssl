@@ -24,7 +24,9 @@ jobs:
         with:
           path: wolfssl
           configure: >-
-            --enable-ech --enable-sha512 --enable-aes CFLAGS='-DUSE_FLAT_TEST_H'
+            --enable-ech --enable-sha512 --enable-aes
+            CFLAGS='-DUSE_FLAT_TEST_H -DWOLFSSL_TEST_ECH'
+          check: true
           install: true
 
       - name: tar build-dir
