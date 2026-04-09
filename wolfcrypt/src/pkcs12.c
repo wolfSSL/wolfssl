@@ -1335,7 +1335,7 @@ int wc_PKCS12_parse_ex(WC_PKCS12* pkcs12, const char* psw,
     byte* buf             = NULL;
     word32 i, oid;
     word32 algId;
-    word32 contentSz;
+    word32 contentSz = 0;
     int ret, pswSz;
 #ifdef ASN_BER_TO_DER
     int curIdx;
