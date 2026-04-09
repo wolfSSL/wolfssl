@@ -488,7 +488,7 @@ typedef struct wc_CryptoInfo {
         const void* ctx;        /* read-only caller context */
         union {
             struct {
-                const byte* uid;
+                byte*       uid;
                 word32      uidSz;
             } getUid;
             struct {
@@ -862,7 +862,7 @@ WOLFSSL_LOCAL int wc_CryptoCb_Cmac(Cmac* cmac, const byte* key, word32 keySz,
 #endif
 
 #ifdef WOLFSSL_SHE
-WOLFSSL_LOCAL int wc_CryptoCb_SheGetUid(wc_SHE* she, const byte* uid,
+WOLFSSL_LOCAL int wc_CryptoCb_SheGetUid(wc_SHE* she, byte* uid,
                                          word32 uidSz, const void* ctx);
 WOLFSSL_LOCAL int wc_CryptoCb_SheGetCounter(wc_SHE* she, word32* counter,
                                              const void* ctx);

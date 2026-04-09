@@ -499,18 +499,32 @@ static int test_she_crypto_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                       info->she.op.generateM1M2M3.m3Sz);
             break;
         case WC_SHE_GENERATE_M4M5:
-            ret = wc_SHE_GenerateM4M5(she,
-                      info->she.op.generateM4M5.uid,
-                      info->she.op.generateM4M5.uidSz,
-                      info->she.op.generateM4M5.authKeyId,
-                      info->she.op.generateM4M5.targetKeyId,
-                      info->she.op.generateM4M5.newKey,
-                      info->she.op.generateM4M5.newKeySz,
-                      info->she.op.generateM4M5.counter,
-                      info->she.op.generateM4M5.m4,
-                      info->she.op.generateM4M5.m4Sz,
-                      info->she.op.generateM4M5.m5,
-                      info->she.op.generateM4M5.m5Sz);
+            if (info->she.op.generateM4M5.uid == NULL &&
+                she->generated) {
+                /* LoadKey flow: M1/M2/M3 already imported, simulate HSM
+                 * returning M4/M5 from known test vectors. */
+                if (info->she.op.generateM4M5.m4 != NULL)
+                    XMEMCPY(info->she.op.generateM4M5.m4,
+                            sheTestExpM4, WC_SHE_M4_SZ);
+                if (info->she.op.generateM4M5.m5 != NULL)
+                    XMEMCPY(info->she.op.generateM4M5.m5,
+                            sheTestExpM5, WC_SHE_M5_SZ);
+                ret = 0;
+            }
+            else {
+                ret = wc_SHE_GenerateM4M5(she,
+                          info->she.op.generateM4M5.uid,
+                          info->she.op.generateM4M5.uidSz,
+                          info->she.op.generateM4M5.authKeyId,
+                          info->she.op.generateM4M5.targetKeyId,
+                          info->she.op.generateM4M5.newKey,
+                          info->she.op.generateM4M5.newKeySz,
+                          info->she.op.generateM4M5.counter,
+                          info->she.op.generateM4M5.m4,
+                          info->she.op.generateM4M5.m4Sz,
+                          info->she.op.generateM4M5.m5,
+                          info->she.op.generateM4M5.m5Sz);
+            }
             break;
         case WC_SHE_EXPORT_KEY:
             /* Simulate hardware export -- fill with test pattern */
@@ -634,5 +648,121 @@ int test_wc_SHE_CryptoCb(void)
 
     return EXPECT_RESULT();
 }
+
+#ifndef NO_WC_SHE_LOADKEY
+
+int test_wc_SHE_LoadKey(void)
+{
+    EXPECT_DECLS;
+    int sheTestDevId = 54322;
+    byte m1[WC_SHE_M1_SZ];
+    byte m2[WC_SHE_M2_SZ];
+    byte m3[WC_SHE_M3_SZ];
+    byte m4[WC_SHE_M4_SZ];
+    byte m5[WC_SHE_M5_SZ];
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(sheTestDevId,
+                                            test_she_crypto_cb, NULL), 0);
+
+    /* Generate valid M1/M2/M3 from test vectors */
+    {
+        wc_SHE she;
+        ExpectIntEQ(wc_SHE_Init(&she, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_SHE_GenerateM1M2M3(&she,
+                        sheTestUid, sizeof(sheTestUid),
+                        WC_SHE_MASTER_ECU_KEY_ID,
+                        sheTestAuthKey, sizeof(sheTestAuthKey),
+                        4, sheTestNewKey, sizeof(sheTestNewKey), 1, 0,
+                        m1, WC_SHE_M1_SZ, m2, WC_SHE_M2_SZ,
+                        m3, WC_SHE_M3_SZ), 0);
+        wc_SHE_Free(&she);
+    }
+
+    /* Basic: LoadKey should import M1/M2/M3 and produce M4/M5 via callback */
+    ExpectIntEQ(wc_SHE_LoadKey(NULL, sheTestDevId,
+                    m1, WC_SHE_M1_SZ, m2, WC_SHE_M2_SZ, m3, WC_SHE_M3_SZ,
+                    m4, WC_SHE_M4_SZ, m5, WC_SHE_M5_SZ), 0);
+    ExpectIntEQ(XMEMCMP(m4, sheTestExpM4, WC_SHE_M4_SZ), 0);
+    ExpectIntEQ(XMEMCMP(m5, sheTestExpM5, WC_SHE_M5_SZ), 0);
+
+    /* Bad args: NULL m1 */
+    ExpectIntEQ(wc_SHE_LoadKey(NULL, sheTestDevId,
+                    NULL, WC_SHE_M1_SZ, m2, WC_SHE_M2_SZ, m3, WC_SHE_M3_SZ,
+                    m4, WC_SHE_M4_SZ, m5, WC_SHE_M5_SZ),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* Bad args: NULL m4 output */
+    ExpectIntEQ(wc_SHE_LoadKey(NULL, sheTestDevId,
+                    m1, WC_SHE_M1_SZ, m2, WC_SHE_M2_SZ, m3, WC_SHE_M3_SZ,
+                    NULL, WC_SHE_M4_SZ, m5, WC_SHE_M5_SZ),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* Bad args: INVALID_DEVID */
+    ExpectIntEQ(wc_SHE_LoadKey(NULL, INVALID_DEVID,
+                    m1, WC_SHE_M1_SZ, m2, WC_SHE_M2_SZ, m3, WC_SHE_M3_SZ,
+                    m4, WC_SHE_M4_SZ, m5, WC_SHE_M5_SZ),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* Bad args: wrong M1 size */
+    ExpectIntEQ(wc_SHE_LoadKey(NULL, sheTestDevId,
+                    m1, WC_SHE_M1_SZ - 1, m2, WC_SHE_M2_SZ,
+                    m3, WC_SHE_M3_SZ,
+                    m4, WC_SHE_M4_SZ, m5, WC_SHE_M5_SZ),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    wc_CryptoCb_UnRegisterDevice(sheTestDevId);
+    return EXPECT_RESULT();
+}
+
+int test_wc_SHE_LoadKey_Verify(void)
+{
+    EXPECT_DECLS;
+    int sheTestDevId = 54323;
+    byte m1[WC_SHE_M1_SZ];
+    byte m2[WC_SHE_M2_SZ];
+    byte m3[WC_SHE_M3_SZ];
+    byte m4[WC_SHE_M4_SZ];
+    byte m5[WC_SHE_M5_SZ];
+    byte badM4[WC_SHE_M4_SZ];
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(sheTestDevId,
+                                            test_she_crypto_cb, NULL), 0);
+
+    /* Generate valid M1/M2/M3 from test vectors */
+    {
+        wc_SHE she;
+        ExpectIntEQ(wc_SHE_Init(&she, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_SHE_GenerateM1M2M3(&she,
+                        sheTestUid, sizeof(sheTestUid),
+                        WC_SHE_MASTER_ECU_KEY_ID,
+                        sheTestAuthKey, sizeof(sheTestAuthKey),
+                        4, sheTestNewKey, sizeof(sheTestNewKey), 1, 0,
+                        m1, WC_SHE_M1_SZ, m2, WC_SHE_M2_SZ,
+                        m3, WC_SHE_M3_SZ), 0);
+        wc_SHE_Free(&she);
+    }
+
+    /* Matching: expected M4/M5 match what the callback produces */
+    ExpectIntEQ(wc_SHE_LoadKey_Verify(NULL, sheTestDevId,
+                    m1, WC_SHE_M1_SZ, m2, WC_SHE_M2_SZ, m3, WC_SHE_M3_SZ,
+                    m4, WC_SHE_M4_SZ, m5, WC_SHE_M5_SZ,
+                    sheTestExpM4, WC_SHE_M4_SZ,
+                    sheTestExpM5, WC_SHE_M5_SZ), 0);
+
+    /* Mismatch: wrong expected M4 should fail with SIG_VERIFY_E */
+    XMEMCPY(badM4, sheTestExpM4, WC_SHE_M4_SZ);
+    badM4[0] ^= 0xFF;
+    ExpectIntEQ(wc_SHE_LoadKey_Verify(NULL, sheTestDevId,
+                    m1, WC_SHE_M1_SZ, m2, WC_SHE_M2_SZ, m3, WC_SHE_M3_SZ,
+                    m4, WC_SHE_M4_SZ, m5, WC_SHE_M5_SZ,
+                    badM4, WC_SHE_M4_SZ,
+                    sheTestExpM5, WC_SHE_M5_SZ),
+                WC_NO_ERR_TRACE(SIG_VERIFY_E));
+
+    wc_CryptoCb_UnRegisterDevice(sheTestDevId);
+    return EXPECT_RESULT();
+}
+
+#endif /* !NO_WC_SHE_LOADKEY */
 
 #endif /* WOLF_CRYPTO_CB && WOLFSSL_SHE && !NO_AES */

@@ -38,6 +38,10 @@ int test_wc_SHE_SetM2M4Header(void);
 #endif
 #if defined(WOLF_CRYPTO_CB) && defined(WOLFSSL_SHE)
 int test_wc_SHE_CryptoCb(void);
+#ifndef NO_WC_SHE_LOADKEY
+int test_wc_SHE_LoadKey(void);
+int test_wc_SHE_LoadKey_Verify(void);
+#endif
 #endif
 
 #define TEST_SHE_DECLS                                              \
@@ -59,8 +63,15 @@ int test_wc_SHE_CryptoCb(void);
 #endif
 
 #if defined(WOLF_CRYPTO_CB) && defined(WOLFSSL_SHE)
+#if !defined(NO_WC_SHE_LOADKEY)
+#define TEST_SHE_CB_DECLS \
+    TEST_DECL_GROUP("she", test_wc_SHE_CryptoCb), \
+    TEST_DECL_GROUP("she", test_wc_SHE_LoadKey), \
+    TEST_DECL_GROUP("she", test_wc_SHE_LoadKey_Verify)
+#else
 #define TEST_SHE_CB_DECLS \
     TEST_DECL_GROUP("she", test_wc_SHE_CryptoCb)
+#endif
 #else
 #define TEST_SHE_CB_DECLS
 #endif

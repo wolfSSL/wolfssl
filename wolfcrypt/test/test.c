@@ -57061,6 +57061,35 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t she_test(void)
         goto exit_SHE_Test;
     }
 
+#if !defined(NO_WC_SHE_LOADKEY) && \
+    (defined(WOLF_CRYPTO_CB) || !defined(NO_WC_SHE_IMPORT_M123))
+    /* ---- LoadKey_Verify ---- */
+    XMEMSET(m4, 0, WC_SHE_M4_SZ);
+    XMEMSET(m5, 0, WC_SHE_M5_SZ);
+    ret = wc_SHE_LoadKey_Verify(HEAP_HINT, devId,
+              expM1, WC_SHE_M1_SZ, expM2, WC_SHE_M2_SZ,
+              expM3, WC_SHE_M3_SZ,
+              m4, WC_SHE_M4_SZ, m5, WC_SHE_M5_SZ,
+              expM4, WC_SHE_M4_SZ, expM5, WC_SHE_M5_SZ);
+    if (devId == INVALID_DEVID) {
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto exit_SHE_Test;
+        }
+    }
+    else {
+        if (ret != 0) {
+            goto exit_SHE_Test;
+        }
+        if (XMEMCMP(m4, expM4, WC_SHE_M4_SZ) != 0 ||
+            XMEMCMP(m5, expM5, WC_SHE_M5_SZ) != 0) {
+            ret = WC_TEST_RET_ENC_NC;
+            goto exit_SHE_Test;
+        }
+    }
+    ret = 0;
+#endif /* !NO_WC_SHE_LOADKEY */
+
 #if defined(WC_SHE_SW_DEFAULT) && defined(WOLF_CRYPTO_CB) && \
     !defined(NO_WC_SHE_GETUID) && !defined(NO_WC_SHE_GETCOUNTER)
     ret = she_sw_default_test();

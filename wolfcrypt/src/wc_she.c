@@ -359,9 +359,6 @@ int wc_SHE_SetKdfConstants(wc_SHE* she,
 
 #endif /* WOLFSSL_SHE_EXTENDED */
 
-/* -------------------------------------------------------------------------- */
-/* GetUID                                                                     */
-
 #if defined(WOLF_CRYPTO_CB) || !defined(NO_WC_SHE_IMPORT_M123)
 /* -------------------------------------------------------------------------- */
 /* Import M1/M2/M3                                                            */
@@ -933,6 +930,7 @@ int wc_SHE_LoadKey_Label(
     byte* m5, word32 m5Sz)
 {
     int ret;
+    word32 labelLen;
     WC_DECLARE_VAR(she, wc_SHE, 1, heap);
 
     if (label == NULL || m1 == NULL || m2 == NULL || m3 == NULL ||
@@ -944,7 +942,8 @@ int wc_SHE_LoadKey_Label(
         return BAD_FUNC_ARG;
     }
 
-    if (XSTRLEN(label) == 0 || XSTRLEN(label) > WC_SHE_MAX_LABEL_LEN) {
+    labelLen = (word32)XSTRLEN(label);
+    if (labelLen == 0 || labelLen > WC_SHE_MAX_LABEL_LEN) {
         return BAD_FUNC_ARG;
     }
 

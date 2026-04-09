@@ -1652,6 +1652,8 @@ if(WOLFSSL_SHE STREQUAL "standard" OR WOLFSSL_SHE STREQUAL "extended")
     else()
         list(APPEND WOLFSSL_DEFINITIONS
             "-DWOLFSSL_SHE")
+        override_cache(WOLFSSL_CMAC "yes")
+        override_cache(WOLFSSL_AESCBC "yes")
     endif()
 endif()
 
