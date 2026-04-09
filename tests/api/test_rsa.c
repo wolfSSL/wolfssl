@@ -1160,17 +1160,15 @@ int test_wc_RsaKeyToDer_SizeOverflow(void)
     EXPECT_DECLS;
 #if !defined(NO_RSA) && defined(USE_INTEGER_HEAP_MATH) && \
     defined(WOLFSSL_ASN_TEMPLATE) && \
-    (defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_KEY_TO_DER)) && \
-    !defined(_WIN32)
-#include <sys/mman.h>
+    (defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_KEY_TO_DER))
     RsaKey    key;
     int       i;
     int       derRet;
     int       crafted_used;
     int       top_bits;
     mp_digit  top_digit;
-    mp_digit* crafted_dp = MAP_FAILED;
-    size_t    dp_bytes = 0;
+    mp_digit  storage   = 0;  /* the only digit mp_count_bits ever reads */
+    mp_digit* fake_dp   = NULL;
 
     int       orig_used  = 0;
     int       orig_alloc = 0;
@@ -1180,6 +1178,11 @@ int test_wc_RsaKeyToDer_SizeOverflow(void)
     mp_int* fields[8];
 
     XMEMSET(&key, 0, sizeof(key));
+
+    /* Skip on 32-bit: biasing dp by ~half the address space is unsafe. */
+    if (sizeof(void*) < 8) {
+        return TEST_SKIPPED;
+    }
 
     /* Find 'used' count that makes (used-1)*DIGIT_BIT + top_bits = -48
      * as signed int, causing mp_unsigned_bin_size to return -6. */
@@ -1204,8 +1207,6 @@ int test_wc_RsaKeyToDer_SizeOverflow(void)
             return TEST_SKIPPED;
         }
     }
-
-    dp_bytes = (size_t)crafted_used * sizeof(mp_digit);
 
     ExpectIntEQ(wc_InitRsaKey(&key, HEAP_HINT), 0);
 
@@ -1234,31 +1235,20 @@ int test_wc_RsaKeyToDer_SizeOverflow(void)
         orig_dp    = key.p.dp;
     }
 
-    /* Sparse mmap — only the page at dp[used-1] is faulted in. */
+    /* The vulnerable path (mp_unsigned_bin_size -> mp_count_bits, and
+     * mp_leading_bit) only reads dp[used-1].  Bias dp so that index
+     * (used-1) lands on our single real digit -- no giant allocation
+     * (and no mmap/VirtualAlloc) needed. */
     if (EXPECT_SUCCESS()) {
-        crafted_dp = (mp_digit*)mmap(NULL, dp_bytes,
-            PROT_READ | PROT_WRITE,
-            MAP_PRIVATE | MAP_ANONYMOUS
-#ifdef MAP_NORESERVE
-            | MAP_NORESERVE
-#endif
-            , -1, 0);
-    }
-    if (crafted_dp == MAP_FAILED) {
-        key.p.dp    = orig_dp;
-        key.p.used  = orig_used;
-        key.p.alloc = orig_alloc;
-        key.p.sign  = orig_sign;
-        DoExpectIntEQ(wc_FreeRsaKey(&key), 0);
-        return TEST_SKIPPED;
-    }
+        storage = top_digit;
+        fake_dp = (mp_digit*)((wc_ptr_t)&storage
+                  - (wc_ptr_t)(crafted_used - 1) * sizeof(mp_digit));
 
-    crafted_dp[crafted_used - 1] = top_digit;
-
-    key.p.dp    = crafted_dp;
-    key.p.used  = crafted_used;
-    key.p.alloc = crafted_used;
-    key.p.sign  = 0;  /* MP_ZPOS */
+        key.p.dp    = fake_dp;
+        key.p.used  = crafted_used;
+        key.p.alloc = crafted_used;
+        key.p.sign  = 0;  /* MP_ZPOS */
+    }
 
     /* Should return an error, not a bogus small size. */
     derRet = wc_RsaKeyToDer(&key, NULL, 0);
@@ -1269,10 +1259,6 @@ int test_wc_RsaKeyToDer_SizeOverflow(void)
     key.p.used  = orig_used;
     key.p.alloc = orig_alloc;
     key.p.sign  = orig_sign;
-
-    if (crafted_dp != MAP_FAILED) {
-        munmap(crafted_dp, dp_bytes);
-    }
 
     DoExpectIntEQ(wc_FreeRsaKey(&key), 0);
 #endif
