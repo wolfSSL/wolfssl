@@ -3567,6 +3567,11 @@ static int test_wolfSSL_CTX_add1_chain_cert(void)
         }
 
         ExpectIntEQ(SSL_CTX_add1_chain_cert(ctx, x509), 1);
+        /* add1 must increment ref count (was 1, now 2). Verifies the
+         * up_ref return value is assigned, not just compared. */
+        if (EXPECT_SUCCESS() && x509 != NULL) {
+            ExpectIntEQ(wolfSSL_RefCur(x509->ref), 2);
+        }
         X509_free(x509);
         x509 = NULL;
     }
@@ -3586,6 +3591,10 @@ static int test_wolfSSL_CTX_add1_chain_cert(void)
         }
 
         ExpectIntEQ(SSL_add1_chain_cert(ssl, x509), 1);
+        /* add1 must increment ref count (was 1, now 2) */
+        if (EXPECT_SUCCESS() && x509 != NULL) {
+            ExpectIntEQ(wolfSSL_RefCur(x509->ref), 2);
+        }
         X509_free(x509);
         x509 = NULL;
     }
@@ -13305,6 +13314,64 @@ static int test_wolfSSL_tmp_dh(void)
         SSL_CTX_free(ctx_c);
     }
 #endif
+    SSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Tests SSL_CTX_set_tmp_dh with single-operand failure (p set, g missing)
+ * and wolfSSL_CTX_SetTmpDH_buffer with WOLFSSL_FILETYPE_ASN1 DER input. */
+static int test_wolfSSL_tmp_dh_regression(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_DH) && !defined(NO_CERTS) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_RSA) && !defined(NO_TLS) && \
+    !defined(NO_WOLFSSL_SERVER)
+    SSL_CTX* ctx = NULL;
+
+    ExpectNotNull(ctx = SSL_CTX_new(wolfSSLv23_server_method()));
+    ExpectTrue(SSL_CTX_use_certificate_file(ctx, svrCertFile,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
+        WOLFSSL_FILETYPE_PEM));
+
+#if defined(OPENSSL_ALL) || \
+    (defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L)
+    {
+        /* Test single-operand failure: DH with p but no g. */
+        DH* dh = NULL;
+        WOLFSSL_BIGNUM* p_bn = NULL;
+
+        ExpectNotNull(dh = wolfSSL_DH_new());
+        ExpectNotNull(p_bn = wolfSSL_BN_new());
+        ExpectIntEQ(wolfSSL_BN_set_word(p_bn, 0xFFFF), 1);
+        if (dh != NULL && p_bn != NULL) {
+            if (wolfSSL_DH_set0_pqg(dh, p_bn, NULL, NULL) == 1) {
+                p_bn = NULL; /* ownership transferred on success */
+            }
+        }
+        ExpectIntEQ((int)SSL_CTX_set_tmp_dh(ctx, dh), WOLFSSL_FATAL_ERROR);
+        DH_free(dh);
+        wolfSSL_BN_free(p_bn);
+    }
+#endif
+
+    /* Test ASN1/DER path through wolfSSL_CTX_SetTmpDH_buffer. */
+    {
+        byte derBuf[4096];
+        XFILE f = XBADFILE;
+        int derSz = 0;
+
+        ExpectTrue((f = XFOPEN("./certs/dh2048.der", "rb")) != XBADFILE);
+        if (f != XBADFILE) {
+            derSz = (int)XFREAD(derBuf, 1, sizeof(derBuf), f);
+            XFCLOSE(f);
+        }
+        ExpectIntGT(derSz, 0);
+        ExpectIntEQ(wolfSSL_CTX_SetTmpDH_buffer(ctx, derBuf, (long)derSz,
+            WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    }
+
     SSL_CTX_free(ctx);
 #endif
     return EXPECT_RESULT();
@@ -35649,6 +35716,7 @@ TEST_CASE testCases[] = {
     TEST_TLS13_DECLS,
 
     TEST_DECL(test_wolfSSL_tmp_dh),
+    TEST_DECL(test_wolfSSL_tmp_dh_regression),
     TEST_DECL(test_wolfSSL_ctrl),
 
     TEST_DECL(test_wolfSSL_get0_param),
