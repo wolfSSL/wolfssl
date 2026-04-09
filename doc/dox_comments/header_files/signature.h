@@ -15,10 +15,13 @@
     WC_SIGNATURE_TYPE_RSA / WC_SIGNATURE_TYPE_RSA_W_ENC.
     The caller is responsible for ensuring the pointer refers to the correct
     type; this function cannot verify the actual runtime type of the object.
-    \param key_len If key is non-NULL, key_len Must be exactly sizeof(ecc_key)
+    \param key_len If key is non-NULL, key_len must be exactly sizeof(ecc_key)
     or sizeof(RsaKey) matching the sig_type. Passing any other value
     causes the function to return BAD_FUNC_ARG without dereferencing key.
-    The conventional idiom is to pass sizeof(*key) at the call site.
+    Always pass the size of the concrete key type at the call site: if you
+    have a typed pointer (e.g., ecc_key* k), use sizeof(*k); otherwise use
+    sizeof(ecc_key) or sizeof(RsaKey) directly.  Do not use sizeof(*key)
+    on the const void* parameter itself, as dereferencing void is invalid.
 
     _Example_
     \code

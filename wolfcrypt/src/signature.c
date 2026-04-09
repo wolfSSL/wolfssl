@@ -98,7 +98,7 @@ int wc_SignatureGetSize(enum wc_SignatureType sig_type,
              * the const void* API cannot verify the actual runtime
              * type of the pointed-to object.
              * Callers must pass a valid ecc_key* cast to const void*. */
-            if (key_len == sizeof(ecc_key)) {
+            if ((size_t)key_len == sizeof(ecc_key)) {
 #if defined(HAVE_SELFTEST) || (defined(HAVE_FIPS) && FIPS_VERSION3_LT(5,0,0))
                 sig_len = wc_ecc_sig_size((ecc_key*)(wc_ptr_t)key);
 #else
@@ -119,7 +119,7 @@ int wc_SignatureGetSize(enum wc_SignatureType sig_type,
             /* Verify that key_len matches exactly sizeof(RsaKey).
              * Same caveat as the ECC case above: size equality is necessary
              * but not sufficient; the caller must pass a valid RsaKey*. */
-            if (key_len == sizeof(RsaKey)) {
+            if ((size_t)key_len == sizeof(RsaKey)) {
 #if defined(HAVE_SELFTEST) || (defined(HAVE_FIPS) && FIPS_VERSION3_LT(5,0,0))
                 sig_len = wc_RsaEncryptSize((RsaKey*)(wc_ptr_t)key);
 #else
