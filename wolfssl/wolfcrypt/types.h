@@ -1570,6 +1570,8 @@ enum wc_PkType {
     WC_PK_TYPE_RSA_OAEP = 27,
     WC_PK_TYPE_EC_GET_SIZE = 28,
     WC_PK_TYPE_EC_GET_SIG_SIZE = 29,
+    #undef _WC_PK_TYPE_MAX
+    #define _WC_PK_TYPE_MAX WC_PK_TYPE_EC_GET_SIG_SIZE
     WC_PK_TYPE_MAX = _WC_PK_TYPE_MAX
 };
 

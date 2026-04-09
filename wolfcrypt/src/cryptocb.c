@@ -118,14 +118,16 @@ static const char* GetAlgoTypeStr(int algo)
 static const char* GetSetKeyTypeStr(int type)
 {
     switch (type) {
+        case WC_SETKEY_NONE:      return "None";
         case WC_SETKEY_HMAC:      return "HMAC";
         case WC_SETKEY_RSA_PUB:   return "RSA-Pub";
         case WC_SETKEY_RSA_PRIV:  return "RSA-Priv";
         case WC_SETKEY_ECC_PUB:   return "ECC-Pub";
         case WC_SETKEY_ECC_PRIV:  return "ECC-Priv";
         case WC_SETKEY_AES:       return "AES";
+        default:                  break;
     }
-    return "Unknown";
+    return NULL;
 }
 #endif /* WOLF_CRYPTO_CB_SETKEY */
 static const char* GetPkTypeStr(int pk)
@@ -2301,7 +2303,7 @@ int wc_CryptoCb_SetKey(int devId, int type, void* obj,
  * uses normal software export functions on 'out' and frees it.
  * Returns: 0 on success, CRYPTOCB_UNAVAILABLE if not handled, negative on error
  */
-int wc_CryptoCb_ExportKey(int devId, int type, void* obj, void* out)
+int wc_CryptoCb_ExportKey(int devId, int type, const void* obj, void* out)
 {
     int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;

@@ -526,7 +526,7 @@ typedef struct wc_CryptoInfo {
 #ifdef WOLF_CRYPTO_CB_EXPORT_KEY
     struct {                    /* uses wc_AlgoType=WC_ALGO_TYPE_EXPORT_KEY */
         int type;               /* enum wc_PkType (WC_PK_TYPE_RSA, etc.) */
-        void* obj;              /* Hardware key (has devCtx/id[]) */
+        const void* obj;        /* Hardware key (has devCtx/id[]) */
         void* out;              /* Software key to fill (same type as obj) */
     } export_key;
 #endif /* WOLF_CRYPTO_CB_EXPORT_KEY */
@@ -821,7 +821,7 @@ WOLFSSL_LOCAL int wc_CryptoCb_SetKey(int devId, int type, void* obj,
 #endif /* WOLF_CRYPTO_CB_SETKEY */
 #ifdef WOLF_CRYPTO_CB_EXPORT_KEY
 WOLFSSL_LOCAL int wc_CryptoCb_ExportKey(int devId, int type,
-                                         void* obj, void* out);
+                                         const void* obj, void* out);
 #endif /* WOLF_CRYPTO_CB_EXPORT_KEY */
 
 #endif /* WOLF_CRYPTO_CB */

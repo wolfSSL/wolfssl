@@ -9989,7 +9989,7 @@ int wc_ecc_export_x963(ecc_key* key, byte* out, word32* outLen)
         }
 
         ret = wc_CryptoCb_ExportKey(key->devId, WC_PK_TYPE_ECDSA_SIGN,
-                                     (void*)key, tmpKey);
+                                     key, tmpKey);
         if (ret == 0) {
             /* Call software helper (no callback recursion) */
             ret = _ecc_export_x963(tmpKey, out, outLen);
@@ -11345,7 +11345,7 @@ int wc_ecc_export_ex(ecc_key* key, byte* qx, word32* qxLen,
         }
 
         err = wc_CryptoCb_ExportKey(key->devId, WC_PK_TYPE_ECDSA_SIGN,
-                                     (void*)key, tmpKey);
+                                     key, tmpKey);
         if (err == 0) {
             /* Call software helper (no callback recursion) */
             err = _ecc_export_ex(tmpKey, qx, qxLen, qy, qyLen, d, dLen,
@@ -11431,7 +11431,7 @@ static int _ecc_import_private_key_ex(const byte* priv, word32 privSz,
     if (pub != NULL) {
     #ifndef NO_ASN
         word32 idx = 0;
-        ret = wc_ecc_import_x963_ex(pub, pubSz, key, curve_id);
+        ret = _ecc_import_x963_ex2(pub, pubSz, key, curve_id, 0);
         if (ret < 0)
             ret = wc_EccPublicKeyDecode(pub, &idx, key, pubSz);
         key->type = ECC_PRIVATEKEY;
@@ -12269,7 +12269,8 @@ int wc_ecc_size(ecc_key* key)
         return 0;
     }
 
-#ifdef WOLF_CRYPTO_CB
+#if defined(WOLF_CRYPTO_CB) && \
+    (defined(WOLF_CRYPTO_CB_SETKEY) || defined(WOLF_CRYPTO_CB_EXPORT_KEY))
     if (key->devId != INVALID_DEVID) {
         int ret;
         int keySz = 0;
@@ -12320,7 +12321,8 @@ int wc_ecc_sig_size(const ecc_key* key)
         return 0;
     }
 
-#ifdef WOLF_CRYPTO_CB
+#if defined(WOLF_CRYPTO_CB) && \
+    (defined(WOLF_CRYPTO_CB_SETKEY) || defined(WOLF_CRYPTO_CB_EXPORT_KEY))
     if (key->devId != INVALID_DEVID) {
         int ret;
         int cbKeySz = 0;

@@ -8304,7 +8304,7 @@ int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
     WC_DECLARE_VAR(tmpKey, RsaKey, 1, NULL);
 #endif
 
-    if (key == NULL) {
+    if (key == NULL || input == NULL || inOutIdx == NULL) {
         return BAD_FUNC_ARG;
     }
 

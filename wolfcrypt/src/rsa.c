@@ -4596,7 +4596,7 @@ int wc_RsaFlattenPublicKey(const RsaKey* key, byte* e, word32* eSz, byte* n,
         }
 
         ret = wc_CryptoCb_ExportKey(key->devId, WC_PK_TYPE_RSA,
-                                     (void*)key, tmpKey);
+                                     key, tmpKey);
         if (ret == 0) {
             /* Call software helper (no callback recursion) */
             ret = _RsaFlattenPublicKey(tmpKey, e, eSz, n, nSz);
@@ -4719,7 +4719,7 @@ int wc_RsaExportKey(const RsaKey* key,
             }
 
             ret = wc_CryptoCb_ExportKey(key->devId, WC_PK_TYPE_RSA,
-                                         (void*)key, tmpKey);
+                                         key, tmpKey);
             if (ret == 0) {
                 /* Call software helper (no callback recursion) */
                 ret = _RsaExportKey(tmpKey, e, eSz, n, nSz,

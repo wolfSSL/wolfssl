@@ -68,6 +68,7 @@ jobs:
           '--enable-cryptocb --enable-keygen --enable-cryptocbutils=export',
           '--enable-cryptocb --enable-keygen CPPFLAGS="-DWOLF_CRYPTO_CB_EXPORT_KEY"',
           '--enable-cryptocb --enable-keygen --enable-aesgcm --enable-cryptocbutils=setkey,free,export CPPFLAGS="-DWOLF_CRYPTO_CB_AES_SETKEY"',
+          '--enable-cryptocb --enable-keygen --enable-cryptocbutils=setkey,export CPPFLAGS="-DWOLF_CRYPTO_CB_FIND"',
           'CPPFLAGS=-DWOLFSSL_NO_CLIENT_AUTH',
           'CPPFLAGS=''-DNO_WOLFSSL_CLIENT -DWOLFSSL_NO_CLIENT_AUTH''',
           'CPPFLAGS=''-DNO_WOLFSSL_SERVER -DWOLFSSL_NO_CLIENT_AUTH''',
