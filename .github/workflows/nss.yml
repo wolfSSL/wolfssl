@@ -25,6 +25,12 @@ jobs:
     # This should be a safe limit for the tests to run.
     timeout-minutes: 30
     steps:
+      - name: Checkout wolfSSL CI actions
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/actions
+          fetch-depth: 1
+
       - name: Checking if we have nss in cache
         uses: actions/cache@v4
         id: cache
@@ -35,12 +41,9 @@ jobs:
 
       - name: Install dependencies
         if: steps.cache.outputs.cache-hit != 'true'
-        run: |
-          # Don't prompt for anything
-          export DEBIAN_FRONTEND=noninteractive
-          sudo apt-get update
-          # hostap dependencies
-          sudo apt-get install -y gyp ninja-build
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: gyp ninja-build
 
       - name: Checkout nss
         if: steps.cache.outputs.cache-hit != 'true'

@@ -43,10 +43,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install dependencies
-        run: |
-          sudo apt-get update -q
-          sudo apt-get install -y build-essential autoconf automake libtool jq psmisc || \
-          sudo apt-get install -y build-essential autoconf automake libtool jq
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: build-essential autoconf automake libtool jq psmisc
 
       - name: Pull TLS-Anvil Docker image
         run: docker pull ghcr.io/tls-attacker/tlsanvil:latest
