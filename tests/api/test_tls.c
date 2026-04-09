@@ -730,6 +730,95 @@ int test_tls12_no_null_compression(void)
  * uppercase names like "SECP384R1" do not match the lowercase "secp384r1"
  * entry; they fall through to the wolfCrypt ECC look-up which uses
  * XSTRCASECMP. */
+/* Regression test for the encrypt-then-MAC silent-disable bug.
+ *
+ * Before the fix, when a client sent a 32-byte session ID in its ClientHello
+ * (so the server set ssl->options.resuming = 1) but the server's session
+ * cache did not contain that session, DoClientHello would run an
+ * encrypt_then_mac decision *before* MatchSuite/SetCipherSpecs had populated
+ * ssl->specs.cipher_type.  Because cipher_type was zero-initialized
+ * (== stream, not block), the ETM block cleared encThenMac to 0, and the
+ * post-MatchSuite block could not re-enable it.  The connection then
+ * silently negotiated MAC-then-encrypt instead of encrypt-then-MAC.
+ *
+ * This test forces a stale-resumption ClientHello against a server with an
+ * empty session cache, using a CBC-mode cipher suite, and asserts that the
+ * server still negotiates encrypt-then-MAC. */
+int test_tls12_etm_failed_resumption(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && defined(HAVE_ENCRYPT_THEN_MAC) && \
+    !defined(WOLFSSL_AEAD_ONLY) && !defined(NO_RSA) && !defined(NO_AES) && \
+    defined(HAVE_AES_CBC) && !defined(NO_SHA256) && \
+    defined(HAVE_SESSION_TICKET) && defined(HAVE_ECC)
+    /* TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256 - a CBC suite, where ETM applies. */
+    const char* cbcSuite = "ECDHE-RSA-AES128-SHA256";
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    struct test_memio_ctx test_ctx;
+
+    /* First handshake: establish a session-ID-based session on the client.
+     * Disable TLS 1.2 session tickets on both sides so resumption uses the
+     * session ID path (not tickets), which is the path the bug lives on. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_NoTicketTLSv12(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_NoTicketTLSv12(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, cbcSuite), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_s, cbcSuite), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    /* Sanity: the first handshake itself must use ETM. */
+    ExpectIntEQ(ssl_s->options.encThenMac, 1);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+
+    /* Second handshake against a *fresh* server context (empty cache).  The
+     * client offers the saved session, so the server's ClientHello parser
+     * sets options.resuming = 1, but HandleTlsResumption then fails to find
+     * the session and clears resuming.  Pre-fix, ETM was silently dropped
+     * here. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    /* The internal session cache is process-global, so the saved session is
+     * still findable via the cache.  Disable lookups on this server SSL
+     * directly so that HandleTlsResumption hits its "session lookup failed"
+     * path - exactly the scenario the bug fix targets. */
+    if (ssl_s != NULL)
+        ssl_s->options.sessionCacheOff = 1;
+    ExpectIntEQ(wolfSSL_NoTicketTLSv12(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_NoTicketTLSv12(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, cbcSuite), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_s, cbcSuite), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    if (ssl_s != NULL) {
+        /* The server should NOT have actually resumed (fresh ctx, empty
+         * cache). */
+        ExpectIntEQ(ssl_s->options.resuming, 0);
+        /* And - the regression check - encrypt-then-MAC must still be
+         * active. */
+        ExpectIntEQ(ssl_s->options.encThenMac, 1);
+    }
+    if (ssl_c != NULL)
+        ExpectIntEQ(ssl_c->options.encThenMac, 1);
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_tls_set_curves_list_ecc_fallback(void)
 {
     EXPECT_DECLS;
