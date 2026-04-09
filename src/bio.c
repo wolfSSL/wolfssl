@@ -600,15 +600,21 @@ static int wolfSSL_BIO_MEMORY_write(WOLFSSL_BIO* bio, const void* data,
 {
     WOLFSSL_ENTER("wolfSSL_BIO_MEMORY_write");
 
-    if (bio == NULL || bio->mem_buf == NULL || data == NULL) {
+    /* ossl returns 0 on bio == NULL */
+    if (bio == NULL) {
+        return 0;
+    }
+
+    if (bio->mem_buf == NULL || data == NULL) {
         WOLFSSL_MSG("one of input parameters is null");
         return WOLFSSL_BIO_ERROR;
     }
+
     if (bio->flags & WOLFSSL_BIO_FLAG_MEM_RDONLY) {
         return WOLFSSL_BIO_ERROR;
     }
 
-    if (len == 0)
+    if (len <= 0)
         return 0; /* Nothing to write */
 
     if (wolfSSL_BUF_MEM_grow_ex(bio->mem_buf, ((size_t)bio->wrSz) +
@@ -1108,20 +1114,17 @@ int wolfSSL_BIO_gets(WOLFSSL_BIO* bio, char* buf, int sz)
                 }
 
                 cSz = wolfSSL_getLineLength((char*)c, cSz);
-                /* check case where line was bigger then buffer and buffer
-                 * needs end terminator */
                 if (cSz >= sz) {
                     cSz = sz - 1;
-                    buf[cSz] = '\0';
-                }
-                else {
-                    /* not minus 1 here because placing terminator after
-                       msg and have checked that sz is large enough */
-                    buf[cSz] = '\0';
                 }
 
                 ret = wolfSSL_BIO_MEMORY_read(bio, (void*)buf, cSz);
-                /* ret is read after the switch statement */
+                if (ret > 0) {
+                    buf[ret] = '\0';
+                }
+                else {
+                    buf[0] = '\0';
+                }
                 break;
             }
         case WOLFSSL_BIO_BIO:
@@ -1136,22 +1139,17 @@ int wolfSSL_BIO_gets(WOLFSSL_BIO* bio, char* buf, int sz)
                 }
 
                 cSz = wolfSSL_getLineLength(c, cSz);
-                /* check case where line was bigger then buffer and buffer
-                 * needs end terminator */
                 if (cSz >= sz) {
                     cSz = sz - 1;
-                    buf[cSz] = '\0';
-                }
-                else {
-                    /* not minus 1 here because placing terminator after
-                       msg and have checked that sz is large enough */
-                    buf[cSz] = '\0';
                 }
 
                 ret = wolfSSL_BIO_nread(bio, &c, cSz);
-                if (ret > 0 && ret < sz) {
+                if (ret > 0) {
                     XMEMCPY(buf, c, (size_t)ret);
                     buf[ret] = '\0';
+                }
+                else {
+                    buf[0] = '\0';
                 }
                 break;
             }
