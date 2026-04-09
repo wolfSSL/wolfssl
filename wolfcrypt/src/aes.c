@@ -7954,8 +7954,8 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
     while (0)
 #endif /* WOLFSSL_AESGCM_STREAM */
 
-#if defined(WOLFSSL_ARMASM) && !defined(__aarch64__) &&  \
-    !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+#if defined(WOLFSSL_ARMASM) && (!defined(__aarch64__) || \
+    defined(WOLFSSL_ARMASM_NO_NEON))
 static void GCM_gmult_len_armasm_C(
     byte* x, const byte* h, const unsigned char* a, unsigned long len)
 {
@@ -7986,17 +7986,9 @@ static void GCM_gmult_len_armasm_C(
 
 #define GCM_GMULT_LEN(gcm, x, a, len) \
     GCM_gmult_len_armasm_C(x, (gcm)->H, a, len)
-#endif /* WOLFSSL_ARMASM && !__aarch64__ && !WOLFSSL_ARMASM_NO_HW_CRYPTO */
-
-#if defined(WOLFSSL_ARMASM) && (defined(__aarch64__) || \
-    defined(WOLFSSL_ARMASM_NO_HW_CRYPTO))
-#if !defined(WOLFSSL_ARMASM_NO_NEON) && defined(__aarch64__)
+#elif defined(WOLFSSL_ARMASM)
 #define GCM_GMULT_LEN(gcm, x, a, len) \
     GCM_gmult_len_NEON(x, (const byte*)((gcm)->H), a, len)
-#else
-#define GCM_GMULT_LEN(gcm, x, a, len) \
-    GCM_gmult_len(x, (const byte**)((gcm)->M0), a, len)
-#endif
 #endif
 
 #elif defined(GCM_TABLE)
