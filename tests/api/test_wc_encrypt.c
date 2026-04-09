@@ -89,3 +89,69 @@ int test_wc_Des3_CbcEncryptDecryptWithKey(void)
     return EXPECT_RESULT();
 } /* END test_wc_Des3_CbcEncryptDecryptWithKey */
 
+/*
+ * Unit test for wc_Des_CbcEncryptWithKey and wc_Des_CbcDecryptWithKey
+ * (single DES, not triple-DES)
+ */
+int test_wc_Des_CbcEncryptDecryptWithKey(void)
+{
+    EXPECT_DECLS;
+#ifndef NO_DES3
+    /* "now is the time for all " */
+    const byte vector[] = {
+        0x6e,0x6f,0x77,0x20,0x69,0x73,0x20,0x74,
+        0x68,0x65,0x20,0x74,0x69,0x6d,0x65,0x20,
+        0x66,0x6f,0x72,0x20,0x61,0x6c,0x6c,0x20
+    };
+    const byte key[] = {
+        0x01,0x23,0x45,0x67,0x89,0xab,0xcd,0xef
+    };
+    const byte iv[] = {
+        0x12,0x34,0x56,0x78,0x90,0xab,0xcd,0xef
+    };
+    /* expected ciphertext matches wolfcrypt des_test */
+    const byte verify[] = {
+        0x8b,0x7c,0x52,0xb0,0x01,0x2b,0x6c,0xb8,
+        0x4f,0x0f,0xeb,0xf3,0xfb,0x5f,0x86,0x73,
+        0x15,0x85,0xb3,0x22,0x4b,0x86,0x2b,0x4b
+    };
+    byte cipher[sizeof(vector)];
+    byte plain[sizeof(vector)];
+
+    /* Encrypt */
+    ExpectIntEQ(wc_Des_CbcEncryptWithKey(cipher, vector, sizeof(vector),
+                                         key, iv), 0);
+    ExpectBufEQ(cipher, verify, sizeof(verify));
+
+    /* Decrypt */
+    ExpectIntEQ(wc_Des_CbcDecryptWithKey(plain, cipher, sizeof(cipher),
+                                         key, iv), 0);
+    ExpectBufEQ(plain, vector, sizeof(vector));
+
+    /* Bad args - encrypt */
+    ExpectIntEQ(wc_Des_CbcEncryptWithKey(NULL, vector, sizeof(vector), key, iv),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Des_CbcEncryptWithKey(cipher, NULL, sizeof(vector), key, iv),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Des_CbcEncryptWithKey(cipher, vector, sizeof(vector),
+                                         NULL, iv),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* NULL iv is allowed (uses zero IV) */
+    ExpectIntEQ(wc_Des_CbcEncryptWithKey(cipher, vector, sizeof(vector),
+                                         key, NULL), 0);
+
+    /* Bad args - decrypt */
+    ExpectIntEQ(wc_Des_CbcDecryptWithKey(NULL, cipher, sizeof(cipher), key, iv),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Des_CbcDecryptWithKey(plain, NULL, sizeof(cipher), key, iv),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Des_CbcDecryptWithKey(plain, cipher, sizeof(cipher),
+                                         NULL, iv),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* NULL iv is allowed (uses zero IV) */
+    ExpectIntEQ(wc_Des_CbcDecryptWithKey(plain, cipher, sizeof(cipher),
+                                         key, NULL), 0);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_Des_CbcEncryptDecryptWithKey */
+
