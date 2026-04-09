@@ -752,7 +752,7 @@ int test_tls12_etm_failed_resumption(void)
     !defined(WOLFSSL_AEAD_ONLY) && !defined(NO_RSA) && !defined(NO_AES) && \
     defined(HAVE_AES_CBC) && !defined(NO_SHA256) && \
     defined(HAVE_SESSION_TICKET) && defined(HAVE_ECC)
-    /* TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256 — a CBC suite, where ETM applies. */
+    /* TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256 - a CBC suite, where ETM applies. */
     const char* cbcSuite = "ECDHE-RSA-AES128-SHA256";
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
@@ -790,7 +790,7 @@ int test_tls12_etm_failed_resumption(void)
     /* The internal session cache is process-global, so the saved session is
      * still findable via the cache.  Disable lookups on this server SSL
      * directly so that HandleTlsResumption hits its "session lookup failed"
-     * path — exactly the scenario the bug fix targets. */
+     * path - exactly the scenario the bug fix targets. */
     if (ssl_s != NULL)
         ssl_s->options.sessionCacheOff = 1;
     ExpectIntEQ(wolfSSL_NoTicketTLSv12(ssl_c), WOLFSSL_SUCCESS);
