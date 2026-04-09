@@ -162,8 +162,9 @@ static int _InitCmac_common(Cmac* cmac, const byte* key, word32 keySz,
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
             return ret;
         }
-        /* fall-through when unavailable */
+        /* fall-through when unavailable, reset ret for software path */
         ret = 0;
+        (void)ret;
     }
 #else
     (void)devId;
