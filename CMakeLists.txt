@@ -1651,7 +1651,9 @@ if(WOLFSSL_SHE STREQUAL "standard" OR WOLFSSL_SHE STREQUAL "extended")
         message(FATAL_ERROR "Cannot use SHE without AES.")
     else()
         list(APPEND WOLFSSL_DEFINITIONS
-            "-DWOLFSSL_SHE")
+            "-DWOLFSSL_SHE"
+            "-DWOLFSSL_CMAC"
+            "-DWOLFSSL_AES_DIRECT")
         override_cache(WOLFSSL_CMAC "yes")
         override_cache(WOLFSSL_AESCBC "yes")
     endif()
