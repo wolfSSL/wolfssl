@@ -799,11 +799,16 @@ int test_tls12_etm_failed_resumption(void)
     ExpectIntEQ(wolfSSL_set_cipher_list(ssl_s, cbcSuite), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
-    /* The server should NOT have actually resumed (fresh ctx, empty cache). */
-    ExpectIntEQ(ssl_s->options.resuming, 0);
-    /* And — the regression check — encrypt-then-MAC must still be active. */
-    ExpectIntEQ(ssl_s->options.encThenMac, 1);
-    ExpectIntEQ(ssl_c->options.encThenMac, 1);
+    if (ssl_s != NULL) {
+        /* The server should NOT have actually resumed (fresh ctx, empty
+         * cache). */
+        ExpectIntEQ(ssl_s->options.resuming, 0);
+        /* And - the regression check - encrypt-then-MAC must still be
+         * active. */
+        ExpectIntEQ(ssl_s->options.encThenMac, 1);
+    }
+    if (ssl_c != NULL)
+        ExpectIntEQ(ssl_c->options.encThenMac, 1);
 
     wolfSSL_SESSION_free(sess);
     wolfSSL_free(ssl_c);
