@@ -34750,6 +34750,9 @@ static int test_DhAgree_rejects_p_minus_1(void)
     };
     byte pMinus1[256];
 
+    XMEMSET(&key, 0, sizeof(DhKey));
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ExpectIntEQ(wc_InitDhKey(&key), 0);
     ExpectIntEQ(wc_DhSetNamedKey(&key, WC_FFDHE_2048), 0);
