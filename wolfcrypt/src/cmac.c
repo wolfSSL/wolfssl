@@ -128,9 +128,10 @@ static int _InitCmac_common(Cmac* cmac, const byte* key, word32 keySz,
      * inspect them to determine the hardware key slot. */
 #ifdef WOLF_PRIVATE_KEY_ID
     cmac->aesInitType = aesInitType;
-    if (aesInitType == CMAC_AES_INIT_ID && id != NULL &&
-            idLen > 0 &&
-            idLen <= (int)sizeof(cmac->id)) {
+    if (aesInitType == CMAC_AES_INIT_ID && id != NULL && idLen > 0) {
+        if (idLen > (int)sizeof(cmac->id)) {
+            return BAD_FUNC_ARG;
+        }
         XMEMCPY(cmac->id, id, (word32)idLen);
         cmac->idLen = idLen;
     }
@@ -161,12 +162,14 @@ static int _InitCmac_common(Cmac* cmac, const byte* key, word32 keySz,
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
             return ret;
         }
-        /* fall-through when unavailable, reset ret for software path */
+        /* fall-through when unavailable */
+        ret = 0;
     }
 #else
     (void)devId;
 #endif
     (void)unused;
+    (void)heap;
 
     if (key == NULL || keySz == 0) {
         return BAD_FUNC_ARG;

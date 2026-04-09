@@ -644,6 +644,17 @@ static WC_MAYBE_UNUSED int test_RsaInit(RsaKey* key, void* heap,
     return wc_InitRsaKey_ex(key, heap, declaredDevId);
 #endif
 }
+
+static WC_MAYBE_UNUSED int test_RsaInit_Pub(RsaKey* key, void* heap,
+                                             int declaredDevId)
+{
+#if defined(WOLF_PRIVATE_KEY_ID) && defined(WC_TEST_RSA_PUB_ID)
+    return wc_InitRsaKey_Id(key, testRsaPubId, testRsaPubIdLen, heap,
+                            declaredDevId);
+#else
+    return wc_InitRsaKey_ex(key, heap, declaredDevId);
+#endif
+}
 #endif /* !NO_RSA */
 
 /* --- CMAC id[] and init helper --- */
@@ -1420,6 +1431,17 @@ static WC_MAYBE_UNUSED RsaKey* test_RsaNew(void* heap, int declaredDevId,
 {
 #if defined(WOLF_PRIVATE_KEY_ID) && defined(WC_TEST_RSA_PRIV_ID)
     return wc_NewRsaKey_Id(testRsaPrivId, testRsaPrivIdLen, heap,
+                           declaredDevId, ret);
+#else
+    return wc_NewRsaKey(heap, declaredDevId, ret);
+#endif
+}
+
+static WC_MAYBE_UNUSED RsaKey* test_RsaNew_Pub(void* heap, int declaredDevId,
+                                                int* ret)
+{
+#if defined(WOLF_PRIVATE_KEY_ID) && defined(WC_TEST_RSA_PUB_ID)
+    return wc_NewRsaKey_Id(testRsaPubId, testRsaPubIdLen, heap,
                            declaredDevId, ret);
 #else
     return wc_NewRsaKey(heap, declaredDevId, ret);
@@ -25809,7 +25831,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
     if (key == NULL)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
 #if defined(WOLFSSL_CERT_EXT) || defined(WOLFSSL_CERT_GEN)
-    keypub = test_RsaNew(HEAP_HINT, devId, &ret);
+    keypub = test_RsaNew_Pub(HEAP_HINT, devId, &ret);
     if (keypub == NULL)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
 #endif
@@ -25824,7 +25846,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
 #if defined(WOLFSSL_CERT_EXT) || defined(WOLFSSL_CERT_GEN)
-    ret = test_RsaInit(keypub, HEAP_HINT, devId);
+    ret = test_RsaInit_Pub(keypub, HEAP_HINT, devId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
 #endif
