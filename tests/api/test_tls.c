@@ -1063,8 +1063,7 @@ int test_tls12_corrupted_finished(void)
 int test_wolfSSL_alert_type_string(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_TLS) && (defined(OPENSSL_EXTRA) || \
-    defined(OPENSSL_EXTRA_X509_SMALL))
+#if !defined(NO_TLS) && defined(OPENSSL_EXTRA)
     ExpectStrEQ(wolfSSL_alert_type_string(alert_warning), "W");
     ExpectStrEQ(wolfSSL_alert_type_string(alert_fatal), "F");
     ExpectStrEQ(wolfSSL_alert_type_string(0), "U");
@@ -1137,8 +1136,7 @@ int test_tls12_peerauth_failsafe(void)
 int test_wolfSSL_alert_desc_string(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_TLS) && (defined(OPENSSL_EXTRA) || \
-    defined(OPENSSL_EXTRA_X509_SMALL))
+#if !defined(NO_TLS) && defined(OPENSSL_EXTRA)
     ExpectStrEQ(wolfSSL_alert_desc_string(close_notify), "CN");
     ExpectStrEQ(wolfSSL_alert_desc_string(unexpected_message), "UM");
     ExpectStrEQ(wolfSSL_alert_desc_string(bad_record_mac), "BM");
