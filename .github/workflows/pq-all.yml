@@ -35,6 +35,9 @@ jobs:
           '--enable-intelasm --enable-sp-asm --enable-all --enable-testcert --enable-dtls13 --enable-dtls-mtu --enable-dtls-frag-ch --enable-dtlscid --enable-mlkem=make,enc,dec,1024 --enable-tls-mlkem-standalone --disable-pqc-hybrids --disable-qt CPPFLAGS="-pedantic -Wdeclaration-after-statement -DWOLFCRYPT_TEST_LINT -DNO_WOLFSSL_CIPHER_SUITE_TEST -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"',
           '--enable-intelasm --enable-sp-asm --enable-all --enable-testcert --enable-acert --enable-dtls13 --enable-dtls-mtu --enable-dtls-frag-ch --enable-dtlscid --enable-quic --with-sys-crypto-policy --enable-experimental --enable-mlkem=yes,kyber,ml-kem --enable-lms --enable-xmss --enable-slhdsa --enable-dilithium=yes,no-ctx --enable-dual-alg-certs --disable-qt CPPFLAGS="-pedantic -Wdeclaration-after-statement -DWOLFCRYPT_TEST_LINT -DNO_WOLFSSL_CIPHER_SUITE_TEST -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"',
           '--enable-intelasm --enable-sp-asm --enable-mlkem=yes,kyber,ml-kem,cache-a CPPFLAGS="-DWOLFSSL_MLKEM_DYNAMIC_KEYS"',
+          '--enable-intelasm --enable-sp-asm --enable-dilithium=yes CPPFLAGS="-DWOLFSSL_DILITHIUM_DYNAMIC_KEYS"',
+          '--disable-intelasm --enable-dilithium=yes,small CPPFLAGS="-DWOLFSSL_DILITHIUM_DYNAMIC_KEYS"',
+          '--disable-intelasm --enable-dilithium=44,65,87,verify-only CPPFLAGS="-DWOLFSSL_DILITHIUM_DYNAMIC_KEYS"',
         ]
     name: make check
     if: github.repository_owner == 'wolfssl'

@@ -55,6 +55,12 @@
  *   Key data is assigned into Dilithium key rather than copied.
  *   Life of key data passed in is tightly coupled to life of Dilithium key.
  *   Cannot be used when make key is enabled.
+ * WOLFSSL_DILITHIUM_DYNAMIC_KEYS                                Default: OFF
+ *   Key buffers (public and private) are dynamically allocated on the heap
+ *   instead of being static arrays in the key struct. Buffers are right-sized
+ *   for the key's ML-DSA level and only allocated when needed (e.g. no private
+ *   key buffer for verify-only keys). Reduces memory footprint significantly.
+ *   Cannot be used with WOLFSSL_DILITHIUM_ASSIGN_KEY.
  * WOLFSSL_DILITHIUM_SIGN_SMALL_MEM                           Default: OFF
  *   Compiles signature implementation that uses smaller amounts of memory but
  *   is considerably slower.
@@ -218,6 +224,11 @@ void print_data(const char* name, const byte* d, int len)
     #error "Cannot use assign key when making keys"
 #endif
 
+#if defined(WOLFSSL_DILITHIUM_DYNAMIC_KEYS) && \
+    defined(WOLFSSL_DILITHIUM_ASSIGN_KEY)
+    #error "Cannot use both WOLFSSL_DILITHIUM_DYNAMIC_KEYS and WOLFSSL_DILITHIUM_ASSIGN_KEY"
+#endif
+
 
 /* Number of bytes from first block to use for sign. */
 #define DILITHIUM_SIGN_BYTES            8
@@ -357,6 +368,72 @@ static int dilithium_get_params(int level, const wc_dilithium_params** params)
 
     return ret;
 }
+
+#if defined(WOLFSSL_DILITHIUM_DYNAMIC_KEYS) && \
+    defined(WOLFSSL_DILITHIUM_PRIVATE_KEY)
+/* Allocate the private key buffer for the current level if not already
+ * allocated. Buffer is sized via wc_dilithium_size(key) and the allocated size
+ * is stored in key->kSz for later use (ForceZero, free). On failure key->k may
+ * remain NULL; callers must not inspect it. */
+static int dilithium_alloc_priv_buf(dilithium_key* key)
+{
+    int ret = 0;
+
+    if (key->k == NULL) {
+        int secSz = wc_dilithium_size(key);
+        if (secSz < 0) {
+            /* Should not happen, as the level checks have already been
+             * performed, but defense-in-depth. */
+            ret = BAD_STATE_E;
+        }
+        else {
+        #ifdef USE_INTEL_SPEEDUP
+            secSz += 8;
+        #endif
+            key->k = (byte*)XMALLOC((word32)secSz, key->heap,
+                                    DYNAMIC_TYPE_DILITHIUM);
+            if (key->k == NULL) {
+                ret = MEMORY_E;
+            }
+            else {
+                key->kSz = (word32)secSz;
+            }
+        }
+    }
+    return ret;
+}
+#endif
+
+#if defined(WOLFSSL_DILITHIUM_DYNAMIC_KEYS) && \
+    defined(WOLFSSL_DILITHIUM_PUBLIC_KEY)
+/* Allocate the public key buffer for the current level if not already
+ * allocated. Buffer is sized via wc_dilithium_pub_size(key). On failure,
+ * key->p may remain NULL; callers must not inspect it. */
+static int dilithium_alloc_pub_buf(dilithium_key* key)
+{
+    int ret = 0;
+
+    if (key->p == NULL) {
+        int pubSz = wc_dilithium_pub_size(key);
+        if (pubSz < 0) {
+            /* Should not happen, as the level checks have already been
+             * performed, but defense-in-depth. */
+            ret = BAD_STATE_E;
+        }
+        else {
+        #ifdef USE_INTEL_SPEEDUP
+            pubSz += 8;
+        #endif
+            key->p = (byte*)XMALLOC((word32)pubSz, key->heap,
+                                    DYNAMIC_TYPE_DILITHIUM);
+            if (key->p == NULL) {
+                ret = MEMORY_E;
+            }
+        }
+    }
+    return ret;
+}
+#endif
 
 /******************************************************************************
  * Hash operations
@@ -7654,8 +7731,19 @@ static int dilithium_make_key_from_seed(dilithium_key* key, const byte* seed)
     sword32* s1 = NULL;
     sword32* s2 = NULL;
     sword32* t = NULL;
-    byte* pub_seed = key->k;
+    byte* pub_seed = NULL;
     byte kl[2];
+
+#ifdef WOLFSSL_DILITHIUM_DYNAMIC_KEYS
+    ret = dilithium_alloc_priv_buf(key);
+    if (ret == 0) {
+        ret = dilithium_alloc_pub_buf(key);
+    }
+#endif
+
+    if (ret == 0) {
+        pub_seed = key->k;
+    }
 
     /* Allocate memory for large intermediates. */
 #ifdef WC_DILITHIUM_CACHE_MATRIX_A
@@ -7818,10 +7906,21 @@ static int dilithium_make_key_from_seed(dilithium_key* key, const byte* seed)
     sword64* t64 = NULL;
 #endif
     byte* h = NULL;
-    byte* pub_seed = key->k;
+    byte* pub_seed = NULL;
     unsigned int r;
     unsigned int s;
     byte kl[2];
+
+#ifdef WOLFSSL_DILITHIUM_DYNAMIC_KEYS
+    ret = dilithium_alloc_priv_buf(key);
+    if (ret == 0) {
+        ret = dilithium_alloc_pub_buf(key);
+    }
+#endif
+
+    if (ret == 0) {
+        pub_seed = key->k;
+    }
 
     /* Allocate memory for large intermediates. */
     if (ret == 0) {
@@ -10000,6 +10099,16 @@ static int oqs_dilithium_make_key(dilithium_key* key, WC_RNG* rng)
         ret = SIG_TYPE_E;
     }
 
+
+#ifdef WOLFSSL_DILITHIUM_DYNAMIC_KEYS
+    if (ret == 0) {
+        ret = dilithium_alloc_priv_buf(key);
+    }
+    if (ret == 0) {
+        ret = dilithium_alloc_pub_buf(key);
+    }
+#endif
+
     if (ret == 0) {
         ret = wolfSSL_liboqsRngMutexLock(rng);
         if (ret == 0) {
@@ -10921,6 +11030,19 @@ int wc_dilithium_set_level(dilithium_key* key, byte level)
 #endif
 #endif /* WOLFSSL_WC_DILITHIUM */
 
+#ifdef WOLFSSL_DILITHIUM_DYNAMIC_KEYS
+        if (key->k != NULL) {
+            ForceZero(key->k, key->kSz);
+            XFREE(key->k, key->heap, DYNAMIC_TYPE_DILITHIUM);
+            key->k = NULL;
+            key->kSz = 0;
+        }
+        if (key->p != NULL) {
+            XFREE(key->p, key->heap, DYNAMIC_TYPE_DILITHIUM);
+            key->p = NULL;
+        }
+#endif
+
         /* Store level and indicate public and private key are not set. */
         key->level = level % WC_ML_DSA_DRAFT;
         key->pubKeySet = 0;
@@ -10991,6 +11113,15 @@ void wc_dilithium_free(dilithium_key* key)
         /* Free the SHAKE-128/256 object. */
         wc_Shake256_Free(&key->shake);
 #endif
+#endif
+#ifdef WOLFSSL_DILITHIUM_DYNAMIC_KEYS
+        if (key->k != NULL) {
+            ForceZero(key->k, key->kSz);
+            XFREE(key->k, key->heap, DYNAMIC_TYPE_DILITHIUM);
+        }
+        if (key->p != NULL) {
+            XFREE(key->p, key->heap, DYNAMIC_TYPE_DILITHIUM);
+        }
 #endif
         /* Ensure all private data is zeroized. */
         ForceZero(key, sizeof(*key));
@@ -11553,12 +11684,19 @@ int wc_dilithium_import_public(const byte* in, word32 inLen, dilithium_key* key)
         }
     }
 
+
+#ifdef WOLFSSL_DILITHIUM_DYNAMIC_KEYS
+    if (ret == 0) {
+        ret = dilithium_alloc_pub_buf(key);
+    }
+#endif
+
     if (ret == 0) {
         /* Copy the private key data in or copy pointer. */
-    #ifndef WOLFSSL_DILITHIUM_ASSIGN_KEY
-        XMEMCPY(key->p, in, inLen);
-    #else
+    #ifdef WOLFSSL_DILITHIUM_ASSIGN_KEY
         key->p = in;
+    #else
+        XMEMCPY(key->p, in, inLen);
     #endif
 
 #ifdef WC_DILITHIUM_CACHE_PUB_VECTORS
@@ -11630,23 +11768,35 @@ static int dilithium_set_priv_key(const byte* priv, word32 privSz,
     dilithium_key* key)
 {
     int ret = 0;
+    int expPrivSz;
 #ifdef WC_DILITHIUM_CACHE_MATRIX_A
     const wc_dilithium_params* params = key->params;
 #endif
 
-    /* Validate parameters. */
-    if ((privSz != ML_DSA_LEVEL2_KEY_SIZE) &&
-            (privSz != ML_DSA_LEVEL3_KEY_SIZE) &&
-            (privSz != ML_DSA_LEVEL5_KEY_SIZE)) {
+    /* Validate parameters. privSz must match the expected size for the
+     * level set on the key. This is required so that subsequent code
+     * which reads via key->params stays within the (possibly dynamically
+     * sized) buffer. */
+    expPrivSz = wc_dilithium_size(key);
+    if (expPrivSz < 0) {
+        ret = BAD_FUNC_ARG;
+    }
+    else if (privSz != (word32)expPrivSz) {
         ret = BAD_FUNC_ARG;
     }
 
+#ifdef WOLFSSL_DILITHIUM_DYNAMIC_KEYS
+    if (ret == 0) {
+        ret = dilithium_alloc_priv_buf(key);
+    }
+#endif
+
     if (ret == 0) {
         /* Copy the private key data in or copy pointer. */
-    #ifndef WOLFSSL_DILITHIUM_ASSIGN_KEY
-        XMEMCPY(key->k, priv, privSz);
-    #else
+    #ifdef WOLFSSL_DILITHIUM_ASSIGN_KEY
         key->k = priv;
+    #else
+        XMEMCPY(key->k, priv, privSz);
     #endif
     }
 
