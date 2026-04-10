@@ -1159,7 +1159,7 @@ int test_wc_RsaKeyToDer_SizeOverflow(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_RSA) && defined(USE_INTEGER_HEAP_MATH) && \
-    defined(WOLFSSL_ASN_TEMPLATE) && \
+    defined(WOLFSSL_ASN_TEMPLATE) && defined(WOLFSSL_PUBLIC_MP) && \
     (defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_KEY_TO_DER))
     RsaKey    key;
     int       i;
