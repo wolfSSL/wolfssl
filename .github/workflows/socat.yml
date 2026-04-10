@@ -79,6 +79,7 @@ jobs:
         with:
           repository: wolfssl/osp
           path: osp
+          fetch-depth: 1
 
       - name: Build socat
         working-directory: ./socat-${{ matrix.socat_version }}
@@ -86,7 +87,7 @@ jobs:
           patch -p1 < ../osp/socat/${{ matrix.socat_version }}/socat-${{ matrix.socat_version }}.patch
           autoreconf -vfi
           ./configure --with-wolfssl=$GITHUB_WORKSPACE/build-dir --enable-default-ipv=4
-          make
+          make -j
 
       - name: Run socat tests
         working-directory: ./socat-${{ matrix.socat_version }}

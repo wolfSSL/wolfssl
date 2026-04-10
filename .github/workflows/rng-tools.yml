@@ -76,6 +76,7 @@ jobs:
         with:
           repository: wolfssl/osp
           path: osp
+          fetch-depth: 1
 
       - name: Checkout jitterentropy-library
         uses: actions/checkout@v4
@@ -83,6 +84,7 @@ jobs:
           repository: smuellerDD/jitterentropy-library
           path: jitterentropy-library
           ref: v3.5.0
+          fetch-depth: 1
 
       - name: Build jitterentropy-library
         working-directory: jitterentropy-library

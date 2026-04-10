@@ -69,6 +69,7 @@ jobs:
         with:
           repository: wolfssl/osp
           path: osp
+          fetch-depth: 1
 
       - name: Install dependencies
         uses: ./.github/actions/install-apt-deps
@@ -81,6 +82,7 @@ jobs:
           repository: marlam/msmtp
           ref: msmtp-${{ matrix.ref }}
           path: msmtp-${{ matrix.ref }}
+          fetch-depth: 1
 
       - name: Apply wolfSSL patch
         working-directory: msmtp-${{ matrix.ref }}

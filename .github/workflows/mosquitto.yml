@@ -69,6 +69,7 @@ jobs:
         with:
           repository: wolfssl/osp
           path: osp
+          fetch-depth: 1
 
       - name: Install dependencies
         uses: ./.github/actions/install-apt-deps
@@ -81,6 +82,7 @@ jobs:
           repository: eclipse/mosquitto
           ref: v${{ matrix.ref }}
           path: mosquitto
+          fetch-depth: 1
 
       - name: Update certs
         run: |
@@ -92,7 +94,7 @@ jobs:
         run: |
             cd $GITHUB_WORKSPACE/mosquitto/
             patch -p1 < $GITHUB_WORKSPACE/osp/mosquitto/${{ matrix.ref }}.patch
-            make WITH_TLS=wolfssl WITH_CJSON=no WITH_DOCS=no WOLFSSLDIR=$GITHUB_WORKSPACE/build-dir
+            make -j WITH_TLS=wolfssl WITH_CJSON=no WITH_DOCS=no WOLFSSLDIR=$GITHUB_WORKSPACE/build-dir
 
       - name: Run mosquitto tests
         working-directory: ./mosquitto
@@ -100,7 +102,7 @@ jobs:
           # Retry up to five times
           for i in {1..5}; do
             TEST_RES=0
-            make WITH_TLS=wolfssl WITH_CJSON=no WITH_DOCS=no WOLFSSLDIR=$GITHUB_WORKSPACE/build-dir ptest || TEST_RES=$?
+            make -j WITH_TLS=wolfssl WITH_CJSON=no WITH_DOCS=no WOLFSSLDIR=$GITHUB_WORKSPACE/build-dir ptest || TEST_RES=$?
             if [ "$TEST_RES" -eq "0" ]; then
               break
             fi

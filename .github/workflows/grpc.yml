@@ -91,6 +91,7 @@ jobs:
         with:
           repository: wolfssl/osp
           path: osp
+          fetch-depth: 1
 
       - name: Checkout grpc
         uses: actions/checkout@v4
@@ -98,6 +99,7 @@ jobs:
           repository: grpc/grpc
           path: grpc
           ref: ${{ matrix.ref }}
+          fetch-depth: 1
 
       - name: Build grpc
         working-directory: ./grpc
