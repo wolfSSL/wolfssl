@@ -4143,6 +4143,16 @@ extern void uITRON4_free(void *p) ;
 #ifndef WOLFSSL_ALERT_COUNT_MAX
     #define WOLFSSL_ALERT_COUNT_MAX 5
 #endif
+#if WOLFSSL_ALERT_COUNT_MAX > 255
+    #error "WOLFSSL_ALERT_COUNT_MAX must be <= 255 (stored in a byte)"
+#endif
+
+#ifndef WOLFSSL_MAX_EMPTY_RECORDS
+    #define WOLFSSL_MAX_EMPTY_RECORDS 32
+#endif
+#if WOLFSSL_MAX_EMPTY_RECORDS > 255
+    #error "WOLFSSL_MAX_EMPTY_RECORDS must be <= 255 (stored in a byte)"
+#endif
 
 /* Enable blinding by default for C-only, non-small curve25519 implementation */
 #if defined(HAVE_CURVE25519) && !defined(CURVE25519_SMALL) && \

@@ -5216,6 +5216,7 @@ struct Options {
     byte            asyncState;         /* sub-state for enum asyncState */
     byte            buildMsgState;      /* sub-state for enum buildMsgState */
     byte            alertCount;         /* detect warning dos attempt */
+    byte            emptyRecordCount;   /* detect empty record dos attempt */
 #ifdef WOLFSSL_MULTICAST
     word16          mcastID;            /* Multicast group ID */
 #endif

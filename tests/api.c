@@ -21402,6 +21402,226 @@ static int test_MakeCertWithPathLen(void)
     return EXPECT_RESULT();
 }
 
+static int test_PathLenSelfIssued(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_CERT_REQ) && !defined(NO_ASN_TIME) && \
+    defined(WOLFSSL_CERT_GEN) && defined(HAVE_ECC) && \
+    defined(WOLFSSL_CERT_EXT) && !defined(NO_CERTS) && \
+    (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH))
+    Cert cert;
+    DecodedCert decodedCert;
+    byte rootDer[FOURK_BUF];
+    byte icaDer[FOURK_BUF];
+    byte entityDer[FOURK_BUF];
+    int rootDerSz = 0;
+    int icaDerSz = 0;
+    int entityDerSz = 0;
+    WC_RNG rng;
+    ecc_key rootKey;
+    ecc_key icaKey;
+    ecc_key entityKey;
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    XMEMSET(&rootKey, 0, sizeof(ecc_key));
+    XMEMSET(&icaKey, 0, sizeof(ecc_key));
+    XMEMSET(&entityKey, 0, sizeof(ecc_key));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ecc_init(&rootKey), 0);
+    ExpectIntEQ(wc_ecc_init(&icaKey), 0);
+    ExpectIntEQ(wc_ecc_init(&entityKey), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, 32, &rootKey), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, 32, &icaKey), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, 32, &entityKey), 0);
+
+    /* Step 1: Create root CA with pathLen=0 */
+    ExpectIntEQ(wc_InitCert(&cert), 0);
+    (void)XSTRNCPY(cert.subject.country, "US", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.state, "MT", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.locality, "Bozeman", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.org, "TestCA", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.unit, "Test", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.commonName, "TestRootCA", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.email, "root@test.com", CTC_NAME_SIZE);
+    cert.selfSigned = 1;
+    cert.isCA       = 1;
+    cert.pathLen    = 0;
+    cert.pathLenSet = 1;
+    cert.sigType    = CTC_SHA256wECDSA;
+    cert.keyUsage   = KEYUSE_KEY_CERT_SIGN | KEYUSE_CRL_SIGN;
+    ExpectIntEQ(wc_SetSubjectKeyIdFromPublicKey_ex(&cert, ECC_TYPE, &rootKey),
+        0);
+
+    ExpectIntGE(wc_MakeCert(&cert, rootDer, FOURK_BUF, NULL, &rootKey, &rng),
+        0);
+    ExpectIntGE(rootDerSz = wc_SignCert(cert.bodySz, cert.sigType, rootDer,
+        FOURK_BUF, NULL, &rootKey, &rng), 0);
+
+    /* Step 2: Create self-issued intermediate (same subject DN as root,
+     * different key, signed by root) - this should be blocked by pathLen=0 */
+    ExpectIntEQ(wc_InitCert(&cert), 0);
+    cert.selfSigned = 0;
+    cert.isCA       = 1;
+    cert.sigType    = CTC_SHA256wECDSA;
+    cert.keyUsage   = KEYUSE_KEY_CERT_SIGN | KEYUSE_CRL_SIGN;
+    /* Set both subject and issuer from the root cert so they match */
+    ExpectIntEQ(wc_SetSubjectBuffer(&cert, rootDer, rootDerSz), 0);
+    ExpectIntEQ(wc_SetIssuerBuffer(&cert, rootDer, rootDerSz), 0);
+    ExpectIntEQ(wc_SetAuthKeyIdFromPublicKey_ex(&cert, ECC_TYPE, &rootKey), 0);
+    ExpectIntEQ(wc_SetSubjectKeyIdFromPublicKey_ex(&cert, ECC_TYPE, &icaKey),
+        0);
+
+    ExpectIntGE(wc_MakeCert(&cert, icaDer, FOURK_BUF, NULL, &icaKey, &rng), 0);
+    ExpectIntGE(icaDerSz = wc_SignCert(cert.bodySz, cert.sigType, icaDer,
+        FOURK_BUF, NULL, &rootKey, &rng), 0);
+
+    /* Step 3: Create entity cert signed by the intermediate */
+    ExpectIntEQ(wc_InitCert(&cert), 0);
+    cert.selfSigned = 0;
+    cert.isCA       = 0;
+    cert.sigType    = CTC_SHA256wECDSA;
+    (void)XSTRNCPY(cert.subject.country, "US", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.state, "MT", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.locality, "Bozeman", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.org, "TestEntity", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.commonName, "entity.test", CTC_NAME_SIZE);
+    ExpectIntEQ(wc_SetIssuerBuffer(&cert, icaDer, icaDerSz), 0);
+    ExpectIntEQ(wc_SetAuthKeyIdFromPublicKey_ex(&cert, ECC_TYPE, &icaKey), 0);
+
+    ExpectIntGE(wc_MakeCert(&cert, entityDer, FOURK_BUF, NULL, &entityKey,
+        &rng), 0);
+    ExpectIntGE(entityDerSz = wc_SignCert(cert.bodySz, cert.sigType, entityDer,
+        FOURK_BUF, NULL, &icaKey, &rng), 0);
+
+    /* Step 4: Load root CA into cert manager */
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, rootDer, rootDerSz,
+        WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+
+    /* Step 5: Parse the self-issued intermediate as a chain cert.
+     * This simulates TLS chain verification where the intermediate is
+     * received as part of the certificate chain.
+     * Root CA has pathLen=0, so it should NOT be allowed to sign any
+     * intermediate CA (including self-issued ones).
+     * BUG: wolfSSL sets selfSigned=1 for this cert (issuer==subject DN),
+     * which causes the pathLen enforcement to be entirely skipped. */
+    wc_InitDecodedCert(&decodedCert, icaDer, (word32)icaDerSz, NULL);
+    ExpectIntEQ(wc_ParseCert(&decodedCert, CHAIN_CERT_TYPE, VERIFY,
+        cm), WC_NO_ERR_TRACE(ASN_PATHLEN_INV_E));
+    wc_FreeDecodedCert(&decodedCert);
+
+    wolfSSL_CertManagerFree(cm);
+    wc_ecc_free(&entityKey);
+    wc_ecc_free(&icaKey);
+    wc_ecc_free(&rootKey);
+    wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}
+
+static int test_PathLenNoKeyUsage(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_CERT_REQ) && !defined(NO_ASN_TIME) && \
+    defined(WOLFSSL_CERT_GEN) && defined(HAVE_ECC) && \
+    defined(WOLFSSL_CERT_EXT) && !defined(NO_CERTS) && \
+    (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH))
+    Cert cert;
+    DecodedCert decodedCert;
+    byte rootDer[FOURK_BUF];
+    byte icaDer[FOURK_BUF];
+    int rootDerSz = 0;
+    int icaDerSz = 0;
+    WC_RNG rng;
+    ecc_key rootKey;
+    ecc_key icaKey;
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    XMEMSET(&rootKey, 0, sizeof(ecc_key));
+    XMEMSET(&icaKey, 0, sizeof(ecc_key));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ecc_init(&rootKey), 0);
+    ExpectIntEQ(wc_ecc_init(&icaKey), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, 32, &rootKey), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, 32, &icaKey), 0);
+
+    /* Step 1: Create root CA with pathLen=0 and KeyUsage */
+    ExpectIntEQ(wc_InitCert(&cert), 0);
+    (void)XSTRNCPY(cert.subject.country, "US", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.state, "MT", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.locality, "Bozeman", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.org, "TestCA2", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.unit, "Test", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.commonName, "TestRootCA2", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.email, "root@test2.com", CTC_NAME_SIZE);
+    cert.selfSigned = 1;
+    cert.isCA       = 1;
+    cert.pathLen    = 0;
+    cert.pathLenSet = 1;
+    cert.sigType    = CTC_SHA256wECDSA;
+    cert.keyUsage   = KEYUSE_KEY_CERT_SIGN | KEYUSE_CRL_SIGN;
+    ExpectIntEQ(wc_SetSubjectKeyIdFromPublicKey_ex(&cert, ECC_TYPE, &rootKey),
+        0);
+
+    ExpectIntGE(wc_MakeCert(&cert, rootDer, FOURK_BUF, NULL, &rootKey, &rng),
+        0);
+    ExpectIntGE(rootDerSz = wc_SignCert(cert.bodySz, cert.sigType, rootDer,
+        FOURK_BUF, NULL, &rootKey, &rng), 0);
+
+    /* Step 2: Create intermediate CA WITHOUT KeyUsage extension.
+     * Per RFC 5280, when KeyUsage is absent all uses are valid.
+     * The root's pathLen=0 should still block this intermediate CA.
+     * BUG: pathLen check requires extKeyUsageSet which is false when
+     * KeyUsage is absent, so the check is skipped entirely. */
+    ExpectIntEQ(wc_InitCert(&cert), 0);
+    cert.selfSigned = 0;
+    cert.isCA       = 1;
+    cert.sigType    = CTC_SHA256wECDSA;
+    /* Intentionally do NOT set keyUsage - test that pathLen is still enforced */
+    cert.keyUsage   = 0;
+    (void)XSTRNCPY(cert.subject.country, "US", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.state, "MT", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.locality, "Bozeman", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.org, "TestICA", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.unit, "Test", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.commonName, "TestICA-NoKU", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.email, "ica@test2.com", CTC_NAME_SIZE);
+    ExpectIntEQ(wc_SetIssuerBuffer(&cert, rootDer, rootDerSz), 0);
+    ExpectIntEQ(wc_SetAuthKeyIdFromPublicKey_ex(&cert, ECC_TYPE, &rootKey), 0);
+    ExpectIntEQ(wc_SetSubjectKeyIdFromPublicKey_ex(&cert, ECC_TYPE, &icaKey),
+        0);
+
+    ExpectIntGE(wc_MakeCert(&cert, icaDer, FOURK_BUF, NULL, &icaKey, &rng), 0);
+    ExpectIntGE(icaDerSz = wc_SignCert(cert.bodySz, cert.sigType, icaDer,
+        FOURK_BUF, NULL, &rootKey, &rng), 0);
+
+    /* Step 3: Load root CA into cert manager */
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, rootDer, rootDerSz,
+        WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+
+    /* Step 4: Parse the intermediate (no KeyUsage) as a chain cert.
+     * Root CA has pathLen=0, this intermediate CA should be rejected.
+     * The intermediate does NOT have the KeyUsage extension, but per
+     * RFC 5280 4.2.1.3 all key uses are valid when the extension is
+     * absent, so pathLen must still be enforced. */
+    wc_InitDecodedCert(&decodedCert, icaDer, (word32)icaDerSz, NULL);
+    ExpectIntEQ(wc_ParseCert(&decodedCert, CHAIN_CERT_TYPE, VERIFY,
+        cm), WC_NO_ERR_TRACE(ASN_PATHLEN_INV_E));
+    wc_FreeDecodedCert(&decodedCert);
+
+    wolfSSL_CertManagerFree(cm);
+    wc_ecc_free(&icaKey);
+    wc_ecc_free(&rootKey);
+    wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_MakeCertWith0Ser(void)
 {
     EXPECT_DECLS;
@@ -35277,6 +35497,8 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_ParseCert),
     TEST_DECL(test_wc_ParseCert_Error),
     TEST_DECL(test_MakeCertWithPathLen),
+    TEST_DECL(test_PathLenSelfIssued),
+    TEST_DECL(test_PathLenNoKeyUsage),
     TEST_DECL(test_MakeCertWith0Ser),
     TEST_DECL(test_MakeCertWithCaFalse),
 #ifdef WOLFSSL_CERT_SIGN_CB

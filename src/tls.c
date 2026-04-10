@@ -17043,6 +17043,9 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
         #ifdef WOLFSSL_QUIC
             || (type == TLSX_KEY_QUIC_TP_PARAMS_DRAFT)
         #endif
+        #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
+            || (type == TLSX_ECH)
+        #endif
         #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_DUAL_ALG_CERTS)
             || (type == TLSX_CKS)
         #endif

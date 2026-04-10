@@ -21862,6 +21862,23 @@ int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx, int sniff)
     }
 #endif
 
+    /* Rate-limit empty application data records to prevent DoS */
+    if (dataSz == 0) {
+        if (++ssl->options.emptyRecordCount >= WOLFSSL_MAX_EMPTY_RECORDS) {
+            WOLFSSL_MSG("Too many empty records");
+#ifdef WOLFSSL_EXTRA_ALERTS
+            if (sniff == NO_SNIFF) {
+                SendAlert(ssl, alert_fatal, unexpected_message);
+            }
+#endif
+            WOLFSSL_ERROR_VERBOSE(EMPTY_RECORD_LIMIT_E);
+            return EMPTY_RECORD_LIMIT_E;
+        }
+    }
+    else {
+        ssl->options.emptyRecordCount = 0;
+    }
+
     /* read data */
     if (dataSz) {
         int rawSz = dataSz;       /* keep raw size for idx adjustment */
@@ -27572,6 +27589,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 
     case ALERT_COUNT_E:
         return "Alert Count exceeded error";
+
+    case EMPTY_RECORD_LIMIT_E:
+        return "Too many empty records error";
 
     case EXT_MISSING:
         return "Required TLS extension missing";
