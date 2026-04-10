@@ -19086,11 +19086,11 @@ static int DoHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         return DoHandShakeMsgType(ssl, input, inOutIdx, type, size, totalSz);
     }
 
-    /* curSize has already been reduced to content-only (padSz subtracted)
-     * in ProcessReply, so curStartIdx + curSize bounds the content. */
-    if (*inOutIdx > (word32)ssl->curStartIdx + ssl->curSize)
+    /* totalSz is now curStartIdx + curSize (content-only, padSz already
+     * subtracted in ProcessReply). */
+    if (*inOutIdx > totalSz)
         return BUFFER_ERROR;
-    inputLength = ssl->curStartIdx + ssl->curSize - *inOutIdx;
+    inputLength = totalSz - *inOutIdx;
 
     /* If there is a pending fragmented handshake message,
      * pending message size will be non-zero. */
@@ -23512,8 +23512,11 @@ default:
 
             /* Reduce curSize to content only, excluding padding/MAC overhead.
              * padSz is accounted for once at the end of record processing. */
-            if (IsEncryptionOn(ssl, 0))
+            if (IsEncryptionOn(ssl, 0)) {
+                if (ssl->keys.padSz > ssl->curSize)
+                    return BUFFER_E;
                 ssl->curSize -= (word16)ssl->keys.padSz;
+            }
 
             /* in case > 1 msg per record */
             ssl->curStartIdx = ssl->buffers.inputBuffer.idx;
@@ -23617,7 +23620,7 @@ default:
                             ret = DoDtlsHandShakeMsg(ssl,
                                 ssl->buffers.inputBuffer.buffer,
                                 &ssl->buffers.inputBuffer.idx,
-                                ssl->buffers.inputBuffer.length);
+                                ssl->curStartIdx + ssl->curSize);
                             if (ret == 0 ||
                                 ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
                                 /* Reset timeout as we have received a valid
@@ -23637,7 +23640,7 @@ default:
                             ret = Dtls13HandshakeRecv(ssl,
                                 ssl->buffers.inputBuffer.buffer,
                                 &ssl->buffers.inputBuffer.idx,
-                                ssl->buffers.inputBuffer.length);
+                                ssl->curStartIdx + ssl->curSize);
 #ifdef WOLFSSL_EARLY_DATA
                             if (ret == 0 &&
                                 ssl->options.side == WOLFSSL_SERVER_END &&
@@ -23674,7 +23677,7 @@ default:
                         ret = DoHandShakeMsg(ssl,
                                             ssl->buffers.inputBuffer.buffer,
                                             &ssl->buffers.inputBuffer.idx,
-                                            ssl->buffers.inputBuffer.length);
+                                            ssl->curStartIdx + ssl->curSize);
                         if (ret != 0) {
                             if (SendFatalAlertOnly(ssl, ret) ==
                                 WC_NO_ERR_TRACE(SOCKET_ERROR_E))
@@ -23690,7 +23693,7 @@ default:
                         ret = DoTls13HandShakeMsg(ssl,
                                             ssl->buffers.inputBuffer.buffer,
                                             &ssl->buffers.inputBuffer.idx,
-                                            ssl->buffers.inputBuffer.length);
+                                            ssl->curStartIdx + ssl->curSize);
     #ifdef WOLFSSL_EARLY_DATA
                         if (ret != 0)
                             return ret;

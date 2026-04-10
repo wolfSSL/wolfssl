@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+#
+# multi-msg-record.test
+#
+# Wrapper around scripts/multi-msg-record.py, invoked by automake via
+# `make check`.  Verifies that the wolfSSL client correctly processes
+# TLS records that carry multiple handshake messages in a single record
+# (TLS 1.2 plaintext + renegotiation, and TLS 1.3 encrypted flight).
+#
+# The test is SKIPped (exit 77) when python3 or tlslite-ng is not
+# installed.
+#
+
+# if we can, isolate the network namespace to eliminate port collisions.
+if [[ -n "$NETWORK_UNSHARE_HELPER" ]]; then
+     if [[ -z "$NETWORK_UNSHARE_HELPER_CALLED" ]]; then
+         export NETWORK_UNSHARE_HELPER_CALLED=yes
+         exec "$NETWORK_UNSHARE_HELPER" "$0" "$@" || exit $?
+     fi
+elif [ "${AM_BWRAPPED-}" != "yes" ]; then
+    bwrap_path="$(command -v bwrap)"
+    if [ -n "$bwrap_path" ]; then
+        export AM_BWRAPPED=yes
+        exec "$bwrap_path" --unshare-net --dev-bind / / "$0" "$@"
+    fi
+    unset AM_BWRAPPED
+fi
+
+# Locate python3 – skip (exit 77) if unavailable.
+PYTHON="$(command -v python3)"
+if [ -z "$PYTHON" ]; then
+    echo "python3 not found, skipping multi-msg-record test"
+    exit 77
+fi
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "$0")" && pwd)"
+exec "$PYTHON" "$SCRIPT_DIR/multi-msg-record.py" "$@"
