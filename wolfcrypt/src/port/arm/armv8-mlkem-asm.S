@@ -8927,7 +8927,7 @@ L_mlkem_aarch64_cmp_neon_done:
 	orr	v8.16b, v8.16b, v9.16b
 	orr	v10.16b, v10.16b, v11.16b
 	orr	v8.16b, v8.16b, v10.16b
-	ins	v9.b[0], v8.b[1]
+	ext	v9.16b, v8.16b, v8.16b, #8
 	orr	v8.16b, v8.16b, v9.16b
 	mov	x0, v8.d[0]
 	subs	x0, x0, xzr

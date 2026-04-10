@@ -8404,7 +8404,7 @@ int mlkem_cmp_neon(const byte* a, const byte* b, int sz)
         "orr	v8.16b, v8.16b, v9.16b\n\t"
         "orr	v10.16b, v10.16b, v11.16b\n\t"
         "orr	v8.16b, v8.16b, v10.16b\n\t"
-        "ins	v9.b[0], v8.b[1]\n\t"
+        "ext	v9.16b, v8.16b, v8.16b, #8\n\t"
         "orr	v8.16b, v8.16b, v9.16b\n\t"
         "mov	x0, v8.d[0]\n\t"
         "subs	x0, x0, xzr\n\t"
