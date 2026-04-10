@@ -871,7 +871,7 @@ public class wolfCrypt_Test_CSharp
             if (ret == 0)
             {
                 Console.WriteLine("Testing ML-DSA Key Export...");
-                ret = DilithiumExportPrivateKey(key, out privateKey);
+                ret = wolfcrypt.DilithiumExportPrivateKey(key, out privateKey);
                 if (ret != 0)
                 {
                     Console.Error.WriteLine($"Failed to export private key. Error code: {ret}");
@@ -879,7 +879,7 @@ public class wolfCrypt_Test_CSharp
             }
             if (ret == 0)
             {
-                ret = DilithiumExportPublicKey(key, out publicKey);
+                ret = wolfcrypt.DilithiumExportPublicKey(key, out publicKey);
                 if (ret != 0)
                 {
                     Console.Error.WriteLine($"Failed to export public key. Error code: {ret}");
@@ -894,7 +894,7 @@ public class wolfCrypt_Test_CSharp
             if (ret == 0)
             {
                 Console.WriteLine("Testing ML-DSA Key Import...");
-                ret = DilithiumImportPrivateKey(privateKey, key);
+                ret = wolfcrypt.DilithiumImportPrivateKey(privateKey, key);
                 if (ret != 0)
                 {
                     Console.Error.WriteLine($"Failed to import private key. Error code: {ret}");
@@ -902,7 +902,7 @@ public class wolfCrypt_Test_CSharp
             }
             if (ret == 0)
             {
-                ret = DilithiumImportPublicKey(publicKey, key);
+                ret = wolfcrypt.DilithiumImportPublicKey(publicKey, key);
                 if (ret != 0)
                 {
                     Console.Error.WriteLine($"Failed to import public key. Error code: {ret}");

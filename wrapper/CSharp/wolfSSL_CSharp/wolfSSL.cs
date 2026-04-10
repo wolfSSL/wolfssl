@@ -795,8 +795,6 @@ namespace wolfSSL.CSharp
             WOLFSSL_SECP521R1MLKEM1024    = 12109,
             WOLFSSL_X25519MLKEM512        = 12214,
             WOLFSSL_X448MLKEM768          = 12215,
-
-            WOLF_ENUM_DUMMY_LAST_ELEMENT = 0
         }
 
 

@@ -540,9 +540,9 @@ namespace wolfSSL.CSharp
         [DllImport(wolfssl_dll)]
         private static extern int wc_dilithium_import_public(byte[] input, uint inputLen, IntPtr key);
         [DllImport(wolfssl_dll)]
-        private static extern int wc_dilithium_sign_msg(byte[] msg, uint msgLen, byte[] sig, ref uint sigLen, IntPtr key, IntPtr rng);
+        private static extern int wc_dilithium_sign_ctx_msg(byte[] ctx, byte ctxLen, byte[] msg, uint msgLen, byte[] sig, ref uint sigLen, IntPtr key, IntPtr rng);
         [DllImport(wolfssl_dll)]
-        private static extern int wc_dilithium_verify_msg(byte[] sig, uint sigLen, byte[] msg, uint msgLen, ref int res, IntPtr key);
+        private static extern int wc_dilithium_verify_ctx_msg(byte[] sig, uint sigLen, byte[] ctx, byte ctxLen, byte[] msg, uint msgLen, ref int res, IntPtr key);
         [DllImport(wolfssl_dll)]
         private static extern int wc_MlDsaKey_GetPrivLen(IntPtr key, ref int len);
         [DllImport(wolfssl_dll)]
@@ -571,9 +571,9 @@ namespace wolfSSL.CSharp
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private static extern int wc_dilithium_import_public(byte[] input, uint inputLen, IntPtr key);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
-        private static extern int wc_dilithium_sign_msg(byte[] msg, uint msgLen, byte[] sig, ref uint sigLen, IntPtr key, IntPtr rng);
+        private static extern int wc_dilithium_sign_ctx_msg(byte[] ctx, byte ctxLen, byte[] msg, uint msgLen, byte[] sig, ref uint sigLen, IntPtr key, IntPtr rng);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
-        private static extern int wc_dilithium_verify_msg(byte[] sig, uint sigLen, byte[] msg, uint msgLen, ref int res, IntPtr key);
+        private static extern int wc_dilithium_verify_ctx_msg(byte[] sig, uint sigLen, byte[] ctx, byte ctxLen, byte[] msg, uint msgLen, ref int res, IntPtr key);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private static extern int wc_MlDsaKey_GetPrivLen(IntPtr key, ref int len);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
@@ -2982,18 +2982,15 @@ namespace wolfSSL.CSharp
         /// <returns>0 on success, negative value on error.</returns>
         public static int MlKemFreeKey(ref IntPtr key)
         {
-            int ret = 0;
+            int ret;
 
             if (key == IntPtr.Zero)
             {
                 return BAD_FUNC_ARG;
             }
 
-            if (key != IntPtr.Zero)
-            {
-                ret = wc_MlKemKey_Delete(key, IntPtr.Zero);
-                key = IntPtr.Zero;
-            }
+            ret = wc_MlKemKey_Delete(key, IntPtr.Zero);
+            key = IntPtr.Zero;
             return ret;
         }
 
@@ -3017,10 +3014,10 @@ namespace wolfSSL.CSharp
             try
             {
                 ret = wc_MlKemKey_PublicKeySize(key, ref pubLen);
-                if (ret !=0 || pubLen == 0)
+                if (ret != 0 || pubLen == 0)
                 {
                     log(ERROR_LOG, "Failed to get MlKem public key length. Error code: " + ret);
-                    return ret;
+                    return (ret != 0) ? ret : BAD_FUNC_ARG;
                 }
                 if (pubLen > int.MaxValue)
                 {
@@ -3066,10 +3063,10 @@ namespace wolfSSL.CSharp
             try
             {
                 ret = wc_MlKemKey_PrivateKeySize(key, ref privLen);
-                if (ret !=0 || privLen == 0)
+                if (ret != 0 || privLen == 0)
                 {
                     log(ERROR_LOG, "Failed to get MlKem private key length. Error code: " + ret);
-                    return ret;
+                    return (ret != 0) ? ret : BAD_FUNC_ARG;
                 }
                 if (privLen > int.MaxValue)
                 {
@@ -3123,14 +3120,14 @@ namespace wolfSSL.CSharp
                 if (ret != 0 || pubLen == 0)
                 {
                     log(ERROR_LOG, "Failed to get MlKem public key length. Error code: " + ret);
-                    return ret;
+                    return (ret != 0) ? ret : BAD_FUNC_ARG;
                 }
                 if ((uint)publicKey.Length != pubLen)
-                 {
-                     log(ERROR_LOG, "MlKem public key buffer length mismatch. Expected: " +
-                         pubLen + ", actual: " + publicKey.Length);
-                     return BUFFER_E;
-                 }
+                {
+                    log(ERROR_LOG, "MlKem public key buffer length mismatch. Expected: " +
+                        pubLen + ", actual: " + publicKey.Length);
+                    return BUFFER_E;
+                }
 
                 ret = wc_MlKemKey_DecodePublicKey(key, publicKey, pubLen);
                 if (ret != 0)
@@ -3172,12 +3169,12 @@ namespace wolfSSL.CSharp
             try
             {
                 ret = wc_MlKemKey_PrivateKeySize(key, ref privLen);
-                if (privLen == 0)
+                if (ret != 0 || privLen == 0)
                 {
                     log(ERROR_LOG, "Failed to get MlKem private key length. Error code: " + ret);
-                    return ret;
+                    return (ret != 0) ? ret : BAD_FUNC_ARG;
                 }
-                
+
                 if ((uint)privateKey.Length != privLen)
                 {
                     log(ERROR_LOG, "MlKem private key buffer length mismatch. Required: " + privLen +
@@ -3416,18 +3413,15 @@ namespace wolfSSL.CSharp
         /// <returns>0 on success, negative value on error.</returns>
         public static int DilithiumFreeKey(ref IntPtr key)
         {
-            int ret = 0;
+            int ret;
 
             if (key == IntPtr.Zero)
             {
                 return BAD_FUNC_ARG;
             }
 
-            if (key != IntPtr.Zero)
-            {
-                ret = wc_dilithium_delete(key, IntPtr.Zero);
-                key = IntPtr.Zero;
-            }
+            ret = wc_dilithium_delete(key, IntPtr.Zero);
+            key = IntPtr.Zero;
             return ret;
         }
 
@@ -3500,10 +3494,10 @@ namespace wolfSSL.CSharp
             try
             {
                 ret = wc_MlDsaKey_GetPrivLen(key, ref privLen);
-                if (privLen <= 0)
+                if (ret != 0 || privLen <= 0)
                 {
                     log(ERROR_LOG, "Failed to get Dilithium private key length. Error code: " + ret);
-                    return ret;
+                    return (ret != 0) ? ret : BAD_FUNC_ARG;
                 }
 
                 privateKey = new byte[privLen];
@@ -3550,10 +3544,10 @@ namespace wolfSSL.CSharp
             try
             {
                 ret = wc_MlDsaKey_GetPubLen(key, ref pubLen);
-                if (pubLen <= 0)
+                if (ret != 0 || pubLen <= 0)
                 {
                     log(ERROR_LOG, "Failed to get Dilithium public key length. Error code: " + ret);
-                    return ret;
+                    return (ret != 0) ? ret : BAD_FUNC_ARG;
                 }
 
                 publicKey = new byte[pubLen];
@@ -3602,10 +3596,10 @@ namespace wolfSSL.CSharp
             try
             {
                 ret = wc_MlDsaKey_GetSigLen(key, ref sigLen);
-                if (sigLen <= 0)
+                if (ret != 0 || sigLen <= 0)
                 {
                     log(ERROR_LOG, "Failed to get Dilithium signature length. Error code: " + ret);
-                    return ret;
+                    return (ret != 0) ? ret : BAD_FUNC_ARG;
                 }
 
                 sig = new byte[sigLen];
@@ -3614,9 +3608,10 @@ namespace wolfSSL.CSharp
                 if (rng == IntPtr.Zero)
                 {
                     log(ERROR_LOG, "Failed to create RNG for Dilithium signing.");
-                    return EXCEPTION_E;
+                    return MEMORY_E;
                 }
-                ret = wc_dilithium_sign_msg(msg, (uint)msg.Length, sig, ref outLen, key, rng);
+                /* FIPS 204 sign with empty context (ctx=null, ctxLen=0). */
+                ret = wc_dilithium_sign_ctx_msg(null, 0, msg, (uint)msg.Length, sig, ref outLen, key, rng);
                 if (ret != 0)
                 {
                     log(ERROR_LOG, "Failed to sign message with Dilithium key. Error code: " + ret);
@@ -3660,7 +3655,8 @@ namespace wolfSSL.CSharp
 
             try
             {
-                ret = wc_dilithium_verify_msg(sig, (uint)sig.Length, msg, (uint)msg.Length, ref res, key);
+                /* FIPS 204 verify with empty context (ctx=null, ctxLen=0). */
+                ret = wc_dilithium_verify_ctx_msg(sig, (uint)sig.Length, null, 0, msg, (uint)msg.Length, ref res, key);
                 if (ret != 0)
                 {
                     log(ERROR_LOG, "Failed to verify message with Dilithium key. Error code: " + ret);
