@@ -1,6 +1,21 @@
 #!/usr/bin/env bash
 #set -x
 
+# if we can, isolate the network namespace to eliminate port collisions.
+if [[ -n "$NETWORK_UNSHARE_HELPER" ]]; then
+     if [[ -z "$NETWORK_UNSHARE_HELPER_CALLED" ]]; then
+         export NETWORK_UNSHARE_HELPER_CALLED=yes
+         exec "$NETWORK_UNSHARE_HELPER" "$0" "$@" || exit $?
+     fi
+elif [ "${AM_BWRAPPED-}" != "yes" ]; then
+    bwrap_path="$(command -v bwrap)"
+    if [ -n "$bwrap_path" ]; then
+        export AM_BWRAPPED=yes
+        exec "$bwrap_path" --cap-add ALL --unshare-net --dev-bind / / "$0" "$@"
+    fi
+    unset AM_BWRAPPED
+fi
+
 # Run this script from the wolfSSL root
 if [ ! -f wolfssl/ssl.h ]; then
     echo "Run from the wolfssl root"
