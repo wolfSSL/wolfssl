@@ -767,16 +767,15 @@ namespace wolfSSL.CSharp
             WOLFSSL_X25519_KYBER_LEVEL3   = 25497,
             WOLFSSL_P256_KYBER_LEVEL3     = 25498,
 
-            /* Taken from draft-connolly-tls-mlkem-key-agreement, see:
-             * https://github.com/dconnolly/draft-connolly-tls-mlkem-key-agreement/
+            /* Taken from draft-ietf-tls-mlkem, see:
+             * https://datatracker.ietf.org/doc/draft-ietf-tls-mlkem/
              */
             WOLFSSL_ML_KEM_512 = 512,
             WOLFSSL_ML_KEM_768 = 513,
             WOLFSSL_ML_KEM_1024 = 514,
 
-            /* Taken from draft-kwiatkowski-tls-ecdhe-mlkem. see:
-             * https://github.com/post-quantum-cryptography/
-             *      draft-kwiatkowski-tls-ecdhe-mlkem/
+            /* Taken from draft-ietf-tls-ecdhe-mlkem, see:
+             * https://datatracker.ietf.org/doc/draft-ietf-tls-ecdhe-mlkem/
              */
             WOLFSSL_SECP256R1MLKEM768     = 4587,
             WOLFSSL_X25519MLKEM768        = 4588,

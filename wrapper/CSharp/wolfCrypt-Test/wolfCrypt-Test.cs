@@ -703,12 +703,12 @@ public class wolfCrypt_Test_CSharp
             }
             if (ret == 0)
             {
-                Console.WriteLine("Generate Key Pair B...");
-                keyB = wolfcrypt.MlKemMakeKey(type, heap, devId);
+                Console.WriteLine("Initialize Key B for decode...");
+                keyB = wolfcrypt.MlKemNew(type, heap, devId);
                 if (keyB == IntPtr.Zero)
                 {
                     ret = -1;
-                    Console.Error.WriteLine("Failed to generate key pair B.");
+                    Console.Error.WriteLine("Failed to initialize key B for decode.");
                 }
             }
             if (ret == 0)
@@ -769,7 +769,7 @@ public class wolfCrypt_Test_CSharp
                 ret = wolfcrypt.MlKemDecodePublicKey(keyB, pubA);
                 if (ret != 0)
                 {
-                    Console.Error.WriteLine($"Failed to decode public key of B. Error code: {ret}");
+                    Console.Error.WriteLine($"Failed to decode public key of A. Error code: {ret}");
                 }
             }
             if (ret == 0)

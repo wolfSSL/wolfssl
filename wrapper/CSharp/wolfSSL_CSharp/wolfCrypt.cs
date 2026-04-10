@@ -457,21 +457,13 @@ namespace wolfSSL.CSharp
         [DllImport(wolfssl_dll)]
         private static extern int wc_MlKemKey_Delete(IntPtr key, IntPtr key_p);
         [DllImport(wolfssl_dll)]
-        private static extern int wc_MlKemKey_Init(IntPtr key, int type, IntPtr heap, int devId);
-        [DllImport(wolfssl_dll)]
-        private static extern int wc_MlKemKey_Free(IntPtr key);
-        [DllImport(wolfssl_dll)]
         private static extern int wc_MlKemKey_MakeKey(IntPtr key, IntPtr rng);
-        [DllImport(wolfssl_dll)]
-        private static extern int wc_MlKemKey_MakeKeyWithRandom(IntPtr key, byte[] rand, int len);
         [DllImport(wolfssl_dll)]
         private static extern int wc_MlKemKey_EncodePublicKey(IntPtr key, byte[] output, uint len);
         [DllImport(wolfssl_dll)]
         private static extern int wc_MlKemKey_DecodePublicKey(IntPtr key, byte[] input, uint len);
         [DllImport(wolfssl_dll)]
         private static extern int wc_MlKemKey_Encapsulate(IntPtr key, byte[] ct, byte[] ss, IntPtr rng);
-        [DllImport(wolfssl_dll)]
-        private static extern int wc_MlKemKey_EncapsulateWithRandom(IntPtr key, byte[] ct, byte[] ss, byte[] rand, int len);
         [DllImport(wolfssl_dll)]
         private static extern int wc_MlKemKey_Decapsulate(IntPtr key, byte[] ss, byte[] ct, uint len);
         [DllImport(wolfssl_dll)]
@@ -492,21 +484,13 @@ namespace wolfSSL.CSharp
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private static extern int wc_MlKemKey_Delete(IntPtr key, IntPtr key_p);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
-        private static extern int wc_MlKemKey_Init(IntPtr key, int type, IntPtr heap, int devId);
-        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
-        private static extern int wc_MlKemKey_Free(IntPtr key);
-        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private static extern int wc_MlKemKey_MakeKey(IntPtr key, IntPtr rng);
-        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
-        private static extern int wc_MlKemKey_MakeKeyWithRandom(IntPtr key, byte[] rand, int len);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private static extern int wc_MlKemKey_EncodePublicKey(IntPtr key, byte[] output, uint len);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private static extern int wc_MlKemKey_DecodePublicKey(IntPtr key, byte[] input, uint len);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private static extern int wc_MlKemKey_Encapsulate(IntPtr key, byte[] ct, byte[] ss, IntPtr rng);
-        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
-        private static extern int wc_MlKemKey_EncapsulateWithRandom(IntPtr key, byte[] ct, byte[] ss, byte[] rand, int len);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private static extern int wc_MlKemKey_Decapsulate(IntPtr key, byte[] ss, byte[] ct, uint len);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
@@ -524,11 +508,7 @@ namespace wolfSSL.CSharp
         [DllImport(wolfssl_dll)]
         private static extern int wc_dilithium_delete(IntPtr key, IntPtr key_p);
         [DllImport(wolfssl_dll)]
-        private static extern int wc_dilithium_init_ex(IntPtr key, IntPtr heap, int devId);
-        [DllImport(wolfssl_dll)]
         private static extern int wc_dilithium_set_level(IntPtr key, byte level);
-        [DllImport(wolfssl_dll)]
-        private static extern void wc_dilithium_free(IntPtr key);
         [DllImport(wolfssl_dll)]
         private static extern int wc_dilithium_make_key(IntPtr key, IntPtr rng);
         [DllImport(wolfssl_dll)]
@@ -555,11 +535,7 @@ namespace wolfSSL.CSharp
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private static extern int wc_dilithium_delete(IntPtr key, IntPtr key_p);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
-        private static extern int wc_dilithium_init_ex(IntPtr key, IntPtr heap, int devId);
-        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private static extern int wc_dilithium_set_level(IntPtr key, byte level);
-        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
-        private static extern void wc_dilithium_free(IntPtr key);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private static extern int wc_dilithium_make_key(IntPtr key, IntPtr rng);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
@@ -2914,6 +2890,33 @@ namespace wolfSSL.CSharp
         // Please refer to `../user_settings.h`.
 
         /// <summary>
+        /// Allocate and initialize a new ML-KEM key without generating key
+        /// material. Use this when you intend to import or decode an existing
+        /// key (e.g., before calling MlKemDecodePublicKey/MlKemDecodePrivateKey).
+        /// </summary>
+        /// <param name="type">ML-KEM parameter set type</param>
+        /// <param name="heap">Heap pointer for memory allocation</param>
+        /// <param name="devId">Device ID (if applicable)</param>
+        /// <returns>Pointer to the MlKem key structure, or IntPtr.Zero on failure</returns>
+        public static IntPtr MlKemNew(MlKemTypes type, IntPtr heap, int devId)
+        {
+            try
+            {
+                IntPtr key = wc_MlKemKey_New((int)type, heap, devId);
+                if (key == IntPtr.Zero)
+                {
+                    log(ERROR_LOG, "Failed to allocate or initialize MlKem key.");
+                }
+                return key;
+            }
+            catch (Exception ex)
+            {
+                log(ERROR_LOG, "MlKem key allocation exception: " + ex.ToString());
+                return IntPtr.Zero;
+            }
+        }
+
+        /// <summary>
         /// Create a new ML-KEM key pair and initialize it with random values
         /// </summary>
         /// <param name="type">ML-KEM parameter set type</param>
@@ -3336,6 +3339,58 @@ namespace wolfSSL.CSharp
 
         // These APIs work by adding several options to wolfCrypt.
         // Please refer to `../user_settings.h`.
+
+        /// <summary>
+        /// Allocate and initialize a new Dilithium key (with level set) without
+        /// generating key material. Use this when you intend to import an
+        /// existing key (e.g., before calling DilithiumImportPublicKey or
+        /// DilithiumImportPrivateKey).
+        /// </summary>
+        /// <param name="heap">Heap pointer for memory allocation</param>
+        /// <param name="devId">Device ID (if applicable)</param>
+        /// <param name="level">Dilithium security level</param>
+        /// <returns>Pointer to the Dilithium key structure, or IntPtr.Zero on failure</returns>
+        public static IntPtr DilithiumNew(IntPtr heap, int devId, MlDsaLevels level)
+        {
+            IntPtr key = IntPtr.Zero;
+            bool success = false;
+
+            try
+            {
+                key = wc_dilithium_new(heap, devId);
+                if (key == IntPtr.Zero)
+                {
+                    log(ERROR_LOG, "Failed to allocate and initialize Dilithium key.");
+                    return IntPtr.Zero;
+                }
+
+                int ret = wc_dilithium_set_level(key, (byte)level);
+                if (ret != 0)
+                {
+                    log(ERROR_LOG, "Failed to set Dilithium level. Error code: " + ret);
+                    return IntPtr.Zero;
+                }
+
+                success = true;
+                return key;
+            }
+            catch (Exception ex)
+            {
+                log(ERROR_LOG, "Dilithium key allocation exception: " + ex.ToString());
+                return IntPtr.Zero;
+            }
+            finally
+            {
+                if (!success && key != IntPtr.Zero)
+                {
+                    int ret = DilithiumFreeKey(ref key);
+                    if (ret != 0)
+                    {
+                        log(ERROR_LOG, "Failed to free Dilithium key. Error code: " + ret);
+                    }
+                }
+            }
+        }
 
         /// <summary>
         /// Create a new Dilithium key pair and initialize it with random values
