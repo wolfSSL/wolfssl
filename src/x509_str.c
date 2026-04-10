@@ -1737,7 +1737,7 @@ static int X509StoreReadFile(const char *fname,
 #ifdef HAVE_CRL
         /* Look for CRL header and footer. */
         if (wc_PemGetHeaderFooter(CRL_TYPE, &header, &footer) == 0 &&
-                (XSTRNSTR((char*)content->buffer, header, (word32)sz) !=
+                (XSTRNSTR((char*)content->buffer, header, sz) !=
                     NULL)) {
             *type = CRL_TYPE;
         }

@@ -24072,8 +24072,8 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 #endif /* WOLFSSL_ENCRYPTED_KEYS */
 
     /* find footer */
-    footerEnd = XSTRNSTR(headerEnd, footer, (unsigned int)((const char*)buff +
-        sz - headerEnd));
+    footerEnd = XSTRNSTR(headerEnd, footer,
+        (size_t)((const char*)buff + sz - headerEnd));
     if (!footerEnd) {
         if (info)
             info->consumed = longSz; /* No more certs if no footer */

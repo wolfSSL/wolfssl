@@ -2677,21 +2677,21 @@ int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format, int type,
 
         /* Look for CA header and footer - same as CERT_TYPE. */
         if (wc_PemGetHeaderFooter(CA_TYPE, &header, &footer) == 0 &&
-                (XSTRNSTR((char*)content.buffer, header, (word32)sz) != NULL)) {
+                (XSTRNSTR((char*)content.buffer, header, sz) != NULL)) {
             type = CA_TYPE;
             WOLFSSL_MSG_CERT_LOG_EX("Detected cert type CA_TYPE = %d:", type);
         }
 #ifdef HAVE_CRL
         /* Look for CRL header and footer. */
         else if (wc_PemGetHeaderFooter(CRL_TYPE, &header, &footer) == 0 &&
-                (XSTRNSTR((char*)content.buffer, header, (word32)sz) != NULL)) {
+                (XSTRNSTR((char*)content.buffer, header, sz) != NULL)) {
             type = CRL_TYPE;
             WOLFSSL_MSG_CERT_LOG_EX("Detected cert type CRL_TYPE = %d:", type);
         }
 #endif
         /* Look for cert header and footer - same as CA_TYPE. */
         else if (wc_PemGetHeaderFooter(CERT_TYPE, &header, &footer) == 0 &&
-                (XSTRNSTR((char*)content.buffer, header, (word32)sz) !=
+                (XSTRNSTR((char*)content.buffer, header, sz) !=
                     NULL)) {
             type = CERT_TYPE;
             WOLFSSL_MSG_CERT_LOG_EX("Detected cert type CERT_TYPE = %d:", type);
