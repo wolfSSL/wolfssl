@@ -39,7 +39,7 @@
  * Attacker-controlled PKCS#12 files can specify iterations up to INT_MAX
  * (2,147,483,647) in the MAC data, causing hours of CPU time.
  * Override by defining WC_PBKDF_MAX_ITERATIONS before including this header.
- * Normal PKCS#12 files use 1,000–10,000 iterations. */
+ * Normal p12 files use 1k to 10k iterations. */
 #ifndef WC_PBKDF_MAX_ITERATIONS
     #define WC_PBKDF_MAX_ITERATIONS 2000000
 #endif
