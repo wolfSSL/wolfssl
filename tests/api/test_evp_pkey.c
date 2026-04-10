@@ -382,6 +382,76 @@ int test_wolfSSL_EVP_MD_hmac_signing(void)
     return EXPECT_RESULT();
 }
 
+/* Verify that EVP_DigestVerifyFinal rejects zero-length HMAC tags. */
+int test_wolfSSL_EVP_DigestVerify_HMAC_zero_len_forgery(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_HMAC) && !defined(NO_SHA256)
+    static const unsigned char key[] = {
+        0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+        0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+        0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+        0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b
+    };
+    static const char message[] = "wolfSSL DigestVerifyFinal forgery probe";
+    static const unsigned char zeros[WC_MAX_DIGEST_SIZE] = { 0 };
+
+    WOLFSSL_EVP_PKEY*  pkey = NULL;
+    WOLFSSL_EVP_MD_CTX mdCtx;
+    unsigned char      tag[WC_MAX_DIGEST_SIZE];
+    size_t             tagLen = sizeof(tag);
+
+    wolfSSL_EVP_MD_CTX_init(&mdCtx);
+
+    ExpectNotNull(pkey = wolfSSL_EVP_PKEY_new_mac_key(EVP_PKEY_HMAC, NULL,
+                                                      key, (int)sizeof(key)));
+
+    /* Compute the genuine HMAC-SHA256 tag for the message. */
+    ExpectIntEQ(wolfSSL_EVP_DigestSignInit(&mdCtx, NULL, wolfSSL_EVP_sha256(),
+                                           NULL, pkey), 1);
+    ExpectIntEQ(wolfSSL_EVP_DigestSignUpdate(&mdCtx, message,
+                                             (unsigned int)XSTRLEN(message)),
+                1);
+    ExpectIntEQ(wolfSSL_EVP_DigestSignFinal(&mdCtx, tag, &tagLen), 1);
+    ExpectIntEQ((int)tagLen, WC_SHA256_DIGEST_SIZE);
+    ExpectIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
+
+    /* Full-length genuine tag verifies. */
+    wolfSSL_EVP_MD_CTX_init(&mdCtx);
+    ExpectIntEQ(wolfSSL_EVP_DigestVerifyInit(&mdCtx, NULL, wolfSSL_EVP_sha256(),
+                                             NULL, pkey), 1);
+    ExpectIntEQ(wolfSSL_EVP_DigestVerifyUpdate(&mdCtx, message,
+                                               (unsigned int)XSTRLEN(message)),
+                1);
+    ExpectIntEQ(wolfSSL_EVP_DigestVerifyFinal(&mdCtx, tag, tagLen), 1);
+    ExpectIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
+
+    /* Wrong full-length tag is rejected. */
+    wolfSSL_EVP_MD_CTX_init(&mdCtx);
+    ExpectIntEQ(wolfSSL_EVP_DigestVerifyInit(&mdCtx, NULL, wolfSSL_EVP_sha256(),
+                                             NULL, pkey), 1);
+    ExpectIntEQ(wolfSSL_EVP_DigestVerifyUpdate(&mdCtx, message,
+                                               (unsigned int)XSTRLEN(message)),
+                1);
+    ExpectIntNE(wolfSSL_EVP_DigestVerifyFinal(&mdCtx, zeros,
+                                              WC_SHA256_DIGEST_SIZE), 1);
+    ExpectIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
+
+    /* Zero-length tag must be rejected. */
+    wolfSSL_EVP_MD_CTX_init(&mdCtx);
+    ExpectIntEQ(wolfSSL_EVP_DigestVerifyInit(&mdCtx, NULL, wolfSSL_EVP_sha256(),
+                                             NULL, pkey), 1);
+    ExpectIntEQ(wolfSSL_EVP_DigestVerifyUpdate(&mdCtx, message,
+                                               (unsigned int)XSTRLEN(message)),
+                1);
+    ExpectIntNE(wolfSSL_EVP_DigestVerifyFinal(&mdCtx, zeros, 0), 1);
+    ExpectIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
+
+    wolfSSL_EVP_PKEY_free(pkey);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_EVP_PKEY_new_mac_key(void)
 {
     EXPECT_DECLS;
