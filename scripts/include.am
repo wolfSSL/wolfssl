@@ -106,8 +106,21 @@ endif
 dist_noinst_SCRIPTS+= scripts/unit.test
 noinst_SCRIPTS+= scripts/unit.test.in
 
+# multi-msg-record.test drives the wolfSSL example client against a
+# Python (tlslite-ng) peer to verify parsing of TLS records that carry
+# multiple handshake messages.  The script probes the client binary
+# at runtime for TLS 1.2, TLS 1.3 and secure-renegotiation support
+# and skips phases that are not compiled in.  The whole test exits 77
+# (SKIP) if python3 or tlslite-ng is missing or if nothing is
+# runnable.
+dist_noinst_SCRIPTS+= scripts/multi-msg-record.test
+
 endif
 endif
+
+# The Python half of multi-msg-record.test always ships in tarballs so
+# the wrapper can find it on the installed side.
+EXTRA_DIST+= scripts/multi-msg-record.py
 
 dist_noinst_SCRIPTS+= scripts/pem.test
 
