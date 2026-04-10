@@ -107,11 +107,20 @@ struct MlKemKey {
     /* Dynamic memory allocation hint. */
     void* heap;
 #if defined(WOLF_CRYPTO_CB)
+    /* Device context for hardware key handle. */
+    void* devCtx;
     /* Device Id. */
     int devId;
 #endif
     /* Flags indicating what is stored in the key. */
     int flags;
+
+#ifdef WOLF_PRIVATE_KEY_ID
+    byte id[MLKEM_MAX_ID_LEN];
+    int  idLen;
+    char label[MLKEM_MAX_LABEL_LEN];
+    int  labelLen;
+#endif
 
     /* A pseudo-random function object. */
     MLKEM_HASH_T hash;

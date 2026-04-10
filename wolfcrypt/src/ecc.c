@@ -7930,23 +7930,19 @@ void wc_ecc_free_curve(ecc_set_type* curve, void* heap)
 WOLFSSL_ABI
 int wc_ecc_free(ecc_key* key)
 {
-#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
-    int ret = 0;
-#endif
-
     if (key == NULL) {
         return 0;
     }
 
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
     if (key->devId != INVALID_DEVID) {
-        ret = wc_CryptoCb_Free(key->devId, WC_ALGO_TYPE_PK,
+        /* Best-effort HSM resource release; errors are intentionally discarded
+         * so that software cleanup always runs and wc_ecc_free() retains its
+         * ABI guarantee of returning 0 on success. */
+        (void)wc_CryptoCb_Free(key->devId, WC_ALGO_TYPE_PK,
                          WC_PK_TYPE_EC_KEYGEN, 0, key);
-        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
-            return ret;
-        /* fall-through to software cleanup */
+        /* always continue to software cleanup */
     }
-    (void)ret;
 #endif
 
 #if defined(WOLFSSL_ECDSA_SET_K) || defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP) || \
@@ -7960,6 +7956,7 @@ int wc_ecc_free(ecc_key* key)
         mp_free(key->sign_k);
 #ifndef WOLFSSL_NO_MALLOC
         XFREE(key->sign_k, key->heap, DYNAMIC_TYPE_ECC);
+        key->sign_k = NULL;
 #endif
     }
 #endif
@@ -8025,8 +8022,10 @@ int wc_ecc_free(ecc_key* key)
 #endif
 
 #ifdef WOLFSSL_CUSTOM_CURVES
-    if (key->deallocSet && key->dp != NULL)
+    if (key->deallocSet && key->dp != NULL) {
         wc_ecc_free_curve((ecc_set_type *)(wc_ptr_t)key->dp, key->heap);
+        key->dp = NULL;
+    }
 #endif
 
 #ifdef WOLFSSL_CHECK_MEM_ZERO
