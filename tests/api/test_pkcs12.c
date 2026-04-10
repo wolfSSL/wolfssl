@@ -28,6 +28,7 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
+#include <wolfssl/wolfcrypt/hmac.h>
 #include <wolfssl/wolfcrypt/pkcs12.h>
 #include <wolfssl/wolfcrypt/pwdbased.h>
 #include <wolfssl/wolfcrypt/types.h>
@@ -460,6 +461,137 @@ int test_wc_PKCS12_encrypted_content_bounds(void)
         XFREE(regPkey, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
         XFREE(regCert, NULL, DYNAMIC_TYPE_PKCS);
         wc_PKCS12_free(regP12);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test that a crafted PKCS12 with a MAC OCTET STRING shorter than the
+ * algorithm's native digest size is rejected, rather than allowing the
+ * integrity check to be truncated to a brute-forceable length. */
+int test_wc_PKCS12_truncated_mac_bypass(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_ASN) && !defined(NO_PWDBASED) && defined(HAVE_PKCS12) \
+    && !defined(NO_HMAC) && !defined(NO_SHA256)
+    static const byte authSafe[] = { 0x30, 0x00 }; /* empty SEQUENCE OF CI */
+    static const char password[] = "wolfSSL test";
+    static const byte salt[8] = {
+        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08
+    };
+    const int iter = 1;
+    const word32 pwLen = (word32)(sizeof(password) - 1);
+
+    byte unicodePw[2 * sizeof(password) + 2];
+    int  unicodePwLen = 0;
+    byte macKey[WC_SHA256_DIGEST_SIZE];
+    byte fullMac[WC_SHA256_DIGEST_SIZE];
+    Hmac hmac;
+    int  hmacInited = 0;
+    word32 i;
+
+    WC_PKCS12* pkcs12 = NULL;
+    byte pfx[64];
+    word32 pfxLen = 0;
+
+    /* BMPString-style password (UTF-16BE) with trailing 0x00 0x00, matching
+     * the unicode conversion done internally by wc_PKCS12_create_mac. */
+    for (i = 0; i < pwLen; i++) {
+        unicodePw[unicodePwLen++] = 0x00;
+        unicodePw[unicodePwLen++] = (byte)password[i];
+    }
+    unicodePw[unicodePwLen++] = 0x00;
+    unicodePw[unicodePwLen++] = 0x00;
+
+    /* Derive the MAC key the same way wc_PKCS12_create_mac does:
+     * PKCS12-PBKDF SHA-256, id=3 (MAC key), kLen=32. */
+    ExpectIntEQ(wc_PKCS12_PBKDF_ex(macKey, unicodePw, unicodePwLen,
+                                   salt, (int)sizeof(salt),
+                                   iter, WC_SHA256_DIGEST_SIZE,
+                                   WC_SHA256, 3 /* id = MAC */, NULL),
+                                   0);
+
+    /* Compute the genuine HMAC-SHA256 over the authSafe content. */
+    ExpectIntEQ(wc_HmacInit(&hmac, NULL, INVALID_DEVID), 0);
+    if (EXPECT_SUCCESS())
+        hmacInited = 1;
+    ExpectIntEQ(wc_HmacSetKey(&hmac, WC_SHA256, macKey, sizeof(macKey)), 0);
+    ExpectIntEQ(wc_HmacUpdate(&hmac, authSafe, (word32)sizeof(authSafe)), 0);
+    ExpectIntEQ(wc_HmacFinal(&hmac, fullMac), 0);
+    if (hmacInited)
+        wc_HmacFree(&hmac);
+
+    /*
+     * Build a 59-byte PFX with a 1-byte truncated digest equal to fullMac[0]:
+     *
+     *   30 39                                  PFX SEQUENCE (57)
+     *      02 01 03                            version = 3
+     *      30 11                               AuthSafe ContentInfo (17)
+     *         06 09 2A 86 48 86 F7 0D 01 07 01 OID 1.2.840.113549.1.7.1 (data)
+     *         A0 04                            [0] EXPLICIT (4)
+     *            04 02                            OCTET STRING (2)
+     *               30 00                           authSafe = empty SEQUENCE
+     *      30 21                               MacData (33)
+     *         30 12                               DigestInfo (18)
+     *            30 0d                               AlgorithmIdentifier (13)
+     *               06 09 60 86 48 01 65 03 04 02 01 OID SHA-256
+     *               05 00                            NULL
+     *            04 01 XX                            OCTET STRING (1)
+     *         04 08 01 02 03 04 05 06 07 08      salt
+     *         02 01 01                           iterations = 1
+     */
+    pfx[pfxLen++] = 0x30; pfx[pfxLen++] = 0x39;
+    pfx[pfxLen++] = 0x02; pfx[pfxLen++] = 0x01; pfx[pfxLen++] = 0x03;
+    pfx[pfxLen++] = 0x30; pfx[pfxLen++] = 0x11;
+    pfx[pfxLen++] = 0x06; pfx[pfxLen++] = 0x09;
+    pfx[pfxLen++] = 0x2A; pfx[pfxLen++] = 0x86; pfx[pfxLen++] = 0x48;
+    pfx[pfxLen++] = 0x86; pfx[pfxLen++] = 0xF7; pfx[pfxLen++] = 0x0D;
+    pfx[pfxLen++] = 0x01; pfx[pfxLen++] = 0x07; pfx[pfxLen++] = 0x01;
+    pfx[pfxLen++] = 0xA0; pfx[pfxLen++] = 0x04;
+    pfx[pfxLen++] = 0x04; pfx[pfxLen++] = 0x02;
+    pfx[pfxLen++] = 0x30; pfx[pfxLen++] = 0x00;
+    pfx[pfxLen++] = 0x30; pfx[pfxLen++] = 0x21;
+    pfx[pfxLen++] = 0x30; pfx[pfxLen++] = 0x12;
+    pfx[pfxLen++] = 0x30; pfx[pfxLen++] = 0x0D;
+    pfx[pfxLen++] = 0x06; pfx[pfxLen++] = 0x09;
+    pfx[pfxLen++] = 0x60; pfx[pfxLen++] = 0x86; pfx[pfxLen++] = 0x48;
+    pfx[pfxLen++] = 0x01; pfx[pfxLen++] = 0x65; pfx[pfxLen++] = 0x03;
+    pfx[pfxLen++] = 0x04; pfx[pfxLen++] = 0x02; pfx[pfxLen++] = 0x01;
+    pfx[pfxLen++] = 0x05; pfx[pfxLen++] = 0x00;
+    pfx[pfxLen++] = 0x04; pfx[pfxLen++] = 0x01;
+    pfx[pfxLen++] = fullMac[0];
+    pfx[pfxLen++] = 0x04; pfx[pfxLen++] = 0x08;
+    pfx[pfxLen++] = 0x01; pfx[pfxLen++] = 0x02; pfx[pfxLen++] = 0x03;
+    pfx[pfxLen++] = 0x04; pfx[pfxLen++] = 0x05; pfx[pfxLen++] = 0x06;
+    pfx[pfxLen++] = 0x07; pfx[pfxLen++] = 0x08;
+    pfx[pfxLen++] = 0x02; pfx[pfxLen++] = 0x01; pfx[pfxLen++] = 0x01;
+
+    {
+        byte* parsedPkey = NULL;
+        word32 parsedPkeySz = 0;
+        byte* parsedCert = NULL;
+        word32 parsedCertSz = 0;
+        int d2iRet;
+
+        ExpectNotNull(pkcs12 = wc_PKCS12_new());
+
+        /* Accept rejection at either parse time (wc_d2i_PKCS12) or
+         * verify time (wc_PKCS12_parse); the test fails only if both
+         * succeed. */
+        d2iRet = wc_d2i_PKCS12(pfx, pfxLen, pkcs12);
+        if (d2iRet == 0) {
+            ExpectIntNE(wc_PKCS12_parse(pkcs12, password,
+                            &parsedPkey, &parsedPkeySz,
+                            &parsedCert, &parsedCertSz, NULL),
+                        0);
+        }
+        else {
+            ExpectIntNE(d2iRet, 0);
+        }
+
+        XFREE(parsedPkey, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+        XFREE(parsedCert, NULL, DYNAMIC_TYPE_PKCS);
+        wc_PKCS12_free(pkcs12);
     }
 #endif
     return EXPECT_RESULT();
