@@ -547,9 +547,9 @@ int SetEchConfigsEx(WOLFSSL_EchConfig** outputConfigs, void* heap,
         ato16(echConfig, &hpkePubkeyLen);
         echConfig += 2;
 
-        /* hpke public_key */
-        if (hpkePubkeyLen == 0 || hpkePubkeyLen > HPKE_Npk_MAX ||
-                hpkePubkeyLen != wc_HpkeKemGetEncLen(workingConfig->kemId)) {
+        /* hpke public_key
+         * KEM support will be checked along with the ciphersuites */
+        if (hpkePubkeyLen != wc_HpkeKemGetEncLen(workingConfig->kemId)) {
             ret = BUFFER_E;
             break;
         }

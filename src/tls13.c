@@ -3801,6 +3801,7 @@ int EchConfigGetSupportedCipherSuite(WOLFSSL_EchConfig* config)
     int i = 0;
 
     if (!wc_HpkeKemIsSupported(config->kemId)) {
+        WOLFSSL_MSG("ECH config: KEM not supported");
         return WOLFSSL_FATAL_ERROR;
     }
 
@@ -3811,6 +3812,7 @@ int EchConfigGetSupportedCipherSuite(WOLFSSL_EchConfig* config)
         }
     }
 
+    WOLFSSL_MSG("ECH config: KDF or AEAD not supported");
     return WOLFSSL_FATAL_ERROR;
 }
 
@@ -4759,15 +4761,18 @@ int SendTls13ClientHello(WOLFSSL* ssl)
 
             /* get size for inner */
             ret = TLSX_GetRequestSize(ssl, client_hello, &args->length);
+
+            /* set the type to outer */
+            args->ech->type = ECH_TYPE_OUTER;
             if (ret != 0)
                 return ret;
 
-            /* set the type to outer */
-            args->ech->type = 0;
             /* set innerClientHelloLen to ClientHelloInner + padding + tag */
             args->ech->paddingLen = 31 - ((args->length - 1) % 32);
             args->ech->innerClientHelloLen = args->length +
                 args->ech->paddingLen + args->ech->hpke->Nt;
+            if (args->ech->innerClientHelloLen > 0xFFFF)
+                return BUFFER_E;
             /* set the length back to before we computed ClientHelloInner size */
             args->length = (word32)args->preXLength;
         }
