@@ -2292,7 +2292,7 @@ static int mlkem_gen_matrix_k2_avx2(sword16* a, byte* seed, int transposed)
     byte *rand = NULL;
     word64 *state = NULL;
 #else
-    byte rand[4 * GEN_MATRIX_SIZE + 2];
+    byte rand[4 * GEN_MATRIX_SIZE + 4];
     word64 state[25 * 4];
 #endif
     unsigned int ctr0;
@@ -2302,7 +2302,7 @@ static int mlkem_gen_matrix_k2_avx2(sword16* a, byte* seed, int transposed)
     byte* p;
 
 #ifdef WOLFSSL_SMALL_STACK
-    rand = (byte*)XMALLOC(4 * GEN_MATRIX_SIZE + 2, NULL,
+    rand = (byte*)XMALLOC(4 * GEN_MATRIX_SIZE + 4, NULL,
                           DYNAMIC_TYPE_TMP_BUFFER);
     state = (word64*)XMALLOC(sizeof(word64) * 25 * 4, NULL,
                           DYNAMIC_TYPE_TMP_BUFFER);
@@ -2313,9 +2313,11 @@ static int mlkem_gen_matrix_k2_avx2(sword16* a, byte* seed, int transposed)
     }
 #endif
 
-    /* Loading 64 bits, only using 48 bits. Loading 2 bytes more than used. */
+    /* Loading 64 bits, only using 48 bits. Loading 4 bytes more than used. */
     rand[4 * GEN_MATRIX_SIZE + 0] = 0xff;
     rand[4 * GEN_MATRIX_SIZE + 1] = 0xff;
+    rand[4 * GEN_MATRIX_SIZE + 2] = 0xff;
+    rand[4 * GEN_MATRIX_SIZE + 3] = 0xff;
 
     if (!transposed) {
         state[4*4 + 0] = 0x1f0000 + 0x000;
@@ -2403,7 +2405,7 @@ static int mlkem_gen_matrix_k3_avx2(sword16* a, byte* seed, int transposed)
     byte *rand = NULL;
     word64 *state = NULL;
 #else
-    byte rand[4 * GEN_MATRIX_SIZE + 2];
+    byte rand[4 * GEN_MATRIX_SIZE + 4];
     word64 state[25 * 4];
 #endif
     unsigned int ctr0;
@@ -2413,7 +2415,7 @@ static int mlkem_gen_matrix_k3_avx2(sword16* a, byte* seed, int transposed)
     byte* p;
 
 #ifdef WOLFSSL_SMALL_STACK
-    rand = (byte*)XMALLOC(4 * GEN_MATRIX_SIZE + 2, NULL,
+    rand = (byte*)XMALLOC(4 * GEN_MATRIX_SIZE + 4, NULL,
                           DYNAMIC_TYPE_TMP_BUFFER);
     state = (word64*)XMALLOC(sizeof(word64) * 25 * 4, NULL,
                           DYNAMIC_TYPE_TMP_BUFFER);
@@ -2424,9 +2426,11 @@ static int mlkem_gen_matrix_k3_avx2(sword16* a, byte* seed, int transposed)
     }
 #endif
 
-    /* Loading 64 bits, only using 48 bits. Loading 2 bytes more than used. */
+    /* Loading 64 bits, only using 48 bits. Loading 4 bytes more than used. */
     rand[4 * GEN_MATRIX_SIZE + 0] = 0xff;
     rand[4 * GEN_MATRIX_SIZE + 1] = 0xff;
+    rand[4 * GEN_MATRIX_SIZE + 2] = 0xff;
+    rand[4 * GEN_MATRIX_SIZE + 3] = 0xff;
 
     for (k = 0; k < 2; k++) {
         for (i = 0; i < 4; i++) {
@@ -2559,7 +2563,7 @@ static int mlkem_gen_matrix_k4_avx2(sword16* a, byte* seed, int transposed)
     byte *rand = NULL;
     word64 *state = NULL;
 #else
-    byte rand[4 * GEN_MATRIX_SIZE + 2];
+    byte rand[4 * GEN_MATRIX_SIZE + 4];
     word64 state[25 * 4];
 #endif
     unsigned int ctr0;
@@ -2569,7 +2573,7 @@ static int mlkem_gen_matrix_k4_avx2(sword16* a, byte* seed, int transposed)
     byte* p;
 
 #ifdef WOLFSSL_SMALL_STACK
-    rand = (byte*)XMALLOC(4 * GEN_MATRIX_SIZE + 2, NULL,
+    rand = (byte*)XMALLOC(4 * GEN_MATRIX_SIZE + 4, NULL,
                           DYNAMIC_TYPE_TMP_BUFFER);
     state = (word64*)XMALLOC(sizeof(word64) * 25 * 4, NULL,
                           DYNAMIC_TYPE_TMP_BUFFER);
@@ -2580,9 +2584,11 @@ static int mlkem_gen_matrix_k4_avx2(sword16* a, byte* seed, int transposed)
     }
 #endif
 
-    /* Loading 64 bits, only using 48 bits. Loading 2 bytes more than used. */
+    /* Loading 64 bits, only using 48 bits. Loading 4 bytes more than used. */
     rand[4 * GEN_MATRIX_SIZE + 0] = 0xff;
     rand[4 * GEN_MATRIX_SIZE + 1] = 0xff;
+    rand[4 * GEN_MATRIX_SIZE + 2] = 0xff;
+    rand[4 * GEN_MATRIX_SIZE + 3] = 0xff;
 
     for (k = 0; k < 4; k++) {
         for (i = 0; i < 4; i++) {
