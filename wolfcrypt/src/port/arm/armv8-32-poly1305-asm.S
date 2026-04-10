@@ -221,15 +221,15 @@ L_poly1305_arm32_16_loop:
 	adds	r4, r4, r3
 	lsr	r3, r3, #2
 	adcs	r5, r5, r9
-	orr	r3, r3, r9, LSL #30
+	orr	r3, r3, r9, lsl #30
 	adcs	r6, r6, r10
 	lsr	r9, r9, #2
 	adcs	r7, r7, r11
-	orr	r9, r9, r10, LSL #30
+	orr	r9, r9, r10, lsl #30
 	adc	r8, r8, r12
 	lsr	r10, r10, #2
 	adds	r4, r4, r3
-	orr	r10, r10, r11, LSL #30
+	orr	r10, r10, r11, lsl #30
 	adcs	r5, r5, r9
 	lsr	r11, r11, #2
 	adcs	r6, r6, r10
@@ -535,15 +535,15 @@ L_poly1305_arm32_16_loop:
 	adds	r4, r4, r3
 	lsr	r3, r3, #2
 	adcs	r5, r5, r9
-	orr	r3, r3, r9, LSL #30
+	orr	r3, r3, r9, lsl #30
 	adcs	r6, r6, r10
 	lsr	r9, r9, #2
 	adcs	r7, r7, r11
-	orr	r9, r9, r10, LSL #30
+	orr	r9, r9, r10, lsl #30
 	adc	r8, r8, r12
 	lsr	r10, r10, #2
 	adds	r4, r4, r3
-	orr	r10, r10, r11, LSL #30
+	orr	r10, r10, r11, lsl #30
 	adcs	r5, r5, r9
 	lsr	r11, r11, #2
 	adcs	r6, r6, r10
@@ -982,15 +982,15 @@ L_poly1305_arm32_blocks_start_1:
 	adds	r7, r7, r3
 	lsr	r3, r3, #2
 	adcs	r8, r8, r4
-	orr	r3, r3, r4, LSL #30
+	orr	r3, r3, r4, lsl #30
 	adcs	r9, r9, r5
 	lsr	r4, r4, #2
 	adcs	r10, r10, r6
-	orr	r4, r4, r5, LSL #30
+	orr	r4, r4, r5, lsl #30
 	adc	r11, r11, r12
 	lsr	r5, r5, #2
 	adds	r7, r7, r3
-	orr	r5, r5, r6, LSL #30
+	orr	r5, r5, r6, lsl #30
 	adcs	r8, r8, r4
 	lsr	r6, r6, #2
 	adcs	r9, r9, r5
@@ -1127,15 +1127,15 @@ poly1305_set_key:
 	adds	r0, r0, r2
 	lsr	r2, r2, #2
 	adcs	r1, r1, r9
-	orr	r2, r2, r9, LSL #30
+	orr	r2, r2, r9, lsl #30
 	adcs	r6, r6, r10
 	lsr	r9, r9, #2
 	adcs	r7, r7, r11
-	orr	r9, r9, r10, LSL #30
+	orr	r9, r9, r10, lsl #30
 	adc	r8, r8, r12
 	lsr	r10, r10, #2
 	adds	r0, r0, r2
-	orr	r10, r10, r11, LSL #30
+	orr	r10, r10, r11, lsl #30
 	adcs	r1, r1, r9
 	lsr	r11, r11, #2
 	adcs	r6, r6, r10
