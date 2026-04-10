@@ -592,8 +592,8 @@ static int wolfSSL_BIO_BIO_write(WOLFSSL_BIO* bio, const void* data,
  * data buffer holding the data to be written
  * len  length of data buffer
  *
- * returns the amount of data written on success and WOLFSSL_FAILURE or
- *         WOLFSSL_BIO_ERROR for failure cases.
+ * returns the amount of data written on success or WOLFSSL_BIO_ERROR
+ * for failure cases.
  */
 static int wolfSSL_BIO_MEMORY_write(WOLFSSL_BIO* bio, const void* data,
         int len)
