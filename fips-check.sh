@@ -368,8 +368,8 @@ wolfentropy)
   FIPS_REPO_TAG='WCv6.0.0-RC4'
   ASM_PICKUPS_TAG='WCv6.0.0-RC4'
   WOLF_ENTROPY_TAG='wolfEntropy2'
-  FIPS_OPTION='disabled --enable-wolfentropy=random_c --disable-shake128
-               --disable-shake256'
+  FIPS_OPTION='disabled --enable-wolfentropy=random_c'\
+' --disable-shake128 --disable-shake256'
   FIPS_FILES=(
   )
   WOLFCRYPT_FILES=(

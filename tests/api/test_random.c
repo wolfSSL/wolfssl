@@ -346,8 +346,8 @@ int test_wc_RNG_TestSeed(void)
     XMEMSET(seed, 0xa5, sizeof(seed));
     /* Return value is DRBG_CONT_FAILURE which is not public. */
     /* Moving forward with the RCT test check LT instead of GT */
-#if !defined(HAVE_ENTROPY_MEMUSE) && !defined(HAVE_FIPS) || \
-    ( defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) )
+#if !defined(HAVE_ENTROPY_MEMUSE) && (!defined(HAVE_FIPS) || \
+    ( defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0)))
     ExpectIntLT(wc_RNG_TestSeed(seed, sizeof(seed)), 0);
 #else
     ExpectIntGT(wc_RNG_TestSeed(seed, sizeof(seed)), 0);
