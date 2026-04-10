@@ -57061,16 +57061,51 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t she_test(void)
         goto exit_SHE_Test;
     }
 
-#if !defined(NO_WC_SHE_LOADKEY) && \
+#if !defined(NO_WC_SHE_LOADKEY) && !defined(NO_WC_SHE_LOADKEY_TEST) && \
     (defined(WOLF_CRYPTO_CB) || !defined(NO_WC_SHE_IMPORT_M123))
     /* ---- LoadKey_Verify ---- */
+    /* Override WC_TEST_SHE_LOADKEY_VERIFY to use a platform-specific variant.
+     * Platforms with hardware SHE (HSM/HSE) cannot use static test vectors
+     * because the UID is device-specific. Options:
+     *
+     * Default (no override): calls wc_SHE_LoadKey_Verify (no id/label)
+     *
+     * WC_TEST_SHE_LOADKEY_ID: byte array for wc_SHE_LoadKey_Verify_Id
+     *   e.g. #define WC_TEST_SHE_LOADKEY_ID { 1, 0, 2, 0, 0, 0, 0 }
+     *
+     * WC_TEST_SHE_LOADKEY_LABEL: string for wc_SHE_LoadKey_Verify_Label
+     *   e.g. #define WC_TEST_SHE_LOADKEY_LABEL "she_key_1"
+     *
+     * Define NO_WC_SHE_LOADKEY_TEST to skip this sub-test entirely.
+     */
     XMEMSET(m4, 0, WC_SHE_M4_SZ);
     XMEMSET(m5, 0, WC_SHE_M5_SZ);
+#if defined(WOLF_PRIVATE_KEY_ID) && defined(WC_TEST_SHE_LOADKEY_ID)
+    {
+        unsigned char sheLoadkeyId[] = WC_TEST_SHE_LOADKEY_ID;
+        ret = wc_SHE_LoadKey_Verify_Id(
+                  sheLoadkeyId, (int)sizeof(sheLoadkeyId),
+                  HEAP_HINT, devId,
+                  expM1, WC_SHE_M1_SZ, expM2, WC_SHE_M2_SZ,
+                  expM3, WC_SHE_M3_SZ,
+                  m4, WC_SHE_M4_SZ, m5, WC_SHE_M5_SZ,
+                  expM4, WC_SHE_M4_SZ, expM5, WC_SHE_M5_SZ);
+    }
+#elif defined(WOLF_PRIVATE_KEY_ID) && defined(WC_TEST_SHE_LOADKEY_LABEL)
+    ret = wc_SHE_LoadKey_Verify_Label(
+              WC_TEST_SHE_LOADKEY_LABEL,
+              HEAP_HINT, devId,
+              expM1, WC_SHE_M1_SZ, expM2, WC_SHE_M2_SZ,
+              expM3, WC_SHE_M3_SZ,
+              m4, WC_SHE_M4_SZ, m5, WC_SHE_M5_SZ,
+              expM4, WC_SHE_M4_SZ, expM5, WC_SHE_M5_SZ);
+#else
     ret = wc_SHE_LoadKey_Verify(HEAP_HINT, devId,
               expM1, WC_SHE_M1_SZ, expM2, WC_SHE_M2_SZ,
               expM3, WC_SHE_M3_SZ,
               m4, WC_SHE_M4_SZ, m5, WC_SHE_M5_SZ,
               expM4, WC_SHE_M4_SZ, expM5, WC_SHE_M5_SZ);
+#endif
     if (devId == INVALID_DEVID) {
         if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
             ret = WC_TEST_RET_ENC_EC(ret);
@@ -57088,7 +57123,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t she_test(void)
         }
     }
     ret = 0;
-#endif /* !NO_WC_SHE_LOADKEY */
+#endif /* !NO_WC_SHE_LOADKEY && !NO_WC_SHE_LOADKEY_TEST */
 
 #if defined(WC_SHE_SW_DEFAULT) && defined(WOLF_CRYPTO_CB) && \
     !defined(NO_WC_SHE_GETUID) && !defined(NO_WC_SHE_GETCOUNTER)
