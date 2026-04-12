@@ -1074,6 +1074,7 @@ int test_X509_STORE_InvalidCa(void)
     ExpectIntEQ(X509_STORE_CTX_init(ctx, str, cert, untrusted), 1);
     ExpectIntEQ(X509_verify_cert(ctx), 1);
     ExpectIntEQ(last_errcode, X509_V_ERR_INVALID_CA);
+    (void)last_errdepth;
     /* Defense in depth: ctx->error must not be clobbered back to X509_V_OK
      * by the later successful verification of the intermediate against the
      * trusted root.  The worst-seen error must persist. */

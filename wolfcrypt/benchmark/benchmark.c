@@ -4231,6 +4231,8 @@ static void* benchmarks_do(void* args)
     if (bench_all || (bench_kdf_algs & BENCH_SRTP_KDF)) {
         bench_srtpkdf();
     }
+#else
+    (void)bench_kdf_algs;
 #endif
 
 #ifdef HAVE_SCRYPT
@@ -4400,6 +4402,7 @@ static void* benchmarks_do(void* args)
     }
 #endif
 #endif
+    (void)bench_pq_hash_sig_algs;
 
 #if defined(HAVE_ECC) && !defined(WC_NO_RNG)
     if (bench_all || (bench_asym_algs & BENCH_ECC_MAKEKEY) ||
