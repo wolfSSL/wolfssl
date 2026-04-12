@@ -11456,6 +11456,23 @@ int wc_dilithium_check_key(dilithium_key* key)
         /* Get s1, s2 and t0 from private key. */
         dilithium_vec_decode_eta_bits(s1p, params->eta, s1, params->l);
         dilithium_vec_decode_eta_bits(s2p, params->eta, s2, params->k);
+        /* Validate s1 and s2 coefficients are within [-eta, eta]. */
+        {
+            sword32 eta = (sword32)params->eta;
+            word32 c;
+            for (c = 0; c < (word32)(params->l * DILITHIUM_N); c++) {
+                if (s1[c] < -eta || s1[c] > eta) {
+                    ret = PUBLIC_KEY_E;
+                    break;
+                }
+            }
+            for (c = 0; (ret == 0) && (c < (word32)(params->k * DILITHIUM_N)); c++) {
+                if (s2[c] < -eta || s2[c] > eta) {
+                    ret = PUBLIC_KEY_E;
+                    break;
+                }
+            }
+        }
         dilithium_vec_decode_t0(t0p, params->k, t0);
 
         /* Get t1 from public key. */
