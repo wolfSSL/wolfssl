@@ -127,10 +127,17 @@ struct MlKemKey {
     /* A pseudo-random function object. */
     MLKEM_PRF_T prf;
 
+#ifndef WOLFSSL_MLKEM_DYNAMIC_KEYS
     /* Private key as a vector. */
     sword16 priv[WC_ML_KEM_MAX_K * MLKEM_N];
     /* Public key as a vector. */
     sword16 pub[WC_ML_KEM_MAX_K * MLKEM_N];
+#else
+    /* Private key as a vector (dynamically allocated). */
+    sword16* priv;
+    /* Public key as a vector (dynamically allocated). */
+    sword16* pub;
+#endif
     /* Public seed. */
     byte pubSeed[WC_ML_KEM_SYM_SZ];
     /* Public hash - hash of encoded public key. */
@@ -138,8 +145,13 @@ struct MlKemKey {
     /* Randomizer for decapsulation. */
     byte z[WC_ML_KEM_SYM_SZ];
 #ifdef WOLFSSL_MLKEM_CACHE_A
+#ifndef WOLFSSL_MLKEM_DYNAMIC_KEYS
     /* A matrix from key generation. */
     sword16 a[WC_ML_KEM_MAX_K * WC_ML_KEM_MAX_K * MLKEM_N];
+#else
+    /* A matrix from key generation (dynamically allocated). */
+    sword16* a;
+#endif
 #endif
 };
 

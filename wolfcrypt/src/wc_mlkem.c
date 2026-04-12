@@ -61,6 +61,13 @@
  *   performing decapsulation.
  *   KyberKey is 8KB larger but decapsulation is significantly faster.
  *   Turn on when performing make key and decapsulation with same object.
+ *
+ * WOLFSSL_MLKEM_DYNAMIC_KEYS                                      Default: OFF
+ *   Dynamically allocates private and public key buffers instead of using
+ *   static arrays in the MlKemKey struct. Right-sizes buffers to the actual
+ *   ML-KEM level and only allocates the needed key parts (e.g., no private
+ *   key buffer for encapsulate-only use).
+ *   Cannot be used with WOLFSSL_NO_MALLOC.
  */
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
@@ -104,6 +111,9 @@
     defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
     defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
     #error "No ML-KEM operations to be built."
+#endif
+#if defined(WOLFSSL_MLKEM_DYNAMIC_KEYS) && defined(WOLFSSL_NO_MALLOC)
+    #error "Cannot use dynamic key buffers without malloc"
 #endif
 
 #ifdef WOLFSSL_WC_MLKEM
@@ -168,6 +178,117 @@ sword16 wc_mlkem_opt_blocker(void) {
     static volatile sword16 static_mlkem_opt_blocker = 0;
     return static_mlkem_opt_blocker;
 }
+
+/******************************************************************************/
+
+/* Get the k value (number of polynomials in a vector) from the key type.
+ *
+ * @param  [in]  key  ML-KEM key object.
+ * @return  k value for the key type, or 0 if not recognized.
+ */
+static int mlkemkey_get_k(const MlKemKey* key)
+{
+    switch (key->type) {
+#ifndef WOLFSSL_NO_ML_KEM
+    #ifdef WOLFSSL_WC_ML_KEM_512
+        case WC_ML_KEM_512:
+            return WC_ML_KEM_512_K;
+    #endif
+    #ifdef WOLFSSL_WC_ML_KEM_768
+        case WC_ML_KEM_768:
+            return WC_ML_KEM_768_K;
+    #endif
+    #ifdef WOLFSSL_WC_ML_KEM_1024
+        case WC_ML_KEM_1024:
+            return WC_ML_KEM_1024_K;
+    #endif
+#endif
+#ifdef WOLFSSL_MLKEM_KYBER
+    #ifdef WOLFSSL_KYBER512
+        case KYBER512:
+            return KYBER512_K;
+    #endif
+    #ifdef WOLFSSL_KYBER768
+        case KYBER768:
+            return KYBER768_K;
+    #endif
+    #ifdef WOLFSSL_KYBER1024
+        case KYBER1024:
+            return KYBER1024_K;
+    #endif
+#endif
+        default:
+            return 0;
+    }
+}
+
+#ifdef WOLFSSL_MLKEM_DYNAMIC_KEYS
+/* Allocate (or reallocate) the private key buffer, right-sized for k.
+ *
+ * @param  [in, out]  key  ML-KEM key object.
+ * @param  [in]       k    Number of polynomials in a vector.
+ * @return  0 on success.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ */
+static int mlkemkey_alloc_priv(MlKemKey* key, unsigned int k)
+{
+    if (key->priv != NULL) {
+        ForceZero(key->priv, k * MLKEM_N * sizeof(sword16));
+        XFREE(key->priv, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        key->priv = NULL;
+    }
+    key->priv = (sword16*)XMALLOC(k * MLKEM_N * sizeof(sword16), key->heap,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (key->priv == NULL) {
+        return MEMORY_E;
+    }
+    return 0;
+}
+
+/* Allocate (or reallocate) the public key buffer, right-sized for k.
+ *
+ * @param  [in, out]  key  ML-KEM key object.
+ * @param  [in]       k    Number of polynomials in a vector.
+ * @return  0 on success.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ */
+static int mlkemkey_alloc_pub(MlKemKey* key, unsigned int k)
+{
+    if (key->pub != NULL) {
+        XFREE(key->pub, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        key->pub = NULL;
+    }
+    key->pub = (sword16*)XMALLOC(k * MLKEM_N * sizeof(sword16), key->heap,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (key->pub == NULL) {
+        return MEMORY_E;
+    }
+    return 0;
+}
+
+#ifdef WOLFSSL_MLKEM_CACHE_A
+/* Allocate (or reallocate) the A matrix buffer, right-sized for k.
+ *
+ * @param  [in, out]  key  ML-KEM key object.
+ * @param  [in]       k    Number of polynomials in a vector.
+ * @return  0 on success.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ */
+static int mlkemkey_alloc_a(MlKemKey* key, unsigned int k)
+{
+    if (key->a != NULL) {
+        XFREE(key->a, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        key->a = NULL;
+    }
+    key->a = (sword16*)XMALLOC(k * k * MLKEM_N * sizeof(sword16), key->heap,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (key->a == NULL) {
+        return MEMORY_E;
+    }
+    return 0;
+}
+#endif /* WOLFSSL_MLKEM_CACHE_A */
+#endif /* WOLFSSL_MLKEM_DYNAMIC_KEYS */
 
 /******************************************************************************/
 
@@ -310,6 +431,14 @@ int wc_MlKemKey_Init(MlKemKey* key, int type, void* heap, int devId)
 #endif
         key->flags = 0;
 
+    #ifdef WOLFSSL_MLKEM_DYNAMIC_KEYS
+        key->priv = NULL;
+        key->pub = NULL;
+    #ifdef WOLFSSL_MLKEM_CACHE_A
+        key->a = NULL;
+    #endif
+    #endif
+
         /* Zero out all data. */
         XMEMSET(&key->prf, 0, sizeof(key->prf));
 
@@ -408,7 +537,27 @@ int wc_MlKemKey_Free(MlKemKey* key)
         /* Ensure all private data is zeroed. */
         ForceZero(&key->hash, sizeof(key->hash));
         ForceZero(&key->prf, sizeof(key->prf));
+#ifdef WOLFSSL_MLKEM_DYNAMIC_KEYS
+        if (key->priv != NULL) {
+            int k = mlkemkey_get_k(key);
+            ForceZero(key->priv,
+                (word32)(k * MLKEM_N) * (word32)sizeof(sword16));
+            XFREE(key->priv, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            key->priv = NULL;
+        }
+        if (key->pub != NULL) {
+            XFREE(key->pub, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            key->pub = NULL;
+        }
+    #ifdef WOLFSSL_MLKEM_CACHE_A
+        if (key->a != NULL) {
+            XFREE(key->a, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            key->a = NULL;
+        }
+    #endif
+#else
         ForceZero(key->priv, sizeof(key->priv));
+#endif
         ForceZero(key->z, sizeof(key->z));
     }
 
@@ -568,45 +717,9 @@ int wc_MlKemKey_MakeKeyWithRandom(MlKemKey* key, const unsigned char* rand,
         key->flags = 0;
 
         /* Establish parameters based on key type. */
-        switch (key->type) {
-#ifndef WOLFSSL_NO_ML_KEM
-    #ifdef WOLFSSL_WC_ML_KEM_512
-        case WC_ML_KEM_512:
-            k = WC_ML_KEM_512_K;
-            break;
-    #endif
-    #ifdef WOLFSSL_WC_ML_KEM_768
-        case WC_ML_KEM_768:
-            k = WC_ML_KEM_768_K;
-            break;
-    #endif
-    #ifdef WOLFSSL_WC_ML_KEM_1024
-        case WC_ML_KEM_1024:
-            k = WC_ML_KEM_1024_K;
-            break;
-    #endif
-#endif
-#ifdef WOLFSSL_MLKEM_KYBER
-    #ifdef WOLFSSL_KYBER512
-        case KYBER512:
-            k = KYBER512_K;
-            break;
-    #endif
-    #ifdef WOLFSSL_KYBER768
-        case KYBER768:
-            k = KYBER768_K;
-            break;
-    #endif
-    #ifdef WOLFSSL_KYBER1024
-        case KYBER1024:
-            k = KYBER1024_K;
-            break;
-    #endif
-#endif
-        default:
-            /* No other values supported. */
+        k = mlkemkey_get_k(key);
+        if (k == 0) {
             ret = NOT_COMPILED_IN;
-            break;
         }
     }
 
@@ -632,6 +745,19 @@ int wc_MlKemKey_MakeKeyWithRandom(MlKemKey* key, const unsigned char* rand,
             ret = MEMORY_E;
         }
     }
+#endif
+#ifdef WOLFSSL_MLKEM_DYNAMIC_KEYS
+    if (ret == 0) {
+        ret = mlkemkey_alloc_priv(key, (unsigned int)k);
+    }
+    if (ret == 0) {
+        ret = mlkemkey_alloc_pub(key, (unsigned int)k);
+    }
+#ifdef WOLFSSL_MLKEM_CACHE_A
+    if (ret == 0) {
+        ret = mlkemkey_alloc_a(key, (unsigned int)k);
+    }
+#endif
 #endif
     if (ret == 0) {
         const byte* d = rand;
@@ -1869,6 +1995,14 @@ int wc_MlKemKey_DecodePrivateKey(MlKemKey* key, const unsigned char* in,
         ret = BUFFER_E;
     }
 
+#ifdef WOLFSSL_MLKEM_DYNAMIC_KEYS
+    if (ret == 0) {
+        ret = mlkemkey_alloc_priv(key, k);
+    }
+    if (ret == 0) {
+        ret = mlkemkey_alloc_pub(key, k);
+    }
+#endif
     if (ret == 0) {
         /* Decode private key that is vector of polynomials.
          * Alg 18 Step 1: dk_PKE <- dk[0 : 384k]
@@ -1987,6 +2121,11 @@ int wc_MlKemKey_DecodePublicKey(MlKemKey* key, const unsigned char* in,
         ret = BUFFER_E;
     }
 
+#ifdef WOLFSSL_MLKEM_DYNAMIC_KEYS
+    if (ret == 0) {
+        ret = mlkemkey_alloc_pub(key, k);
+    }
+#endif
     if (ret == 0) {
         mlkemkey_decode_public(key->pub, key->pubSeed, p, k);
         ret = mlkem_check_public(key->pub, (int)k);
