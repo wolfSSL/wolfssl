@@ -1538,8 +1538,22 @@ int se050_rsa_verify(const byte* in, word32 inLen, byte* out, word32 outLen,
     }
 
     if (status == kStatus_SSS_Success) {
-        key->keyId = keyId;
-        key->keyIdSet = 1;
+        if (keyCreated) {
+            /* We uploaded only the public part of the key for this verify.
+             * Don't persist keyIdSet=1 — a later sign on the same RsaKey
+             * would reuse this binding and fail because the SE050 object has
+             * no private material. Erase the transient object so the next
+             * SE050 op (sign or verify) re-uploads from whatever the host
+             * RsaKey currently holds. */
+            sss_key_store_erase_key(&host_keystore, &newKey);
+            sss_key_object_free(&newKey);
+        }
+        else {
+            /* Pre-existing keyIdSet=1 binding (e.g. wc_RsaUseKeyId or prior
+             * sign that uploaded a keypair). Preserve it. */
+            key->keyId = keyId;
+            key->keyIdSet = 1;
+        }
     }
     else {
         if (keyCreated) {

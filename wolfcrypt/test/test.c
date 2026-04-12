@@ -25357,7 +25357,7 @@ static wc_test_ret_t rsa_keygen_test(WC_RNG* rng)
 #else
     byte der[1280];
 #endif
-#ifndef WOLFSSL_CRYPTOCELL
+#if !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SE050)
     word32 idx = 0;
 #endif
     int    derSz = 0;
@@ -25435,13 +25435,16 @@ static wc_test_ret_t rsa_keygen_test(WC_RNG* rng)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
 
-#ifndef WOLFSSL_CRYPTOCELL
+#if !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SE050)
     idx = 0;
-    /* The private key part of the key gen pairs from cryptocell can't be exported */
+    /* The private key part of key pairs generated inside a secure element
+     * (CryptoCell, SE050) stays in hardware and isn't available to
+     * wc_RsaKeyToDer, so the exported DER can't be parsed back as a
+     * complete RSAPrivateKey. */
     ret = wc_RsaPrivateKeyDecode(der, &idx, genKey, (word32)derSz);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
-#endif /* WOLFSSL_CRYPTOCELL */
+#endif /* !WOLFSSL_CRYPTOCELL && !WOLFSSL_SE050 */
 #endif /* !WC_TEST_SKIP_RSA_PRIVATE_EXPORT */
 
 exit_rsa:
