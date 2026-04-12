@@ -18056,6 +18056,21 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aesgcm_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #endif
 
+    /* Regression test: wc_AesGcmDecryptFinal must reject authTagSz below
+     * WOLFSSL_MIN_AUTH_TAG_SZ, consistent with wc_AesGcmDecrypt and
+     * wc_AesGcmEncryptFinal. */
+#if defined(HAVE_AES_DECRYPT) && WOLFSSL_MIN_AUTH_TAG_SZ > 1
+    ret = wc_AesGcmDecryptInit(enc, k1, sizeof(k1), iv1, sizeof(iv1));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_AesGcmDecryptUpdate(enc, resultP, c1, sizeof(c1), a, sizeof(a));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_AesGcmDecryptFinal(enc, t1, WOLFSSL_MIN_AUTH_TAG_SZ - 1);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#endif /* HAVE_AES_DECRYPT && WOLFSSL_MIN_AUTH_TAG_SZ > 1 */
+
     /* alen is the size to pass in with each update. */
     for (alen = 1; alen < WC_AES_BLOCK_SIZE + 1; alen++) {
         ret = wc_AesGcmEncryptInit(enc, k1, sizeof(k1), iv1, sizeof(iv1));
