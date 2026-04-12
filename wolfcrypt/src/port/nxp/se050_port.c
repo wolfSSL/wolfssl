@@ -3039,6 +3039,8 @@ int se050_ed25519_verify_msg(const byte* signature, word32 signatureLen,
         key, signature, signatureLen, msg, msgLen);
 #endif
 
+    *res = 0;
+
     if (cfg_se050_i2c_pi == NULL) {
         return WC_HW_E;
     }
