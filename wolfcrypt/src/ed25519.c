@@ -1169,6 +1169,12 @@ int wc_ed25519_import_public_ex(const byte* in, word32 inLen, ed25519_key* key,
     if (inLen < ED25519_PUB_KEY_SIZE)
         return BAD_FUNC_ARG;
 
+#ifdef WOLFSSL_SE050
+    /* Importing new key material invalidates any prior SE050 object binding. */
+    key->keyIdSet = 0;
+    key->keyId    = 0;
+#endif
+
     /* compressed prefix according to draft
        http://www.ietf.org/id/draft-koch-eddsa-for-openpgp-02.txt */
     if (in[0] == 0x40 && inLen == ED25519_PUB_KEY_SIZE + 1) {
@@ -1255,6 +1261,12 @@ int wc_ed25519_import_private_only(const byte* priv, word32 privSz,
     if (privSz != ED25519_KEY_SIZE)
         return BAD_FUNC_ARG;
 
+#ifdef WOLFSSL_SE050
+    /* Importing new key material invalidates any prior SE050 object binding. */
+    key->keyIdSet = 0;
+    key->keyId    = 0;
+#endif
+
     XMEMCPY(key->k, priv, ED25519_KEY_SIZE);
     key->privKeySet = 1;
 
@@ -1310,6 +1322,12 @@ int wc_ed25519_import_private_key_ex(const byte* priv, word32 privSz,
     else if (pubSz < ED25519_PUB_KEY_SIZE) {
         return BAD_FUNC_ARG;
     }
+
+#ifdef WOLFSSL_SE050
+    /* Importing new key material invalidates any prior SE050 object binding. */
+    key->keyIdSet = 0;
+    key->keyId    = 0;
+#endif
 
     XMEMCPY(key->k, priv, ED25519_KEY_SIZE);
     key->privKeySet = 1;
