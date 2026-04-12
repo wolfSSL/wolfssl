@@ -24985,10 +24985,16 @@ int wc_InitCert_ex(Cert* cert, void* heap, int devId)
     XMEMSET(cert, 0, sizeof(Cert));
 
     cert->version    = 2;   /* version 3 is hex 2 */
-#ifndef NO_SHA
-    cert->sigType    = CTC_SHAwRSA;
-#elif !defined(NO_SHA256)
+#if !defined(NO_SHA256)
     cert->sigType    = CTC_SHA256wRSA;
+#elif defined(WOLFSSL_SHA384)
+    cert->sigType    = CTC_SHA384wRSA;
+#elif defined(WOLFSSL_SHA512)
+    cert->sigType    = CTC_SHA512wRSA;
+#elif defined(WOLFSSL_SHA224)
+    cert->sigType    = CTC_SHA224wRSA;
+#elif !defined(NO_SHA)
+    cert->sigType    = CTC_SHAwRSA;
 #else
     cert->sigType    = 0;
 #endif

@@ -24505,8 +24505,16 @@ static wc_test_ret_t rsa_certgen_test(RsaKey* key, RsaKey* keypub, WC_RNG* rng, 
     myCert->isCA    = 1;
 #ifndef NO_SHA256
     myCert->sigType = CTC_SHA256wRSA;
-#else
+#elif defined(WOLFSSL_SHA384)
+    myCert->sigType = CTC_SHA384wRSA;
+#elif defined(WOLFSSL_SHA512)
+    myCert->sigType = CTC_SHA512wRSA;
+#elif defined(WOLFSSL_SHA224)
+    myCert->sigType = CTC_SHA224wRSA;
+#elif !defined(NO_SHA)
     myCert->sigType = CTC_SHAwRSA;
+#else
+    #error "No signature type available"
 #endif
 
 #ifdef WOLFSSL_CERT_EXT
@@ -24652,8 +24660,16 @@ static wc_test_ret_t rsa_certgen_test(RsaKey* key, RsaKey* keypub, WC_RNG* rng, 
 
 #ifndef NO_SHA256
     myCert->sigType = CTC_SHA256wRSA;
-#else
+#elif defined(WOLFSSL_SHA384)
+    myCert->sigType = CTC_SHA384wRSA;
+#elif defined(WOLFSSL_SHA512)
+    myCert->sigType = CTC_SHA512wRSA;
+#elif defined(WOLFSSL_SHA224)
+    myCert->sigType = CTC_SHA224wRSA;
+#elif !defined(NO_SHA)
     myCert->sigType = CTC_SHAwRSA;
+#else
+    #error "No signature type available"
 #endif
 
     XMEMCPY(&myCert->subject, &certDefaultName, sizeof(CertName));
@@ -24878,8 +24894,16 @@ static wc_test_ret_t rsa_ecc_certgen_test(WC_RNG* rng, byte* tmp)
 
 #ifndef NO_SHA256
     myCert->sigType = CTC_SHA256wRSA;
-#else
+#elif defined(WOLFSSL_SHA384)
+    myCert->sigType = CTC_SHA384wRSA;
+#elif defined(WOLFSSL_SHA512)
+    myCert->sigType = CTC_SHA512wRSA;
+#elif defined(WOLFSSL_SHA224)
+    myCert->sigType = CTC_SHA224wRSA;
+#elif !defined(NO_SHA)
     myCert->sigType = CTC_SHAwRSA;
+#else
+    #error "No signature type available"
 #endif
 
     XMEMCPY(&myCert->subject, &certDefaultName, sizeof(CertName));
@@ -25981,8 +26005,16 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
 
     #ifndef NO_SHA256
         req->sigType = CTC_SHA256wRSA;
-    #else
+    #elif defined(WOLFSSL_SHA384)
+        req->sigType = CTC_SHA384wRSA;
+    #elif defined(WOLFSSL_SHA512)
+        req->sigType = CTC_SHA512wRSA;
+    #elif defined(WOLFSSL_SHA224)
+        req->sigType = CTC_SHA224wRSA;
+    #elif !defined(NO_SHA)
         req->sigType = CTC_SHAwRSA;
+    #else
+        #error "No signature type available"
     #endif
 
     #ifdef WOLFSSL_CERT_EXT
@@ -37094,8 +37126,16 @@ static wc_test_ret_t ecc_test_cert_gen(WC_RNG* rng)
 
 #ifndef NO_SHA256
     myCert->sigType = CTC_SHA256wECDSA;
-#else
+#elif defined(WOLFSSL_SHA384)
+    myCert->sigType = CTC_SHA384wECDSA;
+#elif defined(WOLFSSL_SHA512)
+    myCert->sigType = CTC_SHA512wECDSA;
+#elif defined(WOLFSSL_SHA224)
+    myCert->sigType = CTC_SHA224wECDSA;
+#elif !defined(NO_SHA)
     myCert->sigType = CTC_SHAwECDSA;
+#else
+    #error "No signature type available"
 #endif
     XMEMCPY(&myCert->subject, &certDefaultName, sizeof(CertName));
 
