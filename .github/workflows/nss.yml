@@ -66,15 +66,43 @@ jobs:
     if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-24.04
     needs: build_nss
-    timeout-minutes: 10
+    timeout-minutes: 30
     steps:
       - name: Checking if we have nss in cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache@v4
         id: cache
         with:
           path: dist
           key: nss-${{ env.NSS_REF }}
-          fail-on-cache-miss: true
+
+      - name: Checkout wolfSSL CI actions (fallback on cache miss)
+        if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/actions
+          fetch-depth: 1
+
+      - name: Install dependencies (fallback on cache miss)
+        if: steps.cache.outputs.cache-hit != 'true'
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: gyp ninja-build
+
+      - name: Checkout nss (fallback on cache miss)
+        if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: nss-dev/nss
+          ref: ${{ env.NSS_REF }}
+          path: nss
+          fetch-depth: 1
+
+      - name: Compile nss (fallback on cache miss)
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          hg clone https://hg.mozilla.org/projects/nspr
+          cd nss
+          ./build.sh
 
       - name: Build wolfSSL
         uses: wolfSSL/actions-build-autotools-project@v1
