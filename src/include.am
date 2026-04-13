@@ -243,6 +243,14 @@ endif !BUILD_ARMASM_INLINE
 endif BUILD_ARMASM
 endif !BUILD_ARMASM_NEON
 
+if BUILD_PPC64_ASM
+if BUILD_PPC64_ASM_INLINE
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/ppc64/ppc64-aes-asm_c.c
+else
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/ppc64/ppc64-aes-asm.S
+endif !BUILD_PPC64_ASM_INLINE
+endif BUILD_PPC64_ASM
+
 if BUILD_AESNI
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_asm.S
 if BUILD_X86_ASM
@@ -503,6 +511,14 @@ endif !BUILD_ARMASM_INLINE
 endif BUILD_ARMASM
 endif !BUILD_ARMASM_NEON
 endif BUILD_AES
+
+if BUILD_PPC64_ASM
+if BUILD_PPC64_ASM_INLINE
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/ppc64/ppc64-aes-asm_c.c
+else
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/ppc64/ppc64-aes-asm.S
+endif !BUILD_PPC64_ASM_INLINE
+endif BUILD_PPC64_ASM
 
 if BUILD_AESNI
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_asm.S
@@ -990,6 +1006,14 @@ endif
 endif !BUILD_ARMASM_INLINE
 endif BUILD_ARMASM
 endif !BUILD_ARMASM_NEON
+
+if BUILD_PPC64_ASM
+if BUILD_PPC64_ASM_INLINE
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/ppc64/ppc64-aes-asm_c.c
+else
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/ppc64/ppc64-aes-asm.S
+endif !BUILD_PPC64_ASM_INLINE
+endif BUILD_PPC64_ASM
 
 if BUILD_AFALG
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/af_alg/afalg_aes.c
