@@ -843,6 +843,7 @@ public class wolfCrypt_Test_CSharp
     {
         int ret = 0;
         IntPtr key = IntPtr.Zero;
+        IntPtr importKey = IntPtr.Zero;
         IntPtr heap = IntPtr.Zero;
         int devId = wolfcrypt.INVALID_DEVID;
         byte[] privateKey = null;
@@ -856,7 +857,7 @@ public class wolfCrypt_Test_CSharp
 
             /* Generate Key */
             Console.WriteLine("Testing ML-DSA Key Generation...");
-            key = wolfcrypt.DilithiumMakeKey(heap, devId, level);
+            key = wolfcrypt.MlDsaMakeKey(heap, devId, level);
             if (key == IntPtr.Zero)
             {
                 ret = -1;
@@ -871,7 +872,7 @@ public class wolfCrypt_Test_CSharp
             if (ret == 0)
             {
                 Console.WriteLine("Testing ML-DSA Key Export...");
-                ret = wolfcrypt.DilithiumExportPrivateKey(key, out privateKey);
+                ret = wolfcrypt.MlDsaExportPrivateKey(key, out privateKey);
                 if (ret != 0)
                 {
                     Console.Error.WriteLine($"Failed to export private key. Error code: {ret}");
@@ -879,7 +880,7 @@ public class wolfCrypt_Test_CSharp
             }
             if (ret == 0)
             {
-                ret = wolfcrypt.DilithiumExportPublicKey(key, out publicKey);
+                ret = wolfcrypt.MlDsaExportPublicKey(key, out publicKey);
                 if (ret != 0)
                 {
                     Console.Error.WriteLine($"Failed to export public key. Error code: {ret}");
@@ -890,11 +891,22 @@ public class wolfCrypt_Test_CSharp
                 Console.WriteLine("ML-DSA Key Export test passed.");
             }
 
-            /* Import */
+            /* Import into a fresh key to test the full import workflow */
             if (ret == 0)
             {
                 Console.WriteLine("Testing ML-DSA Key Import...");
-                ret = wolfcrypt.DilithiumImportPrivateKey(privateKey, key);
+                /* Free the keygen key and create a fresh one for import */
+                wolfcrypt.MlDsaFreeKey(ref key);
+                importKey = wolfcrypt.MlDsaNew(heap, devId, level);
+                if (importKey == IntPtr.Zero)
+                {
+                    ret = -1;
+                    Console.Error.WriteLine("Failed to allocate key for import.");
+                }
+            }
+            if (ret == 0)
+            {
+                ret = wolfcrypt.MlDsaImportPrivateKey(privateKey, importKey);
                 if (ret != 0)
                 {
                     Console.Error.WriteLine($"Failed to import private key. Error code: {ret}");
@@ -902,7 +914,7 @@ public class wolfCrypt_Test_CSharp
             }
             if (ret == 0)
             {
-                ret = wolfcrypt.DilithiumImportPublicKey(publicKey, key);
+                ret = wolfcrypt.MlDsaImportPublicKey(publicKey, importKey);
                 if (ret != 0)
                 {
                     Console.Error.WriteLine($"Failed to import public key. Error code: {ret}");
@@ -913,11 +925,11 @@ public class wolfCrypt_Test_CSharp
                 Console.WriteLine("ML-DSA Key Import test passed.");
             }
 
-            /* Sign */
+            /* Sign with imported key */
             if (ret == 0)
             {
                 Console.WriteLine("Testing ML-DSA Signature Creation...");
-                ret = wolfcrypt.DilithiumSignMsg(key, message, out signature);
+                ret = wolfcrypt.MlDsaSignMsg(importKey, message, out signature);
                 if (ret != 0)
                 {
                     Console.Error.WriteLine($"Failed to sign. Error code: {ret}");
@@ -928,11 +940,11 @@ public class wolfCrypt_Test_CSharp
                 Console.WriteLine($"ML-DSA Signature Creation test passed. Signature Length: {signature.Length}");
             }
 
-            /* Verify */
+            /* Verify with imported key */
             if (ret == 0)
             {
                 Console.WriteLine("Testing ML-DSA Signature Verification...");
-                ret = wolfcrypt.DilithiumVerifyMsg(key, message, signature);
+                ret = wolfcrypt.MlDsaVerifyMsg(importKey, message, signature);
                 if (ret != 0)
                 {
                     Console.Error.WriteLine($"Failed to verify message. Error code: {ret}");
@@ -957,11 +969,11 @@ public class wolfCrypt_Test_CSharp
         {
             if (key != IntPtr.Zero)
             {
-                ret = wolfcrypt.DilithiumFreeKey(ref key);
-                if (ret != 0)
-                {
-                    Console.Error.WriteLine($"Failed to free ML-DSA key. Error code: {ret}");
-                }
+                wolfcrypt.MlDsaFreeKey(ref key);
+            }
+            if (importKey != IntPtr.Zero)
+            {
+                wolfcrypt.MlDsaFreeKey(ref importKey);
             }
         }
 

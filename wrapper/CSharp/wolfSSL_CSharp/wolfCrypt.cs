@@ -3248,7 +3248,7 @@ namespace wolfSSL.CSharp
                 if (rng == IntPtr.Zero)
                 {
                     log(ERROR_LOG, "Failed to create RNG for MlKem encapsulate.");
-                    return BAD_FUNC_ARG;
+                    return MEMORY_E;
                 }
                 ret = wc_MlKemKey_Encapsulate(key, ct, ss, rng);
                 if (ret != 0)
@@ -3293,6 +3293,19 @@ namespace wolfSSL.CSharp
 
             try
             {
+                uint ctLen = 0;
+                ret = wc_MlKemKey_CipherTextSize(key, ref ctLen);
+                if (ret != 0)
+                {
+                    log(ERROR_LOG, "Failed to determine ciphertext length. Error code: " + ret);
+                    return ret;
+                }
+                if ((uint)ct.Length != ctLen)
+                {
+                    log(ERROR_LOG, "Ciphertext length mismatch. Expected: " + ctLen + ", got: " + ct.Length);
+                    return BUFFER_E;
+                }
+
                 ret = wc_MlKemKey_SharedSecretSize(key, ref ssLen);
                 if (ret != 0)
                 {
@@ -3341,16 +3354,16 @@ namespace wolfSSL.CSharp
         // Please refer to `../user_settings.h`.
 
         /// <summary>
-        /// Allocate and initialize a new Dilithium key (with level set) without
+        /// Allocate and initialize a new ML-DSA key (with level set) without
         /// generating key material. Use this when you intend to import an
-        /// existing key (e.g., before calling DilithiumImportPublicKey or
-        /// DilithiumImportPrivateKey).
+        /// existing key (e.g., before calling MlDsaImportPublicKey or
+        /// MlDsaImportPrivateKey).
         /// </summary>
         /// <param name="heap">Heap pointer for memory allocation</param>
         /// <param name="devId">Device ID (if applicable)</param>
-        /// <param name="level">Dilithium security level</param>
-        /// <returns>Pointer to the Dilithium key structure, or IntPtr.Zero on failure</returns>
-        public static IntPtr DilithiumNew(IntPtr heap, int devId, MlDsaLevels level)
+        /// <param name="level">ML-DSA security level</param>
+        /// <returns>Pointer to the ML-DSA key structure, or IntPtr.Zero on failure</returns>
+        public static IntPtr MlDsaNew(IntPtr heap, int devId, MlDsaLevels level)
         {
             IntPtr key = IntPtr.Zero;
             bool success = false;
@@ -3360,14 +3373,14 @@ namespace wolfSSL.CSharp
                 key = wc_dilithium_new(heap, devId);
                 if (key == IntPtr.Zero)
                 {
-                    log(ERROR_LOG, "Failed to allocate and initialize Dilithium key.");
+                    log(ERROR_LOG, "Failed to allocate and initialize ML-DSA key.");
                     return IntPtr.Zero;
                 }
 
                 int ret = wc_dilithium_set_level(key, (byte)level);
                 if (ret != 0)
                 {
-                    log(ERROR_LOG, "Failed to set Dilithium level. Error code: " + ret);
+                    log(ERROR_LOG, "Failed to set ML-DSA level. Error code: " + ret);
                     return IntPtr.Zero;
                 }
 
@@ -3376,30 +3389,30 @@ namespace wolfSSL.CSharp
             }
             catch (Exception ex)
             {
-                log(ERROR_LOG, "Dilithium key allocation exception: " + ex.ToString());
+                log(ERROR_LOG, "ML-DSA key allocation exception: " + ex.ToString());
                 return IntPtr.Zero;
             }
             finally
             {
                 if (!success && key != IntPtr.Zero)
                 {
-                    int ret = DilithiumFreeKey(ref key);
+                    int ret = MlDsaFreeKey(ref key);
                     if (ret != 0)
                     {
-                        log(ERROR_LOG, "Failed to free Dilithium key. Error code: " + ret);
+                        log(ERROR_LOG, "Failed to free ML-DSA key. Error code: " + ret);
                     }
                 }
             }
         }
 
         /// <summary>
-        /// Create a new Dilithium key pair and initialize it with random values
+        /// Create a new ML-DSA key pair and initialize it with random values
         /// </summary>
         /// <param name="heap">Heap pointer for memory allocation</param>
         /// <param name="devId">Device ID (if applicable)</param>
-        /// <param name="level">Dilithium security level</param>
-        /// <returns>Pointer to the Dilithium key structure, or IntPtr.Zero on failure</returns>
-        public static IntPtr DilithiumMakeKey(IntPtr heap, int devId, MlDsaLevels level)
+        /// <param name="level">ML-DSA security level</param>
+        /// <returns>Pointer to the ML-DSA key structure, or IntPtr.Zero on failure</returns>
+        public static IntPtr MlDsaMakeKey(IntPtr heap, int devId, MlDsaLevels level)
         {
             IntPtr key = IntPtr.Zero;
             IntPtr rng = IntPtr.Zero;
@@ -3411,28 +3424,28 @@ namespace wolfSSL.CSharp
                 key = wc_dilithium_new(heap, devId);
                 if (key == IntPtr.Zero)
                 {
-                    log(ERROR_LOG, "Failed to allocate and initialize Dilithium key.");
+                    log(ERROR_LOG, "Failed to allocate and initialize ML-DSA key.");
                     return IntPtr.Zero;
                 }
 
                 ret = wc_dilithium_set_level(key, (byte)level);
                 if (ret != 0)
                 {
-                    log(ERROR_LOG, "Failed to set Dilithium level. Error code: " + ret);
+                    log(ERROR_LOG, "Failed to set ML-DSA level. Error code: " + ret);
                     return IntPtr.Zero;
                 }
 
                 rng = RandomNew();
                 if (rng == IntPtr.Zero)
                 {
-                    log(ERROR_LOG, "Failed to create RNG for Dilithium key.");
+                    log(ERROR_LOG, "Failed to create RNG for ML-DSA key.");
                     return IntPtr.Zero;
                 }
 
                 ret = wc_dilithium_make_key(key, rng);
                 if (ret != 0)
                 {
-                    log(ERROR_LOG, "Failed to make Dilithium key. Error code: " + ret);
+                    log(ERROR_LOG, "Failed to make ML-DSA key. Error code: " + ret);
                     return IntPtr.Zero;
                 }
 
@@ -3441,7 +3454,7 @@ namespace wolfSSL.CSharp
             }
             catch (Exception ex)
             {
-                log(ERROR_LOG, "Dilithium key creation exception: " + ex.ToString());
+                log(ERROR_LOG, "ML-DSA key creation exception: " + ex.ToString());
                 return IntPtr.Zero;
             }
             finally
@@ -3452,21 +3465,21 @@ namespace wolfSSL.CSharp
                 }
                 if (!success && key != IntPtr.Zero)
                 {
-                    ret = DilithiumFreeKey(ref key);
+                    ret = MlDsaFreeKey(ref key);
                     if (ret != 0)
                     {
-                        log(ERROR_LOG, "Failed to free Dilithium key. Error code: " + ret);
+                        log(ERROR_LOG, "Failed to free ML-DSA key. Error code: " + ret);
                     }
                 }
             }
         }
 
         /// <summary>
-        /// Free a Dilithium key structure and release its memory
+        /// Free an ML-DSA key structure and release its memory
         /// </summary>
-        /// <param name="key">Pointer to the Dilithium key structure</param>
+        /// <param name="key">Pointer to the ML-DSA key structure</param>
         /// <returns>0 on success, negative value on error.</returns>
-        public static int DilithiumFreeKey(ref IntPtr key)
+        public static int MlDsaFreeKey(ref IntPtr key)
         {
             int ret;
 
@@ -3481,12 +3494,12 @@ namespace wolfSSL.CSharp
         }
 
         /// <summary>
-        /// Import a Dilithium public key from a byte array.
+        /// Import an ML-DSA public key from a byte array.
         /// </summary>
-        /// <param name="publicKey">Byte array containing the public key (big-endian).</param>
-        /// <param name="key">Pointer to the Dilithium key structure (must be initialized).</param>
+        /// <param name="publicKey">Byte array containing the serialized public key.</param>
+        /// <param name="key">Pointer to the ML-DSA key structure (must be initialized).</param>
         /// <returns>0 on success, negative value on error.</returns>
-        public static int DilithiumImportPublicKey(byte[] publicKey, IntPtr key)
+        public static int MlDsaImportPublicKey(byte[] publicKey, IntPtr key)
         {
             if (publicKey == null || key == IntPtr.Zero)
             {
@@ -3499,18 +3512,18 @@ namespace wolfSSL.CSharp
             }
             catch (Exception e)
             {
-                log(ERROR_LOG, "Dilithium import public key exception: " + e.ToString());
+                log(ERROR_LOG, "ML-DSA import public key exception: " + e.ToString());
                 return EXCEPTION_E;
             }
         }
 
         /// <summary>
-        /// Import a Dilithium private key from a byte array.
+        /// Import an ML-DSA private key from a byte array.
         /// </summary>
         /// <param name="privateKey">Byte array containing the private key.</param>
-        /// <param name="key">Pointer to the Dilithium key structure (must be initialized and have level set).</param>
+        /// <param name="key">Pointer to the ML-DSA key structure (must be initialized and have level set).</param>
         /// <returns>0 on success, negative value on error.</returns>
-        public static int DilithiumImportPrivateKey(byte[] privateKey, IntPtr key)
+        public static int MlDsaImportPrivateKey(byte[] privateKey, IntPtr key)
         {
             if (privateKey == null || key == IntPtr.Zero)
             {
@@ -3523,18 +3536,18 @@ namespace wolfSSL.CSharp
             }
             catch (Exception e)
             {
-                log(ERROR_LOG, "Dilithium import private key exception: " + e.ToString());
+                log(ERROR_LOG, "ML-DSA import private key exception: " + e.ToString());
                 return EXCEPTION_E;
             }
         }
 
         /// <summary>
-        /// Export a Dilithium private key to a byte array.
+        /// Export an ML-DSA private key to a byte array.
         /// </summary>
-        /// <param name="key">Pointer to the Dilithium key structure.</param>
+        /// <param name="key">Pointer to the ML-DSA key structure.</param>
         /// <param name="privateKey">Output byte array containing the private key.</param>
         /// <returns>0 on success, negative value on error.</returns>
-        public static int DilithiumExportPrivateKey(IntPtr key, out byte[] privateKey)
+        public static int MlDsaExportPrivateKey(IntPtr key, out byte[] privateKey)
         {
             privateKey = null;
             int ret = 0;
@@ -3551,7 +3564,7 @@ namespace wolfSSL.CSharp
                 ret = wc_MlDsaKey_GetPrivLen(key, ref privLen);
                 if (ret != 0 || privLen <= 0)
                 {
-                    log(ERROR_LOG, "Failed to get Dilithium private key length. Error code: " + ret);
+                    log(ERROR_LOG, "Failed to get ML-DSA private key length. Error code: " + ret);
                     return (ret != 0) ? ret : BAD_FUNC_ARG;
                 }
 
@@ -3560,7 +3573,7 @@ namespace wolfSSL.CSharp
                 ret = wc_dilithium_export_private(key, privateKey, ref outLen);
                 if (ret != 0)
                 {
-                    log(ERROR_LOG, "Failed to export Dilithium private key. Error code: " + ret);
+                    log(ERROR_LOG, "Failed to export ML-DSA private key. Error code: " + ret);
                     privateKey = null;
                     return ret;
                 }
@@ -3571,7 +3584,7 @@ namespace wolfSSL.CSharp
             }
             catch (Exception e)
             {
-                log(ERROR_LOG, "Dilithium export private key exception: " + e.ToString());
+                log(ERROR_LOG, "ML-DSA export private key exception: " + e.ToString());
                 privateKey = null;
                 return EXCEPTION_E;
             }
@@ -3579,12 +3592,12 @@ namespace wolfSSL.CSharp
         }
 
         /// <summary>
-        /// Export a Dilithium public key to a byte array.
+        /// Export an ML-DSA public key to a byte array.
         /// </summary>
-        /// <param name="key">Pointer to the Dilithium key structure.</param>
+        /// <param name="key">Pointer to the ML-DSA key structure.</param>
         /// <param name="publicKey">Output byte array containing the public key.</param>
         /// <returns>0 on success, negative value on error.</returns>
-        public static int DilithiumExportPublicKey(IntPtr key, out byte[] publicKey)
+        public static int MlDsaExportPublicKey(IntPtr key, out byte[] publicKey)
         {
             publicKey = null;
             int ret = 0;
@@ -3601,7 +3614,7 @@ namespace wolfSSL.CSharp
                 ret = wc_MlDsaKey_GetPubLen(key, ref pubLen);
                 if (ret != 0 || pubLen <= 0)
                 {
-                    log(ERROR_LOG, "Failed to get Dilithium public key length. Error code: " + ret);
+                    log(ERROR_LOG, "Failed to get ML-DSA public key length. Error code: " + ret);
                     return (ret != 0) ? ret : BAD_FUNC_ARG;
                 }
 
@@ -3610,7 +3623,7 @@ namespace wolfSSL.CSharp
                 ret = wc_dilithium_export_public(key, publicKey, ref outLen);
                 if (ret != 0)
                 {
-                    log(ERROR_LOG, "Failed to export Dilithium public key. Error code: " + ret);
+                    log(ERROR_LOG, "Failed to export ML-DSA public key. Error code: " + ret);
                     publicKey = null;
                     return ret;
                 }
@@ -3621,7 +3634,7 @@ namespace wolfSSL.CSharp
             }
             catch (Exception e)
             {
-                log(ERROR_LOG, "Dilithium export public key exception: " + e.ToString());
+                log(ERROR_LOG, "ML-DSA export public key exception: " + e.ToString());
                 publicKey = null;
                 return EXCEPTION_E;
             }
@@ -3629,13 +3642,13 @@ namespace wolfSSL.CSharp
         }
 
         /// <summary>
-        /// Sign a message using a Dilithium private key
+        /// Sign a message using an ML-DSA private key
         /// </summary>
-        /// <param name="key">Pointer to the Dilithium key structure</param>
+        /// <param name="key">Pointer to the ML-DSA key structure</param>
         /// <param name="msg">Message to sign</param>
         /// <param name="sig">Output byte array for the signature</param>
         /// <returns>0 on success, otherwise an error code</returns>
-        public static int DilithiumSignMsg(IntPtr key, byte[] msg, out byte[] sig)
+        public static int MlDsaSignMsg(IntPtr key, byte[] msg, out byte[] sig)
         {
             int ret;
             int sigLen = 0;
@@ -3653,7 +3666,7 @@ namespace wolfSSL.CSharp
                 ret = wc_MlDsaKey_GetSigLen(key, ref sigLen);
                 if (ret != 0 || sigLen <= 0)
                 {
-                    log(ERROR_LOG, "Failed to get Dilithium signature length. Error code: " + ret);
+                    log(ERROR_LOG, "Failed to get ML-DSA signature length. Error code: " + ret);
                     return (ret != 0) ? ret : BAD_FUNC_ARG;
                 }
 
@@ -3662,14 +3675,14 @@ namespace wolfSSL.CSharp
                 rng = RandomNew();
                 if (rng == IntPtr.Zero)
                 {
-                    log(ERROR_LOG, "Failed to create RNG for Dilithium signing.");
+                    log(ERROR_LOG, "Failed to create RNG for ML-DSA signing.");
                     return MEMORY_E;
                 }
                 /* FIPS 204 sign with empty context (ctx=null, ctxLen=0). */
                 ret = wc_dilithium_sign_ctx_msg(null, 0, msg, (uint)msg.Length, sig, ref outLen, key, rng);
                 if (ret != 0)
                 {
-                    log(ERROR_LOG, "Failed to sign message with Dilithium key. Error code: " + ret);
+                    log(ERROR_LOG, "Failed to sign message with ML-DSA key. Error code: " + ret);
                     return ret;
                 }
                 if (outLen != (uint)sigLen)
@@ -3679,7 +3692,7 @@ namespace wolfSSL.CSharp
             }
             catch (Exception e)
             {
-                log(ERROR_LOG, "Dilithium sign message exception: " + e.ToString());
+                log(ERROR_LOG, "ML-DSA sign message exception: " + e.ToString());
                 return EXCEPTION_E;
             }
             finally
@@ -3692,13 +3705,13 @@ namespace wolfSSL.CSharp
         }
 
         /// <summary>
-        /// Verify a Dilithium signature
+        /// Verify an ML-DSA signature
         /// </summary>
-        /// <param name="key">Pointer to the Dilithium key structure</param>
+        /// <param name="key">Pointer to the ML-DSA key structure</param>
         /// <param name="msg">Message that was signed</param>
         /// <param name="sig">Signature to verify</param>
         /// <returns>0 if the signature is valid, otherwise an error code</returns>
-        public static int DilithiumVerifyMsg(IntPtr key, byte[] msg, byte[] sig)
+        public static int MlDsaVerifyMsg(IntPtr key, byte[] msg, byte[] sig)
         {
             int ret;
             int res = 0;
@@ -3714,18 +3727,18 @@ namespace wolfSSL.CSharp
                 ret = wc_dilithium_verify_ctx_msg(sig, (uint)sig.Length, null, 0, msg, (uint)msg.Length, ref res, key);
                 if (ret != 0)
                 {
-                    log(ERROR_LOG, "Failed to verify message with Dilithium key. Error code: " + ret);
+                    log(ERROR_LOG, "Failed to verify message with ML-DSA key. Error code: " + ret);
                     return ret;
                 }
                 if (res != 1)
                 {
-                    log(ERROR_LOG, "Dilithium signature verification failed (invalid signature).");
+                    log(ERROR_LOG, "ML-DSA signature verification failed (invalid signature).");
                     return SIG_VERIFY_E;
                 }
             }
             catch (Exception e)
             {
-                log(ERROR_LOG, "Dilithium verify message exception: " + e.ToString());
+                log(ERROR_LOG, "ML-DSA verify message exception: " + e.ToString());
                 return EXCEPTION_E;
             }
             return SUCCESS;
