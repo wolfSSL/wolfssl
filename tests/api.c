@@ -28943,78 +28943,6 @@ static int test_CryptoCb_Kdf_Func(int devId, wc_CryptoInfo* info, void* ctx)
 }
 #endif
 
-#if defined(WOLFSSL_HAVE_PRF) && !defined(NO_HMAC)
-static int test_wc_KdfPrf_guardrails(void)
-{
-    EXPECT_DECLS;
-    byte out[WC_SHA256_DIGEST_SIZE];
-    byte secret[(MAX_PRF_HALF * 2) + 1];
-    byte seed[MAX_PRF_LABSEED];
-    static const byte label[] = "wolfssl-prf";
-
-    XMEMSET(out, 0, sizeof(out));
-    XMEMSET(secret, 0x23, sizeof(secret));
-    XMEMSET(seed, 0x45, sizeof(seed));
-
-    ExpectIntEQ(wc_PRF(out, 0, secret, 16, seed, sizeof(seed), sha256_mac,
-        HEAP_HINT, INVALID_DEVID), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_PRF(out, sizeof(out), secret, 16, seed, sizeof(seed),
-        -1, HEAP_HINT, INVALID_DEVID), WC_NO_ERR_TRACE(HASH_TYPE_E));
-    ExpectIntEQ(wc_PRF(out, sizeof(out), secret, 16, seed, sizeof(seed),
-        sha256_mac, HEAP_HINT, INVALID_DEVID), 0);
-
-    ExpectIntEQ(wc_PRF_TLSv1(out, sizeof(out), secret, (word32)sizeof(secret),
-        label, (word32)sizeof(label), seed, 1, HEAP_HINT, INVALID_DEVID),
-        WC_NO_ERR_TRACE(BUFFER_E));
-    ExpectIntEQ(wc_PRF_TLSv1(out, MAX_PRF_DIG + 1, secret, 16,
-        label, (word32)sizeof(label), seed, 1, HEAP_HINT, INVALID_DEVID),
-        WC_NO_ERR_TRACE(BUFFER_E));
-    ExpectIntEQ(wc_PRF_TLSv1(out, sizeof(out), secret, 16,
-        label, (word32)sizeof(label), seed, 1, HEAP_HINT, INVALID_DEVID), 0);
-
-    ExpectIntEQ(wc_PRF_TLS(out, sizeof(out), secret, 16, label,
-        (word32)sizeof(label), seed, MAX_PRF_LABSEED, 1, sha256_mac,
-        HEAP_HINT, INVALID_DEVID), WC_NO_ERR_TRACE(BUFFER_E));
-    ExpectIntEQ(wc_PRF_TLS(out, sizeof(out), secret, 16, label,
-        (word32)sizeof(label), seed, 1, 1, md5_mac, HEAP_HINT, INVALID_DEVID),
-        0);
-    return EXPECT_RESULT();
-}
-#endif
-
-#ifdef HAVE_HKDF
-static int test_wc_KdfHkdf_guardrails(void)
-{
-    EXPECT_DECLS;
-    byte prk[WC_MAX_DIGEST_SIZE];
-    byte okm[WC_SHA256_DIGEST_SIZE];
-    byte ikm[WC_SHA256_DIGEST_SIZE];
-    byte salt[WC_SHA256_DIGEST_SIZE];
-    byte info[MAX_TLS13_HKDF_LABEL_SZ];
-    static const byte protocol[] = "tls13 ";
-    static const byte label[] = "derived";
-
-    XMEMSET(prk, 0, sizeof(prk));
-    XMEMSET(okm, 0, sizeof(okm));
-    XMEMSET(ikm, 0x5c, sizeof(ikm));
-    XMEMSET(salt, 0xa7, sizeof(salt));
-    XMEMSET(info, 0x3d, sizeof(info));
-
-    ExpectIntEQ(wc_Tls13_HKDF_Extract(prk, salt, sizeof(salt), ikm,
-        sizeof(ikm), -1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Tls13_HKDF_Extract(prk, salt, sizeof(salt), ikm, 0,
-        WC_SHA256), 0);
-    ExpectIntEQ(wc_Tls13_HKDF_Expand_Label(okm, sizeof(okm), prk,
-        WC_SHA256_DIGEST_SIZE, protocol, (word32)sizeof(protocol), label,
-        (word32)sizeof(label), info, MAX_TLS13_HKDF_LABEL_SZ,
-        WC_SHA256), WC_NO_ERR_TRACE(BUFFER_E));
-    ExpectIntEQ(wc_Tls13_HKDF_Expand_Label(okm, sizeof(okm), prk,
-        WC_SHA256_DIGEST_SIZE, protocol, (word32)sizeof(protocol), label,
-        (word32)sizeof(label), info, 8, WC_SHA256), 0);
-    return EXPECT_RESULT();
-}
-#endif
-
 #ifdef WOLF_CRYPTO_CB_CMD
 static int test_CryptoCb_RegisterUnavailable_Func(int devId, wc_CryptoInfo* info,
     void* ctx)
@@ -29265,6 +29193,78 @@ static int test_wc_CryptoCb_TLS(int tlsVer,
     return EXPECT_RESULT();
 }
 #endif /* WOLF_CRYPTO_CB && HAVE_IO_TESTS_DEPENDENCIES */
+
+#if defined(WOLFSSL_HAVE_PRF) && !defined(NO_HMAC)
+static int test_wc_KdfPrf_guardrails(void)
+{
+    EXPECT_DECLS;
+    byte out[WC_SHA256_DIGEST_SIZE];
+    byte secret[(MAX_PRF_HALF * 2) + 1];
+    byte seed[MAX_PRF_LABSEED];
+    static const byte label[] = "wolfssl-prf";
+
+    XMEMSET(out, 0, sizeof(out));
+    XMEMSET(secret, 0x23, sizeof(secret));
+    XMEMSET(seed, 0x45, sizeof(seed));
+
+    ExpectIntEQ(wc_PRF(out, 0, secret, 16, seed, sizeof(seed), sha256_mac,
+        HEAP_HINT, INVALID_DEVID), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_PRF(out, sizeof(out), secret, 16, seed, sizeof(seed),
+        -1, HEAP_HINT, INVALID_DEVID), WC_NO_ERR_TRACE(HASH_TYPE_E));
+    ExpectIntEQ(wc_PRF(out, sizeof(out), secret, 16, seed, sizeof(seed),
+        sha256_mac, HEAP_HINT, INVALID_DEVID), 0);
+
+    ExpectIntEQ(wc_PRF_TLSv1(out, sizeof(out), secret, (word32)sizeof(secret),
+        label, (word32)sizeof(label), seed, 1, HEAP_HINT, INVALID_DEVID),
+        WC_NO_ERR_TRACE(BUFFER_E));
+    ExpectIntEQ(wc_PRF_TLSv1(out, MAX_PRF_DIG + 1, secret, 16,
+        label, (word32)sizeof(label), seed, 1, HEAP_HINT, INVALID_DEVID),
+        WC_NO_ERR_TRACE(BUFFER_E));
+    ExpectIntEQ(wc_PRF_TLSv1(out, sizeof(out), secret, 16,
+        label, (word32)sizeof(label), seed, 1, HEAP_HINT, INVALID_DEVID), 0);
+
+    ExpectIntEQ(wc_PRF_TLS(out, sizeof(out), secret, 16, label,
+        (word32)sizeof(label), seed, MAX_PRF_LABSEED, 1, sha256_mac,
+        HEAP_HINT, INVALID_DEVID), WC_NO_ERR_TRACE(BUFFER_E));
+    ExpectIntEQ(wc_PRF_TLS(out, sizeof(out), secret, 16, label,
+        (word32)sizeof(label), seed, 1, 1, md5_mac, HEAP_HINT, INVALID_DEVID),
+        0);
+    return EXPECT_RESULT();
+}
+#endif
+
+#ifdef HAVE_HKDF
+static int test_wc_KdfHkdf_guardrails(void)
+{
+    EXPECT_DECLS;
+    byte prk[WC_MAX_DIGEST_SIZE];
+    byte okm[WC_SHA256_DIGEST_SIZE];
+    byte ikm[WC_SHA256_DIGEST_SIZE];
+    byte salt[WC_SHA256_DIGEST_SIZE];
+    byte info[MAX_TLS13_HKDF_LABEL_SZ];
+    static const byte protocol[] = "tls13 ";
+    static const byte label[] = "derived";
+
+    XMEMSET(prk, 0, sizeof(prk));
+    XMEMSET(okm, 0, sizeof(okm));
+    XMEMSET(ikm, 0x5c, sizeof(ikm));
+    XMEMSET(salt, 0xa7, sizeof(salt));
+    XMEMSET(info, 0x3d, sizeof(info));
+
+    ExpectIntEQ(wc_Tls13_HKDF_Extract(prk, salt, sizeof(salt), ikm,
+        sizeof(ikm), -1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Tls13_HKDF_Extract(prk, salt, sizeof(salt), ikm, 0,
+        WC_SHA256), 0);
+    ExpectIntEQ(wc_Tls13_HKDF_Expand_Label(okm, sizeof(okm), prk,
+        WC_SHA256_DIGEST_SIZE, protocol, (word32)sizeof(protocol), label,
+        (word32)sizeof(label), info, MAX_TLS13_HKDF_LABEL_SZ,
+        WC_SHA256), WC_NO_ERR_TRACE(BUFFER_E));
+    ExpectIntEQ(wc_Tls13_HKDF_Expand_Label(okm, sizeof(okm), prk,
+        WC_SHA256_DIGEST_SIZE, protocol, (word32)sizeof(protocol), label,
+        (word32)sizeof(label), info, 8, WC_SHA256), 0);
+    return EXPECT_RESULT();
+}
+#endif
 
 #ifdef WOLF_CRYPTO_CB
 static int test_wc_CryptoCb(void)
