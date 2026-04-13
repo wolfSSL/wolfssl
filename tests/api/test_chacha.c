@@ -105,7 +105,7 @@ int test_wc_ChachaBadArgCoverage(void)
     /* Pair B: key NULL -> BAD_FUNC_ARG (key is the unique T) */
     ExpectIntEQ(wc_Chacha_SetKey(&ctx, NULL,  sizeof(key32)),
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    /* Pair B complement: key valid, keySz 32 -> 0 (re-use prior success) */
+    /* Pair B complement: key valid, keySz 32 -> 0 (reuse prior success) */
 
     /* Pair C: keySz invalid (bad size) -> BAD_FUNC_ARG */
     ExpectIntEQ(wc_Chacha_SetKey(&ctx, key32, 18),

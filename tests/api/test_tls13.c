@@ -4421,7 +4421,7 @@ int test_tls13_mcdc_batch2_sigalgs(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
-    defined(WOLFSSL_TLS13) && \
+    defined(WOLFSSL_TLS13) && defined(OPENSSL_EXTRA) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
     !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
     struct test_memio_ctx test_ctx;
@@ -4564,7 +4564,7 @@ int test_tls13_mcdc_batch2_mutual_sigalgs(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
-    defined(WOLFSSL_TLS13) && \
+    defined(WOLFSSL_TLS13) && defined(OPENSSL_EXTRA) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
     !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
     struct test_memio_ctx test_ctx;
@@ -4752,7 +4752,7 @@ int test_tls13_mcdc_batch2_alpn(void)
 }
 
 /* ---------------------------------------------------------------------------
- * MC/DC batch 12: TLS 1.3 double-ticket resumption (PSK re-used twice).
+ * MC/DC batch 12: TLS 1.3 double-ticket resumption (PSK reused twice).
  *
  * Drives:
  *   SetupPskKey                 PSK-only vs PSK+DHE branch (L4338 —
@@ -4922,7 +4922,7 @@ int test_tls13_mcdc_batch2_statemachine(void)
                     wolfTLSv1_3_client_method,
                     wolfTLSv1_3_server_method), 0);
 
-    /* Re-use test_memio_do_handshake with a generous step budget to let it
+    /* Reuse test_memio_do_handshake with a generous step budget to let it
      * interleave connect/accept calls in a fine-grained manner.             */
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 40, NULL), 0);
 

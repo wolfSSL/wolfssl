@@ -4302,9 +4302,12 @@ static int test_wolfSSL_crl_ocsp_object_api(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wolfSSL_CTX_SetOCSP_Cb(NULL, NULL, NULL, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+    defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
     ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wolfSSL_CTX_DisableOCSPStapling(NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
     ExpectIntEQ(wolfSSL_EnableOCSP(NULL, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wolfSSL_DisableOCSP(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wolfSSL_EnableOCSPStapling(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
@@ -4317,8 +4320,11 @@ static int test_wolfSSL_crl_ocsp_object_api(void)
     ExpectIntEQ(wolfSSL_CTX_EnableOCSP(clientCtx, WOLFSSL_OCSP_NO_NONCE),
         WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_CTX_DisableOCSP(clientCtx), WOLFSSL_SUCCESS);
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+    defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
     ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(clientCtx), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_CTX_DisableOCSPStapling(clientCtx), WOLFSSL_SUCCESS);
+#endif
     ExpectIntEQ(wolfSSL_CTX_SetOCSP_OverrideURL(clientCtx, "http://dummy.test"),
         WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_CTX_SetOCSP_OverrideURL(clientCtx, ""),

@@ -3120,7 +3120,7 @@ int test_wolfSSL_EvpCipherFinalBadArg(void)
  *
  * Also exercises:
  *   - enc=-1 (no-change) on AES-CBC → should succeed preserving prior enc value
- *   - type=NULL re-init after type is already set (re-use current cipherType)
+ *   - type=NULL re-init after type is already set (reuse current cipherType)
  *   - AES-ECB non-GCM path
  * ---------------------------------------------------------------------------
  */

@@ -1880,7 +1880,8 @@ int test_wc_EccRequirementCoverage(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_ECC) && !defined(NO_ECC256) && !defined(NO_ECC_SECP) && \
-    !defined(WC_NO_RNG) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    !defined(WC_NO_RNG) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
+    defined(OPENSSL_EXTRA) && defined(WOLFSSL_PUBLIC_MP)
     WC_RNG rng;
     int initRng = 0;
 
@@ -2072,7 +2073,8 @@ int test_wc_EccBadArgCoverage(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_ECC) && !defined(NO_ECC256) && !defined(NO_ECC_SECP) && \
-    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
+    defined(OPENSSL_EXTRA) && defined(WOLFSSL_PUBLIC_MP)
     const ecc_set_type* dp = NULL;
     int idx = wc_ecc_get_curve_idx(ECC_SECP256R1);
     ExpectIntGE(idx, 0);
@@ -2276,7 +2278,8 @@ int test_wc_EccBadArgCoverage2(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_ECC) && !defined(NO_ECC256) && !defined(NO_ECC_SECP) && \
-    !defined(WC_NO_RNG) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    !defined(WC_NO_RNG) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
+    defined(WOLFSSL_PUBLIC_MP)
     const ecc_set_type* dp = NULL;
     int idx = wc_ecc_get_curve_idx(ECC_SECP256R1);
     static const char bogusHex[] = "01";
@@ -2518,7 +2521,8 @@ int test_wc_EccBadArgCoverage3(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_ECC) && !defined(NO_ECC256) && !defined(NO_ECC_SECP) && \
-    !defined(WC_NO_RNG) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    !defined(WC_NO_RNG) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
+    defined(OPENSSL_EXTRA) && defined(WOLFSSL_PUBLIC_MP)
     WC_RNG rng;
     int initRng = 0;
     ecc_key key;
@@ -2761,7 +2765,8 @@ int test_wc_EccBadArgCoverage4(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_ECC) && !defined(NO_ECC256) && !defined(NO_ECC_SECP) && \
-    !defined(WC_NO_RNG) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    !defined(WC_NO_RNG) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
+    defined(WOLFSSL_PUBLIC_MP)
     WC_RNG  rng;
     int     initRng = 0;
     ecc_key key;
@@ -3222,7 +3227,8 @@ int test_wc_EccBadArgCoverage6(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_ECC) && !defined(NO_ECC256) && !defined(NO_ECC_SECP) && \
-    !defined(WC_NO_RNG) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    !defined(WC_NO_RNG) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
+    defined(OPENSSL_EXTRA) && defined(WOLFSSL_PUBLIC_MP)
     WC_RNG  rng;
     int     initRng = 0;
     ecc_key key;
@@ -3370,7 +3376,8 @@ int test_wc_EccBadArgCoverage7(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_ECC) && !defined(NO_ECC256) && !defined(NO_ECC_SECP) && \
-    !defined(WC_NO_RNG) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    !defined(WC_NO_RNG) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
+    defined(WOLFSSL_PUBLIC_MP)
 
     /* --- wc_ecc_get_curve_id L4296 --- */
     {
@@ -3534,7 +3541,8 @@ int test_wc_EccBadArgCoverage8(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_ECC) && !defined(NO_ECC256) && !defined(NO_ECC_SECP) && \
-    !defined(WC_NO_RNG) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    !defined(WC_NO_RNG) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
+    defined(WOLFSSL_PUBLIC_MP)
     WC_RNG  rng;
     int     initRng = 0;
     ecc_key key;
@@ -3819,7 +3827,8 @@ int test_wc_EccBadArgCoverage9(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_ECC) && !defined(NO_ECC256) && !defined(NO_ECC_SECP) && \
-    !defined(WC_NO_RNG) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    !defined(WC_NO_RNG) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
+    defined(WOLFSSL_PUBLIC_MP)
     WC_RNG  rng;
     int     initRng = 0;
     ecc_key key;

@@ -222,7 +222,8 @@ int test_wc_export_int(void)
 int test_wc_WolfmathBadArgCoverage(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_BIG_INT) || defined(WOLFSSL_SP_MATH)
+#if (!defined(NO_BIG_INT) || defined(WOLFSSL_SP_MATH)) && \
+    defined(WOLFSSL_PUBLIC_MP)
     mp_int a;
     mp_int b;
 
@@ -470,8 +471,8 @@ int test_wc_WolfmathCondCopyCoverage(void)
 int test_wc_WolfmathRandCoverage(void)
 {
     EXPECT_DECLS;
-#if !defined(WC_NO_RNG) && \
-    (defined(WC_RSA_BLINDING) || defined(WOLFSSL_PUBLIC_MP))
+#if !defined(WC_NO_RNG) && defined(WOLFSSL_PUBLIC_MP) && \
+    (defined(WC_RSA_BLINDING) || defined(WOLFSSL_KEY_GEN))
     WC_RNG rng;
     mp_int a;
 

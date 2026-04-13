@@ -1484,6 +1484,11 @@ int test_tls_tlsx_parse_coverage(void)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
+    (void)ctx_c;
+    (void)ssl_c;
+    (void)ctx_s;
+    (void)ssl_s;
+    (void)test_ctx;
 
     /* --- Subtest 1: TLS 1.2 full handshake with SNI + EMS + ETM + CSR.
      * Exercises TLSX_Parse dispatch branches for:
