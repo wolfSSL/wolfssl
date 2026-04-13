@@ -4336,8 +4336,16 @@ static int test_wolfSSL_crl_ocsp_object_api(void)
     ExpectIntEQ(wolfSSL_EnableOCSP(clientSsl, WOLFSSL_OCSP_NO_NONCE),
         WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_DisableOCSP(clientSsl), WOLFSSL_SUCCESS);
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+    defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
     ExpectIntEQ(wolfSSL_EnableOCSPStapling(clientSsl), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_DisableOCSPStapling(clientSsl), WOLFSSL_SUCCESS);
+#else
+    ExpectIntEQ(wolfSSL_EnableOCSPStapling(clientSsl),
+        WC_NO_ERR_TRACE(NOT_COMPILED_IN));
+    ExpectIntEQ(wolfSSL_DisableOCSPStapling(clientSsl),
+        WC_NO_ERR_TRACE(NOT_COMPILED_IN));
+#endif
     ExpectIntEQ(wolfSSL_SetOCSP_OverrideURL(clientSsl, "http://dummy.test"),
         WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_SetOCSP_OverrideURL(clientSsl, ""), WOLFSSL_SUCCESS);

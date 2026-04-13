@@ -39,11 +39,11 @@ int test_utils_memio_move_message(void)
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
     (void)ctx_c;
     (void)ssl_c;
     (void)ctx_s;
     (void)ssl_s;
-    struct test_memio_ctx test_ctx;
     (void)test_ctx;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
@@ -193,11 +193,11 @@ int test_tls12_curve_intersection(void) {
     defined(HAVE_CURVE25519)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
     (void)ctx_c;
     (void)ssl_c;
     (void)ctx_s;
     (void)ssl_s;
-    struct test_memio_ctx test_ctx;
     (void)test_ctx;
     int ret;
     const char* curve_name;
@@ -281,11 +281,11 @@ int test_tls13_curve_intersection(void) {
     defined(WOLFSSL_TLS13) && defined(HAVE_ECC) && defined(HAVE_CURVE25519)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
     (void)ctx_c;
     (void)ssl_c;
     (void)ctx_s;
     (void)ssl_s;
-    struct test_memio_ctx test_ctx;
     (void)test_ctx;
     const char* curve_name;
     int test1[] ={WOLFSSL_ECC_SECP256R1};
@@ -323,11 +323,11 @@ int test_tls_certreq_order(void)
      */
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
     (void)ctx_c;
     (void)ssl_c;
     (void)ctx_s;
     (void)ssl_s;
-    struct test_memio_ctx test_ctx;
     (void)test_ctx;
     int i = 0;
     const char* msg = NULL;
@@ -1111,11 +1111,11 @@ int test_tls_tlsx_sni_options_coverage(void)
     !defined(WOLFSSL_NO_TLS12) && defined(HAVE_SNI)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
     (void)ctx_c;
     (void)ssl_c;
     (void)ctx_s;
     (void)ssl_s;
-    struct test_memio_ctx test_ctx;
     (void)test_ctx;
 
     /* --- Subtest 1: client sends "example.com", server expects "example.com"
@@ -1226,11 +1226,11 @@ int test_tls_tlsx_sc_parse_coverage(void)
     !defined(NO_WOLFSSL_CLIENT)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
     (void)ctx_c;
     (void)ssl_c;
     (void)ctx_s;
     (void)ssl_s;
-    struct test_memio_ctx test_ctx;
     (void)test_ctx;
 
     /* --- Subtest 1: normal curve intersection (extension != NULL path,
@@ -1323,11 +1323,11 @@ int test_tls_tlsx_sv_parse_coverage(void)
     defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_TLS12)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
     (void)ctx_c;
     (void)ssl_c;
     (void)ctx_s;
     (void)ssl_s;
-    struct test_memio_ctx test_ctx;
     (void)test_ctx;
 
     /* --- Subtest 1: pure TLS 1.3 handshake.
@@ -1454,11 +1454,11 @@ int test_tls_build_handshake_hash_coverage(void)
     !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
     (void)ctx_c;
     (void)ssl_c;
     (void)ctx_s;
     (void)ssl_s;
-    struct test_memio_ctx test_ctx;
     (void)test_ctx;
 
     /* --- Subtest 1: TLS 1.2 with AES-128-CBC-SHA256 (sha256_mac).
@@ -1807,11 +1807,11 @@ int test_tls_tlsx_validate_curves_coverage(void)
     !defined(NO_AES) && defined(HAVE_AES_CBC)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
     (void)ctx_c;
     (void)ssl_c;
     (void)ctx_s;
     (void)ssl_s;
-    struct test_memio_ctx test_ctx;
     (void)test_ctx;
 
     /* --- Subtest 1: ECDHE-RSA cipher + client restricts to SECP256R1,
@@ -1954,11 +1954,11 @@ int test_tls_tlsx_psk_coverage(void)
     !defined(NO_RSA) && defined(HAVE_ECC)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
     (void)ctx_c;
     (void)ssl_c;
     (void)ctx_s;
     (void)ssl_s;
-    struct test_memio_ctx test_ctx;
     (void)test_ctx;
 
     /* --- Subtest 1: full TLS 1.3 handshake followed by session-ticket
@@ -2185,11 +2185,11 @@ int test_tls_tlsx_keyshare_coverage(void)
     !defined(NO_RSA) && defined(HAVE_ECC)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
     (void)ctx_c;
     (void)ssl_c;
     (void)ctx_s;
     (void)ssl_s;
-    struct test_memio_ctx test_ctx;
     (void)test_ctx;
 
     /* --- Subtest 1: TLS 1.3 normal handshake, client offers SECP256R1,
@@ -2326,11 +2326,11 @@ int test_tls_tlsx_csr_coverage(void)
     !defined(NO_RSA) && defined(HAVE_ECC)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
     (void)ctx_c;
     (void)ssl_c;
     (void)ctx_s;
     (void)ssl_s;
-    struct test_memio_ctx test_ctx;
     (void)test_ctx;
 
     /* --- Subtest 1: TLS 1.2: client requests OCSP stapling via
@@ -2425,11 +2425,11 @@ int test_tls_tlsx_write_request_coverage(void)
     !defined(NO_WOLFSSL_SERVER) && !defined(NO_RSA)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
     (void)ctx_c;
     (void)ssl_c;
     (void)ctx_s;
     (void)ssl_s;
-    struct test_memio_ctx test_ctx;
     (void)test_ctx;
 
     /* --- Subtest 1: TLS 1.2 client WriteRequest.
@@ -4272,11 +4272,11 @@ int test_tls_build_handshake_hash_batch4(void)
 
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
     (void)ctx_c;
     (void)ssl_c;
     (void)ctx_s;
     (void)ssl_s;
-    struct test_memio_ctx test_ctx;
     (void)test_ctx;
 
     /* --- Subtest 1: TLS 1.2 with DHE-RSA-AES128-SHA (sha_mac <= sha256_mac).

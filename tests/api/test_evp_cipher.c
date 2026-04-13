@@ -2971,7 +2971,8 @@ int test_wolfSSL_EvpCipherCtxCtrlAead(void)
     EVP_CIPHER_CTX *ctx    = NULL;
     EVP_CIPHER_CTX *ctx_nb = NULL;  /* non-AEAD context */
     byte  key[16];
-    byte  iv[12];
+    /* Sized for AES-CBC (16 bytes); AES-GCM only reads the first 12. */
+    byte  iv[16];
     byte  tag[16];
     byte  tagbuf[16];
     XMEMSET(key,    0xAB, sizeof(key));
@@ -3707,13 +3708,16 @@ int test_wolfSSL_EvpCipherInitBatch4(void)
     ((!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
      (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)))
         {
-            byte iv12[12];
-            XMEMSET(iv12, 0x44, sizeof(iv12));
+            /* Sized for AES block (16); wolfSSL_EVP_CipherInit -> wc_AesSetIV
+             * reads a full AES_BLOCK_SIZE even when the logical GCM nonce is
+             * 12 bytes. */
+            byte iv16gcm[16];
+            XMEMSET(iv16gcm, 0x44, sizeof(iv16gcm));
             /* Passing a new cipher type on an already-initialised ctx resets
              * the type (L7215 branch: type != NULL → full re-init).
              * May succeed or fail depending on whether AES GCM low-level was
              * already inited; just drive the branch. */
-            (void)EVP_CipherInit(ctx, EVP_aes_128_gcm(), key128, iv12, 1);
+            (void)EVP_CipherInit(ctx, EVP_aes_128_gcm(), key128, iv16gcm, 1);
         }
 #endif /* HAVE_AESGCM ... */
 

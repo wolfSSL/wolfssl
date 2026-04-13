@@ -2323,7 +2323,10 @@ int test_wc_AsnPkcs8Coverage(void)
                 ret == WC_NO_ERR_TRACE(ASN_INPUT_E));
             /* One byte too small triggers BAD_FUNC_ARG. */
             if (encSz > 0) {
-                byte* tooSmall = (byte*)XMALLOC(encSz - 1, NULL,
+                /* Allocate full encSz bytes so the buffer is not overrun;
+                 * pass smallSz = encSz-1 so the library's bounds check fires
+                 * before any write occurs. */
+                byte* tooSmall = (byte*)XMALLOC(encSz, NULL,
                     DYNAMIC_TYPE_TMP_BUFFER);
                 word32 smallSz = encSz - 1;
                 ExpectNotNull(tooSmall);
@@ -2367,7 +2370,9 @@ int test_wc_AsnPkcs8Coverage(void)
                     /* Too-small buffer after knowing real size. */
                     {
                         word32 smallSz = sz - 1;
-                        byte*  small2 = (byte*)XMALLOC(smallSz, NULL,
+                        /* Allocate full sz bytes to avoid buffer overrun;
+                         * smallSz < sz triggers the library's bounds check. */
+                        byte*  small2 = (byte*)XMALLOC(sz, NULL,
                             DYNAMIC_TYPE_TMP_BUFFER);
                         if (small2 != NULL) {
                             int ret = wc_EncryptPKCS8Key(pkcs8Buf, pkcs8Sz,

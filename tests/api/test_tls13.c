@@ -1287,11 +1287,11 @@ int test_tls13_rpk_handshake(void)
 #endif
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
     (void)ctx_c;
     (void)ssl_c;
     (void)ctx_s;
     (void)ssl_s;
-    struct test_memio_ctx test_ctx;
     (void)test_ctx;
     int err;
     char certType_c[MAX_CLIENT_CERT_TYPE_CNT];
@@ -2980,11 +2980,11 @@ int test_key_share_mismatch(void)
     };
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
     (void)ctx_c;
     (void)ssl_c;
     (void)ctx_s;
     (void)ssl_s;
-    struct test_memio_ctx test_ctx;
     (void)test_ctx;
     int client_group[] = {WOLFSSL_ECC_SECP521R1};
     int server_group[] = {WOLFSSL_ECC_SECP384R1, WOLFSSL_ECC_SECP256R1};
@@ -3478,11 +3478,11 @@ int test_tls13_cert_req_sigalgs(void)
     !defined(NO_FILESYSTEM)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
     (void)ctx_c;
     (void)ssl_c;
     (void)ctx_s;
     (void)ssl_s;
-    struct test_memio_ctx test_ctx;
     (void)test_ctx;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
@@ -3915,9 +3915,11 @@ int test_tls13_mcdc_hrr_coverage(void)
     (void)ctx_s;
     (void)ssl_s;
 
-    /* Client offers only P-521 (or P-384 if P-521 not available); server
-     * prefers P-256 -> server sends HRR with key_share extension selecting
-     * P-256 -> client retries with P-256 key share.                        */
+    /* Client offers P-384 (or P-521) key_share in CH1 but also advertises
+     * P-256 as a supported group; server prefers P-256 -> server sends HRR
+     * with key_share extension selecting P-256 -> client retries with P-256.
+     * When client_grp == server_grp both sides agree immediately; HRR is
+     * still triggered by the stateless cookie mechanism.                    */
     int server_grp = WOLFSSL_ECC_SECP256R1;
 #if defined(HAVE_ECC384) && (ECC_MIN_KEY_SZ <= 384)
     int client_grp = WOLFSSL_ECC_SECP384R1;
@@ -3926,6 +3928,17 @@ int test_tls13_mcdc_hrr_coverage(void)
 #else
     /* Both sides agree from the start - HRR still triggered via cookie.    */
     int client_grp = WOLFSSL_ECC_SECP256R1;
+#endif
+    /* Build client group list: preferred group first, then server_grp so
+     * the client supports P-256 and HRR can complete.  When they are equal
+     * only one entry is needed.                                             */
+#if (defined(HAVE_ECC384) && (ECC_MIN_KEY_SZ <= 384)) || \
+    (defined(HAVE_ECC521) && (ECC_MIN_KEY_SZ <= 521))
+    int client_grps[2] = { client_grp, server_grp };
+    int client_grps_cnt = 2;
+#else
+    int client_grps[2] = { client_grp, 0 };
+    int client_grps_cnt = 1;
 #endif
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
@@ -3936,7 +3949,8 @@ int test_tls13_mcdc_hrr_coverage(void)
     /* Server enables stateless HRR cookie to force CH2.                    */
     ExpectIntEQ(wolfSSL_send_hrr_cookie(ssl_s, NULL, 0), WOLFSSL_SUCCESS);
 
-    ExpectIntEQ(wolfSSL_set_groups(ssl_c, &client_grp, 1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_groups(ssl_c, client_grps, client_grps_cnt),
+                WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_set_groups(ssl_s, &server_grp, 1), WOLFSSL_SUCCESS);
 
     /* Full handshake: memio pumps CH1 -> HRR -> CH2 -> SH -> ... -> Finished. */
@@ -4426,8 +4440,10 @@ int test_tls13_mcdc_batch2_early_data(void)
                     wolfTLSv1_3_client_method,
                     wolfTLSv1_3_server_method), 0);
 
-    /* Server enables early data acceptance.                                  */
-    ExpectIntEQ(wolfSSL_CTX_set_max_early_data(ctx_s, 1024), WOLFSSL_SUCCESS);
+    /* Server enables early data acceptance.
+     * Returns WOLFSSL_SUCCESS (1) when OPENSSL_EXTRA/WOLFSSL_ERROR_CODE_OPENSSL
+     * is defined, 0 otherwise — accept either. */
+    ExpectIntGE(wolfSSL_CTX_set_max_early_data(ctx_s, 1024), 0);
 
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
 
@@ -4446,7 +4462,7 @@ int test_tls13_mcdc_batch2_early_data(void)
                     wolfTLSv1_3_client_method,
                     wolfTLSv1_3_server_method), 0);
 
-    ExpectIntEQ(wolfSSL_CTX_set_max_early_data(ctx_s, 1024), WOLFSSL_SUCCESS);
+    ExpectIntGE(wolfSSL_CTX_set_max_early_data(ctx_s, 1024), 0);
     ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
 
     /* Client writes early data (exercises SendTls13ClientHello + early_data
@@ -4513,21 +4529,23 @@ int test_tls13_mcdc_batch2_sigalgs(void)
                     wolfTLSv1_3_client_method,
                     wolfTLSv1_3_server_method), 0);
 
-    /* Load ED25519 server certificate and key.                               */
+    /* Load ED25519 server certificate and key directly onto the ssl object
+     * (not ctx) so that ssl_s->buffers is updated rather than ctx_s which
+     * was already snapshotted into ssl_s at wolfSSL_new() time.              */
     if (EXPECT_SUCCESS()) {
-        ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_s, edCertFile,
+        ExpectIntEQ(wolfSSL_use_certificate_file(ssl_s, edCertFile,
                     WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
-        ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_s, edKeyFile,
+        ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_s, edKeyFile,
                     WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
         /* Client trusts the ED25519 CA.                                      */
         ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c,
                     caEdCertFile, 0), WOLFSSL_SUCCESS);
     }
-    /* Restrict to ed25519 sigalg on both sides.                              */
+    /* Restrict to ed25519 sigalg on both ssl objects (not ctx).              */
     if (EXPECT_SUCCESS()) {
-        ExpectIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx_c, "ED25519"),
+        ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl_c, "ED25519"),
                     WOLFSSL_SUCCESS);
-        ExpectIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx_s, "ED25519"),
+        ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl_s, "ED25519"),
                     WOLFSSL_SUCCESS);
     }
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
@@ -4546,17 +4564,17 @@ int test_tls13_mcdc_batch2_sigalgs(void)
                     wolfTLSv1_3_server_method), 0);
 
     if (EXPECT_SUCCESS()) {
-        ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_s, ed448CertFile,
+        ExpectIntEQ(wolfSSL_use_certificate_file(ssl_s, ed448CertFile,
                     WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
-        ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_s, ed448KeyFile,
+        ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_s, ed448KeyFile,
                     WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
         ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c,
                     caEd448CertFile, 0), WOLFSSL_SUCCESS);
     }
     if (EXPECT_SUCCESS()) {
-        ExpectIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx_c, "ED448"),
+        ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl_c, "ED448"),
                     WOLFSSL_SUCCESS);
-        ExpectIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx_s, "ED448"),
+        ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl_s, "ED448"),
                     WOLFSSL_SUCCESS);
     }
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
@@ -4578,10 +4596,10 @@ int test_tls13_mcdc_batch2_sigalgs(void)
     if (EXPECT_SUCCESS()) {
         /* Use the built-in ECC server cert (P-256); restrict sigalgs to
          * ecdsa_secp384r1_sha384 — EncodeSigAlg ECDSA/SHA-384 branch.       */
-        ExpectIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx_c,
-                    "ECDSA+SHA384"), WOLFSSL_SUCCESS);
-        ExpectIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx_s,
-                    "ECDSA+SHA384"), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl_c, "ECDSA+SHA384"),
+                    WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl_s, "ECDSA+SHA384"),
+                    WOLFSSL_SUCCESS);
     }
     /* Handshake may fail if the server cert does not match the sigalg —
      * that is acceptable; we care that the sigalg encoding branch ran.       */
@@ -4601,9 +4619,9 @@ int test_tls13_mcdc_batch2_sigalgs(void)
                     wolfTLSv1_3_server_method), 0);
 
     if (EXPECT_SUCCESS()) {
-        ExpectIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx_c, "RSA-PSS+SHA256"),
+        ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl_c, "RSA-PSS+SHA256"),
                     WOLFSSL_SUCCESS);
-        ExpectIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx_s, "RSA-PSS+SHA256"),
+        ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl_s, "RSA-PSS+SHA256"),
                     WOLFSSL_SUCCESS);
     }
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
@@ -4724,8 +4742,19 @@ int test_tls13_mcdc_batch2_mutual_sigalgs(void)
     /* Trust the ED25519 client CA on the server side.                       */
     ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, caEdCertFile, 0),
                 WOLFSSL_SUCCESS);
-    /* Also trust the standard CA so the server's own cert validates.        */
-    (void)wolfSSL_CTX_load_verify_locations(ctx_s, caCertFile, 0);
+
+    /* Use an ED25519 server cert/key so the server can sign with ED25519
+     * when sigalgs is restricted to "ED25519".  Load onto ssl_s directly
+     * to avoid the ctx snapshot already taken at wolfSSL_new() time.        */
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(wolfSSL_use_certificate_file(ssl_s, edCertFile,
+                    WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_s, edKeyFile,
+                    WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+        /* Client must trust the ED25519 server CA.                          */
+        ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c,
+                    caEdCertFile, 0), WOLFSSL_SUCCESS);
+    }
 
     if (EXPECT_SUCCESS()) {
         ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl_s, "ED25519"),

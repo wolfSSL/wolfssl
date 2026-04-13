@@ -1228,7 +1228,7 @@ int test_wc_PKCS7_EncodeSignedData_ex(void)
         int            certSz;
         int            keySz;
 
-        ExpectTure((fp = XFOPEN("./certs/1024/client-cert.der", "rb")) !=
+        ExpectTrue((fp = XFOPEN("./certs/1024/client-cert.der", "rb")) !=
             XBADFILE);
         ExpectIntGT(certSz = (int)XFREAD(cert, 1, sizeof(cert), fp), 0);
         if (fp != XBADFILE) {

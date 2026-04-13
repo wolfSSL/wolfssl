@@ -3498,19 +3498,24 @@ int test_wc_EccBadArgCoverage7(void)
         sigLen = (word32)sizeof(sig);
         ExpectIntEQ(wc_ecc_rs_to_sig(validR, validS, sig, &sigLen), 0);
 
-        /* r is negative: mp_isneg(rtmp)==MP_YES → MP_READ_E.
-         * The s is non-zero (validS), so mp_iszero check passes first.
-         * This makes the first OR-operand at L11487 true. */
-        sigLen = (word32)sizeof(sig);
-        ExpectIntEQ(wc_ecc_rs_to_sig(negHex, validS, sig, &sigLen),
-            WC_NO_ERR_TRACE(MP_READ_E));
+        /* r is negative: the library rejects the negative value. In
+         * integer/heap math this happens via the explicit mp_isneg check
+         * inside wc_ecc_rs_to_sig (→ MP_READ_E). In sp_int the leading '-'
+         * is rejected earlier by sp_read_radix (→ MP_VAL). Either fail
+         * result is acceptable. */
+        {
+            int r;
+            sigLen = (word32)sizeof(sig);
+            r = wc_ecc_rs_to_sig(negHex, validS, sig, &sigLen);
+            ExpectTrue(r == WC_NO_ERR_TRACE(MP_READ_E) ||
+                       r == WC_NO_ERR_TRACE(MP_VAL));
 
-        /* s is negative: mp_isneg(stmp)==MP_YES → MP_READ_E.
-         * r is validR (positive non-zero), so the first operand is false
-         * and we isolate the second operand of the OR. */
-        sigLen = (word32)sizeof(sig);
-        ExpectIntEQ(wc_ecc_rs_to_sig(validR, negHex, sig, &sigLen),
-            WC_NO_ERR_TRACE(MP_READ_E));
+            /* s is negative: same reasoning applies to the second operand. */
+            sigLen = (word32)sizeof(sig);
+            r = wc_ecc_rs_to_sig(validR, negHex, sig, &sigLen);
+            ExpectTrue(r == WC_NO_ERR_TRACE(MP_READ_E) ||
+                       r == WC_NO_ERR_TRACE(MP_VAL));
+        }
     }
 
 #endif /* HAVE_ECC && !NO_ECC256 && !NO_ECC_SECP && !WC_NO_RNG &&
