@@ -211,6 +211,9 @@ static void wc_PKCS7_ResetStream(wc_PKCS7* pkcs7)
         XFREE(pkcs7->stream->tag, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         XFREE(pkcs7->stream->nonce, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         XFREE(pkcs7->stream->buffer, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        /* stream->key is always allocated with MAX_ENCRYPTED_KEY_SZ */
+        if (pkcs7->stream->key != NULL)
+            ForceZero(pkcs7->stream->key, MAX_ENCRYPTED_KEY_SZ);
         XFREE(pkcs7->stream->key, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         pkcs7->stream->aad    = NULL;
         pkcs7->stream->tag    = NULL;
@@ -7770,6 +7773,7 @@ static int wc_PKCS7_KariGenerateKEK(WC_PKCS7_KARI* kari, WC_RNG* rng,
     }
 
     if (ret != 0) {
+        ForceZero(secret, secretSz);
         XFREE(secret, kari->heap, DYNAMIC_TYPE_PKCS7);
         return ret;
     }
@@ -9763,6 +9767,7 @@ int wc_PKCS7_AddRecipient_PWRI(wc_PKCS7* pkcs7, byte* passwd, word32 pLen,
                                     (word32)kekKeySz);
     if (ret < 0) {
         XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        ForceZero(kek, (word32)kekKeySz);
         XFREE(kek, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         return ret;
@@ -9774,6 +9779,7 @@ int wc_PKCS7_AddRecipient_PWRI(wc_PKCS7* pkcs7, byte* passwd, word32 pLen,
                                    tmpIv, (word32)kekBlockSz, encryptOID);
     if (ret < 0) {
         XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        ForceZero(kek, (word32)kekKeySz);
         XFREE(kek, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         return ret;
@@ -9798,6 +9804,7 @@ int wc_PKCS7_AddRecipient_PWRI(wc_PKCS7* pkcs7, byte* passwd, word32 pLen,
     ret = wc_SetContentType(PWRI_KEK_WRAP, keyEncAlgoId, sizeof(keyEncAlgoId));
     if (ret <= 0) {
         XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        ForceZero(kek, (word32)kekKeySz);
         XFREE(kek, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         return ret;
@@ -9829,6 +9836,7 @@ int wc_PKCS7_AddRecipient_PWRI(wc_PKCS7* pkcs7, byte* passwd, word32 pLen,
     ret = wc_SetContentType(kdfOID, kdfAlgoId, sizeof(kdfAlgoId));
     if (ret <= 0) {
         XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        ForceZero(kek, (word32)kekKeySz);
         XFREE(kek, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         return ret;
@@ -9854,6 +9862,7 @@ int wc_PKCS7_AddRecipient_PWRI(wc_PKCS7* pkcs7, byte* passwd, word32 pLen,
     if (totalSz > MAX_RECIP_SZ) {
         WOLFSSL_MSG("CMS Recipient output buffer too small");
         XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        ForceZero(kek, (word32)kekKeySz);
         XFREE(kek, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         return BUFFER_E;
@@ -9891,7 +9900,7 @@ int wc_PKCS7_AddRecipient_PWRI(wc_PKCS7* pkcs7, byte* passwd, word32 pLen,
     XMEMCPY(recip->recip + idx, encryptedKey, encryptedKeySz);
     idx += encryptedKeySz;
 
-    ForceZero(kek, (word32)kekBlockSz);
+    ForceZero(kek, (word32)kekKeySz);
     ForceZero(encryptedKey, encryptedKeySz);
     XFREE(kek, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
     XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
@@ -10612,7 +10621,9 @@ static int wc_PKCS7_DecryptKtri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
     word32 pkiMsgSz = inSz;
     byte   tag;
 
-
+#ifndef WC_NO_RSA_OAEP
+    word32 outKeySz = 0;
+#endif
 #ifndef NO_PKCS7_STREAM
     word32 tmpIdx = *idx;
 #endif
@@ -10921,8 +10932,8 @@ static int wc_PKCS7_DecryptKtri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
             #ifndef WC_NO_RSA_OAEP
                     }
                     else {
-                        word32 outLen = (word32)wc_RsaEncryptSize(privKey);
-                        outKey = (byte*)XMALLOC(outLen, pkcs7->heap,
+                        outKeySz = (word32)wc_RsaEncryptSize(privKey);
+                        outKey = (byte*)XMALLOC(outKeySz, pkcs7->heap,
                                                     DYNAMIC_TYPE_TMP_BUFFER);
                         if (!outKey) {
                             WOLFSSL_MSG("Failed to allocate out key buffer");
@@ -10936,9 +10947,9 @@ static int wc_PKCS7_DecryptKtri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                         }
 
                         keySz = wc_RsaPrivateDecrypt_ex(encryptedKey,
-                                (word32)encryptedKeySz, outKey, outLen, privKey,
-                                WC_RSA_OAEP_PAD,
-                                WC_HASH_TYPE_SHA, WC_MGF1SHA1, NULL, 0);
+                                    (word32)encryptedKeySz, outKey, outKeySz,
+                                    privKey, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA,
+                                    WC_MGF1SHA1, NULL, 0);
                     }
             #endif
                 }
@@ -10961,6 +10972,7 @@ static int wc_PKCS7_DecryptKtri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
         #ifndef WC_NO_RSA_OAEP
                 if (encOID == RSAESOAEPk) {
                     if (outKey) {
+                        ForceZero(outKey, outKeySz);
                         XFREE(outKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
                     }
                 }
@@ -10977,6 +10989,7 @@ static int wc_PKCS7_DecryptKtri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
         #ifndef WC_NO_RSA_OAEP
             if (encOID == RSAESOAEPk) {
                 if (outKey) {
+                    ForceZero(outKey, outKeySz);
                     XFREE(outKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
                 }
             }
@@ -11791,6 +11804,7 @@ static int wc_PKCS7_DecryptPwri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                                   iterations, kek, (word32)kekKeySz);
             if (ret < 0) {
                 XFREE(salt, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+                ForceZero(kek, (word32)kekKeySz);
                 XFREE(kek, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
                 XFREE(cek, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
                 return ASN_PARSE_E;
@@ -11803,7 +11817,9 @@ static int wc_PKCS7_DecryptPwri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                                              pwriEncAlgoId);
             if (ret < 0) {
                 XFREE(salt, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+                ForceZero(kek, (word32)kekKeySz);
                 XFREE(kek, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+                ForceZero(cek, cekSz);
                 XFREE(cek, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
                 return ret;
             }
@@ -11812,7 +11828,9 @@ static int wc_PKCS7_DecryptPwri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
             if (*decryptedKeySz < cekSz) {
                 WOLFSSL_MSG("Decrypted key buffer too small for CEK");
                 XFREE(salt, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+                ForceZero(kek, (word32)kekKeySz);
                 XFREE(kek, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+                ForceZero(cek, cekSz);
                 XFREE(cek, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
                 return BUFFER_E;
             }
@@ -11821,7 +11839,9 @@ static int wc_PKCS7_DecryptPwri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
             *decryptedKeySz = cekSz;
 
             XFREE(salt, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+            ForceZero(kek, (word32)kekKeySz);
             XFREE(kek, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+            ForceZero(cek, cekSz);
             XFREE(cek, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
 
             /* mark recipFound, since we only support one RecipientInfo for now */
