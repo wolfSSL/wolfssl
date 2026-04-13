@@ -2386,6 +2386,10 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff, long sz,
     if ((ret == 0) && (type == CHAIN_CERT_TYPE)) {
         ret = BAD_FUNC_ARG;
     }
+    /* Reject negative size - would wrap to huge word32. */
+    if ((ret == 0) && (sz < 0)) {
+        ret = BAD_FUNC_ARG;
+    }
 
 #ifdef WOLFSSL_SMALL_STACK
     if (ret == 0) {

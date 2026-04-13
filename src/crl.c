@@ -834,7 +834,7 @@ int BufferLoadCRL(WOLFSSL_CRL* crl, const byte* buff, long sz, int type,
 
     WOLFSSL_ENTER("BufferLoadCRL");
 
-    if (crl == NULL || buff == NULL || sz == 0)
+    if (crl == NULL || buff == NULL || sz <= 0)
         return BAD_FUNC_ARG;
 
     if (type == WOLFSSL_FILETYPE_PEM) {
@@ -1160,7 +1160,7 @@ int GetCRLInfo(WOLFSSL_CRL* crl, CrlInfo* info, const byte* buff,
 
     WOLFSSL_ENTER("GetCRLInfo");
 
-    if (crl == NULL || info == NULL || buff == NULL || sz == 0)
+    if (crl == NULL || info == NULL || buff == NULL || sz <= 0)
         return BAD_FUNC_ARG;
 
     if (type == WOLFSSL_FILETYPE_PEM) {
