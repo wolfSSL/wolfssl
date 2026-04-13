@@ -387,7 +387,9 @@ fn test_get_kid() {
     key.make_key(&mut rng).expect("Error with make_key()");
 
     let mut kid = [0u8; Lms::KEY_ID_LEN];
-    key.get_kid(&mut kid).expect("Error with get_kid()");
+    let kid_len = key.get_kid(&mut kid).expect("Error with get_kid()");
+    assert_eq!(kid_len, Lms::KEY_ID_LEN, "get_kid() must write KEY_ID_LEN bytes");
+    assert!(kid.iter().any(|&b| b != 0), "get_kid() must populate the output buffer");
 
     let _ = store;
 }
