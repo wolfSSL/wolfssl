@@ -3950,7 +3950,7 @@ int test_wc_mlkem_decapsulate_pubonly_fails(void)
     return EXPECT_RESULT();
 } /* END test_wc_mlkem_decapsulate_pubonly_fails */
 
-/* Verify that the FO re-encryption check catches ciphertext tampering
+/* Verify that the re-encryption check catches ciphertext tampering
  * at various byte offsets and falls back to implicit rejection. */
 int test_wc_mlkem_decap_fo_reject(void)
 {
