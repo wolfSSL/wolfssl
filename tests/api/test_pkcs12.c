@@ -485,7 +485,7 @@ int test_wc_PKCS12_truncated_mac_bypass(void)
     byte unicodePw[2 * sizeof(password) + 2];
     int  unicodePwLen = 0;
     byte macKey[WC_SHA256_DIGEST_SIZE];
-    byte fullMac[WC_SHA256_DIGEST_SIZE];
+    byte fullMac[WC_SHA256_DIGEST_SIZE] = {0};
     Hmac hmac;
     int  hmacInited = 0;
     word32 i;
