@@ -352,8 +352,11 @@ int test_wolfSSL_BN_enc_dec(void)
         ExpectIntEQ(padOut[0], 0x00);
         ExpectIntEQ(padOut[1], 0x00);
         ExpectIntEQ(padOut[2], 0x00);
-        /* Restore a = 2 for subsequent tests */
+        /* toLen == 0 with zero-valued BN is valid */
+        ExpectIntEQ(BN_bn2binpad(a, padOut, 0), 0);
+        /* toLen == 0 with non-zero BN is an error */
         ExpectIntEQ(BN_set_word(a, 2), 1);
+        ExpectIntEQ(BN_bn2binpad(a, padOut, 0), -1);
     }
 
     ExpectNotNull(str = BN_bn2hex(a));
