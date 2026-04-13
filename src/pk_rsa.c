@@ -454,6 +454,10 @@ WOLFSSL_RSA *wolfSSL_d2i_RSAPublicKey(WOLFSSL_RSA **out,
         WOLFSSL_ERROR_MSG("Bad argument");
         err = 1;
     }
+    if ((!err) && (derSz <= 0)) {
+        WOLFSSL_ERROR_MSG("Bad argument");
+        err = 1;
+    }
     /* Create a new RSA key to return. */
     if ((!err) && ((rsa = wolfSSL_RSA_new()) == NULL)) {
         WOLFSSL_ERROR_MSG("RSA_new failed");
@@ -500,6 +504,10 @@ WOLFSSL_RSA *wolfSSL_d2i_RSAPrivateKey(WOLFSSL_RSA **out,
 
     /* Validate parameters. */
     if (derBuf == NULL) {
+        WOLFSSL_ERROR_MSG("Bad argument");
+        err = 1;
+    }
+    if ((!err) && (derSz <= 0)) {
         WOLFSSL_ERROR_MSG("Bad argument");
         err = 1;
     }

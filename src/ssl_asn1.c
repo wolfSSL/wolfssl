@@ -913,7 +913,7 @@ WOLFSSL_ASN1_BIT_STRING* wolfSSL_d2i_ASN1_BIT_STRING(
 
     WOLFSSL_ENTER("wolfSSL_d2i_ASN1_BIT_STRING");
 
-    if (src == NULL || *src == NULL || len == 0)
+    if (src == NULL || *src == NULL || len <= 0)
         return NULL;
 
     if (GetASNTag(*src, &idx, &tag, (word32)len) < 0)
@@ -2984,7 +2984,7 @@ static WOLFSSL_ASN1_STRING* d2i_ASN1_STRING(WOLFSSL_ASN1_STRING** out,
 
     WOLFSSL_ENTER("d2i_ASN1_STRING");
 
-    if (src == NULL || *src == NULL || len == 0)
+    if (src == NULL || *src == NULL || len <= 0)
         return NULL;
 
     if (GetASNTag(*src, &idx, &tag, (word32)len) < 0)
@@ -3159,6 +3159,11 @@ int wolfSSL_ASN1_STRING_set(WOLFSSL_ASN1_STRING* asn1, const void* data, int sz)
     }
 
     if (ret == 1) {
+        /* Cast to size_t BEFORE adding 1 to prevent signed overflow
+         * when sz == INT_MAX. By this point sz >= 0 (negative sz is
+         * handled above as OpenSSL -1/strlen compat). */
+        size_t allocSz = (size_t)sz + 1;
+
         /* Dispose of any existing dynamic data. */
         if (asn1->isDynamic) {
             XFREE(asn1->data, NULL, DYNAMIC_TYPE_OPENSSL);
@@ -3166,9 +3171,9 @@ int wolfSSL_ASN1_STRING_set(WOLFSSL_ASN1_STRING* asn1, const void* data, int sz)
         }
 
         /* Check string will fit - including NUL. */
-        if (sz + 1 > CTC_NAME_SIZE) {
+        if (allocSz > CTC_NAME_SIZE) {
             /* Allocate new buffer. */
-            asn1->data = (char*)XMALLOC((size_t)(sz + 1), NULL,
+            asn1->data = (char*)XMALLOC(allocSz, NULL,
                 DYNAMIC_TYPE_OPENSSL);
             if (asn1->data == NULL) {
                 ret = 0;
