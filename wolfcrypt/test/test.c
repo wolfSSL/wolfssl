@@ -32776,7 +32776,7 @@ static wc_test_ret_t hpke_test_multi(Hpke* hpke)
         else
             ret = 0;
     }
-    /* inSz = 0 is less than Npk → BUFFER_E */
+    /* inSz = 0 is less than Npk */
     if (ret == 0) {
         ret = wc_HpkeDeserializePublicKey(hpke, &deserializedKey, pubKey, 0);
         if (ret != WC_NO_ERR_TRACE(BUFFER_E))
