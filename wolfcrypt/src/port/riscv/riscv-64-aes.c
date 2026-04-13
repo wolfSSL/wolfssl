@@ -21,6 +21,11 @@
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
+#if FIPS_VERSION3_GE(2,0,0)
+    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
+    #define FIPS_NO_WRAPPERS
+#endif
+
 #include <wolfssl/wolfcrypt/port/riscv/riscv-64-asm.h>
 
 #if !defined(NO_AES)
@@ -35,6 +40,15 @@
 #endif
 
 #ifdef WOLFSSL_RISCV_ASM
+
+#if FIPS_VERSION3_GE(6,0,0)
+    const unsigned int wolfCrypt_FIPS_aes_ro_sanity[2] =
+                                                     { 0x1a2b3c4d, 0x00000002 };
+    int wolfCrypt_FIPS_AES_sanity(void)
+    {
+        return 0;
+    }
+#endif
 
 /* Copy a 16-byte value from in to out.
  *

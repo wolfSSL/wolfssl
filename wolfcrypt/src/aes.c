@@ -1234,7 +1234,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
 /* implemented in wolfcrypt/src/port/psa/psa_aes.c */
 
 #elif defined(WOLFSSL_RISCV_ASM)
-/* implemented in wolfcrypt/src/port/risc-v/riscv-64-aes.c */
+/* implemented in wolfcrypt/src/port/riscv/riscv-64-aes.c */
 
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
 /* implemented in wolfcrypt/src/port/silabs/silabs_aes.c */
@@ -12892,7 +12892,7 @@ int wc_AesCcmCheckTagSize(int sz)
 }
 
 #if defined(WOLFSSL_RISCV_ASM)
-    /* implementation located in wolfcrypt/src/port/risc-v/riscv-64-aes.c */
+    /* implementation located in wolfcrypt/src/port/riscv/riscv-64-aes.c */
 
 #elif defined(HAVE_COLDFIRE_SEC)
     #error "Coldfire SEC doesn't currently support AES-CCM mode"
