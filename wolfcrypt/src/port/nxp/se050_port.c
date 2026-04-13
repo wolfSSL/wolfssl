@@ -2600,7 +2600,7 @@ int se050_ecc_create_key(struct ecc_key* key, int curve_id, int keySize)
     sss_key_store_t   host_keystore;
     uint8_t           derBuf[SE050_ECC_DER_MAX];
     size_t            derSz = sizeof(derBuf);
-    word32            keyId;
+    word32            keyId = 0;
     int               keySizeBits;
     sss_cipher_type_t curveType;
     int               keyCreated = 0;
@@ -2694,7 +2694,7 @@ int se050_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
     sss_object_t        ref_public_key;
     sss_object_t        deriveKey;
     sss_derive_key_t    ctx_derive_key;
-    word32              keyId;
+    word32              keyId = 0;
     int                 keySize;
     int                 keySizeBits;
     sss_cipher_type_t   curveType;
