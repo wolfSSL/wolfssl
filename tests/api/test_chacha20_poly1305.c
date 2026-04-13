@@ -413,10 +413,10 @@ int test_wc_Chacha20Poly1305BadArgCoverage(void)
 
     /* Pair B – len=0 with NULL input: this build still rejects with
      * BAD_FUNC_ARG; accept either outcome for branch coverage. */
-    (void)wc_ChaCha20Poly1305_Decrypt(tv_key, tv_iv,
+    ExpectIntLE(wc_ChaCha20Poly1305_Decrypt(tv_key, tv_iv,
         NULL, 0,
         NULL, 0,
-        tag, buf);
+        tag, buf), 0);
 
     /* -------------------------------------------------------------------
      * wc_ChaCha20Poly1305_CheckTag L136:
@@ -853,7 +853,7 @@ int test_wc_Chacha20Poly1305DecisionCoverage(void)
         {
             byte zeros[sizeof(tv_plaintext)];
             XMEMSET(zeros, 0, sizeof(zeros));
-            ExpectIntEQ(XMEMCMP(pt, zeros, sizeof(tv_plaintext)), 0);
+            ExpectIntEQ(XMEMCMP(pt, zeros, sizeof(pt)), 0);
         }
     }
 

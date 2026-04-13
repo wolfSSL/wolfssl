@@ -1611,7 +1611,8 @@ int test_wc_RsaRequirementCoverage(void)
     }
 #endif /* WC_RSA_PSS && !NO_SHA256 */
 
-#if defined(WOLFSSL_KEY_GEN)
+#if defined(WOLFSSL_KEY_GEN) && \
+    (!defined(RSA_MIN_SIZE) || (RSA_MIN_SIZE <= 1024))
     {
         /* 1024-bit generation path hits size-branch decisions that the
          * 2048-bit decode-only fixture flow cannot reach. */

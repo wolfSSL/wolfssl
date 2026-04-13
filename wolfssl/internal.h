@@ -3173,7 +3173,7 @@ struct TLSX {
 WOLFSSL_TEST_VIS TLSX* TLSX_Find(TLSX* list, TLSX_Type type);
 WOLFSSL_LOCAL void  TLSX_Remove(TLSX** list, TLSX_Type type, void* heap);
 WOLFSSL_LOCAL void  TLSX_FreeAll(TLSX* list, void* heap);
-WOLFSSL_LOCAL int   TLSX_SupportExtensions(WOLFSSL* ssl);
+WOLFSSL_TEST_VIS int   TLSX_SupportExtensions(WOLFSSL* ssl);
 WOLFSSL_LOCAL int   TLSX_PopulateExtensions(WOLFSSL* ssl, byte isRequest);
 
 #if defined(WOLFSSL_TLS13) || !defined(NO_WOLFSSL_CLIENT)

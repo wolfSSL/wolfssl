@@ -129,7 +129,7 @@ int test_wc_DhBadArgCoverage(void)
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     /* --- wc_DhExportParamsRaw length-only query (L3269): all buffers NULL
-     *     -> returns sizes via *pSz/*qSz/*gSz and LENGTH_ONLY_E --- */
+     *     -> returns sizes through the size outputs and LENGTH_ONLY_E --- */
     pSz = 0; qSz = 0; gSz = 0;
     ExpectIntEQ(wc_DhExportParamsRaw(&key, NULL, &pSz, NULL, &qSz,
                                      NULL, &gSz),

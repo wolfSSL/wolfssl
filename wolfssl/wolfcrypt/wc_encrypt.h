@@ -113,7 +113,7 @@ WOLFSSL_API int wc_Des3_CbcDecryptWithKey(byte* out,
 #endif /* WOLFSSL_ENCRYPTED_KEYS */
 
 #ifndef NO_PWDBASED
-    WOLFSSL_LOCAL int wc_CryptKey(const char* password, int passwordSz,
+    WOLFSSL_TEST_VIS int wc_CryptKey(const char* password, int passwordSz,
         const byte* salt, int saltSz, int iterations, int id, byte* input,
         int length, int version, byte* cbcIv, int enc, int shaOid);
 #endif
@@ -123,4 +123,3 @@ WOLFSSL_API int wc_Des3_CbcDecryptWithKey(byte* out,
 #endif
 
 #endif /* WOLF_CRYPT_ENCRYPT_H */
-

@@ -3876,10 +3876,10 @@ int test_tls13_mcdc_hrr_coverage(void)
      * prefers P-256 -> server sends HRR with key_share extension selecting
      * P-256 -> client retries with P-256 key share.                        */
     int server_grp = WOLFSSL_ECC_SECP256R1;
-#if defined(HAVE_ECC521) && (ECC_MIN_KEY_SZ <= 521)
-    int client_grp = WOLFSSL_ECC_SECP521R1;
-#elif defined(HAVE_ECC384) && (ECC_MIN_KEY_SZ <= 384)
+#if defined(HAVE_ECC384) && (ECC_MIN_KEY_SZ <= 384)
     int client_grp = WOLFSSL_ECC_SECP384R1;
+#elif defined(HAVE_ECC521) && (ECC_MIN_KEY_SZ <= 521)
+    int client_grp = WOLFSSL_ECC_SECP521R1;
 #else
     /* Both sides agree from the start - HRR still triggered via cookie.    */
     int client_grp = WOLFSSL_ECC_SECP256R1;
@@ -4354,7 +4354,7 @@ int test_tls13_mcdc_batch2_early_data(void)
                     wolfTLSv1_3_server_method), 0);
 
     /* Server enables early data acceptance.                                  */
-    ExpectIntEQ(wolfSSL_CTX_set_max_early_data(ctx_s, 1024), 0);
+    ExpectIntEQ(wolfSSL_CTX_set_max_early_data(ctx_s, 1024), WOLFSSL_SUCCESS);
 
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
 
@@ -4373,7 +4373,7 @@ int test_tls13_mcdc_batch2_early_data(void)
                     wolfTLSv1_3_client_method,
                     wolfTLSv1_3_server_method), 0);
 
-    ExpectIntEQ(wolfSSL_CTX_set_max_early_data(ctx_s, 1024), 0);
+    ExpectIntEQ(wolfSSL_CTX_set_max_early_data(ctx_s, 1024), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
 
     /* Client writes early data (exercises SendTls13ClientHello + early_data
@@ -4447,9 +4447,9 @@ int test_tls13_mcdc_batch2_sigalgs(void)
     }
     /* Restrict to ed25519 sigalg on both sides.                              */
     if (EXPECT_SUCCESS()) {
-        ExpectIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx_c, "ed25519"),
+        ExpectIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx_c, "ED25519"),
                     WOLFSSL_SUCCESS);
-        ExpectIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx_s, "ed25519"),
+        ExpectIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx_s, "ED25519"),
                     WOLFSSL_SUCCESS);
     }
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
@@ -4476,9 +4476,9 @@ int test_tls13_mcdc_batch2_sigalgs(void)
                     caEd448CertFile, 0), WOLFSSL_SUCCESS);
     }
     if (EXPECT_SUCCESS()) {
-        ExpectIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx_c, "ed448"),
+        ExpectIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx_c, "ED448"),
                     WOLFSSL_SUCCESS);
-        ExpectIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx_s, "ed448"),
+        ExpectIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx_s, "ED448"),
                     WOLFSSL_SUCCESS);
     }
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
@@ -4645,7 +4645,7 @@ int test_tls13_mcdc_batch2_mutual_sigalgs(void)
     (void)wolfSSL_CTX_load_verify_locations(ctx_s, caCertFile, 0);
 
     if (EXPECT_SUCCESS()) {
-        ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl_s, "ed25519"),
+        ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl_s, "ED25519"),
                     WOLFSSL_SUCCESS);
     }
     if (EXPECT_SUCCESS()) {
@@ -4694,8 +4694,10 @@ int test_tls13_mcdc_batch2_alpn(void)
     struct test_memio_ctx test_ctx;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
-    char proto[16];
+    char *proto = NULL;
     unsigned short protoSz = 0;
+    char alpn_h2[] = "h2";
+    char alpn_http11[] = "http/1.1";
 
     /* ---- sub-test A: matching ALPN protocol "h2" -------------------------- */
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
@@ -4704,19 +4706,19 @@ int test_tls13_mcdc_batch2_alpn(void)
                     wolfTLSv1_3_server_method), 0);
 
     if (EXPECT_SUCCESS()) {
-        ExpectIntEQ(wolfSSL_UseALPN(ssl_c, "h2", 2,
+        ExpectIntEQ(wolfSSL_UseALPN(ssl_c, alpn_h2, 2,
                     WOLFSSL_ALPN_FAILED_ON_MISMATCH), WOLFSSL_SUCCESS);
-        ExpectIntEQ(wolfSSL_UseALPN(ssl_s, "h2", 2,
+        ExpectIntEQ(wolfSSL_UseALPN(ssl_s, alpn_h2, 2,
                     WOLFSSL_ALPN_FAILED_ON_MISMATCH), WOLFSSL_SUCCESS);
     }
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
 
     /* Verify the negotiated protocol is "h2".                               */
     if (EXPECT_SUCCESS()) {
-        protoSz = (unsigned short)sizeof(proto) - 1;
-        ExpectIntEQ(wolfSSL_ALPN_GetProtocol(ssl_c, proto, &protoSz),
+        ExpectIntEQ(wolfSSL_ALPN_GetProtocol(ssl_c, &proto, &protoSz),
                     WOLFSSL_SUCCESS);
         ExpectIntEQ(protoSz, 2);
+        ExpectIntEQ(XMEMCMP(proto, alpn_h2, protoSz), 0);
     }
 
     wolfSSL_free(ssl_c); ssl_c = NULL;
@@ -4731,9 +4733,9 @@ int test_tls13_mcdc_batch2_alpn(void)
                     wolfTLSv1_3_server_method), 0);
 
     if (EXPECT_SUCCESS()) {
-        ExpectIntEQ(wolfSSL_UseALPN(ssl_c, "h2", 2,
+        ExpectIntEQ(wolfSSL_UseALPN(ssl_c, alpn_h2, 2,
                     WOLFSSL_ALPN_CONTINUE_ON_MISMATCH), WOLFSSL_SUCCESS);
-        ExpectIntEQ(wolfSSL_UseALPN(ssl_s, "http/1.1", 8,
+        ExpectIntEQ(wolfSSL_UseALPN(ssl_s, alpn_http11, 8,
                     WOLFSSL_ALPN_CONTINUE_ON_MISMATCH), WOLFSSL_SUCCESS);
     }
     /* With CONTINUE_ON_MISMATCH handshake must succeed even without agreement. */
@@ -4935,4 +4937,3 @@ int test_tls13_mcdc_batch2_statemachine(void)
 #endif /* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES && ... */
     return EXPECT_RESULT();
 }
-

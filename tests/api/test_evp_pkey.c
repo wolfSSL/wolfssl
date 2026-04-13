@@ -3600,7 +3600,7 @@ int test_wolfSSL_EvpPkeyKeygenBatch4(void)
         EVP_PKEY     *pout = NULL;
         if (ctx != NULL) {
             (void)wolfSSL_EVP_PKEY_keygen_init(ctx);
-            (void)wolfSSL_EVP_PKEY_CTX_set_rsa_keygen_bits(ctx, 1024);
+            (void)wolfSSL_EVP_PKEY_CTX_set_rsa_keygen_bits(ctx, 2048);
             ExpectIntEQ(wolfSSL_EVP_PKEY_keygen(ctx, &pout), WOLFSSL_SUCCESS);
             wolfSSL_EVP_PKEY_free(pout);
             wolfSSL_EVP_PKEY_CTX_free(ctx);
