@@ -70,6 +70,7 @@
 #define WOLFSSL_SHA512
 
 #define HAVE_HKDF
+#define HAVE_HPKE
 
 #undef  NO_DH
 #define HAVE_PUBLIC_FFDHE

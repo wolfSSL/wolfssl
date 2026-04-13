@@ -40,6 +40,8 @@ apt-get install mono-complete
 
 ### Build wolfSSL and install
 
+#### System-wide install
+
 ```
 ./autogen.sh
 cp wrapper/CSharp/user_settings.h .
@@ -47,6 +49,16 @@ cp wrapper/CSharp/user_settings.h .
 make
 make check
 sudo make install
+```
+
+#### Local-only install (no sudo required)
+
+```
+./autogen.sh
+cp wrapper/CSharp/user_settings.h .
+./configure --enable-usersettings --prefix=$(pwd)/install
+make
+make install
 ```
 
 ### Build and run the wolfCrypt test wrapper
@@ -57,7 +69,20 @@ Compile wolfCrypt test:
 
 ```
 mcs wolfCrypt-Test/wolfCrypt-Test.cs wolfSSL_CSharp/wolfCrypt.cs wolfSSL_CSharp/wolfSSL.cs wolfSSL_CSharp/X509.cs -OUT:wolfcrypttest.exe
+```
+
+Run with system-wide install:
+
+```
 mono wolfcrypttest.exe
+```
+
+Run with local-only install. The compile step above produced
+`wolfcrypttest.exe` inside `wrapper/CSharp/`; this run command is invoked
+from the wolfSSL project root so the relative paths line up:
+
+```
+LD_LIBRARY_PATH=./install/lib mono wrapper/CSharp/wolfcrypttest.exe
 ```
 
 ### Build and run the wolfSSL client/server test
