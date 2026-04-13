@@ -210,6 +210,12 @@ int test_wc_CamelliaCbcEncryptDecrypt(void)
         WC_CAMELLIA_BLOCK_SIZE), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_CamelliaCbcDecrypt(&camellia, dec, NULL,
         WC_CAMELLIA_BLOCK_SIZE), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* non-block-aligned input rejected with BAD_LENGTH_E */
+    ExpectIntEQ(wc_CamelliaCbcEncrypt(&camellia, enc, plainT,
+        WC_CAMELLIA_BLOCK_SIZE - 1), WC_NO_ERR_TRACE(BAD_LENGTH_E));
+    ExpectIntEQ(wc_CamelliaCbcDecrypt(&camellia, dec, enc,
+        WC_CAMELLIA_BLOCK_SIZE - 1), WC_NO_ERR_TRACE(BAD_LENGTH_E));
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_CamelliaCbcEncryptDecrypt */

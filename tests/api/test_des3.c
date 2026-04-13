@@ -165,6 +165,12 @@ int test_wc_Des3_CbcEncryptDecrypt(void)
     ExpectIntEQ(wc_Des3_CbcDecrypt(&des, plain, NULL, 24),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
+    /* non-block-aligned input rejected with BAD_LENGTH_E */
+    ExpectIntEQ(wc_Des3_CbcEncrypt(&des, cipher, vector, DES_BLOCK_SIZE - 1),
+        WC_NO_ERR_TRACE(BAD_LENGTH_E));
+    ExpectIntEQ(wc_Des3_CbcDecrypt(&des, plain, cipher, DES_BLOCK_SIZE - 1),
+        WC_NO_ERR_TRACE(BAD_LENGTH_E));
+
     wc_Des3Free(&des);
 #endif
     return EXPECT_RESULT();
