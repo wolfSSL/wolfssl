@@ -14455,7 +14455,16 @@ int wc_PKCS7_DecodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                 if (GetLength_ex(pkiMsg, &idx, &length, pkiMsgSz, 0) <= 0) {
                     ret = ASN_PARSE_E;
                 }
-            #ifndef NO_PKCS7_STREAM
+
+            #ifdef NO_PKCS7_STREAM
+                /* In non-streaming mode, validate authenticatedAttributes
+                 * length is within the input buffer. The streaming path
+                 * handles this via wc_PKCS7_AddDataToStream instead. */
+                if (ret == 0 &&
+                        (idx > pkiMsgSz || (word32)length > pkiMsgSz - idx)) {
+                    ret = ASN_PARSE_E;
+                }
+            #else
                 pkcs7->stream->expected = (word32)length;
             #endif
                 encodedAttribSz = (word32)length + (idx - encodedAttribIdx);
