@@ -133,8 +133,7 @@ int test_wc_PKCS7_InitWithCert(void)
 
         ExpectTrue((fp = XFOPEN("./certs/1024/client-cert.der", "rb")) !=
             XBADFILE);
-        ExpectIntGT(certSz = (int)XFREAD(cert, 1, sizeof_client_cert_der_1024,
-            fp), 0);
+        ExpectIntGT(certSz = (int)XFREAD(cert, 1, sizeof(cert), fp), 0);
         if (fp != XBADFILE)
             XFCLOSE(fp);
     #endif
@@ -295,8 +294,7 @@ int test_wc_PKCS7_InitWithCert_guardrails(void)
 
         ExpectTrue((fp = XFOPEN("./certs/1024/client-cert.der", "rb")) !=
             XBADFILE);
-        ExpectIntGT(tmpCertSz = (int)XFREAD(cert, 1,
-            sizeof_client_cert_der_1024, fp), 0);
+        ExpectIntGT(tmpCertSz = (int)XFREAD(cert, 1, sizeof(cert), fp), 0);
         certSz = (word32)tmpCertSz;
         if (fp != XBADFILE)
             XFCLOSE(fp);
@@ -376,8 +374,7 @@ int test_wc_PKCS7_EncodeData(void)
 
         ExpectTrue((fp = XFOPEN("./certs/1024/client-cert.der", "rb")) !=
             XBADFILE);
-        ExpectIntGT(certSz = (int)XFREAD(cert, 1, sizeof_client_cert_der_1024,
-            fp), 0);
+        ExpectIntGT(certSz = (int)XFREAD(cert, 1, sizeof(cert), fp), 0);
         if (fp != XBADFILE) {
             XFCLOSE(fp);
             fp = XBADFILE;
@@ -385,8 +382,7 @@ int test_wc_PKCS7_EncodeData(void)
 
         ExpectTrue((fp = XFOPEN("./certs/1024/client-key.der", "rb")) !=
             XBADFILE);
-        ExpectIntGT(keySz = (int)XFREAD(key, 1, sizeof_client_key_der_1024, fp),
-            0);
+        ExpectIntGT(keySz = (int)XFREAD(key, 1, sizeof(key), fp), 0);
         if (fp != XBADFILE)
             XFCLOSE(fp);
     #endif
@@ -729,8 +725,7 @@ int test_wc_PKCS7_EncodeSignedData(void)
 
         ExpectTrue((fp = XFOPEN("./certs/1024/client-cert.der", "rb")) !=
             XBADFILE);
-        ExpectIntGT(certSz = (int)XFREAD(cert, 1, sizeof_client_cert_der_1024,
-            fp), 0);
+        ExpectIntGT(certSz = (int)XFREAD(cert, 1, sizeof(cert), fp), 0);
         if (fp != XBADFILE) {
             XFCLOSE(fp);
             fp = XBADFILE;
@@ -738,8 +733,7 @@ int test_wc_PKCS7_EncodeSignedData(void)
 
         ExpectTrue((fp = XFOPEN("./certs/1024/client-key.der", "rb")) !=
             XBADFILE);
-        ExpectIntGT(keySz = (int)XFREAD(key, 1, sizeof_client_key_der_1024, fp),
-            0);
+        ExpectIntGT(keySz = (int)XFREAD(key, 1, sizeof(key), fp), 0);
         if (fp != XBADFILE)
             XFCLOSE(fp);
     #endif
@@ -1236,8 +1230,7 @@ int test_wc_PKCS7_EncodeSignedData_ex(void)
 
         ExpectTure((fp = XFOPEN("./certs/1024/client-cert.der", "rb")) !=
             XBADFILE);
-        ExpectIntGT(certSz = (int)XFREAD(cert, 1, sizeof_client_cert_der_1024,
-            fp), 0);
+        ExpectIntGT(certSz = (int)XFREAD(cert, 1, sizeof(cert), fp), 0);
         if (fp != XBADFILE) {
             XFCLOSE(fp);
             fp = XBADFILE;
@@ -1245,8 +1238,7 @@ int test_wc_PKCS7_EncodeSignedData_ex(void)
 
         ExpectTrue((fp = XFOPEN("./certs/1024/client-key.der", "rb")) !=
             XBADFILE);
-        ExpectIntGT(keySz = (int)XFREAD(key, 1, sizeof_client_key_der_1024, fp),
-            0);
+        ExpectIntGT(keySz = (int)XFREAD(key, 1, sizeof(key), fp), 0);
         if (fp != XBADFILE)
             XFCLOSE(fp);
     #endif

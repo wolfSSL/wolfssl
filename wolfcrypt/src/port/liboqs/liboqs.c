@@ -40,6 +40,7 @@ static WC_RNG* liboqsCurrentRNG;
 static wolfSSL_Mutex liboqsRNGMutex;
 
 static int liboqs_init = 0;
+static int liboqs_mutex_init = 0;
 
 
 static void wolfSSL_liboqsGetRandomData(uint8_t* buffer, size_t numOfBytes)
@@ -74,6 +75,7 @@ int wolfSSL_liboqsInit(void)
         if (ret != 0) {
             return ret;
         }
+        liboqs_mutex_init = 1;
         ret = wc_LockMutex(&liboqsRNGMutex);
         if (ret != 0) {
             return ret;
@@ -96,10 +98,13 @@ void wolfSSL_liboqsClose(void)
 {
     if (liboqs_init) {
         wc_FreeRng(&liboqsDefaultRNG);
-        wc_FreeMutex(&liboqsRNGMutex);
         OQS_destroy();
         liboqsCurrentRNG = NULL;
         liboqs_init = 0;
+    }
+    if (liboqs_mutex_init) {
+        wc_FreeMutex(&liboqsRNGMutex);
+        liboqs_mutex_init = 0;
     }
 }
 
