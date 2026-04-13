@@ -4996,6 +4996,145 @@ exit_rng:
 #endif /* WC_NO_RNG */
 
 
+/* ============================================================================
+ * Benchmark init helpers -- use id[] when WC_TEST_*_ID is defined and
+ * useDeviceID is true, else plain init.
+ * ========================================================================= */
+
+/* --- AES CBC --- */
+#if !defined(NO_AES) && defined(HAVE_AES_CBC)
+#if defined(WOLF_PRIVATE_KEY_ID) && defined(WC_TEST_AES_CBC_ID)
+static unsigned char benchAesCbcId[] = WC_TEST_AES_CBC_ID;
+static int benchAesCbcIdLen = (int)sizeof(benchAesCbcId);
+#endif
+
+static WC_MAYBE_UNUSED int bench_AesCbcInit(Aes* aes, void* heap,
+                                             int declaredDevId)
+{
+#if defined(WOLF_PRIVATE_KEY_ID) && defined(WC_TEST_AES_CBC_ID)
+    return wc_AesInit_Id(aes, benchAesCbcId, benchAesCbcIdLen, heap,
+                         declaredDevId);
+#else
+    return wc_AesInit(aes, heap, declaredDevId);
+#endif
+}
+#endif /* !NO_AES && HAVE_AES_CBC */
+
+/* --- AES GCM --- */
+#if !defined(NO_AES) && defined(HAVE_AESGCM)
+#if defined(WOLF_PRIVATE_KEY_ID) && defined(WC_TEST_AES_GCM_ID)
+static unsigned char benchAesGcmId[] = WC_TEST_AES_GCM_ID;
+static int benchAesGcmIdLen = (int)sizeof(benchAesGcmId);
+#endif
+
+static WC_MAYBE_UNUSED int bench_AesGcmInit(Aes* aes, void* heap,
+                                             int declaredDevId)
+{
+#if defined(WOLF_PRIVATE_KEY_ID) && defined(WC_TEST_AES_GCM_ID)
+    return wc_AesInit_Id(aes, benchAesGcmId, benchAesGcmIdLen, heap,
+                         declaredDevId);
+#else
+    return wc_AesInit(aes, heap, declaredDevId);
+#endif
+}
+#endif /* !NO_AES && HAVE_AESGCM */
+
+/* --- RSA --- */
+#if !defined(NO_RSA)
+#if defined(WOLF_PRIVATE_KEY_ID) && defined(WC_TEST_RSA_PRIV_ID)
+static unsigned char benchRsaPrivId[] = WC_TEST_RSA_PRIV_ID;
+static int benchRsaPrivIdLen = (int)sizeof(benchRsaPrivId);
+#endif
+
+static WC_MAYBE_UNUSED int bench_RsaInit(RsaKey* key, void* heap,
+                                          int declaredDevId)
+{
+#if defined(WOLF_PRIVATE_KEY_ID) && defined(WC_TEST_RSA_PRIV_ID)
+    return wc_InitRsaKey_Id(key, benchRsaPrivId, benchRsaPrivIdLen, heap,
+                            declaredDevId);
+#else
+    return wc_InitRsaKey_ex(key, heap, declaredDevId);
+#endif
+}
+#endif /* !NO_RSA */
+
+/* --- CMAC --- */
+#ifdef WOLFSSL_CMAC
+#if defined(WOLF_PRIVATE_KEY_ID) && defined(WC_TEST_CMAC_ID)
+static unsigned char benchCmacId[] = WC_TEST_CMAC_ID;
+static int benchCmacIdLen = (int)sizeof(benchCmacId);
+#endif
+
+static WC_MAYBE_UNUSED int bench_CmacInit(Cmac* cmac, const byte* key,
+                                           word32 keySz, int type,
+                                           void* unused, void* heap,
+                                           int declaredDevId)
+{
+#if defined(WOLF_PRIVATE_KEY_ID) && defined(WC_TEST_CMAC_ID)
+    return wc_InitCmac_Id(cmac, key, keySz, type, unused,
+                          benchCmacId, benchCmacIdLen, heap, declaredDevId);
+#elif !defined(HAVE_FIPS)
+    return wc_InitCmac_ex(cmac, key, keySz, type, unused, heap, declaredDevId);
+#else
+    (void)heap;
+    (void)declaredDevId;
+    return wc_InitCmac(cmac, key, keySz, type, unused);
+#endif
+}
+#endif /* WOLFSSL_CMAC */
+
+/* --- AES ECB --- */
+#if defined(HAVE_AES_ECB) || \
+    (defined(HAVE_FIPS) && defined(WOLFSSL_AES_DIRECT))
+#if defined(WOLF_PRIVATE_KEY_ID) && defined(WC_TEST_AES_ECB_ID)
+static unsigned char benchAesEcbId[] = WC_TEST_AES_ECB_ID;
+static int benchAesEcbIdLen = (int)sizeof(benchAesEcbId);
+#endif
+
+static WC_MAYBE_UNUSED int bench_AesEcbInit(Aes* aes, void* heap,
+                                             int declaredDevId)
+{
+#if defined(WOLF_PRIVATE_KEY_ID) && defined(WC_TEST_AES_ECB_ID)
+    return wc_AesInit_Id(aes, benchAesEcbId, benchAesEcbIdLen, heap,
+                         declaredDevId);
+#else
+    return wc_AesInit(aes, heap, declaredDevId);
+#endif
+}
+#endif /* HAVE_AES_ECB || (HAVE_FIPS && WOLFSSL_AES_DIRECT) */
+
+/* --- ECC --- */
+#ifdef HAVE_ECC
+#if defined(WOLF_PRIVATE_KEY_ID) && defined(WC_TEST_ECC_PAIR_P256_ID)
+static unsigned char benchEccPairP256Id[] = WC_TEST_ECC_PAIR_P256_ID;
+static int benchEccPairP256IdLen = (int)sizeof(benchEccPairP256Id);
+#endif
+#if defined(WOLF_PRIVATE_KEY_ID) && defined(WC_TEST_ECC_PAIR_P521_ID)
+static unsigned char benchEccPairP521Id[] = WC_TEST_ECC_PAIR_P521_ID;
+static int benchEccPairP521IdLen = (int)sizeof(benchEccPairP521Id);
+#endif
+
+static WC_MAYBE_UNUSED int bench_EccInit_Pair(ecc_key* key, int keySize,
+                                               void* heap, int declaredDevId)
+{
+#if defined(WOLF_PRIVATE_KEY_ID) && defined(WC_TEST_ECC_PAIR_P256_ID)
+    if (keySize == 32) {
+        return wc_ecc_init_id(key, benchEccPairP256Id,
+                               benchEccPairP256IdLen, heap, declaredDevId);
+    }
+#endif
+#if defined(WOLF_PRIVATE_KEY_ID) && defined(WC_TEST_ECC_PAIR_P521_ID)
+    if (keySize == 66) {
+        return wc_ecc_init_id(key, benchEccPairP521Id,
+                               benchEccPairP521IdLen, heap, declaredDevId);
+    }
+#endif
+    (void)keySize;
+    return wc_ecc_init_ex(key, heap, declaredDevId);
+}
+#endif /* HAVE_ECC */
+
+
 #ifndef NO_AES
 
 #ifdef HAVE_AES_CBC
@@ -5019,8 +5158,9 @@ static void bench_aescbc_internal(int useDeviceID,
 
     /* init keys */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
-        if ((ret = wc_AesInit(enc[i], HEAP_HINT,
-                                useDeviceID ? devId: INVALID_DEVID)) != 0) {
+        ret = bench_AesCbcInit(enc[i], HEAP_HINT,
+                              useDeviceID ? devId : INVALID_DEVID);
+        if (ret != 0) {
             printf("AesInit failed at L%d, ret = %d\n", __LINE__, ret);
             goto exit;
         }
@@ -5088,8 +5228,8 @@ exit_aes_enc:
 
     /* init keys */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
-        ret = wc_AesInit(enc[i], HEAP_HINT,
-                         useDeviceID ? devId: INVALID_DEVID);
+        ret = bench_AesCbcInit(enc[i], HEAP_HINT,
+                              useDeviceID ? devId : INVALID_DEVID);
         if (ret != 0) {
             printf("AesInit failed at L%d, ret = %d\n", __LINE__, ret);
             goto exit;
@@ -5210,8 +5350,9 @@ static void bench_aesgcm_internal(int useDeviceID,
 
     /* init keys */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
-        if ((ret = wc_AesInit(enc[i], HEAP_HINT,
-                        useDeviceID ? devId: INVALID_DEVID)) != 0) {
+        ret = bench_AesGcmInit(enc[i], HEAP_HINT,
+                              useDeviceID ? devId : INVALID_DEVID);
+        if (ret != 0) {
             printf("AesInit failed at L%d, ret = %d\n", __LINE__, ret);
             goto exit;
         }
@@ -5295,8 +5436,9 @@ exit_aes_gcm:
 
     /* init keys */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
-        if ((ret = wc_AesInit(dec[i], HEAP_HINT,
-                        useDeviceID ? devId: INVALID_DEVID)) != 0) {
+        ret = bench_AesGcmInit(dec[i], HEAP_HINT,
+                              useDeviceID ? devId : INVALID_DEVID);
+        if (ret != 0) {
             printf("AesInit failed at L%d, ret = %d\n", __LINE__, ret);
             goto exit;
         }
@@ -5708,7 +5850,7 @@ static void bench_aesecb_internal(int useDeviceID,
 
     /* init keys */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
-        if ((ret = wc_AesInit(enc[i], HEAP_HINT,
+        if ((ret = bench_AesEcbInit(enc[i], HEAP_HINT,
                                 useDeviceID ? devId: INVALID_DEVID)) != 0) {
             printf("AesInit failed at L%d, ret = %d\n", __LINE__, ret);
             goto exit;
@@ -9103,7 +9245,7 @@ static void bench_cmac_helper(word32 keySz, const char* outMsg, int useDeviceID)
     #ifdef HAVE_FIPS
         ret = wc_InitCmac(&cmac, bench_key, keySz, WC_CMAC_AES, NULL);
     #else
-        ret = wc_InitCmac_ex(&cmac, bench_key, keySz, WC_CMAC_AES, NULL,
+        ret = bench_CmacInit(&cmac, bench_key, keySz, WC_CMAC_AES, NULL,
             HEAP_HINT, useDeviceID ? devId : INVALID_DEVID);
     #endif
         if (ret != 0) {
@@ -10167,7 +10309,7 @@ void bench_rsa(int useDeviceID)
     /* init keys */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
         /* setup an async context for each key */
-        ret = wc_InitRsaKey_ex(rsaKey[i], HEAP_HINT,
+        ret = bench_RsaInit(rsaKey[i], HEAP_HINT,
             useDeviceID ? devId : INVALID_DEVID);
         if (ret < 0) {
             goto exit;
@@ -12351,7 +12493,8 @@ void bench_ecc(int useDeviceID, int curveId)
     /* init keys */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
         /* setup an context for each key */
-        if ((ret = wc_ecc_init_ex(genKey[i], HEAP_HINT, deviceID)) < 0) {
+        if ((ret = bench_EccInit_Pair(genKey[i], keySize, HEAP_HINT,
+                                      deviceID)) < 0) {
             goto exit;
         }
         ret = wc_ecc_make_key_ex(&gRng, keySize, genKey[i], curveId);

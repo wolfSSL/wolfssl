@@ -778,6 +778,12 @@ WOLFSSL_API int  wc_AesInit_Label(Aes* aes, const char* label, void* heap,
 WOLFSSL_API void wc_AesFree(Aes* aes);
 #ifndef WC_NO_CONSTRUCTORS
 WOLFSSL_API Aes* wc_AesNew(void* heap, int devId, int *result_code);
+#ifdef WOLF_PRIVATE_KEY_ID
+WOLFSSL_API Aes* wc_AesNew_Id(unsigned char* id, int len, void* heap,
+        int devId, int *result_code);
+WOLFSSL_API Aes* wc_AesNew_Label(const char* label, void* heap, int devId,
+        int *result_code);
+#endif
 WOLFSSL_API int wc_AesDelete(Aes* aes, Aes** aes_p);
 #endif
 

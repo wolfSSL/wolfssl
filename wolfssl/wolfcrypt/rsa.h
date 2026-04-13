@@ -300,6 +300,12 @@ WOLFSSL_API int  wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId);
 WOLFSSL_API int  wc_FreeRsaKey(RsaKey* key);
 #ifndef WC_NO_CONSTRUCTORS
 WOLFSSL_API RsaKey* wc_NewRsaKey(void* heap, int devId, int *result_code);
+#ifdef WOLF_PRIVATE_KEY_ID
+WOLFSSL_API RsaKey* wc_NewRsaKey_Id(unsigned char* id, int len, void* heap,
+        int devId, int *result_code);
+WOLFSSL_API RsaKey* wc_NewRsaKey_Label(const char* label, void* heap,
+        int devId, int *result_code);
+#endif
 WOLFSSL_API int  wc_DeleteRsaKey(RsaKey* key, RsaKey** key_p);
 #endif
 
