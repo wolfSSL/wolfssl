@@ -24671,10 +24671,10 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
     const char* headerEnd   = NULL;
     const char* footerEnd   = NULL;
     const char* consumedEnd = NULL;
-    const char* bufferEnd   = (const char*)(buff + longSz);
+    const char* bufferEnd   = NULL;
     long        neededSz;
     int         ret         = 0;
-    word32      sz          = (word32)longSz;
+    word32      sz          = 0;
     int         encrypted_key = 0;
     DerBuffer*  der;
     word32      algId = 0;
@@ -24694,6 +24694,14 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 #endif
 
     WOLFSSL_ENTER("PemToDer");
+
+    /* Reject negative size - would wrap word32 and corrupt pointer arithmetic. */
+    if (longSz < 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    bufferEnd = (const char*)(buff + longSz);
+    sz        = (word32)longSz;
 
     /* get PEM header and footer based on type */
     ret = wc_PemGetHeaderFooter(type, &header, &footer);
@@ -29958,6 +29966,9 @@ int wc_SetAuthKeyIdFromCert(Cert *cert, const byte *der, int derSz)
     if (cert == NULL) {
         ret = BAD_FUNC_ARG;
     }
+    else if (derSz < 0) {
+        ret = BAD_FUNC_ARG;
+    }
     else {
         /* Check if decodedCert is cached */
         if (cert->der != der) {
@@ -30462,6 +30473,9 @@ int wc_SetIssuerBuffer(Cert* cert, const byte* der, int derSz)
     if (cert == NULL) {
         ret = BAD_FUNC_ARG;
     }
+    else if (derSz < 0) {
+        ret = BAD_FUNC_ARG;
+    }
     else {
         cert->selfSigned = 0;
 
@@ -30491,6 +30505,9 @@ int wc_SetSubjectBuffer(Cert* cert, const byte* der, int derSz)
     if (cert == NULL) {
         ret = BAD_FUNC_ARG;
     }
+    else if (derSz < 0) {
+        ret = BAD_FUNC_ARG;
+    }
     else {
         /* Check if decodedCert is cached */
         if (cert->der != der) {
@@ -30516,6 +30533,9 @@ int wc_SetSubjectRaw(Cert* cert, const byte* der, int derSz)
     int ret = 0;
 
     if (cert == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+    else if (derSz < 0) {
         ret = BAD_FUNC_ARG;
     }
     else {
@@ -30550,6 +30570,9 @@ int wc_SetIssuerRaw(Cert* cert, const byte* der, int derSz)
     int ret = 0;
 
     if (cert == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+    else if (derSz < 0) {
         ret = BAD_FUNC_ARG;
     }
     else {
@@ -30589,6 +30612,9 @@ int wc_SetAltNamesBuffer(Cert* cert, const byte* der, int derSz)
     if (cert == NULL) {
        ret = BAD_FUNC_ARG;
     }
+    else if (derSz < 0) {
+        ret = BAD_FUNC_ARG;
+    }
     else {
         /* Check if decodedCert is cached */
         if (cert->der != der) {
@@ -30615,6 +30641,9 @@ int wc_SetDatesBuffer(Cert* cert, const byte* der, int derSz)
 
     if (cert == NULL) {
      ret = BAD_FUNC_ARG;
+    }
+    else if (derSz < 0) {
+        ret = BAD_FUNC_ARG;
     }
     else {
         /* Check if decodedCert is cached */
