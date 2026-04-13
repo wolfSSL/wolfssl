@@ -1658,7 +1658,10 @@ WOLFSSL_LOCAL int X509StorePushCertsToCM(WOLFSSL_X509_STORE* store)
         store->trusted = NULL;
     }
 
-    return anyFail ? WOLFSSL_FATAL_ERROR : WOLFSSL_SUCCESS;
+    if (anyFail) {
+        return WOLFSSL_FATAL_ERROR;
+    }
+    return WOLFSSL_SUCCESS;
 }
 
 int wolfSSL_X509_STORE_add_cert(WOLFSSL_X509_STORE* store, WOLFSSL_X509* x509)
