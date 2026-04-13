@@ -16958,9 +16958,10 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                      * are to be bound into a certificate, the subject
                      * alternative name extension MUST be used." */
                     if (args->dCert->altNames) {
-                        if (CheckForAltNames(args->dCert,
-                                domainName, (domainName == NULL ? 0 :
-                                (word32)XSTRLEN((const char *)domainName)),
+                        if (CheckForAltNames(
+                                args->dCert,
+                                domainName,
+                                (word32)XSTRLEN((const char *)domainName),
                                 NULL, 0, 0) != 1) {
                             WOLFSSL_MSG("DomainName match on alt names failed");
                             /* try to get peer key still */
@@ -16973,9 +16974,9 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         if (MatchDomainName(
                                 args->dCert->subjectCN,
                                 args->dCert->subjectCNLen,
-                                domainName, (domainName == NULL ? 0 :
-                                (word32)XSTRLEN((const char *)domainName)
-                                ), 0) == 0)
+                                domainName,
+                                (word32)XSTRLEN((const char *)domainName),
+                                0) == 0)
                     #endif
                         {
                             WOLFSSL_MSG("DomainName match failed");
@@ -16986,16 +16987,19 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 #else /* WOLFSSL_ALL_NO_CN_IN_SAN */
                     /* Old behavior. */
                 #ifndef  WOLFSSL_HOSTNAME_VERIFY_ALT_NAME_ONLY
-                    if (MatchDomainName(args->dCert->subjectCN,
+                    if (MatchDomainName(
+                                args->dCert->subjectCN,
                                 args->dCert->subjectCNLen,
-                                domainName, (domainName == NULL ? 0 :
-                                (word32)XSTRLEN(domainName)), 0) == 0)
+                                domainName,
+                                (word32)XSTRLEN((const char *)domainName),
+                                0) == 0)
                 #endif
                     {
-                        if (CheckForAltNames(args->dCert,
-                                 domainName, (domainName == NULL ? 0 :
-                                 (word32)XSTRLEN(domainName)),
-                                 NULL, 0, 0) != 1) {
+                        if (CheckForAltNames(
+                                args->dCert,
+                                domainName,
+                                (word32)XSTRLEN((const char *)domainName),
+                                NULL, 0, 0) != 1) {
                             WOLFSSL_MSG("DomainName match failed");
                             /* try to get peer key still */
                             ret = DOMAIN_NAME_MISMATCH;
