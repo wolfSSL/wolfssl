@@ -5218,9 +5218,345 @@ int test_wc_AesEaxDecryptAuth(void)
     return EXPECT_RESULT();
 } /* END test_wc_AesEaxDecryptAuth() */
 
+/*
+ * Testing AES-EAX streaming (incremental) API:
+ *   wc_AesEaxInit, wc_AesEaxEncryptUpdate, wc_AesEaxAuthDataUpdate,
+ *   wc_AesEaxEncryptFinal, wc_AesEaxDecryptUpdate, wc_AesEaxDecryptFinal,
+ *   wc_AesEaxFree
+ */
+int test_wc_AesEaxStream(void)
+{
+    EXPECT_DECLS;
+
+#ifdef WOLFSSL_AES_128
+    /* Wycheproof AES-EAX 128-bit key vectors */
+
+    /* Vector 1: empty plaintext - AAD passed via Init */
+    const byte key1[]   = {0x23, 0x39, 0x52, 0xde, 0xe4, 0xd5, 0xed, 0x5f,
+                            0x9b, 0x9c, 0x6d, 0x6f, 0xf8, 0x0f, 0xf4, 0x78};
+    const byte nonce1[] = {0x62, 0xec, 0x67, 0xf9, 0xc3, 0xa4, 0xa4, 0x07,
+                            0xfc, 0xb2, 0xa8, 0xc4, 0x90, 0x31, 0xa8, 0xb3};
+    const byte aad1[]   = {0x6b, 0xfb, 0x91, 0x4f, 0xd0, 0x7e, 0xae, 0x6b};
+    const byte tag1[]   = {0xe0, 0x37, 0x83, 0x0e, 0x83, 0x89, 0xf2, 0x7b,
+                            0x02, 0x5a, 0x2d, 0x65, 0x27, 0xe7, 0x9d, 0x01};
+
+    /* Vector 2: 2-byte plaintext - AAD passed via EncryptUpdate */
+    const byte key2[]   = {0x91, 0x94, 0x5d, 0x3f, 0x4d, 0xcb, 0xee, 0x0b,
+                            0xf4, 0x5e, 0xf5, 0x22, 0x55, 0xf0, 0x95, 0xa4};
+    const byte nonce2[] = {0xbe, 0xca, 0xf0, 0x43, 0xb0, 0xa2, 0x3d, 0x84,
+                            0x31, 0x94, 0xba, 0x97, 0x2c, 0x66, 0xde, 0xbd};
+    const byte aad2[]   = {0xfa, 0x3b, 0xfd, 0x48, 0x06, 0xeb, 0x53, 0xfa};
+    const byte pt2[]    = {0xf7, 0xfb};
+    const byte ct2[]    = {0x19, 0xdd};
+    const byte tag2[]   = {0x5c, 0x4c, 0x93, 0x31, 0x04, 0x9d, 0x0b, 0xda,
+                            0xb0, 0x27, 0x74, 0x08, 0xf6, 0x79, 0x67, 0xe5};
+
+    /* Vector 3: 5-byte plaintext - multi-chunk, AAD via AuthDataUpdate */
+    const byte key3[]   = {0x01, 0xf7, 0x4a, 0xd6, 0x40, 0x77, 0xf2, 0xe7,
+                            0x04, 0xc0, 0xf6, 0x0a, 0xda, 0x3d, 0xd5, 0x23};
+    const byte nonce3[] = {0x70, 0xc3, 0xdb, 0x4f, 0x0d, 0x26, 0x36, 0x84,
+                            0x00, 0xa1, 0x0e, 0xd0, 0x5d, 0x2b, 0xff, 0x5e};
+    const byte aad3[]   = {0x23, 0x4a, 0x34, 0x63, 0xc1, 0x26, 0x4a, 0xc6};
+    const byte pt3[]    = {0x1a, 0x47, 0xcb, 0x49, 0x33};
+    const byte ct3[]    = {0xd8, 0x51, 0xd5, 0xba, 0xe0};
+    const byte tag3[]   = {0x3a, 0x59, 0xf2, 0x38, 0xa2, 0x3e, 0x39, 0x19,
+                            0x9d, 0xc9, 0x26, 0x66, 0x26, 0xc4, 0x0f, 0x80};
+
+    AesEax eax;
+    byte   out[16];
+    byte   tagBuf[WC_AES_BLOCK_SIZE];
+
+    XMEMSET(&eax, 0, sizeof(eax));
+    XMEMSET(out, 0, sizeof(out));
+    XMEMSET(tagBuf, 0, sizeof(tagBuf));
+
+    /* --- Test 1: empty plaintext, AAD passed to Init --- */
+    ExpectIntEQ(wc_AesEaxInit(&eax, key1, sizeof(key1),
+                              nonce1, sizeof(nonce1),
+                              aad1, sizeof(aad1)), 0);
+    ExpectIntEQ(wc_AesEaxEncryptFinal(&eax, tagBuf, sizeof(tag1)), 0);
+    ExpectBufEQ(tagBuf, tag1, sizeof(tag1));
+    ExpectIntEQ(wc_AesEaxFree(&eax), 0);
+
+    /* --- Test 1d: empty plaintext decrypt --- */
+    ExpectIntEQ(wc_AesEaxInit(&eax, key1, sizeof(key1),
+                              nonce1, sizeof(nonce1),
+                              aad1, sizeof(aad1)), 0);
+    ExpectIntEQ(wc_AesEaxDecryptFinal(&eax, tag1, sizeof(tag1)), 0);
+    ExpectIntEQ(wc_AesEaxFree(&eax), 0);
+
+    /* --- Test 2: 2-byte plaintext, single EncryptUpdate with inline AAD --- */
+    ExpectIntEQ(wc_AesEaxInit(&eax, key2, sizeof(key2),
+                              nonce2, sizeof(nonce2),
+                              NULL, 0), 0);
+    ExpectIntEQ(wc_AesEaxEncryptUpdate(&eax, out, pt2, sizeof(pt2),
+                                       aad2, sizeof(aad2)), 0);
+    ExpectBufEQ(out, ct2, sizeof(ct2));
+    ExpectIntEQ(wc_AesEaxEncryptFinal(&eax, tagBuf, sizeof(tag2)), 0);
+    ExpectBufEQ(tagBuf, tag2, sizeof(tag2));
+    ExpectIntEQ(wc_AesEaxFree(&eax), 0);
+
+    /* --- Test 2d: 2-byte ciphertext, single DecryptUpdate with inline AAD --- */
+    ExpectIntEQ(wc_AesEaxInit(&eax, key2, sizeof(key2),
+                              nonce2, sizeof(nonce2),
+                              NULL, 0), 0);
+    ExpectIntEQ(wc_AesEaxDecryptUpdate(&eax, out, ct2, sizeof(ct2),
+                                       aad2, sizeof(aad2)), 0);
+    ExpectBufEQ(out, pt2, sizeof(pt2));
+    ExpectIntEQ(wc_AesEaxDecryptFinal(&eax, tag2, sizeof(tag2)), 0);
+    ExpectIntEQ(wc_AesEaxFree(&eax), 0);
+
+    /* --- Test 3: 5-byte plaintext, multi-chunk encrypt with AuthDataUpdate --- */
+    ExpectIntEQ(wc_AesEaxInit(&eax, key3, sizeof(key3),
+                              nonce3, sizeof(nonce3),
+                              NULL, 0), 0);
+    /* Feed AAD via AuthDataUpdate split into two calls */
+    ExpectIntEQ(wc_AesEaxAuthDataUpdate(&eax, aad3, 4), 0);
+    ExpectIntEQ(wc_AesEaxAuthDataUpdate(&eax, aad3 + 4, sizeof(aad3) - 4), 0);
+    /* Encrypt plaintext in two chunks */
+    ExpectIntEQ(wc_AesEaxEncryptUpdate(&eax, out, pt3, 2, NULL, 0), 0);
+    ExpectBufEQ(out, ct3, 2);
+    ExpectIntEQ(wc_AesEaxEncryptUpdate(&eax, out + 2, pt3 + 2,
+                                       (word32)(sizeof(pt3) - 2), NULL, 0), 0);
+    ExpectBufEQ(out + 2, ct3 + 2, sizeof(ct3) - 2);
+    ExpectIntEQ(wc_AesEaxEncryptFinal(&eax, tagBuf, sizeof(tag3)), 0);
+    ExpectBufEQ(tagBuf, tag3, sizeof(tag3));
+    ExpectIntEQ(wc_AesEaxFree(&eax), 0);
+
+    /* --- Test 3d: 5-byte ciphertext, multi-chunk decrypt with AuthDataUpdate --- */
+    ExpectIntEQ(wc_AesEaxInit(&eax, key3, sizeof(key3),
+                              nonce3, sizeof(nonce3),
+                              NULL, 0), 0);
+    ExpectIntEQ(wc_AesEaxAuthDataUpdate(&eax, aad3, 4), 0);
+    ExpectIntEQ(wc_AesEaxAuthDataUpdate(&eax, aad3 + 4, sizeof(aad3) - 4), 0);
+    /* Decrypt ciphertext in two chunks */
+    ExpectIntEQ(wc_AesEaxDecryptUpdate(&eax, out, ct3, 2, NULL, 0), 0);
+    ExpectBufEQ(out, pt3, 2);
+    ExpectIntEQ(wc_AesEaxDecryptUpdate(&eax, out + 2, ct3 + 2,
+                                       (word32)(sizeof(ct3) - 2), NULL, 0), 0);
+    ExpectBufEQ(out + 2, pt3 + 2, sizeof(pt3) - 2);
+    ExpectIntEQ(wc_AesEaxDecryptFinal(&eax, tag3, sizeof(tag3)), 0);
+    ExpectIntEQ(wc_AesEaxFree(&eax), 0);
+
+    /* --- Bad args --- */
+    /* wc_AesEaxInit */
+    ExpectIntEQ(wc_AesEaxInit(NULL, key1, sizeof(key1),
+                              nonce1, sizeof(nonce1), NULL, 0),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesEaxInit(&eax, NULL, sizeof(key1),
+                              nonce1, sizeof(nonce1), NULL, 0),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesEaxInit(&eax, key1, sizeof(key1),
+                              NULL, sizeof(nonce1), NULL, 0),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* wc_AesEaxAuthDataUpdate */
+    ExpectIntEQ(wc_AesEaxAuthDataUpdate(NULL, aad1, sizeof(aad1)),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* wc_AesEaxEncryptFinal */
+    ExpectIntEQ(wc_AesEaxEncryptFinal(NULL, tagBuf, WC_AES_BLOCK_SIZE),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* wc_AesEaxDecryptFinal NULL eax */
+    ExpectIntEQ(wc_AesEaxDecryptFinal(NULL, tag1, sizeof(tag1)),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* wc_AesEaxDecryptFinal authInSz > WC_AES_BLOCK_SIZE */
+    ExpectIntEQ(wc_AesEaxInit(&eax, key1, sizeof(key1),
+                              nonce1, sizeof(nonce1), NULL, 0), 0);
+    ExpectIntEQ(wc_AesEaxDecryptFinal(&eax, tag1, WC_AES_BLOCK_SIZE + 1),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesEaxFree(&eax), 0);
+
+    /* wc_AesEaxFree NULL */
+    ExpectIntEQ(wc_AesEaxFree(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+#endif /* WOLFSSL_AES_128 */
+
+    return EXPECT_RESULT();
+} /* END test_wc_AesEaxStream() */
+
 #endif /* WOLFSSL_AES_EAX && WOLFSSL_AES_256
         * (!HAVE_FIPS || FIPS_VERSION_GE(5, 3)) && !HAVE_SELFTEST
         */
+
+/*----------------------------------------------------------------------------*
+ | AES-SIV Test
+ *----------------------------------------------------------------------------*/
+
+#if defined(WOLFSSL_AES_SIV) && defined(WOLFSSL_AES_128)
+
+/*
+ * Testing wc_AesSivEncrypt, wc_AesSivDecrypt,
+ *         wc_AesSivEncrypt_ex, wc_AesSivDecrypt_ex.
+ * Uses RFC 5297 Example A.1 (single assoc) and A.2 (two assocs).
+ */
+int test_wc_AesSivEncryptDecrypt(void)
+{
+    EXPECT_DECLS;
+
+    /* RFC 5297 Example A.1: single associated data buffer */
+    const byte key_a1[] = {
+        0xff,0xfe,0xfd,0xfc,0xfb,0xfa,0xf9,0xf8,
+        0xf7,0xf6,0xf5,0xf4,0xf3,0xf2,0xf1,0xf0,
+        0xf0,0xf1,0xf2,0xf3,0xf4,0xf5,0xf6,0xf7,
+        0xf8,0xf9,0xfa,0xfb,0xfc,0xfd,0xfe,0xff
+    };
+    const byte assoc_a1[] = {
+        0x10,0x11,0x12,0x13,0x14,0x15,0x16,0x17,
+        0x18,0x19,0x1a,0x1b,0x1c,0x1d,0x1e,0x1f,
+        0x20,0x21,0x22,0x23,0x24,0x25,0x26,0x27
+    };
+    const byte pt_a1[] = {
+        0x11,0x22,0x33,0x44,0x55,0x66,0x77,0x88,
+        0x99,0xaa,0xbb,0xcc,0xdd,0xee
+    };
+    const byte siv_a1[] = {
+        0x85,0x63,0x2d,0x07,0xc6,0xe8,0xf3,0x7f,
+        0x95,0x0a,0xcd,0x32,0x0a,0x2e,0xcc,0x93
+    };
+    const byte ct_a1[] = {
+        0x40,0xc0,0x2b,0x96,0x90,0xc4,0xdc,0x04,
+        0xda,0xef,0x7f,0x6a,0xfe,0x5c
+    };
+
+    /* RFC 5297 Example A.2: two associated data buffers, no nonce */
+    const byte key_a2[] = {
+        0x7f,0x7e,0x7d,0x7c,0x7b,0x7a,0x79,0x78,
+        0x77,0x76,0x75,0x74,0x73,0x72,0x71,0x70,
+        0x40,0x41,0x42,0x43,0x44,0x45,0x46,0x47,
+        0x48,0x49,0x4a,0x4b,0x4c,0x4d,0x4e,0x4f
+    };
+    const byte assoc2_1_a2[] = {
+        0x00,0x11,0x22,0x33,0x44,0x55,0x66,0x77,
+        0x88,0x99,0xaa,0xbb,0xcc,0xdd,0xee,0xff,
+        0xde,0xad,0xda,0xda,0xde,0xad,0xda,0xda,
+        0xff,0xee,0xdd,0xcc,0xbb,0xaa,0x99,0x88,
+        0x77,0x66,0x55,0x44,0x33,0x22,0x11,0x00
+    };
+    const byte assoc2_2_a2[] = {
+        0x10,0x20,0x30,0x40,0x50,0x60,0x70,0x80,
+        0x90,0xa0
+    };
+    const byte nonce_a2[] = {
+        0x09,0xf9,0x11,0x02,0x9d,0x74,0xe3,0x5b,
+        0xd8,0x41,0x56,0xc5,0x63,0x56,0x88,0xc0
+    };
+    const byte pt_a2[] = {
+        0x74,0x68,0x69,0x73,0x20,0x69,0x73,0x20,
+        0x73,0x6f,0x6d,0x65,0x20,0x70,0x6c,0x61,
+        0x69,0x6e,0x74,0x65,0x78,0x74,0x20,0x74,
+        0x6f,0x20,0x65,0x6e,0x63,0x72,0x79,0x70,
+        0x74,0x20,0x75,0x73,0x69,0x6e,0x67,0x20,
+        0x53,0x49,0x56,0x2d,0x41,0x45,0x53
+    };
+    const byte siv_a2[] = {
+        0x7b,0xdb,0x6e,0x3b,0x43,0x26,0x67,0xeb,
+        0x06,0xf4,0xd1,0x4b,0xff,0x2f,0xbd,0x0f
+    };
+    const byte ct_a2[] = {
+        0xcb,0x90,0x0f,0x2f,0xdd,0xbe,0x40,0x43,
+        0x26,0x60,0x19,0x65,0xc8,0x89,0xbf,0x17,
+        0xdb,0xa7,0x7c,0xeb,0x09,0x4f,0xa6,0x63,
+        0xb7,0xa3,0xf7,0x48,0xba,0x8a,0xf8,0x29,
+        0xea,0x64,0xad,0x54,0x4a,0x27,0x2e,0x9c,
+        0x48,0x5b,0x62,0xa3,0xfd,0x5c,0x0d
+    };
+
+    byte siv[WC_AES_BLOCK_SIZE];
+    byte ct[sizeof(pt_a2)];   /* large enough for both tests */
+    byte pt[sizeof(pt_a2)];
+
+    /* --- A.1: wc_AesSivEncrypt (single assoc, no nonce) --- */
+    XMEMSET(siv, 0, sizeof(siv));
+    XMEMSET(ct, 0, sizeof(ct));
+    ExpectIntEQ(wc_AesSivEncrypt(key_a1, sizeof(key_a1),
+                                 assoc_a1, sizeof(assoc_a1),
+                                 NULL, 0,
+                                 pt_a1, sizeof(pt_a1),
+                                 siv, ct), 0);
+    ExpectBufEQ(siv, siv_a1, sizeof(siv_a1));
+    ExpectBufEQ(ct, ct_a1, sizeof(ct_a1));
+
+    /* --- A.1: wc_AesSivDecrypt --- */
+    XMEMSET(pt, 0, sizeof(pt));
+    XMEMCPY(siv, siv_a1, sizeof(siv_a1));
+    ExpectIntEQ(wc_AesSivDecrypt(key_a1, sizeof(key_a1),
+                                 assoc_a1, sizeof(assoc_a1),
+                                 NULL, 0,
+                                 ct_a1, sizeof(ct_a1),
+                                 siv, pt), 0);
+    ExpectBufEQ(pt, pt_a1, sizeof(pt_a1));
+
+    /* Corrupt SIV: decrypt must fail */
+    siv[0] ^= 0xff;
+    ExpectIntNE(wc_AesSivDecrypt(key_a1, sizeof(key_a1),
+                                 assoc_a1, sizeof(assoc_a1),
+                                 NULL, 0,
+                                 ct_a1, sizeof(ct_a1),
+                                 siv, pt), 0);
+
+    /* --- A.2: wc_AesSivEncrypt_ex (two assocs + nonce) --- */
+    {
+        const AesSivAssoc assocs[2] = {
+            { assoc2_1_a2, sizeof(assoc2_1_a2) },
+            { assoc2_2_a2, sizeof(assoc2_2_a2) }
+        };
+        XMEMSET(siv, 0, sizeof(siv));
+        XMEMSET(ct, 0, sizeof(ct));
+        ExpectIntEQ(wc_AesSivEncrypt_ex(key_a2, sizeof(key_a2),
+                                        assocs, 2,
+                                        nonce_a2, sizeof(nonce_a2),
+                                        pt_a2, sizeof(pt_a2),
+                                        siv, ct), 0);
+        ExpectBufEQ(siv, siv_a2, sizeof(siv_a2));
+        ExpectBufEQ(ct, ct_a2, sizeof(ct_a2));
+
+        /* wc_AesSivDecrypt_ex */
+        XMEMSET(pt, 0, sizeof(pt));
+        XMEMCPY(siv, siv_a2, sizeof(siv_a2));
+        ExpectIntEQ(wc_AesSivDecrypt_ex(key_a2, sizeof(key_a2),
+                                        assocs, 2,
+                                        nonce_a2, sizeof(nonce_a2),
+                                        ct_a2, sizeof(ct_a2),
+                                        siv, pt), 0);
+        ExpectBufEQ(pt, pt_a2, sizeof(pt_a2));
+    }
+
+    /* --- Bad args: wc_AesSivEncrypt --- */
+    ExpectIntNE(wc_AesSivEncrypt(NULL, sizeof(key_a1),
+                                 assoc_a1, sizeof(assoc_a1),
+                                 NULL, 0, pt_a1, sizeof(pt_a1), siv, ct), 0);
+    ExpectIntNE(wc_AesSivEncrypt(key_a1, 0,
+                                 assoc_a1, sizeof(assoc_a1),
+                                 NULL, 0, pt_a1, sizeof(pt_a1), siv, ct), 0);
+    ExpectIntNE(wc_AesSivEncrypt(key_a1, sizeof(key_a1),
+                                 assoc_a1, sizeof(assoc_a1),
+                                 NULL, 0, pt_a1, sizeof(pt_a1), NULL, ct), 0);
+    ExpectIntNE(wc_AesSivEncrypt(key_a1, sizeof(key_a1),
+                                 assoc_a1, sizeof(assoc_a1),
+                                 NULL, 0, pt_a1, sizeof(pt_a1), siv, NULL), 0);
+
+    /* --- Bad args: wc_AesSivDecrypt --- */
+    XMEMCPY(siv, siv_a1, sizeof(siv_a1));
+    ExpectIntNE(wc_AesSivDecrypt(NULL, sizeof(key_a1),
+                                 assoc_a1, sizeof(assoc_a1),
+                                 NULL, 0, ct_a1, sizeof(ct_a1), siv, pt), 0);
+    ExpectIntNE(wc_AesSivDecrypt(key_a1, 0,
+                                 assoc_a1, sizeof(assoc_a1),
+                                 NULL, 0, ct_a1, sizeof(ct_a1), siv, pt), 0);
+    ExpectIntNE(wc_AesSivDecrypt(key_a1, sizeof(key_a1),
+                                 assoc_a1, sizeof(assoc_a1),
+                                 NULL, 0, ct_a1, sizeof(ct_a1), NULL, pt), 0);
+    ExpectIntNE(wc_AesSivDecrypt(key_a1, sizeof(key_a1),
+                                 assoc_a1, sizeof(assoc_a1),
+                                 NULL, 0, ct_a1, sizeof(ct_a1), siv, NULL), 0);
+
+    return EXPECT_RESULT();
+} /* END test_wc_AesSivEncryptDecrypt */
+
+#endif /* WOLFSSL_AES_SIV && WOLFSSL_AES_128 */
 
 /*----------------------------------------------------------------------------*
  | CryptoCB AES SetKey Test

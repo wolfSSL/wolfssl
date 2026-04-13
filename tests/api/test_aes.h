@@ -49,7 +49,11 @@ int test_wc_AesXtsEncryptDecrypt(void);
 int test_wc_AesEaxVectors(void);
 int test_wc_AesEaxEncryptAuth(void);
 int test_wc_AesEaxDecryptAuth(void);
+int test_wc_AesEaxStream(void);
 #endif /* WOLFSSL_AES_EAX && WOLFSSL_AES_256*/
+#if defined(WOLFSSL_AES_SIV) && defined(WOLFSSL_AES_128)
+int test_wc_AesSivEncryptDecrypt(void);
+#endif
 
 int test_wc_GmacSetKey(void);
 int test_wc_GmacUpdate(void);
@@ -95,8 +99,14 @@ int test_wc_CryptoCb_AesGcm_EncryptDecrypt(void);
 #define TEST_AES_EAX_DECLS                                  \
     TEST_DECL_GROUP("aes-eax", test_wc_AesEaxVectors),      \
     TEST_DECL_GROUP("aes-eax", test_wc_AesEaxEncryptAuth),  \
-    TEST_DECL_GROUP("aes-eax", test_wc_AesEaxDecryptAuth)
+    TEST_DECL_GROUP("aes-eax", test_wc_AesEaxDecryptAuth),  \
+    TEST_DECL_GROUP("aes-eax", test_wc_AesEaxStream)
 #endif /* WOLFSSL_AES_EAX */
+
+#if defined(WOLFSSL_AES_SIV) && defined(WOLFSSL_AES_128)
+#define TEST_AES_SIV_DECLS \
+    TEST_DECL_GROUP("aes-siv", test_wc_AesSivEncryptDecrypt)
+#endif /* WOLFSSL_AES_SIV && WOLFSSL_AES_128 */
 
 #define TEST_GMAC_DECLS                             \
     TEST_DECL_GROUP("gmac", test_wc_GmacSetKey),    \

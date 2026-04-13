@@ -35198,6 +35198,9 @@ TEST_CASE testCases[] = {
     (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
     TEST_AES_EAX_DECLS,
 #endif /* WOLFSSL_AES_EAX */
+#if defined(WOLFSSL_AES_SIV) && defined(WOLFSSL_AES_128)
+    TEST_AES_SIV_DECLS,
+#endif /* WOLFSSL_AES_SIV && WOLFSSL_AES_128 */
     TEST_GMAC_DECLS,
     /* Ascon */
     TEST_ASCON_DECLS,
