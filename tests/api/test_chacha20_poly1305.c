@@ -599,8 +599,8 @@ int test_wc_Chacha20Poly1305DecisionCoverage(void)
     EXPECT_DECLS;
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
     ChaChaPoly_Aead aead;
-    byte ct[64];
-    byte pt[64];
+    byte ct[sizeof(tv_plaintext)];
+    byte pt[sizeof(tv_plaintext)];
     byte tag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE];
     byte tag2[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE];
     static const byte data15[15] = {

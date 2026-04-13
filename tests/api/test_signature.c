@@ -658,7 +658,13 @@ int test_wc_SignatureRsaDecisionCoverage(void)
 int test_wc_SignatureGetSizeAllTypes(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_SIG_WRAPPER)
+    /* Mirror the implicit NO_SIG_WRAPPER auto-disable in wolfcrypt/src/signature.c:
+     * the wrapper is only compiled when an ECC sign/verify path or RSA is
+     * available. */
+#if !defined(NO_SIG_WRAPPER) && \
+    ((defined(HAVE_ECC) && \
+      (defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY))) || \
+     !defined(NO_RSA))
 #if defined(HAVE_ECC) && !defined(NO_ECC256)
     {
         ecc_key ecc;

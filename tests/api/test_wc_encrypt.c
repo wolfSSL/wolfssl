@@ -242,7 +242,9 @@ int test_wc_EncryptDecisionCoverage(void)
     EXPECT_DECLS;
 #if defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_ASN)
     EncryptedInfo info;
-    byte buf[24];
+    /* Multiple of both DES (8) and AES (16) block sizes so in-place CBC
+     * encrypt/decrypt never walks past the buffer. */
+    byte buf[32];
     static const byte pass[] = "password1";
     int passSz = (int)sizeof(pass) - 1;
 
@@ -337,7 +339,9 @@ int test_wc_CryptKeyVersionBranches(void)
     (defined(HAVE_PKCS8) || defined(HAVE_PKCS12))
     byte salt[8] = { 0x11,0x22,0x33,0x44,0x55,0x66,0x77,0x88 };
     byte cbcIv[16];
-    byte input[24];
+    /* Multiple of both DES (8) and AES (16) block sizes so in-place
+     * encrypt/decrypt never walks past the buffer. */
+    byte input[32];
     static const char pass[] = "MCDCpass";
     int passSz = (int)sizeof(pass) - 1;
     int r;

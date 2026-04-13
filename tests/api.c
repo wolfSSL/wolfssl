@@ -4210,7 +4210,7 @@ static int test_wolfSSL_session_cache_api_direct(void)
     ExpectIntEQ(wolfSSL_SetServerID(ssl, NULL, sizeof(shortId), 0),
         BAD_FUNC_ARG);
     ExpectIntEQ(wolfSSL_SetServerID(ssl, shortId, 0, 0), BAD_FUNC_ARG);
-#ifndef NO_CLIENT_CACHE
+#if !defined(NO_CLIENT_CACHE) && !defined(NO_WOLFSSL_CLIENT)
     ExpectIntEQ(wolfSSL_SetServerID(ssl, shortId, (int)sizeof(shortId), 1),
         WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_SetServerID(ssl, longId, (int)sizeof(longId), 1),
@@ -4348,7 +4348,7 @@ static int test_wolfSSL_crl_ocsp_object_api(void)
 #endif
 #endif
 
-#ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) && !defined(NO_WOLFSSL_CLIENT)
     ExpectIntEQ(wolfSSL_UseOCSPStapling(NULL, WOLFSSL_CSR_OCSP, 0),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #ifndef NO_WOLFSSL_SERVER
@@ -4359,15 +4359,13 @@ static int test_wolfSSL_crl_ocsp_object_api(void)
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     }
 #endif
-#ifndef NO_WOLFSSL_CLIENT
     ExpectIntEQ(wolfSSL_UseOCSPStapling(clientSsl, WOLFSSL_CSR_OCSP, 0),
         WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_CTX_UseOCSPStapling(clientCtx, WOLFSSL_CSR_OCSP, 0),
         WOLFSSL_SUCCESS);
 #endif
-#endif
 
-#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && !defined(NO_WOLFSSL_CLIENT)
     ExpectIntEQ(wolfSSL_UseOCSPStaplingV2(NULL, WOLFSSL_CSR2_OCSP, 0),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #ifndef NO_WOLFSSL_SERVER
@@ -4378,12 +4376,10 @@ static int test_wolfSSL_crl_ocsp_object_api(void)
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     }
 #endif
-#ifndef NO_WOLFSSL_CLIENT
     ExpectIntEQ(wolfSSL_UseOCSPStaplingV2(clientSsl, WOLFSSL_CSR2_OCSP, 0),
         WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_CTX_UseOCSPStaplingV2(clientCtx, WOLFSSL_CSR2_OCSP, 0),
         WOLFSSL_SUCCESS);
-#endif
 #endif
 
     wolfSSL_free(clientSsl);
@@ -27573,7 +27569,7 @@ static int test_CONF_CTX_CMDLINE(void)
 {
     EXPECT_DECLS;
 #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && !defined(NO_TLS) && \
-    !defined(NO_WOLFSSL_SERVER)
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT)
     SSL_CTX* ctx = NULL;
     SSL_CONF_CTX* cctx = NULL;
     SSL_CONF_CTX* noCertCtx = NULL;
@@ -29200,7 +29196,7 @@ static int test_wc_CryptoCb_TLS(int tlsVer,
 }
 #endif /* WOLF_CRYPTO_CB && HAVE_IO_TESTS_DEPENDENCIES */
 
-#if defined(WOLFSSL_HAVE_PRF) && !defined(NO_HMAC)
+#if defined(WOLFSSL_HAVE_PRF) && !defined(NO_HMAC) && !defined(NO_SHA256)
 static int test_wc_KdfPrf_guardrails(void)
 {
     EXPECT_DECLS;
@@ -29220,6 +29216,8 @@ static int test_wc_KdfPrf_guardrails(void)
     ExpectIntEQ(wc_PRF(out, sizeof(out), secret, 16, seed, sizeof(seed),
         sha256_mac, HEAP_HINT, INVALID_DEVID), 0);
 
+    /* PRF_TLSv1 requires both MD5 and SHA1. */
+#if !defined(NO_MD5) && !defined(NO_SHA) && !defined(NO_OLD_TLS)
     ExpectIntEQ(wc_PRF_TLSv1(out, sizeof(out), secret, (word32)sizeof(secret),
         label, (word32)sizeof(label), seed, 1, HEAP_HINT, INVALID_DEVID),
         WC_NO_ERR_TRACE(BUFFER_E));
@@ -29228,13 +29226,16 @@ static int test_wc_KdfPrf_guardrails(void)
         WC_NO_ERR_TRACE(BUFFER_E));
     ExpectIntEQ(wc_PRF_TLSv1(out, sizeof(out), secret, 16,
         label, (word32)sizeof(label), seed, 1, HEAP_HINT, INVALID_DEVID), 0);
+#endif
 
     ExpectIntEQ(wc_PRF_TLS(out, sizeof(out), secret, 16, label,
         (word32)sizeof(label), seed, MAX_PRF_LABSEED, 1, sha256_mac,
         HEAP_HINT, INVALID_DEVID), WC_NO_ERR_TRACE(BUFFER_E));
+#ifndef NO_MD5
     ExpectIntEQ(wc_PRF_TLS(out, sizeof(out), secret, 16, label,
         (word32)sizeof(label), seed, 1, 1, md5_mac, HEAP_HINT, INVALID_DEVID),
         0);
+#endif
     return EXPECT_RESULT();
 }
 #endif
@@ -36751,17 +36752,19 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_ticket_and_psk_mixing),
     /* Can't memory test as client/server Asserts in thread. */
     TEST_DECL(test_prioritize_psk),
-#if defined(WOLFSSL_HAVE_PRF) && !defined(NO_HMAC)
+#if defined(WOLFSSL_HAVE_PRF) && !defined(NO_HMAC) && !defined(NO_SHA256)
     TEST_DECL(test_wc_KdfPrf_guardrails),
 #endif
 #if defined(HAVE_HKDF)
     TEST_DECL(test_wc_KdfHkdf_guardrails),
 #endif
 
-#ifdef WOLF_CRYPTO_CB
+#if defined(WOLF_CRYPTO_CB) && defined(HAVE_IO_TESTS_DEPENDENCIES)
     TEST_DECL(test_wc_CryptoCb_hkdf_wrapper),
     /* Can't memory test as client/server hangs. */
     TEST_DECL(test_wc_CryptoCb_registry),
+#endif
+#ifdef WOLF_CRYPTO_CB
     /* Can't memory test as client/server hangs. */
     TEST_DECL(test_wc_CryptoCb),
 #endif

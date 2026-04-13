@@ -116,6 +116,8 @@ static int test_ssl_api_ocsp_crl_guardrails(void)
     defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
     unsigned char* ocspResp = NULL;
     byte* ownedResp = NULL;
+    (void)ocspResp;
+    (void)ownedResp;
 #endif
 
     /* Null-object guardrails for OCSP wrappers. */
@@ -156,10 +158,12 @@ static int test_ssl_api_ocsp_crl_guardrails(void)
 #if !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT)
     ExpectNotNull(clientCtx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
     ExpectNotNull(clientSsl = wolfSSL_new(clientCtx));
+#ifndef NO_WOLFSSL_SERVER
     serverCtx = wolfSSL_CTX_new(wolfSSLv23_server_method());
     if (serverCtx != NULL) {
         serverSsl = wolfSSL_new(serverCtx);
     }
+#endif
 
     /* Wrong-side coverage: OCSP stapling use APIs are client-only. */
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST

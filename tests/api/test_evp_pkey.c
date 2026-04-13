@@ -2981,12 +2981,13 @@ int test_wolfSSL_EvpPkeyDeriveCoverage2(void)
 #ifndef NO_RSA
         rsaKey = EVP_PKEY_new();
         if (rsaKey != NULL) {
+            EVP_PKEY *saved_peer;
             WOLFSSL_RSA *rsa = wolfSSL_RSA_generate_key(1024, WC_RSA_EXPONENT,
                                                         NULL, NULL);
             if (rsa != NULL) {
                 (void)wolfSSL_EVP_PKEY_assign_RSA(rsaKey, rsa);
             }
-            EVP_PKEY *saved_peer = ctx->peerKey;
+            saved_peer = ctx->peerKey;
             ctx->peerKey = rsaKey;
             keylen = sizeof(outbuf);
             ExpectIntNE(wolfSSL_EVP_PKEY_derive(ctx, outbuf, &keylen),
@@ -3782,8 +3783,9 @@ int test_wolfSSL_EvpPkeyVerifyBatch4(void)
 
     /* P3: ctx->pkey == NULL */
     if (ctx != NULL) {
+        EVP_PKEY *saved;
         (void)wolfSSL_EVP_PKEY_verify_init(ctx);
-        EVP_PKEY *saved = ctx->pkey;
+        saved = ctx->pkey;
         ctx->pkey = NULL;
         ExpectIntNE(wolfSSL_EVP_PKEY_verify(ctx, bad_sig, sizeof(bad_sig),
                                             tbs, sizeof(tbs)),

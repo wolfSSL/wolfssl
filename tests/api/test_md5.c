@@ -189,7 +189,7 @@ int test_wc_Md5UpdateResidualCoverage(void)
 {
     EXPECT_DECLS;
 #ifndef NO_MD5
-    Md5    md5;
+    wc_Md5 md5;
     byte   digest[WC_MD5_DIGEST_SIZE];
     byte   buf[WC_MD5_BLOCK_SIZE * 2 + 1]; /* 129 bytes */
 
