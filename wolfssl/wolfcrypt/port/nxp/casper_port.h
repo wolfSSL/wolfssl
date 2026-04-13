@@ -25,7 +25,7 @@
 
 int wc_casper_init(void);
 
-#if !defined(NO_RSA) && !defined(WOLFSSL_NXP_CASPER_NO_RSA)
+#if !defined(NO_RSA) && defined(WOLFSSL_NXP_CASPER_RSA_PUB_EXPTMOD)
 
 #include <wolfssl/wolfcrypt/rsa.h>
 

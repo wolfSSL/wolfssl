@@ -56,7 +56,7 @@ RSA keys can be used to encrypt, decrypt, sign and verify data.
 #ifdef WOLFSSL_HAVE_SP_RSA
 #include <wolfssl/wolfcrypt/sp.h>
 #endif
-#if defined(WOLFSSL_NXP_CASPER) && !defined(WOLFSSL_NXP_CASPER_NO_RSA)
+#if defined(WOLFSSL_NXP_CASPER_RSA_PUB_EXPTMOD)
 #include <wolfssl/wolfcrypt/port/nxp/casper_port.h>
 #endif
 
@@ -2415,7 +2415,7 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
     return ret;
 }
 
-#elif defined(WOLFSSL_NXP_CASPER) && !defined(WOLFSSL_NXP_CASPER_NO_RSA)
+#elif defined(WOLFSSL_NXP_CASPER_RSA_PUB_EXPTMOD)
 static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
                               word32* outLen, int type, RsaKey* key,
                               WC_RNG* rng)

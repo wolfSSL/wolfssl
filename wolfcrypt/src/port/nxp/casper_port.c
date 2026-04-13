@@ -42,7 +42,7 @@ int wc_casper_init(void)
     return 0;
 }
 
-#if !defined(NO_RSA) && !defined(WOLFSSL_NXP_CASPER_NO_RSA)
+#if !defined(NO_RSA) && defined(WOLFSSL_NXP_CASPER_RSA_PUB_EXPTMOD)
 
 #define CASPER_MAX_BUF_SZ   512
 static uint8_t key_buf[CASPER_MAX_BUF_SZ];
