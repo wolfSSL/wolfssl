@@ -54,7 +54,7 @@ impl BLAKE2b {
     /// let blake2b = BLAKE2b::new(64).expect("Error with new()");
     /// ```
     pub fn new(digest_size: usize) -> Result<Self, i32> {
-        let digest_size = digest_size as u32;
+        let digest_size = crate::buffer_len_to_u32(digest_size)?;
         let mut wc_blake2b: MaybeUninit<sys::Blake2b> = MaybeUninit::uninit();
         let rc = unsafe {
             sys::wc_InitBlake2b(wc_blake2b.as_mut_ptr(), digest_size)
@@ -88,7 +88,7 @@ impl BLAKE2b {
     /// ```
     pub fn new_with_key(digest_size: usize, key: &[u8]) -> Result<Self, i32> {
         let key_size = crate::buffer_len_to_u32(key.len())?;
-        let digest_size = digest_size as u32;
+        let digest_size = crate::buffer_len_to_u32(digest_size)?;
         let mut wc_blake2b: MaybeUninit<sys::Blake2b> = MaybeUninit::uninit();
         let rc = unsafe {
             sys::wc_InitBlake2b_WithKey(wc_blake2b.as_mut_ptr(), digest_size,
@@ -365,7 +365,7 @@ impl BLAKE2s {
     /// let blake2s = BLAKE2s::new(32).expect("Error with new()");
     /// ```
     pub fn new(digest_size: usize) -> Result<Self, i32> {
-        let digest_size = digest_size as u32;
+        let digest_size = crate::buffer_len_to_u32(digest_size)?;
         let mut wc_blake2s: MaybeUninit<sys::Blake2s> = MaybeUninit::uninit();
         let rc = unsafe {
             sys::wc_InitBlake2s(wc_blake2s.as_mut_ptr(), digest_size)
@@ -399,7 +399,7 @@ impl BLAKE2s {
     /// ```
     pub fn new_with_key(digest_size: usize, key: &[u8]) -> Result<Self, i32> {
         let key_size = crate::buffer_len_to_u32(key.len())?;
-        let digest_size = digest_size as u32;
+        let digest_size = crate::buffer_len_to_u32(digest_size)?;
         let mut wc_blake2s: MaybeUninit<sys::Blake2s> = MaybeUninit::uninit();
         let rc = unsafe {
             sys::wc_InitBlake2s_WithKey(wc_blake2s.as_mut_ptr(), digest_size,
