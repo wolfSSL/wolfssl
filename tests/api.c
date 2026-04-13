@@ -15878,6 +15878,33 @@ static int test_wolfSSL_set1_sigalgs_list(void)
                     WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
         ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl, "RSA+SHA256+RSA"),
                     WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+
+        {
+            const char entry[] = "RSA+SHA256";
+            const int entryLen = (int)sizeof(entry) - 1;
+            const int entries = WOLFSSL_MAX_SIGALGO + 1;
+            int listSz = entries * (entryLen + 1);
+            char* longList = (char*)XMALLOC(listSz, NULL,
+                DYNAMIC_TYPE_TMP_BUFFER);
+            int i;
+            int pos = 0;
+
+            ExpectNotNull(longList);
+            if (longList != NULL) {
+                for (i = 0; i < entries; i++) {
+                    if (i != 0)
+                        longList[pos++] = ':';
+                    XMEMCPY(longList + pos, entry, entryLen);
+                    pos += entryLen;
+                }
+                longList[pos] = '\0';
+                ExpectIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx, longList),
+                    WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+                ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl, longList),
+                    WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+                XFREE(longList, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            }
+        }
     #endif
 #endif
 #ifdef HAVE_ECC
