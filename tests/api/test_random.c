@@ -30,6 +30,9 @@
 
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/types.h>
+#ifdef WOLF_CRYPTO_CB
+    #include <wolfssl/wolfcrypt/cryptocb.h>
+#endif
 #include <tests/api/api.h>
 #include <tests/api/test_random.h>
 
@@ -530,3 +533,206 @@ int test_wc_RNG_HealthTest(void)
     return EXPECT_RESULT();
 }
 
+int test_wc_RNG_GenerateBlock_Guardrails(void)
+{
+    EXPECT_DECLS;
+#ifdef HAVE_HASHDRBG
+    WC_RNG rng;
+    byte out[8];
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(out, 0, sizeof(out));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    /* Zero-length generation is accepted as a no-op. */
+    ExpectIntEQ(wc_RNG_GenerateBlock(&rng, out, 0), 0);
+    /* Oversized request is rejected before generation. */
+    ExpectIntEQ(wc_RNG_GenerateBlock(&rng, out, RNG_MAX_BLOCK_LEN + 1),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    /* After free, DRBG is no longer initialized. */
+    ExpectIntEQ(wc_RNG_GenerateBlock(&rng, out, sizeof(out)),
+        WC_NO_ERR_TRACE(RNG_FAILURE_E));
+#endif
+    return EXPECT_RESULT();
+}
+
+#ifdef WOLF_CRYPTO_CB
+enum {
+    TEST_CRYPTOCB_RNG_DEVID = 212,
+    TEST_CRYPTOCB_RNG_FAIL_DEVID = 213,
+    TEST_CRYPTOCB_RNG_NULLCB_DEVID = 214
+};
+
+typedef struct test_rng_cryptocb_ctx {
+    int mode;
+    int calls;
+    byte fill;
+} test_rng_cryptocb_ctx;
+
+static int test_CryptoCb_Rng_Func(int devId, wc_CryptoInfo* info, void* ctx)
+{
+    test_rng_cryptocb_ctx* rngCtx = (test_rng_cryptocb_ctx*)ctx;
+
+    (void)devId;
+
+    if (info == NULL || rngCtx == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (info->algo_type == WC_ALGO_TYPE_RNG) {
+        rngCtx->calls++;
+        if (rngCtx->mode == 0) {
+            XMEMSET(info->rng.out, rngCtx->fill, info->rng.sz);
+            return 0;
+        }
+        if (rngCtx->mode == 1) {
+            return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+        }
+        if (rngCtx->mode == 3) {
+            return WC_NO_ERR_TRACE(NOT_COMPILED_IN);
+        }
+
+        return BAD_FUNC_ARG;
+    }
+
+    if (info->algo_type == WC_ALGO_TYPE_SEED) {
+        rngCtx->calls++;
+        if (rngCtx->mode == 0) {
+            XMEMSET(info->seed.seed, rngCtx->fill, info->seed.sz);
+            return 0;
+        }
+        if (rngCtx->mode == 1) {
+            return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+        }
+        if (rngCtx->mode == 3) {
+            return WC_NO_ERR_TRACE(NOT_COMPILED_IN);
+        }
+
+        return BAD_FUNC_ARG;
+    }
+
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+#endif
+
+int test_wc_RNG_GenerateBlock_CryptoCb(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_HASHDRBG) && defined(WOLF_CRYPTO_CB)
+    WC_RNG rng;
+    WC_RNG rngFail;
+    OS_Seed os;
+    test_rng_cryptocb_ctx cbCtx;
+    test_rng_cryptocb_ctx failCtx;
+    byte out[16];
+    byte expectFill[16];
+    byte expectSeedFill[16];
+    byte zeroFill[16];
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&rngFail, 0, sizeof(rngFail));
+    XMEMSET(&os, 0, sizeof(os));
+    XMEMSET(&cbCtx, 0, sizeof(cbCtx));
+    XMEMSET(&failCtx, 0, sizeof(failCtx));
+    XMEMSET(out, 0, sizeof(out));
+    XMEMSET(expectFill, 0x5a, sizeof(expectFill));
+    XMEMSET(expectSeedFill, 0xa6, sizeof(expectSeedFill));
+    XMEMSET(zeroFill, 0, sizeof(zeroFill));
+
+    wc_CryptoCb_Init();
+
+    cbCtx.mode = 0;
+    cbCtx.fill = 0x5a;
+    failCtx.mode = 2;
+
+    ExpectIntEQ(wc_InitRng_ex(&rng, HEAP_HINT, TEST_CRYPTOCB_RNG_DEVID), 0);
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_CRYPTOCB_RNG_DEVID,
+        test_CryptoCb_Rng_Func, &cbCtx), 0);
+    /* When rng is NULL, callback path uses first registered device. */
+    ExpectIntEQ(wc_CryptoCb_RandomBlock(NULL, out, sizeof(out)), 0);
+    ExpectIntEQ(cbCtx.calls, 1);
+    ExpectIntEQ(XMEMCMP(out, expectFill, sizeof(out)), 0);
+    XMEMSET(out, 0, sizeof(out));
+    ExpectIntEQ(wc_RNG_GenerateBlock(&rng, out, sizeof(out)), 0);
+    ExpectIntEQ(cbCtx.calls, 2);
+    ExpectIntEQ(XMEMCMP(out, expectFill, sizeof(out)), 0);
+    wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_RNG_DEVID);
+
+    /* First device with NULL callback should return unavailable. */
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_CRYPTOCB_RNG_NULLCB_DEVID,
+        NULL, NULL), 0);
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_CRYPTOCB_RNG_DEVID,
+        test_CryptoCb_Rng_Func, &cbCtx), 0);
+    XMEMSET(out, 0, sizeof(out));
+    ExpectIntEQ(wc_CryptoCb_RandomBlock(NULL, out, sizeof(out)),
+        WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE));
+    /* After removing the NULL callback entry, first-device path succeeds. */
+    wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_RNG_NULLCB_DEVID);
+    ExpectIntEQ(wc_CryptoCb_RandomBlock(NULL, out, sizeof(out)), 0);
+    ExpectIntEQ(XMEMCMP(out, expectFill, sizeof(out)), 0);
+    wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_RNG_DEVID);
+
+    cbCtx.mode = 1;
+    cbCtx.calls = 0;
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_CRYPTOCB_RNG_DEVID,
+        test_CryptoCb_Rng_Func, &cbCtx), 0);
+    XMEMSET(out, 0, sizeof(out));
+    ExpectIntEQ(wc_CryptoCb_RandomBlock(&rng, out, sizeof(out)),
+        WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE));
+    ExpectIntEQ(cbCtx.calls, 1);
+    ExpectIntEQ(XMEMCMP(out, zeroFill, sizeof(out)), 0);
+    /* Unavailable callback falls through to software DRBG path. */
+    ExpectIntEQ(wc_RNG_GenerateBlock(&rng, out, sizeof(out)), 0);
+    ExpectIntEQ(cbCtx.calls, 2);
+    wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_RNG_DEVID);
+
+    cbCtx.mode = 3;
+    cbCtx.calls = 0;
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_CRYPTOCB_RNG_DEVID,
+        test_CryptoCb_Rng_Func, &cbCtx), 0);
+    ExpectIntEQ(wc_CryptoCb_RandomBlock(&rng, out, sizeof(out)),
+        WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE));
+    ExpectIntEQ(cbCtx.calls, 1);
+    wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_RNG_DEVID);
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_CRYPTOCB_RNG_FAIL_DEVID,
+        test_CryptoCb_Rng_Func, &failCtx), 0);
+    rngFail = rng;
+    rngFail.devId = TEST_CRYPTOCB_RNG_FAIL_DEVID;
+    ExpectIntEQ(wc_CryptoCb_RandomBlock(&rngFail, out, sizeof(out)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Non-unavailable callback errors propagate from wc_RNG_GenerateBlock(). */
+    ExpectIntEQ(wc_RNG_GenerateBlock(&rngFail, out, sizeof(out)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_RNG_FAIL_DEVID);
+
+    os.devId = INVALID_DEVID;
+    ExpectIntEQ(wc_CryptoCb_RandomSeed(&os, out, sizeof(out)),
+        WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE));
+    os.devId = TEST_CRYPTOCB_RNG_NULLCB_DEVID;
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_CRYPTOCB_RNG_NULLCB_DEVID,
+        NULL, NULL), 0);
+    ExpectIntEQ(wc_CryptoCb_RandomSeed(&os, out, sizeof(out)),
+        WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE));
+    wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_RNG_NULLCB_DEVID);
+    os.devId = TEST_CRYPTOCB_RNG_DEVID;
+    cbCtx.mode = 0;
+    cbCtx.fill = 0xa6;
+    cbCtx.calls = 0;
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_CRYPTOCB_RNG_DEVID,
+        test_CryptoCb_Rng_Func, &cbCtx), 0);
+    XMEMSET(out, 0, sizeof(out));
+    ExpectIntEQ(wc_CryptoCb_RandomSeed(&os, out, sizeof(out)), 0);
+    ExpectIntEQ(cbCtx.calls, 1);
+    ExpectIntEQ(XMEMCMP(out, expectSeedFill, sizeof(out)), 0);
+    cbCtx.mode = 3;
+    ExpectIntEQ(wc_CryptoCb_RandomSeed(&os, out, sizeof(out)),
+        WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE));
+    wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_RNG_DEVID);
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_CryptoCb_Cleanup();
+#endif
+    return EXPECT_RESULT();
+}

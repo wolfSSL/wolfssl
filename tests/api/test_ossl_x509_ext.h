@@ -52,6 +52,7 @@ int test_wolfSSL_NAME_CONSTRAINTS_types(void);
 int test_wolfSSL_NAME_CONSTRAINTS_uri(void);
 int test_wolfSSL_NAME_CONSTRAINTS_ipaddr(void);
 int test_wolfSSL_NAME_CONSTRAINTS_check_name(void);
+int test_wolfSSL_NAME_CONSTRAINTS_manual_paths(void);
 int test_wolfSSL_NAME_CONSTRAINTS_dns(void);
 int test_wolfSSL_NAME_CONSTRAINTS_excluded(void);
 
@@ -87,6 +88,7 @@ int test_wolfSSL_NAME_CONSTRAINTS_excluded(void);
     TEST_DECL_GROUP("ossl_x509_ext", test_wolfSSL_NAME_CONSTRAINTS_uri),       \
     TEST_DECL_GROUP("ossl_x509_ext", test_wolfSSL_NAME_CONSTRAINTS_ipaddr),    \
     TEST_DECL_GROUP("ossl_x509_ext", test_wolfSSL_NAME_CONSTRAINTS_check_name),\
+    TEST_DECL_GROUP("ossl_x509_ext", test_wolfSSL_NAME_CONSTRAINTS_manual_paths),\
     TEST_DECL_GROUP("ossl_x509_ext", test_wolfSSL_NAME_CONSTRAINTS_dns),       \
     TEST_DECL_GROUP("ossl_x509_ext", test_wolfSSL_NAME_CONSTRAINTS_excluded)
 

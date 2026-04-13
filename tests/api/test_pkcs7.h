@@ -27,6 +27,7 @@
 int test_wc_PKCS7_New(void);
 int test_wc_PKCS7_Init(void);
 int test_wc_PKCS7_InitWithCert(void);
+int test_wc_PKCS7_InitWithCert_guardrails(void);
 int test_wc_PKCS7_EncodeData(void);
 int test_wc_PKCS7_EncodeSignedData(void);
 #if defined(HAVE_PKCS7) && defined(WC_RSA_PSS) && !defined(NO_RSA) && \
@@ -84,6 +85,7 @@ int test_wc_PKCS7_VerifySignedData_IndefLenOOB(void);
 
 #define TEST_PKCS7_SIGNED_DATA_DECLS                                    \
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_InitWithCert),            \
+    TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_InitWithCert_guardrails), \
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_EncodeData),              \
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_EncodeSignedData),        \
     TEST_PKCS7_RSA_PSS_SD_DECL                                           \

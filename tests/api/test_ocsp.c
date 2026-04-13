@@ -26,6 +26,7 @@
 #include <wolfssl/internal.h>
 #include <wolfssl/ocsp.h>
 #include <wolfssl/ssl.h>
+#include <wolfssl/wolfio.h>
 #include <wolfssl/wolfcrypt/asn.h>
 
 #if defined(HAVE_OCSP) && !defined(NO_SHA) && !defined(NO_RSA)
@@ -45,6 +46,38 @@ struct test_conf {
     int targetCertSz;
 };
 
+struct wolfio_http_test_ctx {
+    const char* data;
+    int dataSz;
+    int offset;
+    int maxChunk;
+    int finalRet;
+};
+
+static int wolfio_http_test_io_cb(char* buf, int sz, void* ctx)
+{
+    struct wolfio_http_test_ctx* ioCtx = (struct wolfio_http_test_ctx*)ctx;
+    int copySz;
+
+    if (ioCtx == NULL)
+        return WOLFSSL_FATAL_ERROR;
+
+    if (ioCtx->offset >= ioCtx->dataSz)
+        return ioCtx->finalRet;
+
+    copySz = ioCtx->dataSz - ioCtx->offset;
+    if (copySz > sz)
+        copySz = sz;
+    if (ioCtx->maxChunk > 0 && copySz > ioCtx->maxChunk)
+        copySz = ioCtx->maxChunk;
+    if (copySz <= 0)
+        return WOLFSSL_FATAL_ERROR;
+
+    XMEMCPY(buf, ioCtx->data + ioCtx->offset, (size_t)copySz);
+    ioCtx->offset += copySz;
+    return copySz;
+}
+
 static int ocsp_cb(void* ctx, const char* url, int urlSz, unsigned char* req,
     int reqSz, unsigned char** respBuf)
 {
@@ -56,6 +89,165 @@ static int ocsp_cb(void* ctx, const char* url, int urlSz, unsigned char* req,
 
     *respBuf = cb_ctx->response;
     return cb_ctx->responseSz;
+}
+
+static int ocsp_cb_fail(void* ctx, const char* url, int urlSz,
+    unsigned char* req, int reqSz, unsigned char** respBuf)
+{
+    (void)ctx;
+    (void)url;
+    (void)urlSz;
+    (void)req;
+    (void)reqSz;
+    *respBuf = NULL;
+    return -1;
+}
+
+static int test_ssl_api_ocsp_crl_guardrails(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* clientCtx = NULL;
+    WOLFSSL_CTX* serverCtx = NULL;
+    WOLFSSL* clientSsl = NULL;
+    WOLFSSL* serverSsl = NULL;
+#endif
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+    defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+    unsigned char* ocspResp = NULL;
+    byte* ownedResp = NULL;
+#endif
+
+    /* Null-object guardrails for OCSP wrappers. */
+    ExpectIntEQ(wolfSSL_EnableOCSP(NULL, 0), BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_DisableOCSP(NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_EnableOCSPStapling(NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_DisableOCSPStapling(NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_SetOCSP_OverrideURL(NULL, "http://example.com"),
+        BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_SetOCSP_Cb(NULL, ocsp_cb, NULL, NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSP(NULL, 0), BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_CTX_DisableOCSP(NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_CTX_SetOCSP_OverrideURL(NULL, "http://example.com"),
+        BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_CTX_SetOCSP_Cb(NULL, ocsp_cb, NULL, NULL),
+        BAD_FUNC_ARG);
+
+#ifdef HAVE_CRL
+    /* Null-object guardrails for CRL wrappers. */
+    ExpectIntEQ(wolfSSL_EnableCRL(NULL, WOLFSSL_CRL_CHECK), BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_DisableCRL(NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_LoadCRLBuffer(NULL, NULL, 1, WOLFSSL_FILETYPE_PEM),
+        BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_SetCRL_Cb(NULL, NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_SetCRL_ErrorCb(NULL, NULL, NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_CTX_EnableCRL(NULL, WOLFSSL_CRL_CHECK), BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_CTX_DisableCRL(NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_CTX_LoadCRLBuffer(NULL, NULL, 1, WOLFSSL_FILETYPE_PEM),
+        BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_CTX_SetCRL_Cb(NULL, NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_CTX_SetCRL_ErrorCb(NULL, NULL, NULL), BAD_FUNC_ARG);
+#ifdef HAVE_CRL_IO
+    ExpectIntEQ(wolfSSL_SetCRL_IOCb(NULL, NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_CTX_SetCRL_IOCb(NULL, NULL), BAD_FUNC_ARG);
+#endif
+#endif /* HAVE_CRL */
+
+#if !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT)
+    ExpectNotNull(clientCtx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(clientSsl = wolfSSL_new(clientCtx));
+    serverCtx = wolfSSL_CTX_new(wolfSSLv23_server_method());
+    if (serverCtx != NULL) {
+        serverSsl = wolfSSL_new(serverCtx);
+    }
+
+    /* Wrong-side coverage: OCSP stapling use APIs are client-only. */
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+    ExpectIntEQ(wolfSSL_UseOCSPStapling(NULL, WOLFSSL_CSR_OCSP, 0),
+        BAD_FUNC_ARG);
+    if (serverSsl != NULL) {
+        ExpectIntEQ(wolfSSL_UseOCSPStapling(serverSsl, WOLFSSL_CSR_OCSP, 0),
+            BAD_FUNC_ARG);
+    }
+    ExpectIntNE(wolfSSL_UseOCSPStapling(clientSsl, WOLFSSL_CSR_OCSP, 0),
+        BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_CTX_UseOCSPStapling(NULL, WOLFSSL_CSR_OCSP, 0),
+        BAD_FUNC_ARG);
+    if (serverCtx != NULL) {
+        ExpectIntEQ(
+            wolfSSL_CTX_UseOCSPStapling(serverCtx, WOLFSSL_CSR_OCSP, 0),
+            BAD_FUNC_ARG);
+    }
+    ExpectIntNE(wolfSSL_CTX_UseOCSPStapling(clientCtx, WOLFSSL_CSR_OCSP, 0),
+        BAD_FUNC_ARG);
+#endif
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+    ExpectIntEQ(wolfSSL_UseOCSPStaplingV2(NULL, WOLFSSL_CSR2_OCSP_MULTI, 0),
+        BAD_FUNC_ARG);
+    if (serverSsl != NULL) {
+        ExpectIntEQ(
+            wolfSSL_UseOCSPStaplingV2(serverSsl, WOLFSSL_CSR2_OCSP_MULTI, 0),
+            BAD_FUNC_ARG);
+    }
+    ExpectIntNE(wolfSSL_UseOCSPStaplingV2(clientSsl, WOLFSSL_CSR2_OCSP_MULTI, 0),
+        BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_CTX_UseOCSPStaplingV2(NULL, WOLFSSL_CSR2_OCSP_MULTI, 0),
+        BAD_FUNC_ARG);
+    if (serverCtx != NULL) {
+        ExpectIntEQ(wolfSSL_CTX_UseOCSPStaplingV2(serverCtx,
+                WOLFSSL_CSR2_OCSP_MULTI, 0), BAD_FUNC_ARG);
+    }
+    ExpectIntNE(wolfSSL_CTX_UseOCSPStaplingV2(clientCtx, WOLFSSL_CSR2_OCSP_MULTI, 0),
+        BAD_FUNC_ARG);
+#endif
+
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+    defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+    ExpectIntEQ(wolfSSL_get_tlsext_status_ocsp_resp(NULL, &ocspResp), 0);
+    ExpectIntEQ(wolfSSL_get_tlsext_status_ocsp_resp(clientSsl, NULL), 0);
+    ExpectIntEQ(wolfSSL_set_tlsext_status_ocsp_resp_multi(NULL, NULL, 0, 0),
+        WOLFSSL_FAILURE);
+    ExpectIntEQ(
+        wolfSSL_set_tlsext_status_ocsp_resp_multi(clientSsl, NULL, 1, 0),
+        WOLFSSL_FAILURE);
+    ExpectIntEQ(
+        wolfSSL_set_tlsext_status_ocsp_resp_multi(clientSsl, (unsigned char*)"x",
+            0, 0), WOLFSSL_FAILURE);
+
+    ExpectNotNull(ownedResp = (byte*)XMALLOC(1, NULL, DYNAMIC_TYPE_TMP_BUFFER));
+    ownedResp[0] = 0xAA;
+    ExpectIntEQ(
+        wolfSSL_set_tlsext_status_ocsp_resp_multi(clientSsl, ownedResp, 1, 0),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_tlsext_status_ocsp_resp(clientSsl, &ocspResp), 1);
+    ExpectNotNull(ocspResp);
+    if (ocspResp != NULL) {
+        ExpectIntEQ(ocspResp[0], 0xAA);
+    }
+    ownedResp = NULL;
+#endif
+
+    if (clientSsl != NULL) {
+        wolfSSL_free(clientSsl);
+    }
+    if (serverSsl != NULL) {
+        wolfSSL_free(serverSsl);
+    }
+    if (clientCtx != NULL) {
+        wolfSSL_CTX_free(clientCtx);
+    }
+    if (serverCtx != NULL) {
+        wolfSSL_CTX_free(serverCtx);
+    }
+#endif /* !NO_TLS && !NO_WOLFSSL_CLIENT */
+
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+    defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+    if (ownedResp != NULL) {
+        XFREE(ownedResp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif
+    return EXPECT_RESULT();
 }
 
 static int test_ocsp_response_with_cm(struct test_conf* c, int expectedRet)
@@ -100,6 +292,26 @@ int test_ocsp_response_parsing(void)
     EXPECT_DECLS;
     struct test_conf conf;
     int  expectedRet;
+    char urlName[80];
+    char urlPath[80];
+    word16 urlPort = 0;
+    byte reqBuf[256];
+    byte httpBuf[128];
+    byte* httpResp = NULL;
+    static const char* ocspAppStrList[] = {
+        "application/ocsp-response",
+        NULL
+    };
+    struct wolfio_http_test_ctx ioCtx;
+    static const char validHttpResp[] =
+        "HTTP/1.1 200 OK\r\n"
+        "Content-Type: application/ocsp-response\r\n"
+        "Content-Length: 3\r\n"
+        "\r\n"
+        "abc";
+    static const char headerEarlyEndResp[] =
+        "HTTP/1.1 200 OK\r\n"
+        "\r\n";
 
     conf.resp = (unsigned char*)resp;
     conf.respSz = sizeof(resp);
@@ -161,6 +373,131 @@ int test_ocsp_response_parsing(void)
     conf.targetCertSz = sizeof(intermediate1_ca_cert_pem);
     ExpectIntEQ(test_ocsp_response_with_cm(&conf, WOLFSSL_SUCCESS),
         TEST_SUCCESS);
+
+    /* Truncated and empty responses should be rejected during decode. */
+    conf.resp = (unsigned char*)resp;
+    conf.respSz = sizeof(resp) - 1;
+    conf.ca0 = root_ca_cert_pem;
+    conf.ca0Sz = sizeof(root_ca_cert_pem);
+    conf.ca1 = NULL;
+    conf.ca1Sz = 0;
+    conf.targetCert = intermediate1_ca_cert_pem;
+    conf.targetCertSz = sizeof(intermediate1_ca_cert_pem);
+    ExpectIntEQ(test_ocsp_response_with_cm(&conf, OCSP_LOOKUP_FAIL),
+        TEST_SUCCESS);
+
+    conf.resp = (unsigned char*)resp;
+    conf.respSz = 0;
+    conf.ca0 = root_ca_cert_pem;
+    conf.ca0Sz = sizeof(root_ca_cert_pem);
+    conf.ca1 = NULL;
+    conf.ca1Sz = 0;
+    conf.targetCert = intermediate1_ca_cert_pem;
+    conf.targetCertSz = sizeof(intermediate1_ca_cert_pem);
+    ExpectIntEQ(test_ocsp_response_with_cm(&conf, OCSP_LOOKUP_FAIL),
+        TEST_SUCCESS);
+
+    {
+        WOLFSSL_CERT_MANAGER* cm = NULL;
+        struct ocsp_cb_ctx cbCtx;
+        int checkRet;
+
+        /* Callback returning non-empty size but no response buffer is invalid. */
+        cbCtx.response = NULL;
+        cbCtx.responseSz = (int)sizeof(resp);
+
+        ExpectNotNull(cm = wolfSSL_CertManagerNew());
+        ExpectIntEQ(wolfSSL_CertManagerEnableOCSP(cm,
+                        WOLFSSL_OCSP_URL_OVERRIDE | WOLFSSL_OCSP_NO_NONCE),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CertManagerSetOCSPOverrideURL(cm, "http://foo.com"),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, root_ca_cert_pem,
+                        sizeof(root_ca_cert_pem), WOLFSSL_FILETYPE_ASN1),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CertManagerSetOCSP_Cb(cm, ocsp_cb, NULL,
+                        (void*)&cbCtx), WOLFSSL_SUCCESS);
+        checkRet = wolfSSL_CertManagerCheckOCSP(cm, intermediate1_ca_cert_pem,
+            sizeof(intermediate1_ca_cert_pem));
+        ExpectIntNE(checkRet, WOLFSSL_SUCCESS);
+        wolfSSL_CertManagerFree(cm);
+        cm = NULL;
+
+        cbCtx.response = (byte*)resp;
+        cbCtx.responseSz = (int)sizeof(resp);
+
+        ExpectNotNull(cm = wolfSSL_CertManagerNew());
+        ExpectIntEQ(wolfSSL_CertManagerEnableOCSP(cm,
+                        WOLFSSL_OCSP_URL_OVERRIDE | WOLFSSL_OCSP_NO_NONCE),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CertManagerSetOCSPOverrideURL(cm, "http://foo.com"),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, root_ca_cert_pem,
+                        sizeof(root_ca_cert_pem), WOLFSSL_FILETYPE_ASN1),
+            WOLFSSL_SUCCESS);
+
+        /* Callback hard-failure path should terminate lookup cleanly. */
+        ExpectIntEQ(wolfSSL_CertManagerSetOCSP_Cb(cm, ocsp_cb_fail, NULL,
+                        (void*)&cbCtx), WOLFSSL_SUCCESS);
+        checkRet = wolfSSL_CertManagerCheckOCSP(cm, intermediate1_ca_cert_pem,
+            sizeof(intermediate1_ca_cert_pem));
+        ExpectIntNE(checkRet, WOLFSSL_SUCCESS);
+        wolfSSL_CertManagerFree(cm);
+    }
+
+    ExpectIntEQ(test_ssl_api_ocsp_crl_guardrails(), TEST_SUCCESS);
+
+    /* wolfio helpers used by OCSP/CRL lookup should reject malformed inputs
+     * and accept a compact valid HTTP response. */
+    XMEMSET(urlName, 0, sizeof(urlName));
+    XMEMSET(urlPath, 0, sizeof(urlPath));
+    ExpectIntEQ(wolfIO_DecodeUrl(NULL, 0, urlName, urlPath, &urlPort), -1);
+    ExpectIntEQ(urlName[0], 0);
+    ExpectIntEQ(urlPath[0], 0);
+    ExpectIntEQ(urlPort, 0);
+    ExpectIntEQ(wolfIO_DecodeUrl("http://example.com:abc/", 23,
+        urlName, urlPath, &urlPort), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfIO_DecodeUrl("http://example.com/ocsp",
+        (int)XSTRLEN("http://example.com/ocsp"), urlName, urlPath, &urlPort),
+        0);
+    ExpectBufEQ(urlName, "example.com", (int)sizeof("example.com"));
+    ExpectBufEQ(urlPath, "/ocsp", (int)sizeof("/ocsp"));
+    ExpectIntEQ(urlPort, 80);
+
+    ExpectIntEQ(wolfIO_HttpBuildRequest("POST", "example.com", "/ocsp", 5, 3,
+        "application/ocsp-request", reqBuf, 8), 0);
+    ExpectIntGT(wolfIO_HttpBuildRequest("POST", "example.com", "/ocsp", 5, 3,
+        "application/ocsp-request", reqBuf, (int)sizeof(reqBuf)), 0);
+
+    XMEMSET(&ioCtx, 0, sizeof(ioCtx));
+    ioCtx.data = validHttpResp;
+    ioCtx.dataSz = (int)sizeof(validHttpResp) - 1;
+    ioCtx.maxChunk = 7;
+    ioCtx.finalRet = WOLFSSL_FATAL_ERROR;
+    ExpectIntEQ(wolfIO_HttpProcessResponseGenericIO(wolfio_http_test_io_cb,
+        &ioCtx, ocspAppStrList, &httpResp, httpBuf, (int)sizeof(httpBuf),
+        DYNAMIC_TYPE_OCSP, NULL), 3);
+    ExpectNotNull(httpResp);
+    if (httpResp != NULL) {
+        ExpectBufEQ(httpResp, "abc", 3);
+        XFREE(httpResp, NULL, DYNAMIC_TYPE_OCSP);
+        httpResp = NULL;
+    }
+
+    XMEMSET(&ioCtx, 0, sizeof(ioCtx));
+    ioCtx.finalRet = WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_WANT_READ);
+    ExpectIntEQ(wolfIO_HttpProcessResponseGenericIO(wolfio_http_test_io_cb,
+        &ioCtx, ocspAppStrList, &httpResp, httpBuf, (int)sizeof(httpBuf),
+        DYNAMIC_TYPE_OCSP, NULL), OCSP_WANT_READ);
+
+    XMEMSET(&ioCtx, 0, sizeof(ioCtx));
+    ioCtx.data = headerEarlyEndResp;
+    ioCtx.dataSz = (int)sizeof(headerEarlyEndResp) - 1;
+    ioCtx.maxChunk = 9;
+    ioCtx.finalRet = WOLFSSL_FATAL_ERROR;
+    ExpectIntEQ(wolfIO_HttpProcessResponseGenericIO(wolfio_http_test_io_cb,
+        &ioCtx, ocspAppStrList, &httpResp, httpBuf, (int)sizeof(httpBuf),
+        DYNAMIC_TYPE_OCSP, NULL), HTTP_HEADER_ERR);
     return EXPECT_SUCCESS();
 }
 #else  /* HAVE_OCSP && !NO_SHA */

@@ -31,6 +31,29 @@ int test_wolfssl_local_MatchBaseName(void);
 int test_wc_DecodeRsaPssParams(void);
 int test_DecodeAltNames_length_underflow(void);
 int test_wc_DecodeObjectId(void);
+int test_wc_AsnDecisionCoverage(void);
+int test_wc_AsnDerGuardrailCoverage(void);
+int test_wc_AsnFeatureCoverage(void);
+int test_wc_AsnDateCoverage(void);
+int test_wc_AsnPemCoverage(void);
+int test_wc_AsnDecodeAuthKeyCoverage(void);
+int test_wc_AsnGetRdnCoverage(void);
+int test_wc_AsnPrintCoverage(void);
+int test_wc_AsnCrlCoverage(void);
+int test_wc_AsnPkcs8Coverage(void);
+int test_wc_AsnCertDecodeCoverage(void);
+int test_wc_AsnCheckSigCoverage(void);
+int test_wc_AsnValidateGmtimeCoverage(void);
+int test_wc_AsnStoreDataCoverage(void);
+int test_wc_AsnPemResidualCoverage(void);
+int test_wc_AsnGetRdnResidualCoverage(void);
+int test_wc_AsnUriNameConstraintCoverage(void);
+int test_wc_AsnDhParamsCoverage(void);
+int test_wc_AsnFormattedTimeCoverage(void);
+int test_wc_AsnSetAlgoCoverage(void);
+int test_wc_AsnDecodePolicyCoverage(void);
+int test_wc_AsnMatchIpSubnetCoverage(void);
+int test_wc_AsnConfirmSigCoverage(void);
 
 #define TEST_ASN_DECLS                                              \
     TEST_DECL_GROUP("asn", test_SetAsymKeyDer),                     \
@@ -39,6 +62,29 @@ int test_wc_DecodeObjectId(void);
     TEST_DECL_GROUP("asn", test_wolfssl_local_MatchBaseName),       \
     TEST_DECL_GROUP("asn", test_wc_DecodeRsaPssParams),             \
     TEST_DECL_GROUP("asn", test_DecodeAltNames_length_underflow),    \
-    TEST_DECL_GROUP("asn", test_wc_DecodeObjectId)
+    TEST_DECL_GROUP("asn", test_wc_DecodeObjectId),                 \
+    TEST_DECL_GROUP("asn", test_wc_AsnDecisionCoverage),            \
+    TEST_DECL_GROUP("asn", test_wc_AsnDerGuardrailCoverage),        \
+    TEST_DECL_GROUP("asn", test_wc_AsnFeatureCoverage),             \
+    TEST_DECL_GROUP("asn", test_wc_AsnDateCoverage),                \
+    TEST_DECL_GROUP("asn", test_wc_AsnPemCoverage),                 \
+    TEST_DECL_GROUP("asn", test_wc_AsnDecodeAuthKeyCoverage),       \
+    TEST_DECL_GROUP("asn", test_wc_AsnGetRdnCoverage),              \
+    TEST_DECL_GROUP("asn", test_wc_AsnPrintCoverage),               \
+    TEST_DECL_GROUP("asn", test_wc_AsnCrlCoverage),                 \
+    TEST_DECL_GROUP("asn", test_wc_AsnPkcs8Coverage),               \
+    TEST_DECL_GROUP("asn", test_wc_AsnCertDecodeCoverage),          \
+    TEST_DECL_GROUP("asn", test_wc_AsnCheckSigCoverage),            \
+    TEST_DECL_GROUP("asn", test_wc_AsnValidateGmtimeCoverage),      \
+    TEST_DECL_GROUP("asn", test_wc_AsnStoreDataCoverage),           \
+    TEST_DECL_GROUP("asn", test_wc_AsnPemResidualCoverage),         \
+    TEST_DECL_GROUP("asn", test_wc_AsnGetRdnResidualCoverage),      \
+    TEST_DECL_GROUP("asn", test_wc_AsnUriNameConstraintCoverage),   \
+    TEST_DECL_GROUP("asn", test_wc_AsnDhParamsCoverage),            \
+    TEST_DECL_GROUP("asn", test_wc_AsnFormattedTimeCoverage),       \
+    TEST_DECL_GROUP("asn", test_wc_AsnSetAlgoCoverage),             \
+    TEST_DECL_GROUP("asn", test_wc_AsnDecodePolicyCoverage),        \
+    TEST_DECL_GROUP("asn", test_wc_AsnMatchIpSubnetCoverage),       \
+    TEST_DECL_GROUP("asn", test_wc_AsnConfirmSigCoverage)
 
 #endif /* WOLFCRYPT_TEST_ASN_H */

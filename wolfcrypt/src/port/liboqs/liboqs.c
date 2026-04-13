@@ -94,7 +94,13 @@ int wolfSSL_liboqsInit(void)
 
 void wolfSSL_liboqsClose(void)
 {
-    wc_FreeRng(&liboqsDefaultRNG);
+    if (liboqs_init) {
+        wc_FreeRng(&liboqsDefaultRNG);
+        wc_FreeMutex(&liboqsRNGMutex);
+        OQS_destroy();
+        liboqsCurrentRNG = NULL;
+        liboqs_init = 0;
+    }
 }
 
 int wolfSSL_liboqsRngMutexLock(WC_RNG* rng)

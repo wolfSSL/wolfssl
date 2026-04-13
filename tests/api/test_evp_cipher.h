@@ -65,6 +65,17 @@ int test_wolfSSL_EVP_rc2_cbc(void);
 int test_wolfSSL_EVP_mdc2(void);
 int test_evp_cipher_pkcs7_pad_zero(void);
 int test_evp_cipher_aead_aad_overflow(void);
+int test_wolfSSL_EvpCipherInitGcmPaths(void);
+int test_wolfSSL_EvpCipherCtxCtrlAead(void);
+int test_wolfSSL_EvpCipherFinalBadArg(void);
+int test_wolfSSL_EvpCipherInitCoverage2(void);
+int test_wolfSSL_EvpCipherCtxIvSetGet(void);
+int test_wolfSSL_EvpCipherUpdateBadArg(void);
+int test_wolfSSL_EvpCtrlIvFixedGen(void);
+int test_wolfSSL_EvpCipherFinalCoverage(void);
+int test_wolfSSL_EvpCipherInitBatch4(void);
+int test_wolfSSL_EvpCipherFinalBatch4(void);
+int test_wolfSSL_EvpCipherInitAesGcmBatch4(void);
 
 #define TEST_EVP_CIPHER_DECLS                                               \
     TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_CIPHER_CTX),             \
@@ -107,6 +118,17 @@ int test_evp_cipher_aead_aad_overflow(void);
     TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_rc2_cbc),                \
     TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_mdc2),                  \
     TEST_DECL_GROUP("evp_cipher", test_evp_cipher_pkcs7_pad_zero),           \
-    TEST_DECL_GROUP("evp_cipher", test_evp_cipher_aead_aad_overflow)
+    TEST_DECL_GROUP("evp_cipher", test_evp_cipher_aead_aad_overflow),        \
+    TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EvpCipherInitGcmPaths),       \
+    TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EvpCipherCtxCtrlAead),        \
+    TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EvpCipherFinalBadArg),        \
+    TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EvpCipherInitCoverage2),      \
+    TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EvpCipherCtxIvSetGet),        \
+    TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EvpCipherUpdateBadArg),       \
+    TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EvpCtrlIvFixedGen),            \
+    TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EvpCipherFinalCoverage),       \
+    TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EvpCipherInitBatch4),          \
+    TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EvpCipherFinalBatch4),         \
+    TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EvpCipherInitAesGcmBatch4)
 
 #endif /* WOLFCRYPT_TEST_EVP_CIPHER_H */

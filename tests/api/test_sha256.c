@@ -371,3 +371,49 @@ int test_wc_Sha224_Flags(void)
     return EXPECT_RESULT();
 }
 
+/* Sha256Update L1559: `if (ret == 0 && len > 0)` residual — toggle the
+ * len>0 condition by feeding exact-multiple vs off-boundary lengths. */
+int test_wc_Sha256UpdateResidualCoverage(void)
+{
+    EXPECT_DECLS;
+#ifndef NO_SHA256
+    wc_Sha256 sha;
+    byte      buf[256];
+    byte      out[WC_SHA256_DIGEST_SIZE];
+
+    XMEMSET(buf, 0xA5, sizeof(buf));
+
+    /* Pair A: feed exactly 64 bytes (one block) → after consuming, len==0
+     * → L1559 branch FALSE on the len>0 side. */
+    ExpectIntEQ(wc_InitSha256(&sha), 0);
+    ExpectIntEQ(wc_Sha256Update(&sha, buf, 64), 0);
+    ExpectIntEQ(wc_Sha256Final(&sha, out), 0);
+    wc_Sha256Free(&sha);
+
+    /* Pair B: feed 65 bytes → one block + 1 remainder → len==1 → TRUE side. */
+    ExpectIntEQ(wc_InitSha256(&sha), 0);
+    ExpectIntEQ(wc_Sha256Update(&sha, buf, 65), 0);
+    ExpectIntEQ(wc_Sha256Final(&sha, out), 0);
+    wc_Sha256Free(&sha);
+
+    /* Pair C: feed 128 bytes (two blocks, zero remainder). */
+    ExpectIntEQ(wc_InitSha256(&sha), 0);
+    ExpectIntEQ(wc_Sha256Update(&sha, buf, 128), 0);
+    ExpectIntEQ(wc_Sha256Final(&sha, out), 0);
+    wc_Sha256Free(&sha);
+
+    /* Pair D: feed 129 bytes (two blocks + 1). */
+    ExpectIntEQ(wc_InitSha256(&sha), 0);
+    ExpectIntEQ(wc_Sha256Update(&sha, buf, 129), 0);
+    ExpectIntEQ(wc_Sha256Final(&sha, out), 0);
+    wc_Sha256Free(&sha);
+
+    /* Pair E: NULL+zero-len is a valid no-op per public API. */
+    ExpectIntEQ(wc_InitSha256(&sha), 0);
+    ExpectIntEQ(wc_Sha256Update(&sha, NULL, 0), 0);
+    ExpectIntEQ(wc_Sha256Final(&sha, out), 0);
+    wc_Sha256Free(&sha);
+#endif
+    return EXPECT_RESULT();
+}
+

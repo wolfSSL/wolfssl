@@ -26,9 +26,17 @@
 
 int test_wc_Des3_CbcEncryptDecryptWithKey(void);
 int test_wc_Des_CbcEncryptDecryptWithKey(void);
+int test_wc_EncryptBadArgCoverage(void);
+int test_wc_EncryptDecisionCoverage(void);
+int test_wc_CryptKeyBadArgCoverage(void);
+int test_wc_CryptKeyVersionBranches(void);
 
-#define TEST_WC_ENCRYPT_DECLS                                                   \
-    TEST_DECL_GROUP("wc_encrypt", test_wc_Des3_CbcEncryptDecryptWithKey),       \
-    TEST_DECL_GROUP("wc_encrypt", test_wc_Des_CbcEncryptDecryptWithKey)
+#define TEST_WC_ENCRYPT_DECLS                                               \
+    TEST_DECL_GROUP("wc_encrypt", test_wc_Des3_CbcEncryptDecryptWithKey),   \
+    TEST_DECL_GROUP("wc_encrypt", test_wc_Des_CbcEncryptDecryptWithKey),    \
+    TEST_DECL_GROUP("wc_encrypt", test_wc_EncryptBadArgCoverage),           \
+    TEST_DECL_GROUP("wc_encrypt", test_wc_EncryptDecisionCoverage),         \
+    TEST_DECL_GROUP("wc_encrypt", test_wc_CryptKeyBadArgCoverage),          \
+    TEST_DECL_GROUP("wc_encrypt", test_wc_CryptKeyVersionBranches)
 
 #endif /* WOLFCRYPT_TEST_WC_ENCRYPT_H */

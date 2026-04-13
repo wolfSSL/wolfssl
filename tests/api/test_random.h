@@ -35,6 +35,8 @@ int test_wc_rng_new(void);
 int test_wc_RNG_DRBG_Reseed(void);
 int test_wc_RNG_TestSeed(void);
 int test_wc_RNG_HealthTest(void);
+int test_wc_RNG_GenerateBlock_Guardrails(void);
+int test_wc_RNG_GenerateBlock_CryptoCb(void);
 
 #define TEST_RANDOM_DECLS                                           \
     TEST_DECL_GROUP("random", test_wc_InitRng),                     \
@@ -47,6 +49,8 @@ int test_wc_RNG_HealthTest(void);
     TEST_DECL_GROUP("random", test_wc_rng_new),                     \
     TEST_DECL_GROUP("random", test_wc_RNG_DRBG_Reseed),             \
     TEST_DECL_GROUP("random", test_wc_RNG_TestSeed),                \
-    TEST_DECL_GROUP("random", test_wc_RNG_HealthTest)
+    TEST_DECL_GROUP("random", test_wc_RNG_HealthTest),              \
+    TEST_DECL_GROUP("random", test_wc_RNG_GenerateBlock_Guardrails),\
+    TEST_DECL_GROUP("random", test_wc_RNG_GenerateBlock_CryptoCb)
 
 #endif /* WOLFCRYPT_TEST_RANDOM_H */

@@ -34,6 +34,7 @@ int test_wc_Sha256Copy(void);
 int test_wc_Sha256GetHash(void);
 int test_wc_Sha256Transform(void);
 int test_wc_Sha256_Flags(void);
+int test_wc_Sha256UpdateResidualCoverage(void);
 
 int test_wc_InitSha224(void);
 int test_wc_Sha224Update(void);
@@ -54,7 +55,8 @@ int test_wc_Sha224_Flags(void);
     TEST_DECL_GROUP("sha256", test_wc_Sha256Copy),      \
     TEST_DECL_GROUP("sha256", test_wc_Sha256GetHash),   \
     TEST_DECL_GROUP("sha256", test_wc_Sha256Transform), \
-    TEST_DECL_GROUP("sha256", test_wc_Sha256_Flags)
+    TEST_DECL_GROUP("sha256", test_wc_Sha256_Flags),    \
+    TEST_DECL_GROUP("sha256", test_wc_Sha256UpdateResidualCoverage)
 
 #define TEST_SHA224_DECLS                               \
     TEST_DECL_GROUP("sha224", test_wc_InitSha224),      \

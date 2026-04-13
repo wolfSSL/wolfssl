@@ -34,17 +34,19 @@ int test_wc_ShaCopy(void);
 int test_wc_ShaGetHash(void);
 int test_wc_ShaTransform(void);
 int test_wc_Sha_Flags(void);
+int test_wc_ShaUpdateResidualCoverage(void);
 
-#define TEST_SHA_DECLS                              \
-    TEST_DECL_GROUP("sha", test_wc_InitSha),        \
-    TEST_DECL_GROUP("sha", test_wc_ShaUpdate),      \
-    TEST_DECL_GROUP("sha", test_wc_ShaFinal),       \
-    TEST_DECL_GROUP("sha", test_wc_ShaFinalRaw),    \
-    TEST_DECL_GROUP("sha", test_wc_Sha_KATs),       \
-    TEST_DECL_GROUP("sha", test_wc_Sha_other),      \
-    TEST_DECL_GROUP("sha", test_wc_ShaCopy),        \
-    TEST_DECL_GROUP("sha", test_wc_ShaGetHash),     \
-    TEST_DECL_GROUP("sha", test_wc_ShaTransform),   \
-    TEST_DECL_GROUP("sha", test_wc_Sha_Flags)
+#define TEST_SHA_DECLS                                            \
+    TEST_DECL_GROUP("sha", test_wc_InitSha),                      \
+    TEST_DECL_GROUP("sha", test_wc_ShaUpdate),                    \
+    TEST_DECL_GROUP("sha", test_wc_ShaFinal),                     \
+    TEST_DECL_GROUP("sha", test_wc_ShaFinalRaw),                  \
+    TEST_DECL_GROUP("sha", test_wc_Sha_KATs),                     \
+    TEST_DECL_GROUP("sha", test_wc_Sha_other),                    \
+    TEST_DECL_GROUP("sha", test_wc_ShaCopy),                      \
+    TEST_DECL_GROUP("sha", test_wc_ShaGetHash),                   \
+    TEST_DECL_GROUP("sha", test_wc_ShaTransform),                 \
+    TEST_DECL_GROUP("sha", test_wc_Sha_Flags),                    \
+    TEST_DECL_GROUP("sha", test_wc_ShaUpdateResidualCoverage)
 
 #endif /* WOLFCRYPT_TEST_SHA_H */

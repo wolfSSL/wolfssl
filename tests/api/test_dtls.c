@@ -2335,6 +2335,10 @@ struct {
     WOLFSSL* ssl_s;
     int fd;
     SOCKADDR_S peer_addr;
+    int force_recv_errno;
+    int force_send_errno;
+    int recv_max_chunk;
+    int send_max_chunk;
 } test_memio_wolfio_ctx;
 
 static ssize_t test_memio_wolfio_recvfrom(int sockfd, void* buf,
@@ -2342,12 +2346,21 @@ static ssize_t test_memio_wolfio_recvfrom(int sockfd, void* buf,
 {
     int ret;
     (void)flags;
+    if (test_memio_wolfio_ctx.force_recv_errno != 0) {
+        errno = test_memio_wolfio_ctx.force_recv_errno;
+        test_memio_wolfio_ctx.force_recv_errno = 0;
+        return -1;
+    }
     if (sockfd != test_memio_wolfio_ctx.fd) {
         errno = EINVAL;
         return -1;
     }
     ret = test_memio_read_cb(test_memio_wolfio_ctx.ssl_s,
             (char*)buf, (int)len, test_memio_wolfio_ctx.test_ctx);
+    if (ret > 0 && test_memio_wolfio_ctx.recv_max_chunk > 0 &&
+            ret > test_memio_wolfio_ctx.recv_max_chunk) {
+        ret = test_memio_wolfio_ctx.recv_max_chunk;
+    }
     if (ret <= 0) {
         if (ret == WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_WANT_READ))
             errno = EAGAIN;
@@ -2367,6 +2380,15 @@ static ssize_t test_memio_wolfio_sendto(int sockfd, const void* buf,
 {
     int ret;
     (void) flags;
+    if (test_memio_wolfio_ctx.force_send_errno != 0) {
+        errno = test_memio_wolfio_ctx.force_send_errno;
+        test_memio_wolfio_ctx.force_send_errno = 0;
+        return -1;
+    }
+    if (test_memio_wolfio_ctx.send_max_chunk > 0 &&
+            len > (size_t)test_memio_wolfio_ctx.send_max_chunk) {
+        len = (size_t)test_memio_wolfio_ctx.send_max_chunk;
+    }
     (void) dest_addr;
     (void) addrlen;
     if (sockfd != test_memio_wolfio_ctx.fd) {
@@ -2399,6 +2421,10 @@ int test_dtls_memio_wolfio(void)
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS)
     size_t i;
+    int ret;
+    int err;
+    char rwBuf[8];
+    const char msg[] = "io";
     struct {
         method_provider client_meth;
         method_provider server_meth;
@@ -2442,6 +2468,101 @@ int test_dtls_memio_wolfio(void)
                     WOLFSSL_SUCCESS);
 
         ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+        /* WANT_WRITE path in EmbedSendTo/TranslateIoReturnCode */
+        test_memio_simulate_want_write(&test_ctx, 0, 1);
+        ret = wolfSSL_write(ssl_s, msg, (int)sizeof(msg));
+        ExpectIntEQ(ret, -1);
+        err = wolfSSL_get_error(ssl_s, ret);
+        ExpectIntEQ(err, WOLFSSL_ERROR_WANT_WRITE);
+        test_memio_simulate_want_write(&test_ctx, 0, 0);
+
+        /* WANT_READ path in EmbedReceiveFrom/TranslateIoReturnCode */
+        ret = wolfSSL_read(ssl_s, rwBuf, (int)sizeof(rwBuf));
+        ExpectIntEQ(ret, -1);
+        err = wolfSSL_get_error(ssl_s, ret);
+        ExpectIntEQ(err, WOLFSSL_ERROR_WANT_READ);
+
+        /* General error path on send through errno=EINVAL (fd mismatch) */
+        test_memio_wolfio_ctx.fd += 1;
+        ret = wolfSSL_write(ssl_s, msg, (int)sizeof(msg));
+        ExpectIntEQ(ret, -1);
+        err = wolfSSL_get_error(ssl_s, ret);
+        ExpectTrue(err != WOLFSSL_ERROR_WANT_WRITE &&
+                   err != WOLFSSL_ERROR_WANT_READ);
+        test_memio_wolfio_ctx.fd -= 1;
+
+        /* General error path on receive through errno=EINVAL (fd mismatch) */
+        test_memio_wolfio_ctx.fd += 1;
+        ret = wolfSSL_read(ssl_s, rwBuf, (int)sizeof(rwBuf));
+        ExpectIntEQ(ret, -1);
+        err = wolfSSL_get_error(ssl_s, ret);
+        ExpectTrue(err != WOLFSSL_ERROR_WANT_WRITE &&
+                   err != WOLFSSL_ERROR_WANT_READ);
+        test_memio_wolfio_ctx.fd -= 1;
+
+        /* Callback-missing send path: force default sendto() path. */
+        wolfSSL_SetSendTo(ssl_s, NULL);
+        ret = wolfSSL_write(ssl_s, msg, (int)sizeof(msg));
+        ExpectIntEQ(ret, -1);
+        err = wolfSSL_get_error(ssl_s, ret);
+        ExpectTrue(err != WOLFSSL_ERROR_WANT_WRITE &&
+                   err != WOLFSSL_ERROR_WANT_READ);
+        wolfSSL_SetSendTo(ssl_s, test_memio_wolfio_sendto);
+
+        /* Callback-missing receive path: force default recvfrom() path. */
+        wolfSSL_SetRecvFrom(ssl_s, NULL);
+        ret = wolfSSL_read(ssl_s, rwBuf, (int)sizeof(rwBuf));
+        ExpectIntEQ(ret, -1);
+        err = wolfSSL_get_error(ssl_s, ret);
+        ExpectTrue(err != WOLFSSL_ERROR_WANT_WRITE &&
+                   err != WOLFSSL_ERROR_WANT_READ);
+        wolfSSL_SetRecvFrom(ssl_s, test_memio_wolfio_recvfrom);
+
+        /* Timeout-specific translation branches in TranslateIoReturnCode. */
+        test_memio_wolfio_ctx.force_send_errno = ETIMEDOUT;
+        ret = wolfSSL_write(ssl_s, msg, (int)sizeof(msg));
+        if (ret < 0) {
+            err = wolfSSL_get_error(ssl_s, ret);
+            ExpectIntEQ(err, WOLFSSL_ERROR_WANT_WRITE);
+        }
+
+        test_memio_wolfio_ctx.force_recv_errno = ETIMEDOUT;
+        ret = wolfSSL_read(ssl_s, rwBuf, (int)sizeof(rwBuf));
+        if (ret < 0) {
+            err = wolfSSL_get_error(ssl_s, ret);
+            ExpectIntEQ(err, WOLFSSL_ERROR_WANT_READ);
+        }
+
+        /* Additional transport error branches: ISR and connection reset. */
+        test_memio_wolfio_ctx.force_send_errno = EINTR;
+        ret = wolfSSL_write(ssl_s, msg, (int)sizeof(msg));
+        if (ret < 0) {
+            err = wolfSSL_get_error(ssl_s, ret);
+            ExpectTrue(err != WOLFSSL_ERROR_WANT_WRITE &&
+                       err != WOLFSSL_ERROR_WANT_READ);
+        }
+
+        test_memio_wolfio_ctx.force_recv_errno = ECONNRESET;
+        ret = wolfSSL_read(ssl_s, rwBuf, (int)sizeof(rwBuf));
+        if (ret < 0) {
+            err = wolfSSL_get_error(ssl_s, ret);
+            ExpectTrue(err != WOLFSSL_ERROR_WANT_WRITE &&
+                       err != WOLFSSL_ERROR_WANT_READ);
+        }
+
+        /* Boundary conditions: controlled partial transport chunks. */
+        test_memio_wolfio_ctx.send_max_chunk = 1;
+        ret = wolfSSL_write(ssl_s, msg, (int)sizeof(msg));
+        ExpectIntNE(ret, 0);
+        test_memio_wolfio_ctx.send_max_chunk = 0;
+
+        ret = wolfSSL_write(ssl_c, msg, (int)sizeof(msg));
+        if (ret > 0) {
+            test_memio_wolfio_ctx.recv_max_chunk = 1;
+            (void)wolfSSL_read(ssl_s, rwBuf, (int)sizeof(rwBuf));
+            test_memio_wolfio_ctx.recv_max_chunk = 0;
+        }
 
         wolfSSL_free(ssl_s);
         wolfSSL_free(ssl_c);

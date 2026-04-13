@@ -33,16 +33,18 @@ int test_wc_Md5Copy(void);
 int test_wc_Md5GetHash(void);
 int test_wc_Md5Transform(void);
 int test_wc_Md5_Flags(void);
+int test_wc_Md5UpdateResidualCoverage(void);
 
-#define TEST_MD5_DECLS                              \
-    TEST_DECL_GROUP("md5", test_wc_InitMd5),        \
-    TEST_DECL_GROUP("md5", test_wc_Md5Update),      \
-    TEST_DECL_GROUP("md5", test_wc_Md5Final),       \
-    TEST_DECL_GROUP("md5", test_wc_Md5_KATs),       \
-    TEST_DECL_GROUP("md5", test_wc_Md5_other),      \
-    TEST_DECL_GROUP("md5", test_wc_Md5Copy),        \
-    TEST_DECL_GROUP("md5", test_wc_Md5GetHash),     \
-    TEST_DECL_GROUP("md5", test_wc_Md5Transform),   \
-    TEST_DECL_GROUP("md5", test_wc_Md5_Flags)
+#define TEST_MD5_DECLS                                              \
+    TEST_DECL_GROUP("md5", test_wc_InitMd5),                        \
+    TEST_DECL_GROUP("md5", test_wc_Md5Update),                      \
+    TEST_DECL_GROUP("md5", test_wc_Md5Final),                       \
+    TEST_DECL_GROUP("md5", test_wc_Md5_KATs),                       \
+    TEST_DECL_GROUP("md5", test_wc_Md5_other),                      \
+    TEST_DECL_GROUP("md5", test_wc_Md5Copy),                        \
+    TEST_DECL_GROUP("md5", test_wc_Md5GetHash),                     \
+    TEST_DECL_GROUP("md5", test_wc_Md5Transform),                   \
+    TEST_DECL_GROUP("md5", test_wc_Md5_Flags),                      \
+    TEST_DECL_GROUP("md5", test_wc_Md5UpdateResidualCoverage)
 
 #endif /* WOLFCRYPT_TEST_MD5_H */

@@ -26,9 +26,21 @@
 
 int test_wc_SignatureGetSize_ecc(void);
 int test_wc_SignatureGetSize_rsa(void);
+int test_wc_falcon_sign_verify(void);
+int test_wc_SignatureBadArgCoverage(void);
+int test_wc_SignatureDecisionCoverage(void);
+int test_wc_SignatureGenerateHashExVerify(void);
+int test_wc_SignatureRsaDecisionCoverage(void);
+int test_wc_SignatureGetSizeAllTypes(void);
 
-#define TEST_SIGNATURE_DECLS                                    \
-    TEST_DECL_GROUP("signature", test_wc_SignatureGetSize_ecc), \
-    TEST_DECL_GROUP("signature", test_wc_SignatureGetSize_rsa)
+#define TEST_SIGNATURE_DECLS                                            \
+    TEST_DECL_GROUP("signature", test_wc_SignatureGetSize_ecc),         \
+    TEST_DECL_GROUP("signature", test_wc_SignatureGetSize_rsa),         \
+    TEST_DECL_GROUP("signature", test_wc_falcon_sign_verify),           \
+    TEST_DECL_GROUP("signature", test_wc_SignatureBadArgCoverage),      \
+    TEST_DECL_GROUP("signature", test_wc_SignatureDecisionCoverage),    \
+    TEST_DECL_GROUP("signature", test_wc_SignatureGenerateHashExVerify),\
+    TEST_DECL_GROUP("signature", test_wc_SignatureRsaDecisionCoverage), \
+    TEST_DECL_GROUP("signature", test_wc_SignatureGetSizeAllTypes)
 
 #endif /* WOLFCRYPT_TEST_SIGNATURE_H */

@@ -28,11 +28,17 @@ int test_wc_Chacha_SetKey(void);
 int test_wc_Chacha_Process(void);
 int test_wc_Chacha_Process_Chunking(void);
 int test_wc_Chacha_MonteCarlo(void);
+int test_wc_ChachaBadArgCoverage(void);
+int test_wc_ChachaDecisionCoverage(void);
+int test_wc_ChachaEncryptBytesCoverage(void);
 
-#define TEST_CHACHA_DECLS                                           \
-    TEST_DECL_GROUP("chacha", test_wc_Chacha_SetKey),               \
-    TEST_DECL_GROUP("chacha", test_wc_Chacha_Process),              \
-    TEST_DECL_GROUP("chacha", test_wc_Chacha_Process_Chunking),     \
-    TEST_DECL_GROUP("chacha", test_wc_Chacha_MonteCarlo)
+#define TEST_CHACHA_DECLS                                        \
+    TEST_DECL_GROUP("chacha", test_wc_Chacha_SetKey),            \
+    TEST_DECL_GROUP("chacha", test_wc_Chacha_Process),           \
+    TEST_DECL_GROUP("chacha", test_wc_Chacha_Process_Chunking),  \
+    TEST_DECL_GROUP("chacha", test_wc_Chacha_MonteCarlo),        \
+    TEST_DECL_GROUP("chacha", test_wc_ChachaBadArgCoverage),     \
+    TEST_DECL_GROUP("chacha", test_wc_ChachaDecisionCoverage),   \
+    TEST_DECL_GROUP("chacha", test_wc_ChachaEncryptBytesCoverage)
 
 #endif /* WOLFCRYPT_TEST_CHACHA_H */

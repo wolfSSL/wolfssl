@@ -59,6 +59,16 @@ int test_wc_ecc_is_valid_idx(void);
 int test_wc_ecc_get_curve_id_from_oid(void);
 int test_wc_ecc_sig_size_calc(void);
 int test_wc_EccPrivateKeyToDer(void);
+int test_wc_EccRequirementCoverage(void);
+int test_wc_EccBadArgCoverage(void);
+int test_wc_EccBadArgCoverage2(void);
+int test_wc_EccBadArgCoverage3(void);
+int test_wc_EccBadArgCoverage4(void);
+int test_wc_EccBadArgCoverage5(void);
+int test_wc_EccBadArgCoverage6(void);
+int test_wc_EccBadArgCoverage7(void);
+int test_wc_EccBadArgCoverage8(void);
+int test_wc_EccBadArgCoverage9(void);
 
 #define TEST_ECC_DECLS                                                  \
     TEST_DECL_GROUP("ecc", test_wc_ecc_get_curve_size_from_name),       \
@@ -95,6 +105,16 @@ int test_wc_EccPrivateKeyToDer(void);
     TEST_DECL_GROUP("ecc", test_wc_ecc_is_valid_idx),                   \
     TEST_DECL_GROUP("ecc", test_wc_ecc_get_curve_id_from_oid),          \
     TEST_DECL_GROUP("ecc", test_wc_ecc_sig_size_calc),                  \
-    TEST_DECL_GROUP("ecc", test_wc_EccPrivateKeyToDer)
+    TEST_DECL_GROUP("ecc", test_wc_EccPrivateKeyToDer),                 \
+    TEST_DECL_GROUP("ecc", test_wc_EccRequirementCoverage),            \
+    TEST_DECL_GROUP("ecc", test_wc_EccBadArgCoverage),                 \
+    TEST_DECL_GROUP("ecc", test_wc_EccBadArgCoverage2),                \
+    TEST_DECL_GROUP("ecc", test_wc_EccBadArgCoverage3),                \
+    TEST_DECL_GROUP("ecc", test_wc_EccBadArgCoverage4),                \
+    TEST_DECL_GROUP("ecc", test_wc_EccBadArgCoverage5),                \
+    TEST_DECL_GROUP("ecc", test_wc_EccBadArgCoverage6),               \
+    TEST_DECL_GROUP("ecc", test_wc_EccBadArgCoverage7),               \
+    TEST_DECL_GROUP("ecc", test_wc_EccBadArgCoverage8),               \
+    TEST_DECL_GROUP("ecc", test_wc_EccBadArgCoverage9)
 
 #endif /* WOLFCRYPT_TEST_ECC_H */
