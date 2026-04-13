@@ -7782,7 +7782,7 @@ static int wc_PKCS7_KariGenerateKEK(WC_PKCS7_KARI* kari, WC_RNG* rng,
             kdfType = WC_HASH_TYPE_SHA;
             break;
     #endif
-    #ifndef WOLFSSL_SHA224
+    #ifdef WOLFSSL_SHA224
         case dhSinglePass_stdDH_sha224kdf_scheme:
             kdfType = WC_HASH_TYPE_SHA224;
             break;
@@ -7804,6 +7804,7 @@ static int wc_PKCS7_KariGenerateKEK(WC_PKCS7_KARI* kari, WC_RNG* rng,
     #endif
         default:
             WOLFSSL_MSG("Unsupported key agreement algorithm");
+            ForceZero(secret, secretSz);
             XFREE(secret, kari->heap, DYNAMIC_TYPE_PKCS7);
             return BAD_FUNC_ARG;
     };
@@ -7816,6 +7817,7 @@ static int wc_PKCS7_KariGenerateKEK(WC_PKCS7_KARI* kari, WC_RNG* rng,
     ret = NOT_COMPILED_IN;
 #endif
 
+    ForceZero(secret, secretSz);
     XFREE(secret, kari->heap, DYNAMIC_TYPE_PKCS7);
     return ret;
 }
