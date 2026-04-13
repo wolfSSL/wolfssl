@@ -104,6 +104,10 @@ enum {
 struct MlKemKey {
     /* Type of key: WC_ML_KEM_512, WC_ML_KEM_768, WC_ML_KEM_1024 */
     int type;
+#ifdef WOLFSSL_MLKEM_DYNAMIC_KEYS
+    /* Allocated size of priv buffer in bytes. */
+    word32 privAllocSz;
+#endif
     /* Dynamic memory allocation hint. */
     void* heap;
 #if defined(WOLF_CRYPTO_CB)
