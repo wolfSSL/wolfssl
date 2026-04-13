@@ -10769,15 +10769,19 @@ static int wc_PKCS7_DecryptKtri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                 if (GetLength(pkiMsg, idx, &length, pkiMsgSz) < 0)
                     return ASN_PARSE_E;
 
-                if ((word32)keyIdSize > pkiMsgSz - (*idx))
+                /* Validate SKID container and keyIdSize against buffer */
+                if ((word32)length > pkiMsgSz - (*idx))
                     return BUFFER_E;
+
+                if (length < keyIdSize)
+                    return ASN_PARSE_E;
 
                 /* if we found correct recipient, SKID will match */
                 if (XMEMCMP(pkiMsg + (*idx), pkcs7->issuerSubjKeyId,
                             (word32)keyIdSize) == 0) {
                     *recipFound = 1;
                 }
-                (*idx) += (word32)keyIdSize;
+                (*idx) += (word32)length;
             }
 
             if (GetAlgoId(pkiMsg, idx, &encOID, oidKeyType, pkiMsgSz) < 0)
@@ -11052,6 +11056,14 @@ static int wc_PKCS7_KariGetOriginatorIdentifierOrKey(WC_PKCS7_KARI* kari,
         return ASN_PARSE_E;
 
     if (GetLength(pkiMsg, idx, &length, pkiMsgSz) < 0)
+        return ASN_PARSE_E;
+
+    /* BIT STRING must have at least unused-bits byte + 1 byte of content */
+    if (length < 2)
+        return ASN_PARSE_E;
+
+    /* Validate BIT STRING content is within input buffer */
+    if (*idx > pkiMsgSz || (word32)length > pkiMsgSz - *idx)
         return ASN_PARSE_E;
 
     if (GetASNTag(pkiMsg, idx, &tag, pkiMsgSz) < 0)
@@ -11533,9 +11545,22 @@ static int wc_PKCS7_DecryptOri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
             XMEMCPY(oriOID, pkiMsg + *idx, (word32)oriOIDSz);
             *idx += (word32)oriOIDSz;
 
+            /* Validate OID did not consume more than the SEQUENCE declared */
+            if ((*idx - tmpIdx) > (word32)seqSz) {
+                WOLFSSL_MSG("ORI oriType OID exceeds SEQUENCE boundary");
+                return ASN_PARSE_E;
+            }
+
             /* get oriValue, increment idx */
             oriValue = pkiMsg + *idx;
             oriValueSz = (word32)seqSz - (*idx - tmpIdx);
+
+            /* Validate oriValue region is within input buffer */
+            if (*idx > pkiMsgSz || oriValueSz > pkiMsgSz - *idx) {
+                WOLFSSL_MSG("ORI oriValue exceeds input buffer");
+                return ASN_PARSE_E;
+            }
+
             *idx += oriValueSz;
 
             /* pass oriOID and oriValue to user callback, expect back
@@ -11713,6 +11738,12 @@ static int wc_PKCS7_DecryptPwri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                 return ASN_PARSE_E;
             }
 
+            /* Validate IV is within input buffer */
+            if (*idx > pkiMsgSz || (word32)length > pkiMsgSz - *idx) {
+                XFREE(salt, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+                return ASN_PARSE_E;
+            }
+
             XMEMCPY(tmpIv, pkiMsg + (*idx), (word32)length);
             *idx += (word32)length;
 
@@ -11728,6 +11759,12 @@ static int wc_PKCS7_DecryptPwri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
             }
 
             if (GetLength(pkiMsg, idx, &length, pkiMsgSz) < 0) {
+                XFREE(salt, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+                return ASN_PARSE_E;
+            }
+
+            /* Validate EncryptedKey is within input buffer */
+            if (*idx > pkiMsgSz || (word32)length > pkiMsgSz - *idx) {
                 XFREE(salt, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
                 return ASN_PARSE_E;
             }
@@ -11818,7 +11855,7 @@ static int wc_PKCS7_DecryptKekri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
     byte* keyId = NULL;
     const byte* datePtr = NULL;
     byte  dateFormat, tag;
-    word32 keyIdSz, kekIdSz, keyWrapOID, localIdx;
+    word32 keyIdSz, kekIdSz, kekIdEnd, keyWrapOID, localIdx;
 
     int ret = 0;
     byte* pkiMsg    = in;
@@ -11844,6 +11881,11 @@ static int wc_PKCS7_DecryptKekri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                 return ASN_PARSE_E;
 
             kekIdSz = (word32)length;
+            kekIdEnd = *idx + kekIdSz;
+
+            /* Validate KEKIdentifier boundary is within input buffer */
+            if (kekIdEnd < *idx || kekIdEnd > pkiMsgSz)
+                return ASN_PARSE_E;
 
             if (GetASNTag(pkiMsg, idx, &tag, pkiMsgSz) < 0)
                 return ASN_PARSE_E;
@@ -11854,6 +11896,10 @@ static int wc_PKCS7_DecryptKekri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
             if (GetLength(pkiMsg, idx, &length, pkiMsgSz) < 0)
                 return ASN_PARSE_E;
 
+            /* Validate keyIdentifier is within input buffer */
+            if (*idx > pkiMsgSz || (word32)length > pkiMsgSz - *idx)
+                return ASN_PARSE_E;
+
             /* save keyIdentifier and length */
             keyId = pkiMsg + *idx;
             keyIdSz = (word32)length;
@@ -11861,10 +11907,10 @@ static int wc_PKCS7_DecryptKekri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
 
             /* may have OPTIONAL GeneralizedTime */
             localIdx = *idx;
-            if ((*idx < kekIdSz) && GetASNTag(pkiMsg, &localIdx, &tag,
+            if ((*idx < kekIdEnd) && GetASNTag(pkiMsg, &localIdx, &tag,
                         pkiMsgSz) == 0 && tag == ASN_GENERALIZED_TIME) {
-                if (wc_GetDateInfo(pkiMsg + *idx, (int)pkiMsgSz, &datePtr,
-                        &dateFormat, &dateLen) != 0) {
+                if (wc_GetDateInfo(pkiMsg + *idx, (int)(pkiMsgSz - *idx),
+                        &datePtr, &dateFormat, &dateLen) != 0) {
                     return ASN_PARSE_E;
                 }
                 *idx += (word32)(dateLen + 1);
@@ -11876,7 +11922,7 @@ static int wc_PKCS7_DecryptKekri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
 
             /* may have OPTIONAL OtherKeyAttribute */
             localIdx = *idx;
-            if ((*idx < kekIdSz) && GetASNTag(pkiMsg, &localIdx, &tag,
+            if ((*idx < kekIdEnd) && GetASNTag(pkiMsg, &localIdx, &tag,
                             pkiMsgSz) == 0 && tag == (ASN_SEQUENCE |
                             ASN_CONSTRUCTED)) {
                 if (GetSequence(pkiMsg, idx, &length, pkiMsgSz) < 0)
@@ -11903,6 +11949,10 @@ static int wc_PKCS7_DecryptKekri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                 return ASN_PARSE_E;
 
             if (GetLength(pkiMsg, idx, &length, pkiMsgSz) < 0)
+                return ASN_PARSE_E;
+
+            /* Validate EncryptedKey is within input buffer */
+            if (*idx > pkiMsgSz || (word32)length > pkiMsgSz - *idx)
                 return ASN_PARSE_E;
 
             #ifndef NO_AES

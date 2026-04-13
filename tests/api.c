@@ -35859,6 +35859,107 @@ static int test_pkcs7_ori_oversized_oid(void)
     return EXPECT_RESULT();
 }
 
+/* ORI callback that flags if oriValueSz looks like an underflow (>= 0x80000000) */
+#if defined(HAVE_PKCS7) && !defined(WOLFSSL_NO_MALLOC)
+static int test_ori_underflow_cb(wc_PKCS7* pkcs7, byte* oriType,
+                                 word32 oriTypeSz, byte* oriValue,
+                                 word32 oriValueSz, byte* decryptedKey,
+                                 word32* decryptedKeySz, void* ctx)
+{
+    int* called = (int*)ctx;
+    (void)pkcs7; (void)oriType; (void)oriTypeSz;
+    (void)oriValue; (void)decryptedKey; (void)decryptedKeySz;
+    if (called != NULL)
+        *called = (int)oriValueSz;  /* record what we received */
+    return -1;
+}
+#endif
+
+/* Test: PKCS#7 ORI must reject when OID consumption exceeds the [4] implicit
+ * SEQUENCE length (integer underflow in oriValueSz computation).
+ *
+ * With implicit tagging, [4] CONSTRUCTED replaces the SEQUENCE tag, so
+ * wc_PKCS7_DecryptOri reads seqSz directly from the [4] length field.
+ * We set [4] length = 5 while the OID inside consumes 22 bytes
+ * (tag + length + 20 content), triggering oriValueSz = 5 - 22 = underflow.
+ *
+ * The buffer includes a dummy EncryptedContentInfo after the RecipientInfos
+ * so the total message is large enough for the PKCS7 streaming code (which
+ * requests the full remaining message before parsing the ORI). */
+static int test_pkcs7_ori_seqsz_underflow(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(WOLFSSL_NO_MALLOC)
+    wc_PKCS7* p7 = NULL;
+    byte out[256];
+    int cbCalled = 0;
+
+    /*
+     * Byte layout (all outer lengths match actual byte counts on wire):
+     *
+     * OID inside [4]: 06 14 <20 bytes>                  = 22 bytes
+     * [4] (declared len 5, actual content 22):
+     *   a4 05 <22 bytes>                                = 24 bytes on wire
+     * SET: 31 18 <24 bytes>                             = 26 bytes on wire
+     * version: 02 01 00                                 = 3 bytes
+     * EncryptedContentInfo (filler, never parsed):
+     *   30 0b { 06 09 <9 bytes OID> }                   = 13 bytes on wire
+     * EnvelopedData: 30 2a <3+26+13=42 bytes>           = 44 bytes on wire
+     * [0] EXPLICIT: a0 2c <44 bytes>                    = 46 bytes on wire
+     * OID(envelopedData): 06 09 <9 bytes>               = 11 bytes on wire
+     * ContentInfo: 30 39 <11+46=57 bytes>               = 59 bytes total
+     */
+    static const byte poc[] = {
+        /* ContentInfo SEQUENCE (length 57) */
+        0x30, 0x39,
+          /* contentType = envelopedData 1.2.840.113549.1.7.3 */
+          0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x07, 0x03,
+          /* [0] EXPLICIT (length 44) */
+          0xa0, 0x2c,
+            /* EnvelopedData SEQUENCE (length 42) */
+            0x30, 0x2a,
+              /* version = 0 */
+              0x02, 0x01, 0x00,
+              /* RecipientInfos SET (length 24) */
+              0x31, 0x18,
+                /* [4] CONSTRUCTED = ORI implicit SEQUENCE, declared len 5 */
+                /* Actual OID is 22 bytes -> exceeds declared 5 */
+                0xa4, 0x05,
+                  /* OID: tag=06, len=0x14(20), content=20 bytes = 22 total */
+                  0x06, 0x14,
+                  0x2a, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+                  0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11,
+                  0x12, 0x13, 0x14, 0x15,
+              /* EncryptedContentInfo SEQUENCE (length 11) - filler so
+               * streaming has enough data; never actually parsed because
+               * DecryptOri fails before we get here */
+              0x30, 0x0b,
+                /* contentType = data 1.2.840.113549.1.7.1 */
+                0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x07,
+                0x01
+    };
+
+    p7 = wc_PKCS7_New(NULL, INVALID_DEVID);
+    ExpectNotNull(p7);
+    if (p7 != NULL) {
+        wc_PKCS7_SetOriDecryptCb(p7, test_ori_underflow_cb);
+        wc_PKCS7_SetOriDecryptCtx(p7, &cbCalled);
+
+        /* Must return an error before the callback sees an underflowed size */
+        ExpectIntLT(wc_PKCS7_DecodeEnvelopedData(p7, (byte*)poc, sizeof(poc),
+                                                  out, sizeof(out)), 0);
+
+        /* The callback must NOT have been invoked with a wrapped oriValueSz.
+         * cbCalled == 0 means the callback was never reached (ideal).
+         * cbCalled < 0 would indicate the underflow was passed through. */
+        ExpectIntGE(cbCalled, 0);
+
+        wc_PKCS7_Free(p7);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Dilithium verify_ctx_msg must reject absurdly large msgLen */
 static int test_dilithium_hash(void)
 {
@@ -36800,6 +36901,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_ed448_rejects_identity_key),
     TEST_DECL(test_pkcs7_decode_encrypted_outputsz),
     TEST_DECL(test_pkcs7_ori_oversized_oid),
+    TEST_DECL(test_pkcs7_ori_seqsz_underflow),
     TEST_DECL(test_pkcs7_padding),
 
 #if defined(WOLFSSL_SNIFFER) && defined(WOLFSSL_SNIFFER_CHAIN_INPUT)
