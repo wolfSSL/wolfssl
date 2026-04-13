@@ -1483,7 +1483,7 @@ int se050_rsa_verify(const byte* in, word32 inLen, byte* out, word32 outLen,
                 keyId = se050_allocate_key(SE050_RSA_KEY);
                 status = sss_key_object_allocate_handle(&newKey, keyId,
                     kSSS_KeyPart_Public, kSSS_CipherType_RSA, keySz,
-                    kKeyObject_Mode_Persistent);
+                    kKeyObject_Mode_Transient);
             }
             if (status == kStatus_SSS_Success) {
                 /* Try to delete existing key first, ignore return since will
@@ -1540,7 +1540,7 @@ int se050_rsa_verify(const byte* in, word32 inLen, byte* out, word32 outLen,
     if (status == kStatus_SSS_Success) {
         if (keyCreated) {
             /* We uploaded only the public part of the key for this verify.
-             * Don't persist keyIdSet=1 — a later sign on the same RsaKey
+             * Don't persist keyIdSet=1 -- a later sign on the same RsaKey
              * would reuse this binding and fail because the SE050 object has
              * no private material. Erase the transient object so the next
              * SE050 op (sign or verify) re-uploads from whatever the host
@@ -3053,6 +3053,10 @@ int se050_ed25519_verify_msg(const byte* signature, word32 signatureLen,
         key, signature, signatureLen, msg, msgLen);
 #endif
 
+    if (signature == NULL || msg == NULL || key == NULL || res == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
     *res = 0;
 
     if (cfg_se050_i2c_pi == NULL) {
@@ -3115,8 +3119,21 @@ int se050_ed25519_verify_msg(const byte* signature, word32 signatureLen,
     }
 
     if (status == kStatus_SSS_Success) {
-        key->keyId = keyId;
-        key->keyIdSet = 1;
+        if (keyCreated) {
+            /* We uploaded only the public part of the key for this verify.
+             * Don't persist keyIdSet=1 -- a later sign on the same ed25519_key
+             * would reuse this binding and fail because the SE050 object has
+             * no private material. Erase the transient object so the next
+             * SE050 op re-uploads. Mirrors the fix in se050_rsa_verify. */
+            sss_key_store_erase_key(&host_keystore, &newKey);
+            sss_key_object_free(&newKey);
+        }
+        else {
+            /* Pre-existing keyIdSet=1 binding (from prior sign that uploaded
+             * a keypair, or explicit caller setup). Preserve it. */
+            key->keyId = keyId;
+            key->keyIdSet = 1;
+        }
         *res = 1;
         ret = 0;
     }

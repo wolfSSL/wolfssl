@@ -41060,7 +41060,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ed25519_test(void)
     /* These cases exercise host-side signature-encoding pre-validation (e.g.,
      * sig == curve order). The SE050 port delegates verify to the secure
      * element, which rejects all four inputs with WC_HW_E rather than the
-     * BAD_FUNC_ARG / SIG_VERIFY_E the host-side path produces — so the
+     * BAD_FUNC_ARG / SIG_VERIFY_E the host-side path produces -- so the
      * expected error code differs below when built against an SE050. */
     {
         /* Run tests for some rare code paths */
