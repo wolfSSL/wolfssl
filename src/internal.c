@@ -26026,7 +26026,8 @@ int SendCertificateStatus(WOLFSSL* ssl)
                 }
 
                 if (chain && chain->buffer) {
-                    while (ret == 0 && idx + OPAQUE24_LEN < chain->length) {
+                    while (ret == 0 && i < MAX_CHAIN_DEPTH &&
+                           idx + OPAQUE24_LEN < chain->length) {
                         c24to32(chain->buffer + idx, &der.length);
                         idx += OPAQUE24_LEN;
 
@@ -26065,7 +26066,7 @@ int SendCertificateStatus(WOLFSSL* ssl)
                 WC_FREE_VAR_EX(cert, ssl->heap, DYNAMIC_TYPE_DCERT);
             }
             else {
-                while (ret == 0 &&
+                while (ret == 0 && i < MAX_CHAIN_DEPTH &&
                             NULL != (request = ssl->ctx->chainOcspRequest[i])) {
                     if ((i + 1) >= MAX_CERT_EXTENSIONS) {
                         ret = MAX_CERT_EXTENSIONS_ERR;
