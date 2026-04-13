@@ -28,6 +28,25 @@ Encryption Standard (AES) functionality.
 use crate::sys;
 use core::mem::{size_of_val, MaybeUninit};
 
+#[cfg(feature = "aead")]
+use aead::{AeadCore, AeadInPlace, KeyInit, KeySizeUser};
+
+#[cfg(feature = "aead")]
+use aead::generic_array::typenum::{U0, U12, U16, U32};
+
+#[cfg(all(feature = "cipher", not(feature = "aead")))]
+use cipher::typenum::consts::{U16, U32};
+
+#[cfg(feature = "cipher")]
+use cipher::typenum::consts::U24;
+
+#[cfg(feature = "cipher")]
+use cipher::{
+    BlockModeDecBackend, BlockModeDecClosure, BlockModeDecrypt,
+    BlockModeEncBackend, BlockModeEncClosure, BlockModeEncrypt,
+    IvSizeUser, KeyIvInit, ParBlocksSizeUser, StreamCipher, StreamCipherError,
+};
+
 #[cfg(aes_wc_block_size)]
 pub const AES_BLOCK_SIZE: usize = sys::WC_AES_BLOCK_SIZE as usize;
 #[cfg(not(aes_wc_block_size))]
@@ -411,6 +430,169 @@ impl Drop for CCM {
     /// Safely free the wolfSSL resources.
     fn drop(&mut self) {
         unsafe { sys::wc_AesFree(&mut self.ws_aes); }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// AES-CCM aead trait implementations
+// ---------------------------------------------------------------------------
+
+/// Encrypt `buffer` in-place using AES-CCM (12-byte nonce, 16-byte tag).
+#[cfg(all(aes_ccm, feature = "aead"))]
+fn ccm_encrypt_in_place(
+    key: &[u8],
+    nonce: &[u8],
+    aad: &[u8],
+    buffer: &mut [u8],
+    tag: &mut [u8],
+) -> Result<(), aead::Error> {
+    let mut ccm = CCM::new().map_err(|_| aead::Error)?;
+    ccm.init(key).map_err(|_| aead::Error)?;
+    // wolfCrypt CCM supports in-place operation (out == in).
+    let buf_ptr = buffer.as_mut_ptr();
+    let in_ptr = buf_ptr as *const u8;
+    let rc = unsafe {
+        sys::wc_AesCcmEncrypt(
+            &mut ccm.ws_aes,
+            buf_ptr, in_ptr, buffer.len() as u32,
+            nonce.as_ptr(), nonce.len() as u32,
+            tag.as_mut_ptr(), tag.len() as u32,
+            aad.as_ptr(), aad.len() as u32,
+        )
+    };
+    if rc != 0 {
+        return Err(aead::Error);
+    }
+    Ok(())
+}
+
+/// Decrypt `buffer` in-place using AES-CCM and verify `tag`.
+#[cfg(all(aes_ccm, feature = "aead"))]
+fn ccm_decrypt_in_place(
+    key: &[u8],
+    nonce: &[u8],
+    aad: &[u8],
+    buffer: &mut [u8],
+    tag: &[u8],
+) -> Result<(), aead::Error> {
+    let mut ccm = CCM::new().map_err(|_| aead::Error)?;
+    ccm.init(key).map_err(|_| aead::Error)?;
+    let buf_ptr = buffer.as_mut_ptr();
+    let in_ptr = buf_ptr as *const u8;
+    let rc = unsafe {
+        sys::wc_AesCcmDecrypt(
+            &mut ccm.ws_aes,
+            buf_ptr, in_ptr, buffer.len() as u32,
+            nonce.as_ptr(), nonce.len() as u32,
+            tag.as_ptr(), tag.len() as u32,
+            aad.as_ptr(), aad.len() as u32,
+        )
+    };
+    if rc != 0 {
+        return Err(aead::Error);
+    }
+    Ok(())
+}
+
+/// AES-128-CCM authenticated encryption (12-byte nonce, 16-byte tag).
+#[cfg(all(aes_ccm, feature = "aead"))]
+pub struct Aes128Ccm {
+    key: [u8; 16],
+}
+
+#[cfg(all(aes_ccm, feature = "aead"))]
+impl KeySizeUser for Aes128Ccm {
+    type KeySize = U16;
+}
+
+#[cfg(all(aes_ccm, feature = "aead"))]
+impl AeadCore for Aes128Ccm {
+    type NonceSize = U12;
+    type TagSize = U16;
+    type CiphertextOverhead = U0;
+}
+
+#[cfg(all(aes_ccm, feature = "aead"))]
+impl KeyInit for Aes128Ccm {
+    fn new(key: &aead::Key<Self>) -> Self {
+        let mut k = [0u8; 16];
+        k.copy_from_slice(key.as_ref());
+        Aes128Ccm { key: k }
+    }
+}
+
+#[cfg(all(aes_ccm, feature = "aead"))]
+impl AeadInPlace for Aes128Ccm {
+    fn encrypt_in_place_detached(
+        &self,
+        nonce: &aead::Nonce<Self>,
+        associated_data: &[u8],
+        buffer: &mut [u8],
+    ) -> Result<aead::Tag<Self>, aead::Error> {
+        let mut tag = aead::Tag::<Self>::default();
+        ccm_encrypt_in_place(&self.key, nonce.as_ref(), associated_data, buffer, tag.as_mut())?;
+        Ok(tag)
+    }
+
+    fn decrypt_in_place_detached(
+        &self,
+        nonce: &aead::Nonce<Self>,
+        associated_data: &[u8],
+        buffer: &mut [u8],
+        tag: &aead::Tag<Self>,
+    ) -> Result<(), aead::Error> {
+        ccm_decrypt_in_place(&self.key, nonce.as_ref(), associated_data, buffer, tag.as_ref())
+    }
+}
+
+/// AES-256-CCM authenticated encryption (12-byte nonce, 16-byte tag).
+#[cfg(all(aes_ccm, feature = "aead"))]
+pub struct Aes256Ccm {
+    key: [u8; 32],
+}
+
+#[cfg(all(aes_ccm, feature = "aead"))]
+impl KeySizeUser for Aes256Ccm {
+    type KeySize = U32;
+}
+
+#[cfg(all(aes_ccm, feature = "aead"))]
+impl AeadCore for Aes256Ccm {
+    type NonceSize = U12;
+    type TagSize = U16;
+    type CiphertextOverhead = U0;
+}
+
+#[cfg(all(aes_ccm, feature = "aead"))]
+impl KeyInit for Aes256Ccm {
+    fn new(key: &aead::Key<Self>) -> Self {
+        let mut k = [0u8; 32];
+        k.copy_from_slice(key.as_ref());
+        Aes256Ccm { key: k }
+    }
+}
+
+#[cfg(all(aes_ccm, feature = "aead"))]
+impl AeadInPlace for Aes256Ccm {
+    fn encrypt_in_place_detached(
+        &self,
+        nonce: &aead::Nonce<Self>,
+        associated_data: &[u8],
+        buffer: &mut [u8],
+    ) -> Result<aead::Tag<Self>, aead::Error> {
+        let mut tag = aead::Tag::<Self>::default();
+        ccm_encrypt_in_place(&self.key, nonce.as_ref(), associated_data, buffer, tag.as_mut())?;
+        Ok(tag)
+    }
+
+    fn decrypt_in_place_detached(
+        &self,
+        nonce: &aead::Nonce<Self>,
+        associated_data: &[u8],
+        buffer: &mut [u8],
+        tag: &aead::Tag<Self>,
+    ) -> Result<(), aead::Error> {
+        ccm_decrypt_in_place(&self.key, nonce.as_ref(), associated_data, buffer, tag.as_ref())
     }
 }
 
@@ -1391,6 +1573,170 @@ impl Drop for GCM {
     /// Safely free the wolfSSL resources.
     fn drop(&mut self) {
         unsafe { sys::wc_AesFree(&mut self.ws_aes); }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// AES-GCM aead trait implementations
+// ---------------------------------------------------------------------------
+
+/// Encrypt `buffer` in-place using AES-GCM (12-byte nonce, 16-byte tag).
+///
+/// wolfCrypt's `wc_AesGcmEncrypt` supports in-place operation (out == in).
+#[cfg(all(aes_gcm, feature = "aead"))]
+fn gcm_encrypt_in_place(
+    key: &[u8],
+    nonce: &[u8],
+    aad: &[u8],
+    buffer: &mut [u8],
+    tag: &mut [u8],
+) -> Result<(), aead::Error> {
+    let mut gcm = GCM::new().map_err(|_| aead::Error)?;
+    gcm.init(key).map_err(|_| aead::Error)?;
+    let buf_ptr = buffer.as_mut_ptr();
+    let in_ptr = buf_ptr as *const u8;
+    let rc = unsafe {
+        sys::wc_AesGcmEncrypt(
+            &mut gcm.ws_aes,
+            buf_ptr, in_ptr, buffer.len() as u32,
+            nonce.as_ptr(), nonce.len() as u32,
+            tag.as_mut_ptr(), tag.len() as u32,
+            aad.as_ptr(), aad.len() as u32,
+        )
+    };
+    if rc != 0 {
+        return Err(aead::Error);
+    }
+    Ok(())
+}
+
+/// Decrypt `buffer` in-place using AES-GCM and verify `tag`.
+#[cfg(all(aes_gcm, feature = "aead"))]
+fn gcm_decrypt_in_place(
+    key: &[u8],
+    nonce: &[u8],
+    aad: &[u8],
+    buffer: &mut [u8],
+    tag: &[u8],
+) -> Result<(), aead::Error> {
+    let mut gcm = GCM::new().map_err(|_| aead::Error)?;
+    gcm.init(key).map_err(|_| aead::Error)?;
+    let buf_ptr = buffer.as_mut_ptr();
+    let in_ptr = buf_ptr as *const u8;
+    let rc = unsafe {
+        sys::wc_AesGcmDecrypt(
+            &mut gcm.ws_aes,
+            buf_ptr, in_ptr, buffer.len() as u32,
+            nonce.as_ptr(), nonce.len() as u32,
+            tag.as_ptr(), tag.len() as u32,
+            aad.as_ptr(), aad.len() as u32,
+        )
+    };
+    if rc != 0 {
+        return Err(aead::Error);
+    }
+    Ok(())
+}
+
+/// AES-128-GCM authenticated encryption (12-byte nonce, 16-byte tag).
+#[cfg(all(aes_gcm, feature = "aead"))]
+pub struct Aes128Gcm {
+    key: [u8; 16],
+}
+
+#[cfg(all(aes_gcm, feature = "aead"))]
+impl KeySizeUser for Aes128Gcm {
+    type KeySize = U16;
+}
+
+#[cfg(all(aes_gcm, feature = "aead"))]
+impl AeadCore for Aes128Gcm {
+    type NonceSize = U12;
+    type TagSize = U16;
+    type CiphertextOverhead = U0;
+}
+
+#[cfg(all(aes_gcm, feature = "aead"))]
+impl KeyInit for Aes128Gcm {
+    fn new(key: &aead::Key<Self>) -> Self {
+        let mut k = [0u8; 16];
+        k.copy_from_slice(key.as_ref());
+        Aes128Gcm { key: k }
+    }
+}
+
+#[cfg(all(aes_gcm, feature = "aead"))]
+impl AeadInPlace for Aes128Gcm {
+    fn encrypt_in_place_detached(
+        &self,
+        nonce: &aead::Nonce<Self>,
+        associated_data: &[u8],
+        buffer: &mut [u8],
+    ) -> Result<aead::Tag<Self>, aead::Error> {
+        let mut tag = aead::Tag::<Self>::default();
+        gcm_encrypt_in_place(&self.key, nonce.as_ref(), associated_data, buffer, tag.as_mut())?;
+        Ok(tag)
+    }
+
+    fn decrypt_in_place_detached(
+        &self,
+        nonce: &aead::Nonce<Self>,
+        associated_data: &[u8],
+        buffer: &mut [u8],
+        tag: &aead::Tag<Self>,
+    ) -> Result<(), aead::Error> {
+        gcm_decrypt_in_place(&self.key, nonce.as_ref(), associated_data, buffer, tag.as_ref())
+    }
+}
+
+/// AES-256-GCM authenticated encryption (12-byte nonce, 16-byte tag).
+#[cfg(all(aes_gcm, feature = "aead"))]
+pub struct Aes256Gcm {
+    key: [u8; 32],
+}
+
+#[cfg(all(aes_gcm, feature = "aead"))]
+impl KeySizeUser for Aes256Gcm {
+    type KeySize = U32;
+}
+
+#[cfg(all(aes_gcm, feature = "aead"))]
+impl AeadCore for Aes256Gcm {
+    type NonceSize = U12;
+    type TagSize = U16;
+    type CiphertextOverhead = U0;
+}
+
+#[cfg(all(aes_gcm, feature = "aead"))]
+impl KeyInit for Aes256Gcm {
+    fn new(key: &aead::Key<Self>) -> Self {
+        let mut k = [0u8; 32];
+        k.copy_from_slice(key.as_ref());
+        Aes256Gcm { key: k }
+    }
+}
+
+#[cfg(all(aes_gcm, feature = "aead"))]
+impl AeadInPlace for Aes256Gcm {
+    fn encrypt_in_place_detached(
+        &self,
+        nonce: &aead::Nonce<Self>,
+        associated_data: &[u8],
+        buffer: &mut [u8],
+    ) -> Result<aead::Tag<Self>, aead::Error> {
+        let mut tag = aead::Tag::<Self>::default();
+        gcm_encrypt_in_place(&self.key, nonce.as_ref(), associated_data, buffer, tag.as_mut())?;
+        Ok(tag)
+    }
+
+    fn decrypt_in_place_detached(
+        &self,
+        nonce: &aead::Nonce<Self>,
+        associated_data: &[u8],
+        buffer: &mut [u8],
+        tag: &aead::Tag<Self>,
+    ) -> Result<(), aead::Error> {
+        gcm_decrypt_in_place(&self.key, nonce.as_ref(), associated_data, buffer, tag.as_ref())
     }
 }
 
@@ -2530,6 +2876,1011 @@ impl Drop for XTSStream {
     /// Safely free the wolfSSL resources.
     fn drop(&mut self) {
         unsafe { sys::wc_AesXtsFree(&mut self.ws_xtsaes); }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// AES-ECB cipher trait implementations
+// ---------------------------------------------------------------------------
+
+/// AES-128 ECB block cipher (encryption) implementing [`cipher::BlockModeEncrypt`].
+///
+/// The key schedule is computed once during construction via
+/// [`cipher::KeyInit::new`] or [`cipher::KeyInit::new_from_slice`].
+#[cfg(all(aes_ecb, feature = "cipher"))]
+pub struct Aes128EcbEnc {
+    inner: ECB,
+}
+
+#[cfg(all(aes_ecb, feature = "cipher"))]
+impl cipher::KeySizeUser for Aes128EcbEnc {
+    type KeySize = U16;
+}
+
+#[cfg(all(aes_ecb, feature = "cipher"))]
+impl cipher::BlockSizeUser for Aes128EcbEnc {
+    type BlockSize = U16;
+}
+
+#[cfg(all(aes_ecb, feature = "cipher"))]
+impl cipher::KeyInit for Aes128EcbEnc {
+    fn new(key: &cipher::Key<Self>) -> Self {
+        let mut ecb = ECB::new().expect("wc_AesInit failed");
+        ecb.init_encrypt(key.as_ref()).expect("wc_AesSetKey failed");
+        Self { inner: ecb }
+    }
+}
+
+#[cfg(all(aes_ecb, feature = "cipher"))]
+struct Aes128EcbEncBackend<'a>(&'a mut Aes128EcbEnc);
+
+#[cfg(all(aes_ecb, feature = "cipher"))]
+impl cipher::BlockSizeUser for Aes128EcbEncBackend<'_> {
+    type BlockSize = U16;
+}
+
+#[cfg(all(aes_ecb, feature = "cipher"))]
+impl ParBlocksSizeUser for Aes128EcbEncBackend<'_> {
+    type ParBlocksSize = cipher::typenum::consts::U1;
+}
+
+#[cfg(all(aes_ecb, feature = "cipher"))]
+impl BlockModeEncBackend for Aes128EcbEncBackend<'_> {
+    fn encrypt_block(&mut self, mut block: cipher::InOut<'_, '_, cipher::Block<Self>>) {
+        let in_block = *block.get_in();
+        let out = block.get_out();
+        self.0.inner.encrypt(in_block.as_ref(), out.as_mut()).expect("wc_AesEcbEncrypt failed");
+    }
+}
+
+#[cfg(all(aes_ecb, feature = "cipher"))]
+impl BlockModeEncrypt for Aes128EcbEnc {
+    fn encrypt_with_backend(&mut self, f: impl BlockModeEncClosure<BlockSize = Self::BlockSize>) {
+        f.call(&mut Aes128EcbEncBackend(self));
+    }
+}
+
+/// AES-192 ECB block cipher (encryption) implementing [`cipher::BlockModeEncrypt`].
+#[cfg(all(aes_ecb, feature = "cipher"))]
+pub struct Aes192EcbEnc {
+    inner: ECB,
+}
+
+#[cfg(all(aes_ecb, feature = "cipher"))]
+impl cipher::KeySizeUser for Aes192EcbEnc {
+    type KeySize = U24;
+}
+
+#[cfg(all(aes_ecb, feature = "cipher"))]
+impl cipher::BlockSizeUser for Aes192EcbEnc {
+    type BlockSize = U16;
+}
+
+#[cfg(all(aes_ecb, feature = "cipher"))]
+impl cipher::KeyInit for Aes192EcbEnc {
+    fn new(key: &cipher::Key<Self>) -> Self {
+        let mut ecb = ECB::new().expect("wc_AesInit failed");
+        ecb.init_encrypt(key.as_ref()).expect("wc_AesSetKey failed");
+        Self { inner: ecb }
+    }
+}
+
+#[cfg(all(aes_ecb, feature = "cipher"))]
+struct Aes192EcbEncBackend<'a>(&'a mut Aes192EcbEnc);
+
+#[cfg(all(aes_ecb, feature = "cipher"))]
+impl cipher::BlockSizeUser for Aes192EcbEncBackend<'_> {
+    type BlockSize = U16;
+}
+
+#[cfg(all(aes_ecb, feature = "cipher"))]
+impl ParBlocksSizeUser for Aes192EcbEncBackend<'_> {
+    type ParBlocksSize = cipher::typenum::consts::U1;
+}
+
+#[cfg(all(aes_ecb, feature = "cipher"))]
+impl BlockModeEncBackend for Aes192EcbEncBackend<'_> {
+    fn encrypt_block(&mut self, mut block: cipher::InOut<'_, '_, cipher::Block<Self>>) {
+        let in_block = *block.get_in();
+        let out = block.get_out();
+        self.0.inner.encrypt(in_block.as_ref(), out.as_mut()).expect("wc_AesEcbEncrypt failed");
+    }
+}
+
+#[cfg(all(aes_ecb, feature = "cipher"))]
+impl BlockModeEncrypt for Aes192EcbEnc {
+    fn encrypt_with_backend(&mut self, f: impl BlockModeEncClosure<BlockSize = Self::BlockSize>) {
+        f.call(&mut Aes192EcbEncBackend(self));
+    }
+}
+
+/// AES-256 ECB block cipher (encryption) implementing [`cipher::BlockModeEncrypt`].
+#[cfg(all(aes_ecb, feature = "cipher"))]
+pub struct Aes256EcbEnc {
+    inner: ECB,
+}
+
+#[cfg(all(aes_ecb, feature = "cipher"))]
+impl cipher::KeySizeUser for Aes256EcbEnc {
+    type KeySize = U32;
+}
+
+#[cfg(all(aes_ecb, feature = "cipher"))]
+impl cipher::BlockSizeUser for Aes256EcbEnc {
+    type BlockSize = U16;
+}
+
+#[cfg(all(aes_ecb, feature = "cipher"))]
+impl cipher::KeyInit for Aes256EcbEnc {
+    fn new(key: &cipher::Key<Self>) -> Self {
+        let mut ecb = ECB::new().expect("wc_AesInit failed");
+        ecb.init_encrypt(key.as_ref()).expect("wc_AesSetKey failed");
+        Self { inner: ecb }
+    }
+}
+
+#[cfg(all(aes_ecb, feature = "cipher"))]
+struct Aes256EcbEncBackend<'a>(&'a mut Aes256EcbEnc);
+
+#[cfg(all(aes_ecb, feature = "cipher"))]
+impl cipher::BlockSizeUser for Aes256EcbEncBackend<'_> {
+    type BlockSize = U16;
+}
+
+#[cfg(all(aes_ecb, feature = "cipher"))]
+impl ParBlocksSizeUser for Aes256EcbEncBackend<'_> {
+    type ParBlocksSize = cipher::typenum::consts::U1;
+}
+
+#[cfg(all(aes_ecb, feature = "cipher"))]
+impl BlockModeEncBackend for Aes256EcbEncBackend<'_> {
+    fn encrypt_block(&mut self, mut block: cipher::InOut<'_, '_, cipher::Block<Self>>) {
+        let in_block = *block.get_in();
+        let out = block.get_out();
+        self.0.inner.encrypt(in_block.as_ref(), out.as_mut()).expect("wc_AesEcbEncrypt failed");
+    }
+}
+
+#[cfg(all(aes_ecb, feature = "cipher"))]
+impl BlockModeEncrypt for Aes256EcbEnc {
+    fn encrypt_with_backend(&mut self, f: impl BlockModeEncClosure<BlockSize = Self::BlockSize>) {
+        f.call(&mut Aes256EcbEncBackend(self));
+    }
+}
+
+/// AES-128 ECB block cipher (decryption) implementing [`cipher::BlockModeDecrypt`].
+///
+/// The key schedule is computed once during construction via
+/// [`cipher::KeyInit::new`] or [`cipher::KeyInit::new_from_slice`].
+#[cfg(all(aes_ecb, feature = "cipher"))]
+pub struct Aes128EcbDec {
+    inner: ECB,
+}
+
+#[cfg(all(aes_ecb, feature = "cipher"))]
+impl cipher::KeySizeUser for Aes128EcbDec {
+    type KeySize = U16;
+}
+
+#[cfg(all(aes_ecb, feature = "cipher"))]
+impl cipher::BlockSizeUser for Aes128EcbDec {
+    type BlockSize = U16;
+}
+
+#[cfg(all(aes_ecb, feature = "cipher"))]
+impl cipher::KeyInit for Aes128EcbDec {
+    fn new(key: &cipher::Key<Self>) -> Self {
+        let mut ecb = ECB::new().expect("wc_AesInit failed");
+        ecb.init_decrypt(key.as_ref()).expect("wc_AesSetKey failed");
+        Self { inner: ecb }
+    }
+}
+
+#[cfg(all(aes_ecb, feature = "cipher"))]
+struct Aes128EcbDecBackend<'a>(&'a mut Aes128EcbDec);
+
+#[cfg(all(aes_ecb, feature = "cipher"))]
+impl cipher::BlockSizeUser for Aes128EcbDecBackend<'_> {
+    type BlockSize = U16;
+}
+
+#[cfg(all(aes_ecb, feature = "cipher"))]
+impl ParBlocksSizeUser for Aes128EcbDecBackend<'_> {
+    type ParBlocksSize = cipher::typenum::consts::U1;
+}
+
+#[cfg(all(aes_ecb, feature = "cipher"))]
+impl BlockModeDecBackend for Aes128EcbDecBackend<'_> {
+    fn decrypt_block(&mut self, mut block: cipher::InOut<'_, '_, cipher::Block<Self>>) {
+        let in_block = *block.get_in();
+        let out = block.get_out();
+        self.0.inner.decrypt(in_block.as_ref(), out.as_mut()).expect("wc_AesEcbDecrypt failed");
+    }
+}
+
+#[cfg(all(aes_ecb, feature = "cipher"))]
+impl BlockModeDecrypt for Aes128EcbDec {
+    fn decrypt_with_backend(&mut self, f: impl BlockModeDecClosure<BlockSize = Self::BlockSize>) {
+        f.call(&mut Aes128EcbDecBackend(self));
+    }
+}
+
+/// AES-192 ECB block cipher (decryption) implementing [`cipher::BlockModeDecrypt`].
+#[cfg(all(aes_ecb, feature = "cipher"))]
+pub struct Aes192EcbDec {
+    inner: ECB,
+}
+
+#[cfg(all(aes_ecb, feature = "cipher"))]
+impl cipher::KeySizeUser for Aes192EcbDec {
+    type KeySize = U24;
+}
+
+#[cfg(all(aes_ecb, feature = "cipher"))]
+impl cipher::BlockSizeUser for Aes192EcbDec {
+    type BlockSize = U16;
+}
+
+#[cfg(all(aes_ecb, feature = "cipher"))]
+impl cipher::KeyInit for Aes192EcbDec {
+    fn new(key: &cipher::Key<Self>) -> Self {
+        let mut ecb = ECB::new().expect("wc_AesInit failed");
+        ecb.init_decrypt(key.as_ref()).expect("wc_AesSetKey failed");
+        Self { inner: ecb }
+    }
+}
+
+#[cfg(all(aes_ecb, feature = "cipher"))]
+struct Aes192EcbDecBackend<'a>(&'a mut Aes192EcbDec);
+
+#[cfg(all(aes_ecb, feature = "cipher"))]
+impl cipher::BlockSizeUser for Aes192EcbDecBackend<'_> {
+    type BlockSize = U16;
+}
+
+#[cfg(all(aes_ecb, feature = "cipher"))]
+impl ParBlocksSizeUser for Aes192EcbDecBackend<'_> {
+    type ParBlocksSize = cipher::typenum::consts::U1;
+}
+
+#[cfg(all(aes_ecb, feature = "cipher"))]
+impl BlockModeDecBackend for Aes192EcbDecBackend<'_> {
+    fn decrypt_block(&mut self, mut block: cipher::InOut<'_, '_, cipher::Block<Self>>) {
+        let in_block = *block.get_in();
+        let out = block.get_out();
+        self.0.inner.decrypt(in_block.as_ref(), out.as_mut()).expect("wc_AesEcbDecrypt failed");
+    }
+}
+
+#[cfg(all(aes_ecb, feature = "cipher"))]
+impl BlockModeDecrypt for Aes192EcbDec {
+    fn decrypt_with_backend(&mut self, f: impl BlockModeDecClosure<BlockSize = Self::BlockSize>) {
+        f.call(&mut Aes192EcbDecBackend(self));
+    }
+}
+
+/// AES-256 ECB block cipher (decryption) implementing [`cipher::BlockModeDecrypt`].
+#[cfg(all(aes_ecb, feature = "cipher"))]
+pub struct Aes256EcbDec {
+    inner: ECB,
+}
+
+#[cfg(all(aes_ecb, feature = "cipher"))]
+impl cipher::KeySizeUser for Aes256EcbDec {
+    type KeySize = U32;
+}
+
+#[cfg(all(aes_ecb, feature = "cipher"))]
+impl cipher::BlockSizeUser for Aes256EcbDec {
+    type BlockSize = U16;
+}
+
+#[cfg(all(aes_ecb, feature = "cipher"))]
+impl cipher::KeyInit for Aes256EcbDec {
+    fn new(key: &cipher::Key<Self>) -> Self {
+        let mut ecb = ECB::new().expect("wc_AesInit failed");
+        ecb.init_decrypt(key.as_ref()).expect("wc_AesSetKey failed");
+        Self { inner: ecb }
+    }
+}
+
+#[cfg(all(aes_ecb, feature = "cipher"))]
+struct Aes256EcbDecBackend<'a>(&'a mut Aes256EcbDec);
+
+#[cfg(all(aes_ecb, feature = "cipher"))]
+impl cipher::BlockSizeUser for Aes256EcbDecBackend<'_> {
+    type BlockSize = U16;
+}
+
+#[cfg(all(aes_ecb, feature = "cipher"))]
+impl ParBlocksSizeUser for Aes256EcbDecBackend<'_> {
+    type ParBlocksSize = cipher::typenum::consts::U1;
+}
+
+#[cfg(all(aes_ecb, feature = "cipher"))]
+impl BlockModeDecBackend for Aes256EcbDecBackend<'_> {
+    fn decrypt_block(&mut self, mut block: cipher::InOut<'_, '_, cipher::Block<Self>>) {
+        let in_block = *block.get_in();
+        let out = block.get_out();
+        self.0.inner.decrypt(in_block.as_ref(), out.as_mut()).expect("wc_AesEcbDecrypt failed");
+    }
+}
+
+#[cfg(all(aes_ecb, feature = "cipher"))]
+impl BlockModeDecrypt for Aes256EcbDec {
+    fn decrypt_with_backend(&mut self, f: impl BlockModeDecClosure<BlockSize = Self::BlockSize>) {
+        f.call(&mut Aes256EcbDecBackend(self));
+    }
+}
+
+// ---------------------------------------------------------------------------
+// AES-CTR cipher trait implementations
+// ---------------------------------------------------------------------------
+
+/// AES-128 CTR stream cipher implementing [`cipher::StreamCipher`].
+///
+/// wolfCrypt AES-CTR supports in-place operation, so the in/out pointers from
+/// the [`cipher::inout::InOutBuf`] are passed directly to `wc_AesCtrEncrypt`.
+#[cfg(all(aes_ctr, feature = "cipher"))]
+pub struct Aes128Ctr {
+    inner: CTR,
+}
+
+#[cfg(all(aes_ctr, feature = "cipher"))]
+impl cipher::KeySizeUser for Aes128Ctr {
+    type KeySize = U16;
+}
+
+#[cfg(all(aes_ctr, feature = "cipher"))]
+impl IvSizeUser for Aes128Ctr {
+    type IvSize = U16;
+}
+
+#[cfg(all(aes_ctr, feature = "cipher"))]
+impl KeyIvInit for Aes128Ctr {
+    fn new(key: &cipher::Key<Self>, iv: &cipher::Iv<Self>) -> Self {
+        let mut ctr = CTR::new().expect("wc_AesInit failed");
+        ctr.init(key.as_ref(), iv.as_ref()).expect("wc_AesSetKeyDirect failed");
+        Self { inner: ctr }
+    }
+}
+
+#[cfg(all(aes_ctr, feature = "cipher"))]
+impl StreamCipher for Aes128Ctr {
+    fn check_remaining(&self, _data_len: usize) -> Result<(), StreamCipherError> {
+        Ok(())
+    }
+
+    fn unchecked_apply_keystream_inout(&mut self, mut buf: cipher::InOutBuf<'_, '_, u8>) {
+        let len = buf.len();
+        if len == 0 { return; }
+        // wolfCrypt AES-CTR supports in-place operation (out == in).
+        let in_ptr = buf.get_in().as_ptr();
+        let out_ptr = buf.get_out().as_mut_ptr();
+        // SAFETY: CTR in-place is valid; C function called directly to avoid
+        // creating aliasing slices.
+        let rc = unsafe { sys::wc_AesCtrEncrypt(&mut self.inner.ws_aes, out_ptr, in_ptr, len as u32) };
+        assert_eq!(rc, 0, "wc_AesCtrEncrypt failed");
+    }
+
+    fn unchecked_write_keystream(&mut self, buf: &mut [u8]) {
+        buf.fill(0);
+        self.unchecked_apply_keystream_inout(buf.into());
+    }
+}
+
+/// AES-192 CTR stream cipher implementing [`cipher::StreamCipher`].
+#[cfg(all(aes_ctr, feature = "cipher"))]
+pub struct Aes192Ctr {
+    inner: CTR,
+}
+
+#[cfg(all(aes_ctr, feature = "cipher"))]
+impl cipher::KeySizeUser for Aes192Ctr {
+    type KeySize = U24;
+}
+
+#[cfg(all(aes_ctr, feature = "cipher"))]
+impl IvSizeUser for Aes192Ctr {
+    type IvSize = U16;
+}
+
+#[cfg(all(aes_ctr, feature = "cipher"))]
+impl KeyIvInit for Aes192Ctr {
+    fn new(key: &cipher::Key<Self>, iv: &cipher::Iv<Self>) -> Self {
+        let mut ctr = CTR::new().expect("wc_AesInit failed");
+        ctr.init(key.as_ref(), iv.as_ref()).expect("wc_AesSetKeyDirect failed");
+        Self { inner: ctr }
+    }
+}
+
+#[cfg(all(aes_ctr, feature = "cipher"))]
+impl StreamCipher for Aes192Ctr {
+    fn check_remaining(&self, _data_len: usize) -> Result<(), StreamCipherError> {
+        Ok(())
+    }
+
+    fn unchecked_apply_keystream_inout(&mut self, mut buf: cipher::InOutBuf<'_, '_, u8>) {
+        let len = buf.len();
+        if len == 0 { return; }
+        let in_ptr = buf.get_in().as_ptr();
+        let out_ptr = buf.get_out().as_mut_ptr();
+        // SAFETY: CTR in-place is valid; C function called directly to avoid
+        // creating aliasing slices.
+        let rc = unsafe { sys::wc_AesCtrEncrypt(&mut self.inner.ws_aes, out_ptr, in_ptr, len as u32) };
+        assert_eq!(rc, 0, "wc_AesCtrEncrypt failed");
+    }
+
+    fn unchecked_write_keystream(&mut self, buf: &mut [u8]) {
+        buf.fill(0);
+        self.unchecked_apply_keystream_inout(buf.into());
+    }
+}
+
+/// AES-256 CTR stream cipher implementing [`cipher::StreamCipher`].
+#[cfg(all(aes_ctr, feature = "cipher"))]
+pub struct Aes256Ctr {
+    inner: CTR,
+}
+
+#[cfg(all(aes_ctr, feature = "cipher"))]
+impl cipher::KeySizeUser for Aes256Ctr {
+    type KeySize = U32;
+}
+
+#[cfg(all(aes_ctr, feature = "cipher"))]
+impl IvSizeUser for Aes256Ctr {
+    type IvSize = U16;
+}
+
+#[cfg(all(aes_ctr, feature = "cipher"))]
+impl KeyIvInit for Aes256Ctr {
+    fn new(key: &cipher::Key<Self>, iv: &cipher::Iv<Self>) -> Self {
+        let mut ctr = CTR::new().expect("wc_AesInit failed");
+        ctr.init(key.as_ref(), iv.as_ref()).expect("wc_AesSetKeyDirect failed");
+        Self { inner: ctr }
+    }
+}
+
+#[cfg(all(aes_ctr, feature = "cipher"))]
+impl StreamCipher for Aes256Ctr {
+    fn check_remaining(&self, _data_len: usize) -> Result<(), StreamCipherError> {
+        Ok(())
+    }
+
+    fn unchecked_apply_keystream_inout(&mut self, mut buf: cipher::InOutBuf<'_, '_, u8>) {
+        let len = buf.len();
+        if len == 0 { return; }
+        let in_ptr = buf.get_in().as_ptr();
+        let out_ptr = buf.get_out().as_mut_ptr();
+        // SAFETY: CTR in-place is valid; C function called directly to avoid
+        // creating aliasing slices.
+        let rc = unsafe { sys::wc_AesCtrEncrypt(&mut self.inner.ws_aes, out_ptr, in_ptr, len as u32) };
+        assert_eq!(rc, 0, "wc_AesCtrEncrypt failed");
+    }
+
+    fn unchecked_write_keystream(&mut self, buf: &mut [u8]) {
+        buf.fill(0);
+        self.unchecked_apply_keystream_inout(buf.into());
+    }
+}
+
+// ---------------------------------------------------------------------------
+// AES-OFB cipher trait implementations
+// ---------------------------------------------------------------------------
+
+/// AES-128 OFB stream cipher implementing [`cipher::StreamCipher`].
+///
+/// OFB (Output FeedBack) generates a keystream independent of the data, so
+/// [`StreamCipher::apply_keystream`] is self-inverse and wolfCrypt supports
+/// in-place operation.
+#[cfg(all(aes_ofb, feature = "cipher"))]
+pub struct Aes128Ofb {
+    inner: OFB,
+}
+
+#[cfg(all(aes_ofb, feature = "cipher"))]
+impl cipher::KeySizeUser for Aes128Ofb {
+    type KeySize = U16;
+}
+
+#[cfg(all(aes_ofb, feature = "cipher"))]
+impl IvSizeUser for Aes128Ofb {
+    type IvSize = U16;
+}
+
+#[cfg(all(aes_ofb, feature = "cipher"))]
+impl KeyIvInit for Aes128Ofb {
+    fn new(key: &cipher::Key<Self>, iv: &cipher::Iv<Self>) -> Self {
+        let mut ofb = OFB::new().expect("wc_AesInit failed");
+        ofb.init(key.as_ref(), iv.as_ref()).expect("wc_AesSetKey failed");
+        Self { inner: ofb }
+    }
+}
+
+#[cfg(all(aes_ofb, feature = "cipher"))]
+impl StreamCipher for Aes128Ofb {
+    fn check_remaining(&self, _data_len: usize) -> Result<(), StreamCipherError> {
+        Ok(())
+    }
+
+    fn unchecked_apply_keystream_inout(&mut self, mut buf: cipher::InOutBuf<'_, '_, u8>) {
+        let len = buf.len();
+        if len == 0 { return; }
+        // wolfCrypt AES-OFB supports in-place operation (out == in).
+        let in_ptr = buf.get_in().as_ptr();
+        let out_ptr = buf.get_out().as_mut_ptr();
+        // SAFETY: OFB in-place is valid; C function called directly to avoid
+        // creating aliasing slices.
+        let rc = unsafe { sys::wc_AesOfbEncrypt(&mut self.inner.ws_aes, out_ptr, in_ptr, len as u32) };
+        assert_eq!(rc, 0, "wc_AesOfbEncrypt failed");
+    }
+
+    fn unchecked_write_keystream(&mut self, buf: &mut [u8]) {
+        buf.fill(0);
+        self.unchecked_apply_keystream_inout(buf.into());
+    }
+}
+
+/// AES-192 OFB stream cipher implementing [`cipher::StreamCipher`].
+#[cfg(all(aes_ofb, feature = "cipher"))]
+pub struct Aes192Ofb {
+    inner: OFB,
+}
+
+#[cfg(all(aes_ofb, feature = "cipher"))]
+impl cipher::KeySizeUser for Aes192Ofb {
+    type KeySize = U24;
+}
+
+#[cfg(all(aes_ofb, feature = "cipher"))]
+impl IvSizeUser for Aes192Ofb {
+    type IvSize = U16;
+}
+
+#[cfg(all(aes_ofb, feature = "cipher"))]
+impl KeyIvInit for Aes192Ofb {
+    fn new(key: &cipher::Key<Self>, iv: &cipher::Iv<Self>) -> Self {
+        let mut ofb = OFB::new().expect("wc_AesInit failed");
+        ofb.init(key.as_ref(), iv.as_ref()).expect("wc_AesSetKey failed");
+        Self { inner: ofb }
+    }
+}
+
+#[cfg(all(aes_ofb, feature = "cipher"))]
+impl StreamCipher for Aes192Ofb {
+    fn check_remaining(&self, _data_len: usize) -> Result<(), StreamCipherError> {
+        Ok(())
+    }
+
+    fn unchecked_apply_keystream_inout(&mut self, mut buf: cipher::InOutBuf<'_, '_, u8>) {
+        let len = buf.len();
+        if len == 0 { return; }
+        let in_ptr = buf.get_in().as_ptr();
+        let out_ptr = buf.get_out().as_mut_ptr();
+        // SAFETY: OFB in-place is valid; C function called directly to avoid
+        // creating aliasing slices.
+        let rc = unsafe { sys::wc_AesOfbEncrypt(&mut self.inner.ws_aes, out_ptr, in_ptr, len as u32) };
+        assert_eq!(rc, 0, "wc_AesOfbEncrypt failed");
+    }
+
+    fn unchecked_write_keystream(&mut self, buf: &mut [u8]) {
+        buf.fill(0);
+        self.unchecked_apply_keystream_inout(buf.into());
+    }
+}
+
+/// AES-256 OFB stream cipher implementing [`cipher::StreamCipher`].
+#[cfg(all(aes_ofb, feature = "cipher"))]
+pub struct Aes256Ofb {
+    inner: OFB,
+}
+
+#[cfg(all(aes_ofb, feature = "cipher"))]
+impl cipher::KeySizeUser for Aes256Ofb {
+    type KeySize = U32;
+}
+
+#[cfg(all(aes_ofb, feature = "cipher"))]
+impl IvSizeUser for Aes256Ofb {
+    type IvSize = U16;
+}
+
+#[cfg(all(aes_ofb, feature = "cipher"))]
+impl KeyIvInit for Aes256Ofb {
+    fn new(key: &cipher::Key<Self>, iv: &cipher::Iv<Self>) -> Self {
+        let mut ofb = OFB::new().expect("wc_AesInit failed");
+        ofb.init(key.as_ref(), iv.as_ref()).expect("wc_AesSetKey failed");
+        Self { inner: ofb }
+    }
+}
+
+#[cfg(all(aes_ofb, feature = "cipher"))]
+impl StreamCipher for Aes256Ofb {
+    fn check_remaining(&self, _data_len: usize) -> Result<(), StreamCipherError> {
+        Ok(())
+    }
+
+    fn unchecked_apply_keystream_inout(&mut self, mut buf: cipher::InOutBuf<'_, '_, u8>) {
+        let len = buf.len();
+        if len == 0 { return; }
+        let in_ptr = buf.get_in().as_ptr();
+        let out_ptr = buf.get_out().as_mut_ptr();
+        // SAFETY: OFB in-place is valid; C function called directly to avoid
+        // creating aliasing slices.
+        let rc = unsafe { sys::wc_AesOfbEncrypt(&mut self.inner.ws_aes, out_ptr, in_ptr, len as u32) };
+        assert_eq!(rc, 0, "wc_AesOfbEncrypt failed");
+    }
+
+    fn unchecked_write_keystream(&mut self, buf: &mut [u8]) {
+        buf.fill(0);
+        self.unchecked_apply_keystream_inout(buf.into());
+    }
+}
+
+// ---------------------------------------------------------------------------
+// AES-CBC block mode trait implementations
+// ---------------------------------------------------------------------------
+
+/// AES-128 CBC block cipher (encryption) implementing [`cipher::BlockModeEncrypt`].
+///
+/// CBC chains ciphertext blocks: each plaintext block is XORed with the
+/// previous ciphertext block (or the IV for the first block) before
+/// encryption. wolfCrypt maintains the IV state internally between calls,
+/// so blocks can be encrypted one at a time and the chaining is preserved.
+#[cfg(all(aes_cbc, feature = "cipher"))]
+pub struct Aes128CbcEnc {
+    inner: CBC,
+}
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+impl cipher::KeySizeUser for Aes128CbcEnc {
+    type KeySize = U16;
+}
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+impl cipher::BlockSizeUser for Aes128CbcEnc {
+    type BlockSize = U16;
+}
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+impl IvSizeUser for Aes128CbcEnc {
+    type IvSize = U16;
+}
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+impl KeyIvInit for Aes128CbcEnc {
+    fn new(key: &cipher::Key<Self>, iv: &cipher::Iv<Self>) -> Self {
+        let mut cbc = CBC::new().expect("wc_AesInit failed");
+        cbc.init_encrypt(key.as_ref(), iv.as_ref()).expect("wc_AesSetKey failed");
+        Self { inner: cbc }
+    }
+}
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+struct Aes128CbcEncBackend<'a>(&'a mut Aes128CbcEnc);
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+impl cipher::BlockSizeUser for Aes128CbcEncBackend<'_> {
+    type BlockSize = U16;
+}
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+impl ParBlocksSizeUser for Aes128CbcEncBackend<'_> {
+    type ParBlocksSize = cipher::typenum::consts::U1;
+}
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+impl BlockModeEncBackend for Aes128CbcEncBackend<'_> {
+    fn encrypt_block(&mut self, mut block: cipher::InOut<'_, '_, cipher::Block<Self>>) {
+        let in_block = *block.get_in();
+        let out = block.get_out();
+        self.0.inner.encrypt(in_block.as_ref(), out.as_mut()).expect("wc_AesCbcEncrypt failed");
+    }
+}
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+impl BlockModeEncrypt for Aes128CbcEnc {
+    fn encrypt_with_backend(&mut self, f: impl BlockModeEncClosure<BlockSize = Self::BlockSize>) {
+        f.call(&mut Aes128CbcEncBackend(self));
+    }
+}
+
+/// AES-192 CBC block cipher (encryption) implementing [`cipher::BlockModeEncrypt`].
+#[cfg(all(aes_cbc, feature = "cipher"))]
+pub struct Aes192CbcEnc {
+    inner: CBC,
+}
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+impl cipher::KeySizeUser for Aes192CbcEnc {
+    type KeySize = U24;
+}
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+impl cipher::BlockSizeUser for Aes192CbcEnc {
+    type BlockSize = U16;
+}
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+impl IvSizeUser for Aes192CbcEnc {
+    type IvSize = U16;
+}
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+impl KeyIvInit for Aes192CbcEnc {
+    fn new(key: &cipher::Key<Self>, iv: &cipher::Iv<Self>) -> Self {
+        let mut cbc = CBC::new().expect("wc_AesInit failed");
+        cbc.init_encrypt(key.as_ref(), iv.as_ref()).expect("wc_AesSetKey failed");
+        Self { inner: cbc }
+    }
+}
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+struct Aes192CbcEncBackend<'a>(&'a mut Aes192CbcEnc);
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+impl cipher::BlockSizeUser for Aes192CbcEncBackend<'_> {
+    type BlockSize = U16;
+}
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+impl ParBlocksSizeUser for Aes192CbcEncBackend<'_> {
+    type ParBlocksSize = cipher::typenum::consts::U1;
+}
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+impl BlockModeEncBackend for Aes192CbcEncBackend<'_> {
+    fn encrypt_block(&mut self, mut block: cipher::InOut<'_, '_, cipher::Block<Self>>) {
+        let in_block = *block.get_in();
+        let out = block.get_out();
+        self.0.inner.encrypt(in_block.as_ref(), out.as_mut()).expect("wc_AesCbcEncrypt failed");
+    }
+}
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+impl BlockModeEncrypt for Aes192CbcEnc {
+    fn encrypt_with_backend(&mut self, f: impl BlockModeEncClosure<BlockSize = Self::BlockSize>) {
+        f.call(&mut Aes192CbcEncBackend(self));
+    }
+}
+
+/// AES-256 CBC block cipher (encryption) implementing [`cipher::BlockModeEncrypt`].
+#[cfg(all(aes_cbc, feature = "cipher"))]
+pub struct Aes256CbcEnc {
+    inner: CBC,
+}
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+impl cipher::KeySizeUser for Aes256CbcEnc {
+    type KeySize = U32;
+}
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+impl cipher::BlockSizeUser for Aes256CbcEnc {
+    type BlockSize = U16;
+}
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+impl IvSizeUser for Aes256CbcEnc {
+    type IvSize = U16;
+}
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+impl KeyIvInit for Aes256CbcEnc {
+    fn new(key: &cipher::Key<Self>, iv: &cipher::Iv<Self>) -> Self {
+        let mut cbc = CBC::new().expect("wc_AesInit failed");
+        cbc.init_encrypt(key.as_ref(), iv.as_ref()).expect("wc_AesSetKey failed");
+        Self { inner: cbc }
+    }
+}
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+struct Aes256CbcEncBackend<'a>(&'a mut Aes256CbcEnc);
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+impl cipher::BlockSizeUser for Aes256CbcEncBackend<'_> {
+    type BlockSize = U16;
+}
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+impl ParBlocksSizeUser for Aes256CbcEncBackend<'_> {
+    type ParBlocksSize = cipher::typenum::consts::U1;
+}
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+impl BlockModeEncBackend for Aes256CbcEncBackend<'_> {
+    fn encrypt_block(&mut self, mut block: cipher::InOut<'_, '_, cipher::Block<Self>>) {
+        let in_block = *block.get_in();
+        let out = block.get_out();
+        self.0.inner.encrypt(in_block.as_ref(), out.as_mut()).expect("wc_AesCbcEncrypt failed");
+    }
+}
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+impl BlockModeEncrypt for Aes256CbcEnc {
+    fn encrypt_with_backend(&mut self, f: impl BlockModeEncClosure<BlockSize = Self::BlockSize>) {
+        f.call(&mut Aes256CbcEncBackend(self));
+    }
+}
+
+/// AES-128 CBC block cipher (decryption) implementing [`cipher::BlockModeDecrypt`].
+///
+/// wolfCrypt maintains the IV state (last ciphertext block) internally, so
+/// blocks can be decrypted one at a time and the chaining is preserved.
+#[cfg(all(aes_cbc, feature = "cipher"))]
+pub struct Aes128CbcDec {
+    inner: CBC,
+}
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+impl cipher::KeySizeUser for Aes128CbcDec {
+    type KeySize = U16;
+}
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+impl cipher::BlockSizeUser for Aes128CbcDec {
+    type BlockSize = U16;
+}
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+impl IvSizeUser for Aes128CbcDec {
+    type IvSize = U16;
+}
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+impl KeyIvInit for Aes128CbcDec {
+    fn new(key: &cipher::Key<Self>, iv: &cipher::Iv<Self>) -> Self {
+        let mut cbc = CBC::new().expect("wc_AesInit failed");
+        cbc.init_decrypt(key.as_ref(), iv.as_ref()).expect("wc_AesSetKey failed");
+        Self { inner: cbc }
+    }
+}
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+struct Aes128CbcDecBackend<'a>(&'a mut Aes128CbcDec);
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+impl cipher::BlockSizeUser for Aes128CbcDecBackend<'_> {
+    type BlockSize = U16;
+}
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+impl ParBlocksSizeUser for Aes128CbcDecBackend<'_> {
+    type ParBlocksSize = cipher::typenum::consts::U1;
+}
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+impl BlockModeDecBackend for Aes128CbcDecBackend<'_> {
+    fn decrypt_block(&mut self, mut block: cipher::InOut<'_, '_, cipher::Block<Self>>) {
+        let in_block = *block.get_in();
+        let out = block.get_out();
+        self.0.inner.decrypt(in_block.as_ref(), out.as_mut()).expect("wc_AesCbcDecrypt failed");
+    }
+}
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+impl BlockModeDecrypt for Aes128CbcDec {
+    fn decrypt_with_backend(&mut self, f: impl BlockModeDecClosure<BlockSize = Self::BlockSize>) {
+        f.call(&mut Aes128CbcDecBackend(self));
+    }
+}
+
+/// AES-192 CBC block cipher (decryption) implementing [`cipher::BlockModeDecrypt`].
+#[cfg(all(aes_cbc, feature = "cipher"))]
+pub struct Aes192CbcDec {
+    inner: CBC,
+}
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+impl cipher::KeySizeUser for Aes192CbcDec {
+    type KeySize = U24;
+}
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+impl cipher::BlockSizeUser for Aes192CbcDec {
+    type BlockSize = U16;
+}
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+impl IvSizeUser for Aes192CbcDec {
+    type IvSize = U16;
+}
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+impl KeyIvInit for Aes192CbcDec {
+    fn new(key: &cipher::Key<Self>, iv: &cipher::Iv<Self>) -> Self {
+        let mut cbc = CBC::new().expect("wc_AesInit failed");
+        cbc.init_decrypt(key.as_ref(), iv.as_ref()).expect("wc_AesSetKey failed");
+        Self { inner: cbc }
+    }
+}
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+struct Aes192CbcDecBackend<'a>(&'a mut Aes192CbcDec);
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+impl cipher::BlockSizeUser for Aes192CbcDecBackend<'_> {
+    type BlockSize = U16;
+}
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+impl ParBlocksSizeUser for Aes192CbcDecBackend<'_> {
+    type ParBlocksSize = cipher::typenum::consts::U1;
+}
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+impl BlockModeDecBackend for Aes192CbcDecBackend<'_> {
+    fn decrypt_block(&mut self, mut block: cipher::InOut<'_, '_, cipher::Block<Self>>) {
+        let in_block = *block.get_in();
+        let out = block.get_out();
+        self.0.inner.decrypt(in_block.as_ref(), out.as_mut()).expect("wc_AesCbcDecrypt failed");
+    }
+}
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+impl BlockModeDecrypt for Aes192CbcDec {
+    fn decrypt_with_backend(&mut self, f: impl BlockModeDecClosure<BlockSize = Self::BlockSize>) {
+        f.call(&mut Aes192CbcDecBackend(self));
+    }
+}
+
+/// AES-256 CBC block cipher (decryption) implementing [`cipher::BlockModeDecrypt`].
+#[cfg(all(aes_cbc, feature = "cipher"))]
+pub struct Aes256CbcDec {
+    inner: CBC,
+}
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+impl cipher::KeySizeUser for Aes256CbcDec {
+    type KeySize = U32;
+}
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+impl cipher::BlockSizeUser for Aes256CbcDec {
+    type BlockSize = U16;
+}
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+impl IvSizeUser for Aes256CbcDec {
+    type IvSize = U16;
+}
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+impl KeyIvInit for Aes256CbcDec {
+    fn new(key: &cipher::Key<Self>, iv: &cipher::Iv<Self>) -> Self {
+        let mut cbc = CBC::new().expect("wc_AesInit failed");
+        cbc.init_decrypt(key.as_ref(), iv.as_ref()).expect("wc_AesSetKey failed");
+        Self { inner: cbc }
+    }
+}
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+struct Aes256CbcDecBackend<'a>(&'a mut Aes256CbcDec);
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+impl cipher::BlockSizeUser for Aes256CbcDecBackend<'_> {
+    type BlockSize = U16;
+}
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+impl ParBlocksSizeUser for Aes256CbcDecBackend<'_> {
+    type ParBlocksSize = cipher::typenum::consts::U1;
+}
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+impl BlockModeDecBackend for Aes256CbcDecBackend<'_> {
+    fn decrypt_block(&mut self, mut block: cipher::InOut<'_, '_, cipher::Block<Self>>) {
+        let in_block = *block.get_in();
+        let out = block.get_out();
+        self.0.inner.decrypt(in_block.as_ref(), out.as_mut()).expect("wc_AesCbcDecrypt failed");
+    }
+}
+
+#[cfg(all(aes_cbc, feature = "cipher"))]
+impl BlockModeDecrypt for Aes256CbcDec {
+    fn decrypt_with_backend(&mut self, f: impl BlockModeDecClosure<BlockSize = Self::BlockSize>) {
+        f.call(&mut Aes256CbcDecBackend(self));
     }
 }
 
