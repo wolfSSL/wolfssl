@@ -10769,15 +10769,13 @@ static int wc_PKCS7_DecryptKtri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                 if (GetLength(pkiMsg, idx, &length, pkiMsgSz) < 0)
                     return ASN_PARSE_E;
 
-                /* Validate SKID container and keyIdSize against buffer */
+                /* Validate SKID container is within buffer */
                 if ((word32)length > pkiMsgSz - (*idx))
                     return BUFFER_E;
 
-                if (length < keyIdSize)
-                    return ASN_PARSE_E;
-
                 /* if we found correct recipient, SKID will match */
-                if (XMEMCMP(pkiMsg + (*idx), pkcs7->issuerSubjKeyId,
+                if (length == keyIdSize &&
+                        XMEMCMP(pkiMsg + (*idx), pkcs7->issuerSubjKeyId,
                             (word32)keyIdSize) == 0) {
                     *recipFound = 1;
                 }
@@ -13400,6 +13398,9 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
         }
     }
 #else
+    if (ret < 0) {
+        wc_PKCS7_ChangeState(pkcs7, WC_PKCS7_START);
+    }
     if (decryptedKey != NULL && ret < 0) {
         ForceZero(decryptedKey, MAX_ENCRYPTED_KEY_SZ);
         XFREE(decryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);

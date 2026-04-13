@@ -2397,7 +2397,8 @@ static int myCEKwrapFunc(PKCS7* pkcs7, byte* cek, word32 cekSz, byte* keyId,
           HAVE_AES_KEYWRAP */
 
 
-#if defined(HAVE_PKCS7) && defined(ASN_BER_TO_DER) && !defined(NO_RSA)
+#if defined(HAVE_PKCS7) && defined(ASN_BER_TO_DER) && !defined(NO_RSA) && \
+    !defined(NO_PKCS7_STREAM)
 #define MAX_TEST_DECODE_SIZE 6000
 static int test_wc_PKCS7_DecodeEnvelopedData_stream_decrypt_cb(wc_PKCS7* pkcs7,
     const byte* output, word32 outputSz, void* ctx) {
@@ -2430,7 +2431,8 @@ static int test_wc_PKCS7_DecodeEnvelopedData_stream_decrypt_cb(wc_PKCS7* pkcs7,
 int test_wc_PKCS7_DecodeEnvelopedData_stream(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_PKCS7) && defined(ASN_BER_TO_DER) && !defined(NO_RSA)
+#if defined(HAVE_PKCS7) && defined(ASN_BER_TO_DER) && !defined(NO_RSA) && \
+    !defined(NO_PKCS7_STREAM)
     PKCS7*      pkcs7 = NULL;
     int ret = 0;
     XFILE f = XBADFILE;
@@ -2579,7 +2581,7 @@ int test_wc_PKCS7_EncodeDecodeEnvelopedData(void)
     EXPECT_DECLS;
 #if defined(HAVE_PKCS7)
     PKCS7*      pkcs7 = NULL;
-#ifdef ASN_BER_TO_DER
+#if defined(ASN_BER_TO_DER) && !defined(NO_PKCS7_STREAM)
     int encodedSz = 0;
 #endif
 #ifdef ECC_TIMING_RESISTANT
@@ -2784,7 +2786,7 @@ int test_wc_PKCS7_EncodeDecodeEnvelopedData(void)
 
     testSz = (int)sizeof(testVectors)/(int)sizeof(pkcs7EnvelopedVector);
     for (i = 0; i < testSz; i++) {
-    #ifdef ASN_BER_TO_DER
+    #if defined(ASN_BER_TO_DER) && !defined(NO_PKCS7_STREAM)
         encodeSignedDataStream strm;
 
         /* test setting stream mode, the first one using IO callbacks */
@@ -2950,17 +2952,11 @@ int test_wc_PKCS7_EncodeDecodeEnvelopedData(void)
         pkcs7->singleCert = NULL;
     }
   #ifndef NO_RSA
-    #if defined(NO_PKCS7_STREAM)
-    /* when none streaming mode is used and PKCS7 is in bad state buffer error
-     * is returned from kari parse which gets set to bad func arg */
-    ExpectIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
-        (word32)sizeof(output), decoded, (word32)sizeof(decoded)),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    #else
+    /* With corrupted singleCert, decode should fail with a parse error.
+     * State is properly reset on error so re-decode starts from scratch. */
     ExpectIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
         (word32)sizeof(output), decoded, (word32)sizeof(decoded)),
         WC_NO_ERR_TRACE(ASN_PARSE_E));
-    #endif
   #endif /* !NO_RSA */
     if (pkcs7 != NULL) {
         pkcs7->singleCert = tmpBytePtr;
@@ -3991,7 +3987,8 @@ int test_wc_PKCS7_Degenerate(void)
 } /* END test_wc_PKCS7_Degenerate() */
 
 #if defined(HAVE_PKCS7) && !defined(NO_FILESYSTEM) && \
-    defined(ASN_BER_TO_DER) && !defined(NO_DES3) && !defined(NO_SHA)
+    defined(ASN_BER_TO_DER) && !defined(NO_DES3) && !defined(NO_SHA) && \
+    !defined(NO_PKCS7_STREAM)
 static byte berContent[] = {
     0x30, 0x80, 0x06, 0x09, 0x2A, 0x86, 0x48, 0x86,
     0xF7, 0x0D, 0x01, 0x07, 0x03, 0xA0, 0x80, 0x30,
@@ -4182,7 +4179,7 @@ static byte berContent[] = {
     0x00, 0x00, 0x00, 0x00, 0x00
 };
 #endif /* HAVE_PKCS7 && !NO_FILESYSTEM && ASN_BER_TO_DER &&
-        * !NO_DES3 && !NO_SHA
+        * !NO_DES3 && !NO_SHA && !NO_PKCS7_STREAM
         */
 
 /*
@@ -4197,7 +4194,7 @@ int test_wc_PKCS7_BER(void)
     char   fName[] = "./certs/test-ber-exp02-05-2022.p7b";
     XFILE  f = XBADFILE;
     byte   der[4096];
-#ifndef NO_DES3
+#if !defined(NO_DES3) && !defined(NO_PKCS7_STREAM)
     byte   decoded[2048];
 #endif
     word32 derSz = 0;
@@ -4242,8 +4239,9 @@ int test_wc_PKCS7_BER(void)
     wc_PKCS7_Free(pkcs7);
     pkcs7 = NULL;
 
-#ifndef NO_DES3
-    /* decode BER content */
+#if !defined(NO_DES3) && !defined(NO_PKCS7_STREAM)
+    /* decode BER content - requires PKCS7 streaming to handle indefinite
+     * length encoding in the EnvelopedData structure */
     ExpectTrue((f = XFOPEN("./certs/1024/client-cert.der", "rb")) != XBADFILE);
     ExpectTrue((derSz = (word32)XFREAD(der, 1, sizeof(der), f)) > 0);
     if (f != XBADFILE) {
@@ -4280,7 +4278,7 @@ int test_wc_PKCS7_BER(void)
         sizeof(berContent), decoded, sizeof(decoded)), WC_NO_ERR_TRACE(NOT_COMPILED_IN));
 #endif
     wc_PKCS7_Free(pkcs7);
-#endif /* !NO_DES3 */
+#endif /* !NO_DES3 && !NO_PKCS7_STREAM */
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_PKCS7_BER() */
