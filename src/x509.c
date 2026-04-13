@@ -8348,7 +8348,7 @@ int wolfSSL_X509_LOOKUP_load_file(WOLFSSL_X509_LOOKUP* lookup,
     do {
         /* get PEM header and footer based on type */
         if (wc_PemGetHeaderFooter(CRL_TYPE, &header, &footer) == 0 &&
-                XSTRNSTR((char*)curr, header, (unsigned int)sz) != NULL) {
+                XSTRNSTR((char*)curr, header, sz) != NULL) {
 #ifdef HAVE_CRL
             WOLFSSL_CERT_MANAGER* cm = lookup->store->cm;
 
@@ -8365,15 +8365,15 @@ int wolfSSL_X509_LOOKUP_load_file(WOLFSSL_X509_LOOKUP* lookup,
             if (ret != WOLFSSL_SUCCESS)
                 goto end;
 #endif
-            curr = (byte*)XSTRNSTR((char*)curr, footer, (unsigned int)sz);
+            curr = (byte*)XSTRNSTR((char*)curr, footer, sz);
         }
         else if (wc_PemGetHeaderFooter(CERT_TYPE, &header, &footer) == 0 &&
-                XSTRNSTR((char*)curr, header, (unsigned int)sz) != NULL) {
+                XSTRNSTR((char*)curr, header, sz) != NULL) {
             ret = X509StoreLoadCertBuffer(lookup->store, curr,
                                         (word32)sz, WOLFSSL_FILETYPE_PEM);
             if (ret != WOLFSSL_SUCCESS)
                 goto end;
-            curr = (byte*)XSTRNSTR((char*)curr, footer, (unsigned int)sz);
+            curr = (byte*)XSTRNSTR((char*)curr, footer, sz);
         }
         else
             goto end;
@@ -13765,13 +13765,12 @@ int wolfSSL_write_X509_CRL(WOLFSSL_X509_CRL* crl, const char* path, int type)
         while (i < l && wolfSSL_BIO_read(bio, &pem[i], 1) == 1) {
             i++;
             if (!header) {
-                header = XSTRNSTR(pem, "-----BEGIN ", (unsigned int)i);
+                header = XSTRNSTR(pem, "-----BEGIN ", i);
             }
             else if (!headerEnd) {
                 headerEnd = XSTRNSTR(header + XSTR_SIZEOF("-----BEGIN "),
                         "-----",
-                        (unsigned int)
-                        (i - (header + XSTR_SIZEOF("-----BEGIN ") - pem)));
+                        i - (header + XSTR_SIZEOF("-----BEGIN ") - pem));
                 if (headerEnd) {
                     headerEnd += XSTR_SIZEOF("-----");
                     /* Read in the newline */
@@ -13788,12 +13787,12 @@ int wolfSSL_write_X509_CRL(WOLFSSL_X509_CRL* crl, const char* path, int type)
             }
             else if (!footer) {
                 footer = XSTRNSTR(headerEnd, "-----END ",
-                        (unsigned int)(i - (headerEnd - pem)));
+                        i - (headerEnd - pem));
             }
             else if (!footerEnd) {
                 footerEnd = XSTRNSTR(footer + XSTR_SIZEOF("-----"),
-                        "-----", (unsigned int)(i -
-                            (footer + XSTR_SIZEOF("-----") - pem)));
+                        "-----",
+                        i - (footer + XSTR_SIZEOF("-----") - pem));
                 if (footerEnd) {
                     footerEnd += XSTR_SIZEOF("-----");
                     /* Now check that footer matches header */

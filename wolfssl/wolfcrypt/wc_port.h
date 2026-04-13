@@ -1727,7 +1727,8 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
 
 #if (!defined(WOLFSSL_LEANPSK) && !defined(STRING_USER)) || \
     defined(USE_WOLF_STRNSTR)
-    WOLFSSL_TEST_VIS char* wolfSSL_strnstr(const char* s1, const char* s2, unsigned int n);
+    #include <stddef.h> /* for size_t */
+    WOLFSSL_TEST_VIS char* wolfSSL_strnstr(const char* s1, const char* s2, size_t n);
 #endif
 
 #ifndef FILE_BUFFER_SIZE

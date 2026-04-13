@@ -98,10 +98,10 @@ int mp_get_digit_count(const mp_int* a)
 
 mp_digit mp_get_digit(const mp_int* a, int n)
 {
-    if (a == NULL)
+    if (a == NULL || n < 0)
         return 0;
 
-    return (n < 0 || (unsigned int)n >= (unsigned int)a->used) ? 0 : a->dp[n];
+    return ((unsigned int)n >= (unsigned int)a->used) ? 0 : a->dp[n];
 }
 
 #if defined(HAVE_ECC) || defined(WOLFSSL_MP_COND_COPY)

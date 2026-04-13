@@ -90,7 +90,7 @@ WOLFSSL_TXT_DB *wolfSSL_TXT_DB_read(WOLFSSL_BIO *in, int num)
         char** fieldPtr = NULL;
         int fieldPtrIdx = 0;
         char* fieldCheckIdx = NULL;
-        lineEnd = XSTRNSTR(idx, "\n", (unsigned int)(bufEnd - idx));
+        lineEnd = XSTRNSTR(idx, "\n", (size_t)(bufEnd - idx));
         if (!lineEnd)
             lineEnd = bufEnd;
         if (idx == lineEnd) /* empty line */
@@ -852,11 +852,11 @@ int wolfSSL_NCONF_load(WOLFSSL_CONF *conf, const char *file, long *eline)
     idx = buf;
     bufEnd = buf + bufLen;
     while (idx < bufEnd) {
-        char* lineEnd = XSTRNSTR(idx, "\n", (unsigned int)(bufEnd - idx));
+        char* lineEnd = XSTRNSTR(idx, "\n", (size_t)(bufEnd - idx));
         char* maxIdx;
         if (!lineEnd)
             lineEnd = bufEnd; /* Last line in file */
-        maxIdx = XSTRNSTR(idx, "#", (unsigned int)(lineEnd - idx));
+        maxIdx = XSTRNSTR(idx, "#", (size_t)(lineEnd - idx));
         if (!maxIdx)
             maxIdx = lineEnd;
         line++;
