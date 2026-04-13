@@ -10203,6 +10203,38 @@ static int test_wolfSSL_wolfSSL_UseSecureRenegotiation(void)
     return EXPECT_RESULT();
 }
 
+/* TLSX_FreeAll frees the SecureRenegotiation struct but the cached pointer
+ * ssl->secure_renegotiation was not cleared, causing a use-after-free when
+ * queried after wolfSSL_clear(). */
+static int test_wolfSSL_clear_secure_renegotiation(void)
+{
+    EXPECT_DECLS;
+#if (defined(HAVE_SECURE_RENEGOTIATION) || \
+     defined(HAVE_SERVER_RENEGOTIATION_INFO)) && \
+    (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+    WOLFSSL_CTX *ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
+    WOLFSSL     *ssl = wolfSSL_new(ctx);
+
+    ExpectNotNull(ctx);
+    ExpectNotNull(ssl);
+
+    ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_UseSecureRenegotiation(ssl));
+    ExpectNotNull(ssl->secure_renegotiation);
+    if (ssl->secure_renegotiation != NULL)
+        ssl->secure_renegotiation->enabled = 1;
+
+    ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_clear(ssl));
+    ExpectNull(ssl->secure_renegotiation);
+    ExpectIntEQ(WOLFSSL_FAILURE,
+        wolfSSL_SSL_get_secure_renegotiation_support(ssl));
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test reconnecting with a different ciphersuite after a renegotiation. */
 static int test_wolfSSL_SCR_Reconnect(void)
 {
@@ -35770,6 +35802,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_TLSX_TCA_Find),
     TEST_DECL(test_TLSX_SNI_GetSize_overflow),
     TEST_DECL(test_wolfSSL_wolfSSL_UseSecureRenegotiation),
+    TEST_DECL(test_wolfSSL_clear_secure_renegotiation),
     TEST_DECL(test_wolfSSL_SCR_Reconnect),
     TEST_DECL(test_wolfSSL_SCR_check_enabled),
     TEST_DECL(test_tls_ext_duplicate),

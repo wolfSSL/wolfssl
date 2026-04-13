@@ -8952,6 +8952,11 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
 #ifdef HAVE_TLS_EXTENSIONS
 #if !defined(NO_TLS)
     TLSX_FreeAll(ssl->extensions, ssl->heap);
+    ssl->extensions = NULL;
+  #if defined(HAVE_SECURE_RENEGOTIATION) \
+   || defined(HAVE_SERVER_RENEGOTIATION_INFO)
+    ssl->secure_renegotiation = NULL;
+  #endif
 #endif /* !NO_TLS */
 #ifdef HAVE_ALPN
     if (ssl->alpn_peer_requested != NULL) {
@@ -9315,6 +9320,10 @@ void FreeHandshakeResources(WOLFSSL* ssl)
     /* Some extensions need to be kept for post-handshake querying. */
     TLSX_FreeAll(ssl->extensions, ssl->heap);
     ssl->extensions = NULL;
+  #if defined(HAVE_SECURE_RENEGOTIATION) \
+   || defined(HAVE_SERVER_RENEGOTIATION_INFO)
+    ssl->secure_renegotiation = NULL;
+  #endif
 #else
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
     TLSX_Remove(&ssl->extensions, TLSX_SIGNATURE_ALGORITHMS, ssl->heap);

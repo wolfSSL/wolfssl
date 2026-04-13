@@ -10051,6 +10051,10 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     #if defined(HAVE_TLS_EXTENSIONS) && !defined(NO_TLS)
         TLSX_FreeAll(ssl->extensions, ssl->heap);
         ssl->extensions = NULL;
+      #if defined(HAVE_SECURE_RENEGOTIATION) \
+       || defined(HAVE_SERVER_RENEGOTIATION_INFO)
+        ssl->secure_renegotiation = NULL;
+      #endif
     #endif
 
         if (ssl->keys.encryptionOn) {
