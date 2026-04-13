@@ -229,6 +229,30 @@ generate_expired_certs expired/expired-cert ../server-key.pem
 
 generate_test_trusted_cert ossl-trusted-cert localhost "" 1
 
+# Generate CN-IP test certs (no SAN, CN contains IP literal or wildcard)
+# These are simple self-signed V1 certs with only a CN field, no extensions.
+# Used to test peer cert verification with IP address matching in CN.
+generate_cn_ip_cert() {
+    rm -f "$1".der "$1".pem
+
+    echo "step 1 create self-signed cert with CN=$2"
+    openssl req -new -x509 -days 3652 -sha256 \
+                -key ../server-key.pem \
+                -out "$1".pem \
+                -subj "/CN=$2"
+    check_result $?
+
+    echo "step 2 make binary der version"
+    openssl x509 -inform pem -in "$1".pem -outform der -out "$1".der
+    check_result $?
+
+    rm -f "$1".pem
+}
+
+generate_cn_ip_cert cn-ip-literal 127.0.0.1
+generate_cn_ip_cert cn-ip-wildcard "*.0.0.1"
+
+
 # Note on certs/empty-issuer-cert.pem:
 # OpenSSL did not like to generate this certificate with an empty CN in the
 # conf file.

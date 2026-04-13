@@ -1060,6 +1060,36 @@ int test_wolfSSL_X509_check_ip_asc(void)
     ExpectIntEQ(wolfSSL_X509_check_ip_asc(NULL, "0.0.0.0", 0), 0);
     ExpectIntEQ(wolfSSL_X509_check_ip_asc(empty, "127.128.0.255", 0), 0);
 
+    /* Regression test: a certificate with CN=<ip> and no SAN extension
+     * must NOT be accepted for IP verification. RFC 6125 requires that IP
+     * identities appear in an iPAddress SAN; the Subject CN must never be
+     * matched against an IP address. Likewise a CN of "*.0.0.1" must not
+     * wildcard-match "127.0.0.1" -- RFC 6125 Section 7.2 prohibits wildcard
+     * matching for IP addresses. */
+    {
+        WOLFSSL_X509 *cn_lit = NULL;
+        WOLFSSL_X509 *cn_wild = NULL;
+
+        ExpectNotNull(cn_lit = wolfSSL_X509_load_certificate_buffer(
+            cn_ip_literal_der, (int)sizeof(cn_ip_literal_der),
+            WOLFSSL_FILETYPE_ASN1));
+        ExpectNotNull(cn_wild = wolfSSL_X509_load_certificate_buffer(
+            cn_ip_wildcard_der, (int)sizeof(cn_ip_wildcard_der),
+            WOLFSSL_FILETYPE_ASN1));
+
+        /* CN=127.0.0.1 with no SAN must NOT match the IP "127.0.0.1". */
+        ExpectIntEQ(wolfSSL_X509_check_ip_asc(cn_lit, "127.0.0.1", 0), 0);
+        /* CN=*.0.0.1 with no SAN must NOT wildcard-match "127.0.0.1". */
+        ExpectIntEQ(wolfSSL_X509_check_ip_asc(cn_wild, "127.0.0.1", 0), 0);
+        /* CN-based hostname matching must still work for hostname checks
+         * (sanity check that the fix didn't over-correct). */
+        ExpectIntEQ(wolfSSL_X509_check_host(cn_wild, "1.0.0.1",
+            XSTRLEN("1.0.0.1"), 0, NULL), 1);
+
+        wolfSSL_X509_free(cn_wild);
+        wolfSSL_X509_free(cn_lit);
+    }
+
     wolfSSL_X509_free(empty);
     wolfSSL_X509_free(x509);
 #endif
