@@ -722,7 +722,9 @@ static int InitSha512_256(wc_Sha512* sha512)
     static int (*Transform_Sha512_p)(wc_Sha512* sha512) = _Transform_Sha512;
     static int (*Transform_Sha512_Len_p)(wc_Sha512* sha512, word32 len) = NULL;
     static int transform_check = 0;
+    #ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
     static int Transform_Sha512_is_vectorized = 0;
+    #endif
 
     static WC_INLINE int Transform_Sha512(wc_Sha512 *sha512) {
         int ret;
@@ -764,14 +766,18 @@ static int InitSha512_256(wc_Sha512* sha512)
             if (IS_INTEL_BMI2(intel_flags)) {
                 Transform_Sha512_p = Transform_Sha512_AVX2_RORX;
                 Transform_Sha512_Len_p = Transform_Sha512_AVX2_RORX_Len;
+            #ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
                 Transform_Sha512_is_vectorized = 1;
+            #endif
             }
             else
         #endif
             {
                 Transform_Sha512_p = Transform_Sha512_AVX2;
                 Transform_Sha512_Len_p = Transform_Sha512_AVX2_Len;
+            #ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
                 Transform_Sha512_is_vectorized = 1;
+            #endif
             }
         }
         else
@@ -782,14 +788,18 @@ static int InitSha512_256(wc_Sha512* sha512)
             if (IS_INTEL_BMI2(intel_flags)) {
                 Transform_Sha512_p = Transform_Sha512_AVX1_RORX;
                 Transform_Sha512_Len_p = Transform_Sha512_AVX1_RORX_Len;
+            #ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
                 Transform_Sha512_is_vectorized = 1;
+            #endif
             }
             else
         #endif
             {
                 Transform_Sha512_p = Transform_Sha512_AVX1;
                 Transform_Sha512_Len_p = Transform_Sha512_AVX1_Len;
+            #ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
                 Transform_Sha512_is_vectorized = 1;
+            #endif
             }
         }
         else
@@ -797,7 +807,9 @@ static int InitSha512_256(wc_Sha512* sha512)
         {
             Transform_Sha512_p = _Transform_Sha512;
             Transform_Sha512_Len_p = NULL;
+        #ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
             Transform_Sha512_is_vectorized = 0;
+        #endif
         }
 
         transform_check = 1;
