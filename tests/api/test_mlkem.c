@@ -3969,6 +3969,9 @@ int test_wc_mlkem_decap_fo_reject(void)
     byte ssTampered[WC_ML_KEM_SS_SZ];
     word32 ctLen = 0;
 
+    XMEMSET(ct, 0, sizeof(ct));
+    XMEMSET(ss, 0, sizeof(ss));
+
     key = (MlKemKey*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     ExpectNotNull(key);
 
