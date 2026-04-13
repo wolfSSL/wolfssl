@@ -20,8 +20,6 @@ concurrency:
 # We patch it to COPY the PR checkout instead so CI reflects the PR's source.
 
 env:
-  # Pin the simulator to a known-good revision. Bump this deliberately after
-  # validating upstream changes in a standalone PR.
   SE050SIM_REF: main
 
 jobs:
@@ -48,7 +46,7 @@ jobs:
         working-directory: se050sim
         run: |
           sed -i 's|^RUN git clone --depth 1 https://github.com/wolfSSL/wolfssl.git /app/wolfssl$|COPY wolfssl /app/wolfssl|' Dockerfile.wolfcrypt
-          # Fail fast if the pattern drifted upstream — better a clear error
+          # Fail fast if the pattern drifted upstream -- better a clear error
           # than a CI run that silently tests master.
           grep -q '^COPY wolfssl /app/wolfssl$' Dockerfile.wolfcrypt
           ! grep -q 'git clone .*wolfssl\.git' Dockerfile.wolfcrypt
