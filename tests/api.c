@@ -4154,7 +4154,9 @@ static int test_wolfSSL_session_cache_api_direct(void)
     WOLFSSL* ssl = NULL;
     byte shortId[] = "server-id";
     byte longId[SERVER_ID_LEN + 8];
+#ifdef OPENSSL_EXTRA
     long mode = 0;
+#endif
 
     XMEMSET(longId, 0xA5, sizeof(longId));
 
@@ -28941,10 +28943,10 @@ static int test_CryptoCb_Kdf_Func(int devId, wc_CryptoInfo* info, void* ctx)
 }
 #endif
 
+#if defined(WOLFSSL_HAVE_PRF) && !defined(NO_HMAC)
 static int test_wc_KdfPrf_guardrails(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_HAVE_PRF) && !defined(NO_HMAC)
     byte out[WC_SHA256_DIGEST_SIZE];
     byte secret[(MAX_PRF_HALF * 2) + 1];
     byte seed[MAX_PRF_LABSEED];
@@ -28976,14 +28978,14 @@ static int test_wc_KdfPrf_guardrails(void)
     ExpectIntEQ(wc_PRF_TLS(out, sizeof(out), secret, 16, label,
         (word32)sizeof(label), seed, 1, 1, md5_mac, HEAP_HINT, INVALID_DEVID),
         0);
-#endif
     return EXPECT_RESULT();
 }
+#endif
 
+#ifdef HAVE_HKDF
 static int test_wc_KdfHkdf_guardrails(void)
 {
     EXPECT_DECLS;
-#ifdef HAVE_HKDF
     byte prk[WC_MAX_DIGEST_SIZE];
     byte okm[WC_SHA256_DIGEST_SIZE];
     byte ikm[WC_SHA256_DIGEST_SIZE];
@@ -29009,9 +29011,9 @@ static int test_wc_KdfHkdf_guardrails(void)
     ExpectIntEQ(wc_Tls13_HKDF_Expand_Label(okm, sizeof(okm), prk,
         WC_SHA256_DIGEST_SIZE, protocol, (word32)sizeof(protocol), label,
         (word32)sizeof(label), info, 8, WC_SHA256), 0);
-#endif
     return EXPECT_RESULT();
 }
+#endif
 
 #ifdef WOLF_CRYPTO_CB_CMD
 static int test_CryptoCb_RegisterUnavailable_Func(int devId, wc_CryptoInfo* info,
@@ -29264,10 +29266,10 @@ static int test_wc_CryptoCb_TLS(int tlsVer,
 }
 #endif /* WOLF_CRYPTO_CB && HAVE_IO_TESTS_DEPENDENCIES */
 
+#ifdef WOLF_CRYPTO_CB
 static int test_wc_CryptoCb(void)
 {
     EXPECT_DECLS;
-#ifdef WOLF_CRYPTO_CB
     /* TODO: Add crypto callback API tests */
 
 #ifdef HAVE_IO_TESTS_DEPENDENCIES
@@ -29301,9 +29303,9 @@ static int test_wc_CryptoCb(void)
     }
     #endif
 #endif /* HAVE_IO_TESTS_DEPENDENCIES */
-#endif /* WOLF_CRYPTO_CB */
     return EXPECT_RESULT();
 }
+#endif /* WOLF_CRYPTO_CB */
 
 #if defined(WOLFSSL_STATIC_MEMORY) && defined(HAVE_IO_TESTS_DEPENDENCIES)
 
@@ -36743,8 +36745,12 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_ticket_and_psk_mixing),
     /* Can't memory test as client/server Asserts in thread. */
     TEST_DECL(test_prioritize_psk),
+#if defined(WOLFSSL_HAVE_PRF) && !defined(NO_HMAC)
     TEST_DECL(test_wc_KdfPrf_guardrails),
+#endif
+#if defined(HAVE_HKDF)
     TEST_DECL(test_wc_KdfHkdf_guardrails),
+#endif
 
 #ifdef WOLF_CRYPTO_CB
     TEST_DECL(test_wc_CryptoCb_hkdf_wrapper),
