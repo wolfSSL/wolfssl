@@ -8675,7 +8675,7 @@ static int dilithium_sign_with_seed_mu(dilithium_key* key,
         /* Step 11: Start rejection sampling loop */
         do {
             byte aseed[DILITHIUM_GEN_A_SEED_SZ];
-            byte w1e[DILITHIUM_MAX_W1_ENC_SZ];
+            WC_DECLARE_VAR(w1e, byte, DILITHIUM_MAX_W1_ENC_SZ, 0);
             sword32* w = w1;
             byte* commit = sig;
             byte r;
@@ -8906,11 +8906,17 @@ static int dilithium_sign_with_seed_mu(dilithium_key* key,
                 byte* ze = sig + params->lambda / 4;
 
                 /* Step 15: Encode w1. */
-                dilithium_vec_encode_w1(w1, params->k, params->gamma2, w1e);
-                /* Step 15: Hash mu and encoded w1.
-                 * Step 32: Hash is stored in signature. */
-                ret = dilithium_hash256(&key->shake, mu, DILITHIUM_MU_SZ,
-                    w1e, params->w1EncSz, commit, params->lambda / 4);
+                WC_ALLOC_VAR_EX(w1e, byte, DILITHIUM_MAX_W1_ENC_SZ,
+                    key->heap, DYNAMIC_TYPE_DILITHIUM, ret=MEMORY_E);
+                if (WC_VAR_OK(w1e)) {
+                    dilithium_vec_encode_w1(w1, params->k, params->gamma2,
+                        w1e);
+                    /* Step 15: Hash mu and encoded w1.
+                     * Step 32: Hash is stored in signature. */
+                    ret = dilithium_hash256(&key->shake, mu, DILITHIUM_MU_SZ,
+                        w1e, params->w1EncSz, commit, params->lambda / 4);
+                }
+                WC_FREE_VAR_EX(w1e, key->heap, DYNAMIC_TYPE_DILITHIUM);
                 if (ret == 0) {
                     /* Step 17: Compute c from first 256 bits of commit. */
                     ret = dilithium_sample_in_ball_ex(params->level,
