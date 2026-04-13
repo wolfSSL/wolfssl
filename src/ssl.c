@@ -13952,7 +13952,7 @@ int wolfSSL_get_chain_count(WOLFSSL_X509_CHAIN* chain)
 int wolfSSL_get_chain_length(WOLFSSL_X509_CHAIN* chain, int idx)
 {
     WOLFSSL_ENTER("wolfSSL_get_chain_length");
-    if (chain)
+    if (chain && idx >= 0 && idx < chain->count)
         return chain->certs[idx].length;
 
     return 0;
@@ -13963,7 +13963,7 @@ int wolfSSL_get_chain_length(WOLFSSL_X509_CHAIN* chain, int idx)
 byte* wolfSSL_get_chain_cert(WOLFSSL_X509_CHAIN* chain, int idx)
 {
     WOLFSSL_ENTER("wolfSSL_get_chain_cert");
-    if (chain)
+    if (chain && idx >= 0 && idx < chain->count)
         return chain->certs[idx].buffer;
 
     return 0;
@@ -13978,7 +13978,7 @@ WOLFSSL_X509* wolfSSL_get_chain_X509(WOLFSSL_X509_CHAIN* chain, int idx)
     WC_DECLARE_VAR(cert, DecodedCert, 1, 0);
 
     WOLFSSL_ENTER("wolfSSL_get_chain_X509");
-    if (chain != NULL && idx < MAX_CHAIN_DEPTH) {
+    if (chain != NULL && idx >= 0 && idx < chain->count) {
     #ifdef WOLFSSL_SMALL_STACK
         cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL,
                                                        DYNAMIC_TYPE_DCERT);

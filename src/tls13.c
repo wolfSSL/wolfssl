@@ -9132,6 +9132,10 @@ static int SendTls13Certificate(WOLFSSL* ssl)
         }
         /* Certificate Data */
         certSz = ssl->buffers.certificate->length;
+        if (ssl->buffers.certChainCnt > MAX_CHAIN_DEPTH) {
+            WOLFSSL_MSG("Certificate chain count exceeds maximum depth");
+            return MAX_CHAIN_ERROR;
+        }
         /* Cert Req Ctx Len | Cert Req Ctx | Cert List Len | Cert Data Len */
         headerSz = OPAQUE8_LEN + certReqCtxLen + CERT_HEADER_SZ +
                    CERT_HEADER_SZ;

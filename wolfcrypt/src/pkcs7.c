@@ -7032,6 +7032,9 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
 
                     idx += (word32)length;
                 }
+                else if (ret == 0) {
+                    ret = ASN_PARSE_E;
+                }
 
                 pkcs7->content = content;
                 pkcs7->contentSz = (word32)contentSz;
@@ -9609,7 +9612,7 @@ static int wc_PKCS7_PwriKek_KeyUnWrap(wc_PKCS7* pkcs7, const byte* kek,
     cekLen = outTmp[0];
 
     /* verify length */
-    fail |= ctMaskGT(cekLen, (int)inSz);
+    fail |= ctMaskGT(cekLen, (int)inSz - 4);
     /* verify check bytes */
     fail |= ctMaskNotEq((int)(outTmp[1] ^ outTmp[4]), 0xFF);
     fail |= ctMaskNotEq((int)(outTmp[2] ^ outTmp[5]), 0xFF);
@@ -13021,6 +13024,14 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                 ret = ASN_PARSE_E;
             }
 
+            if (ret == 0 && encryptedContentTotalSz > (int)(pkiMsgSz - idx)) {
+                /* In non-streaming mode, ensure the content fits in the buffer.
+                 * Streaming mode handles this via AddDataToStream. */
+            #ifdef NO_PKCS7_STREAM
+                ret = BUFFER_E;
+            #endif
+            }
+
             if (ret != 0)
                 break;
 
@@ -14301,6 +14312,12 @@ int wc_PKCS7_DecodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                 }
             }
 
+            if (ret == 0 && encryptedContentSz > (int)(pkiMsgSz - idx)) {
+            #ifdef NO_PKCS7_STREAM
+                ret = BUFFER_E;
+            #endif
+            }
+
             if (ret < 0)
                 break;
 
@@ -14545,6 +14562,12 @@ authenv_atrbend:
             }
         #endif
             idx = localIdx;
+
+        #ifdef NO_PKCS7_STREAM
+            if (ret == 0 && authTagSz > (word32)(pkiMsgSz - idx)) {
+                ret = BUFFER_E;
+            }
+        #endif
 
             if (ret == 0 && authTagSz > (word32)sizeof(authTag)) {
                 WOLFSSL_MSG("AuthEnvelopedData authTag too large for buffer");
@@ -15262,6 +15285,12 @@ int wc_PKCS7_DecodeEncryptedData(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                         pkiMsgSz, NO_USER_CHECK) <= 0)
                 ret = ASN_PARSE_E;
 
+    #ifdef NO_PKCS7_STREAM
+            if (ret == 0 && encryptedContentSz > (int)(pkiMsgSz - idx)) {
+                ret = BUFFER_E;
+            }
+    #endif
+
             if (ret < 0)
                 break;
 #ifndef NO_PKCS7_STREAM
@@ -15299,7 +15328,8 @@ int wc_PKCS7_DecodeEncryptedData(wc_PKCS7* pkcs7, byte* in, word32 inSz,
             version    = (int)pkcs7->stream->vers;
             tmpIv      = pkcs7->stream->tmpIv;
 #endif
-            if (encryptedContentSz <= 0) {
+            if (encryptedContentSz <= 0 ||
+                    encryptedContentSz > (int)(pkiMsgSz - idx)) {
                 ret = BUFFER_E;
                 break;
             }
