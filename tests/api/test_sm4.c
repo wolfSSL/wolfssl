@@ -785,3 +785,251 @@ int test_wc_Sm4Ccm(void)
     return res;
 } /* END test_wc_Sm4Ccm */
 
+
+#include <wolfssl/wolfcrypt/random.h>
+
+#define MC_CIPHER_TEST_COUNT 100
+#define MC_SM4_MAX_DATA_SZ   1024
+
+/* Monte Carlo test for SM4-CBC: random key, IV, and plaintext each
+ * iteration */
+int test_wc_Sm4Cbc_MonteCarlo(void)
+{
+    int res = TEST_SKIPPED;
+#ifdef WOLFSSL_SM4_CBC
+    EXPECT_DECLS;
+    wc_Sm4 sm4;
+    WC_RNG rng;
+    byte key[SM4_KEY_SIZE];
+    byte iv[SM4_IV_SIZE];
+    word32 plainLen = 0;
+    int i;
+    WC_DECLARE_VAR(plain,     byte, MC_SM4_MAX_DATA_SZ, NULL);
+    WC_DECLARE_VAR(cipher,    byte, MC_SM4_MAX_DATA_SZ, NULL);
+    WC_DECLARE_VAR(decrypted, byte, MC_SM4_MAX_DATA_SZ, NULL);
+
+    WC_ALLOC_VAR(plain,     byte, MC_SM4_MAX_DATA_SZ, NULL);
+    WC_ALLOC_VAR(cipher,    byte, MC_SM4_MAX_DATA_SZ, NULL);
+    WC_ALLOC_VAR(decrypted, byte, MC_SM4_MAX_DATA_SZ, NULL);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    ExpectNotNull(plain);
+    ExpectNotNull(cipher);
+    ExpectNotNull(decrypted);
+#endif
+
+    XMEMSET(&sm4, 0, sizeof(sm4));
+    XMEMSET(&rng, 0, sizeof(rng));
+
+    ExpectIntEQ(wc_Sm4Init(&sm4, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    for (i = 0; i < MC_CIPHER_TEST_COUNT && EXPECT_SUCCESS(); i++) {
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, key, sizeof(key)), 0);
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, iv, sizeof(iv)), 0);
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, (byte*)&plainLen,
+            sizeof(plainLen)), 0);
+        /* Length 1..1024, rounded up to SM4 block size */
+        plainLen = (plainLen % MC_SM4_MAX_DATA_SZ) + 1;
+        plainLen = (plainLen + SM4_BLOCK_SIZE - 1) &
+                   ~((word32)SM4_BLOCK_SIZE - 1);
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, plain, plainLen), 0);
+
+        ExpectIntEQ(wc_Sm4SetKey(&sm4, key, SM4_KEY_SIZE), 0);
+        ExpectIntEQ(wc_Sm4SetIV(&sm4, iv), 0);
+        ExpectIntEQ(wc_Sm4CbcEncrypt(&sm4, cipher, plain, plainLen), 0);
+        ExpectIntEQ(wc_Sm4SetIV(&sm4, iv), 0);
+        ExpectIntEQ(wc_Sm4CbcDecrypt(&sm4, decrypted, cipher, plainLen), 0);
+        ExpectBufEQ(decrypted, plain, plainLen);
+    }
+
+    wc_Sm4Free(&sm4);
+    wc_FreeRng(&rng);
+    WC_FREE_VAR(plain,     NULL);
+    WC_FREE_VAR(cipher,    NULL);
+    WC_FREE_VAR(decrypted, NULL);
+
+    res = EXPECT_RESULT();
+#endif
+    return res;
+}
+
+/* Monte Carlo test for SM4-CTR: random key, IV, and plaintext each
+ * iteration */
+int test_wc_Sm4Ctr_MonteCarlo(void)
+{
+    int res = TEST_SKIPPED;
+#ifdef WOLFSSL_SM4_CTR
+    EXPECT_DECLS;
+    wc_Sm4 sm4;
+    WC_RNG rng;
+    byte key[SM4_KEY_SIZE];
+    byte iv[SM4_IV_SIZE];
+    word32 plainLen = 0;
+    int i;
+    WC_DECLARE_VAR(plain,     byte, MC_SM4_MAX_DATA_SZ, NULL);
+    WC_DECLARE_VAR(cipher,    byte, MC_SM4_MAX_DATA_SZ, NULL);
+    WC_DECLARE_VAR(decrypted, byte, MC_SM4_MAX_DATA_SZ, NULL);
+
+    WC_ALLOC_VAR(plain,     byte, MC_SM4_MAX_DATA_SZ, NULL);
+    WC_ALLOC_VAR(cipher,    byte, MC_SM4_MAX_DATA_SZ, NULL);
+    WC_ALLOC_VAR(decrypted, byte, MC_SM4_MAX_DATA_SZ, NULL);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    ExpectNotNull(plain);
+    ExpectNotNull(cipher);
+    ExpectNotNull(decrypted);
+#endif
+
+    XMEMSET(&sm4, 0, sizeof(sm4));
+    XMEMSET(&rng, 0, sizeof(rng));
+
+    ExpectIntEQ(wc_Sm4Init(&sm4, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    for (i = 0; i < MC_CIPHER_TEST_COUNT && EXPECT_SUCCESS(); i++) {
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, key, sizeof(key)), 0);
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, iv, sizeof(iv)), 0);
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, (byte*)&plainLen,
+            sizeof(plainLen)), 0);
+        plainLen = (plainLen % MC_SM4_MAX_DATA_SZ) + 1;
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, plain, plainLen), 0);
+
+        /* CTR mode: decrypt by re-encrypting with same key/IV */
+        ExpectIntEQ(wc_Sm4SetKey(&sm4, key, SM4_KEY_SIZE), 0);
+        ExpectIntEQ(wc_Sm4SetIV(&sm4, iv), 0);
+        ExpectIntEQ(wc_Sm4CtrEncrypt(&sm4, cipher, plain, plainLen), 0);
+        ExpectIntEQ(wc_Sm4SetKey(&sm4, key, SM4_KEY_SIZE), 0);
+        ExpectIntEQ(wc_Sm4SetIV(&sm4, iv), 0);
+        ExpectIntEQ(wc_Sm4CtrEncrypt(&sm4, decrypted, cipher, plainLen), 0);
+        ExpectBufEQ(decrypted, plain, plainLen);
+    }
+
+    wc_Sm4Free(&sm4);
+    wc_FreeRng(&rng);
+    WC_FREE_VAR(plain,     NULL);
+    WC_FREE_VAR(cipher,    NULL);
+    WC_FREE_VAR(decrypted, NULL);
+
+    res = EXPECT_RESULT();
+#endif
+    return res;
+}
+
+/* Monte Carlo test for SM4-GCM: random key, nonce, and plaintext each
+ * iteration */
+int test_wc_Sm4Gcm_MonteCarlo(void)
+{
+    int res = TEST_SKIPPED;
+#ifdef WOLFSSL_SM4_GCM
+    EXPECT_DECLS;
+    wc_Sm4 sm4;
+    WC_RNG rng;
+    byte key[SM4_KEY_SIZE];
+    byte nonce[GCM_NONCE_MID_SZ];
+    byte tag[SM4_BLOCK_SIZE];
+    word32 plainLen = 0;
+    int i;
+    WC_DECLARE_VAR(plain,     byte, MC_SM4_MAX_DATA_SZ, NULL);
+    WC_DECLARE_VAR(cipher,    byte, MC_SM4_MAX_DATA_SZ, NULL);
+    WC_DECLARE_VAR(decrypted, byte, MC_SM4_MAX_DATA_SZ, NULL);
+
+    WC_ALLOC_VAR(plain,     byte, MC_SM4_MAX_DATA_SZ, NULL);
+    WC_ALLOC_VAR(cipher,    byte, MC_SM4_MAX_DATA_SZ, NULL);
+    WC_ALLOC_VAR(decrypted, byte, MC_SM4_MAX_DATA_SZ, NULL);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    ExpectNotNull(plain);
+    ExpectNotNull(cipher);
+    ExpectNotNull(decrypted);
+#endif
+
+    XMEMSET(&sm4, 0, sizeof(sm4));
+    XMEMSET(&rng, 0, sizeof(rng));
+
+    ExpectIntEQ(wc_Sm4Init(&sm4, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    for (i = 0; i < MC_CIPHER_TEST_COUNT && EXPECT_SUCCESS(); i++) {
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, key, sizeof(key)), 0);
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, nonce, sizeof(nonce)), 0);
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, (byte*)&plainLen,
+            sizeof(plainLen)), 0);
+        plainLen = (plainLen % MC_SM4_MAX_DATA_SZ) + 1;
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, plain, plainLen), 0);
+
+        ExpectIntEQ(wc_Sm4GcmSetKey(&sm4, key, SM4_KEY_SIZE), 0);
+        ExpectIntEQ(wc_Sm4GcmEncrypt(&sm4, cipher, plain, plainLen,
+            nonce, sizeof(nonce), tag, sizeof(tag), NULL, 0), 0);
+        ExpectIntEQ(wc_Sm4GcmDecrypt(&sm4, decrypted, cipher, plainLen,
+            nonce, sizeof(nonce), tag, sizeof(tag), NULL, 0), 0);
+        ExpectBufEQ(decrypted, plain, plainLen);
+    }
+
+    wc_Sm4Free(&sm4);
+    wc_FreeRng(&rng);
+    WC_FREE_VAR(plain,     NULL);
+    WC_FREE_VAR(cipher,    NULL);
+    WC_FREE_VAR(decrypted, NULL);
+
+    res = EXPECT_RESULT();
+#endif
+    return res;
+}
+
+/* Monte Carlo test for SM4-CCM: random key, nonce, and plaintext each
+ * iteration */
+int test_wc_Sm4Ccm_MonteCarlo(void)
+{
+    int res = TEST_SKIPPED;
+#ifdef WOLFSSL_SM4_CCM
+    EXPECT_DECLS;
+    wc_Sm4 sm4;
+    WC_RNG rng;
+    byte key[SM4_KEY_SIZE];
+    byte nonce[CCM_NONCE_MAX_SZ];
+    byte tag[SM4_BLOCK_SIZE];
+    word32 plainLen = 0;
+    int i;
+    WC_DECLARE_VAR(plain,     byte, MC_SM4_MAX_DATA_SZ, NULL);
+    WC_DECLARE_VAR(cipher,    byte, MC_SM4_MAX_DATA_SZ, NULL);
+    WC_DECLARE_VAR(decrypted, byte, MC_SM4_MAX_DATA_SZ, NULL);
+
+    WC_ALLOC_VAR(plain,     byte, MC_SM4_MAX_DATA_SZ, NULL);
+    WC_ALLOC_VAR(cipher,    byte, MC_SM4_MAX_DATA_SZ, NULL);
+    WC_ALLOC_VAR(decrypted, byte, MC_SM4_MAX_DATA_SZ, NULL);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    ExpectNotNull(plain);
+    ExpectNotNull(cipher);
+    ExpectNotNull(decrypted);
+#endif
+
+    XMEMSET(&sm4, 0, sizeof(sm4));
+    XMEMSET(&rng, 0, sizeof(rng));
+
+    ExpectIntEQ(wc_Sm4Init(&sm4, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    for (i = 0; i < MC_CIPHER_TEST_COUNT && EXPECT_SUCCESS(); i++) {
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, key, sizeof(key)), 0);
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, nonce, sizeof(nonce)), 0);
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, (byte*)&plainLen,
+            sizeof(plainLen)), 0);
+        plainLen = (plainLen % MC_SM4_MAX_DATA_SZ) + 1;
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, plain, plainLen), 0);
+
+        ExpectIntEQ(wc_Sm4SetKey(&sm4, key, SM4_KEY_SIZE), 0);
+        ExpectIntEQ(wc_Sm4CcmEncrypt(&sm4, cipher, plain, plainLen,
+            nonce, sizeof(nonce), tag, sizeof(tag), NULL, 0), 0);
+        ExpectIntEQ(wc_Sm4CcmDecrypt(&sm4, decrypted, cipher, plainLen,
+            nonce, sizeof(nonce), tag, sizeof(tag), NULL, 0), 0);
+        ExpectBufEQ(decrypted, plain, plainLen);
+    }
+
+    wc_Sm4Free(&sm4);
+    wc_FreeRng(&rng);
+    WC_FREE_VAR(plain,     NULL);
+    WC_FREE_VAR(cipher,    NULL);
+    WC_FREE_VAR(decrypted, NULL);
+
+    res = EXPECT_RESULT();
+#endif
+    return res;
+}

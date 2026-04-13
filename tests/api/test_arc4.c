@@ -104,3 +104,64 @@ int test_wc_Arc4Process(void)
 
 } /* END test_wc_Arc4Process */
 
+
+#include <wolfssl/wolfcrypt/random.h>
+
+#define MC_CIPHER_TEST_COUNT 100
+#define MC_ARC4_MAX_DATA_SZ  1024
+#define MC_ARC4_KEY_SZ       16   /* fixed 128-bit key */
+
+/* Monte Carlo test for ARC4: random key and plaintext each iteration */
+int test_wc_Arc4_MonteCarlo(void)
+{
+    EXPECT_DECLS;
+#ifndef NO_RC4
+    Arc4 enc, dec;
+    WC_RNG rng;
+    byte key[MC_ARC4_KEY_SZ];
+    word32 plainLen = 0;
+    int i;
+    WC_DECLARE_VAR(plain,     byte, MC_ARC4_MAX_DATA_SZ, NULL);
+    WC_DECLARE_VAR(cipher,    byte, MC_ARC4_MAX_DATA_SZ, NULL);
+    WC_DECLARE_VAR(decrypted, byte, MC_ARC4_MAX_DATA_SZ, NULL);
+
+    WC_ALLOC_VAR(plain,     byte, MC_ARC4_MAX_DATA_SZ, NULL);
+    WC_ALLOC_VAR(cipher,    byte, MC_ARC4_MAX_DATA_SZ, NULL);
+    WC_ALLOC_VAR(decrypted, byte, MC_ARC4_MAX_DATA_SZ, NULL);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    ExpectNotNull(plain);
+    ExpectNotNull(cipher);
+    ExpectNotNull(decrypted);
+#endif
+
+    XMEMSET(&enc, 0, sizeof(enc));
+    XMEMSET(&dec, 0, sizeof(dec));
+    XMEMSET(&rng, 0, sizeof(rng));
+
+    ExpectIntEQ(wc_Arc4Init(&enc, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_Arc4Init(&dec, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    for (i = 0; i < MC_CIPHER_TEST_COUNT && EXPECT_SUCCESS(); i++) {
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, key, sizeof(key)), 0);
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, (byte*)&plainLen,
+            sizeof(plainLen)), 0);
+        plainLen = (plainLen % MC_ARC4_MAX_DATA_SZ) + 1;
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, plain, plainLen), 0);
+
+        ExpectIntEQ(wc_Arc4SetKey(&enc, key, sizeof(key)), 0);
+        ExpectIntEQ(wc_Arc4SetKey(&dec, key, sizeof(key)), 0);
+        ExpectIntEQ(wc_Arc4Process(&enc, cipher, plain, plainLen), 0);
+        ExpectIntEQ(wc_Arc4Process(&dec, decrypted, cipher, plainLen), 0);
+        ExpectBufEQ(decrypted, plain, plainLen);
+    }
+
+    wc_Arc4Free(&enc);
+    wc_Arc4Free(&dec);
+    wc_FreeRng(&rng);
+    WC_FREE_VAR(plain,     NULL);
+    WC_FREE_VAR(cipher,    NULL);
+    WC_FREE_VAR(decrypted, NULL);
+#endif
+    return EXPECT_RESULT();
+}

@@ -26,9 +26,11 @@
 
 int test_wc_ChaCha20Poly1305_aead(void);
 int test_wc_XChaCha20Poly1305_aead(void);
+int test_wc_ChaCha20Poly1305_MonteCarlo(void);
 
-#define TEST_CHACHA20_POLY1305_DECLS                                     \
-    TEST_DECL_GROUP("chacha20-poly1305", test_wc_ChaCha20Poly1305_aead), \
-    TEST_DECL_GROUP("xchacha20-poly1305", test_wc_XChaCha20Poly1305_aead)
+#define TEST_CHACHA20_POLY1305_DECLS                                             \
+    TEST_DECL_GROUP("chacha20-poly1305", test_wc_ChaCha20Poly1305_aead),         \
+    TEST_DECL_GROUP("xchacha20-poly1305", test_wc_XChaCha20Poly1305_aead),       \
+    TEST_DECL_GROUP("chacha20-poly1305", test_wc_ChaCha20Poly1305_MonteCarlo)
 
 #endif /* WOLFCRYPT_TEST_CHACHA20_POLY1305_H */

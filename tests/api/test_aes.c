@@ -6297,3 +6297,457 @@ out:
 
 #endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_AES_SETKEY && !NO_AES && HAVE_AESGCM */
 
+
+/*******************************************************************************
+ * Monte Carlo tests for AES modes
+ ******************************************************************************/
+
+#define MC_CIPHER_TEST_COUNT 100
+#define MC_AES_MAX_DATA_SZ   1024
+
+/* Monte Carlo test for AES-CBC: random key, IV, and plaintext each iteration */
+int test_wc_AesCbc_MonteCarlo(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(HAVE_AES_DECRYPT)
+    static const word32 keySizes[] = {
+#ifdef WOLFSSL_AES_128
+        16,
+#endif
+#ifdef WOLFSSL_AES_192
+        24,
+#endif
+#ifdef WOLFSSL_AES_256
+        32,
+#endif
+    };
+    int numKeySizes = (int)(sizeof(keySizes) / sizeof(keySizes[0]));
+    Aes enc, dec;
+    WC_RNG rng;
+    byte key[AES_256_KEY_SIZE];
+    byte iv[WC_AES_BLOCK_SIZE];
+    word32 plainLen = 0, keyLen;
+    int i;
+    WC_DECLARE_VAR(plain,     byte, MC_AES_MAX_DATA_SZ, NULL);
+    WC_DECLARE_VAR(cipher,    byte, MC_AES_MAX_DATA_SZ, NULL);
+    WC_DECLARE_VAR(decrypted, byte, MC_AES_MAX_DATA_SZ, NULL);
+
+    WC_ALLOC_VAR(plain,     byte, MC_AES_MAX_DATA_SZ, NULL);
+    WC_ALLOC_VAR(cipher,    byte, MC_AES_MAX_DATA_SZ, NULL);
+    WC_ALLOC_VAR(decrypted, byte, MC_AES_MAX_DATA_SZ, NULL);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    ExpectNotNull(plain);
+    ExpectNotNull(cipher);
+    ExpectNotNull(decrypted);
+#endif
+
+    XMEMSET(&enc, 0, sizeof(enc));
+    XMEMSET(&dec, 0, sizeof(dec));
+    XMEMSET(&rng, 0, sizeof(rng));
+
+    ExpectIntEQ(wc_AesInit(&enc, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesInit(&dec, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    for (i = 0; i < MC_CIPHER_TEST_COUNT && EXPECT_SUCCESS(); i++) {
+        keyLen = keySizes[i % numKeySizes];
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, key, keyLen), 0);
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, iv, sizeof(iv)), 0);
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, (byte*)&plainLen,
+            sizeof(plainLen)), 0);
+        /* Length 1..1024, rounded up to AES block size */
+        plainLen = (plainLen % MC_AES_MAX_DATA_SZ) + 1;
+        plainLen = (plainLen + WC_AES_BLOCK_SIZE - 1) &
+                   ~((word32)WC_AES_BLOCK_SIZE - 1);
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, plain, plainLen), 0);
+
+        ExpectIntEQ(wc_AesSetKey(&enc, key, keyLen, iv, AES_ENCRYPTION), 0);
+        ExpectIntEQ(wc_AesCbcEncrypt(&enc, cipher, plain, plainLen), 0);
+        ExpectIntEQ(wc_AesSetKey(&dec, key, keyLen, iv, AES_DECRYPTION), 0);
+        ExpectIntEQ(wc_AesCbcDecrypt(&dec, decrypted, cipher, plainLen), 0);
+        ExpectBufEQ(decrypted, plain, plainLen);
+    }
+
+    wc_AesFree(&enc);
+    wc_AesFree(&dec);
+    wc_FreeRng(&rng);
+    WC_FREE_VAR(plain,     NULL);
+    WC_FREE_VAR(cipher,    NULL);
+    WC_FREE_VAR(decrypted, NULL);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Monte Carlo test for AES-CTR: random key, IV, and plaintext each iteration */
+int test_wc_AesCtr_MonteCarlo(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_AES) && defined(WOLFSSL_AES_COUNTER)
+    static const word32 keySizes[] = {
+#ifdef WOLFSSL_AES_128
+        16,
+#endif
+#ifdef WOLFSSL_AES_192
+        24,
+#endif
+#ifdef WOLFSSL_AES_256
+        32,
+#endif
+    };
+    int numKeySizes = (int)(sizeof(keySizes) / sizeof(keySizes[0]));
+    Aes enc, dec;
+    WC_RNG rng;
+    byte key[AES_256_KEY_SIZE];
+    byte iv[WC_AES_BLOCK_SIZE];
+    word32 plainLen = 0, keyLen;
+    int i;
+    WC_DECLARE_VAR(plain,     byte, MC_AES_MAX_DATA_SZ, NULL);
+    WC_DECLARE_VAR(cipher,    byte, MC_AES_MAX_DATA_SZ, NULL);
+    WC_DECLARE_VAR(decrypted, byte, MC_AES_MAX_DATA_SZ, NULL);
+
+    WC_ALLOC_VAR(plain,     byte, MC_AES_MAX_DATA_SZ, NULL);
+    WC_ALLOC_VAR(cipher,    byte, MC_AES_MAX_DATA_SZ, NULL);
+    WC_ALLOC_VAR(decrypted, byte, MC_AES_MAX_DATA_SZ, NULL);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    ExpectNotNull(plain);
+    ExpectNotNull(cipher);
+    ExpectNotNull(decrypted);
+#endif
+
+    XMEMSET(&enc, 0, sizeof(enc));
+    XMEMSET(&dec, 0, sizeof(dec));
+    XMEMSET(&rng, 0, sizeof(rng));
+
+    ExpectIntEQ(wc_AesInit(&enc, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesInit(&dec, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    for (i = 0; i < MC_CIPHER_TEST_COUNT && EXPECT_SUCCESS(); i++) {
+        keyLen = keySizes[i % numKeySizes];
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, key, keyLen), 0);
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, iv, sizeof(iv)), 0);
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, (byte*)&plainLen,
+            sizeof(plainLen)), 0);
+        plainLen = (plainLen % MC_AES_MAX_DATA_SZ) + 1;
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, plain, plainLen), 0);
+
+        /* CTR mode: decrypt is the same operation as encrypt */
+        ExpectIntEQ(wc_AesSetKey(&enc, key, keyLen, iv, AES_ENCRYPTION), 0);
+        ExpectIntEQ(wc_AesCtrEncrypt(&enc, cipher, plain, plainLen), 0);
+        ExpectIntEQ(wc_AesSetKey(&dec, key, keyLen, iv, AES_ENCRYPTION), 0);
+        ExpectIntEQ(wc_AesCtrEncrypt(&dec, decrypted, cipher, plainLen), 0);
+        ExpectBufEQ(decrypted, plain, plainLen);
+    }
+
+    wc_AesFree(&enc);
+    wc_AesFree(&dec);
+    wc_FreeRng(&rng);
+    WC_FREE_VAR(plain,     NULL);
+    WC_FREE_VAR(cipher,    NULL);
+    WC_FREE_VAR(decrypted, NULL);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Monte Carlo test for AES-GCM: random key, nonce, and plaintext each
+ * iteration */
+int test_wc_AesGcm_MonteCarlo(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_AES) && defined(HAVE_AESGCM) && defined(HAVE_AES_DECRYPT)
+    static const word32 keySizes[] = {
+#ifdef WOLFSSL_AES_128
+        16,
+#endif
+#ifdef WOLFSSL_AES_192
+        24,
+#endif
+#ifdef WOLFSSL_AES_256
+        32,
+#endif
+    };
+    int numKeySizes = (int)(sizeof(keySizes) / sizeof(keySizes[0]));
+    Aes aes;
+    WC_RNG rng;
+    byte key[AES_256_KEY_SIZE];
+    byte nonce[GCM_NONCE_MID_SZ];
+    byte tag[WC_AES_BLOCK_SIZE];
+    word32 plainLen = 0, keyLen;
+    int i;
+    WC_DECLARE_VAR(plain,     byte, MC_AES_MAX_DATA_SZ, NULL);
+    WC_DECLARE_VAR(cipher,    byte, MC_AES_MAX_DATA_SZ, NULL);
+    WC_DECLARE_VAR(decrypted, byte, MC_AES_MAX_DATA_SZ, NULL);
+
+    WC_ALLOC_VAR(plain,     byte, MC_AES_MAX_DATA_SZ, NULL);
+    WC_ALLOC_VAR(cipher,    byte, MC_AES_MAX_DATA_SZ, NULL);
+    WC_ALLOC_VAR(decrypted, byte, MC_AES_MAX_DATA_SZ, NULL);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    ExpectNotNull(plain);
+    ExpectNotNull(cipher);
+    ExpectNotNull(decrypted);
+#endif
+
+    XMEMSET(&aes, 0, sizeof(aes));
+    XMEMSET(&rng, 0, sizeof(rng));
+
+    ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    for (i = 0; i < MC_CIPHER_TEST_COUNT && EXPECT_SUCCESS(); i++) {
+        keyLen = keySizes[i % numKeySizes];
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, key, keyLen), 0);
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, nonce, sizeof(nonce)), 0);
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, (byte*)&plainLen,
+            sizeof(plainLen)), 0);
+        plainLen = (plainLen % MC_AES_MAX_DATA_SZ) + 1;
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, plain, plainLen), 0);
+
+        ExpectIntEQ(wc_AesGcmSetKey(&aes, key, keyLen), 0);
+        ExpectIntEQ(wc_AesGcmEncrypt(&aes, cipher, plain, plainLen,
+            nonce, sizeof(nonce), tag, sizeof(tag), NULL, 0), 0);
+        ExpectIntEQ(wc_AesGcmDecrypt(&aes, decrypted, cipher, plainLen,
+            nonce, sizeof(nonce), tag, sizeof(tag), NULL, 0), 0);
+        ExpectBufEQ(decrypted, plain, plainLen);
+    }
+
+    wc_AesFree(&aes);
+    wc_FreeRng(&rng);
+    WC_FREE_VAR(plain,     NULL);
+    WC_FREE_VAR(cipher,    NULL);
+    WC_FREE_VAR(decrypted, NULL);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Monte Carlo test for AES-CCM: random key, nonce, and plaintext each
+ * iteration */
+int test_wc_AesCcm_MonteCarlo(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_AES) && defined(HAVE_AESCCM) && defined(HAVE_AES_DECRYPT)
+    static const word32 keySizes[] = {
+#ifdef WOLFSSL_AES_128
+        16,
+#endif
+#ifdef WOLFSSL_AES_192
+        24,
+#endif
+#ifdef WOLFSSL_AES_256
+        32,
+#endif
+    };
+    int numKeySizes = (int)(sizeof(keySizes) / sizeof(keySizes[0]));
+    Aes aes;
+    WC_RNG rng;
+    byte key[AES_256_KEY_SIZE];
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS_VERSION) || \
+    (HAVE_FIPS_VERSION > 2))
+    byte nonce[CCM_NONCE_MAX_SZ];
+#else
+    byte nonce[13];
+#endif
+    byte tag[WC_AES_BLOCK_SIZE];
+    word32 plainLen = 0, keyLen;
+    int i;
+    WC_DECLARE_VAR(plain,     byte, MC_AES_MAX_DATA_SZ, NULL);
+    WC_DECLARE_VAR(cipher,    byte, MC_AES_MAX_DATA_SZ, NULL);
+    WC_DECLARE_VAR(decrypted, byte, MC_AES_MAX_DATA_SZ, NULL);
+
+    WC_ALLOC_VAR(plain,     byte, MC_AES_MAX_DATA_SZ, NULL);
+    WC_ALLOC_VAR(cipher,    byte, MC_AES_MAX_DATA_SZ, NULL);
+    WC_ALLOC_VAR(decrypted, byte, MC_AES_MAX_DATA_SZ, NULL);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    ExpectNotNull(plain);
+    ExpectNotNull(cipher);
+    ExpectNotNull(decrypted);
+#endif
+
+    XMEMSET(&aes, 0, sizeof(aes));
+    XMEMSET(&rng, 0, sizeof(rng));
+
+    ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    for (i = 0; i < MC_CIPHER_TEST_COUNT && EXPECT_SUCCESS(); i++) {
+        keyLen = keySizes[i % numKeySizes];
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, key, keyLen), 0);
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, nonce, sizeof(nonce)), 0);
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, (byte*)&plainLen,
+            sizeof(plainLen)), 0);
+        plainLen = (plainLen % MC_AES_MAX_DATA_SZ) + 1;
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, plain, plainLen), 0);
+
+        ExpectIntEQ(wc_AesCcmSetKey(&aes, key, keyLen), 0);
+        ExpectIntEQ(wc_AesCcmEncrypt(&aes, cipher, plain, plainLen,
+            nonce, sizeof(nonce), tag, sizeof(tag), NULL, 0), 0);
+        ExpectIntEQ(wc_AesCcmDecrypt(&aes, decrypted, cipher, plainLen,
+            nonce, sizeof(nonce), tag, sizeof(tag), NULL, 0), 0);
+        ExpectBufEQ(decrypted, plain, plainLen);
+    }
+
+    wc_AesFree(&aes);
+    wc_FreeRng(&rng);
+    WC_FREE_VAR(plain,     NULL);
+    WC_FREE_VAR(cipher,    NULL);
+    WC_FREE_VAR(decrypted, NULL);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Monte Carlo test for AES-CFB: random key, IV, and plaintext each
+ * iteration */
+int test_wc_AesCfb_MonteCarlo(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_AES) && defined(WOLFSSL_AES_CFB) && defined(HAVE_AES_DECRYPT)
+    static const word32 keySizes[] = {
+#ifdef WOLFSSL_AES_128
+        16,
+#endif
+#ifdef WOLFSSL_AES_192
+        24,
+#endif
+#ifdef WOLFSSL_AES_256
+        32,
+#endif
+    };
+    int numKeySizes = (int)(sizeof(keySizes) / sizeof(keySizes[0]));
+    Aes enc, dec;
+    WC_RNG rng;
+    byte key[AES_256_KEY_SIZE];
+    byte iv[WC_AES_BLOCK_SIZE];
+    word32 plainLen = 0, keyLen;
+    int i;
+    WC_DECLARE_VAR(plain,     byte, MC_AES_MAX_DATA_SZ, NULL);
+    WC_DECLARE_VAR(cipher,    byte, MC_AES_MAX_DATA_SZ, NULL);
+    WC_DECLARE_VAR(decrypted, byte, MC_AES_MAX_DATA_SZ, NULL);
+
+    WC_ALLOC_VAR(plain,     byte, MC_AES_MAX_DATA_SZ, NULL);
+    WC_ALLOC_VAR(cipher,    byte, MC_AES_MAX_DATA_SZ, NULL);
+    WC_ALLOC_VAR(decrypted, byte, MC_AES_MAX_DATA_SZ, NULL);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    ExpectNotNull(plain);
+    ExpectNotNull(cipher);
+    ExpectNotNull(decrypted);
+#endif
+
+    XMEMSET(&enc, 0, sizeof(enc));
+    XMEMSET(&dec, 0, sizeof(dec));
+    XMEMSET(&rng, 0, sizeof(rng));
+
+    ExpectIntEQ(wc_AesInit(&enc, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesInit(&dec, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    for (i = 0; i < MC_CIPHER_TEST_COUNT && EXPECT_SUCCESS(); i++) {
+        keyLen = keySizes[i % numKeySizes];
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, key, keyLen), 0);
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, iv, sizeof(iv)), 0);
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, (byte*)&plainLen,
+            sizeof(plainLen)), 0);
+        plainLen = (plainLen % MC_AES_MAX_DATA_SZ) + 1;
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, plain, plainLen), 0);
+
+        ExpectIntEQ(wc_AesSetKey(&enc, key, keyLen, NULL, AES_ENCRYPTION), 0);
+        ExpectIntEQ(wc_AesSetIV(&enc, iv), 0);
+        ExpectIntEQ(wc_AesCfbEncrypt(&enc, cipher, plain, plainLen), 0);
+        ExpectIntEQ(wc_AesSetKey(&dec, key, keyLen, NULL, AES_ENCRYPTION), 0);
+        ExpectIntEQ(wc_AesSetIV(&dec, iv), 0);
+        ExpectIntEQ(wc_AesCfbDecrypt(&dec, decrypted, cipher, plainLen), 0);
+        if (XMEMCMP(decrypted, plain, plainLen) != 0) {
+            PRINT_DATA("Key", key, keyLen);
+            PRINT_DATA("IV", iv, sizeof(iv));
+            PRINT_DATA("Plain", plain, plainLen);
+            PRINT_DATA("Decrypted", decrypted, plainLen);
+        }
+        ExpectBufEQ(decrypted, plain, plainLen);
+    }
+
+    wc_AesFree(&enc);
+    wc_AesFree(&dec);
+    wc_FreeRng(&rng);
+    WC_FREE_VAR(plain,     NULL);
+    WC_FREE_VAR(cipher,    NULL);
+    WC_FREE_VAR(decrypted, NULL);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Monte Carlo test for AES-OFB: random key, IV, and plaintext each
+ * iteration */
+int test_wc_AesOfb_MonteCarlo(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_AES) && defined(WOLFSSL_AES_OFB) && defined(HAVE_AES_DECRYPT)
+    static const word32 keySizes[] = {
+#ifdef WOLFSSL_AES_128
+        16,
+#endif
+#ifdef WOLFSSL_AES_192
+        24,
+#endif
+#ifdef WOLFSSL_AES_256
+        32,
+#endif
+    };
+    int numKeySizes = (int)(sizeof(keySizes) / sizeof(keySizes[0]));
+    Aes enc, dec;
+    WC_RNG rng;
+    byte key[AES_256_KEY_SIZE];
+    byte iv[WC_AES_BLOCK_SIZE];
+    word32 plainLen = 0, keyLen;
+    int i;
+    WC_DECLARE_VAR(plain,     byte, MC_AES_MAX_DATA_SZ, NULL);
+    WC_DECLARE_VAR(cipher,    byte, MC_AES_MAX_DATA_SZ, NULL);
+    WC_DECLARE_VAR(decrypted, byte, MC_AES_MAX_DATA_SZ, NULL);
+
+    WC_ALLOC_VAR(plain,     byte, MC_AES_MAX_DATA_SZ, NULL);
+    WC_ALLOC_VAR(cipher,    byte, MC_AES_MAX_DATA_SZ, NULL);
+    WC_ALLOC_VAR(decrypted, byte, MC_AES_MAX_DATA_SZ, NULL);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    ExpectNotNull(plain);
+    ExpectNotNull(cipher);
+    ExpectNotNull(decrypted);
+#endif
+
+    XMEMSET(&enc, 0, sizeof(enc));
+    XMEMSET(&dec, 0, sizeof(dec));
+    XMEMSET(&rng, 0, sizeof(rng));
+
+    ExpectIntEQ(wc_AesInit(&enc, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesInit(&dec, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    for (i = 0; i < MC_CIPHER_TEST_COUNT && EXPECT_SUCCESS(); i++) {
+        keyLen = keySizes[i % numKeySizes];
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, key, keyLen), 0);
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, iv, sizeof(iv)), 0);
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, (byte*)&plainLen,
+            sizeof(plainLen)), 0);
+        plainLen = (plainLen % MC_AES_MAX_DATA_SZ) + 1;
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, plain, plainLen), 0);
+
+        ExpectIntEQ(wc_AesSetKey(&enc, key, keyLen, NULL, AES_ENCRYPTION), 0);
+        ExpectIntEQ(wc_AesSetIV(&enc, iv), 0);
+        ExpectIntEQ(wc_AesOfbEncrypt(&enc, cipher, plain, plainLen), 0);
+        ExpectIntEQ(wc_AesSetKey(&dec, key, keyLen, NULL, AES_ENCRYPTION), 0);
+        ExpectIntEQ(wc_AesSetIV(&dec, iv), 0);
+        ExpectIntEQ(wc_AesOfbDecrypt(&dec, decrypted, cipher, plainLen), 0);
+        if (XMEMCMP(decrypted, plain, plainLen) != 0) {
+            PRINT_DATA("Key", key, keyLen);
+            PRINT_DATA("IV", iv, sizeof(iv));
+            PRINT_DATA("Plain", plain, plainLen);
+            PRINT_DATA("Decrypted", decrypted, plainLen);
+        }
+        ExpectBufEQ(decrypted, plain, plainLen);
+    }
+
+    wc_AesFree(&enc);
+    wc_AesFree(&dec);
+    wc_FreeRng(&rng);
+    WC_FREE_VAR(plain,     NULL);
+    WC_FREE_VAR(cipher,    NULL);
+    WC_FREE_VAR(decrypted, NULL);
+#endif
+    return EXPECT_RESULT();
+}

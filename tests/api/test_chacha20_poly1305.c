@@ -283,3 +283,60 @@ int test_wc_XChaCha20Poly1305_aead(void)
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_XChaCha20Poly1305_aead */
+
+#include <wolfssl/wolfcrypt/random.h>
+
+#define MC_CIPHER_TEST_COUNT     100
+#define MC_CHACHA20P1305_MAX_SZ  1024
+
+/* Monte Carlo test for ChaCha20-Poly1305: random key, nonce, and plaintext
+ * each iteration */
+int test_wc_ChaCha20Poly1305_MonteCarlo(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+    WC_RNG rng;
+    byte key[CHACHA20_POLY1305_AEAD_KEYSIZE];
+    byte nonce[CHACHA20_POLY1305_AEAD_IV_SIZE];
+    byte tag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE];
+    word32 plainLen = 0;
+    int i;
+    WC_DECLARE_VAR(plain,     byte, MC_CHACHA20P1305_MAX_SZ, NULL);
+    WC_DECLARE_VAR(cipher,    byte, MC_CHACHA20P1305_MAX_SZ, NULL);
+    WC_DECLARE_VAR(decrypted, byte, MC_CHACHA20P1305_MAX_SZ, NULL);
+
+    WC_ALLOC_VAR(plain,     byte, MC_CHACHA20P1305_MAX_SZ, NULL);
+    WC_ALLOC_VAR(cipher,    byte, MC_CHACHA20P1305_MAX_SZ, NULL);
+    WC_ALLOC_VAR(decrypted, byte, MC_CHACHA20P1305_MAX_SZ, NULL);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    ExpectNotNull(plain);
+    ExpectNotNull(cipher);
+    ExpectNotNull(decrypted);
+#endif
+
+    XMEMSET(&rng, 0, sizeof(rng));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    for (i = 0; i < MC_CIPHER_TEST_COUNT && EXPECT_SUCCESS(); i++) {
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, key, sizeof(key)), 0);
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, nonce, sizeof(nonce)), 0);
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, (byte*)&plainLen,
+            sizeof(plainLen)), 0);
+        plainLen = (plainLen % MC_CHACHA20P1305_MAX_SZ) + 1;
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, plain, plainLen), 0);
+
+        ExpectIntEQ(wc_ChaCha20Poly1305_Encrypt(key, nonce, NULL, 0,
+            plain, plainLen, cipher, tag), 0);
+        ExpectIntEQ(wc_ChaCha20Poly1305_Decrypt(key, nonce, NULL, 0,
+            cipher, plainLen, tag, decrypted), 0);
+        ExpectBufEQ(decrypted, plain, plainLen);
+    }
+
+    wc_FreeRng(&rng);
+    WC_FREE_VAR(plain,     NULL);
+    WC_FREE_VAR(cipher,    NULL);
+    WC_FREE_VAR(decrypted, NULL);
+#endif
+    return EXPECT_RESULT();
+}
