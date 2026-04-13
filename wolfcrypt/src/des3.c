@@ -1789,6 +1789,10 @@
             return BAD_FUNC_ARG;
         }
 
+        if (sz % DES_BLOCK_SIZE != 0) {
+            return BAD_LENGTH_E;
+        }
+
     #ifdef WOLF_CRYPTO_CB
         if (des->devId != INVALID_DEVID) {
             int ret = wc_CryptoCb_Des3Encrypt(des, out, in, sz);
@@ -1819,10 +1823,6 @@
         }
     #endif /* WOLFSSL_ASYNC_CRYPT */
 
-        if (sz % DES_BLOCK_SIZE != 0) {
-            return BAD_LENGTH_E;
-        }
-
         blocks = sz / DES_BLOCK_SIZE;
         while (blocks--) {
             xorbuf((byte*)des->reg, in, DES_BLOCK_SIZE);
@@ -1842,6 +1842,10 @@
 
         if (des == NULL || out == NULL || in == NULL) {
             return BAD_FUNC_ARG;
+        }
+
+        if (sz % DES_BLOCK_SIZE != 0) {
+            return BAD_LENGTH_E;
         }
 
     #ifdef WOLF_CRYPTO_CB
@@ -1873,10 +1877,6 @@
         #endif
         }
     #endif /* WOLFSSL_ASYNC_CRYPT */
-
-        if (sz % DES_BLOCK_SIZE != 0) {
-            return BAD_LENGTH_E;
-        }
 
         blocks = sz / DES_BLOCK_SIZE;
         while (blocks--) {
