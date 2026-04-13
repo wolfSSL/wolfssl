@@ -431,7 +431,7 @@ static int linuxkm_lkcapi_register(void)
                                (alg).base.cra_driver_name, ret);             \
                     }                                                        \
                     (crypto_unregister_ ## alg_class)(&(alg));               \
-                    if (! (alg.base.cra_flags & CRYPTO_ALG_DEAD)) {          \
+                    if (! ((alg).base.cra_flags & CRYPTO_ALG_DEAD)) {        \
                         pr_err("ERROR: alg %s not _DEAD "                    \
                                "after crypto_unregister_%s -- "              \
                                "marking as loaded despite test failure.",    \
@@ -459,6 +459,12 @@ static int linuxkm_lkcapi_register(void)
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_AESGCM
     REGISTER_ALG(gcmAesAead, aead, linuxkm_test_aesgcm);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_AESCCM_RFC4309
+    REGISTER_ALG(ccmAesAead_rfc4309, aead, linuxkm_test_aesccm_rfc4309);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_AESCCM
+    REGISTER_ALG(ccmAesAead, aead, linuxkm_test_aesccm);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_AESXTS
     REGISTER_ALG(xtsAesAlg, skcipher, linuxkm_test_aesxts);
@@ -830,6 +836,12 @@ static int linuxkm_lkcapi_unregister(void)
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_AESGCM_RFC4106
     UNREGISTER_ALG(gcmAesAead_rfc4106, aead);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_AESCCM
+    UNREGISTER_ALG(ccmAesAead, aead);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_AESCCM_RFC4309
+    UNREGISTER_ALG(ccmAesAead_rfc4309, aead);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_AESXTS
     UNREGISTER_ALG(xtsAesAlg, skcipher);

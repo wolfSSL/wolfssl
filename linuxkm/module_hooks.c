@@ -1728,9 +1728,11 @@ static int updateFipsHash(void)
         FIPS_IN_CORE_DIGEST_SIZE,
         coreKey,
         desc,
+        /* NOLINTBEGIN(clang-diagnostic-cast-function-type-strict) */
         (wc_fips_verifyCore_hmac_setkey_fn)linux_fips_hmac_setkey,
         (wc_fips_verifyCore_hmac_update_fn)linux_fips_hmac_update,
         (wc_fips_verifyCore_hmac_final_fn)linux_fips_hmac_final,
+        /* NOLINTEND(clang-diagnostic-cast-function-type-strict) */
         verifyCore,
         &verifyCore_size,
 #if defined(DEBUG_LINUXKM_PIE_SUPPORT) && defined(WC_SYM_RELOC_TABLES)
