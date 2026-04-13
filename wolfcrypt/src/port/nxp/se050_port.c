@@ -1710,8 +1710,17 @@ int se050_rsa_public_encrypt(const byte* in, word32 inLen, byte* out,
     }
 
     if (status == kStatus_SSS_Success) {
-        key->keyId = keyId;
-        key->keyIdSet = 1;
+        if (keyCreated) {
+            /* Public-key encrypt imported a temporary public object only.
+             * Do not bind that SE050 object to the caller's RsaKey or later
+             * private-key operations will try to reuse a public handle. */
+            sss_key_store_erase_key(&host_keystore, &newKey);
+            sss_key_object_free(&newKey);
+        }
+        else {
+            key->keyId = keyId;
+            key->keyIdSet = 1;
+        }
         ret = encSz;
     }
     else {
