@@ -89,7 +89,6 @@ use crate::sys;
 use core::mem::MaybeUninit;
 #[cfg(all(lms_make_key, random))]
 use crate::random::RNG;
-use zeroize::Zeroize;
 
 /// Rust wrapper for a wolfSSL `LmsKey` object (LMS/HSS, RFC 8554).
 ///
@@ -785,7 +784,7 @@ impl Lms {
     }
 }
 
-impl Zeroize for Lms {
+impl Lms {
     fn zeroize(&mut self) {
         unsafe { crate::zeroize_raw(&mut self.ws_key); }
     }

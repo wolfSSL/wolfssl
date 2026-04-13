@@ -27,7 +27,6 @@ functionality.
 
 use crate::sys;
 use core::mem::MaybeUninit;
-use zeroize::Zeroize;
 
 /// Rust wrapper for wolfSSL `Hmac` object.
 pub struct HMAC {
@@ -325,7 +324,7 @@ impl HMAC {
     }
 }
 
-impl Zeroize for HMAC {
+impl HMAC {
     fn zeroize(&mut self) {
         unsafe { crate::zeroize_raw(&mut self.wc_hmac); }
     }

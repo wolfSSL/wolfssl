@@ -27,7 +27,6 @@ functionality.
 
 use crate::sys;
 use core::mem::MaybeUninit;
-use zeroize::Zeroize;
 
 /// Context for BLAKE2b computation.
 #[cfg(blake2b)]
@@ -176,7 +175,7 @@ impl BLAKE2b {
 
 
 #[cfg(blake2b)]
-impl Zeroize for BLAKE2b {
+impl BLAKE2b {
     fn zeroize(&mut self) {
         unsafe { crate::zeroize_raw(&mut self.wc_blake2b); }
     }
@@ -327,7 +326,7 @@ impl BLAKE2bHmac {
 
 
 #[cfg(blake2b_hmac)]
-impl Zeroize for BLAKE2bHmac {
+impl BLAKE2bHmac {
     fn zeroize(&mut self) {
         unsafe { crate::zeroize_raw(&mut self.wc_blake2b); }
     }
@@ -487,7 +486,7 @@ impl BLAKE2s {
 
 
 #[cfg(blake2s)]
-impl Zeroize for BLAKE2s {
+impl BLAKE2s {
     fn zeroize(&mut self) {
         unsafe { crate::zeroize_raw(&mut self.wc_blake2s); }
     }
@@ -637,7 +636,7 @@ impl BLAKE2sHmac {
 }
 
 #[cfg(blake2s_hmac)]
-impl Zeroize for BLAKE2sHmac {
+impl BLAKE2sHmac {
     fn zeroize(&mut self) {
         unsafe { crate::zeroize_raw(&mut self.wc_blake2s); }
     }

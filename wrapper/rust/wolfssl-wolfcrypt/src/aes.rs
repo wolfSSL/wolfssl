@@ -230,7 +230,7 @@ impl CBC {
     }
 }
 #[cfg(aes_cbc)]
-impl Zeroize for CBC {
+impl CBC {
     fn zeroize(&mut self) {
         unsafe { crate::zeroize_raw(&mut self.ws_aes); }
     }
@@ -422,7 +422,7 @@ impl CCM {
     }
 }
 #[cfg(aes_ccm)]
-impl Zeroize for CCM {
+impl CCM {
     fn zeroize(&mut self) {
         unsafe { crate::zeroize_raw(&mut self.ws_aes); }
     }
@@ -897,7 +897,7 @@ impl CFB {
     }
 }
 #[cfg(aes_cfb)]
-impl Zeroize for CFB {
+impl CFB {
     fn zeroize(&mut self) {
         unsafe { crate::zeroize_raw(&mut self.ws_aes); }
     }
@@ -1072,7 +1072,7 @@ impl CTR {
     }
 }
 #[cfg(aes_ctr)]
-impl Zeroize for CTR {
+impl CTR {
     fn zeroize(&mut self) {
         unsafe { crate::zeroize_raw(&mut self.ws_aes); }
     }
@@ -1379,7 +1379,7 @@ impl ECB {
     }
 }
 #[cfg(aes_ecb)]
-impl Zeroize for ECB {
+impl ECB {
     fn zeroize(&mut self) {
         unsafe { crate::zeroize_raw(&mut self.ws_aes); }
     }
@@ -1577,7 +1577,7 @@ impl GCM {
     }
 }
 #[cfg(aes_gcm)]
-impl Zeroize for GCM {
+impl GCM {
     fn zeroize(&mut self) {
         unsafe { crate::zeroize_raw(&mut self.ws_aes); }
     }
@@ -2037,7 +2037,7 @@ impl GCMStream {
     }
 }
 #[cfg(aes_gcm_stream)]
-impl Zeroize for GCMStream {
+impl GCMStream {
     fn zeroize(&mut self) {
         unsafe { crate::zeroize_raw(&mut self.ws_aes); }
     }
@@ -2221,7 +2221,7 @@ impl OFB {
     }
 }
 #[cfg(aes_ofb)]
-impl Zeroize for OFB {
+impl OFB {
     fn zeroize(&mut self) {
         unsafe { crate::zeroize_raw(&mut self.ws_aes); }
     }
@@ -2587,7 +2587,7 @@ impl XTS {
     }
 }
 #[cfg(aes_xts)]
-impl Zeroize for XTS {
+impl XTS {
     fn zeroize(&mut self) {
         unsafe { crate::zeroize_raw(&mut self.ws_xtsaes); }
     }
@@ -2890,7 +2890,7 @@ impl XTSStream {
     }
 }
 #[cfg(aes_xts_stream)]
-impl Zeroize for XTSStream {
+impl XTSStream {
     fn zeroize(&mut self) {
         unsafe { crate::zeroize_raw(&mut self.ws_xtsaes); }
     }

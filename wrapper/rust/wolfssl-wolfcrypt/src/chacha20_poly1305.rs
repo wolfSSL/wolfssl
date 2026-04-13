@@ -244,7 +244,7 @@ impl ChaCha20Poly1305 {
     }
 }
 
-impl Zeroize for ChaCha20Poly1305 {
+impl ChaCha20Poly1305 {
     fn zeroize(&mut self) {
         unsafe { crate::zeroize_raw(&mut self.wc_ccp); }
     }

@@ -32,7 +32,6 @@ use crate::sys;
 #[cfg(random)]
 use crate::random::RNG;
 use core::mem::{MaybeUninit};
-use zeroize::Zeroize;
 
 pub struct DH {
     wc_dhkey: sys::DhKey,
@@ -1580,7 +1579,7 @@ impl DH {
     }
 }
 
-impl Zeroize for DH {
+impl DH {
     fn zeroize(&mut self) {
         unsafe { crate::zeroize_raw(&mut self.wc_dhkey); }
     }

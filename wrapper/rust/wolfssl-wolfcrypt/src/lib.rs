@@ -23,7 +23,7 @@
 /* bindgen-generated bindings to the C library */
 pub mod sys;
 
-/// Zeroize the raw bytes of a value. For use in `Zeroize` impls on C FFI
+/// Zeroize the raw bytes of a value. For use in `zeroize()` methods on C FFI
 /// structs where `#[derive(Zeroize)]` cannot be used.
 ///
 /// # Safety

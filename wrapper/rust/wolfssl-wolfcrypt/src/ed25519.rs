@@ -28,7 +28,6 @@ This module provides a Rust wrapper for the wolfCrypt library's EdDSA Curve
 use crate::sys;
 use crate::random::RNG;
 use core::mem::MaybeUninit;
-use zeroize::Zeroize;
 
 /// The `Ed25519` struct manages the lifecycle of a wolfSSL `ed25519_key`
 /// object.
@@ -1431,7 +1430,7 @@ impl Ed25519 {
     }
 }
 
-impl Zeroize for Ed25519 {
+impl Ed25519 {
     fn zeroize(&mut self) {
         unsafe { crate::zeroize_raw(&mut self.ws_key); }
     }

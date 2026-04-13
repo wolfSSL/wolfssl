@@ -25,7 +25,6 @@ Algorithm (SHA) functionality.
 
 use crate::sys;
 use core::mem::MaybeUninit;
-use zeroize::Zeroize;
 
 /// Context for SHA-1 computation.
 #[cfg(sha)]
@@ -217,7 +216,7 @@ impl SHA {
 }
 
 #[cfg(sha)]
-impl Zeroize for SHA {
+impl SHA {
     fn zeroize(&mut self) {
         unsafe { crate::zeroize_raw(&mut self.wc_sha); }
     }
@@ -428,7 +427,7 @@ impl SHA224 {
 }
 
 #[cfg(sha224)]
-impl Zeroize for SHA224 {
+impl SHA224 {
     fn zeroize(&mut self) {
         unsafe { crate::zeroize_raw(&mut self.wc_sha224); }
     }
@@ -639,7 +638,7 @@ impl SHA256 {
 }
 
 #[cfg(sha256)]
-impl Zeroize for SHA256 {
+impl SHA256 {
     fn zeroize(&mut self) {
         unsafe { crate::zeroize_raw(&mut self.wc_sha256); }
     }
@@ -850,7 +849,7 @@ impl SHA384 {
 }
 
 #[cfg(sha384)]
-impl Zeroize for SHA384 {
+impl SHA384 {
     fn zeroize(&mut self) {
         unsafe { crate::zeroize_raw(&mut self.wc_sha384); }
     }
@@ -1061,7 +1060,7 @@ impl SHA512 {
 }
 
 #[cfg(sha512)]
-impl Zeroize for SHA512 {
+impl SHA512 {
     fn zeroize(&mut self) {
         unsafe { crate::zeroize_raw(&mut self.wc_sha512); }
     }
@@ -1272,7 +1271,7 @@ impl SHA3_224 {
 }
 
 #[cfg(sha3)]
-impl Zeroize for SHA3_224 {
+impl SHA3_224 {
     fn zeroize(&mut self) {
         unsafe { crate::zeroize_raw(&mut self.wc_sha3); }
     }
@@ -1483,7 +1482,7 @@ impl SHA3_256 {
 }
 
 #[cfg(sha3)]
-impl Zeroize for SHA3_256 {
+impl SHA3_256 {
     fn zeroize(&mut self) {
         unsafe { crate::zeroize_raw(&mut self.wc_sha3); }
     }
@@ -1694,7 +1693,7 @@ impl SHA3_384 {
 }
 
 #[cfg(sha3)]
-impl Zeroize for SHA3_384 {
+impl SHA3_384 {
     fn zeroize(&mut self) {
         unsafe { crate::zeroize_raw(&mut self.wc_sha3); }
     }
@@ -1905,7 +1904,7 @@ impl SHA3_512 {
 }
 
 #[cfg(sha3)]
-impl Zeroize for SHA3_512 {
+impl SHA3_512 {
     fn zeroize(&mut self) {
         unsafe { crate::zeroize_raw(&mut self.wc_sha3); }
     }
@@ -2183,7 +2182,7 @@ impl SHAKE128 {
 }
 
 #[cfg(shake128)]
-impl Zeroize for SHAKE128 {
+impl SHAKE128 {
     fn zeroize(&mut self) {
         unsafe { crate::zeroize_raw(&mut self.wc_shake); }
     }
@@ -2461,7 +2460,7 @@ impl SHAKE256 {
 }
 
 #[cfg(shake256)]
-impl Zeroize for SHAKE256 {
+impl SHAKE256 {
     fn zeroize(&mut self) {
         unsafe { crate::zeroize_raw(&mut self.wc_shake); }
     }

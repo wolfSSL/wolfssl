@@ -29,7 +29,6 @@ functionality.
 use crate::random::RNG;
 use crate::sys;
 use core::mem::MaybeUninit;
-use zeroize::Zeroize;
 
 pub struct Curve25519Key {
     wc_key: sys::curve25519_key,
@@ -655,7 +654,7 @@ impl Curve25519Key {
     }
 }
 
-impl Zeroize for Curve25519Key {
+impl Curve25519Key {
     fn zeroize(&mut self) {
         unsafe { crate::zeroize_raw(&mut self.wc_key); }
     }

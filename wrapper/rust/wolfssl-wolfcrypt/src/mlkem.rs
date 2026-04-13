@@ -64,7 +64,6 @@ assert_eq!(ss_alice, ss_bob);
 use crate::sys;
 #[cfg(random)]
 use crate::random::RNG;
-use zeroize::Zeroize;
 
 /// Rust wrapper for a wolfSSL `MlKemKey` object.
 ///
@@ -789,7 +788,7 @@ impl MlKem {
     }
 }
 
-impl Zeroize for MlKem {
+impl MlKem {
     fn zeroize(&mut self) {
         self.ws_key = core::ptr::null_mut();
     }
