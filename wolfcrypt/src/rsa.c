@@ -3456,6 +3456,11 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
          * be the same size as the RSA key. */
         if (pad_type != WC_RSA_NO_PAD)
 #endif
+#ifdef WC_RSA_PSS
+        /* PSS performs its own input-length check inside RsaPad_PSS; the
+         * RSA_MIN_PAD_SZ guard applies only to PKCS#1 v1.5 padding. */
+        if (pad_type != WC_RSA_PSS_PAD)
+#endif
         return RSA_BUFFER_E;
     }
 
