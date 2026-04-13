@@ -2101,6 +2101,9 @@ extern void uITRON4_free(void *p) ;
 #ifdef WOLFSSL_NXP_LPC55S69
     #ifndef WOLFSSL_NXP_LPC55S69_NO_HWACCEL
         #define WOLFSSL_NXP_RNG_1
+        #define WOLFSSL_NXP_HASHCRYPT
+        #define WOLFSSL_NXP_HASHCRYPT_SHA
+        #define WOLFSSL_NXP_HASHCRYPT_SHA256
     #endif
 #endif /* WOLFSSL_NXP_LPC55S69 */
 

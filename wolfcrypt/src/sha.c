@@ -348,7 +348,7 @@
     #include <wolfssl/wolfcrypt/port/nxp/dcp_port.h>
     /* implemented in wolfcrypt/src/port/nxp/dcp_port.c */
 
-#elif defined(WOLFSSL_NXP_HASHCRYPT)
+#elif defined(WOLFSSL_NXP_HASHCRYPT_SHA)
     /* implemented in wolfcrypt/src/port/nxp/hashcrypt_port.c */
 
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)

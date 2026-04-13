@@ -4595,12 +4595,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha_test(void)
     ret = wc_InitSha_ex(&sha, HEAP_HINT, devId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+#ifndef NO_WOLFSSL_SHA256_INTERLEAVE
     ret = wc_InitSha_ex(&shaCopy, HEAP_HINT, devId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
     ret = wc_ShaUpdate(&shaCopy, (byte*)b.input, (word32)b.inLen);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+#endif
     ret = wc_ShaUpdate(&sha, (byte*)a.input, (word32)a.inLen);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
@@ -5310,12 +5312,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha256_test(void)
     ret = wc_InitSha256_ex(&sha, HEAP_HINT, devId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+#ifndef NO_WOLFSSL_SHA256_INTERLEAVE
     ret = wc_InitSha256_ex(&shaCopy, HEAP_HINT, devId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
     ret = wc_Sha256Update(&shaCopy, (byte*)b.input, (word32)b.inLen);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+#endif
     ret = wc_Sha256Update(&sha, (byte*)a.input, (word32)a.inLen);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
