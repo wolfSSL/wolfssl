@@ -28,11 +28,13 @@ int test_wc_Rc2SetKey(void);
 int test_wc_Rc2SetIV(void);
 int test_wc_Rc2EcbEncryptDecrypt(void);
 int test_wc_Rc2CbcEncryptDecrypt(void);
+int test_wc_Rc2Cbc_MonteCarlo(void);
 
 #define TEST_RC2_DECLS                                      \
     TEST_DECL_GROUP("rc2", test_wc_Rc2SetKey),              \
     TEST_DECL_GROUP("rc2", test_wc_Rc2SetIV),               \
     TEST_DECL_GROUP("rc2", test_wc_Rc2EcbEncryptDecrypt),   \
-    TEST_DECL_GROUP("rc2", test_wc_Rc2CbcEncryptDecrypt)
+    TEST_DECL_GROUP("rc2", test_wc_Rc2CbcEncryptDecrypt),   \
+    TEST_DECL_GROUP("rc2", test_wc_Rc2Cbc_MonteCarlo)
 
 #endif /* WOLFCRYPT_TEST_RC2_H */
