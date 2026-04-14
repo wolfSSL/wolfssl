@@ -19518,6 +19518,114 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_eax_test(void)
         }
 
     }
+
+    /* Regression test: wc_AesEaxDecryptAuth must reject authTagSz below
+     * WOLFSSL_MIN_AUTH_TAG_SZ (including zero), otherwise an attacker could
+     * bypass tag verification by supplying an empty tag. */
+#if WOLFSSL_MIN_AUTH_TAG_SZ > 0
+    {
+        byte zero_ct[16];
+        byte zero_pt[16];
+        byte zero_tag[16];
+        XMEMSET(zero_ct, 0, sizeof(zero_ct));
+        XMEMSET(zero_tag, 0, sizeof(zero_tag));
+
+        ret = wc_AesEaxDecryptAuth(vectors[0].key,
+                                   (word32)vectors[0].key_length,
+                                   zero_pt,
+                                   zero_ct, (word32)sizeof(zero_ct),
+                                   vectors[0].iv,
+                                   (word32)vectors[0].iv_length,
+                                   zero_tag, 0,
+                                   vectors[0].aad,
+                                   (word32)vectors[0].aad_length);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+            return WC_TEST_RET_ENC_EC(ret);
+        }
+
+#if WOLFSSL_MIN_AUTH_TAG_SZ > 1
+        ret = wc_AesEaxDecryptAuth(vectors[0].key,
+                                   (word32)vectors[0].key_length,
+                                   zero_pt,
+                                   zero_ct, (word32)sizeof(zero_ct),
+                                   vectors[0].iv,
+                                   (word32)vectors[0].iv_length,
+                                   zero_tag, WOLFSSL_MIN_AUTH_TAG_SZ - 1,
+                                   vectors[0].aad,
+                                   (word32)vectors[0].aad_length);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+            return WC_TEST_RET_ENC_EC(ret);
+        }
+#endif
+
+        /* Upper bound: authTagSz > WC_AES_BLOCK_SIZE must be rejected.
+         * Pins the '>' operator in the validation against mutation to '>='
+         * and prevents an over-read of the caller-supplied tag buffer. */
+        ret = wc_AesEaxDecryptAuth(vectors[0].key,
+                                   (word32)vectors[0].key_length,
+                                   zero_pt,
+                                   zero_ct, (word32)sizeof(zero_ct),
+                                   vectors[0].iv,
+                                   (word32)vectors[0].iv_length,
+                                   zero_tag, WC_AES_BLOCK_SIZE + 1,
+                                   vectors[0].aad,
+                                   (word32)vectors[0].aad_length);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+            return WC_TEST_RET_ENC_EC(ret);
+        }
+
+        /* Direct incremental-API coverage: wc_AesEaxDecryptFinal must also
+         * reject authInSz of zero and below WOLFSSL_MIN_AUTH_TAG_SZ. The
+         * one-shot API above is a separate code path. Heap-allocate the
+         * AesEax context to keep stack usage within Linux kernel limits. */
+        {
+            AesEax *eax = (AesEax *)XMALLOC(sizeof(*eax), HEAP_HINT,
+                                            DYNAMIC_TYPE_TMP_BUFFER);
+            if (eax == NULL) {
+                return WC_TEST_RET_ENC_NC;
+            }
+            XMEMSET(eax, 0, sizeof(*eax));
+            ret = wc_AesEaxInit(eax,
+                                vectors[0].key, (word32)vectors[0].key_length,
+                                vectors[0].iv, (word32)vectors[0].iv_length,
+                                vectors[0].aad,
+                                (word32)vectors[0].aad_length);
+            if (ret != 0) {
+                XFREE(eax, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+                return WC_TEST_RET_ENC_EC(ret);
+            }
+
+            ret = wc_AesEaxDecryptFinal(eax, zero_tag, 0);
+            if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+                wc_AesEaxFree(eax);
+                XFREE(eax, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+                return WC_TEST_RET_ENC_EC(ret);
+            }
+
+#if WOLFSSL_MIN_AUTH_TAG_SZ > 1
+            ret = wc_AesEaxDecryptFinal(eax, zero_tag,
+                                        WOLFSSL_MIN_AUTH_TAG_SZ - 1);
+            if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+                wc_AesEaxFree(eax);
+                XFREE(eax, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+                return WC_TEST_RET_ENC_EC(ret);
+            }
+#endif
+
+            /* Upper bound: authInSz > WC_AES_BLOCK_SIZE must be rejected. */
+            ret = wc_AesEaxDecryptFinal(eax, zero_tag, WC_AES_BLOCK_SIZE + 1);
+            if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+                wc_AesEaxFree(eax);
+                XFREE(eax, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+                return WC_TEST_RET_ENC_EC(ret);
+            }
+
+            wc_AesEaxFree(eax);
+            XFREE(eax, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        }
+    }
+#endif /* WOLFSSL_MIN_AUTH_TAG_SZ > 0 */
+
     return 0;
 }
 

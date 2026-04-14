@@ -3279,6 +3279,10 @@ int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
 
     WOLFSSL_ENTER("BuildTls13Message");
 
+    if (ssl == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = WC_NO_PENDING_E;
     if (asyncOkay) {

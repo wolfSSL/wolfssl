@@ -10578,6 +10578,144 @@ static int test_tls_ext_duplicate(void)
     return EXPECT_RESULT();
 }
 
+/* Regression test: TLSX extension size accumulation must not silently wrap
+ * the internal word16 accumulator. Prior to the fix, a single extension
+ * whose size (plus the 4-byte header) pushes the running total past 0xFFFF
+ * caused TLSX_GetSize / TLSX_Write to return a truncated length, which
+ * in turn led to undersized buffer writes. The on-wire extensions block
+ * length is a 2-byte field per RFC 8446 Section 4.2, so the correct
+ * behavior is to return BUFFER_E rather than wrap. */
+static int test_tls_ext_word16_overflow(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_TLS)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL*     ssl = NULL;
+    SessionTicket* ticket = NULL;
+    byte*        big = NULL;
+    /* Size chosen so that 4 (ext header) + size > 0xFFFF. */
+    const word16 bigSz = 0xFFFE;
+    word32 length = 0;
+
+    big = (byte*)XMALLOC(bigSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(big);
+    if (big != NULL)
+        XMEMSET(big, 0xA5, bigSz);
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* Build an oversized SessionTicket extension directly on the ssl
+     * extension list. Going via the public API is not enough here because
+     * wolfSSL_set_SessionTicket clamps to word16 without creating the
+     * TLSX entry; the TLSX path is what exercises the accumulator. */
+    if (EXPECT_SUCCESS()) {
+        ticket = TLSX_SessionTicket_Create(0, big, bigSz, ssl->heap);
+        ExpectNotNull(ticket);
+    }
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(TLSX_UseSessionTicket(&ssl->extensions, ticket, ssl->heap),
+            WOLFSSL_SUCCESS);
+        /* TLSX_UseSessionTicket takes ownership on success. */
+        ticket = NULL;
+    }
+
+    /* TLSX_GetRequestSize must refuse to encode: 4-byte ext header +
+     * 0xFFFE payload + 2-byte block length prefix = 0x10004, which does
+     * not fit in a word16 wire length. Expect BUFFER_E, not a silently
+     * wrapped small value. */
+    if (EXPECT_SUCCESS()) {
+        int ret = TLSX_GetRequestSize(ssl, client_hello, &length);
+        ExpectIntEQ(ret, BUFFER_E);
+    }
+
+    if (ticket != NULL)
+        TLSX_SessionTicket_Free(ticket, ssl->heap);
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+    XFREE(big, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ssl = NULL;
+    ctx = NULL;
+    big = NULL;
+
+    /* Boundary case: construct a SessionTicket extension sized so that the
+     * total extensions length in TLSX_GetRequestSize is exactly
+     * WOLFSSL_MAX_16BIT - OPAQUE16_LEN (0xFFFD) *before* the OPAQUE16_LEN
+     * block-prefix adjustment, which must succeed. This pins the `>`
+     * comparison in the overflow check -- mutating it to `>=` would
+     * incorrectly reject this valid case and fail this test. */
+    {
+        WOLFSSL_CTX* ctx2 = NULL;
+        WOLFSSL*     ssl2 = NULL;
+        SessionTicket* ticket2 = NULL;
+        byte* buf = NULL;
+        word32 baseLen = 0;
+        word32 baseInternal = 0;
+        word32 tickSz = 0;
+        /* TLSX_GetRequestSize rejects when internal sum > 0xFFFD. */
+        const word32 target = (word32)WOLFSSL_MAX_16BIT - (word32)OPAQUE16_LEN;
+        /* Session ticket extension contributes: type (2) + len (2) + size. */
+        const word32 extHdr = (word32)HELLO_EXT_TYPE_SZ
+                            + (word32)OPAQUE16_LEN;
+        int ret;
+
+        ExpectNotNull(ctx2 = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+        ExpectNotNull(ssl2 = wolfSSL_new(ctx2));
+
+        /* Measure baseline length with no session ticket extension. The
+         * returned value already includes the 2-byte block-length prefix
+         * when nonzero; strip it to get the raw internal sum. */
+        if (EXPECT_SUCCESS()) {
+            baseLen = 0;
+            ret = TLSX_GetRequestSize(ssl2, client_hello, &baseLen);
+            ExpectIntEQ(ret, 0);
+            baseInternal = (baseLen > 0)
+                           ? baseLen - (word32)OPAQUE16_LEN : 0;
+        }
+
+        /* Target: baseInternal + extHdr + tickSz == 0xFFFD. */
+        if (EXPECT_SUCCESS() && baseInternal + extHdr < target) {
+            tickSz = target - baseInternal - extHdr;
+        }
+
+        if (EXPECT_SUCCESS() && tickSz > 0 && tickSz <= WOLFSSL_MAX_16BIT) {
+            buf = (byte*)XMALLOC(tickSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            ExpectNotNull(buf);
+            if (buf != NULL)
+                XMEMSET(buf, 0x5A, tickSz);
+        }
+
+        if (EXPECT_SUCCESS() && buf != NULL) {
+            ticket2 = TLSX_SessionTicket_Create(0, buf, (word16)tickSz,
+                                                ssl2->heap);
+            ExpectNotNull(ticket2);
+        }
+        if (EXPECT_SUCCESS() && ticket2 != NULL) {
+            ExpectIntEQ(TLSX_UseSessionTicket(&ssl2->extensions, ticket2,
+                                              ssl2->heap), WOLFSSL_SUCCESS);
+            ticket2 = NULL;
+        }
+
+        /* Exact boundary: internal sum == 0xFFFD must succeed, and the
+         * final returned length is 0xFFFD + OPAQUE16_LEN == 0xFFFF. */
+        if (EXPECT_SUCCESS()) {
+            word32 lenBoundary = 0;
+            ret = TLSX_GetRequestSize(ssl2, client_hello, &lenBoundary);
+            ExpectIntEQ(ret, 0);
+            ExpectIntEQ(lenBoundary, (word32)WOLFSSL_MAX_16BIT);
+        }
+
+        if (ticket2 != NULL)
+            TLSX_SessionTicket_Free(ticket2, ssl2->heap);
+        wolfSSL_free(ssl2);
+        wolfSSL_CTX_free(ctx2);
+        XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 
 /* Test TLS connection abort when legacy version field indicates TLS 1.3 or
  * higher. Based on test_tls_ext_duplicate() but with legacy version modified
@@ -37373,6 +37511,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_SCR_Reconnect),
     TEST_DECL(test_wolfSSL_SCR_check_enabled),
     TEST_DECL(test_tls_ext_duplicate),
+    TEST_DECL(test_tls_ext_word16_overflow),
     TEST_DECL(test_tls_bad_legacy_version),
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
 #if defined(HAVE_IO_TESTS_DEPENDENCIES)

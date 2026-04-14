@@ -3189,9 +3189,13 @@ WOLFSSL_LOCAL int   TLSX_SupportExtensions(WOLFSSL* ssl);
 WOLFSSL_LOCAL int   TLSX_PopulateExtensions(WOLFSSL* ssl, byte isRequest);
 
 #if defined(WOLFSSL_TLS13) || !defined(NO_WOLFSSL_CLIENT)
-WOLFSSL_LOCAL int   TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType,
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define TLSX_GetRequestSize wolfSSL_TLSX_GetRequestSize
+    #define TLSX_WriteRequest   wolfSSL_TLSX_WriteRequest
+#endif
+WOLFSSL_TEST_VIS int   TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType,
                                          word32* pLength);
-WOLFSSL_LOCAL int   TLSX_WriteRequest(WOLFSSL* ssl, byte* output,
+WOLFSSL_TEST_VIS int   TLSX_WriteRequest(WOLFSSL* ssl, byte* output,
                                        byte msgType, word32* pOffset);
 #endif
 
@@ -3597,11 +3601,16 @@ typedef struct TicketEncCbCtx {
 
 #endif /* !WOLFSSL_NO_DEF_TICKET_ENC_CB && !NO_WOLFSSL_SERVER */
 
-WOLFSSL_LOCAL int  TLSX_UseSessionTicket(TLSX** extensions,
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define TLSX_UseSessionTicket     wolfSSL_TLSX_UseSessionTicket
+    #define TLSX_SessionTicket_Create wolfSSL_TLSX_SessionTicket_Create
+    #define TLSX_SessionTicket_Free   wolfSSL_TLSX_SessionTicket_Free
+#endif
+WOLFSSL_TEST_VIS int  TLSX_UseSessionTicket(TLSX** extensions,
                                              SessionTicket* ticket, void* heap);
-WOLFSSL_LOCAL SessionTicket* TLSX_SessionTicket_Create(word32 lifetime,
+WOLFSSL_TEST_VIS SessionTicket* TLSX_SessionTicket_Create(word32 lifetime,
                                            byte* data, word16 size, void* heap);
-WOLFSSL_LOCAL void TLSX_SessionTicket_Free(SessionTicket* ticket, void* heap);
+WOLFSSL_TEST_VIS void TLSX_SessionTicket_Free(SessionTicket* ticket, void* heap);
 
 #endif /* HAVE_SESSION_TICKET */
 
