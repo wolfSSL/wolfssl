@@ -2763,6 +2763,11 @@ int test_wc_PKCS7_EncodeDecodeEnvelopedData(void)
                 AES128CBCb, AES128_WRAP, dhSinglePass_stdDH_sha1kdf_scheme,
                 eccCert, eccCertSz, eccPrivKey, eccPrivKeySz},
         #endif
+        #if defined(WOLFSSL_SHA224) && defined(WOLFSSL_AES_128)
+            {(byte*)input, (word32)(sizeof(input)/sizeof(char)), DATA,
+                AES128CBCb, AES128_WRAP, dhSinglePass_stdDH_sha224kdf_scheme,
+                eccCert, eccCertSz, eccPrivKey, eccPrivKeySz},
+        #endif
         #if !defined(NO_SHA256) && defined(WOLFSSL_AES_256)
             {(byte*)input, (word32)(sizeof(input)/sizeof(char)), DATA,
                 AES256CBCb, AES256_WRAP, dhSinglePass_stdDH_sha256kdf_scheme,

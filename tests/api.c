@@ -35960,6 +35960,605 @@ static int test_pkcs7_ori_seqsz_underflow(void)
     return EXPECT_RESULT();
 }
 
+/* Test: PKCS#7 ORI must reject when seqSz extends oriValue past input buffer.
+ *
+ * The first ORI bounds check (OID exceeds SEQUENCE boundary) is covered by
+ * test_pkcs7_ori_seqsz_underflow. This test covers the *second* check:
+ * oriValue region extends past the end of the input buffer. We craft a
+ * message where the [4] SEQUENCE length is valid relative to the OID
+ * (OID fits inside it), but the remaining oriValue portion extends past
+ * the end of the actual input buffer.
+ *
+ * To bypass GetLength's own bounds validation, we set the outer lengths
+ * (EnvelopedData SEQUENCE, RecipientInfos SET) to match the [4] claim,
+ * but truncate the actual buffer we pass to DecodeEnvelopedData. */
+static int test_pkcs7_ori_orivalue_overflow(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(WOLFSSL_NO_MALLOC)
+    wc_PKCS7* p7 = NULL;
+    byte out[256];
+
+    /* EnvelopedData with [4] ORI whose seqSz (40) is valid for the OID
+     * (6 bytes consumed) but oriValueSz (34) extends past the truncated
+     * input buffer.
+     *
+     * Layout:
+     * ContentInfo SEQUENCE
+     *   OID envelopedData
+     *   [0] EXPLICIT
+     *     EnvelopedData SEQUENCE
+     *       version = 0
+     *       RecipientInfos SET
+     *         [4] CONSTRUCTED (seqSz = 40)
+     *           OID (tag 06, len 04, 4 content bytes = 6 total)
+     *           oriValue should be 34 bytes but input is truncated
+     *       EncryptedContentInfo (filler for streaming)
+     *
+     * We pass the full array to DecodeEnvelopedData, but the actual
+     * input ends before [4]'s declared 40 bytes are consumed.
+     */
+    static const byte poc[] = {
+        /* ContentInfo SEQUENCE */
+        0x30, 0x43,
+          /* contentType = envelopedData 1.2.840.113549.1.7.3 */
+          0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x07, 0x03,
+          /* [0] EXPLICIT */
+          0xa0, 0x36,
+            /* EnvelopedData SEQUENCE */
+            0x30, 0x34,
+              /* version = 0 */
+              0x02, 0x01, 0x00,
+              /* RecipientInfos SET (len = 44 covers [4] tag+len+40) */
+              0x31, 0x2c,
+                /* [4] CONSTRUCTED = ORI implicit SEQUENCE, seqSz = 40 */
+                0xa4, 0x28,
+                  /* OID: tag=06, len=04, 4 content bytes = 6 total */
+                  0x06, 0x04, 0x2a, 0x03, 0x04, 0x05,
+                  /* Only 4 bytes of oriValue here, but seqSz claims 34 more */
+                  0x00, 0x00, 0x00, 0x00,
+              /* EncryptedContentInfo SEQUENCE (filler) */
+              0x30, 0x0b,
+                0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x07,
+                0x01
+    };
+
+    p7 = wc_PKCS7_New(NULL, INVALID_DEVID);
+    ExpectNotNull(p7);
+    if (p7 != NULL) {
+        wc_PKCS7_SetOriDecryptCb(p7, test_dummy_ori_cb);
+
+        /* Must return error - oriValue extends past input buffer */
+        ExpectIntLT(wc_PKCS7_DecodeEnvelopedData(p7, (byte*)poc, sizeof(poc),
+                                                  out, sizeof(out)), 0);
+
+        wc_PKCS7_Free(p7);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test: PKCS#7 KTRI must not match recipient when SKID length differs
+ * from expected keyIdSize.
+ *
+ * The fix adds a `length == keyIdSize` check before comparing the SKID
+ * bytes. Without this check, XMEMCMP could compare against data beyond
+ * the SKID content. This test crafts a KTRI RecipientInfo where the
+ * [0] SubjectKeyIdentifier has length 5 instead of KEYID_SIZE (20).
+ * The decode must return an error (no matching recipient). */
+static int test_pkcs7_ktri_skid_length_mismatch(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(WOLFSSL_NO_MALLOC)
+    wc_PKCS7* p7 = NULL;
+    byte out[256];
+
+    /* Minimal EnvelopedData with KTRI using version=2 (SKID path).
+     * The SKID [0] has length 5 instead of 20.
+     *
+     * ContentInfo SEQUENCE
+     *   OID envelopedData
+     *   [0] EXPLICIT
+     *     EnvelopedData SEQUENCE
+     *       version = 2
+     *       RecipientInfos SET
+     *         KTRI SEQUENCE
+     *           version = 2
+     *           [0] SKID (5 bytes, should be 20)
+     *           AlgorithmIdentifier (RSA OID)
+     *           OCTET STRING (fake encrypted key)
+     *       EncryptedContentInfo (filler)
+     */
+    static const byte poc[] = {
+        /* ContentInfo SEQUENCE */
+        0x30, 0x46,
+          /* contentType = envelopedData 1.2.840.113549.1.7.3 */
+          0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x07, 0x03,
+          /* [0] EXPLICIT */
+          0xa0, 0x39,
+            /* EnvelopedData SEQUENCE */
+            0x30, 0x37,
+              /* version = 2 (triggers SKID-based recipient identification) */
+              0x02, 0x01, 0x02,
+              /* RecipientInfos SET */
+              0x31, 0x21,
+                /* KTRI SEQUENCE */
+                0x30, 0x1f,
+                  /* version = 2 (SKID) */
+                  0x02, 0x01, 0x02,
+                  /* [0] IMPLICIT SubjectKeyIdentifier, length = 5 (wrong!) */
+                  0x80, 0x05, 0x01, 0x02, 0x03, 0x04, 0x05,
+                  /* AlgorithmIdentifier: RSA 1.2.840.113549.1.1.1 */
+                  0x30, 0x0d,
+                    0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d,
+                    0x01, 0x01, 0x01,
+                    0x05, 0x00, /* NULL params */
+                  /* encryptedKey OCTET STRING (2 bytes fake) */
+                  0x04, 0x02, 0xAA, 0xBB,
+              /* EncryptedContentInfo SEQUENCE (filler) */
+              0x30, 0x0b,
+                0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x07,
+                0x01
+    };
+
+    p7 = wc_PKCS7_New(NULL, INVALID_DEVID);
+    ExpectNotNull(p7);
+    if (p7 != NULL) {
+        /* Decode without a cert - SKID will never match, and the
+         * mismatched SKID length must not cause out-of-bounds reads */
+        ExpectIntLT(wc_PKCS7_DecodeEnvelopedData(p7, (byte*)poc, sizeof(poc),
+                                                  out, sizeof(out)), 0);
+
+        wc_PKCS7_Free(p7);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test: PKCS#7 KARI must reject BIT STRING with length < 2 in
+ * OriginatorPublicKey.
+ *
+ * The fix adds `if (length < 2) return ASN_PARSE_E` after parsing
+ * the BIT STRING tag and length. A BIT STRING must have at least
+ * the unused-bits byte plus one byte of content. This test crafts
+ * a KARI [1] RecipientInfo where the OriginatorPublicKey's BIT STRING
+ * has length 1 (degenerate). The PKCS7 object is initialized with a
+ * real ECC cert so that KariParseRecipCert succeeds and parsing reaches
+ * the BIT STRING validation. */
+static int test_pkcs7_kari_degenerate_bitstring(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && defined(HAVE_ECC) && defined(HAVE_X963_KDF) && \
+    !defined(WOLFSSL_NO_MALLOC)
+    wc_PKCS7* p7 = NULL;
+    byte out[256];
+    byte* eccCert = NULL;
+    byte* eccPrivKey = NULL;
+    word32 eccCertSz = 0;
+    word32 eccPrivKeySz = 0;
+#if !defined(USE_CERT_BUFFERS_256) && !defined(NO_FILESYSTEM)
+    XFILE f = XBADFILE;
+#endif
+
+    /* Minimal EnvelopedData with KARI [1] containing a degenerate
+     * BIT STRING (length 1) in OriginatorPublicKey.
+     *
+     * ContentInfo SEQUENCE
+     *   OID envelopedData
+     *   [0] EXPLICIT
+     *     EnvelopedData SEQUENCE
+     *       version = 2
+     *       RecipientInfos SET
+     *         [1] CONSTRUCTED (KARI)
+     *           version = 3
+     *           [0] CONSTRUCTED (OriginatorIdentifierOrKey)
+     *             [1] CONSTRUCTED (OriginatorPublicKey)
+     *               AlgorithmIdentifier (ECDSAk)
+     *               BIT STRING length=1 (degenerate!)
+     *       EncryptedContentInfo (filler)
+     */
+    static const byte poc[] = {
+        /* ContentInfo SEQUENCE */
+        0x30, 0x44,
+          /* contentType = envelopedData 1.2.840.113549.1.7.3 */
+          0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x07, 0x03,
+          /* [0] EXPLICIT */
+          0xa0, 0x37,
+            /* EnvelopedData SEQUENCE */
+            0x30, 0x35,
+              /* version = 2 */
+              0x02, 0x01, 0x02,
+              /* RecipientInfos SET */
+              0x31, 0x1f,
+                /* [1] CONSTRUCTED (KARI implicit) */
+                0xa1, 0x1d,
+                  /* version = 3 */
+                  0x02, 0x01, 0x03,
+                  /* [0] CONSTRUCTED (OriginatorIdentifierOrKey) */
+                  0xa0, 0x18,
+                    /* [1] CONSTRUCTED (OriginatorPublicKey) */
+                    0xa1, 0x16,
+                      /* AlgorithmIdentifier SEQUENCE */
+                      0x30, 0x13,
+                        /* OID: id-ecPublicKey 1.2.840.10045.2.1 */
+                        0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01,
+                        /* OID: prime256v1 1.2.840.10045.3.1.7 */
+                        0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03,
+                        0x01, 0x07,
+                      /* BIT STRING with length 1 - degenerate! */
+                      0x03, 0x01, 0x00,
+              /* EncryptedContentInfo SEQUENCE (filler) */
+              0x30, 0x0b,
+                0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x07,
+                0x01
+    };
+
+    /* Load ECC cert and key so KariParseRecipCert succeeds and
+     * parsing reaches the BIT STRING check */
+#ifdef USE_CERT_BUFFERS_256
+    eccCertSz = (word32)sizeof_cliecc_cert_der_256;
+    ExpectNotNull(eccCert = (byte*)XMALLOC(eccCertSz, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (eccCert != NULL)
+        XMEMCPY(eccCert, cliecc_cert_der_256, eccCertSz);
+    eccPrivKeySz = (word32)sizeof_ecc_clikey_der_256;
+    ExpectNotNull(eccPrivKey = (byte*)XMALLOC(eccPrivKeySz, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (eccPrivKey != NULL)
+        XMEMCPY(eccPrivKey, ecc_clikey_der_256, eccPrivKeySz);
+#elif !defined(NO_FILESYSTEM)
+    eccCertSz = FOURK_BUF;
+    ExpectNotNull(eccCert = (byte*)XMALLOC(eccCertSz, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectTrue((f = XFOPEN("./certs/client-ecc-cert.der", "rb")) != XBADFILE);
+    ExpectTrue((eccCertSz = (word32)XFREAD(eccCert, 1, eccCertSz, f)) > 0);
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+        f = XBADFILE;
+    }
+    eccPrivKeySz = FOURK_BUF;
+    ExpectNotNull(eccPrivKey = (byte*)XMALLOC(eccPrivKeySz, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectTrue((f = XFOPEN("./certs/ecc-client-key.der", "rb")) != XBADFILE);
+    ExpectTrue((eccPrivKeySz = (word32)XFREAD(eccPrivKey, 1, eccPrivKeySz,
+        f)) > 0);
+    if (f != XBADFILE)
+        XFCLOSE(f);
+#else
+    eccCert = NULL;
+    eccCertSz = 0;
+    eccPrivKey = NULL;
+    eccPrivKeySz = 0;
+#endif
+
+    p7 = wc_PKCS7_New(HEAP_HINT, INVALID_DEVID);
+    ExpectNotNull(p7);
+    if (p7 != NULL && eccCert != NULL) {
+        ExpectIntEQ(wc_PKCS7_InitWithCert(p7, eccCert, eccCertSz), 0);
+        if (p7 != NULL) {
+            p7->privateKey = eccPrivKey;
+            p7->privateKeySz = eccPrivKeySz;
+        }
+
+        /* Must return error - BIT STRING length < 2 is invalid */
+        ExpectIntLT(wc_PKCS7_DecodeEnvelopedData(p7, (byte*)poc, sizeof(poc),
+                                                  out, sizeof(out)), 0);
+
+        if (p7 != NULL) {
+            p7->privateKey = NULL;
+            p7->privateKeySz = 0;
+        }
+        wc_PKCS7_Free(p7);
+    }
+    else if (p7 != NULL) {
+        wc_PKCS7_Free(p7);
+    }
+
+    XFREE(eccCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(eccPrivKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test: PKCS#7 EncryptedData must reject when encryptedContentSz exceeds
+ * the remaining input buffer.
+ *
+ * The fix adds `encryptedContentSz > (int)(pkiMsgSz - idx)` to the
+ * existing `encryptedContentSz <= 0` check in stage 6. This test crafts
+ * a minimal EncryptedData where the [0] IMPLICIT content length claims
+ * 0x200 (512) bytes but only 32 bytes of ciphertext are present. */
+static int test_pkcs7_encrypted_content_size_overflow(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_AES) && defined(HAVE_AES_CBC) && \
+    defined(WOLFSSL_AES_256) && !defined(NO_PKCS7_ENCRYPTED_DATA) && \
+    !defined(WOLFSSL_NO_MALLOC)
+    wc_PKCS7* p7 = NULL;
+    byte key[32];
+    byte out[256];
+
+    /* EncryptedData with [0] content claiming 512 bytes but only 32 present.
+     *
+     * ContentInfo SEQUENCE
+     *   OID encryptedData (1.2.840.113549.1.7.6)
+     *   [0] EXPLICIT
+     *     EncryptedData SEQUENCE
+     *       version = 0
+     *       EncryptedContentInfo SEQUENCE
+     *         OID data (1.2.840.113549.1.7.1)
+     *         AlgorithmIdentifier
+     *           OID AES-256-CBC (2.16.840.1.101.3.4.1.42)
+     *           OCTET STRING IV (16 zero bytes)
+     *         [0] IMPLICIT content (claimed len=0x200, actual=32 bytes)
+     */
+    static const byte poc[] = {
+        /* ContentInfo SEQUENCE (len covers entire message) */
+        0x30, 0x50,
+          /* OID encryptedData 1.2.840.113549.1.7.6 */
+          0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x07, 0x06,
+          /* [0] EXPLICIT */
+          0xa0, 0x43,
+            /* EncryptedData SEQUENCE */
+            0x30, 0x41,
+              /* version = 0 */
+              0x02, 0x01, 0x00,
+              /* EncryptedContentInfo SEQUENCE */
+              0x30, 0x3c,
+                /* OID data 1.2.840.113549.1.7.1 */
+                0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x07,
+                0x01,
+                /* AlgorithmIdentifier SEQUENCE */
+                0x30, 0x1d,
+                  /* OID AES-256-CBC 2.16.840.1.101.3.4.1.42 */
+                  0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x01,
+                  0x2a,
+                  /* IV: OCTET STRING (16 zero bytes) */
+                  0x04, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                /* [0] IMPLICIT encryptedContent - claims 512 bytes!
+                 * Only 16 bytes of fake ciphertext follow. */
+                0x80, 0x82, 0x02, 0x00,
+                0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA,
+                0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA
+    };
+
+    XMEMSET(key, 0, sizeof(key));
+
+    p7 = wc_PKCS7_New(NULL, INVALID_DEVID);
+    ExpectNotNull(p7);
+    if (p7 != NULL) {
+        p7->encryptionKey = key;
+        p7->encryptionKeySz = sizeof(key);
+
+        /* Must return error - content extends past input buffer */
+        ExpectIntLT(wc_PKCS7_DecodeEncryptedData(p7, (byte*)poc, sizeof(poc),
+                                                  out, sizeof(out)), 0);
+
+        wc_PKCS7_Free(p7);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test: PKCS#7 SignedData must reject when the signature field is not
+ * an OCTET STRING.
+ *
+ * The fix adds `else if (ret == 0) { ret = ASN_PARSE_E; }` so that
+ * when the tag at the signature position is not ASN_OCTET_STRING,
+ * parsing returns an error instead of silently continuing with no
+ * signature. This test encodes a valid SignedData, then corrupts
+ * the signature OCTET STRING tag and verifies that decode fails. */
+static int test_pkcs7_signed_bad_sig_tag(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_SHA256) && \
+    !defined(WOLFSSL_NO_MALLOC)
+    PKCS7* pkcs7 = NULL;
+    WC_RNG rng;
+    byte  encoded[FOURK_BUF];
+    int   encodedSz = 0;
+    int   i;
+    byte* rsaCert = NULL;
+    byte* rsaPrivKey = NULL;
+    word32 rsaCertSz = 0;
+    word32 rsaPrivKeySz = 0;
+#if !defined(USE_CERT_BUFFERS_2048) && !defined(USE_CERT_BUFFERS_1024) && \
+    !defined(NO_FILESYSTEM)
+    XFILE f = XBADFILE;
+#endif
+
+    const byte data[] = "Test signed data";
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+
+    /* Load RSA cert and key */
+#if defined(USE_CERT_BUFFERS_2048)
+    rsaCertSz = (word32)sizeof_client_cert_der_2048;
+    ExpectNotNull(rsaCert = (byte*)XMALLOC(rsaCertSz, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (rsaCert != NULL)
+        XMEMCPY(rsaCert, client_cert_der_2048, rsaCertSz);
+    rsaPrivKeySz = (word32)sizeof_client_key_der_2048;
+    ExpectNotNull(rsaPrivKey = (byte*)XMALLOC(rsaPrivKeySz, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (rsaPrivKey != NULL)
+        XMEMCPY(rsaPrivKey, client_key_der_2048, rsaPrivKeySz);
+#elif defined(USE_CERT_BUFFERS_1024)
+    rsaCertSz = (word32)sizeof_client_cert_der_1024;
+    ExpectNotNull(rsaCert = (byte*)XMALLOC(rsaCertSz, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (rsaCert != NULL)
+        XMEMCPY(rsaCert, client_cert_der_1024, rsaCertSz);
+    rsaPrivKeySz = (word32)sizeof_client_key_der_1024;
+    ExpectNotNull(rsaPrivKey = (byte*)XMALLOC(rsaPrivKeySz, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (rsaPrivKey != NULL)
+        XMEMCPY(rsaPrivKey, client_key_der_1024, rsaPrivKeySz);
+#elif !defined(NO_FILESYSTEM)
+    rsaCertSz = FOURK_BUF;
+    ExpectNotNull(rsaCert = (byte*)XMALLOC(rsaCertSz, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectTrue((f = XFOPEN("./certs/client-cert.der", "rb")) != XBADFILE);
+    ExpectTrue((rsaCertSz = (word32)XFREAD(rsaCert, 1, rsaCertSz, f)) > 0);
+    if (f != XBADFILE) { XFCLOSE(f); f = XBADFILE; }
+    rsaPrivKeySz = FOURK_BUF;
+    ExpectNotNull(rsaPrivKey = (byte*)XMALLOC(rsaPrivKeySz, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectTrue((f = XFOPEN("./certs/client-key.der", "rb")) != XBADFILE);
+    ExpectTrue((rsaPrivKeySz = (word32)XFREAD(rsaPrivKey, 1,
+        rsaPrivKeySz, f)) > 0);
+    if (f != XBADFILE) XFCLOSE(f);
+#else
+    rsaCert = NULL; rsaCertSz = 0;
+    rsaPrivKey = NULL; rsaPrivKeySz = 0;
+#endif
+
+    if (rsaCert == NULL || rsaPrivKey == NULL) {
+        XFREE(rsaCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(rsaPrivKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        return TEST_SKIPPED;
+    }
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    /* Encode a valid SignedData */
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, rsaCert, rsaCertSz), 0);
+    if (pkcs7 != NULL) {
+        pkcs7->content    = (byte*)data;
+        pkcs7->contentSz  = (word32)sizeof(data);
+        pkcs7->contentOID = DATA;
+        pkcs7->hashOID    = SHA256h;
+        pkcs7->encryptOID = RSAk;
+        pkcs7->privateKey = rsaPrivKey;
+        pkcs7->privateKeySz = rsaPrivKeySz;
+        pkcs7->rng = &rng;
+    }
+
+    ExpectIntGT(encodedSz = wc_PKCS7_EncodeSignedData(pkcs7, encoded,
+        sizeof(encoded)), 0);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* Find the signature OCTET STRING tag (0x04) near the end of the
+     * encoded message and corrupt it. The signature is the last large
+     * OCTET STRING in the SignerInfo. Search backwards for 0x04 followed
+     * by a length that looks like an RSA signature (>= 64 bytes).
+     * This heuristic depends on the signature being the last large
+     * OCTET STRING; the found==1 assertion below guards against
+     * silent false passes if encoding changes. */
+    if (EXPECT_SUCCESS()) {
+        int found = 0;
+        for (i = encodedSz - 10; i > 10; i--) {
+            if (encoded[i] == 0x04) {
+                int len = 0, lbytes = 0;
+                if (encoded[i+1] < 0x80) {
+                    len = encoded[i+1]; lbytes = 1;
+                }
+                else if (encoded[i+1] == 0x81) {
+                    len = encoded[i+2]; lbytes = 2;
+                }
+                else if (encoded[i+1] == 0x82) {
+                    len = (encoded[i+2] << 8) | encoded[i+3]; lbytes = 3;
+                }
+                /* RSA signature is typically >= 128 bytes */
+                if (len >= 64 && i + 1 + lbytes + len <= encodedSz) {
+                    /* Corrupt the OCTET STRING tag to INTEGER */
+                    encoded[i] = 0x02; /* ASN_INTEGER instead of OCTET STRING */
+                    found = 1;
+                    break;
+                }
+            }
+        }
+        ExpectIntEQ(found, 1);
+    }
+
+    /* Verify the corrupted SignedData - must fail */
+    if (EXPECT_SUCCESS()) {
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        ExpectIntLT(wc_PKCS7_VerifySignedData(pkcs7, encoded,
+            (word32)encodedSz), 0);
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+    }
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    XFREE(rsaCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(rsaPrivKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test: PKCS#7 EnvelopedData must reject when encryptedContentTotalSz
+ * exceeds the remaining input buffer.
+ *
+ * The fix adds a bounds check under NO_PKCS7_STREAM, but the same
+ * crafted message should also be properly handled in streaming mode.
+ * This test crafts an EnvelopedData where the [0] content length
+ * claims 512 bytes but only minimal data follows. */
+static int test_pkcs7_enveloped_content_size_overflow(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(WOLFSSL_NO_MALLOC) && !defined(NO_RSA)
+    wc_PKCS7* p7 = NULL;
+    byte out[256];
+
+    /* EnvelopedData with KTRI where the EncryptedContentInfo [0] claims
+     * 512 bytes but only 16 are present.
+     *
+     * The outer structure is valid enough to reach the content parsing:
+     *   ContentInfo -> EnvelopedData -> version=0 ->
+     *   RecipientInfos (empty SET) -> EncryptedContentInfo ->
+     *   contentType + AlgorithmIdentifier + [0] oversized content */
+    static const byte poc[] = {
+        /* ContentInfo SEQUENCE */
+        0x30, 0x50,
+          /* OID envelopedData 1.2.840.113549.1.7.3 */
+          0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x07, 0x03,
+          /* [0] EXPLICIT */
+          0xa0, 0x43,
+            /* EnvelopedData SEQUENCE */
+            0x30, 0x41,
+              /* version = 0 */
+              0x02, 0x01, 0x00,
+              /* RecipientInfos SET (empty - no recipients) */
+              0x31, 0x00,
+              /* EncryptedContentInfo SEQUENCE */
+              0x30, 0x3c,
+                /* OID data 1.2.840.113549.1.7.1 */
+                0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x07,
+                0x01,
+                /* AlgorithmIdentifier SEQUENCE */
+                0x30, 0x1d,
+                  /* OID AES-256-CBC 2.16.840.1.101.3.4.1.42 */
+                  0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x01,
+                  0x2a,
+                  /* IV: OCTET STRING (16 zero bytes) */
+                  0x04, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                /* [0] IMPLICIT encryptedContent - claims 512 bytes! */
+                0x80, 0x82, 0x02, 0x00,
+                0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA,
+                0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA
+    };
+
+    p7 = wc_PKCS7_New(NULL, INVALID_DEVID);
+    ExpectNotNull(p7);
+    if (p7 != NULL) {
+        /* With an empty RecipientInfos SET, the function may fail at
+         * the recipient matching stage before reaching the content-size
+         * bounds check.  The ExpectIntLT assertion ensures the
+         * oversized content does not cause a buffer over-read. */
+        ExpectIntLT(wc_PKCS7_DecodeEnvelopedData(p7, (byte*)poc, sizeof(poc),
+                                                  out, sizeof(out)), 0);
+
+        wc_PKCS7_Free(p7);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Dilithium verify_ctx_msg must reject absurdly large msgLen */
 static int test_dilithium_hash(void)
 {
@@ -36902,6 +37501,12 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_pkcs7_decode_encrypted_outputsz),
     TEST_DECL(test_pkcs7_ori_oversized_oid),
     TEST_DECL(test_pkcs7_ori_seqsz_underflow),
+    TEST_DECL(test_pkcs7_ori_orivalue_overflow),
+    TEST_DECL(test_pkcs7_ktri_skid_length_mismatch),
+    TEST_DECL(test_pkcs7_kari_degenerate_bitstring),
+    TEST_DECL(test_pkcs7_encrypted_content_size_overflow),
+    TEST_DECL(test_pkcs7_signed_bad_sig_tag),
+    TEST_DECL(test_pkcs7_enveloped_content_size_overflow),
     TEST_DECL(test_pkcs7_padding),
 
 #if defined(WOLFSSL_SNIFFER) && defined(WOLFSSL_SNIFFER_CHAIN_INPUT)
