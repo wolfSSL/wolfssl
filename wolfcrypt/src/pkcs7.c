@@ -44,6 +44,9 @@
 
 #include <wolfssl/wolfcrypt/pkcs7.h>
 #include <wolfssl/wolfcrypt/hash.h>
+#ifndef NO_HMAC
+    #include <wolfssl/wolfcrypt/hmac.h>
+#endif
 #ifndef NO_RSA
     #include <wolfssl/wolfcrypt/rsa.h>
 #endif
@@ -207,6 +210,8 @@ static void wc_PKCS7_ResetStream(wc_PKCS7* pkcs7)
     #endif
 
         /* free any buffers that may be allocated */
+        if (pkcs7->stream->aad != NULL && pkcs7->stream->aadSz > 0)
+            ForceZero(pkcs7->stream->aad, pkcs7->stream->aadSz);
         XFREE(pkcs7->stream->aad, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         XFREE(pkcs7->stream->tag, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         XFREE(pkcs7->stream->nonce, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
@@ -7741,6 +7746,9 @@ static int wc_PKCS7_KariGenerateKEK(WC_PKCS7_KARI* kari, WC_RNG* rng,
     secret = (byte*)XMALLOC(secretSz, kari->heap, DYNAMIC_TYPE_PKCS7);
     if (secret == NULL)
         return MEMORY_E;
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("wc_PKCS7_KariGenerateKEK secret", secret, secretSz);
+#endif
 
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
@@ -10608,6 +10616,81 @@ int wc_PKCS7_EncodeEnvelopedData(wc_PKCS7* pkcs7, byte* output, word32 outputSz)
 }
 
 #ifndef NO_RSA
+#if !defined(NO_HMAC) && !defined(NO_SHA256)
+/* Bleichenbacher padding-oracle mitigation for PKCS#7/CMS KTRI: produce a
+ * WC_SHA256_DIGEST_SIZE-byte pseudo-random CEK derived from a fresh
+ * random seed and the encrypted-key ciphertext. The output is random per
+ * call (driven by the RNG seed); deriving via HMAC of the ciphertext
+ * simply gives the same value within one call regardless of where it is
+ * referenced. Called unconditionally so the work is in the timing path
+ * regardless of RSA padding validity. */
+static int wc_PKCS7_KtriFakeCEK(wc_PKCS7* pkcs7, const byte* encryptedKey,
+                                word32 encryptedKeySz, byte* out)
+{
+    int ret;
+    byte seed[WC_SHA256_DIGEST_SIZE];
+    WC_RNG* rng = NULL;
+    int ownRng = 0;
+    WC_DECLARE_VAR(localRng, WC_RNG, 1, pkcs7->heap);
+    WC_DECLARE_VAR(hmac, Hmac, 1, pkcs7->heap);
+
+    if (pkcs7 == NULL || encryptedKey == NULL || out == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    WC_ALLOC_VAR_EX(hmac, Hmac, 1, pkcs7->heap, DYNAMIC_TYPE_HMAC,
+                    return MEMORY_E);
+
+    /* Prefer a caller-provided RNG to avoid paying a DRBG init/reseed cost
+     * on every decrypt (and to keep the timing envelope flatter on FIPS /
+     * HW-RNG builds). Fall back to a one-shot RNG when pkcs7->rng is not
+     * set. */
+    if (pkcs7->rng != NULL) {
+        rng = pkcs7->rng;
+    }
+    else {
+        WC_ALLOC_VAR_EX(localRng, WC_RNG, 1, pkcs7->heap, DYNAMIC_TYPE_RNG,
+                        WC_FREE_VAR_EX(hmac, pkcs7->heap, DYNAMIC_TYPE_HMAC);
+                        return MEMORY_E);
+        ret = wc_InitRng_ex(localRng, pkcs7->heap, pkcs7->devId);
+        if (ret != 0) {
+            WC_FREE_VAR_EX(localRng, pkcs7->heap, DYNAMIC_TYPE_RNG);
+            WC_FREE_VAR_EX(hmac, pkcs7->heap, DYNAMIC_TYPE_HMAC);
+            return ret;
+        }
+        rng = localRng;
+        ownRng = 1;
+    }
+
+    ret = wc_RNG_GenerateBlock(rng, seed, (word32)sizeof(seed));
+
+    if (ownRng) {
+        wc_FreeRng(localRng);
+        WC_FREE_VAR_EX(localRng, pkcs7->heap, DYNAMIC_TYPE_RNG);
+    }
+
+    if (ret != 0) {
+        WC_FREE_VAR_EX(hmac, pkcs7->heap, DYNAMIC_TYPE_HMAC);
+        return ret;
+    }
+
+    ret = wc_HmacInit(hmac, pkcs7->heap, pkcs7->devId);
+    if (ret == 0) {
+        ret = wc_HmacSetKey(hmac, WC_SHA256, seed, (word32)sizeof(seed));
+        if (ret == 0) {
+            ret = wc_HmacUpdate(hmac, encryptedKey, encryptedKeySz);
+        }
+        if (ret == 0) {
+            ret = wc_HmacFinal(hmac, out);
+        }
+        wc_HmacFree(hmac);
+    }
+    ForceZero(seed, sizeof(seed));
+    WC_FREE_VAR_EX(hmac, pkcs7->heap, DYNAMIC_TYPE_HMAC);
+    return ret;
+}
+#endif /* !NO_HMAC && !NO_SHA256 */
+
 /* decode KeyTransRecipientInfo (ktri), return 0 on success, <0 on error */
 static int wc_PKCS7_DecryptKtri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                                word32* idx, byte* decryptedKey,
@@ -10967,25 +11050,146 @@ static int wc_PKCS7_DecryptKtri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
             }
             wc_FreeRsaKey(privKey);
 
+        #if !defined(NO_HMAC) && !defined(NO_SHA256)
+            {
+                /* Bleichenbacher padding-oracle mitigation: always compute
+                 * a pseudo-random fallback CEK so timing and error
+                 * behaviour do not depend on RSA padding validity. On
+                 * unwrap failure we substitute the fallback and let
+                 * content decryption fail indistinguishably from "unwrap
+                 * succeeded but CEK is wrong". */
+                byte fakeKey[WC_SHA256_DIGEST_SIZE];
+                int  fakeRet = wc_PKCS7_KtriFakeCEK(pkcs7, encryptedKey,
+                                                    (word32)encryptedKeySz,
+                                                    fakeKey);
+
+                if (fakeRet != 0) {
+                    /* Fallback generation failed (e.g. RNG/HMAC error).
+                     * Return the fallback-generation status, which does
+                     * not depend on RSA padding validity, rather than the
+                     * RSA status which would re-open the oracle. */
+                    ForceZero(fakeKey, sizeof(fakeKey));
+                    /* In the non-OAEP path RSA is decrypted in-place via
+                     * wc_RsaPrivateDecryptInline, so encryptedKey holds
+                     * the (possibly valid) plaintext CEK. Zero it before
+                     * free. */
+                    ForceZero(encryptedKey, (word32)encryptedKeySz);
+                    XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_WOLF_BIGINT);
+                    WC_FREE_VAR_EX(privKey, pkcs7->heap,
+                        DYNAMIC_TYPE_TMP_BUFFER);
+                #ifndef WC_NO_RSA_OAEP
+                    if (encOID == RSAESOAEPk) {
+                        if (outKey != NULL) {
+                            ForceZero(outKey, outKeySz);
+                            XFREE(outKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                        }
+                    }
+                #endif
+                    return fakeRet;
+                }
+
+                /* Constant-time select between fake and real CEK. On RSA
+                 * failure outKey may be NULL or keySz may be <= 0; in
+                 * both cases the mask selects fakeKey for every byte.
+                 *
+                 * To avoid data-dependent branches that leak realLen,
+                 * copy the real key into a fixed-size zero-padded buffer
+                 * first, then select byte-by-byte in constant time. */
+                {
+                    word32 i;
+                    byte   useFake;
+                    int    realLen = keySz;
+                    byte   realPad[WC_SHA256_DIGEST_SIZE];
+
+                    XMEMSET(realPad, 0, sizeof(realPad));
+                    /* Constant-time copy: avoid data-dependent branches
+                     * that could leak whether RSA padding was valid.
+                     * When outKey is NULL (inline RSA failure), use
+                     * encryptedKey as a safe readable source; the mask
+                     * will zero out all bytes anyway.  Both encryptedKey
+                     * and outKey (when non-NULL) are at least
+                     * sizeof(realPad) bytes for any RSA key size.
+                     *
+                     * Use constant-time pointer selection to avoid
+                     * branching on outKey nullity, which would leak
+                     * whether RSA PKCS#1 v1.5 padding was valid. */
+                    {
+                        byte haveSrc = ctMaskGTE(realLen, 1);
+                        const byte* srcTbl[2];
+                        const byte* src;
+                        word32 j = 0;
+                        word32 safeJ = 0;
+
+                        /* Select source without integer pointer synthesis.
+                         * Some safety-oriented compilers (e.g. Fil-C) treat
+                         * int-to-pointer reconstruction as a null-object
+                         * pointer on dereference. */
+                        srcTbl[0] = encryptedKey;
+                        srcTbl[1] = outKey;
+                        src = srcTbl[haveSrc & 1];
+
+                        /* safeJ is clamped to max(0, realLen-1): it
+                         * only advances while the next index would
+                         * still be inside realLen, so src[safeJ] is
+                         * always in bounds.  Bytes at j >= realLen are
+                         * masked to zero by inBounds anyway. */
+                        for (j = 0; j < (word32)sizeof(realPad); j++) {
+                            byte inBounds = ctMaskLT((int)j, realLen);
+                            byte advance = ctMaskLT((int)(safeJ + 1),
+                                                    realLen);
+                            realPad[j] = src[safeJ] & haveSrc & inBounds;
+                            safeJ += (word32)(advance & 1);
+                        }
+                    }
+                    useFake = ctMaskLT(realLen, 1); /* 0xFF if realLen<=0 */
+
+                    for (i = 0; i < (word32)sizeof(fakeKey); i++) {
+                        decryptedKey[i] = ctMaskSel(useFake, fakeKey[i],
+                                                    realPad[i]);
+                    }
+                    /* Report the real key size on success; on RSA
+                     * failure (realLen <= 0) report sizeof(fakeKey).
+                     * Constant-time select avoids branching on RSA
+                     * padding validity. */
+                    *decryptedKeySz = (word32)ctMaskSelInt(useFake,
+                                        (int)sizeof(fakeKey), realLen);
+                    ForceZero(realPad, sizeof(realPad));
+                }
+                ForceZero(fakeKey, sizeof(fakeKey));
+                /* In the non-OAEP path RSA is decrypted in-place via
+                 * wc_RsaPrivateDecryptInline, so encryptedKey holds the
+                 * plaintext CEK after the unwrap. Zero it before free. */
+                ForceZero(encryptedKey, (word32)encryptedKeySz);
+            }
+        #else /* NO_HMAC || NO_SHA256: mitigation unavailable */
+            #if !defined(WOLFSSL_NO_KTRI_ORACLE_WARNING)
+                #warning "PKCS7 KTRI Bleichenbacher mitigation requires HMAC " \
+                    "and SHA256; build without them leaves the RSA unwrap " \
+                    "error path observable to callers. " \
+                    "Define WOLFSSL_NO_KTRI_ORACLE_WARNING to silence."
+            #endif
+
             if (keySz <= 0 || outKey == NULL) {
                 ForceZero(encryptedKey, (word32)encryptedKeySz);
                 XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_WOLF_BIGINT);
                 WC_FREE_VAR_EX(privKey, pkcs7->heap,
                     DYNAMIC_TYPE_TMP_BUFFER);
-        #ifndef WC_NO_RSA_OAEP
+            #ifndef WC_NO_RSA_OAEP
                 if (encOID == RSAESOAEPk) {
                     if (outKey) {
                         ForceZero(outKey, outKeySz);
                         XFREE(outKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
                     }
                 }
-        #endif
+            #endif
                 return keySz;
-            } else {
+            }
+            else {
                 *decryptedKeySz = (word32)keySz;
                 XMEMCPY(decryptedKey, outKey, (word32)keySz);
                 ForceZero(encryptedKey, (word32)encryptedKeySz);
             }
+        #endif /* !NO_HMAC && !NO_SHA256 */
 
             XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_WOLF_BIGINT);
             WC_FREE_VAR_EX(privKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -12888,6 +13092,11 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                                                        DYNAMIC_TYPE_PKCS7);
             if (decryptedKey == NULL)
                 return MEMORY_E;
+            XMEMSET(decryptedKey, 0, MAX_ENCRYPTED_KEY_SZ);
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Add("wc_PKCS7 decryptedKey", decryptedKey,
+                            MAX_ENCRYPTED_KEY_SZ);
+        #endif
             wc_PKCS7_ChangeState(pkcs7, WC_PKCS7_ENV_2);
             tmpIdx = idx;
             recipientSetSz = (word32)ret;
@@ -13130,10 +13339,18 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
             wc_PKCS7_StreamStoreVar(pkcs7, encOID, expBlockSz, explicitOctet);
 
             if (explicitOctet) {
-                /* initialize decryption state in preparation */
+                /* initialize decryption state in preparation. Use
+                 * contentSz (blockKeySz from the content algorithm) as
+                 * the AES key size rather than aadSz (the unwrapped CEK
+                 * length): the two are equal for well-formed messages,
+                 * but using blockKeySz avoids BAD_FUNC_ARG on crafted
+                 * messages where the CEK length does not match the
+                 * content cipher, which would otherwise be a
+                 * distinguishable error. */
                 if (pkcs7->decryptionCb == NULL) {
                     ret = wc_PKCS7_DecryptContentInit(pkcs7, encOID,
-                        pkcs7->stream->aad, pkcs7->stream->aadSz,
+                        pkcs7->stream->aad,
+                        (word32)pkcs7->stream->contentSz,
                         pkcs7->stream->tmpIv, expBlockSz,
                         pkcs7->devId, pkcs7->heap);
                     if (ret != 0)
@@ -13409,8 +13626,13 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
 
             ret = (int)pkcs7->totalEncryptedContentSz - padLen;
         #ifndef NO_PKCS7_STREAM
-            pkcs7->stream->aad = NULL;
-            pkcs7->stream->aadSz = 0;
+            /* decryptedKey (just freed) is the same buffer stream->aad
+             * aliases. Null the stream handle so ResetStream doesn't
+             * double-free it. */
+            if (pkcs7->stream != NULL) {
+                pkcs7->stream->aad = NULL;
+                pkcs7->stream->aadSz = 0;
+            }
             wc_PKCS7_ResetStream(pkcs7);
         #endif
             wc_PKCS7_ChangeState(pkcs7, WC_PKCS7_START);
@@ -13423,6 +13645,16 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
 
 #ifndef NO_PKCS7_STREAM
     if (ret < 0 && ret != WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E)) {
+        /* stream->aad aliases the MAX_ENCRYPTED_KEY_SZ decryptedKey
+         * buffer in this flow. ResetStream only zeros aadSz bytes, so
+         * explicitly zero and release the full buffer here to satisfy
+         * WOLFSSL_CHECK_MEM_ZERO and avoid leaking key material. */
+        if (pkcs7->stream != NULL && pkcs7->stream->aad != NULL) {
+            ForceZero(pkcs7->stream->aad, MAX_ENCRYPTED_KEY_SZ);
+            XFREE(pkcs7->stream->aad, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+            pkcs7->stream->aad = NULL;
+            pkcs7->stream->aadSz = 0;
+        }
         wc_PKCS7_ResetStream(pkcs7);
         wc_PKCS7_ChangeState(pkcs7, WC_PKCS7_START);
         if (pkcs7->cachedEncryptedContent != NULL) {
@@ -14196,6 +14428,10 @@ int wc_PKCS7_DecodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* in,
             }
             else {
                 XMEMSET(decryptedKey, 0, MAX_ENCRYPTED_KEY_SZ);
+            #ifdef WOLFSSL_CHECK_MEM_ZERO
+                wc_MemZero_Add("wc_PKCS7 decryptedKey", decryptedKey,
+                                MAX_ENCRYPTED_KEY_SZ);
+            #endif
             }
         #ifndef NO_PKCS7_STREAM
             pkcs7->stream->key = decryptedKey;

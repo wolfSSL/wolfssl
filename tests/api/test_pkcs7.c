@@ -1119,6 +1119,229 @@ int test_wc_PKCS7_EnvelopedData_KTRI_RSA_PSS(void)
 
 
 /*
+ * Bleichenbacher padding-oracle regression: wc_PKCS7_DecryptKtri must not
+ * return a distinguishable error when RSA PKCS#1 v1.5 unwrap of the
+ * encrypted CEK fails vs. when it succeeds with a wrong key. The
+ * mitigation substitutes a deterministic pseudo-random CEK on RSA failure
+ * so content decryption fails indistinguishably. This test corrupts the
+ * encryptedKey in a valid EnvelopedData and asserts the error matches
+ * content corruption rather than surfacing an RSA/recipient-level code.
+ * Runs for AES-128 and AES-256 because the fake CEK is a fixed 32 bytes:
+ * AES-128 (key size 16) exercises the path where the fake size differs
+ * from the real CEK size.
+ */
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_SHA256) && \
+    !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128) && \
+    defined(WOLFSSL_AES_256) && !defined(NO_HMAC) && \
+    !defined(WOLFSSL_NO_MALLOC) && \
+    (defined(USE_CERT_BUFFERS_2048) || defined(USE_CERT_BUFFERS_1024) || \
+     !defined(NO_FILESYSTEM))
+static int pkcs7_ktri_bad_pad_case(int encryptOID, byte* rsaCert,
+                                   word32 rsaCertSz, byte* rsaPrivKey,
+                                   word32 rsaPrivKeySz, byte* encrypted,
+                                   word32 encryptedCap, byte* decoded,
+                                   word32 decodedCap)
+{
+    EXPECT_DECLS;
+    PKCS7* pkcs7 = NULL;
+    byte   data[] = "PKCS7 KTRI bad-RSA-padding regression payload.";
+    int    encryptedSz = 0;
+    int    badKeyRet = 0;
+    int    badContentRet = 0;
+    byte   savedKeyByte = 0;
+    byte   savedContentByte = 0;
+    word32 i;
+    word32 encryptedKeyOff = 0;
+    static const byte rsaEncOid[] = {
+        0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D,
+        0x01, 0x01, 0x01
+    };
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, rsaCert, rsaCertSz), 0);
+    if (pkcs7 != NULL) {
+        pkcs7->content    = data;
+        pkcs7->contentSz  = (word32)sizeof(data);
+        pkcs7->contentOID = DATA;
+        pkcs7->encryptOID = encryptOID;
+    }
+    ExpectIntGT(encryptedSz = wc_PKCS7_EncodeEnvelopedData(pkcs7,
+                    encrypted, encryptedCap), 0);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* Locate the KTRI encryptedKey OCTET STRING. After the rsaEncryption
+     * OID there are NULL algorithm parameters (05 00), then a 256-byte
+     * OCTET STRING (tag 04, long-form length 82 01 00 for RSA-2048). */
+    for (i = 0; (int)(i + sizeof(rsaEncOid)) < encryptedSz; i++) {
+        if (XMEMCMP(&encrypted[i], rsaEncOid, sizeof(rsaEncOid)) == 0) {
+            word32 p = i + (word32)sizeof(rsaEncOid);
+            if (p + 2 < (word32)encryptedSz &&
+                encrypted[p] == 0x05 && encrypted[p + 1] == 0x00) {
+                p += 2;
+            }
+            if (p + 4 < (word32)encryptedSz && encrypted[p] == 0x04) {
+                if (encrypted[p + 1] == 0x82) {
+                    encryptedKeyOff = p + 4;
+                }
+                else if (encrypted[p + 1] == 0x81) {
+                    encryptedKeyOff = p + 3;
+                }
+                else {
+                    encryptedKeyOff = p + 2;
+                }
+            }
+            break;
+        }
+    }
+    ExpectIntGT(encryptedKeyOff, 0);
+    ExpectIntLT(encryptedKeyOff + 32, (word32)encryptedSz);
+
+    /* Case 1: corrupt a byte inside the RSA ciphertext, decode, restore. */
+    savedKeyByte = encrypted[encryptedKeyOff + 16];
+    encrypted[encryptedKeyOff + 16] ^= 0xA5;
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, rsaCert, rsaCertSz), 0);
+    if (pkcs7 != NULL) {
+        pkcs7->privateKey   = rsaPrivKey;
+        pkcs7->privateKeySz = rsaPrivKeySz;
+    }
+    badKeyRet = wc_PKCS7_DecodeEnvelopedData(pkcs7, encrypted,
+                    (word32)encryptedSz, decoded, decodedCap);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+    encrypted[encryptedKeyOff + 16] = savedKeyByte;
+
+    /* Case 2: corrupt a byte in the second-to-last AES ciphertext block.
+     * In CBC mode this deterministically XOR-flips the corresponding byte
+     * in the last plaintext block, invalidating the PKCS#7 padding
+     * (original pad byte 0x01 becomes 0x01^0xA5 = 0xA4 > blockSz).
+     * Corrupting the last ciphertext block directly would randomize the
+     * entire last plaintext block, giving ~1/256 chance of accidentally
+     * valid padding and intermittent test failures. */
+    savedContentByte = encrypted[encryptedSz - 17];
+    encrypted[encryptedSz - 17] ^= 0xA5;
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, rsaCert, rsaCertSz), 0);
+    if (pkcs7 != NULL) {
+        pkcs7->privateKey   = rsaPrivKey;
+        pkcs7->privateKeySz = rsaPrivKeySz;
+    }
+    badContentRet = wc_PKCS7_DecodeEnvelopedData(pkcs7, encrypted,
+                    (word32)encryptedSz, decoded, decodedCap);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+    encrypted[encryptedSz - 17] = savedContentByte;
+
+    /* Case 2 must always fail: the CBC-chain corruption deterministically
+     * invalidates the PKCS#7 padding. */
+    ExpectIntLT(badContentRet, 0);
+    /* Bad-key must NOT leak as an RSA- or recipient-level error. */
+    ExpectIntNE(badKeyRet, WC_NO_ERR_TRACE(PKCS7_RECIP_E));
+    ExpectIntNE(badKeyRet, WC_NO_ERR_TRACE(RSA_PAD_E));
+    ExpectIntNE(badKeyRet, WC_NO_ERR_TRACE(RSA_BUFFER_E));
+    ExpectIntNE(badKeyRet, WC_NO_ERR_TRACE(BAD_PADDING_E));
+    /* Case 1 (bad RSA key) decrypts content with a random fake CEK,
+     * producing fully random plaintext.  With ~1/256 probability the
+     * PKCS#7 padding accidentally looks valid, causing a positive
+     * garbage-length return instead of an error.  This does not leak
+     * RSA key information, so it is acceptable.  When both cases do
+     * fail, verify they fail at the same content-decryption layer. */
+    if (badKeyRet < 0) {
+        ExpectIntEQ(badKeyRet, badContentRet);
+    }
+
+    return EXPECT_RESULT();
+}
+
+int test_wc_PKCS7_EnvelopedData_KTRI_BadRsaPad(void)
+{
+    EXPECT_DECLS;
+    byte   encrypted[FOURK_BUF];
+    byte   decoded[FOURK_BUF];
+    byte*  rsaCert = NULL;
+    byte*  rsaPrivKey = NULL;
+    word32 rsaCertSz = 0;
+    word32 rsaPrivKeySz = 0;
+#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048) && \
+    !defined(NO_FILESYSTEM)
+    XFILE f = XBADFILE;
+#endif
+
+    /* Load RSA cert and key */
+#if defined(USE_CERT_BUFFERS_1024)
+    rsaCertSz = (word32)sizeof_client_cert_der_1024;
+    ExpectNotNull(rsaCert = (byte*)XMALLOC(rsaCertSz, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (rsaCert != NULL)
+        XMEMCPY(rsaCert, client_cert_der_1024, rsaCertSz);
+    rsaPrivKeySz = (word32)sizeof_client_key_der_1024;
+    ExpectNotNull(rsaPrivKey = (byte*)XMALLOC(rsaPrivKeySz, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (rsaPrivKey != NULL)
+        XMEMCPY(rsaPrivKey, client_key_der_1024, rsaPrivKeySz);
+#elif defined(USE_CERT_BUFFERS_2048)
+    rsaCertSz = (word32)sizeof_client_cert_der_2048;
+    ExpectNotNull(rsaCert = (byte*)XMALLOC(rsaCertSz, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (rsaCert != NULL)
+        XMEMCPY(rsaCert, client_cert_der_2048, rsaCertSz);
+    rsaPrivKeySz = (word32)sizeof_client_key_der_2048;
+    ExpectNotNull(rsaPrivKey = (byte*)XMALLOC(rsaPrivKeySz, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (rsaPrivKey != NULL)
+        XMEMCPY(rsaPrivKey, client_key_der_2048, rsaPrivKeySz);
+#elif !defined(NO_FILESYSTEM)
+    rsaCertSz = FOURK_BUF;
+    ExpectNotNull(rsaCert = (byte*)XMALLOC(rsaCertSz, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectTrue((f = XFOPEN("./certs/client-cert.der", "rb")) != XBADFILE);
+    ExpectTrue((rsaCertSz = (word32)XFREAD(rsaCert, 1, rsaCertSz, f)) > 0);
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+        f = XBADFILE;
+    }
+    rsaPrivKeySz = FOURK_BUF;
+    ExpectNotNull(rsaPrivKey = (byte*)XMALLOC(rsaPrivKeySz, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectTrue((f = XFOPEN("./certs/client-key.der", "rb")) != XBADFILE);
+    ExpectTrue((rsaPrivKeySz = (word32)XFREAD(rsaPrivKey, 1,
+        rsaPrivKeySz, f)) > 0);
+    if (f != XBADFILE)
+        XFCLOSE(f);
+#endif
+
+    if (rsaCert == NULL || rsaPrivKey == NULL) {
+        XFREE(rsaCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(rsaPrivKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        return TEST_SKIPPED;
+    }
+
+    /* AES-128: 32-byte fake CEK larger than real CEK size (16 bytes). */
+    ExpectIntEQ(pkcs7_ktri_bad_pad_case(AES128CBCb, rsaCert, rsaCertSz,
+                rsaPrivKey, rsaPrivKeySz, encrypted, sizeof(encrypted),
+                decoded, sizeof(decoded)), TEST_SUCCESS);
+#ifdef WOLFSSL_AES_192
+    /* AES-192: fake CEK (32) vs real CEK (24) - another size mismatch. */
+    ExpectIntEQ(pkcs7_ktri_bad_pad_case(AES192CBCb, rsaCert, rsaCertSz,
+                rsaPrivKey, rsaPrivKeySz, encrypted, sizeof(encrypted),
+                decoded, sizeof(decoded)), TEST_SUCCESS);
+#endif
+    /* AES-256: fake CEK size matches real CEK size (32 bytes). */
+    ExpectIntEQ(pkcs7_ktri_bad_pad_case(AES256CBCb, rsaCert, rsaCertSz,
+                rsaPrivKey, rsaPrivKeySz, encrypted, sizeof(encrypted),
+                decoded, sizeof(decoded)), TEST_SUCCESS);
+
+    XFREE(rsaCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(rsaPrivKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    return EXPECT_RESULT();
+} /* END test_wc_PKCS7_EnvelopedData_KTRI_BadRsaPad */
+#endif
+
+
+/*
  * Testing wc_PKCS7_EncodeSignedData_ex() and wc_PKCS7_VerifySignedData_ex()
  */
 int test_wc_PKCS7_EncodeSignedData_ex(void)
@@ -2503,6 +2726,8 @@ int test_wc_PKCS7_DecodeEnvelopedData_multiple_recipients(void)
                                  bytes */
     size_t testDerBufferSz = 0;
     byte decodedData[8192];
+    byte serverDecodedData[8192];
+    int  serverRet = 0;
 
     ExpectTrue((f = XFOPEN(testFile, "rb")) != XBADFILE);
     if (f != XBADFILE) {
@@ -2522,12 +2747,13 @@ int test_wc_PKCS7_DecodeEnvelopedData_multiple_recipients(void)
         ExpectIntEQ(wc_PKCS7_SetKey(pkcs7, (byte*)server_key_der_2048,
             sizeof_server_key_der_2048), 0);
 
-        ret = wc_PKCS7_DecodeEnvelopedData(pkcs7, testDerBuffer,
-            (word32)testDerBufferSz, decodedData, sizeof(decodedData));
+        serverRet = wc_PKCS7_DecodeEnvelopedData(pkcs7, testDerBuffer,
+            (word32)testDerBufferSz, serverDecodedData,
+            sizeof(serverDecodedData));
     #if defined(NO_AES) || defined(NO_AES_256)
-        ExpectIntEQ(ret, ALGO_ID_E);
+        ExpectIntEQ(serverRet, ALGO_ID_E);
     #else
-        ExpectIntGT(ret, 0);
+        ExpectIntGT(serverRet, 0);
     #endif
         wc_PKCS7_Free(pkcs7);
         pkcs7 = NULL;
@@ -2553,7 +2779,14 @@ int test_wc_PKCS7_DecodeEnvelopedData_multiple_recipients(void)
         pkcs7 = NULL;
     }
 
-    /* test with ca cert recipient (which should fail) */
+    /* Test with ca cert recipient. The ca cert is not a listed recipient,
+     * so RSA unwrap fails. The Bleichenbacher mitigation substitutes a
+     * pseudo-random fake CEK on unwrap failure, so the call normally
+     * returns a negative error when content decryption rejects the
+     * resulting garbage padding - but around 1/256 of the time the random
+     * CEK yields plaintext with accidentally-valid PKCS#7 padding and the
+     * call returns a non-negative "decrypted" size. That case must not
+     * produce the real plaintext. */
     ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
     if (pkcs7) {
         ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)ca_cert_der_2048,
@@ -2562,9 +2795,15 @@ int test_wc_PKCS7_DecodeEnvelopedData_multiple_recipients(void)
         ExpectIntEQ(wc_PKCS7_SetKey(pkcs7, (byte*)ca_key_der_2048,
             sizeof_ca_key_der_2048), 0);
 
+        XMEMSET(decodedData, 0, sizeof(decodedData));
         ret = wc_PKCS7_DecodeEnvelopedData(pkcs7, testDerBuffer,
             (word32)testDerBufferSz, decodedData, sizeof(decodedData));
-        ExpectIntLT(ret, 0);
+    #if defined(NO_AES) || defined(NO_AES_256)
+        ExpectIntEQ(ret, ALGO_ID_E);
+    #else
+        ExpectTrue(ret < 0 || ret != serverRet ||
+                   XMEMCMP(decodedData, serverDecodedData, (size_t)ret) != 0);
+    #endif
         wc_PKCS7_Free(pkcs7);
         pkcs7 = NULL;
     }
