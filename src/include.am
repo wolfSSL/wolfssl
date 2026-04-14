@@ -518,6 +518,10 @@ endif
 endif
 endif
 
+if BUILD_RISCV_ASM
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv/riscv-64-aes.c
+endif BUILD_RISCV_ASM
+
 if BUILD_SHA
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sha.c
 endif
