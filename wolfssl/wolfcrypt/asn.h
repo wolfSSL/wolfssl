@@ -2325,6 +2325,10 @@ WOLFSSL_API int wc_SetUnknownExtCallbackEx(DecodedCert* cert,
                                                void *ctx);
 #endif
 
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define DecodePolicyOID wolfSSL_DecodePolicyOID
+    #define DecodeAuthKeyId wolfSSL_DecodeAuthKeyId
+#endif
 WOLFSSL_TEST_VIS int DecodePolicyOID(char *out, word32 outSz, const byte *in,
                                      word32 inSz);
 WOLFSSL_LOCAL int EncodePolicyOID(byte *out, word32 *outSz,
@@ -2445,6 +2449,10 @@ WOLFSSL_LOCAL int GetTimeString(byte* date, int format, char* buf, int len,
 #if !defined(NO_ASN_TIME) && !defined(USER_TIME) && \
     !defined(TIME_OVERRIDES) && (defined(OPENSSL_EXTRA) || \
             defined(HAVE_PKCS7) || defined(HAVE_OCSP_RESPONDER))
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define GetAsnTimeString wolfSSL_GetAsnTimeString
+    #define GetFormattedTime_ex wolfSSL_GetFormattedTime_ex
+#endif
 WOLFSSL_LOCAL int GetFormattedTime(void* currTime, byte* buf, word32 len);
 WOLFSSL_TEST_VIS int GetAsnTimeString(void* currTime, byte* buf, word32 len);
 WOLFSSL_TEST_VIS int GetFormattedTime_ex(void* currTime, byte* buf, word32 len,
@@ -2558,6 +2566,9 @@ WOLFSSL_LOCAL word32 SetExplicit(byte number, word32 len, byte* output,
     byte isIndef);
 WOLFSSL_LOCAL word32 SetSet(word32 len, byte* output);
 WOLFSSL_API word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz);
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define SetAlgoIDEx wolfSSL_SetAlgoIDEx
+#endif
 WOLFSSL_TEST_VIS word32 SetAlgoIDEx(int algoOID, byte* output, int type,
                                     int curveSz, byte absentParams);
 #if defined(WC_RSA_PSS) && !defined(NO_RSA)

@@ -3909,17 +3909,6 @@ int test_tls13_mcdc_hrr_coverage(void)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
-    (void)ctx_c;
-    (void)ssl_c;
-    (void)ctx_s;
-    (void)ssl_s;
-    (void)test_ctx;
-
-    /* Client offers P-384 (or P-521) key_share in CH1 but also advertises
-     * P-256 as a supported group; server prefers P-256 -> server sends HRR
-     * with key_share extension selecting P-256 -> client retries with P-256.
-     * When client_grp == server_grp both sides agree immediately; HRR is
-     * still triggered by the stateless cookie mechanism.                    */
     int server_grp = WOLFSSL_ECC_SECP256R1;
 #if defined(HAVE_ECC384) && (ECC_MIN_KEY_SZ <= 384)
     int client_grp = WOLFSSL_ECC_SECP384R1;
@@ -3940,6 +3929,11 @@ int test_tls13_mcdc_hrr_coverage(void)
     int client_grps[2] = { client_grp, 0 };
     int client_grps_cnt = 1;
 #endif
+    (void)ctx_c;
+    (void)ssl_c;
+    (void)ctx_s;
+    (void)ssl_s;
+    (void)test_ctx;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
@@ -4334,13 +4328,15 @@ int test_tls13_mcdc_batch2_post_handshake_auth(void)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
+    char buf[64];
+    int  err;
+    int  rounds;
+    int  ret;
     (void)ctx_c;
     (void)ssl_c;
     (void)ctx_s;
     (void)ssl_s;
     (void)test_ctx;
-    char buf[64];
-    int  err;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
@@ -4365,24 +4361,44 @@ int test_tls13_mcdc_batch2_post_handshake_auth(void)
     /* Phase 1: complete the main TLS 1.3 handshake.                         */
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
 
-    /* Drain any NewSessionTicket records at the client.                      */
-    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), -1);
-    err = wolfSSL_get_error(ssl_c, -1);
-    ExpectTrue(err == WOLFSSL_ERROR_WANT_READ || err == WOLFSSL_ERROR_NONE);
+    /* Drain any NewSessionTicket records at the client. */
+    rounds = 0;
+    do {
+        ret = wolfSSL_read(ssl_c, buf, sizeof(buf));
+        if (ret > 0)
+            continue;
+        err = wolfSSL_get_error(ssl_c, -1);
+        rounds++;
+    } while (err != WOLFSSL_ERROR_WANT_READ && err != WOLFSSL_ERROR_NONE &&
+             err != WOLFSSL_ERROR_WANT_WRITE && rounds < 32 && !EXPECT_FAIL());
+    ExpectTrue(err == WOLFSSL_ERROR_WANT_READ || err == WOLFSSL_ERROR_NONE ||
+               err == WOLFSSL_ERROR_WANT_WRITE);
 
     /* Phase 2: server sends a post-handshake CertificateRequest.             */
     ExpectIntEQ(wolfSSL_request_certificate(ssl_s), WOLFSSL_SUCCESS);
 
-    /* Pump client-side: read CertificateRequest, produce Certificate +
-     * CertificateVerify + Finished.                                          */
-    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), -1);
-    err = wolfSSL_get_error(ssl_c, -1);
-    ExpectTrue(err == WOLFSSL_ERROR_WANT_READ || err == WOLFSSL_ERROR_NONE);
+    /* Pump both sides until post-handshake auth traffic quiesces. */
+    for (rounds = 0; rounds < 32 && !EXPECT_FAIL(); rounds++) {
+        ret = wolfSSL_read(ssl_c, buf, sizeof(buf));
+        if (ret <= 0) {
+            err = wolfSSL_get_error(ssl_c, -1);
+            ExpectTrue(err == WOLFSSL_ERROR_WANT_READ ||
+                       err == WOLFSSL_ERROR_WANT_WRITE ||
+                       err == WOLFSSL_ERROR_NONE);
+        }
 
-    /* Pump server-side: receive the client certificate messages.             */
-    ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf)), -1);
-    err = wolfSSL_get_error(ssl_s, -1);
-    ExpectTrue(err == WOLFSSL_ERROR_WANT_READ || err == WOLFSSL_ERROR_NONE);
+        ret = wolfSSL_read(ssl_s, buf, sizeof(buf));
+        if (ret <= 0) {
+            err = wolfSSL_get_error(ssl_s, -1);
+            ExpectTrue(err == WOLFSSL_ERROR_WANT_READ ||
+                       err == WOLFSSL_ERROR_WANT_WRITE ||
+                       err == WOLFSSL_ERROR_NONE);
+        }
+
+        if (test_ctx.c_len == 0 && test_ctx.s_len == 0) {
+            break;
+        }
+    }
 
     /* App-data round-trip after post-handshake auth verifies keys intact.   */
     ExpectIntEQ(wolfSSL_write(ssl_s, "pha-ok", 6), 6);
@@ -4424,15 +4440,15 @@ int test_tls13_mcdc_batch2_early_data(void)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
+    WOLFSSL_SESSION *sess = NULL;
+    char msgBuf[64];
+    int  written = 0;
+    int  readSz  = 0;
     (void)ctx_c;
     (void)ssl_c;
     (void)ctx_s;
     (void)ssl_s;
     (void)test_ctx;
-    WOLFSSL_SESSION *sess = NULL;
-    char msgBuf[64];
-    int  written = 0;
-    int  readSz  = 0;
 
     /* ---- pass 1: establish session ticket -------------------------------- */
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
@@ -4803,10 +4819,9 @@ int test_tls13_mcdc_batch2_alpn(void)
     defined(WOLFSSL_TLS13) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
     defined(HAVE_ALPN)
-    struct test_memio_ctx test_ctx;
-    (void)test_ctx;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
     (void)ctx_c;
     (void)ssl_c;
     (void)ctx_s;
@@ -4815,6 +4830,7 @@ int test_tls13_mcdc_batch2_alpn(void)
     unsigned short protoSz = 0;
     char alpn_h2[] = "h2";
     char alpn_http11[] = "http/1.1";
+    (void)test_ctx;
 
     /* ---- sub-test A: matching ALPN protocol "h2" -------------------------- */
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));

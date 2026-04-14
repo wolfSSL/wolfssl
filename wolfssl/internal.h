@@ -3169,6 +3169,7 @@ struct TLSX {
 
 #ifdef WOLFSSL_API_PREFIX_MAP
     #define TLSX_Find wolfSSL_TLSX_Find
+    #define TLSX_SupportExtensions wolfSSL_TLSX_SupportExtensions
 #endif
 WOLFSSL_TEST_VIS TLSX* TLSX_Find(TLSX* list, TLSX_Type type);
 WOLFSSL_LOCAL void  TLSX_Remove(TLSX** list, TLSX_Type type, void* heap);

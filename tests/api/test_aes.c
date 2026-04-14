@@ -7356,8 +7356,13 @@ int test_wc_AesRequirementCoverage(void)
         ExpectIntEQ(wc_AesXtsEncryptConsecutiveSectors(&xts, cipher, xtsMsg,
             XTS_TOTAL, (word64)0x12345678, XTS_SECTOR_SZ), 0);
         ExpectIntNE(XMEMCMP(cipher, xtsMsg, XTS_TOTAL), 0);
-        if (initXts) ExpectIntEQ(wc_AesXtsFree(&xts), 0);
-        initXts = 0;
+        if (initXts) {
+            int freeRet = wc_AesXtsFree(&xts);
+            if (EXPECT_SUCCESS()) {
+                ExpectIntEQ(freeRet, 0);
+            }
+            initXts = 0;
+        }
 
         ExpectIntEQ(wc_AesXtsInit(&xts, HEAP_HINT, INVALID_DEVID), 0);
         if (EXPECT_SUCCESS()) initXts = 1;
@@ -7366,7 +7371,13 @@ int test_wc_AesRequirementCoverage(void)
         ExpectIntEQ(wc_AesXtsDecryptConsecutiveSectors(&xts, plain, cipher,
             XTS_TOTAL, (word64)0x12345678, XTS_SECTOR_SZ), 0);
         ExpectIntEQ(XMEMCMP(plain, xtsMsg, XTS_TOTAL), 0);
-        if (initXts) ExpectIntEQ(wc_AesXtsFree(&xts), 0);
+        if (initXts) {
+            int freeRet = wc_AesXtsFree(&xts);
+            if (EXPECT_SUCCESS()) {
+                ExpectIntEQ(freeRet, 0);
+            }
+            initXts = 0;
+        }
     }
 #endif /* WOLFSSL_AES_XTS */
 
