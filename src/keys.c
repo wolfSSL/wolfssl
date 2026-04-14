@@ -527,8 +527,6 @@ int GetCipherSpec(word16 side, byte cipherSuite0, byte cipherSuite,
 
         if (opts != NULL)
             opts->usingPSK_cipher    = 1;
-        if (opts != NULL)
-            opts->usingPSK_cipher    = 1;
         break;
 #endif
 
@@ -1374,7 +1372,8 @@ int GetCipherSpec(word16 side, byte cipherSuite0, byte cipherSuite,
     #endif
 #endif /* WOLFSSL_TLS13 */
         default:
-            break;
+            WOLFSSL_MSG("Unsupported cipher suite, SetCipherSpecs TLS 1.3");
+            return UNSUPPORTED_SUITE;
         }
     }
 
@@ -1405,7 +1404,8 @@ int GetCipherSpec(word16 side, byte cipherSuite0, byte cipherSuite,
 #endif
 
     default:
-        break;
+        WOLFSSL_MSG("Unsupported cipher suite, SetCipherSpecs ECDHE_PSK");
+        return UNSUPPORTED_SUITE;
     }
     }
 
@@ -1466,7 +1466,8 @@ int GetCipherSpec(word16 side, byte cipherSuite0, byte cipherSuite,
 #endif
 
     default:
-        break;
+        WOLFSSL_MSG("Unsupported cipher suite, SetCipherSpecs SM");
+        return UNSUPPORTED_SUITE;
     }
     }
 
@@ -2799,7 +2800,7 @@ int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
             if (dec->aes == NULL) {
                 dec->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
                 if (dec->aes == NULL)
-                return MEMORY_E;
+                    return MEMORY_E;
             } else {
                 wc_AesFree(dec->aes);
             }
@@ -3247,7 +3248,7 @@ int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
                 dec->sm4 = (wc_Sm4*)XMALLOC(sizeof(wc_Sm4), heap,
                                             DYNAMIC_TYPE_CIPHER);
                 if (dec->sm4 == NULL)
-                return MEMORY_E;
+                    return MEMORY_E;
             } else {
                 wc_Sm4Free(dec->sm4);
             }

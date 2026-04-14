@@ -74,6 +74,8 @@ static WC_INLINE WOLFSSL_METHOD* cm_pick_method(void* heap)
     #endif
 }
 
+static void DoCertManagerFree(WOLFSSL_CERT_MANAGER* cm);
+
 /* Create a new certificate manager with a heap hint.
  *
  * @param [in] heap  Heap hint.
@@ -107,11 +109,16 @@ WOLFSSL_CERT_MANAGER* wolfSSL_CertManagerNew_ex(void* heap)
     if (!err) {
         /* Reset all fields. */
         XMEMSET(cm, 0, sizeof(WOLFSSL_CERT_MANAGER));
+        /* Set heap hint early so cleanup can use it. */
+        cm->heap = heap;
 
         /* Create a mutex for use when modify table of stored CAs. */
         if (wc_InitMutex(&cm->caLock) != 0) {
             WOLFSSL_MSG("Bad mutex init");
             err = 1;
+        }
+        else {
+            cm->caLockInit = 1;
         }
     }
     if (!err) {
@@ -121,13 +128,23 @@ WOLFSSL_CERT_MANAGER* wolfSSL_CertManagerNew_ex(void* heap)
         if (err != 0) {
             WOLFSSL_MSG("Bad reference count init");
         }
+        else {
+            cm->refInit = 1;
+        }
+    #else
+        cm->refInit = 1;
     #endif
     }
 #ifdef WOLFSSL_TRUST_PEER_CERT
-    /* Create a mutex for use when modify table of trusted peers. */
-    if ((!err) && (wc_InitMutex(&cm->tpLock) != 0)) {
-        WOLFSSL_MSG("Bad mutex init");
-        err = 1;
+    if (!err) {
+        /* Create a mutex for use when modify table of trusted peers. */
+        if (wc_InitMutex(&cm->tpLock) != 0) {
+            WOLFSSL_MSG("Bad mutex init");
+            err = 1;
+        }
+        else {
+            cm->tpLockInit = 1;
+        }
     }
 #endif
     if (!err) {
@@ -144,14 +161,12 @@ WOLFSSL_CERT_MANAGER* wolfSSL_CertManagerNew_ex(void* heap)
     #ifdef HAVE_DILITHIUM
         cm->minDilithiumKeySz = MIN_DILITHIUMKEY_SZ;
     #endif /* HAVE_DILITHIUM */
-
-        /* Set heap hint to use in certificate manager operations. */
-        cm->heap = heap;
     }
 
-    /* Dispose of certificate manager on error. */
+    /* Dispose of certificate manager on error. The reference count may not
+     * have been initialized, so bypass the ref check and free directly. */
     if (err && (cm != NULL)) {
-        wolfSSL_CertManagerFree(cm);
+        DoCertManagerFree(cm);
         cm = NULL;
     }
     return cm;
@@ -166,6 +181,63 @@ WOLFSSL_CERT_MANAGER* wolfSSL_CertManagerNew(void)
 {
     /* No heap hint. */
     return wolfSSL_CertManagerNew_ex(NULL);
+}
+
+/* Unconditionally dispose of all resources owned by the certificate manager
+ * and free cm itself, bypassing any reference count check. Only frees the
+ * sub-resources that are marked as initialized in the cm bitfield, so it is
+ * safe to call on a cm that was only partially initialized by
+ * wolfSSL_CertManagerNew_ex.
+ *
+ * @param [in, out] cm  Certificate manager (must be non-NULL).
+ */
+static void DoCertManagerFree(WOLFSSL_CERT_MANAGER* cm)
+{
+#ifdef HAVE_CRL
+    /* Dispose of CRL handler. */
+    if (cm->crl != NULL) {
+        /* Dispose of CRL object - indicating dynamically allocated. */
+        FreeCRL(cm->crl, 1);
+    }
+#endif
+
+#ifdef HAVE_OCSP
+    /* Dispose of OCSP handler. */
+    if (cm->ocsp != NULL) {
+        FreeOCSP(cm->ocsp, 1);
+    }
+    /* Dispose of URL. */
+    XFREE(cm->ocspOverrideURL, cm->heap, DYNAMIC_TYPE_URL);
+#if !defined(NO_WOLFSSL_SERVER) && \
+    (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+     defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
+    /* Dispose of OCSP stapling handler. */
+    if (cm->ocsp_stapling) {
+        FreeOCSP(cm->ocsp_stapling, 1);
+    }
+#endif
+#endif /* HAVE_OCSP */
+
+    /* Dispose of CA table and mutex. */
+    FreeSignerTable(cm->caTable, CA_TABLE_SIZE, cm->heap);
+    if (cm->caLockInit) {
+        wc_FreeMutex(&cm->caLock);
+    }
+
+#ifdef WOLFSSL_TRUST_PEER_CERT
+    /* Dispose of trusted peer table and mutex. */
+    FreeTrustedPeerTable(cm->tpTable, TP_TABLE_SIZE, cm->heap);
+    if (cm->tpLockInit) {
+        wc_FreeMutex(&cm->tpLock);
+    }
+#endif
+
+    /* Dispose of reference count. */
+    if (cm->refInit) {
+        wolfSSL_RefFree(&cm->ref);
+    }
+    /* Dispose of certificate manager memory. */
+    XFREE(cm, cm->heap, DYNAMIC_TYPE_CERT_MANAGER);
 }
 
 /* Dispose of certificate manager.
@@ -191,45 +263,7 @@ void wolfSSL_CertManagerFree(WOLFSSL_CERT_MANAGER* cm)
         (void)ret;
     #endif
         if (doFree) {
-        #ifdef HAVE_CRL
-            /* Dispose of CRL handler. */
-            if (cm->crl != NULL) {
-                /* Dispose of CRL object - indicating dynamically allocated. */
-                FreeCRL(cm->crl, 1);
-            }
-        #endif
-
-    #ifdef HAVE_OCSP
-            /* Dispose of OCSP handler. */
-            if (cm->ocsp != NULL) {
-                FreeOCSP(cm->ocsp, 1);
-            }
-            /* Dispose of URL. */
-            XFREE(cm->ocspOverrideURL, cm->heap, DYNAMIC_TYPE_URL);
-        #if !defined(NO_WOLFSSL_SERVER) && \
-            (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
-             defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
-            /* Dispose of OCSP stapling handler. */
-            if (cm->ocsp_stapling) {
-                FreeOCSP(cm->ocsp_stapling, 1);
-            }
-        #endif
-    #endif /* HAVE_OCSP */
-
-            /* Dispose of CA table and mutex. */
-            FreeSignerTable(cm->caTable, CA_TABLE_SIZE, cm->heap);
-            wc_FreeMutex(&cm->caLock);
-
-        #ifdef WOLFSSL_TRUST_PEER_CERT
-            /* Dispose of trusted peer table and mutex. */
-            FreeTrustedPeerTable(cm->tpTable, TP_TABLE_SIZE, cm->heap);
-            wc_FreeMutex(&cm->tpLock);
-        #endif
-
-            /* Dispose of reference count. */
-            wolfSSL_RefFree(&cm->ref);
-            /* Dispose of certificate manager memory. */
-            XFREE(cm, cm->heap, DYNAMIC_TYPE_CERT_MANAGER);
+            DoCertManagerFree(cm);
         }
     }
 }
@@ -2859,7 +2893,7 @@ int AddTrustedPeer(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int verify)
     InitDecodedCert(cert, der->buffer, der->length, cm->heap);
     if ((ret = ParseCert(cert, TRUSTED_PEER_TYPE, verify, cm)) != 0) {
         FreeDecodedCert(cert);
-        XFREE(cert, NULL, DYNAMIC_TYPE_DCERT);
+        XFREE(cert, cm->heap, DYNAMIC_TYPE_DCERT);
         FreeDer(&der);
         return ret;
     }
@@ -2874,13 +2908,6 @@ int AddTrustedPeer(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int verify)
         return MEMORY_E;
     }
     XMEMSET(peerCert, 0, sizeof(TrustedPeerCert));
-
-    #ifndef IGNORE_NAME_CONSTRAINTS
-        if (peerCert->permittedNames)
-            FreeNameSubtrees(peerCert->permittedNames, cm->heap);
-        if (peerCert->excludedNames)
-            FreeNameSubtrees(peerCert->excludedNames, cm->heap);
-    #endif
 
     if (AlreadyTrustedPeer(cm, cert)) {
         WOLFSSL_MSG("\tAlready have this CA, not adding again");
