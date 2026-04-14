@@ -20274,7 +20274,7 @@ static int test_wolfSSL_OCSP_single_get0_status(void)
     ExpectPtrEq(nextDate, &certStatus.nextDateParsed);
 
     ExpectIntEQ(wolfSSL_OCSP_single_get0_status(NULL, NULL, NULL, NULL, NULL),
-        CERT_GOOD);
+        -1);
     ExpectIntEQ(wolfSSL_OCSP_single_get0_status(&single, NULL, NULL, NULL,
         NULL), CERT_GOOD);
 #endif

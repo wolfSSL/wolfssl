@@ -11699,13 +11699,19 @@ char* wolfSSL_CIPHER_description(const WOLFSSL_CIPHER* cipher, char* in,
 int wolfSSL_OCSP_parse_url(const char* url, char** host, char** port,
         char** path, int* ssl)
 {
-    const char* u = url;
+    const char* u;
     const char* upath; /* path in u */
     const char* uport; /* port in u */
     const char* hostEnd;
 
     WOLFSSL_ENTER("OCSP_parse_url");
 
+    if (url == NULL || host == NULL || port == NULL || path == NULL ||
+            ssl == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    u = url;
     *host = NULL;
     *port = NULL;
     *path = NULL;

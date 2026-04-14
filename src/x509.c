@@ -1317,7 +1317,9 @@ int wolfSSL_X509_add_ext(WOLFSSL_X509 *x509, WOLFSSL_X509_EXTENSION *ext,
         if (ext && ext->value.data) {
             if (ext->value.length == sizeof(word16)) {
                 /* if ext->value is already word16, set directly */
-                x509->keyUsage = *(word16*)ext->value.data;
+                word16 ku;
+                XMEMCPY(&ku, ext->value.data, sizeof(word16));
+                x509->keyUsage = ku;
 #ifdef BIG_ENDIAN_ORDER
                 x509->keyUsage = rotlFixed16(x509->keyUsage, 8U);
 #endif
@@ -10998,6 +11000,11 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_X509_get_serialNumber(WOLFSSL_X509* x509)
     if (x509->serialNumber != NULL)
        return x509->serialNumber;
 
+    if (x509->serialSz < 0) {
+        WOLFSSL_MSG("Invalid serial number size");
+        return NULL;
+    }
+
     a = wolfSSL_ASN1_INTEGER_new();
     if (a == NULL)
         return NULL;
@@ -16120,7 +16127,8 @@ int wolfSSL_X509_set1_notBefore(WOLFSSL_X509* x509, const WOLFSSL_ASN1_TIME *t)
 int wolfSSL_X509_set_serialNumber(WOLFSSL_X509* x509, WOLFSSL_ASN1_INTEGER* s)
 {
     WOLFSSL_ENTER("wolfSSL_X509_set_serialNumber");
-    if (x509 == NULL || s == NULL || s->length >= EXTERNAL_SERIAL_SIZE)
+    if (x509 == NULL || s == NULL || s->data == NULL ||
+            s->length >= EXTERNAL_SERIAL_SIZE)
         return WOLFSSL_FAILURE;
 
     /* WOLFSSL_ASN1_INTEGER has type | size | data
