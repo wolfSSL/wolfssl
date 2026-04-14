@@ -105,6 +105,7 @@ jobs:
           '--enable-sessionexport --enable-dtls --enable-dtls13',
           '--enable-cryptocb --enable-aesgcm CPPFLAGS="-DWOLF_CRYPTO_CB_AES_SETKEY -DWOLF_CRYPTO_CB_FREE"',
           '--disable-tls --enable-cryptocb --enable-aesgcm CPPFLAGS="-DWOLF_CRYPTO_CB_AES_SETKEY -DWOLF_CRYPTO_CB_FREE"',
+          '--enable-cryptocb --enable-keygen CPPFLAGS="-DWOLF_CRYPTO_CB_FIND"',
           '--disable-examples CPPFLAGS=-DWOLFSSL_NO_MALLOC',
           'CPPFLAGS=-DNO_WOLFSSL_CLIENT',
           'CPPFLAGS=-DNO_WOLFSSL_SERVER',

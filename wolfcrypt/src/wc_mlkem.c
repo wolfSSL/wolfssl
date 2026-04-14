@@ -604,11 +604,11 @@ int wc_MlKemKey_MakeKey(MlKemKey* key, WC_RNG* rng)
     }
 
 #ifdef WOLF_CRYPTO_CB
-    if ((ret == 0)
-    #ifndef WOLF_CRYPTO_CB_FIND
-        && (key->devId != INVALID_DEVID)
-    #endif
-    ) {
+#ifndef WOLF_CRYPTO_CB_FIND
+    if ((ret == 0) && (key->devId != INVALID_DEVID)) {
+#else
+    if (ret == 0) {
+#endif
         ret = wc_CryptoCb_MakePqcKemKey(rng, WC_PQC_KEM_TYPE_KYBER,
                                         key->type, key);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
@@ -1289,11 +1289,11 @@ int wc_MlKemKey_Encapsulate(MlKemKey* key, unsigned char* c, unsigned char* k,
     if (ret == 0) {
         ret = wc_MlKemKey_CipherTextSize(key, &ctlen);
     }
-    if ((ret == 0)
-    #ifndef WOLF_CRYPTO_CB_FIND
-        && (key->devId != INVALID_DEVID)
-    #endif
-    ) {
+#ifndef WOLF_CRYPTO_CB_FIND
+    if ((ret == 0) && (key->devId != INVALID_DEVID)) {
+#else
+    if (ret == 0) {
+#endif
         ret = wc_CryptoCb_PqcEncapsulate(c, ctlen, k, KYBER_SS_SZ, rng,
                                          WC_PQC_KEM_TYPE_KYBER, key);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
@@ -1769,11 +1769,11 @@ int wc_MlKemKey_Decapsulate(MlKemKey* key, unsigned char* ss,
     }
 
 #ifdef WOLF_CRYPTO_CB
-    if ((ret == 0)
-    #ifndef WOLF_CRYPTO_CB_FIND
-        && (key->devId != INVALID_DEVID)
-    #endif
-    ) {
+#ifndef WOLF_CRYPTO_CB_FIND
+    if ((ret == 0) && (key->devId != INVALID_DEVID)) {
+#else
+    if (ret == 0) {
+#endif
         ret = wc_CryptoCb_PqcDecapsulate(ct, ctSz, ss, KYBER_SS_SZ,
                                          WC_PQC_KEM_TYPE_KYBER, key);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))

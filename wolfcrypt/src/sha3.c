@@ -646,6 +646,12 @@ static int InitSha3(wc_Sha3* sha3)
 #ifdef WOLFSSL_HASH_FLAGS
     sha3->flags = 0;
 #endif
+#ifdef WOLF_CRYPTO_CB
+    /* Cached hash variant is tied to sponge state; clear it whenever the
+     * state is reset so reuse for a different SHA3 variant dispatches
+     * correctly through the crypto callback. */
+    sha3->hashType = WC_HASH_TYPE_NONE;
+#endif
 
 #ifdef USE_INTEL_SPEEDUP
     {
