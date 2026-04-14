@@ -15880,6 +15880,13 @@ static int HashForSignature(const byte* buf, word32 bufSz, word32 sigOID,
     #endif
     #ifndef NO_MD5
         case CTC_MD5wRSA:
+        #ifndef WOLFSSL_ALLOW_MD5_CERT_SIGS
+            if (verify) {
+                ret = HASH_TYPE_E;
+                WOLFSSL_MSG("MD5 not supported for certificate verification");
+                break;
+            }
+        #endif
             if ((ret = wc_Md5Hash_ex(buf, bufSz, digest, heap, devId)) == 0) {
                 *typeH    = MD5h;
                 *digestSz = WC_MD5_DIGEST_SIZE;
