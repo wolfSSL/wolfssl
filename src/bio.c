@@ -281,6 +281,10 @@ int wolfSSL_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
         }
     }
 
+    if (len < 0) {
+        return WOLFSSL_BIO_ERROR;
+    }
+
     /* start at end of list (or a WOLFSSL_BIO_SSL object since it takes care of
      * the rest of the chain) and work backwards */
     while (bio != NULL && bio->next != NULL && bio->type != WOLFSSL_BIO_SSL) {
@@ -697,6 +701,10 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
         if (ret <= 0) {
             return ret;
         }
+    }
+
+    if (len < 0) {
+        return WOLFSSL_BIO_ERROR;
     }
 
     while (bio != NULL && ret >= 0) {
@@ -1569,6 +1577,10 @@ int wolfSSL_BIO_nread(WOLFSSL_BIO *bio, char **buf, int num)
             return 0;
         }
 
+        if (num < 0) {
+            return WOLFSSL_BIO_ERROR;
+        }
+
         /* get amount able to read and set buffer pointer */
         sz = wolfSSL_BIO_nread0(bio, buf);
         if (sz < 0) {
@@ -1621,6 +1633,10 @@ int wolfSSL_BIO_nwrite(WOLFSSL_BIO *bio, char **buf, int num)
         if (num == 0) {
             *buf = (char*)bio->ptr.mem_buf_data + bio->wrIdx;
             return 0;
+        }
+
+        if (num < 0) {
+            return WOLFSSL_BIO_ERROR;
         }
 
         if (bio->wrIdx < bio->rdIdx) {
@@ -3136,6 +3152,14 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
         WOLFSSL_ENTER("wolfSSL_BIO_push");
         if (top == NULL) {
             return append;
+        }
+        {
+            WOLFSSL_BIO* cur = append;
+            while (cur != NULL) {
+                if (cur == top)
+                    return top; /* would create cycle */
+                cur = cur->next;
+            }
         }
         top->next = append;
         if (append != NULL) {
