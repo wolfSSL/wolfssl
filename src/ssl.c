@@ -8013,9 +8013,16 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         FreeTimeoutInfo(&ssl->timeoutInfo, ssl->heap);
 
         if (hsCb) {
+            HandShakeInfo savedHandShakeInfo;
             FinishHandShakeInfo(&ssl->handShakeInfo);
-            (hsCb)(&ssl->handShakeInfo);
+            XMEMCPY(&savedHandShakeInfo, &ssl->handShakeInfo,
+                     sizeof(HandShakeInfo));
             ssl->hsInfoOn = 0;
+            /* Null out the ssl pointer -- the callback must not free the
+             * session through it, and ssl may already have been freed by
+             * toCb above. */
+            savedHandShakeInfo.ssl = NULL;
+            (hsCb)(&savedHandShakeInfo);
         }
         return ret;
     }

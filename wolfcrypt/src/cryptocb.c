@@ -403,6 +403,10 @@ int wc_CryptoCb_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void* ctx)
 {
     int rc = 0;
 
+    if (devId == INVALID_DEVID) {
+        return BAD_FUNC_ARG;
+    }
+
     /* find existing or new */
     CryptoCb* dev = wc_CryptoCb_GetDevice(devId);
     if (dev == NULL)

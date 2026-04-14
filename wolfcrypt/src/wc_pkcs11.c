@@ -3694,6 +3694,8 @@ static int Pkcs11ECDSASig_Decode(const byte* in, word32 inSz, byte* sig,
         ret = ASN_PARSE_E;
     if (ret == 0 && (len = in[i++]) > sz + 1)
         ret = ASN_PARSE_E;
+    if (ret == 0 && len == 0)
+        ret = ASN_PARSE_E;
     /* Check there is space for INT data */
     if (ret == 0 && i + len > inSz)
         ret = ASN_PARSE_E;
@@ -3717,6 +3719,8 @@ static int Pkcs11ECDSASig_Decode(const byte* in, word32 inSz, byte* sig,
     if (ret == 0 && tag != ASN_INTEGER)
         ret = ASN_PARSE_E;
     if (ret == 0 && (len = in[i++]) > sz + 1)
+        ret = ASN_PARSE_E;
+    if (ret == 0 && len == 0)
         ret = ASN_PARSE_E;
     /* Check there is space for INT data */
     if (ret == 0 && i + len > inSz)
@@ -3762,6 +3766,12 @@ static int Pkcs11GetEccParams(Pkcs11Session* session, CK_OBJECT_HANDLE privKey,
         ret = WC_HW_E;
     }
     PKCS11_DUMP_TEMPLATE("Ec Params", template, 1);
+    if (ret == 0) {
+        if (template[0].ulValueLen < 2 ||
+                template[0].ulValueLen > sizeof(oid)) {
+            ret = WC_HW_E;
+        }
+    }
     if (ret == 0) {
         /* PKCS #11 wraps the OID in ASN.1 */
         curveId = wc_ecc_get_curve_id_from_oid(oid + 2,
