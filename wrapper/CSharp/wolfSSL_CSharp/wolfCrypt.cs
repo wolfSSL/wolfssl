@@ -440,6 +440,123 @@ namespace wolfSSL.CSharp
         private extern static int wc_curve25519_export_private_raw(IntPtr key, IntPtr outPrivKey, IntPtr outPubKey);
 #endif
 
+        /********************************
+         * ML-KEM
+         */
+#if WindowsCE
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_MlKemKey_CipherTextSize(IntPtr key, ref uint len);
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_MlKemKey_SharedSecretSize(IntPtr key, ref uint len);
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_MlKemKey_PrivateKeySize(IntPtr key, ref uint len);
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_MlKemKey_PublicKeySize(IntPtr key, ref uint len);
+        [DllImport(wolfssl_dll)]
+        private static extern IntPtr wc_MlKemKey_New(int type, IntPtr heap, int devId);
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_MlKemKey_Delete(IntPtr key, IntPtr key_p);
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_MlKemKey_MakeKey(IntPtr key, IntPtr rng);
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_MlKemKey_EncodePublicKey(IntPtr key, byte[] output, uint len);
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_MlKemKey_DecodePublicKey(IntPtr key, byte[] input, uint len);
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_MlKemKey_Encapsulate(IntPtr key, byte[] ct, byte[] ss, IntPtr rng);
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_MlKemKey_Decapsulate(IntPtr key, byte[] ss, byte[] ct, uint len);
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_MlKemKey_EncodePrivateKey(IntPtr key, byte[] output, uint len);
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_MlKemKey_DecodePrivateKey(IntPtr key, byte[] input, uint len);
+#else
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private static extern int wc_MlKemKey_CipherTextSize(IntPtr key, ref uint len);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private static extern int wc_MlKemKey_SharedSecretSize(IntPtr key, ref uint len);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private static extern int wc_MlKemKey_PrivateKeySize(IntPtr key, ref uint len);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private static extern int wc_MlKemKey_PublicKeySize(IntPtr key, ref uint len);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private static extern IntPtr wc_MlKemKey_New(int type, IntPtr heap, int devId);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private static extern int wc_MlKemKey_Delete(IntPtr key, IntPtr key_p);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private static extern int wc_MlKemKey_MakeKey(IntPtr key, IntPtr rng);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private static extern int wc_MlKemKey_EncodePublicKey(IntPtr key, byte[] output, uint len);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private static extern int wc_MlKemKey_DecodePublicKey(IntPtr key, byte[] input, uint len);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private static extern int wc_MlKemKey_Encapsulate(IntPtr key, byte[] ct, byte[] ss, IntPtr rng);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private static extern int wc_MlKemKey_Decapsulate(IntPtr key, byte[] ss, byte[] ct, uint len);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private static extern int wc_MlKemKey_EncodePrivateKey(IntPtr key, byte[] output, uint len);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private static extern int wc_MlKemKey_DecodePrivateKey(IntPtr key, byte[] input, uint len);
+#endif
+
+        /********************************
+         * ML-DSA
+         */
+#if WindowsCE
+        [DllImport(wolfssl_dll)]
+        private static extern IntPtr wc_dilithium_new(IntPtr heap, int devId);
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_dilithium_delete(IntPtr key, IntPtr key_p);
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_dilithium_set_level(IntPtr key, byte level);
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_dilithium_make_key(IntPtr key, IntPtr rng);
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_dilithium_export_private(IntPtr key, byte[] output, ref uint outLen);
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_dilithium_import_private(byte[] priv, uint privSz, IntPtr key);
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_dilithium_export_public(IntPtr key, byte[] output, ref uint outLen);
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_dilithium_import_public(byte[] input, uint inputLen, IntPtr key);
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_dilithium_sign_ctx_msg(byte[] ctx, byte ctxLen, byte[] msg, uint msgLen, byte[] sig, ref uint sigLen, IntPtr key, IntPtr rng);
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_dilithium_verify_ctx_msg(byte[] sig, uint sigLen, byte[] ctx, byte ctxLen, byte[] msg, uint msgLen, ref int res, IntPtr key);
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_MlDsaKey_GetPrivLen(IntPtr key, ref int len);
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_MlDsaKey_GetPubLen(IntPtr key, ref int len);
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_MlDsaKey_GetSigLen(IntPtr key, ref int len);
+#else
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private static extern IntPtr wc_dilithium_new(IntPtr heap, int devId);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private static extern int wc_dilithium_delete(IntPtr key, IntPtr key_p);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private static extern int wc_dilithium_set_level(IntPtr key, byte level);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private static extern int wc_dilithium_make_key(IntPtr key, IntPtr rng);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private static extern int wc_dilithium_export_private(IntPtr key, byte[] output, ref uint outLen);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private static extern int wc_dilithium_import_private(byte[] priv, uint privSz, IntPtr key);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private static extern int wc_dilithium_export_public(IntPtr key, byte[] output, ref uint outLen);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private static extern int wc_dilithium_import_public(byte[] input, uint inputLen, IntPtr key);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private static extern int wc_dilithium_sign_ctx_msg(byte[] ctx, byte ctxLen, byte[] msg, uint msgLen, byte[] sig, ref uint sigLen, IntPtr key, IntPtr rng);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private static extern int wc_dilithium_verify_ctx_msg(byte[] sig, uint sigLen, byte[] ctx, byte ctxLen, byte[] msg, uint msgLen, ref int res, IntPtr key);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private static extern int wc_MlDsaKey_GetPrivLen(IntPtr key, ref int len);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private static extern int wc_MlDsaKey_GetPubLen(IntPtr key, ref int len);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private static extern int wc_MlDsaKey_GetSigLen(IntPtr key, ref int len);
+#endif
 
         /********************************
          * AES-GCM
@@ -637,6 +754,7 @@ namespace wolfSSL.CSharp
         public static readonly int ASN_SIG_CONFIRM_E  = -155;  /* ASN sig error, confirm failure */
         public static readonly int ASN_SIG_HASH_E     = -156;  /* ASN sig error, unsupported hash type */
         public static readonly int ASN_SIG_KEY_E      = -157;  /* ASN sig error, unsupported key type */
+        public static readonly int BAD_FUNC_ARG       = -173;  /* Bad function argument */
         public static readonly int SIG_VERIFY_E       = -229;  /* wolfcrypt signature verify error */
 
 
@@ -2762,6 +2880,880 @@ namespace wolfSSL.CSharp
             return;
         }
         /* END RAW Curve25519 */
+
+
+        /***********************************************************************
+         * ML-KEM
+         **********************************************************************/
+
+        // These APIs work by adding several options to wolfCrypt.
+        // Please refer to `../user_settings.h`.
+
+        /// <summary>
+        /// Allocate and initialize a new ML-KEM key without generating key
+        /// material. Use this when you intend to import or decode an existing
+        /// key (e.g., before calling MlKemDecodePublicKey/MlKemDecodePrivateKey).
+        /// </summary>
+        /// <param name="type">ML-KEM parameter set type</param>
+        /// <param name="heap">Heap pointer for memory allocation</param>
+        /// <param name="devId">Device ID (if applicable)</param>
+        /// <returns>Pointer to the MlKem key structure, or IntPtr.Zero on failure</returns>
+        public static IntPtr MlKemNew(MlKemTypes type, IntPtr heap, int devId)
+        {
+            try
+            {
+                IntPtr key = wc_MlKemKey_New((int)type, heap, devId);
+                if (key == IntPtr.Zero)
+                {
+                    log(ERROR_LOG, "Failed to allocate or initialize MlKem key.");
+                }
+                return key;
+            }
+            catch (Exception ex)
+            {
+                log(ERROR_LOG, "MlKem key allocation exception: " + ex.ToString());
+                return IntPtr.Zero;
+            }
+        }
+
+        /// <summary>
+        /// Create a new ML-KEM key pair and initialize it with random values
+        /// </summary>
+        /// <param name="type">ML-KEM parameter set type</param>
+        /// <param name="heap">Heap pointer for memory allocation</param>
+        /// <param name="devId">Device ID (if applicable)</param>
+        /// <returns>Pointer to the MlKem key structure, or IntPtr.Zero on failure</returns>
+        public static IntPtr MlKemMakeKey(MlKemTypes type, IntPtr heap, int devId)
+        {
+            int ret = 0;
+            IntPtr key = IntPtr.Zero;
+            IntPtr rng = IntPtr.Zero;
+            bool success = false;
+
+            try
+            {
+                key = wc_MlKemKey_New((int)type, heap, devId);
+                if (key == IntPtr.Zero)
+                {
+                    log(ERROR_LOG, "Failed to allocate or initialize MlKem key.");
+                    return IntPtr.Zero;
+                }
+
+                rng = RandomNew();
+                if (rng == IntPtr.Zero)
+                {
+                    log(ERROR_LOG, "Failed to create RNG for MlKem key.");
+                    return IntPtr.Zero;
+                }
+
+                ret = wc_MlKemKey_MakeKey(key, rng);
+                if (ret != 0)
+                {
+                    log(ERROR_LOG, "Failed to make MlKem key. Error code: " + ret);
+                    return IntPtr.Zero;
+                }
+
+                success = true;
+                return key;
+            }
+            catch (Exception ex)
+            {
+                log(ERROR_LOG, "MlKem key creation exception: " + ex.ToString());
+                return IntPtr.Zero;
+            }
+            finally
+            {
+                if (rng != IntPtr.Zero)
+                {
+                    RandomFree(rng);
+                }
+                if (!success && key != IntPtr.Zero)
+                {
+                    ret = MlKemFreeKey(ref key);
+                    if (ret != 0)
+                    {
+                        log(ERROR_LOG, "Failed to free MlKem key. Error code: " + ret);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Free a MlKem key structure and release its memory
+        /// </summary>
+        /// <param name="key">Pointer to the MlKem key structure</param>
+        /// <returns>0 on success, negative value on error.</returns>
+        public static int MlKemFreeKey(ref IntPtr key)
+        {
+            int ret;
+
+            if (key == IntPtr.Zero)
+            {
+                return BAD_FUNC_ARG;
+            }
+
+            ret = wc_MlKemKey_Delete(key, IntPtr.Zero);
+            key = IntPtr.Zero;
+            return ret;
+        }
+
+        /// <summary>
+        /// Encode the ML-KEM public key to a byte array.
+        /// </summary>
+        /// <param name="key">Pointer to the MlKem key structure.</param>
+        /// <param name="publicKey">Output byte array containing the encoded public key.</param>
+        /// <returns>0 on success, negative value on error.</returns>
+        public static int MlKemEncodePublicKey(IntPtr key, out byte[] publicKey)
+        {
+            publicKey = null;
+            int ret = 0;
+            uint pubLen = 0;
+
+            if (key == IntPtr.Zero)
+            {
+                return BAD_FUNC_ARG;
+            }
+
+            try
+            {
+                ret = wc_MlKemKey_PublicKeySize(key, ref pubLen);
+                if (ret != 0 || pubLen == 0)
+                {
+                    log(ERROR_LOG, "Failed to get MlKem public key length. Error code: " + ret);
+                    return (ret != 0) ? ret : BAD_FUNC_ARG;
+                }
+                if (pubLen > int.MaxValue)
+                {
+                    log(ERROR_LOG, "MlKem public key length too large: " + pubLen);
+                    return BAD_FUNC_ARG;
+                }
+                publicKey = new byte[checked((int)pubLen)];
+
+                ret = wc_MlKemKey_EncodePublicKey(key, publicKey, pubLen);
+                if (ret != 0)
+                {
+                    log(ERROR_LOG, "Failed to encode MlKem public key. Error code: " + ret);
+                    publicKey = null;
+                    return ret;
+                }
+            }
+            catch (Exception e)
+            {
+                log(ERROR_LOG, "MlKem encode public key exception: " + e.ToString());
+                publicKey = null;
+                return EXCEPTION_E;
+            }
+            return SUCCESS;
+        }
+
+        /// <summary>
+        /// Encode the ML-KEM private key to a byte array.
+        /// </summary>
+        /// <param name="key">Pointer to the MlKem key structure.</param>
+        /// <param name="privateKey">Output byte array containing the encoded private key.</param>
+        /// <returns>0 on success, negative value on error.</returns>
+        public static int MlKemEncodePrivateKey(IntPtr key, out byte[] privateKey)
+        {
+            privateKey = null;
+            int ret = 0;
+            uint privLen = 0;
+
+            if (key == IntPtr.Zero)
+            {
+                return BAD_FUNC_ARG;
+            }
+
+            try
+            {
+                ret = wc_MlKemKey_PrivateKeySize(key, ref privLen);
+                if (ret != 0 || privLen == 0)
+                {
+                    log(ERROR_LOG, "Failed to get MlKem private key length. Error code: " + ret);
+                    return (ret != 0) ? ret : BAD_FUNC_ARG;
+                }
+                if (privLen > int.MaxValue)
+                {
+                    log(ERROR_LOG, "MlKem private key length too large: " + privLen);
+                    return BAD_FUNC_ARG;
+                }
+
+                privateKey = new byte[checked((int)privLen)];
+                ret = wc_MlKemKey_EncodePrivateKey(key, privateKey, privLen);
+                if (ret != 0)
+                {
+                    log(ERROR_LOG, "Failed to encode MlKem private key. Error code: " + ret);
+                    privateKey = null;
+                    return ret;
+                }
+            }
+            catch (Exception e)
+            {
+                log(ERROR_LOG, "MlKem encode private key exception: " + e.ToString());
+                privateKey = null;
+                return EXCEPTION_E;
+            }
+            return SUCCESS;
+        }
+
+        /// <summary>
+        /// Decode a ML-KEM public key from a byte array.
+        /// </summary>
+        /// <param name="key">Pointer to the MlKem key structure.</param>
+        /// <param name="publicKey">Encoded public key as byte array.</param>
+        /// <returns>0 on success, negative value on error.</returns>
+        public static int MlKemDecodePublicKey(IntPtr key, byte[] publicKey)
+        {
+            int ret = 0;
+            uint pubLen = 0;
+
+            if (key == IntPtr.Zero)
+            {
+                return BAD_FUNC_ARG;
+            }
+
+            if (publicKey == null)
+            {
+                log(ERROR_LOG, "MlKem decode public key called with null publicKey buffer.");
+                return BAD_FUNC_ARG;
+            }
+
+            try
+            {
+                ret = wc_MlKemKey_PublicKeySize(key, ref pubLen);
+                if (ret != 0 || pubLen == 0)
+                {
+                    log(ERROR_LOG, "Failed to get MlKem public key length. Error code: " + ret);
+                    return (ret != 0) ? ret : BAD_FUNC_ARG;
+                }
+                if ((uint)publicKey.Length != pubLen)
+                {
+                    log(ERROR_LOG, "MlKem public key buffer length mismatch. Expected: " +
+                        pubLen + ", actual: " + publicKey.Length);
+                    return BUFFER_E;
+                }
+
+                ret = wc_MlKemKey_DecodePublicKey(key, publicKey, pubLen);
+                if (ret != 0)
+                {
+                    log(ERROR_LOG, "Failed to decode MlKem public key. Error code: " + ret);
+                    return ret;
+                }
+            }
+            catch (Exception ex)
+            {
+                log(ERROR_LOG, "MlKem decode public key exception: " + ex.ToString());
+                return EXCEPTION_E;
+            }
+            return SUCCESS;
+        }
+
+        /// <summary>
+        /// Decode a ML-KEM private key from a byte array.
+        /// </summary>
+        /// <param name="key">Pointer to the MlKem key structure.</param>
+        /// <param name="privateKey">Encoded private key as byte array.</param>
+        /// <returns>0 on success, negative value on error.</returns>
+        public static int MlKemDecodePrivateKey(IntPtr key, byte[] privateKey)
+        {
+            int ret = 0;
+            uint privLen = 0;
+
+            if (key == IntPtr.Zero)
+            {
+                return BAD_FUNC_ARG;
+            }
+
+            if (privateKey == null)
+            {
+                log(ERROR_LOG, "MlKem private key buffer is null.");
+                return BAD_FUNC_ARG;
+            }
+
+            try
+            {
+                ret = wc_MlKemKey_PrivateKeySize(key, ref privLen);
+                if (ret != 0 || privLen == 0)
+                {
+                    log(ERROR_LOG, "Failed to get MlKem private key length. Error code: " + ret);
+                    return (ret != 0) ? ret : BAD_FUNC_ARG;
+                }
+
+                if ((uint)privateKey.Length != privLen)
+                {
+                    log(ERROR_LOG, "MlKem private key buffer length mismatch. Required: " + privLen +
+                        ", provided: " + (uint)privateKey.Length);
+                    return BUFFER_E;
+                }
+
+                ret = wc_MlKemKey_DecodePrivateKey(key, privateKey, privLen);
+                if (ret != 0)
+                {
+                    log(ERROR_LOG, "Failed to decode MlKem private key. Error code: " + ret);
+                    return ret;
+                }
+            }
+            catch (Exception ex)
+            {
+                log(ERROR_LOG, "MlKem decode private key exception: " + ex.ToString());
+                return EXCEPTION_E;
+            }
+            return SUCCESS;
+        }
+
+        /// <summary>
+        /// Perform ML-KEM encapsulation to generate a ciphertext and shared secret
+        /// </summary>
+        /// <param name="key">Pointer to the MlKem key structure</param>
+        /// <param name="ct">Output buffer for the ciphertext</param>
+        /// <param name="ss">Output buffer for the shared secret</param>
+        /// <returns>0 on success, otherwise an error code</returns>
+        public static int MlKemEncapsulate(IntPtr key, out byte[] ct, out byte[] ss)
+        {
+            int ret;
+            ct = null;
+            ss = null;
+            uint ctLen = 0;
+            uint ssLen = 0;
+            IntPtr rng = IntPtr.Zero;
+
+            if (key == IntPtr.Zero)
+            {
+                return BAD_FUNC_ARG;
+            }
+
+            try
+            {
+                ret = wc_MlKemKey_CipherTextSize(key, ref ctLen);
+                if (ret != 0)
+                {
+                    log(ERROR_LOG, "Failed to determine ciphertext length. Error code: " + ret);
+                    return ret;
+                }
+                ret = wc_MlKemKey_SharedSecretSize(key, ref ssLen);
+                if (ret != 0)
+                {
+                    log(ERROR_LOG, "Failed to determine shared secret length. Error code: " + ret);
+                    return ret;
+                }
+
+                if (ctLen > int.MaxValue || ssLen > int.MaxValue)
+                {
+                    log(ERROR_LOG, "MlKem sizes exceed maximum supported length.");
+                    return BAD_FUNC_ARG;
+                }
+                ct = new byte[checked((int)ctLen)];
+                ss = new byte[checked((int)ssLen)];
+
+                rng = RandomNew();
+                if (rng == IntPtr.Zero)
+                {
+                    log(ERROR_LOG, "Failed to create RNG for MlKem encapsulate.");
+                    return MEMORY_E;
+                }
+                ret = wc_MlKemKey_Encapsulate(key, ct, ss, rng);
+                if (ret != 0)
+                {
+                    log(ERROR_LOG, "Failed to encapsulate MlKem key. Error code: " + ret);
+                    return ret;
+                }
+            }
+            catch (Exception e)
+            {
+                log(ERROR_LOG, "MlKem encapsulate exception: " + e.ToString());
+                return EXCEPTION_E;
+            }
+            finally
+            {
+                if (rng != IntPtr.Zero)
+                {
+                    RandomFree(rng);
+                    rng = IntPtr.Zero;
+                }
+            }
+            return SUCCESS;
+        }
+
+        /// <summary>
+        /// Perform ML-KEM decapsulation to recover the shared secret from ciphertext
+        /// </summary>
+        /// <param name="key">Pointer to the MlKem key structure</param>
+        /// <param name="ct">Ciphertext buffer</param>
+        /// <param name="ss">Output buffer for the shared secret</param>
+        /// <returns>0 on success, otherwise an error code</returns>
+        public static int MlKemDecapsulate(IntPtr key, byte[] ct, out byte[] ss)
+        {
+            int ret;
+            ss = null;
+            uint ssLen = 0;
+
+            if (key == IntPtr.Zero || ct == null)
+            {
+                return BAD_FUNC_ARG;
+            }
+
+            try
+            {
+                uint ctLen = 0;
+                ret = wc_MlKemKey_CipherTextSize(key, ref ctLen);
+                if (ret != 0)
+                {
+                    log(ERROR_LOG, "Failed to determine ciphertext length. Error code: " + ret);
+                    return ret;
+                }
+                if ((uint)ct.Length != ctLen)
+                {
+                    log(ERROR_LOG, "Ciphertext length mismatch. Expected: " + ctLen + ", got: " + ct.Length);
+                    return BUFFER_E;
+                }
+
+                ret = wc_MlKemKey_SharedSecretSize(key, ref ssLen);
+                if (ret != 0)
+                {
+                    log(ERROR_LOG, "Failed to determine shared secret length. Error code: " + ret);
+                    return ret;
+                }
+                if (ssLen > int.MaxValue)
+                {
+                    log(ERROR_LOG, "Shared secret length too large. Length: " + ssLen);
+                    return BAD_FUNC_ARG;
+                }
+
+                ss = new byte[checked((int)ssLen)];
+                ret = wc_MlKemKey_Decapsulate(key, ss, ct, (uint)ct.Length);
+                if (ret != 0)
+                {
+                    log(ERROR_LOG, "Failed to decapsulate MlKem key. Error code: " + ret);
+                    return ret;
+                }
+            }
+            catch (Exception e)
+            {
+                log(ERROR_LOG, "MlKem decapsulate exception: " + e.ToString());
+                return EXCEPTION_E;
+            }
+            return SUCCESS;
+        }
+
+        /********************************
+         * ENUMS
+         */
+        public enum MlKemTypes
+        {
+            ML_KEM_512 = 0,
+            ML_KEM_768 = 1,
+            ML_KEM_1024 = 2
+        }
+        /* END ML-KEM */
+
+
+        /***********************************************************************
+         * ML-DSA
+         **********************************************************************/
+
+        // These APIs work by adding several options to wolfCrypt.
+        // Please refer to `../user_settings.h`.
+
+        /// <summary>
+        /// Allocate and initialize a new ML-DSA key (with level set) without
+        /// generating key material. Use this when you intend to import an
+        /// existing key (e.g., before calling MlDsaImportPublicKey or
+        /// MlDsaImportPrivateKey).
+        /// </summary>
+        /// <param name="heap">Heap pointer for memory allocation</param>
+        /// <param name="devId">Device ID (if applicable)</param>
+        /// <param name="level">ML-DSA security level</param>
+        /// <returns>Pointer to the ML-DSA key structure, or IntPtr.Zero on failure</returns>
+        public static IntPtr MlDsaNew(IntPtr heap, int devId, MlDsaLevels level)
+        {
+            IntPtr key = IntPtr.Zero;
+            bool success = false;
+
+            try
+            {
+                key = wc_dilithium_new(heap, devId);
+                if (key == IntPtr.Zero)
+                {
+                    log(ERROR_LOG, "Failed to allocate and initialize ML-DSA key.");
+                    return IntPtr.Zero;
+                }
+
+                int ret = wc_dilithium_set_level(key, (byte)level);
+                if (ret != 0)
+                {
+                    log(ERROR_LOG, "Failed to set ML-DSA level. Error code: " + ret);
+                    return IntPtr.Zero;
+                }
+
+                success = true;
+                return key;
+            }
+            catch (Exception ex)
+            {
+                log(ERROR_LOG, "ML-DSA key allocation exception: " + ex.ToString());
+                return IntPtr.Zero;
+            }
+            finally
+            {
+                if (!success && key != IntPtr.Zero)
+                {
+                    int ret = MlDsaFreeKey(ref key);
+                    if (ret != 0)
+                    {
+                        log(ERROR_LOG, "Failed to free ML-DSA key. Error code: " + ret);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Create a new ML-DSA key pair and initialize it with random values
+        /// </summary>
+        /// <param name="heap">Heap pointer for memory allocation</param>
+        /// <param name="devId">Device ID (if applicable)</param>
+        /// <param name="level">ML-DSA security level</param>
+        /// <returns>Pointer to the ML-DSA key structure, or IntPtr.Zero on failure</returns>
+        public static IntPtr MlDsaMakeKey(IntPtr heap, int devId, MlDsaLevels level)
+        {
+            IntPtr key = IntPtr.Zero;
+            IntPtr rng = IntPtr.Zero;
+            int ret;
+            bool success = false;
+
+            try
+            {
+                key = wc_dilithium_new(heap, devId);
+                if (key == IntPtr.Zero)
+                {
+                    log(ERROR_LOG, "Failed to allocate and initialize ML-DSA key.");
+                    return IntPtr.Zero;
+                }
+
+                ret = wc_dilithium_set_level(key, (byte)level);
+                if (ret != 0)
+                {
+                    log(ERROR_LOG, "Failed to set ML-DSA level. Error code: " + ret);
+                    return IntPtr.Zero;
+                }
+
+                rng = RandomNew();
+                if (rng == IntPtr.Zero)
+                {
+                    log(ERROR_LOG, "Failed to create RNG for ML-DSA key.");
+                    return IntPtr.Zero;
+                }
+
+                ret = wc_dilithium_make_key(key, rng);
+                if (ret != 0)
+                {
+                    log(ERROR_LOG, "Failed to make ML-DSA key. Error code: " + ret);
+                    return IntPtr.Zero;
+                }
+
+                success = true;
+                return key;
+            }
+            catch (Exception ex)
+            {
+                log(ERROR_LOG, "ML-DSA key creation exception: " + ex.ToString());
+                return IntPtr.Zero;
+            }
+            finally
+            {
+                if (rng != IntPtr.Zero)
+                {
+                    RandomFree(rng);
+                }
+                if (!success && key != IntPtr.Zero)
+                {
+                    ret = MlDsaFreeKey(ref key);
+                    if (ret != 0)
+                    {
+                        log(ERROR_LOG, "Failed to free ML-DSA key. Error code: " + ret);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Free an ML-DSA key structure and release its memory
+        /// </summary>
+        /// <param name="key">Pointer to the ML-DSA key structure</param>
+        /// <returns>0 on success, negative value on error.</returns>
+        public static int MlDsaFreeKey(ref IntPtr key)
+        {
+            int ret;
+
+            if (key == IntPtr.Zero)
+            {
+                return BAD_FUNC_ARG;
+            }
+
+            ret = wc_dilithium_delete(key, IntPtr.Zero);
+            key = IntPtr.Zero;
+            return ret;
+        }
+
+        /// <summary>
+        /// Import an ML-DSA public key from a byte array.
+        /// </summary>
+        /// <param name="publicKey">Byte array containing the serialized public key.</param>
+        /// <param name="key">Pointer to the ML-DSA key structure (must be initialized).</param>
+        /// <returns>0 on success, negative value on error.</returns>
+        public static int MlDsaImportPublicKey(byte[] publicKey, IntPtr key)
+        {
+            if (publicKey == null || key == IntPtr.Zero)
+            {
+                return BAD_FUNC_ARG;
+            }
+
+            try
+            {
+                return wc_dilithium_import_public(publicKey, (uint)publicKey.Length, key);
+            }
+            catch (Exception e)
+            {
+                log(ERROR_LOG, "ML-DSA import public key exception: " + e.ToString());
+                return EXCEPTION_E;
+            }
+        }
+
+        /// <summary>
+        /// Import an ML-DSA private key from a byte array.
+        /// </summary>
+        /// <param name="privateKey">Byte array containing the private key.</param>
+        /// <param name="key">Pointer to the ML-DSA key structure (must be initialized and have level set).</param>
+        /// <returns>0 on success, negative value on error.</returns>
+        public static int MlDsaImportPrivateKey(byte[] privateKey, IntPtr key)
+        {
+            if (privateKey == null || key == IntPtr.Zero)
+            {
+                return BAD_FUNC_ARG;
+            }
+
+            try
+            {
+                return wc_dilithium_import_private(privateKey, (uint)privateKey.Length, key);
+            }
+            catch (Exception e)
+            {
+                log(ERROR_LOG, "ML-DSA import private key exception: " + e.ToString());
+                return EXCEPTION_E;
+            }
+        }
+
+        /// <summary>
+        /// Export an ML-DSA private key to a byte array.
+        /// </summary>
+        /// <param name="key">Pointer to the ML-DSA key structure.</param>
+        /// <param name="privateKey">Output byte array containing the private key.</param>
+        /// <returns>0 on success, negative value on error.</returns>
+        public static int MlDsaExportPrivateKey(IntPtr key, out byte[] privateKey)
+        {
+            privateKey = null;
+            int ret = 0;
+            int privLen = 0;
+            uint outLen;
+
+            if (key == IntPtr.Zero)
+            {
+                return BAD_FUNC_ARG;
+            }
+
+            try
+            {
+                ret = wc_MlDsaKey_GetPrivLen(key, ref privLen);
+                if (ret != 0 || privLen <= 0)
+                {
+                    log(ERROR_LOG, "Failed to get ML-DSA private key length. Error code: " + ret);
+                    return (ret != 0) ? ret : BAD_FUNC_ARG;
+                }
+
+                privateKey = new byte[privLen];
+                outLen = (uint)privLen;
+                ret = wc_dilithium_export_private(key, privateKey, ref outLen);
+                if (ret != 0)
+                {
+                    log(ERROR_LOG, "Failed to export ML-DSA private key. Error code: " + ret);
+                    privateKey = null;
+                    return ret;
+                }
+                if (outLen != (uint)privLen)
+                {
+                    Array.Resize(ref privateKey, (int)outLen);
+                }
+            }
+            catch (Exception e)
+            {
+                log(ERROR_LOG, "ML-DSA export private key exception: " + e.ToString());
+                privateKey = null;
+                return EXCEPTION_E;
+            }
+            return SUCCESS;
+        }
+
+        /// <summary>
+        /// Export an ML-DSA public key to a byte array.
+        /// </summary>
+        /// <param name="key">Pointer to the ML-DSA key structure.</param>
+        /// <param name="publicKey">Output byte array containing the public key.</param>
+        /// <returns>0 on success, negative value on error.</returns>
+        public static int MlDsaExportPublicKey(IntPtr key, out byte[] publicKey)
+        {
+            publicKey = null;
+            int ret = 0;
+            int pubLen = 0;
+            uint outLen;
+
+            if (key == IntPtr.Zero)
+            {
+                return BAD_FUNC_ARG;
+            }
+
+            try
+            {
+                ret = wc_MlDsaKey_GetPubLen(key, ref pubLen);
+                if (ret != 0 || pubLen <= 0)
+                {
+                    log(ERROR_LOG, "Failed to get ML-DSA public key length. Error code: " + ret);
+                    return (ret != 0) ? ret : BAD_FUNC_ARG;
+                }
+
+                publicKey = new byte[pubLen];
+                outLen = (uint)pubLen;
+                ret = wc_dilithium_export_public(key, publicKey, ref outLen);
+                if (ret != 0)
+                {
+                    log(ERROR_LOG, "Failed to export ML-DSA public key. Error code: " + ret);
+                    publicKey = null;
+                    return ret;
+                }
+                if (outLen != (uint)pubLen)
+                {
+                    Array.Resize(ref publicKey, (int)outLen);
+                }
+            }
+            catch (Exception e)
+            {
+                log(ERROR_LOG, "ML-DSA export public key exception: " + e.ToString());
+                publicKey = null;
+                return EXCEPTION_E;
+            }
+            return SUCCESS;
+        }
+
+        /// <summary>
+        /// Sign a message using an ML-DSA private key
+        /// </summary>
+        /// <param name="key">Pointer to the ML-DSA key structure</param>
+        /// <param name="msg">Message to sign</param>
+        /// <param name="sig">Output byte array for the signature</param>
+        /// <returns>0 on success, otherwise an error code</returns>
+        public static int MlDsaSignMsg(IntPtr key, byte[] msg, out byte[] sig)
+        {
+            int ret;
+            int sigLen = 0;
+            uint outLen;
+            sig = null;
+            IntPtr rng = IntPtr.Zero;
+
+            if (key == IntPtr.Zero || msg == null)
+            {
+                return BAD_FUNC_ARG;
+            }
+
+            try
+            {
+                ret = wc_MlDsaKey_GetSigLen(key, ref sigLen);
+                if (ret != 0 || sigLen <= 0)
+                {
+                    log(ERROR_LOG, "Failed to get ML-DSA signature length. Error code: " + ret);
+                    return (ret != 0) ? ret : BAD_FUNC_ARG;
+                }
+
+                sig = new byte[sigLen];
+                outLen = (uint)sigLen;
+                rng = RandomNew();
+                if (rng == IntPtr.Zero)
+                {
+                    log(ERROR_LOG, "Failed to create RNG for ML-DSA signing.");
+                    return MEMORY_E;
+                }
+                /* FIPS 204 sign with empty context (ctx=null, ctxLen=0). */
+                ret = wc_dilithium_sign_ctx_msg(null, 0, msg, (uint)msg.Length, sig, ref outLen, key, rng);
+                if (ret != 0)
+                {
+                    log(ERROR_LOG, "Failed to sign message with ML-DSA key. Error code: " + ret);
+                    return ret;
+                }
+                if (outLen != (uint)sigLen)
+                {
+                    Array.Resize(ref sig, (int)outLen);
+                }
+            }
+            catch (Exception e)
+            {
+                log(ERROR_LOG, "ML-DSA sign message exception: " + e.ToString());
+                return EXCEPTION_E;
+            }
+            finally
+            {
+                if (rng != IntPtr.Zero){
+                    RandomFree(rng);
+                }
+            }
+            return SUCCESS;
+        }
+
+        /// <summary>
+        /// Verify an ML-DSA signature
+        /// </summary>
+        /// <param name="key">Pointer to the ML-DSA key structure</param>
+        /// <param name="msg">Message that was signed</param>
+        /// <param name="sig">Signature to verify</param>
+        /// <returns>0 if the signature is valid, otherwise an error code</returns>
+        public static int MlDsaVerifyMsg(IntPtr key, byte[] msg, byte[] sig)
+        {
+            int ret;
+            int res = 0;
+
+            if (key == IntPtr.Zero || msg == null || sig == null)
+            {
+                return BAD_FUNC_ARG;
+            }
+
+            try
+            {
+                /* FIPS 204 verify with empty context (ctx=null, ctxLen=0). */
+                ret = wc_dilithium_verify_ctx_msg(sig, (uint)sig.Length, null, 0, msg, (uint)msg.Length, ref res, key);
+                if (ret != 0)
+                {
+                    log(ERROR_LOG, "Failed to verify message with ML-DSA key. Error code: " + ret);
+                    return ret;
+                }
+                if (res != 1)
+                {
+                    log(ERROR_LOG, "ML-DSA signature verification failed (invalid signature).");
+                    return SIG_VERIFY_E;
+                }
+            }
+            catch (Exception e)
+            {
+                log(ERROR_LOG, "ML-DSA verify message exception: " + e.ToString());
+                return EXCEPTION_E;
+            }
+            return SUCCESS;
+        }
+
+        /********************************
+         * ENUMS
+         */
+        public enum MlDsaLevels
+        {
+            ML_DSA_44 = 2,
+            ML_DSA_65 = 3,
+            ML_DSA_87 = 5
+        }
+        /* END ML-DSA */
 
 
         /***********************************************************************

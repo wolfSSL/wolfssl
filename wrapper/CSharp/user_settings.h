@@ -87,6 +87,17 @@
 #define ECC_TIMING_RESISTANT
 #define HAVE_COMP_KEY
 
+/* Enable ML-KEM, ML-DSA */
+#define HAVE_MLKEM
+#define WOLFSSL_WC_MLKEM
+#define WOLFSSL_HAVE_MLKEM
+/* Required for PQC with DTLS 1.3 (auto-enabled in settings.h, explicit for clarity) */
+#define WOLFSSL_DTLS_CH_FRAG
+#define HAVE_DILITHIUM
+#define WOLFSSL_WC_DILITHIUM
+#define WOLFSSL_SHAKE128
+#define WOLFSSL_SHAKE256
+
 /* Disable features */
 #define NO_PSK
 
