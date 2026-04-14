@@ -984,7 +984,7 @@ static int wc_srtp_kdf_derive_key(byte* block, int idxSz, byte label,
  * @param [in]  saltSz   Size of random in bytes.
  * @param [in]  kdrIdx   Key derivation rate. kdr = 0 when -1, otherwise
  *                       kdr = 2^kdrIdx.
- * @param [in]  index    Index value to XOR in.
+ * @param [in]  idx      Index value to XOR in.
  * @param [out] key1     First key. Label value of 0x00.
  * @param [in]  key1Sz   Size of first key in bytes.
  * @param [out] key2     Second key. Label value of 0x01.
@@ -1069,7 +1069,7 @@ int wc_SRTP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
  * @param [in]  saltSz   Size of random in bytes.
  * @param [in]  kdrIdx   Key derivation rate index. kdr = 0 when -1, otherwise
  *                       kdr = 2^kdrIdx. See wc_SRTP_KDF_kdr_to_idx()
- * @param [in]  index    Index value to XOR in.
+ * @param [in]  idx      Index value to XOR in.
  * @param [out] key1     First key. Label value of 0x03.
  * @param [in]  key1Sz   Size of first key in bytes.
  * @param [out] key2     Second key. Label value of 0x04.
@@ -1171,7 +1171,7 @@ int wc_SRTCP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
  * @param [in]  saltSz    Size of random in bytes.
  * @param [in]  kdrIdx    Key derivation rate index. kdr = 0 when -1, otherwise
  *                        kdr = 2^kdrIdx. See wc_SRTP_KDF_kdr_to_idx()
- * @param [in]  index     Index value to XOR in.
+ * @param [in]  idx       Index value to XOR in.
  * @param [in]  label     Label to use when deriving key.
  * @param [out] outKey    Derived key.
  * @param [in]  outKeySz  Size of derived key in bytes.
@@ -1244,7 +1244,7 @@ int wc_SRTP_KDF_label(const byte* key, word32 keySz, const byte* salt,
  * @param [in]  saltSz    Size of random in bytes.
  * @param [in]  kdrIdx    Key derivation rate index. kdr = 0 when -1, otherwise
  *                        kdr = 2^kdrIdx. See wc_SRTP_KDF_kdr_to_idx()
- * @param [in]  index     Index value to XOR in.
+ * @param [in]  idx       Index value to XOR in.
  * @param [in]  label     Label to use when deriving key.
  * @param [out] outKey    Derived key.
  * @param [in]  outKeySz  Size of derived key in bytes.

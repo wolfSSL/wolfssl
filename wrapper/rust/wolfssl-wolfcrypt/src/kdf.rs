@@ -43,6 +43,10 @@ pub const SRTCP_LABEL_SALT: u8 = sys::WC_SRTCP_LABEL_SALT as u8;
 pub const SRTP_LABEL_HDR_ENCRYPTION: u8 = sys::WC_SRTP_LABEL_HDR_ENCRYPTION as u8;
 #[cfg(kdf_srtp)]
 pub const SRTP_LABEL_HDR_SALT: u8 = sys::WC_SRTP_LABEL_HDR_SALT as u8;
+#[cfg(kdf_srtp)]
+pub const SRTP_INDEX_LEN: usize = sys::WC_SRTP_INDEX_LEN as usize;
+#[cfg(kdf_srtp)]
+pub const SRTCP_INDEX_LEN: usize = sys::WC_SRTCP_INDEX_LEN as usize;
 
 /// Implement Password Based Key Derivation Function 2 (PBKDF2) converting an
 /// input password with a concatenated salt into a more secure key which is
@@ -582,13 +586,8 @@ pub fn ssh_kdf(typ: i32, key_id: u8, k: &[u8], h: &[u8], session_id: &[u8], key:
 /// }
 /// ```
 #[cfg(kdf_srtp)]
-pub fn srtp_kdf(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8],
+pub fn srtp_kdf(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8; SRTP_INDEX_LEN],
         key1: &mut [u8], key2: &mut [u8], key3: &mut [u8]) -> Result<(), i32> {
-    if !(kdr_index == -1 || (0 <= kdr_index && (kdr_index as usize) <= idx.len() * 8)) {
-        // The kdr_index value must be either -1 or the number of bits that
-        // will be read from the idx slice.
-        return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
-    }
     let key_size = crate::buffer_len_to_u32(key.len())?;
     let salt_size = crate::buffer_len_to_u32(salt.len())?;
     let key1_size = crate::buffer_len_to_u32(key1.len())?;
@@ -637,7 +636,7 @@ pub fn srtp_kdf(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8],
 /// }
 /// ```
 #[cfg(kdf_srtp)]
-pub fn srtp_kdf_label(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8],
+pub fn srtp_kdf_label(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8; SRTP_INDEX_LEN],
         label: u8, keyout: &mut [u8]) -> Result<(), i32> {
     let key_size = crate::buffer_len_to_u32(key.len())?;
     let salt_size = crate::buffer_len_to_u32(salt.len())?;
@@ -679,7 +678,7 @@ pub fn srtp_kdf_label(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8],
 ///     0x8e, 0x26, 0xad, 0xb5, 0x32, 0x12, 0x98, 0x90];
 /// let salt = [0x0eu8, 0x23, 0x00, 0x6c, 0x6c, 0x04, 0x4f, 0x56,
 ///     0x62, 0x40, 0x0e, 0x9d, 0x1b, 0xd6];
-/// let index = [0x48u8, 0x71, 0x65, 0x64, 0x9c, 0xca];
+/// let index = [0x48u8, 0x71, 0x65, 0x64];
 /// let mut key_e = [0u8; 16];
 /// let mut key_a = [0u8; 20];
 /// let mut key_s = [0u8; 14];
@@ -687,13 +686,8 @@ pub fn srtp_kdf_label(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8],
 /// }
 /// ```
 #[cfg(kdf_srtp)]
-pub fn srtcp_kdf(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8],
+pub fn srtcp_kdf(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8; SRTCP_INDEX_LEN],
         key1: &mut [u8], key2: &mut [u8], key3: &mut [u8]) -> Result<(), i32> {
-    if !(kdr_index == -1 || (0 <= kdr_index && (kdr_index as usize) <= idx.len() * 8)) {
-        // The kdr_index value must be either -1 or the number of bits that
-        // will be read from the idx slice.
-        return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
-    }
     let key_size = crate::buffer_len_to_u32(key.len())?;
     let salt_size = crate::buffer_len_to_u32(salt.len())?;
     let key1_size = crate::buffer_len_to_u32(key1.len())?;
@@ -736,13 +730,13 @@ pub fn srtcp_kdf(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8],
 ///     0x8e, 0x26, 0xad, 0xb5, 0x32, 0x12, 0x98, 0x90];
 /// let salt = [0x0eu8, 0x23, 0x00, 0x6c, 0x6c, 0x04, 0x4f, 0x56,
 ///     0x62, 0x40, 0x0e, 0x9d, 0x1b, 0xd6];
-/// let index = [0x48u8, 0x71, 0x65, 0x64, 0x9c, 0xca];
+/// let index = [0x48u8, 0x71, 0x65, 0x64];
 /// let mut key_a = [0u8; 20];
 /// srtcp_kdf_label(&key, &salt, -1, &index, SRTCP_LABEL_MSG_AUTH, &mut key_a).expect("Error with srtcp_kdf_label()");
 /// }
 /// ```
 #[cfg(kdf_srtp)]
-pub fn srtcp_kdf_label(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8],
+pub fn srtcp_kdf_label(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8; SRTCP_INDEX_LEN],
         label: u8, keyout: &mut [u8]) -> Result<(), i32> {
     let key_size = crate::buffer_len_to_u32(key.len())?;
     let salt_size = crate::buffer_len_to_u32(salt.len())?;
