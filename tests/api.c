@@ -35075,7 +35075,6 @@ static int test_pkcs7_padding(void)
     int outSz;
     int ctOff = -1;
     int ctLen = 0;
-    int i;
 
     XMEMSET(key, 0xAA, sizeof(key));
     XMEMSET(plaintext, 'X', sizeof(plaintext));
@@ -35098,32 +35097,10 @@ static int test_pkcs7_padding(void)
         (word32)encodedSz, output, sizeof(output)), (int)sizeof(plaintext));
     wc_PKCS7_Free(&pkcs7);
 
-    /* Find ciphertext block in encoded DER */
-    if (EXPECT_SUCCESS()) {
-        for (i = encodedSz - 10; i > 10; i--) {
-            if (encoded[i] == 0x04 || encoded[i] == 0x80) {
-                int len, lbytes;
-
-                if (encoded[i+1] < 0x80) {
-                    len = encoded[i+1]; lbytes = 1;
-                }
-                else if (encoded[i+1] == 0x81) {
-                    len = encoded[i+2]; lbytes = 2;
-                }
-                else {
-                    continue;
-                }
-                if (len > 0 && len % 16 == 0 &&
-                    i + 1 + lbytes + len <= encodedSz) {
-                    ctOff = i + 1 + lbytes;
-                    ctLen = len;
-                    break;
-                }
-            }
-        }
-    }
-    ExpectIntGT(ctOff, 0);
-    ExpectIntGE(ctLen, 32);
+    /* encryptedContent is the last element in the DER, so it ends at encodedSz;
+     * 27-byte plaintext -> 32-byte AES-256-CBC ciphertext. */
+    ctLen = 32;
+    ctOff = encodedSz - ctLen;
 
     /* Corrupt an interior padding byte via CBC bit-flip */
     if (EXPECT_SUCCESS()) {
