@@ -765,6 +765,10 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
                     X509StoreCertIsTrusted(ctx->store, ctx->current_cert,
                         origTrustedSk)) {
                     wolfSSL_sk_X509_push(ctx->chain, ctx->current_cert);
+                    /* Clear error set by the failed X509StoreVerifyCert
+                     * attempt; the partial-chain fallback accepted the
+                     * chain at a caller-trusted certificate. */
+                    ctx->error = 0;
                     ret = WOLFSSL_SUCCESS;
                 } else {
                     X509VerifyCertSetupRetry(ctx, certs, failedCerts,
