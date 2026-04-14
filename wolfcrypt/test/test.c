@@ -928,8 +928,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t scrypt_test(void);
     #if defined(USE_CERT_BUFFERS_256) && !defined(WOLFSSL_ATECC508A) && \
         !defined(WOLFSSL_ATECC608A) && !defined(NO_ECC256) && \
         defined(HAVE_ECC_VERIFY) && defined(HAVE_ECC_SIGN) && \
-        !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(NO_ECC_SECP)
-        /* skip for ATECC508/608A, cannot import private key buffers */
+        !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(NO_ECC_SECP) && \
+        !defined(WOLFSSL_SE050)
+        /* skip for ATECC508/608A (cannot import private key buffers) and
+         * SE050 (test vector uses a digest size SE050 does not accept) */
         WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test_buffers(void);
     #endif
 #endif
@@ -3033,8 +3035,10 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
     #if defined(USE_CERT_BUFFERS_256) && !defined(WOLFSSL_ATECC508A) && \
         !defined(WOLFSSL_ATECC608A) && !defined(NO_ECC256) && \
         defined(HAVE_ECC_VERIFY) && defined(HAVE_ECC_SIGN) && \
-        !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(NO_ECC_SECP)
-        /* skip for ATECC508/608A, cannot import private key buffers */
+        !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(NO_ECC_SECP) && \
+        !defined(WOLFSSL_SE050)
+        /* skip for ATECC508/608A (cannot import private key buffers) and
+         * SE050 (test vector uses a digest size SE050 does not accept) */
         if ( (ret = ecc_test_buffers()) != 0)
             TEST_FAIL("ECC buffer test failed!\n", ret);
         else
@@ -39256,7 +39260,8 @@ done:
 #if defined(USE_CERT_BUFFERS_256) && !defined(WOLFSSL_ATECC508A) && \
     !defined(WOLFSSL_ATECC608A) && !defined(NO_ECC256) && \
     defined(HAVE_ECC_VERIFY) && defined(HAVE_ECC_SIGN) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(NO_ECC_SECP)
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(NO_ECC_SECP) && \
+    !defined(WOLFSSL_SE050)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test_buffers(void)
 {
     size_t bytes;
