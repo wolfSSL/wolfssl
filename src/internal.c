@@ -9985,7 +9985,7 @@ void DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq, const byte* data,
     else {
         head = DtlsMsgNew(dataSz, 0, heap);
         if (head == NULL) {
-            /* allocation failed; drop the message silently */
+            WOLFSSL_MSG("DtlsMsgNew allocation failed");
         }
         else if (DtlsMsgSet(head, seq, epoch, data, type, fragOffset,
                     fragSz, heap, dataSz, encrypted) < 0) {
