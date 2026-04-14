@@ -4404,6 +4404,10 @@ const byte* wolfSSL_X509_get_der(WOLFSSL_X509* x509, int* outSz)
     if (x509 == NULL || x509->derCert == NULL || outSz == NULL)
         return NULL;
 
+    if (x509->derCert->length > (word32)INT_MAX) {
+        return NULL;
+    }
+
     *outSz = (int)x509->derCert->length;
     return x509->derCert->buffer;
 }
@@ -8674,7 +8678,7 @@ int wolfSSL_i2d_X509(WOLFSSL_X509* x509, unsigned char** out)
     }
 
     der = wolfSSL_X509_get_der(x509, &derSz);
-    if (der == NULL) {
+    if (der == NULL || derSz <= 0) {
         WOLFSSL_LEAVE("wolfSSL_i2d_X509", MEMORY_E);
         return MEMORY_E;
     }
