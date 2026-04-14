@@ -552,6 +552,53 @@ static int X509VerifyCertSetupRetry(WOLFSSL_X509_STORE_CTX* ctx,
     return ret;
 }
 
+/* Returns 1 if cur and x509 have identical DER encodings, 0 otherwise. */
+static int X509DerEquals(WOLFSSL_X509* cur, WOLFSSL_X509* x509)
+{
+    if (cur == NULL || cur->derCert == NULL ||
+        x509 == NULL || x509->derCert == NULL) {
+        return 0;
+    }
+    if (cur->derCert->length != x509->derCert->length)
+        return 0;
+    return XMEMCMP(cur->derCert->buffer, x509->derCert->buffer,
+                   x509->derCert->length) == 0;
+}
+
+/* Returns 1 if x509's DER matches an entry in either origTrustedSk (an
+ * immutable snapshot of the caller's trusted set captured before any
+ * intermediates were injected for this verification call) or in
+ * store->trusted.  Returns 0 otherwise.  Used by the
+ * X509_V_FLAG_PARTIAL_CHAIN fallback to confirm that a chain actually
+ * terminates at a caller-trusted certificate. */
+static int X509StoreCertIsTrusted(WOLFSSL_X509_STORE* store,
+        WOLFSSL_X509* x509, WOLF_STACK_OF(WOLFSSL_X509)* origTrustedSk)
+{
+    int i;
+    int n;
+
+    if (x509 == NULL || x509->derCert == NULL)
+        return 0;
+
+    if (origTrustedSk != NULL) {
+        n = wolfSSL_sk_X509_num(origTrustedSk);
+        for (i = 0; i < n; i++) {
+            if (X509DerEquals(wolfSSL_sk_X509_value(origTrustedSk, i), x509))
+                return 1;
+        }
+    }
+
+    if (store != NULL && store->trusted != NULL) {
+        n = wolfSSL_sk_X509_num(store->trusted);
+        for (i = 0; i < n; i++) {
+            if (X509DerEquals(wolfSSL_sk_X509_value(store->trusted, i), x509))
+                return 1;
+        }
+    }
+
+    return 0;
+}
+
 /* Verifies certificate chain using WOLFSSL_X509_STORE_CTX
  * returns 1 on success or <= 0 on failure.
  */
@@ -570,6 +617,7 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
     WOLF_STACK_OF(WOLFSSL_X509)* certs = NULL;
     WOLF_STACK_OF(WOLFSSL_X509)* certsToUse = NULL;
     WOLF_STACK_OF(WOLFSSL_X509)* failedCerts = NULL;
+    WOLF_STACK_OF(WOLFSSL_X509)* origTrustedSk = NULL;
     WOLFSSL_ENTER("wolfSSL_X509_verify_cert");
 
     if (ctx == NULL || ctx->store == NULL || ctx->store->cm == NULL
@@ -586,9 +634,37 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
     if (certs == NULL &&
         wolfSSL_sk_X509_num(ctx->ctxIntermediates) > 0) {
         certsToUse = wolfSSL_sk_X509_new_null();
+        if (certsToUse == NULL) {
+            ret = WOLFSSL_FAILURE;
+            goto exit;
+        }
         ret = addAllButSelfSigned(certsToUse, ctx->ctxIntermediates, NULL);
+        /* certsToUse holds only injected intermediates, none are trusted, so
+         * leave origTrustedSk NULL (empty snapshot). */
+        certs = certsToUse;
     }
     else {
+        /* Snapshot the caller-trusted entries before injecting the
+         * caller-supplied untrusted intermediates.  Only the entries already
+         * present count as trusted for the partial-chain check below, and
+         * we need a stable reference because X509VerifyCertSetupRetry may
+         * remove nodes from `certs` during chain building. */
+        if (certs != NULL && wolfSSL_sk_X509_num(certs) > 0) {
+            int j;
+            int n = wolfSSL_sk_X509_num(certs);
+            origTrustedSk = wolfSSL_sk_X509_new_null();
+            if (origTrustedSk == NULL) {
+                ret = WOLFSSL_FAILURE;
+                goto exit;
+            }
+            for (j = 0; j < n; j++) {
+                if (wolfSSL_sk_X509_push(origTrustedSk,
+                        wolfSSL_sk_X509_value(certs, j)) <= 0) {
+                    ret = WOLFSSL_FAILURE;
+                    goto exit;
+                }
+            }
+        }
         /* Add the intermediates provided on init to the list of untrusted
          * intermediates to be used */
         ret = addAllButSelfSigned(certs, ctx->ctxIntermediates, &numInterAdd);
@@ -677,10 +753,22 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
              * a trusted CA in the CM */
             ret = X509StoreVerifyCert(ctx);
             if (ret != WOLFSSL_SUCCESS) {
+                /* WOLFSSL_PARTIAL_CHAIN may only terminate the chain at a
+                 * certificate the caller actually trusts.  The previous
+                 * "added == 1" guard merely confirmed that some untrusted
+                 * intermediate had been temporarily loaded into the
+                 * CertManager during chain building, which would accept
+                 * chains that never reach a trust anchor.  Verify that
+                 * ctx->current_cert is itself in the original trust set. */
                 if (((ctx->flags & WOLFSSL_PARTIAL_CHAIN) ||
                      (ctx->store->param->flags & WOLFSSL_PARTIAL_CHAIN)) &&
-                    (added == 1)) {
+                    X509StoreCertIsTrusted(ctx->store, ctx->current_cert,
+                        origTrustedSk)) {
                     wolfSSL_sk_X509_push(ctx->chain, ctx->current_cert);
+                    /* Clear error set by the failed X509StoreVerifyCert
+                     * attempt; the partial-chain fallback accepted the
+                     * chain at a caller-trusted certificate. */
+                    ctx->error = 0;
                     ret = WOLFSSL_SUCCESS;
                 } else {
                     X509VerifyCertSetupRetry(ctx, certs, failedCerts,
@@ -748,6 +836,10 @@ exit:
     }
     if (certsToUse != NULL) {
         wolfSSL_sk_X509_free(certsToUse);
+    }
+    if (origTrustedSk != NULL) {
+        /* Shallow free: only the snapshot's stack nodes, not the X509s. */
+        wolfSSL_sk_X509_free(origTrustedSk);
     }
 
     /* Enforce hostname / IP verification from X509_VERIFY_PARAM if set.
