@@ -854,6 +854,7 @@ static int test_wolfSSL_X509_STORE_CTX_ex_partial_chain_mixed(
         1);
     /* Must verify: chain terminates at trusted intermediate in the store. */
     ExpectIntEQ(X509_verify_cert(ctx), 1);
+    ExpectIntEQ(X509_STORE_CTX_get_error(ctx), X509_V_OK);
 
     X509_STORE_CTX_free(ctx);
     X509_STORE_free(store);
@@ -899,6 +900,8 @@ static int test_wolfSSL_X509_STORE_CTX_ex_partial_chain_untrusted_terminal(
     /* Must NOT verify: the chain terminal (x509CaInt2) is not in the
      * original trust set, even though the store is non-empty. */
     ExpectIntNE(X509_verify_cert(ctx), 1);
+    ExpectIntEQ(X509_STORE_CTX_get_error(ctx),
+        X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY);
 
     X509_STORE_CTX_free(ctx);
     X509_STORE_free(store);
