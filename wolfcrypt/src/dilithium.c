@@ -12299,9 +12299,9 @@ int wc_Dilithium_PublicKeyDecode(const byte* input, word32* inOutIdx,
         #if !defined(WOLFSSL_DILITHIUM_NO_ASN1)
             int keyType = 0;
         #else
-            int length;
-            unsigned char* oid;
-            int oidLen;
+            int length = 0;
+            unsigned char* oid = NULL;
+            int oidLen = 0;
             word32 idx = 0;
         #endif
 
