@@ -5501,6 +5501,50 @@ int wolfSSL_ED25519_verify(const unsigned char *msg, unsigned int msgSz,
 
 #endif /* OPENSSL_EXTRA && HAVE_ED25519 */
 
+#if (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)) && \
+    defined(HAVE_ED25519)
+/* Allocate and initialize a new ed25519_key.
+ *
+ * @param [in] heap   Heap hint for memory allocation.
+ * @param [in] devId  Device identifier for crypto callbacks.
+ * @return  Allocated and initialized ed25519_key on success.
+ * @return  NULL on failure.
+ */
+ed25519_key* wolfSSL_ED25519_new(void* heap, int devId)
+{
+    ed25519_key* key;
+
+    WOLFSSL_ENTER("wolfSSL_ED25519_new");
+
+    key = (ed25519_key*)XMALLOC(sizeof(ed25519_key), heap,
+        DYNAMIC_TYPE_ED25519);
+    if (key == NULL) {
+        WOLFSSL_ERROR_MSG("wolfSSL_ED25519_new malloc failure");
+    }
+    else if (wc_ed25519_init_ex(key, heap, devId) != 0) {
+        WOLFSSL_ERROR_MSG("wolfSSL_ED25519_new init failure");
+        XFREE(key, heap, DYNAMIC_TYPE_ED25519);
+        key = NULL;
+    }
+
+    return key;
+}
+
+/* Free an ed25519_key allocated with wolfSSL_ED25519_new.
+ *
+ * @param [in] key  ed25519_key to free. May be NULL.
+ */
+void wolfSSL_ED25519_free(ed25519_key* key)
+{
+    if (key != NULL) {
+        void* heap = key->heap;
+        WOLFSSL_ENTER("wolfSSL_ED25519_free");
+        wc_ed25519_free(key);
+        XFREE(key, heap, DYNAMIC_TYPE_ED25519);
+    }
+}
+#endif /* (OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL) && HAVE_ED25519 */
+
 /*******************************************************************************
  * END OF ED25519 API
  ******************************************************************************/
@@ -5953,6 +5997,49 @@ int wolfSSL_ED448_verify(const unsigned char *msg, unsigned int msgSz,
 #endif /* HAVE_ED448_VERIFY && WOLFSSL_KEY_GEN && HAVE_ED448_KEY_IMPORT */
 }
 #endif /* OPENSSL_EXTRA && HAVE_ED448 */
+
+#if (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)) && \
+    defined(HAVE_ED448)
+/* Allocate and initialize a new ed448_key.
+ *
+ * @param [in] heap   Heap hint for memory allocation.
+ * @param [in] devId  Device identifier for crypto callbacks.
+ * @return  Allocated and initialized ed448_key on success.
+ * @return  NULL on failure.
+ */
+ed448_key* wolfSSL_ED448_new(void* heap, int devId)
+{
+    ed448_key* key;
+
+    WOLFSSL_ENTER("wolfSSL_ED448_new");
+
+    key = (ed448_key*)XMALLOC(sizeof(ed448_key), heap, DYNAMIC_TYPE_ED448);
+    if (key == NULL) {
+        WOLFSSL_ERROR_MSG("wolfSSL_ED448_new malloc failure");
+    }
+    else if (wc_ed448_init_ex(key, heap, devId) != 0) {
+        WOLFSSL_ERROR_MSG("wolfSSL_ED448_new init failure");
+        XFREE(key, heap, DYNAMIC_TYPE_ED448);
+        key = NULL;
+    }
+
+    return key;
+}
+
+/* Free an ed448_key allocated with wolfSSL_ED448_new.
+ *
+ * @param [in] key  ed448_key to free. May be NULL.
+ */
+void wolfSSL_ED448_free(ed448_key* key)
+{
+    if (key != NULL) {
+        void* heap = key->heap;
+        WOLFSSL_ENTER("wolfSSL_ED448_free");
+        wc_ed448_free(key);
+        XFREE(key, heap, DYNAMIC_TYPE_ED448);
+    }
+}
+#endif /* (OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL) && HAVE_ED448 */
 
 /*******************************************************************************
  * END OF ED448 API

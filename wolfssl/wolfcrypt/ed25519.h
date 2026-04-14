@@ -188,6 +188,13 @@ WOLFSSL_API
 int wc_ed25519_delete(ed25519_key* key, ed25519_key** key_p);
 #endif
 
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
+WOLFSSL_API
+ed25519_key* wolfSSL_ED25519_new(void* heap, int devId);
+WOLFSSL_API
+void wolfSSL_ED25519_free(ed25519_key* key);
+#endif
+
 #ifdef HAVE_ED25519_KEY_IMPORT
 WOLFSSL_API
 int wc_ed25519_import_public(const byte* in, word32 inLen, ed25519_key* key);
