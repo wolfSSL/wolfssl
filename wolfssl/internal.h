@@ -5761,7 +5761,7 @@ typedef struct BuildMsgArgs {
 #endif
 
 #ifdef WOLFSSL_ASYNC_IO
-    #define MAX_ASYNC_ARGS 18
+    #define MAX_ASYNC_ARGS 24
     typedef void (*FreeArgsCb)(struct WOLFSSL* ssl, void* pArgs);
 
     struct WOLFSSL_ASYNC {
@@ -5769,7 +5769,11 @@ typedef struct BuildMsgArgs {
         BuildMsgArgs  buildArgs; /* holder for current BuildMessage args */
 #endif
         FreeArgsCb    freeArgs; /* function pointer to cleanup args */
+#ifdef __CHERI_PURE_CAPABILITY__
+        max_align_t args[MAX_ASYNC_ARGS * sizeof(word32) / sizeof(max_align_t)]; /* holder for current args */
+#else
         word32        args[MAX_ASYNC_ARGS]; /* holder for current args */
+#endif
     };
 #endif
 
