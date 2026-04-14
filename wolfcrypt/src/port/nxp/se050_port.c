@@ -2146,11 +2146,8 @@ int se050_ecc_sign_hash_ex(const byte* in, word32 inLen, MATH_INT_T* r, MATH_INT
 
     algorithm = se050_map_hash_alg(inLen);
     if (algorithm == kAlgorithm_None) {
-        inLen = keySize; /* try key size */
-        algorithm = se050_map_hash_alg(inLen);
-    }
-    if (algorithm == kAlgorithm_None) {
-        return ECC_CURVE_OID_E;
+        WOLFSSL_MSG("SE050 ECDSA sign only supports SHA-1/224/256/384/512 digest sizes");
+        return BAD_LENGTH_E;
     }
 
     if (wolfSSL_CryptHwMutexLock() != 0) {
@@ -2317,11 +2314,8 @@ int se050_ecc_verify_hash_ex(const byte* hash, word32 hashLen, MATH_INT_T* r,
 
     algorithm = se050_map_hash_alg(hashLen);
     if (algorithm == kAlgorithm_None) {
-        hashLen = keySize; /* try key size */
-        algorithm = se050_map_hash_alg(hashLen);
-    }
-    if (algorithm == kAlgorithm_None) {
-        return ECC_CURVE_OID_E;
+        WOLFSSL_MSG("SE050 ECDSA verify only supports SHA-1/224/256/384/512 digest sizes");
+        return BAD_LENGTH_E;
     }
 
     if (wolfSSL_CryptHwMutexLock() != 0) {
