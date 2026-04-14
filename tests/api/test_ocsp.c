@@ -219,16 +219,18 @@ static int test_ssl_api_ocsp_crl_guardrails(void)
             0, 0), WOLFSSL_FAILURE);
 
     ExpectNotNull(ownedResp = (byte*)XMALLOC(1, NULL, DYNAMIC_TYPE_TMP_BUFFER));
-    ownedResp[0] = 0xAA;
-    ExpectIntEQ(
-        wolfSSL_set_tlsext_status_ocsp_resp_multi(clientSsl, ownedResp, 1, 0),
-        WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_get_tlsext_status_ocsp_resp(clientSsl, &ocspResp), 1);
-    ExpectNotNull(ocspResp);
-    if (ocspResp != NULL) {
-        ExpectIntEQ(ocspResp[0], 0xAA);
+    if (ownedResp != NULL) {
+        ownedResp[0] = 0xAA;
+        ExpectIntEQ(
+            wolfSSL_set_tlsext_status_ocsp_resp_multi(clientSsl, ownedResp, 1, 0),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_get_tlsext_status_ocsp_resp(clientSsl, &ocspResp), 1);
+        ExpectNotNull(ocspResp);
+        if (ocspResp != NULL) {
+            ExpectIntEQ(ocspResp[0], 0xAA);
+        }
+        ownedResp = NULL;
     }
-    ownedResp = NULL;
 #endif
 
     if (clientSsl != NULL) {

@@ -3920,8 +3920,6 @@ int test_wolfSSL_EvpDigestVerifyInitBatch4(void)
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && !defined(NO_SHA256)
 
-    WOLFSSL_EVP_MD_CTX mdctx;
-
 #if defined(HAVE_ECC) && !defined(NO_ECC_SECP) && \
     ((!defined(NO_ECC256)) || defined(HAVE_ALL_CURVES))
     /* P1: ctx == NULL */
@@ -3935,6 +3933,7 @@ int test_wolfSSL_EvpDigestVerifyInitBatch4(void)
 
     /* P2: type == NULL */
     {
+        WOLFSSL_EVP_MD_CTX mdctx;
         EVP_PKEY *pkey = wolfSSL_EVP_PKEY_new();
         wolfSSL_EVP_MD_CTX_init(&mdctx);
         ExpectIntNE(wolfSSL_EVP_DigestVerifyInit(&mdctx, NULL, NULL,
@@ -3946,6 +3945,7 @@ int test_wolfSSL_EvpDigestVerifyInitBatch4(void)
 
     /* P3: pkey == NULL */
     {
+        WOLFSSL_EVP_MD_CTX mdctx;
         wolfSSL_EVP_MD_CTX_init(&mdctx);
         ExpectIntNE(wolfSSL_EVP_DigestVerifyInit(&mdctx, NULL,
                         wolfSSL_EVP_sha256(), NULL, NULL),
@@ -3955,6 +3955,7 @@ int test_wolfSSL_EvpDigestVerifyInitBatch4(void)
 
     /* P4: all valid — EC P-256 key (exercises success path, all guards false) */
     {
+        WOLFSSL_EVP_MD_CTX mdctx;
         WOLFSSL_EC_KEY *eck  = wolfSSL_EC_KEY_new_by_curve_name(
                                     NID_X9_62_prime256v1);
         EVP_PKEY       *pkey = wolfSSL_EVP_PKEY_new();
@@ -3977,6 +3978,7 @@ int test_wolfSSL_EvpDigestVerifyInitBatch4(void)
     (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION > 2))
     /* P5: all valid — RSA key (exercises RSA pkey dispatch branch) */
     {
+        WOLFSSL_EVP_MD_CTX mdctx;
         WOLFSSL_RSA *rsa  = wolfSSL_RSA_generate_key(1024, WC_RSA_EXPONENT,
                                                       NULL, NULL);
         EVP_PKEY    *pkey = wolfSSL_EVP_PKEY_new();

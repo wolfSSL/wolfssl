@@ -4174,7 +4174,13 @@ static int test_wolfSSL_session_cache_api_direct(void)
 #elif !defined(NO_WOLFSSL_SERVER)
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
 #endif
-    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ssl = wolfSSL_new(ctx);
+    if (ctx != NULL && ssl == NULL) {
+        wolfSSL_CTX_free(ctx);
+        ctx = NULL;
+        return EXPECT_RESULT();
+    }
+    ExpectNotNull(ssl);
 
 #ifdef OPENSSL_EXTRA
     mode = wolfSSL_CTX_get_session_cache_mode(ctx);

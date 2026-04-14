@@ -345,6 +345,9 @@ int test_wc_CryptKeyVersionBranches(void)
     static const char pass[] = "MCDCpass";
     int passSz = (int)sizeof(pass) - 1;
     int r;
+    (void)salt;
+    (void)passSz;
+    (void)r;
 
     XMEMSET(cbcIv, 0x00, sizeof(cbcIv));
     XMEMSET(input, 0x5A, sizeof(input));

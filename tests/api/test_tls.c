@@ -162,7 +162,7 @@ int test_tls13_unexpected_ccs(void)
                     NULL, wolfTLSv1_3_server_method), 0);
     ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
     ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
-            UNKNOWN_RECORD_TYPE);
+            WC_NO_ERR_TRACE(UNKNOWN_RECORD_TYPE));
     ExpectIntEQ(test_ctx.c_len, sizeof(unexpectedAlert));
     ExpectBufEQ(test_ctx.c_buff, unexpectedAlert, sizeof(unexpectedAlert));
     wolfSSL_free(ssl_s);
@@ -178,7 +178,7 @@ int test_tls13_unexpected_ccs(void)
                     NULL, wolfTLSv1_3_server_method), 0);
     ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
     ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
-            UNKNOWN_RECORD_TYPE);
+            WC_NO_ERR_TRACE(UNKNOWN_RECORD_TYPE));
     ExpectIntEQ(test_ctx.c_len, sizeof(unexpectedAlert));
     ExpectBufEQ(test_ctx.c_buff, unexpectedAlert, sizeof(unexpectedAlert));
     wolfSSL_free(ssl_s);
@@ -194,17 +194,17 @@ int test_tls12_curve_intersection(void) {
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
-    (void)ctx_c;
-    (void)ssl_c;
-    (void)ctx_s;
-    (void)ssl_s;
-    (void)test_ctx;
     int ret;
     const char* curve_name;
     int test1[] = {WOLFSSL_ECC_SECP256R1};
     int test2[] = {WOLFSSL_ECC_SECP384R1};
     int test3[] = {WOLFSSL_ECC_SECP256R1, WOLFSSL_ECC_SECP384R1};
     int test4[] = {WOLFSSL_ECC_SECP384R1, WOLFSSL_ECC_SECP256R1};
+    (void)ctx_c;
+    (void)ssl_c;
+    (void)ctx_s;
+    (void)ssl_s;
+    (void)test_ctx;
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
                     wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
@@ -282,13 +282,13 @@ int test_tls13_curve_intersection(void) {
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
+    const char* curve_name;
+    int test1[] ={WOLFSSL_ECC_SECP256R1};
     (void)ctx_c;
     (void)ssl_c;
     (void)ctx_s;
     (void)ssl_s;
     (void)test_ctx;
-    const char* curve_name;
-    int test1[] ={WOLFSSL_ECC_SECP256R1};
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
@@ -324,16 +324,16 @@ int test_tls_certreq_order(void)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
-    (void)ctx_c;
-    (void)ssl_c;
-    (void)ctx_s;
-    (void)ssl_s;
-    (void)test_ctx;
     int i = 0;
     const char* msg = NULL;
     int msgSz = 0;
     int certIdx = 0;
     int certReqIdx = 0;
+    (void)ctx_c;
+    (void)ssl_c;
+    (void)ctx_s;
+    (void)ssl_s;
+    (void)test_ctx;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
 
@@ -779,12 +779,12 @@ int test_tls12_etm_failed_resumption(void)
     const char* cbcSuite = "ECDHE-RSA-AES128-SHA256";
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    struct test_memio_ctx test_ctx;
     (void)ctx_c;
     (void)ssl_c;
     (void)ctx_s;
     (void)ssl_s;
-    WOLFSSL_SESSION *sess = NULL;
-    struct test_memio_ctx test_ctx;
     (void)test_ctx;
 
     /* First handshake: establish a session-ID-based session on the client.
@@ -2518,10 +2518,10 @@ int test_tls_tlsx_parse_guards_coverage(void)
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     defined(HAVE_TLS_EXTENSIONS) && !defined(NO_WOLFSSL_SERVER)
 
-    struct test_memio_ctx test_ctx;
-    (void)test_ctx;
     WOLFSSL_CTX *ctx_s = NULL;
     WOLFSSL     *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    (void)test_ctx;
 
     /* --- Subtest 1: TLS 1.2 CH with extensions_total_len == 0
      * (no extensions at all — not the error-guard path, but exercises the
@@ -2751,10 +2751,10 @@ int test_tls_tlsx_sc_fuzz_coverage(void)
     defined(HAVE_SUPPORTED_CURVES) && defined(HAVE_ECC) && \
     !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_SERVER)
 
-    struct test_memio_ctx test_ctx;
-    (void)test_ctx;
     WOLFSSL_CTX *ctx_s = NULL;
     WOLFSSL     *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    (void)test_ctx;
 
     /* --- Subtest 1: supported_groups with list_len == 0 (empty list).
      * TLSX_SupportedCurve_Parse: after reading list_len=0, offset==length
@@ -2942,10 +2942,10 @@ int test_tls_tlsx_sni_fuzz_coverage(void)
     defined(HAVE_SNI) && !defined(WOLFSSL_NO_TLS12) && \
     !defined(NO_WOLFSSL_SERVER)
 
-    struct test_memio_ctx test_ctx;
-    (void)test_ctx;
     WOLFSSL_CTX *ctx_s = NULL;
     WOLFSSL     *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    (void)test_ctx;
 
     /* Helper macro: set up server-only ctx+ssl with SNI "example.com",
      * inject a raw CH, call accept, tear down.  The server must have SNI
@@ -3135,10 +3135,10 @@ int test_tls_tlsx_psk_fuzz_coverage(void)
     (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)) && \
     !defined(NO_WOLFSSL_SERVER)
 
-    struct test_memio_ctx test_ctx;
-    (void)test_ctx;
     WOLFSSL_CTX *ctx_s = NULL;
     WOLFSSL     *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    (void)test_ctx;
 
     /* Common prefix for all subtests (up to extensions_total_len field):
      * rec(5) + hs(4) + ver(2) + rand(32) + sid-len(1) + sid(32) +
@@ -3416,10 +3416,10 @@ int test_tls_tlsx_csr_fuzz_coverage(void)
     !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_SERVER) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_RSA)
 
-    struct test_memio_ctx test_ctx;
-    (void)test_ctx;
     WOLFSSL_CTX *ctx_s = NULL;
     WOLFSSL     *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    (void)test_ctx;
 
     /* --- Subtest 1: status_request extension with ext-data-len == 0.
      * L3774: (length == 0) => return 0. The server silently accepts the
@@ -3674,10 +3674,10 @@ int test_tls_tlsx_parse_guards_batch4(void)
     defined(HAVE_TLS_EXTENSIONS) && !defined(NO_WOLFSSL_SERVER) && \
     !defined(WOLFSSL_NO_TLS12)
 
-    struct test_memio_ctx test_ctx;
-    (void)test_ctx;
     WOLFSSL_CTX *ctx_s = NULL;
     WOLFSSL     *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    (void)test_ctx;
 
     /* --- Subtest 1: CH with extensions_total_len == 0 (empty extensions list).
      * L17021: ssl!=NULL, input!=NULL, isRequest=1 suites!=NULL => all false.
@@ -3870,10 +3870,10 @@ int test_tls_tlsx_keyshare_parse_batch4(void)
     defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES) && \
     !defined(NO_WOLFSSL_SERVER)
 
-    struct test_memio_ctx test_ctx;
-    (void)test_ctx;
     WOLFSSL_CTX *ctx_s = NULL;
     WOLFSSL     *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    (void)test_ctx;
 
     /*
      * Common TLS 1.3 CH prefix (up to extensions_total_len, excluding it):
@@ -4170,10 +4170,10 @@ int test_tls_tlsx_psk_parse_sh_batch4(void)
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
     !defined(NO_RSA)
 
-    struct test_memio_ctx test_ctx;
-    (void)test_ctx;
     WOLFSSL_CTX *ctx_c = NULL;
     WOLFSSL     *ssl_c = NULL;
+    struct test_memio_ctx test_ctx;
+    (void)test_ctx;
 
     /*
      * Craft a minimal TLS 1.3 ServerHello with supported_versions and a
@@ -4284,7 +4284,8 @@ int test_tls_build_handshake_hash_batch4(void)
      * sha_mac < sha256_mac so the condition evaluates true even for SHA-1 suites
      * when !NO_SHA256 is defined.
      */
-#if !defined(NO_AES) && defined(HAVE_AES_CBC) && !defined(NO_SHA)
+#if !defined(NO_AES) && defined(HAVE_AES_CBC) && !defined(NO_SHA) && \
+    !defined(NO_DH) && !defined(NO_OLD_TLS)
     {
         XMEMSET(&test_ctx, 0, sizeof(test_ctx));
         ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
@@ -4398,10 +4399,10 @@ int test_tls_tlsx_parse_msgtype_batch4(void)
     defined(WOLFSSL_TLS13) && defined(HAVE_TLS_EXTENSIONS) && \
     !defined(NO_WOLFSSL_CLIENT)
 
-    struct test_memio_ctx test_ctx;
-    (void)test_ctx;
     WOLFSSL_CTX *ctx_c = NULL;
     WOLFSSL     *ssl_c = NULL;
+    struct test_memio_ctx test_ctx;
+    (void)test_ctx;
 
     /* --- Subtest 1: TLS 1.3 ServerHello with TLSX_STATUS_REQUEST_V2
      * (type=0x0011). In TLS 1.3 CSR2 is only allowed in

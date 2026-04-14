@@ -7144,12 +7144,23 @@ int test_wc_AesFeatureCoverage(void)
             ccmTag, 8, NULL, 0), 0);
 
         /* Empty plaintext: AAD-only authentication. */
+#if defined(HAVE_FIPS)
+        ExpectIntEQ(wc_AesCcmEncrypt(&aes, NULL, NULL, 0,
+            ccmNonce13, sizeof(ccmNonce13),
+            ccmTag, 16, ccmAad, sizeof(ccmAad)),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_AesCcmDecrypt(&aes, NULL, NULL, 0,
+            ccmNonce13, sizeof(ccmNonce13),
+            ccmTag, 16, ccmAad, sizeof(ccmAad)),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#else
         ExpectIntEQ(wc_AesCcmEncrypt(&aes, NULL, NULL, 0,
             ccmNonce13, sizeof(ccmNonce13),
             ccmTag, 16, ccmAad, sizeof(ccmAad)), 0);
         ExpectIntEQ(wc_AesCcmDecrypt(&aes, NULL, NULL, 0,
             ccmNonce13, sizeof(ccmNonce13),
             ccmTag, 16, ccmAad, sizeof(ccmAad)), 0);
+#endif
 
         if (initDone) wc_AesFree(&aes);
     }

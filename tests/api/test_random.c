@@ -538,10 +538,14 @@ int test_wc_RNG_GenerateBlock_Guardrails(void)
     EXPECT_DECLS;
 #ifdef HAVE_HASHDRBG
     WC_RNG rng;
-    byte out[8];
+    byte* out = NULL;
 
     XMEMSET(&rng, 0, sizeof(rng));
-    XMEMSET(out, 0, sizeof(out));
+    ExpectNotNull(out = (byte*)XMALLOC(RNG_MAX_BLOCK_LEN + 1, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (out != NULL) {
+        XMEMSET(out, 0, RNG_MAX_BLOCK_LEN + 1);
+    }
 
     ExpectIntEQ(wc_InitRng(&rng), 0);
     /* Zero-length generation is accepted as a no-op. */
@@ -551,8 +555,11 @@ int test_wc_RNG_GenerateBlock_Guardrails(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
     /* After free, DRBG is no longer initialized. */
-    ExpectIntEQ(wc_RNG_GenerateBlock(&rng, out, sizeof(out)),
+    ExpectIntEQ(wc_RNG_GenerateBlock(&rng, out, 8),
         WC_NO_ERR_TRACE(RNG_FAILURE_E));
+    if (out != NULL) {
+        XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
 #endif
     return EXPECT_RESULT();
 }
