@@ -9965,7 +9965,11 @@ void DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq, const byte* data,
         DtlsMsg* cur = DtlsMsgFind(head, epoch, seq);
         if (cur == NULL) {
             cur = DtlsMsgNew(dataSz, 0, heap);
-            if (cur != NULL) {
+            if (cur == NULL) {
+                WOLFSSL_MSG("DtlsMsgNew allocation failed");
+                ssl->error = MEMORY_E;
+            }
+            else {
                 if (DtlsMsgSet(cur, seq, epoch, data, type,
                              fragOffset, fragSz, heap, dataSz, encrypted) < 0) {
                     DtlsMsgDelete(cur, heap);
@@ -9986,6 +9990,7 @@ void DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq, const byte* data,
         head = DtlsMsgNew(dataSz, 0, heap);
         if (head == NULL) {
             WOLFSSL_MSG("DtlsMsgNew allocation failed");
+            ssl->error = MEMORY_E;
         }
         else if (DtlsMsgSet(head, seq, epoch, data, type, fragOffset,
                     fragSz, heap, dataSz, encrypted) < 0) {
