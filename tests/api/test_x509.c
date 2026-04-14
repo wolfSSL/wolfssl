@@ -994,7 +994,7 @@ int test_x509_ReqCertFromX509_skid_boundary(void)
     WOLFSSL_X509*     parsed = NULL;
     WOLFSSL_X509_NAME* name = NULL;
     unsigned char*    der  = NULL;
-    int               derSz;
+    int               derSz = 0;
     const unsigned char* ecPriv = ecc_clikey_der_256;
     const unsigned char* ecPub  = ecc_clikeypub_der_256;
     unsigned char     expected_skid[CTC_MAX_SKID_SIZE];
