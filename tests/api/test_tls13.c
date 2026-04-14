@@ -1131,8 +1131,8 @@ int test_tls13_bad_psk_binder(void)
     WOLFSSL *ssl_c = NULL;
     WOLFSSL *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
-    (void)test_ctx;
     WOLFSSL_ALERT_HISTORY h;
+    (void)test_ctx;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
@@ -1288,11 +1288,6 @@ int test_tls13_rpk_handshake(void)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
-    (void)ctx_c;
-    (void)ssl_c;
-    (void)ctx_s;
-    (void)ssl_s;
-    (void)test_ctx;
     int err;
     char certType_c[MAX_CLIENT_CERT_TYPE_CNT];
     char certType_s[MAX_CLIENT_CERT_TYPE_CNT];
@@ -1302,6 +1297,11 @@ int test_tls13_rpk_handshake(void)
 #if defined(WOLFSSL_ALWAYS_VERIFY_CB) && defined(WOLFSSL_TLS13)
     int isServer;
 #endif
+    (void)ctx_c;
+    (void)ssl_c;
+    (void)ctx_s;
+    (void)ssl_s;
+    (void)test_ctx;
 
     (void)err;
     (void)typeCnt_c;
@@ -2207,18 +2207,18 @@ int test_tls13_early_data(void)
     };
 
     for (i = 0; i < sizeof(params)/sizeof(*params) && !EXPECT_FAIL(); i++) {
-        struct test_memio_ctx test_ctx;
-        (void)test_ctx;
         WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
         WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
-        (void)ctx_c;
-        (void)ssl_c;
-        (void)ctx_s;
-        (void)ssl_s;
+        struct test_memio_ctx test_ctx;
         WOLFSSL_SESSION *sess = NULL;
         int splitEarlyData = params[i].splitEarlyData;
         int everyWriteWantWrite = params[i].everyWriteWantWrite;
         struct test_tls13_wwrite_ctx wwrite_ctx_s, wwrite_ctx_c;
+        (void)ctx_c;
+        (void)ssl_c;
+        (void)ctx_s;
+        (void)ssl_s;
+        (void)test_ctx;
 
         XMEMSET(&test_ctx, 0, sizeof(test_ctx));
         XMEMSET(&wwrite_ctx_c, 0, sizeof(wwrite_ctx_c));
@@ -2425,7 +2425,6 @@ int test_tls13_same_ch(void)
     WOLFSSL_CTX *ctx_c = NULL;
     WOLFSSL *ssl_c = NULL;
     struct test_memio_ctx test_ctx;
-    (void)test_ctx;
     /* Transport Layer Security
      *     TLSv1.3 Record Layer: Handshake Protocol: Hello Retry Request
      *         Content Type: Handshake (22)
@@ -2441,13 +2440,14 @@ int test_tls13_same_ch(void)
      *             Compression Method: null (0)
      *             Extensions Length: 6
      *             Extension: supported_versions (len=2) TLS 1.3 */
-    unsigned char hrr[] = {
+    static const unsigned char hrr[] = {
       0x16, 0x03, 0x03, 0x00, 0x32, 0x02, 0x00, 0x00, 0x2e, 0x03, 0x03, 0xcf,
       0x21, 0xad, 0x74, 0xe5, 0x9a, 0x61, 0x11, 0xbe, 0x1d, 0x8c, 0x02, 0x1e,
       0x65, 0xb8, 0x91, 0xc2, 0xa2, 0x11, 0x16, 0x7a, 0xbb, 0x8c, 0x5e, 0x07,
       0x9e, 0x09, 0xe2, 0xc8, 0xa8, 0x33, 0x9c, 0x00, 0x13, 0x01, 0x00, 0x00,
       0x06, 0x00, 0x2b, 0x00, 0x02, 0x03, 0x04
     };
+    (void)test_ctx;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, NULL, &ssl_c, NULL,
@@ -2981,13 +2981,13 @@ int test_key_share_mismatch(void)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
+    int client_group[] = {WOLFSSL_ECC_SECP521R1};
+    int server_group[] = {WOLFSSL_ECC_SECP384R1, WOLFSSL_ECC_SECP256R1};
     (void)ctx_c;
     (void)ssl_c;
     (void)ctx_s;
     (void)ssl_s;
     (void)test_ctx;
-    int client_group[] = {WOLFSSL_ECC_SECP521R1};
-    int server_group[] = {WOLFSSL_ECC_SECP384R1, WOLFSSL_ECC_SECP256R1};
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
@@ -3337,12 +3337,12 @@ int test_tls13_warning_alert_is_fatal(void)
     WOLFSSL_CTX *ctx_c = NULL;
     WOLFSSL *ssl_c = NULL;
     struct test_memio_ctx test_ctx;
-    (void)test_ctx;
     WOLFSSL_ALERT_HISTORY h;
     /* TLS record: content_type=alert(0x15), version=TLS1.2(0x0303), len=2,
      *             level=warning(0x01), code=handshake_failure(0x28=40) */
     static const unsigned char warn_alert[] =
         { 0x15, 0x03, 0x03, 0x00, 0x02, 0x01, 0x28 };
+    (void)test_ctx;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, NULL, &ssl_c, NULL,
@@ -3387,7 +3387,6 @@ int test_tls13_warning_alert_is_fatal(void)
      WOLFSSL_CTX *ctx_c = NULL;
      WOLFSSL *ssl_c = NULL;
      struct test_memio_ctx test_ctx;
-     (void)test_ctx;
      /* HelloRetryRequest carrying TLS_AES_128_GCM_SHA256, supported_versions
       * (TLS 1.3), and an extra unknown extension type 0xFABC.
       *
@@ -3422,6 +3421,7 @@ int test_tls13_warning_alert_is_fatal(void)
          /* unknown extension type 0xFABC, zero-length value */
          0xfa, 0xbc, 0x00, 0x00
      };
+     (void)test_ctx;
 
      XMEMSET(&test_ctx, 0, sizeof(test_ctx));
      ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, NULL, &ssl_c, NULL,
@@ -3561,12 +3561,12 @@ int test_tls13_derive_keys_no_key(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_TLS13) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
-    struct test_memio_ctx test_ctx;
-    (void)test_ctx;
     WOLFSSL_CTX *ctx_c = NULL;
     WOLFSSL_CTX *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL;
     WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    (void)test_ctx;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
@@ -3710,15 +3710,15 @@ int test_tls13_short_session_ticket(void)
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
-    struct test_memio_ctx test_ctx;
-    (void)test_ctx;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    char buf[64];
     (void)ctx_c;
     (void)ssl_c;
     (void)ctx_s;
     (void)ssl_s;
-    char buf[64];
+    (void)test_ctx;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
@@ -3791,16 +3791,16 @@ int test_tls13_mcdc_basic_coverage(void)
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
     !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
     defined(HAVE_ECC)
-    struct test_memio_ctx test_ctx;
-    (void)test_ctx;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    char buf[64];
+    int  err;
     (void)ctx_c;
     (void)ssl_c;
     (void)ctx_s;
     (void)ssl_s;
-    char buf[64];
-    int  err;
+    (void)test_ctx;
 
     /* ---- sub-test 1: ECC server cert, default client settings ----------- */
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
@@ -3906,14 +3906,14 @@ int test_tls13_mcdc_hrr_coverage(void)
     defined(HAVE_SUPPORTED_CURVES) && defined(HAVE_ECC) && \
     !defined(NO_ECC_SECP) && defined(WOLFSSL_SEND_HRR_COOKIE) && \
     defined(BUILD_TLS_AES_128_GCM_SHA256)
-    struct test_memio_ctx test_ctx;
-    (void)test_ctx;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
     (void)ctx_c;
     (void)ssl_c;
     (void)ctx_s;
     (void)ssl_s;
+    (void)test_ctx;
 
     /* Client offers P-384 (or P-521) key_share in CH1 but also advertises
      * P-256 as a supported group; server prefers P-256 -> server sends HRR
@@ -3985,14 +3985,14 @@ int test_tls13_mcdc_mutual_coverage(void)
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
     !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
     !defined(NO_RSA)
-    struct test_memio_ctx test_ctx;
-    (void)test_ctx;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
     (void)ctx_c;
     (void)ssl_c;
     (void)ctx_s;
     (void)ssl_s;
+    (void)test_ctx;
 
     /* ---- sub-test 1: RSA mutual-auth handshake -------------------------- */
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
@@ -4077,16 +4077,16 @@ int test_tls13_mcdc_ticket_coverage(void)
     defined(WOLFSSL_TLS13) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
     defined(HAVE_SESSION_TICKET)
-    struct test_memio_ctx test_ctx;
-    (void)test_ctx;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_SESSION *sess = NULL;
+    char msgBuf[64];
     (void)ctx_c;
     (void)ssl_c;
     (void)ctx_s;
     (void)ssl_s;
-    WOLFSSL_SESSION *sess = NULL;
-    char msgBuf[64];
+    (void)test_ctx;
 
     /* ---- first handshake: obtain session ticket ------------------------- */
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
@@ -4144,16 +4144,16 @@ int test_tls13_mcdc_keyupdate_coverage(void)
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     defined(WOLFSSL_TLS13) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
-    struct test_memio_ctx test_ctx;
-    (void)test_ctx;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    char buf[64];
+    int  err;
     (void)ctx_c;
     (void)ssl_c;
     (void)ctx_s;
     (void)ssl_s;
-    char buf[64];
-    int  err;
+    (void)test_ctx;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
@@ -4231,14 +4231,14 @@ int test_tls13_mcdc_curves_coverage(void)
     defined(WOLFSSL_TLS13) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
     defined(HAVE_SUPPORTED_CURVES)
-    struct test_memio_ctx test_ctx;
-    (void)test_ctx;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
     (void)ctx_c;
     (void)ssl_c;
     (void)ctx_s;
     (void)ssl_s;
+    (void)test_ctx;
 
     /* ---- X25519 --------------------------------------------------------- */
 #if defined(HAVE_CURVE25519)
@@ -4331,14 +4331,14 @@ int test_tls13_mcdc_batch2_post_handshake_auth(void)
     !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
     !defined(NO_RSA) && \
     defined(WOLFSSL_POST_HANDSHAKE_AUTH)
-    struct test_memio_ctx test_ctx;
-    (void)test_ctx;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
     (void)ctx_c;
     (void)ssl_c;
     (void)ctx_s;
     (void)ssl_s;
+    (void)test_ctx;
     char buf[64];
     int  err;
 
@@ -4421,14 +4421,14 @@ int test_tls13_mcdc_batch2_early_data(void)
     defined(WOLFSSL_TLS13) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
     defined(WOLFSSL_EARLY_DATA) && defined(HAVE_SESSION_TICKET)
-    struct test_memio_ctx test_ctx;
-    (void)test_ctx;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
     (void)ctx_c;
     (void)ssl_c;
     (void)ctx_s;
     (void)ssl_s;
+    (void)test_ctx;
     WOLFSSL_SESSION *sess = NULL;
     char msgBuf[64];
     int  written = 0;
@@ -4514,9 +4514,9 @@ int test_tls13_mcdc_batch2_sigalgs(void)
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
     !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
     struct test_memio_ctx test_ctx;
-    (void)test_ctx;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    (void)test_ctx;
     (void)ctx_c;
     (void)ssl_c;
     (void)ctx_s;
@@ -4664,9 +4664,9 @@ int test_tls13_mcdc_batch2_mutual_sigalgs(void)
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
     !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
     struct test_memio_ctx test_ctx;
-    (void)test_ctx;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    (void)test_ctx;
     (void)ctx_c;
     (void)ssl_c;
     (void)ctx_s;
@@ -4892,16 +4892,16 @@ int test_tls13_mcdc_batch2_psk_modes(void)
     defined(WOLFSSL_TLS13) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
     defined(HAVE_SESSION_TICKET)
-    struct test_memio_ctx test_ctx;
-    (void)test_ctx;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_SESSION *sess = NULL;
+    char msgBuf[64];
     (void)ctx_c;
     (void)ssl_c;
     (void)ctx_s;
     (void)ssl_s;
-    WOLFSSL_SESSION *sess = NULL;
-    char msgBuf[64];
+    (void)test_ctx;
 
     /* ---- pass 1: original full handshake — obtain ticket ----------------- */
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
@@ -4996,17 +4996,17 @@ int test_tls13_mcdc_batch2_statemachine(void)
     defined(WOLFSSL_TLS13) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
     defined(HAVE_SESSION_TICKET)
-    struct test_memio_ctx test_ctx;
-    (void)test_ctx;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    char buf[128];
+    int  err;
+    int  i;
     (void)ctx_c;
     (void)ssl_c;
     (void)ctx_s;
     (void)ssl_s;
-    char buf[128];
-    int  err;
-    int  i;
+    (void)test_ctx;
 
     /* ---- Scenario A: two connections on the same CTX, read all NSTs ------ */
     for (i = 0; i < 2 && !EXPECT_FAIL(); i++) {

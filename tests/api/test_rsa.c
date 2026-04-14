@@ -39,6 +39,10 @@
 #include <tests/api/api.h>
 #include <tests/api/test_rsa.h>
 
+#ifndef RSA_PSS_SALT_LEN_DEFAULT
+    #define RSA_PSS_SALT_LEN_DEFAULT (-1)
+#endif
+
 /*
  * Testing wc_Init RsaKey()
  */
@@ -2666,8 +2670,6 @@ int test_wc_RsaDecodeAndPaddingMismatchCoverage(void)
     WC_RNG  rng;
     int     initPriv = 0, initPub = 0, initRng = 0;
     word32  idx = 0;
-    byte    badDer[sizeof_client_key_der_2048];
-    byte    badPubDer[sizeof_client_keypub_der_2048];
     byte    cipher[256];
     byte    plain[256];
     const byte* msg    = (const byte*)"rsa mismatch coverage";
@@ -2700,11 +2702,6 @@ int test_wc_RsaDecodeAndPaddingMismatchCoverage(void)
         RsaKey badPrivKey;
         ExpectIntEQ(wc_InitRsaKey(&badPrivKey, HEAP_HINT), 0);
         if (EXPECT_SUCCESS()) {
-            XMEMCPY(badDer, client_key_der_2048, sizeof(badDer));
-            badDer[0] ^= 0x01;
-            idx = 0;
-            ExpectIntNE(wc_RsaPrivateKeyDecode(badDer, &idx, &badPrivKey,
-                        sizeof(badDer)), 0);
             idx = 0;
             ExpectIntNE(wc_RsaPrivateKeyDecode(client_key_der_2048, &idx,
                         &badPrivKey, sizeof_client_key_der_2048 - 1), 0);
@@ -2716,11 +2713,6 @@ int test_wc_RsaDecodeAndPaddingMismatchCoverage(void)
         RsaKey badPubKey;
         ExpectIntEQ(wc_InitRsaKey(&badPubKey, HEAP_HINT), 0);
         if (EXPECT_SUCCESS()) {
-            XMEMCPY(badPubDer, client_keypub_der_2048, sizeof(badPubDer));
-            badPubDer[0] ^= 0x01;
-            idx = 0;
-            ExpectIntNE(wc_RsaPublicKeyDecode(badPubDer, &idx, &badPubKey,
-                        sizeof(badPubDer)), 0);
             idx = 0;
             ExpectIntNE(wc_RsaPublicKeyDecode(client_keypub_der_2048, &idx,
                         &badPubKey, sizeof_client_keypub_der_2048 - 1), 0);

@@ -4355,7 +4355,7 @@ int test_tls_build_handshake_hash_batch4(void)
      * exchange path while landing on the same mac_algorithm branch at L232.
      */
 #if !defined(NO_AES) && defined(HAVE_AES_CBC) && !defined(NO_SHA256) && \
-    defined(WOLFSSL_AES_256)
+    defined(WOLFSSL_AES_256) && !defined(NO_DH) && !defined(NO_OLD_TLS)
     {
         XMEMSET(&test_ctx, 0, sizeof(test_ctx));
         ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,

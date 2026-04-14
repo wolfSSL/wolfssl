@@ -2345,6 +2345,7 @@ static ssize_t test_memio_wolfio_recvfrom(int sockfd, void* buf,
         size_t len, int flags, void* src_addr, void* addrlen)
 {
     int ret;
+    int reqLen;
     (void)flags;
     if (test_memio_wolfio_ctx.force_recv_errno != 0) {
         errno = test_memio_wolfio_ctx.force_recv_errno;
@@ -2355,12 +2356,13 @@ static ssize_t test_memio_wolfio_recvfrom(int sockfd, void* buf,
         errno = EINVAL;
         return -1;
     }
-    ret = test_memio_read_cb(test_memio_wolfio_ctx.ssl_s,
-            (char*)buf, (int)len, test_memio_wolfio_ctx.test_ctx);
-    if (ret > 0 && test_memio_wolfio_ctx.recv_max_chunk > 0 &&
-            ret > test_memio_wolfio_ctx.recv_max_chunk) {
-        ret = test_memio_wolfio_ctx.recv_max_chunk;
+    reqLen = (int)len;
+    if (test_memio_wolfio_ctx.recv_max_chunk > 0 &&
+            reqLen > test_memio_wolfio_ctx.recv_max_chunk) {
+        reqLen = test_memio_wolfio_ctx.recv_max_chunk;
     }
+    ret = test_memio_read_cb(test_memio_wolfio_ctx.ssl_s,
+            (char*)buf, reqLen, test_memio_wolfio_ctx.test_ctx);
     if (ret <= 0) {
         if (ret == WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_WANT_READ))
             errno = EAGAIN;

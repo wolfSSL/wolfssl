@@ -7521,6 +7521,7 @@ int test_wc_AesInitIdLabelCoverage(void)
     /* An id with valid length (1 byte). */
     const unsigned char idBuf[1] = { 0x42 };
 
+    XMEMSET(&aes, 0, sizeof(aes));
     XMEMSET(longLabel, 'X', AES_MAX_LABEL_LEN + 1);
     longLabel[AES_MAX_LABEL_LEN + 1] = '\0';
 
@@ -7530,17 +7531,17 @@ int test_wc_AesInitIdLabelCoverage(void)
         INVALID_DEVID), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     /* Pair: aes != NULL, len < 0 (second cond TRUE) */
+    XMEMSET(&aes, 0, sizeof(aes));
     ExpectIntEQ(wc_AesInit_Id(&aes, (unsigned char*)idBuf, -1, HEAP_HINT,
         INVALID_DEVID), WC_NO_ERR_TRACE(BUFFER_E));
-    /* aes may have been partially initialised — free defensively */
-    wc_AesFree(&aes);
 
     /* Pair: aes != NULL, len > AES_MAX_ID_LEN (third cond TRUE) */
+    XMEMSET(&aes, 0, sizeof(aes));
     ExpectIntEQ(wc_AesInit_Id(&aes, (unsigned char*)idBuf, AES_MAX_ID_LEN + 1,
         HEAP_HINT, INVALID_DEVID), WC_NO_ERR_TRACE(BUFFER_E));
-    wc_AesFree(&aes);
 
     /* Happy path: all conditions FALSE → success */
+    XMEMSET(&aes, 0, sizeof(aes));
     ExpectIntEQ(wc_AesInit_Id(&aes, (unsigned char*)idBuf, (int)sizeof(idBuf),
         HEAP_HINT, INVALID_DEVID), 0);
     if (EXPECT_SUCCESS()) initAes = 1;
@@ -7551,15 +7552,18 @@ int test_wc_AesInitIdLabelCoverage(void)
     ExpectIntEQ(wc_AesInit_Label(NULL, shortLabel, HEAP_HINT, INVALID_DEVID),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     /* Pair: label == NULL */
+    XMEMSET(&aes, 0, sizeof(aes));
     ExpectIntEQ(wc_AesInit_Label(&aes, NULL, HEAP_HINT, INVALID_DEVID),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     /* --- wc_AesInit_Label (L13672: labelLen==0 || labelLen>MAX) --- */
     /* Pair: labelLen > AES_MAX_LABEL_LEN */
+    XMEMSET(&aes, 0, sizeof(aes));
     ExpectIntEQ(wc_AesInit_Label(&aes, longLabel, HEAP_HINT, INVALID_DEVID),
         WC_NO_ERR_TRACE(BUFFER_E));
 
     /* Happy path: valid label, both conditions FALSE */
+    XMEMSET(&aes, 0, sizeof(aes));
     ExpectIntEQ(wc_AesInit_Label(&aes, shortLabel, HEAP_HINT, INVALID_DEVID),
         0);
     if (EXPECT_SUCCESS()) initAes = 1;
