@@ -232,16 +232,18 @@ static int mlkemkey_get_k(const MlKemKey* key)
  */
 static int mlkemkey_alloc_priv(MlKemKey* key, unsigned int k)
 {
+    word32 sz = (word32)(k * MLKEM_N * sizeof(sword16));
     if (key->priv != NULL) {
-        ForceZero(key->priv, k * MLKEM_N * sizeof(sword16));
+        ForceZero(key->priv, key->privAllocSz);
         XFREE(key->priv, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
         key->priv = NULL;
+        key->privAllocSz = 0;
     }
-    key->priv = (sword16*)XMALLOC(k * MLKEM_N * sizeof(sword16), key->heap,
-        DYNAMIC_TYPE_TMP_BUFFER);
+    key->priv = (sword16*)XMALLOC(sz, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (key->priv == NULL) {
         return MEMORY_E;
     }
+    key->privAllocSz = sz;
     return 0;
 }
 
@@ -434,6 +436,7 @@ int wc_MlKemKey_Init(MlKemKey* key, int type, void* heap, int devId)
     #ifdef WOLFSSL_MLKEM_DYNAMIC_KEYS
         key->priv = NULL;
         key->pub = NULL;
+        key->privAllocSz = 0;
     #ifdef WOLFSSL_MLKEM_CACHE_A
         key->a = NULL;
     #endif
@@ -539,11 +542,10 @@ int wc_MlKemKey_Free(MlKemKey* key)
         ForceZero(&key->prf, sizeof(key->prf));
 #ifdef WOLFSSL_MLKEM_DYNAMIC_KEYS
         if (key->priv != NULL) {
-            int k = mlkemkey_get_k(key);
-            ForceZero(key->priv,
-                (word32)(k * MLKEM_N) * (word32)sizeof(sword16));
+            ForceZero(key->priv, key->privAllocSz);
             XFREE(key->priv, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
             key->priv = NULL;
+            key->privAllocSz = 0;
         }
         if (key->pub != NULL) {
             XFREE(key->pub, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -2015,7 +2017,7 @@ int wc_MlKemKey_DecodePrivateKey(MlKemKey* key, const unsigned char* in,
         /* Compute the hash of the public key. */
         ret = MLKEM_HASH_H(&key->hash, p, pubLen, key->h);
         if (ret != 0) {
-            ForceZero(key->priv, k * MLKEM_N);
+            ForceZero(key->priv, k * MLKEM_N * sizeof(sword16));
         }
     }
 
@@ -2023,7 +2025,7 @@ int wc_MlKemKey_DecodePrivateKey(MlKemKey* key, const unsigned char* in,
         p += pubLen;
         /* Compare computed public key hash with stored hash */
         if (XMEMCMP(key->h, p, WC_ML_KEM_SYM_SZ) != 0) {
-            ForceZero(key->priv, k * MLKEM_N);
+            ForceZero(key->priv, k * MLKEM_N * sizeof(sword16));
             ret = MLKEM_PUB_HASH_E;
         }
     }
