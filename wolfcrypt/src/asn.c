@@ -17658,9 +17658,16 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
         XMEMSET(&subjectDnsName, 0, sizeof(DNS_entry));
         switch (nameType) {
             case ASN_DNS_TYPE:
-                /* Should it also consider CN in subject? It could use
-                 * subjectDnsName too */
                 name = cert->altNames;
+
+                /* When no SAN is present, apply DNS name constraints to the
+                 * Subject CN. */
+                if (cert->subjectCN != NULL && cert->altNames == NULL) {
+                    subjectDnsName.next = NULL;
+                    subjectDnsName.type = ASN_DNS_TYPE;
+                    subjectDnsName.len  = cert->subjectCNLen;
+                    subjectDnsName.name = cert->subjectCN;
+                }
                 break;
             case ASN_IP_TYPE:
                 /* IP addresses are stored in altNames with type ASN_IP_TYPE */
