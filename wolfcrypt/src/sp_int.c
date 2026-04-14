@@ -5121,6 +5121,14 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         (size_t) 0,
         (size_t)-1
     };
+/* Constant time access here will not work on CHERI so fallback to basic for now */
+#ifdef __CHERI_PURE_CAPABILITY__
+    #define SP_CT_ADDR(t, idx) ((t)[(idx)])
+#else
+    #define SP_CT_ADDR(t, idx) \
+        (sp_int*)(((size_t)(t)[0] & sp_off_on_addr[(idx)^1]) + \
+                  ((size_t)(t)[1] & sp_off_on_addr[(idx)]))
+#endif
 #endif
 #endif
 
@@ -13166,13 +13174,9 @@ static int _sp_exptmod_ex(const sp_int* b, const sp_int* e, int bits,
             }
 #else
             /* 4.1. t[s] = t[s] ^ 2 */
-            _sp_copy((sp_int*)(((size_t)t[0] & sp_off_on_addr[s^1]) +
-                               ((size_t)t[1] & sp_off_on_addr[s  ])),
-                     t[2]);
+            _sp_copy(SP_CT_ADDR(t, s), t[2]);
             err = sp_sqrmod(t[2], m, t[2]);
-            _sp_copy(t[2],
-                     (sp_int*)(((size_t)t[0] & sp_off_on_addr[s^1]) +
-                               ((size_t)t[1] & sp_off_on_addr[s  ])));
+            _sp_copy(t[2], SP_CT_ADDR(t, s));
 
             if (err == MP_OKAY) {
                 /* 4.2. y = e[i] */
@@ -13183,13 +13187,9 @@ static int _sp_exptmod_ex(const sp_int* b, const sp_int* e, int bits,
                 /* 4.4  s = s | y */
                 s |= y;
                 /* 4.5. t[j] = t[j] * b */
-                _sp_copy((sp_int*)(((size_t)t[0] & sp_off_on_addr[j^1]) +
-                                   ((size_t)t[1] & sp_off_on_addr[j  ])),
-                         t[2]);
+                _sp_copy(SP_CT_ADDR(t, j), t[2]);
                 err = _sp_mulmod(t[2], b, m, t[2]);
-                _sp_copy(t[2],
-                         (sp_int*)(((size_t)t[0] & sp_off_on_addr[j^1]) +
-                                   ((size_t)t[1] & sp_off_on_addr[j  ])));
+                _sp_copy(t[2], SP_CT_ADDR(t, j));
             }
 #endif
         }
@@ -13279,9 +13279,7 @@ static int _sp_exptmod_ex(const sp_int* b, const sp_int* e, int bits,
             err = sp_mulmod(t[0], t[1], m, t[2]);
             /* 3.3. t[3] = t[y] ^ 2 */
             if (err == MP_OKAY) {
-                _sp_copy((sp_int*)(((size_t)t[0] & sp_off_on_addr[y^1]) +
-                                   ((size_t)t[1] & sp_off_on_addr[y  ])),
-                         t[3]);
+                _sp_copy(SP_CT_ADDR(t, y), t[3]);
                 err = sp_sqrmod(t[3], m, t[3]);
             }
             /* 3.4. t[y] = t[3], t[y^1] = t[2] */
@@ -13403,16 +13401,12 @@ static int _sp_exptmod_mont_ex(const sp_int* b, const sp_int* e, int bits,
         /* 6. For i in (bits-1)...0 */
         for (i = bits - 1; (err == MP_OKAY) && (i >= 0); i--) {
             /* 6.1. t[s] = t[s] ^ 2 */
-            _sp_copy((sp_int*)(((size_t)t[0] & sp_off_on_addr[s^1]) +
-                               ((size_t)t[1] & sp_off_on_addr[s  ])),
-                     t[3]);
+            _sp_copy(SP_CT_ADDR(t, s), t[3]);
             err = sp_sqr(t[3], t[3]);
             if (err == MP_OKAY) {
                 err = _sp_mont_red(t[3], m, mp, 0);
             }
-            _sp_copy(t[3],
-                     (sp_int*)(((size_t)t[0] & sp_off_on_addr[s^1]) +
-                               ((size_t)t[1] & sp_off_on_addr[s  ])));
+            _sp_copy(t[3], SP_CT_ADDR(t, s));
 
             if (err == MP_OKAY) {
                 /* 6.2. y = e[i] */
@@ -13424,16 +13418,12 @@ static int _sp_exptmod_mont_ex(const sp_int* b, const sp_int* e, int bits,
                 s |= y;
 
                 /* 6.5. t[j] = t[j] * bm */
-                _sp_copy((sp_int*)(((size_t)t[0] & sp_off_on_addr[j^1]) +
-                                   ((size_t)t[1] & sp_off_on_addr[j  ])),
-                         t[3]);
+                _sp_copy(SP_CT_ADDR(t, j), t[3]);
                 err = sp_mul(t[3], t[2], t[3]);
                 if (err == MP_OKAY) {
                     err = _sp_mont_red(t[3], m, mp, 0);
                 }
-                _sp_copy(t[3],
-                         (sp_int*)(((size_t)t[0] & sp_off_on_addr[j^1]) +
-                                   ((size_t)t[1] & sp_off_on_addr[j  ])));
+                _sp_copy(t[3], SP_CT_ADDR(t, j));
             }
         }
         if (err == MP_OKAY) {
@@ -13543,9 +13533,7 @@ static int _sp_exptmod_mont_ex(const sp_int* b, const sp_int* e, int bits,
             }
             /* 4.3. t[3] = t[y] ^ 2 */
             if (err == MP_OKAY) {
-                _sp_copy((sp_int*)(((size_t)t[0] & sp_off_on_addr[y^1]) +
-                                   ((size_t)t[1] & sp_off_on_addr[y  ])),
-                         t[3]);
+                _sp_copy(SP_CT_ADDR(t, y), t[3]);
                 err = sp_sqr(t[3], t[3]);
             }
             if (err == MP_OKAY) {
