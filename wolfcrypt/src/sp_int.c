@@ -5115,12 +5115,28 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
     (defined(HAVE_ECC) && defined(HAVE_COMP_KEY)) || defined(OPENSSL_EXTRA) || \
     (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_PUBLIC_ONLY))
 #ifndef WC_NO_CACHE_RESISTANT
+#ifdef WC_NO_PTR_INT_CAST
+static void _sp_cond_copy(const sp_int* a, int copy, sp_int* r, sp_size_t used)
+{
+    sp_int_digit mask = (sp_int_digit)0 - (sp_int_digit)copy;
+    unsigned int i;
+
+    for (i = 0; i < (unsigned int)used; i++) {
+        r->dp[i] ^= (r->dp[i] ^ a->dp[i]) & mask;
+    }
+    r->used ^= (r->used ^ a->used) & (sp_size_t)mask;
+#ifdef WOLFSSL_SP_INT_NEGATIVE
+    r->sign ^= (r->sign ^ a->sign) & (sp_sign_t)mask;
+#endif
+}
+#else
     /* Mask of address for constant time operations. */
     const size_t sp_off_on_addr[2] =
     {
         (size_t) 0,
         (size_t)-1
     };
+#endif
 #endif
 #endif
 
@@ -13166,13 +13182,23 @@ static int _sp_exptmod_ex(const sp_int* b, const sp_int* e, int bits,
             }
 #else
             /* 4.1. t[s] = t[s] ^ 2 */
+#ifdef WC_NO_PTR_INT_CAST
+            _sp_cond_copy(t[0], s^1, t[2], m->used);
+            _sp_cond_copy(t[1], s,   t[2], m->used);
+#else
             _sp_copy((sp_int*)(((size_t)t[0] & sp_off_on_addr[s^1]) +
                                ((size_t)t[1] & sp_off_on_addr[s  ])),
                      t[2]);
+#endif
             err = sp_sqrmod(t[2], m, t[2]);
+#ifdef WC_NO_PTR_INT_CAST
+            _sp_cond_copy(t[2], s^1, t[0], m->used);
+            _sp_cond_copy(t[2], s,   t[1], m->used);
+#else
             _sp_copy(t[2],
                      (sp_int*)(((size_t)t[0] & sp_off_on_addr[s^1]) +
                                ((size_t)t[1] & sp_off_on_addr[s  ])));
+#endif
 
             if (err == MP_OKAY) {
                 /* 4.2. y = e[i] */
@@ -13183,13 +13209,23 @@ static int _sp_exptmod_ex(const sp_int* b, const sp_int* e, int bits,
                 /* 4.4  s = s | y */
                 s |= y;
                 /* 4.5. t[j] = t[j] * b */
+#ifdef WC_NO_PTR_INT_CAST
+                _sp_cond_copy(t[0], j^1, t[2], m->used);
+                _sp_cond_copy(t[1], j,   t[2], m->used);
+#else
                 _sp_copy((sp_int*)(((size_t)t[0] & sp_off_on_addr[j^1]) +
                                    ((size_t)t[1] & sp_off_on_addr[j  ])),
                          t[2]);
+#endif
                 err = _sp_mulmod(t[2], b, m, t[2]);
+#ifdef WC_NO_PTR_INT_CAST
+                _sp_cond_copy(t[2], j^1, t[0], m->used);
+                _sp_cond_copy(t[2], j,   t[1], m->used);
+#else
                 _sp_copy(t[2],
                          (sp_int*)(((size_t)t[0] & sp_off_on_addr[j^1]) +
                                    ((size_t)t[1] & sp_off_on_addr[j  ])));
+#endif
             }
 #endif
         }
@@ -13279,9 +13315,14 @@ static int _sp_exptmod_ex(const sp_int* b, const sp_int* e, int bits,
             err = sp_mulmod(t[0], t[1], m, t[2]);
             /* 3.3. t[3] = t[y] ^ 2 */
             if (err == MP_OKAY) {
+#ifdef WC_NO_PTR_INT_CAST
+                _sp_cond_copy(t[0], y^1, t[3], m->used);
+                _sp_cond_copy(t[1], y,   t[3], m->used);
+#else
                 _sp_copy((sp_int*)(((size_t)t[0] & sp_off_on_addr[y^1]) +
                                    ((size_t)t[1] & sp_off_on_addr[y  ])),
                          t[3]);
+#endif
                 err = sp_sqrmod(t[3], m, t[3]);
             }
             /* 3.4. t[y] = t[3], t[y^1] = t[2] */
@@ -13403,16 +13444,26 @@ static int _sp_exptmod_mont_ex(const sp_int* b, const sp_int* e, int bits,
         /* 6. For i in (bits-1)...0 */
         for (i = bits - 1; (err == MP_OKAY) && (i >= 0); i--) {
             /* 6.1. t[s] = t[s] ^ 2 */
+#ifdef WC_NO_PTR_INT_CAST
+            _sp_cond_copy(t[0], s^1, t[3], m->used);
+            _sp_cond_copy(t[1], s,   t[3], m->used);
+#else
             _sp_copy((sp_int*)(((size_t)t[0] & sp_off_on_addr[s^1]) +
                                ((size_t)t[1] & sp_off_on_addr[s  ])),
                      t[3]);
+#endif
             err = sp_sqr(t[3], t[3]);
             if (err == MP_OKAY) {
                 err = _sp_mont_red(t[3], m, mp, 0);
             }
+#ifdef WC_NO_PTR_INT_CAST
+            _sp_cond_copy(t[3], s^1, t[0], m->used);
+            _sp_cond_copy(t[3], s,   t[1], m->used);
+#else
             _sp_copy(t[3],
                      (sp_int*)(((size_t)t[0] & sp_off_on_addr[s^1]) +
                                ((size_t)t[1] & sp_off_on_addr[s  ])));
+#endif
 
             if (err == MP_OKAY) {
                 /* 6.2. y = e[i] */
@@ -13424,16 +13475,26 @@ static int _sp_exptmod_mont_ex(const sp_int* b, const sp_int* e, int bits,
                 s |= y;
 
                 /* 6.5. t[j] = t[j] * bm */
+#ifdef WC_NO_PTR_INT_CAST
+                _sp_cond_copy(t[0], j^1, t[3], m->used);
+                _sp_cond_copy(t[1], j,   t[3], m->used);
+#else
                 _sp_copy((sp_int*)(((size_t)t[0] & sp_off_on_addr[j^1]) +
                                    ((size_t)t[1] & sp_off_on_addr[j  ])),
                          t[3]);
+#endif
                 err = sp_mul(t[3], t[2], t[3]);
                 if (err == MP_OKAY) {
                     err = _sp_mont_red(t[3], m, mp, 0);
                 }
+#ifdef WC_NO_PTR_INT_CAST
+                _sp_cond_copy(t[3], j^1, t[0], m->used);
+                _sp_cond_copy(t[3], j,   t[1], m->used);
+#else
                 _sp_copy(t[3],
                          (sp_int*)(((size_t)t[0] & sp_off_on_addr[j^1]) +
                                    ((size_t)t[1] & sp_off_on_addr[j  ])));
+#endif
             }
         }
         if (err == MP_OKAY) {
@@ -13543,9 +13604,14 @@ static int _sp_exptmod_mont_ex(const sp_int* b, const sp_int* e, int bits,
             }
             /* 4.3. t[3] = t[y] ^ 2 */
             if (err == MP_OKAY) {
+#ifdef WC_NO_PTR_INT_CAST
+                _sp_cond_copy(t[0], y^1, t[3], m->used);
+                _sp_cond_copy(t[1], y,   t[3], m->used);
+#else
                 _sp_copy((sp_int*)(((size_t)t[0] & sp_off_on_addr[y^1]) +
                                    ((size_t)t[1] & sp_off_on_addr[y  ])),
                          t[3]);
+#endif
                 err = sp_sqr(t[3], t[3]);
             }
             if (err == MP_OKAY) {

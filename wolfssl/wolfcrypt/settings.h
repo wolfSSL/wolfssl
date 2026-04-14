@@ -5142,6 +5142,10 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif
 
+#ifdef __CHERI_PURE_CAPABILITY__
+    #define WC_NO_PTR_INT_CAST
+#endif
+
 #ifdef __cplusplus
     }   /* extern "C" */
 #endif
