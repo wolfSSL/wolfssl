@@ -4362,11 +4362,14 @@ int test_tls13_mcdc_batch2_post_handshake_auth(void)
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
 
     /* Drain any NewSessionTicket records at the client. */
+    err = WOLFSSL_ERROR_WANT_READ;
     rounds = 0;
     do {
         ret = wolfSSL_read(ssl_c, buf, sizeof(buf));
-        if (ret > 0)
+        if (ret > 0) {
+            rounds++;
             continue;
+        }
         err = wolfSSL_get_error(ssl_c, -1);
         rounds++;
     } while (err != WOLFSSL_ERROR_WANT_READ && err != WOLFSSL_ERROR_NONE &&
@@ -4822,14 +4825,14 @@ int test_tls13_mcdc_batch2_alpn(void)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
-    (void)ctx_c;
-    (void)ssl_c;
-    (void)ctx_s;
-    (void)ssl_s;
     char *proto = NULL;
     unsigned short protoSz = 0;
     char alpn_h2[] = "h2";
     char alpn_http11[] = "http/1.1";
+    (void)ctx_c;
+    (void)ssl_c;
+    (void)ctx_s;
+    (void)ssl_s;
     (void)test_ctx;
 
     /* ---- sub-test A: matching ALPN protocol "h2" -------------------------- */
