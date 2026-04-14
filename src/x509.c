@@ -11703,23 +11703,38 @@ WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* wolfSSL_sk_X509_OBJECT_deep_copy(
         }
 
         if (ret == WOLFSSL_SUCCESS) {
-        #if defined(OPENSSL_ALL)
-            int idx;
-        #endif
-
             cert->version = req->version;
             cert->isCA = req->isCa;
             cert->basicConstSet = req->basicConstSet;
     #ifdef WOLFSSL_CERT_EXT
             if (req->subjKeyIdSz != 0) {
-                XMEMCPY(cert->skid, req->subjKeyId, req->subjKeyIdSz);
-                cert->skidSz = (int)req->subjKeyIdSz;
+                if (req->subjKeyIdSz > CTC_MAX_SKID_SIZE) {
+                    WOLFSSL_MSG("Subject Key ID too large");
+                    WOLFSSL_ERROR_VERBOSE(BUFFER_E);
+                    ret = WOLFSSL_FAILURE;
+                }
+                else if (req->subjKeyId == NULL) {
+                    WOLFSSL_MSG("Subject Key ID missing");
+                    WOLFSSL_ERROR_VERBOSE(BAD_FUNC_ARG);
+                    ret = WOLFSSL_FAILURE;
+                }
+                else {
+                    XMEMCPY(cert->skid, req->subjKeyId,
+                            req->subjKeyIdSz);
+                    cert->skidSz = (int)req->subjKeyIdSz;
+                }
             }
             if (req->keyUsageSet)
                 cert->keyUsage = req->keyUsage;
 
             cert->extKeyUsage = req->extKeyUsage;
     #endif
+        }
+
+        if (ret == WOLFSSL_SUCCESS) {
+        #if defined(OPENSSL_ALL)
+            int idx;
+        #endif
 
             XMEMCPY(cert->challengePw, req->challengePw, CTC_NAME_SIZE);
             cert->challengePwPrintableString = req->challengePw[0] != 0;

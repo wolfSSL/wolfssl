@@ -878,3 +878,186 @@ int test_x509_CertFromX509_akid_overflow(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* Test that ReqCertFromX509() rejects a CSR with an oversized
+ * SubjectKeyIdentifier (> CTC_MAX_SKID_SIZE = 32 bytes). Before the fix
+ * this would cause a heap buffer overflow into cert->skid[32]. */
+int test_x509_ReqCertFromX509_skid_overflow(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_CERT_REQ) && defined(WOLFSSL_CERT_GEN) && \
+    defined(WOLFSSL_CERT_EXT) && !defined(NO_BIO) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && \
+    defined(HAVE_ECC)
+
+    /* Minimal DER-encoded CSR (PKCS#10) containing a SubjectKeyIdentifier
+     * extension with a 64-byte value -- double the 32-byte CTC_MAX_SKID_SIZE
+     * destination buffer.
+     *
+     * Structure:
+     *   SEQUENCE {
+     *     CertificationRequestInfo SEQUENCE {
+     *       version INTEGER 0
+     *       subject: CN=Test
+     *       subjectPKInfo: EC P-256 (generator point)
+     *       attributes [0] {
+     *         SEQUENCE {
+     *           OID 1.2.840.113549.1.9.14 (extensionRequest)
+     *           SET { SEQUENCE { -- Extensions
+     *             SEQUENCE { -- Extension
+     *               OID 2.5.29.14 (subjectKeyIdentifier)
+     *               OCTET STRING { OCTET STRING (64 bytes of 0x41) }
+     *             }
+     *           }}
+     *         }
+     *       }
+     *     }
+     *     signatureAlgorithm: ecdsa-with-SHA256
+     *     signatureValue: dummy
+     *   }
+     */
+    static const unsigned char crafted_csr_der[] = {
+        0x30, 0x81, 0xE7, 0x30, 0x81, 0xCD, 0x02, 0x01,
+        0x00, 0x30, 0x0F, 0x31, 0x0D, 0x30, 0x0B, 0x06,
+        0x03, 0x55, 0x04, 0x03, 0x0C, 0x04, 0x54, 0x65,
+        0x73, 0x74, 0x30, 0x59, 0x30, 0x13, 0x06, 0x07,
+        0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x02, 0x01, 0x06,
+        0x08, 0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x03, 0x01,
+        0x07, 0x03, 0x42, 0x00, 0x04, 0x6B, 0x17, 0xD1,
+        0xF2, 0xE1, 0x2C, 0x42, 0x47, 0xF8, 0xBC, 0xE6,
+        0xE5, 0x63, 0xA4, 0x40, 0xF2, 0x77, 0x03, 0x7D,
+        0x81, 0x2D, 0xEB, 0x33, 0xA0, 0xF4, 0xA1, 0x39,
+        0x45, 0xD8, 0x98, 0xC2, 0x96, 0x4F, 0xE3, 0x42,
+        0xE2, 0xFE, 0x1A, 0x7F, 0x9B, 0x8E, 0xE7, 0xEB,
+        0x4A, 0x7C, 0x0F, 0x9E, 0x16, 0x2B, 0xCE, 0x33,
+        0x57, 0x6B, 0x31, 0x5E, 0xCE, 0xCB, 0xB6, 0x40,
+        0x68, 0x37, 0xBF, 0x51, 0xF5, 0xA0, 0x5C, 0x30,
+        0x5A, 0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7,
+        0x0D, 0x01, 0x09, 0x0E, 0x31, 0x4D, 0x30, 0x4B,
+        0x30, 0x49, 0x06, 0x03, 0x55, 0x1D, 0x0E, 0x04,
+        0x42, 0x04, 0x40,
+        /* 64 bytes of 0x41 -- oversized SKID value */
+        0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+        0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+        0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+        0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+        0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+        0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+        0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+        0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+        /* end of SKID payload */
+        0x30, 0x0A, 0x06, 0x08, 0x2A, 0x86, 0x48, 0xCE,
+        0x3D, 0x04, 0x03, 0x02, 0x03, 0x09, 0x00, 0x30,
+        0x06, 0x02, 0x01, 0x01, 0x02, 0x01, 0x01
+    };
+
+    WOLFSSL_X509* req = NULL;
+    WOLFSSL_BIO* bio = NULL;
+
+    /* Step 1: Parse the crafted CSR -- this should succeed (the parser
+     * dynamically allocates subjKeyId to the parsed size). */
+    req = wolfSSL_X509_REQ_d2i(NULL, crafted_csr_der,
+                                (int)sizeof(crafted_csr_der));
+    ExpectNotNull(req);
+
+    /* Step 2: Attempt to re-encode. Before the fix, this triggered a
+     * heap buffer overflow in ReqCertFromX509() writing 64 bytes into
+     * cert->skid[32]. With the fix, it must return failure. */
+    bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
+    ExpectNotNull(bio);
+    ExpectIntNE(wolfSSL_i2d_X509_REQ_bio(bio, req), WOLFSSL_SUCCESS);
+
+    wolfSSL_BIO_free(bio);
+    wolfSSL_X509_free(req);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Positive / boundary companion to test_x509_ReqCertFromX509_skid_overflow.
+ * Verifies that a CSR with a SubjectKeyIdentifier of exactly
+ * CTC_MAX_SKID_SIZE (32) bytes -- the boundary of the bounds check in
+ * ReqCertFromX509() -- is accepted and that the SKID round-trips with the
+ * correct length and bytes through the sign / re-encode / re-parse path.
+ * This kills boundary mutations (">" -> ">=") and copy-size mutations on
+ * the XMEMCPY into cert->skid that the negative test alone cannot catch. */
+int test_x509_ReqCertFromX509_skid_boundary(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_CERT_REQ) && defined(WOLFSSL_CERT_GEN) && \
+    defined(WOLFSSL_CERT_EXT) && !defined(NO_BIO) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && \
+    defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256)
+
+    WOLFSSL_EVP_PKEY* priv = NULL;
+    WOLFSSL_EVP_PKEY* pub  = NULL;
+    WOLFSSL_X509*     req  = NULL;
+    WOLFSSL_X509*     parsed = NULL;
+    WOLFSSL_X509_NAME* name = NULL;
+    unsigned char*    der  = NULL;
+    int               derSz = 0;
+    const unsigned char* ecPriv = ecc_clikey_der_256;
+    const unsigned char* ecPub  = ecc_clikeypub_der_256;
+    unsigned char     expected_skid[CTC_MAX_SKID_SIZE];
+
+    XMEMSET(expected_skid, 0x41, sizeof(expected_skid));
+
+    /* Load a real ECC keypair so that the CSR can actually be signed
+     * (ReqCertFromX509() is invoked from the signing path). */
+    ExpectNotNull(priv = wolfSSL_d2i_PrivateKey(EVP_PKEY_EC, NULL, &ecPriv,
+                    (long)sizeof_ecc_clikey_der_256));
+    ExpectNotNull(pub = wolfSSL_d2i_PUBKEY(NULL, &ecPub,
+                    (long)sizeof_ecc_clikeypub_der_256));
+
+    ExpectNotNull(req = wolfSSL_X509_REQ_new());
+    ExpectNotNull(name = wolfSSL_X509_NAME_new());
+    ExpectIntEQ(wolfSSL_X509_NAME_add_entry_by_txt(name, "commonName",
+                    MBSTRING_UTF8, (const byte*)"Test", 4, -1, 0),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_REQ_set_subject_name(req, name), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_REQ_set_pubkey(req, pub), WOLFSSL_SUCCESS);
+
+    /* Inject exactly CTC_MAX_SKID_SIZE bytes of SKID directly on the req
+     * (tests/api/test_x509.c already includes <wolfssl/internal.h>). This
+     * is the boundary value of the bounds check in ReqCertFromX509(). */
+    if (EXPECT_SUCCESS() && req != NULL) {
+        req->subjKeyId = (byte*)XMALLOC(sizeof(expected_skid), NULL,
+                                        DYNAMIC_TYPE_X509_EXT);
+        ExpectNotNull(req->subjKeyId);
+        if (req->subjKeyId != NULL) {
+            XMEMCPY(req->subjKeyId, expected_skid, sizeof(expected_skid));
+            req->subjKeyIdSz = (word32)sizeof(expected_skid);
+        }
+    }
+
+    /* Signing invokes wolfssl_x509_make_der() -> ReqCertFromX509(), which
+     * executes the bounds check and the XMEMCPY into cert->skid. A
+     * ">=" boundary mutation would make this step fail for a 32-byte
+     * SKID. */
+    ExpectIntEQ(wolfSSL_X509_REQ_sign(req, priv, wolfSSL_EVP_sha256()),
+                WOLFSSL_SUCCESS);
+
+    /* Re-encode the now-signed CSR and parse it back to verify the SKID
+     * round-trips with the correct length and bytes. This verifies the
+     * output of the XMEMCPY in ReqCertFromX509(). */
+    ExpectIntGT((derSz = wolfSSL_i2d_X509_REQ(req, &der)), 0);
+    ExpectNotNull(der);
+
+    ExpectNotNull(parsed = wolfSSL_X509_REQ_d2i(NULL, der, derSz));
+    if (parsed != NULL) {
+        ExpectIntEQ((int)parsed->subjKeyIdSz, CTC_MAX_SKID_SIZE);
+        ExpectNotNull(parsed->subjKeyId);
+        if (parsed->subjKeyId != NULL) {
+            ExpectIntEQ(XMEMCMP(parsed->subjKeyId, expected_skid,
+                                CTC_MAX_SKID_SIZE), 0);
+        }
+    }
+
+    wolfSSL_X509_free(parsed);
+    XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
+    wolfSSL_X509_NAME_free(name);
+    wolfSSL_X509_free(req);
+    wolfSSL_EVP_PKEY_free(pub);
+    wolfSSL_EVP_PKEY_free(priv);
+#endif
+    return EXPECT_RESULT();
+}
