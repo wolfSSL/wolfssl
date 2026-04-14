@@ -21521,6 +21521,106 @@ static int test_PathLenSelfIssued(void)
     return EXPECT_RESULT();
 }
 
+/* Verifies that a self-issued intermediate under a CA with pathLen > 0 is
+ * accepted AND that maxPathLen is propagated as min(ca->maxPathLen,
+ * cert->pathLength) without being decremented (RFC 5280 6.1.4(l)).
+ * Pins the `else` branch in asn.c so deletion or an accidental decrement
+ * (like the non-self-issued path) is detected. */
+static int test_PathLenSelfIssuedAllowed(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_CERT_REQ) && !defined(NO_ASN_TIME) && \
+    defined(WOLFSSL_CERT_GEN) && defined(HAVE_ECC) && \
+    defined(WOLFSSL_CERT_EXT) && !defined(NO_CERTS) && \
+    (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH))
+    Cert cert;
+    DecodedCert decodedCert;
+    byte rootDer[FOURK_BUF];
+    byte icaDer[FOURK_BUF];
+    int rootDerSz = 0;
+    int icaDerSz = 0;
+    WC_RNG rng;
+    ecc_key rootKey;
+    ecc_key icaKey;
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    XMEMSET(&rootKey, 0, sizeof(ecc_key));
+    XMEMSET(&icaKey, 0, sizeof(ecc_key));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ecc_init(&rootKey), 0);
+    ExpectIntEQ(wc_ecc_init(&icaKey), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, 32, &rootKey), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, 32, &icaKey), 0);
+
+    /* Step 1: Create root CA with pathLen=1 */
+    ExpectIntEQ(wc_InitCert(&cert), 0);
+    (void)XSTRNCPY(cert.subject.country, "US", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.state, "MT", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.locality, "Bozeman", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.org, "TestCA3", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.unit, "Test", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.commonName, "TestRootCA3", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.email, "root@test3.com", CTC_NAME_SIZE);
+    cert.selfSigned = 1;
+    cert.isCA       = 1;
+    cert.pathLen    = 1;
+    cert.pathLenSet = 1;
+    cert.sigType    = CTC_SHA256wECDSA;
+    cert.keyUsage   = KEYUSE_KEY_CERT_SIGN | KEYUSE_CRL_SIGN;
+    ExpectIntEQ(wc_SetSubjectKeyIdFromPublicKey_ex(&cert, ECC_TYPE, &rootKey),
+        0);
+
+    ExpectIntGE(wc_MakeCert(&cert, rootDer, FOURK_BUF, NULL, &rootKey, &rng),
+        0);
+    ExpectIntGE(rootDerSz = wc_SignCert(cert.bodySz, cert.sigType, rootDer,
+        FOURK_BUF, NULL, &rootKey, &rng), 0);
+
+    /* Step 2: Create a self-issued intermediate with its OWN pathLen=5.
+     * The intentionally-larger pathLen lets the test distinguish:
+     *   - Correct self-issued path: maxPathLen = min(1, 5) = 1
+     *   - Deleted else branch:      maxPathLen stays at 5 (cert->pathLength)
+     *   - Mutated to decrement:     maxPathLen = min(0, 5) = 0 */
+    ExpectIntEQ(wc_InitCert(&cert), 0);
+    cert.selfSigned = 0;
+    cert.isCA       = 1;
+    cert.pathLen    = 5;
+    cert.pathLenSet = 1;
+    cert.sigType    = CTC_SHA256wECDSA;
+    cert.keyUsage   = KEYUSE_KEY_CERT_SIGN | KEYUSE_CRL_SIGN;
+    /* Same subject/issuer DN as root -> self-issued */
+    ExpectIntEQ(wc_SetSubjectBuffer(&cert, rootDer, rootDerSz), 0);
+    ExpectIntEQ(wc_SetIssuerBuffer(&cert, rootDer, rootDerSz), 0);
+    ExpectIntEQ(wc_SetAuthKeyIdFromPublicKey_ex(&cert, ECC_TYPE, &rootKey), 0);
+    ExpectIntEQ(wc_SetSubjectKeyIdFromPublicKey_ex(&cert, ECC_TYPE, &icaKey),
+        0);
+
+    ExpectIntGE(wc_MakeCert(&cert, icaDer, FOURK_BUF, NULL, &icaKey, &rng), 0);
+    ExpectIntGE(icaDerSz = wc_SignCert(cert.bodySz, cert.sigType, icaDer,
+        FOURK_BUF, NULL, &rootKey, &rng), 0);
+
+    /* Step 3: Load root CA into cert manager */
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, rootDer, rootDerSz,
+        WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+
+    /* Step 4: Parse the self-issued intermediate. Must be accepted AND
+     * maxPathLen must be exactly 1 (honors root's constraint without
+     * decrementing). */
+    wc_InitDecodedCert(&decodedCert, icaDer, (word32)icaDerSz, NULL);
+    ExpectIntEQ(wc_ParseCert(&decodedCert, CHAIN_CERT_TYPE, VERIFY, cm), 0);
+    ExpectIntEQ(decodedCert.maxPathLen, 1);
+    wc_FreeDecodedCert(&decodedCert);
+
+    wolfSSL_CertManagerFree(cm);
+    wc_ecc_free(&icaKey);
+    wc_ecc_free(&rootKey);
+    wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_PathLenNoKeyUsage(void)
 {
     EXPECT_DECLS;
@@ -35498,6 +35598,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_ParseCert_Error),
     TEST_DECL(test_MakeCertWithPathLen),
     TEST_DECL(test_PathLenSelfIssued),
+    TEST_DECL(test_PathLenSelfIssuedAllowed),
     TEST_DECL(test_PathLenNoKeyUsage),
     TEST_DECL(test_MakeCertWith0Ser),
     TEST_DECL(test_MakeCertWithCaFalse),

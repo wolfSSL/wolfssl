@@ -3787,7 +3787,11 @@ int test_tls13_empty_record_limit(void)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     int recSz;
-    int numRecs = WOLFSSL_MAX_EMPTY_RECORDS + 1;
+    /* Send exactly WOLFSSL_MAX_EMPTY_RECORDS to pin the boundary check.
+     * The Nth record increments the counter to N, and `N >= N` triggers
+     * the error. Sending one more would let a `>=` -> `>` mutation survive
+     * (the extra record would still trip the mutated check). */
+    int numRecs = WOLFSSL_MAX_EMPTY_RECORDS;
     byte rec[128]; /* buffer for one encrypted record */
     byte *allRecs = NULL;
     int i;
