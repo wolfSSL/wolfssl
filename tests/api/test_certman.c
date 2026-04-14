@@ -2576,6 +2576,9 @@ int test_wolfSSL_CertManagerRejectMD5Cert(void)
 
     ExpectNotNull(der = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
                 DYNAMIC_TYPE_TMP_BUFFER));
+    if (der == NULL) {
+        goto cleanup;
+    }
 
     /* Build a leaf certificate whose issuer is the built-in 2048-bit
      * wolfSSL test CA and sign it with MD5+RSA using the matching CA
@@ -2604,16 +2607,19 @@ int test_wolfSSL_CertManagerRejectMD5Cert(void)
     /* Load the SHA-256 signed CA cert as a trust anchor and attempt
      * to verify the MD5-signed leaf: it must be rejected because
      * HashForSignature() now returns HASH_TYPE_E for MD5 in verify mode,
-     * which surfaces as ASN_SIG_CONFIRM_E from ConfirmSignature(). */
+     * and wolfSSL_CertManagerVerifyBuffer() returns that error. */
     ExpectNotNull(cm = wolfSSL_CertManagerNew());
-    ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, ca_cert_der_2048,
-                sizeof_ca_cert_der_2048, WOLFSSL_FILETYPE_ASN1),
-                WOLFSSL_SUCCESS);
+    if (cm != NULL) {
+        ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, ca_cert_der_2048,
+                    sizeof_ca_cert_der_2048, WOLFSSL_FILETYPE_ASN1),
+                    WOLFSSL_SUCCESS);
 
-    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
-                WOLFSSL_FILETYPE_ASN1),
-                WC_NO_ERR_TRACE(HASH_TYPE_E));
+        ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
+                    WOLFSSL_FILETYPE_ASN1),
+                    WC_NO_ERR_TRACE(HASH_TYPE_E));
+    }
 
+cleanup:
     wolfSSL_CertManagerFree(cm);
     XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (caKeyInit) wc_FreeRsaKey(&caKey);
