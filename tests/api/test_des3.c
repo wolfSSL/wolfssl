@@ -165,11 +165,15 @@ int test_wc_Des3_CbcEncryptDecrypt(void)
     ExpectIntEQ(wc_Des3_CbcDecrypt(&des, plain, NULL, 24),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
-    /* non-block-aligned input rejected with BAD_LENGTH_E */
+#ifndef HAVE_FIPS
+    /* non-block-aligned input rejected with BAD_LENGTH_E.
+     * FIPS builds use the FIPS-certified DES3 implementation which does not
+     * have this check, so skip the test for FIPS. */
     ExpectIntEQ(wc_Des3_CbcEncrypt(&des, cipher, vector, DES_BLOCK_SIZE - 1),
         WC_NO_ERR_TRACE(BAD_LENGTH_E));
     ExpectIntEQ(wc_Des3_CbcDecrypt(&des, plain, cipher, DES_BLOCK_SIZE - 1),
         WC_NO_ERR_TRACE(BAD_LENGTH_E));
+#endif
 
     wc_Des3Free(&des);
 #endif
