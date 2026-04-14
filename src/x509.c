@@ -3277,8 +3277,8 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509V3_EXT_nconf(WOLFSSL_CONF *conf,
 
     WOLFSSL_ENTER("wolfSSL_X509V3_EXT_nconf");
 
-    if (value == NULL) {
-        WOLFSSL_MSG("value NULL parameter");
+    if (value == NULL || sName == NULL) {
+        WOLFSSL_MSG("NULL parameter");
         return NULL;
     }
 

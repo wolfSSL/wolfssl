@@ -14545,7 +14545,10 @@ void* wolfSSL_GetHKDFExtractCtx(WOLFSSL* ssl)
         else if (a->type == WOLFSSL_GEN_DNS || a->type == WOLFSSL_GEN_EMAIL ||
                  a->type == WOLFSSL_GEN_URI) {
             bufSz = (int)XSTRLEN((const char*)a->obj);
-            XMEMCPY(buf, a->obj, min((word32)bufSz, (word32)bufLen));
+            if (bufSz >= bufLen) {
+                bufSz = bufLen - 1;
+            }
+            XMEMCPY(buf, a->obj, (size_t)bufSz);
         }
         else if ((bufSz = wolfssl_obj2txt_numeric(buf, bufLen, a)) > 0) {
             if ((desc = oid_translate_num_to_str(buf))) {
@@ -17498,7 +17501,7 @@ int wolfSSL_CTX_set_alpn_protos(WOLFSSL_CTX *ctx, const unsigned char *p,
                             unsigned int p_len)
 {
     WOLFSSL_ENTER("wolfSSL_CTX_set_alpn_protos");
-    if (ctx == NULL)
+    if (ctx == NULL || p == NULL)
         return BAD_FUNC_ARG;
     if (ctx->alpn_cli_protos != NULL) {
         XFREE((void*)ctx->alpn_cli_protos, ctx->heap, DYNAMIC_TYPE_OPENSSL);
@@ -17552,7 +17555,7 @@ int wolfSSL_set_alpn_protos(WOLFSSL* ssl,
 
     WOLFSSL_ENTER("wolfSSL_set_alpn_protos");
 
-    if (ssl == NULL || p_len <= 1) {
+    if (ssl == NULL || p_len <= 1 || p == NULL) {
 #if defined(WOLFSSL_ERROR_CODE_OPENSSL)
         /* 0 on success in OpenSSL, non-0 on failure in OpenSSL
          * the function reverses the return value convention.

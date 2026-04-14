@@ -4159,6 +4159,10 @@ int wolfSSL_CTX_use_PrivateKey_Id(WOLFSSL_CTX* ctx, const unsigned char* id,
 
     WOLFSSL_ENTER("wolfSSL_CTX_use_PrivateKey_Id");
 
+    if (ctx == NULL || id == NULL || sz < 0) {
+        return 0;
+    }
+
     /* Dispose of old private key and allocate and copy in id. */
     FreeDer(&ctx->privateKey);
     if (AllocCopyDer(&ctx->privateKey, id, (word32)sz, PRIVATEKEY_TYPE,
@@ -4227,9 +4231,15 @@ int wolfSSL_CTX_use_PrivateKey_Label(WOLFSSL_CTX* ctx, const char* label,
     int devId)
 {
     int ret = 1;
-    word32 sz = (word32)XSTRLEN(label) + 1;
+    word32 sz;
 
     WOLFSSL_ENTER("wolfSSL_CTX_use_PrivateKey_Label");
+
+    if (ctx == NULL || label == NULL) {
+        return 0;
+    }
+
+    sz = (word32)XSTRLEN(label) + 1;
 
     /* Dispose of old private key and allocate and copy in label. */
     FreeDer(&ctx->privateKey);
@@ -4268,7 +4278,7 @@ int wolfSSL_CTX_use_AltPrivateKey_Id(WOLFSSL_CTX* ctx, const unsigned char* id,
 
     WOLFSSL_ENTER("wolfSSL_CTX_use_AltPrivateKey_Id");
 
-    if ((ctx == NULL) || (id == NULL)) {
+    if ((ctx == NULL) || (id == NULL) || (sz < 0)) {
         ret = 0;
     }
 
@@ -4561,6 +4571,10 @@ int wolfSSL_use_PrivateKey_Id(WOLFSSL* ssl, const unsigned char* id,
 {
     int ret = 1;
 
+    if (ssl == NULL || id == NULL || sz < 0) {
+        return 0;
+    }
+
     /* Dispose of old private key if owned and allocate and copy in id. */
     if (ssl->buffers.weOwnKey) {
         FreeDer(&ssl->buffers.key);
@@ -4629,7 +4643,13 @@ int wolfSSL_use_PrivateKey_id(WOLFSSL* ssl, const unsigned char* id,
 int wolfSSL_use_PrivateKey_Label(WOLFSSL* ssl, const char* label, int devId)
 {
     int ret = 1;
-    word32 sz = (word32)XSTRLEN(label) + 1;
+    word32 sz;
+
+    if (ssl == NULL || label == NULL) {
+        return 0;
+    }
+
+    sz = (word32)XSTRLEN(label) + 1;
 
     /* Dispose of old private key if owned and allocate and copy in label. */
     if (ssl->buffers.weOwnKey) {
@@ -4672,7 +4692,7 @@ int wolfSSL_use_AltPrivateKey_Id(WOLFSSL* ssl, const unsigned char* id, long sz,
 {
     int ret = 1;
 
-    if ((ssl == NULL) || (id == NULL)) {
+    if ((ssl == NULL) || (id == NULL) || (sz < 0)) {
         ret = 0;
     }
 
