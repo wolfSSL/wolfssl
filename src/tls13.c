@@ -6287,6 +6287,18 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
         /* This PSK works, no need to try any more. */
         current->chosen = 1;
         ext->resp = 1;
+#if defined(WOLFSSL_EARLY_DATA) && defined(HAVE_SESSION_TICKET) && \
+    !defined(NO_SESSION_CACHE)
+        /* RFC 8446 section 8: accept 0-RTT for a given handshake at most
+         * once. Evict the session from both the internal cache (under a
+         * write lock) and any external cache (via ctx->rem_sess_cb) so
+         * the same ClientHello cannot replay early data. Only when the
+         * client offered 0-RTT on a session that permits it. */
+        if (ssl->earlyData != no_early_data &&
+                ssl->session->maxEarlyDataSz != 0) {
+            (void)wolfSSL_SSL_CTX_remove_session(ssl->ctx, ssl->session);
+        }
+#endif
         break;
     }
 

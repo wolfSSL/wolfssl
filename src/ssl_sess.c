@@ -3242,9 +3242,6 @@ static void SESSION_ex_data_cache_update(WOLFSSL_SESSION* session, int idx,
 
 #endif
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) \
-    || defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY)
-
 #ifndef NO_SESSION_CACHE
 int wolfSSL_SSL_CTX_remove_session(WOLFSSL_CTX *ctx, WOLFSSL_SESSION *s)
 {
@@ -3320,17 +3317,18 @@ int wolfSSL_SSL_CTX_remove_session(WOLFSSL_CTX *ctx, WOLFSSL_SESSION *s)
     return 0;
 }
 
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) \
+    || defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY)
 WOLFSSL_SESSION *wolfSSL_SSL_get0_session(const WOLFSSL *ssl)
 {
     WOLFSSL_ENTER("wolfSSL_SSL_get0_session");
 
     return ssl->session;
 }
-
-#endif /* NO_SESSION_CACHE */
-
 #endif /* OPENSSL_ALL || WOLFSSL_NGINX || WOLFSSL_HAPROXY ||
     OPENSSL_EXTRA || HAVE_LIGHTY */
+
+#endif /* NO_SESSION_CACHE */
 
 #ifdef WOLFSSL_SESSION_EXPORT
 /* Used to import a serialized TLS session.
