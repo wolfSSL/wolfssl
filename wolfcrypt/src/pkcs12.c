@@ -633,6 +633,12 @@ static int wc_PKCS12_verify(WC_PKCS12* pkcs12, byte* data, word32 dataSz,
         return ret;
     }
 
+    if ((word32)ret != mac->digestSz) {
+        WOLFSSL_MSG("PKCS12 MAC digest size mismatch");
+        ForceZero(digest, sizeof(digest));
+        return MAC_CMP_FAILED_E;
+    }
+
 #ifdef WOLFSSL_DEBUG_PKCS12
     {
         byte* p;

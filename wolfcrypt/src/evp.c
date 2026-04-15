@@ -4992,9 +4992,8 @@ int wolfSSL_EVP_DigestVerifyFinal(WOLFSSL_EVP_MD_CTX *ctx,
 
         hashLen = wolfssl_mac_len(ctx->hash.hmac.macType);
 
-        if (siglen > hashLen || siglen > INT_MAX)
+        if (hashLen == 0 || siglen != hashLen)
             return WOLFSSL_FAILURE;
-        /* May be a truncated signature. */
     }
 
     if (wolfssl_evp_digest_pk_final(ctx, digest, &hashLen) <= 0)

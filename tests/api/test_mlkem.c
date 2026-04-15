@@ -3950,3 +3950,71 @@ int test_wc_mlkem_decapsulate_pubonly_fails(void)
     return EXPECT_RESULT();
 } /* END test_wc_mlkem_decapsulate_pubonly_fails */
 
+/* Verify that the re-encryption check catches ciphertext tampering
+ * at various byte offsets and falls back to implicit rejection. */
+int test_wc_mlkem_decap_fo_reject(void)
+{
+    EXPECT_DECLS;
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+#if defined(WOLFSSL_HAVE_MLKEM) && defined(WOLFSSL_WC_MLKEM) && \
+    !defined(WOLFSSL_NO_ML_KEM) && !defined(WOLFSSL_MLKEM_NO_DECAPSULATE) && \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
+    !defined(WOLFSSL_MLKEM_NO_MAKE_KEY)
+    MlKemKey* key = NULL;
+    WC_RNG rng;
+    byte ct[WC_ML_KEM_MAX_CIPHER_TEXT_SIZE];
+    byte ctTampered[WC_ML_KEM_MAX_CIPHER_TEXT_SIZE];
+    byte ss[WC_ML_KEM_SS_SZ];
+    byte ssDec[WC_ML_KEM_SS_SZ];
+    byte ssTampered[WC_ML_KEM_SS_SZ];
+    word32 ctLen = 0;
+
+    XMEMSET(ct, 0, sizeof(ct));
+    XMEMSET(ctTampered, 0, sizeof(ctTampered));
+    XMEMSET(ss, 0, sizeof(ss));
+
+    key = (MlKemKey*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(key);
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+#ifndef WOLFSSL_NO_ML_KEM_768
+    ExpectIntEQ(wc_MlKemKey_Init(key, WC_ML_KEM_768, NULL, INVALID_DEVID), 0);
+#elif !defined(WOLFSSL_NO_ML_KEM_512)
+    ExpectIntEQ(wc_MlKemKey_Init(key, WC_ML_KEM_512, NULL, INVALID_DEVID), 0);
+#else
+    ExpectIntEQ(wc_MlKemKey_Init(key, WC_ML_KEM_1024, NULL, INVALID_DEVID), 0);
+#endif
+
+    ExpectIntEQ(wc_MlKemKey_CipherTextSize(key, &ctLen), 0);
+    ExpectIntEQ(wc_MlKemKey_MakeKey(key, &rng), 0);
+    ExpectIntEQ(wc_MlKemKey_Encapsulate(key, ct, ss, &rng), 0);
+
+    /* Untampered ciphertext recovers the original ss. */
+    XMEMSET(ssDec, 0, sizeof(ssDec));
+    ExpectIntEQ(wc_MlKemKey_Decapsulate(key, ssDec, ct, ctLen), 0);
+    ExpectIntEQ(XMEMCMP(ssDec, ss, WC_ML_KEM_SS_SZ), 0);
+
+    /* Tamper at byte 32: implicit rejection must fire. */
+    XMEMCPY(ctTampered, ct, ctLen);
+    ctTampered[32] ^= 0x01;
+    XMEMSET(ssTampered, 0, sizeof(ssTampered));
+    ExpectIntEQ(wc_MlKemKey_Decapsulate(key, ssTampered, ctTampered, ctLen), 0);
+    ExpectIntNE(XMEMCMP(ssTampered, ss, WC_ML_KEM_SS_SZ), 0);
+
+    /* Tamper at byte 0: also must be rejected. */
+    XMEMCPY(ctTampered, ct, ctLen);
+    ctTampered[0] ^= 0x01;
+    XMEMSET(ssTampered, 0, sizeof(ssTampered));
+    ExpectIntEQ(wc_MlKemKey_Decapsulate(key, ssTampered, ctTampered, ctLen), 0);
+    ExpectIntNE(XMEMCMP(ssTampered, ss, WC_ML_KEM_SS_SZ), 0);
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_MlKemKey_Free(key);
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_mlkem_decap_fo_reject */
+
