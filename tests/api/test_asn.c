@@ -3622,8 +3622,13 @@ int test_wc_AsnDhParamsCoverage(void)
         word32  gSz = (word32)sizeof(g);
 
         /* P1: input == NULL */
+#ifdef WOLFSSL_ASN_TEMPLATE
         ExpectIntEQ(wc_DhParamsLoad(NULL, 10, p, &pSz, g, &gSz),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#else
+        ExpectIntEQ(wc_DhParamsLoad(NULL, 10, p, &pSz, g, &gSz),
+            WC_NO_ERR_TRACE(ASN_PARSE_E));
+#endif
 
         /* P2: p == NULL */
         {
