@@ -28,7 +28,12 @@
 #ifdef WOLFSSL_CMAC
 
 #ifndef NO_AES
-#include <wolfssl/wolfcrypt/aes.h>
+    /* Inhibit definition of struct AesEax, with its circular dependency on the
+     * below definition of struct Cmac.
+     */
+    #define WC_AES_INCLUDE_FOR_CMAC_H
+    #include <wolfssl/wolfcrypt/aes.h>
+    #undef WC_AES_INCLUDE_FOR_CMAC_H
 #endif
 
 #if defined(HAVE_FIPS) && \

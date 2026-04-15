@@ -18362,6 +18362,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aesgcm_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #endif
 
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
     /* Regression test: wc_AesGcmDecryptFinal must reject authTagSz below
      * WOLFSSL_MIN_AUTH_TAG_SZ, consistent with wc_AesGcmDecrypt and
      * wc_AesGcmEncryptFinal. */
@@ -18376,6 +18377,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aesgcm_test(void)
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 #endif /* HAVE_AES_DECRYPT && WOLFSSL_MIN_AUTH_TAG_SZ > 1 */
+#endif /* !HAVE_FIPS || FIPS_VERSION3_GE(7,0,0) */
 
     /* alen is the size to pass in with each update. */
     for (alen = 1; alen < WC_AES_BLOCK_SIZE + 1; alen++) {

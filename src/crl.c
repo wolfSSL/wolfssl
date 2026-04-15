@@ -316,8 +316,26 @@ void FreeCRL(WOLFSSL_CRL* crl, int dynamic)
             WOLFSSL_MSG("Couldn't lock x509 mutex");
         if (!doFree)
             return;
-        wolfSSL_RefFree(&crl->ref);
     }
+#endif
+
+#ifdef HAVE_CRL_MONITOR
+    if (crl->tid != INVALID_THREAD_VAL) {
+        WOLFSSL_MSG("stopping monitor thread");
+        if (StopMonitor(crl->mfd) == 0) {
+            if (wolfSSL_JoinThread(crl->tid) != 0)
+                WOLFSSL_MSG("stop monitor failed in wolfSSL_JoinThread");
+        }
+        else {
+            WOLFSSL_MSG("stop monitor failed");
+        }
+    }
+    if (wolfSSL_CondFree(&crl->cond) != 0)
+        WOLFSSL_MSG("wolfSSL_CondFree failed in FreeCRL");
+#endif
+
+#ifdef OPENSSL_ALL
+    wolfSSL_RefFree(&crl->ref);
 #endif
 
     tmp = crl->crlList;
@@ -343,20 +361,6 @@ void FreeCRL(WOLFSSL_CRL* crl, int dynamic)
         tmp = next;
     }
 
-#ifdef HAVE_CRL_MONITOR
-    if (crl->tid != INVALID_THREAD_VAL) {
-        WOLFSSL_MSG("stopping monitor thread");
-        if (StopMonitor(crl->mfd) == 0) {
-            if (wolfSSL_JoinThread(crl->tid) != 0)
-                WOLFSSL_MSG("stop monitor failed in wolfSSL_JoinThread");
-        }
-        else {
-            WOLFSSL_MSG("stop monitor failed");
-        }
-    }
-    if (wolfSSL_CondFree(&crl->cond) != 0)
-        WOLFSSL_MSG("wolfSSL_CondFree failed in FreeCRL");
-#endif
     wc_FreeRwLock(&crl->crlLock);
     if (dynamic)   /* free self */
         XFREE(crl, crl->heap, DYNAMIC_TYPE_CRL);

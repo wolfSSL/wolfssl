@@ -1546,7 +1546,8 @@ then
         test "$enable_ed448" = "" && enable_ed448=yes
         test "$enable_ed448_stream" = "" && test "$enable_ed448" != "no" && enable_ed448_stream=yes
         test "$enable_aessiv" = "" && enable_aessiv=yes
-        test "$enable_aeseax" = "" && enable_aeseax=yes
+        # AFALG lacks AES-EAX
+        test "$enable_aeseax" = "" && test "$enable_afalg" != "yes" && enable_aeseax=yes
 
         if test "$KERNEL_MODE_DEFAULTS" != "yes"
         then

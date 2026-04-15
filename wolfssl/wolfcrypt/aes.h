@@ -821,22 +821,11 @@ WOLFSSL_LOCAL int wc_local_CmacUpdateAes(struct Cmac *cmac, const byte* in,
 
 #ifdef WOLFSSL_AES_EAX
 
-/* Because of the circular dependency between AES and CMAC, we need to prevent
- * inclusion of AES EAX from CMAC to avoid a recursive inclusion */
-#ifndef WOLF_CRYPT_CMAC_H
-#include <wolfssl/wolfcrypt/cmac.h>
-struct AesEax {
-    Aes  aes;
-    Cmac nonceCmac;
-    Cmac aadCmac;
-    Cmac ciphertextCmac;
-    byte nonceCmacFinal[WC_AES_BLOCK_SIZE];
-    byte aadCmacFinal[WC_AES_BLOCK_SIZE];
-    byte ciphertextCmacFinal[WC_AES_BLOCK_SIZE];
-    byte prefixBuf[WC_AES_BLOCK_SIZE];
-};
-#endif /* !defined(WOLF_CRYPT_CMAC_H) */
+/* Note that struct AesEax is defined at the end of this file, to work around
+ * circular dependency between AES and CMAC.
+ */
 
+struct AesEax;
 typedef struct AesEax AesEax;
 
 /* One-shot API */
@@ -1120,3 +1109,23 @@ WOLFSSL_LOCAL void AES_XTS_decrypt_AARCH32(const byte* in, byte* out,
 
 #endif /* NO_AES */
 #endif /* WOLF_CRYPT_AES_H */
+
+/* Because of the circular dependency between AES and CMAC, we need to define
+ * struct AesEax here, with careful gating.
+ */
+#if defined(WOLFSSL_AES_EAX) && !defined(WC_AES_INCLUDE_FOR_CMAC_H) && \
+    !defined(WC_AESEAX_STRUCT_DEFINED)
+#include <wolfssl/wolfcrypt/cmac.h>
+struct AesEax {
+    Aes  aes;
+    Cmac nonceCmac;
+    Cmac aadCmac;
+    Cmac ciphertextCmac;
+    byte nonceCmacFinal[WC_AES_BLOCK_SIZE];
+    byte aadCmacFinal[WC_AES_BLOCK_SIZE];
+    byte ciphertextCmacFinal[WC_AES_BLOCK_SIZE];
+    byte prefixBuf[WC_AES_BLOCK_SIZE];
+};
+#define WC_AESEAX_STRUCT_DEFINED
+#endif /* WOLFSSL_AES_EAX && !WC_AES_INCLUDE_FOR_CMAC_H && */
+       /* !WC_AESEAX_STRUCT_DEFINED                        */
