@@ -1822,16 +1822,20 @@ static void TLSX_ALPN_FreeAll(ALPN *list, void* heap)
 static word16 TLSX_ALPN_GetSize(ALPN *list)
 {
     ALPN* alpn;
-    word16 length = OPAQUE16_LEN; /* list length */
+    word32 length = OPAQUE16_LEN; /* list length */
 
     while ((alpn = list)) {
         list = alpn->next;
 
         length++; /* protocol name length is on one byte */
-        length += (word16)XSTRLEN(alpn->protocol_name);
+        length += (word32)XSTRLEN(alpn->protocol_name);
+
+        if (length > WOLFSSL_MAX_16BIT) {
+            return 0;
+        }
     }
 
-    return length;
+    return (word16)length;
 }
 
 /** Writes the ALPN objects of a list in a buffer. */
@@ -14979,9 +14983,16 @@ static int TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType,
                         isRequest);
                 break;
 
-            case TLSX_APPLICATION_LAYER_PROTOCOL:
-                length += ALPN_GET_SIZE((ALPN*)extension->data);
+            case TLSX_APPLICATION_LAYER_PROTOCOL: {
+                word16 alpnSz = ALPN_GET_SIZE((ALPN*)extension->data);
+                /* 0 on non-empty list means 16-bit overflow. */
+                if (alpnSz == 0 && extension->data != NULL) {
+                    ret = LENGTH_ERROR;
+                    break;
+                }
+                length += alpnSz;
                 break;
+            }
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
             case TLSX_SIGNATURE_ALGORITHMS:
                 length += SA_GET_SIZE(extension->data);
