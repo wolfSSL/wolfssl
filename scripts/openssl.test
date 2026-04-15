@@ -141,14 +141,21 @@ do_cleanup() {
     echo "in cleanup"
 
     IFS=$OIFS #restore separator
+    sleepseconds=1
     for s in $servers
     do
         f2=${s%:*}
         sname=${f2%:*}
         pid=${f2##*:}
         port=${s##*:}
-        echo "killing server: $sname ($port)"
-        kill -9 "$pid"
+        if kill -0 "$pid"
+        then
+            # sleep to give sanitizers time to dump backtraces.
+            sleep $sleepseconds
+            sleepseconds=0
+            echo "killing server: $sname ($port)"
+            kill -9 "$pid"
+        fi
     done
 }
 

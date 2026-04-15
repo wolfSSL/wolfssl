@@ -39,8 +39,12 @@ if [ "${AM_BWRAPPED-}" != "yes" ]; then
 fi
 
 kill_server() {
+    sleepseconds=1
     for i in $(jobs -pr); do
         if [ "$i" != "$TCPDUMP_PID" ]; then
+            # sleep to give sanitizers time to dump backtraces.
+            sleep $sleepseconds
+            sleepseconds=0
             kill -9 $i
         fi
     done
