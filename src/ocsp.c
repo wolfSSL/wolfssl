@@ -1239,6 +1239,8 @@ OcspResponse* wolfSSL_d2i_OCSP_RESPONSE(OcspResponse** response,
 
     if (data == NULL)
         return NULL;
+    if (len <= 0)
+        return NULL;
 
     if (response != NULL)
         resp = *response;
