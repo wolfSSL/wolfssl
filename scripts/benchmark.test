@@ -60,7 +60,7 @@ remove_ready_file() {
 do_cleanup() {
     echo "in cleanup"
 
-    if [ $server_pid != $no_pid ] && kill -0 $server_pid
+    if [ $server_pid != $no_pid ] && kill -0 $server_pid 2>&-
     then
         # sleep to give sanitizers time to dump backtraces.
         sleep 1

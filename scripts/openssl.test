@@ -148,7 +148,7 @@ do_cleanup() {
         sname=${f2%:*}
         pid=${f2##*:}
         port=${s##*:}
-        if kill -0 "$pid"
+        if kill -0 "$pid" 2>&-
         then
             # sleep to give sanitizers time to dump backtraces.
             sleep $sleepseconds
