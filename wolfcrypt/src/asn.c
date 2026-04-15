@@ -24322,7 +24322,7 @@ int wc_KeyPemToDer(const unsigned char* pem, int pemSz,
 
     WOLFSSL_ENTER("wc_KeyPemToDer");
 
-    if (pem == NULL || (buff != NULL && buffSz <= 0)) {
+    if (pem == NULL || (buff != NULL && buffSz <= 0) || pemSz <= 0) {
         WOLFSSL_MSG("Bad pem der args");
         return BAD_FUNC_ARG;
     }
@@ -24373,7 +24373,7 @@ int wc_CertPemToDer(const unsigned char* pem, int pemSz,
 
     WOLFSSL_ENTER("wc_CertPemToDer");
 
-    if (pem == NULL || buff == NULL || buffSz <= 0) {
+    if (pem == NULL || buff == NULL || buffSz <= 0 || pemSz <= 0) {
         WOLFSSL_MSG("Bad pem der args");
         return BAD_FUNC_ARG;
     }
@@ -24420,7 +24420,7 @@ int wc_PubKeyPemToDer(const unsigned char* pem, int pemSz,
 
     WOLFSSL_ENTER("wc_PubKeyPemToDer");
 
-    if (pem == NULL || (buff != NULL && buffSz <= 0)) {
+    if (pem == NULL || (buff != NULL && buffSz <= 0) || pemSz <= 0) {
         WOLFSSL_MSG("Bad pem der args");
         return BAD_FUNC_ARG;
     }
