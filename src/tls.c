@@ -2961,7 +2961,7 @@ static void TLSX_TCA_FreeAll(TCA* list, void* heap)
 static word16 TLSX_TCA_GetSize(TCA* list)
 {
     TCA* tca;
-    word16 length = OPAQUE16_LEN; /* list length */
+    word32 length = OPAQUE16_LEN; /* list length */
 
     while ((tca = list)) {
         list = tca->next;
@@ -2979,9 +2979,13 @@ static word16 TLSX_TCA_GetSize(TCA* list)
                 length += OPAQUE16_LEN + tca->idSz;
                 break;
         }
+
+        if (length > WOLFSSL_MAX_16BIT) {
+            return 0;
+        }
     }
 
-    return length;
+    return (word16)length;
 }
 
 /** Writes the TCA objects of a list in a buffer. */
@@ -14941,8 +14945,15 @@ static int TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType,
 
             case TLSX_TRUSTED_CA_KEYS:
                 /* TCA only sends the list on the request. */
-                if (isRequest)
-                    length += TCA_GET_SIZE((TCA*)extension->data);
+                if (isRequest) {
+                    word16 tcaSz = TCA_GET_SIZE((TCA*)extension->data);
+                    /* 0 on non-empty list means 16-bit overflow. */
+                    if (tcaSz == 0 && extension->data != NULL) {
+                        ret = LENGTH_ERROR;
+                        break;
+                    }
+                    length += tcaSz;
+                }
                 break;
 
             case TLSX_MAX_FRAGMENT_LENGTH:
