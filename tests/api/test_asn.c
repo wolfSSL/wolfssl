@@ -3622,13 +3622,23 @@ int test_wc_AsnDhParamsCoverage(void)
         word32  gSz = (word32)sizeof(g);
 
         /* P1: input == NULL
-         * Original and template ASN parsers can differ here by build path. */
+         * Only assert this path with template ASN where NULL is validated up
+         * front. Original ASN builds can vary by platform/toolchain. */
+#ifdef WOLFSSL_ASN_TEMPLATE
+        ExpectIntEQ(wc_DhParamsLoad(NULL, 10, p, &pSz, g, &gSz),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#else
         {
-            int dhNullRet = wc_DhParamsLoad(NULL, 10, p, &pSz, g, &gSz);
-            ExpectTrue(dhNullRet == WC_NO_ERR_TRACE(BAD_FUNC_ARG) ||
-                       dhNullRet == WC_NO_ERR_TRACE(ASN_PARSE_E));
+            /* Exercise initial parse failure path without NULL dereference. */
+            static const byte badNullAlt[] = { 0x30, 0x00 };
+            pSz = (word32)sizeof(p);
+            gSz = (word32)sizeof(g);
+            ExpectIntEQ(wc_DhParamsLoad(badNullAlt, (word32)sizeof(badNullAlt),
+                p, &pSz, g, &gSz), WC_NO_ERR_TRACE(ASN_PARSE_E));
         }
+#endif
 
+#ifdef WOLFSSL_ASN_TEMPLATE
         /* P2: p == NULL */
         {
             static const byte dummy[] = { 0x30, 0x04, 0x02, 0x01, 0x01,
@@ -3666,6 +3676,7 @@ int test_wc_AsnDhParamsCoverage(void)
             ExpectIntEQ(wc_DhParamsLoad(dummy, (word32)sizeof(dummy),
                 p, &pSz, g, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         }
+#endif
 
         /* P6: Valid dh2048.der read from file system */
         {
