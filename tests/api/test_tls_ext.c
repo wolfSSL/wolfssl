@@ -284,6 +284,72 @@ int test_tls13_null_cipher_bad_hmac(void)
 }
 
 
+/* F-2913 and F-2914: the TLSX_SecureRenegotiation_Parse
+ * ConstantCompare against the cached Finished verify_data must reject
+ * a mismatch on both the client and server sides. */
+int test_scr_verify_data_mismatch(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SECURE_RENEGOTIATION) && !defined(WOLFSSL_NO_TLS12) && \
+        defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) && \
+        defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    int side;
+
+    for (side = 0; side < 2; side++) {
+        struct test_memio_ctx test_ctx;
+        WOLFSSL_CTX *ctx_c = NULL;
+        WOLFSSL_CTX *ctx_s = NULL;
+        WOLFSSL *ssl_c = NULL;
+        WOLFSSL *ssl_s = NULL;
+        WOLFSSL *failing;
+        byte data;
+        int ret;
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        test_ctx.c_ciphers = test_ctx.s_ciphers =
+                "ECDHE-RSA-AES128-GCM-SHA256";
+
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+                &ssl_s, wolfTLSv1_2_client_method,
+                wolfTLSv1_2_server_method), 0);
+        ExpectIntEQ(wolfSSL_CTX_UseSecureRenegotiation(ctx_c),
+                WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_UseSecureRenegotiation(ctx_s),
+                WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_UseSecureRenegotiation(ssl_c), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_UseSecureRenegotiation(ssl_s), WOLFSSL_SUCCESS);
+
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+        /* side 0: corrupt the client's copy; side 1: corrupt the
+         * server's copy. */
+        if (side == 0) {
+            if (ssl_c != NULL && ssl_c->secure_renegotiation != NULL)
+                ssl_c->secure_renegotiation->server_verify_data[0] ^= 0xFF;
+            failing = ssl_c;
+        }
+        else {
+            if (ssl_s != NULL && ssl_s->secure_renegotiation != NULL)
+                ssl_s->secure_renegotiation->client_verify_data[0] ^= 0xFF;
+            failing = ssl_s;
+        }
+
+        ret = wolfSSL_Rehandshake(ssl_c);
+        (void)ret;
+        (void)wolfSSL_read(ssl_s, &data, 1);
+        (void)wolfSSL_read(ssl_c, &data, 1);
+        ExpectIntEQ(wolfSSL_get_error(failing, 0),
+                WC_NO_ERR_TRACE(SECURE_RENEGOTIATION_E));
+
+        wolfSSL_free(ssl_c);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_CTX_free(ctx_s);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_DisableExtendedMasterSecret(void)
 {
     EXPECT_DECLS;
