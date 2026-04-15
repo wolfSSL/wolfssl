@@ -1703,8 +1703,8 @@ static int test_dual_alg_ecdsa_mldsa(void)
 static int test_wolfSSL_use_AltPrivateKey_Id(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_DUAL_ALG_CERTS) && !defined(NO_TLS) && \
-    !defined(NO_WOLFSSL_CLIENT)
+#if defined(WOLF_PRIVATE_KEY_ID) && defined(WOLFSSL_DUAL_ALG_CERTS) && \
+    !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL*     ssl = NULL;
     const unsigned char id[] = { 0x01, 0x02, 0x03, 0x04 };
@@ -1724,7 +1724,8 @@ static int test_wolfSSL_use_AltPrivateKey_Id(void)
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
-#endif /* WOLFSSL_DUAL_ALG_CERTS && !NO_TLS && !NO_WOLFSSL_CLIENT */
+#endif /* WOLF_PRIVATE_KEY_ID && WOLFSSL_DUAL_ALG_CERTS && !NO_TLS && */
+       /* !NO_WOLFSSL_CLIENT                                          */
     return EXPECT_RESULT();
 }
 
@@ -1735,8 +1736,8 @@ static int test_wolfSSL_use_AltPrivateKey_Id(void)
 static int test_wolfSSL_use_AltPrivateKey_Label(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_DUAL_ALG_CERTS) && !defined(NO_TLS) && \
-    !defined(NO_WOLFSSL_CLIENT)
+#if defined(WOLF_PRIVATE_KEY_ID) && defined(WOLFSSL_DUAL_ALG_CERTS) && \
+    !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL*     ssl = NULL;
 
@@ -1754,7 +1755,8 @@ static int test_wolfSSL_use_AltPrivateKey_Label(void)
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
-#endif /* WOLFSSL_DUAL_ALG_CERTS && !NO_TLS && !NO_WOLFSSL_CLIENT */
+#endif /* WOLF_PRIVATE_KEY_ID && WOLFSSL_DUAL_ALG_CERTS && !NO_TLS && */
+       /* !NO_WOLFSSL_CLIENT                                          */
     return EXPECT_RESULT();
 }
 

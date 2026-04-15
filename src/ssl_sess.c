@@ -4366,8 +4366,8 @@ int wolfSSL_SESSION_get_ex_new_index(long ctx_l,void* ctx_ptr,
         WOLFSSL_CRYPTO_EX_free* free_func)
 {
     WOLFSSL_ENTER("wolfSSL_SESSION_get_ex_new_index");
-    return wolfssl_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_SSL_SESSION, ctx_l,
-            ctx_ptr, new_func, dup_func, free_func);
+    return wolfssl_local_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_SSL_SESSION,
+            ctx_l, ctx_ptr, new_func, dup_func, free_func);
 }
 #endif /* HAVE_EX_DATA_CRYPTO */
 #endif /* HAVE_EX_DATA */

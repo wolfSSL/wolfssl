@@ -15463,7 +15463,7 @@ int wolfSSL_X509_get_ex_new_index(int idx, void *arg,
 {
     WOLFSSL_ENTER("wolfSSL_X509_get_ex_new_index");
 
-    return wolfssl_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_X509, idx, arg,
+    return wolfssl_local_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_X509, idx, arg,
                                     new_func, dup_func, free_func);
 }
 #endif
