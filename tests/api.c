@@ -14839,7 +14839,11 @@ static int test_wolfSSL_ECH_conn_ex(method_provider serverMeth,
         ExpectStrEQ(privateName, reply);
     }
     else {
-        ExpectIntNE(ret, WOLFSSL_SUCCESS);
+        /* Cross-version behavior is config-dependent. Some builds fail
+         * the handshake, others negotiate and ignore ECH. */
+        if (ret == WOLFSSL_SUCCESS) {
+            ExpectIntEQ(ssl->options.echAccepted, 0);
+        }
     }
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
