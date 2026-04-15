@@ -2315,7 +2315,7 @@ enum Max_ASN {
     MAX_ENCODED_SIG_SZ  = 5120,
 #elif !defined(NO_RSA)
 #if defined(USE_FAST_MATH) && defined(FP_MAX_BITS)
-    MAX_ENCODED_SIG_SZ  = FP_MAX_BITS / 8,
+    MAX_ENCODED_SIG_SZ  = FP_MAX_BITS / 16,
 #elif (defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_MATH)) && \
     defined(SP_INT_BITS)
     MAX_ENCODED_SIG_SZ  = WC_BITS_TO_BYTES(SP_INT_BITS),
