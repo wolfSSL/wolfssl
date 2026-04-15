@@ -1664,23 +1664,59 @@ tryliboqsdir=""
 AC_ARG_WITH([liboqs],
     [AS_HELP_STRING([--with-liboqs=PATH],[Path to liboqs install (default /usr/local) (requires --enable-experimental)])],
     [
+        liboqs_saved_CPPFLAGS="$CPPFLAGS"
+        liboqs_saved_LDFLAGS="$LDFLAGS"
+        liboqs_saved_LIBS="$LIBS"
+        liboqs_saved_PKG_CONFIG_PATH="$PKG_CONFIG_PATH"
+        liboqs_pkgconfig_flags=""
+        liboqs_pkgconfig_libs=""
+        liboqs_link_libs="-loqs"
+        liboqs_user_cppflags=""
+        liboqs_user_ldflags=""
+
         AS_IF([ test "$ENABLED_EXPERIMENTAL" != "yes" ],[ AC_MSG_ERROR([LIBOQS requires --enable-experimental.]) ])
         AC_MSG_CHECKING([for liboqs])
-        LIBS="$LIBS -loqs"
         AM_CFLAGS="$AM_CFLAGS -pthread"
+
+        if test "x$withval" != "xno" && test "x$withval" != "xyes"; then
+            tryliboqsdir=$withval
+        fi
+        if test "x$withval" = "xyes"; then
+            tryliboqsdir="/usr/local"
+        fi
+
+        if test -n "$tryliboqsdir" && test -d "$tryliboqsdir/lib/pkgconfig"; then
+            PKG_CONFIG_PATH="$tryliboqsdir/lib/pkgconfig${PKG_CONFIG_PATH+:$PKG_CONFIG_PATH}"
+        fi
+
+        if command -v pkg-config >/dev/null 2>&1 && \
+           PKG_CONFIG_PATH="$PKG_CONFIG_PATH" pkg-config --exists liboqs; then
+            liboqs_pkgconfig_flags=`PKG_CONFIG_PATH="$PKG_CONFIG_PATH" pkg-config --cflags liboqs`
+            liboqs_pkgconfig_libs=`PKG_CONFIG_PATH="$PKG_CONFIG_PATH" pkg-config --static --libs liboqs`
+            liboqs_link_libs="$liboqs_pkgconfig_libs"
+            liboqs_user_cppflags="$liboqs_pkgconfig_flags"
+            CPPFLAGS="$CPPFLAGS $liboqs_pkgconfig_flags -DHAVE_LIBOQS -DHAVE_TLS_EXTENSIONS -pthread"
+            LIBS="$LIBS $liboqs_pkgconfig_libs"
+        else
+            LIBS="$LIBS -loqs"
+        fi
 
         AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <oqs/common.h>]], [[ OQS_init(); ]])], [ liboqs_linked=yes ],[ liboqs_linked=no ])
 
         if test "x$liboqs_linked" = "xno" ; then
-            if test "x$withval" != "xno" ; then
-                tryliboqsdir=$withval
-            fi
+            CPPFLAGS="$liboqs_saved_CPPFLAGS"
+            LDFLAGS="$liboqs_saved_LDFLAGS"
+            LIBS="$liboqs_saved_LIBS -loqs"
+
             if test "x$withval" = "xyes" ; then
                 tryliboqsdir="/usr/local"
             fi
 
             CPPFLAGS="$AM_CPPFLAGS -DHAVE_LIBOQS -DHAVE_TLS_EXTENSIONS -I$tryliboqsdir/include -pthread"
-            LDFLAGS="$AM_LDFLAGS $LDFLAGS -L$tryliboqsdir/lib"
+            LDFLAGS="$AM_LDFLAGS $liboqs_saved_LDFLAGS -L$tryliboqsdir/lib"
+            liboqs_user_cppflags="-I$tryliboqsdir/include"
+            liboqs_user_ldflags="-L$tryliboqsdir/lib"
+            liboqs_link_libs="$liboqs_user_ldflags -loqs"
 
             AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <oqs/common.h>]], [[ OQS_init(); ]])], [ liboqs_linked=yes ],[ liboqs_linked=no ])
 
@@ -1693,7 +1729,15 @@ AC_ARG_WITH([liboqs],
             AM_LDFLAGS="$AM_LDFLAGS -L$tryliboqsdir/lib"
         else
             AC_MSG_RESULT([yes])
+            AM_CPPFLAGS="$AM_CPPFLAGS $liboqs_pkgconfig_flags"
         fi
+
+        LIB_ADD="$LIB_ADD $liboqs_link_libs"
+
+        PKG_CONFIG_PATH="$liboqs_saved_PKG_CONFIG_PATH"
+        CPPFLAGS="$liboqs_saved_CPPFLAGS $liboqs_user_cppflags"
+        LDFLAGS="$liboqs_saved_LDFLAGS $liboqs_user_ldflags"
+        LIBS="$liboqs_saved_LIBS"
 
         if test "x$ENABLED_OPENSSLEXTRA" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
         then

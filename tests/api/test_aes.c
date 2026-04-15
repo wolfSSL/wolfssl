@@ -6519,6 +6519,237 @@ int test_wc_AesGcm_MonteCarlo(void)
     return EXPECT_RESULT();
 }
 
+typedef struct test_aes_keywrap_vector {
+    const byte* key;
+    word32      keySz;
+    const byte* msg;
+    word32      msgSz;
+    const byte* ct;
+    word32      ctSz;
+} test_aes_keywrap_vector;
+
+int test_wc_AesKeyWrapVectors(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_AES) && defined(HAVE_AES_KEYWRAP) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)
+    static const byte key1[] = {
+        0x6f, 0x67, 0x48, 0x6d, 0x1e, 0x91, 0x44, 0x19,
+        0xcb, 0x43, 0xc2, 0x85, 0x09, 0xc7, 0xc1, 0xea
+    };
+    static const byte msg1[] = {
+        0x8d, 0xc0, 0x63, 0x2d, 0x92, 0xee, 0x0b, 0xe4,
+        0xf7, 0x40, 0x02, 0x84, 0x10, 0xb0, 0x82, 0x70
+    };
+    static const byte ct1[] = {
+        0x9d, 0xe4, 0x53, 0xce, 0xd5, 0xd4, 0xab, 0x46,
+        0xa5, 0x60, 0x17, 0x08, 0xee, 0xef, 0xef, 0xb5,
+        0xe5, 0x93, 0xe6, 0xae, 0x8e, 0x86, 0xb2, 0x6b
+    };
+    static const byte key2[] = {
+        0xa0, 0xb1, 0x71, 0x72, 0xbb, 0x29, 0x6d, 0xb7,
+        0xf5, 0xc8, 0x69, 0xe9, 0xa3, 0x6b, 0x5c, 0xe3
+    };
+    static const byte msg2[] = {
+        0x61, 0x5d, 0xd0, 0x22, 0xd6, 0x07, 0xc9, 0x10,
+        0xf2, 0x01, 0x78, 0xcb, 0xdf, 0x42, 0x06, 0x0f
+    };
+    static const byte ct2[] = {
+        0x8c, 0x3a, 0xba, 0x85, 0xcc, 0x0a, 0xe1, 0xae,
+        0x10, 0xb3, 0x66, 0x58, 0xb0, 0x68, 0xf5, 0x95,
+        0xba, 0xf8, 0xca, 0xaf, 0xb7, 0x45, 0xef, 0x3c
+    };
+    static const byte key3[] = {
+        0x0e, 0x49, 0xd5, 0x71, 0xc1, 0x9b, 0x52, 0x50,
+        0xef, 0xfd, 0x41, 0xd9, 0x4b, 0xde, 0x39, 0xd6
+    };
+    static const byte msg3[] = {
+        0xf2, 0x5e, 0x4d, 0xe8, 0xca, 0xca, 0x36, 0x3f,
+        0xd5, 0xf2, 0x94, 0x42, 0xeb, 0x14, 0x7b, 0x55
+    };
+    static const byte ct3[] = {
+        0x1d, 0xe0, 0x93, 0x65, 0x48, 0x26, 0xf1, 0x8f,
+        0xcd, 0x0f, 0x3f, 0xd4, 0x99, 0x41, 0x6f, 0xf2,
+        0x2e, 0xd7, 0x5e, 0xe1, 0x2f, 0xe0, 0xb6, 0x24
+    };
+    static const byte key4[] = {
+        0xe0, 0xe1, 0x29, 0x59, 0x10, 0x91, 0x03, 0xe3,
+        0x0a, 0xe8, 0xb5, 0x68, 0x4a, 0x22, 0xe6, 0x62
+    };
+    static const byte msg4[] = {
+        0xdb, 0xb0, 0xf2, 0xbb, 0x2b, 0xe9, 0x12, 0xa2,
+        0x04, 0x30, 0x97, 0x2d, 0x98, 0x42, 0xce, 0x3f,
+        0xd3, 0xb9, 0x28, 0xe5, 0x73, 0xe1, 0xac, 0x8e
+    };
+    static const byte ct4[] = {
+        0x9c, 0x3d, 0xdc, 0x23, 0x82, 0x7b, 0x7b, 0x3c,
+        0x13, 0x10, 0x5f, 0x9e, 0x8b, 0x11, 0x52, 0x3b,
+        0xac, 0xcd, 0xfb, 0x6c, 0x8b, 0x7e, 0x78, 0x25,
+        0x49, 0x6e, 0x7a, 0x84, 0x0b, 0xd3, 0x2a, 0xec
+    };
+    static const test_aes_keywrap_vector vectors[] = {
+        { key1, sizeof(key1), msg1, sizeof(msg1), ct1, sizeof(ct1) },
+        { key2, sizeof(key2), msg2, sizeof(msg2), ct2, sizeof(ct2) },
+        { key3, sizeof(key3), msg3, sizeof(msg3), ct3, sizeof(ct3) },
+        { key4, sizeof(key4), msg4, sizeof(msg4), ct4, sizeof(ct4) }
+    };
+    byte wrapped[40];
+    byte unwrapped[32];
+    byte tampered[sizeof(ct1)];
+    word32 i;
+    int wrapSz;
+    int unwrapSz;
+
+    for (i = 0; i < (word32)XELEM_CNT(vectors); i++) {
+        XMEMSET(wrapped, 0, sizeof(wrapped));
+        XMEMSET(unwrapped, 0, sizeof(unwrapped));
+
+        wrapSz = wc_AesKeyWrap(vectors[i].key, vectors[i].keySz, vectors[i].msg,
+            vectors[i].msgSz, wrapped, vectors[i].ctSz, NULL);
+        ExpectIntEQ(wrapSz, (int)vectors[i].ctSz);
+        ExpectBufEQ(wrapped, vectors[i].ct, vectors[i].ctSz);
+
+        unwrapSz = wc_AesKeyUnWrap(vectors[i].key, vectors[i].keySz,
+            vectors[i].ct, vectors[i].ctSz, unwrapped, vectors[i].msgSz, NULL);
+        ExpectIntEQ(unwrapSz, (int)vectors[i].msgSz);
+        ExpectBufEQ(unwrapped, vectors[i].msg, vectors[i].msgSz);
+    }
+
+    XMEMCPY(tampered, ct1, sizeof(tampered));
+    tampered[sizeof(tampered) - 1] ^= 0x01;
+    ExpectIntLT(wc_AesKeyUnWrap(key1, sizeof(key1), tampered, sizeof(tampered),
+        unwrapped, sizeof(msg1), NULL), 0);
+#endif
+
+    return EXPECT_RESULT();
+}
+
+
+int test_wc_AesKeyWrapDecisionCoverage(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_AES) && defined(HAVE_AES_KEYWRAP) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)
+    static const byte kek[16] = {
+        0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
+        0x08,0x09,0x0A,0x0B,0x0C,0x0D,0x0E,0x0F
+    };
+    static const byte plain[16] = {
+        0x00,0x11,0x22,0x33,0x44,0x55,0x66,0x77,
+        0x88,0x99,0xAA,0xBB,0xCC,0xDD,0xEE,0xFF
+    };
+    /* Non-multiple-of-8 length to exercise the length-alignment branch. */
+    static const byte badLenPlain[15] = {
+        0x00,0x11,0x22,0x33,0x44,0x55,0x66,0x77,
+        0x88,0x99,0xAA,0xBB,0xCC,0xDD,0xEE
+    };
+    byte wrapped[24];
+    byte unwrapped[16];
+
+    /* wc_AesKeyWrap: null key, null in, null out decision branches. */
+    ExpectIntEQ(wc_AesKeyWrap(NULL, sizeof(kek), plain, sizeof(plain),
+        wrapped, sizeof(wrapped), NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesKeyWrap(kek, sizeof(kek), NULL, sizeof(plain),
+        wrapped, sizeof(wrapped), NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesKeyWrap(kek, sizeof(kek), plain, sizeof(plain),
+        NULL, sizeof(wrapped), NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Output buffer smaller than inSz + KEYWRAP_BLOCK_SIZE: short-buffer
+     * decision branch. */
+    ExpectIntEQ(wc_AesKeyWrap(kek, sizeof(kek), plain, sizeof(plain),
+        wrapped, sizeof(plain), NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* inSz is not a multiple of KEYWRAP_BLOCK_SIZE (8): alignment branch. */
+    ExpectIntLT(wc_AesKeyWrap(kek, sizeof(kek), badLenPlain,
+        sizeof(badLenPlain), wrapped, sizeof(wrapped), NULL), 0);
+
+    /* wc_AesKeyUnWrap: null key, null in, null out decision branches. */
+    ExpectIntEQ(wc_AesKeyUnWrap(NULL, sizeof(kek), wrapped, sizeof(wrapped),
+        unwrapped, sizeof(unwrapped), NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesKeyUnWrap(kek, sizeof(kek), NULL, sizeof(wrapped),
+        unwrapped, sizeof(unwrapped), NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesKeyUnWrap(kek, sizeof(kek), wrapped, sizeof(wrapped),
+        NULL, sizeof(unwrapped), NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Output buffer smaller than unwrapped size: short-buffer branch. */
+    ExpectIntEQ(wc_AesKeyUnWrap(kek, sizeof(kek), wrapped, sizeof(wrapped),
+        unwrapped, sizeof(wrapped) - 9, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* inSz not a multiple of KEYWRAP_BLOCK_SIZE: alignment branch. */
+    ExpectIntLT(wc_AesKeyUnWrap(kek, sizeof(kek), wrapped, sizeof(wrapped) - 1,
+        unwrapped, sizeof(unwrapped), NULL), 0);
+
+#ifdef WOLFSSL_AES_DIRECT
+    /* wc_AesKeyWrap_ex / wc_AesKeyUnWrap_ex argument-check branches. */
+    {
+        Aes aes;
+        XMEMSET(&aes, 0, sizeof(aes));
+        ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_AesSetKey(&aes, kek, sizeof(kek), NULL, AES_ENCRYPTION),
+            0);
+
+        ExpectIntEQ(wc_AesKeyWrap_ex(NULL, plain, sizeof(plain),
+            wrapped, sizeof(wrapped), NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_AesKeyWrap_ex(&aes, NULL, sizeof(plain),
+            wrapped, sizeof(wrapped), NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_AesKeyWrap_ex(&aes, plain, sizeof(plain),
+            NULL, sizeof(wrapped), NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        ExpectIntEQ(wc_AesKeyUnWrap_ex(NULL, wrapped, sizeof(wrapped),
+            unwrapped, sizeof(unwrapped), NULL),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_AesKeyUnWrap_ex(&aes, NULL, sizeof(wrapped),
+            unwrapped, sizeof(unwrapped), NULL),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_AesKeyUnWrap_ex(&aes, wrapped, sizeof(wrapped),
+            NULL, sizeof(unwrapped), NULL),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        wc_AesFree(&aes);
+    }
+#endif /* WOLFSSL_AES_DIRECT */
+#endif /* !NO_AES && HAVE_AES_KEYWRAP && !HAVE_FIPS && !HAVE_SELFTEST */
+    return EXPECT_RESULT();
+}
+
+
+int test_wc_AesGcmDecisionCoverage(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_AES) && defined(HAVE_AESGCM)
+    static const byte key[16] = {
+        0xFE,0xFF,0xE9,0x92,0x86,0x65,0x73,0x1C,
+        0x6D,0x6A,0x8F,0x94,0x67,0x30,0x83,0x08
+    };
+    static const byte iv[GCM_NONCE_MID_SZ] = {
+        0xCA,0xFE,0xBA,0xBE,0xFA,0xCE,0xDB,0xAD,
+        0xDE,0xCA,0xF8,0x88
+    };
+    Aes aes;
+    int initDone = 0;
+
+    XMEMSET(&aes, 0, sizeof(aes));
+    ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+    if (EXPECT_SUCCESS()) initDone = 1;
+    ExpectIntEQ(wc_AesGcmSetKey(&aes, key, sizeof(key)), 0);
+
+    /* wc_AesGcmSetExtIV null-argument decision branches. */
+    ExpectIntEQ(wc_AesGcmSetExtIV(NULL, iv, sizeof(iv)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesGcmSetExtIV(&aes, NULL, sizeof(iv)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Zero-length IV branch: should reject. */
+    ExpectIntEQ(wc_AesGcmSetExtIV(&aes, iv, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* wc_AesGcmSetKey invalid key-length decision branch. */
+    {
+        static const byte badKey[15] = {0};
+        ExpectIntEQ(wc_AesGcmSetKey(&aes, badKey, sizeof(badKey)),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    }
+
+    if (initDone) wc_AesFree(&aes);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Monte Carlo test for AES-CCM: random key, nonce, and plaintext each
  * iteration */
 int test_wc_AesCcm_MonteCarlo(void)
@@ -6749,5 +6980,1053 @@ int test_wc_AesOfb_MonteCarlo(void)
     WC_FREE_VAR(cipher,    NULL);
     WC_FREE_VAR(decrypted, NULL);
 #endif
+    return EXPECT_RESULT();
+}
+
+/* Use the strongest compiled-in AES key length for coverage tests. */
+#if !defined(NO_AES_256)
+    #define TEST_AES_COV_KEY_SZ 32
+#elif !defined(NO_AES_192)
+    #define TEST_AES_COV_KEY_SZ 24
+#else
+    #define TEST_AES_COV_KEY_SZ 16
+#endif
+
+int test_wc_AesFeatureCoverage(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_AES) && defined(HAVE_AESGCM)
+    /* ---- AES-GCM streaming API: multi-chunk AAD and data ---- */
+#ifdef WOLFSSL_AESGCM_STREAM
+    {
+        static const byte key[32] = {
+            0xfe,0xff,0xe9,0x92,0x86,0x65,0x73,0x1c,
+            0x6d,0x6a,0x8f,0x94,0x67,0x30,0x83,0x08,
+            0xfe,0xff,0xe9,0x92,0x86,0x65,0x73,0x1c,
+            0x6d,0x6a,0x8f,0x94,0x67,0x30,0x83,0x08
+        };
+        static const byte iv[GCM_NONCE_MID_SZ] = {
+            0xca,0xfe,0xba,0xbe,0xfa,0xce,0xdb,0xad,
+            0xde,0xca,0xf8,0x88
+        };
+        static const byte aad1[5] = { 0xa1,0xa2,0xa3,0xa4,0xa5 };
+        static const byte aad2[7] = { 0xb1,0xb2,0xb3,0xb4,0xb5,0xb6,0xb7 };
+        static const byte plain[40] = {
+            0x10,0x11,0x12,0x13,0x14,0x15,0x16,0x17,
+            0x18,0x19,0x1a,0x1b,0x1c,0x1d,0x1e,0x1f,
+            0x20,0x21,0x22,0x23,0x24,0x25,0x26,0x27,
+            0x28,0x29,0x2a,0x2b,0x2c,0x2d,0x2e,0x2f,
+            0x30,0x31,0x32,0x33,0x34,0x35,0x36,0x37
+        };
+        Aes aes;
+        byte cipher[sizeof(plain)];
+        byte recovered[sizeof(plain)];
+        byte tag[AES_BLOCK_SIZE];
+        int initDone = 0;
+
+        XMEMSET(&aes, 0, sizeof(aes));
+        ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+        if (EXPECT_SUCCESS()) initDone = 1;
+
+        /* Encrypt: feed AAD across two updates, then plaintext across three. */
+        ExpectIntEQ(wc_AesGcmEncryptInit(&aes, key, TEST_AES_COV_KEY_SZ, iv,
+            sizeof(iv)), 0);
+        ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, NULL, NULL, 0, aad1,
+            sizeof(aad1)), 0);
+        ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, cipher, plain, 16, aad2,
+            sizeof(aad2)), 0);
+        ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, cipher + 16, plain + 16, 16,
+            NULL, 0), 0);
+        ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, cipher + 32, plain + 32, 8,
+            NULL, 0), 0);
+        ExpectIntEQ(wc_AesGcmEncryptFinal(&aes, tag, sizeof(tag)), 0);
+
+        /* Decrypt: same chunking, must recover plaintext and tag must match. */
+        ExpectIntEQ(wc_AesGcmDecryptInit(&aes, key, TEST_AES_COV_KEY_SZ, iv,
+            sizeof(iv)), 0);
+        ExpectIntEQ(wc_AesGcmDecryptUpdate(&aes, NULL, NULL, 0, aad1,
+            sizeof(aad1)), 0);
+        ExpectIntEQ(wc_AesGcmDecryptUpdate(&aes, recovered, cipher, 16, aad2,
+            sizeof(aad2)), 0);
+        ExpectIntEQ(wc_AesGcmDecryptUpdate(&aes, recovered + 16, cipher + 16,
+            16, NULL, 0), 0);
+        ExpectIntEQ(wc_AesGcmDecryptUpdate(&aes, recovered + 32, cipher + 32,
+            8, NULL, 0), 0);
+        ExpectIntEQ(wc_AesGcmDecryptFinal(&aes, tag, sizeof(tag)), 0);
+        ExpectBufEQ(recovered, plain, sizeof(plain));
+
+        /* Tampered tag must be rejected. */
+        ExpectIntEQ(wc_AesGcmDecryptInit(&aes, key, TEST_AES_COV_KEY_SZ, iv,
+            sizeof(iv)), 0);
+        ExpectIntEQ(wc_AesGcmDecryptUpdate(&aes, recovered, cipher,
+            sizeof(plain), aad1, sizeof(aad1)), 0);
+        ExpectIntEQ(wc_AesGcmDecryptUpdate(&aes, NULL, NULL, 0, aad2,
+            sizeof(aad2)), 0);
+        {
+            byte badTag[AES_BLOCK_SIZE];
+            XMEMCPY(badTag, tag, sizeof(badTag));
+            badTag[0] ^= 0x01;
+            ExpectIntLT(wc_AesGcmDecryptFinal(&aes, badTag, sizeof(badTag)),
+                0);
+        }
+
+        if (initDone) wc_AesFree(&aes);
+    }
+#endif /* WOLFSSL_AESGCM_STREAM */
+
+    /* ---- GMAC: multi-call setup with non-trivial AAD/IV ---- */
+    {
+        Gmac gmac;
+        static const byte gmacKey[16] = {
+            0x77,0xbe,0x63,0x70,0x89,0x71,0xc4,0xe2,
+            0x40,0xd1,0xcb,0x79,0xe8,0xd7,0x7f,0xeb
+        };
+        static const byte gmacIv[12] = {
+            0xe0,0xe0,0x0f,0x19,0xfe,0xd7,0xba,0x01,
+            0x36,0xa7,0x97,0xf3
+        };
+        static const byte gmacAad[20] = {
+            0x7a,0x43,0xec,0x1d,0x9c,0x0a,0x5a,0x78,
+            0xa0,0xb1,0x65,0x33,0xa6,0x21,0x3c,0xab,
+            0x10,0x11,0x12,0x13
+        };
+        byte gmacTag[16];
+
+        XMEMSET(&gmac, 0, sizeof(gmac));
+        ExpectIntEQ(wc_AesInit(&gmac.aes, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_GmacSetKey(&gmac, gmacKey, sizeof(gmacKey)), 0);
+        ExpectIntEQ(wc_GmacUpdate(&gmac, gmacIv, sizeof(gmacIv), gmacAad,
+            sizeof(gmacAad), gmacTag, sizeof(gmacTag)), 0);
+        wc_AesFree(&gmac.aes);
+    }
+#endif /* !NO_AES && HAVE_AESGCM */
+
+#if !defined(NO_AES) && defined(HAVE_AESCCM)
+    /* ---- AES-CCM round trips with varied AAD / nonce / tag sizes ---- */
+    {
+        static const byte ccmKey[16] = {
+            0xc0,0xc1,0xc2,0xc3,0xc4,0xc5,0xc6,0xc7,
+            0xc8,0xc9,0xca,0xcb,0xcc,0xcd,0xce,0xcf
+        };
+        static const byte ccmNonce13[13] = {
+            0x00,0x00,0x00,0x03,0x02,0x01,0x00,0xa0,
+            0xa1,0xa2,0xa3,0xa4,0xa5
+        };
+        static const byte ccmNonce7[7] = {
+            0x10,0x11,0x12,0x13,0x14,0x15,0x16
+        };
+        static const byte ccmAad[8] = {
+            0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07
+        };
+        static const byte ccmPlain[23] = {
+            0x20,0x21,0x22,0x23,0x24,0x25,0x26,0x27,
+            0x28,0x29,0x2a,0x2b,0x2c,0x2d,0x2e,0x2f,
+            0x30,0x31,0x32,0x33,0x34,0x35,0x36
+        };
+        Aes aes;
+        byte ccmCipher[sizeof(ccmPlain)];
+        byte ccmTag[16];
+        byte ccmRecovered[sizeof(ccmPlain)];
+        int initDone = 0;
+
+        XMEMSET(&aes, 0, sizeof(aes));
+        ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+        if (EXPECT_SUCCESS()) initDone = 1;
+        ExpectIntEQ(wc_AesCcmSetKey(&aes, ccmKey, sizeof(ccmKey)), 0);
+
+        /* 13-byte nonce, 16-byte tag, 8-byte AAD. */
+        ExpectIntEQ(wc_AesCcmEncrypt(&aes, ccmCipher, ccmPlain,
+            sizeof(ccmPlain), ccmNonce13, sizeof(ccmNonce13),
+            ccmTag, 16, ccmAad, sizeof(ccmAad)), 0);
+        ExpectIntEQ(wc_AesCcmDecrypt(&aes, ccmRecovered, ccmCipher,
+            sizeof(ccmPlain), ccmNonce13, sizeof(ccmNonce13),
+            ccmTag, 16, ccmAad, sizeof(ccmAad)), 0);
+        ExpectBufEQ(ccmRecovered, ccmPlain, sizeof(ccmPlain));
+
+        /* 7-byte nonce, 8-byte tag, no AAD. */
+        ExpectIntEQ(wc_AesCcmEncrypt(&aes, ccmCipher, ccmPlain,
+            sizeof(ccmPlain), ccmNonce7, sizeof(ccmNonce7),
+            ccmTag, 8, NULL, 0), 0);
+        ExpectIntEQ(wc_AesCcmDecrypt(&aes, ccmRecovered, ccmCipher,
+            sizeof(ccmPlain), ccmNonce7, sizeof(ccmNonce7),
+            ccmTag, 8, NULL, 0), 0);
+        ExpectBufEQ(ccmRecovered, ccmPlain, sizeof(ccmPlain));
+
+        /* Tampered tag rejected. */
+        ccmTag[0] ^= 0x01;
+        ExpectIntLT(wc_AesCcmDecrypt(&aes, ccmRecovered, ccmCipher,
+            sizeof(ccmPlain), ccmNonce7, sizeof(ccmNonce7),
+            ccmTag, 8, NULL, 0), 0);
+
+        /* Empty plaintext: AAD-only authentication. */
+#if defined(HAVE_FIPS)
+        ExpectIntEQ(wc_AesCcmEncrypt(&aes, NULL, NULL, 0,
+            ccmNonce13, sizeof(ccmNonce13),
+            ccmTag, 16, ccmAad, sizeof(ccmAad)),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_AesCcmDecrypt(&aes, NULL, NULL, 0,
+            ccmNonce13, sizeof(ccmNonce13),
+            ccmTag, 16, ccmAad, sizeof(ccmAad)),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#else
+        ExpectIntEQ(wc_AesCcmEncrypt(&aes, NULL, NULL, 0,
+            ccmNonce13, sizeof(ccmNonce13),
+            ccmTag, 16, ccmAad, sizeof(ccmAad)), 0);
+        ExpectIntEQ(wc_AesCcmDecrypt(&aes, NULL, NULL, 0,
+            ccmNonce13, sizeof(ccmNonce13),
+            ccmTag, 16, ccmAad, sizeof(ccmAad)), 0);
+#endif
+
+        if (initDone) wc_AesFree(&aes);
+    }
+#endif /* !NO_AES && HAVE_AESCCM */
+
+#if !defined(NO_AES) && defined(HAVE_AES_KEYWRAP) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    /* ---- AES-KeyWrap with explicit non-default IV ---- */
+    {
+    #if !defined(NO_AES_256)
+        static const byte kwKey[] = {
+            0x60,0x3d,0xeb,0x10,0x15,0xca,0x71,0xbe,
+            0x2b,0x73,0xae,0xf0,0x85,0x7d,0x77,0x81,
+            0x1f,0x35,0x2c,0x07,0x3b,0x61,0x08,0xd7,
+            0x2d,0x98,0x10,0xa3,0x09,0x14,0xdf,0xf4
+        };
+    #elif !defined(NO_AES_192)
+        static const byte kwKey[] = {
+            0x8e,0x73,0xb0,0xf7,0xda,0x0e,0x64,0x52,
+            0xc8,0x10,0xf3,0x2b,0x80,0x90,0x79,0xe5,
+            0x62,0xf8,0xea,0xd2,0x52,0x2c,0x6b,0x7b
+        };
+    #else
+        static const byte kwKey[] = {
+            0x2b,0x7e,0x15,0x16,0x28,0xae,0xd2,0xa6,
+            0xab,0xf7,0x15,0x88,0x09,0xcf,0x4f,0x3c
+        };
+    #endif
+        static const byte kwPlain[16] = {
+            0x00,0x11,0x22,0x33,0x44,0x55,0x66,0x77,
+            0x88,0x99,0xaa,0xbb,0xcc,0xdd,0xee,0xff
+        };
+        static const byte altIv[8] = {
+            0xa6,0xa6,0xa6,0xa6,0xa6,0xa6,0xa6,0xa6
+        };
+        byte wrapped[sizeof(kwPlain) + KEYWRAP_BLOCK_SIZE];
+        byte unwrapped[sizeof(kwPlain)];
+        int wrapSz;
+
+        wrapSz = wc_AesKeyWrap(kwKey, sizeof(kwKey), kwPlain, sizeof(kwPlain),
+            wrapped, sizeof(wrapped), altIv);
+        ExpectIntEQ(wrapSz, sizeof(wrapped));
+        ExpectIntEQ(wc_AesKeyUnWrap(kwKey, sizeof(kwKey), wrapped,
+            sizeof(wrapped), unwrapped, sizeof(unwrapped), altIv),
+            sizeof(unwrapped));
+        ExpectBufEQ(unwrapped, kwPlain, sizeof(kwPlain));
+
+        /* Default-IV path: NULL iv selects RFC 3394 default. */
+        wrapSz = wc_AesKeyWrap(kwKey, sizeof(kwKey), kwPlain, sizeof(kwPlain),
+            wrapped, sizeof(wrapped), NULL);
+        ExpectIntEQ(wrapSz, sizeof(wrapped));
+        ExpectIntEQ(wc_AesKeyUnWrap(kwKey, sizeof(kwKey), wrapped,
+            sizeof(wrapped), unwrapped, sizeof(unwrapped), NULL),
+            sizeof(unwrapped));
+        ExpectBufEQ(unwrapped, kwPlain, sizeof(kwPlain));
+    }
+#endif /* !NO_AES && HAVE_AES_KEYWRAP && !HAVE_FIPS && !HAVE_SELFTEST */
+
+    return EXPECT_RESULT();
+}
+
+/* FR-SYM-003/004/005 requirement-driven feature coverage for CCM, GCM, XTS.
+ * Targets public APIs still under-exercised by the existing vectors tests:
+ * wc_AesGcmSetIV, wc_AesGcmEncrypt_ex, wc_Gmac, wc_GmacVerify,
+ * wc_AesCcmSetNonce, wc_AesCcmEncrypt_ex, and
+ * wc_AesXts{Encrypt,Decrypt}ConsecutiveSectors. */
+int test_wc_AesRequirementCoverage(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_AES) && !defined(WC_NO_RNG) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)
+    WC_RNG rng;
+    int initRng = 0;
+    static const byte key32[32] = {
+        0x60,0x3d,0xeb,0x10,0x15,0xca,0x71,0xbe,
+        0x2b,0x73,0xae,0xf0,0x85,0x7d,0x77,0x81,
+        0x1f,0x35,0x2c,0x07,0x3b,0x61,0x08,0xd7,
+        0x2d,0x98,0x10,0xa3,0x09,0x14,0xdf,0xf4
+    };
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS()) initRng = 1;
+
+#ifdef HAVE_AESGCM
+    {
+        Aes aes;
+        int initAes = 0;
+        byte ivOut[12];
+        byte tag[16];
+        byte cipher[40];
+        byte plain[40];
+        static const byte msg[40] = {
+            0xd9,0x31,0x32,0x25,0xf8,0x84,0x06,0xe5,
+            0xa5,0x59,0x09,0xc5,0xaf,0xf5,0x26,0x9a,
+            0x86,0xa7,0xa9,0x53,0x15,0x34,0xf7,0xda,
+            0x2e,0x4c,0x30,0x3d,0x8a,0x31,0x8a,0x72,
+            0x1c,0x3c,0x0c,0x95,0x95,0x68,0x09,0x53
+        };
+        static const byte aad[20] = {
+            0xfe,0xed,0xfa,0xce,0xde,0xad,0xbe,0xef,
+            0xfe,0xed,0xfa,0xce,0xde,0xad,0xbe,0xef,
+            0xab,0xad,0xda,0xd2
+        };
+        static const byte ivFixed[4] = { 0x00,0x00,0x00,0x01 };
+
+        ExpectIntEQ(wc_AesInit(&aes, HEAP_HINT, INVALID_DEVID), 0);
+        if (EXPECT_SUCCESS()) initAes = 1;
+        ExpectIntEQ(wc_AesGcmSetKey(&aes, key32, TEST_AES_COV_KEY_SZ), 0);
+        ExpectIntEQ(wc_AesGcmSetIV(&aes, sizeof(ivOut), ivFixed,
+            sizeof(ivFixed), &rng), 0);
+        ExpectIntEQ(wc_AesGcmEncrypt_ex(&aes, cipher, msg, sizeof(msg),
+            ivOut, sizeof(ivOut), tag, sizeof(tag), aad, sizeof(aad)), 0);
+        ExpectIntEQ(wc_AesGcmDecrypt(&aes, plain, cipher, sizeof(msg),
+            ivOut, sizeof(ivOut), tag, sizeof(tag), aad, sizeof(aad)), 0);
+        ExpectIntEQ(XMEMCMP(plain, msg, sizeof(msg)), 0);
+        ivOut[0] ^= 0x55;
+        ExpectIntLT(wc_AesGcmDecrypt(&aes, plain, cipher, sizeof(msg),
+            ivOut, sizeof(ivOut), tag, sizeof(tag), aad, sizeof(aad)), 0);
+        if (initAes) wc_AesFree(&aes);
+    }
+
+    {
+        byte iv[12];
+        byte tag[16];
+        static const byte aad[24] = {
+            0xfe,0xed,0xfa,0xce,0xde,0xad,0xbe,0xef,
+            0xfe,0xed,0xfa,0xce,0xde,0xad,0xbe,0xef,
+            0xab,0xad,0xda,0xd2,0x11,0x22,0x33,0x44
+        };
+        XMEMSET(iv, 0, sizeof(iv));
+        ExpectIntEQ(wc_Gmac(key32, TEST_AES_COV_KEY_SZ, iv, sizeof(iv),
+            aad, sizeof(aad), tag, sizeof(tag), &rng), 0);
+        ExpectIntEQ(wc_GmacVerify(key32, TEST_AES_COV_KEY_SZ, iv, sizeof(iv),
+            aad, sizeof(aad), tag, sizeof(tag)), 0);
+        tag[0] ^= 0x01;
+        ExpectIntLT(wc_GmacVerify(key32, TEST_AES_COV_KEY_SZ, iv, sizeof(iv),
+            aad, sizeof(aad), tag, sizeof(tag)), 0);
+    }
+#endif /* HAVE_AESGCM */
+
+#ifdef HAVE_AESCCM
+    {
+        Aes aes;
+        int initAes = 0;
+        byte ivOut[13];
+        byte tag[16];
+        byte cipher[24];
+        byte plain[24];
+        static const byte msg[24] = {
+            0x08,0x09,0x0a,0x0b,0x0c,0x0d,0x0e,0x0f,
+            0x10,0x11,0x12,0x13,0x14,0x15,0x16,0x17,
+            0x18,0x19,0x1a,0x1b,0x1c,0x1d,0x1e,0x1f
+        };
+        static const byte aad[8] = {
+            0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07
+        };
+        static const byte nonce13[13] = {
+            0x10,0x11,0x12,0x13,0x14,0x15,0x16,0x17,
+            0x18,0x19,0x1a,0x1b,0x1c
+        };
+
+        ExpectIntEQ(wc_AesInit(&aes, HEAP_HINT, INVALID_DEVID), 0);
+        if (EXPECT_SUCCESS()) initAes = 1;
+        ExpectIntEQ(wc_AesCcmSetKey(&aes, key32, TEST_AES_COV_KEY_SZ), 0);
+        ExpectIntEQ(wc_AesCcmSetNonce(&aes, nonce13, sizeof(nonce13)), 0);
+        ExpectIntEQ(wc_AesCcmEncrypt_ex(&aes, cipher, msg, sizeof(msg),
+            ivOut, sizeof(ivOut), tag, sizeof(tag),
+            aad, sizeof(aad)), 0);
+        ExpectIntEQ(wc_AesCcmDecrypt(&aes, plain, cipher, sizeof(msg),
+            ivOut, sizeof(ivOut), tag, sizeof(tag),
+            aad, sizeof(aad)), 0);
+        ExpectIntEQ(XMEMCMP(plain, msg, sizeof(msg)), 0);
+        if (initAes) wc_AesFree(&aes);
+    }
+#endif /* HAVE_AESCCM */
+
+#ifdef WOLFSSL_AES_XTS
+    {
+        XtsAes xts;
+        int initXts = 0;
+        /* Two 16-byte sectors round-tripped across a consecutive-sector
+         * sweep exercises the inter-sector tweak update in addition to
+         * the per-sector primitive. */
+        enum { XTS_SECTOR_SZ = 16, XTS_TOTAL = 32 };
+        byte cipher[XTS_TOTAL];
+        byte plain[XTS_TOTAL];
+    #if !defined(NO_AES_256)
+        static const byte xtsKey[] = {
+            0x27,0x18,0x28,0x18,0x28,0x45,0x90,0x45,
+            0x23,0x53,0x60,0x28,0x74,0x71,0x35,0x26,
+            0x62,0x49,0x77,0x57,0x24,0x70,0x93,0x69,
+            0x99,0x59,0x57,0x49,0x66,0x96,0x76,0x27,
+            0x31,0x41,0x59,0x26,0x53,0x58,0x97,0x93,
+            0x23,0x84,0x62,0x64,0x33,0x83,0x27,0x95,
+            0x02,0x88,0x41,0x97,0x16,0x93,0x99,0x37,
+            0x51,0x05,0x82,0x09,0x74,0x94,0x45,0x92
+        };
+    #else
+        static const byte xtsKey[] = {
+            0x27,0x18,0x28,0x18,0x28,0x45,0x90,0x45,
+            0x23,0x53,0x60,0x28,0x74,0x71,0x35,0x26,
+            0x62,0x49,0x77,0x57,0x24,0x70,0x93,0x69,
+            0x99,0x59,0x57,0x49,0x66,0x96,0x76,0x27
+        };
+    #endif
+        static const byte xtsMsg[XTS_TOTAL] = {
+            0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
+            0x08,0x09,0x0a,0x0b,0x0c,0x0d,0x0e,0x0f,
+            0x10,0x11,0x12,0x13,0x14,0x15,0x16,0x17,
+            0x18,0x19,0x1a,0x1b,0x1c,0x1d,0x1e,0x1f
+        };
+        {
+            int initRet = wc_AesXtsInit(&xts, HEAP_HINT, INVALID_DEVID);
+            ExpectIntEQ(initRet, 0);
+            if (initRet == 0) initXts = 1;
+        }
+        ExpectIntEQ(wc_AesXtsSetKey(&xts, xtsKey, sizeof(xtsKey),
+            AES_ENCRYPTION, HEAP_HINT, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_AesXtsEncryptConsecutiveSectors(&xts, cipher, xtsMsg,
+            XTS_TOTAL, (word64)0x12345678, XTS_SECTOR_SZ), 0);
+        ExpectIntNE(XMEMCMP(cipher, xtsMsg, XTS_TOTAL), 0);
+        if (initXts) {
+            int freeRet = wc_AesXtsFree(&xts);
+            if (EXPECT_SUCCESS()) {
+                ExpectIntEQ(freeRet, 0);
+            }
+            initXts = 0;
+        }
+
+        {
+            int initRet = wc_AesXtsInit(&xts, HEAP_HINT, INVALID_DEVID);
+            ExpectIntEQ(initRet, 0);
+            if (initRet == 0) initXts = 1;
+        }
+        ExpectIntEQ(wc_AesXtsSetKey(&xts, xtsKey, sizeof(xtsKey),
+            AES_DECRYPTION, HEAP_HINT, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_AesXtsDecryptConsecutiveSectors(&xts, plain, cipher,
+            XTS_TOTAL, (word64)0x12345678, XTS_SECTOR_SZ), 0);
+        ExpectIntEQ(XMEMCMP(plain, xtsMsg, XTS_TOTAL), 0);
+        if (initXts) {
+            int freeRet = wc_AesXtsFree(&xts);
+            if (EXPECT_SUCCESS()) {
+                ExpectIntEQ(freeRet, 0);
+            }
+            initXts = 0;
+        }
+    }
+#endif /* WOLFSSL_AES_XTS */
+
+    if (initRng) DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif /* !NO_AES && !WC_NO_RNG && !HAVE_FIPS && !HAVE_SELFTEST */
+    return EXPECT_RESULT();
+}
+
+/*
+ * Targets MC/DC independence pairs in the NULL-guard decision chains of
+ * wc_Gmac / wc_GmacVerify / wc_AesGcmSetIV / wc_AesGcmEncrypt_ex by walking
+ * a one-bad-at-a-time argument matrix on top of a valid baseline call.
+ */
+int test_wc_AesBadArgCoverage(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_AESGCM) && !defined(WC_NO_RNG) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    WC_RNG rng;
+    int initRng = 0;
+    Aes aes;
+    int initAes = 0;
+    static const byte key32[32] = {
+        0x60,0x3d,0xeb,0x10,0x15,0xca,0x71,0xbe,
+        0x2b,0x73,0xae,0xf0,0x85,0x7d,0x77,0x81,
+        0x1f,0x35,0x2c,0x07,0x3b,0x61,0x08,0xd7,
+        0x2d,0x98,0x10,0xa3,0x09,0x14,0xdf,0xf4
+    };
+    byte iv[12];
+    byte tag[16];
+    byte aad[16];
+    byte out[16];
+    const byte in[16] = { 0 };
+    static const byte ivFixed[4] = { 0x00,0x00,0x00,0x01 };
+
+    XMEMSET(iv, 0, sizeof(iv));
+    XMEMSET(aad, 0xa5, sizeof(aad));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS()) initRng = 1;
+    ExpectIntEQ(wc_AesInit(&aes, HEAP_HINT, INVALID_DEVID), 0);
+    if (EXPECT_SUCCESS()) initAes = 1;
+    ExpectIntEQ(wc_AesGcmSetKey(&aes, key32, TEST_AES_COV_KEY_SZ), 0);
+
+    /* wc_AesGcmSetIV: valid baseline + one-bad-at-a-time. */
+    ExpectIntEQ(wc_AesGcmSetIV(&aes, sizeof(iv), ivFixed, sizeof(ivFixed),
+        &rng), 0);
+    ExpectIntEQ(wc_AesGcmSetIV(NULL, sizeof(iv), ivFixed, sizeof(ivFixed),
+        &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesGcmSetIV(&aes, 3, ivFixed, sizeof(ivFixed),
+        &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesGcmSetIV(&aes, sizeof(iv), NULL, 2,
+        &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesGcmSetIV(&aes, sizeof(iv), ivFixed, 3,
+        &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesGcmSetIV(&aes, sizeof(iv), ivFixed, sizeof(ivFixed),
+        NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Re-establish a valid IV before encrypt_ex calls. */
+    ExpectIntEQ(wc_AesGcmSetIV(&aes, sizeof(iv), ivFixed, sizeof(ivFixed),
+        &rng), 0);
+
+    /* wc_AesGcmEncrypt_ex: walk each NULL-guard leaf. */
+    ExpectIntEQ(wc_AesGcmEncrypt_ex(&aes, out, in, sizeof(in),
+        iv, sizeof(iv), tag, sizeof(tag), aad, sizeof(aad)), 0);
+    ExpectIntEQ(wc_AesGcmEncrypt_ex(NULL, out, in, sizeof(in),
+        iv, sizeof(iv), tag, sizeof(tag), aad, sizeof(aad)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesGcmEncrypt_ex(&aes, NULL, in, sizeof(in),
+        iv, sizeof(iv), tag, sizeof(tag), aad, sizeof(aad)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesGcmEncrypt_ex(&aes, out, NULL, sizeof(in),
+        iv, sizeof(iv), tag, sizeof(tag), aad, sizeof(aad)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesGcmEncrypt_ex(&aes, out, in, sizeof(in),
+        NULL, sizeof(iv), tag, sizeof(tag), aad, sizeof(aad)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesGcmEncrypt_ex(&aes, out, in, sizeof(in),
+        iv, sizeof(iv) - 1, tag, sizeof(tag), aad, sizeof(aad)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesGcmEncrypt_ex(&aes, out, in, sizeof(in),
+        iv, sizeof(iv), tag, sizeof(tag), NULL, sizeof(aad)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* wc_Gmac: valid baseline + NULL-guard leaves. */
+    ExpectIntEQ(wc_Gmac(key32, TEST_AES_COV_KEY_SZ, iv, sizeof(iv),
+        aad, sizeof(aad), tag, sizeof(tag), &rng), 0);
+    ExpectIntEQ(wc_Gmac(NULL, TEST_AES_COV_KEY_SZ, iv, sizeof(iv),
+        aad, sizeof(aad), tag, sizeof(tag), &rng),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Gmac(key32, TEST_AES_COV_KEY_SZ, NULL, sizeof(iv),
+        aad, sizeof(aad), tag, sizeof(tag), &rng),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Gmac(key32, TEST_AES_COV_KEY_SZ, iv, sizeof(iv),
+        NULL, sizeof(aad), tag, sizeof(tag), &rng),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Gmac(key32, TEST_AES_COV_KEY_SZ, iv, sizeof(iv),
+        aad, sizeof(aad), NULL, sizeof(tag), &rng),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Gmac(key32, TEST_AES_COV_KEY_SZ, iv, sizeof(iv),
+        aad, sizeof(aad), tag, 0, &rng),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Gmac(key32, TEST_AES_COV_KEY_SZ, iv, sizeof(iv),
+        aad, sizeof(aad), tag, sizeof(tag), NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+#ifdef HAVE_AES_DECRYPT
+    /* wc_GmacVerify: valid baseline + NULL-guard leaves. */
+    ExpectIntEQ(wc_GmacVerify(key32, TEST_AES_COV_KEY_SZ, iv, sizeof(iv),
+        aad, sizeof(aad), tag, sizeof(tag)), 0);
+    ExpectIntEQ(wc_GmacVerify(NULL, TEST_AES_COV_KEY_SZ, iv, sizeof(iv),
+        aad, sizeof(aad), tag, sizeof(tag)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_GmacVerify(key32, TEST_AES_COV_KEY_SZ, NULL, sizeof(iv),
+        aad, sizeof(aad), tag, sizeof(tag)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_GmacVerify(key32, TEST_AES_COV_KEY_SZ, iv, sizeof(iv),
+        NULL, sizeof(aad), tag, sizeof(tag)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_GmacVerify(key32, TEST_AES_COV_KEY_SZ, iv, sizeof(iv),
+        aad, sizeof(aad), NULL, sizeof(tag)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_GmacVerify(key32, TEST_AES_COV_KEY_SZ, iv, sizeof(iv),
+        aad, sizeof(aad), tag, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_GmacVerify(key32, TEST_AES_COV_KEY_SZ, iv, sizeof(iv),
+        aad, sizeof(aad), tag, WC_AES_BLOCK_SIZE + 1),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
+
+    if (initAes) wc_AesFree(&aes);
+    if (initRng) DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif /* HAVE_AESGCM && !WC_NO_RNG && !HAVE_FIPS && !HAVE_SELFTEST */
+    return EXPECT_RESULT();
+}
+
+/*
+ * MC/DC coverage for wc_AesInit_Id (L13649, 3-condition chain) and
+ * wc_AesInit_Label (L13668 / L13672, two 2-pair decisions).
+ * Requires WOLF_PRIVATE_KEY_ID.
+ */
+int test_wc_AesInitIdLabelCoverage(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLF_PRIVATE_KEY_ID) && !defined(NO_AES) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    Aes aes;
+    int initAes = 0;
+    /* A label that is exactly 1 byte — minimum valid. */
+    const char* shortLabel = "A";
+    /* A label that is AES_MAX_LABEL_LEN+1 bytes — too long. */
+    char longLabel[AES_MAX_LABEL_LEN + 2];
+    /* An id with valid length (1 byte). */
+    const unsigned char idBuf[1] = { 0x42 };
+
+    XMEMSET(&aes, 0, sizeof(aes));
+    XMEMSET(longLabel, 'X', AES_MAX_LABEL_LEN + 1);
+    longLabel[AES_MAX_LABEL_LEN + 1] = '\0';
+
+    /* --- wc_AesInit_Id --- */
+    /* Pair: aes == NULL (first condition TRUE, short-circuit) */
+    ExpectIntEQ(wc_AesInit_Id(NULL, (unsigned char*)idBuf, 1, HEAP_HINT,
+        INVALID_DEVID), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* Pair: aes != NULL, len < 0 (second cond TRUE) */
+    XMEMSET(&aes, 0, sizeof(aes));
+    ExpectIntEQ(wc_AesInit_Id(&aes, (unsigned char*)idBuf, -1, HEAP_HINT,
+        INVALID_DEVID), WC_NO_ERR_TRACE(BUFFER_E));
+
+    /* Pair: aes != NULL, len > AES_MAX_ID_LEN (third cond TRUE) */
+    XMEMSET(&aes, 0, sizeof(aes));
+    ExpectIntEQ(wc_AesInit_Id(&aes, (unsigned char*)idBuf, AES_MAX_ID_LEN + 1,
+        HEAP_HINT, INVALID_DEVID), WC_NO_ERR_TRACE(BUFFER_E));
+
+    /* Happy path: all conditions FALSE → success */
+    XMEMSET(&aes, 0, sizeof(aes));
+    ExpectIntEQ(wc_AesInit_Id(&aes, (unsigned char*)idBuf, (int)sizeof(idBuf),
+        HEAP_HINT, INVALID_DEVID), 0);
+    if (EXPECT_SUCCESS()) initAes = 1;
+    if (initAes) { wc_AesFree(&aes); initAes = 0; }
+
+    /* --- wc_AesInit_Label (L13668: aes==NULL || label==NULL) --- */
+    /* Pair: aes == NULL */
+    ExpectIntEQ(wc_AesInit_Label(NULL, shortLabel, HEAP_HINT, INVALID_DEVID),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Pair: label == NULL */
+    XMEMSET(&aes, 0, sizeof(aes));
+    ExpectIntEQ(wc_AesInit_Label(&aes, NULL, HEAP_HINT, INVALID_DEVID),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* --- wc_AesInit_Label (L13672: labelLen==0 || labelLen>MAX) --- */
+    /* Pair: labelLen > AES_MAX_LABEL_LEN */
+    XMEMSET(&aes, 0, sizeof(aes));
+    ExpectIntEQ(wc_AesInit_Label(&aes, longLabel, HEAP_HINT, INVALID_DEVID),
+        WC_NO_ERR_TRACE(BUFFER_E));
+
+    /* Happy path: valid label, both conditions FALSE */
+    XMEMSET(&aes, 0, sizeof(aes));
+    ExpectIntEQ(wc_AesInit_Label(&aes, shortLabel, HEAP_HINT, INVALID_DEVID),
+        0);
+    if (EXPECT_SUCCESS()) initAes = 1;
+    if (initAes) wc_AesFree(&aes);
+#endif /* WOLF_PRIVATE_KEY_ID && !NO_AES && !HAVE_FIPS && !HAVE_SELFTEST */
+    return EXPECT_RESULT();
+}
+
+/*
+ * MC/DC coverage for wc_AesEncryptDirect (L5514): 3-condition OR
+ * (aes==NULL || out==NULL || in==NULL).  Walk one-bad-at-a-time.
+ */
+int test_wc_AesEncryptDirectCoverage(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_AES) && defined(WOLFSSL_AES_DIRECT) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    Aes aes;
+    int initAes = 0;
+    ALIGN16 byte out[WC_AES_BLOCK_SIZE];
+    ALIGN16 byte in[WC_AES_BLOCK_SIZE];
+    static const byte key16[16] = {
+        0x2b,0x7e,0x15,0x16,0x28,0xae,0xd2,0xa6,
+        0xab,0xf7,0x15,0x88,0x09,0xcf,0x4f,0x3c
+    };
+
+    XMEMSET(in, 0xAB, sizeof(in));
+
+    ExpectIntEQ(wc_AesInit(&aes, HEAP_HINT, INVALID_DEVID), 0);
+    if (EXPECT_SUCCESS()) initAes = 1;
+    ExpectIntEQ(wc_AesSetKey(&aes, key16, sizeof(key16), NULL,
+        AES_ENCRYPTION), 0);
+
+    /* Pair: aes == NULL (first cond TRUE, short-circuit) */
+    ExpectIntEQ(wc_AesEncryptDirect(NULL, out, in),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Pair: aes ok, out == NULL */
+    ExpectIntEQ(wc_AesEncryptDirect(&aes, NULL, in),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Pair: aes ok, out ok, in == NULL */
+    ExpectIntEQ(wc_AesEncryptDirect(&aes, out, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Happy path: all conditions FALSE */
+    ExpectIntEQ(wc_AesEncryptDirect(&aes, out, in), 0);
+
+    if (initAes) wc_AesFree(&aes);
+#endif /* !NO_AES && WOLFSSL_AES_DIRECT && !HAVE_FIPS && !HAVE_SELFTEST */
+    return EXPECT_RESULT();
+}
+
+/*
+ * MC/DC coverage for wc_AesGcmEncrypt L10049: 5-condition compound OR
+ * (aes==NULL || authTagSz>BLOCK || ivSz==0 || (authTagSz>0 && authTag==NULL)
+ *  || (authInSz>0 && authIn==NULL)).
+ * Also reaches AES_GCM_encrypt_C L9915 with non-MID ivSz (8-byte IV) to
+ * exercise the else-branch counter path.
+ */
+int test_wc_AesGcmEncryptArgCoverage(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_AESGCM) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    Aes aes;
+    int initAes = 0;
+    static const byte key32[32] = {
+        0x60,0x3d,0xeb,0x10,0x15,0xca,0x71,0xbe,
+        0x2b,0x73,0xae,0xf0,0x85,0x7d,0x77,0x81,
+        0x1f,0x35,0x2c,0x07,0x3b,0x61,0x08,0xd7,
+        0x2d,0x98,0x10,0xa3,0x09,0x14,0xdf,0xf4
+    };
+    /* 12-byte (MID) IV for standard path */
+    byte iv12[GCM_NONCE_MID_SZ];
+    /* 8-byte (MIN) IV to exercise non-MID branch in AES_GCM_encrypt_C */
+    byte iv8[GCM_NONCE_MIN_SZ];
+    byte authTag[WC_AES_BLOCK_SIZE];
+    byte aad[16];
+    byte out[16];
+    const byte in[16] = { 0 };
+
+    XMEMSET(iv12, 0, sizeof(iv12));
+    XMEMSET(iv8,  0, sizeof(iv8));
+    XMEMSET(aad,  0xa5, sizeof(aad));
+
+    ExpectIntEQ(wc_AesInit(&aes, HEAP_HINT, INVALID_DEVID), 0);
+    if (EXPECT_SUCCESS()) initAes = 1;
+    ExpectIntEQ(wc_AesGcmSetKey(&aes, key32, TEST_AES_COV_KEY_SZ), 0);
+
+    /* Condition 1: aes == NULL */
+    ExpectIntEQ(wc_AesGcmEncrypt(NULL, out, in, sizeof(in),
+        iv12, sizeof(iv12), authTag, sizeof(authTag), aad, sizeof(aad)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* Condition 2: authTagSz > WC_AES_BLOCK_SIZE */
+    ExpectIntEQ(wc_AesGcmEncrypt(&aes, out, in, sizeof(in),
+        iv12, sizeof(iv12), authTag, WC_AES_BLOCK_SIZE + 1, aad, sizeof(aad)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* Condition 3: ivSz == 0 */
+    ExpectIntEQ(wc_AesGcmEncrypt(&aes, out, in, sizeof(in),
+        iv12, 0, authTag, sizeof(authTag), aad, sizeof(aad)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* Condition 4: authTagSz > 0 && authTag == NULL */
+    ExpectIntEQ(wc_AesGcmEncrypt(&aes, out, in, sizeof(in),
+        iv12, sizeof(iv12), NULL, sizeof(authTag), aad, sizeof(aad)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* Condition 5: authInSz > 0 && authIn == NULL */
+    ExpectIntEQ(wc_AesGcmEncrypt(&aes, out, in, sizeof(in),
+        iv12, sizeof(iv12), authTag, sizeof(authTag), NULL, sizeof(aad)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* Happy path with standard 12-byte IV (all conditions FALSE) */
+    ExpectIntEQ(wc_AesGcmEncrypt(&aes, out, in, sizeof(in),
+        iv12, sizeof(iv12), authTag, sizeof(authTag), aad, sizeof(aad)), 0);
+
+    /* AES_GCM_encrypt_C L9915 else-branch: non-MID ivSz forces GHASH counter.
+     * Use authInSz=0/authIn=NULL so the authIn condition stays FALSE. */
+    ExpectIntEQ(wc_AesGcmEncrypt(&aes, out, in, sizeof(in),
+        iv8, sizeof(iv8), authTag, sizeof(authTag), NULL, 0), 0);
+
+    if (initAes) wc_AesFree(&aes);
+#endif /* HAVE_AESGCM && !HAVE_FIPS && !HAVE_SELFTEST */
+    return EXPECT_RESULT();
+}
+
+/*
+ * MC/DC coverage for remaining single-pair hotspots:
+ *   wc_AesGcmDecrypt L10784  — sz!=0 with in==NULL or out==NULL
+ *   CheckAesGcmIvSize L12662 — edge IV sizes (MIN, MID, MAX, invalid)
+ *   GHASH L8665 (aSz!=0 && a!=NULL) and L8694 (cSz!=0 && c!=NULL) via decrypt
+ *   wc_Gmac L12775 / wc_GmacVerify L12814 — authIn==NULL with authInSz==0
+ *   wc_AesGcmSetIV L12700 — ivFixed==NULL with ivFixedSz==0 (valid branch)
+ *   wc_AesGcmEncrypt_ex L12739 — sz!=0 with in==NULL
+ */
+int test_wc_AesGcmExtraArgCoverage(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_AESGCM) && !defined(WC_NO_RNG) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    WC_RNG rng;
+    int initRng = 0;
+    Aes aes;
+    int initAes = 0;
+    static const byte key32[32] = {
+        0x60,0x3d,0xeb,0x10,0x15,0xca,0x71,0xbe,
+        0x2b,0x73,0xae,0xf0,0x85,0x7d,0x77,0x81,
+        0x1f,0x35,0x2c,0x07,0x3b,0x61,0x08,0xd7,
+        0x2d,0x98,0x10,0xa3,0x09,0x14,0xdf,0xf4
+    };
+    byte iv12[GCM_NONCE_MID_SZ];
+    /* 8-byte IV for GCM_NONCE_MIN_SZ path */
+    byte iv8[GCM_NONCE_MIN_SZ];
+    /* 16-byte IV for GCM_NONCE_MAX_SZ path */
+    byte iv16[GCM_NONCE_MAX_SZ];
+    byte authTag[WC_AES_BLOCK_SIZE];
+    byte aad[16];
+    byte out[16];
+    byte in[16];
+    static const byte ivFixed4[AES_IV_FIXED_SZ] = { 0x01,0x02,0x03,0x04 };
+
+    XMEMSET(iv12, 0, sizeof(iv12));
+    XMEMSET(iv8,  0, sizeof(iv8));
+    XMEMSET(iv16, 0, sizeof(iv16));
+    XMEMSET(aad,  0xa5, sizeof(aad));
+    XMEMSET(in,   0, sizeof(in));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS()) initRng = 1;
+    ExpectIntEQ(wc_AesInit(&aes, HEAP_HINT, INVALID_DEVID), 0);
+    if (EXPECT_SUCCESS()) initAes = 1;
+    ExpectIntEQ(wc_AesGcmSetKey(&aes, key32, TEST_AES_COV_KEY_SZ), 0);
+
+    /* --- CheckAesGcmIvSize via wc_AesGcmSetExtIV --- */
+    /* GCM_NONCE_MIN_SZ (8) — valid: returns true, all three OR-conds FALSE */
+    ExpectIntEQ(wc_AesGcmSetExtIV(&aes, iv8, GCM_NONCE_MIN_SZ), 0);
+    /* GCM_NONCE_MID_SZ (12) — valid */
+    ExpectIntEQ(wc_AesGcmSetExtIV(&aes, iv12, GCM_NONCE_MID_SZ), 0);
+    /* GCM_NONCE_MAX_SZ (16) — valid */
+    ExpectIntEQ(wc_AesGcmSetExtIV(&aes, iv16, GCM_NONCE_MAX_SZ), 0);
+    /* Invalid size (e.g. 9): CheckAesGcmIvSize returns false → BAD_FUNC_ARG */
+    ExpectIntEQ(wc_AesGcmSetExtIV(&aes, iv12, 9),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* Restore to known 12-byte IV for subsequent calls */
+    ExpectIntEQ(wc_AesGcmSetExtIV(&aes, iv12, GCM_NONCE_MID_SZ), 0);
+
+    /* --- wc_AesGcmSetIV L12700: ivFixed==NULL with ivFixedSz==0 (valid) --- */
+    ExpectIntEQ(wc_AesGcmSetIV(&aes, GCM_NONCE_MID_SZ, NULL, 0, &rng), 0);
+    /* Also exercise MIN and MAX IV sizes through SetIV */
+    ExpectIntEQ(wc_AesGcmSetIV(&aes, GCM_NONCE_MIN_SZ, NULL, 0, &rng), 0);
+    ExpectIntEQ(wc_AesGcmSetIV(&aes, GCM_NONCE_MAX_SZ, NULL, 0, &rng), 0);
+    /* And with a fixed prefix */
+    ExpectIntEQ(wc_AesGcmSetIV(&aes, GCM_NONCE_MID_SZ, ivFixed4,
+        AES_IV_FIXED_SZ, &rng), 0);
+
+    /* --- wc_AesGcmEncrypt_ex L12739: sz!=0 but in==NULL --- */
+    /* (nonceSz set to MID by the last successful SetIV call) */
+    ExpectIntEQ(wc_AesGcmEncrypt_ex(&aes, out, NULL, sizeof(in),
+        iv12, sizeof(iv12), authTag, sizeof(authTag), aad, sizeof(aad)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Happy path (sz==0, in/out NULL-ok) to reach inner wc_AesGcmEncrypt */
+    ExpectIntEQ(wc_AesGcmEncrypt_ex(&aes, NULL, NULL, 0,
+        iv12, sizeof(iv12), authTag, sizeof(authTag), aad, sizeof(aad)), 0);
+
+    /* --- wc_Gmac L12775: authIn==NULL with authInSz==0 is valid --- */
+    ExpectIntEQ(wc_Gmac(key32, TEST_AES_COV_KEY_SZ, iv12, sizeof(iv12),
+        NULL, 0, authTag, sizeof(authTag), &rng), 0);
+
+    /* --- GHASH L8665: drive with aad (aSz != 0 && a != NULL) via decrypt --- */
+#ifdef HAVE_AES_DECRYPT
+    /* First produce a valid ciphertext+tag to decrypt */
+    {
+        byte cipher[16];
+        byte tag2[WC_AES_BLOCK_SIZE];
+        /* Encrypt with aad so GHASH processes both AAD and ciphertext */
+        ExpectIntEQ(wc_AesGcmEncrypt(&aes, cipher, in, sizeof(in),
+            iv12, sizeof(iv12), tag2, sizeof(tag2), aad, sizeof(aad)), 0);
+        /* Decrypt — GHASH L8665 fires (aSz!=0 && a!=NULL)
+         *          — GHASH L8694 fires (cSz!=0 && c!=NULL)          */
+        ExpectIntEQ(wc_AesGcmDecrypt(&aes, out, cipher, sizeof(cipher),
+            iv12, sizeof(iv12), tag2, sizeof(tag2), aad, sizeof(aad)), 0);
+
+        /* wc_AesGcmDecrypt L10784: sz!=0 with in==NULL */
+        ExpectIntEQ(wc_AesGcmDecrypt(&aes, out, NULL, sizeof(in),
+            iv12, sizeof(iv12), tag2, sizeof(tag2), aad, sizeof(aad)),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* wc_AesGcmDecrypt L10784: sz!=0 with out==NULL */
+        ExpectIntEQ(wc_AesGcmDecrypt(&aes, NULL, cipher, sizeof(cipher),
+            iv12, sizeof(iv12), tag2, sizeof(tag2), aad, sizeof(aad)),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        /* --- wc_GmacVerify L12814: authIn==NULL with authInSz==0 is valid --- */
+        ExpectIntEQ(wc_GmacVerify(key32, TEST_AES_COV_KEY_SZ, iv12, sizeof(iv12),
+            NULL, 0, authTag, sizeof(authTag)), 0);
+    }
+#endif /* HAVE_AES_DECRYPT */
+
+    if (initAes) wc_AesFree(&aes);
+    if (initRng) DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif /* HAVE_AESGCM && !WC_NO_RNG && !HAVE_FIPS && !HAVE_SELFTEST */
+    return EXPECT_RESULT();
+}
+
+/*
+ * MC/DC batch 6: residual independence pairs for aes.c decisions not yet
+ * fully covered by batches 1-5.
+ *
+ * Decisions targeted:
+ *
+ * 1. wc_AesGcmEncrypt L10049 (5-cond OR, residual sub-condition):
+ *    The compound C4 sub-condition (authTagSz > 0) needs its FALSE side
+ *    exercised independently: call with authTagSz=0 so C4 short-circuits
+ *    FALSE while all other conditions (C1-C3, C5) are also FALSE.
+ *    Return is still BAD_FUNC_ARG but from the subsequent min-tag-size check,
+ *    not from the L10049 guard — this satisfies the MC/DC independence pair.
+ *
+ * 2. AES_GCM_encrypt_C L9915 (OPENSSL_EXTRA only): `if (!in && !sz)` — need
+ *    in=NULL, sz=0 going through the non-MID IV path with authTag provided so
+ *    the GHASH/OPENSSL_EXTRA branch is reached.
+ *
+ * 3. wc_AesGcmSetIV L12700 (5-cond OR): walk each TRUE-outcome condition
+ *    independently.  Batches 1-5 only exercised the happy paths for SetIV;
+ *    the error-path conditions (C1=aes==NULL, C2=rng==NULL,
+ *    C4=ivFixed==NULL&&ivFixedSz!=0, C5=ivFixed!=NULL&&wrong size) were not
+ *    covered.
+ *
+ * 4. wc_AesGcmEncrypt_ex L12739 (5-cond OR): walk remaining TRUE-outcome
+ *    conditions: aes==NULL, sz!=0 with out==NULL (the out==NULL independence
+ *    pair for the inner OR), ivOut==NULL, ivOutSz!=nonceSz,
+ *    authIn==NULL&&authInSz!=0.
+ *
+ * Unreachable via public API (build-config gates or corruption required):
+ *   - AesEncrypt_preFetchOpt / AesDecrypt_preFetchOpt L3138/L3990:
+ *     `r > 7 || r == 0` — r is derived from aes->rounds set by wc_AesSetKey;
+ *     valid key sizes yield r in {5,6,7}.  Triggering r>7 or r==0 requires
+ *     either memory corruption of aes->rounds or the WOLFSSL_AES_TOUCH_LINES
+ *     build variant (which compiles a no-op stub for these helpers).  Skipped.
+ *   - GHASH L8665 `aSz!=0 && a==NULL` and L8694 `cSz!=0 && c==NULL`:
+ *     wc_AesGcmEncrypt/Decrypt reject authInSz>0&&authIn==NULL and
+ *     cipherSz>0&&cipher==NULL before calling GHASH.  Unreachable.
+ */
+int test_wc_AesGcmResidualCoverage(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_AESGCM) && !defined(WC_NO_RNG) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    WC_RNG rng;
+    int    initRng = 0;
+    Aes    aes;
+    int    initAes = 0;
+    static const byte key32[32] = {
+        0x60,0x3d,0xeb,0x10,0x15,0xca,0x71,0xbe,
+        0x2b,0x73,0xae,0xf0,0x85,0x7d,0x77,0x81,
+        0x1f,0x35,0x2c,0x07,0x3b,0x61,0x08,0xd7,
+        0x2d,0x98,0x10,0xa3,0x09,0x14,0xdf,0xf4
+    };
+    /* 12-byte (MID) IV */
+    byte iv12[GCM_NONCE_MID_SZ];
+    /* 8-byte (MIN) IV — forces non-MID counter-derivation path */
+    byte iv8[GCM_NONCE_MIN_SZ];
+    byte authTag[WC_AES_BLOCK_SIZE];
+    byte aad[16];
+    byte out[16];
+    const byte in[16] = { 0 };
+    /* 4-byte fixed IV prefix */
+    static const byte ivFixed4[AES_IV_FIXED_SZ] = { 0x01,0x02,0x03,0x04 };
+
+    XMEMSET(iv12,    0,    sizeof(iv12));
+    XMEMSET(iv8,     0,    sizeof(iv8));
+    XMEMSET(authTag, 0,    sizeof(authTag));
+    XMEMSET(aad,     0xa5, sizeof(aad));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS()) initRng = 1;
+    ExpectIntEQ(wc_AesInit(&aes, HEAP_HINT, INVALID_DEVID), 0);
+    if (EXPECT_SUCCESS()) initAes = 1;
+    ExpectIntEQ(wc_AesGcmSetKey(&aes, key32, TEST_AES_COV_KEY_SZ), 0);
+    /* Set nonceSz to 12 so _ex tests have a consistent reference. */
+    ExpectIntEQ(wc_AesGcmSetIV(&aes, GCM_NONCE_MID_SZ, NULL, 0, &rng), 0);
+
+    /* ------------------------------------------------------------------ */
+    /* 1. wc_AesGcmEncrypt L10049 — residual sub-condition for C4.        */
+    /*    authTagSz=0: makes (authTagSz>0) FALSE so C4 short-circuits to  */
+    /*    FALSE.  C1-C3 and C5 are also FALSE so the compound guard is     */
+    /*    FALSE overall.  The subsequent min-tag-size guard then fires.    */
+    /* ------------------------------------------------------------------ */
+    ExpectIntEQ(wc_AesGcmEncrypt(&aes, out, in, sizeof(in),
+        iv12, sizeof(iv12), authTag, 0, aad, sizeof(aad)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* ------------------------------------------------------------------ */
+    /* 2. AES_GCM_encrypt_C L9915 (OPENSSL_EXTRA): `if (!in && !sz)`.     */
+    /*    Pass sz=0 and in=NULL with the non-MID iv8 so the non-MID counter*/
+    /*    derivation runs and GHASH is called; inside that block the       */
+    /*    OPENSSL_EXTRA guard fires with !in&&!sz both TRUE.               */
+    /* ------------------------------------------------------------------ */
+    ExpectIntEQ(wc_AesGcmEncrypt(&aes, NULL, NULL, 0,
+        iv8, sizeof(iv8), authTag, sizeof(authTag), aad, sizeof(aad)), 0);
+
+    /* ------------------------------------------------------------------ */
+    /* 3. wc_AesGcmSetIV L12700 — error-path independence pairs.          */
+    /*    Each call makes exactly one condition TRUE while the others      */
+    /*    would be FALSE (short-circuit prevents evaluation of later ones).*/
+    /* ------------------------------------------------------------------ */
+    /* C1: aes == NULL */
+    ExpectIntEQ(wc_AesGcmSetIV(NULL, GCM_NONCE_MID_SZ, NULL, 0, &rng),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* C2: rng == NULL (aes is valid) */
+    ExpectIntEQ(wc_AesGcmSetIV(&aes, GCM_NONCE_MID_SZ, NULL, 0, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* C3: !CheckAesGcmIvSize — invalid ivSz=9 (aes ok, rng ok) */
+    ExpectIntEQ(wc_AesGcmSetIV(&aes, 9, NULL, 0, &rng),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* C4: ivFixed==NULL && ivFixedSz!=0 (aes ok, rng ok, ivSz ok) */
+    ExpectIntEQ(wc_AesGcmSetIV(&aes, GCM_NONCE_MID_SZ, NULL, AES_IV_FIXED_SZ,
+        &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* C5: ivFixed!=NULL && ivFixedSz!=AES_IV_FIXED_SZ (wrong size) */
+    ExpectIntEQ(wc_AesGcmSetIV(&aes, GCM_NONCE_MID_SZ, ivFixed4, 2, &rng),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* ------------------------------------------------------------------ */
+    /* 4. wc_AesGcmEncrypt_ex L12739 — remaining independence pairs.      */
+    /* ------------------------------------------------------------------ */
+    /* C1: aes == NULL */
+    {
+        byte ivbuf[GCM_NONCE_MID_SZ];
+        XMEMSET(ivbuf, 0, sizeof(ivbuf));
+        ExpectIntEQ(wc_AesGcmEncrypt_ex(NULL, out, in, sizeof(in),
+            ivbuf, GCM_NONCE_MID_SZ,
+            authTag, sizeof(authTag), aad, sizeof(aad)),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    }
+    /* C2b: sz!=0 && out==NULL (in is valid) — independence pair for     */
+    /*      out==NULL within the inner (in==NULL || out==NULL) sub-OR.    */
+    {
+        byte ivbuf[GCM_NONCE_MID_SZ];
+        XMEMSET(ivbuf, 0, sizeof(ivbuf));
+        ExpectIntEQ(wc_AesGcmEncrypt_ex(&aes, NULL, in, sizeof(in),
+            ivbuf, GCM_NONCE_MID_SZ,
+            authTag, sizeof(authTag), aad, sizeof(aad)),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    }
+    /* C3: ivOut == NULL (sz=0 so C2 stays FALSE, aes ok) */
+    ExpectIntEQ(wc_AesGcmEncrypt_ex(&aes, NULL, NULL, 0,
+        NULL, GCM_NONCE_MID_SZ,
+        authTag, sizeof(authTag), aad, sizeof(aad)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* C4: ivOutSz != aes->nonceSz (nonceSz==12, pass 8) */
+    {
+        byte ivbuf[GCM_NONCE_MID_SZ];
+        XMEMSET(ivbuf, 0, sizeof(ivbuf));
+        ExpectIntEQ(wc_AesGcmEncrypt_ex(&aes, NULL, NULL, 0,
+            ivbuf, GCM_NONCE_MIN_SZ,
+            authTag, sizeof(authTag), aad, sizeof(aad)),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    }
+    /* C5: authIn==NULL && authInSz!=0 (all others FALSE) */
+    {
+        byte ivbuf[GCM_NONCE_MID_SZ];
+        XMEMSET(ivbuf, 0, sizeof(ivbuf));
+        ExpectIntEQ(wc_AesGcmEncrypt_ex(&aes, NULL, NULL, 0,
+            ivbuf, GCM_NONCE_MID_SZ,
+            authTag, sizeof(authTag), NULL, sizeof(aad)),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    }
+
+    if (initAes) wc_AesFree(&aes);
+    if (initRng) DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif /* HAVE_AESGCM && !WC_NO_RNG && !HAVE_FIPS && !HAVE_SELFTEST */
     return EXPECT_RESULT();
 }

@@ -39,6 +39,17 @@ int test_wc_AesGcmEncryptDecrypt_Sizes(void);
 int test_wc_AesGcmEncryptDecrypt(void);
 int test_wc_AesGcmMixedEncDecLongIV(void);
 int test_wc_AesGcmStream(void);
+int test_wc_AesKeyWrapVectors(void);
+int test_wc_AesKeyWrapDecisionCoverage(void);
+int test_wc_AesGcmDecisionCoverage(void);
+int test_wc_AesFeatureCoverage(void);
+int test_wc_AesRequirementCoverage(void);
+int test_wc_AesBadArgCoverage(void);
+int test_wc_AesInitIdLabelCoverage(void);
+int test_wc_AesEncryptDirectCoverage(void);
+int test_wc_AesGcmEncryptArgCoverage(void);
+int test_wc_AesGcmExtraArgCoverage(void);
+int test_wc_AesGcmResidualCoverage(void);
 int test_wc_AesCcmSetKey(void);
 int test_wc_AesCcmEncryptDecrypt(void);
 int test_wc_AesXtsSetKey(void);
@@ -94,6 +105,17 @@ int test_wc_CryptoCb_AesGcm_EncryptDecrypt(void);
     TEST_DECL_GROUP("aes", test_wc_AesGcmEncryptDecrypt),       \
     TEST_DECL_GROUP("aes", test_wc_AesGcmMixedEncDecLongIV),    \
     TEST_DECL_GROUP("aes", test_wc_AesGcmStream),               \
+    TEST_DECL_GROUP("aes", test_wc_AesKeyWrapVectors),          \
+    TEST_DECL_GROUP("aes", test_wc_AesKeyWrapDecisionCoverage), \
+    TEST_DECL_GROUP("aes", test_wc_AesGcmDecisionCoverage),     \
+    TEST_DECL_GROUP("aes", test_wc_AesFeatureCoverage),         \
+    TEST_DECL_GROUP("aes", test_wc_AesRequirementCoverage),     \
+    TEST_DECL_GROUP("aes", test_wc_AesBadArgCoverage),          \
+    TEST_DECL_GROUP("aes", test_wc_AesInitIdLabelCoverage),     \
+    TEST_DECL_GROUP("aes", test_wc_AesEncryptDirectCoverage),   \
+    TEST_DECL_GROUP("aes", test_wc_AesGcmEncryptArgCoverage),   \
+    TEST_DECL_GROUP("aes", test_wc_AesGcmExtraArgCoverage),     \
+    TEST_DECL_GROUP("aes", test_wc_AesGcmResidualCoverage),     \
     TEST_DECL_GROUP("aes", test_wc_AesCcmSetKey),               \
     TEST_DECL_GROUP("aes", test_wc_AesCcmEncryptDecrypt),       \
     TEST_DECL_GROUP("aes", test_wc_AesXtsSetKey),               \

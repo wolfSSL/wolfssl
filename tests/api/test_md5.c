@@ -168,3 +168,84 @@ int test_wc_Md5_Flags(void)
     return EXPECT_RESULT();
 }
 
+/* MC/DC residual-coverage test for wc_Md5Update (wolfcrypt/src/md5.c L361).
+ *
+ * The condition at L361 is:  (data == NULL && len == 0)
+ * The existing DIGEST_UPDATE_TEST macro covers:
+ *   - data==NULL, len==0  (T&&T -> branch taken, valid no-op)
+ *   - data==NULL, len>0   (T&&F -> caught earlier at L345, BAD_FUNC_ARG)
+ * Missing MC/DC independence pair for the "data == NULL" sub-condition:
+ *   - data!=NULL, len==0  (F&&T -> branch NOT taken, valid no-op, continues)
+ *
+ * Additional boundary pairs exercised here to satisfy the full Update path:
+ *   1. len=0,  non-NULL data  — L361 branch NOT taken; no data consumed.
+ *   2. len=63, non-NULL data  — partial block fill, buffLen becomes 63.
+ *   3. len=1 after len=63    — buffer exactly fills (63+1=64), compress fires.
+ *   4. len=64, fresh state   — single complete block, no residual.
+ *   5. len=128, fresh state  — two complete blocks.
+ *   6. len=65, fresh state   — one full block + 1 residual byte.
+ */
+int test_wc_Md5UpdateResidualCoverage(void)
+{
+    EXPECT_DECLS;
+#ifndef NO_MD5
+    wc_Md5 md5;
+    byte   digest[WC_MD5_DIGEST_SIZE];
+    byte   buf[WC_MD5_BLOCK_SIZE * 2 + 1]; /* 129 bytes */
+
+    XMEMSET(buf, 0xA5, sizeof(buf));
+
+    /* --- Pair 1: data != NULL, len == 0 (missing MC/DC pair for L361) ---
+     * data != NULL  =>  (data == NULL) evaluates FALSE
+     * len  == 0     =>  (len  == 0)   evaluates TRUE
+     * AND result: FALSE  => branch at L361 NOT taken; function returns 0.
+     */
+    ExpectIntEQ(wc_InitMd5(&md5), 0);
+    ExpectIntEQ(wc_Md5Update(&md5, buf, 0), 0);
+    ExpectIntEQ(wc_Md5Final(&md5, digest), 0);
+    /* Digest of empty message — confirms no data was absorbed. */
+    ExpectBufEQ(digest,
+        "\xd4\x1d\x8c\xd9\x8f\x00\xb2\x04"
+        "\xe9\x80\x09\x98\xec\xf8\x42\x7e",
+        WC_MD5_DIGEST_SIZE);
+    wc_Md5Free(&md5);
+
+    /* --- Pair 2: partial fill (len=63) — buffLen<BLOCK_SIZE, no compress --- */
+    ExpectIntEQ(wc_InitMd5(&md5), 0);
+    ExpectIntEQ(wc_Md5Update(&md5, buf, WC_MD5_BLOCK_SIZE - 1), 0);
+    wc_Md5Free(&md5);
+
+    /* --- Pair 3: buffer-exactly-full (63 + 1 = 64) — compress fires ---
+     * Exercises L380: (md5->buffLen == WC_MD5_BLOCK_SIZE) TRUE path.
+     */
+    ExpectIntEQ(wc_InitMd5(&md5), 0);
+    ExpectIntEQ(wc_Md5Update(&md5, buf, WC_MD5_BLOCK_SIZE - 1), 0);
+    ExpectIntEQ(wc_Md5Update(&md5, buf, 1), 0);
+    wc_Md5Free(&md5);
+
+    /* --- Pair 4: single complete block (len=64, fresh) ---
+     * buffLen starts 0, so remainder path is skipped; full block processed.
+     */
+    ExpectIntEQ(wc_InitMd5(&md5), 0);
+    ExpectIntEQ(wc_Md5Update(&md5, buf, WC_MD5_BLOCK_SIZE), 0);
+    wc_Md5Free(&md5);
+
+    /* --- Pair 5: two complete blocks (len=128, fresh) ---
+     * Exercises multi-block path; both blocks processed, no residual.
+     */
+    ExpectIntEQ(wc_InitMd5(&md5), 0);
+    ExpectIntEQ(wc_Md5Update(&md5, buf, WC_MD5_BLOCK_SIZE * 2), 0);
+    wc_Md5Free(&md5);
+
+    /* --- Pair 6: full block + 1 residual byte (len=65, fresh) ---
+     * Exercises L432: (len > 0) TRUE — leftover byte saved to buffer.
+     */
+    ExpectIntEQ(wc_InitMd5(&md5), 0);
+    ExpectIntEQ(wc_Md5Update(&md5, buf, WC_MD5_BLOCK_SIZE + 1), 0);
+    ExpectIntEQ(wc_Md5Final(&md5, digest), 0);
+    wc_Md5Free(&md5);
+
+#endif /* NO_MD5 */
+    return EXPECT_RESULT();
+}
+

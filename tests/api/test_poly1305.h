@@ -28,11 +28,17 @@ int test_wc_Poly1305SetKey(void);
 int test_wc_Poly1305UpdateFinal(void);
 int test_wc_Poly1305_MAC(void);
 int test_wc_Poly1305_PadEncodeSizes(void);
+int test_wc_Poly1305BadArgCoverage(void);
+int test_wc_Poly1305DecisionCoverage(void);
+int test_wc_Poly1305FeatureCoverage(void);
 
 #define TEST_POLY1305_DECLS                                         \
     TEST_DECL_GROUP("poly1305", test_wc_Poly1305SetKey),            \
     TEST_DECL_GROUP("poly1305", test_wc_Poly1305UpdateFinal),       \
     TEST_DECL_GROUP("poly1305", test_wc_Poly1305_MAC),              \
-    TEST_DECL_GROUP("poly1305", test_wc_Poly1305_PadEncodeSizes)
+    TEST_DECL_GROUP("poly1305", test_wc_Poly1305_PadEncodeSizes),   \
+    TEST_DECL_GROUP("poly1305", test_wc_Poly1305BadArgCoverage),    \
+    TEST_DECL_GROUP("poly1305", test_wc_Poly1305DecisionCoverage),  \
+    TEST_DECL_GROUP("poly1305", test_wc_Poly1305FeatureCoverage)
 
 #endif /* WOLFCRYPT_TEST_POLY1305_H */

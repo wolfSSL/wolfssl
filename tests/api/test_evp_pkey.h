@@ -61,6 +61,22 @@ int test_wolfSSL_EVP_MD_ecc_signing(void);
 int test_wolfSSL_EVP_PKEY_encrypt(void);
 int test_wolfSSL_EVP_PKEY_derive(void);
 int test_wolfSSL_EVP_PKEY_print_public(void);
+int test_wolfSSL_EvpPkeyDeriveBadArg(void);
+int test_wolfSSL_EvpPkeySignFinalBadArg(void);
+int test_wolfSSL_EvpPkeyKeygenParamgenBadArg(void);
+int test_wolfSSL_EvpPkeyCmpCoverage(void);
+int test_wolfSSL_DhParamCheck(void);
+int test_wolfSSL_EvpPkeyDeriveCoverage2(void);
+int test_wolfSSL_EvpPkeyCmpCoverage2(void);
+int test_wolfSSL_EvpHkdfCoverage(void);
+int test_wolfSSL_EvpSignFinalCoverage(void);
+int test_wolfSSL_EvpPkeySignCoverage(void);
+int test_wolfSSL_EvpRsaDerCoverage(void);
+int test_wolfSSL_EvpPkeyKeygenBatch4(void);
+int test_wolfSSL_EvpPkeyCmpBatch4(void);
+int test_wolfSSL_EvpPkeyVerifyBatch4(void);
+int test_wolfSSL_EvpEcParamgenNidBatch4(void);
+int test_wolfSSL_EvpDigestVerifyInitBatch4(void);
 
 #define TEST_EVP_PKEY_DECLS                                                    \
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_CTX_new_id),             \
@@ -100,6 +116,22 @@ int test_wolfSSL_EVP_PKEY_print_public(void);
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_MD_ecc_signing),              \
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_encrypt),                \
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_derive),                 \
-    TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_print_public)
+    TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_print_public),           \
+    TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EvpPkeyDeriveBadArg),             \
+    TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EvpPkeySignFinalBadArg),          \
+    TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EvpPkeyKeygenParamgenBadArg),     \
+    TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EvpPkeyCmpCoverage),              \
+    TEST_DECL_GROUP("evp_pkey", test_wolfSSL_DhParamCheck),                   \
+    TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EvpPkeyDeriveCoverage2),         \
+    TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EvpPkeyCmpCoverage2),            \
+    TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EvpHkdfCoverage),                \
+    TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EvpSignFinalCoverage),           \
+    TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EvpPkeySignCoverage),            \
+    TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EvpRsaDerCoverage),              \
+    TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EvpPkeyKeygenBatch4),            \
+    TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EvpPkeyCmpBatch4),               \
+    TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EvpPkeyVerifyBatch4),            \
+    TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EvpEcParamgenNidBatch4),         \
+    TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EvpDigestVerifyInitBatch4)
 
 #endif /* WOLFCRYPT_TEST_EVP_PKEY_H */

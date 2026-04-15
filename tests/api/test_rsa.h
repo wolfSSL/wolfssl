@@ -42,6 +42,20 @@ int test_wc_RsaEncryptSize(void);
 int test_wc_RsaSSL_SignVerify(void);
 int test_wc_RsaFlattenPublicKey(void);
 int test_wc_RsaDecrypt_BoundsCheck(void);
+int test_wc_RsaDecisionCoverage(void);
+int test_wc_RsaFeatureCoverage(void);
+int test_wc_RsaRequirementCoverage(void);
+int test_wc_RsaBadArgCoverage(void);
+int test_wc_RsaBadArgCoverage2(void);
+int test_wc_RsaBadArgCoverage3(void);
+int test_wc_RsaBadArgCoverage4(void);
+int test_wc_RsaBadArgCoverage5(void);
+int test_wc_RsaBadArgCoverage6(void);
+int test_wc_RsaBadArgCoverage7(void);
+int test_wc_RsaBadArgCoverage8(void);
+int test_wc_RsaDecodeAndPaddingMismatchCoverage(void);
+int test_wc_RsaPSSCoverage(void);
+int test_wc_RsaPrivateDecryptExCoverage(void);
 
 #define TEST_RSA_DECLS                                          \
     TEST_DECL_GROUP("rsa", test_wc_InitRsaKey),                 \
@@ -61,6 +75,20 @@ int test_wc_RsaDecrypt_BoundsCheck(void);
     TEST_DECL_GROUP("rsa", test_wc_RsaEncryptSize),             \
     TEST_DECL_GROUP("rsa", test_wc_RsaSSL_SignVerify),          \
     TEST_DECL_GROUP("rsa", test_wc_RsaFlattenPublicKey),        \
-    TEST_DECL_GROUP("rsa", test_wc_RsaDecrypt_BoundsCheck)
+    TEST_DECL_GROUP("rsa", test_wc_RsaDecrypt_BoundsCheck),     \
+    TEST_DECL_GROUP("rsa", test_wc_RsaDecisionCoverage),        \
+    TEST_DECL_GROUP("rsa", test_wc_RsaFeatureCoverage),         \
+    TEST_DECL_GROUP("rsa", test_wc_RsaRequirementCoverage),     \
+    TEST_DECL_GROUP("rsa", test_wc_RsaBadArgCoverage),          \
+    TEST_DECL_GROUP("rsa", test_wc_RsaBadArgCoverage2),         \
+    TEST_DECL_GROUP("rsa", test_wc_RsaBadArgCoverage3),         \
+    TEST_DECL_GROUP("rsa", test_wc_RsaBadArgCoverage4),         \
+    TEST_DECL_GROUP("rsa", test_wc_RsaBadArgCoverage5),         \
+    TEST_DECL_GROUP("rsa", test_wc_RsaBadArgCoverage6),         \
+    TEST_DECL_GROUP("rsa", test_wc_RsaBadArgCoverage7),         \
+    TEST_DECL_GROUP("rsa", test_wc_RsaBadArgCoverage8),         \
+    TEST_DECL_GROUP("rsa", test_wc_RsaDecodeAndPaddingMismatchCoverage), \
+    TEST_DECL_GROUP("rsa", test_wc_RsaPSSCoverage),             \
+    TEST_DECL_GROUP("rsa", test_wc_RsaPrivateDecryptExCoverage)
 
 #endif /* WOLFCRYPT_TEST_RSA_H */

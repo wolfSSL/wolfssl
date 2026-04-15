@@ -1008,6 +1008,7 @@ int test_wolfSSL_X509_ext_get_critical_by_NID(void)
 #endif
     ExpectIntEQ(wolfSSL_X509_ext_get_critical_by_NID(x509,
         WC_NID_info_access), 0);
+    ExpectIntEQ(wolfSSL_X509_ext_get_critical_by_NID(x509, NID_undef), 0);
     wolfSSL_X509_free(x509);
 #endif
     return EXPECT_RESULT();
@@ -1034,6 +1035,7 @@ int test_wolfSSL_X509_CRL_distribution_points(void)
          WOLFSSL_FILETYPE_PEM));
     ExpectIntEQ(wolfSSL_X509_ext_isSet_by_NID(x509,
         WC_NID_crl_distribution_points), 1);
+    ExpectIntEQ(wolfSSL_X509_ext_isSet_by_NID(x509, NID_undef), 0);
     wolfSSL_X509_free(x509);
 #endif
     return EXPECT_RESULT();
@@ -1050,15 +1052,23 @@ int test_wolfSSL_X509_check_ip_asc(void)
         WOLFSSL_FILETYPE_PEM));
     ExpectNotNull(empty = wolfSSL_X509_new());
 
-#if 0
-    /* TODO: add cert gen for testing positive case */
-    ExpectIntEQ(wolfSSL_X509_check_ip_asc(x509, "127.0.0.1", 0), 1);
-#endif
     ExpectIntEQ(wolfSSL_X509_check_ip_asc(x509, "0.0.0.0", 0), 0);
     ExpectIntEQ(wolfSSL_X509_check_ip_asc(x509, NULL, 0), 0);
     ExpectIntEQ(wolfSSL_X509_check_ip_asc(NULL, NULL, 0), 0);
     ExpectIntEQ(wolfSSL_X509_check_ip_asc(NULL, "0.0.0.0", 0), 0);
     ExpectIntEQ(wolfSSL_X509_check_ip_asc(empty, "127.128.0.255", 0), 0);
+    ExpectIntEQ(wolfSSL_X509_check_ip_asc(x509, "999.999.999.999", 0), 0);
+    ExpectIntEQ(wolfSSL_X509_check_ip_asc(x509, "127.0.0", 0), 0);
+    ExpectIntEQ(wolfSSL_X509_check_ip_asc(x509, "127.0.0.1.2", 0), 0);
+    ExpectIntEQ(wolfSSL_X509_check_ip_asc(x509, "127..0.1", 0), 0);
+    ExpectIntEQ(wolfSSL_X509_check_ip_asc(x509, ".127.0.0.1", 0), 0);
+    ExpectIntEQ(wolfSSL_X509_check_ip_asc(x509, "127.0.0.1 ", 0), 0);
+    ExpectIntEQ(wolfSSL_X509_check_ip_asc(x509, " 127.0.0.1", 0), 0);
+    ExpectIntEQ(wolfSSL_X509_check_ip_asc(x509, "127.0.0.one", 0), 0);
+    /* Valid IPv6 parse path with no matching IP SAN should still reject. */
+    ExpectIntEQ(wolfSSL_X509_check_ip_asc(x509, "::1", 0), 0);
+    /* Malformed IPv6 should reject during parse. */
+    ExpectIntEQ(wolfSSL_X509_check_ip_asc(x509, "fe80:::1", 0), 0);
 
     /* Regression test: a certificate with CN=<ip> and no SAN extension
      * must NOT be accepted for IP verification. RFC 6125 requires that IP
@@ -1171,6 +1181,7 @@ int test_wolfSSL_X509_bad_altname(void)
     int certSize = (int)sizeof(malformed_alt_name_cert) / sizeof(unsigned char);
     const char *name = "aaaaa";
     int nameLen = (int)XSTRLEN(name);
+    const char badName[] = { 'a', 'a', '\0', 'a', 'a', 'a' };
 
     ExpectNotNull(x509 = wolfSSL_X509_load_certificate_buffer(
         malformed_alt_name_cert, certSize, SSL_FILETYPE_ASN1));
@@ -1184,6 +1195,14 @@ int test_wolfSSL_X509_bad_altname(void)
     ExpectIntNE(wolfSSL_X509_check_host(x509, name, nameLen,
         WOLFSSL_ALWAYS_CHECK_SUBJECT | WOLFSSL_LEFT_MOST_WILDCARD_ONLY,
         NULL), 1);
+    /* Len handling must not rescue a malformed SAN. */
+    ExpectIntNE(wolfSSL_X509_check_host(x509, name, 0,
+        WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), 1);
+    ExpectIntNE(wolfSSL_X509_check_host(x509, name, nameLen + 1,
+        WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), 1);
+    /* Embedded NUL in the compared host name must also be rejected. */
+    ExpectIntNE(wolfSSL_X509_check_host(x509, badName, 6,
+        WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), 1);
 
     X509_free(x509);
 
@@ -1288,6 +1307,9 @@ int test_wolfSSL_X509_name_match1(void)
     int nameLen3 = (int)(XSTRLEN(name3));
     const char *name4 = "bbb";
     int nameLen4 = (int)(XSTRLEN(name4));
+    const char *name5 = "aaaaa";
+    int nameLen5 = 6;
+    const char badName[] = { 'a', 'a', '\0', 'a', 'a', 'a' };
 
     ExpectNotNull(x509 = wolfSSL_X509_load_certificate_buffer(
         cert_der, certSize, WOLFSSL_FILETYPE_ASN1));
@@ -1304,6 +1326,14 @@ int test_wolfSSL_X509_name_match1(void)
     /* Ensure that "a*" does not match "bbb" */
     ExpectIntNE(wolfSSL_X509_check_host(x509, name4, nameLen4,
         WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), 1);
+    /* OpenSSL-compatible len handling should still accept the positive case. */
+    ExpectIntEQ(wolfSSL_X509_check_host(x509, name5, 0,
+        WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_check_host(x509, name5, nameLen5,
+        WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), WOLFSSL_SUCCESS);
+    /* Embedded NUL in the compared host name must be rejected. */
+    ExpectIntNE(wolfSSL_X509_check_host(x509, badName, 6,
+        WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), WOLFSSL_SUCCESS);
 
     /* WOLFSSL_LEFT_MOST_WILDCARD_ONLY flag should fail on all cases, since
      * 'a*' alt name does not have wildcard left-most */
@@ -1577,6 +1607,10 @@ int test_wolfSSL_X509_name_match3(void)
     int nameLen2 = (int)(XSTRLEN(name2));
     const char *name3 = "example.com";
     int nameLen3 = (int)(XSTRLEN(name3));
+    const char *name4 = "foo.example.com";
+    int nameLen4 = (int)(XSTRLEN(name4)) + 1;
+    const char badName[] = { 'f', 'o', 'o', '.', 'e', 'x', '\0', 'a', 'm',
+        'p', 'l', 'e', '.', 'c', 'o', 'm' };
 
     ExpectNotNull(x509 = wolfSSL_X509_load_certificate_buffer(
         cert_der, certSize, WOLFSSL_FILETYPE_ASN1));
@@ -1584,11 +1618,19 @@ int test_wolfSSL_X509_name_match3(void)
     /* Ensure that "*.example.com" matches "foo.example.com" */
     ExpectIntEQ(wolfSSL_X509_check_host(x509, name1, nameLen1,
         WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), WOLFSSL_SUCCESS);
+    /* strlen()-driven and NUL-inclusive lengths should both preserve match. */
+    ExpectIntEQ(wolfSSL_X509_check_host(x509, name1, 0,
+        WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_check_host(x509, name4, nameLen4,
+        WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), WOLFSSL_SUCCESS);
     /* Ensure that "*.example.com" does NOT match "x.y.example.com" */
     ExpectIntNE(wolfSSL_X509_check_host(x509, name2, nameLen2,
         WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), WOLFSSL_SUCCESS);
     /* Ensure that "*.example.com" does NOT match "example.com" */
     ExpectIntNE(wolfSSL_X509_check_host(x509, name3, nameLen3,
+        WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), WOLFSSL_SUCCESS);
+    /* Embedded NUL must remain rejected. */
+    ExpectIntNE(wolfSSL_X509_check_host(x509, badName, (int)sizeof(badName),
         WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), WOLFSSL_SUCCESS);
 
     /* WOLFSSL_LEFT_MOST_WILDCARD_ONLY, should match "foo.example.com" */
@@ -1753,4 +1795,3 @@ int test_wolfSSL_X509_cmp(void)
 #endif
     return EXPECT_RESULT();
 }
-

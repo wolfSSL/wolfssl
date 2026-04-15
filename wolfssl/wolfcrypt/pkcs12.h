@@ -58,7 +58,7 @@ WOLFSSL_API int wc_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
 WOLFSSL_API int wc_PKCS12_parse_ex(WC_PKCS12* pkcs12, const char* psw,
         byte** pkey, word32* pkeySz, byte** cert, word32* certSz,
         WC_DerCertList** ca, int keepKeyHeader);
-WOLFSSL_LOCAL int wc_PKCS12_verify_ex(WC_PKCS12* pkcs12,
+WOLFSSL_TEST_VIS int wc_PKCS12_verify_ex(WC_PKCS12* pkcs12,
         const byte* psw, word32 pswSz);
 WOLFSSL_API WC_PKCS12* wc_PKCS12_create(char* pass, word32 passSz,
         char* name, byte* key, word32 keySz, byte* cert, word32 certSz,
@@ -76,4 +76,3 @@ WOLFSSL_API void wc_FreeCertList(WC_DerCertList* list, void* heap);
 #endif
 
 #endif /* WOLF_CRYPT_PKCS12_H */
-

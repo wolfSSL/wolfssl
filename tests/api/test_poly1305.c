@@ -268,3 +268,237 @@ int test_wc_Poly1305_PadEncodeSizes(void)
     return EXPECT_RESULT();
 } /* END test_wc_Poly1305_PadEncodeSizes */
 
+int test_wc_Poly1305BadArgCoverage(void)
+{
+    EXPECT_DECLS;
+#ifdef HAVE_POLY1305
+    Poly1305 ctx;
+    byte tag[WC_POLY1305_MAC_SZ];
+    byte mac[WC_POLY1305_MAC_SZ];
+    byte buf[32];
+    const byte key[32] = {
+        0x85,0xd6,0xbe,0x78,0x57,0x55,0x6d,0x33,
+        0x7f,0x44,0x52,0xfe,0x42,0xd5,0x06,0xa8,
+        0x01,0x03,0x80,0x8a,0xfb,0x0d,0xb2,0xfd,
+        0x4a,0xbf,0xf6,0xaf,0x41,0x49,0xf5,0x1b
+    };
+
+    XMEMSET(buf, 0x42, sizeof(buf));
+    XMEMSET(tag, 0, sizeof(tag));
+
+    ExpectIntEQ(wc_Poly1305SetKey(NULL, key, 32),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Poly1305SetKey(&ctx, NULL, 32),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Poly1305SetKey(&ctx, key, 16),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Poly1305SetKey(&ctx, key, 64),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    ExpectIntEQ(wc_Poly1305Final(NULL, mac),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Poly1305SetKey(&ctx, key, 32), 0);
+    ExpectIntEQ(wc_Poly1305Final(&ctx, NULL),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    ExpectIntEQ(wc_Poly1305Update(NULL, buf, 16),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Poly1305SetKey(&ctx, key, 32), 0);
+    ExpectIntEQ(wc_Poly1305Update(&ctx, NULL, 1),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Poly1305Update(&ctx, NULL, 0), 0);
+
+    ExpectIntEQ(wc_Poly1305_MAC(NULL, NULL, 0, buf, 16, tag, WC_POLY1305_MAC_SZ),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Poly1305SetKey(&ctx, key, 32), 0);
+    ExpectIntEQ(wc_Poly1305_MAC(&ctx, NULL, 0, NULL, 1, tag, WC_POLY1305_MAC_SZ),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Poly1305SetKey(&ctx, key, 32), 0);
+    ExpectIntEQ(wc_Poly1305_MAC(&ctx, NULL, 0, buf, 16, NULL, WC_POLY1305_MAC_SZ),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Poly1305SetKey(&ctx, key, 32), 0);
+    ExpectIntEQ(wc_Poly1305_MAC(&ctx, NULL, 0, buf, 16, tag, 8),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Poly1305SetKey(&ctx, key, 32), 0);
+    ExpectIntEQ(wc_Poly1305_MAC(&ctx, NULL, 1, buf, 16, tag, WC_POLY1305_MAC_SZ),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wc_Poly1305DecisionCoverage(void)
+{
+    EXPECT_DECLS;
+#ifdef HAVE_POLY1305
+    Poly1305 ctx;
+    byte tag[WC_POLY1305_MAC_SZ];
+    const byte key[32] = {
+        0x85,0xd6,0xbe,0x78,0x57,0x55,0x6d,0x33,
+        0x7f,0x44,0x52,0xfe,0x42,0xd5,0x06,0xa8,
+        0x01,0x03,0x80,0x8a,0xfb,0x0d,0xb2,0xfd,
+        0x4a,0xbf,0xf6,0xaf,0x41,0x49,0xf5,0x1b
+    };
+    const byte msg[] = {
+        0x43,0x72,0x79,0x70,0x74,0x6f,0x67,0x72,
+        0x61,0x70,0x68,0x69,0x63,0x20,0x46,0x6f,
+        0x72,0x75,0x6d,0x20,0x52,0x65,0x73,0x65,
+        0x61,0x72,0x63,0x68,0x20,0x47,0x72,0x6f,
+        0x75,0x70
+    };
+    const byte expectedTag[WC_POLY1305_MAC_SZ] = {
+        0xa8,0x06,0x1d,0xc1,0x30,0x51,0x36,0xc6,
+        0xc2,0x2b,0x8b,0xaf,0x0c,0x01,0x27,0xa9
+    };
+
+    ExpectIntEQ(wc_Poly1305SetKey(&ctx, key, 32), 0);
+    ExpectIntEQ(wc_Poly1305Update(&ctx, NULL, 0), 0);
+    ExpectIntEQ(wc_Poly1305Update(&ctx, msg, 7), 0);
+    ExpectIntEQ(wc_Poly1305Update(&ctx, msg + 7, (word32)(sizeof(msg) - 7)), 0);
+    ExpectIntEQ(wc_Poly1305Final(&ctx, tag), 0);
+    ExpectBufEQ(tag, expectedTag, WC_POLY1305_MAC_SZ);
+
+    ExpectIntEQ(wc_Poly1305SetKey(&ctx, key, 32), 0);
+    ExpectIntEQ(wc_Poly1305Update(&ctx, msg, 16), 0);
+    ExpectIntEQ(wc_Poly1305Update(&ctx, msg + 16, (word32)(sizeof(msg) - 16)), 0);
+    XMEMSET(tag, 0, sizeof(tag));
+    ExpectIntEQ(wc_Poly1305Final(&ctx, tag), 0);
+
+    ExpectIntEQ(wc_Poly1305SetKey(&ctx, key, 32), 0);
+    ExpectIntEQ(wc_Poly1305_Pad(&ctx, 0), 0);
+    ExpectIntEQ(wc_Poly1305_Pad(&ctx, 16), 0);
+    ExpectIntEQ(wc_Poly1305_Pad(&ctx, 17), 0);
+    ExpectIntEQ(wc_Poly1305_Pad(&ctx, 1), 0);
+
+    ExpectIntEQ(wc_Poly1305SetKey(&ctx, key, 32), 0);
+    XMEMSET(tag, 0, sizeof(tag));
+    ExpectIntEQ(wc_Poly1305_MAC(&ctx, NULL, 0, msg, (word32)sizeof(msg),
+                                 tag, WC_POLY1305_MAC_SZ), 0);
+
+    {
+        const byte aad[12] = {
+            0x50,0x51,0x52,0x53,0xc0,0xc1,0xc2,0xc3,0xc4,0xc5,0xc6,0xc7
+        };
+        ExpectIntEQ(wc_Poly1305SetKey(&ctx, key, 32), 0);
+        XMEMSET(tag, 0, sizeof(tag));
+        ExpectIntEQ(wc_Poly1305_MAC(&ctx, aad, (word32)sizeof(aad),
+                                     msg, (word32)sizeof(msg),
+                                     tag, WC_POLY1305_MAC_SZ), 0);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wc_Poly1305FeatureCoverage(void)
+{
+    EXPECT_DECLS;
+#ifdef HAVE_POLY1305
+    Poly1305 ctx;
+    byte tag[WC_POLY1305_MAC_SZ];
+    byte tag2[WC_POLY1305_MAC_SZ];
+    const byte key[32] = {
+        0x85,0xd6,0xbe,0x78,0x57,0x55,0x6d,0x33,
+        0x7f,0x44,0x52,0xfe,0x42,0xd5,0x06,0xa8,
+        0x01,0x03,0x80,0x8a,0xfb,0x0d,0xb2,0xfd,
+        0x4a,0xbf,0xf6,0xaf,0x41,0x49,0xf5,0x1b
+    };
+    const byte msg[] = {
+        0x43,0x72,0x79,0x70,0x74,0x6f,0x67,0x72,
+        0x61,0x70,0x68,0x69,0x63,0x20,0x46,0x6f,
+        0x72,0x75,0x6d,0x20,0x52,0x65,0x73,0x65,
+        0x61,0x72,0x63,0x68,0x20,0x47,0x72,0x6f,
+        0x75,0x70
+    };
+    const byte expectedTag[WC_POLY1305_MAC_SZ] = {
+        0xa8,0x06,0x1d,0xc1,0x30,0x51,0x36,0xc6,
+        0xc2,0x2b,0x8b,0xaf,0x0c,0x01,0x27,0xa9
+    };
+
+    ExpectIntEQ(wc_Poly1305SetKey(&ctx, key, 32), 0);
+    ExpectIntEQ(wc_Poly1305Update(&ctx, msg, (word32)sizeof(msg)), 0);
+    XMEMSET(tag, 0, sizeof(tag));
+    ExpectIntEQ(wc_Poly1305Final(&ctx, tag), 0);
+    ExpectBufEQ(tag, expectedTag, WC_POLY1305_MAC_SZ);
+
+    ExpectIntEQ(wc_Poly1305SetKey(&ctx, key, 32), 0);
+    ExpectIntEQ(wc_Poly1305Update(&ctx, msg, 0), 0);
+    ExpectIntEQ(wc_Poly1305Update(&ctx, msg, (word32)sizeof(msg)), 0);
+    XMEMSET(tag2, 0, sizeof(tag2));
+    ExpectIntEQ(wc_Poly1305Final(&ctx, tag2), 0);
+    ExpectBufEQ(tag2, tag, WC_POLY1305_MAC_SZ);
+
+    {
+        word32 i;
+        ExpectIntEQ(wc_Poly1305SetKey(&ctx, key, 32), 0);
+        for (i = 0; i < (word32)sizeof(msg); i++) {
+            ExpectIntEQ(wc_Poly1305Update(&ctx, msg + i, 1), 0);
+        }
+        XMEMSET(tag2, 0, sizeof(tag2));
+        ExpectIntEQ(wc_Poly1305Final(&ctx, tag2), 0);
+        ExpectBufEQ(tag2, tag, WC_POLY1305_MAC_SZ);
+    }
+
+    {
+        byte data32[32];
+        XMEMSET(data32, 0xab, sizeof(data32));
+        ExpectIntEQ(wc_Poly1305SetKey(&ctx, key, 32), 0);
+        ExpectIntEQ(wc_Poly1305Update(&ctx, data32, 16), 0);
+        ExpectIntEQ(wc_Poly1305Update(&ctx, data32 + 16, 16), 0);
+        XMEMSET(tag2, 0, sizeof(tag2));
+        ExpectIntEQ(wc_Poly1305Final(&ctx, tag2), 0);
+    }
+
+    {
+        byte data33[33];
+        XMEMSET(data33, 0xcd, sizeof(data33));
+        ExpectIntEQ(wc_Poly1305SetKey(&ctx, key, 32), 0);
+        ExpectIntEQ(wc_Poly1305Update(&ctx, data33, (word32)sizeof(data33)), 0);
+        XMEMSET(tag2, 0, sizeof(tag2));
+        ExpectIntEQ(wc_Poly1305Final(&ctx, tag2), 0);
+    }
+
+    {
+        byte aad16[16];
+        XMEMSET(aad16, 0xee, sizeof(aad16));
+        ExpectIntEQ(wc_Poly1305SetKey(&ctx, key, 32), 0);
+        XMEMSET(tag2, 0, sizeof(tag2));
+        ExpectIntEQ(wc_Poly1305_MAC(&ctx, aad16, 16,
+                                     msg, (word32)sizeof(msg),
+                                     tag2, WC_POLY1305_MAC_SZ), 0);
+    }
+
+    {
+        byte aad17[17];
+        XMEMSET(aad17, 0xff, sizeof(aad17));
+        ExpectIntEQ(wc_Poly1305SetKey(&ctx, key, 32), 0);
+        XMEMSET(tag2, 0, sizeof(tag2));
+        ExpectIntEQ(wc_Poly1305_MAC(&ctx, aad17, 17,
+                                     msg, (word32)sizeof(msg),
+                                     tag2, WC_POLY1305_MAC_SZ), 0);
+    }
+
+    {
+        byte aad1[1] = { 0xAA };
+        ExpectIntEQ(wc_Poly1305SetKey(&ctx, key, 32), 0);
+        XMEMSET(tag2, 0, sizeof(tag2));
+        ExpectIntEQ(wc_Poly1305_MAC(&ctx, aad1, 1,
+                                     msg, (word32)sizeof(msg),
+                                     tag2, WC_POLY1305_MAC_SZ), 0);
+    }
+
+    ExpectIntEQ(wc_Poly1305_EncodeSizes(NULL, 12, 34),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    ExpectIntEQ(wc_Poly1305SetKey(&ctx, key, 32), 0);
+    ExpectIntEQ(wc_Poly1305_EncodeSizes(&ctx, 12, (word32)sizeof(msg)), 0);
+
+    {
+        byte emptyBuf[1] = { 0 };
+        ExpectIntEQ(wc_Poly1305SetKey(&ctx, key, 32), 0);
+        XMEMSET(tag2, 0, sizeof(tag2));
+        ExpectIntEQ(wc_Poly1305_MAC(&ctx, NULL, 0,
+                                     emptyBuf, 0,
+                                     tag2, WC_POLY1305_MAC_SZ), 0);
+    }
+#endif
+    return EXPECT_RESULT();
+}

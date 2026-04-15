@@ -199,6 +199,72 @@ int test_wc_PKCS12_create(void)
     return EXPECT_RESULT();
 }
 
+int test_wc_PKCS12_create_guardrails(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_ASN) && defined(HAVE_PKCS12) && !defined(NO_PWDBASED) && \
+    !defined(NO_RSA) && !defined(NO_ASN_CRYPT) && \
+    !defined(NO_HMAC) && !defined(NO_CERTS) && defined(USE_CERT_BUFFERS_2048)
+    byte* inKey = (byte*)server_key_der_2048;
+    const word32 inKeySz = sizeof_server_key_der_2048;
+    byte* inCert = (byte*)server_cert_der_2048;
+    const word32 inCertSz = sizeof_server_cert_der_2048;
+    WC_DerCertList inCa = {
+        (byte*)ca_cert_der_2048, sizeof_ca_cert_der_2048, NULL
+    };
+    char pkcs12Passwd[] = "test_wc_PKCS12_create_guardrails";
+
+    ExpectNull(wc_PKCS12_create(pkcs12Passwd, sizeof(pkcs12Passwd) - 1,
+        (char*)"friendlyName", inKey, inKeySz, inCert, inCertSz, &inCa, 9999,
+        -1, 0, 0, 0, NULL));
+    ExpectNull(wc_PKCS12_create(pkcs12Passwd, sizeof(pkcs12Passwd) - 1,
+        (char*)"friendlyName", inKey, inKeySz, inCert, inCertSz, &inCa, -1,
+        9999, 0, 0, 0, NULL));
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wc_PKCS12_parse_guardrails(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_ASN) && !defined(NO_PWDBASED) && defined(HAVE_PKCS12)
+    WC_PKCS12* pkcs12 = NULL;
+    byte* outKey = NULL;
+    byte* outCert = NULL;
+    WC_DerCertList* outCa = (WC_DerCertList*)1;
+    word32 outKeySz = 0;
+    word32 outCertSz = 0;
+
+    ExpectIntEQ(wc_PKCS12_parse(NULL, "", &outKey, &outKeySz, &outCert,
+        &outCertSz, &outCa), BAD_FUNC_ARG);
+
+    ExpectNotNull(pkcs12 = wc_PKCS12_new());
+    ExpectIntEQ(wc_PKCS12_parse(pkcs12, NULL, &outKey, &outKeySz, &outCert,
+        &outCertSz, &outCa), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_PKCS12_parse(pkcs12, "", NULL, &outKeySz, &outCert,
+        &outCertSz, &outCa), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_PKCS12_parse(pkcs12, "", &outKey, NULL, &outCert,
+        &outCertSz, &outCa), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_PKCS12_parse(pkcs12, "", &outKey, &outKeySz, NULL,
+        &outCertSz, &outCa), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_PKCS12_parse(pkcs12, "", &outKey, &outKeySz, &outCert,
+        NULL, &outCa), BAD_FUNC_ARG);
+
+    outKey = (byte*)1;
+    outCert = (byte*)1;
+    outKeySz = 17;
+    outCertSz = 19;
+    ExpectIntEQ(wc_PKCS12_parse(pkcs12, "", &outKey, &outKeySz, &outCert,
+        &outCertSz, &outCa), BAD_FUNC_ARG);
+    ExpectNull(outKey);
+    ExpectNull(outCert);
+    ExpectNull(outCa);
+
+    wc_PKCS12_free(pkcs12);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wc_d2i_PKCS12_bad_mac_salt(void)
 {
     EXPECT_DECLS;
@@ -998,5 +1064,537 @@ int test_wc_PKCS12_PBKDF_ex_sha512_256(void)
                     salt2, (int)sizeof(salt2), 1000, 32, WC_SHA512_256, 1, NULL), 0);
     ExpectIntEQ(XMEMCMP(derived, verify2, 32), 0);
 #endif
+    return EXPECT_RESULT();
+}
+
+/* ---------------------------------------------------------------------------
+ * MC/DC batch-1 additions — target hotspots in pkcs12.c
+ * ---------------------------------------------------------------------------
+ *
+ * test_wc_Pkcs12BadArgCoverage
+ *   Exercises every public NULL-pointer / bad-argument branch so that both
+ *   the taken (error) and not-taken (valid) sides of each compound guard are
+ *   reached independently.  Targets:
+ *     wc_d2i_PKCS12         L683 (2 pairs: der==NULL, pkcs12==NULL)
+ *     wc_i2d_PKCS12         L872 (3 pairs: pkcs12==NULL, safe==NULL, both
+ *                                           der and derSz NULL)
+ *     wc_d2i_PKCS12_fp      L842 (2 pairs: pkcs12==NULL, *pkcs12 path)
+ *     wc_PKCS12_verify_ex   L657 (2 pairs: pkcs12==NULL, safe==NULL)
+ *     wc_PKCS12_parse_ex    L1414 (2 pairs: already in guardrails, extend)
+ *     wc_PKCS12_new / free  baseline allocation sanity
+ *
+ * test_wc_Pkcs12DecisionCoverage
+ *   Round-trip: create → i2d → d2i → parse.  Also calls parse_ex with
+ *   keepKeyHeader=1 (different branch) and verify_ex after successful parse.
+ *   Targets:
+ *     wc_i2d_PKCS12         L872 (der==NULL → auto-alloc path, der!=NULL path)
+ *     wc_PKCS12_parse_ex    L1414 (keepKeyHeader 0 vs 1)
+ *     wc_PKCS12_verify_ex   L657 (pkcs12 with signData set, passes)
+ *     wc_PKCS12_create_mac  L545 (reached via create + verify path)
+ *     wc_PKCS12_shroud_key  L1865 (reached via wc_PKCS12_create)
+ *
+ * test_wc_Pkcs12FeatureCoverage
+ *   Exercises wc_PKCS12_create with alternate PBE algorithms (RC4-128, DES,
+ *   DES3, 40RC2) and with iter=1 vs iter=1024 to hit different branches in
+ *   wc_PKCS12_create_mac (L545) and wc_PKCS12_shroud_key (L1865).
+ *   Targets:
+ *     wc_PKCS12_create_mac  L545 (varies pswSz and mac iterations)
+ *     PKCS12_create_key_content L2387 (different key enctype)
+ *     wc_PKCS12_create_key_bag  L1969 (multiple calls)
+ *
+ * test_wc_Pkcs12FileCoverage
+ *   Uses wc_d2i_PKCS12_fp with the real test-servercert.p12, exercising the
+ *   file-load path and NULL-alloc branch.  Also exercises rc2 variant file.
+ *   Targets:
+ *     wc_d2i_PKCS12_fp      L842 (*pkcs12==NULL auto-alloc, *pkcs12!=NULL)
+ *     GetSignData            L445/L477 (real MAC data with salt+iterations)
+ * ---------------------------------------------------------------------------
+ */
+
+/* --------------- test_wc_Pkcs12BadArgCoverage ----------------------------- */
+int test_wc_Pkcs12BadArgCoverage(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_ASN) && !defined(NO_PWDBASED) && defined(HAVE_PKCS12)
+    WC_PKCS12* pkcs12 = NULL;
+    byte       dummy[4] = { 0x00, 0x01, 0x02, 0x03 };
+    byte*      derOut   = NULL;
+    int        derSz    = 0;
+
+    /* --- wc_PKCS12_new / wc_PKCS12_free --- */
+    ExpectNotNull(pkcs12 = wc_PKCS12_new());
+    wc_PKCS12_free(pkcs12);
+    pkcs12 = NULL;
+    /* free NULL must not crash */
+    wc_PKCS12_free(NULL);
+
+    /* --- wc_d2i_PKCS12: NULL der (L683 first condition) --- */
+    ExpectNotNull(pkcs12 = wc_PKCS12_new());
+    ExpectIntEQ(wc_d2i_PKCS12(NULL, sizeof(dummy), pkcs12), BAD_FUNC_ARG);
+    /* wc_d2i_PKCS12: NULL pkcs12 (L683 second condition) */
+    ExpectIntEQ(wc_d2i_PKCS12(dummy, sizeof(dummy), NULL), BAD_FUNC_ARG);
+    wc_PKCS12_free(pkcs12);
+    pkcs12 = NULL;
+
+    /* --- wc_i2d_PKCS12: NULL pkcs12 (L872 first condition) --- */
+    ExpectIntEQ(wc_i2d_PKCS12(NULL, &derOut, &derSz), BAD_FUNC_ARG);
+    /* wc_i2d_PKCS12: both der and derSz NULL (L872 third condition) */
+    ExpectNotNull(pkcs12 = wc_PKCS12_new());
+    ExpectIntEQ(wc_i2d_PKCS12(pkcs12, NULL, NULL), BAD_FUNC_ARG);
+    wc_PKCS12_free(pkcs12);
+    pkcs12 = NULL;
+
+#ifndef NO_FILESYSTEM
+    {
+        /* --- wc_d2i_PKCS12_fp: NULL pkcs12** (L842 first condition) --- */
+        ExpectIntEQ(wc_d2i_PKCS12_fp("./certs/test-servercert.p12", NULL),
+                    BAD_FUNC_ARG);
+
+        /* wc_d2i_PKCS12_fp: *pkcs12 == NULL → auto-alloc path (L842) */
+        ExpectIntEQ(wc_d2i_PKCS12_fp("./certs/test-servercert.p12", &pkcs12),
+                    0);
+        ExpectNotNull(pkcs12);
+        wc_PKCS12_free(pkcs12);
+        pkcs12 = NULL;
+
+        /* wc_d2i_PKCS12_fp: *pkcs12 != NULL → caller-alloc path (L842) */
+        ExpectNotNull(pkcs12 = wc_PKCS12_new());
+        ExpectIntEQ(wc_d2i_PKCS12_fp("./certs/test-servercert.p12", &pkcs12),
+                    0);
+        wc_PKCS12_free(pkcs12);
+        pkcs12 = NULL;
+    }
+#endif /* NO_FILESYSTEM */
+
+    /* --- wc_PKCS12_verify_ex: NULL pkcs12 (L657 first condition) --- */
+    ExpectIntEQ(wc_PKCS12_verify_ex(NULL, (const byte*)"pw", 2), BAD_FUNC_ARG);
+
+    /* wc_PKCS12_verify_ex: pkcs12 with safe==NULL (L657 second condition) */
+    ExpectNotNull(pkcs12 = wc_PKCS12_new());
+    ExpectIntEQ(wc_PKCS12_verify_ex(pkcs12, (const byte*)"pw", 2),
+                BAD_FUNC_ARG);
+    wc_PKCS12_free(pkcs12);
+    pkcs12 = NULL;
+
+    /* --- wc_PKCS12_parse_ex: null psw (exercises first compound guard) --- */
+    ExpectNotNull(pkcs12 = wc_PKCS12_new());
+    {
+        byte* pkey = NULL;  word32 pkeySz = 0;
+        byte* cert = NULL;  word32 certSz = 0;
+        WC_DerCertList* ca = NULL;
+        ExpectIntEQ(wc_PKCS12_parse_ex(pkcs12, NULL, &pkey, &pkeySz,
+                    &cert, &certSz, &ca, 0), BAD_FUNC_ARG);
+        ExpectIntEQ(wc_PKCS12_parse_ex(NULL, "pw", &pkey, &pkeySz,
+                    &cert, &certSz, &ca, 0), BAD_FUNC_ARG);
+        /* cert==NULL */
+        ExpectIntEQ(wc_PKCS12_parse_ex(pkcs12, "pw", &pkey, &pkeySz,
+                    NULL, &certSz, &ca, 0), BAD_FUNC_ARG);
+        /* pkey==NULL */
+        ExpectIntEQ(wc_PKCS12_parse_ex(pkcs12, "pw", NULL, &pkeySz,
+                    &cert, &certSz, &ca, 0), BAD_FUNC_ARG);
+    }
+    wc_PKCS12_free(pkcs12);
+    pkcs12 = NULL;
+#endif /* HAVE_PKCS12 */
+    return EXPECT_RESULT();
+}
+
+/* --------------- test_wc_Pkcs12DecisionCoverage --------------------------- */
+int test_wc_Pkcs12DecisionCoverage(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_ASN) && defined(HAVE_PKCS12) && !defined(NO_PWDBASED) && \
+    !defined(NO_RSA) && !defined(NO_ASN_CRYPT) && \
+    !defined(NO_HMAC) && !defined(NO_CERTS) && defined(USE_CERT_BUFFERS_2048)
+    byte* inKey  = (byte*)server_key_der_2048;
+    word32 inKeySz = sizeof_server_key_der_2048;
+    byte* inCert = (byte*)server_cert_der_2048;
+    word32 inCertSz = sizeof_server_cert_der_2048;
+    char pass[] = "DecisionCoverage!";
+    WC_PKCS12* pkcs12    = NULL;
+    WC_PKCS12* pkcs12b   = NULL;
+    byte*  der           = NULL;
+    int    derSz         = 0;
+    byte*  outKey        = NULL; word32 outKeySz = 0;
+    byte*  outKey2       = NULL; word32 outKeySz2 = 0;
+    byte*  outCert       = NULL; word32 outCertSz = 0;
+    WC_DerCertList* outCa = NULL;
+
+    /* Create a minimal PKCS12 (no CA list, default encryption) */
+    ExpectNotNull(pkcs12 = wc_PKCS12_create(pass, (word32)(sizeof(pass) - 1),
+                (char*)"test", inKey, inKeySz, inCert, inCertSz, NULL,
+                -1, -1, WC_PKCS12_ITT_DEFAULT, WC_PKCS12_ITT_DEFAULT,
+                0, NULL));
+
+    /* --- wc_i2d_PKCS12 with NULL der → allocates buffer (auto-alloc path) */
+    ExpectIntGT(derSz = wc_i2d_PKCS12(pkcs12, &der, NULL), 0);
+    ExpectNotNull(der);
+
+    /* --- wc_d2i_PKCS12 round-trip --- */
+    ExpectNotNull(pkcs12b = wc_PKCS12_new());
+    ExpectIntEQ(wc_d2i_PKCS12(der, (word32)derSz, pkcs12b), 0);
+
+    /* --- wc_PKCS12_verify_ex with valid signData present (L657 pass) --- */
+    ExpectIntEQ(wc_PKCS12_verify_ex(pkcs12b, (const byte*)pass,
+                (word32)(sizeof(pass) - 1)), 0);
+
+    /* --- wc_PKCS12_parse_ex with keepKeyHeader=0 (L1414 first branch) --- */
+    ExpectIntEQ(wc_PKCS12_parse_ex(pkcs12b, pass, &outKey, &outKeySz,
+                &outCert, &outCertSz, &outCa, 0), 0);
+    ExpectNotNull(outKey);
+    ExpectNotNull(outCert);
+    XFREE(outKey,  NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+    XFREE(outCert, NULL, DYNAMIC_TYPE_PKCS);
+    wc_FreeCertList(outCa, NULL);
+    outKey = NULL; outCert = NULL; outCa = NULL;
+
+    /* --- wc_PKCS12_parse_ex with keepKeyHeader=1 (L1414 second branch) --- */
+    ExpectIntEQ(wc_PKCS12_parse_ex(pkcs12b, pass, &outKey2, &outKeySz2,
+                &outCert, &outCertSz, &outCa, 1), 0);
+    ExpectNotNull(outKey2);
+    ExpectNotNull(outCert);
+    /* keepKeyHeader=1 keeps PKCS#8 wrapper so key is larger */
+    ExpectIntGE((int)outKeySz2, (int)inKeySz);
+    XFREE(outKey2, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+    XFREE(outCert, NULL, DYNAMIC_TYPE_PKCS);
+    wc_FreeCertList(outCa, NULL);
+    outCa = NULL; outCert = NULL;
+
+    /* --- wc_i2d_PKCS12 with valid buf pointer (non-alloc path, LENGTH_ONLY) */
+    {
+        int    sz2  = 0;
+        /* Request length only (der==NULL, derSz!=NULL) */
+        ExpectIntEQ(wc_i2d_PKCS12(pkcs12b, NULL, &sz2),
+                    WC_NO_ERR_TRACE(LENGTH_ONLY_E));
+        ExpectIntEQ(sz2, derSz);
+    }
+
+    XFREE(der, NULL, DYNAMIC_TYPE_PKCS);
+    wc_PKCS12_free(pkcs12b);
+    wc_PKCS12_free(pkcs12);
+#endif /* HAVE_PKCS12 */
+    return EXPECT_RESULT();
+}
+
+/* --------------- test_wc_Pkcs12FeatureCoverage ---------------------------- */
+/*
+ * Exercises wc_PKCS12_create with different PBE algorithms and iteration
+ * counts to cover additional branches in wc_PKCS12_create_mac (L545),
+ * PKCS12_create_key_content (L2387), and wc_PKCS12_create_key_bag (L1969).
+ */
+int test_wc_Pkcs12FeatureCoverage(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_ASN) && defined(HAVE_PKCS12) && !defined(NO_PWDBASED) && \
+    !defined(NO_RSA) && !defined(NO_ASN_CRYPT) && \
+    !defined(NO_HMAC) && !defined(NO_CERTS) && defined(USE_CERT_BUFFERS_2048)
+
+    byte* inKey  = (byte*)server_key_der_2048;
+    word32 inKeySz = sizeof_server_key_der_2048;
+    byte* inCert = (byte*)server_cert_der_2048;
+    word32 inCertSz = sizeof_server_cert_der_2048;
+    char pass[] = "FeatureCov1";
+    WC_PKCS12* pkcs12 = NULL;
+    byte* der = NULL;
+    int   derSz = 0;
+    byte* outKey = NULL; word32 outKeySz = 0;
+    byte* outCert = NULL; word32 outCertSz = 0;
+    WC_DerCertList* outCa = NULL;
+
+    /* --- iter=1 (minimum): exercises single-iteration MAC path (L545) --- */
+    ExpectNotNull(pkcs12 = wc_PKCS12_create(pass, (word32)(sizeof(pass) - 1),
+                (char*)"feat", inKey, inKeySz, inCert, inCertSz, NULL,
+                -1, -1,
+                1 /* key iter */, 1 /* mac iter */,
+                0, NULL));
+    ExpectIntGT(derSz = wc_i2d_PKCS12(pkcs12, &der, NULL), 0);
+    ExpectNotNull(der);
+    wc_PKCS12_free(pkcs12);
+    pkcs12 = NULL;
+    /* Decode into a fresh object and parse */
+    {
+        WC_PKCS12* p12tmp = wc_PKCS12_new();
+        if (p12tmp != NULL) {
+            if (wc_d2i_PKCS12(der, (word32)derSz, p12tmp) == 0) {
+                if (wc_PKCS12_parse(p12tmp, pass, &outKey, &outKeySz,
+                                    &outCert, &outCertSz, &outCa) == 0) {
+                    XFREE(outKey,  NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+                    XFREE(outCert, NULL, DYNAMIC_TYPE_PKCS);
+                    wc_FreeCertList(outCa, NULL);
+                    outKey = NULL; outCert = NULL; outCa = NULL;
+                }
+            }
+            wc_PKCS12_free(p12tmp);
+        }
+    }
+    XFREE(der, NULL, DYNAMIC_TYPE_PKCS);
+    der = NULL; derSz = 0;
+
+    /* --- iter=1024: higher iteration MAC path (L545) --- */
+    ExpectNotNull(pkcs12 = wc_PKCS12_create(pass, (word32)(sizeof(pass) - 1),
+                (char*)"feat", inKey, inKeySz, inCert, inCertSz, NULL,
+                -1, -1,
+                1024 /* key iter */, 1024 /* mac iter */,
+                0, NULL));
+    ExpectIntGT(derSz = wc_i2d_PKCS12(pkcs12, &der, NULL), 0);
+    ExpectNotNull(der);
+    {
+        WC_PKCS12* p12tmp = wc_PKCS12_new();
+        if (p12tmp != NULL) {
+            if (wc_d2i_PKCS12(der, (word32)derSz, p12tmp) == 0) {
+                if (wc_PKCS12_parse(p12tmp, pass, &outKey, &outKeySz,
+                                    &outCert, &outCertSz, &outCa) == 0) {
+                    XFREE(outKey,  NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+                    XFREE(outCert, NULL, DYNAMIC_TYPE_PKCS);
+                    wc_FreeCertList(outCa, NULL);
+                    outKey = NULL; outCert = NULL; outCa = NULL;
+                }
+            }
+            wc_PKCS12_free(p12tmp);
+        }
+    }
+    XFREE(der, NULL, DYNAMIC_TYPE_PKCS);
+    der = NULL; derSz = 0;
+    wc_PKCS12_free(pkcs12);
+    pkcs12 = NULL;
+
+#if !defined(NO_RC4) && !defined(NO_SHA)
+    /* --- PBE_SHA1_RC4_128 key enc (PKCS12_create_key_content L2387) --- */
+    ExpectNotNull(pkcs12 = wc_PKCS12_create(pass, (word32)(sizeof(pass) - 1),
+                (char*)"feat-rc4", inKey, inKeySz, inCert, inCertSz, NULL,
+                PBE_SHA1_RC4_128, PBE_SHA1_RC4_128,
+                WC_PKCS12_ITT_DEFAULT, WC_PKCS12_ITT_DEFAULT,
+                0, NULL));
+    if (pkcs12 != NULL) {
+        ExpectIntGT(derSz = wc_i2d_PKCS12(pkcs12, &der, NULL), 0);
+        XFREE(der, NULL, DYNAMIC_TYPE_PKCS);
+        der = NULL; derSz = 0;
+        wc_PKCS12_free(pkcs12);
+        pkcs12 = NULL;
+    }
+#endif /* RC4 + SHA */
+
+#if !defined(NO_DES3) && !defined(NO_SHA)
+    /* --- PBE_SHA1_DES3 key enc (wc_PKCS12_shroud_key L1865 DES3 branch) --- */
+    ExpectNotNull(pkcs12 = wc_PKCS12_create(pass, (word32)(sizeof(pass) - 1),
+                (char*)"feat-des3", inKey, inKeySz, inCert, inCertSz, NULL,
+                PBE_SHA1_DES3, PBE_SHA1_DES3,
+                WC_PKCS12_ITT_DEFAULT, WC_PKCS12_ITT_DEFAULT,
+                0, NULL));
+    if (pkcs12 != NULL) {
+        ExpectIntGT(derSz = wc_i2d_PKCS12(pkcs12, &der, NULL), 0);
+        /* Verify the MAC after DES3-encoded round-trip */
+        {
+            WC_PKCS12* p12tmp = wc_PKCS12_new();
+            if (p12tmp != NULL) {
+                if (wc_d2i_PKCS12(der, (word32)derSz, p12tmp) == 0) {
+                    ExpectIntEQ(wc_PKCS12_verify_ex(p12tmp,
+                                (const byte*)pass,
+                                (word32)(sizeof(pass) - 1)), 0);
+                    if (wc_PKCS12_parse(p12tmp, pass, &outKey, &outKeySz,
+                                        &outCert, &outCertSz, &outCa) == 0) {
+                        XFREE(outKey,  NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+                        XFREE(outCert, NULL, DYNAMIC_TYPE_PKCS);
+                        wc_FreeCertList(outCa, NULL);
+                        outKey = NULL; outCert = NULL; outCa = NULL;
+                    }
+                }
+                wc_PKCS12_free(p12tmp);
+            }
+        }
+        XFREE(der, NULL, DYNAMIC_TYPE_PKCS);
+        der = NULL; derSz = 0;
+        wc_PKCS12_free(pkcs12);
+        pkcs12 = NULL;
+    }
+#endif /* DES3 + SHA */
+
+#if !defined(NO_SHA)
+    /* --- PBE_SHA1_40RC2_CBC cert enc (wc_PKCS12_shroud_key L1865 RC2 path)
+     * RC2 may not be compiled in; accept NULL without failing the test. */
+    pkcs12 = wc_PKCS12_create(pass, (word32)(sizeof(pass) - 1),
+                (char*)"feat-rc2", inKey, inKeySz, inCert, inCertSz, NULL,
+                PBE_SHA1_40RC2_CBC, PBE_SHA1_40RC2_CBC,
+                WC_PKCS12_ITT_DEFAULT, WC_PKCS12_ITT_DEFAULT,
+                0, NULL);
+    if (pkcs12 != NULL) {
+        ExpectIntGT(derSz = wc_i2d_PKCS12(pkcs12, &der, NULL), 0);
+        XFREE(der, NULL, DYNAMIC_TYPE_PKCS);
+        der = NULL; derSz = 0;
+        wc_PKCS12_free(pkcs12);
+        pkcs12 = NULL;
+    }
+    else {
+        /* RC2 may not be available — skip gracefully */
+        (void)derSz;
+    }
+#endif /* SHA */
+
+    (void)outKey; (void)outCert; (void)outCa;
+#endif /* HAVE_PKCS12 */
+    return EXPECT_RESULT();
+}
+
+/* --------------- test_wc_Pkcs12FileCoverage ------------------------------- */
+/*
+ * Uses real PKCS12 files on disk to exercise wc_d2i_PKCS12_fp branches and
+ * GetSignData (L445/L477) with authentic MAC salt and iteration data.
+ */
+int test_wc_Pkcs12FileCoverage(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_ASN) && !defined(NO_PWDBASED) && defined(HAVE_PKCS12) \
+    && !defined(NO_FILESYSTEM) && !defined(NO_RSA) \
+    && !defined(NO_AES) && !defined(NO_SHA) && !defined(NO_SHA256)
+    WC_PKCS12* pkcs12 = NULL;
+    int        derSz  = 0;
+    byte*      der    = NULL;
+
+    /* --- test-servercert.p12: auto-alloc (*pkcs12 starts NULL) --- */
+    ExpectIntEQ(wc_d2i_PKCS12_fp("./certs/test-servercert.p12", &pkcs12), 0);
+    ExpectNotNull(pkcs12);
+    /* Length-only serialisation exercises wc_i2d_PKCS12 L872 signData branch */
+    ExpectIntEQ(wc_i2d_PKCS12(pkcs12, NULL, &derSz),
+                WC_NO_ERR_TRACE(LENGTH_ONLY_E));
+    ExpectIntGT(derSz, 0);
+    wc_PKCS12_free(pkcs12);
+    pkcs12 = NULL;
+
+    /* --- test-servercert.p12: caller-alloc (*pkcs12 starts non-NULL) --- */
+    ExpectNotNull(pkcs12 = wc_PKCS12_new());
+    ExpectIntEQ(wc_d2i_PKCS12_fp("./certs/test-servercert.p12", &pkcs12), 0);
+    /* Full serialisation (der != NULL, auto-alloc) exercises L872 alloc path */
+    ExpectIntGT(wc_i2d_PKCS12(pkcs12, &der, NULL), 0);
+    ExpectNotNull(der);
+    XFREE(der, NULL, DYNAMIC_TYPE_PKCS);
+    der = NULL;
+    wc_PKCS12_free(pkcs12);
+    pkcs12 = NULL;
+
+#if !defined(NO_RC2)
+    /* --- test-servercert-rc2.p12: exercises RC2 content-info parsing --- */
+    ExpectIntEQ(wc_d2i_PKCS12_fp("./certs/test-servercert-rc2.p12", &pkcs12),
+                0);
+    ExpectNotNull(pkcs12);
+    derSz = 0;
+    ExpectIntEQ(wc_i2d_PKCS12(pkcs12, NULL, &derSz),
+                WC_NO_ERR_TRACE(LENGTH_ONLY_E));
+    ExpectIntGT(derSz, 0);
+    wc_PKCS12_free(pkcs12);
+    pkcs12 = NULL;
+#endif /* NO_RC2 */
+
+    /* --- ecc-rsa-server.p12: mixed ECC+RSA cert bag (if available) --- */
+#if defined(HAVE_ECC)
+    ExpectIntEQ(wc_d2i_PKCS12_fp("./certs/ecc-rsa-server.p12", &pkcs12), 0);
+    ExpectNotNull(pkcs12);
+    wc_PKCS12_free(pkcs12);
+    pkcs12 = NULL;
+#endif /* HAVE_ECC */
+
+    /* --- NULL file path: exercises wc_FileLoad error path in fp (L842) --- */
+    ExpectIntNE(wc_d2i_PKCS12_fp(NULL, &pkcs12), 0);
+    /* pkcs12 must remain NULL or be freed on failure */
+    if (pkcs12 != NULL) {
+        wc_PKCS12_free(pkcs12);
+        pkcs12 = NULL;
+    }
+
+#endif /* HAVE_PKCS12 + filesystem */
+    return EXPECT_RESULT();
+}
+
+/* --------------- test_wc_Pkcs12MacIterCoverage ---------------------------- */
+/*
+ * Targets wc_PKCS12_create_mac (L545) specifically for the MAC iteration
+ * boundary and password-size decisions by building PKCS12 blobs with an
+ * empty password, a single-char password, and a long password.  These
+ * exercise the unicode-conversion block and iteration loop independently.
+ */
+int test_wc_Pkcs12MacIterCoverage(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_ASN) && defined(HAVE_PKCS12) && !defined(NO_PWDBASED) && \
+    !defined(NO_RSA) && !defined(NO_ASN_CRYPT) && \
+    !defined(NO_HMAC) && !defined(NO_CERTS) && defined(USE_CERT_BUFFERS_2048)
+
+    byte* inKey  = (byte*)server_key_der_2048;
+    word32 inKeySz = sizeof_server_key_der_2048;
+    byte* inCert = (byte*)server_cert_der_2048;
+    word32 inCertSz = sizeof_server_cert_der_2048;
+    WC_PKCS12* pkcs12 = NULL;
+    byte* der = NULL;
+    int   derSz = 0;
+    byte* outKey = NULL; word32 outKeySz = 0;
+    byte* outCert = NULL; word32 outCertSz = 0;
+    WC_DerCertList* outCa = NULL;
+
+    /* --- Empty password (pswSz==0) exercises zero-length unicode path --- */
+    {
+        char emptyPass[] = "";
+        ExpectNotNull(pkcs12 = wc_PKCS12_create(emptyPass, 0,
+                    (char*)"mac-empty", inKey, inKeySz, inCert, inCertSz, NULL,
+                    -1, -1, WC_PKCS12_ITT_DEFAULT, WC_PKCS12_ITT_DEFAULT,
+                    0, NULL));
+        if (pkcs12 != NULL) {
+            ExpectIntGT(derSz = wc_i2d_PKCS12(pkcs12, &der, NULL), 0);
+            if (der != NULL && derSz > 0) {
+                WC_PKCS12* p12tmp = wc_PKCS12_new();
+                if (p12tmp != NULL) {
+                    if (wc_d2i_PKCS12(der, (word32)derSz, p12tmp) == 0) {
+                        ExpectIntEQ(wc_PKCS12_parse(p12tmp, emptyPass, &outKey,
+                                    &outKeySz, &outCert, &outCertSz, &outCa),
+                                    0);
+                        XFREE(outKey,  NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+                        XFREE(outCert, NULL, DYNAMIC_TYPE_PKCS);
+                        wc_FreeCertList(outCa, NULL);
+                        outKey = NULL; outCert = NULL; outCa = NULL;
+                    }
+                    wc_PKCS12_free(p12tmp);
+                }
+            }
+            XFREE(der, NULL, DYNAMIC_TYPE_PKCS);
+            der = NULL; derSz = 0;
+            wc_PKCS12_free(pkcs12);
+            pkcs12 = NULL;
+        }
+    }
+
+    /* --- Long password (>63 chars) exercises extended unicode buffer --- */
+    {
+        /* 64 ASCII chars + NUL */
+        char longPass[] =
+            "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+        word32 longPassSz = (word32)(sizeof(longPass) - 1);
+        ExpectNotNull(pkcs12 = wc_PKCS12_create(longPass, longPassSz,
+                    (char*)"mac-long", inKey, inKeySz, inCert, inCertSz, NULL,
+                    -1, -1, WC_PKCS12_ITT_DEFAULT, WC_PKCS12_ITT_DEFAULT,
+                    0, NULL));
+        if (pkcs12 != NULL) {
+            ExpectIntGT(derSz = wc_i2d_PKCS12(pkcs12, &der, NULL), 0);
+            if (der != NULL && derSz > 0) {
+                WC_PKCS12* p12tmp = wc_PKCS12_new();
+                if (p12tmp != NULL) {
+                    if (wc_d2i_PKCS12(der, (word32)derSz, p12tmp) == 0) {
+                        ExpectIntEQ(wc_PKCS12_parse(p12tmp, longPass, &outKey,
+                                    &outKeySz, &outCert, &outCertSz, &outCa),
+                                    0);
+                        XFREE(outKey,  NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+                        XFREE(outCert, NULL, DYNAMIC_TYPE_PKCS);
+                        wc_FreeCertList(outCa, NULL);
+                        outKey = NULL; outCert = NULL; outCa = NULL;
+                    }
+                    wc_PKCS12_free(p12tmp);
+                }
+            }
+            XFREE(der, NULL, DYNAMIC_TYPE_PKCS);
+            der = NULL; derSz = 0;
+            wc_PKCS12_free(pkcs12);
+            pkcs12 = NULL;
+        }
+    }
+
+    (void)outKey; (void)outCert; (void)outCa;
+#endif /* HAVE_PKCS12 */
     return EXPECT_RESULT();
 }

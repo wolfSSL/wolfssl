@@ -66,6 +66,349 @@ int test_wc_Chacha_SetKey(void)
 } /* END test_wc_Chacha_SetKey */
 
 /*
+ * MC/DC: wc_Chacha_SetKey — bad-arg branches
+ *   Pair A: ctx==NULL  (T,?) -> BAD_FUNC_ARG  vs  ctx!=NULL (F,?)
+ *   Pair B: key==NULL  (?,T) -> BAD_FUNC_ARG  vs  key!=NULL (?,F)
+ *   Pair C: keySz invalid (not 16|32) -> BAD_FUNC_ARG  vs  keySz==16  vs  keySz==32
+ * MC/DC: wc_Chacha_SetIV — bad-arg branches
+ *   Pair D: ctx==NULL  -> BAD_FUNC_ARG  vs  ctx!=NULL
+ *   Pair E: inIv==NULL -> BAD_FUNC_ARG  vs  inIv!=NULL
+ *   Pair F: counter==0 vs counter!=0 (state.X[CHACHA_MATRIX_CNT_IV] differs)
+ * MC/DC: wc_Chacha_Process — bad-arg branches
+ *   Pair G: ctx==NULL   -> BAD_FUNC_ARG
+ *   Pair H: output==NULL -> BAD_FUNC_ARG
+ *   Pair I: input==NULL  -> BAD_FUNC_ARG
+ *   Pair J: msglen==0    -> returns 0 without touching buffers
+ */
+int test_wc_ChachaBadArgCoverage(void)
+{
+    EXPECT_DECLS;
+#ifdef HAVE_CHACHA
+    ChaCha  ctx;
+    byte    key32[CHACHA_MAX_KEY_SZ];
+    byte    key16[CHACHA_MAX_KEY_SZ / 2];
+    byte    iv[CHACHA_IV_BYTES];
+    byte    buf[64];
+
+    XMEMSET(key32, 0x42, sizeof(key32));
+    XMEMSET(key16, 0x11, sizeof(key16));
+    XMEMSET(iv,    0x00, sizeof(iv));
+    XMEMSET(buf,   0x00, sizeof(buf));
+
+    /* --- wc_Chacha_SetKey bad-arg pairs --- */
+    /* Pair A: ctx NULL -> BAD_FUNC_ARG (ctx is the unique T) */
+    ExpectIntEQ(wc_Chacha_SetKey(NULL,  key32, sizeof(key32)),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Pair A complement: ctx valid, key valid, keySz 32 -> 0 */
+    ExpectIntEQ(wc_Chacha_SetKey(&ctx, key32, sizeof(key32)), 0);
+
+    /* Pair B: key NULL -> BAD_FUNC_ARG (key is the unique T) */
+    ExpectIntEQ(wc_Chacha_SetKey(&ctx, NULL,  sizeof(key32)),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Pair B complement: key valid, keySz 32 -> 0 (reuse prior success) */
+
+    /* Pair C: keySz invalid (bad size) -> BAD_FUNC_ARG */
+    ExpectIntEQ(wc_Chacha_SetKey(&ctx, key32, 18),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Pair C-1: keySz==16 (other valid branch) -> 0 */
+    ExpectIntEQ(wc_Chacha_SetKey(&ctx, key16, sizeof(key16)), 0);
+    /* Pair C-2: keySz==32 -> 0 */
+    ExpectIntEQ(wc_Chacha_SetKey(&ctx, key32, sizeof(key32)), 0);
+
+    /* keySz 0 also invalid */
+    ExpectIntEQ(wc_Chacha_SetKey(&ctx, key32, 0),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* --- wc_Chacha_SetIV bad-arg pairs --- */
+    /* Pair D: ctx NULL -> BAD_FUNC_ARG */
+    ExpectIntEQ(wc_Chacha_SetIV(NULL, iv, 0),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Pair D complement: ctx valid -> 0 */
+    ExpectIntEQ(wc_Chacha_SetIV(&ctx, iv, 0), 0);
+
+    /* Pair E: inIv NULL -> BAD_FUNC_ARG */
+    ExpectIntEQ(wc_Chacha_SetIV(&ctx, NULL, 0),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* --- wc_Chacha_Process bad-arg pairs --- */
+    /* Need a properly initialised ctx first */
+    ExpectIntEQ(wc_Chacha_SetKey(&ctx, key32, sizeof(key32)), 0);
+    ExpectIntEQ(wc_Chacha_SetIV(&ctx, iv, 0), 0);
+
+    /* Pair G: ctx NULL */
+    ExpectIntEQ(wc_Chacha_Process(NULL, buf, buf, sizeof(buf)),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Pair H: output NULL */
+    ExpectIntEQ(wc_Chacha_Process(&ctx, NULL, buf, sizeof(buf)),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Pair I: input NULL */
+    ExpectIntEQ(wc_Chacha_Process(&ctx, buf, NULL, sizeof(buf)),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* Pair J: msglen == 0 -> success, output not modified */
+    {
+        byte sentinel[64];
+        XMEMSET(sentinel, 0xAB, sizeof(sentinel));
+        XMEMSET(buf, 0xAB, sizeof(buf));
+        ExpectIntEQ(wc_Chacha_Process(&ctx, buf, buf, 0), 0);
+        ExpectIntEQ(XMEMCMP(buf, sentinel, sizeof(sentinel)), 0);
+    }
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ChachaBadArgCoverage */
+
+
+/*
+ * MC/DC: wc_Chacha_SetIV counter-value branch
+ *   Pair F-0: counter==0  -> ctx->X[CHACHA_MATRIX_CNT_IV] stored as 0
+ *   Pair F-1: counter!=0  -> ctx->X[CHACHA_MATRIX_CNT_IV] stored as counter
+ *
+ * Verify that using SetIV with counter=0 vs counter=1 produces different
+ * keystream (first 64 bytes), confirming the branch is exercised.
+ */
+int test_wc_ChachaDecisionCoverage(void)
+{
+    EXPECT_DECLS;
+#ifdef HAVE_CHACHA
+    ChaCha  ctx0, ctx1;
+    byte    key[CHACHA_MAX_KEY_SZ];
+    byte    iv[CHACHA_IV_BYTES];
+    byte    zeros[128];
+    byte    out0[128];
+    byte    out1[128];
+
+    XMEMSET(key,   0x55, sizeof(key));
+    XMEMSET(iv,    0xAA, sizeof(iv));
+    XMEMSET(zeros, 0x00, sizeof(zeros));
+
+    /* Pair F-0: counter = 0 */
+    ExpectIntEQ(wc_Chacha_SetKey(&ctx0, key, sizeof(key)), 0);
+    ExpectIntEQ(wc_Chacha_SetIV(&ctx0, iv, 0), 0);
+    ExpectIntEQ(wc_Chacha_Process(&ctx0, out0, zeros, sizeof(zeros)), 0);
+
+    /* Pair F-1: counter = 1 — different counter, must produce different stream */
+    ExpectIntEQ(wc_Chacha_SetKey(&ctx1, key, sizeof(key)), 0);
+    ExpectIntEQ(wc_Chacha_SetIV(&ctx1, iv, 1), 0);
+    ExpectIntEQ(wc_Chacha_Process(&ctx1, out1, zeros, sizeof(zeros)), 0);
+
+    /* The streams must differ: counter field is independent condition */
+    ExpectIntNE(XMEMCMP(out0, out1, sizeof(out0)), 0);
+
+    /* Pair C-key16: SetKey with 16-byte key selects tau[] constants,
+     * SetKey with 32-byte key selects sigma[] constants. The first 4 words
+     * of the keystream state must differ. */
+    {
+        byte    key16[CHACHA_MAX_KEY_SZ / 2];
+        byte    out16[64];
+        byte    out32[64];
+
+        XMEMSET(key16, 0x55, sizeof(key16));
+
+        ExpectIntEQ(wc_Chacha_SetKey(&ctx0, key16, sizeof(key16)), 0);
+        ExpectIntEQ(wc_Chacha_SetIV(&ctx0, iv, 0), 0);
+        ExpectIntEQ(wc_Chacha_Process(&ctx0, out16, zeros, 64), 0);
+
+        ExpectIntEQ(wc_Chacha_SetKey(&ctx1, key,   sizeof(key)), 0);
+        ExpectIntEQ(wc_Chacha_SetIV(&ctx1, iv, 0), 0);
+        ExpectIntEQ(wc_Chacha_Process(&ctx1, out32, zeros, 64), 0);
+
+        ExpectIntNE(XMEMCMP(out16, out32, 64), 0);
+    }
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ChachaDecisionCoverage */
+
+
+/*
+ * MC/DC: wc_Chacha_encrypt_bytes internal decision coverage (via Process)
+ *
+ * All four structural paths inside the C scalar encrypt_bytes:
+ *   Path 1: bytes == 0 (no leftover, no full block, no tail)  — trivially 0
+ *   Path 2: partial input < 64 bytes ("tail" only)            — sets ctx->left
+ *   Path 3: exactly 64 bytes (one full block, no tail)        — counter bumped
+ *   Path 4: multiple full blocks (>64 bytes)                  — while loop
+ *   Path 5: leftover continuation                             — ctx->left > 0
+ *            at second Process call, bytes > 0 && ctx->left > 0
+ *   Path 6: > 512 bytes (multi-block) — reaches scalar path inner loop
+ *
+ * Round-trip correctness: decrypt(encrypt(plain)) == plain for each path.
+ */
+int test_wc_ChachaEncryptBytesCoverage(void)
+{
+    EXPECT_DECLS;
+#ifdef HAVE_CHACHA
+    ChaCha  enc, dec;
+    byte    key[CHACHA_MAX_KEY_SZ];
+    byte    iv[CHACHA_IV_BYTES];
+    int     i;
+
+    /* RFC 7539 §2.4.2 test vector — 32-byte key, 12-byte nonce */
+    static const byte rfc7539_key[32] = {
+        0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
+        0x08,0x09,0x0a,0x0b,0x0c,0x0d,0x0e,0x0f,
+        0x10,0x11,0x12,0x13,0x14,0x15,0x16,0x17,
+        0x18,0x19,0x1a,0x1b,0x1c,0x1d,0x1e,0x1f
+    };
+    static const byte rfc7539_iv[12] = {
+        0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x4a,
+        0x00,0x00,0x00,0x00
+    };
+    static const byte rfc7539_plain[64] = {
+        0x4c,0x61,0x64,0x69,0x65,0x73,0x20,0x61,
+        0x6e,0x64,0x20,0x47,0x65,0x6e,0x74,0x6c,
+        0x65,0x6d,0x65,0x6e,0x20,0x6f,0x66,0x20,
+        0x74,0x68,0x65,0x20,0x63,0x6c,0x61,0x73,
+        0x73,0x20,0x6f,0x66,0x20,0x27,0x39,0x39,
+        0x3a,0x20,0x49,0x66,0x20,0x79,0x6f,0x75,
+        0x20,0x66,0x69,0x72,0x65,0x20,0x74,0x68,
+        0x65,0x20,0x4d,0x61,0x77,0x2c,0x20,0x74,
+    };
+    /* Path 1: zero-length — output untouched, returns 0 */
+    {
+        byte dummy[4] = {0xDE, 0xAD, 0xBE, 0xEF};
+        byte out[4]   = {0xDE, 0xAD, 0xBE, 0xEF};
+        ExpectIntEQ(wc_Chacha_SetKey(&enc, rfc7539_key, sizeof(rfc7539_key)), 0);
+        ExpectIntEQ(wc_Chacha_SetIV(&enc, rfc7539_iv, 1), 0);
+        ExpectIntEQ(wc_Chacha_Process(&enc, out, dummy, 0), 0);
+        ExpectIntEQ(XMEMCMP(out, dummy, 4), 0);
+    }
+
+    /* Path 2: partial (< 64 bytes) — tail path, sets leftover */
+    {
+        byte plain[31];
+        byte cipher[31];
+        byte recovered[31];
+
+        XMEMSET(plain, 0x5A, sizeof(plain));
+
+        ExpectIntEQ(wc_Chacha_SetKey(&enc, rfc7539_key, sizeof(rfc7539_key)), 0);
+        ExpectIntEQ(wc_Chacha_SetIV(&enc, rfc7539_iv, 1), 0);
+        ExpectIntEQ(wc_Chacha_Process(&enc, cipher, plain, sizeof(plain)), 0);
+
+        ExpectIntEQ(wc_Chacha_SetKey(&dec, rfc7539_key, sizeof(rfc7539_key)), 0);
+        ExpectIntEQ(wc_Chacha_SetIV(&dec, rfc7539_iv, 1), 0);
+        ExpectIntEQ(wc_Chacha_Process(&dec, recovered, cipher, sizeof(cipher)), 0);
+
+        ExpectIntEQ(XMEMCMP(plain, recovered, sizeof(plain)), 0);
+    }
+
+    /* Path 3: exactly 64 bytes — one full block.
+     * Vector correctness is covered by the test_wc_Chacha_Process KAT; here
+     * we only need branch coverage on the 64-byte path. */
+    {
+        byte out[64];
+        ExpectIntEQ(wc_Chacha_SetKey(&enc, rfc7539_key, sizeof(rfc7539_key)), 0);
+        ExpectIntEQ(wc_Chacha_SetIV(&enc, rfc7539_iv, 1), 0);
+        ExpectIntEQ(wc_Chacha_Process(&enc, out, rfc7539_plain, 64), 0);
+    }
+
+    /* Path 4: multiple full blocks (192 bytes = 3 × 64) */
+    {
+        byte plain192[192];
+        byte cipher192[192];
+        byte recovered192[192];
+
+        for (i = 0; i < 192; i++)
+            plain192[i] = (byte)i;
+
+        ExpectIntEQ(wc_Chacha_SetKey(&enc, rfc7539_key, sizeof(rfc7539_key)), 0);
+        ExpectIntEQ(wc_Chacha_SetIV(&enc, rfc7539_iv, 0), 0);
+        ExpectIntEQ(wc_Chacha_Process(&enc, cipher192, plain192, 192), 0);
+
+        ExpectIntEQ(wc_Chacha_SetKey(&dec, rfc7539_key, sizeof(rfc7539_key)), 0);
+        ExpectIntEQ(wc_Chacha_SetIV(&dec, rfc7539_iv, 0), 0);
+        ExpectIntEQ(wc_Chacha_Process(&dec, recovered192, cipher192, 192), 0);
+
+        ExpectIntEQ(XMEMCMP(plain192, recovered192, 192), 0);
+    }
+
+    /* Path 5: leftover continuation
+     *   First call: 40 bytes  -> ctx->left = 24 (64 - 40)
+     *   Second call: bytes > 0 && ctx->left > 0 branch taken
+     *   Third call (total): 64-byte check
+     * Verify that two partial calls equal one full call. */
+    {
+        byte plain128[128];
+        byte cipher_split[128];
+        byte cipher_whole[128];
+        ChaCha enc2;
+
+        for (i = 0; i < 128; i++)
+            plain128[i] = (byte)(i ^ 0xC3);
+
+        /* whole in one call */
+        ExpectIntEQ(wc_Chacha_SetKey(&enc,  rfc7539_key, sizeof(rfc7539_key)), 0);
+        ExpectIntEQ(wc_Chacha_SetIV(&enc,   rfc7539_iv, 0), 0);
+        ExpectIntEQ(wc_Chacha_Process(&enc,  cipher_whole, plain128, 128), 0);
+
+        /* split: 40 then 88 — exercises the leftover path on second call */
+        ExpectIntEQ(wc_Chacha_SetKey(&enc2, rfc7539_key, sizeof(rfc7539_key)), 0);
+        ExpectIntEQ(wc_Chacha_SetIV(&enc2,  rfc7539_iv, 0), 0);
+        ExpectIntEQ(wc_Chacha_Process(&enc2, cipher_split,      plain128,      40), 0);
+        ExpectIntEQ(wc_Chacha_Process(&enc2, cipher_split + 40, plain128 + 40, 88), 0);
+
+        ExpectIntEQ(XMEMCMP(cipher_whole, cipher_split, 128), 0);
+    }
+
+    /* Path 6: >512 bytes — scalar path inner while loop runs many iterations */
+    {
+        byte    key2[CHACHA_MAX_KEY_SZ];
+        byte    iv2[CHACHA_IV_BYTES];
+        static byte plain600[600];
+        static byte cipher600[600];
+        static byte recovered600[600];
+
+        XMEMSET(key2, 0x37, sizeof(key2));
+        XMEMSET(iv2,  0x11, sizeof(iv2));
+        for (i = 0; i < 600; i++)
+            plain600[i] = (byte)(i & 0xFF);
+
+        ExpectIntEQ(wc_Chacha_SetKey(&enc, key2, sizeof(key2)), 0);
+        ExpectIntEQ(wc_Chacha_SetIV(&enc, iv2, 0), 0);
+        ExpectIntEQ(wc_Chacha_Process(&enc, cipher600, plain600, 600), 0);
+
+        ExpectIntEQ(wc_Chacha_SetKey(&dec, key2, sizeof(key2)), 0);
+        ExpectIntEQ(wc_Chacha_SetIV(&dec, iv2, 0), 0);
+        ExpectIntEQ(wc_Chacha_Process(&dec, recovered600, cipher600, 600), 0);
+
+        ExpectIntEQ(XMEMCMP(plain600, recovered600, 600), 0);
+    }
+
+    /* In-place encryption (output == input buffer) */
+    {
+        byte    key3[CHACHA_MAX_KEY_SZ];
+        byte    iv3[CHACHA_IV_BYTES];
+        byte    inplace[64];
+        byte    reference[64];
+
+        XMEMSET(key3, 0x99, sizeof(key3));
+        XMEMSET(iv3,  0xBC, sizeof(iv3));
+        for (i = 0; i < 64; i++)
+            inplace[i] = reference[i] = (byte)i;
+
+        /* Separate-buffer reference */
+        ExpectIntEQ(wc_Chacha_SetKey(&enc, key3, sizeof(key3)), 0);
+        ExpectIntEQ(wc_Chacha_SetIV(&enc, iv3, 0), 0);
+        ExpectIntEQ(wc_Chacha_Process(&enc, reference, reference, 64), 0);
+
+        /* In-place */
+        ExpectIntEQ(wc_Chacha_SetKey(&enc, key3, sizeof(key3)), 0);
+        ExpectIntEQ(wc_Chacha_SetIV(&enc, iv3, 0), 0);
+        ExpectIntEQ(wc_Chacha_Process(&enc, inplace, inplace, 64), 0);
+
+        ExpectIntEQ(XMEMCMP(inplace, reference, 64), 0);
+    }
+
+    /* Unused warning suppression */
+    (void)key;
+    (void)iv;
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ChachaEncryptBytesCoverage */
+
+
+/*
  * Testing wc_Chacha_Process()
  */
 int test_wc_Chacha_Process(void)
@@ -370,8 +713,6 @@ cleanup:
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_Chacha_Process */
-
-
 
 #include <wolfssl/wolfcrypt/random.h>
 

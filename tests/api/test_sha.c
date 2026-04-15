@@ -204,3 +204,69 @@ int test_wc_Sha_Flags(void)
     return EXPECT_RESULT();
 }
 
+/*
+ * MC/DC coverage for wc_ShaUpdate L628:
+ *   if (data == NULL && len == 0)
+ *
+ * The existing DIGEST_UPDATE_TEST exercises the TRUE branch (data=NULL, len=0).
+ * The missing pair flips data==NULL to FALSE: a non-NULL pointer with len=0
+ * reaches L628 but takes the FALSE branch and falls through to normal
+ * processing.  Boundary-length calls (0, 63, 64, 65, 127, 128) additionally
+ * exercise the buffLen bookkeeping branches inside the function body.
+ */
+int test_wc_ShaUpdateResidualCoverage(void)
+{
+    EXPECT_DECLS;
+#ifndef NO_SHA
+    wc_Sha sha;
+    /* 129 bytes covers: 0, 63, 64, 65 (partial+full block combos), 127, 128 */
+    byte   data[129];
+    byte   digest[WC_SHA_DIGEST_SIZE];
+    int    i;
+
+    XMEMSET(data, 0xA5, sizeof(data));
+
+    ExpectIntEQ(wc_InitSha(&sha), 0);
+
+    /* Pair 1 – L628 FALSE: data != NULL, len == 0
+     * data==NULL evaluates FALSE → whole condition FALSE → falls through.
+     * This is the missing MC/DC pair for the data==NULL sub-condition. */
+    ExpectIntEQ(wc_ShaUpdate(&sha, data, 0), 0);
+
+    /* Pair 2 – len == 63: partial fill, buffLen goes 0→63, no block emitted */
+    ExpectIntEQ(wc_ShaUpdate(&sha, data, 63), 0);
+
+    /* Pair 3 – len == 1: completes the buffer to exactly WC_SHA_BLOCK_SIZE=64,
+     * triggering the (buffLen == WC_SHA_BLOCK_SIZE) TRUE path, then buffLen=0 */
+    ExpectIntEQ(wc_ShaUpdate(&sha, data, 1), 0);
+
+    /* Pair 4 – len == 64: full block with buffLen==0, exercises the
+     * (buffLen > 0) FALSE path followed by direct block processing */
+    ExpectIntEQ(wc_ShaUpdate(&sha, data, 64), 0);
+
+    /* Pair 5 – len == 65: one full block + 1 byte residual */
+    ExpectIntEQ(wc_ShaUpdate(&sha, data, 65), 0);
+
+    /* Finalize to ensure the accumulated state is consistent */
+    ExpectIntEQ(wc_ShaFinal(&sha, digest), 0);
+
+    /* Second context: verify len==127 and len==128 boundaries */
+    ExpectIntEQ(wc_InitSha(&sha), 0);
+
+    ExpectIntEQ(wc_ShaUpdate(&sha, data, 127), 0);
+    ExpectIntEQ(wc_ShaUpdate(&sha, data, 1),   0); /* fills to 128 = 2 blocks */
+    ExpectIntEQ(wc_ShaUpdate(&sha, data, 128), 0); /* two full blocks, buffLen==0 */
+
+    /* Another non-NULL, len==0 call after real data: L628 FALSE again */
+    ExpectIntEQ(wc_ShaUpdate(&sha, data, 0), 0);
+
+    ExpectIntEQ(wc_ShaFinal(&sha, digest), 0);
+
+    /* Suppress unused-variable warning if loop not optimised away */
+    (void)i;
+
+    wc_ShaFree(&sha);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ShaUpdateResidualCoverage */
+

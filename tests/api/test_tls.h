@@ -32,6 +32,28 @@ int test_tls12_bad_cv_sig_alg(void);
 int test_tls12_no_null_compression(void);
 int test_tls12_etm_failed_resumption(void);
 int test_tls_set_curves_list_ecc_fallback(void);
+int test_tls_tlsx_sni_parse_coverage(void);
+int test_tls_tlsx_sni_options_coverage(void);
+int test_tls_tlsx_sc_parse_coverage(void);
+int test_tls_tlsx_sv_parse_coverage(void);
+int test_tls_build_handshake_hash_coverage(void);
+int test_tls_tlsx_parse_coverage(void);
+int test_tls_tlsx_validate_curves_coverage(void);
+int test_tls_tlsx_psk_coverage(void);
+int test_tls_tlsx_keyshare_coverage(void);
+int test_tls_tlsx_csr_coverage(void);
+int test_tls_tlsx_write_request_coverage(void);
+int test_tls_tlsx_parse_guards_coverage(void);
+int test_tls_tlsx_sc_fuzz_coverage(void);
+int test_tls_tlsx_sni_fuzz_coverage(void);
+int test_tls_tlsx_psk_fuzz_coverage(void);
+int test_tls_tlsx_csr_fuzz_coverage(void);
+int test_tls_tlsx_parse_guards_batch4(void);
+int test_tls_tlsx_keyshare_parse_batch4(void);
+int test_tls_tlsx_support_extensions_batch4(void);
+int test_tls_tlsx_psk_parse_sh_batch4(void);
+int test_tls_build_handshake_hash_batch4(void);
+int test_tls_tlsx_parse_msgtype_batch4(void);
 
 #define TEST_TLS_DECLS                                                         \
         TEST_DECL_GROUP("tls", test_utils_memio_move_message),                 \
@@ -43,6 +65,28 @@ int test_tls_set_curves_list_ecc_fallback(void);
         TEST_DECL_GROUP("tls", test_tls12_bad_cv_sig_alg),                     \
         TEST_DECL_GROUP("tls", test_tls12_no_null_compression),                \
         TEST_DECL_GROUP("tls", test_tls12_etm_failed_resumption),              \
-        TEST_DECL_GROUP("tls", test_tls_set_curves_list_ecc_fallback)
+        TEST_DECL_GROUP("tls", test_tls_set_curves_list_ecc_fallback),         \
+        TEST_DECL_GROUP("tls", test_tls_tlsx_sni_parse_coverage),              \
+        TEST_DECL_GROUP("tls", test_tls_tlsx_sni_options_coverage),            \
+        TEST_DECL_GROUP("tls", test_tls_tlsx_sc_parse_coverage),               \
+        TEST_DECL_GROUP("tls", test_tls_tlsx_sv_parse_coverage),               \
+        TEST_DECL_GROUP("tls", test_tls_build_handshake_hash_coverage),        \
+        TEST_DECL_GROUP("tls", test_tls_tlsx_parse_coverage),                  \
+        TEST_DECL_GROUP("tls", test_tls_tlsx_validate_curves_coverage),        \
+        TEST_DECL_GROUP("tls", test_tls_tlsx_psk_coverage),                    \
+        TEST_DECL_GROUP("tls", test_tls_tlsx_keyshare_coverage),               \
+        TEST_DECL_GROUP("tls", test_tls_tlsx_csr_coverage),                    \
+        TEST_DECL_GROUP("tls", test_tls_tlsx_write_request_coverage),          \
+        TEST_DECL_GROUP("tls", test_tls_tlsx_parse_guards_coverage),           \
+        TEST_DECL_GROUP("tls", test_tls_tlsx_sc_fuzz_coverage),                \
+        TEST_DECL_GROUP("tls", test_tls_tlsx_sni_fuzz_coverage),               \
+        TEST_DECL_GROUP("tls", test_tls_tlsx_psk_fuzz_coverage),               \
+        TEST_DECL_GROUP("tls", test_tls_tlsx_csr_fuzz_coverage),               \
+        TEST_DECL_GROUP("tls", test_tls_tlsx_parse_guards_batch4),             \
+        TEST_DECL_GROUP("tls", test_tls_tlsx_keyshare_parse_batch4),           \
+        TEST_DECL_GROUP("tls", test_tls_tlsx_support_extensions_batch4),       \
+        TEST_DECL_GROUP("tls", test_tls_tlsx_psk_parse_sh_batch4),             \
+        TEST_DECL_GROUP("tls", test_tls_build_handshake_hash_batch4),          \
+        TEST_DECL_GROUP("tls", test_tls_tlsx_parse_msgtype_batch4)
 
 #endif /* TESTS_API_TEST_TLS_H */

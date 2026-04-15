@@ -716,19 +716,28 @@ int test_wolfSSL_CertManagerSetVerify(void)
 
     ExpectNotNull(cm = wolfSSL_CertManagerNew());
 
-    wolfSSL_CertManagerSetVerify(cm, myVerify);
-
 #if defined(NO_WOLFSSL_CLIENT) && defined(NO_WOLFSSL_SERVER)
     ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, ca_cert, NULL), -1);
 #else
     ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, ca_cert, NULL),
                 WOLFSSL_SUCCESS);
+    /* Exercise the baseline verification path before the callback overrides
+     * the result, so the expired-cert failure remains visible to MC/DC. */
+    ExpectIntNE(wolfSSL_CertManagerVerify(cm, expiredCert,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
 #endif
+
+    wolfSSL_CertManagerSetVerify(cm, myVerify);
     /* Use the test CB that always accepts certs */
     myVerifyAction = VERIFY_OVERRIDE_ERROR;
 
     ExpectIntEQ(wolfSSL_CertManagerVerify(cm, expiredCert,
         CERT_FILETYPE), WOLFSSL_SUCCESS);
+
+    wolfSSL_CertManagerSetVerify(cm, NULL);
+    ExpectIntNE(wolfSSL_CertManagerVerify(cm, expiredCert,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+    wolfSSL_CertManagerSetVerify(cm, myVerify);
 
 #ifdef WOLFSSL_ALWAYS_VERIFY_CB
     {
@@ -1735,6 +1744,10 @@ int test_wolfSSL_CertManagerCRL(void)
         WOLFSSL_FILETYPE_ASN1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wolfSSL_CertManagerLoadCRLBuffer(cm, crl_buff, -1,
         WOLFSSL_FILETYPE_ASN1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntNE(wolfSSL_CertManagerLoadCRLBuffer(cm, crl_buff, 0,
+        WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_CertManagerLoadCRLBuffer(cm, crl_buff,
+        sizeof(crl_buff) - 1, WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
 
     ExpectIntEQ(wolfSSL_CertManagerFreeCRL(NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));

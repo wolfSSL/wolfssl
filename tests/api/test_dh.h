@@ -25,8 +25,20 @@
 #include <tests/api/api_decl.h>
 
 int test_wc_DhPublicKeyDecode(void);
+int test_wc_DhBadArgCoverage(void);
+int test_wc_DhBadArgCoverage2(void);
+int test_wc_DhBadArgCoverage3(void);
+int test_wc_DhBadArgCoverage4(void);
+int test_wc_DhBadArgCoverage5(void);
+int test_wc_DhBadArgCoverage6(void);
 
-#define TEST_DH_DECLS                                   \
-    TEST_DECL_GROUP("dh", test_wc_DhPublicKeyDecode)
+#define TEST_DH_DECLS                                           \
+    TEST_DECL_GROUP("dh", test_wc_DhPublicKeyDecode),          \
+    TEST_DECL_GROUP("dh", test_wc_DhBadArgCoverage),           \
+    TEST_DECL_GROUP("dh", test_wc_DhBadArgCoverage2),          \
+    TEST_DECL_GROUP("dh", test_wc_DhBadArgCoverage3),          \
+    TEST_DECL_GROUP("dh", test_wc_DhBadArgCoverage4),          \
+    TEST_DECL_GROUP("dh", test_wc_DhBadArgCoverage5),          \
+    TEST_DECL_GROUP("dh", test_wc_DhBadArgCoverage6)
 
 #endif /* WOLFCRYPT_TEST_DH_H */

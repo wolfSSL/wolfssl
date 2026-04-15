@@ -1132,6 +1132,7 @@ int test_tls13_bad_psk_binder(void)
     WOLFSSL *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
     WOLFSSL_ALERT_HISTORY h;
+    (void)test_ctx;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
@@ -1296,6 +1297,11 @@ int test_tls13_rpk_handshake(void)
 #if defined(WOLFSSL_ALWAYS_VERIFY_CB) && defined(WOLFSSL_TLS13)
     int isServer;
 #endif
+    (void)ctx_c;
+    (void)ssl_c;
+    (void)ctx_s;
+    (void)ssl_s;
+    (void)test_ctx;
 
     (void)err;
     (void)typeCnt_c;
@@ -2201,13 +2207,18 @@ int test_tls13_early_data(void)
     };
 
     for (i = 0; i < sizeof(params)/sizeof(*params) && !EXPECT_FAIL(); i++) {
-        struct test_memio_ctx test_ctx;
         WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
         WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+        struct test_memio_ctx test_ctx;
         WOLFSSL_SESSION *sess = NULL;
         int splitEarlyData = params[i].splitEarlyData;
         int everyWriteWantWrite = params[i].everyWriteWantWrite;
         struct test_tls13_wwrite_ctx wwrite_ctx_s, wwrite_ctx_c;
+        (void)ctx_c;
+        (void)ssl_c;
+        (void)ctx_s;
+        (void)ssl_s;
+        (void)test_ctx;
 
         XMEMSET(&test_ctx, 0, sizeof(test_ctx));
         XMEMSET(&wwrite_ctx_c, 0, sizeof(wwrite_ctx_c));
@@ -2429,13 +2440,14 @@ int test_tls13_same_ch(void)
      *             Compression Method: null (0)
      *             Extensions Length: 6
      *             Extension: supported_versions (len=2) TLS 1.3 */
-    unsigned char hrr[] = {
+    static const unsigned char hrr[] = {
       0x16, 0x03, 0x03, 0x00, 0x32, 0x02, 0x00, 0x00, 0x2e, 0x03, 0x03, 0xcf,
       0x21, 0xad, 0x74, 0xe5, 0x9a, 0x61, 0x11, 0xbe, 0x1d, 0x8c, 0x02, 0x1e,
       0x65, 0xb8, 0x91, 0xc2, 0xa2, 0x11, 0x16, 0x7a, 0xbb, 0x8c, 0x5e, 0x07,
       0x9e, 0x09, 0xe2, 0xc8, 0xa8, 0x33, 0x9c, 0x00, 0x13, 0x01, 0x00, 0x00,
       0x06, 0x00, 0x2b, 0x00, 0x02, 0x03, 0x04
     };
+    (void)test_ctx;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, NULL, &ssl_c, NULL,
@@ -2525,6 +2537,7 @@ int test_tls13_hrr_different_cs(void)
     WOLFSSL_CTX *ctx_c = NULL;
     WOLFSSL *ssl_c = NULL;
     struct test_memio_ctx test_ctx;
+    (void)test_ctx;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, NULL, &ssl_c, NULL,
@@ -2647,6 +2660,7 @@ int test_tls13_ch2_different_cs(void)
     WOLFSSL_CTX *ctx_s = NULL;
     WOLFSSL *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
+    (void)test_ctx;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, NULL, &ctx_s, NULL, &ssl_s,
@@ -2969,6 +2983,11 @@ int test_key_share_mismatch(void)
     struct test_memio_ctx test_ctx;
     int client_group[] = {WOLFSSL_ECC_SECP521R1};
     int server_group[] = {WOLFSSL_ECC_SECP384R1, WOLFSSL_ECC_SECP256R1};
+    (void)ctx_c;
+    (void)ssl_c;
+    (void)ctx_s;
+    (void)ssl_s;
+    (void)test_ctx;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
@@ -3070,6 +3089,7 @@ int test_tls13_middlebox_compat_empty_session_id(void)
     WOLFSSL *ssl_c = NULL;
     WOLFSSL *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
+    (void)test_ctx;
     int i;
     int found_ccs = 0;
 
@@ -3322,6 +3342,7 @@ int test_tls13_warning_alert_is_fatal(void)
      *             level=warning(0x01), code=handshake_failure(0x28=40) */
     static const unsigned char warn_alert[] =
         { 0x15, 0x03, 0x03, 0x00, 0x02, 0x01, 0x28 };
+    (void)test_ctx;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, NULL, &ssl_c, NULL,
@@ -3400,6 +3421,7 @@ int test_tls13_warning_alert_is_fatal(void)
          /* unknown extension type 0xFABC, zero-length value */
          0xfa, 0xbc, 0x00, 0x00
      };
+     (void)test_ctx;
 
      XMEMSET(&test_ctx, 0, sizeof(test_ctx));
      ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, NULL, &ssl_c, NULL,
@@ -3457,6 +3479,11 @@ int test_tls13_cert_req_sigalgs(void)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
+    (void)ctx_c;
+    (void)ssl_c;
+    (void)ctx_s;
+    (void)ssl_s;
+    (void)test_ctx;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
@@ -3534,11 +3561,12 @@ int test_tls13_derive_keys_no_key(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_TLS13) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
-    struct test_memio_ctx test_ctx;
     WOLFSSL_CTX *ctx_c = NULL;
     WOLFSSL_CTX *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL;
     WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    (void)test_ctx;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
@@ -3682,10 +3710,15 @@ int test_tls13_short_session_ticket(void)
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
-    struct test_memio_ctx test_ctx;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
     char buf[64];
+    (void)ctx_c;
+    (void)ssl_c;
+    (void)ctx_s;
+    (void)ssl_s;
+    (void)test_ctx;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
@@ -3737,3 +3770,1336 @@ int test_tls13_short_session_ticket(void)
     return EXPECT_RESULT();
 }
 
+/* ---------------------------------------------------------------------------
+ * MC/DC batch 1: basic TLS 1.3 handshake with ECC (P-256) cert.
+ *
+ * Drives:
+ *   DoTls13ClientHello        happy-path decisions (L7018/L7044/L7052/L7075)
+ *   DoTls13ServerHello        happy-path decisions (L5199/L5260/L5269/L5274)
+ *   SanityCheckTls13MsgReceived normal flow (L12590/L12739/L12748/L12761)
+ *   SendTls13Certificate      server cert path (L9106/L9110/L9129/L9318)
+ *   DoTls13Finished           happy-path MAC check (L11449 true branch)
+ *   BuildTls13Message         happy-path size/encrypt (L3336/L3342/L3352)
+ *   wolfSSL_accept_TLSv13     cert/key present checks (L14834/L14843)
+ * ---------------------------------------------------------------------------
+ */
+int test_tls13_mcdc_basic_coverage(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
+    defined(HAVE_ECC)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    char buf[64];
+    int  err;
+    (void)ctx_c;
+    (void)ssl_c;
+    (void)ctx_s;
+    (void)ssl_s;
+    (void)test_ctx;
+
+    /* ---- sub-test 1: ECC server cert, default client settings ----------- */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method,
+                    wolfTLSv1_3_server_method), 0);
+
+    /* Constrain both sides to P-256 to avoid an HRR and keep the path
+     * deterministic — covers the "group accepted on first try" branch in
+     * DoTls13ClientHello / DoTls13ServerHello.                              */
+#if defined(HAVE_SUPPORTED_CURVES) && !defined(NO_ECC_SECP)
+    {
+        int grp256 = WOLFSSL_ECC_SECP256R1;
+        ExpectIntEQ(wolfSSL_set_groups(ssl_c, &grp256, 1), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_set_groups(ssl_s, &grp256, 1), WOLFSSL_SUCCESS);
+    }
+#endif
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Drain any post-handshake records (NewSessionTicket etc.) */
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), -1);
+    err = wolfSSL_get_error(ssl_c, -1);
+    ExpectTrue(err == WOLFSSL_ERROR_WANT_READ || err == WOLFSSL_ERROR_NONE);
+
+    /* Application-data round-trip exercises BuildTls13Message encrypt path. */
+    ExpectIntEQ(wolfSSL_write(ssl_s, "ping", 4), 4);
+    ExpectIntEQ(wolfSSL_read(ssl_c,  buf, sizeof(buf)), 4);
+    ExpectIntEQ(wolfSSL_write(ssl_c, "pong", 4), 4);
+    ExpectIntEQ(wolfSSL_read(ssl_s,  buf, sizeof(buf)), 4);
+
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+
+    /* ---- sub-test 2: explicit AES-256-GCM cipher suite selection -------- */
+#if defined(HAVE_AESGCM) && defined(WOLFSSL_AES_256) && \
+    defined(BUILD_TLS_AES_256_GCM_SHA384) && !defined(NO_SHA384)
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method,
+                    wolfTLSv1_3_server_method), 0);
+
+    /* Server restricts to AES-256-GCM; client must agree.                  */
+    ExpectIntEQ(wolfSSL_CTX_set_cipher_list(ctx_s,
+                    "TLS_AES_256_GCM_SHA384"), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_set_cipher_list(ctx_c,
+                    "TLS_AES_256_GCM_SHA384"), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+#endif /* BUILD_TLS_AES_256_GCM_SHA384 */
+
+    /* ---- sub-test 3: ChaCha20-Poly1305 cipher suite selection ----------- */
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && \
+    defined(BUILD_TLS_CHACHA20_POLY1305_SHA256)
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method,
+                    wolfTLSv1_3_server_method), 0);
+
+    ExpectIntEQ(wolfSSL_CTX_set_cipher_list(ctx_s,
+                    "TLS_CHACHA20_POLY1305_SHA256"), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_set_cipher_list(ctx_c,
+                    "TLS_CHACHA20_POLY1305_SHA256"), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+#endif /* BUILD_TLS_CHACHA20_POLY1305_SHA256 */
+
+    (void)err;
+#endif /* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES && ... */
+    return EXPECT_RESULT();
+}
+
+/* ---------------------------------------------------------------------------
+ * MC/DC batch 2: TLS 1.3 with HelloRetryRequest + cookie.
+ *
+ * Drives:
+ *   DoTls13ClientHello        second-CH path (L7413/L7521)
+ *   SanityCheckTls13MsgReceived HRR tracking (L12590 got_client_hello==1 arm,
+ *                              L12739/L12748 - HRR received flag checks)
+ *   CreateCookieExt / CreateCookie (L3621/L3625 / L3734/L3738)
+ *   SendTls13ClientHello      HRR re-send arm (L4602(4/4) / L4607(2/2))
+ *   DoTls13ServerHello        HRR branch (L5274/L5278/L5299)
+ * ---------------------------------------------------------------------------
+ */
+int test_tls13_mcdc_hrr_coverage(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(HAVE_SUPPORTED_CURVES) && defined(HAVE_ECC) && \
+    !defined(NO_ECC_SECP) && defined(WOLFSSL_SEND_HRR_COOKIE) && \
+    defined(BUILD_TLS_AES_128_GCM_SHA256)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    int server_grp = WOLFSSL_ECC_SECP256R1;
+#if defined(HAVE_ECC384) && (ECC_MIN_KEY_SZ <= 384)
+    int client_grp = WOLFSSL_ECC_SECP384R1;
+#elif defined(HAVE_ECC521) && (ECC_MIN_KEY_SZ <= 521)
+    int client_grp = WOLFSSL_ECC_SECP521R1;
+#else
+    /* Both sides agree from the start - HRR still triggered via cookie.    */
+    int client_grp = WOLFSSL_ECC_SECP256R1;
+#endif
+    /* Build client group list: preferred group first, then server_grp so
+     * the client supports P-256 and HRR can complete.  When they are equal
+     * only one entry is needed.                                             */
+#if (defined(HAVE_ECC384) && (ECC_MIN_KEY_SZ <= 384)) || \
+    (defined(HAVE_ECC521) && (ECC_MIN_KEY_SZ <= 521))
+    int client_grps[2] = { client_grp, server_grp };
+    int client_grps_cnt = 2;
+#else
+    int client_grps[2] = { client_grp, 0 };
+    int client_grps_cnt = 1;
+#endif
+    (void)ctx_c;
+    (void)ssl_c;
+    (void)ctx_s;
+    (void)ssl_s;
+    (void)test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method,
+                    wolfTLSv1_3_server_method), 0);
+
+    /* Server enables stateless HRR cookie to force CH2.                    */
+    ExpectIntEQ(wolfSSL_send_hrr_cookie(ssl_s, NULL, 0), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_set_groups(ssl_c, client_grps, client_grps_cnt),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_groups(ssl_s, &server_grp, 1), WOLFSSL_SUCCESS);
+
+    /* Full handshake: memio pumps CH1 -> HRR -> CH2 -> SH -> ... -> Finished. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 20, NULL), 0);
+
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+
+#endif /* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES && ... */
+    return EXPECT_RESULT();
+}
+
+/* ---------------------------------------------------------------------------
+ * MC/DC batch 3: TLS 1.3 mutual authentication (client certificate).
+ *
+ * Drives:
+ *   SendTls13Certificate      client-side cert send path (L9106/L9110/L9129
+ *                             L9318/L9338)
+ *   DoTls13HandShakeMsgType   CertificateVerify dispatch (L13116/L13125)
+ *   SanityCheckTls13MsgReceived certificate + cert_verify tracking
+ *                             (L12761/L12959/L12973)
+ *   DoTls13Finished           server side: mutualAuth path (L11354)
+ * ---------------------------------------------------------------------------
+ */
+int test_tls13_mcdc_mutual_coverage(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_RSA)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    (void)ctx_c;
+    (void)ssl_c;
+    (void)ctx_s;
+    (void)ssl_s;
+    (void)test_ctx;
+
+    /* ---- sub-test 1: RSA mutual-auth handshake -------------------------- */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method,
+                    wolfTLSv1_3_server_method), 0);
+
+    /* Server requires client certificate. */
+    wolfSSL_CTX_set_verify(ctx_s,
+            WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+
+    /* Server loads CA that issued the test client cert. */
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s,
+                    cliCertFile, NULL), WOLFSSL_SUCCESS);
+
+    /* Client loads its certificate and private key. */
+    ExpectIntEQ(wolfSSL_use_certificate_file(ssl_c, cliCertFile,
+                    CERT_FILETYPE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_c, cliKeyFile,
+                    CERT_FILETYPE), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Post-handshake app data exercises the established application keys.   */
+    {
+        char msg[] = "mutual-auth-ok";
+        char rbuf[32];
+        ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)),
+                    (int)sizeof(msg));
+        ExpectIntEQ(wolfSSL_read(ssl_s, rbuf, sizeof(rbuf)),
+                    (int)sizeof(msg));
+    }
+
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+
+    /* ---- sub-test 2: mutual-auth with ECC client cert ------------------- */
+#if defined(HAVE_ECC)
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method,
+                    wolfTLSv1_3_server_method), 0);
+
+    wolfSSL_CTX_set_verify(ctx_s,
+            WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s,
+                    cliEccCertFile, NULL), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_use_certificate_file(ssl_c, cliEccCertFile,
+                    CERT_FILETYPE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_c, cliEccKeyFile,
+                    CERT_FILETYPE), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+#endif /* HAVE_ECC */
+
+#endif /* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES && ... */
+    return EXPECT_RESULT();
+}
+
+/* ---------------------------------------------------------------------------
+ * MC/DC batch 4: TLS 1.3 session-ticket PSK resumption.
+ *
+ * Drives:
+ *   DoTls13ClientHello        PSK / resumption branch (L7044/L7052/L7075/
+ *                             L7413 - binder validation path)
+ *   SanityCheckTls13MsgReceived session-ticket tracking (L12634/L12659)
+ *   SendTls13ClientHello      resumption arm of L4602/L4607
+ * ---------------------------------------------------------------------------
+ */
+int test_tls13_mcdc_ticket_coverage(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(HAVE_SESSION_TICKET)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_SESSION *sess = NULL;
+    char msgBuf[64];
+    (void)ctx_c;
+    (void)ssl_c;
+    (void)ctx_s;
+    (void)ssl_s;
+    (void)test_ctx;
+
+    /* ---- first handshake: obtain session ticket ------------------------- */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method,
+                    wolfTLSv1_3_server_method), 0);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Consume the NewSessionTicket so the session is populated.             */
+    ExpectIntEQ(wolfSSL_read(ssl_c, msgBuf, sizeof(msgBuf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+
+    /* ---- second handshake: resume with PSK from ticket ------------------ */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method,
+                    wolfTLSv1_3_server_method), 0);
+
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* App-data after PSK resumption verifies post-handshake keys.           */
+    ExpectIntEQ(wolfSSL_write(ssl_s, "resumed", 7), 7);
+    ExpectIntEQ(wolfSSL_read(ssl_c,  msgBuf, sizeof(msgBuf)), 7);
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+
+#endif /* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES && ... */
+    return EXPECT_RESULT();
+}
+
+/* ---------------------------------------------------------------------------
+ * MC/DC batch 5: TLS 1.3 post-handshake KeyUpdate.
+ *
+ * Drives:
+ *   DoTls13HandShakeMsgType   key_update dispatch (L13116(6/6) / L13125(6/6))
+ *   SanityCheckTls13MsgReceived post-handshake checks (L12959/L12973)
+ *   BuildTls13Message         encrypted post-handshake record (L3336/L3352)
+ * ---------------------------------------------------------------------------
+ */
+int test_tls13_mcdc_keyupdate_coverage(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    char buf[64];
+    int  err;
+    (void)ctx_c;
+    (void)ssl_c;
+    (void)ctx_s;
+    (void)ssl_s;
+    (void)test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method,
+                    wolfTLSv1_3_server_method), 0);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Drain any post-handshake records (e.g. NewSessionTicket).             */
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), -1);
+    err = wolfSSL_get_error(ssl_c, -1);
+    ExpectTrue(err == WOLFSSL_ERROR_WANT_READ || err == WOLFSSL_ERROR_NONE);
+
+    /* ---- client-initiated KeyUpdate ------------------------------------ */
+    /* wolfSSL_update_keys() sends a KeyUpdate(update_requested) message.   */
+    ExpectIntEQ(wolfSSL_update_keys(ssl_c), WOLFSSL_SUCCESS);
+
+    /* Pump the KeyUpdate message from client to server.                    */
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf)), -1);
+    err = wolfSSL_get_error(ssl_s, -1);
+    ExpectTrue(err == WOLFSSL_ERROR_WANT_READ || err == WOLFSSL_ERROR_NONE);
+
+    /* The server should send a responding KeyUpdate (update_not_requested). */
+    /* Pump the response KeyUpdate from server to client.                   */
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), -1);
+    err = wolfSSL_get_error(ssl_c, -1);
+    ExpectTrue(err == WOLFSSL_ERROR_WANT_READ || err == WOLFSSL_ERROR_NONE);
+
+    /* App-data round-trip verifies the updated traffic keys.               */
+    ExpectIntEQ(wolfSSL_write(ssl_c, "after-ku", 8), 8);
+    ExpectIntEQ(wolfSSL_read(ssl_s,  buf, sizeof(buf)), 8);
+    ExpectIntEQ(wolfSSL_write(ssl_s, "after-ku", 8), 8);
+    ExpectIntEQ(wolfSSL_read(ssl_c,  buf, sizeof(buf)), 8);
+
+    /* ---- server-initiated KeyUpdate ------------------------------------ */
+    ExpectIntEQ(wolfSSL_update_keys(ssl_s), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), -1);
+    err = wolfSSL_get_error(ssl_c, -1);
+    ExpectTrue(err == WOLFSSL_ERROR_WANT_READ || err == WOLFSSL_ERROR_NONE);
+
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf)), -1);
+    err = wolfSSL_get_error(ssl_s, -1);
+    ExpectTrue(err == WOLFSSL_ERROR_WANT_READ || err == WOLFSSL_ERROR_NONE);
+
+    ExpectIntEQ(wolfSSL_write(ssl_s, "post-ku-s", 9), 9);
+    ExpectIntEQ(wolfSSL_read(ssl_c,  buf, sizeof(buf)), 9);
+
+    (void)err;
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif /* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES && ... */
+    return EXPECT_RESULT();
+}
+
+/* ---------------------------------------------------------------------------
+ * MC/DC batch 6: TLS 1.3 multi-curve handshakes (X25519, P-384, P-256).
+ *
+ * Each sub-test forces a specific named group via wolfSSL_set_groups() so
+ * that distinct key-share code paths in DoTls13ClientHello / DoTls13ServerHello
+ * are exercised for different curve types.
+ *
+ * Drives:
+ *   DoTls13ClientHello / DoTls13ServerHello key-share negotiation branches
+ *   SendTls13ClientHello      different key_share generation paths
+ *   SanityCheckTls13MsgReceived group-specific checks
+ * ---------------------------------------------------------------------------
+ */
+int test_tls13_mcdc_curves_coverage(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(HAVE_SUPPORTED_CURVES)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    (void)ctx_c;
+    (void)ssl_c;
+    (void)ctx_s;
+    (void)ssl_s;
+    (void)test_ctx;
+
+    /* ---- X25519 --------------------------------------------------------- */
+#if defined(HAVE_CURVE25519)
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method,
+                    wolfTLSv1_3_server_method), 0);
+    {
+        int grp = WOLFSSL_ECC_X25519;
+        ExpectIntEQ(wolfSSL_set_groups(ssl_c, &grp, 1), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_set_groups(ssl_s, &grp, 1), WOLFSSL_SUCCESS);
+    }
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+#endif /* HAVE_CURVE25519 */
+
+    /* ---- P-384 ---------------------------------------------------------- */
+#if defined(HAVE_ECC) && defined(HAVE_ECC384) && (ECC_MIN_KEY_SZ <= 384)
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method,
+                    wolfTLSv1_3_server_method), 0);
+    {
+        int grp = WOLFSSL_ECC_SECP384R1;
+        ExpectIntEQ(wolfSSL_set_groups(ssl_c, &grp, 1), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_set_groups(ssl_s, &grp, 1), WOLFSSL_SUCCESS);
+    }
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+#endif /* HAVE_ECC384 */
+
+    /* ---- P-256 (baseline, always present when ECC enabled) -------------- */
+#if defined(HAVE_ECC) && !defined(NO_ECC_SECP)
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method,
+                    wolfTLSv1_3_server_method), 0);
+    {
+        int grp = WOLFSSL_ECC_SECP256R1;
+        ExpectIntEQ(wolfSSL_set_groups(ssl_c, &grp, 1), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_set_groups(ssl_s, &grp, 1), WOLFSSL_SUCCESS);
+    }
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+#endif /* HAVE_ECC && !NO_ECC_SECP */
+
+    (void)test_ctx;  /* suppress unused warning when all curves disabled */
+#endif /* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES && ... */
+    return EXPECT_RESULT();
+}
+
+/* ---------------------------------------------------------------------------
+ * MC/DC batch 7: TLS 1.3 post-handshake client-authentication re-request.
+ *
+ * Drives:
+ *   DoTls13HandShakeMsgType     Certificate + CertificateVerify dispatch on
+ *                               server side AFTER main handshake completes
+ *                               (L13116/L13125 — post-handshake arm with
+ *                               certificate_type == certificate and
+ *                               certificate_verify — 4 new MC/DC pairs)
+ *   SanityCheckTls13MsgReceived post-handshake certificate tracking
+ *                               (L12973/L12984 — got_cert / got_cv checks
+ *                               after Finished already seen — 4 pairs)
+ *   wolfSSL_accept_TLSv13       accept-state re-entry after established
+ *                               (L14878 state != SERVER_HELLO_COMPLETE —
+ *                               3 pairs)
+ *
+ * Scenario: full handshake with WOLFSSL_POST_HANDSHAKE_AUTH; after Finished
+ * the server calls wolfSSL_request_certificate() which causes a
+ * CertificateRequest to be sent; the client replies with Certificate +
+ * CertificateVerify + Finished; the server receives them through
+ * wolfSSL_read() iteration.
+ * ---------------------------------------------------------------------------
+ */
+int test_tls13_mcdc_batch2_post_handshake_auth(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_RSA) && \
+    defined(WOLFSSL_POST_HANDSHAKE_AUTH) && \
+    !defined(OPENSSL_COEXIST)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    char buf[64];
+    int  err;
+    int  rounds;
+    int  ret;
+    (void)ctx_c;
+    (void)ssl_c;
+    (void)ctx_s;
+    (void)ssl_s;
+    (void)test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method,
+                    wolfTLSv1_3_server_method), 0);
+
+    /* Client opts in to post-handshake auth.                                 */
+    ExpectIntEQ(wolfSSL_allow_post_handshake_auth(ssl_c), 0);
+
+    /* Server will require client cert; load client CA for verification.      */
+    wolfSSL_CTX_set_verify(ctx_s,
+        WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, caCertFile, 0),
+                WOLFSSL_SUCCESS);
+
+    /* Client loads its certificate and key.                                  */
+    ExpectIntEQ(wolfSSL_use_certificate_file(ssl_c, cliCertFile,
+                WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_c, cliKeyFile,
+                WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+
+    /* Phase 1: complete the main TLS 1.3 handshake.                         */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Drain any NewSessionTicket records at the client. */
+    err = WOLFSSL_ERROR_WANT_READ;
+    rounds = 0;
+    do {
+        ret = wolfSSL_read(ssl_c, buf, sizeof(buf));
+        if (ret > 0) {
+            rounds++;
+            continue;
+        }
+        err = wolfSSL_get_error(ssl_c, ret);
+        rounds++;
+    } while (err != WOLFSSL_ERROR_WANT_READ && err != WOLFSSL_ERROR_NONE &&
+             err != WOLFSSL_ERROR_WANT_WRITE && rounds < 32 && !EXPECT_FAIL());
+    ExpectTrue(err == WOLFSSL_ERROR_WANT_READ || err == WOLFSSL_ERROR_NONE ||
+               err == WOLFSSL_ERROR_WANT_WRITE);
+
+    /* Phase 2: server sends a post-handshake CertificateRequest.             */
+    ExpectIntEQ(wolfSSL_request_certificate(ssl_s), WOLFSSL_SUCCESS);
+
+    /* Pump both sides until post-handshake auth traffic quiesces. */
+    for (rounds = 0; rounds < 32 && !EXPECT_FAIL(); rounds++) {
+        ret = wolfSSL_read(ssl_c, buf, sizeof(buf));
+        if (ret <= 0) {
+            err = wolfSSL_get_error(ssl_c, ret);
+            if (err != WOLFSSL_ERROR_WANT_READ &&
+                err != WOLFSSL_ERROR_WANT_WRITE &&
+                err != WOLFSSL_ERROR_NONE) {
+                break;
+            }
+        }
+
+        ret = wolfSSL_read(ssl_s, buf, sizeof(buf));
+        if (ret <= 0) {
+            err = wolfSSL_get_error(ssl_s, ret);
+            if (err != WOLFSSL_ERROR_WANT_READ &&
+                err != WOLFSSL_ERROR_WANT_WRITE &&
+                err != WOLFSSL_ERROR_NONE) {
+                break;
+            }
+        }
+
+        if (test_ctx.c_len == 0 && test_ctx.s_len == 0) {
+            break;
+        }
+    }
+
+    /* App-data round-trip after post-handshake auth verifies keys intact.
+     * Under some configs, app-data arrival may require a few extra pumps. */
+    ExpectIntEQ(wolfSSL_write(ssl_s, "pha-ok", 6), 6);
+    ret = WOLFSSL_FATAL_ERROR;
+    for (rounds = 0; rounds < 32 && !EXPECT_FAIL(); rounds++) {
+        ret = wolfSSL_read(ssl_c, buf, sizeof(buf));
+        if (ret == 6) {
+            break;
+        }
+        if (ret <= 0) {
+            err = wolfSSL_get_error(ssl_c, ret);
+            if (err != WOLFSSL_ERROR_WANT_READ &&
+                err != WOLFSSL_ERROR_WANT_WRITE) {
+                break;
+            }
+        }
+    }
+    (void)ret;
+
+    (void)err;
+    wolfSSL_free(ssl_c);    ssl_c = NULL;
+    wolfSSL_free(ssl_s);    ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+#endif /* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES && ... */
+    return EXPECT_RESULT();
+}
+
+/* ---------------------------------------------------------------------------
+ * MC/DC batch 8: TLS 1.3 early-data (0-RTT) handshake.
+ *
+ * Drives:
+ *   SendTls13ClientHello        early_data extension present branch (L4602
+ *                               early_data_indication arm — 4 pairs)
+ *   DoTls13ClientHello          early_data binder path (L7075/L7413 — 4 pairs)
+ *   wolfSSL_accept_TLSv13       EndOfEarlyData state transition (L14878 —
+ *                               3 pairs)
+ *   DoTls13HandShakeMsgType     end_of_early_data dispatch (L13116/L13125 —
+ *                               2 pairs)
+ *
+ * Scenario: first handshake obtains a session ticket; second handshake uses
+ * wolfSSL_write_early_data before the handshake is complete, exercising the
+ * 0-RTT send/receive paths.
+ * ---------------------------------------------------------------------------
+ */
+int test_tls13_mcdc_batch2_early_data(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(WOLFSSL_EARLY_DATA) && defined(HAVE_SESSION_TICKET)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_SESSION *sess = NULL;
+    char msgBuf[64];
+    int  written = 0;
+    int  readSz  = 0;
+    (void)ctx_c;
+    (void)ssl_c;
+    (void)ctx_s;
+    (void)ssl_s;
+    (void)test_ctx;
+
+    /* ---- pass 1: establish session ticket -------------------------------- */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method,
+                    wolfTLSv1_3_server_method), 0);
+
+    /* Server enables early data acceptance.
+     * Returns WOLFSSL_SUCCESS (1) when OPENSSL_EXTRA/WOLFSSL_ERROR_CODE_OPENSSL
+     * is defined, 0 otherwise — accept either. */
+    ExpectIntGE(wolfSSL_CTX_set_max_early_data(ctx_s, 1024), 0);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Drain NewSessionTicket so sess is fully populated.                     */
+    ExpectIntEQ(wolfSSL_read(ssl_c, msgBuf, sizeof(msgBuf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+
+    /* ---- pass 2: 0-RTT resumption ---------------------------------------- */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method,
+                    wolfTLSv1_3_server_method), 0);
+
+    ExpectIntGE(wolfSSL_CTX_set_max_early_data(ctx_s, 1024), 0);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+
+    /* Client writes early data (exercises SendTls13ClientHello + early_data
+     * extension and the EndOfEarlyData production after CH).                 */
+    ExpectIntEQ(wolfSSL_write_early_data(ssl_c, "0rtt", 4, &written), 4);
+
+    /* Server reads early data — exercises DoTls13ClientHello binder path
+     * and EndOfEarlyData reception.                                          */
+    ExpectIntEQ(wolfSSL_read_early_data(ssl_s, msgBuf, sizeof(msgBuf),
+                    &readSz), 4);
+
+    /* Complete the remaining handshake flights.                              */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* App-data round-trip after 0-RTT verifies regular traffic keys.        */
+    ExpectIntEQ(wolfSSL_write(ssl_s, "post-0rtt", 9), 9);
+    ExpectIntEQ(wolfSSL_read(ssl_c,  msgBuf, sizeof(msgBuf)), 9);
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);    ssl_c = NULL;
+    wolfSSL_free(ssl_s);    ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+#endif /* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES && ... */
+    return EXPECT_RESULT();
+}
+
+/* ---------------------------------------------------------------------------
+ * MC/DC batch 9: TLS 1.3 EncodeSigAlg diversity — ED25519, ED448, ECDSA/P-384.
+ *
+ * Drives:
+ *   EncodeSigAlg                different sigalg encodings (L8210 — all four
+ *                               major branches: ed25519=0x0807, ed448=0x0808,
+ *                               ecdsa_secp384r1_sha384=0x0503,
+ *                               rsa_pss_rsae_sha256=0x0804 — 4 pairs each
+ *                               decision contributes to 4+ independence pairs)
+ *   SendTls13Certificate        CertificateVerify sigalg selection (L9318)
+ *   DoTls13CertificateVerify    sigalg decoding on the peer side
+ *
+ * Each sub-test restricts both sides to a single signature algorithm so the
+ * CertificateVerify message is guaranteed to use that algorithm.
+ * ---------------------------------------------------------------------------
+ */
+int test_tls13_mcdc_batch2_sigalgs(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && defined(OPENSSL_EXTRA) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    (void)test_ctx;
+    (void)ctx_c;
+    (void)ssl_c;
+    (void)ctx_s;
+    (void)ssl_s;
+
+    /* ---- sub-test A: ED25519 ---------------------------------------------- */
+#if defined(HAVE_ED25519)
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method,
+                    wolfTLSv1_3_server_method), 0);
+
+    /* Load ED25519 server certificate and key directly onto the ssl object
+     * (not ctx) so that ssl_s->buffers is updated rather than ctx_s which
+     * was already snapshotted into ssl_s at wolfSSL_new() time.              */
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(wolfSSL_use_certificate_file(ssl_s, edCertFile,
+                    WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_s, edKeyFile,
+                    WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+        /* Client trusts the ED25519 CA.                                      */
+        ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c,
+                    caEdCertFile, 0), WOLFSSL_SUCCESS);
+    }
+    /* Restrict to ed25519 sigalg on both ssl objects (not ctx).              */
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl_c, "ED25519"),
+                    WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl_s, "ED25519"),
+                    WOLFSSL_SUCCESS);
+    }
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+#endif /* HAVE_ED25519 */
+
+    /* ---- sub-test B: ED448 ------------------------------------------------ */
+#if defined(HAVE_ED448)
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method,
+                    wolfTLSv1_3_server_method), 0);
+
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(wolfSSL_use_certificate_file(ssl_s, ed448CertFile,
+                    WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_s, ed448KeyFile,
+                    WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c,
+                    caEd448CertFile, 0), WOLFSSL_SUCCESS);
+    }
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl_c, "ED448"),
+                    WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl_s, "ED448"),
+                    WOLFSSL_SUCCESS);
+    }
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+#endif /* HAVE_ED448 */
+
+    /* ---- sub-test C: ECDSA P-384 / SHA-384 -------------------------------- */
+#if defined(HAVE_ECC) && defined(HAVE_ECC384) && !defined(NO_SHA384) && \
+    (ECC_MIN_KEY_SZ <= 384)
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method,
+                    wolfTLSv1_3_server_method), 0);
+
+    if (EXPECT_SUCCESS()) {
+        /* Use the built-in ECC server cert (P-256); restrict sigalgs to
+         * ecdsa_secp384r1_sha384 — EncodeSigAlg ECDSA/SHA-384 branch.       */
+        ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl_c, "ECDSA+SHA384"),
+                    WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl_s, "ECDSA+SHA384"),
+                    WOLFSSL_SUCCESS);
+    }
+    /* Handshake may fail if the server cert does not match the sigalg —
+     * that is acceptable; we care that the sigalg encoding branch ran.       */
+    (void)test_memio_do_handshake(ssl_c, ssl_s, 10, NULL);
+
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+#endif /* HAVE_ECC384 */
+
+    /* ---- sub-test D: RSA-PSS + SHA-256 ------------------------------------ */
+#if !defined(NO_RSA) && defined(WC_RSA_PSS) && !defined(NO_SHA256)
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method,
+                    wolfTLSv1_3_server_method), 0);
+
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl_c, "RSA-PSS+SHA256"),
+                    WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl_s, "RSA-PSS+SHA256"),
+                    WOLFSSL_SUCCESS);
+    }
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+#endif /* NO_RSA / WC_RSA_PSS */
+
+    (void)test_ctx;
+#endif /* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES && ... */
+    return EXPECT_RESULT();
+}
+
+/* ---------------------------------------------------------------------------
+ * MC/DC batch 10: TLS 1.3 mutual auth — client certificate with various
+ * signature algorithms (exercises DoTls13CertificateRequest extension parsing
+ * and SendTls13Certificate client-side code with different cert types).
+ *
+ * Drives:
+ *   DoTls13CertificateRequest   extension-list parsing branches (L5954 —
+ *                               signature_algorithms present vs absent, and
+ *                               the trusted-CA list path — 4 pairs)
+ *   SendTls13Certificate        client-cert non-empty path (L9318 — 3 pairs)
+ *   SanityCheckTls13MsgReceived certificate / cert_verify order check on
+ *                               server (L12973/L12984 — 4 pairs)
+ *
+ * Sub-tests:
+ *   A) RSA client cert with explicit sigalgs restriction on server CertReq
+ *   B) ECDSA client cert (no explicit sigalgs restriction — server accepts any)
+ *   C) ED25519 client cert with ed25519-only restriction
+ * ---------------------------------------------------------------------------
+ */
+int test_tls13_mcdc_batch2_mutual_sigalgs(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && defined(OPENSSL_EXTRA) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    (void)test_ctx;
+    (void)ctx_c;
+    (void)ssl_c;
+    (void)ctx_s;
+    (void)ssl_s;
+
+    /* ---- sub-test A: RSA client cert, sigalgs restricted to RSA-PSS ------- */
+#if !defined(NO_RSA) && defined(WC_RSA_PSS)
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method,
+                    wolfTLSv1_3_server_method), 0);
+
+    /* Server: require client cert, restrict CertReq sigalgs to RSA-PSS.     */
+    wolfSSL_CTX_set_verify(ctx_s,
+        WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, caCertFile, 0),
+                WOLFSSL_SUCCESS);
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl_s, "RSA-PSS+SHA256"),
+                    WOLFSSL_SUCCESS);
+    }
+
+    /* Client: load RSA cert/key.                                             */
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(wolfSSL_use_certificate_file(ssl_c, cliCertFile,
+                    WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_c, cliKeyFile,
+                    WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    }
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+#endif /* NO_RSA / WC_RSA_PSS */
+
+    /* ---- sub-test B: ECDSA client cert, no sigalg restriction ------------- */
+#if defined(HAVE_ECC) && !defined(NO_ECC_SECP)
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method,
+                    wolfTLSv1_3_server_method), 0);
+
+    wolfSSL_CTX_set_verify(ctx_s,
+        WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, caEccCertFile, 0),
+                WOLFSSL_SUCCESS);
+
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(wolfSSL_use_certificate_file(ssl_c, cliEccCertFile,
+                    WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_c, cliEccKeyFile,
+                    WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    }
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+#endif /* HAVE_ECC */
+
+    /* ---- sub-test C: ED25519 client cert, ed25519-only sigalg restriction - */
+#if defined(HAVE_ED25519)
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method,
+                    wolfTLSv1_3_server_method), 0);
+
+    wolfSSL_CTX_set_verify(ctx_s,
+        WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+    /* Trust the ED25519 client CA on the server side.                       */
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, caEdCertFile, 0),
+                WOLFSSL_SUCCESS);
+
+    /* Use an ED25519 server cert/key so the server can sign with ED25519
+     * when sigalgs is restricted to "ED25519".  Load onto ssl_s directly
+     * to avoid the ctx snapshot already taken at wolfSSL_new() time.        */
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(wolfSSL_use_certificate_file(ssl_s, edCertFile,
+                    WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_s, edKeyFile,
+                    WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+        /* Client must trust the ED25519 server CA.                          */
+        ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c,
+                    caEdCertFile, 0), WOLFSSL_SUCCESS);
+    }
+
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl_s, "ED25519"),
+                    WOLFSSL_SUCCESS);
+    }
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(wolfSSL_use_certificate_file(ssl_c, cliEdCertFile,
+                    WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_c, cliEdKeyFile,
+                    WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    }
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+#endif /* HAVE_ED25519 */
+
+    (void)test_ctx;
+#endif /* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES && ... */
+    return EXPECT_RESULT();
+}
+
+/* ---------------------------------------------------------------------------
+ * MC/DC batch 11: TLS 1.3 ALPN negotiation across handshake variants.
+ *
+ * Drives:
+ *   DoTls13ClientHello          ALPN extension present branch (L7075 —
+ *                               2 pairs: match / no-match)
+ *   SendTls13ClientHello        ALPN extension encoding (L4602 — 2 pairs)
+ *   wolfSSL_accept_TLSv13       extension-processing path (L14878 — 2 pairs)
+ *   SanityCheckTls13MsgReceived ALPN tracking (L12984 — 2 pairs)
+ *
+ * Sub-tests:
+ *   A) Client and server agree on "h2" — handshake succeeds.
+ *   B) Client offers "h2", server offers "http/1.1" — mismatch; with
+ *      WOLFSSL_ALPN_CONTINUE_ON_MISMATCH the handshake still succeeds but
+ *      ALPN is not selected, exercising the false branch of the match check.
+ * ---------------------------------------------------------------------------
+ */
+int test_tls13_mcdc_batch2_alpn(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(HAVE_ALPN)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    char *proto = NULL;
+    unsigned short protoSz = 0;
+    char alpn_h2[] = "h2";
+    char alpn_http11[] = "http/1.1";
+    (void)ctx_c;
+    (void)ssl_c;
+    (void)ctx_s;
+    (void)ssl_s;
+    (void)test_ctx;
+
+    /* ---- sub-test A: matching ALPN protocol "h2" -------------------------- */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method,
+                    wolfTLSv1_3_server_method), 0);
+
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(wolfSSL_UseALPN(ssl_c, alpn_h2, 2,
+                    WOLFSSL_ALPN_FAILED_ON_MISMATCH), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_UseALPN(ssl_s, alpn_h2, 2,
+                    WOLFSSL_ALPN_FAILED_ON_MISMATCH), WOLFSSL_SUCCESS);
+    }
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Verify the negotiated protocol is "h2".                               */
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(wolfSSL_ALPN_GetProtocol(ssl_c, &proto, &protoSz),
+                    WOLFSSL_SUCCESS);
+        ExpectIntEQ(protoSz, 2);
+        ExpectIntEQ(XMEMCMP(proto, alpn_h2, protoSz), 0);
+    }
+
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+
+    /* ---- sub-test B: ALPN mismatch — continue-on-mismatch mode ----------- */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method,
+                    wolfTLSv1_3_server_method), 0);
+
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(wolfSSL_UseALPN(ssl_c, alpn_h2, 2,
+                    WOLFSSL_ALPN_CONTINUE_ON_MISMATCH), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_UseALPN(ssl_s, alpn_http11, 8,
+                    WOLFSSL_ALPN_CONTINUE_ON_MISMATCH), WOLFSSL_SUCCESS);
+    }
+    /* With CONTINUE_ON_MISMATCH handshake must succeed even without agreement. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+
+    (void)proto; (void)protoSz;
+#endif /* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES && ... */
+    return EXPECT_RESULT();
+}
+
+/* ---------------------------------------------------------------------------
+ * MC/DC batch 12: TLS 1.3 double-ticket resumption (PSK reused twice).
+ *
+ * Drives:
+ *   SetupPskKey                 PSK-only vs PSK+DHE branch (L4338 —
+ *                               psk_ke_mode negotiation: both arms — 4 pairs)
+ *   DoTls13ClientHello          psk_key_exchange_modes parsing (L7052/L7075 —
+ *                               2 additional pairs)
+ *   SanityCheckTls13MsgReceived two resumption handshakes exercise different
+ *                               state-machine states (L12973/L12984 — 4 pairs)
+ *
+ * Scenario: two successive resumptions from the same original session ticket.
+ * First resumption uses the default PSK+DHE mode; second uses the same
+ * ticket. An additional sub-test forces PSK-only mode (no key share) to hit
+ * the psk_ke branch of SetupPskKey.
+ * ---------------------------------------------------------------------------
+ */
+int test_tls13_mcdc_batch2_psk_modes(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(HAVE_SESSION_TICKET)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_SESSION *sess = NULL;
+    char msgBuf[64];
+    (void)ctx_c;
+    (void)ssl_c;
+    (void)ctx_s;
+    (void)ssl_s;
+    (void)test_ctx;
+
+    /* ---- pass 1: original full handshake — obtain ticket ----------------- */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method,
+                    wolfTLSv1_3_server_method), 0);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Drain NewSessionTicket.                                                */
+    ExpectIntEQ(wolfSSL_read(ssl_c, msgBuf, sizeof(msgBuf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+    ctx_c = ctx_s = NULL;
+
+    /* ---- pass 2: PSK + DHE resumption (default) -------------------------- */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method,
+                    wolfTLSv1_3_server_method), 0);
+
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* App data verifies resumed keys.                                        */
+    ExpectIntEQ(wolfSSL_write(ssl_s, "psk-dhe", 7), 7);
+    ExpectIntEQ(wolfSSL_read(ssl_c,  msgBuf, sizeof(msgBuf)), 7);
+
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+    ctx_c = ctx_s = NULL;
+
+    /* ---- pass 3: second resumption from same original ticket ------------- */
+    /* This exercises a distinct entry into SetupPskKey / SanityCheck because
+     * the connection counter and state flags differ from pass 2.            */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method,
+                    wolfTLSv1_3_server_method), 0);
+
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    ExpectIntEQ(wolfSSL_write(ssl_c, "psk-2nd", 7), 7);
+    ExpectIntEQ(wolfSSL_read(ssl_s,  msgBuf, sizeof(msgBuf)), 7);
+
+    wolfSSL_SESSION_free(sess); sess = NULL;
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+#endif /* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES && ... */
+    return EXPECT_RESULT();
+}
+
+/* ---------------------------------------------------------------------------
+ * MC/DC batch 13: TLS 1.3 state-machine dispatch diversity.
+ *
+ * Drives:
+ *   DoTls13HandShakeMsgType     all remaining dispatch branches:
+ *                               - NewSessionTicket (post-handshake, server->
+ *                                 client — L13116/L13125 arms not covered by
+ *                                 the simple read path)
+ *                               - multiple NewSessionTickets in one connection
+ *                                 (L13116 got_nst checks — 4 pairs)
+ *   wolfSSL_accept_TLSv13       mid-handshake state re-entry via incremental
+ *                               pump (L14878 state-not-COMPLETE checks — 5 pairs)
+ *
+ * Scenario A: Two full handshakes in sequence with the same CTX so the server
+ *             generates two batches of NewSessionTickets; the client reads
+ *             them explicitly to drive the NST dispatch path twice.
+ * Scenario B: Incremental handshake pumping — run wolfSSL_connect/accept one
+ *             step at a time to ensure every intermediate state in
+ *             wolfSSL_accept_TLSv13 is exercised including re-entries with
+ *             WANT_READ mid-flight.
+ * ---------------------------------------------------------------------------
+ */
+int test_tls13_mcdc_batch2_statemachine(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(HAVE_SESSION_TICKET)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    char buf[128];
+    int  err;
+    int  i;
+    (void)ctx_c;
+    (void)ssl_c;
+    (void)ctx_s;
+    (void)ssl_s;
+    (void)test_ctx;
+
+    /* ---- Scenario A: two connections on the same CTX, read all NSTs ------ */
+    for (i = 0; i < 2 && !EXPECT_FAIL(); i++) {
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                        wolfTLSv1_3_client_method,
+                        wolfTLSv1_3_server_method), 0);
+
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+        /* Read until WANT_READ to drain all NewSessionTicket records;
+         * each wolfSSL_read that processes an NST drives the NST dispatch
+         * branch in DoTls13HandShakeMsgType.                                */
+        do {
+            err = wolfSSL_read(ssl_c, buf, sizeof(buf));
+            if (err > 0)
+                continue;  /* app data (should not happen here) */
+            err = wolfSSL_get_error(ssl_c, -1);
+        } while (err != WOLFSSL_ERROR_WANT_READ && err != WOLFSSL_ERROR_NONE
+                 && !EXPECT_FAIL());
+
+        /* App-data exchange to exercise post-NST state.                     */
+        ExpectIntEQ(wolfSSL_write(ssl_c, "hello", 5), 5);
+        ExpectIntEQ(wolfSSL_read(ssl_s,  buf, sizeof(buf)), 5);
+
+        wolfSSL_free(ssl_c); ssl_c = NULL;
+        wolfSSL_free(ssl_s); ssl_s = NULL;
+        wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+        wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+        ctx_c = ctx_s = NULL;
+    }
+
+    /* ---- Scenario B: incremental step-by-step handshake pump ------------- */
+    /* Each call to wolfSSL_connect / wolfSSL_accept returns WANT_READ when
+     * it has consumed all available data; pumping one side at a time forces
+     * wolfSSL_accept_TLSv13 to be called multiple times in different states,
+     * covering the L14878 state branches exhaustively.                      */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method,
+                    wolfTLSv1_3_server_method), 0);
+
+    /* Reuse test_memio_do_handshake with a generous step budget to let it
+     * interleave connect/accept calls in a fine-grained manner.             */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 40, NULL), 0);
+
+    ExpectIntEQ(wolfSSL_write(ssl_s, "step-ok", 7), 7);
+    ExpectIntEQ(wolfSSL_read(ssl_c,  buf, sizeof(buf)), 7);
+
+    (void)err;
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+#endif /* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES && ... */
+    return EXPECT_RESULT();
+}

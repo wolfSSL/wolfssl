@@ -30,13 +30,23 @@ int test_mp_get_rand_digit(void);
 int test_mp_cond_copy(void);
 int test_mp_rand(void);
 int test_wc_export_int(void);
+int test_wc_WolfmathBadArgCoverage(void);
+int test_wc_WolfmathDecisionCoverage(void);
+int test_wc_WolfmathCondCopyCoverage(void);
+int test_wc_WolfmathRandCoverage(void);
+int test_wc_WolfmathFeatureCoverage(void);
 
-#define TEST_WOLFMATH_DECLS                             \
-    TEST_DECL_GROUP("wolfmath", test_mp_get_digit_count),  \
-    TEST_DECL_GROUP("wolfmath", test_mp_get_digit),        \
-    TEST_DECL_GROUP("wolfmath", test_mp_get_rand_digit),   \
-    TEST_DECL_GROUP("wolfmath", test_mp_cond_copy),     \
-    TEST_DECL_GROUP("wolfmath", test_mp_rand),          \
-    TEST_DECL_GROUP("wolfmath", test_wc_export_int)
+#define TEST_WOLFMATH_DECLS                                          \
+    TEST_DECL_GROUP("wolfmath", test_mp_get_digit_count),            \
+    TEST_DECL_GROUP("wolfmath", test_mp_get_digit),                  \
+    TEST_DECL_GROUP("wolfmath", test_mp_get_rand_digit),             \
+    TEST_DECL_GROUP("wolfmath", test_mp_cond_copy),                  \
+    TEST_DECL_GROUP("wolfmath", test_mp_rand),                       \
+    TEST_DECL_GROUP("wolfmath", test_wc_export_int),                 \
+    TEST_DECL_GROUP("wolfmath", test_wc_WolfmathBadArgCoverage),     \
+    TEST_DECL_GROUP("wolfmath", test_wc_WolfmathDecisionCoverage),   \
+    TEST_DECL_GROUP("wolfmath", test_wc_WolfmathCondCopyCoverage),   \
+    TEST_DECL_GROUP("wolfmath", test_wc_WolfmathRandCoverage),       \
+    TEST_DECL_GROUP("wolfmath", test_wc_WolfmathFeatureCoverage)
 
 #endif /* WOLFCRYPT_TEST_WOLFMATH_H */

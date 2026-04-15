@@ -45,6 +45,19 @@ int test_tls13_cert_req_sigalgs(void);
 int test_tls13_derive_keys_no_key(void);
 int test_tls13_pqc_hybrid_truncated_keyshare(void);
 int test_tls13_short_session_ticket(void);
+int test_tls13_mcdc_basic_coverage(void);
+int test_tls13_mcdc_hrr_coverage(void);
+int test_tls13_mcdc_mutual_coverage(void);
+int test_tls13_mcdc_ticket_coverage(void);
+int test_tls13_mcdc_keyupdate_coverage(void);
+int test_tls13_mcdc_curves_coverage(void);
+int test_tls13_mcdc_batch2_post_handshake_auth(void);
+int test_tls13_mcdc_batch2_early_data(void);
+int test_tls13_mcdc_batch2_sigalgs(void);
+int test_tls13_mcdc_batch2_mutual_sigalgs(void);
+int test_tls13_mcdc_batch2_alpn(void);
+int test_tls13_mcdc_batch2_psk_modes(void);
+int test_tls13_mcdc_batch2_statemachine(void);
 
 #define TEST_TLS13_DECLS                                        \
     TEST_DECL_GROUP("tls13", test_tls13_apis),                  \
@@ -67,6 +80,19 @@ int test_tls13_short_session_ticket(void);
     TEST_DECL_GROUP("tls13", test_tls13_derive_keys_no_key),    \
     TEST_DECL_GROUP("tls13", test_tls13_pqc_hybrid_truncated_keyshare), \
     TEST_DECL_GROUP("tls13", test_tls13_short_session_ticket),  \
-    TEST_DECL_GROUP("tls13", test_tls13_unknown_ext_rejected)
+    TEST_DECL_GROUP("tls13", test_tls13_unknown_ext_rejected),  \
+    TEST_DECL_GROUP("tls13", test_tls13_mcdc_basic_coverage),   \
+    TEST_DECL_GROUP("tls13", test_tls13_mcdc_hrr_coverage),     \
+    TEST_DECL_GROUP("tls13", test_tls13_mcdc_mutual_coverage),  \
+    TEST_DECL_GROUP("tls13", test_tls13_mcdc_ticket_coverage),  \
+    TEST_DECL_GROUP("tls13", test_tls13_mcdc_keyupdate_coverage), \
+    TEST_DECL_GROUP("tls13", test_tls13_mcdc_curves_coverage),  \
+    TEST_DECL_GROUP("tls13", test_tls13_mcdc_batch2_post_handshake_auth), \
+    TEST_DECL_GROUP("tls13", test_tls13_mcdc_batch2_early_data), \
+    TEST_DECL_GROUP("tls13", test_tls13_mcdc_batch2_sigalgs),   \
+    TEST_DECL_GROUP("tls13", test_tls13_mcdc_batch2_mutual_sigalgs), \
+    TEST_DECL_GROUP("tls13", test_tls13_mcdc_batch2_alpn),      \
+    TEST_DECL_GROUP("tls13", test_tls13_mcdc_batch2_psk_modes), \
+    TEST_DECL_GROUP("tls13", test_tls13_mcdc_batch2_statemachine)
 
 #endif /* WOLFCRYPT_TEST_TLS13_H */

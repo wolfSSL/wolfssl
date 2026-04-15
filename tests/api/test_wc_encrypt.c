@@ -30,6 +30,11 @@
 
 #include <wolfssl/wolfcrypt/wc_encrypt.h>
 #include <wolfssl/wolfcrypt/types.h>
+#include <wolfssl/wolfcrypt/asn_public.h>
+#ifndef NO_ASN
+    #include <wolfssl/wolfcrypt/asn.h>
+#endif
+#include <wolfssl/wolfcrypt/oid_sum.h>
 #include <tests/api/api.h>
 #include <tests/api/test_wc_encrypt.h>
 
@@ -155,3 +160,273 @@ int test_wc_Des_CbcEncryptDecryptWithKey(void)
     return EXPECT_RESULT();
 } /* END test_wc_Des_CbcEncryptDecryptWithKey */
 
+/* ---------------------------------------------------------------------------
+ * MC/DC batch 1 – wc_BufferKeyEncrypt / wc_BufferKeyDecrypt / wc_CryptKey
+ * --------------------------------------------------------------------------*/
+
+#if defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_ASN)
+static void enc_info_init_des3(EncryptedInfo* info)
+{
+    XMEMSET(info, 0, sizeof(*info));
+    XMEMCPY(info->iv, "0102030405060708", 16);
+    info->ivSz = 16;
+    info->keySz = 24;
+    info->cipherType = WC_CIPHER_DES3;
+}
+#endif
+
+int test_wc_EncryptBadArgCoverage(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_ASN)
+    EncryptedInfo info;
+    byte der[24];
+    static const byte pass[] = "testpass";
+    int passSz = (int)sizeof(pass) - 1;
+
+    XMEMSET(der, 0xAB, sizeof(der));
+
+    enc_info_init_des3(&info);
+    ExpectIntEQ(wc_BufferKeyEncrypt(&info, NULL, sizeof(der), pass, passSz,
+        WC_HASH_TYPE_SHA), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    enc_info_init_des3(&info);
+    (void)wc_BufferKeyEncrypt(&info, der, sizeof(der), pass, passSz,
+        WC_HASH_TYPE_SHA);
+
+    enc_info_init_des3(&info);
+    ExpectIntEQ(wc_BufferKeyEncrypt(&info, der, sizeof(der), NULL, passSz,
+        WC_HASH_TYPE_SHA), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    ExpectIntEQ(wc_BufferKeyEncrypt(NULL, der, sizeof(der), pass, passSz,
+        WC_HASH_TYPE_SHA), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    enc_info_init_des3(&info);
+    info.keySz = 0;
+    ExpectIntEQ(wc_BufferKeyEncrypt(&info, der, sizeof(der), pass, passSz,
+        WC_HASH_TYPE_SHA), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    enc_info_init_des3(&info);
+    info.ivSz = 4;
+    ExpectIntEQ(wc_BufferKeyEncrypt(&info, der, sizeof(der), pass, passSz,
+        WC_HASH_TYPE_SHA), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    enc_info_init_des3(&info);
+    ExpectIntEQ(wc_BufferKeyDecrypt(&info, NULL, sizeof(der), pass, passSz,
+        WC_HASH_TYPE_SHA), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    enc_info_init_des3(&info);
+    ExpectIntEQ(wc_BufferKeyDecrypt(&info, der, sizeof(der), NULL, passSz,
+        WC_HASH_TYPE_SHA), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    ExpectIntEQ(wc_BufferKeyDecrypt(NULL, der, sizeof(der), pass, passSz,
+        WC_HASH_TYPE_SHA), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    enc_info_init_des3(&info);
+    info.keySz = 0;
+    ExpectIntEQ(wc_BufferKeyDecrypt(&info, der, sizeof(der), pass, passSz,
+        WC_HASH_TYPE_SHA), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    enc_info_init_des3(&info);
+    {
+        int r = wc_BufferKeyDecrypt(&info, der, sizeof(der), pass, passSz,
+            WC_HASH_TYPE_SHA);
+        ExpectTrue(r != WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wc_EncryptDecisionCoverage(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_ASN)
+    EncryptedInfo info;
+    /* Multiple of both DES (8) and AES (16) block sizes so in-place CBC
+     * encrypt/decrypt never walks past the buffer. */
+    byte buf[32];
+    static const byte pass[] = "password1";
+    int passSz = (int)sizeof(pass) - 1;
+
+#ifndef NO_DES3
+    enc_info_init_des3(&info);
+    XMEMSET(buf, 0x55, sizeof(buf));
+    (void)wc_BufferKeyEncrypt(&info, buf, sizeof(buf), pass, passSz,
+        WC_HASH_TYPE_SHA);
+
+    enc_info_init_des3(&info);
+    info.cipherType = WC_CIPHER_DES;
+    info.keySz = 8;
+    XMEMSET(buf, 0x66, sizeof(buf));
+    (void)wc_BufferKeyEncrypt(&info, buf, sizeof(buf), pass, passSz,
+        WC_HASH_TYPE_SHA);
+#endif
+
+#if !defined(NO_AES) && defined(HAVE_AES_CBC)
+    enc_info_init_des3(&info);
+    info.cipherType = WC_CIPHER_AES_CBC;
+    info.keySz = 16;
+    XMEMSET(buf, 0x77, sizeof(buf));
+    (void)wc_BufferKeyEncrypt(&info, buf, sizeof(buf), pass, passSz,
+        WC_HASH_TYPE_SHA);
+#endif
+
+    enc_info_init_des3(&info);
+    info.cipherType = 99;
+    XMEMSET(buf, 0x88, sizeof(buf));
+    (void)wc_BufferKeyEncrypt(&info, buf, sizeof(buf), pass, passSz,
+        WC_HASH_TYPE_SHA);
+
+#ifndef NO_DES3
+    enc_info_init_des3(&info);
+    XMEMSET(buf, 0xAA, sizeof(buf));
+    (void)wc_BufferKeyDecrypt(&info, buf, sizeof(buf), pass, passSz,
+        WC_HASH_TYPE_SHA);
+#endif
+
+#if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(HAVE_AES_DECRYPT)
+    enc_info_init_des3(&info);
+    info.cipherType = WC_CIPHER_AES_CBC;
+    info.keySz = 16;
+    XMEMSET(buf, 0xBB, sizeof(buf));
+    (void)wc_BufferKeyDecrypt(&info, buf, sizeof(buf), pass, passSz,
+        WC_HASH_TYPE_SHA);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wc_CryptKeyBadArgCoverage(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_PWDBASED) && !defined(NO_ASN) && \
+    (defined(HAVE_PKCS8) || defined(HAVE_PKCS12))
+    byte salt[8] = { 0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08 };
+    byte cbcIv[16] = { 0 };
+    byte input[24];
+    static const char pass[] = "TestPass";
+    int passSz = (int)sizeof(pass) - 1;
+
+    XMEMSET(input, 0x5A, sizeof(input));
+
+    ExpectIntEQ(wc_CryptKey(NULL, passSz, salt, (int)sizeof(salt),
+        1, PBE_SHA1_DES3, input, (int)sizeof(input),
+        PKCS5, cbcIv, 1, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    ExpectIntEQ(wc_CryptKey(pass, passSz, NULL, (int)sizeof(salt),
+        1, PBE_SHA1_DES3, input, (int)sizeof(input),
+        PKCS5, cbcIv, 1, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    ExpectIntEQ(wc_CryptKey(pass, passSz, salt, (int)sizeof(salt),
+        1, PBE_SHA1_DES3, NULL, (int)sizeof(input),
+        PKCS5, cbcIv, 1, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    ExpectIntEQ(wc_CryptKey(pass, passSz, salt, (int)sizeof(salt),
+        1, PBE_SHA1_DES3, input, -1,
+        PKCS5, cbcIv, 1, 0), WC_NO_ERR_TRACE(BAD_LENGTH_E));
+
+    ExpectIntEQ(wc_CryptKey(pass, passSz, salt, (int)sizeof(salt),
+        1, 255, input, (int)sizeof(input),
+        PKCS5, cbcIv, 1, 0), WC_NO_ERR_TRACE(ALGO_ID_E));
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wc_CryptKeyVersionBranches(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_PWDBASED) && !defined(NO_ASN) && \
+    (defined(HAVE_PKCS8) || defined(HAVE_PKCS12))
+    byte salt[8] = { 0x11,0x22,0x33,0x44,0x55,0x66,0x77,0x88 };
+    byte cbcIv[16];
+    /* Multiple of both DES (8) and AES (16) block sizes so in-place
+     * encrypt/decrypt never walks past the buffer. */
+    byte input[32];
+    static const char pass[] = "MCDCpass";
+    int passSz = (int)sizeof(pass) - 1;
+    int r;
+    (void)salt;
+    (void)passSz;
+    (void)r;
+
+    XMEMSET(cbcIv, 0x00, sizeof(cbcIv));
+    XMEMSET(input, 0x5A, sizeof(input));
+
+#ifndef NO_SHA
+#ifndef NO_DES3
+    XMEMSET(input, 0x5A, sizeof(input));
+    r = wc_CryptKey(pass, passSz, salt, (int)sizeof(salt), 1,
+        PBE_SHA1_DES3, input, (int)sizeof(input), PKCS5, cbcIv, 1, 0);
+    (void)r;
+
+    XMEMSET(input, 0x5A, sizeof(input));
+    r = wc_CryptKey(pass, passSz, salt, (int)sizeof(salt), 1,
+        PBE_SHA1_DES3, input, (int)sizeof(input), PKCS5, cbcIv, 0, 0);
+    (void)r;
+#endif
+
+#if !defined(NO_DES3) && !defined(NO_SHA256)
+    XMEMSET(input, 0x5A, sizeof(input));
+    r = wc_CryptKey(pass, passSz, salt, (int)sizeof(salt), 1,
+        PBE_SHA1_DES3, input, (int)sizeof(input),
+        PKCS5, cbcIv, 1, HMAC_SHA256_OID);
+    (void)r;
+#endif
+#endif
+
+#ifndef NO_HMAC
+#if defined(WOLFSSL_AES_256) && !defined(NO_SHA256) && \
+    !defined(NO_AES) && defined(HAVE_AES_CBC)
+    XMEMSET(input, 0x5A, sizeof(input));
+    r = wc_CryptKey(pass, passSz, salt, (int)sizeof(salt), 1,
+        PBE_AES256_CBC, input, (int)sizeof(input),
+        PKCS5v2, cbcIv, 1, HMAC_SHA256_OID);
+    (void)r;
+#ifndef NO_SHA
+    XMEMSET(input, 0x5A, sizeof(input));
+    r = wc_CryptKey(pass, passSz, salt, (int)sizeof(salt), 1,
+        PBE_AES256_CBC, input, (int)sizeof(input),
+        PKCS5v2, cbcIv, 1, 0);
+    (void)r;
+#endif
+#endif
+
+#if defined(WOLFSSL_AES_128) && !defined(NO_SHA256) && \
+    !defined(NO_AES) && defined(HAVE_AES_CBC)
+    XMEMSET(input, 0x5A, sizeof(input));
+    r = wc_CryptKey(pass, passSz, salt, (int)sizeof(salt), 1,
+        PBE_AES128_CBC, input, (int)sizeof(input),
+        PKCS5v2, cbcIv, 1, HMAC_SHA256_OID);
+    (void)r;
+#ifndef NO_SHA
+    XMEMSET(input, 0x5A, sizeof(input));
+    r = wc_CryptKey(pass, passSz, salt, (int)sizeof(salt), 1,
+        PBE_AES128_CBC, input, (int)sizeof(input),
+        PKCS5v2, cbcIv, 1, 0);
+    (void)r;
+#endif
+#endif
+#endif
+
+#ifdef HAVE_PKCS12
+#if !defined(NO_DES3) && !defined(NO_SHA)
+    XMEMSET(input, 0x5A, sizeof(input));
+    r = wc_CryptKey(pass, passSz, salt, (int)sizeof(salt), 1,
+        PBE_SHA1_DES3, input, (int)sizeof(input),
+        PKCS12v1, cbcIv, 1, 0);
+    (void)r;
+#endif
+
+#ifndef NO_DES3
+#ifndef NO_SHA
+    XMEMSET(input, 0x5A, sizeof(input));
+    r = wc_CryptKey(pass, passSz, salt, (int)sizeof(salt), 1,
+        PBE_SHA1_DES3, input, (int)sizeof(input),
+        99, cbcIv, 1, 0);
+    ExpectIntEQ(r, WC_NO_ERR_TRACE(ALGO_ID_E));
+#endif
+#endif
+#endif
+#endif
+    return EXPECT_RESULT();
+}

@@ -40,6 +40,7 @@ static WC_RNG* liboqsCurrentRNG;
 static wolfSSL_Mutex liboqsRNGMutex;
 
 static int liboqs_init = 0;
+static int liboqs_mutex_init = 0;
 
 
 static void wolfSSL_liboqsGetRandomData(uint8_t* buffer, size_t numOfBytes)
@@ -68,25 +69,39 @@ static void wolfSSL_liboqsGetRandomData(uint8_t* buffer, size_t numOfBytes)
 int wolfSSL_liboqsInit(void)
 {
     int ret = 0;
+    int local_mutex_init = 0;
 
     if (liboqs_init == 0) {
-        ret = wc_InitMutex(&liboqsRNGMutex);
-        if (ret != 0) {
-            return ret;
+        if (!liboqs_mutex_init) {
+            ret = wc_InitMutex(&liboqsRNGMutex);
+            if (ret != 0) {
+                return ret;
+            }
+            liboqs_mutex_init = 1;
+            local_mutex_init = 1;
         }
+
         ret = wc_LockMutex(&liboqsRNGMutex);
         if (ret != 0) {
+            if (local_mutex_init) {
+                wc_FreeMutex(&liboqsRNGMutex);
+                liboqs_mutex_init = 0;
+            }
             return ret;
         }
+
         ret = wc_InitRng(&liboqsDefaultRNG);
         if (ret == 0) {
             OQS_init();
+            liboqsCurrentRNG = &liboqsDefaultRNG;
             liboqs_init = 1;
+            OQS_randombytes_custom_algorithm(wolfSSL_liboqsGetRandomData);
         }
-        liboqsCurrentRNG = &liboqsDefaultRNG;
         wc_UnLockMutex(&liboqsRNGMutex);
-
-        OQS_randombytes_custom_algorithm(wolfSSL_liboqsGetRandomData);
+        if (ret != 0 && local_mutex_init) {
+            wc_FreeMutex(&liboqsRNGMutex);
+            liboqs_mutex_init = 0;
+        }
     }
 
     return ret;
@@ -94,7 +109,16 @@ int wolfSSL_liboqsInit(void)
 
 void wolfSSL_liboqsClose(void)
 {
-    wc_FreeRng(&liboqsDefaultRNG);
+    if (liboqs_init) {
+        wc_FreeRng(&liboqsDefaultRNG);
+        OQS_destroy();
+        liboqsCurrentRNG = NULL;
+        liboqs_init = 0;
+    }
+    if (liboqs_mutex_init) {
+        wc_FreeMutex(&liboqsRNGMutex);
+        liboqs_mutex_init = 0;
+    }
 }
 
 int wolfSSL_liboqsRngMutexLock(WC_RNG* rng)
