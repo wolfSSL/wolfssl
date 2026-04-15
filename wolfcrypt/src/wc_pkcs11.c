@@ -2247,9 +2247,14 @@ int wc_Pkcs11StoreKey(Pkcs11Token* token, int type, int clear, void* key)
                         session.func->C_DestroyObject(session.handle, privKey);
                     }
                 }
-            #ifndef WOLFSSL_DILITHIUM_ASSIGN_KEY
+            #if !defined(WOLFSSL_DILITHIUM_ASSIGN_KEY) && \
+                !defined(WOLFSSL_DILITHIUM_DYNAMIC_KEYS)
                 if (ret == 0 && clear) {
                     ForceZero(mldsaKey->k, sizeof(mldsaKey->k));
+                }
+            #elif defined(WOLFSSL_DILITHIUM_DYNAMIC_KEYS)
+                if (ret == 0 && clear && mldsaKey->k != NULL) {
+                    ForceZero(mldsaKey->k, mldsaKey->kSz);
                 }
             #endif
                 break;
