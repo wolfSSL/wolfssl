@@ -2401,6 +2401,198 @@ int test_tls13_early_data(void)
 }
 
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && defined(WOLFSSL_EARLY_DATA) && \
+    defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_TICKET_HAVE_ID) && \
+    !defined(NO_SESSION_CACHE) && defined(HAVE_EXT_CACHE)
+/* Single-slot external session cache keyed by altSessionID, used by
+ * test_tls13_early_data_0rtt_replay to assert the 0-RTT anti-replay
+ * fix clears both caches. */
+static struct {
+    byte id[ID_LEN];
+    byte has_entry;
+    WOLFSSL_SESSION* sess;
+    int new_calls;
+    int get_calls;
+    int rem_calls;
+} test_tls13_0rtt_replay_cache;
+
+static void test_tls13_0rtt_replay_cache_reset(void)
+{
+    /* wolfSSL_SESSION_free is NULL-safe, so unconditionally drop any
+     * stored session without touching has_entry first. */
+    wolfSSL_SESSION_free(test_tls13_0rtt_replay_cache.sess);
+    XMEMSET(&test_tls13_0rtt_replay_cache, 0,
+            sizeof(test_tls13_0rtt_replay_cache));
+}
+
+/* Stateful-ticket sessions always have haveAltSessionID set, so key the
+ * cache on altSessionID directly (wolfSSL_SESSION_get_id is only
+ * declared under the OpenSSL compatibility layer). */
+static int test_tls13_0rtt_replay_new_cb(WOLFSSL* ssl, WOLFSSL_SESSION* s)
+{
+    (void)ssl;
+    test_tls13_0rtt_replay_cache.new_calls++;
+    if (s == NULL || !s->haveAltSessionID)
+        return 0;
+    wolfSSL_SESSION_free(test_tls13_0rtt_replay_cache.sess);
+    XMEMCPY(test_tls13_0rtt_replay_cache.id, s->altSessionID, ID_LEN);
+    test_tls13_0rtt_replay_cache.sess = s;
+    test_tls13_0rtt_replay_cache.has_entry = 1;
+    return 1; /* retain the reference; freed in the rem callback */
+}
+
+static WOLFSSL_SESSION* test_tls13_0rtt_replay_get_cb(WOLFSSL* ssl,
+        const byte* id, int idLen, int* ref)
+{
+    (void)ssl;
+    test_tls13_0rtt_replay_cache.get_calls++;
+    *ref = 1; /* keep ownership; wolfSSL duplicates from us */
+    if (!test_tls13_0rtt_replay_cache.has_entry || idLen != ID_LEN)
+        return NULL;
+    if (XMEMCMP(test_tls13_0rtt_replay_cache.id, id, ID_LEN) != 0)
+        return NULL;
+    return test_tls13_0rtt_replay_cache.sess;
+}
+
+static void test_tls13_0rtt_replay_rem_cb(WOLFSSL_CTX* ctx,
+        WOLFSSL_SESSION* s)
+{
+    const byte* id;
+    (void)ctx;
+    if (!test_tls13_0rtt_replay_cache.has_entry || s == NULL)
+        return;
+    /* Internal-cache-evicted sessions have haveAltSessionID cleared
+     * (that field sits before the DupSession copy offset), so fall
+     * back to sessionID when altSessionID is not set. Both carry the
+     * ID_LEN lookup key. */
+    if (s->haveAltSessionID)
+        id = s->altSessionID;
+    else if (s->sessionIDSz == ID_LEN)
+        id = s->sessionID;
+    else
+        return;
+    if (XMEMCMP(test_tls13_0rtt_replay_cache.id, id, ID_LEN) != 0)
+        return;
+    wolfSSL_SESSION_free(test_tls13_0rtt_replay_cache.sess);
+    test_tls13_0rtt_replay_cache.sess = NULL;
+    test_tls13_0rtt_replay_cache.has_entry = 0;
+    test_tls13_0rtt_replay_cache.rem_calls++;
+}
+
+/* RFC 8446 section 8 anti-replay: a 0-RTT-eligible session must be
+ * evicted from both the internal and external caches on resumption so
+ * the same ClientHello cannot replay early data. */
+int test_tls13_early_data_0rtt_replay(void)
+{
+    EXPECT_DECLS;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    char buf[64];
+    int round;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_tls13_0rtt_replay_cache_reset();
+
+    /* Step 1: full handshake populates both caches. */
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method, wolfTLSv1_3_server_method),
+                0);
+    /* Stateful tickets + 0-RTT enabled. */
+    ExpectTrue(wolfSSL_set_options(ssl_s, WOLFSSL_OP_NO_TICKET) != 0);
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_ERROR_CODE_OPENSSL)
+    ExpectIntEQ(wolfSSL_set_max_early_data(ssl_s, 128), WOLFSSL_SUCCESS);
+#else
+    ExpectIntEQ(wolfSSL_set_max_early_data(ssl_s, 128), 0);
+#endif
+    wolfSSL_CTX_sess_set_new_cb(ctx_s, test_tls13_0rtt_replay_new_cb);
+    wolfSSL_CTX_sess_set_get_cb(ctx_s, test_tls13_0rtt_replay_get_cb);
+    wolfSSL_CTX_sess_set_remove_cb(ctx_s, test_tls13_0rtt_replay_rem_cb);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    /* Let the client consume NewSessionTicket. */
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+    ExpectIntEQ(wolfSSL_SessionIsSetup(sess), 1);
+    /* Stateful (ID-only) ticket on the client side. */
+    ExpectIntEQ(sess->ticketLen, ID_LEN);
+    ExpectIntEQ((int)sess->maxEarlyDataSz, 128);
+    /* External cache saw the add. */
+    ExpectIntGT(test_tls13_0rtt_replay_cache.new_calls, 0);
+    ExpectIntEQ(test_tls13_0rtt_replay_cache.has_entry, 1);
+
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+
+    /* Resume the same session twice, offering 0-RTT each time. */
+    for (round = 0; round < 2 && !EXPECT_FAIL(); round++) {
+        const char earlyMsg[] = "early-data-0rtt";
+        int written = 0;
+        int earlyRead = 0;
+        char earlyBuf[sizeof(earlyMsg)];
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        XMEMSET(earlyBuf, 0, sizeof(earlyBuf));
+        /* Reuse the CTXs so both caches survive (test_memio_setup
+         * leaves *ctx alone when non-NULL). */
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+                        &ssl_s, wolfTLSv1_3_client_method,
+                        wolfTLSv1_3_server_method), 0);
+        ExpectTrue(wolfSSL_set_options(ssl_s, WOLFSSL_OP_NO_TICKET) != 0);
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_ERROR_CODE_OPENSSL)
+        ExpectIntEQ(wolfSSL_set_max_early_data(ssl_s, 128),
+                    WOLFSSL_SUCCESS);
+#else
+        ExpectIntEQ(wolfSSL_set_max_early_data(ssl_s, 128), 0);
+#endif
+        ExpectIntEQ(wolfSSL_SessionIsSetup(sess), 1);
+        ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+
+        ExpectIntEQ(test_tls13_early_data_write_until_write_ok(ssl_c,
+                        earlyMsg, (int)sizeof(earlyMsg), &written),
+                    sizeof(earlyMsg));
+        ExpectIntEQ(written, sizeof(earlyMsg));
+
+        (void)test_tls13_early_data_read_until_write_ok(ssl_s, earlyBuf,
+                sizeof(earlyBuf), &earlyRead);
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+        if (round == 0) {
+            ExpectTrue(wolfSSL_session_reused(ssl_s));
+            ExpectIntEQ(earlyRead, sizeof(earlyMsg));
+            ExpectStrEQ(earlyMsg, earlyBuf);
+            /* Fix fired exactly once to evict the cached entry. */
+            ExpectIntEQ(test_tls13_0rtt_replay_cache.rem_calls, 1);
+        }
+        else {
+            ExpectFalse(wolfSSL_session_reused(ssl_s));
+            ExpectIntEQ(earlyRead, 0);
+            /* No additional eviction in the replay round. */
+            ExpectIntEQ(test_tls13_0rtt_replay_cache.rem_calls, 1);
+        }
+
+        wolfSSL_free(ssl_c); ssl_c = NULL;
+        wolfSSL_free(ssl_s); ssl_s = NULL;
+    }
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    test_tls13_0rtt_replay_cache_reset();
+    return EXPECT_RESULT();
+}
+#else
+int test_tls13_early_data_0rtt_replay(void)
+{
+    EXPECT_DECLS;
+    return EXPECT_RESULT();
+}
+#endif
+
+
 /* Check that the client won't send the same CH after a HRR. An HRR without
  * a KeyShare or a Cookie extension will trigger the error. */
 int test_tls13_same_ch(void)

@@ -45,6 +45,7 @@ int test_tls13_cert_req_sigalgs(void);
 int test_tls13_derive_keys_no_key(void);
 int test_tls13_pqc_hybrid_truncated_keyshare(void);
 int test_tls13_short_session_ticket(void);
+int test_tls13_early_data_0rtt_replay(void);
 
 #define TEST_TLS13_DECLS                                        \
     TEST_DECL_GROUP("tls13", test_tls13_apis),                  \
@@ -67,6 +68,7 @@ int test_tls13_short_session_ticket(void);
     TEST_DECL_GROUP("tls13", test_tls13_derive_keys_no_key),    \
     TEST_DECL_GROUP("tls13", test_tls13_pqc_hybrid_truncated_keyshare), \
     TEST_DECL_GROUP("tls13", test_tls13_short_session_ticket),  \
+    TEST_DECL_GROUP("tls13", test_tls13_early_data_0rtt_replay), \
     TEST_DECL_GROUP("tls13", test_tls13_unknown_ext_rejected)
 
 #endif /* WOLFCRYPT_TEST_TLS13_H */
