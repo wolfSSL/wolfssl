@@ -810,7 +810,7 @@ int se050_rsa_get_key_id(struct RsaKey* key, word32* keyId)
 int se050_rsa_create_key(struct RsaKey* key, int size, long e)
 {
     int             ret = 0;
-    word32          keyId;
+    word32          keyId = 0;
     int             keyCreated = 0;
     sss_status_t    status = kStatus_SSS_Success;
     sss_object_t    keyPair;
