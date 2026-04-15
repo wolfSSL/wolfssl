@@ -15173,6 +15173,49 @@ static int test_wolfSSL_Tls13_ECH_disable_conn(void)
 
     return EXPECT_RESULT();
 }
+/* Regression test: an inner SNI hostname >= MAX_PUBLIC_NAME_SZ (256) bytes
+ * must not cause a stack-buffer-overflow in TLSX_EchRestoreSNI.  Before the
+ * fix, the truncated copy omitted the NUL terminator and XSTRLEN read past
+ * the buffer. */
+static int test_wolfSSL_Tls13_ECH_long_SNI(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_WOLFSSL_CLIENT)
+    test_ssl_memio_ctx test_ctx;
+    /* 300 chars > MAX_PUBLIC_NAME_SZ (256) to exercise truncation */
+    char longName[300];
+
+    XMEMSET(longName, 'a', sizeof(longName) - 1);
+    longName[sizeof(longName) - 1] = '\0';
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    test_ctx.s_cb.method = wolfTLSv1_3_server_method;
+    test_ctx.c_cb.method = wolfTLSv1_3_client_method;
+
+    test_ctx.s_cb.ctx_ready = test_ech_server_ctx_ready;
+    test_ctx.s_cb.ssl_ready = test_ech_server_ssl_ready;
+
+    ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+
+    /* Set ECH configs on the client */
+    ExpectIntEQ(wolfSSL_SetEchConfigs(test_ctx.c_ssl, echCbTestConfigs,
+        echCbTestConfigsLen), WOLFSSL_SUCCESS);
+
+    /* Set the over-long SNI as the inner hostname */
+    ExpectIntEQ(wolfSSL_UseSNI(test_ctx.c_ssl, WOLFSSL_SNI_HOST_NAME,
+        longName, (word16)XSTRLEN(longName)), WOLFSSL_SUCCESS);
+
+    /* The handshake triggers TLSX_EchChangeSNI / TLSX_EchRestoreSNI.
+     * Before the fix this would stack-buffer-overflow in XSTRLEN.
+     * The connection may fail (SNI mismatch) but must not crash. */
+    (void)test_ssl_memio_do_handshake(&test_ctx, 10, NULL);
+
+    test_ssl_memio_cleanup(&test_ctx);
+#endif /* !NO_WOLFSSL_CLIENT */
+
+    return EXPECT_RESULT();
+}
 #endif /* HAVE_SSL_MEMIO_TESTS_DEPENDENCIES */
 
 /* verify that ECH can be enabled/disabled without issue */
@@ -36256,6 +36299,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_Tls13_ECH_new_config),
     TEST_DECL(test_wolfSSL_Tls13_ECH_GREASE),
     TEST_DECL(test_wolfSSL_Tls13_ECH_disable_conn),
+    TEST_DECL(test_wolfSSL_Tls13_ECH_long_SNI),
 #endif
     TEST_DECL(test_wolfSSL_Tls13_ECH_enable_disable),
 #endif /* WOLFSSL_TLS13 && HAVE_ECH */

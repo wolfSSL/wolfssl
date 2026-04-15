@@ -16106,6 +16106,9 @@ static int TLSX_EchChangeSNI(WOLFSSL* ssl, TLSX** pEchX,
                 hostNameSz = MAX_PUBLIC_NAME_SZ;
 
             XMEMCPY(serverName, hostName, hostNameSz);
+            /* Guarantee NUL termination after truncation so that
+             * TLSX_EchRestoreSNI's XSTRLEN cannot read past the buffer. */
+            serverName[hostNameSz - 1] = '\0';
         }
 
         /* only swap the SNI if one was found; extensions is non-NULL if an
