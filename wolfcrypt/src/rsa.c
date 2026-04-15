@@ -655,6 +655,22 @@ int wc_FreeRsaKey(RsaKey* key)
         return BAD_FUNC_ARG;
     }
 
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (key->devId != INVALID_DEVID)
+    #endif
+    {
+        ret = wc_CryptoCb_Free(key->devId, WC_ALGO_TYPE_PK,
+                               WC_PK_TYPE_RSA, 0, key);
+        /* If callback wants standard free, it returns CRYPTOCB_UNAVAILABLE.
+         * Otherwise assume the callback handled cleanup. */
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return ret;
+        /* fall-through to software cleanup */
+        ret = 0;
+    }
+#endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_FREE */
+
 #if defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_NO_RSA)
     se050_rsa_free_key(key);
 #endif
@@ -4519,9 +4535,10 @@ int wc_RsaEncryptSize(const RsaKey* key)
 }
 
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
-/* flatten RsaKey structure into individual elements (e, n) */
-int wc_RsaFlattenPublicKey(const RsaKey* key, byte* e, word32* eSz, byte* n,
-                                                                   word32* nSz)
+/* Software-only export of RSA public key elements from RsaKey.
+ * This internal helper avoids recursion when called from the EXPORT_KEY path. */
+static int _RsaFlattenPublicKey(const RsaKey* key, byte* e, word32* eSz,
+                                byte* n, word32* nSz)
 {
     int sz, ret;
 
@@ -4530,22 +4547,76 @@ int wc_RsaFlattenPublicKey(const RsaKey* key, byte* e, word32* eSz, byte* n,
     }
 
     sz = mp_unsigned_bin_size(&key->e);
-    if ((word32)sz > *eSz)
+    if ((word32)sz > *eSz) {
         return RSA_BUFFER_E;
+    }
     ret = mp_to_unsigned_bin(&key->e, e);
-    if (ret != MP_OKAY)
+    if (ret != MP_OKAY) {
         return ret;
+    }
     *eSz = (word32)sz;
 
     sz = wc_RsaEncryptSize(key);
-    if ((word32)sz > *nSz)
+    if ((word32)sz > *nSz) {
         return RSA_BUFFER_E;
+    }
     ret = mp_to_unsigned_bin(&key->n, n);
-    if (ret != MP_OKAY)
+    if (ret != MP_OKAY) {
         return ret;
+    }
     *nSz = (word32)sz;
 
     return 0;
+}
+
+/* flatten RsaKey structure into individual elements (e, n) */
+int wc_RsaFlattenPublicKey(const RsaKey* key, byte* e, word32* eSz, byte* n,
+                                                                   word32* nSz)
+{
+    if (key == NULL || e == NULL || eSz == NULL || n == NULL || nSz == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_EXPORT_KEY)
+#ifndef WOLF_CRYPTO_CB_FIND
+    if (key->devId != INVALID_DEVID)
+#endif
+    {
+        int ret;
+        WC_DECLARE_VAR(tmpKey, RsaKey, 1, NULL);
+
+        WC_ALLOC_VAR(tmpKey, RsaKey, 1, key->heap);
+        if (!WC_VAR_OK(tmpKey)) {
+            return MEMORY_E;
+        }
+        XMEMSET(tmpKey, 0, sizeof(RsaKey));
+
+        ret = wc_InitRsaKey_ex(tmpKey, key->heap, INVALID_DEVID);
+        if (ret != 0) {
+            WC_FREE_VAR(tmpKey, key->heap);
+            return ret;
+        }
+
+        ret = wc_CryptoCb_ExportKey(key->devId, WC_PK_TYPE_RSA,
+                                     key, tmpKey);
+        if (ret == 0) {
+            /* Call software helper (no callback recursion) */
+            ret = _RsaFlattenPublicKey(tmpKey, e, eSz, n, nSz);
+        }
+        /* wc_FreeRsaKey calls mp_forcezero on all private key components,
+         * so no separate ForceZero of the struct is needed here. Calling
+         * ForceZero before wc_FreeRsaKey would zero the mp_int metadata
+         * and cause a crash. */
+        wc_FreeRsaKey(tmpKey);
+        WC_FREE_VAR(tmpKey, key->heap);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            return ret;
+        }
+        /* fall through to software */
+    }
+#endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_EXPORT_KEY */
+
+    return _RsaFlattenPublicKey(key, e, eSz, n, nSz);
 }
 #endif
 
@@ -4571,27 +4642,37 @@ static int RsaGetValue(const mp_int* in, byte* out, word32* outSz)
 }
 
 
-int wc_RsaExportKey(const RsaKey* key,
-                    byte* e, word32* eSz, byte* n, word32* nSz,
-                    byte* d, word32* dSz, byte* p, word32* pSz,
-                    byte* q, word32* qSz)
+/* Software-only export of RSA key elements from RsaKey.
+ * This internal helper avoids recursion when called from the EXPORT_KEY path. */
+static int _RsaExportKey(const RsaKey* key,
+                         byte* e, word32* eSz, byte* n, word32* nSz,
+                         byte* d, word32* dSz, byte* p, word32* pSz,
+                         byte* q, word32* qSz)
 {
-    int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+    int ret = 0;
 
-    if (key && e && eSz && n && nSz && d && dSz && p && pSz && q && qSz)
-        ret = 0;
+    if (key == NULL || e == NULL || eSz == NULL || n == NULL || nSz == NULL
+            || d == NULL || dSz == NULL || p == NULL || pSz == NULL
+            || q == NULL || qSz == NULL) {
+        return BAD_FUNC_ARG;
+    }
 
-    if (ret == 0)
+    if (ret == 0) {
         ret = RsaGetValue(&key->e, e, eSz);
-    if (ret == 0)
+    }
+    if (ret == 0) {
         ret = RsaGetValue(&key->n, n, nSz);
+    }
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
-    if (ret == 0)
+    if (ret == 0) {
         ret = RsaGetValue(&key->d, d, dSz);
-    if (ret == 0)
+    }
+    if (ret == 0) {
         ret = RsaGetValue(&key->p, p, pSz);
-    if (ret == 0)
+    }
+    if (ret == 0) {
         ret = RsaGetValue(&key->q, q, qSz);
+    }
 #else
     /* no private parts to key */
     if (d == NULL || p == NULL || q == NULL || dSz == NULL || pSz == NULL
@@ -4604,6 +4685,63 @@ int wc_RsaExportKey(const RsaKey* key,
         *qSz = 0;
     }
 #endif /* WOLFSSL_RSA_PUBLIC_ONLY */
+
+    return ret;
+}
+
+int wc_RsaExportKey(const RsaKey* key,
+                    byte* e, word32* eSz, byte* n, word32* nSz,
+                    byte* d, word32* dSz, byte* p, word32* pSz,
+                    byte* q, word32* qSz)
+{
+    int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+
+    if (key && e && eSz && n && nSz && d && dSz && p && pSz && q && qSz) {
+        ret = 0;
+    }
+
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_EXPORT_KEY)
+    if (ret == 0) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+        if (key->devId != INVALID_DEVID)
+    #endif
+        {
+            WC_DECLARE_VAR(tmpKey, RsaKey, 1, NULL);
+
+            WC_ALLOC_VAR(tmpKey, RsaKey, 1, key->heap);
+            if (!WC_VAR_OK(tmpKey)) {
+                return MEMORY_E;
+            }
+            XMEMSET(tmpKey, 0, sizeof(RsaKey));
+
+            ret = wc_InitRsaKey_ex(tmpKey, key->heap, INVALID_DEVID);
+            if (ret != 0) {
+                WC_FREE_VAR(tmpKey, key->heap);
+                return ret;
+            }
+
+            ret = wc_CryptoCb_ExportKey(key->devId, WC_PK_TYPE_RSA,
+                                         key, tmpKey);
+            if (ret == 0) {
+                /* Call software helper (no callback recursion) */
+                ret = _RsaExportKey(tmpKey, e, eSz, n, nSz,
+                                    d, dSz, p, pSz, q, qSz);
+            }
+            /* wc_FreeRsaKey calls mp_forcezero on all private key components,
+             * so no separate ForceZero of the struct is needed here. */
+            wc_FreeRsaKey(tmpKey);
+            WC_FREE_VAR(tmpKey, key->heap);
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+                return ret;
+            }
+            ret = 0; /* fall through to software */
+        }
+    }
+#endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_EXPORT_KEY */
+
+    if (ret == 0) {
+        ret = _RsaExportKey(key, e, eSz, n, nSz, d, dSz, p, pSz, q, qSz);
+    }
 
     return ret;
 }
@@ -5453,6 +5591,93 @@ static int CalcDX(mp_int* y, mp_int* x, mp_int* d)
 }
 #endif
 
+/* Software-only import of RSA private key elements into RsaKey.
+ * This internal helper avoids recursion when called from the SETKEY path. */
+static int _RsaPrivateKeyDecodeRaw(const byte* n, word32 nSz,
+        const byte* e, word32 eSz, const byte* d, word32 dSz,
+        const byte* u, word32 uSz, const byte* p, word32 pSz,
+        const byte* q, word32 qSz, const byte* dP, word32 dPSz,
+        const byte* dQ, word32 dQSz, RsaKey* key)
+{
+    int err = MP_OKAY;
+
+    if (n == NULL || nSz == 0 || e == NULL || eSz == 0
+            || d == NULL || dSz == 0 || p == NULL || pSz == 0
+            || q == NULL || qSz == 0 || key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+#if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || !defined(RSA_LOW_MEM)
+    if ((u == NULL || uSz == 0)
+            || (dP != NULL && dPSz == 0)
+            || (dQ != NULL && dQSz == 0)) {
+        return BAD_FUNC_ARG;
+    }
+#else
+    (void)u;
+    (void)uSz;
+    (void)dP;
+    (void)dPSz;
+    (void)dQ;
+    (void)dQSz;
+#endif
+
+    if (err == MP_OKAY) {
+        err = mp_read_unsigned_bin(&key->n, n, nSz);
+    }
+    if (err == MP_OKAY) {
+        err = mp_read_unsigned_bin(&key->e, e, eSz);
+    }
+    if (err == MP_OKAY) {
+        err = mp_read_unsigned_bin(&key->d, d, dSz);
+    }
+    if (err == MP_OKAY) {
+        err = mp_read_unsigned_bin(&key->p, p, pSz);
+    }
+    if (err == MP_OKAY) {
+        err = mp_read_unsigned_bin(&key->q, q, qSz);
+    }
+#if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || !defined(RSA_LOW_MEM)
+    if (err == MP_OKAY) {
+        err = mp_read_unsigned_bin(&key->u, u, uSz);
+    }
+    if (err == MP_OKAY) {
+        if (dP != NULL) {
+            err = mp_read_unsigned_bin(&key->dP, dP, dPSz);
+        }
+        else {
+            err = CalcDX(&key->dP, &key->p, &key->d);
+        }
+    }
+    if (err == MP_OKAY) {
+        if (dQ != NULL) {
+            err = mp_read_unsigned_bin(&key->dQ, dQ, dQSz);
+        }
+        else {
+            err = CalcDX(&key->dQ, &key->q, &key->d);
+        }
+    }
+#endif
+
+    if (err == MP_OKAY) {
+        key->type = RSA_PRIVATE;
+    }
+    else {
+        mp_clear(&key->n);
+        mp_clear(&key->e);
+        mp_forcezero(&key->d);
+        mp_forcezero(&key->p);
+        mp_forcezero(&key->q);
+#if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || !defined(RSA_LOW_MEM)
+        mp_forcezero(&key->u);
+        mp_forcezero(&key->dP);
+        mp_forcezero(&key->dQ);
+#endif
+    }
+
+    return err;
+}
+
 int wc_RsaPrivateKeyDecodeRaw(const byte* n, word32 nSz,
         const byte* e, word32 eSz, const byte* d, word32 dSz,
         const byte* u, word32 uSz, const byte* p, word32 pSz,
@@ -5460,6 +5685,10 @@ int wc_RsaPrivateKeyDecodeRaw(const byte* n, word32 nSz,
         const byte* dQ, word32 dQSz, RsaKey* key)
 {
     int err = MP_OKAY;
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SETKEY)
+    int cbRet = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    WC_DECLARE_VAR(tmpKey, RsaKey, 1, NULL);
+#endif
 
     if (n == NULL || nSz == 0 || e == NULL || eSz == 0
             || d == NULL || dSz == 0 || p == NULL || pSz == 0
@@ -5484,47 +5713,55 @@ int wc_RsaPrivateKeyDecodeRaw(const byte* n, word32 nSz,
     (void)dQSz;
 #endif
 
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SETKEY)
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (err == MP_OKAY && key->devId != INVALID_DEVID)
+    #else
     if (err == MP_OKAY)
-        err = mp_read_unsigned_bin(&key->n, n, nSz);
-    if (err == MP_OKAY)
-        err = mp_read_unsigned_bin(&key->e, e, eSz);
-    if (err == MP_OKAY)
-        err = mp_read_unsigned_bin(&key->d, d, dSz);
-    if (err == MP_OKAY)
-        err = mp_read_unsigned_bin(&key->p, p, pSz);
-    if (err == MP_OKAY)
-        err = mp_read_unsigned_bin(&key->q, q, qSz);
-#if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || !defined(RSA_LOW_MEM)
-    if (err == MP_OKAY)
-        err = mp_read_unsigned_bin(&key->u, u, uSz);
-    if (err == MP_OKAY) {
-        if (dP != NULL)
-            err = mp_read_unsigned_bin(&key->dP, dP, dPSz);
-        else
-            err = CalcDX(&key->dP, &key->p, &key->d);
+    #endif
+    {
+        /* Allocate temp key for callback to export from */
+        WC_ALLOC_VAR(tmpKey, RsaKey, 1, key->heap);
+        if (!WC_VAR_OK(tmpKey)) {
+            return MEMORY_E;
+        }
+        XMEMSET(tmpKey, 0, sizeof(RsaKey));
+
+        /* Init temp with INVALID_DEVID to prevent callback recursion */
+        err = wc_InitRsaKey_ex(tmpKey, key->heap, INVALID_DEVID);
+        if (err != MP_OKAY) {
+            WC_FREE_VAR(tmpKey, key->heap);
+            return err;
+        }
+
+        /* Import into temp via software helper (no callback recursion) */
+        err = _RsaPrivateKeyDecodeRaw(n, nSz, e, eSz, d, dSz,
+            u, uSz, p, pSz, q, qSz, dP, dPSz, dQ, dQSz, tmpKey);
+        if (err == MP_OKAY) {
+            cbRet = wc_CryptoCb_SetKey(key->devId,
+                WC_SETKEY_RSA_PRIV, key, tmpKey,
+                wc_RsaEncryptSize(tmpKey), NULL, 0, 0);
+        }
+
+        /* wc_FreeRsaKey calls mp_forcezero on all private key components,
+         * so no separate ForceZero of the struct is needed here. */
+        wc_FreeRsaKey(tmpKey);
+        WC_FREE_VAR(tmpKey, key->heap);
+
+        if (err != MP_OKAY) {
+            return err;
+        }
+        if (cbRet != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            return cbRet;
+        }
+        /* CRYPTOCB_UNAVAILABLE: fall through to software import */
+        err = MP_OKAY;
     }
-    if (err == MP_OKAY) {
-        if (dQ != NULL)
-            err = mp_read_unsigned_bin(&key->dQ, dQ, dQSz);
-        else
-            err = CalcDX(&key->dQ, &key->q, &key->d);
-    }
-#endif
+#endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_SETKEY */
 
     if (err == MP_OKAY) {
-        key->type = RSA_PRIVATE;
-    }
-    else if (key != NULL) {
-        mp_clear(&key->n);
-        mp_clear(&key->e);
-        mp_forcezero(&key->d);
-        mp_forcezero(&key->p);
-        mp_forcezero(&key->q);
-#if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || !defined(RSA_LOW_MEM)
-        mp_forcezero(&key->u);
-        mp_forcezero(&key->dP);
-        mp_forcezero(&key->dQ);
-#endif
+        err = _RsaPrivateKeyDecodeRaw(n, nSz, e, eSz, d, dSz,
+            u, uSz, p, pSz, q, qSz, dP, dPSz, dQ, dQSz, key);
     }
 
     return err;
