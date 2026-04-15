@@ -1976,6 +1976,7 @@ static int wc_PKCS12_create_key_bag(WC_PKCS12* pkcs12, WC_RNG* rng,
     word32 sz;
     word32 i;
     word32 tmpSz;
+    word32 tmpAllocSz;
     int ret;
 
     /* get max size for shrouded key */
@@ -2014,6 +2015,7 @@ static int wc_PKCS12_create_key_bag(WC_PKCS12* pkcs12, WC_RNG* rng,
     }
 
     /* shroud key */
+    tmpAllocSz = length;
     tmp = (byte*)XMALLOC(length, heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmp == NULL) {
         return MEMORY_E;
@@ -2022,11 +2024,13 @@ static int wc_PKCS12_create_key_bag(WC_PKCS12* pkcs12, WC_RNG* rng,
     ret =  wc_PKCS12_shroud_key(pkcs12, rng, tmp, &length, key, keySz,
             algo, pass, passSz, iter);
     if (ret < 0) {
+        ForceZero(tmp, tmpAllocSz);
         XFREE(tmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
         return ret;
     }
     length = (word32)ret;
     XMEMCPY(out + idx, tmp, (size_t)length);
+    ForceZero(tmp, tmpAllocSz);
     XFREE(tmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
     totalSz += length;
 
@@ -2357,6 +2361,7 @@ static byte* PKCS12_create_key_content(WC_PKCS12* pkcs12, int nidKey,
 {
     byte*  keyBuf;
     word32 keyBufSz = 0;
+    word32 keyBufAllocSz = 0;
     byte* keyCi = NULL;
     word32 tmpSz;
     int ret;
@@ -2406,6 +2411,7 @@ static byte* PKCS12_create_key_content(WC_PKCS12* pkcs12, int nidKey,
 
     /* account for sequence around bag */
     keyBufSz += MAX_SEQ_SZ;
+    keyBufAllocSz = keyBufSz;
     keyBuf = (byte*)XMALLOC(keyBufSz, heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (keyBuf == NULL) {
         WOLFSSL_MSG("Memory error creating keyBuf buffer");
@@ -2415,6 +2421,7 @@ static byte* PKCS12_create_key_content(WC_PKCS12* pkcs12, int nidKey,
     ret = wc_PKCS12_create_key_bag(pkcs12, rng, keyBuf + MAX_SEQ_SZ, &keyBufSz,
             key, keySz, algo, iter, pass, (int)passSz);
     if (ret < 0) {
+        ForceZero(keyBuf, keyBufAllocSz);
         XFREE(keyBuf, heap, DYNAMIC_TYPE_TMP_BUFFER);
         WOLFSSL_MSG("Error creating key bag");
         return NULL;
@@ -2437,18 +2444,21 @@ static byte* PKCS12_create_key_content(WC_PKCS12* pkcs12, int nidKey,
     ret = wc_PKCS12_encrypt_content(pkcs12, rng, NULL, keyCiSz,
             NULL, keyBufSz, algo, pass, (int)passSz, iter, WC_PKCS12_DATA);
     if (ret != WC_NO_ERR_TRACE(LENGTH_ONLY_E)) {
+        ForceZero(keyBuf, keyBufAllocSz);
         XFREE(keyBuf, heap, DYNAMIC_TYPE_TMP_BUFFER);
         WOLFSSL_MSG("Error getting key encrypt content size");
         return NULL;
     }
     keyCi = (byte*)XMALLOC(*keyCiSz, heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (keyCi == NULL) {
+        ForceZero(keyBuf, keyBufAllocSz);
         XFREE(keyBuf, heap, DYNAMIC_TYPE_TMP_BUFFER);
         return NULL;
     }
 
     ret = wc_PKCS12_encrypt_content(pkcs12, rng, keyCi, keyCiSz,
             keyBuf, keyBufSz, algo, pass, (int)passSz, iter, WC_PKCS12_DATA);
+    ForceZero(keyBuf, keyBufAllocSz);
     XFREE(keyBuf, heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (ret < 0 ) {
         XFREE(keyCi, heap, DYNAMIC_TYPE_TMP_BUFFER);
