@@ -350,6 +350,66 @@ int test_scr_verify_data_mismatch(void)
     return EXPECT_RESULT();
 }
 
+/* F-2126: DoTls13ClientHello must reject a second ClientHello whose
+ * cipher suite does not match the server's HelloRetryRequest. The
+ * client offers two suites in CH1 and only a different one in CH2. */
+int test_tls13_hrr_cipher_suite_mismatch(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && \
+        defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+        !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+        defined(BUILD_TLS_AES_128_GCM_SHA256) && \
+        defined(BUILD_TLS_AES_256_GCM_SHA384)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    int ret;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    /* Both suites supported on both ends; server prefers the first
+     * offered suite, which will be the one committed in the HRR. */
+    test_ctx.c_ciphers = test_ctx.s_ciphers =
+            "TLS13-AES128-GCM-SHA256:TLS13-AES256-GCM-SHA384";
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    /* Force HRR by withholding key_share entries in CH1. */
+    ExpectIntEQ(wolfSSL_NoKeyShares(ssl_c), WOLFSSL_SUCCESS);
+
+    /* CH1 / HRR */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, 0), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, 0), WOLFSSL_ERROR_WANT_READ);
+
+    /* Restrict the client to a different suite than the one the
+     * server committed to in the HRR, so CH2 offers only that. */
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, "TLS13-AES256-GCM-SHA384"),
+            WOLFSSL_SUCCESS);
+
+    /* CH2 */
+    (void)wolfSSL_connect(ssl_c);
+    (void)wolfSSL_accept(ssl_s);
+    (void)wolfSSL_connect(ssl_c);
+    /* The cipher-suite mismatch is caught server-side; the server's
+     * alert reaches the client, so either peer can surface it. */
+    ret = wolfSSL_get_error(ssl_s, 0);
+    if (ret != WC_NO_ERR_TRACE(INVALID_PARAMETER))
+        ret = wolfSSL_get_error(ssl_c, 0);
+    ExpectIntEQ(ret, WC_NO_ERR_TRACE(INVALID_PARAMETER));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+
 int test_wolfSSL_DisableExtendedMasterSecret(void)
 {
     EXPECT_DECLS;

@@ -27,6 +27,7 @@ int test_tls_ems_resumption_downgrade(void);
 int test_tls12_chacha20_poly1305_bad_tag(void);
 int test_tls13_null_cipher_bad_hmac(void);
 int test_scr_verify_data_mismatch(void);
+int test_tls13_hrr_cipher_suite_mismatch(void);
 int test_wolfSSL_DisableExtendedMasterSecret(void);
 int test_certificate_authorities_certificate_request(void);
 int test_certificate_authorities_client_hello(void);
