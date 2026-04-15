@@ -29,21 +29,45 @@ int test_wc_AesSetIV(void);
 int test_wc_AesEncryptDecryptDirect(void);
 int test_wc_AesEcbEncryptDecrypt(void);
 int test_wc_AesCbcEncryptDecrypt(void);
+int test_wc_AesCbcEncryptDecrypt_UnalignedBuffers(void);
+int test_wc_AesCbc_CrossCipher(void);
 int test_wc_AesCfbEncryptDecrypt(void);
+int test_wc_AesCfb_CrossCipher(void);
 int test_wc_AesOfbEncryptDecrypt(void);
+int test_wc_AesOfb_CrossCipher(void);
 int test_wc_AesCtsEncryptDecrypt(void);
+int test_wc_AesCtsEncryptDecrypt_InPlace(void);
+int test_wc_AesCtsEncryptDecrypt_UnalignedBuffers(void);
 int test_wc_AesCtrSetKey(void);
 int test_wc_AesCtrEncryptDecrypt(void);
+int test_wc_AesCtrEncryptDecrypt_UnalignedBuffers(void);
+int test_wc_AesCtr_CrossCipher(void);
+int test_wc_AesCtrCounterOverflow(void);
 int test_wc_AesGcmSetKey(void);
 int test_wc_AesGcmEncryptDecrypt_Sizes(void);
 int test_wc_AesGcmEncryptDecrypt(void);
+int test_wc_AesGcmEncryptDecrypt_InPlace(void);
+int test_wc_AesGcmEncryptDecrypt_UnalignedBuffers(void);
+int test_wc_AesGcm_CrossCipher(void);
 int test_wc_AesGcmMixedEncDecLongIV(void);
+int test_wc_AesGcmNonStdNonce(void);
 int test_wc_AesGcmStream(void);
+int test_wc_AesGcmStream_MidStreamState(void);
+int test_wc_AesGcmStream_ReinitAfterFinal(void);
 int test_wc_AesCcmSetKey(void);
 int test_wc_AesCcmEncryptDecrypt(void);
+int test_wc_AesCcmEncryptDecrypt_InPlace(void);
+int test_wc_AesCcmEncryptDecrypt_UnalignedBuffers(void);
+int test_wc_AesCcmAeadEdgeCases(void);
 int test_wc_AesXtsSetKey(void);
 int test_wc_AesXtsEncryptDecrypt_Sizes(void);
 int test_wc_AesXtsEncryptDecrypt(void);
+int test_wc_AesXtsEncryptDecrypt_InPlace(void);
+int test_wc_AesXtsEncryptDecrypt_UnalignedBuffers(void);
+int test_wc_AesXtsEncryptDecryptSector(void);
+int test_wc_AesXtsStream(void);
+int test_wc_AesXtsStream_MidStreamState(void);
+int test_wc_AesXtsStream_ReinitAfterFinal(void);
 #if defined(WOLFSSL_AES_EAX) && defined(WOLFSSL_AES_256) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
 int test_wc_AesEaxVectors(void);
@@ -83,22 +107,46 @@ int test_wc_CryptoCb_AesGcm_EncryptDecrypt(void);
     TEST_DECL_GROUP("aes", test_wc_AesSetIV),                   \
     TEST_DECL_GROUP("aes", test_wc_AesEncryptDecryptDirect),    \
     TEST_DECL_GROUP("aes", test_wc_AesEcbEncryptDecrypt),       \
-    TEST_DECL_GROUP("aes", test_wc_AesCbcEncryptDecrypt),       \
-    TEST_DECL_GROUP("aes", test_wc_AesCfbEncryptDecrypt),       \
+    TEST_DECL_GROUP("aes", test_wc_AesCbcEncryptDecrypt),                  \
+    TEST_DECL_GROUP("aes", test_wc_AesCbcEncryptDecrypt_UnalignedBuffers), \
+    TEST_DECL_GROUP("aes", test_wc_AesCbc_CrossCipher),                   \
+    TEST_DECL_GROUP("aes", test_wc_AesCfbEncryptDecrypt),                  \
+    TEST_DECL_GROUP("aes", test_wc_AesCfb_CrossCipher),                   \
     TEST_DECL_GROUP("aes", test_wc_AesOfbEncryptDecrypt),       \
-    TEST_DECL_GROUP("aes", test_wc_AesCtsEncryptDecrypt),       \
-    TEST_DECL_GROUP("aes", test_wc_AesCtrSetKey),               \
-    TEST_DECL_GROUP("aes", test_wc_AesCtrEncryptDecrypt),       \
+    TEST_DECL_GROUP("aes", test_wc_AesOfb_CrossCipher),                    \
+    TEST_DECL_GROUP("aes", test_wc_AesCtsEncryptDecrypt),        \
+    TEST_DECL_GROUP("aes", test_wc_AesCtsEncryptDecrypt_InPlace),            \
+    TEST_DECL_GROUP("aes", test_wc_AesCtsEncryptDecrypt_UnalignedBuffers),  \
+    TEST_DECL_GROUP("aes", test_wc_AesCtrSetKey),                           \
+    TEST_DECL_GROUP("aes", test_wc_AesCtrEncryptDecrypt),                   \
+    TEST_DECL_GROUP("aes", test_wc_AesCtrEncryptDecrypt_UnalignedBuffers),  \
+    TEST_DECL_GROUP("aes", test_wc_AesCtr_CrossCipher),                    \
+    TEST_DECL_GROUP("aes", test_wc_AesCtrCounterOverflow),                  \
     TEST_DECL_GROUP("aes", test_wc_AesGcmSetKey),               \
     TEST_DECL_GROUP("aes", test_wc_AesGcmEncryptDecrypt_Sizes), \
-    TEST_DECL_GROUP("aes", test_wc_AesGcmEncryptDecrypt),       \
-    TEST_DECL_GROUP("aes", test_wc_AesGcmMixedEncDecLongIV),    \
+    TEST_DECL_GROUP("aes", test_wc_AesGcmEncryptDecrypt),        \
+    TEST_DECL_GROUP("aes", test_wc_AesGcmEncryptDecrypt_InPlace),            \
+    TEST_DECL_GROUP("aes", test_wc_AesGcmEncryptDecrypt_UnalignedBuffers),  \
+    TEST_DECL_GROUP("aes", test_wc_AesGcm_CrossCipher),                    \
+    TEST_DECL_GROUP("aes", test_wc_AesGcmMixedEncDecLongIV),                \
+    TEST_DECL_GROUP("aes", test_wc_AesGcmNonStdNonce),          \
     TEST_DECL_GROUP("aes", test_wc_AesGcmStream),               \
+    TEST_DECL_GROUP("aes", test_wc_AesGcmStream_MidStreamState),  \
+    TEST_DECL_GROUP("aes", test_wc_AesGcmStream_ReinitAfterFinal), \
     TEST_DECL_GROUP("aes", test_wc_AesCcmSetKey),               \
-    TEST_DECL_GROUP("aes", test_wc_AesCcmEncryptDecrypt),       \
-    TEST_DECL_GROUP("aes", test_wc_AesXtsSetKey),               \
-    TEST_DECL_GROUP("aes", test_wc_AesXtsEncryptDecrypt_Sizes), \
-    TEST_DECL_GROUP("aes", test_wc_AesXtsEncryptDecrypt), \
+    TEST_DECL_GROUP("aes", test_wc_AesCcmEncryptDecrypt),        \
+    TEST_DECL_GROUP("aes", test_wc_AesCcmEncryptDecrypt_InPlace),            \
+    TEST_DECL_GROUP("aes", test_wc_AesCcmEncryptDecrypt_UnalignedBuffers),  \
+    TEST_DECL_GROUP("aes", test_wc_AesCcmAeadEdgeCases),                   \
+    TEST_DECL_GROUP("aes", test_wc_AesXtsSetKey),                    \
+    TEST_DECL_GROUP("aes", test_wc_AesXtsEncryptDecrypt_Sizes),     \
+    TEST_DECL_GROUP("aes", test_wc_AesXtsEncryptDecrypt),            \
+    TEST_DECL_GROUP("aes", test_wc_AesXtsEncryptDecrypt_InPlace),            \
+    TEST_DECL_GROUP("aes", test_wc_AesXtsEncryptDecrypt_UnalignedBuffers),  \
+    TEST_DECL_GROUP("aes", test_wc_AesXtsEncryptDecryptSector),             \
+    TEST_DECL_GROUP("aes", test_wc_AesXtsStream),                   \
+    TEST_DECL_GROUP("aes", test_wc_AesXtsStream_MidStreamState),     \
+    TEST_DECL_GROUP("aes", test_wc_AesXtsStream_ReinitAfterFinal),  \
     TEST_DECL_GROUP("aes", test_wc_AesCbc_MonteCarlo),    \
     TEST_DECL_GROUP("aes", test_wc_AesCtr_MonteCarlo),    \
     TEST_DECL_GROUP("aes", test_wc_AesGcm_MonteCarlo),    \
