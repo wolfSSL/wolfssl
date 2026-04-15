@@ -60,6 +60,8 @@ pub mod prf;
 pub mod random;
 pub mod rsa;
 pub mod sha;
+#[cfg(feature = "digest")]
+mod sha_digest;
 
 /// Convert a buffer length to `u32`, returning `BUFFER_E` if it overflows.
 pub(crate) fn buffer_len_to_u32(len: usize) -> Result<u32, i32> {
