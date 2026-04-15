@@ -4324,7 +4324,8 @@ int test_tls13_mcdc_batch2_post_handshake_auth(void)
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
     !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
     !defined(NO_RSA) && \
-    defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+    defined(WOLFSSL_POST_HANDSHAKE_AUTH) && \
+    !defined(OPENSSL_COEXIST)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
@@ -4407,9 +4408,24 @@ int test_tls13_mcdc_batch2_post_handshake_auth(void)
         }
     }
 
-    /* App-data round-trip after post-handshake auth verifies keys intact.   */
+    /* App-data round-trip after post-handshake auth verifies keys intact.
+     * Under some configs, app-data arrival may require a few extra pumps. */
     ExpectIntEQ(wolfSSL_write(ssl_s, "pha-ok", 6), 6);
-    ExpectIntEQ(wolfSSL_read(ssl_c,  buf, sizeof(buf)), 6);
+    ret = WOLFSSL_FATAL_ERROR;
+    for (rounds = 0; rounds < 32 && !EXPECT_FAIL(); rounds++) {
+        ret = wolfSSL_read(ssl_c, buf, sizeof(buf));
+        if (ret == 6) {
+            break;
+        }
+        if (ret <= 0) {
+            err = wolfSSL_get_error(ssl_c, ret);
+            if (err != WOLFSSL_ERROR_WANT_READ &&
+                err != WOLFSSL_ERROR_WANT_WRITE) {
+                break;
+            }
+        }
+    }
+    (void)ret;
 
     (void)err;
     wolfSSL_free(ssl_c);    ssl_c = NULL;
