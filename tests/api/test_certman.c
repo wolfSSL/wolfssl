@@ -2540,3 +2540,90 @@ int test_various_pathlen_chains(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* Verify that certificates signed with MD5 (md5WithRSAEncryption) are
+ * rejected during chain verification. MD5 must not be acceptable as a
+ * certificate signature hash, even when MD5 is compiled in (e.g. for TLS
+ * 1.0 PRF or HMAC uses). Trust anchors are exempt from this check because
+ * ParseCertRelative skips ConfirmSignature for CA_TYPE. */
+int test_wolfSSL_CertManagerRejectMD5Cert(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_CERTS) && !defined(NO_RSA) && !defined(NO_MD5) && \
+    !defined(WOLFSSL_ALLOW_MD5_CERT_SIGS) && defined(WOLFSSL_CERT_GEN) && \
+    !defined(NO_WOLFSSL_CM_VERIFY) && !defined(NO_ASN_CRYPT) && \
+    !defined(USE_CERT_BUFFERS_1024)
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    RsaKey  caKey;
+    WC_RNG  rng;
+    Cert    leaf;
+    byte*   der = NULL;
+    int     derSz = 0;
+    word32  idx = 0;
+    int     caKeyInit = 0;
+    int     rngInit = 0;
+
+    XMEMSET(&caKey, 0, sizeof(caKey));
+    XMEMSET(&rng,   0, sizeof(rng));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS()) rngInit = 1;
+
+    ExpectIntEQ(wc_InitRsaKey_ex(&caKey, HEAP_HINT, testDevId), 0);
+    if (EXPECT_SUCCESS()) caKeyInit = 1;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(ca_key_der_2048, &idx, &caKey,
+                sizeof_ca_key_der_2048), 0);
+
+    ExpectNotNull(der = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
+                DYNAMIC_TYPE_TMP_BUFFER));
+    if (der == NULL) {
+        goto cleanup;
+    }
+
+    /* Build a leaf certificate whose issuer is the built-in 2048-bit
+     * wolfSSL test CA and sign it with MD5+RSA using the matching CA
+     * private key. */
+    ExpectIntEQ(wc_InitCert(&leaf), 0);
+    leaf.sigType = CTC_MD5wRSA;
+    leaf.isCA    = 0;
+    XSTRNCPY(leaf.subject.country,    "US",              CTC_NAME_SIZE);
+    XSTRNCPY(leaf.subject.state,      "MT",              CTC_NAME_SIZE);
+    XSTRNCPY(leaf.subject.locality,   "Bozeman",         CTC_NAME_SIZE);
+    XSTRNCPY(leaf.subject.org,        "wolfSSL",         CTC_NAME_SIZE);
+    XSTRNCPY(leaf.subject.unit,       "Test",            CTC_NAME_SIZE);
+    XSTRNCPY(leaf.subject.commonName, "md5-leaf",        CTC_NAME_SIZE);
+    XSTRNCPY(leaf.subject.email,      "info@wolfssl.com", CTC_NAME_SIZE);
+
+    ExpectIntEQ(wc_SetIssuerBuffer(&leaf, ca_cert_der_2048,
+                sizeof_ca_cert_der_2048), 0);
+
+    /* wc_MakeCert needs an RSA public key for the subject; reuse caKey
+     * for simplicity (we only care about signature-side verification). */
+    ExpectIntGT((derSz = wc_MakeCert(&leaf, der, FOURK_BUF, &caKey, NULL,
+                &rng)), 0);
+    ExpectIntGT((derSz = wc_SignCert(leaf.bodySz, leaf.sigType, der,
+                FOURK_BUF, &caKey, NULL, &rng)), 0);
+
+    /* Load the SHA-256 signed CA cert as a trust anchor and attempt
+     * to verify the MD5-signed leaf: it must be rejected because
+     * HashForSignature() now returns HASH_TYPE_E for MD5 in verify mode,
+     * and wolfSSL_CertManagerVerifyBuffer() returns that error. */
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    if (cm != NULL) {
+        ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, ca_cert_der_2048,
+                    sizeof_ca_cert_der_2048, WOLFSSL_FILETYPE_ASN1),
+                    WOLFSSL_SUCCESS);
+
+        ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
+                    WOLFSSL_FILETYPE_ASN1),
+                    WC_NO_ERR_TRACE(HASH_TYPE_E));
+    }
+
+cleanup:
+    wolfSSL_CertManagerFree(cm);
+    XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (caKeyInit) wc_FreeRsaKey(&caKey);
+    if (rngInit)   wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}
