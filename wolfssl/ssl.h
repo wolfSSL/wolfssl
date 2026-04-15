@@ -3769,6 +3769,8 @@ WOLFSSL_API int wolfSSL_make_eap_keys(WOLFSSL* ssl, void* key, unsigned int len,
     WOLFSSL_API int wolfSSL_CTX_use_PrivateKey_Id_ex(WOLFSSL_CTX* ctx,
                                                   const unsigned char* id, long sz,
                                                   int devId, long keySz);
+    /* backward compatibility mapping for old confusable name. */
+    #define wolfSSL_CTX_use_PrivateKey_id wolfSSL_CTX_use_PrivateKey_Id_ex
     WOLFSSL_API int wolfSSL_CTX_use_PrivateKey_Id(WOLFSSL_CTX* ctx,
                                                   const unsigned char* id, long sz,
                                                   int devId);
@@ -3791,6 +3793,8 @@ WOLFSSL_API int wolfSSL_make_eap_keys(WOLFSSL* ssl, void* key, unsigned int len,
     WOLFSSL_API int wolfSSL_CTX_use_AltPrivateKey_Id_ex(WOLFSSL_CTX* ctx,
                                 const unsigned char* id, long sz,
                                 int devId, long keySz);
+    /* backward compatibility mapping for old confusable name. */
+    #define wolfSSL_CTX_use_AltPrivateKey_id wolfSSL_CTX_use_AltPrivateKey_Id_ex
     WOLFSSL_API int wolfSSL_CTX_use_AltPrivateKey_Id(WOLFSSL_CTX* ctx,
                                 const unsigned char* id, long sz, int devId);
     WOLFSSL_API int wolfSSL_CTX_use_AltPrivateKey_Label(WOLFSSL_CTX* ctx,
@@ -3806,6 +3810,8 @@ WOLFSSL_API int wolfSSL_make_eap_keys(WOLFSSL* ssl, void* key, unsigned int len,
                                                long sz, int format);
     WOLFSSL_API int wolfSSL_use_PrivateKey_Id_ex(WOLFSSL* ssl, const unsigned char* id,
                                               long sz, int devId, long keySz);
+    /* backward compatibility mapping for old confusable name. */
+    #define wolfSSL_use_PrivateKey_id wolfSSL_use_PrivateKey_Id_ex
     WOLFSSL_API int wolfSSL_use_PrivateKey_Id(WOLFSSL* ssl, const unsigned char* id,
                                               long sz, int devId);
     WOLFSSL_API int wolfSSL_use_PrivateKey_Label(WOLFSSL* ssl, const char* label, int devId);
@@ -3822,6 +3828,8 @@ WOLFSSL_API int wolfSSL_make_eap_keys(WOLFSSL* ssl, void* key, unsigned int len,
     WOLFSSL_API int wolfSSL_use_AltPrivateKey_Id_ex(WOLFSSL* ssl,
                                 const unsigned char* id, long sz,
                                 int devId, long keySz);
+    /* backward compatibility mapping for old confusable name. */
+    #define wolfSSL_use_AltPrivateKey_id wolfSSL_use_AltPrivateKey_Id_ex
     WOLFSSL_API int wolfSSL_use_AltPrivateKey_Id(WOLFSSL* ssl,
                                 const unsigned char* id, long sz, int devId);
     WOLFSSL_API int wolfSSL_use_AltPrivateKey_Label(WOLFSSL* ssl,
