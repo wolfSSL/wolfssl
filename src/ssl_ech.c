@@ -311,6 +311,25 @@ int wolfSSL_SetEchConfigs(WOLFSSL* ssl, const byte* echConfigs,
     return ret;
 }
 
+/* store retry configs received during ECH rejection
+ * returns 0 on success, error otherwise */
+int SetRetryConfigs(WOLFSSL* ssl, const byte* echConfigs, word32 echConfigsLen)
+{
+    int ret;
+
+    if (ssl == NULL || echConfigs == NULL || echConfigsLen == 0)
+        return BAD_FUNC_ARG;
+
+    if (ssl->echRetryConfigs != NULL) {
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    ret = SetEchConfigsEx(&ssl->echRetryConfigs, ssl->heap, echConfigs,
+        echConfigsLen);
+
+    return ret;
+}
+
 /* get the raw ech config from our struct */
 int GetEchConfig(WOLFSSL_EchConfig* config, byte* output, word32* outputLen)
 {
@@ -434,6 +453,20 @@ int wolfSSL_GetEchConfigs(WOLFSSL* ssl, byte* output, word32* outputLen)
     return GetEchConfigsEx(ssl->echConfigs, output, outputLen);
 }
 
+/* wrapper function to get retry configs
+ * returns error if retry configs were not received or were malformed */
+int wolfSSL_GetEchRetryConfigs(WOLFSSL* ssl, byte* output, word32* outputLen)
+{
+    if (ssl == NULL || outputLen == NULL)
+        return BAD_FUNC_ARG;
+
+    if (ssl->echRetryConfigs == NULL || !ssl->echRetryConfigsAccepted) {
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    return GetEchConfigsEx(ssl->echRetryConfigs, output, outputLen);
+}
+
 void wolfSSL_SetEchEnable(WOLFSSL* ssl, byte enable)
 {
     if (ssl != NULL) {
@@ -474,6 +507,8 @@ static int EchConfigCheckExtensions(const byte* exts, word16 extsLen)
     return 0;
 }
 
+/* Parse the ECH configs and output to the corresponding outputConfigs
+ * return 0 on success, error otherwise */
 int SetEchConfigsEx(WOLFSSL_EchConfig** outputConfigs, void* heap,
     const byte* echConfigs, word32 echConfigsLen)
 {
@@ -499,7 +534,7 @@ int SetEchConfigsEx(WOLFSSL_EchConfig** outputConfigs, void* heap,
     /* check that the total length is well formed */
     ato16(echConfigs, &totalLength);
     if (totalLength != echConfigsLen - 2)
-        return WOLFSSL_FATAL_ERROR;
+        return BUFFER_E;
 
     configIdx = 2;
 

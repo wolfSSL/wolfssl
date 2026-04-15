@@ -5167,6 +5167,7 @@ static int EchCheckAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
             ECH_ACCEPT_CONFIRMATION_SZ);
 
         if (ret == 0) {
+            WOLFSSL_MSG("ECH accepted");
             ssl->options.echAccepted = 1;
 
             /* after HRR, hsHashesEch must contain:
@@ -5183,15 +5184,18 @@ static int EchCheckAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
             }
         }
         else {
+            WOLFSSL_MSG("ECH rejected");
+
             if (msgType != hello_retry_request && ssl->options.echAccepted) {
                 /* the SH has rejected ECH after the HRR has accepted it
                  * RFC 9849, section 6.1.5 */
-                ssl->options.echAccepted = 0;
+                WOLFSSL_MSG("ECH rejected, but it was previously accepted...");
                 ret = INVALID_PARAMETER;
             }
             else {
                 ret = 0;
             }
+            ssl->options.echAccepted = 0;
 
             /* ECH rejected, continue with outer transcript */
             FreeHandshakeHashes(ssl);
@@ -7093,6 +7097,7 @@ static int EchWriteAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
         }
         /* normal TLS code will calculate transcript of ServerHello */
         else {
+            WOLFSSL_MSG("ECH accepted");
             ssl->options.echAccepted = 1;
 
             ssl->hsHashes = tmpHashes;
@@ -14344,6 +14349,7 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
              * send ech_required alert and abort before returning to the app */
             if (ssl->echConfigs != NULL && !ssl->options.disableECH &&
                     !ssl->options.echAccepted) {
+                ssl->echRetryConfigsAccepted = 1;
                 SendAlert(ssl, alert_fatal, ech_required);
                 ssl->error = ECH_REQUIRED_E;
                 WOLFSSL_ERROR_VERBOSE(ECH_REQUIRED_E);

@@ -3179,6 +3179,9 @@ WOLFSSL_LOCAL int GetEchConfigsEx(WOLFSSL_EchConfig* configs,
     byte* output, word32* outputLen);
 
 WOLFSSL_LOCAL void FreeEchConfigs(WOLFSSL_EchConfig* configs, void* heap);
+
+WOLFSSL_LOCAL int SetRetryConfigs(WOLFSSL* ssl, const byte* echConfigs,
+    word32 echConfigsLen);
 #endif
 
 struct TLSX {
@@ -5200,8 +5203,8 @@ struct Options {
 #endif /* WOLFSSL_DTLS_CID */
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
     word16            echAccepted:1;
-    byte              disableECH:1;           /* Did the user disable ech */
-    byte              echProcessingInner:1;   /* Processing the inner hello */
+    word16            disableECH:1;           /* Did the user disable ech */
+    word16            echProcessingInner:1;   /* Processing the inner hello */
 #endif
 #ifdef WOLFSSL_SEND_HRR_COOKIE
     word16            cookieGood:1;
@@ -6521,6 +6524,8 @@ struct WOLFSSL {
 #endif /* WOLFSSL_QUIC */
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
     WOLFSSL_EchConfig* echConfigs;
+    WOLFSSL_EchConfig* echRetryConfigs;
+    byte               echRetryConfigsAccepted:1;
 #endif
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH) && defined(WOLFSSL_TEST_ECH)
     /* Test-only hook: called on the client before ECH encryption, after the

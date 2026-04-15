@@ -8773,6 +8773,10 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
         FreeEchConfigs(ssl->echConfigs, ssl->heap);
         ssl->echConfigs = NULL;
     }
+    if (ssl->echRetryConfigs != NULL) {
+        FreeEchConfigs(ssl->echRetryConfigs, ssl->heap);
+        ssl->echRetryConfigs = NULL;
+    }
 #endif /* HAVE_ECH */
 #endif /* WOLFSSL_TLS13 */
 #ifdef WOLFSSL_HAVE_TLS_UNIQUE

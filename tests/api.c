@@ -15216,6 +15216,178 @@ static int test_wolfSSL_Tls13_ECH_bad_configs(void)
     return EXPECT_RESULT();
 }
 
+/* Test retry configs are returned after ECH rejection and are usable */
+static int test_wolfSSL_Tls13_ECH_retry_configs_ex(int hrr)
+{
+    EXPECT_DECLS;
+    test_ssl_memio_ctx test_ctx;
+    WOLFSSL_CTX* tempCtx = NULL;
+    byte badConfigs[256];
+    word32 badConfigsLen = sizeof(badConfigs);
+    byte retryConfigs[256];
+    word32 retryConfigsLen = sizeof(retryConfigs);
+    WOLFSSL_CTX* savedSCtx;
+
+    /* --- first attempt: wrong ECH config -> ECH rejected --- */
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.s_cb.method = wolfTLSv1_3_server_method;
+    test_ctx.c_cb.method = wolfTLSv1_3_client_method;
+    test_ctx.s_cb.ctx_ready = test_ech_server_ctx_ready;
+    test_ctx.s_cb.ssl_ready = test_ech_server_ssl_ready;
+
+    ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+
+    /* throwaway ECH config the server won't recognise */
+    ExpectNotNull(tempCtx = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+    ExpectIntEQ(wolfSSL_CTX_GenerateEchConfig(tempCtx, echCbTestPublicName,
+        0, 0, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_GetEchConfigs(tempCtx, badConfigs, &badConfigsLen),
+        WOLFSSL_SUCCESS);
+    wolfSSL_CTX_free(tempCtx);
+    tempCtx = NULL;
+
+    ExpectIntEQ(wolfSSL_SetEchConfigs(test_ctx.c_ssl, badConfigs,
+        badConfigsLen), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSNI(test_ctx.c_ssl, WOLFSSL_SNI_HOST_NAME,
+        echCbTestPrivateName, (word16)XSTRLEN(echCbTestPrivateName)),
+        WOLFSSL_SUCCESS);
+
+    if (hrr)
+        ExpectIntEQ(wolfSSL_NoKeyShares(test_ctx.c_ssl), WOLFSSL_SUCCESS);
+
+    /* ECH must fail and retry configs must be present */
+    ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
+    ExpectIntEQ(test_ctx.c_ssl->options.echAccepted, 0);
+    ExpectIntEQ(wolfSSL_get_error(test_ctx.c_ssl, 0),
+        WC_NO_ERR_TRACE(ECH_REQUIRED_E));
+
+    /* capture retry configs */
+    ExpectIntEQ(wolfSSL_GetEchRetryConfigs(test_ctx.c_ssl, retryConfigs,
+        &retryConfigsLen), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_ctx.c_ssl->error, ECH_REQUIRED_E);
+    ExpectIntGT(retryConfigsLen, 0);
+
+    if (EXPECT_SUCCESS()){
+        /* keep server CTX so second attempt uses the same ECH keys */
+        savedSCtx = test_ctx.s_ctx;
+        test_ctx.s_cb.isSharedCtx = 1;
+        test_ssl_memio_cleanup(&test_ctx);
+
+        /* --- second attempt: same server CTX, retry configs -> accepted --- */
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        test_ctx.s_cb.method = wolfTLSv1_3_server_method;
+        test_ctx.c_cb.method = wolfTLSv1_3_client_method;
+        test_ctx.s_cb.ssl_ready = test_ech_server_ssl_ready;
+        /* restore server CTX; ctx_ready left NULL to skip ECH key regen */
+        test_ctx.s_ctx = savedSCtx;
+        test_ctx.s_cb.isSharedCtx = 1;
+
+        ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+
+        ExpectIntEQ(wolfSSL_SetEchConfigs(test_ctx.c_ssl, retryConfigs,
+            retryConfigsLen), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_UseSNI(test_ctx.c_ssl, WOLFSSL_SNI_HOST_NAME,
+            echCbTestPrivateName, (word16)XSTRLEN(echCbTestPrivateName)),
+            WOLFSSL_SUCCESS);
+
+        if (hrr)
+            ExpectIntEQ(wolfSSL_NoKeyShares(test_ctx.c_ssl), WOLFSSL_SUCCESS);
+
+        ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL),
+            TEST_SUCCESS);
+        ExpectIntEQ(test_ctx.c_ssl->options.echAccepted, 1);
+
+        wolfSSL_CTX_free(test_ctx.s_ctx);
+        test_ctx.s_ctx = NULL;
+    }
+
+    test_ssl_memio_cleanup(&test_ctx);
+
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_Tls13_ECH_retry_configs(void)
+{
+    EXPECT_DECLS;
+
+    ExpectIntEQ(test_wolfSSL_Tls13_ECH_retry_configs_ex(0), TEST_SUCCESS);
+    ExpectIntEQ(test_wolfSSL_Tls13_ECH_retry_configs_ex(1), TEST_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+
+/* Test retry configs are cleared when authentication fails */
+static int test_wolfSSL_Tls13_ECH_retry_configs_auth_fail_ex(int hrr)
+{
+    EXPECT_DECLS;
+    test_ssl_memio_ctx test_ctx;
+    WOLFSSL_CTX* tempCtx = NULL;
+    byte badConfigs[256];
+    word32 badConfigsLen = sizeof(badConfigs);
+    word32 retryConfigsLen = sizeof(badConfigs); /* non-zero sentinel */
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.s_cb.method = wolfTLSv1_3_server_method;
+    test_ctx.c_cb.method = wolfTLSv1_3_client_method;
+    test_ctx.s_cb.ctx_ready = test_ech_server_ctx_ready;
+
+    ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+
+    /* wrong ECH config so server sends retry_configs in EncryptedExtensions */
+    ExpectNotNull(tempCtx = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+    ExpectIntEQ(wolfSSL_CTX_GenerateEchConfig(tempCtx, echCbTestPublicName,
+        0, 0, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_GetEchConfigs(tempCtx, badConfigs, &badConfigsLen),
+        WOLFSSL_SUCCESS);
+    wolfSSL_CTX_free(tempCtx);
+    tempCtx = NULL;
+
+    ExpectIntEQ(wolfSSL_SetEchConfigs(test_ctx.c_ssl, badConfigs,
+        badConfigsLen), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSNI(test_ctx.c_ssl, WOLFSSL_SNI_HOST_NAME,
+        echCbTestPrivateName, (word16)XSTRLEN(echCbTestPrivateName)),
+        WOLFSSL_SUCCESS);
+
+    /* Do not require client cert on server so it does not send
+     * CertificateRequest */
+    wolfSSL_set_verify(test_ctx.s_ssl, WOLFSSL_VERIFY_NONE, NULL);
+    wolfSSL_set_verify(test_ctx.c_ssl, WOLFSSL_VERIFY_PEER, NULL);
+
+    /* outer handshake uses public_name, which doesn't match the server cert */
+    ExpectIntEQ(wolfSSL_UseSNI(test_ctx.s_ssl, WOLFSSL_SNI_HOST_NAME,
+        echCbTestPublicName, (word16)XSTRLEN(echCbTestPublicName)),
+        WOLFSSL_SUCCESS);
+
+    if (hrr)
+        ExpectIntEQ(wolfSSL_NoKeyShares(test_ctx.c_ssl), WOLFSSL_SUCCESS);
+
+    /* handshake fails due to auth failure in outer handshake, not ech_required */
+    ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(test_ctx.c_ssl, 0),
+        WC_NO_ERR_TRACE(DOMAIN_NAME_MISMATCH));
+
+    /* retry configs must not be accessible */
+    ExpectIntNE(wolfSSL_GetEchRetryConfigs(test_ctx.c_ssl, NULL,
+        &retryConfigsLen), WOLFSSL_SUCCESS);
+
+    test_ssl_memio_cleanup(&test_ctx);
+
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_Tls13_ECH_retry_configs_auth_fail(void)
+{
+    EXPECT_DECLS;
+
+    ExpectIntEQ(test_wolfSSL_Tls13_ECH_retry_configs_auth_fail_ex(0),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_wolfSSL_Tls13_ECH_retry_configs_auth_fail_ex(1),
+        WOLFSSL_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+
 /* Test that client info can be successfully decoded from one of multiple server
  * ECH configs
  * In this case the server is expected to try it's first config, fail, then try
@@ -15305,6 +15477,7 @@ static int test_wolfSSL_Tls13_ECH_GREASE(void)
 {
     EXPECT_DECLS;
     test_ssl_memio_ctx test_ctx;
+    word32 retryConfigsLen = sizeof(test_ctx);
 
     /* GREASE when server has no ECH configs */
 
@@ -15334,6 +15507,9 @@ static int test_wolfSSL_Tls13_ECH_GREASE(void)
     ExpectIntEQ(test_ctx.c_ssl->options.echAccepted, 0);
     /* verify no ECH configs are received */
     ExpectNull(test_ctx.c_ssl->echConfigs);
+    /* retry configs must not be saved */
+    ExpectIntNE(wolfSSL_GetEchRetryConfigs(test_ctx.c_ssl, NULL,
+        &retryConfigsLen), WOLFSSL_SUCCESS);
 
     test_ssl_memio_cleanup(&test_ctx);
 
@@ -15369,6 +15545,9 @@ static int test_wolfSSL_Tls13_ECH_GREASE(void)
     ExpectIntEQ(test_ctx.c_ssl->options.echAccepted, 0);
     /* verify no ECH configs are received */
     ExpectNull(test_ctx.c_ssl->echConfigs);
+    /* retry configs must not be saved */
+    ExpectIntNE(wolfSSL_GetEchRetryConfigs(test_ctx.c_ssl, NULL,
+        &retryConfigsLen), WOLFSSL_SUCCESS);
 
     test_ssl_memio_cleanup(&test_ctx);
 
@@ -37993,6 +38172,8 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_Tls13_ECH_all_algos),
     TEST_DECL(test_wolfSSL_Tls13_ECH_no_private_name),
     TEST_DECL(test_wolfSSL_Tls13_ECH_bad_configs),
+    TEST_DECL(test_wolfSSL_Tls13_ECH_retry_configs),
+    TEST_DECL(test_wolfSSL_Tls13_ECH_retry_configs_auth_fail),
     TEST_DECL(test_wolfSSL_Tls13_ECH_new_config),
     TEST_DECL(test_wolfSSL_Tls13_ECH_GREASE),
     TEST_DECL(test_wolfSSL_Tls13_ECH_disable_conn),

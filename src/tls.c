@@ -14290,28 +14290,25 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
 
     /* retry configs */
     if (msgType == encrypted_extensions) {
-        /* configs should only be sent on ECH rejection (RFC9849, Section 5) */
+        /* configs must only be sent on ECH rejection (RFC9849, Section 5) */
         if (ssl->options.echAccepted) {
             SendAlert(ssl, alert_fatal, unsupported_extension);
             WOLFSSL_ERROR_VERBOSE(UNSUPPORTED_EXTENSION);
             return UNSUPPORTED_EXTENSION;
         }
 
-        echX = TLSX_Find(ssl->extensions, TLSX_ECH);
-        if (echX == NULL)
-            return BAD_FUNC_ARG;
-        ech = (WOLFSSL_ECH*)echX->data;
+        ret = SetRetryConfigs(ssl, readBuf, (word32)size);
 
-        ret = wolfSSL_SetEchConfigs(ssl, readBuf, size);
-        if (ret == WOLFSSL_SUCCESS)
-            ret = 0;
-
-        if (ret == 0 && ech->state == ECH_WRITE_GREASE) {
-            /* the configs need to be checked syntactically but must not be
-             * saved on grease connection */
-            FreeEchConfigs(ssl->echConfigs, ssl->heap);
-            ssl->echConfigs = NULL;
+        if (ssl->echConfigs == NULL) {
+            /* on GREASE connection configs must be checked syntactically and
+             * must not be saved (RFC 9849, Section 6.2.1) */
+            FreeEchConfigs(ssl->echRetryConfigs, ssl->heap);
+            ssl->echRetryConfigs = NULL;
         }
+
+        /* retry configs may only be accepted at the point when ECH_REQUIRED is
+         * sent */
+        ssl->echRetryConfigsAccepted = 0;
     }
     /* HRR with special confirmation */
     else if (msgType == hello_retry_request && ssl->echConfigs != NULL) {
@@ -16327,6 +16324,13 @@ static int TLSX_GetSizeWithEch(WOLFSSL* ssl, byte* semaphore, byte msgType,
     WC_ALLOC_VAR_EX(serverName, char, WOLFSSL_HOST_NAME_MAX, NULL,
                     DYNAMIC_TYPE_TMP_BUFFER, return MEMORY_E);
     r = TLSX_EchChangeSNI(ssl, &echX, serverName, &serverNameX, &extensions);
+    /* If ECH won't be written (mirrors guard in TLSX_WriteWithEch), exclude it
+     * from the size calculation to avoid a size/write mismatch */
+    if (r == 0 && echX != NULL &&
+            !ssl->options.echAccepted &&
+            ((WOLFSSL_ECH*)echX->data)->innerCount != 0) {
+        TURN_ON(semaphore, TLSX_ToSemaphore(echX->type));
+    }
     if (r == 0 && ssl->extensions)
         ret = TLSX_GetSize(ssl->extensions, semaphore, msgType, pLength);
     if (r == 0 && ret == 0 && ssl->ctx && ssl->ctx->extensions)

@@ -1252,6 +1252,9 @@ WOLFSSL_API int wolfSSL_SetEchConfigs(WOLFSSL* ssl, const byte* echConfigs,
 WOLFSSL_API int wolfSSL_GetEchConfigs(WOLFSSL* ssl, byte* echConfigs,
     word32* echConfigsLen);
 
+WOLFSSL_API int wolfSSL_GetEchRetryConfigs(WOLFSSL* ssl, byte* echConfigs,
+    word32* echConfigsLen);
+
 WOLFSSL_API void wolfSSL_SetEchEnable(WOLFSSL* ssl, byte enable);
 #endif /* WOLFSSL_TLS13 && HAVE_ECH */
 
