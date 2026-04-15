@@ -23,6 +23,7 @@
 #define TESTS_API_TEST_TLS_EXT_H
 
 int test_tls_ems_downgrade(void);
+int test_tls_ems_resumption_downgrade(void);
 int test_wolfSSL_DisableExtendedMasterSecret(void);
 int test_certificate_authorities_certificate_request(void);
 int test_certificate_authorities_client_hello(void);

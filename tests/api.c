@@ -37503,6 +37503,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_select_next_proto),
 #endif
     TEST_DECL(test_tls_ems_downgrade),
+    TEST_DECL(test_tls_ems_resumption_downgrade),
     TEST_DECL(test_wolfSSL_DisableExtendedMasterSecret),
     TEST_DECL(test_certificate_authorities_certificate_request),
     TEST_DECL(test_certificate_authorities_client_hello),
