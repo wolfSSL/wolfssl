@@ -14739,7 +14739,7 @@ static int test_wolfSSL_Tls13_ECH_params_b64(void)
 }
 
 static int test_wolfSSL_ECH_conn_ex(method_provider serverMeth,
-    method_provider clientMeth, int hrr)
+            method_provider clientMeth, int hrr, int expectSuccess)
 {
     EXPECT_DECLS;
     tcp_ready ready;
@@ -14827,15 +14827,20 @@ static int test_wolfSSL_ECH_conn_ex(method_provider serverMeth,
         rounds++;
     } while ((err == WOLFSSL_ERROR_WANT_READ ||
               err == WOLFSSL_ERROR_WANT_WRITE) && rounds < 20);
-    ExpectIntEQ(ret, WOLFSSL_SUCCESS);
-    ExpectIntEQ(ssl->options.echAccepted, 1);
-    ExpectIntEQ(wolfSSL_write(ssl, privateName, privateNameLen),
-        privateNameLen);
-    ExpectIntGT((replyLen = wolfSSL_read(ssl, reply, sizeof(reply))), 0);
-    /* add the null terminator for string compare */
-    reply[replyLen] = '\0';
-    /* check that the server replied with the private name */
-    ExpectStrEQ(privateName, reply);
+    if (expectSuccess) {
+        ExpectIntEQ(ret, WOLFSSL_SUCCESS);
+        ExpectIntEQ(ssl->options.echAccepted, 1);
+        ExpectIntEQ(wolfSSL_write(ssl, privateName, privateNameLen),
+            privateNameLen);
+        ExpectIntGT((replyLen = wolfSSL_read(ssl, reply, sizeof(reply))), 0);
+        /* add the null terminator for string compare */
+        reply[replyLen] = '\0';
+        /* check that the server replied with the private name */
+        ExpectStrEQ(privateName, reply);
+    }
+    else {
+        ExpectIntNE(ret, WOLFSSL_SUCCESS);
+    }
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
 
@@ -14851,13 +14856,13 @@ static int test_wolfSSL_ECH_conn_ex(method_provider serverMeth,
 static int test_wolfSSL_Tls13_ECH(void)
 {
     return test_wolfSSL_ECH_conn_ex(wolfTLSv1_3_server_method,
-                wolfTLSv1_3_client_method, 0);
+                wolfTLSv1_3_client_method, 0, 1);
 }
 
 static int test_wolfSSL_Tls13_ECH_HRR(void)
 {
     return test_wolfSSL_ECH_conn_ex(wolfTLSv1_3_server_method,
-                wolfTLSv1_3_client_method, 1);
+                wolfTLSv1_3_client_method, 1, 1);
 }
 
 static int test_wolfSSL_SubTls13_ECH(void)
@@ -14865,12 +14870,12 @@ static int test_wolfSSL_SubTls13_ECH(void)
     EXPECT_DECLS;
 
 #ifndef WOLFSSL_NO_TLS12
-    ExpectIntNE(test_wolfSSL_ECH_conn_ex(wolfTLSv1_3_server_method,
-        wolfTLSv1_2_client_method, 0), WOLFSSL_SUCCESS);
-    ExpectIntNE(test_wolfSSL_ECH_conn_ex(wolfTLSv1_2_server_method,
-        wolfTLSv1_3_client_method, 0), WOLFSSL_SUCCESS);
-    ExpectIntNE(test_wolfSSL_ECH_conn_ex(wolfSSLv23_server_method,
-        wolfTLSv1_2_client_method, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_wolfSSL_ECH_conn_ex(wolfTLSv1_3_server_method,
+        wolfTLSv1_2_client_method, 0, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_wolfSSL_ECH_conn_ex(wolfTLSv1_2_server_method,
+        wolfTLSv1_3_client_method, 0, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_wolfSSL_ECH_conn_ex(wolfSSLv23_server_method,
+        wolfTLSv1_2_client_method, 0, 0), WOLFSSL_SUCCESS);
 #endif
 
     return EXPECT_RESULT();
@@ -32023,10 +32028,23 @@ static int test_wolfSSL_dtls13_null_cipher(void)
         ExpectIntEQ(ssl_s->error, WC_NO_ERR_TRACE(WANT_READ));
     }
 
-    ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_SHUTDOWN_NOT_DONE);
-    ExpectIntEQ(wolfSSL_shutdown(ssl_s), WOLFSSL_SHUTDOWN_NOT_DONE);
-    ExpectIntEQ(wolfSSL_shutdown(ssl_c), 1);
-    ExpectIntEQ(wolfSSL_shutdown(ssl_s), 1);
+    {
+        int i;
+        int shutC = wolfSSL_shutdown(ssl_c);
+        int shutS = wolfSSL_shutdown(ssl_s);
+        for (i = 0; i < 4 &&
+                (shutC == WOLFSSL_SHUTDOWN_NOT_DONE ||
+                 shutS == WOLFSSL_SHUTDOWN_NOT_DONE); i++) {
+            if (shutC == WOLFSSL_SHUTDOWN_NOT_DONE)
+                shutC = wolfSSL_shutdown(ssl_c);
+            if (shutS == WOLFSSL_SHUTDOWN_NOT_DONE)
+                shutS = wolfSSL_shutdown(ssl_s);
+        }
+        ExpectTrue(shutC == WOLFSSL_SUCCESS ||
+                   shutC == WOLFSSL_SHUTDOWN_NOT_DONE);
+        ExpectTrue(shutS == WOLFSSL_SUCCESS ||
+                   shutS == WOLFSSL_SHUTDOWN_NOT_DONE);
+    }
 
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);

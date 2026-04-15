@@ -264,6 +264,19 @@ get_first_free_port() {
     return 0
 }
 
+wait_for_port_free() {
+    local port="$1"
+    local tries=0
+    while nc -z ${LOCALHOST_FOR_NC} "$port" 2>/dev/null && [ "$tries" -lt 50 ]; do
+        sleep 0.1
+        tries=$((tries + 1))
+    done
+    if nc -z ${LOCALHOST_FOR_NC} "$port" 2>/dev/null; then
+        echo "port $port is still busy after waiting"
+        exit 1
+    fi
+}
+
 base_port=$((((($$ + RETRIES_REMAINING) * 5) % (65536 - 2048)) + 1024))
 port1=$(get_first_free_port "$base_port")
 port2=$(get_first_free_port $((port1 + 1)))
@@ -313,6 +326,14 @@ printf '%s\n' "-----------------------------------"
 ./examples/client/client -p "$port2"
 ./examples/client/client -p "$port3"
 ./examples/client/client -p "$port4"
+wait "$server_pid1" 2>/dev/null || true
+wait "$server_pid2" 2>/dev/null || true
+wait "$server_pid3" 2>/dev/null || true
+wait "$server_pid4" 2>/dev/null || true
+wait_for_port_free "$port1"
+wait_for_port_free "$port2"
+wait_for_port_free "$port3"
+wait_for_port_free "$port4"
 create_new_cnf "$port1" "$port2" "$port3" \
                "$port4"
 

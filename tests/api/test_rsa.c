@@ -1273,11 +1273,20 @@ int test_wc_RsaDecisionCoverage(void)
     ExpectIntEQ(wc_RsaPrivateDecrypt_ex(cipher, (word32)cipherOutLen, plain,
         cipherLen, NULL, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256,
         NULL, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    /* Cipher text is OAEP-SHA256: decoding it as PKCS#1 v1.5 must fail and
-     * exercise the padding-mismatch decision branch in rsa.c. */
-    ExpectIntLT(wc_RsaPrivateDecrypt_ex(cipher, (word32)cipherOutLen, plain,
-        cipherLen, &key, WC_RSA_PKCSV15_PAD, WC_HASH_TYPE_NONE, 0, NULL, 0),
-        0);
+    /* Cipher text is OAEP-SHA256: decoding it as PKCS#1 v1.5 should fail.
+     * Rarely, random OAEP output can satisfy PKCS#1 v1.5 structure checks.
+     * In that case it still must not reproduce the original plaintext. */
+    {
+        int badRet = wc_RsaPrivateDecrypt_ex(cipher, (word32)cipherOutLen, plain,
+            cipherLen, &key, WC_RSA_PKCSV15_PAD, WC_HASH_TYPE_NONE, 0, NULL, 0);
+        if (badRet >= 0) {
+            ExpectTrue((word32)badRet != inLen ||
+                XMEMCMP(plain, in, inLen) != 0);
+        }
+        else {
+            ExpectIntLT(badRet, 0);
+        }
+    }
 
     /* ---- wc_RsaPrivateDecryptInline_ex argument-check branches ---- */
     {
