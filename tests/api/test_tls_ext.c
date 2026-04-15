@@ -153,6 +153,72 @@ int test_tls_ems_resumption_downgrade(void)
 }
 
 
+#if !defined(WOLFSSL_NO_TLS12) && \
+        defined(BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256) && \
+        defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+static int test_chacha_bad_tag_trigger = 0;
+
+static int test_chacha_bad_tag_io_recv(WOLFSSL* ssl, char* buf, int sz,
+        void* ctx)
+{
+    int ret = test_memio_read_cb(ssl, buf, sz, ctx);
+    /* Tamper with a byte from the encrypted record payload on the first
+     * read that spans past the 5-byte TLS record header, so the Poly1305
+     * authentication check no longer matches. */
+    if (test_chacha_bad_tag_trigger && ret > 5) {
+        buf[ret - 1] ^= 0xFF;
+        test_chacha_bad_tag_trigger = 0;
+    }
+    return ret;
+}
+#endif
+
+/* F-2921: TLS 1.2 ChaCha20-Poly1305 must surface VERIFY_MAC_ERROR when
+ * the Poly1305 tag is corrupted. */
+int test_tls12_chacha20_poly1305_bad_tag(void)
+{
+    EXPECT_DECLS;
+#if !defined(WOLFSSL_NO_TLS12) && \
+        defined(BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256) && \
+        defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    const char msg[] = "tamper me";
+    char recvBuf[32];
+    int ret;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.c_ciphers = test_ctx.s_ciphers =
+        "ECDHE-RSA-CHACHA20-POLY1305";
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_SSLSetIORecv(ssl_s, test_chacha_bad_tag_io_recv);
+
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)XSTRLEN(msg)),
+            (int)XSTRLEN(msg));
+
+    test_chacha_bad_tag_trigger = 1;
+    ret = wolfSSL_read(ssl_s, recvBuf, sizeof(recvBuf));
+    ExpectIntLE(ret, 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, ret),
+            WC_NO_ERR_TRACE(VERIFY_MAC_ERROR));
+
+    test_chacha_bad_tag_trigger = 0;
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+
 int test_wolfSSL_DisableExtendedMasterSecret(void)
 {
     EXPECT_DECLS;

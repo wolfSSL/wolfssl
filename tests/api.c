@@ -37504,6 +37504,7 @@ TEST_CASE testCases[] = {
 #endif
     TEST_DECL(test_tls_ems_downgrade),
     TEST_DECL(test_tls_ems_resumption_downgrade),
+    TEST_DECL(test_tls12_chacha20_poly1305_bad_tag),
     TEST_DECL(test_wolfSSL_DisableExtendedMasterSecret),
     TEST_DECL(test_certificate_authorities_certificate_request),
     TEST_DECL(test_certificate_authorities_client_hello),
