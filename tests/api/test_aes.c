@@ -6515,6 +6515,10 @@ int test_wc_AesGcm_MonteCarlo(void)
     WC_FREE_VAR(plain,     NULL);
     WC_FREE_VAR(cipher,    NULL);
     WC_FREE_VAR(decrypted, NULL);
+#endif
+    return EXPECT_RESULT();
+}
+
 typedef struct test_aes_keywrap_vector {
     const byte* key;
     word32      keySz;
@@ -6976,6 +6980,8 @@ int test_wc_AesOfb_MonteCarlo(void)
     WC_FREE_VAR(cipher,    NULL);
     WC_FREE_VAR(decrypted, NULL);
 #endif
+    return EXPECT_RESULT();
+}
 
 int test_wc_AesFeatureCoverage(void)
 {
