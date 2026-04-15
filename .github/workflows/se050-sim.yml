@@ -20,7 +20,7 @@ concurrency:
 # We patch it to COPY the PR checkout instead so CI reflects the PR's source.
 
 env:
-  SE050SIM_REF: main
+  SE050SIM_REF: 8fda9212c306fbee0dcd66f2dd52b13f65f13e00
 
 jobs:
   se050_sim:
