@@ -19240,11 +19240,12 @@ static int test_wolfSSL_GENERAL_NAME_print(void)
     ExpectIntGT(BIO_read(out, outbuf, sizeof(outbuf)), 0);
     ExpectIntEQ(XSTRNCMP((const char*)outbuf, uriStr, XSTRLEN(uriStr)), 0);
 
-    wolfSSL_sk_ACCESS_DESCRIPTION_pop_free(aia, NULL);
+    wolfSSL_sk_ACCESS_DESCRIPTION_pop_free(aia,
+        wolfSSL_ACCESS_DESCRIPTION_free);
     aia = NULL;
     aia = (AUTHORITY_INFO_ACCESS*)wolfSSL_X509V3_EXT_d2i(ext);
     ExpectNotNull(aia);
-    AUTHORITY_INFO_ACCESS_pop_free(aia, NULL);
+    AUTHORITY_INFO_ACCESS_pop_free(aia, ACCESS_DESCRIPTION_free);
     aia = NULL;
     X509_free(x509);
     x509 = NULL;

@@ -1445,7 +1445,8 @@ int test_wolfSSL_X509V3_EXT(void)
     ExpectNull(wolfSSL_sk_ACCESS_DESCRIPTION_value(NULL, 0));
     ExpectNull(wolfSSL_sk_ACCESS_DESCRIPTION_value(aia, 1));
     ExpectNotNull(wolfSSL_sk_ACCESS_DESCRIPTION_value(aia, 0));
-    wolfSSL_sk_ACCESS_DESCRIPTION_pop_free(aia, NULL);
+    wolfSSL_sk_ACCESS_DESCRIPTION_pop_free(aia,
+        wolfSSL_ACCESS_DESCRIPTION_free);
     aia = NULL;
 
 #ifndef NO_WOLFSSL_STUB
