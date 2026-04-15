@@ -412,7 +412,21 @@ static int test_quic_record_cap(void) {
     wolfSSL_free(ssl);
     ssl = NULL;
 
-    /* early_data within cap must succeed */
+    /* early_data at exactly cap must succeed */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectTrue(provide_data(ssl, wolfssl_encryption_early_data, buf,
+                            WOLFSSL_QUIC_MAX_RECORD_CAPACITY, 0));
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    /* early_data at cap+1 must be rejected */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectTrue(provide_data(ssl, wolfssl_encryption_early_data, buf,
+                            (size_t)WOLFSSL_QUIC_MAX_RECORD_CAPACITY + 1U, 1));
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    /* early_data well within cap must succeed */
     ExpectNotNull(ssl = wolfSSL_new(ctx));
     ExpectTrue(provide_data(ssl, wolfssl_encryption_early_data, buf, 1024, 0));
     wolfSSL_free(ssl);
