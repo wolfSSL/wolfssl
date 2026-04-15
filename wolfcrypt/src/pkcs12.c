@@ -328,7 +328,7 @@ static int GetSafeContent(WC_PKCS12* pkcs12, const byte* input,
 
             curIdx = localIdx;
             if ((ret = GetObjectId(input, &localIdx, &oid, oidIgnoreType,
-                                                           (word32)size)) < 0) {
+                                       curIdx + (word32)curSz)) < 0) {
                 WOLFSSL_LEAVE("Get object id failed", ret);
                 freeSafe(safe, pkcs12->heap);
                 return ret;
