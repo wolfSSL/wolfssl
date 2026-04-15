@@ -4198,12 +4198,12 @@ int wolfSSL_CTX_use_PrivateKey_Id(WOLFSSL_CTX* ctx, const unsigned char* id,
  * @return  1 on success.
  * @return  0 on failure.
  */
-int wolfSSL_CTX_use_PrivateKey_id(WOLFSSL_CTX* ctx, const unsigned char* id,
+int wolfSSL_CTX_use_PrivateKey_Id_ex(WOLFSSL_CTX* ctx, const unsigned char* id,
     long sz, int devId, long keySz)
 {
     int ret;
 
-    WOLFSSL_ENTER("wolfSSL_CTX_use_PrivateKey_id");
+    WOLFSSL_ENTER("wolfSSL_CTX_use_PrivateKey_Id_ex");
 
     ret = wolfSSL_CTX_use_PrivateKey_Id(ctx, id, sz, devId);
     if (ret == 1) {
@@ -4211,7 +4211,7 @@ int wolfSSL_CTX_use_PrivateKey_id(WOLFSSL_CTX* ctx, const unsigned char* id,
         ctx->privateKeySz = (int)keySz;
     }
 
-    WOLFSSL_LEAVE("wolfSSL_CTX_use_PrivateKey_id", ret);
+    WOLFSSL_LEAVE("wolfSSL_CTX_use_PrivateKey_Id_ex", ret);
     return ret;
 }
 
@@ -4294,19 +4294,19 @@ int wolfSSL_CTX_use_AltPrivateKey_Id(WOLFSSL_CTX* ctx, const unsigned char* id,
     return ret;
 }
 
-int wolfSSL_CTX_use_AltPrivateKey_id(WOLFSSL_CTX* ctx, const unsigned char* id,
-    long sz, int devId, long keySz)
+int wolfSSL_CTX_use_AltPrivateKey_Id_ex(WOLFSSL_CTX* ctx,
+    const unsigned char* id, long sz, int devId, long keySz)
 {
     int ret;
 
-    WOLFSSL_ENTER("wolfSSL_CTX_use_AltPrivateKey_id");
+    WOLFSSL_ENTER("wolfSSL_CTX_use_AltPrivateKey_Id_ex");
 
     ret = wolfSSL_CTX_use_AltPrivateKey_Id(ctx, id, sz, devId);
     if (ret == 1) {
         ctx->altPrivateKeySz = (word32)keySz;
     }
 
-    WOLFSSL_LEAVE("wolfSSL_CTX_use_AltPrivateKey_id", ret);
+    WOLFSSL_LEAVE("wolfSSL_CTX_use_AltPrivateKey_Id_ex", ret);
     return ret;
 }
 
@@ -4606,7 +4606,7 @@ int wolfSSL_use_PrivateKey_Id(WOLFSSL* ssl, const unsigned char* id,
  * @return  1 on success.
  * @return  0 on failure.
  */
-int wolfSSL_use_PrivateKey_id(WOLFSSL* ssl, const unsigned char* id,
+int wolfSSL_use_PrivateKey_Id_ex(WOLFSSL* ssl, const unsigned char* id,
     long sz, int devId, long keySz)
 {
     int ret = wolfSSL_use_PrivateKey_Id(ssl, id, sz, devId);
@@ -4703,8 +4703,8 @@ int wolfSSL_use_AltPrivateKey_Id(WOLFSSL* ssl, const unsigned char* id, long sz,
     return ret;
 }
 
-int wolfSSL_use_AltPrivateKey_id(WOLFSSL* ssl, const unsigned char* id, long sz,
-    int devId, long keySz)
+int wolfSSL_use_AltPrivateKey_Id_ex(WOLFSSL* ssl, const unsigned char* id,
+    long sz, int devId, long keySz)
 {
     int ret = wolfSSL_use_AltPrivateKey_Id(ssl, id, sz, devId);
     if (ret == 1) {
