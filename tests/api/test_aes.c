@@ -7364,8 +7364,11 @@ int test_wc_AesRequirementCoverage(void)
             0x10,0x11,0x12,0x13,0x14,0x15,0x16,0x17,
             0x18,0x19,0x1a,0x1b,0x1c,0x1d,0x1e,0x1f
         };
-        ExpectIntEQ(wc_AesXtsInit(&xts, HEAP_HINT, INVALID_DEVID), 0);
-        if (EXPECT_SUCCESS()) initXts = 1;
+        {
+            int initRet = wc_AesXtsInit(&xts, HEAP_HINT, INVALID_DEVID);
+            ExpectIntEQ(initRet, 0);
+            if (initRet == 0) initXts = 1;
+        }
         ExpectIntEQ(wc_AesXtsSetKey(&xts, xtsKey, sizeof(xtsKey),
             AES_ENCRYPTION, HEAP_HINT, INVALID_DEVID), 0);
         ExpectIntEQ(wc_AesXtsEncryptConsecutiveSectors(&xts, cipher, xtsMsg,
@@ -7379,8 +7382,11 @@ int test_wc_AesRequirementCoverage(void)
             initXts = 0;
         }
 
-        ExpectIntEQ(wc_AesXtsInit(&xts, HEAP_HINT, INVALID_DEVID), 0);
-        if (EXPECT_SUCCESS()) initXts = 1;
+        {
+            int initRet = wc_AesXtsInit(&xts, HEAP_HINT, INVALID_DEVID);
+            ExpectIntEQ(initRet, 0);
+            if (initRet == 0) initXts = 1;
+        }
         ExpectIntEQ(wc_AesXtsSetKey(&xts, xtsKey, sizeof(xtsKey),
             AES_DECRYPTION, HEAP_HINT, INVALID_DEVID), 0);
         ExpectIntEQ(wc_AesXtsDecryptConsecutiveSectors(&xts, plain, cipher,
