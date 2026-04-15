@@ -15086,7 +15086,7 @@ void crypto_ex_cb_free_data(void *obj, CRYPTO_EX_cb_ctx* cb_ctx,
 }
 
 /**
- * get_ex_new_index is a helper function for the following
+ * wolfssl_local_get_ex_new_index is a helper function for the following
  * xx_get_ex_new_index functions:
  *  - wolfSSL_CRYPTO_get_ex_new_index
  *  - wolfSSL_CTX_get_ex_new_index
@@ -15095,7 +15095,7 @@ void crypto_ex_cb_free_data(void *obj, CRYPTO_EX_cb_ctx* cb_ctx,
  * Returns an index number greater or equal to zero on success,
  * -1 on failure.
  */
-int wolfssl_get_ex_new_index(int class_index, long ctx_l, void* ctx_ptr,
+int wolfssl_local_get_ex_new_index(int class_index, long ctx_l, void* ctx_ptr,
         WOLFSSL_CRYPTO_EX_new* new_func, WOLFSSL_CRYPTO_EX_dup* dup_func,
         WOLFSSL_CRYPTO_EX_free* free_func)
 {
@@ -15161,8 +15161,8 @@ int wolfSSL_CTX_get_ex_new_index(long idx, void* arg,
 
     WOLFSSL_ENTER("wolfSSL_CTX_get_ex_new_index");
 
-    return wolfssl_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_SSL_CTX, idx, arg,
-                                    new_func, dup_func, free_func);
+    return wolfssl_local_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_SSL_CTX, idx,
+                                    arg, new_func, dup_func, free_func);
 }
 
 /* Return the index that can be used for the WOLFSSL structure to store
@@ -15175,8 +15175,8 @@ int wolfSSL_get_ex_new_index(long argValue, void* arg,
 {
     WOLFSSL_ENTER("wolfSSL_get_ex_new_index");
 
-    return wolfssl_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_SSL, argValue, arg,
-            cb1, cb2, cb3);
+    return wolfssl_local_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_SSL, argValue,
+            arg, cb1, cb2, cb3);
 }
 #endif /* HAVE_EX_DATA_CRYPTO */
 
@@ -19170,7 +19170,7 @@ int wolfSSL_CRYPTO_get_ex_new_index(int class_index, long argl, void *argp,
 {
     WOLFSSL_ENTER("wolfSSL_CRYPTO_get_ex_new_index");
 
-    return wolfssl_get_ex_new_index(class_index, argl, argp, new_func,
+    return wolfssl_local_get_ex_new_index(class_index, argl, argp, new_func,
             dup_func, free_func);
 }
 #endif /* HAVE_EX_DATA_CRYPTO */
