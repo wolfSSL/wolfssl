@@ -496,8 +496,8 @@ int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz)
             /* using RDRAND not DRBG, so return success */
             return 0;
         }
-        return BAD_FUNC_ARG;
     #endif
+        return BAD_FUNC_ARG;
     }
 
     return Hash_DRBG_Reseed((DRBG_internal *)rng->drbg, seed, seedSz);

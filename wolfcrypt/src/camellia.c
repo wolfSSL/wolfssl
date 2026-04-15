@@ -64,8 +64,7 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
-/* u32 must be 32bit word */
-typedef unsigned int u32;
+typedef word32 u32;
 typedef unsigned char u8;
 
 /* key constants */
@@ -1591,6 +1590,9 @@ int wc_CamelliaCbcEncrypt(wc_Camellia* cam, byte* out, const byte* in, word32 sz
     if (cam == NULL || out == NULL || in == NULL) {
         return BAD_FUNC_ARG;
     }
+    if (sz % WC_CAMELLIA_BLOCK_SIZE != 0) {
+        return BAD_LENGTH_E;
+    }
     blocks = sz / WC_CAMELLIA_BLOCK_SIZE;
 
     while (blocks--) {
@@ -1612,6 +1614,9 @@ int wc_CamelliaCbcDecrypt(wc_Camellia* cam, byte* out, const byte* in, word32 sz
     word32 blocks;
     if (cam == NULL || out == NULL || in == NULL) {
         return BAD_FUNC_ARG;
+    }
+    if (sz % WC_CAMELLIA_BLOCK_SIZE != 0) {
+        return BAD_LENGTH_E;
     }
     blocks = sz / WC_CAMELLIA_BLOCK_SIZE;
 

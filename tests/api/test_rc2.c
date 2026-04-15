@@ -217,6 +217,12 @@ int test_wc_Rc2CbcEncryptDecrypt(void)
     /* null input buffer */
     ExpectIntEQ(wc_Rc2CbcDecrypt(&rc2, plain, NULL, sizeof(output)),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* non-block-aligned input rejected with BAD_LENGTH_E */
+    ExpectIntEQ(wc_Rc2CbcEncrypt(&rc2, cipher, input, RC2_BLOCK_SIZE - 1),
+        WC_NO_ERR_TRACE(BAD_LENGTH_E));
+    ExpectIntEQ(wc_Rc2CbcDecrypt(&rc2, plain, output, RC2_BLOCK_SIZE - 1),
+        WC_NO_ERR_TRACE(BAD_LENGTH_E));
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_Rc2CbcEncryptDecrypt */
