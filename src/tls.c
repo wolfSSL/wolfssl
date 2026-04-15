@@ -7600,7 +7600,7 @@ static word16 TLSX_CA_Names_GetSize(void* data)
 {
     WOLFSSL* ssl = (WOLFSSL*)data;
     WOLF_STACK_OF(WOLFSSL_X509_NAME)* names;
-    word16 size = 0;
+    word32 size = 0;
 
     /* Length of names */
     size += OPAQUE16_LEN;
@@ -7610,11 +7610,14 @@ static word16 TLSX_CA_Names_GetSize(void* data)
 
         if (name != NULL) {
             /* 16-bit length | SEQ | Len | DER of name */
-            size += (word16)(OPAQUE16_LEN + SetSequence(name->rawLen, seq) +
+            size += (word32)(OPAQUE16_LEN + SetSequence(name->rawLen, seq) +
                              name->rawLen);
+            if (size > WOLFSSL_MAX_16BIT) {
+                return 0;
+            }
         }
     }
-    return size;
+    return (word16)size;
 }
 
 static word16 TLSX_CA_Names_Write(void* data, byte* output)
@@ -15093,9 +15096,16 @@ static int TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType,
     #endif
 
     #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES)
-            case TLSX_CERTIFICATE_AUTHORITIES:
-                length += CAN_GET_SIZE(extension->data);
+            case TLSX_CERTIFICATE_AUTHORITIES: {
+                word16 canSz = CAN_GET_SIZE(extension->data);
+                /* 0 on non-empty list means 16-bit overflow. */
+                if (canSz == 0 && extension->data != NULL) {
+                    ret = LENGTH_ERROR;
+                    break;
+                }
+                length += canSz;
                 break;
+            }
     #endif
 #endif
 #ifdef WOLFSSL_SRTP
