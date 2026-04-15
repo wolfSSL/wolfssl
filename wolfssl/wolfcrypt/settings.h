@@ -4160,7 +4160,7 @@ extern void uITRON4_free(void *p) ;
         (!defined(NO_RSA) && !defined(WC_RSA_BLINDING) && !defined(HAVE_FIPS) && \
             !defined(WC_NO_RNG))
 
-        #ifndef _MSC_VER
+        #if !defined(_MSC_VER) && !defined(__TASKING__)
             #warning "For timing resistance / side-channel attack prevention consider using harden options"
         #else
             #pragma message("Warning: For timing resistance / side-channel attack prevention consider using harden options")
@@ -4511,7 +4511,7 @@ extern void uITRON4_free(void *p) ;
 #if defined(HAVE_SECURE_RENEGOTIATION) && !defined(HAVE_EXTENDED_MASTER) && \
     (defined(HAVE_SESSION_TICKET) || !defined(NO_SESSION_CACHE))
     /* secure renegotiation requires extended master secret with resumption */
-    #ifndef _MSC_VER
+    #if !defined(_MSC_VER) && !defined(__TASKING__)
         #warning Extended master secret must be enabled with secure renegotiation and session resumption
     #else
         #pragma message("Warning: Extended master secret must be enabled with secure renegotiation and session resumption")
