@@ -810,7 +810,7 @@ int se050_rsa_get_key_id(struct RsaKey* key, word32* keyId)
 int se050_rsa_create_key(struct RsaKey* key, int size, long e)
 {
     int             ret = 0;
-    word32          keyId;
+    word32          keyId = 0;
     int             keyCreated = 0;
     sss_status_t    status = kStatus_SSS_Success;
     sss_object_t    keyPair;
@@ -1483,7 +1483,7 @@ int se050_rsa_verify(const byte* in, word32 inLen, byte* out, word32 outLen,
                 keyId = se050_allocate_key(SE050_RSA_KEY);
                 status = sss_key_object_allocate_handle(&newKey, keyId,
                     kSSS_KeyPart_Public, kSSS_CipherType_RSA, keySz,
-                    kKeyObject_Mode_Persistent);
+                    kKeyObject_Mode_Transient);
             }
             if (status == kStatus_SSS_Success) {
                 /* Try to delete existing key first, ignore return since will
@@ -1538,8 +1538,22 @@ int se050_rsa_verify(const byte* in, word32 inLen, byte* out, word32 outLen,
     }
 
     if (status == kStatus_SSS_Success) {
-        key->keyId = keyId;
-        key->keyIdSet = 1;
+        if (keyCreated) {
+            /* We uploaded only the public part of the key for this verify.
+             * Don't persist keyIdSet=1 -- a later sign on the same RsaKey
+             * would reuse this binding and fail because the SE050 object has
+             * no private material. Erase the transient object so the next
+             * SE050 op (sign or verify) re-uploads from whatever the host
+             * RsaKey currently holds. */
+            sss_key_store_erase_key(&host_keystore, &newKey);
+            sss_key_object_free(&newKey);
+        }
+        else {
+            /* Pre-existing keyIdSet=1 binding (e.g. wc_RsaUseKeyId or prior
+             * sign that uploaded a keypair). Preserve it. */
+            key->keyId = keyId;
+            key->keyIdSet = 1;
+        }
     }
     else {
         if (keyCreated) {
@@ -1696,8 +1710,17 @@ int se050_rsa_public_encrypt(const byte* in, word32 inLen, byte* out,
     }
 
     if (status == kStatus_SSS_Success) {
-        key->keyId = keyId;
-        key->keyIdSet = 1;
+        if (keyCreated) {
+            /* Public-key encrypt imported a temporary public object only.
+             * Do not bind that SE050 object to the caller's RsaKey or later
+             * private-key operations will try to reuse a public handle. */
+            sss_key_store_erase_key(&host_keystore, &newKey);
+            sss_key_object_free(&newKey);
+        }
+        else {
+            key->keyId = keyId;
+            key->keyIdSet = 1;
+        }
         ret = encSz;
     }
     else {
@@ -2123,11 +2146,8 @@ int se050_ecc_sign_hash_ex(const byte* in, word32 inLen, MATH_INT_T* r, MATH_INT
 
     algorithm = se050_map_hash_alg(inLen);
     if (algorithm == kAlgorithm_None) {
-        inLen = keySize; /* try key size */
-        algorithm = se050_map_hash_alg(inLen);
-    }
-    if (algorithm == kAlgorithm_None) {
-        return ECC_CURVE_OID_E;
+        WOLFSSL_MSG("SE050 ECDSA sign only supports SHA-1/224/256/384/512 digest sizes");
+        return BAD_LENGTH_E;
     }
 
     if (wolfSSL_CryptHwMutexLock() != 0) {
@@ -2294,11 +2314,8 @@ int se050_ecc_verify_hash_ex(const byte* hash, word32 hashLen, MATH_INT_T* r,
 
     algorithm = se050_map_hash_alg(hashLen);
     if (algorithm == kAlgorithm_None) {
-        hashLen = keySize; /* try key size */
-        algorithm = se050_map_hash_alg(hashLen);
-    }
-    if (algorithm == kAlgorithm_None) {
-        return ECC_CURVE_OID_E;
+        WOLFSSL_MSG("SE050 ECDSA verify only supports SHA-1/224/256/384/512 digest sizes");
+        return BAD_LENGTH_E;
     }
 
     if (wolfSSL_CryptHwMutexLock() != 0) {
@@ -2577,7 +2594,7 @@ int se050_ecc_create_key(struct ecc_key* key, int curve_id, int keySize)
     sss_key_store_t   host_keystore;
     uint8_t           derBuf[SE050_ECC_DER_MAX];
     size_t            derSz = sizeof(derBuf);
-    word32            keyId;
+    word32            keyId = 0;
     int               keySizeBits;
     sss_cipher_type_t curveType;
     int               keyCreated = 0;
@@ -2671,7 +2688,7 @@ int se050_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
     sss_object_t        ref_public_key;
     sss_object_t        deriveKey;
     sss_derive_key_t    ctx_derive_key;
-    word32              keyId;
+    word32              keyId = 0;
     int                 keySize;
     int                 keySizeBits;
     sss_cipher_type_t   curveType;
@@ -3039,6 +3056,12 @@ int se050_ed25519_verify_msg(const byte* signature, word32 signatureLen,
         key, signature, signatureLen, msg, msgLen);
 #endif
 
+    if (signature == NULL || msg == NULL || key == NULL || res == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    *res = 0;
+
     if (cfg_se050_i2c_pi == NULL) {
         return WC_HW_E;
     }
@@ -3099,8 +3122,21 @@ int se050_ed25519_verify_msg(const byte* signature, word32 signatureLen,
     }
 
     if (status == kStatus_SSS_Success) {
-        key->keyId = keyId;
-        key->keyIdSet = 1;
+        if (keyCreated) {
+            /* We uploaded only the public part of the key for this verify.
+             * Don't persist keyIdSet=1 -- a later sign on the same ed25519_key
+             * would reuse this binding and fail because the SE050 object has
+             * no private material. Erase the transient object so the next
+             * SE050 op re-uploads. Mirrors the fix in se050_rsa_verify. */
+            sss_key_store_erase_key(&host_keystore, &newKey);
+            sss_key_object_free(&newKey);
+        }
+        else {
+            /* Pre-existing keyIdSet=1 binding (from prior sign that uploaded
+             * a keypair, or explicit caller setup). Preserve it. */
+            key->keyId = keyId;
+            key->keyIdSet = 1;
+        }
         *res = 1;
         ret = 0;
     }

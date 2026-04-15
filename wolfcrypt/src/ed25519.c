@@ -1169,6 +1169,18 @@ int wc_ed25519_import_public_ex(const byte* in, word32 inLen, ed25519_key* key,
     if (inLen < ED25519_PUB_KEY_SIZE)
         return BAD_FUNC_ARG;
 
+#ifdef WOLFSSL_SE050
+    /* Importing new key material invalidates any prior SE050 object binding;
+     * erase the old object (no-op when keyIdSet == 0) so the host and the
+     * secure element agree on what's bound. Clear the binding fields
+     * explicitly afterwards so a stale keyId never survives, even when
+     * se050_ed25519_free_key() returns early because the SE050 session isn't
+     * configured yet. */
+    se050_ed25519_free_key(key);
+    key->keyId    = 0;
+    key->keyIdSet = 0;
+#endif
+
     /* compressed prefix according to draft
        http://www.ietf.org/id/draft-koch-eddsa-for-openpgp-02.txt */
     if (in[0] == 0x40 && inLen == ED25519_PUB_KEY_SIZE + 1) {
@@ -1255,6 +1267,18 @@ int wc_ed25519_import_private_only(const byte* priv, word32 privSz,
     if (privSz != ED25519_KEY_SIZE)
         return BAD_FUNC_ARG;
 
+#ifdef WOLFSSL_SE050
+    /* Importing new key material invalidates any prior SE050 object binding;
+     * erase the old object (no-op when keyIdSet == 0) so the host and the
+     * secure element agree on what's bound. Clear the binding fields
+     * explicitly afterwards so a stale keyId never survives, even when
+     * se050_ed25519_free_key() returns early because the SE050 session isn't
+     * configured yet. */
+    se050_ed25519_free_key(key);
+    key->keyId    = 0;
+    key->keyIdSet = 0;
+#endif
+
     XMEMCPY(key->k, priv, ED25519_KEY_SIZE);
     key->privKeySet = 1;
 
@@ -1310,6 +1334,21 @@ int wc_ed25519_import_private_key_ex(const byte* priv, word32 privSz,
     else if (pubSz < ED25519_PUB_KEY_SIZE) {
         return BAD_FUNC_ARG;
     }
+
+#ifdef WOLFSSL_SE050
+    /* Importing new key material invalidates any prior SE050 object binding;
+     * erase the old object (no-op when keyIdSet == 0) so the host and the
+     * secure element agree on what's bound. key->k is overwritten before the
+     * wc_ed25519_import_public_ex() call below, so the binding must be
+     * dropped here first in case that function fails its own early-return
+     * argument checks before reaching its reset. Clear the binding fields
+     * explicitly afterwards so a stale keyId never survives, even when
+     * se050_ed25519_free_key() returns early because the SE050 session isn't
+     * configured yet. */
+    se050_ed25519_free_key(key);
+    key->keyId    = 0;
+    key->keyIdSet = 0;
+#endif
 
     XMEMCPY(key->k, priv, ED25519_KEY_SIZE);
     key->privKeySet = 1;
