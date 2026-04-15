@@ -6983,6 +6983,15 @@ int test_wc_AesOfb_MonteCarlo(void)
     return EXPECT_RESULT();
 }
 
+/* Use the strongest compiled-in AES key length for coverage tests. */
+#if !defined(NO_AES_256)
+    #define TEST_AES_COV_KEY_SZ 32
+#elif !defined(NO_AES_192)
+    #define TEST_AES_COV_KEY_SZ 24
+#else
+    #define TEST_AES_COV_KEY_SZ 16
+#endif
+
 int test_wc_AesFeatureCoverage(void)
 {
     EXPECT_DECLS;
@@ -7020,7 +7029,7 @@ int test_wc_AesFeatureCoverage(void)
         if (EXPECT_SUCCESS()) initDone = 1;
 
         /* Encrypt: feed AAD across two updates, then plaintext across three. */
-        ExpectIntEQ(wc_AesGcmEncryptInit(&aes, key, sizeof(key), iv,
+        ExpectIntEQ(wc_AesGcmEncryptInit(&aes, key, TEST_AES_COV_KEY_SZ, iv,
             sizeof(iv)), 0);
         ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, NULL, NULL, 0, aad1,
             sizeof(aad1)), 0);
@@ -7033,7 +7042,7 @@ int test_wc_AesFeatureCoverage(void)
         ExpectIntEQ(wc_AesGcmEncryptFinal(&aes, tag, sizeof(tag)), 0);
 
         /* Decrypt: same chunking, must recover plaintext and tag must match. */
-        ExpectIntEQ(wc_AesGcmDecryptInit(&aes, key, sizeof(key), iv,
+        ExpectIntEQ(wc_AesGcmDecryptInit(&aes, key, TEST_AES_COV_KEY_SZ, iv,
             sizeof(iv)), 0);
         ExpectIntEQ(wc_AesGcmDecryptUpdate(&aes, NULL, NULL, 0, aad1,
             sizeof(aad1)), 0);
@@ -7047,7 +7056,7 @@ int test_wc_AesFeatureCoverage(void)
         ExpectBufEQ(recovered, plain, sizeof(plain));
 
         /* Tampered tag must be rejected. */
-        ExpectIntEQ(wc_AesGcmDecryptInit(&aes, key, sizeof(key), iv,
+        ExpectIntEQ(wc_AesGcmDecryptInit(&aes, key, TEST_AES_COV_KEY_SZ, iv,
             sizeof(iv)), 0);
         ExpectIntEQ(wc_AesGcmDecryptUpdate(&aes, recovered, cipher,
             sizeof(plain), aad1, sizeof(aad1)), 0);
@@ -7260,7 +7269,7 @@ int test_wc_AesRequirementCoverage(void)
 
         ExpectIntEQ(wc_AesInit(&aes, HEAP_HINT, INVALID_DEVID), 0);
         if (EXPECT_SUCCESS()) initAes = 1;
-        ExpectIntEQ(wc_AesGcmSetKey(&aes, key32, sizeof(key32)), 0);
+        ExpectIntEQ(wc_AesGcmSetKey(&aes, key32, TEST_AES_COV_KEY_SZ), 0);
         ExpectIntEQ(wc_AesGcmSetIV(&aes, sizeof(ivOut), ivFixed,
             sizeof(ivFixed), &rng), 0);
         ExpectIntEQ(wc_AesGcmEncrypt_ex(&aes, cipher, msg, sizeof(msg),
@@ -7283,12 +7292,12 @@ int test_wc_AesRequirementCoverage(void)
             0xab,0xad,0xda,0xd2,0x11,0x22,0x33,0x44
         };
         XMEMSET(iv, 0, sizeof(iv));
-        ExpectIntEQ(wc_Gmac(key32, sizeof(key32), iv, sizeof(iv),
+        ExpectIntEQ(wc_Gmac(key32, TEST_AES_COV_KEY_SZ, iv, sizeof(iv),
             aad, sizeof(aad), tag, sizeof(tag), &rng), 0);
-        ExpectIntEQ(wc_GmacVerify(key32, sizeof(key32), iv, sizeof(iv),
+        ExpectIntEQ(wc_GmacVerify(key32, TEST_AES_COV_KEY_SZ, iv, sizeof(iv),
             aad, sizeof(aad), tag, sizeof(tag)), 0);
         tag[0] ^= 0x01;
-        ExpectIntLT(wc_GmacVerify(key32, sizeof(key32), iv, sizeof(iv),
+        ExpectIntLT(wc_GmacVerify(key32, TEST_AES_COV_KEY_SZ, iv, sizeof(iv),
             aad, sizeof(aad), tag, sizeof(tag)), 0);
     }
 #endif /* HAVE_AESGCM */
@@ -7316,7 +7325,7 @@ int test_wc_AesRequirementCoverage(void)
 
         ExpectIntEQ(wc_AesInit(&aes, HEAP_HINT, INVALID_DEVID), 0);
         if (EXPECT_SUCCESS()) initAes = 1;
-        ExpectIntEQ(wc_AesCcmSetKey(&aes, key32, sizeof(key32)), 0);
+        ExpectIntEQ(wc_AesCcmSetKey(&aes, key32, TEST_AES_COV_KEY_SZ), 0);
         ExpectIntEQ(wc_AesCcmSetNonce(&aes, nonce13, sizeof(nonce13)), 0);
         ExpectIntEQ(wc_AesCcmEncrypt_ex(&aes, cipher, msg, sizeof(msg),
             ivOut, sizeof(ivOut), tag, sizeof(tag),
@@ -7426,7 +7435,7 @@ int test_wc_AesBadArgCoverage(void)
     if (EXPECT_SUCCESS()) initRng = 1;
     ExpectIntEQ(wc_AesInit(&aes, HEAP_HINT, INVALID_DEVID), 0);
     if (EXPECT_SUCCESS()) initAes = 1;
-    ExpectIntEQ(wc_AesGcmSetKey(&aes, key32, sizeof(key32)), 0);
+    ExpectIntEQ(wc_AesGcmSetKey(&aes, key32, TEST_AES_COV_KEY_SZ), 0);
 
     /* wc_AesGcmSetIV: valid baseline + one-bad-at-a-time. */
     ExpectIntEQ(wc_AesGcmSetIV(&aes, sizeof(iv), ivFixed, sizeof(ivFixed),
@@ -7468,47 +7477,47 @@ int test_wc_AesBadArgCoverage(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     /* wc_Gmac: valid baseline + NULL-guard leaves. */
-    ExpectIntEQ(wc_Gmac(key32, sizeof(key32), iv, sizeof(iv),
+    ExpectIntEQ(wc_Gmac(key32, TEST_AES_COV_KEY_SZ, iv, sizeof(iv),
         aad, sizeof(aad), tag, sizeof(tag), &rng), 0);
-    ExpectIntEQ(wc_Gmac(NULL, sizeof(key32), iv, sizeof(iv),
+    ExpectIntEQ(wc_Gmac(NULL, TEST_AES_COV_KEY_SZ, iv, sizeof(iv),
         aad, sizeof(aad), tag, sizeof(tag), &rng),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Gmac(key32, sizeof(key32), NULL, sizeof(iv),
+    ExpectIntEQ(wc_Gmac(key32, TEST_AES_COV_KEY_SZ, NULL, sizeof(iv),
         aad, sizeof(aad), tag, sizeof(tag), &rng),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Gmac(key32, sizeof(key32), iv, sizeof(iv),
+    ExpectIntEQ(wc_Gmac(key32, TEST_AES_COV_KEY_SZ, iv, sizeof(iv),
         NULL, sizeof(aad), tag, sizeof(tag), &rng),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Gmac(key32, sizeof(key32), iv, sizeof(iv),
+    ExpectIntEQ(wc_Gmac(key32, TEST_AES_COV_KEY_SZ, iv, sizeof(iv),
         aad, sizeof(aad), NULL, sizeof(tag), &rng),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Gmac(key32, sizeof(key32), iv, sizeof(iv),
+    ExpectIntEQ(wc_Gmac(key32, TEST_AES_COV_KEY_SZ, iv, sizeof(iv),
         aad, sizeof(aad), tag, 0, &rng),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Gmac(key32, sizeof(key32), iv, sizeof(iv),
+    ExpectIntEQ(wc_Gmac(key32, TEST_AES_COV_KEY_SZ, iv, sizeof(iv),
         aad, sizeof(aad), tag, sizeof(tag), NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
 #ifdef HAVE_AES_DECRYPT
     /* wc_GmacVerify: valid baseline + NULL-guard leaves. */
-    ExpectIntEQ(wc_GmacVerify(key32, sizeof(key32), iv, sizeof(iv),
+    ExpectIntEQ(wc_GmacVerify(key32, TEST_AES_COV_KEY_SZ, iv, sizeof(iv),
         aad, sizeof(aad), tag, sizeof(tag)), 0);
-    ExpectIntEQ(wc_GmacVerify(NULL, sizeof(key32), iv, sizeof(iv),
+    ExpectIntEQ(wc_GmacVerify(NULL, TEST_AES_COV_KEY_SZ, iv, sizeof(iv),
         aad, sizeof(aad), tag, sizeof(tag)),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_GmacVerify(key32, sizeof(key32), NULL, sizeof(iv),
+    ExpectIntEQ(wc_GmacVerify(key32, TEST_AES_COV_KEY_SZ, NULL, sizeof(iv),
         aad, sizeof(aad), tag, sizeof(tag)),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_GmacVerify(key32, sizeof(key32), iv, sizeof(iv),
+    ExpectIntEQ(wc_GmacVerify(key32, TEST_AES_COV_KEY_SZ, iv, sizeof(iv),
         NULL, sizeof(aad), tag, sizeof(tag)),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_GmacVerify(key32, sizeof(key32), iv, sizeof(iv),
+    ExpectIntEQ(wc_GmacVerify(key32, TEST_AES_COV_KEY_SZ, iv, sizeof(iv),
         aad, sizeof(aad), NULL, sizeof(tag)),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_GmacVerify(key32, sizeof(key32), iv, sizeof(iv),
+    ExpectIntEQ(wc_GmacVerify(key32, TEST_AES_COV_KEY_SZ, iv, sizeof(iv),
         aad, sizeof(aad), tag, 0),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_GmacVerify(key32, sizeof(key32), iv, sizeof(iv),
+    ExpectIntEQ(wc_GmacVerify(key32, TEST_AES_COV_KEY_SZ, iv, sizeof(iv),
         aad, sizeof(aad), tag, WC_AES_BLOCK_SIZE + 1),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #endif
@@ -7665,7 +7674,7 @@ int test_wc_AesGcmEncryptArgCoverage(void)
 
     ExpectIntEQ(wc_AesInit(&aes, HEAP_HINT, INVALID_DEVID), 0);
     if (EXPECT_SUCCESS()) initAes = 1;
-    ExpectIntEQ(wc_AesGcmSetKey(&aes, key32, sizeof(key32)), 0);
+    ExpectIntEQ(wc_AesGcmSetKey(&aes, key32, TEST_AES_COV_KEY_SZ), 0);
 
     /* Condition 1: aes == NULL */
     ExpectIntEQ(wc_AesGcmEncrypt(NULL, out, in, sizeof(in),
@@ -7751,7 +7760,7 @@ int test_wc_AesGcmExtraArgCoverage(void)
     if (EXPECT_SUCCESS()) initRng = 1;
     ExpectIntEQ(wc_AesInit(&aes, HEAP_HINT, INVALID_DEVID), 0);
     if (EXPECT_SUCCESS()) initAes = 1;
-    ExpectIntEQ(wc_AesGcmSetKey(&aes, key32, sizeof(key32)), 0);
+    ExpectIntEQ(wc_AesGcmSetKey(&aes, key32, TEST_AES_COV_KEY_SZ), 0);
 
     /* --- CheckAesGcmIvSize via wc_AesGcmSetExtIV --- */
     /* GCM_NONCE_MIN_SZ (8) — valid: returns true, all three OR-conds FALSE */
@@ -7786,7 +7795,7 @@ int test_wc_AesGcmExtraArgCoverage(void)
         iv12, sizeof(iv12), authTag, sizeof(authTag), aad, sizeof(aad)), 0);
 
     /* --- wc_Gmac L12775: authIn==NULL with authInSz==0 is valid --- */
-    ExpectIntEQ(wc_Gmac(key32, sizeof(key32), iv12, sizeof(iv12),
+    ExpectIntEQ(wc_Gmac(key32, TEST_AES_COV_KEY_SZ, iv12, sizeof(iv12),
         NULL, 0, authTag, sizeof(authTag), &rng), 0);
 
     /* --- GHASH L8665: drive with aad (aSz != 0 && a != NULL) via decrypt --- */
@@ -7813,7 +7822,7 @@ int test_wc_AesGcmExtraArgCoverage(void)
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
         /* --- wc_GmacVerify L12814: authIn==NULL with authInSz==0 is valid --- */
-        ExpectIntEQ(wc_GmacVerify(key32, sizeof(key32), iv12, sizeof(iv12),
+        ExpectIntEQ(wc_GmacVerify(key32, TEST_AES_COV_KEY_SZ, iv12, sizeof(iv12),
             NULL, 0, authTag, sizeof(authTag)), 0);
     }
 #endif /* HAVE_AES_DECRYPT */
@@ -7897,7 +7906,7 @@ int test_wc_AesGcmResidualCoverage(void)
     if (EXPECT_SUCCESS()) initRng = 1;
     ExpectIntEQ(wc_AesInit(&aes, HEAP_HINT, INVALID_DEVID), 0);
     if (EXPECT_SUCCESS()) initAes = 1;
-    ExpectIntEQ(wc_AesGcmSetKey(&aes, key32, sizeof(key32)), 0);
+    ExpectIntEQ(wc_AesGcmSetKey(&aes, key32, TEST_AES_COV_KEY_SZ), 0);
     /* Set nonceSz to 12 so _ex tests have a consistent reference. */
     ExpectIntEQ(wc_AesGcmSetIV(&aes, GCM_NONCE_MID_SZ, NULL, 0, &rng), 0);
 
