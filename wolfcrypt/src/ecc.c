@@ -7666,6 +7666,11 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
     /* 3.2 c. Set K = 0x00 0x00 ... */
     XMEMSET(K, 0x00, KSz);
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("wc_ecc_gen_deterministic_k K", K, KSz);
+    wc_MemZero_Add("wc_ecc_gen_deterministic_k V", V, VSz);
+#endif
+
     if (ret == 0) {
         ret = mp_init(z1); /* always init z1 and free z1 */
     }
@@ -7808,6 +7813,8 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
     }
 
     ForceZero(x, MAX_ECC_BYTES);
+    ForceZero(K, WC_MAX_DIGEST_SIZE);
+    ForceZero(V, WC_MAX_DIGEST_SIZE);
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(z1, heap, DYNAMIC_TYPE_ECC_BUFFER);
     XFREE(x, heap, DYNAMIC_TYPE_PRIVATE_KEY);
@@ -7816,6 +7823,8 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
     XFREE(h1, heap, DYNAMIC_TYPE_DIGEST);
 #elif defined(WOLFSSL_CHECK_MEM_ZERO)
     wc_MemZero_Check(x, MAX_ECC_BYTES);
+    wc_MemZero_Check(K, WC_MAX_DIGEST_SIZE);
+    wc_MemZero_Check(V, WC_MAX_DIGEST_SIZE);
 #endif
 
     return ret;
