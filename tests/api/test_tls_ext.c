@@ -410,6 +410,69 @@ int test_tls13_hrr_cipher_suite_mismatch(void)
 }
 
 
+/* F-1824: DoClientTicketCheck must reject a PSK whose obfuscated age
+ * falls outside the [-1000, MAX_TICKET_AGE_DIFF*1000+1000] ms window. */
+int test_tls13_ticket_age_out_of_window(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
+        defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+        !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    WOLFSSL_SESSION *session = NULL;
+    byte tmp;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Pump post-handshake reads so the NewSessionTicket reaches the
+     * client. */
+    (void)wolfSSL_read(ssl_c, &tmp, sizeof(tmp));
+    (void)wolfSSL_read(ssl_s, &tmp, sizeof(tmp));
+    (void)wolfSSL_read(ssl_c, &tmp, sizeof(tmp));
+
+    ExpectNotNull(session = wolfSSL_get1_session(ssl_c));
+
+    /* Flip the high bit to push the unobfuscated age out of window. */
+    if (session != NULL)
+        session->ticketAdd ^= 0x80000000U;
+
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    test_memio_clear_buffer(&test_ctx, 0);
+    test_memio_clear_buffer(&test_ctx, 1);
+
+    ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+    ExpectNotNull(ssl_s = wolfSSL_new(ctx_s));
+    wolfSSL_SetIOReadCtx(ssl_c, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_c, &test_ctx);
+    wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_s, &test_ctx);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, session), WOLFSSL_SUCCESS);
+
+    /* PSK rejected, full handshake must still succeed. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_s), 0);
+
+    wolfSSL_SESSION_free(session);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+
 int test_wolfSSL_DisableExtendedMasterSecret(void)
 {
     EXPECT_DECLS;

@@ -37580,6 +37580,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_tls13_null_cipher_bad_hmac),
     TEST_DECL(test_scr_verify_data_mismatch),
     TEST_DECL(test_tls13_hrr_cipher_suite_mismatch),
+    TEST_DECL(test_tls13_ticket_age_out_of_window),
     TEST_DECL(test_wolfSSL_DisableExtendedMasterSecret),
     TEST_DECL(test_certificate_authorities_certificate_request),
     TEST_DECL(test_certificate_authorities_client_hello),
