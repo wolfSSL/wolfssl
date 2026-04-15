@@ -10473,6 +10473,78 @@ static int test_wolfSSL_SCR_check_enabled(void)
     return EXPECT_RESULT();
 }
 
+/* F-2922: wolfSSL_TicketKeyCb must reject a session ticket whose HMAC
+ * does not match its encrypted contents. */
+static int test_wolfSSL_ticket_keycb_bad_hmac(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_TLS12) && \
+        defined(OPENSSL_EXTRA) && defined(HAVE_AES_CBC) && \
+        defined(WOLFSSL_AES_256) && \
+        defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+        !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    WOLFSSL_SESSION *session = NULL;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+
+    ExpectIntEQ(OpenSSLTicketInit(), 0);
+    ExpectIntEQ(wolfSSL_CTX_set_tlsext_ticket_key_cb(ctx_s,
+            myTicketEncCbOpenSSL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSessionTicket(ssl_c), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectNotNull(session = wolfSSL_get1_session(ssl_c));
+    ExpectIntGT(session->ticketLen, 0);
+
+    /* Corrupt a byte of the ticket HMAC so the server's HMAC
+     * verification rejects it. */
+    if (session != NULL && session->ticket != NULL && session->ticketLen > 0)
+        session->ticket[session->ticketLen - 1] ^= 0xFF;
+
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    test_memio_clear_buffer(&test_ctx, 0);
+    test_memio_clear_buffer(&test_ctx, 1);
+
+    ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+    ExpectNotNull(ssl_s = wolfSSL_new(ctx_s));
+    wolfSSL_SetIOReadCtx(ssl_c, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_c, &test_ctx);
+    wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_s, &test_ctx);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, session), WOLFSSL_SUCCESS);
+    /* Disable the process-global session cache lookup on the server so that
+     * the ticket is the only resumption path - with WOLFSSL_TICKET_HAVE_ID
+     * the server could otherwise resume by session ID. */
+    if (ssl_s != NULL)
+        ssl_s->options.sessionCacheOff = 1;
+
+    /* Corrupted ticket bytes fail the HMAC check in
+     * wolfSSL_TicketKeyCb; the session must not resume. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_c), 0);
+
+    wolfSSL_SESSION_free(session);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    OpenSSLTicketCleanup();
+#endif
+    return EXPECT_RESULT();
+}
+
+
 #if !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS) && \
     !defined(NO_FILESYSTEM) && (!defined(NO_RSA) || defined(HAVE_ECC))
 /* Called when writing. */
@@ -37516,6 +37588,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_clear_secure_renegotiation),
     TEST_DECL(test_wolfSSL_SCR_Reconnect),
     TEST_DECL(test_wolfSSL_SCR_check_enabled),
+    TEST_DECL(test_wolfSSL_ticket_keycb_bad_hmac),
     TEST_DECL(test_tls_ext_duplicate),
     TEST_DECL(test_tls_ext_word16_overflow),
     TEST_DECL(test_tls_bad_legacy_version),
