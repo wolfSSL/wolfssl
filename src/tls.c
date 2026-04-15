@@ -11941,14 +11941,22 @@ static int TLSX_PreSharedKey_GetSize(PreSharedKey* list, byte msgType,
 {
     if (msgType == client_hello) {
         /* Length of identities + Length of binders. */
-        word16 len = OPAQUE16_LEN + OPAQUE16_LEN;
+        word32 len = OPAQUE16_LEN + OPAQUE16_LEN;
         while (list != NULL) {
             /* Each entry has: identity, ticket age and binder. */
             len += OPAQUE16_LEN + list->identityLen + OPAQUE32_LEN +
-                   OPAQUE8_LEN + (word16)list->binderLen;
+                   OPAQUE8_LEN + (word32)list->binderLen;
+            if (len > WOLFSSL_MAX_16BIT) {
+                WOLFSSL_ERROR_VERBOSE(LENGTH_ERROR);
+                return LENGTH_ERROR;
+            }
             list = list->next;
         }
-        *pSz += len;
+        if ((word32)*pSz + len > WOLFSSL_MAX_16BIT) {
+            WOLFSSL_ERROR_VERBOSE(LENGTH_ERROR);
+            return LENGTH_ERROR;
+        }
+        *pSz += (word16)len;
         return 0;
     }
 
@@ -11971,7 +11979,7 @@ static int TLSX_PreSharedKey_GetSize(PreSharedKey* list, byte msgType,
 int TLSX_PreSharedKey_GetSizeBinders(PreSharedKey* list, byte msgType,
                                      word16* pSz)
 {
-    word16 len;
+    word32 len;
 
     if (msgType != client_hello) {
         WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
@@ -11981,11 +11989,15 @@ int TLSX_PreSharedKey_GetSizeBinders(PreSharedKey* list, byte msgType,
     /* Length of all binders. */
     len = OPAQUE16_LEN;
     while (list != NULL) {
-        len += OPAQUE8_LEN + (word16)list->binderLen;
+        len += OPAQUE8_LEN + (word32)list->binderLen;
+        if (len > WOLFSSL_MAX_16BIT) {
+            WOLFSSL_ERROR_VERBOSE(LENGTH_ERROR);
+            return LENGTH_ERROR;
+        }
         list = list->next;
     }
 
-    *pSz = len;
+    *pSz = (word16)len;
     return 0;
 }
 
