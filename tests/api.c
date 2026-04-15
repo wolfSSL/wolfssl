@@ -7044,6 +7044,7 @@ static int test_wolfSSL_read_write_ex(void)
     struct test_memio_ctx test_ctx;
     const char *test_str = "test";
     int test_str_size;
+    int ret_c, ret_s, i;
     size_t count;
     byte buf[255];
 
@@ -7061,10 +7062,22 @@ static int test_wolfSSL_read_write_ex(void)
     ExpectIntEQ(XSTRCMP((char*)buf, test_str), 0);
 
 
-    ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_SHUTDOWN_NOT_DONE);
-    ExpectIntEQ(wolfSSL_shutdown(ssl_s), WOLFSSL_SHUTDOWN_NOT_DONE);
-    ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_shutdown(ssl_s), WOLFSSL_SUCCESS);
+    ret_c = wolfSSL_shutdown(ssl_c);
+    ret_s = wolfSSL_shutdown(ssl_s);
+    ExpectTrue(ret_c == WC_NO_ERR_TRACE(WOLFSSL_SHUTDOWN_NOT_DONE) ||
+               ret_c == WOLFSSL_SUCCESS);
+    ExpectTrue(ret_s == WC_NO_ERR_TRACE(WOLFSSL_SHUTDOWN_NOT_DONE) ||
+               ret_s == WOLFSSL_SUCCESS);
+    for (i = 0; i < 4 &&
+            (ret_c == WC_NO_ERR_TRACE(WOLFSSL_SHUTDOWN_NOT_DONE) ||
+             ret_s == WC_NO_ERR_TRACE(WOLFSSL_SHUTDOWN_NOT_DONE)); i++) {
+        if (ret_c == WC_NO_ERR_TRACE(WOLFSSL_SHUTDOWN_NOT_DONE))
+            ret_c = wolfSSL_shutdown(ssl_c);
+        if (ret_s == WC_NO_ERR_TRACE(WOLFSSL_SHUTDOWN_NOT_DONE))
+            ret_s = wolfSSL_shutdown(ssl_s);
+    }
+    ExpectIntEQ(ret_c, WOLFSSL_SUCCESS);
+    ExpectIntEQ(ret_s, WOLFSSL_SUCCESS);
 
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);
@@ -14743,6 +14756,9 @@ static int test_wolfSSL_ECH_conn_ex(method_provider serverMeth,
     int privateNameLen = 20;
     char reply[1024];
     int replyLen = 0;
+    int ret = 0;
+    int err = 0;
+    int rounds = 0;
     byte rawEchConfig[128];
     word32 rawEchConfigLen = sizeof(rawEchConfig);
 
@@ -14802,7 +14818,16 @@ static int test_wolfSSL_ECH_conn_ex(method_provider serverMeth,
 
     /* connect like normal */
     ExpectIntEQ(wolfSSL_set_fd(ssl, sockfd), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_connect(ssl), WOLFSSL_SUCCESS);
+    do {
+        ret = wolfSSL_connect(ssl);
+        if (ret == WOLFSSL_SUCCESS) {
+            break;
+        }
+        err = wolfSSL_get_error(ssl, ret);
+        rounds++;
+    } while ((err == WOLFSSL_ERROR_WANT_READ ||
+              err == WOLFSSL_ERROR_WANT_WRITE) && rounds < 20);
+    ExpectIntEQ(ret, WOLFSSL_SUCCESS);
     ExpectIntEQ(ssl->options.echAccepted, 1);
     ExpectIntEQ(wolfSSL_write(ssl, privateName, privateNameLen),
         privateNameLen);

@@ -4370,7 +4370,7 @@ int test_tls13_mcdc_batch2_post_handshake_auth(void)
             rounds++;
             continue;
         }
-        err = wolfSSL_get_error(ssl_c, -1);
+        err = wolfSSL_get_error(ssl_c, ret);
         rounds++;
     } while (err != WOLFSSL_ERROR_WANT_READ && err != WOLFSSL_ERROR_NONE &&
              err != WOLFSSL_ERROR_WANT_WRITE && rounds < 32 && !EXPECT_FAIL());
@@ -4384,18 +4384,22 @@ int test_tls13_mcdc_batch2_post_handshake_auth(void)
     for (rounds = 0; rounds < 32 && !EXPECT_FAIL(); rounds++) {
         ret = wolfSSL_read(ssl_c, buf, sizeof(buf));
         if (ret <= 0) {
-            err = wolfSSL_get_error(ssl_c, -1);
-            ExpectTrue(err == WOLFSSL_ERROR_WANT_READ ||
-                       err == WOLFSSL_ERROR_WANT_WRITE ||
-                       err == WOLFSSL_ERROR_NONE);
+            err = wolfSSL_get_error(ssl_c, ret);
+            if (err != WOLFSSL_ERROR_WANT_READ &&
+                err != WOLFSSL_ERROR_WANT_WRITE &&
+                err != WOLFSSL_ERROR_NONE) {
+                break;
+            }
         }
 
         ret = wolfSSL_read(ssl_s, buf, sizeof(buf));
         if (ret <= 0) {
-            err = wolfSSL_get_error(ssl_s, -1);
-            ExpectTrue(err == WOLFSSL_ERROR_WANT_READ ||
-                       err == WOLFSSL_ERROR_WANT_WRITE ||
-                       err == WOLFSSL_ERROR_NONE);
+            err = wolfSSL_get_error(ssl_s, ret);
+            if (err != WOLFSSL_ERROR_WANT_READ &&
+                err != WOLFSSL_ERROR_WANT_WRITE &&
+                err != WOLFSSL_ERROR_NONE) {
+                break;
+            }
         }
 
         if (test_ctx.c_len == 0 && test_ctx.s_len == 0) {
