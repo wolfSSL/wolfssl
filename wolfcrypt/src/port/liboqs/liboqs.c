@@ -69,26 +69,39 @@ static void wolfSSL_liboqsGetRandomData(uint8_t* buffer, size_t numOfBytes)
 int wolfSSL_liboqsInit(void)
 {
     int ret = 0;
+    int local_mutex_init = 0;
 
     if (liboqs_init == 0) {
-        ret = wc_InitMutex(&liboqsRNGMutex);
-        if (ret != 0) {
-            return ret;
+        if (!liboqs_mutex_init) {
+            ret = wc_InitMutex(&liboqsRNGMutex);
+            if (ret != 0) {
+                return ret;
+            }
+            liboqs_mutex_init = 1;
+            local_mutex_init = 1;
         }
-        liboqs_mutex_init = 1;
+
         ret = wc_LockMutex(&liboqsRNGMutex);
         if (ret != 0) {
+            if (local_mutex_init) {
+                wc_FreeMutex(&liboqsRNGMutex);
+                liboqs_mutex_init = 0;
+            }
             return ret;
         }
+
         ret = wc_InitRng(&liboqsDefaultRNG);
         if (ret == 0) {
             OQS_init();
+            liboqsCurrentRNG = &liboqsDefaultRNG;
             liboqs_init = 1;
+            OQS_randombytes_custom_algorithm(wolfSSL_liboqsGetRandomData);
         }
-        liboqsCurrentRNG = &liboqsDefaultRNG;
         wc_UnLockMutex(&liboqsRNGMutex);
-
-        OQS_randombytes_custom_algorithm(wolfSSL_liboqsGetRandomData);
+        if (ret != 0 && local_mutex_init) {
+            wc_FreeMutex(&liboqsRNGMutex);
+            liboqs_mutex_init = 0;
+        }
     }
 
     return ret;

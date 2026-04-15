@@ -1715,6 +1715,7 @@ AC_ARG_WITH([liboqs],
             LDFLAGS="$AM_LDFLAGS $liboqs_saved_LDFLAGS -L$tryliboqsdir/lib"
             liboqs_user_cppflags="-I$tryliboqsdir/include"
             liboqs_user_ldflags="-L$tryliboqsdir/lib"
+            liboqs_link_libs="$liboqs_user_ldflags -loqs"
 
             AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <oqs/common.h>]], [[ OQS_init(); ]])], [ liboqs_linked=yes ],[ liboqs_linked=no ])
 
