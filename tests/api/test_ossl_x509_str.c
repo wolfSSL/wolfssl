@@ -1853,7 +1853,7 @@ int test_wolfSSL_CTX_set_cert_store(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_FILESYSTEM) && \
-    !defined(NO_WOLFSSL_CLIENT)
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
     SSL_CTX* ctx = NULL;
     X509_STORE* store = NULL;
     X509* rootCa = NULL;
