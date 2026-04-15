@@ -219,6 +219,71 @@ int test_tls12_chacha20_poly1305_bad_tag(void)
 }
 
 
+#if defined(WOLFSSL_TLS13) && defined(HAVE_NULL_CIPHER) && \
+        defined(BUILD_TLS_SHA256_SHA256) && \
+        defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+static int test_tls13_null_bad_hmac_trigger = 0;
+
+static int test_tls13_null_bad_hmac_io_recv(WOLFSSL* ssl, char* buf, int sz,
+        void* ctx)
+{
+    int ret = test_memio_read_cb(ssl, buf, sz, ctx);
+    /* Tamper with a byte from the encrypted record payload on the first
+     * read that spans past the 5-byte TLS record header, so the HMAC tag
+     * check in Tls13IntegrityOnly_Decrypt no longer matches. */
+    if (test_tls13_null_bad_hmac_trigger && ret > 5) {
+        buf[ret - 1] ^= 0xFF;
+        test_tls13_null_bad_hmac_trigger = 0;
+    }
+    return ret;
+}
+#endif
+
+/* F-2916: TLS 1.3 integrity-only decryption must surface DECRYPT_ERROR
+ * when the HMAC tag is corrupted. */
+int test_tls13_null_cipher_bad_hmac(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_NULL_CIPHER) && \
+        defined(BUILD_TLS_SHA256_SHA256) && \
+        defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    const char msg[] = "integrity only";
+    char recvBuf[32];
+    int ret;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.c_ciphers = test_ctx.s_ciphers = "TLS13-SHA256-SHA256";
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_SSLSetIORecv(ssl_s, test_tls13_null_bad_hmac_io_recv);
+
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)XSTRLEN(msg)),
+            (int)XSTRLEN(msg));
+
+    test_tls13_null_bad_hmac_trigger = 1;
+    ret = wolfSSL_read(ssl_s, recvBuf, sizeof(recvBuf));
+    ExpectIntLE(ret, 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, ret),
+            WC_NO_ERR_TRACE(DECRYPT_ERROR));
+
+    test_tls13_null_bad_hmac_trigger = 0;
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+
 int test_wolfSSL_DisableExtendedMasterSecret(void)
 {
     EXPECT_DECLS;
