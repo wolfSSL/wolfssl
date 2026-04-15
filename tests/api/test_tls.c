@@ -1210,7 +1210,8 @@ int test_tls_tlsx_sni_options_coverage(void)
  *   L5183  (OPAQUE16_LEN > length || length % OPAQUE16_LEN) — bad length
  *   L5190  (offset == length) — empty curve list
  *   L5194  (extension == NULL) — no pre-existing extension: accept anything
- *   L5202  (ret != WOLFSSL_SUCCESS && ret != BAD_FUNC_ARG) — unknown curve ok
+ *   L5202  (ret != WOLFSSL_SUCCESS &&
+ *           ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) — unknown curve ok
  *   L5228  (commonCurves == NULL && !IsAtLeastTLSv1_3) — no intersection TLS12
  *
  * Strategy: use memio handshakes that drive these branches via real
@@ -2737,7 +2738,8 @@ int test_tls_tlsx_parse_guards_coverage(void)
  *   L5183  (OPAQUE16_LEN > length || length % OPAQUE16_LEN) — odd/zero length
  *           sub-case A: length==2 (only the list_len field, list_len==0) => L5190
  *           sub-case B: length==5 (odd) => L5183 true => BUFFER_ERROR
- *   L5202  (ret != WOLFSSL_SUCCESS && ret != BAD_FUNC_ARG) — unknown curve loop
+ *   L5202  (ret != WOLFSSL_SUCCESS &&
+ *           ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) — unknown curve loop
  *           exercised by injecting a CH with a curve ID of 0xffff (unknown)
  *
  * All injections are TLS 1.2 ClientHellos sent to a TLS 1.2 server so that
@@ -3469,7 +3471,7 @@ int test_tls_tlsx_csr_fuzz_coverage(void)
             /* Acceptable outcomes: WANT_READ (waiting for more handshake
              * messages) or a fatal error due to missing client cert / other
              * non-CSR reason.  The critical requirement is L3774 returns 0. */
-            ExpectTrue(ret == WOLFSSL_FATAL_ERROR ||
+            ExpectTrue(ret == WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR) ||
                        err == WOLFSSL_ERROR_WANT_READ);
         }
         wolfSSL_free(ssl_s); ssl_s = NULL;
@@ -3581,7 +3583,7 @@ int test_tls_tlsx_csr_fuzz_coverage(void)
             int err = wolfSSL_get_error(ssl_s, ret);
             /* Accept WANT_READ (waiting for client key exchange) or any
              * non-CSR fatal error. */
-            ExpectTrue(ret == WOLFSSL_FATAL_ERROR ||
+            ExpectTrue(ret == WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR) ||
                        err == WOLFSSL_ERROR_WANT_READ);
         }
         wolfSSL_free(ssl_s); ssl_s = NULL;
@@ -3633,7 +3635,7 @@ int test_tls_tlsx_csr_fuzz_coverage(void)
         {
             int ret = wolfSSL_accept(ssl_s);
             int err = wolfSSL_get_error(ssl_s, ret);
-            ExpectTrue(ret == WOLFSSL_FATAL_ERROR ||
+            ExpectTrue(ret == WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR) ||
                        err == WOLFSSL_ERROR_WANT_READ);
         }
         wolfSSL_free(ssl_s); ssl_s = NULL;

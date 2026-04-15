@@ -27605,7 +27605,7 @@ static int test_CONF_CTX_CMDLINE(void)
     SSL_CONF_CTX_set_ssl_ctx(noCertCtx, ctx);
     SSL_CONF_CTX_set_ssl_ctx(bothCtx, ctx);
     ssl = wolfSSL_new(sslOnlyBaseCtx);
-    if (ssl != NULL) {
+    if (sslOnlyCtx != NULL && ssl != NULL) {
         sslOnlyCtx->ssl = ssl;
     }
 
@@ -27624,7 +27624,7 @@ static int test_CONF_CTX_CMDLINE(void)
     ExpectIntEQ(SSL_CONF_CTX_set_flags(bothCtx, WOLFSSL_CONF_FLAG_CERTIFICATE),
         WOLFSSL_CONF_FLAG_CMDLINE | WOLFSSL_CONF_FLAG_FILE |
         WOLFSSL_CONF_FLAG_CERTIFICATE);
-    if (ssl != NULL) {
+    if (sslOnlyCtx != NULL && ssl != NULL) {
         ExpectIntEQ(SSL_CONF_CTX_set_flags(sslOnlyCtx, WOLFSSL_CONF_FLAG_CMDLINE),
             WOLFSSL_CONF_FLAG_CMDLINE);
         ExpectIntEQ(SSL_CONF_CTX_set_flags(sslOnlyCtx, WOLFSSL_CONF_FLAG_CERTIFICATE),
