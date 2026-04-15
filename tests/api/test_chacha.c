@@ -433,3 +433,187 @@ int test_wc_Chacha_MonteCarlo(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/*******************************************************************************
+ * ChaCha20 counter overflow
+ ******************************************************************************/
+
+/*
+ * Verify that the ChaCha20 block counter (X[12], a 32-bit value) wraps
+ * correctly from 0xFFFFFFFF back to 0x00000000.
+ *
+ * We set the counter to 0xFFFFFFFF and encrypt 65 bytes in a single call,
+ * which requires two 64-byte key-stream blocks.  We then re-encrypt the same
+ * data as two separate calls - 64 bytes at counter=0xFFFFFFFF and 1 byte at
+ * counter=0x00000000 - and confirm the outputs match.
+ */
+int test_wc_Chacha_CounterOverflow(void)
+{
+    EXPECT_DECLS;
+#ifdef HAVE_CHACHA
+    ChaCha enc;
+    static const byte key[CHACHA_MAX_KEY_SZ] = {
+        0x00,0x01,0x02,0x03, 0x04,0x05,0x06,0x07,
+        0x08,0x09,0x0a,0x0b, 0x0c,0x0d,0x0e,0x0f,
+        0x10,0x11,0x12,0x13, 0x14,0x15,0x16,0x17,
+        0x18,0x19,0x1a,0x1b, 0x1c,0x1d,0x1e,0x1f
+    };
+    static const byte nonce[CHACHA_IV_BYTES] = {
+        0x00,0x00,0x00,0x09, 0x00,0x00,0x00,0x4a, 0x00,0x00,0x00,0x00
+    };
+    /* 65 bytes of zeroed plaintext - easy to verify, no KAT needed. */
+    static const byte plain[65] = { 0 };
+    /* combined: single call spanning the 0xFFFFFFFF->0x00000000 boundary */
+    byte cipher_combined[65];
+    /* per-block: block at counter=0xFFFFFFFF (64 bytes) */
+    byte cipher_b0[64];
+    /* per-block: first byte of block at counter=0x00000000 (1 byte) */
+    byte cipher_b1[1];
+
+    XMEMSET(&enc, 0, sizeof(enc));
+
+    /* Encrypt 65 bytes in one shot, starting at counter 0xFFFFFFFF. */
+    ExpectIntEQ(wc_Chacha_SetKey(&enc, key, sizeof(key)), 0);
+    ExpectIntEQ(wc_Chacha_SetIV(&enc, nonce, 0xFFFFFFFFUL), 0);
+    ExpectIntEQ(wc_Chacha_Process(&enc, cipher_combined, plain, 65), 0);
+
+    /* First 64 bytes: key-stream block at counter 0xFFFFFFFF. */
+    ExpectIntEQ(wc_Chacha_SetKey(&enc, key, sizeof(key)), 0);
+    ExpectIntEQ(wc_Chacha_SetIV(&enc, nonce, 0xFFFFFFFFUL), 0);
+    ExpectIntEQ(wc_Chacha_Process(&enc, cipher_b0, plain, 64), 0);
+
+    /* Byte 65: first byte of key-stream block at counter 0x00000000. */
+    ExpectIntEQ(wc_Chacha_SetKey(&enc, key, sizeof(key)), 0);
+    ExpectIntEQ(wc_Chacha_SetIV(&enc, nonce, 0x00000000UL), 0);
+    ExpectIntEQ(wc_Chacha_Process(&enc, cipher_b1, plain + 64, 1), 0);
+
+    /* Combined output must match per-block results. */
+    ExpectBufEQ(cipher_combined,      cipher_b0, 64);
+    ExpectBufEQ(cipher_combined + 64, cipher_b1, 1);
+#endif
+    return EXPECT_RESULT();
+}
+
+/*
+ * Verify that wc_Chacha_Process works correctly when the output buffer is the
+ * same as the input buffer (in-place operation).  ChaCha20 XORs the keystream
+ * onto the input byte-by-byte, so in == out is always safe.
+ */
+int test_wc_Chacha_InPlace(void)
+{
+    EXPECT_DECLS;
+#ifdef HAVE_CHACHA
+    ChaCha enc;
+    static const byte key[CHACHA_MAX_KEY_SZ] = {
+        0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x01
+    };
+    static const byte nonce[CHACHA_IV_BYTES] = {
+        0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x02
+    };
+    /* 67 bytes: spans one full block (64) plus a partial block tail */
+    static const byte plain[67] = {
+        0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00
+    };
+    byte ref_ct[sizeof(plain)];
+    byte buf[sizeof(plain)];
+
+    XMEMSET(&enc, 0, sizeof(enc));
+
+    /* Reference ciphertext with separate in/out buffers */
+    ExpectIntEQ(wc_Chacha_SetKey(&enc, key, sizeof(key)), 0);
+    ExpectIntEQ(wc_Chacha_SetIV(&enc, nonce, 1), 0);
+    ExpectIntEQ(wc_Chacha_Process(&enc, ref_ct, plain, sizeof(plain)), 0);
+
+    /* Encrypt in-place (out == in) - must produce the same ciphertext */
+    XMEMCPY(buf, plain, sizeof(buf));
+    ExpectIntEQ(wc_Chacha_SetKey(&enc, key, sizeof(key)), 0);
+    ExpectIntEQ(wc_Chacha_SetIV(&enc, nonce, 1), 0);
+    ExpectIntEQ(wc_Chacha_Process(&enc, buf, buf, sizeof(buf)), 0);
+    ExpectBufEQ(buf, ref_ct, sizeof(buf));
+
+    /* Decrypt in-place (ChaCha20 is symmetric - apply keystream again) */
+    ExpectIntEQ(wc_Chacha_SetKey(&enc, key, sizeof(key)), 0);
+    ExpectIntEQ(wc_Chacha_SetIV(&enc, nonce, 1), 0);
+    ExpectIntEQ(wc_Chacha_Process(&enc, buf, buf, sizeof(buf)), 0);
+    ExpectBufEQ(buf, plain, sizeof(buf));
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_Chacha_InPlace */
+
+/*
+ * Verify that wc_Chacha_Process produces correct results when both the input
+ * and output buffers are byte-offset (unaligned).  Tests offsets 1, 2, and 3.
+ * A 67-byte plaintext is used (same as InPlace) to exercise both full-block
+ * and partial-block tail paths.
+ */
+int test_wc_Chacha_UnalignedBuffers(void)
+{
+    EXPECT_DECLS;
+#ifdef HAVE_CHACHA
+    ChaCha enc;
+    static const byte key[CHACHA_MAX_KEY_SZ] = {
+        0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x01
+    };
+    static const byte nonce[CHACHA_IV_BYTES] = {
+        0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x02
+    };
+    static const byte plain[67] = {
+        0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00
+    };
+    byte ref_ct[sizeof(plain)];
+    byte in_buf[sizeof(plain) + 3], out_buf[sizeof(plain) + 3];
+    int off;
+
+    XMEMSET(&enc, 0, sizeof(enc));
+
+    /* Reference ciphertext with naturally-aligned buffers */
+    ExpectIntEQ(wc_Chacha_SetKey(&enc, key, sizeof(key)), 0);
+    ExpectIntEQ(wc_Chacha_SetIV(&enc, nonce, 1), 0);
+    ExpectIntEQ(wc_Chacha_Process(&enc, ref_ct, plain, sizeof(plain)), 0);
+
+    /* Encrypt with byte offsets 1, 2, 3 on both in and out */
+    for (off = 1; off <= 3 && EXPECT_SUCCESS(); off++) {
+        XMEMCPY(in_buf + off, plain, sizeof(plain));
+        XMEMSET(out_buf, 0, sizeof(out_buf));
+        ExpectIntEQ(wc_Chacha_SetKey(&enc, key, sizeof(key)), 0);
+        ExpectIntEQ(wc_Chacha_SetIV(&enc, nonce, 1), 0);
+        ExpectIntEQ(wc_Chacha_Process(&enc, out_buf + off, in_buf + off,
+            sizeof(plain)), 0);
+        ExpectBufEQ(out_buf + off, ref_ct, sizeof(plain));
+    }
+
+    /* Decrypt (ChaCha20 is symmetric) */
+    for (off = 1; off <= 3 && EXPECT_SUCCESS(); off++) {
+        XMEMCPY(in_buf + off, ref_ct, sizeof(plain));
+        XMEMSET(out_buf, 0, sizeof(out_buf));
+        ExpectIntEQ(wc_Chacha_SetKey(&enc, key, sizeof(key)), 0);
+        ExpectIntEQ(wc_Chacha_SetIV(&enc, nonce, 1), 0);
+        ExpectIntEQ(wc_Chacha_Process(&enc, out_buf + off, in_buf + off,
+            sizeof(plain)), 0);
+        ExpectBufEQ(out_buf + off, plain, sizeof(plain));
+    }
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_Chacha_UnalignedBuffers */
