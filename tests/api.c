@@ -16007,6 +16007,33 @@ static int test_wolfSSL_set1_sigalgs_list(void)
                     WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
         ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl, "RSA+SHA256+RSA"),
                     WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+
+        {
+            const char entry[] = "RSA+SHA256";
+            const int entryLen = (int)sizeof(entry) - 1;
+            const int entries = WOLFSSL_MAX_SIGALGO + 1;
+            int listSz = entries * (entryLen + 1);
+            char* longList = (char*)XMALLOC(listSz, NULL,
+                DYNAMIC_TYPE_TMP_BUFFER);
+            int i;
+            int pos = 0;
+
+            ExpectNotNull(longList);
+            if (longList != NULL) {
+                for (i = 0; i < entries; i++) {
+                    if (i != 0)
+                        longList[pos++] = ':';
+                    XMEMCPY(longList + pos, entry, entryLen);
+                    pos += entryLen;
+                }
+                longList[pos] = '\0';
+                ExpectIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx, longList),
+                    WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+                ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl, longList),
+                    WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+                XFREE(longList, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            }
+        }
     #endif
 #endif
 #ifdef HAVE_ECC
@@ -35177,7 +35204,6 @@ static int test_pkcs7_padding(void)
     int outSz;
     int ctOff = -1;
     int ctLen = 0;
-    int i;
 
     XMEMSET(key, 0xAA, sizeof(key));
     XMEMSET(plaintext, 'X', sizeof(plaintext));
@@ -35200,32 +35226,10 @@ static int test_pkcs7_padding(void)
         (word32)encodedSz, output, sizeof(output)), (int)sizeof(plaintext));
     wc_PKCS7_Free(&pkcs7);
 
-    /* Find ciphertext block in encoded DER */
-    if (EXPECT_SUCCESS()) {
-        for (i = encodedSz - 10; i > 10; i--) {
-            if (encoded[i] == 0x04 || encoded[i] == 0x80) {
-                int len, lbytes;
-
-                if (encoded[i+1] < 0x80) {
-                    len = encoded[i+1]; lbytes = 1;
-                }
-                else if (encoded[i+1] == 0x81) {
-                    len = encoded[i+2]; lbytes = 2;
-                }
-                else {
-                    continue;
-                }
-                if (len > 0 && len % 16 == 0 &&
-                    i + 1 + lbytes + len <= encodedSz) {
-                    ctOff = i + 1 + lbytes;
-                    ctLen = len;
-                    break;
-                }
-            }
-        }
-    }
-    ExpectIntGT(ctOff, 0);
-    ExpectIntGE(ctLen, 32);
+    /* encryptedContent is the last element in the DER, so it ends at encodedSz;
+     * 27-byte plaintext -> 32-byte AES-256-CBC ciphertext. */
+    ctLen = 32;
+    ctOff = encodedSz - ctLen;
 
     /* Corrupt an interior padding byte via CBC bit-flip */
     if (EXPECT_SUCCESS()) {

@@ -29549,6 +29549,17 @@ int SetSuitesHashSigAlgo(Suites* suites, const char* list)
                     break;
                 }
             }
+            {
+                word32 needed = 2;
+#if defined(WC_RSA_PSS) && defined(WOLFSSL_TLS13)
+                if (sig_alg == rsa_pss_sa_algo)
+                    needed = 4;
+#endif
+                if ((word32)idx + needed > WOLFSSL_MAX_SIGALGO) {
+                    ret = 0;
+                    break;
+                }
+            }
             AddSuiteHashSigAlgo(suites->hashSigAlgo, mac_alg, sig_alg, 0, &idx);
             sig_alg = 0;
             mac_alg = no_mac;
