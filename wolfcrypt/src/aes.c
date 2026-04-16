@@ -13661,10 +13661,12 @@ Aes* wc_AesNew_Label(const char* label, void* heap, int devId,
 
 int wc_AesDelete(Aes *aes, Aes** aes_p)
 {
+    void* heap;
     if (aes == NULL)
         return BAD_FUNC_ARG;
+    heap = aes->heap;
     wc_AesFree(aes);
-    XFREE(aes, aes->heap, DYNAMIC_TYPE_AES);
+    XFREE(aes, heap, DYNAMIC_TYPE_AES);
     if (aes_p != NULL)
         *aes_p = NULL;
     return 0;

@@ -337,10 +337,12 @@ MlKemKey* wc_MlKemKey_New(int type, void* heap, int devId)
 
 int wc_MlKemKey_Delete(MlKemKey* key, MlKemKey** key_p)
 {
+    void* heap;
     if (key == NULL)
         return BAD_FUNC_ARG;
+    heap = key->heap;
     wc_MlKemKey_Free(key);
-    XFREE(key, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(key, heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (key_p != NULL)
         *key_p = NULL;
 
