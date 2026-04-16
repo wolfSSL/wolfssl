@@ -1569,7 +1569,7 @@ enum Misc {
     SEED_LEN     = RAN_LEN * 2, /* tls prf seed length    */
     ID_LEN       = 32,         /* session id length       */
     COOKIE_SECRET_SZ = 14,     /* dtls cookie secret size */
-    MAX_COOKIE_LEN = 32,       /* max dtls cookie size    */
+    MAX_COOKIE_LEN = 255,      /* max dtls cookie size per RFC 6347 (opaque<0..2^8-1>) */
     COOKIE_SZ    = 20,         /* use a 20 byte cookie    */
     SUITE_LEN    =  2,         /* cipher suite sz length  */
     ENUM_LEN     =  1,         /* always a byte           */
