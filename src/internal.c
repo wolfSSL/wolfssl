@@ -25925,7 +25925,7 @@ int SendCertificateStatus(WOLFSSL* ssl)
 
                         if (idx > chain->length)
                             break;
-                        if ((i + 1) >= MAX_CERT_EXTENSIONS) {
+                        if ((i + 1) >= (1 + MAX_CHAIN_DEPTH)) {
                             ret = MAX_CERT_EXTENSIONS_ERR;
                             break;
                         }
