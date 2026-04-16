@@ -15202,13 +15202,15 @@ static int test_wolfSSL_Tls13_ECH_long_SNI(void)
     ExpectIntEQ(wolfSSL_SetEchConfigs(test_ctx.c_ssl, echCbTestConfigs,
         echCbTestConfigsLen), WOLFSSL_SUCCESS);
 
-    /* Set the over-long SNI as the inner hostname */
+    /* Try to set the over-long SNI as the inner hostname -- after the fix, this
+     * is expected to fail.
+     */
     ExpectIntEQ(wolfSSL_UseSNI(test_ctx.c_ssl, WOLFSSL_SNI_HOST_NAME,
-        longName, (word16)XSTRLEN(longName)), WOLFSSL_SUCCESS);
+        longName, (word16)XSTRLEN(longName)), BAD_LENGTH_E);
 
-    /* The handshake triggers TLSX_EchChangeSNI / TLSX_EchRestoreSNI.
-     * Before the fix this would stack-buffer-overflow in XSTRLEN.
-     * The connection may fail (SNI mismatch) but must not crash. */
+    /* Before the fix, the handshake would trigger TLSX_EchChangeSNI /
+     * TLSX_EchRestoreSNI, which would then stack-buffer-overflow in XSTRLEN.
+     */
     (void)test_ssl_memio_do_handshake(&test_ctx, 10, NULL);
 
     test_ssl_memio_cleanup(&test_ctx);
