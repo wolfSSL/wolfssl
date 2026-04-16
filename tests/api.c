@@ -202,6 +202,7 @@
 #include <tests/api/test_hash.h>
 #include <tests/api/test_hmac.h>
 #include <tests/api/test_cmac.h>
+#include <tests/api/test_she.h>
 #include <tests/api/test_des3.h>
 #include <tests/api/test_chacha.h>
 #include <tests/api/test_poly1305.h>
@@ -35682,6 +35683,14 @@ TEST_CASE testCases[] = {
     TEST_HMAC_DECLS,
     /* CMAC */
     TEST_CMAC_DECLS,
+    /* SHE */
+    TEST_SHE_DECLS,
+#ifdef WOLFSSL_SHE_EXTENDED
+    TEST_SHE_EXT_DECLS,
+#endif
+#if defined(WOLF_CRYPTO_CB) && defined(WOLFSSL_SHE)
+    TEST_SHE_CB_DECLS,
+#endif
 
     /* Cipher */
     /* Triple-DES */

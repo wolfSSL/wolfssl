@@ -5945,6 +5945,31 @@ fi
 AS_IF([test "x$ENABLED_CMAC" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CMAC -DWOLFSSL_AES_DIRECT"])
 
+# SHE (Secure Hardware Extension) key update message generation
+# --enable-she=standard: standard SHE support
+# --enable-she=extended: standard + extended overrides (custom KDF/headers)
+AC_ARG_ENABLE([she],
+    [AS_HELP_STRING([--enable-she@<:@=standard|extended@:>@],
+                    [Enable SHE key update support (default: disabled)])],
+    [ ENABLED_SHE=$enableval ],
+    [ ENABLED_SHE=no ]
+    )
+
+if test "x$ENABLED_SHE" = "xstandard" || test "x$ENABLED_SHE" = "xextended"
+then
+    if test "$ENABLED_AESCBC" = "no"
+    then
+        AC_MSG_ERROR([SHE requires AES-CBC. Cannot use --disable-aescbc with --enable-she.])
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHE -DWOLFSSL_CMAC -DWOLFSSL_AES_DIRECT"
+    ENABLED_CMAC=yes
+    ENABLED_AESCBC=yes
+fi
+
+if test "x$ENABLED_SHE" = "xextended"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHE_EXTENDED"
+fi
 
 # AES-XTS
 AC_ARG_ENABLE([aesxts],
@@ -11555,6 +11580,7 @@ AM_CONDITIONAL([BUILD_FIPS_V6],[test $HAVE_FIPS_VERSION = 6])
 AM_CONDITIONAL([BUILD_FIPS_V6_PLUS],[test $HAVE_FIPS_VERSION -ge 6])
 AM_CONDITIONAL([BUILD_SIPHASH],[test "x$ENABLED_SIPHASH" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_CMAC],[test "x$ENABLED_CMAC" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_SHE],[test "x$ENABLED_SHE" = "xstandard" || test "x$ENABLED_SHE" = "xextended" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SELFTEST],[test "x$ENABLED_SELFTEST" = "xyes"])
 AM_CONDITIONAL([BUILD_SHA224],[test "x$ENABLED_SHA224" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SHA3],[test "x$ENABLED_SHA3" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])

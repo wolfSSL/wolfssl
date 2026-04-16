@@ -345,6 +345,9 @@ function(generate_build_flags)
     if(WOLFSSL_HPKE OR WOLFSSL_USER_SETTINGS)
         set(BUILD_HPKE "yes" PARENT_SCOPE)
     endif()
+    if(WOLFSSL_SHE AND NOT WOLFSSL_SHE STREQUAL "no")
+        set(BUILD_SHE "yes" PARENT_SCOPE)
+    endif()
 
     set(BUILD_FLAGS_GENERATED "yes" PARENT_SCOPE)
 endfunction()
@@ -1148,6 +1151,10 @@ function(generate_lib_src_list LIB_SOURCES)
     # Corresponds to wolfcrypt/src/include.am
     if(BUILD_CRYPTOCB)
         list(APPEND LIB_SOURCES wolfcrypt/src/cryptocb.c)
+    endif()
+
+    if(BUILD_SHE)
+        list(APPEND LIB_SOURCES wolfcrypt/src/wc_she.c)
     endif()
 
     if(BUILD_PKCS11)

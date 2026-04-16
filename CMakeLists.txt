@@ -1640,6 +1640,30 @@ if(WOLFSSL_CMAC)
     endif()
 endif()
 
+# SHE (Secure Hardware Extension) key update message generation
+# standard: core SHE support, extended: adds custom KDF/header overrides
+add_option("WOLFSSL_SHE"
+    "Enable SHE key update support (standard|extended|no)"
+    "no" "standard;extended;no")
+
+if(WOLFSSL_SHE STREQUAL "standard" OR WOLFSSL_SHE STREQUAL "extended")
+    if (NOT WOLFSSL_AES)
+        message(FATAL_ERROR "Cannot use SHE without AES.")
+    else()
+        list(APPEND WOLFSSL_DEFINITIONS
+            "-DWOLFSSL_SHE"
+            "-DWOLFSSL_CMAC"
+            "-DWOLFSSL_AES_DIRECT")
+        override_cache(WOLFSSL_CMAC "yes")
+        override_cache(WOLFSSL_AESCBC "yes")
+    endif()
+endif()
+
+if(WOLFSSL_SHE STREQUAL "extended")
+    list(APPEND WOLFSSL_DEFINITIONS
+        "-DWOLFSSL_SHE_EXTENDED")
+endif()
+
 # TODO: - RC2
 #       - FIPS, again (there's more logic for FIPS in configure.ac)
 #       - Selftest
@@ -2816,6 +2840,7 @@ if(WOLFSSL_EXAMPLES)
         tests/api/test_hash.c
         tests/api/test_hmac.c
         tests/api/test_cmac.c
+        tests/api/test_she.c
         tests/api/test_des3.c
         tests/api/test_chacha.c
         tests/api/test_poly1305.c

@@ -159,6 +159,10 @@ if BUILD_CMAC
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/cmac.c
 endif
 
+if BUILD_SHE
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_she.c
+endif
+
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/fips.c \
                              wolfcrypt/src/fips_test.c
 
@@ -424,6 +428,10 @@ if BUILD_CMAC
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/cmac.c
 endif
 
+if BUILD_SHE
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_she.c
+endif
+
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/fips.c \
                              wolfcrypt/src/fips_test.c
 
@@ -675,6 +683,10 @@ endif
 
 if BUILD_CMAC
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/cmac.c
+endif
+
+if BUILD_SHE
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_she.c
 endif
 
 if BUILD_CURVE448
@@ -1008,6 +1020,10 @@ endif !BUILD_FIPS_V2_PLUS
 if !BUILD_FIPS_V2_PLUS
 if BUILD_CMAC
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/cmac.c
+endif
+
+if BUILD_SHE
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_she.c
 endif
 endif !BUILD_FIPS_V2_PLUS
 
