@@ -1431,6 +1431,7 @@ int wc_XmssKey_ExportPub(XmssKey* keyDst, const XmssKey* keySrc)
         keyDst->oid = keySrc->oid;
         keyDst->is_xmssmt = keySrc->is_xmssmt;
         keyDst->params = keySrc->params;
+        keyDst->heap = keySrc->heap;
     }
     if (ret == 0) {
         /* Mark keyDst as verify only, to prevent misuse. */

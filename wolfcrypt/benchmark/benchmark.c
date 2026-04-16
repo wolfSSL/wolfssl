@@ -11539,7 +11539,7 @@ static void bench_lms_keygen(enum wc_LmsParm parm, byte* pub)
         return;
     }
 
-    ret = wc_LmsKey_Init(&key, HEAP_HINT, devId);
+    ret = wc_LmsKey_Init(&key, HEAP_HINT, INVALID_DEVID);
     if (ret) {
         printf("wc_LmsKey_Init failed: %d\n", ret);
         wc_FreeRng(&rng);
@@ -11555,7 +11555,7 @@ static void bench_lms_keygen(enum wc_LmsParm parm, byte* pub)
 
             wc_LmsKey_Free(&key);
 
-            ret = wc_LmsKey_Init(&key, HEAP_HINT, devId);
+            ret = wc_LmsKey_Init(&key, HEAP_HINT, INVALID_DEVID);
             if (ret) {
                 printf("wc_LmsKey_Init failed: %d\n", ret);
                 goto exit_lms_keygen;
@@ -11644,7 +11644,7 @@ static void bench_lms_sign_verify(enum wc_LmsParm parm, byte* pub)
 
     bench_stats_prepare();
 
-    ret = wc_LmsKey_Init(&key, HEAP_HINT, devId);
+    ret = wc_LmsKey_Init(&key, HEAP_HINT, INVALID_DEVID);
     if (ret) {
         printf("wc_LmsKey_Init failed: %d\n", ret);
         goto exit_lms_sign_verify;
@@ -12124,7 +12124,7 @@ static void bench_xmss_sign_verify(const char * params)
 
     freeRng = 1;
 
-    ret = wc_XmssKey_Init(&key, HEAP_HINT, devId);
+    ret = wc_XmssKey_Init(&key, HEAP_HINT, INVALID_DEVID);
     if (ret != 0) {
         printf("wc_XmssKey_Init failed: %d\n", ret);
         goto exit_xmss_sign_verify;
@@ -14217,7 +14217,7 @@ void bench_eccsiKeyGen(void)
     bench_stats_start(&count, &start);
     do {
         for (i = 0; i < genTimes; i++) {
-            wc_InitEccsiKey(genKey, HEAP_HINT, devId);
+            wc_InitEccsiKey(genKey, HEAP_HINT, INVALID_DEVID);
             ret = wc_MakeEccsiKey(genKey, &gRng);
             wc_FreeEccsiKey(genKey);
             if (ret != 0) {
@@ -14262,7 +14262,7 @@ void bench_eccsiPairGen(void)
 
     (void)mp_init(ssk);
     pvt = wc_ecc_new_point();
-    wc_InitEccsiKey(genKey, HEAP_HINT, devId);
+    wc_InitEccsiKey(genKey, HEAP_HINT, INVALID_DEVID);
     (void)wc_MakeEccsiKey(genKey, &gRng);
 
     /* RSK Gen */
@@ -14321,7 +14321,7 @@ void bench_eccsiValidate(void)
 
     (void)mp_init(ssk);
     pvt = wc_ecc_new_point();
-    wc_InitEccsiKey(genKey, HEAP_HINT, devId);
+    wc_InitEccsiKey(genKey, HEAP_HINT, INVALID_DEVID);
     (void)wc_MakeEccsiKey(genKey, &gRng);
     (void)wc_MakeEccsiPair(genKey, &gRng, WC_HASH_TYPE_SHA256, id, sizeof(id),
                            ssk, pvt);
@@ -14386,7 +14386,7 @@ void bench_eccsi(void)
 
     (void)mp_init(ssk);
     pvt = wc_ecc_new_point();
-    (void)wc_InitEccsiKey(genKey, HEAP_HINT, devId);
+    (void)wc_InitEccsiKey(genKey, HEAP_HINT, INVALID_DEVID);
     (void)wc_MakeEccsiKey(genKey, &gRng);
     (void)wc_MakeEccsiPair(genKey, &gRng, WC_HASH_TYPE_SHA256, id, sizeof(id),
                            ssk, pvt);
@@ -14477,7 +14477,7 @@ void bench_sakkeKeyGen(void)
     bench_stats_start(&count, &start);
     do {
         for (i = 0; i < genTimes; i++) {
-            wc_InitSakkeKey_ex(genKey, 128, ECC_SAKKE_1, HEAP_HINT, devId);
+            wc_InitSakkeKey_ex(genKey, 128, ECC_SAKKE_1, HEAP_HINT, INVALID_DEVID);
             ret = wc_MakeSakkeKey(genKey, &gRng);
             if (ret != 0) {
                 printf("wc_MakeSakkeKey failed: %d\n", ret);
@@ -14519,7 +14519,7 @@ void bench_sakkeRskGen(void)
     WC_ALLOC_VAR(genKey, SakkeKey, 1, HEAP_HINT);
 
     rsk = wc_ecc_new_point();
-    wc_InitSakkeKey_ex(genKey, 128, ECC_SAKKE_1, HEAP_HINT, devId);
+    wc_InitSakkeKey_ex(genKey, 128, ECC_SAKKE_1, HEAP_HINT, INVALID_DEVID);
     (void)wc_MakeSakkeKey(genKey, &gRng);
 
     /* RSK Gen */
@@ -14572,7 +14572,7 @@ void bench_sakkeValidate(void)
     WC_ALLOC_VAR(genKey, SakkeKey, 1, HEAP_HINT);
 
     rsk = wc_ecc_new_point();
-    (void)wc_InitSakkeKey_ex(genKey, 128, ECC_SAKKE_1, HEAP_HINT, devId);
+    (void)wc_InitSakkeKey_ex(genKey, 128, ECC_SAKKE_1, HEAP_HINT, INVALID_DEVID);
     (void)wc_MakeSakkeKey(genKey, &gRng);
     (void)wc_MakeSakkeRsk(genKey, id, sizeof(id), rsk);
     (void)wc_ValidateSakkeRsk(genKey, id, sizeof(id), rsk, &valid);
@@ -14636,7 +14636,7 @@ void bench_sakke(void)
     XMEMCPY(ssv, ssv_init, sizeof ssv);
 
     rsk = wc_ecc_new_point();
-    (void)wc_InitSakkeKey_ex(genKey, 128, ECC_SAKKE_1, HEAP_HINT, devId);
+    (void)wc_InitSakkeKey_ex(genKey, 128, ECC_SAKKE_1, HEAP_HINT, INVALID_DEVID);
     (void)wc_MakeSakkeKey(genKey, &gRng);
     (void)wc_MakeSakkeRsk(genKey, id, sizeof(id), rsk);
     (void)wc_SetSakkeRsk(genKey, rsk, NULL, 0);
