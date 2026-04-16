@@ -10376,9 +10376,10 @@ case "$ENABLED_EX_DATA" in
 no) ;;
 yes) AM_CFLAGS="$AM_CFLAGS -DHAVE_EX_DATA"
      ;;
-[[1-9]]|[[1-9]][[0-9]]) AM_CFLAGS="$AM_CFLAGS -DHAVE_EX_DATA -DMAX_EX_DATA=$ENABLED_EX_DATA"
+[[1-9]]|[[1-9]][[0-9]]|[[1-9]][[0-9]][[0-9]]|[[1-9]][[0-9]][[0-9]][[0-9]])
+       AM_CFLAGS="$AM_CFLAGS -DHAVE_EX_DATA -DMAX_EX_DATA=$ENABLED_EX_DATA"
        ;;
-*) AC_MSG_ERROR([Invalid argument to --enable-context-extra-user-data -- must be yes, no, or a number from 1 to 99])
+*) AC_MSG_ERROR([Invalid argument to --enable-context-extra-user-data -- must be yes, no, or a number from 1 to 9999])
    ;;
 esac
 
